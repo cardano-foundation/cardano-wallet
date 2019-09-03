@@ -301,6 +301,7 @@ updateWalletPassphraseViaCLI :: forall t s. (KnownCommand t, HasType Port s) => 
 postTransactionViaCLI :: forall t s. (HasType Port s, KnownCommand t) => s -> String -> [String] -> IO (ExitCode, String, Text)
 postTransactionFeeViaCLI :: forall t s. (HasType Port s, KnownCommand t) => s -> [String] -> IO (ExitCode, String, Text)
 listTransactionsViaCLI :: forall t r s. (CmdResult r, HasType Port s, KnownCommand t) => s -> [String] -> IO r
+postExternalTransactionViaCLI :: forall t r s. (CmdResult r, HasType Port s, KnownCommand t) => s -> [String] -> IO r
 
 module Test.Integration.Framework.TestData
 chineseMnemonics9 :: [Text]
@@ -348,7 +349,8 @@ errMsg404NoRootKey :: Text -> String
 errMsg404NoWallet :: Text -> String
 errMsg403InputsDepleted :: String
 errMsg403TxTooBig :: Int -> String
-errMsg404MalformedTxPayload :: String
+errMsg400MalformedTxPayload :: String
+errMsg400WronglyEncodedTxPayload :: String
 errMsg403ZeroAmtOutput :: String
 errMsg405 :: String
 errMsg406 :: String

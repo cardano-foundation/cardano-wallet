@@ -3373,8 +3373,9 @@ instance Web.Internal.HttpApiData.ToHttpApiData Cardano.Wallet.Api.Types.Iso8601
 instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.ApiErrorCode
 instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.ApiFee
 instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.ApiFee
-instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.PostExternalTransactionData
-instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.PostExternalTransactionData
+instance Data.Text.Class.FromText Cardano.Wallet.Api.Types.PostExternalTransactionData
+instance Servant.API.ContentTypes.MimeUnrender Servant.API.ContentTypes.OctetStream Cardano.Wallet.Api.Types.PostExternalTransactionData
+instance Servant.API.ContentTypes.MimeRender Servant.API.ContentTypes.OctetStream Cardano.Wallet.Api.Types.PostExternalTransactionData
 
 module Cardano.Wallet.Api
 type Api t = Addresses t :<|> Wallets :<|> Transactions t
@@ -3428,7 +3429,7 @@ type ListTransactions t = "wallets" :> Capture "walletId" (ApiT WalletId) :> "tr
 
 -- | 
 --   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/postExternalTransaction</a>
-type PostExternalTransaction = "external-transactions" :> ReqBody '[JSON] PostExternalTransactionData :> PostAccepted '[JSON] ApiTxId
+type PostExternalTransaction = "external-transactions" :> ReqBody '[OctetStream] PostExternalTransactionData :> PostAccepted '[JSON] ApiTxId
 
 -- | Any media type
 data Any
