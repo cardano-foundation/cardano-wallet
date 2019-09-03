@@ -1,5 +1,8 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -38,6 +41,10 @@ module Cardano.Wallet.Jormungandr.Network
 
     -- * Utils
     , baseUrlToText
+
+    -- * Internal state
+    , UnstableBlocks(..)
+    , updateUnstableBlocks
     ) where
 
 import Prelude
@@ -69,17 +76,26 @@ import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
     , Hash (..)
+    , SlotId (..)
     , SlotLength (..)
     , TxWitness (..)
     )
 import Control.Arrow
     ( left )
+import Control.Concurrent.MVar
+    ( MVar, newMVar )
+import Control.Concurrent.MVar.Lifted
+    ( modifyMVar )
+import Control.DeepSeq
+    ( NFData, ($!!) )
 import Control.Exception
     ( Exception )
 import Control.Monad
     ( forM, void )
 import Control.Monad.Catch
     ( throwM )
+import Control.Monad.Trans.Control
+    ( MonadBaseControl )
 import Control.Monad.Trans.Except
     ( ExceptT (..), throwE, withExceptT )
 import Data.Coerce
@@ -90,12 +106,20 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Sequence
+    ( Seq (..), (><) )
+import Data.Tuple.Extra
+    ( thd3 )
+import GHC.Generics
+    ( Generic )
 import Network.HTTP.Client
     ( Manager, defaultManagerSettings, newManager )
 import Network.HTTP.Types.Status
     ( status400 )
+import Numeric.Natural
+    ( Natural )
 import Safe
-    ( tailSafe )
+    ( lastMay, tailSafe )
 import Servant.API
     ( (:<|>) (..) )
 import Servant.Client
@@ -116,6 +140,7 @@ import Servant.Links
 
 import qualified Cardano.Wallet.Jormungandr.Binary as J
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.Sequence as Seq
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
@@ -135,25 +160,22 @@ newNetworkLayer'
     -> IO (JormungandrLayer n IO, NetworkLayer (Jormungandr n) IO)
 newNetworkLayer' url = do
     mgr <- newManager defaultManagerSettings
+    st <- newMVar emptyUnstableBlocks
     let jor = mkJormungandrLayer @n mgr url
-    return (jor, mkNetworkLayer jor)
+    return (jor, mkNetworkLayer st jor)
 
 -- | Wrap a Jormungandr client into a 'NetworkLayer' common interface.
 mkNetworkLayer
-    :: Monad m
-    => JormungandrLayer n m
+    :: MonadBaseControl IO m
+    => MVar UnstableBlocks
+    -> JormungandrLayer n m
     -> NetworkLayer (Jormungandr n) m
-mkNetworkLayer j = NetworkLayer
-    { networkTip = do
-        tip <- (getTipId j) `mappingError`
-            ErrNetworkTipNetworkUnreachable
-        blk@(J.Block blkHeader _) <- (getBlock j tip) `mappingError` \case
-            ErrGetBlockNotFound _ ->
-                ErrNetworkTipNotFound
-            ErrGetBlockNetworkUnreachable e ->
-                ErrNetworkTipNetworkUnreachable e
-        let nodeHeight = Quantity $ fromIntegral $ J.chainLength blkHeader
-        return (header (coerceBlock blk), nodeHeight)
+mkNetworkLayer st j = NetworkLayer
+    { networkTip = modifyMVar st $ \bs -> do
+        bs' <- updateUnstableBlocks k getTipId' getBlockHeader bs
+        ExceptT . pure $ case unstableBlocksTip bs' of
+            Just t -> Right (bs', (t, blockHeight bs'))
+            Nothing -> Left ErrNetworkTipNotFound
 
     , nextBlocks = \tip -> do
         let count = 10000
@@ -171,7 +193,187 @@ mkNetworkLayer j = NetworkLayer
     , postTx = postMessage j
     }
   where
+    getTipId' = (getTipId j) `mappingError`
+        ErrNetworkTipNetworkUnreachable
+    getBlock' t = (getBlock j t) `mappingError` \case
+        ErrGetBlockNotFound _ ->
+            ErrNetworkTipNotFound
+        ErrGetBlockNetworkUnreachable e ->
+            ErrNetworkTipNetworkUnreachable e
+    getBlockHeader t = do
+        blk@(J.Block blkHeader _) <- getBlock' t
+        let nodeHeight = Quantity $ fromIntegral $ J.chainLength blkHeader
+        pure (header (coerceBlock blk), nodeHeight)
+
     mappingError = flip withExceptT
+
+    -- security parameter, hardcoded for now
+    k = 2160
+
+{-------------------------------------------------------------------------------
+                   Managing the global unstable blocks state
+-------------------------------------------------------------------------------}
+
+-- | A list of block headers and their hashes.
+-- The last block in this sequence is the network tip.
+-- The first block in this sequence is the block of depth /k/,
+-- which is the last unstable block.
+data UnstableBlocks = UnstableBlocks
+    { getUnstableBlocks :: !(Seq (Hash "BlockHeader", BlockHeader))
+    -- ^ Double-ended queue of block headers, and their IDs.
+    , blockHeight :: !(Quantity "block" Natural)
+    -- ^ The block height of the tip of the sequence.
+    } deriving stock (Show, Eq, Generic)
+
+instance NFData UnstableBlocks
+
+emptyUnstableBlocks :: UnstableBlocks
+emptyUnstableBlocks = UnstableBlocks mempty (Quantity 0)
+
+-- | Updates the unstable blocks state using the given "fetch" functions.
+--
+-- This attempts to synchronise the local state with that of the node. The node
+-- may be on a different chain to the current unstable blocks, so this function
+-- handles switching of chains.
+--
+-- For example, this is what it would do when the local tip is @a13@, but the
+-- node's tip is @b15@, on a different chain.
+--
+-- @
+--                                    local tip ↴
+--                 ┌───┬───  ───┬───┬───┬───┬───┐
+--  UnstableBlocks │a03│..    ..│a10│a11│a12│a13│
+--                 └───┴───  ───┴───┴───┴───┴───┘
+--                           ───┬───┬───┬───┬───┬───┬───┐
+--  Node backend chain       ...│a10│a11│b12│b13│b14│b15│
+--                           ───┴───┴───┴───┴───┴───┴───┘
+--                       rollback point ⬏     node tip ⬏
+-- @
+--
+-- To start with, the node says the tip hash is @b15@.
+--
+-- Work backwards from tip, fetching blocks and adding them to @ac@, and
+-- removing overlapping blocks from @ubs@. Overlapping blocks occur when there
+-- has been a rollback.
+--
+-- @
+--     ubs                     ac
+-- 1.  ───┬───┬───┬───┬───┐    ┌───┐
+--     ...│a10│a11│a12│a13│    │b15│
+--     ───┴───┴───┴───┴───┘    └───┘
+-- 2.  ───┬───┬───┬───┬───┐┌───┬───┐
+--     ...│a10│a11│a12│a13││b14│b15│
+--     ───┴───┴───┴───┴───┘└───┴───┘
+-- 3.  ───┬───┬───┬───┐┌───┬───┬───┐
+--     ...│a10│a11│a12││b13│b14│b15│
+--     ───┴───┴───┴───┘└───┴───┴───┘
+-- 4.  ───┬───┬───┐┌───┬───┬───┬───┐
+--     ...│a10│a11││b12│b13│b14│b15│
+--     ───┴───┴───┘└───┴───┴───┴───┘
+-- @
+--
+-- Stop once @ubs@ and @ac@ meet with a block which has the same hash.
+-- If they never meet, stop after fetching /k/ blocks.
+--
+-- Finally, to get the new 'UnstableBlocks', append @ac@ to @ubs@, and limit the
+-- length to /k/.
+--
+-- The new block height is the height of the first block that was fetched.
+--
+-- If any errors occur while this process is running (for example, fetching a
+-- block which has been rolled back and lost from the node's state), it will
+-- immediately terminate.
+updateUnstableBlocks
+    :: forall m. Monad m
+    => Natural
+    -- ^ Maximum number of unstable blocks (/k/).
+    -> m (Hash "BlockHeader")
+    -- ^ Fetches tip.
+    -> (Hash "BlockHeader" -> m (BlockHeader, Quantity "block" Natural))
+    -- ^ Fetches block header and its chain height.
+    -> UnstableBlocks
+    -- ^ Current unstable blocks state.
+    -> m UnstableBlocks
+updateUnstableBlocks k getTipId' getBlockHeader lbhs = do
+    t <- getTipId'
+    -- Trace backwards from the tip, accumulating new block headers, and
+    -- removing overlapped unstable block headers.
+    (lbhs', nbhs) <- fetchBackwards lbhs [] 0 t
+    -- The new unstable blocks is the current local blocks up to where they
+    -- meet the blocks fetched starting from the tip, with the fetched
+    -- blocks appended.
+    pure $!! appendUnstableBlocks k lbhs' nbhs
+  where
+    -- | Fetch blocks backwards starting from the given id. If fetched blocks
+    -- overlap the local blocks, the excess local blocks will be dropped.
+    fetchBackwards
+        :: UnstableBlocks
+        -- ^ Current local unstable blocks
+        -> [(Hash "BlockHeader", BlockHeader, Quantity "block" Natural)]
+        -- ^ Accumulator of fetched blocks
+        -> Natural
+        -- ^ Accumulator for number of blocks fetched
+        -> Hash "BlockHeader"
+        -- ^ Starting point for block fetch
+        -> m (UnstableBlocks, [(Hash "BlockHeader", BlockHeader, Quantity "block" Natural)])
+    fetchBackwards ubs ac len t = do
+        (tipHeader, tipHeight) <- getBlockHeader t
+        -- Push the remote block.
+        let ac' = ((t, tipHeader, tipHeight):ac)
+         -- Pop off any overlap.
+        let ubs' = dropStartingFromSlot tipHeader ubs
+        -- If remote blocks have met local blocks, or if more than k have been
+        -- fetched, or we are at the genesis, then stop.
+        -- Otherwise, continue from the parent of the current tip.
+        let intersected = unstableBlocksTipId ubs' == Just (prevBlockHash tipHeader)
+        let bufferFull = len + 1 >= k
+        let atGenesis = slotId tipHeader == SlotId 0 0
+        if intersected || bufferFull || atGenesis
+            then pure (ubs', ac')
+            else fetchBackwards ubs' ac' (len + 1) (prevBlockHash tipHeader)
+
+-- | The tip block header of the unstable blocks, if it exists.
+unstableBlocksTip :: UnstableBlocks -> Maybe BlockHeader
+unstableBlocksTip (UnstableBlocks Empty _) = Nothing
+unstableBlocksTip (UnstableBlocks (_ubs :|> (_, bh)) _) = Just bh
+
+-- | The tip block id of the unstable blocks, if it exists.
+unstableBlocksTipId :: UnstableBlocks -> Maybe (Hash "BlockHeader")
+unstableBlocksTipId (UnstableBlocks Empty _) = Nothing
+unstableBlocksTipId (UnstableBlocks (_ubs :|> (t, _)) _) = Just t
+
+-- | Add recently fetched block headers to the unstable blocks. This will drop
+-- the oldest block headers to ensure that there are at most /k/ items in the
+-- sequence.
+appendUnstableBlocks
+    :: Natural
+    -- ^ Maximum length of sequence.
+    -> UnstableBlocks
+    -- ^ Current unstable block headers, with rolled back blocks removed.
+    -> [(Hash "BlockHeader", BlockHeader, Quantity "block" Natural)]
+    -- ^ Newly fetched block headers to add.
+    -> UnstableBlocks
+appendUnstableBlocks k (UnstableBlocks ubs h) bs =
+    UnstableBlocks (ubs `appendBounded` more) h'
+  where
+    more = Seq.fromList [(a, b) | (a, b, _) <- bs]
+    -- New block height is the height of the new tip block.
+    h' = maybe h thd3 (lastMay bs)
+
+    -- Concatenate sequences, ensuring that the result is no longer than k.
+    appendBounded :: Seq a -> Seq a -> Seq a
+    appendBounded a b = Seq.drop excess (a >< b)
+        where excess = max 0 (Seq.length a + Seq.length b - fromIntegral k)
+
+-- | Remove unstable blocks which have a slot greater than or equal to the given
+-- block header's slot.
+dropStartingFromSlot :: BlockHeader -> UnstableBlocks -> UnstableBlocks
+dropStartingFromSlot bh (UnstableBlocks bs (Quantity h)) =
+    UnstableBlocks bs' (Quantity h')
+  where
+    isAfter = (>= slotId bh) . slotId . snd
+    bs' = Seq.dropWhileR isAfter bs
+    h' = h + fromIntegral (Seq.length bs') - fromIntegral (Seq.length bs)
 
 {-------------------------------------------------------------------------------
                             Jormungandr Client
