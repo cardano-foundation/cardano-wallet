@@ -1685,11 +1685,17 @@ module Cardano.Wallet.Network
 data NetworkLayer t m
 NetworkLayer :: (BlockHeader -> ExceptT ErrGetBlock m [Block (Tx t)]) -> ExceptT ErrNetworkTip m BlockHeader -> ((Tx t, [TxWitness]) -> ExceptT ErrPostTx m ()) -> (ByteString -> ExceptT ErrDecodeExternalTx m (Tx t, [TxWitness])) -> NetworkLayer t m
 
--- | Gets some blocks from the node. It will not necessarily return all the
---   blocks that the node has, but will receive a reasonable-sized chunk.
---   It will never return blocks from before the given slot. It may return
---   an empty list if the node does not have any blocks from after the
---   starting slot.
+-- | Fetches a contiguous sequence of blocks from the node, starting from
+--   the first block available with a slot greater than the given block
+--   header.
+--   
+--   Blocks are returned in ascending slot order, without skipping blocks.
+--   
+--   This function will not necessarily return all blocks available after
+--   the given point in time, but will return a reasonably-sized sequence.
+--   
+--   It may return the empty list if the node does not have any blocks
+--   after the specified starting slot.
 [nextBlocks] :: NetworkLayer t m -> BlockHeader -> ExceptT ErrGetBlock m [Block (Tx t)]
 
 -- | Get the current network tip from the chain producer
@@ -2825,12 +2831,11 @@ WalletLayer :: ((Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletNa
 --   the next tick when noticing that the corresponding wallet is gone.
 [$sel:removeWallet:WalletLayer] :: WalletLayer s t k -> WalletId -> ExceptT ErrNoSuchWallet IO ()
 
--- | Restore a wallet from its current tip up to a given target (typically,
---   the network tip).
+-- | Restore a wallet from its current tip up to the network tip.
 --   
---   It returns immediately and fail if the wallet is already beyond the
---   given tip. It starts a worker in background which will fetch and apply
---   remaining blocks until failure or, the target slot is reached.
+--   This function returns immediately, starting a worker thread in the
+--   background that will fetch and apply remaining blocks until the
+--   network tip is reached or until failure.
 [$sel:restoreWallet:WalletLayer] :: WalletLayer s t k -> DefineTx t => WalletId -> ExceptT ErrNoSuchWallet IO ()
 
 -- | List all addresses of a wallet with their metadata. Addresses are
