@@ -1972,19 +1972,11 @@ updateState :: (IsOurs s, NFData s, Show s) => s -> Wallet s t -> Wallet s t
 --   discovered while applying the block.
 applyBlock :: forall s t. DefineTx t => Block (Tx t) -> Wallet s t -> (Map (Hash "Tx") (Tx t, TxMeta), Wallet s t)
 
--- | Apply multiple blocks in sequence to an existing wallet.
+-- | Apply multiple blocks in sequence to an existing wallet, returning a
+--   list of intermediate wallet states.
 --   
---   Returns a non-empty list of intermediate wallet states where:
---   
---   <ul>
---   <li>the <i>initial element</i> is the original wallet state;</li>
---   <li>each <i>successive element</i> is the result of applying the next
---   available unprocessed block from the original list to the previous
---   element;</li>
---   <li>the <i>final element</i> is the state obtained by applying all
---   blocks from the specified list, in order, to the original wallet
---   state.</li>
---   </ul>
+--   Each intermediate wallet state is paired with the set of transactions
+--   that belong to that state but not the previous state.
 --   
 --   For an original wallet state <b><tt>w</tt></b> and a list of blocks
 --   <b><tt>b</tt></b> such that:
@@ -1996,12 +1988,21 @@ applyBlock :: forall s t. DefineTx t => Block (Tx t) -> Wallet s t -> (Map (Hash
 --   Returns the following list of updates:
 --   
 --   <pre>
---   w :| [w + b1, w + b1 + b2, ..., w + b1 + b2 + ... + bn)]
+--   [ (t b1, w + b1)
+--   , (t b2, w + b1 + b2)
+--   , ...
+--   , (t bn, w + b1 + b2 + ... + bn) ]
 --   </pre>
 --   
---   Where <b><tt>w + bi</tt></b> is equivalent to <a>applyBlock</a>
---   <b><tt>bi w</tt></b>.
-applyBlocks :: forall s t. DefineTx t => [Block (Tx t)] -> Wallet s t -> NonEmpty (Map (Hash "Tx") (Tx t, TxMeta), Wallet s t)
+--   Where:
+--   
+--   <ul>
+--   <li><b><tt>(t bi)</tt></b> is the set of transactions contained within
+--   block <b><tt>bi</tt></b>.</li>
+--   <li><b><tt>(w + bi)</tt></b> is the wallet state after applying block
+--   <b><tt>bi</tt></b> to wallet <b><tt>w</tt></b>.</li>
+--   </ul>
+applyBlocks :: forall s t. DefineTx t => [Block (Tx t)] -> Wallet s t -> [(Map (Hash "Tx") (Tx t, TxMeta), Wallet s t)]
 newPending :: (Tx t, TxMeta) -> Wallet s t -> Wallet s t
 
 -- | Constructs a wallet from the exact given state. Using this function
