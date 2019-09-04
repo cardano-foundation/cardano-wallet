@@ -157,7 +157,7 @@ import Control.Concurrent.MVar
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( forM, unless )
+    ( forM, forM_ )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Class
@@ -172,6 +172,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Coerce
     ( coerce )
+import Data.Foldable
+    ( fold )
 import Data.Functor
     ( ($>) )
 import Data.Generics.Internal.VL.Lens
@@ -183,7 +185,7 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( mapMaybe )
+    ( fromMaybe, mapMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -196,6 +198,8 @@ import Data.Word
     ( Word16 )
 import Fmt
     ( Buildable, blockListF, pretty, (+|), (+||), (|+), (||+) )
+import Safe
+    ( lastMay )
 
 import qualified Cardano.Wallet.DB as DB
 import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
@@ -618,23 +622,23 @@ newWalletLayer tracer bp db nw tl = do
         -> WalletId
         -> (BlockHeader, BlockHeader)
         -> IO ()
-    restoreStep t wid (slot, tip) = do
-        runExceptT (nextBlocks nw slot) >>= \case
+    restoreStep t wid (localTip, nodeTip) = do
+        runExceptT (nextBlocks nw localTip) >>= \case
             Left e -> do
                 logError t $ "Failed to get next blocks: " +|| e ||+ "."
-                restoreSleep t wid slot
+                restoreSleep t wid localTip
             Right [] -> do
                 logDebug t "Wallet restored."
-                restoreSleep t wid slot
+                restoreSleep t wid localTip
             Right (blockFirst : blocksRest) -> do
                 let blocks = blockFirst :| blocksRest
-                let next = view #header . NE.last $ blocks
-                runExceptT (restoreBlocks t wid blocks (tip ^. #slotId)) >>=
+                let nextLocalTip = view #header . NE.last $ blocks
+                runExceptT (restoreBlocks t wid blocks (nodeTip ^. #slotId)) >>=
                     \case
                         Left (ErrNoSuchWallet _) ->
                             logNotice t "Wallet is gone! Terminating worker..."
                         Right () -> do
-                            restoreStep t wid (next, tip)
+                            restoreStep t wid (nextLocalTip, nodeTip)
 
     -- | Wait a short delay before querying for blocks again. We do take this
     -- opportunity to also refresh the chain tip as it has probably increased
@@ -645,7 +649,7 @@ newWalletLayer tracer bp db nw tl = do
         -> WalletId
         -> BlockHeader
         -> IO ()
-    restoreSleep t wid slot = do
+    restoreSleep t wid localTip = do
         -- NOTE: Conversion functions will treat 'NominalDiffTime' as
         -- picoseconds
         let (SlotLength s) = slotLength
@@ -654,9 +658,9 @@ newWalletLayer tracer bp db nw tl = do
         runExceptT (networkTip nw) >>= \case
             Left e -> do
                 logError t $ "Failed to get network tip: " +|| e ||+ ""
-                restoreSleep t wid slot
-            Right tip ->
-                restoreStep t wid (slot, tip)
+                restoreSleep t wid localTip
+            Right nodeTip ->
+                restoreStep t wid (localTip, nodeTip)
 
     -- | Apply the given blocks to the wallet and update the wallet state,
     -- transaction history and corresponding metadata.
@@ -667,12 +671,13 @@ newWalletLayer tracer bp db nw tl = do
         -> NonEmpty (Block (Tx t))
         -> SlotId -- ^ Network tip
         -> ExceptT ErrNoSuchWallet IO ()
-    restoreBlocks t wid blocks tip = do
-        let (inf, sup) =
+    restoreBlocks t wid blocks nodeTip = do
+        let (slotFirst, slotLast) =
                 ( view #slotId . header . NE.head $ blocks
                 , view #slotId . header . NE.last $ blocks
                 )
-        liftIO $ logInfo t $ "Applying blocks ["+| inf |+" ... "+| sup |+"]"
+        liftIO $ logInfo t $
+            "Applying blocks ["+| slotFirst |+" ... "+| slotLast |+"]"
 
         -- NOTE
         -- Not as good as a transaction, but, with the lock, nothing can make
@@ -680,26 +685,43 @@ newWalletLayer tracer bp db nw tl = do
         -- there and they all succeed, or it's not and they all fail.
         DB.withLock db $ do
             (cp, meta) <- _readWallet wid
-            liftIO $ logDebug t $ pretty (NE.toList blocks)
-            let (txs, cp') = NE.last $ applyBlocks @s @t (NE.toList blocks) cp
-            let progress = slotRatio epochLength sup tip
-            let status' = if progress == maxBound
-                    then Ready
-                    else Restoring progress
-            let meta' = meta { status = status' } :: WalletMetadata
-            let nPending = Set.size (getPending cp')
-            liftIO $ logInfo t $ pretty meta'
-            liftIO $ logInfo t $ nPending ||+" transaction(s) pending."
-            liftIO $ logInfo t $
-                length txs ||+ " new transaction(s) discovered."
-            let (Quantity bh) = blockHeight cp'
-            liftIO $ logInfo t $
-                "block height is "+||bh||+""
-            unless (null txs) $ liftIO $ logDebug t $
-                pretty $ blockListF (snd <$> Map.elems txs)
-            DB.putCheckpoint db (PrimaryKey wid) cp'
-            DB.putTxHistory db (PrimaryKey wid) txs
-            DB.putWalletMeta db (PrimaryKey wid) meta'
+
+            let calculateMetadata :: SlotId -> WalletMetadata
+                calculateMetadata slot = meta { status = status' }
+                  where
+                    progress' = slotRatio epochLength slot nodeTip
+                    status' =
+                        if progress' == maxBound
+                        then Ready
+                        else Restoring progress'
+
+            let txs_cps = applyBlocks @s @t (NE.toList blocks) cp
+            let txs = fold $ fst <$> txs_cps
+
+            let cpLast = fromMaybe cp $ lastMay $ snd <$> txs_cps
+            let (Quantity bhLast) = blockHeight cpLast
+
+            liftIO $ do
+                logDebug t $ "blocks: "
+                    <> pretty (NE.toList blocks)
+                logDebug t $ "transactions: "
+                    <> pretty (blockListF (snd <$> Map.elems txs))
+                logInfo t $ "metadata: "
+                    +|| pretty (calculateMetadata slotLast)
+                logInfo t $ "number of pending transactions: "
+                    +|| Set.size (getPending cpLast) ||+ ""
+                logInfo t $ "number of new transactions: "
+                    +|| length txs ||+ ""
+                logInfo t $ "new block height: "
+                    +|| bhLast ||+ ""
+
+            forM_ txs_cps $ \(txs', cp') -> do
+
+                let meta' = calculateMetadata (view #slotId $ currentTip cp')
+
+                DB.putCheckpoint db (PrimaryKey wid) cp'
+                DB.putTxHistory db (PrimaryKey wid) txs'
+                DB.putWalletMeta db (PrimaryKey wid) meta'
 
     {---------------------------------------------------------------------------
                                      Addresses

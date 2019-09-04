@@ -54,10 +54,10 @@ import Control.Monad
     ( foldM )
 import Control.Monad.Trans.State.Strict
     ( State, evalState, runState, state )
-import Data.Bifunctor
-    ( bimap )
+import Data.Foldable
+    ( fold )
 import Data.Maybe
-    ( catMaybes )
+    ( catMaybes, fromMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -66,6 +66,8 @@ import Data.Traversable
     ( for )
 import GHC.Generics
     ( Generic )
+import Safe
+    ( lastMay )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
@@ -162,14 +164,15 @@ prop_applyBlockBasic s =
             (availableBalance wallet === balance utxo') .&&.
             (totalBalance wallet === balance utxo')
 
-
 -- Each transaction must have at least one output belonging to us
 prop_applyBlockTxHistoryIncoming :: WalletState -> Property
 prop_applyBlockTxHistoryIncoming s =
     property (outs (filter isIncoming txs) `overlaps` ourAddresses s')
   where
     cp0 = initWallet @_ @DummyTarget block0 s
-    (txs, s') = bimap Map.elems getState $ NE.last $ applyBlocks blockchain cp0
+    txs_cps = applyBlocks blockchain cp0
+    txs = Map.elems $ fold $ fst <$> txs_cps
+    s' = getState $ fromMaybe cp0 $ lastMay $ snd <$> txs_cps
     isIncoming (_, m) = direction m == Incoming
     outs = Set.fromList . concatMap (map address . outputs . fst)
     overlaps a b
@@ -200,7 +203,7 @@ prop_applyBlocksBlockHeight s (NonNegative n) =
   where
     bs = take n blockchain
     wallet = initWallet @_ @DummyTarget block0 s
-    wallet' = snd $ NE.last $ applyBlocks bs wallet
+    wallet' = fromMaybe wallet $ lastMay $ snd <$> applyBlocks bs wallet
     bh = fromIntegral . unQuantity . blockHeight
     unQuantity (Quantity a) = a
 
