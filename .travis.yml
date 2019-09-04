@@ -206,9 +206,9 @@ jobs:
     - mkdir -p .coverage/jormungandr && find . -name "*.tix" ! -path "*.coverage*" -exec cp \{} .coverage/jormungandr \;
 
     - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-http-bridge:unit
-    - mkdir -p .coverage/unit && find . -name "*.tix" ! -path "*.coverage*" -exec cp \{} .coverage/http-bridge \;
+    - mkdir -p .coverage/http-bridge && find . -name "*.tix" ! -path "*.coverage*" -exec cp \{} .coverage/http-bridge \;
 
-    - tar czf $STACK_WORK_CACHE .stack-work .coverage lib/**/.stack-work lib/**/*.tix
+    - tar czf $STACK_WORK_CACHE .stack-work .coverage lib/**/.stack-work
 
   - stage: integration 🖇️
     if: branch IN (bors/staging, bors/trying)
