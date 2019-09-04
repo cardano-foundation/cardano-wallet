@@ -89,6 +89,8 @@ import Network.HTTP.Client
     ( Manager, defaultManagerSettings, newManager )
 import Network.HTTP.Types.Status
     ( status400 )
+import Safe
+    ( tailSafe )
 import Servant.API
     ( (:<|>) (..) )
 import Servant.Client
@@ -141,7 +143,7 @@ mkNetworkLayer j = NetworkLayer
         -- Get the descendants of the tip's /parent/.
         -- The first descendant is therefore the current tip itself. We need to
         -- skip it. Hence the 'tail'.
-        ids <- tailOrEmpty <$> getDescendantIds j (prevBlockHash tip) count
+        ids <- tailSafe <$> getDescendantIds j (prevBlockHash tip) count
                 `mappingError` \case
             ErrGetDescendantsNetworkUnreachable e ->
                 ErrGetBlockNetworkUnreachable e
@@ -164,9 +166,6 @@ mkNetworkLayer j = NetworkLayer
     }
   where
     mappingError = flip withExceptT
-
-    tailOrEmpty [] = []
-    tailOrEmpty (_:xs) = xs
 
 {-------------------------------------------------------------------------------
                             Jormungandr Client

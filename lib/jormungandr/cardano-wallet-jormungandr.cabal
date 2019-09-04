@@ -49,6 +49,7 @@ library
     , http-client
     , http-types
     , memory
+    , safe
     , servant
     , servant-client
     , servant-client-core

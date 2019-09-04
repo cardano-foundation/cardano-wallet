@@ -38,6 +38,7 @@
           (hsPkgs.http-client)
           (hsPkgs.http-types)
           (hsPkgs.memory)
+          (hsPkgs.safe)
           (hsPkgs.servant)
           (hsPkgs.servant-client)
           (hsPkgs.servant-client-core)
