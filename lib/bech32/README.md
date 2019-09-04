@@ -7,7 +7,7 @@ Basically, it is a checksummed base32 format and a standard for native segregate
 
 See the hello world example below:
 
-```
+``` haskell
 λ import Codec.Binary.Bech32
 λ import Prelude
 λ let (Right hrp) = humanReadablePartFromText "ca"
