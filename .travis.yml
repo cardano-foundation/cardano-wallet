@@ -76,6 +76,7 @@ stages:
 - cache 💾
 - build project 🔨
 - checks 🔬
+- integration 🖇️
 - deploy 🚀
 
 jobs:
@@ -132,19 +133,6 @@ jobs:
     script:
       - stack --no-terminal test --fast cardano-wallet-core cardano-wallet-launcher cardano-wallet-cli text-class bech32 cardano-wallet-http-bridge:unit cardano-wallet-jormungandr:unit
 
-  - stage: checks 🔬
-    if: (type = pull_request OR (branch IN (bors/staging, bors/trying))) AND NOT (commit_message =~ /Travis-CI-Disable/)
-    name: "Tests: integration (http-bridge)"
-    script:
-    - travis_retry curl -L https://github.com/KtorZ/cardano-http-bridge/releases/download/v0.0.5/hermes-testnet.tar.gz | tar xz -C $HOME
-    - stack --no-terminal test --fast cardano-wallet-http-bridge:integration --ta "--skip PR_DISABLED"
-
-  - stage: checks 🔬
-    if: (type = pull_request OR (branch IN (bors/staging, bors/trying))) AND NOT (commit_message =~ /Travis-CI-Disable/)
-    name: "Tests: integration (jormungandr)"
-    script:
-      - stack --no-terminal test --fast cardano-wallet-jormungandr:integration --ta "--skip PR_DISABLED"
-
   ################################################################################
   #
   # Push / Cron / Api
@@ -197,17 +185,6 @@ jobs:
 
   - stage: checks 🔬
     if: (type != pull_request AND branch = master) OR (tag =~ ^v)
-    name: "Tests (http-bridge)"
-    script:
-    - travis_retry curl -L https://github.com/KtorZ/cardano-http-bridge/releases/download/v0.0.5/hermes-testnet.tar.gz | tar xz -C $HOME
-
-    - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-http-bridge --ta "--skip MERGE_DISABLED"
-    - mkdir -p .coverage/http-bridge && find . -name "*.tix" ! -path "*.coverage*" -exec cp \{} .coverage/http-bridge \;
-
-    - tar czf $STACK_WORK_CACHE .stack-work .coverage lib/**/.stack-work lib/**/*.tix
-
-  - stage: checks 🔬
-    if: (type != pull_request AND branch = master) OR (tag =~ ^v)
     name: "Tests"
     script:
     - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-core
@@ -225,7 +202,24 @@ jobs:
     - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage bech32
     - mkdir -p .coverage/bech32 && find . -name "*.tix" ! -path "*.coverage*" -exec cp \{} .coverage/bech32 \;
 
-    - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr --ta "--skip MERGE_DISABLED"
+    - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:unit
+    - mkdir -p .coverage/jormungandr && find . -name "*.tix" ! -path "*.coverage*" -exec cp \{} .coverage/jormungandr \;
+
+    - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-http-bridge:unit
+    - mkdir -p .coverage/unit && find . -name "*.tix" ! -path "*.coverage*" -exec cp \{} .coverage/http-bridge \;
+
+    - tar czf $STACK_WORK_CACHE .stack-work .coverage lib/**/.stack-work lib/**/*.tix
+
+  - stage: integration 🖇️
+    if: (type != pull_request AND branch = master) OR (tag =~ ^v)
+    name: "Integration"
+    script:
+    - travis_retry curl -L https://github.com/KtorZ/cardano-http-bridge/releases/download/v0.0.5/hermes-testnet.tar.gz | tar xz -C $HOME
+
+    - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-http-bridge:integration
+    - mkdir -p .coverage/http-bridge && find . -name "*.tix" ! -path "*.coverage*" -exec cp \{} .coverage/http-bridge \;
+
+    - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration
     - mkdir -p .coverage/jormungandr && find . -name "*.tix" ! -path "*.coverage*" -exec cp \{} .coverage/jormungandr \;
 
     - tar czf $STACK_WORK_CACHE .stack-work .coverage lib/**/.stack-work lib/**/*.tix
