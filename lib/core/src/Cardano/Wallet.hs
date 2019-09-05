@@ -327,9 +327,6 @@ data WalletLayer s t k = WalletLayer
         -> SortOrder
         -> ExceptT ErrListTransactions IO [TransactionInfo]
         -- ^ List all transactions and metadata from history for a given wallet.
-        --
-        -- The result is sorted on 'slotId' in descending order. The most recent
-        -- transaction comes first.
 
     , attachPrivateKey
         :: WalletKey k
