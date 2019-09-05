@@ -13,9 +13,9 @@
 -- Copyright: © 2018-2019 IOHK
 -- License: Apache-2.0
 --
--- Provides the wallet layer functions that are used by API layer and uses both
--- "Cardano.Wallet.DB" and "Cardano.Wallet.Network" to realize its role as being
--- intermediary between the three.
+-- Provides wallet layer functions that are used by API layer. Uses both
+-- "Cardano.Wallet.DB" and "Cardano.Wallet.Network" to realize its role as
+-- being intermediary between the three.
 
 module Cardano.Wallet
     (
@@ -221,7 +221,7 @@ data WalletLayer s t k = WalletLayer
         -> WalletName
         -> s
         -> ExceptT ErrWalletAlreadyExists IO WalletId
-        -- ^ Initialise and store a new wallet, returning its Id.
+        -- ^ Initialise and store a new wallet, returning its ID.
 
     , readWallet
         :: WalletId
@@ -232,23 +232,23 @@ data WalletLayer s t k = WalletLayer
         :: WalletId
         -> (WalletMetadata -> WalletMetadata)
         -> ExceptT ErrNoSuchWallet IO ()
-        -- ^ Update the wallet metadata with the given update function.
+        -- ^ Update a wallet's metadata with the given update function.
 
     , updateWalletPassphrase
         :: WalletKey k
         => WalletId
         -> (Passphrase "encryption-old", Passphrase "encryption-new")
         -> ExceptT ErrUpdatePassphrase IO ()
-        -- ^ Change the wallet passphrase to the given passphrase.
+        -- ^ Change a wallet's passphrase to the given passphrase.
 
     , listWallets
         :: IO [WalletId]
-        -- ^ Retrieve a list of known wallets IDs.
+        -- ^ Retrieve a list of known wallet IDs.
 
     , removeWallet
         :: WalletId
         -> ExceptT ErrNoSuchWallet IO ()
-        -- ^ Remove an existing wallet. Note that, there's no particular work to
+        -- ^ Remove an existing wallet. Note that there's no particular work to
         -- be done regarding the restoration worker as it will simply terminate
         -- on the next tick when noticing that the corresponding wallet is gone.
 
@@ -267,7 +267,7 @@ data WalletLayer s t k = WalletLayer
         => WalletId
         -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]
         -- ^ List all addresses of a wallet with their metadata. Addresses
-        -- are ordered from the most recently discovered to the oldest known.
+        -- are ordered from the most-recently-discovered to the oldest known.
 
     , createUnsignedTx
         :: forall e. (DefineTx t, e ~ ErrValidateSelection t)
@@ -275,9 +275,9 @@ data WalletLayer s t k = WalletLayer
         -> NonEmpty TxOut
         -> ExceptT (ErrCreateUnsignedTx e) IO CoinSelection
         -- ^ Prepare a transaction and automatically select inputs from the
-        -- wallet to cover the requested outputs. Note that this only run the
+        -- wallet to cover the requested outputs. Note that this only runs
         -- coin selection for the given outputs. In order to construct (and
-        -- sign) an actual transaction, have a look at 'signTx'.
+        -- sign) an actual transaction, use 'signTx'.
 
     , estimateTxFee
         :: forall e. (DefineTx t, e ~ ErrValidateSelection t)
@@ -302,8 +302,7 @@ data WalletLayer s t k = WalletLayer
         -- ^ Produce witnesses and construct a transaction from a given
         -- selection. Requires the encryption passphrase in order to decrypt
         -- the root private key. Note that this doesn't broadcast the
-        -- transaction to the network. In order to do so, have a look at
-        -- 'submitTx'.
+        -- transaction to the network. In order to do so, use 'submitTx'.
 
     , submitTx
         :: (DefineTx t)
@@ -315,15 +314,15 @@ data WalletLayer s t k = WalletLayer
     , submitExternalTx
         :: ByteString
         -> ExceptT ErrSubmitExternalTx IO (Tx t)
-        -- ^ Broadcast an externally signed transaction to the network.
+        -- ^ Broadcast an externally-signed transaction to the network.
 
     , listTransactions
         :: DefineTx t
         => WalletId
         -> Maybe UTCTime
-            -- Start time
+            -- ^ Inclusive minimum time bound.
         -> Maybe UTCTime
-            -- End time
+            -- ^ Inclusive maximum time bound.
         -> SortOrder
         -> ExceptT ErrListTransactions IO [TransactionInfo]
         -- ^ List all transactions and metadata from history for a given wallet.
@@ -334,56 +333,57 @@ data WalletLayer s t k = WalletLayer
         -> (k 'RootK XPrv, Passphrase "encryption")
         -> ExceptT ErrNoSuchWallet IO ()
         -- ^ Attach a given private key to a wallet. The private key is
-        -- necessary for some operations like signing transactions or,
+        -- necessary for some operations like signing transactions, or
         -- generating new accounts.
 
     }
 
--- | Errors occuring when creating an unsigned transaction
+-- | Errors that can occur when creating an unsigned transaction.
 data ErrCreateUnsignedTx e
     = ErrCreateUnsignedTxNoSuchWallet ErrNoSuchWallet
     | ErrCreateUnsignedTxCoinSelection (ErrCoinSelection e)
     | ErrCreateUnsignedTxFee ErrAdjustForFee
     deriving (Show, Eq)
 
--- | Errors occuring when estimating transaction fee
+-- | Errors that can occur when estimating transaction fees.
 data ErrEstimateTxFee e
     = ErrEstimateTxFeeNoSuchWallet ErrNoSuchWallet
     | ErrEstimateTxFeeCoinSelection (ErrCoinSelection e)
     deriving (Show, Eq)
 
+-- | Errors that can occur when listing UTxO statistics.
 newtype ErrListUTxOStatistics
     = ErrListUTxOStatisticsNoSuchWallet ErrNoSuchWallet
     deriving (Show, Eq)
 
--- | Errors occuring when signing a transaction
+-- | Errors that can occur when signing a transaction.
 data ErrSignTx
     = ErrSignTx ErrMkStdTx
     | ErrSignTxNoSuchWallet ErrNoSuchWallet
     | ErrSignTxWithRootKey ErrWithRootKey
     deriving (Show, Eq)
 
--- | Errors occuring when submitting a signed transaction to the network
+-- | Errors that can occur when submitting a signed transaction to the network.
 data ErrSubmitTx
     = ErrSubmitTxNetwork ErrPostTx
     | ErrSubmitTxNoSuchWallet ErrNoSuchWallet
     deriving (Show, Eq)
 
 -- | Errors that can occur when submitting an externally-signed transaction
--- to network.
+--   to the network.
 data ErrSubmitExternalTx
     = ErrSubmitExternalTxNetwork ErrPostTx
     | ErrSubmitExternalTxDecode ErrDecodeExternalTx
     deriving (Show, Eq)
 
--- | Errors occuring when trying to change a wallet's passphrase
+-- | Errors that can occur when trying to change a wallet's passphrase.
 data ErrUpdatePassphrase
     = ErrUpdatePassphraseNoSuchWallet ErrNoSuchWallet
     | ErrUpdatePassphraseWithRootKey ErrWithRootKey
     deriving (Show, Eq)
 
--- | Errors occuring when trying to perform an operation on a wallet which
--- requires a private key, but none is attached to the wallet
+-- | Errors that can occur when trying to perform an operation on a wallet that
+-- requires a private key, but where none is attached to the wallet.
 data ErrWithRootKey
     = ErrWithRootKeyNoRootKey WalletId
     | ErrWithRootKeyWrongPassphrase WalletId ErrWrongPassphrase
@@ -435,17 +435,17 @@ cancelWorker (WorkerRegistry mvar) wid =
 
 data BlockchainParameters t = BlockchainParameters
     { getGenesisBlock :: Block (Tx t)
-        -- ^ Very first block
+        -- ^ Very first block.
     , getGenesisBlockDate :: StartTime
-        -- ^ Start time of the chain
+        -- ^ Start time of the chain.
     , getFeePolicy :: FeePolicy
-        -- ^ Policy regarding transcation fee
+        -- ^ Policy regarding transaction fee.
     , getSlotLength :: SlotLength
-        -- ^ Length, in seconds, of a slot
+        -- ^ Length, in seconds, of a slot.
     , getEpochLength :: EpochLength
-        -- ^ Number of slots in a single epoch
+        -- ^ Number of slots in a single epoch.
     , getTxMaxSize :: Quantity "byte" Word16
-        -- ^ Maximum size of a transaction (soft or hard limit)
+        -- ^ Maximum size of a transaction (soft or hard limit).
     }
 
 getSlotParameters :: BlockchainParameters t -> SlotParameters
@@ -637,9 +637,9 @@ newWalletLayer tracer bp db nw tl = do
                         Right () -> do
                             restoreStep t wid (nextLocalTip, nodeTip)
 
-    -- | Wait a short delay before querying for blocks again. We do take this
-    -- opportunity to also refresh the chain tip as it has probably increased
-    -- in order to refine our syncing status.
+    -- | Wait a short delay before querying for blocks again. We also take this
+    -- opportunity to refresh the chain tip as it has probably increased in
+    -- order to refine our syncing status.
     restoreSleep
         :: (DefineTx t)
         => Trace IO Text
@@ -676,7 +676,7 @@ newWalletLayer tracer bp db nw tl = do
         liftIO $ logInfo t $
             "Applying blocks ["+| slotFirst |+" ... "+| slotLast |+"]"
 
-        -- NOTE
+        -- NOTE:
         -- Not as good as a transaction, but, with the lock, nothing can make
         -- the wallet disappear within these calls, so either the wallet is
         -- there and they all succeed, or it's not and they all fail.
@@ -724,8 +724,8 @@ newWalletLayer tracer bp db nw tl = do
                                      Addresses
     ---------------------------------------------------------------------------}
 
-    -- NOTE
-    -- This implementation is rather inneficient and not intented for frequent
+    -- NOTE:
+    -- This implementation is rather inefficient and not intended for frequent
     -- use, in particular for exchanges or "big-players".
     _listAddresses
         :: (IsOurs s, CompareDiscovery s, KnownAddresses s, DefineTx t)
@@ -848,15 +848,15 @@ newWalletLayer tracer bp db nw tl = do
             txOuts = Map.fromList
                 [ (txid, W.outputs @t tx)
                 | (txid, (tx, _)) <- txs ]
-            -- Because we only track UTxO of this wallet, we can only return
-            -- this information for outgoing payments.
+            -- Because we only track the UTxO of this wallet, we can only
+            -- return this information for outgoing payments.
             lookupOutput (TxIn txid index) =
                 Map.lookup txid txOuts >>= atIndex (fromIntegral index)
             atIndex i xs = if i < length xs then Just (xs !! i) else Nothing
-            -- Get the approximate time of a transaction, given its 'SlotId'. We
-            -- assume that the transaction "happens" at the start of the
+            -- Get the approximate time of a transaction, given its 'SlotId'.
+            -- We assume that the transaction "happens" at the start of the
             -- slot. This is purely arbitrary and in practice, any time between
-            -- the start of a slot and the end could be a validate candidate.
+            -- the start of a slot and its end could be a valid candidate.
             txTime = slotStartTime sp
 
     _signTx
@@ -930,7 +930,7 @@ newWalletLayer tracer bp db nw tl = do
                     x { passphraseInfo = Just (WalletPassphraseInfo now) }
             DB.putWalletMeta db (PrimaryKey wid) (modify meta)
 
-    -- | Execute an action which requires holding a root XPrv
+    -- | Execute an action which requires holding a root XPrv.
     withRootKey
         :: forall e a. ()
         => WalletId
