@@ -14,10 +14,6 @@ module Test.Integration.Jormungandr.Scenario.API.Transactions
 
 import Prelude
 
-import Data.Proxy
-    ( Proxy (..) )
-import Cardano.Wallet.Primitive.Types
-    ( encodeAddress )
 import Cardano.Faucet
     ( block0H )
 import Cardano.Wallet.Api.Types
@@ -51,6 +47,7 @@ import Cardano.Wallet.Primitive.Types
     , TxIn (..)
     , TxOut (..)
     , TxWitness
+    , encodeAddress
     )
 import Cardano.Wallet.Transaction
     ( TransactionLayer (..) )
@@ -60,6 +57,8 @@ import Data.ByteArray.Encoding
     ( Base (Base16, Base64), convertFromBase, convertToBase )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -92,16 +91,24 @@ import Test.Integration.Framework.DSL
     , json
     , listAddresses
     , listAllTransactions
-    , prepExternalTx
     , postExternalTxEp
     , postTxEp
     , postTxFeeEp
+    , prepExternalTxViaJcli
     , request
     , verify
     , walletName
     )
+import Test.Integration.Framework.Request
+    ( RequestException )
 import Test.Integration.Framework.TestData
-    ( errMsg400MalformedTxPayload, errMsg403TxTooBig, mnemonics15 )
+    ( errMsg400MalformedTxPayload
+    , errMsg403TxTooBig
+    , errMsg405
+    , errMsg406
+    , errMsg415
+    , mnemonics15
+    )
 
 import qualified Cardano.Wallet.Api.Types as API
 import qualified Data.ByteArray as BA
@@ -109,32 +116,10 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
 import qualified Data.Text.Encoding as T
-import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall t. (EncodeAddress t, DecodeAddress t) => SpecWith (Context t)
 spec = do
-
-    it "TRANS_EXTERNAL_CREATE_00" $ \ctx -> do
-        w <- emptyWallet ctx
-        addr:_ <- listAddresses ctx w
-        let addrStr =
-                T.unpack $ encodeAddress (Proxy @t) (getApiT $ fst $ addr ^. #id)
-        let amt = 1000
-
-        txBlob <- prepExternalTx addrStr amt
-
-        let payload = Json [json|{
-                "payload": #{txBlob}
-            }|]
-        r <- request @ApiTxId ctx postExternalTxEp Default payload
-        verify r
-            [ expectResponseCode HTTP.status404
-            , expectErrorMessage "asdasd"
-            ]
-
-        expectEventually' ctx balanceAvailable amt w
-        expectEventually' ctx balanceTotal amt w
 
     it "TRANS_CREATE_09 - 0 amount transaction is accepted on single output tx" $ \ctx -> do
         (wSrc, payload) <- fixtureZeroAmtSingle ctx
@@ -201,6 +186,26 @@ spec = do
              , expectErrorMessage (errMsg403TxTooBig errInps)
              ]
 
+    it "TRANS_EXTERNAL_CREATE_01x - \
+        \single output tx signed via jcli" $ \ctx -> do
+
+        w <- emptyWallet ctx
+        addr:_ <- listAddresses ctx w
+        let addrStr = encodeAddress (Proxy @t) (getApiT $ fst $ addr ^. #id)
+        let amt = 1234
+
+        txBlob <- prepExternalTxViaJcli addrStr amt
+        let payload = (NonJson . BL.fromStrict . toRawBytes Base16) txBlob
+        let headers = Headers
+                        [ ("Content-Type", "application/octet-stream")
+                        , ("Accept", "application/json")]
+
+        request @ApiTxId ctx postExternalTxEp headers payload
+         >>= expectResponseCode HTTP.status202
+
+        expectEventually' ctx balanceAvailable amt w
+        expectEventually' ctx balanceTotal amt w
+
     it "TRANS_EXTERNAL_CREATE_01 - proper single output transaction and \
        \proper binary format" $ \ctx -> do
         let toSend = 1 :: Natural
@@ -258,8 +263,79 @@ spec = do
             , expectResponseCode HTTP.status400
             ]
 
+    it "TRANS_EXTERNAL_CREATE_03 - empty payload" $ \ctx -> do
+        _ <- emptyWallet ctx
+        let headers = Headers [ ("Content-Type", "application/octet-stream") ]
+        r <- request @ApiTxId ctx postExternalTxEp headers Empty
+        verify r
+            [ expectErrorMessage errMsg400MalformedTxPayload
+            , expectResponseCode HTTP.status400
+            ]
+
+    describe "TRANS_EXTERNAL_CREATE_04 - \
+        \v2/external-transactions - Methods Not Allowed" $ do
+
+        let matrix = ["PUT", "DELETE", "CONNECT", "TRACE", "OPTIONS", "GET"]
+        forM_ matrix $ \method -> it (show method) $ \ctx -> do
+            w <- emptyWallet ctx
+            addr:_ <- listAddresses ctx w
+            let addrStr = encodeAddress (Proxy @t) (getApiT $ fst $ addr ^. #id)
+
+            txBlob <- prepExternalTxViaJcli addrStr 1
+            let payload = (NonJson . BL.fromStrict . toRawBytes Base16) txBlob
+            let headers = Headers [ ("Content-Type", "application/octet-stream") ]
+
+            let endpoint = "v2/external-transactions"
+            r <- request @ApiTxId ctx (method, endpoint) headers payload
+            expectResponseCode @IO HTTP.status405 r
+            expectErrorMessage errMsg405 r
+
+    describe "TRANS_EXTERNAL_CREATE_04 - HTTP headers" $ do
+        forM_ (externalTxHeaders @ApiTxId)
+            $ \(title, headers, expectations)
+            -> it title $ \ctx -> do
+
+            w <- emptyWallet ctx
+            addr:_ <- listAddresses ctx w
+            let addrStr = encodeAddress (Proxy @t) (getApiT $ fst $ addr ^. #id)
+
+            txBlob <- prepExternalTxViaJcli addrStr 1
+            let payload = (NonJson . BL.fromStrict . toRawBytes Base16) txBlob
+
+            r <- request @ApiTxId ctx postExternalTxEp headers payload
+            verify r expectations
+
   where
 
+    externalTxHeaders
+        :: (Show a)
+        => [( String
+            , Headers
+            , [(HTTP.Status, Either RequestException a) -> IO ()])
+           ]
+    externalTxHeaders =
+        [
+        -- ( "No HTTP headers -> 415"
+        --   , None
+        --   , [ expectResponseCode @IO HTTP.status202 ]
+        -- )
+          ( "Accept: text/plain -> 406"
+          , Headers [ ("Content-Type", "application/octet-stream")
+                    , ("Accept", "text/plain") ]
+          , [ expectResponseCode @IO HTTP.status406
+            , expectErrorMessage errMsg406 ]
+        )
+        , ( "Content-Type: application/json -> 415"
+          , Headers [ ("Content-Type", "application/json") ]
+          , [ expectResponseCode @IO HTTP.status415
+            , expectErrorMessage errMsg415 ]
+        )
+        , ( "Content-Type: application/json -> 415"
+          , Headers [ ("Content-Type", "text/plain") ]
+          , [ expectResponseCode @IO HTTP.status415
+            , expectErrorMessage errMsg415 ]
+        )
+        ]
     fixtureZeroAmtSingle ctx = do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx

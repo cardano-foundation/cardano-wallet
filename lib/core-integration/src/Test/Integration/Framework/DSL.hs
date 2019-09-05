@@ -72,6 +72,7 @@ module Test.Integration.Framework.DSL
     , emptyWalletWith
     , getFromResponse
     , getFromResponseList
+    , getJormungandrBlock0H
     , json
     , listAddresses
     , listTransactions
@@ -89,7 +90,7 @@ module Test.Integration.Framework.DSL
     , for
     , toQueryString
     , utcIso8601ToText
-    , prepExternalTx
+    , prepExternalTxViaJcli
 
     -- * Endpoints
     , getWalletEp
@@ -121,8 +122,6 @@ module Test.Integration.Framework.DSL
     , postExternalTransactionViaCLI
     ) where
 
-import System.IO.Temp
-    ( withSystemTempDirectory )
 import Cardano.Wallet.Api.Types
     ( AddressAmount
     , ApiAddress
@@ -201,7 +200,7 @@ import Data.Generics.Product.Fields
 import Data.Generics.Product.Typed
     ( HasType, typed )
 import Data.List
-    ( (!!) )
+    ( elemIndex, (!!) )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Maybe
@@ -242,6 +241,8 @@ import System.Exit
     ( ExitCode (..) )
 import System.IO
     ( BufferMode (..), Handle, hClose, hFlush, hPutStr, hSetBuffering )
+import System.IO.Temp
+    ( withSystemTempDirectory )
 import System.Process
     ( CreateProcess (..)
     , ProcessHandle
@@ -1332,23 +1333,45 @@ for = flip map
 withTempDir :: (FilePath -> IO a) -> IO a
 withTempDir = withSystemTempDirectory "external-tx"
 
--- | Prepare externally signed Tx for Jormungandr
-prepExternalTx :: String -> Natural -> IO String
-prepExternalTx addrStr amt = do
-    withTempDir $ \d -> do
-        let sk = "ed25519e_sk1nzj5fp353c0ytdxc48q03f0elvr6ku2rl0l84qvxzcr64tfk8e8ymqtezqta5afnyfql05j9pfejt0pcqfcd5ygvmnrnwatp27cd35cydk9ng"
-        let keyFile = d <> "/key.prv"
-        writeFile keyFile sk
+getJormungandrBlock0H :: IO String
+getJormungandrBlock0H = do
+    let block0File = "./test/data/jormungandr/block0.bin"
+    Stdout block0H <- runJcli ["genesis", "hash", "--input", block0File]
+    return (T.unpack . T.strip . T.pack $ block0H)
 
-        let inputFunds = "100000000000"
-        let inputIndex = "0"
-        let inputTxId = "d6aeaab790f9738e8098b4a9295e937905fab784b12e02554f381430bc204898"
+-- | Prepare externally signed Tx for Jormungandr
+prepExternalTxViaJcli :: Text -> Natural -> IO Text
+prepExternalTxViaJcli addrStr amt = do
+    withTempDir $ \d -> do
+        let strip = T.unpack . T.strip . T.pack
         let txFile = d <> "/trans.tx"
         let witnessFile = d <> "/witness"
-        let block0Path = "./test/data/jormungandr/block0.bin"
+        let keyFile = "./test/data/jormungandr/key.prv"
+        let faucetAddr =
+                    "ca1swl53wlqt5dnl63e0gnf8vpazgt6g5mq384dmz72329eh4m8z7e5un8q6lg"
 
+        -- get inputFunds, inputIndex and inputTxId associated with faucetAddr
+        -- from Jormungandr utxo
+        Stdout u <- runJcli
+                        [ "rest", "v0", "utxo", "get"
+                        , "-h", "http://127.0.0.1:8080/api" ]
+
+        let utxo = (T.splitOn "\n" (T.pack u) )
+        let (Just i) =
+                    elemIndex ( "- address: " ++ faucetAddr ) (T.unpack <$> utxo)
+        let inputFunds =
+                    T.unpack $
+                        T.replace "  associated_fund: " "" (utxo !! (i + 1))
+        let inputIndex =
+                    T.unpack $
+                        T.replace "  index_in_transaction: " "" (utxo !! (i + 2))
+        let inputTxId =
+                    T.unpack $
+                        T.replace "  transaction_id: " "" (utxo !! (i + 3))
+
+        -- prepare tx using `jcli`
         runJcli ["transaction", "new", "--staging", txFile ]
-            >>= ( \c1 -> c1 `shouldBe` ExitSuccess)
+            >>= (`shouldBe` ExitSuccess)
         runJcli
             [ "transaction"
             , "add-input"
@@ -1356,42 +1379,43 @@ prepExternalTx addrStr amt = do
             , inputIndex
             , inputFunds
             , "--staging", txFile ]
-            >>= ( \c2 -> c2 `shouldBe` ExitSuccess)
+            >>= (`shouldBe` ExitSuccess)
         runJcli
             [ "transaction"
             , "add-output"
-            , addrStr
+            , T.unpack addrStr
             , show amt
             , "--staging", txFile ]
-            >>= ( \c3 -> c3 `shouldBe` ExitSuccess)
+            >>= (`shouldBe` ExitSuccess)
         runJcli
             [ "transaction"
             , "finalize"
+            , faucetAddr
             , "--fee-constant", "42"
+            , "--fee-coefficient", "0"
             , "--staging", txFile ]
-            >>= ( \c4 -> c4 `shouldBe` ExitSuccess)
+            >>= (`shouldBe` ExitSuccess)
         Stdout txId <- runJcli ["transaction", "id", "--staging", txFile]
-        Stdout block0H <- runJcli ["genesis", "hash", "--input", block0Path]
-        let strip = T.unpack . T.strip . T.pack
+        block0H <- getJormungandrBlock0H
         runJcli
             [ "transaction"
             , "make-witness"
             , strip txId
-            , "--genesis-block-hash", strip block0H
+            , "--genesis-block-hash", block0H
             , "--type", "utxo"
             , witnessFile
             , keyFile ]
-            >>= ( \c5 -> c5 `shouldBe` ExitSuccess)
+            >>= (`shouldBe` ExitSuccess)
         runJcli
             [ "transaction"
             , "add-witness"
             , witnessFile
             , "--staging", txFile ]
-            >>= ( \c6 -> c6 `shouldBe` ExitSuccess)
+            >>= (`shouldBe` ExitSuccess)
         runJcli ["transaction", "seal", "--staging", txFile ]
-            >>= ( \c7 -> c7 `shouldBe` ExitSuccess)
-        Stdout txBlob <- runJcli
+            >>= (`shouldBe` ExitSuccess)
+        Stdout txMess <- runJcli
                             [ "transaction"
                             , "to-message"
                             , "--staging", txFile ]
-        return (strip txBlob)
+        return (T.strip . T.pack $ txMess)
