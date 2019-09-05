@@ -1,11 +1,11 @@
 # Jörmungandr backend
 
-Jörmungandr is a node implementation, written in rust, with the initial aim
-to support the Ouroboros type of consensus protocol.
+Jörmungandr is a node implementation, written in Rust, with the initial aim
+of supporting the Ouroboros type of consensus protocol.
 See [link](https://input-output-hk.github.io/jormungandr/) to get more information.
 
 Instructions how to install Jörmungandr are [here](https://github.com/input-output-hk/jormungandr).
-After the installation one should see the below :
+After the installation, one can follow the steps below:
 
 ``` bash
 $ jcli --version
@@ -21,7 +21,7 @@ $ stack test cardano-wallet-jormungandr:integration
 $ stack test cardano-wallet-jormungandr:unit
 ```
 
-For manual testing try :
+For manual testing, try :
 
 ``` bash
 $ pwd
@@ -30,15 +30,15 @@ $ stack build
 $ cardano-wallet-jormungandr launch --genesis-block lib/jormungandr/test/data/jormungandr/block0.bin --bft-leaders lib/jormungandr/test/data/jormungandr/secret.yaml
 ```
 
-Here we are taking genesis block and bft leaders configuration as defined in integration tests.
-For more options invoke help:
+Here we are using a genesis block and BTF leaders configuration as defined in the integration tests.
+For more options, see the help text:
 
 ``` bash
 $ stack exec -- cardano-wallet-jormungandr launch --help
 ```
 
-If the cardano-wallet part talking with Jörmungandr is running, then in the separate console
-call the api, for example:
+If the `cardano-wallet` server is running with a Jörmungandr backend, then in a separate console
+call the API. For example:
 
 ``` bash
 $ curl -H "Content-Type: application/json" http://localhost:8090/v2/wallets
