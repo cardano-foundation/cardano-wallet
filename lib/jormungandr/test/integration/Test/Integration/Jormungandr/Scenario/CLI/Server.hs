@@ -9,6 +9,8 @@ module Test.Integration.Jormungandr.Scenario.CLI.Server
 
 import Prelude
 
+import Cardano.Faucet
+    ( block0HText )
 import Control.Concurrent
     ( threadDelay )
 import Control.Exception
@@ -42,10 +44,11 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( versionLine )
 
+import qualified Data.Text as T
+
 spec :: forall t. KnownCommand t => SpecWith (Context t)
 spec = do
-    let block0H =
-            "657233631a44a0ffc49dfeb645fc2014e6e1de7e150148ff681c6884f1dcf97e"
+    let block0H = T.unpack block0HText
     describe "SERVER - cardano-wallet serve" $ do
         it "SERVER - Can start cardano-wallet serve --database" $ \_ -> do
             withTempDir $ \d -> do

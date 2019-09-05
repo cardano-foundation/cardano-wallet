@@ -1329,7 +1329,6 @@ groupsOf n xs = take n xs : groupsOf n (drop n xs)
 for :: [a] -> (a -> b) -> [b]
 for = flip map
 
-
 withTempDir :: (FilePath -> IO a) -> IO a
 withTempDir = withSystemTempDirectory "external-tx"
 
@@ -1356,18 +1355,12 @@ prepExternalTxViaJcli addrStr amt = do
                         [ "rest", "v0", "utxo", "get"
                         , "-h", "http://127.0.0.1:8080/api" ]
 
-        let utxo = (T.splitOn "\n" (T.pack u) )
+        let utxo = T.splitOn "\n" (T.pack u)
         let (Just i) =
                     elemIndex ( "- address: " ++ faucetAddr ) (T.unpack <$> utxo)
-        let inputFunds =
-                    T.unpack $
-                        T.replace "  associated_fund: " "" (utxo !! (i + 1))
-        let inputIndex =
-                    T.unpack $
-                        T.replace "  index_in_transaction: " "" (utxo !! (i + 2))
-        let inputTxId =
-                    T.unpack $
-                        T.replace "  transaction_id: " "" (utxo !! (i + 3))
+        let inputFunds = T.replace "  associated_fund: " "" (utxo !! (i + 1))
+        let inputIndex = T.replace "  index_in_transaction: " "" (utxo !! (i + 2))
+        let inputTxId = T.replace "  transaction_id: " "" (utxo !! (i + 3))
 
         -- prepare tx using `jcli`
         runJcli ["transaction", "new", "--staging", txFile ]
@@ -1375,9 +1368,9 @@ prepExternalTxViaJcli addrStr amt = do
         runJcli
             [ "transaction"
             , "add-input"
-            , inputTxId
-            , inputIndex
-            , inputFunds
+            , T.unpack inputTxId
+            , T.unpack inputIndex
+            , T.unpack inputFunds
             , "--staging", txFile ]
             >>= (`shouldBe` ExitSuccess)
         runJcli

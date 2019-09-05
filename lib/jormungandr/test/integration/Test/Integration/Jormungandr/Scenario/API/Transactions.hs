@@ -314,12 +314,7 @@ spec = do
             , [(HTTP.Status, Either RequestException a) -> IO ()])
            ]
     externalTxHeaders =
-        [
-        -- ( "No HTTP headers -> 415"
-        --   , None
-        --   , [ expectResponseCode @IO HTTP.status202 ]
-        -- )
-          ( "Accept: text/plain -> 406"
+        [ ( "Accept: text/plain -> 406"
           , Headers [ ("Content-Type", "application/octet-stream")
                     , ("Accept", "text/plain") ]
           , [ expectResponseCode @IO HTTP.status406

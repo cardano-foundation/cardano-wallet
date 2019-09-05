@@ -42,6 +42,7 @@
           (hsPkgs.servant)
           (hsPkgs.servant-client)
           (hsPkgs.servant-client-core)
+          (hsPkgs.temporary)
           (hsPkgs.text)
           (hsPkgs.text-class)
           (hsPkgs.time)
