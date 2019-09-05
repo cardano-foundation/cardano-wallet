@@ -3059,3 +3059,6 @@ initial:
   - fund:
     - address: ta1swaga8c5sjwsw86yprw5d3m44ktla3ymesn0rtwurer5pg9mmp24kznrwfg
       value: 100000000000
+  - fund:
+    - address: ca1swl53wlqt5dnl63e0gnf8vpazgt6g5mq384dmz72329eh4m8z7e5un8q6lg
+      value: 100000000000

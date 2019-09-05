@@ -26,7 +26,7 @@ initFaucet = do
 
 block0H :: Hash "Genesis"
 block0H = Hash $ unsafeFromHex
-    "301b1c634aa7b586da7243dd66a61bde904bc1755e9a20a9b5b1b0064e70d904"
+    "657233631a44a0ffc49dfeb645fc2014e6e1de7e150148ff681c6884f1dcf97e"
     -- ^ jcli genesis hash --input test/data/jormungandr/block0.bin
 
 mnemonics :: [Mnemonic 15]

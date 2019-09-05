@@ -45,7 +45,7 @@ import Test.Integration.Framework.TestData
 spec :: forall t. KnownCommand t => SpecWith (Context t)
 spec = do
     let block0H =
-            "301b1c634aa7b586da7243dd66a61bde904bc1755e9a20a9b5b1b0064e70d904"
+            "657233631a44a0ffc49dfeb645fc2014e6e1de7e150148ff681c6884f1dcf97e"
     describe "SERVER - cardano-wallet serve" $ do
         it "SERVER - Can start cardano-wallet serve --database" $ \_ -> do
             withTempDir $ \d -> do
