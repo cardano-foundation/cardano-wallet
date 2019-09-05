@@ -1,4 +1,14 @@
 steps:
+  - label: 'Stack Rebuild'
+    env:
+      STACK_ROOT: "/build/cardano-wallet.stack"
+    command:
+      - "nix-build .buildkite/default.nix -o sr"
+      - "./sr/bin/rebuild --build-dir /build/cardano-wallet --cache-dir /build/cardano-wallet.cache"
+    timeout_in_minutes: 120
+    agents:
+      system: x86_64-linux
+
   - label: Check Hydra evaluation of release.nix
     command: 'nix-build -A iohkLib.check-hydra -o check-hydra.sh && ./check-hydra.sh'
     agents:
@@ -6,5 +16,20 @@ steps:
 
   - label: Check auto-generated Nix
     command: 'nix-build -A iohkLib.check-nix-tools -o check-nix-tools.sh && ./check-nix-tools.sh'
+    agents:
+      system: x86_64-linux
+
+  - label: 'Check Stylish Haskell'
+    command: 'nix-shell --run .buildkite/check-stylish.sh'
+    agents:
+      system: x86_64-linux
+
+  - label: 'HLint'
+    command: 'nix-shell --run "hlint exe lib"'
+    agents:
+      system: x86_64-linux
+
+  - label: 'Validate OpenAPI Specification'
+    command: 'nix-shell --run "openapi-spec-validator --schema 2.0 specifications/api/swagger.yaml"'
     agents:
       system: x86_64-linux

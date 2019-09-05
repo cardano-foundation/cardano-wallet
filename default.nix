@@ -54,6 +54,6 @@ in {
       with pkgs.haskellPackages; [ stylish-haskell weeder ghcid ]
       ++ [ cardano-sl-node cardano-http-bridge jormungandr jormungandr-cli
            pkgs.pkgconfig pkgs.sqlite-interactive
-           iohkLib.hlint ];
+           iohkLib.hlint iohkLib.openapi-spec-validator ];
   };
 }
