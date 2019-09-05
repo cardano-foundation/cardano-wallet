@@ -18,6 +18,8 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Proxy
     ( Proxy (..) )
+import System.Command
+    ( Exit (..), Stderr (..), Stdout (..) )
 import System.Exit
     ( ExitCode (..) )
 import Test.Hspec
@@ -30,6 +32,7 @@ import Test.Integration.Framework.DSL
     , emptyWallet
     , fixtureWallet
     , listAddresses
+    , postExternalTransactionViaCLI
     , postTransactionFeeViaCLI
     , postTransactionViaCLI
     , walletId
@@ -43,6 +46,14 @@ spec
     :: forall t.(EncodeAddress t, DecodeAddress t, KnownCommand t)
     => SpecWith (Context t)
 spec = do
+    it "TRANS_EXTERNAL_CREATE_05 - not supported for http-bridge" $ \ctx -> do
+        (Exit code, Stdout out, Stderr err) <-
+            postExternalTransactionViaCLI @t ctx ["1111"]
+        err `shouldBe` "This endpoint is not supported by the backend\
+                \ currently in use. Please try a different backend.\n"
+        out `shouldBe` mempty
+        code `shouldBe` ExitFailure 1
+
     it "TRANS_CREATE_09 - 0 amount transaction is forbidden on single output tx" $ \ctx -> do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
