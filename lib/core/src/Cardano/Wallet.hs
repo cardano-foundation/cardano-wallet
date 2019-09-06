@@ -196,7 +196,7 @@ import Data.Text.Class
 import Data.Time.Clock
     ( UTCTime, getCurrentTime )
 import Data.Word
-    ( Word16 )
+    ( Word16, Word32 )
 import Fmt
     ( Buildable, blockListF, pretty, (+|), (+||), (|+), (||+) )
 
@@ -445,10 +445,12 @@ data BlockchainParameters t = BlockchainParameters
         -- ^ Number of slots in a single epoch.
     , getTxMaxSize :: Quantity "byte" Word16
         -- ^ Maximum size of a transaction (soft or hard limit).
+    , getEpochStability :: Quantity "block" Word32
+        -- ^ Length of the suffix of the chain considered unstable
     }
 
 getSlotParameters :: BlockchainParameters t -> SlotParameters
-getSlotParameters (BlockchainParameters _ st _ sl el _) =
+getSlotParameters (BlockchainParameters _ st _ sl el _ _) =
     SlotParameters el sl st
 
 -- | Create a new instance of the wallet layer.
@@ -492,7 +494,8 @@ newWalletLayer tracer bp db nw tl = do
         feePolicy
         slotLength
         epochLength
-        txMaxSize = bp
+        txMaxSize
+        epochStability = bp
 
     sp = getSlotParameters bp
 
@@ -703,11 +706,11 @@ newWalletLayer tracer bp db nw tl = do
             -- "unstable".
             -- We define unstable blocks as blocks that `k` blocks from the
             -- network tip, where k is the epoch stability parameter.
-            let epochStability = 2160
-            let bhUnstable = fromIntegral (flatSlot epochLength nodeTip - epochStability)
+            let (Quantity k) = epochStability
+            let bhUnstable = fromIntegral (flatSlot epochLength nodeTip) - k
             forM_ (init cps) $ \(txs, cp) -> do
                 let (Quantity bh) = blockHeight cp
-                when (bh >= bhUnstable) $ putCheckpoint cp txs
+                when (bh >= fromIntegral bhUnstable) $ putCheckpoint cp txs
 
             let cpLast = last cps
             let Quantity bhLast = blockHeight (snd cpLast)

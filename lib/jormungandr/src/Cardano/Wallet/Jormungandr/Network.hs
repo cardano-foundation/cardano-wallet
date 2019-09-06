@@ -270,9 +270,9 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
                     Initial xs -> Just xs
                     _ -> Nothing
 
-        let mpolicy = mapMaybe getsFeePolicy params
+        let mpolicy = mapMaybe getPolicy params
               where
-                getsFeePolicy = \case
+                getPolicy = \case
                     ConfigLinearFee x -> Just x
                     _ -> Nothing
 
@@ -294,8 +294,14 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
                     SlotsPerEpoch x -> Just x
                     _ -> Nothing
 
-        case (mpolicy, mduration, mblock0Date, mepochLength) of
-            ([policy],[duration],[block0Date], [epochLength]) ->
+        let mStability = mapMaybe getStability params
+              where
+                getStability = \case
+                   EpochStabilityDepth x -> Just x
+                   _ -> Nothing
+
+        case (mpolicy, mduration, mblock0Date, mepochLength, mStability) of
+            ([policy],[duration],[block0Date], [epochLength], [stability]) ->
                 return $ BlockchainParameters
                     { getGenesisBlock = coerceBlock jblock
                     , getGenesisBlockDate = block0Date
@@ -303,6 +309,7 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
                     , getEpochLength = epochLength
                     , getSlotLength = SlotLength duration
                     , getTxMaxSize = softTxMaxSize
+                    , getEpochStability = stability
                     }
             _ ->
                 throwE $ ErrGetBlockchainParamsIncompleteParams params

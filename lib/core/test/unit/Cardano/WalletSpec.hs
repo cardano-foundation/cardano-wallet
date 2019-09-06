@@ -399,7 +399,7 @@ setupFixture (wid, wname, wstate) = do
     let nl = error "NetworkLayer"
     let tl = dummyTransactionLayer
     let bp = BlockchainParameters
-            block0 block0Date policy slotLength slotsPerEpoch txMaxSize
+            block0 block0Date policy slotLength slotsPerEpoch txMaxSize k
     wl <- newWalletLayer @_ @DummyTarget nullTracer bp db nl tl
     res <- runExceptT $ createWallet wl wid wname wstate
     let wal = case res of
@@ -420,7 +420,11 @@ setupFixture (wid, wname, wstate) = do
 
     block0Date = StartTime $ posixSecondsToUTCTime 0
 
+    k :: Quantity "block" Word32
+    k = Quantity 2160
+
     slotNo = flatSlot slotsPerEpoch
+
     slotIdTime = posixSecondsToUTCTime . fromIntegral . slotNo
 
 -- | A dummy transaction layer to see the effect of a root private key. It

@@ -204,4 +204,5 @@ byronBlockchainParameters = BlockchainParameters
     , getSlotLength = byronSlotLength
     , getTxMaxSize = byronTxMaxSize
     , getEpochLength = EpochLength 21600
+    , getEpochStability = Quantity 2160
     }
