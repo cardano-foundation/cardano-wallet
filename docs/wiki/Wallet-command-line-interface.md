@@ -31,6 +31,8 @@ Available COMMANDS:
   transaction
     <a href="#transaction-create">create</a>            Create a transaction from a known wallet
     <a href="#transaction-fees">fees</a>              Estimate fees for a transaction
+    <a href="#transaction-list">list</a>              List the transactions associated with a wallet
+    <a href="#transaction-submit">submit</a>            Submit an externally-signed transaction
   address
     <a href="#address-list">list</a>              List all known addresses of a wallet
   <a href="#version">version</a>             Show the program's current version
@@ -455,6 +457,37 @@ $ cardano-wallet transaction create 2512a00e9653fe49a44a5886202e24d77eeb998f \
 ```
 
 This estimates fees for a transaction that sends 22 lovelace to `Ae2tdPwUPEZ...nRtbfw6EHRv1D` and 5 lovelace to `Ae2tdPwUPEZ7...pVwEPhKwseVvf` from wallet with id 2512a00e9653fe49a44a5886202e24d77eeb998f.
+
+<p align=right><a href="#">top :arrow_heading_up:</a></p>
+
+## transaction list
+
+> `cardano-wallet transaction list [--port INT] WALLET_ID [--start TIME] [--end TIME] [--order ORDER]`
+
+List all incoming and outgoing transactions for the wallet:
+
+```
+$ cardano-wallet transaction list 2512a00e9653fe49a44a5886202e24d77eeb998f \
+    --start 2018-09-25T10:15:00Z \
+    --end 2019-11-21T10:15:00Z \
+    --order ascending
+```
+
+This lists all transactions between `2018-09-25T10:15:00Z` and `2019-11-21T10:15:00Z` in `ascending` order.
+
+<p align=right><a href="#">top :arrow_heading_up:</a></p>
+
+## transaction submit
+
+> `cardano-wallet transaction submit [--port INT] BINARY_BLOB`
+
+Submit transaction prepared and sigend outside of the wallet:
+
+```
+$ cardano-wallet transaction submit 00bf02010200000...d21942304
+```
+
+Sends transaction identified by a hex-encoded BINARY_BLOB of externally-signed transaction.
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
 
