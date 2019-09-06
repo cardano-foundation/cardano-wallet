@@ -786,11 +786,12 @@ instance LiftHandler ServantErr where
             , "set to 'application/json'."
             ]
         415 -> apiError err' UnsupportedMediaType $ mconcat
-            [ "I'm really sorry but I only understand 'application/json'. I "
-            , "need you to tell me what language you're speaking in order for "
-            , "me to understand your message. Please double-check your "
-            , "'Content-Type' request header and make sure it's set to "
-            , "'application/json'."
+            [ "I'm really sorry but I only understand 'application/json' or "
+            , "'application/octet-stream'. I need you to tell me what language "
+            , "you're speaking in order for me to understand your message. "
+            , "Please double-check your 'Content-Type' request header and make "
+            , "sure it's set to 'application/json' or 'application/octet-stream' "
+            , "(depending on the endpoint you want to request)."
             ]
         _ -> apiError err' UnexpectedError $ mconcat
             [ "It looks like something unexpected went wrong. Unfortunately I "

@@ -12,7 +12,7 @@ module Test.Integration.HttpBridge.Scenario.API.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiFee, ApiTransaction )
+    ( ApiFee, ApiTransaction, ApiTxId )
 import Cardano.Wallet.Primitive.Types
     ( DecodeAddress (..), EncodeAddress (..) )
 import Control.Monad
@@ -35,6 +35,7 @@ import Test.Integration.Framework.DSL
     , for
     , json
     , listAddresses
+    , postExternalTxEp
     , postTxEp
     , postTxFeeEp
     , request
@@ -47,6 +48,16 @@ import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall t. (EncodeAddress t, DecodeAddress t) => SpecWith (Context t)
 spec = do
+    it "TRANS_EXTERNAL_CREATE_05 - not supported for http-bridge" $ \ctx -> do
+        _ <- emptyWallet ctx
+        let headers = Headers [ ("Content-Type", "application/octet-stream") ]
+        r <- request @ApiTxId ctx postExternalTxEp headers Empty
+        verify r
+            [ expectResponseCode HTTP.status400
+            , expectErrorMessage "This endpoint is not supported by the backend\
+                    \ currently in use. Please try a different backend."
+            ]
+
     it "TRANS_CREATE_09 - 0 amount transaction is forbidden on single output tx" $ \ctx -> do
         (wSrc, payload) <- fixtureZeroAmtSingle ctx
         r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload

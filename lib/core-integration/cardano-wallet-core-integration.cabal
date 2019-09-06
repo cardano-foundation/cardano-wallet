@@ -52,6 +52,7 @@ library
     , retry
     , time
     , template-haskell
+    , temporary
     , text
     , text-class
     , time

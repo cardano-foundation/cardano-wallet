@@ -3,6 +3,7 @@
 module Cardano.Faucet
     ( initFaucet
     , block0H
+    , block0HText
     ) where
 
 import Prelude
@@ -15,8 +16,12 @@ import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeMkMnemonic )
 import Control.Concurrent.MVar
     ( newMVar )
+import Data.Text
+    ( Text )
 import Test.Integration.Faucet
     ( Faucet (..) )
+
+import qualified Data.Text.Encoding as T
 
 -- | Initialize a bunch of faucet wallets and make them available for the
 -- integration tests scenarios.
@@ -25,8 +30,10 @@ initFaucet = do
     Faucet <$> newMVar mnemonics
 
 block0H :: Hash "Genesis"
-block0H = Hash $ unsafeFromHex
-    "301b1c634aa7b586da7243dd66a61bde904bc1755e9a20a9b5b1b0064e70d904"
+block0H = Hash $ unsafeFromHex (T.encodeUtf8 block0HText)
+
+block0HText :: Text
+block0HText = "657233631a44a0ffc49dfeb645fc2014e6e1de7e150148ff681c6884f1dcf97e"
     -- ^ jcli genesis hash --input test/data/jormungandr/block0.bin
 
 mnemonics :: [Mnemonic 15]

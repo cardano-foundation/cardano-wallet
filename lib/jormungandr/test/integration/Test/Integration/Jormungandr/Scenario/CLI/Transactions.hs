@@ -10,7 +10,7 @@ module Test.Integration.Jormungandr.Scenario.CLI.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiWallet )
+    ( ApiWallet, getApiT )
 import Cardano.Wallet.Jormungandr.Binary
     ( MessageType (..) )
 import Cardano.Wallet.Jormungandr.Primitive.Types
@@ -38,12 +38,15 @@ import Test.Integration.Framework.DSL
     , KnownCommand
     , balanceAvailable
     , balanceTotal
+    , emptyWallet
     , expectCliFieldEqual
     , expectEventually'
     , expectValidJSON
     , faucetAmt
     , getWalletViaCLI
+    , listAddresses
     , postExternalTransactionViaCLI
+    , prepExternalTxViaJcli
     , verify
     , walletId
     )
@@ -59,6 +62,24 @@ spec
     :: forall t. (EncodeAddress t, DecodeAddress t, KnownCommand t)
     => SpecWith (Context t)
 spec = do
+    it "TRANS_EXTERNAL_CREATE_01x - \
+        \single output tx signed via jcli" $ \ctx -> do
+        w <- emptyWallet ctx
+        addr:_ <- listAddresses ctx w
+        let addrStr = encodeAddress (Proxy @t) (getApiT $ fst $ addr ^. #id)
+        let amt = 4321
+
+        txBlob <- prepExternalTxViaJcli addrStr amt
+
+        (Exit code, Stdout out, Stderr err) <-
+            postExternalTransactionViaCLI @t ctx [T.unpack txBlob]
+        err `shouldBe` "Ok.\n"
+        out `shouldContain` "id"
+        code `shouldBe` ExitSuccess
+
+        expectEventually' ctx balanceAvailable amt w
+        expectEventually' ctx balanceTotal amt w
+
     it "TRANS_EXTERNAL_CREATE_01 - proper single output transaction and \
        \proper binary format" $ \ctx -> do
         let toSend = 1 :: Natural
@@ -94,7 +115,7 @@ spec = do
             ]
 
     it "TRANS_EXTERNAL_CREATE_02 - proper single output transaction and \
-       \improper binary format" $ \ctx -> do
+       \not hex-encoded binary format" $ \ctx -> do
         let toSend = 1 :: Natural
         (ExternalTxFixture _ _ _ txWits) <- fixtureExternalTx @t ctx toSend
         let baseWrong = Base64
