@@ -43,6 +43,7 @@
           (hsPkgs.retry)
           (hsPkgs.time)
           (hsPkgs.template-haskell)
+          (hsPkgs.temporary)
           (hsPkgs.text)
           (hsPkgs.text-class)
           (hsPkgs.time)
