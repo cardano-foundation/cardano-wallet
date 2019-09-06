@@ -320,9 +320,9 @@ data WalletLayer s t k = WalletLayer
         :: DefineTx t
         => WalletId
         -> Maybe UTCTime
-            -- ^ Inclusive minimum time bound.
+            -- Inclusive minimum time bound.
         -> Maybe UTCTime
-            -- ^ Inclusive maximum time bound.
+            -- Inclusive maximum time bound.
         -> SortOrder
         -> ExceptT ErrListTransactions IO [TransactionInfo]
         -- ^ List all transactions and metadata from history for a given wallet.
