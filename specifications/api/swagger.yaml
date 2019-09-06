@@ -592,14 +592,6 @@ definitions:
     properties:
       payments: *transactionOutputs
 
-  ApiPostExternalTransactionData: &ApiPostExternalTransactionData
-    type: object
-    required:
-      - payload
-    properties:
-      payload: *signedTransactionBlob
-
-
 #############################################################################
 #                                                                           #
 #                               PARAMETERS                                  #
@@ -794,11 +786,7 @@ x-responsesPostTransaction: &responsesPostTransaction
 
 x-responsesPostExternalTransaction: &responsesPostExternalTransaction
   <<: *responsesErr400
-  <<: *responsesErr403
   <<: *responsesErr404
-  <<: *responsesErr405
-  <<: *responsesErr406
-  <<: *responsesErr415
   202:
     description: Accepted
     schema: *ApiTxId
@@ -1044,13 +1032,14 @@ paths:
       operationId: postExternalTransaction
       tags: ["Transactions"]
       summary: Submit External Transaction
+      consumes: ["application/octet-stream"]
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
         Submits a transaction that was created and signed outside of cardano-wallet.
       parameters:
         - <<: *parametersBody
-          schema: *ApiPostExternalTransactionData
+          schema: *signedTransactionBlob
       responses: *responsesPostExternalTransaction
 
   /wallets/{walletId}/addresses:

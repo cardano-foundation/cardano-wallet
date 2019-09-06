@@ -907,10 +907,6 @@ instance ToSchema (PostTransactionFeeData t) where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiPostTransactionFeeData"
 
-instance ToSchema PostExternalTransactionData where
-    declareNamedSchema _ =
-        declareSchemaForDefinition "ApiPostExternalTransactionData"
-
 instance ToSchema (ApiTransaction t) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiTransaction"
 
