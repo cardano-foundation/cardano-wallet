@@ -56,6 +56,23 @@ let
           unit.build-tools = [ jormungandr ];
         };
 
+
+        packages.cardano-wallet.components.exes.cardano-wallet-jormungandr = {
+          build-tools = [ pkgs.makeWrapper];
+          postInstall = ''
+            wrapProgram $out/bin/cardano-wallet-jormungandr \
+              --prefix PATH : ${jormungandr}/bin
+          '';
+        };
+
+        packages.cardano-wallet.components.exes.cardano-wallet-http-bridge = {
+          build-tools = [ pkgs.makeWrapper];
+          postInstall = ''
+            wrapProgram $out/bin/cardano-wallet-http-bridge \
+              --prefix PATH : ${cardano-http-bridge}/bin
+          '';
+        };
+
         packages.cardano-wallet-http-bridge.components.benchmarks.restore = {
           build-tools = [ pkgs.makeWrapper ];
           postInstall = ''
@@ -65,6 +82,10 @@ let
               --prefix PATH : ${cardano-http-bridge}/bin
           '';
         };
+
+        # Workaround for Haskell.nix issue
+        packages.cardano-wallet.components.all.postInstall = pkgs.lib.mkForce "";
+        packages.cardano-wallet-jormungandr.components.all.postInstall = pkgs.lib.mkForce "";
         packages.cardano-wallet-http-bridge.components.all.postInstall = pkgs.lib.mkForce "";
       }
 
