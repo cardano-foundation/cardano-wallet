@@ -448,10 +448,10 @@ This creates a transaction that sends 22 lovelace to `Ae2tdPwUPEZ...nRtbfw6EHRv1
 
 > `cardano-wallet transaction fees [--port=INT] WALLET_ID --payment=PAYMENT...`
 
-Creates and submits a new transaction:
+Estimates fee for a given transaction:
 
 ```
-$ cardano-wallet transaction create 2512a00e9653fe49a44a5886202e24d77eeb998f \
+$ cardano-wallet transaction fees 2512a00e9653fe49a44a5886202e24d77eeb998f \
     --payment 22@Ae2tdPwUPEZ...nRtbfw6EHRv1D \
     --payment 5@Ae2tdPwUPEZ7...pVwEPhKwseVvf
 ```
