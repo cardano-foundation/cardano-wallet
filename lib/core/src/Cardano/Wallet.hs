@@ -139,7 +139,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletPassphraseInfo (..)
     , WalletState (..)
     , computeUtxoStatistics
-    , flatSlot
     , log10
     , slotDifference
     , slotRangeFromTimeRange
@@ -684,8 +683,8 @@ newWalletLayer tracer bp db nw tl = do
         -- there and they all succeed, or it's not and they all fail.
         DB.withLock db $ do
             (wallet, meta) <- _readWallet wid
-            let cps = applyBlocks @s @t (NE.toList blocks) wallet
-            let newTxs = fold $ fst <$> cps
+            let (txs, cps) = NE.unzip $ applyBlocks @s @t blocks wallet
+            let newTxs = fold txs
 
             let calculateMetadata :: SlotId -> WalletMetadata
                 calculateMetadata slot = meta { status = status' }
@@ -696,25 +695,30 @@ newWalletLayer tracer bp db nw tl = do
                         then Ready
                         else Restoring progress'
 
-            let putCheckpoint cp txs = do
-                    let meta' = calculateMetadata (view #slotId $ currentTip cp)
-                    DB.putCheckpoint db (PrimaryKey wid) cp
-                    DB.putTxHistory db (PrimaryKey wid) txs
-                    DB.putWalletMeta db (PrimaryKey wid) meta'
+            -- NOTE:
+            -- Always store the last checkpoint from the batch and all new
+            -- transactions.
+            let cpLast = NE.last cps
+            let Quantity bhLast = blockHeight cpLast
+            let meta' = calculateMetadata (view #slotId $ currentTip cpLast)
+            DB.putCheckpoint db (PrimaryKey wid) cpLast
+            DB.putTxHistory db (PrimaryKey wid) newTxs
+            DB.putWalletMeta db (PrimaryKey wid) meta'
 
             -- We only need to create checkpoints for blocks that are
             -- "unstable".
             -- We define unstable blocks as blocks that `k` blocks from the
             -- network tip, where k is the epoch stability parameter.
+            -- NOTE:
+            -- We cast `k` and block heights to 'Integer' since at a given point
+            -- in time, `k` may be greater than the tip.
             let (Quantity k) = epochStability
-            let bhUnstable = fromIntegral (flatSlot epochLength nodeTip) - k
-            forM_ (init cps) $ \(txs, cp) -> do
+            let (Quantity tipBh) = blockHeight cpLast
+            let bhUnstable =  fromIntegral tipBh - fromIntegral k :: Integer
+            forM_ (NE.init cps) $ \cp -> do
                 let (Quantity bh) = blockHeight cp
-                when (bh >= fromIntegral bhUnstable) $ putCheckpoint cp txs
-
-            let cpLast = last cps
-            let Quantity bhLast = blockHeight (snd cpLast)
-            putCheckpoint (snd cpLast) (fst cpLast)
+                when (fromIntegral bh >= bhUnstable) $
+                    DB.putCheckpoint db (PrimaryKey wid) cp
 
             liftIO $ do
                 logDebug t $ "blocks: "
@@ -724,7 +728,7 @@ newWalletLayer tracer bp db nw tl = do
                 logInfo t $ "metadata: "
                     +|| pretty (calculateMetadata slotLast)
                 logInfo t $ "number of pending transactions: "
-                    +|| Set.size (getPending $ snd cpLast) ||+ ""
+                    +|| Set.size (getPending cpLast) ||+ ""
                 logInfo t $ "number of new transactions: "
                     +|| length newTxs ||+ ""
                 logInfo t $ "new block height: "
