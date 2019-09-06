@@ -230,6 +230,7 @@ emptyWallet :: Context t -> IO ApiWallet
 emptyWalletWith :: Context t -> (Text, Text, Int) -> IO ApiWallet
 getFromResponse :: Lens' s a -> (Status, Either RequestException s) -> a
 getFromResponseList :: Int -> Lens' s a -> (Status, Either RequestException [s]) -> a
+getJormungandrBlock0H :: IO String
 json :: QuasiQuoter
 listAddresses :: forall t. DecodeAddress t => Context t -> ApiWallet -> IO [ApiAddress t]
 listTransactions :: forall t. DecodeAddress t => Context t -> ApiWallet -> Maybe UTCTime -> Maybe UTCTime -> Maybe SortOrder -> IO [ApiTransaction t]
@@ -275,6 +276,9 @@ shouldNotContainT :: Text -> Text -> IO ()
 for :: [a] -> (a -> b) -> [b]
 toQueryString :: [(Text, Text)] -> Text
 utcIso8601ToText :: UTCTime -> Text
+
+-- | Prepare externally signed Tx for Jormungandr
+prepExternalTxViaJcli :: Text -> Natural -> IO Text
 getWalletEp :: ApiWallet -> (Method, Text)
 deleteWalletEp :: ApiWallet -> (Method, Text)
 getWalletUtxoEp :: ApiWallet -> (Method, Text)
@@ -284,6 +288,8 @@ postExternalTxEp :: (Method, Text)
 postTxFeeEp :: ApiWallet -> (Method, Text)
 listTxEp :: ApiWallet -> Text -> (Method, Text)
 updateWalletPassEp :: ApiWallet -> (Method, Text)
+runJcli :: CmdResult r => [String] -> IO r
+command :: CmdResult r => [CmdOption] -> String -> [String] -> IO r
 
 -- | Run a command using the 'cardano-wallet' executable. We run it through
 --   stack as we intend to also get code-coverage from running these
