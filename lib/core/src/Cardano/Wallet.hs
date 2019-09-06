@@ -139,6 +139,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletPassphraseInfo (..)
     , WalletState (..)
     , computeUtxoStatistics
+    , flatSlot
     , log10
     , slotDifference
     , slotRangeFromTimeRange
@@ -157,7 +158,7 @@ import Control.Concurrent.MVar
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( forM, forM_ )
+    ( forM, forM_, when )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Class
@@ -185,7 +186,7 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( fromMaybe, mapMaybe )
+    ( mapMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -198,8 +199,6 @@ import Data.Word
     ( Word16 )
 import Fmt
     ( Buildable, blockListF, pretty, (+|), (+||), (|+), (||+) )
-import Safe
-    ( lastMay )
 
 import qualified Cardano.Wallet.DB as DB
 import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
@@ -681,7 +680,9 @@ newWalletLayer tracer bp db nw tl = do
         -- the wallet disappear within these calls, so either the wallet is
         -- there and they all succeed, or it's not and they all fail.
         DB.withLock db $ do
-            (cp, meta) <- _readWallet wid
+            (wallet, meta) <- _readWallet wid
+            let cps = applyBlocks @s @t (NE.toList blocks) wallet
+            let newTxs = fold $ fst <$> cps
 
             let calculateMetadata :: SlotId -> WalletMetadata
                 calculateMetadata slot = meta { status = status' }
@@ -692,33 +693,39 @@ newWalletLayer tracer bp db nw tl = do
                         then Ready
                         else Restoring progress'
 
-            let txs_cps = applyBlocks @s @t (NE.toList blocks) cp
-            let txs = fold $ fst <$> txs_cps
+            let putCheckpoint cp txs = do
+                    let meta' = calculateMetadata (view #slotId $ currentTip cp)
+                    DB.putCheckpoint db (PrimaryKey wid) cp
+                    DB.putTxHistory db (PrimaryKey wid) txs
+                    DB.putWalletMeta db (PrimaryKey wid) meta'
 
-            let cpLast = fromMaybe cp $ lastMay $ snd <$> txs_cps
-            let (Quantity bhLast) = blockHeight cpLast
+            -- We only need to create checkpoints for blocks that are
+            -- "unstable".
+            -- We define unstable blocks as blocks that `k` blocks from the
+            -- network tip, where k is the epoch stability parameter.
+            let epochStability = 2160
+            let bhUnstable = fromIntegral (flatSlot epochLength nodeTip - epochStability)
+            forM_ (init cps) $ \(txs, cp) -> do
+                let (Quantity bh) = blockHeight cp
+                when (bh >= bhUnstable) $ putCheckpoint cp txs
+
+            let cpLast = last cps
+            let Quantity bhLast = blockHeight (snd cpLast)
+            putCheckpoint (snd cpLast) (fst cpLast)
 
             liftIO $ do
                 logDebug t $ "blocks: "
                     <> pretty (NE.toList blocks)
                 logDebug t $ "transactions: "
-                    <> pretty (blockListF (snd <$> Map.elems txs))
+                    <> pretty (blockListF (snd <$> Map.elems newTxs))
                 logInfo t $ "metadata: "
                     +|| pretty (calculateMetadata slotLast)
                 logInfo t $ "number of pending transactions: "
-                    +|| Set.size (getPending cpLast) ||+ ""
+                    +|| Set.size (getPending $ snd cpLast) ||+ ""
                 logInfo t $ "number of new transactions: "
-                    +|| length txs ||+ ""
+                    +|| length newTxs ||+ ""
                 logInfo t $ "new block height: "
                     +|| bhLast ||+ ""
-
-            forM_ txs_cps $ \(txs', cp') -> do
-
-                let meta' = calculateMetadata (view #slotId $ currentTip cp')
-
-                DB.putCheckpoint db (PrimaryKey wid) cp'
-                DB.putTxHistory db (PrimaryKey wid) txs'
-                DB.putWalletMeta db (PrimaryKey wid) meta'
 
     {---------------------------------------------------------------------------
                                      Addresses
