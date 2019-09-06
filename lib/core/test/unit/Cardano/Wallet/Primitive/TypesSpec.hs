@@ -278,7 +278,7 @@ spec = do
                 r `isSubrangeOf` wholeRange
 
         it "Range (succ a) b `isSubrangeOf` Range a b" $
-            property $ \r@(Range a b :: Range Int) ->
+            withMaxSuccess 1000 $ property $ \r@(Range a b :: Range Int) ->
                 not (rangeIsSingleton r) ==>
                 checkCoverage $
                 cover 10 (rangeHasLowerBound r) "has lower bound" $
@@ -287,7 +287,7 @@ spec = do
                 Range (succ <$> a) b `isSubrangeOf` Range a b
 
         it "Range a (pred b) `isSubrangeOf` Range a b" $
-            property $ \r@(Range a b :: Range Int) ->
+            withMaxSuccess 1000 $ property $ \r@(Range a b :: Range Int) ->
                 not (rangeIsSingleton r) ==>
                 checkCoverage $
                 cover 10 (rangeHasLowerBound r) "has lower bound" $
