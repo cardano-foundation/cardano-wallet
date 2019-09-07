@@ -103,23 +103,23 @@ jobs:
   - stage: checks 🔬
     name: "Tests: integration"
     script:
-      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration
-      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration
-      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration
-      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration
-      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration
-      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration
-      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration
-      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration
-      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration
-      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration
-      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration
-      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration
-      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration
-      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration
-      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration
-      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration
-      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration
-      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration
-      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration
-      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration
+      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration --ta '--match "/PR_DISABLED Addresses API endpoint tests/ADDRESS_LIST_01 - Can list known addresses on a default wallet/"'
+      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration --ta '--match "/PR_DISABLED Addresses API endpoint tests/ADDRESS_LIST_01 - Can list known addresses on a default wallet/"'
+      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration --ta '--match "/PR_DISABLED Addresses API endpoint tests/ADDRESS_LIST_01 - Can list known addresses on a default wallet/"'
+      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration --ta '--match "/PR_DISABLED Addresses API endpoint tests/ADDRESS_LIST_01 - Can list known addresses on a default wallet/"'
+      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration --ta '--match "/PR_DISABLED Addresses API endpoint tests/ADDRESS_LIST_01 - Can list known addresses on a default wallet/"'
+      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration --ta '--match "/PR_DISABLED Addresses API endpoint tests/ADDRESS_LIST_01 - Can list known addresses on a default wallet/"'
+      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration --ta '--match "/PR_DISABLED Addresses API endpoint tests/ADDRESS_LIST_01 - Can list known addresses on a default wallet/"'
+      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration --ta '--match "/PR_DISABLED Addresses API endpoint tests/ADDRESS_LIST_01 - Can list known addresses on a default wallet/"'
+      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration --ta '--match "/PR_DISABLED Addresses API endpoint tests/ADDRESS_LIST_01 - Can list known addresses on a default wallet/"'
+      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration --ta '--match "/PR_DISABLED Addresses API endpoint tests/ADDRESS_LIST_01 - Can list known addresses on a default wallet/"'
+      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration --ta '--match "/PR_DISABLED Addresses API endpoint tests/ADDRESS_LIST_01 - Can list known addresses on a default wallet/"'
+      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration --ta '--match "/PR_DISABLED Addresses API endpoint tests/ADDRESS_LIST_01 - Can list known addresses on a default wallet/"'
+      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration --ta '--match "/PR_DISABLED Addresses API endpoint tests/ADDRESS_LIST_01 - Can list known addresses on a default wallet/"'
+      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration --ta '--match "/PR_DISABLED Addresses API endpoint tests/ADDRESS_LIST_01 - Can list known addresses on a default wallet/"'
+      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration --ta '--match "/PR_DISABLED Addresses API endpoint tests/ADDRESS_LIST_01 - Can list known addresses on a default wallet/"'
+      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration --ta '--match "/PR_DISABLED Addresses API endpoint tests/ADDRESS_LIST_01 - Can list known addresses on a default wallet/"'
+      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration --ta '--match "/PR_DISABLED Addresses API endpoint tests/ADDRESS_LIST_01 - Can list known addresses on a default wallet/"'
+      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration --ta '--match "/PR_DISABLED Addresses API endpoint tests/ADDRESS_LIST_01 - Can list known addresses on a default wallet/"'
+      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration --ta '--match "/PR_DISABLED Addresses API endpoint tests/ADDRESS_LIST_01 - Can list known addresses on a default wallet/"'
+      - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration --ta '--match "/PR_DISABLED Addresses API endpoint tests/ADDRESS_LIST_01 - Can list known addresses on a default wallet/"'
