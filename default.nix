@@ -56,6 +56,4 @@ in {
            pkgs.pkgconfig pkgs.sqlite-interactive
            iohkLib.hlint ];
   };
-
-  checks.check-nix-tools = pkgs.callPackage ./nix/check-nix-tools.nix {};
 }

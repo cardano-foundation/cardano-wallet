@@ -5,6 +5,6 @@ steps:
       system: x86_64-linux
 
   - label: Check auto-generated Nix
-    command: 'nix-build -A checks.check-nix-tools -o check-nix-tools.sh && ./check-nix-tools.sh'
+    command: 'nix-build -A iohkLib.check-nix-tools -o check-nix-tools.sh && ./check-nix-tools.sh'
     agents:
       system: x86_64-linux
