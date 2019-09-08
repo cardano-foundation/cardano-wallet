@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -32,6 +33,8 @@ import Cardano.Wallet.DB
     ( DBLayer (..), ErrWalletAlreadyExists (..), PrimaryKey (..), cleanDB )
 import Cardano.Wallet.DB.Sqlite
     ( PersistState, PersistTx, newDBLayer, withDBLayer )
+import Cardano.Wallet.DB.Sqlite.TH
+    ( Checkpoint (..) )
 import Cardano.Wallet.DB.StateMachine
     ( prop_parallel, prop_sequential )
 import Cardano.Wallet.DBSpec
@@ -81,8 +84,16 @@ import Control.Exception
     ( throwIO )
 import Control.Monad
     ( replicateM_, unless )
+import Control.Monad.IO.Unlift
+    ( MonadUnliftIO )
+import Control.Monad.Logger
+    ( NoLoggingT )
 import Control.Monad.Trans.Except
     ( runExceptT )
+import Control.Monad.Trans.Reader
+    ( ReaderT )
+import Control.Monad.Trans.Resource
+    ( ResourceT )
 import Crypto.Hash
     ( hash )
 import Data.ByteString
@@ -99,6 +110,12 @@ import Data.Text.Class
     ( FromText (..) )
 import Data.Time.Clock
     ( getCurrentTime )
+import Database.Persist
+    ( Entity, selectList )
+import Database.Persist.Sql
+    ( SqlBackend )
+import Database.Persist.Sqlite
+    ( runSqlite )
 import GHC.Conc
     ( TVar, atomically, newTVarIO, readTVarIO, writeTVar )
 import System.Directory
@@ -146,6 +163,8 @@ sqliteSpec :: Spec
 sqliteSpec = withDB (fst <$> newMemoryDBLayer) $ do
     describe "Sqlite Simple tests (SeqState)" $
         simpleSpec testCpSeq
+    describe "Sqlite multiple-checkpoints test (SeqState)" $
+        multipleCheckpointSpec testCpSeq
     describe "Sqlite" dbPropertyTests
     describe "Sqlite State machine tests" $ do
         it "Sequential" prop_sequential
@@ -158,6 +177,31 @@ sqliteSpecRnd =
             simpleSpec testCpRnd
         describe "Sqlite State machine (RndState)" $ do
             it "Sequential state machine tests" prop_sequential
+
+runSqlite'
+    :: (MonadUnliftIO m)
+    => Text
+    -> ReaderT SqlBackend (NoLoggingT (ResourceT m)) a
+    -> m a
+runSqlite' = runSqlite
+
+multipleCheckpointSpec
+    :: forall s k.
+       ( Show (k 'RootK XPrv)
+       , Eq (k 'RootK XPrv)
+       , Eq s
+       , GenerateTestKey k )
+    => Wallet s DummyTarget
+    -> SpecWith (DBLayer IO s DummyTarget k)
+multipleCheckpointSpec testCp = do
+    describe "Wallet table" $ do
+        it "put and read checkpoints" $ \db -> do
+            unsafeRunExceptT $ createWallet db testPk testCp testMetadata
+            runExceptT (putCheckpoint db testPk testCp) `shouldReturn` Right ()
+            runSqlite' ":memory:" $ do
+                _cp :: [Entity Checkpoint] <- selectList [][]
+                return ()
+            readCheckpoint db testPk `shouldReturn` Just testCp
 
 simpleSpec
     :: forall s k.
