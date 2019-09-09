@@ -35,6 +35,8 @@ import Cardano.Wallet.DB.Sqlite
     ( PersistState, PersistTx, newDBLayer, withDBLayer )
 import Cardano.Wallet.DB.Sqlite.TH
     ( Checkpoint (..) )
+import Cardano.Wallet.DB.Sqlite.Types
+    ( BlockId (..) )
 import Cardano.Wallet.DB.StateMachine
     ( prop_parallel, prop_sequential )
 import Cardano.Wallet.DBSpec
@@ -56,7 +58,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Mnemonic
     ( EntropySize, entropyToBytes, genEntropy )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, initWallet )
+    ( Wallet, blockHeight, currentTip, initWallet )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
@@ -110,8 +112,10 @@ import Data.Text.Class
     ( FromText (..) )
 import Data.Time.Clock
     ( getCurrentTime )
+import Data.Word
+    ( Word16 )
 import Database.Persist
-    ( Entity, selectList )
+    ( Entity, entityVal, selectList )
 import Database.Persist.Sql
     ( SqlBackend )
 import Database.Persist.Sqlite
@@ -158,13 +162,18 @@ spec = do
     sqliteSpecRnd
     loggingSpec
     connectionSpec
+    sqliteDetailedSeqSpec
+
+sqliteDetailedSeqSpec :: Spec
+sqliteDetailedSeqSpec = withDB
+    (fst <$> newFileDBLayer @(SeqState DummyTarget) @DummyTarget @SeqKey) $ do
+    describe "Sqlite multiple-checkpoints test (SeqState)"
+        multipleCheckpointSpec
 
 sqliteSpec :: Spec
 sqliteSpec = withDB (fst <$> newMemoryDBLayer) $ do
     describe "Sqlite Simple tests (SeqState)" $
         simpleSpec testCpSeq
-    describe "Sqlite multiple-checkpoints test (SeqState)" $
-        multipleCheckpointSpec testCpSeq
     describe "Sqlite" dbPropertyTests
     describe "Sqlite State machine tests" $ do
         it "Sequential" prop_sequential
@@ -186,22 +195,30 @@ runSqlite'
 runSqlite' = runSqlite
 
 multipleCheckpointSpec
-    :: forall s k.
-       ( Show (k 'RootK XPrv)
-       , Eq (k 'RootK XPrv)
-       , Eq s
-       , GenerateTestKey k )
-    => Wallet s DummyTarget
-    -> SpecWith (DBLayer IO s DummyTarget k)
-multipleCheckpointSpec testCp = do
+    :: SpecWith (DBLayer IO (SeqState DummyTarget) DummyTarget SeqKey)
+multipleCheckpointSpec = do
     describe "Wallet table" $ do
-        it "put and read checkpoints" $ \db -> do
-            unsafeRunExceptT $ createWallet db testPk testCp testMetadata
-            runExceptT (putCheckpoint db testPk testCp) `shouldReturn` Right ()
-            runSqlite' ":memory:" $ do
-                _cp :: [Entity Checkpoint] <- selectList [][]
-                return ()
-            readCheckpoint db testPk `shouldReturn` Just testCp
+        it "put and read checkpoints - previous checkpoints are also stored" $ \db -> do
+            let block0 = mkBlock 0 "genesis" []
+            let cp1 = mkCpSeq block0
+            unsafeRunExceptT $ createWallet db testPk cp1 testMetadata
+            readCheckpoint db testPk `shouldReturn` Just cp1
+
+            let block1 = mkBlock 1 "block1" []
+            let cp2 = mkCpSeq block1
+            runExceptT (putCheckpoint db testPk cp2) `shouldReturn` Right ()
+            cps <- runSqlite' "my.db" $ do
+                cps :: [Entity Checkpoint] <- selectList [][]
+                return $ fmap entityVal cps
+            readCheckpoint db testPk `shouldReturn` Just cp2
+            map (\(Checkpoint _ slot (BlockId prev) height) ->
+                     (slot, prev, height)) cps
+                `shouldBe` map getTriple [cp1,cp2]
+    where
+      getTriple cp =
+          let (BlockHeader s h) = currentTip cp
+          in (s, h, fromIntegral $ fromQuantity $ blockHeight cp)
+      fromQuantity (Quantity a) = a
 
 simpleSpec
     :: forall s k.
@@ -322,6 +339,15 @@ newMemoryDBLayer = do
     db <- snd <$> newDBLayer logConfig (traceInTVarIO logs) Nothing
     pure (db, logs)
 
+newFileDBLayer
+    :: (IsOurs s, NFData s, Show s, PersistState s, PersistTx t, PersistKey k)
+    => IO (DBLayer IO s t k, TVar [LogObject Text])
+newFileDBLayer = do
+    logConfig <- testingLogConfig
+    logs <- newTVarIO []
+    db <- snd <$> newDBLayer logConfig (traceInTVarIO logs) (Just "my.db")
+    pure (db, logs)
+
 testingLogConfig :: IO CM.Configuration
 testingLogConfig = do
     logConfig <- defaultConfigTesting
@@ -386,6 +412,28 @@ shouldHaveLog msgs (sev, str) = unless (any match msgs) $
                                    Test data
 -------------------------------------------------------------------------------}
 
+initDummyBlock0 :: Block Tx
+initDummyBlock0 = Block
+    { header = BlockHeader
+        { slotId = SlotId 0 0
+        , prevBlockHash = Hash "genesis"
+        }
+    , transactions = []
+    }
+
+mkBlock
+    :: Word16
+    -> ByteString
+    -> [Tx]
+    -> Block Tx
+mkBlock slotNum blockTag txs = Block
+    { header = BlockHeader
+        { slotId = SlotId 0 slotNum
+        , prevBlockHash = Hash blockTag
+        }
+    , transactions = txs
+    }
+
 testMetadata :: WalletMetadata
 testMetadata = WalletMetadata
     { name = WalletName "test wallet"
@@ -428,6 +476,11 @@ class GenerateTestKey (key :: Depth -> * -> *) where
 
 testCpSeq :: Wallet (SeqState DummyTarget) DummyTarget
 testCpSeq = initWallet block0 initDummyStateSeq
+
+mkCpSeq
+    :: Block Tx
+    -> Wallet (SeqState DummyTarget) DummyTarget
+mkCpSeq block = initWallet block initDummyStateSeq
 
 initDummyStateSeq :: SeqState DummyTarget
 initDummyStateSeq = mkSeqState (xprv, mempty) defaultAddressPoolGap

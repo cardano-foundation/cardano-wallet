@@ -79,8 +79,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), PersistKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
+import Cardano.Wallet.Primitive.Model
+    ( currentTip )
 import Cardano.Wallet.Primitive.Types
-    ( DefineTx (..) )
+    ( BlockHeader (..), DefineTx (..) )
 import Control.Concurrent.MVar
     ( newMVar, withMVar )
 import Control.DeepSeq
@@ -144,6 +146,7 @@ import Database.Persist.Sql
     , selectKeysList
     , selectList
     , updateWhere
+    , (!=.)
     , (<-.)
     , (<=.)
     , (=.)
@@ -310,7 +313,10 @@ newDBLayer logConfig trace fp = do
               ExceptT $ runQuery $
               selectWallet wid >>= \case
                   Just _ -> Right <$> do
-                      deleteCheckpoints @s wid -- clear out all checkpoints
+                      -- remove checkpoint if already present to effectively
+                      -- support updating of checkpoint
+                      let (BlockHeader sid _) = currentTip cp
+                      deleteCheckpoint @s wid sid
                       deleteLooseTransactions -- clear unused transaction data
                       insertCheckpoint wid cp -- add this checkpoint
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
@@ -677,6 +683,17 @@ deleteCheckpoints wid = do
     deleteWhere [CheckpointWalletId ==. wid]
     deleteState @s wid -- clear state
 
+-- | Delete the checkpoint associated with a wallet and slotId.
+deleteCheckpoint
+    :: forall s. PersistState s
+    => W.WalletId
+    -> W.SlotId
+    -> SqlPersistT IO ()
+deleteCheckpoint wid sid = do
+    deleteWhere [UtxoWalletId ==. wid, UtxoSlot ==. sid]
+    deleteWhere [CheckpointWalletId ==. wid, CheckpointSlot ==. sid]
+    deleteCheckpointState @s wid sid
+
 -- | Delete TxMeta values for a wallet.
 deleteTxMetas
     :: W.WalletId
@@ -756,6 +773,7 @@ selectUTxO (Checkpoint wid sl _parent _bh) = fmap entityVal <$>
     selectList
         [ UtxoWalletId ==. wid
         , UtxoSlot ==. sl
+        , UtxoSlotSpent !=. Nothing
         ] []
 
 selectTxs
@@ -815,6 +833,9 @@ class PersistState s where
     selectState :: (W.WalletId, W.SlotId) -> SqlPersistT IO (Maybe s)
     -- | Remove the state for all checkpoints of a wallet.
     deleteState :: W.WalletId -> SqlPersistT IO ()
+    -- | Remove the state for one checkpoint of a wallet.
+    deleteCheckpointState :: W.WalletId -> W.SlotId -> SqlPersistT IO ()
+
 
 class DefineTx t => PersistTx t where
     resolvedInputs :: Tx t -> [(W.TxIn, Maybe W.Coin)]
@@ -869,6 +890,16 @@ instance W.KeyToAddress t Seq.SeqKey => PersistState (Seq.SeqState t) where
         deleteCascadeWhere [ SeqStateCheckpointWalletId ==. wid ]
         deleteWhere [ SeqStateAddressWalletId ==. wid ]
         deleteWhere [ SeqStateWalletId ==. wid ]
+
+    deleteCheckpointState wid sid = do
+        cpid <- selectList [ SeqStateCheckpointWalletId ==. wid
+                           , SeqStateCheckpointSlot ==. sid ] []
+        deleteWhere [ SeqStatePendingIxCheckpointId <-. fmap entityKey cpid ]
+        deleteCascadeWhere [ SeqStateCheckpointWalletId ==. wid
+                           , SeqStateCheckpointSlot ==. sid ]
+        deleteWhere [ SeqStateAddressWalletId ==. wid
+                    , SeqStateAddressSlot ==. sid ]
+
 
 insertAddressPool
     :: forall t c. (Typeable c)
@@ -961,6 +992,16 @@ instance PersistState (Rnd.RndState t) where
         deleteWhere [ RndStateCheckpointWalletId ==. wid ]
         deleteWhere [ RndStateAddressWalletId ==. wid ]
         deleteWhere [ RndStateWalletId ==. wid ]
+
+    deleteCheckpointState wid sid = do
+        cpid <- fmap entityKey <$>
+            selectList [ RndStateCheckpointWalletId ==. wid
+                       , RndStateCheckpointSlot ==. sid ] []
+        deleteWhere [ RndStatePendingAddressCheckpointId <-. cpid ]
+        deleteWhere [ RndStateCheckpointWalletId ==. wid
+                    , RndStateCheckpointSlot ==. sid ]
+        deleteWhere [ RndStateAddressWalletId ==. wid
+                    , RndStateAddressSlot ==. sid ]
 
 insertRndStateAddresses
     :: W.WalletId
