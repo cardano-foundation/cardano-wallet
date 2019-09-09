@@ -1325,6 +1325,7 @@ waitForService (Service service) (sb, tracer) port action = do
             exitFailure
 
     action `catch` handler
+    logInfo tracer $ service <> " is ready."
 
 -- | Look whether a particular filepath is correctly resolved on the filesystem.
 -- This makes for a better user experience when passing wrong filepaths via
