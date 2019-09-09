@@ -17,7 +17,7 @@ import Cardano.BM.Trace
 import Cardano.Launcher
     ( Command (Command), StdStream (..), installSignalHandlers, launch )
 import Cardano.Wallet
-    ( BlockchainParameters (..), WalletLayer (..), newWalletLayer )
+    ( BlockchainParameters (..), WalletLayer, newWalletLayer )
 import Cardano.Wallet.DB.Sqlite
     ( PersistState )
 import Cardano.Wallet.HttpBridge.Compatibility
@@ -97,6 +97,7 @@ import System.IO.Temp
     ( emptySystemTempFile )
 
 import qualified Cardano.BM.Configuration.Model as CM
+import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
@@ -212,16 +213,16 @@ bench_restoration (wid, wname, s) = withHttpBridge network $ \port -> do
     BlockHeader sl _ <- unsafeRunExceptT $ fst <$> networkTip nw
     sayErr . fmt $ network ||+ " tip is at " +|| sl ||+ ""
     let bp = byronBlockchainParameters
-    w <- newWalletLayer @_ @t nullTracer bp db nw tl
-    wallet <- unsafeRunExceptT $ createWallet w wid wname s
-    unsafeRunExceptT $ restoreWallet w wallet
+    w <- newWalletLayer @t nullTracer bp db nw tl
+    wallet <- unsafeRunExceptT $ W.createWallet w wid wname s
+    unsafeRunExceptT $ W.restoreWallet w wallet
     waitForWalletSync w wallet
-    (wallet', _) <- unsafeRunExceptT $ readWallet w wid
+    (wallet', _) <- unsafeRunExceptT $ W.readWallet w wid
     sayErr "Wallet restored!"
     sayErr . fmt $ "Balance: " +|| totalBalance wallet' ||+ " lovelace"
     sayErr . fmt $
         "UTxO: " +|| Map.size (getUTxO $ totalUTxO wallet') ||+ " entries"
-    unsafeRunExceptT $ removeWallet w wid
+    unsafeRunExceptT $ W.removeWallet w wid
   where
     network = networkVal @n
 
@@ -266,7 +267,7 @@ waitForWalletSync
     -> WalletId
     -> IO ()
 waitForWalletSync walletLayer wid = do
-    (_, meta) <- unsafeRunExceptT $ readWallet walletLayer wid
+    (_, meta) <- unsafeRunExceptT $ W.readWallet walletLayer wid
     case meta ^. #status of
         Ready -> return ()
         Restoring (Quantity p) -> do

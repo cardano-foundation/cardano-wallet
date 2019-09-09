@@ -26,7 +26,7 @@ import Cardano.Wallet
     , ErrUpdatePassphrase (..)
     , ErrWithRootKey (..)
     , ErrWithRootKey (..)
-    , WalletLayer (..)
+    , WalletLayer
     , newWalletLayer
     )
 import Cardano.Wallet.DB
@@ -144,6 +144,7 @@ import Test.Utils.Time
     ( UniformTime )
 
 import qualified Cardano.Crypto.Wallet as CC
+import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB as DB
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -208,7 +209,7 @@ walletDoubleCreationProp
 walletDoubleCreationProp newWallet@(wid, wname, wstate) =
     monadicIO $ liftIO $ do
         (WalletLayerFixture _db wl _walletIds _) <- setupFixture newWallet
-        secondTrial <- runExceptT $ createWallet wl wid wname wstate
+        secondTrial <- runExceptT $ W.createWallet wl wid wname wstate
         secondTrial `shouldSatisfy` isLeft
 
 walletGetProp
@@ -216,7 +217,7 @@ walletGetProp
     -> Property
 walletGetProp newWallet = monadicIO $ liftIO $ do
     (WalletLayerFixture _db wl walletIds _) <- liftIO $ setupFixture newWallet
-    resFromGet <- runExceptT $ readWallet wl (L.head walletIds)
+    resFromGet <- runExceptT $ W.readWallet wl (L.head walletIds)
     resFromGet `shouldSatisfy` isRight
 
 walletGetWrongIdProp
@@ -224,7 +225,7 @@ walletGetWrongIdProp
     -> Property
 walletGetWrongIdProp (newWallet, corruptedWalletId) = monadicIO $ liftIO $ do
     (WalletLayerFixture _db wl _walletIds _) <- liftIO $ setupFixture newWallet
-    attempt <- runExceptT $ readWallet wl corruptedWalletId
+    attempt <- runExceptT $ W.readWallet wl corruptedWalletId
     attempt `shouldSatisfy` isLeft
 
 walletIdDeterministic
@@ -250,8 +251,8 @@ walletUpdateName
 walletUpdateName wallet@(_, wName0, _) names = monadicIO $ liftIO $ do
     (WalletLayerFixture _ wl [wid] _) <- liftIO $ setupFixture wallet
     unsafeRunExceptT $ forM_ names $ \wName ->
-        updateWallet wl wid (\x -> x { name = wName })
-    wName <- fmap (name . snd) <$> unsafeRunExceptT $ readWallet wl wid
+        W.updateWallet wl wid (\x -> x { name = wName })
+    wName <- fmap (name . snd) <$> unsafeRunExceptT $ W.readWallet wl wid
     wName `shouldBe` last (wName0 : names)
 
 walletUpdateNameNoSuchWallet
@@ -262,7 +263,7 @@ walletUpdateNameNoSuchWallet
 walletUpdateNameNoSuchWallet wallet@(wid', _, _) wid wName =
     wid /= wid' ==> monadicIO $ liftIO $ do
         (WalletLayerFixture _ wl _ _) <- liftIO $ setupFixture wallet
-        attempt <- runExceptT $ updateWallet wl wid (\x -> x { name = wName })
+        attempt <- runExceptT $ W.updateWallet wl wid (\x -> x { name = wName })
         attempt `shouldBe` Left (ErrNoSuchWallet wid)
 
 walletUpdatePassphrase
@@ -277,13 +278,13 @@ walletUpdatePassphrase wallet new mxprv = monadicIO $ liftIO $ do
         Just (xprv, pwd) -> prop_withPrivateKey wl wid (xprv, pwd)
   where
     prop_withoutPrivateKey wl wid = do
-        attempt <- runExceptT $ updateWalletPassphrase wl wid (coerce new, new)
+        attempt <- runExceptT $ W.updateWalletPassphrase wl wid (coerce new, new)
         let err = ErrUpdatePassphraseWithRootKey $ ErrWithRootKeyNoRootKey wid
         attempt `shouldBe` Left err
 
     prop_withPrivateKey wl wid (xprv, pwd) = do
-        unsafeRunExceptT $ attachPrivateKey wl wid (xprv, pwd)
-        attempt <- runExceptT $ updateWalletPassphrase wl wid (coerce pwd, new)
+        unsafeRunExceptT $ W.attachPrivateKey wl wid (xprv, pwd)
+        attempt <- runExceptT $ W.updateWalletPassphrase wl wid (coerce pwd, new)
         attempt `shouldBe` Right ()
 
 walletUpdatePassphraseWrong
@@ -294,8 +295,8 @@ walletUpdatePassphraseWrong
 walletUpdatePassphraseWrong wallet (xprv, pwd) (old, new) =
     pwd /= coerce old ==> monadicIO $ liftIO $ do
         (WalletLayerFixture _ wl [wid] _) <- liftIO $ setupFixture wallet
-        unsafeRunExceptT $ attachPrivateKey wl wid (xprv, pwd)
-        attempt <- runExceptT $ updateWalletPassphrase wl wid (old, new)
+        unsafeRunExceptT $ W.attachPrivateKey wl wid (xprv, pwd)
+        attempt <- runExceptT $ W.updateWalletPassphrase wl wid (old, new)
         let err = ErrUpdatePassphraseWithRootKey
                 $ ErrWithRootKeyWrongPassphrase wid
                 ErrWrongPassphrase
@@ -309,7 +310,7 @@ walletUpdatePassphraseNoSuchWallet
 walletUpdatePassphraseNoSuchWallet wallet@(wid', _, _) wid (old, new) =
     wid /= wid' ==> monadicIO $ liftIO $ do
         (WalletLayerFixture _ wl _ _) <- liftIO $ setupFixture wallet
-        attempt <- runExceptT $ updateWalletPassphrase wl wid (old, new)
+        attempt <- runExceptT $ W.updateWalletPassphrase wl wid (old, new)
         let err = ErrUpdatePassphraseWithRootKey (ErrWithRootKeyNoRootKey wid)
         attempt `shouldBe` Left err
 
@@ -321,15 +322,15 @@ walletUpdatePassphraseDate wallet (xprv, pwd) = monadicIO $ liftIO $ do
     (WalletLayerFixture _ wl [wid] _) <- liftIO $ setupFixture wallet
     let infoShouldSatisfy predicate = do
             info <- (passphraseInfo . snd) <$>
-                unsafeRunExceptT (readWallet wl wid)
+                unsafeRunExceptT (W.readWallet wl wid)
             info `shouldSatisfy` predicate
             return info
 
     void $ infoShouldSatisfy isNothing
-    unsafeRunExceptT $ attachPrivateKey wl wid (xprv, pwd)
+    unsafeRunExceptT $ W.attachPrivateKey wl wid (xprv, pwd)
     info <- infoShouldSatisfy isJust
     pause
-    unsafeRunExceptT $ updateWalletPassphrase wl wid (coerce pwd, coerce pwd)
+    unsafeRunExceptT $ W.updateWalletPassphrase wl wid (coerce pwd, coerce pwd)
     void $ infoShouldSatisfy (\info' -> isJust info' && info' > info)
   where
     pause = threadDelay 500
@@ -344,11 +345,11 @@ walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
         let state = Map.insert (Address "source") minBound mempty
         let wallet = (wid, wname, DummyState state)
         (WalletLayerFixture _ wl _ _) <- liftIO $ setupFixture wallet
-        unsafeRunExceptT $ attachPrivateKey wl wid (xprv, pwd)
-        (_,_,[witOld]) <- unsafeRunExceptT $ signTx wl wid pwd selection
-        unsafeRunExceptT $ updateWalletPassphrase wl wid (coerce pwd, newPwd)
+        unsafeRunExceptT $ W.attachPrivateKey wl wid (xprv, pwd)
+        (_,_,[witOld]) <- unsafeRunExceptT $ W.signTx wl wid pwd selection
+        unsafeRunExceptT $ W.updateWalletPassphrase wl wid (coerce pwd, newPwd)
         (_,_,[witNew]) <-
-            unsafeRunExceptT $ signTx wl wid (coerce newPwd) selection
+            unsafeRunExceptT $ W.signTx wl wid (coerce newPwd) selection
         witOld `shouldBe` witNew
   where
     selection = CoinSelection
@@ -370,7 +371,7 @@ walletListTransactionsSorted wallet@(wid, _, _) _order (_mstart, _mend) history 
         (WalletLayerFixture db wl _ slotIdTime) <- liftIO $ setupFixture wallet
         unsafeRunExceptT $ putTxHistory db (PrimaryKey wid) history
         txs <- unsafeRunExceptT $
-            listTransactions wl wid Nothing Nothing Descending
+            W.listTransactions wl wid Nothing Nothing Descending
         length txs `shouldBe` Map.size history
         -- With the 'Down'-wrapper, the sort is descending.
         txs `shouldBe` L.sortOn (Down . slotId . txInfoMeta) txs
@@ -398,8 +399,8 @@ setupFixture (wid, wname, wstate) = do
     db <- newDBLayer
     let nl = error "NetworkLayer"
     let tl = dummyTransactionLayer
-    wl <- newWalletLayer @_ @DummyTarget nullTracer bp db nl tl
-    res <- runExceptT $ createWallet wl wid wname wstate
+    wl <- newWalletLayer @DummyTarget nullTracer bp db nl tl
+    res <- runExceptT $ W.createWallet wl wid wname wstate
     let wal = case res of
             Left _ -> []
             Right walletId -> [walletId]
