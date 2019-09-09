@@ -47,7 +47,7 @@ main = do
         Build -> do
             doMaybe setupBuildDirectory optBuildDirectory
             cacheGetStep cacheConfig
-            buildResult <- buildStep Nothing
+            buildResult <- buildStep
             cachePutStep cacheConfig
             -- uploadCoverageStep
             weederStep
@@ -99,8 +99,8 @@ parseOpts = execParser opts
         <> command "purge-cache" (info (pure PurgeCache) idm)
         )
 
-buildStep :: Maybe [Text] -> IO ExitCode
-buildStep testArgs =
+buildStep :: IO ExitCode
+buildStep =
     echo "--- Build LTS Snapshot" *> buildSnapshot .&&.
     echo "--- Build dependencies" *> buildDeps .&&.
     echo "+++ Build" *> build .&&.
@@ -114,13 +114,18 @@ buildStep testArgs =
         , "--haddock-internal"
         , "--no-haddock-deps"
         ]
-    testArgs' = maybe [] ("--ta" :) testArgs
+    testArgs = maybe [] (\ta -> ["--ta", T.unwords ta])
 
-    stackBuild opt args = run "stack" $ concat [cfg, ["build"], fastOpt opt, args]
-    buildSnapshot = stackBuild Opt  $ buildArgs ++ ["--only-snapshot"]
-    buildDeps     = stackBuild Opt  $ buildArgs ++ ["--only-dependencies"]
-    build         = stackBuild Fast $ ["--test", "--no-run-tests"] ++ buildArgs
-    test          = stackBuild Fast $ "--test" : testArgs'
+    stackBuild opt ta args = run "stack" $
+        concat [cfg, ["build"], fastOpt opt, testArgs ta, args]
+    buildSnapshot = stackBuild Opt Nothing $ buildArgs ++ ["--only-snapshot"]
+    buildDeps = stackBuild Opt Nothing $ buildArgs ++ ["--only-dependencies"]
+    build = stackBuild Fast Nothing $ ["--test", "--no-run-tests"] ++ buildArgs
+    test =
+        stackBuild Fast (Just ["--skip",  serialTests]) ["--test"] .&&.
+        stackBuild Fast (Just ["--match", serialTests, "--jobs", "1"])
+            ["--test", "--jobs", "1"]
+    serialTests = "SERIAL"
 
     fastOpt Opt = []
     fastOpt Fast = ["--fast"]
