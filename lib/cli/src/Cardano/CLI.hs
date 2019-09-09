@@ -282,7 +282,8 @@ runCli = join . customExecParser preferences
 -------------------------------------------------------------------------------}
 
 cmdMnemonic :: Mod CommandFields (IO ())
-cmdMnemonic = command "mnemonic" $ info (helper <*> cmds) mempty
+cmdMnemonic = command "mnemonic" $ info (helper <*> cmds) $ mempty
+    <> progDesc "Generate mnemonic words."
   where
     cmds = subparser $ mempty
         <> cmdMnemonicGenerate
@@ -314,7 +315,8 @@ cmdMnemonicGenerate = command "generate" $ info (helper <*> cmd) $ mempty
 cmdWallet
     :: forall t. (DecodeAddress t, EncodeAddress t)
     => Mod CommandFields (IO ())
-cmdWallet = command "wallet" $ info (helper <*> cmds) mempty
+cmdWallet = command "wallet" $ info (helper <*> cmds) $ mempty
+    <> progDesc "Manage wallets."
   where
     cmds = subparser $ mempty
         <> cmdWalletList @t
@@ -508,7 +510,8 @@ cmdWalletGetUtxoStatistics = command "utxo" $ info (helper <*> cmd) $ mempty
 cmdTransaction
     :: forall t. (DecodeAddress t, EncodeAddress t)
     => Mod CommandFields (IO ())
-cmdTransaction = command "transaction" $ info (helper <*> cmds) mempty
+cmdTransaction = command "transaction" $ info (helper <*> cmds) $ mempty
+    <> progDesc "Manage transactions."
   where
     cmds = subparser $ mempty
         <> cmdTransactionCreate @t
@@ -621,7 +624,8 @@ cmdTransactionSubmit = command "submit" $ info (helper <*> cmd) $ mempty
 cmdAddress
     :: forall t. (DecodeAddress t, EncodeAddress t)
     => Mod CommandFields (IO ())
-cmdAddress = command "address" $ info (helper <*> cmds) mempty
+cmdAddress = command "address" $ info (helper <*> cmds) $ mempty
+    <> progDesc "Manage addresses."
   where
     cmds = subparser $ mempty
         <> cmdAddressList @t

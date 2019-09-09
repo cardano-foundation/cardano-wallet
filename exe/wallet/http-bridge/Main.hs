@@ -228,7 +228,7 @@ data ServeArgs = ServeArgs
 cmdServe
     :: Mod CommandFields (IO ())
 cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
-    <> progDesc "serve API that listens for commands/actions."
+    <> progDesc "Serve API that listens for commands/actions."
   where
     cmd = fmap withNetwork $ ServeArgs
         <$> networkOption
