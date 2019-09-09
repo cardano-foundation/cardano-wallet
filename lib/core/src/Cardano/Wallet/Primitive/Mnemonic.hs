@@ -17,38 +17,43 @@
 --
 -- This module provides mnemonic (backup phrase) creation, and conversion of a
 -- mnemonic to seed for wallet restoration.
+--
+-- The module uses a lot of type-level machinery to ensure that entropy and
+-- mnemonic sizes are all compatible and legit. Therefore, it isn't possible to
+-- generate an invalid seed by using the smart constructors below, and trying to
+-- generate an entropy of an invalid size will result in a runtime error.
 
 module Cardano.Wallet.Primitive.Mnemonic
     (
-      -- * Types
+      -- * Creating @Mnemonic@ (resp. @Entropy@)
+      -- $constructors
       Mnemonic
     , Entropy
-    , EntropySize
-    , MnemonicWords
-    , ValidEntropySize
-    , ValidChecksumSize
-    , ConsistentEntropy
-    , CheckSumBits
+    , mkEntropy
+    , mkMnemonic
+    , genEntropy
 
       -- * Errors
     , MnemonicError(..)
     , MnemonicException(..)
-    , EntropyError(..)
-    , DictionaryError(..)
-    , MnemonicWordsError(..)
-
-      -- * Creating @Mnemonic@ (resp. @Entropy@)
-    , mkEntropy
-    , mkMnemonic
-    , genEntropy
 
       -- * Converting from and to @Mnemonic@ (resp. @Entropy@)
     , mnemonicToEntropy
     , entropyToMnemonic
     , entropyToBytes
-
-    , ambiguousNatVal
     , mnemonicToText
+
+      -- * Re-export from @Crypto.Encoding.BIP39@
+    , EntropyError(..)
+    , DictionaryError(..)
+    , MnemonicWordsError(..)
+    , ValidEntropySize
+    , ValidChecksumSize
+    , ConsistentEntropy
+    , CheckSumBits
+    , EntropySize
+    , MnemonicWords
+
     ) where
 
 import Prelude
@@ -128,40 +133,72 @@ deriving instance Eq (EntropyError czs)
 deriving instance Eq MnemonicWordsError
 deriving instance Eq DictionaryError
 
--- | Smart-constructor for the Entropy
-mkEntropy
-    :: forall n csz. (ValidEntropySize n, ValidChecksumSize n csz)
-    => ByteString
-    -> Either (EntropyError csz) (Entropy n)
-mkEntropy = toEntropy
+-- $constructors
+--
+-- Type families 'EntropySize', 'MnemonicWords' and 'CheckSumBits' can be used
+-- to disambiguate calls to smart constructors in a readable way.
+--
+-- __TroubleShooting__:
+--
+-- - @Natural XX is out of bounds for Int@:
+--   This usually occurs when ones is trying to specify an invalid size for an
+--   'Entropy' or 'Mnemonic'. For example:
+--
+--   >>> genEntropy @42
+--   error:
+--     • Natural CheckSumBits 42 is out of bounds for Int
+--
+--   This could be the case as well when forgetting to use an adequate type
+--   application:
+--
+--   >>> mkEntropy mempty
+--   error:
+--     • Natural ent is out of bounds for Int
 
-ambiguousNatVal
-    :: forall n . (KnownNat n)
-    => Integer
-ambiguousNatVal = natVal @n Proxy
+-- | Smart-constructor for the Entropy
+--
+-- >>> mkEntropy @(EntropySize 15) bytes
+-- Entropy {} :: Entropy 160
+mkEntropy
+    :: forall ent csz. (ValidEntropySize ent, ValidChecksumSize ent csz)
+    => ByteString
+    -> Either (EntropyError csz) (Entropy ent)
+mkEntropy = toEntropy
 
 -- | Generate Entropy of a given size using a random seed.
 --
 -- Example:
---     do
---       ent <- genEntropy :: IO (Entropy 12)
+--
+-- >>> genEntropy @(EntropySize 12)
+-- Entropy {} :: Entropy 128
 genEntropy
-    :: forall n csz. (ValidEntropySize n, ValidChecksumSize n csz)
-    => IO (Entropy n)
+    :: forall ent csz. (ValidEntropySize ent, ValidChecksumSize ent csz)
+    => IO (Entropy ent)
 genEntropy =
     let
         size =
-            fromIntegral $ ambiguousNatVal @n
+            fromIntegral $ natVal @ent Proxy
         eitherToIO =
             either (throwM . UnexpectedEntropyError) return
     in
         (eitherToIO . mkEntropy) =<< Crypto.getEntropy (size `div` 8)
 
--- | Smart-constructor for the Mnemonic
+-- | Smart-constructor for 'Mnemonic'. Requires a type application to
+-- disambiguate the mnemonic size:
+--
+-- >>> mkMnemonic @15 sentence
+-- Mnemonic {} :: Mnemonic 15
+--
+-- See also [FromMnemonic](Cardano-Wallet-Primitive-AddressDerivation.html#t:FromMnemonic)
+-- to build a 'Mnemonic' from lists of words of variable sizes.
+--
+-- __Property__:
+--
+-- prop> mkMnemonic (mnemonicToText mnemonic) == Right mnemonic
 mkMnemonic
-    :: forall mw n csz.
-     ( ConsistentEntropy n mw csz
-     , EntropySize mw ~ n
+    :: forall mw ent csz.
+     ( ConsistentEntropy ent mw csz
+     , EntropySize mw ~ ent
      )
     => [Text]
     -> Either (MnemonicError csz) (Mnemonic mw)
@@ -180,23 +217,25 @@ mkMnemonic wordsm = do
         , mnemonicToSentence = sentence
         }
 
--- | Convert an Entropy to a corresponding Mnemonic Sentence
+-- | Convert an Entropy to a corresponding Mnemonic Sentence. Since 'Entropy'
+-- and 'Mnemonic' can only be created through smart-constructors, this function
+-- cannot fail and is total.
 entropyToMnemonic
-    :: forall mw n csz.
+    :: forall mw ent csz.
      ( ValidMnemonicSentence mw
-     , ValidEntropySize n
-     , ValidChecksumSize n csz
-     , n ~ EntropySize mw
-     , mw ~ MnemonicWords n
+     , ValidEntropySize ent
+     , ValidChecksumSize ent csz
+     , ent ~ EntropySize mw
+     , mw ~ MnemonicWords ent
      )
-    => Entropy n
+    => Entropy ent
     -> Mnemonic mw
 entropyToMnemonic entropy = Mnemonic
     { mnemonicToSentence = entropyToWords entropy
     , mnemonicToEntropy  = entropy
     }
 
--- | Convert 'Entropy' to a raw 'ByteString'
+-- | Convert 'Entropy' to a plain bytes.
 entropyToBytes
     :: Entropy n
     -> ScrubbedBytes
@@ -214,6 +253,7 @@ fromUtf8String = T.pack . Basement.toList
 
 instance (KnownNat csz) => Basement.Exception (MnemonicException csz)
 
+-- | Convert a 'Mnemonic' to a sentence of English mnemonic words.
 mnemonicToText
     :: Mnemonic mw
     -> [Text]

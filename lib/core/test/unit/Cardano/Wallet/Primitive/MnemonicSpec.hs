@@ -23,7 +23,6 @@ import Cardano.Wallet.Primitive.Mnemonic
     , MnemonicError (..)
     , MnemonicException (..)
     , MnemonicWords
-    , ambiguousNatVal
     , entropyToBytes
     , entropyToMnemonic
     , genEntropy
@@ -49,8 +48,12 @@ import Data.Either
     ( isRight )
 import Data.Function
     ( on )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Text
     ( Text )
+import GHC.TypeLits
+    ( natVal )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldReturn, shouldSatisfy )
 import Test.Hspec.QuickCheck
@@ -282,7 +285,7 @@ instance
     ) => Arbitrary (Entropy n) where
     arbitrary =
         let
-            size = fromIntegral $ ambiguousNatVal @n
+            size = fromIntegral $ natVal @n Proxy
             entropy =
                 mkEntropy  @n . B8.pack <$> vectorOf (size `quot` 8) arbitrary
         in
