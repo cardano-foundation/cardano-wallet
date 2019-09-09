@@ -44,6 +44,8 @@ import Control.Monad.Trans.Except
     ( runExceptT, withExceptT )
 import Control.Retry
     ( constantDelay, limitRetries )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text.Class
     ( toText )
 import Test.Hspec
@@ -67,7 +69,7 @@ spec = do
     describe "Happy paths" $ beforeAll startBridge $ afterAll closeBridge $ do
         it "get unstable blocks for the unstable epoch" $ \(_, bridge, _) -> do
             let action = runExceptT $ do
-                    (SlotId ep sl) <- slotId . fst <$> networkTip' bridge
+                    (SlotId ep sl) <- slotId <$> networkTip' bridge
                     let sl' = if sl > 2 then sl - 2 else 0
                     blocks <- nextBlocks' bridge (mkHeader $ SlotId ep sl')
                     lift $ blocks `shouldSatisfy` (\bs
@@ -78,7 +80,7 @@ spec = do
 
         it "produce no blocks if start is after tip" $ \(_, bridge, _) -> do
             let action = runExceptT $ do
-                    SlotId ep sl <- slotId . fst <$> networkTip' bridge
+                    SlotId ep sl <- slotId <$> networkTip' bridge
                     length <$> nextBlocks' bridge (mkHeader $ SlotId (ep + 1) sl)
             action `shouldReturn` pure 0
 
@@ -86,7 +88,7 @@ spec = do
             bridge <- newNetworkLayerInvalid port
             let msg x = "Expected a ErrNetworkInvalid' failure but got " <> show x
             let action = do
-                    res <- runExceptT $ fst <$> networkTip bridge
+                    res <- runExceptT $ networkTip bridge
                     res `shouldSatisfy` \case
                         Left (ErrNetworkTipNetworkUnreachable (ErrNetworkInvalid _)) ->
                             True
@@ -98,7 +100,7 @@ spec = do
         it "gets a 'ErrNetworkUnreachable' if bridge isn't up (1)" $ \bridge -> do
             let msg x = "Expected a ErrNetworkUnreachable' failure but got " <> show x
             let action = do
-                    res <- runExceptT $ fst <$> networkTip bridge
+                    res <- runExceptT $ networkTip bridge
                     res `shouldSatisfy` \case
                         Left (ErrNetworkTipNetworkUnreachable _) -> True
                         _ -> error (msg res)
@@ -225,6 +227,7 @@ spec = do
     -- The underlying HttpBridgeLayer is only needs the slot of the header.
     mkHeader slot = BlockHeader
         { slotId = slot
+        , blockHeight = Quantity 0
         , prevBlockHash =
             Hash "prevBlockHash is not used by the http-bridge NetworkLayer"
         }

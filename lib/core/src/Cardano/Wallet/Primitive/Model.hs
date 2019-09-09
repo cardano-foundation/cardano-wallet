@@ -50,7 +50,6 @@ module Cardano.Wallet.Primitive.Model
     , availableUTxO
     , utxo
     , getPending
-    , blockHeight
     , blockchainParameters
     ) where
 
@@ -153,19 +152,17 @@ data Wallet s t where
         -> Set (Tx t, TxMeta) -- Pending outgoing transactions
         -> BlockHeader -- Header of the latest applied block (current tip)
         -> s -- Address discovery state
-        -> Quantity "block" Natural -- block height
         -> BlockchainParameters
         -> Wallet s t
 
 deriving instance Show (Wallet s t)
 deriving instance Eq s => Eq (Wallet s t)
 instance NFData (Wallet s t) where
-    rnf (Wallet u pending sl s bh bp) =
+    rnf (Wallet u pending sl s bp) =
         deepseq (rnf u) $
         deepseq (rnf pending) $
         deepseq (rnf sl) $
         deepseq (rnf s) $
-        deepseq (rnf bh) $
         deepseq (rnf bp) ()
 
 data BlockchainParameters = BlockchainParameters
@@ -203,8 +200,7 @@ initWallet
 initWallet block bp s =
     let
         ((txs, utxo'), s') = prefilterBlock (Proxy @t) block mempty s
-        initialBlockHeight = Quantity 0
-    in Wallet utxo' (Set.fromList txs) (header block) s' initialBlockHeight bp
+    in Wallet utxo' (Set.fromList txs) (header block) s' bp
 
 -- | Update the state of an existing Wallet model
 updateState
@@ -212,7 +208,7 @@ updateState
     => s
     -> Wallet s t
     -> Wallet s t
-updateState s (Wallet a b c _ d e) = Wallet a b c s d e
+updateState s (Wallet a b c _ d) = Wallet a b c s d
 
 -- | Apply Block is the only way to make the wallet evolve. It returns a new
 -- updated wallet state, as well as the set of all our transaction discovered
@@ -222,7 +218,7 @@ applyBlock
     => Block (Tx t)
     -> Wallet s t
     -> (Map (Hash "Tx") (Tx t, TxMeta), Wallet s t)
-applyBlock !b (Wallet !u !pending _ s bh bp) =
+applyBlock !b (Wallet !u !pending _ s bp) =
     let
         -- Prefilter Block / Update UTxO
         ((txs, u'), s') = prefilterBlock (Proxy @t) b u s
@@ -235,7 +231,7 @@ applyBlock !b (Wallet !u !pending _ s bh bp) =
             txs
     in
         ( txs'
-        , Wallet u' pending' (b ^. #header) s' (succ bh) bp
+        , Wallet u' pending' (b ^. #header) s' bp
         )
   where
     pendingExcluding_ = pendingExcluding (Proxy @t)
@@ -275,8 +271,8 @@ newPending
     :: (Tx t, TxMeta)
     -> Wallet s t
     -> Wallet s t
-newPending !tx (Wallet !u !pending !tip !s !bh !bp) =
-    Wallet u (Set.insert tx pending) tip s bh bp
+newPending !tx (Wallet !u !pending !tip !s !bp) =
+    Wallet u (Set.insert tx pending) tip s bp
 
 -- | Constructs a wallet from the exact given state. Using this function instead
 -- of 'initWallet' and 'applyBlock' allows the wallet invariants to be
@@ -293,9 +289,8 @@ unsafeInitWallet
     -- ^ Header of the latest applied block (current tip)
     -> s
     -- ^ Address discovery state
-    -> Quantity "block" Natural
-    -- ^ Block height
     -> BlockchainParameters
+    -- ^Address discovery state
     -> Wallet s t
 unsafeInitWallet = Wallet
 
@@ -305,11 +300,11 @@ unsafeInitWallet = Wallet
 
 -- | Get the wallet current tip
 currentTip :: Wallet s t -> BlockHeader
-currentTip (Wallet _ _ tip _ _ _) = tip
+currentTip (Wallet _ _ tip _ _) = tip
 
 -- | Get the wallet current state
 getState :: Wallet s t -> s
-getState (Wallet _ _ _ s _ _) = s
+getState (Wallet _ _ _ s _) = s
 
 -- | Available balance = 'balance' . 'availableUTxO'
 availableBalance :: DefineTx t => Wallet s t -> Natural
@@ -323,35 +318,28 @@ totalBalance =
 
 -- | Available UTxO = @pending ⋪ utxo@
 availableUTxO :: forall s t. DefineTx t => Wallet s t -> UTxO
-availableUTxO (Wallet u pending _ _ _ _) =
+availableUTxO (Wallet u pending _ _ _) =
     u  `excluding` txIns @t (Set.map fst pending)
 
 -- | Total UTxO = 'availableUTxO' @<>@ 'changeUTxO'
 totalUTxO :: forall s t. DefineTx t => Wallet s t -> UTxO
-totalUTxO wallet@(Wallet _  pending _ s _ _) =
+totalUTxO wallet@(Wallet _  pending _ s _) =
     availableUTxO wallet <> changeUTxO (Proxy @t) (Set.map fst pending) s
 
 -- | Actual utxo
 utxo :: Wallet s t -> UTxO
-utxo (Wallet u _ _ _ _ _) = u
+utxo (Wallet u _ _ _ _) = u
 
 -- | Get the set of pending transactions
 getPending :: Wallet s t -> Set (Tx t, TxMeta)
-getPending (Wallet _ pending _ _ _ _) = pending
-
--- | Get the block height of the chain.
---
--- A new wallet from 'initWallet' (which already has the genesis block applied)
--- has a block height of 0.
-blockHeight :: Wallet s t -> Quantity "block" Natural
-blockHeight (Wallet _ _ _ _ bh _) = bh
+getPending (Wallet _ pending _ _ _) = pending
 
 -- | Get the current chain parameters.
 --
 -- Parameters may change over time via protocol updates, so we keep track of
 -- them as part of the wallet checkpoints.
 blockchainParameters :: Wallet s t -> BlockchainParameters
-blockchainParameters (Wallet _ _ _ _ _ bp) = bp
+blockchainParameters (Wallet _ _ _ _ bp) = bp
 
 {-------------------------------------------------------------------------------
                                Internals

@@ -17,13 +17,24 @@ import Cardano.Wallet.HttpBridge.Primitive.Types
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), BlockHeader (..), Hash (..), SlotId (..), slotMinBound )
+    ( Block (..)
+    , BlockHeader (..)
+    , EpochLength (..)
+    , Hash (..)
+    , SlotId (..)
+    , flatSlot
+    , slotMinBound
+    )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
     ( runExceptT )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Word
     ( Word16, Word64 )
+import Numeric.Natural
+    ( Natural )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldSatisfy )
 
@@ -38,6 +49,7 @@ spec = do
         it "should get something from the latest epoch" $ do
             let h = BlockHeader
                     { slotId = SlotId 106 999
+                    , blockHeight = Quantity 0
                     , prevBlockHash = mockHash (SlotId 106 998)
                     }
             blocks <- runExceptT $ nextBlocks network h
@@ -50,6 +62,7 @@ spec = do
         it "should return all unstable blocks" $ do
             let h = BlockHeader
                     { slotId = SlotId 105 0
+                    , blockHeight = Quantity 0
                     , prevBlockHash = mockHash (SlotId 104 21599)
                     }
             blocks <- runExceptT $ nextBlocks network h
@@ -58,6 +71,7 @@ spec = do
         it "should return unstable blocks after the start slot" $ do
             let h = BlockHeader
                     { slotId = SlotId 105 17000
+                    , blockHeight = Quantity 0
                     , prevBlockHash = mockHash (SlotId 105 16999)
                     }
             blocks <- runExceptT $ nextBlocks network h
@@ -67,6 +81,7 @@ spec = do
         it "should return just the tip block" $ do
             let h = BlockHeader
                     { slotId = SlotId 106 1491
+                    , blockHeight = Quantity 0
                     , prevBlockHash = mockHash (SlotId 106 1490)
                     }
             blocks <- runExceptT $ nextBlocks network h
@@ -75,6 +90,7 @@ spec = do
         it "should get from packed epochs" $ do
             let h = BlockHeader
                     { slotId = SlotId 100 0
+                    , blockHeight = Quantity 0
                     , prevBlockHash = mockHash (SlotId 99 21599)
                     }
             Right blocks <- runExceptT $ nextBlocks network h
@@ -86,6 +102,7 @@ spec = do
         it "should get from packed epochs and filter by start slot" $ do
             let h = BlockHeader
                     { slotId = SlotId 104 10000
+                    , blockHeight = Quantity 0
                     , prevBlockHash = mockHash (SlotId 104 9999)
                     }
             Right blocks <- runExceptT $ nextBlocks network h
@@ -97,6 +114,7 @@ spec = do
         it "should produce no blocks if start slot is after tip" $ do
             let h = BlockHeader
                     { slotId = SlotId 107 0
+                    , blockHeight = Quantity 0
                     , prevBlockHash = mockHash (SlotId 106 21599)
                     }
             blocks <- runExceptT $ nextBlocks network h
@@ -105,6 +123,7 @@ spec = do
         it "should work for the first epoch" $ do
             let h = BlockHeader
                     { slotId = slotMinBound
+                    , blockHeight = Quantity 0
                     , prevBlockHash = Hash "genesis"
                     }
             Right blocks <- runExceptT $ nextBlocks network h
@@ -132,7 +151,7 @@ unMockHash (Hash h) = parse . map B8.unpack . B8.split '.' . B8.drop 5 $ h
 -- | Create a block header from its hash, assuming that the hash was created
 -- with 'mockHash'.
 mockHeaderFromHash :: Hash a -> BlockHeader
-mockHeaderFromHash h = BlockHeader slot prevHash
+mockHeaderFromHash h = BlockHeader slot (mockBlockHeight slot) prevHash
   where
     slot@(SlotId ep sl) = unMockHash h
     prevHash =
@@ -140,6 +159,11 @@ mockHeaderFromHash h = BlockHeader slot prevHash
             (0, 0) -> Hash "genesis"
             (_, 0) -> mockHash (SlotId (ep-1) (slotsPerEpoch - 1))
             _ -> mockHash (SlotId ep (sl - 1))
+
+-- | Uses the flat SlotId as blockHeight. This would only happen naturally if
+-- no slot is block-less.
+mockBlockHeight :: SlotId -> Quantity "block" Natural
+mockBlockHeight = Quantity . fromIntegral . flatSlot (EpochLength slotsPerEpoch)
 
 -- | Generate an entire epoch's worth of mock blocks. There are no transactions
 -- generated.

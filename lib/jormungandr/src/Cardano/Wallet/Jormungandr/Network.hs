@@ -174,7 +174,7 @@ mkNetworkLayer st j = NetworkLayer
     { networkTip = modifyMVar st $ \bs -> do
         bs' <- updateUnstableBlocks k getTipId' getBlockHeader bs
         ExceptT . pure $ case unstableBlocksTip bs' of
-            Just t -> Right (bs', (t, blockHeight bs'))
+            Just t -> Right (bs', t)
             Nothing -> Left ErrNetworkTipNotFound
 
     , nextBlocks = \tip -> do

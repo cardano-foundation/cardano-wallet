@@ -116,6 +116,7 @@ block0 :: Block Tx
 block0 = Block
     { header = BlockHeader
         { slotId = slotMinBound
+        , blockHeight = Quantity 0
         , prevBlockHash = Hash "genesis"
         }
     , transactions = []

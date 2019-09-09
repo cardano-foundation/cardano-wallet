@@ -132,8 +132,8 @@ spec = do
         it "get network tip" $ \(_, nw, _) -> do
             resp <- runExceptT $ networkTip nw
             resp `shouldSatisfy` isRight
-            let (Right slot) = slotId . fst <$> resp
-            let (Right height) = snd <$> resp
+            let (Right slot) = slotId <$> resp
+            let (Right height) = blockHeight <$> resp
             slot `shouldSatisfy` (>= slotMinBound)
             height `shouldSatisfy` (>= Quantity 0)
 
@@ -145,7 +145,7 @@ spec = do
 
         it "no blocks after the tip" $ \(_, nw, _) -> do
             let try = do
-                    (tip, _) <- unsafeRunExceptT $ networkTip nw
+                    tip <- unsafeRunExceptT $ networkTip nw
                     runExceptT $ nextBlocks nw tip
             -- NOTE Retrying twice since between the moment we fetch the
             -- tip and the moment we get the next blocks, one block may be
@@ -162,6 +162,7 @@ spec = do
             bytes <- BS.pack <$> generate (vectorOf 32 arbitrary)
             let block = BlockHeader
                     { slotId = SlotId 42 14 -- Anything
+                    , blockHeight = Quantity 0 -- Anything
                     , prevBlockHash = Hash bytes
                     }
             resp <- runExceptT $ nextBlocks nw block

@@ -619,7 +619,8 @@ coerceBlock  :: Block -> W.Block Tx
 coerceBlock (Block h msgs) =
     W.Block coerceHeader coerceMessages
   where
-    coerceHeader = W.BlockHeader (slot h) (parentHeaderHash h)
+    coerceHeader = W.BlockHeader (slot h) (bh h) (parentHeaderHash h)
+    bh = Quantity . fromIntegral . chainLength
     coerceMessages = msgs >>= \case
         Initial _ -> []
         Transaction (tx, _wits) -> return tx

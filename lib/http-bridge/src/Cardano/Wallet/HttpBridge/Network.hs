@@ -25,8 +25,6 @@ module Cardano.Wallet.HttpBridge.Network
 
 import Prelude
 
-import Cardano.Wallet
-    ( BlockchainParameters (..) )
 import Cardano.Wallet.HttpBridge.Api
     ( ApiT (..)
     , EpochIndex (..)
@@ -38,7 +36,7 @@ import Cardano.Wallet.HttpBridge.Api
     , api
     )
 import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge, byronBlockchainParameters )
+    ( HttpBridge )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.HttpBridge.Primitive.Types
@@ -51,13 +49,7 @@ import Cardano.Wallet.Network
     , NetworkLayer (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..)
-    , BlockHeader (..)
-    , Hash (..)
-    , SlotId (..)
-    , TxWitness
-    , flatSlot
-    )
+    ( Block (..), BlockHeader (..), Hash (..), SlotId (..), TxWitness )
 import Control.Arrow
     ( left )
 import Control.Exception
@@ -76,8 +68,6 @@ import Data.ByteArray
     ( convert )
 import Data.Proxy
     ( Proxy (..) )
-import Data.Quantity
-    ( Quantity (..) )
 import Data.Text.Class
     ( ToText (..) )
 import Data.Word
@@ -103,22 +93,14 @@ import qualified Servant.Extra.ContentTypes as Api
 
 -- | Constructs a network layer with the given cardano-http-bridge API.
 mkNetworkLayer
-    :: forall n m. (KnownNetwork n, Monad m)
+    :: forall n m. (Monad m)
     => HttpBridgeLayer m
     -> NetworkLayer (HttpBridge n) m
 mkNetworkLayer httpBridge = NetworkLayer
-    { nextBlocks = \(BlockHeader sl _) ->
+    { nextBlocks = \(BlockHeader sl _ _) ->
         withExceptT ErrGetBlockNetworkUnreachable (rbNextBlocks httpBridge sl)
-    , networkTip = do
-        nodeTip <- snd <$> getNetworkTip httpBridge
-        let epochLength = getEpochLength (byronBlockchainParameters @n)
-        -- NOTE:
-        -- `http-bridge` is not intended to be used in production so we are
-        -- taking a few shortcut to not spend needless time on its impl.
-        -- This is one of them.
-        let nodeHeight =
-               Quantity $ fromIntegral $ flatSlot epochLength (slotId nodeTip)
-        return (nodeTip, nodeHeight)
+    , networkTip =
+        snd <$> getNetworkTip httpBridge
     , postTx = postSignedTx httpBridge
     }
 

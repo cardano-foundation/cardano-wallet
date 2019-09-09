@@ -18,6 +18,8 @@ import Cardano.Wallet.Primitive.Types
     , TxIn (..)
     , TxOut (..)
     )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text
     ( Text )
 import Fmt
@@ -32,6 +34,7 @@ spec = do
             let block = Block
                     { header = BlockHeader
                         { slotId = SlotId 14 19
+                        , blockHeight = Quantity 0
                         , prevBlockHash = Hash "\223\252\&5\ACK\211\129\&6\DC4h7b'\225\201\&2:/\252v\SOH\DC1\ETX\227\"Q$\240\142ii\167;"
                         }
                     , transactions =
@@ -55,7 +58,7 @@ spec = do
                             }
                         ]
                     }
-            "dffc3506...6969a73b (14.19)\n\
+            "dffc3506...6969a73b slot 14.19, block 0\n\
             \    - ~> 1st c29d3ea0...13862214\n\
             \      <~ 3823755953610 @ 82d81858...aebb3709\n\
             \      <~ 19999800000 @ 82d81858...37ce9c60\n"
