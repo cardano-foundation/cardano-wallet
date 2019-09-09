@@ -198,6 +198,8 @@ import Data.Word
     ( Word16, Word32 )
 import Fmt
     ( Buildable, blockListF, pretty, (+|), (+||), (|+), (||+) )
+import Numeric.Natural
+    ( Natural )
 
 import qualified Cardano.Wallet.DB as DB
 import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
@@ -333,7 +335,6 @@ data WalletLayer s t k = WalletLayer
         -- ^ Attach a given private key to a wallet. The private key is
         -- necessary for some operations like signing transactions, or
         -- generating new accounts.
-
     }
 
 -- | Errors that can occur when creating an unsigned transaction.
@@ -618,9 +619,9 @@ newWalletLayer tracer bp db nw tl = do
         :: (DefineTx t)
         => Trace IO Text
         -> WalletId
-        -> (BlockHeader, BlockHeader)
+        -> (BlockHeader, (BlockHeader, Quantity "block" Natural))
         -> IO ()
-    restoreStep t wid (localTip, nodeTip) = do
+    restoreStep t wid (localTip, (nodeTip, nodeHeight)) = do
         runExceptT (nextBlocks nw localTip) >>= \case
             Left e -> do
                 logError t $ "Failed to get next blocks: " +|| e ||+ "."
@@ -631,12 +632,17 @@ newWalletLayer tracer bp db nw tl = do
             Right (blockFirst : blocksRest) -> do
                 let blocks = blockFirst :| blocksRest
                 let nextLocalTip = view #header . NE.last $ blocks
-                runExceptT (restoreBlocks t wid blocks (nodeTip ^. #slotId)) >>=
-                    \case
-                        Left (ErrNoSuchWallet _) ->
-                            logNotice t "Wallet is gone! Terminating worker..."
-                        Right () -> do
-                            restoreStep t wid (nextLocalTip, nodeTip)
+                let action =
+                        restoreBlocks
+                            t
+                            wid
+                            blocks
+                            (nodeTip ^. #slotId, nodeHeight)
+                runExceptT action >>= \case
+                    Left (ErrNoSuchWallet _) ->
+                        logNotice t "Wallet is gone! Terminating worker..."
+                    Right () -> do
+                        restoreStep t wid (nextLocalTip, (nodeTip, nodeHeight))
 
     -- | Wait a short delay before querying for blocks again. We also take this
     -- opportunity to refresh the chain tip as it has probably increased in
@@ -667,9 +673,9 @@ newWalletLayer tracer bp db nw tl = do
         => Trace IO Text
         -> WalletId
         -> NonEmpty (Block (Tx t))
-        -> SlotId -- ^ Network tip
+        -> (SlotId, Quantity "block" Natural) -- ^ Network tip and height
         -> ExceptT ErrNoSuchWallet IO ()
-    restoreBlocks t wid blocks nodeTip = do
+    restoreBlocks t wid blocks (nodeTip, Quantity nodeHeight) = do
         let (slotFirst, slotLast) =
                 ( view #slotId . header . NE.head $ blocks
                 , view #slotId . header . NE.last $ blocks
@@ -705,16 +711,12 @@ newWalletLayer tracer bp db nw tl = do
             DB.putTxHistory db (PrimaryKey wid) newTxs
             DB.putWalletMeta db (PrimaryKey wid) meta'
 
-            -- We only need to create checkpoints for blocks that are
-            -- "unstable".
-            -- We define unstable blocks as blocks that `k` blocks from the
-            -- network tip, where k is the epoch stability parameter.
-            -- NOTE:
-            -- We cast `k` and block heights to 'Integer' since at a given point
+            -- NOTE (1):
+            -- We cast `k` and `nodeHeight` to 'Integer' since at a given point
             -- in time, `k` may be greater than the tip.
             let (Quantity k) = epochStability
-            let (Quantity tipBh) = blockHeight cpLast
-            let bhUnstable =  fromIntegral tipBh - fromIntegral k :: Integer
+            let bhUnstable :: Integer
+                bhUnstable = fromIntegral nodeHeight - fromIntegral k
             forM_ (NE.init cps) $ \cp -> do
                 let (Quantity bh) = blockHeight cp
                 when (fromIntegral bh >= bhUnstable) $

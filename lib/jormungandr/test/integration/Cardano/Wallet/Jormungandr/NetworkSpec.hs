@@ -74,6 +74,8 @@ import Data.Functor
     ( ($>) )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Word
     ( Word8 )
 import GHC.Generics
@@ -127,8 +129,10 @@ spec = do
         it "get network tip" $ \(_, nw, _) -> do
             resp <- runExceptT $ networkTip nw
             resp `shouldSatisfy` isRight
-            let (Right slot) = slotId <$> resp
+            let (Right slot) = slotId . fst <$> resp
+            let (Right height) = snd <$> resp
             slot `shouldSatisfy` (>= slotMinBound)
+            height `shouldSatisfy` (>= Quantity 0)
 
         it "get some blocks from the genesis" $ \(_, nw, _) -> do
             threadDelay (10 * second)
@@ -138,7 +142,7 @@ spec = do
 
         it "no blocks after the tip" $ \(_, nw, _) -> do
             let try = do
-                    tip <- unsafeRunExceptT $ networkTip nw
+                    (tip, _) <- unsafeRunExceptT $ networkTip nw
                     runExceptT $ nextBlocks nw tip
             -- NOTE Retrying twice since between the moment we fetch the
             -- tip and the moment we get the next blocks, one block may be

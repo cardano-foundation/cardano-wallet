@@ -209,7 +209,7 @@ bench_restoration (wid, wname, s) = withHttpBridge network $ \port -> do
     Sqlite.unsafeRunQuery ctx (void $ runMigrationSilent migrateAll)
     nw <- newNetworkLayer port
     let tl = newTransactionLayer @n @k
-    BlockHeader sl _ <- unsafeRunExceptT $ networkTip nw
+    BlockHeader sl _ <- unsafeRunExceptT $ fst <$> networkTip nw
     sayErr . fmt $ network ||+ " tip is at " +|| sl ||+ ""
     let bp = byronBlockchainParameters
     w <- newWalletLayer @_ @t nullTracer bp db nw tl
@@ -284,7 +284,7 @@ waitForNodeSync
 waitForNodeSync bridge networkName logSlot = loop 10
   where
     loop :: Int -> IO SlotId
-    loop retries = runExceptT (networkTip bridge) >>= \case
+    loop retries = runExceptT (fst <$> networkTip bridge) >>= \case
         Right (BlockHeader tipBlockSlot _) -> do
             currentSlot <- getCurrentSlot networkName
             logSlot tipBlockSlot currentSlot

@@ -88,6 +88,8 @@ import Data.Maybe
     ( mapMaybe )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Quantity
+    ( Quantity (..) )
 import Network.HTTP.Client
     ( Manager, defaultManagerSettings, newManager )
 import Network.HTTP.Types.Status
@@ -134,14 +136,15 @@ mkNetworkLayer
     -> NetworkLayer (Jormungandr n) m
 mkNetworkLayer j = NetworkLayer
     { networkTip = do
-        t <- (getTipId j) `mappingError`
+        tip <- (getTipId j) `mappingError`
             ErrNetworkTipNetworkUnreachable
-        b <- (getBlock j t) `mappingError` \case
+        blk@(J.Block blkHeader _) <- (getBlock j tip) `mappingError` \case
             ErrGetBlockNotFound _ ->
                 ErrNetworkTipNotFound
             ErrGetBlockNetworkUnreachable e ->
                 ErrNetworkTipNetworkUnreachable e
-        return $ header b
+        let nodeHeight = Quantity $ fromIntegral $ J.chainLength blkHeader
+        return (header (coerceBlock blk), nodeHeight)
 
     , nextBlocks = \tip -> do
         let count = 10000
@@ -154,7 +157,7 @@ mkNetworkLayer j = NetworkLayer
                 ErrGetBlockNetworkUnreachable e
             ErrGetDescendantsParentNotFound _ ->
                 ErrGetBlockNotFound (prevBlockHash tip)
-        forM ids (getBlock j)
+        forM ids (fmap coerceBlock . getBlock j)
 
     , postTx = postMessage j
 
@@ -182,7 +185,7 @@ data JormungandrLayer n m = JormungandrLayer
         :: ExceptT ErrNetworkUnavailable m (Hash "BlockHeader")
     , getBlock
         :: Hash "BlockHeader"
-        -> ExceptT ErrGetBlock m (Block Tx)
+        -> ExceptT ErrGetBlock m J.Block
     , getDescendantIds
         :: Hash "BlockHeader"
         -> Word
@@ -223,7 +226,7 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
         run (getBlockId <$> cGetTipId) >>= defaultHandler ctx
 
     , getBlock = \blockId -> ExceptT $ do
-        run (coerceBlock <$> cGetBlock (BlockId blockId)) >>= \case
+        run (cGetBlock (BlockId blockId)) >>= \case
             Left (FailureResponse e) | responseStatusCode e == status400 ->
                 return . Left . ErrGetBlockNotFound $ blockId
             x -> do
@@ -255,6 +258,7 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
             x -> do
                 let ctx = safeLink api (Proxy @PostMessage)
                 left ErrPostTxNetworkUnreachable <$> defaultHandler ctx x
+
     , getInitialBlockchainParameters = \block0 -> do
         jblock@(J.Block _ msgs) <- ExceptT $ run (cGetBlock (BlockId $ coerce block0)) >>= \case
             Left (FailureResponse e) | responseStatusCode e == status400 ->
