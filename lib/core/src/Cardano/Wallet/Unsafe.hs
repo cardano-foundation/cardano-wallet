@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -38,6 +39,8 @@ import Data.Proxy
     ( Proxy )
 import Data.Text
     ( Text )
+import GHC.Stack
+    ( HasCallStack )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Codec.CBOR.Decoding as CBOR
@@ -46,21 +49,21 @@ import qualified Data.ByteString.Lazy as BL
 
 
 -- | Decode an hex-encoded 'ByteString' into raw bytes, or fail.
-unsafeFromHex :: ByteString -> ByteString
+unsafeFromHex :: HasCallStack => ByteString -> ByteString
 unsafeFromHex =
     either (error . show) id . convertFromBase @ByteString @ByteString Base16
 
 -- | Decode a bech32-encoded 'Text' into an 'Address', or fail.
-unsafeDecodeAddress :: DecodeAddress t => Proxy t -> Text -> Address
+unsafeDecodeAddress :: (HasCallStack, DecodeAddress t) => Proxy t -> Text -> Address
 unsafeDecodeAddress proxy =
     either (error . show ) id . decodeAddress proxy
 
 -- | Run a decoder on a hex-encoded 'ByteString', or fail.
-unsafeDecodeHex :: Get a -> ByteString -> a
+unsafeDecodeHex :: HasCallStack => Get a -> ByteString -> a
 unsafeDecodeHex get = runGet get . BL.fromStrict . unsafeFromHex
 
 -- | Build a 'XPrv' from an hex-encoded bytestring
-unsafeXPrv :: ByteString -> XPrv
+unsafeXPrv :: HasCallStack => ByteString -> XPrv
 unsafeXPrv hex =
     case convertFromBase @_ @ByteString Base16 hex >>= CC.xprv of
         Left e -> error $ "unsafeXPrv: " <> e
@@ -68,7 +71,8 @@ unsafeXPrv hex =
 
 -- | Build 'Mnemonic' from literals
 unsafeMkMnemonic
-    :: forall mw n csz. (ConsistentEntropy n mw csz, EntropySize mw ~ n)
+    :: forall mw n csz
+    .  (ConsistentEntropy n mw csz, EntropySize mw ~ n, HasCallStack)
     => [Text]
     -> Mnemonic mw
 unsafeMkMnemonic m =
@@ -88,7 +92,8 @@ unsafeRunExceptT = runExceptT >=> \case
 
 -- | CBOR deserialise without error handling - handy for prototypes or testing.
 unsafeDeserialiseCbor
-    :: (forall s. CBOR.Decoder s a)
+    :: HasCallStack
+    => (forall s. CBOR.Decoder s a)
     -> BL.ByteString
     -> a
 unsafeDeserialiseCbor decoder bytes = either
