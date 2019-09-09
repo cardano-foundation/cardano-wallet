@@ -283,7 +283,7 @@ runCli = join . customExecParser preferences
 
 cmdMnemonic :: Mod CommandFields (IO ())
 cmdMnemonic = command "mnemonic" $ info (helper <*> cmds) $ mempty
-    <> progDesc "Generate mnemonic words."
+    <> progDesc "Manage mnemonic phrases."
   where
     cmds = subparser $ mempty
         <> cmdMnemonicGenerate

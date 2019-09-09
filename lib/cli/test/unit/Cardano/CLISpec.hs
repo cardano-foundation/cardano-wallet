@@ -111,7 +111,7 @@ spec = do
             , "  -h,--help                Show this help text"
             , ""
             , "Available commands:"
-            , "  mnemonic                 Generate mnemonic words."
+            , "  mnemonic                 Manage mnemonic phrases."
             , "  wallet                   Manage wallets."
             , "  transaction              Manage transactions."
             , "  address                  Manage addresses."
@@ -119,7 +119,7 @@ spec = do
 
         ["mnemonic", "--help"] `shouldShowUsage`
             [ "Usage:  mnemonic COMMAND"
-            , "  Generate mnemonic words."
+            , "  Manage mnemonic phrases."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
