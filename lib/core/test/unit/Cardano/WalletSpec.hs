@@ -123,7 +123,7 @@ import Data.Time.Clock
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 import Data.Word
-    ( Word16, Word32 )
+    ( Word32 )
 import GHC.Generics
     ( Generic )
 import Test.Hspec
@@ -398,8 +398,6 @@ setupFixture (wid, wname, wstate) = do
     db <- newDBLayer
     let nl = error "NetworkLayer"
     let tl = dummyTransactionLayer
-    let bp = BlockchainParameters
-            block0 block0Date policy slotLength slotsPerEpoch txMaxSize k
     wl <- newWalletLayer @_ @DummyTarget nullTracer bp db nl tl
     res <- runExceptT $ createWallet wl wid wname wstate
     let wal = case res of
@@ -407,24 +405,16 @@ setupFixture (wid, wname, wstate) = do
             Right walletId -> [walletId]
     pure $ WalletLayerFixture db wl wal slotIdTime
   where
-    policy :: FeePolicy
-    policy = LinearFee (Quantity 14) (Quantity 42)
-
-    slotLength :: SlotLength
-    slotLength = SlotLength 1
-
-    txMaxSize :: Quantity "byte" Word16
-    txMaxSize = Quantity 8192
-
-    slotsPerEpoch = EpochLength 21600
-
-    block0Date = StartTime $ posixSecondsToUTCTime 0
-
-    k :: Quantity "block" Word32
-    k = Quantity 2160
-
-    slotNo = flatSlot slotsPerEpoch
-
+    bp = BlockchainParameters
+        { getGenesisBlock = block0
+        , getGenesisBlockDate = StartTime $ posixSecondsToUTCTime 0
+        , getFeePolicy = LinearFee (Quantity 14) (Quantity 42)
+        , getSlotLength = SlotLength 1
+        , getEpochLength = EpochLength 21600
+        , getTxMaxSize = Quantity 8192
+        , getEpochStability = Quantity 2160
+        }
+    slotNo = flatSlot (getEpochLength bp)
     slotIdTime = posixSecondsToUTCTime . fromIntegral . slotNo
 
 -- | A dummy transaction layer to see the effect of a root private key. It
