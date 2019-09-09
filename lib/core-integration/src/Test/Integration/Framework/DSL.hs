@@ -57,6 +57,7 @@ module Test.Integration.Framework.DSL
     , direction
     , feeEstimator
     , inputs
+    , jormungandrBaseUrl
     , passphraseLastUpdate
     , state
     , status
@@ -644,6 +645,14 @@ feeEstimator =
   where
     _get = _feeEstimator
     _set (ctx, v) = ctx { _feeEstimator = v }
+
+jormungandrBaseUrl
+    :: Lens' (Context t) Text
+jormungandrBaseUrl =
+    lens _get _set
+  where
+    _get = _jormungandrBaseUrl
+    _set (ctx, v) = ctx { _jormungandrBaseUrl = v }
 
 passphraseLastUpdate
     :: HasType (Maybe (ApiT WalletPassphraseInfo)) s
@@ -1326,8 +1335,8 @@ getJormungandrBlock0H = do
     return (T.unpack . T.strip . T.pack $ block0H)
 
 -- | Prepare externally signed Tx for Jormungandr
-prepExternalTxViaJcli :: Text -> Natural -> IO Text
-prepExternalTxViaJcli addrStr amt = do
+prepExternalTxViaJcli :: Text -> Text -> Natural -> IO Text
+prepExternalTxViaJcli jmBaseUrl addrStr amt = do
     withTempDir $ \d -> do
         let strip = T.unpack . T.strip . T.pack
         let txFile = d <> "/trans.tx"
@@ -1340,7 +1349,7 @@ prepExternalTxViaJcli addrStr amt = do
         -- from Jormungandr utxo
         Stdout u <- runJcli
                         [ "rest", "v0", "utxo", "get"
-                        , "-h", "http://127.0.0.1:8080/api" ]
+                        , "-h", T.unpack jmBaseUrl ]
 
         let utxo = T.splitOn "\n" (T.pack u)
         let (Just i) =

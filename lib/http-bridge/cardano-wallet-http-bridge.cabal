@@ -141,9 +141,11 @@ test-suite integration
     , cardano-wallet-core-integration
     , cardano-wallet-http-bridge
     , cardano-wallet-launcher
+    , cardano-wallet-test-utils
     , command
     , cborg
     , directory
+    , filepath
     , generic-lens
     , hspec
     , hspec-core

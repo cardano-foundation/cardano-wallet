@@ -61,6 +61,8 @@ import Test.Integration.Framework.DSL
     )
 import Test.Integration.Framework.TestData
     ( versionLine )
+import Test.Utils.Ports
+    ( findPort, randomUnusedTCPPorts )
 
 import qualified Data.Text.IO as TIO
 
@@ -68,7 +70,7 @@ spec :: forall t. (KnownCommand t) => Spec
 spec = do
     let block0 = "test/data/jormungandr/block0.bin"
     let leaders = "test/data/jormungandr/secret.yaml"
-    describe "LAUNCH - cardano-wallet launch" $ do
+    describe "LAUNCH - cardano-wallet launch [SERIAL]" $ do
         it "LAUNCHx - Stop when --state-dir is an existing file" $ withTempFile $ \f _ -> do
             let args =
                     [ "launch"
@@ -172,7 +174,7 @@ spec = do
                 \prevents ongoing work to be integrated. So, disabling this \
                 \while investigating the origin of the problem. \
                 \See also: https://travis-ci.org/input-output-hk/cardano-wallet/jobs/565974586"
-            let port = 8088 :: Int -- Arbitrary but known.
+            port <- findPort -- Arbitrary but known.
             let baseUrl = "http://localhost:" <> toText port <> "/"
             ctx <- (port,) . (baseUrl,) <$> newManager defaultManagerSettings
             let args =
@@ -202,27 +204,32 @@ spec = do
                 TIO.hGetContents e >>= TIO.putStrLn
 
     describe "DaedalusIPC" $ do
-        let defaultArgs =
+        let defaultArgs nodePort =
                 [ commandName @t
                 , "launch"
+                , "--node-port", show nodePort
                 , "--genesis-block", block0
                 , "--bft-leaders", leaders
                 , "--quiet"
                 ]
         let tests =
-                [ defaultArgs ++ ["--random-port"]
-                , defaultArgs ++ ["--port", "8082"]
-                , defaultArgs
+                [ (const ["--random-port"], " [SERIAL]")
+                , (\fixedPort -> ["--port", fixedPort], "")
+                , (const [], " [SERIAL]")
                 ]
-        forM_ tests $ \args -> do
-            let title = "should reply with the port when asked " <> show args
+        forM_ tests $ \(args, tag) -> do
+            let title = "should reply with the port when asked "
+                    <> show (args "FIXED") <> tag
             it title $ withTempDir $ \d -> do
+                [fixedPort, nodePort] <- randomUnusedTCPPorts 2
                 let filepath = "test/integration/js/mock-daedalus.js"
                 let stateDir = ["--state-dir", d]
-                (_, _, _, ph) <- createProcess (proc filepath (args ++ stateDir))
+                let scriptArgs = concat
+                        [defaultArgs nodePort, args (show fixedPort), stateDir]
+                (_, _, _, ph) <- createProcess (proc filepath scriptArgs)
                 waitForProcess ph `shouldReturn` ExitSuccess
 
-    describe "LOGGING - cardano-wallet launch logging" $ do
+    describe "LOGGING - cardano-wallet launch logging [SERIAL]" $ do
         let defaultArgs =
                 [ "launch"
                 , "--genesis-block", block0

@@ -140,6 +140,7 @@ test-suite integration
     , cardano-wallet-http-bridge
     , cardano-wallet-jormungandr
     , cardano-wallet-launcher
+    , cardano-wallet-test-utils
     , command
     , containers
     , cryptonite
@@ -147,6 +148,7 @@ test-suite integration
     , directory
     , exceptions
     , extra
+    , filepath
     , generic-arbitrary
     , generic-lens
     , hspec
@@ -168,6 +170,7 @@ test-suite integration
     , time
     , transformers
     , warp
+    , yaml
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
@@ -176,6 +179,7 @@ test-suite integration
       Main.hs
   other-modules:
       Cardano.Faucet
+      Cardano.Wallet.Jormungandr.Launch
       Cardano.Wallet.Jormungandr.NetworkSpec
       Test.Integration.Jormungandr.Scenario.API.Transactions
       Test.Integration.Jormungandr.Scenario.CLI.Launcher

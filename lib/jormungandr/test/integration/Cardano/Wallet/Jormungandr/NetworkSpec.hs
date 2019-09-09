@@ -13,14 +13,14 @@ module Cardano.Wallet.Jormungandr.NetworkSpec
 
 import Prelude
 
-import Cardano.Launcher
-    ( Command (..), StdStream (..), launch )
 import Cardano.Wallet.Jormungandr.Api
     ( GetTipId, api )
 import Cardano.Wallet.Jormungandr.Binary
     ( MessageType (..), fragmentId, putSignedTx, runPut, withHeader )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr, Network (..), block0 )
+import Cardano.Wallet.Jormungandr.Launch
+    ( launchJormungandr )
 import Cardano.Wallet.Jormungandr.Network
     ( BaseUrl (..)
     , ErrGetDescendants (..)
@@ -53,11 +53,11 @@ import Cardano.Wallet.Unsafe
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
-    ( Async, async, cancel )
+    ( Async, cancel )
 import Control.DeepSeq
     ( deepseq )
 import Control.Exception
-    ( SomeException, bracket, catch )
+    ( bracket )
 import Control.Monad
     ( void )
 import Control.Monad.IO.Class
@@ -82,8 +82,8 @@ import Network.HTTP.Client
     ( defaultManagerSettings, newManager )
 import Servant.Links
     ( safeLink )
-import System.Directory
-    ( removePathForcibly )
+import System.Process
+    ( StdStream (..) )
 import Test.Hspec
     ( Spec
     , afterAll
@@ -110,6 +110,8 @@ import Test.QuickCheck.Arbitrary.Generic
     ( genericShrink )
 import Test.QuickCheck.Monadic
     ( monadicIO )
+import Test.Utils.Ports
+    ( randomUnusedTCPPorts )
 
 import qualified Cardano.Wallet.Jormungandr.Network as Jormungandr
 import qualified Data.ByteString as BS
@@ -119,22 +121,22 @@ import qualified Data.ByteString.Lazy as BL
 
 spec :: Spec
 spec = do
-    let startNode' = startNode url (`waitForConnection` defaultRetryPolicy)
+    let startNode' = startNode (`waitForConnection` defaultRetryPolicy)
     let once = limitRetries 1
     describe "Happy Paths" $ beforeAll startNode' $ afterAll killNode $ do
-        it "get network tip" $ \(_, nw) -> do
+        it "get network tip" $ \(_, nw, _) -> do
             resp <- runExceptT $ networkTip nw
             resp `shouldSatisfy` isRight
             let (Right slot) = slotId <$> resp
             slot `shouldSatisfy` (>= slotMinBound)
 
-        it "get some blocks from the genesis" $ \(_, nw) -> do
+        it "get some blocks from the genesis" $ \(_, nw, _) -> do
             threadDelay (10 * second)
             resp <- runExceptT $ nextBlocks nw block0
             resp `shouldSatisfy` isRight
             resp `shouldSatisfy` (not . null)
 
-        it "no blocks after the tip" $ \(_, nw) -> do
+        it "no blocks after the tip" $ \(_, nw, _) -> do
             let try = do
                     tip <- unsafeRunExceptT $ networkTip nw
                     runExceptT $ nextBlocks nw tip
@@ -147,7 +149,7 @@ spec = do
                 (const try)
             resp `shouldBe` Right []
 
-        it "returns an error when the block header is unknown" $ \(_, nw) -> do
+        it "returns an error when the block header is unknown" $ \(_, nw, _) -> do
             -- NOTE There's a very little chance of hash clash here. But,
             -- for what it's worth, I didn't bother retrying.
             bytes <- BS.pack <$> generate (vectorOf 32 arbitrary)
@@ -159,8 +161,13 @@ spec = do
             resp `shouldBe` Left (ErrGetBlockNotFound (Hash bytes))
 
     describe "Error paths" $ do
+        let makeUnreachableNetworkLayer = do
+                port <- head <$> randomUnusedTCPPorts 1
+                let dummyUrl = BaseUrl Http "localhost" port "/api"
+                Jormungandr.newNetworkLayer dummyUrl
+
         it "networkTip: ErrNetworkUnreachable" $ do
-            nw <- Jormungandr.newNetworkLayer url
+            nw <- makeUnreachableNetworkLayer
             let msg x =
                     "Expected a ErrNetworkUnreachable' failure but got "
                     <> show x
@@ -174,7 +181,7 @@ spec = do
             action `shouldReturn` ()
 
         it "nextBlocks: ErrNetworkUnreachable" $ do
-            nw <- Jormungandr.newNetworkLayer url
+            nw <- makeUnreachableNetworkLayer
             let msg x =
                     "Expected a ErrNetworkUnreachable' failure but got "
                     <> show x
@@ -188,33 +195,32 @@ spec = do
             action `shouldReturn` ()
 
         it "networkTip: throws on invalid url" $ do
-            let wrongUrl = BaseUrl Http "localhost" 8080 "/not-valid-prefix"
-            let wait nw = waitForConnection nw defaultRetryPolicy
-                    `catch` (\(_ :: SomeException) -> return ())
-            let test (_, nw) = do
-                    let io = void $ runExceptT $ networkTip nw
+            let test (_, _nw, url) = do
+                    let wrongUrl = url { baseUrlPath = "/not-valid-prefix" }
+                    wrongNw <- Jormungandr.newNetworkLayer wrongUrl
+                    let io = void $ runExceptT $ networkTip wrongNw
                     shouldThrow io $ \(ErrUnexpectedNetworkFailure link _) ->
                         show link == show (safeLink api (Proxy @GetTipId))
-            bracket (startNode wrongUrl wait) killNode test
+            bracket startNode' killNode test
 
     describe "White-box error path tests" $
         beforeAll startNode' $ afterAll killNode $ do
 
-        it "can't fetch a block that doesn't exist" $ \_ -> do
+        it "can't fetch a block that doesn't exist" $ \(_, _, url) -> do
             mgr <- newManager defaultManagerSettings
             let jml = Jormungandr.mkJormungandrLayer mgr url
             let nonexistent = Hash "kitten"
             res <- runExceptT (Jormungandr.getBlock jml nonexistent)
             res `shouldBe` Left (ErrGetBlockNotFound nonexistent)
 
-        it "can't fetch a blocks from a parent that doesn't exist" $ \_ -> do
+        it "can't fetch a blocks from a parent that doesn't exist" $ \(_, _, url) -> do
             mgr <- newManager defaultManagerSettings
             let jml = Jormungandr.mkJormungandrLayer mgr url
             let nonexistent = Hash "cat"
             res <- runExceptT (Jormungandr.getDescendantIds jml nonexistent 42)
             res `shouldBe` Left (ErrGetDescendantsParentNotFound nonexistent)
 
-        it "returns correct error when backend is not started" $ \_ -> do
+        it "returns correct error when backend is not started" $ \(_, _, url) -> do
             mgr <- newManager defaultManagerSettings
             -- connect with a base URL for which the backend is not started on
             let url' = url { baseUrlPort = baseUrlPort url + 5 }
@@ -229,26 +235,26 @@ spec = do
     describe "Submitting signed transactions (that are not obviously wrong)"
         $ beforeAll startNode' $ afterAll killNode $ do
 
-        it "empty tx succeeds" $ \(_, nw) -> do
+        it "empty tx succeeds" $ \(_, nw, _) -> do
             -- Would be rejected eventually.
             let signedEmpty = (Tx (fragmentId [] [] []) [] [], [])
             runExceptT (postTx nw signedEmpty) `shouldReturn` Right ()
 
-        it "some tx succeeds" $ \(_, nw) -> do
+        it "some tx succeeds" $ \(_, nw, _) -> do
             let signed = (txNonEmpty, [pkWitness])
             runExceptT (postTx nw signed) `shouldReturn` Right ()
 
-        it "unbalanced tx (surplus) succeeds" $ \(_, nw) -> do
+        it "unbalanced tx (surplus) succeeds" $ \(_, nw, _) -> do
             -- Jormungandr will eventually reject txs that are not perfectly
             -- balanced though.
             let signed = (unbalancedTx, [pkWitness])
             runExceptT (postTx nw signed) `shouldReturn` Right ()
 
-        it "more inputs than witnesses - encoder throws" $ \(_, nw) -> do
+        it "more inputs than witnesses - encoder throws" $ \(_, nw, _) -> do
             let signed = (txNonEmpty, [])
             runExceptT (postTx nw signed) `shouldThrow` anyException
 
-        it "more witnesses than inputs - fine apparently" $ \(_, nw) -> do
+        it "more witnesses than inputs - fine apparently" $ \(_, nw, _) -> do
             -- Because of how signed txs are encoded:
             -- n                      :: Word8
             -- m                      :: Word8
@@ -261,7 +267,7 @@ spec = do
             let signed = (txNonEmpty, [pkWitness, pkWitness, pkWitness])
             runExceptT (postTx nw signed) `shouldThrow` anyException
 
-        it "no input, one output" $ \(_, nw) -> do
+        it "no input, one output" $ \(_, nw, _) -> do
             -- Would be rejected eventually.
             let outs =
                     [ (TxOut $ unsafeDecodeAddress proxy
@@ -272,13 +278,13 @@ spec = do
             let tx = (Tx (fragmentId [] outs []) [] outs, [])
             runExceptT (postTx nw tx) `shouldReturn` Right ()
 
-        it "throws when addresses and hashes have wrong length" $ \(_, nw) -> do
+        it "throws when addresses and hashes have wrong length" $ \(_, nw, _) -> do
             let out = TxOut (Address "<not an address>") (Coin 1227362560)
             let tx = (Tx (fragmentId [] [out] []) [] [out], [])
             runExceptT (postTx nw tx) `shouldThrow` anyException
 
         it "encoder throws an exception if tx is invalid (eg too many inputs)" $
-            \(_, nw) -> do
+            \(_, nw, _) -> do
             let inps = replicate 300 (head $ inputs txNonEmpty)
             let outs = replicate 3 (head $ outputs txNonEmpty)
             let tx = (Tx (fragmentId inps outs []) inps outs, [])
@@ -286,7 +292,7 @@ spec = do
 
         it "decodeExternalTx works ok with properly constructed \
            \(Tx, [TxWitness]) binary blob" $
-            \(_, nw) -> do
+            \(_, nw, _) -> do
                 property $ \(SignedTx signedTx) -> monadicIO $ liftIO $ do
                     let encode ((Tx _ inps outs), wits) = runPut
                             $ withHeader MsgTypeTransaction
@@ -297,7 +303,7 @@ spec = do
 
         it "decodeExternalTx throws an exception when binary blob has non-\
            \transaction-type header or is wrongly constructed binary blob" $
-            \(_, nw) -> do
+            \(_, nw, _) -> do
                 property $ \(SignedTx signedTx) -> monadicIO $ liftIO $ do
                     let encodeWrongly ((Tx _ inps outs), wits) = runPut
                             $ withHeader MsgTypeInitial
@@ -308,32 +314,19 @@ spec = do
                         (Left $ ErrDecodeExternalTxWrongPayload
                          "wrongly constructed binary blob")
   where
-    url :: BaseUrl
-    url = BaseUrl Http "localhost" 8080 "/api"
-
     second :: Int
     second = 1000000
 
     startNode
-        :: BaseUrl
-        -> (forall n. NetworkLayer n IO -> IO ())
-        -> IO (Async (), NetworkLayer (Jormungandr 'Testnet) IO)
-    startNode baseUrl wait = do
-        removePathForcibly "/tmp/cardano-wallet-jormungandr"
-        let dir = "test/data/jormungandr"
-        handle <- async $ void $ launch
-            [ Command "jormungandr"
-                [ "--genesis-block", dir ++ "/block0.bin"
-                , "--config", dir ++ "/config.yaml"
-                , "--secret", dir ++ "/secret.yaml"
-                ] (return ())
-                Inherit
-            ]
+        :: (forall n. NetworkLayer n IO -> IO ())
+        -> IO (Async (), NetworkLayer (Jormungandr 'Testnet) IO, BaseUrl)
+    startNode wait = do
+        (handle, baseUrl) <- launchJormungandr Inherit
         nw <- Jormungandr.newNetworkLayer baseUrl
-        wait nw $> (handle, nw)
+        wait nw $> (handle, nw, baseUrl)
 
-    killNode :: (Async (), a) -> IO ()
-    killNode (h, _) = do
+    killNode :: (Async (), a, BaseUrl) -> IO ()
+    killNode (h, _, _) = do
         cancel h
         threadDelay (1 * second)
     pkWitness :: TxWitness

@@ -30,9 +30,13 @@ library
       -Werror
   build-depends:
       base
+    , network
     , QuickCheck
+    , random-shuffle
     , time
+    , unliftio
   hs-source-dirs:
       src
   exposed-modules:
+      Test.Utils.Ports
       Test.Utils.Time

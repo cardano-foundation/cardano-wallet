@@ -34,6 +34,9 @@ module Cardano.Wallet.Jormungandr.Network
     , newManager
     , defaultManagerSettings
     , Scheme (..)
+
+    -- * Utils
+    , baseUrlToText
     ) where
 
 import Prelude
@@ -102,6 +105,7 @@ import Servant.Client
     , responseBody
     , responseStatusCode
     , runClientM
+    , showBaseUrl
     )
 import Servant.Client.Core
     ( ServantError (..) )
@@ -110,6 +114,7 @@ import Servant.Links
 
 import qualified Cardano.Wallet.Jormungandr.Binary as J
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
 -- | Creates a new 'NetworkLayer' connecting to an underlying 'Jormungandr'
@@ -346,3 +351,11 @@ data ErrGetBlockchainParams
     | ErrGetBlockchainParamsGenesisNotFound (Hash "Genesis")
     | ErrGetBlockchainParamsIncompleteParams [ConfigParam]
     deriving (Show, Eq)
+
+{-------------------------------------------------------------------------------
+                                     Utils
+-------------------------------------------------------------------------------}
+
+-- | Format an API 'BaseUrl', for logging, etc.
+baseUrlToText :: BaseUrl -> T.Text
+baseUrlToText = T.pack . showBaseUrl

@@ -17,6 +17,8 @@ import Control.Exception
     ( finally )
 import Control.Monad
     ( forM_ )
+import Data.Generics.Internal.VL.Lens
+    ( (^.) )
 import System.Exit
     ( ExitCode (..) )
 import System.IO.Temp
@@ -29,7 +31,7 @@ import System.Process
     , withCreateProcess
     )
 import Test.Hspec
-    ( Spec, SpecWith, describe, it )
+    ( Spec, SpecWith, describe, it, pendingWith )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldReturn )
 import Test.Integration.Framework.DSL
@@ -37,19 +39,22 @@ import Test.Integration.Framework.DSL
     , KnownCommand (..)
     , collectStreams
     , expectPathEventuallyExist
+    , jormungandrBaseUrl
     , proc'
     , shouldContainT
     , shouldNotContainT
     )
 import Test.Integration.Framework.TestData
     ( versionLine )
+import Test.Utils.Ports
+    ( findPort )
 
 import qualified Data.Text as T
 
 spec :: forall t. KnownCommand t => SpecWith (Context t)
 spec = do
     let block0H = T.unpack block0HText
-    describe "SERVER - cardano-wallet serve" $ do
+    describe "SERVER - cardano-wallet serve [SERIAL]" $ do
         it "SERVER - Can start cardano-wallet serve --database" $ \_ -> do
             withTempDir $ \d -> do
                 let db = d ++ "/db-file"
@@ -63,17 +68,22 @@ spec = do
             threadDelay oneSecond
 
     describe "DaedalusIPC" $ do
-        let defaultArgs =
-                [ commandName @t , "serve" , "--genesis-hash", block0H ]
+        let defaultArgs nodePort =
+                [ commandName @t , "serve", "--node-port", nodePort, "--genesis-hash", block0H ]
         let tests =
-                [ defaultArgs ++ ["--random-port"]
-                , defaultArgs ++ ["--port", "8082"]
+                [ const ["--random-port"]
+                , \fixedPort -> ["--port", fixedPort]
                 ]
         forM_ tests $ \args -> do
-            let title = "should reply with the port when asked " <> show args
-            it title $ \_ -> do
+            let title = "should reply with the port when asked "
+                    <> show (args "FIXED")
+            it title $ \ctx -> do
+                fixedPort <- findPort
                 let filepath = "test/integration/js/mock-daedalus.js"
-                (_, _, _, ph) <- createProcess (proc filepath args)
+                let urlPort = T.takeWhile (/= '/') . T.takeWhileEnd (/= ':')
+                let nodePort = T.unpack $ urlPort $ ctx ^. jormungandrBaseUrl
+                let scriptArgs = defaultArgs nodePort ++ args (show fixedPort)
+                (_, _, _, ph) <- createProcess (proc filepath scriptArgs)
                 waitForProcess ph `shouldReturn` ExitSuccess
 
     describe "LOGGING - cardano-wallet serve logging" $ do
@@ -93,6 +103,7 @@ spec = do
             out `shouldContainT` "Notice"
 
         it "LOGGING - Serve --quiet logs Error only" $ \_ -> do
+            pendingWith "The assertion in this test case is wrong."
             let args =
                     ["serve"
                     , "--random-port"
@@ -124,6 +135,7 @@ specNoBackend = do
     it "TIMEOUT - Times out gracefully after 60 seconds" $ do
         let args =
                 ["serve"
+                , "--random-port"
                 , "--genesis-hash"
                 , "1234"
                 ]

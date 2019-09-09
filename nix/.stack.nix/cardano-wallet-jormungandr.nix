@@ -87,6 +87,7 @@
             (hsPkgs.cardano-wallet-http-bridge)
             (hsPkgs.cardano-wallet-jormungandr)
             (hsPkgs.cardano-wallet-launcher)
+            (hsPkgs.cardano-wallet-test-utils)
             (hsPkgs.command)
             (hsPkgs.containers)
             (hsPkgs.cryptonite)
@@ -94,6 +95,7 @@
             (hsPkgs.directory)
             (hsPkgs.exceptions)
             (hsPkgs.extra)
+            (hsPkgs.filepath)
             (hsPkgs.generic-arbitrary)
             (hsPkgs.generic-lens)
             (hsPkgs.hspec)
@@ -115,6 +117,7 @@
             (hsPkgs.time)
             (hsPkgs.transformers)
             (hsPkgs.warp)
+            (hsPkgs.yaml)
             ];
           };
         };

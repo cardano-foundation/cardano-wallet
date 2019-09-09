@@ -44,6 +44,7 @@ import Test.Integration.Framework.DSL
     , expectValidJSON
     , faucetAmt
     , getWalletViaCLI
+    , jormungandrBaseUrl
     , listAddresses
     , postExternalTransactionViaCLI
     , prepExternalTxViaJcli
@@ -69,7 +70,7 @@ spec = do
         let addrStr = encodeAddress (Proxy @t) (getApiT $ fst $ addr ^. #id)
         let amt = 4321
 
-        txBlob <- prepExternalTxViaJcli addrStr amt
+        txBlob <- prepExternalTxViaJcli (ctx ^. jormungandrBaseUrl) addrStr amt
 
         (Exit code, Stdout out, Stderr err) <-
             postExternalTransactionViaCLI @t ctx [T.unpack txBlob]

@@ -82,6 +82,9 @@ data Context t = Context
     , _port
         :: Port
         -- ^ Server TCP port
+    , _jormungandrBaseUrl
+        :: Text
+        -- ^ Jormungandr REST API port
     , _faucet
         :: Faucet
         -- ^ A 'Faucet' handle in to have access to funded wallets in
