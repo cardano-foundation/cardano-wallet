@@ -111,14 +111,15 @@ spec = do
             , "  -h,--help                Show this help text"
             , ""
             , "Available commands:"
-            , "  mnemonic                 "
-            , "  wallet                   "
-            , "  transaction              "
-            , "  address                  "
+            , "  mnemonic                 Manage mnemonic phrases."
+            , "  wallet                   Manage wallets."
+            , "  transaction              Manage transactions."
+            , "  address                  Manage addresses."
             ]
 
         ["mnemonic", "--help"] `shouldShowUsage`
             [ "Usage:  mnemonic COMMAND"
+            , "  Manage mnemonic phrases."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
@@ -140,6 +141,7 @@ spec = do
 
         ["wallet", "--help"] `shouldShowUsage`
             [ "Usage:  wallet COMMAND"
+            , "  Manage wallets."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
@@ -223,6 +225,7 @@ spec = do
 
         ["transaction", "--help"] `shouldShowUsage`
             [ "Usage:  transaction COMMAND"
+            , "  Manage transactions."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
@@ -284,6 +287,7 @@ spec = do
 
         ["address", "--help"] `shouldShowUsage`
             [ "Usage:  address COMMAND"
+            , "  Manage addresses."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
