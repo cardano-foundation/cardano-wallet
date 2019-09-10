@@ -66,7 +66,8 @@ main = do
             whenRun optDryRun $ cacheGetStep cacheConfig
             buildResult <- buildStep optDryRun bk
             whenRun optDryRun $ cachePutStep cacheConfig
-            -- uploadCoverageStep
+            when (shouldUploadCoverage bk) $
+                uploadCoverageStep optDryRun
             void $ weederStep optDryRun
             exitWith buildResult
         CleanupCache ->
@@ -140,6 +141,7 @@ buildStep dryRun bk =
         , "--haddock"
         , "--haddock-internal"
         , "--no-haddock-deps"
+        , "--coverage"
         ]
     taArg = maybe [] (\ta -> ["--ta", T.unwords ta])
     skipArg component = ["--skip", component]
@@ -217,12 +219,18 @@ onDefaultBranch BuildkiteEnv{..} = bkBranch == bkDefaultBranch
 isBorsBuild :: BuildkiteEnv -> Bool
 isBorsBuild bk = "bors/" `T.isPrefixOf` bkBranch bk
 
+-- | How much time to spend executing tests.
 qaLevel :: Maybe BuildkiteEnv -> QA
 qaLevel = maybe FullTest level
   where
     level bk
         | isBorsBuild bk || onDefaultBranch bk = FullTest
         | otherwise = QuickTest
+
+-- | Whether to upload test coverage information to coveralls.io.
+shouldUploadCoverage :: Maybe BuildkiteEnv -> Bool
+shouldUploadCoverage bk = qaLevel bk == FullTest
+    || (bkBranch <$> bk) == Just "KtorZ/buildkite-coverage" -- just for testing the PR branch
 
 ----------------------------------------------------------------------------
 -- Weeder - uses contents of .stack-work to determine unused dependencies
@@ -235,21 +243,31 @@ weederStep dryRun = do
 ----------------------------------------------------------------------------
 -- Stack Haskell Program Coverage and upload to Coveralls
 
-uploadCoverageStep :: IO ()
-uploadCoverageStep = do
+-- | Upload coverage information to coveralls.
+uploadCoverageStep :: DryRun -> IO ()
+uploadCoverageStep dryRun = do
     echo "--- Upload Test Coverage"
-    sh $ do
-        -- Ignore modules that are full of Template Haskell auto-generated code
-        pushd "lib/core"
-        let localMixDir = ".stack-work/dist/x86_64-linux/Cabal-2.4.0.1/hpc/" -- fixme: find it
-        void $ proc "sed" ["-i", "s/.*hpc\\/\\(.*\\).mix/module \"\\1\" {}/", "overlay.hpc"] empty
-        let ignoredTix = "Cardano.Wallet.DB.Sqlite.TH.tix"
-        inproc "hpc" ["overlay", "--hpcdir", localMixDir, "overlay.hpc"] empty &
-            output ignoredTix
-        void $ proc "sed" ["-i", "s/0,/1,/g", format fp ignoredTix] empty
-    void $
-        (proc "stack" ["hpc", "report", "**/*.tix"] empty) .&&.
-        (proc "shc" ["combined", "custom"] empty)
+    need var >>= \case
+        Nothing -> do
+            eprintf ("Environment variable "%s%" not set.\n") var
+            eprintf "Not uploading coverage information.\n"
+        Just repoToken ->
+            (findTix >>= generate) .&&. upload repoToken >>= \case
+                ExitSuccess -> echo "Coverage information upload successful."
+                ExitFailure _ -> echo "Coverage information upload failed."
+  where
+    var = "CARDANO_WALLET_COVERALLS_REPO_TOKEN"
+    findTix = fold (find (suffix ".tix") "lib") Fold.list
+    generate tixFiles = run dryRun "stack"
+        ([ "hpc"
+        , "report"
+        , "--all"
+        ] ++ map (format fp) tixFiles)
+    upload repoToken = do
+        let shcArgs = ["combined", "custom"]
+        logCommand "shc" shcArgs
+        whenRun' dryRun ExitSuccess $
+            proc "shc" (["--repo-token", repoToken] ++ shcArgs) empty
 
 ----------------------------------------------------------------------------
 -- Stack root and .stack-work caching.
@@ -461,7 +479,7 @@ doMaybe = maybe (pure ())
 
 run :: MonadIO io => DryRun -> Text -> [Text] -> io ExitCode
 run dryRun cmd args = do
-    printf (s % " " % s % "\n") cmd (T.unwords $ map quote args)
+    logCommand cmd args
     whenRun' dryRun ExitSuccess $ do
         res <- proc cmd args empty
         case res of
@@ -472,14 +490,20 @@ run dryRun cmd args = do
                     ("error: Command exited with code "%d%"!\nContinuing...\n")
                     code
         pure res
+
+logCommand :: MonadIO io => Text -> [Text] -> io ()
+logCommand cmd args = printf (s % " " % s % "\n") cmd args'
   where
+    args' = T.unwords $ map quote args
     -- simple quoting, just for logging
     quote arg | T.any isSpace arg = "'" <> arg <> "'"
               | otherwise = arg
 
+-- | Runs an action when not in --dry-run mode.
 whenRun :: Applicative m => DryRun -> m a -> m ()
 whenRun d = whenRun' d () . void
 
+-- | Runs an action when not in --dry-run mode, with alternative return value.
 whenRun' :: Applicative m => DryRun -> a -> m a -> m a
 whenRun' DryRun a _ = pure a
 whenRun' Run _ ma = ma
