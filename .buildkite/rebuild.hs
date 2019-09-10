@@ -1,14 +1,12 @@
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-import Options.Applicative
 import Prelude hiding
     ( FilePath )
-import Turtle hiding
-    ( opt, option )
+
+import Options.Applicative
 
 import Control.Concurrent.Async
     ( race )
@@ -27,16 +25,39 @@ import Data.ByteString
 import Data.List.Extra
     ( dropSuffix )
 import Data.Maybe
-    ( catMaybes, maybeToList )
+    ( mapMaybe, maybeToList )
 import Safe
     ( headMay, readMay )
 import System.Exit
     ( exitWith )
+import Turtle hiding
+    ( opt, option )
 
 import qualified Control.Foldl as Fold
 import qualified Data.Text as T
 import qualified Filesystem.Path.CurrentOS as FP
 import qualified Turtle.Bytes as TB
+
+main :: IO ()
+main = do
+    (RebuildOpts{..}, cmd) <- parseOpts
+    bk <- getBuildkiteEnv
+    cacheConfig <- getCacheConfig bk optCacheDirectory
+    case cmd of
+        Build -> do
+            doMaybe setupBuildDirectory optBuildDirectory
+            cacheGetStep cacheConfig
+            buildResult <- buildStep Nothing
+            cachePutStep cacheConfig
+            -- uploadCoverageStep
+            weederStep
+            exitWith buildResult
+        CleanupCache ->
+            cleanupCacheStep cacheConfig optBuildDirectory
+        PurgeCache ->
+            purgeCacheStep cacheConfig optBuildDirectory
+
+data BuildOpt = Opt | Fast deriving (Show, Eq)
 
 data RebuildOpts = RebuildOpts
     { optBuildDirectory :: Maybe FilePath
@@ -46,46 +67,42 @@ data RebuildOpts = RebuildOpts
 data Command = Build | CleanupCache | PurgeCache deriving (Show)
 
 rebuildOpts :: Parser RebuildOpts
-rebuildOpts = RebuildOpts <$> optional buildDir <*> optional cacheName
+rebuildOpts = RebuildOpts
+    <$> optional buildDir
+    <*> optional cacheName
   where
-    buildDir = option (FP.decodeString <$> str) (long "build-dir" <> metavar "DIR" <> help "Copy sources to directory before building")
-    cacheName = option (FP.decodeString <$> str) (long "cache-dir" <> metavar "DIR" <> help "Location of project's cache")
+    buildDir = option
+        (FP.decodeString <$> str)
+        (  long "build-dir"
+        <> metavar "DIR"
+        <> help "Copy sources to directory before building"
+        )
+    cacheName = option
+        (FP.decodeString <$> str)
+        (  long "cache-dir"
+        <> metavar "DIR"
+        <> help "Location of project's cache"
+        )
 
 parseOpts :: IO (RebuildOpts, Command)
 parseOpts = execParser opts
   where
-    opts = info (cmdOpts <**> helper)
-           ( fullDesc <> progDesc "Build cardano-wallet with stack in Buildkite" )
-    cmdOpts = (,) <$> rebuildOpts <*> (cmd <|> pure Build)
+    opts = info
+        (cmdOpts <**> helper)
+        (fullDesc <> progDesc "Build cardano-wallet with stack in Buildkite")
+    cmdOpts = (,)
+        <$> rebuildOpts
+        <*> (cmd <|> pure Build)
     cmd = subparser
-          ( command "build" (info (pure Build) idm)
-            <> command "cleanup-cache" (info (pure CleanupCache) idm)
-            <> command "purge-cache" (info (pure PurgeCache) idm) )
-
-main :: IO ()
-main = do
-  (RebuildOpts{..}, cmd) <- parseOpts
-  bk <- getBuildkiteEnv
-  cacheConfig <- getCacheConfig bk optCacheDirectory
-  case cmd of
-      Build -> do
-          doMaybe setupBuildDirectory optBuildDirectory
-          cacheGetStep cacheConfig
-          buildResult <- buildStep Nothing
-          cachePutStep cacheConfig
-          -- uploadCoverageStep
-          weederStep
-          exitWith buildResult
-      CleanupCache -> cleanupCacheStep cacheConfig optBuildDirectory
-      PurgeCache -> purgeCacheStep cacheConfig optBuildDirectory
-
-data BuildOpt = Opt | Fast deriving (Show, Eq)
+        (  command "build" (info (pure Build) idm)
+        <> command "cleanup-cache" (info (pure CleanupCache) idm)
+        <> command "purge-cache" (info (pure PurgeCache) idm)
+        )
 
 buildStep :: Maybe [Text] -> IO ExitCode
 buildStep testArgs =
     echo "--- Build LTS Snapshot" *> buildSnapshot .&&.
     echo "--- Build dependencies" *> buildDeps .&&.
-    -- echo "+++ Build and test" *> buildAndTest
     echo "+++ Build" *> build .&&.
     echo "+++ Test" *> timeout 30 test
   where
@@ -102,9 +119,8 @@ buildStep testArgs =
     stackBuild opt args = run "stack" $ concat [cfg, ["build"], fastOpt opt, args]
     buildSnapshot = stackBuild Opt  $ buildArgs ++ ["--only-snapshot"]
     buildDeps     = stackBuild Opt  $ buildArgs ++ ["--only-dependencies"]
-    buildAndTest  = stackBuild Fast $ ["--test"] ++ buildArgs ++ testArgs'
     build         = stackBuild Fast $ ["--test", "--no-run-tests"] ++ buildArgs
-    test          = stackBuild Fast $ ["--test"] ++ testArgs'
+    test          = stackBuild Fast $ "--test" : testArgs'
 
     fastOpt Opt = []
     fastOpt Fast = ["--fast"]
@@ -169,7 +185,7 @@ uploadCoverageStep = do
     sh $ do
         -- Ignore modules that are full of Template Haskell auto-generated code
         pushd "lib/core"
-        localMixDir <- pure ".stack-work/dist/x86_64-linux/Cabal-2.4.0.1/hpc/" -- fixme: find it
+        let localMixDir = ".stack-work/dist/x86_64-linux/Cabal-2.4.0.1/hpc/" -- fixme: find it
         void $ proc "sed" ["-i", "s/.*hpc\\/\\(.*\\).mix/module \"\\1\" {}/", "overlay.hpc"] empty
         let ignoredTix = "Cardano.Wallet.DB.Sqlite.TH.tix"
         inproc "hpc" ["overlay", "--hpcdir", localMixDir, "overlay.hpc"] empty &
@@ -203,41 +219,46 @@ data CICacheConfig = CICacheConfig
 -- | Sets up the 'CICacheConfig' info, or provides a reason why caching can't be
 -- done.
 getCacheConfig :: Maybe BuildkiteEnv -> Maybe FilePath -> IO (Either Text CICacheConfig)
-getCacheConfig Nothing _ = pure (Left "BUILDKITE_* environment variables are not set")
-getCacheConfig _ Nothing = pure (Left "--cache-dir argument was not provided")
+getCacheConfig Nothing _ =
+    pure (Left "BUILDKITE_* environment variables are not set")
+getCacheConfig _ Nothing =
+    pure (Left "--cache-dir argument was not provided")
 getCacheConfig (Just bk) (Just ccCacheDir) =
     (fmap FP.fromText <$> need "STACK_ROOT") >>= \case
-        Just ccStackRoot -> pure (Right CICacheConfig{ccBranches=cacheBranches bk,..})
-        Nothing -> pure (Left "STACK_ROOT environment variable is not set")
+        Just ccStackRoot ->
+            pure (Right CICacheConfig{ccBranches=cacheBranches bk,..})
+        Nothing ->
+            pure (Left "STACK_ROOT environment variable is not set")
 
 -- | Create the list of branches to source caches from.
 --   1. Build branch;
 --   2. PR base branch;
 --   3. Repo default branch.
 cacheBranches :: BuildkiteEnv -> [Text]
-cacheBranches BuildkiteEnv{..} = [bkBranch] ++ maybeToList bkBaseBranch ++ [bkDefaultBranch]
+cacheBranches BuildkiteEnv{..} =
+    [bkBranch] ++ maybeToList bkBaseBranch ++ [bkDefaultBranch]
 
 cacheGetStep :: Either Text CICacheConfig -> IO ()
 cacheGetStep cacheConfig = do
     echo "--- CI Cache Restore"
     case cacheConfig of
-        Right cfg -> restoreCICache cfg `catch`
-            \(ex :: IOException) ->
-                eprintf ("Failed to download CI cache: "%w%"\nContinuing anyway...\n") ex
-        Left ex -> eprintf ("Not using CI cache because "%s%"\n") ex
+        Right cfg -> restoreCICache cfg `catch` \(ex :: IOException) ->
+            eprintf ("Failed to download CI cache: "%w%"\nContinuing anyway...\n") ex
+        Left ex ->
+            eprintf ("Not using CI cache because "%s%"\n") ex
 
 cachePutStep :: Either Text CICacheConfig -> IO ()
 cachePutStep cacheConfig = do
     echo "--- CI Cache Save"
     case cacheConfig of
-        Right cfg -> saveCICache cfg `catch`
-            \(ex :: IOException) ->
-                eprintf ("Failed to upload CI cache: "%w%"\n") ex
-        Left _ -> printf "CI cache not configured.\n"
+        Right cfg -> saveCICache cfg `catch` \(ex :: IOException) ->
+            eprintf ("Failed to upload CI cache: "%w%"\n") ex
+        Left _ ->
+            printf "CI cache not configured.\n"
 
 getCacheArchive :: MonadIO io => CICacheConfig -> FilePath -> io (Maybe FilePath)
 getCacheArchive CICacheConfig{..} ext = do
-    let caches = catMaybes $ map (getCacheName ccCacheDir) ccBranches
+    let caches = mapMaybe (getCacheName ccCacheDir) ccBranches
     headMay <$> filterM testfile (map (</> ext) caches)
 
 -- | The cache directory for a given branch name
@@ -247,7 +268,8 @@ getCacheName base branch
     | otherwise = Just (base </> FP.fromText branch)
 
 putCacheName :: CICacheConfig -> FilePath -> Maybe FilePath
-putCacheName CICacheConfig{..} ext = (</> ext) <$> getCacheName ccCacheDir (head ccBranches)
+putCacheName CICacheConfig{..} ext =
+    (</> ext) <$> getCacheName ccCacheDir (head ccBranches)
 
 restoreCICache :: CICacheConfig -> IO ()
 restoreCICache cfg = do
@@ -266,22 +288,29 @@ stackWorkCache :: FilePath
 stackWorkCache = "stack-work.tar.lz4"
 
 restoreStackRoot :: CICacheConfig -> IO ()
-restoreStackRoot cfg@CICacheConfig{..} = restoreZippedCache stackRootCache cfg $ \tar -> do
-    whenM (testpath ccStackRoot) $ rmtree ccStackRoot
-    mktree ccStackRoot
-    TB.procs "tar" ["-C", "/", "-x"] tar
+restoreStackRoot cfg@CICacheConfig{..} =
+    restoreZippedCache stackRootCache cfg $ \tar -> do
+        whenM (testpath ccStackRoot) $ rmtree ccStackRoot
+        mktree ccStackRoot
+        TB.procs "tar" ["-C", "/", "-x"] tar
 
 restoreStackWork :: CICacheConfig -> IO ()
-restoreStackWork cfg = restoreZippedCache stackWorkCache cfg (TB.procs "tar" ["-x"])
+restoreStackWork cfg =
+    restoreZippedCache stackWorkCache cfg (TB.procs "tar" ["-x"])
 
-restoreZippedCache :: FilePath -> CICacheConfig -> (Shell ByteString -> IO ()) -> IO ()
+restoreZippedCache
+    :: FilePath
+    -> CICacheConfig
+    -> (Shell ByteString -> IO ())
+    -> IO ()
 restoreZippedCache ext cfg act = getCacheArchive cfg ext >>= \case
     Just tarfile -> do
         size <- du tarfile
         printf ("Restoring cache "%fp%" ("%sz%") ... ") tarfile size
         act $ TB.inproc "lz4cat" ["-d"] (TB.input tarfile)
         printf "done.\n"
-    Nothing -> printf ("No "%fp%" cache found.\n") ext
+    Nothing ->
+        printf ("No "%fp%" cache found.\n") ext
 
 saveStackRoot :: CICacheConfig -> IO ()
 saveStackRoot cfg@CICacheConfig{..} = saveZippedCache stackRootCache cfg tar
@@ -316,7 +345,8 @@ cleanupCacheStep cacheConfig buildDir = do
             removeDirectory ccStackRoot
             -- Remove the build directory left by the previous build.
             doMaybe removeDirectory buildDir
-        Left ex -> eprintf ("Not cleaning up CI cache because: "%s%"\n") ex
+        Left ex ->
+            eprintf ("Not cleaning up CI cache because: "%s%"\n") ex
 
 purgeCacheStep :: Either Text CICacheConfig -> Maybe FilePath -> IO ()
 purgeCacheStep cacheConfig buildDir = do
@@ -326,12 +356,13 @@ purgeCacheStep cacheConfig buildDir = do
             removeDirectory ccCacheDir
             removeDirectory ccStackRoot
             doMaybe removeDirectory buildDir
-        Left ex -> eprintf ("Not purging CI cache because: "%s%"\n") ex
+        Left ex ->
+            eprintf ("Not purging CI cache because: "%s%"\n") ex
 
 -- | Remove all files and directories that do not belong to an active branch cache.
 cleanupCache :: FilePath -> [Text] -> IO ()
 cleanupCache cacheDir activeBranches = do
-    let branchCaches = catMaybes . map (getCacheName cacheDir) $ activeBranches
+    let branchCaches = mapMaybe (getCacheName cacheDir) activeBranches
     files <- fold (lstree cacheDir) (Fold.revList)
     forM_ files $ \cf -> do
         st <- stat cf
@@ -350,7 +381,8 @@ removeDirectory dir = whenM (testpath dir) $ do
 
 -- | Ask the origin git remote for its list of branches.
 getBranches :: MonadIO io => io [Text]
-getBranches = T.lines <$> strict (sed branchPat (grep branchPat git))
+getBranches =
+    T.lines <$> strict (sed branchPat (grep branchPat git))
   where
     remote = "origin"
     git = inproc "git" ["ls-remote", "--heads", remote] empty
@@ -376,20 +408,24 @@ run cmd args = do
     printf (s % " " % s % "\n") cmd (T.unwords args)
     res <- proc cmd args empty
     case res of
-        ExitSuccess      -> pure ()
-        ExitFailure code -> eprintf
-            ("error: Command exited with code "%d%"!\nContinuing...\n")
-            code
+        ExitSuccess ->
+            pure ()
+        ExitFailure code ->
+            eprintf
+                ("error: Command exited with code "%d%"!\nContinuing...\n")
+                code
     pure res
 
 directoryWithoutSlash :: FilePath -> FilePath
-directoryWithoutSlash = decodeString . dropSuffix "/" . encodeString . directory
+directoryWithoutSlash =
+    decodeString . dropSuffix "/" . encodeString . directory
 
 -- | Run an action, but cancel it if it doesn't complete within the given number
 -- of minutes.
 timeout :: Int -> IO ExitCode -> IO ExitCode
 timeout mins act = race (sleep (fromIntegral mins * 60)) act >>= \case
-    Right r -> pure r
+    Right r ->
+        pure r
     Left () -> do
         eprintf ("\nTimed out after "%d%" minutes.\n") mins
         pure (ExitFailure 124)
