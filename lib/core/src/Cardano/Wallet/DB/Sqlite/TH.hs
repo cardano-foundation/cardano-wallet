@@ -90,7 +90,7 @@ TxMeta
     txMetaSlotId     W.SlotId     sql=slot
     txMetaAmount     Natural      sql=amount
 
-    Primary txMetaTxId txMetaWalletId
+    Primary txMetaTxId txMetaWalletId txMetaSlotId
     Foreign Wallet fk_wallet_tx_meta txMetaWalletId
     deriving Show Generic
 

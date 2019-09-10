@@ -207,7 +207,7 @@ multipleCheckpointSpec = do
             let block1 = mkBlock 1 "block1" []
             let cp2 = mkCpSeq block1
             runExceptT (putCheckpoint db testPk cp2) `shouldReturn` Right ()
-            cps <- runSqlite' "my.db" $ do
+            cps <- runSqlite' "spec.db" $ do
                 cps :: [Entity Checkpoint] <- selectList [][]
                 return $ fmap entityVal cps
             readCheckpoint db testPk `shouldReturn` Just cp2
@@ -345,7 +345,7 @@ newFileDBLayer
 newFileDBLayer = do
     logConfig <- testingLogConfig
     logs <- newTVarIO []
-    db <- snd <$> newDBLayer logConfig (traceInTVarIO logs) (Just "my.db")
+    db <- snd <$> newDBLayer logConfig (traceInTVarIO logs) (Just "spec.db")
     pure (db, logs)
 
 testingLogConfig :: IO CM.Configuration

@@ -703,7 +703,7 @@ deleteTxMetas wid = deleteWhere [ TxMetaWalletId ==. wid ]
 -- | Add new TxMeta rows, overwriting existing ones.
 putTxMetas :: [TxMeta] -> SqlPersistT IO ()
 putTxMetas metas = dbChunked repsertMany
-    [(TxMetaKey txMetaTxId txMetaWalletId, m) | m@TxMeta{..} <- metas]
+    [(TxMetaKey txMetaTxId txMetaWalletId txMetaSlotId, m) | m@TxMeta{..} <- metas]
 
 -- | Insert multiple transactions, removing old instances first.
 putTxs :: [TxIn] -> [TxOut] -> SqlPersistT IO ()
