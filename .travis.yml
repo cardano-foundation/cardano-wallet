@@ -242,7 +242,7 @@ jobs:
     - mv lib/core/*.tix .coverage/core
     # Re-build the coverage report taking .tix from executables running outside of the test suites
     - stack hpc report .coverage/**/*.tix
-    - shc combined custom
+    - shc combined custom || true
 
   - stage: deploy 🚀
     if: type != pull_request AND branch = master
