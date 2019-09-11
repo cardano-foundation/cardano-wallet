@@ -47,7 +47,7 @@ main = do
         Build -> do
             doMaybe setupBuildDirectory optBuildDirectory
             cacheGetStep cacheConfig
-            buildResult <- buildStep
+            buildResult <- buildStep bk
             cachePutStep cacheConfig
             -- uploadCoverageStep
             weederStep
@@ -65,6 +65,10 @@ data RebuildOpts = RebuildOpts
     } deriving (Show)
 
 data Command = Build | CleanupCache | PurgeCache deriving (Show)
+
+data DryRun = Run | DryRun deriving (Show, Eq)
+
+data QA = QuickTest | FullTest deriving (Show, Eq)
 
 rebuildOpts :: Parser RebuildOpts
 rebuildOpts = RebuildOpts
@@ -99,8 +103,8 @@ parseOpts = execParser opts
         <> command "purge-cache" (info (pure PurgeCache) idm)
         )
 
-buildStep :: IO ExitCode
-buildStep =
+buildStep :: Maybe BuildkiteEnv -> IO ExitCode
+buildStep bk =
     echo "--- Build LTS Snapshot" *> buildSnapshot .&&.
     echo "--- Build dependencies" *> buildDeps .&&.
     echo "+++ Build" *> build .&&.
@@ -114,17 +118,25 @@ buildStep =
         , "--haddock-internal"
         , "--no-haddock-deps"
         ]
-    testArgs = maybe [] (\ta -> ["--ta", T.unwords ta])
+    taArg = maybe [] (\ta -> ["--ta", T.unwords ta])
+    skipArg component = ["--skip", component]
 
-    stackBuild opt ta args = run "stack" $
-        concat [cfg, ["build"], fastOpt opt, testArgs ta, args]
+    stackBuild opt testArgs args = run "stack" $
+        concat [cfg, ["build"], fastOpt opt, taArg testArgs, args]
     buildSnapshot = stackBuild Opt Nothing $ buildArgs ++ ["--only-snapshot"]
     buildDeps = stackBuild Opt Nothing $ buildArgs ++ ["--only-dependencies"]
     build = stackBuild Fast Nothing $ ["--test", "--no-run-tests"] ++ buildArgs
     test =
-        stackBuild Fast (Just ["--skip",  serialTests]) ["--test"] .&&.
-        stackBuild Fast (Just ["--match", serialTests, "--jobs", "1"])
-            ["--test", "--jobs", "1"]
+        let
+            args = "--test" : concatMap skipArg skipComponents
+            skipComponents = case qaLevel bk of
+                QuickTest -> [ "integration" ]
+                FullTest -> []
+        in
+            stackBuild Fast (Just ["--skip", serialTests]) args
+            .&&.
+            stackBuild Fast (Just ["--match", serialTests, "--jobs", "1"])
+                (args ++ ["--jobs", "1"])
     serialTests = "SERIAL"
 
     fastOpt Opt = []
@@ -172,6 +184,21 @@ getBuildkiteEnv = runMaybeT $ do
     bkDefaultBranch <- MaybeT $ need "BUILDKITE_PIPELINE_DEFAULT_BRANCH"
     bkTag           <- lift   $ want "BUILDKITE_TAG"
     pure BuildkiteEnv {..}
+
+-- | Whether we are building the repo's default branch.
+onDefaultBranch :: BuildkiteEnv -> Bool
+onDefaultBranch BuildkiteEnv{..} = bkBranch == bkDefaultBranch
+
+-- | Whether we are building for Bors, based on the branch name.
+isBorsBuild :: BuildkiteEnv -> Bool
+isBorsBuild bk = "bors/" `T.isPrefixOf` bkBranch bk
+
+qaLevel :: Maybe BuildkiteEnv -> QA
+qaLevel = maybe FullTest level
+  where
+    level bk
+        | isBorsBuild bk || onDefaultBranch bk = FullTest
+        | otherwise = QuickTest
 
 ----------------------------------------------------------------------------
 -- Weeder - uses contents of .stack-work to determine unused dependencies
