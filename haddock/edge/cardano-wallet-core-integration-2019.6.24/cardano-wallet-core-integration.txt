@@ -207,7 +207,6 @@ delegation :: HasType (ApiT (WalletDelegation (ApiT PoolId))) s => Lens' s (Wall
 direction :: HasType (ApiT Direction) s => Lens' s Direction
 feeEstimator :: Lens' (Context t) (TxDescription -> (Natural, Natural))
 inputs :: HasType [ApiTxInput t] s => Lens' s [ApiTxInput t]
-insertedAtTime :: HasType (Maybe ApiBlockData) s => Lens' s (Maybe UTCTime)
 passphraseLastUpdate :: HasType (Maybe (ApiT WalletPassphraseInfo)) s => Lens' s (Maybe Text)
 state :: HasField' "state" s (ApiT t) => Lens' s t
 status :: HasType (ApiT TxStatus) s => Lens' s TxStatus
