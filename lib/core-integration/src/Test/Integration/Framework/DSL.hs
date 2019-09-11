@@ -57,7 +57,6 @@ module Test.Integration.Framework.DSL
     , direction
     , feeEstimator
     , inputs
-    , insertedAtTime
     , passphraseLastUpdate
     , state
     , status
@@ -125,7 +124,6 @@ module Test.Integration.Framework.DSL
 import Cardano.Wallet.Api.Types
     ( AddressAmount
     , ApiAddress
-    , ApiBlockData (..)
     , ApiT (..)
     , ApiTransaction
     , ApiTxInput (..)
@@ -146,7 +144,6 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , HistogramBar (..)
     , PoolId (..)
-    , SlotId (..)
     , SortOrder (..)
     , TxIn (..)
     , TxOut (..)
@@ -703,16 +700,6 @@ direction =
     _get = getApiT . view typed
     _set :: HasType (ApiT Direction) s => (s, Direction) -> s
     _set (s, v) = set typed (ApiT v) s
-
-insertedAtTime :: HasType (Maybe ApiBlockData) s => Lens' s (Maybe UTCTime)
-insertedAtTime =
-    lens _get _set
-  where
-    _get :: HasType (Maybe ApiBlockData) s => s -> (Maybe UTCTime)
-    _get = fmap (time) . view typed
-    _set :: HasType (Maybe ApiBlockData) s => (s, (Maybe UTCTime)) -> s
-    _set (s, v) = set typed (fn <$> v) s
-         where fn t = ApiBlockData (t) (ApiT (SlotId 1 1))
 
 inputs :: HasType [ApiTxInput t] s => Lens' s [ApiTxInput t]
 inputs =
