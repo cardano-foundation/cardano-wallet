@@ -68,7 +68,11 @@ import qualified Servant.API.ContentTypes as Servant
 api :: Proxy Api
 api = Proxy
 
-type Api = GetTipId :<|> GetBlock :<|> GetBlockDescendantIds :<|> PostMessage
+type Api =
+    GetTipId
+    :<|> GetBlock
+    :<|> GetBlockDescendantIds
+    :<|> PostMessage
 
 -- | Retrieve a block by its id.
 type GetBlock

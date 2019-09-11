@@ -1,3 +1,5 @@
+{-# LANGUAGE DataKinds #-}
+
 module Cardano.Wallet.HttpBridge.NetworkSpec
     ( spec
     ) where
@@ -6,6 +8,8 @@ import Prelude
 
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
+import Cardano.Wallet.HttpBridge.Environment
+    ( Network (..) )
 import Cardano.Wallet.HttpBridge.Network
     ( HttpBridgeLayer (..) )
 import Cardano.Wallet.HttpBridge.Primitive.Types
@@ -152,7 +156,7 @@ mockNetworkLayer
     => (String -> m ()) -- ^ logger function
     -> Word64 -- ^ make getEpoch fail for epochs after this
     -> SlotId -- ^ the tip block
-    -> NetworkLayer (HttpBridge n) m
+    -> NetworkLayer (HttpBridge 'Testnet) m
 mockNetworkLayer logLine firstUnstableEpoch tip =
     HttpBridge.mkNetworkLayer (mockHttpBridge logLine firstUnstableEpoch tip)
 

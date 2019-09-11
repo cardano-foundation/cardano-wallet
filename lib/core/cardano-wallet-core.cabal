@@ -63,7 +63,6 @@ library
     , persistent-template
     , random
     , retry
-    , safe
     , servant
     , servant-server
     , split
@@ -162,7 +161,6 @@ test-suite unit
     , QuickCheck
     , quickcheck-state-machine >= 0.6.0
     , random
-    , safe
     , servant
     , servant-server
     , servant-swagger

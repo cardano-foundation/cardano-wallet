@@ -57,7 +57,7 @@ import Control.Monad.Trans.State.Strict
 import Data.Foldable
     ( fold )
 import Data.Maybe
-    ( catMaybes, fromMaybe )
+    ( catMaybes )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -66,13 +66,11 @@ import Data.Traversable
     ( for )
 import GHC.Generics
     ( Generic )
-import Safe
-    ( lastMay )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
     ( Arbitrary (..)
-    , NonNegative (..)
+    , Positive (..)
     , Property
     , checkCoverage
     , choose
@@ -170,9 +168,10 @@ prop_applyBlockTxHistoryIncoming s =
     property (outs (filter isIncoming txs) `overlaps` ourAddresses s')
   where
     cp0 = initWallet @_ @DummyTarget block0 s
-    txs_cps = applyBlocks blockchain cp0
+    bs = NE.fromList blockchain
+    txs_cps = applyBlocks bs cp0
     txs = Map.elems $ fold $ fst <$> txs_cps
-    s' = getState $ fromMaybe cp0 $ lastMay $ snd <$> txs_cps
+    s' = getState $ NE.last $ snd <$> txs_cps
     isIncoming (_, m) = direction m == Incoming
     outs = Set.fromList . concatMap (map address . outputs . fst)
     overlaps a b
@@ -197,13 +196,13 @@ prop_applyBlockBlockHeight (ApplyBlock s _ b) =
     mapQuantity f (Quantity a) = Quantity $ f a
 
 -- | applyBlocks increases the block height by the number of blocks applied.
-prop_applyBlocksBlockHeight :: WalletState -> NonNegative Int -> Property
-prop_applyBlocksBlockHeight s (NonNegative n) =
+prop_applyBlocksBlockHeight :: WalletState -> Positive Int -> Property
+prop_applyBlocksBlockHeight s (Positive n) =
     bh wallet' - bh wallet === length bs
   where
-    bs = take n blockchain
+    bs = NE.fromList (take n blockchain)
     wallet = initWallet @_ @DummyTarget block0 s
-    wallet' = fromMaybe wallet $ lastMay $ snd <$> applyBlocks bs wallet
+    wallet' = NE.last $ snd <$> applyBlocks bs wallet
     bh = fromIntegral . unQuantity . blockHeight
     unQuantity (Quantity a) = a
 
