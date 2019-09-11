@@ -57,7 +57,6 @@ import Test.Integration.Framework.DSL
     , fixtureWallet
     , fixtureWalletWith
     , getWalletEp
-    , insertedAtTime
     , json
     , listAddresses
     , listAllTransactions
@@ -1106,7 +1105,7 @@ spec = do
                 , replicate 10 2
                 ]
         txs <- listAllTransactions ctx w
-        let [Just t2, Just t1] = map (view insertedAtTime) txs
+        let [Just t2, Just t1] = fmap (fmap time . insertedAt) txs
         let matrix :: [TestCase [ApiTransaction t]] =
                 [ TestCase -- 1
                     { query = toQueryString
