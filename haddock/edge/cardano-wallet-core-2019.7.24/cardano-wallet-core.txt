@@ -872,13 +872,13 @@ instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.WalletNam
 module Cardano.Wallet.Unsafe
 
 -- | Decode an hex-encoded <a>ByteString</a> into raw bytes, or fail.
-unsafeFromHex :: ByteString -> ByteString
+unsafeFromHex :: HasCallStack => ByteString -> ByteString
 
 -- | Decode a bech32-encoded <a>Text</a> into an <a>Address</a>, or fail.
-unsafeDecodeAddress :: DecodeAddress t => Proxy t -> Text -> Address
+unsafeDecodeAddress :: (HasCallStack, DecodeAddress t) => Proxy t -> Text -> Address
 
 -- | Run a decoder on a hex-encoded <a>ByteString</a>, or fail.
-unsafeDecodeHex :: Get a -> ByteString -> a
+unsafeDecodeHex :: HasCallStack => Get a -> ByteString -> a
 
 -- | Run an <a>ExceptT</a> and throws the error if any. This makes sense
 --   only if called after checking for an invariant or, after ensuring that
@@ -886,14 +886,14 @@ unsafeDecodeHex :: Get a -> ByteString -> a
 unsafeRunExceptT :: (MonadFail m, Show e) => ExceptT e m a -> m a
 
 -- | Build a <a>XPrv</a> from an hex-encoded bytestring
-unsafeXPrv :: ByteString -> XPrv
+unsafeXPrv :: HasCallStack => ByteString -> XPrv
 
 -- | Build <a>Mnemonic</a> from literals
-unsafeMkMnemonic :: forall mw n csz. (ConsistentEntropy n mw csz, EntropySize mw ~ n) => [Text] -> Mnemonic mw
+unsafeMkMnemonic :: forall mw n csz. (ConsistentEntropy n mw csz, EntropySize mw ~ n, HasCallStack) => [Text] -> Mnemonic mw
 
 -- | CBOR deserialise without error handling - handy for prototypes or
 --   testing.
-unsafeDeserialiseCbor :: (forall s. Decoder s a) -> ByteString -> a
+unsafeDeserialiseCbor :: HasCallStack => (forall s. Decoder s a) -> ByteString -> a
 
 
 -- | Provides the API of Coin Selection algorithm and Fee Calculation This
