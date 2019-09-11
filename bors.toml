@@ -1,6 +1,5 @@
 status = [
-  # Bors will merge if/when Travis succeeds.
-  "continuous-integration/travis-ci/push",
+  "buildkite/cardano-wallet",
 ]
 timeout_sec = 5400
 required_approvals = 1
