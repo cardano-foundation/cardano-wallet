@@ -1681,87 +1681,6 @@ instance (Control.DeepSeq.NFData key, Control.DeepSeq.NFData (Cardano.Wallet.Pri
 instance Cardano.Wallet.Primitive.AddressDerivation.WalletKey Cardano.Wallet.Primitive.AddressDerivation.Random.RndKey
 instance Cardano.Wallet.Primitive.AddressDerivation.PersistKey Cardano.Wallet.Primitive.AddressDerivation.Random.RndKey
 
-module Cardano.Wallet.Network
-data NetworkLayer t m
-NetworkLayer :: (BlockHeader -> ExceptT ErrGetBlock m [Block (Tx t)]) -> ExceptT ErrNetworkTip m BlockHeader -> ((Tx t, [TxWitness]) -> ExceptT ErrPostTx m ()) -> (ByteString -> ExceptT ErrDecodeExternalTx m (Tx t, [TxWitness])) -> NetworkLayer t m
-
--- | Fetches a contiguous sequence of blocks from the node, starting from
---   the first block available with a slot greater than the given block
---   header.
---   
---   Blocks are returned in ascending slot order, without skipping blocks.
---   
---   This function will not necessarily return all blocks available after
---   the given point in time, but will return a reasonably-sized sequence.
---   
---   It may return the empty list if the node does not have any blocks
---   after the specified starting slot.
-[nextBlocks] :: NetworkLayer t m -> BlockHeader -> ExceptT ErrGetBlock m [Block (Tx t)]
-
--- | Get the current network tip from the chain producer
-[networkTip] :: NetworkLayer t m -> ExceptT ErrNetworkTip m BlockHeader
-
--- | Broadcast a transaction to the chain producer
-[postTx] :: NetworkLayer t m -> (Tx t, [TxWitness]) -> ExceptT ErrPostTx m ()
-
--- | Decode an externally-signed transaction to the chain producer
-[decodeExternalTx] :: NetworkLayer t m -> ByteString -> ExceptT ErrDecodeExternalTx m (Tx t, [TxWitness])
-
--- | Wait until 'networkTip networkLayer' succeeds according to a given
---   retry policy. Throws an exception otherwise.
-waitForConnection :: NetworkLayer t IO -> RetryPolicyM IO -> IO ()
-
--- | A default <a>RetryPolicy</a> with a constant delay, but retries for no
---   longer than a minute.
-defaultRetryPolicy :: Monad m => RetryPolicyM m
-
--- | Network is unavailable
-data ErrNetworkUnavailable
-
--- | Cannot connect to network backend.
-ErrNetworkUnreachable :: Text -> ErrNetworkUnavailable
-
--- | Network backend reports that the requested network is invalid.
-ErrNetworkInvalid :: Text -> ErrNetworkUnavailable
-
--- | Error while trying to get the network tip
-data ErrNetworkTip
-ErrNetworkTipNetworkUnreachable :: ErrNetworkUnavailable -> ErrNetworkTip
-ErrNetworkTipNotFound :: ErrNetworkTip
-
--- | Error while trying to get one or more blocks
-data ErrGetBlock
-ErrGetBlockNetworkUnreachable :: ErrNetworkUnavailable -> ErrGetBlock
-ErrGetBlockNotFound :: Hash "BlockHeader" -> ErrGetBlock
-
--- | Error while trying to send a transaction
-data ErrPostTx
-ErrPostTxNetworkUnreachable :: ErrNetworkUnavailable -> ErrPostTx
-ErrPostTxBadRequest :: Text -> ErrPostTx
-ErrPostTxProtocolFailure :: Text -> ErrPostTx
-
--- | Error while trying to decode externally signed transaction
-data ErrDecodeExternalTx
-ErrDecodeExternalTxWrongPayload :: Text -> ErrDecodeExternalTx
-ErrDecodeExternalTxNotSupported :: ErrDecodeExternalTx
-instance GHC.Classes.Eq Cardano.Wallet.Network.ErrDecodeExternalTx
-instance GHC.Show.Show Cardano.Wallet.Network.ErrDecodeExternalTx
-instance GHC.Generics.Generic Cardano.Wallet.Network.ErrDecodeExternalTx
-instance GHC.Classes.Eq Cardano.Wallet.Network.ErrPostTx
-instance GHC.Show.Show Cardano.Wallet.Network.ErrPostTx
-instance GHC.Generics.Generic Cardano.Wallet.Network.ErrPostTx
-instance GHC.Classes.Eq Cardano.Wallet.Network.ErrGetBlock
-instance GHC.Show.Show Cardano.Wallet.Network.ErrGetBlock
-instance GHC.Classes.Eq Cardano.Wallet.Network.ErrNetworkTip
-instance GHC.Show.Show Cardano.Wallet.Network.ErrNetworkTip
-instance GHC.Generics.Generic Cardano.Wallet.Network.ErrNetworkTip
-instance GHC.Classes.Eq Cardano.Wallet.Network.ErrNetworkUnavailable
-instance GHC.Show.Show Cardano.Wallet.Network.ErrNetworkUnavailable
-instance GHC.Generics.Generic Cardano.Wallet.Network.ErrNetworkUnavailable
-instance GHC.Exception.Type.Exception Cardano.Wallet.Network.ErrDecodeExternalTx
-instance GHC.Exception.Type.Exception Cardano.Wallet.Network.ErrPostTx
-instance GHC.Exception.Type.Exception Cardano.Wallet.Network.ErrNetworkTip
-
 
 -- | These are (partial) CBOR decoders for Byron binary types. Note that we
 --   ignore most of the block's and header's content and only retrieve the
@@ -2002,7 +1921,7 @@ applyBlock :: forall s t. DefineTx t => Block (Tx t) -> Wallet s t -> (Map (Hash
 --   <li><b><tt>(w + bi)</tt></b> is the wallet state after applying block
 --   <b><tt>bi</tt></b> to wallet <b><tt>w</tt></b>.</li>
 --   </ul>
-applyBlocks :: forall s t. DefineTx t => [Block (Tx t)] -> Wallet s t -> [(Map (Hash "Tx") (Tx t, TxMeta), Wallet s t)]
+applyBlocks :: forall s t. DefineTx t => NonEmpty (Block (Tx t)) -> Wallet s t -> NonEmpty (Map (Hash "Tx") (Tx t, TxMeta), Wallet s t)
 newPending :: (Tx t, TxMeta) -> Wallet s t -> Wallet s t
 
 -- | Constructs a wallet from the exact given state. Using this function
@@ -2327,6 +2246,88 @@ instance GHC.Classes.Eq Cardano.Wallet.Primitive.Fee.FeePolicy
 instance GHC.Show.Show Cardano.Wallet.Primitive.Fee.Fee
 instance GHC.Classes.Ord Cardano.Wallet.Primitive.Fee.Fee
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Fee.Fee
+
+module Cardano.Wallet.Network
+data NetworkLayer t m
+NetworkLayer :: (BlockHeader -> ExceptT ErrGetBlock m [Block (Tx t)]) -> ExceptT ErrNetworkTip m (BlockHeader, Quantity "block" Natural) -> ((Tx t, [TxWitness]) -> ExceptT ErrPostTx m ()) -> (ByteString -> ExceptT ErrDecodeExternalTx m (Tx t, [TxWitness])) -> NetworkLayer t m
+
+-- | Fetches a contiguous sequence of blocks from the node, starting from
+--   the first block available with a slot greater than the given block
+--   header.
+--   
+--   Blocks are returned in ascending slot order, without skipping blocks.
+--   
+--   This function will not necessarily return all blocks available after
+--   the given point in time, but will return a reasonably-sized sequence.
+--   
+--   It may return the empty list if the node does not have any blocks
+--   after the specified starting slot.
+[nextBlocks] :: NetworkLayer t m -> BlockHeader -> ExceptT ErrGetBlock m [Block (Tx t)]
+
+-- | Get the current network tip from the chain producer and the current
+--   chain's height.
+[networkTip] :: NetworkLayer t m -> ExceptT ErrNetworkTip m (BlockHeader, Quantity "block" Natural)
+
+-- | Broadcast a transaction to the chain producer
+[postTx] :: NetworkLayer t m -> (Tx t, [TxWitness]) -> ExceptT ErrPostTx m ()
+
+-- | Decode an externally-signed transaction to the chain producer
+[decodeExternalTx] :: NetworkLayer t m -> ByteString -> ExceptT ErrDecodeExternalTx m (Tx t, [TxWitness])
+
+-- | Wait until 'networkTip networkLayer' succeeds according to a given
+--   retry policy. Throws an exception otherwise.
+waitForConnection :: NetworkLayer t IO -> RetryPolicyM IO -> IO ()
+
+-- | A default <a>RetryPolicy</a> with a constant delay, but retries for no
+--   longer than a minute.
+defaultRetryPolicy :: Monad m => RetryPolicyM m
+
+-- | Network is unavailable
+data ErrNetworkUnavailable
+
+-- | Cannot connect to network backend.
+ErrNetworkUnreachable :: Text -> ErrNetworkUnavailable
+
+-- | Network backend reports that the requested network is invalid.
+ErrNetworkInvalid :: Text -> ErrNetworkUnavailable
+
+-- | Error while trying to get the network tip
+data ErrNetworkTip
+ErrNetworkTipNetworkUnreachable :: ErrNetworkUnavailable -> ErrNetworkTip
+ErrNetworkTipNotFound :: ErrNetworkTip
+
+-- | Error while trying to get one or more blocks
+data ErrGetBlock
+ErrGetBlockNetworkUnreachable :: ErrNetworkUnavailable -> ErrGetBlock
+ErrGetBlockNotFound :: Hash "BlockHeader" -> ErrGetBlock
+
+-- | Error while trying to send a transaction
+data ErrPostTx
+ErrPostTxNetworkUnreachable :: ErrNetworkUnavailable -> ErrPostTx
+ErrPostTxBadRequest :: Text -> ErrPostTx
+ErrPostTxProtocolFailure :: Text -> ErrPostTx
+
+-- | Error while trying to decode externally signed transaction
+data ErrDecodeExternalTx
+ErrDecodeExternalTxWrongPayload :: Text -> ErrDecodeExternalTx
+ErrDecodeExternalTxNotSupported :: ErrDecodeExternalTx
+instance GHC.Classes.Eq Cardano.Wallet.Network.ErrDecodeExternalTx
+instance GHC.Show.Show Cardano.Wallet.Network.ErrDecodeExternalTx
+instance GHC.Generics.Generic Cardano.Wallet.Network.ErrDecodeExternalTx
+instance GHC.Classes.Eq Cardano.Wallet.Network.ErrPostTx
+instance GHC.Show.Show Cardano.Wallet.Network.ErrPostTx
+instance GHC.Generics.Generic Cardano.Wallet.Network.ErrPostTx
+instance GHC.Classes.Eq Cardano.Wallet.Network.ErrGetBlock
+instance GHC.Show.Show Cardano.Wallet.Network.ErrGetBlock
+instance GHC.Classes.Eq Cardano.Wallet.Network.ErrNetworkTip
+instance GHC.Show.Show Cardano.Wallet.Network.ErrNetworkTip
+instance GHC.Generics.Generic Cardano.Wallet.Network.ErrNetworkTip
+instance GHC.Classes.Eq Cardano.Wallet.Network.ErrNetworkUnavailable
+instance GHC.Show.Show Cardano.Wallet.Network.ErrNetworkUnavailable
+instance GHC.Generics.Generic Cardano.Wallet.Network.ErrNetworkUnavailable
+instance GHC.Exception.Type.Exception Cardano.Wallet.Network.ErrDecodeExternalTx
+instance GHC.Exception.Type.Exception Cardano.Wallet.Network.ErrPostTx
+instance GHC.Exception.Type.Exception Cardano.Wallet.Network.ErrNetworkTip
 
 
 -- | This module contains instances and types necessary for storing wallets
@@ -2947,7 +2948,7 @@ WalletLayer :: ((Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletNa
 --   accounts.
 [$sel:attachPrivateKey:WalletLayer] :: WalletLayer s t k -> WalletKey k => WalletId -> (k  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()
 data BlockchainParameters t
-BlockchainParameters :: Block (Tx t) -> StartTime -> FeePolicy -> SlotLength -> EpochLength -> Quantity "byte" Word16 -> BlockchainParameters t
+BlockchainParameters :: Block (Tx t) -> StartTime -> FeePolicy -> SlotLength -> EpochLength -> Quantity "byte" Word16 -> Quantity "block" Word32 -> BlockchainParameters t
 
 -- | Very first block.
 [$sel:getGenesisBlock:BlockchainParameters] :: BlockchainParameters t -> Block (Tx t)
@@ -2966,6 +2967,9 @@ BlockchainParameters :: Block (Tx t) -> StartTime -> FeePolicy -> SlotLength -> 
 
 -- | Maximum size of a transaction (soft or hard limit).
 [$sel:getTxMaxSize:BlockchainParameters] :: BlockchainParameters t -> Quantity "byte" Word16
+
+-- | Length of the suffix of the chain considered unstable
+[$sel:getEpochStability:BlockchainParameters] :: BlockchainParameters t -> Quantity "block" Word32
 newtype ErrAdjustForFee
 
 -- | UTxO exhausted during fee covering We record what amount missed to

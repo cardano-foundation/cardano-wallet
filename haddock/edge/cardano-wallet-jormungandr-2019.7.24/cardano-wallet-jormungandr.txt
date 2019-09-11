@@ -359,9 +359,9 @@ mkNetworkLayer :: Monad m => JormungandrLayer n m -> NetworkLayer (Jormungandr n
 
 -- | Endpoints of the jormungandr REST API.
 data JormungandrLayer n m
-JormungandrLayer :: ExceptT ErrNetworkUnavailable m (Hash "BlockHeader") -> (Hash "BlockHeader" -> ExceptT ErrGetBlock m (Block Tx)) -> (Hash "BlockHeader" -> Word -> ExceptT ErrGetDescendants m [Hash "BlockHeader"]) -> ((Tx, [TxWitness]) -> ExceptT ErrPostTx m ()) -> (Hash "Genesis" -> ExceptT ErrGetBlockchainParams m (BlockchainParameters (Jormungandr n))) -> JormungandrLayer n m
+JormungandrLayer :: ExceptT ErrNetworkUnavailable m (Hash "BlockHeader") -> (Hash "BlockHeader" -> ExceptT ErrGetBlock m Block) -> (Hash "BlockHeader" -> Word -> ExceptT ErrGetDescendants m [Hash "BlockHeader"]) -> ((Tx, [TxWitness]) -> ExceptT ErrPostTx m ()) -> (Hash "Genesis" -> ExceptT ErrGetBlockchainParams m (BlockchainParameters (Jormungandr n))) -> JormungandrLayer n m
 [$sel:getTipId:JormungandrLayer] :: JormungandrLayer n m -> ExceptT ErrNetworkUnavailable m (Hash "BlockHeader")
-[$sel:getBlock:JormungandrLayer] :: JormungandrLayer n m -> Hash "BlockHeader" -> ExceptT ErrGetBlock m (Block Tx)
+[$sel:getBlock:JormungandrLayer] :: JormungandrLayer n m -> Hash "BlockHeader" -> ExceptT ErrGetBlock m Block
 [$sel:getDescendantIds:JormungandrLayer] :: JormungandrLayer n m -> Hash "BlockHeader" -> Word -> ExceptT ErrGetDescendants m [Hash "BlockHeader"]
 [$sel:postMessage:JormungandrLayer] :: JormungandrLayer n m -> (Tx, [TxWitness]) -> ExceptT ErrPostTx m ()
 [$sel:getInitialBlockchainParameters:JormungandrLayer] :: JormungandrLayer n m -> Hash "Genesis" -> ExceptT ErrGetBlockchainParams m (BlockchainParameters (Jormungandr n))
