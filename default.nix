@@ -51,10 +51,9 @@ in {
       text-class
     ];
     buildInputs =
-      with pkgs.haskellPackages; [ hlint stylish-haskell weeder ghcid ]
+      with pkgs.haskellPackages; [ stylish-haskell weeder ghcid ]
       ++ [ cardano-sl-node cardano-http-bridge jormungandr jormungandr-cli
-           pkgs.pkgconfig pkgs.sqlite-interactive ];
+           pkgs.pkgconfig pkgs.sqlite-interactive
+           iohkLib.hlint iohkLib.openapi-spec-validator ];
   };
-
-  checks.check-nix-tools = pkgs.callPackage ./nix/check-nix-tools.nix {};
 }

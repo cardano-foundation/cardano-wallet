@@ -21,3 +21,25 @@ steps:
     timeout_in_minutes: 60
     agents:
       system: x86_64-linux
+
+  - label: 'Clean up CI cache'
+    env:
+      STACK_ROOT: "/build/cardano-wallet.stack"
+    command:
+      - "nix-build .buildkite/default.nix -o sr"
+      - "./sr/bin/rebuild cleanup-cache --build-dir=/build/cardano-wallet --cache-dir=/build/cardano-wallet.cache"
+    agents:
+      system: x86_64-linux
+
+  - block: 'Delete CI Caches'
+  - label: 'Purge CI cache'
+    env:
+      STACK_ROOT: "/build/cardano-wallet.stack"
+    command:
+      - "nix-build .buildkite/default.nix -o sr"
+      - "./sr/bin/rebuild purge-cache --build-dir=/build/cardano-wallet --cache-dir=/build/cardano-wallet.cache"
+    agents:
+      system: x86_64-linux
+  - wait
+  - label: "Rebuild master branch"
+    trigger: "cardano-wallet"
