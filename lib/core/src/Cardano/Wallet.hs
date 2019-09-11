@@ -702,16 +702,6 @@ newWalletLayer tracer bp db nw tl = do
                         else Restoring progress'
 
             -- NOTE:
-            -- Always store the last checkpoint from the batch and all new
-            -- transactions.
-            let cpLast = NE.last cps
-            let Quantity bhLast = blockHeight cpLast
-            let meta' = calculateMetadata (view #slotId $ currentTip cpLast)
-            DB.putCheckpoint db (PrimaryKey wid) cpLast
-            DB.putTxHistory db (PrimaryKey wid) newTxs
-            DB.putWalletMeta db (PrimaryKey wid) meta'
-
-            -- NOTE (1):
             -- We cast `k` and `nodeHeight` to 'Integer' since at a given point
             -- in time, `k` may be greater than the tip.
             let (Quantity k) = epochStability
@@ -722,12 +712,18 @@ newWalletLayer tracer bp db nw tl = do
                 when (fromIntegral bh >= bhUnstable) $
                     DB.putCheckpoint db (PrimaryKey wid) cp
 
+            -- NOTE:
+            -- Always store the last checkpoint from the batch and all new
+            -- transactions.
+            let cpLast = NE.last cps
+            let Quantity bhLast = blockHeight cpLast
+            let meta' = calculateMetadata (view #slotId $ currentTip cpLast)
+            DB.putCheckpoint db (PrimaryKey wid) cpLast
+            DB.putTxHistory db (PrimaryKey wid) newTxs
+            DB.putWalletMeta db (PrimaryKey wid) meta'
+
             liftIO $ do
-                logDebug t $ "blocks: "
-                    <> pretty (NE.toList blocks)
-                logDebug t $ "transactions: "
-                    <> pretty (blockListF (snd <$> Map.elems newTxs))
-                logInfo t $ "metadata: "
+                logInfo t $ ""
                     +|| pretty (calculateMetadata slotLast)
                 logInfo t $ "number of pending transactions: "
                     +|| Set.size (getPending cpLast) ||+ ""
@@ -735,6 +731,10 @@ newWalletLayer tracer bp db nw tl = do
                     +|| length newTxs ||+ ""
                 logInfo t $ "new block height: "
                     +|| bhLast ||+ ""
+                logDebug t $ "blocks: "
+                    <> pretty (NE.toList blocks)
+                logDebug t $ "transactions: "
+                    <> pretty (blockListF (snd <$> Map.elems newTxs))
 
     {---------------------------------------------------------------------------
                                      Addresses
