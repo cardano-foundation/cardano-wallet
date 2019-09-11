@@ -78,6 +78,7 @@
             (hsPkgs.aeson)
             (hsPkgs.async)
             (hsPkgs.cardano-crypto)
+            (hsPkgs.cardano-wallet-cli)
             (hsPkgs.cardano-wallet-core)
             (hsPkgs.cardano-wallet-core-integration)
             (hsPkgs.cardano-wallet-http-bridge)
