@@ -61,6 +61,8 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet, blockHeight, currentTip, initWallet )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , Block (..)
+    , BlockHeader (..)
     , Coin (..)
     , Direction (..)
     , Hash (..)
@@ -168,7 +170,7 @@ sqliteDetailedSeqSpec :: Spec
 sqliteDetailedSeqSpec = withDB
     (fst <$> newFileDBLayer @(SeqState DummyTarget) @DummyTarget @SeqKey) $ do
     describe "Sqlite multiple-checkpoints test (SeqState)"
-        multipleCheckpointSpec
+        multipleCheckpointsSpec
 
 sqliteSpec :: Spec
 sqliteSpec = withDB (fst <$> newMemoryDBLayer) $ do
@@ -194,16 +196,18 @@ runSqlite'
     -> m a
 runSqlite' = runSqlite
 
-multipleCheckpointSpec
+multipleCheckpointsSpec
     :: SpecWith (DBLayer IO (SeqState DummyTarget) DummyTarget SeqKey)
-multipleCheckpointSpec = do
-    describe "Wallet table" $ do
-        it "put and read checkpoints - previous checkpoints are also stored" $ \db -> do
-            let block0 = mkBlock 0 "genesis" []
-            let cp1 = mkCpSeq block0
+multipleCheckpointsSpec = do
+    describe "put and read checkpoints" $ do
+        it "previous checkpoints are also stored" $ \db -> do
+            -- first checkpoint is to be stored upon wallet creation
+            let blockGen = mkBlock 0 "genesis" []
+            let cp1 = mkCpSeq blockGen
             unsafeRunExceptT $ createWallet db testPk cp1 testMetadata
             readCheckpoint db testPk `shouldReturn` Just cp1
 
+            -- the second checkpoint is to be persisted
             let block1 = mkBlock 1 "block1" []
             let cp2 = mkCpSeq block1
             runExceptT (putCheckpoint db testPk cp2) `shouldReturn` Right ()
@@ -214,6 +218,25 @@ multipleCheckpointSpec = do
             map (\(Checkpoint _ slot (BlockId prev) height) ->
                      (slot, prev, height)) cps
                 `shouldBe` map getTriple [cp1,cp2]
+
+    describe "put and read tx history" $ do
+        it "checking outer transaction" $ \db -> do
+            -- first checkpoint is to be stored upon wallet creation
+            let blockGen = mkBlock 0 "genesis" []
+            let cp1 = mkCpSeq blockGen
+            unsafeRunExceptT $ createWallet db testPk cp1 testMetadata
+            readCheckpoint db testPk `shouldReturn` Just cp1
+
+            -- now the incoming tx is to be persisted
+            -- it is expected to change txMeta and Utxo tables accordingly
+            {--
+            let testTxs =
+                    [ (Hash "tx1"
+                      , (Tx [TxIn (Hash "tx1") 0] [TxOut (Address "addr") (Coin 1)]
+                        , TxMeta InLedger Incoming (SlotId 14 0) (Quantity 1337144))
+                      )
+                    ]
+--}
     where
       getTriple cp =
           let (BlockHeader s h) = currentTip cp
@@ -411,15 +434,6 @@ shouldHaveLog msgs (sev, str) = unless (any match msgs) $
 {-------------------------------------------------------------------------------
                                    Test data
 -------------------------------------------------------------------------------}
-
-initDummyBlock0 :: Block Tx
-initDummyBlock0 = Block
-    { header = BlockHeader
-        { slotId = SlotId 0 0
-        , prevBlockHash = Hash "genesis"
-        }
-    , transactions = []
-    }
 
 mkBlock
     :: Word16
