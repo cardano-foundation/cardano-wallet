@@ -56,17 +56,16 @@ import Test.Hspec
     , shouldSatisfy
     , shouldThrow
     )
+import Test.Utils.Ports
+    ( findPort )
 
 import qualified Cardano.Wallet.HttpBridge.Network as HttpBridge
 import qualified Data.Text as T
 
-port :: Int
-port = 1337
-
 spec :: Spec
 spec = do
     describe "Happy paths" $ beforeAll startBridge $ afterAll closeBridge $ do
-        it "get unstable blocks for the unstable epoch" $ \(_, bridge) -> do
+        it "get unstable blocks for the unstable epoch" $ \(_, bridge, _) -> do
             let action = runExceptT $ do
                     (SlotId ep sl) <- slotId <$> networkTip' bridge
                     let sl' = if sl > 2 then sl - 2 else 0
@@ -77,14 +76,14 @@ spec = do
                         )
             action `shouldReturn` pure ()
 
-        it "produce no blocks if start is after tip" $ \(_, bridge) -> do
+        it "produce no blocks if start is after tip" $ \(_, bridge, _) -> do
             let action = runExceptT $ do
                     SlotId ep sl <- slotId <$> networkTip' bridge
                     length <$> nextBlocks' bridge (mkHeader $ SlotId (ep + 1) sl)
             action `shouldReturn` pure 0
 
-        it "gets a 'ErrNetworkInvalid' if wrong network used" $ \_ -> do
-            bridge <- newNetworkLayerInvalid
+        it "gets a 'ErrNetworkInvalid' if wrong network used" $ \(_, _, port) -> do
+            bridge <- newNetworkLayerInvalid port
             let msg x = "Expected a ErrNetworkInvalid' failure but got " <> show x
             let action = do
                     res <- runExceptT $ networkTip bridge
@@ -118,32 +117,32 @@ spec = do
 
     describe "Submitting signed transactions"
         $ beforeAll startBridge $ afterAll closeBridge $ do
-        it "empty tx fails (1)" $ \(_, bridge) -> do
+        it "empty tx fails (1)" $ \(_, bridge, _) -> do
             let signed = (txEmpty, [])
             let err = Left $ ErrPostTxBadRequest
                     "Transaction failed verification: transaction has no inputs"
             runExceptT (postTx bridge signed) `shouldReturn` err
 
-        it "empty tx fails (2)" $ \(_, bridge) -> do
+        it "empty tx fails (2)" $ \(_, bridge, _) -> do
             let signed = (txEmpty, [pkWitness])
             let err = Left $ ErrPostTxBadRequest
                     "Transaction failed verification: transaction has no inputs"
             runExceptT (postTx bridge signed) `shouldReturn` err
 
-        it "old tx fails" $ \(_, bridge) -> do
+        it "old tx fails" $ \(_, bridge, _) -> do
             let signed = (txNonEmpty, [pkWitness])
             let err = Left $ ErrPostTxProtocolFailure
                     "Failed to send to peers: Blockchain protocol error"
             runExceptT (postTx bridge signed) `shouldReturn` err
 
-        it "tx fails - more inputs than witnesses" $ \(_, bridge) -> do
+        it "tx fails - more inputs than witnesses" $ \(_, bridge, _) -> do
             let signed = (txNonEmpty, [])
             let err = Left $ ErrPostTxBadRequest
                     "Transaction failed verification: transaction has more \
                     \inputs than witnesses"
             runExceptT (postTx bridge signed) `shouldReturn` err
 
-        it "tx fails - more witnesses than inputs" $ \(_, bridge) -> do
+        it "tx fails - more witnesses than inputs" $ \(_, bridge, _) -> do
             let signed = (txNonEmpty, [pkWitness, pkWitness])
             let err = Left $ ErrPostTxBadRequest
                     "Transaction failed verification: transaction has more \
@@ -159,9 +158,9 @@ spec = do
                 _ -> False
 
         it "returns when the network becomes available" $ do
-            (handle, nw) <- startBridge
+            (handle, nw, port) <- startBridge
             (waitForConnection nw defaultRetryPolicy) `shouldReturn` ()
-            closeBridge (handle, nw)
+            closeBridge (handle, nw, port)
   where
     pkWitness :: TxWitness
     pkWitness = TxWitness $ "\130"
@@ -202,14 +201,13 @@ spec = do
         unwrap (ErrGetBlockNetworkUnreachable e) = e
         unwrap (ErrGetBlockNotFound _) = ErrNetworkUnreachable "no block"
 
-    newNetworkLayer =
-        HttpBridge.newNetworkLayer @'Testnet port
-    newNetworkLayerInvalid =
-        HttpBridge.newNetworkLayer @'Mainnet port
-    closeBridge (handle, _) = do
+    newNetworkLayer = findPort >>= HttpBridge.newNetworkLayer @'Testnet
+    newNetworkLayerInvalid = HttpBridge.newNetworkLayer @'Mainnet
+    closeBridge (handle, _, _) = do
         cancel handle
         threadDelay $ 1 * second
     startBridge = do
+        port <- findPort
         handle <- async $ launch
             [ Command "cardano-http-bridge"
                 [ "start"
@@ -219,9 +217,9 @@ spec = do
                 (return ())
                 Inherit
             ]
-        bridge <- newNetworkLayer
+        bridge <- HttpBridge.newNetworkLayer @'Testnet port
         threadDelay $ 1 * second
-        return (handle, bridge)
+        return (handle, bridge, port)
     second = 1000*1000
 
     -- The underlying HttpBridgeLayer is only needs the slot of the header.

@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -9,12 +10,16 @@ module Test.Integration.HttpBridge.Scenario.CLI.Server
 
 import Prelude
 
+import Cardano.CLI
+    ( Port )
 import Control.Concurrent
     ( threadDelay )
 import Control.Exception
     ( finally )
-import Control.Monad
-    ( forM_ )
+import Data.Generics.Internal.VL.Lens
+    ( (^.) )
+import Data.Generics.Product.Typed
+    ( typed )
 import System.Command
     ( Exit (..), Stderr (..), Stdout (..) )
 import System.Exit
@@ -29,7 +34,7 @@ import System.Process
     , withCreateProcess
     )
 import Test.Hspec
-    ( Spec, SpecWith, describe, it )
+    ( Spec, SpecWith, describe, it, pendingWith )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain, shouldReturn )
 import Test.Integration.Framework.DSL
@@ -44,6 +49,8 @@ import Test.Integration.Framework.DSL
     )
 import Test.Integration.Framework.TestData
     ( versionLine )
+import Test.Utils.Ports
+    ( findPort )
 
 spec :: forall t. KnownCommand t => SpecWith (Context t)
 spec = do
@@ -59,9 +66,12 @@ spec = do
                     terminateProcess ph
             threadDelay oneSecond
 
-        it "SERVER - Stops gracefully on wrong network connection" $ \_ -> do
+        it "SERVER - Stops gracefully on wrong network connection" $ \ctx -> do
             let faultyNetwork = "mainnet"
-            let args = ["serve", "--network", faultyNetwork]
+            let args =
+                    [ "serve", "--network", faultyNetwork
+                    , "--node-port", show (ctx ^. typed @(Port "node"))
+                    ]
             (Exit c, Stdout out, Stderr err) <- cardanoWalletCLI @t args
             out `shouldContain` "The node backend is not running on the\
                 \ \"" ++ faultyNetwork ++ "\" network. Please start the\
@@ -71,18 +81,27 @@ spec = do
             c `shouldBe` ExitFailure 1
 
     describe "DaedalusIPC" $ do
-        let defaultArgs =
-                [ commandName @t , "serve" ]
-        let tests =
-                [ defaultArgs ++ ["--random-port"]
-                , defaultArgs ++ ["--port", "8082"]
+        let defaultArgs nodePort =
+                [ commandName @t
+                , "serve"
+                , "--node-port"
+                , show nodePort
                 ]
-        forM_ tests $ \args -> do
-            let title = "should reply with the port when asked " <> show args
-            it title $ \_ -> do
-                let filepath = "test/integration/js/mock-daedalus.js"
-                (_, _, _, ph) <- createProcess (proc filepath args)
-                waitForProcess ph `shouldReturn` ExitSuccess
+
+        let filepath = "test/integration/js/mock-daedalus.js"
+
+        it "Should reply with the port --random" $ \ctx -> do
+            let scriptArgs = defaultArgs (ctx ^. typed @(Port "node"))
+                    ++ ["--random-port"]
+            (_, _, _, ph) <- createProcess (proc filepath scriptArgs)
+            waitForProcess ph `shouldReturn` ExitSuccess
+
+        it "Should reply with the port --random" $ \ctx -> do
+            walletPort <- findPort
+            let scriptArgs = defaultArgs (ctx ^. typed @(Port "node"))
+                    ++ ["--port", show walletPort]
+            (_, _, _, ph) <- createProcess (proc filepath scriptArgs)
+            waitForProcess ph `shouldReturn` ExitSuccess
 
     describe "LOGGING - cardano-wallet serve logging" $ do
         it "LOGGING - Launch can log --verbose" $ \_ -> do
@@ -95,6 +114,7 @@ spec = do
             out `shouldContainT` "Notice"
 
         it "LOGGING - Serve --quiet logs Error only" $ \_ -> do
+            pendingWith "The assertion in this test case is wrong."
             let args = ["serve", "--random-port", "--quiet"]
             let process = proc' (commandName @t) args
             (out, err) <- collectStreams (10, 10) process
@@ -113,7 +133,7 @@ spec = do
 specNoBackend :: forall t. KnownCommand t => Spec
 specNoBackend = do
     it "TIMEOUT - Times out gracefully after 60 seconds" $ do
-        let args = ["serve"]
+        let args = ["serve", "--random-port"]
         let process = proc' (commandName @t) args
         (out, err) <- collectStreams (61, 61) process
         out `shouldContainT` "Waited too long for http-bridge to become available.\

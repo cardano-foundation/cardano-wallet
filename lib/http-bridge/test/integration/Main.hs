@@ -15,6 +15,8 @@ import Prelude
 
 import Cardano.BM.Trace
     ( nullTracer )
+import Cardano.CLI
+    ( Port (..) )
 import Cardano.Faucet
     ( initFaucet )
 import Cardano.Launcher
@@ -41,8 +43,6 @@ import Control.Concurrent.MVar
     ( newEmptyMVar, putMVar, takeMVar )
 import Control.Exception
     ( throwIO )
-import Control.Monad
-    ( forM )
 import Data.Aeson
     ( Value (..), (.:) )
 import Data.Function
@@ -70,15 +70,21 @@ import Network.Wai.Handler.Warp
 import Numeric.Natural
     ( Natural )
 import System.Directory
-    ( createDirectoryIfMissing, removePathForcibly )
+    ( createDirectoryIfMissing )
+import System.FilePath
+    ( (</>) )
 import System.IO
     ( IOMode (..), hClose, hSetEncoding, openFile, stderr, stdout, utf8 )
+import System.IO.Temp
+    ( createTempDirectory, getCanonicalTemporaryDirectory )
 import Test.Hspec
     ( after, afterAll, beforeAll, describe, hspec )
 import Test.Integration.Framework.DSL
     ( Context (..), KnownCommand (..), TxDescription (..), tearDown )
 import Test.Integration.Framework.Request
     ( Headers (Default), Payload (Empty), request )
+import Test.Utils.Ports
+    ( findPort, randomUnusedTCPPorts )
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.Wallet.Api.Server as Server
@@ -119,20 +125,20 @@ main = do
         describe "Launcher CLI tests" (LauncherCLI.spec @t)
         describe "Mnemonics CLI tests" (MnemonicsCLI.spec @t)
         describe "Miscellaneous CLI tests" (MiscellaneousCLI.spec @t)
-        describe "--port CLI tests" $ do
+        describe "--port CLI tests [SERIAL]" $ do
             PortCLI.specNegative @t
-            cardanoWalletServer Nothing
+            (findPort >>= cardanoWalletServer Nothing)
                 & beforeAll
                 $ afterAll killServer
                 $ describe "with default port" $ do
                     PortCLI.specCommon @t
                     PortCLI.specWithDefaultPort @t
-            cardanoWalletServer (Just $ ListenOnPort defaultPort)
+            (findPort >>= cardanoWalletServer (Just $ ListenOnPort $ getPort defaultPort))
                 & beforeAll
                 $ afterAll killServer
                 $ describe "with specified port" $ do
                     PortCLI.specCommon @t
-            cardanoWalletServer (Just ListenOnRandomPort)
+            (findPort >>= cardanoWalletServer (Just ListenOnRandomPort))
                 & beforeAll
                 $ afterAll killServer
                 $ describe "with random port" $ do
@@ -154,11 +160,8 @@ main = do
     oneSecond :: Int
     oneSecond = 1 * 1000 * 1000 -- 1 second in microseconds
 
-    bridgePort :: Int
-    bridgePort = 8080
-
-    defaultPort :: Int
-    defaultPort = 8090
+    defaultPort :: Port "wallet"
+    defaultPort = Port 8090
 
     wait :: String -> IO () -> IO ()
     wait component action = do
@@ -173,24 +176,30 @@ main = do
     -- a cardano wallet server connected to the bridge.
     startCluster :: IO (Context (HttpBridge 'Testnet))
     startCluster = do
+        [ nodeApiPort, docPort, bridgePort ] <- randomUnusedTCPPorts 3
+        let [core0Port, core1Port, core2Port] = [3000..3002] :: [Int]
+        let relayPort = 3100 :: Int -- ports are hardcoded in topology.json
+        tmp <- flip createTempDirectory "cardano-wallet-http-bridge"
+            =<< getCanonicalTemporaryDirectory
+        putStrLn $ "Using directory: " ++ tmp
+        let addr p = "127.0.0.1:" ++ show p
         let stateDir = "./test/data/cardano-node-simple"
-        let networkDir = "/tmp/cardano-http-bridge/networks"
-        let nodeApiAddress = "127.0.0.1:3101"
-        removePathForcibly (networkDir <> "/local")
-        createDirectoryIfMissing True "/tmp/cardano-node-simple"
-        handle <-
-            openFile "/tmp/cardano-wallet-launch" WriteMode
+        let networkDir = tmp </> "networks"
+        let nodeDir = tmp </> "cardano-node-simple"
+        let nodeApiAddress = addr nodeApiPort
+        createDirectoryIfMissing True nodeDir
+        handle <- openFile (tmp </> "cardano-http-bridge.log") WriteMode
         start <-
             formatTime defaultTimeLocale "%s" . addUTCTime 2 <$> getCurrentTime
-        [h0, h1, h2, h3] <- forM ["core0", "core1", "core2", "relay"] $ \x -> do
-            openFile ("/tmp/cardano-node-simple/" <> x) WriteMode
+        let openLog name = openFile (nodeDir </> name) WriteMode
+        [h0, h1, h2, h3] <- mapM openLog ["core0", "core1", "core2", "relay"]
         cluster <- async $ throwIO =<< launch
-            [ cardanoNodeSimple stateDir start ("core0", "127.0.0.1:3000") h0 []
-            , cardanoNodeSimple stateDir start ("core1", "127.0.0.1:3001") h1 []
-            , cardanoNodeSimple stateDir start ("core2", "127.0.0.1:3002") h2 []
-            , cardanoNodeSimple stateDir start ("relay", "127.0.0.1:3100") h3
+            [ cardanoNodeSimple stateDir start ("core0", addr core0Port) h0 []
+            , cardanoNodeSimple stateDir start ("core1", addr core1Port) h1 []
+            , cardanoNodeSimple stateDir start ("core2", addr core2Port) h2 []
+            , cardanoNodeSimple stateDir start ("relay", addr relayPort) h3
                 [ "--node-api-address", nodeApiAddress
-                , "--node-doc-address", "127.0.0.1:3102"
+                , "--node-doc-address", addr docPort
                 , "--tlscert", "/dev/null"
                 , "--tlskey", "/dev/null"
                 , "--tlsca", "/dev/null"
@@ -202,9 +211,10 @@ main = do
         link cluster
         wait "cardano-node-simple" (waitForCluster nodeApiAddress)
         wait "cardano-http-bridge" (threadDelay oneSecond)
-        (_, port, db, nl) <- cardanoWalletServer (Just ListenOnRandomPort)
+        (_, walletPort, db, nl) <-
+            cardanoWalletServer (Just ListenOnRandomPort) bridgePort
         wait "cardano-wallet" (threadDelay oneSecond)
-        let baseURL = mkBaseUrl port
+        let baseURL = mkBaseUrl (getPort walletPort)
         manager <- (baseURL,) <$> newManager defaultManagerSettings
         faucet <- putStrLn "Creating money out of thin air..." *> initFaucet nl
         let estimator = mkFeeEstimator byronFeePolicy
@@ -212,7 +222,8 @@ main = do
                 cancel cluster
                 hClose handle
                 Sqlite.destroyDBLayer db
-        return $ Context cleanup manager port faucet estimator Proxy
+        return $ Context cleanup manager walletPort (Port bridgePort) faucet
+            estimator Proxy
 
     killServer :: (HasType ThreadId s, HasType SqliteContext s) => s -> IO ()
     killServer ctx = do
@@ -256,8 +267,9 @@ main = do
     cardanoWalletServer
         :: (network ~ HttpBridge 'Testnet)
         => Maybe Listen
-        -> IO (ThreadId, Int, SqliteContext, NetworkLayer network IO)
-    cardanoWalletServer mlisten = do
+        -> Int
+        -> IO (ThreadId, Port "wallet", SqliteContext, NetworkLayer network IO)
+    cardanoWalletServer mlisten bridgePort = do
         nl <- HttpBridge.newNetworkLayer bridgePort
         logConfig <- CM.empty
         (ctx, db) <- Sqlite.newDBLayer logConfig nullTracer Nothing
@@ -266,10 +278,10 @@ main = do
             let tl = HttpBridge.newTransactionLayer
             let bp = byronBlockchainParameters
             wallet <- newWalletLayer nullTracer bp db nl tl
-            let listen = fromMaybe (ListenOnPort defaultPort) mlisten
+            let listen = fromMaybe (ListenOnPort $ getPort defaultPort) mlisten
             Server.withListeningSocket listen $ \(port, socket) -> do
                 let settings = Warp.defaultSettings
-                        & setBeforeMainLoop (putMVar mvar port)
+                        & setBeforeMainLoop (putMVar mvar (Port port))
                 Server.start settings nullTracer socket wallet
         (thread,,ctx,nl) <$> takeMVar mvar
 

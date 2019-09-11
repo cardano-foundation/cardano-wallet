@@ -21,6 +21,8 @@ module Test.Integration.Framework.Request
 
 import Prelude
 
+import Cardano.CLI
+    ( Port (..) )
 import Control.Monad.Catch
     ( Exception (..), MonadCatch (..), throwM )
 import Control.Monad.IO.Class
@@ -58,8 +60,6 @@ import Network.HTTP.Types.Method
     ( Method )
 import Network.HTTP.Types.Status
     ( status500 )
-import Network.Wai.Handler.Warp
-    ( Port )
 import Numeric.Natural
     ( Natural )
 import Test.Integration.Faucet
@@ -79,9 +79,12 @@ data Context t = Context
     , _manager
         :: (Text, Manager)
         -- ^ The underlying BaseUrl and Manager used by the Wallet Client
-    , _port
-        :: Port
+    , _walletPort
+        :: Port "wallet"
         -- ^ Server TCP port
+    , _nodePort
+        :: Port "node"
+        -- ^ Jormungandr REST API port
     , _faucet
         :: Faucet
         -- ^ A 'Faucet' handle in to have access to funded wallets in

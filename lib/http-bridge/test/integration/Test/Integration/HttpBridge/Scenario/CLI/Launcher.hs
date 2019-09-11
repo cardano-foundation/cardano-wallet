@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
@@ -9,6 +10,8 @@ module Test.Integration.HttpBridge.Scenario.CLI.Launcher
 
 import Prelude
 
+import Cardano.CLI
+    ( Port (..) )
 import Cardano.Wallet.Api.Types
     ( ApiWallet )
 import Cardano.Wallet.Primitive.Types
@@ -61,12 +64,14 @@ import Test.Integration.Framework.DSL
     )
 import Test.Integration.Framework.TestData
     ( versionLine )
+import Test.Utils.Ports
+    ( findPort, randomUnusedTCPPorts )
 
 import qualified Data.Text.IO as TIO
 
 spec :: forall t. (KnownCommand t) => Spec
 spec = do
-    describe "LAUNCH - cardano-wallet launch" $ do
+    describe "LAUNCH - cardano-wallet launch [SERIAL]" $ do
         it "LAUNCH - Stop when --state-dir is an existing file" $ withTempFile $ \f _ -> do
             let args =
                     [ "launch"
@@ -128,7 +133,7 @@ spec = do
                 \prevents ongoing work to be integrated. So, disabling this \
                 \while investigating the origin of the problem. \
                 \See also: https://travis-ci.org/input-output-hk/cardano-wallet/jobs/565974586"
-            let port = 8088 :: Int -- Arbitrary but known.
+            port <- Port @"wallet" <$> findPort -- Arbitrary but known.
             let baseUrl = "http://localhost:" <> toText port <> "/"
             ctx <- (port,) . (baseUrl,) <$> newManager defaultManagerSettings
             let args = ["launch", "--port", show port, "--state-dir", d]
@@ -152,22 +157,26 @@ spec = do
                     TIO.hGetContents e >>= TIO.putStrLn
 
     describe "DaedalusIPC" $ do
-        let defaultArgs =
-                [ commandName @t, "launch" ]
+        let defaultArgs nodePort =
+                [ commandName @t, "launch", "--node-port", show nodePort ]
         let tests =
-                [ defaultArgs ++ ["--random-port"]
-                , defaultArgs ++ ["--port", "8082"]
-                , defaultArgs
+                [ (const ["--random-port"], " [SERIAL]")
+                , (\fixedPort -> ["--port", fixedPort], "")
+                , (const [], " [SERIAL]")
                 ]
-        forM_ tests $ \args -> do
-            let title = "should reply with the port when asked " <> show args
+        forM_ tests $ \(args, tag) -> do
+            let title = "should reply with the port when asked "
+                    <> show (args "FIXED") <> tag
             it title $ withTempDir $ \d -> do
+                [fixedPort, nodePort] <- randomUnusedTCPPorts 2
                 let filepath = "test/integration/js/mock-daedalus.js"
                 let stateDir = ["--state-dir", d]
-                (_, _, _, ph) <- createProcess (proc filepath (args ++ stateDir))
+                let scriptArgs = concat
+                        [defaultArgs nodePort, args (show fixedPort), stateDir]
+                (_, _, _, ph) <- createProcess (proc filepath scriptArgs)
                 waitForProcess ph `shouldReturn` ExitSuccess
 
-    describe "LOGGING - cardano-wallet launch logging" $ do
+    describe "LOGGING - cardano-wallet launch logging [SERIAL]" $ do
         it "LOGGING - Launch can log --verbose" $ withTempDir $ \d -> do
             pendingWith "See 'LAUNCH - Restoration workers restart'"
             let args = ["launch", "--state-dir", d, "--verbose"]

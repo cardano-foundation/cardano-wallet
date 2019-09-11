@@ -137,13 +137,16 @@ test-suite integration
     , aeson
     , async
     , cardano-crypto
+    , cardano-wallet-cli
     , cardano-wallet-core
     , cardano-wallet-core-integration
     , cardano-wallet-http-bridge
     , cardano-wallet-launcher
+    , cardano-wallet-test-utils
     , command
     , cborg
     , directory
+    , filepath
     , generic-lens
     , hspec
     , hspec-core

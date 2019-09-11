@@ -121,6 +121,8 @@ module Test.Integration.Framework.DSL
     , postExternalTransactionViaCLI
     ) where
 
+import Cardano.CLI
+    ( Port (..) )
 import Cardano.Wallet.Api.Types
     ( AddressAmount
     , ApiAddress
@@ -224,8 +226,6 @@ import Network.HTTP.Client
     ( Manager )
 import Network.HTTP.Types.Method
     ( Method )
-import Network.Wai.Handler.Warp
-    ( Port )
 import Numeric.Natural
     ( Natural )
 import Prelude hiding
@@ -932,7 +932,7 @@ tearDown ctx = do
 
 -- | Wait for a booting wallet server to start. Wait up to 30s or fail.
 waitForServer
-    :: forall t ctx. (HasType Port ctx, KnownCommand t)
+    :: forall t ctx. (HasType (Port "wallet") ctx, KnownCommand t)
     => ctx
     -> IO ()
 waitForServer ctx = void $ retrying
@@ -1067,7 +1067,7 @@ generateMnemonicsViaCLI args = cardanoWalletCLI @t
     (["mnemonic", "generate"] ++ args)
 
 createWalletViaCLI
-    :: forall t s. (HasType Port s, KnownCommand t)
+    :: forall t s. (HasType (Port "wallet") s, KnownCommand t)
     => s
     -> [String]
     -> String
@@ -1076,7 +1076,7 @@ createWalletViaCLI
     -> IO (ExitCode, String, Text)
 createWalletViaCLI ctx args mnemonics secondFactor passphrase = do
     let portArgs =
-            [ "--port", show (ctx ^. typed @Port) ]
+            [ "--port", show (ctx ^. typed @(Port "wallet")) ]
     let fullArgs =
             [ "wallet", "create" ] ++ portArgs ++ args
     let process = proc' (commandName @t) fullArgs
@@ -1093,54 +1093,56 @@ createWalletViaCLI ctx args mnemonics secondFactor passphrase = do
         return (c, T.unpack out, err)
 
 deleteWalletViaCLI
-    :: forall t r s. (CmdResult r, KnownCommand t, HasType Port s)
+    :: forall t r s. (CmdResult r, KnownCommand t, HasType (Port "wallet") s)
     => s
     -> String
     -> IO r
 deleteWalletViaCLI ctx walId = cardanoWalletCLI @t
-    ["wallet", "delete", "--port", show (ctx ^. typed @Port), walId ]
+    ["wallet", "delete", "--port", show (ctx ^. typed @(Port "wallet")), walId ]
 
 getWalletViaCLI
-    :: forall t r s. (CmdResult r, KnownCommand t, HasType Port s)
+    :: forall t r s. (CmdResult r, KnownCommand t, HasType (Port "wallet") s)
     => s
     -> String
     -> IO r
 getWalletViaCLI ctx walId = cardanoWalletCLI @t
-    ["wallet", "get", "--port", show (ctx ^. typed @Port) , walId ]
+    ["wallet", "get", "--port", show (ctx ^. typed @(Port "wallet")) , walId ]
 
 getWalletUtxoStatisticsViaCLI
-    :: forall t r s. (CmdResult r, KnownCommand t, HasType Port s)
+    :: forall t r s. (CmdResult r, KnownCommand t, HasType (Port "wallet") s)
     => s
     -> String
     -> IO r
 getWalletUtxoStatisticsViaCLI ctx walId = cardanoWalletCLI @t
-    ["wallet", "utxo", "--port", show (ctx ^. typed @Port) , walId ]
+    ["wallet", "utxo", "--port", show (ctx ^. typed @(Port "wallet")) , walId ]
 
 listAddressesViaCLI
-    :: forall t r s. (CmdResult r, KnownCommand t, HasType Port s)
+    :: forall t r s. (CmdResult r, KnownCommand t, HasType (Port "wallet") s)
     => s
     -> [String]
     -> IO r
 listAddressesViaCLI ctx args = cardanoWalletCLI @t
-    (["address", "list", "--port", show (ctx ^. typed @Port)] ++ args)
+    (["address", "list", "--port", show (ctx ^. typed @(Port "wallet"))] ++ args)
 
 listWalletsViaCLI
-    :: forall t r s. (CmdResult r, KnownCommand t, HasType Port s)
+    :: forall t r s. (CmdResult r, KnownCommand t, HasType (Port "wallet") s)
     => s
     -> IO r
 listWalletsViaCLI ctx = cardanoWalletCLI @t
-    ["wallet", "list", "--port", show (ctx ^. typed @Port) ]
+    ["wallet", "list", "--port", show (ctx ^. typed @(Port "wallet")) ]
 
 updateWalletNameViaCLI
-    :: forall t r s. (CmdResult r, KnownCommand t, HasType Port s)
+    :: forall t r s. (CmdResult r, KnownCommand t, HasType (Port "wallet") s)
     => s
     -> [String]
     -> IO r
 updateWalletNameViaCLI ctx args = cardanoWalletCLI @t
-    (["wallet", "update", "name", "--port", show (ctx ^. typed @Port)] ++ args)
+    (["wallet", "update", "name", "--port", walletPort] ++ args)
+  where
+    walletPort = show (ctx ^. typed @(Port "wallet"))
 
 updateWalletPassphraseViaCLI
-    :: forall t s. (KnownCommand t, HasType Port s)
+    :: forall t s. (KnownCommand t, HasType (Port "wallet") s)
     => s
     -> String
         -- ^ Wallet id
@@ -1154,7 +1156,7 @@ updateWalletPassphraseViaCLI
 updateWalletPassphraseViaCLI ctx wid ppOld ppNew ppNewConfirm = do
     let process = proc' (commandName @t)
             [ "wallet", "update", "passphrase"
-            , "--port", show (ctx ^. typed @Port)
+            , "--port", show (ctx ^. typed @(Port "wallet"))
             , wid
             ]
     withCreateProcess process $
@@ -1170,14 +1172,14 @@ updateWalletPassphraseViaCLI ctx wid ppOld ppNew ppNewConfirm = do
             pure (c, out, err)
 
 postTransactionViaCLI
-    :: forall t s. (HasType Port s, KnownCommand t)
+    :: forall t s. (HasType (Port "wallet") s, KnownCommand t)
     => s
     -> String
     -> [String]
     -> IO (ExitCode, String, Text)
 postTransactionViaCLI ctx passphrase args = do
     let portArgs =
-            ["--port", show (ctx ^. typed @Port)]
+            ["--port", show (ctx ^. typed @(Port "wallet"))]
     let fullArgs =
             ["transaction", "create"] ++ portArgs ++ args
     let process = proc' (commandName @t) fullArgs
@@ -1191,13 +1193,13 @@ postTransactionViaCLI ctx passphrase args = do
         return (c, T.unpack out, err)
 
 postTransactionFeeViaCLI
-    :: forall t s. (HasType Port s, KnownCommand t)
+    :: forall t s. (HasType (Port "wallet") s, KnownCommand t)
     => s
     -> [String]
     -> IO (ExitCode, String, Text)
 postTransactionFeeViaCLI ctx args = do
     let portArgs =
-            ["--port", show (ctx ^. typed @Port)]
+            ["--port", show (ctx ^. typed @(Port "wallet"))]
     let fullArgs =
             ["transaction", "fees"] ++ portArgs ++ args
     let process = proc' (commandName @t) fullArgs
@@ -1208,24 +1210,24 @@ postTransactionFeeViaCLI ctx args = do
         return (c, T.unpack out, err)
 
 listTransactionsViaCLI
-    :: forall t r s . (CmdResult r, HasType Port s, KnownCommand t)
+    :: forall t r s . (CmdResult r, HasType (Port "wallet") s, KnownCommand t)
     => s
     -> [String]
     -> IO r
 listTransactionsViaCLI ctx args = cardanoWalletCLI @t $ join
     [ ["transaction", "list"]
-    , ["--port", show (ctx ^. typed @Port)]
+    , ["--port", show (ctx ^. typed @(Port "wallet"))]
     , args
     ]
 
 postExternalTransactionViaCLI
-    :: forall t r s . (CmdResult r, HasType Port s, KnownCommand t)
+    :: forall t r s . (CmdResult r, HasType (Port "wallet") s, KnownCommand t)
     => s
     -> [String]
     -> IO r
 postExternalTransactionViaCLI ctx args = cardanoWalletCLI @t $ join
     [ ["transaction", "submit"]
-    , ["--port", show (ctx ^. typed @Port)]
+    , ["--port", show (ctx ^. typed @(Port "wallet"))]
     , args
     ]
 
@@ -1326,28 +1328,33 @@ getJormungandrBlock0H = do
     return (T.unpack . T.strip . T.pack $ block0H)
 
 -- | Prepare externally signed Tx for Jormungandr
-prepExternalTxViaJcli :: Text -> Natural -> IO Text
-prepExternalTxViaJcli addrStr amt = do
+prepExternalTxViaJcli :: Port "node" -> Text -> Natural -> IO Text
+prepExternalTxViaJcli port addrStr amt = do
     withTempDir $ \d -> do
         let strip = T.unpack . T.strip . T.pack
         let txFile = d <> "/trans.tx"
         let witnessFile = d <> "/witness"
         let keyFile = "./test/data/jormungandr/key.prv"
         let faucetAddr =
-                    "ca1swl53wlqt5dnl63e0gnf8vpazgt6g5mq384dmz72329eh4m8z7e5un8q6lg"
+                "ca1swl53wlqt5dnl63e0gnf8vpazgt6g5mq384dmz72329eh4m8z7e5un8q6lg"
 
         -- get inputFunds, inputIndex and inputTxId associated with faucetAddr
         -- from Jormungandr utxo
         Stdout u <- runJcli
-                        [ "rest", "v0", "utxo", "get"
-                        , "-h", "http://127.0.0.1:8080/api" ]
+            [ "rest", "v0", "utxo", "get"
+            , "-h", "http://127.0.0.1:" <> show port <> "/api"
+            ]
 
-        let utxo = T.splitOn "\n" (T.pack u)
+        let utxo =
+                T.splitOn "\n" (T.pack u)
         let (Just i) =
-                    elemIndex ( "- address: " ++ faucetAddr ) (T.unpack <$> utxo)
-        let inputFunds = T.replace "  associated_fund: " "" (utxo !! (i + 1))
-        let inputIndex = T.replace "  index_in_transaction: " "" (utxo !! (i + 2))
-        let inputTxId = T.replace "  transaction_id: " "" (utxo !! (i + 3))
+                elemIndex ( "- address: " ++ faucetAddr ) (T.unpack <$> utxo)
+        let inputFunds =
+                T.replace "  associated_fund: " "" (utxo !! (i + 1))
+        let inputIndex =
+                T.replace "  index_in_transaction: " "" (utxo !! (i + 2))
+        let inputTxId =
+                T.replace "  transaction_id: " "" (utxo !! (i + 3))
 
         -- prepare tx using `jcli`
         runJcli ["transaction", "new", "--staging", txFile ]
@@ -1395,7 +1402,8 @@ prepExternalTxViaJcli addrStr amt = do
         runJcli ["transaction", "seal", "--staging", txFile ]
             >>= (`shouldBe` ExitSuccess)
         Stdout txMess <- runJcli
-                            [ "transaction"
-                            , "to-message"
-                            , "--staging", txFile ]
+            [ "transaction"
+            , "to-message"
+            , "--staging", txFile
+            ]
         return (T.strip . T.pack $ txMess)

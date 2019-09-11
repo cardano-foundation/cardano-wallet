@@ -9,6 +9,8 @@ module Test.Integration.Jormungandr.Scenario.CLI.Transactions
 
 import Prelude
 
+import Cardano.CLI
+    ( Port )
 import Cardano.Wallet.Api.Types
     ( ApiWallet, getApiT )
 import Cardano.Wallet.Jormungandr.Binary
@@ -21,6 +23,8 @@ import Data.ByteArray.Encoding
     ( Base (Base16, Base64), convertToBase )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
+import Data.Generics.Product.Typed
+    ( typed )
 import Data.Proxy
     ( Proxy (..) )
 import Numeric.Natural
@@ -69,7 +73,7 @@ spec = do
         let addrStr = encodeAddress (Proxy @t) (getApiT $ fst $ addr ^. #id)
         let amt = 4321
 
-        txBlob <- prepExternalTxViaJcli addrStr amt
+        txBlob <- prepExternalTxViaJcli (ctx ^. typed @(Port "node")) addrStr amt
 
         (Exit code, Stdout out, Stderr err) <-
             postExternalTransactionViaCLI @t ctx [T.unpack txBlob]

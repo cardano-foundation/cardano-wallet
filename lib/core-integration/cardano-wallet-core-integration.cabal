@@ -56,7 +56,6 @@ library
     , text
     , text-class
     , time
-    , warp
   hs-source-dirs:
       src
   exposed-modules:

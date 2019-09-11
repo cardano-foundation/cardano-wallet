@@ -1023,8 +1023,8 @@ instance FromText MnemonicSize where
 
 -- | Port number with a tag for describing what it is used for
 newtype Port (tag :: Symbol) = Port { getPort :: Int }
-    deriving stock (Eq, Show, Generic)
-    deriving newtype (Enum, Ord)
+    deriving stock (Eq, Generic)
+    deriving newtype (Enum, Ord, Show)
 
 -- NOTE
 -- TCP port ranges from [[-1;65535]] \ {0}
@@ -1325,6 +1325,7 @@ waitForService (Service service) (sb, tracer) port action = do
             exitFailure
 
     action `catch` handler
+    logInfo tracer $ service <> " is ready."
 
 -- | Look whether a particular filepath is correctly resolved on the filesystem.
 -- This makes for a better user experience when passing wrong filepaths via

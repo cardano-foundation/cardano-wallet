@@ -19,7 +19,14 @@
       };
     components = {
       "library" = {
-        depends = [ (hsPkgs.base) (hsPkgs.QuickCheck) (hsPkgs.time) ];
+        depends = [
+          (hsPkgs.base)
+          (hsPkgs.network)
+          (hsPkgs.QuickCheck)
+          (hsPkgs.random-shuffle)
+          (hsPkgs.time)
+          (hsPkgs.unliftio)
+          ];
         };
       };
     } // rec { src = (pkgs.lib).mkDefault ../.././lib/test-utils; }

@@ -14,15 +14,13 @@ module Test.Integration.Scenario.CLI.Port
 import Prelude
 
 import Cardano.CLI
-    ( getPort )
+    ( Port (..), getPort )
 import Control.Monad
     ( forM_, void )
 import Data.Generics.Internal.VL.Lens
     ( over, (^.) )
 import Data.Generics.Product.Typed
     ( HasType, typed )
-import Network.Wai.Handler.Warp
-    ( Port )
 import System.Command
     ( Stderr (..), Stdout (..) )
 import System.Exit
@@ -78,17 +76,20 @@ specNegative =
                     )
 
 specCommon
-    :: forall t s. (HasType Port s, KnownCommand t)
+    :: forall t s. (HasType (Port "wallet") s, KnownCommand t)
     => SpecWith s
 specCommon = do
+    let overPort :: forall sym. HasType (Port sym) s => (Int -> Int) -> s -> s
+        overPort fn = over (typed @(Port sym)) (\(Port p) -> Port $ fn p)
+
     it "PORT_01 - Can't reach server with wrong port (wallet list)" $ \ctx -> do
-        let ctx' = over (typed @Port) (+1) ctx
+        let ctx' = overPort @"wallet" (+1) ctx
         (_ :: ExitCode, Stdout (_ :: String), Stderr err) <-
             listWalletsViaCLI @t ctx'
         err `shouldContain` errConnectionRefused
 
     it "PORT_01 - Can't reach server with wrong port (wallet create)" $ \ctx -> do
-        let ctx' = over (typed @Port) (+1) ctx
+        let ctx' = overPort @"wallet" (+1) ctx
         let name = "Wallet created via CLI"
         Stdout mnemonics <- generateMnemonicsViaCLI @t ["--size", "15"]
         let pwd = "Secure passphrase"
@@ -97,28 +98,28 @@ specCommon = do
         T.unpack err `shouldContain` errConnectionRefused
 
     it "PORT_01 - Can't reach server with wrong port (wallet get)" $ \ctx -> do
-        let ctx' = over (typed @Port) (+1) ctx
+        let ctx' = overPort @"wallet" (+1) ctx
         let wid = replicate 40 '0'
         (_ :: ExitCode, Stdout (_ :: String), Stderr err) <-
             getWalletViaCLI @t ctx' wid
         err `shouldContain` errConnectionRefused
 
     it "PORT_01 - Can't reach server with wrong port (wallet delete)" $ \ctx -> do
-        let ctx' = over (typed @Port) (+1) ctx
+        let ctx' = overPort @"wallet" (+1) ctx
         let wid = replicate 40 '0'
         (_ :: ExitCode, Stdout (_ :: String), Stderr err) <-
             deleteWalletViaCLI @t ctx' wid
         err `shouldContain` errConnectionRefused
 
     it "PORT_01 - Can't reach server with wrong port (wallet update)" $ \ctx -> do
-        let ctx' = over (typed @Port) (+1) ctx
+        let ctx' = overPort @"wallet" (+1) ctx
         let wid = replicate 40 '0'
         (_ :: ExitCode, Stdout (_ :: String), Stderr err) <-
             updateWalletNameViaCLI @t ctx' [wid, "My Wallet"]
         err `shouldContain` errConnectionRefused
 
     it "PORT_01 - Can't reach server with wrong port (transction create)" $ \ctx -> do
-        let ctx' = over (typed @Port) (+1) ctx
+        let ctx' = overPort @"wallet" (+1) ctx
         let addr =
                 "37btjrVyb4KFjfnPUjgDKLiATLxgwBbeMAEr4vxgkq4Ea5nR6evtX99x2\
                 \QFcF8ApLM4aqCLGvhHQyRJ4JHk4zVKxNeEtTJaPCeB86LndU2YvKUTEEm"
@@ -130,14 +131,14 @@ specCommon = do
         T.unpack err `shouldContain` errConnectionRefused
 
     it "PORT_01 - Can't reach server with wrong port (address list)" $ \ctx -> do
-        let ctx' = over (typed @Port) (+1) ctx
+        let ctx' = overPort @"wallet" (+1) ctx
         let wid = replicate 40 '0'
         (_ :: ExitCode, Stdout (_ :: String), Stderr err) <-
             listAddressesViaCLI @t ctx' [wid]
         err `shouldContain` errConnectionRefused
 
 specWithDefaultPort
-    :: forall t s. (HasType Port s, KnownCommand t)
+    :: forall t s. (HasType (Port "wallet") s, KnownCommand t)
     => SpecWith s
 specWithDefaultPort = do
     it "PORT_02 - Can omit --port when server uses default port (wallet list)" $ \_ -> do
@@ -203,12 +204,12 @@ specWithDefaultPort = do
         err `shouldNotContain` errConnectionRefused
 
 specWithRandomPort
-    :: forall t s. (HasType Port s, KnownCommand t)
-    => Port
+    :: forall t s. (HasType (Port "wallet") s, KnownCommand t)
+    => Port "wallet"
     -> SpecWith s
 specWithRandomPort defaultPort = do
     it "PORT_03 - random port != default port" $ \ctx -> do
-        (ctx ^. typed @Port) `shouldNotBe` defaultPort
+        (ctx ^. typed @(Port "wallet")) `shouldNotBe` defaultPort
         return () :: IO () -- Ease the type inference for the line above
 
     it "PORT_03 - Cannot omit --port when server uses random port (wallet list)" $ \_ -> do
