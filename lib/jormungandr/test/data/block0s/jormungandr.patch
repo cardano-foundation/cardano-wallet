@@ -5,20 +5,20 @@ index c341a385..797ff044 100644
 @@ -132,6 +132,33 @@ mod test {
          }
      }
- 
+
 +    #[test]
 +    // Can be run with:
 +    // $ cd jormungandr-lib
 +    // $ cargo test write_arbitrary_block0s_to_disk
 +    //
 +    // Then the blocks can be moved to cardano-wallet:
-+    // $ mv block0-*.bin ../../cardano-wallet/lib/jormungandr/test/data/block0s/
++    // $ mv arbitrary-block0-*.bin ../../cardano-wallet/lib/jormungandr/test/data/block0s/
 +    // here assuming jormungandr and cardano-wallet live in the same directory.
 +    fn write_arbitrary_block0s_to_disk() {
 +        use std::fs::File;
 +        use chain_core::property::{Serialize};
 +        for i in 1..10 {
-+            let file = File::create(format!("block0-{:?}.bin", i)).unwrap();
++            let file = File::create(format!("arbitrary-block0-{:?}.bin", i)).unwrap();
 +            let _ = arbitrary_block0().serialize(file);
 +        }
 +    }
