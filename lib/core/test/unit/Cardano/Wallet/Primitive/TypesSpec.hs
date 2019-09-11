@@ -569,8 +569,8 @@ spec = do
             (checkCoverage prop_2_6_2)
 
     describe "Slotting ordering" $ do
-        it "Any Slot >= SlotId 0 0"
-            (property (>= SlotId 0 0))
+        it "Any Slot >= slotMinBound"
+            (property (>= slotMinBound))
         it "SlotId 1 2 < SlotId 2 1"
             (property $ SlotId { epochNumber = 1, slotNumber = 2 } < SlotId 2 1)
         it "SlotId 1 1 < SlotId 1 2"

@@ -118,7 +118,7 @@ newNetworkLayer port = mkNetworkLayer <$> newHttpBridgeLayer @n port
 -- - an epoch pack's worth of blocks (those after the given starting slot); or
 -- - all of the unstable blocks after (exclusively) the starting slot, if any.
 --
--- Note that, starting from the `SlotId 0 0`, we'll never get the first block of
+-- Note that, starting from `slotMinBound`, we'll never get the first block of
 -- the chain through this method.
 rbNextBlocks
     :: Monad m

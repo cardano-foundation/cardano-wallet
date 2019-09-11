@@ -13,7 +13,7 @@ module Cardano.Wallet.Primitive.ModelSpec
 import Prelude
 
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( DummyTarget, Tx (..) )
+    ( DummyTarget, Tx (..), block0 )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.Model
@@ -341,15 +341,6 @@ addresses = map address
     $ concatMap outputs
     $ concatMap transactions
     blockchain
-
-block0 :: Block Tx
-block0 = Block
-    { header = BlockHeader
-            { slotId = SlotId 0 0
-            , prevBlockHash = Hash "genesis"
-            }
-    , transactions = []
-    }
 
 -- A excerpt of mainnet, epoch #14, first 20 blocks; plus a few previous blocks
 -- which contains transactions referred to in the former. This is useful to test

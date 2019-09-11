@@ -13,7 +13,7 @@ import Cardano.Wallet.HttpBridge.Primitive.Types
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), BlockHeader (..), Hash (..), SlotId (..) )
+    ( Block (..), BlockHeader (..), Hash (..), SlotId (..), slotMinBound )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
@@ -25,7 +25,6 @@ import Test.Hspec
 
 import qualified Cardano.Wallet.HttpBridge.Network as HttpBridge
 import qualified Data.ByteString.Char8 as B8
-
 
 spec :: Spec
 spec = do
@@ -101,7 +100,7 @@ spec = do
 
         it "should work for the first epoch" $ do
             let h = BlockHeader
-                    { slotId = SlotId 0 0
+                    { slotId = slotMinBound
                     , prevBlockHash = Hash "genesis"
                     }
             Right blocks <- runExceptT $ nextBlocks network h

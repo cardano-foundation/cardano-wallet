@@ -30,9 +30,9 @@ import Cardano.Wallet.Primitive.Types
     , DefineTx
     , EncodeAddress (..)
     , Hash (..)
-    , SlotId (..)
     , TxIn (..)
     , TxOut (..)
+    , slotMinBound
     )
 import Control.DeepSeq
     ( NFData )
@@ -104,7 +104,7 @@ instance Buildable Tx where
 block0 :: Block Tx
 block0 = Block
     { header = BlockHeader
-        { slotId = SlotId 0 0
+        { slotId = slotMinBound
         , prevBlockHash = Hash "genesis"
         }
     , transactions = []
