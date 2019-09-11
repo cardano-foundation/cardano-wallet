@@ -49,8 +49,8 @@
 </span><a name="line-49"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">DefineTx</span><span>
 </span><a name="line-50"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">EncodeAddress</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
 </span><a name="line-51"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Hash</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
-</span><a name="line-52"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">SlotId</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
-</span><a name="line-53"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">invariant</span><span>
+</span><a name="line-52"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">invariant</span><span>
+</span><a name="line-53"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">slotMinBound</span><span>
 </span><a name="line-54"></a><span>    </span><span class="hs-special">)</span><span>
 </span><a name="line-55"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Codec.Binary.Bech32</span><span>
 </span><a name="line-56"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">HumanReadablePart</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">dataPartFromBytes</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">dataPartToBytes</span><span> </span><span class="hs-special">)</span><span>
@@ -94,7 +94,7 @@
 </span><a name="line-94"></a><span class="hs-comment">-- | Genesis block header, i.e. very first block header of the chain</span><span>
 </span><a name="line-95"></a><span class="hs-identifier">block0</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">BlockHeader</span><span>
 </span><a name="line-96"></a><a name="block0"><a href="Cardano.Wallet.Jormungandr.Compatibility.html#block0"><span class="hs-identifier">block0</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">BlockHeader</span><span>
-</span><a name="line-97"></a><span>    </span><span class="hs-special">{</span><span> </span><span class="hs-identifier">slotId</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-var">SlotId</span><span> </span><span class="hs-number">0</span><span> </span><span class="hs-number">0</span><span class="hs-special">)</span><span>
+</span><a name="line-97"></a><span>    </span><span class="hs-special">{</span><span> </span><span class="hs-identifier">slotId</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">slotMinBound</span><span>
 </span><a name="line-98"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">prevBlockHash</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">Hash</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-var">BS.replicate</span><span> </span><span class="hs-number">32</span><span> </span><span class="hs-number">0</span><span class="hs-special">)</span><span>
 </span><a name="line-99"></a><span>    </span><span class="hs-special">}</span><span>
 </span><a name="line-100"></a><span>
