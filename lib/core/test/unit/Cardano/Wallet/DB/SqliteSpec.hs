@@ -37,7 +37,7 @@ import Cardano.Wallet.DB.StateMachine
 import Cardano.Wallet.DBSpec
     ( dbPropertyTests, withDB )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( DummyTarget, Tx (..) )
+    ( DummyTarget, Tx (..), block0 )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), Passphrase (..), PersistKey, encryptPassphrase )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
@@ -56,8 +56,6 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
-    , Block (..)
-    , BlockHeader (..)
     , Coin (..)
     , Direction (..)
     , Hash (..)
@@ -73,7 +71,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , WalletPassphraseInfo (..)
     , WalletState (..)
-    , slotMinBound
     , wholeRange
     )
 import Cardano.Wallet.Unsafe
@@ -345,15 +342,6 @@ shouldHaveLog msgs (sev, str) = unless (any match msgs) $
                                    Test data
 -------------------------------------------------------------------------------}
 
-initDummyBlock0 :: Block Tx
-initDummyBlock0 = Block
-    { header = BlockHeader
-        { slotId = slotMinBound
-        , prevBlockHash = Hash "genesis"
-        }
-    , transactions = []
-    }
-
 testMetadata :: WalletMetadata
 testMetadata = WalletMetadata
     { name = WalletName "test wallet"
@@ -395,7 +383,7 @@ class GenerateTestKey (key :: Depth -> * -> *) where
 -------------------------------------------------------------------------------}
 
 testCpSeq :: Wallet (SeqState DummyTarget) DummyTarget
-testCpSeq = initWallet initDummyBlock0 initDummyStateSeq
+testCpSeq = initWallet block0 initDummyStateSeq
 
 initDummyStateSeq :: SeqState DummyTarget
 initDummyStateSeq = mkSeqState (xprv, mempty) defaultAddressPoolGap
@@ -432,4 +420,4 @@ initDummyStateRnd = mkRndState xprv 0
     where xprv = fst $ unsafePerformIO generateTestKey
 
 testCpRnd :: Wallet (RndState DummyTarget) DummyTarget
-testCpRnd = initWallet initDummyBlock0 initDummyStateRnd
+testCpRnd = initWallet block0 initDummyStateRnd

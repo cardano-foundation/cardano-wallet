@@ -16,15 +16,13 @@ import Prelude
 import Cardano.Wallet.DBSpec
     ( dbPropertyTests, withDB )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( DummyTarget, Tx )
+    ( DummyTarget, block0 )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..) )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet )
-import Cardano.Wallet.Primitive.Types
-    ( Block (..), BlockHeader (..), Hash (..), slotMinBound )
 import Control.DeepSeq
     ( NFData )
 import Test.Hspec
@@ -53,12 +51,3 @@ instance IsOurs DummyStateMVar where
 instance Arbitrary (Wallet DummyStateMVar DummyTarget) where
     shrink _ = []
     arbitrary = initWallet block0 <$> arbitrary
-      where
-        block0 :: Block Tx
-        block0 = Block
-            { header = BlockHeader
-                    { slotId = slotMinBound
-                    , prevBlockHash = Hash "genesis"
-                    }
-            , transactions = []
-            }
