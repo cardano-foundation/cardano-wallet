@@ -158,10 +158,15 @@ buildStep dryRun bk =
                 QuickTest -> [ "integration" ]
                 FullTest -> []
         in
-            stackBuild Fast (Just ["--skip", serialTests]) args
-            .&&.
+            -- NOTE
+            -- stack erases coverage artifacts (.tix files) between runs. So, we
+            -- can't really preserve coverage for both serial and parallel tests.
+            -- We run the parallel ones last because they contain most of our
+            -- scenarios.
             stackBuild Fast (Just ["--match", serialTests, "--jobs", "1"])
                 (args ++ ["--jobs", "1"])
+            .&&.
+            stackBuild Fast (Just ["--skip", serialTests]) args
     serialTests = "SERIAL"
 
     fastOpt Opt = []
