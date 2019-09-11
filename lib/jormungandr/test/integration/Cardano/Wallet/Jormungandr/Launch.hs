@@ -23,10 +23,6 @@ import Control.Concurrent.Async
     ( Async, async )
 import Control.Monad
     ( void )
-import Data.Aeson
-    ( ToJSON (..), Value (..), object, (.=) )
-import Data.Yaml
-    ( encodeFile )
 import System.Directory
     ( createDirectory )
 import System.FilePath
@@ -35,6 +31,10 @@ import System.IO.Temp
     ( createTempDirectory, getCanonicalTemporaryDirectory )
 import Test.Utils.Ports
     ( randomUnusedTCPPorts )
+
+import qualified Cardano.Wallet.Jormungandr.Compatibility as Jormungandr
+import qualified Data.ByteString.Char8 as B8
+import qualified Data.Yaml as Yaml
 
 -- | Starts jormungandr on a random port using the integration tests config.
 -- The data directory will be stored in a unique location under the system
@@ -53,31 +53,6 @@ launchJormungandr output = do
         ]
     pure (handle, baseUrl, port)
 
--- | Config for the test jormungandr.
-data JormConfig = JormConfig
-    { jmStorageDir :: FilePath
-    , jmRestApiPort :: Int
-    , jmNodeApiPort :: Int
-    } deriving (Show, Eq)
-
-instance ToJSON JormConfig where
-    toJSON cfg = object
-        [ "storage" .= jmStorageDir cfg
-        , "rest" .= object
-            [ "listen" .= ("127.0.0.1:" ++ show (jmRestApiPort cfg))
-            , "prefix" .= String "api"
-            ]
-        , "p2p" .= object
-          [ "trusted_peers" .= ([] :: [Value])
-          , "topics_of_interest" .= object
-              [ "messages" .= String "low"
-              , "blocks" .= String "normal"
-              ]
-          , "public_address" .=
-              ("/ip4/127.0.0.1/tcp/" ++ show (jmNodeApiPort cfg))
-          ]
-        ]
-
 setupConfig :: IO (BaseUrl, Port "node", FilePath)
 setupConfig = do
     [apiPort, nodePort] <- randomUnusedTCPPorts 2
@@ -85,8 +60,8 @@ setupConfig = do
     configDir <- createTempDirectory tmp "cardano-wallet-jormungandr"
     let storageDir = configDir </> "storage"
         configYaml = configDir </> "config.yaml"
-        jormConfig = JormConfig storageDir apiPort nodePort
-        url = BaseUrl Http "localhost" apiPort "/api"
-    encodeFile configYaml jormConfig
+        url = BaseUrl Http "127.0.0.1" apiPort "/api"
+        jormConfig = Jormungandr.genConfigFile storageDir nodePort url
+    B8.writeFile configYaml (Yaml.encode jormConfig)
     createDirectory storageDir
     pure (url, Port apiPort, configYaml)
