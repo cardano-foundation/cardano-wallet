@@ -35,7 +35,7 @@ language: generic
 # Deactivate builds on branches but `master` and the bors branches.
 # CI is still triggered by PRs).
 # We do also CI to kick in when pushing a tag `git push --tags` for releases.
-if: "(branch IN (master, bors/staging, bors/trying)) OR (tag =~ ^v)"
+if: "(branch = master) OR (tag =~ ^v)"
 
 # Caching so the next build will be fast too:
 cache:
@@ -44,6 +44,7 @@ cache:
   - $HOME/.stack
 
 before_cache:
+  # Remove extra unused and heavy stuff from stack directory to avoid caching useless files
   - rm -rf $HOME/.stack/programs/x86_64-linux/ghc-*.tar.*
   - rm -rf $HOME/.stack/indices/Hackage/00-index.tar $HOME/.stack/indices/Hackage/00-index.tar.gz
   - find $HOME/.stack/programs/x86_64-linux/ghc-*/lib/ghc-* -type f -name *_p.a -delete
@@ -51,12 +52,6 @@ before_cache:
 before_install:
   - mkdir -p $HOME/.local/bin
   - tar xzf $STACK_WORK_CACHE || echo "no .stack-work yet"
-  - travis_retry curl -L https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/lib/http-bridge/test/data/cardano-node-simple/cardano-node-simple-3.0.1.tar.gz | tar xz -C $HOME/.local/bin
-  - cardano-node-simple --version
-  - travis_retry curl -L https://github.com/KtorZ/cardano-http-bridge/releases/download/v0.0.5/cardano-http-bridge-v0.0.5-x86_64-linux.tar.gz | tar xz -C $HOME/.local/bin
-  - cardano-http-bridge --version
-  - travis_retry curl -L https://github.com/input-output-hk/jormungandr/releases/download/v0.3.3/jormungandr-v0.3.3-x86_64-unknown-linux-gnu.tar.gz | tar xz -C $HOME/.local/bin
-  - jcli --version && jormungandr --version
   - travis_retry curl -L https://github.com/commercialhaskell/stack/releases/download/v1.9.3/stack-1.9.3-linux-x86_64.tar.gz | tar xz --wildcards --strip-components=1 -C $HOME/.local/bin '*/stack'
   - travis_retry stack --no-terminal setup
 
@@ -68,184 +63,32 @@ addons:
       - librocksdb-dev
       - libsystemd-dev
 
-service:
-  - docker
-
 # Define custom set of stages
 stages:
 - cache 💾
 - build project 🔨
-- checks 🔬
-- integration 🖇️
 - deploy 🚀
 
 jobs:
   fast_finish: true
   include:
-  ################################################################################
-  #
-  # PR
-  #
-  # Pipeline we run on each PR. Slightly different from the pipeline we run when
-  # stuff get merged into `master`. In this setup, we do want a quick feedback, and
-  # we therefore parallelize as much as we can using many different jobs. We also
-  # avoid options like `--coverage` or `--haddock` on each build since those take
-  # needless time.
-  #
-  ################################################################################
-  - stage: build project 🔨
-    if: (type = pull_request) AND (commit_message =~ /Travis-CI-Disable/)
-    name: "Diff Control"
-    script:
-    # Fails if there's any source file modified.
-    - git diff $(git merge-base master HEAD) HEAD --stat --exit-code -- --path "*.hs"
-    - git diff $(git merge-base master HEAD) HEAD --stat --exit-code -- --path "*.js"
-    - git diff $(git merge-base master HEAD) HEAD --stat --exit-code -- --path "specifications/*"
-
-  - stage: build project 🔨
-    if: (type = pull_request) AND NOT (commit_message =~ /Travis-CI-Disable/)
-    name: "Compiling Project"
-    script:
-    - stack clean
-    - stack --no-terminal build --fast --test --no-run-tests --bench --no-run-benchmarks --haddock --no-haddock-deps
-    - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work
-
-  - stage: checks 🔬
-    if: (type = pull_request) AND NOT (commit_message =~ /Travis-CI-Disable/)
-    name: "Code Style"
-    script:
-    - travis_retry curl -sSL https://raw.github.com/jaspervdj/stylish-haskell/master/scripts/latest.sh | sh -s $(find . -type f -name "*.hs" ! -path "*.stack-work*") -i
-    - git diff --exit-code
-    - travis_retry curl -sSL https://raw.github.com/ndmitchell/hlint/master/misc/run.sh | sh -s .
-    - travis_retry curl -sSL https://raw.github.com/ndmitchell/weeder/master/misc/travis.sh | sh -s .
-    # Somehow, we can't install open-spec-validator using `pip` directly in the travis VM.
-    # I've tried several things, including removing some existing conflicting packages, upgrading
-    # pip and using some more permissive options. In the end, I gave up and went for a container.
-    - cd specifications/api
-    - "echo -n 'FROM python:3.7-alpine\nRUN pip install openapi-spec-validator\nENTRYPOINT [\"openapi-spec-validator\"]' > Dockerfile"
-    - docker build -t openapi-spec-validator .
-    - docker run -v $PWD:/files openapi-spec-validator --schema 2.0 /files/swagger.yaml
-    - cd -
-
-  - stage: checks 🔬
-    if: (type = pull_request) AND NOT (commit_message =~ /Travis-CI-Disable/)
-    name: "Tests: unit"
-    script:
-      - stack --no-terminal test --fast cardano-wallet-core cardano-wallet-launcher cardano-wallet-cli text-class bech32 cardano-wallet-http-bridge:unit cardano-wallet-jormungandr:unit
-
-  ################################################################################
-  #
-  # Push / Cron / Api
-  #
-  # This runs for other type of build (non PR) and are slightly heavier since they
-  # also compute coverage and documentation. This is also the only way to rebuild
-  # an initial default cache and re-inject 3rd-party dependencies like:
-  #
-  # - cardano-node-simple
-  # - cardano-http-bridge
-  # - jormungandr
-  # - jcli
-  #
-  ################################################################################
   - stage: cache 💾
-    if: (type != pull_request AND branch = master)
+    if: type != pull_request AND (branch = master OR tag =~ ^v)
     name: "Caching Dependencies"
     script:
-    - stack --no-terminal build --fast --test --no-run-tests --bench --no-run-benchmarks --only-snapshot
-    - stack --no-terminal build --fast --test --no-run-tests --bench --no-run-benchmarks --only-dependencies
+    - stack --no-terminal build --only-snapshot
+    - stack --no-terminal build --only-dependencies
     - tar czf $STACK_WORK_CACHE .stack-work
 
   - stage: build project 🔨
-    if: (type != pull_request AND branch = master) OR (branch IN (bors/staging, bors/trying))
+    if: type != pull_request AND (branch = master OR tag =~ ^v)
     name: "Compiling Project"
     script:
-    # The following command also builds the `cardano-wallet-core-integration`
-    # component, since it is a dependency of `cardano-wallet-http-bridge` and
-    # `cardano-wallet-jormungandr`, but avoids building Haddock documentation
-    # for just that component.
-    - stack --no-terminal build --fast --test --no-run-tests --bench --no-run-benchmarks --haddock --no-haddock-deps --coverage --skip cardano-wallet-core-integration
+    - stack --no-terminal build --haddock --no-haddock-deps --skip cardano-wallet-core-integration
     - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work
 
-  - stage: checks 🔬
-    if: branch IN (bors/staging, bors/trying)
-    name: "Code Style"
-    script:
-    - travis_retry curl -sSL https://raw.github.com/jaspervdj/stylish-haskell/master/scripts/latest.sh | sh -s $(find . -type f -name "*.hs" ! -path "*.stack-work*") -i
-    - git diff --exit-code # Exit if Stylish-Haskell yields any diff
-    - travis_retry curl -sSL https://raw.github.com/ndmitchell/hlint/master/misc/run.sh | sh -s .
-    - travis_retry curl -sSL https://raw.github.com/ndmitchell/weeder/master/misc/travis.sh | sh -s .
-    # Somehow, we can't install open-spec-validator using `pip` directly in the travis VM.
-    # I've tried several things, including removing some existing conflicting packages, upgrading
-    # pip and using some more permissive options. In the end, I gave up and went for a container.
-    - cd specifications/api
-    - "echo -n 'FROM python:3.7-alpine\nRUN pip install openapi-spec-validator\nENTRYPOINT [\"openapi-spec-validator\"]' > Dockerfile"
-    - docker build -t openapi-spec-validator .
-    - docker run -v $PWD:/files openapi-spec-validator --schema 2.0 /files/swagger.yaml
-    - cd -
-
-  - stage: checks 🔬
-    if: branch IN (bors/staging, bors/trying)
-    name: "Tests"
-    script:
-    - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-core
-    - mkdir -p .coverage/core && find . -name "*.tix" ! -path "*.coverage*" -exec cp \{} .coverage/core \;
-
-    - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-launcher
-    - mkdir -p .coverage/launcher && find . -name "*.tix" ! -path "*.coverage*" -exec cp \{} .coverage/launcher \;
-
-    - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-cli
-    - mkdir -p .coverage/cli && find . -name "*.tix" ! -path "*.coverage*" -exec cp \{} .coverage/cli \;
-
-    - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage text-class
-    - mkdir -p .coverage/text-class && find . -name "*.tix" ! -path "*.coverage*" -exec cp \{} .coverage/text-class \;
-
-    - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage bech32
-    - mkdir -p .coverage/bech32 && find . -name "*.tix" ! -path "*.coverage*" -exec cp \{} .coverage/bech32 \;
-
-    - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:unit
-    - mkdir -p .coverage/jormungandr && find . -name "*.tix" ! -path "*.coverage*" -exec cp \{} .coverage/jormungandr \;
-
-    - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-http-bridge:unit
-    - mkdir -p .coverage/http-bridge && find . -name "*.tix" ! -path "*.coverage*" -exec cp \{} .coverage/http-bridge \;
-
-    - tar czf $STACK_WORK_CACHE .stack-work .coverage lib/**/.stack-work
-
-  - stage: integration 🖇️
-    if: branch IN (bors/staging, bors/trying)
-    name: "Integration"
-    script:
-    - travis_retry curl -L https://github.com/KtorZ/cardano-http-bridge/releases/download/v0.0.5/hermes-testnet.tar.gz | tar xz -C $HOME
-
-    - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-http-bridge:integration
-    - mkdir -p .coverage/http-bridge && find . -name "*.tix" ! -path "*.coverage*" -exec cp \{} .coverage/http-bridge \;
-
-    - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr:integration
-    - mkdir -p .coverage/jormungandr && find . -name "*.tix" ! -path "*.coverage*" -exec cp \{} .coverage/jormungandr \;
-
-    - tar czf $STACK_WORK_CACHE .stack-work .coverage lib/**/.stack-work lib/**/*.tix
-
   - stage: deploy 🚀
-    if: branch IN (bors/staging, bors/trying)
-    name: "Coveralls"
-    script:
-    - export LTS=$(cat stack.yaml | grep resolver) # Extract the LTS from the stack.yaml
-    - git clone https://github.com/rubik/stack-hpc-coveralls && cd stack-hpc-coveralls && git checkout 3d8352d5642ab214a7a574bd797880ae39595a44 && echo $LTS > stack.yaml
-    - stack --no-terminal install && cd -
-    - stack --no-terminal install hpc
-    # Ignore modules that are full of Template Haskell auto-generated code
-    - cd lib/core
-    - find $LOCAL_MIX_DIR -type f -name "Cardano.Wallet.DB.Sqlite.TH.mix" > overlay.hpc
-    - 'sed -i "s/.*hpc\/\(.*\).mix/module \"\1\" {}/" overlay.hpc'
-    - stack exec -- hpc overlay --hpcdir $LOCAL_MIX_DIR overlay.hpc > Cardano.Wallet.DB.Sqlite.TH.tix
-    - 'sed -i "s/0,/1,/g" Cardano.Wallet.DB.Sqlite.TH.tix'
-    - cd -
-    - mv lib/core/*.tix .coverage/core
-    # Re-build the coverage report taking .tix from executables running outside of the test suites
-    - stack hpc report .coverage/**/*.tix
-    - shc combined custom || true
-
-  - stage: deploy 🚀
-    if: type != pull_request AND branch = master
+    if: type != pull_request AND (branch = master OR tag =~ ^v)
     name: "Haddock"
     script:
     - mkdir -p haddock/edge api/edge
@@ -253,22 +96,15 @@ jobs:
     - mv $(stack path --local-doc-root)/* haddock/edge
     - git checkout --orphan gh-pages-deploy && git reset
     - git add api haddock && git commit -m $TRAVIS_COMMIT
+    - git fetch origin
     - git checkout gh-pages && git merge -X theirs --no-commit --no-ff --allow-unrelated-histories - && git commit --allow-empty --no-edit
     - git push -f -q https://WilliamKingNoel-Bot:$GITHUB_ACCESS_TOKEN@github.com/input-output-hk/cardano-wallet gh-pages &>/dev/null
 
-  ################################################################################
-  #
-  # Deployment
-  #
-  # Only when a tag is present, we do install and deploy the software.
-  ################################################################################
   - stage: deploy 🚀
-    if: tag =~ ^v
+    if: type != pull_request AND tag =~ ^v
     name: "Executables"
     script:
     # Create optimized binaries and checksums
-    - stack clean
-    - stack --no-terminal build
     - stack --no-terminal install
 
     # Bundle cardano-wallet-jormungandr
@@ -293,6 +129,7 @@ jobs:
     - git add api haddock && git commit -m $TRAVIS_COMMIT
     - git checkout gh-pages && git merge -X theirs --no-commit --no-ff --allow-unrelated-histories - && git commit --allow-empty --no-edit
     - travis_retry git push -f -q https://WilliamKingNoel-Bot:$GITHUB_ACCESS_TOKEN@github.com/input-output-hk/cardano-wallet gh-pages &>/dev/null
+
     deploy:
       provider: releases
       api_key: $GITHUB_ACCESS_TOKEN
