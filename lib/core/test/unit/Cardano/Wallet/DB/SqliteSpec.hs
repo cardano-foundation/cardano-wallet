@@ -73,6 +73,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , WalletPassphraseInfo (..)
     , WalletState (..)
+    , slotMinBound
     , wholeRange
     )
 import Cardano.Wallet.Unsafe
@@ -347,7 +348,7 @@ shouldHaveLog msgs (sev, str) = unless (any match msgs) $
 initDummyBlock0 :: Block Tx
 initDummyBlock0 = Block
     { header = BlockHeader
-        { slotId = SlotId 0 0
+        { slotId = slotMinBound
         , prevBlockHash = Hash "genesis"
         }
     , transactions = []

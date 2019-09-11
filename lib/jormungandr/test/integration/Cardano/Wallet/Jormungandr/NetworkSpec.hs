@@ -46,6 +46,7 @@ import Cardano.Wallet.Primitive.Types
     , TxIn (..)
     , TxOut (..)
     , TxWitness (..)
+    , slotMinBound
     )
 import Cardano.Wallet.Unsafe
     ( unsafeDecodeAddress, unsafeFromHex, unsafeRunExceptT )
@@ -125,7 +126,7 @@ spec = do
             resp <- runExceptT $ networkTip nw
             resp `shouldSatisfy` isRight
             let (Right slot) = slotId <$> resp
-            slot `shouldSatisfy` (>= SlotId 0 0)
+            slot `shouldSatisfy` (>= slotMinBound)
 
         it "get some blocks from the genesis" $ \(_, nw) -> do
             threadDelay (10 * second)

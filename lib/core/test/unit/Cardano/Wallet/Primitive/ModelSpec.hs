@@ -45,6 +45,7 @@ import Cardano.Wallet.Primitive.Types
     , excluding
     , invariant
     , restrictedTo
+    , slotMinBound
     , txId
     , txIns
     )
@@ -345,7 +346,7 @@ addresses = map address
 block0 :: Block Tx
 block0 = Block
     { header = BlockHeader
-            { slotId = SlotId 0 0
+            { slotId = slotMinBound
             , prevBlockHash = Hash "genesis"
             }
     , transactions = []
