@@ -1,3 +1,5 @@
+{-# LANGUAGE DataKinds #-}
+
 -- |
 -- Copyright: © 2018-2019 IOHK
 -- License: Apache-2.0
@@ -11,6 +13,8 @@ module Cardano.Wallet.Jormungandr.Launch
 
 import Prelude
 
+import Cardano.CLI
+    ( Port (..) )
 import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet.Jormungandr.Network
@@ -35,9 +39,9 @@ import Test.Utils.Ports
 -- | Starts jormungandr on a random port using the integration tests config.
 -- The data directory will be stored in a unique location under the system
 -- temporary directory.
-launchJormungandr :: StdStream -> IO (Async (), BaseUrl)
+launchJormungandr :: StdStream -> IO (Async (), BaseUrl, Port "node")
 launchJormungandr output = do
-    (baseUrl, configYaml) <- setupConfig
+    (baseUrl, port, configYaml) <- setupConfig
     let dir = "test/data/jormungandr"
     handle <- async $ void $ launch
         [ Command "jormungandr"
@@ -47,7 +51,7 @@ launchJormungandr output = do
             ] (return ())
             output
         ]
-    pure (handle, baseUrl)
+    pure (handle, baseUrl, port)
 
 -- | Config for the test jormungandr.
 data JormConfig = JormConfig
@@ -74,7 +78,7 @@ instance ToJSON JormConfig where
           ]
         ]
 
-setupConfig :: IO (BaseUrl, FilePath)
+setupConfig :: IO (BaseUrl, Port "node", FilePath)
 setupConfig = do
     [apiPort, nodePort] <- randomUnusedTCPPorts 2
     tmp <- getCanonicalTemporaryDirectory
@@ -85,4 +89,4 @@ setupConfig = do
         url = BaseUrl Http "localhost" apiPort "/api"
     encodeFile configYaml jormConfig
     createDirectory storageDir
-    pure (url, configYaml)
+    pure (url, Port apiPort, configYaml)

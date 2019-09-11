@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -9,16 +10,18 @@ module Test.Integration.Jormungandr.Scenario.CLI.Server
 
 import Prelude
 
+import Cardano.CLI
+    ( Port (..) )
 import Cardano.Faucet
     ( block0HText )
 import Control.Concurrent
     ( threadDelay )
 import Control.Exception
     ( finally )
-import Control.Monad
-    ( forM_ )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
+import Data.Generics.Product.Typed
+    ( typed )
 import System.Exit
     ( ExitCode (..) )
 import System.IO.Temp
@@ -39,7 +42,6 @@ import Test.Integration.Framework.DSL
     , KnownCommand (..)
     , collectStreams
     , expectPathEventuallyExist
-    , jormungandrBaseUrl
     , proc'
     , shouldContainT
     , shouldNotContainT
@@ -69,22 +71,28 @@ spec = do
 
     describe "DaedalusIPC" $ do
         let defaultArgs nodePort =
-                [ commandName @t , "serve", "--node-port", nodePort, "--genesis-hash", block0H ]
-        let tests =
-                [ const ["--random-port"]
-                , \fixedPort -> ["--port", fixedPort]
+                [ commandName @t
+                , "serve"
+                , "--node-port"
+                , show nodePort
+                , "--genesis-hash"
+                , block0H
                 ]
-        forM_ tests $ \args -> do
-            let title = "should reply with the port when asked "
-                    <> show (args "FIXED")
-            it title $ \ctx -> do
-                fixedPort <- findPort
-                let filepath = "test/integration/js/mock-daedalus.js"
-                let urlPort = T.takeWhile (/= '/') . T.takeWhileEnd (/= ':')
-                let nodePort = T.unpack $ urlPort $ ctx ^. jormungandrBaseUrl
-                let scriptArgs = defaultArgs nodePort ++ args (show fixedPort)
-                (_, _, _, ph) <- createProcess (proc filepath scriptArgs)
-                waitForProcess ph `shouldReturn` ExitSuccess
+
+        let filepath = "test/integration/js/mock-daedalus.js"
+
+        it "Should reply with the port --random" $ \ctx -> do
+            let scriptArgs = defaultArgs (ctx ^. typed @(Port "node"))
+                    ++ ["--random-port"]
+            (_, _, _, ph) <- createProcess (proc filepath scriptArgs)
+            waitForProcess ph `shouldReturn` ExitSuccess
+
+        it "Should reply with the port --random" $ \ctx -> do
+            walletPort <- findPort
+            let scriptArgs = defaultArgs (ctx ^. typed @(Port "node"))
+                    ++ ["--port", show walletPort]
+            (_, _, _, ph) <- createProcess (proc filepath scriptArgs)
+            waitForProcess ph `shouldReturn` ExitSuccess
 
     describe "LOGGING - cardano-wallet serve logging" $ do
         it "LOGGING - Launch can log --verbose" $ \_ -> do

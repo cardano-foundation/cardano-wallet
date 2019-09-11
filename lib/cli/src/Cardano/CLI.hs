@@ -1023,8 +1023,8 @@ instance FromText MnemonicSize where
 
 -- | Port number with a tag for describing what it is used for
 newtype Port (tag :: Symbol) = Port { getPort :: Int }
-    deriving stock (Eq, Show, Generic)
-    deriving newtype (Enum, Ord)
+    deriving stock (Eq, Generic)
+    deriving newtype (Enum, Ord, Show)
 
 -- NOTE
 -- TCP port ranges from [[-1;65535]] \ {0}

@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -9,14 +10,16 @@ module Test.Integration.HttpBridge.Scenario.CLI.Server
 
 import Prelude
 
+import Cardano.CLI
+    ( Port )
 import Control.Concurrent
     ( threadDelay )
 import Control.Exception
     ( finally )
-import Control.Monad
-    ( forM_ )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
+import Data.Generics.Product.Typed
+    ( typed )
 import System.Command
     ( Exit (..), Stderr (..), Stdout (..) )
 import System.Exit
@@ -40,7 +43,6 @@ import Test.Integration.Framework.DSL
     , cardanoWalletCLI
     , collectStreams
     , expectPathEventuallyExist
-    , jormungandrBaseUrl
     , proc'
     , shouldContainT
     , shouldNotContainT
@@ -49,8 +51,6 @@ import Test.Integration.Framework.TestData
     ( versionLine )
 import Test.Utils.Ports
     ( findPort )
-
-import qualified Data.Text as T
 
 spec :: forall t. KnownCommand t => SpecWith (Context t)
 spec = do
@@ -68,8 +68,10 @@ spec = do
 
         it "SERVER - Stops gracefully on wrong network connection" $ \ctx -> do
             let faultyNetwork = "mainnet"
-            let args = [ "serve", "--network", faultyNetwork
-                       , "--node-port", T.unpack (ctx ^. jormungandrBaseUrl) ]
+            let args =
+                    [ "serve", "--network", faultyNetwork
+                    , "--node-port", show (ctx ^. typed @(Port "node"))
+                    ]
             (Exit c, Stdout out, Stderr err) <- cardanoWalletCLI @t args
             out `shouldContain` "The node backend is not running on the\
                 \ \"" ++ faultyNetwork ++ "\" network. Please start the\
@@ -80,21 +82,26 @@ spec = do
 
     describe "DaedalusIPC" $ do
         let defaultArgs nodePort =
-                [ commandName @t, "serve", "--node-port", T.unpack nodePort ]
-        let tests =
-                [ const ["--random-port"]
-                , \fixedPort -> ["--port", fixedPort]
+                [ commandName @t
+                , "serve"
+                , "--node-port"
+                , show nodePort
                 ]
-        forM_ tests $ \args -> do
-            let title = "should reply with the port when asked "
-                    <> show (args "FIXED")
-            it title $ \ctx -> do
-                fixedPort <- findPort
-                let filepath = "test/integration/js/mock-daedalus.js"
-                let scriptArgs = defaultArgs (ctx ^. jormungandrBaseUrl)
-                        ++ args (show fixedPort)
-                (_, _, _, ph) <- createProcess (proc filepath scriptArgs)
-                waitForProcess ph `shouldReturn` ExitSuccess
+
+        let filepath = "test/integration/js/mock-daedalus.js"
+
+        it "Should reply with the port --random" $ \ctx -> do
+            let scriptArgs = defaultArgs (ctx ^. typed @(Port "node"))
+                    ++ ["--random-port"]
+            (_, _, _, ph) <- createProcess (proc filepath scriptArgs)
+            waitForProcess ph `shouldReturn` ExitSuccess
+
+        it "Should reply with the port --random" $ \ctx -> do
+            walletPort <- findPort
+            let scriptArgs = defaultArgs (ctx ^. typed @(Port "node"))
+                    ++ ["--port", show walletPort]
+            (_, _, _, ph) <- createProcess (proc filepath scriptArgs)
+            waitForProcess ph `shouldReturn` ExitSuccess
 
     describe "LOGGING - cardano-wallet serve logging" $ do
         it "LOGGING - Launch can log --verbose" $ \_ -> do

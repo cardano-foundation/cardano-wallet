@@ -14,6 +14,8 @@ module Test.Integration.Jormungandr.Scenario.API.Transactions
 
 import Prelude
 
+import Cardano.CLI
+    ( Port )
 import Cardano.Faucet
     ( block0H )
 import Cardano.Wallet.Api.Types
@@ -57,6 +59,8 @@ import Data.ByteArray.Encoding
     ( Base (Base16, Base64), convertFromBase, convertToBase )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
+import Data.Generics.Product.Typed
+    ( typed )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -88,7 +92,6 @@ import Test.Integration.Framework.DSL
     , for
     , getFromResponse
     , getWalletEp
-    , jormungandrBaseUrl
     , json
     , listAddresses
     , listAllTransactions
@@ -195,7 +198,7 @@ spec = do
         let addrStr = encodeAddress (Proxy @t) (getApiT $ fst $ addr ^. #id)
         let amt = 1234
 
-        txBlob <- prepExternalTxViaJcli (ctx ^. jormungandrBaseUrl) addrStr amt
+        txBlob <- prepExternalTxViaJcli (ctx ^. typed @(Port "node")) addrStr amt
         let payload = (NonJson . BL.fromStrict . toRawBytes Base16) txBlob
         let headers = Headers
                         [ ("Content-Type", "application/octet-stream")
@@ -282,7 +285,7 @@ spec = do
             addr:_ <- listAddresses ctx w
             let addrStr = encodeAddress (Proxy @t) (getApiT $ fst $ addr ^. #id)
 
-            txBlob <- prepExternalTxViaJcli (ctx ^. jormungandrBaseUrl) addrStr 1
+            txBlob <- prepExternalTxViaJcli (ctx ^. typed @(Port "node")) addrStr 1
             let payload = (NonJson . BL.fromStrict . toRawBytes Base16) txBlob
             let headers = Headers [ ("Content-Type", "application/octet-stream") ]
 
@@ -300,7 +303,7 @@ spec = do
             addr:_ <- listAddresses ctx w
             let addrStr = encodeAddress (Proxy @t) (getApiT $ fst $ addr ^. #id)
 
-            txBlob <- prepExternalTxViaJcli (ctx ^. jormungandrBaseUrl) addrStr 1
+            txBlob <- prepExternalTxViaJcli (ctx ^. typed @(Port "node")) addrStr 1
             let payload = (NonJson . BL.fromStrict . toRawBytes Base16) txBlob
 
             r <- request @ApiTxId ctx postExternalTxEp headers payload

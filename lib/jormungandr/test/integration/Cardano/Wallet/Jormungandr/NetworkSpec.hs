@@ -321,7 +321,7 @@ spec = do
         :: (forall n. NetworkLayer n IO -> IO ())
         -> IO (Async (), NetworkLayer (Jormungandr 'Testnet) IO, BaseUrl)
     startNode wait = do
-        (handle, baseUrl) <- launchJormungandr Inherit
+        (handle, baseUrl, _) <- launchJormungandr Inherit
         nw <- Jormungandr.newNetworkLayer baseUrl
         wait nw $> (handle, nw, baseUrl)
 

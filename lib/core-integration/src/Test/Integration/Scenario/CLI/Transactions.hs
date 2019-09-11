@@ -10,6 +10,8 @@ module Test.Integration.Scenario.CLI.Transactions
 
 import Prelude
 
+import Cardano.CLI
+    ( Port )
 import Cardano.Wallet.Api.Types
     ( ApiFee, ApiTransaction, ApiWallet, getApiT, insertedAt, time )
 import Cardano.Wallet.Primitive.Types
@@ -36,8 +38,6 @@ import Data.Time.Clock
     ( UTCTime )
 import Data.Time.Utils
     ( utcTimePred, utcTimeSucc )
-import Network.Wai.Handler.Warp
-    ( Port )
 import Numeric.Natural
     ( Natural )
 import System.Command
@@ -422,7 +422,7 @@ spec = do
         forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
             wDest <- emptyWallet ctx
             addrs:_ <- listAddresses ctx wDest
-            let port = show $ ctx ^. typed @Port
+            let port = show $ ctx ^. typed @(Port "wallet")
             let addr = encodeAddress (Proxy @t) (getApiT $ fst $ addrs ^. #id)
             let args =
                     [ "transaction", "create", "--port", port
@@ -443,7 +443,7 @@ spec = do
         wSrc <- emptyWallet ctx
         wDest <- emptyWallet ctx
         addrs:_ <- listAddresses ctx wDest
-        let port = T.pack $ show $ ctx ^. typed @Port
+        let port = T.pack $ show $ ctx ^. typed @(Port "wallet")
         let addr = encodeAddress (Proxy @t) (getApiT $ fst $ addrs ^. #id)
         let args = T.unpack <$>
                 [ "transaction", "create", "--port", port
@@ -464,7 +464,7 @@ spec = do
         wDest <- emptyWallet ctx
         addrs:_ <- listAddresses ctx wDest
         let addr = encodeAddress (Proxy @t) (getApiT $ fst $ addrs ^. #id)
-        let port = T.pack $ show $ ctx ^. typed @Port
+        let port = T.pack $ show $ ctx ^. typed @(Port "wallet")
         let args = T.unpack <$>
                 [ "transaction", "create", "--port", port
                 , wSrc ^. walletId, "--payment", "11@" <> addr

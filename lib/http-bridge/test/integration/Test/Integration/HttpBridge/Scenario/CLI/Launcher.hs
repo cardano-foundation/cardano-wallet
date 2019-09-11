@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
@@ -9,6 +10,8 @@ module Test.Integration.HttpBridge.Scenario.CLI.Launcher
 
 import Prelude
 
+import Cardano.CLI
+    ( Port (..) )
 import Cardano.Wallet.Api.Types
     ( ApiWallet )
 import Cardano.Wallet.Primitive.Types
@@ -130,7 +133,7 @@ spec = do
                 \prevents ongoing work to be integrated. So, disabling this \
                 \while investigating the origin of the problem. \
                 \See also: https://travis-ci.org/input-output-hk/cardano-wallet/jobs/565974586"
-            port <- findPort -- Arbitrary but known.
+            port <- Port @"wallet" <$> findPort -- Arbitrary but known.
             let baseUrl = "http://localhost:" <> toText port <> "/"
             ctx <- (port,) . (baseUrl,) <$> newManager defaultManagerSettings
             let args = ["launch", "--port", show port, "--state-dir", d]

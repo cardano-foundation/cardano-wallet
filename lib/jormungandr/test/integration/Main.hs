@@ -22,6 +22,8 @@ import Cardano.BM.Setup
     ( setupTrace )
 import Cardano.BM.Trace
     ( Trace, appendName )
+import Cardano.CLI
+    ( Port (..) )
 import Cardano.Faucet
     ( block0H, initFaucet )
 import Cardano.Launcher
@@ -37,7 +39,7 @@ import Cardano.Wallet.Jormungandr.Compatibility
 import Cardano.Wallet.Jormungandr.Launch
     ( launchJormungandr )
 import Cardano.Wallet.Jormungandr.Network
-    ( BaseUrl (..), JormungandrLayer (..), baseUrlToText, mkJormungandrLayer )
+    ( BaseUrl (..), JormungandrLayer (..), mkJormungandrLayer )
 import Cardano.Wallet.Network
     ( NetworkLayer (..), defaultRetryPolicy, waitForConnection )
 import Cardano.Wallet.Primitive.Fee
@@ -128,7 +130,7 @@ main = hspec $ do
         describe "Ports CLI (default) tests [SERIAL]" $ do
             PortCLI.specCommon @t
             PortCLI.specWithDefaultPort @t
-    let explicitPort = Just $ ListenOnPort defaultPort
+    let explicitPort = Just $ ListenOnPort (getPort defaultPort)
     beforeAll (start explicitPort) $ afterAll _cleanup $ after tearDown $ do
         describe "Ports CLI (explicit) tests [SERIAL]" $ do
             PortCLI.specCommon @t
@@ -141,9 +143,9 @@ main = hspec $ do
     start :: Maybe Listen -> IO (Context (Jormungandr 'Testnet))
     start listen = do
         logs <- openFile "/tmp/jormungandr" WriteMode -- fixme: non-portable
-        (handle, jormungandrUrl) <- launchJormungandr (UseHandle logs)
-        (handle', port, feePolicy, db) <- cardanoWalletServer jormungandrUrl listen
-        let baseUrl = "http://localhost:" <> T.pack (show port) <> "/"
+        (handle, jUrl, jPort) <- launchJormungandr (UseHandle logs)
+        (handle', wPort, feePolicy, db) <- cardanoWalletServer jUrl listen
+        let baseUrl = "http://localhost:" <> T.pack (show wPort) <> "/"
         manager <- (baseUrl,) <$> newManager defaultManagerSettings
         faucet <- initFaucet
         let estimator = mkFeeEstimator feePolicy
@@ -153,8 +155,7 @@ main = hspec $ do
                 hClose logs
                 Sqlite.destroyDBLayer db
                 threadDelay oneSecond
-        let jmUrl = baseUrlToText jormungandrUrl
-        return $ Context cleanup manager port jmUrl faucet estimator Proxy
+        return $ Context cleanup manager wPort jPort faucet estimator Proxy
 
 -- | Initialize logging at the specified minimum 'Severity' level.
 initTracer :: Severity -> Text -> IO (Trace IO Text)
@@ -170,7 +171,7 @@ cardanoWalletServer
     :: forall network. (network ~ Jormungandr 'Testnet)
     => BaseUrl
     -> Maybe Listen
-    -> IO (Async (), Int, FeePolicy, SqliteContext)
+    -> IO (Async (), Port "wallet", FeePolicy, SqliteContext)
 cardanoWalletServer jormungandrUrl mlisten = do
     logConfig <- CM.empty
     tracer <- initTracer Info "serve"
@@ -180,10 +181,10 @@ cardanoWalletServer jormungandrUrl mlisten = do
     handle <- async $ do
         let tl = Jormungandr.newTransactionLayer block0H
         wallet <- newWalletLayer tracer bp db nl tl
-        let listen = fromMaybe (ListenOnPort defaultPort) mlisten
+        let listen = fromMaybe (ListenOnPort $ getPort defaultPort) mlisten
         Server.withListeningSocket listen $ \(port, socket) -> do
             let settings = Warp.defaultSettings
-                    & setBeforeMainLoop (putMVar mvar port)
+                    & setBeforeMainLoop (putMVar mvar (Port port))
             Server.start settings tracer socket wallet
     (handle, , getFeePolicy bp, sqlCtx) <$> takeMVar mvar
 
@@ -229,5 +230,5 @@ oneSecond :: Int
 oneSecond = 1000000
 
 -- | Default port for the wallet server
-defaultPort :: Int
-defaultPort = 8090
+defaultPort :: Port "wallet"
+defaultPort = Port 8090

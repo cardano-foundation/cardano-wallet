@@ -15,6 +15,8 @@ import Prelude
 
 import Cardano.BM.Trace
     ( nullTracer )
+import Cardano.CLI
+    ( Port (..) )
 import Cardano.Faucet
     ( initFaucet )
 import Cardano.Launcher
@@ -131,7 +133,7 @@ main = do
                 $ describe "with default port" $ do
                     PortCLI.specCommon @t
                     PortCLI.specWithDefaultPort @t
-            (findPort >>= cardanoWalletServer (Just $ ListenOnPort defaultPort))
+            (findPort >>= cardanoWalletServer (Just $ ListenOnPort $ getPort defaultPort))
                 & beforeAll
                 $ afterAll killServer
                 $ describe "with specified port" $ do
@@ -158,8 +160,8 @@ main = do
     oneSecond :: Int
     oneSecond = 1 * 1000 * 1000 -- 1 second in microseconds
 
-    defaultPort :: Int
-    defaultPort = 8090
+    defaultPort :: Port "wallet"
+    defaultPort = Port 8090
 
     wait :: String -> IO () -> IO ()
     wait component action = do
@@ -209,9 +211,10 @@ main = do
         link cluster
         wait "cardano-node-simple" (waitForCluster nodeApiAddress)
         wait "cardano-http-bridge" (threadDelay oneSecond)
-        (_, port, db, nl) <- cardanoWalletServer (Just ListenOnRandomPort) bridgePort
+        (_, walletPort, db, nl) <-
+            cardanoWalletServer (Just ListenOnRandomPort) bridgePort
         wait "cardano-wallet" (threadDelay oneSecond)
-        let baseURL = mkBaseUrl port
+        let baseURL = mkBaseUrl (getPort walletPort)
         manager <- (baseURL,) <$> newManager defaultManagerSettings
         faucet <- putStrLn "Creating money out of thin air..." *> initFaucet nl
         let estimator = mkFeeEstimator byronFeePolicy
@@ -219,7 +222,7 @@ main = do
                 cancel cluster
                 hClose handle
                 Sqlite.destroyDBLayer db
-        return $ Context cleanup manager port (T.pack $ show bridgePort) faucet
+        return $ Context cleanup manager walletPort (Port bridgePort) faucet
             estimator Proxy
 
     killServer :: (HasType ThreadId s, HasType SqliteContext s) => s -> IO ()
@@ -265,7 +268,7 @@ main = do
         :: (network ~ HttpBridge 'Testnet)
         => Maybe Listen
         -> Int
-        -> IO (ThreadId, Int, SqliteContext, NetworkLayer network IO)
+        -> IO (ThreadId, Port "wallet", SqliteContext, NetworkLayer network IO)
     cardanoWalletServer mlisten bridgePort = do
         nl <- HttpBridge.newNetworkLayer bridgePort
         logConfig <- CM.empty
@@ -275,10 +278,10 @@ main = do
             let tl = HttpBridge.newTransactionLayer
             let bp = byronBlockchainParameters
             wallet <- newWalletLayer nullTracer bp db nl tl
-            let listen = fromMaybe (ListenOnPort defaultPort) mlisten
+            let listen = fromMaybe (ListenOnPort $ getPort defaultPort) mlisten
             Server.withListeningSocket listen $ \(port, socket) -> do
                 let settings = Warp.defaultSettings
-                        & setBeforeMainLoop (putMVar mvar port)
+                        & setBeforeMainLoop (putMVar mvar (Port port))
                 Server.start settings nullTracer socket wallet
         (thread,,ctx,nl) <$> takeMVar mvar
 
