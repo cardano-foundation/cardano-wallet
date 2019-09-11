@@ -419,6 +419,9 @@ defaultManagerSettings :: ManagerSettings
 data Scheme
 Http :: Scheme
 Https :: Scheme
+
+-- | Format an API <a>BaseUrl</a>, for logging, etc.
+baseUrlToText :: BaseUrl -> Text
 instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Network.ErrGetBlockchainParams
 instance GHC.Show.Show Cardano.Wallet.Jormungandr.Network.ErrGetBlockchainParams
 instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Network.ErrGetDescendants

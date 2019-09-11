@@ -152,10 +152,10 @@ waitForService :: Service -> (Switchboard Text, Trace IO Text) -> Port "Node" ->
 instance GHC.Show.Show Cardano.CLI.Verbosity
 instance GHC.Classes.Eq Cardano.CLI.Verbosity
 instance Data.String.IsString Cardano.CLI.Service
+instance GHC.Show.Show (Cardano.CLI.Port tag)
 instance GHC.Classes.Ord (Cardano.CLI.Port tag)
 instance GHC.Enum.Enum (Cardano.CLI.Port tag)
 instance GHC.Generics.Generic (Cardano.CLI.Port tag)
-instance GHC.Show.Show (Cardano.CLI.Port tag)
 instance GHC.Classes.Eq (Cardano.CLI.Port tag)
 instance GHC.Show.Show Cardano.CLI.MnemonicSize
 instance GHC.Generics.Generic Cardano.CLI.MnemonicSize

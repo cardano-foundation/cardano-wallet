@@ -53,7 +53,7 @@ HttpException :: HttpExceptionContent -> RequestException
 
 -- | Running Context for our integration test
 data Context t
-Context :: IO () -> (Text, Manager) -> Port -> Faucet -> (TxDescription -> (Natural, Natural)) -> Proxy t -> Context t
+Context :: IO () -> (Text, Manager) -> Port "wallet" -> Port "node" -> Faucet -> (TxDescription -> (Natural, Natural)) -> Proxy t -> Context t
 
 -- | An action to clean up open processes after tests
 [_cleanup] :: Context t -> IO ()
@@ -62,7 +62,10 @@ Context :: IO () -> (Text, Manager) -> Port -> Faucet -> (TxDescription -> (Natu
 [_manager] :: Context t -> (Text, Manager)
 
 -- | Server TCP port
-[_port] :: Context t -> Port
+[_walletPort] :: Context t -> Port "wallet"
+
+-- | Jormungandr REST API port
+[_nodePort] :: Context t -> Port "node"
 
 -- | A <a>Faucet</a> handle in to have access to funded wallets in
 --   integration tests.
@@ -88,7 +91,7 @@ module Test.Integration.Framework.DSL
 
 -- | Running Context for our integration test
 data Context t
-Context :: IO () -> (Text, Manager) -> Port -> Faucet -> (TxDescription -> (Natural, Natural)) -> Proxy t -> Context t
+Context :: IO () -> (Text, Manager) -> Port "wallet" -> Port "node" -> Faucet -> (TxDescription -> (Natural, Natural)) -> Proxy t -> Context t
 
 -- | An action to clean up open processes after tests
 [_cleanup] :: Context t -> IO ()
@@ -97,7 +100,10 @@ Context :: IO () -> (Text, Manager) -> Port -> Faucet -> (TxDescription -> (Natu
 [_manager] :: Context t -> (Text, Manager)
 
 -- | Server TCP port
-[_port] :: Context t -> Port
+[_walletPort] :: Context t -> Port "wallet"
+
+-- | Jormungandr REST API port
+[_nodePort] :: Context t -> Port "node"
 
 -- | A <a>Faucet</a> handle in to have access to funded wallets in
 --   integration tests.
@@ -259,7 +265,7 @@ faucetUtxoAmt :: Natural
 proc' :: FilePath -> [String] -> CreateProcess
 
 -- | Wait for a booting wallet server to start. Wait up to 30s or fail.
-waitForServer :: forall t ctx. (HasType Port ctx, KnownCommand t) => ctx -> IO ()
+waitForServer :: forall t ctx. (HasType (Port "wallet") ctx, KnownCommand t) => ctx -> IO ()
 
 -- | Collect lines from standard output and error streams for 30 seconds,
 --   or, until a given limit is for both streams.
@@ -277,7 +283,7 @@ toQueryString :: [(Text, Text)] -> Text
 utcIso8601ToText :: UTCTime -> Text
 
 -- | Prepare externally signed Tx for Jormungandr
-prepExternalTxViaJcli :: Text -> Natural -> IO Text
+prepExternalTxViaJcli :: Port "node" -> Text -> Natural -> IO Text
 getWalletEp :: ApiWallet -> (Method, Text)
 deleteWalletEp :: ApiWallet -> (Method, Text)
 getWalletUtxoEp :: ApiWallet -> (Method, Text)
@@ -295,18 +301,18 @@ command :: CmdResult r => [CmdOption] -> String -> [String] -> IO r
 --   commands!
 cardanoWalletCLI :: forall t r. (CmdResult r, KnownCommand t) => [String] -> IO r
 generateMnemonicsViaCLI :: forall t r. (CmdResult r, KnownCommand t) => [String] -> IO r
-createWalletViaCLI :: forall t s. (HasType Port s, KnownCommand t) => s -> [String] -> String -> String -> String -> IO (ExitCode, String, Text)
-deleteWalletViaCLI :: forall t r s. (CmdResult r, KnownCommand t, HasType Port s) => s -> String -> IO r
-getWalletUtxoStatisticsViaCLI :: forall t r s. (CmdResult r, KnownCommand t, HasType Port s) => s -> String -> IO r
-getWalletViaCLI :: forall t r s. (CmdResult r, KnownCommand t, HasType Port s) => s -> String -> IO r
-listAddressesViaCLI :: forall t r s. (CmdResult r, KnownCommand t, HasType Port s) => s -> [String] -> IO r
-listWalletsViaCLI :: forall t r s. (CmdResult r, KnownCommand t, HasType Port s) => s -> IO r
-updateWalletNameViaCLI :: forall t r s. (CmdResult r, KnownCommand t, HasType Port s) => s -> [String] -> IO r
-updateWalletPassphraseViaCLI :: forall t s. (KnownCommand t, HasType Port s) => s -> String -> String -> String -> String -> IO (ExitCode, Text, Text)
-postTransactionViaCLI :: forall t s. (HasType Port s, KnownCommand t) => s -> String -> [String] -> IO (ExitCode, String, Text)
-postTransactionFeeViaCLI :: forall t s. (HasType Port s, KnownCommand t) => s -> [String] -> IO (ExitCode, String, Text)
-listTransactionsViaCLI :: forall t r s. (CmdResult r, HasType Port s, KnownCommand t) => s -> [String] -> IO r
-postExternalTransactionViaCLI :: forall t r s. (CmdResult r, HasType Port s, KnownCommand t) => s -> [String] -> IO r
+createWalletViaCLI :: forall t s. (HasType (Port "wallet") s, KnownCommand t) => s -> [String] -> String -> String -> String -> IO (ExitCode, String, Text)
+deleteWalletViaCLI :: forall t r s. (CmdResult r, KnownCommand t, HasType (Port "wallet") s) => s -> String -> IO r
+getWalletUtxoStatisticsViaCLI :: forall t r s. (CmdResult r, KnownCommand t, HasType (Port "wallet") s) => s -> String -> IO r
+getWalletViaCLI :: forall t r s. (CmdResult r, KnownCommand t, HasType (Port "wallet") s) => s -> String -> IO r
+listAddressesViaCLI :: forall t r s. (CmdResult r, KnownCommand t, HasType (Port "wallet") s) => s -> [String] -> IO r
+listWalletsViaCLI :: forall t r s. (CmdResult r, KnownCommand t, HasType (Port "wallet") s) => s -> IO r
+updateWalletNameViaCLI :: forall t r s. (CmdResult r, KnownCommand t, HasType (Port "wallet") s) => s -> [String] -> IO r
+updateWalletPassphraseViaCLI :: forall t s. (KnownCommand t, HasType (Port "wallet") s) => s -> String -> String -> String -> String -> IO (ExitCode, Text, Text)
+postTransactionViaCLI :: forall t s. (HasType (Port "wallet") s, KnownCommand t) => s -> String -> [String] -> IO (ExitCode, String, Text)
+postTransactionFeeViaCLI :: forall t s. (HasType (Port "wallet") s, KnownCommand t) => s -> [String] -> IO (ExitCode, String, Text)
+listTransactionsViaCLI :: forall t r s. (CmdResult r, HasType (Port "wallet") s, KnownCommand t) => s -> [String] -> IO r
+postExternalTransactionViaCLI :: forall t r s. (CmdResult r, HasType (Port "wallet") s, KnownCommand t) => s -> [String] -> IO r
 
 module Test.Integration.Framework.TestData
 chineseMnemonics9 :: [Text]
@@ -382,9 +388,9 @@ spec :: forall t. KnownCommand t => SpecWith ()
 
 module Test.Integration.Scenario.CLI.Port
 specNegative :: forall t. KnownCommand t => SpecWith ()
-specCommon :: forall t s. (HasType Port s, KnownCommand t) => SpecWith s
-specWithDefaultPort :: forall t s. (HasType Port s, KnownCommand t) => SpecWith s
-specWithRandomPort :: forall t s. (HasType Port s, KnownCommand t) => Port -> SpecWith s
+specCommon :: forall t s. (HasType (Port "wallet") s, KnownCommand t) => SpecWith s
+specWithDefaultPort :: forall t s. (HasType (Port "wallet") s, KnownCommand t) => SpecWith s
+specWithRandomPort :: forall t s. (HasType (Port "wallet") s, KnownCommand t) => Port "wallet" -> SpecWith s
 
 module Test.Integration.Scenario.CLI.Transactions
 spec :: forall t. (EncodeAddress t, DecodeAddress t, KnownCommand t) => SpecWith (Context t)
