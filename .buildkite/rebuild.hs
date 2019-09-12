@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -22,6 +23,8 @@ import Prelude hiding
     ( FilePath )
 
 import Options.Applicative
+import Turtle hiding
+    ( arg, match, opt, option, skip )
 
 import Control.Concurrent.Async
     ( race )
@@ -47,8 +50,6 @@ import Safe
     ( headMay, readMay )
 import System.Exit
     ( exitWith )
-import Turtle hiding
-    ( opt, option )
 
 import qualified Control.Foldl as Fold
 import qualified Data.Text as T
@@ -65,9 +66,8 @@ main = do
             doMaybe (setupBuildDirectory optDryRun) optBuildDirectory
             whenRun optDryRun $ cacheGetStep cacheConfig
             buildResult <- buildStep optDryRun bk
+            when (shouldUploadCoverage bk) $ uploadCoverageStep optDryRun
             whenRun optDryRun $ cachePutStep cacheConfig
-            when (shouldUploadCoverage bk) $
-                uploadCoverageStep optDryRun
             void $ weederStep optDryRun
             exitWith buildResult
         CleanupCache ->
@@ -75,7 +75,7 @@ main = do
         PurgeCache ->
             purgeCacheStep optDryRun cacheConfig optBuildDirectory
 
-data BuildOpt = Opt | Fast deriving (Show, Eq)
+data BuildOpt = Standard | Fast deriving (Show, Eq)
 
 data RebuildOpts = RebuildOpts
     { optBuildDirectory :: Maybe FilePath
@@ -88,6 +88,8 @@ data Command = Build | CleanupCache | PurgeCache deriving (Show)
 data DryRun = Run | DryRun deriving (Show, Eq)
 
 data QA = QuickTest | FullTest deriving (Show, Eq)
+
+data Jobs = Serial | Parallel deriving (Show, Eq)
 
 rebuildOpts :: Parser RebuildOpts
 rebuildOpts = RebuildOpts
@@ -129,48 +131,53 @@ parseOpts = execParser opts
 
 buildStep :: DryRun -> Maybe BuildkiteEnv -> IO ExitCode
 buildStep dryRun bk =
-    echo "--- Build LTS Snapshot" *> buildSnapshot .&&.
-    echo "--- Build dependencies" *> buildDeps .&&.
-    echo "+++ Build" *> build .&&.
-    echo "+++ Test" *> timeout 30 test
+    echo "--- Build LTS Snapshot"
+        *> build Standard ["--only-snapshot"]  .&&.
+    echo "--- Build dependencies"
+        *> build Standard ["--only-dependencies"] .&&.
+    echo "+++ Build"
+        *> build Fast ["--test", "--no-run-tests"] .&&.
+    echo "+++ Test"
+        *> timeout 30 (test Fast Serial .&&. test Fast Parallel)
   where
-    cfg = ["--color", "always"]
-    buildArgs =
-        [ "--bench"
-        , "--no-run-benchmarks"
-        , "--haddock"
-        , "--haddock-internal"
-        , "--no-haddock-deps"
-        , "--coverage"
-        ]
-    taArg = maybe [] (\ta -> ["--ta", T.unwords ta])
-    skipArg component = ["--skip", component]
+    build opt args =
+        run dryRun "stack" $ concat
+            [ color "always"
+            , [ "build" ]
+            , [ "--bench" ]
+            , [ "--no-run-benchmarks" ]
+            , [ "--haddock" ]
+            , [ "--haddock-internal" ]
+            , [ "--no-haddock-deps" ]
+            , [ "--coverage" ]
+            , fast opt
+            , args
+            ]
 
-    stackBuild opt testArgs args = run dryRun "stack" $
-        concat [cfg, ["build"], fastOpt opt, taArg testArgs, args]
-    buildSnapshot = stackBuild Opt Nothing $ buildArgs ++ ["--only-snapshot"]
-    buildDeps = stackBuild Opt Nothing $ buildArgs ++ ["--only-dependencies"]
-    build = stackBuild Fast Nothing $ ["--test", "--no-run-tests"] ++ buildArgs
-    test =
-        let
-            args = "--test" : concatMap skipArg skipComponents
-            skipComponents = case qaLevel bk of
-                QuickTest -> [ "integration" ]
+    test opt behavior =
+        run dryRun "stack" $ concat
+            [ color "always"
+            , [ "test" ]
+            , [ "--coverage" ]
+            , fast opt
+            , case qaLevel bk of
+                QuickTest -> skip "integration"
                 FullTest -> []
-        in
-            -- NOTE
-            -- stack erases coverage artifacts (.tix files) between runs. So, we
-            -- can't really preserve coverage for both serial and parallel tests.
-            -- We run the parallel ones last because they contain most of our
-            -- scenarios.
-            stackBuild Fast (Just ["--match", serialTests, "--jobs", "1"])
-                (args ++ ["--jobs", "1"])
-            .&&.
-            stackBuild Fast (Just ["--skip", serialTests]) args
-    serialTests = "SERIAL"
+            , case behavior of
+                Serial ->
+                    ta (match serialTests ++ jobs 1) ++ jobs 1
+                Parallel ->
+                    ta (skip serialTests)
+            ]
 
-    fastOpt Opt = []
-    fastOpt Fast = ["--fast"]
+    color arg = ["--color", arg]
+    fast  arg = case arg of Standard -> []; Fast -> ["--fast"]
+    jobs  arg = ["--jobs", T.pack (show @Int arg)]
+    skip  arg = ["--skip", arg]
+    match arg = ["--match", arg]
+    ta    arg = ["--ta", T.unwords arg]
+
+    serialTests = "SERIAL"
 
 -- Stack with caching needs a build directory that is the same across
 -- all BuildKite agents. The build directory option can be used to
@@ -226,10 +233,10 @@ isBorsBuild bk = "bors/" `T.isPrefixOf` bkBranch bk
 
 -- | How much time to spend executing tests.
 qaLevel :: Maybe BuildkiteEnv -> QA
-qaLevel = maybe FullTest level
+qaLevel = maybe QuickTest level
   where
     level bk
-        | isBorsBuild bk || onDefaultBranch bk = FullTest
+        | isBorsBuild bk || onDefaultBranch bk = QuickTest
         | otherwise = QuickTest
 
 -- | Whether to upload test coverage information to coveralls.io.
@@ -506,7 +513,7 @@ logCommand cmd args = printf (s % " " % s % "\n") cmd args'
 
 -- | Runs an action when not in --dry-run mode.
 whenRun :: Applicative m => DryRun -> m a -> m ()
-whenRun d = whenRun' d () . void
+whenRun dry = whenRun' dry () . void
 
 -- | Runs an action when not in --dry-run mode, with alternative return value.
 whenRun' :: Applicative m => DryRun -> a -> m a -> m a
