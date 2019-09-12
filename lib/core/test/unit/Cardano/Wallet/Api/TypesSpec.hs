@@ -58,7 +58,6 @@ import Cardano.Wallet.Primitive.Mnemonic
     , MnemonicException (..)
     , ValidChecksumSize
     , ValidEntropySize
-    , ambiguousNatVal
     , entropyToBytes
     , entropyToMnemonic
     , mkEntropy
@@ -106,6 +105,8 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
     ( isJust )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Quantity
     ( Percentage, Quantity (..) )
 import Data.Swagger
@@ -135,7 +136,7 @@ import Data.Typeable
 import Data.Word
     ( Word8 )
 import GHC.TypeLits
-    ( KnownSymbol, symbolVal )
+    ( KnownSymbol, natVal, symbolVal )
 import Numeric.Natural
     ( Natural )
 import Servant
@@ -676,7 +677,7 @@ instance
     ) => Arbitrary (Entropy n) where
     arbitrary =
         let
-            size = fromIntegral $ ambiguousNatVal @n
+            size = fromIntegral $ natVal @n Proxy
             entropy =
                 mkEntropy  @n . B8.pack <$> vectorOf (size `quot` 8) arbitrary
         in

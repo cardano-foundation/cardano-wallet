@@ -32,12 +32,12 @@
 module Cardano.Wallet.Primitive.AddressDerivation
     (
     -- * Polymorphic / General Purpose Types
-    -- $use
       Depth (..)
     , Index (..)
     , DerivationType (..)
     , XPub
     , XPrv
+
     -- * Backends Interoperability
     , KeyToAddress(..)
     , WalletKey(..)
