@@ -38,18 +38,54 @@ instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.DaedalusIPC.MsgIn
 
 -- | This module provides mnemonic (backup phrase) creation, and conversion
 --   of a mnemonic to seed for wallet restoration.
+--   
+--   The module uses a lot of type-level machinery to ensure that entropy
+--   and mnemonic sizes are all compatible and legit. Therefore, it isn't
+--   possible to generate an invalid seed by using the smart constructors
+--   below, and trying to generate an entropy of an invalid size will
+--   result in a runtime error.
 module Cardano.Wallet.Primitive.Mnemonic
 
 -- | A backup-phrase in the form of a non-empty of Mnemonic words
 --   Constructor isn't exposed.
 data Mnemonic (mw :: Nat)
 data Entropy (n :: Nat)
-type family EntropySize (n :: Nat) :: Nat
-type family MnemonicWords (n :: Nat) :: Nat
-type ValidEntropySize (n :: Nat) = (KnownNat n, NatWithinBound Int n, Elem n 96 : 128 : 160 : 192 : 224 : 256 : ([] :: [Nat]))
-type ValidChecksumSize (ent :: Nat) (csz :: Nat) = (KnownNat csz, NatWithinBound Int csz, Elem csz 3 : 4 : 5 : 6 : 7 : 8 : ([] :: [Nat]), CheckSumBits ent ~ csz)
-type ConsistentEntropy (ent :: Nat) (mw :: Nat) (csz :: Nat) = (ValidEntropySize ent, ValidChecksumSize ent csz, ValidMnemonicSentence mw, MnemonicWords ent ~ mw)
-type family CheckSumBits (n :: Nat) :: Nat
+
+-- | Smart-constructor for the Entropy
+--   
+--   <pre>
+--   &gt;&gt;&gt; mkEntropy @(EntropySize 15) bytes
+--   Entropy {} :: Entropy 160
+--   </pre>
+mkEntropy :: forall ent csz. (ValidEntropySize ent, ValidChecksumSize ent csz) => ByteString -> Either (EntropyError csz) (Entropy ent)
+
+-- | Smart-constructor for <a>Mnemonic</a>. Requires a type application to
+--   disambiguate the mnemonic size:
+--   
+--   <pre>
+--   &gt;&gt;&gt; mkMnemonic @15 sentence
+--   Mnemonic {} :: Mnemonic 15
+--   </pre>
+--   
+--   See also <a>FromMnemonic</a> to build a <a>Mnemonic</a> from lists of
+--   words of variable sizes.
+--   
+--   <b>Property</b>:
+--   
+--   <pre>
+--   mkMnemonic (mnemonicToText mnemonic) == Right mnemonic
+--   </pre>
+mkMnemonic :: forall mw ent csz. (ConsistentEntropy ent mw csz, EntropySize mw ~ ent) => [Text] -> Either (MnemonicError csz) (Mnemonic mw)
+
+-- | Generate Entropy of a given size using a random seed.
+--   
+--   Example:
+--   
+--   <pre>
+--   &gt;&gt;&gt; genEntropy @(EntropySize 12)
+--   Entropy {} :: Entropy 128
+--   </pre>
+genEntropy :: forall ent csz. (ValidEntropySize ent, ValidChecksumSize ent csz) => IO (Entropy ent)
 
 -- | This wraps errors from <a>Cardano.Encoding.BIP39</a>
 data MnemonicError csz
@@ -68,6 +104,18 @@ newtype MnemonicException csz
 
 -- | Invalid entropy length or checksum
 UnexpectedEntropyError :: EntropyError csz -> MnemonicException csz
+mnemonicToEntropy :: Mnemonic mw -> Entropy (EntropySize mw)
+
+-- | Convert an Entropy to a corresponding Mnemonic Sentence. Since
+--   <a>Entropy</a> and <a>Mnemonic</a> can only be created through
+--   smart-constructors, this function cannot fail and is total.
+entropyToMnemonic :: forall mw ent csz. (ValidMnemonicSentence mw, ValidEntropySize ent, ValidChecksumSize ent csz, ent ~ EntropySize mw, mw ~ MnemonicWords ent) => Entropy ent -> Mnemonic mw
+
+-- | Convert <a>Entropy</a> to a plain bytes.
+entropyToBytes :: Entropy n -> ScrubbedBytes
+
+-- | Convert a <a>Mnemonic</a> to a sentence of English mnemonic words.
+mnemonicToText :: Mnemonic mw -> [Text]
 data EntropyError (csz :: Nat)
 ErrInvalidEntropyLength :: Int -> Int -> EntropyError
 ErrInvalidEntropyChecksum :: Checksum csz -> Checksum csz -> EntropyError
@@ -75,26 +123,12 @@ data DictionaryError
 ErrInvalidDictionaryWord :: String -> DictionaryError
 data MnemonicWordsError
 ErrWrongNumberOfWords :: Int -> Int -> MnemonicWordsError
-
--- | Smart-constructor for the Entropy
-mkEntropy :: forall n csz. (ValidEntropySize n, ValidChecksumSize n csz) => ByteString -> Either (EntropyError csz) (Entropy n)
-
--- | Smart-constructor for the Mnemonic
-mkMnemonic :: forall mw n csz. (ConsistentEntropy n mw csz, EntropySize mw ~ n) => [Text] -> Either (MnemonicError csz) (Mnemonic mw)
-
--- | Generate Entropy of a given size using a random seed.
---   
---   Example: do ent &lt;- genEntropy :: IO (Entropy 12)
-genEntropy :: forall n csz. (ValidEntropySize n, ValidChecksumSize n csz) => IO (Entropy n)
-mnemonicToEntropy :: Mnemonic mw -> Entropy (EntropySize mw)
-
--- | Convert an Entropy to a corresponding Mnemonic Sentence
-entropyToMnemonic :: forall mw n csz. (ValidMnemonicSentence mw, ValidEntropySize n, ValidChecksumSize n csz, n ~ EntropySize mw, mw ~ MnemonicWords n) => Entropy n -> Mnemonic mw
-
--- | Convert <a>Entropy</a> to a raw <a>ByteString</a>
-entropyToBytes :: Entropy n -> ScrubbedBytes
-ambiguousNatVal :: forall n. KnownNat n => Integer
-mnemonicToText :: Mnemonic mw -> [Text]
+type ValidEntropySize (n :: Nat) = (KnownNat n, NatWithinBound Int n, Elem n 96 : 128 : 160 : 192 : 224 : 256 : ([] :: [Nat]))
+type ValidChecksumSize (ent :: Nat) (csz :: Nat) = (KnownNat csz, NatWithinBound Int csz, Elem csz 3 : 4 : 5 : 6 : 7 : 8 : ([] :: [Nat]), CheckSumBits ent ~ csz)
+type ConsistentEntropy (ent :: Nat) (mw :: Nat) (csz :: Nat) = (ValidEntropySize ent, ValidChecksumSize ent csz, ValidMnemonicSentence mw, MnemonicWords ent ~ mw)
+type family CheckSumBits (n :: Nat) :: Nat
+type family EntropySize (n :: Nat) :: Nat
+type family MnemonicWords (n :: Nat) :: Nat
 instance GHC.Show.Show (Cardano.Wallet.Primitive.Mnemonic.MnemonicError csz)
 instance GHC.Classes.Eq (Cardano.Wallet.Primitive.Mnemonic.MnemonicError csz)
 instance GHC.Show.Show (Cardano.Wallet.Primitive.Mnemonic.MnemonicException csz)
