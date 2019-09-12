@@ -145,6 +145,7 @@ import Database.Persist.Sql
     , selectFirst
     , selectKeysList
     , selectList
+    , update
     , updateWhere
     , (!=.)
     , (<-.)
@@ -769,12 +770,34 @@ selectLatestCheckpoint wid = fmap entityVal <$>
 selectUTxO
     :: Checkpoint
     -> SqlPersistT IO [UTxO]
-selectUTxO (Checkpoint wid sl _parent _bh) = fmap entityVal <$>
+selectUTxO (Checkpoint wid _ _parent _bh) = fmap entityVal <$>
     selectList
         [ UtxoWalletId ==. wid
-        , UtxoSlot ==. sl
-        , UtxoSlotSpent !=. Nothing
+        , UtxoSlotSpent ==. Nothing
         ] []
+
+_updateUTxOs
+    :: W.WalletId
+    -> SqlPersistT IO ()
+_updateUTxOs wid = do
+    utxos <- selectList [ UtxoWalletId ==. wid
+                        , UtxoSlotSpent !=. Nothing
+                        ] []
+    mapM_ updateUTxO utxos
+
+updateUTxO ::
+    Entity UTxO -> SqlPersistT IO ()
+updateUTxO utxo = do
+    let (UTxO walId slot _ inpId inpIx outAddr outAmt) = entityVal utxo
+    let utxoId = entityKey utxo
+    update utxoId [ UtxoWalletId =. walId
+                  , UtxoSlot =. slot
+                  , UtxoSlotSpent =. Nothing
+                  , UtxoInputId =. inpId
+                  , UtxoInputIndex =. inpIx
+                  , UtxoOutputAddress =. outAddr
+                  , UtxoOutputCoin =. outAmt
+                  ]
 
 selectTxs
     :: [TxId]
