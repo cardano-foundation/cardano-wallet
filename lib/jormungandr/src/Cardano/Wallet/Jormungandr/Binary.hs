@@ -195,7 +195,7 @@ getBlockHeader = label "getBlockHeader" $
         case remaining of
             0 -> skip remaining -- no proof
             96 -> skip remaining -- BFT
-            616 -> skip remaining -- Praos/Genesis
+            612 -> skip remaining -- Praos/Genesis
             _ -> fail $ "BlockHeader proof has unexpected size " <> (show remaining)
         return $ BlockHeader
             { version
