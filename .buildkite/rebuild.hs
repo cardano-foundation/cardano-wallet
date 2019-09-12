@@ -133,7 +133,7 @@ buildStep dryRun bk =
     echo "+++ Build" *> build .&&.
     echo "+++ Test" *> timeout 30 test
   where
-    cfg = ["--dump-logs", "--color", "always"]
+    cfg = ["--color", "always"]
     buildArgs =
         [ "--bench"
         , "--no-run-benchmarks"
