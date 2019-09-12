@@ -239,6 +239,13 @@ spec = do
                     []
             unsafeDecodeHex getBlock bytes `shouldBe` block
 
+        it "should decode a non-genesis Praos/Genesis block" $ do
+            let dir = "test/data/Cardano/Wallet/Jormungandr/BinarySpec"
+            bs <- BL.readFile (dir ++ "/genesis-praos-block.bin")
+            res <- try' (runGet getBlock bs)
+            res `shouldSatisfy` isRight
+            return ()
+
         it "should decode an account address golden" $ do
             -- This address was manually retrieved from a jcli-created genesis
             -- block.
