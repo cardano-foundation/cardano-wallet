@@ -236,13 +236,13 @@ qaLevel :: Maybe BuildkiteEnv -> QA
 qaLevel = maybe QuickTest level
   where
     level bk
-        | isBorsBuild bk || onDefaultBranch bk = QuickTest
+        | isBorsBuild bk = FullTest
+        | onDefaultBranch bk = QuickTest
         | otherwise = QuickTest
 
 -- | Whether to upload test coverage information to coveralls.io.
 shouldUploadCoverage :: Maybe BuildkiteEnv -> Bool
 shouldUploadCoverage bk = qaLevel bk == FullTest
-    || (bkBranch <$> bk) == Just "KtorZ/buildkite-coverage" -- just for testing the PR branch
 
 ----------------------------------------------------------------------------
 -- Weeder - uses contents of .stack-work to determine unused dependencies
