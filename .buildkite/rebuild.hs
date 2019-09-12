@@ -3,6 +3,21 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
+-- |
+-- Copyright: © 2018-2019 IOHK
+-- License: Apache-2.0
+--
+-- Script for building cardano-wallet with Stack under Buildkite.
+--
+-- You can almost exactly reproduce the build by copying the commands from
+-- pipeline.yml. Thes will have exact same versions of all build tools, etc.
+--
+-- To see what would be built, without actually running the build,
+-- use the --dry-run option.
+--
+-- To work on this script under GHCi, with Haskell dependencies provided, run:
+--     nix-shell .buildkite --run "ghci .buildkite/rebuild.hs"
+
 import Prelude hiding
     ( FilePath )
 
@@ -22,6 +37,8 @@ import Control.Monad.Trans.Maybe
     ( MaybeT (..) )
 import Data.ByteString
     ( ByteString )
+import Data.Char
+    ( isSpace )
 import Data.List.Extra
     ( dropSuffix )
 import Data.Maybe
@@ -45,31 +62,37 @@ main = do
     cacheConfig <- getCacheConfig bk optCacheDirectory
     case cmd of
         Build -> do
-            doMaybe setupBuildDirectory optBuildDirectory
-            cacheGetStep cacheConfig
-            buildResult <- buildStep
-            cachePutStep cacheConfig
+            doMaybe (setupBuildDirectory optDryRun) optBuildDirectory
+            whenRun optDryRun $ cacheGetStep cacheConfig
+            buildResult <- buildStep optDryRun bk
+            whenRun optDryRun $ cachePutStep cacheConfig
             -- uploadCoverageStep
-            weederStep
+            void $ weederStep optDryRun
             exitWith buildResult
         CleanupCache ->
-            cleanupCacheStep cacheConfig optBuildDirectory
+            cleanupCacheStep optDryRun cacheConfig optBuildDirectory
         PurgeCache ->
-            purgeCacheStep cacheConfig optBuildDirectory
+            purgeCacheStep optDryRun cacheConfig optBuildDirectory
 
 data BuildOpt = Opt | Fast deriving (Show, Eq)
 
 data RebuildOpts = RebuildOpts
     { optBuildDirectory :: Maybe FilePath
     , optCacheDirectory :: Maybe FilePath
+    , optDryRun :: DryRun
     } deriving (Show)
 
 data Command = Build | CleanupCache | PurgeCache deriving (Show)
+
+data DryRun = Run | DryRun deriving (Show, Eq)
+
+data QA = QuickTest | FullTest deriving (Show, Eq)
 
 rebuildOpts :: Parser RebuildOpts
 rebuildOpts = RebuildOpts
     <$> optional buildDir
     <*> optional cacheName
+    <*> dryRun
   where
     buildDir = option
         (FP.decodeString <$> str)
@@ -82,6 +105,10 @@ rebuildOpts = RebuildOpts
         (  long "cache-dir"
         <> metavar "DIR"
         <> help "Location of project's cache"
+        )
+    dryRun = flag Run DryRun
+        (  long "dry-run"
+        <> help "Print what build commands would be run, without executing them"
         )
 
 parseOpts :: IO (RebuildOpts, Command)
@@ -99,14 +126,14 @@ parseOpts = execParser opts
         <> command "purge-cache" (info (pure PurgeCache) idm)
         )
 
-buildStep :: IO ExitCode
-buildStep =
+buildStep :: DryRun -> Maybe BuildkiteEnv -> IO ExitCode
+buildStep dryRun bk =
     echo "--- Build LTS Snapshot" *> buildSnapshot .&&.
     echo "--- Build dependencies" *> buildDeps .&&.
     echo "+++ Build" *> build .&&.
     echo "+++ Test" *> timeout 30 test
   where
-    cfg = ["--dump-logs", "--color", "always"]
+    cfg = ["--color", "always"]
     buildArgs =
         [ "--bench"
         , "--no-run-benchmarks"
@@ -114,17 +141,25 @@ buildStep =
         , "--haddock-internal"
         , "--no-haddock-deps"
         ]
-    testArgs = maybe [] (\ta -> ["--ta", T.unwords ta])
+    taArg = maybe [] (\ta -> ["--ta", T.unwords ta])
+    skipArg component = ["--skip", component]
 
-    stackBuild opt ta args = run "stack" $
-        concat [cfg, ["build"], fastOpt opt, testArgs ta, args]
+    stackBuild opt testArgs args = run dryRun "stack" $
+        concat [cfg, ["build"], fastOpt opt, taArg testArgs, args]
     buildSnapshot = stackBuild Opt Nothing $ buildArgs ++ ["--only-snapshot"]
     buildDeps = stackBuild Opt Nothing $ buildArgs ++ ["--only-dependencies"]
     build = stackBuild Fast Nothing $ ["--test", "--no-run-tests"] ++ buildArgs
     test =
-        stackBuild Fast (Just ["--skip",  serialTests]) ["--test"] .&&.
-        stackBuild Fast (Just ["--match", serialTests, "--jobs", "1"])
-            ["--test", "--jobs", "1"]
+        let
+            args = "--test" : concatMap skipArg skipComponents
+            skipComponents = case qaLevel bk of
+                QuickTest -> [ "integration" ]
+                FullTest -> []
+        in
+            stackBuild Fast (Just ["--skip", serialTests]) args
+            .&&.
+            stackBuild Fast (Just ["--match", serialTests, "--jobs", "1"])
+                (args ++ ["--jobs", "1"])
     serialTests = "SERIAL"
 
     fastOpt Opt = []
@@ -133,13 +168,14 @@ buildStep =
 -- Stack with caching needs a build directory that is the same across
 -- all BuildKite agents. The build directory option can be used to
 -- ensure this is the case.
-setupBuildDirectory :: FilePath -> IO ()
-setupBuildDirectory buildDir = do
-    removeDirectory buildDir
+setupBuildDirectory :: DryRun -> FilePath -> IO ()
+setupBuildDirectory dryRun buildDir = do
+    removeDirectory dryRun buildDir
     src <- pwd
     printf ("Copying source tree "%fp%" -> "%fp%"\n") src buildDir
-    cptree src buildDir
-    cd buildDir
+    whenRun dryRun $ do
+        cptree src buildDir
+        cd buildDir
 
 ----------------------------------------------------------------------------
 -- Buildkite
@@ -173,13 +209,28 @@ getBuildkiteEnv = runMaybeT $ do
     bkTag           <- lift   $ want "BUILDKITE_TAG"
     pure BuildkiteEnv {..}
 
+-- | Whether we are building the repo's default branch.
+onDefaultBranch :: BuildkiteEnv -> Bool
+onDefaultBranch BuildkiteEnv{..} = bkBranch == bkDefaultBranch
+
+-- | Whether we are building for Bors, based on the branch name.
+isBorsBuild :: BuildkiteEnv -> Bool
+isBorsBuild bk = "bors/" `T.isPrefixOf` bkBranch bk
+
+qaLevel :: Maybe BuildkiteEnv -> QA
+qaLevel = maybe FullTest level
+  where
+    level bk
+        | isBorsBuild bk || onDefaultBranch bk = FullTest
+        | otherwise = QuickTest
+
 ----------------------------------------------------------------------------
 -- Weeder - uses contents of .stack-work to determine unused dependencies
 
-weederStep :: IO ()
-weederStep = do
+weederStep :: DryRun -> IO ExitCode
+weederStep dryRun = do
     echo "--- Weeder"
-    procs "weeder" [] empty
+    run dryRun "weeder" []
 
 ----------------------------------------------------------------------------
 -- Stack Haskell Program Coverage and upload to Coveralls
@@ -340,33 +391,33 @@ saveZippedCache ext cfg@CICacheConfig{..} tar = case putCacheName cfg ext of
         du tarfile >>= printf ("wrote "%sz%".\n")
     Nothing -> printf ("Could not determine "%fp%" cache name.\n") ext
 
-cleanupCacheStep :: Either Text CICacheConfig -> Maybe FilePath -> IO ()
-cleanupCacheStep cacheConfig buildDir = do
+cleanupCacheStep :: DryRun -> Either Text CICacheConfig -> Maybe FilePath -> IO ()
+cleanupCacheStep dryRun cacheConfig buildDir = do
     echo "--- Cleaning up CI cache"
     case cacheConfig of
         Right CICacheConfig{..} -> do
-            getBranches >>= cleanupCache ccCacheDir
+            getBranches >>= cleanupCache dryRun ccCacheDir
             -- Remove the stack root left by the previous build.
-            removeDirectory ccStackRoot
+            removeDirectory dryRun ccStackRoot
             -- Remove the build directory left by the previous build.
-            doMaybe removeDirectory buildDir
+            doMaybe (removeDirectory dryRun) buildDir
         Left ex ->
             eprintf ("Not cleaning up CI cache because: "%s%"\n") ex
 
-purgeCacheStep :: Either Text CICacheConfig -> Maybe FilePath -> IO ()
-purgeCacheStep cacheConfig buildDir = do
+purgeCacheStep :: DryRun -> Either Text CICacheConfig -> Maybe FilePath -> IO ()
+purgeCacheStep dryRun cacheConfig buildDir = do
     echo "--- Deleting all CI caches"
     case cacheConfig of
         Right CICacheConfig{..} -> do
-            removeDirectory ccCacheDir
-            removeDirectory ccStackRoot
-            doMaybe removeDirectory buildDir
+            removeDirectory dryRun ccCacheDir
+            removeDirectory dryRun ccStackRoot
+            doMaybe (removeDirectory dryRun) buildDir
         Left ex ->
             eprintf ("Not purging CI cache because: "%s%"\n") ex
 
 -- | Remove all files and directories that do not belong to an active branch cache.
-cleanupCache :: FilePath -> [Text] -> IO ()
-cleanupCache cacheDir activeBranches = do
+cleanupCache :: DryRun -> FilePath -> [Text] -> IO ()
+cleanupCache dryRun cacheDir activeBranches = do
     let branchCaches = mapMaybe (getCacheName cacheDir) activeBranches
     files <- fold (lstree cacheDir) (Fold.revList)
     forM_ files $ \cf -> do
@@ -374,15 +425,15 @@ cleanupCache cacheDir activeBranches = do
         if isDirectory st
             then unless (cf `elem` branchCaches) $ do
                 printf ("Removing "%fp%".\n") cf
-                rmdir cf
+                whenRun dryRun $ rmdir cf
             else unless (directoryWithoutSlash cf `elem` branchCaches) $ do
                 printf ("Removing "%fp%".\n") cf
-                rm cf
+                whenRun dryRun $ rm cf
 
-removeDirectory :: FilePath -> IO ()
-removeDirectory dir = whenM (testpath dir) $ do
+removeDirectory :: DryRun -> FilePath -> IO ()
+removeDirectory dryRun dir = whenM (testpath dir) $ do
     printf ("Removing directory "%fp%".\n") dir
-    rmtree dir
+    whenRun dryRun $ rmtree dir
 
 -- | Ask the origin git remote for its list of branches.
 getBranches :: MonadIO io => io [Text]
@@ -408,18 +459,30 @@ want = fmap (>>= nullToNothing) . need
 doMaybe :: Monad m => (a -> m ()) -> Maybe a -> m ()
 doMaybe = maybe (pure ())
 
-run :: Text -> [Text] -> IO ExitCode
-run cmd args = do
-    printf (s % " " % s % "\n") cmd (T.unwords args)
-    res <- proc cmd args empty
-    case res of
-        ExitSuccess ->
-            pure ()
-        ExitFailure code ->
-            eprintf
-                ("error: Command exited with code "%d%"!\nContinuing...\n")
-                code
-    pure res
+run :: MonadIO io => DryRun -> Text -> [Text] -> io ExitCode
+run dryRun cmd args = do
+    printf (s % " " % s % "\n") cmd (T.unwords $ map quote args)
+    whenRun' dryRun ExitSuccess $ do
+        res <- proc cmd args empty
+        case res of
+            ExitSuccess ->
+                pure ()
+            ExitFailure code ->
+                eprintf
+                    ("error: Command exited with code "%d%"!\nContinuing...\n")
+                    code
+        pure res
+  where
+    -- simple quoting, just for logging
+    quote arg | T.any isSpace arg = "'" <> arg <> "'"
+              | otherwise = arg
+
+whenRun :: Applicative m => DryRun -> m a -> m ()
+whenRun d = whenRun' d () . void
+
+whenRun' :: Applicative m => DryRun -> a -> m a -> m a
+whenRun' DryRun a _ = pure a
+whenRun' Run _ ma = ma
 
 directoryWithoutSlash :: FilePath -> FilePath
 directoryWithoutSlash =

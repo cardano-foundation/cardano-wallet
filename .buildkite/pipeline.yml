@@ -6,6 +6,8 @@ steps:
       - "nix-build .buildkite/default.nix -o sr"
       - "./sr/bin/rebuild --build-dir /build/cardano-wallet --cache-dir /build/cardano-wallet.cache"
     timeout_in_minutes: 120
+    artifact_paths:
+      - "/build/cardano-wallet/.stack-work/logs/cardano-wallet*.log"
     agents:
       system: x86_64-linux
 
