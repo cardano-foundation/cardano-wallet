@@ -13,7 +13,7 @@ import Cardano.BM.Trace
 import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet
-    ( WalletLayer (..), newWalletLayer )
+    ( newWalletLayer )
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge, byronBlockchainParameters )
 import Cardano.Wallet.HttpBridge.Environment
@@ -43,6 +43,7 @@ import Data.Text.Class
 import Test.Hspec
     ( Spec, after, before, expectationFailure, it )
 
+import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB.MVar as MVar
 import qualified Cardano.Wallet.HttpBridge.Network as HttpBridge
 import qualified Cardano.Wallet.HttpBridge.Transaction as HttpBridge
@@ -54,14 +55,14 @@ spec = do
         it "A newly created wallet can sync with the chain" $ \(_, wallet) -> do
             bytes <- entropyToBytes <$> genEntropy @(EntropySize 15)
             let xprv = generateKeyFromSeed (Passphrase bytes, mempty) mempty
-            wid <- unsafeRunExceptT $ createWallet wallet
+            wid <- unsafeRunExceptT $ W.createWallet wallet
                 (WalletId $ digest $ publicKey xprv)
                 (WalletName "My Wallet")
                 (mkSeqState @(HttpBridge 'Testnet) (xprv, mempty) minBound)
-            unsafeRunExceptT $ restoreWallet wallet wid
+            unsafeRunExceptT $ W.restoreWallet wallet wid
             threadDelay 2000000
             tip <- slotId . currentTip . fst <$>
-                unsafeRunExceptT (readWallet wallet wid)
+                unsafeRunExceptT (W.readWallet wallet wid)
             unless (tip > slotMinBound) $
                 expectationFailure ("The wallet tip is still " ++ show tip)
   where
@@ -85,4 +86,4 @@ spec = do
         let tl = HttpBridge.newTransactionLayer @'Testnet @SeqKey
         let bp = byronBlockchainParameters
         (handle,) <$>
-            (newWalletLayer @_ @(HttpBridge 'Testnet) nullTracer bp db nl tl)
+            (newWalletLayer @(HttpBridge 'Testnet) nullTracer bp db nl tl)
