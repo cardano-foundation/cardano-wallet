@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -32,6 +33,7 @@ import Cardano.Wallet
     ( ErrAdjustForFee (..)
     , ErrCoinSelection (..)
     , ErrCreateUnsignedTx (..)
+    , ErrDecodeSignedTx (..)
     , ErrEstimateTxFee (..)
     , ErrListTransactions (..)
     , ErrListUTxOStatistics (..)
@@ -74,7 +76,7 @@ import Cardano.Wallet.Api.Types
     , getApiMnemonicT
     )
 import Cardano.Wallet.Network
-    ( ErrDecodeExternalTx (..), ErrNetworkUnavailable (..) )
+    ( ErrNetworkUnavailable (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress (..), WalletKey (..), digest, publicKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
@@ -140,6 +142,8 @@ import Network.HTTP.Types.Header
     ( hContentType )
 import Network.Socket
     ( Socket, close )
+import Network.Wai
+    ( Request, pathInfo )
 import Network.Wai.Handler.Warp
     ( Port )
 import Network.Wai.Middleware.Logging
@@ -203,7 +207,7 @@ start settings trace socket wl = do
     withWorkers trace wl
     logSettings <- newApiLoggerSettings <&> obfuscateKeys (const sensitive)
     Warp.runSettingsSocket settings socket
-        $ handleRawError handler
+        $ handleRawError (curry handler)
         $ withApiLogger trace logSettings
         application
   where
@@ -664,15 +668,15 @@ instance LiftHandler ErrSignTx where
             }
         ErrSignTxWithRootKey e@ErrWithRootKeyWrongPassphrase{} -> handler e
 
-instance LiftHandler ErrDecodeExternalTx where
+instance LiftHandler ErrDecodeSignedTx where
     handler = \case
-        ErrDecodeExternalTxWrongPayload _ ->
+        ErrDecodeSignedTxWrongPayload _ ->
             apiError err400 MalformedTxPayload $ mconcat
                 [ "I couldn't verify that the payload has the correct binary "
                 , "format. Therefore I couldn't send it to the node. Please "
                 , "check the format and try again."
                 ]
-        ErrDecodeExternalTxNotSupported ->
+        ErrDecodeSignedTxNotSupported ->
             apiError err404 UnexpectedError $ mconcat
                 [ "This endpoint is not supported by the backend currently "
                 , "in use. Please try a different backend."
@@ -764,8 +768,8 @@ instance LiftHandler ErrStartTimeLaterThanEndTime where
         , "'."
         ]
 
-instance LiftHandler ServantErr where
-    handler err@(ServantErr code _ body headers)
+instance LiftHandler (Request, ServantErr) where
+    handler (req, err@(ServantErr code _ body headers))
       | not (isJSON body) = case code of
         400 -> apiError err' BadRequest (utf8 body)
         404 -> apiError err' NotFound $ mconcat
@@ -785,13 +789,16 @@ instance LiftHandler ServantErr where
             , "double-check your 'Accept' request header and make sure it's "
             , "set to 'application/json'."
             ]
-        415 -> apiError err' UnsupportedMediaType $ mconcat
-            [ "I'm really sorry but I only understand 'application/json' or "
-            , "'application/octet-stream'. I need you to tell me what language "
-            , "you're speaking in order for me to understand your message. "
-            , "Please double-check your 'Content-Type' request header and make "
-            , "sure it's set to 'application/json' or 'application/octet-stream' "
-            , "(depending on the endpoint you want to request)."
+        415 ->
+            let cType =
+                    if "external-transactions" `elem` (pathInfo req)
+                        then "application/octet-stream"
+                        else "application/json"
+            in apiError err' UnsupportedMediaType $ mconcat
+            [ "I'm really sorry but I only understand '", cType, "'. I need you "
+            , "to tell me what language you're speaking in order for me to "
+            , "understand your message. Please double-check your 'Content-Type' "
+            , "request header and make sure it's set to '", cType, "'."
             ]
         _ -> apiError err' UnexpectedError $ mconcat
             [ "It looks like something unexpected went wrong. Unfortunately I "

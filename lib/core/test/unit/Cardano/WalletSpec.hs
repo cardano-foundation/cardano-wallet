@@ -438,6 +438,8 @@ dummyTransactionLayer = TransactionLayer
         error "dummyTransactionLayer: estimateMaxNumberOfInputs not implemented"
     , validateSelection =
         error "dummyTransactionLayer: validateSelection not implemented"
+    , decodeSignedTx =
+        error "dummyTransactionLayer: decodeSignedTx not implemented"
     }
   where
     withEither :: e -> Maybe a -> Either e a

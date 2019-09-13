@@ -18,7 +18,6 @@ module Cardano.Wallet.Network
     , ErrNetworkTip (..)
     , ErrGetBlock (..)
     , ErrPostTx (..)
-    , ErrDecodeExternalTx (..)
     ) where
 
 import Prelude
@@ -30,8 +29,7 @@ import Control.Exception
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
 import Control.Retry
-import Data.ByteString
-    ( ByteString )
+    ( RetryPolicyM, constantDelay, limitRetriesByCumulativeDelay, retrying )
 import Data.Quantity
     ( Quantity )
 import Data.Text
@@ -63,10 +61,6 @@ data NetworkLayer t m = NetworkLayer
     , postTx
         :: (Tx t, [TxWitness]) -> ExceptT ErrPostTx m ()
         -- ^ Broadcast a transaction to the chain producer
-
-    , decodeExternalTx
-        :: ByteString -> ExceptT ErrDecodeExternalTx m (Tx t, [TxWitness])
-        -- ^ Decode an externally-signed transaction to the chain producer
     }
 
 -- | Network is unavailable
@@ -104,14 +98,6 @@ data ErrPostTx
     deriving (Generic, Show, Eq)
 
 instance Exception ErrPostTx
-
--- | Error while trying to decode externally signed transaction
-data ErrDecodeExternalTx
-    = ErrDecodeExternalTxWrongPayload Text
-    | ErrDecodeExternalTxNotSupported
-    deriving (Generic, Show, Eq)
-
-instance Exception ErrDecodeExternalTx
 
 -- | Wait until 'networkTip networkLayer' succeeds according to a given
 -- retry policy. Throws an exception otherwise.

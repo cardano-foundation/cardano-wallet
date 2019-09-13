@@ -59,6 +59,7 @@ module Test.Integration.Framework.TestData
     , errMsg405
     , errMsg406
     , errMsg415
+    , errMsg415OctetStream
     , errMsg500
     ) where
 
@@ -319,12 +320,18 @@ errMsg406 = "It seems as though you don't accept 'application/json', but\
     \ 'Accept' request header and make sure it's set to 'application/json'"
 
 errMsg415 :: String
-errMsg415 = "I'm really sorry but I only understand 'application/json'\
-    \ or 'application/octet-stream'. I need you to tell me what language you're\
-    \ speaking in order for me to understand your message. Please double-check\
-    \ your 'Content-Type' request header and make sure it's set to\
-    \ 'application/json' or 'application/octet-stream' (depending on the\
-    \ endpoint you want to request)."
+errMsg415 =
+    "I'm really sorry but I only understand 'application/json'.\
+    \ I need you to tell me what language you're speaking in order for me to\
+    \ understand your message. Please double-check your 'Content-Type' request\
+    \ header and make sure it's set to 'application/json'."
+
+errMsg415OctetStream :: String
+errMsg415OctetStream =
+    "I'm really sorry but I only understand 'application/octet-stream'.\
+    \ I need you to tell me what language you're speaking in order for me to\
+    \ understand your message. Please double-check your 'Content-Type' request\
+    \ header and make sure it's set to 'application/octet-stream'."
 
 errMsg500 :: String
 errMsg500 = "That's embarrassing. It looks like I've created an invalid\
