@@ -1,0 +1,125 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE AllowAmbiguousTypes #-}</span><span>
+</span><a name="line-2"></a><span class="hs-pragma">{-# LANGUAGE DataKinds #-}</span><span>
+</span><a name="line-3"></a><span class="hs-pragma">{-# LANGUAGE DerivingStrategies #-}</span><span>
+</span><a name="line-4"></a><span class="hs-pragma">{-# LANGUAGE FlexibleInstances #-}</span><span>
+</span><a name="line-5"></a><span class="hs-pragma">{-# LANGUAGE MultiParamTypeClasses #-}</span><span>
+</span><a name="line-6"></a><span class="hs-pragma">{-# LANGUAGE ScopedTypeVariables #-}</span><span>
+</span><a name="line-7"></a><span class="hs-pragma">{-# LANGUAGE TypeFamilies #-}</span><span>
+</span><a name="line-8"></a><span>
+</span><a name="line-9"></a><span class="hs-comment">-- |</span><span>
+</span><a name="line-10"></a><span class="hs-comment">-- Copyright: &#169; 2018-2019 IOHK</span><span>
+</span><a name="line-11"></a><span class="hs-comment">-- License: Apache-2.0</span><span>
+</span><a name="line-12"></a><span class="hs-comment">--</span><span>
+</span><a name="line-13"></a><span class="hs-comment">-- This module contains types for address discovery. The two address discovery</span><span>
+</span><a name="line-14"></a><span class="hs-comment">-- schemes implemented are:</span><span>
+</span><a name="line-15"></a><span class="hs-comment">--</span><span>
+</span><a name="line-16"></a><span class="hs-comment">--  * &quot;Cardano.Wallet.Primitive.AddressDiscovery.Sequential&quot;</span><span>
+</span><a name="line-17"></a><span class="hs-comment">--  * &quot;Cardano.Wallet.Primitive.AddressDiscovery.Random&quot;</span><span>
+</span><a name="line-18"></a><span>
+</span><a name="line-19"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Cardano.Wallet.Primitive.AddressDiscovery</span><span>
+</span><a name="line-20"></a><span>    </span><span class="hs-special">(</span><span>
+</span><a name="line-21"></a><span>    </span><span class="hs-comment">-- * Abstractions</span><span>
+</span><a name="line-22"></a><span>      </span><a href="Cardano.Wallet.Primitive.AddressDiscovery.html#IsOurs"><span class="hs-identifier hs-type">IsOurs</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-23"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Cardano.Wallet.Primitive.AddressDiscovery.html#IsOwned"><span class="hs-identifier hs-type">IsOwned</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-24"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Cardano.Wallet.Primitive.AddressDiscovery.html#GenChange"><span class="hs-identifier hs-type">GenChange</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-25"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Cardano.Wallet.Primitive.AddressDiscovery.html#CompareDiscovery"><span class="hs-identifier hs-type">CompareDiscovery</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-26"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Cardano.Wallet.Primitive.AddressDiscovery.html#KnownAddresses"><span class="hs-identifier hs-type">KnownAddresses</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-27"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-28"></a><span>
+</span><a name="line-29"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Prelude</span><span>
+</span><a name="line-30"></a><span>
+</span><a name="line-31"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Cardano.Crypto.Wallet</span><span>
+</span><a name="line-32"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">XPrv</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-33"></a><span class="hs-keyword">import</span><span> </span><a href="Cardano.Wallet.Primitive.AddressDerivation.html"><span class="hs-identifier">Cardano.Wallet.Primitive.AddressDerivation</span></a><span>
+</span><a name="line-34"></a><span>    </span><span class="hs-special">(</span><span> </span><a href="Cardano.Wallet.Primitive.AddressDerivation.html#Depth"><span class="hs-identifier hs-type">Depth</span></a><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><a href="Cardano.Wallet.Primitive.AddressDerivation.html#Passphrase"><span class="hs-identifier hs-type">Passphrase</span></a><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-35"></a><span class="hs-keyword">import</span><span> </span><a href="Cardano.Wallet.Primitive.Types.html"><span class="hs-identifier">Cardano.Wallet.Primitive.Types</span></a><span>
+</span><a name="line-36"></a><span>    </span><span class="hs-special">(</span><span> </span><a href="Cardano.Wallet.Primitive.Types.html#Address"><span class="hs-identifier hs-type">Address</span></a><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-37"></a><span>
+</span><a name="line-38"></a><span class="hs-comment">-- | This abstraction exists to give us the ability to keep the wallet business</span><span>
+</span><a name="line-39"></a><span class="hs-comment">-- logic agnostic to the address derivation and discovery mechanisms.</span><span>
+</span><a name="line-40"></a><span class="hs-comment">--</span><span>
+</span><a name="line-41"></a><span class="hs-comment">-- This is needed because two different address schemes lives on Cardano:</span><span>
+</span><a name="line-42"></a><span class="hs-comment">--</span><span>
+</span><a name="line-43"></a><span class="hs-comment">--   - A hierarchical random scheme:</span><span>
+</span><a name="line-44"></a><span class="hs-comment">--      rather 'custom' made, with several flaws; this is the original and now</span><span>
+</span><a name="line-45"></a><span class="hs-comment">--      legacy address scheme.</span><span>
+</span><a name="line-46"></a><span class="hs-comment">--</span><span>
+</span><a name="line-47"></a><span class="hs-comment">--   - A hierarchical sequential scheme:</span><span>
+</span><a name="line-48"></a><span class="hs-comment">--      a new scheme based on the BIP-0044 specification, which is better suited</span><span>
+</span><a name="line-49"></a><span class="hs-comment">--      for our present needs.</span><span>
+</span><a name="line-50"></a><span class="hs-comment">--</span><span>
+</span><a name="line-51"></a><span class="hs-comment">-- In practice, we will need a wallet that can support both, even if not at the</span><span>
+</span><a name="line-52"></a><span class="hs-comment">-- same time, and this little abstraction can buy us this without introducing</span><span>
+</span><a name="line-53"></a><span class="hs-comment">-- too much overhead.</span><span>
+</span><a name="line-54"></a><span class="hs-keyword">class</span><span> </span><a name="IsOurs"><a href="Cardano.Wallet.Primitive.AddressDiscovery.html#IsOurs"><span class="hs-identifier">IsOurs</span></a></a><span> </span><a name="local-6989586621679278353"><a href="#local-6989586621679278353"><span class="hs-identifier">s</span></a></a><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-55"></a><span>    </span><a name="isOurs"><a href="Cardano.Wallet.Primitive.AddressDiscovery.html#isOurs"><span class="hs-identifier">isOurs</span></a></a><span>
+</span><a name="line-56"></a><span>        </span><span class="hs-glyph">::</span><span> </span><a href="Cardano.Wallet.Primitive.Types.html#Address"><span class="hs-identifier hs-type">Address</span></a><span>
+</span><a name="line-57"></a><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><a href="#local-6989586621679278353"><span class="hs-identifier hs-type">s</span></a><span>
+</span><a name="line-58"></a><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Bool</span><span class="hs-special">,</span><span> </span><a href="#local-6989586621679278353"><span class="hs-identifier hs-type">s</span></a><span class="hs-special">)</span><span>
+</span><a name="line-59"></a><span>        </span><span class="hs-comment">-- ^ Checks whether an address is ours or not.</span><span>
+</span><a name="line-60"></a><span>
+</span><a name="line-61"></a><span class="hs-comment">-- | More powerful than 'isOurs', this abstractions offer the underlying state</span><span>
+</span><a name="line-62"></a><span class="hs-comment">-- the ability to find / compute the address private key corresponding to a</span><span>
+</span><a name="line-63"></a><span class="hs-comment">-- given known address.</span><span>
+</span><a name="line-64"></a><span class="hs-comment">--</span><span>
+</span><a name="line-65"></a><span class="hs-comment">-- Requiring 'IsOwned' as a constraint supposed that there is a way to recover</span><span>
+</span><a name="line-66"></a><span class="hs-comment">-- the root private key of a particular wallet. This isn't true for externally</span><span>
+</span><a name="line-67"></a><span class="hs-comment">-- owned wallet which would delegate its key management to a third party (like</span><span>
+</span><a name="line-68"></a><span class="hs-comment">-- a hardware Ledger or Trezor).</span><span>
+</span><a name="line-69"></a><span class="hs-keyword">class</span><span> </span><a href="Cardano.Wallet.Primitive.AddressDiscovery.html#IsOurs"><span class="hs-identifier hs-type">IsOurs</span></a><span> </span><a href="#local-6989586621679278351"><span class="hs-identifier hs-type">s</span></a><span> </span><span class="hs-glyph">=&gt;</span><span> </span><a name="IsOwned"><a href="Cardano.Wallet.Primitive.AddressDiscovery.html#IsOwned"><span class="hs-identifier">IsOwned</span></a></a><span> </span><a name="local-6989586621679278351"><a href="#local-6989586621679278351"><span class="hs-identifier">s</span></a></a><span> </span><a name="local-6989586621679278352"><a href="#local-6989586621679278352"><span class="hs-identifier">key</span></a></a><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-70"></a><span>    </span><a name="isOwned"><a href="Cardano.Wallet.Primitive.AddressDiscovery.html#isOwned"><span class="hs-identifier">isOwned</span></a></a><span>
+</span><a name="line-71"></a><span>        </span><span class="hs-glyph">::</span><span> </span><a href="#local-6989586621679278351"><span class="hs-identifier hs-type">s</span></a><span>
+</span><a name="line-72"></a><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><a href="#local-6989586621679278352"><span class="hs-identifier hs-type">key</span></a><span> </span><span class="hs-special">'</span><a href="Cardano.Wallet.Primitive.AddressDerivation.html#RootK"><span class="hs-identifier hs-type">RootK</span></a><span> </span><span class="hs-identifier hs-type">XPrv</span><span class="hs-special">,</span><span> </span><a href="Cardano.Wallet.Primitive.AddressDerivation.html#Passphrase"><span class="hs-identifier hs-type">Passphrase</span></a><span> </span><span class="hs-string">&quot;encryption&quot;</span><span class="hs-special">)</span><span>
+</span><a name="line-73"></a><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><a href="Cardano.Wallet.Primitive.Types.html#Address"><span class="hs-identifier hs-type">Address</span></a><span>
+</span><a name="line-74"></a><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Maybe</span><span> </span><span class="hs-special">(</span><a href="#local-6989586621679278352"><span class="hs-identifier hs-type">key</span></a><span> </span><span class="hs-special">'</span><a href="Cardano.Wallet.Primitive.AddressDerivation.html#AddressK"><span class="hs-identifier hs-type">AddressK</span></a><span> </span><span class="hs-identifier hs-type">XPrv</span><span class="hs-special">,</span><span> </span><a href="Cardano.Wallet.Primitive.AddressDerivation.html#Passphrase"><span class="hs-identifier hs-type">Passphrase</span></a><span> </span><span class="hs-string">&quot;encryption&quot;</span><span class="hs-special">)</span><span>
+</span><a name="line-75"></a><span>        </span><span class="hs-comment">-- ^ Derive the private key corresponding to an address. Careful, this</span><span>
+</span><a name="line-76"></a><span>        </span><span class="hs-comment">-- operation can be costly. Note that the state is discarded from this</span><span>
+</span><a name="line-77"></a><span>        </span><span class="hs-comment">-- function as we do not intend to discover any addresses from this</span><span>
+</span><a name="line-78"></a><span>        </span><span class="hs-comment">-- operation; This is merely a lookup from known addresses.</span><span>
+</span><a name="line-79"></a><span>
+</span><a name="line-80"></a><span class="hs-comment">-- | Abstracting over change address generation. In theory, this is only needed</span><span>
+</span><a name="line-81"></a><span class="hs-comment">-- for sending transactions on a wallet following a particular scheme. This</span><span>
+</span><a name="line-82"></a><span class="hs-comment">-- abstractions allows for defining an heuristic to pick new change address. For</span><span>
+</span><a name="line-83"></a><span class="hs-comment">-- instance, in BIP-44, change addresses belong to a particular change chain</span><span>
+</span><a name="line-84"></a><span class="hs-comment">-- (also called &quot;Internal Chain&quot;).</span><span>
+</span><a name="line-85"></a><span class="hs-keyword">class</span><span> </span><a name="GenChange"><a href="Cardano.Wallet.Primitive.AddressDiscovery.html#GenChange"><span class="hs-identifier">GenChange</span></a></a><span> </span><a name="local-6989586621679278350"><a href="#local-6989586621679278350"><span class="hs-identifier">s</span></a></a><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-86"></a><span>    </span><a name="genChange"><a href="Cardano.Wallet.Primitive.AddressDiscovery.html#genChange"><span class="hs-identifier">genChange</span></a></a><span>
+</span><a name="line-87"></a><span>        </span><span class="hs-glyph">::</span><span> </span><a href="Cardano.Wallet.Primitive.AddressDerivation.html#Passphrase"><span class="hs-identifier hs-type">Passphrase</span></a><span> </span><span class="hs-string">&quot;encryption&quot;</span><span>
+</span><a name="line-88"></a><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><a href="#local-6989586621679278350"><span class="hs-identifier hs-type">s</span></a><span>
+</span><a name="line-89"></a><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><a href="Cardano.Wallet.Primitive.Types.html#Address"><span class="hs-identifier hs-type">Address</span></a><span class="hs-special">,</span><span> </span><a href="#local-6989586621679278350"><span class="hs-identifier hs-type">s</span></a><span class="hs-special">)</span><span>
+</span><a name="line-90"></a><span>        </span><span class="hs-comment">-- ^ Generate a new change address for the given scheme. The rules for</span><span>
+</span><a name="line-91"></a><span>        </span><span class="hs-comment">-- generating a new change address depends on the underlying scheme.</span><span>
+</span><a name="line-92"></a><span>
+</span><a name="line-93"></a><span class="hs-comment">-- | Ordering addresses by discovery date.</span><span>
+</span><a name="line-94"></a><span class="hs-comment">--</span><span>
+</span><a name="line-95"></a><span class="hs-comment">-- If `a1` has been discovered before `a2`, then the following equation holds:</span><span>
+</span><a name="line-96"></a><span class="hs-comment">--</span><span>
+</span><a name="line-97"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-98"></a><span class="hs-comment">-- compareDiscovery s a1 a2 == LT</span><span>
+</span><a name="line-99"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-100"></a><span class="hs-comment">--</span><span>
+</span><a name="line-101"></a><span class="hs-comment">-- If `a1` has been discovered after `a2`, then the following equation holds:</span><span>
+</span><a name="line-102"></a><span class="hs-comment">--</span><span>
+</span><a name="line-103"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-104"></a><span class="hs-comment">-- compareDiscovery s a1 a2 == GT</span><span>
+</span><a name="line-105"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-106"></a><span class="hs-comment">--</span><span>
+</span><a name="line-107"></a><span class="hs-comment">-- Note that, if an address isn't known it is considered not discovered and</span><span>
+</span><a name="line-108"></a><span class="hs-comment">-- therefore, is always _greater than_ any known address.</span><span>
+</span><a name="line-109"></a><span class="hs-keyword">class</span><span> </span><a name="CompareDiscovery"><a href="Cardano.Wallet.Primitive.AddressDiscovery.html#CompareDiscovery"><span class="hs-identifier">CompareDiscovery</span></a></a><span> </span><a name="local-6989586621679278349"><a href="#local-6989586621679278349"><span class="hs-identifier">s</span></a></a><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-110"></a><span>    </span><a name="compareDiscovery"><a href="Cardano.Wallet.Primitive.AddressDiscovery.html#compareDiscovery"><span class="hs-identifier">compareDiscovery</span></a></a><span>
+</span><a name="line-111"></a><span>        </span><span class="hs-glyph">::</span><span> </span><a href="#local-6989586621679278349"><span class="hs-identifier hs-type">s</span></a><span>
+</span><a name="line-112"></a><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><a href="Cardano.Wallet.Primitive.Types.html#Address"><span class="hs-identifier hs-type">Address</span></a><span>
+</span><a name="line-113"></a><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><a href="Cardano.Wallet.Primitive.Types.html#Address"><span class="hs-identifier hs-type">Address</span></a><span>
+</span><a name="line-114"></a><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Ordering</span><span>
+</span><a name="line-115"></a><span>
+</span><a name="line-116"></a><span class="hs-comment">-- | Extract the list of all known addresses.</span><span>
+</span><a name="line-117"></a><span class="hs-comment">--</span><span>
+</span><a name="line-118"></a><span class="hs-comment">-- NOTE: Change addresses aren't considered &quot;known&quot; until they've been used. The</span><span>
+</span><a name="line-119"></a><span class="hs-comment">-- rationale is that, we don't want users or consumers of the wallet to be using</span><span>
+</span><a name="line-120"></a><span class="hs-comment">-- change addresses prematurely.</span><span>
+</span><a name="line-121"></a><span class="hs-keyword">class</span><span> </span><a name="KnownAddresses"><a href="Cardano.Wallet.Primitive.AddressDiscovery.html#KnownAddresses"><span class="hs-identifier">KnownAddresses</span></a></a><span> </span><a name="local-6989586621679278348"><a href="#local-6989586621679278348"><span class="hs-identifier">s</span></a></a><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-122"></a><span>    </span><a name="knownAddresses"><a href="Cardano.Wallet.Primitive.AddressDiscovery.html#knownAddresses"><span class="hs-identifier">knownAddresses</span></a></a><span>
+</span><a name="line-123"></a><span>        </span><span class="hs-glyph">::</span><span> </span><a href="#local-6989586621679278348"><span class="hs-identifier hs-type">s</span></a><span>
+</span><a name="line-124"></a><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><a href="Cardano.Wallet.Primitive.Types.html#Address"><span class="hs-identifier hs-type">Address</span></a><span class="hs-special">]</span><span>
+</span><a name="line-125"></a></pre></body></html>
