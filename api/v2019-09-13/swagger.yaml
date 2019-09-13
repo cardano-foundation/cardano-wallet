@@ -786,7 +786,9 @@ x-responsesPostTransaction: &responsesPostTransaction
 
 x-responsesPostExternalTransaction: &responsesPostExternalTransaction
   <<: *responsesErr400
-  <<: *responsesErr404
+  <<: *responsesErr405
+  <<: *responsesErr406
+  <<: *responsesErr415
   202:
     description: Accepted
     schema: *ApiTxId
