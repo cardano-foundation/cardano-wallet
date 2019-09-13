@@ -5,7 +5,7 @@
       specVersion = "1.10";
       identifier = {
         name = "cardano-wallet-jormungandr";
-        version = "2019.7.24";
+        version = "2019.9.13";
         };
       license = "Apache-2.0";
       copyright = "2019 IOHK";

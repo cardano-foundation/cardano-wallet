@@ -3,7 +3,7 @@
     flags = { development = false; };
     package = {
       specVersion = "1.10";
-      identifier = { name = "bech32"; version = "2019.7.24"; };
+      identifier = { name = "bech32"; version = "2019.9.13"; };
       license = "Apache-2.0";
       copyright = "2017 Marko Bencun, 2019 IOHK";
       maintainer = "operations@iohk.io";
