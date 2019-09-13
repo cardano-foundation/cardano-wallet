@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -190,21 +191,23 @@ data Listen
 
 -- | Start the application server, using the given settings and a bound socket.
 start
-    :: forall t k.
+    :: forall ctx s t k.
         ( DefineTx t
         , KeyToAddress t k
-        , k ~ SeqKey
         , EncodeAddress t
         , DecodeAddress t
         , Buildable (ErrValidateSelection t)
+        , k ~ SeqKey
+        , s ~ SeqState t
+        , ctx ~ WalletLayer s t k
         )
     => Warp.Settings
     -> Trace IO Text
     -> Socket
-    -> WalletLayer (SeqState t) t k
+    -> ctx
     -> IO ()
-start settings trace socket wl = do
-    withWorkers trace wl
+start settings trace socket ctx = do
+    withWorkers trace ctx
     logSettings <- newApiLoggerSettings <&> obfuscateKeys (const sensitive)
     Warp.runSettingsSocket settings socket
         $ handleRawError (curry handler)
@@ -213,7 +216,7 @@ start settings trace socket wl = do
   where
     -- | A Servant server for our wallet API
     server :: Server (Api t)
-    server = addresses wl :<|> wallets wl :<|> transactions wl
+    server = addresses ctx :<|> wallets ctx :<|> transactions ctx
 
     application :: Application
     application = serve (Proxy @("v2" :> Api t)) server
@@ -230,14 +233,17 @@ start settings trace socket wl = do
 -- | Restart restoration workers for existing wallets. This is crucial to keep
 -- on syncing wallets after the application has restarted!
 withWorkers
-    :: (DefineTx t)
+    :: forall ctx s t k.
+        ( DefineTx t
+        , ctx ~ WalletLayer s t k
+        )
     => Trace IO Text
-    -> WalletLayer s t k
+    -> ctx
     -> IO ()
-withWorkers trace w = do
-    W.listWallets w >>= mapM_ worker
+withWorkers trace ctx = do
+    W.listWallets @ctx @s @t @k ctx >>= mapM_ worker
   where
-    worker wid = runExceptT (W.restoreWallet w wid) >>= \case
+    worker wid = runExceptT (W.restoreWallet @ctx @s @t @k ctx wid) >>= \case
         Right () -> return ()
         Left e -> logWarning trace $
             "Wallet has suddenly vanished: "+| wid |+": "+|| e ||+""
@@ -272,79 +278,73 @@ getRandomPort = do
 -------------------------------------------------------------------------------}
 
 wallets
-    :: forall t k. (DefineTx t, KeyToAddress t k, k ~ SeqKey)
-    => WalletLayer (SeqState t) t k
+    :: forall ctx s t k.
+        ( DefineTx t
+        , KeyToAddress t k
+        , k ~ SeqKey
+        , s ~ SeqState t
+        , ctx ~ WalletLayer s t k
+        )
+    => ctx
     -> Server Wallets
-wallets w =
-    deleteWallet w
-    :<|> getWallet w
-    :<|> listWallets w
-    :<|> postWallet w
-    :<|> putWallet w
-    :<|> putWalletPassphrase w
-    :<|> getUTxOsStatistics w
+wallets ctx =
+    deleteWallet ctx
+    :<|> getWallet ctx
+    :<|> listWallets ctx
+    :<|> postWallet ctx
+    :<|> putWallet ctx
+    :<|> putWalletPassphrase ctx
+    :<|> getUTxOsStatistics ctx
 
 deleteWallet
-    :: WalletLayer (SeqState t) t k
+    :: forall ctx s t k.
+        ( s ~ SeqState t
+        , ctx ~ WalletLayer s t k
+        )
+    => ctx
     -> ApiT WalletId
     -> Handler NoContent
-deleteWallet w (ApiT wid) = do
-    liftHandler $ W.removeWallet w wid
+deleteWallet ctx (ApiT wid) = do
+    liftHandler $ W.removeWallet @ctx @s @t @k ctx wid
     return NoContent
 
 getWallet
-    :: (DefineTx t)
-    => WalletLayer (SeqState t) t k
+    :: forall ctx s t k.
+        ( DefineTx t
+        , s ~ SeqState t
+        , ctx ~ WalletLayer s t k
+        )
+    => ctx
     -> ApiT WalletId
     -> Handler ApiWallet
-getWallet w wid = fst <$> getWalletWithCreationTime w wid
-
-getWalletWithCreationTime
-    :: (DefineTx t)
-    => WalletLayer (SeqState t) t k
-    -> ApiT WalletId
-    -> Handler (ApiWallet, UTCTime)
-getWalletWithCreationTime w (ApiT wid) = do
-    (wallet, meta) <- liftHandler $ W.readWallet w wid
-    return (mkApiWallet wallet meta, meta ^. #creationTime)
-  where
-    mkApiWallet wallet meta = ApiWallet
-        { id =
-            ApiT wid
-        , addressPoolGap =
-            ApiT $ getState wallet ^. #externalPool . #gap
-        , balance = ApiT $ WalletBalance
-            { available =
-                Quantity $ availableBalance wallet
-            , total =
-                Quantity $ totalBalance wallet
-            }
-        , delegation =
-            ApiT $ ApiT <$> meta ^. #delegation
-        , name =
-            ApiT $ meta ^. #name
-        , passphrase =
-            ApiT <$> meta ^. #passphraseInfo
-        , state =
-            ApiT $ meta ^. #status
-        }
+getWallet ctx wid =
+    fst <$> getWalletWithCreationTime @ctx @s @t @k ctx wid
 
 listWallets
-    :: (DefineTx t)
-    => WalletLayer (SeqState t) t k
+    :: forall ctx s t k.
+        ( DefineTx t
+        , s ~ SeqState t
+        , ctx ~ WalletLayer s t k
+        )
+    => ctx
     -> Handler [ApiWallet]
-listWallets w = do
-    wids <- liftIO $ W.listWallets w
+listWallets ctx = do
+    wids <- liftIO $ W.listWallets @ctx @s @t @k ctx
     fmap fst . sortOn snd <$>
-        mapM (getWalletWithCreationTime w) (ApiT <$> wids)
+        mapM (getWalletWithCreationTime ctx) (ApiT <$> wids)
 
 postWallet
-    :: forall t k.
-       (DefineTx t, KeyToAddress t k, k ~ SeqKey)
-    => WalletLayer (SeqState t) t k
+    :: forall ctx s t k.
+        ( DefineTx t
+        , KeyToAddress t k
+        , s ~ SeqState t
+        , k ~ SeqKey
+        , ctx ~ WalletLayer s t k
+        )
+    => ctx
     -> WalletPostData
     -> Handler ApiWallet
-postWallet w body = do
+postWallet ctx body = do
     let seed = getApiMnemonicT (body ^. #mnemonicSentence)
     let secondFactor =
             maybe mempty getApiMnemonicT (body ^. #mnemonicSecondFactor)
@@ -353,44 +353,60 @@ postWallet w body = do
     let g = maybe defaultAddressPoolGap getApiT (body ^. #addressPoolGap)
     let s = mkSeqState (rootXPrv, pwd) g
     let wid = WalletId $ digest $ publicKey rootXPrv
-    _ <- liftHandler $ W.createWallet w wid (getApiT (body ^. #name)) s
-    liftHandler $ W.attachPrivateKey w wid (rootXPrv, pwd)
-    liftHandler $ W.restoreWallet w wid
-    getWallet w (ApiT wid)
+    let wName = getApiT (body ^. #name)
+    _ <- liftHandler $ W.createWallet @ctx @s @t @k ctx wid wName s
+    liftHandler $ W.attachPrivateKey @ctx @s @t @k ctx wid (rootXPrv, pwd)
+    liftHandler $ W.restoreWallet @ctx @s @t @k ctx wid
+    getWallet @ctx @s @t @k ctx (ApiT wid)
 
 putWallet
-    :: (DefineTx t)
-    => WalletLayer (SeqState t) t k
+    :: forall ctx s t k.
+        ( DefineTx t
+        , s ~ SeqState t
+        , ctx ~ WalletLayer s t k
+        )
+    => ctx
     -> ApiT WalletId
     -> WalletPutData
     -> Handler ApiWallet
-putWallet w (ApiT wid) body = do
+putWallet ctx (ApiT wid) body = do
     case body ^. #name of
         Nothing ->
             return ()
-        Just (ApiT wName) ->
-            liftHandler $ W.updateWallet w wid (\meta -> meta { name = wName })
-    getWallet w (ApiT wid)
+        Just (ApiT wName) -> do
+            liftHandler $ W.updateWallet @ctx @s @t @k ctx wid (modify wName)
+    getWallet @ctx @s @t @k ctx (ApiT wid)
+  where
+    modify :: W.WalletName -> WalletMetadata -> WalletMetadata
+    modify wName meta = meta { name = wName }
 
 putWalletPassphrase
-    :: (WalletKey k)
-    => WalletLayer (SeqState t) t k
+    :: forall ctx s t k.
+        ( WalletKey k
+        , s ~ SeqState t
+        , ctx ~ WalletLayer s t k
+        )
+    => ctx
     -> ApiT WalletId
     -> WalletPutPassphraseData
     -> Handler NoContent
-putWalletPassphrase w (ApiT wid) body = do
+putWalletPassphrase ctx (ApiT wid) body = do
     let (WalletPutPassphraseData (ApiT old) (ApiT new)) = body
-    liftHandler $ W.updateWalletPassphrase w wid (old, new)
+    liftHandler $ W.updateWalletPassphrase @ctx @s @t @k ctx wid (old, new)
     return NoContent
 
 getUTxOsStatistics
-    :: (DefineTx t)
-    => WalletLayer (SeqState t) t k
+    :: forall ctx s t k.
+        ( DefineTx t
+        , s ~ SeqState t
+        , ctx ~ WalletLayer s t k
+        )
+    => ctx
     -> ApiT WalletId
     -> Handler ApiUtxoStatistics
-getUTxOsStatistics w (ApiT wid) = do
+getUTxOsStatistics ctx (ApiT wid) = do
     (UTxOStatistics histo totalStakes bType) <-
-        liftHandler $ W.listUtxoStatistics w wid
+        liftHandler $ W.listUtxoStatistics @ctx @s @t @k ctx wid
     return ApiUtxoStatistics
         { total = Quantity (fromIntegral totalStakes)
         , scale = ApiT bType
@@ -402,19 +418,31 @@ getUTxOsStatistics w (ApiT wid) = do
 -------------------------------------------------------------------------------}
 
 addresses
-    :: (DefineTx t, KeyToAddress t k, k ~ SeqKey)
-    => WalletLayer (SeqState t) t k
+    :: forall ctx s t k.
+        ( DefineTx t
+        , KeyToAddress t k
+        , k ~ SeqKey
+        , s ~ SeqState t
+        , ctx ~ WalletLayer s t k
+        )
+    => ctx
     -> Server (Addresses t)
 addresses = listAddresses
 
 listAddresses
-    :: forall t k. (DefineTx t, KeyToAddress t k, k ~ SeqKey)
-    => WalletLayer (SeqState t) t k
+    :: forall ctx s t k.
+        ( DefineTx t
+        , KeyToAddress t k
+        , k ~ SeqKey
+        , s ~ SeqState t
+        , ctx ~ WalletLayer s t k
+        )
+    => ctx
     -> ApiT WalletId
     -> Maybe (ApiT AddressState)
     -> Handler [ApiAddress t]
-listAddresses w (ApiT wid) stateFilter = do
-    addrs <- liftHandler $ W.listAddresses w wid
+listAddresses ctx (ApiT wid) stateFilter = do
+    addrs <- liftHandler $ W.listAddresses @ctx @s @t @k ctx wid
     return $ coerceAddress <$> filter filterCondition addrs
   where
     filterCondition :: (Address, AddressState) -> Bool
@@ -428,43 +456,109 @@ listAddresses w (ApiT wid) stateFilter = do
 -------------------------------------------------------------------------------}
 
 transactions
-    :: (DefineTx t, KeyToAddress t k, k ~ SeqKey, Buildable (ErrValidateSelection t))
-    => WalletLayer (SeqState t) t k
+    :: forall ctx s t k.
+        ( DefineTx t
+        , KeyToAddress t k
+        , Buildable (ErrValidateSelection t)
+        , s ~ SeqState t
+        , k ~ SeqKey
+        , ctx ~ WalletLayer s t k
+        )
+    => ctx
     -> Server (Transactions t)
-transactions w =
-    createTransaction w
-    :<|> listTransactions w
-    :<|> postTransactionFee w
-    :<|> postExternalTransaction w
+transactions ctx =
+    createTransaction ctx
+    :<|> listTransactions ctx
+    :<|> postTransactionFee ctx
+    :<|> postExternalTransaction ctx
 
 createTransaction
-    :: forall t k.
+    :: forall ctx s t k.
         ( DefineTx t
         , Buildable (ErrValidateSelection t)
         , KeyToAddress t k
         , k ~ SeqKey
+        , s ~ SeqState t
+        , ctx ~ WalletLayer s t k
         )
-    => WalletLayer (SeqState t) t k
+    => ctx
     -> ApiT WalletId
     -> PostTransactionData t
     -> Handler (ApiTransaction t)
-createTransaction w (ApiT wid) body = do
+createTransaction ctx (ApiT wid) body = do
     let outs = coerceCoin <$> (body ^. #payments)
     let pwd = getApiT $ body ^. #passphrase
-    selection <- liftHandler $ W.createUnsignedTx w wid outs
-    (tx, meta, wit) <- liftHandler $ W.signTx w wid pwd selection
-    liftHandler $ W.submitTx w wid (tx, meta, wit)
+    selection <- liftHandler $ W.createUnsignedTx @ctx @s @t @k ctx wid outs
+    (tx, meta, wit) <- liftHandler $ W.signTx @ctx @s @t @k ctx wid pwd selection
+    liftHandler $ W.submitTx @ctx @s @t @k ctx wid (tx, meta, wit)
     return $ mkApiTransaction (txId @t tx)
         (fmap Just <$> selection ^. #inputs) (selection ^. #outputs) meta
 
 postExternalTransaction
-    :: forall t k. DefineTx t
-    => WalletLayer (SeqState t) t k
+    :: forall ctx s t k.
+        ( s ~ SeqState t
+        , ctx ~ WalletLayer s t k
+        , DefineTx t
+        )
+    => ctx
     -> PostExternalTransactionData
     -> Handler ApiTxId
-postExternalTransaction w (PostExternalTransactionData load) = do
-    tx <- liftHandler $ W.submitExternalTx w load
+postExternalTransaction ctx (PostExternalTransactionData load) = do
+    tx <- liftHandler $ W.submitExternalTx @ctx @t ctx load
     return $ ApiTxId (ApiT (txId @t tx))
+
+listTransactions
+    :: forall ctx s t k.
+        ( DefineTx t
+        , s ~ SeqState t
+        , ctx ~ WalletLayer s t k
+        )
+    => ctx
+    -> ApiT WalletId
+    -> Maybe Iso8601Time
+    -> Maybe Iso8601Time
+    -> Maybe (ApiT SortOrder)
+    -> Handler [ApiTransaction t]
+listTransactions ctx (ApiT wid) mStart mEnd mOrder = do
+    txs <- liftHandler $ W.listTransactions @ctx @s @t @k ctx wid
+        (getIso8601Time <$> mStart)
+        (getIso8601Time <$> mEnd)
+        (maybe defaultSortOrder getApiT mOrder)
+    return $ map mkApiTransactionFromInfo txs
+  where
+    defaultSortOrder :: SortOrder
+    defaultSortOrder = Descending
+
+postTransactionFee
+    :: forall ctx s t k.
+        ( DefineTx t
+        , Buildable (ErrValidateSelection t)
+        , s ~ SeqState t
+        , ctx ~ WalletLayer s t k
+        )
+    => ctx
+    -> ApiT WalletId
+    -> PostTransactionFeeData t
+    -> Handler ApiFee
+postTransactionFee ctx (ApiT wid) body = do
+    let outs = coerceCoin <$> (body ^. #payments)
+    (Fee fee) <- liftHandler $ W.estimateTxFee @ctx @s @t @k ctx wid outs
+    return ApiFee
+        { amount = Quantity (fromIntegral fee)
+        }
+
+{-------------------------------------------------------------------------------
+                                Helpers
+-------------------------------------------------------------------------------}
+
+-- Populate an API transaction record with 'TransactionInfo' from the wallet
+-- layer.
+mkApiTransactionFromInfo :: TransactionInfo -> ApiTransaction t
+mkApiTransactionFromInfo (TransactionInfo txid ins outs meta depth txtime) =
+    apiTx { depth, insertedAt }
+  where
+    apiTx = mkApiTransaction txid ins outs meta
+    insertedAt = Just (ApiBlockData txtime (ApiT (meta ^. #slotId)))
 
 mkApiTransaction
     :: forall t.
@@ -488,48 +582,42 @@ mkApiTransaction txid ins outs meta = ApiTransaction
       convertTxOut (TxOut addr (Coin c)) =
           AddressAmount (ApiT addr, Proxy @t) (Quantity $ fromIntegral c)
 
--- Populate an API transaction record with 'TransactionInfo' from the wallet
--- layer.
-mkApiTransactionFromInfo :: TransactionInfo -> ApiTransaction t
-mkApiTransactionFromInfo (TransactionInfo txid ins outs meta depth txtime) =
-    apiTx { depth, insertedAt }
-  where
-    apiTx = mkApiTransaction txid ins outs meta
-    insertedAt = Just (ApiBlockData txtime (ApiT (meta ^. #slotId)))
-
-listTransactions
-    :: forall t k. (DefineTx t)
-    => WalletLayer (SeqState t) t k
-    -> ApiT WalletId
-    -> Maybe Iso8601Time
-    -> Maybe Iso8601Time
-    -> Maybe (ApiT SortOrder)
-    -> Handler [ApiTransaction t]
-listTransactions w (ApiT wid) mStart mEnd mOrder = do
-    txs <- liftHandler $ W.listTransactions w wid
-        (getIso8601Time <$> mStart)
-        (getIso8601Time <$> mEnd)
-        (maybe defaultSortOrder getApiT mOrder)
-    return $ map mkApiTransactionFromInfo txs
-  where
-    defaultSortOrder :: SortOrder
-    defaultSortOrder = Descending
-
 coerceCoin :: AddressAmount t -> TxOut
 coerceCoin (AddressAmount (ApiT addr, _) (Quantity c)) =
     TxOut addr (Coin $ fromIntegral c)
 
-postTransactionFee
-    :: forall t k. (DefineTx t, Buildable (ErrValidateSelection t))
-    => WalletLayer (SeqState t) t k
+getWalletWithCreationTime
+    :: forall ctx s t k.
+        ( DefineTx t
+        , s ~ SeqState t
+        , ctx ~ WalletLayer s t k
+        )
+    => ctx
     -> ApiT WalletId
-    -> PostTransactionFeeData t
-    -> Handler ApiFee
-postTransactionFee w (ApiT wid) body = do
-    let outs = coerceCoin <$> (body ^. #payments)
-    (Fee fee) <- liftHandler $ W.estimateTxFee w wid outs
-    return ApiFee
-        { amount = Quantity (fromIntegral fee)
+    -> Handler (ApiWallet, UTCTime)
+getWalletWithCreationTime ctx (ApiT wid) = do
+    (wallet, meta) <- liftHandler $ W.readWallet @ctx @s @t @k ctx wid
+    return (mkApiWallet wallet meta, meta ^. #creationTime)
+  where
+    mkApiWallet wallet meta = ApiWallet
+        { id =
+            ApiT wid
+        , addressPoolGap =
+            ApiT $ getState wallet ^. #externalPool . #gap
+        , balance = ApiT $ WalletBalance
+            { available =
+                Quantity $ availableBalance wallet
+            , total =
+                Quantity $ totalBalance wallet
+            }
+        , delegation =
+            ApiT $ ApiT <$> meta ^. #delegation
+        , name =
+            ApiT $ meta ^. #name
+        , passphrase =
+            ApiT <$> meta ^. #passphraseInfo
+        , state =
+            ApiT $ meta ^. #status
         }
 
 {-------------------------------------------------------------------------------
