@@ -30,6 +30,7 @@ import Control.Exception
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
 import Control.Retry
+    ( RetryPolicyM, constantDelay, limitRetriesByCumulativeDelay, retrying )
 import Data.ByteString
     ( ByteString )
 import Data.Quantity
