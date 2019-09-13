@@ -1,0 +1,265 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE DeriveGeneric #-}</span><span>
+</span><a name="line-2"></a><span class="hs-pragma">{-# LANGUAGE FlexibleInstances #-}</span><span>
+</span><a name="line-3"></a><span class="hs-pragma">{-# LANGUAGE GADTs #-}</span><span>
+</span><a name="line-4"></a><span class="hs-pragma">{-# LANGUAGE GeneralizedNewtypeDeriving #-}</span><span>
+</span><a name="line-5"></a><span class="hs-pragma">{-# LANGUAGE MultiParamTypeClasses #-}</span><span>
+</span><a name="line-6"></a><span class="hs-pragma">{-# LANGUAGE QuasiQuotes #-}</span><span>
+</span><a name="line-7"></a><span class="hs-pragma">{-# LANGUAGE TemplateHaskell #-}</span><span>
+</span><a name="line-8"></a><span class="hs-pragma">{-# LANGUAGE TypeFamilies #-}</span><span>
+</span><a name="line-9"></a><span>
+</span><a name="line-10"></a><span class="hs-comment">-- |</span><span>
+</span><a name="line-11"></a><span class="hs-comment">-- Copyright: &#169; 2018-2019 IOHK</span><span>
+</span><a name="line-12"></a><span class="hs-comment">-- License: Apache-2.0</span><span>
+</span><a name="line-13"></a><span class="hs-comment">--</span><span>
+</span><a name="line-14"></a><span class="hs-comment">-- Auto-generated Sqlite &amp; Persistent machinery via Template-Haskell. This has</span><span>
+</span><a name="line-15"></a><span class="hs-comment">-- been moved into a separate file so that we can treat it slightly differently</span><span>
+</span><a name="line-16"></a><span class="hs-comment">-- when computing code-coverage.</span><span>
+</span><a name="line-17"></a><span class="hs-comment">--</span><span>
+</span><a name="line-18"></a><span class="hs-comment">-- More than 6K lines end-up being generated from the instructions below! As a</span><span>
+</span><a name="line-19"></a><span class="hs-comment">-- result, we're going to ignore code-coverage on the following module and, no</span><span>
+</span><a name="line-20"></a><span class="hs-comment">-- hand-written functions should be written in this module!</span><span>
+</span><a name="line-21"></a><span>
+</span><a name="line-22"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Cardano.Wallet.DB.Sqlite.TH</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-23"></a><span>
+</span><a name="line-24"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Prelude</span><span>
+</span><a name="line-25"></a><span>
+</span><a name="line-26"></a><span class="hs-keyword">import</span><span> </span><a href="Cardano.Wallet.DB.Sqlite.Types.html"><span class="hs-identifier">Cardano.Wallet.DB.Sqlite.Types</span></a><span>
+</span><a name="line-27"></a><span>    </span><span class="hs-special">(</span><span> </span><a href="Cardano.Wallet.DB.Sqlite.Types.html#AddressPoolXPub"><span class="hs-identifier hs-type">AddressPoolXPub</span></a><span class="hs-special">,</span><span> </span><a href="Cardano.Wallet.DB.Sqlite.Types.html#BlockId"><span class="hs-identifier hs-type">BlockId</span></a><span class="hs-special">,</span><span> </span><a href="Cardano.Wallet.DB.Sqlite.Types.html#TxId"><span class="hs-identifier hs-type">TxId</span></a><span class="hs-special">,</span><span> </span><a href="Cardano.Wallet.DB.Sqlite.Types.html#sqlSettings%27"><span class="hs-identifier hs-var">sqlSettings'</span></a><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-28"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Text</span><span>
+</span><a name="line-29"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">Text</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-30"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Time.Clock</span><span>
+</span><a name="line-31"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">UTCTime</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-32"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Word</span><span>
+</span><a name="line-33"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">Word32</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Word64</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-34"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Database.Persist.TH</span><span>
+</span><a name="line-35"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-var">mkDeleteCascade</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">mkMigrate</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">mkPersist</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">persistLowerCase</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">share</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-36"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.Generics</span><span>
+</span><a name="line-37"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">Generic</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-38"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Numeric.Natural</span><span>
+</span><a name="line-39"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">Natural</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-40"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">System.Random</span><span>
+</span><a name="line-41"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">StdGen</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-42"></a><span>
+</span><a name="line-43"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><a href="Cardano.Wallet.Primitive.AddressDerivation.Sequential.html"><span class="hs-identifier">Cardano.Wallet.Primitive.AddressDerivation.Sequential</span></a><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">W</span><span>
+</span><a name="line-44"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><a href="Cardano.Wallet.Primitive.AddressDiscovery.Sequential.html"><span class="hs-identifier">Cardano.Wallet.Primitive.AddressDiscovery.Sequential</span></a><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">W</span><span>
+</span><a name="line-45"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><a href="Cardano.Wallet.Primitive.Types.html"><span class="hs-identifier">Cardano.Wallet.Primitive.Types</span></a><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">W</span><span>
+</span><a name="line-46"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data.ByteString.Char8</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">B8</span><span>
+</span><a name="line-47"></a><span>
+</span><a name="line-48"></a><span class="hs-identifier hs-var">share</span><span>
+</span><a name="line-49"></a><span>    </span><span class="hs-special">[</span><span> </span><span class="hs-identifier hs-var">mkPersist</span><span> </span><span class="hs-identifier hs-var">sqlSettings'</span><span>
+</span><a name="line-50"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">mkDeleteCascade</span><span> </span><span class="hs-identifier hs-var">sqlSettings'</span><span>
+</span><a name="line-51"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">mkMigrate</span><span> </span><span class="hs-string">&quot;migrateAll&quot;</span><span>
+</span><a name="line-52"></a><span>    </span><span class="hs-special">]</span><span>
+</span><a name="line-53"></a><span>    </span><span class="">[persistLowerCase|
+
+-- Wallet IDs, address discovery state, and metadata.
+Wallet
+    walId                 W.WalletId     sql=wallet_id
+    walCreationTime       UTCTime        sql=creation_time
+    walName               Text           sql=name
+    walPassphraseLastUpdatedAt  UTCTime Maybe  sql=passphrase_last_updated_at
+    walStatus             W.WalletState  sql=status
+    walDelegation         Text Maybe     sql=delegation
+
+    Primary walId
+    deriving Show Generic
+
+-- The private key for each wallet. This is in a separate table simply so that
+-- &quot;SELECT * FROM wallet&quot; won't print keys.
+PrivateKey                             sql=private_key
+    privateKeyWalletId  W.WalletId     sql=wallet_id
+    privateKeyRootKey   B8.ByteString  sql=root
+    privateKeyHash      B8.ByteString  sql=hash
+
+    Primary privateKeyWalletId
+    Foreign Wallet fk_wallet_private_key privateKeyWalletId
+
+    deriving Show Generic
+
+-- Maps a transaction ID to its metadata (which is calculated when applying
+-- blocks).
+--
+-- TxMeta is specific to a wallet because multiple wallets may have the same
+-- transaction with different metadata values. The associated inputs and outputs
+-- of the transaction are in the TxIn and TxOut tables.
+TxMeta
+    txMetaTxId       TxId         sql=tx_id
+    txMetaWalletId   W.WalletId   sql=wallet_id
+    txMetaStatus     W.TxStatus   sql=status
+    txMetaDirection  W.Direction  sql=direction
+    txMetaSlotId     W.SlotId     sql=slot
+    txMetaAmount     Natural      sql=amount
+
+    Primary txMetaTxId txMetaWalletId
+    Foreign Wallet fk_wallet_tx_meta txMetaWalletId
+    deriving Show Generic
+
+-- A transaction input associated with TxMeta.
+--
+-- There is no wallet ID because these values depend only on the transaction,
+-- not the wallet. txInputTxId is referred to by TxMeta
+TxIn
+    txInputTxId           TxId          sql=tx_id
+    txInputOrder          Int           sql=order
+    txInputSourceTxId     TxId          sql=source_tx_id
+    txInputSourceIndex    Word32        sql=source_index
+    txInputSourceAmount   W.Coin Maybe  sql=source_amount default=NULL
+
+    Primary txInputTxId txInputSourceTxId txInputSourceIndex
+    deriving Show Generic
+
+-- A transaction output associated with TxMeta.
+--
+-- There is no wallet ID because these values depend only on the transaction,
+-- not the wallet. txOutputTxId is referred to by TxMeta
+TxOut
+    txOutputTxId     TxId        sql=tx_id
+    txOutputIndex    Word32      sql=index
+    txOutputAddress  W.Address   sql=address
+    txOutputAmount   W.Coin      sql=amount
+
+    Primary txOutputTxId txOutputIndex
+    deriving Show Generic
+
+-- A checkpoint for a given wallet is referred to by (wallet_id, slot).
+-- Volatile checkpoint data such as AD state will refer to this table.
+Checkpoint
+    checkpointWalletId    W.WalletId  sql=wallet_id
+    checkpointSlot        W.SlotId    sql=slot
+    checkpointParent      BlockId     sql=parent_block_id
+    checkpointBlockHeight Word64      sql=block_height
+
+    Primary checkpointWalletId checkpointSlot
+    Foreign Wallet fk_wallet_checkpoint checkpointWalletId
+
+    deriving Show Generic
+
+-- The UTxO for a given wallet checkpoint is a one-to-one mapping from TxIn -&gt;
+-- TxOut. This table does not need to refer to the TxIn or TxOut tables. All
+-- necessary information for the UTxO is in this table.
+UTxO                                sql=utxo
+
+    -- The wallet checkpoint (wallet_id, slot)
+    utxoWalletId        W.WalletId  sql=wallet_id
+
+    -- This UTxO is only available for checkpoints between
+    -- slot and slot_spent.
+    utxoSlot        W.SlotId        sql=slot
+    utxoSlotSpent   W.SlotId Maybe  sql=slot_spent
+
+    -- TxIn
+    utxoInputId         TxId        sql=input_tx_id
+    utxoInputIndex      Word32      sql=input_index
+
+    -- TxOut
+    utxoOutputAddress   W.Address   sql=output_address
+    utxoOutputCoin      W.Coin      sql=output_coin
+
+    Primary
+        utxoWalletId
+        utxoSlot
+        utxoInputId
+        utxoInputIndex
+        utxoOutputAddress
+        utxoOutputCoin
+
+    Foreign Wallet fk_wallet_utxo utxoWalletId
+    deriving Show Generic
+
+-- Sequential scheme address discovery state
+-- which does not belong to a particular checkpoint.
+SeqState
+    seqStateWalletId        W.WalletId        sql=wallet_id
+    seqStateExternalGap     W.AddressPoolGap  sql=external_gap
+    seqStateInternalGap     W.AddressPoolGap  sql=internal_gap
+    seqStateAccountXPub     AddressPoolXPub   sql=account_xpub
+
+    Primary seqStateWalletId
+    Foreign Wallet fk_wallet_seq_state seqStateWalletId
+    deriving Show Generic
+
+-- Mapping of pool addresses to indices, and the slot
+-- when they were discovered.
+SeqStateAddress
+    seqStateAddressWalletId     W.WalletId     sql=wallet_id
+    seqStateAddressSlot         W.SlotId       sql=slot
+
+    seqStateAddressAddress      W.Address      sql=address
+    seqStateAddressIndex        Word32         sql=address_ix
+    seqStateAddressChangeChain  W.ChangeChain  sql=change_chain
+
+    deriving Show Generic
+
+-- Sequential scheme address discovery state
+-- which belongs to a checkpoint.
+SeqStateCheckpoint
+    -- The wallet checkpoint (wallet_id, slot)
+    seqStateCheckpointWalletId  W.WalletId        sql=wallet_id
+    seqStateCheckpointSlot      W.SlotId          sql=slot
+
+    UniqueSeqStateCheckpoint seqStateCheckpointWalletId seqStateCheckpointSlot
+    Foreign Checkpoint fk_checkpoint_seq_state seqStateCheckpointWalletId seqStateCheckpointSlot
+    deriving Show Generic
+
+-- Sequential address discovery scheme -- pending change indexes
+SeqStatePendingIx                                        sql=seq_state_pending
+    seqStatePendingIxCheckpointId  SeqStateCheckpointId  sql=checkpoint_id
+    seqStatePendingIxIndex         Word32                sql=pending_ix
+
+    Primary seqStatePendingIxCheckpointId seqStatePendingIxIndex
+    deriving Show Generic
+
+-- Random scheme address discovery state
+-- which does not belong to a particular checkpoint.
+RndState
+    rndStateWalletId        W.WalletId        sql=wallet_id
+    rndStateAccountIndex    Word32            sql=account_ix
+
+    Primary rndStateWalletId
+    Foreign Wallet fk_wallet_rnd_state rndStateWalletId
+    deriving Show Generic
+
+-- The set of discovered addresses.
+RndStateAddress
+    rndStateAddressWalletId      W.WalletId        sql=wallet_id
+    rndStateAddressSlot          W.SlotId          sql=slot
+    rndStateAddressAccountIndex  Word32            sql=account_ix
+    rndStateAddressIndex         Word32            sql=address_ix
+    rndStateAddressAddress       W.Address         sql=address
+
+    Primary
+        rndStateAddressWalletId
+        rndStateAddressSlot
+        rndStateAddressAccountIndex
+        rndStateAddressIndex
+        rndStateAddressAddress
+    deriving Show Generic
+
+-- Random scheme address discovery state
+-- which belongs a checkpoint.
+RndStateCheckpoint
+    -- The wallet checkpoint (wallet_id, slot)
+    rndStateCheckpointWalletId  W.WalletId        sql=wallet_id
+    rndStateCheckpointSlot      W.SlotId          sql=slot
+    rndStateCheckpointGen       StdGen            sql=gen
+
+    UniqueRndStateCheckpoint rndStateCheckpointWalletId rndStateCheckpointSlot
+    Foreign Checkpoint fk_checkpoint_rnd_state rndStateCheckpointWalletId rndStateCheckpointSlot
+    deriving Show Generic
+
+-- The set of pending change addresses.
+RndStatePendingAddress
+    rndStatePendingAddressCheckpointId  RndStateCheckpointId  sql=checkpoint_id
+    rndStatePendingAddressAccountIndex  Word32                sql=account_ix
+    rndStatePendingAddressIndex         Word32                sql=address_ix
+    rndStatePendingAddressAddress       W.Address             sql=address
+
+    Primary
+        rndStatePendingAddressCheckpointId
+        rndStatePendingAddressAccountIndex
+        rndStatePendingAddressIndex
+        rndStatePendingAddressAddress
+    deriving Show Generic
+
+|]</span><span>
+</span><a name="line-265"></a></pre></body></html>

@@ -1,0 +1,46 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE DeriveGeneric #-}</span><span>
+</span><a name="line-2"></a><span>
+</span><a name="line-3"></a><span class="hs-comment">-- |</span><span>
+</span><a name="line-4"></a><span class="hs-comment">-- Copyright: &#169; 2018-2019 IOHK</span><span>
+</span><a name="line-5"></a><span class="hs-comment">-- License: Apache-2.0</span><span>
+</span><a name="line-6"></a><span class="hs-comment">--</span><span>
+</span><a name="line-7"></a><span class="hs-comment">-- Declaration of primitive types that are specific to a particular backend.</span><span>
+</span><a name="line-8"></a><span class="hs-comment">-- Likely, the shape of all types is similar and will eventually converge</span><span>
+</span><a name="line-9"></a><span class="hs-comment">-- to one unified design. Though, in the meantime, we have to support different</span><span>
+</span><a name="line-10"></a><span class="hs-comment">-- primitive representations for some of them.</span><span>
+</span><a name="line-11"></a><span>
+</span><a name="line-12"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Cardano.Wallet.HttpBridge.Primitive.Types</span><span>
+</span><a name="line-13"></a><span>    </span><span class="hs-special">(</span><span> </span><a href="Cardano.Wallet.HttpBridge.Primitive.Types.html#Tx"><span class="hs-identifier hs-type">Tx</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-14"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-15"></a><span>
+</span><a name="line-16"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Prelude</span><span>
+</span><a name="line-17"></a><span>
+</span><a name="line-18"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Cardano.Wallet.Primitive.Types</span><span>
+</span><a name="line-19"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">TxIn</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">TxOut</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-20"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.DeepSeq</span><span>
+</span><a name="line-21"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">NFData</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-22"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Fmt</span><span>
+</span><a name="line-23"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">Buildable</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">blockListF'</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-24"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.Generics</span><span>
+</span><a name="line-25"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">Generic</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-26"></a><span>
+</span><a name="line-27"></a><span class="hs-keyword">data</span><span> </span><a name="Tx"><a href="Cardano.Wallet.HttpBridge.Primitive.Types.html#Tx"><span class="hs-identifier">Tx</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a name="Tx"><a href="Cardano.Wallet.HttpBridge.Primitive.Types.html#Tx"><span class="hs-identifier">Tx</span></a></a><span>
+</span><a name="line-28"></a><span>    </span><span class="hs-special">{</span><span> </span><a name="inputs"><a href="Cardano.Wallet.HttpBridge.Primitive.Types.html#inputs"><span class="hs-identifier">inputs</span></a></a><span>
+</span><a name="line-29"></a><span>        </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="hs-special">[</span><span class="hs-identifier hs-type">TxIn</span><span class="hs-special">]</span><span>
+</span><a name="line-30"></a><span>        </span><span class="hs-comment">-- ^ NOTE: Order of inputs matters in the transaction representation. The</span><span>
+</span><a name="line-31"></a><span>        </span><span class="hs-comment">-- transaction id is computed from the binary representation of a tx,</span><span>
+</span><a name="line-32"></a><span>        </span><span class="hs-comment">-- for which inputs are serialized in a specific order.</span><span>
+</span><a name="line-33"></a><span>    </span><span class="hs-special">,</span><span> </span><a name="outputs"><a href="Cardano.Wallet.HttpBridge.Primitive.Types.html#outputs"><span class="hs-identifier">outputs</span></a></a><span>
+</span><a name="line-34"></a><span>        </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="hs-special">[</span><span class="hs-identifier hs-type">TxOut</span><span class="hs-special">]</span><span>
+</span><a name="line-35"></a><span>        </span><span class="hs-comment">-- ^ NOTE: Order of outputs matter in the transaction representations. Outputs</span><span>
+</span><a name="line-36"></a><span>        </span><span class="hs-comment">-- are used as inputs for next transactions which refer to them using</span><span>
+</span><a name="line-37"></a><span>        </span><span class="hs-comment">-- their indexes. It matters also for serialization.</span><span>
+</span><a name="line-38"></a><span>    </span><span class="hs-special">}</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Show</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Generic</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Ord</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Eq</span><span class="hs-special">)</span><span>
+</span><a name="line-39"></a><span>
+</span><a name="line-40"></a><span class="hs-keyword">instance</span><span> </span><span class="hs-identifier hs-type">NFData</span><span> </span><a href="Cardano.Wallet.HttpBridge.Primitive.Types.html#Tx"><span class="hs-identifier hs-type">Tx</span></a><span>
+</span><a name="line-41"></a><span>
+</span><a name="line-42"></a><span class="hs-keyword">instance</span><span> </span><span class="hs-identifier hs-type">Buildable</span><span> </span><a href="Cardano.Wallet.HttpBridge.Primitive.Types.html#Tx"><span class="hs-identifier hs-type">Tx</span></a><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-43"></a><span>    </span><a name="local-8214565720323865035"><span class="hs-identifier">build</span></a><span> </span><span class="hs-special">(</span><a href="Cardano.Wallet.HttpBridge.Primitive.Types.html#Tx"><span class="hs-identifier hs-var">Tx</span></a><span> </span><a name="local-6989586621679090370"><a href="#local-6989586621679090370"><span class="hs-identifier">ins</span></a></a><span> </span><a name="local-6989586621679090371"><a href="#local-6989586621679090371"><span class="hs-identifier">outs</span></a></a><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">mempty</span><span>
+</span><a name="line-44"></a><span>        </span><span class="hs-operator hs-var">&lt;&gt;</span><span> </span><span class="hs-identifier hs-var">blockListF'</span><span> </span><span class="hs-string">&quot;~&gt;&quot;</span><span> </span><span class="hs-identifier hs-var">build</span><span> </span><a href="#local-6989586621679090370"><span class="hs-identifier hs-var">ins</span></a><span>
+</span><a name="line-45"></a><span>        </span><span class="hs-operator hs-var">&lt;&gt;</span><span> </span><span class="hs-identifier hs-var">blockListF'</span><span> </span><span class="hs-string">&quot;&lt;~&quot;</span><span> </span><span class="hs-identifier hs-var">build</span><span> </span><a href="#local-6989586621679090371"><span class="hs-identifier hs-var">outs</span></a><span>
+</span><a name="line-46"></a></pre></body></html>

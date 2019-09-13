@@ -1,0 +1,64 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE AllowAmbiguousTypes #-}</span><span>
+</span><a name="line-2"></a><span class="hs-pragma">{-# LANGUAGE DataKinds #-}</span><span>
+</span><a name="line-3"></a><span class="hs-pragma">{-# LANGUAGE DeriveGeneric #-}</span><span>
+</span><a name="line-4"></a><span class="hs-pragma">{-# LANGUAGE KindSignatures #-}</span><span>
+</span><a name="line-5"></a><span>
+</span><a name="line-6"></a><span class="hs-comment">-- |</span><span>
+</span><a name="line-7"></a><span class="hs-comment">-- Copyright: &#169; 2018-2019 IOHK</span><span>
+</span><a name="line-8"></a><span class="hs-comment">-- License: Apache-2.0</span><span>
+</span><a name="line-9"></a><span class="hs-comment">--</span><span>
+</span><a name="line-10"></a><span class="hs-comment">-- This module contains static configuration parameters. Rather than providing</span><span>
+</span><a name="line-11"></a><span class="hs-comment">-- and carrying around a configuration file through the application, we resolve</span><span>
+</span><a name="line-12"></a><span class="hs-comment">-- configuration data at runtime using the available environment.</span><span>
+</span><a name="line-13"></a><span class="hs-comment">--</span><span>
+</span><a name="line-14"></a><span class="hs-comment">-- This gives us a flexible and portable approach to software configuration, and</span><span>
+</span><a name="line-15"></a><span class="hs-comment">-- remove some pain from the development perspective. Prior to starting, the</span><span>
+</span><a name="line-16"></a><span class="hs-comment">-- wallet is expected to have a few configuration parameter available. One may</span><span>
+</span><a name="line-17"></a><span class="hs-comment">-- rely on a `.env` file to bundle configuration settings together for a given</span><span>
+</span><a name="line-18"></a><span class="hs-comment">-- target environment.</span><span>
+</span><a name="line-19"></a><span>
+</span><a name="line-20"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Cardano.Wallet.HttpBridge.Environment</span><span>
+</span><a name="line-21"></a><span>    </span><span class="hs-special">(</span><span>
+</span><a name="line-22"></a><span>    </span><span class="hs-comment">-- * Networking</span><span>
+</span><a name="line-23"></a><span>      </span><a href="Cardano.Wallet.HttpBridge.Environment.html#Network"><span class="hs-identifier hs-type">Network</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-24"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Cardano.Wallet.HttpBridge.Environment.html#KnownNetwork"><span class="hs-identifier hs-type">KnownNetwork</span></a><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-25"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-26"></a><span>
+</span><a name="line-27"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Prelude</span><span>
+</span><a name="line-28"></a><span>
+</span><a name="line-29"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Cardano.Wallet.Primitive.Types</span><span>
+</span><a name="line-30"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">ProtocolMagic</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-31"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Text.Class</span><span>
+</span><a name="line-32"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">CaseStyle</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-33"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">FromText</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-34"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">ToText</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-35"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">fromTextToBoundedEnum</span><span>
+</span><a name="line-36"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">toTextFromBoundedEnum</span><span>
+</span><a name="line-37"></a><span>    </span><span class="hs-special">)</span><span>
+</span><a name="line-38"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Typeable</span><span>
+</span><a name="line-39"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">Typeable</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-40"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.Generics</span><span>
+</span><a name="line-41"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">Generic</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-42"></a><span>
+</span><a name="line-43"></a><span class="hs-comment">-- | Available network options.</span><span>
+</span><a name="line-44"></a><span class="hs-keyword">data</span><span> </span><a name="Network"><a href="Cardano.Wallet.HttpBridge.Environment.html#Network"><span class="hs-identifier">Network</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a name="Mainnet"><a href="Cardano.Wallet.HttpBridge.Environment.html#Mainnet"><span class="hs-identifier">Mainnet</span></a></a><span> </span><span class="hs-glyph">|</span><span> </span><a name="Testnet"><a href="Cardano.Wallet.HttpBridge.Environment.html#Testnet"><span class="hs-identifier">Testnet</span></a></a><span>
+</span><a name="line-45"></a><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Generic</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Show</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Eq</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Bounded</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Enum</span><span class="hs-special">)</span><span>
+</span><a name="line-46"></a><span>
+</span><a name="line-47"></a><span class="hs-keyword">class</span><span> </span><span class="hs-identifier hs-type">Typeable</span><span> </span><a href="#local-6989586621679037196"><span class="hs-identifier hs-type">n</span></a><span> </span><span class="hs-glyph">=&gt;</span><span> </span><a name="KnownNetwork"><a href="Cardano.Wallet.HttpBridge.Environment.html#KnownNetwork"><span class="hs-identifier">KnownNetwork</span></a></a><span> </span><span class="hs-special">(</span><a name="local-6989586621679037196"><a href="#local-6989586621679037196"><span class="hs-identifier">n</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><a href="Cardano.Wallet.HttpBridge.Environment.html#Network"><span class="hs-identifier hs-type">Network</span></a><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-48"></a><span>    </span><a name="networkVal"><a href="Cardano.Wallet.HttpBridge.Environment.html#networkVal"><span class="hs-identifier">networkVal</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><a href="Cardano.Wallet.HttpBridge.Environment.html#Network"><span class="hs-identifier hs-type">Network</span></a><span>
+</span><a name="line-49"></a><span>    </span><a name="protocolMagic"><a href="Cardano.Wallet.HttpBridge.Environment.html#protocolMagic"><span class="hs-identifier">protocolMagic</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">ProtocolMagic</span><span>
+</span><a name="line-50"></a><span>
+</span><a name="line-51"></a><span class="hs-keyword">instance</span><span> </span><a href="Cardano.Wallet.HttpBridge.Environment.html#KnownNetwork"><span class="hs-identifier hs-type">KnownNetwork</span></a><span> </span><span class="hs-special">'</span><a href="Cardano.Wallet.HttpBridge.Environment.html#Mainnet"><span class="hs-identifier hs-type">Mainnet</span></a><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-52"></a><span>    </span><a name="local-8214565720323812102"><a href="Cardano.Wallet.HttpBridge.Environment.html#networkVal"><span class="hs-identifier">networkVal</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="Cardano.Wallet.HttpBridge.Environment.html#Mainnet"><span class="hs-identifier hs-var">Mainnet</span></a><span>
+</span><a name="line-53"></a><span>    </span><a name="local-8214565720323812103"><a href="Cardano.Wallet.HttpBridge.Environment.html#protocolMagic"><span class="hs-identifier">protocolMagic</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">ProtocolMagic</span><span> </span><span class="hs-number">764824073</span><span>
+</span><a name="line-54"></a><span>
+</span><a name="line-55"></a><span class="hs-keyword">instance</span><span> </span><a href="Cardano.Wallet.HttpBridge.Environment.html#KnownNetwork"><span class="hs-identifier hs-type">KnownNetwork</span></a><span> </span><span class="hs-special">'</span><a href="Cardano.Wallet.HttpBridge.Environment.html#Testnet"><span class="hs-identifier hs-type">Testnet</span></a><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-56"></a><span>    </span><a name="local-8214565720323812102"><a href="Cardano.Wallet.HttpBridge.Environment.html#networkVal"><span class="hs-identifier">networkVal</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="Cardano.Wallet.HttpBridge.Environment.html#Testnet"><span class="hs-identifier hs-var">Testnet</span></a><span>
+</span><a name="line-57"></a><span>    </span><a name="local-8214565720323812103"><a href="Cardano.Wallet.HttpBridge.Environment.html#protocolMagic"><span class="hs-identifier">protocolMagic</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">ProtocolMagic</span><span> </span><span class="hs-number">1097911063</span><span>
+</span><a name="line-58"></a><span>
+</span><a name="line-59"></a><span class="hs-keyword">instance</span><span> </span><span class="hs-identifier hs-type">FromText</span><span> </span><a href="Cardano.Wallet.HttpBridge.Environment.html#Network"><span class="hs-identifier hs-type">Network</span></a><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-60"></a><span>    </span><a name="local-8214565720323791521"><span class="hs-identifier">fromText</span></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">fromTextToBoundedEnum</span><span> </span><span class="hs-identifier hs-var">SnakeLowerCase</span><span>
+</span><a name="line-61"></a><span>
+</span><a name="line-62"></a><span class="hs-keyword">instance</span><span> </span><span class="hs-identifier hs-type">ToText</span><span> </span><a href="Cardano.Wallet.HttpBridge.Environment.html#Network"><span class="hs-identifier hs-type">Network</span></a><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-63"></a><span>    </span><a name="local-8214565720323798079"><span class="hs-identifier">toText</span></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">toTextFromBoundedEnum</span><span> </span><span class="hs-identifier hs-var">SnakeLowerCase</span><span>
+</span><a name="line-64"></a></pre></body></html>
