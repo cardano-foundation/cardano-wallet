@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -140,6 +141,8 @@ import Network.HTTP.Types.Header
     ( hContentType )
 import Network.Socket
     ( Socket, close )
+import Network.Wai
+    ( Request, pathInfo )
 import Network.Wai.Handler.Warp
     ( Port )
 import Network.Wai.Middleware.Logging
@@ -203,7 +206,7 @@ start settings trace socket wl = do
     withWorkers trace wl
     logSettings <- newApiLoggerSettings <&> obfuscateKeys (const sensitive)
     Warp.runSettingsSocket settings socket
-        $ handleRawError handler
+        $ handleRawError (curry handler)
         $ withApiLogger trace logSettings
         application
   where
@@ -764,8 +767,8 @@ instance LiftHandler ErrStartTimeLaterThanEndTime where
         , "'."
         ]
 
-instance LiftHandler ServantErr where
-    handler err@(ServantErr code _ body headers)
+instance LiftHandler (Request, ServantErr) where
+    handler (req, err@(ServantErr code _ body headers))
       | not (isJSON body) = case code of
         400 -> apiError err' BadRequest (utf8 body)
         404 -> apiError err' NotFound $ mconcat
@@ -785,13 +788,16 @@ instance LiftHandler ServantErr where
             , "double-check your 'Accept' request header and make sure it's "
             , "set to 'application/json'."
             ]
-        415 -> apiError err' UnsupportedMediaType $ mconcat
-            [ "I'm really sorry but I only understand 'application/json' or "
-            , "'application/octet-stream'. I need you to tell me what language "
-            , "you're speaking in order for me to understand your message. "
-            , "Please double-check your 'Content-Type' request header and make "
-            , "sure it's set to 'application/json' or 'application/octet-stream' "
-            , "(depending on the endpoint you want to request)."
+        415 ->
+            let cType =
+                    if "external-transactions" `elem` (pathInfo req)
+                        then "application/octet-stream"
+                        else "application/json"
+            in apiError err' UnsupportedMediaType $ mconcat
+            [ "I'm really sorry but I only understand '", cType, "'. I need you "
+            , "to tell me what language you're speaking in order for me to "
+            , "understand your message. Please double-check your 'Content-Type' "
+            , "request header and make sure it's set to '", cType, "'."
             ]
         _ -> apiError err' UnexpectedError $ mconcat
             [ "It looks like something unexpected went wrong. Unfortunately I "

@@ -22,7 +22,7 @@ import Network.HTTP.Types.Status
 import Network.Wai
     ( Middleware, responseHeaders, responseStatus )
 import Network.Wai.Internal
-    ( Response (..) )
+    ( Request, Response (..) )
 import Servant.Server.Internal.ServantErr
     ( ServantErr (..), responseServantErr )
 
@@ -46,12 +46,12 @@ import qualified Data.ByteString.Char8 as B8
 -- trigger the 'convert' function and offer the caller to adjust the response as
 -- needed.
 handleRawError
-    :: (ServantErr -> ServantErr)
+    :: (Request -> ServantErr -> ServantErr)
     -- ^ Convert a raw response into something that better fits the application
     -- error
     -> Middleware
 handleRawError adjust app req send =
-    app req (send . either (responseServantErr . adjust) id . eitherRawError)
+    app req (send . either (responseServantErr . adjust req) id . eitherRawError)
 
 -- | Analyze whether a given error is a raw error thrown by Servant before
 -- reaching our application layer, or one from our application layer.

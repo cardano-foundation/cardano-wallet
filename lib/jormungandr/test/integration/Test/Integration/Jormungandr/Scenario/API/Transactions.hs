@@ -110,7 +110,7 @@ import Test.Integration.Framework.TestData
     , errMsg403TxTooBig
     , errMsg405
     , errMsg406
-    , errMsg415
+    , errMsg415OctetStream
     , mnemonics15
     )
 
@@ -327,12 +327,12 @@ spec = do
         , ( "Content-Type: application/json -> 415"
           , Headers [ ("Content-Type", "application/json") ]
           , [ expectResponseCode @IO HTTP.status415
-            , expectErrorMessage errMsg415 ]
+            , expectErrorMessage errMsg415OctetStream ]
         )
         , ( "Content-Type: application/json -> 415"
           , Headers [ ("Content-Type", "text/plain") ]
           , [ expectResponseCode @IO HTTP.status415
-            , expectErrorMessage errMsg415 ]
+            , expectErrorMessage errMsg415OctetStream ]
         )
         ]
     fixtureZeroAmtSingle ctx = do
