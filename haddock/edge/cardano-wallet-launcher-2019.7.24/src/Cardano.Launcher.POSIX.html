@@ -1,0 +1,34 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- |</span><span>
+</span><a name="line-2"></a><span class="hs-comment">-- Copyright: &#169; 2018-2019 IOHK</span><span>
+</span><a name="line-3"></a><span class="hs-comment">-- License: Apache-2.0</span><span>
+</span><a name="line-4"></a><span class="hs-comment">-- Portability: POSIX</span><span>
+</span><a name="line-5"></a><span class="hs-comment">--</span><span>
+</span><a name="line-6"></a><span>
+</span><a name="line-7"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Cardano.Launcher.POSIX</span><span>
+</span><a name="line-8"></a><span>    </span><span class="hs-special">(</span><span> </span><a href="Cardano.Launcher.POSIX.html#installSignalHandlers"><span class="hs-identifier hs-var">installSignalHandlers</span></a><span>
+</span><a name="line-9"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-10"></a><span>
+</span><a name="line-11"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Prelude</span><span>
+</span><a name="line-12"></a><span>
+</span><a name="line-13"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Monad</span><span>
+</span><a name="line-14"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-var">void</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-15"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Say</span><span>
+</span><a name="line-16"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-var">sayErr</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-17"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">System.Posix.Signals</span><span>
+</span><a name="line-18"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">Handler</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-19"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">installHandler</span><span>
+</span><a name="line-20"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">keyboardSignal</span><span>
+</span><a name="line-21"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">raiseSignal</span><span>
+</span><a name="line-22"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">softwareTermination</span><span>
+</span><a name="line-23"></a><span>    </span><span class="hs-special">)</span><span>
+</span><a name="line-24"></a><span>
+</span><a name="line-25"></a><span class="hs-comment">-- | Convert any SIGTERM received to SIGINT, for which the runtime system has</span><span>
+</span><a name="line-26"></a><span class="hs-comment">-- handlers that will correctly clean up sub-processes.</span><span>
+</span><a name="line-27"></a><span class="hs-identifier">installSignalHandlers</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">IO</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><a name="line-28"></a><a name="installSignalHandlers"><a href="Cardano.Launcher.POSIX.html#installSignalHandlers"><span class="hs-identifier">installSignalHandlers</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">void</span><span> </span><span class="hs-operator hs-var">$</span><span>
+</span><a name="line-29"></a><span>    </span><span class="hs-identifier hs-var">installHandler</span><span> </span><span class="hs-identifier hs-var">softwareTermination</span><span> </span><a href="#local-6989586621679025183"><span class="hs-identifier hs-var">termHandler</span></a><span> </span><span class="hs-identifier hs-var">Nothing</span><span>
+</span><a name="line-30"></a><span>    </span><span class="hs-keyword">where</span><span>
+</span><a name="line-31"></a><span>        </span><a name="local-6989586621679025183"><a href="#local-6989586621679025183"><span class="hs-identifier">termHandler</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">CatchOnce</span><span> </span><span class="hs-operator hs-var">$</span><span> </span><span class="hs-keyword">do</span><span>
+</span><a name="line-32"></a><span>            </span><span class="hs-identifier hs-var">sayErr</span><span> </span><span class="hs-string">&quot;Terminated by signal.&quot;</span><span>
+</span><a name="line-33"></a><span>            </span><span class="hs-identifier hs-var">raiseSignal</span><span> </span><span class="hs-identifier hs-var">keyboardSignal</span><span>
+</span><a name="line-34"></a></pre></body></html>
