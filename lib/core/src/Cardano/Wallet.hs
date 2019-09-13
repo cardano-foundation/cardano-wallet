@@ -59,7 +59,7 @@ module Cardano.Wallet
     , ErrSubmitTx (..)
     , ErrSubmitExternalTx (..)
     , ErrPostTx (..)
-    , ErrDecodeExternalTx (..)
+    , ErrDecodeSignedTx (..)
     , ErrValidateSelection
     , ErrWithRootKey (..)
     , ErrWrongPassphrase (..)
@@ -80,11 +80,7 @@ import Cardano.Wallet.DB
     , PrimaryKey (..)
     )
 import Cardano.Wallet.Network
-    ( ErrDecodeExternalTx (..)
-    , ErrNetworkUnavailable (..)
-    , ErrPostTx (..)
-    , NetworkLayer (..)
-    )
+    ( ErrNetworkUnavailable (..), ErrPostTx (..), NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (RootK)
     , ErrWrongPassphrase (..)
@@ -166,7 +162,11 @@ import Cardano.Wallet.Primitive.Types
     , wholeRange
     )
 import Cardano.Wallet.Transaction
-    ( ErrMkStdTx (..), ErrValidateSelection, TransactionLayer (..) )
+    ( ErrDecodeSignedTx (..)
+    , ErrMkStdTx (..)
+    , ErrValidateSelection
+    , TransactionLayer (..)
+    )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Concurrent
@@ -182,7 +182,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT, throwE, withExceptT )
+    ( ExceptT (..), except, runExceptT, throwE, withExceptT )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..), maybeToExceptT )
 import Control.Monad.Trans.State
@@ -678,9 +678,9 @@ submitExternalTx
   :: WalletLayer s t k
   -> ByteString
   -> ExceptT ErrSubmitExternalTx IO (Tx t)
-submitExternalTx (WalletLayer _ _ _ nw _ _) bytes = do
-    txWithWit@(tx,_) <- withExceptT ErrSubmitExternalTxDecode $
-        decodeExternalTx nw bytes
+submitExternalTx (WalletLayer _ _ _ nw tl _) bytes = do
+    txWithWit@(tx,_) <- withExceptT ErrSubmitExternalTxDecode $ except $
+        decodeSignedTx tl bytes
     withExceptT ErrSubmitExternalTxNetwork $ postTx nw txWithWit
     return tx
 
@@ -867,7 +867,7 @@ data ErrSubmitTx
 --   to the network.
 data ErrSubmitExternalTx
     = ErrSubmitExternalTxNetwork ErrPostTx
-    | ErrSubmitExternalTxDecode ErrDecodeExternalTx
+    | ErrSubmitExternalTxDecode ErrDecodeSignedTx
     deriving (Show, Eq)
 
 -- | Errors that can occur when trying to change a wallet's passphrase.

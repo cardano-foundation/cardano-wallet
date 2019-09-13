@@ -29,9 +29,10 @@ import Cardano.Wallet.Jormungandr.Network
     )
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
+import Cardano.Wallet.Jormungandr.Transaction
+    ( newTransactionLayer )
 import Cardano.Wallet.Network
-    ( ErrDecodeExternalTx (..)
-    , ErrGetBlock (..)
+    ( ErrGetBlock (..)
     , ErrNetworkTip (..)
     , NetworkLayer (..)
     , defaultRetryPolicy
@@ -48,6 +49,8 @@ import Cardano.Wallet.Primitive.Types
     , TxWitness (..)
     , slotMinBound
     )
+import Cardano.Wallet.Transaction
+    ( ErrDecodeSignedTx (..), TransactionLayer (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeDecodeAddress, unsafeFromHex, unsafeRunExceptT )
 import Control.Concurrent
@@ -294,29 +297,26 @@ spec = do
             let tx = (Tx (fragmentId inps outs []) inps outs, [])
             runExceptT (postTx nw tx) `shouldThrow` anyException
 
-        it "decodeExternalTx works ok with properly constructed \
-           \(Tx, [TxWitness]) binary blob" $
-            \(_, nw, _) -> do
-                property $ \(SignedTx signedTx) -> monadicIO $ liftIO $ do
-                    let encode ((Tx _ inps outs), wits) = runPut
-                            $ withHeader MsgTypeTransaction
-                            $ putSignedTx inps outs wits
-                    let encodedSignedTx = BL.toStrict $ encode signedTx
-                    runExceptT (decodeExternalTx nw encodedSignedTx)
-                        `shouldReturn` Right signedTx
+    describe "Decode External Tx" $ do
+        let tl = newTransactionLayer @'Testnet (Hash "genesis")
+
+        it "decodeExternalTx works ok with properly constructed binary blob" $ do
+            property $ \(SignedTx signedTx) -> monadicIO $ liftIO $ do
+                let encode ((Tx _ inps outs), wits) = runPut
+                        $ withHeader MsgTypeTransaction
+                        $ putSignedTx inps outs wits
+                let encodedSignedTx = BL.toStrict $ encode signedTx
+                decodeSignedTx tl encodedSignedTx `shouldBe` Right signedTx
 
         it "decodeExternalTx throws an exception when binary blob has non-\
-           \transaction-type header or is wrongly constructed binary blob" $
-            \(_, nw, _) -> do
-                property $ \(SignedTx signedTx) -> monadicIO $ liftIO $ do
-                    let encodeWrongly ((Tx _ inps outs), wits) = runPut
-                            $ withHeader MsgTypeInitial
-                            $ putSignedTx inps outs wits
-                    let encodedSignedTx = BL.toStrict $ encodeWrongly signedTx
-                    result <- runExceptT (decodeExternalTx nw encodedSignedTx)
-                    result `shouldBe`
-                        (Left $ ErrDecodeExternalTxWrongPayload
-                         "wrongly constructed binary blob")
+            \transaction-type header or is wrongly constructed binary blob" $ do
+            property $ \(SignedTx signedTx) -> monadicIO $ liftIO $ do
+                let encodeWrongly ((Tx _ inps outs), wits) = runPut
+                        $ withHeader MsgTypeInitial
+                        $ putSignedTx inps outs wits
+                let encodedSignedTx = BL.toStrict $ encodeWrongly signedTx
+                decodeSignedTx tl encodedSignedTx `shouldBe`
+                    (Left $ ErrDecodeSignedTxWrongPayload "wrongly constructed binary blob")
   where
     second :: Int
     second = 1000000

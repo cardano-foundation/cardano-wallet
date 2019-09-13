@@ -16,7 +16,14 @@ module Cardano.Wallet.Jormungandr.Transaction
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Binary
-    ( fragmentId, maxNumberOfInputs, maxNumberOfOutputs, signData )
+    ( Message (..)
+    , fragmentId
+    , getMessage
+    , maxNumberOfInputs
+    , maxNumberOfOutputs
+    , runGetOrFail
+    , signData
+    )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
 import Cardano.Wallet.Jormungandr.Environment
@@ -32,7 +39,8 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.Types
     ( Hash (..), TxOut (..), TxWitness (..) )
 import Cardano.Wallet.Transaction
-    ( ErrMkStdTx (..)
+    ( ErrDecodeSignedTx (..)
+    , ErrMkStdTx (..)
     , ErrValidateSelection
     , TransactionLayer (..)
     , estimateMaxNumberOfInputsBase
@@ -54,6 +62,7 @@ import Fmt
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Jormungandr.Binary as Binary
+import qualified Data.ByteString.Lazy as BL
 
 -- | Construct a 'TransactionLayer' compatible with Shelley and 'Jörmungandr'
 newTransactionLayer
@@ -77,6 +86,15 @@ newTransactionLayer (Hash block0) = TransactionLayer
                 , outputs = outs
                 }
         return (tx, wits)
+
+    , decodeSignedTx = \payload -> do
+        let errInvalidPayload =
+                ErrDecodeSignedTxWrongPayload "wrongly constructed binary blob"
+        case runGetOrFail getMessage (BL.fromStrict payload) of
+            Left _ -> Left errInvalidPayload
+            Right (_,_,msg) -> case msg of
+                Transaction stx -> pure stx
+                _ -> Left errInvalidPayload
 
     -- NOTE
     -- Jörmungandr fee calculation is a linear function where the coefficient

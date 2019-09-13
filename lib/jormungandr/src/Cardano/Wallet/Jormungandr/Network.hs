@@ -52,14 +52,13 @@ import Cardano.Wallet.Jormungandr.Api
     , api
     )
 import Cardano.Wallet.Jormungandr.Binary
-    ( ConfigParam (..), Message (..), coerceBlock, getMessage, runGetOrFail )
+    ( ConfigParam (..), Message (..), coerceBlock )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr, softTxMaxSize )
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx )
 import Cardano.Wallet.Network
-    ( ErrDecodeExternalTx (..)
-    , ErrGetBlock (..)
+    ( ErrGetBlock (..)
     , ErrNetworkTip (..)
     , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
@@ -160,17 +159,6 @@ mkNetworkLayer j = NetworkLayer
         forM ids (fmap coerceBlock . getBlock j)
 
     , postTx = postMessage j
-
-    , decodeExternalTx = \payload -> do
-            case runGetOrFail getMessage (BL.fromStrict payload) of
-                Left _ ->
-                    throwE $ ErrDecodeExternalTxWrongPayload
-                        "wrongly constructed binary blob"
-                Right (_,_,msg) -> case msg of
-                    Transaction stx -> pure stx
-                    _ -> throwE $ ErrDecodeExternalTxWrongPayload
-                             "wrongly constructed binary blob"
-
     }
   where
     mappingError = flip withExceptT

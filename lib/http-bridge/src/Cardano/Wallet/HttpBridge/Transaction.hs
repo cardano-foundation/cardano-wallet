@@ -40,7 +40,8 @@ import Cardano.Wallet.Primitive.Types
     , txId
     )
 import Cardano.Wallet.Transaction
-    ( ErrMkStdTx (..)
+    ( ErrDecodeSignedTx (..)
+    , ErrMkStdTx (..)
     , ErrValidateSelection
     , EstimateMaxNumberOfInputsParams (..)
     , TransactionLayer (..)
@@ -104,6 +105,9 @@ newTransactionLayer = TransactionLayer
     , validateSelection = \(CoinSelection _ outs _) -> do
         when (any (\ (TxOut _ c) -> c == Coin 0) outs)
             $ Left ErrInvalidTxOutAmount
+
+    , decodeSignedTx =
+        const $ Left ErrDecodeSignedTxNotSupported
     }
   where
     mkWitness

@@ -32,6 +32,7 @@ import Cardano.Wallet
     ( ErrAdjustForFee (..)
     , ErrCoinSelection (..)
     , ErrCreateUnsignedTx (..)
+    , ErrDecodeSignedTx (..)
     , ErrEstimateTxFee (..)
     , ErrListTransactions (..)
     , ErrListUTxOStatistics (..)
@@ -74,7 +75,7 @@ import Cardano.Wallet.Api.Types
     , getApiMnemonicT
     )
 import Cardano.Wallet.Network
-    ( ErrDecodeExternalTx (..), ErrNetworkUnavailable (..) )
+    ( ErrNetworkUnavailable (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress (..), WalletKey (..), digest, publicKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
@@ -664,15 +665,15 @@ instance LiftHandler ErrSignTx where
             }
         ErrSignTxWithRootKey e@ErrWithRootKeyWrongPassphrase{} -> handler e
 
-instance LiftHandler ErrDecodeExternalTx where
+instance LiftHandler ErrDecodeSignedTx where
     handler = \case
-        ErrDecodeExternalTxWrongPayload _ ->
+        ErrDecodeSignedTxWrongPayload _ ->
             apiError err400 MalformedTxPayload $ mconcat
                 [ "I couldn't verify that the payload has the correct binary "
                 , "format. Therefore I couldn't send it to the node. Please "
                 , "check the format and try again."
                 ]
-        ErrDecodeExternalTxNotSupported ->
+        ErrDecodeSignedTxNotSupported ->
             apiError err404 UnexpectedError $ mconcat
                 [ "This endpoint is not supported by the backend currently "
                 , "in use. Please try a different backend."

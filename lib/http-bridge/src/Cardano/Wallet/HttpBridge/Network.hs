@@ -44,8 +44,7 @@ import Cardano.Wallet.HttpBridge.Environment
 import Cardano.Wallet.HttpBridge.Primitive.Types
     ( Tx )
 import Cardano.Wallet.Network
-    ( ErrDecodeExternalTx (..)
-    , ErrGetBlock (..)
+    ( ErrGetBlock (..)
     , ErrNetworkTip (..)
     , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
@@ -70,7 +69,7 @@ import Control.Monad.Catch
 import Control.Monad.Fail
     ( MonadFail )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), mapExceptT, throwE, withExceptT )
+    ( ExceptT (..), mapExceptT, withExceptT )
 import Crypto.Hash
     ( HashAlgorithm, digestFromByteString )
 import Data.ByteArray
@@ -121,8 +120,6 @@ mkNetworkLayer httpBridge = NetworkLayer
                Quantity $ fromIntegral $ flatSlot epochLength (slotId nodeTip)
         return (nodeTip, nodeHeight)
     , postTx = postSignedTx httpBridge
-    , decodeExternalTx =
-        const $ throwE ErrDecodeExternalTxNotSupported
     }
 
 -- | Creates a cardano-http-bridge 'NetworkLayer' using the given connection

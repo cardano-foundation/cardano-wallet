@@ -23,6 +23,7 @@ module Cardano.Wallet.Transaction
     -- * Errors
     , ErrMkStdTx (..)
     , ErrValidateSelection
+    , ErrDecodeSignedTx (..)
 
     -- * Backend helpers
     , estimateMaxNumberOfInputsBase
@@ -37,8 +38,12 @@ import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), Hash (..), Tx, TxIn (..), TxOut (..), TxWitness (..) )
+import Data.ByteString
+    ( ByteString )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text
+    ( Text )
 import Data.Word
     ( Word16, Word8 )
 
@@ -91,6 +96,10 @@ data TransactionLayer t k = TransactionLayer
       --
       -- For example, Byron nodes do not allow null output amounts. Jörmungandr
       -- on its side doesn't support more than 255 inputs or outputs.
+
+    , decodeSignedTx
+        :: ByteString -> Either ErrDecodeSignedTx (Tx t, [TxWitness])
+        -- ^ Decode an externally-signed transaction to the chain producer
     }
 
 -- | A type family for validations that are specific to a particular backend
@@ -99,6 +108,12 @@ data TransactionLayer t k = TransactionLayer
 --     type instance (ErrValidateSelection MyBackend) = MyCustomError
 --
 type family ErrValidateSelection t
+
+-- | Error while trying to decode externally signed transaction
+data ErrDecodeSignedTx
+    = ErrDecodeSignedTxWrongPayload Text
+    | ErrDecodeSignedTxNotSupported
+    deriving (Show, Eq)
 
 -- | Possible signing error
 newtype ErrMkStdTx
