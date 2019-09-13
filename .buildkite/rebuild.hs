@@ -42,8 +42,6 @@ import Data.ByteString
     ( ByteString )
 import Data.Char
     ( isSpace )
-import Data.List.Extra
-    ( dropSuffix )
 import Data.Maybe
     ( mapMaybe, maybeToList )
 import Safe
@@ -347,12 +345,14 @@ getCacheArchive CICacheConfig{..} ext = do
     let caches = mapMaybe (getCacheName ccCacheDir) ccBranches
     headMay <$> filterM testfile (map (</> ext) caches)
 
--- | The cache directory for a given branch name
+-- | The cache directory for a given branch name. This filepath always has a
+-- trailing slash.
 getCacheName :: FilePath -> Text -> Maybe FilePath
 getCacheName base branch
     | ".." `T.isInfixOf` branch = Nothing
-    | otherwise = Just (base </> FP.fromText branch)
+    | otherwise = Just (base </> FP.fromText branch </> "")
 
+-- | The filename for a given branch and cache name.
 putCacheName :: CICacheConfig -> FilePath -> Maybe FilePath
 putCacheName CICacheConfig{..} ext =
     (</> ext) <$> getCacheName ccCacheDir (head ccBranches)
@@ -449,15 +449,16 @@ purgeCacheStep dryRun cacheConfig buildDir = do
 cleanupCache :: DryRun -> FilePath -> [Text] -> IO ()
 cleanupCache dryRun cacheDir activeBranches = do
     let branchCaches = mapMaybe (getCacheName cacheDir) activeBranches
+        isCache cf = any (\dir -> format fp cf `T.isPrefixOf` format fp dir)
     files <- fold (lstree cacheDir) (Fold.revList)
     forM_ files $ \cf -> do
         st <- stat cf
         if isDirectory st
-            then unless (cf `elem` branchCaches) $ do
-                printf ("Removing "%fp%".\n") cf
+            then unless (isCache cf branchCaches) $ do
+                printf ("Removing directory "%fp%"\n") cf
                 whenRun dryRun $ rmdir cf
-            else unless (directoryWithoutSlash cf `elem` branchCaches) $ do
-                printf ("Removing "%fp%".\n") cf
+            else unless (directory cf `elem` branchCaches) $ do
+                printf ("Removing file "%fp%"\n") cf
                 whenRun dryRun $ rm cf
 
 removeDirectory :: DryRun -> FilePath -> IO ()
@@ -519,10 +520,6 @@ whenRun dry = whenRun' dry () . void
 whenRun' :: Applicative m => DryRun -> a -> m a -> m a
 whenRun' DryRun a _ = pure a
 whenRun' Run _ ma = ma
-
-directoryWithoutSlash :: FilePath -> FilePath
-directoryWithoutSlash =
-    decodeString . dropSuffix "/" . encodeString . directory
 
 -- | Run an action, but cancel it if it doesn't complete within the given number
 -- of minutes.
