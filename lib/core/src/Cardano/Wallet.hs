@@ -21,16 +21,36 @@
 -- Provides wallet layer functions that are used by API layer. Uses both
 -- "Cardano.Wallet.DB" and "Cardano.Wallet.Network" to realize its role as
 -- being intermediary between the three.
+--
+-- Functions of the wallet layer are often parameterized with variables
+-- following the convention below:
+--
+-- - @s@: A __s__tate used to keep track of known addresses. Typically, possible
+--   values for this parameter are described in 'Cardano.Wallet.AddressDiscovery' sub-modules.
+--   For instance @SeqState@ or @Rnd State@.
+--
+-- - @t@: A __t__arget backend which captures details specific to a particular chain
+--   producer (binary formats, fee policy, networking layer).
+--
+-- - @k@: A __k__ey derivation scheme intrisically connected to the underlying discovery
+--   state @s@. This describes how the hierarchical structure of a wallet is
+--   defined as well as the relationship between secret keys and public
+--   addresses.
 
 module Cardano.Wallet
     (
-    -- * Types
+    -- * Developement
+    -- $Development
+
+    -- * WalletLayer
+    -- $WalletLayer
       WalletLayer
     , BlockchainParameters (..)
     , IsWalletCtx
     , newWalletLayer
 
     -- * Capabilities
+    -- $Capabilities
     , HasBlockchainParameters
     , HasDBLayer
     , HasLogger
@@ -38,7 +58,8 @@ module Cardano.Wallet
     , HasTransactionLayer
     , HasWorkerRegistry
 
-    -- * Wallet
+    -- * Interface
+    -- ** Wallet
     , attachPrivateKey
     , createWallet
     , listUtxoStatistics
@@ -53,10 +74,10 @@ module Cardano.Wallet
     , ErrListUTxOStatistics (..)
     , ErrUpdatePassphrase (..)
 
-    -- * Address
+    -- ** Address
     , listAddresses
 
-    -- * Transaction
+    -- ** Transaction
     , createUnsignedTx
     , estimateTxFee
     , listTransactions
@@ -250,9 +271,75 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 
+-- $Development
+-- __Naming Conventions__
+--
+-- Components inside a particular context `ctx` can be called via dedicated
+-- lenses (see Cardano.Wallet#Capabilities). These components are extracted from the context
+-- in a @where@ clause according to the following naming convention:
+--
+-- - @bp = ctx ^. blockchainParameters \@t@ for the 'BlockchainParameters'.
+-- - @db = ctx ^. dbLayer \@s \@t \@k@ for the 'DBLayer'.
+-- - @tr = ctx ^. logger@ for the Logger.
+-- - @nw = ctx ^. networkLayer \@t@ for the 'NetworkLayer'.
+-- - @tl = ctx ^. transactionLayer \@t \@k@ for the 'TransactionLayer'.
+-- - @re = ctx ^. workerRegistry@ for the 'WorkerRegistry'.
+--
+-- __TroubleShooting__
+--
+-- @
+-- • Overlapping instances for HasType (DBLayer IO s t k) ctx
+--     arising from a use of ‘myFunction’
+--   Matching instances:
+-- @
+--
+-- Occurs when a particular function is missing a top-level constraint
+-- (because it uses another function that demands such constraint). Here,
+-- `myFunction` needs its surrounding context `ctx` to have a `DBLayer` but
+-- the constraint is missing from its host function.
+--
+-- __Fix__: Add "@HasDBLayer s t k@" as a class-constraint to the surrounding function.
+--
+-- @
+-- • Overlapping instances for HasType (DBLayer IO s t0 k0) ctx
+--     arising from a use of ‘myFunction’
+--   Matching givens (or their superclasses):
+-- @
+--
+-- Occurs when a function is called in a context where type-level parameters
+-- can be inferred. Here, `myFunction` is called but it is unclear
+-- whether the parameter `t0` and `k0` of its context are the same as the ones
+-- from the function at the call-site.
+--
+-- __Fix__: Add type-applications at the call-site "@myFunction \@ctx \@s \@t \@k@"
+
 {-------------------------------------------------------------------------------
                                  Types
 -------------------------------------------------------------------------------}
+
+-- $WalletLayer
+-- This module provides a full-blown 'WalletLayer' which does possess all the
+-- capabilities necessary to run all functions from that module. It can be
+-- created via 'newWalletLayer'.
+--
+-- A concrete 'WalletLayer' can therefore be used as a `ctx` for any of the
+-- functions below. For example:
+--
+-- @
+-- import Cardano.Wallet
+--     ( WalletLayer, newWalletLayer )
+--
+-- import qualified Cardano.Wallet as W
+--
+-- main :: IO ()
+-- main =
+--     {- ... -}
+--     ctx <- newWalletLayer logger blockchainParameters db network builder
+--     _ <- W.createWallet ctx wId wName state
+--     _ <- W.listWallets ctx
+--     _ <- W.estimateFee ctx wId txOuts
+--     {- and so forth ... -}
+-- @
 
 data WalletLayer s t (k :: Depth -> * -> *)
     = WalletLayer
@@ -323,6 +410,34 @@ data BlockchainParameters t = BlockchainParameters
 {-------------------------------------------------------------------------------
                             Wallet Capabilities
 -------------------------------------------------------------------------------}
+
+-- $Capabilities
+-- Each function in the wallet layer is defined in function of a non-specialized
+-- context `ctx`. That context may require some extra capabilities via
+-- class-constraints in the function signature. Capabilities are expressed in the
+-- form of a "@HasXXX@" class-constraints sometimes with extra type parameters.
+--
+-- For example:
+--
+-- @
+-- listWallets
+--     :: forall ctx s t k.
+--         ( IsWalletCtx s t k ctx
+--         , HasDBLayer s t k ctx
+--         )
+--     => ctx
+--     -> IO [WalletId]
+-- @
+--
+-- Requires that the given context has an access to a database layer 'DBLayer'
+-- parameterized over the wallet state, a network target and a key derivation
+-- scheme. Components are pulled from the context generically (i.e. the concrete
+-- `ctx` must derive 'Generic') using their associated type. The concrete `ctx`
+-- is therefore expected to be a product-type of all the necessary components.
+--
+-- One can build an interface using only a subset of the wallet layer
+-- capabilities and functions, for instance, something to fiddle with wallets
+-- and their metadata does not require any networking layer.
 
 type HasBlockchainParameters t = HasType (BlockchainParameters t)
 
