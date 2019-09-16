@@ -373,7 +373,7 @@ dropStartingFromSlot bh (UnstableBlocks bs (Quantity h)) =
   where
     isAfter = (>= slotId bh) . slotId . snd
     bs' = Seq.dropWhileR isAfter bs
-    h' = h + fromIntegral (Seq.length bs') - fromIntegral (Seq.length bs)
+    h' = h + fromIntegral (max 0 $ Seq.length bs' - Seq.length bs)
 
 {-------------------------------------------------------------------------------
                             Jormungandr Client
