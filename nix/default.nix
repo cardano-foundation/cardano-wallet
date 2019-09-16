@@ -24,6 +24,13 @@ let
   # Grab the compiler name from stack-to-nix output.
   compiler = (stack-pkgs.extras {}).compiler.nix-name;
 
+  # Use a postInstall wrapping script if this is not a windows
+  # build. Otherwise, copy DLL dependencies.
+  wrapForPosix = postInstall: if pkgs.stdenv.hostPlatform.isWindows
+    then ''
+      cp -v ${pkgs.libffi}/bin/libffi-6.dll $out/bin
+    '' else postInstall;
+
   pkgSet = haskell.mkStackPkgSet {
     inherit stack-pkgs;
     modules = [
@@ -59,7 +66,7 @@ let
 
         packages.cardano-wallet.components.exes.cardano-wallet-jormungandr = {
           build-tools = [ pkgs.makeWrapper];
-          postInstall = ''
+          postInstall = wrapForPosix ''
             wrapProgram $out/bin/cardano-wallet-jormungandr \
               --prefix PATH : ${jormungandr}/bin
           '';
@@ -67,7 +74,7 @@ let
 
         packages.cardano-wallet.components.exes.cardano-wallet-http-bridge = {
           build-tools = [ pkgs.makeWrapper];
-          postInstall = ''
+          postInstall = wrapForPosix ''
             wrapProgram $out/bin/cardano-wallet-http-bridge \
               --prefix PATH : ${cardano-http-bridge}/bin
           '';
