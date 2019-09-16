@@ -17,7 +17,7 @@ blockchain_configuration:
   #
   # * BFT consensus: bft
   # * Genesis Praos consensus: genesis
-  block0_consensus: bft
+  block0_consensus: genesis_praos
 
   # Number of slots in each epoch
   slots_per_epoch: 500
@@ -32,14 +32,14 @@ blockchain_configuration:
   # A list of Ed25519 Extended PublicKey that represents the
   # BFT leaders encoded as bech32. The order in the list matters.
   consensus_leader_ids:
-    - ed25519_pk1haythczarvl75wt6y6fmq0gjz7j9xcyfatwchj523wdawechkd8qp735w5
+    - ed25519_pk1v42lxnjdulhnkq0g38d6q73envaragxrdus3sngpgwd0jmzygt4s3gkwxw
 
   # Genesis praos parameter D
-  bft_slots_ratio: 0.220
+  bft_slots_ratio: 0
 
   # Genesis praos active slot coefficient
   # Determines minimum stake required to try becoming slot leader, must be in range (0,1]
-  consensus_genesis_praos_active_slot_coeff: 0.22
+  consensus_genesis_praos_active_slot_coeff: 0.001
 
   # This is the max number of messages allowed in a given Block
   max_number_of_transactions_per_block: 255
@@ -3062,3 +3062,11 @@ initial:
   - fund:
     - address: ca1swl53wlqt5dnl63e0gnf8vpazgt6g5mq384dmz72329eh4m8z7e5un8q6lg
       value: 100000000000
+  - fund:
+      - address: ca1s5nwh0ur9qj4tg5hx334ht9zvqwn9ddz8rv5acwdl997zmqpswdujuwqu9j
+        value: 100000000000000
+      - address: ca1s5498yesws3eee80nxlxqlqetpdstam9x0hkcs7f2k4386uyulydvmzrtja
+        value: 100000000000000
+  - cert: cert1qgqqqqqqqqqqqqqqqqqqq0p5avfqpwp63q30nxmgqvev59g6evy8a4ycxqzy499kvm843acyr54v59yd5m49e2gp6lj0x7u2pemh86wqva3wcch6zxncynmwremehyun442qzqzqtx9jhqgyz9889rzqehtdk7lwfk5pvspzc4098w5purwzt6kfvglzx5xq50lq8k9raslsz5cgq8jnpn5vkt5khc646ens4s8gsl2cvzcm00utd
+  - cert: cert1qynwh0ur9qj4tg5hx334ht9zvqwn9ddz8rv5acwdl997zmqpswdujlt5nm6zg5rlhq876rfz382nt220dpc2m5x03vm5elnv4crcxg8vqyqypgte4gh3nmvl6e5kt6t3pm5tsalp4lfrgahkpqwn6vwy3y55d9x7du3lxj4ytew8f6m22ldn6p7vdm0hxmw8kmze9dj590jk5qgym5zsthpvx3
+  - cert: cert1qy498yesws3eee80nxlxqlqetpdstam9x0hkcs7f2k4386uyulydvlt5nm6zg5rlhq876rfz382nt220dpc2m5x03vm5elnv4crcxg8vqyqyqlvuxdc9j6xsd50lc5g02k745acusdfjr3mp8m999qdjtf59a6qcm80aynncuan3sz0vcacpjp6jpsyt706hr23pmt5h8nn7q3wzquyq9jsn9g
