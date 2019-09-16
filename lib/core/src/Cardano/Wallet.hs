@@ -27,6 +27,7 @@ module Cardano.Wallet
     -- * Types
       WalletLayer
     , BlockchainParameters (..)
+    , IsWalletCtx
     , newWalletLayer
 
     -- * Wallet
@@ -225,6 +226,8 @@ import Data.Word
     ( Word16, Word32 )
 import Fmt
     ( Buildable, blockListF, pretty, (+|), (+||), (|+), (||+) )
+import GHC.Exts
+    ( Constraint )
 import GHC.Generics
     ( Generic )
 import Numeric.Natural
@@ -252,6 +255,34 @@ data WalletLayer s t (k :: Depth -> * -> *)
         (TransactionLayer t k)
         WorkerRegistry
     deriving (Generic)
+
+-- |
+-- "Magic trick" to ease caller type signatures. This type family binds together
+-- constituants of the WalletLayer (or any similar structure) to remove the
+-- ambiguity between s, t and k.
+--
+-- Without this, calls to functions of the wallet layers are considered
+-- ambiguous and demand several type applications, even when the context is
+-- known concrete type!
+--
+-- @
+-- W.createWallet @ctx @s @t @k ctx wId wName s
+-- @
+--
+-- Now, if we add a constraint as @IsWalletCtx s t k ctx@ to `createWallet`
+-- , we can remove the type applications and do:
+--
+-- @
+-- W.createWallet ctx wId wName s
+-- @
+--
+-- For a known context, we can without ambiguity know what are the corresponding
+-- parameters. The family is open, so it can be extended for other kind of
+-- structure.
+type family IsWalletCtx s t (k :: Depth -> * -> *) ctx :: Constraint
+
+type instance IsWalletCtx s t k (WalletLayer s0 t0 k0) =
+    (s0 ~ s, t0 ~ t, k0 ~ k)
 
 -- | Create a new instance of the wallet layer.
 newWalletLayer
@@ -304,7 +335,8 @@ type HasWorkerRegistry = HasType WorkerRegistry
 -- | Initialise and store a new wallet, returning its ID
 createWallet
     :: forall ctx s t k.
-        ( HasBlockchainParameters t ctx
+        ( IsWalletCtx s t k ctx
+        , HasBlockchainParameters t ctx
         , HasDBLayer s t k ctx
         , Show s
         , NFData s
@@ -334,7 +366,8 @@ createWallet ctx wid wname s = do
 -- | Retrieve the wallet state for the wallet with the given ID.
 readWallet
     :: forall ctx s t k.
-        ( HasDBLayer s t k ctx
+        ( IsWalletCtx s t k ctx
+        , HasDBLayer s t k ctx
         )
     => ctx
     -> WalletId
@@ -346,7 +379,8 @@ readWallet ctx wid = (,)
 -- | Retrieve a wallet's most recent checkpoint
 readWalletCheckpoint
     :: forall ctx s t k.
-        ( HasDBLayer s t k ctx
+        ( IsWalletCtx s t k ctx
+        , HasDBLayer s t k ctx
         )
     => ctx
     -> WalletId
@@ -360,7 +394,8 @@ readWalletCheckpoint ctx wid =
 -- | Retrieve only metadata associated with a particular wallet
 readWalletMeta
     :: forall ctx s t k.
-        ( HasDBLayer s t k ctx
+        ( IsWalletCtx s t k ctx
+        , HasDBLayer s t k ctx
         )
     => ctx
     -> WalletId
@@ -374,7 +409,8 @@ readWalletMeta ctx wid =
 -- | Update a wallet's metadata with the given update function.
 updateWallet
     :: forall ctx s t k.
-        ( HasDBLayer s t k ctx
+        ( IsWalletCtx s t k ctx
+        , HasDBLayer s t k ctx
         )
     => ctx
     -> WalletId
@@ -390,7 +426,8 @@ updateWallet ctx wid modify =
 -- | Change a wallet's passphrase to the given passphrase.
 updateWalletPassphrase
     :: forall ctx s t k.
-        ( HasDBLayer s t k ctx
+        ( IsWalletCtx s t k ctx
+        , HasDBLayer s t k ctx
         , WalletKey k
         )
     => ctx
@@ -406,7 +443,8 @@ updateWalletPassphrase ctx wid (old, new) =
 -- | Retrieve a list of known wallet IDs.
 listWallets
     :: forall ctx s t k.
-        ( HasDBLayer s t k ctx
+        ( IsWalletCtx s t k ctx
+        , HasDBLayer s t k ctx
         )
     => ctx
     -> IO [WalletId]
@@ -418,7 +456,8 @@ listWallets ctx =
 -- | List the wallet's UTxO statistics.
 listUtxoStatistics
     :: forall ctx s t k.
-        ( HasDBLayer s t k ctx
+        ( IsWalletCtx s t k ctx
+        , HasDBLayer s t k ctx
         , DefineTx t
         )
     => ctx
@@ -435,7 +474,8 @@ listUtxoStatistics ctx wid = do
 -- on the next tick when noticing that the corresponding wallet is gone.
 removeWallet
     :: forall ctx s t k.
-        ( HasDBLayer s t k ctx
+        ( IsWalletCtx s t k ctx
+        , HasDBLayer s t k ctx
         , HasWorkerRegistry ctx
         )
     => ctx
@@ -455,7 +495,8 @@ removeWallet ctx wid = do
 -- network tip is reached or until failure.
 restoreWallet
     :: forall ctx s t k.
-        ( HasLogger ctx
+        ( IsWalletCtx s t k ctx
+        , HasLogger ctx
         , HasBlockchainParameters t ctx
         , HasDBLayer s t k ctx
         , HasNetworkLayer t ctx
@@ -490,7 +531,8 @@ restoreWallet ctx wid = do
 -- The function only terminates if the wallet has disappeared from the DB.
 restoreStep
     :: forall ctx s t k.
-        ( HasLogger ctx
+        ( IsWalletCtx s t k ctx
+        , HasLogger ctx
         , HasBlockchainParameters t ctx
         , HasNetworkLayer t ctx
         , HasDBLayer s t k ctx
@@ -528,7 +570,8 @@ restoreStep ctx wid (localTip, (nodeTip, nodeHeight)) = do
 -- order to refine our syncing status.
 restoreSleep
     :: forall ctx s t k.
-        ( HasBlockchainParameters t ctx
+        ( IsWalletCtx s t k ctx
+        , HasBlockchainParameters t ctx
         , HasNetworkLayer t ctx
         , HasLogger ctx
         , HasDBLayer s t k ctx
@@ -559,7 +602,8 @@ restoreSleep ctx wid localTip = do
 -- transaction history and corresponding metadata.
 restoreBlocks
     :: forall ctx s t k.
-        ( HasLogger ctx
+        ( IsWalletCtx s t k ctx
+        , HasLogger ctx
         , HasBlockchainParameters t ctx
         , HasDBLayer s t k ctx
         , DefineTx t
@@ -642,7 +686,8 @@ restoreBlocks ctx wid blocks (nodeTip, Quantity nodeHeight) = do
 -- are ordered from the most-recently-discovered to the oldest known.
 listAddresses
     :: forall ctx s t k.
-        ( HasDBLayer s t k ctx
+        ( IsWalletCtx s t k ctx
+        , HasDBLayer s t k ctx
         , IsOurs s
         , CompareDiscovery s
         , KnownAddresses s
@@ -699,7 +744,8 @@ feeOpts tl feePolicy = FeeOptions
 -- sign) an actual transaction, use 'signTx'.
 createUnsignedTx
     :: forall ctx s t k e.
-        ( HasBlockchainParameters t ctx
+        ( IsWalletCtx s t k ctx
+        , HasBlockchainParameters t ctx
         , HasTransactionLayer t k ctx
         , HasLogger ctx
         , HasDBLayer s t k ctx
@@ -731,7 +777,8 @@ createUnsignedTx ctx wid recipients = do
 -- the wallet to cover the requested outputs.
 estimateTxFee
     :: forall ctx s t k e.
-        ( HasBlockchainParameters t ctx
+        ( IsWalletCtx s t k ctx
+        , HasBlockchainParameters t ctx
         , HasTransactionLayer t k ctx
         , HasDBLayer s t k ctx
         , DefineTx t
@@ -761,7 +808,8 @@ estimateTxFee ctx wid recipients = do
 -- transaction to the network. In order to do so, use 'submitTx'.
 signTx
     :: forall ctx s t k.
-        ( HasTransactionLayer t k ctx
+        ( IsWalletCtx s t k ctx
+        , HasTransactionLayer t k ctx
         , HasDBLayer s t k ctx
         , Show s
         , NFData s
@@ -810,7 +858,8 @@ signTx ctx wid pwd (CoinSelection ins outs chgs) =
 -- | Broadcast a (signed) transaction to the network.
 submitTx
     :: forall ctx s t k.
-        ( HasNetworkLayer t ctx
+        ( IsWalletCtx s t k ctx
+        , HasNetworkLayer t ctx
         , HasDBLayer s t k ctx
         )
     => ctx
@@ -828,25 +877,29 @@ submitTx ctx wid (tx, meta, wit)= do
 
 -- | Broadcast an externally-signed transaction to the network.
 submitExternalTx
-    :: forall ctx t.
-        ( HasNetworkLayer t ctx
+    :: forall ctx s t k.
+        ( IsWalletCtx s t k ctx
+        , HasNetworkLayer t ctx
+        , HasTransactionLayer t k ctx
         )
     => ctx
     -> ByteString
     -> ExceptT ErrSubmitExternalTx IO (Tx t)
 submitExternalTx ctx bytes = do
-    txWithWit@(tx,_) <- withExceptT ErrSubmitExternalTxDecode $
+    txWithWit@(tx,_) <- withExceptT ErrSubmitExternalTxDecode $ except $
         decodeSignedTx tl bytes
-    withExceptT ErrSubmitExternalTxNetwork $ postTx tl txWithWit
+    withExceptT ErrSubmitExternalTxNetwork $ postTx nw txWithWit
     return tx
   where
+    nw = ctx ^. typed @(NetworkLayer t IO)
     tl = ctx ^. typed @(TransactionLayer t k)
 
 
 -- | List all transactions and metadata from history for a given wallet.
 listTransactions
     :: forall ctx s t k.
-        ( HasBlockchainParameters t ctx
+        ( IsWalletCtx s t k ctx
+        , HasBlockchainParameters t ctx
         , HasDBLayer s t k ctx
         , DefineTx t
         )
@@ -934,7 +987,8 @@ listTransactions ctx wid mStart mEnd order = do
 -- generating new accounts.
 attachPrivateKey
     :: forall ctx s t k.
-        ( HasDBLayer s t k ctx
+        ( IsWalletCtx s t k ctx
+        , HasDBLayer s t k ctx
         )
     => ctx
     -> WalletId
@@ -955,7 +1009,8 @@ attachPrivateKey ctx wid (xprv, pwd) = do
 -- | Execute an action which requires holding a root XPrv.
 withRootKey
     :: forall ctx s t k e a.
-        ( HasDBLayer s t k ctx
+        ( IsWalletCtx s t k ctx
+        , HasDBLayer s t k ctx
         )
     => ctx
     -> WalletId

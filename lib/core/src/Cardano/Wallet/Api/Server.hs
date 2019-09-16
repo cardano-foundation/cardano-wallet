@@ -241,9 +241,9 @@ withWorkers
     -> ctx
     -> IO ()
 withWorkers trace ctx = do
-    W.listWallets @ctx @s @t @k ctx >>= mapM_ worker
+    W.listWallets ctx >>= mapM_ worker
   where
-    worker wid = runExceptT (W.restoreWallet @ctx @s @t @k ctx wid) >>= \case
+    worker wid = runExceptT (W.restoreWallet ctx wid) >>= \case
         Right () -> return ()
         Left e -> logWarning trace $
             "Wallet has suddenly vanished: "+| wid |+": "+|| e ||+""
@@ -305,7 +305,7 @@ deleteWallet
     -> ApiT WalletId
     -> Handler NoContent
 deleteWallet ctx (ApiT wid) = do
-    liftHandler $ W.removeWallet @ctx @s @t @k ctx wid
+    liftHandler $ W.removeWallet ctx wid
     return NoContent
 
 getWallet
@@ -318,7 +318,7 @@ getWallet
     -> ApiT WalletId
     -> Handler ApiWallet
 getWallet ctx wid =
-    fst <$> getWalletWithCreationTime @ctx @s @t @k ctx wid
+    fst <$> getWalletWithCreationTime ctx wid
 
 listWallets
     :: forall ctx s t k.
@@ -329,7 +329,7 @@ listWallets
     => ctx
     -> Handler [ApiWallet]
 listWallets ctx = do
-    wids <- liftIO $ W.listWallets @ctx @s @t @k ctx
+    wids <- liftIO $ W.listWallets ctx
     fmap fst . sortOn snd <$>
         mapM (getWalletWithCreationTime ctx) (ApiT <$> wids)
 
@@ -354,10 +354,10 @@ postWallet ctx body = do
     let s = mkSeqState (rootXPrv, pwd) g
     let wid = WalletId $ digest $ publicKey rootXPrv
     let wName = getApiT (body ^. #name)
-    _ <- liftHandler $ W.createWallet @ctx @s @t @k ctx wid wName s
-    liftHandler $ W.attachPrivateKey @ctx @s @t @k ctx wid (rootXPrv, pwd)
-    liftHandler $ W.restoreWallet @ctx @s @t @k ctx wid
-    getWallet @ctx @s @t @k ctx (ApiT wid)
+    _ <- liftHandler $ W.createWallet ctx wid wName s
+    liftHandler $ W.attachPrivateKey ctx wid (rootXPrv, pwd)
+    liftHandler $ W.restoreWallet ctx wid
+    getWallet ctx (ApiT wid)
 
 putWallet
     :: forall ctx s t k.
@@ -374,8 +374,8 @@ putWallet ctx (ApiT wid) body = do
         Nothing ->
             return ()
         Just (ApiT wName) -> do
-            liftHandler $ W.updateWallet @ctx @s @t @k ctx wid (modify wName)
-    getWallet @ctx @s @t @k ctx (ApiT wid)
+            liftHandler $ W.updateWallet ctx wid (modify wName)
+    getWallet ctx (ApiT wid)
   where
     modify :: W.WalletName -> WalletMetadata -> WalletMetadata
     modify wName meta = meta { name = wName }
@@ -392,7 +392,7 @@ putWalletPassphrase
     -> Handler NoContent
 putWalletPassphrase ctx (ApiT wid) body = do
     let (WalletPutPassphraseData (ApiT old) (ApiT new)) = body
-    liftHandler $ W.updateWalletPassphrase @ctx @s @t @k ctx wid (old, new)
+    liftHandler $ W.updateWalletPassphrase ctx wid (old, new)
     return NoContent
 
 getUTxOsStatistics
@@ -406,7 +406,7 @@ getUTxOsStatistics
     -> Handler ApiUtxoStatistics
 getUTxOsStatistics ctx (ApiT wid) = do
     (UTxOStatistics histo totalStakes bType) <-
-        liftHandler $ W.listUtxoStatistics @ctx @s @t @k ctx wid
+        liftHandler $ W.listUtxoStatistics ctx wid
     return ApiUtxoStatistics
         { total = Quantity (fromIntegral totalStakes)
         , scale = ApiT bType
@@ -442,7 +442,7 @@ listAddresses
     -> Maybe (ApiT AddressState)
     -> Handler [ApiAddress t]
 listAddresses ctx (ApiT wid) stateFilter = do
-    addrs <- liftHandler $ W.listAddresses @ctx @s @t @k ctx wid
+    addrs <- liftHandler $ W.listAddresses ctx wid
     return $ coerceAddress <$> filter filterCondition addrs
   where
     filterCondition :: (Address, AddressState) -> Bool
@@ -488,9 +488,9 @@ createTransaction
 createTransaction ctx (ApiT wid) body = do
     let outs = coerceCoin <$> (body ^. #payments)
     let pwd = getApiT $ body ^. #passphrase
-    selection <- liftHandler $ W.createUnsignedTx @ctx @s @t @k ctx wid outs
-    (tx, meta, wit) <- liftHandler $ W.signTx @ctx @s @t @k ctx wid pwd selection
-    liftHandler $ W.submitTx @ctx @s @t @k ctx wid (tx, meta, wit)
+    selection <- liftHandler $ W.createUnsignedTx ctx wid outs
+    (tx, meta, wit) <- liftHandler $ W.signTx ctx wid pwd selection
+    liftHandler $ W.submitTx ctx wid (tx, meta, wit)
     return $ mkApiTransaction (txId @t tx)
         (fmap Just <$> selection ^. #inputs) (selection ^. #outputs) meta
 
@@ -504,7 +504,7 @@ postExternalTransaction
     -> PostExternalTransactionData
     -> Handler ApiTxId
 postExternalTransaction ctx (PostExternalTransactionData load) = do
-    tx <- liftHandler $ W.submitExternalTx @ctx @t ctx load
+    tx <- liftHandler $ W.submitExternalTx ctx load
     return $ ApiTxId (ApiT (txId @t tx))
 
 listTransactions
@@ -520,7 +520,7 @@ listTransactions
     -> Maybe (ApiT SortOrder)
     -> Handler [ApiTransaction t]
 listTransactions ctx (ApiT wid) mStart mEnd mOrder = do
-    txs <- liftHandler $ W.listTransactions @ctx @s @t @k ctx wid
+    txs <- liftHandler $ W.listTransactions ctx wid
         (getIso8601Time <$> mStart)
         (getIso8601Time <$> mEnd)
         (maybe defaultSortOrder getApiT mOrder)
@@ -542,7 +542,7 @@ postTransactionFee
     -> Handler ApiFee
 postTransactionFee ctx (ApiT wid) body = do
     let outs = coerceCoin <$> (body ^. #payments)
-    (Fee fee) <- liftHandler $ W.estimateTxFee @ctx @s @t @k ctx wid outs
+    (Fee fee) <- liftHandler $ W.estimateTxFee ctx wid outs
     return ApiFee
         { amount = Quantity (fromIntegral fee)
         }
@@ -596,7 +596,7 @@ getWalletWithCreationTime
     -> ApiT WalletId
     -> Handler (ApiWallet, UTCTime)
 getWalletWithCreationTime ctx (ApiT wid) = do
-    (wallet, meta) <- liftHandler $ W.readWallet @ctx @s @t @k ctx wid
+    (wallet, meta) <- liftHandler $ W.readWallet ctx wid
     return (mkApiWallet wallet meta, meta ^. #creationTime)
   where
     mkApiWallet wallet meta = ApiWallet
