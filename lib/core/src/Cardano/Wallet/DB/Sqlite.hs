@@ -147,7 +147,6 @@ import Database.Persist.Sql
     , selectList
     , update
     , updateWhere
-    , (!=.)
     , (<-.)
     , (<=.)
     , (=.)
@@ -369,6 +368,7 @@ newDBLayer logConfig trace fp = do
                               (not . any (W.isPending . snd))
                       putTxMetas metas
                       putTxs txins txouts
+                      addSpentUtxos metas txins
                       pure $ Right ()
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
@@ -671,7 +671,7 @@ insertCheckpoint wid cp = do
     insert_ cp'
     putTxMetas metas
     putTxs ins outs
-    dbChunked insertMany_ utxo
+    mapM_ (insertWhenNew wid) utxo
     insertState (wid, (W.currentTip cp) ^. #slotId) (W.getState cp)
 
 -- | Delete all checkpoints associated with a wallet.
@@ -770,34 +770,67 @@ selectLatestCheckpoint wid = fmap entityVal <$>
 selectUTxO
     :: Checkpoint
     -> SqlPersistT IO [UTxO]
-selectUTxO (Checkpoint wid _ _parent _bh) = fmap entityVal <$>
+selectUTxO (Checkpoint wid _sl _parent _bh) = fmap entityVal <$>
     selectList
         [ UtxoWalletId ==. wid
         , UtxoSlotSpent ==. Nothing
         ] []
 
-_updateUTxOs
+insertWhenNew
     :: W.WalletId
+    -> UTxO
     -> SqlPersistT IO ()
-_updateUTxOs wid = do
+insertWhenNew wid utxo@(UTxO _ _ _ inpId inpIx outAddr outAmt) = do
     utxos <- selectList [ UtxoWalletId ==. wid
-                        , UtxoSlotSpent !=. Nothing
+                        , UtxoInputId ==. inpId
+                        , UtxoInputIndex ==. inpIx
+                        , UtxoOutputAddress ==. outAddr
+                        , UtxoOutputCoin ==. outAmt
                         ] []
-    mapM_ updateUTxO utxos
+    when (null utxos) $ insert_ utxo
 
-updateUTxO ::
-    Entity UTxO -> SqlPersistT IO ()
-updateUTxO utxo = do
-    let (UTxO walId slot _ inpId inpIx outAddr outAmt) = entityVal utxo
-    let utxoId = entityKey utxo
-    update utxoId [ UtxoWalletId =. walId
-                  , UtxoSlot =. slot
-                  , UtxoSlotSpent =. Nothing
-                  , UtxoInputId =. inpId
-                  , UtxoInputIndex =. inpIx
-                  , UtxoOutputAddress =. outAddr
-                  , UtxoOutputCoin =. outAmt
-                  ]
+addSpentUtxos
+    :: [TxMeta]
+    -> [TxIn]
+    -> SqlPersistT IO ()
+addSpentUtxos metas txins = do
+    let outgoingAndInLedger =
+            filter (\(TxMeta _ _ st dir _ _) ->
+                        st == W.InLedger && dir == W.Outgoing) metas
+    mapM_ (updateUtxosPerMeta txins) outgoingAndInLedger
+
+updateUtxosPerMeta
+    :: [TxIn]
+    -> TxMeta
+    -> SqlPersistT IO ()
+updateUtxosPerMeta txins (TxMeta txid wid _ _ sl _) = do
+    let validTxIns = filter (\(TxIn txid' _ _ _ _ ) -> txid'==txid) txins
+    mapM_ (updateUtxoSpent wid sl) validTxIns
+
+updateUtxoSpent
+    :: W.WalletId
+    -> W.SlotId
+    -> TxIn
+    -> SqlPersistT IO ()
+updateUtxoSpent wid sl (TxIn _ _ inpId inpIx _) = do
+    utxos <- selectList [ UtxoWalletId ==. wid
+                        , UtxoSlotSpent ==. Nothing
+                        , UtxoInputId ==. inpId
+                        , UtxoInputIndex ==. inpIx
+                        ] [LimitTo 1]
+    mapM_ _updateUtxoSpent utxos
+  where
+      _updateUtxoSpent utxo = do
+          let (UTxO _ slot _ _ _ outAddr outAmt) = entityVal utxo
+          let utxoId = entityKey utxo
+          update utxoId [ UtxoWalletId =. wid
+                        , UtxoSlot =. slot
+                        , UtxoSlotSpent =. (Just sl)
+                        , UtxoInputId =. inpId
+                        , UtxoInputIndex =. inpIx
+                        , UtxoOutputAddress =. outAddr
+                        , UtxoOutputCoin =. outAmt
+                        ]
 
 selectTxs
     :: [TxId]

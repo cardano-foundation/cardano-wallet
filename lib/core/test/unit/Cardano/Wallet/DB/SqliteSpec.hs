@@ -36,7 +36,7 @@ import Cardano.Wallet.DB.Sqlite
 import Cardano.Wallet.DB.Sqlite.TH
     ( Checkpoint (..) )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( BlockId (..), TxId (..) )
+    ( BlockId (..) )
 import Cardano.Wallet.DB.StateMachine
     ( prop_parallel, prop_sequential )
 import Cardano.Wallet.DBSpec
@@ -58,7 +58,14 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Mnemonic
     ( EntropySize, entropyToBytes, genEntropy )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, blockHeight, currentTip, initWallet, utxo )
+    ( Wallet
+    , blockHeight
+    , currentTip
+    , getState
+    , initWallet
+    , unsafeInitWallet
+    , utxo
+    )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Block (..)
@@ -120,7 +127,7 @@ import Data.Word
 import Database.Persist
     ( Entity, entityVal, selectList )
 import Database.Persist.Sql
-    ( SqlBackend, insert_ )
+    ( SqlBackend )
 import Database.Persist.Sqlite
     ( runSqlite )
 import GHC.Conc
@@ -158,6 +165,7 @@ import qualified Cardano.Wallet.Primitive.AddressDerivation.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Sequential as Seq
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Text as T
 
 spec :: Spec
@@ -203,7 +211,7 @@ multipleCheckpointsSpec
 multipleCheckpointsSpec = do
     describe "put and read checkpoints" $ do
         it "previous checkpoints are also stored" $ \db -> do
-            cp1 <- createWalletAndFirstCheckpoint db testPk
+            cp1 <- createWalletAndFirstCheckpoint db testPk 0 "genesis"
 
             -- the second checkpoint is to be persisted
             let block1 = mkBlock 1 "block1" []
@@ -219,7 +227,7 @@ multipleCheckpointsSpec = do
 
     describe "put and read tx history" $ do
         it "checking accumulating 2 incoming transactions" $ \db -> do
-            _ <- createWalletAndFirstCheckpoint db testPk
+            _ <- createWalletAndFirstCheckpoint db testPk 0 "genesis"
 
             let slotNum1 = 1
             let nextSlotId1 = (SlotId 0 slotNum1)
@@ -240,9 +248,9 @@ multipleCheckpointsSpec = do
 
             --now the next block is applied but has nothing inside for this wallet
             let slotNum2 = 2
-            let block2 = mkBlock slotNum2 "block2" []
-            let cp2 = mkCpSeq block2
-            runExceptT (putCheckpoint db testPk cp2) `shouldReturn` Right ()
+            let nextSlotId2 = (SlotId 0 slotNum2)
+            let utxos1 = UTxO $ Map.fromList [expectedTx1]
+            cp2 <- putUpdatedCheckpoint db testPk cp1 nextSlotId2 utxos1 Set.empty
 
             -- Transaction number 2 comes and the same flow as above takes place
             let slotNum3 = 3
@@ -254,21 +262,18 @@ multipleCheckpointsSpec = do
             let amt2 = Coin 10
             let txout2 = TxOut addr2 amt2
             let expectedTx2 = (txin2, txout2)
-            (cp3, txs2) <-
-                acceptIncomingTx db testPk slotNum3 "block3"
-                amt2 txid2 addr2 ix2 2
+            let utxos2 = UTxO $ Map.fromList [expectedTx1, expectedTx2]
+            cp3 <- putUpdatedCheckpoint db testPk cp2 nextSlotId3 utxos2 Set.empty
             utxo cp3 `shouldBe` (UTxO $ Map.fromList [expectedTx1, expectedTx2])
-            utxos2 <- runSqlite' "spec.db" $ do
+            utxos3 <- runSqlite' "spec.db" $ do
                 utxos :: [Entity TH.UTxO] <- selectList [][]
                 return $ fmap entityVal utxos
             let getNotSpent =
                     filter (\(TH.UTxO _ _ spent _ _ _ _) -> isNothing spent)
-            map TH.utxoSlotSpent (getNotSpent utxos2)
+            map TH.utxoSlotSpent (getNotSpent utxos3)
                 `shouldBe` [Nothing, Nothing]
-            map TH.utxoSlot (getNotSpent utxos2)
+            map TH.utxoSlot (getNotSpent utxos3)
                 `shouldBe` [nextSlotId1, nextSlotId3]
-            readTxHistory db testPk
-                sortOrder wholeRange `shouldReturn` (txs2++txs1)
 
             --check all checkpoints stored in db
             cps <- runSqlite' "spec.db" $ do
@@ -277,14 +282,15 @@ multipleCheckpointsSpec = do
             length cps `shouldBe` 4
 
         it "checking incoming and outgoing transaction" $ \db -> do
-            _ <- createWalletAndFirstCheckpoint db testPk
+            _ <- createWalletAndFirstCheckpoint db testPk 0 "genesis"
 
             let slotNum1 = 1
+            let nextSlotId1 = (SlotId 0 slotNum1)
             let txid1 = Hash "tx1"
-            let addr1 = Address "addrDest1"
+            let addr1 = Address "addrSrc1"
             let amt1 = Coin 100
             let ix1 = 0
-            (_,txs1) <-
+            (cp1,txs1) <-
                 acceptIncomingTx db testPk slotNum1 "block1"
                 amt1 txid1 addr1 ix1 1
             let sortOrder = Descending
@@ -294,7 +300,7 @@ multipleCheckpointsSpec = do
             -- Transaction number 2 is sent
             -- What happens here can be composed in two pieces
             -- I. (a) when signTx is called putCheckpoint with additional change
-            --        address is put and also current slot - this step will be
+            --        address and the current slot is put - this step will be
             --        omitted in current test
             --    (b) when submitTx is called checkpoint is updated with pending
             --        tx added to metas
@@ -302,37 +308,115 @@ multipleCheckpointsSpec = do
             --     which affect utxo, state slot is altered, and tx history
             --     changed. In order to emulate it three things will happen:
             --    (a) checkpoint with new slot will be put
-            --    (b) used utxo will be given proper slot-spent
-            --    (c) putTxHistory will update tx history
+            --    (b) putTxHistory will update tx history
+            --    (c) used utxo will be given proper slot-spent
             --    (d) new row of metas and new slot id will be added
+            --
+            -- At this moment one wallet has 100 in one of its utxos
+            -- now we are creating another wallet and putting new checkpoint
+            -- at this moment
             let slotNum2 = 2
             let nextSlotId2 = (SlotId 0 slotNum2)
-            let (PrimaryKey wid) = testPk
-            let txid2 = Hash "tx2"
-            let amtWithFee = 43
-            let metaPending =
-                    TH.TxMeta (TxId txid2) wid Pending Outgoing
-                    nextSlotId2 amtWithFee
-            runSqlite' "spec.db" $ do
-                insert_ metaPending
-                return ()
+            _ <- createWalletAndFirstCheckpoint db testPk1 slotNum2 "block2"
+            let utxos1 = UTxO $ Map.fromList [(TxIn txid1 ix1, TxOut addr1 amt1)]
+            cp2 <- putUpdatedCheckpoint db testPk cp1 nextSlotId2 utxos1 Set.empty
+            utxos2 <- runSqlite' "spec.db" $ do
+                utxos :: [Entity TH.UTxO] <- selectList [][]
+                return $ fmap entityVal utxos
+            length utxos2 `shouldBe` 1
+
+            -- now emulating submitTx
+            let slotNum3 = 3
+            let nextSlotId3 = (SlotId 0 slotNum3)
+            let amtWithFee = Quantity 43
+            let txin = TxIn txid1 ix1
+            let txout1 = TxOut (Address "addrSrc2") (Coin 57)
+            let txout2 = TxOut (Address "addrDest1") (Coin 1)
+            let pendingTx = ( Tx [txin] [txout1, txout2]
+                            , TxMeta Pending Outgoing nextSlotId3 amtWithFee
+                            )
+            let pendings = Set.fromList [pendingTx]
+            cp3 <- putUpdatedCheckpoint db testPk cp2 nextSlotId3 utxos1 pendings
+            utxos3 <- runSqlite' "spec.db" $ do
+                utxos :: [Entity TH.UTxO] <- selectList [][]
+                return $ fmap entityVal utxos
+            length utxos3 `shouldBe` 1
             metas <- runSqlite' "spec.db" $ do
                 metas :: [Entity TH.TxMeta] <- selectList [][]
                 return $ fmap entityVal metas
             length metas `shouldBe` 2
+
+            -- finally at next slot block is applied to both wallets
+            let txid2 = Hash "tx2"
+            let slotNum4 = 4
+            let nextSlotId4 = (SlotId 0 slotNum4)
+            -- when block is applied new utxo is used
+            let utxosNew = UTxO $ Map.fromList [(TxIn txid2 0, txout1)]
+            _cp4 <- putUpdatedCheckpoint db testPk cp3 nextSlotId4 utxosNew Set.empty
+            -- at this moment we have still all 100 UTxOs in db with Nothing
+            utxos4 <- runSqlite' "spec.db" $ do
+                utxos :: [Entity TH.UTxO] <- selectList [][]
+                return $ fmap entityVal utxos
+            length utxos4 `shouldBe` 2
+            let getAll100utxos = getAllutxosOf 100
+            length (getAll100utxos utxos4)
+                `shouldBe` 1
+            map TH.utxoSlot (getAll100utxos  utxos4)
+                `shouldBe` [nextSlotId1]
+            map TH.utxoSlotSpent (getAll100utxos utxos4)
+                `shouldBe` [Nothing]
+
+            let txs2 =
+                    [ (txid2
+                      , ( Tx [txin] [txout1, txout2]
+                        , TxMeta InLedger Outgoing nextSlotId4 amtWithFee
+                        )
+                      )
+                    ]
+            runExceptT (putTxHistory db testPk (Map.fromList txs2))
+                `shouldReturn` Right ()
+            let amtReceived = Quantity 1
+            let txs2' =
+                    [ (txid2
+                      , ( Tx [txin] [txout1, txout2]
+                        , TxMeta InLedger Incoming nextSlotId4 amtReceived
+                        )
+                      )
+                    ]
+            runExceptT (putTxHistory db testPk1 (Map.fromList txs2'))
+                `shouldReturn` Right ()
+            allTxs <- readTxHistory db testPk sortOrder wholeRange
+            filter (\(_,(_, TxMeta st _ _ _)) -> st == InLedger) allTxs
+                `shouldBe` (txs2++txs1)
+            readTxHistory db testPk1
+                sortOrder wholeRange `shouldReturn` txs2'
+            -- at this moment we should have three 100 UTxOs in db with Nothing
+            -- and one additional 100 UTxO with slotSpent=(Just nextSlotId4)
+            utxos5 <- runSqlite' "spec.db" $ do
+                utxos :: [Entity TH.UTxO] <- selectList [][]
+                return $ fmap entityVal utxos
+            length utxos5 `shouldBe` 2
+            length (getAll100utxos utxos5)
+                `shouldBe` 1
+            map TH.utxoSlot (getAll100utxos utxos5)
+                `shouldBe` [nextSlotId1]
+            map TH.utxoSlotSpent (getAll100utxos utxos5)
+                `shouldBe` [(Just nextSlotId4)]
 
     where
       getTriple cp =
           let (BlockHeader s h) = currentTip cp
           in (s, h, fromIntegral $ fromQuantity $ blockHeight cp)
       fromQuantity (Quantity a) = a
-      createWalletAndFirstCheckpoint db widKey = do
+      getAllutxosOf v =
+          filter (\(TH.UTxO _ _ _ _ _ _ amt) -> amt == (Coin v))
+      createWalletAndFirstCheckpoint db widKey slotNum bs = do
           -- first checkpoint is to be stored upon wallet creation
           -- there are no utxos available
-          let blockGen = mkBlock 0 "genesis" []
+          let blockGen = mkBlock slotNum bs []
           let cp = mkCpSeq blockGen
           unsafeRunExceptT $ createWallet db widKey cp testMetadata
-          readCheckpoint db testPk `shouldReturn` Just cp
+          readCheckpoint db widKey `shouldReturn` Just cp
           utxo cp `shouldBe` (UTxO Map.empty)
           return cp
       acceptIncomingTx db widKey slotNum blockBS amt txid addr ix expUtxo = do
@@ -347,20 +431,17 @@ multipleCheckpointsSpec = do
           let cp = mkCpSeq block
           runExceptT (putCheckpoint db widKey cp) `shouldReturn` Right ()
           let nextSlotId = (SlotId 0 slotNum)
-          let (PrimaryKey wid) = widKey
-          let utxoEntry =
-                  TH.UTxO wid nextSlotId
-                  Nothing (TxId txid) ix addr amt
-          runSqlite' "spec.db" $ do
-              insert_ utxoEntry
-              return ()
-          utxos <- runSqlite' "spec.db" $ do
-              utxos :: [Entity TH.UTxO] <- selectList [][]
-              return $ fmap entityVal utxos
-          length utxos `shouldBe` expUtxo
-          (Just cp') <- readCheckpoint db widKey
           let txin = TxIn txid ix
           let txout = TxOut addr amt
+          let expectedTx = (txin, txout)
+          let utxos = UTxO $ Map.fromList [expectedTx]
+          cp1 <- putUpdatedCheckpoint db widKey cp nextSlotId utxos Set.empty
+          utxos' <- runSqlite' "spec.db" $ do
+              utxos1 :: [Entity TH.UTxO] <- selectList [][]
+              return $ fmap entityVal utxos1
+          length utxos' `shouldBe` expUtxo
+          (Just cp') <- readCheckpoint db widKey
+          cp1 `shouldBe` cp'
           -- change tx history with the same slot number accordingly
           let amt' = Quantity $ fromIntegral $ getCoin amt
           let txs =
@@ -373,6 +454,17 @@ multipleCheckpointsSpec = do
           runExceptT (putTxHistory db widKey (Map.fromList txs))
               `shouldReturn` Right ()
           return (cp', txs)
+      putUpdatedCheckpoint db widKey cp' nextSlotId utxos pendings = do
+          let (Quantity blockHeight') = blockHeight cp'
+          let (BlockHeader _ blockHash') = currentTip cp'
+          let state' = getState cp'
+          -- when block is applied new utxo is used
+          let cp = unsafeInitWallet @(SeqState DummyTarget) @DummyTarget
+                   utxos pendings
+                   (BlockHeader nextSlotId blockHash') state'
+                   (Quantity $ blockHeight' + 1)
+          runExceptT (putCheckpoint db widKey cp) `shouldReturn` Right ()
+          return cp
 
 simpleSpec
     :: forall s k.

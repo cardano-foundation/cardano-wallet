@@ -97,7 +97,7 @@ instance PersistState AnyAddressState where
         return (AnyAddressState s)
     deleteState wid =
         deleteWhere [ DB.AnyAddressStateWalletId ==. wid ]
-    deleteCheckpointState _wid _sl = undefined
+    deleteCheckpointState _wid _sl = pure ()
 
 initAnyState :: Text -> Double -> (WalletId, WalletName, AnyAddressState)
 initAnyState wname p = (walletId cfg, WalletName wname, cfg)
