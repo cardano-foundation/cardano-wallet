@@ -26,7 +26,9 @@ import Data.Coerce
 import Data.Either
     ( isLeft )
 import Data.List
-    ( find, findIndex, isPrefixOf )
+    ( find, findIndex, foldl', isPrefixOf )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Numeric.Natural
@@ -41,8 +43,10 @@ import Test.QuickCheck
     , choose
     , counterexample
     , elements
+    , frequency
     , label
     , property
+    , vectorOf
     , withMaxSuccess
     , (===)
     )
@@ -87,7 +91,8 @@ prop_unstableBlockHeaders TestCase{..} =
         | hasTip nodeChain = label lbl (bs' === Just expected)
         | otherwise = label "node has no chain" (bs' === Nothing)
 
-    expected = mkUnstableBlocks $ modelIntersection k localChain nodeChain
+    expected = mkUnstableBlocks (chainLength nodeChain) $
+        modelIntersection k localChain nodeChain
 
     isect = intersectionPoint localChain nodeChain
 
@@ -105,13 +110,13 @@ prop_unstableBlockHeaders TestCase{..} =
         [ "k = " ++ show k
         , "Local chain: " ++ showChain localChain
         , "Node chain:  " ++ showChain nodeChain
-        , "Intersects:  " ++ show isect
+        , "Intersects:  " ++ maybe "-" showSlot isect
         , "Expected:    " ++ showUnstableBlocks expected
         , "Actual:      " ++ maybe "-" showUnstableBlocks bs'
         ]
 
     bs' = updateUnstableBlocks (coerce k) getTip getBlockHeader bs
-    bs = mkUnstableBlocks localChain
+    bs = mkUnstableBlocks (chainLength nodeChain) localChain
     getTip = tipId nodeChain
     getBlockHeader = flip lookup blocks
     blocks = mkBlockHeaderHeights nodeChain
@@ -137,7 +142,7 @@ prop_updateUnstableBlocksIsEfficient TestCase{..} =
     -- Run updateUnstableBlocks and record which blocks were fetched.
     lookups = execWriterT bs'
     bs' = updateUnstableBlocks (coerce k) getTip getBlockHeader bs
-    bs = mkUnstableBlocks localChain
+    bs = mkUnstableBlocks (chainLength nodeChain) localChain
     getTip = lift (tipId nodeChain)
     getBlockHeader h = tell [h] *> lift (lookup h blocks)
     blocks = mkBlockHeaderHeights nodeChain
@@ -157,7 +162,7 @@ prop_updateUnstableBlocksFailure TestCase{..} =
             | otherwise -> e
 
     res = updateUnstableBlocks (coerce k) getTip getBlockHeader bs
-    bs = mkUnstableBlocks localChain
+    bs = mkUnstableBlocks (chainLength nodeChain) localChain
     getTip
         | chainLength nodeChain `mod` 5 == 0 = Left "injected getTip failed"
         | otherwise = maybe (Left "no tip") Right $ tipId nodeChain
@@ -174,11 +179,9 @@ prop_updateUnstableBlocksFailure TestCase{..} =
 
 -- | Convert a test chain to 'UnstableBlocks' so that it can be compared for
 -- equality.
-mkUnstableBlocks :: [BlockHeader] -> UnstableBlocks
-mkUnstableBlocks bs = UnstableBlocks (Seq.fromList $ headerIds bs) h
-  where
-    h = Quantity $ fromIntegral (chainLength bs + fromIntegral start)
-    start = maybe 0 (slotNumber . slotId) (headMay bs)
+mkUnstableBlocks :: Int -> [BlockHeader] -> UnstableBlocks
+mkUnstableBlocks h bs =
+    UnstableBlocks (Seq.fromList $ headerIds bs) (Quantity $ fromIntegral h)
 
 -- | Convert a test chain into an assoc list of block ids, their headers, and
 -- chain heights.
@@ -209,40 +212,27 @@ hasTip = (> 1) . length
 chainLength :: [BlockHeader] -> Int
 chainLength bs = max 0 (length bs - 1)
 
--- | Index of the tip of a chain.
-chainEnd :: [BlockHeader] -> Int
-chainEnd = maybe 0 (fromIntegral . slotNumber . slotId) . chainTip
-
 chainTip :: [BlockHeader] -> Maybe BlockHeader
 chainTip = initMay >=> lastMay
+
+-- | Slot index of the tip of a chain.
+chainEnd :: [BlockHeader] -> SlotId
+chainEnd = maybe (SlotId 0 0) slotId . chainTip
 
 -- | Limit the sequence to a certain size by removing items from the beginning.
 limitChain :: Quantity "block" Natural -> [BlockHeader] -> [BlockHeader]
 limitChain (Quantity k) bs = drop (max 0 (length bs - fromIntegral k - 1)) bs
 
--- | Prepend a source chain before a local chain.
-spliceChains :: [BlockHeader] -> [BlockHeader] -> [BlockHeader]
-spliceChains source localChain = take start source ++ localChain
-  where
-    start = chainStart localChain
-
-firstSlot :: [BlockHeader] -> Maybe SlotId
-firstSlot bs
-    | hasTip bs = slotId <$> headMay bs
-    | otherwise = Nothing
-
--- | The slot index at which the local chain starts.
-chainStart :: [BlockHeader] -> Int
-chainStart = maybe 0 (fromIntegral . slotNumber) . firstSlot
-
 showChain :: [BlockHeader] -> String
 showChain [] = ""
 showChain bs = mconcat
-    [ show ep, ".", show sl, " | "
+    [ showSlot (slotId (head bs)), " | "
     , unwords (map showHeaderHash (tail bs)) ]
   where
-    SlotId ep sl = slotId (head bs)
     showHeaderHash (BlockHeader _ (Hash h)) = B8.unpack h
+
+showSlot :: SlotId -> String
+showSlot (SlotId ep sl) = show ep ++ "." ++ show sl
 
 {-------------------------------------------------------------------------------
                      Test chain pure model of intersection
@@ -262,7 +252,7 @@ modelIntersection k localChain nodeChain =
     -- We have at most k block headers ...
     limitChain k $
     -- ... added to the end of current unstable block headers ...
-    maybe id drop (min p (p >>= fixup))
+    maybe id dropToSlot (min p (p >>= fixup))
     -- ... fetched from the node.
     nodeChain
   where
@@ -272,25 +262,45 @@ modelIntersection k localChain nodeChain =
     -- should never happen anyway. But we need to add this to the model so that
     -- the tests pass.
     fixup q
-        | length nodeChain - 2 > q = Just q
+        | chainEnd nodeChain > q = Just q
         | otherwise = Nothing
 
--- | Find the last index of the node chain which is the same as the local chain.
-intersectionPoint :: [BlockHeader] -> [BlockHeader] -> Maybe Int
+-- | Find the last slot index of the node chain which is the same as the local
+-- chain.
+intersectionPoint :: [BlockHeader] -> [BlockHeader] -> Maybe SlotId
 intersectionPoint localChain nodeChain = res >>= checkAfter
   where
-    res = fst <$> find (uncurry (==) . snd) pairs
+    res = slotId . fst <$> find (uncurry (==)) pairs
 
-    pairs = zip [0..] $ zip localChain' nodeChain
-    localChain' = spliceChains chaff localChain
-    chaff = repeat $ BlockHeader (SlotId 0 0) (Hash "x")
+    pairs = zip localChain' nodeChain
+    localChain' = spliceChains localChain nodeChain
 
     -- The block header *after* a block contains the hash of that block.
     -- So compare that, if it exists.
-    checkAfter i | after localChain' == after nodeChain = Just i
-                 | otherwise = Nothing
-        where after xs | i + 1 < length xs = Just (xs !! (i + 1))
-                       | otherwise = Nothing
+    checkAfter sl | after localChain' == after nodeChain = Just sl
+                  | otherwise = Nothing
+      where
+        after xs = fmap snd $ find ((== sl) . slotId . fst) $ zip xs (drop 1 xs)
+
+-- | Prepend a source chain before a local chain.
+spliceChains :: [BlockHeader] -> [BlockHeader] -> [BlockHeader]
+spliceChains localChain nodeChain = takeToSlot start chaff ++ localChain
+  where
+    start = fromMaybe (SlotId 0 0) $ firstSlot localChain
+    -- chaff is the same shape as the node chain, but with different hashes
+    chaff = [bh { prevBlockHash = Hash "x" } | bh <- nodeChain]
+
+-- | The slot index at which the local chain starts.
+firstSlot :: [BlockHeader] -> Maybe SlotId
+firstSlot bs
+    | hasTip bs = slotId <$> headMay bs
+    | otherwise = Nothing
+
+dropToSlot :: SlotId -> [BlockHeader] -> [BlockHeader]
+dropToSlot sl = dropWhile ((< sl) . slotId)
+
+takeToSlot :: SlotId -> [BlockHeader] -> [BlockHeader]
+takeToSlot sl = takeWhile ((< sl) . slotId)
 
 {-------------------------------------------------------------------------------
                               Test data generation
@@ -305,6 +315,19 @@ chain p = [BlockHeader (SlotId 0 n) (Hash . B8.pack $ p ++ hash n) | n <- [0..]]
     hash 0 = ""
     hash n = show (n - 1)
 
+-- | Filter out test chain blocks that correspond to False values, and update
+-- parent hashes so that the chain is still continuous.
+removeBlocks :: [Bool] -> [BlockHeader] -> [BlockHeader]
+removeBlocks holes bs =
+    reverse $ snd $
+    foldl' filt (prevBlockHash (head bs), []) $
+    zip holes (zip (map prevBlockHash $ tail bs) bs)
+  where
+    -- make holes and update prev header hashes
+    filt (prev, ac) (True, (h, BlockHeader sl _))
+        = (h, ((BlockHeader sl prev):ac))
+    filt pbs _ = pbs
+
 instance Arbitrary TestCase where
     arbitrary = do
         k <- arbitrary
@@ -315,14 +338,21 @@ instance Arbitrary TestCase where
         localChainStart <- (localChainLength -) <$> choose (0, kk)
         -- Choose an arbitrary node chain length proportional to k
         nodeChainLength <- choose (0, kk * 4)
+        -- Generate some empty slots - False means empty
+        let genHole = frequency [(1, pure False), (4, pure True)]
+            genHoles n = (True:) <$> vectorOf (n - 1) genHole
+        emptyA <- genHoles localChainLength
+        emptyB <- genHoles nodeChainLength
         -- At some point the node chain changes from a to b
-        forkPoint <- choose (localChainStart, localChainLength - 1)
-        let chainA = chain "a"
-            chainAB = take forkPoint chainA ++ drop forkPoint (chain "b")
-        chainB <- elements [ chainA, chainAB ]
+        forkPoint <- SlotId 0 . fromIntegral <$>
+            choose (localChainStart, localChainLength - 1)
+        let chainA = removeBlocks emptyA $ chain "a"
+            chainB = removeBlocks emptyB $ chain "b"
+            chainAB = takeToSlot forkPoint chainA ++ dropToSlot forkPoint chainB
+        chainB' <- elements [ chainA, chainAB ]
 
         let localChain = take localChainLength $ drop localChainStart chainA
-            nodeChain = take nodeChainLength chainB
+            nodeChain = take nodeChainLength chainB'
 
         pure TestCase{..}
 
