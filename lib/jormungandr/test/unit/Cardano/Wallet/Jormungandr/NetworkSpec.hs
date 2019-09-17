@@ -2,7 +2,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.Jormungandr.NetworkSpec
@@ -39,10 +38,10 @@ import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Gen
     , Property
     , choose
     , counterexample
-    , elements
     , frequency
     , label
     , property
@@ -63,15 +62,15 @@ import qualified Data.Set as Set
 spec :: Spec
 spec = do
     describe "Unstable block headers" $ do
-        it "Are updated by fetching blocks" $
-            withMaxSuccess 1000 $
-            property prop_unstableBlockHeaders
-        it "Does not fetch block headers which we already have" $
-            withMaxSuccess 1000 $
-            property prop_updateUnstableBlocksIsEfficient
-        it "Handles failure of node" $
-            withMaxSuccess 1000 $
-            property prop_updateUnstableBlocksFailure
+        it "Are updated by fetching blocks"
+            $ withMaxSuccess 1000
+            $ property prop_unstableBlockHeaders
+        it "Does not fetch block headers which we already have"
+            $ withMaxSuccess 1000
+            $ property prop_updateUnstableBlocksIsEfficient
+        it "Handles failure of node"
+            $ withMaxSuccess 1000
+            $ property prop_updateUnstableBlocksFailure
 
 {-------------------------------------------------------------------------------
                         Unstable Block Headers Property
@@ -310,7 +309,8 @@ takeToSlot sl = takeWhile ((< sl) . slotId)
 -- and 'headerIds' to access the tip and block headers. The tip of a test chain
 -- is the penultimate block.
 chain :: String -> [BlockHeader]
-chain p = [BlockHeader (SlotId 0 n) (Hash . B8.pack $ p ++ hash n) | n <- [0..]]
+chain p =
+    [BlockHeader (SlotId 0 n) (Hash . B8.pack $ p ++ hash n) | n <- [0..]]
   where
     hash 0 = ""
     hash n = show (n - 1)
@@ -319,14 +319,15 @@ chain p = [BlockHeader (SlotId 0 n) (Hash . B8.pack $ p ++ hash n) | n <- [0..]]
 -- parent hashes so that the chain is still continuous.
 removeBlocks :: [Bool] -> [BlockHeader] -> [BlockHeader]
 removeBlocks holes bs =
-    reverse $ snd $
-    foldl' filt (prevBlockHash (head bs), []) $
-    zip holes (zip (map prevBlockHash $ tail bs) bs)
+    reverse
+        $ snd
+        $ foldl' maybeMkHole (prevBlockHash (head bs), [])
+        $ zip holes (zip (map prevBlockHash $ tail bs) bs)
   where
-    -- make holes and update prev header hashes
-    filt (prev, ac) (True, (h, BlockHeader sl _))
-        = (h, ((BlockHeader sl prev):ac))
-    filt pbs _ = pbs
+    maybeMkHole (prev, ac) (True, (h, BlockHeader sl _)) =
+        (h, ((BlockHeader sl prev):ac))
+    maybeMkHole pbs _ =
+        pbs
 
 instance Arbitrary TestCase where
     arbitrary = do
@@ -359,15 +360,18 @@ instance Arbitrary TestCase where
     shrink TestCase{..} =
         [ TestCase k' (take n nodeChain) (take l localChain)
         | (k', n, l) <- shrink (k, length nodeChain, length localChain)
-        , n >= 1 ]
+        , n >= 1
+        ]
 
 instance Arbitrary (Quantity "block" Natural) where
     -- k doesn't need to be large for testing this
-    arbitrary = Quantity . fromIntegral <$> choose (2 :: Int, 30)
+    arbitrary =
+        Quantity . fromIntegral <$> choose (2 :: Int, 30)
     shrink (Quantity k) =
         [ Quantity (fromIntegral k')
         | k' <- shrink (fromIntegral k :: Int)
-        , k' >= 2 ]
+        , k' >= 2
+        ]
 
 {-------------------------------------------------------------------------------
                  Extra unstable blocks functions for properties
