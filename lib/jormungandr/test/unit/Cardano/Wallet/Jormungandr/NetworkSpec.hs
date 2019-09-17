@@ -63,13 +63,13 @@ spec :: Spec
 spec = do
     describe "Unstable block headers" $ do
         it "Are updated by fetching blocks"
-            $ withMaxSuccess 1000
+            $ withMaxSuccess 10000
             $ property prop_unstableBlockHeaders
         it "Does not fetch block headers which we already have"
             $ withMaxSuccess 1000
             $ property prop_updateUnstableBlocksIsEfficient
         it "Handles failure of node"
-            $ withMaxSuccess 1000
+            $ withMaxSuccess 10000
             $ property prop_updateUnstableBlocksFailure
 
 {-------------------------------------------------------------------------------
@@ -114,10 +114,11 @@ prop_unstableBlockHeaders TestCase{..} =
         , "Actual:      " ++ maybe "-" showUnstableBlocks bs'
         ]
 
-    bs' = updateUnstableBlocks (coerce k) getTip getBlockHeader bs
     bs = mkUnstableBlocks (chainLength nodeChain) localChain
-    getTip = tipId nodeChain
-    getBlockHeader = flip lookup blocks
+    bs' = updateUnstableBlocks (coerce k) getTip getBlockHeader bs
+      where
+        getTip = tipId nodeChain
+        getBlockHeader = flip lookup blocks
     blocks = mkBlockHeaderHeights nodeChain
 
 -- | 'updateUnstableBlocks' should not fetch blocks that it already has headers
@@ -129,7 +130,7 @@ prop_updateUnstableBlocksIsEfficient TestCase{..} =
     prop = Set.size (Set.intersection localHashes fetchedHashes) <= 1
 
     localHashes = Set.fromList (map prevBlockHash (drop 1 localChain))
-    fetchedHashes = maybe mempty Set.fromList lookups
+    fetchedHashes = maybe mempty Set.fromList (execWriterT bs')
 
     ce = unlines
         [ "k = " ++ show k
@@ -138,12 +139,13 @@ prop_updateUnstableBlocksIsEfficient TestCase{..} =
         , "Fetched:     " ++ unwords (map showHash (Set.toList fetchedHashes))
         ]
 
-    -- Run updateUnstableBlocks and record which blocks were fetched.
-    lookups = execWriterT bs'
-    bs' = updateUnstableBlocks (coerce k) getTip getBlockHeader bs
     bs = mkUnstableBlocks (chainLength nodeChain) localChain
-    getTip = lift (tipId nodeChain)
-    getBlockHeader h = tell [h] *> lift (lookup h blocks)
+    -- Run updateUnstableBlocks and record which blocks were fetched.
+    bs' = updateUnstableBlocks (coerce k) getTip getBlockHeader bs
+      where
+        getTip = lift (tipId nodeChain)
+        getBlockHeader h = tell [h] *> lift (lookup h blocks)
+
     blocks = mkBlockHeaderHeights nodeChain
 
 prop_updateUnstableBlocksFailure :: TestCase -> Property
@@ -223,10 +225,8 @@ limitChain :: Quantity "block" Natural -> [BlockHeader] -> [BlockHeader]
 limitChain (Quantity k) bs = drop (max 0 (length bs - fromIntegral k - 1)) bs
 
 showChain :: [BlockHeader] -> String
-showChain [] = ""
-showChain bs = mconcat
-    [ showSlot (slotId (head bs)), " | "
-    , unwords (map showHeaderHash (tail bs)) ]
+showChain [] = "<empty chain>"
+showChain bs = unwords (map showHeaderHash bs)
   where
     showHeaderHash (BlockHeader _ (Hash h)) = B8.unpack h
 
@@ -310,9 +310,8 @@ takeToSlot sl = takeWhile ((< sl) . slotId)
 -- is the penultimate block.
 chain :: String -> [BlockHeader]
 chain p =
-    [BlockHeader (SlotId 0 n) (Hash . B8.pack $ p ++ hash n) | n <- [0..]]
+    [BlockHeader (SlotId 0 n) (Hash . B8.pack $ p ++ hash n) | n <- [1..]]
   where
-    hash 0 = ""
     hash n = show (n - 1)
 
 -- | Filter out test chain blocks that correspond to False values, and update
@@ -329,33 +328,41 @@ removeBlocks holes bs =
     maybeMkHole pbs _ =
         pbs
 
+genChain
+    :: Quantity "block" Natural
+    -> String
+    -> Gen [BlockHeader]
+genChain (Quantity k) prefix = do
+    len <- choose (0, fromIntegral k)
+    holes <- genHoles len
+    return
+        $ take len
+        $ removeBlocks holes
+        $ chain prefix
+  where
+    genHoles :: Int -> Gen [Bool]
+    genHoles n =
+        let genOne = frequency [(1, pure False), (4, pure True)]
+        in (True:) <$> vectorOf (n - 1) genOne
+
 instance Arbitrary TestCase where
     arbitrary = do
         k <- arbitrary
-        let kk = fromIntegral k' where Quantity k' = k
-        -- Choose an arbitrary local length proportional to k
-        localChainLength <- choose (0, kk * 4)
-        -- Choose where the local unstable block headers start from
-        localChainStart <- (localChainLength -) <$> choose (0, kk)
-        -- Choose an arbitrary node chain length proportional to k
-        nodeChainLength <- choose (0, kk * 4)
-        -- Generate some empty slots - False means empty
-        let genHole = frequency [(1, pure False), (4, pure True)]
-            genHoles n = (True:) <$> vectorOf (n - 1) genHole
-        emptyA <- genHoles localChainLength
-        emptyB <- genHoles nodeChainLength
-        -- At some point the node chain changes from a to b
-        forkPoint <- SlotId 0 . fromIntegral <$>
-            choose (localChainStart, localChainLength - 1)
-        let chainA = removeBlocks emptyA $ chain "a"
-            chainB = removeBlocks emptyB $ chain "b"
-            chainAB = takeToSlot forkPoint chainA ++ dropToSlot forkPoint chainB
-        chainB' <- elements [ chainA, chainAB ]
-
-        let localChain = take localChainLength $ drop localChainStart chainA
-            nodeChain = take nodeChainLength chainB'
-
-        pure TestCase{..}
+        let genesis = BlockHeader (SlotId 0 0) (Hash "genesis")
+        base  <- genChain k "base"
+        local <- genChain k "local"
+        node  <- genChain k "node"
+        let baseTip = chainEnd base
+        return TestCase
+            { k = k
+            , nodeChain  = [genesis] <> base <> startFrom baseTip node
+            , localChain = [genesis] <> base <> startFrom baseTip local
+            }
+      where
+        startFrom (SlotId ep n) xs =
+            [ BlockHeader (SlotId ep (sl+n)) prev
+            | BlockHeader (SlotId _ sl) prev <- xs
+            ]
 
     shrink TestCase{..} =
         [ TestCase k' (take n nodeChain) (take l localChain)
