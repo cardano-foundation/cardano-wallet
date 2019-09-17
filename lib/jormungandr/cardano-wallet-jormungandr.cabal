@@ -40,14 +40,18 @@ library
     , cardano-crypto
     , cardano-wallet-core
     , cborg
+    , containers
     , cryptonite
     , deepseq
     , either
     , exceptions
+    , extra
     , filepath
     , fmt
     , http-client
     , http-types
+    , lifted-base
+    , monad-control
     , memory
     , safe
     , servant
@@ -96,9 +100,11 @@ test-suite unit
     , hspec
     , memory
     , QuickCheck
+    , safe
     , text
     , text-class
     , time
+    , transformers
   build-tools:
       hspec-discover
   type:
@@ -109,8 +115,9 @@ test-suite unit
       Main.hs
   other-modules:
       Cardano.Wallet.Jormungandr.BinarySpec
-      Cardano.Wallet.Jormungandr.EnvironmentSpec
       Cardano.Wallet.Jormungandr.CompatibilitySpec
+      Cardano.Wallet.Jormungandr.EnvironmentSpec
+      Cardano.Wallet.Jormungandr.NetworkSpec
       Cardano.Wallet.Jormungandr.TransactionSpec
       Cardano.Wallet.TransactionSpecShared
 

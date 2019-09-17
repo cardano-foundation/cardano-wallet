@@ -39,7 +39,7 @@ import Cardano.Wallet.Jormungandr.Compatibility
 import Cardano.Wallet.Jormungandr.Launch
     ( launchJormungandr )
 import Cardano.Wallet.Jormungandr.Network
-    ( BaseUrl (..), JormungandrLayer (..), mkJormungandrLayer )
+    ( BaseUrl (..), JormungandrLayer (..) )
 import Cardano.Wallet.Network
     ( NetworkLayer (..), defaultRetryPolicy, waitForConnection )
 import Cardano.Wallet.Primitive.Fee
@@ -195,9 +195,7 @@ newNetworkLayer
     -> Hash "Genesis"
     -> IO (NetworkLayer (Jormungandr n) IO, BlockchainParameters (Jormungandr n))
 newNetworkLayer url block0 = do
-    mgr <- newManager defaultManagerSettings
-    let jormungandr = mkJormungandrLayer mgr url
-    let nl = Jormungandr.mkNetworkLayer jormungandr
+    (jormungandr, nl) <- Jormungandr.newNetworkLayer' url
     waitForConnection nl defaultRetryPolicy
     blockchainParams <- unsafeRunExceptT $
         getInitialBlockchainParameters jormungandr (coerce block0)
