@@ -30,6 +30,14 @@ module Cardano.Wallet
     , IsWalletCtx
     , newWalletLayer
 
+    -- * Capabilities
+    , HasBlockchainParameters
+    , HasDBLayer
+    , HasLogger
+    , HasNetworkLayer
+    , HasTransactionLayer
+    , HasWorkerRegistry
+
     -- * Wallet
     , attachPrivateKey
     , createWallet
@@ -203,7 +211,7 @@ import Data.Function
 import Data.Functor
     ( ($>) )
 import Data.Generics.Internal.VL.Lens
-    ( view, (.~), (^.) )
+    ( Lens', view, (.~), (^.) )
 import Data.Generics.Labels
     ()
 import Data.Generics.Product.Typed
@@ -328,6 +336,42 @@ type HasTransactionLayer t k = HasType (TransactionLayer t k)
 
 type HasWorkerRegistry = HasType WorkerRegistry
 
+blockchainParameters
+    :: forall t ctx. HasBlockchainParameters t ctx
+    => Lens' ctx (BlockchainParameters t)
+blockchainParameters =
+    typed @(BlockchainParameters t)
+
+dbLayer
+    :: forall s t k ctx. HasDBLayer s t k ctx
+    => Lens' ctx (DBLayer IO s t k)
+dbLayer =
+    typed @(DBLayer IO s t k)
+
+logger
+    :: forall ctx. HasLogger ctx
+    => Lens' ctx (Trace IO Text)
+logger =
+    typed @(Trace IO Text)
+
+networkLayer
+    :: forall t ctx. (HasNetworkLayer t ctx)
+    => Lens' ctx (NetworkLayer t IO)
+networkLayer =
+    typed @(NetworkLayer t IO)
+
+transactionLayer
+    :: forall t k ctx. (HasTransactionLayer t k ctx)
+    => Lens' ctx (TransactionLayer t k)
+transactionLayer =
+    typed @(TransactionLayer t k)
+
+workerRegistry
+    :: forall ctx. (HasWorkerRegistry ctx)
+    => Lens' ctx WorkerRegistry
+workerRegistry =
+    typed @WorkerRegistry
+
 {-------------------------------------------------------------------------------
                                    Wallet
 -------------------------------------------------------------------------------}
@@ -360,8 +404,8 @@ createWallet ctx wid wname s = do
             }
     DB.createWallet db (PrimaryKey wid) checkpoint metadata $> wid
   where
-    bp = ctx ^. typed @(BlockchainParameters t)
-    db = ctx ^. typed @(DBLayer IO s t k)
+    bp = ctx ^. blockchainParameters @t
+    db = ctx ^. dbLayer @s @t @k
 
 -- | Retrieve the wallet state for the wallet with the given ID.
 readWallet
@@ -389,7 +433,7 @@ readWalletCheckpoint ctx wid =
     maybeToExceptT (ErrNoSuchWallet wid) $ do
         MaybeT $ DB.readCheckpoint db (PrimaryKey wid)
   where
-    db = ctx ^. typed @(DBLayer IO s t k)
+    db = ctx ^. dbLayer @s @t @k
 
 -- | Retrieve only metadata associated with a particular wallet
 readWalletMeta
@@ -404,7 +448,7 @@ readWalletMeta ctx wid =
     maybeToExceptT (ErrNoSuchWallet wid) $
         MaybeT $ DB.readWalletMeta db (PrimaryKey wid)
   where
-    db = ctx ^. typed @(DBLayer IO s t k)
+    db = ctx ^. dbLayer @s @t @k
 
 -- | Update a wallet's metadata with the given update function.
 updateWallet
@@ -421,7 +465,7 @@ updateWallet ctx wid modify =
         meta <- readWalletMeta @ctx @s @t @k ctx wid
         DB.putWalletMeta db (PrimaryKey wid) (modify meta)
   where
-    db = ctx ^. typed @(DBLayer IO s t k)
+    db = ctx ^. dbLayer @s @t @k
 
 -- | Change a wallet's passphrase to the given passphrase.
 updateWalletPassphrase
@@ -451,7 +495,7 @@ listWallets
 listWallets ctx =
     fmap (\(PrimaryKey wid) -> wid) <$> DB.listWallets db
   where
-    db = ctx ^. typed @(DBLayer IO s t k)
+    db = ctx ^. dbLayer @s @t @k
 
 -- | List the wallet's UTxO statistics.
 listUtxoStatistics
@@ -485,8 +529,8 @@ removeWallet ctx wid = do
     DB.withLock db . DB.removeWallet db . PrimaryKey $ wid
     liftIO $ cancelWorker re wid
   where
-    db = ctx ^. typed @(DBLayer IO s t k)
-    re = ctx ^. typed @WorkerRegistry
+    db = ctx ^. dbLayer @s @t @k
+    re = ctx ^. workerRegistry
 
 -- | Restore a wallet from its current tip up to the network tip.
 --
@@ -509,7 +553,7 @@ restoreWallet
 restoreWallet ctx wid = do
     (cp, _) <- readWallet @ctx @s @t @k ctx wid
     let workerName = "worker." <> T.take 8 (toText wid)
-    let workerCtx = ctx & typed @(Trace IO Text) .~ appendName workerName tr
+    let workerCtx = ctx & logger .~ appendName workerName tr
     liftIO $ logInfo tr $ "Restoring wallet "+| wid |+"..."
     worker <- liftIO $ forkIO $ do
         runExceptT (networkTip nw) >>= \case
@@ -520,9 +564,9 @@ restoreWallet ctx wid = do
                 restoreStep @ctx @s @t @k workerCtx wid (currentTip cp, tip)
     liftIO $ registerWorker re (wid, worker)
   where
-    nw = ctx ^. typed @(NetworkLayer t IO)
-    tr = ctx ^. typed @(Trace IO Text)
-    re = ctx ^. typed @WorkerRegistry
+    nw = ctx ^. networkLayer @t
+    tr = ctx ^. logger
+    re = ctx ^. workerRegistry
 
 -- | Infinite restoration loop. We drain the whole available chain and try
 -- to catch up with the node. In case of error, we log it and wait a bit
@@ -562,8 +606,8 @@ restoreStep ctx wid (localTip, (nodeTip, nodeHeight)) = do
                     restoreStep @ctx @s @t @k ctx wid
                         (nextLocalTip, (nodeTip, nodeHeight))
   where
-    nw = ctx ^. typed @(NetworkLayer t IO)
-    tr = ctx ^. typed @(Trace IO Text)
+    nw = ctx ^. networkLayer @t
+    tr = ctx ^. logger
 
 -- | Wait a short delay before querying for blocks again. We also take this
 -- opportunity to refresh the chain tip as it has probably increased in
@@ -584,7 +628,6 @@ restoreSleep
 restoreSleep ctx wid localTip = do
     -- NOTE: Conversion functions will treat 'NominalDiffTime' as
     -- picoseconds
-    let (SlotLength s) = (bp :: BlockchainParameters t) ^. typed @SlotLength
     let halfSlotLengthDelay = fromEnum s `div` 2000000
     threadDelay halfSlotLengthDelay
     runExceptT (networkTip nw) >>= \case
@@ -594,9 +637,10 @@ restoreSleep ctx wid localTip = do
         Right nodeTip ->
             restoreStep @ctx @s @t @k ctx wid (localTip, nodeTip)
   where
-    bp = ctx ^. typed @(BlockchainParameters t)
-    nw = ctx ^. typed @(NetworkLayer t IO)
-    tr = ctx ^. typed @(Trace IO Text)
+    bp = ctx ^. blockchainParameters @t
+    nw = ctx ^. networkLayer @t
+    tr = ctx ^. logger
+    SlotLength s = bp ^. #getSlotLength
 
 -- | Apply the given blocks to the wallet and update the wallet state,
 -- transaction history and corresponding metadata.
@@ -673,10 +717,11 @@ restoreBlocks ctx wid blocks (nodeTip, Quantity nodeHeight) = do
             logDebug tr $ "transactions: "
                 <> pretty (blockListF (snd <$> Map.elems newTxs))
   where
-    bp = ctx ^. typed @(BlockchainParameters t)
-    db = ctx ^. typed @(DBLayer IO s t k)
-    tr = ctx ^. typed @(Trace IO Text)
-    BlockchainParameters _ _ _ _ epochLength _ epochStability = bp
+    bp = ctx ^. blockchainParameters @t
+    db = ctx ^. dbLayer @s @t @k
+    tr = ctx ^. logger
+    epochLength = bp ^. #getEpochLength
+    epochStability = bp ^. #getEpochStability
 
 {-------------------------------------------------------------------------------
                                     Address
@@ -714,7 +759,7 @@ listAddresses ctx wid = do
             (addr, if addr `Set.member` usedAddrs then Used else Unused)
     return $ withAddressState <$> knownAddrs
   where
-    db = ctx ^. typed @(DBLayer IO s t k)
+    db = ctx ^. dbLayer @s @t @k
 
 {-------------------------------------------------------------------------------
                                   Transaction
@@ -767,11 +812,11 @@ createUnsignedTx ctx wid recipients = do
         debug tr "Coins after fee adjustment"
             =<< adjustForFee (feeOpts tl feePolicy) utxo' sel
   where
-    tl = ctx ^. typed @(TransactionLayer t k)
-    tr = ctx ^. typed @(Trace IO Text)
-    bp = ctx ^. typed @(BlockchainParameters t)
-    txMaxSize = bp ^. typed @(Quantity "byte" Word16)
-    feePolicy = bp ^. typed @FeePolicy
+    tl = ctx ^. transactionLayer @t @k
+    tr = ctx ^. logger
+    bp = ctx ^. blockchainParameters @t
+    txMaxSize = bp ^. #getTxMaxSize
+    feePolicy = bp ^. #getFeePolicy
 
 -- | Estimate a transaction fee by automatically selecting inputs from
 -- the wallet to cover the requested outputs.
@@ -797,10 +842,10 @@ estimateTxFee ctx wid recipients = do
     let estimateFee = computeFee feePolicy . estimateSize tl
     pure $ estimateFee sel
   where
-    tl = ctx ^. typed @(TransactionLayer t k)
-    bp = ctx ^. typed @(BlockchainParameters t)
-    txMaxSize = bp ^. typed @(Quantity "byte" Word16)
-    feePolicy = bp ^. typed @FeePolicy
+    tl = ctx ^. transactionLayer @t @k
+    bp = ctx ^. blockchainParameters @t
+    txMaxSize = bp ^. #getTxMaxSize
+    feePolicy = bp ^. #getFeePolicy
 
 -- | Produce witnesses and construct a transaction from a given
 -- selection. Requires the encryption passphrase in order to decrypt
@@ -852,8 +897,8 @@ signTx ctx wid pwd (CoinSelection ins outs chgs) =
                 Left e ->
                     throwE $ ErrSignTx e
   where
-    db = ctx ^. typed @(DBLayer IO s t k)
-    tl = ctx ^. typed @(TransactionLayer t k)
+    db = ctx ^. dbLayer @s @t @k
+    tl = ctx ^. transactionLayer @t @k
 
 -- | Broadcast a (signed) transaction to the network.
 submitTx
@@ -872,8 +917,8 @@ submitTx ctx wid (tx, meta, wit)= do
         (wal, _) <- readWallet @ctx @s @t @k ctx wid
         DB.putCheckpoint db (PrimaryKey wid) (newPending (tx, meta) wal)
   where
-    db = ctx ^. typed @(DBLayer IO s t k)
-    nw = ctx ^. typed @(NetworkLayer t IO)
+    db = ctx ^. dbLayer @s @t @k
+    nw = ctx ^. networkLayer @t
 
 -- | Broadcast an externally-signed transaction to the network.
 submitExternalTx
@@ -891,8 +936,8 @@ submitExternalTx ctx bytes = do
     withExceptT ErrSubmitExternalTxNetwork $ postTx nw txWithWit
     return tx
   where
-    nw = ctx ^. typed @(NetworkLayer t IO)
-    tl = ctx ^. typed @(TransactionLayer t k)
+    nw = ctx ^. networkLayer @t
+    tl = ctx ^. transactionLayer @t @k
 
 
 -- | List all transactions and metadata from history for a given wallet.
@@ -914,8 +959,8 @@ listTransactions
 listTransactions ctx wid mStart mEnd order = do
     maybe (pure []) listTransactionsWithinRange =<< getSlotRange
   where
-    bp = ctx ^. typed @(BlockchainParameters t)
-    db = ctx ^. typed @(DBLayer IO s t k)
+    bp = ctx ^. blockchainParameters @t
+    db = ctx ^. dbLayer @s @t @k
 
     -- Transforms the user-specified time range into a slot range. If the
     -- user-specified range terminates before the start of the blockchain,
@@ -974,9 +1019,9 @@ listTransactions ctx wid mStart mEnd order = do
 
     sp :: SlotParameters
     sp = SlotParameters
-        (bp ^. typed @EpochLength)
-        (bp ^. typed @SlotLength)
-        (bp ^. typed @StartTime)
+        (bp ^. #getEpochLength)
+        (bp ^. #getSlotLength)
+        (bp ^. #getGenesisBlockDate)
 
 {-------------------------------------------------------------------------------
                                   Key Store
@@ -1004,7 +1049,7 @@ attachPrivateKey ctx wid (xprv, pwd) = do
                x { passphraseInfo = Just (WalletPassphraseInfo now) }
        DB.putWalletMeta db (PrimaryKey wid) (modify meta)
   where
-    db = ctx ^. typed @(DBLayer IO s t k)
+    db = ctx ^. dbLayer @s @t @k
 
 -- | Execute an action which requires holding a root XPrv.
 withRootKey
@@ -1029,7 +1074,7 @@ withRootKey ctx wid pwd embed action = do
                 return xprv
     action xprv
   where
-    db = ctx ^. typed @(DBLayer IO s t k)
+    db = ctx ^. dbLayer @s @t @k
 
 {-------------------------------------------------------------------------------
                                 Worker Registry
