@@ -145,7 +145,6 @@ import Database.Persist.Sql
     , selectFirst
     , selectKeysList
     , selectList
-    , update
     , updateWhere
     , (<-.)
     , (<=.)
@@ -671,7 +670,7 @@ insertCheckpoint wid cp = do
     insert_ cp'
     putTxMetas metas
     putTxs ins outs
-    mapM_ (insertWhenNew wid) utxo
+    dbChunked insertWhenNew utxo
     insertState (wid, (W.currentTip cp) ^. #slotId) (W.getState cp)
 
 -- | Delete all checkpoints associated with a wallet.
@@ -685,6 +684,8 @@ deleteCheckpoints wid = do
     deleteState @s wid -- clear state
 
 -- | Delete the checkpoint associated with a wallet and slotId.
+-- This one is introduced to have guarantee we can put the checkpoints
+-- with the same id more than 1 time.
 deleteCheckpoint
     :: forall s. PersistState s
     => W.WalletId
@@ -777,17 +778,18 @@ selectUTxO (Checkpoint wid _sl _parent _bh) = fmap entityVal <$>
         ] []
 
 insertWhenNew
-    :: W.WalletId
-    -> UTxO
+    :: [UTxO]
     -> SqlPersistT IO ()
-insertWhenNew wid utxo@(UTxO _ _ _ inpId inpIx outAddr outAmt) = do
-    utxos <- selectList [ UtxoWalletId ==. wid
-                        , UtxoInputId ==. inpId
-                        , UtxoInputIndex ==. inpIx
-                        , UtxoOutputAddress ==. outAddr
-                        , UtxoOutputCoin ==. outAmt
-                        ] []
-    when (null utxos) $ insert_ utxo
+insertWhenNew = mapM_ insertOne
+  where
+    insertOne utxo@(UTxO wid _ _ inpId inpIx outAddr outAmt) = do
+        utxos <- selectList [ UtxoWalletId ==. wid
+                            , UtxoInputId ==. inpId
+                            , UtxoInputIndex ==. inpIx
+                            , UtxoOutputAddress ==. outAddr
+                            , UtxoOutputCoin ==. outAmt
+                            ] []
+        when (null utxos) $ insert_ utxo
 
 addSpentUtxos
     :: [TxMeta]
@@ -813,24 +815,12 @@ updateUtxoSpent
     -> TxIn
     -> SqlPersistT IO ()
 updateUtxoSpent wid sl (TxIn _ _ inpId inpIx _) = do
-    utxos <- selectList [ UtxoWalletId ==. wid
-                        , UtxoSlotSpent ==. Nothing
-                        , UtxoInputId ==. inpId
-                        , UtxoInputIndex ==. inpIx
-                        ] [LimitTo 1]
-    mapM_ _updateUtxoSpent utxos
-  where
-      _updateUtxoSpent utxo = do
-          let (UTxO _ slot _ _ _ outAddr outAmt) = entityVal utxo
-          let utxoId = entityKey utxo
-          update utxoId [ UtxoWalletId =. wid
-                        , UtxoSlot =. slot
-                        , UtxoSlotSpent =. (Just sl)
-                        , UtxoInputId =. inpId
-                        , UtxoInputIndex =. inpIx
-                        , UtxoOutputAddress =. outAddr
-                        , UtxoOutputCoin =. outAmt
-                        ]
+    updateWhere
+        [ UtxoWalletId ==. wid
+        , UtxoSlotSpent ==. Nothing
+        , UtxoInputId ==. inpId
+        , UtxoInputIndex ==. inpIx
+        ] [ UtxoSlotSpent =. (Just sl) ]
 
 selectTxs
     :: [TxId]
@@ -853,7 +843,20 @@ selectTxHistory wid order conditions = do
         ((TxMetaWalletId ==. wid) : conditions) sortOpt
     let txids = map txMetaTxId metas
     (ins, outs) <- selectTxs txids
-    pure $ txHistoryFromEntity @t metas ins outs
+    let txsPre = txHistoryFromEntity @t metas ins outs
+    let txsPendingCandidates = map fst $
+            filter (\(_, (_, W.TxMeta st _ _ _ )) -> st == W.Pending) txsPre
+    let txsHashesToEliminate = map fst $
+            filter (\(h, (_, W.TxMeta st dir _ _ )) ->
+                        st == W.InLedger &&
+                        dir == W.Outgoing &&
+                        h `elem` txsPendingCandidates) txsPre
+    let txsPendingInLedgerRemoved =
+            filter (\(h, (_, W.TxMeta st _ _ _ )) ->
+                        st == W.Pending &&
+                        h `elem` txsHashesToEliminate) txsPre
+    let txsPre' = filter (`notElem` txsPendingInLedgerRemoved) txsPre
+    pure txsPre'
   where
     -- Note: there are sorted indices on these columns.
     -- The secondary sort by TxId is to make the ordering stable

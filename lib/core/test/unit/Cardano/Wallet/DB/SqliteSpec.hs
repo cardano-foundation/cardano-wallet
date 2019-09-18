@@ -162,6 +162,7 @@ import qualified Data.HashMap.Strict as HM
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 
 spec :: Spec
 spec = do
@@ -332,6 +333,11 @@ multipleCheckpointsSpec initialState = do
                 utxos :: [Entity TH.UTxO] <- selectList [][]
                 return $ fmap entityVal utxos
             length utxos2 `shouldBe` 1
+            allTxs2 <- readTxHistory db testPk sortOrder wholeRange
+            filter (\(_,(_, TxMeta st _ _ _)) -> st == InLedger) allTxs2
+                `shouldBe` txs1
+            length (filter (\(_,(_, TxMeta st _ _ _)) -> st == Pending) allTxs2)
+                `shouldBe` 0
 
             -- now emulating submitTx
             let slotNum3 = 3
@@ -353,9 +359,23 @@ multipleCheckpointsSpec initialState = do
                 metas :: [Entity TH.TxMeta] <- selectList [][]
                 return $ fmap entityVal metas
             length metas `shouldBe` 2
+            allTxs3 <- readTxHistory db testPk sortOrder wholeRange
+            filter (\(_,(_, TxMeta st _ _ _)) -> st == InLedger) allTxs3
+                `shouldBe` txs1
+            length (filter (\(_,(_, TxMeta st _ _ _)) -> st == Pending) allTxs3)
+                `shouldBe` 1
+            _cp3 <- putUpdatedCheckpoint db testPk1 initialState nextSlotId3
+                    (UTxO Map.empty) Set.empty
+            allTxs3' <- readTxHistory db testPk1 sortOrder wholeRange
+            filter (\(_,(_, TxMeta st _ _ _)) -> st == InLedger) allTxs3'
+                `shouldBe` []
+            length (filter (\(_,(_, TxMeta st _ _ _)) -> st == Pending) allTxs3')
+                `shouldBe` 0
+
 
             -- finally at next slot block is applied to both wallets
-            let txid2 = Hash "tx2"
+            let (_,tx1'):_ = txs1
+            let txid2 = Hash $ T.encodeUtf8 $ T.pack $ show tx1'
             let slotNum4 = 4
             let nextSlotId4 = (SlotId 0 slotNum4)
             -- when block is applied new utxo is used
@@ -383,6 +403,9 @@ multipleCheckpointsSpec initialState = do
                     ]
             runExceptT (putTxHistory db testPk (Map.fromList txs2))
                 `shouldReturn` Right ()
+            allTxs4 <- readTxHistory db testPk sortOrder wholeRange
+            filter (\(_,(_, TxMeta st _ _ _)) -> st == InLedger) allTxs4
+                `shouldBe` (txs2++txs1)
             let amtReceived = Quantity 1
             let txs2' =
                     [ (txid2
@@ -393,9 +416,14 @@ multipleCheckpointsSpec initialState = do
                     ]
             runExceptT (putTxHistory db testPk1 (Map.fromList txs2'))
                 `shouldReturn` Right ()
-            allTxs <- readTxHistory db testPk sortOrder wholeRange
-            filter (\(_,(_, TxMeta st _ _ _)) -> st == InLedger) allTxs
-                `shouldBe` (txs2++txs1)
+            allTxs5 <- readTxHistory db testPk1 sortOrder wholeRange
+            let changeToIncoming (h, (tx, TxMeta st _ sl _)) =
+                    (h, (tx, TxMeta st Incoming sl (Quantity 1)))
+            filter (\(_,(_, TxMeta st _ _ _)) -> st == InLedger) allTxs5
+                `shouldBe` (map changeToIncoming txs2)
+            length (filter (\(_,(_, TxMeta st _ _ _)) -> st == Pending) allTxs5)
+                `shouldBe` 0
+
             readTxHistory db testPk1
                 sortOrder wholeRange `shouldReturn` txs2'
             -- at this moment we should have three 100 UTxOs in db with Nothing
