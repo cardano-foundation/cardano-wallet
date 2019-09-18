@@ -10,7 +10,7 @@ steps:
       NETWORK: testnet
   - label: 'Restore benchmark - mainnet'
     command: "./.buildkite/bench-restore.sh"
-    timeout_in_minutes: 90
+    timeout_in_minutes: 120
     agents:
       system: x86_64-linux
     env:
