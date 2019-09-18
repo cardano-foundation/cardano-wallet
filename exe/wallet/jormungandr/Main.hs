@@ -186,7 +186,7 @@ data LaunchArgs = LaunchArgs
 
 data JormungandrArgs = JormungandrArgs
     { _genesisBlock :: FilePath
-    , _bftLeaders :: FilePath
+    , _secretFile :: FilePath
     }
 
 cmdLaunch
@@ -205,10 +205,10 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
         <*> verbosityOption
         <*> (JormungandrArgs
             <$> genesisBlockOption
-            <*> bftLeadersOption)
+            <*> secretFileOption)
     exec (LaunchArgs listen nodePort mStateDir verbosity jArgs) = do
         requireFilePath (_genesisBlock jArgs)
-        requireFilePath (_bftLeaders jArgs)
+        requireFilePath (_secretFile jArgs)
         cmdName <- getExecutablePath
         block0H <- parseBlock0H (_genesisBlock jArgs)
         let baseUrl = BaseUrl Http "127.0.0.1" (getPort nodePort) "/api"
@@ -227,14 +227,14 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
             , commandWalletServe cmdName stateDir block0H
             ]
       where
-        commandJormungandr nodeConfig (JormungandrArgs block0 bftLeaders) =
+        commandJormungandr nodeConfig (JormungandrArgs block0 secretFile) =
             Command "jormungandr" arguments (return ()) Inherit
           where
             logLevel = C.toLower <$> show (verbosityToMinSeverity verbosity)
             arguments = mconcat
               [ [ "--genesis-block", block0 ]
               , [ "--config", nodeConfig ]
-              , [ "--secret", bftLeaders ]
+              , [ "--secret", secretFile]
               , [ "--log-level", logLevel ]
               ]
 
@@ -388,12 +388,12 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
                                  Options
 -------------------------------------------------------------------------------}
 
--- | --bft-leaders=FILE
-bftLeadersOption :: Parser FilePath
-bftLeadersOption = optionT $ mempty
-    <> long "bft-leaders"
+-- | --secret=FILE
+secretFileOption :: Parser FilePath
+secretFileOption = optionT $ mempty
+    <> long "secret"
     <> metavar "FILE"
-    <> help "Path to BFT leaders' secrets (.yaml/.json)."
+    <> help "Path to secrets (.yaml/.json)."
 
 -- | --genesis-block=FILE
 genesisBlockOption :: Parser FilePath
