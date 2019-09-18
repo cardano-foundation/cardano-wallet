@@ -162,7 +162,7 @@ mListWallets db@(Database wallets _) = (Right (sort $ Map.keys wallets), db)
 
 mPutCheckpoint :: Ord wid => wid -> Wallet s t -> ModelOp wid s t xprv ()
 mPutCheckpoint wid cp = alterModel wid $ \wal ->
-    ((), wal { checkpoints = [cp] })
+    ((), wal { checkpoints = (cp:checkpoints wal) })
 
 mReadCheckpoint :: Ord wid => wid -> ModelOp wid s t xprv (Maybe (Wallet s t))
 mReadCheckpoint wid db@(Database wallets _) =
