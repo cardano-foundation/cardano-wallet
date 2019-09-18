@@ -177,7 +177,8 @@ spec = do
     sqliteDetailedSeqSpec
 
 sqliteDetailedSeqSpec :: Spec
-sqliteDetailedSeqSpec = withDB newDBSeq $ do
+sqliteDetailedSeqSpec = withDB
+    (fst <$> newFileDBLayer @(SeqState DummyTarget) @DummyTarget @SeqKey) $ do
     describe "Sqlite multiple-checkpoints test (SeqState)"
         multipleCheckpointsSpec
 
