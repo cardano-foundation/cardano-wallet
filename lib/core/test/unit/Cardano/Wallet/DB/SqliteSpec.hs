@@ -177,13 +177,12 @@ spec = do
     sqliteDetailedSeqSpec
 
 sqliteDetailedSeqSpec :: Spec
-sqliteDetailedSeqSpec = withDB
-    (fst <$> newFileDBLayer @(SeqState DummyTarget) @DummyTarget @SeqKey) $ do
+sqliteDetailedSeqSpec = withDB newDBSeq $ do
     describe "Sqlite multiple-checkpoints test (SeqState)"
         multipleCheckpointsSpec
 
 sqliteSpec :: Spec
-sqliteSpec = withDB (fst <$> newMemoryDBLayer) $ do
+sqliteSpec = withDB newDBSeq $ do
     describe "Sqlite Simple tests (SeqState)" $
         simpleSpec testCpSeq
     describe "Sqlite" dbPropertyTests
@@ -193,7 +192,7 @@ sqliteSpec = withDB (fst <$> newMemoryDBLayer) $ do
 
 sqliteSpecRnd :: Spec
 sqliteSpecRnd =
-    withDB (fst <$> newMemoryDBLayer @(RndState DummyTarget) @DummyTarget @RndKey) $ do
+    withDB newDBRnd $ do
         describe "Sqlite simple (RndState)" $
             simpleSpec testCpRnd
         describe "Sqlite State machine (RndState)" $ do
@@ -584,6 +583,14 @@ newMemoryDBLayer = do
     logs <- newTVarIO []
     db <- snd <$> newDBLayer logConfig (traceInTVarIO logs) Nothing
     pure (db, logs)
+
+-- | Type-specialised shorthand. Useful for testing in GHCi.
+newDBSeq :: IO (DBLayer IO (SeqState DummyTarget) DummyTarget SeqKey)
+newDBSeq = fst <$> newMemoryDBLayer
+
+-- | Type-specialised shorthand. Useful for testing in GHCi.
+newDBRnd :: IO (DBLayer IO (RndState DummyTarget) DummyTarget RndKey)
+newDBRnd = fst <$> newMemoryDBLayer
 
 newFileDBLayer
     :: (IsOurs s, NFData s, Show s, PersistState s, PersistTx t, PersistKey k)
