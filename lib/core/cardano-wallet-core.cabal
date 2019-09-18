@@ -157,15 +157,11 @@ test-suite unit
     , iohk-monitoring
     , lens
     , memory
-    , monad-logger
     , network
     , QuickCheck
     , quickcheck-state-machine >= 0.6.0
     , persistent
-    , persistent-sqlite
     , random
-    , resourcet
-    , safe
     , servant
     , servant-server
     , servant-swagger
@@ -177,7 +173,6 @@ test-suite unit
     , time
     , transformers
     , tree-diff
-    , unliftio-core
     , unordered-containers
     , yaml
     , warp

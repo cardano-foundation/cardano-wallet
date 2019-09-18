@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -32,7 +33,13 @@ import Cardano.Crypto.Wallet
 import Cardano.Wallet.DB
     ( DBLayer (..), ErrWalletAlreadyExists (..), PrimaryKey (..), cleanDB )
 import Cardano.Wallet.DB.Sqlite
-    ( PersistState, PersistTx, newDBLayer, withDBLayer )
+    ( PersistState
+    , PersistTx
+    , SqliteContext
+    , newDBLayer
+    , unsafeRunQuery
+    , withDBLayer
+    )
 import Cardano.Wallet.DB.Sqlite.TH
     ( Checkpoint (..) )
 import Cardano.Wallet.DB.Sqlite.Types
@@ -61,6 +68,7 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet
     , blockHeight
     , currentTip
+    , getPending
     , getState
     , initWallet
     , unsafeInitWallet
@@ -68,7 +76,6 @@ import Cardano.Wallet.Primitive.Model
     )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
-    , Block (..)
     , BlockHeader (..)
     , Coin (..)
     , Direction (..)
@@ -96,22 +103,16 @@ import Control.Exception
     ( throwIO )
 import Control.Monad
     ( replicateM_, unless )
-import Control.Monad.IO.Unlift
-    ( MonadUnliftIO )
-import Control.Monad.Logger
-    ( NoLoggingT )
 import Control.Monad.Trans.Except
     ( runExceptT )
-import Control.Monad.Trans.Reader
-    ( ReaderT )
-import Control.Monad.Trans.Resource
-    ( ResourceT )
 import Crypto.Hash
     ( hash )
 import Data.ByteString
     ( ByteString )
 import Data.Coerce
     ( coerce )
+import Data.Functor
+    ( ($>) )
 import Data.Maybe
     ( isNothing, mapMaybe )
 import Data.Quantity
@@ -122,14 +123,8 @@ import Data.Text.Class
     ( FromText (..) )
 import Data.Time.Clock
     ( getCurrentTime )
-import Data.Word
-    ( Word16 )
 import Database.Persist
     ( Entity, entityVal, selectList )
-import Database.Persist.Sql
-    ( SqlBackend )
-import Database.Persist.Sqlite
-    ( runSqlite )
 import GHC.Conc
     ( TVar, atomically, newTVarIO, readTVarIO, writeTVar )
 import System.Directory
@@ -175,12 +170,17 @@ spec = do
     loggingSpec
     connectionSpec
     sqliteDetailedSeqSpec
+    sqliteDetailedRndSpec
 
 sqliteDetailedSeqSpec :: Spec
-sqliteDetailedSeqSpec = withDB
-    (fst <$> newFileDBLayer @(SeqState DummyTarget) @DummyTarget @SeqKey) $ do
-    describe "Sqlite multiple-checkpoints test (SeqState)"
-        multipleCheckpointsSpec
+sqliteDetailedSeqSpec = withDBCtx newDBSeqCtx $ do
+    describe "Sqlite multiple-checkpoints test (SeqState)" $
+        multipleCheckpointsSpec testCpSeq
+
+sqliteDetailedRndSpec :: Spec
+sqliteDetailedRndSpec = withDBCtx newDBRndCtx $ do
+    describe "Sqlite multiple-checkpoints test (RndState)" $
+        multipleCheckpointsSpec testCpRnd
 
 sqliteSpec :: Spec
 sqliteSpec = withDB newDBSeq $ do
@@ -199,35 +199,44 @@ sqliteSpecRnd =
         describe "Sqlite State machine (RndState)" $ do
             it "Sequential state machine tests" prop_sequential
 
-runSqlite'
-    :: (MonadUnliftIO m)
-    => Text
-    -> ReaderT SqlBackend (NoLoggingT (ResourceT m)) a
-    -> m a
-runSqlite' = runSqlite
+withDBCtx
+    :: IO (SqliteContext, DBLayer IO s t k)
+    -> SpecWith (SqliteContext, DBLayer IO s t k)
+    -> Spec
+withDBCtx create = beforeAll create . beforeWith
+    (\(ctx, db) -> cleanDB db $> (ctx, db))
 
 multipleCheckpointsSpec
-    :: SpecWith (DBLayer IO (SeqState DummyTarget) DummyTarget SeqKey)
-multipleCheckpointsSpec = do
+    :: forall s k.
+       ( Show (k 'RootK XPrv)
+       , Eq (k 'RootK XPrv)
+       , Eq s
+       , IsOurs s
+       , NFData s
+       , Show s
+       , GenerateTestKey k )
+    => Wallet s DummyTarget
+    -> SpecWith (SqliteContext, DBLayer IO s DummyTarget k)
+multipleCheckpointsSpec initialState = do
     describe "put and read checkpoints" $ do
-        it "previous checkpoints are also stored" $ \db -> do
-            cp1 <- createWalletAndFirstCheckpoint db testPk 0 "genesis"
+        it "previous checkpoints are also stored" $ \(ctx,db) -> do
+            createWalletAndFirstCheckpoint db testPk
 
             -- the second checkpoint is to be persisted
-            let block1 = mkBlock 1 "block1" []
-            let cp2 = mkCpSeq block1
+            let nextSlotId = (SlotId 0 1)
+            let utxos = UTxO Map.empty
+            cp2 <- putUpdatedCheckpoint db testPk initialState nextSlotId utxos Set.empty
             runExceptT (putCheckpoint db testPk cp2) `shouldReturn` Right ()
-            cps <- runSqlite' "spec.db" $ do
+            cps <- unsafeRunQuery ctx $ do
                 cps :: [Entity Checkpoint] <- selectList [][]
                 return $ fmap entityVal cps
             readCheckpoint db testPk `shouldReturn` Just cp2
             map (\(Checkpoint _ slot (BlockId prev) height) ->
                      (slot, prev, height)) cps
-                `shouldBe` map getTriple [cp1,cp2]
-
+                `shouldBe` map getTriple [initialState,cp2]
     describe "put and read tx history" $ do
-        it "checking accumulating 2 incoming transactions" $ \db -> do
-            _ <- createWalletAndFirstCheckpoint db testPk 0 "genesis"
+        it "checking accumulating 2 incoming transactions" $ \(ctx,db) -> do
+            createWalletAndFirstCheckpoint db testPk
 
             let slotNum1 = 1
             let nextSlotId1 = (SlotId 0 slotNum1)
@@ -239,7 +248,7 @@ multipleCheckpointsSpec = do
             let txout1 = TxOut addr1 amt1
             let expectedTx1 = (txin1, txout1)
             (cp1, txs1) <-
-                acceptIncomingTx db testPk slotNum1 "block1"
+                acceptIncomingTx (ctx,db) testPk initialState slotNum1
                 amt1 txid1 addr1 ix1 1
             let sortOrder = Descending
             readTxHistory db testPk
@@ -265,7 +274,7 @@ multipleCheckpointsSpec = do
             let utxos2 = UTxO $ Map.fromList [expectedTx1, expectedTx2]
             cp3 <- putUpdatedCheckpoint db testPk cp2 nextSlotId3 utxos2 Set.empty
             utxo cp3 `shouldBe` (UTxO $ Map.fromList [expectedTx1, expectedTx2])
-            utxos3 <- runSqlite' "spec.db" $ do
+            utxos3 <- unsafeRunQuery ctx $ do
                 utxos :: [Entity TH.UTxO] <- selectList [][]
                 return $ fmap entityVal utxos
             let getNotSpent =
@@ -276,13 +285,14 @@ multipleCheckpointsSpec = do
                 `shouldBe` [nextSlotId1, nextSlotId3]
 
             --check all checkpoints stored in db
-            cps <- runSqlite' "spec.db" $ do
+            cps <- unsafeRunQuery ctx $ do
                 cps :: [Entity Checkpoint] <- selectList [][]
                 return $ fmap entityVal cps
             length cps `shouldBe` 4
 
-        it "checking incoming and outgoing transaction" $ \db -> do
-            _ <- createWalletAndFirstCheckpoint db testPk 0 "genesis"
+        it "checking incoming and outgoing transaction" $ \(ctx,db) -> do
+            createWalletAndFirstCheckpoint db testPk
+            createWalletAndFirstCheckpoint db testPk1
 
             let slotNum1 = 1
             let nextSlotId1 = (SlotId 0 slotNum1)
@@ -291,7 +301,7 @@ multipleCheckpointsSpec = do
             let amt1 = Coin 100
             let ix1 = 0
             (cp1,txs1) <-
-                acceptIncomingTx db testPk slotNum1 "block1"
+                acceptIncomingTx (ctx,db) testPk initialState slotNum1
                 amt1 txid1 addr1 ix1 1
             let sortOrder = Descending
             readTxHistory db testPk
@@ -313,14 +323,12 @@ multipleCheckpointsSpec = do
             --    (d) new row of metas and new slot id will be added
             --
             -- At this moment one wallet has 100 in one of its utxos
-            -- now we are creating another wallet and putting new checkpoint
-            -- at this moment
+            -- and putting new checkpoint at this moment
             let slotNum2 = 2
             let nextSlotId2 = (SlotId 0 slotNum2)
-            _ <- createWalletAndFirstCheckpoint db testPk1 slotNum2 "block2"
             let utxos1 = UTxO $ Map.fromList [(TxIn txid1 ix1, TxOut addr1 amt1)]
             cp2 <- putUpdatedCheckpoint db testPk cp1 nextSlotId2 utxos1 Set.empty
-            utxos2 <- runSqlite' "spec.db" $ do
+            utxos2 <- unsafeRunQuery ctx $ do
                 utxos :: [Entity TH.UTxO] <- selectList [][]
                 return $ fmap entityVal utxos
             length utxos2 `shouldBe` 1
@@ -337,11 +345,11 @@ multipleCheckpointsSpec = do
                             )
             let pendings = Set.fromList [pendingTx]
             cp3 <- putUpdatedCheckpoint db testPk cp2 nextSlotId3 utxos1 pendings
-            utxos3 <- runSqlite' "spec.db" $ do
+            utxos3 <- unsafeRunQuery ctx $ do
                 utxos :: [Entity TH.UTxO] <- selectList [][]
                 return $ fmap entityVal utxos
             length utxos3 `shouldBe` 1
-            metas <- runSqlite' "spec.db" $ do
+            metas <- unsafeRunQuery ctx $ do
                 metas :: [Entity TH.TxMeta] <- selectList [][]
                 return $ fmap entityVal metas
             length metas `shouldBe` 2
@@ -354,7 +362,7 @@ multipleCheckpointsSpec = do
             let utxosNew = UTxO $ Map.fromList [(TxIn txid2 0, txout1)]
             _cp4 <- putUpdatedCheckpoint db testPk cp3 nextSlotId4 utxosNew Set.empty
             -- at this moment we have still all 100 UTxOs in db with Nothing
-            utxos4 <- runSqlite' "spec.db" $ do
+            utxos4 <- unsafeRunQuery ctx $ do
                 utxos :: [Entity TH.UTxO] <- selectList [][]
                 return $ fmap entityVal utxos
             length utxos4 `shouldBe` 2
@@ -392,7 +400,7 @@ multipleCheckpointsSpec = do
                 sortOrder wholeRange `shouldReturn` txs2'
             -- at this moment we should have three 100 UTxOs in db with Nothing
             -- and one additional 100 UTxO with slotSpent=(Just nextSlotId4)
-            utxos5 <- runSqlite' "spec.db" $ do
+            utxos5 <- unsafeRunQuery ctx $ do
                 utxos :: [Entity TH.UTxO] <- selectList [][]
                 return $ fmap entityVal utxos
             length utxos5 `shouldBe` 2
@@ -402,24 +410,31 @@ multipleCheckpointsSpec = do
                 `shouldBe` [nextSlotId1]
             map TH.utxoSlotSpent (getAll100utxos utxos5)
                 `shouldBe` [(Just nextSlotId4)]
-
-    where
+  where
       getTriple cp =
           let (BlockHeader s h) = currentTip cp
           in (s, h, fromIntegral $ fromQuantity $ blockHeight cp)
       fromQuantity (Quantity a) = a
       getAllutxosOf v =
           filter (\(TH.UTxO _ _ _ _ _ _ amt) -> amt == (Coin v))
-      createWalletAndFirstCheckpoint db widKey slotNum bs = do
+      createWalletAndFirstCheckpoint db widKey = do
           -- first checkpoint is to be stored upon wallet creation
           -- there are no utxos available
-          let blockGen = mkBlock slotNum bs []
-          let cp = mkCpSeq blockGen
-          unsafeRunExceptT $ createWallet db widKey cp testMetadata
-          readCheckpoint db widKey `shouldReturn` Just cp
-          utxo cp `shouldBe` (UTxO Map.empty)
+          unsafeRunExceptT $ createWallet db widKey initialState testMetadata
+          readCheckpoint db widKey `shouldReturn` Just initialState
+          utxo initialState `shouldBe` (UTxO Map.empty)
+      putUpdatedCheckpoint db widKey cp' nextSlotId utxos pendings = do
+          let (Quantity blockHeight') = blockHeight cp'
+          let (BlockHeader _ blockHash') = currentTip cp'
+          let state' = getState cp'
+          -- when block is applied new utxo is used
+          let cp = unsafeInitWallet
+                   utxos pendings
+                   (BlockHeader nextSlotId blockHash') state'
+                   (Quantity $ blockHeight' + 1)
+          runExceptT (putCheckpoint db widKey cp) `shouldReturn` Right ()
           return cp
-      acceptIncomingTx db widKey slotNum blockBS amt txid addr ix expUtxo = do
+      acceptIncomingTx (ctx,db) widKey cp' slotNum amt txid addr ix expUtxo = do
           -- Outer transaction comes and gives us utxo
           -- applyBlocks is called and the state is updated
           -- which affect utxo, state slot is altered, and tx history changed
@@ -427,21 +442,28 @@ multipleCheckpointsSpec = do
           -- (a) checkpoint with new slot will be put
           -- (b) utxo will be inserted
           -- (c) putTxHistory will be called
-          let block = mkBlock slotNum blockBS []
-          let cp = mkCpSeq block
-          runExceptT (putCheckpoint db widKey cp) `shouldReturn` Right ()
+          let (Quantity blockHeight') = blockHeight cp'
+          let (BlockHeader _ blockHash') = currentTip cp'
           let nextSlotId = (SlotId 0 slotNum)
+          let state' = getState cp'
+          let utxos = utxo cp'
+          let pendings = getPending cp'
+          let cp = unsafeInitWallet
+                   utxos pendings
+                   (BlockHeader nextSlotId blockHash') state'
+                   (Quantity $ blockHeight' + 1)
+          runExceptT (putCheckpoint db widKey cp) `shouldReturn` Right ()
           let txin = TxIn txid ix
           let txout = TxOut addr amt
           let expectedTx = (txin, txout)
-          let utxos = UTxO $ Map.fromList [expectedTx]
-          cp1 <- putUpdatedCheckpoint db widKey cp nextSlotId utxos Set.empty
-          utxos' <- runSqlite' "spec.db" $ do
+          let utxosNew = UTxO $ Map.fromList [expectedTx]
+          cp1 <- putUpdatedCheckpoint db widKey cp nextSlotId utxosNew Set.empty
+          utxos' <- unsafeRunQuery ctx $ do
               utxos1 :: [Entity TH.UTxO] <- selectList [][]
               return $ fmap entityVal utxos1
           length utxos' `shouldBe` expUtxo
-          (Just cp') <- readCheckpoint db widKey
-          cp1 `shouldBe` cp'
+          (Just cp2) <- readCheckpoint db widKey
+          cp1 `shouldBe` cp2
           -- change tx history with the same slot number accordingly
           let amt' = Quantity $ fromIntegral $ getCoin amt
           let txs =
@@ -453,18 +475,7 @@ multipleCheckpointsSpec = do
                   ]
           runExceptT (putTxHistory db widKey (Map.fromList txs))
               `shouldReturn` Right ()
-          return (cp', txs)
-      putUpdatedCheckpoint db widKey cp' nextSlotId utxos pendings = do
-          let (Quantity blockHeight') = blockHeight cp'
-          let (BlockHeader _ blockHash') = currentTip cp'
-          let state' = getState cp'
-          -- when block is applied new utxo is used
-          let cp = unsafeInitWallet @(SeqState DummyTarget) @DummyTarget
-                   utxos pendings
-                   (BlockHeader nextSlotId blockHash') state'
-                   (Quantity $ blockHeight' + 1)
-          runExceptT (putCheckpoint db widKey cp) `shouldReturn` Right ()
-          return cp
+          return (cp2, txs)
 
 simpleSpec
     :: forall s k.
@@ -578,29 +589,28 @@ withTestDBFile action expectations = do
 
 newMemoryDBLayer
     :: (IsOurs s, NFData s, Show s, PersistState s, PersistTx t, PersistKey k)
-    => IO (DBLayer IO s t k, TVar [LogObject Text])
+    => IO ((SqliteContext, DBLayer IO s t k), TVar [LogObject Text])
 newMemoryDBLayer = do
     logConfig <- testingLogConfig
     logs <- newTVarIO []
-    db <- snd <$> newDBLayer logConfig (traceInTVarIO logs) Nothing
-    pure (db, logs)
+    (ctx,db) <- newDBLayer logConfig (traceInTVarIO logs) Nothing
+    pure ((ctx, db), logs)
+
+-- | Type-specialised shorthand. Useful for testing in GHCi.
+newDBSeqCtx :: IO (SqliteContext, DBLayer IO (SeqState DummyTarget) DummyTarget SeqKey)
+newDBSeqCtx = fst <$> newMemoryDBLayer
+
+-- | Type-specialised shorthand. Useful for testing in GHCi.
+newDBRndCtx :: IO (SqliteContext, DBLayer IO (RndState DummyTarget) DummyTarget RndKey)
+newDBRndCtx = fst <$> newMemoryDBLayer
 
 -- | Type-specialised shorthand. Useful for testing in GHCi.
 newDBSeq :: IO (DBLayer IO (SeqState DummyTarget) DummyTarget SeqKey)
-newDBSeq = fst <$> newMemoryDBLayer
+newDBSeq = snd <$> newDBSeqCtx
 
 -- | Type-specialised shorthand. Useful for testing in GHCi.
 newDBRnd :: IO (DBLayer IO (RndState DummyTarget) DummyTarget RndKey)
-newDBRnd = fst <$> newMemoryDBLayer
-
-newFileDBLayer
-    :: (IsOurs s, NFData s, Show s, PersistState s, PersistTx t, PersistKey k)
-    => IO (DBLayer IO s t k, TVar [LogObject Text])
-newFileDBLayer = do
-    logConfig <- testingLogConfig
-    logs <- newTVarIO []
-    db <- snd <$> newDBLayer logConfig (traceInTVarIO logs) (Just "spec.db")
-    pure (db, logs)
+newDBRnd = snd <$> newDBRndCtx
 
 testingLogConfig :: IO CM.Configuration
 testingLogConfig = do
@@ -638,7 +648,7 @@ testingLogConfig = do
 withLoggingDB :: SpecWith (DBLayer IO (SeqState DummyTarget) DummyTarget SeqKey, IO [LogObject Text]) -> Spec
 withLoggingDB = beforeAll newMemoryDBLayer . beforeWith clean
   where
-    clean (db, logs) = do
+    clean ((_,db), logs) = do
         cleanDB db
         atomically $ writeTVar logs []
         pure (db, readTVarIO logs)
@@ -665,19 +675,6 @@ shouldHaveLog msgs (sev, str) = unless (any match msgs) $
 {-------------------------------------------------------------------------------
                                    Test data
 -------------------------------------------------------------------------------}
-
-mkBlock
-    :: Word16
-    -> ByteString
-    -> [Tx]
-    -> Block Tx
-mkBlock slotNum blockTag txs = Block
-    { header = BlockHeader
-        { slotId = SlotId 0 slotNum
-        , prevBlockHash = Hash blockTag
-        }
-    , transactions = txs
-    }
 
 testMetadata :: WalletMetadata
 testMetadata = WalletMetadata
@@ -721,11 +718,6 @@ class GenerateTestKey (key :: Depth -> * -> *) where
 
 testCpSeq :: Wallet (SeqState DummyTarget) DummyTarget
 testCpSeq = initWallet block0 initDummyStateSeq
-
-mkCpSeq
-    :: Block Tx
-    -> Wallet (SeqState DummyTarget) DummyTarget
-mkCpSeq block = initWallet block initDummyStateSeq
 
 initDummyStateSeq :: SeqState DummyTarget
 initDummyStateSeq = mkSeqState (xprv, mempty) defaultAddressPoolGap
