@@ -72,13 +72,13 @@ import qualified Data.Text.IO as TIO
 spec :: forall t. (KnownCommand t) => Spec
 spec = do
     let block0 = "test/data/jormungandr/block0.bin"
-    let leaders = "test/data/jormungandr/secret.yaml"
+    let secret = "test/data/jormungandr/secret.yaml"
     describe "LAUNCH - cardano-wallet launch [SERIAL]" $ do
         it "LAUNCHx - Stop when --state-dir is an existing file" $ withTempFile $ \f _ -> do
             let args =
                     [ "launch"
                     , "--genesis-block", block0
-                    , "--bft-leaders", leaders
+                    , "--secret", secret
                     , "--state-dir", f
                     ]
 
@@ -99,7 +99,7 @@ spec = do
                         , "--random-port"
                         , "--state-dir", d
                         , "--genesis-block", block0
-                        , "--bft-leaders", leaders
+                        , "--secret", secret
                         ]
                 let process = proc' (commandName @t) args
                 withCreateProcess process $ \_ (Just o) (Just e) ph -> do
@@ -119,7 +119,7 @@ spec = do
                     , "--random-port"
                     , "--state-dir", dir
                     , "--genesis-block", block0
-                    , "--bft-leaders", leaders
+                    , "--secret", secret
                     ]
             let process = proc' (commandName @t) args
             withCreateProcess process $ \_ (Just o) (Just e) ph -> do
@@ -137,7 +137,7 @@ spec = do
             let args =
                     [ "launch"
                     , "--genesis-block", block0'
-                    , "--bft-leaders", leaders
+                    , "--secret", secret
                     ]
             (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t args
             c `shouldBe` ExitFailure 1
@@ -148,27 +148,27 @@ spec = do
         it "LAUNCH - Invalid block0 file (not a serialized block)" $ do
             let args =
                     [ "launch"
-                    , "--genesis-block", leaders
-                    , "--bft-leaders", leaders
+                    , "--genesis-block", secret
+                    , "--secret", secret
                     ]
             (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t args
             c `shouldBe` ExitFailure 1
             o `shouldBe` mempty
             e `shouldContain`
-                ("As far as I can tell, this isn't a valid block file: " <> leaders)
+                ("As far as I can tell, this isn't a valid block file: " <> secret)
 
-        it "LAUNCH - Non-Existing files for --bft-leaders" $ do
-            let leaders' = leaders <> ".doesnexist"
+        it "LAUNCH - Non-Existing files for --secret" $ do
+            let secret' = secret <> ".doesnexist"
             let args =
                     [ "launch"
                     , "--genesis-block", block0
-                    , "--bft-leaders", leaders'
+                    , "--secret", secret'
                     ]
             (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t args
             c `shouldBe` ExitFailure 1
             o `shouldBe` mempty
             e `shouldContain`
-                ("I couldn't find any file at the given location: " <> leaders')
+                ("I couldn't find any file at the given location: " <> secret')
 
         it "LAUNCH - Restoration workers restart" $ withTempDir $ \d -> do
             pendingWith
@@ -185,7 +185,7 @@ spec = do
                     , "--port", show port
                     , "--state-dir", d
                     , "--genesis-block", block0
-                    , "--bft-leaders", leaders
+                    , "--secret", secret
                     ]
             let process = proc' (commandName @t) args
             wallet <- withCreateProcess process $ \_ (Just o) (Just e) ph -> do
@@ -212,7 +212,7 @@ spec = do
                 , "launch"
                 , "--node-port", show nodePort
                 , "--genesis-block", block0
-                , "--bft-leaders", leaders
+                , "--secret", secret
                 , "--quiet"
                 ]
         let tests =
@@ -236,7 +236,7 @@ spec = do
         let defaultArgs =
                 [ "launch"
                 , "--genesis-block", block0
-                , "--bft-leaders", leaders
+                , "--secret", secret
                 ]
         it "LOGGING - Launch can log --verbose" $ withTempDir $ \d -> do
             pendingWith "See 'LAUNCH - Restoration workers restart'"

@@ -27,10 +27,10 @@ For manual testing, try :
 $ pwd
 .../cardano-wallet
 $ stack build
-$ cardano-wallet-jormungandr launch --genesis-block lib/jormungandr/test/data/jormungandr/block0.bin --bft-leaders lib/jormungandr/test/data/jormungandr/secret.yaml
+$ cardano-wallet-jormungandr launch --genesis-block lib/jormungandr/test/data/jormungandr/block0.bin --secret lib/jormungandr/test/data/jormungandr/secret.yaml
 ```
 
-Here we are using a genesis block and BTF leaders configuration as defined in the integration tests.
+Here we are using a genesis block and secrets as defined in the integration tests.
 For more options, see the help text:
 
 ``` bash
