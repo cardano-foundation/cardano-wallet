@@ -91,6 +91,7 @@ library
       Cardano.Wallet.DB.Sqlite.TH
       Cardano.Wallet.DB.Sqlite.Types
       Cardano.Wallet.Network
+      Cardano.Wallet.StakePool.Metrics
       Cardano.Wallet.Primitive.AddressDerivation
       Cardano.Wallet.Primitive.AddressDerivation.Random
       Cardano.Wallet.Primitive.AddressDerivation.Sequential
