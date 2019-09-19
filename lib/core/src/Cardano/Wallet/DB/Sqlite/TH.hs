@@ -155,6 +155,7 @@ UTxO                                sql=utxo
     utxoOutputAddress   W.Address   sql=output_address
     utxoOutputCoin      W.Coin      sql=output_coin
 
+    UniqueUTxO utxoWalletId utxoInputId utxoInputIndex
     Primary
         utxoWalletId
         utxoInputId
