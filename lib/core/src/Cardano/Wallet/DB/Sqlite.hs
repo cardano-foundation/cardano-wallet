@@ -81,7 +81,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.Model
-    ( currentTip )
+    ( blockHeight, currentTip )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..), DefineTx (..) )
 import Control.Concurrent.MVar
@@ -126,6 +126,8 @@ import Data.Text
     ( Text )
 import Data.Typeable
     ( Typeable )
+import Data.Word
+    ( Word64 )
 import Database.Persist.Sql
     ( Entity (..)
     , Filter
@@ -148,6 +150,7 @@ import Database.Persist.Sql
     , selectKeysList
     , selectList
     , updateWhere
+    , (!=.)
     , (<-.)
     , (<=.)
     , (=.)
@@ -162,6 +165,8 @@ import Fmt
     ( fmt, (+|), (+||), (|+), (||+) )
 import GHC.Generics
     ( Generic )
+import Numeric.Natural
+    ( Natural )
 import System.Log.FastLogger
     ( fromLogStr )
 
@@ -315,6 +320,7 @@ newDBLayer logConfig trace fp = do
               ExceptT $ runQuery $
               selectWallet wid >>= \case
                   Just _ -> Right <$> do
+                      purgeCheckpoints wid cp
                       -- remove checkpoint if already present to effectively
                       -- support updating of checkpoint
                       let (BlockHeader sid _) = currentTip cp
@@ -701,6 +707,39 @@ deleteUTxOs
     -> SqlPersistT IO ()
 deleteUTxOs wid =
     deleteWhere [UtxoWalletId ==. wid]
+
+-- | Clean up checkpoints which are greater than `k` blocks old for we know we
+-- can't rollback that far.
+purgeCheckpoints
+    :: W.WalletId
+    -> W.Wallet s t
+    -> SqlPersistT IO ()
+purgeCheckpoints wid cp = do
+    let minHeight = word64 (blockHeight cp) - epochStability
+    mCp <- selectFirst
+        [ CheckpointWalletId ==. wid
+        , CheckpointBlockHeight <=. minHeight
+        ] [Desc CheckpointBlockHeight]
+    case mCp of
+        Nothing -> return ()
+        Just minCp -> do
+            deleteWhere
+                [ UtxoWalletId ==. wid
+                , UtxoSlotSpent !=. Nothing
+                , UtxoSlotSpent <=. Just (checkpointSlot $ entityVal minCp)
+                ]
+            deleteWhere
+                [ CheckpointWalletId ==. wid
+                , CheckpointBlockHeight <=. minHeight
+                ]
+  where
+    word64 :: Quantity "block" Natural -> Word64
+    word64 (Quantity x) = fromIntegral x
+
+    -- FIXME
+    -- Hard-coded for now, though we should probably be tracking this from
+    -- within the 'Wallet' primitive model.
+    epochStability = 2160
 
 -- | Delete TxMeta values for a wallet.
 deleteTxMetas
