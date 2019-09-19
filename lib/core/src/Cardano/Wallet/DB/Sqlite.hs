@@ -165,8 +165,6 @@ import Fmt
     ( fmt, (+|), (+||), (|+), (||+) )
 import GHC.Generics
     ( Generic )
-import Numeric.Natural
-    ( Natural )
 import System.Log.FastLogger
     ( fromLogStr )
 
@@ -746,7 +744,7 @@ purgeCheckpoints
     -> W.Wallet s t
     -> SqlPersistT IO ()
 purgeCheckpoints wid cp = do
-    let minHeight = word64 (blockHeight cp) - epochStability
+    let minHeight = word64 (blockHeight cp) - word64 epochStability
     mCp <- selectFirst
         [ CheckpointWalletId ==. wid
         , CheckpointBlockHeight <=. minHeight
@@ -764,13 +762,10 @@ purgeCheckpoints wid cp = do
                 , CheckpointBlockHeight <=. minHeight
                 ]
   where
-    word64 :: Quantity "block" Natural -> Word64
+    word64 :: Integral a => Quantity "block" a -> Word64
     word64 (Quantity x) = fromIntegral x
 
-    -- FIXME
-    -- Hard-coded for now, though we should probably be tracking this from
-    -- within the 'Wallet' primitive model.
-    epochStability = 2160
+    epochStability = W.blockchainParameters cp ^. #getEpochStability
 
 -- | Delete TxMeta values for a wallet.
 deleteTxMetas
