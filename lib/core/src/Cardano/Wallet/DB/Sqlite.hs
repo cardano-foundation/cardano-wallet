@@ -706,7 +706,7 @@ deleteTxMetas wid = deleteWhere [ TxMetaWalletId ==. wid ]
 -- | Add new TxMeta rows, overwriting existing ones.
 putTxMetas :: [TxMeta] -> SqlPersistT IO ()
 putTxMetas metas = dbChunked repsertMany
-    [(TxMetaKey txMetaTxId txMetaWalletId txMetaSlotId, m) | m@TxMeta{..} <- metas]
+    [(TxMetaKey txMetaTxId txMetaWalletId, m) | m@TxMeta{..} <- metas]
 
 -- | Insert multiple transactions, removing old instances first.
 putTxs :: [TxIn] -> [TxOut] -> SqlPersistT IO ()
@@ -814,8 +814,7 @@ selectTxHistory wid order conditions = do
         ((TxMetaWalletId ==. wid) : conditions) sortOpt
     let txids = map txMetaTxId metas
     (ins, outs) <- selectTxs txids
-    return $ prunePendingDuplicate $ txHistoryFromEntity @t metas ins outs
-
+    return $ txHistoryFromEntity @t metas ins outs
   where
     -- Note: there are sorted indices on these columns.
     -- The secondary sort by TxId is to make the ordering stable
@@ -824,32 +823,6 @@ selectTxHistory wid order conditions = do
         W.Ascending -> [Asc TxMetaSlotId, Desc TxMetaTxId]
         W.Descending -> [Desc TxMetaSlotId, Asc TxMetaTxId]
 
-    -- We keep Pending transaction in the database in the event of roll backs.
-    -- So it may occurs that some transactions are both 'Pending' and
-    -- 'InLedger', in which case, the latters should prevail.
-    prunePendingDuplicate
-        :: [(W.Hash "Tx", (Tx t, W.TxMeta))]
-        -> [(W.Hash "Tx", (Tx t, W.TxMeta))]
-    prunePendingDuplicate txs =
-        let
-            ixs =
-                fst <$> filter isPending txs
-              where
-                isPending (_, (_, meta)) = W.isPending meta
-
-            dups =
-                fst <$> filter isDuplicate txs
-              where
-                isDuplicate (h, (_, meta)) =
-                    not (W.isPending meta) && h `elem` ixs
-
-            toRemove =
-                filter shouldRemove txs
-              where
-                shouldRemove (h, (_, meta)) =
-                    W.isPending meta && h `elem` dups
-        in
-            filter (`notElem` toRemove) txs
 selectPrivateKey
     :: (MonadIO m, PersistKey k)
     => W.WalletId
