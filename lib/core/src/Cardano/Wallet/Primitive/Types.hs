@@ -43,6 +43,7 @@ module Cardano.Wallet.Primitive.Types
     , TxStatus(..)
     , TxWitness(..)
     , TransactionInfo (..)
+    , FeePolicy (..)
     , txIns
     , isPending
 
@@ -666,6 +667,29 @@ data TransactionInfo = TransactionInfo
     , txInfoTime :: UTCTime
     -- ^ Creation time of the block including this transaction.
     } deriving (Show, Eq, Ord)
+
+-- | A linear equation a free variable `x`. Represents the @\s -> a + b*s@
+-- function where @s@ can be the transaction size in bytes or, a number of
+-- inputs + outputs.
+--
+-- @a@ and @b@ are constant coefficients.
+data FeePolicy =
+    LinearFee (Quantity "lovelace" Double) (Quantity "lovelace/x" Double)
+    deriving (Eq, Show, Generic)
+
+instance NFData FeePolicy
+
+instance ToText FeePolicy where
+    toText (LinearFee (Quantity a) (Quantity b)) =
+        toText a <> "x + " <> toText b
+
+instance FromText FeePolicy where
+    fromText txt = case T.splitOn "x + " txt of
+        [a, b] -> LinearFee
+            <$> fmap Quantity (fromText a)
+            <*> fmap Quantity (fromText b)
+        _ ->
+            Left $ TextDecodingError "not a linear equation"
 
 {-------------------------------------------------------------------------------
                                     Address

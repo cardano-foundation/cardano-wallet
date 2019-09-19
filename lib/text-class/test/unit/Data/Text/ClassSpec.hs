@@ -30,6 +30,8 @@ import Data.Text.Class
     )
 import GHC.Generics
     ( Generic )
+import Numeric.Natural
+    ( Natural )
 import Test.Hspec
     ( Spec, describe, it, shouldSatisfy )
 import Test.QuickCheck
@@ -78,6 +80,35 @@ spec = do
                 classify ((compare 0 <$> fromTextMaybe @Int t) == Just GT)
                     "valid negative" $
                 toList (fromTextMaybe @Int t) === toList (fromText t)
+
+    describe "Natural" $ do
+        it "fromText \"patate\"" $
+            let err = "Expecting natural number"
+            in fromText @Natural "patate" === Left (TextDecodingError err)
+
+        it "fromText 14.42" $
+            let err = "Expecting natural number"
+            in fromText @Natural "14.42" === Left (TextDecodingError err)
+
+        it "fromText -14" $
+            let err = "Expecting natural number"
+            in fromText @Natural "-14" === Left (TextDecodingError err)
+
+        it "fromText . toText == pure" $ property $ \(x :: Natural) ->
+            (fromText . toText) x === pure x
+
+    describe "Rational" $ do
+        it "fromText \"patate\"" $
+            let err = "Expecting floating number"
+            in fromText @Double "patate" === Left (TextDecodingError err)
+
+        it "fromText . toText == pure" $ property $ \(x :: Rational) ->
+            let
+                d = fromRational x
+                eps = 1e6 :: Double
+            in case fromText (toText d) of
+                Left _ -> False
+                Right d' -> abs (d - d') < eps
 
     describe "Text" $ do
         it "fromText \"patate\"" $
@@ -133,6 +164,16 @@ instance Arbitrary Digits where
         str <- vectorOf n (elements ('x':['0'..'9']))
         sign <- elements ["", "-", "+"]
         pure (sign ++ str)
+
+instance Arbitrary Natural where
+    shrink x =
+        [ fromIntegral x
+        | x' <- shrink (fromIntegral x)
+        , x' >= 0
+        , x' /= x
+        ]
+    arbitrary =
+        fromIntegral . abs <$> arbitrary @Integer
 
 data TestBoundedEnum
     = A
