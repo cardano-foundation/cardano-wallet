@@ -72,10 +72,10 @@ import Cardano.Wallet.Primitive.Types
     , DecodeAddress (..)
     , Direction (..)
     , EncodeAddress (..)
+    , EpochSlotId (..)
     , Hash (..)
     , PoolId (..)
     , ShowFmt (..)
-    , SlotId (..)
     , TxIn (..)
     , TxStatus (..)
     , WalletBalance (..)
@@ -241,7 +241,7 @@ data AddressAmount t = AddressAmount
 
 data ApiBlockData = ApiBlockData
     { time :: UTCTime
-    , block :: !(ApiT SlotId)
+    , block :: !(ApiT EpochSlotId)
     } deriving (Eq, Generic, Show)
 
 -- | Error codes returned by the API, in the form of snake_cased strings
@@ -470,9 +470,9 @@ instance DecodeAddress t => FromJSON (PostTransactionFeeData t) where
 instance EncodeAddress t => ToJSON (PostTransactionFeeData t) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON (ApiT SlotId) where
+instance FromJSON (ApiT EpochSlotId) where
     parseJSON = fmap ApiT . genericParseJSON defaultRecordTypeOptions
-instance ToJSON (ApiT SlotId) where
+instance ToJSON (ApiT EpochSlotId) where
     toJSON = genericToJSON defaultRecordTypeOptions . getApiT
 
 instance FromJSON ApiBlockData where

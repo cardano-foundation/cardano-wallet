@@ -6,6 +6,8 @@ module Cardano.Wallet.HttpBridge.Primitive.TypesSpec
 
 import Prelude
 
+import Cardano.Wallet.HttpBridge.Compatibility
+    ( byronEpochLength )
 import Cardano.Wallet.HttpBridge.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Primitive.Types
@@ -13,15 +15,19 @@ import Cardano.Wallet.Primitive.Types
     , Block (..)
     , BlockHeader (..)
     , Coin (..)
+    , EpochSlotId (..)
     , Hash (..)
     , SlotId (..)
     , TxIn (..)
     , TxOut (..)
+    , epochSlotIdToSlotId
     )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Word
+    ( Word16, Word64 )
 import Fmt
     ( pretty )
 import Test.Hspec
@@ -33,7 +39,7 @@ spec = do
         it "Block" $ do
             let block = Block
                     { header = BlockHeader
-                        { slotId = SlotId 14 19
+                        { slotId = testSlotId 14 19
                         , blockHeight = Quantity 0
                         , prevBlockHash = Hash "\223\252\&5\ACK\211\129\&6\DC4h7b'\225\201\&2:/\252v\SOH\DC1\ETX\227\"Q$\240\142ii\167;"
                         }
@@ -58,8 +64,11 @@ spec = do
                             }
                         ]
                     }
-            "dffc3506...6969a73b slot 14.19, block 0\n\
+            "dffc3506...6969a73b (302419), block 0\n\
             \    - ~> 1st c29d3ea0...13862214\n\
             \      <~ 3823755953610 @ 82d81858...aebb3709\n\
             \      <~ 19999800000 @ 82d81858...37ce9c60\n"
                 `shouldBe` pretty @_ @Text block
+
+testSlotId :: Word64 -> Word16 -> SlotId
+testSlotId en sn = epochSlotIdToSlotId byronEpochLength $ EpochSlotId en sn

@@ -32,7 +32,7 @@ import Cardano.Wallet.Primitive.Mnemonic
 import Cardano.Wallet.Primitive.Model
     ( currentTip )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), WalletId (..), WalletName (..), slotMinBound )
+    ( BlockHeader (..), WalletId (..), WalletName (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Concurrent
@@ -79,7 +79,9 @@ spec = do
             let assertion _ = do
                     tip <- slotId . currentTip . fst <$>
                         unsafeRunExceptT (W.readWallet wallet wid)
-                    return $ if tip > slotMinBound
+                    tip <- slotId . currentTip . fst <$>
+                        unsafeRunExceptT (W.readWallet wallet wid)
+                    return $ if tip > minBound
                         then Right ()
                         else Left ("The wallet tip is still " <> show tip)
             result <- retrying policy shouldRetry assertion

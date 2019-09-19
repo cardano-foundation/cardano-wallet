@@ -329,7 +329,7 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
             -> IO (NetworkLayer t IO, (Block Tx, BlockchainParameters))
         newNetworkLayer (sb, tracer) = do
             let url = BaseUrl Http "localhost" (getPort nodePort) "/api"
-            (jor, nl) <- Jormungandr.newNetworkLayer' url
+            (jor, nl) <- Jormungandr.newNetworkLayer' url block0H
             waitForService "Jörmungandr" (sb, tracer) nodePort $
                 waitForConnection nl defaultRetryPolicy
             genesis <-

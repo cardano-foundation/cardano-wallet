@@ -62,12 +62,14 @@ import Cardano.Wallet.Primitive.Types
     , Block (..)
     , BlockHeader (..)
     , Coin (..)
+    , EpochLength (..)
+    , EpochSlotId (..)
     , Hash (..)
     , ProtocolMagic (..)
-    , SlotId (..)
     , TxIn (..)
     , TxOut (..)
     , TxWitness (..)
+    , epochSlotIdToSlotId
     )
 import Control.Monad
     ( replicateM, void, when )
@@ -265,14 +267,14 @@ decodeDerivationPath = do
         i <= getIndex (maxBound @(Index 'Hardened _))
 
 {-# HLINT ignore decodeBlock "Use <$>" #-}
-decodeBlock :: CBOR.Decoder s (Block ([TxIn], [TxOut]))
-decodeBlock = do
+decodeBlock :: EpochLength -> CBOR.Decoder s (Block ([TxIn], [TxOut]))
+decodeBlock el = do
     CBOR.decodeListLenCanonicalOf 2
     t <- CBOR.decodeWordCanonical
     case t of
         0 -> do -- Genesis Block
             _ <- CBOR.decodeListLenCanonicalOf 3
-            h <- decodeGenesisBlockHeader
+            h <- decodeGenesisBlockHeader el
             -- NOTE
             -- We don't decode the body of genesis block because we don't need
             -- it. Genesis blocks occur at boundaries and contain various pieces
@@ -287,7 +289,7 @@ decodeBlock = do
 
         1 -> do -- Main Block
             _ <- CBOR.decodeListLenCanonicalOf 3
-            h <- decodeMainBlockHeader
+            h <- decodeMainBlockHeader el
             txs <- decodeMainBlockBody
             -- _ <- decodeMainExtraData
             return $ Block h txs
@@ -295,13 +297,13 @@ decodeBlock = do
         _ -> do
             fail $ "decodeBlock: unknown block constructor: " <> show t
 
-decodeBlockHeader :: CBOR.Decoder s BlockHeader
-decodeBlockHeader = do
+decodeBlockHeader :: EpochLength -> CBOR.Decoder s BlockHeader
+decodeBlockHeader el = do
     CBOR.decodeListLenCanonicalOf 2
     t <- CBOR.decodeWordCanonical
     case t of
-        0 -> decodeGenesisBlockHeader
-        1 -> decodeMainBlockHeader
+        0 -> decodeGenesisBlockHeader el
+        1 -> decodeMainBlockHeader el
         _ ->
             fail $ "decodeBlockHeader: unknown block header constructor: " <>
                 show t
@@ -335,8 +337,8 @@ decodeDifficulty = do
     _ <- CBOR.decodeListLenCanonicalOf 1
     CBOR.decodeWord64
 
-decodeGenesisBlockHeader :: CBOR.Decoder s BlockHeader
-decodeGenesisBlockHeader = do
+decodeGenesisBlockHeader :: EpochLength -> CBOR.Decoder s BlockHeader
+decodeGenesisBlockHeader el = do
     _ <- CBOR.decodeListLenCanonicalOf 5
     _ <- decodeProtocolMagic
     previous <- decodePreviousBlockHeader
@@ -349,7 +351,10 @@ decodeGenesisBlockHeader = do
     -- number of `0`. In practices, when parsing a full epoch, we can discard
     -- the genesis block entirely and we won't bother about modelling this
     -- extra complexity at the type-level. That's a bit dodgy though.
-    return $ BlockHeader (SlotId epoch 0) (Quantity $ fromIntegral difficulty) previous
+    return $ BlockHeader
+        (epochSlotIdToSlotId el $ EpochSlotId epoch 0)
+        (Quantity $ fromIntegral difficulty)
+        previous
 
 decodeGenesisConsensusData :: CBOR.Decoder s (Word64, Word64)
 decodeGenesisConsensusData = do
@@ -396,16 +401,18 @@ decodeMainBlockBody = do
     --  - DlsPayload
     --  - UpdatePayload
 
-decodeMainBlockHeader :: CBOR.Decoder s BlockHeader
-decodeMainBlockHeader = do
+decodeMainBlockHeader :: EpochLength -> CBOR.Decoder s BlockHeader
+decodeMainBlockHeader el = do
     _ <- CBOR.decodeListLenCanonicalOf 5
     _ <- decodeProtocolMagic
     previous <- decodePreviousBlockHeader
     _ <- decodeMainProof
     ((epoch, slot), difficulty) <- decodeMainConsensusData
     _ <- decodeMainExtraData
-    let bh = Quantity $ fromIntegral difficulty
-    return $ BlockHeader (SlotId epoch slot) bh previous
+    return $ BlockHeader
+        (epochSlotIdToSlotId el $ EpochSlotId epoch slot)
+        (Quantity $ fromIntegral difficulty)
+        previous
 
 decodeMainConsensusData :: CBOR.Decoder s ((Word64, Word16), Word64)
 decodeMainConsensusData = do

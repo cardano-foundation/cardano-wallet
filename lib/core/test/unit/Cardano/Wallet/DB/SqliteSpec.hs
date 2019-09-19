@@ -88,6 +88,8 @@ import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
     , Direction (..)
+    , EpochLength (..)
+    , EpochSlotId (..)
     , Hash (..)
     , SlotId (..)
     , SortOrder (..)
@@ -101,6 +103,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , WalletPassphraseInfo (..)
     , WalletState (..)
+    , epochSlotIdToSlotId
     , wholeRange
     )
 import Cardano.Wallet.Unsafe
@@ -133,6 +136,8 @@ import Data.Text.Class
     ( FromText (..) )
 import Data.Time.Clock
     ( getCurrentTime )
+import Data.Word
+    ( Word16, Word64 )
 import GHC.Conc
     ( TVar, atomically, newTVarIO, readTVarIO, writeTVar )
 import System.Directory
@@ -623,7 +628,7 @@ testPk1 = PrimaryKey testWid1
 testTxs :: [(Hash "Tx", (Tx, TxMeta))]
 testTxs =
     [ (Hash "tx2", (Tx [TxIn (Hash "tx1") 0] [TxOut (Address "addr") (Coin 1)]
-      , TxMeta InLedger Incoming (SlotId 14 0) (Quantity 1337144))
+      , TxMeta InLedger Incoming (testSlotId 14 0) (Quantity 1337144))
       )
     ]
 
@@ -632,6 +637,12 @@ testPassphraseAndHash = do
     let Right phr = fromText "abcdefghijklmnop"
     h <- encryptPassphrase phr
     pure (phr, h)
+
+testEpochLength :: EpochLength
+testEpochLength = EpochLength 21600
+
+testSlotId :: Word64 -> Word16 -> SlotId
+testSlotId en sn = epochSlotIdToSlotId testEpochLength $ EpochSlotId en sn
 
 class GenerateTestKey (key :: Depth -> * -> *) where
     generateTestKey :: IO (key 'RootK XPrv, Hash "encryption")

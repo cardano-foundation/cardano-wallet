@@ -68,10 +68,10 @@ import Cardano.Wallet.Primitive.Types
     , AddressState (..)
     , Coin (..)
     , Direction (..)
+    , EpochSlotId (..)
     , Hash (..)
     , HistogramBar (..)
     , PoolId (..)
-    , SlotId (..)
     , SortOrder (..)
     , TxIn (..)
     , TxIn (..)
@@ -217,8 +217,8 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiT (WalletDelegation (ApiT PoolId)))
             jsonRoundtripAndGolden $ Proxy @(ApiT Address, Proxy DummyTarget)
             jsonRoundtripAndGolden $ Proxy @(ApiT AddressPoolGap)
+            jsonRoundtripAndGolden $ Proxy @(ApiT EpochSlotId)
             jsonRoundtripAndGolden $ Proxy @(ApiT Direction)
-            jsonRoundtripAndGolden $ Proxy @(ApiT SlotId)
             jsonRoundtripAndGolden $ Proxy @(ApiT TxStatus)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletBalance)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletId)
@@ -726,8 +726,8 @@ instance Arbitrary ApiBlockData where
     arbitrary = ApiBlockData <$> genUniformTime <*> arbitrary
     shrink (ApiBlockData t b) = ApiBlockData t <$> shrink b
 
-instance Arbitrary SlotId where
-    arbitrary = SlotId <$> arbitrary <*> arbitrary
+instance Arbitrary EpochSlotId where
+    arbitrary = EpochSlotId <$> arbitrary <*> arbitrary
     shrink = genericShrink
 
 instance Arbitrary (AddressAmount t) where

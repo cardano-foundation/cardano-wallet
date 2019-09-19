@@ -11,6 +11,8 @@ import Prelude
 
 import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
+import Cardano.Wallet.HttpBridge.Compatibility
+    ( byronEpochLength )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.HttpBridge.Primitive.Types
@@ -28,6 +30,7 @@ import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , BlockHeader (..)
     , Coin (..)
+    , EpochLength (..)
     , Hash (..)
     , SlotId (..)
     , TxIn (..)
@@ -69,9 +72,9 @@ spec = do
     describe "Happy paths" $ beforeAll startBridge $ afterAll closeBridge $ do
         it "get unstable blocks for the unstable epoch" $ \(_, bridge, _) -> do
             let action = runExceptT $ do
-                    (SlotId ep sl) <- slotId <$> networkTip' bridge
+                    (SlotId sl) <- slotId . fst <$> networkTip' bridge
                     let sl' = if sl > 2 then sl - 2 else 0
-                    blocks <- nextBlocks' bridge (mkHeader $ SlotId ep sl')
+                    blocks <- nextBlocks' bridge (mkHeader $ SlotId sl')
                     lift $ blocks `shouldSatisfy` (\bs
                         -> length bs >= fromIntegral (sl - sl')
                         && length bs <= fromIntegral (sl - sl' + 1)
@@ -80,8 +83,10 @@ spec = do
 
         it "produce no blocks if start is after tip" $ \(_, bridge, _) -> do
             let action = runExceptT $ do
-                    SlotId ep sl <- slotId <$> networkTip' bridge
-                    length <$> nextBlocks' bridge (mkHeader $ SlotId (ep + 1) sl)
+                    let EpochLength el = byronEpochLength
+                    SlotId sl <- slotId . fst <$> networkTip' bridge
+                    length <$> nextBlocks' bridge
+                        (mkHeader $ SlotId (sl + fromIntegral el))
             action `shouldReturn` pure 0
 
         it "gets a 'ErrNetworkInvalid' if wrong network used" $ \(_, _, port) -> do

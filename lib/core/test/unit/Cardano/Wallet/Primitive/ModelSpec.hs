@@ -33,6 +33,8 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Direction (..)
     , Dom (..)
+    , EpochLength (..)
+    , EpochSlotId (..)
     , Hash (..)
     , ShowFmt (..)
     , SlotId (..)
@@ -41,6 +43,7 @@ import Cardano.Wallet.Primitive.Types
     , TxOut (..)
     , UTxO (..)
     , balance
+    , epochSlotIdToSlotId
     , excluding
     , invariant
     , restrictedTo
@@ -63,6 +66,8 @@ import Data.Set
     ( Set, (\\) )
 import Data.Traversable
     ( for )
+import Data.Word
+    ( Word16, Word64 )
 import GHC.Generics
     ( Generic )
 import Test.Hspec
@@ -330,6 +335,12 @@ addresses = map address
     $ concatMap transactions
     blockchain
 
+testEpochLength :: EpochLength
+testEpochLength = EpochLength 21600
+
+testSlotId :: Word64 -> Word16 -> SlotId
+testSlotId en sn = epochSlotIdToSlotId testEpochLength $ EpochSlotId en sn
+
 -- A excerpt of mainnet, epoch #14, first 20 blocks; plus a few previous blocks
 -- which contains transactions referred to in the former. This is useful to test
 -- correct resolution of the tx history.
@@ -337,7 +348,7 @@ blockchain :: [Block Tx]
 blockchain =
     [ Block
         { header = BlockHeader
-            { slotId = SlotId 2 19218
+            { slotId = testSlotId 2 19218
             , blockHeight = Quantity 62392
             , prevBlockHash = Hash "y\130\145\211\146\234S\221\150\GS?\212>\167B\134C\r\160J\230\173\SOHn\188\245\141\151u\DC4\236\154"
             }
@@ -368,7 +379,7 @@ blockchain =
         }
     , Block
         { header = BlockHeader
-            { slotId = SlotId 13 20991
+            { slotId = testSlotId 13 20991
             , blockHeight = Quantity 301749
             , prevBlockHash = Hash "m\FS\235\ETB6\151'\250M\SUB\133\235%\172\196B_\176n\164k\215\236\246\152\214cc\214\&9\207\142"
             }
@@ -413,7 +424,7 @@ blockchain =
         }
     , Block
         { header = BlockHeader
-            { slotId = SlotId 13 21458
+            { slotId = testSlotId 13 21458
             , blockHeight = Quantity 302216
             , prevBlockHash = Hash "hA\130\182\129\161\&7u8\CANx\218@S{\131w\166\192Bo\131) 2\190\217\134\&7\223\&2>"
             }
@@ -458,7 +469,7 @@ blockchain =
         }
     , Block
         { header = BlockHeader
-            { slotId = SlotId 13 21586
+            { slotId = testSlotId 13 21586
             , blockHeight = Quantity 1321586
             , prevBlockHash = Hash "D\152\178<\174\160\225\230w\158\194-$\221\212:z\DC1\255\239\220\148Q!\220h+\134\220\195e5"
             }
@@ -485,7 +496,7 @@ blockchain =
         }
     , Block
         { header = BlockHeader
-            { slotId = SlotId 14 0
+            { slotId = testSlotId 14 0
             , blockHeight = Quantity 302358
             , prevBlockHash = Hash "39d89a1e837e968ba35370be47cdfcbfd193cd992fdeed557b77c49b77ee59cf"
             }
@@ -493,7 +504,7 @@ blockchain =
         }
     , Block
         { header = BlockHeader
-            { slotId = SlotId 14 1
+            { slotId = testSlotId 14 1
             , blockHeight = Quantity 302359
             , prevBlockHash = Hash "2d04732b41d07e45a2b87c05888f956805f94b108f59e1ff3177860a17c292db"
             }
@@ -520,7 +531,7 @@ blockchain =
         }
     , Block
         { header = BlockHeader
-            { slotId = SlotId 14 2
+            { slotId = testSlotId 14 2
             , blockHeight = Quantity 302360
             , prevBlockHash = Hash "e95a6e7da3cd61e923e30b1998b135d40958419e4157a9f05d2f0f194e4d7bba"
             }
@@ -547,7 +558,7 @@ blockchain =
         }
     , Block
         { header = BlockHeader
-            { slotId = SlotId 14 3
+            { slotId = testSlotId 14 3
             , blockHeight = Quantity 302361
             , prevBlockHash = Hash "b5d970285a2f8534e94119cd631888c20b3a4ec0707a821f6df5c96650fe01dd"
             }
@@ -574,7 +585,7 @@ blockchain =
         }
     , Block
         { header = BlockHeader
-              { slotId = SlotId 14 4
+              { slotId = testSlotId 14 4
               , blockHeight = Quantity 302362
               , prevBlockHash = Hash "cb96ff923728a67e52dfad54df01fc5a20c7aaf386226a0564a1185af9798cb1"
               }
@@ -582,7 +593,7 @@ blockchain =
         }
     , Block
         { header = BlockHeader
-              { slotId = SlotId 14 5
+              { slotId = testSlotId 14 5
               , blockHeight = Quantity 302363
               , prevBlockHash = Hash "63040af5ed7eb2948e2c09a43f946c91d5dd2efaa168bbc5c4f3e989cfc337e6"
               }
@@ -613,7 +624,7 @@ blockchain =
         }
     , Block
         { header = BlockHeader
-            { slotId = SlotId 14 6
+            { slotId = testSlotId 14 6
             , blockHeight = Quantity 302364
             , prevBlockHash = Hash "1a32e01995225c7cd514e0fe5087f19a6fd597a6071ad4ad1fbf5b20de39670b"
             }
@@ -621,7 +632,7 @@ blockchain =
         }
     , Block
         { header = BlockHeader
-            { slotId = SlotId 14 7
+            { slotId = testSlotId 14 7
             , blockHeight = Quantity 302365
             , prevBlockHash = Hash "7855c0f101b6761b234058e7e9fd19fbed9fee90a202cca899da1f6cbf29518d"
             }
@@ -629,7 +640,7 @@ blockchain =
         }
     , Block
         { header = BlockHeader
-            { slotId = SlotId 14 8
+            { slotId = testSlotId 14 8
             , blockHeight = Quantity 302366
             , prevBlockHash = Hash "9007e0513b9fea848034a7203b380cdbbba685073bcfb7d8bb795130d92e7be8"
             }
@@ -637,7 +648,7 @@ blockchain =
         }
     , Block
         { header = BlockHeader
-            { slotId = SlotId 14 9
+            { slotId = testSlotId 14 9
             , blockHeight = Quantity 302367
             , prevBlockHash = Hash "0af8082504f59eb1b7114981b7dee9009064638420382211118730b45ad385ae"
             }
@@ -645,7 +656,7 @@ blockchain =
         }
     , Block
         { header = BlockHeader
-            { slotId = SlotId 14 10
+            { slotId = testSlotId 14 10
             , blockHeight = Quantity 302368
             , prevBlockHash = Hash "adc8c71d2c85cee39fbb34cdec6deca2a4d8ce6493d6d28f542d891d5504fc38"
             }
@@ -690,7 +701,7 @@ blockchain =
         }
     , Block
         { header = BlockHeader
-            { slotId = SlotId 14 11
+            { slotId = testSlotId 14 11
             , blockHeight = Quantity 302369
             , prevBlockHash = Hash "4fdff9f1d751dba5a48bc2a14d6dfb21709882a13dad495b856bf76d5adf4bd1"
             }
@@ -735,7 +746,7 @@ blockchain =
         }
     , Block
         { header = BlockHeader
-            { slotId = SlotId 14 12
+            { slotId = testSlotId 14 12
             , blockHeight = Quantity 302370
             , prevBlockHash = Hash "96a31a7cdb410aeb5756ddb43ee2ddb4c682f6308db38310ab54bf38b89d6b0d"
             }
@@ -743,7 +754,7 @@ blockchain =
         }
     , Block
         { header = BlockHeader
-            { slotId = SlotId 14 13
+            { slotId = testSlotId 14 13
             , blockHeight = Quantity 302371
             , prevBlockHash = Hash "47c08c0a11f66aeab915e5cd19362e8da50dc2523e629b230b73ec7b6cdbeef8"
             }
@@ -751,7 +762,7 @@ blockchain =
         }
     , Block
         { header = BlockHeader
-            { slotId = SlotId 14 14
+            { slotId = testSlotId 14 14
             , blockHeight = Quantity 302372
             , prevBlockHash = Hash "d6d7e79e2a25f53e6fb771eebd1be05274861004dc62c03bf94df03ff7b87198"
             }
@@ -759,7 +770,7 @@ blockchain =
         }
     , Block
         { header = BlockHeader
-            { slotId = SlotId 14 15
+            { slotId = testSlotId 14 15
             , blockHeight = Quantity 302373
             , prevBlockHash = Hash "647e62b29ebcb0ecfa0b4deb4152913d1a669611d646072d2f5898835b88d938"
             }
@@ -767,7 +778,7 @@ blockchain =
         }
     , Block
         { header = BlockHeader
-            { slotId = SlotId 14 16
+            { slotId = testSlotId 14 16
             , blockHeight = Quantity 302374
             , prevBlockHash = Hash "02f38ce50c9499f2526dd9c5f9e8899e65c0c40344e14ff01dc6c31137978efb"
             }
@@ -775,7 +786,7 @@ blockchain =
         }
     , Block
         { header = BlockHeader
-            { slotId = SlotId 14 17
+            { slotId = testSlotId 14 17
             , blockHeight = Quantity 302375
             , prevBlockHash = Hash "528492ded729ca77a72b1d85654742db85dfd3b68e6c4117ce3c253e3e86616d"
             }
@@ -783,7 +794,7 @@ blockchain =
         }
     , Block
         { header = BlockHeader
-            { slotId = SlotId 14 18
+            { slotId = testSlotId 14 18
             , blockHeight = Quantity 302376
             , prevBlockHash = Hash "f4283844eb78ca6f6333b007f5a735d71499d6ce7cc816846a033a36784bd299"
             }
@@ -828,7 +839,7 @@ blockchain =
         }
     , Block
         { header = BlockHeader
-            { slotId = SlotId 14 19
+            { slotId = testSlotId 14 19
             , blockHeight = Quantity 302377
             , prevBlockHash = Hash "dffc3506d381361468376227e1c9323a2ffc76011103e3225124f08e6969a73b"
             }

@@ -61,6 +61,7 @@ module Cardano.Wallet
     -- ** Wallet
     , attachPrivateKey
     , createWallet
+    , getBlockchainParameters
     , listUtxoStatistics
     , listWallets
     , readWallet
@@ -374,6 +375,9 @@ type family IsWalletCtx s t (k :: Depth -> * -> *) ctx :: Constraint
 
 type instance IsWalletCtx s t k (WalletLayer s0 t0 k0) =
     (s0 ~ s, t0 ~ t, k0 ~ k)
+
+getBlockchainParameters :: WalletLayer s t k -> BlockchainParameters
+getBlockchainParameters (WalletLayer _ (_, bps) _ _ _ _) = bps
 
 -- | Create a new instance of the wallet layer.
 newWalletLayer
@@ -768,10 +772,7 @@ restoreBlocks ctx wid blocks nodeTip = do
         let calculateMetadata :: SlotId -> WalletMetadata
             calculateMetadata slot = meta { status = status' }
               where
-                progress' = slotRatio
-                    (bp ^. #getEpochLength)
-                    slot
-                    (nodeTip ^.  #slotId)
+                progress' = slotRatio slot (nodeTip ^. #slotId)
                 status' =
                     if progress' == maxBound
                     then Ready
@@ -1055,7 +1056,6 @@ listTransactions ctx wid mStart mEnd order = do
 
     fromBlockchainParameters :: BlockchainParameters -> SlotParameters
     fromBlockchainParameters bp = SlotParameters
-        (bp ^. #getEpochLength)
         (bp ^. #getSlotLength)
         (bp ^. #getGenesisBlockDate)
 
@@ -1099,7 +1099,7 @@ listTransactions ctx wid mStart mEnd order = do
             , txInfoOutputs = W.outputs @t tx
             , txInfoMeta = meta
             , txInfoDepth =
-                slotDifference sp tip (meta ^. #slotId)
+                slotDifference tip (meta ^. #slotId)
             , txInfoTime = txTime (meta ^. #slotId)
             }
         txOuts = Map.fromList

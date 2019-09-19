@@ -6,14 +6,25 @@ import Prelude
 
 import Cardano.Byron.Codec.Cbor
     ( decodeBlock )
+import Cardano.Wallet.HttpBridge.Compatibility
+    ( byronEpochLength )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), BlockHeader (..), SlotId (..), TxIn, TxOut )
+    ( Block (..)
+    , BlockHeader (..)
+    , EpochSlotId (..)
+    , SlotId (..)
+    , TxIn
+    , TxOut
+    , slotIdToEpochSlotId
+    )
 import Cardano.Wallet.Unsafe
     ( unsafeDeserialiseCbor )
 import Data.Either
     ( fromRight, isRight )
 import Data.Packfile
     ( PackfileError (..), decodePackfile )
+import Data.Word
+    ( Word16, Word64 )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldSatisfy )
 
@@ -93,16 +104,23 @@ spec = do
             bs <- L8.readFile testPackfile
             let (ebb:first:second:_) =
                     map (slotId . header) $ unsafeDeserialiseEpoch bs
-            epochNumber ebb `shouldBe` 104
-            epochNumber first `shouldBe` 104
-            slotNumber ebb `shouldBe` 0 -- epoch genesis block
-            slotNumber first `shouldBe` 0 -- first block
-            slotNumber second `shouldBe` 1 -- second block
+            epochNumber' ebb `shouldBe` 104
+            epochNumber' first `shouldBe` 104
+            slotNumber' ebb `shouldBe` 0 -- epoch genesis block
+            slotNumber' first `shouldBe` 0 -- first block
+            slotNumber' second `shouldBe` 1 -- second block
+
+epochNumber' :: SlotId -> Word64
+epochNumber' = epochNumber . slotIdToEpochSlotId byronEpochLength
+
+slotNumber' :: SlotId -> Word16
+slotNumber' = slotNumber . slotIdToEpochSlotId byronEpochLength
 
 -- | Decode all blocks in a pack file, without error handling
 unsafeDeserialiseEpoch :: L8.ByteString -> [Block ([TxIn], [TxOut])]
 unsafeDeserialiseEpoch = either giveUp decodeBlocks . decodePackfile
     where
       decodeBlocks = map decodeBlob
-      decodeBlob = unsafeDeserialiseCbor decodeBlock . L8.fromStrict
+      decodeBlob =
+          unsafeDeserialiseCbor (decodeBlock byronEpochLength) . L8.fromStrict
       giveUp err = error ("Could not decode pack file: " <> show err)

@@ -50,7 +50,6 @@ import Cardano.Wallet.Primitive.Types
     , EncodeAddress (..)
     , Hash (..)
     , invariant
-    , slotMinBound
     )
 import Codec.Binary.Bech32
     ( HumanReadablePart, dataPartFromBytes, dataPartToBytes )
@@ -94,7 +93,7 @@ data Jormungandr (network :: Network)
 -- | Genesis block header, i.e. very first block header of the chain
 block0 :: BlockHeader
 block0 = BlockHeader
-    { slotId = slotMinBound
+    { slotId = minBound
     , prevBlockHash = Hash (BS.replicate 32 0)
     , blockHeight = Quantity 0
     }

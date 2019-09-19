@@ -36,7 +36,7 @@ import Cardano.Wallet.HttpBridge.Api
     , api
     )
 import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge )
+    ( HttpBridge, byronEpochLength )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.HttpBridge.Primitive.Types
@@ -49,7 +49,14 @@ import Cardano.Wallet.Network
     , NetworkLayer (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), BlockHeader (..), Hash (..), SlotId (..), TxWitness )
+    ( Block (..)
+    , BlockHeader (..)
+    , EpochSlotId (..)
+    , Hash (..)
+    , SlotId (..)
+    , TxWitness
+    , slotIdToEpochSlotId
+    )
 import Control.Arrow
     ( left )
 import Control.Exception
@@ -93,14 +100,21 @@ import qualified Servant.Extra.ContentTypes as Api
 
 -- | Constructs a network layer with the given cardano-http-bridge API.
 mkNetworkLayer
-    :: forall n m. (Monad m)
+    :: forall n m. Monad m
     => HttpBridgeLayer m
     -> NetworkLayer (HttpBridge n) m
 mkNetworkLayer httpBridge = NetworkLayer
     { nextBlocks = \(BlockHeader sl _ _) ->
         withExceptT ErrGetBlockNetworkUnreachable (rbNextBlocks httpBridge sl)
-    , networkTip =
-        snd <$> getNetworkTip httpBridge
+    , networkTip = do
+        nodeTip <- snd <$> getNetworkTip httpBridge
+        -- NOTE:
+        -- `http-bridge` is not intended to be used in production so we are
+        -- taking a few shortcut to not spend needless time on its impl.
+        -- This is one of them.
+        let nodeHeight =
+               Quantity $ fromIntegral $ getSlotId $ slotId nodeTip
+        return (nodeTip, nodeHeight)
     , postTx = postSignedTx httpBridge
     }
 
@@ -119,7 +133,7 @@ newNetworkLayer port = mkNetworkLayer <$> newHttpBridgeLayer @n port
 -- - an epoch pack's worth of blocks (those after the given starting slot); or
 -- - all of the unstable blocks after (exclusively) the starting slot, if any.
 --
--- Note that, starting from `slotMinBound`, we'll never get the first block of
+-- Note that, starting from `minBound`, we'll never get the first block of
 -- the chain through this method.
 rbNextBlocks
     :: Monad m
@@ -129,9 +143,9 @@ rbNextBlocks
 rbNextBlocks bridge start = maybeTip (getNetworkTip bridge) >>= \case
     Just (tipHash, tipHdr) -> do
         epochBlocks <-
-            if slotNumber start >= 21599
-            then nextStableEpoch $ epochNumber start + 1
-            else nextStableEpoch $ epochNumber start
+            if slotNumber' start >= 21599
+            then nextStableEpoch $ epochNumber' start + 1
+            else nextStableEpoch $ epochNumber' start
         additionalBlocks <-
             if null epochBlocks
             then unstableBlocks tipHash (slotId tipHdr)
@@ -139,6 +153,9 @@ rbNextBlocks bridge start = maybeTip (getNetworkTip bridge) >>= \case
         pure (epochBlocks ++ additionalBlocks)
     Nothing -> pure []
   where
+    epochNumber' = epochNumber . slotIdToEpochSlotId byronEpochLength
+    slotNumber' = slotNumber . slotIdToEpochSlotId byronEpochLength
+
     nextStableEpoch ix = do
         epochBlocks <- getEpoch bridge ix
         pure $ filter (blockIsAfter start) epochBlocks

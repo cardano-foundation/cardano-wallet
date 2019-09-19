@@ -1,8 +1,10 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -67,6 +69,8 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , Hash (..)
     , SlotId (..)
+    , SlotLength (..)
+    , SlotParameters (..)
     , SortOrder (..)
     , TransactionInfo (txInfoMeta)
     , TransactionInfo (..)
@@ -78,7 +82,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletId (..)
     , WalletMetadata (..)
     , WalletName (..)
-    , flatSlot
+    , slotStartTime
     , txId
     )
 import Cardano.Wallet.Transaction
@@ -399,11 +403,21 @@ setupFixture (wid, wname, wstate) = do
     let wal = case res of
             Left _ -> []
             Right walletId -> [walletId]
-    pure $ WalletLayerFixture db wl wal slotIdTime
+    pure $ WalletLayerFixture db wl wal $ slotStartTime sps
   where
-    slotNo = flatSlot (getEpochLength bp)
-    slotIdTime = posixSecondsToUTCTime . fromIntegral . slotNo
-    bp = genesisParameters
+    bp = BlockchainParameters
+        { getGenesisBlock = block0
+        , getGenesisBlockDate
+        , getFeePolicy = LinearFee (Quantity 14) (Quantity 42)
+        , getSlotLength
+        , getEpochLength
+        , getTxMaxSize = Quantity 8192
+        , getEpochStability = Quantity 2160
+        }
+    sps = SlotParameters {getSlotLength, getGenesisBlockDate}
+    getGenesisBlockDate = StartTime $ posixSecondsToUTCTime 0
+    getEpochLength = EpochLength 21600
+    getSlotLength = SlotLength 1
 
 -- | A dummy transaction layer to see the effect of a root private key. It
 -- implements a fake signer that still produces sort of witnesses
@@ -490,7 +504,7 @@ instance {-# OVERLAPS #-} Arbitrary (SeqKey 'RootK XPrv, Passphrase "encryption"
 
 instance Arbitrary SlotId where
     shrink _ = []
-    arbitrary = SlotId <$> arbitrary <*> arbitrary
+    arbitrary = SlotId <$> arbitrary
 
 instance Arbitrary SortOrder where
     shrink _ = []
@@ -513,5 +527,5 @@ instance Arbitrary TxMeta where
     arbitrary = TxMeta
         <$> elements [Pending, InLedger, Invalidated]
         <*> elements [Incoming, Outgoing]
-        <*> (SlotId <$> choose (0, 1000) <*> choose (0, 21599))
+        <*> (SlotId <$> choose (0, 1000 * 21600 - 1))
         <*> fmap (Quantity . fromIntegral) (arbitrary @Word32)

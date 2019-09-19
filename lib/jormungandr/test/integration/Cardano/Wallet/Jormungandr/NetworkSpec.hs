@@ -13,6 +13,8 @@ module Cardano.Wallet.Jormungandr.NetworkSpec
 
 import Prelude
 
+import Cardano.Faucet
+    ( block0H )
 import Cardano.Wallet.Jormungandr.Api
     ( GetTipId, api )
 import Cardano.Wallet.Jormungandr.Binary
@@ -42,12 +44,14 @@ import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , BlockHeader (..)
     , Coin (..)
+    , EpochLength (..)
+    , EpochSlotId (..)
     , Hash (..)
     , SlotId (..)
     , TxIn (..)
     , TxOut (..)
     , TxWitness (..)
-    , slotMinBound
+    , epochSlotIdToSlotId
     )
 import Cardano.Wallet.Transaction
     ( ErrDecodeSignedTx (..), TransactionLayer (..) )
@@ -80,7 +84,7 @@ import Data.Proxy
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
-    ( Word8 )
+    ( Word16, Word64, Word8 )
 import GHC.Generics
     ( Generic )
 import Network.HTTP.Client
@@ -134,7 +138,7 @@ spec = do
             resp `shouldSatisfy` isRight
             let (Right slot) = slotId <$> resp
             let (Right height) = blockHeight <$> resp
-            slot `shouldSatisfy` (>= slotMinBound)
+            slot `shouldSatisfy` (>= minBound)
             height `shouldSatisfy` (>= Quantity 0)
 
         it "get some blocks from the genesis" $ \(_, nw, _) -> do
@@ -161,7 +165,7 @@ spec = do
             -- for what it's worth, I didn't bother retrying.
             bytes <- BS.pack <$> generate (vectorOf 32 arbitrary)
             let block = BlockHeader
-                    { slotId = SlotId 42 14 -- Anything
+                    { slotId = testSlotId 42 14 -- Anything
                     , blockHeight = Quantity 0 -- Anything
                     , prevBlockHash = Hash bytes
                     }
@@ -172,7 +176,7 @@ spec = do
         let makeUnreachableNetworkLayer = do
                 port <- head <$> randomUnusedTCPPorts 1
                 let dummyUrl = BaseUrl Http "localhost" port "/api"
-                Jormungandr.newNetworkLayer dummyUrl
+                Jormungandr.newNetworkLayer dummyUrl block0H
 
         it "networkTip: ErrNetworkUnreachable" $ do
             nw <- makeUnreachableNetworkLayer
@@ -205,7 +209,7 @@ spec = do
         it "networkTip: throws on invalid url" $ do
             let test (_, _nw, url) = do
                     let wrongUrl = url { baseUrlPath = "/not-valid-prefix" }
-                    wrongNw <- Jormungandr.newNetworkLayer wrongUrl
+                    wrongNw <- Jormungandr.newNetworkLayer wrongUrl block0H
                     let io = void $ runExceptT $ networkTip wrongNw
                     shouldThrow io $ \(ErrUnexpectedNetworkFailure link _) ->
                         show link == show (safeLink api (Proxy @GetTipId))
@@ -317,7 +321,8 @@ spec = do
                         $ putSignedTx inps outs wits
                 let encodedSignedTx = BL.toStrict $ encodeWrongly signedTx
                 decodeSignedTx tl encodedSignedTx `shouldBe`
-                    (Left $ ErrDecodeSignedTxWrongPayload "wrongly constructed binary blob")
+                    (Left $ ErrDecodeSignedTxWrongPayload
+                        "wrongly constructed binary blob")
   where
     second :: Int
     second = 1000000
@@ -327,7 +332,7 @@ spec = do
         -> IO (Async (), NetworkLayer (Jormungandr 'Testnet) IO, BaseUrl)
     startNode wait = do
         (handle, baseUrl, _) <- launchJormungandr Inherit
-        nw <- Jormungandr.newNetworkLayer baseUrl
+        nw <- Jormungandr.newNetworkLayer baseUrl block0H
         wait nw $> (handle, nw, baseUrl)
 
     killNode :: (Async (), a, BaseUrl) -> IO ()
@@ -480,3 +485,9 @@ shrinkFixedBS bs = [zeros | bs /= zeros]
 
 prependTag :: Int -> ByteString -> ByteString
 prependTag tag bs = BS.pack [fromIntegral tag] <> bs
+
+testEpochLength :: EpochLength
+testEpochLength = EpochLength 21600
+
+testSlotId :: Word64 -> Word16 -> SlotId
+testSlotId en sn = epochSlotIdToSlotId testEpochLength $ EpochSlotId en sn

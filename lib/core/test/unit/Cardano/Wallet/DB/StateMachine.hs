@@ -108,6 +108,8 @@ import Data.Foldable
     ( foldl', toList )
 import Data.Functor.Classes
     ( Eq1, Show1 )
+import Data.Int
+    ( Int64 )
 import Data.List.Extra
     ( enumerate )
 import Data.Map
@@ -119,7 +121,7 @@ import Data.Set
 import Data.TreeDiff
     ( ToExpr (..), defaultExprViaShow )
 import Data.Word
-    ( Word32 )
+    ( Word64 )
 import GHC.Generics
     ( Generic )
 import System.Random
@@ -133,6 +135,7 @@ import Test.QuickCheck
     , collect
     , elements
     , frequency
+    , getNonNegative
     , labelledExamplesWith
     , property
     , (===)
@@ -481,11 +484,24 @@ generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
         genSId :: Gen (Maybe SlotId)
         genSId = QC.oneof
             [ return Nothing
-            , Just <$> (SlotId <$> genWord32 <*> arbitrary)
+            , Just <$> genSafeSlotId
             ]
-        -- FIXME: There's currently an artifical boundary on ~48 bits for the
-        -- Sqlite storage of the SlotId's epochNumber.
-        genWord32 = fromIntegral <$> arbitrary @Word32
+
+        -- Because Persistent converts 'Word64' values to 'Int64' values in
+        -- order to be able to store them within a SQLite table, this breaks
+        -- the natural ordering of persisted 'SlotId' values.
+        --
+        -- In practice, however, this only affects slots that are far in the
+        -- future.
+        --
+        -- Nevertheless, in order to avoid generating test values that will not
+        -- be correctly ordered within the database, we limit the range of
+        -- generated 'SlotId' values to those that will always be persisted as
+        -- positive.
+        --
+        genSafeSlotId :: Gen SlotId
+        genSafeSlotId =
+            SlotId . fromIntegral @Int64 @Word64 . getNonNegative <$> arbitrary
 
 isUnordered :: Ord x => [x] -> Bool
 isUnordered xs = xs /= L.sort xs

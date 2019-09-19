@@ -44,11 +44,14 @@ import Cardano.Wallet.Primitive.Types
     , Block (..)
     , BlockHeader (..)
     , Coin (..)
+    , EpochLength (..)
+    , EpochSlotId (..)
     , Hash (..)
     , SlotId (..)
     , TxIn (..)
     , TxOut (..)
     , TxWitness (..)
+    , epochSlotIdToSlotId
     )
 import Cardano.Wallet.Unsafe
     ( unsafeDeserialiseCbor, unsafeFromHex )
@@ -61,7 +64,7 @@ import Data.Quantity
 import Data.Text
     ( Text )
 import Data.Word
-    ( Word32 )
+    ( Word16, Word32, Word64 )
 import Test.Hspec
     ( Expectation, HasCallStack, Spec, describe, it, shouldBe, shouldSatisfy )
 import Test.QuickCheck
@@ -92,38 +95,38 @@ spec = do
         it "should decode a block header" $ do
             bs <- L8.readFile
                 "test/data/Cardano/Byron/Codec/CborSpec-block-header-1"
-            let decoded = unsafeDeserialiseCbor decodeBlockHeader bs
+            let decoded = unsafeDeserialiseCbor testDecodeBlockHeader bs
             decoded `shouldBe` blockHeader1
 
         it "should decode a block without transactions" $ do
             bs <- L8.readFile "test/data/Cardano/Byron/Codec/CborSpec-block-1"
-            let decoded = unsafeDeserialiseCbor decodeBlock bs
+            let decoded = unsafeDeserialiseCbor testDecodeBlock bs
             decoded `shouldBe` block1
 
         it "should decode a block with transactions" $ do
             bs <- L8.readFile "test/data/Cardano/Byron/Codec/CborSpec-block-2"
-            let decoded = unsafeDeserialiseCbor decodeBlock bs
+            let decoded = unsafeDeserialiseCbor testDecodeBlock bs
             decoded `shouldBe` block2
 
         it "should decode a testnet block with a transaction" $ do
             bs <- L8.readFile "test/data/Cardano/Byron/Codec/CborSpec-block-3"
-            let decoded = unsafeDeserialiseCbor decodeBlock bs
+            let decoded = unsafeDeserialiseCbor testDecodeBlock bs
             decoded `shouldBe` block3
 
         it "should decode a block with many transactions" $ do
             bs <- L8.readFile "test/data/Cardano/Byron/Codec/CborSpec-block-4"
-            let decoded = unsafeDeserialiseCbor decodeBlock bs
+            let decoded = unsafeDeserialiseCbor testDecodeBlock bs
             decoded `shouldBe` block4
 
         it "should fail to decode a junk block" $ do
             let junk = mconcat (replicate 100 "junk")
-                decoded = CBOR.deserialiseFromBytes decodeBlock junk
+                decoded = CBOR.deserialiseFromBytes testDecodeBlock junk
             decoded `shouldSatisfy` isLeft
 
         it "should fail to decode a block with block header data" $ do
             bs <- L8.readFile
                 "test/data/Cardano/Byron/Codec/CborSpec-block-header-1"
-            let decoded = CBOR.deserialiseFromBytes decodeBlock bs
+            let decoded = CBOR.deserialiseFromBytes testDecodeBlock bs
             decoded `shouldBe`
                 Left (CBOR.DeserialiseFailure 3 "expected list of length 3")
 
@@ -301,10 +304,22 @@ instance Arbitrary (Index 'Hardened 'AccountK) where
                                   Test Data
 -------------------------------------------------------------------------------}
 
+testDecodeBlock :: CBOR.Decoder s (Block ([TxIn], [TxOut]))
+testDecodeBlock = decodeBlock testEpochLength
+
+testDecodeBlockHeader :: CBOR.Decoder s BlockHeader
+testDecodeBlockHeader = decodeBlockHeader testEpochLength
+
+testEpochLength :: EpochLength
+testEpochLength = EpochLength 21600
+
+testSlotId :: Word64 -> Word16 -> SlotId
+testSlotId en sn = epochSlotIdToSlotId testEpochLength $ EpochSlotId en sn
+
 -- A mainnet block header
 blockHeader1 :: BlockHeader
 blockHeader1 = BlockHeader
-    { slotId = SlotId 105 9520
+    { slotId = testSlotId 105 9520
     , blockHeight = Quantity 2276029
     , prevBlockHash = Hash $ unsafeFromHex
         "9f3c67b575bf2c5638291949694849d6ce5d29efa1f2eb3ed0beb6dac262e9e0"
@@ -314,7 +329,7 @@ blockHeader1 = BlockHeader
 block1 :: Block ([TxIn], [TxOut])
 block1 = Block
     { header = BlockHeader
-        { slotId = SlotId 105 9519
+        { slotId = testSlotId 105 9519
         , blockHeight = Quantity 2276028
         , prevBlockHash = prevBlockHash0
         }
@@ -328,7 +343,7 @@ block1 = Block
 block2 :: Block ([TxIn], [TxOut])
 block2 = Block
     { header = BlockHeader
-        { slotId = SlotId 105 9876
+        { slotId = testSlotId 105 9876
         , blockHeight = Quantity 2276385
         , prevBlockHash = prevBlockHash0
         }
@@ -358,7 +373,7 @@ block2 = Block
 block3 :: Block ([TxIn], [TxOut])
 block3 = Block
     { header = BlockHeader
-        { slotId = SlotId 30 9278
+        { slotId = testSlotId 30 9278
         , blockHeight = Quantity 657163
         , prevBlockHash = prevBlockHash0
         }
@@ -392,7 +407,7 @@ block3 = Block
 block4 :: Block ([TxIn], [TxOut])
 block4 = Block
     { header = BlockHeader
-        { slotId = SlotId 14 18
+        { slotId = testSlotId 14 18
         , blockHeight = Quantity 302376
         , prevBlockHash = prevBlockHash0
         }

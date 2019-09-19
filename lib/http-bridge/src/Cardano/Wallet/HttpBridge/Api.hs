@@ -23,6 +23,8 @@ import Prelude
 
 import Cardano.Byron.Codec.Cbor
     ( decodeBlock, decodeBlockHeader, decodeSignedTx, encodeSignedTx )
+import Cardano.Wallet.HttpBridge.Compatibility
+    ( byronEpochLength )
 import Cardano.Wallet.HttpBridge.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Primitive.Types
@@ -101,12 +103,12 @@ type PostSignedTx
 newtype ApiT a = ApiT { getApiT :: a } deriving (Show)
 
 instance FromCBOR (ApiT (Block Tx)) where
-    fromCBOR = ApiT . hoist <$> decodeBlock
+    fromCBOR = ApiT . hoist <$> decodeBlock byronEpochLength
       where
         hoist (Block h txs) = Block h (uncurry Tx <$> txs)
 
 instance FromCBOR (ApiT BlockHeader) where
-    fromCBOR = ApiT <$> decodeBlockHeader
+    fromCBOR = ApiT <$> decodeBlockHeader byronEpochLength
 
 -- | Represents a unique epoch.
 newtype EpochIndex = EpochIndex

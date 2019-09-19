@@ -66,8 +66,8 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader (..)
     , Coin (..)
     , Direction (..)
-    , EpochLength (..)
     , Hash (..)
+    , SlotId (..)
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
@@ -78,7 +78,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletMetadata (..)
     , WalletName (..)
     , WalletState (..)
-    , fromFlatSlot
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
@@ -310,7 +309,7 @@ mkTxHistory numTx numInputs numOutputs =
         , TxMeta
             { status = InLedger
             , direction = Incoming
-            , slotId = fromFlatSlot epochLength (fromIntegral i)
+            , slotId = SlotId $ fromIntegral i
             , amount = Quantity (fromIntegral numOutputs)
             }
         )
@@ -336,7 +335,7 @@ mkCheckpoints numCheckpoints utxoSize = [ cp i | i <- [1..numCheckpoints]]
   where
     cp i = unsafeInitWallet (UTxO utxo) mempty
         (BlockHeader
-            (fromFlatSlot epochLength (fromIntegral i))
+            (SlotId $ fromIntegral i)
             (Quantity $ fromIntegral i)
             (Hash $ label "prevBlockHash" i)
         )
@@ -424,7 +423,3 @@ ourAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, mempty) mempty
 -- | Make a prefixed bytestring for use as a Hash or Address.
 label :: Show n => B8.ByteString -> n -> B8.ByteString
 label prefix n = prefix <> B8.pack (show n)
-
--- | Arbitrary epoch length for testing
-epochLength :: EpochLength
-epochLength = EpochLength 500

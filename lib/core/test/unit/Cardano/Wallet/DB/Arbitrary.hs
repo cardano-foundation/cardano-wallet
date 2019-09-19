@@ -179,7 +179,7 @@ instance GenState s => Arbitrary (Wallet s DummyTarget) where
     arbitrary = unsafeInitWallet
         <$> arbitrary
         <*> pure mempty
-        <*> pure (BlockHeader (SlotId 0 0) (Quantity 0) (Hash "hash"))
+        <*> BlockHeader <$> (SlotId <$> choose (0, 1000 * 21600 - 1)) <*> (pure $ Quantity 0) (pure $ Hash "hash"))
         <*> arbitrary
         <*> pure genesisParameters
 

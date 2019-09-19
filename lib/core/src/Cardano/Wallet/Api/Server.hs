@@ -31,7 +31,8 @@ import Prelude
 import Cardano.BM.Trace
     ( Trace, logWarning )
 import Cardano.Wallet
-    ( ErrAdjustForFee (..)
+    ( BlockchainParameters (..)
+    , ErrAdjustForFee (..)
     , ErrCoinSelection (..)
     , ErrCreateUnsignedTx (..)
     , ErrDecodeSignedTx (..)
@@ -51,6 +52,7 @@ import Cardano.Wallet
     , ErrWithRootKey (..)
     , ErrWrongPassphrase (..)
     , WalletLayer
+    , getBlockchainParameters
     )
 import Cardano.Wallet.Api
     ( Addresses, Api, Transactions, Wallets )
@@ -95,6 +97,7 @@ import Cardano.Wallet.Primitive.Types
     , DecodeAddress (..)
     , DefineTx (..)
     , EncodeAddress (..)
+    , EpochLength (..)
     , Hash (..)
     , HistogramBar (..)
     , SortOrder (..)
@@ -104,6 +107,7 @@ import Cardano.Wallet.Primitive.Types
     , UTxOStatistics (..)
     , WalletId (..)
     , WalletMetadata (..)
+    , slotIdToEpochSlotId
     )
 import Control.Exception
     ( bracket )
@@ -524,10 +528,11 @@ listTransactions ctx (ApiT wid) mStart mEnd mOrder = do
         (getIso8601Time <$> mStart)
         (getIso8601Time <$> mEnd)
         (maybe defaultSortOrder getApiT mOrder)
-    return $ map mkApiTransactionFromInfo txs
+    return $ map (mkApiTransactionFromInfo epochLength) txs
   where
     defaultSortOrder :: SortOrder
     defaultSortOrder = Descending
+    epochLength = getEpochLength $ getBlockchainParameters ctx
 
 postTransactionFee
     :: forall ctx s t k.
@@ -553,12 +558,13 @@ postTransactionFee ctx (ApiT wid) body = do
 
 -- Populate an API transaction record with 'TransactionInfo' from the wallet
 -- layer.
-mkApiTransactionFromInfo :: TransactionInfo -> ApiTransaction t
-mkApiTransactionFromInfo (TransactionInfo txid ins outs meta depth txtime) =
+mkApiTransactionFromInfo :: EpochLength -> TransactionInfo -> ApiTransaction t
+mkApiTransactionFromInfo el (TransactionInfo txid ins outs meta depth txtime) =
     apiTx { depth, insertedAt }
   where
     apiTx = mkApiTransaction txid ins outs meta
-    insertedAt = Just (ApiBlockData txtime (ApiT (meta ^. #slotId)))
+    insertedAt = Just
+        $ ApiBlockData txtime $ ApiT $ slotIdToEpochSlotId el $ meta ^. #slotId
 
 mkApiTransaction
     :: forall t.

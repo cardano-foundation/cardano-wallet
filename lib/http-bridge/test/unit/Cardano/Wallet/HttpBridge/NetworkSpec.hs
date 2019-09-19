@@ -7,7 +7,7 @@ module Cardano.Wallet.HttpBridge.NetworkSpec
 import Prelude
 
 import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge )
+    ( HttpBridge, byronEpochLength )
 import Cardano.Wallet.HttpBridge.Environment
     ( Network (..) )
 import Cardano.Wallet.HttpBridge.Network
@@ -19,11 +19,11 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
-    , EpochLength (..)
+    , EpochSlotId (..)
     , Hash (..)
     , SlotId (..)
-    , flatSlot
-    , slotMinBound
+    , epochSlotIdToSlotId
+    , slotIdToEpochSlotId
     )
 import Control.Monad.Trans.Class
     ( lift )
@@ -44,35 +44,35 @@ import qualified Data.ByteString.Char8 as B8
 spec :: Spec
 spec = do
     describe "Getting next blocks with a mock backend" $ do
-        let network = mockNetworkLayer noLog 105 (SlotId 106 1492)
+        let network = mockNetworkLayer noLog 105 (testSlotId 106 1492)
 
         it "should get something from the latest epoch" $ do
             let h = BlockHeader
-                    { slotId = SlotId 106 999
+                    { slotId = testSlotId 106 999
                     , blockHeight = Quantity 0
-                    , prevBlockHash = mockHash (SlotId 106 998)
+                    , prevBlockHash = mockHash (testSlotId 106 998)
                     }
             blocks <- runExceptT $ nextBlocks network h
             -- the number of blocks between slots 1000 and 1492 inclusive
             fmap length blocks `shouldBe` Right 493
             let hdrs = either (const []) (map (slotId . header)) blocks
-            map slotNumber hdrs `shouldBe` [1000 .. 1492]
-            map epochNumber hdrs `shouldSatisfy` all (== 106)
+            map slotNumber' hdrs `shouldBe` [1000 .. 1492]
+            map epochNumber' hdrs `shouldSatisfy` all (== 106)
 
         it "should return all unstable blocks" $ do
             let h = BlockHeader
-                    { slotId = SlotId 105 0
+                    { slotId = testSlotId 105 0
                     , blockHeight = Quantity 0
-                    , prevBlockHash = mockHash (SlotId 104 21599)
+                    , prevBlockHash = mockHash (testSlotId 104 21599)
                     }
             blocks <- runExceptT $ nextBlocks network h
             fmap length blocks `shouldBe` Right (21600 + 1492)
 
         it "should return unstable blocks after the start slot" $ do
             let h = BlockHeader
-                    { slotId = SlotId 105 17000
+                    { slotId = testSlotId 105 17000
                     , blockHeight = Quantity 0
-                    , prevBlockHash = mockHash (SlotId 105 16999)
+                    , prevBlockHash = mockHash (testSlotId 105 16999)
                     }
             blocks <- runExceptT $ nextBlocks network h
             -- this will be all the blocks between 105.17000 and 106.1492
@@ -80,49 +80,49 @@ spec = do
 
         it "should return just the tip block" $ do
             let h = BlockHeader
-                    { slotId = SlotId 106 1491
+                    { slotId = testSlotId 106 1491
                     , blockHeight = Quantity 0
-                    , prevBlockHash = mockHash (SlotId 106 1490)
+                    , prevBlockHash = mockHash (testSlotId 106 1490)
                     }
             blocks <- runExceptT $ nextBlocks network h
             fmap length blocks `shouldBe` Right 1
 
         it "should get from packed epochs" $ do
             let h = BlockHeader
-                    { slotId = SlotId 100 0
+                    { slotId = testSlotId 100 0
                     , blockHeight = Quantity 0
-                    , prevBlockHash = mockHash (SlotId 99 21599)
+                    , prevBlockHash = mockHash (testSlotId 99 21599)
                     }
             Right blocks <- runExceptT $ nextBlocks network h
             -- an entire epoch's worth of blocks
             length blocks `shouldBe` 21599
-            map (epochNumber . slotId . header) blocks
+            map (epochNumber' . slotId . header) blocks
                 `shouldSatisfy` all (== 100)
 
         it "should get from packed epochs and filter by start slot" $ do
             let h = BlockHeader
-                    { slotId = SlotId 104 10000
+                    { slotId = testSlotId 104 10000
                     , blockHeight = Quantity 0
-                    , prevBlockHash = mockHash (SlotId 104 9999)
+                    , prevBlockHash = mockHash (testSlotId 104 9999)
                     }
             Right blocks <- runExceptT $ nextBlocks network h
             -- the number of remaining blocks in epoch 104
             length blocks `shouldBe` 11599
-            map (epochNumber . slotId . header) blocks
+            map (epochNumber' . slotId . header) blocks
                 `shouldSatisfy` all (== 104)
 
         it "should produce no blocks if start slot is after tip" $ do
             let h = BlockHeader
-                    { slotId = SlotId 107 0
+                    { slotId = testSlotId 107 0
                     , blockHeight = Quantity 0
-                    , prevBlockHash = mockHash (SlotId 106 21599)
+                    , prevBlockHash = mockHash (testSlotId 106 21599)
                     }
             blocks <- runExceptT $ nextBlocks network h
             blocks `shouldBe` Right []
 
         it "should work for the first epoch" $ do
             let h = BlockHeader
-                    { slotId = slotMinBound
+                    { slotId = minBound
                     , blockHeight = Quantity 0
                     , prevBlockHash = Hash "genesis"
                     }
@@ -133,19 +133,28 @@ spec = do
                              Mock HTTP Bridge
 -------------------------------------------------------------------------------}
 
+epochNumber' :: SlotId -> Word64
+epochNumber' = epochNumber . slotIdToEpochSlotId byronEpochLength
+
+slotNumber' :: SlotId -> Word16
+slotNumber' = slotNumber . slotIdToEpochSlotId byronEpochLength
+
+testSlotId :: Word64 -> Word16 -> SlotId
+testSlotId en sn = epochSlotIdToSlotId byronEpochLength $ EpochSlotId en sn
+
 slotsPerEpoch :: Word16
 slotsPerEpoch = 21600
 
 -- | Embed an epoch index and slot number into a hash.
 mockHash :: SlotId -> Hash a
-mockHash (SlotId ep sl) =
-    Hash $ B8.pack ("Hash " <> show ep <> "." <> show sl)
+mockHash (SlotId sl) =
+    Hash $ B8.pack ("Hash " <> show sl)
 
 -- | Extract the epoch index and slot number from a hash.
 unMockHash :: Hash a -> SlotId
 unMockHash (Hash h) = parse . map B8.unpack . B8.split '.' . B8.drop 5 $ h
   where
-    parse [ep, sl] = SlotId (read ep) (read sl)
+    parse [sl] = SlotId (read sl)
     parse _ = error $ "Could not read mock hash: " ++ B8.unpack h
 
 -- | Create a block header from its hash, assuming that the hash was created
@@ -153,12 +162,11 @@ unMockHash (Hash h) = parse . map B8.unpack . B8.split '.' . B8.drop 5 $ h
 mockHeaderFromHash :: Hash a -> BlockHeader
 mockHeaderFromHash h = BlockHeader slot (mockBlockHeight slot) prevHash
   where
-    slot@(SlotId ep sl) = unMockHash h
+    slot@(SlotId sl) = unMockHash h
     prevHash =
-        case (ep, sl) of
-            (0, 0) -> Hash "genesis"
-            (_, 0) -> mockHash (SlotId (ep-1) (slotsPerEpoch - 1))
-            _ -> mockHash (SlotId ep (sl - 1))
+        case sl of
+            0 -> Hash "genesis"
+            _ -> mockHash $ SlotId $ sl - 1
 
 -- | Uses the flat SlotId as blockHeight. This would only happen naturally if
 -- no slot is block-less.
@@ -169,10 +177,11 @@ mockBlockHeight = Quantity . fromIntegral . flatSlot (EpochLength slotsPerEpoch)
 -- generated.
 mockEpoch :: Word64 -> [Block Tx]
 mockEpoch ep =
-    [ Block (mockHeaderFromHash (mockHash sl)) mempty
-    | sl <- [ SlotId ep i | i <- epochs ]
+    [ Block (mockHeaderFromHash (mockHash $ convert sl)) mempty
+    | sl <- [ EpochSlotId ep i | i <- epochs ]
     ]
   where
+    convert = epochSlotIdToSlotId byronEpochLength
     epochs = [ 0 .. fromIntegral (slotsPerEpoch - 1) ]
 
 mockNetworkLayer

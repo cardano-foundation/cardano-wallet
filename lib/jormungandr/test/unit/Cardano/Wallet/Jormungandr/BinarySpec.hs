@@ -45,8 +45,8 @@ import Cardano.Wallet.Primitive.Fee
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
+    , EpochSlotId (..)
     , Hash (..)
-    , SlotId (..)
     , StartTime (..)
     , TxIn (..)
     , TxOut (..)
@@ -132,7 +132,7 @@ spec = do
                     BlockHeader
                         { version = 0
                         , contentSize = 458
-                        , slot = block0 ^. #slotId
+                        , slot = EpochSlotId 0 0
                         , chainLength = 0
                         , contentHash = Hash $ unsafeFromHex
                             "f7becdf807c706cef54ec4832d2a7475\
@@ -188,7 +188,7 @@ spec = do
                     BlockHeader
                         { version = 0
                         , contentSize = 129
-                        , slot = block0 ^. #slotId
+                        , slot = EpochSlotId 0 0
                         , chainLength = 0
                         , contentHash = Hash $ unsafeFromHex
                             "5df3b1c19c1400a9925158ade2b71913\
@@ -227,7 +227,7 @@ spec = do
                     BlockHeader
                         { version = 1
                         , contentSize = 0
-                        , slot = SlotId {epochNumber = 797, slotNumber = 212}
+                        , slot = EpochSlotId 797 212
                         , chainLength = 143
                         , contentHash = Hash $ unsafeFromHex
                             "0e5751c026e543b2e8ab2eb06099daa1\

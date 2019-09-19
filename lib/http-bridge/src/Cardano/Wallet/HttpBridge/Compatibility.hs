@@ -20,6 +20,7 @@ module Cardano.Wallet.HttpBridge.Compatibility
       HttpBridge
     , Network (..)
     , block0
+    , byronEpochLength
     , byronFeePolicy
     , byronSlotLength
     , byronTxMaxSize
@@ -60,7 +61,6 @@ import Cardano.Wallet.Primitive.Types
     , SlotLength (..)
     , StartTime (..)
     , Tx (..)
-    , slotMinBound
     )
 import Crypto.Hash
     ( hash )
@@ -174,12 +174,16 @@ instance DecodeAddress (HttpBridge (network :: Network)) where
 block0 :: Block W.Tx
 block0 = Block
     { header = BlockHeader
-        { slotId = slotMinBound
+        { slotId = minBound
         , blockHeight = Quantity 0
         , prevBlockHash = Hash "genesis"
         }
     , transactions = []
     }
+
+-- | Hard-coded epoch length
+byronEpochLength :: EpochLength
+byronEpochLength = EpochLength 21600
 
 -- | Hard-coded fee policy for Cardano on Byron
 byronFeePolicy :: FeePolicy
@@ -203,6 +207,6 @@ byronBlockchainParameters = BlockchainParameters
     , getFeePolicy = byronFeePolicy
     , getSlotLength = byronSlotLength
     , getTxMaxSize = byronTxMaxSize
-    , getEpochLength = EpochLength 21600
+    , getEpochLength = byronEpochLength
     , getEpochStability = Quantity 2160
     }

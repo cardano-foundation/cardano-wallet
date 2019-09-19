@@ -46,12 +46,15 @@ import Cardano.Wallet.Primitive.Model
     ( totalBalance, totalUTxO )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
+    , EpochLength (..)
+    , EpochSlotId (..)
     , SlotId (..)
     , StartTime (..)
     , UTxO (..)
     , WalletId (..)
     , WalletName (..)
     , WalletState (..)
+    , epochSlotIdToSlotId
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
@@ -307,11 +310,13 @@ getCurrentSlot :: Text -> IO SlotId
 getCurrentSlot net = calcSlot <$> startTime net <*> getPOSIXTime
   where
     calcSlot :: POSIXTime -> POSIXTime -> SlotId
-    calcSlot start now = SlotId ep idx
+    calcSlot start now = epochSlotIdToSlotId (EpochLength epochLength) $
+        EpochSlotId ep idx
       where
         d = now - start
         slotDur = 20
-        epochDur = slotDur * 21600
+        epochDur = slotDur * fromIntegral epochLength
+        epochLength = 21600
         ep = floor (d / epochDur)
         idx = floor ((d - (fromIntegral ep) * epochDur) / slotDur)
 
