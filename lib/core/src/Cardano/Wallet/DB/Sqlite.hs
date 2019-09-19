@@ -814,20 +814,8 @@ selectTxHistory wid order conditions = do
         ((TxMetaWalletId ==. wid) : conditions) sortOpt
     let txids = map txMetaTxId metas
     (ins, outs) <- selectTxs txids
-    let txsPre = txHistoryFromEntity @t metas ins outs
-    let txsPendingCandidates = map fst $
-            filter (\(_, (_, W.TxMeta st _ _ _ )) -> st == W.Pending) txsPre
-    let txsHashesToEliminate = map fst $
-            filter (\(h, (_, W.TxMeta st dir _ _ )) ->
-                        st == W.InLedger &&
-                        dir == W.Outgoing &&
-                        h `elem` txsPendingCandidates) txsPre
-    let txsPendingInLedgerRemoved =
-            filter (\(h, (_, W.TxMeta st _ _ _ )) ->
-                        st == W.Pending &&
-                        h `elem` txsHashesToEliminate) txsPre
-    let txsPre' = filter (`notElem` txsPendingInLedgerRemoved) txsPre
-    pure txsPre'
+    return $ prunePendingDuplicate $ txHistoryFromEntity @t metas ins outs
+
   where
     -- Note: there are sorted indices on these columns.
     -- The secondary sort by TxId is to make the ordering stable
@@ -836,6 +824,32 @@ selectTxHistory wid order conditions = do
         W.Ascending -> [Asc TxMetaSlotId, Desc TxMetaTxId]
         W.Descending -> [Desc TxMetaSlotId, Asc TxMetaTxId]
 
+    -- We keep Pending transaction in the database in the event of roll backs.
+    -- So it may occurs that some transactions are both 'Pending' and
+    -- 'InLedger', in which case, the latters should prevail.
+    prunePendingDuplicate
+        :: [(W.Hash "Tx", (Tx t, W.TxMeta))]
+        -> [(W.Hash "Tx", (Tx t, W.TxMeta))]
+    prunePendingDuplicate txs =
+        let
+            ixs =
+                fst <$> filter isPending txs
+              where
+                isPending (_, (_, meta)) = W.isPending meta
+
+            dups =
+                fst <$> filter isDuplicate txs
+              where
+                isDuplicate (h, (_, meta)) =
+                    not (W.isPending meta) && h `elem` ixs
+
+            toRemove =
+                filter shouldRemove txs
+              where
+                shouldRemove (h, (_, meta)) =
+                    W.isPending meta && h `elem` dups
+        in
+            filter (`notElem` toRemove) txs
 selectPrivateKey
     :: (MonadIO m, PersistKey k)
     => W.WalletId
