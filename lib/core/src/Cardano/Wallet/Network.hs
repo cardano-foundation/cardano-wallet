@@ -39,8 +39,8 @@ import GHC.Generics
 import Numeric.Natural
     ( Natural )
 
-data NetworkLayer t m = NetworkLayer
-    { nextBlocks :: BlockHeader -> ExceptT ErrGetBlock m [Block (Tx t)]
+data Restorer block m = NetworkLayer
+    { nextBlocks :: BlockHeader -> ExceptT ErrGetBlock m [block]
         -- ^ Fetches a contiguous sequence of blocks from the node, starting
         -- from the first block available with a slot greater than the given
         -- block header.
@@ -58,10 +58,10 @@ data NetworkLayer t m = NetworkLayer
         -- ^ Get the current network tip from the chain producer and the current
         -- chain's height.
 
-    , postTx
-        :: (Tx t, [TxWitness]) -> ExceptT ErrPostTx m ()
-        -- ^ Broadcast a transaction to the chain producer
     }
+
+-- | Broadcast a transaction to the chain producer
+type TxSubmitter tx m = (tx, [TxWitness]) -> ExceptT ErrPostTx m ()
 
 -- | Network is unavailable
 data ErrNetworkUnavailable
@@ -102,7 +102,7 @@ instance Exception ErrPostTx
 -- | Wait until 'networkTip networkLayer' succeeds according to a given
 -- retry policy. Throws an exception otherwise.
 waitForConnection
-    :: NetworkLayer t IO
+    :: Restorer b IO
     -> RetryPolicyM IO
     -> IO ()
 waitForConnection nw policy = do
