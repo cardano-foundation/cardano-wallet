@@ -137,6 +137,7 @@ import Database.Persist.Sql
     , insert
     , insertMany_
     , insert_
+    , putMany
     , rawExecute
     , repsert
     , repsertMany
@@ -676,7 +677,7 @@ insertCheckpoint wid cp = do
     insert_ cp'
     putTxMetas metas
     putTxs ins outs
-    dbChunked insertWhenNew utxo
+    dbChunked putMany utxo
     insertState (wid, (W.currentTip cp) ^. #slotId) (W.getState cp)
 
 -- | Delete one or all checkpoints associated with a wallet. If a slot is
@@ -777,20 +778,7 @@ selectUTxO (Checkpoint wid _sl _parent _bh) = fmap entityVal <$>
         , UtxoSlotSpent ==. Nothing
         ] []
 
-insertWhenNew
-    :: [UTxO]
-    -> SqlPersistT IO ()
-insertWhenNew = mapM_ insertOne
-  where
-    insertOne utxo@(UTxO wid _ _ inpId inpIx outAddr outAmt) = do
-        utxos <- selectList [ UtxoWalletId ==. wid
-                            , UtxoInputId ==. inpId
-                            , UtxoInputIndex ==. inpIx
-                            , UtxoOutputAddress ==. outAddr
-                            , UtxoOutputCoin ==. outAmt
-                            ] []
-        when (null utxos) $ insert_ utxo
-
+-- fixme: this definitely needs an explanation
 setUtxosSpent :: [(TxMeta, [TxIn])] -> SqlPersistT IO ()
 setUtxosSpent = mapM_ (\(meta, txins) -> mapM_ (spend meta) txins)
   where
