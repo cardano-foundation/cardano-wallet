@@ -360,14 +360,15 @@ newDBLayer logConfig trace fp = do
               ExceptT $ runQuery $
               selectWallet wid >>= \case
                   Just _ -> do
-                      let (metas, txins, txouts) = mkTxHistory @t wid $ W.invariant
+                      let entities = mkTxHistory @t wid $ W.invariant
                               ("putTxHistory has been called with pending txs: "
                                 <> show txs)
                               txs
                               (not . any (W.isPending . snd))
+                      let (metas, txins, txouts) = flatTxHistory entities
                       putTxMetas metas
                       putTxs txins txouts
-                      addSpentUtxos metas txins
+                      setUtxosSpent (fmap fst <$> entities)
                       pure $ Right ()
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
@@ -530,7 +531,8 @@ mkCheckpointEntity wid wal =
         [ (W.txId @t tx, (tx, meta))
         | (tx, meta) <- Set.toList (W.getPending wal)
         ]
-    (metas, ins, outs) = mkTxHistory @t wid (Map.fromList pending)
+    (metas, ins, outs) = flatTxHistory $
+        mkTxHistory @t wid (Map.fromList pending)
     header = (W.currentTip wal)
     sl = header ^. #slotId
     parent = header ^. #prevBlockHash
@@ -570,21 +572,25 @@ mkTxHistory
     :: forall t. PersistTx t
     => W.WalletId
     -> Map (W.Hash "Tx") (W.Tx t, W.TxMeta)
-    -> ([TxMeta], [TxIn], [TxOut])
-mkTxHistory wid txs = (map (uncurry (mkTxMetaEntity wid)) metas, ins, outs)
-  where
-    pairs = Map.toList txs
-    metas = fmap snd <$> pairs
-    hist = fmap fst <$> pairs
-    (ins, outs) = mkTxInputsOutputs @t hist
+    -> [(TxMeta, ([TxIn], [TxOut]))]
+mkTxHistory wid txs =
+    [ (mkTxMetaEntity wid txid meta, mkTxInputsOutputs @t (txid, tx))
+    | (txid, (tx, meta)) <- Map.toList txs ]
+
+-- | Make flat lists of entities from the result of 'mkTxHistory'.
+flatTxHistory :: [(TxMeta, ([TxIn], [TxOut]))] -> ([TxMeta], [TxIn], [TxOut])
+flatTxHistory entities =
+    ( map fst entities
+    , concatMap (fst . snd) entities
+    , concatMap (snd. snd) entities )
 
 mkTxInputsOutputs
     :: forall t. PersistTx t
-    => [(W.Hash "Tx", W.Tx t)]
+    => (W.Hash "Tx", W.Tx t)
     -> ([TxIn], [TxOut])
-mkTxInputsOutputs txs =
-    ( concatMap (dist mkTxIn . ordered (resolvedInputs @t)) txs
-    , concatMap (dist mkTxOut . ordered (W.outputs @t)) txs )
+mkTxInputsOutputs tx =
+    ( (dist mkTxIn . ordered (resolvedInputs @t)) tx
+    , (dist mkTxOut . ordered (W.outputs @t)) tx )
   where
     mkTxIn tid (ix, (txIn, amt)) = TxIn
         { txInputTxId = TxId tid
@@ -785,36 +791,15 @@ insertWhenNew = mapM_ insertOne
                             ] []
         when (null utxos) $ insert_ utxo
 
-addSpentUtxos
-    :: [TxMeta]
-    -> [TxIn]
-    -> SqlPersistT IO ()
-addSpentUtxos metas txins = do
-    let outgoingAndInLedger =
-            filter (\(TxMeta _ _ st dir _ _) ->
-                        st == W.InLedger && dir == W.Outgoing) metas
-    mapM_ (updateUtxosPerMeta txins) outgoingAndInLedger
-
-updateUtxosPerMeta
-    :: [TxIn]
-    -> TxMeta
-    -> SqlPersistT IO ()
-updateUtxosPerMeta txins (TxMeta txid wid _ _ sl _) = do
-    let validTxIns = filter (\(TxIn txid' _ _ _ _ ) -> txid'==txid) txins
-    mapM_ (updateUtxoSpent wid sl) validTxIns
-
-updateUtxoSpent
-    :: W.WalletId
-    -> W.SlotId
-    -> TxIn
-    -> SqlPersistT IO ()
-updateUtxoSpent wid sl (TxIn _ _ inpId inpIx _) = do
-    updateWhere
-        [ UtxoWalletId ==. wid
-        , UtxoSlotSpent ==. Nothing
-        , UtxoInputId ==. inpId
-        , UtxoInputIndex ==. inpIx
-        ] [ UtxoSlotSpent =. (Just sl) ]
+setUtxosSpent :: [(TxMeta, [TxIn])] -> SqlPersistT IO ()
+setUtxosSpent = mapM_ (\(meta, txins) -> mapM_ (spend meta) txins)
+  where
+    spend meta txin = updateWhere
+        [ UtxoWalletId ==. txMetaWalletId meta
+        , UtxoInputId ==. txInputSourceTxId txin
+        , UtxoInputIndex ==. txInputSourceIndex txin
+        ]
+        [ UtxoSlotSpent =. Just (txMetaSlotId meta) ]
 
 selectTxs
     :: [TxId]
