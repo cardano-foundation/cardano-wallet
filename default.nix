@@ -13,7 +13,9 @@ let
   haskell = iohkLib.nix-tools.haskell { inherit pkgs; };
   src = iohkLib.cleanSourceHaskell ./.;
 
-  inherit (iohkLib.rust-packages.pkgs) jormungandr jormungandr-cli;
+  inherit (import ./nix/jormungandr.nix { inherit iohkLib pkgs; })
+    jormungandr jormungandr-cli;
+
   cardano-http-bridge = iohkLib.rust-packages.pkgs.callPackage
     ./nix/cardano-http-bridge.nix { inherit pkgs; };
   cardano-sl-node = import ./nix/cardano-sl-node.nix { inherit pkgs; };
