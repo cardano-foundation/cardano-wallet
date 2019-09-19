@@ -68,18 +68,9 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Mnemonic
     ( EntropySize, entropyToBytes, genEntropy )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet
-    , blockHeight
-    , currentTip
-    , getPending
-    , getState
-    , initWallet
-    , unsafeInitWallet
-    , utxo
-    )
+    ( Wallet, initWallet )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
-    , BlockHeader (..)
     , Coin (..)
     , Direction (..)
     , Hash (..)
@@ -89,7 +80,6 @@ import Cardano.Wallet.Primitive.Types
     , TxMeta (TxMeta)
     , TxOut (..)
     , TxStatus (..)
-    , UTxO (..)
     , WalletDelegation (..)
     , WalletId (..)
     , WalletMetadata (..)
@@ -183,7 +173,7 @@ sqliteSpecRnd = withDB newMemoryDBLayer $ do
         describe "Sqlite simple (RndState)" $
             simpleSpec testCpRnd
         describe "Sqlite State machine (RndState)" $ do
-            it "Sequential state machine tests" $
+            it "Sequential state machine tests"
                 (prop_sequential :: TestDBRnd -> Property)
 
 simpleSpec
