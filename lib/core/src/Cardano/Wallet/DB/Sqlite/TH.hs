@@ -157,11 +157,8 @@ UTxO                                sql=utxo
 
     Primary
         utxoWalletId
-        utxoSlot
         utxoInputId
         utxoInputIndex
-        utxoOutputAddress
-        utxoOutputCoin
 
     Foreign Wallet fk_wallet_utxo utxoWalletId
     deriving Show Generic
