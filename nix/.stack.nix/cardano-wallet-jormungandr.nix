@@ -90,7 +90,6 @@
             (hsPkgs.cardano-wallet-cli)
             (hsPkgs.cardano-wallet-core)
             (hsPkgs.cardano-wallet-core-integration)
-            (hsPkgs.cardano-wallet-http-bridge)
             (hsPkgs.cardano-wallet-jormungandr)
             (hsPkgs.cardano-wallet-launcher)
             (hsPkgs.cardano-wallet-test-utils)
