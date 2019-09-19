@@ -317,8 +317,8 @@ newDBLayer logConfig trace fp = do
                       -- support updating of checkpoint
                       let (BlockHeader sid _) = currentTip cp
                       deleteCheckpoints @s wid (Just sid)
-                      deleteLooseTransactions -- clear unused transaction data
-                      insertCheckpoint wid cp -- add this checkpoint
+                      deleteLooseTransactions
+                      insertCheckpoint wid cp
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
         , readCheckpoint = \(PrimaryKey wid) ->
@@ -369,7 +369,7 @@ newDBLayer logConfig trace fp = do
                       let (metas, txins, txouts) = flatTxHistory entities
                       putTxMetas metas
                       putTxs txins txouts
-                      setUtxosSpent (fmap fst <$> entities)
+                      softDeleteUTxO wid (zip (txMetaSlotId <$> metas) txins)
                       pure $ Right ()
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
@@ -778,16 +778,20 @@ selectUTxO (Checkpoint wid _sl _parent _bh) = fmap entityVal <$>
         , UtxoSlotSpent ==. Nothing
         ] []
 
--- fixme: this definitely needs an explanation
-setUtxosSpent :: [(TxMeta, [TxIn])] -> SqlPersistT IO ()
-setUtxosSpent = mapM_ (\(meta, txins) -> mapM_ (spend meta) txins)
-  where
-    spend meta txin = updateWhere
-        [ UtxoWalletId ==. txMetaWalletId meta
-        , UtxoInputId ==. txInputSourceTxId txin
-        , UtxoInputIndex ==. txInputSourceIndex txin
-        ]
-        [ UtxoSlotSpent =. Just (txMetaSlotId meta) ]
+-- Mark UTxOs known as spent because used in a transaction. When inserting new
+-- checkpoints, we do not delete UTxOs but instead, mark them with the slot at
+-- which they've been spent. As a consequence, we can easily recover them in
+-- the event of rollbacks. This is a kind of soft-delete.
+--
+-- Note that we don't care whether the UTxOs is ours or not since we only keep
+-- track of UTxOs that are ours anyway. So, we mark all inputs as consumed,
+softDeleteUTxO :: W.WalletId -> [(W.SlotId, TxIn)] -> SqlPersistT IO ()
+softDeleteUTxO wid = mapM_ $ \(sid, txin) -> updateWhere
+    [ UtxoWalletId ==. wid
+    , UtxoInputId ==. txInputSourceTxId txin
+    , UtxoInputIndex ==. txInputSourceIndex txin
+    ]
+    [ UtxoSlotSpent =. Just sid ]
 
 selectTxs
     :: [TxId]
