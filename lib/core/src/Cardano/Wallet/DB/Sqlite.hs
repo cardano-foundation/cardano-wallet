@@ -127,7 +127,7 @@ import Data.Text
 import Data.Typeable
     ( Typeable )
 import Data.Word
-    ( Word64 )
+    ( Word32, Word64 )
 import Database.Persist.Sql
     ( Entity (..)
     , Filter
@@ -546,15 +546,27 @@ mkCheckpointEntity wid wal =
     sl = header ^. #slotId
     parent = header ^. #prevBlockHash
     (Quantity bh) = W.blockHeight wal
+    bp = W.blockchainParameters wal
     cp = Checkpoint
         { checkpointWalletId = wid
         , checkpointSlot = sl
         , checkpointBlockHeight = fromIntegral bh
         , checkpointParent = BlockId parent
+        , checkpointGenesisStart = coerce (bp ^. #getGenesisBlockDate)
+        , checkpointFeePolicy = bp ^. #getFeePolicy
+        , checkpointSlotLength = coerceSlotLength $ bp ^. #getSlotLength
+        , checkpointEpochLength = coerce (bp ^. #getEpochLength)
+        , checkpointTxMaxSize = coerce (bp ^. #getTxMaxSize)
+        , checkpointEpochStability = coerce (bp ^. #getEpochStability)
         }
-    utxo = [ UTxO wid sl Nothing (TxId input) ix addr coin
-           | (W.TxIn input ix, W.TxOut addr coin) <- utxoMap ]
+    utxo =
+        [ UTxO wid sl Nothing (TxId input) ix addr coin
+        | (W.TxIn input ix, W.TxOut addr coin) <- utxoMap
+        ]
     utxoMap = Map.assocs (W.getUTxO (W.utxo wal))
+
+    coerceSlotLength :: W.SlotLength -> Word32
+    coerceSlotLength (W.SlotLength x) = fromIntegral (fromEnum x)
 
 -- note: TxIn records must already be sorted by order
 -- and TxOut records must already by sorted by index.
@@ -566,9 +578,20 @@ checkpointFromEntity
     -> s
     -> W.Wallet s t
 checkpointFromEntity cp utxo txs s =
-    W.unsafeInitWallet utxo' pending header s blockHeight'
+    W.unsafeInitWallet utxo' pending header s blockHeight' bp
   where
-    (Checkpoint _ slot (BlockId parentHeaderHash) bh) = cp
+    (Checkpoint
+        _walletId
+        slot
+        (BlockId parentHeaderHash)
+        bh
+        genesisStart
+        feePolicy
+        slotLength
+        epochLength
+        txMaxSize
+        epochStability
+        ) = cp
     header = (W.BlockHeader slot parentHeaderHash)
     utxo' = W.UTxO . Map.fromList $
         [ (W.TxIn input ix, W.TxOut addr coin)
@@ -576,6 +599,14 @@ checkpointFromEntity cp utxo txs s =
         ]
     pending = Set.fromList $ map snd txs
     blockHeight' = Quantity . toEnum . fromEnum $ bh
+    bp = W.BlockchainParameters
+        { getGenesisBlockDate = W.StartTime genesisStart
+        , getFeePolicy = feePolicy
+        , getSlotLength = W.SlotLength (toEnum (fromEnum slotLength))
+        , getEpochLength = W.EpochLength epochLength
+        , getTxMaxSize = Quantity txMaxSize
+        , getEpochStability = Quantity epochStability
+        }
 
 mkTxHistory
     :: forall t. PersistTx t
@@ -816,9 +847,9 @@ selectLatestCheckpoint wid = fmap entityVal <$>
 selectUTxO
     :: Checkpoint
     -> SqlPersistT IO [UTxO]
-selectUTxO (Checkpoint wid _sl _parent _bh) = fmap entityVal <$>
+selectUTxO cp = fmap entityVal <$>
     selectList
-        [ UtxoWalletId ==. wid
+        [ UtxoWalletId ==. checkpointWalletId cp
         , UtxoSlotSpent ==. Nothing
         ] []
 

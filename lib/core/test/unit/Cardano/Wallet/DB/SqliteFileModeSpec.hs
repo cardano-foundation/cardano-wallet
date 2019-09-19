@@ -20,7 +20,7 @@ import Cardano.Wallet.DB.Sqlite
 import Cardano.Wallet.DBSpec
     ( KeyValPairs (..) )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( DummyTarget, Tx (..), block0 )
+    ( DummyTarget, Tx (..), block0, genesisParameters )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), Passphrase (..), XPrv, encryptPassphrase )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
@@ -290,7 +290,7 @@ cutRandomly = iter []
 -------------------------------------------------------------------------------}
 
 testCp :: Wallet (SeqState DummyTarget) DummyTarget
-testCp = initWallet block0 initDummyState
+testCp = initWallet block0 genesisParameters initDummyState
   where
     initDummyState :: SeqState DummyTarget
     initDummyState = mkSeqState (xprv, mempty) defaultAddressPoolGap

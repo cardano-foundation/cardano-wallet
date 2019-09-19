@@ -194,10 +194,9 @@ byronTxMaxSize = Quantity 8192
 
 byronBlockchainParameters
     :: forall n. KnownNetwork n
-    => BlockchainParameters (HttpBridge n)
+    => BlockchainParameters
 byronBlockchainParameters = BlockchainParameters
-    { getGenesisBlock = block0
-    , getGenesisBlockDate = case networkVal @n of
+    { getGenesisBlockDate = case networkVal @n of
         Mainnet -> StartTime $ posixSecondsToUTCTime 1506203091
         Testnet -> StartTime $ posixSecondsToUTCTime 1563999616
     , getFeePolicy = byronFeePolicy

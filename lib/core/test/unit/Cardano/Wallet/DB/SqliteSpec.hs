@@ -52,7 +52,7 @@ import Cardano.Wallet.DB.StateMachine
 import Cardano.Wallet.DBSpec
     ( dbPropertyTests, withDB )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( DummyTarget, Tx (..), block0 )
+    ( DummyTarget, Tx (..), block0, genesisParameters )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), Passphrase (..), PersistKey, encryptPassphrase )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
@@ -412,7 +412,7 @@ class GenerateTestKey (key :: Depth -> * -> *) where
 -------------------------------------------------------------------------------}
 
 testCpSeq :: Wallet (SeqState DummyTarget) DummyTarget
-testCpSeq = initWallet block0 initDummyStateSeq
+testCpSeq = initWallet block0 genesisParameters initDummyStateSeq
 
 initDummyStateSeq :: SeqState DummyTarget
 initDummyStateSeq = mkSeqState (xprv, mempty) defaultAddressPoolGap
@@ -449,4 +449,4 @@ initDummyStateRnd = mkRndState xprv 0
     where xprv = fst $ unsafePerformIO generateTestKey
 
 testCpRnd :: Wallet (RndState DummyTarget) DummyTarget
-testCpRnd = initWallet block0 initDummyStateRnd
+testCpRnd = initWallet block0 genesisParameters initDummyStateRnd

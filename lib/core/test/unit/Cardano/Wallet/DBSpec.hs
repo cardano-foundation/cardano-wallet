@@ -39,7 +39,7 @@ import Cardano.Wallet.DB.Model
 import Cardano.Wallet.DB.Sqlite
     ( PersistTx (..) )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( DummyTarget, block0 )
+    ( DummyTarget, block0, genesisParameters )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
@@ -223,11 +223,11 @@ instance Arbitrary (PrimaryKey WalletId) where
 
 instance Arbitrary (Wallet (SeqState DummyTarget) DummyTarget) where
     shrink w = [updateState s w | s <- shrink (getState w)]
-    arbitrary = initWallet block0 <$> arbitrary
+    arbitrary = initWallet block0 genesisParameters <$> arbitrary
 
 instance Arbitrary (Wallet (RndState DummyTarget) DummyTarget) where
     shrink w = [updateState s w | s <- shrink (getState w)]
-    arbitrary = initWallet block0 <$> arbitrary
+    arbitrary = initWallet block0 genesisParameters <$> arbitrary
 
 instance Arbitrary Address where
     -- No Shrinking

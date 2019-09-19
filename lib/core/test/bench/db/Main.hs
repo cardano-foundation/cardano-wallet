@@ -44,7 +44,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Sqlite
     ( PersistTx (..), newDBLayer )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( DummyTarget, Tx (..), block0 )
+    ( DummyTarget, Tx (..), block0, genesisParameters )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), KeyToAddress (..), Passphrase (..), WalletKey (..), XPub )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
@@ -321,6 +321,7 @@ mkCheckpoints numCheckpoints utxoSize = [ cp i | i <- [1..numCheckpoints]]
         )
         initDummyState
         (Quantity $ fromIntegral i)
+        genesisParameters
 
     utxo = Map.fromList $ zip (mkInputs utxoSize) (mkOutputs utxoSize)
 
@@ -330,7 +331,7 @@ mkCheckpoints numCheckpoints utxoSize = [ cp i | i <- [1..numCheckpoints]]
 benchPutSeqState :: Int -> Int -> DBLayerBench -> IO ()
 benchPutSeqState numCheckpoints numAddrs db =
     unsafeRunExceptT $ mapM_ (putCheckpoint db testPk)
-        [ initWallet block0 $
+        [ initWallet block0 genesisParameters $
             SeqState (mkPool numAddrs i) (mkPool numAddrs i) emptyPendingIxs
         | i <- [1..numCheckpoints]
         ]
@@ -358,7 +359,7 @@ instance PersistTx DummyTarget where
     mkTx _ inps = Tx (fst <$> inps)
 
 testCp :: WalletBench
-testCp = initWallet block0 initDummyState
+testCp = initWallet block0 genesisParameters initDummyState
 
 initDummyState :: SeqState DummyTarget
 initDummyState =

@@ -75,6 +75,8 @@ import Cardano.Wallet.Jormungandr.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Jormungandr.Network
     ( ErrGetBlockchainParams (..), getInitialBlockchainParameters )
+import Cardano.Wallet.Jormungandr.Primitive.Types
+    ( Tx )
 import Cardano.Wallet.Network
     ( NetworkLayer (..), defaultRetryPolicy, waitForConnection )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -84,7 +86,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Sequential
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..) )
+    ( Block, Hash (..) )
 import Cardano.Wallet.Version
     ( showVersion, version )
 import Control.Applicative
@@ -324,13 +326,13 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
 
         newNetworkLayer
             :: (Switchboard Text, Trace IO Text)
-            -> IO (NetworkLayer t IO, BlockchainParameters t)
+            -> IO (NetworkLayer t IO, (Block Tx, BlockchainParameters))
         newNetworkLayer (sb, tracer) = do
             let url = BaseUrl Http "localhost" (getPort nodePort) "/api"
             (jor, nl) <- Jormungandr.newNetworkLayer' url
             waitForService "Jörmungandr" (sb, tracer) nodePort $
                 waitForConnection nl defaultRetryPolicy
-            blockchainParams <-
+            genesis <-
                 runExceptT (getInitialBlockchainParameters jor (coerce block0H)) >>= \case
                 Right a -> return a
                 Left (ErrGetBlockchainParamsNetworkUnreachable _) ->
@@ -339,7 +341,7 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
                     handleGenesisNotFound (sb, tracer)
                 Left (ErrGetBlockchainParamsIncompleteParams _) ->
                     handleNoInitialPolicy tracer
-            return (nl, blockchainParams)
+            return (nl, genesis)
 
         withDBLayer
             :: CM.Configuration

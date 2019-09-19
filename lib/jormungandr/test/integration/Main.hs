@@ -40,12 +40,14 @@ import Cardano.Wallet.Jormungandr.Launch
     ( launchJormungandr )
 import Cardano.Wallet.Jormungandr.Network
     ( BaseUrl (..), JormungandrLayer (..) )
+import Cardano.Wallet.Jormungandr.Primitive.Types
+    ( Tx )
 import Cardano.Wallet.Network
     ( NetworkLayer (..), defaultRetryPolicy, waitForConnection )
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Hash )
+    ( Block, Hash )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Concurrent
@@ -175,12 +177,12 @@ cardanoWalletServer
 cardanoWalletServer jormungandrUrl mlisten = do
     logConfig <- CM.empty
     tracer <- initTracer Info "serve"
-    (nl, bp) <- newNetworkLayer jormungandrUrl block0H
+    (nl, (block0, bp)) <- newNetworkLayer jormungandrUrl block0H
     (sqlCtx, db) <- Sqlite.newDBLayer @_ @network logConfig tracer Nothing
     mvar <- newEmptyMVar
     handle <- async $ do
         let tl = Jormungandr.newTransactionLayer block0H
-        wallet <- newWalletLayer tracer bp db nl tl
+        wallet <- newWalletLayer tracer (block0, bp) db nl tl
         let listen = fromMaybe (ListenOnPort $ getPort defaultPort) mlisten
         Server.withListeningSocket listen $ \(port, socket) -> do
             let settings = Warp.defaultSettings
@@ -193,7 +195,7 @@ cardanoWalletServer jormungandrUrl mlisten = do
 newNetworkLayer
     :: BaseUrl
     -> Hash "Genesis"
-    -> IO (NetworkLayer (Jormungandr n) IO, BlockchainParameters (Jormungandr n))
+    -> IO (NetworkLayer (Jormungandr n) IO, (Block Tx, BlockchainParameters))
 newNetworkLayer url block0 = do
     (jormungandr, nl) <- Jormungandr.newNetworkLayer' url
     waitForConnection nl defaultRetryPolicy

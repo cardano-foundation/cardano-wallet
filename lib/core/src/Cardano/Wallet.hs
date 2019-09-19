@@ -51,7 +51,6 @@ module Cardano.Wallet
 
     -- * Capabilities
     -- $Capabilities
-    , HasBlockchainParameters
     , HasDBLayer
     , HasLogger
     , HasNetworkLayer
@@ -146,10 +145,12 @@ import Cardano.Wallet.Primitive.Fee
     , computeFee
     )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet
+    ( BlockchainParameters (..)
+    , Wallet
     , applyBlocks
     , availableUTxO
     , blockHeight
+    , blockchainParameters
     , currentTip
     , getPending
     , getState
@@ -165,14 +166,11 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , DefineTx (..)
     , Direction (..)
-    , EpochLength (..)
     , Hash (..)
     , Range (..)
     , SlotId (..)
-    , SlotLength (..)
     , SlotParameters (..)
     , SortOrder (..)
-    , StartTime (..)
     , TransactionInfo (..)
     , Tx (..)
     , TxIn (..)
@@ -254,7 +252,7 @@ import Data.Text.Class
 import Data.Time.Clock
     ( UTCTime, getCurrentTime )
 import Data.Word
-    ( Word16, Word32 )
+    ( Word16 )
 import Fmt
     ( Buildable, blockListF, pretty, (+|), (+||), (|+), (||+) )
 import GHC.Exts
@@ -280,7 +278,6 @@ import qualified Data.Text as T
 -- lenses (see Cardano.Wallet#Capabilities). These components are extracted from the context
 -- in a @where@ clause according to the following naming convention:
 --
--- - @bp = ctx ^. blockchainParameters \@t@ for the 'BlockchainParameters'.
 -- - @db = ctx ^. dbLayer \@s \@t \@k@ for the 'DBLayer'.
 -- - @tr = ctx ^. logger@ for the Logger.
 -- - @nw = ctx ^. networkLayer \@t@ for the 'NetworkLayer'.
@@ -346,7 +343,7 @@ import qualified Data.Text as T
 data WalletLayer s t (k :: Depth -> * -> *)
     = WalletLayer
         (Trace IO Text)
-        (BlockchainParameters t)
+        (Block (Tx t), BlockchainParameters)
         (DBLayer IO s t k)
         (NetworkLayer t IO)
         (TransactionLayer t k)
@@ -384,30 +381,13 @@ type instance IsWalletCtx s t k (WalletLayer s0 t0 k0) =
 -- | Create a new instance of the wallet layer.
 newWalletLayer
     :: Trace IO Text
-    -> BlockchainParameters t
+    -> (Block (Tx t), BlockchainParameters)
     -> DBLayer IO s t k
     -> NetworkLayer t IO
     -> TransactionLayer t k
     -> IO (WalletLayer s t k)
-newWalletLayer tr bp db nw tl =
-    WalletLayer tr bp db nw tl <$> newRegistry
-
-data BlockchainParameters t = BlockchainParameters
-    { getGenesisBlock :: Block (Tx t)
-        -- ^ Very first block.
-    , getGenesisBlockDate :: StartTime
-        -- ^ Start time of the chain.
-    , getFeePolicy :: FeePolicy
-        -- ^ Policy regarding transaction fee.
-    , getSlotLength :: SlotLength
-        -- ^ Length, in seconds, of a slot.
-    , getEpochLength :: EpochLength
-        -- ^ Number of slots in a single epoch.
-    , getTxMaxSize :: Quantity "byte" Word16
-        -- ^ Maximum size of a transaction (soft or hard limit).
-    , getEpochStability :: Quantity "block" Word32
-        -- ^ Length of the suffix of the chain considered unstable
-    } deriving (Generic)
+newWalletLayer tr g0 db nw tl =
+    WalletLayer tr g0 db nw tl <$> newRegistry
 
 {-------------------------------------------------------------------------------
                             Wallet Capabilities
@@ -440,10 +420,9 @@ data BlockchainParameters t = BlockchainParameters
 -- One can build an interface using only a subset of the wallet layer
 -- capabilities and functions, for instance, something to fiddle with wallets
 -- and their metadata does not require any networking layer.
-
-type HasBlockchainParameters t = HasType (BlockchainParameters t)
-
 type HasDBLayer s t k = HasType (DBLayer IO s t k)
+
+type HasGenesisData t = HasType (Block (Tx t), BlockchainParameters)
 
 type HasLogger = HasType (Trace IO Text)
 
@@ -453,17 +432,17 @@ type HasTransactionLayer t k = HasType (TransactionLayer t k)
 
 type HasWorkerRegistry = HasType WorkerRegistry
 
-blockchainParameters
-    :: forall t ctx. HasBlockchainParameters t ctx
-    => Lens' ctx (BlockchainParameters t)
-blockchainParameters =
-    typed @(BlockchainParameters t)
-
 dbLayer
     :: forall s t k ctx. HasDBLayer s t k ctx
     => Lens' ctx (DBLayer IO s t k)
 dbLayer =
     typed @(DBLayer IO s t k)
+
+genesisData
+    :: forall t ctx. HasGenesisData t ctx
+    => Lens' ctx (Block (Tx t), BlockchainParameters)
+genesisData =
+    typed @(Block (Tx t), BlockchainParameters)
 
 logger
     :: forall ctx. HasLogger ctx
@@ -497,8 +476,8 @@ workerRegistry =
 createWallet
     :: forall ctx s t k.
         ( IsWalletCtx s t k ctx
-        , HasBlockchainParameters t ctx
         , HasDBLayer s t k ctx
+        , HasGenesisData t ctx
         , Show s
         , NFData s
         , IsOurs s
@@ -510,7 +489,7 @@ createWallet
     -> s
     -> ExceptT ErrWalletAlreadyExists IO WalletId
 createWallet ctx wid wname s = do
-    let checkpoint = initWallet (getGenesisBlock bp) s
+    let checkpoint = initWallet block0 bp s
     currentTime <- liftIO getCurrentTime
     let metadata = WalletMetadata
             { name = wname
@@ -521,8 +500,8 @@ createWallet ctx wid wname s = do
             }
     DB.createWallet db (PrimaryKey wid) checkpoint metadata $> wid
   where
-    bp = ctx ^. blockchainParameters @t
     db = ctx ^. dbLayer @s @t @k
+    (block0, bp) = ctx ^. genesisData @t
 
 -- | Retrieve the wallet state for the wallet with the given ID.
 readWallet
@@ -658,7 +637,6 @@ restoreWallet
     :: forall ctx s t k.
         ( IsWalletCtx s t k ctx
         , HasLogger ctx
-        , HasBlockchainParameters t ctx
         , HasDBLayer s t k ctx
         , HasNetworkLayer t ctx
         , HasWorkerRegistry ctx
@@ -701,7 +679,6 @@ restoreStep
     :: forall ctx s t k.
         ( IsWalletCtx s t k ctx
         , HasLogger ctx
-        , HasBlockchainParameters t ctx
         , HasNetworkLayer t ctx
         , HasDBLayer s t k ctx
         , DefineTx t
@@ -739,7 +716,6 @@ restoreStep ctx wid (localTip, (nodeTip, nodeHeight)) = do
 restoreSleep
     :: forall ctx s t k.
         ( IsWalletCtx s t k ctx
-        , HasBlockchainParameters t ctx
         , HasNetworkLayer t ctx
         , HasLogger ctx
         , HasDBLayer s t k ctx
@@ -750,10 +726,7 @@ restoreSleep
     -> BlockHeader
     -> IO ()
 restoreSleep ctx wid localTip = do
-    -- NOTE: Conversion functions will treat 'NominalDiffTime' as
-    -- picoseconds
-    let halfSlotLengthDelay = fromEnum s `div` 2000000
-    threadDelay halfSlotLengthDelay
+    threadDelay twoSeconds
     runExceptT (networkTip nw) >>= \case
         Left e -> do
             logError tr $ "Failed to get network tip: " +|| e ||+ ""
@@ -761,10 +734,9 @@ restoreSleep ctx wid localTip = do
         Right nodeTip ->
             restoreStep @ctx @s @t @k ctx wid (localTip, nodeTip)
   where
-    bp = ctx ^. blockchainParameters @t
     nw = ctx ^. networkLayer @t
     tr = ctx ^. logger
-    SlotLength s = bp ^. #getSlotLength
+    twoSeconds = 2000000 -- FIXME: Leave that to the networking layer
 
 -- | Apply the given blocks to the wallet and update the wallet state,
 -- transaction history and corresponding metadata.
@@ -772,7 +744,6 @@ restoreBlocks
     :: forall ctx s t k.
         ( IsWalletCtx s t k ctx
         , HasLogger ctx
-        , HasBlockchainParameters t ctx
         , HasDBLayer s t k ctx
         , DefineTx t
         )
@@ -794,13 +765,14 @@ restoreBlocks ctx wid blocks (nodeTip, Quantity nodeHeight) = do
     -- there and they all succeed, or it's not and they all fail.
     DB.withLock db $ do
         (wallet, meta) <- readWallet @ctx @s @t @k ctx wid
+        let bp = blockchainParameters wallet
         let (txs, cps) = NE.unzip $ applyBlocks @s @t blocks wallet
         let newTxs = fold txs
 
         let calculateMetadata :: SlotId -> WalletMetadata
             calculateMetadata slot = meta { status = status' }
               where
-                progress' = slotRatio epochLength slot nodeTip
+                progress' = slotRatio (bp ^. #getEpochLength) slot nodeTip
                 status' =
                     if progress' == maxBound
                     then Ready
@@ -809,7 +781,7 @@ restoreBlocks ctx wid blocks (nodeTip, Quantity nodeHeight) = do
         -- NOTE:
         -- We cast `k` and `nodeHeight` to 'Integer' since at a given point
         -- in time, `k` may be greater than the tip.
-        let (Quantity k) = epochStability
+        let (Quantity k) = bp ^. #getEpochStability
         let bhUnstable :: Integer
             bhUnstable = fromIntegral nodeHeight - fromIntegral k
         forM_ (NE.init cps) $ \cp -> do
@@ -841,11 +813,8 @@ restoreBlocks ctx wid blocks (nodeTip, Quantity nodeHeight) = do
             logDebug tr $ "transactions: "
                 <> pretty (blockListF (snd <$> Map.elems newTxs))
   where
-    bp = ctx ^. blockchainParameters @t
     db = ctx ^. dbLayer @s @t @k
     tr = ctx ^. logger
-    epochLength = bp ^. #getEpochLength
-    epochStability = bp ^. #getEpochStability
 
 {-------------------------------------------------------------------------------
                                     Address
@@ -914,7 +883,6 @@ feeOpts tl feePolicy = FeeOptions
 createUnsignedTx
     :: forall ctx s t k e.
         ( IsWalletCtx s t k ctx
-        , HasBlockchainParameters t ctx
         , HasTransactionLayer t k ctx
         , HasLogger ctx
         , HasDBLayer s t k ctx
@@ -928,26 +896,24 @@ createUnsignedTx
 createUnsignedTx ctx wid recipients = do
     (wal, _) <- withExceptT ErrCreateUnsignedTxNoSuchWallet $
         readWallet @ctx @s @t @k ctx wid
+    let bp = blockchainParameters wal
     let utxo = availableUTxO @s @t wal
-    (sel, utxo') <- withExceptT ErrCreateUnsignedTxCoinSelection $
-        CoinSelection.random (coinSelOpts tl txMaxSize) recipients utxo
+    (sel, utxo') <- withExceptT ErrCreateUnsignedTxCoinSelection $ do
+        let opts = coinSelOpts tl (bp ^. #getTxMaxSize)
+        CoinSelection.random opts recipients utxo
     liftIO . logInfo tr $ "Coins selected for transaction: \n"+| sel |+""
     withExceptT ErrCreateUnsignedTxFee $ do
         debug tr "Coins after fee adjustment"
-            =<< adjustForFee (feeOpts tl feePolicy) utxo' sel
+            =<< adjustForFee (feeOpts tl (bp ^. #getFeePolicy)) utxo' sel
   where
     tl = ctx ^. transactionLayer @t @k
     tr = ctx ^. logger
-    bp = ctx ^. blockchainParameters @t
-    txMaxSize = bp ^. #getTxMaxSize
-    feePolicy = bp ^. #getFeePolicy
 
 -- | Estimate a transaction fee by automatically selecting inputs from
 -- the wallet to cover the requested outputs.
 estimateTxFee
     :: forall ctx s t k e.
         ( IsWalletCtx s t k ctx
-        , HasBlockchainParameters t ctx
         , HasTransactionLayer t k ctx
         , HasDBLayer s t k ctx
         , DefineTx t
@@ -960,16 +926,15 @@ estimateTxFee
 estimateTxFee ctx wid recipients = do
     (wal, _) <- withExceptT ErrEstimateTxFeeNoSuchWallet $
         readWallet @ctx @s @t @k ctx wid
+    let bp = blockchainParameters wal
     let utxo = availableUTxO @s @t wal
-    (sel, _utxo') <- withExceptT ErrEstimateTxFeeCoinSelection $
-        CoinSelection.random (coinSelOpts tl txMaxSize) recipients utxo
-    let estimateFee = computeFee feePolicy . estimateSize tl
+    (sel, _utxo') <- withExceptT ErrEstimateTxFeeCoinSelection $ do
+        let opts = coinSelOpts tl (bp ^. #getTxMaxSize)
+        CoinSelection.random opts recipients utxo
+    let estimateFee = computeFee (bp ^. #getFeePolicy) . estimateSize tl
     pure $ estimateFee sel
   where
     tl = ctx ^. transactionLayer @t @k
-    bp = ctx ^. blockchainParameters @t
-    txMaxSize = bp ^. #getTxMaxSize
-    feePolicy = bp ^. #getFeePolicy
 
 -- | Produce witnesses and construct a transaction from a given
 -- selection. Requires the encryption passphrase in order to decrypt
@@ -1068,7 +1033,6 @@ submitExternalTx ctx bytes = do
 listTransactions
     :: forall ctx s t k.
         ( IsWalletCtx s t k ctx
-        , HasBlockchainParameters t ctx
         , HasDBLayer s t k ctx
         , DefineTx t
         )
@@ -1081,17 +1045,27 @@ listTransactions
     -> SortOrder
     -> ExceptT ErrListTransactions IO [TransactionInfo]
 listTransactions ctx wid mStart mEnd order = do
-    maybe (pure []) listTransactionsWithinRange =<< getSlotRange
+    (wal, _) <- withExceptT ErrListTransactionsNoSuchWallet $
+        readWallet @ctx @s @t @k ctx wid
+    let tip = currentTip wal ^. #slotId
+    let sp = fromBlockchainParameters (blockchainParameters wal)
+    maybe (pure []) (listTransactionsWithinRange sp tip) =<< (getSlotRange sp)
   where
-    bp = ctx ^. blockchainParameters @t
     db = ctx ^. dbLayer @s @t @k
+
+    fromBlockchainParameters :: BlockchainParameters -> SlotParameters
+    fromBlockchainParameters bp = SlotParameters
+        (bp ^. #getEpochLength)
+        (bp ^. #getSlotLength)
+        (bp ^. #getGenesisBlockDate)
 
     -- Transforms the user-specified time range into a slot range. If the
     -- user-specified range terminates before the start of the blockchain,
     -- returns 'Nothing'.
     getSlotRange
-        :: ExceptT ErrListTransactions IO (Maybe (Range SlotId))
-    getSlotRange = case (mStart, mEnd) of
+        :: SlotParameters
+        -> ExceptT ErrListTransactions IO (Maybe (Range SlotId))
+    getSlotRange sp = case (mStart, mEnd) of
         (Just start, Just end) | start > end -> do
             let err = ErrStartTimeLaterThanEndTime start end
             throwE (ErrListTransactionsStartTimeLaterThanEndTime err)
@@ -1099,12 +1073,12 @@ listTransactions ctx wid mStart mEnd order = do
             pure $ slotRangeFromTimeRange sp $ Range mStart mEnd
 
     listTransactionsWithinRange
-        :: Range SlotId -> ExceptT ErrListTransactions IO [TransactionInfo]
-    listTransactionsWithinRange sr = do
-        (wal, _) <- withExceptT ErrListTransactionsNoSuchWallet $
-            readWallet @ctx @s @t @k ctx wid
-        let tip = currentTip wal ^. #slotId
-        liftIO $ assemble tip
+        :: SlotParameters
+        -> SlotId
+        -> Range SlotId
+        -> ExceptT ErrListTransactions IO [TransactionInfo]
+    listTransactionsWithinRange sp tip sr = do
+        liftIO $ assemble sp tip
             <$> DB.readTxHistory db (PrimaryKey wid) order sr
 
     -- This relies on DB.readTxHistory returning all necessary transactions
@@ -1112,10 +1086,11 @@ listTransactions ctx wid mStart mEnd order = do
     -- To reliably provide this information, it should be looked up when
     -- applying blocks, but that is future work (issue #573).
     assemble
-        :: SlotId
+        :: SlotParameters
+        -> SlotId
         -> [(Hash "Tx", (Tx t, TxMeta))]
         -> [TransactionInfo]
-    assemble tip txs = map mkTxInfo txs
+    assemble sp tip txs = map mkTxInfo txs
       where
         mkTxInfo (txid, (tx, meta)) = TransactionInfo
             { txInfoId = txid
@@ -1140,12 +1115,6 @@ listTransactions ctx wid mStart mEnd order = do
         -- slot. This is purely arbitrary and in practice, any time between
         -- the start of a slot and its end could be a valid candidate.
         txTime = slotStartTime sp
-
-    sp :: SlotParameters
-    sp = SlotParameters
-        (bp ^. #getEpochLength)
-        (bp ^. #getSlotLength)
-        (bp ^. #getGenesisBlockDate)
 
 {-------------------------------------------------------------------------------
                                   Key Store

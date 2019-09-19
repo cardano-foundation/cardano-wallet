@@ -1076,15 +1076,21 @@ slotRangeFromTimeRange sps (Range mStart mEnd) =
 
 -- | Duration of a single slot.
 newtype SlotLength = SlotLength NominalDiffTime
-    deriving (Show, Eq)
+    deriving (Show, Eq, Generic)
+
+instance NFData SlotLength
 
 -- | Number of slots in a single epoch
 newtype EpochLength = EpochLength Word16
-    deriving (Show, Eq)
+    deriving (Show, Eq, Generic)
+
+instance NFData EpochLength
 
 -- | Blockchain start time
 newtype StartTime = StartTime UTCTime
-    deriving (Show, Eq, Ord)
+    deriving (Show, Eq, Ord, Generic)
+
+instance NFData StartTime
 
 {-------------------------------------------------------------------------------
                                 Protocol Magic

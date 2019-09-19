@@ -8,12 +8,15 @@ module Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget
     , Tx (..)
     , block0
+    , genesisParameters
     ) where
 
 import Prelude
 
 import Cardano.Crypto.Wallet
     ( unXPub )
+import Cardano.Wallet
+    ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress (..), WalletKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
@@ -29,7 +32,11 @@ import Cardano.Wallet.Primitive.Types
     , DecodeAddress (..)
     , DefineTx
     , EncodeAddress (..)
+    , EpochLength (..)
+    , FeePolicy (..)
     , Hash (..)
+    , SlotLength (..)
+    , StartTime (..)
     , TxIn (..)
     , TxOut (..)
     , slotMinBound
@@ -40,8 +47,12 @@ import Data.Bifunctor
     ( bimap )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase, convertToBase )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text.Class
     ( TextDecodingError (..) )
+import Data.Time.Clock.POSIX
+    ( posixSecondsToUTCTime )
 import Fmt
     ( Buildable (..), blockListF' )
 import GHC.Generics
@@ -108,4 +119,14 @@ block0 = Block
         , prevBlockHash = Hash "genesis"
         }
     , transactions = []
+    }
+
+genesisParameters  :: BlockchainParameters
+genesisParameters = BlockchainParameters
+    { getGenesisBlockDate = StartTime $ posixSecondsToUTCTime 0
+    , getFeePolicy = LinearFee (Quantity 14) (Quantity 42)
+    , getSlotLength = SlotLength 1
+    , getEpochLength = EpochLength 21600
+    , getTxMaxSize = Quantity 8192
+    , getEpochStability = Quantity 2160
     }

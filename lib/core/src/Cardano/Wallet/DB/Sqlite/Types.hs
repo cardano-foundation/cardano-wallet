@@ -33,6 +33,7 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Direction (..)
     , EpochLength (..)
+    , FeePolicy
     , Hash (..)
     , SlotId (..)
     , TxStatus (..)
@@ -42,6 +43,8 @@ import Cardano.Wallet.Primitive.Types
     , fromFlatSlot
     , isValidCoin
     )
+import Control.Arrow
+    ( left )
 import Control.Monad
     ( (>=>) )
 import Data.Aeson
@@ -138,6 +141,17 @@ directionToBool Outgoing = False
 directionFromBool :: Bool -> Direction
 directionFromBool True = Incoming
 directionFromBool False = Outgoing
+
+----------------------------------------------------------------------------
+-- Fee Policy
+
+instance PersistField FeePolicy where
+    toPersistValue = toPersistValue . toText
+    fromPersistValue pv = fromPersistValue pv >>= left (const err) . fromText
+        where err = "not a valid value: " <> T.pack (show pv)
+
+instance PersistFieldSql FeePolicy where
+    sqlType _ = sqlType (Proxy @Text)
 
 ----------------------------------------------------------------------------
 -- WalletId
