@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -37,7 +38,11 @@ import Control.Concurrent
 import Control.Concurrent.Async
     ( async, cancel )
 import Control.Monad
-    ( unless )
+    ( when )
+import Control.Retry
+    ( constantDelay, limitRetriesByCumulativeDelay, retrying )
+import Data.Either
+    ( isLeft )
 import Data.Text.Class
     ( toText )
 import Test.Hspec
@@ -60,16 +65,27 @@ spec = do
                 (WalletName "My Wallet")
                 (mkSeqState @(HttpBridge 'Testnet) (xprv, mempty) minBound)
             unsafeRunExceptT $ W.restoreWallet wallet wid
-            threadDelay 2000000
-            tip <- slotId . currentTip . fst <$>
-                unsafeRunExceptT (W.readWallet wallet wid)
-            unless (tip > slotMinBound) $
-                expectationFailure ("The wallet tip is still " ++ show tip)
+
+            let policy = limitRetriesByCumulativeDelay
+                    (60 * second)
+                    (constantDelay (1 * second))
+            let shouldRetry _ = \case
+                    Left _ -> pure True
+                    Right _ -> pure False
+            let assertion _ = do
+                    tip <- slotId . currentTip . fst <$>
+                        unsafeRunExceptT (W.readWallet wallet wid)
+                    return $ if tip > slotMinBound
+                        then Right ()
+                        else Left ("The wallet tip is still " <> show tip)
+            result <- retrying policy shouldRetry assertion
+            when (isLeft result) $ expectationFailure (show result)
   where
     port = 1337
+    second = 1000*1000
     closeBridge (handle, _) = do
         cancel handle
-        threadDelay 1000000
+        threadDelay second
     startBridge = do
         handle <- async $ launch
             [ Command "cardano-http-bridge"
@@ -80,7 +96,7 @@ spec = do
                 (return ())
                 Inherit
             ]
-        threadDelay 1000000
+        threadDelay second
         db <- MVar.newDBLayer
         nl <- HttpBridge.newNetworkLayer @'Testnet port
         let tl = HttpBridge.newTransactionLayer @'Testnet @SeqKey
