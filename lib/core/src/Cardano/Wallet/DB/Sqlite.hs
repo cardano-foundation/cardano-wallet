@@ -10,6 +10,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -295,6 +296,7 @@ newDBLayer logConfig trace fp = do
               selectWallet wid >>= \case
                   Just _ -> Right <$> do
                       deleteCheckpoints @s wid Nothing
+                      deleteUTxOs wid
                       deleteTxMetas wid
                       deleteLooseTransactions
                       deleteWhere [PrivateKeyWalletId ==. wid]
@@ -369,7 +371,7 @@ newDBLayer logConfig trace fp = do
                       let (metas, txins, txouts) = flatTxHistory entities
                       putTxMetas metas
                       putTxs txins txouts
-                      softDeleteUTxO wid (zip (txMetaSlotId <$> metas) txins)
+                      softDeleteUTxO wid (txInBySlotId entities)
                       pure $ Right ()
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
@@ -690,12 +692,15 @@ deleteCheckpoints
     -> SqlPersistT IO ()
 deleteCheckpoints wid mSlot = do
     deleteWhere $
-        (UtxoWalletId ==. wid) :
-        [UtxoSlot ==. sid | Just sid <- [mSlot]]
-    deleteWhere $
         (CheckpointWalletId ==. wid) :
         [CheckpointSlot ==. sid | Just sid <- [mSlot]]
     deleteState @s wid mSlot -- clear state
+
+deleteUTxOs
+    :: W.WalletId
+    -> SqlPersistT IO ()
+deleteUTxOs wid =
+    deleteWhere [UtxoWalletId ==. wid]
 
 -- | Delete TxMeta values for a wallet.
 deleteTxMetas
@@ -790,8 +795,14 @@ softDeleteUTxO wid = mapM_ $ \(sid, txin) -> updateWhere
     [ UtxoWalletId ==. wid
     , UtxoInputId ==. txInputSourceTxId txin
     , UtxoInputIndex ==. txInputSourceIndex txin
+    , UtxoSlotSpent ==. Nothing
     ]
     [ UtxoSlotSpent =. Just sid ]
+
+-- | Group inputs by slotId they've been used
+txInBySlotId :: [(TxMeta, ([TxIn], [TxOut]))] -> [(W.SlotId, TxIn)]
+txInBySlotId =
+    concatMap $ \(meta, (txins, _)) -> (txMetaSlotId meta,) <$> txins
 
 selectTxs
     :: [TxId]
