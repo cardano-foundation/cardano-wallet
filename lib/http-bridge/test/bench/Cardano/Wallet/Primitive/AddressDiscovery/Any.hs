@@ -95,9 +95,9 @@ instance PersistState AnyAddressState where
             , DB.AnyAddressStateCheckpointSlot ==. sl
             ] []
         return (AnyAddressState s)
-
-    deleteState wid =
-        deleteWhere [ DB.AnyAddressStateWalletId ==. wid ]
+    deleteState wid mSlot = deleteWhere $
+        (DB.AnyAddressStateWalletId ==. wid) :
+        [DB.AnyAddressStateCheckpointSlot ==. sid | Just sid <- [mSlot]]
 
 initAnyState :: Text -> Double -> (WalletId, WalletName, AnyAddressState)
 initAnyState wname p = (walletId cfg, WalletName wname, cfg)

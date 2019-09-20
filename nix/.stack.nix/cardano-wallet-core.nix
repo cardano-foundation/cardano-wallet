@@ -96,6 +96,7 @@
             (hsPkgs.network)
             (hsPkgs.QuickCheck)
             (hsPkgs.quickcheck-state-machine)
+            (hsPkgs.persistent)
             (hsPkgs.random)
             (hsPkgs.servant)
             (hsPkgs.servant-server)

@@ -10,6 +10,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -79,8 +80,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), PersistKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
+import Cardano.Wallet.Primitive.Model
+    ( currentTip )
 import Cardano.Wallet.Primitive.Types
-    ( DefineTx (..) )
+    ( BlockHeader (..), DefineTx (..) )
 import Control.Concurrent.MVar
     ( newMVar, withMVar )
 import Control.DeepSeq
@@ -116,7 +119,7 @@ import Data.List.Split
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes, fromMaybe )
+    ( catMaybes, fromMaybe, isNothing )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -135,6 +138,7 @@ import Database.Persist.Sql
     , insert
     , insertMany_
     , insert_
+    , putMany
     , rawExecute
     , repsert
     , repsertMany
@@ -291,7 +295,8 @@ newDBLayer logConfig trace fp = do
               ExceptT $ runQuery $
               selectWallet wid >>= \case
                   Just _ -> Right <$> do
-                      deleteCheckpoints @s wid
+                      deleteCheckpoints @s wid Nothing
+                      deleteUTxOs wid
                       deleteTxMetas wid
                       deleteLooseTransactions
                       deleteWhere [PrivateKeyWalletId ==. wid]
@@ -310,9 +315,12 @@ newDBLayer logConfig trace fp = do
               ExceptT $ runQuery $
               selectWallet wid >>= \case
                   Just _ -> Right <$> do
-                      deleteCheckpoints @s wid -- clear out all checkpoints
-                      deleteLooseTransactions -- clear unused transaction data
-                      insertCheckpoint wid cp -- add this checkpoint
+                      -- remove checkpoint if already present to effectively
+                      -- support updating of checkpoint
+                      let (BlockHeader sid _) = currentTip cp
+                      deleteCheckpoints @s wid (Just sid)
+                      deleteLooseTransactions
+                      insertCheckpoint wid cp
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
         , readCheckpoint = \(PrimaryKey wid) ->
@@ -355,13 +363,15 @@ newDBLayer logConfig trace fp = do
               ExceptT $ runQuery $
               selectWallet wid >>= \case
                   Just _ -> do
-                      let (metas, txins, txouts) = mkTxHistory @t wid $ W.invariant
+                      let entities = mkTxHistory @t wid $ W.invariant
                               ("putTxHistory has been called with pending txs: "
                                 <> show txs)
                               txs
                               (not . any (W.isPending . snd))
+                      let (metas, txins, txouts) = flatTxHistory entities
                       putTxMetas metas
                       putTxs txins txouts
+                      softDeleteUTxO wid (txInBySlotId entities)
                       pure $ Right ()
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
@@ -524,7 +534,8 @@ mkCheckpointEntity wid wal =
         [ (W.txId @t tx, (tx, meta))
         | (tx, meta) <- Set.toList (W.getPending wal)
         ]
-    (metas, ins, outs) = mkTxHistory @t wid (Map.fromList pending)
+    (metas, ins, outs) = flatTxHistory $
+        mkTxHistory @t wid (Map.fromList pending)
     header = (W.currentTip wal)
     sl = header ^. #slotId
     parent = header ^. #prevBlockHash
@@ -564,21 +575,25 @@ mkTxHistory
     :: forall t. PersistTx t
     => W.WalletId
     -> Map (W.Hash "Tx") (W.Tx t, W.TxMeta)
-    -> ([TxMeta], [TxIn], [TxOut])
-mkTxHistory wid txs = (map (uncurry (mkTxMetaEntity wid)) metas, ins, outs)
-  where
-    pairs = Map.toList txs
-    metas = fmap snd <$> pairs
-    hist = fmap fst <$> pairs
-    (ins, outs) = mkTxInputsOutputs @t hist
+    -> [(TxMeta, ([TxIn], [TxOut]))]
+mkTxHistory wid txs =
+    [ (mkTxMetaEntity wid txid meta, mkTxInputsOutputs @t (txid, tx))
+    | (txid, (tx, meta)) <- Map.toList txs ]
+
+-- | Make flat lists of entities from the result of 'mkTxHistory'.
+flatTxHistory :: [(TxMeta, ([TxIn], [TxOut]))] -> ([TxMeta], [TxIn], [TxOut])
+flatTxHistory entities =
+    ( map fst entities
+    , concatMap (fst . snd) entities
+    , concatMap (snd. snd) entities )
 
 mkTxInputsOutputs
     :: forall t. PersistTx t
-    => [(W.Hash "Tx", W.Tx t)]
+    => (W.Hash "Tx", W.Tx t)
     -> ([TxIn], [TxOut])
-mkTxInputsOutputs txs =
-    ( concatMap (dist mkTxIn . ordered (resolvedInputs @t)) txs
-    , concatMap (dist mkTxOut . ordered (W.outputs @t)) txs )
+mkTxInputsOutputs tx =
+    ( (dist mkTxIn . ordered (resolvedInputs @t)) tx
+    , (dist mkTxOut . ordered (W.outputs @t)) tx )
   where
     mkTxIn tid (ix, (txIn, amt)) = TxIn
         { txInputTxId = TxId tid
@@ -664,18 +679,28 @@ insertCheckpoint wid cp = do
     insert_ cp'
     putTxMetas metas
     putTxs ins outs
-    dbChunked insertMany_ utxo
+    dbChunked putMany utxo
     insertState (wid, (W.currentTip cp) ^. #slotId) (W.getState cp)
 
--- | Delete all checkpoints associated with a wallet.
+-- | Delete one or all checkpoints associated with a wallet. If a slot is
+-- provided, it will only delete that checkpoint. Otherwise, it will remove all
+-- checkpoints.
 deleteCheckpoints
     :: forall s. PersistState s
     => W.WalletId
+    -> Maybe W.SlotId
     -> SqlPersistT IO ()
-deleteCheckpoints wid = do
+deleteCheckpoints wid mSlot = do
+    deleteWhere $
+        (CheckpointWalletId ==. wid) :
+        [CheckpointSlot ==. sid | Just sid <- [mSlot]]
+    deleteState @s wid mSlot -- clear state
+
+deleteUTxOs
+    :: W.WalletId
+    -> SqlPersistT IO ()
+deleteUTxOs wid =
     deleteWhere [UtxoWalletId ==. wid]
-    deleteWhere [CheckpointWalletId ==. wid]
-    deleteState @s wid -- clear state
 
 -- | Delete TxMeta values for a wallet.
 deleteTxMetas
@@ -752,11 +777,32 @@ selectLatestCheckpoint wid = fmap entityVal <$>
 selectUTxO
     :: Checkpoint
     -> SqlPersistT IO [UTxO]
-selectUTxO (Checkpoint wid sl _parent _bh) = fmap entityVal <$>
+selectUTxO (Checkpoint wid _sl _parent _bh) = fmap entityVal <$>
     selectList
         [ UtxoWalletId ==. wid
-        , UtxoSlot ==. sl
+        , UtxoSlotSpent ==. Nothing
         ] []
+
+-- Mark UTxOs known as spent because used in a transaction. When inserting new
+-- checkpoints, we do not delete UTxOs but instead, mark them with the slot at
+-- which they've been spent. As a consequence, we can easily recover them in
+-- the event of rollbacks. This is a kind of soft-delete.
+--
+-- Note that we don't care whether the UTxOs is ours or not since we only keep
+-- track of UTxOs that are ours anyway. So, we mark all inputs as consumed,
+softDeleteUTxO :: W.WalletId -> [(W.SlotId, TxIn)] -> SqlPersistT IO ()
+softDeleteUTxO wid = mapM_ $ \(sid, txin) -> updateWhere
+    [ UtxoWalletId ==. wid
+    , UtxoInputId ==. txInputSourceTxId txin
+    , UtxoInputIndex ==. txInputSourceIndex txin
+    , UtxoSlotSpent ==. Nothing
+    ]
+    [ UtxoSlotSpent =. Just sid ]
+
+-- | Group inputs by slotId they've been used
+txInBySlotId :: [(TxMeta, ([TxIn], [TxOut]))] -> [(W.SlotId, TxIn)]
+txInBySlotId =
+    concatMap $ \(meta, (txins, _)) -> (txMetaSlotId meta,) <$> txins
 
 selectTxs
     :: [TxId]
@@ -779,7 +825,7 @@ selectTxHistory wid order conditions = do
         ((TxMetaWalletId ==. wid) : conditions) sortOpt
     let txids = map txMetaTxId metas
     (ins, outs) <- selectTxs txids
-    pure $ txHistoryFromEntity @t metas ins outs
+    return $ txHistoryFromEntity @t metas ins outs
   where
     -- Note: there are sorted indices on these columns.
     -- The secondary sort by TxId is to make the ordering stable
@@ -813,8 +859,8 @@ class PersistState s where
     insertState :: (W.WalletId, W.SlotId) -> s -> SqlPersistT IO ()
     -- | Load the state for a checkpoint.
     selectState :: (W.WalletId, W.SlotId) -> SqlPersistT IO (Maybe s)
-    -- | Remove the state for all checkpoints of a wallet.
-    deleteState :: W.WalletId -> SqlPersistT IO ()
+    -- | Remove the state for one or all checkpoints of a wallet.
+    deleteState :: W.WalletId -> Maybe W.SlotId -> SqlPersistT IO ()
 
 class DefineTx t => PersistTx t where
     resolvedInputs :: Tx t -> [(W.TxIn, Maybe W.Coin)]
@@ -863,12 +909,17 @@ instance W.KeyToAddress t Seq.SeqKey => PersistState (Seq.SeqState t) where
         pendingChangeIxs <- lift $ selectSeqStatePendingIxs (entityKey stc)
         pure $ Seq.SeqState intPool extPool pendingChangeIxs
 
-    deleteState wid = do
-        cpid <- selectList [ SeqStateCheckpointWalletId ==. wid ] []
+    deleteState wid mSlot = do
+        let cpq = (SeqStateCheckpointWalletId ==. wid) :
+                [SeqStateCheckpointSlot ==. sid | Just sid <- [mSlot]]
+        cpid <- selectList cpq []
         deleteWhere [ SeqStatePendingIxCheckpointId <-. fmap entityKey cpid ]
-        deleteCascadeWhere [ SeqStateCheckpointWalletId ==. wid ]
-        deleteWhere [ SeqStateAddressWalletId ==. wid ]
-        deleteWhere [ SeqStateWalletId ==. wid ]
+        deleteCascadeWhere cpq
+        deleteWhere $
+            (SeqStateAddressWalletId ==. wid) :
+            [SeqStateAddressSlot ==. sid | Just sid <- [mSlot]]
+        when (isNothing mSlot) $
+            deleteWhere [SeqStateWalletId ==. wid]
 
 insertAddressPool
     :: forall t c. (Typeable c)
@@ -955,12 +1006,19 @@ instance PersistState (Rnd.RndState t) where
             , gen = rndStateCheckpointGen (entityVal stc)
             }
 
-    deleteState wid = do
-        cpid <- fmap entityKey <$> selectList [ RndStateCheckpointWalletId ==. wid ] []
+    deleteState wid mSlot = do
+        let cpq = (RndStateCheckpointWalletId ==. wid) :
+                [RndStateCheckpointSlot ==. sid | Just sid <- [mSlot]]
+        cpid <- fmap entityKey <$> selectList cpq []
         deleteWhere [ RndStatePendingAddressCheckpointId <-. cpid ]
-        deleteWhere [ RndStateCheckpointWalletId ==. wid ]
-        deleteWhere [ RndStateAddressWalletId ==. wid ]
-        deleteWhere [ RndStateWalletId ==. wid ]
+        deleteWhere $
+            (RndStateCheckpointWalletId ==. wid) :
+            [RndStateCheckpointSlot ==. sid | Just sid <- [mSlot]]
+        deleteWhere $
+            (RndStateAddressWalletId ==. wid) :
+            [RndStateAddressSlot ==. sid | Just sid <- [mSlot]]
+        when (isNothing mSlot) $
+            deleteWhere [RndStateWalletId ==. wid]
 
 insertRndStateAddresses
     :: W.WalletId

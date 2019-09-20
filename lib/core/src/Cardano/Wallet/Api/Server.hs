@@ -467,12 +467,12 @@ transactions
     => ctx
     -> Server (Transactions t)
 transactions ctx =
-    createTransaction ctx
+    postTransaction ctx
     :<|> listTransactions ctx
     :<|> postTransactionFee ctx
     :<|> postExternalTransaction ctx
 
-createTransaction
+postTransaction
     :: forall ctx s t k.
         ( DefineTx t
         , Buildable (ErrValidateSelection t)
@@ -485,7 +485,7 @@ createTransaction
     -> ApiT WalletId
     -> PostTransactionData t
     -> Handler (ApiTransaction t)
-createTransaction ctx (ApiT wid) body = do
+postTransaction ctx (ApiT wid) body = do
     let outs = coerceCoin <$> (body ^. #payments)
     let pwd = getApiT $ body ^. #passphrase
     selection <- liftHandler $ W.createUnsignedTx ctx wid outs

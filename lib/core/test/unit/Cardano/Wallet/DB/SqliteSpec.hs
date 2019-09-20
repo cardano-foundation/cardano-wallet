@@ -1,10 +1,25 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+
+-- |
+-- Copyright: © 2018-2019 IOHK
+-- License: Apache-2.0
+--
+-- DBLayer tests for SQLite implementation.
+--
+-- To test individual properties in GHCi, use the shorthand type aliases. For
+-- example:
+--
+-- >>> db <- newMemoryDBLayer :: IO TestDBSeq
+-- >>> quickCheck $ prop_sequential db
 
 module Cardano.Wallet.DB.SqliteSpec
     ( spec
@@ -31,7 +46,7 @@ import Cardano.Crypto.Wallet
 import Cardano.Wallet.DB
     ( DBLayer (..), ErrWalletAlreadyExists (..), PrimaryKey (..), cleanDB )
 import Cardano.Wallet.DB.Sqlite
-    ( PersistState, PersistTx, newDBLayer, withDBLayer )
+    ( PersistState, PersistTx, SqliteContext, newDBLayer, withDBLayer )
 import Cardano.Wallet.DB.StateMachine
     ( prop_parallel, prop_sequential )
 import Cardano.Wallet.DBSpec
@@ -123,6 +138,8 @@ import Test.Hspec
     , shouldThrow
     , xit
     )
+import Test.QuickCheck
+    ( Property )
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.Aggregated as CM
@@ -143,21 +160,21 @@ spec = do
     connectionSpec
 
 sqliteSpec :: Spec
-sqliteSpec = withDB (fst <$> newMemoryDBLayer) $ do
+sqliteSpec = withDB newMemoryDBLayer $ do
     describe "Sqlite Simple tests (SeqState)" $
         simpleSpec testCpSeq
     describe "Sqlite" dbPropertyTests
     describe "Sqlite State machine tests" $ do
-        it "Sequential" prop_sequential
+        it "Sequential" (prop_sequential :: TestDBSeq -> Property)
         xit "Parallel" prop_parallel
 
 sqliteSpecRnd :: Spec
-sqliteSpecRnd =
-    withDB (fst <$> newMemoryDBLayer @(RndState DummyTarget) @DummyTarget @RndKey) $ do
+sqliteSpecRnd = withDB newMemoryDBLayer $ do
         describe "Sqlite simple (RndState)" $
             simpleSpec testCpRnd
         describe "Sqlite State machine (RndState)" $ do
-            it "Sequential state machine tests" prop_sequential
+            it "Sequential state machine tests"
+                (prop_sequential :: TestDBRnd -> Property)
 
 simpleSpec
     :: forall s k.
@@ -216,21 +233,21 @@ simpleSpec testCp = do
             readCheckpoint db testPk `shouldReturn` Just testCp
 
 loggingSpec :: Spec
-loggingSpec = withLoggingDB $ do
+loggingSpec = withLoggingDB @(SeqState DummyTarget) @DummyTarget @SeqKey $ do
     describe "Sqlite query logging" $ do
-        it "should log queries at DEBUG level" $ \(db, getLogs) -> do
+        it "should log queries at DEBUG level" $ \(getLogs, db) -> do
             unsafeRunExceptT $ createWallet db testPk testCpSeq testMetadata
             logs <- logMessages <$> getLogs
             logs `shouldHaveLog` (Debug, "INSERT")
 
-        it "should not log query parameters" $ \(db, getLogs) -> do
+        it "should not log query parameters" $ \(getLogs, db) -> do
             unsafeRunExceptT $ createWallet db testPk testCpSeq testMetadata
             let walletName = T.unpack $ coerce $ name testMetadata
             msgs <- T.unlines . map snd . logMessages <$> getLogs
             T.unpack msgs `shouldNotContain` walletName
 
     describe "Sqlite observables" $ do
-        it "should measure query timings" $ \(db, getLogs) -> do
+        it "should measure query timings" $ \(getLogs, db) -> do
             let count = 5
             replicateM_ count $ listWallets db
             -- Commented out until this is fixed:
@@ -269,14 +286,23 @@ withTestDBFile action expectations = do
         withDBLayer logConfig trace (Just fp) action
         expectations fp
 
+type TestDBSeq = DBLayer IO (SeqState DummyTarget) DummyTarget SeqKey
+type TestDBRnd = DBLayer IO (RndState DummyTarget) DummyTarget RndKey
+
+-- | Set up a DBLayer for testing, with the command context, and the logging
+-- variable.
 newMemoryDBLayer
     :: (IsOurs s, NFData s, Show s, PersistState s, PersistTx t, PersistKey k)
-    => IO (DBLayer IO s t k, TVar [LogObject Text])
-newMemoryDBLayer = do
+    => IO (DBLayer IO s t k)
+newMemoryDBLayer = snd . snd <$> newMemoryDBLayer'
+
+newMemoryDBLayer'
+    :: (IsOurs s, NFData s, Show s, PersistState s, PersistTx t, PersistKey k)
+    => IO (TVar [LogObject Text], (SqliteContext, DBLayer IO s t k))
+newMemoryDBLayer' = do
     logConfig <- testingLogConfig
-    logs <- newTVarIO []
-    db <- snd <$> newDBLayer logConfig (traceInTVarIO logs) Nothing
-    pure (db, logs)
+    logVar <- newTVarIO []
+    (logVar, ) <$> newDBLayer logConfig (traceInTVarIO logVar) Nothing
 
 testingLogConfig :: IO CM.Configuration
 testingLogConfig = do
@@ -311,13 +337,16 @@ testingLogConfig = do
 
     pure logConfig
 
-withLoggingDB :: SpecWith (DBLayer IO (SeqState DummyTarget) DummyTarget SeqKey, IO [LogObject Text]) -> Spec
-withLoggingDB = beforeAll newMemoryDBLayer . beforeWith clean
+withLoggingDB
+    :: (IsOurs s, NFData s, Show s, PersistState s, PersistTx t, PersistKey k)
+    => SpecWith (IO [LogObject Text], DBLayer IO s t k)
+    -> Spec
+withLoggingDB = beforeAll newMemoryDBLayer' . beforeWith clean
   where
-    clean (db, logs) = do
+    clean (logs, (_, db)) = do
         cleanDB db
         atomically $ writeTVar logs []
-        pure (db, readTVarIO logs)
+        pure (readTVarIO logs, db)
 
 logMessages :: [LogObject a] -> [(Severity, a)]
 logMessages = mapMaybe getMessage
