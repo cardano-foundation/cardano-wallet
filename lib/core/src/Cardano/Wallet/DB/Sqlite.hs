@@ -126,6 +126,8 @@ import Data.Text
     ( Text )
 import Data.Typeable
     ( Typeable )
+import Database.Persist.Class
+    ( toPersistValue )
 import Database.Persist.Sql
     ( Entity (..)
     , Filter
@@ -680,7 +682,31 @@ insertCheckpoint wid cp = do
     putTxMetas metas
     putTxs ins outs
     dbChunked putMany utxo
+    pruneUTxO
     insertState (wid, (W.currentTip cp) ^. #slotId) (W.getState cp)
+  where
+    -- We don't store multiple versions of UTxOs in the database. However, when
+    -- we insert many UTxOs with `putMany`, we may end up duplicating some rows,
+    -- only with different `slot` column. In such case, we want to discard the
+    -- most recent insert and keep only the oldest one.
+    --
+    -- Alternatively, we could fetch the existing utxo, traverse the new one,
+    -- and remove any duplicates before inserting into the database.
+    pruneUTxO :: SqlPersistT IO ()
+    pruneUTxO = rawExecute
+        "DELETE FROM utxo \
+        \WHERE (wallet_id, input_tx_id, input_index, slot) \
+        \IN ( \
+            \SELECT wallet_id, input_tx_id, input_index, sup \
+            \FROM ( \
+                \SELECT wallet_id, input_tx_id, input_index, max(slot) AS sup, min(slot) AS inf \
+                \FROM utxo \
+                \WHERE wallet_id=? \
+                \GROUP BY wallet_id, input_tx_id, input_index \
+                \HAVING sup > inf \
+            \)\
+        \)"
+        [toPersistValue wid]
 
 -- | Delete one or all checkpoints associated with a wallet. If a slot is
 -- provided, it will only delete that checkpoint. Otherwise, it will remove all
