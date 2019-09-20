@@ -263,8 +263,7 @@ spec = do
             genConfigFile stateDir 8081 baseUrl `shouldBe` [aesonQQ|{
                 "storage": "/state-dir/chain",
                 "rest": {
-                    "listen": "127.0.0.1:8080",
-                    "prefix": "api"
+                    "listen": "127.0.0.1:8080"
                 },
                 "p2p": {
                     "trusted_peers": [],
