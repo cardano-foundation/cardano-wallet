@@ -19,6 +19,8 @@ import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge, byronBlockchainParameters )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..) )
+import Cardano.Wallet.Network
+    ( defaultRetryPolicy, waitForConnection )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..), digest, publicKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
@@ -98,9 +100,9 @@ spec = do
                 (return ())
                 Inherit
             ]
-        threadDelay second
         db <- MVar.newDBLayer
         nl <- HttpBridge.newNetworkLayer @'Testnet port
+        waitForConnection nl defaultRetryPolicy
         let tl = HttpBridge.newTransactionLayer @'Testnet @SeqKey
         let bp = byronBlockchainParameters
         (handle,) <$>
