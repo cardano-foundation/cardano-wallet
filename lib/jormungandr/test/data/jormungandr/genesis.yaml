@@ -3070,9 +3070,9 @@ initial:
   #
   # An account address:
   - fund:
-      - address: ca1s5nwh0ur9qj4tg5hx334ht9zvqwn9ddz8rv5acwdl997zmqpswdujuwqu9j
+      - address: ca1skka0smepa4cdaawdwk39uflc7ty7kxxjkmen243enul8a9zn97kx3rkucl
         value: 1
   # Stake pool registration certificate:
-  - cert: cert1qgqqqqqqqqqqqqqqqqqqq0p5avfqpwp63q30nxmgqvev59g6evy8a4ycxqzy499kvm843acyr54v59yd5m49e2gp6lj0x7u2pemh86wqva3wcch6zxncynmwremehyun442qzqzqtx9jhqgyz9889rzqehtdk7lwfk5pvspzc4098w5purwzt6kfvglzx5xq50lq8k9raslsz5cgq8jnpn5vkt5khc646ens4s8gsl2cvzcm00utd
+  - cert: cert1qvqqqqqqqqqqqqqqqqqqq0p5avfqqqqqqqqqqqqqqyqehmaljm8mtcsxx7940fg93hwme9a7v6pwwqd3g48fqahczln5cdls5vfl87a3v8r64xzk3xwcdf5r3r7ky8s56mr4xv2c0x832s7zx4knrdxy352dk8zt93jgsr8zmmscm85xkw5dmz5sjzg6m4ydgxwp5q75mkw
   # This certificate delegates the stake at the account address to the stake pool
-  - cert: cert1qynwh0ur9qj4tg5hx334ht9zvqwn9ddz8rv5acwdl997zmqpswdujlt5nm6zg5rlhq876rfz382nt220dpc2m5x03vm5elnv4crcxg8vqyqypgte4gh3nmvl6e5kt6t3pm5tsalp4lfrgahkpqwn6vwy3y55d9x7du3lxj4ytew8f6m22ldn6p7vdm0hxmw8kmze9dj590jk5qgym5zsthpvx3
+  - cert: cert1qxka0smepa4cdaawdwk39uflc7ty7kxxjkmen243enul8a9zn97k8k3jy5ps3k6q9pfyjrkatuy7jl5yadmwafktvp62fgj6e4qw5rajs4suxt

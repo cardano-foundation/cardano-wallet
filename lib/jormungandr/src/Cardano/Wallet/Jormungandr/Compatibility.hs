@@ -214,7 +214,7 @@ instance KnownNetwork n => DecodeAddress (Jormungandr n) where
                 <> B8.unpack (BS.pack [discriminant])
                 <> "."
 
--- | Generate a configuration file for Jörmungandr@0.3.1
+-- | Generate a configuration file for Jörmungandr@0.3.999
 genConfigFile
     :: FilePath
     -> Int
