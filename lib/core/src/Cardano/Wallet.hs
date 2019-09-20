@@ -209,6 +209,8 @@ import Control.Concurrent.MVar
     ( MVar, modifyMVar_, newMVar )
 import Control.DeepSeq
     ( NFData )
+import Control.Exception
+    ( AsyncException (..), SomeException, asyncExceptionFromException, catch )
 import Control.Monad
     ( forM, forM_, when )
 import Control.Monad.IO.Class
@@ -670,14 +672,21 @@ restoreWallet ctx wid = do
     let workerName = "worker." <> T.take 8 (toText wid)
     let workerCtx = ctx & logger .~ appendName workerName tr
     liftIO $ logInfo tr $ "Restoring wallet "+| wid |+"..."
-    worker <- liftIO $ forkIO $ do
-        runExceptT (networkTip nw) >>= \case
-            Left e -> do
-                logError tr $ "Failed to get network tip: " +|| e ||+ ""
-                restoreSleep @ctx @s @t @k workerCtx wid (currentTip cp)
-            Right tip -> do
-                restoreStep @ctx @s @t @k workerCtx wid (currentTip cp, tip)
-    liftIO $ registerWorker re (wid, worker)
+    let worker = do
+            runExceptT (networkTip nw) >>= \case
+                Left e -> do
+                    logError tr $ "Failed to get network tip: " +|| e ||+ ""
+                    restoreSleep @ctx @s @t @k workerCtx wid (currentTip cp)
+                Right tip -> do
+                    restoreStep @ctx @s @t @k workerCtx wid (currentTip cp, tip)
+    let onError e = case asyncExceptionFromException e of
+            Just ThreadKilled ->
+                logNotice tr "Worker exited: killed by parent."
+            Just UserInterrupt ->
+                logNotice tr "Worker exited: killed by user."
+            _ ->
+                logError tr $ "Worker exited unexpectedly: " +|| e ||+ ""
+    liftIO $ registerWorker re wid worker onError
   where
     nw = ctx ^. networkLayer @t
     tr = ctx ^. logger
@@ -1203,8 +1212,17 @@ newtype WorkerRegistry = WorkerRegistry (MVar (Map WalletId ThreadId))
 newRegistry :: IO WorkerRegistry
 newRegistry = WorkerRegistry <$> newMVar mempty
 
-registerWorker :: WorkerRegistry -> (WalletId, ThreadId) -> IO ()
-registerWorker (WorkerRegistry mvar) (wid, threadId) =
+registerWorker
+    :: WorkerRegistry
+    -> WalletId
+        -- ^ Corresponding wallet
+    -> IO ()
+        -- ^ Action
+    -> (SomeException -> IO ())
+        -- ^ On exit
+    -> IO ()
+registerWorker (WorkerRegistry mvar) wid io handler = do
+    threadId <- forkIO $ io `catch` handler
     modifyMVar_ mvar (pure . Map.insert wid threadId)
 
 cancelWorker :: WorkerRegistry -> WalletId -> IO ()

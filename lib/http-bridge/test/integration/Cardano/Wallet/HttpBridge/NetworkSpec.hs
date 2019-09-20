@@ -218,7 +218,7 @@ spec = do
                 Inherit
             ]
         bridge <- HttpBridge.newNetworkLayer @'Testnet port
-        threadDelay $ 1 * second
+        waitForConnection bridge defaultRetryPolicy
         return (handle, bridge, port)
     second = 1000*1000
 
