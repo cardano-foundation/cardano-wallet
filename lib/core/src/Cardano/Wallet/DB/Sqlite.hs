@@ -10,10 +10,12 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Redundant flip" #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -377,7 +379,6 @@ newDBLayer logConfig trace fp = do
                       let (metas, txins, txouts) = flatTxHistory entities
                       putTxMetas metas
                       putTxs txins txouts
-                      softDeleteUTxO wid (txInBySlotId entities)
                       pure $ Right ()
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
@@ -432,7 +433,7 @@ startSqliteBackend logConfig trace fp = do
         runQuery cmd = withMVar lock $ const $ observe $ runSqlConn cmd backend
     migrations <- runQuery $ runMigrationSilent migrateAll
     dbLog trace $ MsgMigrations (length migrations)
-    runQuery addIndices
+    runQuery addIndices *> runQuery createViews
     pure $ SqliteContext backend runQuery fp trace
 
 createSqliteBackend
@@ -465,6 +466,17 @@ addIndices = mapM_ (`rawExecute` [])
     ]
   where
     createIndex name on = "CREATE INDEX IF NOT EXISTS " <> name <> " ON " <> on
+
+createViews :: SqlPersistT IO ()
+createViews = mapM_ (`rawExecute` [])
+    [ createView "utxo_dups"
+        "SELECT wallet_id, input_tx_id, input_index, max(slot) AS sup, min(slot) AS inf \
+        \FROM utxo \
+        \GROUP BY wallet_id, input_tx_id, input_index \
+        \HAVING sup > inf"
+    ]
+  where
+    createView name as = "CREATE VIEW IF NOT EXISTS " <> name <> " AS " <> as
 
 {-------------------------------------------------------------------------------
            Conversion between Persistent table types and wallet types
@@ -716,32 +728,40 @@ insertCheckpoint wid cp = do
     insert_ cp'
     putTxMetas metas
     putTxs ins outs
-    dbChunked putMany utxo
-    pruneUTxO
+    putUTxOs (currentTip cp ^. #slotId) utxo
     insertState (wid, (W.currentTip cp) ^. #slotId) (W.getState cp)
   where
     -- We don't store multiple versions of UTxOs in the database. However, when
     -- we insert many UTxOs with `putMany`, we may end up duplicating some rows,
     -- only with different `slot` column. In such case, we want to discard the
     -- most recent insert and keep only the oldest one.
-    --
-    -- Alternatively, we could fetch the existing utxo, traverse the new one,
-    -- and remove any duplicates before inserting into the database.
-    pruneUTxO :: SqlPersistT IO ()
-    pruneUTxO = rawExecute
-        "DELETE FROM utxo \
-        \WHERE (wallet_id, input_tx_id, input_index, slot) \
-        \IN ( \
-            \SELECT wallet_id, input_tx_id, input_index, sup \
-            \FROM ( \
-                \SELECT wallet_id, input_tx_id, input_index, max(slot) AS sup, min(slot) AS inf \
-                \FROM utxo \
+    putUTxOs :: W.SlotId -> [UTxO] -> SqlPersistT IO ()
+    putUTxOs slot utxos = do
+        -- 1. Mark all existing UTxOs as spent
+        updateWhere
+            [ UtxoWalletId ==. wid, UtxoSlotSpent ==. Nothing ]
+            [ UtxoSlotSpent =. Just slot ]
+        -- 2. Put all new UTxOs as unspent
+        dbChunked putMany utxos
+        -- 3. Mark as unspent every UTxO that exists twice
+        flip rawExecute [toPersistValue wid]
+            "UPDATE utxo \
+            \SET slot_spent=null \
+            \WHERE (wallet_id, input_tx_id, input_index, slot) \
+            \IN ( \
+                \SELECT wallet_id, input_tx_id, input_index, inf \
+                \FROM utxo_dups \
                 \WHERE wallet_id=? \
-                \GROUP BY wallet_id, input_tx_id, input_index \
-                \HAVING sup > inf \
-            \)\
-        \)"
-        [toPersistValue wid]
+            \)"
+        -- 4. Remove all duplicates UTxO, keep lowest slot id
+        flip rawExecute [toPersistValue wid]
+            "DELETE FROM utxo \
+            \WHERE (wallet_id, input_tx_id, input_index, slot) \
+            \IN ( \
+                \SELECT wallet_id, input_tx_id, input_index, sup \
+                \FROM utxo_dups \
+                \WHERE wallet_id=?\
+            \)"
 
 -- | Delete one or all checkpoints associated with a wallet. If a slot is
 -- provided, it will only delete that checkpoint. Otherwise, it will remove all
@@ -875,27 +895,6 @@ selectUTxO cp = fmap entityVal <$>
         [ UtxoWalletId ==. checkpointWalletId cp
         , UtxoSlotSpent ==. Nothing
         ] []
-
--- Mark UTxOs known as spent because used in a transaction. When inserting new
--- checkpoints, we do not delete UTxOs but instead, mark them with the slot at
--- which they've been spent. As a consequence, we can easily recover them in
--- the event of rollbacks. This is a kind of soft-delete.
---
--- Note that we don't care whether the UTxOs is ours or not since we only keep
--- track of UTxOs that are ours anyway. So, we mark all inputs as consumed,
-softDeleteUTxO :: W.WalletId -> [(W.SlotId, TxIn)] -> SqlPersistT IO ()
-softDeleteUTxO wid = mapM_ $ \(sid, txin) -> updateWhere
-    [ UtxoWalletId ==. wid
-    , UtxoInputId ==. txInputSourceTxId txin
-    , UtxoInputIndex ==. txInputSourceIndex txin
-    , UtxoSlotSpent ==. Nothing
-    ]
-    [ UtxoSlotSpent =. Just sid ]
-
--- | Group inputs by slotId they've been used
-txInBySlotId :: [(TxMeta, ([TxIn], [TxOut]))] -> [(W.SlotId, TxIn)]
-txInBySlotId =
-    concatMap $ \(meta, (txins, _)) -> (txMetaSlotId meta,) <$> txins
 
 selectTxs
     :: [TxId]
