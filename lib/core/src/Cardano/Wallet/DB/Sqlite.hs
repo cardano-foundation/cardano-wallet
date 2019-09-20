@@ -127,7 +127,7 @@ import Data.Text
 import Data.Typeable
     ( Typeable )
 import Data.Word
-    ( Word32, Word64 )
+    ( Word64 )
 import Database.Persist.Sql
     ( Entity (..)
     , Filter
@@ -563,8 +563,8 @@ mkCheckpointEntity wid wal =
         ]
     utxoMap = Map.assocs (W.getUTxO (W.utxo wal))
 
-    coerceSlotLength :: W.SlotLength -> Word32
-    coerceSlotLength (W.SlotLength x) = fromIntegral (fromEnum x)
+    coerceSlotLength :: W.SlotLength -> Word64
+    coerceSlotLength (W.SlotLength x) = toEnum (fromEnum x)
 
 -- note: TxIn records must already be sorted by order
 -- and TxOut records must already by sorted by index.
