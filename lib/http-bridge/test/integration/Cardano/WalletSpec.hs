@@ -47,6 +47,8 @@ import Data.Text.Class
     ( toText )
 import Test.Hspec
     ( Spec, after, before, expectationFailure, it )
+import Test.Utils.Ports
+    ( findPort )
 
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB.MVar as MVar
@@ -81,12 +83,12 @@ spec = do
             result <- retrying policy shouldRetry assertion
             when (isLeft result) $ expectationFailure (show result)
   where
-    port = 1337
     second = 1000*1000
     closeBridge (handle, _) = do
         cancel handle
         threadDelay second
     startBridge = do
+        port <- findPort
         handle <- async $ launch
             [ Command "cardano-http-bridge"
                 [ "start"
