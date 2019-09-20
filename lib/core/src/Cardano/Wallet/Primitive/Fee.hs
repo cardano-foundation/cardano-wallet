@@ -36,6 +36,7 @@ import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
     ( Coin (..)
+    , FeePolicy (..)
     , TxIn
     , TxOut (..)
     , UTxO (..)
@@ -70,15 +71,6 @@ import qualified Data.List as L
 -- | A 'Fee', isomorph to 'Coin' but ease type-signatures and readability.
 newtype Fee = Fee { getFee :: Word64 }
     deriving (Eq, Ord, Show)
-
--- | A linear equation a free variable `x`. Represents the @\s -> a + b*s@
--- function where @s@ can be the transaction size in bytes or, a number of
--- inputs + outputs.
---
--- @a@ and @b@ are constant coefficients.
-data FeePolicy =
-    LinearFee (Quantity "lovelace" Double) (Quantity "lovelace/x" Double)
-    deriving (Eq, Show)
 
 {-------------------------------------------------------------------------------
                                 Fee Calculation

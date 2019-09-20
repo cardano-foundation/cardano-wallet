@@ -157,18 +157,18 @@ newNetworkLayer = fmap snd . newNetworkLayer'
 newNetworkLayer'
     :: forall n. ()
     => BaseUrl
-    -> IO (JormungandrLayer n IO, NetworkLayer (Jormungandr n) IO)
+    -> IO (JormungandrLayer IO, NetworkLayer (Jormungandr n) IO)
 newNetworkLayer' url = do
     mgr <- newManager defaultManagerSettings
     st <- newMVar emptyUnstableBlocks
-    let jor = mkJormungandrLayer @n mgr url
+    let jor = mkJormungandrLayer mgr url
     return (jor, mkNetworkLayer st jor)
 
 -- | Wrap a Jormungandr client into a 'NetworkLayer' common interface.
 mkNetworkLayer
     :: MonadBaseControl IO m
     => MVar UnstableBlocks
-    -> JormungandrLayer n m
+    -> JormungandrLayer m
     -> NetworkLayer (Jormungandr n) m
 mkNetworkLayer st j = NetworkLayer
     { networkTip = modifyMVar st $ \bs -> do
@@ -380,7 +380,7 @@ dropStartingFromSlot bh (UnstableBlocks bs (Quantity h)) =
 -------------------------------------------------------------------------------}
 
 -- | Endpoints of the jormungandr REST API.
-data JormungandrLayer n m = JormungandrLayer
+data JormungandrLayer m = JormungandrLayer
     { getTipId
         :: ExceptT ErrNetworkUnavailable m (Hash "BlockHeader")
     , getBlock
@@ -395,7 +395,7 @@ data JormungandrLayer n m = JormungandrLayer
         -> ExceptT ErrPostTx m ()
     , getInitialBlockchainParameters
         :: Hash "Genesis"
-        -> ExceptT ErrGetBlockchainParams m (BlockchainParameters (Jormungandr n))
+        -> ExceptT ErrGetBlockchainParams m (Block Tx, BlockchainParameters)
     }
 
 -- | Construct a 'JormungandrLayer'-client
@@ -418,8 +418,7 @@ data JormungandrLayer n m = JormungandrLayer
 -- >>> runExceptT $ getDescendantIds j t 4
 -- Right []
 mkJormungandrLayer
-    :: forall n. ()
-    => Manager -> BaseUrl -> JormungandrLayer n IO
+    :: Manager -> BaseUrl -> JormungandrLayer IO
 mkJormungandrLayer mgr baseUrl = JormungandrLayer
     { getTipId = ExceptT $ do
         let ctx = safeLink api (Proxy @GetTipId)
@@ -506,15 +505,17 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
 
         case (mpolicy, mduration, mblock0Date, mepochLength, mStability) of
             ([policy],[duration],[block0Date], [epochLength], [stability]) ->
-                return $ BlockchainParameters
-                    { getGenesisBlock = coerceBlock jblock
-                    , getGenesisBlockDate = block0Date
-                    , getFeePolicy = policy
-                    , getEpochLength = epochLength
-                    , getSlotLength = SlotLength duration
-                    , getTxMaxSize = softTxMaxSize
-                    , getEpochStability = stability
-                    }
+                return
+                    ( coerceBlock jblock
+                    , BlockchainParameters
+                        { getGenesisBlockDate = block0Date
+                        , getFeePolicy = policy
+                        , getEpochLength = epochLength
+                        , getSlotLength = SlotLength duration
+                        , getTxMaxSize = softTxMaxSize
+                        , getEpochStability = stability
+                        }
+                    )
             _ ->
                 throwE $ ErrGetBlockchainParamsIncompleteParams params
     }

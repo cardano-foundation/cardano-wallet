@@ -30,7 +30,7 @@ import Data.Text
 import Data.Time.Clock
     ( UTCTime )
 import Data.Word
-    ( Word32, Word64 )
+    ( Word16, Word32, Word64 )
 import Database.Persist.TH
     ( mkDeleteCascade, mkMigrate, mkPersist, persistLowerCase, share )
 import GHC.Generics
@@ -124,10 +124,16 @@ TxOut
 -- A checkpoint for a given wallet is referred to by (wallet_id, slot).
 -- Volatile checkpoint data such as AD state will refer to this table.
 Checkpoint
-    checkpointWalletId    W.WalletId  sql=wallet_id
-    checkpointSlot        W.SlotId    sql=slot
-    checkpointParent      BlockId     sql=parent_block_id
-    checkpointBlockHeight Word64      sql=block_height
+    checkpointWalletId       W.WalletId   sql=wallet_id
+    checkpointSlot           W.SlotId     sql=slot
+    checkpointParent         BlockId      sql=parent_block_id
+    checkpointBlockHeight    Word64       sql=block_height
+    checkpointGenesisStart   UTCTime      sql=genesis_start
+    checkpointFeePolicy      W.FeePolicy  sql=fee_policy
+    checkpointSlotLength     Word64       sql=slot_length
+    checkpointEpochLength    Word16       sql=epoch_length
+    checkpointTxMaxSize      Word16       sql=tx_max_size
+    checkpointEpochStability Word32       sql=epoch_stability
 
     Primary checkpointWalletId checkpointSlot
     Foreign Wallet fk_wallet_checkpoint checkpointWalletId

@@ -43,6 +43,7 @@ module Cardano.Wallet.Primitive.Types
     , TxStatus(..)
     , TxWitness(..)
     , TransactionInfo (..)
+    , FeePolicy (..)
     , txIns
     , isPending
 
@@ -667,6 +668,29 @@ data TransactionInfo = TransactionInfo
     -- ^ Creation time of the block including this transaction.
     } deriving (Show, Eq, Ord)
 
+-- | A linear equation a free variable `x`. Represents the @\s -> a + b*s@
+-- function where @s@ can be the transaction size in bytes or, a number of
+-- inputs + outputs.
+--
+-- @a@ and @b@ are constant coefficients.
+data FeePolicy =
+    LinearFee (Quantity "lovelace" Double) (Quantity "lovelace/x" Double)
+    deriving (Eq, Show, Generic)
+
+instance NFData FeePolicy
+
+instance ToText FeePolicy where
+    toText (LinearFee (Quantity a) (Quantity b)) =
+        toText a <> "x + " <> toText b
+
+instance FromText FeePolicy where
+    fromText txt = case T.splitOn "x + " txt of
+        [a, b] -> LinearFee
+            <$> fmap Quantity (fromText a)
+            <*> fmap Quantity (fromText b)
+        _ ->
+            Left $ TextDecodingError "not a linear equation"
+
 {-------------------------------------------------------------------------------
                                     Address
 -------------------------------------------------------------------------------}
@@ -1052,15 +1076,21 @@ slotRangeFromTimeRange sps (Range mStart mEnd) =
 
 -- | Duration of a single slot.
 newtype SlotLength = SlotLength NominalDiffTime
-    deriving (Show, Eq)
+    deriving (Show, Eq, Generic)
+
+instance NFData SlotLength
 
 -- | Number of slots in a single epoch
 newtype EpochLength = EpochLength Word16
-    deriving (Show, Eq)
+    deriving (Show, Eq, Generic)
+
+instance NFData EpochLength
 
 -- | Blockchain start time
 newtype StartTime = StartTime UTCTime
-    deriving (Show, Eq, Ord)
+    deriving (Show, Eq, Ord, Generic)
+
+instance NFData StartTime
 
 {-------------------------------------------------------------------------------
                                 Protocol Magic

@@ -13,7 +13,7 @@ module Cardano.Wallet.Primitive.ModelSpec
 import Prelude
 
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( DummyTarget, Tx (..), block0 )
+    ( DummyTarget, Tx (..), block0, genesisParameters )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.Model
@@ -153,7 +153,7 @@ prop_applyBlockBasic s =
     cond1 = not $ null $ (Set.fromList addresses) \\ (ourAddresses s)
     prop =
         let
-            cp0 = initWallet @_ @DummyTarget block0 s
+            cp0 = initWallet @_ @DummyTarget block0 genesisParameters s
             wallet = foldl (\cp b -> snd $ applyBlock b cp) cp0 blockchain
             utxo = totalUTxO wallet
             utxo' = evalState (foldM (flip updateUTxO) mempty blockchain) s
@@ -167,7 +167,7 @@ prop_applyBlockTxHistoryIncoming :: WalletState -> Property
 prop_applyBlockTxHistoryIncoming s =
     property (outs (filter isIncoming txs) `overlaps` ourAddresses s')
   where
-    cp0 = initWallet @_ @DummyTarget block0 s
+    cp0 = initWallet @_ @DummyTarget block0 genesisParameters s
     bs = NE.fromList blockchain
     txs_cps = applyBlocks bs cp0
     txs = Map.elems $ fold $ fst <$> txs_cps
@@ -183,7 +183,7 @@ prop_applyBlockCurrentTip :: ApplyBlock -> Property
 prop_applyBlockCurrentTip (ApplyBlock s _ b) =
     property $ currentTip wallet' > currentTip wallet
   where
-    wallet = initWallet @_ @DummyTarget block0 s
+    wallet = initWallet @_ @DummyTarget block0 genesisParameters s
     wallet' = snd $ applyBlock b wallet
 
 -- | applyBlock updates the block height
@@ -191,7 +191,7 @@ prop_applyBlockBlockHeight :: ApplyBlock -> Property
 prop_applyBlockBlockHeight (ApplyBlock s _ b) =
     property $ blockHeight wallet' === mapQuantity (+1) (blockHeight wallet)
   where
-    wallet = initWallet @_ @DummyTarget block0 s
+    wallet = initWallet @_ @DummyTarget block0 genesisParameters s
     wallet' = snd $ applyBlock b wallet
     mapQuantity f (Quantity a) = Quantity $ f a
 
@@ -201,7 +201,7 @@ prop_applyBlocksBlockHeight s (Positive n) =
     bh wallet' - bh wallet === length bs
   where
     bs = NE.fromList (take n blockchain)
-    wallet = initWallet @_ @DummyTarget block0 s
+    wallet = initWallet @_ @DummyTarget block0 genesisParameters s
     wallet' = NE.last $ snd <$> applyBlocks bs wallet
     bh = fromIntegral . unQuantity . blockHeight
     unQuantity (Quantity a) = a
@@ -210,7 +210,7 @@ prop_initialBlockHeight :: WalletState -> Property
 prop_initialBlockHeight s =
     property $ blockHeight wallet === Quantity 0
   where
-    wallet = initWallet @_ @DummyTarget block0 s
+    wallet = initWallet @_ @DummyTarget block0 genesisParameters s
 
 {-------------------------------------------------------------------------------
                Basic Model - See Wallet Specification, section 3

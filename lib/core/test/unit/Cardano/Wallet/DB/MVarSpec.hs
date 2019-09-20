@@ -16,7 +16,7 @@ import Prelude
 import Cardano.Wallet.DBSpec
     ( dbPropertyTests, withDB )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( DummyTarget, block0 )
+    ( DummyTarget, block0, genesisParameters )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -50,4 +50,4 @@ instance IsOurs DummyStateMVar where
 
 instance Arbitrary (Wallet DummyStateMVar DummyTarget) where
     shrink _ = []
-    arbitrary = initWallet block0 <$> arbitrary
+    arbitrary = initWallet block0 genesisParameters <$> arbitrary

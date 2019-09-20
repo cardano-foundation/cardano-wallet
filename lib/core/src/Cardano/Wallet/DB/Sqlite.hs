@@ -81,7 +81,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.Model
-    ( currentTip )
+    ( blockHeight, currentTip )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..), DefineTx (..) )
 import Control.Concurrent.MVar
@@ -126,6 +126,8 @@ import Data.Text
     ( Text )
 import Data.Typeable
     ( Typeable )
+import Data.Word
+    ( Word64 )
 import Database.Persist.Sql
     ( Entity (..)
     , Filter
@@ -148,6 +150,7 @@ import Database.Persist.Sql
     , selectKeysList
     , selectList
     , updateWhere
+    , (!=.)
     , (<-.)
     , (<=.)
     , (=.)
@@ -315,6 +318,7 @@ newDBLayer logConfig trace fp = do
               ExceptT $ runQuery $
               selectWallet wid >>= \case
                   Just _ -> Right <$> do
+                      purgeCheckpoints wid cp
                       -- remove checkpoint if already present to effectively
                       -- support updating of checkpoint
                       let (BlockHeader sid _) = currentTip cp
@@ -540,15 +544,27 @@ mkCheckpointEntity wid wal =
     sl = header ^. #slotId
     parent = header ^. #prevBlockHash
     (Quantity bh) = W.blockHeight wal
+    bp = W.blockchainParameters wal
     cp = Checkpoint
         { checkpointWalletId = wid
         , checkpointSlot = sl
         , checkpointBlockHeight = fromIntegral bh
         , checkpointParent = BlockId parent
+        , checkpointGenesisStart = coerce (bp ^. #getGenesisBlockDate)
+        , checkpointFeePolicy = bp ^. #getFeePolicy
+        , checkpointSlotLength = coerceSlotLength $ bp ^. #getSlotLength
+        , checkpointEpochLength = coerce (bp ^. #getEpochLength)
+        , checkpointTxMaxSize = coerce (bp ^. #getTxMaxSize)
+        , checkpointEpochStability = coerce (bp ^. #getEpochStability)
         }
-    utxo = [ UTxO wid sl Nothing (TxId input) ix addr coin
-           | (W.TxIn input ix, W.TxOut addr coin) <- utxoMap ]
+    utxo =
+        [ UTxO wid sl Nothing (TxId input) ix addr coin
+        | (W.TxIn input ix, W.TxOut addr coin) <- utxoMap
+        ]
     utxoMap = Map.assocs (W.getUTxO (W.utxo wal))
+
+    coerceSlotLength :: W.SlotLength -> Word64
+    coerceSlotLength (W.SlotLength x) = toEnum (fromEnum x)
 
 -- note: TxIn records must already be sorted by order
 -- and TxOut records must already by sorted by index.
@@ -560,9 +576,20 @@ checkpointFromEntity
     -> s
     -> W.Wallet s t
 checkpointFromEntity cp utxo txs s =
-    W.unsafeInitWallet utxo' pending header s blockHeight'
+    W.unsafeInitWallet utxo' pending header s blockHeight' bp
   where
-    (Checkpoint _ slot (BlockId parentHeaderHash) bh) = cp
+    (Checkpoint
+        _walletId
+        slot
+        (BlockId parentHeaderHash)
+        bh
+        genesisStart
+        feePolicy
+        slotLength
+        epochLength
+        txMaxSize
+        epochStability
+        ) = cp
     header = (W.BlockHeader slot parentHeaderHash)
     utxo' = W.UTxO . Map.fromList $
         [ (W.TxIn input ix, W.TxOut addr coin)
@@ -570,6 +597,14 @@ checkpointFromEntity cp utxo txs s =
         ]
     pending = Set.fromList $ map snd txs
     blockHeight' = Quantity . toEnum . fromEnum $ bh
+    bp = W.BlockchainParameters
+        { getGenesisBlockDate = W.StartTime genesisStart
+        , getFeePolicy = feePolicy
+        , getSlotLength = W.SlotLength (toEnum (fromEnum slotLength))
+        , getEpochLength = W.EpochLength epochLength
+        , getTxMaxSize = Quantity txMaxSize
+        , getEpochStability = Quantity epochStability
+        }
 
 mkTxHistory
     :: forall t. PersistTx t
@@ -702,6 +737,36 @@ deleteUTxOs
 deleteUTxOs wid =
     deleteWhere [UtxoWalletId ==. wid]
 
+-- | Clean up checkpoints which are greater than `k` blocks old for we know we
+-- can't rollback that far.
+purgeCheckpoints
+    :: W.WalletId
+    -> W.Wallet s t
+    -> SqlPersistT IO ()
+purgeCheckpoints wid cp = do
+    let minHeight = word64 (blockHeight cp) - word64 epochStability
+    mCp <- selectFirst
+        [ CheckpointWalletId ==. wid
+        , CheckpointBlockHeight <=. minHeight
+        ] [Desc CheckpointBlockHeight]
+    case mCp of
+        Nothing -> return ()
+        Just minCp -> do
+            deleteWhere
+                [ UtxoWalletId ==. wid
+                , UtxoSlotSpent !=. Nothing
+                , UtxoSlotSpent <=. Just (checkpointSlot $ entityVal minCp)
+                ]
+            deleteWhere
+                [ CheckpointWalletId ==. wid
+                , CheckpointBlockHeight <=. minHeight
+                ]
+  where
+    word64 :: Integral a => Quantity "block" a -> Word64
+    word64 (Quantity x) = fromIntegral x
+
+    epochStability = W.blockchainParameters cp ^. #getEpochStability
+
 -- | Delete TxMeta values for a wallet.
 deleteTxMetas
     :: W.WalletId
@@ -777,9 +842,9 @@ selectLatestCheckpoint wid = fmap entityVal <$>
 selectUTxO
     :: Checkpoint
     -> SqlPersistT IO [UTxO]
-selectUTxO (Checkpoint wid _sl _parent _bh) = fmap entityVal <$>
+selectUTxO cp = fmap entityVal <$>
     selectList
-        [ UtxoWalletId ==. wid
+        [ UtxoWalletId ==. checkpointWalletId cp
         , UtxoSlotSpent ==. Nothing
         ] []
 

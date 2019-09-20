@@ -16,7 +16,7 @@ import Cardano.Launcher
 import Cardano.Wallet
     ( newWalletLayer )
 import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge, byronBlockchainParameters )
+    ( HttpBridge, block0, byronBlockchainParameters )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Network
@@ -104,6 +104,6 @@ spec = do
         nl <- HttpBridge.newNetworkLayer @'Testnet port
         waitForConnection nl defaultRetryPolicy
         let tl = HttpBridge.newTransactionLayer @'Testnet @SeqKey
-        let bp = byronBlockchainParameters
+        let genesis = (block0, byronBlockchainParameters @'Testnet)
         (handle,) <$>
-            (newWalletLayer @(HttpBridge 'Testnet) nullTracer bp db nl tl)
+            (newWalletLayer @(HttpBridge 'Testnet) nullTracer genesis db nl tl)

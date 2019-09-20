@@ -45,7 +45,7 @@ import Data.Maybe
 import Data.Text
     ( Text )
 import Data.Text.Read
-    ( decimal, signed )
+    ( decimal, rational, signed )
 import Fmt
     ( Buildable )
 import GHC.Generics
@@ -110,6 +110,28 @@ instance FromText Natural where
         err = TextDecodingError "Expecting natural number"
 
 instance ToText Natural where
+    toText = T.pack . show
+
+instance FromText Integer where
+    fromText t = do
+        (parsedValue, unconsumedInput) <- first (const err) $ signed decimal t
+        unless (T.null unconsumedInput) $ Left err
+        pure parsedValue
+      where
+        err = TextDecodingError "Expecting integer"
+
+instance ToText Integer where
+    toText = T.pack . show
+
+instance FromText Double where
+    fromText t = do
+        (parsedValue, unconsumedInput) <- first (const err) $ rational t
+        unless (T.null unconsumedInput) $ Left err
+        pure parsedValue
+      where
+        err = TextDecodingError "Expecting floating number"
+
+instance ToText Double where
     toText = T.pack . show
 
 -- | Decode the specified text with a 'Maybe' result type.
