@@ -68,6 +68,7 @@ import Test.QuickCheck.Monadic
 
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 
 -- | Provide a DBLayer to a Spec that requires it. The database is initialised
 -- once, and cleared with 'cleanDB' before each test.
