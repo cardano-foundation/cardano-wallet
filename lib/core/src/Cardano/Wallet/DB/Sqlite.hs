@@ -319,8 +319,7 @@ newDBLayer logConfig trace fp = do
         -----------------------------------------------------------------------}
 
         , putCheckpoint = \(PrimaryKey wid) cp ->
-              ExceptT $ runQuery $
-              selectWallet wid >>= \case
+              ExceptT $ runQuery $ selectWallet wid >>= \case
                   Just _ -> Right <$> do
                       purgeCheckpoints wid cp
                       -- remove checkpoint if already present to effectively
@@ -716,7 +715,8 @@ txHistoryFromEntity metas ins outs = map mkItem metas
 -------------------------------------------------------------------------------}
 
 selectWallet :: MonadIO m => W.WalletId -> SqlPersistT m (Maybe Wallet)
-selectWallet wid = fmap entityVal <$> selectFirst [WalId ==. wid] []
+selectWallet wid =
+    fmap entityVal <$> selectFirst [WalId ==. wid] []
 
 insertCheckpoint
     :: (PersistState s, PersistTx t)
@@ -810,7 +810,6 @@ purgeCheckpoints wid cp = do
   where
     word64 :: Integral a => Quantity "block" a -> Word64
     word64 (Quantity x) = fromIntegral x
-
     epochStability = W.blockchainParameters cp ^. #getEpochStability
 
     blockHeight' = blockHeight . currentTip
@@ -819,7 +818,8 @@ purgeCheckpoints wid cp = do
 deleteTxMetas
     :: W.WalletId
     -> SqlPersistT IO ()
-deleteTxMetas wid = deleteWhere [ TxMetaWalletId ==. wid ]
+deleteTxMetas wid =
+    deleteWhere [ TxMetaWalletId ==. wid ]
 
 -- | Add new TxMeta rows, overwriting existing ones.
 putTxMetas :: [TxMeta] -> SqlPersistT IO ()
@@ -835,33 +835,6 @@ putTxs txins txouts = do
     dbChunked repsertMany
         [ (TxOutKey txOutputTxId txOutputIndex, o)
         | o@TxOut{..} <- txouts ]
-
--- | Convert a single DB "updateMany" (or similar) query into multiple
--- updateMany queries with smaller lists of values.
---
--- This is to prevent too many variables appearing in the SQL statement.
--- SQLITE_MAX_VARIABLE_NUMBER is 999 by default, and we will get a
--- "too many SQL variables" exception if that is exceeded.
---
--- We choose a conservative value 'chunkSize' << 999 because there can be
--- multiple variables per row updated.
-dbChunked :: ([a] -> SqlPersistT IO b) -> [a] -> SqlPersistT IO ()
-dbChunked = chunkedM chunkSize
-
--- | Given an action which takes a list of items, and a list of items, run that
--- action multiple times with the input list cut into chunks.
-chunkedM
-    :: Monad m
-    => Int -- ^ Chunk size
-    -> ([a] -> m b) -- ^ Action to run on values
-    -> [a] -- ^ The values
-    -> m ()
-chunkedM n f = mapM_ f . chunksOf n
-
--- | Size of chunks when inserting, updating or deleting many rows at once. We
--- only act on `chunkSize` values at a time. See also 'dbChunked'.
-chunkSize :: Int
-chunkSize = 100
 
 -- | Delete transactions that aren't referred to by TxMeta of any wallet.
 deleteLooseTransactions :: SqlPersistT IO ()
@@ -1194,3 +1167,34 @@ dbLogText (MsgMigrations n) = fmt $ ""+||n||+" migrations were applied to the da
 dbLogText (MsgQuery stmt _) = stmt
 dbLogText (MsgConnStr connStr) = "Using connection string: " <> connStr
 dbLogText (MsgClosing fp) = "Closing database ("+|fromMaybe "in-memory" fp|+")"
+
+{-------------------------------------------------------------------------------
+                               Extra DB Helpers
+-------------------------------------------------------------------------------}
+
+-- | Convert a single DB "updateMany" (or similar) query into multiple
+-- updateMany queries with smaller lists of values.
+--
+-- This is to prevent too many variables appearing in the SQL statement.
+-- SQLITE_MAX_VARIABLE_NUMBER is 999 by default, and we will get a
+-- "too many SQL variables" exception if that is exceeded.
+--
+-- We choose a conservative value 'chunkSize' << 999 because there can be
+-- multiple variables per row updated.
+dbChunked :: ([a] -> SqlPersistT IO b) -> [a] -> SqlPersistT IO ()
+dbChunked = chunkedM chunkSize
+
+-- | Given an action which takes a list of items, and a list of items, run that
+-- action multiple times with the input list cut into chunks.
+chunkedM
+    :: Monad m
+    => Int -- ^ Chunk size
+    -> ([a] -> m b) -- ^ Action to run on values
+    -> [a] -- ^ The values
+    -> m ()
+chunkedM n f = mapM_ f . chunksOf n
+
+-- | Size of chunks when inserting, updating or deleting many rows at once. We
+-- only act on `chunkSize` values at a time. See also 'dbChunked'.
+chunkSize :: Int
+chunkSize = 100
