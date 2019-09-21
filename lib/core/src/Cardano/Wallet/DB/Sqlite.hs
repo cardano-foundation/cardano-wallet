@@ -65,8 +65,6 @@ import Cardano.Wallet.DB.Sqlite.TH
     , RndStatePendingAddress (..)
     , SeqState (..)
     , SeqStateAddress (..)
-    , SeqStateCheckpoint (..)
-    , SeqStateCheckpointId
     , SeqStatePendingIx (..)
     , TxIn (..)
     , TxMeta (..)
@@ -85,7 +83,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.Model
     ( currentTip )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), DefineTx (..) )
+    ( DefineTx (..) )
 import Control.Concurrent.MVar
     ( newMVar, withMVar )
 import Control.DeepSeq
@@ -319,10 +317,6 @@ newDBLayer logConfig trace fp = do
               ExceptT $ runQuery $ selectWallet wid >>= \case
                   Just _ -> Right <$> do
                       purgeCheckpoints wid cp
-                      -- remove checkpoint if already present to effectively
-                      -- support updating of checkpoint
-                      let (BlockHeader sid _ _) = currentTip cp
-                      deleteCheckpoints @s wid (Just sid)
                       deleteLooseTransactions
                       insertCheckpoint wid cp
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
@@ -913,32 +907,22 @@ instance W.KeyToAddress t Seq.SeqKey => PersistState (Seq.SeqState t) where
         repsert (SeqStateKey wid) (SeqState wid eGap iGap (AddressPoolXPub xpub))
         insertAddressPool wid sl intPool
         insertAddressPool wid sl extPool
-        cpid <- insert (SeqStateCheckpoint wid sl)
-        insertMany_ $ mkSeqStatePendingIxs cpid $ Seq.pendingChangeIxs st
+        insertMany_ (mkSeqStatePendingIxs wid $ Seq.pendingChangeIxs st)
 
     selectState (wid, sl) = runMaybeT $ do
         st <- MaybeT $ selectFirst [SeqStateWalletId ==. wid] []
-        stc <- MaybeT $ selectFirst
-            [ SeqStateCheckpointWalletId ==. wid
-            , SeqStateCheckpointSlot ==. sl
-            ] []
-
         let SeqState _ eGap iGap xPub = entityVal st
         intPool <- lift $ selectAddressPool wid sl iGap xPub
         extPool <- lift $ selectAddressPool wid sl eGap xPub
-        pendingChangeIxs <- lift $ selectSeqStatePendingIxs (entityKey stc)
+        pendingChangeIxs <- lift $ selectSeqStatePendingIxs wid
         pure $ Seq.SeqState intPool extPool pendingChangeIxs
 
     deleteState wid mSlot = do
-        let cpq = (SeqStateCheckpointWalletId ==. wid) :
-                [SeqStateCheckpointSlot ==. sid | Just sid <- [mSlot]]
-        cpid <- selectList cpq []
-        deleteWhere [ SeqStatePendingIxCheckpointId <-. fmap entityKey cpid ]
-        deleteCascadeWhere cpq
         deleteWhere $
             (SeqStateAddressWalletId ==. wid) :
             [SeqStateAddressSlot ==. sid | Just sid <- [mSlot]]
-        when (isNothing mSlot) $
+        when (isNothing mSlot) $ do
+            deleteWhere [SeqStatePendingWalletId ==. wid]
             deleteWhere [SeqStateWalletId ==. wid]
 
 insertAddressPool
@@ -974,14 +958,14 @@ selectAddressPool wid sl gap (AddressPoolXPub xpub) = do
     addressPoolFromEntity addrs =
         Seq.mkAddressPool @t @c xpub gap (map seqStateAddressAddress addrs)
 
-mkSeqStatePendingIxs :: SeqStateCheckpointId -> Seq.PendingIxs -> [SeqStatePendingIx]
-mkSeqStatePendingIxs cpid =
-    fmap (SeqStatePendingIx cpid . W.getIndex) . Seq.pendingIxsToList
+mkSeqStatePendingIxs :: W.WalletId -> Seq.PendingIxs -> [SeqStatePendingIx]
+mkSeqStatePendingIxs wid =
+    fmap (SeqStatePendingIx wid . W.getIndex) . Seq.pendingIxsToList
 
-selectSeqStatePendingIxs :: SeqStateCheckpointId -> SqlPersistT IO Seq.PendingIxs
-selectSeqStatePendingIxs cpid =
+selectSeqStatePendingIxs :: W.WalletId -> SqlPersistT IO Seq.PendingIxs
+selectSeqStatePendingIxs wid =
     Seq.pendingIxsFromList . fromRes <$> selectList
-        [SeqStatePendingIxCheckpointId ==. cpid]
+        [SeqStatePendingWalletId ==. wid]
         [Desc SeqStatePendingIxIndex]
   where
     fromRes = fmap (W.Index . seqStatePendingIxIndex . entityVal)

@@ -190,23 +190,12 @@ SeqStateAddress
 
     deriving Show Generic
 
--- Sequential scheme address discovery state
--- which belongs to a checkpoint.
-SeqStateCheckpoint
-    -- The wallet checkpoint (wallet_id, slot)
-    seqStateCheckpointWalletId  W.WalletId        sql=wallet_id
-    seqStateCheckpointSlot      W.SlotId          sql=slot
-
-    UniqueSeqStateCheckpoint seqStateCheckpointWalletId seqStateCheckpointSlot
-    Foreign Checkpoint fk_checkpoint_seq_state seqStateCheckpointWalletId seqStateCheckpointSlot
-    deriving Show Generic
-
 -- Sequential address discovery scheme -- pending change indexes
-SeqStatePendingIx                                        sql=seq_state_pending
-    seqStatePendingIxCheckpointId  SeqStateCheckpointId  sql=checkpoint_id
-    seqStatePendingIxIndex         Word32                sql=pending_ix
+SeqStatePendingIx                            sql=seq_state_pending
+    seqStatePendingWalletId     W.WalletId   sql=wallet_id
+    seqStatePendingIxIndex      Word32       sql=pending_ix
 
-    Primary seqStatePendingIxCheckpointId seqStatePendingIxIndex
+    Primary seqStatePendingWalletId seqStatePendingIxIndex
     deriving Show Generic
 
 -- Random scheme address discovery state
