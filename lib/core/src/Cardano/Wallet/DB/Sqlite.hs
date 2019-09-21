@@ -469,7 +469,7 @@ addIndices = mapM_ (`rawExecute` [])
 createViews :: SqlPersistT IO ()
 createViews = mapM_ (`rawExecute` [])
     [ createView "utxo_dups"
-        "SELECT wallet_id, input_tx_id, input_index, max(slot) AS sup, min(slot) AS inf \
+        "SELECT wallet_id, input_tx_id, input_index, max(rowid) AS sup, min(rowid) AS inf \
         \FROM utxo \
         \GROUP BY wallet_id, input_tx_id, input_index \
         \HAVING sup > inf"
@@ -747,21 +747,13 @@ insertCheckpoint wid cp = do
         flip rawExecute [toPersistValue wid]
             "UPDATE utxo \
             \SET slot_spent=null \
-            \WHERE (wallet_id, input_tx_id, input_index, slot) \
-            \IN ( \
-                \SELECT wallet_id, input_tx_id, input_index, inf \
-                \FROM utxo_dups \
-                \WHERE wallet_id=? \
-            \)"
-        -- 4. Remove all duplicates UTxO, keep lowest slot id
+            \WHERE rowid \
+            \IN (SELECT inf FROM utxo_dups WHERE wallet_id=?)"
+        -- 4. Remove all duplicates UTxO, keep oldest row
         flip rawExecute [toPersistValue wid]
             "DELETE FROM utxo \
-            \WHERE (wallet_id, input_tx_id, input_index, slot) \
-            \IN ( \
-                \SELECT wallet_id, input_tx_id, input_index, sup \
-                \FROM utxo_dups \
-                \WHERE wallet_id=?\
-            \)"
+            \WHERE rowid \
+            \IN (SELECT sup FROM utxo_dups WHERE wallet_id=?)"
 
 -- | Delete one or all checkpoints associated with a wallet. If a slot is
 -- provided, it will only delete that checkpoint. Otherwise, it will remove all
