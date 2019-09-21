@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
@@ -30,17 +31,97 @@ import Cardano.Wallet.DB.Arbitrary
 import Cardano.Wallet.DB.Model
     ( filterTxHistory )
 import Cardano.Wallet.DummyTarget.Primitive.Types
+<<<<<<< HEAD:lib/core/test/unit/Cardano/Wallet/DB/Properties.hs
     ( DummyTarget )
+||||||| merged common ancestors
+    ( DummyTarget, block0, genesisParameters )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( Depth (..)
+    , DerivationType (..)
+    , Index (..)
+    , KeyToAddress (..)
+    , Passphrase (..)
+    , WalletKey (..)
+    , XPrv
+    , XPub
+    , publicKey
+    )
+import Cardano.Wallet.Primitive.AddressDerivation.Random
+    ( RndKey (..) )
+=======
+    ( DummyTarget, genesisParameters )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( Depth (..)
+    , DerivationType (..)
+    , Index (..)
+    , KeyToAddress (..)
+    , Passphrase (..)
+    , WalletKey (..)
+    , XPrv
+    , XPub
+    , publicKey
+    )
+import Cardano.Wallet.Primitive.AddressDerivation.Random
+    ( RndKey (..) )
+>>>>>>> also generate arbitrary UTxOs for Random wallets in DBSpec:lib/core/test/unit/Cardano/Wallet/DBSpec.hs
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
+<<<<<<< HEAD:lib/core/test/unit/Cardano/Wallet/DB/Properties.hs
     ( SeqKey (..) )
+||||||| merged common ancestors
+    ( ChangeChain (..)
+    , SeqKey (..)
+    , deriveAddressPublicKey
+    , unsafeGenerateKeyFromSeed
+    )
+import Cardano.Wallet.Primitive.AddressDiscovery.Random
+    ( RndState (..) )
+import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+    ( AddressPool
+    , AddressPoolGap (..)
+    , SeqState (..)
+    , accountPubKey
+    , changeChain
+    , gap
+    , mkAddressPool
+    , mkAddressPoolGap
+    )
+=======
+    ( ChangeChain (..)
+    , SeqKey (..)
+    , deriveAddressPublicKey
+    , unsafeGenerateKeyFromSeed
+    )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( IsOurs )
+import Cardano.Wallet.Primitive.AddressDiscovery.Random
+    ( RndState (..) )
+import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+    ( AddressPool
+    , AddressPoolGap (..)
+    , SeqState (..)
+    , accountPubKey
+    , changeChain
+    , gap
+    , mkAddressPool
+    , mkAddressPoolGap
+    )
+>>>>>>> also generate arbitrary UTxOs for Random wallets in DBSpec:lib/core/test/unit/Cardano/Wallet/DBSpec.hs
 import Cardano.Wallet.Primitive.Model
+<<<<<<< HEAD:lib/core/test/unit/Cardano/Wallet/DB/Properties.hs
     ( Wallet )
+||||||| merged common ancestors
+    ( Wallet, getState, initWallet, unsafeInitWallet, updateState )
+=======
+    ( Wallet, getState, unsafeInitWallet, updateState )
+>>>>>>> also generate arbitrary UTxOs for Random wallets in DBSpec:lib/core/test/unit/Cardano/Wallet/DBSpec.hs
 import Cardano.Wallet.Primitive.Types
     ( SortOrder (..), WalletId (..), WalletMetadata (..), wholeRange )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Concurrent.Async
     ( forConcurrently_ )
+import Control.DeepSeq
+    ( NFData )
 import Control.Monad
     ( forM, forM_, void )
 import Control.Monad.IO.Class
@@ -465,3 +546,4 @@ prop_parallelPut putOp readOp resolve db (KeyValPairs pairs) =
         forConcurrently_ pairs $ unsafeRunExceptT . uncurry (putOp db)
         res <- once pairs (readOp db . fst)
         length res `shouldBe` resolve pairs
+
