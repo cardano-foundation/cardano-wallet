@@ -702,7 +702,8 @@ insertCheckpoint
     -> SqlPersistT IO ()
 insertCheckpoint wid cp = do
     let (cp', utxo, ins, outs, metas) = mkCheckpointEntity wid cp
-    insert_ cp'
+    let slot = currentTip cp ^. #slotId
+    repsert (CheckpointKey wid slot) cp'
     putTxMetas metas
     putTxs ins outs
     let sl = (W.currentTip cp) ^. #slotId
@@ -904,7 +905,7 @@ instance W.KeyToAddress t Seq.SeqKey => PersistState (Seq.SeqState t) where
         repsert (SeqStateKey wid) (SeqState wid eGap iGap (AddressPoolXPub xpub))
         insertAddressPool wid sl intPool
         insertAddressPool wid sl extPool
-        dbChunked insertMany_ (mkSeqStatePendingIxs wid $ Seq.pendingChangeIxs st)
+        dbChunked putMany (mkSeqStatePendingIxs wid $ Seq.pendingChangeIxs st)
 
     selectState (wid, sl) = runMaybeT $ do
         st <- MaybeT $ selectFirst [SeqStateWalletId ==. wid] []
@@ -1028,7 +1029,7 @@ insertRndStatePending
     -> RndStateAddresses
     -> SqlPersistT IO ()
 insertRndStatePending wid addresses =
-    void $ dbChunked insertMany_
+    void $ dbChunked putMany
         [ RndStatePendingAddress wid accIx addrIx addr
         | ((W.Index accIx, W.Index addrIx), addr) <- Map.assocs addresses
         ]

@@ -238,5 +238,4 @@ RndStatePendingAddress
         rndStatePendingAddressIndex
         rndStatePendingAddressAddress
     deriving Show Generic
-
 |]
