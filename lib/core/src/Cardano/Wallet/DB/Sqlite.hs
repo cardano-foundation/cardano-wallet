@@ -60,8 +60,6 @@ import Cardano.Wallet.DB.Sqlite.TH
     , PrivateKey (..)
     , RndState (..)
     , RndStateAddress (..)
-    , RndStateCheckpoint (..)
-    , RndStateCheckpointId
     , RndStatePendingAddress (..)
     , SeqState (..)
     , SeqStateAddress (..)
@@ -137,7 +135,6 @@ import Database.Persist.Sql
     , close'
     , deleteCascadeWhere
     , deleteWhere
-    , insert
     , insertMany_
     , insert_
     , putMany
@@ -907,7 +904,7 @@ instance W.KeyToAddress t Seq.SeqKey => PersistState (Seq.SeqState t) where
         repsert (SeqStateKey wid) (SeqState wid eGap iGap (AddressPoolXPub xpub))
         insertAddressPool wid sl intPool
         insertAddressPool wid sl extPool
-        insertMany_ (mkSeqStatePendingIxs wid $ Seq.pendingChangeIxs st)
+        dbChunked insertMany_ (mkSeqStatePendingIxs wid $ Seq.pendingChangeIxs st)
 
     selectState (wid, sl) = runMaybeT $ do
         st <- MaybeT $ selectFirst [SeqStateWalletId ==. wid] []
@@ -985,44 +982,35 @@ type RndStateAddresses = Map
 -- address discovery requires a root key to recognize addresses.
 instance PersistState (Rnd.RndState t) where
     insertState (wid, sl) st = do
-        repsert (RndStateKey wid)
-            (RndState wid (W.getIndex (st ^. #accountIndex)))
+        let ix = W.getIndex (st ^. #accountIndex)
+        let gen = st ^. #gen
+        repsert (RndStateKey wid) (RndState wid ix gen)
         insertRndStateAddresses wid sl (Rnd.addresses st)
-        cpid <- insert $ RndStateCheckpoint wid sl (st ^. #gen)
-        insertRndStatePending cpid (Rnd.pendingAddresses st)
+        insertRndStatePending wid (Rnd.pendingAddresses st)
 
     selectState (wid, sl) = runMaybeT $ do
         st <- MaybeT $ selectFirst
             [ RndStateWalletId ==. wid
             ] []
-        stc <- MaybeT $ selectFirst
-            [ RndStateCheckpointWalletId ==. wid
-            , RndStateCheckpointSlot ==. sl
-            ] []
+        let (RndState _ ix gen) = entityVal st
         addresses <- lift $ selectRndStateAddresses wid sl
-        pendingAddresses <- lift $ selectRndStatePending (entityKey stc)
+        pendingAddresses <- lift $ selectRndStatePending wid
         rndKey <- lift $ selectRndStateKey wid
         pure $ Rnd.RndState
             { rndKey = rndKey
-            , accountIndex = W.Index (rndStateAccountIndex (entityVal st))
+            , accountIndex = W.Index ix
             , addresses = addresses
             , pendingAddresses = pendingAddresses
-            , gen = rndStateCheckpointGen (entityVal stc)
+            , gen = gen
             }
 
     deleteState wid mSlot = do
-        let cpq = (RndStateCheckpointWalletId ==. wid) :
-                [RndStateCheckpointSlot ==. sid | Just sid <- [mSlot]]
-        cpid <- fmap entityKey <$> selectList cpq []
-        deleteWhere [ RndStatePendingAddressCheckpointId <-. cpid ]
-        deleteWhere $
-            (RndStateCheckpointWalletId ==. wid) :
-            [RndStateCheckpointSlot ==. sid | Just sid <- [mSlot]]
         deleteWhere $
             (RndStateAddressWalletId ==. wid) :
             [RndStateAddressSlot ==. sid | Just sid <- [mSlot]]
-        when (isNothing mSlot) $
-            deleteWhere [RndStateWalletId ==. wid]
+        when (isNothing mSlot) $ do
+            deleteWhere [ RndStatePendingAddressWalletId ==. wid ]
+            deleteWhere [ RndStateWalletId ==. wid ]
 
 insertRndStateAddresses
     :: W.WalletId
@@ -1036,12 +1024,12 @@ insertRndStateAddresses wid sl addresses =
         ]
 
 insertRndStatePending
-    :: RndStateCheckpointId
+    :: W.WalletId
     -> RndStateAddresses
     -> SqlPersistT IO ()
-insertRndStatePending cpid addresses =
+insertRndStatePending wid addresses =
     void $ dbChunked insertMany_
-        [ RndStatePendingAddress cpid accIx addrIx addr
+        [ RndStatePendingAddress wid accIx addrIx addr
         | ((W.Index accIx, W.Index addrIx), addr) <- Map.assocs addresses
         ]
 
@@ -1060,11 +1048,11 @@ selectRndStateAddresses wid sl = do
         ((W.Index accIx, W.Index addrIx), addr)
 
 selectRndStatePending
-    :: RndStateCheckpointId
+    :: W.WalletId
     -> SqlPersistT IO RndStateAddresses
-selectRndStatePending cpid = do
+selectRndStatePending wid = do
     addrs <- fmap entityVal <$> selectList
-        [ RndStatePendingAddressCheckpointId ==. cpid
+        [ RndStatePendingAddressWalletId ==. wid
         ] []
     pure $ Map.fromList $ map assocFromEntity addrs
   where

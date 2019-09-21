@@ -203,6 +203,7 @@ SeqStatePendingIx                            sql=seq_state_pending
 RndState
     rndStateWalletId        W.WalletId        sql=wallet_id
     rndStateAccountIndex    Word32            sql=account_ix
+    rndStateGen             StdGen            sql=gen
 
     Primary rndStateWalletId
     Foreign Wallet fk_wallet_rnd_state rndStateWalletId
@@ -224,27 +225,15 @@ RndStateAddress
         rndStateAddressAddress
     deriving Show Generic
 
--- Random scheme address discovery state
--- which belongs a checkpoint.
-RndStateCheckpoint
-    -- The wallet checkpoint (wallet_id, slot)
-    rndStateCheckpointWalletId  W.WalletId        sql=wallet_id
-    rndStateCheckpointSlot      W.SlotId          sql=slot
-    rndStateCheckpointGen       StdGen            sql=gen
-
-    UniqueRndStateCheckpoint rndStateCheckpointWalletId rndStateCheckpointSlot
-    Foreign Checkpoint fk_checkpoint_rnd_state rndStateCheckpointWalletId rndStateCheckpointSlot
-    deriving Show Generic
-
 -- The set of pending change addresses.
 RndStatePendingAddress
-    rndStatePendingAddressCheckpointId  RndStateCheckpointId  sql=checkpoint_id
-    rndStatePendingAddressAccountIndex  Word32                sql=account_ix
-    rndStatePendingAddressIndex         Word32                sql=address_ix
-    rndStatePendingAddressAddress       W.Address             sql=address
+    rndStatePendingAddressWalletId      W.WalletId  sql=wallet_id
+    rndStatePendingAddressAccountIndex  Word32      sql=account_ix
+    rndStatePendingAddressIndex         Word32      sql=address_ix
+    rndStatePendingAddressAddress       W.Address   sql=address
 
     Primary
-        rndStatePendingAddressCheckpointId
+        rndStatePendingAddressWalletId
         rndStatePendingAddressAccountIndex
         rndStatePendingAddressIndex
         rndStatePendingAddressAddress
