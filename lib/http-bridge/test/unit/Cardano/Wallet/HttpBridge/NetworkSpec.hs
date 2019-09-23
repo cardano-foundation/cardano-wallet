@@ -15,7 +15,7 @@ import Cardano.Wallet.HttpBridge.Network
 import Cardano.Wallet.HttpBridge.Primitive.Types
     ( Tx )
 import Cardano.Wallet.Network
-    ( NetworkLayer (..) )
+    ( Restorer (..) )
 import Cardano.Wallet.Primitive.Types
     ( Block (..), BlockHeader (..), Hash (..), SlotId (..), slotMinBound )
 import Control.Monad.Trans.Class
@@ -33,7 +33,7 @@ import qualified Data.ByteString.Char8 as B8
 spec :: Spec
 spec = do
     describe "Getting next blocks with a mock backend" $ do
-        let network = mockNetworkLayer noLog 105 (SlotId 106 1492)
+        let network = mockRestorer noLog 105 (SlotId 106 1492)
 
         it "should get something from the latest epoch" $ do
             let h = BlockHeader
@@ -151,14 +151,14 @@ mockEpoch ep =
   where
     epochs = [ 0 .. fromIntegral (slotsPerEpoch - 1) ]
 
-mockNetworkLayer
+mockRestorer
     :: Monad m
     => (String -> m ()) -- ^ logger function
     -> Word64 -- ^ make getEpoch fail for epochs after this
     -> SlotId -- ^ the tip block
-    -> NetworkLayer (HttpBridge 'Testnet) m
-mockNetworkLayer logLine firstUnstableEpoch tip =
-    HttpBridge.mkNetworkLayer (mockHttpBridge logLine firstUnstableEpoch tip)
+    -> Restorer (HttpBridge 'Testnet) m
+mockRestorer logLine firstUnstableEpoch tip =
+    HttpBridge.mkRestorer (mockHttpBridge logLine firstUnstableEpoch tip)
 
 -- | A network layer which returns mock blocks.
 mockHttpBridge

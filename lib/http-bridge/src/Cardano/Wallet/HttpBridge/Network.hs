@@ -23,6 +23,7 @@ module Cardano.Wallet.HttpBridge.Network
     , mkTxSubmission
 
     , mkHttpBridgeLayer
+    , newHttpBridgeLayer
     ) where
 
 import Prelude
