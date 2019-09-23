@@ -25,7 +25,7 @@ import Cardano.BM.Trace
 import Cardano.CLI
     ( Port (..) )
 import Cardano.Faucet
-    ( block0H, initFaucet )
+    ( getBlock0H, initFaucet )
 import Cardano.Launcher
     ( StdStream (..) )
 import Cardano.Wallet
@@ -177,6 +177,7 @@ cardanoWalletServer
 cardanoWalletServer jormungandrUrl mlisten = do
     logConfig <- CM.empty
     tracer <- initTracer Info "serve"
+    block0H <- getBlock0H
     (nl, (block0, bp)) <- newNetworkLayer jormungandrUrl block0H
     (sqlCtx, db) <- Sqlite.newDBLayer @_ @network logConfig tracer Nothing
     mvar <- newEmptyMVar
