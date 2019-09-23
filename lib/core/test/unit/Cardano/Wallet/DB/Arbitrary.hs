@@ -10,6 +10,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -33,6 +34,8 @@ import Cardano.Wallet.DB.Sqlite
     ( PersistTx (..) )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, genesisParameters )
+import Cardano.Wallet.DummyTarget.Primitive.Types as DummyTarget
+    ( Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
@@ -74,6 +77,7 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Direction (..)
     , Hash (..)
+    , ShowFmt (..)
     , SlotId (..)
     , SortOrder (..)
     , TxIn (..)
@@ -94,12 +98,20 @@ import Control.DeepSeq
     ( NFData )
 import Crypto.Hash
     ( hash )
+import Data.Coerce
+    ( coerce )
+import Data.Functor.Identity
+    ( Identity (..) )
 import Data.Quantity
     ( Percentage, Quantity (..), mkPercentage )
+import Data.Text.Class
+    ( toText )
 import Data.Typeable
     ( Typeable )
 import Data.Word
     ( Word32 )
+import Fmt
+    ( Buildable (..), Builder, blockMapF', prefixF, suffixF, tupleF )
 import GHC.Generics
     ( Generic )
 import System.IO.Unsafe
@@ -127,8 +139,6 @@ import Test.QuickCheck
 import Test.Utils.Time
     ( genUniformTime )
 
-import Cardano.Wallet.DummyTarget.Primitive.Types as DummyTarget
-    ( Tx (..) )
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
@@ -143,10 +153,12 @@ import qualified Data.Set as Set
                     Cross DB Specs Shared Arbitrary Instances
 -------------------------------------------------------------------------------}
 
-type GenState s = (NFData s, Show s, IsOurs s, Arbitrary s)
+type GenState s = (NFData s, Show s, IsOurs s, Arbitrary s, Buildable s)
 
 newtype KeyValPairs k v = KeyValPairs [(k, v)]
     deriving (Generic, Show, Eq)
+
+deriving instance Arbitrary a => Arbitrary (ShowFmt a)
 
 instance (Arbitrary k, Arbitrary v) => Arbitrary (KeyValPairs k v) where
     shrink = genericShrink
@@ -266,9 +278,6 @@ instance PersistTx DummyTarget where
     resolvedInputs = flip zip (repeat Nothing) . DummyTarget.inputs
     mkTx _ inps = DummyTarget.Tx (fst <$> inps)
 
--- instance KeyToAddress DummyTarget SeqKey where
---     keyToAddress = Address . unXPub . getKey . unSeqKey
-
 instance Arbitrary DummyTarget.Tx where
     shrink (DummyTarget.Tx ins outs) =
         [DummyTarget.Tx ins' outs | ins' <- shrinkList' ins ] ++
@@ -326,7 +335,9 @@ newtype GenTxHistory = GenTxHistory { unGenTxHistory :: TxHistory DummyTarget }
 instance Arbitrary GenTxHistory where
     shrink (GenTxHistory h) = map GenTxHistory (shrinkList shrinkOneTx h)
       where
-        shrinkOneTx :: (Hash "Tx", (DummyTarget.Tx, TxMeta)) -> [(Hash "Tx", (DummyTarget.Tx, TxMeta))]
+        shrinkOneTx
+            :: (Hash "Tx", (DummyTarget.Tx, TxMeta))
+            -> [(Hash "Tx", (DummyTarget.Tx, TxMeta))]
         shrinkOneTx (txid, (tx, meta)) =
             [(txid, (tx', meta)) | tx' <- shrink tx]
 
@@ -368,14 +379,6 @@ instance Arbitrary (Hash "encryption") where
         InfiniteList bytes _ <- arbitrary
         return $ Hash $ BS.pack $ take 32 bytes
 
--- Necessary unsound Show instance for QuickCheck failure reporting
-instance Show XPrv where
-    show = show . unXPrv
-
--- Necessary unsound Eq instance for QuickCheck properties
-instance Eq XPrv where
-    a == b = unXPrv a == unXPrv b
-
 genRootKeysSeq :: Gen (SeqKey 'RootK XPrv)
 genRootKeysSeq = do
     (s, g, e) <- (,,)
@@ -406,3 +409,29 @@ rootKeysSeq = unsafePerformIO $ generate (vectorOf 10 genRootKeysSeq)
 rootKeysRnd :: [RndKey 'RootK XPrv]
 rootKeysRnd = unsafePerformIO $ generate (vectorOf 10 genRootKeysRnd)
 {-# NOINLINE rootKeysRnd #-}
+
+{-------------------------------------------------------------------------------
+                     Missing Instances for QC Tests
+-------------------------------------------------------------------------------}
+
+-- Necessary unsound Show instance for QuickCheck failure reporting
+instance Show XPrv where
+    show = const "XPrv"
+
+-- Necessary unsound Eq instance for QuickCheck properties
+instance Eq XPrv where
+    a == b = unXPrv a == unXPrv b
+
+deriving instance Buildable a => Buildable (Identity a)
+
+instance Buildable GenTxHistory where
+    build (GenTxHistory txs) = blockMapF' build tupleF (Map.fromList txs)
+
+instance Buildable (SeqKey depth XPrv, Hash "encryption") where
+    build (_, h) = tupleF (xprvF, prefixF 8 hF <> "..." <> suffixF 8 hF)
+      where
+        xprvF = "XPrv" :: Builder
+        hF = build (toText (coerce @_ @(Hash "BlockHeader") h))
+
+instance Buildable (PrimaryKey WalletId) where
+    build (PrimaryKey wid) = build wid

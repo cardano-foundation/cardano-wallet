@@ -95,6 +95,8 @@ import Data.List
     ( intercalate )
 import Data.Proxy
     ( Proxy (..) )
+import Data.String
+    ( fromString )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -102,7 +104,7 @@ import Data.Text.Class
 import Data.Word
     ( Word32 )
 import Fmt
-    ( Buildable )
+    ( Buildable (..) )
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
@@ -161,6 +163,9 @@ instance Enum (Index 'Soft level) where
             error "Index@Soft.toEnum: bad argument"
         | otherwise =
             Index (fromIntegral ix)
+
+instance Buildable (Index derivationType level) where
+    build (Index ix) = fromString (show ix)
 
 -- | Type of derivation that should be used with the given indexes.
 data DerivationType = Hardened | Soft

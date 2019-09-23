@@ -72,8 +72,15 @@ import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     , deriveAccountPrivateKey
     , deriveAddressPrivateKey
     , deriveAddressPublicKey
+    , serializeXPubSeq
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
+    ( CompareDiscovery (..)
+    , GenChange (..)
+    , IsOurs (..)
+    , IsOwned (..)
+    , KnownAddresses (..)
+    )
 import Cardano.Wallet.Primitive.Types
     ( Address, invariant )
 import Control.Applicative
@@ -100,6 +107,15 @@ import Data.Typeable
     ( Typeable, typeRep )
 import Data.Word
     ( Word8 )
+import Fmt
+    ( Buildable (..)
+    , blockListF'
+    , blockMapF'
+    , hexF
+    , indentF
+    , prefixF
+    , suffixF
+    )
 import GHC.Generics
     ( Generic )
 
@@ -188,6 +204,15 @@ data AddressPool target (chain :: ChangeChain) = AddressPool
     } deriving (Generic, Show, Eq)
 
 instance NFData (AddressPool target chain)
+
+instance Typeable chain => Buildable (AddressPool target chain) where
+    build (AddressPool acct (AddressPoolGap g) addrs) = mempty
+        <> ccF <> " " <> acctF <> " (gap=" <> build g <> ")\n"
+        <> indentF 4 (blockMapF' build build addrs)
+      where
+        ccF = build $ toText $ changeChain @chain
+        xpubF = hexF $ serializeXPubSeq acct
+        acctF = prefixF 8 xpubF <> "..." <> suffixF 8 xpubF
 
 -- | Bring a 'ChangeChain' type back to the term-level. This requires a type
 -- application and either a scoped type variable, or an explicit passing of a
@@ -381,7 +406,16 @@ data SeqState t = SeqState
         -- (cf: 'PendingIxs')
     }
     deriving stock (Generic, Show)
+
 instance NFData (SeqState t)
+
+instance Buildable (SeqState t) where
+    build (SeqState intP extP chgs) = "SeqState:\n"
+        <> indentF 4 (build intP)
+        <> indentF 4 (build extP)
+        <> indentF 4 ("Change indexes: " <> indentF 4 chgsF)
+      where
+        chgsF = blockListF' "-" build (pendingIxsToList chgs)
 
 -- | Construct a Sequential state for a wallet.
 mkSeqState

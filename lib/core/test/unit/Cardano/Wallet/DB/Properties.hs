@@ -37,7 +37,12 @@ import Cardano.Wallet.Primitive.AddressDerivation.Sequential
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
-    ( SortOrder (..), WalletId (..), WalletMetadata (..), wholeRange )
+    ( ShowFmt (..)
+    , SortOrder (..)
+    , WalletId (..)
+    , WalletMetadata (..)
+    , wholeRange
+    )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Concurrent.Async
@@ -48,10 +53,14 @@ import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
+import Data.Bifunctor
+    ( bimap )
 import Data.Functor
     ( ($>) )
 import Data.Functor.Identity
     ( Identity (..) )
+import Fmt
+    ( Buildable )
 import Test.Hspec
     ( Spec
     , SpecWith
@@ -267,7 +276,7 @@ prop_removeWalletTwice db (key@(PrimaryKey wid), cp, meta) =
 
 -- | Checks that a given resource can be read after having been inserted in DB.
 prop_readAfterPut
-    :: ( Show (f a), Eq (f a), Applicative f, GenState s )
+    :: ( Buildable (f a), Eq (f a), Applicative f, GenState s )
     => (  DBLayer IO s DummyTarget SeqKey
        -> PrimaryKey WalletId
        -> a
@@ -278,10 +287,10 @@ prop_readAfterPut
        -> IO (f a)
        ) -- ^ Read Operation
     -> DBLayer IO s DummyTarget SeqKey
-    -> (PrimaryKey WalletId, a)
+    -> (ShowFmt (PrimaryKey WalletId), ShowFmt a)
         -- ^ Property arguments
     -> Property
-prop_readAfterPut putOp readOp db (key, a) =
+prop_readAfterPut putOp readOp db (ShowFmt key, ShowFmt a) =
     monadicIO (setup >> prop)
   where
     setup = do
@@ -291,11 +300,11 @@ prop_readAfterPut putOp readOp db (key, a) =
     prop = liftIO $ do
         unsafeRunExceptT $ putOp db key a
         res <- readOp db key
-        res `shouldBe` pure a
+        ShowFmt res `shouldBe` ShowFmt (pure a)
 
 -- | Can't put resource before a wallet has been initialized
 prop_putBeforeInit
-    :: (Show (f a), Eq (f a))
+    :: (Buildable (f a), Eq (f a))
     => (  DBLayer IO s DummyTarget SeqKey
        -> PrimaryKey WalletId
        -> a
@@ -308,10 +317,10 @@ prop_putBeforeInit
     -> f a
         -- ^ An 'empty' value for the 'Applicative' f
     -> DBLayer IO s DummyTarget SeqKey
-    -> (PrimaryKey WalletId, a)
+    -> (ShowFmt (PrimaryKey WalletId), ShowFmt a)
         -- ^ Property arguments
     -> Property
-prop_putBeforeInit putOp readOp empty db (key@(PrimaryKey wid), a) =
+prop_putBeforeInit putOp readOp empty db (ShowFmt (key@(PrimaryKey wid)), ShowFmt a) =
     monadicIO (setup >> prop)
   where
     setup = liftIO (cleanDB db)
@@ -321,13 +330,13 @@ prop_putBeforeInit putOp readOp empty db (key@(PrimaryKey wid), a) =
                 fail "expected put operation to fail but it succeeded!"
             Left err ->
                 err `shouldBe` ErrNoSuchWallet wid
-        readOp db key `shouldReturn` empty
+        (ShowFmt <$> readOp db key) `shouldReturn` (ShowFmt empty)
 
 -- | Modifying one resource leaves the other untouched
 prop_isolation
-    :: ( Show (f b), Eq (f b)
-       , Show (g c), Eq (g c)
-       , Show (h d), Eq (h d)
+    :: ( Buildable (f b), Eq (f b)
+       , Buildable (g c), Eq (g c)
+       , Buildable (h d), Eq (h d)
        , Arbitrary (Wallet s DummyTarget)
        )
     => (  DBLayer IO s DummyTarget SeqKey
@@ -348,10 +357,10 @@ prop_isolation
        -> IO (h d)
        ) -- ^ Read Operation for another resource
     -> DBLayer IO s DummyTarget SeqKey
-    -> (PrimaryKey WalletId, a)
+    -> (ShowFmt (PrimaryKey WalletId), ShowFmt a)
         -- ^ Properties arguments
     -> Property
-prop_isolation putA readB readC readD db (key, a) =
+prop_isolation putA readB readC readD db (ShowFmt key, ShowFmt a) =
     monadicIO (setup >>= prop)
   where
     setup = do
@@ -367,13 +376,13 @@ prop_isolation putA readB readC readD db (key, a) =
 
     prop (b, c, d) = liftIO $ do
         unsafeRunExceptT $ putA db key a
-        readB db key `shouldReturn` b
-        readC db key `shouldReturn` c
-        readD db key `shouldReturn` d
+        (ShowFmt <$> readB db key) `shouldReturn` ShowFmt b
+        (ShowFmt <$> readC db key) `shouldReturn` ShowFmt c
+        (ShowFmt <$> readD db key) `shouldReturn` ShowFmt d
 
 -- | Can't read back data after delete
 prop_readAfterDelete
-    :: (Show (f a), Eq (f a), Arbitrary (Wallet s DummyTarget))
+    :: (Buildable (f a), Eq (f a), GenState s)
     => (  DBLayer IO s DummyTarget SeqKey
        -> PrimaryKey WalletId
        -> IO (f a)
@@ -381,9 +390,9 @@ prop_readAfterDelete
     -> f a
         -- ^ An 'empty' value for the 'Applicative' f
     -> DBLayer IO s DummyTarget SeqKey
-    -> PrimaryKey WalletId
+    -> ShowFmt (PrimaryKey WalletId)
     -> Property
-prop_readAfterDelete readOp empty db key =
+prop_readAfterDelete readOp empty db (ShowFmt key) =
     monadicIO (setup >> prop)
   where
     setup = do
@@ -392,11 +401,11 @@ prop_readAfterDelete readOp empty db key =
         liftIO $ unsafeRunExceptT $ createWallet db key cp meta
     prop = liftIO $ do
         unsafeRunExceptT $ removeWallet db key
-        readOp db key `shouldReturn` empty
+        (ShowFmt <$> readOp db key) `shouldReturn` ShowFmt empty
 
 -- | Check that the DB supports multiple sequential puts for a given resource
 prop_sequentialPut
-    :: (Show (f a), Eq (f a), Arbitrary (Wallet s DummyTarget))
+    :: (Buildable (f a), Eq (f a), GenState s)
     => (  DBLayer IO s DummyTarget SeqKey
        -> PrimaryKey WalletId
        -> a
@@ -409,12 +418,13 @@ prop_sequentialPut
     -> (forall k. Ord k => [(k, a)] -> [f a])
         -- ^ How do we expect operations to resolve
     -> DBLayer IO s DummyTarget SeqKey
-    -> KeyValPairs (PrimaryKey WalletId) a
+    -> KeyValPairs (ShowFmt (PrimaryKey WalletId)) (ShowFmt a)
         -- ^ Property arguments
     -> Property
-prop_sequentialPut putOp readOp resolve db (KeyValPairs pairs) =
+prop_sequentialPut putOp readOp resolve db kv =
     cover 25 cond "conflicting db entries" $ monadicIO (setup >> prop)
   where
+    pairs = (\(KeyValPairs xs) -> bimap unShowFmt unShowFmt <$> xs) kv
     -- Make sure that we have some conflicting insertion to actually test the
     -- semantic of the DB Layer.
     cond = L.length (L.nub ids) /= L.length ids
@@ -428,7 +438,7 @@ prop_sequentialPut putOp readOp resolve db (KeyValPairs pairs) =
     prop = liftIO $ do
         unsafeRunExceptT $ forM_ pairs $ uncurry (putOp db)
         res <- once pairs (readOp db . fst)
-        res `shouldBe` resolve pairs
+        (ShowFmt <$> res) `shouldBe` (ShowFmt <$> resolve pairs)
 
 -- | Check that the DB supports multiple sequential puts for a given resource
 prop_parallelPut
