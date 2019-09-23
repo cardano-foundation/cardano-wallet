@@ -53,7 +53,7 @@ import Cardano.Wallet.DB
     , cleanDB
     )
 import Cardano.Wallet.DB.Arbitrary
-    ( KeyValPairs (..), SlotAndBlocks (..) )
+    ( KeyValPairs (..) )
 import Cardano.Wallet.DB.Properties
     ( properties, withDB )
 import Cardano.Wallet.DB.Sqlite
@@ -83,10 +83,9 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Mnemonic
     ( EntropySize, entropyToBytes, genEntropy )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, applyBlock, currentTip, initWallet )
+    ( Wallet, initWallet )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
-    , BlockHeader (..)
     , Coin (..)
     , Direction (..)
     , Hash (..)
@@ -111,7 +110,7 @@ import Control.DeepSeq
 import Control.Exception
     ( throwIO )
 import Control.Monad
-    ( foldM, forM_, replicateM_, unless )
+    ( forM_, replicateM_, unless )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -193,9 +192,6 @@ sqliteSpecSeq = withDB newMemoryDBLayer $ do
     describe "Sqlite State machine tests" $ do
         it "Sequential" (prop_sequential :: TestDBSeq -> Property)
         xit "Parallel" prop_parallel
-    describe "Sqlite rollback tests" $ do
-        it "applying blocks"
-            (property . (prop_rollbackApplyBlocks @(SeqState DummyTarget)))
 
 sqliteSpecRnd :: Spec
 sqliteSpecRnd = withDB newMemoryDBLayer $ do
@@ -203,9 +199,6 @@ sqliteSpecRnd = withDB newMemoryDBLayer $ do
         describe "Sqlite State machine (RndState)" $ do
             it "Sequential state machine tests"
                 (prop_sequential :: TestDBRnd -> Property)
-        describe "Sqlite rollback tests" $ do
-            it "applying blocks"
-                (property . (prop_rollbackApplyBlocks @(RndState DummyTarget)))
 
 {-------------------------------------------------------------------------------
                                  Simple Specs
@@ -266,32 +259,6 @@ simpleSpec cp = do
             unsafeRunExceptT $ createWallet db testPk cp testMetadata
             runExceptT (putCheckpoint db testPk cp) `shouldReturn` Right ()
             readCheckpoint db testPk `shouldReturn` Just cp
-
--- | Can rollback to checkpoints created after
-prop_rollbackApplyBlocks
-    :: (Eq s)
-    => DBLayer IO s DummyTarget k
-    -> Wallet s DummyTarget
-    -> SlotAndBlocks
-    -> Property
-prop_rollbackApplyBlocks db state (SlotAndBlocks (slotTo, blocks)) =
-    monadicIO $ do
-    cps <- setup
-    let cp:_ = filter (\s -> let (BlockHeader slot _ _) = currentTip s
-                             in slot == slotTo) cps
-    prop cp
-  where
-    setup = liftIO $ do
-        unsafeRunExceptT $ createWallet db testPk state testMetadata
-        let addCheckpoint cps@(cp:_) block = do
-                let (_,cp') = applyBlock block cp
-                runExceptT (putCheckpoint db testPk cp') `shouldReturn` Right ()
-                pure $ cp':cps
-            addCheckpoint [] _ = pure []
-        foldM addCheckpoint [state] blocks
-    prop expCp = liftIO $ do
-        runExceptT (rollbackTo db testPk slotTo) `shouldReturn` Right ()
-        readCheckpoint db testPk `shouldReturn` Just expCp
 
 {-------------------------------------------------------------------------------
                                 Logging Spec
