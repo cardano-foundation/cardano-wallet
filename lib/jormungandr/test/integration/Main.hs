@@ -40,14 +40,10 @@ import Cardano.Wallet.Jormungandr.Launch
     ( launchJormungandr )
 import Cardano.Wallet.Jormungandr.Network
     ( BaseUrl (..), JormungandrLayer (..) )
-import Cardano.Wallet.Jormungandr.Primitive.Types
-    ( Tx )
 import Cardano.Wallet.Network
-    ( NetworkLayer (..), defaultRetryPolicy, waitForConnection )
+    ( defaultRetryPolicy, waitForConnection )
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
-import Cardano.Wallet.Primitive.Types
-    ( Block, Hash )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Concurrent
@@ -177,12 +173,16 @@ cardanoWalletServer
 cardanoWalletServer jormungandrUrl mlisten = do
     logConfig <- CM.empty
     tracer <- initTracer Info "serve"
-    (nl, (block0, bp)) <- newNetworkLayer jormungandrUrl block0H
+    (jormungandr, nl) <- Jormungandr.newRestorer' jormungandrUrl
+    waitForConnection nl defaultRetryPolicy
+    (block0, bp) <- unsafeRunExceptT $
+        getInitialBlockchainParameters jormungandr (coerce block0H)
     (sqlCtx, db) <- Sqlite.newDBLayer @_ @network logConfig tracer Nothing
     mvar <- newEmptyMVar
+    let postTx = postMessage jormungandr
     handle <- async $ do
         let tl = Jormungandr.newTransactionLayer block0H
-        wallet <- newWalletLayer tracer (block0, bp) db nl tl
+        wallet <- newWalletLayer tracer (block0, bp) db nl tl postTx
         let listen = fromMaybe (ListenOnPort $ getPort defaultPort) mlisten
         Server.withListeningSocket listen $ \(port, socket) -> do
             let settings = Warp.defaultSettings
@@ -190,18 +190,6 @@ cardanoWalletServer jormungandrUrl mlisten = do
             Server.start settings tracer socket wallet
     (handle, , getFeePolicy bp, sqlCtx) <$> takeMVar mvar
 
--- Instantiate a new 'NetworkLayer' for 'Jormungandr', and fetches the
--- genesis block for starting a 'WalletLayer'.
-newNetworkLayer
-    :: BaseUrl
-    -> Hash "Genesis"
-    -> IO (NetworkLayer (Jormungandr n) IO, (Block Tx, BlockchainParameters))
-newNetworkLayer url block0 = do
-    (jormungandr, nl) <- Jormungandr.newNetworkLayer' url
-    waitForConnection nl defaultRetryPolicy
-    blockchainParams <- unsafeRunExceptT $
-        getInitialBlockchainParameters jormungandr (coerce block0)
-    return (nl, blockchainParams)
 
 mkFeeEstimator :: FeePolicy -> TxDescription -> (Natural, Natural)
 mkFeeEstimator policy (TxDescription nInps nOuts) =
