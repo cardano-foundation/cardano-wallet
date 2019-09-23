@@ -57,6 +57,8 @@ import Cardano.Wallet.DB
     , PrimaryKey (..)
     , cleanDB
     )
+import Cardano.Wallet.DB.Arbitrary
+    ( GenTxHistory (..) )
 import Cardano.Wallet.DB.Model
     ( Database
     , Err (..)
@@ -75,8 +77,6 @@ import Cardano.Wallet.DB.Model
     , mReadWalletMeta
     , mRemoveWallet
     )
-import Cardano.Wallet.DBSpec
-    ( GenTxHistory (..) )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation

@@ -13,8 +13,8 @@ module Cardano.Wallet.DB.MVarSpec
 
 import Prelude
 
-import Cardano.Wallet.DBSpec
-    ( dbPropertyTests, withDB )
+import Cardano.Wallet.DB.Properties
+    ( properties, withDB )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, block0, genesisParameters )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -34,7 +34,7 @@ import qualified Cardano.Wallet.DB.MVar as MVar
 
 spec :: Spec
 spec = withDB @(SeqState DummyTarget) MVar.newDBLayer $
-    describe "MVar" dbPropertyTests
+    describe "MVar" properties
 
 newtype DummyStateMVar = DummyStateMVar Int
     deriving (Show, Eq)
