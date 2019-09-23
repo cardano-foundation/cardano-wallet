@@ -62,6 +62,8 @@ import Data.Maybe
     ( isJust )
 import Data.Set
     ( Set )
+import Fmt
+    ( Buildable (..), blockMapF', indentF, tupleF )
 import GHC.Generics
     ( Generic )
 import System.Random
@@ -92,11 +94,19 @@ data RndState target = RndState
 instance NFData (RndState target) where
     rnf (RndState !_ !_ !_ !_ g) = seq (show g) ()
 
+-- | There's no instance of 'Show' for 'XPrv'
 instance Show (RndState target) where
     show (RndState _key ix addrs pending g) = unwords
         [ "RndState <xprv>", p ix, p addrs, p pending, p g ]
       where
         p x = "(" ++ show x ++ ")"
+
+instance Buildable (RndState target) where
+    build (RndState _ ix addrs pending gen) = "RndState:\n"
+        <> indentF 4 ("Account ix:       " <> build ix)
+        <> indentF 4 ("Random Generator: " <> build (show gen))
+        <> indentF 4 ("Known addresses:  " <> blockMapF' tupleF build addrs)
+        <> indentF 4 ("Change addresses: " <> blockMapF' tupleF build pending)
 
 -- | Shortcut type alias for HD random address derivation path.
 type DerivationPath = (Index 'Hardened 'AccountK, Index 'Hardened 'AddressK)

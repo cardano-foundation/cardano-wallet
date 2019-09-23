@@ -748,7 +748,12 @@ newtype Address = Address
 instance NFData Address
 
 instance Buildable Address where
-    build = build . toText
+    build addr = mempty
+        <> prefixF 8 addrF
+        <> "..."
+        <> suffixF 8 addrF
+      where
+        addrF = build (toText addr)
 
 instance ToText Address where
     toText = T.decodeUtf8
@@ -1172,16 +1177,13 @@ instance ToText (Hash "Genesis") where
 
 -- | A polymorphic wrapper type with a custom show instance to display data
 -- through 'Buildable' instances.
-newtype ShowFmt a = ShowFmt a
+newtype ShowFmt a = ShowFmt { unShowFmt :: a }
     deriving (Generic, Eq, Ord)
 
 instance NFData a => NFData (ShowFmt a)
 
 instance Buildable a => Show (ShowFmt a) where
     show (ShowFmt a) = fmt (build a)
-
-instance {-# OVERLAPS #-} (Buildable a, Foldable f) => Show (ShowFmt (f a)) where
-    show (ShowFmt a) = fmt (blockListF a)
 
 -- | Checks whether or not an invariant holds, by applying the given predicate
 --   to the given value.

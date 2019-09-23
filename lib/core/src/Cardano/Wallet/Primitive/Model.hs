@@ -63,11 +63,11 @@ import Cardano.Wallet.Primitive.Types
     , DefineTx (..)
     , Direction (..)
     , Dom (..)
-    , EpochLength
-    , FeePolicy
+    , EpochLength (..)
+    , FeePolicy (..)
     , Hash (..)
-    , SlotLength
-    , StartTime
+    , SlotLength (..)
+    , StartTime (..)
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
@@ -100,8 +100,12 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Set
     ( Set )
+import Data.Text.Class
+    ( toText )
 import Data.Word
     ( Word16, Word32 )
+import Fmt
+    ( Buildable (..), blockListF', indentF, tupleF )
 import GHC.Generics
     ( Generic )
 import Numeric.Natural
@@ -167,6 +171,14 @@ instance NFData (Wallet s t) where
         deepseq (rnf s) $
         deepseq (rnf bp) ()
 
+instance Buildable s => Buildable (Wallet s t) where
+    build (Wallet u txs tip s bp) = "\nWallet s t\n"
+        <> indentF 4 ("Tip: " <> build tip)
+        <> indentF 4 ("Parameters:\n" <> indentF 4 (build bp))
+        <> indentF 4 ("UTxO: " <> build u)
+        <> indentF 4 ("Pending Txs: " <> (blockListF' "-" tupleF txs))
+        <> indentF 4 (build s)
+
 data BlockchainParameters = BlockchainParameters
     { getGenesisBlockDate :: StartTime
         -- ^ Start time of the chain.
@@ -183,6 +195,23 @@ data BlockchainParameters = BlockchainParameters
     } deriving (Generic, Show, Eq)
 
 instance NFData BlockchainParameters
+
+instance Buildable BlockchainParameters where
+    build bp = blockListF' "" id
+        [ "Genesis block date: " <> startTimeF (getGenesisBlockDate bp)
+        , "Fee policy:         " <> feePolicyF (getFeePolicy bp)
+        , "Slot length:        " <> slotLengthF (getSlotLength bp)
+        , "Epoch length:       " <> epochLengthF (getEpochLength bp)
+        , "Tx max size:        " <> txMaxSizeF (getTxMaxSize bp)
+        , "Epoch stability:    " <> epochStabilityF (getEpochStability bp)
+        ]
+      where
+        startTimeF (StartTime s) = build s
+        feePolicyF = build . toText
+        slotLengthF (SlotLength s) = build s
+        epochLengthF (EpochLength s) = build s
+        txMaxSizeF (Quantity s) = build s
+        epochStabilityF (Quantity s) = build s
 
 {-------------------------------------------------------------------------------
                           Construction & Modification
