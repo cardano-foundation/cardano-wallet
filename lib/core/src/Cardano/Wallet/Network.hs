@@ -40,7 +40,7 @@ import GHC.Generics
 import Numeric.Natural
     ( Natural )
 
-data Restorer block m = NetworkLayer
+data Restorer block m = Restorer
     { nextBlocks :: BlockHeader -> ExceptT ErrGetBlock m [block]
         -- ^ Fetches a contiguous sequence of blocks from the node, starting
         -- from the first block available with a slot greater than the given
