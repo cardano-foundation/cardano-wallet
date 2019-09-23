@@ -7,10 +7,13 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
 
 module Cardano.Wallet.DB.Properties
     ( properties
@@ -27,7 +30,7 @@ import Cardano.Wallet.DB
     , cleanDB
     )
 import Cardano.Wallet.DB.Arbitrary
-    ( GenState, GenTxHistory (..), KeyValPairs (..) )
+    ( GenState, GenTxHistory (..), KeyValPairs (..), MockChain (..) )
 import Cardano.Wallet.DB.Model
     ( filterTxHistory )
 import Cardano.Wallet.DummyTarget.Primitive.Types
@@ -35,7 +38,7 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( SeqKey (..) )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet )
+    ( Wallet, applyBlock, currentTip )
 import Cardano.Wallet.Primitive.Types
     ( ShowFmt (..)
     , SortOrder (..)
@@ -59,8 +62,12 @@ import Data.Functor
     ( ($>) )
 import Data.Functor.Identity
     ( Identity (..) )
+import Data.Generics.Internal.VL.Lens
+    ( (^.) )
+import Data.List
+    ( unfoldr )
 import Fmt
-    ( Buildable )
+    ( Buildable (..), indentF, pretty )
 import Test.Hspec
     ( Spec
     , SpecWith
@@ -72,9 +79,16 @@ import Test.Hspec
     , shouldReturn
     )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, checkCoverage, cover, property )
+    ( Arbitrary (..)
+    , Property
+    , checkCoverage
+    , counterexample
+    , cover
+    , elements
+    , property
+    )
 import Test.QuickCheck.Monadic
-    ( monadicIO, pick )
+    ( assert, monadicIO, monitor, pick, run )
 
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
@@ -169,6 +183,10 @@ properties = do
         it "Private Key"
             (checkCoverage . (prop_parallelPut putPrivateKey readPrivateKey
                 (length . lrp @Maybe)))
+
+    describe "rollback" $ do
+        it "Can rollback an arbitrary number of blocks"
+            (property . prop_rollbackTo)
 
 -- | Wrap the result of 'readTxHistory' in an arbitrary identity Applicative
 readTxHistoryF
@@ -475,3 +493,38 @@ prop_parallelPut putOp readOp resolve db (KeyValPairs pairs) =
         forConcurrently_ pairs $ unsafeRunExceptT . uncurry (putOp db)
         res <- once pairs (readOp db . fst)
         length res `shouldBe` resolve pairs
+
+
+-- | Can rollback to a particular checkpoint previously stored
+prop_rollbackTo
+    :: forall s t k. (t ~ DummyTarget, GenState s, Eq s)
+    => DBLayer IO s t k
+    -> ( ShowFmt (PrimaryKey WalletId)
+       , ShowFmt (Wallet s t)
+       , ShowFmt WalletMetadata
+       , ShowFmt MockChain
+       )
+    -> Property
+prop_rollbackTo db (ShowFmt wid, ShowFmt cp0, ShowFmt meta, ShowFmt (MockChain chain)) = do
+    monadicIO $ do
+        ShowFmt point <- pick (elements $ ShowFmt <$> cps)
+        setup >> prop point
+  where
+    cps :: [Wallet s t]
+    cps = flip unfoldr (chain, cp0) $ \case
+        ([], _) -> Nothing
+        (b:q, cp) -> let cp' = snd $ applyBlock b cp in Just (cp', (q, cp'))
+
+    setup = run $ do
+        cleanDB db
+        unsafeRunExceptT $ createWallet db wid cp0 meta
+        unsafeRunExceptT $ forM_ cps (putCheckpoint db wid)
+
+    prop point = do
+        let tip = currentTip point
+        monitor $ counterexample ("Point of rollback: " <> pretty tip)
+        run $ unsafeRunExceptT $ rollbackTo db wid (tip ^. #slotId)
+        cp <- run $ readCheckpoint db wid
+        let str = maybe "∅" (pretty . indentF 4 . build) cp
+        monitor $ counterexample ("Checkpoint after rollback: " <> str)
+        assert (ShowFmt cp == ShowFmt (pure point))
