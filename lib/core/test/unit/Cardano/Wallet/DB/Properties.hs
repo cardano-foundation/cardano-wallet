@@ -42,8 +42,6 @@ import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Concurrent.Async
     ( forConcurrently_ )
-import Control.DeepSeq
-    ( NFData )
 import Control.Monad
     ( forM, forM_, void )
 import Control.Monad.IO.Class
@@ -71,7 +69,6 @@ import Test.QuickCheck.Monadic
 
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
 
 -- | Provide a DBLayer to a Spec that requires it. The database is initialised
 -- once, and cleared with 'cleanDB' before each test.
@@ -468,4 +465,3 @@ prop_parallelPut putOp readOp resolve db (KeyValPairs pairs) =
         forConcurrently_ pairs $ unsafeRunExceptT . uncurry (putOp db)
         res <- once pairs (readOp db . fst)
         length res `shouldBe` resolve pairs
-

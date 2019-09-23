@@ -32,7 +32,7 @@ import Cardano.Wallet.DB.Model
 import Cardano.Wallet.DB.Sqlite
     ( PersistTx (..) )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( DummyTarget, block0, genesisParameters )
+    ( DummyTarget, genesisParameters )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
@@ -62,15 +62,15 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , SeqState (..)
     , accountPubKey
     , changeChain
-    , emptyPendingIxs
     , gap
     , mkAddressPool
     , mkAddressPoolGap
     )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, getState, initWallet, updateState )
+    ( Wallet, currentTip, getPending, getState, unsafeInitWallet, utxo )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , BlockHeader (..)
     , Coin (..)
     , Direction (..)
     , Hash (..)
@@ -137,6 +137,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 
 {-------------------------------------------------------------------------------
                     Cross DB Specs Shared Arbitrary Instances
@@ -160,8 +161,15 @@ instance Arbitrary (PrimaryKey WalletId) where
         return $ PrimaryKey $ WalletId $ hash bytes
 
 instance GenState s => Arbitrary (Wallet s DummyTarget) where
-    shrink w = [updateState s w | s <- shrink (getState w)]
-    arbitrary = initWallet block0 genesisParameters <$> arbitrary
+    shrink w =
+        [ unsafeInitWallet u (getPending w) (currentTip w) s genesisParameters
+        | (u, s) <- shrink (utxo w, getState w) ]
+    arbitrary = unsafeInitWallet
+        <$> arbitrary
+        <*> pure mempty
+        <*> pure (BlockHeader (SlotId 0 0) (Quantity 0) (Hash "hash"))
+        <*> arbitrary
+        <*> pure genesisParameters
 
 instance Arbitrary Address where
     -- No Shrinking
@@ -180,11 +188,15 @@ instance Arbitrary Address where
 
 instance Arbitrary (SeqState DummyTarget) where
     shrink (SeqState intPool extPool ixs) =
-        (\(i, e) -> SeqState i e ixs) <$> shrink (intPool, extPool)
+        (\(i, e, x) -> SeqState i e x) <$> shrink (intPool, extPool, ixs)
     arbitrary = do
-        intPool <- arbitrary
-        extPool <- arbitrary
-        return $ SeqState intPool extPool emptyPendingIxs
+        SeqState <$> arbitrary <*> arbitrary <*> arbitrary
+
+instance Arbitrary (Seq.PendingIxs) where
+    shrink =
+        map Seq.pendingIxsFromList . shrink . Seq.pendingIxsToList
+    arbitrary =
+        Seq.pendingIxsFromList . Set.toList <$> arbitrary
 
 instance Typeable chain => Arbitrary (AddressPool DummyTarget chain) where
     shrink pool =
@@ -208,6 +220,10 @@ instance Typeable chain => Arbitrary (AddressPool DummyTarget chain) where
         n <- choose (0, 2 * fromEnum g)
         let addrs = take n (ourAddresses (changeChain @chain))
         return $ mkAddressPool ourAccount g addrs
+
+instance Arbitrary (Index 'Soft 'AddressK) where
+    shrink _ = []
+    arbitrary = arbitraryBoundedEnum
 
 unsafeMkAddressPoolGap :: (Integral a, Show a) => a -> AddressPoolGap
 unsafeMkAddressPoolGap g = case (mkAddressPoolGap $ fromIntegral g) of
@@ -330,13 +346,13 @@ instance Arbitrary GenTxHistory where
         sortTxHistory = filterTxHistory @DummyTarget Descending wholeRange
 
 instance Arbitrary UTxO where
-    shrink (UTxO utxo) = UTxO <$> shrink utxo
+    shrink (UTxO u) = UTxO <$> shrink u
     arbitrary = do
         n <- choose (1, 100)
-        utxo <- zip
+        u <- zip
             <$> vectorOf n arbitrary
             <*> vectorOf n arbitrary
-        return $ UTxO $ Map.fromList utxo
+        return $ UTxO $ Map.fromList u
 
 instance Arbitrary (SeqKey 'RootK XPrv) where
     shrink _ = []
