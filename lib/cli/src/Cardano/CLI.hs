@@ -97,6 +97,7 @@ import Cardano.Wallet.Api.Types
     , ApiAddress
     , ApiFee
     , ApiMnemonicT (..)
+    , ApiStakePool
     , ApiT (..)
     , ApiTransaction
     , ApiTxId
@@ -911,12 +912,14 @@ data WalletClient t = WalletClient
     , postExternalTransaction
         :: PostExternalTransactionData
         -> ClientM ApiTxId
+    , listPools
+        :: ClientM [ApiStakePool]
     }
 
 walletClient :: forall t. (DecodeAddress t, EncodeAddress t) => WalletClient t
 walletClient =
     let
-        addresses :<|> wallets :<|> transactions =
+        addresses :<|> wallets :<|> transactions :<|> pools =
             client (Proxy @("v2" :> Api t))
 
         _listAddresses =
@@ -936,6 +939,8 @@ walletClient =
             :<|> _postTransactionFee
             :<|> _postExternalTransaction
             = transactions
+
+        _listPools = pools
     in
         WalletClient
             { listAddresses = _listAddresses
@@ -950,6 +955,7 @@ walletClient =
             , postExternalTransaction = _postExternalTransaction
             , postTransactionFee = _postTransactionFee
             , getWalletUtxoStatistics = _getWalletUtxoStatistics
+            , listPools = _listPools
             }
 
 runClient

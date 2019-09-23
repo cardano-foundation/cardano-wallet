@@ -472,13 +472,28 @@ isSubrangeOf r1 r2 =
 -- | Represent stake pool identifier. Note that the internal representation is
 -- left open currently, until we figure out a better type for those.
 newtype PoolId = PoolId
-    { getPoolId :: Text }
+    { getPoolId :: Digest Blake2b_160 }
     deriving (Generic, Eq, Show)
 
 instance NFData PoolId
 
 instance Buildable PoolId where
-    build = build . getPoolId
+    build wid = prefixF 8 widF <> "..." <> suffixF 8 widF
+      where
+        widF = toText wid
+
+instance FromText PoolId where
+    fromText txt = maybe
+        (Left $ TextDecodingError msg)
+        (Right . PoolId)
+        (decodeHex txt >>= digestFromByteString @_ @ByteString)
+      where
+        msg = "stake pool id should be an hex-encoded string of 40 characters"
+        decodeHex =
+            either (const Nothing) Just . convertFromBase Base16 . T.encodeUtf8
+
+instance ToText PoolId where
+    toText = T.decodeUtf8 . convertToBase Base16 . getPoolId
 
 {-------------------------------------------------------------------------------
                                     Block

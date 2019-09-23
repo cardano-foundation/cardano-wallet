@@ -1,0 +1,135 @@
+{
+    "seed": -1226833437290382113,
+    "samples": [
+        {
+            "metrics": {
+                "controlled_stake": {
+                    "quantity": 370280895264010,
+                    "unit": "lovelace"
+                },
+                "produced_blocks": {
+                    "quantity": 3710482,
+                    "unit": "block"
+                }
+            },
+            "id": "4196bad5388cf701840fb91b33be280c5be29978"
+        },
+        {
+            "metrics": {
+                "controlled_stake": {
+                    "quantity": 586514327877346,
+                    "unit": "lovelace"
+                },
+                "produced_blocks": {
+                    "quantity": 9911341,
+                    "unit": "block"
+                }
+            },
+            "id": "a2ef4262da51e69b1e87de26b8c79aea3a2e4797"
+        },
+        {
+            "metrics": {
+                "controlled_stake": {
+                    "quantity": 733943093035296,
+                    "unit": "lovelace"
+                },
+                "produced_blocks": {
+                    "quantity": 9113550,
+                    "unit": "block"
+                }
+            },
+            "id": "3554e8ab47cf874d32707f065bd5686ee8a5ce0e"
+        },
+        {
+            "metrics": {
+                "controlled_stake": {
+                    "quantity": 975172750789944,
+                    "unit": "lovelace"
+                },
+                "produced_blocks": {
+                    "quantity": 8262529,
+                    "unit": "block"
+                }
+            },
+            "id": "dd4754ce0719d9359c4b968b940ec7179aa150e1"
+        },
+        {
+            "metrics": {
+                "controlled_stake": {
+                    "quantity": 477566930256684,
+                    "unit": "lovelace"
+                },
+                "produced_blocks": {
+                    "quantity": 1729987,
+                    "unit": "block"
+                }
+            },
+            "id": "d3b26945028c008ca70fce9ae3c39c608629e87b"
+        },
+        {
+            "metrics": {
+                "controlled_stake": {
+                    "quantity": 989718762596524,
+                    "unit": "lovelace"
+                },
+                "produced_blocks": {
+                    "quantity": 9651339,
+                    "unit": "block"
+                }
+            },
+            "id": "3028bbcceaa2dcfc9ea6325f26e3237e1f637237"
+        },
+        {
+            "metrics": {
+                "controlled_stake": {
+                    "quantity": 247375495355880,
+                    "unit": "lovelace"
+                },
+                "produced_blocks": {
+                    "quantity": 7378501,
+                    "unit": "block"
+                }
+            },
+            "id": "b5bd2a67f1791d887310bd6a589e23cd176e7176"
+        },
+        {
+            "metrics": {
+                "controlled_stake": {
+                    "quantity": 769348979251464,
+                    "unit": "lovelace"
+                },
+                "produced_blocks": {
+                    "quantity": 10642051,
+                    "unit": "block"
+                }
+            },
+            "id": "8fb513591911719f443ac7d7e845684f150f5cc7"
+        },
+        {
+            "metrics": {
+                "controlled_stake": {
+                    "quantity": 501706049160101,
+                    "unit": "lovelace"
+                },
+                "produced_blocks": {
+                    "quantity": 3865548,
+                    "unit": "block"
+                }
+            },
+            "id": "49206a63315094e6894818e03f5ace9178e5c67e"
+        },
+        {
+            "metrics": {
+                "controlled_stake": {
+                    "quantity": 803923166462987,
+                    "unit": "lovelace"
+                },
+                "produced_blocks": {
+                    "quantity": 19686395,
+                    "unit": "block"
+                }
+            },
+            "id": "47fc05465b8ee8c0c1e86c2dc0cfefa931da8238"
+        }
+    ]
+}

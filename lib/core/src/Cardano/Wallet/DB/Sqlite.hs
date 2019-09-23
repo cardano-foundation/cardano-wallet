@@ -112,6 +112,8 @@ import Data.Coerce
     ( coerce )
 import Data.Either
     ( isRight )
+import Data.Either.Combinators
+    ( fromRight' )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.List.Split
@@ -124,6 +126,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( FromText (..), ToText (..) )
 import Data.Typeable
     ( Typeable )
 import Data.Word
@@ -485,11 +489,11 @@ addIndices = mapM_ (`rawExecute` [])
 
 delegationToText :: W.WalletDelegation W.PoolId -> Maybe Text
 delegationToText W.NotDelegating = Nothing
-delegationToText (W.Delegating pool) = Just (W.getPoolId pool)
+delegationToText (W.Delegating pool) = Just $ toText pool
 
 delegationFromText :: Maybe Text -> W.WalletDelegation W.PoolId
 delegationFromText Nothing = W.NotDelegating
-delegationFromText (Just pool) = W.Delegating (W.PoolId pool)
+delegationFromText (Just pool) = W.Delegating (fromRight' $ fromText pool)
 
 mkWalletEntity :: W.WalletId -> W.WalletMetadata -> Wallet
 mkWalletEntity wid meta = Wallet

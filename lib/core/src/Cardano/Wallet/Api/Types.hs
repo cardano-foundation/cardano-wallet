@@ -30,6 +30,8 @@ module Cardano.Wallet.Api.Types
     (
     -- * API Types
       ApiAddress (..)
+    , ApiStakePool (..)
+    , StakePoolMetrics (..)
     , ApiWallet (..)
     , ApiUtxoStatistics (..)
     , WalletBalance (..)
@@ -172,6 +174,16 @@ data ApiWallet = ApiWallet
     , name :: !(ApiT WalletName)
     , passphrase :: !(Maybe (ApiT WalletPassphraseInfo))
     , state :: !(ApiT WalletState)
+    } deriving (Eq, Generic, Show)
+
+data ApiStakePool = ApiStakePool
+    { id :: !(ApiT PoolId)
+    , metrics :: !StakePoolMetrics
+    } deriving (Eq, Generic, Show)
+
+data StakePoolMetrics = StakePoolMetrics
+    { controlledStake :: !(Quantity "lovelace" Natural)
+    , producedBlocks :: !(Quantity "block" Natural)
     } deriving (Eq, Generic, Show)
 
 data ApiUtxoStatistics = ApiUtxoStatistics
@@ -425,10 +437,25 @@ instance FromJSON (ApiT WalletBalance) where
 instance ToJSON (ApiT WalletBalance) where
     toJSON = genericToJSON defaultRecordTypeOptions . getApiT
 
+instance FromJSON (ApiT PoolId) where
+    parseJSON = parseJSON >=> eitherToParser . bimap ShowFmt ApiT . fromText
+instance ToJSON (ApiT PoolId) where
+    toJSON = toJSON . toText . getApiT
+
 instance FromJSON (ApiT (WalletDelegation (ApiT PoolId))) where
     parseJSON = fmap ApiT . genericParseJSON walletDelegationOptions
 instance ToJSON (ApiT (WalletDelegation (ApiT PoolId))) where
     toJSON = genericToJSON walletDelegationOptions . getApiT
+
+instance FromJSON ApiStakePool where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiStakePool where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON StakePoolMetrics where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON StakePoolMetrics where
+    toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON (ApiT WalletName) where
     parseJSON = parseJSON >=> eitherToParser . bimap ShowFmt ApiT . fromText
@@ -454,11 +481,6 @@ instance ToJSON (ApiT BoundType) where
     toJSON = genericToJSON defaultSumTypeOptions . getApiT
 instance FromJSON (ApiT BoundType) where
     parseJSON = fmap ApiT . genericParseJSON defaultSumTypeOptions
-
-instance FromJSON (ApiT PoolId) where
-    parseJSON = fmap (ApiT . PoolId) . parseJSON
-instance ToJSON (ApiT PoolId) where
-    toJSON = toJSON . getPoolId . getApiT
 
 instance DecodeAddress t => FromJSON (PostTransactionData t) where
     parseJSON = genericParseJSON defaultRecordTypeOptions

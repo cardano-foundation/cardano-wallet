@@ -53,13 +53,14 @@ import Cardano.Wallet
     , WalletLayer
     )
 import Cardano.Wallet.Api
-    ( Addresses, Api, Transactions, Wallets )
+    ( Addresses, Api, StakePools, Transactions, Wallets )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress (..)
     , ApiBlockData (..)
     , ApiErrorCode (..)
     , ApiFee (..)
+    , ApiStakePool
     , ApiT (..)
     , ApiTransaction (..)
     , ApiTxId (..)
@@ -216,7 +217,7 @@ start settings trace socket ctx = do
   where
     -- | A Servant server for our wallet API
     server :: Server (Api t)
-    server = addresses ctx :<|> wallets ctx :<|> transactions ctx
+    server = addresses ctx :<|> wallets ctx :<|> transactions ctx :<|> pools ctx
 
     application :: Application
     application = serve (Proxy @("v2" :> Api t)) server
@@ -546,6 +547,20 @@ postTransactionFee ctx (ApiT wid) body = do
     return ApiFee
         { amount = Quantity (fromIntegral fee)
         }
+
+{-------------------------------------------------------------------------------
+                                    Stake Pools
+-------------------------------------------------------------------------------}
+
+pools
+    :: ctx
+    -> Server StakePools
+pools ctx = listPools ctx
+
+listPools
+    :: ctx
+    -> Handler [ApiStakePool]
+listPools _ctx = undefined
 
 {-------------------------------------------------------------------------------
                                 Helpers

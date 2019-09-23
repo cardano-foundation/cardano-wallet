@@ -29,6 +29,7 @@ import Cardano.Wallet.Api.Types
     , ApiBlockData (..)
     , ApiFee (..)
     , ApiMnemonicT (..)
+    , ApiStakePool (..)
     , ApiT (..)
     , ApiTransaction (..)
     , ApiTxId (..)
@@ -39,6 +40,7 @@ import Cardano.Wallet.Api.Types
     , PostExternalTransactionData (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
+    , StakePoolMetrics (..)
     , WalletBalance (..)
     , WalletPostData (..)
     , WalletPutData (..)
@@ -201,6 +203,7 @@ spec = do
         \and match existing golden files" $ do
             jsonRoundtripAndGolden $ Proxy @(ApiAddress DummyTarget)
             jsonRoundtripAndGolden $ Proxy @ApiBlockData
+            jsonRoundtripAndGolden $ Proxy @ApiStakePool
             jsonRoundtripAndGolden $ Proxy @(AddressAmount DummyTarget)
             jsonRoundtripAndGolden $ Proxy @(ApiTransaction DummyTarget)
             jsonRoundtripAndGolden $ Proxy @ApiWallet
@@ -622,7 +625,16 @@ instance Arbitrary (WalletDelegation (ApiT PoolId)) where
     shrink = genericShrink
 
 instance Arbitrary PoolId where
-    arbitrary = PoolId . T.pack <$> replicateM 3 arbitraryPrintableChar
+    arbitrary = do
+        bytes <- BS.pack <$> replicateM 16 arbitrary
+        return $ PoolId (hash bytes)
+
+instance Arbitrary ApiStakePool where
+    arbitrary = do
+        stakes <- Quantity . fromIntegral <$> choose (1::Integer, 1000000000000000)
+        blocks <- Quantity . fromIntegral <$> choose (1::Integer, 1000*22600)
+        let metr = StakePoolMetrics stakes blocks
+        ApiStakePool <$> arbitrary <*> pure metr
 
 instance Arbitrary WalletId where
     arbitrary = do
@@ -884,6 +896,9 @@ instance ToSchema (ApiAddress t) where
 
 instance ToSchema ApiWallet where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWallet"
+
+instance ToSchema ApiStakePool where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiStakePool"
 
 instance ToSchema ApiFee where
     declareNamedSchema _ = declareSchemaForDefinition "ApiFee"
