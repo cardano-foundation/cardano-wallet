@@ -20,6 +20,7 @@ module Cardano.Wallet.DB.Arbitrary
     ( GenTxHistory (..)
     , KeyValPairs (..)
     , GenState
+    , SlotAndBlocks (..)
     ) where
 
 import Prelude
@@ -73,6 +74,7 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip, getPending, getState, unsafeInitWallet, utxo )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , Block (..)
     , BlockHeader (..)
     , Coin (..)
     , Direction (..)
@@ -148,6 +150,8 @@ import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 
 {-------------------------------------------------------------------------------
                     Cross DB Specs Shared Arbitrary Instances
@@ -409,6 +413,25 @@ rootKeysSeq = unsafePerformIO $ generate (vectorOf 10 genRootKeysSeq)
 rootKeysRnd :: [RndKey 'RootK XPrv]
 rootKeysRnd = unsafePerformIO $ generate (vectorOf 10 genRootKeysRnd)
 {-# NOINLINE rootKeysRnd #-}
+
+newtype SlotAndBlocks =
+    SlotAndBlocks { unSlotAndBlocks :: (SlotId, [Block DummyTarget.Tx])}
+    deriving (Eq, Show)
+
+instance Arbitrary SlotAndBlocks where
+    arbitrary = do
+        numBlocks <- choose (1, 10)
+        let epochNum = 0
+        txs <- vectorOf numBlocks arbitrary
+        let mkHash num = Hash $ T.encodeUtf8 $ T.append "tx" (T.pack $ show num)
+        let mkBlock num =
+                Block (BlockHeader
+                       (SlotId epochNum num)
+                       (Quantity $ fromIntegral num)
+                       (mkHash num) )
+        let blocks = zipWith mkBlock [1..] txs
+        slotToReturn <- SlotId epochNum <$> choose (1, fromIntegral numBlocks)
+        return $ SlotAndBlocks (slotToReturn, blocks)
 
 {-------------------------------------------------------------------------------
                      Missing Instances for QC Tests
