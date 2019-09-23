@@ -643,6 +643,8 @@ data Tag
       -- ^ Private key was written then read.
     | ReadTxHistoryAfterDelete
       -- ^ wallet deleted, then tx history read.
+    | PutCheckpointTwice
+      -- ^ Multiple checkpoints are successfully saved to a wallet.
     deriving (Bounded, Enum, Eq, Ord, Show)
 
 -- | The list of all possible 'Tag' values.
@@ -663,6 +665,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
     , readCheckpoint isNothing UnsuccessfulReadCheckpoint
     , readAfterDelete
     , countAction SuccessfulReadPrivateKey (>= 1) isReadPrivateKeySuccess
+    , countAction PutCheckpointTwice (>= 2) isPutCheckpointSuccess
     ]
   where
     readAfterDelete :: Fold (Event s Symbolic) (Maybe Tag)
@@ -813,6 +816,15 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
                     check cp
                 _otherwise ->
                     False
+
+    isPutCheckpointSuccess :: Event s Symbolic -> Maybe MWid
+    isPutCheckpointSuccess ev = case (cmd ev, mockResp ev, before ev) of
+        (At (PutCheckpoint wid _wal)
+            , Resp (Right (Unit ()))
+            , Model _ wids )
+                -> Just (wids ! wid)
+        _otherwise
+            -> Nothing
 
     extractf :: a -> Bool -> Maybe a
     extractf a t = if t then Just a else Nothing

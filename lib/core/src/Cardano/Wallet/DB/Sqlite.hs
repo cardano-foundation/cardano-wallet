@@ -10,10 +10,12 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Redundant flip" #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -128,8 +130,6 @@ import Data.Typeable
     ( Typeable )
 import Data.Word
     ( Word64 )
-import Database.Persist.Class
-    ( toPersistValue )
 import Database.Persist.Sql
     ( Entity (..)
     , Filter
@@ -152,7 +152,6 @@ import Database.Persist.Sql
     , selectKeysList
     , selectList
     , updateWhere
-    , (!=.)
     , (<-.)
     , (<=.)
     , (=.)
@@ -317,8 +316,7 @@ newDBLayer logConfig trace fp = do
         -----------------------------------------------------------------------}
 
         , putCheckpoint = \(PrimaryKey wid) cp ->
-              ExceptT $ runQuery $
-              selectWallet wid >>= \case
+              ExceptT $ runQuery $ selectWallet wid >>= \case
                   Just _ -> Right <$> do
                       purgeCheckpoints wid cp
                       -- remove checkpoint if already present to effectively
@@ -377,7 +375,6 @@ newDBLayer logConfig trace fp = do
                       let (metas, txins, txouts) = flatTxHistory entities
                       putTxMetas metas
                       putTxs txins txouts
-                      softDeleteUTxO wid (txInBySlotId entities)
                       pure $ Right ()
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
@@ -560,7 +557,7 @@ mkCheckpointEntity wid wal =
         , checkpointEpochStability = coerce (bp ^. #getEpochStability)
         }
     utxo =
-        [ UTxO wid sl Nothing (TxId input) ix addr coin
+        [ UTxO wid sl (TxId input) ix addr coin
         | (W.TxIn input ix, W.TxOut addr coin) <- utxoMap
         ]
     utxoMap = Map.assocs (W.getUTxO (W.utxo wal))
@@ -595,7 +592,7 @@ checkpointFromEntity cp utxo txs s =
     header = (W.BlockHeader slot blockHeight' parentHeaderHash)
     utxo' = W.UTxO . Map.fromList $
         [ (W.TxIn input ix, W.TxOut addr coin)
-        | UTxO _ _ _ (TxId input) ix addr coin <- utxo
+        | UTxO _ _ (TxId input) ix addr coin <- utxo
         ]
     pending = Set.fromList $ map snd txs
     blockHeight' = Quantity . toEnum . fromEnum $ bh
@@ -704,7 +701,8 @@ txHistoryFromEntity metas ins outs = map mkItem metas
 -------------------------------------------------------------------------------}
 
 selectWallet :: MonadIO m => W.WalletId -> SqlPersistT m (Maybe Wallet)
-selectWallet wid = fmap entityVal <$> selectFirst [WalId ==. wid] []
+selectWallet wid =
+    fmap entityVal <$> selectFirst [WalId ==. wid] []
 
 insertCheckpoint
     :: (PersistState s, PersistTx t)
@@ -716,32 +714,10 @@ insertCheckpoint wid cp = do
     insert_ cp'
     putTxMetas metas
     putTxs ins outs
+    let sl = (W.currentTip cp) ^. #slotId
+    deleteWhere [UtxoWalletId ==. wid, UtxoSlot ==. sl]
     dbChunked putMany utxo
-    pruneUTxO
-    insertState (wid, (W.currentTip cp) ^. #slotId) (W.getState cp)
-  where
-    -- We don't store multiple versions of UTxOs in the database. However, when
-    -- we insert many UTxOs with `putMany`, we may end up duplicating some rows,
-    -- only with different `slot` column. In such case, we want to discard the
-    -- most recent insert and keep only the oldest one.
-    --
-    -- Alternatively, we could fetch the existing utxo, traverse the new one,
-    -- and remove any duplicates before inserting into the database.
-    pruneUTxO :: SqlPersistT IO ()
-    pruneUTxO = rawExecute
-        "DELETE FROM utxo \
-        \WHERE (wallet_id, input_tx_id, input_index, slot) \
-        \IN ( \
-            \SELECT wallet_id, input_tx_id, input_index, sup \
-            \FROM ( \
-                \SELECT wallet_id, input_tx_id, input_index, max(slot) AS sup, min(slot) AS inf \
-                \FROM utxo \
-                \WHERE wallet_id=? \
-                \GROUP BY wallet_id, input_tx_id, input_index \
-                \HAVING sup > inf \
-            \)\
-        \)"
-        [toPersistValue wid]
+    insertState (wid, sl) (W.getState cp)
 
 -- | Delete one or all checkpoints associated with a wallet. If a slot is
 -- provided, it will only delete that checkpoint. Otherwise, it will remove all
@@ -780,8 +756,7 @@ purgeCheckpoints wid cp = do
         Just minCp -> do
             deleteWhere
                 [ UtxoWalletId ==. wid
-                , UtxoSlotSpent !=. Nothing
-                , UtxoSlotSpent <=. Just (checkpointSlot $ entityVal minCp)
+                , UtxoSlot <=. checkpointSlot (entityVal minCp)
                 ]
             deleteWhere
                 [ CheckpointWalletId ==. wid
@@ -790,7 +765,6 @@ purgeCheckpoints wid cp = do
   where
     word64 :: Integral a => Quantity "block" a -> Word64
     word64 (Quantity x) = fromIntegral x
-
     epochStability = W.blockchainParameters cp ^. #getEpochStability
 
     blockHeight' = blockHeight . currentTip
@@ -799,7 +773,8 @@ purgeCheckpoints wid cp = do
 deleteTxMetas
     :: W.WalletId
     -> SqlPersistT IO ()
-deleteTxMetas wid = deleteWhere [ TxMetaWalletId ==. wid ]
+deleteTxMetas wid =
+    deleteWhere [ TxMetaWalletId ==. wid ]
 
 -- | Add new TxMeta rows, overwriting existing ones.
 putTxMetas :: [TxMeta] -> SqlPersistT IO ()
@@ -815,33 +790,6 @@ putTxs txins txouts = do
     dbChunked repsertMany
         [ (TxOutKey txOutputTxId txOutputIndex, o)
         | o@TxOut{..} <- txouts ]
-
--- | Convert a single DB "updateMany" (or similar) query into multiple
--- updateMany queries with smaller lists of values.
---
--- This is to prevent too many variables appearing in the SQL statement.
--- SQLITE_MAX_VARIABLE_NUMBER is 999 by default, and we will get a
--- "too many SQL variables" exception if that is exceeded.
---
--- We choose a conservative value 'chunkSize' << 999 because there can be
--- multiple variables per row updated.
-dbChunked :: ([a] -> SqlPersistT IO b) -> [a] -> SqlPersistT IO ()
-dbChunked = chunkedM chunkSize
-
--- | Given an action which takes a list of items, and a list of items, run that
--- action multiple times with the input list cut into chunks.
-chunkedM
-    :: Monad m
-    => Int -- ^ Chunk size
-    -> ([a] -> m b) -- ^ Action to run on values
-    -> [a] -- ^ The values
-    -> m ()
-chunkedM n f = mapM_ f . chunksOf n
-
--- | Size of chunks when inserting, updating or deleting many rows at once. We
--- only act on `chunkSize` values at a time. See also 'dbChunked'.
-chunkSize :: Int
-chunkSize = 100
 
 -- | Delete transactions that aren't referred to by TxMeta of any wallet.
 deleteLooseTransactions :: SqlPersistT IO ()
@@ -873,29 +821,8 @@ selectUTxO
 selectUTxO cp = fmap entityVal <$>
     selectList
         [ UtxoWalletId ==. checkpointWalletId cp
-        , UtxoSlotSpent ==. Nothing
+        , UtxoSlot ==. checkpointSlot cp
         ] []
-
--- Mark UTxOs known as spent because used in a transaction. When inserting new
--- checkpoints, we do not delete UTxOs but instead, mark them with the slot at
--- which they've been spent. As a consequence, we can easily recover them in
--- the event of rollbacks. This is a kind of soft-delete.
---
--- Note that we don't care whether the UTxOs is ours or not since we only keep
--- track of UTxOs that are ours anyway. So, we mark all inputs as consumed,
-softDeleteUTxO :: W.WalletId -> [(W.SlotId, TxIn)] -> SqlPersistT IO ()
-softDeleteUTxO wid = mapM_ $ \(sid, txin) -> updateWhere
-    [ UtxoWalletId ==. wid
-    , UtxoInputId ==. txInputSourceTxId txin
-    , UtxoInputIndex ==. txInputSourceIndex txin
-    , UtxoSlotSpent ==. Nothing
-    ]
-    [ UtxoSlotSpent =. Just sid ]
-
--- | Group inputs by slotId they've been used
-txInBySlotId :: [(TxMeta, ([TxIn], [TxOut]))] -> [(W.SlotId, TxIn)]
-txInBySlotId =
-    concatMap $ \(meta, (txins, _)) -> (txMetaSlotId meta,) <$> txins
 
 selectTxs
     :: [TxId]
@@ -1195,3 +1122,34 @@ dbLogText (MsgMigrations n) = fmt $ ""+||n||+" migrations were applied to the da
 dbLogText (MsgQuery stmt _) = stmt
 dbLogText (MsgConnStr connStr) = "Using connection string: " <> connStr
 dbLogText (MsgClosing fp) = "Closing database ("+|fromMaybe "in-memory" fp|+")"
+
+{-------------------------------------------------------------------------------
+                               Extra DB Helpers
+-------------------------------------------------------------------------------}
+
+-- | Convert a single DB "updateMany" (or similar) query into multiple
+-- updateMany queries with smaller lists of values.
+--
+-- This is to prevent too many variables appearing in the SQL statement.
+-- SQLITE_MAX_VARIABLE_NUMBER is 999 by default, and we will get a
+-- "too many SQL variables" exception if that is exceeded.
+--
+-- We choose a conservative value 'chunkSize' << 999 because there can be
+-- multiple variables per row updated.
+dbChunked :: ([a] -> SqlPersistT IO b) -> [a] -> SqlPersistT IO ()
+dbChunked = chunkedM chunkSize
+
+-- | Given an action which takes a list of items, and a list of items, run that
+-- action multiple times with the input list cut into chunks.
+chunkedM
+    :: Monad m
+    => Int -- ^ Chunk size
+    -> ([a] -> m b) -- ^ Action to run on values
+    -> [a] -- ^ The values
+    -> m ()
+chunkedM n f = mapM_ f . chunksOf n
+
+-- | Size of chunks when inserting, updating or deleting many rows at once. We
+-- only act on `chunkSize` values at a time. See also 'dbChunked'.
+chunkSize :: Int
+chunkSize = 100
