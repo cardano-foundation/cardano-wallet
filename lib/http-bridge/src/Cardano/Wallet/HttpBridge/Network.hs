@@ -18,8 +18,10 @@
 
 module Cardano.Wallet.HttpBridge.Network
     ( HttpBridgeLayer(..)
-    , mkNetworkLayer
-    , newNetworkLayer
+    , mkRestorer
+    , newRestorer
+    , mkTxSubmission
+
     , mkHttpBridgeLayer
     ) where
 
@@ -36,9 +38,9 @@ import Cardano.Wallet.HttpBridge.Api
     , api
     )
 import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge )
+    ( HttpBridge, byronBlockchainParameters )
 import Cardano.Wallet.HttpBridge.Environment
-    ( KnownNetwork (..), Network (..) )
+    ( KnownNetwork (..) )
 import Cardano.Wallet.HttpBridge.Primitive.Types
     ( Tx )
 import Cardano.Wallet.Network
@@ -46,7 +48,8 @@ import Cardano.Wallet.Network
     , ErrNetworkTip (..)
     , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
-    , NetworkLayer (..)
+    , Restorer (..)
+    , TxSubmitter
     )
 import Cardano.Wallet.Primitive.Types
     ( Block (..), BlockHeader (..), Hash (..), SlotId (..), TxWitness )
@@ -92,25 +95,37 @@ import qualified Data.Text.Encoding as T
 import qualified Servant.Extra.ContentTypes as Api
 
 -- | Constructs a network layer with the given cardano-http-bridge API.
-mkNetworkLayer
-    :: forall n m. (Monad m)
+mkRestorer
+    :: forall n m. (KnownNetwork n, Monad m)
     => HttpBridgeLayer m
-    -> NetworkLayer (HttpBridge n) m
-mkNetworkLayer httpBridge = NetworkLayer
+    -> Restorer (Block Tx) m
+mkRestorer httpBridge = Restorer
     { nextBlocks = \(BlockHeader sl _ _) ->
         withExceptT ErrGetBlockNetworkUnreachable (rbNextBlocks httpBridge sl)
-    , networkTip =
-        snd <$> getNetworkTip httpBridge
-    , postTx = postSignedTx httpBridge
+    , networkTip = do
+        nodeTip <- snd <$> getNetworkTip httpBridge
+        let epochLength = getEpochLength (byronBlockchainParameters @n)
+        -- NOTE:
+        -- `http-bridge` is not intended to be used in production so we are
+        -- taking a few shortcut to not spend needless time on its impl.
+        -- This is one of them.
+        let nodeHeight =
+               Quantity $ fromIntegral $ flatSlot epochLength (slotId nodeTip)
+        return (nodeTip, nodeHeight)
     }
 
--- | Creates a cardano-http-bridge 'NetworkLayer' using the given connection
+mkTxSubmission
+    :: HttpBridgeLayer IO
+    -> TxSubmitter Tx IO
+mkTxSubmission = postSignedTx
+
+-- | Creates a cardano-http-bridge 'Restorer' using the given connection
 -- settings.
-newNetworkLayer
-    :: forall n. KnownNetwork (n :: Network)
+newRestorer
+    :: forall n. KnownNetwork n
     => Int
-    -> IO (NetworkLayer (HttpBridge n) IO)
-newNetworkLayer port = mkNetworkLayer <$> newHttpBridgeLayer @n port
+    -> IO (Restorer (Block Tx) IO)
+newRestorer port = mkRestorer @n <$> newHttpBridgeLayer @n port
 
 -- | Retrieve a chunk of blocks from cardano-http-bridge.
 --

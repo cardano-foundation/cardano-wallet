@@ -17,12 +17,12 @@
 --
 --
 -- This module allows the wallet to retrieve blocks from a known @Jormungandr@
--- node. This is done by providing a @NetworkLayer@ with some logic building on
+-- node. This is done by providing a @Restorer@ with some logic building on
 -- top of an underlying @JormungandrLayer@ HTTP client.
 module Cardano.Wallet.Jormungandr.Network
-    ( newNetworkLayer
-    , newNetworkLayer'
-    , mkNetworkLayer
+    ( newRestorer
+    , newRestorer'
+    , mkRestorer
     , JormungandrLayer (..)
     , mkJormungandrLayer
 
@@ -62,7 +62,7 @@ import Cardano.Wallet.Jormungandr.Api
 import Cardano.Wallet.Jormungandr.Binary
     ( ConfigParam (..), Message (..), coerceBlock )
 import Cardano.Wallet.Jormungandr.Compatibility
-    ( Jormungandr, softTxMaxSize )
+    ( softTxMaxSize )
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx )
 import Cardano.Wallet.Network
@@ -70,7 +70,7 @@ import Cardano.Wallet.Network
     , ErrNetworkTip (..)
     , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
-    , NetworkLayer (..)
+    , Restorer (..)
     )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
@@ -144,33 +144,31 @@ import qualified Data.Sequence as Seq
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
--- | Creates a new 'NetworkLayer' connecting to an underlying 'Jormungandr'
+-- | Creates a new 'Restorer' connecting to an underlying 'Jormungandr'
 -- backend target.
-newNetworkLayer
-    :: forall n. ()
-    => BaseUrl
-    -> IO (NetworkLayer (Jormungandr n) IO)
-newNetworkLayer = fmap snd . newNetworkLayer'
+newRestorer
+    :: BaseUrl
+    -> IO (Restorer (Block Tx) IO)
+newRestorer = fmap snd . newRestorer'
 
--- | Creates a new 'NetworkLayer' connecting to an underlying 'Jormungandr'
+-- | Creates a new 'Restorer' connecting to an underlying 'Jormungandr'
 -- backend target. Also returns the internal 'JormungandrLayer' component.
-newNetworkLayer'
-    :: forall n. ()
-    => BaseUrl
-    -> IO (JormungandrLayer IO, NetworkLayer (Jormungandr n) IO)
-newNetworkLayer' url = do
+newRestorer'
+    :: BaseUrl
+    -> IO (JormungandrLayer IO, Restorer (Block Tx) IO)
+newRestorer' url = do
     mgr <- newManager defaultManagerSettings
     st <- newMVar emptyUnstableBlocks
     let jor = mkJormungandrLayer mgr url
-    return (jor, mkNetworkLayer st jor)
+    return (jor, mkRestorer st jor)
 
--- | Wrap a Jormungandr client into a 'NetworkLayer' common interface.
-mkNetworkLayer
+-- | Wrap a Jormungandr client into a 'Restorer' common interface.
+mkRestorer
     :: MonadBaseControl IO m
     => MVar UnstableBlocks
     -> JormungandrLayer m
-    -> NetworkLayer (Jormungandr n) m
-mkNetworkLayer st j = NetworkLayer
+    -> Restorer (Block Tx) m
+mkRestorer st j = Restorer
     { networkTip = modifyMVar st $ \bs -> do
         bs' <- updateUnstableBlocks k getTipId' getBlockHeader bs
         ExceptT . pure $ case unstableBlocksTip bs' of
@@ -189,8 +187,6 @@ mkNetworkLayer st j = NetworkLayer
             ErrGetDescendantsParentNotFound _ ->
                 ErrGetBlockNotFound (prevBlockHash tip)
         forM ids (fmap coerceBlock . getBlock j)
-
-    , postTx = postMessage j
     }
   where
     getTipId' = (getTipId j) `mappingError`
