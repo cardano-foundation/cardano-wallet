@@ -175,7 +175,7 @@ mRollbackTo :: Ord wid => wid -> SlotId -> ModelOp wid s t xprv ()
 mRollbackTo wid pt = alterModel wid $ \wal ->
     ((), wal { checkpoints = filter keepBeforePoint (checkpoints wal) })
   where
-    keepBeforePoint cp = (slotId :: BlockHeader -> SlotId) (currentTip cp) < pt
+    keepBeforePoint cp = (slotId :: BlockHeader -> SlotId) (currentTip cp) <= pt
 
 mPutWalletMeta :: Ord wid => wid -> WalletMetadata -> ModelOp wid s t xprv ()
 mPutWalletMeta wid meta = alterModel wid $ \wal ->
