@@ -130,8 +130,6 @@ import Data.Typeable
     ( Typeable )
 import Data.Word
     ( Word64 )
-import Database.Persist.Class
-    ( toPersistValue )
 import Database.Persist.Sql
     ( Entity (..)
     , Filter
@@ -154,7 +152,6 @@ import Database.Persist.Sql
     , selectKeysList
     , selectList
     , updateWhere
-    , (!=.)
     , (<-.)
     , (<=.)
     , (=.)
@@ -432,7 +429,7 @@ startSqliteBackend logConfig trace fp = do
         runQuery cmd = withMVar lock $ const $ observe $ runSqlConn cmd backend
     migrations <- runQuery $ runMigrationSilent migrateAll
     dbLog trace $ MsgMigrations (length migrations)
-    runQuery addIndices *> runQuery createViews
+    runQuery addIndices
     pure $ SqliteContext backend runQuery fp trace
 
 createSqliteBackend
@@ -465,17 +462,6 @@ addIndices = mapM_ (`rawExecute` [])
     ]
   where
     createIndex name on = "CREATE INDEX IF NOT EXISTS " <> name <> " ON " <> on
-
-createViews :: SqlPersistT IO ()
-createViews = mapM_ (`rawExecute` [])
-    [ createView "utxo_dups"
-        "SELECT wallet_id, input_tx_id, input_index, max(rowid) AS sup, min(rowid) AS inf \
-        \FROM utxo \
-        \GROUP BY wallet_id, input_tx_id, input_index \
-        \HAVING sup > inf"
-    ]
-  where
-    createView name as = "CREATE VIEW IF NOT EXISTS " <> name <> " AS " <> as
 
 {-------------------------------------------------------------------------------
            Conversion between Persistent table types and wallet types
@@ -571,7 +557,7 @@ mkCheckpointEntity wid wal =
         , checkpointEpochStability = coerce (bp ^. #getEpochStability)
         }
     utxo =
-        [ UTxO wid sl Nothing (TxId input) ix addr coin
+        [ UTxO wid sl (TxId input) ix addr coin
         | (W.TxIn input ix, W.TxOut addr coin) <- utxoMap
         ]
     utxoMap = Map.assocs (W.getUTxO (W.utxo wal))
@@ -606,7 +592,7 @@ checkpointFromEntity cp utxo txs s =
     header = (W.BlockHeader slot blockHeight' parentHeaderHash)
     utxo' = W.UTxO . Map.fromList $
         [ (W.TxIn input ix, W.TxOut addr coin)
-        | UTxO _ _ _ (TxId input) ix addr coin <- utxo
+        | UTxO _ _ (TxId input) ix addr coin <- utxo
         ]
     pending = Set.fromList $ map snd txs
     blockHeight' = Quantity . toEnum . fromEnum $ bh
@@ -728,32 +714,10 @@ insertCheckpoint wid cp = do
     insert_ cp'
     putTxMetas metas
     putTxs ins outs
-    putUTxOs (currentTip cp ^. #slotId) utxo
-    insertState (wid, (W.currentTip cp) ^. #slotId) (W.getState cp)
-  where
-    -- We don't store multiple versions of UTxOs in the database. However, when
-    -- we insert many UTxOs with `putMany`, we may end up duplicating some rows,
-    -- only with different `slot` column. In such case, we want to discard the
-    -- most recent insert and keep only the oldest one.
-    putUTxOs :: W.SlotId -> [UTxO] -> SqlPersistT IO ()
-    putUTxOs slot utxos = do
-        -- 1. Mark all existing UTxOs as spent
-        updateWhere
-            [ UtxoWalletId ==. wid, UtxoSlotSpent ==. Nothing ]
-            [ UtxoSlotSpent =. Just slot ]
-        -- 2. Put all new UTxOs as unspent
-        dbChunked putMany utxos
-        -- 3. Mark as unspent every UTxO that exists twice
-        flip rawExecute [toPersistValue wid]
-            "UPDATE utxo \
-            \SET slot_spent=null \
-            \WHERE rowid \
-            \IN (SELECT inf FROM utxo_dups WHERE wallet_id=?)"
-        -- 4. Remove all duplicates UTxO, keep oldest row
-        flip rawExecute [toPersistValue wid]
-            "DELETE FROM utxo \
-            \WHERE rowid \
-            \IN (SELECT sup FROM utxo_dups WHERE wallet_id=?)"
+    let sl = (W.currentTip cp) ^. #slotId
+    deleteWhere [UtxoWalletId ==. wid, UtxoSlot ==. sl]
+    dbChunked putMany utxo
+    insertState (wid, sl) (W.getState cp)
 
 -- | Delete one or all checkpoints associated with a wallet. If a slot is
 -- provided, it will only delete that checkpoint. Otherwise, it will remove all
@@ -792,8 +756,7 @@ purgeCheckpoints wid cp = do
         Just minCp -> do
             deleteWhere
                 [ UtxoWalletId ==. wid
-                , UtxoSlotSpent !=. Nothing
-                , UtxoSlotSpent <=. Just (checkpointSlot $ entityVal minCp)
+                , UtxoSlot <=. checkpointSlot (entityVal minCp)
                 ]
             deleteWhere
                 [ CheckpointWalletId ==. wid
@@ -858,7 +821,7 @@ selectUTxO
 selectUTxO cp = fmap entityVal <$>
     selectList
         [ UtxoWalletId ==. checkpointWalletId cp
-        , UtxoSlotSpent ==. Nothing
+        , UtxoSlot ==. checkpointSlot cp
         ] []
 
 selectTxs

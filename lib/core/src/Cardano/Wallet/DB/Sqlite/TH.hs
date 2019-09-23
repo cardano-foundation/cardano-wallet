@@ -147,11 +147,7 @@ UTxO                                sql=utxo
 
     -- The wallet checkpoint (wallet_id, slot)
     utxoWalletId        W.WalletId  sql=wallet_id
-
-    -- This UTxO is only available for checkpoints between
-    -- slot and slot_spent.
-    utxoSlot        W.SlotId        sql=slot
-    utxoSlotSpent   W.SlotId Maybe  sql=slot_spent
+    utxoSlot            W.SlotId    sql=slot
 
     -- TxIn
     utxoInputId         TxId        sql=input_tx_id
@@ -163,11 +159,11 @@ UTxO                                sql=utxo
 
     Primary
         utxoWalletId
+        utxoSlot
         utxoInputId
         utxoInputIndex
-        utxoSlot
 
-    Foreign Wallet fk_wallet_utxo utxoWalletId
+    Foreign Checkpoint fk_checkpoint_utxo utxoWalletId utxoSlot
     deriving Show Generic
 
 -- Sequential scheme address discovery state
