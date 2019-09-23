@@ -57,7 +57,7 @@ import Cardano.CLI
 import Cardano.Launcher
     ( Command (Command), StdStream (..) )
 import Cardano.Wallet
-    ( BlockchainParameters (..), WalletLayer )
+    ( WalletLayer )
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.DaedalusIPC
@@ -69,7 +69,7 @@ import Cardano.Wallet.HttpBridge.Compatibility
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..) )
 import Cardano.Wallet.Network
-    ( NetworkLayer, defaultRetryPolicy, waitForConnection )
+    ( defaultRetryPolicy, waitForConnection )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
@@ -272,18 +272,14 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
             -> DBLayer IO s t k
             -> IO (WalletLayer s t k)
         newWalletLayer (sb, tracer) db = do
-            (nl, bp) <- newNetworkLayer (sb, tracer)
-            let tl = HttpBridge.newTransactionLayer @n
-            Wallet.newWalletLayer tracer (block0, bp) db nl tl
-
-        newNetworkLayer
-            :: (Switchboard Text, Trace IO Text)
-            -> IO (NetworkLayer t IO, BlockchainParameters)
-        newNetworkLayer (sb, tracer) = do
-            nl <- HttpBridge.newNetworkLayer @n (getPort nodePort)
+            bridge <- HttpBridge.newHttpBridgeLayer @n (getPort nodePort)
+            let restorer = HttpBridge.mkRestorer @n bridge
             waitForService "http-bridge" (sb, tracer) nodePort $
-                waitForConnection nl defaultRetryPolicy
-            return (nl, byronBlockchainParameters @n)
+                waitForConnection restorer defaultRetryPolicy
+            let bp = byronBlockchainParameters @n
+            let tl = HttpBridge.newTransactionLayer @n
+            let postTx = HttpBridge.postSignedTx bridge
+            Wallet.newWalletLayer tracer (block0, bp) db restorer tl postTx
 
         withDBLayer
             :: CM.Configuration

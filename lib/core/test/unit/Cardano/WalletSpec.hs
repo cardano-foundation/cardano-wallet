@@ -394,7 +394,8 @@ setupFixture (wid, wname, wstate) = do
     db <- newDBLayer
     let nl = error "NetworkLayer"
     let tl = dummyTransactionLayer
-    wl <- newWalletLayer @DummyTarget nullTracer (block0, bp) db nl tl
+    let postTx = error "postTx"
+    wl <- newWalletLayer @DummyTarget nullTracer (block0, bp) db nl tl postTx
     res <- runExceptT $ W.createWallet wl wid wname wstate
     let wal = case res of
             Left _ -> []
