@@ -7,7 +7,8 @@
 module Cardano.Wallet.Network
     (
     -- * Interface
-      NetworkLayer (..)
+      Restorer (..)
+    , TxSubmitter
 
     -- * Helpers
     , waitForConnection
@@ -23,7 +24,7 @@ module Cardano.Wallet.Network
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), BlockHeader (..), Hash (..), Tx, TxWitness )
+    ( BlockHeader (..), Hash (..), TxWitness )
 import Control.Exception
     ( Exception (..), throwIO )
 import Control.Monad.Trans.Except
