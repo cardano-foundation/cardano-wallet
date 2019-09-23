@@ -214,18 +214,16 @@ instance KnownNetwork n => DecodeAddress (Jormungandr n) where
                 <> B8.unpack (BS.pack [discriminant])
                 <> "."
 
--- | Generate a configuration file for Jörmungandr@0.3.1
+-- | Generate a configuration file for Jörmungandr@0.3.999
 genConfigFile
     :: FilePath
     -> Int
     -> BaseUrl
     -> Aeson.Value
-genConfigFile stateDir addressPort (BaseUrl _ host port path) = object
+genConfigFile stateDir addressPort (BaseUrl _ host port _) = object
     [ "storage" .= (stateDir </> "chain")
     , "rest" .= object
-        [ "listen" .= String listen
-        , "prefix" .= String prefix
-        ]
+        [ "listen" .= String listen ]
     , "p2p" .= object
         [ "trusted_peers" .= ([] :: [()])
         , "topics_of_interest" .= object
@@ -237,5 +235,4 @@ genConfigFile stateDir addressPort (BaseUrl _ host port path) = object
     ]
   where
     listen = T.pack $ mconcat [host, ":", show port]
-    prefix = T.pack $ drop 1 path
     publicAddress = T.pack $ mconcat ["/ip4/127.0.0.1/tcp/", show addressPort]

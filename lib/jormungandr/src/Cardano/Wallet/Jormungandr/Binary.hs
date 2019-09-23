@@ -338,8 +338,6 @@ getTransaction n = label "getTransaction" $ do
 
 putSignedTx :: [(TxIn, Coin)] -> [TxOut] -> [TxWitness] -> Put
 putSignedTx inputs outputs witnesses = do
-    putWord8 $ toEnum $ length inputs
-    putWord8 $ toEnum $ length outputs
     putTx inputs outputs
     unless (length inputs == length witnesses) $
         fail "number of witnesses must equal number of inputs"
@@ -357,6 +355,8 @@ putTx inputs outputs = do
         fail ("number of inputs cannot be greater than " ++ show maxNumberOfInputs)
     unless (length outputs <= fromIntegral (maxBound :: Word8)) $
         fail ("number of outputs cannot be greater than " ++ show maxNumberOfOutputs)
+    putWord8 $ toEnum $ length inputs
+    putWord8 $ toEnum $ length outputs
     mapM_ putInput inputs
     mapM_ putOutput outputs
   where

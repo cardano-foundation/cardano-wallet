@@ -86,7 +86,7 @@ spec = do
                 , TxOut change (Coin 13105)
                 ]
             , gtExpected =
-                "bdb76ef9ec8d47efc9ec2e72101510697e6ebbac6e2f727bbf552afb24969bf6"
+                "7bfbf66a97e0b4a96fa27c8fb80cb20f89280debf259b1a6b7e4d4b9e8c7c552"
             })
         goldenTestSignData proxy (GoldenTestSignData
             { gtInputs =
@@ -96,7 +96,7 @@ spec = do
                 [ TxOut addr0 (Coin 1337)
                 ]
             , gtExpected =
-                "29a713efa6a8458bbc7c0d52e923ac9356970fa87f2416e64e6e534afce92e77"
+                "0be6fdb0c1d9c5c2493a319bcc659e97d1b04fcad002878e186f46852b6cf208"
             })
         goldenTestSignData proxy (GoldenTestSignData
             { gtInputs =
@@ -109,7 +109,7 @@ spec = do
                 , TxOut addr1 (Coin 123456)
                 ]
             , gtExpected =
-                "5ee1bf0175fbcf5282e267ad8d2f8cf4f6fef7c9ca4474c95299aa90a0ff020e"
+                "115ba47ce89d8d92c5ed6b5c11be57ee5c757848f65a350eb49adff8f625b7a6"
             })
 
     describe "signData @(Jormungandr 'Testnet)" $ do
@@ -133,7 +133,7 @@ spec = do
                 , TxOut change (Coin 13105)
                 ]
             , gtExpected =
-                "e9af554cb09e80d3d1adf4f44406f88226bd528e5fabfe56b9f3092007980991"
+                "4c9097d2121d0a7f10c9c04d25a310999d36cf07ac232fd0e72feb1ea8e93dc7"
             })
         goldenTestSignData proxy (GoldenTestSignData
             { gtInputs =
@@ -143,7 +143,7 @@ spec = do
                 [ TxOut addr0 (Coin 1337)
                 ]
             , gtExpected =
-                "e8c3c0f3a499c56bb02852aa980f19866921c8e290e4e5f3ff4f6f36556f336d"
+                "1de8b9655106fe0b8c2e5952a9f105d518838296b79d542f4e96b5980ed2b909"
             })
         goldenTestSignData proxy (GoldenTestSignData
             { gtInputs =
@@ -156,7 +156,7 @@ spec = do
                 , TxOut addr1 (Coin 123456)
                 ]
             , gtExpected =
-                "c0efd28ea39c17d0fc64263008ca8e36615aaeabfa5e556fdc4152ff89d1b22f"
+                "0ba2569f273b5bbb2cf37a749dab8416cf1574cc22b7757953d46d8a979657da"
             })
 
     describe "encodeAddress & decodeAddress (Mainnet)" $ do
@@ -263,8 +263,7 @@ spec = do
             genConfigFile stateDir 8081 baseUrl `shouldBe` [aesonQQ|{
                 "storage": "/state-dir/chain",
                 "rest": {
-                    "listen": "127.0.0.1:8080",
-                    "prefix": "api"
+                    "listen": "127.0.0.1:8080"
                 },
                 "p2p": {
                     "trusted_peers": [],
