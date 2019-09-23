@@ -91,7 +91,7 @@ import Cardano.Wallet.Transaction
 import Control.Applicative
     ( many )
 import Control.Monad
-    ( replicateM, unless, when )
+    ( replicateM, unless )
 import Crypto.Hash
     ( hash )
 import Crypto.Hash.Algorithms
@@ -301,11 +301,9 @@ getTransaction n = label "getTransaction" $ do
     getWitness :: Get TxWitness
     getWitness = do
         tag <- getTxWitnessTag
-        when (tag == TxWitnessAccount) $
-            error "unimplemented: Account witness"
-        when (tag == TxWitnessMultisig) $
-            error "unimplemented: Multisig witness"
         let len = txWitnessSize tag
+        -- NOTE: Regardless of the type of witness, we decode it as a
+        -- @TxWitness@.
         TxWitness <$> isolate len (getByteString len)
 
     getTxWitnessTag :: Get TxWitnessTag
