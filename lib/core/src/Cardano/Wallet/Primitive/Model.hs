@@ -115,15 +115,17 @@ import qualified Data.Set as Set
                                      Type
 -------------------------------------------------------------------------------}
 
--- | An opaque wallet type, see 'initWallet' and 'applyBlocks' to construct and
--- update wallets.
+-- | An opaque wallet type, see 'initWallet', 'updateState', 'newPending',
+-- 'applyBlock', and 'applyBlocks' to construct and update wallets.
 --
 -- Internally, this keeps track or a few things including:
 --
 --  - UTxOs
---  - Pending transaction
+--  - Pending transactions
 --  - Transaction history
---  - TODO: Known & used addresses
+--  - Known & used addresses, via address discovery state
+--  - Block height of last applied block
+--  - Blockchain parameters
 --
 -- The 'Wallet' is paremeterized over two types:
 --
@@ -210,9 +212,9 @@ updateState
     -> Wallet s t
 updateState s (Wallet a b c _ d) = Wallet a b c s d
 
--- | Apply Block is the only way to make the wallet evolve. It returns a new
--- updated wallet state, as well as the set of all our transaction discovered
--- while applying the block.
+-- | Apply Block is the primary way of making the wallet evolve. It returns the
+-- updated wallet state, as well as a set of all transactions belonging to the
+-- wallet discovered while applying the block.
 applyBlock
     :: forall s t. (DefineTx t)
     => Block (Tx t)
