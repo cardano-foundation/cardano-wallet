@@ -317,10 +317,10 @@ mkCheckpoints numCheckpoints utxoSize = [ cp i | i <- [1..numCheckpoints]]
     cp i = unsafeInitWallet (UTxO utxo) mempty
         (BlockHeader
             (fromFlatSlot epochLength (fromIntegral i))
+            (Quantity $ fromIntegral i)
             (Hash $ label "prevBlockHash" i)
         )
         initDummyState
-        (Quantity $ fromIntegral i)
         genesisParameters
 
     utxo = Map.fromList $ zip (mkInputs utxoSize) (mkOutputs utxoSize)

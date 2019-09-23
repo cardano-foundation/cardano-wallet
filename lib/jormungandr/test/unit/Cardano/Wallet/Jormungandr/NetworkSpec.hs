@@ -228,7 +228,7 @@ showChain :: [BlockHeader] -> String
 showChain [] = "<empty chain>"
 showChain bs = unwords (map showHeaderHash bs)
   where
-    showHeaderHash (BlockHeader _ (Hash h)) = B8.unpack h
+    showHeaderHash (BlockHeader _ _ (Hash h)) = B8.unpack h
 
 showSlot :: SlotId -> String
 showSlot (SlotId ep sl) = show ep ++ "." ++ show sl
@@ -310,8 +310,9 @@ takeToSlot sl = takeWhile ((< sl) . slotId)
 -- is the penultimate block.
 chain :: String -> [BlockHeader]
 chain p =
-    [BlockHeader (SlotId 0 n) (Hash . B8.pack $ p ++ hash n) | n <- [1..]]
+    [BlockHeader (SlotId 0 n) (mockBlockHeight n) (Hash . B8.pack $ p ++ hash n) | n <- [1..]]
   where
+    mockBlockHeight = Quantity . fromIntegral
     hash n = show (n - 1)
 
 -- | Filter out test chain blocks that correspond to False values, and update
@@ -323,10 +324,11 @@ removeBlocks holes bs =
         $ foldl' maybeMkHole (prevBlockHash (head bs), [])
         $ zip holes (zip (map prevBlockHash $ tail bs) bs)
   where
-    maybeMkHole (prev, ac) (True, (h, BlockHeader sl _)) =
-        (h, ((BlockHeader sl prev):ac))
+    maybeMkHole (prev, ac) (True, (h, BlockHeader sl _ _)) =
+        (h, ((BlockHeader sl bh prev):ac))
     maybeMkHole pbs _ =
         pbs
+    bh = Quantity 0
 
 genChain
     :: Quantity "block" Natural
@@ -348,7 +350,7 @@ genChain (Quantity k) prefix = do
 instance Arbitrary TestCase where
     arbitrary = do
         k <- arbitrary
-        let genesis = BlockHeader (SlotId 0 0) (Hash "genesis")
+        let genesis = BlockHeader (SlotId 0 0) bh (Hash "genesis")
         base  <- genChain k "base"
         local <- genChain k "local"
         node  <- genChain k "node"
@@ -359,9 +361,10 @@ instance Arbitrary TestCase where
             , localChain = [genesis] <> base <> startFrom baseTip local
             }
       where
+        bh = Quantity 0
         startFrom (SlotId ep n) xs =
-            [ BlockHeader (SlotId ep (sl+n)) prev
-            | BlockHeader (SlotId _ sl) prev <- xs
+            [ BlockHeader (SlotId ep (sl+n)) bh prev
+            | BlockHeader (SlotId _ sl) _ prev <- xs
             ]
 
     shrink TestCase{..} =

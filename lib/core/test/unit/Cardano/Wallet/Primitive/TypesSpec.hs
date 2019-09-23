@@ -113,6 +113,8 @@ import Data.Time.Utils
     ( utcTimePred, utcTimeSucc )
 import Fmt
     ( pretty )
+import Numeric.Natural
+    ( Natural )
 import Test.Hspec
     ( Spec, describe, it, shouldNotSatisfy, shouldSatisfy )
 import Test.QuickCheck
@@ -851,9 +853,14 @@ instance Arbitrary Tx where
 
 instance Arbitrary BlockHeader where
     -- No Shrinking
-    arbitrary = BlockHeader
-        <$> arbitrary
-        <*> oneof
+    arbitrary = do
+        sl <- arbitrary
+        BlockHeader sl (mockBlockHeight sl) <$> genHash
+      where
+        mockBlockHeight :: SlotId -> Quantity "block" Natural
+        mockBlockHeight = Quantity . fromIntegral . flatSlot (EpochLength 200)
+
+        genHash = oneof
             [ pure $ Hash "BLOCK01"
             , pure $ Hash "BLOCK02"
             , pure $ Hash "BLOCK03"

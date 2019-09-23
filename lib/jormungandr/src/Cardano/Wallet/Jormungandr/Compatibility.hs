@@ -96,6 +96,7 @@ block0 :: BlockHeader
 block0 = BlockHeader
     { slotId = slotMinBound
     , prevBlockHash = Hash (BS.replicate 32 0)
+    , blockHeight = Quantity 0
     }
 
 -- | Jörmugandr's chain parameter doesn't include a transaction max size. The

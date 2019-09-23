@@ -149,7 +149,6 @@ import Cardano.Wallet.Primitive.Model
     , Wallet
     , applyBlocks
     , availableUTxO
-    , blockHeight
     , blockchainParameters
     , currentTip
     , getPending
@@ -259,8 +258,6 @@ import GHC.Exts
     ( Constraint )
 import GHC.Generics
     ( Generic )
-import Numeric.Natural
-    ( Natural )
 
 import qualified Cardano.Wallet.DB as DB
 import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
@@ -685,9 +682,9 @@ restoreStep
         )
     => ctx
     -> WalletId
-    -> (BlockHeader, (BlockHeader, Quantity "block" Natural))
+    -> (BlockHeader, BlockHeader)
     -> IO ()
-restoreStep ctx wid (localTip, (nodeTip, nodeHeight)) = do
+restoreStep ctx wid (localTip, nodeTip) = do
     runExceptT (nextBlocks nw localTip) >>= \case
         Left e -> do
             logError tr $ "Failed to get next blocks: " +|| e ||+ "."
@@ -698,14 +695,13 @@ restoreStep ctx wid (localTip, (nodeTip, nodeHeight)) = do
         Right (blockFirst : blocksRest) -> do
             let blocks = blockFirst :| blocksRest
             let nextLocalTip = view #header . NE.last $ blocks
-            let measuredTip = (nodeTip ^. #slotId, nodeHeight)
-            let action = restoreBlocks @ctx @s @t @k ctx  wid blocks measuredTip
+            let action = restoreBlocks @ctx @s @t @k ctx  wid blocks nodeTip
             runExceptT action >>= \case
                 Left (ErrNoSuchWallet _) ->
                     logNotice tr "Wallet is gone! Terminating worker..."
                 Right () -> do
                     restoreStep @ctx @s @t @k ctx wid
-                        (nextLocalTip, (nodeTip, nodeHeight))
+                        (nextLocalTip, nodeTip)
   where
     nw = ctx ^. networkLayer @t
     tr = ctx ^. logger
@@ -750,9 +746,9 @@ restoreBlocks
     => ctx
     -> WalletId
     -> NonEmpty (Block (Tx t))
-    -> (SlotId, Quantity "block" Natural) -- ^ Network tip and height
+    -> BlockHeader
     -> ExceptT ErrNoSuchWallet IO ()
-restoreBlocks ctx wid blocks (nodeTip, Quantity nodeHeight) = do
+restoreBlocks ctx wid blocks nodeTip = do
     let (slotFirst, slotLast) =
             ( view #slotId . header . NE.head $ blocks
             , view #slotId . header . NE.last $ blocks
@@ -772,7 +768,10 @@ restoreBlocks ctx wid blocks (nodeTip, Quantity nodeHeight) = do
         let calculateMetadata :: SlotId -> WalletMetadata
             calculateMetadata slot = meta { status = status' }
               where
-                progress' = slotRatio (bp ^. #getEpochLength) slot nodeTip
+                progress' = slotRatio
+                    (bp ^. #getEpochLength)
+                    slot
+                    (nodeTip ^.  #slotId)
                 status' =
                     if progress' == maxBound
                     then Ready
@@ -782,10 +781,11 @@ restoreBlocks ctx wid blocks (nodeTip, Quantity nodeHeight) = do
         -- We cast `k` and `nodeHeight` to 'Integer' since at a given point
         -- in time, `k` may be greater than the tip.
         let (Quantity k) = bp ^. #getEpochStability
+        let (Quantity nodeHeight) = nodeTip ^. #blockHeight
         let bhUnstable :: Integer
             bhUnstable = fromIntegral nodeHeight - fromIntegral k
         forM_ (NE.init cps) $ \cp -> do
-            let (Quantity bh) = blockHeight cp
+            let (Quantity bh) = blockHeight $ currentTip cp
             when (fromIntegral bh >= bhUnstable) $
                 DB.putCheckpoint db (PrimaryKey wid) cp
 
@@ -793,7 +793,7 @@ restoreBlocks ctx wid blocks (nodeTip, Quantity nodeHeight) = do
         -- Always store the last checkpoint from the batch and all new
         -- transactions.
         let cpLast = NE.last cps
-        let Quantity bhLast = blockHeight cpLast
+        let Quantity bhLast = blockHeight $ currentTip cpLast
         let meta' = calculateMetadata (view #slotId $ currentTip cpLast)
         DB.putCheckpoint db (PrimaryKey wid) cpLast
         DB.putTxHistory db (PrimaryKey wid) newTxs

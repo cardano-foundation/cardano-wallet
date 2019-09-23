@@ -81,7 +81,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.Model
-    ( blockHeight, currentTip )
+    ( currentTip )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..), DefineTx (..) )
 import Control.Concurrent.MVar
@@ -323,7 +323,7 @@ newDBLayer logConfig trace fp = do
                       purgeCheckpoints wid cp
                       -- remove checkpoint if already present to effectively
                       -- support updating of checkpoint
-                      let (BlockHeader sid _) = currentTip cp
+                      let (BlockHeader sid _ _) = currentTip cp
                       deleteCheckpoints @s wid (Just sid)
                       deleteLooseTransactions
                       insertCheckpoint wid cp
@@ -545,7 +545,7 @@ mkCheckpointEntity wid wal =
     header = (W.currentTip wal)
     sl = header ^. #slotId
     parent = header ^. #prevBlockHash
-    (Quantity bh) = W.blockHeight wal
+    (Quantity bh) = header ^. #blockHeight
     bp = W.blockchainParameters wal
     cp = Checkpoint
         { checkpointWalletId = wid
@@ -578,7 +578,7 @@ checkpointFromEntity
     -> s
     -> W.Wallet s t
 checkpointFromEntity cp utxo txs s =
-    W.unsafeInitWallet utxo' pending header s blockHeight' bp
+    W.unsafeInitWallet utxo' pending header s bp
   where
     (Checkpoint
         _walletId
@@ -592,7 +592,7 @@ checkpointFromEntity cp utxo txs s =
         txMaxSize
         epochStability
         ) = cp
-    header = (W.BlockHeader slot parentHeaderHash)
+    header = (W.BlockHeader slot blockHeight' parentHeaderHash)
     utxo' = W.UTxO . Map.fromList $
         [ (W.TxIn input ix, W.TxOut addr coin)
         | UTxO _ _ _ (TxId input) ix addr coin <- utxo
@@ -770,7 +770,7 @@ purgeCheckpoints
     -> W.Wallet s t
     -> SqlPersistT IO ()
 purgeCheckpoints wid cp = do
-    let minHeight = word64 (blockHeight cp) - word64 epochStability
+    let minHeight = word64 (blockHeight' cp) - word64 epochStability
     mCp <- selectFirst
         [ CheckpointWalletId ==. wid
         , CheckpointBlockHeight <=. minHeight
@@ -792,6 +792,8 @@ purgeCheckpoints wid cp = do
     word64 (Quantity x) = fromIntegral x
 
     epochStability = W.blockchainParameters cp ^. #getEpochStability
+
+    blockHeight' = blockHeight . currentTip
 
 -- | Delete TxMeta values for a wallet.
 deleteTxMetas

@@ -30,14 +30,10 @@ import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
 import Control.Retry
     ( RetryPolicyM, constantDelay, limitRetriesByCumulativeDelay, retrying )
-import Data.Quantity
-    ( Quantity )
 import Data.Text
     ( Text )
 import GHC.Generics
     ( Generic )
-import Numeric.Natural
-    ( Natural )
 
 data NetworkLayer t m = NetworkLayer
     { nextBlocks :: BlockHeader -> ExceptT ErrGetBlock m [Block (Tx t)]
@@ -54,9 +50,8 @@ data NetworkLayer t m = NetworkLayer
         -- after the specified starting slot.
 
     , networkTip
-        :: ExceptT ErrNetworkTip m (BlockHeader, Quantity "block" Natural)
-        -- ^ Get the current network tip from the chain producer and the current
-        -- chain's height.
+        :: ExceptT ErrNetworkTip m BlockHeader
+        -- ^ Get the current network tip from the chain producer
 
     , postTx
         :: (Tx t, [TxWitness]) -> ExceptT ErrPostTx m ()
