@@ -1,5 +1,6 @@
 status = [
   "buildkite/cardano-wallet",
+  "ci/hercules/evaluation",
 ]
 timeout_sec = 5400
 required_approvals = 1

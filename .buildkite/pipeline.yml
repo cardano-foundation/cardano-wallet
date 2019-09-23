@@ -11,11 +11,6 @@ steps:
     agents:
       system: x86_64-linux
 
-  - label: Check Hydra evaluation of release.nix
-    command: 'nix-build -A iohkLib.check-hydra -o check-hydra.sh && ./check-hydra.sh'
-    agents:
-      system: x86_64-linux
-
   - label: Check auto-generated Nix
     command: 'nix-build -A iohkLib.check-nix-tools -o check-nix-tools.sh && ./check-nix-tools.sh'
     agents:
