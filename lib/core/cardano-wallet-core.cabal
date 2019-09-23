@@ -190,10 +190,10 @@ test-suite unit
       Cardano.Wallet.Api.TypesSpec
       Cardano.Wallet.ApiSpec
       Cardano.Wallet.DB.MVarSpec
-      Cardano.Wallet.DB.SqliteFileModeSpec
       Cardano.Wallet.DB.SqliteSpec
       Cardano.Wallet.DB.StateMachine
-      Cardano.Wallet.DBSpec
+      Cardano.Wallet.DB.Arbitrary
+      Cardano.Wallet.DB.Properties
       Cardano.Wallet.DummyTarget.Primitive.Types
       Cardano.Wallet.NetworkSpec
       Cardano.Wallet.Primitive.AddressDerivationSpec
