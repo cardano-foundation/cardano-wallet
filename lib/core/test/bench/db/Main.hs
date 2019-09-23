@@ -92,8 +92,10 @@ import Criterion.Main
     , bench
     , bgroup
     , defaultMain
+    , env
     , envWithCleanup
     , perRunEnv
+    , whnfIO
     )
 import Crypto.Hash
     ( hash )
@@ -124,7 +126,8 @@ import qualified Data.Map.Strict as Map
 
 main :: IO ()
 main = defaultMain
-    [ withDB bgroupUTxO
+    [ withDB bgroupWriteUTxO
+    , withDB bgroupReadUTxO
     , withDB bgroupSeqState
     , withDB bgroupTxHistory
     ]
@@ -137,8 +140,8 @@ main = defaultMain
 --
 -- Currently the DBLayer will only store a single checkpoint (no rollback), so
 -- the #Checkpoints axis is a bit meaningless.
-bgroupUTxO :: DBLayerBench -> Benchmark
-bgroupUTxO db = bgroup "UTxO"
+bgroupWriteUTxO :: DBLayerBench -> Benchmark
+bgroupWriteUTxO db = bgroup "UTxO (Write)"
     -- A fragmented wallet will have a large number of UTxO. The coin
     -- selection algorithm tries to prevent fragmentation.
     --
@@ -157,6 +160,23 @@ bgroupUTxO db = bgroup "UTxO"
     ]
   where
     bUTxO n s = bench lbl $ withCleanDB db $ benchPutUTxO n s
+        where lbl = n|+" CP x "+|s|+" UTxO"
+
+bgroupReadUTxO :: DBLayerBench -> Benchmark
+bgroupReadUTxO db = bgroup "UTxO (Read)"
+    --      #Checkpoints   UTxO Size
+    [ bUTxO           10         100
+    , bUTxO          100         100
+    , bUTxO         1000         100
+    , bUTxO           10        1000
+    , bUTxO          100        1000
+    , bUTxO         1000        1000
+    , bUTxO           10       10000
+    , bUTxO          100       10000
+    , bUTxO         1000       10000
+    ]
+  where
+    bUTxO n s = withUTxO db n s $ bench lbl $ benchReadUTxO db
         where lbl = n|+" CP x "+|s|+" UTxO"
 
 ----------------------------------------------------------------------------
@@ -324,6 +344,20 @@ mkCheckpoints numCheckpoints utxoSize = [ cp i | i <- [1..numCheckpoints]]
         genesisParameters
 
     utxo = Map.fromList $ zip (mkInputs utxoSize) (mkOutputs utxoSize)
+
+benchReadUTxO :: DBLayerBench -> Benchmarkable
+benchReadUTxO db = whnfIO $ readCheckpoint db testPk
+
+-- Set up a database with some UTxO in checkpoints.
+withUTxO :: DBLayerBench -> Int -> Int -> Benchmark -> Benchmark
+withUTxO db numCheckpoints utxoSize = env setup . const
+  where
+    setup = do
+        cleanDB db
+        unsafeRunExceptT $ createWallet db testPk testCp testMetadata
+        let cps = mkCheckpoints numCheckpoints utxoSize
+        unsafeRunExceptT $ mapM_ (putCheckpoint db testPk) cps
+        pure db
 
 ----------------------------------------------------------------------------
 -- SeqState Address Discovery
