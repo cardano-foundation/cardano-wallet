@@ -121,6 +121,7 @@ newtype ErrMkStdTx
     -- ^ We tried to sign a transaction with inputs that are unknown to us?
     deriving (Eq, Show)
 
+
 -- | Backend-specific variables used by 'estimateMaxNumberOfInputsBase'.
 data EstimateMaxNumberOfInputsParams t = EstimateMaxNumberOfInputsParams
     { estMeasureTx :: [TxIn] -> [TxOut] -> [TxWitness] -> Int

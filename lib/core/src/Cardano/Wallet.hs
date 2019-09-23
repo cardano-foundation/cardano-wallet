@@ -53,7 +53,7 @@ module Cardano.Wallet
     -- $Capabilities
     , HasDBLayer
     , HasLogger
-    , HasNetworkLayer
+    , HasRestorer
     , HasTransactionLayer
     , HasWorkerRegistry
 
@@ -113,7 +113,7 @@ import Cardano.Wallet.DB
     , PrimaryKey (..)
     )
 import Cardano.Wallet.Network
-    ( ErrNetworkUnavailable (..), ErrPostTx (..), NetworkLayer (..) )
+    ( ErrNetworkUnavailable (..), ErrPostTx (..), Restorer (..), TxSubmitter )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (RootK)
     , ErrWrongPassphrase (..)
@@ -342,8 +342,9 @@ data WalletLayer s t (k :: Depth -> * -> *)
         (Trace IO Text)
         (Block (Tx t), BlockchainParameters)
         (DBLayer IO s t k)
-        (NetworkLayer t IO)
+        (Restorer (Block (Tx t)) IO)
         (TransactionLayer t k)
+        (TxSubmitter (Tx t) IO)
         WorkerRegistry
     deriving (Generic)
 
@@ -380,11 +381,12 @@ newWalletLayer
     :: Trace IO Text
     -> (Block (Tx t), BlockchainParameters)
     -> DBLayer IO s t k
-    -> NetworkLayer t IO
+    -> Restorer (Block (Tx t)) IO
     -> TransactionLayer t k
+    -> TxSubmitter (Tx t) IO
     -> IO (WalletLayer s t k)
-newWalletLayer tr g0 db nw tl =
-    WalletLayer tr g0 db nw tl <$> newRegistry
+newWalletLayer tr g0 db nw tl ts =
+    WalletLayer tr g0 db nw tl ts <$> newRegistry
 
 {-------------------------------------------------------------------------------
                             Wallet Capabilities
@@ -423,11 +425,13 @@ type HasGenesisData t = HasType (Block (Tx t), BlockchainParameters)
 
 type HasLogger = HasType (Trace IO Text)
 
-type HasNetworkLayer t = HasType (NetworkLayer t IO)
+type HasRestorer t = HasType (Restorer t IO)
 
 type HasTransactionLayer t k = HasType (TransactionLayer t k)
 
 type HasWorkerRegistry = HasType WorkerRegistry
+
+type HasTxSubmitter tx = HasType (TxSubmitter tx IO)
 
 dbLayer
     :: forall s t k ctx. HasDBLayer s t k ctx
@@ -448,10 +452,10 @@ logger =
     typed @(Trace IO Text)
 
 networkLayer
-    :: forall t ctx. (HasNetworkLayer t ctx)
-    => Lens' ctx (NetworkLayer t IO)
+    :: forall b ctx. (HasRestorer b ctx)
+    => Lens' ctx (Restorer b IO)
 networkLayer =
-    typed @(NetworkLayer t IO)
+    typed @(Restorer b IO)
 
 transactionLayer
     :: forall t k ctx. (HasTransactionLayer t k ctx)
@@ -464,6 +468,12 @@ workerRegistry
     => Lens' ctx WorkerRegistry
 workerRegistry =
     typed @WorkerRegistry
+
+transactionSubmitter
+    :: forall tx ctx. (HasTxSubmitter tx ctx)
+    => Lens' ctx (TxSubmitter tx IO)
+transactionSubmitter =
+    typed @(TxSubmitter tx IO)
 
 {-------------------------------------------------------------------------------
                                    Wallet
@@ -635,7 +645,7 @@ restoreWallet
         ( IsWalletCtx s t k ctx
         , HasLogger ctx
         , HasDBLayer s t k ctx
-        , HasNetworkLayer t ctx
+        , HasRestorer (Block (Tx t)) ctx
         , HasWorkerRegistry ctx
         , DefineTx t
         )
@@ -663,7 +673,7 @@ restoreWallet ctx wid = do
                 logError tr $ "Worker exited unexpectedly: " +|| e ||+ ""
     liftIO $ registerWorker re wid worker onError
   where
-    nw = ctx ^. networkLayer @t
+    nw = ctx ^. networkLayer @(Block (Tx t))
     tr = ctx ^. logger
     re = ctx ^. workerRegistry
 
@@ -676,7 +686,7 @@ restoreStep
     :: forall ctx s t k.
         ( IsWalletCtx s t k ctx
         , HasLogger ctx
-        , HasNetworkLayer t ctx
+        , HasRestorer (Block (Tx t)) ctx
         , HasDBLayer s t k ctx
         , DefineTx t
         )
@@ -703,7 +713,7 @@ restoreStep ctx wid (localTip, nodeTip) = do
                     restoreStep @ctx @s @t @k ctx wid
                         (nextLocalTip, nodeTip)
   where
-    nw = ctx ^. networkLayer @t
+    nw = ctx ^. networkLayer @(Block (Tx t))
     tr = ctx ^. logger
 
 -- | Wait a short delay before querying for blocks again. We also take this
@@ -712,7 +722,7 @@ restoreStep ctx wid (localTip, nodeTip) = do
 restoreSleep
     :: forall ctx s t k.
         ( IsWalletCtx s t k ctx
-        , HasNetworkLayer t ctx
+        , HasRestorer (Block (Tx t)) ctx
         , HasLogger ctx
         , HasDBLayer s t k ctx
         , DefineTx t
@@ -730,7 +740,7 @@ restoreSleep ctx wid localTip = do
         Right nodeTip ->
             restoreStep @ctx @s @t @k ctx wid (localTip, nodeTip)
   where
-    nw = ctx ^. networkLayer @t
+    nw = ctx ^. networkLayer @(Block (Tx t))
     tr = ctx ^. logger
     twoSeconds = 2000000 -- FIXME: Leave that to the networking layer
 
@@ -993,28 +1003,28 @@ signTx ctx wid pwd (CoinSelection ins outs chgs) =
 submitTx
     :: forall ctx s t k.
         ( IsWalletCtx s t k ctx
-        , HasNetworkLayer t ctx
         , HasDBLayer s t k ctx
+        , HasTxSubmitter (Tx t) ctx
         )
     => ctx
     -> WalletId
     -> (Tx t, TxMeta, [TxWitness])
     -> ExceptT ErrSubmitTx IO ()
-submitTx ctx wid (tx, meta, wit)= do
-    withExceptT ErrSubmitTxNetwork $ postTx nw (tx, wit)
+submitTx ctx wid (tx, meta, wit) = do
+    withExceptT ErrSubmitTxNetwork $ postTx (tx, wit)
     DB.withLock db $ withExceptT ErrSubmitTxNoSuchWallet $ do
         (wal, _) <- readWallet @ctx @s @t @k ctx wid
         DB.putCheckpoint db (PrimaryKey wid) (newPending (tx, meta) wal)
   where
     db = ctx ^. dbLayer @s @t @k
-    nw = ctx ^. networkLayer @t
+    postTx = ctx ^. transactionSubmitter @(Tx t)
 
 -- | Broadcast an externally-signed transaction to the network.
 submitExternalTx
     :: forall ctx s t k.
         ( IsWalletCtx s t k ctx
-        , HasNetworkLayer t ctx
         , HasTransactionLayer t k ctx
+        , HasTxSubmitter (Tx t) ctx
         )
     => ctx
     -> ByteString
@@ -1022,10 +1032,10 @@ submitExternalTx
 submitExternalTx ctx bytes = do
     txWithWit@(tx,_) <- withExceptT ErrSubmitExternalTxDecode $ except $
         decodeSignedTx tl bytes
-    withExceptT ErrSubmitExternalTxNetwork $ postTx nw txWithWit
+    withExceptT ErrSubmitExternalTxNetwork $ postTx txWithWit
     return tx
   where
-    nw = ctx ^. networkLayer @t
+    postTx = ctx ^. transactionSubmitter @(Tx t)
     tl = ctx ^. transactionLayer @t @k
 
 
