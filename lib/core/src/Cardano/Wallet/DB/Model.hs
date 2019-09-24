@@ -61,15 +61,19 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (slotId)
+    , Direction (..)
     , Hash
     , Range (..)
     , SlotId (..)
     , SortOrder (..)
     , Tx
-    , TxMeta (slotId)
+    , TxMeta (..)
+    , TxStatus (..)
     , WalletMetadata
     , isWithinRange
     )
+import Control.Monad
+    ( when )
 import Data.List
     ( sort, sortOn )
 import Data.Map.Strict
@@ -173,9 +177,25 @@ mReadCheckpoint wid db@(Database wallets _) =
 
 mRollbackTo :: Ord wid => wid -> SlotId -> ModelOp wid s t xprv ()
 mRollbackTo wid pt = alterModel wid $ \wal ->
-    ((), wal { checkpoints = filter keepBeforePoint (checkpoints wal) })
+    ( ()
+    , wal
+        { checkpoints = filter keepBeforePoint (checkpoints wal)
+        , txHistory = Map.mapMaybe rescheduleOrForget (txHistory wal)
+        }
+    )
   where
-    keepBeforePoint cp = (slotId :: BlockHeader -> SlotId) (currentTip cp) <= pt
+    keepBeforePoint :: Wallet s t -> Bool
+    keepBeforePoint cp =
+        (slotId :: BlockHeader -> SlotId) (currentTip cp) <= pt
+
+    rescheduleOrForget :: TxMeta -> Maybe TxMeta
+    rescheduleOrForget meta = do
+        let isAfter = (slotId :: TxMeta -> SlotId) meta > pt
+        let isIncoming = direction meta == Incoming
+        when (isIncoming && isAfter) Nothing
+        pure $ if isAfter
+            then meta { slotId = pt, status = Pending }
+            else meta
 
 mPutWalletMeta :: Ord wid => wid -> WalletMetadata -> ModelOp wid s t xprv ()
 mPutWalletMeta wid meta = alterModel wid $ \wal ->

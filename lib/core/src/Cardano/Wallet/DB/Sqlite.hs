@@ -82,6 +82,8 @@ import Cardano.Wallet.Primitive.Model
     ( currentTip )
 import Cardano.Wallet.Primitive.Types
     ( DefineTx (..) )
+import Control.Arrow
+    ( (***) )
 import Control.Concurrent.MVar
     ( newMVar, withMVar )
 import Control.DeepSeq
@@ -348,6 +350,7 @@ newDBLayer logConfig trace fp = do
                         , TxMetaSlotId >. point
                         ]
                         [ TxMetaStatus =. W.Pending
+                        , TxMetaSlotId =. point
                         ]
                     deleteTxMetas wid
                         [ TxMetaDirection ==. W.Incoming
@@ -392,8 +395,7 @@ newDBLayer logConfig trace fp = do
                       pure $ Right ()
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
-        , readTxHistory = \(PrimaryKey wid) order range ->
-              runQuery $
+        , readTxHistory = \(PrimaryKey wid) order range -> runQuery $
               selectTxHistory @t wid order $ catMaybes
                 [ (TxMetaSlotId >=.) <$> W.inclusiveLowerBound range
                 , (TxMetaSlotId <=.) <$> W.inclusiveUpperBound range
@@ -844,12 +846,17 @@ selectUTxO cp = fmap entityVal <$>
 selectTxs
     :: [TxId]
     -> SqlPersistT IO ([TxIn], [TxOut])
-selectTxs txids = do
-    ins <- fmap entityVal <$> selectList [TxInputTxId <-. txids]
-        [Asc TxInputTxId, Asc TxInputOrder]
-    outs <- fmap entityVal <$> selectList [TxOutputTxId <-. txids]
-        [Asc TxOutputTxId, Asc TxOutputIndex]
-    pure (ins, outs)
+selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
+  where
+    select txids = do
+        ins <- fmap entityVal <$> selectList [TxInputTxId <-. txids]
+            [Asc TxInputTxId, Asc TxInputOrder]
+        outs <- fmap entityVal <$> selectList [TxOutputTxId <-. txids]
+            [Asc TxOutputTxId, Asc TxOutputIndex]
+        pure (ins, outs)
+
+    concatUnzip :: [([a], [b])] -> ([a], [b])
+    concatUnzip = (concat *** concat) . unzip
 
 selectTxHistory
     :: forall t. PersistTx t
