@@ -133,6 +133,12 @@ data DBLayer m s t k = DBLayer
         -- ^ Read a previously stored private key and its associated passphrase
         -- hash.
 
+    , rollbackTo
+        :: PrimaryKey WalletId
+        -> SlotId
+        -> ExceptT ErrNoSuchWallet m ()
+        -- ^ Drops all checkpoints and transaction data after the given slot.
+
     , withLock
         :: forall e a. ()
         => ExceptT e m a

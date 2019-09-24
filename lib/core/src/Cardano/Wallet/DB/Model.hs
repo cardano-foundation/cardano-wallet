@@ -5,6 +5,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
@@ -45,6 +46,7 @@ module Cardano.Wallet.DB.Model
     , mListWallets
     , mPutCheckpoint
     , mReadCheckpoint
+    , mRollbackTo
     , mPutWalletMeta
     , mReadWalletMeta
     , mPutTxHistory
@@ -56,9 +58,10 @@ module Cardano.Wallet.DB.Model
 import Prelude
 
 import Cardano.Wallet.Primitive.Model
-    ( Wallet )
+    ( Wallet, currentTip )
 import Cardano.Wallet.Primitive.Types
-    ( Hash
+    ( BlockHeader (slotId)
+    , Hash
     , Range (..)
     , SlotId (..)
     , SortOrder (..)
@@ -168,6 +171,12 @@ mReadCheckpoint :: Ord wid => wid -> ModelOp wid s t xprv (Maybe (Wallet s t))
 mReadCheckpoint wid db@(Database wallets _) =
     (Right (checkpoints <$> Map.lookup wid wallets >>= listToMaybe), db)
 
+mRollbackTo :: Ord wid => wid -> SlotId -> ModelOp wid s t xprv ()
+mRollbackTo wid pt = alterModel wid $ \wal ->
+    ((), wal { checkpoints = filter keepBeforePoint (checkpoints wal) })
+  where
+    keepBeforePoint cp = (slotId :: BlockHeader -> SlotId) (currentTip cp) <= pt
+
 mPutWalletMeta :: Ord wid => wid -> WalletMetadata -> ModelOp wid s t xprv ()
 mPutWalletMeta wid meta = alterModel wid $ \wal ->
     ((), wal { metadata = meta })
@@ -224,12 +233,12 @@ alterModel wid f db@Database{wallets,txs} = case f <$> Map.lookup wid wallets of
 -- (first time/slotId, then by TxId) to a 'TxHistory'.
 filterTxHistory :: SortOrder -> Range SlotId -> TxHistory t -> TxHistory t
 filterTxHistory order range =
-    filter ((`isWithinRange` range) . slotId . snd . snd)
+    filter ((`isWithinRange` range) . (slotId :: TxMeta -> SlotId) . snd . snd)
     . (case order of
         Ascending -> reverse
         Descending -> id)
     . sortBySlot
     . sortByTxId
   where
-    sortBySlot = sortOn (Down . slotId . snd . snd)
+    sortBySlot = sortOn (Down . (slotId :: TxMeta -> SlotId) . snd . snd)
     sortByTxId = sortOn fst

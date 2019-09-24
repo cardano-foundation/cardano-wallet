@@ -38,6 +38,7 @@ import Cardano.Wallet.DB.Model
     , mReadTxHistory
     , mReadWalletMeta
     , mRemoveWallet
+    , mRollbackTo
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), XPrv )
@@ -80,6 +81,9 @@ newDBLayer = do
             cp `deepseq` alterDB errNoSuchWallet db (mPutCheckpoint pk cp)
 
         , readCheckpoint = readDB db . mReadCheckpoint
+
+        , rollbackTo = \pk pt -> ExceptT $
+            alterDB errNoSuchWallet  db (mRollbackTo pk pt)
 
         {-----------------------------------------------------------------------
                                    Wallet Metadata

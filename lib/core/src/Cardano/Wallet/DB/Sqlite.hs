@@ -117,7 +117,7 @@ import Data.List.Split
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes, fromMaybe, isNothing )
+    ( catMaybes, fromMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -150,6 +150,7 @@ import Database.Persist.Sql
     , (<=.)
     , (=.)
     , (==.)
+    , (>.)
     , (>=.)
     )
 import Database.Persist.Sqlite
@@ -293,9 +294,10 @@ newDBLayer logConfig trace fp = do
               ExceptT $ runQuery $
               selectWallet wid >>= \case
                   Just _ -> Right <$> do
-                      deleteCheckpoints @s wid Nothing
-                      deleteUTxOs wid
-                      deleteTxMetas wid
+                      deleteCheckpoints wid []
+                      deleteState @s wid
+                      deleteUTxOs wid []
+                      deleteTxMetas wid []
                       deleteLooseTransactions
                       deleteWhere [PrivateKeyWalletId ==. wid]
                       deleteCascadeWhere [WalId ==. wid]
@@ -330,6 +332,28 @@ newDBLayer logConfig trace fp = do
                       s <- selectState (checkpointId cp)
                       pure (checkpointFromEntity @s @t cp utxo txs <$> s)
                   Nothing -> pure Nothing
+
+        , rollbackTo = \(PrimaryKey wid) point -> ExceptT $ runQuery $ do
+            selectWallet wid >>= \case
+                Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                Just _ -> Right <$> do
+                    deleteCheckpoints wid
+                        [ CheckpointSlot >. point
+                        ]
+                    deleteUTxOs wid
+                        [ UtxoSlot >. point
+                        ]
+                    updateTxMetas wid
+                        [ TxMetaDirection ==. W.Outgoing
+                        , TxMetaSlotId >. point
+                        ]
+                        [ TxMetaStatus =. W.Pending
+                        ]
+                    deleteTxMetas wid
+                        [ TxMetaDirection ==. W.Incoming
+                        , TxMetaSlotId >. point
+                        ]
+                    rollbackState @s wid point
 
         {-----------------------------------------------------------------------
                                    Wallet Metadata
@@ -708,25 +732,21 @@ insertCheckpoint wid cp = do
     deleteWhere [UtxoWalletId ==. wid, UtxoSlot ==. sl] *> dbChunked insertMany_ utxo
     insertState (wid, sl) (W.getState cp)
 
--- | Delete one or all checkpoints associated with a wallet. If a slot is
--- provided, it will only delete that checkpoint. Otherwise, it will remove all
--- checkpoints.
+-- | Delete one or all checkpoints associated with a wallet.
 deleteCheckpoints
-    :: forall s. PersistState s
-    => W.WalletId
-    -> Maybe W.SlotId
+    :: W.WalletId
+    -> [Filter Checkpoint]
     -> SqlPersistT IO ()
-deleteCheckpoints wid mSlot = do
-    deleteWhere $
-        (CheckpointWalletId ==. wid) :
-        [CheckpointSlot ==. sid | Just sid <- [mSlot]]
-    deleteState @s wid mSlot
+deleteCheckpoints wid filters = do
+    deleteWhere ((CheckpointWalletId ==. wid) : filters)
 
+-- | Delete UTxO values for a wallet
 deleteUTxOs
     :: W.WalletId
+    -> [Filter UTxO]
     -> SqlPersistT IO ()
-deleteUTxOs wid =
-    deleteWhere [UtxoWalletId ==. wid]
+deleteUTxOs wid filters =
+    deleteWhere ((UtxoWalletId ==. wid) : filters)
 
 -- | Clean up checkpoints which are greater than `k` blocks old for we know we
 -- can't rollback that far.
@@ -760,9 +780,18 @@ purgeCheckpoints wid cp = do
 -- | Delete TxMeta values for a wallet.
 deleteTxMetas
     :: W.WalletId
+    -> [Filter TxMeta]
     -> SqlPersistT IO ()
-deleteTxMetas wid =
-    deleteWhere [ TxMetaWalletId ==. wid ]
+deleteTxMetas wid filters =
+    deleteWhere ((TxMetaWalletId ==. wid) : filters)
+
+updateTxMetas
+    :: W.WalletId
+    -> [Filter TxMeta]
+    -> [Update TxMeta]
+    -> SqlPersistT IO ()
+updateTxMetas wid filters =
+    updateWhere ((TxMetaWalletId ==. wid) : filters)
 
 -- | Add new TxMeta rows, overwriting existing ones.
 putTxMetas :: [TxMeta] -> SqlPersistT IO ()
@@ -867,8 +896,10 @@ class PersistState s where
     insertState :: (W.WalletId, W.SlotId) -> s -> SqlPersistT IO ()
     -- | Load the state for a checkpoint.
     selectState :: (W.WalletId, W.SlotId) -> SqlPersistT IO (Maybe s)
-    -- | Remove the state for one or all checkpoints of a wallet.
-    deleteState :: W.WalletId -> Maybe W.SlotId -> SqlPersistT IO ()
+    -- | Drop the state and everything related to it
+    deleteState :: W.WalletId -> SqlPersistT IO ()
+    -- | Rollback the state to a given slot
+    rollbackState :: W.WalletId -> W.SlotId -> SqlPersistT IO ()
 
 class DefineTx t => PersistTx t where
     resolvedInputs :: Tx t -> [(W.TxIn, Maybe W.Coin)]
@@ -913,12 +944,16 @@ instance W.KeyToAddress t Seq.SeqKey => PersistState (Seq.SeqState t) where
         pendingChangeIxs <- lift $ selectSeqStatePendingIxs wid
         pure $ Seq.SeqState intPool extPool pendingChangeIxs
 
-    deleteState wid mSlot = do
-        deleteWhere $ (SeqStateAddressWalletId ==. wid) :
-            [SeqStateAddressSlot ==. sid | Just sid <- [mSlot]]
-        when (isNothing mSlot) $ do
-            deleteWhere [SeqStatePendingWalletId ==. wid]
-            deleteWhere [SeqStateWalletId ==. wid]
+    deleteState wid = do
+        deleteWhere [SeqStateAddressWalletId ==. wid]
+        deleteWhere [SeqStatePendingWalletId ==. wid]
+        deleteWhere [SeqStateWalletId ==. wid]
+
+    rollbackState wid slot = do
+        deleteWhere
+            [ SeqStateAddressWalletId ==. wid
+            , SeqStateAddressSlot >. slot
+            ]
 
 insertAddressPool
     :: forall t c. (Typeable c)
@@ -1002,13 +1037,16 @@ instance PersistState (Rnd.RndState t) where
             , gen = gen
             }
 
-    deleteState wid mSlot = do
-        deleteWhere $
-            (RndStateAddressWalletId ==. wid) :
-            [RndStateAddressSlot ==. sid | Just sid <- [mSlot]]
-        when (isNothing mSlot) $ do
-            deleteWhere [ RndStatePendingAddressWalletId ==. wid ]
-            deleteWhere [ RndStateWalletId ==. wid ]
+    deleteState wid = do
+        deleteWhere [ RndStateAddressWalletId ==. wid ]
+        deleteWhere [ RndStatePendingAddressWalletId ==. wid ]
+        deleteWhere [ RndStateWalletId ==. wid ]
+
+    rollbackState wid slot = do
+        deleteWhere
+            [ RndStateAddressWalletId ==. wid
+            , RndStateAddressSlot >. slot
+            ]
 
 insertRndStateAddresses
     :: W.WalletId

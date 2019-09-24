@@ -8,6 +8,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -20,6 +21,7 @@ module Cardano.Wallet.DB.Arbitrary
     ( GenTxHistory (..)
     , KeyValPairs (..)
     , GenState
+    , MockChain (..)
     ) where
 
 import Prelude
@@ -73,12 +75,15 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip, getPending, getState, unsafeInitWallet, utxo )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , Block (..)
     , BlockHeader (..)
     , Coin (..)
     , Direction (..)
+    , EpochLength (..)
     , Hash (..)
     , ShowFmt (..)
     , SlotId (..)
+    , SlotParameters (..)
     , SortOrder (..)
     , TxIn (..)
     , TxMeta (..)
@@ -91,17 +96,25 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , WalletPassphraseInfo (..)
     , WalletState (..)
+    , flatSlot
     , isPending
+    , slotSucc
     , wholeRange
     )
 import Control.DeepSeq
     ( NFData )
 import Crypto.Hash
     ( hash )
+import Data.ByteArray.Encoding
+    ( Base (Base16), convertToBase )
 import Data.Coerce
     ( coerce )
 import Data.Functor.Identity
     ( Identity (..) )
+import Data.Generics.Internal.VL.Lens
+    ( (^.) )
+import Data.List
+    ( unfoldr )
 import Data.Quantity
     ( Percentage, Quantity (..), mkPercentage )
 import Data.Text.Class
@@ -114,6 +127,8 @@ import Fmt
     ( Buildable (..), Builder, blockMapF', prefixF, suffixF, tupleF )
 import GHC.Generics
     ( Generic )
+import Numeric.Natural
+    ( Natural )
 import System.IO.Unsafe
     ( unsafePerformIO )
 import System.Random
@@ -295,8 +310,17 @@ instance Arbitrary TxMeta where
     arbitrary = TxMeta
         <$> elements [Pending, InLedger, Invalidated]
         <*> elements [Incoming, Outgoing]
-        <*> (SlotId <$> choose (0, 1000) <*> choose (0, 21599))
+        <*> arbitrary
         <*> fmap (Quantity . fromIntegral) (arbitrary @Word32)
+
+instance Arbitrary SlotId where
+    shrink (SlotId ep sl) =
+        uncurry SlotId <$> shrink (ep, sl)
+    arbitrary = SlotId
+        <$> choose (0, 100)
+        <*> choose (0, ep)
+      where
+        EpochLength ep = genesisParameters ^. #getEpochLength
 
 customizedGen :: Gen Percentage
 customizedGen = do
@@ -409,6 +433,49 @@ rootKeysSeq = unsafePerformIO $ generate (vectorOf 10 genRootKeysSeq)
 rootKeysRnd :: [RndKey 'RootK XPrv]
 rootKeysRnd = unsafePerformIO $ generate (vectorOf 10 genRootKeysRnd)
 {-# NOINLINE rootKeysRnd #-}
+
+newtype MockChain = MockChain
+    { getMockChain :: [Block DummyTarget.Tx] }
+    deriving stock (Eq, Show)
+    deriving newtype (Buildable)
+
+instance Arbitrary MockChain where
+    shrink (MockChain chain) =
+        [ MockChain chain'
+        | chain' <- shrinkList shrinkBlock chain
+        , not (null chain')
+        ]
+      where
+        shrinkBlock (Block h txs) = Block h <$> shrinkList shrink txs
+    arbitrary = do
+        n0 <- choose (1, 10)
+        slot0 <- arbitrary
+        height0 <- fromIntegral <$> choose (0, flatSlot epochLength slot0)
+        blocks <- sequence $ flip unfoldr (slot0, height0, n0) $ \(slot, height, n) ->
+            if n <= (0 :: Int)
+                then Nothing
+                else Just
+                    ( genBlock slot height
+                    , (slotSucc sp slot, height + 1, n - 1)
+                    )
+        return (MockChain blocks)
+      where
+        mockHeaderHash :: SlotId -> Hash "BlockHeader"
+        mockHeaderHash = Hash . convertToBase Base16 . B8.pack . show
+
+        genBlock :: SlotId -> Natural -> Gen (Block DummyTarget.Tx)
+        genBlock slot height = do
+            let h = BlockHeader slot (Quantity height) (mockHeaderHash slot)
+            Block h <$> (choose (1, 10) >>= \k -> vectorOf k arbitrary)
+
+        epochLength :: EpochLength
+        epochLength = genesisParameters ^. #getEpochLength
+
+        sp :: SlotParameters
+        sp = SlotParameters
+            epochLength
+            (genesisParameters ^. #getSlotLength)
+            (genesisParameters ^. #getGenesisBlockDate)
 
 {-------------------------------------------------------------------------------
                      Missing Instances for QC Tests
