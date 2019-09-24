@@ -40,10 +40,17 @@ import Cardano.Wallet.Primitive.AddressDerivation.Sequential
 import Cardano.Wallet.Primitive.Model
     ( Wallet, applyBlock, currentTip )
 import Cardano.Wallet.Primitive.Types
-    ( ShowFmt (..)
+    ( Direction (..)
+    , Hash (..)
+    , ShowFmt (..)
+    , SlotId (..)
     , SortOrder (..)
+    , Tx (..)
+    , TxMeta (..)
+    , TxStatus (..)
     , WalletId (..)
     , WalletMetadata (..)
+    , isPending
     , wholeRange
     )
 import Cardano.Wallet.Unsafe
@@ -66,6 +73,8 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.List
     ( unfoldr )
+import Data.Maybe
+    ( mapMaybe )
 import Fmt
     ( Buildable, pretty )
 import Test.Hspec
@@ -80,15 +89,17 @@ import Test.Hspec
     )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Gen
     , Property
     , checkCoverage
     , counterexample
     , cover
     , elements
+    , label
     , property
     )
 import Test.QuickCheck.Monadic
-    ( assert, monadicIO, monitor, pick, run )
+    ( PropertyM, assert, monadicIO, monitor, pick, run )
 
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
@@ -185,8 +196,10 @@ properties = do
                 (length . lrp @Maybe)))
 
     describe "rollback" $ do
-        it "Can rollback an arbitrary number of blocks"
+        it "Can rollback to any arbitrary known checkpoint"
             (property . prop_rollbackCheckpoint)
+        it "Correctly re-construct tx history on rollbacks"
+            (checkCoverage . prop_rollbackTxHistory)
 
 -- | Wrap the result of 'readTxHistory' in an arbitrary identity Applicative
 readTxHistoryF
@@ -237,6 +250,28 @@ once xs = forM (Map.toList (Map.fromList xs))
 -- | Like 'once', but discards the result
 once_ :: (Ord k, Monad m) => [(k,v)] -> ((k,v) -> m a) -> m ()
 once_ xs = void . once xs
+
+-- | Pick an arbitrary element from a monadic property, and label it in the
+-- counterexample:
+--
+-- >>> ShowFmt meta <- namedPick "Wallet Metadata" arbitrary
+--
+-- If failing, the following line will be added to the counter example:
+--
+-- @
+-- Wallet Metadata:
+-- squirtle (still restoring (94%)), created at 1963-10-09 06:50:11 UTC, not delegating
+-- @
+namedPick :: Show a => String -> Gen a -> PropertyM IO a
+namedPick lbl gen =
+    monitor (counterexample ("\n" <> lbl <> ":")) *> pick gen
+
+-- | Like 'assert', but allow giving a label / title before running a assertion
+assertWith :: String -> Bool -> PropertyM IO ()
+assertWith lbl condition = do
+    let flag = if condition then "✓" else "✗"
+    monitor (counterexample $ lbl <> " " <> flag)
+    assert condition
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -495,7 +530,7 @@ prop_parallelPut putOp readOp resolve db (KeyValPairs pairs) =
         length res `shouldBe` resolve pairs
 
 
--- | Can rollback to a particular checkpoint previously stored
+-- | Can rollback to any particular checkpoint previously stored
 prop_rollbackCheckpoint
     :: forall s t k. (t ~ DummyTarget, GenState s, Eq s)
     => DBLayer IO s t k
@@ -514,9 +549,6 @@ prop_rollbackCheckpoint db (ShowFmt cp0) (ShowFmt (MockChain chain)) = do
         ([], _) -> Nothing
         (b:q, cp) -> let cp' = snd $ applyBlock b cp in Just (cp', (q, cp'))
 
-    namedPick lbl gen =
-        monitor (counterexample ("\n" <> lbl <> ":")) *> pick gen
-
     setup wid meta = run $ do
         cleanDB db
         unsafeRunExceptT $ createWallet db wid cp0 meta
@@ -529,3 +561,64 @@ prop_rollbackCheckpoint db (ShowFmt cp0) (ShowFmt (MockChain chain)) = do
         let str = maybe "∅" pretty cp
         monitor $ counterexample ("Checkpoint after rollback: \n" <> str)
         assert (ShowFmt cp == ShowFmt (pure point))
+
+-- | Re-schedule pending transaction on rollback, i.e.:
+--
+-- (PoR = Point of Rollback)
+--
+-- - There's no transaction beyond the PoR
+-- - Any incoming transaction after the PoR is forgotten
+-- - Any outgoing transaction after the PoR is back in pending, and have a slot
+--   equal to the PoR.
+prop_rollbackTxHistory
+    :: forall s t k. (t ~ DummyTarget)
+    => DBLayer IO s t k
+    -> ShowFmt (Wallet s t)
+    -> ShowFmt GenTxHistory
+    -> Property
+prop_rollbackTxHistory db (ShowFmt cp0) (ShowFmt (GenTxHistory txs0)) = do
+    monadicIO $ do
+        ShowFmt wid <- namedPick "Wallet ID" arbitrary
+        ShowFmt meta <- namedPick "Wallet Metadata" arbitrary
+        ShowFmt point <- namedPick "Rollback point" arbitrary
+        let ixs = rescheduled point
+        monitor $ label ("Outgoing tx after point: " <> show (L.length ixs))
+        monitor $ cover 50 (not $ null ixs) "rolling back something"
+        setup wid meta >> prop wid point
+  where
+    setup wid meta = run $ do
+        cleanDB db
+        unsafeRunExceptT $ createWallet db wid cp0 meta
+        unsafeRunExceptT $ putTxHistory db wid $ Map.fromList txs0
+
+    prop wid point = do
+        run $ unsafeRunExceptT $ rollbackTo db wid point
+        txs <- run $ readTxHistory db wid Descending wholeRange
+        monitor $ counterexample $ "\nTx history after rollback: \n" <> fmt txs
+
+        assertWith "Outgoing txs are reschuled" $
+            L.sort (rescheduled point) == L.sort (filterTxs isPending txs)
+        assertWith "All other txs are still known" $
+            L.sort (knownAfterRollback point) == L.sort (fst <$> txs)
+        assertWith "All txs are now before the point of rollback" $
+            all (isBefore point . snd . snd) txs
+      where
+        fmt = pretty . GenTxHistory
+
+    isBefore :: SlotId -> TxMeta -> Bool
+    isBefore point meta =
+        (slotId :: TxMeta -> SlotId) meta <= point
+
+    filterTxs :: (TxMeta -> Bool) -> [(Hash "Tx", (Tx t, TxMeta))] -> [Hash "Tx"]
+    filterTxs predicate = mapMaybe fn
+      where
+        fn (h, (_, meta)) = if predicate meta then Just h else Nothing
+
+    rescheduled :: SlotId -> [Hash "Tx"]
+    rescheduled point =
+        let addedAfter meta = direction meta == Outgoing && slotId meta > point
+        in filterTxs (\tx -> addedAfter tx || isPending tx) txs0
+
+    knownAfterRollback :: SlotId -> [Hash "Tx"]
+    knownAfterRollback point =
+        rescheduled point ++ filterTxs (isBefore point) txs0
