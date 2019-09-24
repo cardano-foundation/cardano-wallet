@@ -60,7 +60,7 @@ import Cardano.CLI
 import Cardano.Launcher
     ( Command (Command), StdStream (..) )
 import Cardano.Wallet
-    ( BlockchainParameters (..), WalletLayer )
+    ( WalletLayer )
 import Cardano.Wallet.Api.Server
     ( Listen (..), getRandomPort )
 import Cardano.Wallet.DaedalusIPC
@@ -68,17 +68,15 @@ import Cardano.Wallet.DaedalusIPC
 import Cardano.Wallet.DB
     ( DBLayer )
 import Cardano.Wallet.Jormungandr.Binary
-    ( getBlockId, runGetOrFail )
+    ( coerceBlock, getBlockId, runGetOrFail )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( BaseUrl (..), Jormungandr, Scheme (..), genConfigFile )
 import Cardano.Wallet.Jormungandr.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Jormungandr.Network
     ( ErrGetBlockchainParams (..), getInitialBlockchainParameters )
-import Cardano.Wallet.Jormungandr.Primitive.Types
-    ( Tx )
 import Cardano.Wallet.Network
-    ( NetworkLayer (..), defaultRetryPolicy, waitForConnection )
+    ( defaultRetryPolicy, waitForConnection )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
@@ -86,13 +84,15 @@ import Cardano.Wallet.Primitive.AddressDerivation.Sequential
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
 import Cardano.Wallet.Primitive.Types
-    ( Block, Hash (..) )
+    ( Hash (..) )
 import Cardano.Wallet.Version
     ( showVersion, version )
 import Control.Applicative
     ( optional )
 import Control.Concurrent.Async
     ( race_ )
+import Control.Concurrent.MVar
+    ( newMVar )
 import Control.Monad
     ( (>=>) )
 import Control.Monad.Trans.Except
@@ -320,22 +320,14 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
             -> DBLayer IO s t k
             -> IO (WalletLayer s t k)
         newWalletLayer (sb, tracer) db = do
-            (nl, blockchainParams) <- newNetworkLayer (sb, tracer)
-            let tl = Jormungandr.newTransactionLayer @n block0H
-            Wallet.newWalletLayer tracer blockchainParams db nl tl
-
-        newNetworkLayer
-            :: (Switchboard Text, Trace IO Text)
-            -> IO
-               ( NetworkLayer IO Tx (Block Tx)
-               , (Block Tx, BlockchainParameters)
-               )
-        newNetworkLayer (sb, tracer) = do
             let url = BaseUrl Http "localhost" (getPort nodePort) "/api"
-            (jor, nl) <- Jormungandr.newNetworkLayer' url
+            mgr <- Jormungandr.newManager Jormungandr.defaultManagerSettings
+            st <- newMVar Jormungandr.emptyUnstableBlocks
+            let jor = Jormungandr.mkJormungandrLayer mgr url
+            let nl = Jormungandr.mkRawNetworkLayer st jor
             waitForService "Jörmungandr" (sb, tracer) nodePort $
                 waitForConnection nl defaultRetryPolicy
-            genesis <-
+            blockchainParams <-
                 runExceptT (getInitialBlockchainParameters jor (coerce block0H)) >>= \case
                 Right a -> return a
                 Left (ErrGetBlockchainParamsNetworkUnreachable _) ->
@@ -344,7 +336,10 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
                     handleGenesisNotFound (sb, tracer)
                 Left (ErrGetBlockchainParamsIncompleteParams _) ->
                     handleNoInitialPolicy tracer
-            return (nl, genesis)
+
+            let nl' = coerceBlock <$> nl
+            let tl = Jormungandr.newTransactionLayer @n block0H
+            Wallet.newWalletLayer tracer blockchainParams db nl' tl
 
         withDBLayer
             :: CM.Configuration

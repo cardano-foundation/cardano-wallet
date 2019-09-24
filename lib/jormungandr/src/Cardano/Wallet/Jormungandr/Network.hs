@@ -23,6 +23,9 @@ module Cardano.Wallet.Jormungandr.Network
     ( newNetworkLayer
     , newNetworkLayer'
     , mkNetworkLayer
+    , mkRawNetworkLayer
+    , emptyUnstableBlocks
+
     , JormungandrLayer (..)
     , mkJormungandrLayer
 
@@ -162,13 +165,28 @@ newNetworkLayer' url = do
     let jor = mkJormungandrLayer mgr url
     return (jor, mkNetworkLayer st jor)
 
+
 -- | Wrap a Jormungandr client into a 'NetworkLayer' common interface.
 mkNetworkLayer
     :: MonadBaseControl IO m
     => MVar UnstableBlocks
     -> JormungandrLayer m
     -> NetworkLayer m Tx (Block Tx)
-mkNetworkLayer st j = NetworkLayer
+mkNetworkLayer st j = coerceBlock <$> mkRawNetworkLayer st j
+
+-- | Wrap a Jormungandr client into a 'NetworkLayer' common interface.
+--
+-- This version provides the full, raw blocks from
+-- "Cardano.Wallet.Jormungandr.Binary".
+--
+-- TODO: We may want to aim to replace the other constructors and only keep
+-- this one.
+mkRawNetworkLayer
+    :: MonadBaseControl IO m
+    => MVar UnstableBlocks
+    -> JormungandrLayer m
+    -> NetworkLayer m Tx J.Block
+mkRawNetworkLayer st j = NetworkLayer
     { networkTip = modifyMVar st $ \bs -> do
         bs' <- updateUnstableBlocks k getTipId' getBlockHeader bs
         ExceptT . pure $ case unstableBlocksTip bs' of
@@ -186,7 +204,7 @@ mkNetworkLayer st j = NetworkLayer
                 ErrGetBlockNetworkUnreachable e
             ErrGetDescendantsParentNotFound _ ->
                 ErrGetBlockNotFound (prevBlockHash tip)
-        forM ids (fmap coerceBlock . getBlock j)
+        forM ids (getBlock j)
 
     , postTx = postMessage j
     }

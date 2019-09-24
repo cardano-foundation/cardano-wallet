@@ -58,6 +58,9 @@ data NetworkLayer m tx block = NetworkLayer
         -- ^ Broadcast a transaction to the chain producer
     }
 
+instance Functor m => Functor (NetworkLayer m tx) where
+     fmap f nl = nl { nextBlocks = fmap (fmap f) . nextBlocks nl }
+
 -- | Network is unavailable
 data ErrNetworkUnavailable
     = ErrNetworkUnreachable Text
