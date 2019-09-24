@@ -38,8 +38,6 @@ import Cardano.Wallet.HttpBridge.Api
     , PostSignedTx
     , api
     )
-import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge, byronBlockchainParameters )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..) )
 import Cardano.Wallet.HttpBridge.Primitive.Types
@@ -97,22 +95,14 @@ import qualified Servant.Extra.ContentTypes as Api
 
 -- | Constructs a network layer with the given cardano-http-bridge API.
 mkRestorer
-    :: forall n m. (KnownNetwork n, Monad m)
+    :: forall m. (Monad m)
     => HttpBridgeLayer m
     -> Restorer (Block Tx) m
 mkRestorer httpBridge = Restorer
     { nextBlocks = \(BlockHeader sl _ _) ->
         withExceptT ErrGetBlockNetworkUnreachable (rbNextBlocks httpBridge sl)
     , networkTip = do
-        nodeTip <- snd <$> getNetworkTip httpBridge
-        let epochLength = getEpochLength (byronBlockchainParameters @n)
-        -- NOTE:
-        -- `http-bridge` is not intended to be used in production so we are
-        -- taking a few shortcut to not spend needless time on its impl.
-        -- This is one of them.
-        let nodeHeight =
-               Quantity $ fromIntegral $ flatSlot epochLength (slotId nodeTip)
-        return (nodeTip, nodeHeight)
+        snd <$> getNetworkTip httpBridge
     }
 
 mkTxSubmission
