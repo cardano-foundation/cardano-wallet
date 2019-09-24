@@ -26,6 +26,8 @@ import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.HttpBridge.Network
     ( newNetworkLayer )
+import Cardano.Wallet.HttpBridge.Primitive.Types
+    ( Tx )
 import Cardano.Wallet.HttpBridge.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Network
@@ -45,7 +47,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Model
     ( totalBalance, totalUTxO )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..)
+    ( Block (..)
+    , BlockHeader (..)
     , SlotId (..)
     , StartTime (..)
     , UTxO (..)
@@ -208,7 +211,7 @@ bench_restoration (wid, wname, s) = withHttpBridge network $ \port -> do
     dbFile <- Just <$> emptySystemTempFile "bench.db"
     (ctx, db) <- Sqlite.newDBLayer logConfig nullTracer dbFile
     Sqlite.unsafeRunQuery ctx (void $ runMigrationSilent migrateAll)
-    nw <- newNetworkLayer port
+    nw <- newNetworkLayer @n port
     let tl = newTransactionLayer @n @k
     BlockHeader sl _ _ <- unsafeRunExceptT $ networkTip nw
     sayErr . fmt $ network ||+ " tip is at " +|| sl ||+ ""
@@ -278,7 +281,7 @@ waitForWalletSync walletLayer wid = do
 -- | Poll the network tip until it reaches the slot corresponding to the current
 -- time.
 waitForNodeSync
-    :: NetworkLayer t IO
+    :: NetworkLayer IO Tx (Block Tx)
     -> Text
     -> (SlotId -> SlotId -> IO ())
     -> IO SlotId

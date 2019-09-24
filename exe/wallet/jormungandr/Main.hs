@@ -326,7 +326,10 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
 
         newNetworkLayer
             :: (Switchboard Text, Trace IO Text)
-            -> IO (NetworkLayer t IO, (Block Tx, BlockchainParameters))
+            -> IO
+               ( NetworkLayer IO Tx (Block Tx)
+               , (Block Tx, BlockchainParameters)
+               )
         newNetworkLayer (sb, tracer) = do
             let url = BaseUrl Http "localhost" (getPort nodePort) "/api"
             (jor, nl) <- Jormungandr.newNetworkLayer' url

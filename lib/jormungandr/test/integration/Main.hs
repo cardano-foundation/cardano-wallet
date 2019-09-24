@@ -195,7 +195,7 @@ cardanoWalletServer jormungandrUrl mlisten = do
 newNetworkLayer
     :: BaseUrl
     -> Hash "Genesis"
-    -> IO (NetworkLayer (Jormungandr n) IO, (Block Tx, BlockchainParameters))
+    -> IO (NetworkLayer IO Tx (Block Tx), (Block Tx, BlockchainParameters))
 newNetworkLayer url block0 = do
     (jormungandr, nl) <- Jormungandr.newNetworkLayer' url
     waitForConnection nl defaultRetryPolicy

@@ -68,6 +68,8 @@ import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge, Network (..), block0, byronBlockchainParameters )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..) )
+import Cardano.Wallet.HttpBridge.Primitive.Types
+    ( Tx )
 import Cardano.Wallet.Network
     ( NetworkLayer, defaultRetryPolicy, waitForConnection )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -76,6 +78,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( SeqKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
+import Cardano.Wallet.Primitive.Types
+    ( Block )
 import Cardano.Wallet.Version
     ( showVersion, version )
 import Control.Applicative
@@ -278,7 +282,7 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
 
         newNetworkLayer
             :: (Switchboard Text, Trace IO Text)
-            -> IO (NetworkLayer t IO, BlockchainParameters)
+            -> IO (NetworkLayer IO Tx (Block Tx), BlockchainParameters)
         newNetworkLayer (sb, tracer) = do
             nl <- HttpBridge.newNetworkLayer @n (getPort nodePort)
             waitForService "http-bridge" (sb, tracer) nodePort $

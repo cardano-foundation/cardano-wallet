@@ -40,6 +40,7 @@ import Cardano.Wallet.Network
     )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , Block (..)
     , BlockHeader (..)
     , Coin (..)
     , Hash (..)
@@ -323,8 +324,8 @@ spec = do
     second = 1000000
 
     startNode
-        :: (forall n. NetworkLayer n IO -> IO ())
-        -> IO (Async (), NetworkLayer (Jormungandr 'Testnet) IO, BaseUrl)
+        :: (NetworkLayer IO Tx (Block Tx) -> IO ())
+        -> IO (Async (), NetworkLayer IO Tx (Block Tx), BaseUrl)
     startNode wait = do
         (handle, baseUrl, _) <- launchJormungandr Inherit
         nw <- Jormungandr.newNetworkLayer baseUrl

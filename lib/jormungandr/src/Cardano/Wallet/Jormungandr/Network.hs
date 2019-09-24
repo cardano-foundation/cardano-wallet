@@ -62,7 +62,7 @@ import Cardano.Wallet.Jormungandr.Api
 import Cardano.Wallet.Jormungandr.Binary
     ( ConfigParam (..), Message (..), coerceBlock )
 import Cardano.Wallet.Jormungandr.Compatibility
-    ( Jormungandr, softTxMaxSize )
+    ( softTxMaxSize )
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx )
 import Cardano.Wallet.Network
@@ -147,17 +147,15 @@ import qualified Data.Text.Encoding as T
 -- | Creates a new 'NetworkLayer' connecting to an underlying 'Jormungandr'
 -- backend target.
 newNetworkLayer
-    :: forall n. ()
-    => BaseUrl
-    -> IO (NetworkLayer (Jormungandr n) IO)
+    :: BaseUrl
+    -> IO (NetworkLayer IO Tx (Block Tx))
 newNetworkLayer = fmap snd . newNetworkLayer'
 
 -- | Creates a new 'NetworkLayer' connecting to an underlying 'Jormungandr'
 -- backend target. Also returns the internal 'JormungandrLayer' component.
 newNetworkLayer'
-    :: forall n. ()
-    => BaseUrl
-    -> IO (JormungandrLayer IO, NetworkLayer (Jormungandr n) IO)
+    :: BaseUrl
+    -> IO (JormungandrLayer IO, NetworkLayer IO Tx (Block Tx))
 newNetworkLayer' url = do
     mgr <- newManager defaultManagerSettings
     st <- newMVar emptyUnstableBlocks
@@ -169,7 +167,7 @@ mkNetworkLayer
     :: MonadBaseControl IO m
     => MVar UnstableBlocks
     -> JormungandrLayer m
-    -> NetworkLayer (Jormungandr n) m
+    -> NetworkLayer m Tx (Block Tx)
 mkNetworkLayer st j = NetworkLayer
     { networkTip = modifyMVar st $ \bs -> do
         bs' <- updateUnstableBlocks k getTipId' getBlockHeader bs
