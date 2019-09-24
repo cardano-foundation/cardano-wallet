@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE Rank2Types #-}
@@ -82,8 +81,6 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Word
     ( Word8 )
-import GHC.Generics
-    ( Generic )
 import Network.HTTP.Client
     ( defaultManagerSettings, newManager )
 import Servant.Links
@@ -112,8 +109,6 @@ import Test.QuickCheck
     , shrinkList
     , vectorOf
     )
-import Test.QuickCheck.Arbitrary.Generic
-    ( genericShrink )
 import Test.QuickCheck.Monadic
     ( monadicIO )
 import Test.Utils.Ports
@@ -396,7 +391,7 @@ spec = do
         }
 
 newtype SignedTx = SignedTx (Tx, [TxWitness])
-    deriving (Eq, Show, Generic)
+    deriving (Eq, Show)
 
 instance Arbitrary SignedTx where
     arbitrary = do
@@ -452,13 +447,13 @@ instance Arbitrary TxIn where
     arbitrary = TxIn
         <$> arbitrary
         <*> (fromIntegral <$> arbitrary @Word8)
-    shrink = genericShrink
+    shrink (TxIn h ix) = TxIn h <$> shrink ix
 
 instance Arbitrary TxOut where
     arbitrary = TxOut
         <$> arbitrary
         <*> arbitrary
-    shrink = genericShrink
+    shrink (TxOut a c) = [TxOut a' c' | (a',c') <- shrink (a,c)]
 
 -- Only generating single addresses!
 instance Arbitrary Address where
