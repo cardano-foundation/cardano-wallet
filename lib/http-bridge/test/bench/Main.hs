@@ -25,11 +25,11 @@ import Cardano.Wallet.HttpBridge.Compatibility
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.HttpBridge.Network
-    ( newNetworkLayer )
+    ( HttpBridgeLayer (..), mkRestorer, newHttpBridgeLayer, newRestorer )
 import Cardano.Wallet.HttpBridge.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Network
-    ( NetworkLayer (..), defaultRetryPolicy, networkTip, waitForConnection )
+    ( Restorer (..), defaultRetryPolicy, networkTip, waitForConnection )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress (..), Passphrase (..), PersistKey, digest, publicKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
@@ -208,12 +208,13 @@ bench_restoration (wid, wname, s) = withHttpBridge network $ \port -> do
     dbFile <- Just <$> emptySystemTempFile "bench.db"
     (ctx, db) <- Sqlite.newDBLayer logConfig nullTracer dbFile
     Sqlite.unsafeRunQuery ctx (void $ runMigrationSilent migrateAll)
-    nw <- newNetworkLayer port
+    bridge <- newHttpBridgeLayer @n port
+    let nw = mkRestorer @n bridge
     let tl = newTransactionLayer @n @k
     BlockHeader sl _ _ <- unsafeRunExceptT $ networkTip nw
     sayErr . fmt $ network ||+ " tip is at " +|| sl ||+ ""
     let bp = byronBlockchainParameters @n
-    w <- newWalletLayer @t nullTracer (block0, bp) db nw tl
+    w <- newWalletLayer @t nullTracer (block0, bp) db nw tl (postSignedTx bridge)
     wallet <- unsafeRunExceptT $ W.createWallet w wid wname s
     unsafeRunExceptT $ W.restoreWallet w wallet
     waitForWalletSync w wallet
@@ -253,7 +254,7 @@ prepareNode :: forall n. KnownNetwork n => Proxy n -> IO ()
 prepareNode _ = do
     sayErr . fmt $ "Syncing "+|toText network|+" node... "
     sl <- withHttpBridge network $ \port -> do
-        bridge <- newNetworkLayer @n port
+        bridge <- newRestorer @n port
         waitForConnection bridge defaultRetryPolicy
         waitForNodeSync bridge (toText network) logQuiet
     sayErr . fmt $ "Completed sync of "+|toText network|+" up to "+||sl||+""
@@ -278,7 +279,7 @@ waitForWalletSync walletLayer wid = do
 -- | Poll the network tip until it reaches the slot corresponding to the current
 -- time.
 waitForNodeSync
-    :: NetworkLayer t IO
+    :: Restorer t IO
     -> Text
     -> (SlotId -> SlotId -> IO ())
     -> IO SlotId
