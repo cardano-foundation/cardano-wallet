@@ -111,9 +111,7 @@ import Data.Aeson
 import Data.Coerce
     ( coerce )
 import Data.Either
-    ( isRight )
-import Data.Either.Combinators
-    ( fromRight' )
+    ( fromRight, isRight )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.List.Split
@@ -493,7 +491,8 @@ delegationToText (W.Delegating pool) = Just $ toText pool
 
 delegationFromText :: Maybe Text -> W.WalletDelegation W.PoolId
 delegationFromText Nothing = W.NotDelegating
-delegationFromText (Just pool) = W.Delegating (fromRight' $ fromText pool)
+delegationFromText (Just pool) =
+    W.Delegating (fromRight (W.PoolVRFPubKey "invalid id pool") (fromText pool))
 
 mkWalletEntity :: W.WalletId -> W.WalletMetadata -> Wallet
 mkWalletEntity wid meta = Wallet

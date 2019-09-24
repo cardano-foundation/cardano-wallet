@@ -167,6 +167,7 @@ import Test.Hspec
     ( Spec, describe, it, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , InfiniteList (..)
     , arbitraryBoundedEnum
     , arbitraryPrintableChar
     , choose
@@ -626,12 +627,12 @@ instance Arbitrary (WalletDelegation (ApiT PoolId)) where
 
 instance Arbitrary PoolId where
     arbitrary = do
-        bytes <- BS.pack <$> replicateM 16 arbitrary
-        return $ PoolId (hash bytes)
+        InfiniteList bytes _ <- arbitrary
+        return $ PoolVRFPubKey $ BS.pack $ take 32 bytes
 
 instance Arbitrary ApiStakePool where
     arbitrary = do
-        stakes <- Quantity . fromIntegral <$> choose (1::Integer, 1000000000000000)
+        stakes <- Quantity . fromIntegral <$> choose (1::Integer, 1000000000000)
         blocks <- Quantity . fromIntegral <$> choose (1::Integer, 1000*22600)
         let metr = StakePoolMetrics stakes blocks
         ApiStakePool <$> arbitrary <*> pure metr

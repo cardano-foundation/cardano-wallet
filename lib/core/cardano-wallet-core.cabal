@@ -44,7 +44,6 @@ library
     , cryptonite
     , deepseq
     , digest
-    , either
     , exceptions
     , extra
     , fast-logger

@@ -105,6 +105,7 @@ module Cardano.Wallet.Primitive.Types
 
     -- * Stake Pools
     , PoolId(..)
+    , poolIdHexStringLength
 
     -- * Querying
     , SortOrder (..)
@@ -469,31 +470,41 @@ isSubrangeOf r1 r2 =
                                   Stake Pools
 -------------------------------------------------------------------------------}
 
--- | Represent stake pool identifier. Note that the internal representation is
--- left open currently, until we figure out a better type for those.
-newtype PoolId = PoolId
-    { getPoolId :: Digest Blake2b_160 }
+-- | Represent stake pool identifier.
+newtype PoolId = PoolVRFPubKey { getPoolId :: ByteString }
     deriving (Generic, Eq, Show)
 
 instance NFData PoolId
 
 instance Buildable PoolId where
-    build wid = prefixF 8 widF <> "..." <> suffixF 8 widF
+    build poolId = mempty
+        <> prefixF 8 poolIdF
+        <> "..."
+        <> suffixF 8 poolIdF
       where
-        widF = toText wid
-
-instance FromText PoolId where
-    fromText txt = maybe
-        (Left $ TextDecodingError msg)
-        (Right . PoolId)
-        (decodeHex txt >>= digestFromByteString @_ @ByteString)
-      where
-        msg = "stake pool id should be an hex-encoded string of 40 characters"
-        decodeHex =
-            either (const Nothing) Just . convertFromBase Base16 . T.encodeUtf8
+        poolIdF = build (toText poolId)
 
 instance ToText PoolId where
-    toText = T.decodeUtf8 . convertToBase Base16 . getPoolId
+    toText = T.decodeUtf8
+        . convertToBase Base16
+        . getPoolId
+
+-- | VRF PubKey: 32 bytes (ristretto25519) which translates to 64 hex character string
+--   see https://github.com/input-output-hk/chain-libs/blob/master/chain-impl-mockchain/doc/format.md
+poolIdHexStringLength :: Int
+poolIdHexStringLength = 64
+
+instance FromText PoolId where
+    fromText t
+        | T.length t /= poolIdHexStringLength =
+            Left $ TextDecodingError $
+                "stake pool id invalid: expected " <> show poolIdHexStringLength
+                <> " characters in hex string"
+        | otherwise =
+              bimap textDecodingError PoolVRFPubKey
+              (convertFromBase Base16 $ T.encodeUtf8 t)
+        where
+            textDecodingError = TextDecodingError . show
 
 {-------------------------------------------------------------------------------
                                     Block
