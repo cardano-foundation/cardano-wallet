@@ -350,6 +350,7 @@ newDBLayer logConfig trace fp = do
                         , TxMetaSlotId >. point
                         ]
                         [ TxMetaStatus =. W.Pending
+                        , TxMetaSlotId =. point
                         ]
                     deleteTxMetas wid
                         [ TxMetaDirection ==. W.Incoming
