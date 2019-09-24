@@ -305,9 +305,7 @@ instance Arbitrary (Index 'Hardened 'AccountK) where
 blockHeader1 :: BlockHeader
 blockHeader1 = BlockHeader
     { slotId = SlotId 105 9520
-    -- NOTE: The Cbor decoder doesn't decode the blockHeight, but rather
-    -- returns 0. This shouldn't matter.
-    , blockHeight = Quantity 0 -- 2276029
+    , blockHeight = Quantity 2276029
     , prevBlockHash = Hash $ unsafeFromHex
         "9f3c67b575bf2c5638291949694849d6ce5d29efa1f2eb3ed0beb6dac262e9e0"
     }
@@ -317,9 +315,7 @@ block1 :: Block ([TxIn], [TxOut])
 block1 = Block
     { header = BlockHeader
         { slotId = SlotId 105 9519
-        -- NOTE: The Cbor decoder doesn't decode the blockHeight, but rather
-        -- returns 0. This shouldn't matter.
-        , blockHeight = Quantity 0 -- 2276028
+        , blockHeight = Quantity 2276028
         , prevBlockHash = prevBlockHash0
         }
     , transactions = mempty
@@ -333,9 +329,7 @@ block2 :: Block ([TxIn], [TxOut])
 block2 = Block
     { header = BlockHeader
         { slotId = SlotId 105 9876
-        -- NOTE: The Cbor decoder doesn't decode the blockHeight, but rather
-        -- returns 0. This shouldn't matter.
-        , blockHeight = Quantity 0 -- 2276385
+        , blockHeight = Quantity 2276385
         , prevBlockHash = prevBlockHash0
         }
     , transactions =
@@ -365,9 +359,7 @@ block3 :: Block ([TxIn], [TxOut])
 block3 = Block
     { header = BlockHeader
         { slotId = SlotId 30 9278
-        -- NOTE: The Cbor decoder doesn't decode the blockHeight, but rather
-        -- returns 0. This shouldn't matter.
-        , blockHeight = Quantity 0 -- 657201
+        , blockHeight = Quantity 657163
         , prevBlockHash = prevBlockHash0
         }
     , transactions =
@@ -401,9 +393,7 @@ block4 :: Block ([TxIn], [TxOut])
 block4 = Block
     { header = BlockHeader
         { slotId = SlotId 14 18
-        -- NOTE: The Cbor decoder doesn't decode the blockHeight, but rather
-        -- returns 0. This shouldn't matter.
-        , blockHeight = Quantity 0 -- 302376
+        , blockHeight = Quantity 302376
         , prevBlockHash = prevBlockHash0
         }
     , transactions =
