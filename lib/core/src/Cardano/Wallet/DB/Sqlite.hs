@@ -321,16 +321,16 @@ newDBLayer logConfig trace fp = do
                       insertCheckpoint wid cp
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
-        , readCheckpoint = \(PrimaryKey wid) ->
-              runQuery $
+        , readCheckpoint = \(PrimaryKey wid) -> runQuery $
               selectLatestCheckpoint wid >>= \case
                   Just cp -> do
                       utxo <- selectUTxO cp
                       -- 'checkpointFromEntity' will create a 'Set' from the
                       -- pending txs so the order is not important.
                       let order = W.Descending
-                      txs <- selectTxHistory @t wid
-                          order [TxMetaStatus ==. W.Pending]
+                      txs <- selectTxHistory @t wid order
+                          [ TxMetaStatus ==. W.Pending
+                          ]
                       s <- selectState (checkpointId cp)
                       pure (checkpointFromEntity @s @t cp utxo txs <$> s)
                   Nothing -> pure Nothing

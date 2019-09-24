@@ -13,6 +13,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -58,9 +59,10 @@ module Cardano.Wallet.DB.Model
 import Prelude
 
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, currentTip )
+    ( Wallet, currentTip, forgetPending, newPending )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (slotId)
+    , DefineTx (..)
     , Direction (..)
     , Hash
     , Range (..)
@@ -70,6 +72,7 @@ import Cardano.Wallet.Primitive.Types
     , TxMeta (..)
     , TxStatus (..)
     , WalletMetadata
+    , isPending
     , isWithinRange
     )
 import Control.Monad
@@ -79,7 +82,7 @@ import Data.List
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes, listToMaybe )
+    ( catMaybes, listToMaybe, mapMaybe )
 import Data.Ord
     ( Down (..) )
 import GHC.Generics
@@ -175,19 +178,20 @@ mReadCheckpoint :: Ord wid => wid -> ModelOp wid s t xprv (Maybe (Wallet s t))
 mReadCheckpoint wid db@(Database wallets _) =
     (Right (checkpoints <$> Map.lookup wid wallets >>= listToMaybe), db)
 
-mRollbackTo :: Ord wid => wid -> SlotId -> ModelOp wid s t xprv ()
-mRollbackTo wid pt = alterModel wid $ \wal ->
-    ( ()
-    , wal
-        { checkpoints = filter keepBeforePoint (checkpoints wal)
-        , txHistory = Map.mapMaybe rescheduleOrForget (txHistory wal)
-        }
-    )
+mRollbackTo
+    :: forall s t wid xprv. (Ord wid, DefineTx t)
+    => wid
+    -> SlotId
+    -> ModelOp wid s t xprv ()
+mRollbackTo wid pt db@Database{txs} = flip (alterModel wid) db $ \wal ->
+    let
+        txHistory' = Map.mapMaybe rescheduleOrForget (txHistory wal)
+        checkpoints' = mapMaybe (keepBeforePoint txHistory') (checkpoints wal)
+    in
+        ((), wal { checkpoints = checkpoints', txHistory = txHistory' })
   where
-    keepBeforePoint :: Wallet s t -> Bool
-    keepBeforePoint cp =
-        (slotId :: BlockHeader -> SlotId) (currentTip cp) <= pt
-
+    -- | Removes 'Incoming' transaction beyond the rollback point, and
+    -- reschedule as 'Pending' the 'Outgoing' one beyond the rollback point.
     rescheduleOrForget :: TxMeta -> Maybe TxMeta
     rescheduleOrForget meta = do
         let isAfter = (slotId :: TxMeta -> SlotId) meta > pt
@@ -196,6 +200,27 @@ mRollbackTo wid pt = alterModel wid $ \wal ->
         pure $ if isAfter
             then meta { slotId = pt, status = Pending }
             else meta
+
+    -- | Removes checkpoints beyond the rollback point, and re-calculate the
+    -- pending history for those before the rollback point.
+    keepBeforePoint :: Map (Hash "Tx") TxMeta -> Wallet s t -> Maybe (Wallet s t)
+    keepBeforePoint metas cp = do
+        when (tip cp > pt) Nothing
+        pure (updatePending metas cp)
+
+    updatePending :: Map (Hash "Tx") TxMeta -> Wallet s t -> Wallet s t
+    updatePending metas cp = do
+        let pendings = mapMaybe lookupTx $ Map.toList $ Map.filter isPending metas
+        let update tx = newPending @t @s tx . forgetPending (txId @t (fst tx))
+        case reverse $ scanl (flip update) cp pendings of
+            cp':_ -> cp'
+            []    -> cp
+
+    tip :: Wallet s t -> SlotId
+    tip = (slotId :: BlockHeader -> SlotId) . currentTip
+
+    lookupTx :: (Hash "Tx", TxMeta) -> Maybe (Tx t, TxMeta)
+    lookupTx (h, meta) = (,meta) <$> Map.lookup h txs
 
 mPutWalletMeta :: Ord wid => wid -> WalletMetadata -> ModelOp wid s t xprv ()
 mPutWalletMeta wid meta = alterModel wid $ \wal ->
@@ -225,8 +250,8 @@ mReadTxHistory wid order range db@Database{wallets,txs} = (Right res, db)
   where
     res = maybe mempty getTxs $ Map.lookup wid wallets
     getTxs wal = filterTxHistory @t order range $ catMaybes
-            [ fmap (\tx -> (txId, (tx, meta))) (Map.lookup txId txs)
-            | (txId, meta) <- Map.toList (txHistory wal) ]
+            [ fmap (\tx -> (tid, (tx, meta))) (Map.lookup tid txs)
+            | (tid, meta) <- Map.toList (txHistory wal) ]
 
 mPutPrivateKey :: Ord wid => wid -> xprv -> ModelOp wid s t xprv ()
 mPutPrivateKey wid pk = alterModel wid $ \wal ->
