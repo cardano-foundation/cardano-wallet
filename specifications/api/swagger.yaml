@@ -431,6 +431,13 @@ definitions:
       id: *stakePoolId
       metrics: *stakePoolMetrics
 
+  ApiStakePoolMetrics: &ApiStakePoolMetrics
+    type: object
+    required:
+      - metrics
+    properties:
+      metrics: *stakePoolMetrics
+
   ApiFee: &ApiFee
     type: object
     required:

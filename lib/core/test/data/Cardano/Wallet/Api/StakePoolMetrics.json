@@ -1,0 +1,105 @@
+{
+    "seed": 7041153508709726203,
+    "samples": [
+        {
+            "controlled_stake": {
+                "quantity": 719779080677,
+                "unit": "lovelace"
+            },
+            "produced_blocks": {
+                "quantity": 15058026,
+                "unit": "block"
+            }
+        },
+        {
+            "controlled_stake": {
+                "quantity": 597077804285,
+                "unit": "lovelace"
+            },
+            "produced_blocks": {
+                "quantity": 11519028,
+                "unit": "block"
+            }
+        },
+        {
+            "controlled_stake": {
+                "quantity": 684387851106,
+                "unit": "lovelace"
+            },
+            "produced_blocks": {
+                "quantity": 19565374,
+                "unit": "block"
+            }
+        },
+        {
+            "controlled_stake": {
+                "quantity": 997802235550,
+                "unit": "lovelace"
+            },
+            "produced_blocks": {
+                "quantity": 19824147,
+                "unit": "block"
+            }
+        },
+        {
+            "controlled_stake": {
+                "quantity": 242303422378,
+                "unit": "lovelace"
+            },
+            "produced_blocks": {
+                "quantity": 19007681,
+                "unit": "block"
+            }
+        },
+        {
+            "controlled_stake": {
+                "quantity": 136436631662,
+                "unit": "lovelace"
+            },
+            "produced_blocks": {
+                "quantity": 4723053,
+                "unit": "block"
+            }
+        },
+        {
+            "controlled_stake": {
+                "quantity": 967727310389,
+                "unit": "lovelace"
+            },
+            "produced_blocks": {
+                "quantity": 8442044,
+                "unit": "block"
+            }
+        },
+        {
+            "controlled_stake": {
+                "quantity": 639752504568,
+                "unit": "lovelace"
+            },
+            "produced_blocks": {
+                "quantity": 5213982,
+                "unit": "block"
+            }
+        },
+        {
+            "controlled_stake": {
+                "quantity": 348762079513,
+                "unit": "lovelace"
+            },
+            "produced_blocks": {
+                "quantity": 5223832,
+                "unit": "block"
+            }
+        },
+        {
+            "controlled_stake": {
+                "quantity": 398444578442,
+                "unit": "lovelace"
+            },
+            "produced_blocks": {
+                "quantity": 5327767,
+                "unit": "block"
+            }
+        }
+    ]
+}

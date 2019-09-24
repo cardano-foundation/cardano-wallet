@@ -41,6 +41,7 @@ import Cardano.Wallet.Api.Types
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
     , StakePoolMetrics (..)
+    , StakePoolMetrics (..)
     , WalletBalance (..)
     , WalletPostData (..)
     , WalletPutData (..)
@@ -210,6 +211,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiWallet
             jsonRoundtripAndGolden $ Proxy @ApiUtxoStatistics
             jsonRoundtripAndGolden $ Proxy @ApiFee
+            jsonRoundtripAndGolden $ Proxy @StakePoolMetrics
             jsonRoundtripAndGolden $ Proxy @ApiTxId
             jsonRoundtripAndGolden $ Proxy @(PostTransactionData DummyTarget)
             jsonRoundtripAndGolden $ Proxy @(PostTransactionFeeData DummyTarget)
@@ -630,12 +632,14 @@ instance Arbitrary PoolId where
         InfiniteList bytes _ <- arbitrary
         return $ PoolVRFPubKey $ BS.pack $ take 32 bytes
 
-instance Arbitrary ApiStakePool where
+instance Arbitrary StakePoolMetrics where
     arbitrary = do
         stakes <- Quantity . fromIntegral <$> choose (1::Integer, 1000000000000)
         blocks <- Quantity . fromIntegral <$> choose (1::Integer, 1000*22600)
-        let metr = StakePoolMetrics stakes blocks
-        ApiStakePool <$> arbitrary <*> pure metr
+        pure $ StakePoolMetrics stakes blocks
+
+instance Arbitrary ApiStakePool where
+    arbitrary = ApiStakePool <$> arbitrary <*> arbitrary
 
 instance Arbitrary WalletId where
     arbitrary = do
@@ -900,6 +904,9 @@ instance ToSchema ApiWallet where
 
 instance ToSchema ApiStakePool where
     declareNamedSchema _ = declareSchemaForDefinition "ApiStakePool"
+
+instance ToSchema StakePoolMetrics where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiStakePoolMetrics"
 
 instance ToSchema ApiFee where
     declareNamedSchema _ = declareSchemaForDefinition "ApiFee"
