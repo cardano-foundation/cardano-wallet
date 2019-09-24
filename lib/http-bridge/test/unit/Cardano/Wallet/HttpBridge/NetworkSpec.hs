@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.HttpBridge.NetworkSpec
     ( spec
@@ -6,8 +7,6 @@ module Cardano.Wallet.HttpBridge.NetworkSpec
 
 import Prelude
 
-import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge )
 import Cardano.Wallet.HttpBridge.Environment
     ( Network (..) )
 import Cardano.Wallet.HttpBridge.Network
@@ -180,9 +179,10 @@ mockRestorer
     => (String -> m ()) -- ^ logger function
     -> Word64 -- ^ make getEpoch fail for epochs after this
     -> SlotId -- ^ the tip block
-    -> Restorer (HttpBridge 'Testnet) m
+    -> Restorer (Block Tx) m
 mockRestorer logLine firstUnstableEpoch tip =
-    HttpBridge.mkRestorer (mockHttpBridge logLine firstUnstableEpoch tip)
+    HttpBridge.mkRestorer @'Testnet
+        (mockHttpBridge logLine firstUnstableEpoch tip)
 
 -- | A network layer which returns mock blocks.
 mockHttpBridge
