@@ -67,7 +67,7 @@ import Data.Generics.Internal.VL.Lens
 import Data.List
     ( unfoldr )
 import Fmt
-    ( Buildable (..), indentF, pretty )
+    ( Buildable, pretty )
 import Test.Hspec
     ( Spec
     , SpecWith
@@ -186,7 +186,7 @@ properties = do
 
     describe "rollback" $ do
         it "Can rollback an arbitrary number of blocks"
-            (property . prop_rollbackTo)
+            (property . prop_rollbackCheckpoint)
 
 -- | Wrap the result of 'readTxHistory' in an arbitrary identity Applicative
 readTxHistoryF
@@ -496,35 +496,36 @@ prop_parallelPut putOp readOp resolve db (KeyValPairs pairs) =
 
 
 -- | Can rollback to a particular checkpoint previously stored
-prop_rollbackTo
+prop_rollbackCheckpoint
     :: forall s t k. (t ~ DummyTarget, GenState s, Eq s)
     => DBLayer IO s t k
-    -> ( ShowFmt (PrimaryKey WalletId)
-       , ShowFmt (Wallet s t)
-       , ShowFmt WalletMetadata
-       , ShowFmt MockChain
-       )
+    -> ShowFmt (Wallet s t)
+    -> ShowFmt MockChain
     -> Property
-prop_rollbackTo db (ShowFmt wid, ShowFmt cp0, ShowFmt meta, ShowFmt (MockChain chain)) = do
+prop_rollbackCheckpoint db (ShowFmt cp0) (ShowFmt (MockChain chain)) = do
     monadicIO $ do
-        ShowFmt point <- pick (elements $ ShowFmt <$> cps)
-        setup >> prop point
+        ShowFmt wid <- namedPick "Wallet ID" arbitrary
+        ShowFmt meta <- namedPick "Wallet Metadata" arbitrary
+        ShowFmt point <- namedPick "Rollback target" (elements $ ShowFmt <$> cps)
+        setup wid meta >> prop wid point
   where
     cps :: [Wallet s t]
     cps = flip unfoldr (chain, cp0) $ \case
         ([], _) -> Nothing
         (b:q, cp) -> let cp' = snd $ applyBlock b cp in Just (cp', (q, cp'))
 
-    setup = run $ do
+    namedPick lbl gen =
+        monitor (counterexample ("\n" <> lbl <> ":")) *> pick gen
+
+    setup wid meta = run $ do
         cleanDB db
         unsafeRunExceptT $ createWallet db wid cp0 meta
         unsafeRunExceptT $ forM_ cps (putCheckpoint db wid)
 
-    prop point = do
+    prop wid point = do
         let tip = currentTip point
-        monitor $ counterexample ("Point of rollback: " <> pretty tip)
         run $ unsafeRunExceptT $ rollbackTo db wid (tip ^. #slotId)
         cp <- run $ readCheckpoint db wid
-        let str = maybe "∅" (pretty . indentF 4 . build) cp
-        monitor $ counterexample ("Checkpoint after rollback: " <> str)
+        let str = maybe "∅" pretty cp
+        monitor $ counterexample ("Checkpoint after rollback: \n" <> str)
         assert (ShowFmt cp == ShowFmt (pure point))

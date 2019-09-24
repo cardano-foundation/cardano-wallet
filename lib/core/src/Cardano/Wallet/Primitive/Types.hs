@@ -496,8 +496,7 @@ instance NFData tx => NFData (Block tx)
 instance Buildable tx => Buildable (Block tx) where
     build (Block h txs) = mempty
         <> build h
-        <> "\n"
-        <> indentF 4 (blockListF txs)
+        <> if null txs then " ∅" else "\n" <> indentF 4 (blockListF txs)
 
 data BlockHeader = BlockHeader
     { slotId
@@ -511,12 +510,13 @@ data BlockHeader = BlockHeader
 instance NFData BlockHeader
 
 instance Buildable BlockHeader where
-    build (BlockHeader s (Quantity bh) prev) = mempty
+    build (BlockHeader s (Quantity bh) prev) = "Block ("
+        <> build s
+        <> "#" <> build (show bh)
+        <> ") -> "
         <> prefixF 8 prevF
         <> "..."
         <> suffixF 8 prevF
-        <> " slot " <> build s <> ", "
-        <> "block " <> build (fromIntegral @Natural @Int bh)
       where
         prevF = build $ T.decodeUtf8 $ convertToBase Base16 $ getHash prev
 

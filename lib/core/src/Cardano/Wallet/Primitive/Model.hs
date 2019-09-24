@@ -172,7 +172,7 @@ instance NFData (Wallet s t) where
         deepseq (rnf bp) ()
 
 instance Buildable s => Buildable (Wallet s t) where
-    build (Wallet u txs tip s bp) = "\nWallet s t\n"
+    build (Wallet u txs tip s bp) = "Wallet s t\n"
         <> indentF 4 ("Tip: " <> build tip)
         <> indentF 4 ("Parameters:\n" <> indentF 4 (build bp))
         <> indentF 4 ("UTxO: " <> build u)
