@@ -20,7 +20,7 @@ import Cardano.Wallet.Network
     , ErrNetworkTip (..)
     , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
-    , NetworkLayer (..)
+    , Restorer (..)
     , defaultRetryPolicy
     , waitForConnection
     )
@@ -66,7 +66,10 @@ import qualified Data.Text as T
 
 spec :: Spec
 spec = do
-    describe "Happy paths" $ beforeAll startBridge $ afterAll closeBridge $ do
+    describe "Happy paths"
+        $ beforeAll (startBridge (HttpBridge.mkRestorer @'Testnet))
+        $ afterAll closeBridge $ do
+
         it "get unstable blocks for the unstable epoch" $ \(_, bridge, _) -> do
             let action = runExceptT $ do
                     (SlotId ep sl) <- slotId <$> networkTip' bridge
@@ -85,7 +88,7 @@ spec = do
             action `shouldReturn` pure 0
 
         it "gets a 'ErrNetworkInvalid' if wrong network used" $ \(_, _, port) -> do
-            bridge <- newNetworkLayerInvalid port
+            bridge <- newRestorerInvalid port
             let msg x = "Expected a ErrNetworkInvalid' failure but got " <> show x
             let action = do
                     res <- runExceptT $ networkTip bridge
@@ -96,7 +99,7 @@ spec = do
                             error (msg res)
             action `shouldReturn` ()
 
-    describe "Error paths" $ beforeAll newNetworkLayer $ do
+    describe "Error paths" $ beforeAll newRestorer $ do
         it "gets a 'ErrNetworkUnreachable' if bridge isn't up (1)" $ \bridge -> do
             let msg x = "Expected a ErrNetworkUnreachable' failure but got " <> show x
             let action = do
@@ -106,61 +109,63 @@ spec = do
                         _ -> error (msg res)
             action `shouldReturn` ()
 
-        it "gets a 'ErrNetworkUnreachable' if bridge isn't up (2)" $ \bridge -> do
+
+    describe "Submitting signed transactions"
+        $ beforeAll (startBridge HttpBridge.postSignedTx)
+        $ afterAll closeBridge $ do
+
+        it "gets a 'ErrNetworkUnreachable' if bridge isn't up (2)" $ \(_,postTx,_) -> do
             let msg x = "Expected a ErrNetworkUnreachable' failure but got " <> show x
             let action = do
-                    res <- runExceptT $ postTx bridge (txEmpty, [])
+                    res <- runExceptT $ postTx (txEmpty, [])
                     res `shouldSatisfy` \case
                         Left (ErrPostTxNetworkUnreachable (ErrNetworkUnreachable _)) ->
                             True
                         _ ->
                             error (msg res)
             action `shouldReturn` ()
-
-    describe "Submitting signed transactions"
-        $ beforeAll startBridge $ afterAll closeBridge $ do
-        it "empty tx fails (1)" $ \(_, bridge, _) -> do
+        it "empty tx fails (1)" $ \(_, postTx, _) -> do
             let signed = (txEmpty, [])
             let err = Left $ ErrPostTxBadRequest
                     "Transaction failed verification: transaction has no inputs"
-            runExceptT (postTx bridge signed) `shouldReturn` err
+            runExceptT (postTx signed) `shouldReturn` err
 
-        it "empty tx fails (2)" $ \(_, bridge, _) -> do
+        it "empty tx fails (2)" $ \(_, postTx, _) -> do
             let signed = (txEmpty, [pkWitness])
             let err = Left $ ErrPostTxBadRequest
                     "Transaction failed verification: transaction has no inputs"
-            runExceptT (postTx bridge signed) `shouldReturn` err
+            runExceptT (postTx signed) `shouldReturn` err
 
-        it "old tx fails" $ \(_, bridge, _) -> do
+        it "old tx fails" $ \(_, postTx, _) -> do
             let signed = (txNonEmpty, [pkWitness])
             let err = Left $ ErrPostTxProtocolFailure
                     "Failed to send to peers: Blockchain protocol error"
-            runExceptT (postTx bridge signed) `shouldReturn` err
+            runExceptT (postTx signed) `shouldReturn` err
 
-        it "tx fails - more inputs than witnesses" $ \(_, bridge, _) -> do
+        it "tx fails - more inputs than witnesses" $ \(_, postTx, _) -> do
             let signed = (txNonEmpty, [])
             let err = Left $ ErrPostTxBadRequest
                     "Transaction failed verification: transaction has more \
                     \inputs than witnesses"
-            runExceptT (postTx bridge signed) `shouldReturn` err
+            runExceptT (postTx signed) `shouldReturn` err
 
-        it "tx fails - more witnesses than inputs" $ \(_, bridge, _) -> do
+        it "tx fails - more witnesses than inputs" $ \(_, postTx, _) -> do
             let signed = (txNonEmpty, [pkWitness, pkWitness])
             let err = Left $ ErrPostTxBadRequest
                     "Transaction failed verification: transaction has more \
                     \witnesses than inputs"
-            runExceptT (postTx bridge signed) `shouldReturn` err
+            runExceptT (postTx signed) `shouldReturn` err
 
     describe "waitForConnection" $ do
         it "times out after a short while" $ do
-            nw <- newNetworkLayer
+            nw <- newRestorer
             let policy = constantDelay (1 * second) <> limitRetries 2
             waitForConnection nw policy `shouldThrow` \case
                 ErrNetworkTipNetworkUnreachable _ -> True
                 _ -> False
 
         it "returns when the network becomes available" $ do
-            (handle, nw, port) <- startBridge
+            (handle, nw, port) <- startBridge (HttpBridge.mkRestorer @'Testnet)
             (waitForConnection nw defaultRetryPolicy) `shouldReturn` ()
             closeBridge (handle, nw, port)
   where
@@ -203,12 +208,12 @@ spec = do
         unwrap (ErrGetBlockNetworkUnreachable e) = e
         unwrap (ErrGetBlockNotFound _) = ErrNetworkUnreachable "no block"
 
-    newNetworkLayer = findPort >>= HttpBridge.newNetworkLayer @'Testnet
-    newNetworkLayerInvalid = HttpBridge.newNetworkLayer @'Mainnet
+    newRestorer = findPort >>= HttpBridge.newRestorer @'Testnet
+    newRestorerInvalid = HttpBridge.newRestorer @'Mainnet
     closeBridge (handle, _, _) = do
         cancel handle
         threadDelay $ 1 * second
-    startBridge = do
+    startBridge f = do
         port <- findPort
         handle <- async $ launch
             [ Command "cardano-http-bridge"
@@ -219,9 +224,10 @@ spec = do
                 (return ())
                 Inherit
             ]
-        bridge <- HttpBridge.newNetworkLayer @'Testnet port
-        waitForConnection bridge defaultRetryPolicy
-        return (handle, bridge, port)
+        bridge <- HttpBridge.newHttpBridgeLayer @'Testnet port
+        let res = HttpBridge.mkRestorer @'Testnet bridge
+        waitForConnection res defaultRetryPolicy
+        return (handle, f bridge, port)
     second = 1000*1000
 
     -- The underlying HttpBridgeLayer is only needs the slot of the header.
@@ -229,5 +235,5 @@ spec = do
         { slotId = slot
         , blockHeight = Quantity 0
         , prevBlockHash =
-            Hash "prevBlockHash is not used by the http-bridge NetworkLayer"
+            Hash "prevBlockHash is not used by the http-bridge Restorer"
         }

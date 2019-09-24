@@ -101,9 +101,17 @@ spec = do
                 Inherit
             ]
         db <- MVar.newDBLayer
-        nl <- HttpBridge.newNetworkLayer @'Testnet port
+        bridge <- HttpBridge.newHttpBridgeLayer @'Testnet port
+        let nl = HttpBridge.mkRestorer @'Testnet bridge
         waitForConnection nl defaultRetryPolicy
         let tl = HttpBridge.newTransactionLayer @'Testnet @SeqKey
         let genesis = (block0, byronBlockchainParameters @'Testnet)
         (handle,) <$>
-            (newWalletLayer @(HttpBridge 'Testnet) nullTracer genesis db nl tl)
+            (newWalletLayer
+                @(HttpBridge 'Testnet)
+                nullTracer
+                genesis
+                db
+                nl
+                tl
+                (HttpBridge.postSignedTx bridge))

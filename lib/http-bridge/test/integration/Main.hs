@@ -31,8 +31,8 @@ import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge, block0, byronBlockchainParameters, byronFeePolicy )
 import Cardano.Wallet.HttpBridge.Environment
     ( Network (..) )
-import Cardano.Wallet.Network
-    ( NetworkLayer (..) )
+import Cardano.Wallet.HttpBridge.Network
+    ( HttpBridgeLayer (..) )
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Control.Concurrent
@@ -211,12 +211,13 @@ main = do
         link cluster
         wait "cardano-node-simple" (waitForCluster nodeApiAddress)
         wait "cardano-http-bridge" (threadDelay oneSecond)
-        (_, walletPort, db, nl) <-
+        (_, walletPort, db, bridge) <-
             cardanoWalletServer (Just ListenOnRandomPort) bridgePort
         wait "cardano-wallet" (threadDelay oneSecond)
         let baseURL = mkBaseUrl (getPort walletPort)
         manager <- (baseURL,) <$> newManager defaultManagerSettings
-        faucet <- putStrLn "Creating money out of thin air..." *> initFaucet nl
+        faucet <- putStrLn "Creating money out of thin air..."
+            *> initFaucet (postSignedTx bridge)
         let estimator = mkFeeEstimator byronFeePolicy
         let cleanup = do
                 cancel cluster
@@ -268,22 +269,23 @@ main = do
         :: (network ~ HttpBridge 'Testnet)
         => Maybe Listen
         -> Int
-        -> IO (ThreadId, Port "wallet", SqliteContext, NetworkLayer network IO)
+        -> IO (ThreadId, Port "wallet", SqliteContext, HttpBridgeLayer IO)
     cardanoWalletServer mlisten bridgePort = do
-        nl <- HttpBridge.newNetworkLayer bridgePort
+        bridge <- HttpBridge.newHttpBridgeLayer @'Testnet bridgePort
         logConfig <- CM.empty
-        (ctx, db) <- Sqlite.newDBLayer logConfig nullTracer Nothing
+        (ctx, db) <- Sqlite.newDBLayer @_ @(HttpBridge 'Testnet) logConfig nullTracer Nothing
         mvar <- newEmptyMVar
         thread <- forkIO $ do
             let tl = HttpBridge.newTransactionLayer
             let bp = (block0, byronBlockchainParameters @'Testnet)
-            wallet <- newWalletLayer nullTracer bp db nl tl
+            let res = HttpBridge.mkRestorer @'Testnet bridge
+            wallet <- newWalletLayer nullTracer bp db res tl (postSignedTx bridge)
             let listen = fromMaybe (ListenOnPort $ getPort defaultPort) mlisten
             Server.withListeningSocket listen $ \(port, socket) -> do
                 let settings = Warp.defaultSettings
                         & setBeforeMainLoop (putMVar mvar (Port port))
                 Server.start settings nullTracer socket wallet
-        (thread,,ctx,nl) <$> takeMVar mvar
+        (thread,,ctx,bridge) <$> takeMVar mvar
 
     waitForCluster :: String -> IO ()
     waitForCluster addr = do

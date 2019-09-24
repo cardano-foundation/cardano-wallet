@@ -14,7 +14,7 @@ import Cardano.Wallet.HttpBridge.Environment
 import Cardano.Wallet.HttpBridge.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Network
-    ( NetworkLayer (postTx) )
+    ( TxSubmitter )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , KeyToAddress (..)
@@ -66,12 +66,12 @@ import qualified Codec.CBOR.Write as CBOR
 
 -- | Initialize a bunch of faucet wallets and make them available for the
 -- integration tests scenarios.
-initFaucet :: NetworkLayer (HttpBridge n) IO -> IO Faucet
-initFaucet nl = do
+initFaucet :: TxSubmitter Tx IO -> IO Faucet
+initFaucet postTx = do
     wallets <- replicateM 100 genMnemonic
     let mkFaucet addr = TxOut addr (Coin 100000000000)
     let outs = mconcat [ mkFaucet <$> take 10 (addresses w) | w <- wallets ]
-    unsafeRunExceptT $ postTx nl (mkRedeemTx outs)
+    unsafeRunExceptT $ postTx (mkRedeemTx outs)
     Faucet <$> newMVar wallets
   where
     genMnemonic :: IO (Mnemonic 15)
