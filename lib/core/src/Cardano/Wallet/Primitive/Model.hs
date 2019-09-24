@@ -39,6 +39,7 @@ module Cardano.Wallet.Primitive.Model
     , applyBlock
     , applyBlocks
     , newPending
+    , forgetPending
     , unsafeInitWallet
 
     -- * Accessors
@@ -304,6 +305,18 @@ newPending
     -> Wallet s t
 newPending !tx (Wallet !u !pending !tip !s !bp) =
     Wallet u (Set.insert tx pending) tip s bp
+
+-- | Remove a particular transaction from the pending set, effectively unlocking
+-- the corresponding UTxOs. Note that this is never called internally, but can
+-- be called to explicitly ask to forget a particular transaction (after a
+-- long-enough period of time for instance).
+forgetPending
+    :: forall s t. (DefineTx t)
+    => Hash "Tx"
+    -> Wallet s t
+    -> Wallet s t
+forgetPending !tid (Wallet !u !pending !tip !s !bp) =
+    Wallet u (Set.filter ((/= tid) . txId @t . fst) pending) tip s bp
 
 -- | Constructs a wallet from the exact given state. Using this function instead
 -- of 'initWallet' and 'applyBlock' allows the wallet invariants to be
