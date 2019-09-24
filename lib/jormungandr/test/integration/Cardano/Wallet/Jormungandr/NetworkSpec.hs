@@ -35,6 +35,7 @@ import Cardano.Wallet.Network
     ( ErrGetBlock (..)
     , ErrNetworkTip (..)
     , Restorer (..)
+    , TxSubmitter
     , defaultRetryPolicy
     , waitForConnection
     )
@@ -239,86 +240,87 @@ spec = do
                 Left (ErrGetBlockNetworkUnreachable _) -> True
                 _ -> False
 
---     -- NOTE: 'Right ()' just means that the format wasn't obviously wrong.
---     -- The tx may still be rejected.
---     describe "Submitting signed transactions (that are not obviously wrong)"
---         $ beforeAll startNode' $ afterAll killNode $ do
---
---         it "empty tx succeeds" $ \(_, nw, _) -> do
---             -- Would be rejected eventually.
---             let signedEmpty = (Tx (fragmentId [] [] []) [] [], [])
---             runExceptT (postTx nw signedEmpty) `shouldReturn` Right ()
---
---         it "some tx succeeds" $ \(_, nw, _) -> do
---             let signed = (txNonEmpty, [pkWitness])
---             runExceptT (postTx nw signed) `shouldReturn` Right ()
---
---         it "unbalanced tx (surplus) succeeds" $ \(_, nw, _) -> do
---             -- Jormungandr will eventually reject txs that are not perfectly
---             -- balanced though.
---             let signed = (unbalancedTx, [pkWitness])
---             runExceptT (postTx nw signed) `shouldReturn` Right ()
---
---         it "more inputs than witnesses - encoder throws" $ \(_, nw, _) -> do
---             let signed = (txNonEmpty, [])
---             runExceptT (postTx nw signed) `shouldThrow` anyException
---
---         it "more witnesses than inputs - fine apparently" $ \(_, nw, _) -> do
---             -- Because of how signed txs are encoded:
---             -- n                      :: Word8
---             -- m                      :: Word8
---             -- in_0 .. in_n           :: [TxIn]
---             -- out_0 .. out_m         :: [TxOut]
---             -- witness_0 .. witness_n :: [TxWitness]
---             --
---             -- this should in practice be like appending bytes to the end of
---             -- the message.
---             let signed = (txNonEmpty, [pkWitness, pkWitness, pkWitness])
---             runExceptT (postTx nw signed) `shouldThrow` anyException
---
---         it "no input, one output" $ \(_, nw, _) -> do
---             -- Would be rejected eventually.
---             let outs =
---                     [ (TxOut $ unsafeDecodeAddress proxy
---                         "ca1qwunuat6snw60g99ul6qvte98fja\
---                         \le2k0uu5mrymylqz2ntgzs6vs386wxd")
---                       (Coin 1227362560)
---                     ]
---             let tx = (Tx (fragmentId [] outs []) [] outs, [])
---             runExceptT (postTx nw tx) `shouldReturn` Right ()
---
---         it "throws when addresses and hashes have wrong length" $ \(_, nw, _) -> do
---             let out = TxOut (Address "<not an address>") (Coin 1227362560)
---             let tx = (Tx (fragmentId [] [out] []) [] [out], [])
---             runExceptT (postTx nw tx) `shouldThrow` anyException
---
---         it "encoder throws an exception if tx is invalid (eg too many inputs)" $
---             \(_, nw, _) -> do
---             let inps = replicate 300 (head $ inputs txNonEmpty)
---             let outs = replicate 3 (head $ outputs txNonEmpty)
---             let tx = (Tx (fragmentId inps outs []) inps outs, [])
---             runExceptT (postTx nw tx) `shouldThrow` anyException
---
---     describe "Decode External Tx" $ do
---         let tl = newTransactionLayer @'Testnet (Hash "genesis")
---
---         it "decodeExternalTx works ok with properly constructed binary blob" $ do
---             property $ \(SignedTx signedTx) -> monadicIO $ liftIO $ do
---                 let encode ((Tx _ inps outs), wits) = runPut
---                         $ withHeader MsgTypeTransaction
---                         $ putSignedTx inps outs wits
---                 let encodedSignedTx = BL.toStrict $ encode signedTx
---                 decodeSignedTx tl encodedSignedTx `shouldBe` Right signedTx
---
---         it "decodeExternalTx throws an exception when binary blob has non-\
---             \transaction-type header or is wrongly constructed binary blob" $ do
---             property $ \(SignedTx signedTx) -> monadicIO $ liftIO $ do
---                 let encodeWrongly ((Tx _ inps outs), wits) = runPut
---                         $ withHeader MsgTypeInitial
---                         $ putSignedTx inps outs wits
---                 let encodedSignedTx = BL.toStrict $ encodeWrongly signedTx
---                 decodeSignedTx tl encodedSignedTx `shouldBe`
---                     (Left $ ErrDecodeSignedTxWrongPayload "wrongly constructed binary blob")
+    -- NOTE: 'Right ()' just means that the format wasn't obviously wrong.
+    -- The tx may still be rejected.
+    describe "Submitting signed transactions (that are not obviously wrong)"
+        $ beforeAll (startNodeTxSubmission (`waitForConnection` defaultRetryPolicy))
+        $ afterAll killNode $ do
+
+        it "empty tx succeeds" $ \(_, postTx, _) -> do
+            -- Would be rejected eventually.
+            let signedEmpty = (Tx (fragmentId [] [] []) [] [], [])
+            runExceptT (postTx signedEmpty) `shouldReturn` Right ()
+
+        it "some tx succeeds" $ \(_, postTx, _) -> do
+            let signed = (txNonEmpty, [pkWitness])
+            runExceptT (postTx signed) `shouldReturn` Right ()
+
+        it "unbalanced tx (surplus) succeeds" $ \(_, postTx, _) -> do
+            -- Jormungandr will eventually reject txs that are not perfectly
+            -- balanced though.
+            let signed = (unbalancedTx, [pkWitness])
+            runExceptT (postTx signed) `shouldReturn` Right ()
+
+        it "more inputs than witnesses - encoder throws" $ \(_, postTx, _) -> do
+            let signed = (txNonEmpty, [])
+            runExceptT (postTx signed) `shouldThrow` anyException
+
+        it "more witnesses than inputs - fine apparently" $ \(_, postTx, _) -> do
+            -- Because of how signed txs are encoded:
+            -- n                      :: Word8
+            -- m                      :: Word8
+            -- in_0 .. in_n           :: [TxIn]
+            -- out_0 .. out_m         :: [TxOut]
+            -- witness_0 .. witness_n :: [TxWitness]
+            --
+            -- this should in practice be like appending bytes to the end of
+            -- the message.
+            let signed = (txNonEmpty, [pkWitness, pkWitness, pkWitness])
+            runExceptT (postTx signed) `shouldThrow` anyException
+
+        it "no input, one output" $ \(_, postTx, _) -> do
+            -- Would be rejected eventually.
+            let outs =
+                    [ (TxOut $ unsafeDecodeAddress proxy
+                        "ca1qwunuat6snw60g99ul6qvte98fja\
+                        \le2k0uu5mrymylqz2ntgzs6vs386wxd")
+                      (Coin 1227362560)
+                    ]
+            let tx = (Tx (fragmentId [] outs []) [] outs, [])
+            runExceptT (postTx tx) `shouldReturn` Right ()
+
+        it "throws when addresses and hashes have wrong length" $ \(_, postTx, _) -> do
+            let out = TxOut (Address "<not an address>") (Coin 1227362560)
+            let tx = (Tx (fragmentId [] [out] []) [] [out], [])
+            runExceptT (postTx tx) `shouldThrow` anyException
+
+        it "encoder throws an exception if tx is invalid (eg too many inputs)" $
+            \(_, postTx, _) -> do
+            let inps = replicate 300 (head $ inputs txNonEmpty)
+            let outs = replicate 3 (head $ outputs txNonEmpty)
+            let tx = (Tx (fragmentId inps outs []) inps outs, [])
+            runExceptT (postTx tx) `shouldThrow` anyException
+
+    describe "Decode External Tx" $ do
+        let tl = newTransactionLayer @'Testnet (Hash "genesis")
+
+        it "decodeExternalTx works ok with properly constructed binary blob" $ do
+            property $ \(SignedTx signedTx) -> monadicIO $ liftIO $ do
+                let encode ((Tx _ inps outs), wits) = runPut
+                        $ withHeader MsgTypeTransaction
+                        $ putSignedTx inps outs wits
+                let encodedSignedTx = BL.toStrict $ encode signedTx
+                decodeSignedTx tl encodedSignedTx `shouldBe` Right signedTx
+
+        it "decodeExternalTx throws an exception when binary blob has non-\
+            \transaction-type header or is wrongly constructed binary blob" $ do
+            property $ \(SignedTx signedTx) -> monadicIO $ liftIO $ do
+                let encodeWrongly ((Tx _ inps outs), wits) = runPut
+                        $ withHeader MsgTypeInitial
+                        $ putSignedTx inps outs wits
+                let encodedSignedTx = BL.toStrict $ encodeWrongly signedTx
+                decodeSignedTx tl encodedSignedTx `shouldBe`
+                    (Left $ ErrDecodeSignedTxWrongPayload "wrongly constructed binary blob")
   where
     second :: Int
     second = 1000000
@@ -330,6 +332,14 @@ spec = do
         (handle, baseUrl, _) <- launchJormungandr Inherit
         nw <- Jormungandr.newRestorer baseUrl
         wait nw $> (handle, nw, baseUrl)
+
+    startNodeTxSubmission
+        :: (forall b. Restorer b IO -> IO ())
+        -> IO (Async (), TxSubmitter Tx IO, BaseUrl)
+    startNodeTxSubmission wait = do
+        (handle, baseUrl, _) <- launchJormungandr Inherit
+        (jorm, nw) <- Jormungandr.newRestorer' baseUrl
+        wait nw $> (handle, Jormungandr.postMessage jorm, baseUrl)
 
     killNode :: (Async (), a, BaseUrl) -> IO ()
     killNode (h, _, _) = do
