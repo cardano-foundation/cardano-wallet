@@ -492,7 +492,7 @@ delegationToText (W.Delegating pool) = Just $ toText pool
 delegationFromText :: Maybe Text -> W.WalletDelegation W.PoolId
 delegationFromText Nothing = W.NotDelegating
 delegationFromText (Just pool) =
-    W.Delegating (fromRight (W.PoolVRFPubKey "invalid id pool") (fromText pool))
+    W.Delegating (fromRight (W.PoolId "invalid id pool") (fromText pool))
 
 mkWalletEntity :: W.WalletId -> W.WalletMetadata -> Wallet
 mkWalletEntity wid meta = Wallet

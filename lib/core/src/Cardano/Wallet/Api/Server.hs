@@ -555,7 +555,7 @@ postTransactionFee ctx (ApiT wid) body = do
 pools
     :: ctx
     -> Server StakePools
-pools ctx = listPools ctx
+pools = listPools
 
 listPools
     :: ctx

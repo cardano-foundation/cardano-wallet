@@ -471,8 +471,13 @@ isSubrangeOf r1 r2 =
 -------------------------------------------------------------------------------}
 
 -- | Represent stake pool identifier.
-newtype PoolId = PoolVRFPubKey { getPoolId :: ByteString }
+--   VRF PubKey: 32 bytes (ristretto25519) which translates to 64 hex character string
+--   see https://github.com/input-output-hk/chain-libs/blob/master/chain-impl-mockchain/doc/format.md
+newtype PoolId = PoolId { getPoolId :: ByteString }
     deriving (Generic, Eq, Show)
+
+poolIdHexStringLength :: Int
+poolIdHexStringLength = 64
 
 instance NFData PoolId
 
@@ -489,19 +494,15 @@ instance ToText PoolId where
         . convertToBase Base16
         . getPoolId
 
--- | VRF PubKey: 32 bytes (ristretto25519) which translates to 64 hex character string
---   see https://github.com/input-output-hk/chain-libs/blob/master/chain-impl-mockchain/doc/format.md
-poolIdHexStringLength :: Int
-poolIdHexStringLength = 64
-
 instance FromText PoolId where
     fromText t
         | T.length t /= poolIdHexStringLength =
-            Left $ TextDecodingError $
-                "stake pool id invalid: expected " <> show poolIdHexStringLength
-                <> " characters in hex string"
+            Left $ TextDecodingError $ "stake pool id invalid: expected "
+                <> show poolIdHexStringLength
+                <> " characters in hex string but got"
+                <> show (T.length t)
         | otherwise =
-              bimap textDecodingError PoolVRFPubKey
+              bimap textDecodingError PoolId
               (convertFromBase Base16 $ T.encodeUtf8 t)
         where
             textDecodingError = TextDecodingError . show

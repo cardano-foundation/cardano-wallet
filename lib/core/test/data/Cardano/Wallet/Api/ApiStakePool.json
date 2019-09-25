@@ -1,135 +1,135 @@
 {
-    "seed": -1226833437290382113,
+    "seed": 7997226272229869140,
     "samples": [
         {
             "metrics": {
                 "controlled_stake": {
-                    "quantity": 370280895264010,
+                    "quantity": 58238610110,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 3710482,
+                    "quantity": 617541,
                     "unit": "block"
                 }
             },
-            "id": "4196bad5388cf701840fb91b33be280c5be29978"
+            "id": "a6e1ad2a1d5b7435f3934dcaa8c591c57eb3835272f7c254fd4a90b09bf3cfbc"
         },
         {
             "metrics": {
                 "controlled_stake": {
-                    "quantity": 586514327877346,
+                    "quantity": 474932974641,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 9911341,
+                    "quantity": 15743510,
                     "unit": "block"
                 }
             },
-            "id": "a2ef4262da51e69b1e87de26b8c79aea3a2e4797"
+            "id": "0b3b74e6869521fce502bcfebc711bc3d545afef1bb99718eeb8d3f8e5db88e8"
         },
         {
             "metrics": {
                 "controlled_stake": {
-                    "quantity": 733943093035296,
+                    "quantity": 88799978228,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 9113550,
+                    "quantity": 20093809,
                     "unit": "block"
                 }
             },
-            "id": "3554e8ab47cf874d32707f065bd5686ee8a5ce0e"
+            "id": "f3a01567fcc39ea65a1974ab034779ee3c31c4106860fd607f96040f5c3a4b16"
         },
         {
             "metrics": {
                 "controlled_stake": {
-                    "quantity": 975172750789944,
+                    "quantity": 107862496987,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 8262529,
+                    "quantity": 13581267,
                     "unit": "block"
                 }
             },
-            "id": "dd4754ce0719d9359c4b968b940ec7179aa150e1"
+            "id": "838da674a1643afc98e216cde26970eb2b173fb3390850788929337ca49c7252"
         },
         {
             "metrics": {
                 "controlled_stake": {
-                    "quantity": 477566930256684,
+                    "quantity": 983343603619,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 1729987,
+                    "quantity": 3097320,
                     "unit": "block"
                 }
             },
-            "id": "d3b26945028c008ca70fce9ae3c39c608629e87b"
+            "id": "6e8729ccfabff8b8c211b7c12d60cb9c82e0df4f9e0d1fe127f3145ba6ada176"
         },
         {
             "metrics": {
                 "controlled_stake": {
-                    "quantity": 989718762596524,
+                    "quantity": 520081078655,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 9651339,
+                    "quantity": 16197880,
                     "unit": "block"
                 }
             },
-            "id": "3028bbcceaa2dcfc9ea6325f26e3237e1f637237"
+            "id": "964388ced7fb9114775c5497c1c93b0ef6cc620ea7acef74be8aa65379902acb"
         },
         {
             "metrics": {
                 "controlled_stake": {
-                    "quantity": 247375495355880,
+                    "quantity": 644447554993,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 7378501,
+                    "quantity": 8898092,
                     "unit": "block"
                 }
             },
-            "id": "b5bd2a67f1791d887310bd6a589e23cd176e7176"
+            "id": "631a3065f4a04d8787bb6a55605c70d3d830e04109dde411ac29b17d3a046cff"
         },
         {
             "metrics": {
                 "controlled_stake": {
-                    "quantity": 769348979251464,
+                    "quantity": 310521699820,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 10642051,
+                    "quantity": 5461222,
                     "unit": "block"
                 }
             },
-            "id": "8fb513591911719f443ac7d7e845684f150f5cc7"
+            "id": "111f3dcd91e7a9e747f83f903acc32ebec10addc002997fd91c492ffc3283202"
         },
         {
             "metrics": {
                 "controlled_stake": {
-                    "quantity": 501706049160101,
+                    "quantity": 672010342555,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 3865548,
+                    "quantity": 18314857,
                     "unit": "block"
                 }
             },
-            "id": "49206a63315094e6894818e03f5ace9178e5c67e"
+            "id": "62e002833535084080e1bdb7803d6682dc2c188df1a6ed4fcbdc63d9a9b9afa4"
         },
         {
             "metrics": {
                 "controlled_stake": {
-                    "quantity": 803923166462987,
+                    "quantity": 938626851626,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 19686395,
+                    "quantity": 16456921,
                     "unit": "block"
                 }
             },
-            "id": "47fc05465b8ee8c0c1e86c2dc0cfefa931da8238"
+            "id": "20accc04b71d7ef560f0de07b0f217c9efafbb8ecdf3a3178e0280573beeca69"
         }
     ]
 }

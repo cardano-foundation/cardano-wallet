@@ -630,7 +630,7 @@ instance Arbitrary (WalletDelegation (ApiT PoolId)) where
 instance Arbitrary PoolId where
     arbitrary = do
         InfiniteList bytes _ <- arbitrary
-        return $ PoolVRFPubKey $ BS.pack $ take 32 bytes
+        return $ PoolId $ BS.pack $ take 32 bytes
 
 instance Arbitrary StakePoolMetrics where
     arbitrary = do
