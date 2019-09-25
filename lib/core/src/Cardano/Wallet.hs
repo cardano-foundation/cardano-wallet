@@ -423,7 +423,9 @@ type HasGenesisData t = HasType (Block (Tx t), BlockchainParameters)
 
 type HasLogger = HasType (Trace IO Text)
 
-type HasNetworkLayer tx block = HasType (NetworkLayer IO tx block)
+-- | This module is only interested in one block-, and tx-type. This constraint
+-- hides that choice, for some ease of use.
+type HasNetworkLayer t = HasType (NetworkLayer IO (Tx t) (Block (Tx t)))
 
 type HasTransactionLayer t k = HasType (TransactionLayer t k)
 
@@ -448,10 +450,10 @@ logger =
     typed @(Trace IO Text)
 
 networkLayer
-    :: forall tx block ctx. (HasNetworkLayer tx block ctx)
-    => Lens' ctx (NetworkLayer IO tx block)
+    :: forall t ctx. (HasNetworkLayer t ctx)
+    => Lens' ctx (NetworkLayer IO (Tx t) (Block (Tx t)))
 networkLayer =
-    typed @(NetworkLayer IO tx block)
+    typed @(NetworkLayer IO (Tx t) (Block (Tx t)))
 
 transactionLayer
     :: forall t k ctx. (HasTransactionLayer t k ctx)
@@ -631,15 +633,13 @@ removeWallet ctx wid = do
 -- background that will fetch and apply remaining blocks until the
 -- network tip is reached or until failure.
 restoreWallet
-    :: forall ctx s t k block tx.
+    :: forall ctx s t k.
         ( IsWalletCtx s t k ctx
         , HasLogger ctx
         , HasDBLayer s t k ctx
-        , HasNetworkLayer tx block ctx
+        , HasNetworkLayer t ctx
         , HasWorkerRegistry ctx
         , DefineTx t
-        , block ~ (Block tx)
-        , tx ~ (Tx t)
         )
     => ctx
     -> WalletId
@@ -653,11 +653,9 @@ restoreWallet ctx wid = do
             runExceptT (networkTip nw) >>= \case
                 Left e -> do
                     logError tr $ "Failed to get network tip: " +|| e ||+ ""
-                    restoreSleep @ctx @s @t @k @block @tx
-                        workerCtx wid (currentTip cp)
+                    restoreSleep @ctx @s @t @k workerCtx wid (currentTip cp)
                 Right tip -> do
-                    restoreStep @ctx @s @t @k @block @tx
-                        workerCtx wid (currentTip cp, tip)
+                    restoreStep @ctx @s @t @k workerCtx wid (currentTip cp, tip)
     let onError e = case asyncExceptionFromException e of
             Just ThreadKilled ->
                 logNotice tr "Worker exited: killed by parent."
@@ -667,7 +665,7 @@ restoreWallet ctx wid = do
                 logError tr $ "Worker exited unexpectedly: " +|| e ||+ ""
     liftIO $ registerWorker re wid worker onError
   where
-    nw = ctx ^. networkLayer @tx @block
+    nw = ctx ^. networkLayer @t
     tr = ctx ^. logger
     re = ctx ^. workerRegistry
 
@@ -677,14 +675,12 @@ restoreWallet ctx wid = do
 --
 -- The function only terminates if the wallet has disappeared from the DB.
 restoreStep
-    :: forall ctx s t k block tx.
+    :: forall ctx s t k.
         ( IsWalletCtx s t k ctx
         , HasLogger ctx
-        , HasNetworkLayer tx block ctx
+        , HasNetworkLayer t ctx
         , HasDBLayer s t k ctx
         , DefineTx t
-        , block ~ (Block tx)
-        , tx ~ (Tx t)
         )
     => ctx
     -> WalletId
@@ -694,10 +690,10 @@ restoreStep ctx wid (localTip, nodeTip) = do
     runExceptT (nextBlocks nw localTip) >>= \case
         Left e -> do
             logError tr $ "Failed to get next blocks: " +|| e ||+ "."
-            restoreSleep @ctx @s @t @k @block @tx ctx wid localTip
+            restoreSleep @ctx @s @t @k ctx wid localTip
         Right [] -> do
             logDebug tr "Wallet restored."
-            restoreSleep @ctx @s @t @k @block @tx ctx wid localTip
+            restoreSleep @ctx @s @t @k ctx wid localTip
         Right (blockFirst : blocksRest) -> do
             let blocks = blockFirst :| blocksRest
             let nextLocalTip = view #header . NE.last $ blocks
@@ -709,21 +705,19 @@ restoreStep ctx wid (localTip, nodeTip) = do
                     restoreStep @ctx @s @t @k ctx wid
                         (nextLocalTip, nodeTip)
   where
-    nw = ctx ^. networkLayer @tx @block
+    nw = ctx ^. networkLayer @t
     tr = ctx ^. logger
 
 -- | Wait a short delay before querying for blocks again. We also take this
 -- opportunity to refresh the chain tip as it has probably increased in
 -- order to refine our syncing status.
 restoreSleep
-    :: forall ctx s t k block tx.
+    :: forall ctx s t k.
         ( IsWalletCtx s t k ctx
-        , HasNetworkLayer tx block ctx
+        , HasNetworkLayer t ctx
         , HasLogger ctx
         , HasDBLayer s t k ctx
         , DefineTx t
-        , block ~ (Block tx)
-        , tx ~ (Tx t)
         )
     => ctx
     -> WalletId
@@ -734,11 +728,11 @@ restoreSleep ctx wid localTip = do
     runExceptT (networkTip nw) >>= \case
         Left e -> do
             logError tr $ "Failed to get network tip: " +|| e ||+ ""
-            restoreSleep @ctx @s @t @k @block @tx ctx wid localTip
+            restoreSleep @ctx @s @t @k ctx wid localTip
         Right nodeTip ->
-            restoreStep @ctx @s @t @k @block @tx ctx wid (localTip, nodeTip)
+            restoreStep @ctx @s @t @k ctx wid (localTip, nodeTip)
   where
-    nw = ctx ^. networkLayer @tx @block
+    nw = ctx ^. networkLayer @t
     tr = ctx ^. logger
     twoSeconds = 2000000 -- FIXME: Leave that to the networking layer
 
@@ -999,9 +993,9 @@ signTx ctx wid pwd (CoinSelection ins outs chgs) =
 
 -- | Broadcast a (signed) transaction to the network.
 submitTx
-    :: forall ctx s t k .
+    :: forall ctx s t k.
         ( IsWalletCtx s t k ctx
-        , HasNetworkLayer (Tx t) (Block (Tx t)) ctx
+        , HasNetworkLayer t ctx
         , HasDBLayer s t k ctx
         )
     => ctx
@@ -1015,13 +1009,13 @@ submitTx ctx wid (tx, meta, wit) = do
         DB.putCheckpoint db (PrimaryKey wid) (newPending (tx, meta) wal)
   where
     db = ctx ^. dbLayer @s @t @k
-    nw = ctx ^. networkLayer @(Tx t) @(Block (Tx t))
+    nw = ctx ^. networkLayer @t
 
 -- | Broadcast an externally-signed transaction to the network.
 submitExternalTx
-    :: forall ctx s t k .
+    :: forall ctx s t k.
         ( IsWalletCtx s t k ctx
-        , HasNetworkLayer (Tx t) (Block (Tx t)) ctx
+        , HasNetworkLayer t ctx
         , HasTransactionLayer t k ctx
         )
     => ctx
@@ -1033,7 +1027,7 @@ submitExternalTx ctx bytes = do
     withExceptT ErrSubmitExternalTxNetwork $ postTx nw txWithWit
     return tx
   where
-    nw = ctx ^. networkLayer @(Tx t) @(Block (Tx t))
+    nw = ctx ^. networkLayer @t
     tl = ctx ^. transactionLayer @t @k
 
 
