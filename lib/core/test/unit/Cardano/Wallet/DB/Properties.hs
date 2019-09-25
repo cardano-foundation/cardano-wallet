@@ -38,7 +38,7 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( SeqKey (..) )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, applyBlock, currentTip )
+    ( Wallet, applyBlock, currentTip, getPending )
 import Cardano.Wallet.Primitive.Types
     ( Direction (..)
     , Hash (..)
@@ -75,8 +75,10 @@ import Data.List
     ( unfoldr )
 import Data.Maybe
     ( mapMaybe )
+import Data.Set
+    ( Set )
 import Fmt
-    ( Buildable, pretty )
+    ( Buildable, blockListF, pretty )
 import Test.Hspec
     ( Spec
     , SpecWith
@@ -103,6 +105,7 @@ import Test.QuickCheck.Monadic
 
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 
 -- | Provide a DBLayer to a Spec that requires it. The database is initialised
 -- once, and cleared with 'cleanDB' before each test.
@@ -195,9 +198,12 @@ properties = do
             (checkCoverage . (prop_parallelPut putPrivateKey readPrivateKey
                 (length . lrp @Maybe)))
 
+
     describe "rollback" $ do
         it "Can rollback to any arbitrary known checkpoint"
             (property . prop_rollbackCheckpoint)
+        it "Correctly re-construct checkpoints' pending history on rollbacks" $ do
+            (property . prop_rollbackCheckpointPending)
         it "Correctly re-construct tx history on rollbacks"
             (checkCoverage . prop_rollbackTxHistory)
 
@@ -250,6 +256,17 @@ once xs = forM (Map.toList (Map.fromList xs))
 -- | Like 'once', but discards the result
 once_ :: (Ord k, Monad m) => [(k,v)] -> ((k,v) -> m a) -> m ()
 once_ xs = void . once xs
+
+-- | Filter a transaction list according to the given predicate, returns their
+-- ids.
+filterTxs
+    :: forall t. ()
+    => (TxMeta -> Bool)
+    -> [(Hash "Tx", (Tx t, TxMeta))]
+    -> [Hash "Tx"]
+filterTxs predicate = mapMaybe fn
+  where
+    fn (h, (_, meta)) = if predicate meta then Just h else Nothing
 
 -- | Pick an arbitrary element from a monadic property, and label it in the
 -- counterexample:
@@ -562,6 +579,53 @@ prop_rollbackCheckpoint db (ShowFmt cp0) (ShowFmt (MockChain chain)) = do
         monitor $ counterexample ("Checkpoint after rollback: \n" <> str)
         assert (ShowFmt cp == ShowFmt (pure point))
 
+-- | Make sure that the pending history of checkpoints is correctly
+-- re-constructed upon rolling back. We do expects every checkpoint to see
+-- any pending transactions.
+prop_rollbackCheckpointPending
+    :: forall s t k. (t ~ DummyTarget)
+    => DBLayer IO s t k
+    -> ShowFmt (Wallet s t)
+    -> ShowFmt GenTxHistory
+    -> Property
+prop_rollbackCheckpointPending db (ShowFmt cp0) (ShowFmt (GenTxHistory txs0)) = do
+    monadicIO $ do
+        ShowFmt wid <- namedPick "Wallet ID" arbitrary
+        ShowFmt meta <- namedPick "Wallet Metadata" arbitrary
+        ShowFmt point <- namedPick "Rollback point" arbitrary
+        setup wid meta >> prop wid point
+  where
+    setup wid meta = run $ do
+        cleanDB db
+        unsafeRunExceptT $ createWallet db wid cp0 meta
+        unsafeRunExceptT $ putTxHistory db wid $ Map.fromList txs0
+
+    prop wid point = do
+        run $ unsafeRunExceptT $ rollbackTo db wid point
+        run (readCheckpoint db wid) >>= \case
+            Nothing -> assert False
+            Just cp -> do
+                let actuallyPending = getPendingIxs cp
+                let want = Set.unions [getPendingIxs cp0, pendingAfter point]
+                monitor $ counterexample $ "\nWant pending:\n"
+                    <> pretty (blockListF want)
+                monitor $ counterexample $ "Actually pending:\n"
+                    <> pretty (blockListF actuallyPending)
+                assert (actuallyPending == want)
+
+    getPendingIxs :: Wallet s t -> Set (Hash "Tx")
+    getPendingIxs =
+        Set.map (txId @t . fst) . getPending
+
+    pendingAfter :: SlotId -> Set (Hash "Tx")
+    pendingAfter point =
+        let
+            predicate meta =
+                (slotId :: TxMeta -> SlotId) meta > point &&
+                direction meta == Outgoing
+        in
+            Set.fromList (filterTxs @t predicate txs0)
+
 -- | Re-schedule pending transaction on rollback, i.e.:
 --
 -- (PoR = Point of Rollback)
@@ -597,7 +661,7 @@ prop_rollbackTxHistory db (ShowFmt cp0) (ShowFmt (GenTxHistory txs0)) = do
         monitor $ counterexample $ "\nTx history after rollback: \n" <> fmt txs
 
         assertWith "Outgoing txs are reschuled" $
-            L.sort (rescheduled point) == L.sort (filterTxs isPending txs)
+            L.sort (rescheduled point) == L.sort (filterTxs @t isPending txs)
         assertWith "All other txs are still known" $
             L.sort (knownAfterRollback point) == L.sort (fst <$> txs)
         assertWith "All txs are now before the point of rollback" $
@@ -609,16 +673,11 @@ prop_rollbackTxHistory db (ShowFmt cp0) (ShowFmt (GenTxHistory txs0)) = do
     isBefore point meta =
         (slotId :: TxMeta -> SlotId) meta <= point
 
-    filterTxs :: (TxMeta -> Bool) -> [(Hash "Tx", (Tx t, TxMeta))] -> [Hash "Tx"]
-    filterTxs predicate = mapMaybe fn
-      where
-        fn (h, (_, meta)) = if predicate meta then Just h else Nothing
-
     rescheduled :: SlotId -> [Hash "Tx"]
     rescheduled point =
         let addedAfter meta = direction meta == Outgoing && slotId meta > point
-        in filterTxs (\tx -> addedAfter tx || isPending tx) txs0
+        in filterTxs @t (\tx -> addedAfter tx || isPending tx) txs0
 
     knownAfterRollback :: SlotId -> [Hash "Tx"]
     knownAfterRollback point =
-        rescheduled point ++ filterTxs (isBefore point) txs0
+        rescheduled point ++ filterTxs @t (isBefore point) txs0

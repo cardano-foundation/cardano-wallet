@@ -13,6 +13,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -58,9 +59,10 @@ module Cardano.Wallet.DB.Model
 import Prelude
 
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, currentTip )
+    ( Wallet, currentTip, forgetPending, getPending, newPending )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (slotId)
+    , DefineTx (..)
     , Direction (..)
     , Hash
     , Range (..)
@@ -70,8 +72,11 @@ import Cardano.Wallet.Primitive.Types
     , TxMeta (..)
     , TxStatus (..)
     , WalletMetadata
+    , isPending
     , isWithinRange
     )
+import Control.Arrow
+    ( first )
 import Control.Monad
     ( when )
 import Data.List
@@ -79,13 +84,14 @@ import Data.List
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes, listToMaybe )
+    ( catMaybes, mapMaybe )
 import Data.Ord
     ( Down (..) )
 import GHC.Generics
     ( Generic )
 
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 
 {-------------------------------------------------------------------------------
                             Model Database Types
@@ -109,7 +115,7 @@ deriving instance (Eq (Tx t), Eq wid, Eq xprv, Eq s) => Eq (Database wid s t xpr
 
 -- | Model database record for a single wallet.
 data WalletDatabase s t xprv = WalletDatabase
-    { checkpoints :: ![Wallet s t]
+    { checkpoints :: !(Map SlotId (Wallet s t))
     , metadata :: !WalletMetadata
     , txHistory :: !(Map (Hash "Tx") TxMeta)
     , xprv :: !(Maybe xprv)
@@ -154,9 +160,10 @@ mCreateWallet :: Ord wid => wid -> Wallet s t -> WalletMetadata -> ModelOp wid s
 mCreateWallet wid cp meta db@Database{wallets,txs}
     | wid `Map.member` wallets = (Left (WalletAlreadyExists wid), db)
     | otherwise =
-        ( Right ()
-        , Database (Map.insert wid (WalletDatabase [cp] meta mempty Nothing) wallets) txs
-        )
+        let
+            db0 = WalletDatabase (Map.singleton (tip cp) cp) meta mempty Nothing
+        in
+            (Right (), Database (Map.insert wid db0 wallets) txs)
 
 mRemoveWallet :: Ord wid => wid -> ModelOp wid s t xprv ()
 mRemoveWallet wid db@Database{wallets,txs}
@@ -167,35 +174,89 @@ mRemoveWallet wid db@Database{wallets,txs}
 mListWallets :: Ord wid => ModelOp wid s t xprv [wid]
 mListWallets db@(Database wallets _) = (Right (sort $ Map.keys wallets), db)
 
-mPutCheckpoint :: Ord wid => wid -> Wallet s t -> ModelOp wid s t xprv ()
+mPutCheckpoint
+    :: forall wid s t xprv. (Ord wid, DefineTx t)
+    => wid
+    -> Wallet s t
+    -> ModelOp wid s t xprv ()
 mPutCheckpoint wid cp = alterModel wid $ \wal ->
-    ((), wal { checkpoints = (cp:checkpoints wal) })
-
-mReadCheckpoint :: Ord wid => wid -> ModelOp wid s t xprv (Maybe (Wallet s t))
-mReadCheckpoint wid db@(Database wallets _) =
-    (Right (checkpoints <$> Map.lookup wid wallets >>= listToMaybe), db)
-
-mRollbackTo :: Ord wid => wid -> SlotId -> ModelOp wid s t xprv ()
-mRollbackTo wid pt = alterModel wid $ \wal ->
     ( ()
     , wal
-        { checkpoints = filter keepBeforePoint (checkpoints wal)
-        , txHistory = Map.mapMaybe rescheduleOrForget (txHistory wal)
+        { checkpoints = Map.insert (tip cp) cp (checkpoints wal)
+        , txHistory = Map.unions
+            [ Map.filter (not . wasPending) (txHistory wal)
+            , nowPending
+            ]
         }
     )
   where
-    keepBeforePoint :: Wallet s t -> Bool
-    keepBeforePoint cp =
-        (slotId :: BlockHeader -> SlotId) (currentTip cp) <= pt
+    nowPending :: Map (Hash "Tx") TxMeta
+    nowPending = Map.fromList
+        $ fmap (first (txId @t))
+        $ Set.toList
+        $ getPending cp
 
-    rescheduleOrForget :: TxMeta -> Maybe TxMeta
-    rescheduleOrForget meta = do
-        let isAfter = (slotId :: TxMeta -> SlotId) meta > pt
+    wasPending :: TxMeta -> Bool
+    wasPending meta =
+        isPending meta && (slotId :: TxMeta -> SlotId) meta == (tip cp)
+
+mReadCheckpoint
+    :: forall wid s t xprv. (Ord wid, DefineTx t)
+    => wid
+    -> ModelOp wid s t xprv (Maybe (Wallet s t))
+mReadCheckpoint wid db@(Database wallets txs) =
+    (Right (Map.lookup wid wallets >>= mkCheckpoint), db)
+  where
+    -- | We do keep track of pending transaction via the transaction history.
+    -- So, when reading a checkpoint, we have to make sure that their pending
+    -- set matches the pending transactions we know of in the history!
+    mkCheckpoint :: WalletDatabase s t xprv -> Maybe (Wallet s t)
+    mkCheckpoint WalletDatabase{checkpoints, txHistory} = do
+        cp <- snd <$> Map.lookupMax checkpoints
+        let pending = mapMaybe lookupTx $ Map.toList $ Map.filter isPending txHistory
+        case reverse $ scanl (flip updatePending) cp pending of
+            cp':_ -> pure cp'
+            []    -> pure cp
+
+    -- | Adding pending after forgetting it to effectively update its slot.
+    updatePending :: (Tx t, TxMeta) -> Wallet s t -> Wallet s t
+    updatePending tx =
+        newPending @t @s tx . forgetPending (txId @t (fst tx))
+
+    lookupTx :: (Hash "Tx", TxMeta) -> Maybe (Tx t, TxMeta)
+    lookupTx (h, meta) = (,meta) <$> Map.lookup h txs
+
+mRollbackTo :: Ord wid => wid -> SlotId -> ModelOp wid s t xprv ()
+mRollbackTo wid point db = flip (alterModel wid) db $ \wal ->
+    let
+        nearest = findNearestPoint (Map.elems $ checkpoints wal)
+    in
+        ( ()
+        , wal
+            { checkpoints =
+                Map.filter ((<= point) . tip) (checkpoints wal)
+            , txHistory =
+                Map.mapMaybe (rescheduleOrForget nearest) (txHistory wal)
+            }
+        )
+  where
+    -- | Removes 'Incoming' transaction beyond the rollback point, and
+    -- reschedule as 'Pending' the 'Outgoing' one beyond the rollback point.
+    rescheduleOrForget :: SlotId -> TxMeta -> Maybe TxMeta
+    rescheduleOrForget nearest meta = do
+        let isAfter = (slotId :: TxMeta -> SlotId) meta > point
         let isIncoming = direction meta == Incoming
         when (isIncoming && isAfter) Nothing
         pure $ if isAfter
-            then meta { slotId = pt, status = Pending }
+            then meta { slotId = nearest, status = Pending }
             else meta
+
+    -- | Find nearest checkpoint's slot before or equal to 'point'
+    findNearestPoint :: [Wallet s t] -> SlotId
+    findNearestPoint = head . sortOn Down . mapMaybe fn
+      where
+        fn :: Wallet s t -> Maybe SlotId
+        fn cp = if (tip cp <= point) then Just (tip cp) else Nothing
 
 mPutWalletMeta :: Ord wid => wid -> WalletMetadata -> ModelOp wid s t xprv ()
 mPutWalletMeta wid meta = alterModel wid $ \wal ->
@@ -225,8 +286,9 @@ mReadTxHistory wid order range db@Database{wallets,txs} = (Right res, db)
   where
     res = maybe mempty getTxs $ Map.lookup wid wallets
     getTxs wal = filterTxHistory @t order range $ catMaybes
-            [ fmap (\tx -> (txId, (tx, meta))) (Map.lookup txId txs)
-            | (txId, meta) <- Map.toList (txHistory wal) ]
+            [ fmap (\tx -> (tid, (tx, meta))) (Map.lookup tid txs)
+            | (tid, meta) <- Map.toList (txHistory wal)
+            ]
 
 mPutPrivateKey :: Ord wid => wid -> xprv -> ModelOp wid s t xprv ()
 mPutPrivateKey wid pk = alterModel wid $ \wal ->
@@ -262,3 +324,6 @@ filterTxHistory order range =
   where
     sortBySlot = sortOn (Down . (slotId :: TxMeta -> SlotId) . snd . snd)
     sortByTxId = sortOn fst
+
+tip :: Wallet s t -> SlotId
+tip = (slotId :: BlockHeader -> SlotId) . currentTip

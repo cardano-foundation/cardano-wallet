@@ -321,24 +321,24 @@ newDBLayer logConfig trace fp = do
                       insertCheckpoint wid cp
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
-        , readCheckpoint = \(PrimaryKey wid) ->
-              runQuery $
+        , readCheckpoint = \(PrimaryKey wid) -> runQuery $
               selectLatestCheckpoint wid >>= \case
                   Just cp -> do
                       utxo <- selectUTxO cp
                       -- 'checkpointFromEntity' will create a 'Set' from the
                       -- pending txs so the order is not important.
                       let order = W.Descending
-                      txs <- selectTxHistory @t wid
-                          order [TxMetaStatus ==. W.Pending]
+                      txs <- selectTxHistory @t wid order
+                          [ TxMetaStatus ==. W.Pending
+                          ]
                       s <- selectState (checkpointId cp)
                       pure (checkpointFromEntity @s @t cp utxo txs <$> s)
                   Nothing -> pure Nothing
 
         , rollbackTo = \(PrimaryKey wid) point -> ExceptT $ runQuery $ do
-            selectWallet wid >>= \case
+            findNearestPoint wid point >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just _ -> Right <$> do
+                Just nearestPoint -> Right <$> do
                     deleteCheckpoints wid
                         [ CheckpointSlot >. point
                         ]
@@ -350,7 +350,7 @@ newDBLayer logConfig trace fp = do
                         , TxMetaSlotId >. point
                         ]
                         [ TxMetaStatus =. W.Pending
-                        , TxMetaSlotId =. point
+                        , TxMetaSlotId =. nearestPoint
                         ]
                     deleteTxMetas wid
                         [ TxMetaDirection ==. W.Incoming
@@ -729,9 +729,11 @@ insertCheckpoint wid cp = do
     let (cp', utxo, ins, outs, metas) = mkCheckpointEntity wid cp
     let sl = (W.currentTip cp) ^. #slotId
     repsert (CheckpointKey wid sl) cp'
+    deleteTxMetas wid [TxMetaSlotId ==. sl, TxMetaStatus ==. W.Pending]
     putTxMetas metas
     putTxs ins outs
-    deleteWhere [UtxoWalletId ==. wid, UtxoSlot ==. sl] *> dbChunked insertMany_ utxo
+    deleteWhere [UtxoWalletId ==. wid, UtxoSlot ==. sl]
+    dbChunked insertMany_ utxo
     insertState (wid, sl) (W.getState cp)
 
 -- | Delete one or all checkpoints associated with a wallet.
@@ -886,6 +888,16 @@ selectPrivateKey wid =
     let keys = selectFirst [PrivateKeyWalletId ==. wid] []
         toMaybe = either (const Nothing) Just
     in (>>= toMaybe . privateKeyFromEntity . entityVal) <$> keys
+
+-- | Find the nearest 'Checkpoint' that is either at the given point or before.
+findNearestPoint
+    :: W.WalletId
+    -> W.SlotId
+    -> SqlPersistT IO (Maybe W.SlotId)
+findNearestPoint wid sl =
+    fmap (checkpointSlot . entityVal) <$> selectFirst
+        [CheckpointWalletId ==. wid, CheckpointSlot <=. sl]
+        [Desc CheckpointSlot]
 
 {-------------------------------------------------------------------------------
                      DB queries for address discovery state

@@ -76,6 +76,7 @@ import Cardano.Wallet.DB.Model
     , mReadTxHistory
     , mReadWalletMeta
     , mRemoveWallet
+    , mRollbackTo
     )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx (..) )
@@ -239,6 +240,7 @@ data Cmd s wid
     | ReadTxHistory wid SortOrder (Range SlotId)
     | PutPrivateKey wid MPrivKey
     | ReadPrivateKey wid
+    | RollbackTo wid SlotId
     deriving (Show, Functor, Foldable, Traversable)
 
 data Success s wid
@@ -295,6 +297,8 @@ runMock = \case
         first (Resp . fmap Unit) . mPutPrivateKey wid pk
     ReadPrivateKey wid ->
         first (Resp . fmap PrivateKey) . mReadPrivateKey wid
+    RollbackTo wid sl ->
+        first (Resp . fmap Unit) . mRollbackTo wid sl
 
 {-------------------------------------------------------------------------------
   Interpreter: real I/O
@@ -344,6 +348,8 @@ runIO db = fmap Resp . go
         ReadPrivateKey wid ->
             Right . PrivateKey . fmap toMockPrivKey
                 <$> readPrivateKey db (PrimaryKey wid)
+        RollbackTo wid sl ->
+            catchNoSuchWallet Unit $ rollbackTo db (PrimaryKey wid) sl
 
     catchWalletAlreadyExists f =
         fmap (bimap errWalletAlreadyExists f) . runExceptT
@@ -461,6 +467,7 @@ generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
         , (5, ReadTxHistory <$> genId' <*> genSortOrder <*> genRange)
         , (3, PutPrivateKey <$> genId' <*> genPrivKey)
         , (3, ReadPrivateKey <$> genId')
+        , (1, RollbackTo <$> genId' <*> arbitrary)
         ]
 
     genId :: Gen MWid
@@ -562,11 +569,12 @@ instance CommandNames (At (Cmd s)) where
     cmdName (At ReadTxHistory{}) = "ReadTxHistory"
     cmdName (At PutPrivateKey{}) = "PutPrivateKey"
     cmdName (At ReadPrivateKey{}) = "ReadPrivateKey"
+    cmdName (At RollbackTo{}) = "RollbackTo"
     cmdNames _ =
         [ "CleanDB", "CreateWallet", "CreateWallet", "RemoveWallet"
         , "ListWallets", "PutCheckpoint", "ReadCheckpoint", "PutWalletMeta"
         , "ReadWalletMeta", "PutTxHistory", "ReadTxHistory", "PutPrivateKey"
-        , "ReadPrivateKey"
+        , "ReadPrivateKey", "RollbackTo"
         ]
 
 instance Functor f => Rank2.Functor (At f) where
@@ -645,6 +653,8 @@ data Tag
       -- ^ wallet deleted, then tx history read.
     | PutCheckpointTwice
       -- ^ Multiple checkpoints are successfully saved to a wallet.
+    | RolledBackOnce
+      -- ^ We have rolled back at least once
     deriving (Bounded, Enum, Eq, Ord, Show)
 
 -- | The list of all possible 'Tag' values.
@@ -666,8 +676,16 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
     , readAfterDelete
     , countAction SuccessfulReadPrivateKey (>= 1) isReadPrivateKeySuccess
     , countAction PutCheckpointTwice (>= 2) isPutCheckpointSuccess
+    , countAction RolledBackOnce (>= 1) isRollbackSuccess
     ]
   where
+    isRollbackSuccess :: Event s Symbolic -> Maybe MWid
+    isRollbackSuccess ev = case (cmd ev, mockResp ev, before ev) of
+        (At (RollbackTo wid _), Resp (Right (Unit ())), Model _ wids ) ->
+            Just (wids ! wid)
+        _otherwise ->
+            Nothing
+
     readAfterDelete :: Fold (Event s Symbolic) (Maybe Tag)
     readAfterDelete = Fold update mempty extract
       where
