@@ -150,24 +150,24 @@ prop_applyBlockBasic s =
     cond1 = not $ null $ (Set.fromList addresses) \\ (ourAddresses s)
     prop =
         let
-            cp0 = initWallet @_ @DummyTarget block0 genesisParameters s
+            (_, cp0) = initWallet @_ @DummyTarget block0 genesisParameters s
             wallet = foldl (\cp b -> snd $ applyBlock b cp) cp0 blockchain
-            utxo = totalUTxO wallet
+            utxo = totalUTxO mempty wallet
             utxo' = evalState (foldM (flip updateUTxO) mempty blockchain) s
         in
             (ShowFmt utxo === ShowFmt utxo') .&&.
-            (availableBalance wallet === balance utxo') .&&.
-            (totalBalance wallet === balance utxo')
+            (availableBalance mempty wallet === balance utxo') .&&.
+            (totalBalance mempty wallet === balance utxo')
 
 -- Each transaction must have at least one output belonging to us
 prop_applyBlockTxHistoryIncoming :: WalletState -> Property
 prop_applyBlockTxHistoryIncoming s =
     property (outs (filter isIncoming txs) `overlaps` ourAddresses s')
   where
-    cp0 = initWallet @_ @DummyTarget block0 genesisParameters s
+    (_, cp0) = initWallet @_ @DummyTarget block0 genesisParameters s
     bs = NE.fromList blockchain
     txs_cps = applyBlocks bs cp0
-    txs = Map.elems $ fold $ fst <$> txs_cps
+    txs = fold $ fst <$> txs_cps
     s' = getState $ NE.last $ snd <$> txs_cps
     isIncoming (_, m) = direction m == Incoming
     outs = Set.fromList . concatMap (map address . outputs . fst)
@@ -180,7 +180,7 @@ prop_applyBlockCurrentTip :: ApplyBlock -> Property
 prop_applyBlockCurrentTip (ApplyBlock s _ b) =
     property $ currentTip wallet' > currentTip wallet
   where
-    wallet = initWallet @_ @DummyTarget block0 genesisParameters s
+    (_, wallet) = initWallet @_ @DummyTarget block0 genesisParameters s
     wallet' = snd $ applyBlock b wallet
 
 -- | applyBlocks increases the block height.
@@ -190,7 +190,7 @@ prop_applyBlocksBlockHeight s (Positive n) =
     bh wallet' - bh wallet `shouldSatisfy` (> 0)
   where
     bs = NE.fromList (take n blockchain)
-    wallet = initWallet @_ @DummyTarget block0 genesisParameters s
+    (_, wallet) = initWallet @_ @DummyTarget block0 genesisParameters s
     wallet' = NE.last $ snd <$> applyBlocks bs wallet
     bh = unQuantity . blockHeight . currentTip
     unQuantity (Quantity a) = a
@@ -199,7 +199,7 @@ prop_initialBlockHeight :: WalletState -> Property
 prop_initialBlockHeight s =
     property $ blockHeight (currentTip wallet) === Quantity 0
   where
-    wallet = initWallet @_ @DummyTarget block0 genesisParameters s
+    (_, wallet) = initWallet @_ @DummyTarget block0 genesisParameters s
 
 {-------------------------------------------------------------------------------
                Basic Model - See Wallet Specification, section 3

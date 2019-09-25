@@ -174,7 +174,6 @@ import qualified Cardano.Wallet.Primitive.AddressDerivation.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Sequential as Seq
 import qualified Data.HashMap.Strict as HM
 import qualified Data.List as L
-import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 
@@ -215,24 +214,24 @@ simpleSpec
 simpleSpec cp = do
     describe "Wallet table" $ do
         it "create and list works" $ \db -> do
-            unsafeRunExceptT $ createWallet db testPk cp testMetadata
+            unsafeRunExceptT $ createWallet db testPk cp testMetadata mempty
             listWallets db `shouldReturn` [testPk]
 
         it "create and get meta works" $ \db -> do
             now <- getCurrentTime
             let md = testMetadata
                     { passphraseInfo = Just $ WalletPassphraseInfo now }
-            unsafeRunExceptT $ createWallet db testPk cp md
+            unsafeRunExceptT $ createWallet db testPk cp md mempty
             readWalletMeta db testPk `shouldReturn` Just md
 
         it "create twice is handled" $ \db -> do
-            let create' = createWallet db testPk cp testMetadata
+            let create' = createWallet db testPk cp testMetadata mempty
             runExceptT create' `shouldReturn` (Right ())
             runExceptT create' `shouldReturn`
                 (Left (ErrWalletAlreadyExists testWid))
 
         it "create and get private key" $ \db -> do
-            unsafeRunExceptT $ createWallet db testPk cp testMetadata
+            unsafeRunExceptT $ createWallet db testPk cp testMetadata mempty
             readPrivateKey db testPk `shouldReturn` Nothing
             (k, h) <- generateTestKey
             unsafeRunExceptT (putPrivateKey db testPk (k, h))
@@ -240,23 +239,23 @@ simpleSpec cp = do
 
         let sortOrder = Descending
         it "put and read tx history" $ \db -> do
-            unsafeRunExceptT $ createWallet db testPk cp testMetadata
-            runExceptT (putTxHistory db testPk (Map.fromList testTxs))
+            unsafeRunExceptT $ createWallet db testPk cp testMetadata mempty
+            runExceptT (putTxHistory db testPk testTxs)
                 `shouldReturn` Right ()
-            readTxHistory db testPk
-                sortOrder wholeRange `shouldReturn` testTxs
+            readTxHistory db testPk sortOrder wholeRange Nothing
+                `shouldReturn` testTxs
 
         it "put and read tx history - regression case" $ \db -> do
-            unsafeRunExceptT $ createWallet db testPk cp testMetadata
-            unsafeRunExceptT $ createWallet db testPk1 cp testMetadata
-            runExceptT (putTxHistory db testPk1 (Map.fromList testTxs))
+            unsafeRunExceptT $ createWallet db testPk cp testMetadata mempty
+            unsafeRunExceptT $ createWallet db testPk1 cp testMetadata mempty
+            runExceptT (putTxHistory db testPk1 testTxs)
                 `shouldReturn` Right ()
             runExceptT (removeWallet db testPk) `shouldReturn` Right ()
-            readTxHistory db testPk1
-                sortOrder wholeRange `shouldReturn` testTxs
+            readTxHistory db testPk1 sortOrder wholeRange Nothing
+                `shouldReturn` testTxs
 
         it "put and read checkpoint" $ \db -> do
-            unsafeRunExceptT $ createWallet db testPk cp testMetadata
+            unsafeRunExceptT $ createWallet db testPk cp testMetadata mempty
             runExceptT (putCheckpoint db testPk cp) `shouldReturn` Right ()
             readCheckpoint db testPk `shouldReturn` Just cp
 
@@ -268,12 +267,12 @@ loggingSpec :: Spec
 loggingSpec = withLoggingDB @(SeqState DummyTarget) @DummyTarget @SeqKey $ do
     describe "Sqlite query logging" $ do
         it "should log queries at DEBUG level" $ \(getLogs, db) -> do
-            unsafeRunExceptT $ createWallet db testPk testCpSeq testMetadata
+            unsafeRunExceptT $ createWallet db testPk testCpSeq testMetadata mempty
             logs <- logMessages <$> getLogs
             logs `shouldHaveLog` (Debug, "INSERT")
 
         it "should not log query parameters" $ \(getLogs, db) -> do
-            unsafeRunExceptT $ createWallet db testPk testCpSeq testMetadata
+            unsafeRunExceptT $ createWallet db testPk testCpSeq testMetadata mempty
             let walletName = T.unpack $ coerce $ name testMetadata
             msgs <- T.unlines . map snd . logMessages <$> getLogs
             T.unpack msgs `shouldNotContain` walletName
@@ -385,7 +384,7 @@ fileModeSpec =  do
 
     describe "Sqlite database file" $ do
         let writeSomething db = do
-                unsafeRunExceptT $ createWallet db testPk testCpSeq testMetadata
+                unsafeRunExceptT $ createWallet db testPk testCpSeq testMetadata mempty
                 listWallets db `shouldReturn` [testPk]
             tempFilesAbsent fp = do
                 doesFileExist fp `shouldReturn` True
@@ -403,7 +402,7 @@ fileModeSpec =  do
 
         it "create and list wallet works" $ \f -> do
             (ctx, db) <- newDBLayer' (Just f)
-            unsafeRunExceptT $ createWallet db testPk testCp testMetadata
+            unsafeRunExceptT $ createWallet db testPk testCp testMetadata mempty
             destroyDBLayer ctx
             testOpeningCleaning f listWallets [testPk] []
 
@@ -412,42 +411,42 @@ fileModeSpec =  do
             now <- getCurrentTime
             let meta = testMetadata
                    { passphraseInfo = Just $ WalletPassphraseInfo now }
-            unsafeRunExceptT $ createWallet db testPk testCp meta
+            unsafeRunExceptT $ createWallet db testPk testCp meta mempty
             destroyDBLayer ctx
             testOpeningCleaning f (`readWalletMeta` testPk) (Just meta) Nothing
 
         it "create and get private key" $ \f-> do
             (ctx, db) <- newDBLayer' (Just f)
-            unsafeRunExceptT $ createWallet db testPk testCp testMetadata
+            unsafeRunExceptT $ createWallet db testPk testCp testMetadata mempty
             (k, h) <- unsafeRunExceptT $ attachPrivateKey db testPk
             destroyDBLayer ctx
             testOpeningCleaning f (`readPrivateKey` testPk) (Just (k, h)) Nothing
 
         it "put and read tx history (Ascending)" $ \f -> do
             (ctx, db) <- newDBLayer' (Just f)
-            unsafeRunExceptT $ createWallet db testPk testCp testMetadata
-            unsafeRunExceptT $ putTxHistory db testPk (Map.fromList testTxs)
+            unsafeRunExceptT $ createWallet db testPk testCp testMetadata mempty
+            unsafeRunExceptT $ putTxHistory db testPk testTxs
             destroyDBLayer ctx
             testOpeningCleaning
                 f
-                (\db' -> readTxHistory db' testPk Ascending wholeRange)
+                (\db' -> readTxHistory db' testPk Ascending wholeRange Nothing)
                 testTxs
                 mempty
 
         it "put and read tx history (Decending)" $ \f -> do
             (ctx, db) <- newDBLayer' (Just f)
-            unsafeRunExceptT $ createWallet db testPk testCp testMetadata
-            unsafeRunExceptT $ putTxHistory db testPk (Map.fromList testTxs)
+            unsafeRunExceptT $ createWallet db testPk testCp testMetadata mempty
+            unsafeRunExceptT $ putTxHistory db testPk testTxs
             destroyDBLayer ctx
             testOpeningCleaning
                 f
-                (\db' -> readTxHistory db' testPk Descending wholeRange)
+                (\db' -> readTxHistory db' testPk Descending wholeRange Nothing)
                 testTxs
                 mempty
 
         it "put and read checkpoint" $ \f -> do
             (ctx, db) <- newDBLayer' (Just f)
-            unsafeRunExceptT $ createWallet db testPk testCp testMetadata
+            unsafeRunExceptT $ createWallet db testPk testCp testMetadata mempty
             unsafeRunExceptT $ putCheckpoint db testPk testCp
             destroyDBLayer ctx
             testOpeningCleaning f (`readCheckpoint` testPk) (Just testCp) Nothing
@@ -488,7 +487,7 @@ prop_randomOpChunks (KeyValPairs pairs) =
             unsafeRunExceptT $ putCheckpoint db k cp
             unsafeRunExceptT $ putWalletMeta db k meta
         else do
-            unsafeRunExceptT $ createWallet db k cp meta
+            unsafeRunExceptT $ createWallet db k cp meta mempty
             Set.fromList <$> listWallets db `shouldReturn` Set.fromList (k:keys)
 
     shouldBeConsistentWith :: (Eq s) => DBLayer IO s t k -> DBLayer IO s t k -> IO ()
@@ -591,7 +590,7 @@ cutRandomly = iter []
 -------------------------------------------------------------------------------}
 
 testCp :: Wallet (SeqState DummyTarget) DummyTarget
-testCp = initWallet block0 genesisParameters initDummyState
+testCp = snd $ initWallet block0 genesisParameters initDummyState
   where
     initDummyState :: SeqState DummyTarget
     initDummyState = mkSeqState (xprv, mempty) defaultAddressPoolGap
@@ -620,10 +619,10 @@ testPk = PrimaryKey testWid
 testPk1 :: PrimaryKey WalletId
 testPk1 = PrimaryKey testWid1
 
-testTxs :: [(Hash "Tx", (Tx, TxMeta))]
+testTxs :: [(Tx, TxMeta)]
 testTxs =
-    [ (Hash "tx2", (Tx [TxIn (Hash "tx1") 0] [TxOut (Address "addr") (Coin 1)]
-      , TxMeta InLedger Incoming (SlotId 14 0) (Quantity 1337144))
+    [ ( Tx [TxIn (Hash "tx1") 0] [TxOut (Address "addr") (Coin 1)]
+      , TxMeta InLedger Incoming (SlotId 14 0) (Quantity 1337144)
       )
     ]
 
@@ -641,7 +640,7 @@ class GenerateTestKey (key :: Depth -> * -> *) where
 -------------------------------------------------------------------------------}
 
 testCpSeq :: Wallet (SeqState DummyTarget) DummyTarget
-testCpSeq = initWallet block0 genesisParameters initDummyStateSeq
+testCpSeq = snd $ initWallet block0 genesisParameters initDummyStateSeq
 
 initDummyStateSeq :: SeqState DummyTarget
 initDummyStateSeq = mkSeqState (xprv, mempty) defaultAddressPoolGap
@@ -678,4 +677,4 @@ initDummyStateRnd = mkRndState xprv 0
     where xprv = fst $ unsafePerformIO generateTestKey
 
 testCpRnd :: Wallet (RndState DummyTarget) DummyTarget
-testCpRnd = initWallet block0 genesisParameters initDummyStateRnd
+testCpRnd = snd $ initWallet block0 genesisParameters initDummyStateRnd

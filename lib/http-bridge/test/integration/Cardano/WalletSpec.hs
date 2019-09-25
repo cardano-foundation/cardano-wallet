@@ -77,8 +77,8 @@ spec = do
                     Left _ -> pure True
                     Right _ -> pure False
             let assertion _ = do
-                    tip <- slotId . currentTip . fst <$>
-                        unsafeRunExceptT (W.readWallet wallet wid)
+                    (cp, _, _) <- unsafeRunExceptT $ W.readWallet wallet wid
+                    let tip = slotId (currentTip cp)
                     return $ if tip > slotMinBound
                         then Right ()
                         else Left ("The wallet tip is still " <> show tip)

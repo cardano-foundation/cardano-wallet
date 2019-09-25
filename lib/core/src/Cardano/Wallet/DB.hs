@@ -32,13 +32,12 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SortOrder (..)
     , TxMeta
+    , TxStatus
     , WalletId
     , WalletMetadata
     )
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
-import Data.Map.Strict
-    ( Map )
 
 
 -- | A Database interface for storing various things in a DB. In practice,
@@ -49,6 +48,7 @@ data DBLayer m s t k = DBLayer
         :: PrimaryKey WalletId
         -> Wallet s t
         -> WalletMetadata
+        -> [(Tx t, TxMeta)]
         -> ExceptT ErrWalletAlreadyExists m ()
         -- ^ Initialize a database entry for a given wallet. 'putCheckpoint',
         -- 'putWalletMeta' or 'putTxHistory' will actually all fail if they are
@@ -99,7 +99,7 @@ data DBLayer m s t k = DBLayer
     , putTxHistory
         :: (DefineTx t)
         => PrimaryKey WalletId
-        -> Map (Hash "Tx") (Tx t, TxMeta)
+        -> [(Tx t, TxMeta)]
         -> ExceptT ErrNoSuchWallet m ()
         -- ^ Augments the transaction history for a known wallet.
         --
@@ -112,7 +112,8 @@ data DBLayer m s t k = DBLayer
         :: PrimaryKey WalletId
         -> SortOrder
         -> Range SlotId
-        -> m [(Hash "Tx", (Tx t, TxMeta))]
+        -> Maybe TxStatus
+        -> m [(Tx t, TxMeta)]
         -- ^ Fetch the current transaction history of a known wallet, ordered by
         -- descending slot number.
         --

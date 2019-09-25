@@ -67,9 +67,9 @@ newDBLayer = do
                                       Wallets
         -----------------------------------------------------------------------}
 
-        { createWallet = \pk cp meta -> ExceptT $ do
+        { createWallet = \pk cp meta txs -> ExceptT $ do
             cp `deepseq` meta `deepseq`
-                alterDB errWalletAlreadyExists db (mCreateWallet pk cp meta)
+                alterDB errWalletAlreadyExists db (mCreateWallet pk cp meta txs)
 
         , removeWallet = ExceptT . alterDB errNoSuchWallet db . mRemoveWallet
 
@@ -103,8 +103,8 @@ newDBLayer = do
         , putTxHistory = \pk txh -> ExceptT $ do
             txh `deepseq` alterDB errNoSuchWallet db (mPutTxHistory pk txh)
 
-        , readTxHistory = \pk order range ->
-                readDB db (mReadTxHistory pk order range)
+        , readTxHistory = \pk order range mstatus ->
+                readDB db (mReadTxHistory pk order range mstatus)
 
         {-----------------------------------------------------------------------
                                        Keystore

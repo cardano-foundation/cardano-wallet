@@ -613,19 +613,19 @@ getWalletWithCreationTime
     -> ApiT WalletId
     -> Handler (ApiWallet, UTCTime)
 getWalletWithCreationTime ctx (ApiT wid) = do
-    (wallet, meta) <- liftHandler $ W.readWallet ctx wid
-    return (mkApiWallet wallet meta, meta ^. #creationTime)
+    (wallet, meta, pending) <- liftHandler $ W.readWallet ctx wid
+    return (mkApiWallet wallet meta pending, meta ^. #creationTime)
   where
-    mkApiWallet wallet meta = ApiWallet
+    mkApiWallet wallet meta pending = ApiWallet
         { id =
             ApiT wid
         , addressPoolGap =
             ApiT $ getState wallet ^. #externalPool . #gap
         , balance = ApiT $ WalletBalance
             { available =
-                Quantity $ availableBalance wallet
+                Quantity $ availableBalance pending wallet
             , total =
-                Quantity $ totalBalance wallet
+                Quantity $ totalBalance pending wallet
             }
         , delegation =
             ApiT $ ApiT <$> meta ^. #delegation

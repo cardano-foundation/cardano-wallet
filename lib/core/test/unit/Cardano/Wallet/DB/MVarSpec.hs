@@ -50,4 +50,4 @@ instance IsOurs DummyStateMVar where
 
 instance Arbitrary (Wallet DummyStateMVar DummyTarget) where
     shrink _ = []
-    arbitrary = initWallet block0 genesisParameters <$> arbitrary
+    arbitrary = snd . initWallet block0 genesisParameters <$> arbitrary

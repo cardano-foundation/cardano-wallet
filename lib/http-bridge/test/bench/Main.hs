@@ -49,6 +49,7 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
+    , DefineTx
     , SlotId (..)
     , StartTime (..)
     , UTxO (..)
@@ -220,11 +221,11 @@ bench_restoration (wid, wname, s) = withHttpBridge network $ \port -> do
     wallet <- unsafeRunExceptT $ W.createWallet w wid wname s
     unsafeRunExceptT $ W.restoreWallet w wallet
     waitForWalletSync w wallet
-    (wallet', _) <- unsafeRunExceptT $ W.readWallet w wid
+    (wallet', _, pending) <- unsafeRunExceptT $ W.readWallet w wid
     sayErr "Wallet restored!"
-    sayErr . fmt $ "Balance: " +|| totalBalance wallet' ||+ " lovelace"
+    sayErr . fmt $ "Balance: " +|| totalBalance pending wallet' ||+ " lovelace"
     sayErr . fmt $
-        "UTxO: " +|| Map.size (getUTxO $ totalUTxO wallet') ||+ " entries"
+        "UTxO: " +|| Map.size (getUTxO $ totalUTxO pending wallet') ||+ " entries"
     unsafeRunExceptT $ W.removeWallet w wid
   where
     network = networkVal @n
@@ -266,11 +267,12 @@ prepareNode _ = do
 -- | Regularly poll the wallet to monitor it's syncing progress. Block until the
 -- wallet reaches 100%.
 waitForWalletSync
-    :: WalletLayer s t k
+    :: DefineTx t
+    => WalletLayer s t k
     -> WalletId
     -> IO ()
 waitForWalletSync walletLayer wid = do
-    (_, meta) <- unsafeRunExceptT $ W.readWallet walletLayer wid
+    (_, meta, _) <- unsafeRunExceptT $ W.readWallet walletLayer wid
     case meta ^. #status of
         Ready -> return ()
         Restoring (Quantity p) -> do
