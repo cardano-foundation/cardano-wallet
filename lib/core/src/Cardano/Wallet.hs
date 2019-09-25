@@ -342,7 +342,7 @@ data WalletLayer s t (k :: Depth -> * -> *)
         (Trace IO Text)
         (Block (Tx t), BlockchainParameters)
         (DBLayer IO s t k)
-        (NetworkLayer t IO)
+        (NetworkLayer IO (Tx t) (Block (Tx t)))
         (TransactionLayer t k)
         WorkerRegistry
     deriving (Generic)
@@ -380,7 +380,7 @@ newWalletLayer
     :: Trace IO Text
     -> (Block (Tx t), BlockchainParameters)
     -> DBLayer IO s t k
-    -> NetworkLayer t IO
+    -> NetworkLayer IO (Tx t) (Block (Tx t))
     -> TransactionLayer t k
     -> IO (WalletLayer s t k)
 newWalletLayer tr g0 db nw tl =
@@ -423,7 +423,9 @@ type HasGenesisData t = HasType (Block (Tx t), BlockchainParameters)
 
 type HasLogger = HasType (Trace IO Text)
 
-type HasNetworkLayer t = HasType (NetworkLayer t IO)
+-- | This module is only interested in one block-, and tx-type. This constraint
+-- hides that choice, for some ease of use.
+type HasNetworkLayer t = HasType (NetworkLayer IO (Tx t) (Block (Tx t)))
 
 type HasTransactionLayer t k = HasType (TransactionLayer t k)
 
@@ -449,9 +451,9 @@ logger =
 
 networkLayer
     :: forall t ctx. (HasNetworkLayer t ctx)
-    => Lens' ctx (NetworkLayer t IO)
+    => Lens' ctx (NetworkLayer IO (Tx t) (Block (Tx t)))
 networkLayer =
-    typed @(NetworkLayer t IO)
+    typed @(NetworkLayer IO (Tx t) (Block (Tx t)))
 
 transactionLayer
     :: forall t k ctx. (HasTransactionLayer t k ctx)
@@ -1000,7 +1002,7 @@ submitTx
     -> WalletId
     -> (Tx t, TxMeta, [TxWitness])
     -> ExceptT ErrSubmitTx IO ()
-submitTx ctx wid (tx, meta, wit)= do
+submitTx ctx wid (tx, meta, wit) = do
     withExceptT ErrSubmitTxNetwork $ postTx nw (tx, wit)
     DB.withLock db $ withExceptT ErrSubmitTxNoSuchWallet $ do
         (wal, _) <- readWallet @ctx @s @t @k ctx wid

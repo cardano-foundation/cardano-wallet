@@ -39,6 +39,7 @@ import Cardano.Wallet.Primitive.Mnemonic
     )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , Block (..)
     , Coin (..)
     , Hash (..)
     , ProtocolMagic (..)
@@ -66,7 +67,7 @@ import qualified Codec.CBOR.Write as CBOR
 
 -- | Initialize a bunch of faucet wallets and make them available for the
 -- integration tests scenarios.
-initFaucet :: NetworkLayer (HttpBridge n) IO -> IO Faucet
+initFaucet :: NetworkLayer IO Tx (Block Tx) -> IO Faucet
 initFaucet nl = do
     wallets <- replicateM 100 genMnemonic
     let mkFaucet addr = TxOut addr (Coin 100000000000)

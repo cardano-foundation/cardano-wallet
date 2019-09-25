@@ -35,8 +35,6 @@ import Cardano.Wallet.HttpBridge.Api
     , PostSignedTx
     , api
     )
-import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.HttpBridge.Primitive.Types
@@ -93,9 +91,9 @@ import qualified Servant.Extra.ContentTypes as Api
 
 -- | Constructs a network layer with the given cardano-http-bridge API.
 mkNetworkLayer
-    :: forall n m. (Monad m)
+    :: forall m. (Monad m)
     => HttpBridgeLayer m
-    -> NetworkLayer (HttpBridge n) m
+    -> NetworkLayer m Tx (Block Tx)
 mkNetworkLayer httpBridge = NetworkLayer
     { nextBlocks = \(BlockHeader sl _ _) ->
         withExceptT ErrGetBlockNetworkUnreachable (rbNextBlocks httpBridge sl)
@@ -109,7 +107,7 @@ mkNetworkLayer httpBridge = NetworkLayer
 newNetworkLayer
     :: forall n. KnownNetwork (n :: Network)
     => Int
-    -> IO (NetworkLayer (HttpBridge n) IO)
+    -> IO (NetworkLayer IO Tx (Block Tx))
 newNetworkLayer port = mkNetworkLayer <$> newHttpBridgeLayer @n port
 
 -- | Retrieve a chunk of blocks from cardano-http-bridge.

@@ -23,6 +23,9 @@ module Cardano.Wallet.Jormungandr.Network
     ( newNetworkLayer
     , newNetworkLayer'
     , mkNetworkLayer
+    , mkRawNetworkLayer
+    , emptyUnstableBlocks
+
     , JormungandrLayer (..)
     , mkJormungandrLayer
 
@@ -62,7 +65,7 @@ import Cardano.Wallet.Jormungandr.Api
 import Cardano.Wallet.Jormungandr.Binary
     ( ConfigParam (..), Message (..), coerceBlock )
 import Cardano.Wallet.Jormungandr.Compatibility
-    ( Jormungandr, softTxMaxSize )
+    ( softTxMaxSize )
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx )
 import Cardano.Wallet.Network
@@ -147,30 +150,43 @@ import qualified Data.Text.Encoding as T
 -- | Creates a new 'NetworkLayer' connecting to an underlying 'Jormungandr'
 -- backend target.
 newNetworkLayer
-    :: forall n. ()
-    => BaseUrl
-    -> IO (NetworkLayer (Jormungandr n) IO)
+    :: BaseUrl
+    -> IO (NetworkLayer IO Tx (Block Tx))
 newNetworkLayer = fmap snd . newNetworkLayer'
 
 -- | Creates a new 'NetworkLayer' connecting to an underlying 'Jormungandr'
 -- backend target. Also returns the internal 'JormungandrLayer' component.
 newNetworkLayer'
-    :: forall n. ()
-    => BaseUrl
-    -> IO (JormungandrLayer IO, NetworkLayer (Jormungandr n) IO)
+    :: BaseUrl
+    -> IO (JormungandrLayer IO, NetworkLayer IO Tx (Block Tx))
 newNetworkLayer' url = do
     mgr <- newManager defaultManagerSettings
     st <- newMVar emptyUnstableBlocks
     let jor = mkJormungandrLayer mgr url
     return (jor, mkNetworkLayer st jor)
 
+
 -- | Wrap a Jormungandr client into a 'NetworkLayer' common interface.
 mkNetworkLayer
     :: MonadBaseControl IO m
     => MVar UnstableBlocks
     -> JormungandrLayer m
-    -> NetworkLayer (Jormungandr n) m
-mkNetworkLayer st j = NetworkLayer
+    -> NetworkLayer m Tx (Block Tx)
+mkNetworkLayer st j = coerceBlock <$> mkRawNetworkLayer st j
+
+-- | Wrap a Jormungandr client into a 'NetworkLayer' common interface.
+--
+-- This version provides the full, raw blocks from
+-- "Cardano.Wallet.Jormungandr.Binary".
+--
+-- TODO: We may want to aim to replace the other constructors and only keep
+-- this one.
+mkRawNetworkLayer
+    :: MonadBaseControl IO m
+    => MVar UnstableBlocks
+    -> JormungandrLayer m
+    -> NetworkLayer m Tx J.Block
+mkRawNetworkLayer st j = NetworkLayer
     { networkTip = modifyMVar st $ \bs -> do
         bs' <- updateUnstableBlocks k getTipId' getBlockHeader bs
         ExceptT . pure $ case unstableBlocksTip bs' of
@@ -188,7 +204,7 @@ mkNetworkLayer st j = NetworkLayer
                 ErrGetBlockNetworkUnreachable e
             ErrGetDescendantsParentNotFound _ ->
                 ErrGetBlockNotFound (prevBlockHash tip)
-        forM ids (fmap coerceBlock . getBlock j)
+        forM ids (getBlock j)
 
     , postTx = postMessage j
     }

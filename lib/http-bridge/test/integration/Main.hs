@@ -31,10 +31,14 @@ import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge, block0, byronBlockchainParameters, byronFeePolicy )
 import Cardano.Wallet.HttpBridge.Environment
     ( Network (..) )
+import Cardano.Wallet.HttpBridge.Primitive.Types
+    ( Tx )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
+import Cardano.Wallet.Primitive.Types
+    ( Block (..) )
 import Control.Concurrent
     ( ThreadId, forkIO, killThread, threadDelay )
 import Control.Concurrent.Async
@@ -268,11 +272,14 @@ main = do
         :: (network ~ HttpBridge 'Testnet)
         => Maybe Listen
         -> Int
-        -> IO (ThreadId, Port "wallet", SqliteContext, NetworkLayer network IO)
+        -> IO
+        ( ThreadId, Port "wallet", SqliteContext, NetworkLayer IO Tx (Block Tx))
     cardanoWalletServer mlisten bridgePort = do
-        nl <- HttpBridge.newNetworkLayer bridgePort
+        nl <- HttpBridge.newNetworkLayer @'Testnet bridgePort
         logConfig <- CM.empty
-        (ctx, db) <- Sqlite.newDBLayer logConfig nullTracer Nothing
+        (ctx, db) <-
+            Sqlite.newDBLayer @_ @(HttpBridge 'Testnet)
+                logConfig nullTracer Nothing
         mvar <- newEmptyMVar
         thread <- forkIO $ do
             let tl = HttpBridge.newTransactionLayer
