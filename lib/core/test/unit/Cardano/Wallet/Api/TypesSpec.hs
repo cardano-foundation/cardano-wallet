@@ -375,7 +375,9 @@ spec = do
             |] `shouldBe` (Left @String @(AddressAmount DummyTarget) msg)
 
         it "ApiT PoolId" $ do
-            let msg = "Error in $: \"base16: input: invalid encoding at offset: 0\""
+            let msg = "Error in $: \"stake pool id wrongly formatted: expected \
+                      \hex string - the exact error: base16: input: \
+                      \invalid encoding at offset: 0\""
             Aeson.parseEither parseJSON [aesonQQ|
                 "invalid-id"
             |] `shouldBe` (Left @String @(ApiT PoolId) msg)

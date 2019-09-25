@@ -111,7 +111,7 @@ import Data.Aeson
 import Data.Coerce
     ( coerce )
 import Data.Either
-    ( fromRight, isRight )
+    ( isRight )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.List.Split
@@ -124,8 +124,6 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
-import Data.Text.Class
-    ( FromText (..), ToText (..) )
 import Data.Typeable
     ( Typeable )
 import Data.Word
@@ -484,15 +482,13 @@ addIndices = mapM_ (`rawExecute` [])
 {-------------------------------------------------------------------------------
            Conversion between Persistent table types and wallet types
 -------------------------------------------------------------------------------}
+delegationToPoolId :: W.WalletDelegation W.PoolId -> Maybe W.PoolId
+delegationToPoolId W.NotDelegating = Nothing
+delegationToPoolId (W.Delegating pool) = Just pool
 
-delegationToText :: W.WalletDelegation W.PoolId -> Maybe Text
-delegationToText W.NotDelegating = Nothing
-delegationToText (W.Delegating pool) = Just $ toText pool
-
-delegationFromText :: Maybe Text -> W.WalletDelegation W.PoolId
-delegationFromText Nothing = W.NotDelegating
-delegationFromText (Just pool) =
-    W.Delegating (fromRight (W.PoolId "invalid id pool") (fromText pool))
+delegationFromPoolId :: Maybe W.PoolId -> W.WalletDelegation W.PoolId
+delegationFromPoolId Nothing = W.NotDelegating
+delegationFromPoolId (Just pool) = W.Delegating pool
 
 mkWalletEntity :: W.WalletId -> W.WalletMetadata -> Wallet
 mkWalletEntity wid meta = Wallet
@@ -502,7 +498,7 @@ mkWalletEntity wid meta = Wallet
     , walPassphraseLastUpdatedAt =
         W.lastUpdatedAt <$> meta ^. #passphraseInfo
     , walStatus = meta ^. #status
-    , walDelegation = delegationToText $ meta ^. #delegation
+    , walDelegation = delegationToPoolId $ meta ^. #delegation
     }
 
 mkWalletMetadataUpdate :: W.WalletMetadata -> [Update Wallet]
@@ -512,7 +508,7 @@ mkWalletMetadataUpdate meta =
     , WalPassphraseLastUpdatedAt =.
         W.lastUpdatedAt <$> meta ^. #passphraseInfo
     , WalStatus =. meta ^. #status
-    , WalDelegation =. delegationToText (meta ^. #delegation)
+    , WalDelegation =. delegationToPoolId (meta ^. #delegation)
     ]
 
 metadataFromEntity :: Wallet -> W.WalletMetadata
@@ -522,7 +518,7 @@ metadataFromEntity wal = W.WalletMetadata
     , passphraseInfo = W.WalletPassphraseInfo <$>
         walPassphraseLastUpdatedAt wal
     , status = walStatus wal
-    , delegation = delegationFromText (walDelegation wal)
+    , delegation = delegationFromPoolId (walDelegation wal)
     }
 
 mkPrivateKeyEntity

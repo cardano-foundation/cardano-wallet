@@ -496,7 +496,10 @@ instance ToText PoolId where
 
 instance FromText PoolId where
     fromText t = case convertFromBase Base16 $ T.encodeUtf8 t of
-        Left err -> textDecodingError err
+        Left err -> textDecodingError
+            ("stake pool id wrongly formatted: expected hex string"
+             <> " - the exact error: "
+             <> err)
         Right bytes ->
             if BS.length bytes == poolIdBytesLength then
                 Right $ PoolId bytes
