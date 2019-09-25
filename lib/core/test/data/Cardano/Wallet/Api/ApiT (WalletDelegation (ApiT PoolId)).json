@@ -1,22 +1,16 @@
 {
-    "seed": 638475345931542715,
+    "seed": 6203760713814387565,
     "samples": [
         {
-            "status": "not_delegating"
-        },
-        {
             "status": "delegating",
-            "target": "]i;"
-        },
-        {
-            "status": "not_delegating"
+            "target": "b4b94a4d87990e3780ed3d4af9ff62f25e9ab6ccdec3b81fefb145cceb49913e"
         },
         {
             "status": "not_delegating"
         },
         {
             "status": "delegating",
-            "target": "LTw"
+            "target": "8c0caacb892967626268ea0b6b58ca62397f058ceb50fd84eccf9a6a48054919"
         },
         {
             "status": "not_delegating"
@@ -26,7 +20,14 @@
         },
         {
             "status": "delegating",
-            "target": "23Y"
+            "target": "7e2274f2f379357ce5c86bf12c9d30be3bae0343c9e7853cc94edd82f89a0a7a"
+        },
+        {
+            "status": "not_delegating"
+        },
+        {
+            "status": "delegating",
+            "target": "258eb192a39ebf6d5c0d3f72ffc5f903414367005c306dbf70b5a5bda68dbf48"
         },
         {
             "status": "not_delegating"

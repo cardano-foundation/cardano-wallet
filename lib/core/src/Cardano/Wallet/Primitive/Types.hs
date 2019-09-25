@@ -105,6 +105,7 @@ module Cardano.Wallet.Primitive.Types
 
     -- * Stake Pools
     , PoolId(..)
+    , poolIdBytesLength
 
     -- * Querying
     , SortOrder (..)
@@ -203,6 +204,7 @@ import Numeric.Natural
     ( Natural )
 
 import qualified Control.Foldl as F
+import qualified Data.ByteString as BS
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
@@ -210,7 +212,6 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Lazy.Builder as Builder
-
 {-------------------------------------------------------------------------------
                              Wallet Metadata
 -------------------------------------------------------------------------------}
@@ -469,16 +470,46 @@ isSubrangeOf r1 r2 =
                                   Stake Pools
 -------------------------------------------------------------------------------}
 
--- | Represent stake pool identifier. Note that the internal representation is
--- left open currently, until we figure out a better type for those.
-newtype PoolId = PoolId
-    { getPoolId :: Text }
+-- | Represent stake pool identifier.
+--   VRF PubKey: 32 bytes (ristretto25519) which translates to 64 hex character string
+--   see https://github.com/input-output-hk/chain-libs/blob/master/chain-impl-mockchain/doc/format.md
+newtype PoolId = PoolId { getPoolId :: ByteString }
     deriving (Generic, Eq, Show)
+
+poolIdBytesLength :: Int
+poolIdBytesLength = 32
 
 instance NFData PoolId
 
 instance Buildable PoolId where
-    build = build . getPoolId
+    build poolId = mempty
+        <> prefixF 8 poolIdF
+        <> "..."
+        <> suffixF 8 poolIdF
+      where
+        poolIdF = build (toText poolId)
+
+instance ToText PoolId where
+    toText = T.decodeUtf8
+        . convertToBase Base16
+        . getPoolId
+
+instance FromText PoolId where
+    fromText t = case convertFromBase Base16 $ T.encodeUtf8 t of
+        Left err -> textDecodingError
+            ("stake pool id wrongly formatted: expected hex string"
+             <> " - the exact error: "
+             <> err)
+        Right bytes ->
+            if BS.length bytes == poolIdBytesLength then
+                Right $ PoolId bytes
+            else
+                Left $ TextDecodingError $ "stake pool id invalid: expected "
+                 <> show poolIdBytesLength
+                 <> " bytes but got "
+                 <> show (BS.length bytes)
+        where
+            textDecodingError = Left . TextDecodingError . show
 
 {-------------------------------------------------------------------------------
                                     Block

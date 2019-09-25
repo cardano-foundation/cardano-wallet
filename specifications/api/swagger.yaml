@@ -320,32 +320,16 @@ x-stakePoolId: &stakePoolId
   <<: *addressId
   description: A unique identifier (i.e. its public key)
 
-x-stakePoolTicker: &stakePoolTicker
-  type: string
-  minLength: 3
-  maxLength: 4
-  description: A short human-readable identifier
-  example: IOHK
-
 x-stakePoolMetrics: &stakePoolMetrics
   type: object
   required:
     - controlled_stake
-    - performance
-    - last_blocks
+    - produced_blocks
   properties:
     controlled_stake: *transactionAmount
-    performance:
-      description: Estimated performance computed over the last epoch
-      <<: *percentage
-
-    last_blocks:
+    produced_blocks:
       <<: *numberOfBlocks
-      description: Number of blocks correctly processed during the last epoch
-
-x-stakePoolProfitMargin: &stakePoolProfitMargin
-  <<: *percentage
-  description: What proportion of the reward is paid to the pool operator
+      description: Number of blocks produced by a given stake pool
 
 x-networkInformationSyncProgress: &networkInformationSyncProgress
   <<: *percentage
@@ -442,14 +426,17 @@ definitions:
     type: object
     required:
       - id
-      - ticker
       - metrics
-      - profit_margin
     properties:
       id: *stakePoolId
-      ticker: *stakePoolTicker
       metrics: *stakePoolMetrics
-      profit_margin: *stakePoolProfitMargin
+
+  ApiStakePoolMetrics: &ApiStakePoolMetrics
+    type: object
+    required:
+      - metrics
+    properties:
+      metrics: *stakePoolMetrics
 
   ApiFee: &ApiFee
     type: object

@@ -59,7 +59,7 @@ Wallet
     walName               Text           sql=name
     walPassphraseLastUpdatedAt  UTCTime Maybe  sql=passphrase_last_updated_at
     walStatus             W.WalletState  sql=status
-    walDelegation         Text Maybe     sql=delegation
+    walDelegation         W.PoolId Maybe sql=delegation
 
     Primary walId
     deriving Show Generic

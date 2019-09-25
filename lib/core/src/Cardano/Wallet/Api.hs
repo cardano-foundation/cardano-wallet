@@ -6,6 +6,7 @@ module Cardano.Wallet.Api where
 import Cardano.Wallet.Api.Types
     ( ApiAddress
     , ApiFee
+    , ApiStakePool
     , ApiT
     , ApiTransaction
     , ApiTxId
@@ -42,7 +43,7 @@ import Servant.API
     , ReqBody
     )
 
-type Api t = Addresses t :<|> Wallets :<|> Transactions t
+type Api t = Addresses t :<|> Wallets :<|> Transactions t :<|> StakePools
 
 {-------------------------------------------------------------------------------
                                   Addresses
@@ -154,6 +155,18 @@ type ListTransactions t = "wallets"
 type PostExternalTransaction = "external-transactions"
     :> ReqBody '[OctetStream] PostExternalTransactionData
     :> PostAccepted '[JSON] ApiTxId
+
+{-------------------------------------------------------------------------------
+                                  StakePools
+
+  See also: https://input-output-hk.github.io/cardano-wallet/api/edge/#tag/Stake-Pools
+-------------------------------------------------------------------------------}
+
+type StakePools = ListStakePools
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listStakePools
+type ListStakePools = "stake-pools"
+    :> Get '[JSON] [ApiStakePool]
 
 {-------------------------------------------------------------------------------
                                    Internals

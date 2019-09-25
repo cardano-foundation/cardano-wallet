@@ -29,6 +29,7 @@ import Cardano.Wallet.Api.Types
     , ApiBlockData (..)
     , ApiFee (..)
     , ApiMnemonicT (..)
+    , ApiStakePool (..)
     , ApiT (..)
     , ApiTransaction (..)
     , ApiTxId (..)
@@ -39,6 +40,7 @@ import Cardano.Wallet.Api.Types
     , PostExternalTransactionData (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
+    , StakePoolMetrics (..)
     , WalletBalance (..)
     , WalletPostData (..)
     , WalletPutData (..)
@@ -86,6 +88,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletState (..)
     , computeUtxoStatistics
     , log10
+    , poolIdBytesLength
     , walletNameMaxLength
     , walletNameMinLength
     )
@@ -165,6 +168,7 @@ import Test.Hspec
     ( Spec, describe, it, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , InfiniteList (..)
     , arbitraryBoundedEnum
     , arbitraryPrintableChar
     , choose
@@ -201,11 +205,13 @@ spec = do
         \and match existing golden files" $ do
             jsonRoundtripAndGolden $ Proxy @(ApiAddress DummyTarget)
             jsonRoundtripAndGolden $ Proxy @ApiBlockData
+            jsonRoundtripAndGolden $ Proxy @ApiStakePool
             jsonRoundtripAndGolden $ Proxy @(AddressAmount DummyTarget)
             jsonRoundtripAndGolden $ Proxy @(ApiTransaction DummyTarget)
             jsonRoundtripAndGolden $ Proxy @ApiWallet
             jsonRoundtripAndGolden $ Proxy @ApiUtxoStatistics
             jsonRoundtripAndGolden $ Proxy @ApiFee
+            jsonRoundtripAndGolden $ Proxy @StakePoolMetrics
             jsonRoundtripAndGolden $ Proxy @ApiTxId
             jsonRoundtripAndGolden $ Proxy @(PostTransactionData DummyTarget)
             jsonRoundtripAndGolden $ Proxy @(PostTransactionFeeData DummyTarget)
@@ -367,6 +373,23 @@ spec = do
                     }
                 }
             |] `shouldBe` (Left @String @(AddressAmount DummyTarget) msg)
+
+        it "ApiT PoolId" $ do
+            let msg = "Error in $: \"stake pool id wrongly formatted: expected \
+                      \hex string - the exact error: base16: input: \
+                      \invalid encoding at offset: 0\""
+            Aeson.parseEither parseJSON [aesonQQ|
+                "invalid-id"
+            |] `shouldBe` (Left @String @(ApiT PoolId) msg)
+
+        it "ApiT PoolId" $ do
+            let msg = "Error in $: stake pool id invalid: expected "
+                    <>  show poolIdBytesLength
+                    <> " bytes but got 22"
+            Aeson.parseEither parseJSON [aesonQQ|
+                "4c43d68b21921034519c36d2475f5adba989bb4465ec"
+            |] `shouldBe` (Left @String @(ApiT PoolId) msg)
+
 
     describe "verify HttpApiData parsing failures too" $ do
         it "ApiT WalletId" $ do
@@ -622,7 +645,18 @@ instance Arbitrary (WalletDelegation (ApiT PoolId)) where
     shrink = genericShrink
 
 instance Arbitrary PoolId where
-    arbitrary = PoolId . T.pack <$> replicateM 3 arbitraryPrintableChar
+    arbitrary = do
+        InfiniteList bytes _ <- arbitrary
+        return $ PoolId $ BS.pack $ take 32 bytes
+
+instance Arbitrary StakePoolMetrics where
+    arbitrary = do
+        stakes <- Quantity . fromIntegral <$> choose (1::Integer, 1000000000000)
+        blocks <- Quantity . fromIntegral <$> choose (1::Integer, 1000*22600)
+        pure $ StakePoolMetrics stakes blocks
+
+instance Arbitrary ApiStakePool where
+    arbitrary = ApiStakePool <$> arbitrary <*> arbitrary
 
 instance Arbitrary WalletId where
     arbitrary = do
@@ -884,6 +918,12 @@ instance ToSchema (ApiAddress t) where
 
 instance ToSchema ApiWallet where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWallet"
+
+instance ToSchema ApiStakePool where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiStakePool"
+
+instance ToSchema StakePoolMetrics where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiStakePoolMetrics"
 
 instance ToSchema ApiFee where
     declareNamedSchema _ = declareSchemaForDefinition "ApiFee"
