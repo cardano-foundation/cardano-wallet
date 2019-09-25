@@ -41,7 +41,6 @@ import Cardano.Wallet.Api.Types
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
     , StakePoolMetrics (..)
-    , StakePoolMetrics (..)
     , WalletBalance (..)
     , WalletPostData (..)
     , WalletPutData (..)
@@ -89,6 +88,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletState (..)
     , computeUtxoStatistics
     , log10
+    , poolIdBytesLength
     , walletNameMaxLength
     , walletNameMinLength
     )
@@ -373,6 +373,21 @@ spec = do
                     }
                 }
             |] `shouldBe` (Left @String @(AddressAmount DummyTarget) msg)
+
+        it "ApiT PoolId" $ do
+            let msg = "Error in $: \"base16: input: invalid encoding at offset: 0\""
+            Aeson.parseEither parseJSON [aesonQQ|
+                "invalid-id"
+            |] `shouldBe` (Left @String @(ApiT PoolId) msg)
+
+        it "ApiT PoolId" $ do
+            let msg = "Error in $: stake pool id invalid: expected "
+                    <>  show poolIdBytesLength
+                    <> " bytes but got 22"
+            Aeson.parseEither parseJSON [aesonQQ|
+                "4c43d68b21921034519c36d2475f5adba989bb4465ec"
+            |] `shouldBe` (Left @String @(ApiT PoolId) msg)
+
 
     describe "verify HttpApiData parsing failures too" $ do
         it "ApiT WalletId" $ do

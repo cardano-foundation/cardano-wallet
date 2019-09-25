@@ -166,8 +166,10 @@ import Servant
     , err409
     , err410
     , err500
+    , err501
     , err503
     , serve
+    , throwError
     )
 import Servant.Server
     ( Handler (..), ServantErr (..) )
@@ -560,7 +562,7 @@ pools = listPools
 listPools
     :: ctx
     -> Handler [ApiStakePool]
-listPools _ctx = undefined
+listPools _ctx = throwError err501
 
 {-------------------------------------------------------------------------------
                                 Helpers

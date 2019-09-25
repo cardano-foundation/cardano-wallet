@@ -35,6 +35,7 @@ import Cardano.Wallet.Primitive.Types
     , EpochLength (..)
     , FeePolicy
     , Hash (..)
+    , PoolId
     , SlotId (..)
     , TxStatus (..)
     , WalletId (..)
@@ -379,3 +380,20 @@ instance PersistField StdGen where
 
 instance PersistFieldSql StdGen where
     sqlType _ = sqlType (Proxy @Text)
+
+----------------------------------------------------------------------------
+-- PoolId
+
+instance PersistField PoolId where
+    toPersistValue = toPersistValue . toText
+    fromPersistValue = fromPersistValueFromText
+
+instance PersistFieldSql PoolId where
+    sqlType _ = sqlType (Proxy @Text)
+
+instance Read PoolId where
+    readsPrec _ = error "readsPrec stub needed for persistent"
+
+instance PathPiece PoolId where
+    fromPathPiece = fromTextMaybe
+    toPathPiece = toText

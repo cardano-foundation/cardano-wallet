@@ -105,7 +105,7 @@ module Cardano.Wallet.Primitive.Types
 
     -- * Stake Pools
     , PoolId(..)
-    , poolIdHexStringLength
+    , poolIdBytesLength
 
     -- * Querying
     , SortOrder (..)
@@ -204,6 +204,7 @@ import Numeric.Natural
     ( Natural )
 
 import qualified Control.Foldl as F
+import qualified Data.ByteString as BS
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
@@ -211,7 +212,6 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Lazy.Builder as Builder
-
 {-------------------------------------------------------------------------------
                              Wallet Metadata
 -------------------------------------------------------------------------------}
@@ -476,8 +476,8 @@ isSubrangeOf r1 r2 =
 newtype PoolId = PoolId { getPoolId :: ByteString }
     deriving (Generic, Eq, Show)
 
-poolIdHexStringLength :: Int
-poolIdHexStringLength = 64
+poolIdBytesLength :: Int
+poolIdBytesLength = 32
 
 instance NFData PoolId
 
@@ -495,17 +495,18 @@ instance ToText PoolId where
         . getPoolId
 
 instance FromText PoolId where
-    fromText t
-        | T.length t /= poolIdHexStringLength =
-            Left $ TextDecodingError $ "stake pool id invalid: expected "
-                <> show poolIdHexStringLength
-                <> " characters in hex string but got"
-                <> show (T.length t)
-        | otherwise =
-              bimap textDecodingError PoolId
-              (convertFromBase Base16 $ T.encodeUtf8 t)
+    fromText t = case convertFromBase Base16 $ T.encodeUtf8 t of
+        Left err -> textDecodingError err
+        Right bytes ->
+            if BS.length bytes == poolIdBytesLength then
+                Right $ PoolId bytes
+            else
+                Left $ TextDecodingError $ "stake pool id invalid: expected "
+                 <> show poolIdBytesLength
+                 <> " bytes but got "
+                 <> show (BS.length bytes)
         where
-            textDecodingError = TextDecodingError . show
+            textDecodingError = Left . TextDecodingError . show
 
 {-------------------------------------------------------------------------------
                                     Block

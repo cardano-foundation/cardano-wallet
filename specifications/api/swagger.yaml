@@ -329,7 +329,7 @@ x-stakePoolMetrics: &stakePoolMetrics
     controlled_stake: *transactionAmount
     produced_blocks:
       <<: *numberOfBlocks
-      description: Number of blocks correctly processed by a given stake pool
+      description: Number of blocks produced by a given stake pool
 
 x-networkInformationSyncProgress: &networkInformationSyncProgress
   <<: *percentage
