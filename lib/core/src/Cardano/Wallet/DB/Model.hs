@@ -59,7 +59,7 @@ module Cardano.Wallet.DB.Model
 import Prelude
 
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, currentTip, forgetPending, getPending, newPending )
+    ( Wallet, currentTip )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (slotId)
     , DefineTx (..)
@@ -72,11 +72,8 @@ import Cardano.Wallet.Primitive.Types
     , TxMeta (..)
     , TxStatus (..)
     , WalletMetadata
-    , isPending
     , isWithinRange
     )
-import Control.Arrow
-    ( first )
 import Control.Monad
     ( when )
 import Data.List
@@ -91,7 +88,6 @@ import GHC.Generics
     ( Generic )
 
 import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
 
 {-------------------------------------------------------------------------------
                             Model Database Types
@@ -125,7 +121,7 @@ data WalletDatabase s t xprv = WalletDatabase
 type TxHistoryMap t = Map (Hash "Tx") (Tx t, TxMeta)
 
 -- | Shorthand for the readTxHistory result type.
-type TxHistory t = [(Hash "Tx", (Tx t, TxMeta))]
+type TxHistory t = [(Tx t, TxMeta)]
 
 -- | Produces an empty model database.
 emptyDatabase :: Ord wid => Database wid s t xprv
@@ -156,14 +152,22 @@ data Err wid
 mCleanDB :: Ord wid => ModelOp wid s t xprv ()
 mCleanDB _ = (Right (), emptyDatabase)
 
-mCreateWallet :: Ord wid => wid -> Wallet s t -> WalletMetadata -> ModelOp wid s t xprv ()
-mCreateWallet wid cp meta db@Database{wallets,txs}
+mCreateWallet
+    :: forall wid s t xprv. (Ord wid, DefineTx t)
+    => wid
+    -> Wallet s t
+    -> WalletMetadata
+    -> [(Tx t, TxMeta)]
+    -> ModelOp wid s t xprv ()
+mCreateWallet wid cp meta txs0 db@Database{wallets,txs}
     | wid `Map.member` wallets = (Left (WalletAlreadyExists wid), db)
     | otherwise =
         let
-            db0 = WalletDatabase (Map.singleton (tip cp) cp) meta mempty Nothing
+            wal = WalletDatabase (Map.singleton (tip cp) cp) meta history Nothing
+            txs' = Map.fromList $ (\(tx, _) -> (txId @t tx, tx)) <$> txs0
+            history = Map.fromList $ (\(tx, m) -> (txId @t tx, m)) <$> txs0
         in
-            (Right (), Database (Map.insert wid db0 wallets) txs)
+            (Right (), Database (Map.insert wid wal wallets) (txs <> txs'))
 
 mRemoveWallet :: Ord wid => wid -> ModelOp wid s t xprv ()
 mRemoveWallet wid db@Database{wallets,txs}
@@ -175,56 +179,17 @@ mListWallets :: Ord wid => ModelOp wid s t xprv [wid]
 mListWallets db@(Database wallets _) = (Right (sort $ Map.keys wallets), db)
 
 mPutCheckpoint
-    :: forall wid s t xprv. (Ord wid, DefineTx t)
-    => wid
-    -> Wallet s t
-    -> ModelOp wid s t xprv ()
+    :: Ord wid => wid -> Wallet s t -> ModelOp wid s t xprv ()
 mPutCheckpoint wid cp = alterModel wid $ \wal ->
-    ( ()
-    , wal
-        { checkpoints = Map.insert (tip cp) cp (checkpoints wal)
-        , txHistory = Map.unions
-            [ Map.filter (not . wasPending) (txHistory wal)
-            , nowPending
-            ]
-        }
-    )
-  where
-    nowPending :: Map (Hash "Tx") TxMeta
-    nowPending = Map.fromList
-        $ fmap (first (txId @t))
-        $ Set.toList
-        $ getPending cp
-
-    wasPending :: TxMeta -> Bool
-    wasPending meta =
-        isPending meta && (slotId :: TxMeta -> SlotId) meta == (tip cp)
+    ((), wal { checkpoints = Map.insert (tip cp) cp (checkpoints wal) })
 
 mReadCheckpoint
-    :: forall wid s t xprv. (Ord wid, DefineTx t)
-    => wid
-    -> ModelOp wid s t xprv (Maybe (Wallet s t))
-mReadCheckpoint wid db@(Database wallets txs) =
-    (Right (Map.lookup wid wallets >>= mkCheckpoint), db)
+    :: Ord wid => wid -> ModelOp wid s t xprv (Maybe (Wallet s t))
+mReadCheckpoint wid db@(Database wallets _) =
+    (Right (Map.lookup wid wallets >>= mostRecentCheckpoint), db)
   where
-    -- | We do keep track of pending transaction via the transaction history.
-    -- So, when reading a checkpoint, we have to make sure that their pending
-    -- set matches the pending transactions we know of in the history!
-    mkCheckpoint :: WalletDatabase s t xprv -> Maybe (Wallet s t)
-    mkCheckpoint WalletDatabase{checkpoints, txHistory} = do
-        cp <- snd <$> Map.lookupMax checkpoints
-        let pending = mapMaybe lookupTx $ Map.toList $ Map.filter isPending txHistory
-        case reverse $ scanl (flip updatePending) cp pending of
-            cp':_ -> pure cp'
-            []    -> pure cp
-
-    -- | Adding pending after forgetting it to effectively update its slot.
-    updatePending :: (Tx t, TxMeta) -> Wallet s t -> Wallet s t
-    updatePending tx =
-        newPending @t @s tx . forgetPending (txId @t (fst tx))
-
-    lookupTx :: (Hash "Tx", TxMeta) -> Maybe (Tx t, TxMeta)
-    lookupTx (h, meta) = (,meta) <$> Map.lookup h txs
+    mostRecentCheckpoint :: WalletDatabase s t xprv -> Maybe (Wallet s t)
+    mostRecentCheckpoint = fmap snd . Map.lookupMax . checkpoints
 
 mRollbackTo :: Ord wid => wid -> SlotId -> ModelOp wid s t xprv ()
 mRollbackTo wid point db = flip (alterModel wid) db $ \wal ->
@@ -266,28 +231,39 @@ mReadWalletMeta :: Ord wid => wid -> ModelOp wid s t xprv (Maybe WalletMetadata)
 mReadWalletMeta wid db@(Database wallets _) =
     (Right (metadata <$> Map.lookup wid wallets), db)
 
-mPutTxHistory :: Ord wid => wid -> TxHistoryMap t -> ModelOp wid s t xprv ()
+mPutTxHistory
+    :: forall wid s t xprv. (Ord wid, DefineTx t)
+    => wid
+    -> TxHistory t
+    -> ModelOp wid s t xprv ()
 mPutTxHistory wid txList db@Database{wallets,txs} =
     case Map.lookup wid wallets of
-        Just wal -> (Right (), Database (Map.insert wid wal' wallets) txs')
+        Just wal ->
+            ( Right ()
+            , Database (Map.insert wid wal' wallets) (txs <> txs')
+            )
           where
-            wal' = wal { txHistory = txHistory wal <> Map.map snd txList }
-            txs' = txs <> Map.map fst txList
+            wal' = wal { txHistory = txHistory wal <> txHistory' }
+            txHistory' = Map.fromList $ (\(tx, m) -> (txId @t tx, m)) <$> txList
+            txs' = Map.fromList $ (\(tx, _) -> (txId @t tx, tx)) <$> txList
         Nothing -> (Left (NoSuchWallet wid), db)
 
 mReadTxHistory
-    :: forall wid s t xprv.
-       (Ord wid)
+    :: forall wid s t xprv. (Ord wid, DefineTx t)
     => wid
     -> SortOrder
     -> Range SlotId
+    -> Maybe TxStatus
     -> ModelOp wid s t xprv (TxHistory t)
-mReadTxHistory wid order range db@Database{wallets,txs} = (Right res, db)
+mReadTxHistory wid order range mstatus db@Database{wallets,txs} = (Right res, db)
   where
     res = maybe mempty getTxs $ Map.lookup wid wallets
     getTxs wal = filterTxHistory @t order range $ catMaybes
-            [ fmap (\tx -> (tid, (tx, meta))) (Map.lookup tid txs)
+            [ fmap (, meta) (Map.lookup tid txs)
             | (tid, meta) <- Map.toList (txHistory wal)
+            , case mstatus of
+                Nothing -> True
+                Just s -> status meta == s
             ]
 
 mPutPrivateKey :: Ord wid => wid -> xprv -> ModelOp wid s t xprv ()
@@ -313,17 +289,22 @@ alterModel wid f db@Database{wallets,txs} = case f <$> Map.lookup wid wallets of
 
 -- | Apply optional filters on slotId and sort using the default sort order
 -- (first time/slotId, then by TxId) to a 'TxHistory'.
-filterTxHistory :: SortOrder -> Range SlotId -> TxHistory t -> TxHistory t
+filterTxHistory
+    :: forall t. DefineTx t
+    => SortOrder
+    -> Range SlotId
+    -> TxHistory t
+    -> TxHistory t
 filterTxHistory order range =
-    filter ((`isWithinRange` range) . (slotId :: TxMeta -> SlotId) . snd . snd)
+    filter ((`isWithinRange` range) . (slotId :: TxMeta -> SlotId) . snd)
     . (case order of
         Ascending -> reverse
         Descending -> id)
     . sortBySlot
     . sortByTxId
   where
-    sortBySlot = sortOn (Down . (slotId :: TxMeta -> SlotId) . snd . snd)
-    sortByTxId = sortOn fst
+    sortBySlot = sortOn (Down . (slotId :: TxMeta -> SlotId) . snd)
+    sortByTxId = sortOn (txId @t . fst)
 
 tip :: Wallet s t -> SlotId
 tip = (slotId :: BlockHeader -> SlotId) . currentTip

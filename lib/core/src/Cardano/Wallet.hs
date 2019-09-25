@@ -151,10 +151,8 @@ import Cardano.Wallet.Primitive.Model
     , availableUTxO
     , blockchainParameters
     , currentTip
-    , getPending
     , getState
     , initWallet
-    , newPending
     , updateState
     )
 import Cardano.Wallet.Primitive.Types
@@ -165,7 +163,6 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , DefineTx (..)
     , Direction (..)
-    , Hash (..)
     , Range (..)
     , SlotId (..)
     , SlotParameters (..)
@@ -244,6 +241,8 @@ import Data.Maybe
     ( mapMaybe )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Set
+    ( Set )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -488,7 +487,7 @@ createWallet
     -> s
     -> ExceptT ErrWalletAlreadyExists IO WalletId
 createWallet ctx wid wname s = do
-    let checkpoint = initWallet block0 bp s
+    let (history, checkpoint) = initWallet block0 bp s
     currentTime <- liftIO getCurrentTime
     let metadata = WalletMetadata
             { name = wname
@@ -497,7 +496,7 @@ createWallet ctx wid wname s = do
             , status = Restoring minBound
             , delegation = NotDelegating
             }
-    DB.createWallet db (PrimaryKey wid) checkpoint metadata $> wid
+    DB.createWallet db (PrimaryKey wid) checkpoint metadata history $> wid
   where
     db = ctx ^. dbLayer @s @t @k
     (block0, bp) = ctx ^. genesisData @t
@@ -507,13 +506,15 @@ readWallet
     :: forall ctx s t k.
         ( IsWalletCtx s t k ctx
         , HasDBLayer s t k ctx
+        , DefineTx t
         )
     => ctx
     -> WalletId
-    -> ExceptT ErrNoSuchWallet IO (Wallet s t, WalletMetadata)
-readWallet ctx wid = (,)
+    -> ExceptT ErrNoSuchWallet IO (Wallet s t, WalletMetadata, Set (Tx t))
+readWallet ctx wid = (,,)
    <$> readWalletCheckpoint @ctx @s @t @k ctx wid
    <*> readWalletMeta @ctx @s @t @k ctx wid
+   <*> lift (pendingTxHistory @ctx @s @t @k ctx wid)
 
 -- | Retrieve a wallet's most recent checkpoint
 readWalletCheckpoint
@@ -603,9 +604,9 @@ listUtxoStatistics
     -> WalletId
     -> ExceptT ErrListUTxOStatistics IO UTxOStatistics
 listUtxoStatistics ctx wid = do
-    (wal, _) <- withExceptT
+    (wal, _, pending) <- withExceptT
         ErrListUTxOStatisticsNoSuchWallet (readWallet @ctx @s @t @k ctx wid)
-    let utxo = availableUTxO @s @t wal
+    let utxo = availableUTxO @s @t pending wal
     pure $ computeUtxoStatistics log10 utxo
 
 -- | Remove an existing wallet. Note that there's no particular work to
@@ -645,7 +646,7 @@ restoreWallet
     -> WalletId
     -> ExceptT ErrNoSuchWallet IO ()
 restoreWallet ctx wid = do
-    (cp, _) <- readWallet @ctx @s @t @k ctx wid
+    cp <- readWalletCheckpoint @ctx @s @t @k ctx wid
     let workerName = "worker." <> T.take 8 (toText wid)
     let workerCtx = ctx & logger .~ appendName workerName tr
     liftIO $ logInfo tr $ "Restoring wallet "+| wid |+"..."
@@ -762,10 +763,10 @@ restoreBlocks ctx wid blocks nodeTip = do
     -- the wallet disappear within these calls, so either the wallet is
     -- there and they all succeed, or it's not and they all fail.
     DB.withLock db $ do
-        (wallet, meta) <- readWallet @ctx @s @t @k ctx wid
+        (wallet, meta, _) <- readWallet @ctx @s @t @k ctx wid
         let bp = blockchainParameters wallet
-        let (txs, cps) = NE.unzip $ applyBlocks @s @t blocks wallet
-        let newTxs = fold txs
+        let (txs0, cps) = NE.unzip $ applyBlocks @s @t blocks wallet
+        let txs = fold txs0
 
         let calculateMetadata :: SlotId -> WalletMetadata
             calculateMetadata slot = meta { status = status' }
@@ -798,22 +799,20 @@ restoreBlocks ctx wid blocks nodeTip = do
         let Quantity bhLast = blockHeight $ currentTip cpLast
         let meta' = calculateMetadata (view #slotId $ currentTip cpLast)
         DB.putCheckpoint db (PrimaryKey wid) cpLast
-        DB.putTxHistory db (PrimaryKey wid) newTxs
+        DB.putTxHistory db (PrimaryKey wid) txs
         DB.putWalletMeta db (PrimaryKey wid) meta'
 
         liftIO $ do
             logInfo tr $ ""
                 +|| pretty (calculateMetadata slotLast)
-            logInfo tr $ "number of pending transactions: "
-                +|| Set.size (getPending cpLast) ||+ ""
-            logInfo tr $ "number of new transactions: "
-                +|| length newTxs ||+ ""
+            logInfo tr $ "discovered "
+                +|| length txs ||+ " new transaction(s)"
             logInfo tr $ "new block height: "
                 +|| bhLast ||+ ""
             logDebug tr $ "blocks: "
                 <> pretty (NE.toList blocks)
             logDebug tr $ "transactions: "
-                <> pretty (blockListF (snd <$> Map.elems newTxs))
+                <> pretty (blockListF (snd <$> txs))
   where
     db = ctx ^. dbLayer @s @t @k
     tr = ctx ^. logger
@@ -839,13 +838,12 @@ listAddresses
 listAddresses ctx wid = do
     (s, txs) <- DB.withLock db $ (,)
         <$> (getState <$> readWalletCheckpoint @ctx @s @t @k ctx wid)
-        <*> liftIO (DB.readTxHistory db
-            (PrimaryKey wid) Descending wholeRange)
+        <*> liftIO (DB.readTxHistory db (PrimaryKey wid) Descending wholeRange Nothing)
     let maybeIsOurs (TxOut a _) = if fst (isOurs a s)
             then Just a
             else Nothing
     let usedAddrs = Set.fromList $
-            concatMap (mapMaybe maybeIsOurs . outputs' . snd) txs
+            concatMap (mapMaybe maybeIsOurs . outputs') txs
           where
             outputs' (tx, _) = W.outputs @t tx
     let knownAddrs =
@@ -878,6 +876,23 @@ feeOpts tl feePolicy = FeeOptions
     , dustThreshold = minBound
     }
 
+-- | Read the whole transaction history, filtering by the given status.
+pendingTxHistory
+    :: forall ctx s t k.
+        ( IsWalletCtx s t k ctx
+        , HasDBLayer s t k ctx
+        , DefineTx t
+        )
+    => ctx
+    -> WalletId
+    -> IO (Set (Tx t))
+pendingTxHistory ctx wid = do
+    let pk = PrimaryKey wid
+    txs <- liftIO $ DB.readTxHistory db pk Descending wholeRange (Just Pending)
+    return $ Set.fromList (fst <$> txs)
+  where
+    db = ctx ^. dbLayer @s @t @k
+
 -- | Prepare a transaction and automatically select inputs from the
 -- wallet to cover the requested outputs. Note that this only runs
 -- coin selection for the given outputs. In order to construct (and
@@ -896,10 +911,10 @@ createUnsignedTx
     -> NonEmpty TxOut
     -> ExceptT (ErrCreateUnsignedTx e) IO CoinSelection
 createUnsignedTx ctx wid recipients = do
-    (wal, _) <- withExceptT ErrCreateUnsignedTxNoSuchWallet $
+    (wal, _, pending) <- withExceptT ErrCreateUnsignedTxNoSuchWallet $
         readWallet @ctx @s @t @k ctx wid
     let bp = blockchainParameters wal
-    let utxo = availableUTxO @s @t wal
+    let utxo = availableUTxO @s @t pending wal
     (sel, utxo') <- withExceptT ErrCreateUnsignedTxCoinSelection $ do
         let opts = coinSelOpts tl (bp ^. #getTxMaxSize)
         CoinSelection.random opts recipients utxo
@@ -926,10 +941,10 @@ estimateTxFee
     -> NonEmpty TxOut
     -> ExceptT (ErrEstimateTxFee e) IO Fee
 estimateTxFee ctx wid recipients = do
-    (wal, _) <- withExceptT ErrEstimateTxFeeNoSuchWallet $
+    (wal, _, pending) <- withExceptT ErrEstimateTxFeeNoSuchWallet $
         readWallet @ctx @s @t @k ctx wid
     let bp = blockchainParameters wal
-    let utxo = availableUTxO @s @t wal
+    let utxo = availableUTxO @s @t pending wal
     (sel, _utxo') <- withExceptT ErrEstimateTxFeeCoinSelection $ do
         let opts = coinSelOpts tl (bp ^. #getTxMaxSize)
         CoinSelection.random opts recipients utxo
@@ -959,21 +974,21 @@ signTx
     -> ExceptT ErrSignTx IO (Tx t, TxMeta, [TxWitness])
 signTx ctx wid pwd (CoinSelection ins outs chgs) =
     DB.withLock db $ do
-        (wal, _) <- withExceptT ErrSignTxNoSuchWallet $
-            readWallet @ctx @s @t @k ctx wid
-        let (changeOuts, s') = flip runState (getState wal) $
+        cp <- withExceptT ErrSignTxNoSuchWallet $
+            readWalletCheckpoint @ctx @s @t @k ctx wid
+        let (changeOuts, s') = flip runState (getState cp) $
                 forM chgs $ \c -> do
                     addr <- state (genChange pwd)
                     return $ TxOut addr c
         allShuffledOuts <- liftIO $ shuffle (outs ++ changeOuts)
         withRootKey @_ @s @t ctx wid pwd ErrSignTxWithRootKey $ \xprv -> do
-            let keyFrom = isOwned (getState wal) (xprv, pwd)
+            let keyFrom = isOwned (getState cp) (xprv, pwd)
             case mkStdTx tl keyFrom ins allShuffledOuts of
                 Right (tx, wit) -> do
                     -- Safe because we have a lock and we already fetched the
                     -- wallet within this context.
                     liftIO . unsafeRunExceptT $
-                        DB.putCheckpoint db (PrimaryKey wid) (updateState s' wal)
+                        DB.putCheckpoint db (PrimaryKey wid) (updateState s' cp)
                     let amtChng = fromIntegral $
                             sum (getCoin <$> chgs)
                     let amtInps = fromIntegral $
@@ -981,7 +996,7 @@ signTx ctx wid pwd (CoinSelection ins outs chgs) =
                     let meta = TxMeta
                             { status = Pending
                             , direction = Outgoing
-                            , slotId = (currentTip wal) ^. #slotId
+                            , slotId = (currentTip cp) ^. #slotId
                             , amount = Quantity (amtInps - amtChng)
                             }
                     return (tx, meta, wit)
@@ -997,6 +1012,7 @@ submitTx
         ( IsWalletCtx s t k ctx
         , HasNetworkLayer t ctx
         , HasDBLayer s t k ctx
+        , DefineTx t
         )
     => ctx
     -> WalletId
@@ -1004,9 +1020,8 @@ submitTx
     -> ExceptT ErrSubmitTx IO ()
 submitTx ctx wid (tx, meta, wit) = do
     withExceptT ErrSubmitTxNetwork $ postTx nw (tx, wit)
-    DB.withLock db $ withExceptT ErrSubmitTxNoSuchWallet $ do
-        (wal, _) <- readWallet @ctx @s @t @k ctx wid
-        DB.putCheckpoint db (PrimaryKey wid) (newPending (tx, meta) wal)
+    DB.withLock db $ withExceptT ErrSubmitTxNoSuchWallet $
+        DB.putTxHistory db (PrimaryKey wid) [(tx, meta)]
   where
     db = ctx ^. dbLayer @s @t @k
     nw = ctx ^. networkLayer @t
@@ -1047,10 +1062,10 @@ listTransactions
     -> SortOrder
     -> ExceptT ErrListTransactions IO [TransactionInfo]
 listTransactions ctx wid mStart mEnd order = do
-    (wal, _) <- withExceptT ErrListTransactionsNoSuchWallet $
-        readWallet @ctx @s @t @k ctx wid
-    let tip = currentTip wal ^. #slotId
-    let sp = fromBlockchainParameters (blockchainParameters wal)
+    cp <- withExceptT ErrListTransactionsNoSuchWallet $
+        readWalletCheckpoint @ctx @s @t @k ctx wid
+    let tip = currentTip cp ^. #slotId
+    let sp = fromBlockchainParameters (blockchainParameters cp)
     maybe (pure []) (listTransactionsWithinRange sp tip) =<< (getSlotRange sp)
   where
     db = ctx ^. dbLayer @s @t @k
@@ -1081,7 +1096,7 @@ listTransactions ctx wid mStart mEnd order = do
         -> ExceptT ErrListTransactions IO [TransactionInfo]
     listTransactionsWithinRange sp tip sr = do
         liftIO $ assemble sp tip
-            <$> DB.readTxHistory db (PrimaryKey wid) order sr
+            <$> DB.readTxHistory db (PrimaryKey wid) order sr Nothing
 
     -- This relies on DB.readTxHistory returning all necessary transactions
     -- to assemble coin selection information for outgoing payments.
@@ -1090,12 +1105,12 @@ listTransactions ctx wid mStart mEnd order = do
     assemble
         :: SlotParameters
         -> SlotId
-        -> [(Hash "Tx", (Tx t, TxMeta))]
+        -> [(Tx t, TxMeta)]
         -> [TransactionInfo]
     assemble sp tip txs = map mkTxInfo txs
       where
-        mkTxInfo (txid, (tx, meta)) = TransactionInfo
-            { txInfoId = txid
+        mkTxInfo (tx, meta) = TransactionInfo
+            { txInfoId = txId @t tx
             , txInfoInputs =
                 [(txIn, lookupOutput txIn) | txIn <- W.inputs @t tx]
             , txInfoOutputs = W.outputs @t tx
@@ -1105,8 +1120,9 @@ listTransactions ctx wid mStart mEnd order = do
             , txInfoTime = txTime (meta ^. #slotId)
             }
         txOuts = Map.fromList
-            [ (txid, W.outputs @t tx)
-            | (txid, (tx, _)) <- txs ]
+            [ (txId @t tx, W.outputs @t tx)
+            | ((tx, _)) <- txs
+            ]
         -- Because we only track the UTxO of this wallet, we can only
         -- return this information for outgoing payments.
         lookupOutput (TxIn txid index) =

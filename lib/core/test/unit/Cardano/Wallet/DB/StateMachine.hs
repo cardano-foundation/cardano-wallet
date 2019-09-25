@@ -90,6 +90,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SortOrder (..)
     , TxMeta (..)
+    , TxStatus
     , WalletId (..)
     , WalletMetadata (..)
     )
@@ -237,7 +238,7 @@ data Cmd s wid
     | PutWalletMeta wid WalletMetadata
     | ReadWalletMeta wid
     | PutTxHistory wid (TxHistory DummyTarget)
-    | ReadTxHistory wid SortOrder (Range SlotId)
+    | ReadTxHistory wid SortOrder (Range SlotId) (Maybe TxStatus)
     | PutPrivateKey wid MPrivKey
     | ReadPrivateKey wid
     | RollbackTo wid SlotId
@@ -276,7 +277,7 @@ runMock = \case
     CleanDB ->
         first (Resp . fmap Unit) . mCleanDB
     CreateWallet wid wal meta ->
-        first (Resp . fmap (const (NewWallet wid))) . mCreateWallet wid wal meta
+        first (Resp . fmap (const (NewWallet wid))) . mCreateWallet wid wal meta mempty
     RemoveWallet wid ->
         first (Resp . fmap Unit) . mRemoveWallet wid
     ListWallets ->
@@ -290,9 +291,9 @@ runMock = \case
     ReadWalletMeta wid ->
         first (Resp . fmap Metadata) . mReadWalletMeta wid
     PutTxHistory wid txs ->
-        first (Resp . fmap Unit) . mPutTxHistory wid (Map.fromList txs)
-    ReadTxHistory wid order range ->
-        first (Resp . fmap TxHistory) . mReadTxHistory wid order range
+        first (Resp . fmap Unit) . mPutTxHistory wid txs
+    ReadTxHistory wid order range status ->
+        first (Resp . fmap TxHistory) . mReadTxHistory wid order range status
     PutPrivateKey wid pk ->
         first (Resp . fmap Unit) . mPutPrivateKey wid pk
     ReadPrivateKey wid ->
@@ -323,7 +324,8 @@ runIO db = fmap Resp . go
             Right . Unit <$> cleanDB db
         CreateWallet wid wal meta ->
             catchWalletAlreadyExists (const (NewWallet (unMockWid wid))) $
-                createWallet db (widPK wid) wal meta
+                -- FIXME Create a wallet with already some tx history
+                createWallet db (widPK wid) wal meta mempty
         RemoveWallet wid ->
             catchNoSuchWallet Unit $
                 removeWallet db (PrimaryKey wid)
@@ -338,10 +340,9 @@ runIO db = fmap Resp . go
         ReadWalletMeta wid ->
             Right . Metadata <$> readWalletMeta db (PrimaryKey wid)
         PutTxHistory wid txs ->
-            catchNoSuchWallet Unit $
-                putTxHistory db (PrimaryKey wid) (Map.fromList txs)
-        ReadTxHistory wid order range ->
-            Right . TxHistory <$> readTxHistory db (PrimaryKey wid) order range
+            catchNoSuchWallet Unit $ putTxHistory db (PrimaryKey wid) txs
+        ReadTxHistory wid order range status ->
+            Right . TxHistory <$> readTxHistory db (PrimaryKey wid) order range status
         PutPrivateKey wid pk ->
             catchNoSuchWallet Unit $
                 putPrivateKey db (PrimaryKey wid) (fromMockPrivKey pk)
@@ -464,7 +465,7 @@ generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
         , (5, PutWalletMeta <$> genId' <*> arbitrary)
         , (5, ReadWalletMeta <$> genId')
         , (5, PutTxHistory <$> genId' <*> fmap unGenTxHistory arbitrary)
-        , (5, ReadTxHistory <$> genId' <*> genSortOrder <*> genRange)
+        , (5, ReadTxHistory <$> genId' <*> genSortOrder <*> genRange <*> arbitrary)
         , (3, PutPrivateKey <$> genId' <*> genPrivKey)
         , (3, ReadPrivateKey <$> genId')
         , (1, RollbackTo <$> genId' <*> arbitrary)
@@ -708,7 +709,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
 
     isReadTxHistory :: Event s Symbolic -> Maybe MWid
     isReadTxHistory ev = case (cmd ev, mockResp ev, before ev) of
-        (At (ReadTxHistory wid _ _), Resp (Right (TxHistory _)), Model _ wids)
+        (At (ReadTxHistory wid _ _ _), Resp (Right (TxHistory _)), Model _ wids)
             -> Just (wids ! wid)
         _otherwise
             -> Nothing
@@ -817,7 +818,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
         update didRead ev = didRead ||
             case (cmd ev, mockResp ev) of
                 (At (PutTxHistory _ h), Resp (Right _)) ->
-                    any (isUnordered . sel . fst) (Map.fromList h)
+                    any (isUnordered . sel . fst) h
                 _otherwise ->
                     False
 

@@ -176,7 +176,6 @@ import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Database.Sqlite as Sqlite
@@ -284,12 +283,15 @@ newDBLayer logConfig trace fp = do
                                       Wallets
         -----------------------------------------------------------------------}
 
-        { createWallet = \(PrimaryKey wid) cp meta ->
+        { createWallet = \(PrimaryKey wid) cp meta txs ->
               ExceptT $ runQuery $ do
                   res <- handleConstraint (ErrWalletAlreadyExists wid) $
                       insert_ (mkWalletEntity wid meta)
-                  when (isRight res) $
+                  when (isRight res) $ do
                       insertCheckpoint wid cp
+                      let (metas, txins, txouts) = mkTxHistory @t wid txs
+                      putTxMetas metas
+                      putTxs txins txouts
                   pure res
 
         , removeWallet = \(PrimaryKey wid) ->
@@ -325,14 +327,8 @@ newDBLayer logConfig trace fp = do
               selectLatestCheckpoint wid >>= \case
                   Just cp -> do
                       utxo <- selectUTxO cp
-                      -- 'checkpointFromEntity' will create a 'Set' from the
-                      -- pending txs so the order is not important.
-                      let order = W.Descending
-                      txs <- selectTxHistory @t wid order
-                          [ TxMetaStatus ==. W.Pending
-                          ]
                       s <- selectState (checkpointId cp)
-                      pure (checkpointFromEntity @s @t cp utxo txs <$> s)
+                      pure (checkpointFromEntity @s @t cp utxo <$> s)
                   Nothing -> pure Nothing
 
         , rollbackTo = \(PrimaryKey wid) point -> ExceptT $ runQuery $ do
@@ -384,21 +380,17 @@ newDBLayer logConfig trace fp = do
               ExceptT $ runQuery $
               selectWallet wid >>= \case
                   Just _ -> do
-                      let entities = mkTxHistory @t wid $ W.invariant
-                              ("putTxHistory has been called with pending txs: "
-                                <> show txs)
-                              txs
-                              (not . any (W.isPending . snd))
-                      let (metas, txins, txouts) = flatTxHistory entities
+                      let (metas, txins, txouts) = mkTxHistory @t wid txs
                       putTxMetas metas
                       putTxs txins txouts
                       pure $ Right ()
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
-        , readTxHistory = \(PrimaryKey wid) order range -> runQuery $
+        , readTxHistory = \(PrimaryKey wid) order range status -> runQuery $
               selectTxHistory @t wid order $ catMaybes
                 [ (TxMetaSlotId >=.) <$> W.inclusiveLowerBound range
                 , (TxMetaSlotId <=.) <$> W.inclusiveUpperBound range
+                , (TxMetaStatus ==.) <$> status
                 ]
 
         {-----------------------------------------------------------------------
@@ -541,19 +533,13 @@ privateKeyFromEntity
 privateKeyFromEntity (PrivateKey _ k h) = deserializeXPrv (k, h)
 
 mkCheckpointEntity
-    :: forall s t. PersistTx t
+    :: forall s t. ()
     => W.WalletId
     -> W.Wallet s t
-    -> (Checkpoint, [UTxO], [TxIn], [TxOut], [TxMeta])
+    -> (Checkpoint, [UTxO])
 mkCheckpointEntity wid wal =
-    (cp, utxo, ins, outs, metas)
+    (cp, utxo)
   where
-    pending =
-        [ (W.txId @t tx, (tx, meta))
-        | (tx, meta) <- Set.toList (W.getPending wal)
-        ]
-    (metas, ins, outs) = flatTxHistory $
-        mkTxHistory @t wid (Map.fromList pending)
     header = (W.currentTip wal)
     sl = header ^. #slotId
     parent = header ^. #prevBlockHash
@@ -586,11 +572,10 @@ checkpointFromEntity
     :: forall s t. (IsOurs s, NFData s, Show s, DefineTx t)
     => Checkpoint
     -> [UTxO]
-    -> [(W.Hash "Tx", (W.Tx t, W.TxMeta))]
     -> s
     -> W.Wallet s t
-checkpointFromEntity cp utxo txs s =
-    W.unsafeInitWallet utxo' pending header s bp
+checkpointFromEntity cp utxo s =
+    W.unsafeInitWallet utxo' header s bp
   where
     (Checkpoint
         _walletId
@@ -609,7 +594,6 @@ checkpointFromEntity cp utxo txs s =
         [ (W.TxIn input ix, W.TxOut addr coin)
         | UTxO _ _ (TxId input) ix addr coin <- utxo
         ]
-    pending = Set.fromList $ map snd txs
     blockHeight' = Quantity . toEnum . fromEnum $ bh
     bp = W.BlockchainParameters
         { getGenesisBlockDate = W.StartTime genesisStart
@@ -623,18 +607,21 @@ checkpointFromEntity cp utxo txs s =
 mkTxHistory
     :: forall t. PersistTx t
     => W.WalletId
-    -> Map (W.Hash "Tx") (W.Tx t, W.TxMeta)
-    -> [(TxMeta, ([TxIn], [TxOut]))]
-mkTxHistory wid txs =
+    -> [(W.Tx t, W.TxMeta)]
+    -> ([TxMeta], [TxIn], [TxOut])
+mkTxHistory wid txs = flatTxHistory
     [ (mkTxMetaEntity wid txid meta, mkTxInputsOutputs @t (txid, tx))
-    | (txid, (tx, meta)) <- Map.toList txs ]
-
--- | Make flat lists of entities from the result of 'mkTxHistory'.
-flatTxHistory :: [(TxMeta, ([TxIn], [TxOut]))] -> ([TxMeta], [TxIn], [TxOut])
-flatTxHistory entities =
-    ( map fst entities
-    , concatMap (fst . snd) entities
-    , concatMap (snd. snd) entities )
+    | (tx, meta) <- txs
+    , let txid = txId @t tx
+    ]
+  where
+    -- | Make flat lists of entities from the result of 'mkTxHistory'.
+    flatTxHistory :: [(TxMeta, ([TxIn], [TxOut]))] -> ([TxMeta], [TxIn], [TxOut])
+    flatTxHistory entities =
+        ( map fst entities
+        , concatMap (fst . snd) entities
+        , concatMap (snd. snd) entities
+        )
 
 mkTxInputsOutputs
     :: forall t. PersistTx t
@@ -682,13 +669,10 @@ txHistoryFromEntity
     => [TxMeta]
     -> [TxIn]
     -> [TxOut]
-    -> [(W.Hash "Tx", (W.Tx t, W.TxMeta))]
+    -> [(W.Tx t, W.TxMeta)]
 txHistoryFromEntity metas ins outs = map mkItem metas
   where
-    mkItem m =
-        ( getTxId (txMetaTxId m)
-        , (mkTxWith (txMetaTxId m), mkTxMeta m)
-        )
+    mkItem m = (mkTxWith (txMetaTxId m), mkTxMeta m)
     mkTxWith txid = mkTx @t
         (getTxId txid)
         (map mkTxIn $ filter ((== txid) . txInputTxId) ins)
@@ -720,17 +704,14 @@ selectWallet wid =
     fmap entityVal <$> selectFirst [WalId ==. wid] []
 
 insertCheckpoint
-    :: forall s t. (PersistState s, PersistTx t)
+    :: forall s t. (PersistState s)
     => W.WalletId
     -> W.Wallet s t
     -> SqlPersistT IO ()
 insertCheckpoint wid cp = do
-    let (cp', utxo, ins, outs, metas) = mkCheckpointEntity wid cp
+    let (cp', utxo) = mkCheckpointEntity wid cp
     let sl = (W.currentTip cp) ^. #slotId
     repsert (CheckpointKey wid sl) cp'
-    deleteTxMetas wid [TxMetaSlotId ==. sl, TxMetaStatus ==. W.Pending]
-    putTxMetas metas
-    putTxs ins outs
     deleteWhere [UtxoWalletId ==. wid, UtxoSlot ==. sl]
     dbChunked insertMany_ utxo
     insertState (wid, sl) (W.getState cp)
@@ -864,7 +845,7 @@ selectTxHistory
     => W.WalletId
     -> W.SortOrder
     -> [Filter TxMeta]
-    -> SqlPersistT IO [(W.Hash "Tx", (W.Tx t, W.TxMeta))]
+    -> SqlPersistT IO [(W.Tx t, W.TxMeta)]
 selectTxHistory wid order conditions = do
     metas <- fmap entityVal <$> selectList
         ((TxMetaWalletId ==. wid) : conditions) sortOpt

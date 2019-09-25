@@ -38,7 +38,7 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( SeqKey (..) )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, applyBlock, currentTip, getPending )
+    ( Wallet, applyBlock, currentTip )
 import Cardano.Wallet.Primitive.Types
     ( Direction (..)
     , Hash (..)
@@ -202,8 +202,6 @@ properties = do
     describe "rollback" $ do
         it "Can rollback to any arbitrary known checkpoint"
             (property . prop_rollbackCheckpoint)
-        it "Correctly re-construct checkpoints' pending history on rollbacks" $ do
-            (property . prop_rollbackCheckpointPending)
         it "Correctly re-construct tx history on rollbacks"
             (checkCoverage . prop_rollbackTxHistory)
 
@@ -214,7 +212,8 @@ readTxHistoryF
     -> PrimaryKey WalletId
     -> m (Identity GenTxHistory)
 readTxHistoryF db wid =
-    (Identity . GenTxHistory) <$> readTxHistory db wid Descending wholeRange
+    (Identity . GenTxHistory)
+        <$> readTxHistory db wid Descending wholeRange Nothing
 
 putTxHistoryF
     :: DBLayer m s DummyTarget SeqKey
@@ -222,7 +221,7 @@ putTxHistoryF
     -> GenTxHistory
     -> ExceptT ErrNoSuchWallet m ()
 putTxHistoryF db wid =
-    putTxHistory db wid . Map.fromList . unGenTxHistory
+    putTxHistory db wid . unGenTxHistory
 
 {-------------------------------------------------------------------------------
                                        Utils
@@ -260,13 +259,13 @@ once_ xs = void . once xs
 -- | Filter a transaction list according to the given predicate, returns their
 -- ids.
 filterTxs
-    :: forall t. ()
+    :: forall t. (DefineTx t)
     => (TxMeta -> Bool)
-    -> [(Hash "Tx", (Tx t, TxMeta))]
+    -> [(Tx t, TxMeta)]
     -> [Hash "Tx"]
 filterTxs predicate = mapMaybe fn
   where
-    fn (h, (_, meta)) = if predicate meta then Just h else Nothing
+    fn (tx, meta) = if predicate meta then Just (txId @t tx) else Nothing
 
 -- | Pick an arbitrary element from a monadic property, and label it in the
 -- counterexample:
@@ -305,7 +304,7 @@ prop_createListWallet db (KeyValPairs pairs) =
     setup = liftIO (cleanDB db)
     prop = liftIO $ do
         res <- once pairs $ \(k, (cp, meta)) ->
-            unsafeRunExceptT $ createWallet db k cp meta
+            unsafeRunExceptT $ createWallet db k cp meta mempty
         (length <$> listWallets db) `shouldReturn` length res
 
 -- | Trying to create a same wallet twice should yield an error
@@ -322,8 +321,8 @@ prop_createWalletTwice db (key@(PrimaryKey wid), cp, meta) =
     setup = liftIO (cleanDB db)
     prop = liftIO $ do
         let err = ErrWalletAlreadyExists wid
-        runExceptT (createWallet db key cp meta) `shouldReturn` Right ()
-        runExceptT (createWallet db key cp meta) `shouldReturn` Left err
+        runExceptT (createWallet db key cp meta mempty) `shouldReturn` Right ()
+        runExceptT (createWallet db key cp meta mempty) `shouldReturn` Left err
 
 -- | Trying to remove a same wallet twice should yield an error
 prop_removeWalletTwice
@@ -338,7 +337,7 @@ prop_removeWalletTwice db (key@(PrimaryKey wid), cp, meta) =
   where
     setup = liftIO $ do
         cleanDB db
-        unsafeRunExceptT $ createWallet db key cp meta
+        unsafeRunExceptT $ createWallet db key cp meta mempty
     prop = liftIO $ do
         let err = ErrNoSuchWallet wid
         runExceptT (removeWallet db key) `shouldReturn` Right ()
@@ -366,7 +365,7 @@ prop_readAfterPut putOp readOp db (ShowFmt key, ShowFmt a) =
     setup = do
         liftIO (cleanDB db)
         (cp, meta) <- pick arbitrary
-        liftIO $ unsafeRunExceptT $ createWallet db key cp meta
+        liftIO $ unsafeRunExceptT $ createWallet db key cp meta mempty
     prop = liftIO $ do
         unsafeRunExceptT $ putOp db key a
         res <- readOp db key
@@ -436,8 +435,8 @@ prop_isolation putA readB readC readD db (ShowFmt key, ShowFmt a) =
     setup = do
         liftIO (cleanDB db)
         (cp, meta, GenTxHistory txs) <- pick arbitrary
-        liftIO $ unsafeRunExceptT $ createWallet db key cp meta
-        liftIO $ unsafeRunExceptT $ putTxHistory db key (Map.fromList txs)
+        liftIO $ unsafeRunExceptT $ createWallet db key cp meta mempty
+        liftIO $ unsafeRunExceptT $ putTxHistory db key txs
         (b, c, d) <- liftIO $ (,,)
             <$> readB db key
             <*> readC db key
@@ -468,7 +467,7 @@ prop_readAfterDelete readOp empty db (ShowFmt key) =
     setup = do
         liftIO (cleanDB db)
         (cp, meta) <- pick arbitrary
-        liftIO $ unsafeRunExceptT $ createWallet db key cp meta
+        liftIO $ unsafeRunExceptT $ createWallet db key cp meta mempty
     prop = liftIO $ do
         unsafeRunExceptT $ removeWallet db key
         (ShowFmt <$> readOp db key) `shouldReturn` ShowFmt empty
@@ -504,7 +503,7 @@ prop_sequentialPut putOp readOp resolve db kv =
         liftIO (cleanDB db)
         (cp, meta) <- pick arbitrary
         liftIO $ unsafeRunExceptT $ once_ pairs $ \(k, _) ->
-            createWallet db k cp meta
+            createWallet db k cp meta mempty
     prop = liftIO $ do
         unsafeRunExceptT $ forM_ pairs $ uncurry (putOp db)
         res <- once pairs (readOp db . fst)
@@ -540,7 +539,7 @@ prop_parallelPut putOp readOp resolve db (KeyValPairs pairs) =
         liftIO (cleanDB db)
         (cp, meta) <- pick arbitrary
         liftIO $ unsafeRunExceptT $ once_ pairs $ \(k, _) ->
-            createWallet db k cp meta
+            createWallet db k cp meta mempty
     prop = liftIO $ do
         forConcurrently_ pairs $ unsafeRunExceptT . uncurry (putOp db)
         res <- once pairs (readOp db . fst)
@@ -568,7 +567,7 @@ prop_rollbackCheckpoint db (ShowFmt cp0) (ShowFmt (MockChain chain)) = do
 
     setup wid meta = run $ do
         cleanDB db
-        unsafeRunExceptT $ createWallet db wid cp0 meta
+        unsafeRunExceptT $ createWallet db wid cp0 meta mempty
         unsafeRunExceptT $ forM_ cps (putCheckpoint db wid)
 
     prop wid point = do
@@ -578,53 +577,6 @@ prop_rollbackCheckpoint db (ShowFmt cp0) (ShowFmt (MockChain chain)) = do
         let str = maybe "∅" pretty cp
         monitor $ counterexample ("Checkpoint after rollback: \n" <> str)
         assert (ShowFmt cp == ShowFmt (pure point))
-
--- | Make sure that the pending history of checkpoints is correctly
--- re-constructed upon rolling back. We do expects every checkpoint to see
--- any pending transactions.
-prop_rollbackCheckpointPending
-    :: forall s t k. (t ~ DummyTarget)
-    => DBLayer IO s t k
-    -> ShowFmt (Wallet s t)
-    -> ShowFmt GenTxHistory
-    -> Property
-prop_rollbackCheckpointPending db (ShowFmt cp0) (ShowFmt (GenTxHistory txs0)) = do
-    monadicIO $ do
-        ShowFmt wid <- namedPick "Wallet ID" arbitrary
-        ShowFmt meta <- namedPick "Wallet Metadata" arbitrary
-        ShowFmt point <- namedPick "Rollback point" arbitrary
-        setup wid meta >> prop wid point
-  where
-    setup wid meta = run $ do
-        cleanDB db
-        unsafeRunExceptT $ createWallet db wid cp0 meta
-        unsafeRunExceptT $ putTxHistory db wid $ Map.fromList txs0
-
-    prop wid point = do
-        run $ unsafeRunExceptT $ rollbackTo db wid point
-        run (readCheckpoint db wid) >>= \case
-            Nothing -> assert False
-            Just cp -> do
-                let actuallyPending = getPendingIxs cp
-                let want = Set.unions [getPendingIxs cp0, pendingAfter point]
-                monitor $ counterexample $ "\nWant pending:\n"
-                    <> pretty (blockListF want)
-                monitor $ counterexample $ "Actually pending:\n"
-                    <> pretty (blockListF actuallyPending)
-                assert (actuallyPending == want)
-
-    getPendingIxs :: Wallet s t -> Set (Hash "Tx")
-    getPendingIxs =
-        Set.map (txId @t . fst) . getPending
-
-    pendingAfter :: SlotId -> Set (Hash "Tx")
-    pendingAfter point =
-        let
-            predicate meta =
-                (slotId :: TxMeta -> SlotId) meta > point &&
-                direction meta == Outgoing
-        in
-            Set.fromList (filterTxs @t predicate txs0)
 
 -- | Re-schedule pending transaction on rollback, i.e.:
 --
@@ -652,20 +604,20 @@ prop_rollbackTxHistory db (ShowFmt cp0) (ShowFmt (GenTxHistory txs0)) = do
   where
     setup wid meta = run $ do
         cleanDB db
-        unsafeRunExceptT $ createWallet db wid cp0 meta
-        unsafeRunExceptT $ putTxHistory db wid $ Map.fromList txs0
+        unsafeRunExceptT $ createWallet db wid cp0 meta mempty
+        unsafeRunExceptT $ putTxHistory db wid txs0
 
     prop wid point = do
         run $ unsafeRunExceptT $ rollbackTo db wid point
-        txs <- run $ readTxHistory db wid Descending wholeRange
+        txs <- run $ readTxHistory db wid Descending wholeRange Nothing
         monitor $ counterexample $ "\nTx history after rollback: \n" <> fmt txs
 
         assertWith "Outgoing txs are reschuled" $
             L.sort (rescheduled point) == L.sort (filterTxs @t isPending txs)
         assertWith "All other txs are still known" $
-            L.sort (knownAfterRollback point) == L.sort (fst <$> txs)
+            L.sort (knownAfterRollback point) == L.sort (txId @t . fst <$> txs)
         assertWith "All txs are now before the point of rollback" $
-            all (isBefore point . snd . snd) txs
+            all (isBefore point . snd) txs
       where
         fmt = pretty . GenTxHistory
 

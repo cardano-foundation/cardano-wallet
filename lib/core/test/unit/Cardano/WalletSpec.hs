@@ -125,11 +125,15 @@ import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldNotBe, shouldSatisfy )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , NonEmptyList (..)
+    , Positive (..)
     , Property
     , arbitraryBoundedEnum
     , choose
     , elements
     , property
+    , scale
+    , vectorOf
     , withMaxSuccess
     , (==>)
     )
@@ -143,6 +147,7 @@ import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB as DB
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 
@@ -247,7 +252,8 @@ walletUpdateName wallet@(_, wName0, _) names = monadicIO $ liftIO $ do
     (WalletLayerFixture _ wl [wid] _) <- liftIO $ setupFixture wallet
     unsafeRunExceptT $ forM_ names $ \wName ->
         W.updateWallet wl wid (\x -> x { name = wName })
-    wName <- fmap (name . snd) <$> unsafeRunExceptT $ W.readWallet wl wid
+    wName <- fmap (name . (\(_, b, _) -> b))
+        <$> unsafeRunExceptT $ W.readWallet wl wid
     wName `shouldBe` last (wName0 : names)
 
 walletUpdateNameNoSuchWallet
@@ -316,7 +322,7 @@ walletUpdatePassphraseDate
 walletUpdatePassphraseDate wallet (xprv, pwd) = monadicIO $ liftIO $ do
     (WalletLayerFixture _ wl [wid] _) <- liftIO $ setupFixture wallet
     let infoShouldSatisfy predicate = do
-            info <- (passphraseInfo . snd) <$>
+            info <- (passphraseInfo . (\(_,b,_) -> b)) <$>
                 unsafeRunExceptT (W.readWallet wl wid)
             info `shouldSatisfy` predicate
             return info
@@ -359,7 +365,7 @@ walletListTransactionsSorted
     :: (WalletId, WalletName, DummyState)
     -> SortOrder
     -> (Maybe UniformTime, Maybe UniformTime)
-    -> Map (Hash "Tx") (Tx, TxMeta)
+    -> [(Tx, TxMeta)]
     -> Property
 walletListTransactionsSorted wallet@(wid, _, _) _order (_mstart, _mend) history =
     monadicIO $ liftIO $ do
@@ -367,13 +373,13 @@ walletListTransactionsSorted wallet@(wid, _, _) _order (_mstart, _mend) history 
         unsafeRunExceptT $ putTxHistory db (PrimaryKey wid) history
         txs <- unsafeRunExceptT $
             W.listTransactions wl wid Nothing Nothing Descending
-        length txs `shouldBe` Map.size history
+        length txs `shouldBe` L.length history
         -- With the 'Down'-wrapper, the sort is descending.
         txs `shouldBe` L.sortOn (Down . slotId . txInfoMeta) txs
         -- Check transaction time calculation
         let times = Map.fromList [(txInfoId i, txInfoTime i) | i <- txs]
-        let expTimes =
-                Map.map (\(_, meta) -> slotIdTime (meta ^. #slotId)) history
+        let expTimes = Map.fromList $
+                (\(tx, meta) -> (txId @DummyTarget tx, slotIdTime (meta ^. #slotId))) <$> history
         times `shouldBe` expTimes
 
 {-------------------------------------------------------------------------------
@@ -505,8 +511,25 @@ instance Arbitrary (Hash "Tx") where
         Hash . BS.pack <$> replicateM 32 arbitrary
 
 instance Arbitrary Tx where
-    shrink _ = []
-    arbitrary = return $ Tx [] []
+    shrink (Tx ins outs) =
+        [Tx ins' outs | ins' <- shrinkList' ins ] ++
+        [Tx ins outs' | outs' <- shrinkList' outs ]
+      where
+        shrinkList' xs  = filter (not . null)
+            [ take n xs | Positive n <- shrink (Positive $ length xs) ]
+    arbitrary = Tx
+        <$> fmap (L.nub . L.take 5 . getNonEmpty) arbitrary
+        <*> fmap (L.take 5 . getNonEmpty) arbitrary
+
+instance Arbitrary TxIn where
+    arbitrary = TxIn
+        <$> (Hash . B8.pack <$> vectorOf 32 arbitrary)
+        <*> scale (`mod` 3) arbitrary
+
+instance Arbitrary TxOut where
+    arbitrary = TxOut
+        <$> pure (Address "address")
+        <*> (Coin <$> choose (1, 100000))
 
 instance Arbitrary TxMeta where
     shrink _ = []

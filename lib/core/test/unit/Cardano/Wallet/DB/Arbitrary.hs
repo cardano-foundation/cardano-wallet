@@ -72,7 +72,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , mkAddressPoolGap
     )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, currentTip, getPending, getState, unsafeInitWallet, utxo )
+    ( Wallet, currentTip, getState, unsafeInitWallet, utxo )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Block (..)
@@ -124,7 +124,7 @@ import Data.Typeable
 import Data.Word
     ( Word32 )
 import Fmt
-    ( Buildable (..), Builder, blockMapF', prefixF, suffixF, tupleF )
+    ( Buildable (..), Builder, blockListF', prefixF, suffixF, tupleF )
 import GHC.Generics
     ( Generic )
 import Numeric.Natural
@@ -189,11 +189,10 @@ instance Arbitrary (PrimaryKey WalletId) where
 
 instance GenState s => Arbitrary (Wallet s DummyTarget) where
     shrink w =
-        [ unsafeInitWallet u (getPending w) (currentTip w) s genesisParameters
+        [ unsafeInitWallet u (currentTip w) s genesisParameters
         | (u, s) <- shrink (utxo w, getState w) ]
     arbitrary = unsafeInitWallet
         <$> arbitrary
-        <*> pure mempty
         <*> pure (BlockHeader (SlotId 0 0) (Quantity 0) (Hash "hash"))
         <*> arbitrary
         <*> pure genesisParameters
@@ -308,10 +307,14 @@ instance Arbitrary DummyTarget.Tx where
 instance Arbitrary TxMeta where
     shrink _ = []
     arbitrary = TxMeta
-        <$> elements [Pending, InLedger, Invalidated]
+        <$> arbitrary
         <*> elements [Incoming, Outgoing]
         <*> arbitrary
         <*> fmap (Quantity . fromIntegral) (arbitrary @Word32)
+
+instance Arbitrary TxStatus where
+    arbitrary =
+        elements [Pending, InLedger, Invalidated]
 
 instance Arbitrary SlotId where
     shrink (SlotId ep sl) =
@@ -360,10 +363,10 @@ instance Arbitrary GenTxHistory where
     shrink (GenTxHistory h) = map GenTxHistory (shrinkList shrinkOneTx h)
       where
         shrinkOneTx
-            :: (Hash "Tx", (DummyTarget.Tx, TxMeta))
-            -> [(Hash "Tx", (DummyTarget.Tx, TxMeta))]
-        shrinkOneTx (txid, (tx, meta)) =
-            [(txid, (tx', meta)) | tx' <- shrink tx]
+            :: (DummyTarget.Tx, TxMeta)
+            -> [(DummyTarget.Tx, TxMeta)]
+        shrinkOneTx (tx, meta) =
+            [(tx', meta) | tx' <- shrink tx]
 
     -- Ensure unique transaction IDs within a given batch of transactions to add
     -- to the history.
@@ -372,12 +375,8 @@ instance Arbitrary GenTxHistory where
         -- We discard pending transaction from any 'GenTxHistory since,
         -- inserting a pending transaction actually has an effect on the
         -- checkpoint's pending transactions of the same wallet.
-        txs <- filter (not . isPending . snd) <$> arbitrary
-        return $ (\(tx, meta) -> (mockTxId tx, (tx, meta))) <$> txs
+        filter (not . isPending . snd) <$> arbitrary
       where
-        mockTxId :: DummyTarget.Tx -> Hash "Tx"
-        mockTxId = Hash . B8.pack . show
-
         sortTxHistory = filterTxHistory @DummyTarget Descending wholeRange
 
 instance Arbitrary UTxO where
@@ -492,7 +491,7 @@ instance Eq XPrv where
 deriving instance Buildable a => Buildable (Identity a)
 
 instance Buildable GenTxHistory where
-    build (GenTxHistory txs) = blockMapF' build tupleF (Map.fromList txs)
+    build (GenTxHistory txs) = blockListF' "-" tupleF txs
 
 instance Buildable (SeqKey depth XPrv, Hash "encryption") where
     build (_, h) = tupleF (xprvF, prefixF 8 hF <> "..." <> suffixF 8 hF)

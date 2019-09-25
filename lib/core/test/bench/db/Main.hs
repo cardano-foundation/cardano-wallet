@@ -291,7 +291,7 @@ withCleanDB
     -> Benchmarkable
 withCleanDB db = perRunEnv $ do
     cleanDB db
-    unsafeRunExceptT $ createWallet db testPk testCp testMetadata
+    unsafeRunExceptT $ createWallet db testPk testCp testMetadata mempty
     pure db
 
 ----------------------------------------------------------------------------
@@ -300,22 +300,20 @@ withCleanDB db = perRunEnv $ do
 benchPutTxHistory :: Int -> Int -> Int -> Int -> DBLayerBench -> IO ()
 benchPutTxHistory numBatches batchSize numInputs numOutputs db = do
     let batches = mkTxHistory (numBatches*batchSize) numInputs numOutputs
-    unsafeRunExceptT $ forM_ (chunksOf batchSize batches) $ \txs -> do
-        putTxHistory db testPk (Map.fromList txs)
+    unsafeRunExceptT $ forM_ (chunksOf batchSize batches) $ putTxHistory db testPk
 
-mkTxHistory :: Int -> Int -> Int -> [(Hash "Tx", (Tx, TxMeta))]
+mkTxHistory :: Int -> Int -> Int -> [(Tx, TxMeta)]
 mkTxHistory numTx numInputs numOutputs =
-    [ ( Hash (label "tx-" i)
-      , ( Tx (mkInputs numInputs) (mkOutputs numOutputs)
-        , TxMeta
-            { status = InLedger
-            , direction = Incoming
-            , slotId = fromFlatSlot epochLength (fromIntegral i)
-            , amount = Quantity (fromIntegral numOutputs)
-            }
-        )
+    [ ( Tx (mkInputs numInputs) (mkOutputs numOutputs)
+      , TxMeta
+          { status = InLedger
+          , direction = Incoming
+          , slotId = fromFlatSlot epochLength (fromIntegral i)
+          , amount = Quantity (fromIntegral numOutputs)
+          }
       )
-    | i <- [1..numTx] ]
+    | i <- [1..numTx]
+    ]
 
 mkInputs :: Int -> [TxIn]
 mkInputs n = [TxIn (Hash (label "in" i)) (fromIntegral i) | i <- [1..n]]
@@ -334,7 +332,8 @@ benchPutUTxO numCheckpoints utxoSize db = do
 mkCheckpoints :: Int -> Int -> [WalletBench]
 mkCheckpoints numCheckpoints utxoSize = [ cp i | i <- [1..numCheckpoints]]
   where
-    cp i = unsafeInitWallet (UTxO utxo) mempty
+    cp i = unsafeInitWallet
+        (UTxO utxo)
         (BlockHeader
             (fromFlatSlot epochLength (fromIntegral i))
             (Quantity $ fromIntegral i)
@@ -354,7 +353,7 @@ withUTxO db numCheckpoints utxoSize = env setup . const
   where
     setup = do
         cleanDB db
-        unsafeRunExceptT $ createWallet db testPk testCp testMetadata
+        unsafeRunExceptT $ createWallet db testPk testCp testMetadata mempty
         let cps = mkCheckpoints numCheckpoints utxoSize
         unsafeRunExceptT $ mapM_ (putCheckpoint db testPk) cps
         pure db
@@ -365,7 +364,7 @@ withUTxO db numCheckpoints utxoSize = env setup . const
 benchPutSeqState :: Int -> Int -> DBLayerBench -> IO ()
 benchPutSeqState numCheckpoints numAddrs db =
     unsafeRunExceptT $ mapM_ (putCheckpoint db testPk)
-        [ initWallet block0 genesisParameters $
+        [ snd $ initWallet block0 genesisParameters $
             SeqState (mkPool numAddrs i) (mkPool numAddrs i) emptyPendingIxs
         | i <- [1..numCheckpoints]
         ]
@@ -393,7 +392,7 @@ instance PersistTx DummyTarget where
     mkTx _ inps = Tx (fst <$> inps)
 
 testCp :: WalletBench
-testCp = initWallet block0 genesisParameters initDummyState
+testCp = snd $ initWallet block0 genesisParameters initDummyState
 
 initDummyState :: SeqState DummyTarget
 initDummyState =
