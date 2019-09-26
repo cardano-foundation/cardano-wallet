@@ -10,10 +10,12 @@ module Cardano.Launcher.POSIX
 
 import Prelude
 
+import Cardano.BM.Trace
+    ( Trace, logNotice )
 import Control.Monad
     ( void )
-import Say
-    ( sayErr )
+import Data.Text
+    ( Text )
 import System.Posix.Signals
     ( Handler (..)
     , installHandler
@@ -24,10 +26,10 @@ import System.Posix.Signals
 
 -- | Convert any SIGTERM received to SIGINT, for which the runtime system has
 -- handlers that will correctly clean up sub-processes.
-installSignalHandlers :: IO ()
-installSignalHandlers = void $
+installSignalHandlers :: Trace IO Text -> IO ()
+installSignalHandlers tr = void $
     installHandler softwareTermination termHandler Nothing
     where
         termHandler = CatchOnce $ do
-            sayErr "Terminated by signal."
+            logNotice tr "Terminated by signal."
             raiseSignal keyboardSignal

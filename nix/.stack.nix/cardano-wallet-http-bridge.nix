@@ -22,11 +22,14 @@
         depends = [
           (hsPkgs.base)
           (hsPkgs.aeson)
+          (hsPkgs.async)
           (hsPkgs.base58-bytestring)
           (hsPkgs.binary)
           (hsPkgs.bytestring)
           (hsPkgs.cardano-crypto)
+          (hsPkgs.cardano-wallet-cli)
           (hsPkgs.cardano-wallet-core)
+          (hsPkgs.cardano-wallet-launcher)
           (hsPkgs.cborg)
           (hsPkgs.cryptonite)
           (hsPkgs.deepseq)
@@ -37,7 +40,9 @@
           (hsPkgs.http-client)
           (hsPkgs.http-media)
           (hsPkgs.http-types)
+          (hsPkgs.iohk-monitoring)
           (hsPkgs.memory)
+          (hsPkgs.retry)
           (hsPkgs.servant)
           (hsPkgs.servant-client)
           (hsPkgs.servant-client-core)
@@ -45,7 +50,24 @@
           (hsPkgs.text-class)
           (hsPkgs.time)
           (hsPkgs.transformers)
+          (hsPkgs.warp)
           ];
+        };
+      exes = {
+        "cardano-wallet-http-bridge" = {
+          depends = [
+            (hsPkgs.base)
+            (hsPkgs.cardano-wallet-cli)
+            (hsPkgs.cardano-wallet-core)
+            (hsPkgs.cardano-wallet-http-bridge)
+            (hsPkgs.cardano-wallet-launcher)
+            (hsPkgs.filepath)
+            (hsPkgs.iohk-monitoring)
+            (hsPkgs.optparse-applicative)
+            (hsPkgs.process)
+            (hsPkgs.text)
+            ];
+          };
         };
       tests = {
         "unit" = {
@@ -102,7 +124,6 @@
             (hsPkgs.text-class)
             (hsPkgs.time)
             (hsPkgs.transformers)
-            (hsPkgs.warp)
             ];
           };
         };
@@ -110,7 +131,6 @@
         "restore" = {
           depends = [
             (hsPkgs.base)
-            (hsPkgs.async)
             (hsPkgs.bytestring)
             (hsPkgs.cardano-wallet-core)
             (hsPkgs.cardano-wallet-http-bridge)

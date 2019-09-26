@@ -6,6 +6,8 @@ module Cardano.LauncherSpec
 
 import Prelude
 
+import Cardano.BM.Trace
+    ( nullTracer )
 import Cardano.Launcher
     ( Command (..), ProcessHasExited (..), StdStream (..), launch )
 import Control.Concurrent.MVar
@@ -41,7 +43,7 @@ spec = do
               [ Command "./test/data/once.sh" ["0"] (pure ()) Inherit
               , Command "./test/data/forever.sh" [] (pure ()) Inherit
               ]
-        (ProcessHasExited name code) <- launch commands
+        (ProcessHasExited name code) <- launch nullTracer commands
         name `shouldBe` cmdName (commands !! 0)
         code `shouldBe` ExitSuccess
 
@@ -50,7 +52,7 @@ spec = do
               [ Command "./test/data/forever.sh" [] (pure ()) Inherit
               , Command "./test/data/once.sh" ["0"] (pure ()) Inherit
               ]
-        (ProcessHasExited name code) <- launch commands
+        (ProcessHasExited name code) <- launch nullTracer commands
         name `shouldBe` cmdName (commands !! 1)
         code `shouldBe` ExitSuccess
 
@@ -59,7 +61,7 @@ spec = do
               [ Command "./test/data/once.sh" ["14"] (pure ()) Inherit
               , Command "./test/data/forever.sh" [] (pure ()) Inherit
               ]
-        (ProcessHasExited name code) <- launch commands
+        (ProcessHasExited name code) <- launch nullTracer commands
         name `shouldBe` cmdName (commands !! 0)
         code `shouldBe` (ExitFailure 14)
 
@@ -68,7 +70,7 @@ spec = do
               [ Command "./test/data/forever.sh" [] (pure ()) Inherit
               , Command "./test/data/once.sh" ["14"] (pure ()) Inherit
               ]
-        (ProcessHasExited name code) <- launch commands
+        (ProcessHasExited name code) <- launch nullTracer commands
         name `shouldBe` cmdName (commands !! 1)
         code `shouldBe` (ExitFailure 14)
 
@@ -78,6 +80,13 @@ spec = do
         let commands =
                 [ Command "./test/data/once.sh" ["0"] before Inherit
                 ]
-        (ProcessHasExited _ code) <- launch commands
+        (ProcessHasExited _ code) <- launch nullTracer commands
         code `shouldBe` ExitSuccess
         tryReadMVar mvar `shouldReturn` (Just @String "executed")
+
+    it "Handles command not found" $ do
+        let commands =
+                [ Command "foobar" [] (pure ()) Inherit
+                ]
+        ProcessDidNotStart name _exc <- launch nullTracer commands
+        name `shouldBe` "foobar"

@@ -34,8 +34,6 @@ import Cardano.Byron.Codec.Cbor
     , encodeProtocolMagicAttr
     , encodeTx
     )
-import Cardano.Wallet
-    ( BlockchainParameters (..) )
 import Cardano.Wallet.DB.Sqlite
     ( PersistTx (..) )
 import Cardano.Wallet.HttpBridge.Environment
@@ -48,6 +46,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( SeqKey )
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
+import Cardano.Wallet.Primitive.Model
+    ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Block (..)
@@ -197,7 +197,8 @@ byronBlockchainParameters
     :: forall n. KnownNetwork n
     => BlockchainParameters
 byronBlockchainParameters = BlockchainParameters
-    { getGenesisBlockDate = case networkVal @n of
+    { getGenesisBlockHash = Hash "genesis"
+    , getGenesisBlockDate = case networkVal @n of
         Mainnet -> StartTime $ posixSecondsToUTCTime 1506203091
         Testnet -> StartTime $ posixSecondsToUTCTime 1563999616
     , getFeePolicy = byronFeePolicy

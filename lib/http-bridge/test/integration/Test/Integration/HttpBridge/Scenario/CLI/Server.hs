@@ -34,7 +34,7 @@ import System.Process
     , withCreateProcess
     )
 import Test.Hspec
-    ( Spec, SpecWith, describe, it, pendingWith )
+    ( Spec, SpecWith, describe, it )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain, shouldReturn )
 import Test.Integration.Framework.DSL
@@ -55,10 +55,12 @@ import Test.Utils.Ports
 spec :: forall t. KnownCommand t => SpecWith (Context t)
 spec = do
     describe "SERVER - cardano-wallet serve" $ do
-        it "SERVER - Can start cardano-wallet serve --database" $ \_ -> do
+        it "SERVER - Can start cardano-wallet serve --database" $ \ctx -> do
             withTempDir $ \d -> do
                 let db = d ++ "/db-file"
-                let args = ["serve", "--database", db]
+                let args = ["serve", "--database", db
+                           , "--node-port", show (ctx ^. typed @(Port "node"))
+                           ]
                 let process = proc' (commandName @t) args
                 withCreateProcess process $ \_ _ _ ph -> do
                     expectPathEventuallyExist db
@@ -104,8 +106,9 @@ spec = do
             waitForProcess ph `shouldReturn` ExitSuccess
 
     describe "LOGGING - cardano-wallet serve logging" $ do
-        it "LOGGING - Launch can log --verbose" $ \_ -> do
-            let args = ["serve", "--random-port", "--verbose"]
+        it "LOGGING - Launch can log --verbose" $ \ctx -> do
+            let args = ["serve", "--random-port", "--verbose"
+                       , "--node-port", show (ctx ^. typed @(Port "node"))]
             let process = proc' (commandName @t) args
             (out, _) <- collectStreams (20, 0) process
             out `shouldContainT` versionLine
@@ -113,16 +116,17 @@ spec = do
             out `shouldContainT` "Info"
             out `shouldContainT` "Notice"
 
-        it "LOGGING - Serve --quiet logs Error only" $ \_ -> do
-            pendingWith "The assertion in this test case is wrong."
-            let args = ["serve", "--random-port", "--quiet"]
+        it "LOGGING - Serve --quiet logs Error only" $ \ctx -> do
+            let args = ["serve", "--random-port", "--quiet"
+                       , "--node-port", show (ctx ^. typed @(Port "node"))]
             let process = proc' (commandName @t) args
             (out, err) <- collectStreams (10, 10) process
             out `shouldBe` mempty
             err `shouldBe` mempty
 
-        it "LOGGING - Serve default logs Info" $ \_ -> do
-            let args = ["serve", "--random-port"]
+        it "LOGGING - Serve default logs Info" $ \ctx -> do
+            let args = ["serve", "--random-port"
+                       , "--node-port", show (ctx ^. typed @(Port "node"))]
             let process = proc' (commandName @t) args
             (out, _) <- collectStreams (5, 0) process
             out `shouldNotContainT` "Debug"

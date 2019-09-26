@@ -105,7 +105,7 @@ spec = do
                 withCreateProcess process $ \_ (Just o) (Just e) ph -> do
                     expectPathEventuallyExist d
                     expectPathEventuallyExist (d <> "/chain")
-                    expectPathEventuallyExist (d <> "/jormungandr-config.json")
+                    expectPathEventuallyExist (d <> "/jormungandr-config.yaml")
                     expectPathEventuallyExist (d <> "/wallet.db")
                   `finally` do
                     terminateProcess ph
@@ -125,7 +125,7 @@ spec = do
             withCreateProcess process $ \_ (Just o) (Just e) ph -> do
                 expectPathEventuallyExist dir
                 expectPathEventuallyExist (dir <> "/chain")
-                expectPathEventuallyExist (dir <> "/jormungandr-config.json")
+                expectPathEventuallyExist (dir <> "/jormungandr-config.yaml")
                 expectPathEventuallyExist (dir <> "/wallet.db")
               `finally` do
                 terminateProcess ph

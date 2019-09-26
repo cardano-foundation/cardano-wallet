@@ -15,8 +15,6 @@ import Prelude
 
 import Cardano.Crypto.Wallet
     ( unXPub )
-import Cardano.Wallet
-    ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress (..), WalletKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
@@ -25,6 +23,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( SeqKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..) )
+import Cardano.Wallet.Primitive.Model
+    ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Block (..)
@@ -124,7 +124,8 @@ block0 = Block
 
 genesisParameters  :: BlockchainParameters
 genesisParameters = BlockchainParameters
-    { getGenesisBlockDate = StartTime $ posixSecondsToUTCTime 0
+    { getGenesisBlockHash = Hash "genesis"
+    , getGenesisBlockDate = StartTime $ posixSecondsToUTCTime 0
     , getFeePolicy = LinearFee (Quantity 14) (Quantity 42)
     , getSlotLength = SlotLength 1
     , getEpochLength = EpochLength 21600

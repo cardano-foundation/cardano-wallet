@@ -1,6 +1,5 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -9,27 +8,24 @@ module Cardano.Wallet.Network
     -- * Interface
       NetworkLayer (..)
 
-    -- * Helpers
-    , waitForConnection
-    , defaultRetryPolicy
-
     -- * Errors
     , ErrNetworkUnavailable (..)
     , ErrNetworkTip (..)
     , ErrGetBlock (..)
     , ErrPostTx (..)
+    , isNetworkUnreachable
     ) where
 
 import Prelude
 
+import Cardano.Wallet.Primitive.Model
+    ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..), Hash (..), TxWitness )
 import Control.Exception
-    ( Exception (..), throwIO )
+    ( Exception (..) )
 import Control.Monad.Trans.Except
-    ( ExceptT, runExceptT )
-import Control.Retry
-    ( RetryPolicyM, constantDelay, limitRetriesByCumulativeDelay, retrying )
+    ( ExceptT )
 import Data.Text
     ( Text )
 import GHC.Generics
@@ -56,10 +52,17 @@ data NetworkLayer m tx block = NetworkLayer
     , postTx
         :: (tx, [TxWitness]) -> ExceptT ErrPostTx m ()
         -- ^ Broadcast a transaction to the chain producer
+
+    , staticBlockchainParameters
+        :: (block, BlockchainParameters)
     }
 
 instance Functor m => Functor (NetworkLayer m tx) where
-     fmap f nl = nl { nextBlocks = fmap (fmap f) . nextBlocks nl }
+    fmap f nl = nl { nextBlocks = fmap (fmap f) . nextBlocks nl
+                   , staticBlockchainParameters = (f block0, bp) }
+      where
+        (block0, bp) = staticBlockchainParameters nl
+
 
 -- | Network is unavailable
 data ErrNetworkUnavailable
@@ -96,31 +99,3 @@ data ErrPostTx
     deriving (Generic, Show, Eq)
 
 instance Exception ErrPostTx
-
--- | Wait until 'networkTip networkLayer' succeeds according to a given
--- retry policy. Throws an exception otherwise.
-waitForConnection
-    :: NetworkLayer IO tx block
-    -> RetryPolicyM IO
-    -> IO ()
-waitForConnection nw policy = do
-    r <- retrying policy shouldRetry (const $ runExceptT (networkTip nw))
-    case r of
-        Right _ -> return ()
-        Left e -> throwIO e
-  where
-    shouldRetry _ = \case
-        Right _ ->
-            return False
-        Left ErrNetworkTipNotFound ->
-            return True
-        Left (ErrNetworkTipNetworkUnreachable e) ->
-            return $ isNetworkUnreachable e
-
--- | A default 'RetryPolicy' with a constant delay, but retries for no longer
--- than a minute.
-defaultRetryPolicy :: Monad m => RetryPolicyM m
-defaultRetryPolicy =
-    limitRetriesByCumulativeDelay (60 * second) (constantDelay (1 * second))
-  where
-    second = 1000*1000

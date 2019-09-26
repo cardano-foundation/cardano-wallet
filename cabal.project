@@ -1,5 +1,4 @@
 packages:
-  cardano-wallet.cabal
   lib/*/*.cabal
 
 flags: +development

@@ -71,6 +71,7 @@ library
     , text-class
     , time
     , transformers
+    , unliftio
     , unordered-containers
     , vector
     , wai
@@ -91,6 +92,7 @@ library
       Cardano.Wallet.DB.Sqlite.TH
       Cardano.Wallet.DB.Sqlite.Types
       Cardano.Wallet.Network
+      Cardano.Wallet.Network.Ports
       Cardano.Wallet.Primitive.AddressDerivation
       Cardano.Wallet.Primitive.AddressDerivation.Random
       Cardano.Wallet.Primitive.AddressDerivation.Sequential
@@ -160,7 +162,6 @@ test-suite unit
     , network
     , QuickCheck
     , quickcheck-state-machine >= 0.6.0
-    , persistent
     , random
     , servant
     , servant-server

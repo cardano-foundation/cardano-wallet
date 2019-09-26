@@ -30,10 +30,13 @@ library
       -Werror
   build-depends:
       base
+    , aeson
     , async
+    , contra-tracer
     , fmt
+    , iohk-monitoring
     , process
-    , say
+    , text
   hs-source-dirs:
       src
   exposed-modules:
@@ -63,6 +66,7 @@ test-suite unit
     , cardano-wallet-launcher
     , fmt
     , hspec
+    , iohk-monitoring
     , text
   build-tools:
       hspec-discover

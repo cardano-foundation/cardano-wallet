@@ -35,7 +35,6 @@ library
     , base
     , bytestring
     , cardano-wallet-core
-    , cardano-wallet-launcher
     , directory
     , extra
     , filepath

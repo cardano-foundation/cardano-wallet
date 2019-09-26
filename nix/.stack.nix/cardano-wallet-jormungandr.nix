@@ -22,16 +22,19 @@
         depends = [
           (hsPkgs.base)
           (hsPkgs.aeson)
+          (hsPkgs.async)
           (hsPkgs.base58-bytestring)
           (hsPkgs.bech32)
           (hsPkgs.binary)
           (hsPkgs.bytestring)
           (hsPkgs.cardano-crypto)
           (hsPkgs.cardano-wallet-core)
+          (hsPkgs.cardano-wallet-launcher)
           (hsPkgs.cborg)
           (hsPkgs.containers)
           (hsPkgs.cryptonite)
           (hsPkgs.deepseq)
+          (hsPkgs.directory)
           (hsPkgs.either)
           (hsPkgs.exceptions)
           (hsPkgs.extra)
@@ -39,6 +42,7 @@
           (hsPkgs.fmt)
           (hsPkgs.http-client)
           (hsPkgs.http-types)
+          (hsPkgs.iohk-monitoring)
           (hsPkgs.lifted-base)
           (hsPkgs.monad-control)
           (hsPkgs.memory)
@@ -50,7 +54,25 @@
           (hsPkgs.text-class)
           (hsPkgs.time)
           (hsPkgs.transformers)
+          (hsPkgs.yaml)
+          (hsPkgs.warp)
           ];
+        };
+      exes = {
+        "cardano-wallet-jormungandr" = {
+          depends = [
+            (hsPkgs.base)
+            (hsPkgs.cardano-wallet-cli)
+            (hsPkgs.cardano-wallet-core)
+            (hsPkgs.cardano-wallet-jormungandr)
+            (hsPkgs.cardano-wallet-launcher)
+            (hsPkgs.filepath)
+            (hsPkgs.iohk-monitoring)
+            (hsPkgs.optparse-applicative)
+            (hsPkgs.process)
+            (hsPkgs.text)
+            ];
+          };
         };
       tests = {
         "unit" = {

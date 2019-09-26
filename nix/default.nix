@@ -36,7 +36,6 @@ let
     modules = [
       # Add source filtering to local packages
       {
-        packages.cardano-wallet.src = src;
         packages.cardano-wallet-core.src = src + /lib/core;
         packages.cardano-wallet-core-integration.src = src + /lib/core-integration;
         packages.cardano-wallet-cli.src = src + /lib/cli;
@@ -64,7 +63,7 @@ let
         };
 
 
-        packages.cardano-wallet.components.exes.cardano-wallet-jormungandr = {
+        packages.cardano-wallet-jormungandr.components.exes.cardano-wallet-jormungandr = {
           build-tools = [ pkgs.makeWrapper];
           postInstall = wrapForPosix ''
             wrapProgram $out/bin/cardano-wallet-jormungandr \
@@ -72,7 +71,7 @@ let
           '';
         };
 
-        packages.cardano-wallet.components.exes.cardano-wallet-http-bridge = {
+        packages.cardano-wallet-http-bridge.components.exes.cardano-wallet-http-bridge = {
           build-tools = [ pkgs.makeWrapper];
           postInstall = wrapForPosix ''
             wrapProgram $out/bin/cardano-wallet-http-bridge \
@@ -91,7 +90,6 @@ let
         };
 
         # Workaround for Haskell.nix issue
-        packages.cardano-wallet.components.all.postInstall = pkgs.lib.mkForce "";
         packages.cardano-wallet-jormungandr.components.all.postInstall = pkgs.lib.mkForce "";
         packages.cardano-wallet-http-bridge.components.all.postInstall = pkgs.lib.mkForce "";
       }

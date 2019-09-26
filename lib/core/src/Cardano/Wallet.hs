@@ -45,7 +45,6 @@ module Cardano.Wallet
     -- * WalletLayer
     -- $WalletLayer
       WalletLayer
-    , BlockchainParameters (..)
     , IsWalletCtx
     , newWalletLayer
 

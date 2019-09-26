@@ -22,6 +22,7 @@ module Cardano.Wallet.HttpBridge.Environment
     -- * Networking
       Network(..)
     , KnownNetwork (..)
+    , Local (..)
     ) where
 
 import Prelude
@@ -43,6 +44,8 @@ import GHC.Generics
 -- | Available network options.
 data Network = Mainnet | Testnet
     deriving (Generic, Show, Eq, Bounded, Enum)
+
+data Local = Local deriving (Show, Eq)
 
 class Typeable n => KnownNetwork (n :: Network) where
     networkVal :: Network

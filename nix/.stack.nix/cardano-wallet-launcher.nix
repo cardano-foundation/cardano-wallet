@@ -18,10 +18,13 @@
       "library" = {
         depends = [
           (hsPkgs.base)
+          (hsPkgs.aeson)
           (hsPkgs.async)
+          (hsPkgs.contra-tracer)
           (hsPkgs.fmt)
+          (hsPkgs.iohk-monitoring)
           (hsPkgs.process)
-          (hsPkgs.say)
+          (hsPkgs.text)
           ] ++ (if system.isWindows
           then [ (hsPkgs.Win32) ]
           else [ (hsPkgs.unix) ]);
@@ -33,6 +36,7 @@
             (hsPkgs.cardano-wallet-launcher)
             (hsPkgs.fmt)
             (hsPkgs.hspec)
+            (hsPkgs.iohk-monitoring)
             (hsPkgs.text)
             ];
           build-tools = [

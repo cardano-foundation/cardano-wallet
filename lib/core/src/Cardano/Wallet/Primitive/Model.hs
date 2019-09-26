@@ -2,7 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
@@ -63,6 +63,7 @@ import Cardano.Wallet.Primitive.Types
     , Dom (..)
     , EpochLength (..)
     , FeePolicy (..)
+    , Hash (..)
     , SlotLength (..)
     , StartTime (..)
     , TxIn (..)
@@ -81,6 +82,8 @@ import Control.Monad
     ( foldM, forM )
 import Control.Monad.Trans.State.Strict
     ( State, evalState, runState, state )
+import Data.ByteArray.Encoding
+    ( Base (Base16), convertToBase )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Labels
@@ -109,6 +112,7 @@ import Numeric.Natural
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Text.Encoding as T
 
 {-------------------------------------------------------------------------------
                                      Type
@@ -170,7 +174,9 @@ instance Buildable s => Buildable (Wallet s t) where
         <> indentF 4 (build s)
 
 data BlockchainParameters = BlockchainParameters
-    { getGenesisBlockDate :: StartTime
+    { getGenesisBlockHash :: Hash "Genesis"
+        -- ^ Hash of the very first block
+    , getGenesisBlockDate :: StartTime
         -- ^ Start time of the chain.
     , getFeePolicy :: FeePolicy
         -- ^ Policy regarding transaction fee.
@@ -188,7 +194,8 @@ instance NFData BlockchainParameters
 
 instance Buildable BlockchainParameters where
     build bp = blockListF' "" id
-        [ "Genesis block date: " <> startTimeF (getGenesisBlockDate bp)
+        [ "Genesis block hash: " <> genesisF (getGenesisBlockHash bp)
+        , "Genesis block date: " <> startTimeF (getGenesisBlockDate bp)
         , "Fee policy:         " <> feePolicyF (getFeePolicy bp)
         , "Slot length:        " <> slotLengthF (getSlotLength bp)
         , "Epoch length:       " <> epochLengthF (getEpochLength bp)
@@ -196,6 +203,7 @@ instance Buildable BlockchainParameters where
         , "Epoch stability:    " <> epochStabilityF (getEpochStability bp)
         ]
       where
+        genesisF = build . T.decodeUtf8 . convertToBase Base16 . getHash
         startTimeF (StartTime s) = build s
         feePolicyF = build . toText
         slotLengthF (SlotLength s) = build s

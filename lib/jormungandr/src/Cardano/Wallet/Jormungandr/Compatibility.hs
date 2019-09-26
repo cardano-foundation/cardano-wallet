@@ -26,6 +26,8 @@ module Cardano.Wallet.Jormungandr.Compatibility
     , BaseUrl (..)
     , Scheme (..)
     , genConfigFile
+    , localhostBaseUrl
+    , baseUrlToText
     ) where
 
 import Prelude
@@ -38,6 +40,8 @@ import Cardano.Wallet.Jormungandr.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
+import Cardano.Wallet.Network.Ports
+    ( PortNumber )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
@@ -75,7 +79,7 @@ import Data.Text.Class
 import Data.Word
     ( Word16 )
 import Servant.Client.Core
-    ( BaseUrl (..), Scheme (..) )
+    ( BaseUrl (..), Scheme (..), showBaseUrl )
 import System.FilePath
     ( FilePath, (</>) )
 
@@ -218,7 +222,7 @@ instance KnownNetwork n => DecodeAddress (Jormungandr n) where
 -- | Generate a configuration file for Jörmungandr@0.3.999
 genConfigFile
     :: FilePath
-    -> Int
+    -> PortNumber
     -> BaseUrl
     -> Aeson.Value
 genConfigFile stateDir addressPort (BaseUrl _ host port _) = object
@@ -237,3 +241,14 @@ genConfigFile stateDir addressPort (BaseUrl _ host port _) = object
   where
     listen = T.pack $ mconcat [host, ":", show port]
     publicAddress = T.pack $ mconcat ["/ip4/127.0.0.1/tcp/", show addressPort]
+
+{-------------------------------------------------------------------------------
+                                     Base URL
+-------------------------------------------------------------------------------}
+
+localhostBaseUrl :: Int -> BaseUrl
+localhostBaseUrl port = BaseUrl Http "127.0.0.1" port "/api"
+
+-- | Format an API 'BaseUrl', for logging, etc.
+baseUrlToText :: BaseUrl -> T.Text
+baseUrlToText = T.pack . showBaseUrl

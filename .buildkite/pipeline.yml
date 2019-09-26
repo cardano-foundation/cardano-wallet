@@ -22,7 +22,7 @@ steps:
       system: x86_64-linux
 
   - label: 'HLint'
-    command: 'nix-shell --run "hlint exe lib"'
+    command: 'nix-shell --run "hlint lib"'
     agents:
       system: x86_64-linux
 

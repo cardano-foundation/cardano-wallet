@@ -21,10 +21,27 @@ module Cardano.Wallet.HttpBridge.Network
     , mkNetworkLayer
     , newNetworkLayer
     , mkHttpBridgeLayer
+
+    -- * Launching
+    , withNetworkLayer
+    , HttpBridgeBackend(..)
+    , HttpBridgeConfig(..)
+
+    -- * Errors
+    , ErrStartup (..)
     ) where
 
 import Prelude
 
+import Cardano.BM.Trace
+    ( Trace, logDebug, logInfo )
+import Cardano.Launcher
+    ( Command (Command)
+    , ProcessHasExited
+    , StdStream (..)
+    , transformLauncherTrace
+    , withBackendProcess
+    )
 import Cardano.Wallet.HttpBridge.Api
     ( ApiT (..)
     , EpochIndex (..)
@@ -35,8 +52,10 @@ import Cardano.Wallet.HttpBridge.Api
     , PostSignedTx
     , api
     )
+import Cardano.Wallet.HttpBridge.Compatibility
+    ( block0, byronBlockchainParameters )
 import Cardano.Wallet.HttpBridge.Environment
-    ( KnownNetwork (..), Network (..) )
+    ( KnownNetwork (..), Local (..), Network (..) )
 import Cardano.Wallet.HttpBridge.Primitive.Types
     ( Tx )
 import Cardano.Wallet.Network
@@ -46,6 +65,8 @@ import Cardano.Wallet.Network
     , ErrPostTx (..)
     , NetworkLayer (..)
     )
+import Cardano.Wallet.Network.Ports
+    ( PortNumber, defaultRetryPolicy, getRandomPort, waitForPort )
 import Cardano.Wallet.Primitive.Types
     ( Block (..), BlockHeader (..), Hash (..), SlotId (..), TxWitness )
 import Control.Arrow
@@ -66,8 +87,10 @@ import Data.ByteArray
     ( convert )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Text
+    ( Text )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..), showT )
 import Data.Word
     ( Word64 )
 import Network.HTTP.Client
@@ -86,12 +109,63 @@ import Servant.Links
     ( Link, safeLink )
 
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Servant.Extra.ContentTypes as Api
 
+data HttpBridgeBackend
+    = UseRunning PortNumber
+    | Launch HttpBridgeConfig
+    deriving (Show, Eq)
+
+data HttpBridgeConfig = HttpBridgeConfig
+    { _networkName :: Either Local Network
+    , _stateDir :: Maybe FilePath
+    , _restApiPort :: Maybe PortNumber
+    , _extraArgs :: [String]
+    , _outputStream :: StdStream
+    } deriving (Show, Eq)
+
+withNetworkLayer
+    :: forall n a. KnownNetwork n
+    => Trace IO Text
+    -> HttpBridgeBackend
+    -> (Either ErrStartup (PortNumber, NetworkLayer IO Tx (Block Tx)) -> IO a)
+    -> IO a
+withNetworkLayer tr (UseRunning port) cb = do
+    nl <- newNetworkLayer @n port
+    logInfo tr $ "Using cardano-http-bridge port " <> T.pack (show port)
+    cb (Right (port, nl))
+withNetworkLayer tr (Launch cfg) cb = do
+    res <- withHttpBridge tr cfg $ \port ->
+        withNetworkLayer @n tr (UseRunning port) cb
+    either (cb . Left) pure res
+
+withHttpBridge :: Trace IO Text -> HttpBridgeConfig -> (PortNumber -> IO a) -> IO (Either ErrStartup a)
+withHttpBridge tr (HttpBridgeConfig network stateDir mPort extraArgs output) cb = do
+    nodePort <- maybe getRandomPort pure mPort
+    let args = mconcat
+                [ [ "start" ]
+                , [ "--port", show nodePort ]
+                , [ "--template", case network of
+                        Left Local -> "local"
+                        Right n -> showT n
+                  ]
+                , maybe [] (\d -> ["--networks-dir", d]) stateDir
+                , extraArgs
+                ]
+    let cmd = Command "cardano-http-bridge" args (return ()) output
+    let tr' = transformLauncherTrace tr
+    res <- withBackendProcess tr' cmd $ do
+        logDebug tr $ "Waiting for cardano-http-bridge port " <> T.pack (show nodePort)
+        waitForPort defaultRetryPolicy nodePort >>= \case
+            True -> Right <$> cb nodePort
+            False -> pure $ Left ErrStartupNodeNotListening
+    pure $ either (Left . ErrStartupCommandExited) id res
+
 -- | Constructs a network layer with the given cardano-http-bridge API.
 mkNetworkLayer
-    :: forall m. (Monad m)
+    :: forall n m. (Monad m, KnownNetwork (n :: Network))
     => HttpBridgeLayer m
     -> NetworkLayer m Tx (Block Tx)
 mkNetworkLayer httpBridge = NetworkLayer
@@ -100,15 +174,16 @@ mkNetworkLayer httpBridge = NetworkLayer
     , networkTip =
         snd <$> getNetworkTip httpBridge
     , postTx = postSignedTx httpBridge
+    , staticBlockchainParameters = (block0, byronBlockchainParameters @n)
     }
 
 -- | Creates a cardano-http-bridge 'NetworkLayer' using the given connection
 -- settings.
 newNetworkLayer
     :: forall n. KnownNetwork (n :: Network)
-    => Int
+    => PortNumber
     -> IO (NetworkLayer IO Tx (Block Tx))
-newNetworkLayer port = mkNetworkLayer <$> newHttpBridgeLayer @n port
+newNetworkLayer port = mkNetworkLayer @n <$> newHttpBridgeLayer @n port
 
 -- | Retrieve a chunk of blocks from cardano-http-bridge.
 --
@@ -301,8 +376,18 @@ hashToApi' h = case hashToApi h of
     Nothing -> fail "hashToApi: Digest was of the wrong length"
 
 -- | Creates a cardano-http-bridge API with the given connection settings.
-newHttpBridgeLayer :: forall n. KnownNetwork n => Int -> IO (HttpBridgeLayer IO)
+newHttpBridgeLayer :: forall n. KnownNetwork n => PortNumber -> IO (HttpBridgeLayer IO)
 newHttpBridgeLayer port = do
     mgr <- newManager defaultManagerSettings
-    let baseUrl = BaseUrl Http "localhost" port ""
+    let baseUrl = localhostBaseUrl port
     pure $ mkHttpBridgeLayer mgr baseUrl (NetworkName $ toText $ networkVal @n)
+
+localhostBaseUrl :: PortNumber -> BaseUrl
+localhostBaseUrl port = BaseUrl Http "localhost" (fromIntegral port) ""
+
+data ErrStartup
+    = ErrStartupNodeNotListening
+    | ErrStartupCommandExited ProcessHasExited
+    deriving (Show, Eq)
+
+instance Exception ErrStartup

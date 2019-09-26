@@ -34,7 +34,7 @@ import System.Process
     , withCreateProcess
     )
 import Test.Hspec
-    ( Spec, SpecWith, describe, it, pendingWith, runIO )
+    ( Spec, SpecWith, describe, it, runIO )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldReturn )
 import Test.Integration.Framework.DSL
@@ -95,9 +95,11 @@ spec = do
             waitForProcess ph `shouldReturn` ExitSuccess
 
     describe "LOGGING - cardano-wallet serve logging" $ do
-        it "LOGGING - Launch can log --verbose" $ \_ -> do
+        it "LOGGING - Launch can log --verbose" $ \ctx -> do
             let args =
                     ["serve"
+                    , "--node-port"
+                    , show (ctx ^. typed @(Port "node"))
                     , "--random-port"
                     , "--verbose"
                     , "--genesis-hash"
@@ -110,10 +112,11 @@ spec = do
             out `shouldContainT` "Info"
             out `shouldContainT` "Notice"
 
-        it "LOGGING - Serve --quiet logs Error only" $ \_ -> do
-            pendingWith "The assertion in this test case is wrong."
+        it "LOGGING - Serve --quiet logs Error only" $ \ctx -> do
             let args =
                     ["serve"
+                    , "--node-port"
+                    , show (ctx ^. typed @(Port "node"))
                     , "--random-port"
                     , "--quiet"
                     , "--genesis-hash"
@@ -124,9 +127,11 @@ spec = do
             out `shouldBe` mempty
             err `shouldBe` mempty
 
-        it "LOGGING - Serve default logs Info" $ \_ -> do
+        it "LOGGING - Serve default logs Info" $ \ctx -> do
             let args =
                     ["serve"
+                    , "--node-port"
+                    , show (ctx ^. typed @(Port "node"))
                     , "--random-port"
                     , "--genesis-hash"
                     , block0H
@@ -141,11 +146,14 @@ spec = do
 specNoBackend :: forall t. KnownCommand t => Spec
 specNoBackend = do
     it "TIMEOUT - Times out gracefully after 60 seconds" $ do
+        unusedPort <- findPort
         let args =
                 ["serve"
                 , "--random-port"
                 , "--genesis-hash"
                 , "1234"
+                , "--node-port"
+                , show unusedPort
                 ]
         let process = proc' (commandName @t) args
         (out, err) <- collectStreams (61, 61) process
