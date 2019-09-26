@@ -63,7 +63,7 @@ import Cardano.Wallet.Jormungandr.Api
     , api
     )
 import Cardano.Wallet.Jormungandr.Binary
-    ( ConfigParam (..), Message (..), coerceBlock )
+    ( ConfigParam (..), Message (..), convertBlock )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( softTxMaxSize )
 import Cardano.Wallet.Jormungandr.Primitive.Types
@@ -172,7 +172,7 @@ mkNetworkLayer
     => MVar UnstableBlocks
     -> JormungandrLayer m
     -> NetworkLayer m Tx (Block Tx)
-mkNetworkLayer st j = coerceBlock <$> mkRawNetworkLayer st j
+mkNetworkLayer st j = convertBlock <$> mkRawNetworkLayer st j
 
 -- | Wrap a Jormungandr client into a 'NetworkLayer' common interface.
 --
@@ -219,7 +219,7 @@ mkRawNetworkLayer st j = NetworkLayer
     getBlockHeader t = do
         blk@(J.Block blkHeader _) <- getBlock' t
         let nodeHeight = Quantity $ fromIntegral $ J.chainLength blkHeader
-        pure (header (coerceBlock blk), nodeHeight)
+        pure (header (convertBlock blk), nodeHeight)
 
     mappingError = flip withExceptT
 
@@ -522,7 +522,7 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
         case (mpolicy, mduration, mblock0Date, mepochLength, mStability) of
             ([policy],[duration],[block0Date], [epochLength], [stability]) ->
                 return
-                    ( coerceBlock jblock
+                    ( convertBlock jblock
                     , BlockchainParameters
                         { getGenesisBlockDate = block0Date
                         , getFeePolicy = policy
