@@ -1,6 +1,5 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Faucet
     ( initFaucet
@@ -17,7 +16,7 @@ import Cardano.Wallet.Primitive.Mnemonic
 import Cardano.Wallet.Primitive.Types
     ( Hash (..) )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex, unsafeMkMnemonic )
+    ( unsafeMkMnemonic )
 import Control.Concurrent.MVar
     ( newMVar )
 import Data.ByteArray.Encoding
@@ -27,7 +26,6 @@ import Data.Text
 import Test.Integration.Faucet
     ( Faucet (..) )
 
-import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text.Encoding as T
 
@@ -38,18 +36,15 @@ initFaucet =
     Faucet <$> newMVar mnemonics
 
 getBlock0H :: IO (Hash "Genesis")
-getBlock0H =
-    Hash . unsafeFromHex . T.encodeUtf8 <$> getBlock0HText
-
-getBlock0HText :: IO Text
-getBlock0HText =
-    toHex . extractId <$> BL.readFile block0
+getBlock0H = extractId <$> BL.readFile block0
   where
     block0 = "test/data/jormungandr/block0.bin"
-    extractId = getHash . runGet getBlockId
-    toHex :: BS.ByteString -> Text
-    toHex = T.decodeUtf8
-        . convertToBase @BS.ByteString @BS.ByteString Base16
+    extractId = Hash . getHash . runGet getBlockId
+
+getBlock0HText :: IO Text
+getBlock0HText = toHex <$> getBlock0H
+  where
+    toHex = T.decodeUtf8 . convertToBase Base16 . getHash
 
 mnemonics :: [Mnemonic 15]
 mnemonics = unsafeMkMnemonic <$>
