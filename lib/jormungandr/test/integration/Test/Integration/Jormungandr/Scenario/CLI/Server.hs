@@ -13,7 +13,7 @@ import Prelude
 import Cardano.CLI
     ( Port (..) )
 import Cardano.Faucet
-    ( block0HText )
+    ( getBlock0HText )
 import Control.Concurrent
     ( threadDelay )
 import Control.Exception
@@ -34,7 +34,7 @@ import System.Process
     , withCreateProcess
     )
 import Test.Hspec
-    ( Spec, SpecWith, describe, it, pendingWith )
+    ( Spec, SpecWith, describe, it, pendingWith, runIO )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldReturn )
 import Test.Integration.Framework.DSL
@@ -55,7 +55,7 @@ import qualified Data.Text as T
 
 spec :: forall t. KnownCommand t => SpecWith (Context t)
 spec = do
-    let block0H = T.unpack block0HText
+    block0H <- runIO $ T.unpack <$> getBlock0HText
     describe "SERVER - cardano-wallet serve [SERIAL]" $ do
         it "SERVER - Can start cardano-wallet serve --database" $ \_ -> do
             withTempDir $ \d -> do

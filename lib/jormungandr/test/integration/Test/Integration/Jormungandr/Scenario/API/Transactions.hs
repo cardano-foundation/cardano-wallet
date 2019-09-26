@@ -17,7 +17,7 @@ import Prelude
 import Cardano.CLI
     ( Port )
 import Cardano.Faucet
-    ( block0H )
+    ( getBlock0H )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiFee
@@ -465,7 +465,7 @@ fixtureExternalTx ctx toSend = do
             [ TxOut addrDest' (Coin (fromIntegral toSend))
             , TxOut addrChng (Coin (fromIntegral $ amt - toSend - fee))
             ]
-    let tl = newTransactionLayer @'Testnet block0H
+    tl <- newTransactionLayer @'Testnet <$> getBlock0H
     let (Right txWits) = mkStdTx tl keystore theInps theOuts
 
     return ExternalTxFixture

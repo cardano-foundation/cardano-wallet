@@ -1,13 +1,17 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Faucet
     ( initFaucet
-    , block0H
-    , block0HText
+    , getBlock0H
+    , getBlock0HText
     ) where
 
 import Prelude
 
+import Cardano.Wallet.Jormungandr.Binary
+    ( getBlockId, runGet )
 import Cardano.Wallet.Primitive.Mnemonic
     ( Mnemonic )
 import Cardano.Wallet.Primitive.Types
@@ -16,25 +20,36 @@ import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeMkMnemonic )
 import Control.Concurrent.MVar
     ( newMVar )
+import Data.ByteArray.Encoding
+    ( Base (..), convertToBase )
 import Data.Text
     ( Text )
 import Test.Integration.Faucet
     ( Faucet (..) )
 
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text.Encoding as T
 
 -- | Initialize a bunch of faucet wallets and make them available for the
 -- integration tests scenarios.
 initFaucet :: IO Faucet
-initFaucet = do
+initFaucet =
     Faucet <$> newMVar mnemonics
 
-block0H :: Hash "Genesis"
-block0H = Hash $ unsafeFromHex (T.encodeUtf8 block0HText)
+getBlock0H :: IO (Hash "Genesis")
+getBlock0H =
+    Hash . unsafeFromHex . T.encodeUtf8 <$> getBlock0HText
 
-block0HText :: Text
-block0HText = "4c05c5bb1dfa2848a2a36249b28d97ef8e6c77c7cb1f9626d1c4024c2470a2c2"
-    -- ^ jcli genesis hash --input test/data/jormungandr/block0.bin
+getBlock0HText :: IO Text
+getBlock0HText =
+    toHex . extractId <$> BL.readFile block0
+  where
+    block0 = "test/data/jormungandr/block0.bin"
+    extractId = getHash . runGet getBlockId
+    toHex :: BS.ByteString -> Text
+    toHex = T.decodeUtf8
+        . convertToBase @BS.ByteString @BS.ByteString Base16
 
 mnemonics :: [Mnemonic 15]
 mnemonics = unsafeMkMnemonic <$>
