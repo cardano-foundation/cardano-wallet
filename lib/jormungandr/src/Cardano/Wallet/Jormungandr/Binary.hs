@@ -39,8 +39,9 @@ module Cardano.Wallet.Jormungandr.Binary
     , putSignedTx
     , putTx
 
-    -- * Coercion with business-domain
-    , coerceBlock
+    -- * Purification of chain block types
+    , convertBlock
+    , convertBlockHeader
 
     -- * Addresses
     , putAddress
@@ -167,8 +168,10 @@ data BlockHeader = BlockHeader
     , parentHeaderHash :: Hash "BlockHeader"
     } deriving (Show, Eq)
 
-data Block = Block BlockHeader [Message]
-    deriving (Eq, Show)
+data Block = Block
+    { header :: BlockHeader
+    , messages :: [Message]
+    } deriving (Eq, Show)
 
 getBlockHeader :: Get BlockHeader
 getBlockHeader = label "getBlockHeader" $
@@ -209,8 +212,8 @@ getBlockHeader = label "getBlockHeader" $
 getBlock :: Get Block
 getBlock = label "getBlock" $ do
     header <- getBlockHeader
-    msgs <- isolate (fromIntegral $ contentSize header) (many getMessage)
-    return $ Block header msgs
+    messages <- isolate (fromIntegral $ contentSize header) (many getMessage)
+    return $ Block{header,messages}
 
 -- | Extract a 'Block' id from a serialized 'Block'.
 getBlockId :: Get (Hash "BlockHeader")
@@ -613,16 +616,21 @@ signData inps outs =
                                 Conversions
 -------------------------------------------------------------------------------}
 
-coerceBlock  :: Block -> W.Block Tx
-coerceBlock (Block h msgs) =
-    W.Block coerceHeader coerceMessages
+-- | Convert the Jörmungandr binary format block into a simpler Wallet block.
+convertBlock :: Block -> W.Block Tx
+convertBlock (Block h msgs) =
+    W.Block (convertBlockHeader h) coerceMessages
   where
-    coerceHeader = W.BlockHeader (slot h) (bh h) (parentHeaderHash h)
-    bh = Quantity . fromIntegral . chainLength
     coerceMessages = msgs >>= \case
         Initial _ -> []
         Transaction (tx, _wits) -> return tx
         UnimplementedMessage _ -> []
+
+-- | Convert the Jörmungandr binary format header into a simpler Wallet header.
+convertBlockHeader :: BlockHeader -> W.BlockHeader
+convertBlockHeader h = W.BlockHeader (slot h) (bh h) (parentHeaderHash h)
+  where
+    bh = Quantity . fromIntegral . chainLength
 
 {-------------------------------------------------------------------------------
                               Legacy Decoders

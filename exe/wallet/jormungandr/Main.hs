@@ -68,7 +68,7 @@ import Cardano.Wallet.DaedalusIPC
 import Cardano.Wallet.DB
     ( DBLayer )
 import Cardano.Wallet.Jormungandr.Binary
-    ( coerceBlock, getBlockId, runGetOrFail )
+    ( convertBlock, getBlockId, runGetOrFail )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( BaseUrl (..), Jormungandr, Scheme (..), genConfigFile )
 import Cardano.Wallet.Jormungandr.Environment
@@ -337,7 +337,7 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
                 Left (ErrGetBlockchainParamsIncompleteParams _) ->
                     handleNoInitialPolicy tracer
 
-            let nl' = coerceBlock <$> nl
+            let nl' = convertBlock <$> nl
             let tl = Jormungandr.newTransactionLayer @n block0H
             Wallet.newWalletLayer tracer blockchainParams db nl' tl
 
