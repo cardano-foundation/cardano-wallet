@@ -485,8 +485,6 @@ instance NFData PoolId
 instance Buildable PoolId where
     build poolId = mempty
         <> prefixF 8 poolIdF
-        <> "..."
-        <> suffixF 8 poolIdF
       where
         poolIdF = build (toText poolId)
 
@@ -548,13 +546,12 @@ data BlockHeader = BlockHeader
 instance NFData BlockHeader
 
 instance Buildable BlockHeader where
-    build (BlockHeader s (Quantity bh) prev) = "Block ("
+    build (BlockHeader s (Quantity bh) prev) =
+        prefixF 8 prevF
+        <> " ⬸ ["
         <> build s
         <> "#" <> build (show bh)
-        <> ") -> "
-        <> prefixF 8 prevF
-        <> "..."
-        <> suffixF 8 prevF
+        <> "]"
       where
         prevF = build $ T.decodeUtf8 $ convertToBase Base16 $ getHash prev
 
@@ -1168,16 +1165,12 @@ instance NFData (Hash tag)
 instance Buildable (Hash "BlockHeader") where
     build h = mempty
         <> prefixF 8 builder
-        <> "..."
-        <> suffixF 8 builder
       where
         builder = T.decodeUtf8 . convertToBase Base16 . getHash $ h
 
 instance Buildable (Hash "Tx") where
     build h = mempty
         <> prefixF 8 builder
-        <> "..."
-        <> suffixF 8 builder
       where
         builder = build . toText $ h
 
