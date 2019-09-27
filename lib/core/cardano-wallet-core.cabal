@@ -247,6 +247,7 @@ benchmark db
     , cryptonite
     , deepseq
     , directory
+    , filepath
     , fmt
     , iohk-monitoring
     , memory

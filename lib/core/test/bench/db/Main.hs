@@ -43,7 +43,7 @@ import Cardano.BM.Data.Tracer
 import Cardano.Wallet.DB
     ( DBLayer (..), PrimaryKey (..), cleanDB )
 import Cardano.Wallet.DB.Sqlite
-    ( newDBLayer )
+    ( SqliteContext, destroyDBLayer, newDBLayer )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx (..), block0, genesisParameters )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -87,6 +87,8 @@ import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.DeepSeq
     ( NFData (..), force )
+import Control.Exception
+    ( bracket )
 import Control.Monad
     ( forM_ )
 import Criterion.Main
@@ -104,6 +106,8 @@ import Crypto.Hash
     ( hash )
 import Data.ByteString
     ( ByteString )
+import Data.Functor
+    ( ($>) )
 import Data.List.Split
     ( chunksOf )
 import Data.Quantity
@@ -115,9 +119,11 @@ import Data.Typeable
 import Data.Word
     ( Word64 )
 import Fmt
-    ( pretty, (+|), (|+) )
+    ( commaizeF, padLeftF, padRightF, pretty, (+|), (|+) )
 import System.Directory
-    ( doesFileExist, removeFile )
+    ( doesFileExist, getFileSize, removeFile )
+import System.FilePath
+    ( takeFileName )
 import System.IO.Temp
     ( emptySystemTempFile )
 import System.IO.Unsafe
@@ -130,13 +136,16 @@ import qualified Data.ByteString.Char8 as B8
 import qualified Data.Map.Strict as Map
 
 main :: IO ()
-main = defaultMain
-    [ withDB bgroupWriteUTxO
-    , withDB bgroupReadUTxO
-    , withDB bgroupSeqState
-    , withDB bgroupWriteTxHistory
-    , withDB bgroupReadTxHistory
-    ]
+main = do
+    defaultMain
+        [ withDB bgroupWriteUTxO
+        , withDB bgroupReadUTxO
+        , withDB bgroupSeqState
+        , withDB bgroupWriteTxHistory
+        , withDB bgroupReadTxHistory
+        ]
+    putStrLn "\n--"
+    utxoDiskSpaceTests
 
 ----------------------------------------------------------------------------
 -- UTxO Benchmarks
@@ -308,14 +317,18 @@ bgroupReadTxHistory db = bgroup "TxHistory (Read)"
 -- | Sets up a benchmark environment with the SQLite DBLayer using a file
 -- database in a temporary location.
 withDB :: (DBLayerBench -> Benchmark) -> Benchmark
-withDB bm = envWithCleanup setup cleanup (\ ~(_, db) -> bm db)
+withDB bm = envWithCleanup setupDB cleanupDB (\ ~(_, _, db) -> bm db)
+
+setupDB :: IO (FilePath, SqliteContext, DBLayerBench)
+setupDB = do
+    logConfig <- CM.empty
+    f <- emptySystemTempFile "bench.db"
+    (ctx, db) <- newDBLayer logConfig nullTracer (Just f)
+    pure (f, ctx, db)
+
+cleanupDB :: (FilePath, SqliteContext, DBLayerBench) -> IO ()
+cleanupDB (db, _, _) = mapM_ remove [db, db <> "-shm", db <> "-wal"]
   where
-    setup = do
-        logConfig <- CM.empty
-        f <- emptySystemTempFile "bench.db"
-        (_, db) <- newDBLayer logConfig nullTracer (Just f)
-        pure (f, db)
-    cleanup (f, _) = mapM_ remove [f, f <> "-shm", f <> "-wal"]
     remove f = doesFileExist f >>= \case
         True -> removeFile f
         False -> pure ()
@@ -328,10 +341,12 @@ withCleanDB
     => DBLayerBench
     -> (DBLayerBench -> IO b)
     -> Benchmarkable
-withCleanDB db = perRunEnv $ do
+withCleanDB db = perRunEnv (walletFixture db $> db)
+
+walletFixture :: DBLayerBench -> IO ()
+walletFixture db = do
     cleanDB db
     unsafeRunExceptT $ createWallet db testPk testCp testMetadata mempty
-    pure db
 
 ----------------------------------------------------------------------------
 -- TxHistory benchmarks
@@ -456,12 +471,60 @@ mkPool numAddrs i = mkAddressPool ourAccount defaultAddressPoolGap addrs
         | j <- [1..numAddrs] ]
 
 ----------------------------------------------------------------------------
+-- Disk space usage tests
+--
+-- These are not proper criterion benchmarks but use the benchmark test data to
+-- measure size on disk of the database and its temporary files.
+
+utxoDiskSpaceTests :: IO ()
+utxoDiskSpaceTests = do
+    putStrLn "Database disk space usage tests for UTxO\n"
+    sequence_
+        --      #Checkpoints   UTxO Size
+        [ bUTxO          100           0
+        , bUTxO         1000           0
+        , bUTxO           10          10
+        , bUTxO          100          10
+        , bUTxO         1000          10
+        , bUTxO           10         100
+        , bUTxO          100         100
+        , bUTxO         1000         100
+        , bUTxO           10        1000
+        , bUTxO          100        1000
+        , bUTxO         1000        1000
+        ]
+  where
+    bUTxO n s = benchDiskSize $ \db -> do
+        putStrLn ("File size (bytes)/"+|n|+" CP x "+|s|+" UTxO")
+        walletFixture db
+        benchPutUTxO n s db
+
+benchDiskSize :: (DBLayerBench -> IO ()) -> IO ()
+benchDiskSize action = bracket setupDB cleanupDB $ \(f, ctx, db) -> do
+    action db
+    mapM_ (printFileSize "") [f, f <> "-shm", f <> "-wal"]
+    destroyDBLayer ctx
+    printFileSize " (closed)" f
+    putStrLn ""
+  where
+    printFileSize sfx f = do
+        size <- doesFileExist f >>= \case
+            True -> Just <$> getFileSize f
+            False -> pure Nothing
+        putStrLn $ "  " +|
+            padRightF 28 ' ' (takeFileName f ++ sfx) <>
+            padLeftF 20 ' ' (maybe "-" commaizeF size)
+
+----------------------------------------------------------------------------
 -- Mock data to use for benchmarks
 
 type DBLayerBench = DBLayer IO (SeqState DummyTarget) DummyTarget SeqKey
 type WalletBench = Wallet (SeqState DummyTarget) DummyTarget
 
 instance NFData (DBLayer m s t k) where
+    rnf _ = ()
+
+instance NFData SqliteContext where
     rnf _ = ()
 
 testCp :: WalletBench
