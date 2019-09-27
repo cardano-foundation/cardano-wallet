@@ -167,10 +167,8 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
     exec (LaunchArgs listen nodePort mStateDir verbosity jArgs) = do
         let minSeverity = verbosityToMinSeverity verbosity
         (cfg, sb, tr) <- initTracer minSeverity "launch"
-
         requireFilePath (genesisBlock jArgs)
         requireFilePath (secretFile jArgs)
-
         let stateDir = fromMaybe (dataDir </> "testnet") mStateDir
         let dbFile = stateDir </> "wallet.db"
         let cp = JormungandrConfig
@@ -181,9 +179,8 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
                 , _minSeverity = minSeverity
                 , _outputStream = Inherit
                 }
-
-        logInfo tr $ "Running as v" <> T.pack (showVersion version)
         setupStateDir (logInfo tr) stateDir
+        logInfo tr $ "Running as v" <> T.pack (showVersion version)
         exitWith =<< serveWallet (cfg, sb, tr) (Just dbFile) listen (Launch cp)
 
 {-------------------------------------------------------------------------------

@@ -74,14 +74,13 @@ spec = do
     let block0 = "test/data/jormungandr/block0.bin"
     let secret = "test/data/jormungandr/secret.yaml"
     describe "LAUNCH - cardano-wallet launch [SERIAL]" $ do
-        it "LAUNCHx - Stop when --state-dir is an existing file" $ withTempFile $ \f _ -> do
+        it "LAUNCH - Stop when --state-dir is an existing file" $ withTempFile $ \f _ -> do
             let args =
                     [ "launch"
                     , "--genesis-block", block0
                     , "--secret", secret
                     , "--state-dir", f
                     ]
-
             (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t args
             c `shouldBe` ExitFailure 1
             o `shouldBe` mempty
@@ -151,11 +150,9 @@ spec = do
                     , "--genesis-block", secret
                     , "--secret", secret
                     ]
-            (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t args
+            (Exit c, Stdout o, Stderr _) <- cardanoWalletCLI @t args
             c `shouldBe` ExitFailure 1
-            o `shouldBe` mempty
-            e `shouldContain`
-                ("As far as I can tell, this isn't a valid block file: " <> secret)
+            o `shouldContain` ("As far as I can tell, this isn't a valid block file: " <> secret)
 
         it "LAUNCH - Non-Existing files for --secret" $ do
             let secret' = secret <> ".doesnexist"

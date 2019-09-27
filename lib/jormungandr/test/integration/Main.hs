@@ -106,7 +106,7 @@ instance KnownCommand (Jormungandr n) where
 
 main :: forall t. (t ~ Jormungandr 'Testnet) => IO ()
 main = hspec $ do
-    describe "PR_DISABLED Server CLI timeout test" $ parallel (ServerCLI.specNoBackend @t)
+    describe "Server CLI timeout test" $ parallel (ServerCLI.specNoBackend @t)
     describe "Cardano.Wallet.NetworkSpec" $ parallel Network.spec
     describe "Mnemonics CLI tests" $ parallel (MnemonicsCLI.spec @t)
     describe "Miscellaneous CLI tests" $ parallel (MiscellaneousCLI.spec @t)
@@ -114,13 +114,13 @@ main = hspec $ do
     describe "Launcher CLI tests" $ parallel (LauncherCLI.spec @t)
     beforeAll (start Nothing) $ afterAll _cleanup $ after tearDown $ do
         -- API e2e Testing
-        describe "PR_DISABLED Addresses API endpoint tests" Addresses.spec
-        describe "PR_DISABLED Transactions API endpoint tests" Transactions.spec
+        describe "Addresses API endpoint tests" Addresses.spec
+        describe "Transactions API endpoint tests" Transactions.spec
         describe "Transactions API endpoint tests (Jormungandr specific)"
             (TransactionsApiJormungandr.spec @t)
         describe "Transactions CLI endpoint tests (Jormungandr specific)"
             (TransactionsCliJormungandr.spec @t)
-        describe "PR_DISABLED Wallets API endpoint tests" Wallets.spec
+        describe "Wallets API endpoint tests" Wallets.spec
         -- Command-Line e2e Testing
         describe "Addresses CLI tests" (AddressesCLI.spec @t)
         describe "Server CLI tests" (ServerCLI.spec @t)
@@ -184,8 +184,7 @@ withCardanoWalletServer jmConfig mlisten action = do
             handle1 <- async $ do
                 let tl = Jormungandr.newTransactionLayer (getGenesisBlockHash bp)
                 wallet <- newWalletLayer tracer (block0, bp) db nl tl
-                unusedPort <- findPort
-                let listen = fromMaybe (ListenOnPort unusedPort) mlisten
+                let listen = fromMaybe (ListenOnPort $ getPort defaultPort) mlisten
                 Server.withListeningSocket listen $ \(port, socket) -> do
                     let settings = Warp.defaultSettings
                             & setBeforeMainLoop (putMVar mvar (Port port))
