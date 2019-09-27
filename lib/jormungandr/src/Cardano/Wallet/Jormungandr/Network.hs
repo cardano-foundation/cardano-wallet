@@ -739,7 +739,7 @@ data ErrStartup
     | ErrStartupCommandExited ProcessHasExited
     deriving (Show, Eq)
 
-data ErrGetStakeDistribution
+newtype ErrGetStakeDistribution
     = ErrGetStakeDistributionNetworkUnreachable ErrNetworkUnavailable
     deriving (Show, Eq)
 

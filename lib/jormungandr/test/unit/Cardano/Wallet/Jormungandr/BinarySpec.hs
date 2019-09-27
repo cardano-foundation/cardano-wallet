@@ -23,6 +23,9 @@ import Cardano.Wallet.Jormungandr.Binary
     , Message (..)
     , MessageType (..)
     , Milli (..)
+    , Stake (..)
+    , StakeDistribution (..)
+    , StakePools (..)
     , fragmentId
     , getAddress
     , getBlock
@@ -46,6 +49,7 @@ import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
     , Hash (..)
+    , PoolId (..)
     , SlotId (..)
     , StartTime (..)
     , TxIn (..)
@@ -60,6 +64,8 @@ import Control.Monad
     ( forM_ )
 import Control.Monad.IO.Class
     ( liftIO )
+import Data.Aeson
+    ( eitherDecode )
 import Data.ByteString
     ( ByteString )
 import Data.Either
@@ -254,6 +260,63 @@ spec = do
             res <- try' (runGet getAddress (BL.fromStrict $ unsafeFromHex hex))
             res `shouldSatisfy` isRight
 
+        it "example stake endpoint response is properly decoded" $ do
+            let exampleStake = "{\"epoch\": 252054,\"stake\": {\"dangling\":0,\"\
+                    \pools\":[[\"7d749ef424507fb80fed0d2289d535a94f6870add0cf8b3\
+                    \74cfe6cae078320ec\",1]],\"unassigned\":100100000000000}}"
+            decodeJSON exampleStake `shouldBe`
+                Right StakeDistribution {
+                   epoch = 252054,
+                   stake = StakePools {
+                       dangling=0,
+                       pools = [(PoolId "}t\158\244$P\DEL\184\SI\237\r\"\137\213\&5\169Ohp\173\208\207\139\&7L\254l\174\a\131 \236", Stake 1)],
+                       unassigned=100100000000000
+                       }
+                    }
+            return ()
+
+        it "example empty stake endpoint response is properly decoded" $ do
+            let exampleStake = "{\"epoch\": 252054,\"stake\": {\"dangling\":0,\"\
+                    \pools\":[],\"unassigned\":100100000000000}}"
+            decodeJSON exampleStake `shouldBe`
+                Right StakeDistribution {
+                   epoch = 252054,
+                   stake = StakePools {
+                       dangling=0,
+                       pools = [],
+                       unassigned=100100000000000
+                       }
+                    }
+            return ()
+
+        it "invalid stake pool id in endpoint response gives expected error" $ do
+            let exampleStake = "{\"epoch\": 252054,\"stake\": {\"dangling\":0,\"\
+                    \pools\":[[\"b80fed0d2289d535a94f6870add0cf8b3\
+                    \74cfe6cae078320ec\",1]],\"unassigned\":100100000000000}}"
+            decodeJSON exampleStake `shouldBe`
+                Left "Error in $.stake: stake pool id invalid: \
+                     \expected 32 bytes but got 25"
+            return ()
+
+        it "invalid stake pair in endpoint response gives expected error" $ do
+            let exampleStake = "{\"epoch\": 252054,\"stake\": {\"dangling\":0,\"\
+                    \pools\":[[\"7d749ef424507fb80fed0d2289d535a94f6870add0cf8b3\
+                    \74cfe6cae078320ec\",1, \"not needed field\"]],\"unassigned\":\
+                    \100100000000000}}"
+            decodeJSON exampleStake `shouldBe`
+                Left "Error in $.stake: expected poolId and stake array in pool's array"
+            return ()
+
+        it "invalid numerical field value in endpoint response gives expected error" $ do
+            let exampleStake = "{\"epoch\": 252054,\"stake\": {\"dangling\":0,\"\
+                    \pools\":[[\"7d749ef424507fb80fed0d2289d535a94f6870add0cf8b3\
+                    \74cfe6cae078320ec\",1, \"not needed field\"]],\"unassigned\":\
+                    \10010000.23}}"
+            decodeJSON exampleStake `shouldBe`
+                Left "Error in $.stake.unassigned: Word64 is either floating or will \
+                \cause over or underflow: 1.001000023e7"
+            return ()
+
         describe "golden block0s generated in jormungandr-lib" $ do
             let dir = "test/data/block0s"
             files <- runIO $ filter (".bin" `isSuffixOf`)
@@ -320,7 +383,7 @@ spec = do
     try' :: a -> IO (Either String a)
     try' = fmap (either (Left . show) Right)
         . (try @SomeException) . evaluate
-
+    decodeJSON = eitherDecode :: BL.ByteString -> Either String StakeDistribution
 
 -- Only generating single addresses!
 instance Arbitrary Address where

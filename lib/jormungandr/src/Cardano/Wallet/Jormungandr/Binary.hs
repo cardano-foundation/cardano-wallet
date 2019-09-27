@@ -33,6 +33,8 @@ module Cardano.Wallet.Jormungandr.Binary
     , MessageType (..)
     , Milli (..)
     , StakeDistribution (..)
+    , StakePools (..)
+    , Stake (..)
     , getBlock
     , getBlockHeader
     , getBlockId

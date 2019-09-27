@@ -82,6 +82,7 @@
         "unit" = {
           depends = [
             (hsPkgs.base)
+            (hsPkgs.aeson)
             (hsPkgs.aeson-qq)
             (hsPkgs.binary)
             (hsPkgs.bytestring)

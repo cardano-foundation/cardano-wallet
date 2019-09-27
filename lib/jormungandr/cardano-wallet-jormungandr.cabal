@@ -127,6 +127,7 @@ test-suite unit
       -Werror
   build-depends:
       base
+    , aeson
     , aeson-qq
     , binary
     , bytestring
