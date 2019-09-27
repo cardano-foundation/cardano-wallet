@@ -59,6 +59,7 @@ library
     , monad-control
     , memory
     , safe
+    , scientific
     , servant
     , servant-client
     , servant-client-core
@@ -68,6 +69,7 @@ library
     , transformers
     , yaml
     , warp
+    , vector
   hs-source-dirs:
       src
   exposed-modules:

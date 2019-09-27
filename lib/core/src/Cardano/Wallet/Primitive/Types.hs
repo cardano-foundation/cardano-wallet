@@ -823,7 +823,7 @@ instance ToText AddressState where
                                      Coin
 -------------------------------------------------------------------------------}
 
--- | Coins are stored as Lovelace (reminder: 1 Lovelace = 1e6 ADA)
+-- | Coins are stored as Lovelace (reminder: 1 Lovelace = 1e-6 ADA)
 newtype Coin = Coin
     { getCoin :: Word64
     } deriving stock (Show, Ord, Eq, Generic)

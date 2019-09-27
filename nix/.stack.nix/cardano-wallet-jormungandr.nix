@@ -48,6 +48,7 @@
           (hsPkgs.monad-control)
           (hsPkgs.memory)
           (hsPkgs.safe)
+          (hsPkgs.scientific)
           (hsPkgs.servant)
           (hsPkgs.servant-client)
           (hsPkgs.servant-client-core)
@@ -57,6 +58,7 @@
           (hsPkgs.transformers)
           (hsPkgs.yaml)
           (hsPkgs.warp)
+          (hsPkgs.vector)
           ];
         };
       exes = {

@@ -1,5 +1,6 @@
 {-# LANGUAGE BinaryLiterals #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -31,6 +32,7 @@ module Cardano.Wallet.Jormungandr.Binary
     , Message (..)
     , MessageType (..)
     , Milli (..)
+    , StakeDistribution (..)
     , getBlock
     , getBlockHeader
     , getBlockId
@@ -82,6 +84,7 @@ import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
     , Hash (..)
+    , PoolId (..)
     , SlotId (..)
     , TxIn (..)
     , TxOut (..)
@@ -97,6 +100,15 @@ import Crypto.Hash
     ( hash )
 import Crypto.Hash.Algorithms
     ( Blake2b_256 )
+import Data.Aeson
+    ( FromJSON (..)
+    , Value (..)
+    , defaultOptions
+    , genericParseJSON
+    , withArray
+    , withObject
+    , (.:)
+    )
 import Data.Binary.Get
     ( Get
     , bytesRead
@@ -130,12 +142,18 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Scientific
+    ( toBoundedInteger )
+import Data.Text.Class
+    ( FromText (..), TextDecodingError (..) )
 import Data.Time.Clock
     ( NominalDiffTime, secondsToDiffTime )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 import Data.Word
     ( Word16, Word32, Word64, Word8 )
+import GHC.Generics
+    ( Generic )
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.CBOR.Decoding as CBOR
@@ -143,6 +161,7 @@ import qualified Codec.CBOR.Read as CBOR
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.Vector as V
 
 -- maximum number of inputs in a valid transaction
 maxNumberOfInputs :: Int
@@ -371,6 +390,47 @@ putTx inputs outputs = do
     putOutput (TxOut address coin) = do
         putAddress address
         putWord64be $ getCoin coin
+
+{-------------------------------------------------------------------------------
+                                 Stake Distribution
+-------------------------------------------------------------------------------}
+
+data StakeDistribution = StakeDistribution
+    { epoch :: Word64
+    , stake :: StakePools
+    } deriving (Show, Eq, Generic)
+
+-- | Coins are stored as Lovelace (reminder: 1 Lovelace = 1e-6 ADA)
+newtype Stake = Stake { getStake :: Word64 } deriving (Show, Eq)
+
+data StakePools = StakePools
+    { dangling :: Word64
+    , pools :: [(PoolId,Stake)]
+    , unassigned :: Word64
+    } deriving (Eq, Show)
+
+instance FromJSON StakeDistribution where
+    parseJSON = genericParseJSON defaultOptions
+
+instance FromJSON StakePools where
+    parseJSON = withObject "StakePools" $ \sp -> do
+        d <- sp .: "dangling"
+        p <- sp .: "pools"
+        a <- sp .: "unassigned"
+        let poolParser =  withArray "pairArrays" $ \arr ->
+                case V.toList arr of
+                    [(String txt),(Number st)] ->
+                        case fromText txt of
+                            Left (TextDecodingError err) -> fail err
+                            Right bs ->
+                                case toBoundedInteger st of
+                                    Nothing ->
+                                        fail "expected stake to be integer"
+                                    Just stake ->
+                                        return (bs, Stake stake)
+                    _ -> fail "expected poolId and stake array in pool's array"
+        p' <- mapM poolParser p
+        pure $ StakePools d p' a
 
 {-------------------------------------------------------------------------------
                             Config Parameters

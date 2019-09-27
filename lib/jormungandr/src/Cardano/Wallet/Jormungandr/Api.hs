@@ -16,6 +16,7 @@ module Cardano.Wallet.Jormungandr.Api
     , GetBlock
     , GetTipId
     , GetBlockDescendantIds
+    , GetStakeDistribution
     , PostMessage
     , BlockId (..)
     , api
@@ -26,6 +27,7 @@ import Prelude
 import Cardano.Wallet.Jormungandr.Binary
     ( Block
     , MessageType (..)
+    , StakeDistribution
     , getBlock
     , putSignedTx
     , runGet
@@ -52,6 +54,7 @@ import Servant.API
     , Accept (..)
     , Capture
     , Get
+    , JSON
     , MimeRender (..)
     , MimeUnrender (..)
     , NoContent
@@ -73,6 +76,7 @@ type Api =
     :<|> GetBlock
     :<|> GetBlockDescendantIds
     :<|> PostMessage
+    :<|> GetStakeDistribution
 
 -- | Retrieve a block by its id.
 type GetBlock
@@ -110,6 +114,12 @@ type PostMessage
     :> "message"
     :> ReqBody '[JormungandrBinary] (Tx, [TxWitness])
     :> Post '[NoContent] NoContent
+
+-- | Retrieve stake distribution
+type GetStakeDistribution
+    = "v0"
+    :> "stake"
+    :> Get '[JSON] StakeDistribution
 
 newtype BlockId = BlockId { getBlockId :: Hash "BlockHeader" }
 

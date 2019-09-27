@@ -41,6 +41,7 @@ module Cardano.Wallet.Jormungandr.Network
     , ErrGetDescendants (..)
     , ErrStartup (..)
     , ErrUnexpectedNetworkFailure (..)
+    , ErrGetStakeDistribution (..)
 
     -- * Re-export
     , BaseUrl (..)
@@ -73,6 +74,7 @@ import Cardano.Wallet.Jormungandr.Api
     ( BlockId (..)
     , GetBlock
     , GetBlockDescendantIds
+    , GetStakeDistribution
     , GetTipId
     , PostMessage
     , api
@@ -552,6 +554,8 @@ data JormungandrLayer m = JormungandrLayer
     , getInitialBlockchainParameters
         :: Hash "Genesis"
         -> ExceptT ErrGetBlockchainParams m (J.Block, BlockchainParameters)
+    , getStakeDistribution
+        :: ExceptT ErrGetStakeDistribution m J.StakeDistribution
     }
 
 -- | Construct a 'JormungandrLayer'-client
@@ -675,6 +679,12 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
                     )
             _ ->
                 throwE $ ErrGetBlockchainParamsIncompleteParams params
+
+    , getStakeDistribution = ExceptT $ do
+        let ctx = safeLink api (Proxy @GetStakeDistribution)
+        let networkUnreachable = ErrGetStakeDistributionNetworkUnreachable
+        run cGetStakeDistribution >>= \case
+            x -> left networkUnreachable <$> defaultHandler ctx x
     }
   where
     run :: ClientM a -> IO (Either ServantError a)
@@ -702,6 +712,7 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
         :<|> cGetBlock
         :<|> cGetBlockDescendantIds
         :<|> cPostMessage
+        :<|> cGetStakeDistribution
         = client api
 
 data ErrUnexpectedNetworkFailure
@@ -727,5 +738,13 @@ data ErrStartup
     | ErrStartupGenesisBlockFailed FilePath
     | ErrStartupCommandExited ProcessHasExited
     deriving (Show, Eq)
+
+data ErrGetStakeDistribution
+    = ErrGetStakeDistributionNetworkUnreachable ErrNetworkUnavailable
+    deriving (Show, Eq)
+
+{-------------------------------------------------------------------------------
+                                     Utils
+-------------------------------------------------------------------------------}
 
 instance Exception ErrStartup
