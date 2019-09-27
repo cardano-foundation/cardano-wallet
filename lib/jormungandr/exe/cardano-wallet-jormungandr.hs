@@ -167,7 +167,6 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
     exec (LaunchArgs listen nodePort mStateDir verbosity jArgs) = do
         let minSeverity = verbosityToMinSeverity verbosity
         (cfg, sb, tr) <- initTracer minSeverity "launch"
-        logInfo tr $ "Running as v" <> T.pack (showVersion version)
 
         requireFilePath (genesisBlock jArgs)
         requireFilePath (secretFile jArgs)
@@ -183,6 +182,7 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
                 , _outputStream = Inherit
                 }
 
+        logInfo tr $ "Running as v" <> T.pack (showVersion version)
         setupStateDir (logInfo tr) stateDir
         exitWith =<< serveWallet (cfg, sb, tr) (Just dbFile) listen (Launch cp)
 

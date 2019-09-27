@@ -1050,8 +1050,7 @@ runJcli = command [] "jcli"
 class KnownCommand t where
     commandName :: String
 
--- | Run a command using the 'cardano-wallet' executable. We run it through
--- stack as we intend to also get code-coverage from running these commands!
+-- | Run a command using the 'cardano-wallet' executable for the target @t@.
 cardanoWalletCLI
     :: forall t r. (CmdResult r, KnownCommand t)
     => [String]
