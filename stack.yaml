@@ -2,7 +2,6 @@ resolver: lts-13.24
 compiler: ghc-8.6.5
 
 packages:
-- .
 - lib/bech32
 - lib/core
 - lib/core-integration

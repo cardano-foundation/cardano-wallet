@@ -75,16 +75,16 @@ import qualified Network.HTTP.Types.Status as HTTP
 data Context t = Context
     { _cleanup
         :: IO ()
-        -- ^ An action to clean up open processes after tests
+        -- ^ Cleanup action for the context
     , _manager
         :: (Text, Manager)
         -- ^ The underlying BaseUrl and Manager used by the Wallet Client
+    , _nodePort
+        :: Port "node"
+        -- ^ Node TCP port
     , _walletPort
         :: Port "wallet"
         -- ^ Server TCP port
-    , _nodePort
-        :: Port "node"
-        -- ^ Jormungandr REST API port
     , _faucet
         :: Faucet
         -- ^ A 'Faucet' handle in to have access to funded wallets in

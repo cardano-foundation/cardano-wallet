@@ -31,7 +31,6 @@ module Cardano.CLI
     , cmdTransaction
     , cmdAddress
     , cmdVersion
-    , execLaunch
 
     -- * Option & Argument Parsers
     , optionT
@@ -39,6 +38,7 @@ module Cardano.CLI
     , databaseOption
     , listenOption
     , nodePortOption
+    , nodePortMaybeOption
     , stateDirOption
     , verbosityOption
 
@@ -71,6 +71,7 @@ module Cardano.CLI
     , requireFilePath
     , getDataDir
     , waitForService
+    , setupStateDir
     ) where
 
 import Prelude hiding
@@ -86,8 +87,6 @@ import Cardano.BM.Setup
     ( setupTrace_, shutdown )
 import Cardano.BM.Trace
     ( Trace, appendName, logAlert, logInfo )
-import Cardano.Launcher
-    ( Command, ProcessHasExited (..), installSignalHandlers, launch )
 import Cardano.Wallet.Api
     ( Api )
 import Cardano.Wallet.Api.Server
@@ -164,7 +163,7 @@ import Data.Text.Class
 import Data.Text.Read
     ( decimal )
 import Fmt
-    ( Buildable, blockListF, fmt, nameF, pretty )
+    ( Buildable, pretty )
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
@@ -220,7 +219,7 @@ import System.Directory
     , getXdgDirectory
     )
 import System.Exit
-    ( exitFailure, exitSuccess, exitWith )
+    ( exitFailure, exitSuccess )
 import System.FilePath
     ( (</>) )
 import System.Info
@@ -670,28 +669,10 @@ cmdVersion = command "version" $ info cmd $ mempty
                             Commands - 'launch'
 -------------------------------------------------------------------------------}
 
--- | Execute 'launch' commands. This differs from the 'serve' command as it
--- takes care of also starting a node backend in two separate processes and
--- monitors both processes: if one terminates, then the other one is cancelled.
-execLaunch
-    :: Verbosity
-    -> FilePath
-    -> (Trace IO Text -> FilePath -> IO ())
-    -> [Command]
-    -> IO ()
-execLaunch verbosity stateDir withStateDir commands = do
-    installSignalHandlers
-    (_, _, tracer) <- initTracer (verbosityToMinSeverity verbosity) "launch"
-    setupStateDir (logInfo tracer) (withStateDir tracer) stateDir
-    logInfo tracer $ fmt $ nameF "launch" $ blockListF commands
-    (ProcessHasExited pName code) <- launch commands
-    logAlert tracer $ T.pack pName <> " exited with code " <> T.pack (show code)
-    exitWith code
-
 -- | Initialize a state directory to store blockchain data such as blocks or
 -- the wallet database.
-setupStateDir :: (Text -> IO ()) -> (FilePath -> IO ()) -> FilePath -> IO ()
-setupStateDir logT withDir dir = do
+setupStateDir :: (Text -> IO ()) -> FilePath -> IO ()
+setupStateDir logT dir = do
     exists <- doesFileExist dir
     when exists $ do
         putErrLn $ mconcat
@@ -705,7 +686,6 @@ setupStateDir logT withDir dir = do
             logT $ "Creating state directory: " <> T.pack dir
             let createParentIfMissing = True
             createDirectoryIfMissing createParentIfMissing dir
-    withDir dir
 
 {-------------------------------------------------------------------------------
                               Options & Arguments
@@ -740,11 +720,17 @@ randomPortOption = flag' False $ mempty
 
 -- | [--node-port=INT], default: 8080
 nodePortOption :: Parser (Port "Node")
-nodePortOption = optionT $ mempty
+nodePortOption = optionT $ optionNodePort <> value (Port 8080)
+
+-- | [--node-port=INT], default: use any available port
+nodePortMaybeOption :: Parser (Maybe (Port "Node"))
+nodePortMaybeOption = optional $ optionT optionNodePort
+
+optionNodePort :: Mod OptionFields (Port "Node")
+optionNodePort = mempty
     <> long "node-port"
     <> metavar "INT"
     <> help "port used for communicating with the target node."
-    <> value (Port 8080)
     <> showDefaultWith showT
 
 -- | --payment=PAYMENT
@@ -1290,18 +1276,12 @@ waitForService
         -- ^ Name of the service
     -> (Switchboard Text, Trace IO Text)
         -- ^ A 'Trace' for logging
-    -> Port "Node"
-        -- ^ Underlying TCP port
+    -> Port "node"
+        -- ^ TCP Port of the service
     -> IO ()
         -- ^ Service we're waiting after.
     -> IO ()
 waitForService (Service service) (sb, tracer) port action = do
-    logInfo tracer $ mconcat
-        [ "Waiting for "
-        , service
-        , " to be ready on tcp/"
-        , T.pack (showT port)
-        ]
     let handler (ErrNetworkTipNetworkUnreachable (ErrNetworkInvalid net)) = do
             logAlert tracer $ mconcat
                 [ "The node backend is not running on the \"", net, "\" "
@@ -1317,19 +1297,13 @@ waitForService (Service service) (sb, tracer) port action = do
                 , " to become available. Giving up!"
                 ]
             shutdown sb
-            putErrLn $ mconcat
-                [ "Hint (1): If you're launching the wallet server on your own,"
-                , " double-check that ", service
-                , " is up-and-running and listening on the same port given to"
-                , " '--node-port' (i.e. tcp/", T.pack (showT port), ")."
-                ]
-            putErrLn $ mconcat
-                [ "Hint (2): Should you be starting from scratch, make"
-                , " sure to have a good-enough network connection to"
-                , " synchronize the first blocks in a timely manner."
-                ]
             exitFailure
-
+    logInfo tracer $ mconcat
+        [ "Waiting for "
+        , service
+        , " to be ready on tcp/"
+        , T.pack (showT port)
+        ]
     action `catch` handler
     logInfo tracer $ service <> " is ready."
 

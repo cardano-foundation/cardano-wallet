@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.HttpBridge.NetworkSpec
     ( spec
@@ -6,6 +7,8 @@ module Cardano.Wallet.HttpBridge.NetworkSpec
 
 import Prelude
 
+import Cardano.Wallet.HttpBridge.Environment
+    ( Network (..) )
 import Cardano.Wallet.HttpBridge.Network
     ( HttpBridgeLayer (..) )
 import Cardano.Wallet.HttpBridge.Primitive.Types
@@ -178,7 +181,7 @@ mockNetworkLayer
     -> SlotId -- ^ the tip block
     -> NetworkLayer m Tx (Block Tx)
 mockNetworkLayer logLine firstUnstableEpoch tip =
-    HttpBridge.mkNetworkLayer (mockHttpBridge logLine firstUnstableEpoch tip)
+    HttpBridge.mkNetworkLayer @'Testnet (mockHttpBridge logLine firstUnstableEpoch tip)
 
 -- | A network layer which returns mock blocks.
 mockHttpBridge

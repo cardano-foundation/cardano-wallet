@@ -23,7 +23,6 @@ module Cardano.Wallet.Api.Server
     ( Listen (..)
     , start
     , withListeningSocket
-    , getRandomPort
     ) where
 
 import Prelude
@@ -267,14 +266,6 @@ withListeningSocket portOpt = bracket acquire release
     release (_, socket) = liftIO $ close socket
     -- TODO: make configurable, default to secure for now.
     hostPreference = "127.0.0.1"
-
-
-getRandomPort :: IO Port
-getRandomPort = do
-    let hostPreference = "127.0.0.1"
-    (port, socket) <- bindRandomPortTCP hostPreference
-    liftIO $ close socket
-    return port
 
 {-------------------------------------------------------------------------------
                                     Wallets

@@ -19,8 +19,7 @@ import Prelude
 import Cardano.BM.Trace
     ( nullTracer )
 import Cardano.Wallet
-    ( BlockchainParameters (..)
-    , ErrCreateUnsignedTx (..)
+    ( ErrCreateUnsignedTx (..)
     , ErrSignTx (..)
     , ErrSubmitTx (..)
     , ErrUpdatePassphrase (..)
@@ -61,6 +60,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
+import Cardano.Wallet.Primitive.Model
+    ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)

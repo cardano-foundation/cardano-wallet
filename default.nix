@@ -29,10 +29,11 @@ let
 in {
   inherit pkgs iohkLib src haskellPackages;
   inherit cardano-http-bridge cardano-sl-node jormungandr jormungandr-cli;
-  inherit (haskellPackages.cardano-wallet.identifier) version;
+  inherit (haskellPackages.cardano-wallet-core.identifier) version;
 
-  inherit (haskellPackages.cardano-wallet.components.exes)
-    cardano-wallet-http-bridge
+  inherit (haskellPackages.cardano-wallet-http-bridge.components.exes)
+    cardano-wallet-http-bridge;
+  inherit (haskellPackages.cardano-wallet-jormungandr.components.exes)
     cardano-wallet-jormungandr;
 
   tests = collectComponents "tests" isCardanoWallet haskellPackages;
@@ -41,7 +42,6 @@ in {
   shell = haskellPackages.shellFor {
     name = "cardano-wallet-shell";
     packages = ps: with ps; [
-      cardano-wallet
       cardano-wallet-cli
       cardano-wallet-launcher
       cardano-wallet-core

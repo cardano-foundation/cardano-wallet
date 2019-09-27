@@ -33,11 +33,14 @@ library
   build-depends:
       base
     , aeson
+    , async
     , base58-bytestring
     , binary
     , bytestring
     , cardano-crypto
+    , cardano-wallet-cli
     , cardano-wallet-core
+    , cardano-wallet-launcher
     , cborg
     , cryptonite
     , deepseq
@@ -48,7 +51,9 @@ library
     , http-client
     , http-media
     , http-types
+    , iohk-monitoring
     , memory
+    , retry
     , servant
     , servant-client
     , servant-client-core
@@ -56,9 +61,11 @@ library
     , text-class
     , time
     , transformers
+    , warp
   hs-source-dirs:
       src
   exposed-modules:
+      Cardano.Wallet.HttpBridge
       Cardano.Wallet.HttpBridge.Api
       Cardano.Wallet.HttpBridge.Compatibility
       Cardano.Wallet.HttpBridge.Environment
@@ -67,6 +74,35 @@ library
       Cardano.Wallet.HttpBridge.Transaction
       Data.Packfile
       Servant.Extra.ContentTypes
+
+executable cardano-wallet-http-bridge
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -threaded -rtsopts
+      -Wall
+      -O2
+  if (!flag(development))
+    ghc-options:
+      -Werror
+  build-depends:
+      base
+    , cardano-wallet-cli
+    , cardano-wallet-core
+    , cardano-wallet-http-bridge
+    , cardano-wallet-launcher
+    , filepath
+    , iohk-monitoring
+    , optparse-applicative
+    , process
+    , text
+  hs-source-dirs:
+      exe
+  main-is:
+      cardano-wallet-http-bridge.hs
 
 test-suite unit
   default-language:
@@ -161,7 +197,6 @@ test-suite integration
     , text-class
     , time
     , transformers
-    , warp
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
@@ -192,7 +227,6 @@ benchmark restore
       -Werror
   build-depends:
       base
-    , async
     , bytestring
     , cardano-wallet-core
     , cardano-wallet-http-bridge

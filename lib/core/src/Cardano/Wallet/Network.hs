@@ -9,31 +9,40 @@ module Cardano.Wallet.Network
     -- * Interface
       NetworkLayer (..)
 
-    -- * Helpers
-    , waitForConnection
-    , defaultRetryPolicy
-
     -- * Errors
     , ErrNetworkUnavailable (..)
     , ErrNetworkTip (..)
     , ErrGetBlock (..)
     , ErrPostTx (..)
+    , isNetworkUnreachable
+
+    -- * Helpers
+    , defaultRetryPolicy
+    , waitForNetwork
     ) where
 
 import Prelude
 
+import Cardano.Wallet.Primitive.Model
+    ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..), Hash (..), TxWitness )
 import Control.Exception
-    ( Exception (..), throwIO )
+    ( Exception (..) )
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
 import Control.Retry
-    ( RetryPolicyM, constantDelay, limitRetriesByCumulativeDelay, retrying )
+    ( RetryPolicyM
+    , exponentialBackoff
+    , limitRetriesByCumulativeDelay
+    , retrying
+    )
 import Data.Text
     ( Text )
 import GHC.Generics
     ( Generic )
+import UnliftIO.Exception
+    ( throwIO )
 
 data NetworkLayer m tx block = NetworkLayer
     { nextBlocks :: BlockHeader -> ExceptT ErrGetBlock m [block]
@@ -56,10 +65,17 @@ data NetworkLayer m tx block = NetworkLayer
     , postTx
         :: (tx, [TxWitness]) -> ExceptT ErrPostTx m ()
         -- ^ Broadcast a transaction to the chain producer
+
+    , staticBlockchainParameters
+        :: (block, BlockchainParameters)
     }
 
 instance Functor m => Functor (NetworkLayer m tx) where
-     fmap f nl = nl { nextBlocks = fmap (fmap f) . nextBlocks nl }
+    fmap f nl = nl { nextBlocks = fmap (fmap f) . nextBlocks nl
+                   , staticBlockchainParameters = (f block0, bp) }
+      where
+        (block0, bp) = staticBlockchainParameters nl
+
 
 -- | Network is unavailable
 data ErrNetworkUnavailable
@@ -99,11 +115,11 @@ instance Exception ErrPostTx
 
 -- | Wait until 'networkTip networkLayer' succeeds according to a given
 -- retry policy. Throws an exception otherwise.
-waitForConnection
+waitForNetwork
     :: NetworkLayer IO tx block
     -> RetryPolicyM IO
     -> IO ()
-waitForConnection nw policy = do
+waitForNetwork nw policy = do
     r <- retrying policy shouldRetry (const $ runExceptT (networkTip nw))
     case r of
         Right _ -> return ()
@@ -117,10 +133,10 @@ waitForConnection nw policy = do
         Left (ErrNetworkTipNetworkUnreachable e) ->
             return $ isNetworkUnreachable e
 
--- | A default 'RetryPolicy' with a constant delay, but retries for no longer
--- than a minute.
+-- | A default 'RetryPolicy' with a delay that starts short, and that retries
+-- for no longer than a minute.
 defaultRetryPolicy :: Monad m => RetryPolicyM m
 defaultRetryPolicy =
-    limitRetriesByCumulativeDelay (60 * second) (constantDelay (1 * second))
+    limitRetriesByCumulativeDelay (60 * second) (exponentialBackoff 10000)
   where
     second = 1000*1000

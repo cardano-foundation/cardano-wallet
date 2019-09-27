@@ -23,7 +23,6 @@
           (hsPkgs.base)
           (hsPkgs.bytestring)
           (hsPkgs.cardano-wallet-core)
-          (hsPkgs.cardano-wallet-launcher)
           (hsPkgs.directory)
           (hsPkgs.extra)
           (hsPkgs.filepath)

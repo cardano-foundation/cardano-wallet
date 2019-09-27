@@ -12,32 +12,40 @@ module Main where
 
 import Prelude
 
+import Cardano.BM.Configuration.Static
+    ( defaultConfigStdout )
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
+import Cardano.BM.Setup
+    ( setupTrace_ )
 import Cardano.BM.Trace
-    ( nullTracer )
+    ( Trace )
 import Cardano.Launcher
-    ( Command (Command), StdStream (..), installSignalHandlers, launch )
+    ( StdStream (..), installSignalHandlers )
 import Cardano.Wallet
-    ( BlockchainParameters (..), WalletLayer, newWalletLayer )
+    ( WalletLayer, newWalletLayer )
+import Cardano.Wallet.DB
+    ( DBLayer )
 import Cardano.Wallet.DB.Sqlite
-    ( PersistState )
+    ( PersistState, PersistTx )
 import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge, block0, byronBlockchainParameters )
+    ( HttpBridge, byronBlockchainParameters )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.HttpBridge.Network
-    ( newNetworkLayer )
+    ( HttpBridgeBackend (..), HttpBridgeConfig (..), withNetworkLayer )
 import Cardano.Wallet.HttpBridge.Primitive.Types
     ( Tx )
 import Cardano.Wallet.HttpBridge.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Network
-    ( NetworkLayer (..), defaultRetryPolicy, networkTip, waitForConnection )
+    ( NetworkLayer (..), networkTip )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress (..), Passphrase (..), PersistKey, digest, publicKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( SeqKey, generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( IsOwned )
+    ( IsOurs, IsOwned )
 import Cardano.Wallet.Primitive.AddressDiscovery.Any
     ( AnyAddressState, initAnyState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Any.TH
@@ -45,7 +53,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Any.TH
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState, defaultAddressPoolGap, mkSeqState )
 import Cardano.Wallet.Primitive.Model
-    ( totalBalance, totalUTxO )
+    ( BlockchainParameters (..), totalBalance, totalUTxO )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
@@ -61,8 +69,6 @@ import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Concurrent
     ( threadDelay )
-import Control.Concurrent.Async
-    ( async, cancel )
 import Control.DeepSeq
     ( NFData, rnf )
 import Control.Exception
@@ -92,15 +98,18 @@ import Database.Persist.Sql
 import Fmt
     ( fmt, (+|), (+||), (|+), (||+) )
 import Say
-    ( sayErr )
+    ( sayErr, sayErrShow )
 import System.Environment
     ( getArgs )
+import System.Exit
+    ( exitFailure )
 import System.IO
     ( BufferMode (..), hSetBuffering, stderr, stdout )
 import System.IO.Temp
-    ( emptySystemTempFile )
+    ( withSystemTempFile )
 
 import qualified Cardano.BM.Configuration.Model as CM
+import qualified Cardano.BM.Data.BackendKind as CM
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Data.Map.Strict as Map
@@ -114,24 +123,25 @@ main :: IO ()
 main = do
     hSetBuffering stdout NoBuffering
     hSetBuffering stderr NoBuffering
-    installSignalHandlers
+    (logCfg, tr) <- initBenchmarkLogging Info
+    installSignalHandlers tr
     network <- getArgs >>= parseNetwork
     case network of
         Testnet -> do
-            prepareNode (Proxy @'Testnet)
+            prepareNode (Proxy @'Testnet) tr
             runBenchmarks
                 [ bench ("restore " <> toText network <> " seq")
-                    (bench_restoration @'Testnet @SeqKey (walletSeq @'Testnet))
+                    (bench_restoration @'Testnet @SeqKey (logCfg, tr) (walletSeq @'Testnet))
                 , bench ("restore " <> toText network <> " 10% ownership")
-                    (bench_restoration @'Testnet @SeqKey wallet10p)
+                    (bench_restoration @'Testnet @SeqKey (logCfg, tr) wallet10p)
                 ]
         Mainnet -> do
-            prepareNode (Proxy @'Mainnet)
+            prepareNode (Proxy @'Mainnet) tr
             runBenchmarks
                 [ bench ("restore " <> toText network <> " seq")
-                    (bench_restoration @'Mainnet @SeqKey (walletSeq @'Mainnet))
+                    (bench_restoration @'Mainnet @SeqKey (logCfg, tr) (walletSeq @'Mainnet))
                 , bench ("restore " <> toText network <> " 10% ownership")
-                    (bench_restoration @'Mainnet @SeqKey wallet10p)
+                    (bench_restoration @'Mainnet @SeqKey (logCfg, tr) wallet10p)
                 ]
   where
     walletSeq
@@ -189,6 +199,14 @@ parseNetwork = \case
             "invalid network provided to benchmark: \
             \not 'testnet' nor 'mainnet'."
 
+initBenchmarkLogging :: Severity -> IO (CM.Configuration, Trace IO Text)
+initBenchmarkLogging minSeverity = do
+    c <- defaultConfigStdout
+    CM.setMinSeverity c minSeverity
+    CM.setSetupBackends c [CM.KatipBK, CM.AggregationBK]
+    (tr, _sb) <- setupTrace_ c "bench-restore"
+    pure (c, tr)
+
 {-------------------------------------------------------------------------------
                                   Benchmarks
 -------------------------------------------------------------------------------}
@@ -205,60 +223,75 @@ bench_restoration
         , KeyToAddress t k
         , PersistKey k
         )
-    => (WalletId, WalletName, s)
+    => (CM.Configuration, Trace IO Text)
+    -> (WalletId, WalletName, s)
     -> IO ()
-bench_restoration (wid, wname, s) = withHttpBridge network $ \port -> do
-    logConfig <- CM.empty
-    dbFile <- Just <$> emptySystemTempFile "bench.db"
-    (ctx, db) <- Sqlite.newDBLayer logConfig nullTracer dbFile
-    Sqlite.unsafeRunQuery ctx (void $ runMigrationSilent migrateAll)
-    nw <- newNetworkLayer @n port
-    let tl = newTransactionLayer @n @k
-    BlockHeader sl _ _ <- unsafeRunExceptT $ networkTip nw
-    sayErr . fmt $ network ||+ " tip is at " +|| sl ||+ ""
-    let bp = byronBlockchainParameters @n
-    w <- newWalletLayer @t nullTracer (block0, bp) db nw tl
-    wallet <- unsafeRunExceptT $ W.createWallet w wid wname s
-    unsafeRunExceptT $ W.restoreWallet w wallet
-    waitForWalletSync w wallet
-    (wallet', _, pending) <- unsafeRunExceptT $ W.readWallet w wid
-    sayErr "Wallet restored!"
-    sayErr . fmt $ "Balance: " +|| totalBalance pending wallet' ||+ " lovelace"
-    sayErr . fmt $
-        "UTxO: " +|| Map.size (getUTxO $ totalUTxO pending wallet') ||+ " entries"
-    unsafeRunExceptT $ W.removeWallet w wid
+bench_restoration (logConfig, tracer) (wid, wname, s) =
+    withBenchNetworkLayer @n tracer $ \nw -> do
+        withBenchDBLayer logConfig tracer $ \db -> do
+            BlockHeader sl _ _ <- unsafeRunExceptT $ networkTip nw
+            sayErr . fmt $ network ||+ " tip is at " +|| sl ||+ ""
+            let g0 = staticBlockchainParameters nw
+            w <- newWalletLayer @t tracer g0 db nw tl
+            wallet <- unsafeRunExceptT $ W.createWallet w wid wname s
+            unsafeRunExceptT $ W.restoreWallet w wallet
+            waitForWalletSync w wallet
+            (wallet', _, pending) <- unsafeRunExceptT $ W.readWallet w wid
+            sayErr "Wallet restored!"
+            sayErr . fmt $ "Balance: " +|| totalBalance pending wallet' ||+ " lovelace"
+            sayErr . fmt $
+                "UTxO: " +|| Map.size (getUTxO $ totalUTxO pending wallet') ||+ " entries"
+            unsafeRunExceptT $ W.removeWallet w wid
   where
+    tl = newTransactionLayer @n @k
     network = networkVal @n
+
+withBenchNetworkLayer
+    :: forall n a. KnownNetwork n
+    => Trace IO Text
+    -> (NetworkLayer IO Tx (Block Tx) -> IO a)
+    -> IO a
+withBenchNetworkLayer tr action =
+    withNetworkLayer @n tr (Launch cfg) $ \case
+        Right (_, nw) -> action nw
+        Left e -> do
+            sayErr "There was some error starting the network layer:"
+            sayErrShow e
+            exitFailure
+  where
+    cfg = HttpBridgeConfig
+          { _networkName = Right (networkVal @n)
+          , _restApiPort = Nothing
+          , _extraArgs = []
+          , _outputStream = Inherit
+           -- Use hermes default for chain storage, will persist between nightly
+           -- runs.
+          , _stateDir = Nothing
+          }
+
+withBenchDBLayer
+    :: forall s t k a. (IsOurs s, NFData s, Show s, PersistState s, PersistTx t, PersistKey k)
+    => CM.Configuration
+    -> Trace IO Text
+    -> (DBLayer IO s t k -> IO a)
+    -> IO a
+withBenchDBLayer logConfig tr action =
+    withSystemTempFile "bench.db" $ \dbFile _ ->
+        bracket (before dbFile) after between
+  where
+    before dbFile = Sqlite.newDBLayer logConfig tr (Just dbFile)
+    after = Sqlite.destroyDBLayer . fst
+    between (ctx, db) = do
+        Sqlite.unsafeRunQuery ctx (void $ runMigrationSilent migrateAll)
+        action db
 
 logChunk :: SlotId -> IO ()
 logChunk slot = sayErr . fmt $ "Processing "+||slot||+""
 
-withHttpBridge :: Network -> (Int -> IO a) -> IO a
-withHttpBridge network action = bracket start stop (const (action port))
-  where
-    port = 8002
-    start = do
-        handle <- async $ launch
-            [ Command "cardano-http-bridge"
-                [ "start"
-                , "--port", show port
-                , "--template", T.unpack (toText network)
-                ]
-                (return ())
-                Inherit
-            ]
-        threadDelay 1000000 -- wait for listening socket
-        pure handle
-    stop handle = do
-        cancel handle
-        threadDelay 1000000 -- wait for socket to be closed
-
-prepareNode :: forall n. KnownNetwork n => Proxy n -> IO ()
-prepareNode _ = do
+prepareNode :: forall n. KnownNetwork n => Proxy n -> Trace IO Text -> IO ()
+prepareNode _ tr = do
     sayErr . fmt $ "Syncing "+|toText network|+" node... "
-    sl <- withHttpBridge network $ \port -> do
-        bridge <- newNetworkLayer @n port
-        waitForConnection bridge defaultRetryPolicy
+    sl <- withBenchNetworkLayer @n tr $ \bridge ->
         waitForNodeSync bridge (toText network) logQuiet
     sayErr . fmt $ "Completed sync of "+|toText network|+" up to "+||sl||+""
   where

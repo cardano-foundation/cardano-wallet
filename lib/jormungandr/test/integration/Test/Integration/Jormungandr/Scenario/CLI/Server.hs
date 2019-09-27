@@ -5,7 +5,6 @@
 
 module Test.Integration.Jormungandr.Scenario.CLI.Server
     ( spec
-    , specNoBackend
     ) where
 
 import Prelude
@@ -34,7 +33,7 @@ import System.Process
     , withCreateProcess
     )
 import Test.Hspec
-    ( Spec, SpecWith, describe, it, pendingWith, runIO )
+    ( SpecWith, describe, it, runIO )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldReturn )
 import Test.Integration.Framework.DSL
@@ -95,9 +94,11 @@ spec = do
             waitForProcess ph `shouldReturn` ExitSuccess
 
     describe "LOGGING - cardano-wallet serve logging" $ do
-        it "LOGGING - Launch can log --verbose" $ \_ -> do
+        it "LOGGING - Launch can log --verbose" $ \ctx -> do
             let args =
                     ["serve"
+                    , "--node-port"
+                    , show (ctx ^. typed @(Port "node"))
                     , "--random-port"
                     , "--verbose"
                     , "--genesis-hash"
@@ -110,10 +111,11 @@ spec = do
             out `shouldContainT` "Info"
             out `shouldContainT` "Notice"
 
-        it "LOGGING - Serve --quiet logs Error only" $ \_ -> do
-            pendingWith "The assertion in this test case is wrong."
+        it "LOGGING - Serve --quiet logs Error only" $ \ctx -> do
             let args =
                     ["serve"
+                    , "--node-port"
+                    , show (ctx ^. typed @(Port "node"))
                     , "--random-port"
                     , "--quiet"
                     , "--genesis-hash"
@@ -124,9 +126,11 @@ spec = do
             out `shouldBe` mempty
             err `shouldBe` mempty
 
-        it "LOGGING - Serve default logs Info" $ \_ -> do
+        it "LOGGING - Serve default logs Info" $ \ctx -> do
             let args =
                     ["serve"
+                    , "--node-port"
+                    , show (ctx ^. typed @(Port "node"))
                     , "--random-port"
                     , "--genesis-hash"
                     , block0H
@@ -137,26 +141,6 @@ spec = do
             out `shouldContainT` versionLine
             out `shouldContainT` "Info"
             out `shouldContainT` "Notice"
-
-specNoBackend :: forall t. KnownCommand t => Spec
-specNoBackend = do
-    it "TIMEOUT - Times out gracefully after 60 seconds" $ do
-        let args =
-                ["serve"
-                , "--random-port"
-                , "--genesis-hash"
-                , "1234"
-                ]
-        let process = proc' (commandName @t) args
-        (out, err) <- collectStreams (61, 61) process
-        out `shouldContainT` "Waited too long for Jörmungandr to become available.\
-            \ Giving up!"
-        err `shouldContainT` "Hint (1): If you're launching the wallet server\
-            \ on your own, double-check that Jörmungandr is up-and-running and\
-            \ listening on the same port given to '--node-port' (i.e. tcp/8080)."
-        err `shouldContainT` "Hint (2): Should you be starting from scratch,\
-            \ make sure to have a good-enough network connection to synchronize\
-            \ the first blocks in a timely manner."
 
 oneSecond :: Int
 oneSecond = 1000000

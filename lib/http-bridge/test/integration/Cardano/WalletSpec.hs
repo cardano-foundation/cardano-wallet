@@ -1,6 +1,5 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.WalletSpec
@@ -12,15 +11,13 @@ import Prelude
 import Cardano.BM.Trace
     ( nullTracer )
 import Cardano.Launcher
-    ( Command (..), StdStream (..), launch )
+    ( StdStream (..) )
 import Cardano.Wallet
     ( newWalletLayer )
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge, block0, byronBlockchainParameters )
 import Cardano.Wallet.HttpBridge.Environment
-    ( KnownNetwork (..), Network (..) )
-import Cardano.Wallet.Network
-    ( defaultRetryPolicy, waitForConnection )
+    ( Network (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..), digest, publicKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
@@ -35,40 +32,33 @@ import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..), WalletId (..), WalletName (..), slotMinBound )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
-import Control.Concurrent
-    ( threadDelay )
-import Control.Concurrent.Async
-    ( async, cancel )
+import Control.Exception
+    ( throwIO )
 import Control.Monad
     ( when )
 import Control.Retry
     ( constantDelay, limitRetriesByCumulativeDelay, retrying )
 import Data.Either
     ( isLeft )
-import Data.Text.Class
-    ( toText )
 import Test.Hspec
-    ( Spec, after, before, expectationFailure, it )
-import Test.Utils.Ports
-    ( findPort )
+    ( Spec, around, expectationFailure, it )
 
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB.MVar as MVar
 import qualified Cardano.Wallet.HttpBridge.Network as HttpBridge
 import qualified Cardano.Wallet.HttpBridge.Transaction as HttpBridge
-import qualified Data.Text as T
 
 spec :: Spec
 spec = do
-    before startBridge $ after closeBridge $ do
-        it "A newly created wallet can sync with the chain" $ \(_, wallet) -> do
+    around withWalletLayer $ do
+        it "A newly created wallet can sync with the chain" $ \wl -> do
             bytes <- entropyToBytes <$> genEntropy @(EntropySize 15)
             let xprv = generateKeyFromSeed (Passphrase bytes, mempty) mempty
-            wid <- unsafeRunExceptT $ W.createWallet wallet
+            wid <- unsafeRunExceptT $ W.createWallet wl
                 (WalletId $ digest $ publicKey xprv)
                 (WalletName "My Wallet")
                 (mkSeqState @(HttpBridge 'Testnet) (xprv, mempty) minBound)
-            unsafeRunExceptT $ W.restoreWallet wallet wid
+            unsafeRunExceptT $ W.restoreWallet wl wid
 
             let policy = limitRetriesByCumulativeDelay
                     (60 * second)
@@ -77,7 +67,7 @@ spec = do
                     Left _ -> pure True
                     Right _ -> pure False
             let assertion _ = do
-                    (cp, _, _) <- unsafeRunExceptT $ W.readWallet wallet wid
+                    (cp, _, _) <- unsafeRunExceptT $ W.readWallet wl wid
                     let tip = slotId (currentTip cp)
                     return $ if tip > slotMinBound
                         then Right ()
@@ -85,25 +75,15 @@ spec = do
             result <- retrying policy shouldRetry assertion
             when (isLeft result) $ expectationFailure (show result)
   where
-    second = 1000*1000
-    closeBridge (handle, _) = do
-        cancel handle
-        threadDelay second
-    startBridge = do
-        port <- findPort
-        handle <- async $ launch
-            [ Command "cardano-http-bridge"
-                [ "start"
-                , "--port", show port
-                , "--template", T.unpack (toText $ networkVal @'Testnet)
-                ]
-                (return ())
-                Inherit
-            ]
-        db <- MVar.newDBLayer
-        nl <- HttpBridge.newNetworkLayer @'Testnet port
-        waitForConnection nl defaultRetryPolicy
-        let tl = HttpBridge.newTransactionLayer @'Testnet @SeqKey
-        let genesis = (block0, byronBlockchainParameters @'Testnet)
-        (handle,) <$>
-            (newWalletLayer @(HttpBridge 'Testnet) nullTracer genesis db nl tl)
+    second = 1000 * 1000
+    withNetworkLayer =
+        HttpBridge.withNetworkLayer @'Testnet nullTracer (HttpBridge.Launch cfg)
+    withWalletLayer cb = withNetworkLayer $ \case
+        Right (_, nl) -> do
+            db <- MVar.newDBLayer
+            let tl = HttpBridge.newTransactionLayer @'Testnet @SeqKey
+            let genesis = (block0, byronBlockchainParameters @'Testnet)
+            wl <- newWalletLayer @(HttpBridge 'Testnet) nullTracer genesis db nl tl
+            cb wl
+        Left e -> throwIO e
+    cfg = HttpBridge.HttpBridgeConfig (Right Testnet) Nothing Nothing [] Inherit

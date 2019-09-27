@@ -28,6 +28,7 @@ module Cardano.Wallet.DB.Sqlite
     , newDBLayer
     , destroyDBLayer
     , withDBLayer
+    , withDBLayerCtx
     , unsafeRunQuery
 
     -- * Interfaces
@@ -242,11 +243,26 @@ withDBLayer
     -> (DBLayer IO s t k -> IO a)
        -- ^ Action to run.
     -> IO a
-withDBLayer logConfig trace fp action = bracket before after between
+withDBLayer logConfig trace fp action =
+    withDBLayerCtx logConfig trace fp (action . snd)
+
+-- | A variant of 'withDBLayer' that also provides the 'SqliteContext' to the
+-- action. This is mostly useful for testing.
+withDBLayerCtx
+    :: forall s t k a. (IsOurs s, NFData s, Show s, PersistState s, PersistTx t, PersistKey k)
+    => CM.Configuration
+       -- ^ Logging configuration
+    -> Trace IO Text
+       -- ^ Logging object
+    -> Maybe FilePath
+       -- ^ Database file location, or Nothing for in-memory database
+    -> ((SqliteContext, DBLayer IO s t k) -> IO a)
+       -- ^ Action to run.
+    -> IO a
+withDBLayerCtx logConfig trace fp = bracket before after
   where
     before = newDBLayer logConfig trace fp
     after = destroyDBLayer . fst
-    between = action . snd
 
 -- | Finalize database statements and close the database connection.
 destroyDBLayer :: SqliteContext -> IO ()
@@ -550,6 +566,7 @@ mkCheckpointEntity wid wal =
         , checkpointSlot = sl
         , checkpointBlockHeight = fromIntegral bh
         , checkpointParent = BlockId parent
+        , checkpointGenesisHash = BlockId (coerce (bp ^. #getGenesisBlockHash))
         , checkpointGenesisStart = coerce (bp ^. #getGenesisBlockDate)
         , checkpointFeePolicy = bp ^. #getFeePolicy
         , checkpointSlotLength = coerceSlotLength $ bp ^. #getSlotLength
@@ -582,6 +599,7 @@ checkpointFromEntity cp utxo s =
         slot
         (BlockId parentHeaderHash)
         bh
+        (BlockId genesisHash)
         genesisStart
         feePolicy
         slotLength
@@ -596,7 +614,8 @@ checkpointFromEntity cp utxo s =
         ]
     blockHeight' = Quantity . toEnum . fromEnum $ bh
     bp = W.BlockchainParameters
-        { getGenesisBlockDate = W.StartTime genesisStart
+        { getGenesisBlockHash = coerce genesisHash
+        , getGenesisBlockDate = W.StartTime genesisStart
         , getFeePolicy = feePolicy
         , getSlotLength = W.SlotLength (toEnum (fromEnum slotLength))
         , getEpochLength = W.EpochLength epochLength

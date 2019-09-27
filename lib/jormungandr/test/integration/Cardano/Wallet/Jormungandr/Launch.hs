@@ -8,60 +8,57 @@
 -- tests.
 
 module Cardano.Wallet.Jormungandr.Launch
-    ( launchJormungandr
+    ( setupConfig
+    , teardownConfig
+    , withBackendOnly
     ) where
 
 import Prelude
 
-import Cardano.CLI
-    ( Port (..) )
+import Cardano.BM.Trace
+    ( nullTracer )
 import Cardano.Launcher
-    ( Command (..), StdStream (..), launch )
+    ( StdStream (..) )
 import Cardano.Wallet.Jormungandr.Network
-    ( BaseUrl (..), Scheme (..) )
-import Control.Concurrent.Async
-    ( Async, async )
-import Control.Monad
-    ( void )
+    ( JormungandrConfig (..), JormungandrConnParams, withJormungandr )
+import Control.Exception
+    ( bracket, throwIO )
 import System.Directory
-    ( createDirectory )
+    ( doesDirectoryExist, removeDirectoryRecursive )
+import System.Environment
+    ( lookupEnv )
 import System.FilePath
-    ( FilePath, (</>) )
+    ( (</>) )
+import System.IO
+    ( IOMode (..), hClose, openFile )
 import System.IO.Temp
     ( createTempDirectory, getCanonicalTemporaryDirectory )
-import Test.Utils.Ports
-    ( randomUnusedTCPPorts )
-
-import qualified Cardano.Wallet.Jormungandr.Compatibility as Jormungandr
-import qualified Data.ByteString.Char8 as B8
-import qualified Data.Yaml as Yaml
 
 -- | Starts jormungandr on a random port using the integration tests config.
 -- The data directory will be stored in a unique location under the system
 -- temporary directory.
-launchJormungandr :: StdStream -> IO (Async (), BaseUrl, Port "node")
-launchJormungandr output = do
-    (baseUrl, port, configYaml) <- setupConfig
-    let dir = "test/data/jormungandr"
-    handle <- async $ void $ launch
-        [ Command "jormungandr"
-            [ "--genesis-block", dir ++ "/block0.bin"
-            , "--config", configYaml
-            , "--secret", dir ++ "/secret.yaml"
-            ] (return ())
-            output
-        ]
-    pure (handle, baseUrl, port)
-
-setupConfig :: IO (BaseUrl, Port "node", FilePath)
+setupConfig :: IO JormungandrConfig
 setupConfig = do
-    [apiPort, nodePort] <- randomUnusedTCPPorts 2
+    let dir = "test/data/jormungandr"
     tmp <- getCanonicalTemporaryDirectory
     configDir <- createTempDirectory tmp "cardano-wallet-jormungandr"
-    let storageDir = configDir </> "storage"
-        configYaml = configDir </> "config.yaml"
-        url = BaseUrl Http "127.0.0.1" apiPort "/api"
-        jormConfig = Jormungandr.genConfigFile storageDir nodePort url
-    B8.writeFile configYaml (Yaml.encode jormConfig)
-    createDirectory storageDir
-    pure (url, Port apiPort, configYaml)
+    logFile <- openFile (configDir </> "jormungandr.log") WriteMode
+    pure $ JormungandrConfig configDir (dir </> "block0.bin") (dir </> "secret.yaml") Nothing minBound (UseHandle logFile)
+
+teardownConfig :: JormungandrConfig -> IO ()
+teardownConfig (JormungandrConfig d _ _ _ _ output) = do
+    case output of
+        UseHandle h -> hClose h
+        _ -> pure ()
+    override <- maybe False (not . null) <$> lookupEnv "NO_CLEANUP"
+    exists <- doesDirectoryExist d
+    case (override, exists) of
+        (True, _) -> putStrLn $ "Not cleaning up temporary directory " ++ d
+        (_, True) -> removeDirectoryRecursive d
+        _ -> pure ()
+
+-- | Launches jörmungandr, but not the wallet.
+withBackendOnly :: (JormungandrConnParams -> IO a) -> IO a
+withBackendOnly cb =
+    bracket setupConfig teardownConfig $ \jmConfig ->
+        (withJormungandr nullTracer jmConfig cb >>= either throwIO pure)

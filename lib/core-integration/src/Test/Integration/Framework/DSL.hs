@@ -1050,14 +1050,12 @@ runJcli = command [] "jcli"
 class KnownCommand t where
     commandName :: String
 
--- | Run a command using the 'cardano-wallet' executable. We run it through
--- stack as we intend to also get code-coverage from running these commands!
+-- | Run a command using the 'cardano-wallet' executable for the target @t@.
 cardanoWalletCLI
     :: forall t r. (CmdResult r, KnownCommand t)
     => [String]
     -> IO r
-cardanoWalletCLI args = command [] "stack"
-    (["exec", "--", commandName @t] ++ args)
+cardanoWalletCLI = command [] (commandName @t)
 
 generateMnemonicsViaCLI
     :: forall t r. (CmdResult r, KnownCommand t)
@@ -1231,19 +1229,8 @@ postExternalTransactionViaCLI ctx args = cardanoWalletCLI @t $ join
     , args
     ]
 
--- There is a dependency cycle in the packages.
---
--- cardano-wallet-launcher depends on cardano-wallet-http-bridge so that it can
--- import the HttpBridge module (resp. with jormungandr).
---
--- These packages (cardano-wallet-http-bridge, cardano-wallet-jormungandr) should
--- have build-tool-depends: cardano-wallet:cardano-wallet-launcher so that it can
--- run launcher in the tests. But that dependency can't be expressed in the
--- cabal file, because otherwise there would be a cycle.
---
--- So one hacky way to work around it is by running programs under "stack exec".
 proc' :: FilePath -> [String] -> CreateProcess
-proc' cmd args = (proc "stack" (["exec", "--", cmd] ++ args))
+proc' cmd args = (proc cmd args)
     { std_in = CreatePipe, std_out = CreatePipe, std_err = CreatePipe }
 
 -- | Collect lines from standard output and error streams for 30 seconds, or,
