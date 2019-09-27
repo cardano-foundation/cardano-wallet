@@ -32,6 +32,7 @@ import Cardano.Wallet.Jormungandr.Network
     , Scheme (..)
     , emptyUnstableBlocks
     , mkRawNetworkLayer
+    , withJormungandr
     , withNetworkLayer
     )
 import Cardano.Wallet.Jormungandr.Primitive.Types
@@ -326,13 +327,18 @@ spec = do
     second = 1000000
 
     startNode cb = withSystemTempDirectory "jormungandr-state" $ \stateDir -> do
-        let cfg = JormungandrConfig stateDir
+        let cfg = JormungandrConfig
+                stateDir
                 "test/data/jormungandr/block0.bin"
                 "test/data/jormungandr/secret.yaml"
-                Nothing Info Inherit
-        withNetworkLayer nullTracer (Launch cfg) $ \(JormungandrConnParams _ url) -> \case
-            Right nw -> cb (nw, url)
+                Nothing
+                Info
+                Inherit
+        let tr = nullTracer
+        e <- withJormungandr tr cfg $ \cp -> withNetworkLayer tr (UseRunning cp) $ \case
+            Right (_, nw) -> cb (nw, _restApi cp)
             Left e -> throwIO e
+        either throwIO (\_ -> return ()) e
 
     pkWitness :: TxWitness
     pkWitness = TxWitness $ BS.pack $ replicate 64 3

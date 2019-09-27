@@ -8,6 +8,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
@@ -208,13 +209,11 @@ withNetworkLayer
     -- ^ Logging
     -> JormungandrBackend
     -- ^ How Jörmungandr is started.
-    -> (JormungandrConnParams
-        -> Either ErrStartup (NetworkLayer IO Tx (Block Tx))
-        -> IO a)
+    -> (Either ErrStartup (JormungandrConnParams, NetworkLayer IO Tx (Block Tx)) -> IO a)
     -- ^ The action to run. It will be passed the connection parameters used,
     -- and a network layer if startup was successful.
     -> IO a
-withNetworkLayer _ (UseRunning cp) action = withNetworkLayerConn cp (action cp)
+withNetworkLayer _ (UseRunning cp) action = withNetworkLayerConn cp action
 withNetworkLayer tr (Launch lj) action = withNetworkLayerLaunch tr lj action
 
 withNetworkLayerLaunch
@@ -222,26 +221,22 @@ withNetworkLayerLaunch
     -- ^ Logging of node startup.
     -> JormungandrConfig
     -- ^ Configuration for starting Jörmungandr.
-    -> (JormungandrConnParams
-        -> Either ErrStartup (NetworkLayer IO Tx (Block Tx))
-        -> IO a)
+    -> (Either ErrStartup (JormungandrConnParams, NetworkLayer IO Tx (Block Tx)) -> IO a)
     -- ^ The action to run. It will be passed the connection parameters used,
     -- and a network layer if startup was successful.
     -> IO a
 withNetworkLayerLaunch tr lj action = do
-    res <- withJormungandr tr lj $ \cp ->
-        withNetworkLayerConn cp (action cp)
-    let errorParams = JormungandrConnParams (Hash "") (localhostBaseUrl 0)
-    either (action errorParams . Left) pure res
+    res <- withJormungandr tr lj $ \cp -> withNetworkLayerConn cp action
+    either (action . Left) pure res
 
 withNetworkLayerConn
     :: JormungandrConnParams
     -- ^ Parameters for connecting to Jörmungandr node which is already running.
-    -> (Either ErrStartup (NetworkLayer IO Tx (Block Tx)) -> IO a)
+    -> (Either ErrStartup (JormungandrConnParams, NetworkLayer IO Tx (Block Tx)) -> IO a)
     -- ^ Action to run with the network layer.
     -> IO a
-withNetworkLayerConn (JormungandrConnParams block0H baseUrl) action =
-    runExceptT go >>= action
+withNetworkLayerConn cp@(JormungandrConnParams block0H baseUrl) action =
+    runExceptT go >>= action . fmap (cp,)
   where
     go = withExceptT ErrStartupGetBlockchainParameters new
     new = newNetworkLayer baseUrl block0H

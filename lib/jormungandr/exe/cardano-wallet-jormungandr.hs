@@ -214,9 +214,9 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
         -> IO ()
     exec (ServeArgs listen nodePort dbFile verbosity block0H) = do
         (cfg, sb, tr) <- initTracer (verbosityToMinSeverity verbosity) "serve"
-        logInfo tr $ "Running as v" <> T.pack (showVersion version)
         let baseUrl = localhostBaseUrl $ getPort nodePort
         let cp = JormungandrConnParams block0H baseUrl
+        logInfo tr $ "Running as v" <> T.pack (showVersion version)
         exitWith =<< serveWallet (cfg, sb, tr) dbFile listen (UseRunning cp)
 
 {-------------------------------------------------------------------------------

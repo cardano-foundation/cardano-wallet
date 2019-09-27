@@ -108,9 +108,11 @@ serveWallet (cfg, sb, tr) dbFile listen lj = do
     installSignalHandlers tr
     logInfo tr "Wallet backend server starting..."
     logInfo tr $ "Node is Jörmungandr on " <> toText (networkVal @n)
-    withDBLayer cfg tr $ \db ->
-        withNetworkLayer tr lj $ \_cp -> \case
-            Right nl -> do
+    withDBLayer cfg tr $ \db -> do
+        logInfo tr "Database layer started."
+        withNetworkLayer tr lj $ \case
+            Right (_, nl) -> do
+                logInfo tr "Network layer started."
                 newWalletLayer tr db nl >>= startServer tr
                 pure ExitSuccess
             Left e -> handleNetworkStartupError e

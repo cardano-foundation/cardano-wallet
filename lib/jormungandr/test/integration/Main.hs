@@ -175,7 +175,7 @@ withCardanoWalletServer
 withCardanoWalletServer jmConfig mlisten action = do
     logConfig <- CM.empty
     tracer <- initTracer Info "serve"
-    withNetworkLayer tracer (Launch jmConfig) $ \cp -> either throwIO $ \nl -> do
+    withNetworkLayer tracer (Launch jmConfig) $ either throwIO $ \(cp, nl) -> do
         let (block0, bp) = staticBlockchainParameters nl
         let setupDB = Sqlite.newDBLayer @_ @network logConfig tracer Nothing
         let teardownDB = Sqlite.destroyDBLayer . fst
