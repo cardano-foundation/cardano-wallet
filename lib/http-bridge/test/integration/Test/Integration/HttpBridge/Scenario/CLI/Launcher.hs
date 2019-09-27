@@ -77,7 +77,6 @@ spec = do
                     [ "launch"
                     , "--state-dir", f
                     ]
-
             (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t args
             c `shouldBe` ExitFailure 1
             o `shouldBe` mempty

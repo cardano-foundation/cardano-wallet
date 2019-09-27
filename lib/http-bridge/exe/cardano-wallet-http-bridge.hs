@@ -150,11 +150,11 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
         -> IO ()
     exec (LaunchArgs network listen (Port nodePort) mStateDir verbosity) = do
         (cfg, sb, tr) <- initTracer (verbosityToMinSeverity verbosity) "serve"
-        logInfo tr $ "Running as v" <> T.pack (showVersion version)
         let stateDir = fromMaybe (stateDirForNetwork dataDir network) mStateDir
         let bridgeConfig = HttpBridgeConfig network (Just stateDir) (Just (fromIntegral nodePort)) (verbosityToArgs verbosity) Inherit
         let dbFile = stateDir </> "wallet.db"
         setupStateDir (logInfo tr) stateDir
+        logInfo tr $ "Running as v" <> T.pack (showVersion version)
         exitWith =<< serveWallet @t @k @n @s (cfg, sb, tr) (Just dbFile) listen (Launch bridgeConfig) Nothing
 
 {-------------------------------------------------------------------------------
