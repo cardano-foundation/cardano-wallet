@@ -29,6 +29,7 @@
           (hsPkgs.bytestring)
           (hsPkgs.cardano-crypto)
           (hsPkgs.cardano-wallet-core)
+          (hsPkgs.cardano-wallet-cli)
           (hsPkgs.cardano-wallet-launcher)
           (hsPkgs.cborg)
           (hsPkgs.containers)
@@ -71,6 +72,7 @@
             (hsPkgs.optparse-applicative)
             (hsPkgs.process)
             (hsPkgs.text)
+            (hsPkgs.text-class)
             ];
           };
         };
