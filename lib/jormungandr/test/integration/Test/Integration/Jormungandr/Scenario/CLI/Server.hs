@@ -5,7 +5,6 @@
 
 module Test.Integration.Jormungandr.Scenario.CLI.Server
     ( spec
-    , specNoBackend
     ) where
 
 import Prelude
@@ -34,7 +33,7 @@ import System.Process
     , withCreateProcess
     )
 import Test.Hspec
-    ( Spec, SpecWith, describe, it, runIO )
+    ( SpecWith, describe, it, runIO )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldReturn )
 import Test.Integration.Framework.DSL
@@ -142,29 +141,6 @@ spec = do
             out `shouldContainT` versionLine
             out `shouldContainT` "Info"
             out `shouldContainT` "Notice"
-
-specNoBackend :: forall t. KnownCommand t => Spec
-specNoBackend = do
-    it "TIMEOUT - Times out gracefully after 60 seconds" $ do
-        unusedPort <- findPort
-        let args =
-                ["serve"
-                , "--random-port"
-                , "--genesis-hash"
-                , "1234"
-                , "--node-port"
-                , show unusedPort
-                ]
-        let process = proc' (commandName @t) args
-        (out, err) <- collectStreams (61, 61) process
-        out `shouldContainT` "Waited too long for Jörmungandr to become available.\
-            \ Giving up!"
-        err `shouldContainT` "Hint (1): If you're launching the wallet server\
-            \ on your own, double-check that Jörmungandr is up-and-running and\
-            \ listening on the same port given to '--node-port' (i.e. tcp/8080)."
-        err `shouldContainT` "Hint (2): Should you be starting from scratch,\
-            \ make sure to have a good-enough network connection to synchronize\
-            \ the first blocks in a timely manner."
 
 oneSecond :: Int
 oneSecond = 1000000

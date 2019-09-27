@@ -23,7 +23,6 @@ module Cardano.Wallet.Network.Ports
 
     -- * Helpers
     , waitForPort
-    , defaultRetryPolicy
     ) where
 
 import Prelude
@@ -31,11 +30,7 @@ import Prelude
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Retry
-    ( RetryPolicyM
-    , exponentialBackoff
-    , limitRetriesByCumulativeDelay
-    , retrying
-    )
+    ( RetryPolicyM, retrying )
 import Data.Streaming.Network
     ( bindRandomPortTCP )
 import Data.Word
@@ -65,14 +60,6 @@ waitForPort policy port =
     retrying policy (const (pure . not)) (const $ isPortOpen addr)
   where
     addr = simpleSockAddr (127,0,0,1) port
-
--- | A default 'RetryPolicy' with a delay that starts short, and that retries
--- for no longer than a minute.
-defaultRetryPolicy :: Monad m => RetryPolicyM m
-defaultRetryPolicy =
-    limitRetriesByCumulativeDelay (60 * second) (exponentialBackoff 10000)
-  where
-    second = 1000*1000
 
 -- | Find a TCPv4 port which is likely to be free for listening on
 -- @localhost@. This binds a socket, receives an OS-assigned port, then closes

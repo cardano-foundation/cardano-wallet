@@ -33,6 +33,8 @@ import Cardano.BM.Setup
     ( shutdown )
 import Cardano.BM.Trace
     ( Trace, appendName, logAlert, logInfo )
+import Cardano.CLI
+    ( Port (..), waitForService )
 import Cardano.Launcher
     ( ProcessHasExited (..), installSignalHandlers )
 import Cardano.Wallet
@@ -48,9 +50,11 @@ import Cardano.Wallet.Jormungandr.Compatibility
 import Cardano.Wallet.Jormungandr.Environment
     ( KnownNetwork (..) )
 import Cardano.Wallet.Jormungandr.Network
-    ( ErrGetBlockchainParams (..)
+    ( BaseUrl (..)
+    , ErrGetBlockchainParams (..)
     , ErrStartup (..)
     , JormungandrBackend (..)
+    , JormungandrConnParams (..)
     , withNetworkLayer
     )
 import Cardano.Wallet.Jormungandr.Primitive.Types
@@ -58,13 +62,13 @@ import Cardano.Wallet.Jormungandr.Primitive.Types
 import Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Network
-    ( NetworkLayer (..) )
+    ( NetworkLayer (..), defaultRetryPolicy, waitForNetwork )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( SeqKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
 import Cardano.Wallet.Primitive.Model
-    ( getGenesisBlockHash )
+    ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
     ( Block, Hash (..) )
 import Control.Concurrent.Async
@@ -103,33 +107,39 @@ serveWallet
     -- ^ HTTP API Server port.
     -> JormungandrBackend
     -- ^ Whether and how to launch or use the node backend.
+    -> (Port "wallet" -> Port "node" -> BlockchainParameters -> IO ())
+    -- ^ Callback to run before the main loop
     -> IO ExitCode
-serveWallet (cfg, sb, tr) dbFile listen lj = do
+serveWallet (cfg, sb, tr) dbFile listen lj beforeMainLoop = do
     installSignalHandlers tr
     logInfo tr "Wallet backend server starting..."
     logInfo tr $ "Node is Jörmungandr on " <> toText (networkVal @n)
     withDBLayer cfg tr $ \db -> do
         logInfo tr "Database layer started."
         withNetworkLayer tr lj $ \case
-            Right (_, nl) -> do
+            Right (cp, nl) -> do
                 logInfo tr "Network layer started."
-                newWalletLayer tr db nl >>= startServer tr
+                let nPort = Port $ baseUrlPort $ _restApi cp
+                waitForService "Jörmungandr" (sb, tr) nPort $
+                    waitForNetwork nl defaultRetryPolicy
+                newWalletLayer tr db nl >>= startServer tr nPort nl
                 pure ExitSuccess
             Left e -> handleNetworkStartupError e
   where
     startServer
         :: Trace IO Text
+        -> Port "node"
+        -> NetworkLayer IO Tx (Block Tx)
         -> WalletLayer s t k
         -> IO ()
-    startServer tracer wallet = do
-        Server.withListeningSocket listen $ \(port, socket) -> do
+    startServer tracer nPort nl wallet = do
+        let (_, bp) = staticBlockchainParameters nl
+        Server.withListeningSocket listen $ \(wPort, socket) -> do
             let tracerIPC = appendName "daedalus-ipc" tracer
             let tracerApi = appendName "api" tracer
-            let beforeMainLoop = logInfo tracer $
-                    "Wallet backend server listening on: " <> toText port
             let settings = Warp.defaultSettings
-                    & setBeforeMainLoop beforeMainLoop
-            let ipcServer = daedalusIPC tracerIPC port
+                    & setBeforeMainLoop (beforeMainLoop (Port wPort) nPort bp)
+            let ipcServer = daedalusIPC tracerIPC wPort
             let apiServer = Server.start settings tracerApi socket wallet
             race_ ipcServer apiServer
 

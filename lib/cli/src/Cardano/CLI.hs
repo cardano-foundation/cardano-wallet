@@ -1276,10 +1276,12 @@ waitForService
         -- ^ Name of the service
     -> (Switchboard Text, Trace IO Text)
         -- ^ A 'Trace' for logging
+    -> Port "node"
+        -- ^ TCP Port of the service
     -> IO ()
         -- ^ Service we're waiting after.
     -> IO ()
-waitForService (Service service) (sb, tracer) action = do
+waitForService (Service service) (sb, tracer) port action = do
     let handler (ErrNetworkTipNetworkUnreachable (ErrNetworkInvalid net)) = do
             logAlert tracer $ mconcat
                 [ "The node backend is not running on the \"", net, "\" "
@@ -1296,7 +1298,12 @@ waitForService (Service service) (sb, tracer) action = do
                 ]
             shutdown sb
             exitFailure
-
+    logInfo tracer $ mconcat
+        [ "Waiting for "
+        , service
+        , " to be ready on tcp/"
+        , T.pack (showT port)
+        ]
     action `catch` handler
     logInfo tracer $ service <> " is ready."
 

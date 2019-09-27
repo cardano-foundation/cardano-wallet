@@ -26,7 +26,7 @@ import Prelude hiding
     ( getLine )
 
 import Cardano.BM.Trace
-    ( logInfo )
+    ( Trace, logInfo )
 import Cardano.CLI
     ( Port (..)
     , Verbosity (..)
@@ -71,6 +71,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( SeqKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
+import Cardano.Wallet.Primitive.Model
+    ( BlockchainParameters )
 import Cardano.Wallet.Primitive.Types
     ( Hash (..) )
 import Cardano.Wallet.Version
@@ -79,6 +81,10 @@ import Control.Applicative
     ( optional )
 import Data.Maybe
     ( fromMaybe )
+import Data.Text
+    ( Text )
+import Data.Text.Class
+    ( toText )
 import Options.Applicative
     ( CommandFields
     , Mod
@@ -128,6 +134,15 @@ main = do
         <> cmdTransaction @(Jormungandr 'Testnet)
         <> cmdAddress @(Jormungandr 'Testnet)
         <> cmdVersion
+
+beforeMainLoop
+    :: Trace IO Text
+    -> Port "wallet"
+    -> Port "node"
+    -> BlockchainParameters
+    -> IO ()
+beforeMainLoop tr port _ _ = do
+    logInfo tr $ "Wallet backend server listening on: " <> toText port
 
 {-------------------------------------------------------------------------------
                             Command - 'launch'
@@ -181,7 +196,12 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
                 }
         setupStateDir (logInfo tr) stateDir
         logInfo tr $ "Running as v" <> T.pack (showVersion version)
-        exitWith =<< serveWallet (cfg, sb, tr) (Just dbFile) listen (Launch cp)
+        exitWith =<< serveWallet
+            (cfg, sb, tr)
+            (Just dbFile)
+            listen
+            (Launch cp)
+            (beforeMainLoop tr)
 
 {-------------------------------------------------------------------------------
                             Command - 'serve'
@@ -217,7 +237,12 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
         let baseUrl = localhostBaseUrl $ getPort nodePort
         let cp = JormungandrConnParams block0H baseUrl
         logInfo tr $ "Running as v" <> T.pack (showVersion version)
-        exitWith =<< serveWallet (cfg, sb, tr) dbFile listen (UseRunning cp)
+        exitWith =<< serveWallet
+            (cfg, sb, tr)
+            dbFile
+            listen
+            (UseRunning cp)
+            (beforeMainLoop tr)
 
 {-------------------------------------------------------------------------------
                                  Options

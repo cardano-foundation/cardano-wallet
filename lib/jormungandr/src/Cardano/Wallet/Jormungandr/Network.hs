@@ -89,9 +89,10 @@ import Cardano.Wallet.Network
     , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
     , NetworkLayer (..)
+    , defaultRetryPolicy
     )
 import Cardano.Wallet.Network.Ports
-    ( PortNumber, defaultRetryPolicy, getRandomPort, waitForPort )
+    ( PortNumber, getRandomPort, waitForPort )
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
