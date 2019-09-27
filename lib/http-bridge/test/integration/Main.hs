@@ -206,8 +206,7 @@ main = do
                         hClose handle
                         putMVar done ()
                 putMVar ctx $
-                    Context cleanup manager walletPort bridgePort
-                        faucet estimator Proxy
+                    Context cleanup manager bridgePort walletPort faucet estimator Proxy
                 takeMVar done
         takeMVar ctx
 

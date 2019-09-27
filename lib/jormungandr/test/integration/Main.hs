@@ -108,7 +108,8 @@ start = do
             manager <- (baseUrl,) <$> newManager defaultManagerSettings
             faucet <- initFaucet
             putMVar ctx $  Context
-                { _manager = manager
+                { _cleanup = pure ()
+                , _manager = manager
                 , _nodePort = nPort
                 , _walletPort = wPort
                 , _faucet = faucet

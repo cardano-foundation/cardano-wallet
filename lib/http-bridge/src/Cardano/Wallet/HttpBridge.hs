@@ -24,7 +24,7 @@ import Cardano.BM.Backend.Switchboard
 import Cardano.BM.Trace
     ( Trace, appendName, logAlert, logInfo )
 import Cardano.CLI
-    ( waitForService )
+    ( Port (..), waitForService )
 import Cardano.Launcher
     ( ProcessHasExited (..), installSignalHandlers )
 import Cardano.Wallet
@@ -44,9 +44,9 @@ import Cardano.Wallet.HttpBridge.Network
 import Cardano.Wallet.HttpBridge.Primitive.Types
     ( Tx )
 import Cardano.Wallet.Network
-    ( ErrNetworkTip (..), NetworkLayer (..), isNetworkUnreachable )
+    ( NetworkLayer (..), defaultRetryPolicy, waitForNetwork )
 import Cardano.Wallet.Network.Ports
-    ( PortNumber, defaultRetryPolicy )
+    ( PortNumber )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
@@ -57,12 +57,6 @@ import Cardano.Wallet.Primitive.Types
     ( Block )
 import Control.Concurrent.Async
     ( race_ )
-import Control.Exception
-    ( throwIO )
-import Control.Monad.Trans.Except
-    ( runExceptT )
-import Control.Retry
-    ( RetryPolicyM, retrying )
 import Data.Function
     ( (&) )
 import Data.Text
@@ -107,8 +101,8 @@ serveWallet (cfg, sb, tr) dbFile listen bridge mAction = do
     withDBLayer $ \(ctx, db) ->
         HttpBridge.withNetworkLayer @n tr bridge $ \case
             Right (bridgePort, nl) -> do
-                waitForService "http-bridge" (sb, tr) $
-                    waitForConnection nl defaultRetryPolicy
+                waitForService "http-bridge" (sb, tr) (Port $ fromEnum bridgePort) $
+                    waitForNetwork nl defaultRetryPolicy
                 wl <- newWalletLayer db nl
                 let mkCallback action apiPort =
                         action (fromIntegral apiPort) bridgePort nl ctx db wl
@@ -116,68 +110,48 @@ serveWallet (cfg, sb, tr) dbFile listen bridge mAction = do
                 pure ExitSuccess
             Left e -> handleNetworkStartupError e
   where
-        withServer
-            :: WalletLayer s t k
-            -> Maybe (Int -> IO a)
-            -> IO ()
-        withServer wallet action = do
-            Server.withListeningSocket listen $ \(port, socket) -> do
-                let tracerIPC = appendName "daedalus-ipc" tr
-                let tracerApi = appendName "api" tr
-                let beforeMainLoop = logInfo tr $
-                        "Wallet backend server listening on: " <> toText port
-                let settings = Warp.defaultSettings
-                        & setBeforeMainLoop beforeMainLoop
-                let ipcServer = daedalusIPC tracerIPC port
-                let apiServer = Server.start settings tracerApi socket wallet
-                let withAction = maybe id (\cb -> race_ (cb port)) action
-                withAction $ race_ ipcServer apiServer
+    withServer
+        :: WalletLayer s t k
+        -> Maybe (Int -> IO a)
+        -> IO ()
+    withServer wallet action = do
+        Server.withListeningSocket listen $ \(port, socket) -> do
+            let tracerIPC = appendName "daedalus-ipc" tr
+            let tracerApi = appendName "api" tr
+            let beforeMainLoop = logInfo tr $
+                    "Wallet backend server listening on: " <> toText port
+            let settings = Warp.defaultSettings
+                    & setBeforeMainLoop beforeMainLoop
+            let ipcServer = daedalusIPC tracerIPC port
+            let apiServer = Server.start settings tracerApi socket wallet
+            let withAction = maybe id (\cb -> race_ (cb port)) action
+            withAction $ race_ ipcServer apiServer
 
-        newWalletLayer
-            :: DBLayer IO s t k
-            -> NetworkLayer IO Tx (Block Tx)
-            -> IO (WalletLayer s t k)
-        newWalletLayer db nl = do
-            let g0 = staticBlockchainParameters nl
-            let tl = HttpBridge.newTransactionLayer @n
-            Wallet.newWalletLayer tr g0 db nl tl
+    newWalletLayer
+        :: DBLayer IO s t k
+        -> NetworkLayer IO Tx (Block Tx)
+        -> IO (WalletLayer s t k)
+    newWalletLayer db nl = do
+        let g0 = staticBlockchainParameters nl
+        let tl = HttpBridge.newTransactionLayer @n
+        Wallet.newWalletLayer tr g0 db nl tl
 
-        withDBLayer
-            :: ((Sqlite.SqliteContext, DBLayer IO s t k) -> IO a')
-            -> IO a'
-        withDBLayer action = do
-            let tracerDB = appendName "database" tr
-            Sqlite.withDBLayerCtx cfg tracerDB dbFile action
+    withDBLayer
+        :: ((Sqlite.SqliteContext, DBLayer IO s t k) -> IO a')
+        -> IO a'
+    withDBLayer action = do
+        let tracerDB = appendName "database" tr
+        Sqlite.withDBLayerCtx cfg tracerDB dbFile action
 
-        handleNetworkStartupError :: ErrStartup -> IO ExitCode
-        handleNetworkStartupError = \case
-            ErrStartupCommandExited pe -> case pe of
-                ProcessDidNotStart _cmd exc -> do
-                    logAlert tr $ "Could not start the node backend. " <> T.pack (show exc)
-                    pure (ExitFailure 1)
-                ProcessHasExited _cmd st -> do
-                    logAlert tr $ "The node exited with status " <> T.pack (show st)
-                    pure (ExitFailure 1)
-            ErrStartupNodeNotListening -> do
-                logAlert tr "Waited too long for http-bridge to become available. Giving up!"
+    handleNetworkStartupError :: ErrStartup -> IO ExitCode
+    handleNetworkStartupError = \case
+        ErrStartupCommandExited pe -> case pe of
+            ProcessDidNotStart _cmd exc -> do
+                logAlert tr $ "Could not start the node backend. " <> T.pack (show exc)
                 pure (ExitFailure 1)
-
--- | Wait until 'networkTip networkLayer' succeeds according to a given
--- retry policy. Throws an exception otherwise.
-waitForConnection
-    :: NetworkLayer IO tx block
-    -> RetryPolicyM IO
-    -> IO ()
-waitForConnection nw policy = do
-    r <- retrying policy shouldRetry (const $ runExceptT (networkTip nw))
-    case r of
-        Right _ -> return ()
-        Left e -> throwIO e
-  where
-    shouldRetry _ = \case
-        Right _ ->
-            return False
-        Left ErrNetworkTipNotFound ->
-            return True
-        Left (ErrNetworkTipNetworkUnreachable e) ->
-            return $ isNetworkUnreachable e
+            ProcessHasExited _cmd st -> do
+                logAlert tr $ "The node exited with status " <> T.pack (show st)
+                pure (ExitFailure 1)
+        ErrStartupNodeNotListening -> do
+            logAlert tr "Waited too long for http-bridge to become available. Giving up!"
+            pure (ExitFailure 1)

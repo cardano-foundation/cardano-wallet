@@ -73,7 +73,10 @@ import qualified Network.HTTP.Types.Status as HTTP
 
 -- | Running Context for our integration test
 data Context t = Context
-    { _manager
+    { _cleanup
+        :: IO ()
+        -- ^ Cleanup action for the context
+    , _manager
         :: (Text, Manager)
         -- ^ The underlying BaseUrl and Manager used by the Wallet Client
     , _nodePort

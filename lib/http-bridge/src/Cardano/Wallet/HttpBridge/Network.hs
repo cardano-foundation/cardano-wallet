@@ -64,9 +64,10 @@ import Cardano.Wallet.Network
     , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
     , NetworkLayer (..)
+    , defaultRetryPolicy
     )
 import Cardano.Wallet.Network.Ports
-    ( PortNumber, defaultRetryPolicy, getRandomPort, waitForPort )
+    ( PortNumber, getRandomPort, waitForPort )
 import Cardano.Wallet.Primitive.Types
     ( Block (..), BlockHeader (..), Hash (..), SlotId (..), TxWitness )
 import Control.Arrow
@@ -137,8 +138,7 @@ withNetworkLayer tr (UseRunning port) cb = do
     logInfo tr $ "Using cardano-http-bridge port " <> T.pack (show port)
     cb (Right (port, nl))
 withNetworkLayer tr (Launch cfg) cb = do
-    res <- withHttpBridge tr cfg $ \port ->
-        withNetworkLayer @n tr (UseRunning port) cb
+    res <- withHttpBridge tr cfg $ \port -> withNetworkLayer @n tr (UseRunning port) cb
     either (cb . Left) pure res
 
 withHttpBridge :: Trace IO Text -> HttpBridgeConfig -> (PortNumber -> IO a) -> IO (Either ErrStartup a)

@@ -139,15 +139,9 @@ specNoBackend = do
     it "TIMEOUT - Times out gracefully after 60 seconds" $ do
         let args = ["serve", "--random-port"]
         let process = proc' (commandName @t) args
-        (out, err) <- collectStreams (61, 61) process
+        (out, _) <- collectStreams (61, 61) process
         out `shouldContainT` "Waited too long for http-bridge to become available.\
             \ Giving up!"
-        err `shouldContainT` "Hint (1): If you're launching the wallet server\
-            \ on your own, double-check that http-bridge is up-and-running and\
-            \ listening on the same port given to '--node-port' (i.e. tcp/8080)."
-        err `shouldContainT` "Hint (2): Should you be starting from scratch,\
-            \ make sure to have a good-enough network connection to synchronize\
-            \ the first blocks in a timely manner."
 
 oneSecond :: Int
 oneSecond = 1000000
