@@ -59,7 +59,6 @@ library
     , monad-control
     , memory
     , safe
-    , scientific
     , servant
     , servant-client
     , servant-client-core

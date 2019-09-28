@@ -27,7 +27,7 @@ import Prelude
 import Cardano.Wallet.Jormungandr.Binary
     ( Block
     , MessageType (..)
-    , StakeDistribution
+    , StakeApiResponse
     , getBlock
     , putSignedTx
     , runGet
@@ -119,7 +119,7 @@ type PostMessage
 type GetStakeDistribution
     = "v0"
     :> "stake"
-    :> Get '[JSON] StakeDistribution
+    :> Get '[JSON] StakeApiResponse
 
 newtype BlockId = BlockId { getBlockId :: Hash "BlockHeader" }
 

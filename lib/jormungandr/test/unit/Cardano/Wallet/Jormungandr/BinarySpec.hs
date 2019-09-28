@@ -23,9 +23,7 @@ import Cardano.Wallet.Jormungandr.Binary
     , Message (..)
     , MessageType (..)
     , Milli (..)
-    , Stake (..)
     , StakeApiResponse (..)
-    , StakeDistribution (..)
     , fragmentId
     , getAddress
     , getBlock
@@ -51,6 +49,8 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , PoolId (..)
     , SlotId (..)
+    , Stake (..)
+    , StakeDistribution (..)
     , StartTime (..)
     , TxIn (..)
     , TxOut (..)

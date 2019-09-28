@@ -8,7 +8,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -33,9 +32,7 @@ module Cardano.Wallet.Jormungandr.Binary
     , Message (..)
     , MessageType (..)
     , Milli (..)
-    , StakeDistribution (..)
     , StakeApiResponse (..)
-    , Stake (..)
     , getBlock
     , getBlockHeader
     , getBlockId
@@ -87,8 +84,8 @@ import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
     , Hash (..)
-    , PoolId (..)
     , SlotId (..)
+    , StakeDistribution
     , TxIn (..)
     , TxOut (..)
     , TxWitness (..)
@@ -104,7 +101,7 @@ import Crypto.Hash
 import Crypto.Hash.Algorithms
     ( Blake2b_256 )
 import Data.Aeson
-    ( FromJSON (..), Value (..), defaultOptions, genericParseJSON )
+    ( FromJSON (..), defaultOptions, genericParseJSON )
 import Data.Binary.Get
     ( Get
     , bytesRead
@@ -138,10 +135,6 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Scientific
-    ( toBoundedInteger )
-import Data.Text.Class
-    ( FromText (..), TextDecodingError (..) )
 import Data.Time.Clock
     ( NominalDiffTime, secondsToDiffTime )
 import Data.Time.Clock.POSIX
@@ -395,34 +388,8 @@ data StakeApiResponse = StakeApiResponse
     , stake :: StakeDistribution
     } deriving (Show, Eq, Generic)
 
--- | Coins are stored as Lovelace (reminder: 1 Lovelace = 1e-6 ADA)
-newtype Stake = Stake { getStake :: Word64 } deriving (Show, Eq, Generic)
-
-data StakeDistribution = StakeDistribution
-    { dangling :: Stake
-    , pools :: [(PoolId,Stake)]
-    , unassigned :: Stake
-    } deriving (Eq, Show, Generic)
-
 instance FromJSON StakeApiResponse where
     parseJSON = genericParseJSON defaultOptions
-
-instance FromJSON StakeDistribution where
-    parseJSON = genericParseJSON defaultOptions
-
-instance FromJSON Stake where
-    parseJSON (Number n) = case toBoundedInteger n of
-        Nothing ->
-            fail "stake should be non-negative integer"
-        Just stake ->
-            return (Stake stake)
-    parseJSON _ = fail "stake should be numeric"
-
-instance FromJSON PoolId where
-    parseJSON (String txt) = case fromText txt of
-        Left (TextDecodingError err) -> fail err
-        Right bs -> return bs
-    parseJSON _ = fail "stake pool id should be text"
 
 {-------------------------------------------------------------------------------
                             Config Parameters

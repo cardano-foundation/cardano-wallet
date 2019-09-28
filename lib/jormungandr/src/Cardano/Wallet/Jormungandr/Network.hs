@@ -555,7 +555,7 @@ data JormungandrLayer m = JormungandrLayer
         :: Hash "Genesis"
         -> ExceptT ErrGetBlockchainParams m (J.Block, BlockchainParameters)
     , getStakeDistribution
-        :: ExceptT ErrGetStakeDistribution m J.StakeDistribution
+        :: ExceptT ErrGetStakeDistribution m J.StakeApiResponse
     }
 
 -- | Construct a 'JormungandrLayer'-client

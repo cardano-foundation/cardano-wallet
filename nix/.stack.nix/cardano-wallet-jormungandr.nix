@@ -48,7 +48,6 @@
           (hsPkgs.monad-control)
           (hsPkgs.memory)
           (hsPkgs.safe)
-          (hsPkgs.scientific)
           (hsPkgs.servant)
           (hsPkgs.servant-client)
           (hsPkgs.servant-client-core)

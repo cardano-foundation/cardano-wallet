@@ -49,6 +49,7 @@
           (hsPkgs.persistent-template)
           (hsPkgs.random)
           (hsPkgs.retry)
+          (hsPkgs.scientific)
           (hsPkgs.servant)
           (hsPkgs.servant-server)
           (hsPkgs.split)
