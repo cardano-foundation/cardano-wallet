@@ -58,7 +58,6 @@
           (hsPkgs.transformers)
           (hsPkgs.yaml)
           (hsPkgs.warp)
-          (hsPkgs.vector)
           ];
         };
       exes = {

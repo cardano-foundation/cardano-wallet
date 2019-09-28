@@ -69,7 +69,6 @@ library
     , transformers
     , yaml
     , warp
-    , vector
   hs-source-dirs:
       src
   exposed-modules:

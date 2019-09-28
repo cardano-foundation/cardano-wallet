@@ -8,6 +8,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -33,7 +34,7 @@ module Cardano.Wallet.Jormungandr.Binary
     , MessageType (..)
     , Milli (..)
     , StakeDistribution (..)
-    , StakePools (..)
+    , StakeApiResponse (..)
     , Stake (..)
     , getBlock
     , getBlockHeader
@@ -103,14 +104,7 @@ import Crypto.Hash
 import Crypto.Hash.Algorithms
     ( Blake2b_256 )
 import Data.Aeson
-    ( FromJSON (..)
-    , Value (..)
-    , defaultOptions
-    , genericParseJSON
-    , withArray
-    , withObject
-    , (.:)
-    )
+    ( FromJSON (..), Value (..), defaultOptions, genericParseJSON )
 import Data.Binary.Get
     ( Get
     , bytesRead
@@ -163,7 +157,6 @@ import qualified Codec.CBOR.Read as CBOR
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
-import qualified Data.Vector as V
 
 -- maximum number of inputs in a valid transaction
 maxNumberOfInputs :: Int
@@ -397,42 +390,39 @@ putTx inputs outputs = do
                                  Stake Distribution
 -------------------------------------------------------------------------------}
 
-data StakeDistribution = StakeDistribution
+data StakeApiResponse = StakeApiResponse
     { epoch :: Word64
-    , stake :: StakePools
+    , stake :: StakeDistribution
     } deriving (Show, Eq, Generic)
 
 -- | Coins are stored as Lovelace (reminder: 1 Lovelace = 1e-6 ADA)
-newtype Stake = Stake { getStake :: Word64 } deriving (Show, Eq)
+newtype Stake = Stake { getStake :: Word64 } deriving (Show, Eq, Generic)
 
-data StakePools = StakePools
-    { dangling :: Word64
+data StakeDistribution = StakeDistribution
+    { dangling :: Stake
     , pools :: [(PoolId,Stake)]
-    , unassigned :: Word64
-    } deriving (Eq, Show)
+    , unassigned :: Stake
+    } deriving (Eq, Show, Generic)
+
+instance FromJSON StakeApiResponse where
+    parseJSON = genericParseJSON defaultOptions
 
 instance FromJSON StakeDistribution where
     parseJSON = genericParseJSON defaultOptions
 
-instance FromJSON StakePools where
-    parseJSON = withObject "StakePools" $ \sp -> do
-        d <- sp .: "dangling"
-        p <- sp .: "pools"
-        a <- sp .: "unassigned"
-        let poolParser =  withArray "pairArrays" $ \arr ->
-                case V.toList arr of
-                    [(String txt),(Number st)] ->
-                        case fromText txt of
-                            Left (TextDecodingError err) -> fail err
-                            Right bs ->
-                                case toBoundedInteger st of
-                                    Nothing ->
-                                        fail "expected stake to be integer"
-                                    Just stake ->
-                                        return (bs, Stake stake)
-                    _ -> fail "expected poolId and stake array in pool's array"
-        p' <- mapM poolParser p
-        pure $ StakePools d p' a
+instance FromJSON Stake where
+    parseJSON (Number n) = case toBoundedInteger n of
+        Nothing ->
+            fail "stake should be non-negative integer"
+        Just stake ->
+            return (Stake stake)
+    parseJSON _ = fail "stake should be numeric"
+
+instance FromJSON PoolId where
+    parseJSON (String txt) = case fromText txt of
+        Left (TextDecodingError err) -> fail err
+        Right bs -> return bs
+    parseJSON _ = fail "stake pool id should be text"
 
 {-------------------------------------------------------------------------------
                             Config Parameters

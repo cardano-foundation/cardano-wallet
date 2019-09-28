@@ -24,8 +24,8 @@ import Cardano.Wallet.Jormungandr.Binary
     , MessageType (..)
     , Milli (..)
     , Stake (..)
+    , StakeApiResponse (..)
     , StakeDistribution (..)
-    , StakePools (..)
     , fragmentId
     , getAddress
     , getBlock
@@ -265,12 +265,12 @@ spec = do
                     \pools\":[[\"7d749ef424507fb80fed0d2289d535a94f6870add0cf8b3\
                     \74cfe6cae078320ec\",1]],\"unassigned\":100100000000000}}"
             decodeJSON exampleStake `shouldBe`
-                Right StakeDistribution {
+                Right StakeApiResponse {
                    epoch = 252054,
-                   stake = StakePools {
-                       dangling=0,
+                   stake = StakeDistribution {
+                       dangling = Stake 0,
                        pools = [(PoolId "}t\158\244$P\DEL\184\SI\237\r\"\137\213\&5\169Ohp\173\208\207\139\&7L\254l\174\a\131 \236", Stake 1)],
-                       unassigned=100100000000000
+                       unassigned = Stake 100100000000000
                        }
                     }
             return ()
@@ -279,12 +279,12 @@ spec = do
             let exampleStake = "{\"epoch\": 252054,\"stake\": {\"dangling\":0,\"\
                     \pools\":[],\"unassigned\":100100000000000}}"
             decodeJSON exampleStake `shouldBe`
-                Right StakeDistribution {
+                Right StakeApiResponse {
                    epoch = 252054,
-                   stake = StakePools {
-                       dangling=0,
+                   stake = StakeDistribution {
+                       dangling = Stake 0,
                        pools = [],
-                       unassigned=100100000000000
+                       unassigned = Stake 100100000000000
                        }
                     }
             return ()
@@ -294,8 +294,15 @@ spec = do
                     \pools\":[[\"b80fed0d2289d535a94f6870add0cf8b3\
                     \74cfe6cae078320ec\",1]],\"unassigned\":100100000000000}}"
             decodeJSON exampleStake `shouldBe`
-                Left "Error in $.stake: stake pool id invalid: \
+                Left "Error in $.stake.pools[0][0]: stake pool id invalid: \
                      \expected 32 bytes but got 25"
+            return ()
+
+        it "invalid stake pool id in endpoint response gives expected error" $ do
+            let exampleStake = "{\"epoch\": 252054,\"stake\": {\"dangling\":0,\"\
+                    \pools\":[[12345,1]],\"unassigned\":100100000000000}}"
+            decodeJSON exampleStake `shouldBe`
+                Left "Error in $.stake.pools[0][0]: stake pool id should be text"
             return ()
 
         it "invalid stake pair in endpoint response gives expected error" $ do
@@ -304,17 +311,34 @@ spec = do
                     \74cfe6cae078320ec\",1, \"not needed field\"]],\"unassigned\":\
                     \100100000000000}}"
             decodeJSON exampleStake `shouldBe`
-                Left "Error in $.stake: expected poolId and stake array in pool's array"
+                Left "Error in $.stake.pools[0]: cannot unpack array of length 3\
+                     \ into a tuple of length 2"
             return ()
 
         it "invalid numerical field value in endpoint response gives expected error" $ do
             let exampleStake = "{\"epoch\": 252054,\"stake\": {\"dangling\":0,\"\
                     \pools\":[[\"7d749ef424507fb80fed0d2289d535a94f6870add0cf8b3\
-                    \74cfe6cae078320ec\",1, \"not needed field\"]],\"unassigned\":\
-                    \10010000.23}}"
+                    \74cfe6cae078320ec\",1]],\"unassigned\":[]}}"
             decodeJSON exampleStake `shouldBe`
-                Left "Error in $.stake.unassigned: Word64 is either floating or will \
-                \cause over or underflow: 1.001000023e7"
+                Left "Error in $.stake.unassigned: stake should be numeric"
+            return ()
+
+        it "invalid non-numerical field value in endpoint response gives expected error" $ do
+            let exampleStake = "{\"epoch\": 252054,\"stake\": {\"dangling\":0,\"\
+                    \pools\":[[\"7d749ef424507fb80fed0d2289d535a94f6870add0cf8b3\
+                    \74cfe6cae078320ec\",1]],\"unassigned\":-10010000}}"
+            decodeJSON exampleStake `shouldBe`
+                Left "Error in $.stake.unassigned: stake should be non-negative\
+                     \ integer"
+            return ()
+
+        it "invalid non-numerical field value in endpoint response gives expected error" $ do
+            let exampleStake = "{\"epoch\": 252054,\"stake\": {\"dangling\":0,\"\
+                    \pools\":[[\"7d749ef424507fb80fed0d2289d535a94f6870add0cf8b3\
+                    \74cfe6cae078320ec\",1]],\"unassigned\":10010000.23}}"
+            decodeJSON exampleStake `shouldBe`
+                Left "Error in $.stake.unassigned: stake should be non-negative\
+                     \ integer"
             return ()
 
         describe "golden block0s generated in jormungandr-lib" $ do
@@ -383,7 +407,7 @@ spec = do
     try' :: a -> IO (Either String a)
     try' = fmap (either (Left . show) Right)
         . (try @SomeException) . evaluate
-    decodeJSON = eitherDecode :: BL.ByteString -> Either String StakeDistribution
+    decodeJSON = eitherDecode :: BL.ByteString -> Either String StakeApiResponse
 
 -- Only generating single addresses!
 instance Arbitrary Address where
