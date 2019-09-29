@@ -62,10 +62,8 @@ let
           unit.build-tools = [ cardano-http-bridge ];
         };
 
-        # fixme: better way of setting environment variables
-        packages.cardano-wallet-http-bridge.preBuild = "export NETWORK=testnet";
-
         packages.cardano-wallet-jormungandr.components.tests = {
+          # provide jormungandr command to test suites
           integration.build-tools = [ jormungandr ];
           unit.build-tools = [ jormungandr ];
         };
@@ -109,19 +107,14 @@ let
         packages.katip.doExactConfig = true;
       }
 
-      # the iohk-module will supply us with the necessary
+      # The iohk-module will supply us with the necessary
       # cross compilation plumbing to make Template Haskell
-      # work when cross compiling.  For now we need to
-      # list the packages that require template haskell
-      # explicity here.
+      # work when cross compiling.
       iohk-module
     ];
     pkg-def-extras = [
+      # Use the iohk-extras patched GHC for cross-compiling.
       iohk-extras.${compiler}
-      (hackage: { packages = {
-        "transformers" = (((hackage.transformers)."0.5.6.2").revisions).default;
-        "process" = (((hackage.process)."1.6.5.0").revisions).default;
-      }; })
     ];
   };
 

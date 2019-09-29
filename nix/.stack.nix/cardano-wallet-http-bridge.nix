@@ -171,6 +171,9 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."transformers" or (buildDepError "transformers"))
             ];
           buildable = true;
+          build-tools = [
+            (hsPkgs.buildPackages.cardano-wallet-http-bridge or (pkgs.buildPackages.cardano-wallet-http-bridge))
+            ];
           };
         };
       benchmarks = {

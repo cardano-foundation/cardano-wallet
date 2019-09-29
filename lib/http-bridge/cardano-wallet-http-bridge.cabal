@@ -199,6 +199,8 @@ test-suite http-bridge-integration
     , text-class
     , time
     , transformers
+  build-tools:
+      cardano-wallet-http-bridge
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
