@@ -31,20 +31,32 @@ let
       cp -v ${pkgs.libffi}/bin/libffi-6.dll $out/bin
     '' else postInstall;
 
+  # Chop out a subdirectory of the source, so that the package is only
+  # rebuilt when something in the subdirectory changes.
+  filterSubDir = dir:  with pkgs.lib; let
+      isFiltered = src ? _isLibCleanSourceWith;
+      origSrc = if isFiltered then src.origSrc else src;
+    in cleanSourceWith {
+      inherit src;
+      filter = path: type:
+        type == "directory" ||
+        hasPrefix (toString origSrc + toString dir) path;
+    } + dir;
+
   pkgSet = haskell.mkStackPkgSet {
     inherit stack-pkgs;
     modules = [
       # Add source filtering to local packages
       {
-        packages.cardano-wallet-core.src = src + /lib/core;
-        packages.cardano-wallet-core-integration.src = src + /lib/core-integration;
-        packages.cardano-wallet-cli.src = src + /lib/cli;
-        packages.cardano-wallet-launcher.src = src + /lib/launcher;
-        packages.cardano-wallet-http-bridge.src = src + /lib/http-bridge;
-        packages.cardano-wallet-jormungandr.src = src + /lib/jormungandr;
-        packages.cardano-wallet-test-utils.src = src + /lib/test-utils;
-        packages.text-class.src = src + /lib/text-class;
-        packages.bech32.src = src + /lib/bech32;
+        packages.cardano-wallet-core.src = filterSubDir /lib/core;
+        packages.cardano-wallet-core-integration.src = filterSubDir /lib/core-integration;
+        packages.cardano-wallet-cli.src = filterSubDir /lib/cli;
+        packages.cardano-wallet-launcher.src = filterSubDir /lib/launcher;
+        packages.cardano-wallet-http-bridge.src = filterSubDir /lib/http-bridge;
+        packages.cardano-wallet-jormungandr.src = filterSubDir /lib/jormungandr;
+        packages.cardano-wallet-test-utils.src = filterSubDir /lib/test-utils;
+        packages.text-class.src = filterSubDir /lib/text-class;
+        packages.bech32.src = filterSubDir /lib/bech32;
       }
 
       # Add dependencies
@@ -61,7 +73,6 @@ let
           integration.build-tools = [ jormungandr ];
           unit.build-tools = [ jormungandr ];
         };
-
 
         packages.cardano-wallet-jormungandr.components.exes.cardano-wallet-jormungandr = {
           build-tools = [ pkgs.makeWrapper];
