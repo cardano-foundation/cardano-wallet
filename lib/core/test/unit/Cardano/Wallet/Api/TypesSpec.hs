@@ -105,6 +105,8 @@ import Control.Lens
     ( Lens', at, (^.) )
 import Control.Monad
     ( replicateM )
+import Control.Monad.IO.Class
+    ( liftIO )
 import Crypto.Hash
     ( hash )
 import Data.Aeson

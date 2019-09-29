@@ -125,6 +125,7 @@ test-suite unit
     , bytestring
     , cardano-crypto
     , cardano-wallet-core
+    , cardano-wallet-core-integration
     , cardano-wallet-http-bridge
     , cborg
     , containers
@@ -153,7 +154,6 @@ test-suite unit
       Cardano.Wallet.HttpBridge.Primitive.AddressDerivation.SequentialSpec
       Cardano.Wallet.HttpBridge.Primitive.TypesSpec
       Cardano.Wallet.HttpBridge.TransactionSpec
-      Cardano.Wallet.TransactionSpecShared
       Data.PackfileSpec
       Servant.Extra.ContentTypesSpec
 

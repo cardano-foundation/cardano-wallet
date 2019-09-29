@@ -134,6 +134,7 @@ test-suite unit
     , bytestring
     , cardano-crypto
     , cardano-wallet-core
+    , cardano-wallet-core-integration
     , cardano-wallet-jormungandr
     , containers
     , directory
@@ -165,7 +166,6 @@ test-suite unit
       Cardano.Wallet.Jormungandr.EnvironmentSpec
       Cardano.Wallet.Jormungandr.NetworkSpec
       Cardano.Wallet.Jormungandr.TransactionSpec
-      Cardano.Wallet.TransactionSpecShared
 
 test-suite integration
   default-language:
