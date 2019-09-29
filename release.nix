@@ -28,8 +28,7 @@ let
     # This aggregate job is what IOHK Hydra uses to update
     # the CI status in GitHub.
     required = mkRequiredJob (
-      # fixme: fix failing tests
-      # collectTests jobs.native.tests ++
+      collectTests jobs.native.tests ++
       collectTests jobs.native.benchmarks ++
       [ jobs.native.cardano-wallet-http-bridge.x86_64-linux
         jobs.native.cardano-wallet-http-bridge.x86_64-darwin
