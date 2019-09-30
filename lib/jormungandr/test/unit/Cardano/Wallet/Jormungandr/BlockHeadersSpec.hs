@@ -4,14 +4,14 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.Jormungandr.NetworkSpec
+module Cardano.Wallet.Jormungandr.BlockHeadersSpec
     ( spec
     ) where
 
 import Prelude
 
-import Cardano.Wallet.Jormungandr.Network
-    ( UnstableBlocks (..), updateUnstableBlocks )
+import Cardano.Wallet.Jormungandr.BlockHeaders
+    ( BlockHeaders (..), updateUnstableBlocks )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..), Hash (..), SlotId (..) )
 import Control.Monad
@@ -180,9 +180,9 @@ prop_updateUnstableBlocksFailure TestCase{..} =
 
 -- | Convert a test chain to 'UnstableBlocks' so that it can be compared for
 -- equality.
-mkUnstableBlocks :: Int -> [BlockHeader] -> UnstableBlocks
+mkUnstableBlocks :: Int -> [BlockHeader] -> BlockHeaders
 mkUnstableBlocks h bs =
-    UnstableBlocks (Seq.fromList $ headerIds bs) (Quantity $ fromIntegral h)
+    BlockHeaders (Seq.fromList $ headerIds bs) (Quantity $ fromIntegral h)
 
 -- | Convert a test chain into an assoc list of block ids, their headers, and
 -- chain heights.
@@ -388,11 +388,11 @@ instance Arbitrary (Quantity "block" Word32) where
 -------------------------------------------------------------------------------}
 
 -- | Shows just the headers of the unstable blocks.
-showUnstableBlocks :: UnstableBlocks -> String
+showUnstableBlocks :: BlockHeaders -> String
 showUnstableBlocks ubs = showHeaders ubs ++ " " ++ showHeight ubs
   where
-    showHeaders = unwords . map (showHash . fst) . F.toList . getUnstableBlocks
-    showHeight (UnstableBlocks _ (Quantity h)) = "height=" ++ show h
+    showHeaders = unwords . map (showHash . fst) . F.toList . getBlockHeaders
+    showHeight (BlockHeaders _ (Quantity h)) = "height=" ++ show h
 
 showHash :: Hash a -> String
 showHash (Hash h) = B8.unpack h
