@@ -42,7 +42,7 @@ import Cardano.BM.Data.Tracer
 import Cardano.Wallet.DB
     ( DBLayer (..), PrimaryKey (..), cleanDB )
 import Cardano.Wallet.DB.Sqlite
-    ( PersistTx (..), newDBLayer )
+    ( newDBLayer )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx (..), block0, genesisParameters )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -386,10 +386,6 @@ type WalletBench = Wallet (SeqState DummyTarget) DummyTarget
 
 instance NFData (DBLayer m s t k) where
     rnf _ = ()
-
-instance PersistTx DummyTarget where
-    resolvedInputs = flip zip (repeat Nothing) . inputs
-    mkTx _ inps = Tx (fst <$> inps)
 
 testCp :: WalletBench
 testCp = snd $ initWallet block0 genesisParameters initDummyState

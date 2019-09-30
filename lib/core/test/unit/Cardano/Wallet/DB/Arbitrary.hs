@@ -32,8 +32,6 @@ import Cardano.Wallet.DB
     ( PrimaryKey (..) )
 import Cardano.Wallet.DB.Model
     ( TxHistory, filterTxHistory )
-import Cardano.Wallet.DB.Sqlite
-    ( PersistTx (..) )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, genesisParameters )
 import Cardano.Wallet.DummyTarget.Primitive.Types as DummyTarget
@@ -287,10 +285,6 @@ instance Arbitrary (Index 'Hardened 'AccountK) where
 instance Arbitrary (Index 'Hardened 'AddressK) where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
-
-instance PersistTx DummyTarget where
-    resolvedInputs = flip zip (repeat Nothing) . DummyTarget.inputs
-    mkTx _ inps = DummyTarget.Tx (fst <$> inps)
 
 instance Arbitrary DummyTarget.Tx where
     shrink (DummyTarget.Tx ins outs) =
