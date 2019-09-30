@@ -548,7 +548,7 @@ instance NFData BlockHeader
 instance Buildable BlockHeader where
     build (BlockHeader s (Quantity bh) prev) =
         prefixF 8 prevF
-        <> " ⬸ ["
+        <> "-["
         <> build s
         <> "#" <> build (show bh)
         <> "]"
