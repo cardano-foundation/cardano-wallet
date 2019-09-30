@@ -147,8 +147,6 @@ import Network.HTTP.Client
     ( Manager, defaultManagerSettings, newManager )
 import Network.HTTP.Types.Status
     ( status400 )
-import Numeric.Natural
-    ( Natural )
 import Safe
     ( lastMay, tailSafe )
 import Servant.API
@@ -269,6 +267,7 @@ mkRawNetworkLayer
     -> NetworkLayer m Tx J.Block
 mkRawNetworkLayer (block0, bp) st j = NetworkLayer
     { networkTip = modifyMVar st $ \bs -> do
+        let k = getEpochStability bp
         bs' <- updateUnstableBlocks k getTipId' getBlockHeader bs
         ExceptT . pure $ case unstableBlocksTip bs' of
             Just t -> Right (bs', t)
@@ -305,11 +304,6 @@ mkRawNetworkLayer (block0, bp) st j = NetworkLayer
 
     mappingError = flip withExceptT
 
-    -- security parameter, the maximum number of unstable blocks
-    k = fixup $ getEpochStability bp
-    fixup :: Quantity "block" Word32 -> Natural
-    fixup (Quantity n) = fromIntegral n
-
 {-------------------------------------------------------------------------------
                    Managing the global unstable blocks state
 -------------------------------------------------------------------------------}
@@ -321,7 +315,7 @@ mkRawNetworkLayer (block0, bp) st j = NetworkLayer
 data UnstableBlocks = UnstableBlocks
     { getUnstableBlocks :: !(Seq (Hash "BlockHeader", BlockHeader))
     -- ^ Double-ended queue of block headers, and their IDs.
-    , blockHeight :: !(Quantity "block" Natural)
+    , blockHeight :: !(Quantity "block" Word32)
     -- ^ The block height of the tip of the sequence.
     } deriving stock (Show, Eq, Generic)
 
@@ -385,16 +379,16 @@ emptyUnstableBlocks = UnstableBlocks mempty (Quantity 0)
 -- immediately terminate.
 updateUnstableBlocks
     :: forall m. Monad m
-    => Natural
+    => Quantity "block" Word32
     -- ^ Maximum number of unstable blocks (/k/).
     -> m (Hash "BlockHeader")
     -- ^ Fetches tip.
-    -> (Hash "BlockHeader" -> m (BlockHeader, Quantity "block" Natural))
+    -> (Hash "BlockHeader" -> m (BlockHeader, Quantity "block" Word32))
     -- ^ Fetches block header and its chain height.
     -> UnstableBlocks
     -- ^ Current unstable blocks state.
     -> m UnstableBlocks
-updateUnstableBlocks k getTipId' getBlockHeader lbhs = do
+updateUnstableBlocks (Quantity k) getTipId' getBlockHeader lbhs = do
     t <- getTipId'
     -- Trace backwards from the tip, accumulating new block headers, and
     -- removing overlapped unstable block headers.
@@ -409,13 +403,13 @@ updateUnstableBlocks k getTipId' getBlockHeader lbhs = do
     fetchBackwards
         :: UnstableBlocks
         -- ^ Current local unstable blocks
-        -> [(Hash "BlockHeader", BlockHeader, Quantity "block" Natural)]
+        -> [(Hash "BlockHeader", BlockHeader, Quantity "block" Word32)]
         -- ^ Accumulator of fetched blocks
-        -> Natural
+        -> Word32
         -- ^ Accumulator for number of blocks fetched
         -> Hash "BlockHeader"
         -- ^ Starting point for block fetch
-        -> m (UnstableBlocks, [(Hash "BlockHeader", BlockHeader, Quantity "block" Natural)])
+        -> m (UnstableBlocks, [(Hash "BlockHeader", BlockHeader, Quantity "block" Word32)])
     fetchBackwards ubs ac len t = do
         (tipHeader, tipHeight) <- getBlockHeader t
         -- Push the remote block.
@@ -446,11 +440,11 @@ unstableBlocksTipId (UnstableBlocks (_ubs :|> (t, _)) _) = Just t
 -- the oldest block headers to ensure that there are at most /k/ items in the
 -- sequence.
 appendUnstableBlocks
-    :: Natural
+    :: Word32
     -- ^ Maximum length of sequence.
     -> UnstableBlocks
     -- ^ Current unstable block headers, with rolled back blocks removed.
-    -> [(Hash "BlockHeader", BlockHeader, Quantity "block" Natural)]
+    -> [(Hash "BlockHeader", BlockHeader, Quantity "block" Word32)]
     -- ^ Newly fetched block headers to add.
     -> UnstableBlocks
 appendUnstableBlocks k (UnstableBlocks ubs h) bs =

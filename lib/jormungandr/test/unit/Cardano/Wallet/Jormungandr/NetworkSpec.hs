@@ -30,8 +30,8 @@ import Data.Maybe
     ( fromMaybe )
 import Data.Quantity
     ( Quantity (..) )
-import Numeric.Natural
-    ( Natural )
+import Data.Word
+    ( Word32 )
 import Safe
     ( headMay, initMay, lastMay )
 import Test.Hspec
@@ -77,7 +77,7 @@ spec = do
 -------------------------------------------------------------------------------}
 
 data TestCase = TestCase
-    { k :: Quantity "block" Natural
+    { k :: Quantity "block" Word32
     , nodeChain :: [BlockHeader]
     , localChain :: [BlockHeader]
     } deriving (Show, Eq)
@@ -188,7 +188,7 @@ mkUnstableBlocks h bs =
 -- chain heights.
 mkBlockHeaderHeights
     :: [BlockHeader]
-    -> [(Hash "BlockHeader", (BlockHeader, Quantity "block" Natural))]
+    -> [(Hash "BlockHeader", (BlockHeader, Quantity "block" Word32))]
 mkBlockHeaderHeights nodeChain =
     [ (hash, (hdr, height))
     | ((hash, hdr), height) <- zip (headerIds nodeChain) [Quantity 1..] ]
@@ -221,7 +221,7 @@ chainEnd :: [BlockHeader] -> SlotId
 chainEnd = maybe (SlotId 0 0) slotId . chainTip
 
 -- | Limit the sequence to a certain size by removing items from the beginning.
-limitChain :: Quantity "block" Natural -> [BlockHeader] -> [BlockHeader]
+limitChain :: Quantity "block" Word32 -> [BlockHeader] -> [BlockHeader]
 limitChain (Quantity k) bs = drop (max 0 (length bs - fromIntegral k - 1)) bs
 
 showChain :: [BlockHeader] -> String
@@ -239,7 +239,7 @@ showSlot (SlotId ep sl) = show ep ++ "." ++ show sl
 
 -- | Merge node chain with local unstable blocks.
 modelIntersection
-    :: Quantity "block" Natural
+    :: Quantity "block" Word32
     -- ^ Maximum number of unstable blocks.
     -> [BlockHeader]
     -- ^ Local test chain.
@@ -331,7 +331,7 @@ removeBlocks holes bs =
     bh = Quantity 0
 
 genChain
-    :: Quantity "block" Natural
+    :: Quantity "block" Word32
     -> String
     -> Gen [BlockHeader]
 genChain (Quantity k) prefix = do
@@ -373,7 +373,7 @@ instance Arbitrary TestCase where
         , n >= 1
         ]
 
-instance Arbitrary (Quantity "block" Natural) where
+instance Arbitrary (Quantity "block" Word32) where
     -- k doesn't need to be large for testing this
     arbitrary =
         Quantity . fromIntegral <$> choose (2 :: Int, 30)
