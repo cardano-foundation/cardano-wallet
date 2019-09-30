@@ -96,6 +96,7 @@ module Test.Integration.Framework.DSL
     , deleteWalletEp
     , getWalletUtxoEp
     , getAddressesEp
+    , listStakePoolsEp
     , postTxEp
     , postExternalTxEp
     , postTxFeeEp
@@ -977,6 +978,12 @@ verify a = mapM_ (a &)
 ---
 --- Endoints
 ---
+
+listStakePoolsEp :: (Method, Text)
+listStakePoolsEp =
+    ( "GET"
+    , "v2/stake-pools"
+    )
 
 postWalletEp :: (Method, Text)
 postWalletEp =
