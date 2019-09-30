@@ -1235,7 +1235,7 @@ proc' :: FilePath -> [String] -> CreateProcess
 proc' cmd args = (proc cmd args)
     { std_in = CreatePipe, std_out = CreatePipe, std_err = CreatePipe }
 
--- | Collect lines from standard output and error streams for 30 seconds, or,
+-- | Collect lines from standard output and error streams for 65 seconds, or,
 -- until a given limit is for both streams.
 collectStreams :: (Int, Int) -> CreateProcess -> IO (Text, Text)
 collectStreams (nOut0, nErr0) p = do
