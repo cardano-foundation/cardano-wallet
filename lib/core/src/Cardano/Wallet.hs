@@ -6,6 +6,7 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -47,6 +48,14 @@ module Cardano.Wallet
       WalletLayer
     , IsWalletCtx
     , newWalletLayer
+
+    -- * Workers
+    , WorkerRegistry
+    , Worker
+    , WorkerCallbacks (..)
+    , newWorker
+    , workerDefaultOnExit
+    , workerThread
 
     -- * Capabilities
     -- $Capabilities
@@ -197,9 +206,9 @@ import Cardano.Wallet.Transaction
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Concurrent
-    ( ThreadId, forkIO, killThread, threadDelay )
+    ( ThreadId, forkFinally, forkIO, killThread, threadDelay )
 import Control.Concurrent.MVar
-    ( MVar, modifyMVar_, newMVar )
+    ( MVar, modifyMVar_, newEmptyMVar, newMVar, putMVar, takeMVar )
 import Control.DeepSeq
     ( NFData )
 import Control.Exception
@@ -668,6 +677,7 @@ restoreWallet ctx wid = do
     nw = ctx ^. networkLayer @t
     tr = ctx ^. logger
     re = ctx ^. workerRegistry
+
 
 -- | Infinite restoration loop. We drain the whole available chain and try
 -- to catch up with the node. In case of error, we log it and wait a bit
@@ -1194,6 +1204,70 @@ withRootKey ctx wid pwd embed action = do
 -- restoration. This way, we can clean up worker threads early and don't have
 -- to wait for them to fail with an error message about the wallet being gone.
 newtype WorkerRegistry = WorkerRegistry (MVar (Map WalletId ThreadId))
+
+-- newtype WorkerRegistry s t k =
+--     WorkerRegistry (MVar (Map WalletId (Worker s t k)))
+
+-- | A worker which maintains a single database connection. Each wallet lives
+-- in its own database.
+data Worker s t k = Worker
+    { workerId :: WalletId
+    , workerThread :: ThreadId
+    , workerDB :: DBLayer IO s t k
+    } deriving (Generic)
+
+-- | See 'newWorker'
+data WorkerCallbacks ctx s t k = WorkerCallbacks
+    { workerTask :: ctx -> WalletId -> IO ()
+        -- | A task for the worker, possibly infinite
+    , workerOnExit :: Either SomeException () -> IO ()
+        -- | Action to run when the worker exits
+    , workerWithDB :: (DBLayer IO s t k -> IO ()) -> IO ()
+        -- | A bracket around the database layer
+    }
+
+-- | Create a new wallet worker for a given wallet id. Workers maintain a
+-- connection to a database (and are the only way to get a db handle for the
+-- wallet layer). They expect an action as argument and will terminate as soon
+-- as this action is over; so in practice, we provide 'restoreWallet' here which
+-- is a never-ending loop to keep the wallet in sync.
+--
+-- >>> newWorker ctx wid withDBLayer restoreWallet
+-- worker<thread#1234>
+newWorker
+    :: forall ctx s t k ctx'.
+        ( ctx' ~ (ctx, DBLayer IO s t k)
+        )
+    => ctx
+    -> WalletId
+    -> WorkerCallbacks ctx' s t k
+    -> IO (Worker s t k)
+newWorker ctx wid WorkerCallbacks{workerTask, workerOnExit, workerWithDB} = do
+    dbVar <- newEmptyMVar
+    let io = workerWithDB $ \db -> do
+            putMVar dbVar db
+            let ctx' = (ctx, db)
+            workerTask ctx' wid
+    threadId <- forkFinally io workerOnExit
+    db <- takeMVar dbVar
+    return Worker
+        { workerId = wid
+        , workerThread = threadId
+        , workerDB = db
+        }
+
+-- | Default exit action for a worker. Mostly out for easier testing.
+workerDefaultOnExit :: Trace IO Text -> Either SomeException a -> IO ()
+workerDefaultOnExit tr = \case
+    Right _ ->
+        logNotice tr "Worker has exited: main action is over"
+    Left e -> case asyncExceptionFromException e of
+        Just ThreadKilled ->
+            logNotice tr "Worker has exited: killed by parent."
+        Just UserInterrupt ->
+            logNotice tr "Worker has exited: killed by user."
+        _ ->
+            logError tr $ "Worker has exited unexpectedly: " +|| e ||+ ""
 
 newRegistry :: IO WorkerRegistry
 newRegistry = WorkerRegistry <$> newMVar mempty

@@ -2,8 +2,11 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -16,6 +19,8 @@ module Cardano.WalletSpec
 
 import Prelude
 
+import Cardano.BM.Configuration.Static
+    ( defaultConfigStdout )
 import Cardano.BM.Trace
     ( nullTracer )
 import Cardano.Wallet
@@ -26,7 +31,11 @@ import Cardano.Wallet
     , ErrWithRootKey (..)
     , ErrWithRootKey (..)
     , WalletLayer
+    , Worker
+    , WorkerCallbacks (..)
     , newWalletLayer
+    , newWorker
+    , workerThread
     )
 import Cardano.Wallet.DB
     ( DBLayer, ErrNoSuchWallet (..), PrimaryKey (..), putTxHistory )
@@ -86,10 +95,18 @@ import Cardano.Wallet.Transaction
     ( ErrMkStdTx (..), TransactionLayer (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
+import Control.Arrow
+    ( left )
 import Control.Concurrent
-    ( threadDelay )
+    ( threadDelay, throwTo )
+import Control.Concurrent.Async
+    ( race )
+import Control.Concurrent.MVar
+    ( newEmptyMVar, newMVar, putMVar, swapMVar, takeMVar )
 import Control.DeepSeq
     ( NFData (..) )
+import Control.Exception
+    ( AsyncException (..), SomeException, asyncExceptionFromException )
 import Control.Monad
     ( forM, forM_, replicateM, void )
 import Control.Monad.IO.Class
@@ -123,7 +140,7 @@ import Data.Word
 import GHC.Generics
     ( Generic )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe, shouldNotBe, shouldSatisfy )
+    ( Spec, describe, it, shouldBe, shouldNotBe, shouldReturn, shouldSatisfy )
 import Test.QuickCheck
     ( Arbitrary (..)
     , NonEmptyList (..)
@@ -132,6 +149,7 @@ import Test.QuickCheck
     , arbitraryBoundedEnum
     , choose
     , elements
+    , generate
     , property
     , scale
     , vectorOf
@@ -146,6 +164,7 @@ import Test.Utils.Time
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB as DB
+import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -191,6 +210,12 @@ spec = do
             (withMaxSuccess 10 $ property walletKeyIsReencrypted)
         it "Wallet can list transactions"
             (property walletListTransactionsSorted)
+
+    describe "Workers" $ do
+        it "Executes task and stops gracefully when done"
+            workerRunsTaskAndExits
+        it "Stops gracefully when receiving an async exception"
+            workerIsInterruptedByAsyncE
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -384,6 +409,78 @@ walletListTransactionsSorted wallet@(wid, _, _) _order (_mstart, _mend) history 
         times `shouldBe` expTimes
 
 {-------------------------------------------------------------------------------
+                                    Workers
+-------------------------------------------------------------------------------}
+
+-- | Workers are given a 'workerTask', and ends as soon as their task is over.
+workerRunsTaskAndExits
+    :: IO ()
+workerRunsTaskAndExits = do
+    mvar <- newMVar (42 :: Int)
+    workerTest $ WorkerTest
+        { workerTask_ = \_ _ ->
+            void $ swapMVar mvar 14
+        , workerInBetween = \_ ->
+            pure ()
+        , workerAssertion = \res -> do
+            left show res `shouldBe` Right ()
+            takeMVar mvar `shouldReturn` 14
+        }
+
+-- | When receiving an async exception, the worker action stops and 'onExit' is
+-- called.
+workerIsInterruptedByAsyncE
+    :: IO ()
+workerIsInterruptedByAsyncE = workerTest $ WorkerTest
+    { workerTask_ = \_ _ ->
+        threadDelay maxBound
+    , workerInBetween = \worker ->
+        throwTo (workerThread worker) UserInterrupt
+    , workerAssertion = \case
+        Right _ ->
+            fail "expected worker to stop with exception"
+        Left someE ->
+            case asyncExceptionFromException someE of
+                Just e ->
+                    e `shouldBe` UserInterrupt
+                Nothing ->
+                    fail "expected worker to stop with async exception"
+    }
+
+data WorkerTest ctx s t k = WorkerTest
+    { workerTask_ :: ctx -> WalletId -> IO ()
+        -- | A task to execute
+    , workerInBetween :: Worker s t k -> IO ()
+        -- | An action to perform after the worker has been created
+    , workerAssertion :: Either SomeException () -> IO ()
+        -- | Assertion to run after the wallet has exited
+    }
+
+workerTest
+    :: forall ctx s t k.
+        ( ctx ~ ((), DBLayer IO s t k)
+        , s ~ DummyState
+        , t ~ DummyTarget
+        , k ~ SeqKey
+        )
+    => WorkerTest ctx s t k
+    -> IO ()
+workerTest (WorkerTest task inBetween assertion) = do
+    onExit <- newEmptyMVar
+    wid <- generate arbitrary
+    cm <- defaultConfigStdout
+    inBetween =<< newWorker () wid WorkerCallbacks
+        { workerTask = task
+        , workerOnExit = putMVar onExit
+        , workerWithDB = Sqlite.withDBLayer cm nullTracer Nothing
+        }
+    race (threadDelay timeout) (takeMVar onExit) >>= \case
+        Right res -> assertion res
+        Left _ -> fail "expected worker to stop but hasn't"
+  where
+    timeout = 250 * 1000 -- 250ms
+
+{-------------------------------------------------------------------------------
                       Tests machinery, Arbitrary instances
 -------------------------------------------------------------------------------}
 
@@ -442,6 +539,12 @@ dummyTransactionLayer = TransactionLayer
 newtype DummyState
     = DummyState (Map Address (Index 'Soft 'AddressK))
     deriving (Generic, Show, Eq)
+
+instance Sqlite.PersistState DummyState where
+    insertState _ _ = error "DummyState.insertState: not implemented"
+    selectState _ = error "DummyState.selectState: not implemented"
+    deleteState _ = error "DummyState.deleteState: not implemented"
+    rollbackState _ _ = error "DummyState.rollbackState: not implemented"
 
 instance NFData DummyState
 
