@@ -1,6 +1,5 @@
 {-# LANGUAGE BinaryLiterals #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -32,7 +31,6 @@ module Cardano.Wallet.Jormungandr.Binary
     , Message (..)
     , MessageType (..)
     , Milli (..)
-    , StakeApiResponse (..)
     , getBlock
     , getBlockHeader
     , getBlockId
@@ -85,7 +83,6 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Hash (..)
     , SlotId (..)
-    , StakeDistribution
     , TxIn (..)
     , TxOut (..)
     , TxWitness (..)
@@ -100,8 +97,6 @@ import Crypto.Hash
     ( hash )
 import Crypto.Hash.Algorithms
     ( Blake2b_256 )
-import Data.Aeson
-    ( FromJSON (..), defaultOptions, genericParseJSON )
 import Data.Binary.Get
     ( Get
     , bytesRead
@@ -141,8 +136,6 @@ import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 import Data.Word
     ( Word16, Word32, Word64, Word8 )
-import GHC.Generics
-    ( Generic )
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.CBOR.Decoding as CBOR
@@ -378,18 +371,6 @@ putTx inputs outputs = do
     putOutput (TxOut address coin) = do
         putAddress address
         putWord64be $ getCoin coin
-
-{-------------------------------------------------------------------------------
-                                 Stake Distribution
--------------------------------------------------------------------------------}
-
-data StakeApiResponse = StakeApiResponse
-    { epoch :: Word64
-    , stake :: StakeDistribution
-    } deriving (Show, Eq, Generic)
-
-instance FromJSON StakeApiResponse where
-    parseJSON = genericParseJSON defaultOptions
 
 {-------------------------------------------------------------------------------
                             Config Parameters

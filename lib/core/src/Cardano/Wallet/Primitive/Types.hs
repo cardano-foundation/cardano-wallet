@@ -105,7 +105,6 @@ module Cardano.Wallet.Primitive.Types
 
     -- * Stake Pools
     , PoolId(..)
-    , Stake (..)
     , StakeDistribution (..)
     , poolIdBytesLength
 
@@ -150,8 +149,6 @@ import Crypto.Number.Generate
     ( generateBetween )
 import Crypto.Random.Types
     ( MonadRandom )
-import Data.Aeson
-    ( FromJSON (..), Value (..), defaultOptions, genericParseJSON )
 import Data.Bifunctor
     ( bimap )
 import Data.ByteArray.Encoding
@@ -170,8 +167,6 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Percentage, Quantity (..) )
-import Data.Scientific
-    ( toBoundedInteger )
 import Data.Set
     ( Set )
 import Data.String
@@ -517,31 +512,11 @@ instance FromText PoolId where
         where
             textDecodingError = Left . TextDecodingError . show
 
--- | Coins are stored as Lovelace (reminder: 1 Lovelace = 1e-6 ADA)
-newtype Stake = Stake { getStake :: Word64 } deriving (Show, Eq, Generic)
-
 data StakeDistribution = StakeDistribution
-    { dangling :: Stake
-    , pools :: [(PoolId,Stake)]
-    , unassigned :: Stake
+    { dangling :: Quantity "lovelace" Word64
+    , pools :: [(PoolId, Quantity "lovelace" Word64)]
+    , unassigned :: Quantity "lovelace" Word64
     } deriving (Eq, Show, Generic)
-
-instance FromJSON StakeDistribution where
-    parseJSON = genericParseJSON defaultOptions
-
-instance FromJSON Stake where
-    parseJSON (Number n) = case toBoundedInteger n of
-        Nothing ->
-            fail "stake should be non-negative integer"
-        Just stake ->
-            return (Stake stake)
-    parseJSON _ = fail "stake should be numeric"
-
-instance FromJSON PoolId where
-    parseJSON (String txt) = case fromText txt of
-        Left (TextDecodingError err) -> fail err
-        Right bs -> return bs
-    parseJSON _ = fail "stake pool id should be text"
 
 {-------------------------------------------------------------------------------
                                     Block

@@ -63,7 +63,6 @@ library
     , persistent-template
     , random
     , retry
-    , scientific
     , servant
     , servant-server
     , split

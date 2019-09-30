@@ -41,7 +41,6 @@ module Cardano.Wallet.Jormungandr.Network
     , ErrGetDescendants (..)
     , ErrStartup (..)
     , ErrUnexpectedNetworkFailure (..)
-    , ErrGetStakeDistribution (..)
 
     -- * Re-export
     , BaseUrl (..)
@@ -77,6 +76,7 @@ import Cardano.Wallet.Jormungandr.Api
     , GetStakeDistribution
     , GetTipId
     , PostMessage
+    , StakeApiResponse
     , api
     )
 import Cardano.Wallet.Jormungandr.Binary
@@ -555,7 +555,7 @@ data JormungandrLayer m = JormungandrLayer
         :: Hash "Genesis"
         -> ExceptT ErrGetBlockchainParams m (J.Block, BlockchainParameters)
     , getStakeDistribution
-        :: ExceptT ErrGetStakeDistribution m J.StakeApiResponse
+        :: ExceptT ErrNetworkUnavailable m StakeApiResponse
     }
 
 -- | Construct a 'JormungandrLayer'-client
@@ -682,9 +682,7 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
 
     , getStakeDistribution = ExceptT $ do
         let ctx = safeLink api (Proxy @GetStakeDistribution)
-        let networkUnreachable = ErrGetStakeDistributionNetworkUnreachable
-        run cGetStakeDistribution >>= \case
-            x -> left networkUnreachable <$> defaultHandler ctx x
+        run cGetStakeDistribution >>= defaultHandler ctx
     }
   where
     run :: ClientM a -> IO (Either ServantError a)
@@ -737,10 +735,6 @@ data ErrStartup
     | ErrStartupGetBlockchainParameters ErrGetBlockchainParams
     | ErrStartupGenesisBlockFailed FilePath
     | ErrStartupCommandExited ProcessHasExited
-    deriving (Show, Eq)
-
-newtype ErrGetStakeDistribution
-    = ErrGetStakeDistributionNetworkUnreachable ErrNetworkUnavailable
     deriving (Show, Eq)
 
 {-------------------------------------------------------------------------------
