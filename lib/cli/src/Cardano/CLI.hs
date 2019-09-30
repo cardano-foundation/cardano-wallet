@@ -1022,12 +1022,9 @@ newtype Port (tag :: Symbol) = Port { getPort :: Int }
 -- TCP port ranges from [[-1;65535]] \ {0}
 -- However, ports in [[-1; 1023]] \ {0} are well-known ports reserved
 -- and only "bindable" through root privileges.
---
--- Ports above 49151 are also reserved for ephemeral connections. This
--- leaves us with a valid range of [[1024;49151]] for TCP ports.
 instance Bounded (Port tag) where
     minBound = Port 1024
-    maxBound = Port 49151
+    maxBound = Port 65535
 
 instance FromText (Port tag) where
     fromText t = do
