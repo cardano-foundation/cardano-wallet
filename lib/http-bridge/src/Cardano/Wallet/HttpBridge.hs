@@ -22,9 +22,9 @@ import Prelude
 import Cardano.BM.Backend.Switchboard
     ( Switchboard )
 import Cardano.BM.Trace
-    ( Trace, appendName, logAlert, logInfo )
+    ( Trace, appendName, logInfo )
 import Cardano.CLI
-    ( Port (..), waitForService )
+    ( Port (..), failWith, waitForService )
 import Cardano.Launcher
     ( ProcessHasExited (..), installSignalHandlers )
 import Cardano.Wallet
@@ -147,11 +147,11 @@ serveWallet (cfg, sb, tr) dbFile listen bridge mAction = do
     handleNetworkStartupError = \case
         ErrStartupCommandExited pe -> case pe of
             ProcessDidNotStart _cmd exc -> do
-                logAlert tr $ "Could not start the node backend. " <> T.pack (show exc)
-                pure (ExitFailure 1)
+                failWith (sb, tr) $
+                    "Could not start the node backend. " <> T.pack (show exc)
             ProcessHasExited _cmd st -> do
-                logAlert tr $ "The node exited with status " <> T.pack (show st)
-                pure (ExitFailure 1)
+                failWith (sb, tr) $
+                    "The node exited with status " <> T.pack (show st)
         ErrStartupNodeNotListening -> do
-            logAlert tr "Waited too long for http-bridge to become available. Giving up!"
-            pure (ExitFailure 1)
+            failWith (sb, tr)
+                "Waited too long for http-bridge to become available. Giving up!"

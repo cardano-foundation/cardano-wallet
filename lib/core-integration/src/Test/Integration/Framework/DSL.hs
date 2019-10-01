@@ -218,6 +218,8 @@ import Data.Time.Text
     ( iso8601ExtendedUtc, utcTimeToText )
 import Data.Word
     ( Word64 )
+import GHC.Stack
+    ( HasCallStack )
 import GHC.TypeLits
     ( Symbol )
 import Language.Haskell.TH.Quote
@@ -1233,7 +1235,7 @@ proc' :: FilePath -> [String] -> CreateProcess
 proc' cmd args = (proc cmd args)
     { std_in = CreatePipe, std_out = CreatePipe, std_err = CreatePipe }
 
--- | Collect lines from standard output and error streams for 30 seconds, or,
+-- | Collect lines from standard output and error streams for 65 seconds, or,
 -- until a given limit is for both streams.
 collectStreams :: (Int, Int) -> CreateProcess -> IO (Text, Text)
 collectStreams (nOut0, nErr0) p = do
@@ -1282,11 +1284,11 @@ collectStreams (nOut0, nErr0) p = do
                 Right l -> (l, n-1)
 
 -- | Like `shouldContain`, but with 'Text'
-shouldContainT :: Text -> Text -> IO ()
+shouldContainT :: HasCallStack => Text -> Text -> IO ()
 shouldContainT a b = T.unpack a `shouldContain` T.unpack b
 
 -- | Like `shouldNotContain`, but with 'Text'
-shouldNotContainT :: Text -> Text -> IO ()
+shouldNotContainT :: HasCallStack => Text -> Text -> IO ()
 shouldNotContainT a b = T.unpack a `shouldNotContain` T.unpack b
 
 oneSecond :: Int
