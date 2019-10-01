@@ -1,0 +1,199 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
+
+module Cardano.Wallet.Registry
+    ( -- * Worker Registry
+      WorkerRegistry
+    , empty
+    , insert
+    , keys
+    , lookup
+    , remove
+
+      -- * Worker
+    , Worker
+    , MkWorker(..)
+    , newWorker
+    , workerThread
+    , workerId
+    , workerResource
+
+      -- * Context
+    , HasWorkerCtx (..)
+    ) where
+
+import Prelude hiding
+    ( log, lookup )
+
+import Cardano.BM.Trace
+    ( Trace, appendName )
+import Cardano.Wallet.Engine
+    ( HasLogger, logger )
+import Cardano.Wallet.Primitive.Types
+    ( WalletId )
+import Control.Concurrent
+    ( ThreadId, forkFinally, killThread )
+import Control.Concurrent.MVar
+    ( MVar
+    , modifyMVar_
+    , newEmptyMVar
+    , newMVar
+    , putMVar
+    , readMVar
+    , takeMVar
+    , tryPutMVar
+    )
+import Control.Exception
+    ( SomeException, finally )
+import Control.Monad.IO.Class
+    ( MonadIO, liftIO )
+import Data.Function
+    ( (&) )
+import Data.Generics.Internal.VL.Lens
+    ( (.~), (^.) )
+import Data.Generics.Labels
+    ()
+import Data.Generics.Product.Typed
+    ( HasType )
+import Data.Map.Strict
+    ( Map )
+import Data.Text
+    ( Text )
+import Data.Text.Class
+    ( toText )
+import GHC.Generics
+    ( Generic )
+
+import qualified Data.Map.Strict as Map
+import qualified Data.Text as T
+
+{-------------------------------------------------------------------------------
+                                Worker Context
+-------------------------------------------------------------------------------}
+
+-- | A class to link an existing context to a worker context.
+class HasType res (WorkerCtx ctx) => HasWorkerCtx res ctx where
+    type WorkerCtx ctx :: *
+    hoistResource :: res -> ctx -> WorkerCtx ctx
+
+{-------------------------------------------------------------------------------
+                                Worker Registry
+-------------------------------------------------------------------------------}
+
+-- | A registry to keep track of worker threads and wallet database connections.
+newtype WorkerRegistry res =
+    WorkerRegistry (MVar (Map WalletId (Worker res)))
+
+-- | Construct a new empty registry
+empty
+    :: IO (WorkerRegistry res)
+empty =
+    WorkerRegistry <$> newMVar mempty
+
+-- | Lookup the registry for a given worker
+lookup
+    :: MonadIO m
+    => WorkerRegistry res
+    -> WalletId
+    -> m (Maybe (Worker res))
+lookup (WorkerRegistry mvar) wid =
+    liftIO (Map.lookup wid <$> readMVar mvar)
+
+-- | Get all registered wallet keys in the registry
+keys
+    :: WorkerRegistry res
+    -> IO [WalletId]
+keys (WorkerRegistry mvar) =
+    Map.keys <$> readMVar mvar
+
+-- | Register a new worker
+insert
+    :: WorkerRegistry res
+    -> Worker res
+    -> IO ()
+insert (WorkerRegistry mvar) wrk =
+    modifyMVar_ mvar (pure . Map.insert (workerId wrk) wrk)
+
+-- | Remove a worker from the registry (and cancel any running task)
+remove
+    :: WorkerRegistry res
+    -> WalletId
+    -> IO ()
+remove (WorkerRegistry mvar) wid =
+    modifyMVar_ mvar (Map.alterF alterF wid)
+  where
+    alterF = \case
+        Nothing -> pure Nothing
+        Just wrk -> do
+            -- NOTE: It is safe to kill a thread that is already dead.
+            killThread (workerThread wrk)
+            return Nothing
+
+{-------------------------------------------------------------------------------
+                                    Worker
+-------------------------------------------------------------------------------}
+
+-- | A worker which holds and manipulate a paticular acquired resource. That
+-- resource can be, for example, a handle to a database connection.
+data Worker res = Worker
+    { workerId :: WalletId
+    , workerThread :: ThreadId
+    , workerResource :: res
+    } deriving (Generic)
+
+-- | See 'newWorker'
+data MkWorker res ctx = MkWorker
+    { workerBefore :: WorkerCtx ctx -> WalletId -> IO ()
+        -- ^ A task to execute before the main worker's task. When creating a
+        -- worker, this task is guaranteed to have terminated once 'newWorker'
+        -- returns.
+    , workerMain :: WorkerCtx ctx -> WalletId -> IO ()
+        -- ^ A task for the worker, possibly infinite
+    , workerAfter :: Trace IO Text -> Either SomeException () -> IO ()
+        -- ^ Action to run when the worker exits
+    , workerAcquire :: (res -> IO ()) -> IO ()
+        -- ^ A bracket-style factory to acquire a resource
+    }
+
+-- | Create a new wallet worker for a given wallet id. Workers maintain an
+-- acquired resource.
+-- They expect a task as argument and will terminate as soon as their task
+-- is over; so in practice, we provide a never-ending task that keeps the worker
+-- alive forever.
+--
+-- Returns 'Nothing' if the worker fails to acquire the necessary resource or
+-- terminate unexpectedly before entering its 'main' action.
+--
+-- >>> newWorker ctx wid withDBLayer restoreWallet
+-- worker<thread#1234>
+newWorker
+    :: forall ctx res.
+        ( HasLogger ctx
+        , HasWorkerCtx res ctx
+        )
+    => ctx
+    -> WalletId
+    -> MkWorker res ctx
+    -> IO (Maybe (Worker res))
+newWorker ctx wid (MkWorker before main after acquire) = do
+    mvar <- newEmptyMVar
+    let io = acquire $ \resource -> do
+            let ctx' = hoistResource resource (ctx & logger .~ tr')
+            before ctx' wid `finally` putMVar mvar (Just resource)
+            main ctx' wid
+    threadId <- forkFinally io (cleanup mvar)
+    takeMVar mvar >>= \case
+        Nothing -> return Nothing
+        Just resource -> return $ Just Worker
+            { workerId = wid
+            , workerThread = threadId
+            , workerResource = resource
+            }
+  where
+    tr = ctx ^. logger
+    tr' = appendName ("worker." <> T.take 8 (toText wid)) tr
+    cleanup mvar e = tryPutMVar mvar Nothing *> after tr' e
