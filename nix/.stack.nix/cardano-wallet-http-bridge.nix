@@ -94,7 +94,7 @@
             (hsPkgs.buildPackages.hspec-discover or (pkgs.buildPackages.hspec-discover))
             ];
           };
-        "integration" = {
+        "http-bridge-integration" = {
           depends = [
             (hsPkgs.base)
             (hsPkgs.aeson)

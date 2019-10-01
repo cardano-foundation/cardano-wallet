@@ -20,6 +20,8 @@ import Cardano.Wallet.Jormungandr.Api
     ( GetTipId, api )
 import Cardano.Wallet.Jormungandr.Binary
     ( MessageType (..), fragmentId, putSignedTx, runPut, withHeader )
+import Cardano.Wallet.Jormungandr.BlockHeaders
+    ( emptyBlockHeaders )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr, Network (..), block0 )
 import Cardano.Wallet.Jormungandr.Network
@@ -30,7 +32,6 @@ import Cardano.Wallet.Jormungandr.Network
     , JormungandrConfig (..)
     , JormungandrConnParams (..)
     , Scheme (..)
-    , emptyUnstableBlocks
     , mkRawNetworkLayer
     , withJormungandr
     , withNetworkLayer
@@ -169,7 +170,7 @@ spec = do
         let newBrokenNetworkLayer :: BaseUrl -> IO (NetworkLayer IO Tx ())
             newBrokenNetworkLayer baseUrl = do
                 mgr <- newManager defaultManagerSettings
-                st <- newMVar emptyUnstableBlocks
+                st <- newMVar emptyBlockHeaders
                 let jor = Jormungandr.mkJormungandrLayer mgr baseUrl
                 let g0 = (error "block0", error "BlockchainParameters")
                 return (void $ mkRawNetworkLayer g0 st jor)
