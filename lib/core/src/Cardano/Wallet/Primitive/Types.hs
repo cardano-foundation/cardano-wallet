@@ -485,8 +485,6 @@ instance NFData PoolId
 instance Buildable PoolId where
     build poolId = mempty
         <> prefixF 8 poolIdF
-        <> "..."
-        <> suffixF 8 poolIdF
       where
         poolIdF = build (toText poolId)
 
@@ -548,13 +546,12 @@ data BlockHeader = BlockHeader
 instance NFData BlockHeader
 
 instance Buildable BlockHeader where
-    build (BlockHeader s (Quantity bh) prev) = "Block ("
+    build (BlockHeader s (Quantity bh) prev) =
+        prefixF 8 prevF
+        <> "-["
         <> build s
         <> "#" <> build (show bh)
-        <> ") -> "
-        <> prefixF 8 prevF
-        <> "..."
-        <> suffixF 8 prevF
+        <> "]"
       where
         prevF = build $ T.decodeUtf8 $ convertToBase Base16 $ getHash prev
 
@@ -1165,19 +1162,9 @@ newtype Hash (tag :: Symbol) = Hash
 
 instance NFData (Hash tag)
 
-instance Buildable (Hash "BlockHeader") where
+instance Buildable (Hash tag) where
     build h = mempty
         <> prefixF 8 builder
-        <> "..."
-        <> suffixF 8 builder
-      where
-        builder = T.decodeUtf8 . convertToBase Base16 . getHash $ h
-
-instance Buildable (Hash "Tx") where
-    build h = mempty
-        <> prefixF 8 builder
-        <> "..."
-        <> suffixF 8 builder
       where
         builder = build . toText $ h
 
@@ -1195,23 +1182,11 @@ fromTextToHashBase16 text = either
 toTextFromHashBase16 :: Hash t -> Text
 toTextFromHashBase16 = T.decodeUtf8 . convertToBase Base16 . getHash
 
-instance FromText (Hash "Tx") where
-    fromText = fromTextToHashBase16
-
-instance ToText (Hash "Tx") where
+instance ToText (Hash tag) where
     toText = toTextFromHashBase16
 
-instance FromText (Hash "BlockHeader") where
+instance KnownSymbol tag => FromText (Hash tag) where
     fromText = fromTextToHashBase16
-
-instance ToText (Hash "BlockHeader") where
-    toText = toTextFromHashBase16
-
-instance FromText (Hash "Genesis") where
-    fromText = fromTextToHashBase16
-
-instance ToText (Hash "Genesis") where
-    toText = toTextFromHashBase16
 
 -- | A polymorphic wrapper type with a custom show instance to display data
 -- through 'Buildable' instances.

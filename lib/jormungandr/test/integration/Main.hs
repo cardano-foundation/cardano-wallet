@@ -57,6 +57,7 @@ import Test.Integration.Framework.DSL
 
 import qualified Cardano.Wallet.Jormungandr.NetworkSpec as Network
 import qualified Data.Text as T
+import qualified Test.Integration.Jormungandr.Scenario.API.StakePools as StakePoolsApiJormungandr
 import qualified Test.Integration.Jormungandr.Scenario.API.Transactions as TransactionsApiJormungandr
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Launcher as LauncherCLI
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Server as ServerCLI
@@ -85,6 +86,7 @@ main = hspec $ do
 
     describe "API Specifications" $ beforeAll start $ after tearDown $ do
         Addresses.spec
+        StakePoolsApiJormungandr.spec
         Transactions.spec
         TransactionsApiJormungandr.spec @t
         TransactionsCliJormungandr.spec @t
