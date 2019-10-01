@@ -80,7 +80,7 @@ import System.Directory
 import System.FilePath
     ( (</>) )
 import System.IO
-    ( IOMode (..), hClose, hSetEncoding, openFile, stderr, stdout, utf8 )
+    ( IOMode (..), hClose, openFile )
 import System.IO.Temp
     ( createTempDirectory, getCanonicalTemporaryDirectory )
 import Test.Hspec
@@ -117,8 +117,6 @@ instance KnownCommand (HttpBridge n) where
 
 main :: forall t. (t ~ HttpBridge 'Testnet) => IO ()
 main = do
-    hSetEncoding stdout utf8
-    hSetEncoding stderr utf8
     hspec $ do
         describe "PR_DISABLED Server CLI timeout test" (ServerCLI.specNoBackend @t)
         describe "Cardano.WalletSpec" Wallet.spec
