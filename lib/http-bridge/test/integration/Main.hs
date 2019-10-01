@@ -107,7 +107,6 @@ import qualified Test.Integration.Scenario.API.Transactions as Transactions
 import qualified Test.Integration.Scenario.API.Wallets as Wallets
 import qualified Test.Integration.Scenario.CLI.Addresses as AddressesCLI
 import qualified Test.Integration.Scenario.CLI.Miscellaneous as MiscellaneousCLI
-import qualified Test.Integration.Scenario.CLI.Mnemonics as MnemonicsCLI
 import qualified Test.Integration.Scenario.CLI.Transactions as TransactionsCLI
 import qualified Test.Integration.Scenario.CLI.Wallets as WalletsCLI
 
@@ -118,23 +117,22 @@ instance KnownCommand (HttpBridge n) where
 main :: forall t. (t ~ HttpBridge 'Testnet) => IO ()
 main = do
     hspec $ do
-        describe "PR_DISABLED Server CLI timeout test" (ServerCLI.specNoBackend @t)
+        describe "Server CLI timeout test" (ServerCLI.specNoBackend @t)
         describe "Cardano.WalletSpec" Wallet.spec
         describe "Cardano.Wallet.HttpBridge.NetworkSpec" HttpBridge.spec
         describe "Launcher CLI tests" (LauncherCLI.spec @t)
-        describe "Mnemonics CLI tests" (MnemonicsCLI.spec @t)
         describe "Miscellaneous CLI tests" (MiscellaneousCLI.spec @t)
         beforeAll startCluster $ afterAll _cleanup $ after tearDown $ do
-            describe "PR_DISABLED Wallets API endpoint tests" (Wallets.spec @t)
+            describe "Wallets API endpoint tests" (Wallets.spec @t)
             describe "Transactions API endpoint tests" (Transactions.spec @t)
-            describe "PR_DISABLED Addresses API endpoint tests" (Addresses.spec @t)
+            describe "Addresses API endpoint tests" (Addresses.spec @t)
             describe "Wallets CLI tests" (WalletsCLI.spec @t)
             describe "Transactions CLI tests" (TransactionsCLI.spec @t)
             describe "Addresses CLI tests" (AddressesCLI.spec @t)
             describe "Server CLI tests" (ServerCLI.spec @t)
             describe "Transactions CLI tests (bridge specific)"
                 (TransactionsCLIBridge.spec @t)
-            describe "PR_DISABLED Transactions API endpoint tests (bridge specific)"
+            describe "Transactions API endpoint tests (bridge specific)"
                 (TransactionsBridge.spec @t)
   where
     oneSecond :: Int
