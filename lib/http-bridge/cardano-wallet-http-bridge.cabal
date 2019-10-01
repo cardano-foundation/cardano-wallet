@@ -155,7 +155,7 @@ test-suite unit
       Data.PackfileSpec
       Servant.Extra.ContentTypesSpec
 
-test-suite integration
+test-suite http-bridge-integration
   default-language:
       Haskell2010
   default-extensions:

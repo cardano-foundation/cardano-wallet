@@ -160,7 +160,7 @@ buildStep dryRun bk =
             -- FIXME
             -- Figure out what's going on with http-bridge cluster setup...
             -- maybe...
-            , skip "cardano-wallet-http-bridge"
+            , skip "http-bridge-integration"
             , fast opt
             , case qaLevel bk of
                 QuickTest -> skip "integration"
