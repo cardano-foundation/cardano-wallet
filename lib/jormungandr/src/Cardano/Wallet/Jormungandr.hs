@@ -29,12 +29,10 @@ import Prelude
 
 import Cardano.BM.Backend.Switchboard
     ( Switchboard )
-import Cardano.BM.Setup
-    ( shutdown )
 import Cardano.BM.Trace
-    ( Trace, appendName, logAlert, logInfo )
+    ( Trace, appendName, logInfo )
 import Cardano.CLI
-    ( Port (..), waitForService )
+    ( Port (..), failWith, waitForService )
 import Cardano.Launcher
     ( ProcessHasExited (..), installSignalHandlers )
 import Cardano.Wallet
@@ -171,45 +169,38 @@ serveWallet (cfg, sb, tr) dbFile listen lj beforeMainLoop = do
                 handleGenesisNotFound h
             ErrGetBlockchainParamsIncompleteParams _ ->
                 handleNoInitialPolicy
-        ErrStartupGenesisBlockFailed file -> do
-            logAlert tr $ mempty
+        ErrStartupGenesisBlockFailed file ->
+            failWith (sb, tr) $ mempty
                 <> "As far as I can tell, this isn't a valid block file: "
                 <> T.pack file
-            pure (ExitFailure 1)
         ErrStartupCommandExited pe -> case pe of
-            ProcessDidNotStart _cmd exc -> do
-                logAlert tr $
+            ProcessDidNotStart _cmd exc ->
+                failWith (sb, tr) $
                     "Could not start the node backend. " <> T.pack (show exc)
-                pure (ExitFailure 1)
-            ProcessHasExited _cmd st -> do
-                logAlert tr $ "The node exited with status " <> T.pack (show st)
-                pure (ExitFailure 1)
+            ProcessHasExited _cmd st ->
+                failWith (sb, tr) $
+                    "The node exited with status " <> T.pack (show st)
         ErrStartupNodeNotListening -> do
-            logAlert tr $
-                "Waited too long for Jörmungandr to become available. " <>
-                "Giving up!"
-            pure (ExitFailure 1)
+            failWith (sb, tr) $ mempty
+                <> "Waited too long for Jörmungandr to become available. "
+                <> "Giving up!"
 
     handleGenesisNotFound :: Hash "Genesis" -> IO ExitCode
     handleGenesisNotFound block0H = do
-        logAlert tr
-            "Failed to retrieve the genesis block. The block doesn't exist!"
-        shutdown sb
         hPutStrLn stderr $ mconcat
             [ "Hint: double-check the genesis hash you've just gave "
             , "me via '--genesis-hash' (i.e. ", showT block0H, ")."
             ]
-        pure (ExitFailure 1)
+        failWith (sb, tr)
+            "Failed to retrieve the genesis block. The block doesn't exist!"
 
     handleNetworkUnreachable :: IO ExitCode
     handleNetworkUnreachable = do
-        logAlert tr "It looks like Jörmungandr is down?"
-        pure (ExitFailure 1)
+        failWith (sb, tr)
+            "It looks like Jörmungandr is down?"
 
     handleNoInitialPolicy :: IO ExitCode
     handleNoInitialPolicy = do
-        logAlert tr $ mconcat
-            [ "I successfully retrieved the genesis block from Jörmungandr, "
-            , "but there's no initial fee policy defined?"
-            ]
-        pure (ExitFailure 1)
+        failWith (sb, tr) $ mempty
+            <> "I successfully retrieved the genesis block from Jörmungandr, "
+            <> "but there's no initial fee policy defined?"

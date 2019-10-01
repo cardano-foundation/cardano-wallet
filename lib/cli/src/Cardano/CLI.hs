@@ -72,6 +72,7 @@ module Cardano.CLI
     , getDataDir
     , waitForService
     , setupStateDir
+    , failWith
     ) where
 
 import Prelude hiding
@@ -219,7 +220,7 @@ import System.Directory
     , getXdgDirectory
     )
 import System.Exit
-    ( exitFailure, exitSuccess )
+    ( ExitCode (..), exitFailure, exitSuccess, exitWith )
 import System.FilePath
     ( (</>) )
 import System.Info
@@ -1280,21 +1281,18 @@ waitForService
     -> IO ()
 waitForService (Service service) (sb, tracer) port action = do
     let handler (ErrNetworkTipNetworkUnreachable (ErrNetworkInvalid net)) = do
-            logAlert tracer $ mconcat
+            exitWith =<< failWith (sb, tracer) (mconcat
                 [ "The node backend is not running on the \"", net, "\" "
                 , "network. Please start the wallet server and the node "
-                , "backend on the same network. Exiting now." ]
-            shutdown sb
-            exitFailure
+                , "backend on the same network. Exiting now."
+                ])
 
         handler _ = do
-            logAlert tracer $ mconcat
+            exitWith =<< failWith (sb, tracer) (mconcat
                 [ "Waited too long for "
                 , service
                 , " to become available. Giving up!"
-                ]
-            shutdown sb
-            exitFailure
+                ])
     logInfo tracer $ mconcat
         [ "Waiting for "
         , service
@@ -1315,6 +1313,18 @@ requireFilePath path = doesFileExist path >>= \case
         exitFailure
   where
     pathT = T.pack path
+
+-- Terminate the applicatio and make sure to flush logs before exiting.
+failWith
+    :: (Switchboard Text, Trace IO Text)
+        -- ^ A 'Trace' for logging
+    -> Text
+        -- ^ A message to before exiting
+    -> IO ExitCode
+failWith (sb, tr) msg = do
+    logAlert tr msg
+    shutdown sb -- Effectively flush logs
+    pure (ExitFailure 1)
 
 -- | Make a parser optional
 optionalE
