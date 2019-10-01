@@ -28,11 +28,12 @@ module Cardano.Wallet.Api.Server
 import Prelude
 
 import Cardano.BM.Trace
-    ( Trace, logWarning )
+    ( Trace )
 import Cardano.Wallet
     ( ErrAdjustForFee (..)
     , ErrCoinSelection (..)
     , ErrCreateUnsignedTx (..)
+    , ErrCreateWallet (..)
     , ErrDecodeSignedTx (..)
     , ErrEstimateTxFee (..)
     , ErrListTransactions (..)
@@ -110,7 +111,7 @@ import Control.Exception
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT, runExceptT, withExceptT )
+    ( ExceptT, withExceptT )
 import Data.Aeson
     ( (.=) )
 import Data.Functor
@@ -136,7 +137,7 @@ import Data.Text.Class
 import Data.Time
     ( UTCTime )
 import Fmt
-    ( Buildable, pretty, (+|), (+||), (|+), (||+) )
+    ( Buildable, pretty )
 import Network.HTTP.Media.RenderHeader
     ( renderHeader )
 import Network.HTTP.Types.Header
@@ -209,7 +210,6 @@ start
     -> ctx
     -> IO ()
 start settings trace socket ctx = do
-    withWorkers trace ctx
     logSettings <- newApiLoggerSettings <&> obfuscateKeys (const sensitive)
     Warp.runSettingsSocket settings socket
         $ handleRawError (curry handler)
@@ -231,24 +231,6 @@ start settings trace socket ctx = do
         , "mnemonic_sentence"
         , "mnemonic_second_factor"
         ]
-
--- | Restart restoration workers for existing wallets. This is crucial to keep
--- on syncing wallets after the application has restarted!
-withWorkers
-    :: forall ctx s t k.
-        ( DefineTx t
-        , ctx ~ WalletLayer s t k
-        )
-    => Trace IO Text
-    -> ctx
-    -> IO ()
-withWorkers trace ctx = do
-    W.listWallets ctx >>= mapM_ worker
-  where
-    worker wid = runExceptT (W.restoreWallet ctx wid) >>= \case
-        Right () -> return ()
-        Left e -> logWarning trace $
-            "Wallet has suddenly vanished: "+| wid |+": "+|| e ||+""
 
 -- | Run an action with a TCP socket bound to a port specified by the `Listen`
 -- parameter.
@@ -350,7 +332,6 @@ postWallet ctx body = do
     let wName = getApiT (body ^. #name)
     _ <- liftHandler $ W.createWallet ctx wid wName s
     liftHandler $ W.attachPrivateKey ctx wid (rootXPrv, pwd)
-    liftHandler $ W.restoreWallet ctx wid
     getWallet ctx (ApiT wid)
 
 putWallet
@@ -498,7 +479,7 @@ postExternalTransaction
     -> PostExternalTransactionData
     -> Handler ApiTxId
 postExternalTransaction ctx (PostExternalTransactionData load) = do
-    tx <- liftHandler $ W.submitExternalTx ctx load
+    tx <- liftHandler $ W.submitExternalTx @ctx @t @k ctx load
     return $ ApiTxId (ApiT (txId @t tx))
 
 listTransactions
@@ -666,6 +647,17 @@ instance LiftHandler ErrWalletAlreadyExists where
                 [ "This operation would yield a wallet with the following id: "
                 , toText wid
                 , " However, I already know of a wallet with this id."
+                ]
+
+instance LiftHandler ErrCreateWallet where
+    handler = \case
+        ErrCreateWalletAlreadyExists e -> handler e
+        ErrCreateWalletFailedToCreateWorker ->
+            apiError err500 UnexpectedError $ mconcat
+                [ "That's embarassing. Your wallet looks good, but I couldn't "
+                , "open a new database to store its data. This is unexpected "
+                , "and likely not your fault. Perhaps, check your filesystem's "
+                , "permissions or available space?"
                 ]
 
 instance LiftHandler ErrWithRootKey where
