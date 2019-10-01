@@ -2,7 +2,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TypeApplications #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Cardano.Wallet.StakePool.MetricsSpec (spec) where
 
@@ -26,11 +25,12 @@ import Numeric.Natural
 import Test.Hspec
     ( Spec, describe, it, shouldBe )
 import Test.QuickCheck
-    ( Arbitrary (..), InfiniteList (..), property )
+    ( Arbitrary (..), InfiniteList (..), property, (===) )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 
 import qualified Data.ByteString as BS
+import qualified Data.Map as Map
 
 spec :: Spec
 spec = do
@@ -39,6 +39,14 @@ spec = do
             it "stores the last applied blockHeader"
                 $ property $ \s b@(header,_) -> do
                 tip (applyBlock b s) `shouldBe` header
+
+            it "counts every block it applies (total activity increases by 1\
+               \when a block is applied"
+                $ property $ \s block -> do
+                let s' = applyBlock block s
+                let count = Map.foldl (\r l -> r + (length l)) 0 . activity
+                count s' === (count s + 1)
+
 
 instance Arbitrary BlockHeader where
     arbitrary = BlockHeader <$> arbitrary <*> arbitrary <*> arbitrary
