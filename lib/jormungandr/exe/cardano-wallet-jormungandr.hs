@@ -3,6 +3,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -46,7 +47,7 @@ import Cardano.CLI
     , optionT
     , requireFilePath
     , runCli
-    , setupStateDir
+    , setupDirectory
     , stateDirOption
     , verbosityOption
     , verbosityToMinSeverity
@@ -187,7 +188,7 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
         requireFilePath (genesisBlock jArgs)
         requireFilePath (secretFile jArgs)
         let stateDir = fromMaybe (dataDir </> "testnet") mStateDir
-        let dbFile = stateDir </> "wallet.db"
+        let databaseDir = stateDir </> "wallets"
         let cp = JormungandrConfig
                 { _stateDir = stateDir
                 , _genesisBlock = genesisBlock jArgs
@@ -196,11 +197,12 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
                 , _minSeverity = minSeverity
                 , _outputStream = Inherit
                 }
-        setupStateDir (logInfo tr) stateDir
+        setupDirectory (logInfo tr) stateDir
+        setupDirectory (logInfo tr) databaseDir
         logInfo tr $ "Running as v" <> T.pack (showVersion version)
         exitWith =<< serveWallet
             (cfg, sb, tr)
-            (Just dbFile)
+            (Just databaseDir)
             listen
             (Launch cp)
             (beforeMainLoop tr)
@@ -234,17 +236,22 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
         => (KeyToAddress t k, KnownNetwork n)
         => ServeArgs
         -> IO ()
-    exec (ServeArgs listen nodePort dbFile verbosity block0H) = do
+    exec (ServeArgs listen nodePort databaseDir verbosity block0H) = do
         (cfg, sb, tr) <- initTracer (verbosityToMinSeverity verbosity) "serve"
         let baseUrl = localhostBaseUrl $ getPort nodePort
         let cp = JormungandrConnParams block0H baseUrl
+        whenJust databaseDir $ setupDirectory (logInfo tr)
         logInfo tr $ "Running as v" <> T.pack (showVersion version)
         exitWith =<< serveWallet
             (cfg, sb, tr)
-            dbFile
+            databaseDir
             listen
             (UseRunning cp)
             (beforeMainLoop tr)
+
+    whenJust m fn = case m of
+       Nothing -> pure ()
+       Just a  -> fn a
 
 {-------------------------------------------------------------------------------
                                  Options

@@ -100,7 +100,7 @@ spec = do
                 withCreateProcess process $ \_ (Just o) (Just e) ph -> do
                     expectPathEventuallyExist d
                     expectPathEventuallyExist (d <> "/testnet")
-                    expectPathEventuallyExist (d <> "/wallet.db")
+                    expectPathEventuallyExist (d <> "/wallets")
                   `finally` do
                     terminateProcess ph
                     TIO.hGetContents o >>= TIO.putStrLn
@@ -119,7 +119,7 @@ spec = do
             withCreateProcess process $ \_ (Just o) (Just e) ph -> do
                 expectPathEventuallyExist dir
                 expectPathEventuallyExist (dir <> "/testnet")
-                expectPathEventuallyExist (dir <> "/wallet.db")
+                expectPathEventuallyExist (dir <> "/wallets")
               `finally` do
                 terminateProcess ph
                 TIO.hGetContents o >>= TIO.putStrLn

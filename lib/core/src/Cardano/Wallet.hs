@@ -39,6 +39,7 @@ module Cardano.Wallet
     (
     -- * WalletLayer
       WalletLayer
+    , DBFactory
     , newWalletLayer
 
     -- * Capabilities

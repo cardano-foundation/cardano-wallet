@@ -72,7 +72,7 @@ module Cardano.CLI
     , requireFilePath
     , getDataDir
     , waitForService
-    , setupStateDir
+    , setupDirectory
     , failWith
     ) where
 
@@ -698,10 +698,9 @@ cmdStakePoolList = command "list" $ info (helper <*> cmd) $ mempty
                             Commands - 'launch'
 -------------------------------------------------------------------------------}
 
--- | Initialize a state directory to store blockchain data such as blocks or
--- the wallet database.
-setupStateDir :: (Text -> IO ()) -> FilePath -> IO ()
-setupStateDir logT dir = do
+-- | Initialize a directory to store data such as blocks or the wallet databases
+setupDirectory :: (Text -> IO ()) -> FilePath -> IO ()
+setupDirectory logT dir = do
     exists <- doesFileExist dir
     when exists $ do
         putErrLn $ mconcat
@@ -710,9 +709,9 @@ setupStateDir logT dir = do
                 ]
         exitFailure
     doesDirectoryExist dir >>= \case
-        True -> logT $ "Using state directory: " <> T.pack dir
+        True -> logT $ "Using directory: " <> T.pack dir
         False -> do
-            logT $ "Creating state directory: " <> T.pack dir
+            logT $ "Creating directory: " <> T.pack dir
             let createParentIfMissing = True
             createDirectoryIfMissing createParentIfMissing dir
 
@@ -727,12 +726,12 @@ addressStateOption = optionT $ mempty
     <> metavar "STRING"
     <> help "only addresses with the given state: either 'used' or 'unused'."
 
--- | --database=FILEPATH
+-- | --database=DIR
 databaseOption :: Parser FilePath
 databaseOption = optionT $ mempty
     <> long "database"
-    <> metavar "FILEPATH"
-    <> help "use this file for storing wallet state. Run in-memory otherwise."
+    <> metavar "DIR"
+    <> help "use this directory for storing wallets. Run in-memory otherwise."
 
 -- | [--random-port|--port=INT]
 listenOption :: Parser Listen
@@ -798,7 +797,7 @@ sizeOption = optionT $ mempty
     <> value MS_15
     <> showDefaultWith showT
 
--- | --state-dir=FILEPATH, default: ~/.cardano-wallet/$backend/$network
+-- | --state-dir=DIR, default: ~/.cardano-wallet/$backend/$network
 stateDirOption :: FilePath -> Parser (Maybe FilePath)
 stateDirOption backendDir = optional $ strOption $ mempty
     <> long "state-dir"

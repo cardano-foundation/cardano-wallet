@@ -105,7 +105,7 @@ spec = do
                     expectPathEventuallyExist d
                     expectPathEventuallyExist (d <> "/chain")
                     expectPathEventuallyExist (d <> "/jormungandr-config.yaml")
-                    expectPathEventuallyExist (d <> "/wallet.db")
+                    expectPathEventuallyExist (d <> "/wallets")
                   `finally` do
                     terminateProcess ph
                     TIO.hGetContents o >>= TIO.putStrLn
@@ -125,7 +125,7 @@ spec = do
                 expectPathEventuallyExist dir
                 expectPathEventuallyExist (dir <> "/chain")
                 expectPathEventuallyExist (dir <> "/jormungandr-config.yaml")
-                expectPathEventuallyExist (dir <> "/wallet.db")
+                expectPathEventuallyExist (dir <> "/wallets")
               `finally` do
                 terminateProcess ph
                 TIO.hGetContents o >>= TIO.putStrLn

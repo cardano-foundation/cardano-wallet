@@ -49,7 +49,7 @@ let
         jormungandr.exe --config config.yaml --genesis-block block0.bin --secret secret.yaml
       '';
       cw-bat = pkgs.writeText "cw.bat" ''
-        cardano-wallet-jormungandr.exe serve --node-port 8081 --genesis-hash HASH --database c:\\cardano-wallet-jormungandr\\wallet.db
+        cardano-wallet-jormungandr.exe serve --node-port 8081 --genesis-hash HASH --database c:\\cardano-wallet-jormungandr\\wallets
       '';
     in pkgs.runCommand "cardano-wallet-jormungandr-win64" {
       buildInputs = [ pkgs.zip pkgs.unzip pkgs.jq pkgs.gnused project.jormungandr-cli ];
