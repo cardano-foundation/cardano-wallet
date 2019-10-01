@@ -6,6 +6,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -39,7 +40,7 @@ module Cardano.Wallet
     (
     -- * WalletLayer
       WalletLayer
-    , DBFactory
+    , DBFactory (..)
     , newWalletLayer
 
     -- * Capabilities
@@ -96,8 +97,7 @@ module Cardano.Wallet
     , ErrStartTimeLaterThanEndTime (..)
     ) where
 
-import Prelude hiding
-    ( log )
+import Prelude
 
 import Cardano.BM.Trace
     ( Trace, logError, logNotice )
@@ -191,6 +191,8 @@ import Data.Functor
     ( ($>) )
 import Data.Generics.Internal.VL.Lens
     ( Lens', (^.) )
+import Data.Generics.Labels
+    ()
 import Data.Generics.Product.Typed
     ( HasType, typed )
 import Data.List.NonEmpty
@@ -212,12 +214,6 @@ import qualified Cardano.Wallet.Registry as Registry
 {-------------------------------------------------------------------------------
                                Wallet Layer(s)
 -------------------------------------------------------------------------------}
-
--- | A type alias to ease signatures. This is used to open a new connection to a
--- database for a given wallet id. The connection to the database is closed as
--- soon as the action given as second argument is done.
-type DBFactory s t k =
-    WalletId -> (DBLayer IO s t k -> IO ()) -> IO ()
 
 data WalletLayer s t (k :: Depth -> * -> *)
     = WalletLayer
@@ -242,6 +238,14 @@ instance HasWorkerCtx (DBLayer IO s t k) (WalletLayer s t k) where
     type WorkerCtx (WalletLayer s t k) = WorkerLayer s t k
     hoistResource db (WalletLayer tr bp nw tl _ _) =
         WorkerLayer tr bp nw tl db
+
+-- | Capture operations to be done on external database layer. 'withDatabase'
+-- creates a new or use an existing database, maintaining an open connection so
+-- long as necessary, while 'purgeDatabase' cleans everything that was created.
+data DBFactory s t k = DBFactory
+    { withDatabase :: WalletId -> (DBLayer IO s t k -> IO ()) -> IO ()
+    , removeDatabase :: WalletId -> IO ()
+    } deriving (Generic)
 
 -- | Create a new instance of the wallet layer.
 newWalletLayer
@@ -274,7 +278,7 @@ newWalletLayer tr g0 nw tl df wids = do
                     defaultWorkerAfter
 
                 , workerAcquire =
-                    df wid
+                    (df ^. #withDatabase) wid
                 }
         newWorker @ctx @(DBLayer IO s t k) ctx wid config >>= \case
             Nothing ->
@@ -357,7 +361,7 @@ createWallet ctx wid a0 a1 =
                         defaultWorkerAfter
 
                     , workerAcquire =
-                        df wid
+                        (df ^. #withDatabase) wid
                     }
             liftIO (newWorker @ctx @(DBLayer IO s t k) ctx wid config) >>= \case
                 Nothing ->
@@ -442,6 +446,7 @@ listUtxoStatistics ctx wid = do
 removeWallet
     :: forall ctx s t k.
         ( HasWorkerRegistry s t k ctx
+        , HasDBFactory s t k ctx
         )
     => ctx
     -> WalletId
@@ -449,12 +454,11 @@ removeWallet
 removeWallet ctx wid = do
     withWorkerCtx @ctx @s @t @k ctx wid throwE $ \wrk ->
         E.removeWallet @(WorkerCtx ctx) @s @t @k wrk wid
-    liftIO (Registry.remove re wid)
-    -- FIXME
-    -- Remove the database file completely instead of erasing the content
-    -- with 'E.removeWallet'
+    liftIO $ Registry.remove re wid
+    liftIO $ (df ^. #removeDatabase) wid
   where
     re = ctx ^. workerRegistry @s @t @k
+    df = ctx ^. dbFactory @s @t @k
 
 -- | Retrieve a list of known wallet IDs.
 listWallets

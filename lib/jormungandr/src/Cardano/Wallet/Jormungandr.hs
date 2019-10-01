@@ -36,7 +36,7 @@ import Cardano.CLI
 import Cardano.Launcher
     ( ProcessHasExited (..), installSignalHandlers )
 import Cardano.Wallet
-    ( DBFactory, WalletLayer )
+    ( DBFactory (..), WalletLayer )
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.DaedalusIPC
@@ -70,7 +70,7 @@ import Cardano.Wallet.Primitive.Types
 import Control.Concurrent.Async
     ( race_ )
 import Control.Monad
-    ( forM )
+    ( forM, mapM_ )
 import Data.Function
     ( (&) )
 import Data.Maybe
@@ -84,7 +84,7 @@ import Data.Text.Class
 import Network.Wai.Handler.Warp
     ( setBeforeMainLoop )
 import System.Directory
-    ( doesFileExist, listDirectory )
+    ( doesFileExist, listDirectory, removePathForcibly )
 import System.Exit
     ( ExitCode (..) )
 import System.FilePath
@@ -180,14 +180,28 @@ serveWallet (cfg, sb, tr) dbFolder listen lj beforeMainLoop = do
 
     dbFactory
         :: DBFactory s t k
-    dbFactory wid = do
-        let tracerDB = appendName "database" tr
-        case dbFolder of
-            Nothing ->
+    dbFactory = case dbFolder of
+        Nothing -> DBFactory
+            { withDatabase = \_ ->
                 Sqlite.withDBLayer cfg tracerDB Nothing
-            Just folder -> do
-                let file = folder </> T.unpack (toText wid) <> ".sqlite"
-                Sqlite.withDBLayer cfg tracerDB (Just file)
+            , removeDatabase = \_ ->
+                pure ()
+            }
+        Just folder -> DBFactory
+            { withDatabase = \wid ->
+                Sqlite.withDBLayer cfg tracerDB (Just $ filepath wid)
+            , removeDatabase = \wid -> do
+                let files =
+                        [ filepath wid
+                        , filepath wid <> "-wal"
+                        , filepath wid <> "-shm"
+                        ]
+                mapM_ removePathForcibly files
+            }
+          where
+            filepath wid = folder </> T.unpack (toText wid) <> ".sqlite"
+      where
+        tracerDB = appendName "database" tr
 
     handleNetworkStartupError :: ErrStartup -> IO ExitCode
     handleNetworkStartupError = \case
