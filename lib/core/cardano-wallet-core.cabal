@@ -44,9 +44,11 @@ library
     , cryptonite
     , deepseq
     , digest
+    , directory
     , exceptions
     , extra
     , fast-logger
+    , filepath
     , fmt
     , foldl
     , generic-lens

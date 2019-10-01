@@ -27,8 +27,9 @@ module Cardano.Wallet.DB.Sqlite
     ( SqliteContext
     , newDBLayer
     , destroyDBLayer
+    , mkDBFactory
+    , findDatabases
     , withDBLayer
-    , withDBLayerCtx
     , unsafeRunQuery
 
     -- * Interfaces
@@ -45,11 +46,12 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Observer.Monadic
     ( bracketObserveIO )
 import Cardano.BM.Trace
-    ( Trace, appendName, logDebug, traceNamedItem )
+    ( Trace, appendName, logDebug, logInfo, logNotice, traceNamedItem )
 import Cardano.Crypto.Wallet
     ( XPrv )
 import Cardano.Wallet.DB
-    ( DBLayer (..)
+    ( DBFactory (..)
+    , DBLayer (..)
     , ErrNoSuchWallet (..)
     , ErrWalletAlreadyExists (..)
     , PrimaryKey (..)
@@ -92,7 +94,7 @@ import Control.DeepSeq
 import Control.Exception
     ( bracket )
 import Control.Monad
-    ( mapM_, void, when )
+    ( forM, mapM_, void, when )
 import Control.Monad.Catch
     ( MonadCatch (..), handleJust )
 import Control.Monad.IO.Class
@@ -125,6 +127,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( fromText, toText )
 import Data.Typeable
     ( Typeable )
 import Data.Word
@@ -164,6 +168,10 @@ import Fmt
     ( fmt, (+|), (+||), (|+), (||+) )
 import GHC.Generics
     ( Generic )
+import System.Directory
+    ( doesFileExist, listDirectory, removePathForcibly )
+import System.FilePath
+    ( (</>) )
 import System.Log.FastLogger
     ( fromLogStr )
 
@@ -226,6 +234,12 @@ handleConstraint e = handleJust select handler . fmap Right
       select _ = Nothing
       handler = const . pure  . Left $ e
 
+-- | Finalize database statements and close the database connection.
+destroyDBLayer :: SqliteContext -> IO ()
+destroyDBLayer (SqliteContext {getSqlBackend, trace, dbFile}) = do
+    logDebug trace (MsgClosing dbFile)
+    close' getSqlBackend
+
 -- | Runs an action with a connection to the SQLite database.
 --
 -- Database migrations are run to create tables if necessary.
@@ -233,7 +247,14 @@ handleConstraint e = handleJust select handler . fmap Right
 -- If the given file path does not exist, it will be created by the sqlite
 -- library.
 withDBLayer
-    :: forall s t k a. (IsOurs s, NFData s, Show s, PersistState s, PersistTx t, PersistKey k)
+    :: forall s t k a.
+        ( IsOurs s
+        , NFData s
+        , Show s
+        , PersistState s
+        , PersistTx t
+        , PersistKey k
+        )
     => CM.Configuration
        -- ^ Logging configuration
     -> Trace IO Text
@@ -244,31 +265,73 @@ withDBLayer
        -- ^ Action to run.
     -> IO a
 withDBLayer logConfig trace fp action =
-    withDBLayerCtx logConfig trace fp (action . snd)
+    bracket before after (action . snd)
+  where
+    before = newDBLayer logConfig trace fp
+    after = destroyDBLayer . fst
 
--- | A variant of 'withDBLayer' that also provides the 'SqliteContext' to the
--- action. This is mostly useful for testing.
-withDBLayerCtx
-    :: forall s t k a. (IsOurs s, NFData s, Show s, PersistState s, PersistTx t, PersistKey k)
+-- | Instantiate a 'DBFactory' from a given directory
+mkDBFactory
+    :: forall s t k.
+        ( IsOurs s
+        , NFData s
+        , Show s
+        , PersistState s
+        , PersistTx t
+        , PersistKey k
+        )
     => CM.Configuration
        -- ^ Logging configuration
     -> Trace IO Text
        -- ^ Logging object
     -> Maybe FilePath
        -- ^ Database file location, or Nothing for in-memory database
-    -> ((SqliteContext, DBLayer IO s t k) -> IO a)
-       -- ^ Action to run.
-    -> IO a
-withDBLayerCtx logConfig trace fp = bracket before after
+    -> DBFactory IO s t k
+mkDBFactory cfg tr databaseDir = case databaseDir of
+    Nothing -> DBFactory
+        { withDatabase = \_ ->
+            withDBLayer cfg tracerDB Nothing
+        , removeDatabase = \_ ->
+            pure ()
+        }
+    Just folder -> DBFactory
+        { withDatabase = \wid ->
+            withDBLayer cfg tracerDB (Just $ filepath wid)
+        , removeDatabase = \wid -> do
+            let files =
+                    [ filepath wid
+                    , filepath wid <> "-wal"
+                    , filepath wid <> "-shm"
+                    ]
+            mapM_ removePathForcibly files
+        }
+      where
+        filepath wid = folder </> T.unpack (toText wid) <> ".sqlite"
   where
-    before = newDBLayer logConfig trace fp
-    after = destroyDBLayer . fst
+    tracerDB = appendName "database" tr
 
--- | Finalize database statements and close the database connection.
-destroyDBLayer :: SqliteContext -> IO ()
-destroyDBLayer (SqliteContext {getSqlBackend, trace, dbFile}) = do
-    logDebug trace (MsgClosing dbFile)
-    close' getSqlBackend
+-- | Lookup file-system for existing wallet databases
+findDatabases
+    :: Trace IO Text
+    -> FilePath
+    -> IO [W.WalletId]
+findDatabases tr dir = do
+    files <- listDirectory dir
+    fmap catMaybes $ forM files $ \file -> do
+        isFile <- doesFileExist (dir </> file)
+        let (basename:rest) = T.splitOn "." $ T.pack file
+        case (isFile, fromText basename, rest) of
+            (True, Right wid, ["sqlite"]) -> do
+                logInfo tr $ "Found existing wallet: " <> basename
+                return (Just wid)
+            (True, Right _, _) -> do
+                return Nothing
+            _ -> do
+                logNotice tr $ mconcat
+                    [ "Found something else than a database file in the "
+                    , "database folder: ", T.pack file
+                    ]
+                return Nothing
 
 -- | Sets up a connection to the SQLite database.
 --

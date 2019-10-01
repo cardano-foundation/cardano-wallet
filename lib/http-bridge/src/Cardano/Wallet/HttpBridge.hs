@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
@@ -34,7 +35,7 @@ import Cardano.Wallet.Api.Server
 import Cardano.Wallet.DaedalusIPC
     ( daedalusIPC )
 import Cardano.Wallet.DB
-    ( DBLayer )
+    ( DBFactory (..) )
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
 import Cardano.Wallet.HttpBridge.Environment
@@ -89,26 +90,28 @@ serveWallet
     -- ^ HTTP API Server port.
     -> HttpBridgeBackend
     -- ^ Whether and how to launch or use the node backend.
-    -> Maybe (PortNumber -> PortNumber -> NetworkLayer IO Tx (Block Tx) ->
-              Sqlite.SqliteContext -> DBLayer IO s t k -> WalletLayer s t k ->
-              IO a)
+    -> Maybe
+        (  PortNumber
+        -> PortNumber
+        -> NetworkLayer IO Tx (Block Tx)
+        -> IO a
+        )
     -- ^ Optional operation to run under the wallet server (e.g. test suite).
     -> IO ExitCode
-serveWallet (cfg, sb, tr) dbFile listen bridge mAction = do
+serveWallet (cfg, sb, tr) databaseDir listen bridge mAction = do
     installSignalHandlers tr
     logInfo tr "Wallet backend server starting..."
     logInfo tr $ "Node is Http-Bridge on " <> toText (networkVal @n)
-    withDBLayer $ \(ctx, db) ->
-        HttpBridge.withNetworkLayer @n tr bridge $ \case
-            Right (bridgePort, nl) -> do
-                waitForService "http-bridge" (sb, tr) (Port $ fromEnum bridgePort) $
-                    waitForNetwork nl defaultRetryPolicy
-                wl <- newWalletLayer db nl
-                let mkCallback action apiPort =
-                        action (fromIntegral apiPort) bridgePort nl ctx db wl
-                withServer wl (mkCallback <$> mAction)
-                pure ExitSuccess
-            Left e -> handleNetworkStartupError e
+    HttpBridge.withNetworkLayer @n tr bridge $ \case
+        Right (bridgePort, nl) -> do
+            waitForService "http-bridge" (sb, tr) (Port $ fromEnum bridgePort) $
+                waitForNetwork nl defaultRetryPolicy
+            wl <- newWalletLayer nl
+            let mkCallback action apiPort =
+                    action (fromIntegral apiPort) bridgePort nl
+            withServer wl (mkCallback <$> mAction)
+            pure ExitSuccess
+        Left e -> handleNetworkStartupError e
   where
     withServer
         :: WalletLayer s t k
@@ -128,20 +131,18 @@ serveWallet (cfg, sb, tr) dbFile listen bridge mAction = do
             withAction $ race_ ipcServer apiServer
 
     newWalletLayer
-        :: DBLayer IO s t k
-        -> NetworkLayer IO Tx (Block Tx)
+        :: NetworkLayer IO Tx (Block Tx)
         -> IO (WalletLayer s t k)
-    newWalletLayer db nl = do
+    newWalletLayer nl = do
         let g0 = staticBlockchainParameters nl
         let tl = HttpBridge.newTransactionLayer @n
-        Wallet.newWalletLayer tr g0 db nl tl
+        wallets <- maybe (pure []) (Sqlite.findDatabases tr) databaseDir
+        Wallet.newWalletLayer tr g0 nl tl dbFactory wallets
 
-    withDBLayer
-        :: ((Sqlite.SqliteContext, DBLayer IO s t k) -> IO a')
-        -> IO a'
-    withDBLayer action = do
-        let tracerDB = appendName "database" tr
-        Sqlite.withDBLayerCtx cfg tracerDB dbFile action
+    dbFactory
+        :: DBFactory IO s t k
+    dbFactory =
+        Sqlite.mkDBFactory cfg tr databaseDir
 
     handleNetworkStartupError :: ErrStartup -> IO ExitCode
     handleNetworkStartupError = \case

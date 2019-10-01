@@ -30,17 +30,19 @@ import Prelude
 import Cardano.BM.Backend.Switchboard
     ( Switchboard )
 import Cardano.BM.Trace
-    ( Trace, appendName, logInfo, logNotice )
+    ( Trace, appendName, logInfo )
 import Cardano.CLI
     ( Port (..), failWith, waitForService )
 import Cardano.Launcher
     ( ProcessHasExited (..), installSignalHandlers )
 import Cardano.Wallet
-    ( DBFactory (..), WalletLayer )
+    ( WalletLayer )
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.DaedalusIPC
     ( daedalusIPC )
+import Cardano.Wallet.DB
+    ( DBFactory )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr, Network (..) )
 import Cardano.Wallet.Jormungandr.Environment
@@ -66,29 +68,19 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Block, Hash (..), WalletId )
+    ( Block, Hash (..) )
 import Control.Concurrent.Async
     ( race_ )
-import Control.Monad
-    ( forM, mapM_ )
 import Data.Function
     ( (&) )
-import Data.Maybe
-    ( catMaybes )
 import Data.Text
     ( Text )
-import Data.Text.Class
-    ( fromText )
 import Data.Text.Class
     ( ToText (..), showT )
 import Network.Wai.Handler.Warp
     ( setBeforeMainLoop )
-import System.Directory
-    ( doesFileExist, listDirectory, removePathForcibly )
 import System.Exit
     ( ExitCode (..) )
-import System.FilePath
-    ( (</>) )
 import System.IO
     ( hPutStrLn, stderr )
 
@@ -116,7 +108,7 @@ serveWallet
     -> (Port "wallet" -> Port "node" -> BlockchainParameters -> IO ())
     -- ^ Callback to run before the main loop
     -> IO ExitCode
-serveWallet (cfg, sb, tr) dbFolder listen lj beforeMainLoop = do
+serveWallet (cfg, sb, tr) databaseDir listen lj beforeMainLoop = do
     installSignalHandlers tr
     logInfo tr "Wallet backend server starting..."
     logInfo tr $ "Node is Jörmungandr on " <> toText (networkVal @n)
@@ -153,55 +145,13 @@ serveWallet (cfg, sb, tr) dbFolder listen lj beforeMainLoop = do
     newWalletLayer tracer nl = do
         let (block0, bp) = staticBlockchainParameters nl
         let tl = newTransactionLayer @n (getGenesisBlockHash bp)
-        wallets <- maybe (pure []) findWallets dbFolder
+        wallets <- maybe (pure []) (Sqlite.findDatabases tr) databaseDir
         Wallet.newWalletLayer tracer (block0, bp) nl tl dbFactory wallets
 
-    -- | Lookup file-system for existing wallet databases
-    findWallets
-        :: FilePath
-        -> IO [WalletId]
-    findWallets dir = do
-        files <- listDirectory dir
-        fmap catMaybes $ forM files $ \file -> do
-            isFile <- doesFileExist (dir </> file)
-            let (basename:rest) = T.splitOn "." $ T.pack file
-            case (isFile, fromText basename, rest) of
-                (True, Right wid, ["sqlite"]) -> do
-                    logInfo tr $ "Found existing wallet: " <> basename
-                    return (Just wid)
-                (True, Right _, _) -> do
-                    return Nothing
-                _ -> do
-                    logNotice tr $ mconcat
-                        [ "Found something else than a database file in the "
-                        , "database folder: ", T.pack file
-                        ]
-                    return Nothing
-
     dbFactory
-        :: DBFactory s t k
-    dbFactory = case dbFolder of
-        Nothing -> DBFactory
-            { withDatabase = \_ ->
-                Sqlite.withDBLayer cfg tracerDB Nothing
-            , removeDatabase = \_ ->
-                pure ()
-            }
-        Just folder -> DBFactory
-            { withDatabase = \wid ->
-                Sqlite.withDBLayer cfg tracerDB (Just $ filepath wid)
-            , removeDatabase = \wid -> do
-                let files =
-                        [ filepath wid
-                        , filepath wid <> "-wal"
-                        , filepath wid <> "-shm"
-                        ]
-                mapM_ removePathForcibly files
-            }
-          where
-            filepath wid = folder </> T.unpack (toText wid) <> ".sqlite"
-      where
-        tracerDB = appendName "database" tr
+        :: DBFactory IO s t k
+    dbFactory =
+        Sqlite.mkDBFactory cfg tr databaseDir
 
     handleNetworkStartupError :: ErrStartup -> IO ExitCode
     handleNetworkStartupError = \case

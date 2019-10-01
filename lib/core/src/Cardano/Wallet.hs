@@ -40,7 +40,6 @@ module Cardano.Wallet
     (
     -- * WalletLayer
       WalletLayer
-    , DBFactory (..)
     , newWalletLayer
 
     -- * Capabilities
@@ -102,7 +101,7 @@ import Prelude
 import Cardano.BM.Trace
     ( Trace, logError, logNotice )
 import Cardano.Wallet.DB
-    ( DBLayer )
+    ( DBFactory (..), DBLayer )
 import Cardano.Wallet.Engine
     ( ErrAdjustForFee (..)
     , ErrCoinSelection (..)
@@ -221,7 +220,7 @@ data WalletLayer s t (k :: Depth -> * -> *)
         (Block (Tx t), BlockchainParameters)
         (NetworkLayer IO (Tx t) (Block (Tx t)))
         (TransactionLayer t k)
-        (DBFactory s t k)
+        (DBFactory IO s t k)
         (WorkerRegistry (DBLayer IO s t k))
     deriving (Generic)
 
@@ -239,14 +238,6 @@ instance HasWorkerCtx (DBLayer IO s t k) (WalletLayer s t k) where
     hoistResource db (WalletLayer tr bp nw tl _ _) =
         WorkerLayer tr bp nw tl db
 
--- | Capture operations to be done on external database layer. 'withDatabase'
--- creates a new or use an existing database, maintaining an open connection so
--- long as necessary, while 'purgeDatabase' cleans everything that was created.
-data DBFactory s t k = DBFactory
-    { withDatabase :: WalletId -> (DBLayer IO s t k -> IO ()) -> IO ()
-    , removeDatabase :: WalletId -> IO ()
-    } deriving (Generic)
-
 -- | Create a new instance of the wallet layer.
 newWalletLayer
     :: forall ctx s t k. (ctx ~ WalletLayer s t k, DefineTx t)
@@ -254,7 +245,7 @@ newWalletLayer
     -> (Block (Tx t), BlockchainParameters)
     -> NetworkLayer IO (Tx t) (Block (Tx t))
     -> TransactionLayer t k
-    -> DBFactory s t k
+    -> DBFactory IO s t k
     -> [WalletId]
     -> IO ctx
 newWalletLayer tr g0 nw tl df wids = do
@@ -301,13 +292,13 @@ workerRegistry
 workerRegistry =
     typed @(WorkerRegistry (DBLayer IO s t k))
 
-type HasDBFactory s t k = HasType (DBFactory s t k)
+type HasDBFactory s t k = HasType (DBFactory IO s t k)
 
 dbFactory
     :: forall s t k ctx. (HasDBFactory s t k ctx)
-    => Lens' ctx (DBFactory s t k)
+    => Lens' ctx (DBFactory IO s t k)
 dbFactory =
-    typed @(DBFactory s t k)
+    typed @(DBFactory IO s t k)
 
 {-------------------------------------------------------------------------------
                                    Wallet

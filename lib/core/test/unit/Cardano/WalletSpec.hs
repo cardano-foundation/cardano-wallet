@@ -30,7 +30,12 @@ import Cardano.Wallet
     , newWalletLayer
     )
 import Cardano.Wallet.DB
-    ( DBLayer, ErrNoSuchWallet (..), PrimaryKey (..), putTxHistory )
+    ( DBFactory (..)
+    , DBLayer
+    , ErrNoSuchWallet (..)
+    , PrimaryKey (..)
+    , putTxHistory
+    )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx (..), block0, genesisParameters )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -403,7 +408,10 @@ setupFixture (wid, wname, wstate) = do
     let nl = error "NetworkLayer"
     let tl = dummyTransactionLayer
     db <- MVar.newDBLayer
-    let df _ cb = cb db
+    let df = DBFactory
+            { withDatabase = const (\with -> with db)
+            , removeDatabase = \_ -> pure ()
+            }
     wl <- newWalletLayer @ctx nullTracer (block0, bp) nl tl df []
     res <- runExceptT $ W.createWallet wl wid wname wstate
     let wal = case res of
