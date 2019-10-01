@@ -30,7 +30,7 @@ import Prelude
 import Cardano.BM.Backend.Switchboard
     ( Switchboard )
 import Cardano.BM.Trace
-    ( Trace, appendName, logInfo )
+    ( Trace, appendName, logInfo, logNotice )
 import Cardano.CLI
     ( Port (..), failWith, waitForService )
 import Cardano.Launcher
@@ -66,17 +66,25 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Block, Hash (..) )
+    ( Block, Hash (..), WalletId )
 import Control.Concurrent.Async
     ( race_ )
+import Control.Monad
+    ( forM )
 import Data.Function
     ( (&) )
+import Data.Maybe
+    ( catMaybes )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( fromText )
 import Data.Text.Class
     ( ToText (..), showT )
 import Network.Wai.Handler.Warp
     ( setBeforeMainLoop )
+import System.Directory
+    ( doesFileExist, listDirectory )
 import System.Exit
     ( ExitCode (..) )
 import System.FilePath
@@ -145,9 +153,30 @@ serveWallet (cfg, sb, tr) dbFolder listen lj beforeMainLoop = do
     newWalletLayer tracer nl = do
         let (block0, bp) = staticBlockchainParameters nl
         let tl = newTransactionLayer @n (getGenesisBlockHash bp)
-        -- FIXME
-        -- Lookup existing wallets
-        Wallet.newWalletLayer tracer (block0, bp) nl tl dbFactory []
+        wallets <- maybe (pure []) findWallets dbFolder
+        Wallet.newWalletLayer tracer (block0, bp) nl tl dbFactory wallets
+
+    -- | Lookup file-system for existing wallet databases
+    findWallets
+        :: FilePath
+        -> IO [WalletId]
+    findWallets dir = do
+        files <- listDirectory dir
+        fmap catMaybes $ forM files $ \file -> do
+            isFile <- doesFileExist (dir </> file)
+            let (basename:rest) = T.splitOn "." $ T.pack file
+            case (isFile, fromText basename, rest) of
+                (True, Right wid, ["sqlite"]) -> do
+                    logInfo tr $ "Found existing wallet: " <> basename
+                    return (Just wid)
+                (True, Right _, _) -> do
+                    return Nothing
+                _ -> do
+                    logNotice tr $ mconcat
+                        [ "Found something else than a database file in the "
+                        , "database folder: ", T.pack file
+                        ]
+                    return Nothing
 
     dbFactory
         :: DBFactory s t k
