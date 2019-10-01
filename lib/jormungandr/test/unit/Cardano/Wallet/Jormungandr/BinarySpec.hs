@@ -321,7 +321,6 @@ spec = do
     try' = fmap (either (Left . show) Right)
         . (try @SomeException) . evaluate
 
-
 -- Only generating single addresses!
 instance Arbitrary Address where
     arbitrary = Address . prependTag 3 <$> genFixed 32

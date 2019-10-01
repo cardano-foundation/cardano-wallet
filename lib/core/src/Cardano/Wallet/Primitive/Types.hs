@@ -105,6 +105,7 @@ module Cardano.Wallet.Primitive.Types
 
     -- * Stake Pools
     , PoolId(..)
+    , StakeDistribution (..)
     , poolIdBytesLength
 
     -- * Querying
@@ -511,6 +512,12 @@ instance FromText PoolId where
         where
             textDecodingError = Left . TextDecodingError . show
 
+data StakeDistribution = StakeDistribution
+    { dangling :: Quantity "lovelace" Word64
+    , pools :: [(PoolId, Quantity "lovelace" Word64)]
+    , unassigned :: Quantity "lovelace" Word64
+    } deriving (Eq, Show, Generic)
+
 {-------------------------------------------------------------------------------
                                     Block
 -------------------------------------------------------------------------------}
@@ -823,7 +830,7 @@ instance ToText AddressState where
                                      Coin
 -------------------------------------------------------------------------------}
 
--- | Coins are stored as Lovelace (reminder: 1 Lovelace = 1e6 ADA)
+-- | Coins are stored as Lovelace (reminder: 1 Lovelace = 1e-6 ADA)
 newtype Coin = Coin
     { getCoin :: Word64
     } deriving stock (Show, Ord, Eq, Generic)

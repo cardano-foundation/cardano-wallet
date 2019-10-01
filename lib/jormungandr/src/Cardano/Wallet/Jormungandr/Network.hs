@@ -73,8 +73,10 @@ import Cardano.Wallet.Jormungandr.Api
     ( BlockId (..)
     , GetBlock
     , GetBlockDescendantIds
+    , GetStakeDistribution
     , GetTipId
     , PostMessage
+    , StakeApiResponse
     , api
     )
 import Cardano.Wallet.Jormungandr.Binary
@@ -552,6 +554,8 @@ data JormungandrLayer m = JormungandrLayer
     , getInitialBlockchainParameters
         :: Hash "Genesis"
         -> ExceptT ErrGetBlockchainParams m (J.Block, BlockchainParameters)
+    , getStakeDistribution
+        :: ExceptT ErrNetworkUnavailable m StakeApiResponse
     }
 
 -- | Construct a 'JormungandrLayer'-client
@@ -675,6 +679,10 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
                     )
             _ ->
                 throwE $ ErrGetBlockchainParamsIncompleteParams params
+
+    , getStakeDistribution = ExceptT $ do
+        let ctx = safeLink api (Proxy @GetStakeDistribution)
+        run cGetStakeDistribution >>= defaultHandler ctx
     }
   where
     run :: ClientM a -> IO (Either ServantError a)
@@ -702,6 +710,7 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
         :<|> cGetBlock
         :<|> cGetBlockDescendantIds
         :<|> cPostMessage
+        :<|> cGetStakeDistribution
         = client api
 
 data ErrUnexpectedNetworkFailure
@@ -727,5 +736,9 @@ data ErrStartup
     | ErrStartupGenesisBlockFailed FilePath
     | ErrStartupCommandExited ProcessHasExited
     deriving (Show, Eq)
+
+{-------------------------------------------------------------------------------
+                                     Utils
+-------------------------------------------------------------------------------}
 
 instance Exception ErrStartup

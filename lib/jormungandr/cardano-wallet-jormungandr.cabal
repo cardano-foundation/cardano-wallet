@@ -125,6 +125,7 @@ test-suite unit
       -Werror
   build-depends:
       base
+    , aeson
     , aeson-qq
     , binary
     , bytestring
@@ -152,6 +153,7 @@ test-suite unit
   main-is:
       Main.hs
   other-modules:
+      Cardano.Wallet.Jormungandr.ApiSpec
       Cardano.Wallet.Jormungandr.BinarySpec
       Cardano.Wallet.Jormungandr.CompatibilitySpec
       Cardano.Wallet.Jormungandr.EnvironmentSpec
