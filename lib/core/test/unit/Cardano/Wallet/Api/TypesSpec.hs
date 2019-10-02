@@ -27,6 +27,7 @@ import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress (..)
     , ApiBlockData (..)
+    , ApiByronWallet (..)
     , ApiFee (..)
     , ApiMnemonicT (..)
     , ApiStakePool (..)
@@ -209,6 +210,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(AddressAmount DummyTarget)
             jsonRoundtripAndGolden $ Proxy @(ApiTransaction DummyTarget)
             jsonRoundtripAndGolden $ Proxy @ApiWallet
+            jsonRoundtripAndGolden $ Proxy @ApiByronWallet
             jsonRoundtripAndGolden $ Proxy @ApiUtxoStatistics
             jsonRoundtripAndGolden $ Proxy @ApiFee
             jsonRoundtripAndGolden $ Proxy @StakePoolMetrics
@@ -425,6 +427,17 @@ spec = do
                     }
             in
                 x' === x .&&. show x' === show x
+        it "ApiByronWallet" $ property $ \x ->
+            let
+                x' = ApiByronWallet
+                    { id = id (x :: ApiByronWallet)
+                    , balance = balance (x :: ApiByronWallet)
+                    , name = name (x :: ApiByronWallet)
+                    , passphrase = passphrase (x :: ApiByronWallet)
+                    , state = state (x :: ApiByronWallet)
+                    }
+            in
+                x' === x .&&. show x' === show x
         it "ApiFee" $ property $ \x ->
             let
                 x' = ApiFee
@@ -603,6 +616,10 @@ instance Arbitrary (Quantity "percent" Percentage) where
     arbitrary = Quantity <$> arbitraryBoundedEnum
 
 instance Arbitrary ApiWallet where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiByronWallet where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
@@ -918,6 +935,9 @@ instance ToSchema (ApiAddress t) where
 
 instance ToSchema ApiWallet where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWallet"
+
+instance ToSchema ApiByronWallet where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiByronWallet"
 
 instance ToSchema ApiStakePool where
     declareNamedSchema _ = declareSchemaForDefinition "ApiStakePool"
