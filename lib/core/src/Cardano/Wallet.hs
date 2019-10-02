@@ -646,8 +646,18 @@ restoreBlocks ctx wid blocks nodeTip = do
             bhUnstable = fromIntegral nodeHeight - fromIntegral k
 
         forM_ (NE.init cps) $ \cp -> do
-            let (Quantity bh) = blockHeight $ currentTip cp
-            when (fromIntegral bh >= bhUnstable) $
+            let tip = currentTip cp
+            let (Quantity bh) = blockHeight tip
+            -- NOTE:
+            -- We create sparse checkpoints here. `97` is an arbitrary number,
+            -- could be anything reasonnable such that:
+            --
+            --   - We have checkpoints fairly often (with regards to `k`)
+            --   - It doesn't take to catch up missing blocks between checkpoints
+            --
+            when (fromIntegral bh >= bhUnstable && bh `mod` 97 == 0) $ do
+                liftIO $ logInfo tr $ mempty
+                    <> "creating checkpoint at: " <> pretty tip
                 DB.putCheckpoint db (PrimaryKey wid) cp
 
         -- NOTE:
