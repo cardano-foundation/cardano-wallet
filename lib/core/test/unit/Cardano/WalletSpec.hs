@@ -445,10 +445,11 @@ newtype DummyState
     deriving (Generic, Show, Eq)
 
 instance Sqlite.PersistState DummyState where
+    type StateAddress DummyState = ()
     insertState _ _ = error "DummyState.insertState: not implemented"
     selectState _ = error "DummyState.selectState: not implemented"
     deleteState _ = error "DummyState.deleteState: not implemented"
-    rollbackState _ _ = error "DummyState.rollbackState: not implemented"
+    pruneState _ _ = error "DummyState.rollbackState: not implemented"
 
 instance NFData DummyState
 

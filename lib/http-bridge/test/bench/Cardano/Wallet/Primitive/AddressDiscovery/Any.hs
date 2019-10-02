@@ -87,6 +87,7 @@ instance KnownAddresses AnyAddressState where
         \an incompatible scheme 'AnyAddressState'. Please don't."
 
 instance PersistState AnyAddressState where
+    type StateAddress AnyAddressState = ()
     insertState (wid, sl) (AnyAddressState s) =
         insert_ (DB.AnyAddressState wid sl s)
     selectState (wid, sl) = runMaybeT $ do
@@ -96,7 +97,7 @@ instance PersistState AnyAddressState where
             ] []
         return (AnyAddressState s)
     deleteState wid = deleteWhere [DB.AnyAddressStateWalletId ==. wid]
-    rollbackState _ _ = pure ()
+    pruneState _ _ = pure ()
 
 initAnyState :: Text -> Double -> (WalletId, WalletName, AnyAddressState)
 initAnyState wname p = (walletId cfg, WalletName wname, cfg)
