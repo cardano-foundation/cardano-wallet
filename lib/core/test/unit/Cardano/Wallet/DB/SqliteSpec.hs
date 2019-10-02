@@ -2,6 +2,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
@@ -53,9 +55,9 @@ import Cardano.Wallet.DB
     , cleanDB
     )
 import Cardano.Wallet.DB.Arbitrary
-    ( KeyValPairs (..) )
+    ( GenState, KeyValPairs (..), MockChain (..) )
 import Cardano.Wallet.DB.Properties
-    ( properties, withDB )
+    ( assertWith, namedPick, properties, withDB )
 import Cardano.Wallet.DB.Sqlite
     ( PersistState
     , PersistTx
@@ -83,12 +85,19 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Mnemonic
     ( EntropySize, entropyToBytes, genEntropy )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, initWallet )
+    ( BlockchainParameters (..)
+    , Wallet
+    , applyBlock
+    , initWallet
+    , unsafeInitWallet
+    )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , BlockHeader (..)
     , Coin (..)
     , Direction (..)
     , Hash (..)
+    , ShowFmt (..)
     , SlotId (..)
     , SortOrder (..)
     , TxIn (..)
@@ -123,6 +132,8 @@ import Data.Coerce
     ( coerce )
 import Data.Functor
     ( ($>) )
+import Data.Generics.Internal.VL.Lens
+    ( (^.) )
 import Data.Maybe
     ( mapMaybe )
 import Data.Quantity
@@ -133,8 +144,12 @@ import Data.Text.Class
     ( FromText (..) )
 import Data.Time.Clock
     ( getCurrentTime )
+import Fmt
+    ( pretty )
 import GHC.Conc
     ( TVar, atomically, newTVarIO, readTVarIO, writeTVar )
+import Numeric.Natural
+    ( Natural )
 import System.Directory
     ( doesFileExist, removeFile )
 import System.IO.Error
@@ -161,9 +176,9 @@ import Test.Hspec
     , xit
     )
 import Test.QuickCheck
-    ( Property, property, (==>) )
+    ( Property, arbitrary, counterexample, elements, label, property, (==>) )
 import Test.QuickCheck.Monadic
-    ( monadicIO )
+    ( monadicIO, monitor, run )
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.Aggregated as CM
@@ -172,6 +187,7 @@ import qualified Cardano.BM.Data.Backend as CM
 import qualified Cardano.BM.Data.SubTrace as CM
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Sequential as Seq
+import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Data.HashMap.Strict as HM
 import qualified Data.List as L
 import qualified Data.Set as Set
@@ -208,7 +224,9 @@ simpleSpec
        ( Show (k 'RootK XPrv)
        , Eq (k 'RootK XPrv)
        , Eq s
-       , GenerateTestKey k )
+       , GenerateTestKey k
+       , GenState s
+       )
     => Wallet s DummyTarget
     -> SpecWith (DBLayer IO s DummyTarget k)
 simpleSpec cp = do
@@ -258,6 +276,64 @@ simpleSpec cp = do
             unsafeRunExceptT $ createWallet db testPk cp testMetadata mempty
             runExceptT (putCheckpoint db testPk cp) `shouldReturn` Right ()
             readCheckpoint db testPk `shouldReturn` Just cp
+
+        it "purgeCheckpoints" (property . prop_purgeCheckpoints)
+
+prop_purgeCheckpoints
+    :: forall s t k. (t ~ DummyTarget, GenState s)
+    => DBLayer IO s t k
+    -> ShowFmt (Wallet s t)
+    -> ShowFmt MockChain
+    -> Property
+prop_purgeCheckpoints db (ShowFmt cp_) (ShowFmt (MockChain chain)) = do
+    monadicIO $ do
+        ShowFmt wid <- namedPick "Wallet ID" arbitrary
+        ShowFmt meta <- namedPick "Wallet Metadata" arbitrary
+        ShowFmt point <- namedPick "Rollback target"
+            (elements $ ShowFmt . W.currentTip <$> cps)
+        setup wid meta >> prop wid point
+  where
+    -- Small epoch stability
+    k :: Natural
+    k = fromIntegral $ max 2 (L.length chain `div` 2)
+
+    cp0 :: Wallet s t
+    cp0 = unsafeInitWallet
+        (W.utxo cp_)
+        (W.currentTip cp_)
+        (W.getState cp_)
+        ((W.blockchainParameters cp_) { getEpochStability = Quantity (fromIntegral k) })
+
+    cps :: [Wallet s t]
+    cps = flip L.unfoldr (chain, cp0) $ \case
+        ([], _) -> Nothing
+        (b:q, cp) -> let cp' = snd $ applyBlock b cp in Just (cp', (q, cp'))
+
+    setup wid meta = run $ do
+        cleanDB db
+        unsafeRunExceptT $ createWallet db wid cp0 meta mempty
+        unsafeRunExceptT $ forM_ cps (putCheckpoint db wid)
+
+    prop wid point = do
+        monitor $ label $ "chain length: " <> show (L.length chain)
+        Just cp <- run $ readCheckpoint db wid
+        let tip = W.currentTip cp
+        run (runExceptT $ rollbackTo db wid (point ^. #slotId)) >>= \case
+            Left _ -> monitor $ label "rolled back too far"
+            Right () -> do
+                Just cp' <- run $ readCheckpoint db wid
+                let tip' = W.currentTip cp'
+                monitor $ counterexample
+                    ("\nmost recent header (before rollback):\n" <> pretty tip)
+                monitor $ counterexample ("\nk=" <> show k)
+                monitor $ counterexample
+                    ("\nmost recent header (after rollback):\n" <> pretty tip' <> "\n")
+                assertWith "there's no checkpoint older than k"
+                    (height cp - height cp' <= k)
+
+    height :: Wallet s t -> Natural
+    height cp =
+        let (Quantity h) = blockHeight $ W.currentTip cp in fromIntegral h
 
 {-------------------------------------------------------------------------------
                                 Logging Spec

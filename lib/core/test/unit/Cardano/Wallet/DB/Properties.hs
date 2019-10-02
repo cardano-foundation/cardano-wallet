@@ -18,6 +18,8 @@
 module Cardano.Wallet.DB.Properties
     ( properties
     , withDB
+    , namedPick
+    , assertWith
     ) where
 
 import Prelude
@@ -38,7 +40,12 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( SeqKey (..) )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, applyBlock, currentTip )
+    ( BlockchainParameters (..)
+    , Wallet
+    , applyBlock
+    , blockchainParameters
+    , currentTip
+    )
 import Cardano.Wallet.Primitive.Types
     ( Direction (..)
     , Hash (..)
@@ -75,6 +82,8 @@ import Data.List
     ( unfoldr )
 import Data.Maybe
     ( mapMaybe )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Set
     ( Set )
 import Fmt
@@ -99,6 +108,7 @@ import Test.QuickCheck
     , elements
     , label
     , property
+    , (==>)
     )
 import Test.QuickCheck.Monadic
     ( PropertyM, assert, monadicIO, monitor, pick, run )
@@ -546,7 +556,8 @@ prop_parallelPut putOp readOp resolve db (KeyValPairs pairs) =
         length res `shouldBe` resolve pairs
 
 
--- | Can rollback to any particular checkpoint previously stored
+-- | Can rollback to any particular checkpoint previously stored (within the
+-- unstable zone. We can't rollback for more than `k=epochStability`)
 prop_rollbackCheckpoint
     :: forall s t k. (t ~ DummyTarget, GenState s, Eq s)
     => DBLayer IO s t k
@@ -554,12 +565,14 @@ prop_rollbackCheckpoint
     -> ShowFmt MockChain
     -> Property
 prop_rollbackCheckpoint db (ShowFmt cp0) (ShowFmt (MockChain chain)) = do
-    monadicIO $ do
+    L.length chain < fromIntegral k ==> monadicIO $ do
         ShowFmt wid <- namedPick "Wallet ID" arbitrary
         ShowFmt meta <- namedPick "Wallet Metadata" arbitrary
         ShowFmt point <- namedPick "Rollback target" (elements $ ShowFmt <$> cps)
         setup wid meta >> prop wid point
   where
+    (Quantity k) = getEpochStability (blockchainParameters cp0)
+
     cps :: [Wallet s t]
     cps = flip unfoldr (chain, cp0) $ \case
         ([], _) -> Nothing

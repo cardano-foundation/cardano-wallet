@@ -430,7 +430,9 @@ rootKeysRnd = unsafePerformIO $ generate (vectorOf 10 genRootKeysRnd)
 newtype MockChain = MockChain
     { getMockChain :: [Block DummyTarget.Tx] }
     deriving stock (Eq, Show)
-    deriving newtype (Buildable)
+
+instance Buildable MockChain where
+    build (MockChain chain) = blockListF' mempty build chain
 
 instance Arbitrary MockChain where
     shrink (MockChain chain) =
