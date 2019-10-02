@@ -1,9 +1,11 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -22,13 +24,14 @@
 module Cardano.Wallet.Api.Server
     ( Listen (..)
     , start
+    , newApiLayer
     , withListeningSocket
     ) where
 
 import Prelude
 
 import Cardano.BM.Trace
-    ( Trace, logWarning )
+    ( Trace, logError, logNotice )
 import Cardano.Wallet
     ( ErrAdjustForFee (..)
     , ErrCoinSelection (..)
@@ -49,10 +52,22 @@ import Cardano.Wallet
     , ErrWalletAlreadyExists (..)
     , ErrWithRootKey (..)
     , ErrWrongPassphrase (..)
-    , WalletLayer
+    , HasGenesisData
+    , HasLogger
+    , HasNetworkLayer
     )
 import Cardano.Wallet.Api
-    ( Addresses, Api, StakePools, Transactions, Wallets )
+    ( Addresses
+    , Api
+    , ApiLayer (..)
+    , HasDBFactory
+    , HasWorkerRegistry
+    , StakePools
+    , Transactions
+    , Wallets
+    , dbFactory
+    , workerRegistry
+    )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress (..)
@@ -76,21 +91,26 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData (..)
     , getApiMnemonicT
     )
+import Cardano.Wallet.DB
+    ( DBFactory )
 import Cardano.Wallet.Network
-    ( ErrNetworkUnavailable (..) )
+    ( ErrNetworkUnavailable (..), NetworkLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress (..), WalletKey (..), digest, publicKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( SeqKey (..), generateKeyFromSeed )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( IsOurs )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..), defaultAddressPoolGap, mkSeqState )
 import Cardano.Wallet.Primitive.Fee
     ( Fee (..) )
 import Cardano.Wallet.Primitive.Model
-    ( availableBalance, getState, totalBalance )
+    ( BlockchainParameters, availableBalance, getState, totalBalance )
 import Cardano.Wallet.Primitive.Types
     ( Address
     , AddressState
+    , Block
     , Coin (..)
     , DecodeAddress (..)
     , DefineTx (..)
@@ -104,17 +124,32 @@ import Cardano.Wallet.Primitive.Types
     , UTxOStatistics (..)
     , WalletId (..)
     , WalletMetadata (..)
+    , WalletName
     )
+import Cardano.Wallet.Registry
+    ( HasWorkerCtx (..), MkWorker (..), newWorker, workerResource )
+import Cardano.Wallet.Transaction
+    ( TransactionLayer )
+import Cardano.Wallet.Unsafe
+    ( unsafeRunExceptT )
+import Control.DeepSeq
+    ( NFData )
 import Control.Exception
-    ( bracket )
+    ( AsyncException (..)
+    , SomeException
+    , asyncExceptionFromException
+    , bracket
+    )
+import Control.Monad
+    ( forM_, void )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT, runExceptT, withExceptT )
+    ( ExceptT, throwE, withExceptT )
 import Data.Aeson
     ( (.=) )
 import Data.Functor
-    ( (<&>) )
+    ( ($>), (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Labels
@@ -136,7 +171,7 @@ import Data.Text.Class
 import Data.Time
     ( UTCTime )
 import Fmt
-    ( Buildable, pretty, (+|), (+||), (|+), (||+) )
+    ( Buildable, pretty )
 import Network.HTTP.Media.RenderHeader
     ( renderHeader )
 import Network.HTTP.Types.Header
@@ -175,6 +210,7 @@ import Servant.Server
 
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Registry as Registry
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
@@ -201,7 +237,7 @@ start
         , Buildable (ErrValidateSelection t)
         , k ~ SeqKey
         , s ~ SeqState t
-        , ctx ~ WalletLayer s t k
+        , ctx ~ ApiLayer s t k
         )
     => Warp.Settings
     -> Trace IO Text
@@ -209,7 +245,6 @@ start
     -> ctx
     -> IO ()
 start settings trace socket ctx = do
-    withWorkers trace ctx
     logSettings <- newApiLoggerSettings <&> obfuscateKeys (const sensitive)
     Warp.runSettingsSocket settings socket
         $ handleRawError (curry handler)
@@ -231,24 +266,6 @@ start settings trace socket ctx = do
         , "mnemonic_sentence"
         , "mnemonic_second_factor"
         ]
-
--- | Restart restoration workers for existing wallets. This is crucial to keep
--- on syncing wallets after the application has restarted!
-withWorkers
-    :: forall ctx s t k.
-        ( DefineTx t
-        , ctx ~ WalletLayer s t k
-        )
-    => Trace IO Text
-    -> ctx
-    -> IO ()
-withWorkers trace ctx = do
-    W.listWallets ctx >>= mapM_ worker
-  where
-    worker wid = runExceptT (W.restoreWallet ctx wid) >>= \case
-        Right () -> return ()
-        Left e -> logWarning trace $
-            "Wallet has suddenly vanished: "+| wid |+": "+|| e ||+""
 
 -- | Run an action with a TCP socket bound to a port specified by the `Listen`
 -- parameter.
@@ -277,7 +294,7 @@ wallets
         , KeyToAddress t k
         , k ~ SeqKey
         , s ~ SeqState t
-        , ctx ~ WalletLayer s t k
+        , ctx ~ ApiLayer s t k
         )
     => ctx
     -> Server Wallets
@@ -293,20 +310,25 @@ wallets ctx =
 deleteWallet
     :: forall ctx s t k.
         ( s ~ SeqState t
-        , ctx ~ WalletLayer s t k
+        , ctx ~ ApiLayer s t k
         )
     => ctx
     -> ApiT WalletId
     -> Handler NoContent
 deleteWallet ctx (ApiT wid) = do
-    liftHandler $ W.removeWallet ctx wid
+    liftHandler $ withWorkerCtx ctx wid throwE $ \wrk -> W.removeWallet wrk wid
+    liftIO $ Registry.remove re wid
+    liftIO $ (df ^. #removeDatabase) wid
     return NoContent
+  where
+    re = ctx ^. workerRegistry @s @t @k
+    df = ctx ^. dbFactory @s @t @k
 
 getWallet
     :: forall ctx s t k.
         ( DefineTx t
         , s ~ SeqState t
-        , ctx ~ WalletLayer s t k
+        , ctx ~ ApiLayer s t k
         )
     => ctx
     -> ApiT WalletId
@@ -318,14 +340,16 @@ listWallets
     :: forall ctx s t k.
         ( DefineTx t
         , s ~ SeqState t
-        , ctx ~ WalletLayer s t k
+        , ctx ~ ApiLayer s t k
         )
     => ctx
     -> Handler [ApiWallet]
 listWallets ctx = do
-    wids <- liftIO $ W.listWallets ctx
+    wids <- liftIO $ Registry.keys re
     fmap fst . sortOn snd <$>
         mapM (getWalletWithCreationTime ctx) (ApiT <$> wids)
+  where
+    re = ctx ^. workerRegistry @s @t @k
 
 postWallet
     :: forall ctx s t k.
@@ -333,7 +357,7 @@ postWallet
         , KeyToAddress t k
         , s ~ SeqState t
         , k ~ SeqKey
-        , ctx ~ WalletLayer s t k
+        , ctx ~ ApiLayer s t k
         )
     => ctx
     -> WalletPostData
@@ -348,16 +372,16 @@ postWallet ctx body = do
     let s = mkSeqState (rootXPrv, pwd) g
     let wid = WalletId $ digest $ publicKey rootXPrv
     let wName = getApiT (body ^. #name)
-    _ <- liftHandler $ W.createWallet ctx wid wName s
-    liftHandler $ W.attachPrivateKey ctx wid (rootXPrv, pwd)
-    liftHandler $ W.restoreWallet ctx wid
+    void $ liftHandler $ createWallet ctx wid wName s
+    liftHandler $ withWorkerCtx ctx wid throwE $ \wrk ->
+        W.attachPrivateKey wrk wid (rootXPrv, pwd)
     getWallet ctx (ApiT wid)
 
 putWallet
     :: forall ctx s t k.
         ( DefineTx t
         , s ~ SeqState t
-        , ctx ~ WalletLayer s t k
+        , ctx ~ ApiLayer s t k
         )
     => ctx
     -> ApiT WalletId
@@ -367,8 +391,8 @@ putWallet ctx (ApiT wid) body = do
     case body ^. #name of
         Nothing ->
             return ()
-        Just (ApiT wName) -> do
-            liftHandler $ W.updateWallet ctx wid (modify wName)
+        Just (ApiT wName) -> liftHandler $ withWorkerCtx ctx wid throwE $ \wrk ->
+            W.updateWallet wrk wid (modify wName)
     getWallet ctx (ApiT wid)
   where
     modify :: W.WalletName -> WalletMetadata -> WalletMetadata
@@ -378,7 +402,7 @@ putWalletPassphrase
     :: forall ctx s t k.
         ( WalletKey k
         , s ~ SeqState t
-        , ctx ~ WalletLayer s t k
+        , ctx ~ ApiLayer s t k
         )
     => ctx
     -> ApiT WalletId
@@ -386,26 +410,32 @@ putWalletPassphrase
     -> Handler NoContent
 putWalletPassphrase ctx (ApiT wid) body = do
     let (WalletPutPassphraseData (ApiT old) (ApiT new)) = body
-    liftHandler $ W.updateWalletPassphrase ctx wid (old, new)
+    liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
+        W.updateWalletPassphrase wrk wid (old, new)
     return NoContent
+  where
+    liftE = throwE . ErrUpdatePassphraseNoSuchWallet
 
 getUTxOsStatistics
     :: forall ctx s t k.
         ( DefineTx t
         , s ~ SeqState t
-        , ctx ~ WalletLayer s t k
+        , ctx ~ ApiLayer s t k
         )
     => ctx
     -> ApiT WalletId
     -> Handler ApiUtxoStatistics
 getUTxOsStatistics ctx (ApiT wid) = do
-    (UTxOStatistics histo totalStakes bType) <-
-        liftHandler $ W.listUtxoStatistics ctx wid
+    stats <- liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
+        W.listUtxoStatistics wrk wid
+    let (UTxOStatistics histo totalStakes bType) = stats
     return ApiUtxoStatistics
         { total = Quantity (fromIntegral totalStakes)
         , scale = ApiT bType
         , distribution = Map.fromList $ map (\(HistogramBar k v)-> (k,v)) histo
         }
+  where
+    liftE = throwE . ErrListUTxOStatisticsNoSuchWallet
 
 {-------------------------------------------------------------------------------
                                     Addresses
@@ -417,7 +447,7 @@ addresses
         , KeyToAddress t k
         , k ~ SeqKey
         , s ~ SeqState t
-        , ctx ~ WalletLayer s t k
+        , ctx ~ ApiLayer s t k
         )
     => ctx
     -> Server (Addresses t)
@@ -429,14 +459,15 @@ listAddresses
         , KeyToAddress t k
         , k ~ SeqKey
         , s ~ SeqState t
-        , ctx ~ WalletLayer s t k
+        , ctx ~ ApiLayer s t k
         )
     => ctx
     -> ApiT WalletId
     -> Maybe (ApiT AddressState)
     -> Handler [ApiAddress t]
 listAddresses ctx (ApiT wid) stateFilter = do
-    addrs <- liftHandler $ W.listAddresses ctx wid
+    addrs <- liftHandler $ withWorkerCtx ctx wid throwE $ \wrk ->
+        W.listAddresses wrk wid
     return $ coerceAddress <$> filter filterCondition addrs
   where
     filterCondition :: (Address, AddressState) -> Bool
@@ -456,7 +487,7 @@ transactions
         , Buildable (ErrValidateSelection t)
         , s ~ SeqState t
         , k ~ SeqKey
-        , ctx ~ WalletLayer s t k
+        , ctx ~ ApiLayer s t k
         )
     => ctx
     -> Server (Transactions t)
@@ -473,7 +504,7 @@ postTransaction
         , KeyToAddress t k
         , k ~ SeqKey
         , s ~ SeqState t
-        , ctx ~ WalletLayer s t k
+        , ctx ~ ApiLayer s t k
         )
     => ctx
     -> ApiT WalletId
@@ -482,30 +513,41 @@ postTransaction
 postTransaction ctx (ApiT wid) body = do
     let outs = coerceCoin <$> (body ^. #payments)
     let pwd = getApiT $ body ^. #passphrase
-    selection <- liftHandler $ W.createUnsignedTx ctx wid outs
-    (tx, meta, wit) <- liftHandler $ W.signTx ctx wid pwd selection
-    liftHandler $ W.submitTx ctx wid (tx, meta, wit)
+
+    selection <- liftHandler $ withWorkerCtx ctx wid liftE1 $ \wrk ->
+        W.createUnsignedTx wrk wid outs
+
+    (tx, meta, wit) <- liftHandler $ withWorkerCtx ctx wid liftE2 $ \wrk ->
+        W.signTx wrk wid pwd selection
+
+    liftHandler $ withWorkerCtx ctx wid liftE3 $ \wrk ->
+        W.submitTx wrk wid (tx, meta, wit)
+
     return $ mkApiTransaction (txId @t tx)
         (fmap Just <$> selection ^. #inputs) (selection ^. #outputs) meta
+  where
+    liftE1 = throwE . ErrCreateUnsignedTxNoSuchWallet
+    liftE2 = throwE . ErrSignTxNoSuchWallet
+    liftE3 = throwE . ErrSubmitTxNoSuchWallet
 
 postExternalTransaction
     :: forall ctx s t k.
         ( s ~ SeqState t
-        , ctx ~ WalletLayer s t k
+        , ctx ~ ApiLayer s t k
         , DefineTx t
         )
     => ctx
     -> PostExternalTransactionData
     -> Handler ApiTxId
 postExternalTransaction ctx (PostExternalTransactionData load) = do
-    tx <- liftHandler $ W.submitExternalTx ctx load
+    tx <- liftHandler $ W.submitExternalTx @ctx @t @k ctx load
     return $ ApiTxId (ApiT (txId @t tx))
 
 listTransactions
     :: forall ctx s t k.
         ( DefineTx t
         , s ~ SeqState t
-        , ctx ~ WalletLayer s t k
+        , ctx ~ ApiLayer s t k
         )
     => ctx
     -> ApiT WalletId
@@ -514,12 +556,14 @@ listTransactions
     -> Maybe (ApiT SortOrder)
     -> Handler [ApiTransaction t]
 listTransactions ctx (ApiT wid) mStart mEnd mOrder = do
-    txs <- liftHandler $ W.listTransactions ctx wid
-        (getIso8601Time <$> mStart)
-        (getIso8601Time <$> mEnd)
-        (maybe defaultSortOrder getApiT mOrder)
+    txs <- liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
+        W.listTransactions wrk wid
+            (getIso8601Time <$> mStart)
+            (getIso8601Time <$> mEnd)
+            (maybe defaultSortOrder getApiT mOrder)
     return $ map mkApiTransactionFromInfo txs
   where
+    liftE = throwE . ErrListTransactionsNoSuchWallet
     defaultSortOrder :: SortOrder
     defaultSortOrder = Descending
 
@@ -528,7 +572,7 @@ postTransactionFee
         ( DefineTx t
         , Buildable (ErrValidateSelection t)
         , s ~ SeqState t
-        , ctx ~ WalletLayer s t k
+        , ctx ~ ApiLayer s t k
         )
     => ctx
     -> ApiT WalletId
@@ -536,10 +580,13 @@ postTransactionFee
     -> Handler ApiFee
 postTransactionFee ctx (ApiT wid) body = do
     let outs = coerceCoin <$> (body ^. #payments)
-    (Fee fee) <- liftHandler $ W.estimateTxFee ctx wid outs
+    (Fee fee) <- liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
+        W.estimateTxFee wrk wid outs
     return ApiFee
         { amount = Quantity (fromIntegral fee)
         }
+  where
+    liftE = throwE . ErrEstimateTxFeeNoSuchWallet
 
 {-------------------------------------------------------------------------------
                                     Stake Pools
@@ -558,6 +605,58 @@ listPools _ctx = throwError err501
 {-------------------------------------------------------------------------------
                                 Helpers
 -------------------------------------------------------------------------------}
+
+-- | see 'Cardano.Wallet#createWallet'
+createWallet
+    :: forall ctx s t k.
+        ( HasWorkerRegistry s t k ctx
+        , HasDBFactory s t k ctx
+        , HasLogger ctx
+        , HasGenesisData t (WorkerCtx ctx)
+        , HasNetworkLayer t (WorkerCtx ctx)
+        , HasLogger (WorkerCtx ctx)
+        , Show s
+        , NFData s
+        , IsOurs s
+        , DefineTx t
+        )
+    => ctx
+    -> WalletId
+    -> WalletName
+    -> s
+    -> ExceptT ErrCreateWallet IO WalletId
+createWallet ctx wid a0 a1 =
+    liftIO (Registry.lookup re wid) >>= \case
+        Just _ ->
+            throwE $ ErrCreateWalletAlreadyExists $ ErrWalletAlreadyExists wid
+        Nothing -> do
+            let config = MkWorker
+                    { workerBefore = \ctx' _ -> do
+                        -- FIXME:
+                        -- Review error handling here
+                        void $ unsafeRunExceptT $
+                            W.createWallet @(WorkerCtx ctx) @s @t @k ctx' wid a0 a1
+
+                    , workerMain = \ctx' _ -> do
+                        -- FIXME:
+                        -- Review error handling here
+                        unsafeRunExceptT $
+                            W.restoreWallet @(WorkerCtx ctx) @s @t @k ctx' wid
+
+                    , workerAfter =
+                        defaultWorkerAfter
+
+                    , workerAcquire =
+                        (df ^. #withDatabase) wid
+                    }
+            liftIO (newWorker @_ @_ @ctx ctx wid config) >>= \case
+                Nothing ->
+                    throwE ErrCreateWalletFailedToCreateWorker
+                Just worker ->
+                    liftIO (Registry.insert re worker) $> wid
+  where
+    re = ctx ^. workerRegistry @s @t @k
+    df = ctx ^. dbFactory @s @t @k
 
 -- Populate an API transaction record with 'TransactionInfo' from the wallet
 -- layer.
@@ -598,13 +697,14 @@ getWalletWithCreationTime
     :: forall ctx s t k.
         ( DefineTx t
         , s ~ SeqState t
-        , ctx ~ WalletLayer s t k
+        , ctx ~ ApiLayer s t k
         )
     => ctx
     -> ApiT WalletId
     -> Handler (ApiWallet, UTCTime)
 getWalletWithCreationTime ctx (ApiT wid) = do
-    (wallet, meta, pending) <- liftHandler $ W.readWallet ctx wid
+    (wallet, meta, pending) <- liftHandler $ withWorkerCtx ctx wid throwE $ \wrk ->
+        W.readWallet wrk wid
     return (mkApiWallet wallet meta pending, meta ^. #creationTime)
   where
     mkApiWallet wallet meta pending = ApiWallet
@@ -629,6 +729,86 @@ getWalletWithCreationTime ctx (ApiT wid) = do
         }
 
 {-------------------------------------------------------------------------------
+                                Api Layer
+-------------------------------------------------------------------------------}
+
+-- | Create a new instance of the wallet layer.
+newApiLayer
+    :: forall ctx s t k. (ctx ~ ApiLayer s t k, DefineTx t)
+    => Trace IO Text
+    -> (Block (Tx t), BlockchainParameters)
+    -> NetworkLayer IO (Tx t) (Block (Tx t))
+    -> TransactionLayer t k
+    -> DBFactory IO s t k
+    -> [WalletId]
+    -> IO ctx
+newApiLayer tr g0 nw tl df wids = do
+    re <- Registry.empty
+    let ctx = ApiLayer tr g0 nw tl df re
+    forM_ wids (registerWorker re ctx)
+    return ctx
+  where
+    registerWorker re ctx wid = do
+        let config = MkWorker
+                { workerBefore =
+                    \_ _ -> return ()
+
+                , workerMain = \ctx' _ -> do
+                    -- FIXME:
+                    -- Review error handling here
+                    unsafeRunExceptT $
+                        W.restoreWallet @(WorkerCtx ctx) @s @t @k ctx' wid
+
+                , workerAfter =
+                    defaultWorkerAfter
+
+                , workerAcquire =
+                    (df ^. #withDatabase) wid
+                }
+        newWorker @_ @_ @ctx ctx wid config >>= \case
+            Nothing ->
+                return ()
+            Just worker ->
+                Registry.insert re worker
+
+-- | Run an action in a particular worker context. Fails if there's no worker
+-- for a given id.
+withWorkerCtx
+    :: forall ctx s t k m a.
+        ( HasWorkerRegistry s t k ctx
+        , MonadIO m
+        )
+    => ctx
+        -- ^ A context that has a registry
+    -> WalletId
+        -- ^ Wallet to look for
+    -> (ErrNoSuchWallet -> m a)
+        -- ^ Wallet not present, handle error
+    -> (WorkerCtx ctx -> m a)
+        -- ^ Do something with the wallet
+    -> m a
+withWorkerCtx ctx wid onMissing action =
+    Registry.lookup re wid >>= \case
+        Nothing ->
+            onMissing (ErrNoSuchWallet wid)
+        Just wrk ->
+            action $ hoistResource (workerResource wrk) ctx
+  where
+    re = ctx ^. workerRegistry @s @t @k
+
+defaultWorkerAfter :: Trace IO Text -> Either SomeException a -> IO ()
+defaultWorkerAfter tr = \case
+    Right _ ->
+        logNotice tr "Worker has exited: main action is over"
+    Left e -> case asyncExceptionFromException e of
+        Just ThreadKilled ->
+            logNotice tr "Worker has exited: killed by parent."
+        Just UserInterrupt ->
+            logNotice tr "Worker has exited: killed by user."
+        _ ->
+            logError tr $ "Worker has exited unexpectedly: " <> pretty (show e)
+
+{-------------------------------------------------------------------------------
                                 Error Handling
 -------------------------------------------------------------------------------}
 
@@ -646,6 +826,13 @@ apiError err code message = err
         , "message" .= T.replace "\n" " " message
         ]
     }
+
+data ErrCreateWallet
+    = ErrCreateWalletAlreadyExists ErrWalletAlreadyExists
+        -- ^ Wallet already exists
+    | ErrCreateWalletFailedToCreateWorker
+        -- ^ Somehow, we couldn't create a worker or open a db connection
+    deriving (Eq, Show)
 
 -- | Small helper to easy show things to Text
 showT :: Show a => a -> Text
@@ -666,6 +853,17 @@ instance LiftHandler ErrWalletAlreadyExists where
                 [ "This operation would yield a wallet with the following id: "
                 , toText wid
                 , " However, I already know of a wallet with this id."
+                ]
+
+instance LiftHandler ErrCreateWallet where
+    handler = \case
+        ErrCreateWalletAlreadyExists e -> handler e
+        ErrCreateWalletFailedToCreateWorker ->
+            apiError err500 UnexpectedError $ mconcat
+                [ "That's embarassing. Your wallet looks good, but I couldn't "
+                , "open a new database to store its data. This is unexpected "
+                , "and likely not your fault. Perhaps, check your filesystem's "
+                , "permissions or available space?"
                 ]
 
 instance LiftHandler ErrWithRootKey where

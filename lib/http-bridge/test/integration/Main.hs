@@ -27,8 +27,6 @@ import Cardano.Launcher
     ( Command (..), StdStream (..), launch, transformLauncherTrace )
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
-import Cardano.Wallet.DB.Sqlite
-    ( SqliteContext )
 import Cardano.Wallet.HttpBridge
     ( serveWallet )
 import Cardano.Wallet.HttpBridge.Compatibility
@@ -191,7 +189,7 @@ main = do
                 (Just ListenOnRandomPort)
 
         ctx <- newEmptyMVar
-        void $ async $ withServer $ \(walletPort, bridgePort, _db, nl) -> do
+        void $ async $ withServer $ \(walletPort, bridgePort, nl) -> do
                 let baseURL = mkBaseUrl (getPort walletPort)
                 manager <- (baseURL,) <$> newManager defaultManagerSettings
                 faucet <- putStrLn "Creating money out of thin air..." *> initFaucet nl
@@ -233,17 +231,17 @@ main = do
         => (CM.Configuration, Switchboard Text, Trace IO Text)
         -> HttpBridge.HttpBridgeConfig
         -> Maybe Listen
-        -> ((Port "wallet", Port "node", SqliteContext, NetworkLayer IO Tx (Block Tx)) -> IO a)
+        -> ((Port "wallet", Port "node", NetworkLayer IO Tx (Block Tx)) -> IO a)
         -> IO a
     withCardanoWalletServer (logConfig, sb, tracer) bridgeConfig mlisten action = do
         defaultPort <- findPort
         let listen = fromMaybe (ListenOnPort defaultPort) mlisten
         res <- newEmptyMVar
         void $ serveWallet @network (logConfig, sb, tracer) Nothing listen (Launch bridgeConfig) $
-            Just $ \port nodePort nl ctx _db _wl -> do
+            Just $ \port nodePort nl -> do
                 let port' = Port (fromIntegral port)
                 let nodePort' = Port (fromIntegral nodePort)
-                action (port', nodePort', ctx, nl) >>= putMVar res
+                action (port', nodePort', nl) >>= putMVar res
         takeMVar res
 
     waitForCluster :: String -> IO ()

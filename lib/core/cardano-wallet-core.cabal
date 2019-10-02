@@ -44,9 +44,11 @@ library
     , cryptonite
     , deepseq
     , digest
+    , directory
     , exceptions
     , extra
     , fast-logger
+    , filepath
     , fmt
     , foldl
     , generic-lens
@@ -84,13 +86,13 @@ library
       Cardano.Wallet.Api
       Cardano.Wallet.Api.Server
       Cardano.Wallet.Api.Types
-      Cardano.Wallet.DaedalusIPC
       Cardano.Wallet.DB
-      Cardano.Wallet.DB.Model
       Cardano.Wallet.DB.MVar
+      Cardano.Wallet.DB.Model
       Cardano.Wallet.DB.Sqlite
       Cardano.Wallet.DB.Sqlite.TH
       Cardano.Wallet.DB.Sqlite.Types
+      Cardano.Wallet.DaedalusIPC
       Cardano.Wallet.Network
       Cardano.Wallet.Network.Ports
       Cardano.Wallet.Primitive.AddressDerivation
@@ -106,6 +108,7 @@ library
       Cardano.Wallet.Primitive.Mnemonic
       Cardano.Wallet.Primitive.Model
       Cardano.Wallet.Primitive.Types
+      Cardano.Wallet.Registry
       Cardano.Wallet.StakePool.Metrics
       Cardano.Wallet.Transaction
       Cardano.Wallet.Unsafe
@@ -191,18 +194,18 @@ test-suite unit
       Cardano.Byron.Codec.CborSpec
       Cardano.Wallet.Api.TypesSpec
       Cardano.Wallet.ApiSpec
+      Cardano.Wallet.DB.Arbitrary
       Cardano.Wallet.DB.MVarSpec
+      Cardano.Wallet.DB.Properties
       Cardano.Wallet.DB.SqliteSpec
       Cardano.Wallet.DB.StateMachine
-      Cardano.Wallet.DB.Arbitrary
-      Cardano.Wallet.DB.Properties
       Cardano.Wallet.DummyTarget.Primitive.Types
       Cardano.Wallet.NetworkSpec
-      Cardano.Wallet.Primitive.AddressDerivationSpec
-      Cardano.Wallet.Primitive.AddressDerivation.SequentialSpec
       Cardano.Wallet.Primitive.AddressDerivation.RandomSpec
-      Cardano.Wallet.Primitive.AddressDiscovery.SequentialSpec
+      Cardano.Wallet.Primitive.AddressDerivation.SequentialSpec
+      Cardano.Wallet.Primitive.AddressDerivationSpec
       Cardano.Wallet.Primitive.AddressDiscovery.RandomSpec
+      Cardano.Wallet.Primitive.AddressDiscovery.SequentialSpec
       Cardano.Wallet.Primitive.CoinSelection.LargestFirstSpec
       Cardano.Wallet.Primitive.CoinSelection.RandomSpec
       Cardano.Wallet.Primitive.CoinSelectionSpec
@@ -211,6 +214,7 @@ test-suite unit
       Cardano.Wallet.StakePool.MetricsSpec
       Cardano.Wallet.Primitive.ModelSpec
       Cardano.Wallet.Primitive.TypesSpec
+      Cardano.Wallet.RegistrySpec
       Cardano.Wallet.TransactionSpec
       Cardano.WalletSpec
       Data.Function.UtilsSpec

@@ -5,7 +5,9 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -43,25 +45,26 @@ module Cardano.Wallet
     -- $Development
 
     -- * WalletLayer
-    -- $WalletLayer
-      WalletLayer
-    , IsWalletCtx
-    , newWalletLayer
+        WalletLayer (..)
 
     -- * Capabilities
     -- $Capabilities
     , HasDBLayer
+    , dbLayer
     , HasLogger
+    , logger
     , HasNetworkLayer
+    , networkLayer
     , HasTransactionLayer
-    , HasWorkerRegistry
+    , transactionLayer
+    , HasGenesisData
+    , genesisData
 
     -- * Interface
     -- ** Wallet
-    , attachPrivateKey
     , createWallet
+    , attachPrivateKey
     , listUtxoStatistics
-    , listWallets
     , readWallet
     , removeWallet
     , restoreWallet
@@ -104,7 +107,7 @@ import Prelude hiding
     ( log )
 
 import Cardano.BM.Trace
-    ( Trace, appendName, logDebug, logError, logInfo, logNotice )
+    ( Trace, logDebug, logError, logInfo, logNotice )
 import Cardano.Wallet.DB
     ( DBLayer
     , ErrNoSuchWallet (..)
@@ -197,13 +200,9 @@ import Cardano.Wallet.Transaction
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Concurrent
-    ( ThreadId, forkIO, killThread, threadDelay )
-import Control.Concurrent.MVar
-    ( MVar, modifyMVar_, newMVar )
+    ( threadDelay )
 import Control.DeepSeq
     ( NFData )
-import Control.Exception
-    ( AsyncException (..), SomeException, asyncExceptionFromException, catch )
 import Control.Monad
     ( forM, forM_, when )
 import Control.Monad.IO.Class
@@ -222,20 +221,16 @@ import Data.Coerce
     ( coerce )
 import Data.Foldable
     ( fold )
-import Data.Function
-    ( (&) )
 import Data.Functor
     ( ($>) )
 import Data.Generics.Internal.VL.Lens
-    ( Lens', view, (.~), (^.) )
+    ( Lens', view, (^.) )
 import Data.Generics.Labels
     ()
 import Data.Generics.Product.Typed
     ( HasType, typed )
 import Data.List.NonEmpty
     ( NonEmpty ((:|)) )
-import Data.Map.Strict
-    ( Map )
 import Data.Maybe
     ( mapMaybe )
 import Data.Quantity
@@ -244,16 +239,12 @@ import Data.Set
     ( Set )
 import Data.Text
     ( Text )
-import Data.Text.Class
-    ( toText )
 import Data.Time.Clock
     ( UTCTime, getCurrentTime )
 import Data.Word
     ( Word16 )
 import Fmt
     ( Buildable, blockListF, pretty, (+|), (+||), (|+), (||+) )
-import GHC.Exts
-    ( Constraint )
 import GHC.Generics
     ( Generic )
 
@@ -264,7 +255,6 @@ import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-import qualified Data.Text as T
 
 -- $Development
 -- __Naming Conventions__
@@ -307,85 +297,17 @@ import qualified Data.Text as T
 --
 -- __Fix__: Add type-applications at the call-site "@myFunction \@ctx \@s \@t \@k@"
 
-{-------------------------------------------------------------------------------
-                                 Types
--------------------------------------------------------------------------------}
-
--- $WalletLayer
--- This module provides a full-blown 'WalletLayer' which does possess all the
--- capabilities necessary to run all functions from that module. It can be
--- created via 'newWalletLayer'.
---
--- A concrete 'WalletLayer' can therefore be used as a `ctx` for any of the
--- functions below. For example:
---
--- @
--- import Cardano.Wallet
---     ( WalletLayer, newWalletLayer )
---
--- import qualified Cardano.Wallet as W
---
--- main :: IO ()
--- main =
---     {- ... -}
---     ctx <- newWalletLayer logger blockchainParameters db network builder
---     _ <- W.createWallet ctx wId wName state
---     _ <- W.listWallets ctx
---     _ <- W.estimateFee ctx wId txOuts
---     {- and so forth ... -}
--- @
-
 data WalletLayer s t (k :: Depth -> * -> *)
     = WalletLayer
         (Trace IO Text)
         (Block (Tx t), BlockchainParameters)
-        (DBLayer IO s t k)
         (NetworkLayer IO (Tx t) (Block (Tx t)))
         (TransactionLayer t k)
-        WorkerRegistry
+        (DBLayer IO s t k)
     deriving (Generic)
 
--- |
--- "Magic trick" to ease caller type signatures. This type family binds together
--- constituants of the WalletLayer (or any similar structure) to remove the
--- ambiguity between s, t and k.
---
--- Without this, calls to functions of the wallet layers are considered
--- ambiguous and demand several type applications, even when the context is
--- known concrete type!
---
--- @
--- W.createWallet @ctx @s @t @k ctx wId wName s
--- @
---
--- Now, if we add a constraint as @IsWalletCtx s t k ctx@ to `createWallet`
--- , we can remove the type applications and do:
---
--- @
--- W.createWallet ctx wId wName s
--- @
---
--- For a known context, we can without ambiguity know what are the corresponding
--- parameters. The family is open, so it can be extended for other kind of
--- structure.
-type family IsWalletCtx s t (k :: Depth -> * -> *) ctx :: Constraint
-
-type instance IsWalletCtx s t k (WalletLayer s0 t0 k0) =
-    (s0 ~ s, t0 ~ t, k0 ~ k)
-
--- | Create a new instance of the wallet layer.
-newWalletLayer
-    :: Trace IO Text
-    -> (Block (Tx t), BlockchainParameters)
-    -> DBLayer IO s t k
-    -> NetworkLayer IO (Tx t) (Block (Tx t))
-    -> TransactionLayer t k
-    -> IO (WalletLayer s t k)
-newWalletLayer tr g0 db nw tl =
-    WalletLayer tr g0 db nw tl <$> newRegistry
-
 {-------------------------------------------------------------------------------
-                            Wallet Capabilities
+                                 Capabilities
 -------------------------------------------------------------------------------}
 
 -- $Capabilities
@@ -399,8 +321,7 @@ newWalletLayer tr g0 db nw tl =
 -- @
 -- listWallets
 --     :: forall ctx s t k.
---         ( IsWalletCtx s t k ctx
---         , HasDBLayer s t k ctx
+--         ( HasDBLayer s t k ctx
 --         )
 --     => ctx
 --     -> IO [WalletId]
@@ -426,8 +347,6 @@ type HasLogger = HasType (Trace IO Text)
 type HasNetworkLayer t = HasType (NetworkLayer IO (Tx t) (Block (Tx t)))
 
 type HasTransactionLayer t k = HasType (TransactionLayer t k)
-
-type HasWorkerRegistry = HasType WorkerRegistry
 
 dbLayer
     :: forall s t k ctx. HasDBLayer s t k ctx
@@ -459,22 +378,15 @@ transactionLayer
 transactionLayer =
     typed @(TransactionLayer t k)
 
-workerRegistry
-    :: forall ctx. (HasWorkerRegistry ctx)
-    => Lens' ctx WorkerRegistry
-workerRegistry =
-    typed @WorkerRegistry
-
 {-------------------------------------------------------------------------------
                                    Wallet
 -------------------------------------------------------------------------------}
 
--- | Initialise and store a new wallet, returning its ID
+-- | Initialise and store a new wallet, returning its ID.
 createWallet
     :: forall ctx s t k.
-        ( IsWalletCtx s t k ctx
+        ( HasGenesisData t ctx
         , HasDBLayer s t k ctx
-        , HasGenesisData t ctx
         , Show s
         , NFData s
         , IsOurs s
@@ -486,16 +398,16 @@ createWallet
     -> s
     -> ExceptT ErrWalletAlreadyExists IO WalletId
 createWallet ctx wid wname s = do
-    let (history, checkpoint) = initWallet block0 bp s
-    currentTime <- liftIO getCurrentTime
-    let metadata = WalletMetadata
+    let (hist, cp) = initWallet block0 bp s
+    now <- liftIO getCurrentTime
+    let meta = WalletMetadata
             { name = wname
-            , creationTime = currentTime
+            , creationTime = now
             , passphraseInfo = Nothing
             , status = Restoring minBound
             , delegation = NotDelegating
             }
-    DB.createWallet db (PrimaryKey wid) checkpoint metadata history $> wid
+    DB.createWallet db (PrimaryKey wid) cp meta hist $> wid
   where
     db = ctx ^. dbLayer @s @t @k
     (block0, bp) = ctx ^. genesisData @t
@@ -503,8 +415,7 @@ createWallet ctx wid wname s = do
 -- | Retrieve the wallet state for the wallet with the given ID.
 readWallet
     :: forall ctx s t k.
-        ( IsWalletCtx s t k ctx
-        , HasDBLayer s t k ctx
+        ( HasDBLayer s t k ctx
         , DefineTx t
         )
     => ctx
@@ -518,8 +429,7 @@ readWallet ctx wid = (,,)
 -- | Retrieve a wallet's most recent checkpoint
 readWalletCheckpoint
     :: forall ctx s t k.
-        ( IsWalletCtx s t k ctx
-        , HasDBLayer s t k ctx
+        ( HasDBLayer s t k ctx
         )
     => ctx
     -> WalletId
@@ -533,8 +443,7 @@ readWalletCheckpoint ctx wid =
 -- | Retrieve only metadata associated with a particular wallet
 readWalletMeta
     :: forall ctx s t k.
-        ( IsWalletCtx s t k ctx
-        , HasDBLayer s t k ctx
+        ( HasDBLayer s t k ctx
         )
     => ctx
     -> WalletId
@@ -548,8 +457,7 @@ readWalletMeta ctx wid =
 -- | Update a wallet's metadata with the given update function.
 updateWallet
     :: forall ctx s t k.
-        ( IsWalletCtx s t k ctx
-        , HasDBLayer s t k ctx
+        ( HasDBLayer s t k ctx
         )
     => ctx
     -> WalletId
@@ -565,8 +473,7 @@ updateWallet ctx wid modify =
 -- | Change a wallet's passphrase to the given passphrase.
 updateWalletPassphrase
     :: forall ctx s t k.
-        ( IsWalletCtx s t k ctx
-        , HasDBLayer s t k ctx
+        ( HasDBLayer s t k ctx
         , WalletKey k
         )
     => ctx
@@ -579,24 +486,10 @@ updateWalletPassphrase ctx wid (old, new) =
             let xprv' = changePassphrase old new xprv
             attachPrivateKey @ctx @s @t @k ctx wid (xprv', coerce new)
 
--- | Retrieve a list of known wallet IDs.
-listWallets
-    :: forall ctx s t k.
-        ( IsWalletCtx s t k ctx
-        , HasDBLayer s t k ctx
-        )
-    => ctx
-    -> IO [WalletId]
-listWallets ctx =
-    fmap (\(PrimaryKey wid) -> wid) <$> DB.listWallets db
-  where
-    db = ctx ^. dbLayer @s @t @k
-
 -- | List the wallet's UTxO statistics.
 listUtxoStatistics
     :: forall ctx s t k.
-        ( IsWalletCtx s t k ctx
-        , HasDBLayer s t k ctx
+        ( HasDBLayer s t k ctx
         , DefineTx t
         )
     => ctx
@@ -608,25 +501,6 @@ listUtxoStatistics ctx wid = do
     let utxo = availableUTxO @s @t pending wal
     pure $ computeUtxoStatistics log10 utxo
 
--- | Remove an existing wallet. Note that there's no particular work to
--- be done regarding the restoration worker as it will simply terminate
--- on the next tick when noticing that the corresponding wallet is gone.
-removeWallet
-    :: forall ctx s t k.
-        ( IsWalletCtx s t k ctx
-        , HasDBLayer s t k ctx
-        , HasWorkerRegistry ctx
-        )
-    => ctx
-    -> WalletId
-    -> ExceptT ErrNoSuchWallet IO ()
-removeWallet ctx wid = do
-    DB.withLock db . DB.removeWallet db . PrimaryKey $ wid
-    liftIO $ cancelWorker re wid
-  where
-    db = ctx ^. dbLayer @s @t @k
-    re = ctx ^. workerRegistry
-
 -- | Restore a wallet from its current tip up to the network tip.
 --
 -- This function returns immediately, starting a worker thread in the
@@ -634,11 +508,9 @@ removeWallet ctx wid = do
 -- network tip is reached or until failure.
 restoreWallet
     :: forall ctx s t k.
-        ( IsWalletCtx s t k ctx
-        , HasLogger ctx
-        , HasDBLayer s t k ctx
+        ( HasLogger ctx
         , HasNetworkLayer t ctx
-        , HasWorkerRegistry ctx
+        , HasDBLayer s t k ctx
         , DefineTx t
         )
     => ctx
@@ -646,28 +518,17 @@ restoreWallet
     -> ExceptT ErrNoSuchWallet IO ()
 restoreWallet ctx wid = do
     cp <- readWalletCheckpoint @ctx @s @t @k ctx wid
-    let workerName = "worker." <> T.take 8 (toText wid)
-    let workerCtx = ctx & logger .~ appendName workerName tr
-    liftIO $ logInfo tr $ "Restoring wallet "+| wid |+"..."
-    let worker = do
-            runExceptT (networkTip nw) >>= \case
-                Left e -> do
-                    logError tr $ "Failed to get network tip: " +|| e ||+ ""
-                    restoreSleep @ctx @s @t @k workerCtx wid (currentTip cp)
-                Right tip -> do
-                    restoreStep @ctx @s @t @k workerCtx wid (currentTip cp, tip)
-    let onError e = case asyncExceptionFromException e of
-            Just ThreadKilled ->
-                logNotice tr "Worker exited: killed by parent."
-            Just UserInterrupt ->
-                logNotice tr "Worker exited: killed by user."
-            _ ->
-                logError tr $ "Worker exited unexpectedly: " +|| e ||+ ""
-    liftIO $ registerWorker re wid worker onError
+    liftIO $ do
+        logInfo tr $ "Restoring wallet "+| wid |+"..."
+        runExceptT (networkTip nw) >>= \case
+            Left e -> do
+                logError tr $ "Failed to get network tip: " +|| e ||+ ""
+                restoreSleep @ctx @s @t @k ctx wid (currentTip cp)
+            Right tip -> do
+                restoreStep @ctx @s @t @k ctx wid (currentTip cp, tip)
   where
     nw = ctx ^. networkLayer @t
     tr = ctx ^. logger
-    re = ctx ^. workerRegistry
 
 -- | Infinite restoration loop. We drain the whole available chain and try
 -- to catch up with the node. In case of error, we log it and wait a bit
@@ -676,8 +537,7 @@ restoreWallet ctx wid = do
 -- The function only terminates if the wallet has disappeared from the DB.
 restoreStep
     :: forall ctx s t k.
-        ( IsWalletCtx s t k ctx
-        , HasLogger ctx
+        ( HasLogger ctx
         , HasNetworkLayer t ctx
         , HasDBLayer s t k ctx
         , DefineTx t
@@ -713,8 +573,7 @@ restoreStep ctx wid (localTip, nodeTip) = do
 -- order to refine our syncing status.
 restoreSleep
     :: forall ctx s t k.
-        ( IsWalletCtx s t k ctx
-        , HasNetworkLayer t ctx
+        ( HasNetworkLayer t ctx
         , HasLogger ctx
         , HasDBLayer s t k ctx
         , DefineTx t
@@ -740,8 +599,7 @@ restoreSleep ctx wid localTip = do
 -- transaction history and corresponding metadata.
 restoreBlocks
     :: forall ctx s t k.
-        ( IsWalletCtx s t k ctx
-        , HasLogger ctx
+        ( HasLogger ctx
         , HasDBLayer s t k ctx
         , DefineTx t
         )
@@ -786,6 +644,7 @@ restoreBlocks ctx wid blocks nodeTip = do
         let (Quantity nodeHeight) = nodeTip ^. #blockHeight
         let bhUnstable :: Integer
             bhUnstable = fromIntegral nodeHeight - fromIntegral k
+
         forM_ (NE.init cps) $ \cp -> do
             let (Quantity bh) = blockHeight $ currentTip cp
             when (fromIntegral bh >= bhUnstable) $
@@ -816,6 +675,22 @@ restoreBlocks ctx wid blocks nodeTip = do
     db = ctx ^. dbLayer @s @t @k
     tr = ctx ^. logger
 
+-- | Remove an existing wallet. Note that there's no particular work to
+-- be done regarding the restoration worker as it will simply terminate
+-- on the next tick when noticing that the corresponding wallet is gone.
+removeWallet
+    :: forall ctx s t k.
+        ( HasDBLayer s t k ctx
+        )
+    => ctx
+    -> WalletId
+    -> ExceptT ErrNoSuchWallet IO ()
+removeWallet ctx wid = do
+    DB.withLock db . DB.removeWallet db . PrimaryKey $ wid
+  where
+    db = ctx ^. dbLayer @s @t @k
+
+
 {-------------------------------------------------------------------------------
                                     Address
 -------------------------------------------------------------------------------}
@@ -824,8 +699,7 @@ restoreBlocks ctx wid blocks nodeTip = do
 -- are ordered from the most-recently-discovered to the oldest known.
 listAddresses
     :: forall ctx s t k.
-        ( IsWalletCtx s t k ctx
-        , HasDBLayer s t k ctx
+        ( HasDBLayer s t k ctx
         , IsOurs s
         , CompareDiscovery s
         , KnownAddresses s
@@ -878,8 +752,7 @@ feeOpts tl feePolicy = FeeOptions
 -- | Read the whole transaction history, filtering by the given status.
 pendingTxHistory
     :: forall ctx s t k.
-        ( IsWalletCtx s t k ctx
-        , HasDBLayer s t k ctx
+        ( HasDBLayer s t k ctx
         , DefineTx t
         )
     => ctx
@@ -898,8 +771,7 @@ pendingTxHistory ctx wid = do
 -- sign) an actual transaction, use 'signTx'.
 createUnsignedTx
     :: forall ctx s t k e.
-        ( IsWalletCtx s t k ctx
-        , HasTransactionLayer t k ctx
+        ( HasTransactionLayer t k ctx
         , HasLogger ctx
         , HasDBLayer s t k ctx
         , DefineTx t
@@ -929,8 +801,7 @@ createUnsignedTx ctx wid recipients = do
 -- the wallet to cover the requested outputs.
 estimateTxFee
     :: forall ctx s t k e.
-        ( IsWalletCtx s t k ctx
-        , HasTransactionLayer t k ctx
+        ( HasTransactionLayer t k ctx
         , HasDBLayer s t k ctx
         , DefineTx t
         , e ~ ErrValidateSelection t
@@ -958,8 +829,7 @@ estimateTxFee ctx wid recipients = do
 -- transaction to the network. In order to do so, use 'submitTx'.
 signTx
     :: forall ctx s t k.
-        ( IsWalletCtx s t k ctx
-        , HasTransactionLayer t k ctx
+        ( HasTransactionLayer t k ctx
         , HasDBLayer s t k ctx
         , Show s
         , NFData s
@@ -1008,8 +878,7 @@ signTx ctx wid pwd (CoinSelection ins outs chgs) =
 -- | Broadcast a (signed) transaction to the network.
 submitTx
     :: forall ctx s t k.
-        ( IsWalletCtx s t k ctx
-        , HasNetworkLayer t ctx
+        ( HasNetworkLayer t ctx
         , HasDBLayer s t k ctx
         , DefineTx t
         )
@@ -1027,9 +896,8 @@ submitTx ctx wid (tx, meta, wit) = do
 
 -- | Broadcast an externally-signed transaction to the network.
 submitExternalTx
-    :: forall ctx s t k.
-        ( IsWalletCtx s t k ctx
-        , HasNetworkLayer t ctx
+    :: forall ctx t k.
+        ( HasNetworkLayer t ctx
         , HasTransactionLayer t k ctx
         )
     => ctx
@@ -1048,8 +916,7 @@ submitExternalTx ctx bytes = do
 -- | List all transactions and metadata from history for a given wallet.
 listTransactions
     :: forall ctx s t k.
-        ( IsWalletCtx s t k ctx
-        , HasDBLayer s t k ctx
+        ( HasDBLayer s t k ctx
         , DefineTx t
         )
     => ctx
@@ -1142,8 +1009,7 @@ listTransactions ctx wid mStart mEnd order = do
 -- generating new accounts.
 attachPrivateKey
     :: forall ctx s t k.
-        ( IsWalletCtx s t k ctx
-        , HasDBLayer s t k ctx
+        ( HasDBLayer s t k ctx
         )
     => ctx
     -> WalletId
@@ -1164,8 +1030,7 @@ attachPrivateKey ctx wid (xprv, pwd) = do
 -- | Execute an action which requires holding a root XPrv.
 withRootKey
     :: forall ctx s t k e a.
-        ( IsWalletCtx s t k ctx
-        , HasDBLayer s t k ctx
+        ( HasDBLayer s t k ctx
         )
     => ctx
     -> WalletId
@@ -1185,42 +1050,6 @@ withRootKey ctx wid pwd embed action = do
     action xprv
   where
     db = ctx ^. dbLayer @s @t @k
-
-{-------------------------------------------------------------------------------
-                                Worker Registry
--------------------------------------------------------------------------------}
-
--- | A simple registry to keep track of worker threads created for wallet
--- restoration. This way, we can clean up worker threads early and don't have
--- to wait for them to fail with an error message about the wallet being gone.
-newtype WorkerRegistry = WorkerRegistry (MVar (Map WalletId ThreadId))
-
-newRegistry :: IO WorkerRegistry
-newRegistry = WorkerRegistry <$> newMVar mempty
-
-registerWorker
-    :: WorkerRegistry
-    -> WalletId
-        -- ^ Corresponding wallet
-    -> IO ()
-        -- ^ Action
-    -> (SomeException -> IO ())
-        -- ^ On exit
-    -> IO ()
-registerWorker (WorkerRegistry mvar) wid io handler = do
-    threadId <- forkIO $ io `catch` handler
-    modifyMVar_ mvar (pure . Map.insert wid threadId)
-
-cancelWorker :: WorkerRegistry -> WalletId -> IO ()
-cancelWorker (WorkerRegistry mvar) wid =
-    modifyMVar_ mvar (Map.alterF alterF wid)
-  where
-    alterF = \case
-        Nothing -> pure Nothing
-        Just threadId -> do
-            -- NOTE: It is safe to kill a thread that is already dead.
-            killThread threadId
-            return Nothing
 
 {-------------------------------------------------------------------------------
                                    Errors

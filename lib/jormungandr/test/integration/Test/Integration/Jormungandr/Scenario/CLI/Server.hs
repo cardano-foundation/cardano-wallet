@@ -107,9 +107,14 @@ spec = do
             let process = proc' (commandName @t) args
             (out, _) <- collectStreams (20, 0) process
             out `shouldContainT` versionLine
-            out `shouldContainT` "Debug"
+            -- NOTE:
+            -- In theory we could also have:
+            --
+            --     out `shouldContainT` "Debug"
+            --     out `shouldContainT` "Notice"
+            --
+            -- but in practice, we only have INFO logs on start-up.
             out `shouldContainT` "Info"
-            out `shouldContainT` "Notice"
 
         it "LOGGING - Serve --quiet logs Error only" $ \ctx -> do
             let args =
@@ -140,7 +145,12 @@ spec = do
             out `shouldNotContainT` "Debug"
             out `shouldContainT` versionLine
             out `shouldContainT` "Info"
-            out `shouldContainT` "Notice"
+            -- NOTE:
+            -- In theory we could also have:
+            --
+            --     out `shouldContainT` "Notice"
+            --
+            -- but in practice, we only have INFO logs on start-up.
 
 oneSecond :: Int
 oneSecond = 1000000

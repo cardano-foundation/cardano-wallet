@@ -1,8 +1,39 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
-module Cardano.Wallet.Api where
+module Cardano.Wallet.Api
+    ( -- * Types
+      Api
+    , Addresses
+    , Wallets
+    , Transactions
+    , StakePools
+    , Any
 
+      -- * Api Layer
+    , ApiLayer (..)
+    , HasWorkerRegistry
+    , workerRegistry
+    , HasDBFactory
+    , dbFactory
+    ) where
+
+import Prelude
+
+import Cardano.BM.Trace
+    ( Trace )
+import Cardano.Wallet
+    ( WalletLayer (..) )
 import Cardano.Wallet.Api.Types
     ( ApiAddress
     , ApiFee
@@ -20,10 +51,32 @@ import Cardano.Wallet.Api.Types
     , WalletPutData
     , WalletPutPassphraseData
     )
+import Cardano.Wallet.DB
+    ( DBFactory, DBLayer )
+import Cardano.Wallet.Network
+    ( NetworkLayer )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( Depth )
+import Cardano.Wallet.Primitive.Model
+    ( BlockchainParameters )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState, SortOrder, WalletId )
+    ( AddressState, Block, DefineTx (..), SortOrder (..), WalletId (..) )
+import Cardano.Wallet.Registry
+    ( HasWorkerCtx (..), WorkerRegistry )
+import Cardano.Wallet.Transaction
+    ( TransactionLayer )
+import Data.Generics.Internal.VL.Lens
+    ( Lens' )
+import Data.Generics.Labels
+    ()
+import Data.Generics.Product.Typed
+    ( HasType, typed )
 import Data.List.NonEmpty
     ( NonEmpty ((:|)) )
+import Data.Text
+    ( Text )
+import GHC.Generics
+    ( Generic )
 import Network.HTTP.Media
     ( (//), (/:) )
 import Servant.API
@@ -181,3 +234,45 @@ instance Accept Any where
         [ "application" // "json"
         , "application" // "json" /: ("charset", "utf-8")
         ]
+
+{-------------------------------------------------------------------------------
+                               Api Layer
+-------------------------------------------------------------------------------}
+
+data ApiLayer s t (k :: Depth -> * -> *)
+    = ApiLayer
+        (Trace IO Text)
+        (Block (Tx t), BlockchainParameters)
+        (NetworkLayer IO (Tx t) (Block (Tx t)))
+        (TransactionLayer t k)
+        (DBFactory IO s t k)
+        (WorkerRegistry WalletId (DBLayer IO s t k))
+    deriving (Generic)
+
+instance HasWorkerCtx (DBLayer IO s t k) (ApiLayer s t k) where
+    type WorkerCtx (ApiLayer s t k) = WalletLayer s t k
+    hoistResource db (ApiLayer tr bp nw tl _ _) =
+        WalletLayer tr bp nw tl db
+
+{-------------------------------------------------------------------------------
+                               Capabilities
+-------------------------------------------------------------------------------}
+
+type HasWorkerRegistry s t k ctx =
+    ( HasType (WorkerRegistry WalletId (DBLayer IO s t k)) ctx
+    , HasWorkerCtx (DBLayer IO s t k) ctx
+    )
+
+workerRegistry
+    :: forall s t k ctx. (HasWorkerRegistry s t k ctx)
+    => Lens' ctx (WorkerRegistry WalletId (DBLayer IO s t k))
+workerRegistry =
+    typed @(WorkerRegistry WalletId (DBLayer IO s t k))
+
+type HasDBFactory s t k = HasType (DBFactory IO s t k)
+
+dbFactory
+    :: forall s t k ctx. (HasDBFactory s t k ctx)
+    => Lens' ctx (DBFactory IO s t k)
+dbFactory =
+    typed @(DBFactory IO s t k)

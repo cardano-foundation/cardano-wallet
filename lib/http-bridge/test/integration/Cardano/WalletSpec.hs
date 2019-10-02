@@ -13,7 +13,7 @@ import Cardano.BM.Trace
 import Cardano.Launcher
     ( StdStream (..) )
 import Cardano.Wallet
-    ( newWalletLayer )
+    ( WalletLayer (..) )
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge, block0, byronBlockchainParameters )
 import Cardano.Wallet.HttpBridge.Environment
@@ -83,7 +83,6 @@ spec = do
             db <- MVar.newDBLayer
             let tl = HttpBridge.newTransactionLayer @'Testnet @SeqKey
             let genesis = (block0, byronBlockchainParameters @'Testnet)
-            wl <- newWalletLayer @(HttpBridge 'Testnet) nullTracer genesis db nl tl
-            cb wl
+            cb $ WalletLayer nullTracer genesis nl tl db
         Left e -> throwIO e
     cfg = HttpBridge.HttpBridgeConfig (Right Testnet) Nothing Nothing [] Inherit

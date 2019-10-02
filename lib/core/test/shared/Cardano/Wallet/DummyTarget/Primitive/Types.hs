@@ -15,6 +15,8 @@ import Prelude
 
 import Cardano.Crypto.Wallet
     ( unXPub )
+import Cardano.Wallet.DB.Sqlite
+    ( PersistTx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress (..), WalletKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
@@ -72,6 +74,10 @@ data Tx = Tx
     } deriving (Show, Generic, Ord, Eq)
 
 instance NFData Tx
+
+instance PersistTx DummyTarget where
+    resolvedInputs = flip zip (repeat Nothing) . inputs
+    mkTx _ inps = Tx (fst <$> inps)
 
 instance KeyToAddress DummyTarget SeqKey where
     keyToAddress = Address . unXPub . getRawKey

@@ -74,7 +74,6 @@ import Test.Integration.Framework.TestData
     , chineseMnemonics9
     , errMsg403WrongPass
     , errMsg404NoEndpoint
-    , errMsg404NoRootKey
     , errMsg404NoWallet
     , errMsg405
     , errMsg406
@@ -1361,7 +1360,7 @@ spec = do
         let updEndp = delEndp </> ("passphrase" :: Text)
         rup <- request @ApiWallet ctx ("PUT", updEndp) Default payload
         expectResponseCode @IO HTTP.status404 rup
-        expectErrorMessage (errMsg404NoRootKey walId) rup
+        expectErrorMessage (errMsg404NoWallet walId) rup
 
     describe "WALLETS_UPDATE_PASS_04 - non-existing wallets" $  do
         forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
@@ -1370,7 +1369,7 @@ spec = do
             rup <- request @ApiWallet ctx ("PUT", endpoint) Default payload
             expectResponseCode @IO HTTP.status404 rup
             if (title == "40 chars hex") then
-                expectErrorMessage (errMsg404NoRootKey $ T.pack walId) rup
+                expectErrorMessage (errMsg404NoWallet $ T.pack walId) rup
             else
                 expectErrorMessage errMsg404NoEndpoint rup
 

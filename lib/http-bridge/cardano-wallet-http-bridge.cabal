@@ -44,8 +44,10 @@ library
     , cborg
     , cryptonite
     , deepseq
+    , directory
     , either
     , exceptions
+    , filepath
     , fmt
     , http-api-data
     , http-client

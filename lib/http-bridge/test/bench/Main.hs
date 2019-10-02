@@ -23,7 +23,7 @@ import Cardano.BM.Trace
 import Cardano.Launcher
     ( StdStream (..), installSignalHandlers )
 import Cardano.Wallet
-    ( WalletLayer, newWalletLayer )
+    ( WalletLayer (..) )
 import Cardano.Wallet.DB
     ( DBLayer )
 import Cardano.Wallet.DB.Sqlite
@@ -232,9 +232,8 @@ bench_restoration (logConfig, tracer) (wid, wname, s) =
             BlockHeader sl _ _ <- unsafeRunExceptT $ networkTip nw
             sayErr . fmt $ network ||+ " tip is at " +|| sl ||+ ""
             let g0 = staticBlockchainParameters nw
-            w <- newWalletLayer @t tracer g0 db nw tl
+            let w = WalletLayer tracer g0 nw tl db
             wallet <- unsafeRunExceptT $ W.createWallet w wid wname s
-            unsafeRunExceptT $ W.restoreWallet w wallet
             waitForWalletSync w wallet
             (wallet', _, pending) <- unsafeRunExceptT $ W.readWallet w wid
             sayErr "Wallet restored!"

@@ -35,14 +35,14 @@ import Cardano.CLI
     ( Port (..), failWith, waitForService )
 import Cardano.Launcher
     ( ProcessHasExited (..), installSignalHandlers )
-import Cardano.Wallet
-    ( WalletLayer )
+import Cardano.Wallet.Api
+    ( ApiLayer )
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.DaedalusIPC
     ( daedalusIPC )
 import Cardano.Wallet.DB
-    ( DBLayer )
+    ( DBFactory )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr, Network (..) )
 import Cardano.Wallet.Jormungandr.Environment
@@ -85,7 +85,6 @@ import System.IO
     ( hPutStrLn, stderr )
 
 import qualified Cardano.BM.Configuration.Model as CM
-import qualified Cardano.Wallet as Wallet
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Data.Text as T
@@ -100,7 +99,7 @@ serveWallet
     => (CM.Configuration, Switchboard Text, Trace IO Text)
     -- ^ Logging config.
     -> Maybe FilePath
-    -- ^ Database file.
+    -- ^ Database folder filepath
     -> Listen
     -- ^ HTTP API Server port.
     -> JormungandrBackend
@@ -108,27 +107,24 @@ serveWallet
     -> (Port "wallet" -> Port "node" -> BlockchainParameters -> IO ())
     -- ^ Callback to run before the main loop
     -> IO ExitCode
-serveWallet (cfg, sb, tr) dbFile listen lj beforeMainLoop = do
+serveWallet (cfg, sb, tr) databaseDir listen lj beforeMainLoop = do
     installSignalHandlers tr
     logInfo tr "Wallet backend server starting..."
     logInfo tr $ "Node is Jörmungandr on " <> toText (networkVal @n)
-    withDBLayer cfg tr $ \db -> do
-        logInfo tr "Database layer started."
-        withNetworkLayer tr lj $ \case
-            Right (cp, nl) -> do
-                logInfo tr "Network layer started."
-                let nPort = Port $ baseUrlPort $ _restApi cp
-                waitForService "Jörmungandr" (sb, tr) nPort $
-                    waitForNetwork nl defaultRetryPolicy
-                newWalletLayer tr db nl >>= startServer tr nPort nl
-                pure ExitSuccess
-            Left e -> handleNetworkStartupError e
+    withNetworkLayer tr lj $ \case
+        Right (cp, nl) -> do
+            let nPort = Port $ baseUrlPort $ _restApi cp
+            waitForService "Jörmungandr" (sb, tr) nPort $
+                waitForNetwork nl defaultRetryPolicy
+            apiLayer tr nl >>= startServer tr nPort nl
+            pure ExitSuccess
+        Left e -> handleNetworkStartupError e
   where
     startServer
         :: Trace IO Text
         -> Port "node"
         -> NetworkLayer IO Tx (Block Tx)
-        -> WalletLayer s t k
+        -> ApiLayer s t k
         -> IO ()
     startServer tracer nPort nl wallet = do
         let (_, bp) = staticBlockchainParameters nl
@@ -141,24 +137,20 @@ serveWallet (cfg, sb, tr) dbFile listen lj beforeMainLoop = do
             let apiServer = Server.start settings tracerApi socket wallet
             race_ ipcServer apiServer
 
-    newWalletLayer
+    apiLayer
         :: Trace IO Text
-        -> DBLayer IO s t k
         -> NetworkLayer IO Tx (Block Tx)
-        -> IO (WalletLayer s t k)
-    newWalletLayer tracer db nl = do
+        -> IO (ApiLayer s t k)
+    apiLayer tracer nl = do
         let (block0, bp) = staticBlockchainParameters nl
         let tl = newTransactionLayer @n (getGenesisBlockHash bp)
-        Wallet.newWalletLayer tracer (block0, bp) db nl tl
+        wallets <- maybe (pure []) (Sqlite.findDatabases tr) databaseDir
+        Server.newApiLayer tracer (block0, bp) nl tl dbFactory wallets
 
-    withDBLayer
-        :: CM.Configuration
-        -> Trace IO Text
-        -> (DBLayer IO s t k -> IO a)
-        -> IO a
-    withDBLayer logCfg tracer action = do
-        let tracerDB = appendName "database" tracer
-        Sqlite.withDBLayer logCfg tracerDB dbFile action
+    dbFactory
+        :: DBFactory IO s t k
+    dbFactory =
+        Sqlite.mkDBFactory cfg tr databaseDir
 
     handleNetworkStartupError :: ErrStartup -> IO ExitCode
     handleNetworkStartupError = \case

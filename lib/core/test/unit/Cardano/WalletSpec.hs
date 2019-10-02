@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -25,13 +26,10 @@ import Cardano.Wallet
     , ErrUpdatePassphrase (..)
     , ErrWithRootKey (..)
     , ErrWithRootKey (..)
-    , WalletLayer
-    , newWalletLayer
+    , WalletLayer (..)
     )
 import Cardano.Wallet.DB
     ( DBLayer, ErrNoSuchWallet (..), PrimaryKey (..), putTxHistory )
-import Cardano.Wallet.DB.MVar
-    ( newDBLayer )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx (..), block0, genesisParameters )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -146,6 +144,8 @@ import Test.Utils.Time
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB as DB
+import qualified Cardano.Wallet.DB.MVar as MVar
+import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -313,7 +313,7 @@ walletUpdatePassphraseNoSuchWallet wallet@(wid', _, _) wid (old, new) =
     wid /= wid' ==> monadicIO $ liftIO $ do
         (WalletLayerFixture _ wl _ _) <- liftIO $ setupFixture wallet
         attempt <- runExceptT $ W.updateWalletPassphrase wl wid (old, new)
-        let err = ErrUpdatePassphraseWithRootKey (ErrWithRootKeyNoRootKey wid)
+        let err = ErrUpdatePassphraseWithRootKey $ ErrWithRootKeyNoRootKey wid
         attempt `shouldBe` Left err
 
 walletUpdatePassphraseDate
@@ -395,13 +395,14 @@ data WalletLayerFixture = WalletLayerFixture
     }
 
 setupFixture
-    :: (WalletId, WalletName, DummyState)
+    :: forall ctx. (ctx ~ WalletLayer DummyState DummyTarget SeqKey)
+    => (WalletId, WalletName, DummyState)
     -> IO WalletLayerFixture
 setupFixture (wid, wname, wstate) = do
-    db <- newDBLayer
     let nl = error "NetworkLayer"
     let tl = dummyTransactionLayer
-    wl <- newWalletLayer @DummyTarget nullTracer (block0, bp) db nl tl
+    db <- MVar.newDBLayer
+    let wl = WalletLayer nullTracer (block0, bp) nl tl db
     res <- runExceptT $ W.createWallet wl wid wname wstate
     let wal = case res of
             Left _ -> []
@@ -442,6 +443,12 @@ dummyTransactionLayer = TransactionLayer
 newtype DummyState
     = DummyState (Map Address (Index 'Soft 'AddressK))
     deriving (Generic, Show, Eq)
+
+instance Sqlite.PersistState DummyState where
+    insertState _ _ = error "DummyState.insertState: not implemented"
+    selectState _ = error "DummyState.selectState: not implemented"
+    deleteState _ = error "DummyState.deleteState: not implemented"
+    rollbackState _ _ = error "DummyState.rollbackState: not implemented"
 
 instance NFData DummyState
 

@@ -45,7 +45,7 @@ import Cardano.CLI
     , nodePortOption
     , optionT
     , runCli
-    , setupStateDir
+    , setupDirectory
     , stateDirOption
     , verbosityOption
     , verbosityToArgs
@@ -152,10 +152,16 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
         (cfg, sb, tr) <- initTracer (verbosityToMinSeverity verbosity) "serve"
         let stateDir = fromMaybe (stateDirForNetwork dataDir network) mStateDir
         let bridgeConfig = HttpBridgeConfig network (Just stateDir) (Just (fromIntegral nodePort)) (verbosityToArgs verbosity) Inherit
-        let dbFile = stateDir </> "wallet.db"
-        setupStateDir (logInfo tr) stateDir
+        let databaseDir = stateDir </> "wallets"
+        setupDirectory (logInfo tr) stateDir
+        setupDirectory (logInfo tr) databaseDir
         logInfo tr $ "Running as v" <> T.pack (showVersion version)
-        exitWith =<< serveWallet @t @k @n @s (cfg, sb, tr) (Just dbFile) listen (Launch bridgeConfig) Nothing
+        exitWith =<< serveWallet @t @k @n @s
+            (cfg, sb, tr)
+            (Just databaseDir)
+            listen
+            (Launch bridgeConfig)
+            Nothing
 
 {-------------------------------------------------------------------------------
                             Command - 'serve'
@@ -189,10 +195,20 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
         => (KeyToAddress t k, KnownNetwork n)
         => ServeArgs
         -> IO ()
-    exec (ServeArgs _ listen (Port nodePort) dbFile verbosity) = do
+    exec (ServeArgs _ listen (Port nodePort) databaseDir verbosity) = do
         (cfg, sb, tr) <- initTracer (verbosityToMinSeverity verbosity) "serve"
+        whenJust databaseDir $ setupDirectory (logInfo tr)
         logInfo tr $ "Running as v" <> T.pack (showVersion version)
-        exitWith =<< serveWallet @t @k @n @s (cfg, sb, tr) dbFile listen (UseRunning (fromIntegral nodePort)) Nothing
+        exitWith =<< serveWallet @t @k @n @s
+            (cfg, sb, tr)
+            databaseDir
+            listen
+            (UseRunning (fromIntegral nodePort))
+            Nothing
+
+    whenJust m fn = case m of
+       Nothing -> pure ()
+       Just a  -> fn a
 
 {-------------------------------------------------------------------------------
                                  Options
