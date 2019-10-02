@@ -82,6 +82,7 @@ import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
     , Hash (..)
+    , PoolId (..)
     , SlotId (..)
     , TxIn (..)
     , TxOut (..)
@@ -166,6 +167,9 @@ data BlockHeader = BlockHeader
     , chainLength :: Word32
     , contentHash :: Hash "content"
     , parentHeaderHash :: Hash "BlockHeader"
+    , producedBy :: Maybe PoolId
+        -- ^ Will contain the VRFPubKey of the stake pool for non-genesis
+        -- Genesis/Praos blocks.
     } deriving (Show, Eq)
 
 data Block = Block
@@ -195,10 +199,16 @@ getBlockHeader = label "getBlockHeader" $
         -- and gives us sanity about the binary format being correct.
         read' <- fromIntegral <$> bytesRead
         let remaining = size - read'
-        case remaining of
-            0 -> skip remaining -- no proof
-            96 -> skip remaining -- BFT
-            612 -> skip remaining -- Praos/Genesis
+        producedBy <- case remaining of
+            0 ->
+                -- no proof
+                skip remaining >> return Nothing
+            96 ->
+                -- BFT
+                skip remaining >> return Nothing
+            612 ->
+                -- Praos/Genesis
+                Just . PoolId <$> getByteString 32 <* skip (remaining - 32)
             _ -> fail $ "BlockHeader proof has unexpected size " <> (show remaining)
         return $ BlockHeader
             { version
@@ -207,6 +217,7 @@ getBlockHeader = label "getBlockHeader" $
             , chainLength
             , contentHash
             , parentHeaderHash
+            , producedBy
             }
 
 getBlock :: Get Block

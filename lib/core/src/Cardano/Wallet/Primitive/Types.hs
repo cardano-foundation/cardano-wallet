@@ -475,7 +475,7 @@ isSubrangeOf r1 r2 =
 --   VRF PubKey: 32 bytes (ristretto25519) which translates to 64 hex character string
 --   see https://github.com/input-output-hk/chain-libs/blob/master/chain-impl-mockchain/doc/format.md
 newtype PoolId = PoolId { getPoolId :: ByteString }
-    deriving (Generic, Eq, Show)
+    deriving (Generic, Eq, Show, Ord)
 
 poolIdBytesLength :: Int
 poolIdBytesLength = 32

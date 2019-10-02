@@ -106,6 +106,7 @@ library
       Cardano.Wallet.Primitive.Mnemonic
       Cardano.Wallet.Primitive.Model
       Cardano.Wallet.Primitive.Types
+      Cardano.Wallet.StakePool.Metrics
       Cardano.Wallet.Transaction
       Cardano.Wallet.Unsafe
       Cardano.Wallet.Version
@@ -207,6 +208,7 @@ test-suite unit
       Cardano.Wallet.Primitive.CoinSelectionSpec
       Cardano.Wallet.Primitive.FeeSpec
       Cardano.Wallet.Primitive.MnemonicSpec
+      Cardano.Wallet.StakePool.MetricsSpec
       Cardano.Wallet.Primitive.ModelSpec
       Cardano.Wallet.Primitive.TypesSpec
       Cardano.Wallet.TransactionSpec
