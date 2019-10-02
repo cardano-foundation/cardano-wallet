@@ -19,16 +19,23 @@ module Cardano.Wallet.Network
     -- * Helpers
     , defaultRetryPolicy
     , waitForNetwork
+    , follow
     ) where
 
 import Prelude
 
+import Cardano.BM.Trace
+    ( Trace, logDebug, logError, logInfo, logNotice )
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..), Hash (..), TxWitness )
+import Control.Concurrent
+    ( threadDelay )
 import Control.Exception
     ( Exception (..) )
+import Control.Monad.IO.Class
+    ( liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
 import Control.Retry
@@ -39,10 +46,14 @@ import Control.Retry
     )
 import Data.Text
     ( Text )
+import Fmt
+    ( (+|), (+||), (|+), (||+) )
 import GHC.Generics
     ( Generic )
 import UnliftIO.Exception
     ( throwIO )
+
+import qualified Data.List.NonEmpty as NE
 
 data NetworkLayer m tx block = NetworkLayer
     { nextBlocks :: BlockHeader -> ExceptT ErrGetBlock m [block]
@@ -139,4 +150,69 @@ defaultRetryPolicy :: Monad m => RetryPolicyM m
 defaultRetryPolicy =
     limitRetriesByCumulativeDelay (60 * second) (exponentialBackoff 10000)
   where
+    second = 1000*1000
+
+-- | Subscribe to a blockchain and get called with new block (in order)!
+follow
+    :: NetworkLayer IO tx block
+    -- ^ The @NetworkLayer@ used to poll for new blocks.
+    -> Trace IO Text
+    -> BlockHeader
+    -- ^ The local tip to start at. Blocks /after/ the tip will be yielded.
+    -> (NE.NonEmpty block -> BlockHeader -> ExceptT e IO ())
+     -- ^ Callback with blocks and the current tip of the /node/. @follow@ stops
+     -- polling and terminates if the callback errors.
+    -> (block -> BlockHeader)
+    -> IO ()
+follow nl tr start yield header = do
+    liftIO $ runExceptT (networkTip nl) >>= \case
+        Right nwTip ->
+            restoreStep (start, nwTip)
+        Left e -> do
+            logError tr $ "Failed to get network tip: " +|| e ||+ ""
+            restoreSleep start
+  where
+    restoreStep
+        :: (BlockHeader, BlockHeader)
+        -> IO ()
+    restoreStep (localTip, nodeTip) = do
+        runExceptT (nextBlocks nl localTip) >>= \case
+            Left e -> do
+                logError tr $ "Failed to get next blocks: " +|| e ||+ "."
+                restoreSleep localTip
+            Right [] -> do
+                logDebug tr "caught up with the node."
+                restoreSleep localTip
+            Right (blockFirst : blocksRest) -> do
+                let blocks = blockFirst NE.:| blocksRest
+
+                let nextLocalTip = header $ NE.last blocks
+                let (slotFirst, slotLast) =
+                        ( slotId . header . NE.head $ blocks
+                        , slotId . header . NE.last $ blocks
+                        )
+                liftIO $ logInfo tr $
+                    "Applying blocks ["+| slotFirst |+" ... "+| slotLast |+"]"
+
+                runExceptT (yield blocks nodeTip) >>= \case
+                    Left _e ->
+                        liftIO $ logNotice tr "Terminating worker..."
+                    Right () -> do
+                        restoreStep (nextLocalTip, nodeTip)
+
+    -- | Wait a short delay before querying for blocks again. We also take this
+    -- opportunity to refresh the chain tip as it has probably increased in
+    -- order to refine our syncing status.
+    restoreSleep
+        :: BlockHeader
+        -> IO ()
+    restoreSleep localTip = do
+        threadDelay (2 * second)
+        runExceptT (networkTip nl) >>= \case
+            Left e -> do
+                logError tr $ "Failed to get network tip: " +|| e ||+ ""
+                restoreSleep localTip
+            Right nodeTip ->
+                restoreStep (localTip, nodeTip)
+
     second = 1000*1000
