@@ -61,6 +61,7 @@ import qualified Test.Integration.Jormungandr.Scenario.API.StakePools as StakePo
 import qualified Test.Integration.Jormungandr.Scenario.API.Transactions as TransactionsApiJormungandr
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Launcher as LauncherCLI
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Server as ServerCLI
+import qualified Test.Integration.Jormungandr.Scenario.CLI.StakePools as StakePoolsCliJormungandr
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Transactions as TransactionsCliJormungandr
 import qualified Test.Integration.Scenario.API.Addresses as Addresses
 import qualified Test.Integration.Scenario.API.Transactions as Transactions
@@ -95,6 +96,7 @@ main = hspec $ do
     describe "CLI Specifications" $ beforeAll start $ after tearDown $ do
         AddressesCLI.spec @t
         ServerCLI.spec @t
+        StakePoolsCliJormungandr.spec @t
         TransactionsCLI.spec @t
         WalletsCLI.spec @t
         PortCLI.spec @t

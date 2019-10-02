@@ -113,6 +113,7 @@ module Test.Integration.Framework.DSL
     , getWalletUtxoStatisticsViaCLI
     , getWalletViaCLI
     , listAddressesViaCLI
+    , listStakePoolsViaCLI
     , listWalletsViaCLI
     , updateWalletNameViaCLI
     , updateWalletPassphraseViaCLI
@@ -1130,6 +1131,13 @@ listAddressesViaCLI
     -> IO r
 listAddressesViaCLI ctx args = cardanoWalletCLI @t
     (["address", "list", "--port", show (ctx ^. typed @(Port "wallet"))] ++ args)
+
+listStakePoolsViaCLI
+    :: forall t r s. (CmdResult r, KnownCommand t, HasType (Port "wallet") s)
+    => s
+    -> IO r
+listStakePoolsViaCLI ctx = cardanoWalletCLI @t
+    ["stake-pool", "list", "--port", show (ctx ^. typed @(Port "wallet")) ]
 
 listWalletsViaCLI
     :: forall t r s. (CmdResult r, KnownCommand t, HasType (Port "wallet") s)
