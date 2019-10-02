@@ -35,8 +35,8 @@ import Cardano.CLI
     ( Port (..), failWith, waitForService )
 import Cardano.Launcher
     ( ProcessHasExited (..), installSignalHandlers )
-import Cardano.Wallet
-    ( WalletLayer )
+import Cardano.Wallet.Api
+    ( ApiLayer )
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.DaedalusIPC
@@ -85,7 +85,6 @@ import System.IO
     ( hPutStrLn, stderr )
 
 import qualified Cardano.BM.Configuration.Model as CM
-import qualified Cardano.Wallet as Wallet
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Data.Text as T
@@ -117,7 +116,7 @@ serveWallet (cfg, sb, tr) databaseDir listen lj beforeMainLoop = do
             let nPort = Port $ baseUrlPort $ _restApi cp
             waitForService "Jörmungandr" (sb, tr) nPort $
                 waitForNetwork nl defaultRetryPolicy
-            newWalletLayer tr nl >>= startServer tr nPort nl
+            apiLayer tr nl >>= startServer tr nPort nl
             pure ExitSuccess
         Left e -> handleNetworkStartupError e
   where
@@ -125,7 +124,7 @@ serveWallet (cfg, sb, tr) databaseDir listen lj beforeMainLoop = do
         :: Trace IO Text
         -> Port "node"
         -> NetworkLayer IO Tx (Block Tx)
-        -> WalletLayer s t k
+        -> ApiLayer s t k
         -> IO ()
     startServer tracer nPort nl wallet = do
         let (_, bp) = staticBlockchainParameters nl
@@ -138,15 +137,15 @@ serveWallet (cfg, sb, tr) databaseDir listen lj beforeMainLoop = do
             let apiServer = Server.start settings tracerApi socket wallet
             race_ ipcServer apiServer
 
-    newWalletLayer
+    apiLayer
         :: Trace IO Text
         -> NetworkLayer IO Tx (Block Tx)
-        -> IO (WalletLayer s t k)
-    newWalletLayer tracer nl = do
+        -> IO (ApiLayer s t k)
+    apiLayer tracer nl = do
         let (block0, bp) = staticBlockchainParameters nl
         let tl = newTransactionLayer @n (getGenesisBlockHash bp)
         wallets <- maybe (pure []) (Sqlite.findDatabases tr) databaseDir
-        Wallet.newWalletLayer tracer (block0, bp) nl tl dbFactory wallets
+        Server.newApiLayer tracer (block0, bp) nl tl dbFactory wallets
 
     dbFactory
         :: DBFactory IO s t k

@@ -26,16 +26,10 @@ import Cardano.Wallet
     , ErrUpdatePassphrase (..)
     , ErrWithRootKey (..)
     , ErrWithRootKey (..)
-    , WalletLayer
-    , newWalletLayer
+    , WalletLayer (..)
     )
 import Cardano.Wallet.DB
-    ( DBFactory (..)
-    , DBLayer
-    , ErrNoSuchWallet (..)
-    , PrimaryKey (..)
-    , putTxHistory
-    )
+    ( DBLayer, ErrNoSuchWallet (..), PrimaryKey (..), putTxHistory )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx (..), block0, genesisParameters )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -319,7 +313,7 @@ walletUpdatePassphraseNoSuchWallet wallet@(wid', _, _) wid (old, new) =
     wid /= wid' ==> monadicIO $ liftIO $ do
         (WalletLayerFixture _ wl _ _) <- liftIO $ setupFixture wallet
         attempt <- runExceptT $ W.updateWalletPassphrase wl wid (old, new)
-        let err = ErrUpdatePassphraseNoSuchWallet (ErrNoSuchWallet wid)
+        let err = ErrUpdatePassphraseWithRootKey $ ErrWithRootKeyNoRootKey wid
         attempt `shouldBe` Left err
 
 walletUpdatePassphraseDate
@@ -408,11 +402,7 @@ setupFixture (wid, wname, wstate) = do
     let nl = error "NetworkLayer"
     let tl = dummyTransactionLayer
     db <- MVar.newDBLayer
-    let df = DBFactory
-            { withDatabase = const (\with -> with db)
-            , removeDatabase = \_ -> pure ()
-            }
-    wl <- newWalletLayer @ctx nullTracer (block0, bp) nl tl df []
+    let wl = WalletLayer nullTracer (block0, bp) nl tl db
     res <- runExceptT $ W.createWallet wl wid wname wstate
     let wal = case res of
             Left _ -> []

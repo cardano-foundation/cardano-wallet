@@ -28,8 +28,8 @@ import Cardano.CLI
     ( Port (..), failWith, waitForService )
 import Cardano.Launcher
     ( ProcessHasExited (..), installSignalHandlers )
-import Cardano.Wallet
-    ( WalletLayer )
+import Cardano.Wallet.Api
+    ( ApiLayer )
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.DaedalusIPC
@@ -70,7 +70,6 @@ import System.Exit
     ( ExitCode (..) )
 
 import qualified Cardano.BM.Configuration.Model as CM
-import qualified Cardano.Wallet as Wallet
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Cardano.Wallet.HttpBridge.Network as HttpBridge
@@ -106,7 +105,7 @@ serveWallet (cfg, sb, tr) databaseDir listen bridge mAction = do
         Right (bridgePort, nl) -> do
             waitForService "http-bridge" (sb, tr) (Port $ fromEnum bridgePort) $
                 waitForNetwork nl defaultRetryPolicy
-            wl <- newWalletLayer nl
+            wl <- newApiLayer nl
             let mkCallback action apiPort =
                     action (fromIntegral apiPort) bridgePort nl
             withServer wl (mkCallback <$> mAction)
@@ -114,10 +113,10 @@ serveWallet (cfg, sb, tr) databaseDir listen bridge mAction = do
         Left e -> handleNetworkStartupError e
   where
     withServer
-        :: WalletLayer s t k
+        :: ApiLayer s t k
         -> Maybe (Int -> IO a)
         -> IO ()
-    withServer wallet action = do
+    withServer api action = do
         Server.withListeningSocket listen $ \(port, socket) -> do
             let tracerIPC = appendName "daedalus-ipc" tr
             let tracerApi = appendName "api" tr
@@ -126,18 +125,18 @@ serveWallet (cfg, sb, tr) databaseDir listen bridge mAction = do
             let settings = Warp.defaultSettings
                     & setBeforeMainLoop beforeMainLoop
             let ipcServer = daedalusIPC tracerIPC port
-            let apiServer = Server.start settings tracerApi socket wallet
+            let apiServer = Server.start settings tracerApi socket api
             let withAction = maybe id (\cb -> race_ (cb port)) action
             withAction $ race_ ipcServer apiServer
 
-    newWalletLayer
+    newApiLayer
         :: NetworkLayer IO Tx (Block Tx)
-        -> IO (WalletLayer s t k)
-    newWalletLayer nl = do
+        -> IO (ApiLayer s t k)
+    newApiLayer nl = do
         let g0 = staticBlockchainParameters nl
         let tl = HttpBridge.newTransactionLayer @n
         wallets <- maybe (pure []) (Sqlite.findDatabases tr) databaseDir
-        Wallet.newWalletLayer tr g0 nl tl dbFactory wallets
+        Server.newApiLayer tr g0 nl tl dbFactory wallets
 
     dbFactory
         :: DBFactory IO s t k

@@ -93,7 +93,6 @@ library
       Cardano.Wallet.DB.Sqlite.TH
       Cardano.Wallet.DB.Sqlite.Types
       Cardano.Wallet.DaedalusIPC
-      Cardano.Wallet.Engine
       Cardano.Wallet.Network
       Cardano.Wallet.Network.Ports
       Cardano.Wallet.Primitive.AddressDerivation

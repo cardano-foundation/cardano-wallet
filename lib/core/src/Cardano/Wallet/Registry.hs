@@ -31,7 +31,7 @@ import Prelude hiding
 
 import Cardano.BM.Trace
     ( Trace, appendName )
-import Cardano.Wallet.Engine
+import Cardano.Wallet
     ( HasLogger, logger )
 import Control.Concurrent
     ( ThreadId, forkFinally, killThread )
