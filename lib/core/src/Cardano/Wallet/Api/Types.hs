@@ -50,6 +50,9 @@ module Cardano.Wallet.Api.Types
     , ApiErrorCode (..)
     , Iso8601Time (..)
 
+    -- * API Types (Byron)
+    , ApiByronWallet (..)
+
     -- * Polymorphic Types
     , ApiT (..)
     , ApiMnemonicT (..)
@@ -309,6 +312,18 @@ instance FromHttpApiData Iso8601Time where
 
 instance ToHttpApiData Iso8601Time where
     toUrlPiece = toText
+
+{-------------------------------------------------------------------------------
+                              API Types: Byron
+-------------------------------------------------------------------------------}
+
+data ApiByronWallet = ApiByronWallet
+    { id :: !(ApiT WalletId)
+    , balance :: !(ApiT WalletBalance)
+    , name :: !(ApiT WalletName)
+    , passphrase :: !(Maybe (ApiT WalletPassphraseInfo))
+    , state :: !(ApiT WalletState)
+    } deriving (Eq, Generic, Show)
 
 {-------------------------------------------------------------------------------
                               Polymorphic Types
@@ -585,6 +600,15 @@ walletStateOptions = taggedSumTypeOptions $ TaggedObjectOptions
     { _tagFieldName = "status"
     , _contentsFieldName = "progress"
     }
+
+{-------------------------------------------------------------------------------
+                             JSON Instances: Byron
+-------------------------------------------------------------------------------}
+
+instance FromJSON ApiByronWallet where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiByronWallet where
+    toJSON = genericToJSON defaultRecordTypeOptions
 
 {-------------------------------------------------------------------------------
                              FromText/ToText instances

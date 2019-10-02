@@ -490,6 +490,20 @@ definitions:
       passphrase: *walletPassphraseInfo
       state: *walletState
 
+  ApiByronWallet: &ApiByronWallet
+    type: object
+    required:
+      - id
+      - balance
+      - name
+      - state
+    properties:
+      id: *walletId
+      balance: *walletBalance
+      name: *walletName
+      passphrase: *walletPassphraseInfo
+      state: *walletState
+
   ApiWalletUTxOsStatistics: &ApiWalletUTxOsStatistics
     type: object
     required:
