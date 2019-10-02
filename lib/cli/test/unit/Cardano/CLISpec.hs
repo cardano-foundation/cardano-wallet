@@ -17,6 +17,7 @@ import Cardano.CLI
     , cli
     , cmdAddress
     , cmdMnemonic
+    , cmdStakePool
     , cmdTransaction
     , cmdWallet
     , hGetLine
@@ -82,6 +83,7 @@ spec = do
                 <> cmdWallet @DummyTarget
                 <> cmdTransaction @DummyTarget
                 <> cmdAddress @DummyTarget
+                <> cmdStakePool @DummyTarget
 
         let defaultPrefs = prefs (mempty <> columns 65)
 
@@ -115,6 +117,7 @@ spec = do
             , "  wallet                   Manage wallets."
             , "  transaction              Manage transactions."
             , "  address                  Manage addresses."
+            , "  stake-pool               Manage stake pools."
             ]
 
         ["mnemonic", "--help"] `shouldShowUsage`
@@ -319,6 +322,16 @@ spec = do
             , "                           API. (default: 8090)"
             , "  BINARY_BLOB              hex-encoded binary blob of"
             , "                           externally-signed transaction."
+            ]
+
+        ["stake-pool", "list", "--help"] `shouldShowUsage`
+            [ "Usage:  stake-pool list [--port INT]"
+            , "  List all known stake pools."
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , "  --port INT               port used for serving the wallet"
+            , "                           API. (default: 8090)"
             ]
 
     describe "Can perform roundtrip textual encoding & decoding" $ do

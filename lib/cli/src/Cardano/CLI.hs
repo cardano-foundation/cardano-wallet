@@ -31,6 +31,7 @@ module Cardano.CLI
     , cmdTransaction
     , cmdAddress
     , cmdVersion
+    , cmdStakePool
 
     -- * Option & Argument Parsers
     , optionT
@@ -665,6 +666,33 @@ cmdVersion = command "version" $ info cmd $ mempty
     exec = do
         putStrLn (showVersion version)
         exitSuccess
+{-------------------------------------------------------------------------------
+                            Commands - 'stake-pool'
+-------------------------------------------------------------------------------}
+
+cmdStakePool
+    :: forall t. (DecodeAddress t, EncodeAddress t)
+    => Mod CommandFields (IO ())
+cmdStakePool = command "stake-pool" $ info (helper <*> cmds) $ mempty
+    <> progDesc "Manage stake pools."
+  where
+    cmds = subparser $ mempty
+        <> cmdStakePoolList @t
+
+-- | Arguments for 'stake-pool list' command
+newtype StakePoolListArgs = StakePoolListArgs
+    { _port :: Port "Wallet"
+    }
+
+cmdStakePoolList
+    :: forall t. (DecodeAddress t, EncodeAddress t)
+    => Mod CommandFields (IO ())
+cmdStakePoolList = command "list" $ info (helper <*> cmd) $ mempty
+    <> progDesc "List all known stake pools."
+  where
+    cmd = fmap exec $ StakePoolListArgs <$> portOption
+    exec (StakePoolListArgs wPort) = do
+        runClient wPort Aeson.encodePretty $ listPools (walletClient @t)
 
 {-------------------------------------------------------------------------------
                             Commands - 'launch'
