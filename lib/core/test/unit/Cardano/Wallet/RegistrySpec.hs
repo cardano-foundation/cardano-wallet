@@ -221,7 +221,7 @@ data WorkerTest ctx res = WorkerTest
     , _workerAcquire :: (res -> IO ()) -> IO ()
         -- | How the worker acquires its resource
 
-    , _workerConcurrently :: Worker res -> IO ()
+    , _workerConcurrently :: Worker WalletId res -> IO ()
         -- | An action to perform after the worker has been created,
         -- concurrently in the main thread.
 
@@ -243,7 +243,6 @@ defaultWorkerTest = WorkerTest
     , _workerTimeout = 250*1000 -- 250ms
     }
 
--- | Isomorphic to 'Maybe', but for enhanced readability
 data WorkerResult
     = WorkerNotStarted
     | WorkerIsDone

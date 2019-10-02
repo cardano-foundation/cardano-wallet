@@ -33,8 +33,6 @@ import Cardano.BM.Trace
     ( Trace, appendName )
 import Cardano.Wallet.Engine
     ( HasLogger, logger )
-import Cardano.Wallet.Primitive.Types
-    ( WalletId )
 import Control.Concurrent
     ( ThreadId, forkFinally, killThread )
 import Control.Concurrent.MVar
@@ -64,7 +62,7 @@ import Data.Map.Strict
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( toText )
+    ( ToText (..) )
 import GHC.Generics
     ( Generic )
 
@@ -76,55 +74,57 @@ import qualified Data.Text as T
 -------------------------------------------------------------------------------}
 
 -- | A class to link an existing context to a worker context.
-class HasType res (WorkerCtx ctx) => HasWorkerCtx res ctx where
+class HasType resource (WorkerCtx ctx) => HasWorkerCtx resource ctx where
     type WorkerCtx ctx :: *
-    hoistResource :: res -> ctx -> WorkerCtx ctx
+    hoistResource :: resource -> ctx -> WorkerCtx ctx
 
 {-------------------------------------------------------------------------------
                                 Worker Registry
 -------------------------------------------------------------------------------}
 
--- | A registry to keep track of worker threads and wallet database connections.
-newtype WorkerRegistry res =
-    WorkerRegistry (MVar (Map WalletId (Worker res)))
+-- | A registry to keep track of worker threads and acquired resources.
+newtype WorkerRegistry key resource =
+    WorkerRegistry (MVar (Map key (Worker key resource)))
 
 -- | Construct a new empty registry
 empty
-    :: IO (WorkerRegistry res)
+    :: Ord key => IO (WorkerRegistry key resource)
 empty =
     WorkerRegistry <$> newMVar mempty
 
 -- | Lookup the registry for a given worker
 lookup
-    :: MonadIO m
-    => WorkerRegistry res
-    -> WalletId
-    -> m (Maybe (Worker res))
-lookup (WorkerRegistry mvar) wid =
-    liftIO (Map.lookup wid <$> readMVar mvar)
+    :: (MonadIO m, Ord key)
+    => WorkerRegistry key resource
+    -> key
+    -> m (Maybe (Worker key resource))
+lookup (WorkerRegistry mvar) k =
+    liftIO (Map.lookup k <$> readMVar mvar)
 
--- | Get all registered wallet keys in the registry
+-- | Get all registered keys in the registry
 keys
-    :: WorkerRegistry res
-    -> IO [WalletId]
+    :: WorkerRegistry key resource
+    -> IO [key]
 keys (WorkerRegistry mvar) =
     Map.keys <$> readMVar mvar
 
 -- | Register a new worker
 insert
-    :: WorkerRegistry res
-    -> Worker res
+    :: Ord key
+    => WorkerRegistry key resource
+    -> Worker key resource
     -> IO ()
 insert (WorkerRegistry mvar) wrk =
     modifyMVar_ mvar (pure . Map.insert (workerId wrk) wrk)
 
 -- | Remove a worker from the registry (and cancel any running task)
 remove
-    :: WorkerRegistry res
-    -> WalletId
+    :: Ord key
+    => WorkerRegistry key resource
+    -> key
     -> IO ()
-remove (WorkerRegistry mvar) wid =
-    modifyMVar_ mvar (Map.alterF alterF wid)
+remove (WorkerRegistry mvar) k =
+    modifyMVar_ mvar (Map.alterF alterF k)
   where
     alterF = \case
         Nothing -> pure Nothing
@@ -139,28 +139,27 @@ remove (WorkerRegistry mvar) wid =
 
 -- | A worker which holds and manipulate a paticular acquired resource. That
 -- resource can be, for example, a handle to a database connection.
-data Worker res = Worker
-    { workerId :: WalletId
+data Worker key resource = Worker
+    { workerId :: key
     , workerThread :: ThreadId
-    , workerResource :: res
+    , workerResource :: resource
     } deriving (Generic)
 
 -- | See 'newWorker'
-data MkWorker res ctx = MkWorker
-    { workerBefore :: WorkerCtx ctx -> WalletId -> IO ()
+data MkWorker key resource ctx = MkWorker
+    { workerBefore :: WorkerCtx ctx -> key -> IO ()
         -- ^ A task to execute before the main worker's task. When creating a
         -- worker, this task is guaranteed to have terminated once 'newWorker'
         -- returns.
-    , workerMain :: WorkerCtx ctx -> WalletId -> IO ()
+    , workerMain :: WorkerCtx ctx -> key -> IO ()
         -- ^ A task for the worker, possibly infinite
     , workerAfter :: Trace IO Text -> Either SomeException () -> IO ()
         -- ^ Action to run when the worker exits
-    , workerAcquire :: (res -> IO ()) -> IO ()
+    , workerAcquire :: (resource -> IO ()) -> IO ()
         -- ^ A bracket-style factory to acquire a resource
     }
 
--- | Create a new wallet worker for a given wallet id. Workers maintain an
--- acquired resource.
+-- | Create a new worker for a given key. Workers maintain an acquired resource.
 -- They expect a task as argument and will terminate as soon as their task
 -- is over; so in practice, we provide a never-ending task that keeps the worker
 -- alive forever.
@@ -168,32 +167,33 @@ data MkWorker res ctx = MkWorker
 -- Returns 'Nothing' if the worker fails to acquire the necessary resource or
 -- terminate unexpectedly before entering its 'main' action.
 --
--- >>> newWorker ctx wid withDBLayer restoreWallet
+-- >>> newWorker ctx k withDBLayer restoreWallet
 -- worker<thread#1234>
 newWorker
-    :: forall ctx res.
+    :: forall key resource ctx.
         ( HasLogger ctx
-        , HasWorkerCtx res ctx
+        , HasWorkerCtx resource ctx
+        , ToText key
         )
     => ctx
-    -> WalletId
-    -> MkWorker res ctx
-    -> IO (Maybe (Worker res))
-newWorker ctx wid (MkWorker before main after acquire) = do
+    -> key
+    -> MkWorker key resource ctx
+    -> IO (Maybe (Worker key resource))
+newWorker ctx k (MkWorker before main after acquire) = do
     mvar <- newEmptyMVar
     let io = acquire $ \resource -> do
             let ctx' = hoistResource resource (ctx & logger .~ tr')
-            before ctx' wid `finally` putMVar mvar (Just resource)
-            main ctx' wid
+            before ctx' k `finally` putMVar mvar (Just resource)
+            main ctx' k
     threadId <- forkFinally io (cleanup mvar)
     takeMVar mvar >>= \case
         Nothing -> return Nothing
         Just resource -> return $ Just Worker
-            { workerId = wid
+            { workerId = k
             , workerThread = threadId
             , workerResource = resource
             }
   where
     tr = ctx ^. logger
-    tr' = appendName ("worker." <> T.take 8 (toText wid)) tr
+    tr' = appendName ("worker." <> T.take 8 (toText k)) tr
     cleanup mvar e = tryPutMVar mvar Nothing *> after tr' e

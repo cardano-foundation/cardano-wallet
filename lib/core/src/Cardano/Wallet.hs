@@ -221,7 +221,7 @@ data WalletLayer s t (k :: Depth -> * -> *)
         (NetworkLayer IO (Tx t) (Block (Tx t)))
         (TransactionLayer t k)
         (DBFactory IO s t k)
-        (WorkerRegistry (DBLayer IO s t k))
+        (WorkerRegistry WalletId (DBLayer IO s t k))
     deriving (Generic)
 
 data WorkerLayer s t (k :: Depth -> * -> *)
@@ -271,7 +271,7 @@ newWalletLayer tr g0 nw tl df wids = do
                 , workerAcquire =
                     (df ^. #withDatabase) wid
                 }
-        newWorker @ctx @(DBLayer IO s t k) ctx wid config >>= \case
+        newWorker @_ @_ @ctx ctx wid config >>= \case
             Nothing ->
                 return ()
             Just worker ->
@@ -282,15 +282,15 @@ newWalletLayer tr g0 nw tl df wids = do
 -------------------------------------------------------------------------------}
 
 type HasWorkerRegistry s t k ctx =
-    ( HasType (WorkerRegistry (DBLayer IO s t k)) ctx
+    ( HasType (WorkerRegistry WalletId (DBLayer IO s t k)) ctx
     , HasWorkerCtx (DBLayer IO s t k) ctx
     )
 
 workerRegistry
     :: forall s t k ctx. (HasWorkerRegistry s t k ctx)
-    => Lens' ctx (WorkerRegistry (DBLayer IO s t k))
+    => Lens' ctx (WorkerRegistry WalletId (DBLayer IO s t k))
 workerRegistry =
-    typed @(WorkerRegistry (DBLayer IO s t k))
+    typed @(WorkerRegistry WalletId (DBLayer IO s t k))
 
 type HasDBFactory s t k = HasType (DBFactory IO s t k)
 
@@ -354,7 +354,7 @@ createWallet ctx wid a0 a1 =
                     , workerAcquire =
                         (df ^. #withDatabase) wid
                     }
-            liftIO (newWorker @ctx @(DBLayer IO s t k) ctx wid config) >>= \case
+            liftIO (newWorker @_ @_ @ctx ctx wid config) >>= \case
                 Nothing ->
                     throwE ErrCreateWalletFailedToCreateWorker
                 Just worker ->
