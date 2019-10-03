@@ -392,9 +392,9 @@ newDBLayer logConfig trace fp = do
         , putCheckpoint = \(PrimaryKey wid) cp ->
               ExceptT $ runQuery $ selectWallet wid >>= \case
                   Just _ -> Right <$> do
-                      purgeCheckpoints wid cp
-                      deleteLooseTransactions
                       insertCheckpoint wid cp
+                      pruneCheckpoints wid
+                      deleteLooseTransactions
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
         , readCheckpoint = \(PrimaryKey wid) -> runQuery $
@@ -798,15 +798,17 @@ deleteCheckpoints wid filters = do
     deleteCascadeWhere ((CheckpointWalletId ==. wid) : filters)
 
 -- | Prune checkpoints in the database to keep it tidy
-purgeCheckpoints
-    :: forall s t. ()
-    => W.WalletId
-    -> W.Wallet s t
+pruneCheckpoints
+    :: W.WalletId
     -> SqlPersistT IO ()
-purgeCheckpoints wid cp = do
-    let epochStability = W.blockchainParameters cp ^. #getEpochStability
-    let cps = sparseCheckpoints epochStability (currentTip cp)
-    deleteCheckpoints wid [ CheckpointBlockHeight /<-. cps ]
+pruneCheckpoints wid = do
+    selectLatestCheckpoint wid >>= \case
+        Nothing -> pure ()
+        Just cp -> do
+            let height = Quantity $ fromIntegral $ checkpointBlockHeight cp
+            let epochStability = Quantity $ checkpointEpochStability cp
+            let cps = sparseCheckpoints epochStability height
+            deleteCheckpoints wid [ CheckpointBlockHeight /<-. cps ]
 
 -- | Delete TxMeta values for a wallet.
 deleteTxMetas
