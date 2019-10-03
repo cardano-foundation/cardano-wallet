@@ -251,11 +251,13 @@ sparseCheckpoints epochStability blkH =
 
         k = fromIntegral $ getQuantity epochStability
         h = fromIntegral $ getQuantity $ blockHeight blkH
+        minH =
+            let x = if h < k then 0 else h - k
+            in gapsSize * (x `div` gapsSize)
 
-        minH = if h < k + gapsSize then 0 else h - k - gapsSize
-        cps = L.sort $ L.nub $
-            [0,gapsSize..h] ++ if h < edgeSize
-                then [0..h]
-                else [h-edgeSize,h-edgeSize-1..h]
+        longTerm  = [minH,minH+gapsSize..h]
+        shortTerm = if h < edgeSize
+            then [0..h]
+            else [h-edgeSize,h-edgeSize+1..h]
     in
-        [ cp | cp <- cps, cp >= minH ]
+        L.sort $ L.nub $ longTerm ++ shortTerm
