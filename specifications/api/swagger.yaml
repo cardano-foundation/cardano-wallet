@@ -1196,3 +1196,15 @@ paths:
       parameters:
         - *parametersWalletId
       responses: *responsesGetByronWallet
+
+    delete:
+      operationId: deleteByronWallet
+      tags: ["Wallets"]
+      summary: Delete
+      description: |
+        <p align="right">status: <strong>not implemented</strong></p>
+
+        Delete a Byron wallet.
+      parameters:
+        - *parametersWalletId
+      responses: *responsesDeleteWallet

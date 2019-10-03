@@ -243,9 +243,16 @@ type ListStakePools = "stake-pools"
 ==============================================================================-}
 
 type CompatibilityApi t =
-    GetByronWallet
+    DeleteByronWallet
+    :<|> GetByronWallet
     :<|> ListByronWallets
     :<|> PostByronWallet
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteByronWallet
+type DeleteByronWallet = "byron"
+    :> "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> DeleteNoContent '[Any] NoContent
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getByronWallet
 type GetByronWallet = "byron"
