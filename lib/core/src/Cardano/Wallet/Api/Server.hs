@@ -60,6 +60,8 @@ import Cardano.Wallet.Api
     ( Addresses
     , Api
     , ApiLayer (..)
+    , CompatibilityApi
+    , CoreApi
     , HasDBFactory
     , HasWorkerRegistry
     , StakePools
@@ -206,7 +208,7 @@ import Servant
     , throwError
     )
 import Servant.Server
-    ( Handler (..), ServantErr (..) )
+    ( Handler (..), ServantErr (..), emptyServer )
 
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -253,7 +255,7 @@ start settings trace socket ctx = do
   where
     -- | A Servant server for our wallet API
     server :: Server (Api t)
-    server = addresses ctx :<|> wallets ctx :<|> transactions ctx :<|> pools ctx
+    server = coreApiServer ctx :<|> compatibilityApiServer ctx
 
     application :: Application
     application = serve (Proxy @("v2" :> Api t)) server
@@ -283,6 +285,24 @@ withListeningSocket portOpt = bracket acquire release
     release (_, socket) = liftIO $ close socket
     -- TODO: make configurable, default to secure for now.
     hostPreference = "127.0.0.1"
+
+{-==============================================================================
+                                   Core API
+==============================================================================-}
+
+coreApiServer
+    :: forall ctx s t k.
+        ( DefineTx t
+        , KeyToAddress t k
+        , Buildable (ErrValidateSelection t)
+        , k ~ SeqKey
+        , s ~ SeqState t
+        , ctx ~ ApiLayer s t k
+        )
+    => ctx
+    -> Server (CoreApi t)
+coreApiServer ctx =
+    addresses ctx :<|> wallets ctx :<|> transactions ctx :<|> pools ctx
 
 {-------------------------------------------------------------------------------
                                     Wallets
@@ -601,6 +621,15 @@ listPools
     :: ctx
     -> Handler [ApiStakePool]
 listPools _ctx = throwError err501
+
+{-==============================================================================
+                            Compatibility API
+==============================================================================-}
+
+compatibilityApiServer
+    :: ctx
+    -> Server (CompatibilityApi t)
+compatibilityApiServer _ = emptyServer
 
 {-------------------------------------------------------------------------------
                                 Helpers

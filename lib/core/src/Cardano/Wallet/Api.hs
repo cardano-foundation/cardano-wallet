@@ -12,13 +12,18 @@
 {-# LANGUAGE TypeOperators #-}
 
 module Cardano.Wallet.Api
-    ( -- * Types
+    ( -- * API
       Api
+
+      -- * Core API
+    , CoreApi
     , Addresses
     , Wallets
     , Transactions
     , StakePools
-    , Any
+
+    -- * Compatibility API
+    , CompatibilityApi
 
       -- * Api Layer
     , ApiLayer (..)
@@ -26,6 +31,10 @@ module Cardano.Wallet.Api
     , workerRegistry
     , HasDBFactory
     , dbFactory
+
+      -- * Miscellaneous Types
+    , Any
+
     ) where
 
 import Prelude
@@ -95,8 +104,16 @@ import Servant.API
     , QueryParam
     , ReqBody
     )
+import Servant.API.Empty
+    ( EmptyAPI )
 
-type Api t = Addresses t :<|> Wallets :<|> Transactions t :<|> StakePools
+type Api t = CoreApi t :<|> CompatibilityApi t
+
+{-==============================================================================
+                                  Core API
+==============================================================================-}
+
+type CoreApi t = Addresses t :<|> Wallets :<|> Transactions t :<|> StakePools
 
 {-------------------------------------------------------------------------------
                                   Addresses
@@ -220,6 +237,12 @@ type StakePools = ListStakePools
 -- | https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listStakePools
 type ListStakePools = "stake-pools"
     :> Get '[JSON] [ApiStakePool]
+
+{-==============================================================================
+                              Compatibility API
+==============================================================================-}
+
+type CompatibilityApi t = EmptyAPI
 
 {-------------------------------------------------------------------------------
                                    Internals

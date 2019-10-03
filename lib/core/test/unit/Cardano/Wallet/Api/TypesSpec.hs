@@ -153,6 +153,8 @@ import Servant
     , StdMethod (..)
     , Verb
     )
+import Servant.API.Empty
+    ( EmptyAPI )
 import Servant.Swagger.Test
     ( validateEveryToJSON )
 import Test.Aeson.GenericSpecs
@@ -995,6 +997,9 @@ instance {-# OVERLAPS #-} HasPath a => ValidateEveryPath a where
             case specification ^. paths . at path of
                 Just item | isJust (item ^. atMethod verb) -> return @IO ()
                 _ -> fail "couldn't find path in specification"
+
+instance ValidateEveryPath EmptyAPI where
+    validateEveryPath _ = pure ()
 
 instance (ValidateEveryPath a, ValidateEveryPath b) => ValidateEveryPath (a :<|> b) where
     validateEveryPath _ = do
