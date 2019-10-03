@@ -107,7 +107,7 @@ import Prelude hiding
     ( log )
 
 import Cardano.BM.Trace
-    ( Trace, logDebug, logError, logInfo, logNotice )
+    ( Trace, logDebug, logInfo )
 import Cardano.Wallet.DB
     ( DBLayer
     , ErrNoSuchWallet (..)
@@ -115,7 +115,7 @@ import Cardano.Wallet.DB
     , PrimaryKey (..)
     )
 import Cardano.Wallet.Network
-    ( ErrNetworkUnavailable (..), ErrPostTx (..), NetworkLayer (..) )
+    ( ErrNetworkUnavailable (..), ErrPostTx (..), NetworkLayer (..), follow )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (RootK)
     , ErrWrongPassphrase (..)
@@ -199,8 +199,6 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
-import Control.Concurrent
-    ( threadDelay )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
@@ -210,7 +208,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), except, runExceptT, throwE, withExceptT )
+    ( ExceptT (..), except, throwE, withExceptT )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..), maybeToExceptT )
 import Control.Monad.Trans.State
@@ -230,7 +228,7 @@ import Data.Generics.Labels
 import Data.Generics.Product.Typed
     ( HasType, typed )
 import Data.List.NonEmpty
-    ( NonEmpty ((:|)) )
+    ( NonEmpty )
 import Data.Maybe
     ( mapMaybe )
 import Data.Quantity
@@ -518,82 +516,12 @@ restoreWallet
     -> ExceptT ErrNoSuchWallet IO ()
 restoreWallet ctx wid = do
     cp <- readWalletCheckpoint @ctx @s @t @k ctx wid
-    liftIO $ do
-        logInfo tr $ "Restoring wallet "+| wid |+"..."
-        runExceptT (networkTip nw) >>= \case
-            Left e -> do
-                logError tr $ "Failed to get network tip: " +|| e ||+ ""
-                restoreSleep @ctx @s @t @k ctx wid (currentTip cp)
-            Right tip -> do
-                restoreStep @ctx @s @t @k ctx wid (currentTip cp, tip)
+    let startTip = currentTip cp
+    let advance = restoreBlocks @ctx @s @t @k ctx wid
+    liftIO $ follow nw tr startTip advance (view #header)
   where
     nw = ctx ^. networkLayer @t
     tr = ctx ^. logger
-
--- | Infinite restoration loop. We drain the whole available chain and try
--- to catch up with the node. In case of error, we log it and wait a bit
--- before retrying.
---
--- The function only terminates if the wallet has disappeared from the DB.
-restoreStep
-    :: forall ctx s t k.
-        ( HasLogger ctx
-        , HasNetworkLayer t ctx
-        , HasDBLayer s t k ctx
-        , DefineTx t
-        )
-    => ctx
-    -> WalletId
-    -> (BlockHeader, BlockHeader)
-    -> IO ()
-restoreStep ctx wid (localTip, nodeTip) = do
-    runExceptT (nextBlocks nw localTip) >>= \case
-        Left e -> do
-            logError tr $ "Failed to get next blocks: " +|| e ||+ "."
-            restoreSleep @ctx @s @t @k ctx wid localTip
-        Right [] -> do
-            logDebug tr "Wallet restored."
-            restoreSleep @ctx @s @t @k ctx wid localTip
-        Right (blockFirst : blocksRest) -> do
-            let blocks = blockFirst :| blocksRest
-            let nextLocalTip = view #header . NE.last $ blocks
-            let action = restoreBlocks @ctx @s @t @k ctx  wid blocks nodeTip
-            runExceptT action >>= \case
-                Left (ErrNoSuchWallet _) ->
-                    logNotice tr "Wallet is gone! Terminating worker..."
-                Right () -> do
-                    restoreStep @ctx @s @t @k ctx wid
-                        (nextLocalTip, nodeTip)
-  where
-    nw = ctx ^. networkLayer @t
-    tr = ctx ^. logger
-
--- | Wait a short delay before querying for blocks again. We also take this
--- opportunity to refresh the chain tip as it has probably increased in
--- order to refine our syncing status.
-restoreSleep
-    :: forall ctx s t k.
-        ( HasNetworkLayer t ctx
-        , HasLogger ctx
-        , HasDBLayer s t k ctx
-        , DefineTx t
-        )
-    => ctx
-    -> WalletId
-    -> BlockHeader
-    -> IO ()
-restoreSleep ctx wid localTip = do
-    threadDelay twoSeconds
-    runExceptT (networkTip nw) >>= \case
-        Left e -> do
-            logError tr $ "Failed to get network tip: " +|| e ||+ ""
-            restoreSleep @ctx @s @t @k ctx wid localTip
-        Right nodeTip ->
-            restoreStep @ctx @s @t @k ctx wid (localTip, nodeTip)
-  where
-    nw = ctx ^. networkLayer @t
-    tr = ctx ^. logger
-    twoSeconds = 2000000 -- FIXME: Leave that to the networking layer
 
 -- | Apply the given blocks to the wallet and update the wallet state,
 -- transaction history and corresponding metadata.
@@ -609,12 +537,6 @@ restoreBlocks
     -> BlockHeader
     -> ExceptT ErrNoSuchWallet IO ()
 restoreBlocks ctx wid blocks nodeTip = do
-    let (slotFirst, slotLast) =
-            ( view #slotId . header . NE.head $ blocks
-            , view #slotId . header . NE.last $ blocks
-            )
-    liftIO $ logInfo tr $
-        "Applying blocks ["+| slotFirst |+" ... "+| slotLast |+"]"
     -- NOTE:
     -- Not as good as a transaction, but, with the lock, nothing can make
     -- the wallet disappear within these calls, so either the wallet is
@@ -660,6 +582,7 @@ restoreBlocks ctx wid blocks nodeTip = do
         DB.putTxHistory db (PrimaryKey wid) txs
         DB.putWalletMeta db (PrimaryKey wid) meta'
 
+        let slotLast = view #slotId . header . NE.last $ blocks
         liftIO $ do
             logInfo tr $ ""
                 +|| pretty (calculateMetadata slotLast)
