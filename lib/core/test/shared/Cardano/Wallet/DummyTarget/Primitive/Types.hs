@@ -63,6 +63,7 @@ import GHC.Generics
 import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.CBOR.Write as CBOR
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text.Encoding as T
 
@@ -80,7 +81,8 @@ instance PersistTx DummyTarget where
     mkTx _ inps = Tx (fst <$> inps)
 
 instance KeyToAddress DummyTarget SeqKey where
-    keyToAddress = Address . unXPub . getRawKey
+    keyToAddress =
+        Address . BS.take 8 . convertToBase Base16 . unXPub . getRawKey
 
 instance KeyToAddress DummyTarget RndKey where
     keyToAddress k = Address

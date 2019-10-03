@@ -30,7 +30,12 @@ import Cardano.Wallet.DB
     , cleanDB
     )
 import Cardano.Wallet.DB.Arbitrary
-    ( GenState, GenTxHistory (..), KeyValPairs (..), MockChain (..) )
+    ( GenState
+    , GenTxHistory (..)
+    , InitialCheckpoint (..)
+    , KeyValPairs (..)
+    , MockChain (..)
+    )
 import Cardano.Wallet.DB.Model
     ( filterTxHistory )
 import Cardano.Wallet.DummyTarget.Primitive.Types
@@ -61,8 +66,12 @@ import Control.Monad
     ( forM, forM_, void )
 import Control.Monad.IO.Class
     ( liftIO )
+import Control.Monad.Trans.Class
+    ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
+import Control.Monad.Trans.State.Strict
+    ( evalStateT, get, modify' )
 import Data.Bifunctor
     ( bimap )
 import Data.Functor
@@ -70,11 +79,15 @@ import Data.Functor
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( view, (^.) )
+import Data.Generics.Labels
+    ()
 import Data.List
     ( unfoldr )
 import Data.Maybe
-    ( mapMaybe )
+    ( catMaybes, mapMaybe )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Set
     ( Set )
 import Fmt
@@ -198,7 +211,6 @@ properties = do
             (checkCoverage . (prop_parallelPut putPrivateKey readPrivateKey
                 (length . lrp @Maybe)))
 
-
     describe "rollback" $ do
         it "Can rollback to any arbitrary known checkpoint"
             (property . prop_rollbackCheckpoint)
@@ -230,7 +242,11 @@ putTxHistoryF db wid =
 -- | Keep only the
 -- (L)ast (R)ecently (P)ut entry
 lrp :: (Applicative f, Ord k) => [(k, v)] -> [f v]
-lrp = Map.elems . foldl (\m (k, v) -> Map.insert k (pure v) m) mempty
+lrp =
+    fmap snd
+    . L.sortOn fst
+    . Map.toList
+    . foldl (\m (k, v) -> Map.insert k (pure v) m) mempty
 
 -- | Keep the unions (right-biaised) of all entry
 unions :: (Monoid v, Ord k) => [(k, v)] -> [Identity v]
@@ -250,7 +266,13 @@ sortedUnions = map (Identity . sort' . runIdentity) . unions
 
 -- | Execute an action once per key @k@ present in the given list
 once :: (Ord k, Monad m) => [(k,v)] -> ((k,v) -> m a) -> m [a]
-once xs = forM (Map.toList (Map.fromList xs))
+once xs action = fmap catMaybes $ flip evalStateT mempty $
+    forM xs $ \(k, v) -> do
+        s <- get
+        modify' (Set.insert k)
+        if Set.member k s
+            then pure Nothing
+            else Just <$> lift (action (k, v))
 
 -- | Like 'once', but discards the result
 once_ :: (Ord k, Monad m) => [(k,v)] -> ((k,v) -> m a) -> m ()
@@ -363,13 +385,16 @@ prop_readAfterPut putOp readOp db (ShowFmt key, ShowFmt a) =
     monadicIO (setup >> prop)
   where
     setup = do
-        liftIO (cleanDB db)
-        (cp, meta) <- pick arbitrary
-        liftIO $ unsafeRunExceptT $ createWallet db key cp meta mempty
-    prop = liftIO $ do
-        unsafeRunExceptT $ putOp db key a
-        res <- readOp db key
-        ShowFmt res `shouldBe` ShowFmt (pure a)
+        run $ cleanDB db
+        (InitialCheckpoint cp, meta) <- namedPick "Initial Checkpoint" arbitrary
+        run $ unsafeRunExceptT $ createWallet db key cp meta mempty
+    prop = do
+        run $ unsafeRunExceptT $ putOp db key a
+        res <- run $ readOp db key
+        let fa = pure a
+        monitor $ counterexample $ "\nInserted\n" <> pretty fa
+        monitor $ counterexample $ "\nRead\n" <> pretty res
+        assertWith "Inserted == Read" (res == fa)
 
 -- | Can't put resource before a wallet has been initialized
 prop_putBeforeInit
@@ -500,14 +525,17 @@ prop_sequentialPut putOp readOp resolve db kv =
       where
         ids = map fst pairs
     setup = do
-        liftIO (cleanDB db)
-        (cp, meta) <- pick arbitrary
-        liftIO $ unsafeRunExceptT $ once_ pairs $ \(k, _) ->
+        run $ cleanDB db
+        (InitialCheckpoint cp, meta) <- pick arbitrary
+        run $ unsafeRunExceptT $ once_ pairs $ \(k, _) ->
             createWallet db k cp meta mempty
-    prop = liftIO $ do
-        unsafeRunExceptT $ forM_ pairs $ uncurry (putOp db)
-        res <- once pairs (readOp db . fst)
-        (ShowFmt <$> res) `shouldBe` (ShowFmt <$> resolve pairs)
+    prop = do
+        run $ unsafeRunExceptT $ forM_ pairs $ uncurry (putOp db)
+        res <- run $ once pairs (readOp db . fst)
+        let resolved = resolve pairs
+        monitor $ counterexample $ "\nResolved\n" <> pretty resolved
+        monitor $ counterexample $ "\nRead\n" <> pretty res
+        assertWith "Resolved == Read" (res == resolved)
 
 -- | Check that the DB supports multiple sequential puts for a given resource
 prop_parallelPut
@@ -589,10 +617,10 @@ prop_rollbackCheckpoint db (ShowFmt cp0) (ShowFmt (MockChain chain)) = do
 prop_rollbackTxHistory
     :: forall s t k. (t ~ DummyTarget)
     => DBLayer IO s t k
-    -> ShowFmt (Wallet s t)
+    -> ShowFmt (InitialCheckpoint s)
     -> ShowFmt GenTxHistory
     -> Property
-prop_rollbackTxHistory db (ShowFmt cp0) (ShowFmt (GenTxHistory txs0)) = do
+prop_rollbackTxHistory db (ShowFmt (InitialCheckpoint cp0)) (ShowFmt (GenTxHistory txs0)) = do
     monadicIO $ do
         ShowFmt wid <- namedPick "Wallet ID" arbitrary
         ShowFmt meta <- namedPick "Wallet Metadata" arbitrary
