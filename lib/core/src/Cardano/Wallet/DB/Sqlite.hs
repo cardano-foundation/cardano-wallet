@@ -31,6 +31,7 @@ module Cardano.Wallet.DB.Sqlite
     , findDatabases
     , withDBLayer
     , unsafeRunQuery
+    , sparseCheckpoints
 
     -- * Interfaces
     , PersistState (..)
@@ -132,7 +133,7 @@ import Data.Text.Class
 import Data.Typeable
     ( Typeable )
 import Data.Word
-    ( Word64 )
+    ( Word32, Word64 )
 import Database.Persist.Sql
     ( Entity (..)
     , Filter
@@ -185,6 +186,7 @@ import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.List as L
 import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -815,8 +817,49 @@ deleteUTxOs
 deleteUTxOs wid filters =
     deleteWhere ((UtxoWalletId ==. wid) : filters)
 
--- | Clean up checkpoints which are greater than `k` blocks old for we know we
--- can't rollback that far.
+-- | Storing EVERY checkpoints in the database is quite expensive and useless.
+-- We make the following assumptions:
+--
+-- - We can't rollback for more than `k=epochStability` blocks in the past
+-- - It is pretty fast to re-sync a few hundred blocks
+-- - Small rollbacks may occur more often than long one
+--
+-- So, as we insert checkpoints, we make sure to:
+--
+-- - Prune any checkpoint that more than `k` blocks in the past
+-- - Keep only one checkpoint every 100 blocks
+-- - But still keep ~10 most recent checkpoints to cope with small rollbacks
+--
+-- __Example 1__: Inserting `cp153`
+--
+--  ℹ: `cp142` is discarded and `cp153` inserted.
+--
+--  @
+--  Currently in DB:
+-- ┌───┬───┬───┬─  ──┬───┐
+-- │cp000 │cp100 │cp142 │..    ..│cp152 │
+-- └───┴───┴───┴─  ──┴───┘
+--  Want in DB:
+-- ┌───┬───┬───┬─  ──┬───┐
+-- │cp000 │cp100 │cp143 │..    ..│cp153 │
+-- └───┴───┴───┴─  ──┴───┘
+--  @
+--
+--
+--  __Example 2__: Inserting `cp111`
+--
+--  ℹ: `cp100` is kept and `cp111` inserted.
+--
+--  @
+--  Currently in DB:
+-- ┌───┬───┬───┬─  ──┬───┐
+-- │cp000 │cp100 │cp101 │..    ..│cp110 │
+-- └───┴───┴───┴─  ──┴───┘
+--  Want in DB:
+-- ┌───┬───┬───┬─  ──┬───┐
+-- │cp000 │cp100 │cp101 │..    ..│cp111 │
+-- └───┴───┴───┴─  ──┴───┘
+--  @
 purgeCheckpoints
     :: forall s t. (PersistState s)
     => W.WalletId
@@ -844,6 +887,28 @@ purgeCheckpoints wid cp = do
   where
     word64 :: Integral a => Quantity "block" a -> Word64
     word64 (Quantity x) = fromIntegral x
+
+-- | Tells which heights should be kept in database for given header.
+-- See 'purgeCheckpoints' for more details about the approach.
+sparseCheckpoints
+    :: Quantity "block" Word32
+        -- ^ Epoch Stability, i.e. how far we can rollback
+    -> W.BlockHeader
+        -- ^ A block header
+    -> [Word64]
+        -- ^ The list of checkpoint heights that should be kept in DB.
+sparseCheckpoints epochStability blkH =
+    let
+        k = word64 $ getQuantity epochStability
+        h = word64 $ getQuantity $ W.blockHeight blkH
+        minH = if h < k + 100 then 0 else h - k - 100
+        cps = L.sort $ L.nub $
+            [0,100..h] ++ if h < 10 then [0..h] else [h-10,h-9..h]
+    in
+        [ cp | cp <- cps, cp >= minH ]
+  where
+    word64 :: Integral a => a -> Word64
+    word64 = fromIntegral
 
 -- | Delete TxMeta values for a wallet.
 deleteTxMetas

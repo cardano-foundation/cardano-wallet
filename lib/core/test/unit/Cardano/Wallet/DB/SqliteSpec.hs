@@ -1,6 +1,10 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -62,6 +66,7 @@ import Cardano.Wallet.DB.Sqlite
     , SqliteContext
     , destroyDBLayer
     , newDBLayer
+    , sparseCheckpoints
     , withDBLayer
     )
 import Cardano.Wallet.DB.StateMachine
@@ -86,6 +91,7 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , BlockHeader (..)
     , Coin (..)
     , Direction (..)
     , Hash (..)
@@ -121,6 +127,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Coerce
     ( coerce )
+import Data.Function
+    ( (&) )
 import Data.Functor
     ( ($>) )
 import Data.Maybe
@@ -133,6 +141,8 @@ import Data.Text.Class
     ( FromText (..) )
 import Data.Time.Clock
     ( getCurrentTime )
+import Data.Word
+    ( Word32, Word64 )
 import GHC.Conc
     ( TVar, atomically, newTVarIO, readTVarIO, writeTVar )
 import System.Directory
@@ -161,7 +171,14 @@ import Test.Hspec
     , xit
     )
 import Test.QuickCheck
-    ( Property, property, (==>) )
+    ( Arbitrary (..)
+    , NonNegative (..)
+    , Property
+    , counterexample
+    , property
+    , suchThat
+    , (==>)
+    )
 import Test.QuickCheck.Monadic
     ( monadicIO )
 
@@ -258,6 +275,83 @@ simpleSpec cp = do
             unsafeRunExceptT $ createWallet db testPk cp testMetadata mempty
             runExceptT (putCheckpoint db testPk cp) `shouldReturn` Right ()
             readCheckpoint db testPk `shouldReturn` Just cp
+
+    describe "sparseCheckpoints" $ do
+        let mkBlk h = BlockHeader (SlotId 0 0) h (Hash "arbitrary")
+
+        it "k=2160, h=42" $ \_ -> do
+            let k = Quantity 2160
+            let h = Quantity 42
+            -- First unstable block: 0
+            sparseCheckpoints k (mkBlk h) `shouldBe`
+                [0,32,33,34,35,36,37,38,39,40,41,42]
+
+        it "k=2160, h=2414" $ \_ -> do
+            let k = Quantity 2160
+            let h = Quantity 2714
+            -- First unstable block: 554
+            sparseCheckpoints k (mkBlk h) `shouldBe`
+                [ 500  , 600  , 700  , 800  , 900
+                , 1000 , 1100 , 1200 , 1300 , 1400
+                , 1500 , 1600 , 1700 , 1800 , 1900
+                , 2000 , 2100 , 2200 , 2300 , 2400
+                , 2500 , 2600 , 2700 , 2704 , 2705
+                , 2706 , 2707 , 2708 , 2709 , 2710
+                , 2711 , 2712 , 2713 , 2714
+                ]
+
+        it "There's at least (min h 10) checkpoints" $ \_ ->
+            property prop_sparseCheckpointMinimum
+
+        it "There's no checkpoint older than k (+/- 100)" $ \_ ->
+            property prop_sparseCheckpointNoOlderThanK
+
+prop_sparseCheckpointMinimum
+    :: GenSparseCheckpointsArgs
+    -> Property
+prop_sparseCheckpointMinimum (GenSparseCheckpointsArgs (k, blk)) = prop
+    & counterexample ("Checkpoints: " <> show cps)
+    & counterexample ("h=" <> show h)
+    & counterexample ("k=" <> show k)
+  where
+    prop :: Property
+    prop = property $ fromIntegral (length cps) >= min 10 h
+
+    h = getQuantity $ blockHeight blk
+    cps = sparseCheckpoints (Quantity k) blk
+
+prop_sparseCheckpointNoOlderThanK
+    :: GenSparseCheckpointsArgs
+    -> Property
+prop_sparseCheckpointNoOlderThanK (GenSparseCheckpointsArgs (k, blk)) = prop
+    & counterexample ("Checkpoints: " <> show ((\cp -> (age cp, cp)) <$> cps))
+    & counterexample ("h=" <> show h)
+    & counterexample ("k=" <> show k)
+  where
+    prop :: Property
+    prop = property $ flip all cps $ \cp -> (age cp - 100 <= int k)
+
+    age :: Word64 -> Int
+    age cp = int h - int cp
+
+    h = getQuantity $ blockHeight blk
+    cps = sparseCheckpoints (Quantity k) blk
+
+int :: Integral a => a -> Int
+int = fromIntegral
+
+newtype GenSparseCheckpointsArgs
+    = GenSparseCheckpointsArgs (Word32, BlockHeader)
+    deriving newtype Show
+
+instance Arbitrary GenSparseCheckpointsArgs where
+    arbitrary = do
+        k <- fromIntegral @Int <$> suchThat arbitrary (>10)
+        h <- Quantity . fromIntegral @Int . getNonNegative <$> arbitrary
+        pure $ GenSparseCheckpointsArgs
+            ( k
+            , BlockHeader (SlotId 0 0) h (Hash "arbitrary")
+            )
 
 {-------------------------------------------------------------------------------
                                 Logging Spec
