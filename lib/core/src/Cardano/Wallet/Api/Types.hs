@@ -206,6 +206,10 @@ data WalletPostData = WalletPostData
 
 data ByronWalletPostData = ByronWalletPostData
     { mnemonicSentence :: !(ApiMnemonicT '[12] "seed")
+      -- It was theoretically possible to create a Byron wallet with a mnemonic
+      -- sentence longer than 12 words. However, in practice, previous wallets
+      -- only ever supported mnemonic sentences of exactly 12 words. Hence, we
+      -- restrict ourselves to this length.
     , name :: !(ApiT WalletName)
     , passphrase :: !(ApiT (Passphrase "encryption"))
     } deriving (Eq, Generic, Show)
