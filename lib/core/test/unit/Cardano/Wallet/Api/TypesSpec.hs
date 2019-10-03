@@ -37,6 +37,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxInput (..)
     , ApiUtxoStatistics (..)
     , ApiWallet (..)
+    , ByronWalletPostData (..)
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
     , PostTransactionData (..)
@@ -218,6 +219,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(PostTransactionData DummyTarget)
             jsonRoundtripAndGolden $ Proxy @(PostTransactionFeeData DummyTarget)
             jsonRoundtripAndGolden $ Proxy @WalletPostData
+            jsonRoundtripAndGolden $ Proxy @ByronWalletPostData
             jsonRoundtripAndGolden $ Proxy @WalletPutData
             jsonRoundtripAndGolden $ Proxy @WalletPutPassphraseData
             jsonRoundtripAndGolden $ Proxy @(ApiT (Hash "Tx"))
@@ -645,6 +647,10 @@ instance Arbitrary WalletPostData where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
+instance Arbitrary ByronWalletPostData where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
 instance Arbitrary WalletPutData where
     arbitrary = genericArbitrary
     shrink = genericShrink
@@ -953,6 +959,9 @@ instance ToSchema ApiTxId where
 
 instance ToSchema WalletPostData where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWalletPostData"
+
+instance ToSchema ByronWalletPostData where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiByronWalletPostData"
 
 instance ToSchema WalletPutData where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWalletPutData"

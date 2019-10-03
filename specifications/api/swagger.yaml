@@ -126,6 +126,18 @@ x-walletMnemonicSentence: &walletMnemonicSentence
     format: bip-0039-mnemonic-word{english}
   example: ["squirrel", "material", "silly", "twice", "direct", "slush", "pistol", "razor", "become", "junk", "kingdom", "flee", "squirrel", "silly", "twice"]
 
+x-byronWalletMnemonicSentence: &byronWalletMnemonicSentence
+  description: A list of mnemonic words
+  type: array
+  minItems: 12
+  maxItems: 12
+  items:
+    type: string
+    format: bip-0039-mnemonic-word{english}
+  example: [
+    "squirrel", "material", "silly", "twice", "direct", "slush",
+    "pistol", "razor", "become", "junk", "kingdom", "flee"]
+
 x-walletSecondFactor: &walletSecondFactor
   description: An optional passphrase used to encrypt the mnemonic sentence.
   type: array
@@ -557,6 +569,17 @@ definitions:
       passphrase: *walletPassphrase
       address_pool_gap: *walletAddressPoolGap
 
+  ApiByronWalletPostData: &ApiByronWalletPostData
+    type: object
+    required:
+      - name
+      - mnemonic_sentence
+      - passphrase
+    properties:
+      name: *walletName
+      mnemonic_sentence: *byronWalletMnemonicSentence
+      passphrase: *walletPassphrase
+
   ApiWalletPutData: &ApiWalletPutData
     type: object
     properties:
@@ -707,6 +730,15 @@ x-responsesListWallets: &responsesListWallets
       type: array
       items: *ApiWallet
 
+x-responsesListByronWallets: &responsesListByronWallets
+  <<: *responsesErr405
+  <<: *responsesErr406
+  200:
+    description: Ok
+    schema:
+      type: array
+      items: *ApiByronWallet
+
 x-responsesGetUTxOsStatistics: &responsesGetUTxOsStatistics
   <<: *responsesErr404
   <<: *responsesErr405
@@ -725,6 +757,16 @@ x-responsesPostWallet: &responsesPostWallet
     description: Accepted
     schema: *ApiWallet
 
+x-responsesPostByronWallet: &responsesPostByronWallet
+  <<: *responsesErr400
+  <<: *responsesErr405
+  <<: *responsesErr406
+  <<: *responsesErr409
+  <<: *responsesErr415
+  202:
+    description: Accepted
+    schema: *ApiByronWallet
+
 x-responsesGetWallet: &responsesGetWallet
   <<: *responsesErr404
   <<: *responsesErr405
@@ -732,6 +774,14 @@ x-responsesGetWallet: &responsesGetWallet
   200:
     description: Ok
     schema: *ApiWallet
+
+x-responsesGetByronWallet: &responsesGetByronWallet
+  <<: *responsesErr404
+  <<: *responsesErr405
+  <<: *responsesErr406
+  200:
+    description: Ok
+    schema: *ApiByronWallet
 
 x-responsesDeleteWallet: &responsesDeleteWallet
   <<: *responsesErr404
@@ -1109,3 +1159,52 @@ paths:
         description: |
           <p align="right">status: <strong>not implemented</strong></p>
         responses: *responsesGetNetworkInformation
+
+  /byron/wallets:
+    get:
+      operationId: listByronWallets
+      tags: ["Wallets"]
+      summary: List
+      description: |
+        <p align="right">status: <strong>not implemented</strong></p>
+
+        Return a list of known Byron wallets, ordered from oldest to newest.
+      responses: *responsesListByronWallets
+
+    post:
+      operationId: postByronWallet
+      tags: ["Wallets"]
+      summary: Restore
+      description: |
+        <p align="right">status: <strong>not implemented</strong></p>
+
+        Restore a Byron wallet from a mnemonic sentence.
+      parameters:
+        - <<: *parametersBody
+          schema: *ApiByronWalletPostData
+      responses: *responsesPostByronWallet
+
+  /byron/wallets/{walletId}:
+    get:
+      operationId: getByronWallet
+      tags: ["Wallets"]
+      summary: Get
+      description: |
+        <p align="right">status: <strong>not implemented</strong></p>
+
+        Return information about a Byron wallet.
+      parameters:
+        - *parametersWalletId
+      responses: *responsesGetByronWallet
+
+    delete:
+      operationId: deleteByronWallet
+      tags: ["Wallets"]
+      summary: Delete
+      description: |
+        <p align="right">status: <strong>not implemented</strong></p>
+
+        Delete a Byron wallet.
+      parameters:
+        - *parametersWalletId
+      responses: *responsesDeleteWallet

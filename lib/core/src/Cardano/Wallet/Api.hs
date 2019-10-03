@@ -12,13 +12,18 @@
 {-# LANGUAGE TypeOperators #-}
 
 module Cardano.Wallet.Api
-    ( -- * Types
+    ( -- * API
       Api
+
+      -- * Core API
+    , CoreApi
     , Addresses
     , Wallets
     , Transactions
     , StakePools
-    , Any
+
+    -- * Compatibility API
+    , CompatibilityApi
 
       -- * Api Layer
     , ApiLayer (..)
@@ -26,6 +31,10 @@ module Cardano.Wallet.Api
     , workerRegistry
     , HasDBFactory
     , dbFactory
+
+      -- * Miscellaneous Types
+    , Any
+
     ) where
 
 import Prelude
@@ -36,6 +45,7 @@ import Cardano.Wallet
     ( WalletLayer (..) )
 import Cardano.Wallet.Api.Types
     ( ApiAddress
+    , ApiByronWallet
     , ApiFee
     , ApiStakePool
     , ApiT
@@ -43,6 +53,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxId
     , ApiUtxoStatistics
     , ApiWallet
+    , ByronWalletPostData
     , Iso8601Time
     , PostExternalTransactionData
     , PostTransactionData
@@ -96,7 +107,13 @@ import Servant.API
     , ReqBody
     )
 
-type Api t = Addresses t :<|> Wallets :<|> Transactions t :<|> StakePools
+type Api t = CoreApi t :<|> CompatibilityApi t
+
+{-==============================================================================
+                                  Core API
+==============================================================================-}
+
+type CoreApi t = Addresses t :<|> Wallets :<|> Transactions t :<|> StakePools
 
 {-------------------------------------------------------------------------------
                                   Addresses
@@ -220,6 +237,39 @@ type StakePools = ListStakePools
 -- | https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listStakePools
 type ListStakePools = "stake-pools"
     :> Get '[JSON] [ApiStakePool]
+
+{-==============================================================================
+                              Compatibility API
+==============================================================================-}
+
+type CompatibilityApi t =
+    DeleteByronWallet
+    :<|> GetByronWallet
+    :<|> ListByronWallets
+    :<|> PostByronWallet
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteByronWallet
+type DeleteByronWallet = "byron"
+    :> "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> DeleteNoContent '[Any] NoContent
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getByronWallet
+type GetByronWallet = "byron"
+    :> "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> Get '[JSON] ApiByronWallet
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listByronWallets
+type ListByronWallets = "byron"
+    :> "wallets"
+    :> Get '[JSON] [ApiByronWallet]
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postByronWallet
+type PostByronWallet = "byron"
+    :> "wallets"
+    :> ReqBody '[JSON] ByronWalletPostData
+    :> PostAccepted '[JSON] ApiByronWallet
 
 {-------------------------------------------------------------------------------
                                    Internals

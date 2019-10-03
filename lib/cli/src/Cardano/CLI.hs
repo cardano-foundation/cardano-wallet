@@ -90,7 +90,7 @@ import Cardano.BM.Setup
 import Cardano.BM.Trace
     ( Trace, appendName, logAlert, logInfo )
 import Cardano.Wallet.Api
-    ( Api )
+    ( CoreApi )
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.Api.Types
@@ -934,7 +934,7 @@ walletClient :: forall t. (DecodeAddress t, EncodeAddress t) => WalletClient t
 walletClient =
     let
         addresses :<|> wallets :<|> transactions :<|> pools =
-            client (Proxy @("v2" :> Api t))
+            client (Proxy @("v2" :> CoreApi t))
 
         _listAddresses =
             addresses
