@@ -1163,7 +1163,7 @@ paths:
   /byron/wallets:
     get:
       operationId: listByronWallets
-      tags: ["Wallets"]
+      tags: ["Byron Wallets"]
       summary: List
       description: |
         <p align="right">status: <strong>not implemented</strong></p>
@@ -1173,7 +1173,7 @@ paths:
 
     post:
       operationId: postByronWallet
-      tags: ["Wallets"]
+      tags: ["Byron Wallets"]
       summary: Restore
       description: |
         <p align="right">status: <strong>not implemented</strong></p>
@@ -1187,7 +1187,7 @@ paths:
   /byron/wallets/{walletId}:
     get:
       operationId: getByronWallet
-      tags: ["Wallets"]
+      tags: ["Byron Wallets"]
       summary: Get
       description: |
         <p align="right">status: <strong>not implemented</strong></p>
@@ -1199,7 +1199,7 @@ paths:
 
     delete:
       operationId: deleteByronWallet
-      tags: ["Wallets"]
+      tags: ["Byron Wallets"]
       summary: Delete
       description: |
         <p align="right">status: <strong>not implemented</strong></p>
