@@ -76,6 +76,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Control.Monad
     ( when )
+import Data.Bifunctor
+    ( first )
 import Data.List
     ( sort, sortOn )
 import Data.Map.Strict
@@ -165,7 +167,7 @@ mCreateWallet wid cp meta txs0 db@Database{wallets,txs}
         let
             wal = WalletDatabase (Map.singleton (tip cp) cp) meta history Nothing
             txs' = Map.fromList $ (\(tx, _) -> (txId @t tx, tx)) <$> txs0
-            history = Map.fromList $ (\(tx, m) -> (txId @t tx, m)) <$> txs0
+            history = Map.fromList $ first (txId @t) <$> txs0
         in
             (Right (), Database (Map.insert wid wal wallets) (txs <> txs'))
 
@@ -244,7 +246,7 @@ mPutTxHistory wid txList db@Database{wallets,txs} =
             )
           where
             wal' = wal { txHistory = txHistory wal <> txHistory' }
-            txHistory' = Map.fromList $ (\(tx, m) -> (txId @t tx, m)) <$> txList
+            txHistory' = Map.fromList $ first (txId @t) <$> txList
             txs' = Map.fromList $ (\(tx, _) -> (txId @t tx, tx)) <$> txList
         Nothing -> (Left (NoSuchWallet wid), db)
 

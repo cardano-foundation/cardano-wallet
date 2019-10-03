@@ -341,12 +341,12 @@ spec = do
 
         it "t < slotStartTime slotMinBound => slotFloor t == Nothing" $
             withMaxSuccess 1000 $ property $ \sps t ->
-                (StartTime $ getUniformTime t) < getGenesisBlockDate sps ==>
+                StartTime (getUniformTime t) < getGenesisBlockDate sps ==>
                     slotFloor sps (getUniformTime t) === Nothing
 
         it "t < slotStartTime slotMinBound => slotCeiling t == slotMinBound" $
             withMaxSuccess 1000 $ property $ \sps t ->
-                (StartTime $ getUniformTime t) < getGenesisBlockDate sps ==>
+                StartTime (getUniformTime t) < getGenesisBlockDate sps ==>
                     slotCeiling sps (getUniformTime t) === slotMinBound
 
         it "slotStartTime slotMinBound `isAfterRange` r => \
