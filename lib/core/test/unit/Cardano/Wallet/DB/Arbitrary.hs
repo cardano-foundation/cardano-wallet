@@ -58,8 +58,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool, SeqState (..), mkAddressPool )
 import Cardano.Wallet.Primitive.Model
-    ( BlockchainParameters (..)
-    , Wallet
+    ( Wallet
     , blockchainParameters
     , currentTip
     , getState
@@ -269,12 +268,6 @@ instance GenState s => Arbitrary (InitialCheckpoint s) where
                                    Wallets
 -------------------------------------------------------------------------------}
 
--- | In DB testing, we don't want checkpoint purging to occurs unless
--- specifically asked for. So we use an arbitrary LONG epoch stability.
-arbitraryBlockchainParameters :: BlockchainParameters
-arbitraryBlockchainParameters =
-    genesisParameters { getEpochStability = Quantity maxBound }
-
 instance GenState s => Arbitrary (Wallet s DummyTarget) where
     shrink w =
         [ unsafeInitWallet u (currentTip w) s (blockchainParameters w)
@@ -283,7 +276,7 @@ instance GenState s => Arbitrary (Wallet s DummyTarget) where
         <$> arbitrary
         <*> arbitrary
         <*> arbitrary
-        <*> pure arbitraryBlockchainParameters
+        <*> pure genesisParameters
 
 instance Arbitrary (PrimaryKey WalletId) where
     shrink _ = []
@@ -312,25 +305,22 @@ instance Arbitrary WalletMetadata where
 instance Arbitrary BlockHeader where
     arbitrary = do
         sid@(SlotId ep sl) <- arbitrary
-        let h =
-                fromIntegral sl * fromIntegral len +
-                fromIntegral ep * arbitrarySlotLength
+        let h = fromIntegral sl + fromIntegral ep * arbitraryEpochLength
         bytes <- B8.pack <$> vectorOf 8 (elements ['a'..'f'])
         pure $ BlockHeader sid (Quantity h) (Hash bytes)
-      where
-        EpochLength len = genesisParameters ^. #getEpochLength
 
 instance Arbitrary SlotId where
     shrink (SlotId ep sl) =
         uncurry SlotId <$> shrink (ep, sl)
     arbitrary = SlotId
-        <$> choose (0, fromIntegral arbitrarySlotLength)
-        <*> choose (0, ep)
-      where
-        EpochLength ep = genesisParameters ^. #getEpochLength
+        <$> choose (0, fromIntegral arbitraryEpochLength)
+        <*> choose (0, fromIntegral arbitraryChainLength)
 
-arbitrarySlotLength :: Natural
-arbitrarySlotLength = 100
+arbitraryEpochLength :: Natural
+arbitraryEpochLength = 100
+
+arbitraryChainLength :: Natural
+arbitraryChainLength = 10
 
 {-------------------------------------------------------------------------------
                                   Transactions
