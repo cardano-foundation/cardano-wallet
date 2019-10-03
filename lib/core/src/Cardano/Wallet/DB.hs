@@ -246,10 +246,16 @@ sparseCheckpoints
         -- ^ The list of checkpoint heights that should be kept in DB.
 sparseCheckpoints epochStability blkH =
     let
+        gapsSize = 100
+        edgeSize = 10
+
         k = fromIntegral $ getQuantity epochStability
         h = fromIntegral $ getQuantity $ blockHeight blkH
-        minH = if h < k + 100 then 0 else h - k - 100
+
+        minH = if h < k + gapsSize then 0 else h - k - gapsSize
         cps = L.sort $ L.nub $
-            [0,100..h] ++ if h < 10 then [0..h] else [h-10,h-9..h]
+            [0,gapsSize..h] ++ if h < edgeSize
+                then [0..h]
+                else [h-edgeSize,h-edgeSize-1..h]
     in
         [ cp | cp <- cps, cp >= minH ]
