@@ -194,18 +194,24 @@ mReadCheckpoint wid db@(Database wallets _) =
     mostRecentCheckpoint = fmap snd . Map.lookupMax . checkpoints
 
 mRollbackTo :: Ord wid => wid -> SlotId -> ModelOp wid s t xprv ()
-mRollbackTo wid point db = flip (alterModel wid) db $ \wal ->
-    let
-        nearest = findNearestPoint (Map.elems $ checkpoints wal)
-    in
-        ( ()
-        , wal
-            { checkpoints =
-                Map.filter ((<= point) . tip) (checkpoints wal)
-            , txHistory =
-                Map.mapMaybe (rescheduleOrForget nearest) (txHistory wal)
-            }
-        )
+mRollbackTo wid point db@(Database wallets txs) = case Map.lookup wid wallets of
+    Nothing ->
+        ( Left (NoSuchWallet wid), db )
+    Just wal ->
+        case findNearestPoint (Map.elems $ checkpoints wal) of
+            Nothing -> (Left (NoSuchWallet wid), db)
+            Just nearest ->
+                let
+                    wal' = wal
+                        { checkpoints =
+                            Map.filter ((<= point) . tip) (checkpoints wal)
+                        , txHistory =
+                            Map.mapMaybe (rescheduleOrForget nearest) (txHistory wal)
+                        }
+                in
+                    ( Right ()
+                    , Database (Map.insert wid wal' wallets) txs
+                    )
   where
     -- | Removes 'Incoming' transaction beyond the rollback point, and
     -- reschedule as 'Pending' the 'Outgoing' one beyond the rollback point.
@@ -218,12 +224,16 @@ mRollbackTo wid point db = flip (alterModel wid) db $ \wal ->
             then meta { slotId = nearest, status = Pending }
             else meta
 
-    -- | Find nearest checkpoint's slot before or equal to 'point'
-    findNearestPoint :: [Wallet s t] -> SlotId
-    findNearestPoint = head . sortOn Down . mapMaybe fn
+    -- | Find nearest checkpoint's slot before or equal to 'point'.
+    findNearestPoint :: [Wallet s t] -> Maybe SlotId
+    findNearestPoint = safeHead . sortOn Down . mapMaybe fn
       where
         fn :: Wallet s t -> Maybe SlotId
         fn cp = if (tip cp <= point) then Just (tip cp) else Nothing
+
+    safeHead :: [a] -> Maybe a
+    safeHead [] = Nothing
+    safeHead (h:_) = Just h
 
 mPutWalletMeta :: Ord wid => wid -> WalletMetadata -> ModelOp wid s t xprv ()
 mPutWalletMeta wid meta = alterModel wid $ \wal ->
