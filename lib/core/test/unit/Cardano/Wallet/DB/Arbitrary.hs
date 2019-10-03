@@ -22,6 +22,7 @@ module Cardano.Wallet.DB.Arbitrary
     , KeyValPairs (..)
     , GenState
     , MockChain (..)
+    , InitialCheckpoint (..)
     ) where
 
 import Prelude
@@ -176,11 +177,24 @@ newtype MockChain = MockChain
     { getMockChain :: [Block DummyTarget.Tx] }
     deriving stock (Eq, Show)
 
+-- | Generate arbitrary checkpoints, but that always have their tip at 0 0.
+newtype InitialCheckpoint s = InitialCheckpoint (Wallet s DummyTarget)
+    deriving newtype (Show, Eq, Buildable, NFData)
+
 instance (Arbitrary k, Ord k, Arbitrary v) => Arbitrary (KeyValPairs k v) where
     shrink = genericShrink
     arbitrary = do
         pairs <- choose (1, 10) >>= flip vectorOf arbitrary
         pure $ KeyValPairs $ L.sortOn fst pairs
+
+-- | For checkpoints, we make sure to generate them in order.
+instance {-# OVERLAPS #-} (Arbitrary k, Ord k, GenState s)
+    => Arbitrary (KeyValPairs k (ShowFmt (Wallet s DummyTarget))) where
+    shrink = genericShrink
+    arbitrary = do
+        pairs <- choose (1, 10) >>= flip vectorOf arbitrary
+        pure $ KeyValPairs $ second ShowFmt
+           <$> L.sortOn (\(k,cp) -> (k, view #slotId (currentTip cp))) pairs
 
 instance Arbitrary GenTxHistory where
     shrink (GenTxHistory h) = map GenTxHistory (shrinkList shrinkOneTx h)
@@ -240,6 +254,17 @@ instance Arbitrary MockChain where
             (genesisParameters ^. #getSlotLength)
             (genesisParameters ^. #getGenesisBlockDate)
 
+instance GenState s => Arbitrary (InitialCheckpoint s) where
+    shrink (InitialCheckpoint cp) = InitialCheckpoint <$> shrink cp
+    arbitrary = do
+        cp <- arbitrary @(Wallet s DummyTarget)
+        let tip0 = BlockHeader (SlotId 0 0) (Quantity 0) (Hash "genesis")
+        pure $ InitialCheckpoint $ unsafeInitWallet
+            (utxo cp)
+            tip0
+            (getState cp)
+            (blockchainParameters cp)
+
 {-------------------------------------------------------------------------------
                                    Wallets
 -------------------------------------------------------------------------------}
@@ -256,7 +281,7 @@ instance GenState s => Arbitrary (Wallet s DummyTarget) where
         | (u, s) <- shrink (utxo w, getState w) ]
     arbitrary = unsafeInitWallet
         <$> arbitrary
-        <*> pure (BlockHeader (SlotId 0 0) (Quantity 0) (Hash "hash"))
+        <*> arbitrary
         <*> arbitrary
         <*> pure arbitraryBlockchainParameters
 
@@ -299,12 +324,12 @@ instance Arbitrary SlotId where
     shrink (SlotId ep sl) =
         uncurry SlotId <$> shrink (ep, sl)
     arbitrary = SlotId
-        <$> choose (0, arbitrarySlotLength)
+        <$> choose (0, fromIntegral arbitrarySlotLength)
         <*> choose (0, ep)
       where
         EpochLength ep = genesisParameters ^. #getEpochLength
 
-arbitrarySlotLength :: ()
+arbitrarySlotLength :: Natural
 arbitrarySlotLength = 100
 
 {-------------------------------------------------------------------------------
@@ -461,7 +486,7 @@ instance Arbitrary (RndState DummyTarget) where
         <*> pure minBound
         <*> arbitrary
         <*> (pure mempty) -- FIXME: see comment on 'Arbitrary Seq.PendingIxs'
-        <*> (pure $ mkStdGen 42)
+        <*> pure (mkStdGen 42)
       where
         seed = Passphrase $ BA.convert $ BS.replicate 32 0
 
