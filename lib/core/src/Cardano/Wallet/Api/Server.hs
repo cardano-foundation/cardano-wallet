@@ -632,8 +632,15 @@ compatibilityApiServer
     :: ctx
     -> Server (CompatibilityApi t)
 compatibilityApiServer ctx =
-    listByronWallets ctx
+    getByronWallet ctx
+    :<|> listByronWallets ctx
     :<|> postByronWallet ctx
+
+getByronWallet
+    :: ctx
+    -> ApiT WalletId
+    -> Handler ApiByronWallet
+getByronWallet _ _ = throwError err501
 
 listByronWallets
     :: ctx

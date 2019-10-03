@@ -775,6 +775,14 @@ x-responsesGetWallet: &responsesGetWallet
     description: Ok
     schema: *ApiWallet
 
+x-responsesGetByronWallet: &responsesGetByronWallet
+  <<: *responsesErr404
+  <<: *responsesErr405
+  <<: *responsesErr406
+  200:
+    description: Ok
+    schema: *ApiByronWallet
+
 x-responsesDeleteWallet: &responsesDeleteWallet
   <<: *responsesErr404
   <<: *responsesErr405
@@ -1175,3 +1183,16 @@ paths:
         - <<: *parametersBody
           schema: *ApiByronWalletPostData
       responses: *responsesPostByronWallet
+
+  /byron/wallets/{walletId}:
+    get:
+      operationId: getByronWallet
+      tags: ["Wallets"]
+      summary: Get
+      description: |
+        <p align="right">status: <strong>not implemented</strong></p>
+
+        Return information about a Byron wallet.
+      parameters:
+        - *parametersWalletId
+      responses: *responsesGetByronWallet

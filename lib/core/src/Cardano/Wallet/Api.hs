@@ -243,8 +243,15 @@ type ListStakePools = "stake-pools"
 ==============================================================================-}
 
 type CompatibilityApi t =
-    ListByronWallets
+    GetByronWallet
+    :<|> ListByronWallets
     :<|> PostByronWallet
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getByronWallet
+type GetByronWallet = "byron"
+    :> "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> Get '[JSON] ApiByronWallet
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listByronWallets
 type ListByronWallets = "byron"
