@@ -393,8 +393,6 @@ newDBLayer logConfig trace fp = do
               ExceptT $ runQuery $ selectWallet wid >>= \case
                   Just _ -> Right <$> do
                       insertCheckpoint wid cp
-                      pruneCheckpoints wid
-                      deleteLooseTransactions
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
         , readCheckpoint = \(PrimaryKey wid) -> runQuery $
@@ -423,6 +421,13 @@ newDBLayer logConfig trace fp = do
                         [ TxMetaDirection ==. W.Incoming
                         , TxMetaSlotId >. point
                         ]
+
+        , prune = \(PrimaryKey wid) -> ExceptT $ runQuery $
+            selectLatestCheckpoint wid >>= \case
+                Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                Just cp -> Right <$> do
+                    pruneCheckpoints wid cp
+                    deleteLooseTransactions
 
         {-----------------------------------------------------------------------
                                    Wallet Metadata
@@ -800,15 +805,13 @@ deleteCheckpoints wid filters = do
 -- | Prune checkpoints in the database to keep it tidy
 pruneCheckpoints
     :: W.WalletId
+    -> Checkpoint
     -> SqlPersistT IO ()
-pruneCheckpoints wid = do
-    selectLatestCheckpoint wid >>= \case
-        Nothing -> pure ()
-        Just cp -> do
-            let height = Quantity $ fromIntegral $ checkpointBlockHeight cp
-            let epochStability = Quantity $ checkpointEpochStability cp
-            let cps = sparseCheckpoints epochStability height
-            deleteCheckpoints wid [ CheckpointBlockHeight /<-. cps ]
+pruneCheckpoints wid cp = do
+    let height = Quantity $ fromIntegral $ checkpointBlockHeight cp
+    let epochStability = Quantity $ checkpointEpochStability cp
+    let cps = sparseCheckpoints epochStability height
+    deleteCheckpoints wid [ CheckpointBlockHeight /<-. cps ]
 
 -- | Delete TxMeta values for a wallet.
 deleteTxMetas

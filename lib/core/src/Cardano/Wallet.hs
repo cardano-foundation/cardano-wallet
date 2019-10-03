@@ -574,7 +574,7 @@ restoreBlocks ctx wid blocks nodeTip = do
             when (fromIntegral h `elem` unstable) (makeCheckpoint cp)
 
         let meta' = calculateMetadata (view #slotId localTip)
-        makeCheckpoint (NE.last cps)
+        makeCheckpoint (NE.last cps) *> DB.prune db (PrimaryKey wid)
         DB.putTxHistory db (PrimaryKey wid) txs
         DB.putWalletMeta db (PrimaryKey wid) meta'
 

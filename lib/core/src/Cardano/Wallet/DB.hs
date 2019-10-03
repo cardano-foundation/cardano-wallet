@@ -164,6 +164,11 @@ data DBLayer m s t k = DBLayer
         -> ExceptT ErrNoSuchWallet m ()
         -- ^ Drops all checkpoints and transaction data after the given slot.
 
+    , prune
+        :: PrimaryKey WalletId
+        -> ExceptT ErrNoSuchWallet m ()
+        -- ^ Prune database entities and remove entities that can be discarded.
+
     , withLock
         :: forall e a. ()
         => ExceptT e m a

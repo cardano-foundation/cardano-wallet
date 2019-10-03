@@ -304,9 +304,10 @@ instance Arbitrary WalletMetadata where
 
 instance Arbitrary BlockHeader where
     arbitrary = do
-        sid <- arbitrary
+        sid@(SlotId ep sl) <- arbitrary
+        let h = fromIntegral sl + fromIntegral ep * arbitraryEpochLength
         bytes <- B8.pack <$> vectorOf 8 (elements ['a'..'f'])
-        pure $ BlockHeader sid (Quantity 0) (Hash bytes)
+        pure $ BlockHeader sid (Quantity h) (Hash bytes)
 
 instance Arbitrary SlotId where
     shrink (SlotId ep sl) =
