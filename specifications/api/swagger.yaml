@@ -707,6 +707,15 @@ x-responsesListWallets: &responsesListWallets
       type: array
       items: *ApiWallet
 
+x-responsesListByronWallets: &responsesListByronWallets
+  <<: *responsesErr405
+  <<: *responsesErr406
+  200:
+    description: Ok
+    schema:
+      type: array
+      items: *ApiByronWallet
+
 x-responsesGetUTxOsStatistics: &responsesGetUTxOsStatistics
   <<: *responsesErr404
   <<: *responsesErr405
@@ -1109,3 +1118,14 @@ paths:
         description: |
           <p align="right">status: <strong>not implemented</strong></p>
         responses: *responsesGetNetworkInformation
+
+  /byron/wallets:
+    get:
+      operationId: listByronWallets
+      tags: ["Wallets"]
+      summary: List
+      description: |
+        <p align="right">status: <strong>not implemented</strong></p>
+
+        Return a list of known Byron wallets, ordered from oldest to newest.
+      responses: *responsesListByronWallets

@@ -74,6 +74,7 @@ import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress (..)
     , ApiBlockData (..)
+    , ApiByronWallet (..)
     , ApiErrorCode (..)
     , ApiFee (..)
     , ApiStakePool
@@ -208,7 +209,7 @@ import Servant
     , throwError
     )
 import Servant.Server
-    ( Handler (..), ServantErr (..), emptyServer )
+    ( Handler (..), ServantErr (..) )
 
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -629,7 +630,13 @@ listPools _ctx = throwError err501
 compatibilityApiServer
     :: ctx
     -> Server (CompatibilityApi t)
-compatibilityApiServer _ = emptyServer
+compatibilityApiServer =
+    listByronWallets
+
+listByronWallets
+    :: ctx
+    -> Handler [ApiByronWallet]
+listByronWallets _ = throwError err501
 
 {-------------------------------------------------------------------------------
                                 Helpers

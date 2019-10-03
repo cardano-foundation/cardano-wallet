@@ -45,6 +45,7 @@ import Cardano.Wallet
     ( WalletLayer (..) )
 import Cardano.Wallet.Api.Types
     ( ApiAddress
+    , ApiByronWallet
     , ApiFee
     , ApiStakePool
     , ApiT
@@ -104,8 +105,6 @@ import Servant.API
     , QueryParam
     , ReqBody
     )
-import Servant.API.Empty
-    ( EmptyAPI )
 
 type Api t = CoreApi t :<|> CompatibilityApi t
 
@@ -242,7 +241,13 @@ type ListStakePools = "stake-pools"
                               Compatibility API
 ==============================================================================-}
 
-type CompatibilityApi t = EmptyAPI
+type CompatibilityApi t =
+    ListByronWallets
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listByronWallets
+type ListByronWallets = "byron"
+    :> "wallets"
+    :> Get '[JSON] [ApiByronWallet]
 
 {-------------------------------------------------------------------------------
                                    Internals
