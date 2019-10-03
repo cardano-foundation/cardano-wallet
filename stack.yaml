@@ -18,6 +18,16 @@ extra-deps:
 - quickcheck-state-machine-0.6.0
 - command-0.1.1
 
+# persistent-sqlite with CASCADE DELETE support
+#
+# FIXME: host under input-output-hk origanization.
+- git: https://github.com/KtorZ/persistent
+  commit: 79f2ece07eafae005a703c8eda1bd2420b5e07b5
+  subdirs:
+      - persistent-sqlite
+- persistent-template-2.7.2
+- persistent-2.10.1
+
 # cardano-crypto
 - git: https://github.com/input-output-hk/cardano-crypto
   commit: 3c5db489c71a4d70ee43f5f9b979fcde3c797f2a
