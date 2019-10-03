@@ -53,6 +53,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxId
     , ApiUtxoStatistics
     , ApiWallet
+    , ByronWalletPostData
     , Iso8601Time
     , PostExternalTransactionData
     , PostTransactionData
@@ -243,11 +244,18 @@ type ListStakePools = "stake-pools"
 
 type CompatibilityApi t =
     ListByronWallets
+    :<|> PostByronWallet
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listByronWallets
 type ListByronWallets = "byron"
     :> "wallets"
     :> Get '[JSON] [ApiByronWallet]
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postByronWallet
+type PostByronWallet = "byron"
+    :> "wallets"
+    :> ReqBody '[JSON] ByronWalletPostData
+    :> PostAccepted '[JSON] ApiByronWallet
 
 {-------------------------------------------------------------------------------
                                    Internals

@@ -84,6 +84,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxInput (..)
     , ApiUtxoStatistics (..)
     , ApiWallet (..)
+    , ByronWalletPostData (..)
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
     , PostTransactionData
@@ -630,13 +631,20 @@ listPools _ctx = throwError err501
 compatibilityApiServer
     :: ctx
     -> Server (CompatibilityApi t)
-compatibilityApiServer =
-    listByronWallets
+compatibilityApiServer ctx =
+    listByronWallets ctx
+    :<|> postByronWallet ctx
 
 listByronWallets
     :: ctx
     -> Handler [ApiByronWallet]
 listByronWallets _ = throwError err501
+
+postByronWallet
+    :: ctx
+    -> ByronWalletPostData
+    -> Handler ApiByronWallet
+postByronWallet _ _ = throwError err501
 
 {-------------------------------------------------------------------------------
                                 Helpers

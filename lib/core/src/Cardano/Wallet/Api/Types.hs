@@ -52,6 +52,7 @@ module Cardano.Wallet.Api.Types
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
+    , ByronWalletPostData (..)
 
     -- * Polymorphic Types
     , ApiT (..)
@@ -199,6 +200,12 @@ data WalletPostData = WalletPostData
     { addressPoolGap :: !(Maybe (ApiT AddressPoolGap))
     , mnemonicSentence :: !(ApiMnemonicT '[15,18,21,24] "seed")
     , mnemonicSecondFactor :: !(Maybe (ApiMnemonicT '[9,12] "generation"))
+    , name :: !(ApiT WalletName)
+    , passphrase :: !(ApiT (Passphrase "encryption"))
+    } deriving (Eq, Generic, Show)
+
+data ByronWalletPostData = ByronWalletPostData
+    { mnemonicSentence :: !(ApiMnemonicT '[12] "seed")
     , name :: !(ApiT WalletName)
     , passphrase :: !(ApiT (Passphrase "encryption"))
     } deriving (Eq, Generic, Show)
@@ -398,6 +405,11 @@ instance ToJSON ApiWallet where
 instance FromJSON WalletPostData where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON  WalletPostData where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ByronWalletPostData where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON  ByronWalletPostData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON WalletPutData where
