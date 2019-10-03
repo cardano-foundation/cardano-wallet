@@ -16,6 +16,9 @@ module Cardano.Wallet.DB
     , PrimaryKey(..)
     , cleanDB
 
+      -- * Checkpoints
+    , sparseCheckpoints
+
       -- * Errors
     , ErrNoSuchWallet(..)
     , ErrWalletAlreadyExists(..)
@@ -28,7 +31,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
-    ( DefineTx (..)
+    ( BlockHeader (..)
+    , DefineTx (..)
     , Hash
     , Range (..)
     , SlotId (..)
@@ -40,8 +44,14 @@ import Cardano.Wallet.Primitive.Types
     )
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
+import Data.Quantity
+    ( Quantity (..) )
+import Data.Word
+    ( Word32, Word64 )
 import GHC.Generics
     ( Generic )
+
+import qualified Data.List as L
 
 -- | Instantiate database layers at will
 data DBFactory m s t k = DBFactory
@@ -183,3 +193,63 @@ newtype PrimaryKey key = PrimaryKey key
 -- | Clean a database by removing all wallets.
 cleanDB :: Monad m => DBLayer m s t k -> m ()
 cleanDB db = listWallets db >>= mapM_ (runExceptT . removeWallet db)
+
+-- | Storing EVERY checkpoints in the database is quite expensive and useless.
+-- We make the following assumptions:
+--
+-- - We can't rollback for more than `k=epochStability` blocks in the past
+-- - It is pretty fast to re-sync a few hundred blocks
+-- - Small rollbacks may occur more often than long one
+--
+-- So, as we insert checkpoints, we make sure to:
+--
+-- - Prune any checkpoint that more than `k` blocks in the past
+-- - Keep only one checkpoint every 100 blocks
+-- - But still keep ~10 most recent checkpoints to cope with small rollbacks
+--
+-- __Example 1__: Inserting `cp153`
+--
+--  ℹ: `cp142` is discarded and `cp153` inserted.
+--
+--  @
+--  Currently in DB:
+-- ┌───┬───┬───┬─  ──┬───┐
+-- │cp000 │cp100 │cp142 │..    ..│cp152 │
+-- └───┴───┴───┴─  ──┴───┘
+--  Want in DB:
+-- ┌───┬───┬───┬─  ──┬───┐
+-- │cp000 │cp100 │cp143 │..    ..│cp153 │
+-- └───┴───┴───┴─  ──┴───┘
+--  @
+--
+--
+--  __Example 2__: Inserting `cp111`
+--
+--  ℹ: `cp100` is kept and `cp111` inserted.
+--
+--  @
+--  Currently in DB:
+-- ┌───┬───┬───┬─  ──┬───┐
+-- │cp000 │cp100 │cp101 │..    ..│cp110 │
+-- └───┴───┴───┴─  ──┴───┘
+--  Want in DB:
+-- ┌───┬───┬───┬─  ──┬───┐
+-- │cp000 │cp100 │cp101 │..    ..│cp111 │
+-- └───┴───┴───┴─  ──┴───┘
+--  @
+sparseCheckpoints
+    :: Quantity "block" Word32
+        -- ^ Epoch Stability, i.e. how far we can rollback
+    -> BlockHeader
+        -- ^ A block header
+    -> [Word64]
+        -- ^ The list of checkpoint heights that should be kept in DB.
+sparseCheckpoints epochStability blkH =
+    let
+        k = fromIntegral $ getQuantity epochStability
+        h = fromIntegral $ getQuantity $ blockHeight blkH
+        minH = if h < k + 100 then 0 else h - k - 100
+        cps = L.sort $ L.nub $
+            [0,100..h] ++ if h < 10 then [0..h] else [h-10,h-9..h]
+    in
+        [ cp | cp <- cps, cp >= minH ]
