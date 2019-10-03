@@ -154,6 +154,7 @@ import Database.Persist.Sql
     , selectList
     , updateWhere
     , (<-.)
+    , (<.)
     , (<=.)
     , (=.)
     , (==.)
@@ -431,7 +432,7 @@ newDBLayer logConfig trace fp = do
                         [ TxMetaDirection ==. W.Incoming
                         , TxMetaSlotId >. point
                         ]
-                    rollbackState @s wid point
+                    pruneState @s wid (>. point)
 
         {-----------------------------------------------------------------------
                                    Wallet Metadata
@@ -817,7 +818,8 @@ deleteUTxOs wid filters =
 -- | Clean up checkpoints which are greater than `k` blocks old for we know we
 -- can't rollback that far.
 purgeCheckpoints
-    :: W.WalletId
+    :: forall s t. (PersistState s)
+    => W.WalletId
     -> W.Wallet s t
     -> SqlPersistT IO ()
 purgeCheckpoints wid cp = do
@@ -831,14 +833,14 @@ purgeCheckpoints wid cp = do
     case mCp of
         Nothing -> return ()
         Just minCp -> do
-            deleteWhere
-                [ UtxoWalletId ==. wid
-                , UtxoSlot <=. checkpointSlot (entityVal minCp)
+            deleteCheckpoints wid
+                [ CheckpointBlockHeight <. minHeight
                 ]
-            deleteWhere
-                [ CheckpointWalletId ==. wid
-                , CheckpointBlockHeight <=. minHeight
+            deleteUTxOs wid
+                [ UtxoSlot <. checkpointSlot (entityVal minCp)
                 ]
+            pruneState @s wid
+                (<. checkpointSlot (entityVal minCp))
   where
     word64 :: Integral a => Quantity "block" a -> Word64
     word64 (Quantity x) = fromIntegral x
@@ -973,14 +975,18 @@ checkpointId cp = (checkpointWalletId cp, checkpointSlot cp)
 -- | Functions for saving/loading the wallet's address discovery state into
 -- SQLite.
 class PersistState s where
+    type StateAddress s :: *
     -- | Store the state for a checkpoint.
     insertState :: (W.WalletId, W.SlotId) -> s -> SqlPersistT IO ()
     -- | Load the state for a checkpoint.
     selectState :: (W.WalletId, W.SlotId) -> SqlPersistT IO (Maybe s)
     -- | Drop the state and everything related to it
     deleteState :: W.WalletId -> SqlPersistT IO ()
-    -- | Rollback the state to a given slot
-    rollbackState :: W.WalletId -> W.SlotId -> SqlPersistT IO ()
+    -- | Remove states matching the given predicate
+    pruneState
+        :: W.WalletId
+        -> (EntityField (StateAddress s) W.SlotId -> Filter (StateAddress s))
+        -> SqlPersistT IO ()
 
 class DefineTx t => PersistTx t where
     resolvedInputs :: Tx t -> [(W.TxIn, Maybe W.Coin)]
@@ -1002,6 +1008,7 @@ class DefineTx t => PersistTx t where
 -------------------------------------------------------------------------------}
 
 instance W.KeyToAddress t Seq.SeqKey => PersistState (Seq.SeqState t) where
+    type StateAddress (Seq.SeqState t) = SeqStateAddress
     insertState (wid, sl) st = do
         let (intPool, extPool) = (Seq.internalPool st, Seq.externalPool st)
         let (xpub, _) = W.invariant
@@ -1030,10 +1037,10 @@ instance W.KeyToAddress t Seq.SeqKey => PersistState (Seq.SeqState t) where
         deleteWhere [SeqStatePendingWalletId ==. wid]
         deleteWhere [SeqStateWalletId ==. wid]
 
-    rollbackState wid slot = do
+    pruneState wid predicate = do
         deleteWhere
             [ SeqStateAddressWalletId ==. wid
-            , SeqStateAddressSlot >. slot
+            , predicate SeqStateAddressSlot
             ]
 
 insertAddressPool
@@ -1095,6 +1102,7 @@ type RndStateAddresses = Map
 -- added to the database with 'putPrivateKey'. Unlike sequential AD, random
 -- address discovery requires a root key to recognize addresses.
 instance PersistState (Rnd.RndState t) where
+    type StateAddress (Rnd.RndState t) = RndStateAddress
     insertState (wid, sl) st = do
         let ix = W.getIndex (st ^. #accountIndex)
         let gen = st ^. #gen
@@ -1123,10 +1131,10 @@ instance PersistState (Rnd.RndState t) where
         deleteWhere [ RndStatePendingAddressWalletId ==. wid ]
         deleteWhere [ RndStateWalletId ==. wid ]
 
-    rollbackState wid slot = do
+    pruneState wid predicate = do
         deleteWhere
             [ RndStateAddressWalletId ==. wid
-            , RndStateAddressSlot >. slot
+            , predicate RndStateAddressSlot
             ]
 
 insertRndStateAddresses
