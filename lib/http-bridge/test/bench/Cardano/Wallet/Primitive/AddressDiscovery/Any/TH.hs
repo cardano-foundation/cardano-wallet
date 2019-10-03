@@ -6,6 +6,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 
 -- |
@@ -21,6 +22,8 @@ import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Types
     ( sqlSettings' )
+import Database.Persist.Class
+    ( AtLeastOneUniqueKey (..), OnlyOneUniqueKey (..) )
 import Database.Persist.TH
     ( mkDeleteCascade, mkMigrate, mkPersist, persistLowerCase, share )
 import GHC.Generics
@@ -40,6 +43,5 @@ AnyAddressState
     anyAddressStateProportion      Double      sql=proportion
 
     UniqueAnyAddressState anyAddressStateWalletId anyAddressStateCheckpointSlot
-    -- Foreign Checkpoint fk_checkpoint_any_address_state anyAddressStateWalletId anyAddressStateCheckpointSlot
     deriving Show Generic
 |]

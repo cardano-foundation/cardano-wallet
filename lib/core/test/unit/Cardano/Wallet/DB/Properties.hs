@@ -5,6 +5,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -28,6 +29,7 @@ import Cardano.Wallet.DB
     , ErrWalletAlreadyExists (..)
     , PrimaryKey (..)
     , cleanDB
+    , sparseCheckpoints
     )
 import Cardano.Wallet.DB.Arbitrary
     ( GenState
@@ -45,7 +47,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Sequential
 import Cardano.Wallet.Primitive.Model
     ( Wallet, applyBlock, currentTip )
 import Cardano.Wallet.Primitive.Types
-    ( Direction (..)
+    ( BlockHeader (..)
+    , Direction (..)
     , Hash (..)
     , ShowFmt (..)
     , SlotId (..)
@@ -74,6 +77,8 @@ import Control.Monad.Trans.State.Strict
     ( evalStateT, get, modify' )
 import Data.Bifunctor
     ( bimap )
+import Data.Function
+    ( (&) )
 import Data.Functor
     ( ($>) )
 import Data.Functor.Identity
@@ -90,8 +95,12 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Set
     ( Set )
+import Data.Word
+    ( Word32, Word64 )
 import Fmt
     ( Buildable, blockListF, pretty )
+import Numeric.Natural
+    ( Natural )
 import Test.Hspec
     ( Spec
     , SpecWith
@@ -105,6 +114,7 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
+    , NonNegative (..)
     , Property
     , checkCoverage
     , counterexample
@@ -112,6 +122,7 @@ import Test.QuickCheck
     , elements
     , label
     , property
+    , suchThat
     )
 import Test.QuickCheck.Monadic
     ( PropertyM, assert, monadicIO, monitor, pick, run )
@@ -216,6 +227,37 @@ properties = do
             (property . prop_rollbackCheckpoint)
         it "Correctly re-construct tx history on rollbacks"
             (checkCoverage . prop_rollbackTxHistory)
+
+    describe "sparseCheckpoints" $ do
+        it "k=2160, h=42" $ \_ -> do
+            let k = Quantity 2160
+            let h = Quantity 42
+            -- First unstable block: 0
+            sparseCheckpoints k h `shouldBe`
+                [0,32,33,34,35,36,37,38,39,40,41,42]
+
+        it "k=2160, h=2414" $ \_ -> do
+            let k = Quantity 2160
+            let h = Quantity 2714
+            -- First unstable block: 554
+            sparseCheckpoints k h `shouldBe`
+                [ 500  , 600  , 700  , 800  , 900
+                , 1000 , 1100 , 1200 , 1300 , 1400
+                , 1500 , 1600 , 1700 , 1800 , 1900
+                , 2000 , 2100 , 2200 , 2300 , 2400
+                , 2500 , 2600 , 2700 , 2704 , 2705
+                , 2706 , 2707 , 2708 , 2709 , 2710
+                , 2711 , 2712 , 2713 , 2714
+                ]
+
+        it "The tip is always a checkpoint" $ \_ ->
+            property prop_sparseCheckpointTipAlwaysThere
+
+        it "There's at least (min h 10) checkpoints" $ \_ ->
+            property prop_sparseCheckpointMinimum
+
+        it "There's no checkpoint older than k (+/- 100)" $ \_ ->
+            property prop_sparseCheckpointNoOlderThanK
 
 -- | Wrap the result of 'readTxHistory' in an arbitrary identity Applicative
 readTxHistoryF
@@ -655,9 +697,72 @@ prop_rollbackTxHistory db (ShowFmt (InitialCheckpoint cp0)) (ShowFmt (GenTxHisto
 
     rescheduled :: SlotId -> [Hash "Tx"]
     rescheduled point =
-        let addedAfter meta = direction meta == Outgoing && slotId meta > point
+        let addedAfter meta = direction meta == Outgoing && meta ^. #slotId > point
         in filterTxs @t (\tx -> addedAfter tx || isPending tx) txs0
 
     knownAfterRollback :: SlotId -> [Hash "Tx"]
     knownAfterRollback point =
         rescheduled point ++ filterTxs @t (isBefore point) txs0
+
+-- | No matter what, the current tip is always a checkpoint.
+prop_sparseCheckpointTipAlwaysThere
+    :: GenSparseCheckpointsArgs
+    -> Property
+prop_sparseCheckpointTipAlwaysThere (GenSparseCheckpointsArgs (k, h)) = prop
+    & counterexample ("Checkpoints: " <> show cps)
+    & counterexample ("h=" <> show h)
+    & counterexample ("k=" <> show k)
+  where
+    cps = sparseCheckpoints (Quantity k) (Quantity h)
+
+    prop :: Property
+    prop = property $ fromIntegral h `elem` cps
+
+-- | Check that sparseCheckpoints always return at least 10 checkpoints (or
+-- exactly the current height if h < 10).
+prop_sparseCheckpointMinimum
+    :: GenSparseCheckpointsArgs
+    -> Property
+prop_sparseCheckpointMinimum (GenSparseCheckpointsArgs (k, h)) = prop
+    & counterexample ("Checkpoints: " <> show cps)
+    & counterexample ("h=" <> show h)
+    & counterexample ("k=" <> show k)
+  where
+    cps = sparseCheckpoints (Quantity k) (Quantity h)
+
+    prop :: Property
+    prop = property $ fromIntegral (length cps) >= min 10 h
+
+
+-- | Check that sparseCheckpoints always return checkpoints that can cover
+-- rollbacks up to `k` in the past. This means that, if the current block height
+-- is #3000, and `k=2160`, we should be able to rollback to #840. Since we make
+-- checkpoints every 100 blocks, it means that block #800 should be in the list.
+prop_sparseCheckpointNoOlderThanK
+    :: GenSparseCheckpointsArgs
+    -> Property
+prop_sparseCheckpointNoOlderThanK (GenSparseCheckpointsArgs (k, h)) = prop
+    & counterexample ("Checkpoints: " <> show ((\cp -> (age cp, cp)) <$> cps))
+    & counterexample ("h=" <> show h)
+    & counterexample ("k=" <> show k)
+  where
+    cps = sparseCheckpoints (Quantity k) (Quantity h)
+
+    prop :: Property
+    prop = property $ flip all cps $ \cp -> (age cp - 100 <= int k)
+
+    age :: Word64 -> Int
+    age cp = int h - int cp
+
+int :: Integral a => a -> Int
+int = fromIntegral
+
+newtype GenSparseCheckpointsArgs
+    = GenSparseCheckpointsArgs (Word32, Natural)
+    deriving newtype Show
+
+instance Arbitrary GenSparseCheckpointsArgs where
+    arbitrary = do
+        k <- fromIntegral @Int <$> suchThat arbitrary (>10)
+        h <- fromIntegral @Int . getNonNegative <$> arbitrary
+        pure $ GenSparseCheckpointsArgs ( k, h )

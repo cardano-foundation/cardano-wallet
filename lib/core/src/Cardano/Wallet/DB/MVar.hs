@@ -87,6 +87,8 @@ newDBLayer = do
         , rollbackTo = \pk pt -> ExceptT $
             alterDB errNoSuchWallet  db (mRollbackTo pk pt)
 
+        , prune = \_ -> error "MVar.prune: not implemented"
+
         {-----------------------------------------------------------------------
                                    Wallet Metadata
         -----------------------------------------------------------------------}

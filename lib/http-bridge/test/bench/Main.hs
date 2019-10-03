@@ -68,7 +68,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Concurrent
-    ( threadDelay )
+    ( forkIO, threadDelay )
 import Control.DeepSeq
     ( NFData, rnf )
 import Control.Exception
@@ -234,6 +234,7 @@ bench_restoration (logConfig, tracer) (wid, wname, s) =
             let g0 = staticBlockchainParameters nw
             let w = WalletLayer tracer g0 nw tl db
             wallet <- unsafeRunExceptT $ W.createWallet w wid wname s
+            void $ forkIO $ unsafeRunExceptT $ W.restoreWallet w wid
             waitForWalletSync w wallet
             (wallet', _, pending) <- unsafeRunExceptT $ W.readWallet w wid
             sayErr "Wallet restored!"

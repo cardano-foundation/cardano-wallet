@@ -84,7 +84,7 @@ import qualified Data.Text as T
 --
 -- >>> Aeson.encode $ Quantity @"lovelace" 14
 -- {"unit":"lovelace","quantity":14}
-newtype Quantity (unit :: Symbol) a = Quantity a
+newtype Quantity (unit :: Symbol) a = Quantity { getQuantity :: a }
     deriving stock (Generic, Show, Eq, Ord)
     deriving newtype (Bounded, Enum)
 

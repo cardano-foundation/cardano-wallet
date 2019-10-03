@@ -55,6 +55,7 @@ import Cardano.Wallet.DB
     , ErrNoSuchWallet (..)
     , ErrWalletAlreadyExists (..)
     , PrimaryKey (..)
+    , sparseCheckpoints
     )
 import Cardano.Wallet.DB.Sqlite.TH
     ( Checkpoint (..)
@@ -81,8 +82,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), PersistKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
-import Cardano.Wallet.Primitive.Model
-    ( currentTip )
 import Cardano.Wallet.Primitive.Types
     ( DefineTx (..) )
 import Control.Arrow
@@ -153,8 +152,8 @@ import Database.Persist.Sql
     , selectKeysList
     , selectList
     , updateWhere
+    , (/<-.)
     , (<-.)
-    , (<.)
     , (<=.)
     , (=.)
     , (==.)
@@ -378,13 +377,8 @@ newDBLayer logConfig trace fp = do
               ExceptT $ runQuery $
               selectWallet wid >>= \case
                   Just _ -> Right <$> do
-                      deleteCheckpoints wid []
-                      deleteState @s wid
-                      deleteUTxOs wid []
-                      deleteTxMetas wid []
-                      deleteLooseTransactions
-                      deleteWhere [PrivateKeyWalletId ==. wid]
                       deleteCascadeWhere [WalId ==. wid]
+                      deleteLooseTransactions
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
         , listWallets = runQuery $
@@ -398,8 +392,6 @@ newDBLayer logConfig trace fp = do
         , putCheckpoint = \(PrimaryKey wid) cp ->
               ExceptT $ runQuery $ selectWallet wid >>= \case
                   Just _ -> Right <$> do
-                      purgeCheckpoints wid cp
-                      deleteLooseTransactions
                       insertCheckpoint wid cp
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
@@ -418,9 +410,6 @@ newDBLayer logConfig trace fp = do
                     deleteCheckpoints wid
                         [ CheckpointSlot >. point
                         ]
-                    deleteUTxOs wid
-                        [ UtxoSlot >. point
-                        ]
                     updateTxMetas wid
                         [ TxMetaDirection ==. W.Outgoing
                         , TxMetaSlotId >. point
@@ -432,7 +421,13 @@ newDBLayer logConfig trace fp = do
                         [ TxMetaDirection ==. W.Incoming
                         , TxMetaSlotId >. point
                         ]
-                    pruneState @s wid (>. point)
+
+        , prune = \(PrimaryKey wid) -> ExceptT $ runQuery $
+            selectLatestCheckpoint wid >>= \case
+                Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                Just cp -> Right <$> do
+                    pruneCheckpoints wid cp
+                    deleteLooseTransactions
 
         {-----------------------------------------------------------------------
                                    Wallet Metadata
@@ -791,13 +786,13 @@ insertCheckpoint
     => W.WalletId
     -> W.Wallet s t
     -> SqlPersistT IO ()
-insertCheckpoint wid cp = do
-    let (cp', utxo) = mkCheckpointEntity wid cp
-    let sl = (W.currentTip cp) ^. #slotId
-    repsert (CheckpointKey wid sl) cp'
-    deleteWhere [UtxoWalletId ==. wid, UtxoSlot ==. sl]
+insertCheckpoint wid wallet = do
+    let (cp, utxo) = mkCheckpointEntity wid wallet
+    let sl = (W.currentTip wallet) ^. #slotId
+    deleteCheckpoints wid [CheckpointSlot ==. sl]
+    insert_ cp
     dbChunked insertMany_ utxo
-    insertState (wid, sl) (W.getState cp)
+    insertState (wid, sl) (W.getState wallet)
 
 -- | Delete one or all checkpoints associated with a wallet.
 deleteCheckpoints
@@ -805,45 +800,18 @@ deleteCheckpoints
     -> [Filter Checkpoint]
     -> SqlPersistT IO ()
 deleteCheckpoints wid filters = do
-    deleteWhere ((CheckpointWalletId ==. wid) : filters)
+    deleteCascadeWhere ((CheckpointWalletId ==. wid) : filters)
 
--- | Delete UTxO values for a wallet
-deleteUTxOs
+-- | Prune checkpoints in the database to keep it tidy
+pruneCheckpoints
     :: W.WalletId
-    -> [Filter UTxO]
+    -> Checkpoint
     -> SqlPersistT IO ()
-deleteUTxOs wid filters =
-    deleteWhere ((UtxoWalletId ==. wid) : filters)
-
--- | Clean up checkpoints which are greater than `k` blocks old for we know we
--- can't rollback that far.
-purgeCheckpoints
-    :: forall s t. (PersistState s)
-    => W.WalletId
-    -> W.Wallet s t
-    -> SqlPersistT IO ()
-purgeCheckpoints wid cp = do
-    let epochStability = W.blockchainParameters cp ^. #getEpochStability
-    let tipHeight = W.blockHeight . currentTip $ cp
-    let minHeight = word64 tipHeight - word64 epochStability
-    mCp <- selectFirst
-        [ CheckpointWalletId ==. wid
-        , CheckpointBlockHeight <=. minHeight
-        ] [Desc CheckpointBlockHeight]
-    case mCp of
-        Nothing -> return ()
-        Just minCp -> do
-            deleteCheckpoints wid
-                [ CheckpointBlockHeight <. minHeight
-                ]
-            deleteUTxOs wid
-                [ UtxoSlot <. checkpointSlot (entityVal minCp)
-                ]
-            pruneState @s wid
-                (<. checkpointSlot (entityVal minCp))
-  where
-    word64 :: Integral a => Quantity "block" a -> Word64
-    word64 (Quantity x) = fromIntegral x
+pruneCheckpoints wid cp = do
+    let height = Quantity $ fromIntegral $ checkpointBlockHeight cp
+    let epochStability = Quantity $ checkpointEpochStability cp
+    let cps = sparseCheckpoints epochStability height
+    deleteCheckpoints wid [ CheckpointBlockHeight /<-. cps ]
 
 -- | Delete TxMeta values for a wallet.
 deleteTxMetas
@@ -975,18 +943,10 @@ checkpointId cp = (checkpointWalletId cp, checkpointSlot cp)
 -- | Functions for saving/loading the wallet's address discovery state into
 -- SQLite.
 class PersistState s where
-    type StateAddress s :: *
     -- | Store the state for a checkpoint.
     insertState :: (W.WalletId, W.SlotId) -> s -> SqlPersistT IO ()
     -- | Load the state for a checkpoint.
     selectState :: (W.WalletId, W.SlotId) -> SqlPersistT IO (Maybe s)
-    -- | Drop the state and everything related to it
-    deleteState :: W.WalletId -> SqlPersistT IO ()
-    -- | Remove states matching the given predicate
-    pruneState
-        :: W.WalletId
-        -> (EntityField (StateAddress s) W.SlotId -> Filter (StateAddress s))
-        -> SqlPersistT IO ()
 
 class DefineTx t => PersistTx t where
     resolvedInputs :: Tx t -> [(W.TxIn, Maybe W.Coin)]
@@ -1008,7 +968,6 @@ class DefineTx t => PersistTx t where
 -------------------------------------------------------------------------------}
 
 instance W.KeyToAddress t Seq.SeqKey => PersistState (Seq.SeqState t) where
-    type StateAddress (Seq.SeqState t) = SeqStateAddress
     insertState (wid, sl) st = do
         let (intPool, extPool) = (Seq.internalPool st, Seq.externalPool st)
         let (xpub, _) = W.invariant
@@ -1017,7 +976,6 @@ instance W.KeyToAddress t Seq.SeqKey => PersistState (Seq.SeqState t) where
                 (uncurry (==))
         let eGap = Seq.gap extPool
         let iGap = Seq.gap intPool
-        deleteWhere [SeqStateAddressWalletId ==. wid, SeqStateAddressSlot ==. sl]
         repsert (SeqStateKey wid) (SeqState wid eGap iGap (AddressPoolXPub xpub))
         insertAddressPool wid sl intPool
         insertAddressPool wid sl extPool
@@ -1031,17 +989,6 @@ instance W.KeyToAddress t Seq.SeqKey => PersistState (Seq.SeqState t) where
         extPool <- lift $ selectAddressPool wid sl eGap xPub
         pendingChangeIxs <- lift $ selectSeqStatePendingIxs wid
         pure $ Seq.SeqState intPool extPool pendingChangeIxs
-
-    deleteState wid = do
-        deleteWhere [SeqStateAddressWalletId ==. wid]
-        deleteWhere [SeqStatePendingWalletId ==. wid]
-        deleteWhere [SeqStateWalletId ==. wid]
-
-    pruneState wid predicate = do
-        deleteWhere
-            [ SeqStateAddressWalletId ==. wid
-            , predicate SeqStateAddressSlot
-            ]
 
 insertAddressPool
     :: forall t c. (Typeable c)
@@ -1102,7 +1049,6 @@ type RndStateAddresses = Map
 -- added to the database with 'putPrivateKey'. Unlike sequential AD, random
 -- address discovery requires a root key to recognize addresses.
 instance PersistState (Rnd.RndState t) where
-    type StateAddress (Rnd.RndState t) = RndStateAddress
     insertState (wid, sl) st = do
         let ix = W.getIndex (st ^. #accountIndex)
         let gen = st ^. #gen
@@ -1126,24 +1072,12 @@ instance PersistState (Rnd.RndState t) where
             , gen = gen
             }
 
-    deleteState wid = do
-        deleteWhere [ RndStateAddressWalletId ==. wid ]
-        deleteWhere [ RndStatePendingAddressWalletId ==. wid ]
-        deleteWhere [ RndStateWalletId ==. wid ]
-
-    pruneState wid predicate = do
-        deleteWhere
-            [ RndStateAddressWalletId ==. wid
-            , predicate RndStateAddressSlot
-            ]
-
 insertRndStateAddresses
     :: W.WalletId
     -> W.SlotId
     -> RndStateAddresses
     -> SqlPersistT IO ()
 insertRndStateAddresses wid sl addresses = do
-    deleteWhere [RndStateAddressWalletId ==. wid, RndStateAddressSlot ==. sl]
     dbChunked insertMany_
         [ RndStateAddress wid sl accIx addrIx addr
         | ((W.Index accIx, W.Index addrIx), addr) <- Map.assocs addresses

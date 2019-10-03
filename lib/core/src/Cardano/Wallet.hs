@@ -113,6 +113,7 @@ import Cardano.Wallet.DB
     , ErrNoSuchWallet (..)
     , ErrWalletAlreadyExists (..)
     , PrimaryKey (..)
+    , sparseCheckpoints
     )
 import Cardano.Wallet.Network
     ( ErrNetworkUnavailable (..), ErrPostTx (..), NetworkLayer (..), follow )
@@ -242,7 +243,7 @@ import Data.Time.Clock
 import Data.Word
     ( Word16 )
 import Fmt
-    ( Buildable, blockListF, pretty, (+|), (+||), (|+), (||+) )
+    ( Buildable, blockListF, pretty )
 import GHC.Generics
     ( Generic )
 
@@ -546,6 +547,8 @@ restoreBlocks ctx wid blocks nodeTip = do
         let bp = blockchainParameters wallet
         let (txs0, cps) = NE.unzip $ applyBlocks @s @t blocks wallet
         let txs = fold txs0
+        let k = bp ^. #getEpochStability
+        let localTip = currentTip $ NE.last cps
 
         let calculateMetadata :: SlotId -> WalletMetadata
             calculateMetadata slot = meta { status = status' }
@@ -559,37 +562,30 @@ restoreBlocks ctx wid blocks nodeTip = do
                     then Ready
                     else Restoring progress'
 
-        -- NOTE:
-        -- We cast `k` and `nodeHeight` to 'Integer' since at a given point
-        -- in time, `k` may be greater than the tip.
-        let (Quantity k) = bp ^. #getEpochStability
-        let (Quantity nodeHeight) = nodeTip ^. #blockHeight
-        let bhUnstable :: Integer
-            bhUnstable = fromIntegral nodeHeight - fromIntegral k
-
-        forM_ (NE.init cps) $ \cp -> do
-            let (Quantity bh) = blockHeight $ currentTip cp
-            when (fromIntegral bh >= bhUnstable) $
+        let makeCheckpoint :: Wallet s t -> ExceptT ErrNoSuchWallet IO ()
+            makeCheckpoint cp = do
+                liftIO $ logInfo tr $
+                    "Creating checkpoint at " <> pretty (currentTip cp)
                 DB.putCheckpoint db (PrimaryKey wid) cp
 
-        -- NOTE:
-        -- Always store the last checkpoint from the batch and all new
-        -- transactions.
-        let cpLast = NE.last cps
-        let Quantity bhLast = blockHeight $ currentTip cpLast
-        let meta' = calculateMetadata (view #slotId $ currentTip cpLast)
-        DB.putCheckpoint db (PrimaryKey wid) cpLast
+        let unstable = sparseCheckpoints k (blockHeight nodeTip)
+        forM_  cps $ \cp -> do
+            let (Quantity h) = blockHeight $ currentTip cp
+            when (fromIntegral h `elem` unstable) (makeCheckpoint cp)
+
+        let meta' = calculateMetadata (view #slotId localTip)
+        makeCheckpoint (NE.last cps) *> DB.prune db (PrimaryKey wid)
         DB.putTxHistory db (PrimaryKey wid) txs
         DB.putWalletMeta db (PrimaryKey wid) meta'
 
         let slotLast = view #slotId . header . NE.last $ blocks
         liftIO $ do
-            logInfo tr $ ""
-                +|| pretty (calculateMetadata slotLast)
+            logInfo tr $
+                pretty (calculateMetadata slotLast)
             logInfo tr $ "discovered "
-                +|| length txs ||+ " new transaction(s)"
-            logInfo tr $ "new block height: "
-                +|| bhLast ||+ ""
+                <> pretty (length txs) <> " new transaction(s)"
+            logInfo tr $ "local tip: "
+                <> pretty localTip
             logDebug tr $ "blocks: "
                 <> pretty (NE.toList blocks)
             logDebug tr $ "transactions: "
@@ -712,7 +708,7 @@ createUnsignedTx ctx wid recipients = do
     (sel, utxo') <- withExceptT ErrCreateUnsignedTxCoinSelection $ do
         let opts = coinSelOpts tl (bp ^. #getTxMaxSize)
         CoinSelection.random opts recipients utxo
-    liftIO . logInfo tr $ "Coins selected for transaction: \n"+| sel |+""
+    liftIO . logInfo tr $ "Coins selected for transaction: \n" <> pretty sel
     withExceptT ErrCreateUnsignedTxFee $ do
         debug tr "Coins after fee adjustment"
             =<< adjustForFee (feeOpts tl (bp ^. #getFeePolicy)) utxo' sel
