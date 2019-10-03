@@ -568,7 +568,7 @@ restoreBlocks ctx wid blocks nodeTip = do
                     "Creating checkpoint at " <> pretty (currentTip cp)
                 DB.putCheckpoint db (PrimaryKey wid) cp
 
-        let unstable = sparseCheckpoints k nodeTip
+        let unstable = sparseCheckpoints k (blockHeight nodeTip)
         forM_  cps $ \cp -> do
             let (Quantity h) = blockHeight $ currentTip cp
             when (fromIntegral h `elem` unstable) (makeCheckpoint cp)

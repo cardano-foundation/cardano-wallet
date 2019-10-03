@@ -82,8 +82,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), PersistKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
-import Cardano.Wallet.Primitive.Model
-    ( currentTip )
 import Cardano.Wallet.Primitive.Types
     ( DefineTx (..) )
 import Control.Arrow

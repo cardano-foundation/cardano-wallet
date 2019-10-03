@@ -31,8 +31,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..)
-    , DefineTx (..)
+    ( DefineTx (..)
     , Hash
     , Range (..)
     , SlotId (..)
@@ -50,6 +49,8 @@ import Data.Word
     ( Word32, Word64 )
 import GHC.Generics
     ( Generic )
+import Numeric.Natural
+    ( Natural )
 
 import qualified Data.List as L
 
@@ -240,8 +241,8 @@ cleanDB db = listWallets db >>= mapM_ (runExceptT . removeWallet db)
 sparseCheckpoints
     :: Quantity "block" Word32
         -- ^ Epoch Stability, i.e. how far we can rollback
-    -> BlockHeader
-        -- ^ A block header
+    -> Quantity "block" Natural
+        -- ^ A given block height
     -> [Word64]
         -- ^ The list of checkpoint heights that should be kept in DB.
 sparseCheckpoints epochStability blkH =
@@ -250,7 +251,7 @@ sparseCheckpoints epochStability blkH =
         edgeSize = 10
 
         k = fromIntegral $ getQuantity epochStability
-        h = fromIntegral $ getQuantity $ blockHeight blkH
+        h = fromIntegral $ getQuantity blkH
         minH =
             let x = if h < k then 0 else h - k
             in gapsSize * (x `div` gapsSize)

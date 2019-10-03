@@ -99,6 +99,8 @@ import Data.Word
     ( Word32, Word64 )
 import Fmt
     ( Buildable, blockListF, pretty )
+import Numeric.Natural
+    ( Natural )
 import Test.Hspec
     ( Spec
     , SpecWith
@@ -227,20 +229,18 @@ properties = do
             (checkCoverage . prop_rollbackTxHistory)
 
     describe "sparseCheckpoints" $ do
-        let mkBlk h = BlockHeader (SlotId 0 0) h (Hash "arbitrary")
-
         it "k=2160, h=42" $ \_ -> do
             let k = Quantity 2160
             let h = Quantity 42
             -- First unstable block: 0
-            sparseCheckpoints k (mkBlk h) `shouldBe`
+            sparseCheckpoints k h `shouldBe`
                 [0,32,33,34,35,36,37,38,39,40,41,42]
 
         it "k=2160, h=2414" $ \_ -> do
             let k = Quantity 2160
             let h = Quantity 2714
             -- First unstable block: 554
-            sparseCheckpoints k (mkBlk h) `shouldBe`
+            sparseCheckpoints k h `shouldBe`
                 [ 500  , 600  , 700  , 800  , 900
                 , 1000 , 1100 , 1200 , 1300 , 1400
                 , 1500 , 1600 , 1700 , 1800 , 1900
@@ -708,32 +708,31 @@ prop_rollbackTxHistory db (ShowFmt (InitialCheckpoint cp0)) (ShowFmt (GenTxHisto
 prop_sparseCheckpointTipAlwaysThere
     :: GenSparseCheckpointsArgs
     -> Property
-prop_sparseCheckpointTipAlwaysThere (GenSparseCheckpointsArgs (k, blk)) = prop
+prop_sparseCheckpointTipAlwaysThere (GenSparseCheckpointsArgs (k, h)) = prop
     & counterexample ("Checkpoints: " <> show cps)
     & counterexample ("h=" <> show h)
     & counterexample ("k=" <> show k)
   where
-    prop :: Property
-    prop = property $ h `elem` cps
+    cps = sparseCheckpoints (Quantity k) (Quantity h)
 
-    h = fromIntegral $ getQuantity $ blockHeight blk
-    cps = sparseCheckpoints (Quantity k) blk
+    prop :: Property
+    prop = property $ fromIntegral h `elem` cps
 
 -- | Check that sparseCheckpoints always return at least 10 checkpoints (or
 -- exactly the current height if h < 10).
 prop_sparseCheckpointMinimum
     :: GenSparseCheckpointsArgs
     -> Property
-prop_sparseCheckpointMinimum (GenSparseCheckpointsArgs (k, blk)) = prop
+prop_sparseCheckpointMinimum (GenSparseCheckpointsArgs (k, h)) = prop
     & counterexample ("Checkpoints: " <> show cps)
     & counterexample ("h=" <> show h)
     & counterexample ("k=" <> show k)
   where
+    cps = sparseCheckpoints (Quantity k) (Quantity h)
+
     prop :: Property
     prop = property $ fromIntegral (length cps) >= min 10 h
 
-    h = getQuantity $ blockHeight blk
-    cps = sparseCheckpoints (Quantity k) blk
 
 -- | Check that sparseCheckpoints always return checkpoints that can cover
 -- rollbacks up to `k` in the past. This means that, if the current block height
@@ -742,32 +741,28 @@ prop_sparseCheckpointMinimum (GenSparseCheckpointsArgs (k, blk)) = prop
 prop_sparseCheckpointNoOlderThanK
     :: GenSparseCheckpointsArgs
     -> Property
-prop_sparseCheckpointNoOlderThanK (GenSparseCheckpointsArgs (k, blk)) = prop
+prop_sparseCheckpointNoOlderThanK (GenSparseCheckpointsArgs (k, h)) = prop
     & counterexample ("Checkpoints: " <> show ((\cp -> (age cp, cp)) <$> cps))
     & counterexample ("h=" <> show h)
     & counterexample ("k=" <> show k)
   where
+    cps = sparseCheckpoints (Quantity k) (Quantity h)
+
     prop :: Property
     prop = property $ flip all cps $ \cp -> (age cp - 100 <= int k)
 
     age :: Word64 -> Int
     age cp = int h - int cp
 
-    h = getQuantity $ blockHeight blk
-    cps = sparseCheckpoints (Quantity k) blk
-
 int :: Integral a => a -> Int
 int = fromIntegral
 
 newtype GenSparseCheckpointsArgs
-    = GenSparseCheckpointsArgs (Word32, BlockHeader)
+    = GenSparseCheckpointsArgs (Word32, Natural)
     deriving newtype Show
 
 instance Arbitrary GenSparseCheckpointsArgs where
     arbitrary = do
         k <- fromIntegral @Int <$> suchThat arbitrary (>10)
-        h <- Quantity . fromIntegral @Int . getNonNegative <$> arbitrary
-        pure $ GenSparseCheckpointsArgs
-            ( k
-            , BlockHeader (SlotId 0 0) h (Hash "arbitrary")
-            )
+        h <- fromIntegral @Int . getNonNegative <$> arbitrary
+        pure $ GenSparseCheckpointsArgs ( k, h )
