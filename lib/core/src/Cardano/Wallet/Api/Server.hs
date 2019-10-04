@@ -795,7 +795,7 @@ newApiLayer
     :: forall ctx s t k. (ctx ~ ApiLayer s t k, DefineTx t)
     => Trace IO Text
     -> (Block (Tx t), BlockchainParameters)
-    -> NetworkLayer IO (Tx t) (Block (Tx t))
+    -> NetworkLayer IO t (Block (Tx t))
     -> TransactionLayer t k
     -> DBFactory IO s t k
     -> [WalletId]

@@ -300,7 +300,7 @@ data WalletLayer s t (k :: Depth -> * -> *)
     = WalletLayer
         (Trace IO Text)
         (Block (Tx t), BlockchainParameters)
-        (NetworkLayer IO (Tx t) (Block (Tx t)))
+        (NetworkLayer IO t (Block (Tx t)))
         (TransactionLayer t k)
         (DBLayer IO s t k)
     deriving (Generic)
@@ -343,7 +343,7 @@ type HasLogger = HasType (Trace IO Text)
 
 -- | This module is only interested in one block-, and tx-type. This constraint
 -- hides that choice, for some ease of use.
-type HasNetworkLayer t = HasType (NetworkLayer IO (Tx t) (Block (Tx t)))
+type HasNetworkLayer t = HasType (NetworkLayer IO t (Block (Tx t)))
 
 type HasTransactionLayer t k = HasType (TransactionLayer t k)
 
@@ -367,9 +367,9 @@ logger =
 
 networkLayer
     :: forall t ctx. (HasNetworkLayer t ctx)
-    => Lens' ctx (NetworkLayer IO (Tx t) (Block (Tx t)))
+    => Lens' ctx (NetworkLayer IO t (Block (Tx t)))
 networkLayer =
-    typed @(NetworkLayer IO (Tx t) (Block (Tx t)))
+    typed @(NetworkLayer IO t (Block (Tx t)))
 
 transactionLayer
     :: forall t k ctx. (HasTransactionLayer t k ctx)
