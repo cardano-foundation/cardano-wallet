@@ -73,6 +73,7 @@ library
   exposed-modules:
       Cardano.Wallet.Jormungandr
       Cardano.Wallet.Jormungandr.Api
+      Cardano.Wallet.Jormungandr.Api.Client
       Cardano.Wallet.Jormungandr.Binary
       Cardano.Wallet.Jormungandr.BlockHeaders
       Cardano.Wallet.Jormungandr.Compatibility
@@ -130,15 +131,17 @@ test-suite unit
     , aeson-qq
     , binary
     , bytestring
-    , cardano-wallet-core
     , cardano-crypto
+    , cardano-wallet-core
     , cardano-wallet-jormungandr
     , containers
     , directory
     , generic-arbitrary
     , generic-lens
     , hspec
+    , lifted-base
     , memory
+    , monad-control
     , QuickCheck
     , safe
     , text

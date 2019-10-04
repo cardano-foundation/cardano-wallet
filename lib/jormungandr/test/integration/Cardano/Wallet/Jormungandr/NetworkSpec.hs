@@ -41,7 +41,11 @@ import Cardano.Wallet.Jormungandr.Primitive.Types
 import Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Network
-    ( ErrGetBlock (..), ErrNetworkTip (..), NetworkLayer (..) )
+    ( ErrGetBlock (..)
+    , ErrNetworkTip (..)
+    , NetworkLayer (..)
+    , NextBlocksResult (..)
+    )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , BlockHeader (..)
@@ -117,7 +121,7 @@ import Test.QuickCheck.Monadic
 import Test.Utils.Ports
     ( randomUnusedTCPPorts )
 
-import qualified Cardano.Wallet.Jormungandr.Network as Jormungandr
+import qualified Cardano.Wallet.Jormungandr.Api.Client as Jormungandr
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 
@@ -137,22 +141,22 @@ spec = do
 
         it "get some blocks from the genesis" $ \(nw, _) -> do
             threadDelay (10 * second)
-            resp <- runExceptT $ nextBlocks nw block0
+            resp <- runExceptT $ nextBlocks nw (initCursor nw block0)
             resp `shouldSatisfy` isRight
             resp `shouldSatisfy` (not . null)
 
         it "no blocks after the tip" $ \(nw, _) -> do
             let try = do
                     tip <- unsafeRunExceptT $ networkTip nw
-                    runExceptT $ nextBlocks nw tip
+                    runExceptT $ nextBlocks nw (initCursor nw tip)
             -- NOTE Retrying twice since between the moment we fetch the
             -- tip and the moment we get the next blocks, one block may be
             -- inserted.
             -- Nevertheless, this can't happen twice within a slot time.
             resp <- retrying once
-                (\_ x -> return $ fmap length x /= Right 0)
+                (\_ x -> return $ fmap isRollForward x == Right True)
                 (const try)
-            resp `shouldBe` Right []
+            fmap getRollForward resp `shouldBe` Right (Just [])
 
         it "returns an error when the block header is unknown" $ \(nw, _) -> do
             -- NOTE There's a very little chance of hash clash here. But,
@@ -163,15 +167,15 @@ spec = do
                     , blockHeight = Quantity 0 -- Anything
                     , prevBlockHash = Hash bytes
                     }
-            resp <- runExceptT $ nextBlocks nw block
+            resp <- runExceptT $ nextBlocks nw (initCursor nw block)
             resp `shouldBe` Left (ErrGetBlockNotFound (Hash bytes))
 
     describe "Error paths" $ do
-        let newBrokenNetworkLayer :: BaseUrl -> IO (NetworkLayer IO Tx ())
+        let newBrokenNetworkLayer :: BaseUrl -> IO (NetworkLayer IO (Jormungandr n) ())
             newBrokenNetworkLayer baseUrl = do
                 mgr <- newManager defaultManagerSettings
                 st <- newMVar emptyBlockHeaders
-                let jor = Jormungandr.mkJormungandrLayer mgr baseUrl
+                let jor = Jormungandr.mkJormungandrClient mgr baseUrl
                 let g0 = (error "block0", error "BlockchainParameters")
                 return (void $ mkRawNetworkLayer g0 st jor)
 
@@ -200,7 +204,7 @@ spec = do
                     "Expected a ErrNetworkUnreachable' failure but got "
                     <> show x
             let action = do
-                    res <- runExceptT $ nextBlocks nw block0
+                    res <- runExceptT $ nextBlocks nw (initCursor nw block0)
                     res `shouldSatisfy` \case
                         Left (ErrGetBlockNetworkUnreachable e) ->
                             show e `deepseq` True
@@ -221,14 +225,14 @@ spec = do
 
         it "can't fetch a block that doesn't exist" $ \(_, url) -> do
             mgr <- newManager defaultManagerSettings
-            let jml = Jormungandr.mkJormungandrLayer mgr url
+            let jml = Jormungandr.mkJormungandrClient mgr url
             let nonexistent = Hash "kitten"
             res <- runExceptT (Jormungandr.getBlock jml nonexistent)
             res `shouldBe` Left (ErrGetBlockNotFound nonexistent)
 
         it "can't fetch a blocks from a parent that doesn't exist" $ \(_, url) -> do
             mgr <- newManager defaultManagerSettings
-            let jml = Jormungandr.mkJormungandrLayer mgr url
+            let jml = Jormungandr.mkJormungandrClient mgr url
             let nonexistent = Hash "cat"
             res <- runExceptT (Jormungandr.getDescendantIds jml nonexistent 42)
             res `shouldBe` Left (ErrGetDescendantsParentNotFound nonexistent)
@@ -237,7 +241,7 @@ spec = do
             mgr <- newManager defaultManagerSettings
             -- connect with a base URL for which the backend is not started on
             let url' = url { baseUrlPort = baseUrlPort url + 5 }
-            let jml = Jormungandr.mkJormungandrLayer mgr url'
+            let jml = Jormungandr.mkJormungandrClient mgr url'
             res <- runExceptT (Jormungandr.getBlock jml (Hash "xyzzy"))
             res `shouldSatisfy` \case
                 Left (ErrGetBlockNetworkUnreachable _) -> True
@@ -402,6 +406,14 @@ spec = do
             ]
         }
 
+instance Show (NextBlocksResult t b) where
+    show AwaitReply = "AwaitReply"
+    show (RollForward _ _ bs) = "RollForward " ++ show (length bs) ++ " blocks"
+    show (RollBackward _) = "RollBackward"
+
+instance Eq (NextBlocksResult t b) where
+    a == b = show a == show b
+
 newtype SignedTx = SignedTx (Tx, [TxWitness])
     deriving (Eq, Show)
 
@@ -488,3 +500,11 @@ shrinkFixedBS bs = [zeros | bs /= zeros]
 
 prependTag :: Int -> ByteString -> ByteString
 prependTag tag bs = BS.pack [fromIntegral tag] <> bs
+
+getRollForward :: NextBlocksResult target block -> Maybe [block]
+getRollForward AwaitReply = Nothing
+getRollForward (RollForward _ _ bs) = Just bs
+getRollForward (RollBackward _) = Nothing
+
+isRollForward :: NextBlocksResult target block -> Bool
+isRollForward = maybe False (not . null) . getRollForward

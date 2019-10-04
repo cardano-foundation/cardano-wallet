@@ -16,12 +16,14 @@ module Cardano.Wallet.Jormungandr.NetworkSpec
 
 import Prelude
 
+import Cardano.Wallet.Jormungandr.Api.Client
+    ( JormungandrClient (..) )
 import Cardano.Wallet.Jormungandr.BlockHeaders
     ( emptyBlockHeaders )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr, Network (Testnet) )
 import Cardano.Wallet.Jormungandr.Network
-    ( ErrGetDescendants (..), JormungandrLayer (..), mkRawNetworkLayer )
+    ( ErrGetDescendants (..), mkRawNetworkLayer )
 import Cardano.Wallet.Network
     ( Cursor, ErrGetBlock (..), NetworkLayer (..), NextBlocksResult (..) )
 import Cardano.Wallet.Primitive.Model
@@ -180,18 +182,18 @@ mockNetworkLayer
     => (String -> m ()) -- ^ logger function
     -> StateT MockNode m (TestNetworkLayer m)
 mockNetworkLayer logLine = do
-    let jm = mockJormungandrLayer logLine
+    let jm = mockJormungandrClient logLine
     st <- newMVar emptyBlockHeaders
     Right g0 <- runExceptT $ getInitialBlockchainParameters jm (Hash "genesis")
     pure $ fromJBlock <$> mkRawNetworkLayer g0 st jm
 
 -- | A network layer which returns mock blocks and mutates its 'MockNode' state
 -- according to the generated operations.
-mockJormungandrLayer
+mockJormungandrClient
     :: Monad m
     => (String -> m ()) -- ^ logger function
-    -> JormungandrLayer (StateT MockNode m)
-mockJormungandrLayer logLine = JormungandrLayer
+    -> JormungandrClient (StateT MockNode m)
+mockJormungandrClient logLine = JormungandrClient
     { getTipId = do
         lift . lift . logLine $ "getTipId"
         ch <- nodeChainIds <$> lift getNodeState
@@ -250,7 +252,7 @@ noLog = const (pure ())
 ----------------------------------------------------------------------------
 -- Model node
 
--- | State of the mock node which is used by 'mockJormungandrLayer'.
+-- | State of the mock node which is used by 'mockJormungandrClient'.
 --
 -- Jormungandr is a concurrent process to the wallet. Its state can change in
 -- arbitrary ways between any REST API call.
