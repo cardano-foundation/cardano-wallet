@@ -136,7 +136,7 @@ x-byronWalletMnemonicSentence: &byronWalletMnemonicSentence
     format: bip-0039-mnemonic-word{english}
   example: [
     "squirrel", "material", "silly", "twice", "direct", "slush",
-    "pistol", "razor", "become", "junk", "kingdom", "flee"]
+    "pistol", "razor", "become", "junk", "kingdom", "junk"]
 
 x-walletSecondFactor: &walletSecondFactor
   description: An optional passphrase used to encrypt the mnemonic sentence.
