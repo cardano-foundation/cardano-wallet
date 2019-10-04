@@ -46,6 +46,7 @@ import Cardano.Wallet
 import Cardano.Wallet.Api.Types
     ( ApiAddress
     , ApiByronWallet
+    , ApiByronWalletMigrationInfo
     , ApiFee
     , ApiStakePool
     , ApiT
@@ -245,6 +246,7 @@ type ListStakePools = "stake-pools"
 type CompatibilityApi t =
     DeleteByronWallet
     :<|> GetByronWallet
+    :<|> GetByronWalletMigrationInfo
     :<|> ListByronWallets
     :<|> PostByronWallet
 
@@ -259,6 +261,12 @@ type GetByronWallet = "byron"
     :> "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> Get '[JSON] ApiByronWallet
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getByronWalletMigrationInfo
+type GetByronWalletMigrationInfo = "byron"
+    :> "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> Get '[JSON] ApiByronWalletMigrationInfo
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listByronWallets
 type ListByronWallets = "byron"

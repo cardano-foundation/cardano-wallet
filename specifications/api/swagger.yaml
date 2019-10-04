@@ -516,6 +516,13 @@ definitions:
       passphrase: *walletPassphraseInfo
       state: *walletState
 
+  ApiByronWalletMigrationInfo: &ApiByronWalletMigrationInfo
+    type: object
+    required:
+      - migration_cost
+    properties:
+      migration_cost: *amount
+
   ApiWalletUTxOsStatistics: &ApiWalletUTxOsStatistics
     type: object
     required:
@@ -782,6 +789,14 @@ x-responsesGetByronWallet: &responsesGetByronWallet
   200:
     description: Ok
     schema: *ApiByronWallet
+
+x-responsesGetByronWalletMigrationInfo: &responsesGetByronWalletMigrationInfo
+  <<: *responsesErr404
+  <<: *responsesErr405
+  <<: *responsesErr406
+  200:
+    description: Ok
+    schema: *ApiByronWalletMigrationInfo
 
 x-responsesDeleteWallet: &responsesDeleteWallet
   <<: *responsesErr404
@@ -1208,3 +1223,17 @@ paths:
       parameters:
         - *parametersWalletId
       responses: *responsesDeleteWallet
+
+  /byron/wallets/{walletId}/migrate:
+    get:
+      operationId: getByronWalletMigrationInfo
+      tags: ["Byron Wallets"]
+      summary: Migrate
+      description: |
+        <p align="right">status: <strong>not implemented</strong></p>
+
+        Calculate the exact cost of migrating from a Byron wallet to a new
+        wallet.
+      parameters:
+        - *parametersWalletId
+      responses: *responsesGetByronWalletMigrationInfo

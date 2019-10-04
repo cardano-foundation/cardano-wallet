@@ -28,6 +28,7 @@ import Cardano.Wallet.Api.Types
     , ApiAddress (..)
     , ApiBlockData (..)
     , ApiByronWallet (..)
+    , ApiByronWalletMigrationInfo (..)
     , ApiFee (..)
     , ApiMnemonicT (..)
     , ApiStakePool (..)
@@ -212,6 +213,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiTransaction DummyTarget)
             jsonRoundtripAndGolden $ Proxy @ApiWallet
             jsonRoundtripAndGolden $ Proxy @ApiByronWallet
+            jsonRoundtripAndGolden $ Proxy @ApiByronWalletMigrationInfo
             jsonRoundtripAndGolden $ Proxy @ApiUtxoStatistics
             jsonRoundtripAndGolden $ Proxy @ApiFee
             jsonRoundtripAndGolden $ Proxy @StakePoolMetrics
@@ -440,6 +442,14 @@ spec = do
                     }
             in
                 x' === x .&&. show x' === show x
+        it "ApiByronWalletMigrationInfo" $ property $ \x ->
+            let
+                x' = ApiByronWalletMigrationInfo
+                    { migrationCost =
+                        migrationCost (x :: ApiByronWalletMigrationInfo)
+                    }
+            in
+                x' === x .&&. show x' === show x
         it "ApiFee" $ property $ \x ->
             let
                 x' = ApiFee
@@ -622,6 +632,10 @@ instance Arbitrary ApiWallet where
     shrink = genericShrink
 
 instance Arbitrary ApiByronWallet where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiByronWalletMigrationInfo where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
@@ -944,6 +958,10 @@ instance ToSchema ApiWallet where
 
 instance ToSchema ApiByronWallet where
     declareNamedSchema _ = declareSchemaForDefinition "ApiByronWallet"
+
+instance ToSchema ApiByronWalletMigrationInfo where
+    declareNamedSchema _ =
+        declareSchemaForDefinition "ApiByronWalletMigrationInfo"
 
 instance ToSchema ApiStakePool where
     declareNamedSchema _ = declareSchemaForDefinition "ApiStakePool"

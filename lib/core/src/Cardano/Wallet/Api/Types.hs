@@ -52,6 +52,7 @@ module Cardano.Wallet.Api.Types
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
+    , ApiByronWalletMigrationInfo (..)
     , ByronWalletPostData (..)
 
     -- * Polymorphic Types
@@ -334,6 +335,10 @@ data ApiByronWallet = ApiByronWallet
     , name :: !(ApiT WalletName)
     , passphrase :: !(Maybe (ApiT WalletPassphraseInfo))
     , state :: !(ApiT WalletState)
+    } deriving (Eq, Generic, Show)
+
+newtype ApiByronWalletMigrationInfo = ApiByronWalletMigrationInfo
+    { migrationCost :: Quantity "lovelace" Natural
     } deriving (Eq, Generic, Show)
 
 {-------------------------------------------------------------------------------
@@ -624,6 +629,11 @@ walletStateOptions = taggedSumTypeOptions $ TaggedObjectOptions
 instance FromJSON ApiByronWallet where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiByronWallet where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiByronWalletMigrationInfo where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiByronWalletMigrationInfo where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 {-------------------------------------------------------------------------------
