@@ -67,6 +67,8 @@ module Test.Integration.Framework.DSL
     -- * Helpers
     , (</>)
     , (!!)
+    , emptyByronWallet
+    , emptyByronWalletWith
     , emptyWallet
     , emptyWalletWith
     , getFromResponse
@@ -92,6 +94,10 @@ module Test.Integration.Framework.DSL
     , prepExternalTxViaJcli
 
     -- * Endpoints
+    , postByronWalletEp
+    , getByronWalletEp
+    , listByronWalletEp
+    , deleteByronWalletEp
     , getWalletEp
     , deleteWalletEp
     , getWalletUtxoEp
@@ -128,6 +134,7 @@ import Cardano.CLI
 import Cardano.Wallet.Api.Types
     ( AddressAmount
     , ApiAddress
+    , ApiByronWallet
     , ApiT (..)
     , ApiTransaction
     , ApiTxInput (..)
@@ -739,6 +746,23 @@ utcIso8601ToText :: UTCTime -> Text
 utcIso8601ToText = utcTimeToText iso8601ExtendedUtc
 
 -- | Create an empty wallet
+emptyByronWallet :: Context t -> IO ApiByronWallet
+emptyByronWallet ctx = do
+    mnemonic <- mnemonicToText @12 . entropyToMnemonic <$> genEntropy
+    emptyByronWalletWith ctx ("Byron Wallet", mnemonic, "Secure Passphrase")
+
+emptyByronWalletWith :: Context t -> (Text, [Text], Text) -> IO ApiByronWallet
+emptyByronWalletWith ctx (name, mnemonic, pass) = do
+    let payload = Json [aesonQQ| {
+            "name": #{name},
+            "mnemonic_sentence": #{mnemonic},
+            "passphrase": #{pass}
+        }|]
+    r <- request @ApiByronWallet ctx postByronWalletEp Default payload
+    expectResponseCode @IO HTTP.status202 r
+    return (getFromResponse id r)
+
+-- | Create an empty wallet
 emptyWallet :: Context t -> IO ApiWallet
 emptyWallet ctx = do
     mnemonic <- (mnemonicToText . entropyToMnemonic) <$> genEntropy @160
@@ -979,6 +1003,31 @@ verify a = mapM_ (a &)
 ---
 --- Endoints
 ---
+
+
+postByronWalletEp :: (Method, Text)
+postByronWalletEp =
+    ( "POST"
+    , "v2/byron/wallets"
+    )
+
+listByronWalletEp :: (Method, Text)
+listByronWalletEp =
+    ( "GET"
+    , "v2/byron/wallets"
+    )
+
+getByronWalletEp :: ApiByronWallet -> (Method, Text)
+getByronWalletEp w =
+    ( "GET"
+    , "v2/byron/wallets/" <> w ^. walletId
+    )
+
+deleteByronWalletEp :: ApiByronWallet -> (Method, Text)
+deleteByronWalletEp w =
+    ( "DELETE"
+    , "v2/byron/wallets/" <> w ^. walletId
+    )
 
 listStakePoolsEp :: (Method, Text)
 listStakePoolsEp =
