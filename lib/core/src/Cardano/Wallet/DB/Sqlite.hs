@@ -528,9 +528,6 @@ createSqliteBackend trace fp logFunc = do
 sqliteConnStr :: Maybe FilePath -> Text
 sqliteConnStr = maybe ":memory:" T.pack
 
-{-------------------------------------------------------------------------------
-           Conversion between Persistent table types and wallet types
--------------------------------------------------------------------------------}
 delegationToPoolId :: W.WalletDelegation W.PoolId -> Maybe W.PoolId
 delegationToPoolId W.NotDelegating = Nothing
 delegationToPoolId (W.Delegating pool) = Just pool
