@@ -2,6 +2,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -9,6 +10,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -77,20 +79,25 @@ import Cardano.Wallet.Jormungandr.Binary
     ( ConfigParam (..), Message (..), convertBlock, runGetOrFail )
 import Cardano.Wallet.Jormungandr.BlockHeaders
     ( BlockHeaders (..)
+    , appendBlockHeaders
     , blockHeadersTip
+    , dropAfterSlotId
     , emptyBlockHeaders
+    , greatestCommonBlockHeader
     , updateUnstableBlocks
     )
 import Cardano.Wallet.Jormungandr.Compatibility
-    ( genConfigFile, localhostBaseUrl, softTxMaxSize )
+    ( Jormungandr, genConfigFile, localhostBaseUrl, softTxMaxSize )
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx )
 import Cardano.Wallet.Network
-    ( ErrGetBlock (..)
+    ( Cursor
+    , ErrGetBlock (..)
     , ErrNetworkTip (..)
     , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
     , NetworkLayer (..)
+    , NextBlocksResult (..)
     , defaultRetryPolicy
     )
 import Cardano.Wallet.Network.Ports
@@ -101,21 +108,24 @@ import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
     , Hash (..)
+    , SlotId (..)
     , SlotLength (..)
     , TxWitness (..)
     )
 import Control.Arrow
     ( left )
 import Control.Concurrent.MVar.Lifted
-    ( MVar, modifyMVar, newMVar )
+    ( MVar, modifyMVar, newMVar, readMVar )
 import Control.Exception
     ( Exception, bracket )
 import Control.Monad
-    ( forM, void )
+    ( void )
 import Control.Monad.Catch
     ( throwM )
 import Control.Monad.IO.Class
     ( liftIO )
+import Control.Monad.Trans.Class
+    ( lift )
 import Control.Monad.Trans.Control
     ( MonadBaseControl )
 import Control.Monad.Trans.Except
@@ -132,6 +142,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Word
+    ( Word32 )
 import Network.HTTP.Client
     ( Manager, defaultManagerSettings, newManager )
 import Network.HTTP.Types.Status
@@ -194,11 +206,12 @@ data JormungandrConfig = JormungandrConfig
 -- 'NetworkLayer'. The caller is responsible for handling errors which may have
 -- occurred while starting the Node.
 withNetworkLayer
-    :: Trace IO Text
+    :: forall n a t. (t ~ Jormungandr n)
+    => Trace IO Text
     -- ^ Logging
     -> JormungandrBackend
     -- ^ How Jörmungandr is started.
-    -> (Either ErrStartup (JormungandrConnParams, NetworkLayer IO Tx (Block Tx)) -> IO a)
+    -> (Either ErrStartup (JormungandrConnParams, NetworkLayer IO t (Block Tx)) -> IO a)
     -- ^ The action to run. It will be passed the connection parameters used,
     -- and a network layer if startup was successful.
     -> IO a
@@ -206,11 +219,12 @@ withNetworkLayer _ (UseRunning cp) action = withNetworkLayerConn cp action
 withNetworkLayer tr (Launch lj) action = withNetworkLayerLaunch tr lj action
 
 withNetworkLayerLaunch
-    :: Trace IO Text
+    :: forall n a t. (t ~ Jormungandr n)
+    => Trace IO Text
     -- ^ Logging of node startup.
     -> JormungandrConfig
     -- ^ Configuration for starting Jörmungandr.
-    -> (Either ErrStartup (JormungandrConnParams, NetworkLayer IO Tx (Block Tx)) -> IO a)
+    -> (Either ErrStartup (JormungandrConnParams, NetworkLayer IO t (Block Tx)) -> IO a)
     -- ^ The action to run. It will be passed the connection parameters used,
     -- and a network layer if startup was successful.
     -> IO a
@@ -219,9 +233,10 @@ withNetworkLayerLaunch tr lj action = do
     either (action . Left) pure res
 
 withNetworkLayerConn
-    :: JormungandrConnParams
+    :: forall n a t. (t ~ Jormungandr n)
+    => JormungandrConnParams
     -- ^ Parameters for connecting to Jörmungandr node which is already running.
-    -> (Either ErrStartup (JormungandrConnParams, NetworkLayer IO Tx (Block Tx)) -> IO a)
+    -> (Either ErrStartup (JormungandrConnParams, NetworkLayer IO t (Block Tx)) -> IO a)
     -- ^ Action to run with the network layer.
     -> IO a
 withNetworkLayerConn cp@(JormungandrConnParams block0H baseUrl) action =
@@ -233,9 +248,10 @@ withNetworkLayerConn cp@(JormungandrConnParams block0H baseUrl) action =
 -- | Creates a new 'NetworkLayer' connecting to an underlying 'Jormungandr'
 -- backend target.
 newNetworkLayer
-    :: BaseUrl
+    :: forall n t. (t ~ Jormungandr n)
+    => BaseUrl
     -> Hash "Genesis"
-    -> ExceptT ErrGetBlockchainParams IO (NetworkLayer IO Tx (Block Tx))
+    -> ExceptT ErrGetBlockchainParams IO (NetworkLayer IO t (Block Tx))
 newNetworkLayer baseUrl block0H = do
     mgr <- liftIO $ newManager defaultManagerSettings
     st <- newMVar emptyBlockHeaders
@@ -248,49 +264,170 @@ newNetworkLayer baseUrl block0H = do
 -- This version provides the full, raw blocks from
 -- "Cardano.Wallet.Jormungandr.Binary".
 mkRawNetworkLayer
-    :: MonadBaseControl IO m
-    => (J.Block, BlockchainParameters)
+    :: forall m n t block.
+        ( MonadBaseControl IO m
+        , t ~ Jormungandr n
+        , block ~ J.Block
+        )
+    => (block, BlockchainParameters)
     -> MVar BlockHeaders
     -> JormungandrLayer m
-    -> NetworkLayer m Tx J.Block
+    -> NetworkLayer m t block
 mkRawNetworkLayer (block0, bp) st j = NetworkLayer
-    { networkTip = modifyMVar st $ \bs -> do
-        let k = getEpochStability bp
-        bs' <- updateUnstableBlocks k getTipId' getBlockHeader bs
+    { networkTip =
+        _networkTip
+
+    , nextBlocks =
+        _nextBlocks
+
+    , initCursor =
+        _initCursor
+
+    , cursorSlotId =
+        _cursorSlotId
+
+    , postTx =
+        postMessage j
+
+    , staticBlockchainParameters =
+        (block0, bp)
+    }
+  where
+    -- security parameter, the maximum number of unstable blocks
+    k :: Quantity "block" Word32
+    k = getEpochStability bp
+
+    _networkTip :: ExceptT ErrNetworkTip m BlockHeader
+    _networkTip = modifyMVar st $ \bs -> do
+        let tip = withExceptT liftE $ getTipId j
+        bs' <- withExceptT liftE $ updateUnstableBlocks k tip (getBlockHeader j) bs
         ExceptT . pure $ case blockHeadersTip bs' of
             Just t -> Right (bs', t)
             Nothing -> Left ErrNetworkTipNotFound
 
-    , nextBlocks = \tip -> do
-        let count = 10000
-        -- Get the descendants of the tip's /parent/.
-        -- The first descendant is therefore the current tip itself. We need to
-        -- skip it. Hence the 'tail'.
-        ids <- tailSafe <$> getDescendantIds j (prevBlockHash tip) count
-                `mappingError` \case
-            ErrGetDescendantsNetworkUnreachable e ->
-                ErrGetBlockNetworkUnreachable e
-            ErrGetDescendantsParentNotFound _ ->
-                ErrGetBlockNotFound (prevBlockHash tip)
-        forM ids (getBlock j)
+    _initCursor :: BlockHeader -> Cursor t
+    _initCursor bh = Cursor $
+        -- FIXME The empty hash looks weird? Why not creating the BlockHeaders
+        -- from the constructor?
+        --
+        -- TODO:
+        -- Change blockheights to be consistent everywhere.
+        appendBlockHeaders k emptyBlockHeaders
+            [ ( Hash ""
+              , bh
+              , Quantity $ fromIntegral $ getQuantity $ blockHeight bh
+              )
+            ]
 
-    , postTx = postMessage j
-    , staticBlockchainParameters = (block0, bp)
-    }
+    _cursorSlotId :: Cursor t -> SlotId
+    _cursorSlotId (Cursor unstable) =
+        -- FIXME Why the default here?
+        maybe (SlotId 0 0) slotId $ blockHeadersTip unstable
+
+    _nextBlocks
+        :: Cursor t
+        -> ExceptT ErrGetBlock m (NextBlocksResult t block)
+    _nextBlocks cursor@(Cursor localChain) = do
+        lift (runExceptT _networkTip) >>= \case
+            Right _ -> do
+                unstable <- readMVar st
+                case direction cursor unstable of
+                    Stay ->
+                        pure AwaitReply
+
+                    Forward -> do
+                        let Just localTip = blockHeadersTip localChain
+                        let Just nodeTip  = blockHeadersTip unstable
+                        rollForward nodeTip <$> getBlocks j localTip
+
+                    Backward point ->
+                        pure $ rollBackward point
+
+            Left ErrNetworkTipNotFound ->
+                pure AwaitReply
+
+            Left (ErrNetworkTipNetworkUnreachable e) ->
+                throwE (ErrGetBlockNetworkUnreachable e)
+      where
+        rollForward
+            :: BlockHeader
+            -> [(Hash "BlockHeader", block)]
+            -> NextBlocksResult t block
+        rollForward tip bs =
+            RollForward (cursorForward k bs cursor) tip (snd <$> bs)
+
+        rollBackward
+            :: BlockHeader
+            -> NextBlocksResult t block
+        rollBackward point =
+            RollBackward (cursorBackward point cursor)
+
+{-------------------------------------------------------------------------------
+                             Jormungandr Cursor
+-------------------------------------------------------------------------------}
+
+
+-- Use a block headers sequence as the wallet state. This can easily be
+-- intersected with the global node state.
+data instance Cursor (Jormungandr n) = Cursor BlockHeaders
+
+-- | Direction in which to move the local chain.
+data Direction
+    = Forward
+    | Backward BlockHeader
+    | Stay
+    deriving (Show, Eq)
+
+-- If there is intersection, then the decision is simple. Otherwise, find
+-- whether the local chain is behind or ahead of the node chain.
+direction
+    :: forall n t. (t ~ Jormungandr n)
+    => Cursor t
+    -- ^ Local wallet unstable blocks
+    -> BlockHeaders
+    -- ^ Node's unstable blocks
+    -> Direction
+direction (Cursor lbs) ubs = case greatestCommonBlockHeader ubs lbs of
+    Just bh
+        -- Local tip is the greatest common block
+        | Just bh == blockHeadersTip lbs -> Forward
+        -- Common block is not the local tip
+        | otherwise -> Backward bh
+    Nothing
+        -- Local tip is way back in stable blocks.
+        | tipSlot lbs < tipSlot ubs -> Forward
+        -- Node is behind local chain. Wait for it to catch up.
+        | otherwise -> Stay
   where
-    getTipId' = (getTipId j) `mappingError`
-        ErrNetworkTipNetworkUnreachable
-    getBlock' t = (getBlock j t) `mappingError` \case
-        ErrGetBlockNotFound _ ->
-            ErrNetworkTipNotFound
-        ErrGetBlockNetworkUnreachable e ->
-            ErrNetworkTipNetworkUnreachable e
-    getBlockHeader t = do
-        blk@(J.Block blkHeader _) <- getBlock' t
-        let nodeHeight = Quantity $ fromIntegral $ J.chainLength blkHeader
-        pure (header (convertBlock blk), nodeHeight)
+    tipSlot = maybe (SlotId 0 0) slotId . blockHeadersTip
 
-    mappingError = flip withExceptT
+-- | Pushes the received blockheaders onto the local state.
+cursorForward
+    :: forall n t block. (t ~ Jormungandr n, block ~ J.Block)
+    => Quantity "block" Word32
+    -- ^ Epoch Stability, a.k.a 'k'
+    -> [(Hash "BlockHeader", block)]
+    -- ^ New blocks received
+    -> Cursor t
+    -- ^ Current cursor / local state
+    -> Cursor t
+cursorForward k bs (Cursor cursor) =
+    Cursor $ appendBlockHeaders k cursor bs'
+  where
+    Quantity curHeight = getBlockHeight cursor
+    bs' =
+        [ (h, J.convertBlockHeader (J.header b), Quantity (curHeight + i))
+        | (i, (h, b)) <- zip [1..] bs
+        ]
+
+-- | Clears local state after the rollback point.
+cursorBackward
+    :: forall n t. (t ~ Jormungandr n)
+    => BlockHeader
+    -> Cursor t
+    -> Cursor t
+cursorBackward point (Cursor cursor) =
+    Cursor (dropAfterSlotId (slotId point) cursor)
 
 {-------------------------------------------------------------------------------
                                 Backend launcher
@@ -374,6 +511,34 @@ data JormungandrLayer m = JormungandrLayer
     , getStakeDistribution
         :: ExceptT ErrNetworkUnavailable m StakeApiResponse
     }
+
+-- Fetch a batch of blocks after but not including the given header.
+getBlocks
+    :: Monad m
+    => JormungandrLayer m
+    -> BlockHeader
+    -> ExceptT ErrGetBlock m [(Hash "BlockHeader", J.Block)]
+getBlocks j tip = do
+    -- Get the descendants of the tip's /parent/.
+    -- The first descendant is therefore the current tip itself. We need to
+    -- skip it. Hence the 'tail'.
+    ids <- withExceptT liftE $
+        tailSafe <$> getDescendantIds j (prevBlockHash tip) batchSize
+    mapM (\blockId -> (blockId,) <$> getBlock j blockId) ids
+  where
+    -- Maximum number of blocks to return from nextBlocks.
+    batchSize = 1000
+
+-- | Get a block header corresponding to a header hash.
+getBlockHeader
+    :: Monad m
+    => JormungandrLayer m
+    -> Hash "BlockHeader"
+    -> ExceptT ErrGetBlock m (BlockHeader, Quantity "block" Word32)
+getBlockHeader j t = do
+    blk@(J.Block blkHeader _) <- getBlock j t
+    let nodeHeight = Quantity $ fromIntegral $ J.chainLength blkHeader
+    pure (header (convertBlock blk), nodeHeight)
 
 -- | Construct a 'JormungandrLayer'-client
 --
@@ -554,8 +719,24 @@ data ErrStartup
     | ErrStartupCommandExited ProcessHasExited
     deriving (Show, Eq)
 
-{-------------------------------------------------------------------------------
-                                     Utils
--------------------------------------------------------------------------------}
-
 instance Exception ErrStartup
+
+-- | Safely lift error into a bigger type.
+class LiftError lift where
+    liftE :: lift
+
+instance LiftError (ErrGetBlock -> ErrNetworkTip) where
+    liftE = \case
+        ErrGetBlockNotFound _ -> ErrNetworkTipNotFound
+        ErrGetBlockNetworkUnreachable e -> ErrNetworkTipNetworkUnreachable e
+
+instance LiftError (ErrNetworkUnavailable -> ErrGetBlock) where
+    liftE =
+        ErrGetBlockNetworkUnreachable
+
+instance LiftError (ErrGetDescendants -> ErrGetBlock) where
+    liftE = \case
+        ErrGetDescendantsNetworkUnreachable e ->
+            ErrGetBlockNetworkUnreachable e
+        ErrGetDescendantsParentNotFound tip ->
+            ErrGetBlockNotFound tip
