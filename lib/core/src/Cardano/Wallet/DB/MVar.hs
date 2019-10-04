@@ -19,6 +19,7 @@ import Prelude
 import Cardano.Wallet.DB
     ( DBLayer (..)
     , ErrNoSuchWallet (..)
+    , ErrSlotAlreadyExists (..)
     , ErrWalletAlreadyExists (..)
     , PrimaryKey (..)
     )
@@ -30,10 +31,12 @@ import Cardano.Wallet.DB.Model
     , mCreateWallet
     , mListWallets
     , mPutCheckpoint
+    , mPutPoolProduction
     , mPutPrivateKey
     , mPutTxHistory
     , mPutWalletMeta
     , mReadCheckpoint
+    , mReadPoolProduction
     , mReadPrivateKey
     , mReadTxHistory
     , mReadWalletMeta
@@ -121,8 +124,11 @@ newDBLayer = do
                                        Stake Pool Production
         -----------------------------------------------------------------------}
 
-        , putPoolProduction = undefined
-        , readPoolProduction = undefined
+        , putPoolProduction = \sl pool -> ExceptT $ do
+            pool `deepseq`
+                alterDB errSlotAlreadyExists db (mPutPoolProduction sl pool)
+
+        , readPoolProduction = readDB db mReadPoolProduction
 
         {-----------------------------------------------------------------------
                                        Lock
@@ -168,6 +174,13 @@ errWalletAlreadyExists
 errWalletAlreadyExists (WalletAlreadyExists (PrimaryKey wid)) =
     Just (ErrWalletAlreadyExists wid)
 errWalletAlreadyExists _ = Nothing
+
+errSlotAlreadyExists
+    :: Err (PrimaryKey WalletId)
+    -> Maybe ErrSlotAlreadyExists
+errSlotAlreadyExists (SlotAlreadyExists slotid) =
+    Just (ErrSlotAlreadyExists slotid)
+errSlotAlreadyExists _ = Nothing
 
 -- | Error which happens when model returns an unexpected value.
 newtype MVarDBError = MVarDBError (Err (PrimaryKey WalletId))

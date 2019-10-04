@@ -9,6 +9,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -54,6 +55,8 @@ module Cardano.Wallet.DB.Model
     , mReadTxHistory
     , mPutPrivateKey
     , mReadPrivateKey
+    , mPutPoolProduction
+    , mReadPoolProduction
     ) where
 
 import Prelude
@@ -65,6 +68,7 @@ import Cardano.Wallet.Primitive.Types
     , DefineTx (..)
     , Direction (..)
     , Hash
+    , PoolId
     , Range (..)
     , SlotId (..)
     , SortOrder (..)
@@ -89,6 +93,7 @@ import Data.Ord
 import GHC.Generics
     ( Generic )
 
+import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 
 {-------------------------------------------------------------------------------
@@ -106,6 +111,8 @@ data Database wid s t xprv = Database
     , txs :: (Map (Hash "Tx") (Tx t))
     -- ^ In the database, transactions are global and not associated with any
     -- particular wallet.
+   , pools :: (Map PoolId [SlotId])
+    -- ^ Information of what blocks were produced by which stake pools
     } deriving (Generic)
 
 deriving instance (Show (Tx t), Show wid, Show xprv) => Show (Database wid s t xprv)
@@ -127,7 +134,7 @@ type TxHistory t = [(Tx t, TxMeta)]
 
 -- | Produces an empty model database.
 emptyDatabase :: Ord wid => Database wid s t xprv
-emptyDatabase = Database mempty mempty
+emptyDatabase = Database mempty mempty mempty
 
 {-------------------------------------------------------------------------------
                                   Model Operation Types
@@ -145,6 +152,7 @@ type ModelOp wid s t xprv a =
 data Err wid
     = NoSuchWallet wid
     | WalletAlreadyExists wid
+    | SlotAlreadyExists SlotId
     deriving (Show, Eq, Functor, Foldable, Traversable)
 
 {-------------------------------------------------------------------------------
@@ -161,7 +169,7 @@ mCreateWallet
     -> WalletMetadata
     -> [(Tx t, TxMeta)]
     -> ModelOp wid s t xprv ()
-mCreateWallet wid cp meta txs0 db@Database{wallets,txs}
+mCreateWallet wid cp meta txs0 db@Database{wallets,txs,pools}
     | wid `Map.member` wallets = (Left (WalletAlreadyExists wid), db)
     | otherwise =
         let
@@ -169,16 +177,16 @@ mCreateWallet wid cp meta txs0 db@Database{wallets,txs}
             txs' = Map.fromList $ (\(tx, _) -> (txId @t tx, tx)) <$> txs0
             history = Map.fromList $ first (txId @t) <$> txs0
         in
-            (Right (), Database (Map.insert wid wal wallets) (txs <> txs'))
+            (Right (), Database (Map.insert wid wal wallets) (txs <> txs') pools)
 
 mRemoveWallet :: Ord wid => wid -> ModelOp wid s t xprv ()
-mRemoveWallet wid db@Database{wallets,txs}
+mRemoveWallet wid db@Database{wallets,txs,pools}
     | wid `Map.member` wallets =
-        (Right (), Database (Map.delete wid wallets) txs)
+        (Right (), Database (Map.delete wid wallets) txs pools)
     | otherwise = (Left (NoSuchWallet wid), db)
 
 mListWallets :: Ord wid => ModelOp wid s t xprv [wid]
-mListWallets db@(Database wallets _) = (Right (sort $ Map.keys wallets), db)
+mListWallets db@(Database wallets _ _) = (Right (sort $ Map.keys wallets), db)
 
 mPutCheckpoint
     :: Ord wid => wid -> Wallet s t -> ModelOp wid s t xprv ()
@@ -187,14 +195,14 @@ mPutCheckpoint wid cp = alterModel wid $ \wal ->
 
 mReadCheckpoint
     :: Ord wid => wid -> ModelOp wid s t xprv (Maybe (Wallet s t))
-mReadCheckpoint wid db@(Database wallets _) =
+mReadCheckpoint wid db@(Database wallets _ _) =
     (Right (Map.lookup wid wallets >>= mostRecentCheckpoint), db)
   where
     mostRecentCheckpoint :: WalletDatabase s t xprv -> Maybe (Wallet s t)
     mostRecentCheckpoint = fmap snd . Map.lookupMax . checkpoints
 
 mRollbackTo :: Ord wid => wid -> SlotId -> ModelOp wid s t xprv ()
-mRollbackTo wid point db@(Database wallets txs) = case Map.lookup wid wallets of
+mRollbackTo wid point db@(Database wallets txs pools) = case Map.lookup wid wallets of
     Nothing ->
         ( Left (NoSuchWallet wid), db )
     Just wal ->
@@ -210,7 +218,7 @@ mRollbackTo wid point db@(Database wallets txs) = case Map.lookup wid wallets of
                         }
                 in
                     ( Right ()
-                    , Database (Map.insert wid wal' wallets) txs
+                    , Database (Map.insert wid wal' wallets) txs pools
                     )
   where
     -- | Removes 'Incoming' transaction beyond the rollback point, and
@@ -240,7 +248,7 @@ mPutWalletMeta wid meta = alterModel wid $ \wal ->
     ((), wal { metadata = meta })
 
 mReadWalletMeta :: Ord wid => wid -> ModelOp wid s t xprv (Maybe WalletMetadata)
-mReadWalletMeta wid db@(Database wallets _) =
+mReadWalletMeta wid db@(Database wallets _ _) =
     (Right (metadata <$> Map.lookup wid wallets), db)
 
 mPutTxHistory
@@ -248,11 +256,11 @@ mPutTxHistory
     => wid
     -> TxHistory t
     -> ModelOp wid s t xprv ()
-mPutTxHistory wid txList db@Database{wallets,txs} =
+mPutTxHistory wid txList db@Database{wallets,txs,pools} =
     case Map.lookup wid wallets of
         Just wal ->
             ( Right ()
-            , Database (Map.insert wid wal' wallets) (txs <> txs')
+            , Database (Map.insert wid wal' wallets) (txs <> txs') pools
             )
           where
             wal' = wal { txHistory = txHistory wal <> txHistory' }
@@ -267,7 +275,8 @@ mReadTxHistory
     -> Range SlotId
     -> Maybe TxStatus
     -> ModelOp wid s t xprv (TxHistory t)
-mReadTxHistory wid order range mstatus db@Database{wallets,txs} = (Right res, db)
+mReadTxHistory wid order range mstatus db@(Database wallets txs _) =
+    (Right res, db)
   where
     res = maybe mempty getTxs $ Map.lookup wid wallets
     getTxs wal = filterTxHistory @t order range $ catMaybes
@@ -283,8 +292,21 @@ mPutPrivateKey wid pk = alterModel wid $ \wal ->
     ((), wal { xprv = Just pk })
 
 mReadPrivateKey :: Ord wid => wid -> ModelOp wid s t xprv (Maybe xprv)
-mReadPrivateKey wid db@(Database wallets _) =
+mReadPrivateKey wid db@(Database wallets _ _) =
     (Right (Map.lookup wid wallets >>= xprv), db)
+
+mPutPoolProduction :: SlotId -> PoolId -> ModelOp wid s t xprv ()
+mPutPoolProduction point poolId db@(Database wallets txs pools) =
+    let alter slot = \case
+            Nothing -> Just [slot]
+            Just slots -> Just (slot:slots)
+    in if L.elem point (concat $ Map.elems pools) then
+        (Left (SlotAlreadyExists point), db)
+    else
+        (Right (), Database wallets txs (Map.alter (alter point) poolId pools))
+
+mReadPoolProduction :: ModelOp wid s t xprv (Map PoolId [SlotId])
+mReadPoolProduction db@(Database _ _ pools) = (Right pools, db)
 
 {-------------------------------------------------------------------------------
                              Model function helpers
@@ -295,8 +317,8 @@ alterModel
     => wid
     -> (WalletDatabase s t xprv -> (a, WalletDatabase s t xprv))
     -> ModelOp wid s t xprv a
-alterModel wid f db@Database{wallets,txs} = case f <$> Map.lookup wid wallets of
-    Just (a, wal) -> (Right a, Database (Map.insert wid wal wallets) txs)
+alterModel wid f db@Database{wallets,txs,pools} = case f <$> Map.lookup wid wallets of
+    Just (a, wal) -> (Right a, Database (Map.insert wid wal wallets) txs pools)
     Nothing -> (Left (NoSuchWallet wid), db)
 
 -- | Apply optional filters on slotId and sort using the default sort order

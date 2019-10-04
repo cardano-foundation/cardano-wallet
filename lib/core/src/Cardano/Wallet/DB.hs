@@ -22,6 +22,7 @@ module Cardano.Wallet.DB
       -- * Errors
     , ErrNoSuchWallet(..)
     , ErrWalletAlreadyExists(..)
+    , ErrSlotAlreadyExists(..)
     ) where
 
 import Prelude
@@ -172,7 +173,10 @@ data DBLayer m s t k = DBLayer
         -> ExceptT ErrNoSuchWallet m ()
         -- ^ Prune database entities and remove entities that can be discarded.
 
-    , putPoolProduction :: SlotId -> PoolId -> m ()
+    , putPoolProduction
+        :: SlotId
+        -> PoolId
+        -> ExceptT ErrSlotAlreadyExists m ()
         -- ^ Write for a given slot id the id of stake pool that produced a
         -- a corresponding block
 
@@ -193,6 +197,11 @@ newtype ErrNoSuchWallet
 -- | Forbidden operation was executed on an already existing wallet
 newtype ErrWalletAlreadyExists
     = ErrWalletAlreadyExists WalletId -- Wallet already exists in db
+    deriving (Eq, Show)
+
+-- | Forbidden operation was executed on an already existing slot
+newtype ErrSlotAlreadyExists
+    = ErrSlotAlreadyExists SlotId -- Slot already exists in db
     deriving (Eq, Show)
 
 -- | A primary key which can take many forms depending on the value. This may
