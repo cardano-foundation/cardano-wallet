@@ -33,22 +33,17 @@ import Cardano.Wallet.Primitive.Types
 import Control.Concurrent
     ( threadDelay )
 import Control.Exception
-    ( Exception (..), SomeException )
+    ( Exception (..), SomeException, catch )
 import Control.Monad
     ( when )
-import Control.Monad.Catch
-    ( Handler )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
 import Control.Retry
     ( RetryPolicyM
-    , RetryStatus (..)
     , exponentialBackoff
     , limitRetriesByCumulativeDelay
-    , logRetries
-    , recovering
     , retrying
     )
 import Data.Text
@@ -177,45 +172,43 @@ follow
 follow nl tr start yield header =
     sleep 0 start
   where
-    pause :: Int
-    pause = 2*1000*1000 -- 2 seconds
+    delay0 :: Int
+    delay0 = 1000*1000 -- 1 second
+
+    retryDelay :: Int -> Int
+    retryDelay delay = min (2*delay) (60 * delay0)
 
     -- | Wait a short delay before querying for blocks again. We also take this
     -- opportunity to refresh the chain tip as it has probably increased in
     -- order to refine our syncing status.
     sleep :: Int -> BlockHeader -> IO ()
-    sleep delay localTip = do
-        when (delay > 0) (threadDelay delay)
-        let io = runExceptT (networkTip nl) >>= \case
+    sleep delay localTip =
+        io `catch` retry
+      where
+        io = do
+            when (delay > 0) (threadDelay delay)
+            runExceptT (networkTip nl) >>= \case
                 Right nodeTip ->
                     step (localTip, nodeTip)
                 Left e -> do
                     logWarning tr $ T.pack $
                         "Failed to get network tip: " <> show e
-                    sleep delay localTip
-        recovering policy [shouldRetry] (const io)
+                    sleep (retryDelay delay) localTip
 
-    -- | Will retry after 30s, 1min, 2min, 4min, 8min, ...
-    policy :: Monad m => RetryPolicyM m
-    policy = exponentialBackoff (30*1000*1000)
-
-    shouldRetry :: RetryStatus -> Handler IO Bool
-    shouldRetry = logRetries
-            -- Could do something more subtil her
-            (\(_e :: SomeException) -> pure True)
-            (\_ e _ -> logError tr $ T.pack $
+        retry (e :: SomeException) = do
+            logError tr $ T.pack $
                 "Unexpected failure while following the chain: " <> show e
-            )
+            sleep (retryDelay delay) localTip
 
     step :: (BlockHeader, BlockHeader) -> IO ()
     step (localTip, nodeTip) = do
         runExceptT (nextBlocks nl localTip) >>= \case
             Left e -> do
                 logWarning tr $ T.pack $ "Failed to get next blocks: " <> show e
-                sleep pause localTip
+                sleep delay0 localTip
             Right [] -> do
                 logDebug tr "In sync with the node."
-                sleep pause localTip
+                sleep delay0 localTip
             Right (blockFirst : blocksRest) -> do
                 let blocks = blockFirst NE.:| blocksRest
 
