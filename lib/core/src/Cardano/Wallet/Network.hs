@@ -25,7 +25,7 @@ module Cardano.Wallet.Network
 import Prelude
 
 import Cardano.BM.Trace
-    ( Trace, logDebug, logError, logInfo, logNotice )
+    ( Trace, logDebug, logError, logInfo, logNotice, logWarning )
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
@@ -33,7 +33,9 @@ import Cardano.Wallet.Primitive.Types
 import Control.Concurrent
     ( threadDelay )
 import Control.Exception
-    ( Exception (..) )
+    ( Exception (..), SomeException, catch )
+import Control.Monad
+    ( when )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -47,13 +49,14 @@ import Control.Retry
 import Data.Text
     ( Text )
 import Fmt
-    ( (+|), (+||), (|+), (||+) )
+    ( pretty )
 import GHC.Generics
     ( Generic )
 import UnliftIO.Exception
     ( throwIO )
 
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Text as T
 
 data NetworkLayer m tx block = NetworkLayer
     { nextBlocks :: BlockHeader -> ExceptT ErrGetBlock m [block]
@@ -154,35 +157,58 @@ defaultRetryPolicy =
 
 -- | Subscribe to a blockchain and get called with new block (in order)!
 follow
-    :: NetworkLayer IO tx block
+    :: Show e
+    => NetworkLayer IO tx block
     -- ^ The @NetworkLayer@ used to poll for new blocks.
     -> Trace IO Text
     -> BlockHeader
     -- ^ The local tip to start at. Blocks /after/ the tip will be yielded.
     -> (NE.NonEmpty block -> BlockHeader -> ExceptT e IO ())
-     -- ^ Callback with blocks and the current tip of the /node/. @follow@ stops
-     -- polling and terminates if the callback errors.
+    -- ^ Callback with blocks and the current tip of the /node/. @follow@ stops
+    -- polling and terminates if the callback errors.
     -> (block -> BlockHeader)
+    -- ^ Getter on the abstract 'block' type
     -> IO ()
-follow nl tr start yield header = do
-    liftIO $ runExceptT (networkTip nl) >>= \case
-        Right nwTip ->
-            restoreStep (start, nwTip)
-        Left e -> do
-            logError tr $ "Failed to get network tip: " +|| e ||+ ""
-            restoreSleep start
+follow nl tr start yield header =
+    sleep 0 start
   where
-    restoreStep
-        :: (BlockHeader, BlockHeader)
-        -> IO ()
-    restoreStep (localTip, nodeTip) = do
+    delay0 :: Int
+    delay0 = 1000*1000 -- 1 second
+
+    retryDelay :: Int -> Int
+    retryDelay delay = min (2*delay) (60 * delay0)
+
+    -- | Wait a short delay before querying for blocks again. We also take this
+    -- opportunity to refresh the chain tip as it has probably increased in
+    -- order to refine our syncing status.
+    sleep :: Int -> BlockHeader -> IO ()
+    sleep delay localTip =
+        io `catch` retry
+      where
+        io = do
+            when (delay > 0) (threadDelay delay)
+            runExceptT (networkTip nl) >>= \case
+                Right nodeTip ->
+                    step (localTip, nodeTip)
+                Left e -> do
+                    logWarning tr $ T.pack $
+                        "Failed to get network tip: " <> show e
+                    sleep (retryDelay delay) localTip
+
+        retry (e :: SomeException) = do
+            logError tr $ T.pack $
+                "Unexpected failure while following the chain: " <> show e
+            sleep (retryDelay delay) localTip
+
+    step :: (BlockHeader, BlockHeader) -> IO ()
+    step (localTip, nodeTip) = do
         runExceptT (nextBlocks nl localTip) >>= \case
             Left e -> do
-                logError tr $ "Failed to get next blocks: " +|| e ||+ "."
-                restoreSleep localTip
+                logWarning tr $ T.pack $ "Failed to get next blocks: " <> show e
+                sleep delay0 localTip
             Right [] -> do
-                logDebug tr "caught up with the node."
-                restoreSleep localTip
+                logDebug tr "In sync with the node."
+                sleep delay0 localTip
             Right (blockFirst : blocksRest) -> do
                 let blocks = blockFirst NE.:| blocksRest
 
@@ -191,28 +217,17 @@ follow nl tr start yield header = do
                         ( slotId . header . NE.head $ blocks
                         , slotId . header . NE.last $ blocks
                         )
-                liftIO $ logInfo tr $
-                    "Applying blocks ["+| slotFirst |+" ... "+| slotLast |+"]"
+                liftIO $ logInfo tr $ mconcat
+                    [ "Applying blocks ["
+                    , pretty slotFirst
+                    , " ... "
+                    , pretty slotLast
+                    , "]"
+                    ]
 
                 runExceptT (yield blocks nodeTip) >>= \case
-                    Left _e ->
-                        liftIO $ logNotice tr "Terminating worker..."
+                    Left e ->
+                        liftIO $ logNotice tr $ T.pack $
+                            "Stopped following chain: " <> show e
                     Right () -> do
-                        restoreStep (nextLocalTip, nodeTip)
-
-    -- | Wait a short delay before querying for blocks again. We also take this
-    -- opportunity to refresh the chain tip as it has probably increased in
-    -- order to refine our syncing status.
-    restoreSleep
-        :: BlockHeader
-        -> IO ()
-    restoreSleep localTip = do
-        threadDelay (2 * second)
-        runExceptT (networkTip nl) >>= \case
-            Left e -> do
-                logError tr $ "Failed to get network tip: " +|| e ||+ ""
-                restoreSleep localTip
-            Right nodeTip ->
-                restoreStep (localTip, nodeTip)
-
-    second = 1000*1000
+                        step (nextLocalTip, nodeTip)
