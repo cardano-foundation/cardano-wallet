@@ -25,7 +25,7 @@ module Cardano.Wallet.Network
 import Prelude
 
 import Cardano.BM.Trace
-    ( Trace, logDebug, logError, logInfo, logNotice )
+    ( Trace, logDebug, logError, logInfo, logNotice, logWarning )
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
@@ -185,14 +185,14 @@ follow nl tr start yield header =
             Right nodeTip ->
                 step (localTip, nodeTip)
             Left e -> do
-                logError tr $ T.pack $ "Failed to get network tip: " <> show e
+                logWarning tr $ T.pack $ "Failed to get network tip: " <> show e
                 sleep delay localTip
 
     step :: (BlockHeader, BlockHeader) -> IO ()
     step (localTip, nodeTip) = do
         runExceptT (nextBlocks nl localTip) >>= \case
             Left e -> do
-                logError tr $ T.pack $ "Failed to get next blocks: " <> show e
+                logWarning tr $ T.pack $ "Failed to get next blocks: " <> show e
                 sleep pause localTip
             Right [] -> do
                 logDebug tr "In sync with the node."
