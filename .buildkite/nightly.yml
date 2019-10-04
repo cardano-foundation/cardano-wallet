@@ -18,7 +18,7 @@ steps:
 
   - label: 'Database benchmark'
     command: "./.buildkite/bench-db.sh"
-    timeout_in_minutes: 60
+    timeout_in_minutes: 120
     agents:
       system: x86_64-linux
 
