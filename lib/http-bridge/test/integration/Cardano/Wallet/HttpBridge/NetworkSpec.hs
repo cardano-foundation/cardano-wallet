@@ -23,6 +23,7 @@ import Cardano.Wallet.Network
     , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
     , NetworkLayer (..)
+    , NextBlocksResult (..)
     )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
@@ -56,7 +57,7 @@ spec = do
             let action = runExceptT $ do
                     (SlotId ep sl) <- slotId <$> networkTip' bridge
                     let sl' = if sl > 2 then sl - 2 else 0
-                    blocks <- nextBlocks' bridge (mkHeader $ SlotId ep sl')
+                    blocks <- nextBlocks' bridge (mkCursor bridge $ SlotId ep sl')
                     lift $ blocks `shouldSatisfy` (\bs
                         -> length bs >= fromIntegral (sl - sl')
                         && length bs <= fromIntegral (sl - sl' + 1)
@@ -66,7 +67,7 @@ spec = do
         it "produce no blocks if start is after tip" $ \(bridge, _) -> do
             let action = runExceptT $ do
                     SlotId ep sl <- slotId <$> networkTip' bridge
-                    length <$> nextBlocks' bridge (mkHeader $ SlotId (ep + 1) sl)
+                    length <$> nextBlocks' bridge (mkCursor bridge $ SlotId (ep + 1) sl)
             action `shouldReturn` pure 0
 
         it "gets a 'ErrNetworkInvalid' if wrong network used" $ \(_, port) -> do
@@ -171,10 +172,13 @@ spec = do
         unwrap (ErrNetworkTipNetworkUnreachable e) = e
         unwrap ErrNetworkTipNotFound = ErrNetworkUnreachable "no tip"
 
-    nextBlocks' tip = withExceptT unwrap . nextBlocks tip
+    nextBlocks' tip = fmap getBlocks . withExceptT unwrap . nextBlocks tip
       where
         unwrap (ErrGetBlockNetworkUnreachable e) = e
         unwrap (ErrGetBlockNotFound _) = ErrNetworkUnreachable "no block"
+        getBlocks = \case
+            RollForward _ _ bs -> bs
+            _ -> error "Only expecting RollForward from HttpBridge"
 
     newNetworkLayer = fmap fromIntegral findPort >>= HttpBridge.newNetworkLayer @'Testnet
     newNetworkLayerInvalid = HttpBridge.newNetworkLayer @'Mainnet
@@ -184,7 +188,7 @@ spec = do
     cfg = HttpBridge.HttpBridgeConfig (Right Testnet) Nothing Nothing [] Inherit
 
     -- The underlying HttpBridgeLayer is only needs the slot of the header.
-    mkHeader slot = BlockHeader
+    mkCursor nw slot = initCursor nw $ BlockHeader
         { slotId = slot
         , blockHeight = Quantity 0
         , prevBlockHash =

@@ -3,11 +3,11 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -53,17 +53,19 @@ import Cardano.Wallet.HttpBridge.Api
     , api
     )
 import Cardano.Wallet.HttpBridge.Compatibility
-    ( block0, byronBlockchainParameters )
+    ( HttpBridge, block0, byronBlockchainParameters )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Local (..), Network (..) )
 import Cardano.Wallet.HttpBridge.Primitive.Types
     ( Tx )
 import Cardano.Wallet.Network
-    ( ErrGetBlock (..)
+    ( Cursor
+    , ErrGetBlock (..)
     , ErrNetworkTip (..)
     , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
     , NetworkLayer (..)
+    , NextBlocksResult (..)
     , defaultRetryPolicy
     )
 import Cardano.Wallet.Network.Ports
@@ -80,8 +82,10 @@ import Control.Monad.Catch
     ( throwM )
 import Control.Monad.Fail
     ( MonadFail )
+import Control.Monad.Trans.Class
+    ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), mapExceptT, withExceptT )
+    ( ExceptT (..), mapExceptT, runExceptT, withExceptT )
 import Crypto.Hash
     ( HashAlgorithm, digestFromByteString )
 import Data.ByteArray
@@ -128,10 +132,10 @@ data HttpBridgeConfig = HttpBridgeConfig
     } deriving (Show, Eq)
 
 withNetworkLayer
-    :: forall n a. KnownNetwork n
+    :: forall n a t. (KnownNetwork n, t ~ HttpBridge n)
     => Trace IO Text
     -> HttpBridgeBackend
-    -> (Either ErrStartup (PortNumber, NetworkLayer IO Tx (Block Tx)) -> IO a)
+    -> (Either ErrStartup (PortNumber, NetworkLayer IO t (Block Tx)) -> IO a)
     -> IO a
 withNetworkLayer tr (UseRunning port) cb = do
     nl <- newNetworkLayer @n port
@@ -165,24 +169,32 @@ withHttpBridge tr (HttpBridgeConfig network stateDir mPort extraArgs output) cb 
 
 -- | Constructs a network layer with the given cardano-http-bridge API.
 mkNetworkLayer
-    :: forall n m. (Monad m, KnownNetwork (n :: Network))
+    :: forall n m t. (Monad m, KnownNetwork (n :: Network), t ~ HttpBridge n)
     => HttpBridgeLayer m
-    -> NetworkLayer m Tx (Block Tx)
+    -> NetworkLayer m t (Block Tx)
 mkNetworkLayer httpBridge = NetworkLayer
-    { nextBlocks = \(BlockHeader sl _ _) ->
-        withExceptT ErrGetBlockNetworkUnreachable (rbNextBlocks httpBridge sl)
+    { nextBlocks = \(Cursor (BlockHeader sl _ _)) -> do
+        nodeTip <- lift $ runExceptT (snd <$> getNetworkTip httpBridge)
+        withExceptT ErrGetBlockNetworkUnreachable $
+            nextBlocksResult nodeTip <$> rbNextBlocks httpBridge sl
+    , initCursor =
+        Cursor
+    , cursorSlotId = \(Cursor (BlockHeader sl _ _)) ->
+        sl
     , networkTip =
         snd <$> getNetworkTip httpBridge
-    , postTx = postSignedTx httpBridge
-    , staticBlockchainParameters = (block0, byronBlockchainParameters @n)
+    , postTx =
+        postSignedTx httpBridge
+    , staticBlockchainParameters =
+        (block0, byronBlockchainParameters @n)
     }
 
 -- | Creates a cardano-http-bridge 'NetworkLayer' using the given connection
 -- settings.
 newNetworkLayer
-    :: forall n. KnownNetwork (n :: Network)
+    :: forall n t. (KnownNetwork (n :: Network), t ~ HttpBridge n)
     => PortNumber
-    -> IO (NetworkLayer IO Tx (Block Tx))
+    -> IO (NetworkLayer IO t (Block Tx))
 newNetworkLayer port = mkNetworkLayer @n <$> newHttpBridgeLayer @n port
 
 -- | Retrieve a chunk of blocks from cardano-http-bridge.
@@ -248,6 +260,18 @@ fetchBlocksFromTip bridge start tipHash =
         else do
             blocks <- workBackwards (prevBlockHash (header block))
             pure (block:blocks)
+
+data instance Cursor (HttpBridge n) = Cursor BlockHeader
+
+nextBlocksResult
+    :: Either ErrNetworkTip BlockHeader
+    -> [Block Tx]
+    -> NextBlocksResult (HttpBridge n) (Block Tx)
+nextBlocksResult _ [] = AwaitReply
+nextBlocksResult nodeTip bs = RollForward (Cursor tip) nodeTip' bs
+  where
+    tip = header $ last bs
+    nodeTip' = either (const tip) id nodeTip
 
 {-------------------------------------------------------------------------------
                             HTTP-Bridge Client

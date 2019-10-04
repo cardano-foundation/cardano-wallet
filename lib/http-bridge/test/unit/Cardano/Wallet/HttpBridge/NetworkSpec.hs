@@ -1,5 +1,5 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Cardano.Wallet.HttpBridge.NetworkSpec
     ( spec
@@ -7,14 +7,14 @@ module Cardano.Wallet.HttpBridge.NetworkSpec
 
 import Prelude
 
-import Cardano.Wallet.HttpBridge.Environment
-    ( Network (..) )
+import Cardano.Wallet.HttpBridge.Compatibility
+    ( HttpBridge, Network (..) )
 import Cardano.Wallet.HttpBridge.Network
     ( HttpBridgeLayer (..) )
 import Cardano.Wallet.HttpBridge.Primitive.Types
     ( Tx )
 import Cardano.Wallet.Network
-    ( NetworkLayer (..) )
+    ( NetworkLayer (..), NextBlocksResult (..) )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
@@ -44,6 +44,7 @@ spec :: Spec
 spec = do
     describe "Getting next blocks with a mock backend" $ do
         let network = mockNetworkLayer noLog 105 (SlotId 106 1492)
+        let cursor = initCursor network
 
         it "should get something from the latest epoch" $ do
             let h = BlockHeader
@@ -51,7 +52,7 @@ spec = do
                     , blockHeight = Quantity 0
                     , prevBlockHash = mockHash (SlotId 106 998)
                     }
-            blocks <- runExceptT $ nextBlocks network h
+            blocks <- runExceptT $ getBlocks <$> nextBlocks network (cursor h)
             -- the number of blocks between slots 1000 and 1492 inclusive
             fmap length blocks `shouldBe` Right 493
             let hdrs = either (const []) (map (slotId . header)) blocks
@@ -64,7 +65,7 @@ spec = do
                     , blockHeight = Quantity 0
                     , prevBlockHash = mockHash (SlotId 104 21599)
                     }
-            blocks <- runExceptT $ nextBlocks network h
+            blocks <- runExceptT $ getBlocks <$> nextBlocks network (cursor h)
             fmap length blocks `shouldBe` Right (21600 + 1492)
 
         it "should return unstable blocks after the start slot" $ do
@@ -73,7 +74,7 @@ spec = do
                     , blockHeight = Quantity 0
                     , prevBlockHash = mockHash (SlotId 105 16999)
                     }
-            blocks <- runExceptT $ nextBlocks network h
+            blocks <- runExceptT $ getBlocks <$> nextBlocks network (cursor h)
             -- this will be all the blocks between 105.17000 and 106.1492
             fmap length blocks `shouldBe` Right 6092
 
@@ -83,7 +84,7 @@ spec = do
                     , blockHeight = Quantity 0
                     , prevBlockHash = mockHash (SlotId 106 1490)
                     }
-            blocks <- runExceptT $ nextBlocks network h
+            blocks <- runExceptT $ getBlocks <$> nextBlocks network (cursor h)
             fmap length blocks `shouldBe` Right 1
 
         it "should get from packed epochs" $ do
@@ -92,7 +93,7 @@ spec = do
                     , blockHeight = Quantity 0
                     , prevBlockHash = mockHash (SlotId 99 21599)
                     }
-            Right blocks <- runExceptT $ nextBlocks network h
+            Right blocks <- runExceptT $ getBlocks <$> nextBlocks network (cursor h)
             -- an entire epoch's worth of blocks
             length blocks `shouldBe` 21599
             map (epochNumber . slotId . header) blocks
@@ -104,7 +105,7 @@ spec = do
                     , blockHeight = Quantity 0
                     , prevBlockHash = mockHash (SlotId 104 9999)
                     }
-            Right blocks <- runExceptT $ nextBlocks network h
+            Right blocks <- runExceptT $ getBlocks <$> nextBlocks network (cursor h)
             -- the number of remaining blocks in epoch 104
             length blocks `shouldBe` 11599
             map (epochNumber . slotId . header) blocks
@@ -116,7 +117,7 @@ spec = do
                     , blockHeight = Quantity 0
                     , prevBlockHash = mockHash (SlotId 106 21599)
                     }
-            blocks <- runExceptT $ nextBlocks network h
+            blocks <- runExceptT $ getBlocks <$> nextBlocks network (cursor h)
             blocks `shouldBe` Right []
 
         it "should work for the first epoch" $ do
@@ -125,8 +126,14 @@ spec = do
                     , blockHeight = Quantity 0
                     , prevBlockHash = Hash "genesis"
                     }
-            Right blocks <- runExceptT $ nextBlocks network h
-            length blocks `shouldBe` 21599
+            Right blocks <- runExceptT $ nextBlocks network (cursor h)
+            length (getBlocks blocks) `shouldBe` 21599
+
+getBlocks :: NextBlocksResult (HttpBridge n) (Block Tx) -> [Block Tx]
+getBlocks = \case
+    RollForward _ _ bs -> bs
+    AwaitReply -> []
+    RollBackward _ -> error "getBlocks: RollBackward: should not happen!"
 
 {-------------------------------------------------------------------------------
                              Mock HTTP Bridge
@@ -179,9 +186,9 @@ mockNetworkLayer
     => (String -> m ()) -- ^ logger function
     -> Word64 -- ^ make getEpoch fail for epochs after this
     -> SlotId -- ^ the tip block
-    -> NetworkLayer m Tx (Block Tx)
+    -> NetworkLayer m (HttpBridge 'Testnet) (Block Tx)
 mockNetworkLayer logLine firstUnstableEpoch tip =
-    HttpBridge.mkNetworkLayer @'Testnet (mockHttpBridge logLine firstUnstableEpoch tip)
+    HttpBridge.mkNetworkLayer (mockHttpBridge logLine firstUnstableEpoch tip)
 
 -- | A network layer which returns mock blocks.
 mockHttpBridge
