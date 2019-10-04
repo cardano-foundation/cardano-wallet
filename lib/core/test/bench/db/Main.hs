@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -83,7 +84,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..), force )
 import Control.Monad
     ( forM_ )
 import Criterion.Main
@@ -330,7 +331,8 @@ benchPutUTxO numCheckpoints utxoSize db = do
     unsafeRunExceptT $ mapM_ (putCheckpoint db testPk) cps
 
 mkCheckpoints :: Int -> Int -> [WalletBench]
-mkCheckpoints numCheckpoints utxoSize = [ cp i | i <- [1..numCheckpoints]]
+mkCheckpoints numCheckpoints utxoSize =
+    [ force (cp i) | !i <- [1..numCheckpoints] ]
   where
     cp i = unsafeInitWallet
         (UTxO utxo)
@@ -342,7 +344,7 @@ mkCheckpoints numCheckpoints utxoSize = [ cp i | i <- [1..numCheckpoints]]
         initDummyState
         genesisParameters
 
-    utxo = Map.fromList $ zip (mkInputs utxoSize) (mkOutputs utxoSize)
+    utxo = force (Map.fromList (zip (mkInputs utxoSize) (mkOutputs utxoSize)))
 
 benchReadUTxO :: DBLayerBench -> Benchmarkable
 benchReadUTxO db = whnfIO $ readCheckpoint db testPk
