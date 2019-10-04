@@ -512,7 +512,6 @@ startSqliteBackend logConfig trace fp = do
         runQuery cmd = withMVar lock $ const $ observe $ runSqlConn cmd backend
     migrations <- runQuery $ runMigrationSilent migrateAll
     dbLog trace $ MsgMigrations (length migrations)
-    runQuery addIndices
     pure $ SqliteContext backend runQuery fp trace
 
 createSqliteBackend
@@ -528,23 +527,6 @@ createSqliteBackend trace fp logFunc = do
 
 sqliteConnStr :: Maybe FilePath -> Text
 sqliteConnStr = maybe ":memory:" T.pack
-
-{-------------------------------------------------------------------------------
-                             SQLite database setup
--------------------------------------------------------------------------------}
-
-addIndices :: SqlPersistT IO ()
-addIndices = mapM_ (`rawExecute` [])
-    [ createIndex "tx_meta_wallet_id" "tx_meta (wallet_id)"
-    -- Covers filtering and sorting (either direction) of tx history
-    , createIndex "tx_meta_slot" "tx_meta (slot ASC)"
-    , createIndex "tx_meta_tx_id" "tx_meta (tx_id ASC)"
-    -- Indices for filtering TxIn/TxOut by TxId
-    , createIndex "tx_in_tx_id" "tx_in (tx_id)"
-    , createIndex "tx_out_tx_id" "tx_out (tx_id)"
-    ]
-  where
-    createIndex name on = "CREATE INDEX IF NOT EXISTS " <> name <> " ON " <> on
 
 {-------------------------------------------------------------------------------
            Conversion between Persistent table types and wallet types
