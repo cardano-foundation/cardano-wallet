@@ -33,17 +33,22 @@ import Cardano.Wallet.Primitive.Types
 import Control.Concurrent
     ( threadDelay )
 import Control.Exception
-    ( Exception (..) )
+    ( Exception (..), SomeException )
 import Control.Monad
     ( when )
+import Control.Monad.Catch
+    ( Handler )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
 import Control.Retry
     ( RetryPolicyM
+    , RetryStatus (..)
     , exponentialBackoff
     , limitRetriesByCumulativeDelay
+    , logRetries
+    , recovering
     , retrying
     )
 import Data.Text
@@ -181,12 +186,26 @@ follow nl tr start yield header =
     sleep :: Int -> BlockHeader -> IO ()
     sleep delay localTip = do
         when (delay > 0) (threadDelay delay)
-        runExceptT (networkTip nl) >>= \case
-            Right nodeTip ->
-                step (localTip, nodeTip)
-            Left e -> do
-                logWarning tr $ T.pack $ "Failed to get network tip: " <> show e
-                sleep delay localTip
+        let io = runExceptT (networkTip nl) >>= \case
+                Right nodeTip ->
+                    step (localTip, nodeTip)
+                Left e -> do
+                    logWarning tr $ T.pack $
+                        "Failed to get network tip: " <> show e
+                    sleep delay localTip
+        recovering policy [shouldRetry] (const io)
+
+    -- | Will retry after 30s, 1min, 2min, 4min, 8min, ...
+    policy :: Monad m => RetryPolicyM m
+    policy = exponentialBackoff (30*1000*1000)
+
+    shouldRetry :: RetryStatus -> Handler IO Bool
+    shouldRetry = logRetries
+            -- Could do something more subtil her
+            (\(_e :: SomeException) -> pure True)
+            (\_ e _ -> logError tr $ T.pack $
+                "Unexpected failure while following the chain: " <> show e
+            )
 
     step :: (BlockHeader, BlockHeader) -> IO ()
     step (localTip, nodeTip) = do
