@@ -117,12 +117,15 @@ prop_sync initialNode = monadicIO $ do
     -- Consumer chain should (eventually) be in sync with node chain.
     assert (consumerApplied consumer == getNodeChain (node s))
   where
-    block0H = BlockHeader (SlotId 0 0) (Quantity 0) (Hash "genesis")
     logLine msg = modify' (\(S a0 a1 a2 logs) -> S a0 a1 a2 (msg:logs))
 
 showChain :: [MockBlock] -> String
 showChain [] = "∅"
 showChain chain = unwords . map (showHash . mockBlockId) $ chain
+
+-- | Test Genesis block
+block0H :: BlockHeader
+block0H = BlockHeader (SlotId 0 0) (Quantity 0) (Hash "genesis")
 
 ----------------------------------------------------------------------------
 -- Model consumer
@@ -204,9 +207,11 @@ mockJormungandrClient logLine = JormungandrClient
     , getBlock = \blockId -> do
         bs <- nodeDb <$> lift getNodeState
         lift applyOp
-        let block = case Map.lookup blockId bs of
-                Just b -> pure $ toJBlock b
-                Nothing -> Left $ ErrGetBlockNotFound blockId
+        let block = if blockId == Hash "genesis"
+                then pure $ toJBlock $ MockBlock blockId (Hash "") (SlotId 0 0) 0
+                else case Map.lookup blockId bs of
+                    Just b -> pure $ toJBlock b
+                    Nothing -> Left $ ErrGetBlockNotFound blockId
         lift . logLine $ "getBlock " <> show blockId <> returns block
         except block
 
@@ -218,11 +223,11 @@ mockJormungandrClient logLine = JormungandrClient
             [] -> throwE $ ErrGetDescendantsParentNotFound parentId
             ds -> pure $ take (fromIntegral count) ds
 
-    , getInitialBlockchainParameters = \block0H -> do
+    , getInitialBlockchainParameters = \blockId -> do
         Quantity k <- mockNodeK <$> lift get
-        let block0 = MockBlock (coerce block0H) (Hash "") (SlotId 0 0) 0
+        let block0 = MockBlock (coerce blockId) (Hash "") (SlotId 0 0) 0
         pure (toJBlock block0, BlockchainParameters
-            { getGenesisBlockHash = block0H
+            { getGenesisBlockHash = blockId
             , getGenesisBlockDate = error "mock bp"
             , getFeePolicy = error "mock bp"
             , getSlotLength = error "mock bp"
