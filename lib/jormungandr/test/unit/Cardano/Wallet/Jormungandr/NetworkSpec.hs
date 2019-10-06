@@ -34,16 +34,14 @@ import Control.Concurrent.MVar.Lifted
     ( newMVar )
 import Control.Monad.Fail
     ( MonadFail )
-import Control.Monad.IO.Class
-    ( liftIO )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Control
     ( MonadBaseControl )
 import Control.Monad.Trans.Except
-    ( runExceptT, throwE )
+    ( except, runExceptT, throwE )
 import Control.Monad.Trans.State.Lazy
-    ( StateT (..), evalStateT, get, modify, runStateT )
+    ( StateT (..), evalStateT, get, modify', put, runStateT )
 import Data.Coerce
     ( coerce )
 import Data.Functor
@@ -70,7 +68,6 @@ import Test.QuickCheck
     , choose
     , counterexample
     , frequency
-    , infiniteListOf
     , property
     , sublistOf
     , vectorOf
@@ -99,29 +96,33 @@ spec = do
                           and concurrent node updates.
 -------------------------------------------------------------------------------}
 
-prop_sync :: MockNode -> Property
+prop_sync :: S -> Property
 prop_sync initialNode = monadicIO $ do
+    let logLineN msg = logLine $ "[PRODUCER] " <> msg
+    let logLineC msg = logLine $ "[CONSUMER] " <> msg
+
     -- Set up network layer with mock Jormungandr
-    nl <- run $ evalStateT (mockNetworkLayer logLine) initialNode
+    nl <- run $ evalStateT (mockNetworkLayer logLineN) initialNode
 
     -- Run a model chain consumer on the mock network layer.
-    let initialConsumer = C [] (initCursor nl block0H) 100
-    let restoreStep = consumerRestoreStep logLine nl initialConsumer
-    (consumer, mockNode) <- run $ runStateT restoreStep initialNode
+    let initialConsumer = C [] (initCursor nl block0H) 10
+    let restoreStep = consumerRestoreStep logLineC nl initialConsumer
+    (consumer, s) <- run $ runStateT restoreStep initialNode
 
     monitor $ counterexample $ unlines
         [ "Applied blocks: " <> showChain (consumerApplied consumer)
-        , "Node chain:     " <> showChain (getNodeChain (node mockNode))
+        , "Node chain:     " <> showChain (getNodeChain (node s))
+        , "Logs:         \n" <> unlines (reverse (logs s))
         ]
-
     -- Consumer chain should (eventually) be in sync with node chain.
-    assert (consumerApplied consumer == getNodeChain (node mockNode))
+    assert (consumerApplied consumer == getNodeChain (node s))
   where
     block0H = BlockHeader (SlotId 0 0) (Quantity 0) (Hash "genesis")
-    logLine = liftIO . B8.putStrLn . B8.pack
+    logLine msg = modify' (\(S a0 a1 a2 logs) -> S a0 a1 a2 (msg:logs))
 
 showChain :: [MockBlock] -> String
-showChain = unwords . map (showHash . mockBlockId)
+showChain [] = "∅"
+showChain chain = unwords . map (showHash . mockBlockId) $ chain
 
 ----------------------------------------------------------------------------
 -- Model consumer
@@ -140,79 +141,79 @@ data Consumer = C
 -- appending to its chain. Returns the new 'Consumer' state.
 -- This is similar to the Cardano.Wallet worker restore loop.
 consumerRestoreStep
-    :: Monad m
-    => (String -> m ())
+    :: (Monad m)
+    => (String -> StateT S m ())
     -- ^ logger function
     -> TestNetworkLayer m
     -- ^ Network layer.
     -> Consumer
     -- ^ Current consumer state.
-    -> StateT MockNode m Consumer
-consumerRestoreStep logLine nw c@(C bs cur ip)
-    | ip > 0 = do
+    -> StateT S m Consumer
+consumerRestoreStep logLine nw c@(C bs cur iLimit)
+    | iLimit > 0 = do
         runExceptT (nextBlocks nw cur) >>= \case
             Left e ->
-                lift (logLine $ "Failed to get next blocks: " ++ show e) $> c
+                logLine ("Failed to get next blocks: " ++ show e) $> c
             Right AwaitReply -> do
-                lift (logLine "Sleep")
+                logLine "AwaitReply"
                 consumerRestoreStep logLine nw (C bs cur (min i 3))
-            Right (RollForward _ _ []) ->
-                lift (logLine "Wallet restored.") $> c
-            Right (RollForward cur' _ bs') -> do
-                lift (logLine "Applying blocks")
+            Right (RollForward cur' h bs') -> do
+                logLine $ "RollFoward: " <> show h
                 consumerRestoreStep logLine nw (C (bs ++ bs') cur' i)
             Right (RollBackward cur') -> do
-                lift $ logLine "Rollback!"
+                logLine "RollBackward"
                 let sl = cursorSlotId nw cur'
                 let bs' = takeWhile (\b -> mockBlockSlot b <= sl) bs
                 consumerRestoreStep logLine nw (C bs' cur' i)
     | otherwise = pure c -- don't loop forever
   where
-    i = ip - 1
+    i = iLimit - 1
 
 ----------------------------------------------------------------------------
 -- Network layer with mock jormungandr node
 
 type TestNetworkLayer m =
-    NetworkLayer (StateT MockNode m) (Jormungandr 'Testnet) MockBlock
+    NetworkLayer (StateT S m) (Jormungandr 'Testnet) MockBlock
 
 -- | Instantiate new network layer with mock jormungandr.
 mockNetworkLayer
     :: forall m. (MonadFail m, MonadBaseControl IO m)
-    => (String -> m ()) -- ^ logger function
-    -> StateT MockNode m (TestNetworkLayer m)
+    => (String -> StateT S m ()) -- ^ logger function
+    -> StateT S m (TestNetworkLayer m)
 mockNetworkLayer logLine = do
     let jm = mockJormungandrClient logLine
     st <- newMVar emptyBlockHeaders
     Right g0 <- runExceptT $ getInitialBlockchainParameters jm (Hash "genesis")
     pure $ fromJBlock <$> mkRawNetworkLayer g0 st jm
 
--- | A network layer which returns mock blocks and mutates its 'MockNode' state
--- according to the generated operations.
+-- | A network layer which returns mock blocks and mutates its state according
+-- to the generated operations.
 mockJormungandrClient
     :: Monad m
-    => (String -> m ()) -- ^ logger function
-    -> JormungandrClient (StateT MockNode m)
+    => (String -> StateT S m ())
+        -- ^ logger function
+    -> JormungandrClient (StateT S m)
 mockJormungandrClient logLine = JormungandrClient
     { getTipId = do
-        lift . lift . logLine $ "getTipId"
         ch <- nodeChainIds <$> lift getNodeState
-        lift applyOps
-        pure $ fromMaybe (Hash "genesis") $ headMay ch
+        lift applyOp
+        let tip = fromMaybe (Hash "genesis") $ headMay ch
+        lift . logLine $ "getTipId" <> returns tip
+        pure tip
 
     , getBlock = \blockId -> do
-        lift . lift . logLine $ "getBlock " ++ show blockId
         bs <- nodeDb <$> lift getNodeState
-        lift applyOps
-        case Map.lookup blockId bs of
-            Just b -> pure $ toJBlock b
-            Nothing -> throwE $ ErrGetBlockNotFound blockId
+        lift applyOp
+        let block = case Map.lookup blockId bs of
+                Just b -> pure $ toJBlock b
+                Nothing -> Left $ ErrGetBlockNotFound blockId
+        lift . logLine $ "getBlock " <> show blockId <> returns block
+        except block
 
     , getDescendantIds = \parentId count -> do
-        lift . lift . logLine $ "getDescendentIds " ++
-            show parentId ++ " " ++ show count
+        lift . logLine $ "getDescendentIds " ++ show parentId ++ " " ++ show count
         ch <- nodeChainIds <$> lift getNodeState
-        lift applyOps
+        lift applyOp
         case takeWhile (/= parentId) (reverse ch) of
             [] -> throwE $ ErrGetDescendantsParentNotFound parentId
             ds -> pure $ take (fromIntegral count) ds
@@ -230,18 +231,23 @@ mockJormungandrClient logLine = JormungandrClient
             , getEpochStability = Quantity (fromIntegral k)
             })
 
-    , postMessage = \_ ->
-        lift . lift . logLine $ "postMessage"
-
-    , getStakeDistribution
-        = error "mock getStakeDistribution"
+    , postMessage = \_ -> error "mock postMessage"
+    , getStakeDistribution = error "mock getStakeDistribution"
     }
   where
+    returns :: Show a => a -> String
+    returns a = "\n    ↳  " <> show a
+
     getNodeState = node <$> get
-    -- Consume and apply one batch of operations
-    applyOps = modify $ \case
-        MockNode n [] k -> MockNode n [] k
-        MockNode n (op:ops) k -> MockNode (foldr applyNodeOp n op) ops k
+    -- Consume and apply one operation
+    applyOp = do
+        s <- get
+        case s of
+            S _ [] _ _ ->
+                return ()
+            S n (op:ops) k logs -> do
+                logLine (show op)
+                put (S (applyNodeOp op n) ops k logs)
 
 -- If debugging, you might want to log 'ByteString' or 'Text'. Don't use putStrLn
 -- on 'String :: [Char]' because characters of output will be interleaved between
@@ -256,14 +262,16 @@ noLog = const (pure ())
 --
 -- Jormungandr is a concurrent process to the wallet. Its state can change in
 -- arbitrary ways between any REST API call.
-data MockNode = MockNode
+data S = S
     { node :: Node
     -- ^ Node's current state.
-    , operations :: [[NodeOp]]
-    -- ^ Future mutations to apply to the node. They are consumed and applied in
-    -- groups after each REST API call.
+    , operations :: [NodeOp]
+    -- ^ Future mutations to apply to the node.
+    -- They are consumed and applied in after each REST API call.
     , mockNodeK :: Quantity "block" Word32
     -- ^ Maximum number of unstable blocks.
+    , logs :: [String]
+    -- ^ Logs from the test execution
     } deriving (Show, Eq)
 
 -- | Models the jormungandr node state.
@@ -340,15 +348,14 @@ fromJBlock (J.Block (J.BlockHeader _ _ sl content bid prev _) _) =
 ----------------------------------------------------------------------------
 -- Generation of mock node test cases.
 
-instance Arbitrary MockNode where
+instance Arbitrary S where
     arbitrary = do
         NonNegative count <- arbitrary
         let node = N mempty mempty 0
         mockNodeK <- arbitrary
-        operations' <- genNodeOps mockNodeK count node []
-        chunks <- infiniteListOf (choose (1, 4))
-        let operations = chunkify chunks operations'
-        pure $ MockNode{..}
+        operations <- genNodeOps mockNodeK count node []
+        let logs = []
+        pure $ S{..}
       where
         -- Repeatedly generate operations then update state.
         -- The state is used so that only valid operations are generated.
@@ -385,14 +392,7 @@ instance Arbitrary MockNode where
         genGC :: Node -> Gen [Hash "BlockHeader"]
         genGC (N db ch _) = sublistOf (Map.keys db \\ ch)
 
-        chunkify :: [Int] -> [NodeOp] -> [[NodeOp]]
-        chunkify counts ops = reverse $ go counts ops []
-          where
-            go [] _ ac = ac
-            go _ [] ac = ac
-            go (c:cs) _ ac = go cs (drop c ops) (take c ops:ac)
-
-    shrink (MockNode n ops k) = [MockNode n ops' k | ops' <- shrink ops]
+    shrink (S n ops k _) = [S n ops' k [] | ops' <- shrink ops]
 
 instance Arbitrary (Quantity "block" Word32) where
     -- k doesn't need to be large for testing this
