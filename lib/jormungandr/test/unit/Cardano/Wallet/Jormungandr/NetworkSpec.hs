@@ -190,8 +190,8 @@ consumerRestoreStep logLine nw c@(C bs cur iLimit)
             Right AwaitReply -> do
                 logLine "AwaitReply"
                 consumerRestoreStep logLine nw (C bs cur (min i 3))
-            Right (RollForward cur' h bs') -> do
-                logLine $ "RollFoward: " <> show h
+            Right (RollForward cur' _ bs') -> do
+                logLine $ "RollForward: " <> unwords (showBlock <$> bs')
                 consumerRestoreStep logLine nw (C (bs ++ bs') cur' i)
             Right (RollBackward cur') -> do
                 logLine "RollBackward"
@@ -246,7 +246,7 @@ mockJormungandrClient logLine = JormungandrClient
 
     , getDescendantIds = \parentId count -> do
         ch <- nodeChainIds <$> lift getNodeState
-        let res = case takeWhile (/= parentId) (reverse ch) of
+        let res = fmap (parentId:) $ case takeWhile (/= parentId) (reverse ch) of
                 [] -> Left $ ErrGetDescendantsParentNotFound parentId
                 ds -> pure $ take (fromIntegral count) ds
         lift . logLine $ "getDescendentIds " <> show parentId <> " " <> show count
@@ -280,7 +280,7 @@ mockJormungandrClient logLine = JormungandrClient
         s <- get
         case s of
             S _ [] _ _ ->
-                logLine "No more operations to apply."
+                return ()
             S n (op:ops) k logs -> do
                 logLine (show op)
                 put (S (applyNodeOp op n) ops k logs)
