@@ -86,6 +86,19 @@ import qualified Data.Map as Map
 
 spec :: Spec
 spec = do
+    describe "Chain" $ do
+        it "Always generate valid chains" $ property $ \(S (N db chain) _ _ _) ->
+            let
+                follow :: [Hash "BlockHeader"] -> Bool
+                follow [] = True
+                follow [b] = b == Hash "genesis"
+                follow (h:p:q) = case (Map.lookup h db, Map.lookup p db) of
+                    (Just blk, Just parent) ->
+                        (mockBlockId parent == mockBlockPrev blk) && follow q
+                    _  -> False
+            in
+                follow chain
+
     describe "Chain sync" $ do
         it "Syncs with mock node"
             $ withMaxSuccess 1000
@@ -285,16 +298,14 @@ data Node = N
     -- ^ Blocks indexed by id.
     , nodeChainIds :: [Hash "BlockHeader"]
     -- ^ List of ids for the chain, newest first.
-    , nodeCounter :: Int
-    -- ^ Counter used to generate block ids.
     } deriving (Show, Eq)
 
 -- | Gets the mock node's chain as a list of blocks starting from genesis.
 getNodeChain :: Node -> [MockBlock]
-getNodeChain (N db ch _) = reverse $ catMaybes [Map.lookup b db | b <- ch]
+getNodeChain (N db ch) = reverse $ catMaybes [Map.lookup b db | b <- ch]
 
 getNodeTip :: Node -> Maybe MockBlock
-getNodeTip (N db ch _) = lastMay ch >>= flip Map.lookup db
+getNodeTip (N db ch) = lastMay ch >>= flip Map.lookup db
 
 -- | Mutation of the node state.
 data NodeOp
@@ -310,22 +321,22 @@ applyNodeOp (NodeGarbageCollect hs) = nodeGarbageCollect hs
 
 -- | Add blocks to the node chain.
 nodeAddBlocks :: [MockBlock] -> Node -> Node
-nodeAddBlocks bs n = N db' chain' nodeCounter'
+nodeAddBlocks bs n = N db' chain'
   where
     chain' = reverse (map mockBlockId bs) ++ nodeChainIds n
     db' = nodeDb n <> Map.fromList [(mockBlockId b, b) | b <- bs]
-    nodeCounter' = nodeCounter n + length bs
 
 -- | Roll back, or remove some blocks from the node chain. They are not removed
 -- from the DB yet (see 'nodeGarbageCollect').
 nodeRewind :: Int -> Node -> Node
-nodeRewind i n = n { nodeChainIds = take (length (nodeChainIds n) - i) (nodeChainIds n) }
+nodeRewind i n =
+    n { nodeChainIds = take (length (nodeChainIds n) - i) (nodeChainIds n) }
 
 -- | "Garbage collect" models the potential that getting rolled back blocks will
 -- still succeed after the chain is switched, but that it will stop succeeding
 -- at some unknown point in the future.
 nodeGarbageCollect :: [Hash "BlockHeader"] -> Node -> Node
-nodeGarbageCollect hs (N bs c x) = N bs' c x
+nodeGarbageCollect hs (N bs c) = N bs' c
     where bs' = foldr Map.delete bs hs
 
 ----------------------------------------------------------------------------
@@ -356,7 +367,7 @@ fromJBlock (J.Block (J.BlockHeader _ _ sl content bid prev _) _) =
 instance Arbitrary S where
     arbitrary = do
         NonNegative count <- arbitrary
-        let node = N mempty mempty 0
+        let node = N mempty mempty
         mockNodeK <- arbitrary
         operations <- genNodeOps mockNodeK count node []
         let logs = []
@@ -373,7 +384,7 @@ instance Arbitrary S where
         -- Given a node state generate a valid mutation.
         -- fixme: use 'sized' to scale rollback, etc.
         genNodeOp :: Quantity "block" Word32 -> Node -> Gen NodeOp
-        genNodeOp (Quantity k) n@(N _ ch _) = frequency
+        genNodeOp (Quantity k) n@(N _ ch) = frequency
                 [ (10, NodeAddBlocks <$> genBlocks n)
                 , (3, NodeRewind <$> choose (1, (min (fromIntegral k) (length ch))))
                 , (1, NodeGarbageCollect <$> genGC n)
@@ -381,23 +392,31 @@ instance Arbitrary S where
 
         genBlocks :: Node -> Gen [MockBlock]
         genBlocks n = do
-            count <- choose (1, 12) -- fixme: getSize would be better
+            count <- choose (1, 3) -- fixme: getSize would be better
             let genEmpty = frequency [(1, pure True), (4, pure False)]
             empty <- vectorOf count genEmpty
             let tip = getNodeTip n
-            let tipSlot = maybe (-1) (fromIntegral . slotNumber . mockBlockSlot) tip
-            let slots = [ SlotId 0 (fromIntegral $ tipSlot + i)
-                        | (i, gap) <- zip [1..count] empty, not gap ]
-            let ixs = [nodeCounter n ..]
-            let bids = map mockBlockHash ixs
-            let prev = maybe (Hash "genesis") (mockBlockHash . mockBlockContent) tip
-            pure [ MockBlock bid p sl ix
-                 | ((bid, p), (ix, sl)) <- zip (zip bids (prev:bids)) (zip ixs slots) ]
+            let tipSlot = maybe 0 (fromIntegral . slotNumber . mockBlockSlot) tip
+            let chainLength = length $ nodeChainIds n
+
+            let slots =
+                    [ SlotId 0 (fromIntegral $ tipSlot + i)
+                    | (i, gap) <- zip [1..count] empty, not gap
+                    ]
+            let contents = take count [(1+chainLength)..]
+            let bids = mockBlockHash <$> contents
+            let prevs = maybe (Hash "genesis") mockBlockId tip : bids
+            pure
+                [ MockBlock bid prev slot content
+                | (bid, prev, slot, content) <- zip4 bids prevs slots contents
+                ]
+
 
         genGC :: Node -> Gen [Hash "BlockHeader"]
-        genGC (N db ch _) = sublistOf (Map.keys db \\ ch)
+        genGC (N db ch) = sublistOf (Map.keys db \\ ch)
 
-    shrink (S n ops k _) = [S n ops' k [] | ops' <- shrink ops]
+    shrink (S n ops k _) =
+        [ S n (take s ops) k [] | s <- shrink (length ops), s > 0]
 
 instance Arbitrary (Quantity "block" Word32) where
     -- k doesn't need to be large for testing this
@@ -408,14 +427,6 @@ instance Arbitrary (Quantity "block" Word32) where
         | k' <- shrink (fromIntegral k :: Int)
         , k' >= 2
         ]
-
--- Arbitrary instance is actually just for shrinking.
-instance Arbitrary NodeOp where
-    arbitrary = pure $ NodeAddBlocks []
-    shrink (NodeAddBlocks bs) =
-        [ NodeAddBlocks (take s bs) | s <- shrink (length bs), s > 0 ]
-    shrink (NodeRewind n) = NodeRewind <$> shrink n
-    shrink (NodeGarbageCollect hs) = NodeGarbageCollect <$> shrink hs
 
 instance Arbitrary MockBlock where
     arbitrary = pure $ MockBlock (Hash "") (Hash "") (SlotId 0 0) 0
