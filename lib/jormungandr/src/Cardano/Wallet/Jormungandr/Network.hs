@@ -377,10 +377,10 @@ cursorForward
 cursorForward k bs (Cursor cursor) =
     Cursor $ appendBlockHeaders k cursor bs'
   where
-    Quantity curHeight = getBlockHeight cursor
     bs' =
-        [ (h, J.convertBlockHeader (J.header b), Quantity (curHeight + i))
-        | (i, (h, b)) <- zip [1..] bs
+        [ (h, J.convertBlockHeader (J.header b), Quantity height)
+        | (h, b) <- bs
+        , let height = J.chainLength $ J.header b
         ]
 
 -- | Clears local state after the rollback point.
