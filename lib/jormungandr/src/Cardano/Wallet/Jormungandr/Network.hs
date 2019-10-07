@@ -299,7 +299,12 @@ mkRawNetworkLayer (block0, bp) st j = NetworkLayer
                         pure AwaitReply
 
                     Forward -> do
-                        let Just localTip = blockHeadersTip localChain
+                        let Just localTip =   blockHeadersTip localChain
+                        -- FIXME
+                        -- We are fetching blocks via `getBlocks` quite after
+                        -- we updated the unstable blocks. So, it could happen
+                        -- that the nodeTip is already on a different fork than
+                        -- what's returned by 'getBlocks'.
                         let Just nodeTip  = blockHeadersTip unstable
                         rollForward nodeTip <$> getBlocks j localTip
 
@@ -352,6 +357,8 @@ direction
     -> Direction
 direction (Cursor lbs) ubs = case greatestCommonBlockHeader ubs lbs of
     Just bh
+        -- Local tip and node tip are the same
+        | blockHeadersTip lbs == blockHeadersTip ubs -> Stay
         -- Local tip is the greatest common block
         | Just bh == blockHeadersTip lbs -> Forward
         -- Common block is not the local tip
