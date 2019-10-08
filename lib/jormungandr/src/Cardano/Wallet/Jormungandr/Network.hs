@@ -260,6 +260,9 @@ mkRawNetworkLayer (block0, bp) st j = NetworkLayer
     k :: Quantity "block" Word32
     k = getEpochStability bp
 
+    genesis :: Hash "Genesis"
+    genesis = getGenesisBlockHash bp
+
     _networkTip :: ExceptT ErrNetworkTip m BlockHeader
     _networkTip = modifyMVar st $ \bs -> do
         let tip = withExceptT liftE $ getTipId j
@@ -298,15 +301,18 @@ mkRawNetworkLayer (block0, bp) st j = NetworkLayer
                     Stay ->
                         pure AwaitReply
 
+                    -- FIXME
+                    -- We are fetching blocks via `getBlocks` quite after
+                    -- we updated the unstable blocks. So, it could happen
+                    -- that the nodeTip is already on a different fork than
+                    -- what's returned by 'getBlocks'.
                     Forward -> do
-                        let Just localTip =   blockHeadersTip localChain
-                        -- FIXME
-                        -- We are fetching blocks via `getBlocks` quite after
-                        -- we updated the unstable blocks. So, it could happen
-                        -- that the nodeTip is already on a different fork than
-                        -- what's returned by 'getBlocks'.
                         let Just nodeTip  = blockHeadersTip unstable
-                        rollForward nodeTip <$> getBlocks j localTip
+                        case blockHeadersTip localChain of
+                            Nothing ->
+                                rollForward nodeTip <$> getBlocks j (BlockHeader (SlotId 0 0) (Quantity 0) (coerce genesis))
+                            Just localTip -> do
+                                rollForward nodeTip <$> getBlocks j localTip
 
                     Backward point ->
                         pure $ rollBackward point
@@ -322,7 +328,9 @@ mkRawNetworkLayer (block0, bp) st j = NetworkLayer
             -> [(Hash "BlockHeader", block)]
             -> NextBlocksResult t block
         rollForward tip bs =
-            RollForward (cursorForward k bs cursor) tip (snd <$> bs)
+            if null bs
+            then AwaitReply
+            else RollForward (cursorForward k bs cursor) tip (snd <$> bs)
 
         rollBackward
             :: BlockHeader
@@ -359,6 +367,8 @@ direction (Cursor lbs) ubs = case greatestCommonBlockHeader ubs lbs of
     Just bh
         -- Local tip and node tip are the same
         | blockHeadersTip lbs == blockHeadersTip ubs -> Stay
+        -- Node is still at genesis
+        | (slotId <$> blockHeadersTip lbs) == Just (SlotId 0 0) -> Stay
         -- Local tip is the greatest common block
         | Just bh == blockHeadersTip lbs -> Forward
         -- Common block is not the local tip
@@ -366,8 +376,8 @@ direction (Cursor lbs) ubs = case greatestCommonBlockHeader ubs lbs of
     Nothing
         -- Local tip is way back in stable blocks.
         | tipSlot lbs < tipSlot ubs -> Forward
-        -- Node is behind local chain. Wait for it to catch up.
-        | otherwise -> Stay
+        -- Node is behind local chain. Rollback.
+        | otherwise -> maybe Stay Backward (blockHeadersTip ubs)
   where
     tipSlot = maybe (SlotId 0 0) slotId . blockHeadersTip
 

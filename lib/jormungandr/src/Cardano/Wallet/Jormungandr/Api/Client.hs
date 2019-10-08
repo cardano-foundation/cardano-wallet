@@ -309,6 +309,9 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
 -------------------------------------------------------------------------------}
 
 -- Fetch a batch of blocks after but not including the given header.
+--
+-- TODO: Have 'getBlocks' only a header hash of the relevant block instead of
+-- using the parents (and use only a hash instead of a block)
 getBlocks
     :: Monad m
     => JormungandrClient m

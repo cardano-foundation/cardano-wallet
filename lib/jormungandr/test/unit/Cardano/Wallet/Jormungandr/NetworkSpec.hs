@@ -128,16 +128,20 @@ prop_sync s0 = monadicIO $ do
         -- Set up network layer with mock Jormungandr
         nl <- mockNetworkLayer logLineN
         -- Run a model chain consumer on the mock network layer.
-        let initialConsumer = C [] (initCursor nl block0H) 100
+        let initialConsumer = C [] (initCursor nl fakeBlock) 100
         consumerRestoreStep logLineC nl initialConsumer
 
     -- Consumer chain should (eventually) be in sync with node chain.
+    --
+    -- NOTE: We never apply the first block 'block0', as this one is given as a
+    -- parameter when starting the wallet. The network layer will never yield
+    -- it.
     monitor $ counterexample $ unlines
         [ "Applied blocks: " <> showChain (consumerApplied consumer)
         , "Node chain:     " <> showChain (getNodeChain (node s))
         , "Logs:         \n" <> unlines (reverse (logs s))
         ]
-    assert (consumerApplied consumer == getNodeChain (node s))
+    assert (consumerApplied consumer == drop 1 (getNodeChain (node s)))
   where
     logLine msg = modify' (\(S a0 a1 a2 logs) -> S a0 a1 a2 (msg:logs))
 
@@ -161,9 +165,12 @@ showBlock  (MockBlock ownId parentId sl _) = mconcat $
         , B8.unpack (getHash parentId)
         ]
 
--- | Test Genesis block
-block0H :: BlockHeader
-block0H = BlockHeader (SlotId 0 0) (Quantity 0) (Hash "genesis")
+-- | This isn't actually the genesis block, but rather, a fake block that
+-- allow us to bootstrap everything else. Only its hash matters here. The
+-- solution is really not ideal though and we should rely instead on the current
+-- block hashes instead of their parent.
+fakeBlock :: BlockHeader
+fakeBlock = BlockHeader (SlotId 0 0) (Quantity 0) (Hash "genesis")
 
 ----------------------------------------------------------------------------
 -- Model consumer
@@ -245,11 +252,9 @@ mockJormungandrClient logLine = JormungandrClient
 
     , getBlock = \blockId -> do
         bs <- nodeDb <$> lift getNodeState
-        let block = if blockId == Hash "genesis"
-                then pure $ toJBlock $ MockBlock blockId (Hash "") (SlotId 0 0) 0
-                else case Map.lookup blockId bs of
-                    Just b -> pure $ toJBlock b
-                    Nothing -> Left $ ErrGetBlockNotFound blockId
+        let block = case Map.lookup blockId bs of
+                Just b -> pure $ toJBlock b
+                Nothing -> Left $ ErrGetBlockNotFound blockId
         lift . logLine $ "getBlock " <> show blockId
             <> returns (fmap (showBlock . fromJBlock) block)
         lift applyOp *> except block
@@ -257,9 +262,9 @@ mockJormungandrClient logLine = JormungandrClient
     , getDescendantIds = \parentId count -> do
         ch <- nodeChainIds <$> lift getNodeState
         let res = fmap (take $ fromIntegral count) $ if parentId == Hash "genesis"
-                then pure (parentId : reverse ch)
+                then pure (reverse ch)
                 else if parentId `elem` ch then
-                    pure $ parentId : reverse (takeWhile (/= parentId) ch)
+                    pure $ reverse (takeWhile (/= parentId) ch)
                 else
                     Left $ ErrGetDescendantsParentNotFound parentId
         lift . logLine $ "getDescendentIds " <> show parentId <> " " <> show count
@@ -428,13 +433,13 @@ instance Arbitrary S where
             let genEmpty = frequency [(1, pure True), (4, pure False)]
             empty <- vectorOf count genEmpty
             let tip = getNodeTip n
-            let tipSlot = maybe 0 (fromIntegral . slotNumber . mockBlockSlot) tip
+            let tipSlot = maybe (-1) (fromIntegral . slotNumber . mockBlockSlot) tip
             let chainLength = length $ nodeChainIds n
             let slots =
                     [ SlotId 0 (fromIntegral $ tipSlot + i)
-                    | (i, gap) <- zip [1..count] empty, not gap
+                    | (i, gap) <- zip [1..count] empty, tipSlot + i == 0 || not gap
                     ]
-            let contents = [(1+chainLength)..]
+            let contents = [chainLength..]
             let bids = mockBlockHash <$> contents
             let prevs = maybe (Hash "genesis") mockBlockId tip : bids
             pure
