@@ -163,10 +163,6 @@ instance DecodeAddress (HttpBridge (network :: Network)) where
         errBase58 = "Unable to decode Address: expected Base58 encoding."
         errDecoding _ = "Unable to decode Address: not a valid Byron address."
 
--- | An initial first block to initialize a chain using the http-bridge. We do
--- not use the `blockHash` and, do only use the `prevBlockHash` to catch up with
--- unstable epoch and therefore, the very first `prevBlockHash` matters not.
---
 -- It isn't impossible to retrieve the 'blockHash' by computing a blake2b 256 of
 -- the CBOR-serialized full block header, but this requires us to write the full
 -- CBOR decoders (and encoders) for the all BlockHeader which is, for the
@@ -176,7 +172,8 @@ block0 = Block
     { header = BlockHeader
         { slotId = slotMinBound
         , blockHeight = Quantity 0
-        , prevBlockHash = Hash "genesis"
+        , headerHash = Hash "http-bridge"
+        , parentHeaderHash = Hash "genesis"
         }
     , transactions = []
     }

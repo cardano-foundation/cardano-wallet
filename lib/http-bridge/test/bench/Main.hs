@@ -229,7 +229,7 @@ bench_restoration
 bench_restoration (logConfig, tracer) (wid, wname, s) =
     withBenchNetworkLayer @n tracer $ \nw -> do
         withBenchDBLayer logConfig tracer $ \db -> do
-            BlockHeader sl _ _ <- unsafeRunExceptT $ networkTip nw
+            BlockHeader sl _ _ _ <- unsafeRunExceptT $ networkTip nw
             sayErr . fmt $ network ||+ " tip is at " +|| sl ||+ ""
             let g0 = staticBlockchainParameters nw
             let w = WalletLayer tracer g0 nw tl db
@@ -324,7 +324,7 @@ waitForNodeSync bridge networkName logSlot = loop 10
   where
     loop :: Int -> IO SlotId
     loop retries = runExceptT (networkTip bridge) >>= \case
-        Right (BlockHeader tipBlockSlot _ _) -> do
+        Right (BlockHeader tipBlockSlot _ _ _) -> do
             currentSlot <- getCurrentSlot networkName
             logSlot tipBlockSlot currentSlot
             if tipBlockSlot < currentSlot

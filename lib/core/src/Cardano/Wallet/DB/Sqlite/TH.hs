@@ -128,7 +128,8 @@ TxOut
 Checkpoint
     checkpointWalletId       W.WalletId   sql=wallet_id
     checkpointSlot           W.SlotId     sql=slot
-    checkpointParent         BlockId      sql=parent_block_id
+    checkpointHeaderHash     BlockId      sql=header_hash
+    checkpointParentHash     BlockId      sql=parent_header_hash
     checkpointBlockHeight    Word64       sql=block_height
     checkpointGenesisHash    BlockId      sql=genesis_hash
     checkpointGenesisStart   UTCTime      sql=genesis_start

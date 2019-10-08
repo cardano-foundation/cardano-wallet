@@ -19,7 +19,6 @@ module Cardano.Wallet.Jormungandr.Compatibility
     ( -- * Target
       Jormungandr
     , Network (..)
-    , block0
     , softTxMaxSize
 
       -- * Node's Configuration
@@ -48,13 +47,10 @@ import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( SeqKey (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
-    , BlockHeader (..)
     , DecodeAddress (..)
     , DefineTx
     , EncodeAddress (..)
-    , Hash (..)
     , invariant
-    , slotMinBound
     )
 import Codec.Binary.Bech32
     ( HumanReadablePart, dataPartFromBytes, dataPartToBytes )
@@ -94,14 +90,6 @@ import qualified Data.Text.Encoding as T
 -- | A type representing the Jormungandr as a network target. This has an
 -- influence on binary serializer & network primitives. See also 'TxId'
 data Jormungandr (network :: Network)
-
--- | Genesis block header, i.e. very first block header of the chain
-block0 :: BlockHeader
-block0 = BlockHeader
-    { slotId = slotMinBound
-    , prevBlockHash = Hash (BS.replicate 32 0)
-    , blockHeight = Quantity 0
-    }
 
 -- | Jörmugandr's chain parameter doesn't include a transaction max size. The
 -- actual hard-limit for the size is constrained by the binary format and

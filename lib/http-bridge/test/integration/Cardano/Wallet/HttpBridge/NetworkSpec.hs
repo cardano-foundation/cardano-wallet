@@ -191,6 +191,7 @@ spec = do
     mkCursor nw slot = initCursor nw $ BlockHeader
         { slotId = slot
         , blockHeight = Quantity 0
-        , prevBlockHash =
+        , headerHash = Hash "http-bridge"
+        , parentHeaderHash =
             Hash "prevBlockHash is not used by the http-bridge NetworkLayer"
         }

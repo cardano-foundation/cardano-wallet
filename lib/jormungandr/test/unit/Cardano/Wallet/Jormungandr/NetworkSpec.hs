@@ -137,7 +137,7 @@ prop_sync s0 = monadicIO $ do
         -- Set up network layer with mock Jormungandr
         nl <- mockNetworkLayer logLine
         -- Run a model chain consumer on the mock network layer.
-        let initialConsumer = C [] (initCursor nl fakeBlock)
+        let initialConsumer = C [] (initCursor nl block0H)
         consumerRestoreStep logLineC nl initialConsumer Nothing
 
     -- NOTE: We never apply the first block 'block0', as this one is given as a
@@ -229,12 +229,9 @@ showBlock (MockBlock ownId parentId sl) = mconcat $
         , B8.unpack (getHash parentId)
         ]
 
--- | This isn't actually the genesis block, but rather, a fake block that
--- allow us to bootstrap everything else. Only its hash matters here. The
--- solution is really not ideal though and we should rely instead on the current
--- block hashes instead of their parent.
-fakeBlock :: BlockHeader
-fakeBlock = BlockHeader (SlotId 0 0) (Quantity 0) (Hash "genesis")
+-- | Test Genesis block
+block0H :: BlockHeader
+block0H = BlockHeader (SlotId 0 0) (Quantity 0) (Hash "genesis") (Hash "genesis")
 
 ----------------------------------------------------------------------------
 -- Model consumer
@@ -291,7 +288,7 @@ consumerRestoreStep logLine nw (C bs cur) mLimit = do
             consumerRestoreStep logLine nw (C bs' cur') limit
         Right Recover -> do
             logLine "Recover"
-            let cur0 = initCursor nw fakeBlock
+            let cur0 = initCursor nw block0H
             consumerRestoreStep logLine nw (C [] cur0) limit
 
 ----------------------------------------------------------------------------
@@ -502,11 +499,11 @@ data MockBlock = MockBlock
 -- | Stuffs a mock block into a real block.
 toJBlock :: MockBlock -> J.Block
 toJBlock (MockBlock bid prev sl) = J.Block hdr []
-    where hdr = J.BlockHeader 0 0 sl 0 (coerce bid) prev Nothing
+    where hdr = J.BlockHeader 0 0 sl 0 (Hash "") (coerce bid) prev Nothing
 
 -- | Extract a mock block out of a real block.
 fromJBlock :: J.Block -> MockBlock
-fromJBlock (J.Block (J.BlockHeader _ _ sl _ bid prev _) _) =
+fromJBlock (J.Block (J.BlockHeader _ _ sl _ _ bid prev _) _) =
     MockBlock (coerce bid) prev sl
 
 ----------------------------------------------------------------------------

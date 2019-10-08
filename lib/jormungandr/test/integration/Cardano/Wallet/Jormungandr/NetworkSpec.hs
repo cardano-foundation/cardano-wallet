@@ -23,7 +23,7 @@ import Cardano.Wallet.Jormungandr.Binary
 import Cardano.Wallet.Jormungandr.BlockHeaders
     ( emptyBlockHeaders )
 import Cardano.Wallet.Jormungandr.Compatibility
-    ( Jormungandr, Network (..), block0 )
+    ( Jormungandr, Network (..) )
 import Cardano.Wallet.Jormungandr.Network
     ( BaseUrl (..)
     , ErrGetDescendants (..)
@@ -166,7 +166,8 @@ spec = do
             let block = BlockHeader
                     { slotId = SlotId 42 14 -- Anything
                     , blockHeight = Quantity 0 -- Anything
-                    , prevBlockHash = Hash bytes
+                    , headerHash = Hash bytes
+                    , parentHeaderHash = Hash bytes
                     }
             resp <- runExceptT $ nextBlocks nw (initCursor nw block)
             resp `shouldBe` Right Recover
@@ -511,3 +512,6 @@ getRollForward Recover = Nothing
 
 isRollForward :: NextBlocksResult target block -> Bool
 isRollForward = maybe False (not . null) . getRollForward
+
+block0 :: BlockHeader
+block0 = BlockHeader (SlotId 0 0) (Quantity 0) (Hash "genesis") (Hash "genesis")

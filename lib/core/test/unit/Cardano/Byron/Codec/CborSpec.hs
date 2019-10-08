@@ -306,7 +306,8 @@ blockHeader1 :: BlockHeader
 blockHeader1 = BlockHeader
     { slotId = SlotId 105 9520
     , blockHeight = Quantity 2276029
-    , prevBlockHash = Hash $ unsafeFromHex
+    , headerHash = Hash "http-bridge"
+    , parentHeaderHash = Hash $ unsafeFromHex
         "9f3c67b575bf2c5638291949694849d6ce5d29efa1f2eb3ed0beb6dac262e9e0"
     }
 
@@ -316,12 +317,13 @@ block1 = Block
     { header = BlockHeader
         { slotId = SlotId 105 9519
         , blockHeight = Quantity 2276028
-        , prevBlockHash = prevBlockHash0
+        , headerHash = Hash "http-bridge"
+        , parentHeaderHash = parentHeaderHash0
         }
     , transactions = mempty
     }
   where
-    prevBlockHash0 = Hash $ unsafeFromHex
+    parentHeaderHash0 = Hash $ unsafeFromHex
         "4d97da40fb62bec847d6123762e82f9325f11d0c8e89deee0c7dbb598ed5f0cf"
 
 -- A mainnet block with a transaction
@@ -330,7 +332,8 @@ block2 = Block
     { header = BlockHeader
         { slotId = SlotId 105 9876
         , blockHeight = Quantity 2276385
-        , prevBlockHash = prevBlockHash0
+        , headerHash = Hash "http-bridge"
+        , parentHeaderHash = parentHeaderHash0
         }
     , transactions =
         [ ( [ TxIn { inputId = inputId0, inputIx = 3 } ]
@@ -341,7 +344,7 @@ block2 = Block
         ]
     }
   where
-    prevBlockHash0 = Hash $ unsafeFromHex
+    parentHeaderHash0 = Hash $ unsafeFromHex
         "da73001193ab3e6a43921385941c5f96b8f56de3908e78fae06f038b91dadd9d"
     inputId0 = Hash $ unsafeFromHex
         "60dbb2679ee920540c18195a3d92ee9be50aee6ed5f891d92d51db8a76b02cd2"
@@ -360,7 +363,8 @@ block3 = Block
     { header = BlockHeader
         { slotId = SlotId 30 9278
         , blockHeight = Quantity 657163
-        , prevBlockHash = prevBlockHash0
+        , headerHash = Hash "http-bridge"
+        , parentHeaderHash = parentHeaderHash0
         }
     , transactions =
         [ ( [ TxIn { inputId = inputId0, inputIx = 1 }
@@ -373,7 +377,7 @@ block3 = Block
         ]
     }
   where
-    prevBlockHash0 = Hash $ unsafeFromHex
+    parentHeaderHash0 = Hash $ unsafeFromHex
         "b065b5fe97bec5fd130e7a639189499c9d0b1fcf9348c5c19f7a22700da7a35e"
     inputId0 = Hash $ unsafeFromHex
         "6967e2b5c3ad5ae07a9bd8d888f1836195a04f7a1cb4b6d083261870068fab1b"
@@ -394,7 +398,8 @@ block4 = Block
     { header = BlockHeader
         { slotId = SlotId 14 18
         , blockHeight = Quantity 302376
-        , prevBlockHash = prevBlockHash0
+        , headerHash = Hash "http-bridge"
+        , parentHeaderHash = parentHeaderHash0
         }
     , transactions =
         [ ( [ TxIn
@@ -430,7 +435,7 @@ block4 = Block
         ]
     }
   where
-    prevBlockHash0 = Hash $ unsafeFromHex
+    parentHeaderHash0 = Hash $ unsafeFromHex
         "f4283844eb78ca6f6333b007f5a735d71499d6ce7cc816846a033a36784bd299"
     inputId0 = Hash $ unsafeFromHex
         "f91292301d4bb1b6e040cecdff4030959b49c95e7dae087782dd558bebb6668a"

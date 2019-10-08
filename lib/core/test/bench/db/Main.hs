@@ -431,7 +431,8 @@ mkCheckpoints numCheckpoints utxoSize =
         (BlockHeader
             (fromFlatSlot epochLength (fromIntegral i))
             (Quantity $ fromIntegral i)
-            (Hash $ label "prevBlockHash" i)
+            (Hash $ label "parentHeaderHash" i)
+            (Hash $ label "headerHash" i)
         )
         initDummyState
         genesisParameters

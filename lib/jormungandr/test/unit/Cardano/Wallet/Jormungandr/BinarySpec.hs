@@ -35,7 +35,7 @@ import Cardano.Wallet.Jormungandr.Binary
     , withHeader
     )
 import Cardano.Wallet.Jormungandr.Compatibility
-    ( Jormungandr, block0 )
+    ( Jormungandr )
 import Cardano.Wallet.Jormungandr.Environment
     ( Network (..) )
 import Cardano.Wallet.Jormungandr.Primitive.Types
@@ -64,10 +64,6 @@ import Data.ByteString
     ( ByteString )
 import Data.Either
     ( isRight )
-import Data.Generics.Internal.VL.Lens
-    ( (^.) )
-import Data.Generics.Labels
-    ()
 import Data.List
     ( isSuffixOf )
 import Data.Proxy
@@ -132,12 +128,15 @@ spec = do
                     BlockHeader
                         { version = 0
                         , contentSize = 458
-                        , slot = block0 ^. #slotId
+                        , slot = SlotId 0 0
                         , chainLength = 0
                         , contentHash = Hash $ unsafeFromHex
                             "f7becdf807c706cef54ec4832d2a7475\
                             \91c3f2141de3e4f2aef59a130d890c12"
-                        , parentHeaderHash = block0 ^. #prevBlockHash
+                        , headerHash = Hash $ unsafeFromHex
+                            "e1abfad5b57907832d22b219d2615b62\
+                            \55437765cfd993cd0ba31b0248bad464"
+                        , parentHeaderHash = Hash (BS.replicate 32 0)
                         , producedBy = Nothing
                         }
                     [ Initial
@@ -189,12 +188,15 @@ spec = do
                     BlockHeader
                         { version = 0
                         , contentSize = 129
-                        , slot = block0 ^. #slotId
+                        , slot = SlotId 0 0
                         , chainLength = 0
                         , contentHash = Hash $ unsafeFromHex
                             "5df3b1c19c1400a9925158ade2b71913\
                             \74df85f6976fe81681f0aef2e0ddc2a3"
-                        , parentHeaderHash = block0 ^. #prevBlockHash
+                        , headerHash = Hash $ unsafeFromHex
+                            "2c0d36bfc65bb59c5c7df68e7b70dab8\
+                            \347b96802a343e609258573fd1155c24"
+                        , parentHeaderHash = Hash (BS.replicate 32 0)
                         , producedBy = Nothing
                         }
                     [ Initial
@@ -234,6 +236,9 @@ spec = do
                         , contentHash = Hash $ unsafeFromHex
                             "0e5751c026e543b2e8ab2eb06099daa1\
                             \d1e5df47778f7787faab45cdf12fe3a8"
+                        , headerHash = Hash $ unsafeFromHex
+                            "4d2324138a42a8d9e93a6b749bedeec8\
+                            \0308ecfbc4d01383da8ac20df109e9bc"
                         , parentHeaderHash = Hash $ unsafeFromHex
                             "d84f590d58c7eabc2e3c4f5cf459d3d2\
                             \fee06069d813a7848b9ad8a154aef79b"
