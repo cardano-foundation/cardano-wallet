@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -68,6 +69,8 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , EpochLength (..)
     , Hash (..)
+    , Range (..)
+    , SortOrder (..)
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
@@ -83,7 +86,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.DeepSeq
-    ( NFData (..) )
+    ( NFData (..), force )
 import Control.Monad
     ( forM_ )
 import Criterion.Main
@@ -109,8 +112,10 @@ import Data.Time.Clock.System
     ( SystemTime (..), systemToUTCTime )
 import Data.Typeable
     ( Typeable )
+import Data.Word
+    ( Word64 )
 import Fmt
-    ( (+|), (|+) )
+    ( pretty, (+|), (|+) )
 import System.Directory
     ( doesFileExist, removeFile )
 import System.IO.Temp
@@ -129,7 +134,8 @@ main = defaultMain
     [ withDB bgroupWriteUTxO
     , withDB bgroupReadUTxO
     , withDB bgroupSeqState
-    , withDB bgroupTxHistory
+    , withDB bgroupWriteTxHistory
+    , withDB bgroupReadTxHistory
     ]
 
 ----------------------------------------------------------------------------
@@ -146,7 +152,8 @@ bgroupWriteUTxO db = bgroup "UTxO (Write)"
     -- selection algorithm tries to prevent fragmentation.
     --
     --      #Checkpoints   UTxO Size
-    [ bUTxO          100           0
+    [ bUTxO            1           0
+    , bUTxO          100           0
     , bUTxO         1000           0
     , bUTxO           10          10
     , bUTxO          100          10
@@ -157,6 +164,7 @@ bgroupWriteUTxO db = bgroup "UTxO (Write)"
     , bUTxO           10        1000
     , bUTxO          100        1000
     , bUTxO         1000        1000
+    , bUTxO            1       10000
     ]
   where
     bUTxO n s = bench lbl $ withCleanDB db $ benchPutUTxO n s
@@ -244,24 +252,55 @@ bgroupSeqState db = bgroup "SeqState"
 --
 -- - 50 inputs
 -- - 100 outputs
-bgroupTxHistory :: DBLayerBench -> Benchmark
-bgroupTxHistory db = bgroup "TxHistory"
-    --           #NBatch  #BatchSize #NInputs #NOutputs
-    [ bTxHistory       1         100        1        1
-    , bTxHistory       1        1000        1        1
-    , bTxHistory      10          10        1        1
-    , bTxHistory     100          10        1        1
-    , bTxHistory       1         100       10       10
-    , bTxHistory       1        1000       10       10
-    , bTxHistory       1       10000       10       10
-    , bTxHistory       1         100       50      100
-    , bTxHistory       1        1000       50      100
-    , bTxHistory       1       10000       50      100
+bgroupWriteTxHistory :: DBLayerBench -> Benchmark
+bgroupWriteTxHistory db = bgroup "TxHistory (Write)"
+    --              #NBatch  #BatchSize #NInputs #NOutputs  #SlotRange
+    [ bTxHistory          1         100        1        1     [1..100]
+    , bTxHistory          1        1000        1        1     [1..100]
+    , bTxHistory         10          10        1        1     [1..100]
+    , bTxHistory        100          10        1        1     [1..100]
+    , bTxHistory          1         100       10       10     [1..100]
+    , bTxHistory          1        1000       10       10    [1..1000]
+    , bTxHistory          1       10000       10       10   [1..10000]
+    , bTxHistory          1          50       50      100     [1..100]
+    , bTxHistory          1         100       50      100     [1..100]
+    , bTxHistory          1         200       50      100     [1..100]
     ]
   where
-    bTxHistory nBatch bSize nInps nOuts =
-        bench lbl $ withCleanDB db $ benchPutTxHistory nBatch bSize nInps nOuts
-      where lbl = nBatch |+" x "+| bSize |+" w/ "+| nInps |+"i + "+| nOuts |+"o"
+    bTxHistory n s i o r =
+        bench lbl $ withCleanDB db $ benchPutTxHistory n s i o r
+      where
+        lbl = n|+" x "+|s|+" w/ "+|i|+"i + "+|o|+"o ["+|inf|+".."+|sup|+"]"
+        inf = head r
+        sup = last r
+
+bgroupReadTxHistory :: DBLayerBench -> Benchmark
+bgroupReadTxHistory db = bgroup "TxHistory (Read)"
+    --             #NTxs  #SlotRange  #SortOrder  #Status  #SearchRange
+    [ bTxHistory    1000    [1..100]  Descending  Nothing  wholeRange
+    , bTxHistory    1000    [1..100]   Ascending  Nothing  wholeRange
+    , bTxHistory    1000   [1..1000]  Descending  Nothing  wholeRange
+    , bTxHistory    1000    [1..100]  Descending  pending  wholeRange
+    , bTxHistory    1000    [1..100]  Descending  Nothing  (Just 40, Just 60)
+    , bTxHistory    1000  [1..10000]  Descending  Nothing  (Just 42, Just 1337)
+    , bTxHistory   10000    [1..100]  Descending  Nothing  (Just 40, Just 60)
+    , bTxHistory   10000  [1..10000]  Descending  Nothing  (Just 42, Just 1337)
+    ]
+  where
+    wholeRange = (Nothing, Nothing)
+    pending = Just Pending
+    bTxHistory n r o st s =
+        withTxHistory db n r $ bench lbl $ benchReadTxHistory db o s st
+      where
+        lbl = unwords [show n, range, ord, mstatus, search]
+        range = let inf = head r in let sup = last r in "["+|inf|+".."+|sup|+"]"
+        ord = case o of Descending -> "DESC"; Ascending -> "ASC"
+        mstatus = maybe "-" pretty st
+        search = case s of
+            (Nothing, Nothing) -> "*"
+            (Just inf, Nothing) -> inf|+".."
+            (Nothing, Just sup) -> ".."+|sup|+""
+            (Just inf, Just sup) -> inf|+".."+|sup|+""
 
 ----------------------------------------------------------------------------
 -- Criterion env functions for database setup
@@ -297,29 +336,66 @@ withCleanDB db = perRunEnv $ do
 ----------------------------------------------------------------------------
 -- TxHistory benchmarks
 
-benchPutTxHistory :: Int -> Int -> Int -> Int -> DBLayerBench -> IO ()
-benchPutTxHistory numBatches batchSize numInputs numOutputs db = do
-    let batches = mkTxHistory (numBatches*batchSize) numInputs numOutputs
+benchPutTxHistory
+    :: Int
+    -> Int
+    -> Int
+    -> Int
+    -> [Word64]
+    -> DBLayerBench
+    -> IO ()
+benchPutTxHistory numBatches batchSize numInputs numOutputs range db = do
+    let batches = mkTxHistory (numBatches*batchSize) numInputs numOutputs range
     unsafeRunExceptT $ forM_ (chunksOf batchSize batches) $ putTxHistory db testPk
 
-mkTxHistory :: Int -> Int -> Int -> [(Tx, TxMeta)]
-mkTxHistory numTx numInputs numOutputs =
-    [ ( Tx (mkInputs numInputs) (mkOutputs numOutputs)
-      , TxMeta
-          { status = InLedger
+benchReadTxHistory
+    :: DBLayerBench
+    -> SortOrder
+    -> (Maybe Word64, Maybe Word64)
+    -> Maybe TxStatus
+    -> Benchmarkable
+benchReadTxHistory db sortOrder (inf, sup) mstatus =
+    whnfIO $ readTxHistory db testPk sortOrder range mstatus
+  where
+    range = Range
+        (fromFlatSlot epochLength <$> inf)
+        (fromFlatSlot epochLength <$> sup)
+
+mkTxHistory :: Int -> Int -> Int -> [Word64] -> [(Tx, TxMeta)]
+mkTxHistory numTx numInputs numOutputs range =
+    [ ( force (Tx (mkInputs i numInputs) (mkOutputs i numOutputs))
+      , force TxMeta
+          { status = [InLedger, Pending, Invalidated] !! (i `mod` 3)
           , direction = Incoming
-          , slotId = fromFlatSlot epochLength (fromIntegral i)
+          , slotId = fromFlatSlot epochLength (range !! (i `mod` length range))
           , amount = Quantity (fromIntegral numOutputs)
           }
       )
-    | i <- [1..numTx]
+    | !i <- [1..numTx]
     ]
 
-mkInputs :: Int -> [TxIn]
-mkInputs n = [TxIn (Hash (label "in" i)) (fromIntegral i) | i <- [1..n]]
+mkInputs :: Int -> Int -> [TxIn]
+mkInputs prefix n =
+    [force (TxIn (Hash (label lbl i)) (fromIntegral i)) | !i <- [1..n]]
+  where
+    lbl = show prefix <> "in"
 
-mkOutputs :: Int -> [TxOut]
-mkOutputs n = [TxOut (Address (label "addr" i)) (Coin 1) | i <- [1..n]]
+mkOutputs :: Int -> Int -> [TxOut]
+mkOutputs prefix n =
+    [force (TxOut (Address (label lbl i)) (Coin 1)) | !i <- [1..n]]
+  where
+    lbl = show prefix <> "in"
+
+withTxHistory :: DBLayerBench -> Int -> [Word64] -> Benchmark -> Benchmark
+withTxHistory db bSize range = env setup . const
+  where
+    setup = do
+        cleanDB db
+        unsafeRunExceptT $ createWallet db testPk testCp testMetadata mempty
+        let (nInps, nOuts) = (20, 20)
+        let txs = force (mkTxHistory bSize nInps nOuts range)
+        unsafeRunExceptT $ putTxHistory db testPk txs
+        pure db
 
 ----------------------------------------------------------------------------
 -- UTxO benchmarks
@@ -330,10 +406,11 @@ benchPutUTxO numCheckpoints utxoSize db = do
     unsafeRunExceptT $ mapM_ (putCheckpoint db testPk) cps
 
 mkCheckpoints :: Int -> Int -> [WalletBench]
-mkCheckpoints numCheckpoints utxoSize = [ cp i | i <- [1..numCheckpoints]]
+mkCheckpoints numCheckpoints utxoSize =
+    [ force (cp i) | !i <- [1..numCheckpoints] ]
   where
     cp i = unsafeInitWallet
-        (UTxO utxo)
+        (UTxO (utxo i))
         (BlockHeader
             (fromFlatSlot epochLength (fromIntegral i))
             (Quantity $ fromIntegral i)
@@ -342,7 +419,7 @@ mkCheckpoints numCheckpoints utxoSize = [ cp i | i <- [1..numCheckpoints]]
         initDummyState
         genesisParameters
 
-    utxo = Map.fromList $ zip (mkInputs utxoSize) (mkOutputs utxoSize)
+    utxo i = force (Map.fromList (zip (mkInputs i utxoSize) (mkOutputs i utxoSize)))
 
 benchReadUTxO :: DBLayerBench -> Benchmarkable
 benchReadUTxO db = whnfIO $ readCheckpoint db testPk
@@ -417,8 +494,8 @@ ourAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, mempty) mempty
   where seed = Passphrase $ BA.convert $ BS.replicate 32 0
 
 -- | Make a prefixed bytestring for use as a Hash or Address.
-label :: Show n => B8.ByteString -> n -> B8.ByteString
-label prefix n = prefix <> B8.pack (show n)
+label :: Show n => String -> n -> B8.ByteString
+label prefix n = B8.pack (prefix <> show n)
 
 -- | Arbitrary epoch length for testing
 epochLength :: EpochLength

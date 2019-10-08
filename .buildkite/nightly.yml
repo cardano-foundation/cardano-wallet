@@ -17,8 +17,8 @@ steps:
       NETWORK: mainnet
 
   - label: 'Database benchmark'
-    command: "./.buildkite/bench-db.sh"
-    timeout_in_minutes: 60
+    command: "TMPDIR=/scratch ./.buildkite/bench-db.sh"
+    timeout_in_minutes: 120
     agents:
       system: x86_64-linux
 
