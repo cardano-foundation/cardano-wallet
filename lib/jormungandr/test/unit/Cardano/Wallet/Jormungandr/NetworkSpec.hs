@@ -3,7 +3,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -11,9 +10,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.Jormungandr.NetworkSpec
-    ( spec
-    ) where
+module Cardano.Wallet.Jormungandr.NetworkSpec where
 
 import Prelude
 
@@ -42,13 +39,15 @@ import Control.Monad.Trans.Control
 import Control.Monad.Trans.Except
     ( except, runExceptT )
 import Control.Monad.Trans.State.Strict
-    ( StateT (..), get, gets, modify', runStateT )
+    ( StateT (..), evalStateT, get, gets, modify', put, runStateT )
 import Data.Coerce
     ( coerce )
 import Data.Functor
     ( ($>) )
+import Data.Functor.Identity
+    ( Identity (..) )
 import Data.List
-    ( zip4, (\\) )
+    ( intersect, nub, zip4, (\\) )
 import Data.Map
     ( Map )
 import Data.Maybe
@@ -66,13 +65,11 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
-    , NonNegative (..)
     , Property
     , choose
     , conjoin
     , counterexample
     , frequency
-    , liftShrink2
     , property
     , shrinkList
     , shrinkNothing
@@ -398,19 +395,22 @@ nodeGarbageCollect :: [Hash "BlockHeader"] -> Node -> Node
 nodeGarbageCollect hs (N bs c) = N bs' c
     where bs' = foldr Map.delete bs hs
 
--- | Remove non-effectful NodeOps from a list which has been shrunk.
-filterNodeOps :: [NodeOp] -> [NodeOp]
-filterNodeOps = filter isUseful
-  where
-    isUseful (NodeAddBlocks []) = False
-    isUseful (NodeRewind 0) = False
-    isUseful (NodeGarbageCollect []) = False
-    isUseful _ = True
-
--- | Update block prev hashes so that the chain is still continuous after
--- shrinking.
-fixBlockPrevs :: S -> S
-fixBlockPrevs  = id
+-- | Take an existing operation and, tweak it a bit in order to make it a valid
+-- operation of the same nature for the given, such that applying it still
+-- preserves the invariant we try to maintain:
+--
+-- - NodeAddBlocks still make for a valid contiguous chain
+-- - NodeRewind does not rewind for more than the chain length
+-- - NodeGarbageCollect actually collects unused ids
+shiftOp :: Node -> NodeOp -> (Node, NodeOp)
+shiftOp n = (\op -> (applyNodeOp op n, op)) . \case
+    NodeAddBlocks bs ->
+        NodeAddBlocks $ genBlocksWith n (repeat False) (length bs)
+    NodeRewind rw ->
+        NodeRewind $ min rw (length $ nodeChainIds n)
+    NodeGarbageCollect ids ->
+        let (ch, db) = (nodeChainIds n, nodeDb n) in
+        NodeGarbageCollect $ (ids \\ ch) `intersect` (Map.keys db)
 
 ----------------------------------------------------------------------------
 -- Mock block
@@ -434,21 +434,39 @@ fromJBlock :: J.Block -> MockBlock
 fromJBlock (J.Block (J.BlockHeader _ _ sl content bid prev _) _) =
     MockBlock (coerce bid) prev sl (fromIntegral content)
 
--- | Fix up prev header hashes in a chain of blocks where some have been removed
--- due to shrinking.
-updateBlockPrevs :: MockBlock -> [MockBlock] -> [MockBlock]
-updateBlockPrevs g bs =
-    [ MockBlock i1 i0 sl c
-    | (MockBlock i0 _ _ _, MockBlock i1 _ sl c) <- zip (g:bs) bs ]
-
 ----------------------------------------------------------------------------
 -- Generation of mock node test cases.
+--
+
+-- | Remove non-effectful NodeOps from a list which has been shrunk.
+removeNoOp :: [NodeOp] -> [NodeOp]
+removeNoOp = filter isUseful
+  where
+    isUseful (NodeAddBlocks []) = False
+    isUseful (NodeRewind 0) = False
+    isUseful (NodeGarbageCollect []) = False
+    isUseful _ = True
+
+genBlocksWith :: Node -> [Bool] -> Int -> [MockBlock]
+genBlocksWith n empty count =
+    let
+        tip = getNodeTip n
+        tipSlot = maybe (-1) (fromIntegral . slotNumber . mockBlockSlot) tip
+        chainLength = length $ nodeChainIds n
+        slots =
+            [ SlotId 0 (fromIntegral $ tipSlot + i)
+            | (i, gap) <- zip [1..count] empty, tipSlot + i == 0 || not gap
+            ]
+        contents = [chainLength..]
+        bids = mockBlockHash <$> contents
+        prevs = maybe (Hash "genesis") mockBlockId tip : bids
+    in
+        [ MockBlock bid prev slot content
+        | (bid, prev, slot, content) <- zip4 bids prevs slots contents
+        ]
 
 instance Arbitrary S where
     arbitrary = do
-        -- initChainLen <- arbitrary
-        -- initBlocks <- genBlocksCount emptyNode initChainLen
-        -- let node = nodeFromChain initBlocks
         let node = emptyNode
         mockNodeK@(Quantity k) <- arbitrary
         chainLength <- choose (0, 2 * fromIntegral k)
@@ -471,43 +489,27 @@ instance Arbitrary S where
 
         -- Given a node state generate a valid mutation.
         genNodeOp :: Quantity "block" Word32 -> Node -> Gen [NodeOp]
-        genNodeOp (Quantity k) n = filterNodeOps <$> frequency
+        genNodeOp (Quantity k) n = removeNoOp <$> frequency
                 [ (30, pure [])
                 , (10, pure . NodeAddBlocks <$> genBlocks n)
                 , (3, genSwitchChain (fromIntegral k) n)
                 , (1, pure . NodeGarbageCollect <$> genGC n)
                 ]
 
+        -- Generate a new contiguous batch of blocks
         genBlocks :: Node -> Gen [MockBlock]
         genBlocks n = do
             count <- sized $ \s -> choose (1, s)
-            genBlocksCount n count
-
-        genBlocksCount :: Node -> Int -> Gen [MockBlock]
-        genBlocksCount n count = do
-            let genEmpty = frequency [(1, pure True), (4, pure False)]
-            empty <- vectorOf count genEmpty
-            let tip = getNodeTip n
-            let tipSlot = maybe (-1) (fromIntegral . slotNumber . mockBlockSlot) tip
-            let chainLength = length $ nodeChainIds n
-            let slots =
-                    [ SlotId 0 (fromIntegral $ tipSlot + i)
-                    | (i, gap) <- zip [1..count] empty, tipSlot + i == 0 || not gap
-                    ]
-            let contents = [chainLength..]
-            let bids = mockBlockHash <$> contents
-            let prevs = maybe (Hash "genesis") mockBlockId tip : bids
-            pure
-                [ MockBlock bid prev slot content
-                | (bid, prev, slot, content) <- zip4 bids prevs slots contents
-                ]
+            gaps <- genGaps count
+            pure $ genBlocksWith n gaps count
 
         -- Switching chain is rewinding then adopting the blocks from a fork.
         genSwitchChain :: Int -> Node -> Gen [NodeOp]
         genSwitchChain k n = do
-          rewind <- genRewind (fromIntegral k) n
-          bs <- genBlocksCount (nodeRewind rewind n) rewind
-          pure [NodeRewind rewind, NodeAddBlocks bs]
+            rewind <- genRewind (fromIntegral k) n
+            gaps <- genGaps rewind
+            let bs = genBlocksWith (nodeRewind rewind n) gaps rewind
+            pure [NodeRewind rewind, NodeAddBlocks bs]
 
         -- Rewinds are usually small to allow the node to make progress, so that
         -- the test can stop. Sometimes the full k is rolled back.
@@ -520,23 +522,30 @@ instance Arbitrary S where
         genGC :: Node -> Gen [Hash "BlockHeader"]
         genGC (N db ch) = sublistOf (Map.keys db \\ ch)
 
-    shrink (S n ops k _) = []
-        -- -- [ fixBlockPrevs (S n' ops' k [])
-        -- -- |  ops' <- shrinkNodeOps ops ]
+        genGaps :: Int -> Gen [Bool]
+        genGaps count = do
+            vectorOf count $ frequency [(1, pure True), (4, pure False)]
+
+    shrink (S n ops k logs) = nub
+        [ S n (filter (not . null) (removeNoOp <$> ops')) k logs
+        | oops <- shrinkList (shrinkList shrinkNodeOp) ops
+        , let ops' = runIdentity $ evalStateT (tweak oops) n
+        ]
       where
-        shrinkNodeOps = shrinkList (shrinkList (filterNodeOps . shrinkNodeOp))
-
         shrinkNodeOp :: NodeOp -> [NodeOp]
-        shrinkNodeOp (NodeAddBlocks bs) =
-            NodeAddBlocks <$> shrinkBlocks bs
-        shrinkNodeOp (NodeRewind rw) =
-            NodeRewind <$> shrink rw
-        shrinkNodeOp (NodeGarbageCollect ids) =
-            NodeGarbageCollect <$> shrinkList shrinkNothing ids
+        shrinkNodeOp = \case
+            NodeAddBlocks bs -> NodeAddBlocks
+                <$> shrinkList shrinkNothing bs
+            NodeRewind rw -> NodeRewind
+                <$> shrink rw
+            NodeGarbageCollect ids -> NodeGarbageCollect
+                <$> shrinkList shrinkNothing ids
 
-        shrinkBlocks = shrinkList shrinkNothing
-
-        -- shrinkNode = fmap (nodeFromChain . updateBlockPrevs) . shrinkBlocks . getNodeChain
+        tweak :: [[NodeOp]] -> StateT Node Identity [[NodeOp]]
+        tweak = mapM $ mapM $ \op -> do
+            node <- get
+            let (node', op') = shiftOp node op
+            put node' $> op'
 
 instance Arbitrary (Quantity "block" Word32) where
     -- k doesn't need to be large for testing this
