@@ -12,6 +12,11 @@ nix-build -A benchmarks.cardano-wallet-core.db -o $bench_name
 
 echo "+++ Run benchmark"
 
+if [ -n "${SCRATCH_DIR:-}" ]; then
+  mkdir -p "$SCRATCH_DIR"
+  export TMPDIR="$SCRATCH_DIR"
+fi
+
 ./$bench_name/cardano-wallet-core*/db --json $bench_name.json -o $bench_name.html | tee $bench_name.txt
 
 printf 'Link to \033]1339;url=artifact://'$bench_name.html';content='"Benchmark Report"'\a\n'
