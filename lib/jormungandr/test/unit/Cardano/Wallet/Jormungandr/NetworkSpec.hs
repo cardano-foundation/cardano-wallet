@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -56,6 +57,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Word
     ( Word32 )
+import Fmt
+    ( fmt, hexF, padLeftF )
 import Safe
     ( headMay )
 import Test.Hspec
@@ -69,7 +72,11 @@ import Test.QuickCheck
     , conjoin
     , counterexample
     , frequency
+    , liftShrink2
     , property
+    , shrinkList
+    , shrinkNothing
+    , sized
     , sublistOf
     , vectorOf
     , withMaxSuccess
@@ -104,15 +111,14 @@ spec = do
                             , follow $ N db (drop 1 chain)
                             ]
             in
-                conjoin (follow <$> scanl (flip applyNodeOp) n0 ops)
+                conjoin (follow <$> scanl (flip applyNodeOp) n0 (concat ops))
 
         it "Always generate less than 100 operations" $ property
             $ \(S _ ops _ _) -> withMaxSuccess 100000 $ property (length ops < 100)
 
     describe "Chain sync" $ do
-        it "Syncs with mock node"
-            $ withMaxSuccess 1000
-            $ property prop_sync
+        it "Syncs with mock node" $
+            withMaxSuccess 1000 prop_sync
 
 {-------------------------------------------------------------------------------
                 Syncing of network layer in presence of rollback
@@ -121,33 +127,43 @@ spec = do
 
 prop_sync :: S -> Property
 prop_sync s0 = monadicIO $ do
-    let logLineN msg = logLine $ "[PRODUCER] " <> msg
     let logLineC msg = logLine $ "[CONSUMER] " <> msg
 
     (consumer, s) <- run $ flip runStateT s0 $ do
         -- Set up network layer with mock Jormungandr
-        nl <- mockNetworkLayer logLineN
+        nl <- mockNetworkLayer logLine
         -- Run a model chain consumer on the mock network layer.
         let initialConsumer = C [] (initCursor nl fakeBlock) 100
         consumerRestoreStep logLineC nl initialConsumer
 
-    -- Consumer chain should (eventually) be in sync with node chain.
-    --
     -- NOTE: We never apply the first block 'block0', as this one is given as a
     -- parameter when starting the wallet. The network layer will never yield
     -- it.
+    let nodeChain = drop 1 (getNodeChain (node s))
+
     monitor $ counterexample $ unlines
-        [ "Applied blocks: " <> showChain (consumerApplied consumer)
-        , "Node chain:     " <> showChain (getNodeChain (node s))
-        , "Logs:         \n" <> unlines (reverse (logs s))
+        [ "Applied blocks:  " <> showChain (consumerApplied consumer)
+        , "Node chain:      " <> showChain nodeChain
+        , "Steps remaining: " <> show (consumerStepsRemaining consumer)
+        , "Logs:          \n" <> unlines (reverse (logs s))
         ]
-    assert (consumerApplied consumer == drop 1 (getNodeChain (node s)))
+
+    -- Consumer chain should (eventually) be in sync with node chain.
+    assert (consumerApplied consumer == nodeChain)
   where
     logLine msg = modify' (\(S a0 a1 a2 logs) -> S a0 a1 a2 (msg:logs))
 
 showChain :: [MockBlock] -> String
 showChain [] = "∅"
-showChain chain = unwords . map (showHash . mockBlockId) $ chain
+showChain chain = unwords . map showSlot . addGaps $ chain
+  where
+    showSlot = maybe "_" (showHash . mockBlockId)
+    addGaps [] = []
+    addGaps [b] = [Just b]
+    addGaps (b1:b2:bs) = [Just b1] ++ replicate gap Nothing ++ addGaps (b2:bs)
+      where
+        gap = slotNum b2 - slotNum b1 - 1
+        slotNum = fromIntegral . slotNumber . mockBlockSlot
 
 showBlock :: MockBlock -> String
 showBlock  (MockBlock ownId parentId sl _) = mconcat $
@@ -181,7 +197,7 @@ data Consumer = C
     -- ^ Blocks which have been received.
     , _consumerCursor :: Cursor (Jormungandr 'Testnet)
     -- ^ Consumer state -- the cursor given by network layer.
-    , _consumerStepsRemaining :: Int
+    , consumerStepsRemaining :: Int
     -- ^ Counter which prevents infinite loops in tests.
     }
 
@@ -245,34 +261,37 @@ mockJormungandrClient
     -> JormungandrClient (StateT S m)
 mockJormungandrClient logLine = JormungandrClient
     { getTipId = do
-        ch <- nodeChainIds <$> lift getNodeState
+        ch <- lift $ gets (nodeChainIds . node)
         let tip = fromMaybe (Hash "genesis") $ headMay ch
-        lift . logLine $ "getTipId" <> returns tip
-        lift applyOp $> tip
+        lift . logLineP $ "getTipId" <> returns tip
+        lift applyOps
+        pure tip
 
     , getBlock = \blockId -> do
-        bs <- nodeDb <$> lift getNodeState
+        bs <- lift $ gets (nodeDb . node)
         let block = case Map.lookup blockId bs of
                 Just b -> pure $ toJBlock b
                 Nothing -> Left $ ErrGetBlockNotFound blockId
-        lift . logLine $ "getBlock " <> show blockId
+        lift . logLineP $ "getBlock " <> show blockId
             <> returns (fmap (showBlock . fromJBlock) block)
-        lift applyOp *> except block
+        lift applyOps
+        except block
 
     , getDescendantIds = \parentId count -> do
-        ch <- nodeChainIds <$> lift getNodeState
+        ch <- lift $ gets (nodeChainIds . node)
         let res = fmap (take $ fromIntegral count) $ if parentId == Hash "genesis"
                 then pure (reverse ch)
                 else if parentId `elem` ch then
                     pure $ reverse (takeWhile (/= parentId) ch)
                 else
                     Left $ ErrGetDescendantsParentNotFound parentId
-        lift . logLine $ "getDescendentIds " <> show parentId <> " " <> show count
+        lift . logLineP $ "getDescendentIds " <> show parentId <> " " <> show count
             <> returns (show res)
-        lift applyOp *> except res
+        lift applyOps
+        except res
 
     , getInitialBlockchainParameters = \blockId -> do
-        Quantity k <- mockNodeK <$> lift get
+        Quantity k <- lift $ gets mockNodeK
         let block0 = MockBlock (coerce blockId) (Hash "") (SlotId 0 0) 0
         pure (toJBlock block0, BlockchainParameters
             { getGenesisBlockHash = blockId
@@ -288,21 +307,22 @@ mockJormungandrClient logLine = JormungandrClient
     , getStakeDistribution = error "mock getStakeDistribution"
     }
   where
-    getNodeState = node <$> get
-
     returns :: Show a => a -> String
     returns a = "\n    ↳  " <> show a
 
-    applyOp :: StateT S m ()
-    applyOp = do
+    applyOps :: StateT S m ()
+    applyOps = do
         s <- gets operations
         case s of
             [] -> return ()
-            op:rest -> do
-                logLine (show op)
-                modify' (\(S n _ k logs) -> S (applyNodeOp op n) rest k logs)
+            ops:rest -> do
+                mapM_ (logLineN . show) ops
+                modify' (\(S n _ k logs) -> S (applyNodeOps ops n) rest k logs)
 
-----------------------------------------------------------------------------
+    logLineP msg = logLine $ "[PRODUCER] " <> msg
+    logLineN msg = logLine $ "[NETWORK ] " <> msg
+
+-------------------------------------------------------------------------
 -- Model node
 
 -- | State of the mock node which is used by 'mockJormungandrClient'.
@@ -312,9 +332,9 @@ mockJormungandrClient logLine = JormungandrClient
 data S = S
     { node :: Node
     -- ^ Node's current state.
-    , operations :: [NodeOp]
+    , operations :: [[NodeOp]]
     -- ^ Future mutations to apply to the node.
-    -- They are consumed and applied in after each REST API call.
+    -- They are consumed and applied in batches after each REST API call.
     , mockNodeK :: Quantity "block" Word32
     -- ^ Maximum number of unstable blocks.
     , logs :: [String]
@@ -329,12 +349,18 @@ data Node = N
     -- ^ List of ids for the chain, newest first.
     } deriving (Show, Eq)
 
+emptyNode :: Node
+emptyNode = N mempty mempty
+
 -- | Gets the mock node's chain as a list of blocks starting from genesis.
 getNodeChain :: Node -> [MockBlock]
 getNodeChain (N db ch) = reverse $ catMaybes [Map.lookup b db | b <- ch]
 
 getNodeTip :: Node -> Maybe MockBlock
 getNodeTip (N db ch) = headMay ch >>= flip Map.lookup db
+
+nodeFromChain :: [MockBlock] -> Node
+nodeFromChain bs = nodeAddBlocks bs emptyNode
 
 -- | Mutation of the node state.
 data NodeOp
@@ -347,6 +373,10 @@ applyNodeOp :: NodeOp -> Node -> Node
 applyNodeOp (NodeAddBlocks bs) = nodeAddBlocks bs
 applyNodeOp (NodeRewind i) = nodeRewind i
 applyNodeOp (NodeGarbageCollect hs) = nodeGarbageCollect hs
+
+-- | apply one batch of operations
+applyNodeOps :: [NodeOp] -> Node -> Node
+applyNodeOps ops n = foldr applyNodeOp n ops
 
 -- | Add blocks to the node chain.
 nodeAddBlocks :: [MockBlock] -> Node -> Node
@@ -367,6 +397,20 @@ nodeRewind i n =
 nodeGarbageCollect :: [Hash "BlockHeader"] -> Node -> Node
 nodeGarbageCollect hs (N bs c) = N bs' c
     where bs' = foldr Map.delete bs hs
+
+-- | Remove non-effectful NodeOps from a list which has been shrunk.
+filterNodeOps :: [NodeOp] -> [NodeOp]
+filterNodeOps = filter isUseful
+  where
+    isUseful (NodeAddBlocks []) = False
+    isUseful (NodeRewind 0) = False
+    isUseful (NodeGarbageCollect []) = False
+    isUseful _ = True
+
+-- | Update block prev hashes so that the chain is still continuous after
+-- shrinking.
+fixBlockPrevs :: S -> S
+fixBlockPrevs  = id
 
 ----------------------------------------------------------------------------
 -- Mock block
@@ -390,46 +434,57 @@ fromJBlock :: J.Block -> MockBlock
 fromJBlock (J.Block (J.BlockHeader _ _ sl content bid prev _) _) =
     MockBlock (coerce bid) prev sl (fromIntegral content)
 
+-- | Fix up prev header hashes in a chain of blocks where some have been removed
+-- due to shrinking.
+updateBlockPrevs :: MockBlock -> [MockBlock] -> [MockBlock]
+updateBlockPrevs g bs =
+    [ MockBlock i1 i0 sl c
+    | (MockBlock i0 _ _ _, MockBlock i1 _ sl c) <- zip (g:bs) bs ]
+
 ----------------------------------------------------------------------------
 -- Generation of mock node test cases.
 
 instance Arbitrary S where
     arbitrary = do
-        let node = N mempty mempty
-        mockNodeK <- arbitrary
-        operations <- genNodeOps mockNodeK node []
+        -- initChainLen <- arbitrary
+        -- initBlocks <- genBlocksCount emptyNode initChainLen
+        -- let node = nodeFromChain initBlocks
+        let node = emptyNode
+        mockNodeK@(Quantity k) <- arbitrary
+        chainLength <- choose (0, 2 * fromIntegral k)
+        operations <- genNodeOps mockNodeK chainLength node
         let logs = []
         pure $ S{..}
       where
         -- Repeatedly generate operations then update state.
         -- The state is used so that only valid operations are generated.
-        genNodeOps :: Quantity "block" Word32 -> Node -> [NodeOp] -> Gen [NodeOp]
-        genNodeOps k n ac = do
-            op <- genNodeOp k n
-            let n' = applyNodeOp op n
-            if length (nodeChainIds n') > 10 -- Make sure we generate finite scenarios
-            then pure $ reverse (op:ac)
-            else genNodeOps k n' (op:ac)
+        -- Stops generating ops once a target chain length is reached.
+        genNodeOps :: Quantity "block" Word32 -> Int -> Node -> Gen [[NodeOp]]
+        genNodeOps k chainLength initialNode = go initialNode []
+          where
+            go n ac = do
+                op <- genNodeOp k n
+                let n' = applyNodeOps op n
+                if length (nodeChainIds n') > chainLength
+                    then pure $ reverse (op:ac)
+                    else go n' (op:ac)
 
         -- Given a node state generate a valid mutation.
-        -- fixme: use 'sized' to scale rollback, etc.
-        genNodeOp :: Quantity "block" Word32 -> Node -> Gen NodeOp
-        genNodeOp (Quantity k) n = frequency
-                [ (10, NodeAddBlocks <$> genBlocks n)
-                , (3, NodeRewind <$> genRewind (fromIntegral k) n)
-                , (1, NodeGarbageCollect <$> genGC n)
+        genNodeOp :: Quantity "block" Word32 -> Node -> Gen [NodeOp]
+        genNodeOp (Quantity k) n = filterNodeOps <$> frequency
+                [ (30, pure [])
+                , (10, pure . NodeAddBlocks <$> genBlocks n)
+                , (3, genSwitchChain (fromIntegral k) n)
+                , (1, pure . NodeGarbageCollect <$> genGC n)
                 ]
-
-        -- Make sure we still allow the node to make progress. We allow rewinds,
-        -- yes, but the node should still make progress in order to reach a
-        -- chain enough for the test to stop.
-        genRewind :: Int -> Node -> Gen Int
-        genRewind k (N _ ch) = do
-            choose (1, (min (fromIntegral k) (length ch `div` 2)))
 
         genBlocks :: Node -> Gen [MockBlock]
         genBlocks n = do
-            count <- choose (1, 5) -- fixme: getSize would be better
+            count <- sized $ \s -> choose (1, s)
+            genBlocksCount n count
+
+        genBlocksCount :: Node -> Int -> Gen [MockBlock]
+        genBlocksCount n count = do
             let genEmpty = frequency [(1, pure True), (4, pure False)]
             empty <- vectorOf count genEmpty
             let tip = getNodeTip n
@@ -447,11 +502,41 @@ instance Arbitrary S where
                 | (bid, prev, slot, content) <- zip4 bids prevs slots contents
                 ]
 
+        -- Switching chain is rewinding then adopting the blocks from a fork.
+        genSwitchChain :: Int -> Node -> Gen [NodeOp]
+        genSwitchChain k n = do
+          rewind <- genRewind (fromIntegral k) n
+          bs <- genBlocksCount (nodeRewind rewind n) rewind
+          pure [NodeRewind rewind, NodeAddBlocks bs]
+
+        -- Rewinds are usually small to allow the node to make progress, so that
+        -- the test can stop. Sometimes the full k is rolled back.
+        genRewind :: Int -> Node -> Gen Int
+        genRewind k (N _ ch) = frequency
+            [ (19, choose (1, (min k (length ch `div` 3))))
+            , (1, choose ((k - 1), k))
+            ]
+
         genGC :: Node -> Gen [Hash "BlockHeader"]
         genGC (N db ch) = sublistOf (Map.keys db \\ ch)
 
-    shrink (S n ops k _) =
-        [ S n (take s ops) k [] | s <- shrink (length ops), s > 0]
+    shrink (S n ops k _) = []
+        -- -- [ fixBlockPrevs (S n' ops' k [])
+        -- -- |  ops' <- shrinkNodeOps ops ]
+      where
+        shrinkNodeOps = shrinkList (shrinkList (filterNodeOps . shrinkNodeOp))
+
+        shrinkNodeOp :: NodeOp -> [NodeOp]
+        shrinkNodeOp (NodeAddBlocks bs) =
+            NodeAddBlocks <$> shrinkBlocks bs
+        shrinkNodeOp (NodeRewind rw) =
+            NodeRewind <$> shrink rw
+        shrinkNodeOp (NodeGarbageCollect ids) =
+            NodeGarbageCollect <$> shrinkList shrinkNothing ids
+
+        shrinkBlocks = shrinkList shrinkNothing
+
+        -- shrinkNode = fmap (nodeFromChain . updateBlockPrevs) . shrinkBlocks . getNodeChain
 
 instance Arbitrary (Quantity "block" Word32) where
     -- k doesn't need to be large for testing this
@@ -463,14 +548,8 @@ instance Arbitrary (Quantity "block" Word32) where
         , k' >= 2
         ]
 
-instance Arbitrary MockBlock where
-    arbitrary = pure $ MockBlock (Hash "") (Hash "") (SlotId 0 0) 0
-
-instance Arbitrary (Hash "BlockHeader")  where
-    arbitrary = mockBlockHash . getNonNegative <$> arbitrary
-
 mockBlockHash :: Int -> Hash "BlockHeader"
-mockBlockHash num = Hash. B8.pack $ "block" ++ show num
+mockBlockHash num = Hash $ fmt $ padLeftF 4 '0' $ hexF num
 
 showHash :: Hash a -> String
 showHash (Hash h) = B8.unpack h
