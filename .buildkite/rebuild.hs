@@ -430,7 +430,8 @@ cleanupCacheStep dryRun cacheConfig buildDir = do
     echo "--- Cleaning up CI cache"
     case cacheConfig of
         Right CICacheConfig{..} -> do
-            getBranches >>= cleanupCache dryRun ccCacheDir
+            whenM (testdir ccCacheDir) $
+                getBranches >>= cleanupCache dryRun ccCacheDir
             -- Remove the stack root left by the previous build.
             removeDirectory dryRun ccStackRoot
             -- Remove the build directory left by the previous build.

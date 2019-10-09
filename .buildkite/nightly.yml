@@ -1,43 +1,47 @@
 env:
   NIX_PATH: "channel:nixos-19.03"
+  BUILD_DIR: "/build/cardano-wallet"
+  STACK_ROOT: "/build/cardano-wallet.stack"
+  CACHE_DIR: "/cache/cardano-wallet"
+  SCRATCH_DIR: "/scratch/cardano-wallet"
+
 steps:
   - label: 'Restore benchmark - testnet'
     command: "./.buildkite/bench-restore.sh"
+    env:
+      HOME: "/cache/cardano-wallet"
+      NETWORK: testnet
     timeout_in_minutes: 60
     agents:
       system: x86_64-linux
-    env:
-      NETWORK: testnet
+
   - label: 'Restore benchmark - mainnet'
     command: "./.buildkite/bench-restore.sh"
+    env:
+      HOME: "/cache/cardano-wallet"
+      NETWORK: mainnet
     timeout_in_minutes: 120
     agents:
       system: x86_64-linux
-    env:
-      NETWORK: mainnet
 
   - label: 'Database benchmark'
-    command: "TMPDIR=/scratch ./.buildkite/bench-db.sh"
+    command: "./.buildkite/bench-db.sh"
     timeout_in_minutes: 120
     agents:
       system: x86_64-linux
 
   - label: 'Clean up CI cache'
-    env:
-      STACK_ROOT: "/build/cardano-wallet.stack"
     command:
       - "nix-build .buildkite/default.nix -o sr"
-      - "./sr/bin/rebuild cleanup-cache --build-dir=/build/cardano-wallet --cache-dir=/build/cardano-wallet.cache"
+      - "./sr/bin/rebuild cleanup-cache --build-dir=$BUILD_DIR --cache-dir=$CACHE_DIR"
     agents:
       system: x86_64-linux
 
   - block: 'Delete CI Caches'
   - label: 'Purge CI cache'
-    env:
-      STACK_ROOT: "/build/cardano-wallet.stack"
     command:
       - "nix-build .buildkite/default.nix -o sr"
-      - "./sr/bin/rebuild purge-cache --build-dir=/build/cardano-wallet --cache-dir=/build/cardano-wallet.cache"
+      - "./sr/bin/rebuild purge-cache --build-dir=$BUILD_DIR --cache-dir=$CACHE_DIR"
     agents:
       system: x86_64-linux
   - wait

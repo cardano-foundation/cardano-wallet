@@ -10,10 +10,17 @@ results=restore-$target-$NETWORK.txt
 total_time=restore-time.txt
 
 echo "--- Build"
+
 nix-build -A benchmarks.cardano-wallet-$target.restore -o bench-$target-restore
 bench=./bench-$target-restore/bin/restore
 
 echo "--- Run benchmarks - $target - $NETWORK"
+
+if [ -n "${SCRATCH_DIR:-}" ]; then
+  mkdir -p "$SCRATCH_DIR"
+  export HOME="$SCRATCH_DIR"
+fi
+
 command time -o $total_time -v $bench "$NETWORK" +RTS -N2 -qg -A1m -I0 -T -M8G -h -RTS 2>&1 | tee $log
 
 grep -v INFO $log | awk '/All results/,EOF { print $0 }' > $results

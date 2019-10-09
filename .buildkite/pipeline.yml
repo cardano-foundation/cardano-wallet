@@ -1,10 +1,13 @@
+env:
+  BUILD_DIR: "/build/cardano-wallet"
+  STACK_ROOT: "/build/cardano-wallet.stack"
+  CACHE_DIR: "/cache/cardano-wallet"
+
 steps:
   - label: 'Stack Rebuild'
-    env:
-      STACK_ROOT: "/build/cardano-wallet.stack"
     command:
       - "nix-build .buildkite/default.nix -o sr"
-      - "./sr/bin/rebuild --build-dir /build/cardano-wallet --cache-dir /build/cardano-wallet.cache"
+      - "./sr/bin/rebuild --build-dir=$BUILD_DIR --cache-dir=$CACHE_DIR"
     timeout_in_minutes: 120
     artifact_paths:
       - "/build/cardano-wallet/.stack-work/logs/cardano-wallet*.log"
