@@ -110,12 +110,9 @@ spec = do
             in
                 conjoin (follow <$> scanl (flip applyNodeOp) n0 (concat ops))
 
-        it "Always generate less than 100 operations" $ property
-            $ \(S _ ops _ _) -> withMaxSuccess 100000 $ property (length ops < 100)
-
     describe "Chain sync" $ do
         it "Syncs with mock node" $
-            withMaxSuccess 1000 prop_sync
+            withMaxSuccess 100000 prop_sync
 
 {-------------------------------------------------------------------------------
                 Syncing of network layer in presence of rollback
@@ -130,7 +127,8 @@ prop_sync s0 = monadicIO $ do
         -- Set up network layer with mock Jormungandr
         nl <- mockNetworkLayer logLine
         -- Run a model chain consumer on the mock network layer.
-        let initialConsumer = C [] (initCursor nl fakeBlock) 100
+        let limit = max 2 (length $ operations s0)
+        let initialConsumer = C [] (initCursor nl fakeBlock) limit
         consumerRestoreStep logLineC nl initialConsumer
 
     -- NOTE: We never apply the first block 'block0', as this one is given as a
@@ -490,10 +488,10 @@ instance Arbitrary S where
         -- Given a node state generate a valid mutation.
         genNodeOp :: Quantity "block" Word32 -> Node -> Gen [NodeOp]
         genNodeOp (Quantity k) n = removeNoOp <$> frequency
-                [ (30, pure [])
-                , (10, pure . NodeAddBlocks <$> genBlocks n)
-                , (3, genSwitchChain (fromIntegral k) n)
-                , (1, pure . NodeGarbageCollect <$> genGC n)
+                [ (50, pure [])
+                , (35, pure . NodeAddBlocks <$> genBlocks n)
+                , (10, genSwitchChain (fromIntegral k) n)
+                , (5, pure . NodeGarbageCollect <$> genGC n)
                 ]
 
         -- Generate a new contiguous batch of blocks
@@ -515,8 +513,9 @@ instance Arbitrary S where
         -- the test can stop. Sometimes the full k is rolled back.
         genRewind :: Int -> Node -> Gen Int
         genRewind k (N _ ch) = frequency
-            [ (19, choose (1, (min k (length ch `div` 3))))
-            , (1, choose ((k - 1), k))
+            [ (80, choose (1, min k 3))
+            , (15, choose (1, (min k (length ch `div` 3))))
+            , (5, choose ((k - 1), k))
             ]
 
         genGC :: Node -> Gen [Hash "BlockHeader"]
