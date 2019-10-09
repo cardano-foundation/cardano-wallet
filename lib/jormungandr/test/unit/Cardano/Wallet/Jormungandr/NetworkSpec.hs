@@ -47,7 +47,7 @@ import Data.Functor
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.List
-    ( intersect, nub, zip4, (\\) )
+    ( foldl', intersect, nub, zip4, (\\) )
 import Data.Map
     ( Map )
 import Data.Maybe
@@ -373,7 +373,7 @@ applyNodeOp (NodeGarbageCollect hs) = nodeGarbageCollect hs
 
 -- | apply one batch of operations
 applyNodeOps :: [NodeOp] -> Node -> Node
-applyNodeOps ops n = foldr applyNodeOp n ops
+applyNodeOps ops n = foldl' (flip applyNodeOp) n ops
 
 -- | Add blocks to the node chain.
 nodeAddBlocks :: [MockBlock] -> Node -> Node
