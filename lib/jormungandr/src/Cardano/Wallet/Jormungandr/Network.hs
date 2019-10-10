@@ -315,7 +315,7 @@ mkRawNetworkLayer (block0, bp) st j = NetworkLayer
                             Right blks ->
                                 pure (tryRollForward nodeTip blks)
                             Left (ErrGetBlockNotFound _) ->
-                                pure Recover
+                                pure (recover localChain)
                             Left e ->
                                 throwE e
 
@@ -323,7 +323,7 @@ mkRawNetworkLayer (block0, bp) st j = NetworkLayer
                         pure $ rollBackward point
 
                     Restart ->
-                        pure Recover
+                        pure (recover localChain)
 
             Left ErrNetworkTipNotFound ->
                 pure AwaitReply
@@ -358,15 +358,22 @@ mkRawNetworkLayer (block0, bp) st j = NetworkLayer
                 -- We need to rollback somewhere, but we don't know where, so we
                 -- try rolling back to the oldest header we know.
                 | otherwise ->
-                    case blockHeadersBase localChain of
-                        Nothing -> AwaitReply
-                        Just bh -> RollBackward (cursorBackward bh cursor)
+                    recover localChain
 
         rollBackward
             :: BlockHeader
             -> NextBlocksResult t block
         rollBackward point =
             RollBackward (cursorBackward point cursor)
+
+        recover
+            :: BlockHeaders
+            -> NextBlocksResult t block
+        recover chain = case (blockHeadersBase chain, blockHeadersTip chain) of
+            (Just baseH, Just tipH) | baseH /= tipH ->
+                RollBackward (cursorBackward baseH cursor)
+            _ ->
+                Recover
 
 {-------------------------------------------------------------------------------
                              Jormungandr Cursor
