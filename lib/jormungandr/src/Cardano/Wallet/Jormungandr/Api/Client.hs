@@ -149,25 +149,7 @@ data JormungandrClient m = JormungandrClient
         :: ExceptT ErrNetworkUnavailable m StakeApiResponse
     }
 
--- | Construct a 'JormungandrClient'-client
---
--- >>> mgr <- newManager defaultManagerSettings
--- >>> j = mkJormungandrClient mgr (BaseUrl Http "localhost" 8080 "")
---
--- >>> (Right tip) <- runExceptT $ getTipId j
--- >>> tip
--- BlockId (Hash {getHash = "26c640a3de09b74398c14ca0a137ec78"})
---
--- >>> (Right block) <- runExceptT $ getBlock j t
--- >>> block
--- >>> Block {header = BlockHeader {slotId = SlotId {epochNumber = 0, slotNumber = 0}, prevBlockHash = Hash {getHash = "\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL"}}, transactions = [Tx {inputs = [], outputs = [TxOut {address = Address {unAddress = "3$\195xi\193\"h\154\&5\145}\245:O\"\148\163\165/h^\ENQ\245\248\229;\135\231\234E/"}, coin = Coin {getCoin = 14}}]}]}
---
--- At the time of writing, we only have the genesis-block, but we should be
--- able to get its descendants.
---
--- >>> let genesisHash = BlockId (Hash {getHash = "&\198@\163\222\t\183C\152\193L\160\161\&7\236x\245\229\EOT\175\177\167\131\190\b\b/\174\212\177:\179"})
--- >>> runExceptT $ getDescendantIds j t 4
--- Right []
+-- | Construct a 'JormungandrClient'
 mkJormungandrClient
     :: Manager -> BaseUrl -> JormungandrClient IO
 mkJormungandrClient mgr baseUrl = JormungandrClient
@@ -315,18 +297,18 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
 getBlocks
     :: Monad m
     => JormungandrClient m
+    -> Quantity "block" Word32
+        -- ^ Epoch stability, we can't fetch more than `k` block at once.
     -> BlockHeader
+        -- ^ Header to start from
     -> ExceptT ErrGetBlock m [(Hash "BlockHeader", J.Block)]
-getBlocks j tip = do
+getBlocks j (Quantity k) tip = do
     -- Get the descendants of the tip's /parent/.
     -- The first descendant is therefore the current tip itself. We need to
     -- skip it. Hence the 'tail'.
     ids <- withExceptT liftE $
-        tailSafe <$> getDescendantIds j (prevBlockHash tip) batchSize
+        tailSafe <$> getDescendantIds j (prevBlockHash tip) (fromIntegral k + 1)
     mapM (\blockId -> (blockId,) <$> getBlock j blockId) ids
-  where
-    -- Maximum number of blocks to return from nextBlocks.
-    batchSize = 1000
 
 -- | Get a block header corresponding to a header hash.
 getBlockHeader
