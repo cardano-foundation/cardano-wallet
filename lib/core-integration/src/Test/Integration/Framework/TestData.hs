@@ -18,6 +18,7 @@ module Test.Integration.Framework.TestData
     , mnemonics18
     , mnemonics21
     , mnemonics24
+    , specMnemonicByron
     , specMnemonicSentence
     , specMnemonicSecondFactor
 
@@ -127,6 +128,10 @@ specMnemonicSentence :: [Text]
 specMnemonicSentence = ["squirrel", "material", "silly", "twice", "direct",
     "slush", "pistol", "razor", "become", "junk", "kingdom", "flee",
     "squirrel", "silly", "twice"]
+
+specMnemonicByron :: [Text]
+specMnemonicByron = [ "squirrel", "material", "silly", "twice", "direct", "slush",
+    "pistol", "razor", "become", "junk", "kingdom", "junk"]
 
 specMnemonicSecondFactor :: [Text]
 specMnemonicSecondFactor = ["squirrel", "material", "silly", "twice",

@@ -64,6 +64,7 @@ import qualified Test.Integration.Jormungandr.Scenario.CLI.Server as ServerCLI
 import qualified Test.Integration.Jormungandr.Scenario.CLI.StakePools as StakePoolsCliJormungandr
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Transactions as TransactionsCliJormungandr
 import qualified Test.Integration.Scenario.API.Addresses as Addresses
+import qualified Test.Integration.Scenario.API.ByronWallets as ByronWallets
 import qualified Test.Integration.Scenario.API.Transactions as Transactions
 import qualified Test.Integration.Scenario.API.Wallets as Wallets
 import qualified Test.Integration.Scenario.CLI.Addresses as AddressesCLI
@@ -92,6 +93,7 @@ main = hspec $ do
         TransactionsApiJormungandr.spec @t
         TransactionsCliJormungandr.spec @t
         Wallets.spec
+        ByronWallets.spec
 
     describe "CLI Specifications" $ beforeAll start $ after tearDown $ do
         AddressesCLI.spec @t

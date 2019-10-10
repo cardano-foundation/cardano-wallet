@@ -1,0 +1,1 @@
+cardano-wallet-jormungandr launch --genesis-block block0.bin --secret secret.yaml
