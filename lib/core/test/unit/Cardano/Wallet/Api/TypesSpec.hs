@@ -28,7 +28,9 @@ import Cardano.Wallet.Api.Types
     , ApiAddress (..)
     , ApiBlockData (..)
     , ApiByronWallet (..)
+    , ApiByronWalletMigrationInfo (..)
     , ApiFee (..)
+    , ApiMigrateByronWalletData (..)
     , ApiMnemonicT (..)
     , ApiStakePool (..)
     , ApiT (..)
@@ -212,6 +214,8 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiTransaction DummyTarget)
             jsonRoundtripAndGolden $ Proxy @ApiWallet
             jsonRoundtripAndGolden $ Proxy @ApiByronWallet
+            jsonRoundtripAndGolden $ Proxy @ApiByronWalletMigrationInfo
+            jsonRoundtripAndGolden $ Proxy @ApiMigrateByronWalletData
             jsonRoundtripAndGolden $ Proxy @ApiUtxoStatistics
             jsonRoundtripAndGolden $ Proxy @ApiFee
             jsonRoundtripAndGolden $ Proxy @StakePoolMetrics
@@ -440,6 +444,22 @@ spec = do
                     }
             in
                 x' === x .&&. show x' === show x
+        it "ApiByronWalletMigrationInfo" $ property $ \x ->
+            let
+                x' = ApiByronWalletMigrationInfo
+                    { migrationCost =
+                        migrationCost (x :: ApiByronWalletMigrationInfo)
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "ApiMigrateByronWalletData" $ property $ \x ->
+            let
+                x' = ApiMigrateByronWalletData
+                    { passphrase =
+                        passphrase (x :: ApiMigrateByronWalletData)
+                    }
+            in
+                x' === x .&&. show x' === show x
         it "ApiFee" $ property $ \x ->
             let
                 x' = ApiFee
@@ -622,6 +642,14 @@ instance Arbitrary ApiWallet where
     shrink = genericShrink
 
 instance Arbitrary ApiByronWallet where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiByronWalletMigrationInfo where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiMigrateByronWalletData where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
@@ -944,6 +972,14 @@ instance ToSchema ApiWallet where
 
 instance ToSchema ApiByronWallet where
     declareNamedSchema _ = declareSchemaForDefinition "ApiByronWallet"
+
+instance ToSchema ApiByronWalletMigrationInfo where
+    declareNamedSchema _ =
+        declareSchemaForDefinition "ApiByronWalletMigrationInfo"
+
+instance ToSchema ApiMigrateByronWalletData where
+    declareNamedSchema _ =
+        declareSchemaForDefinition "ApiMigrateByronWalletData"
 
 instance ToSchema ApiStakePool where
     declareNamedSchema _ = declareSchemaForDefinition "ApiStakePool"

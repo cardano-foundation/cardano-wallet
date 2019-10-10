@@ -46,7 +46,9 @@ import Cardano.Wallet
 import Cardano.Wallet.Api.Types
     ( ApiAddress
     , ApiByronWallet
+    , ApiByronWalletMigrationInfo
     , ApiFee
+    , ApiMigrateByronWalletData
     , ApiStakePool
     , ApiT
     , ApiTransaction
@@ -101,6 +103,7 @@ import Servant.API
     , NoContent
     , OctetStream
     , PostAccepted
+    , PostNoContent
     , Put
     , PutNoContent
     , QueryParam
@@ -245,7 +248,9 @@ type ListStakePools = "stake-pools"
 type CompatibilityApi t =
     DeleteByronWallet
     :<|> GetByronWallet
+    :<|> GetByronWalletMigrationInfo
     :<|> ListByronWallets
+    :<|> MigrateByronWallet
     :<|> PostByronWallet
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteByronWallet
@@ -260,10 +265,25 @@ type GetByronWallet = "byron"
     :> Capture "walletId" (ApiT WalletId)
     :> Get '[JSON] ApiByronWallet
 
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getByronWalletMigrationInfo
+type GetByronWalletMigrationInfo = "byron"
+    :> "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> Get '[JSON] ApiByronWalletMigrationInfo
+
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listByronWallets
 type ListByronWallets = "byron"
     :> "wallets"
     :> Get '[JSON] [ApiByronWallet]
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/migrateByronWallet
+type MigrateByronWallet = "byron"
+    :> "wallets"
+    :> Capture "sourceWalletId" (ApiT WalletId)
+    :> "migrate"
+    :> Capture "targetWalletId" (ApiT WalletId)
+    :> ReqBody '[JSON] ApiMigrateByronWalletData
+    :> PostNoContent '[Any] NoContent
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postByronWallet
 type PostByronWallet = "byron"

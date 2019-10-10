@@ -75,8 +75,10 @@ import Cardano.Wallet.Api.Types
     , ApiAddress (..)
     , ApiBlockData (..)
     , ApiByronWallet (..)
+    , ApiByronWalletMigrationInfo (..)
     , ApiErrorCode (..)
     , ApiFee (..)
+    , ApiMigrateByronWalletData (..)
     , ApiStakePool
     , ApiT (..)
     , ApiTransaction (..)
@@ -634,7 +636,9 @@ compatibilityApiServer
 compatibilityApiServer ctx =
     deleteByronWallet ctx
     :<|> getByronWallet ctx
+    :<|> getByronWalletMigrationInfo ctx
     :<|> listByronWallets ctx
+    :<|> migrateByronWallet ctx
     :<|> postByronWallet ctx
 
 deleteByronWallet
@@ -648,6 +652,22 @@ getByronWallet
     -> ApiT WalletId
     -> Handler ApiByronWallet
 getByronWallet _ _ = throwError err501
+
+getByronWalletMigrationInfo
+    :: ctx
+    -> ApiT WalletId
+    -> Handler ApiByronWalletMigrationInfo
+getByronWalletMigrationInfo _ _ = throwError err501
+
+migrateByronWallet
+    :: ctx
+    -> ApiT WalletId
+       -- ^ Source wallet (Byron)
+    -> ApiT WalletId
+       -- ^ Target wallet (new-style)
+    -> ApiMigrateByronWalletData
+    -> Handler NoContent
+migrateByronWallet _ctx _sourceWid _targetWid _migrateData = throwError err501
 
 listByronWallets
     :: ctx

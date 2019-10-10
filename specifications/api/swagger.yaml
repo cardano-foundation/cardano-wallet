@@ -516,6 +516,22 @@ definitions:
       passphrase: *walletPassphraseInfo
       state: *walletState
 
+  ApiByronWalletMigrationInfo: &ApiByronWalletMigrationInfo
+    type: object
+    required:
+      - migration_cost
+    properties:
+      migration_cost: *amount
+
+  ApiMigrateByronWalletData: &ApiMigrateByronWalletData
+    type: object
+    required:
+      - passphrase
+    properties:
+      passphrase:
+        <<: *walletPassphrase
+        description: The source Byron wallet's master passphrase.
+
   ApiWalletUTxOsStatistics: &ApiWalletUTxOsStatistics
     type: object
     required:
@@ -782,6 +798,21 @@ x-responsesGetByronWallet: &responsesGetByronWallet
   200:
     description: Ok
     schema: *ApiByronWallet
+
+x-responsesGetByronWalletMigrationInfo: &responsesGetByronWalletMigrationInfo
+  <<: *responsesErr404
+  <<: *responsesErr405
+  <<: *responsesErr406
+  200:
+    description: Ok
+    schema: *ApiByronWalletMigrationInfo
+
+x-responsesMigrateByronWallet: &responsesMigrateByronWallet
+  <<: *responsesErr404
+  <<: *responsesErr405
+  <<: *responsesErr406
+  204:
+    description: No Content
 
 x-responsesDeleteWallet: &responsesDeleteWallet
   <<: *responsesErr404
@@ -1208,3 +1239,35 @@ paths:
       parameters:
         - *parametersWalletId
       responses: *responsesDeleteWallet
+
+  /byron/wallets/{walletId}/migrate:
+    get:
+      operationId: getByronWalletMigrationInfo
+      tags: ["Byron Wallets"]
+      summary: Migrate
+      description: |
+        <p align="right">status: <strong>not implemented</strong></p>
+
+        Calculate the exact cost of migrating from a Byron wallet to a new
+        wallet.
+      parameters:
+        - *parametersWalletId
+      responses: *responsesGetByronWalletMigrationInfo
+
+  /byron/wallets/{sourceWalletId}/migrate/{targetWalletId}:
+    post:
+      operationId: migrateByronWallet
+      tags: ["Byron Wallets"]
+      summary: Migrate
+      description: |
+        <p align="right">status: <strong>not implemented</strong></p>
+
+        Migrate all funds from a Byron wallet to a new-style wallet.
+      parameters:
+        - <<: *parametersWalletId
+          name: sourceWalletId
+        - <<: *parametersWalletId
+          name: targetWalletId
+        - <<: *parametersBody
+          schema: *ApiMigrateByronWalletData
+      responses: *responsesMigrateByronWallet
