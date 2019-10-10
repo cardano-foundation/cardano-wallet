@@ -89,6 +89,7 @@
             (hsPkgs.cardano-wallet-jormungandr)
             (hsPkgs.containers)
             (hsPkgs.directory)
+            (hsPkgs.fmt)
             (hsPkgs.generic-arbitrary)
             (hsPkgs.generic-lens)
             (hsPkgs.hspec)
