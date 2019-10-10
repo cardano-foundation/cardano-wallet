@@ -68,11 +68,13 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Block, Hash (..) )
+    ( Block, BlockHeader (..), Hash (..), PoolId (..) )
 import Control.Concurrent.Async
     ( race_ )
 import Data.Function
     ( (&) )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -87,6 +89,7 @@ import System.IO
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
+import qualified Cardano.Wallet.Jormungandr.Binary as Binary
 import qualified Data.Text as T
 import qualified Network.Wai.Handler.Warp as Warp
 
@@ -116,14 +119,14 @@ serveWallet (cfg, sb, tr) databaseDir listen lj beforeMainLoop = do
             let nPort = Port $ baseUrlPort $ _restApi cp
             waitForService "Jörmungandr" (sb, tr) nPort $
                 waitForNetwork nl defaultRetryPolicy
-            apiLayer tr nl >>= startServer tr nPort nl
+            apiLayer tr (toWLBlock <$> nl) >>= startServer tr nPort nl
             pure ExitSuccess
         Left e -> handleNetworkStartupError e
   where
     startServer
         :: Trace IO Text
         -> Port "node"
-        -> NetworkLayer IO t (Block Tx)
+        -> NetworkLayer IO t Binary.Block
         -> ApiLayer s t k
         -> IO ()
     startServer tracer nPort nl wallet = do
@@ -136,6 +139,26 @@ serveWallet (cfg, sb, tr) databaseDir listen lj beforeMainLoop = do
             let ipcServer = daedalusIPC tracerIPC wPort
             let apiServer = Server.start settings tracerApi socket wallet
             race_ ipcServer apiServer
+
+    -- Will be used to connect "Cardano.Wallet.StakePool.Metrics" with
+    -- our networkLayer.
+    _toSPBlock :: Binary.Block -> (BlockHeader, PoolId)
+    _toSPBlock b =
+        (convertHeader header, toJust $ Binary.producedBy header)
+      where
+        header = Binary.header b
+        convertHeader :: Binary.BlockHeader -> BlockHeader
+        convertHeader h = BlockHeader
+            (Binary.slot h)
+            (Quantity $ fromIntegral $ Binary.chainLength h)
+            (Binary.parentHeaderHash h)
+        toJust (Just x) = x
+        toJust Nothing = error
+            "Expected blockheader to contain the id of the\
+            \producing pool, which only happens on Praos/Genesis-blockchains\
+            \for blocks after block0."
+
+    toWLBlock = Binary.convertBlock
 
     apiLayer
         :: Trace IO Text
