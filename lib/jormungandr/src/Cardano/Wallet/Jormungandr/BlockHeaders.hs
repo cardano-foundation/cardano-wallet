@@ -32,6 +32,8 @@ module Cardano.Wallet.Jormungandr.BlockHeaders
 
     -- * Operations
     , blockHeadersTip
+    , blockHeadersTipId
+    , blockHeadersBase
     , appendBlockHeaders
     , dropStartingFromSlotId
     , dropAfterSlotId

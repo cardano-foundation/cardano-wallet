@@ -90,7 +90,9 @@ import Cardano.Wallet.Jormungandr.Binary
 import Cardano.Wallet.Jormungandr.BlockHeaders
     ( BlockHeaders (..)
     , appendBlockHeaders
+    , blockHeadersBase
     , blockHeadersTip
+    , blockHeadersTipId
     , dropAfterSlotId
     , emptyBlockHeaders
     , greatestCommonBlockHeader
@@ -119,11 +121,13 @@ import Control.Monad.Trans.Class
 import Control.Monad.Trans.Control
     ( MonadBaseControl )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT, throwE, withExceptT )
+    ( ExceptT (..), except, runExceptT, throwE, withExceptT )
 import Data.Coerce
     ( coerce )
 import Data.Function
     ( (&) )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -306,16 +310,18 @@ mkRawNetworkLayer (block0, bp) st j = NetworkLayer
                     -- we updated the unstable blocks. So, it could happen
                     -- that the nodeTip is already on a different fork than
                     -- what's returned by 'getBlocks'.
-                    Forward -> do
-                        let Just nodeTip  = blockHeadersTip unstable
-                        case blockHeadersTip localChain of
-                            Nothing ->
-                                rollForward nodeTip <$> getBlocks j (BlockHeader (SlotId 0 0) (Quantity 0) (coerce genesis))
-                            Just localTip -> do
-                                rollForward nodeTip <$> getBlocks j localTip
-
+                    Forward -> doForward unstable
                     Backward point ->
                         pure $ rollBackward point
+
+                    -- Try rolling forward assuming that we probably have the correct fork.
+                    -- If node says no, start recovery.
+                    Tentative ->
+                        lift (runExceptT $ doForward unstable) >>= \case
+                           Left (ErrGetBlockNotFound _) -> pure Recover
+                           res -> except res
+
+                    Restart -> pure Recover
 
             Left ErrNetworkTipNotFound ->
                 pure AwaitReply
@@ -323,6 +329,14 @@ mkRawNetworkLayer (block0, bp) st j = NetworkLayer
             Left (ErrNetworkTipNetworkUnreachable e) ->
                 throwE (ErrGetBlockNetworkUnreachable e)
       where
+        doForward unstable = rollForward nodeTip <$> getBlocks j startHeader
+          where
+            Just nodeTip = blockHeadersTip unstable
+            startHeader = fromMaybe
+                              (BlockHeader (SlotId 0 0) (Quantity 0) (coerce genesis))
+                              (blockHeadersTip localChain)
+
+
         rollForward
             :: BlockHeader
             -> [(Hash "BlockHeader", block)]
@@ -352,6 +366,8 @@ data Direction
     = Forward
     | Backward BlockHeader
     | Stay
+    | Tentative
+    | Restart
     deriving (Show, Eq)
 
 -- If there is intersection, then the decision is simple. Otherwise, find
@@ -374,12 +390,17 @@ direction (Cursor lbs) ubs = case greatestCommonBlockHeader ubs lbs of
         -- Common block is not the local tip
         | otherwise -> Backward bh
     Nothing
+        -- empty local blocks -- advance
+        | tipSlot lbs == SlotId 0 0 -> Forward
         -- Local tip is way back in stable blocks.
-        | tipSlot lbs < tipSlot ubs -> Forward
-        -- Node is behind local chain. Rollback.
-        | otherwise -> maybe Stay Backward (blockHeadersTip ubs)
+        -- We have no idea what the intersection could be.
+        | otherwise -> Restart
+        --  | tipSlot lbs < baseSlot ubs -> Backward
+        --  -- Node is behind local chain. Rollback.
+        --  | otherwise -> maybe Stay Backward (blockHeadersTip ubs)
   where
     tipSlot = maybe (SlotId 0 0) slotId . blockHeadersTip
+    baseSlot = maybe (SlotId 0 0) slotId . blockHeadersBase
 
 -- | Pushes the received blockheaders onto the local state.
 cursorForward
