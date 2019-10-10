@@ -26,14 +26,10 @@ import Cardano.Wallet.Jormungandr.Binary
     )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
-import Cardano.Wallet.Jormungandr.Environment
-    ( KnownNetwork )
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (AddressK), Passphrase (..), XPrv )
-import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( SeqKey (..) )
+    ( Depth (AddressK), KeyToAddress, Passphrase (..), WalletKey (..), XPrv )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
@@ -66,9 +62,12 @@ import qualified Data.ByteString.Lazy as BL
 
 -- | Construct a 'TransactionLayer' compatible with Shelley and 'Jörmungandr'
 newTransactionLayer
-    :: forall n t. (KnownNetwork n, t ~ Jormungandr n)
+    :: forall n k t.
+        ( t ~ Jormungandr n
+        , KeyToAddress (Jormungandr n) k
+        )
     => Hash "Genesis"
-    -> TransactionLayer t SeqKey
+    -> TransactionLayer t k
 newTransactionLayer (Hash block0) = TransactionLayer
     { mkStdTx = \keyFrom rnps outs -> do
         -- NOTE
@@ -103,7 +102,7 @@ newTransactionLayer (Hash block0) = TransactionLayer
         Quantity $ length inps + length outs + length chgs
 
     , estimateMaxNumberOfInputs =
-        estimateMaxNumberOfInputsBase @t @SeqKey Binary.estimateMaxNumberOfInputsParams
+        estimateMaxNumberOfInputsBase @t @k Binary.estimateMaxNumberOfInputsParams
 
     , validateSelection = \(CoinSelection inps outs _) -> do
         when (length inps > maxNumberOfInputs || length outs > maxNumberOfOutputs)
@@ -111,11 +110,12 @@ newTransactionLayer (Hash block0) = TransactionLayer
     }
 
 sign
-    :: ByteString
-    -> (SeqKey 'AddressK XPrv, Passphrase "encryption")
+    :: WalletKey k
+    => ByteString
+    -> (k 'AddressK XPrv, Passphrase "encryption")
     -> TxWitness
 sign bytes (key, (Passphrase pwd)) =
-    TxWitness . CC.unXSignature $ CC.sign pwd (getKey key) bytes
+    TxWitness . CC.unXSignature $ CC.sign pwd (getRawKey key) bytes
 
 -- | Transaction with improper number of inputs and outputs is tried
 data ErrExceededInpsOrOuts = ErrExceededInpsOrOuts

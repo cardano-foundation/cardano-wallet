@@ -43,6 +43,8 @@ import Cardano.Wallet.DaedalusIPC
     ( daedalusIPC )
 import Cardano.Wallet.DB
     ( DBFactory )
+import Cardano.Wallet.DB.Sqlite
+    ( PersistState )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr, Network (..) )
 import Cardano.Wallet.Jormungandr.Environment
@@ -61,8 +63,16 @@ import Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Network
     ( NetworkLayer (..), defaultRetryPolicy, waitForNetwork )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( KeyToAddress, PersistKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Random
+    ( RndKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( SeqKey )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( IsOurs )
+import Cardano.Wallet.Primitive.AddressDiscovery.Random
+    ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
 import Cardano.Wallet.Primitive.Model
@@ -71,6 +81,8 @@ import Cardano.Wallet.Primitive.Types
     ( Block, Hash (..) )
 import Control.Concurrent.Async
     ( race_ )
+import Control.DeepSeq
+    ( NFData )
 import Data.Function
     ( (&) )
 import Data.Text
@@ -94,8 +106,10 @@ import qualified Network.Wai.Handler.Warp as Warp
 -- which was passed from the CLI and environment and starts all components of
 -- the wallet.
 serveWallet
-    :: forall t k n s.
-       (n ~ 'Testnet, t ~ Jormungandr n, s ~ SeqState t, k ~ SeqKey)
+    :: forall t n .
+        ( n ~ 'Testnet
+        , t ~ Jormungandr n
+        )
     => (CM.Configuration, Switchboard Text, Trace IO Text)
     -- ^ Logging config.
     -> Maybe FilePath
@@ -116,7 +130,9 @@ serveWallet (cfg, sb, tr) databaseDir listen lj beforeMainLoop = do
             let nPort = Port $ baseUrlPort $ _restApi cp
             waitForService "Jörmungandr" (sb, tr) nPort $
                 waitForNetwork nl defaultRetryPolicy
-            apiLayer tr nl >>= startServer tr nPort nl
+            rndApi <- apiLayer tr nl
+            seqApi <- apiLayer tr nl
+            startServer tr nPort nl rndApi seqApi
             pure ExitSuccess
         Left e -> handleNetworkStartupError e
   where
@@ -124,9 +140,10 @@ serveWallet (cfg, sb, tr) databaseDir listen lj beforeMainLoop = do
         :: Trace IO Text
         -> Port "node"
         -> NetworkLayer IO t (Block Tx)
-        -> ApiLayer s t k
+        -> ApiLayer (RndState t) t RndKey
+        -> ApiLayer (SeqState t) t SeqKey
         -> IO ()
-    startServer tracer nPort nl wallet = do
+    startServer tracer nPort nl rndWallet seqWallet = do
         let (_, bp) = staticBlockchainParameters nl
         Server.withListeningSocket listen $ \(wPort, socket) -> do
             let tracerIPC = appendName "daedalus-ipc" tracer
@@ -134,11 +151,20 @@ serveWallet (cfg, sb, tr) databaseDir listen lj beforeMainLoop = do
             let settings = Warp.defaultSettings
                     & setBeforeMainLoop (beforeMainLoop (Port wPort) nPort bp)
             let ipcServer = daedalusIPC tracerIPC wPort
-            let apiServer = Server.start settings tracerApi socket wallet
+            let apiServer =
+                    Server.start settings tracerApi socket rndWallet seqWallet
             race_ ipcServer apiServer
 
     apiLayer
-        :: Trace IO Text
+        :: forall s k .
+            ( KeyToAddress (Jormungandr 'Testnet) k
+            , IsOurs s
+            , NFData s
+            , Show s
+            , PersistState s
+            , PersistKey k
+            )
+        => Trace IO Text
         -> NetworkLayer IO t (Block Tx)
         -> IO (ApiLayer s t k)
     apiLayer tracer nl = do
@@ -148,9 +174,15 @@ serveWallet (cfg, sb, tr) databaseDir listen lj beforeMainLoop = do
         Server.newApiLayer tracer (block0, bp) nl tl dbFactory wallets
 
     dbFactory
-        :: DBFactory IO s t k
-    dbFactory =
-        Sqlite.mkDBFactory cfg tr databaseDir
+        :: forall s k .
+            ( IsOurs s
+            , NFData s
+            , Show s
+            , PersistState s
+            , PersistKey k
+            )
+        => DBFactory IO s t k
+    dbFactory = Sqlite.mkDBFactory cfg tr databaseDir
 
     handleNetworkStartupError :: ErrStartup -> IO ExitCode
     handleNetworkStartupError = \case

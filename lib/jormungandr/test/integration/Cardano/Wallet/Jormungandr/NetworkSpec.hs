@@ -46,6 +46,8 @@ import Cardano.Wallet.Network
     , NetworkLayer (..)
     , NextBlocksResult (..)
     )
+import Cardano.Wallet.Primitive.AddressDerivation.Sequential
+    ( SeqKey )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , BlockHeader (..)
@@ -310,7 +312,7 @@ spec = do
             runExceptT (postTx nw tx) `shouldThrow` anyException
 
     describe "Decode External Tx" $ do
-        let tl = newTransactionLayer @'Testnet (Hash "genesis")
+        let tl = newTransactionLayer @'Testnet @SeqKey (Hash "genesis")
 
         it "decodeExternalTx works ok with properly constructed binary blob" $ do
             property $ \(SignedTx signedTx) -> monadicIO $ liftIO $ do

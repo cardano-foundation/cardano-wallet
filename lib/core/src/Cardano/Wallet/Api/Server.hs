@@ -14,6 +14,8 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
+{-# OPTIONS_GHC -fno-warn-redundant-constraints #-}
+
 -- |
 -- Copyright: © 2018-2019 IOHK
 -- License: Apache-2.0
@@ -103,10 +105,14 @@ import Cardano.Wallet.Network
     ( ErrNetworkUnavailable (..), NetworkLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress (..), WalletKey (..), digest, publicKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Random
+    ( RndKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( SeqKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs )
+import Cardano.Wallet.Primitive.AddressDiscovery.Random
+    ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..), defaultAddressPoolGap, mkSeqState )
 import Cardano.Wallet.Primitive.Fee
@@ -235,22 +241,21 @@ data Listen
 
 -- | Start the application server, using the given settings and a bound socket.
 start
-    :: forall ctx s t k.
-        ( DefineTx t
-        , KeyToAddress t k
-        , EncodeAddress t
+    :: forall t .
+        ( Buildable (ErrValidateSelection t)
+        , DefineTx t
         , DecodeAddress t
-        , Buildable (ErrValidateSelection t)
-        , k ~ SeqKey
-        , s ~ SeqState t
-        , ctx ~ ApiLayer s t k
+        , EncodeAddress t
+        , KeyToAddress t RndKey
+        , KeyToAddress t SeqKey
         )
     => Warp.Settings
     -> Trace IO Text
     -> Socket
-    -> ctx
+    -> ApiLayer (RndState t) t RndKey
+    -> ApiLayer (SeqState t) t SeqKey
     -> IO ()
-start settings trace socket ctx = do
+start settings trace socket rndCtx seqCtx = do
     logSettings <- newApiLoggerSettings <&> obfuscateKeys (const sensitive)
     Warp.runSettingsSocket settings socket
         $ handleRawError (curry handler)
@@ -259,7 +264,7 @@ start settings trace socket ctx = do
   where
     -- | A Servant server for our wallet API
     server :: Server (Api t)
-    server = coreApiServer ctx :<|> compatibilityApiServer ctx
+    server = coreApiServer seqCtx :<|> compatibilityApiServer rndCtx seqCtx
 
     application :: Application
     application = serve (Proxy @("v2" :> Api t)) server
@@ -631,15 +636,22 @@ listPools _ctx = throwError err501
 ==============================================================================-}
 
 compatibilityApiServer
-    :: ctx
+    :: forall t .
+        ( Buildable (ErrValidateSelection t)
+        , DefineTx t
+        , KeyToAddress t RndKey
+        , KeyToAddress t SeqKey
+        )
+    => ApiLayer (RndState t) t RndKey
+    -> ApiLayer (SeqState t) t SeqKey
     -> Server (CompatibilityApi t)
-compatibilityApiServer ctx =
-    deleteByronWallet ctx
-    :<|> getByronWallet ctx
-    :<|> getByronWalletMigrationInfo ctx
-    :<|> listByronWallets ctx
-    :<|> migrateByronWallet ctx
-    :<|> postByronWallet ctx
+compatibilityApiServer rndCtx seqCtx =
+    deleteByronWallet rndCtx
+    :<|> getByronWallet rndCtx
+    :<|> getByronWalletMigrationInfo rndCtx
+    :<|> listByronWallets rndCtx
+    :<|> migrateByronWallet rndCtx seqCtx
+    :<|> postByronWallet rndCtx
 
 deleteByronWallet
     :: ctx
@@ -660,14 +672,16 @@ getByronWalletMigrationInfo
 getByronWalletMigrationInfo _ _ = throwError err501
 
 migrateByronWallet
-    :: ctx
+    :: rndCtx
+    -> seqCtx
     -> ApiT WalletId
        -- ^ Source wallet (Byron)
     -> ApiT WalletId
        -- ^ Target wallet (new-style)
     -> ApiMigrateByronWalletData
     -> Handler NoContent
-migrateByronWallet _ctx _sourceWid _targetWid _migrateData = throwError err501
+migrateByronWallet _rndCtx _seqCtx _sourceWid _targetWid _migrateData =
+    throwError err501
 
 listByronWallets
     :: ctx

@@ -36,6 +36,8 @@ import Cardano.Wallet.DaedalusIPC
     ( daedalusIPC )
 import Cardano.Wallet.DB
     ( DBFactory (..) )
+import Cardano.Wallet.DB.Sqlite
+    ( PersistState )
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
 import Cardano.Wallet.HttpBridge.Environment
@@ -49,15 +51,23 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Network.Ports
     ( PortNumber )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( KeyToAddress )
+    ( KeyToAddress, PersistKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Random
+    ( RndKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( SeqKey )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( IsOurs )
+import Cardano.Wallet.Primitive.AddressDiscovery.Random
+    ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
 import Cardano.Wallet.Primitive.Types
     ( Block )
 import Control.Concurrent.Async
     ( race_ )
+import Control.DeepSeq
+    ( NFData )
 import Data.Function
     ( (&) )
 import Data.Text
@@ -79,8 +89,11 @@ import qualified Network.Wai.Handler.Warp as Warp
 
 -- | The @cardano-wallet-http-bridge@ main function.
 serveWallet
-    :: forall t k n s a. (t ~ HttpBridge n, s ~ SeqState t, k ~ SeqKey)
-    => (KeyToAddress t k, KnownNetwork n)
+    :: forall t n a. (t ~ HttpBridge n)
+    =>  ( KeyToAddress t RndKey
+        , KeyToAddress t SeqKey
+        , KnownNetwork n
+        )
     => (CM.Configuration, Switchboard Text, Trace IO Text)
     -- ^ Logging config.
     -> Maybe FilePath
@@ -105,18 +118,20 @@ serveWallet (cfg, sb, tr) databaseDir listen bridge mAction = do
         Right (bridgePort, nl) -> do
             waitForService "http-bridge" (sb, tr) (Port $ fromEnum bridgePort) $
                 waitForNetwork nl defaultRetryPolicy
-            wl <- newApiLayer nl
+            wlRnd <- newApiLayer nl
+            wlSeq <- newApiLayer nl
             let mkCallback action apiPort =
                     action (fromIntegral apiPort) bridgePort nl
-            withServer wl (mkCallback <$> mAction)
+            withServer wlRnd wlSeq (mkCallback <$> mAction)
             pure ExitSuccess
         Left e -> handleNetworkStartupError e
   where
     withServer
-        :: ApiLayer s t k
+        :: ApiLayer (RndState t) t RndKey
+        -> ApiLayer (SeqState t) t SeqKey
         -> Maybe (Int -> IO a)
         -> IO ()
-    withServer api action = do
+    withServer apiRnd apiSeq action = do
         Server.withListeningSocket listen $ \(port, socket) -> do
             let tracerIPC = appendName "daedalus-ipc" tr
             let tracerApi = appendName "api" tr
@@ -125,12 +140,20 @@ serveWallet (cfg, sb, tr) databaseDir listen bridge mAction = do
             let settings = Warp.defaultSettings
                     & setBeforeMainLoop beforeMainLoop
             let ipcServer = daedalusIPC tracerIPC port
-            let apiServer = Server.start settings tracerApi socket api
+            let apiServer = Server.start settings tracerApi socket apiRnd apiSeq
             let withAction = maybe id (\cb -> race_ (cb port)) action
             withAction $ race_ ipcServer apiServer
 
     newApiLayer
-        :: NetworkLayer IO t (Block Tx)
+        :: forall s k .
+            ( IsOurs s
+            , KeyToAddress (HttpBridge n) k
+            , NFData s
+            , PersistKey k
+            , PersistState s
+            , Show s
+            )
+        => NetworkLayer IO t (Block Tx)
         -> IO (ApiLayer s t k)
     newApiLayer nl = do
         let g0 = staticBlockchainParameters nl
@@ -139,7 +162,14 @@ serveWallet (cfg, sb, tr) databaseDir listen bridge mAction = do
         Server.newApiLayer tr g0 nl tl dbFactory wallets
 
     dbFactory
-        :: DBFactory IO s t k
+        :: forall s k .
+            ( IsOurs s
+            , NFData s
+            , PersistKey k
+            , PersistState s
+            , Show s
+            )
+        => DBFactory IO s t k
     dbFactory =
         Sqlite.mkDBFactory cfg tr databaseDir
 

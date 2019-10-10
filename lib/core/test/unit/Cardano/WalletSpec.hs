@@ -395,8 +395,7 @@ data WalletLayerFixture = WalletLayerFixture
     }
 
 setupFixture
-    :: forall ctx. (ctx ~ WalletLayer DummyState DummyTarget SeqKey)
-    => (WalletId, WalletName, DummyState)
+    :: (WalletId, WalletName, DummyState)
     -> IO WalletLayerFixture
 setupFixture (wid, wname, wstate) = do
     let nl = error "NetworkLayer"
