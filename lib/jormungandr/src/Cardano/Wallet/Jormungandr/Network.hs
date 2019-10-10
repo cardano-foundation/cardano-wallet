@@ -91,6 +91,7 @@ import Cardano.Wallet.Jormungandr.BlockHeaders
     ( BlockHeaders (..)
     , appendBlockHeaders
     , blockHeadersAtGenesis
+    , blockHeadersBase
     , blockHeadersTip
     , blockHeadersTipId
     , dropAfterSlotId
@@ -121,7 +122,7 @@ import Control.Monad.Trans.Class
 import Control.Monad.Trans.Control
     ( MonadBaseControl )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), except, runExceptT, throwE, withExceptT )
+    ( ExceptT (..), runExceptT, throwE, withExceptT )
 import Data.Coerce
     ( coerce )
 import Data.Function
@@ -305,23 +306,21 @@ mkRawNetworkLayer (block0, bp) st j = NetworkLayer
                     Stay ->
                         pure AwaitReply
 
-                    -- FIXME
-                    -- We are fetching blocks via `getBlocks` quite after
-                    -- we updated the unstable blocks. So, it could happen
-                    -- that the nodeTip is already on a different fork than
-                    -- what's returned by 'getBlocks'.
-                    Forward ->
-                        doForward unstable
+                    Forward -> do
+                        let Just nodeTip = blockHeadersTip unstable
+                        let startHeader = fromMaybe
+                              (BlockHeader (SlotId 0 0) (Quantity 0) (coerce genesis))
+                              (blockHeadersTip localChain)
+                        lift (runExceptT $ getBlocks j k startHeader) >>= \case
+                            Right blks ->
+                                pure (tryRollForward nodeTip blks)
+                            Left (ErrGetBlockNotFound _) ->
+                                pure Recover
+                            Left e ->
+                                throwE e
 
                     Backward point ->
                         pure $ rollBackward point
-
-                    -- Try rolling forward assuming that we probably have the correct fork.
-                    -- If node says no, start recovery.
-                    Tentative ->
-                        lift (runExceptT $ doForward unstable) >>= \case
-                           Left (ErrGetBlockNotFound _) -> pure Recover
-                           res -> except res
 
                     Restart ->
                         pure Recover
@@ -332,18 +331,11 @@ mkRawNetworkLayer (block0, bp) st j = NetworkLayer
             Left (ErrNetworkTipNetworkUnreachable e) ->
                 throwE (ErrGetBlockNetworkUnreachable e)
       where
-        doForward unstable = do
-            let Just nodeTip = blockHeadersTip unstable
-            let startHeader = fromMaybe
-                  (BlockHeader (SlotId 0 0) (Quantity 0) (coerce genesis))
-                  (blockHeadersTip localChain)
-            rollForward nodeTip <$> getBlocks j startHeader
-
-        rollForward
+        tryRollForward
             :: BlockHeader
             -> [(Hash "BlockHeader", block)]
             -> NextBlocksResult t block
-        rollForward tip = \case
+        tryRollForward tip = \case
             -- No more blocks to apply, no need to roll forward
             [] -> AwaitReply
 
@@ -363,10 +355,12 @@ mkRawNetworkLayer (block0, bp) st j = NetworkLayer
                 | blockHeadersAtGenesis localChain ->
                     RollForward (cursorForward k next cursor) tip (snd <$> next)
 
-                -- Otherwise, we should rollback, but we don't know where! Hence
-                -- we have to loop and re-execute the whole chain following.
+                -- We need to rollback somewhere, but we don't know where, so we
+                -- try rolling back to the oldest header we know.
                 | otherwise ->
-                    AwaitReply
+                    case blockHeadersBase localChain of
+                        Nothing -> AwaitReply
+                        Just bh -> RollBackward (cursorBackward bh cursor)
 
         rollBackward
             :: BlockHeader
@@ -388,7 +382,6 @@ data Direction
     = Forward
     | Backward BlockHeader
     | Stay
-    | Tentative
     | Restart
     deriving (Show, Eq)
 
@@ -404,7 +397,7 @@ direction
 direction (Cursor local) node = case greatestCommonBlockHeader node local of
     Just intersection
         -- Local tip and node tip are the same
-        | blockHeadersTip local == blockHeadersTip node -> Stay
+        | blockHeadersTipId local == blockHeadersTipId node -> Stay
 
         -- Node is still at genesis
         | blockHeadersAtGenesis node -> Stay
@@ -415,11 +408,12 @@ direction (Cursor local) node = case greatestCommonBlockHeader node local of
         -- Common block is not the local tip
         | otherwise -> Backward intersection
     Nothing
-        -- Local is at genesis
         | blockHeadersAtGenesis local -> Forward
 
-        -- Local tip is way back in stable blocks.
-        -- We have no idea what the intersection could be.
+        -- Local tip is before the node's unstable area, we need to catch up
+        | (slotId <$> blockHeadersTip local) < (slotId <$> blockHeadersBase node) -> Forward
+
+        -- We are beyond the node tip, just resync from genesis
         | otherwise -> Restart
 
 -- | Pushes the received blockheaders onto the local state.
