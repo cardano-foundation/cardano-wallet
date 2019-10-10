@@ -9,7 +9,6 @@
         "persistent" = (((hackage.persistent)."2.10.1").revisions).default;
         "time-units" = (((hackage.time-units)."1.0.0").revisions).default;
         "libsystemd-journal" = (((hackage.libsystemd-journal)."1.4.4").revisions).default;
-        } // {
         bech32 = ./bech32.nix;
         cardano-wallet-core = ./cardano-wallet-core.nix;
         cardano-wallet-core-integration = ./cardano-wallet-core-integration.nix;
@@ -28,5 +27,23 @@
       compiler.nix-name = "ghc865";
       };
   resolver = "lts-13.24";
+  modules = [
+    ({ lib, ... }:
+      {
+        packages = {
+          "iohk-monitoring" = {
+            flags = {
+              "disable-examples" = lib.mkOverride 900 true;
+              "disable-ekg" = lib.mkOverride 900 true;
+              "disable-systemd" = lib.mkOverride 900 true;
+              "disable-prometheus" = lib.mkOverride 900 true;
+              "disable-gui" = lib.mkOverride 900 true;
+              "disable-graylog" = lib.mkOverride 900 true;
+              };
+            };
+          };
+        })
+    { packages = {}; }
+    ];
   compiler = "ghc-8.6.5";
   }
