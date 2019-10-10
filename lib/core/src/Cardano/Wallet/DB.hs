@@ -22,7 +22,6 @@ module Cardano.Wallet.DB
       -- * Errors
     , ErrNoSuchWallet(..)
     , ErrWalletAlreadyExists(..)
-    , ErrSlotAlreadyExists(..)
     ) where
 
 import Prelude
@@ -34,7 +33,6 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.Types
     ( DefineTx (..)
     , Hash
-    , PoolId
     , Range (..)
     , SlotId (..)
     , SortOrder (..)
@@ -45,8 +43,6 @@ import Cardano.Wallet.Primitive.Types
     )
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
-import Data.Map.Strict
-    ( Map )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
@@ -173,16 +169,6 @@ data DBLayer m s t k = DBLayer
         -> ExceptT ErrNoSuchWallet m ()
         -- ^ Prune database entities and remove entities that can be discarded.
 
-    , putPoolProduction
-        :: SlotId
-        -> PoolId
-        -> ExceptT ErrSlotAlreadyExists m ()
-        -- ^ Write for a given slot id the id of stake pool that produced a
-        -- a corresponding block
-
-    , readPoolProduction :: m (Map PoolId [SlotId])
-        -- ^ Read the all stake pools together with slot ids they produced
-
     , withLock
         :: forall e a. ()
         => ExceptT e m a
@@ -197,11 +183,6 @@ newtype ErrNoSuchWallet
 -- | Forbidden operation was executed on an already existing wallet
 newtype ErrWalletAlreadyExists
     = ErrWalletAlreadyExists WalletId -- Wallet already exists in db
-    deriving (Eq, Show)
-
--- | Forbidden operation was executed on an already existing slot
-newtype ErrSlotAlreadyExists
-    = ErrSlotAlreadyExists SlotId -- Slot already exists in db
     deriving (Eq, Show)
 
 -- | A primary key which can take many forms depending on the value. This may

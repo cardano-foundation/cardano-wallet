@@ -244,12 +244,4 @@ RndStatePendingAddress
         rndStatePendingAddressAddress
     Foreign Wallet rnd_state_pending_address rndStatePendingAddressWalletId ! ON DELETE CASCADE
     deriving Show Generic
-
--- The set of stake pools that produced a given block
-PoolProduction
-    poolProductionSlot           W.SlotId     sql=slot
-    poolProductionPoolId         W.PoolId     sql=pool_id
-    Primary
-        poolProductionSlot
-    deriving Show Generic
 |]
