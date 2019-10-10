@@ -90,7 +90,7 @@ import Cardano.Wallet.Jormungandr.Binary
 import Cardano.Wallet.Jormungandr.BlockHeaders
     ( BlockHeaders (..)
     , appendBlockHeaders
-    , blockHeadersBase
+    , blockHeadersAtGenesis
     , blockHeadersTip
     , blockHeadersTipId
     , dropAfterSlotId
@@ -310,7 +310,9 @@ mkRawNetworkLayer (block0, bp) st j = NetworkLayer
                     -- we updated the unstable blocks. So, it could happen
                     -- that the nodeTip is already on a different fork than
                     -- what's returned by 'getBlocks'.
-                    Forward -> doForward unstable
+                    Forward ->
+                        doForward unstable
+
                     Backward point ->
                         pure $ rollBackward point
 
@@ -321,7 +323,8 @@ mkRawNetworkLayer (block0, bp) st j = NetworkLayer
                            Left (ErrGetBlockNotFound _) -> pure Recover
                            res -> except res
 
-                    Restart -> pure Recover
+                    Restart ->
+                        pure Recover
 
             Left ErrNetworkTipNotFound ->
                 pure AwaitReply
@@ -329,22 +332,41 @@ mkRawNetworkLayer (block0, bp) st j = NetworkLayer
             Left (ErrNetworkTipNetworkUnreachable e) ->
                 throwE (ErrGetBlockNetworkUnreachable e)
       where
-        doForward unstable = rollForward nodeTip <$> getBlocks j startHeader
-          where
-            Just nodeTip = blockHeadersTip unstable
-            startHeader = fromMaybe
-                              (BlockHeader (SlotId 0 0) (Quantity 0) (coerce genesis))
-                              (blockHeadersTip localChain)
-
+        doForward unstable = do
+            let Just nodeTip = blockHeadersTip unstable
+            let startHeader = fromMaybe
+                  (BlockHeader (SlotId 0 0) (Quantity 0) (coerce genesis))
+                  (blockHeadersTip localChain)
+            rollForward nodeTip <$> getBlocks j startHeader
 
         rollForward
             :: BlockHeader
             -> [(Hash "BlockHeader", block)]
             -> NextBlocksResult t block
-        rollForward tip bs =
-            if null bs
-            then AwaitReply
-            else RollForward (cursorForward k bs cursor) tip (snd <$> bs)
+        rollForward tip = \case
+            -- No more blocks to apply, no need to roll forward
+            [] -> AwaitReply
+
+            -- There's some time between the moment we fetch blocks and the
+            -- moment we have decided to go forward; therefore there's a
+            -- concurrency issue lurking around where we could have fetched
+            -- blocks that are not a valid continuation of our local chain!
+            -- This can happen if the node switch chains just before our local
+            --  tip while we were fetching our next blocks.
+            next@(b:_)
+                -- If the blocks we are about to apply are a continuation of our
+                -- local chain, then it's good, we can continue
+                | Just (J.parentHeaderHash $ J.header $ snd b) == blockHeadersTipId localChain ->
+                    RollForward (cursorForward k next cursor) tip (snd <$> next)
+
+                -- If we are at genesis, we apply them anyway
+                | blockHeadersAtGenesis localChain ->
+                    RollForward (cursorForward k next cursor) tip (snd <$> next)
+
+                -- Otherwise, we should rollback, but we don't know where! Hence
+                -- we have to loop and re-execute the whole chain following.
+                | otherwise ->
+                    AwaitReply
 
         rollBackward
             :: BlockHeader
@@ -379,28 +401,26 @@ direction
     -> BlockHeaders
     -- ^ Node's unstable blocks
     -> Direction
-direction (Cursor lbs) ubs = case greatestCommonBlockHeader ubs lbs of
-    Just bh
+direction (Cursor local) node = case greatestCommonBlockHeader node local of
+    Just intersection
         -- Local tip and node tip are the same
-        | blockHeadersTip lbs == blockHeadersTip ubs -> Stay
+        | blockHeadersTip local == blockHeadersTip node -> Stay
+
         -- Node is still at genesis
-        | (slotId <$> blockHeadersTip lbs) == Just (SlotId 0 0) -> Stay
+        | blockHeadersAtGenesis node -> Stay
+
         -- Local tip is the greatest common block
-        | Just bh == blockHeadersTip lbs -> Forward
+        | blockHeadersTip local == Just intersection -> Forward
+
         -- Common block is not the local tip
-        | otherwise -> Backward bh
+        | otherwise -> Backward intersection
     Nothing
-        -- empty local blocks -- advance
-        | tipSlot lbs == SlotId 0 0 -> Forward
+        -- Local is at genesis
+        | blockHeadersAtGenesis local -> Forward
+
         -- Local tip is way back in stable blocks.
         -- We have no idea what the intersection could be.
         | otherwise -> Restart
-        --  | tipSlot lbs < baseSlot ubs -> Backward
-        --  -- Node is behind local chain. Rollback.
-        --  | otherwise -> maybe Stay Backward (blockHeadersTip ubs)
-  where
-    tipSlot = maybe (SlotId 0 0) slotId . blockHeadersTip
-    baseSlot = maybe (SlotId 0 0) slotId . blockHeadersBase
 
 -- | Pushes the received blockheaders onto the local state.
 cursorForward

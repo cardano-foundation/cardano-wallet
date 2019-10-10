@@ -34,6 +34,7 @@ module Cardano.Wallet.Jormungandr.BlockHeaders
     , blockHeadersTip
     , blockHeadersTipId
     , blockHeadersBase
+    , blockHeadersAtGenesis
     , appendBlockHeaders
     , dropStartingFromSlotId
     , dropAfterSlotId
@@ -202,6 +203,11 @@ blockHeadersBase (BlockHeaders ((_, bh) :<| _ubs) _) = Just bh
 blockHeadersTipId :: BlockHeaders -> Maybe (Hash "BlockHeader")
 blockHeadersTipId (BlockHeaders Empty _) = Nothing
 blockHeadersTipId (BlockHeaders (_ubs :|> (t, _)) _) = Just t
+
+-- | Whether we are at genesis or not.
+blockHeadersAtGenesis :: BlockHeaders -> Bool
+blockHeadersAtGenesis =
+    (== (SlotId 0 0)) . maybe (SlotId 0 0) slotId . blockHeadersTip
 
 -- | Add recently fetched block headers to the unstable blocks. This will drop
 -- the oldest block headers to ensure that there are at most /k/ items in the
