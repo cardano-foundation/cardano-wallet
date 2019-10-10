@@ -546,18 +546,22 @@ restoreBlocks ctx wid blocks nodeTip = do
     DB.withLock db $ do
         (wallet, meta, _) <- readWallet @ctx @s @t @k ctx wid
         let bp = blockchainParameters wallet
+        let sp = SlotParameters (bp ^. #getEpochLength) (bp ^. #getSlotLength) (bp ^. #getGenesisBlockDate)
         let (txs0, cps) = NE.unzip $ applyBlocks @s @t blocks wallet
         let txs = fold txs0
         let k = bp ^. #getEpochStability
         let localTip = currentTip $ NE.last cps
 
-        let calculateMetadata :: SlotId -> WalletMetadata
-            calculateMetadata slot = meta { status = status' }
+        (Just now) <- liftIO $ (W.slotAt sp) <$> getCurrentTime
+
+
+        let calculateMetadata :: BlockHeader -> WalletMetadata
+            calculateMetadata h = meta { status = status' }
               where
                 progress' = slotRatio
                     (bp ^. #getEpochLength)
-                    slot
-                    (nodeTip ^.  #slotId)
+                     h
+                     now
                 status' =
                     if progress' == maxBound
                     then Ready
@@ -574,12 +578,12 @@ restoreBlocks ctx wid blocks nodeTip = do
             let (Quantity h) = blockHeight $ currentTip cp
             when (fromIntegral h `elem` unstable) (makeCheckpoint cp)
 
-        let meta' = calculateMetadata (view #slotId localTip)
+        let meta' = calculateMetadata localTip
         makeCheckpoint (NE.last cps) *> DB.prune db (PrimaryKey wid)
         DB.putTxHistory db (PrimaryKey wid) txs
         DB.putWalletMeta db (PrimaryKey wid) meta'
 
-        let slotLast = view #slotId . header . NE.last $ blocks
+        let slotLast = view #header . NE.last $ blocks
         liftIO $ do
             logInfo tr $
                 pretty (calculateMetadata slotLast)

@@ -11,6 +11,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -155,6 +156,10 @@ import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
+import Data.Generics.Internal.VL.Lens
+    ( (^.) )
+import Data.Generics.Labels
+    ()
 import Data.Int
     ( Int32 )
 import Data.List.NonEmpty
@@ -1010,20 +1015,23 @@ data SlotParameters = SlotParameters
 -- epoch length as a static number whereas it may vary in practice.
 slotRatio
     :: EpochLength
+    -> BlockHeader
+        -- ^ Local tip
     -> SlotId
-        -- ^ Numerator
-    -> SlotId
-        -- ^ Denominator
     -> Quantity "percent" Percentage
-slotRatio epochLength a b =
+slotRatio epochLength tip slotNow =
     let
-        n0 = flatSlot epochLength a
-        n1 = flatSlot epochLength b
+        bhTip = fromIntegral . unQuantity $ blockHeight tip
+        n0 = flatSlot epochLength (tip ^. #slotId)
+        n1 = flatSlot epochLength slotNow
         tolerance = 5
-    in if distance n0 n1 < tolerance || n0 >= n1 then
+    in if distance n1 n0 < tolerance || n0 >= n1 then
         maxBound
     else
-        Quantity $ toEnum $ fromIntegral $ (100 * n0) `div` n1
+        Quantity $ toEnum $ fromIntegral $
+            (100 * bhTip) `div` (bhTip + n1 - n0)
+  where
+    unQuantity (Quantity x) = x
 
 -- | Convert a 'SlotId' to the number of slots since genesis.
 flatSlot :: EpochLength -> SlotId -> Word64
