@@ -134,6 +134,7 @@ getBlocks = \case
     RollForward _ _ bs -> bs
     AwaitReply -> []
     RollBackward _ -> error "getBlocks: RollBackward: should not happen!"
+    Recover -> error "getBlocks: Recover: should not happen!"
 
 {-------------------------------------------------------------------------------
                              Mock HTTP Bridge

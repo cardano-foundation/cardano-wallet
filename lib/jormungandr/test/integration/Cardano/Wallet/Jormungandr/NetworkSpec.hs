@@ -410,6 +410,7 @@ instance Show (NextBlocksResult t b) where
     show AwaitReply = "AwaitReply"
     show (RollForward _ _ bs) = "RollForward " ++ show (length bs) ++ " blocks"
     show (RollBackward _) = "RollBackward"
+    show Recover = "Recover"
 
 instance Eq (NextBlocksResult t b) where
     a == b = show a == show b
@@ -505,6 +506,7 @@ getRollForward :: NextBlocksResult target block -> Maybe [block]
 getRollForward AwaitReply = Nothing
 getRollForward (RollForward _ _ bs) = Just bs
 getRollForward (RollBackward _) = Nothing
+getRollForward Recover = Nothing
 
 isRollForward :: NextBlocksResult target block -> Bool
 isRollForward = maybe False (not . null) . getRollForward
