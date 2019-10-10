@@ -1,14 +1,26 @@
-{ system ? builtins.currentSystem
-, crossSystem ? null
-, config ? {}
-# Import IOHK common nix lib
-, iohkLib ? import ./lib.nix { inherit system crossSystem config; }
-# Use nixpkgs pin from iohkLib
-, pkgs ? iohkLib.pkgs
+{ config ? {}
+, target ? builtins.currentSystem
+, backend ? "jormungandr" # TODO, make this work: cardano or jormungandr
 }:
 
-with import ./nix/util.nix { inherit pkgs; };
 
+let
+  commonLib = import ./lib.nix {};
+  lib = commonLib.pkgs.lib;
+  systemTable = {
+    x86_64-windows = builtins.currentSystem;
+  };
+  crossSystemTable = {
+    x86_64-windows = lib.systems.examples.mingwW64;
+  };
+  system = systemTable.${target} or target;
+  crossSystem = crossSystemTable.${target} or null;
+  # Import IOHK common nix lib
+  iohkLib = import ./lib.nix { inherit system crossSystem config; };
+  # Use nixpkgs pin from iohkLib
+  pkgs = iohkLib.pkgs;
+in
+with import ./nix/util.nix { inherit pkgs; };
 let
   haskell = iohkLib.nix-tools.haskell { inherit pkgs; };
   src = iohkLib.cleanSourceHaskell ./.;
@@ -40,6 +52,8 @@ in {
 
   tests = collectComponents "tests" isCardanoWallet haskellPackages;
   benchmarks = collectComponents "benchmarks" isCardanoWallet haskellPackages;
+
+  daedalus-bridge = import ./daedalus-bridge.nix { inherit target pkgs haskellPackages system crossSystem jormungandr; };
 
   shell = haskellPackages.shellFor {
     name = "cardano-wallet-shell";
