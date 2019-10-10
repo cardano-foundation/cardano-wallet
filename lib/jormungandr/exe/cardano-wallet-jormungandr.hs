@@ -59,20 +59,12 @@ import Cardano.Wallet.Api.Server
 import Cardano.Wallet.Jormungandr
     ( serveWallet )
 import Cardano.Wallet.Jormungandr.Compatibility
-    ( Jormungandr, localhostBaseUrl )
-import Cardano.Wallet.Jormungandr.Environment
-    ( KnownNetwork (..), Network (..) )
+    ( Jormungandr, Network (Testnet), localhostBaseUrl )
 import Cardano.Wallet.Jormungandr.Network
     ( JormungandrBackend (..)
     , JormungandrConfig (..)
     , JormungandrConnParams (..)
     )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( KeyToAddress )
-import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( SeqKey )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState )
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters )
 import Cardano.Wallet.Primitive.Types
@@ -234,9 +226,7 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
         <*> verbosityOption
         <*> genesisHashOption
     exec
-        :: forall t k n s. (n ~ 'Testnet, t ~ Jormungandr n, s ~ SeqState t, k ~ SeqKey)
-        => (KeyToAddress t k, KnownNetwork n)
-        => ServeArgs
+        :: ServeArgs
         -> IO ()
     exec (ServeArgs listen nodePort databaseDir verbosity block0H) = do
         (cfg, sb, tr) <- initTracer (verbosityToMinSeverity verbosity) "serve"
