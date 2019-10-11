@@ -65,6 +65,11 @@ import Cardano.Launcher
     , transformLauncherTrace
     , withBackendProcess
     )
+import Cardano.Wallet.Jormungandr.Api
+    ( ApiStakeDistribution (pools)
+    , ApiT (..)
+    , StakeApiResponse (epoch, stake)
+    )
 import Cardano.Wallet.Jormungandr.Api.Client
     ( BaseUrl (..)
     , ErrGetBlock (..)
@@ -81,6 +86,7 @@ import Cardano.Wallet.Jormungandr.Api.Client
     , getBlockHeader
     , getBlocks
     , getInitialBlockchainParameters
+    , getStakeDistribution
     , getTipId
     , mkJormungandrClient
     , newManager
@@ -142,6 +148,7 @@ import qualified Cardano.Wallet.Jormungandr.Binary as J
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Char as C
+import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Yaml as Yaml
 
@@ -258,6 +265,11 @@ mkRawNetworkLayer (block0, bp) st j = NetworkLayer
 
     , staticBlockchainParameters =
         (block0, bp)
+    , stakeDistribution = do
+        r <- getStakeDistribution j
+        let epochNo = getApiT . epoch $ r
+        let distr = map (\(ApiT a, ApiT b) -> (a,b)) . pools . stake $ r
+        return (epochNo, Map.fromList distr)
     }
   where
     -- security parameter, the maximum number of unstable blocks

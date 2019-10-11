@@ -33,7 +33,14 @@ import Cardano.BM.Trace
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), Hash (..), SlotId, Tx, TxWitness )
+    ( BlockHeader (..)
+    , EpochNo
+    , Hash (..)
+    , PoolId (..)
+    , SlotId
+    , Tx
+    , TxWitness
+    )
 import Control.Concurrent
     ( threadDelay )
 import Control.Exception
@@ -52,8 +59,14 @@ import Control.Retry
     )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Map
+    ( Map )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Word
+    ( Word64 )
 import Fmt
     ( pretty )
 import GHC.Generics
@@ -99,6 +112,9 @@ data NetworkLayer m target block = NetworkLayer
 
     , staticBlockchainParameters
         :: (block, BlockchainParameters)
+    , stakeDistribution
+        :: ExceptT ErrNetworkUnavailable m
+           (EpochNo, Map PoolId (Quantity "lovelace" Word64))
     }
 
 instance Functor m => Functor (NetworkLayer m target) where

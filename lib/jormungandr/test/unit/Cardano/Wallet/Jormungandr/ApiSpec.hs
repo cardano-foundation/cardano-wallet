@@ -33,7 +33,7 @@ spec = do
                     \74cfe6cae078320ec\",1]],\"unassigned\":100100000000000}}"
             decodeJSON exampleStake `shouldBe`
                 Right StakeApiResponse {
-                   epoch = 252054,
+                   epoch = ApiT 252054,
                    stake = ApiStakeDistribution {
                        dangling = ApiT (Quantity 0),
                        pools = [((ApiT (PoolId "}t\158\244$P\DEL\184\SI\237\r\"\137\213\&5\169Ohp\173\208\207\139\&7L\254l\174\a\131 \236"))
@@ -48,7 +48,7 @@ spec = do
                     \pools\":[],\"unassigned\":100100000000000}}"
             decodeJSON exampleStake `shouldBe`
                 Right StakeApiResponse {
-                   epoch = 252054,
+                   epoch = ApiT 252054,
                    stake = ApiStakeDistribution {
                        dangling = ApiT (Quantity 0),
                        pools = [],
