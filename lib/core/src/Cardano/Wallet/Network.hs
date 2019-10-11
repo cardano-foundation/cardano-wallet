@@ -29,7 +29,7 @@ module Cardano.Wallet.Network
 import Prelude
 
 import Cardano.BM.Trace
-    ( Trace, logDebug, logError, logInfo, logNotice, logWarning )
+    ( Trace, logDebug, logError, logInfo, logWarning )
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
@@ -210,20 +210,23 @@ instance Functor (NextBlocksResult target) where
 
 -- | Subscribe to a blockchain and get called with new block (in order)!
 follow
-    :: forall target block e. (Show e)
+    :: forall target block e0 e1. (Show e0, Show e1)
     => NetworkLayer IO target block
     -- ^ The @NetworkLayer@ used to poll for new blocks.
     -> Trace IO Text
     -- ^ Logger trace
     -> BlockHeader
     -- ^ The local tip to start at. Blocks /after/ the tip will be yielded.
-    -> (NE.NonEmpty block -> BlockHeader -> ExceptT e IO ())
-    -- ^ Callback with blocks and the current tip of the /node/. @follow@ stops
-    -- polling and terminates if the callback errors.
+    -> (NE.NonEmpty block -> BlockHeader -> ExceptT e0 IO ())
+    -- ^ Callback with blocks and the current tip of the /node/.
+    -- @follow@ stops polling and terminates if the callback errors.
+    -> (SlotId -> ExceptT e1 IO ())
+    -- ^ Callback with a point of rollback when needed.
+    -- @follow@ stops polling and terminates if the callback errors.
     -> (block -> BlockHeader)
     -- ^ Getter on the abstract 'block' type
     -> IO ()
-follow nl tr start yield header =
+follow nl tr start yield rollback header =
     sleep 0 (initCursor nl [start])
   where
     delay0 :: Int
@@ -270,11 +273,17 @@ follow nl tr start yield header =
 
             runExceptT (yield blocks nodeTip) >>= \case
                 Left e ->
-                    liftIO $ logNotice tr $ T.pack $
-                        "Stopped following chain: " <> show e
+                    liftIO $ logError tr $ T.pack $
+                        "Failed to roll forward: " <> show e
                 Right () -> do
                     step cursor'
 
-        Right (RollBackward _) -> do
-              logError tr "Rollback! We are stuck now (issue #650)."
-              sleep maxBound cursor
+        Right (RollBackward cursor') -> do
+            let point = cursorSlotId nl cursor'
+            logInfo tr $ "Rolling back to " <> pretty point
+            runExceptT (rollback point) >>= \case
+                Left e ->
+                    liftIO $ logError tr $ T.pack $
+                        "Failed to roll backward: " <> show e
+                Right () -> do
+                    step cursor'

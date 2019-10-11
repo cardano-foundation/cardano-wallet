@@ -518,9 +518,11 @@ restoreWallet
 restoreWallet ctx wid = do
     cp <- readWalletCheckpoint @ctx @s @t @k ctx wid
     let startTip = currentTip cp
-    let advance = restoreBlocks @ctx @s @t @k ctx wid
-    liftIO $ follow nw tr startTip advance (view #header)
+    let forward = restoreBlocks @ctx @s @t @k ctx wid
+    let backward = DB.rollbackTo db (PrimaryKey wid)
+    liftIO $ follow nw tr startTip forward backward (view #header)
   where
+    db = ctx ^. dbLayer @s @t @k
     nw = ctx ^. networkLayer @t
     tr = ctx ^. logger
 
