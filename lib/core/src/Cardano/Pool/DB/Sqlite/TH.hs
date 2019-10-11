@@ -22,6 +22,8 @@ import Prelude
 
 import Cardano.Pool.DB.Sqlite.Types
     ( sqlSettings' )
+import Data.Word
+    ( Word16, Word64 )
 import Database.Persist.Class
     ( AtLeastOneUniqueKey (..), OnlyOneUniqueKey (..) )
 import Database.Persist.TH
@@ -40,9 +42,11 @@ share
 
 -- The set of stake pools that produced a given block
 PoolProduction
-    poolProductionSlot           W.SlotId     sql=slot
+    poolProductionEpochNumber    Word64       sql=epoch_number
+    poolProductionSlotNumber     Word16       sql=slot_number
     poolProductionPoolId         W.PoolId     sql=pool_id
     Primary
-        poolProductionSlot
+        poolProductionEpochNumber
+        poolProductionSlotNumber
     deriving Show Generic
 |]

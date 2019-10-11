@@ -20,16 +20,9 @@ module Cardano.Pool.DB.Sqlite.Types where
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( EpochLength (..), PoolId, SlotId (..), flatSlot, fromFlatSlot )
+    ( PoolId )
 import Control.Monad
     ( (>=>) )
-import Data.Aeson
-    ( FromJSON (..)
-    , ToJSON (..)
-    , defaultOptions
-    , genericParseJSON
-    , genericToJSON
-    )
 import Data.Bifunctor
     ( first )
 import Data.Proxy
@@ -43,8 +36,6 @@ import Data.Text.Class
     , fromTextMaybe
     , getTextDecodingError
     )
-import Data.Word
-    ( Word16, Word64 )
 import Database.Persist.Sqlite
     ( PersistField (..), PersistFieldSql (..), PersistValue )
 import Database.Persist.TH
@@ -71,29 +62,6 @@ fromText' = first (T.pack . getTextDecodingError) . fromText
 fromPersistValueFromText :: FromText a => PersistValue -> Either Text a
 fromPersistValueFromText = fromPersistValue >=> fromTextWithErr
     where fromTextWithErr = first ("not a valid value: " <>) . fromText'
-
-----------------------------------------------------------------------------
--- SlotId
-
-instance PersistFieldSql SlotId where
-    sqlType _ = sqlType (Proxy @Word64)
-
--- | As a short-to-medium term solution of persisting 'SlotId', we use
--- 'flatSlot' with an artificial epochLength. I.e. /not the same epochLength as
--- the blockchain/. This is just for the sake of storing the 64 bit epoch and
--- the 16 bit slot inside a single 64-bit field.
-artificialEpochLength :: EpochLength
-artificialEpochLength = EpochLength $ fromIntegral (maxBound :: Word16)
-
-instance PersistField SlotId where
-    toPersistValue = toPersistValue . flatSlot artificialEpochLength
-    fromPersistValue = fmap (fromFlatSlot artificialEpochLength) . fromPersistValue
-
-instance ToJSON SlotId where
-    toJSON = genericToJSON defaultOptions
-
-instance FromJSON SlotId where
-    parseJSON = genericParseJSON defaultOptions
 
 ----------------------------------------------------------------------------
 -- PoolId

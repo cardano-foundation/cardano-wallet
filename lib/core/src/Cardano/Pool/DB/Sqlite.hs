@@ -47,7 +47,7 @@ import Control.Monad.Trans.Except
 import Data.Text
     ( Text )
 import Data.Word
-    ( Word16, Word64 )
+    ( Word64 )
 import Database.Persist.Sql
     ( Entity (..)
     , Filter
@@ -55,9 +55,8 @@ import Database.Persist.Sql
     , deleteWhere
     , insert_
     , selectList
-    , (<=.)
+    , (==.)
     , (>.)
-    , (>=.)
     )
 import Database.Persist.Sqlite
     ( SqlPersistT )
@@ -111,16 +110,19 @@ newDBLayer logConfig trace fp = do
     ctx@SqliteContext{runQuery} <-
         startSqliteBackend logConfig migrateAll trace' fp
     return (ctx, DBLayer
-        { putPoolProduction = \slot pool ->
-            ExceptT $ runQuery $ handleConstraint (ErrSlotAlreadyExists slot) $
-            insert_ (PoolProduction slot pool)
+        { putPoolProduction = \s@(W.SlotId epoch slot) pool ->
+            ExceptT $ runQuery $ handleConstraint (ErrSlotAlreadyExists s) $
+            insert_ (PoolProduction epoch slot pool)
 
         , readPoolProduction = \epoch ->
-            runQuery $ foldl (\m (PoolProduction s p) -> Map.alter (alter s) p m)
+            runQuery $ foldl (\m (PoolProduction e s p) ->
+                Map.alter (alter (W.SlotId e s)) p m)
             Map.empty <$> selectPoolProduction epoch
 
-        , rollbackTo = \slot ->
-             runQuery $ deleteWhere [PoolProductionSlot >. slot]
+        , rollbackTo = \(W.SlotId epoch slot) ->
+             runQuery $ deleteWhere
+                 [ PoolProductionEpochNumber >. epoch
+                 , PoolProductionSlotNumber >. slot ]
 
         , cleanDB = runQuery $ deleteWhere ([] :: [Filter PoolProduction])
 
@@ -133,10 +135,7 @@ newDBLayer logConfig trace fp = do
 selectPoolProduction
     :: Word64
     -> SqlPersistT IO [PoolProduction]
-selectPoolProduction epoch = do
-    let from = W.SlotId epoch 0
-    let to = W.SlotId epoch (maxBound :: Word16)
-    fmap entityVal <$>
-        selectList
-            [PoolProductionSlot >=. from, PoolProductionSlot <=. to ]
-            [Asc PoolProductionSlot]
+selectPoolProduction epoch = fmap entityVal <$>
+    selectList
+        [PoolProductionEpochNumber ==. epoch]
+        [Asc PoolProductionSlotNumber]
