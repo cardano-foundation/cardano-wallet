@@ -133,6 +133,7 @@
             (hsPkgs.cryptonite)
             (hsPkgs.deepseq)
             (hsPkgs.directory)
+            (hsPkgs.filepath)
             (hsPkgs.fmt)
             (hsPkgs.iohk-monitoring)
             (hsPkgs.memory)
