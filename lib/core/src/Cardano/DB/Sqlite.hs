@@ -26,7 +26,6 @@ module Cardano.DB.Sqlite
     , dbChunked
     , destroyDBLayer
     , handleConstraint
-    , queryLogFunc
     , startSqliteBackend
     , transformTrace
     , unsafeRunQuery

@@ -20,7 +20,7 @@ module Cardano.Pool.DB.Sqlite.TH where
 
 import Prelude
 
-import Cardano.Wallet.DB.Sqlite.Types
+import Cardano.Pool.DB.Sqlite.Types
     ( sqlSettings' )
 import Database.Persist.Class
     ( AtLeastOneUniqueKey (..), OnlyOneUniqueKey (..) )

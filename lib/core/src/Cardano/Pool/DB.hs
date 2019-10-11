@@ -12,7 +12,7 @@ module Cardano.Pool.DB
       DBLayer (..)
 
       -- * Errors
-    , ErrSlotAlreadyExists(..)
+    , ErrSlotAlreadyExists (..)
     ) where
 
 import Prelude
@@ -35,7 +35,7 @@ data DBLayer m = DBLayer
         -- ^ Write for a given slot id the id of stake pool that produced a
         -- a corresponding block
 
-    , readPoolProduction ::Word64 -> m (Map PoolId [SlotId])
+    , readPoolProduction :: Word64 -> m (Map PoolId [SlotId])
         -- ^ Read the all stake pools together with corresponding slot ids
         -- for a given epoch.
 
