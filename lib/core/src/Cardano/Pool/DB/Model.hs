@@ -23,7 +23,7 @@
 -- and are used for QuickCheck state machine testing, and the MVar database
 -- backend.
 
-module Cardano.Wallet.DBPool.Model
+module Cardano.Pool.DB.Model
     (
     -- * Model Types
       PoolDatabase (..)

@@ -10,15 +10,15 @@
 -- for testing to compare with an implementation on a real data store, or to use
 -- when compiling the wallet for targets which don't have SQLite.
 
-module Cardano.Wallet.DBPool.MVar
-    ( newDBPoolLayer
+module Cardano.Pool.DB.MVar
+    ( newDBLayer
     ) where
 
 import Prelude
 
-import Cardano.Wallet.DBPool
-    ( DBPoolLayer (..), ErrSlotAlreadyExists (..) )
-import Cardano.Wallet.DBPool.Model
+import Cardano.Pool.DB
+    ( DBLayer (..), ErrSlotAlreadyExists (..) )
+import Cardano.Pool.DB.Model
     ( ModelPoolOp
     , PoolDatabase
     , PoolErr (..)
@@ -41,10 +41,10 @@ import Control.Monad.Trans.Except
 
 -- | Instantiate a new in-memory "database" layer that simply stores data in
 -- a local MVar. Data vanishes if the software is shut down.
-newDBPoolLayer :: IO (DBPoolLayer IO)
-newDBPoolLayer = do
+newDBLayer :: IO (DBLayer IO)
+newDBLayer = do
     db <- newMVar emptyPoolDatabase
-    return $ DBPoolLayer
+    return $ DBLayer
 
         { putPoolProduction = \sl pool -> ExceptT $ do
             pool `deepseq`

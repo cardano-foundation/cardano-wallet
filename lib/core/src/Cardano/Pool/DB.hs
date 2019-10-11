@@ -7,9 +7,9 @@
 --
 -- Database / Persistence layer for the pool production.
 
-module Cardano.Wallet.DBPool
+module Cardano.Pool.DB
     ( -- * Interface
-      DBPoolLayer (..)
+      DBLayer (..)
 
       -- * Errors
     , ErrSlotAlreadyExists(..)
@@ -27,7 +27,7 @@ import Data.Word
     ( Word64 )
 
 -- | A Database interface for storing pool production in DB.
-data DBPoolLayer m = DBPoolLayer
+data DBLayer m = DBLayer
     { putPoolProduction
         :: SlotId
         -> PoolId

@@ -16,7 +16,7 @@
 -- been moved into a separate file so that we can treat it slightly differently
 -- when computing code-coverage.
 
-module Cardano.Wallet.DBPool.Sqlite.TH where
+module Cardano.Pool.DB.Sqlite.TH where
 
 import Prelude
 
@@ -34,7 +34,7 @@ import qualified Cardano.Wallet.Primitive.Types as W
 share
     [ mkPersist sqlSettings'
     , mkDeleteCascade sqlSettings'
-    , mkMigrate "migrateAllPools"
+    , mkMigrate "migrateAll"
     ]
     [persistLowerCase|
 

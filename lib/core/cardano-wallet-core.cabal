@@ -82,20 +82,22 @@ library
       src
   exposed-modules:
       Cardano.Byron.Codec.Cbor
+      Cardano.DB.Sqlite
+      Cardano.Pool.DB
+      Cardano.Pool.DB.MVar
+      Cardano.Pool.DB.Model
+      Cardano.Pool.DB.Sqlite
+      Cardano.Pool.DB.Sqlite.TH
       Cardano.Wallet
       Cardano.Wallet.Api
       Cardano.Wallet.Api.Server
       Cardano.Wallet.Api.Types
       Cardano.Wallet.DB
-      Cardano.Wallet.DBPool
       Cardano.Wallet.DB.MVar
       Cardano.Wallet.DB.Model
       Cardano.Wallet.DB.Sqlite
       Cardano.Wallet.DB.Sqlite.TH
       Cardano.Wallet.DB.Sqlite.Types
-      Cardano.Wallet.DBPool.MVar
-      Cardano.Wallet.DBPool.Model
-      Cardano.Wallet.DBPool.Sqlite.TH
       Cardano.Wallet.DaedalusIPC
       Cardano.Wallet.Network
       Cardano.Wallet.Network.Ports

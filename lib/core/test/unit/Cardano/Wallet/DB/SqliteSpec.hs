@@ -47,6 +47,8 @@ import Cardano.BM.Trace
     ( traceInTVarIO )
 import Cardano.Crypto.Wallet
     ( XPrv )
+import Cardano.DB.Sqlite
+    ( SqliteContext, destroyDBLayer )
 import Cardano.Wallet.DB
     ( DBLayer (..)
     , ErrNoSuchWallet (..)
@@ -59,13 +61,7 @@ import Cardano.Wallet.DB.Arbitrary
 import Cardano.Wallet.DB.Properties
     ( properties, withDB )
 import Cardano.Wallet.DB.Sqlite
-    ( PersistState
-    , PersistTx
-    , SqliteContext
-    , destroyDBLayer
-    , newDBLayer
-    , withDBLayer
-    )
+    ( PersistState, PersistTx, newDBLayer, withDBLayer )
 import Cardano.Wallet.DB.StateMachine
     ( prop_parallel, prop_sequential )
 import Cardano.Wallet.DummyTarget.Primitive.Types

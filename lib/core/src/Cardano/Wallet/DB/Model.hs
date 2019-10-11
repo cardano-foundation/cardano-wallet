@@ -169,7 +169,7 @@ mCreateWallet wid cp meta txs0 db@Database{wallets,txs}
             txs' = Map.fromList $ (\(tx, _) -> (txId @t tx, tx)) <$> txs0
             history = Map.fromList $ first (txId @t) <$> txs0
         in
-            (Right (), Database (Map.insert wid wal wallets) (txs <> txs') )
+            (Right (), Database (Map.insert wid wal wallets) (txs <> txs'))
 
 mRemoveWallet :: Ord wid => wid -> ModelOp wid s t xprv ()
 mRemoveWallet wid db@Database{wallets,txs}
@@ -267,8 +267,7 @@ mReadTxHistory
     -> Range SlotId
     -> Maybe TxStatus
     -> ModelOp wid s t xprv (TxHistory t)
-mReadTxHistory wid order range mstatus db@(Database wallets txs) =
-    (Right res, db)
+mReadTxHistory wid order range mstatus db@(Database wallets txs) = (Right res, db)
   where
     res = maybe mempty getTxs $ Map.lookup wid wallets
     getTxs wal = filterTxHistory @t order range $ catMaybes

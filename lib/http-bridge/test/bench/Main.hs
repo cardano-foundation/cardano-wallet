@@ -20,6 +20,8 @@ import Cardano.BM.Setup
     ( setupTrace_ )
 import Cardano.BM.Trace
     ( Trace )
+import Cardano.DB.Sqlite
+    ( destroyDBLayer, unsafeRunQuery )
 import Cardano.Launcher
     ( StdStream (..), installSignalHandlers )
 import Cardano.Wallet
@@ -280,9 +282,9 @@ withBenchDBLayer logConfig tr action =
         bracket (before dbFile) after between
   where
     before dbFile = Sqlite.newDBLayer logConfig tr (Just dbFile)
-    after = Sqlite.destroyDBLayer . fst
+    after = destroyDBLayer . fst
     between (ctx, db) = do
-        Sqlite.unsafeRunQuery ctx (void $ runMigrationSilent migrateAll)
+        unsafeRunQuery ctx (void $ runMigrationSilent migrateAll)
         action db
 
 logChunk :: SlotId -> IO ()
