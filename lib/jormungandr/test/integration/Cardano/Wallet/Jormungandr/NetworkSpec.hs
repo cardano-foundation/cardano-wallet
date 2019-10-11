@@ -170,7 +170,7 @@ spec = do
                     , parentHeaderHash = Hash bytes
                     }
             resp <- runExceptT $ nextBlocks nw (initCursor nw [block])
-            resp `shouldBe` Right Recover
+            fmap (isRollBackwardTo nw (SlotId 0 0)) resp `shouldBe` Right True
 
     describe "Error paths" $ do
         let newBrokenNetworkLayer :: BaseUrl -> IO (NetworkLayer IO (Jormungandr n) ())
@@ -412,7 +412,6 @@ instance Show (NextBlocksResult t b) where
     show AwaitReply = "AwaitReply"
     show (RollForward _ _ bs) = "RollForward " ++ show (length bs) ++ " blocks"
     show (RollBackward _) = "RollBackward"
-    show Recover = "Recover"
 
 instance Eq (NextBlocksResult t b) where
     a == b = show a == show b
@@ -508,7 +507,15 @@ getRollForward :: NextBlocksResult target block -> Maybe [block]
 getRollForward AwaitReply = Nothing
 getRollForward (RollForward _ _ bs) = Just bs
 getRollForward (RollBackward _) = Nothing
-getRollForward Recover = Nothing
 
 isRollForward :: NextBlocksResult target block -> Bool
 isRollForward = maybe False (not . null) . getRollForward
+
+isRollBackwardTo
+    :: NetworkLayer m target block
+    -> SlotId
+    -> NextBlocksResult target block
+    -> Bool
+isRollBackwardTo nl sl = \case
+    RollBackward cursor -> cursorSlotId nl cursor == sl
+    _ -> False

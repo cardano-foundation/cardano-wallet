@@ -279,8 +279,7 @@ mkRawNetworkLayer (block0, bp) st j = NetworkLayer
 
     _cursorSlotId :: Cursor t -> SlotId
     _cursorSlotId (Cursor unstable) =
-        -- FIXME Why the default here?
-        maybe (SlotId 0 0) slotId $ blockHeadersTip unstable
+        maybe (SlotId 0 0) slotId (blockHeadersTip unstable)
 
     _nextBlocks
         :: Cursor t
@@ -361,7 +360,7 @@ mkRawNetworkLayer (block0, bp) st j = NetworkLayer
             (Just baseH, Just tipH) | baseH /= tipH ->
                 RollBackward (cursorBackward baseH cursor)
             _ ->
-                Recover
+                RollBackward $ Cursor emptyBlockHeaders
 
 {-------------------------------------------------------------------------------
                              Jormungandr Cursor
@@ -393,9 +392,6 @@ direction (Cursor local) node = case greatestCommonBlockHeader node local of
     Just intersection
         -- Local tip and node tip are the same
         | blockHeadersTip local == blockHeadersTip node -> Stay
-
-        -- Node is still at genesis
-        | blockHeadersAtGenesis node -> Stay
 
         -- Local tip is the greatest common block
         | blockHeadersTip local == Just intersection -> Forward

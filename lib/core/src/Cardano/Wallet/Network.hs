@@ -201,15 +201,12 @@ data NextBlocksResult target block
     | RollBackward (Cursor target)
         -- ^ The chain consumer must roll back its state, then use the cursor to
         -- get the next batch of blocks.
-    | Recover
-       -- ^ An intersection could not be found. Start from scratch.
 
 instance Functor (NextBlocksResult target) where
     fmap f = \case
         AwaitReply -> AwaitReply
         RollForward cur bh bs -> RollForward cur bh (fmap f bs)
         RollBackward cur -> RollBackward cur
-        Recover -> Recover
 
 -- | Subscribe to a blockchain and get called with new block (in order)!
 follow
@@ -280,8 +277,4 @@ follow nl tr start yield header =
 
         Right (RollBackward _) -> do
               logError tr "Rollback! We are stuck now (issue #650)."
-              sleep maxBound cursor
-
-        Right Recover -> do
-              logInfo tr "Could not find chain intersection. Recovering wallet (issue #650)."
               sleep maxBound cursor

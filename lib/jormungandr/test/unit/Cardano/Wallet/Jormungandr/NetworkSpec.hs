@@ -101,35 +101,20 @@ spec = do
             property prop_generator
 
     describe "Chain sync" $ do
-        it "Regression #1" $
-            withMaxSuccess 1 $ prop_sync regression1 0
-
-        it "Regression #2" $
-            withMaxSuccess 1 $ prop_sync regression2 0
-
-        it "Regression #3" $
-            withMaxSuccess 1 $ prop_sync regression3 0
-
-        it "Regression #4" $
-            withMaxSuccess 1 $ prop_sync regression4 0
-
-        it "Regression #5" $
-            withMaxSuccess 1 $ prop_sync regression5 0
-
         it "Syncs with mock node" $
-            withMaxSuccess 10000 prop_sync
+            withMaxSuccess 100000 prop_sync
 
 {-------------------------------------------------------------------------------
                 Syncing of network layer in presence of rollback
                           and concurrent node updates.
 -------------------------------------------------------------------------------}
 
-prop_sync :: S -> Int -> Property
-prop_sync s0 nCps = monadicIO $ do
+prop_sync :: S -> Property
+prop_sync s0 = monadicIO $ do
     let logLineC msg = logLine $ "[CONSUMER] " <> msg
 
     -- Run a model chain consumer on the mock network layer.
-    (c0Chain, c0Cps) <- pick $ genConsumer s0 nCps
+    (c0Chain, c0Cps) <- pick $ genConsumer s0
     (consumer, s) <- run $ flip runStateT s0 $ do
         -- Set up network layer with mock Jormungandr
         nl <- mockNetworkLayer logLine
@@ -145,7 +130,7 @@ prop_sync s0 nCps = monadicIO $ do
         , "k =                     " <> show (mockNodeK s0)
         , "Logs:                 \n" <> unlines (reverse (logs s))
         ]
-    monitor (classify (initialChainLength (const ( == 0))) "started with an empty chain")
+    monitor (classify (initialChainLength (const (== 1))) "started with an empty chain")
     monitor (classify (initialChainLength (\k -> (> k))) "started with more than k blocks")
     monitor (classify addMoreThanK "advanced more than k blocks")
     monitor (classify rollbackK "rolled back full k")
@@ -194,10 +179,12 @@ prop_sync s0 nCps = monadicIO $ do
 
     recoveredFromGenesis :: S -> Bool
     recoveredFromGenesis s =
-        "[CONSUMER] Recover" `elem` logs s
+        line `elem` logs s
+      where
+        line = "[CONSUMER] RollBackward SlotId {epochNumber = 0, slotNumber = 0}"
 
     startedFromScratch :: [BlockHeader] -> Bool
-    startedFromScratch = null
+    startedFromScratch = (== 1) . length
 
 showChain :: [MockBlock] -> String
 showChain [] = "∅"
@@ -304,10 +291,6 @@ consumerRestoreStep logLine nw (C bs cur) mLimit = do
             let sl = cursorSlotId nw cur'
             let bs' = takeWhile (\b -> mockBlockSlot b <= sl) bs
             consumerRestoreStep logLine nw (C bs' cur') limit
-        Right Recover -> do
-            logLine "Recover"
-            let cur0 = initCursor nw []
-            consumerRestoreStep logLine nw (C [] cur0) limit
 
 ----------------------------------------------------------------------------
 -- Network layer with mock jormungandr node
@@ -355,7 +338,7 @@ mockJormungandrClient logLine = JormungandrClient
     , getDescendantIds = \parentId count -> do
         ch <- lift $ gets (nodeChainIds . node)
         let res = fmap (take $ fromIntegral count) $ if parentId == headerHash block0H
-                then pure (reverse ch)
+                then pure (drop 1 $ reverse ch)
                 else if parentId `elem` ch then
                     pure $ reverse (takeWhile (/= parentId) ch)
                 else
@@ -427,7 +410,7 @@ data Node = N
     } deriving (Show, Eq)
 
 emptyNode :: Node
-emptyNode = N mempty mempty 0
+emptyNode = N (Map.singleton genesisHash (fromJBlock block0)) [genesisHash] 1
 
 -- | Gets the mock node's chain as a list of blocks starting from genesis.
 getNodeChain :: Node -> [MockBlock]
@@ -435,9 +418,6 @@ getNodeChain (N db ch _) = reverse $ catMaybes [Map.lookup b db | b <- ch]
 
 getNodeTip :: Node -> Maybe MockBlock
 getNodeTip (N db ch _) = headMay ch >>= flip Map.lookup db
-
-nodeFromChain :: [MockBlock] -> Node
-nodeFromChain bs = nodeAddBlocks bs emptyNode
 
 -- | Mutation of the node state.
 data NodeOp
@@ -540,7 +520,7 @@ prop_generator (S n0 ops _ _) = continuous .&&. uniqueIds
         [] ->
             property True
         [b] ->
-            mockBlockPrev b === genesisHash
+            mockBlockPrev b === parentGenesisHash
         (p:b:_) ->
             counterexample ("Chain: " <> showBlock p <> " ==> " <> showBlock b)
             $ conjoin
@@ -669,13 +649,14 @@ genSwitchChain k n = do
 -- Rewinds are usually small to allow the node to make progress, so that
 -- the test can stop. Sometimes the full k is rolled back.
 genRewind :: Int -> Node -> Gen Int
-genRewind k (N _ ch _) = frequency
-    [ (80, choose (1, min k 3))
-    , (15, choose (1, (min k (rMax `div` 3))))
-    , (5, min rMax <$> choose ((k - 1), k))
-    ]
-  where
-    rMax = length ch - 1
+genRewind k (N _ ch _) = do
+    let rMax = length ch - 1
+    rw <- frequency
+        [ (80, choose (1, min k 3))
+        , (15, choose (1, (min k (rMax `div` 3))))
+        , (5, min rMax <$> choose ((k - 1), k))
+        ]
+    pure (if rw > rMax then 0 else rw)
 
 genGC :: Node -> Gen [Hash "BlockHeader"]
 genGC (N db ch _) = sublistOf (Map.keys db \\ ch)
@@ -684,9 +665,9 @@ genGaps :: Int -> Gen [Bool]
 genGaps count = do
     vectorOf count $ frequency [(1, pure True), (4, pure False)]
 
-genConsumer :: S -> Int -> Gen ([MockBlock], [BlockHeader])
-genConsumer s nCps = do
-    n <- choose (0, max 0 nCps)
+genConsumer :: S -> Gen ([MockBlock], [BlockHeader])
+genConsumer s = do
+    n <- choose (1, length (getNodeChain (node s)))
     let chain = take n (getNodeChain (node s))
     cps <- genCheckpoints chain
     pure (chain, cps)
@@ -705,413 +686,3 @@ mockBlockHash num = Hash $ fmt $ padLeftF 4 '0' $ hexF num
 
 showHash :: Hash a -> String
 showHash (Hash h) = B8.unpack h
-
---------------------------------------------------------------------------------
--- Interesting Cases Seen During Development
---
-
-regression1 :: S
-regression1 = S
-    { node = N
-        { nodeDb = Map.fromList []
-        , nodeChainIds = []
-        , nodeNextBlockId = 0
-        }
-    ,  mockNodeK = Quantity {getQuantity = 15}
-    , logs = []
-    , operations =
-        [ []
-        , []
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0000"}, mockBlockPrev = Hash {getHash = "genesis"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 0}}]]
-        , []
-        , []
-        , []
-        , [NodeRewind 3, NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0001"}, mockBlockPrev = Hash {getHash = "genesis"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 0}},MockBlock {mockBlockId = Hash {getHash = "0002"}, mockBlockPrev = Hash {getHash = "0001"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 1}},MockBlock {mockBlockId = Hash {getHash = "0003"}, mockBlockPrev = Hash {getHash = "0002"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 2}}]]
-        , []
-        , []
-        , [NodeGarbageCollect [Hash {getHash = "0000"}]]
-        , []
-        , [NodeRewind 3,NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0004"}, mockBlockPrev = Hash {getHash = "genesis"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 0}},MockBlock {mockBlockId = Hash {getHash = "0005"}, mockBlockPrev = Hash {getHash = "0004"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 1}},MockBlock {mockBlockId = Hash {getHash = "0006"}, mockBlockPrev = Hash {getHash = "0005"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 2}}]]
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0007"}, mockBlockPrev = Hash {getHash = "0006"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 3}}]]
-        , []
-        , []
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0008"}, mockBlockPrev = Hash {getHash = "0007"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 4}}]]
-        , [NodeGarbageCollect [Hash {getHash = "0001"},Hash {getHash = "0002"},Hash {getHash = "0003"}]]
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0009"}, mockBlockPrev = Hash {getHash = "0008"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 5}}]]
-        , []
-        , []
-        , []
-        , []
-        , []
-        , [NodeRewind 1,NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "000a"}, mockBlockPrev = Hash {getHash = "0008"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 5}}]]
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "000b"}, mockBlockPrev = Hash {getHash = "000a"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 6}}]]
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "000c"}, mockBlockPrev = Hash {getHash = "000b"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 7}}]]
-        , [NodeRewind 2,NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "000d"}, mockBlockPrev = Hash {getHash = "000a"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 6}},MockBlock {mockBlockId = Hash {getHash = "000e"}, mockBlockPrev = Hash {getHash = "000d"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 7}}]]
-        , []
-        , []
-        , [NodeGarbageCollect [Hash {getHash = "000b"}]]
-        , []
-        , []
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "000f"}, mockBlockPrev = Hash {getHash = "000e"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 8}}]]
-        , []
-        , []
-        , []
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0010"}, mockBlockPrev = Hash {getHash = "000f"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 9}}]]
-        , [NodeRewind 3,NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0011"}, mockBlockPrev = Hash {getHash = "000d"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 7}},MockBlock {mockBlockId = Hash {getHash = "0012"}, mockBlockPrev = Hash {getHash = "0011"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 8}},MockBlock {mockBlockId = Hash {getHash = "0013"}, mockBlockPrev = Hash {getHash = "0012"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 9}}]]
-        , []
-        , []
-        , []
-        , [NodeGarbageCollect [Hash {getHash = "0009"},Hash {getHash = "000c"},Hash {getHash = "000e"}]]
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0014"}, mockBlockPrev = Hash {getHash = "0013"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 10}}]]
-        , []
-        , [NodeRewind 3,NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0015"}, mockBlockPrev = Hash {getHash = "0011"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 8}},MockBlock {mockBlockId = Hash {getHash = "0016"}, mockBlockPrev = Hash {getHash = "0015"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 9}},MockBlock {mockBlockId = Hash {getHash = "0017"}, mockBlockPrev = Hash {getHash = "0016"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 10}}]]
-        , []
-        , []
-        , [NodeGarbageCollect [Hash {getHash = "0010"}]]
-        , [NodeGarbageCollect [Hash {getHash = "000f"},Hash {getHash = "0012"},Hash {getHash = "0013"},Hash {getHash = "0014"}]]
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0018"}, mockBlockPrev = Hash {getHash = "0017"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 11}}]]
-        , []
-        , [NodeRewind 3,NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0019"}, mockBlockPrev = Hash {getHash = "0015"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 9}},MockBlock {mockBlockId = Hash {getHash = "001a"}, mockBlockPrev = Hash {getHash = "0019"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 11}}]]
-        , []
-        , []
-        , []
-        , []
-        , [NodeGarbageCollect [Hash {getHash = "0018"}]]
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "001b"}, mockBlockPrev = Hash {getHash = "001a"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 12}}]]
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "001c"}, mockBlockPrev = Hash {getHash = "001b"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 13}}]]
-        , [NodeGarbageCollect [Hash {getHash = "0016"},Hash {getHash = "0017"}]]
-        , []
-        , []
-        , [NodeRewind 1,NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "001d"}, mockBlockPrev = Hash {getHash = "001b"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 13}}]]
-        , []
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "001e"}, mockBlockPrev = Hash {getHash = "001d"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 14}}]]
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "001f"}, mockBlockPrev = Hash {getHash = "001e"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 15}}]]
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0020"}, mockBlockPrev = Hash {getHash = "001f"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 16}}]]
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0021"}, mockBlockPrev = Hash {getHash = "0020"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 17}}]]
-        , []
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0022"}, mockBlockPrev = Hash {getHash = "0021"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 18}}]]
-        , []
-        , []
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0023"}, mockBlockPrev = Hash {getHash = "0022"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 19}}]]
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , [NodeRewind 3,NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0024"}, mockBlockPrev = Hash {getHash = "0020"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 17}},MockBlock {mockBlockId = Hash {getHash = "0025"}, mockBlockPrev = Hash {getHash = "0024"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 18}},MockBlock {mockBlockId = Hash {getHash = "0026"}, mockBlockPrev = Hash {getHash = "0025"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 19}}]]
-        , []
-        , []
-        , []
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0027"}, mockBlockPrev = Hash {getHash = "0026"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 20}}]]
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , [NodeRewind 4,NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0028"}, mockBlockPrev = Hash {getHash = "0020"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 17}},MockBlock {mockBlockId = Hash {getHash = "0029"}, mockBlockPrev = Hash {getHash = "0028"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 18}},MockBlock {mockBlockId = Hash {getHash = "002a"}, mockBlockPrev = Hash {getHash = "0029"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 19}},MockBlock {mockBlockId = Hash {getHash = "002b"}, mockBlockPrev = Hash {getHash = "002a"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 20}}]]
-        , []
-        , []
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "002c"}, mockBlockPrev = Hash {getHash = "002b"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 21}}]]
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "002d"}, mockBlockPrev = Hash {getHash = "002c"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 22}}]]
-        , []
-        , []
-        , []
-        , []
-        , []
-        , []
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "002e"}, mockBlockPrev = Hash {getHash = "002d"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 23}}]]
-        , []
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "002f"}, mockBlockPrev = Hash {getHash = "002e"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 24}}]]
-        , []
-        , []
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0030"}, mockBlockPrev = Hash {getHash = "002f"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 25}}]]
-        , []
-        , []
-        , []
-        , []
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0031"}, mockBlockPrev = Hash {getHash = "0030"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 26}}]]
-        ]
-    }
-
-regression2 :: S
-regression2 = S
-    { node = N
-        { nodeDb = Map.fromList []
-        , nodeChainIds = []
-        , nodeNextBlockId = 0
-        }
-    , mockNodeK = Quantity {getQuantity = 15}
-    , logs = []
-    , operations =
-        [ [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0000"}, mockBlockPrev = Hash {getHash = "genesis"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 0}}]]
-        , [NodeRewind 1,NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0001"}, mockBlockPrev = Hash {getHash = "genesis"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 0}}]]
-        , [NodeGarbageCollect [Hash {getHash = "0000"}]]
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0002"}, mockBlockPrev = Hash {getHash = "0001"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 1}}]]
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0003"}, mockBlockPrev = Hash {getHash = "0002"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 2}}]]
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0004"}, mockBlockPrev = Hash {getHash = "0003"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 3}}]]
-        , [NodeRewind 3,NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0005"}, mockBlockPrev = Hash {getHash = "0001"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 1}}]]
-        ]
-    }
-
-regression3 :: S
-regression3 = S
-    { node = N
-        { nodeDb = Map.fromList []
-        , nodeChainIds = []
-        , nodeNextBlockId = 0
-        }
-    , mockNodeK = Quantity {getQuantity = 16}
-    , logs = []
-    , operations =
-        [ [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0000"}, mockBlockPrev = Hash {getHash = "genesis"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 0}}]]
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0001"}, mockBlockPrev = Hash {getHash = "0000"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 1}},MockBlock {mockBlockId = Hash {getHash = "0002"}, mockBlockPrev = Hash {getHash = "0001"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 2}},MockBlock {mockBlockId = Hash {getHash = "0003"}, mockBlockPrev = Hash {getHash = "0002"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 3}}]]
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0004"}, mockBlockPrev = Hash {getHash = "0003"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 4}}]]
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0005"}, mockBlockPrev = Hash {getHash = "0004"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 5}}]]
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0006"}, mockBlockPrev = Hash {getHash = "0005"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 6}}]]
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0007"}, mockBlockPrev = Hash {getHash = "0006"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 7}}]]
-        , [NodeRewind 4]
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0008"}, mockBlockPrev = Hash {getHash = "0003"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 4}}]]
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "0009"}, mockBlockPrev = Hash {getHash = "0008"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 5}}]]
-        , [NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "000a"}, mockBlockPrev = Hash {getHash = "0009"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 6}}]]
-        , [NodeRewind 3,NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "000b"}, mockBlockPrev = Hash {getHash = "0003"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 4}},MockBlock {mockBlockId = Hash {getHash = "000c"}, mockBlockPrev = Hash {getHash = "000b"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 5}}]]
-        , [NodeRewind 3,NodeAddBlocks [MockBlock {mockBlockId = Hash {getHash = "000d"}, mockBlockPrev = Hash {getHash = "0002"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 3}},MockBlock {mockBlockId = Hash {getHash = "000e"}, mockBlockPrev = Hash {getHash = "000d"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 4}}]]
-        ]
-    }
-
-regression4 :: S
-regression4 = S
-    { node = N
-        { nodeDb = Map.fromList
-            [ (Hash {getHash = "0000"},MockBlock {mockBlockId = Hash {getHash = "0000"}, mockBlockPrev = Hash {getHash = "genesis"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 0}})
-            , (Hash {getHash = "0001"},MockBlock {mockBlockId = Hash {getHash = "0001"}, mockBlockPrev = Hash {getHash = "0000"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 1}})
-            , (Hash {getHash = "0002"},MockBlock {mockBlockId = Hash {getHash = "0002"}, mockBlockPrev = Hash {getHash = "0001"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 3}})
-            , (Hash {getHash = "0003"},MockBlock {mockBlockId = Hash {getHash = "0003"}, mockBlockPrev = Hash {getHash = "0002"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 6}})
-            , (Hash {getHash = "0004"},MockBlock {mockBlockId = Hash {getHash = "0004"}, mockBlockPrev = Hash {getHash = "0003"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 7}})
-            , (Hash {getHash = "0005"},MockBlock {mockBlockId = Hash {getHash = "0005"}, mockBlockPrev = Hash {getHash = "0004"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 8}})
-            , (Hash {getHash = "0006"},MockBlock {mockBlockId = Hash {getHash = "0006"}, mockBlockPrev = Hash {getHash = "0005"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 10}})
-            , (Hash {getHash = "0007"},MockBlock {mockBlockId = Hash {getHash = "0007"}, mockBlockPrev = Hash {getHash = "0006"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 11}})
-            , (Hash {getHash = "0008"},MockBlock {mockBlockId = Hash {getHash = "0008"}, mockBlockPrev = Hash {getHash = "0007"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 12}})
-            , (Hash {getHash = "0009"},MockBlock {mockBlockId = Hash {getHash = "0009"}, mockBlockPrev = Hash {getHash = "0008"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 13}})
-            , (Hash {getHash = "000a"},MockBlock {mockBlockId = Hash {getHash = "000a"}, mockBlockPrev = Hash {getHash = "0009"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 15}})
-            , (Hash {getHash = "000b"},MockBlock {mockBlockId = Hash {getHash = "000b"}, mockBlockPrev = Hash {getHash = "000a"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 16}})
-            , (Hash {getHash = "000c"},MockBlock {mockBlockId = Hash {getHash = "000c"}, mockBlockPrev = Hash {getHash = "000b"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 17}})
-            , (Hash {getHash = "000d"},MockBlock {mockBlockId = Hash {getHash = "000d"}, mockBlockPrev = Hash {getHash = "000c"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 18}})
-            , (Hash {getHash = "000e"},MockBlock {mockBlockId = Hash {getHash = "000e"}, mockBlockPrev = Hash {getHash = "000d"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 19}})
-            , (Hash {getHash = "000f"},MockBlock {mockBlockId = Hash {getHash = "000f"}, mockBlockPrev = Hash {getHash = "000e"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 20}})
-            , (Hash {getHash = "0010"},MockBlock {mockBlockId = Hash {getHash = "0010"}, mockBlockPrev = Hash {getHash = "000f"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 21}})
-            , (Hash {getHash = "0011"},MockBlock {mockBlockId = Hash {getHash = "0011"}, mockBlockPrev = Hash {getHash = "0010"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 22}})
-            , (Hash {getHash = "0012"},MockBlock {mockBlockId = Hash {getHash = "0012"}, mockBlockPrev = Hash {getHash = "0011"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 24}})
-            , (Hash {getHash = "0013"},MockBlock {mockBlockId = Hash {getHash = "0013"}, mockBlockPrev = Hash {getHash = "0012"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 25}})
-            , (Hash {getHash = "0014"},MockBlock {mockBlockId = Hash {getHash = "0014"}, mockBlockPrev = Hash {getHash = "0013"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 26}})
-            , (Hash {getHash = "0015"},MockBlock {mockBlockId = Hash {getHash = "0015"}, mockBlockPrev = Hash {getHash = "0014"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 27}})
-            , (Hash {getHash = "0016"},MockBlock {mockBlockId = Hash {getHash = "0016"}, mockBlockPrev = Hash {getHash = "0015"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 28}})
-            , (Hash {getHash = "0017"},MockBlock {mockBlockId = Hash {getHash = "0017"}, mockBlockPrev = Hash {getHash = "0016"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 29}})
-            , (Hash {getHash = "0018"},MockBlock {mockBlockId = Hash {getHash = "0018"}, mockBlockPrev = Hash {getHash = "0017"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 30}})
-            , (Hash {getHash = "0019"},MockBlock {mockBlockId = Hash {getHash = "0019"}, mockBlockPrev = Hash {getHash = "0018"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 31}})
-            , (Hash {getHash = "001a"},MockBlock {mockBlockId = Hash {getHash = "001a"}, mockBlockPrev = Hash {getHash = "0019"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 32}})
-            , (Hash {getHash = "001b"},MockBlock {mockBlockId = Hash {getHash = "001b"}, mockBlockPrev = Hash {getHash = "001a"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 33}})
-            , (Hash {getHash = "001c"},MockBlock {mockBlockId = Hash {getHash = "001c"}, mockBlockPrev = Hash {getHash = "001b"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 34}})
-            , (Hash {getHash = "001d"},MockBlock {mockBlockId = Hash {getHash = "001d"}, mockBlockPrev = Hash {getHash = "001c"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 35}})
-            , (Hash {getHash = "001e"},MockBlock {mockBlockId = Hash {getHash = "001e"}, mockBlockPrev = Hash {getHash = "001d"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 36}})
-            , (Hash {getHash = "001f"},MockBlock {mockBlockId = Hash {getHash = "001f"}, mockBlockPrev = Hash {getHash = "001e"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 37}})
-            , (Hash {getHash = "0020"},MockBlock {mockBlockId = Hash {getHash = "0020"}, mockBlockPrev = Hash {getHash = "001f"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 39}})
-            , (Hash {getHash = "0021"},MockBlock {mockBlockId = Hash {getHash = "0021"}, mockBlockPrev = Hash {getHash = "0020"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 40}})
-            , (Hash {getHash = "0022"},MockBlock {mockBlockId = Hash {getHash = "0022"}, mockBlockPrev = Hash {getHash = "0021"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 41}})
-            , (Hash {getHash = "0023"},MockBlock {mockBlockId = Hash {getHash = "0023"}, mockBlockPrev = Hash {getHash = "0022"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 42}})
-            , (Hash {getHash = "0024"},MockBlock {mockBlockId = Hash {getHash = "0024"}, mockBlockPrev = Hash {getHash = "0023"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 43}})
-            , (Hash {getHash = "0025"},MockBlock {mockBlockId = Hash {getHash = "0025"}, mockBlockPrev = Hash {getHash = "0024"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 45}})
-            , (Hash {getHash = "0026"},MockBlock {mockBlockId = Hash {getHash = "0026"}, mockBlockPrev = Hash {getHash = "0025"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 47}})
-            , (Hash {getHash = "0027"},MockBlock {mockBlockId = Hash {getHash = "0027"}, mockBlockPrev = Hash {getHash = "0026"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 49}})
-            , (Hash {getHash = "0028"},MockBlock {mockBlockId = Hash {getHash = "0028"}, mockBlockPrev = Hash {getHash = "0027"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 50}})
-            , (Hash {getHash = "0029"},MockBlock {mockBlockId = Hash {getHash = "0029"}, mockBlockPrev = Hash {getHash = "0028"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 52}})
-            , (Hash {getHash = "002a"},MockBlock {mockBlockId = Hash {getHash = "002a"}, mockBlockPrev = Hash {getHash = "0029"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 53}})
-            , (Hash {getHash = "002b"},MockBlock {mockBlockId = Hash {getHash = "002b"}, mockBlockPrev = Hash {getHash = "002a"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 55}})
-            , (Hash {getHash = "002c"},MockBlock {mockBlockId = Hash {getHash = "002c"}, mockBlockPrev = Hash {getHash = "002b"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 56}})
-            , (Hash {getHash = "002d"},MockBlock {mockBlockId = Hash {getHash = "002d"}, mockBlockPrev = Hash {getHash = "002c"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 57}})
-            , (Hash {getHash = "002e"},MockBlock {mockBlockId = Hash {getHash = "002e"}, mockBlockPrev = Hash {getHash = "002d"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 59}})
-            , (Hash {getHash = "002f"},MockBlock {mockBlockId = Hash {getHash = "002f"}, mockBlockPrev = Hash {getHash = "002e"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 60}})
-            , (Hash {getHash = "0030"},MockBlock {mockBlockId = Hash {getHash = "0030"}, mockBlockPrev = Hash {getHash = "002f"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 61}})
-            , (Hash {getHash = "0031"},MockBlock {mockBlockId = Hash {getHash = "0031"}, mockBlockPrev = Hash {getHash = "0030"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 63}})
-            , (Hash {getHash = "0032"},MockBlock {mockBlockId = Hash {getHash = "0032"}, mockBlockPrev = Hash {getHash = "0031"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 64}})
-            , (Hash {getHash = "0033"},MockBlock {mockBlockId = Hash {getHash = "0033"}, mockBlockPrev = Hash {getHash = "0032"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 65}})
-            , (Hash {getHash = "0034"},MockBlock {mockBlockId = Hash {getHash = "0034"}, mockBlockPrev = Hash {getHash = "0033"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 66}})
-            , (Hash {getHash = "0035"},MockBlock {mockBlockId = Hash {getHash = "0035"}, mockBlockPrev = Hash {getHash = "0034"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 70}})
-            , (Hash {getHash = "0036"},MockBlock {mockBlockId = Hash {getHash = "0036"}, mockBlockPrev = Hash {getHash = "0035"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 72}})
-            , (Hash {getHash = "0037"},MockBlock {mockBlockId = Hash {getHash = "0037"}, mockBlockPrev = Hash {getHash = "0036"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 73}})
-            , (Hash {getHash = "0038"},MockBlock {mockBlockId = Hash {getHash = "0038"}, mockBlockPrev = Hash {getHash = "0037"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 74}})
-            , (Hash {getHash = "0039"},MockBlock {mockBlockId = Hash {getHash = "0039"}, mockBlockPrev = Hash {getHash = "0038"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 75}})
-            , (Hash {getHash = "003a"},MockBlock {mockBlockId = Hash {getHash = "003a"}, mockBlockPrev = Hash {getHash = "0039"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 79}})
-            , (Hash {getHash = "003b"},MockBlock {mockBlockId = Hash {getHash = "003b"}, mockBlockPrev = Hash {getHash = "003a"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 80}})
-            , (Hash {getHash = "003c"},MockBlock {mockBlockId = Hash {getHash = "003c"}, mockBlockPrev = Hash {getHash = "003b"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 81}})
-            , (Hash {getHash = "003d"},MockBlock {mockBlockId = Hash {getHash = "003d"}, mockBlockPrev = Hash {getHash = "003c"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 83}})
-            , (Hash {getHash = "003e"},MockBlock {mockBlockId = Hash {getHash = "003e"}, mockBlockPrev = Hash {getHash = "003d"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 84}})
-            ]
-        , nodeChainIds =
-            [ Hash {getHash = "003e"}
-            , Hash {getHash = "003d"}
-            , Hash {getHash = "003c"}
-            , Hash {getHash = "003b"}
-            , Hash {getHash = "003a"}
-            , Hash {getHash = "0039"}
-            , Hash {getHash = "0038"}
-            , Hash {getHash = "0037"}
-            , Hash {getHash = "0036"}
-            , Hash {getHash = "0035"}
-            , Hash {getHash = "0034"}
-            , Hash {getHash = "0033"}
-            , Hash {getHash = "0032"}
-            , Hash {getHash = "0031"}
-            , Hash {getHash = "0030"}
-            , Hash {getHash = "002f"}
-            , Hash {getHash = "002e"}
-            , Hash {getHash = "002d"}
-            , Hash {getHash = "002c"}
-            , Hash {getHash = "002b"}
-            , Hash {getHash = "002a"}
-            , Hash {getHash = "0029"}
-            , Hash {getHash = "0028"}
-            , Hash {getHash = "0027"}
-            , Hash {getHash = "0026"}
-            , Hash {getHash = "0025"}
-            , Hash {getHash = "0024"}
-            , Hash {getHash = "0023"}
-            , Hash {getHash = "0022"}
-            , Hash {getHash = "0021"}
-            , Hash {getHash = "0020"}
-            , Hash {getHash = "001f"}
-            , Hash {getHash = "001e"}
-            , Hash {getHash = "001d"}
-            , Hash {getHash = "001c"}
-            , Hash {getHash = "001b"}
-            , Hash {getHash = "001a"}
-            , Hash {getHash = "0019"}
-            , Hash {getHash = "0018"}
-            , Hash {getHash = "0017"}
-            , Hash {getHash = "0016"}
-            , Hash {getHash = "0015"}
-            , Hash {getHash = "0014"}
-            , Hash {getHash = "0013"}
-            , Hash {getHash = "0012"}
-            , Hash {getHash = "0011"}
-            , Hash {getHash = "0010"}
-            , Hash {getHash = "000f"}
-            , Hash {getHash = "000e"}
-            , Hash {getHash = "000d"}
-            , Hash {getHash = "000c"}
-            , Hash {getHash = "000b"}
-            , Hash {getHash = "000a"}
-            , Hash {getHash = "0009"}
-            , Hash {getHash = "0008"}
-            , Hash {getHash = "0007"}
-            , Hash {getHash = "0006"}
-            , Hash {getHash = "0005"}
-            , Hash {getHash = "0004"}
-            , Hash {getHash = "0003"}
-            , Hash {getHash = "0002"}
-            , Hash {getHash = "0001"}
-            , Hash {getHash = "0000"}
-            ]
-        , nodeNextBlockId = 63
-        }
-    , operations = []
-    , mockNodeK = Quantity {getQuantity = 3}
-    , logs = []
-    }
-
-regression5 :: S
-regression5 = S
-    { node = N
-        { nodeDb = Map.fromList
-            [ (Hash {getHash = "0000"},MockBlock {mockBlockId = Hash {getHash = "0000"}, mockBlockPrev = Hash {getHash = "genesis"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 0}})
-            , (Hash {getHash = "0001"},MockBlock {mockBlockId = Hash {getHash = "0001"}, mockBlockPrev = Hash {getHash = "0000"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 1}})
-            , (Hash {getHash = "0002"},MockBlock {mockBlockId = Hash {getHash = "0002"}, mockBlockPrev = Hash {getHash = "genesis"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 0}})
-            , (Hash {getHash = "0003"},MockBlock {mockBlockId = Hash {getHash = "0003"}, mockBlockPrev = Hash {getHash = "genesis"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 0}})
-            , (Hash {getHash = "0004"},MockBlock {mockBlockId = Hash {getHash = "0004"}, mockBlockPrev = Hash {getHash = "0003"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 1}})
-            , (Hash {getHash = "0005"},MockBlock {mockBlockId = Hash {getHash = "0005"}, mockBlockPrev = Hash {getHash = "0004"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 2}})
-            , (Hash {getHash = "0006"},MockBlock {mockBlockId = Hash {getHash = "0006"}, mockBlockPrev = Hash {getHash = "0005"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 3}})
-            , (Hash {getHash = "0007"},MockBlock {mockBlockId = Hash {getHash = "0007"}, mockBlockPrev = Hash {getHash = "0005"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 3}})
-            , (Hash {getHash = "0008"},MockBlock {mockBlockId = Hash {getHash = "0008"}, mockBlockPrev = Hash {getHash = "0003"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 1}})
-            , (Hash {getHash = "0009"},MockBlock {mockBlockId = Hash {getHash = "0009"}, mockBlockPrev = Hash {getHash = "0008"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 2}})
-            , (Hash {getHash = "000a"},MockBlock {mockBlockId = Hash {getHash = "000a"}, mockBlockPrev = Hash {getHash = "0009"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 3}})
-            , (Hash {getHash = "000b"},MockBlock {mockBlockId = Hash {getHash = "000b"}, mockBlockPrev = Hash {getHash = "000a"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 4}})
-            , (Hash {getHash = "000c"},MockBlock {mockBlockId = Hash {getHash = "000c"}, mockBlockPrev = Hash {getHash = "000b"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 5}})
-            ]
-        , nodeChainIds =
-            [ Hash {getHash = "000c"}
-            , Hash {getHash = "000b"}
-            , Hash {getHash = "000a"}
-            , Hash {getHash = "0009"}
-            , Hash {getHash = "0008"}
-            , Hash {getHash = "0003"}
-            ]
-        ,  nodeNextBlockId = 13
-        }
-    ,  mockNodeK = Quantity {getQuantity = 4}
-    , logs = []
-    , operations =
-        [[NodeRewind 1]
-        , [NodeAddBlocks {getAddBlocks = [MockBlock {mockBlockId = Hash {getHash = "000d"}, mockBlockPrev = Hash {getHash = "000b"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 5}}]}]
-        , [NodeRewind 1]
-        , [NodeAddBlocks {getAddBlocks = [MockBlock {mockBlockId = Hash {getHash = "000e"}, mockBlockPrev = Hash {getHash = "000b"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 5}}]}]
-        , [NodeAddBlocks {getAddBlocks = [MockBlock {mockBlockId = Hash {getHash = "000f"}, mockBlockPrev = Hash {getHash = "000e"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 6}}]}]
-        , [NodeRewind 3,NodeAddBlocks {getAddBlocks = [MockBlock {mockBlockId = Hash {getHash = "0010"}, mockBlockPrev = Hash {getHash = "000a"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 4}}]}]
-        ]
-    }
