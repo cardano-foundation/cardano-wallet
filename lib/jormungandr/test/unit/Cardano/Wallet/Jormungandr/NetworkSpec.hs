@@ -132,13 +132,9 @@ prop_sync s0 = monadicIO $ do
         -- Set up network layer with mock Jormungandr
         nl <- mockNetworkLayer logLine
         -- Run a model chain consumer on the mock network layer.
-        let initialConsumer = C [] (initCursor nl block0H)
+        let initialConsumer = C [] (initCursor nl [])
         consumerRestoreStep logLineC nl initialConsumer Nothing
-
-    -- NOTE: We never apply the first block 'block0', as this one is given as a
-    -- parameter when starting the wallet. The network layer will never yield
-    -- it.
-    let nodeChain = drop 1 (getNodeChain (node s))
+    let nodeChain = getNodeChain (node s)
 
     monitor $ counterexample $ unlines
         [ "Initial chain:   " <> showChain (getNodeChain $ node s0)
@@ -227,14 +223,17 @@ showBlock (MockBlock ownId parentId sl) = mconcat $
 
 -- | Test Genesis block
 block0 :: J.Block
-block0 = toJBlock $ MockBlock genesisHash genesisHash (SlotId 0 0)
+block0 = toJBlock $ MockBlock genesisHash parentGenesisHash (SlotId 0 0)
 
 -- | Test Genesis block
 block0H :: BlockHeader
-block0H = BlockHeader (SlotId 0 0) (Quantity 0) genesisHash genesisHash
+block0H = BlockHeader (SlotId 0 0) (Quantity 0) genesisHash parentGenesisHash
 
 genesisHash :: Hash a
 genesisHash = Hash "genesis"
+
+parentGenesisHash :: Hash a
+parentGenesisHash = Hash "void"
 
 ----------------------------------------------------------------------------
 -- Model consumer
@@ -291,7 +290,7 @@ consumerRestoreStep logLine nw (C bs cur) mLimit = do
             consumerRestoreStep logLine nw (C bs' cur') limit
         Right Recover -> do
             logLine "Recover"
-            let cur0 = initCursor nw block0H
+            let cur0 = initCursor nw []
             consumerRestoreStep logLine nw (C [] cur0) limit
 
 ----------------------------------------------------------------------------

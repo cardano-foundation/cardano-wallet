@@ -173,13 +173,13 @@ mkNetworkLayer
     => HttpBridgeLayer m
     -> NetworkLayer m t (Block Tx)
 mkNetworkLayer httpBridge = NetworkLayer
-    { nextBlocks = \(Cursor (BlockHeader sl _ _ _)) -> do
+    { nextBlocks = \(Cursor [BlockHeader sl _ _ _]) -> do
         nodeTip <- lift $ runExceptT (snd <$> getNetworkTip httpBridge)
         withExceptT ErrGetBlockNetworkUnreachable $
             nextBlocksResult nodeTip <$> rbNextBlocks httpBridge sl
     , initCursor =
         Cursor
-    , cursorSlotId = \(Cursor (BlockHeader sl _ _ _)) ->
+    , cursorSlotId = \(Cursor [BlockHeader sl _ _ _]) ->
         sl
     , networkTip =
         snd <$> getNetworkTip httpBridge
@@ -261,14 +261,14 @@ fetchBlocksFromTip bridge start tipHash =
             blocks <- workBackwards (parentHeaderHash (header block))
             pure (block:blocks)
 
-data instance Cursor (HttpBridge n) = Cursor BlockHeader
+data instance Cursor (HttpBridge n) = Cursor [BlockHeader]
 
 nextBlocksResult
     :: Either ErrNetworkTip BlockHeader
     -> [Block Tx]
     -> NextBlocksResult (HttpBridge n) (Block Tx)
 nextBlocksResult _ [] = AwaitReply
-nextBlocksResult nodeTip bs = RollForward (Cursor tip) nodeTip' bs
+nextBlocksResult nodeTip bs = RollForward (Cursor [tip]) nodeTip' bs
   where
     tip = header $ last bs
     nodeTip' = either (const tip) id nodeTip

@@ -273,9 +273,9 @@ mkRawNetworkLayer (block0, bp) st j = NetworkLayer
             Just t -> Right (bs', t)
             Nothing -> Left ErrNetworkTipNotFound
 
-    _initCursor :: BlockHeader -> Cursor t
-    _initCursor bh =
-        Cursor $ appendBlockHeaders k emptyBlockHeaders [ bh ]
+    _initCursor :: [BlockHeader] -> Cursor t
+    _initCursor bhs =
+        Cursor $ appendBlockHeaders k emptyBlockHeaders bhs
 
     _cursorSlotId :: Cursor t -> SlotId
     _cursorSlotId (Cursor unstable) =
@@ -295,7 +295,10 @@ mkRawNetworkLayer (block0, bp) st j = NetworkLayer
 
                     Forward -> do
                         let Just nodeTip = blockHeadersTip unstable
-                        let start = maybe (coerce genesis) headerHash $ blockHeadersTip localChain
+                        let start = maybe
+                                (coerce genesis)
+                                headerHash
+                                (blockHeadersTip localChain)
                         lift (runExceptT $ getBlocks j k start) >>= \case
                             Right blks ->
                                 pure (tryRollForward nodeTip blks)

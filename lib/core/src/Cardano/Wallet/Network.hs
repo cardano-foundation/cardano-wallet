@@ -81,7 +81,7 @@ data NetworkLayer m target block = NetworkLayer
         -- return 'RollBackward' with a new cursor.
 
     , initCursor
-        :: BlockHeader -> Cursor target
+        :: [BlockHeader] -> Cursor target
         -- ^ Creates a cursor from the given block header so that 'nextBlocks'
         -- can be used to fetch blocks.
 
@@ -227,7 +227,7 @@ follow
     -- ^ Getter on the abstract 'block' type
     -> IO ()
 follow nl tr start yield header =
-    sleep 0 (initCursor nl start)
+    sleep 0 (initCursor nl [start])
   where
     delay0 :: Int
     delay0 = 1000*1000 -- 1 second

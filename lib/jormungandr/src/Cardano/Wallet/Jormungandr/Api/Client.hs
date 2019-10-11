@@ -8,7 +8,6 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -301,7 +300,7 @@ getBlocks j (Quantity k) start = do
     ids <- withExceptT liftE $ getDescendantIds j start batchSize
     mapM (getBlock j) ids
   where
-     batchSize = fromIntegral k + 1
+     batchSize = fromIntegral k
 
 -- | Get a block header corresponding to a header hash.
 getBlockHeader

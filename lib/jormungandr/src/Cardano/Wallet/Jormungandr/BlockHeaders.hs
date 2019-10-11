@@ -241,6 +241,9 @@ takeUntilSlotId sl (BlockHeaders bs) =
 -- | If the two sequences overlap in terms of slots, return the block header of
 -- the last block that is common between the two. Otherwise return Nothing.
 --
+-- 'greatestCommonBlockHeader' works fine if one (or both) list are sparse and
+-- different length.
+--
 -- For example:
 -- @
 --        | (1)         | (2)         | (3)         | (4)         | (5)
@@ -255,17 +258,29 @@ greatestCommonBlockHeader
     -- ^ Local wallet unstable blocks
     -> Maybe BlockHeader
 greatestCommonBlockHeader ubs lbs = case (minSlot, maxSlot) of
-    (Just start, Just end) -> let
-          (BlockHeaders ubs') = trimRange start end ubs
-          (BlockHeaders lbs') = trimRange start end lbs
-          pairs = Seq.zip ubs' lbs'
-        in case Seq.dropWhileR (uncurry (/=)) pairs of
-               _same :|> (bh, _) -> Just bh
-               Empty -> Nothing
+    (Just start, Just end) ->
+        let
+            (BlockHeaders ubs') = trimRange start end ubs
+            (BlockHeaders lbs') = trimRange start end lbs
+        in
+            findIntersection lbs' ubs'
+
     _ -> Nothing
   where
-    trimRange start end = takeUntilSlotId start . dropAfterSlotId end
-    minSlot = max (baseSlot ubs) (baseSlot lbs)
-    maxSlot = min (tipSlot ubs) (tipSlot lbs)
-    tipSlot = fmap slotId . blockHeadersTip
+    minSlot  = max (baseSlot ubs) (baseSlot lbs)
+    maxSlot  = min (tipSlot ubs) (tipSlot lbs)
+    tipSlot  = fmap slotId . blockHeadersTip
     baseSlot = fmap slotId . blockHeadersBase
+
+    trimRange :: SlotId -> SlotId -> BlockHeaders -> BlockHeaders
+    trimRange start end =
+        takeUntilSlotId start . dropAfterSlotId end
+
+    findIntersection :: Seq BlockHeader -> Seq BlockHeader -> Maybe BlockHeader
+    findIntersection Empty   _   = Nothing
+    findIntersection   _   Empty = Nothing
+    findIntersection xs@(rearX :|> x) ys@(rearY :|> y)
+        | slotId x > slotId y          = findIntersection rearX    ys
+        | slotId x < slotId y          = findIntersection    xs rearY
+        | headerHash x /= headerHash y = findIntersection rearX rearY
+        | otherwise                    = Just x -- or Just y

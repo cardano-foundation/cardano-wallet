@@ -141,14 +141,14 @@ spec = do
 
         it "get some blocks from the genesis" $ \(nw, _) -> do
             threadDelay (10 * second)
-            resp <- runExceptT $ nextBlocks nw (initCursor nw block0)
+            resp <- runExceptT $ nextBlocks nw (initCursor nw [])
             resp `shouldSatisfy` isRight
             resp `shouldSatisfy` (not . null)
 
         it "no blocks after the tip" $ \(nw, _) -> do
             let try = do
                     tip <- unsafeRunExceptT $ networkTip nw
-                    runExceptT $ nextBlocks nw (initCursor nw tip)
+                    runExceptT $ nextBlocks nw (initCursor nw [tip])
             -- NOTE Retrying twice since between the moment we fetch the
             -- tip and the moment we get the next blocks, one block may be
             -- inserted.
@@ -169,7 +169,7 @@ spec = do
                     , headerHash = Hash bytes
                     , parentHeaderHash = Hash bytes
                     }
-            resp <- runExceptT $ nextBlocks nw (initCursor nw block)
+            resp <- runExceptT $ nextBlocks nw (initCursor nw [block])
             resp `shouldBe` Right Recover
 
     describe "Error paths" $ do
@@ -206,7 +206,7 @@ spec = do
                     "Expected a ErrNetworkUnreachable' failure but got "
                     <> show x
             let action = do
-                    res <- runExceptT $ nextBlocks nw (initCursor nw block0)
+                    res <- runExceptT $ nextBlocks nw (initCursor nw [])
                     res `shouldSatisfy` \case
                         Left (ErrGetBlockNetworkUnreachable e) ->
                             show e `deepseq` True
@@ -512,6 +512,3 @@ getRollForward Recover = Nothing
 
 isRollForward :: NextBlocksResult target block -> Bool
 isRollForward = maybe False (not . null) . getRollForward
-
-block0 :: BlockHeader
-block0 = BlockHeader (SlotId 0 0) (Quantity 0) (Hash "genesis") (Hash "genesis")

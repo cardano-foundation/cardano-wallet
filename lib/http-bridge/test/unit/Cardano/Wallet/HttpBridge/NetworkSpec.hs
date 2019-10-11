@@ -42,7 +42,7 @@ spec :: Spec
 spec = do
     describe "Getting next blocks with a mock backend" $ do
         let network = mockNetworkLayer noLog 105 (SlotId 106 1492)
-        let cursor = initCursor network
+        let cursor = initCursor network . pure
 
         it "should get something from the latest epoch" $ do
             let h = BlockHeader
