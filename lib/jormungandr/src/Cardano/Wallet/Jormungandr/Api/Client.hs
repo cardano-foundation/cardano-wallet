@@ -8,7 +8,6 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -101,8 +100,6 @@ import Network.HTTP.Client
     ( Manager, defaultManagerSettings, newManager )
 import Network.HTTP.Types.Status
     ( status400 )
-import Safe
-    ( tailSafe )
 import Servant.API
     ( (:<|>) (..) )
 import Servant.Client
@@ -291,35 +288,28 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
 -------------------------------------------------------------------------------}
 
 -- Fetch a batch of blocks after but not including the given header.
---
--- TODO: Have 'getBlocks' only a header hash of the relevant block instead of
--- using the parents (and use only a hash instead of a block)
 getBlocks
     :: Monad m
     => JormungandrClient m
     -> Quantity "block" Word32
         -- ^ Epoch stability, we can't fetch more than `k` block at once.
-    -> BlockHeader
-        -- ^ Header to start from
-    -> ExceptT ErrGetBlock m [(Hash "BlockHeader", J.Block)]
-getBlocks j (Quantity k) tip = do
-    -- Get the descendants of the tip's /parent/.
-    -- The first descendant is therefore the current tip itself. We need to
-    -- skip it. Hence the 'tail'.
-    ids <- withExceptT liftE $
-        tailSafe <$> getDescendantIds j (prevBlockHash tip) (fromIntegral k + 1)
-    mapM (\blockId -> (blockId,) <$> getBlock j blockId) ids
+    -> Hash "BlockHeader"
+        -- ^ Block ID to start from
+    -> ExceptT ErrGetBlock m [J.Block]
+getBlocks j (Quantity k) start = do
+    ids <- withExceptT liftE $ getDescendantIds j start batchSize
+    mapM (getBlock j) ids
+  where
+     batchSize = fromIntegral k
 
 -- | Get a block header corresponding to a header hash.
 getBlockHeader
     :: Monad m
     => JormungandrClient m
     -> Hash "BlockHeader"
-    -> ExceptT ErrGetBlock m (BlockHeader, Quantity "block" Word32)
-getBlockHeader j t = do
-    blk@(J.Block blkHeader _) <- getBlock j t
-    let nodeHeight = Quantity $ fromIntegral $ J.chainLength blkHeader
-    pure (header (convertBlock blk), nodeHeight)
+    -> ExceptT ErrGetBlock m BlockHeader
+getBlockHeader j t =
+    header . convertBlock <$> getBlock j t
 
 {-------------------------------------------------------------------------------
                                 Errors

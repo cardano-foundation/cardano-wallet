@@ -20,8 +20,8 @@ import Cardano.Wallet.StakePool.Metrics
     ( State (..), applyBlock )
 import Data.Quantity
     ( Quantity (..) )
-import Numeric.Natural
-    ( Natural )
+import Data.Word
+    ( Word32 )
 import Test.Hspec
     ( Spec, describe, it, shouldBe )
 import Test.QuickCheck
@@ -49,7 +49,11 @@ spec = do
 
 
 instance Arbitrary BlockHeader where
-    arbitrary = BlockHeader <$> arbitrary <*> arbitrary <*> arbitrary
+    arbitrary = BlockHeader
+        <$> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> arbitrary
     shrink = genericShrink
 
 instance Arbitrary State where
@@ -72,7 +76,7 @@ instance Arbitrary (Hash tag) where
       where
         zeros = Hash $ BS.pack $ replicate 32 0
 
-instance Arbitrary (Quantity "block" Natural) where
+instance Arbitrary (Quantity "block" Word32) where
      arbitrary = Quantity . fromIntegral <$> (arbitrary @Word)
 
 instance Arbitrary PoolId where

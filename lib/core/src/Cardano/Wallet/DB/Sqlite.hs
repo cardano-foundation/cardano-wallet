@@ -597,16 +597,16 @@ mkCheckpointEntity
 mkCheckpointEntity wid wal =
     (cp, utxo)
   where
-    header = (W.currentTip wal)
+    header = W.currentTip wal
     sl = header ^. #slotId
-    parent = header ^. #prevBlockHash
     (Quantity bh) = header ^. #blockHeight
     bp = W.blockchainParameters wal
     cp = Checkpoint
         { checkpointWalletId = wid
         , checkpointSlot = sl
+        , checkpointParentHash = BlockId (header ^. #parentHeaderHash)
+        , checkpointHeaderHash = BlockId (header ^. #headerHash)
         , checkpointBlockHeight = fromIntegral bh
-        , checkpointParent = BlockId parent
         , checkpointGenesisHash = BlockId (coerce (bp ^. #getGenesisBlockHash))
         , checkpointGenesisStart = coerce (bp ^. #getGenesisBlockDate)
         , checkpointFeePolicy = bp ^. #getFeePolicy
@@ -638,6 +638,7 @@ checkpointFromEntity cp utxo s =
     (Checkpoint
         _walletId
         slot
+        (BlockId headerHash)
         (BlockId parentHeaderHash)
         bh
         (BlockId genesisHash)
@@ -648,7 +649,7 @@ checkpointFromEntity cp utxo s =
         txMaxSize
         epochStability
         ) = cp
-    header = (W.BlockHeader slot blockHeight' parentHeaderHash)
+    header = (W.BlockHeader slot blockHeight' headerHash parentHeaderHash)
     utxo' = W.UTxO . Map.fromList $
         [ (W.TxIn input ix, W.TxOut addr coin)
         | UTxO _ _ (TxId input) ix addr coin <- utxo

@@ -32,7 +32,6 @@ module Cardano.Wallet.Jormungandr.BlockHeaders
 
     -- * Operations
     , blockHeadersTip
-    , blockHeadersTipId
     , blockHeadersBase
     , blockHeadersAtGenesis
     , appendBlockHeaders
@@ -51,14 +50,10 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Sequence
     ( Seq (..), (><) )
-import Data.Tuple.Extra
-    ( thd3 )
 import Data.Word
     ( Word32 )
 import GHC.Generics
     ( Generic )
-import Safe
-    ( lastMay )
 
 import qualified Data.Sequence as Seq
 
@@ -70,18 +65,16 @@ import qualified Data.Sequence as Seq
 -- The last block in this sequence is the network tip.
 -- The first block in this sequence is the block of depth /k/,
 -- which is the last unstable block.
-data BlockHeaders = BlockHeaders
-    { getBlockHeaders :: !(Seq (Hash "BlockHeader", BlockHeader))
+newtype BlockHeaders = BlockHeaders
+    { getBlockHeaders :: Seq BlockHeader
     -- ^ Double-ended queue of block headers, and their IDs.
-    , getBlockHeight :: !(Quantity "block" Word32)
-    -- ^ The block height of the tip of the sequence.
     } deriving stock (Show, Eq, Generic)
 
 instance NFData BlockHeaders
 
 -- | Constuct an empty unstable blocks sequence.
 emptyBlockHeaders :: BlockHeaders
-emptyBlockHeaders = BlockHeaders mempty (Quantity 0)
+emptyBlockHeaders = BlockHeaders mempty
 
 {-------------------------------------------------------------------------------
                    Managing the global unstable blocks state
@@ -146,8 +139,8 @@ updateUnstableBlocks
     -- ^ Maximum number of unstable blocks (/k/).
     -> m (Hash "BlockHeader")
     -- ^ Network Tip
-    -> (Hash "BlockHeader" -> m (BlockHeader, Quantity "block" Word32))
-    -- ^ Fetches block header and its chain height.
+    -> (Hash "BlockHeader" -> m BlockHeader)
+    -- ^ Fetches block header from its hash
     -> BlockHeaders
     -- ^ Current unstable blocks state.
     -> m BlockHeaders
@@ -166,43 +159,39 @@ updateUnstableBlocks (Quantity k) getTip getBlockHeader lbhs = do
     fetchBackwards
         :: BlockHeaders
         -- ^ Current local unstable blocks
-        -> [(Hash "BlockHeader", BlockHeader, Quantity "block" Word32)]
+        -> [BlockHeader]
         -- ^ Accumulator of fetched blocks
         -> Word32
         -- ^ Accumulator for number of blocks fetched
         -> Hash "BlockHeader"
         -- ^ Starting point for block fetch
-        -> m (BlockHeaders, [(Hash "BlockHeader", BlockHeader, Quantity "block" Word32)])
+        -> m (BlockHeaders, [BlockHeader])
     fetchBackwards ubs ac len tip = do
-        (tipHeader, tipHeight) <- getBlockHeader tip
+        tipHeader <- getBlockHeader tip
         -- Push the remote block.
-        let ac' = ((tip, tipHeader, tipHeight):ac)
+        let ac' = tipHeader:ac
          -- Pop off any overlap.
         let ubs' = dropStartingFromSlotId (slotId tipHeader) ubs
         -- If remote blocks have met local blocks, or if more than k have been
         -- fetched, or we are at the genesis, then stop.
         -- Otherwise, continue from the parent of the current tip.
-        let intersected = blockHeadersTipId ubs' == Just (prevBlockHash tipHeader)
+        let intersected =
+                (headerHash <$> blockHeadersTip ubs') == Just (parentHeaderHash tipHeader)
         let bufferFull = len + 1 >= k
         let atGenesis = slotId tipHeader == SlotId 0 0
         if intersected || bufferFull || atGenesis
             then pure (ubs', ac')
-            else fetchBackwards ubs' ac' (len + 1) (prevBlockHash tipHeader)
+            else fetchBackwards ubs' ac' (len + 1) (parentHeaderHash tipHeader)
 
 -- | The tip block header of the unstable blocks, if it exists.
 blockHeadersTip :: BlockHeaders -> Maybe BlockHeader
-blockHeadersTip (BlockHeaders Empty _) = Nothing
-blockHeadersTip (BlockHeaders (_ubs :|> (_, bh)) _) = Just bh
+blockHeadersTip (BlockHeaders Empty) = Nothing
+blockHeadersTip (BlockHeaders (_ubs :|> bh)) = Just bh
 
 -- | The base block header is the oldest block header in the unstable blocks,
 blockHeadersBase :: BlockHeaders -> Maybe BlockHeader
-blockHeadersBase (BlockHeaders Empty _) = Nothing
-blockHeadersBase (BlockHeaders ((_, bh) :<| _ubs) _) = Just bh
-
--- | The tip block id of the unstable blocks, if it exists.
-blockHeadersTipId :: BlockHeaders -> Maybe (Hash "BlockHeader")
-blockHeadersTipId (BlockHeaders Empty _) = Nothing
-blockHeadersTipId (BlockHeaders (_ubs :|> (t, _)) _) = Just t
+blockHeadersBase (BlockHeaders Empty) = Nothing
+blockHeadersBase (BlockHeaders (bh :<| _ubs)) = Just bh
 
 -- | Whether we are at genesis or not.
 blockHeadersAtGenesis :: BlockHeaders -> Bool
@@ -217,16 +206,12 @@ appendBlockHeaders
     -- ^ Maximum length of sequence.
     -> BlockHeaders
     -- ^ Current unstable block headers, with rolled back blocks removed.
-    -> [(Hash "BlockHeader", BlockHeader, Quantity "block" Word32)]
+    -> [BlockHeader]
     -- ^ Newly fetched block headers to add.
     -> BlockHeaders
-appendBlockHeaders (Quantity k) (BlockHeaders ubs h) bs =
-    BlockHeaders (ubs `appendBounded` more) h'
+appendBlockHeaders (Quantity k) (BlockHeaders ubs) bs =
+    BlockHeaders (ubs `appendBounded` (Seq.fromList bs))
   where
-    more = Seq.fromList [(a, b) | (a, b, _) <- bs]
-    -- New block height is the height of the new tip block.
-    h' = maybe h thd3 (lastMay bs)
-
     -- Concatenate sequences, ensuring that the result is no longer than k.
     appendBounded :: Seq a -> Seq a -> Seq a
     appendBounded a b = Seq.drop excess (a >< b)
@@ -235,32 +220,29 @@ appendBlockHeaders (Quantity k) (BlockHeaders ubs h) bs =
 -- | Remove unstable blocks which have a slot greater than or equal to the given
 -- slot.
 dropStartingFromSlotId :: SlotId -> BlockHeaders -> BlockHeaders
-dropStartingFromSlotId sl (BlockHeaders bs (Quantity h)) =
-    BlockHeaders bs' (Quantity h')
+dropStartingFromSlotId sl (BlockHeaders bs) =
+    BlockHeaders $ Seq.dropWhileR isAfter bs
   where
-    isAfter = (>= sl) . slotId . snd
-    bs' = Seq.dropWhileR isAfter bs
-    h' = h + fromIntegral (max 0 $ Seq.length bs' - Seq.length bs)
+    isAfter = (>= sl) . slotId
 
 -- | Drop any headers that are (strictly) after the given slot id.
 dropAfterSlotId :: SlotId -> BlockHeaders -> BlockHeaders
-dropAfterSlotId sl (BlockHeaders bs (Quantity h)) =
-    BlockHeaders bs' (Quantity h')
+dropAfterSlotId sl (BlockHeaders bs) =
+    BlockHeaders $ Seq.dropWhileR isAfter bs
   where
-    isAfter = (> sl) . slotId . snd
-    bs' = Seq.dropWhileR isAfter bs
-    h' = h + fromIntegral (max 0 $ Seq.length bs' - Seq.length bs)
+    isAfter = (> sl) . slotId
 
 takeUntilSlotId :: SlotId -> BlockHeaders -> BlockHeaders
-takeUntilSlotId sl (BlockHeaders bs (Quantity h)) =
-    BlockHeaders bs' (Quantity h')
+takeUntilSlotId sl (BlockHeaders bs) =
+    BlockHeaders $ Seq.dropWhileL isBefore bs
   where
-    isBefore = (< sl) . slotId . snd
-    bs' = Seq.dropWhileL isBefore bs
-    h' = h + fromIntegral (max 0 $ Seq.length bs' - Seq.length bs)
+    isBefore = (< sl) . slotId
 
 -- | If the two sequences overlap in terms of slots, return the block header of
 -- the last block that is common between the two. Otherwise return Nothing.
+--
+-- 'greatestCommonBlockHeader' works fine if one (or both) list are sparse and
+-- different length.
 --
 -- For example:
 -- @
@@ -276,17 +258,29 @@ greatestCommonBlockHeader
     -- ^ Local wallet unstable blocks
     -> Maybe BlockHeader
 greatestCommonBlockHeader ubs lbs = case (minSlot, maxSlot) of
-    (Just start, Just end) -> let
-          (BlockHeaders ubs' _) = trimRange start end ubs
-          (BlockHeaders lbs' _) = trimRange start end lbs
-          pairs = Seq.zip ubs' lbs'
-        in case Seq.dropWhileR (uncurry (/=)) pairs of
-               _same :|> ((_, bh), _) -> Just bh
-               Empty -> Nothing
+    (Just start, Just end) ->
+        let
+            (BlockHeaders ubs') = trimRange start end ubs
+            (BlockHeaders lbs') = trimRange start end lbs
+        in
+            findIntersection lbs' ubs'
+
     _ -> Nothing
   where
-    trimRange start end = takeUntilSlotId start . dropAfterSlotId end
-    minSlot = max (baseSlot ubs) (baseSlot lbs)
-    maxSlot = min (tipSlot ubs) (tipSlot lbs)
-    tipSlot = fmap slotId . blockHeadersTip
+    minSlot  = max (baseSlot ubs) (baseSlot lbs)
+    maxSlot  = min (tipSlot ubs) (tipSlot lbs)
+    tipSlot  = fmap slotId . blockHeadersTip
     baseSlot = fmap slotId . blockHeadersBase
+
+    trimRange :: SlotId -> SlotId -> BlockHeaders -> BlockHeaders
+    trimRange start end =
+        takeUntilSlotId start . dropAfterSlotId end
+
+    findIntersection :: Seq BlockHeader -> Seq BlockHeader -> Maybe BlockHeader
+    findIntersection Empty   _   = Nothing
+    findIntersection   _   Empty = Nothing
+    findIntersection xs@(rearX :|> x) ys@(rearY :|> y)
+        | slotId x > slotId y          = findIntersection rearX    ys
+        | slotId x < slotId y          = findIntersection    xs rearY
+        | headerHash x /= headerHash y = findIntersection rearX rearY
+        | otherwise                    = Just x -- or Just y

@@ -188,9 +188,10 @@ spec = do
     cfg = HttpBridge.HttpBridgeConfig (Right Testnet) Nothing Nothing [] Inherit
 
     -- The underlying HttpBridgeLayer is only needs the slot of the header.
-    mkCursor nw slot = initCursor nw $ BlockHeader
+    mkCursor nw slot = initCursor nw $ pure $ BlockHeader
         { slotId = slot
         , blockHeight = Quantity 0
-        , prevBlockHash =
+        , headerHash = Hash "http-bridge"
+        , parentHeaderHash =
             Hash "prevBlockHash is not used by the http-bridge NetworkLayer"
         }

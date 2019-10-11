@@ -137,7 +137,8 @@ block0 = Block
     { header = BlockHeader
         { slotId = slotMinBound
         , blockHeight = Quantity 0
-        , prevBlockHash = Hash "genesis"
+        , headerHash = Hash "dummy-block0-hash"
+        , parentHeaderHash = Hash "genesis"
         }
     , transactions = []
     }

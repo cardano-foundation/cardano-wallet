@@ -31,9 +31,7 @@ import Control.Monad.Trans.Except
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
-    ( Word16, Word64 )
-import Numeric.Natural
-    ( Natural )
+    ( Word16, Word32, Word64 )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldSatisfy )
 
@@ -44,13 +42,14 @@ spec :: Spec
 spec = do
     describe "Getting next blocks with a mock backend" $ do
         let network = mockNetworkLayer noLog 105 (SlotId 106 1492)
-        let cursor = initCursor network
+        let cursor = initCursor network . pure
 
         it "should get something from the latest epoch" $ do
             let h = BlockHeader
                     { slotId = SlotId 106 999
                     , blockHeight = Quantity 0
-                    , prevBlockHash = mockHash (SlotId 106 998)
+                    , headerHash = Hash "http-bridge"
+                    , parentHeaderHash = mockHash (SlotId 106 998)
                     }
             blocks <- runExceptT $ getBlocks <$> nextBlocks network (cursor h)
             -- the number of blocks between slots 1000 and 1492 inclusive
@@ -63,7 +62,8 @@ spec = do
             let h = BlockHeader
                     { slotId = SlotId 105 0
                     , blockHeight = Quantity 0
-                    , prevBlockHash = mockHash (SlotId 104 21599)
+                    , headerHash = Hash "http-bridge"
+                    , parentHeaderHash = mockHash (SlotId 104 21599)
                     }
             blocks <- runExceptT $ getBlocks <$> nextBlocks network (cursor h)
             fmap length blocks `shouldBe` Right (21600 + 1492)
@@ -72,7 +72,8 @@ spec = do
             let h = BlockHeader
                     { slotId = SlotId 105 17000
                     , blockHeight = Quantity 0
-                    , prevBlockHash = mockHash (SlotId 105 16999)
+                    , headerHash = Hash "http-bridge"
+                    , parentHeaderHash = mockHash (SlotId 105 16999)
                     }
             blocks <- runExceptT $ getBlocks <$> nextBlocks network (cursor h)
             -- this will be all the blocks between 105.17000 and 106.1492
@@ -82,7 +83,8 @@ spec = do
             let h = BlockHeader
                     { slotId = SlotId 106 1491
                     , blockHeight = Quantity 0
-                    , prevBlockHash = mockHash (SlotId 106 1490)
+                    , headerHash = Hash "http-bridge"
+                    , parentHeaderHash = mockHash (SlotId 106 1490)
                     }
             blocks <- runExceptT $ getBlocks <$> nextBlocks network (cursor h)
             fmap length blocks `shouldBe` Right 1
@@ -91,7 +93,8 @@ spec = do
             let h = BlockHeader
                     { slotId = SlotId 100 0
                     , blockHeight = Quantity 0
-                    , prevBlockHash = mockHash (SlotId 99 21599)
+                    , headerHash = Hash "http-bridge"
+                    , parentHeaderHash = mockHash (SlotId 99 21599)
                     }
             Right blocks <- runExceptT $ getBlocks <$> nextBlocks network (cursor h)
             -- an entire epoch's worth of blocks
@@ -103,7 +106,8 @@ spec = do
             let h = BlockHeader
                     { slotId = SlotId 104 10000
                     , blockHeight = Quantity 0
-                    , prevBlockHash = mockHash (SlotId 104 9999)
+                    , headerHash = Hash "http-bridge"
+                    , parentHeaderHash = mockHash (SlotId 104 9999)
                     }
             Right blocks <- runExceptT $ getBlocks <$> nextBlocks network (cursor h)
             -- the number of remaining blocks in epoch 104
@@ -115,7 +119,8 @@ spec = do
             let h = BlockHeader
                     { slotId = SlotId 107 0
                     , blockHeight = Quantity 0
-                    , prevBlockHash = mockHash (SlotId 106 21599)
+                    , headerHash = Hash "http-bridge"
+                    , parentHeaderHash = mockHash (SlotId 106 21599)
                     }
             blocks <- runExceptT $ getBlocks <$> nextBlocks network (cursor h)
             blocks `shouldBe` Right []
@@ -124,7 +129,8 @@ spec = do
             let h = BlockHeader
                     { slotId = slotMinBound
                     , blockHeight = Quantity 0
-                    , prevBlockHash = Hash "genesis"
+                    , headerHash = Hash "http-bridge"
+                    , parentHeaderHash = Hash "genesis"
                     }
             Right blocks <- runExceptT $ nextBlocks network (cursor h)
             length (getBlocks blocks) `shouldBe` 21599
@@ -134,7 +140,6 @@ getBlocks = \case
     RollForward _ _ bs -> bs
     AwaitReply -> []
     RollBackward _ -> error "getBlocks: RollBackward: should not happen!"
-    Recover -> error "getBlocks: Recover: should not happen!"
 
 {-------------------------------------------------------------------------------
                              Mock HTTP Bridge
@@ -158,9 +163,10 @@ unMockHash (Hash h) = parse . map B8.unpack . B8.split '.' . B8.drop 5 $ h
 -- | Create a block header from its hash, assuming that the hash was created
 -- with 'mockHash'.
 mockHeaderFromHash :: Hash a -> BlockHeader
-mockHeaderFromHash h = BlockHeader slot (mockBlockHeight slot) prevHash
+mockHeaderFromHash h = BlockHeader slot (mockBlockHeight slot) hh prevHash
   where
     slot@(SlotId ep sl) = unMockHash h
+    hh = Hash "http-bridge"
     prevHash =
         case (ep, sl) of
             (0, 0) -> Hash "genesis"
@@ -169,7 +175,7 @@ mockHeaderFromHash h = BlockHeader slot (mockBlockHeight slot) prevHash
 
 -- | Uses the flat SlotId as blockHeight. This would only happen naturally if
 -- no slot is block-less.
-mockBlockHeight :: SlotId -> Quantity "block" Natural
+mockBlockHeight :: SlotId -> Quantity "block" Word32
 mockBlockHeight = Quantity . fromIntegral . flatSlot (EpochLength slotsPerEpoch)
 
 -- | Generate an entire epoch's worth of mock blocks. There are no transactions

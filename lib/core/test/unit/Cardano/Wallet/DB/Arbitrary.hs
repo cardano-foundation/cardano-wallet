@@ -123,8 +123,6 @@ import Fmt
     ( Buildable (..), Builder, blockListF', prefixF, suffixF, tupleF )
 import GHC.Generics
     ( Generic )
-import Numeric.Natural
-    ( Natural )
 import System.IO.Unsafe
     ( unsafePerformIO )
 import System.Random
@@ -239,9 +237,9 @@ instance Arbitrary MockChain where
         mockHeaderHash :: SlotId -> Hash "BlockHeader"
         mockHeaderHash = Hash . convertToBase Base16 . B8.pack . show
 
-        genBlock :: SlotId -> Natural -> Gen (Block DummyTarget.Tx)
+        genBlock :: SlotId -> Word32 -> Gen (Block DummyTarget.Tx)
         genBlock slot height = do
-            let h = BlockHeader slot (Quantity height) (mockHeaderHash slot)
+            let h = BlockHeader slot (Quantity height) (mockHeaderHash slot) (mockHeaderHash slot)
             Block h <$> (choose (1, 10) >>= \k -> vectorOf k arbitrary)
 
         epochLength :: EpochLength
@@ -257,7 +255,7 @@ instance GenState s => Arbitrary (InitialCheckpoint s) where
     shrink (InitialCheckpoint cp) = InitialCheckpoint <$> shrink cp
     arbitrary = do
         cp <- arbitrary @(Wallet s DummyTarget)
-        let tip0 = BlockHeader (SlotId 0 0) (Quantity 0) (Hash "genesis")
+        let tip0 = BlockHeader (SlotId 0 0) (Quantity 0) (Hash "block0") (Hash "genesis")
         pure $ InitialCheckpoint $ unsafeInitWallet
             (utxo cp)
             tip0
@@ -307,7 +305,7 @@ instance Arbitrary BlockHeader where
         sid@(SlotId ep sl) <- arbitrary
         let h = fromIntegral sl + fromIntegral ep * arbitraryEpochLength
         bytes <- B8.pack <$> vectorOf 8 (elements ['a'..'f'])
-        pure $ BlockHeader sid (Quantity h) (Hash bytes)
+        pure $ BlockHeader sid (Quantity h) (Hash bytes) (Hash bytes)
 
 instance Arbitrary SlotId where
     shrink (SlotId ep sl) =
@@ -316,10 +314,10 @@ instance Arbitrary SlotId where
         <$> choose (0, fromIntegral arbitraryEpochLength)
         <*> choose (0, fromIntegral arbitraryChainLength)
 
-arbitraryEpochLength :: Natural
+arbitraryEpochLength :: Word32
 arbitraryEpochLength = 100
 
-arbitraryChainLength :: Natural
+arbitraryChainLength :: Word32
 arbitraryChainLength = 10
 
 {-------------------------------------------------------------------------------

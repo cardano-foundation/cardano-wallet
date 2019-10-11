@@ -23,7 +23,7 @@ import Cardano.Wallet.Jormungandr.Binary
 import Cardano.Wallet.Jormungandr.BlockHeaders
     ( emptyBlockHeaders )
 import Cardano.Wallet.Jormungandr.Compatibility
-    ( Jormungandr, Network (..), block0 )
+    ( Jormungandr, Network (..) )
 import Cardano.Wallet.Jormungandr.Network
     ( BaseUrl (..)
     , ErrGetDescendants (..)
@@ -141,14 +141,14 @@ spec = do
 
         it "get some blocks from the genesis" $ \(nw, _) -> do
             threadDelay (10 * second)
-            resp <- runExceptT $ nextBlocks nw (initCursor nw block0)
+            resp <- runExceptT $ nextBlocks nw (initCursor nw [])
             resp `shouldSatisfy` isRight
             resp `shouldSatisfy` (not . null)
 
         it "no blocks after the tip" $ \(nw, _) -> do
             let try = do
                     tip <- unsafeRunExceptT $ networkTip nw
-                    runExceptT $ nextBlocks nw (initCursor nw tip)
+                    runExceptT $ nextBlocks nw (initCursor nw [tip])
             -- NOTE Retrying twice since between the moment we fetch the
             -- tip and the moment we get the next blocks, one block may be
             -- inserted.
@@ -166,10 +166,11 @@ spec = do
             let block = BlockHeader
                     { slotId = SlotId 42 14 -- Anything
                     , blockHeight = Quantity 0 -- Anything
-                    , prevBlockHash = Hash bytes
+                    , headerHash = Hash bytes
+                    , parentHeaderHash = Hash bytes
                     }
-            resp <- runExceptT $ nextBlocks nw (initCursor nw block)
-            resp `shouldBe` Right Recover
+            resp <- runExceptT $ nextBlocks nw (initCursor nw [block])
+            fmap (isRollBackwardTo nw (SlotId 0 0)) resp `shouldBe` Right True
 
     describe "Error paths" $ do
         let newBrokenNetworkLayer :: BaseUrl -> IO (NetworkLayer IO (Jormungandr n) ())
@@ -205,7 +206,7 @@ spec = do
                     "Expected a ErrNetworkUnreachable' failure but got "
                     <> show x
             let action = do
-                    res <- runExceptT $ nextBlocks nw (initCursor nw block0)
+                    res <- runExceptT $ nextBlocks nw (initCursor nw [])
                     res `shouldSatisfy` \case
                         Left (ErrGetBlockNetworkUnreachable e) ->
                             show e `deepseq` True
@@ -411,7 +412,6 @@ instance Show (NextBlocksResult t b) where
     show AwaitReply = "AwaitReply"
     show (RollForward _ _ bs) = "RollForward " ++ show (length bs) ++ " blocks"
     show (RollBackward _) = "RollBackward"
-    show Recover = "Recover"
 
 instance Eq (NextBlocksResult t b) where
     a == b = show a == show b
@@ -507,7 +507,15 @@ getRollForward :: NextBlocksResult target block -> Maybe [block]
 getRollForward AwaitReply = Nothing
 getRollForward (RollForward _ _ bs) = Just bs
 getRollForward (RollBackward _) = Nothing
-getRollForward Recover = Nothing
 
 isRollForward :: NextBlocksResult target block -> Bool
 isRollForward = maybe False (not . null) . getRollForward
+
+isRollBackwardTo
+    :: NetworkLayer m target block
+    -> SlotId
+    -> NextBlocksResult target block
+    -> Bool
+isRollBackwardTo nl sl = \case
+    RollBackward cursor -> cursorSlotId nl cursor == sl
+    _ -> False

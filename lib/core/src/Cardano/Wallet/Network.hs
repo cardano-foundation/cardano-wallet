@@ -81,7 +81,7 @@ data NetworkLayer m target block = NetworkLayer
         -- return 'RollBackward' with a new cursor.
 
     , initCursor
-        :: BlockHeader -> Cursor target
+        :: [BlockHeader] -> Cursor target
         -- ^ Creates a cursor from the given block header so that 'nextBlocks'
         -- can be used to fetch blocks.
 
@@ -201,15 +201,12 @@ data NextBlocksResult target block
     | RollBackward (Cursor target)
         -- ^ The chain consumer must roll back its state, then use the cursor to
         -- get the next batch of blocks.
-    | Recover
-       -- ^ An intersection could not be found. Start from scratch.
 
 instance Functor (NextBlocksResult target) where
     fmap f = \case
         AwaitReply -> AwaitReply
         RollForward cur bh bs -> RollForward cur bh (fmap f bs)
         RollBackward cur -> RollBackward cur
-        Recover -> Recover
 
 -- | Subscribe to a blockchain and get called with new block (in order)!
 follow
@@ -227,7 +224,7 @@ follow
     -- ^ Getter on the abstract 'block' type
     -> IO ()
 follow nl tr start yield header =
-    sleep 0 (initCursor nl start)
+    sleep 0 (initCursor nl [start])
   where
     delay0 :: Int
     delay0 = 1000*1000 -- 1 second
@@ -280,8 +277,4 @@ follow nl tr start yield header =
 
         Right (RollBackward _) -> do
               logError tr "Rollback! We are stuck now (issue #650)."
-              sleep maxBound cursor
-
-        Right Recover -> do
-              logInfo tr "Could not find chain intersection. Recovering wallet (issue #650)."
               sleep maxBound cursor

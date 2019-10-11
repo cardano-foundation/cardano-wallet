@@ -111,10 +111,10 @@ import Data.Time
     ( UTCTime )
 import Data.Time.Utils
     ( utcTimePred, utcTimeSucc )
+import Data.Word
+    ( Word32 )
 import Fmt
     ( pretty )
-import Numeric.Natural
-    ( Natural )
 import Test.Hspec
     ( Spec, describe, it, shouldNotSatisfy, shouldSatisfy )
 import Test.QuickCheck
@@ -855,9 +855,9 @@ instance Arbitrary BlockHeader where
     -- No Shrinking
     arbitrary = do
         sl <- arbitrary
-        BlockHeader sl (mockBlockHeight sl) <$> genHash
+        BlockHeader sl (mockBlockHeight sl) <$> genHash <*> genHash
       where
-        mockBlockHeight :: SlotId -> Quantity "block" Natural
+        mockBlockHeight :: SlotId -> Quantity "block" Word32
         mockBlockHeight = Quantity . fromIntegral . flatSlot (EpochLength 200)
 
         genHash = oneof

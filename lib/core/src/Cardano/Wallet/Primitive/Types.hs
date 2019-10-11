@@ -538,22 +538,24 @@ data BlockHeader = BlockHeader
     { slotId
         :: SlotId
     , blockHeight
-        :: Quantity "block" Natural
-    , prevBlockHash
+        :: Quantity "block" Word32
+    , headerHash
+        :: !(Hash "BlockHeader")
+    , parentHeaderHash
         :: !(Hash "BlockHeader")
     } deriving (Show, Eq, Ord, Generic)
 
 instance NFData BlockHeader
 
 instance Buildable BlockHeader where
-    build (BlockHeader s (Quantity bh) prev) =
-        prefixF 8 prevF
+    build (BlockHeader s (Quantity bh) hh _) =
+        prefixF 8 hhF
         <> "-["
         <> build s
         <> "#" <> build (show bh)
         <> "]"
       where
-        prevF = build $ T.decodeUtf8 $ convertToBase Base16 $ getHash prev
+        hhF = build $ T.decodeUtf8 $ convertToBase Base16 $ getHash hh
 
 {-------------------------------------------------------------------------------
                                       Tx

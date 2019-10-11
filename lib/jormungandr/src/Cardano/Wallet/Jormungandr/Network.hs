@@ -93,7 +93,6 @@ import Cardano.Wallet.Jormungandr.BlockHeaders
     , blockHeadersAtGenesis
     , blockHeadersBase
     , blockHeadersTip
-    , blockHeadersTipId
     , dropAfterSlotId
     , emptyBlockHeaders
     , greatestCommonBlockHeader
@@ -127,8 +126,6 @@ import Data.Coerce
     ( coerce )
 import Data.Function
     ( (&) )
-import Data.Maybe
-    ( fromMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -276,24 +273,13 @@ mkRawNetworkLayer (block0, bp) st j = NetworkLayer
             Just t -> Right (bs', t)
             Nothing -> Left ErrNetworkTipNotFound
 
-    _initCursor :: BlockHeader -> Cursor t
-    _initCursor bh = Cursor $
-        -- FIXME The empty hash looks weird? Why not creating the BlockHeaders
-        -- from the constructor?
-        --
-        -- TODO:
-        -- Change blockheights to be consistent everywhere.
-        appendBlockHeaders k emptyBlockHeaders
-            [ ( Hash ""
-              , bh
-              , Quantity $ fromIntegral $ getQuantity $ blockHeight bh
-              )
-            ]
+    _initCursor :: [BlockHeader] -> Cursor t
+    _initCursor bhs =
+        Cursor $ appendBlockHeaders k emptyBlockHeaders bhs
 
     _cursorSlotId :: Cursor t -> SlotId
     _cursorSlotId (Cursor unstable) =
-        -- FIXME Why the default here?
-        maybe (SlotId 0 0) slotId $ blockHeadersTip unstable
+        maybe (SlotId 0 0) slotId (blockHeadersTip unstable)
 
     _nextBlocks
         :: Cursor t
@@ -308,10 +294,11 @@ mkRawNetworkLayer (block0, bp) st j = NetworkLayer
 
                     Forward -> do
                         let Just nodeTip = blockHeadersTip unstable
-                        let startHeader = fromMaybe
-                              (BlockHeader (SlotId 0 0) (Quantity 0) (coerce genesis))
-                              (blockHeadersTip localChain)
-                        lift (runExceptT $ getBlocks j k startHeader) >>= \case
+                        let start = maybe
+                                (coerce genesis)
+                                headerHash
+                                (blockHeadersTip localChain)
+                        lift (runExceptT $ getBlocks j k start) >>= \case
                             Right blks ->
                                 pure (tryRollForward nodeTip blks)
                             Left (ErrGetBlockNotFound _) ->
@@ -333,7 +320,7 @@ mkRawNetworkLayer (block0, bp) st j = NetworkLayer
       where
         tryRollForward
             :: BlockHeader
-            -> [(Hash "BlockHeader", block)]
+            -> [block]
             -> NextBlocksResult t block
         tryRollForward tip = \case
             -- No more blocks to apply, no need to roll forward
@@ -348,12 +335,12 @@ mkRawNetworkLayer (block0, bp) st j = NetworkLayer
             next@(b:_)
                 -- If the blocks we are about to apply are a continuation of our
                 -- local chain, then it's good, we can continue
-                | Just (J.parentHeaderHash $ J.header $ snd b) == blockHeadersTipId localChain ->
-                    RollForward (cursorForward k next cursor) tip (snd <$> next)
+                | Just (J.parentHeaderHash $ J.header b) == (headerHash <$> blockHeadersTip localChain) ->
+                    RollForward (cursorForward k next cursor) tip next
 
                 -- If we are at genesis, we apply them anyway
                 | blockHeadersAtGenesis localChain ->
-                    RollForward (cursorForward k next cursor) tip (snd <$> next)
+                    RollForward (cursorForward k next cursor) tip next
 
                 -- We need to rollback somewhere, but we don't know where, so we
                 -- try rolling back to the oldest header we know.
@@ -373,7 +360,7 @@ mkRawNetworkLayer (block0, bp) st j = NetworkLayer
             (Just baseH, Just tipH) | baseH /= tipH ->
                 RollBackward (cursorBackward baseH cursor)
             _ ->
-                Recover
+                RollBackward $ Cursor emptyBlockHeaders
 
 {-------------------------------------------------------------------------------
                              Jormungandr Cursor
@@ -404,10 +391,7 @@ direction
 direction (Cursor local) node = case greatestCommonBlockHeader node local of
     Just intersection
         -- Local tip and node tip are the same
-        | blockHeadersTipId local == blockHeadersTipId node -> Stay
-
-        -- Node is still at genesis
-        | blockHeadersAtGenesis node -> Stay
+        | blockHeadersTip local == blockHeadersTip node -> Stay
 
         -- Local tip is the greatest common block
         | blockHeadersTip local == Just intersection -> Forward
@@ -428,19 +412,13 @@ cursorForward
     :: forall n t block. (t ~ Jormungandr n, block ~ J.Block)
     => Quantity "block" Word32
     -- ^ Epoch Stability, a.k.a 'k'
-    -> [(Hash "BlockHeader", block)]
+    -> [block]
     -- ^ New blocks received
     -> Cursor t
     -- ^ Current cursor / local state
     -> Cursor t
 cursorForward k bs (Cursor cursor) =
-    Cursor $ appendBlockHeaders k cursor bs'
-  where
-    bs' =
-        [ (h, J.convertBlockHeader (J.header b), Quantity height)
-        | (h, b) <- bs
-        , let height = J.chainLength $ J.header b
-        ]
+    Cursor $ appendBlockHeaders k cursor $ J.convertBlockHeader . J.header <$> bs
 
 -- | Clears local state after the rollback point.
 cursorBackward

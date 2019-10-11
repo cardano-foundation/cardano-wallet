@@ -349,7 +349,12 @@ decodeGenesisBlockHeader = do
     -- number of `0`. In practices, when parsing a full epoch, we can discard
     -- the genesis block entirely and we won't bother about modelling this
     -- extra complexity at the type-level. That's a bit dodgy though.
-    return $ BlockHeader (SlotId epoch 0) (Quantity $ fromIntegral difficulty) previous
+    return $ BlockHeader
+        { slotId = SlotId epoch 0
+        , blockHeight = Quantity $ fromIntegral difficulty
+        , headerHash = Hash "http-bridge"
+        , parentHeaderHash = previous
+        }
 
 decodeGenesisConsensusData :: CBOR.Decoder s (Word64, Word64)
 decodeGenesisConsensusData = do
@@ -405,7 +410,12 @@ decodeMainBlockHeader = do
     ((epoch, slot), difficulty) <- decodeMainConsensusData
     _ <- decodeMainExtraData
     let bh = Quantity $ fromIntegral difficulty
-    return $ BlockHeader (SlotId epoch slot) bh previous
+    return $ BlockHeader
+        { slotId = SlotId epoch slot
+        , blockHeight = bh
+        , headerHash = Hash "http-bridge"
+        , parentHeaderHash = previous
+        }
 
 decodeMainConsensusData :: CBOR.Decoder s ((Word64, Word16), Word64)
 decodeMainConsensusData = do

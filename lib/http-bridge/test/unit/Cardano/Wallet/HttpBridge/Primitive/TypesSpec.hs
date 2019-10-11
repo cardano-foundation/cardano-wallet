@@ -35,7 +35,8 @@ spec = do
                     { header = BlockHeader
                         { slotId = SlotId 14 19
                         , blockHeight = Quantity 42
-                        , prevBlockHash = Hash "\223\252\&5\ACK\211\129\&6\DC4h7b'\225\201\&2:/\252v\SOH\DC1\ETX\227\"Q$\240\142ii\167;"
+                        , headerHash = Hash "http-bridge"
+                        , parentHeaderHash = Hash "\223\252\&5\ACK\211\129\&6\DC4h7b'\225\201\&2:/\252v\SOH\DC1\ETX\227\"Q$\240\142ii\167;"
                         }
                     , transactions =
                         [ Tx
@@ -58,7 +59,7 @@ spec = do
                             }
                         ]
                     }
-            "dffc3506-[14.19#42]\n\
+            "68747470-[14.19#42]\n\
             \    - ~> 1st c29d3ea0\n\
             \      <~ 3823755953610 @ 82d81858...aebb3709\n\
             \      <~ 19999800000 @ 82d81858...37ce9c60\n"

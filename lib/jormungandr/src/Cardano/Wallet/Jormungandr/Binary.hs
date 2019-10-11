@@ -166,6 +166,7 @@ data BlockHeader = BlockHeader
     , slot :: SlotId
     , chainLength :: Word32
     , contentHash :: Hash "content"
+    , headerHash :: Hash "BlockHeader"
     , parentHeaderHash :: Hash "BlockHeader"
     , producedBy :: Maybe PoolId
         -- ^ Will contain the VRFPubKey of the stake pool for non-genesis
@@ -178,8 +179,10 @@ data Block = Block
     } deriving (Eq, Show)
 
 getBlockHeader :: Get BlockHeader
-getBlockHeader = label "getBlockHeader" $
-    (fromIntegral <$> getWord16be) >>= \size -> isolate size $ do
+getBlockHeader = label "getBlockHeader" $ do
+    size <- fromIntegral <$> getWord16be
+    bytes <- lookAhead (getByteString size)
+    isolate size $ do
         -- Common structure.
         version <- getWord16be
         contentSize <- getWord32be
@@ -188,6 +191,7 @@ getBlockHeader = label "getBlockHeader" $
         chainLength <- getWord32be
         contentHash <- Hash <$> getByteString 32 -- or 256 bits
         parentHeaderHash <- Hash <$> getByteString 32
+        let headerHash = Hash $ blake2b256 bytes
         -- Proof.
         -- There are three different types of proofs:
         -- 1. no proof (used for the genesis blockheader)
@@ -217,6 +221,7 @@ getBlockHeader = label "getBlockHeader" $
             , chainLength
             , contentHash
             , parentHeaderHash
+            , headerHash
             , producedBy
             }
 
@@ -639,7 +644,10 @@ convertBlock (Block h msgs) =
 
 -- | Convert the Jörmungandr binary format header into a simpler Wallet header.
 convertBlockHeader :: BlockHeader -> W.BlockHeader
-convertBlockHeader h = W.BlockHeader (slot h) (bh h) (parentHeaderHash h)
+convertBlockHeader h = (W.BlockHeader (slot h) (bh h) (Hash "") (Hash ""))
+    { W.headerHash = headerHash h
+    , W.parentHeaderHash = parentHeaderHash h
+    }
   where
     bh = Quantity . fromIntegral . chainLength
 

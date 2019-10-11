@@ -99,8 +99,6 @@ import Data.Word
     ( Word32, Word64 )
 import Fmt
     ( Buildable, blockListF, pretty )
-import Numeric.Natural
-    ( Natural )
 import Test.Hspec
     ( Spec
     , SpecWith
@@ -758,7 +756,7 @@ int :: Integral a => a -> Int
 int = fromIntegral
 
 newtype GenSparseCheckpointsArgs
-    = GenSparseCheckpointsArgs (Word32, Natural)
+    = GenSparseCheckpointsArgs (Word32, Word32)
     deriving newtype Show
 
 instance Arbitrary GenSparseCheckpointsArgs where
