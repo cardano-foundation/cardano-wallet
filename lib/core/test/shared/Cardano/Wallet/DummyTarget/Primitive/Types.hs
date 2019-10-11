@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Wallet.DummyTarget.Primitive.Types
@@ -45,10 +46,16 @@ import Cardano.Wallet.Primitive.Types
     )
 import Control.DeepSeq
     ( NFData )
+import Crypto.Hash
+    ( hash )
+import Crypto.Hash.Algorithms
+    ( Blake2b_256 )
 import Data.Bifunctor
     ( bimap )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase, convertToBase )
+import Data.ByteString
+    ( ByteString )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
@@ -63,6 +70,7 @@ import GHC.Generics
 import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.CBOR.Write as CBOR
+import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text.Encoding as T
@@ -108,7 +116,11 @@ deriving instance Eq (SeqState DummyTarget)
 
 instance DefineTx DummyTarget where
     type Tx DummyTarget = Tx
-    txId = Hash . B8.pack . show
+    txId = Hash . blake2b256 . B8.pack . show
+      where
+        blake2b256 :: ByteString -> ByteString
+        blake2b256 =
+            BA.convert . hash @_ @Blake2b_256
     inputs = inputs
     outputs = outputs
 
