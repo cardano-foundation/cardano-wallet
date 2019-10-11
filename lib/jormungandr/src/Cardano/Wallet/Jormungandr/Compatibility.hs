@@ -42,7 +42,9 @@ import Cardano.Wallet.Jormungandr.Primitive.Types
 import Cardano.Wallet.Network.Ports
     ( PortNumber )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( KeyToAddress (..) )
+    ( KeyToAddress (..), getRawKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Random
+    ( RndKey, derivationPath, payloadPassphrase )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( SeqKey (..) )
 import Cardano.Wallet.Primitive.Types
@@ -79,8 +81,10 @@ import Servant.Client.Core
 import System.FilePath
     ( FilePath, (</>) )
 
+import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.Binary.Bech32 as Bech32
+import qualified Codec.CBOR.Write as CBOR
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -117,6 +121,15 @@ instance PersistTx (Jormungandr network) where
             \without any amount: " <> show inps)
             amt
             isJust
+
+instance KeyToAddress (Jormungandr n) RndKey where
+    keyToAddress k = Address
+        $ CBOR.toStrictByteString
+        $ CBOR.encodeAddress (getRawKey k)
+            [ CBOR.encodeDerivationPathAttr pwd acctIx addrIx ]
+      where
+        (acctIx, addrIx) = derivationPath k
+        pwd = payloadPassphrase k
 
 instance forall n. KnownNetwork n => KeyToAddress (Jormungandr n) SeqKey where
     keyToAddress key = singleAddressFromKey (Proxy @n) (getKey key)
