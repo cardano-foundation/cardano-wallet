@@ -22,8 +22,6 @@ import Cardano.Wallet.Jormungandr.BlockHeaders
     )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..), Hash (..), SlotId (..) )
-import Control.Monad
-    ( (>=>) )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Writer
@@ -41,7 +39,7 @@ import Data.Quantity
 import Data.Word
     ( Word32 )
 import Safe
-    ( headMay, initMay, lastMay )
+    ( headMay, lastMay )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
@@ -105,7 +103,7 @@ prop_unstableBlockHeaders TestCase{..} =
         | hasTip nodeChain = label lbl (bs' === Just expected)
         | otherwise = label "node has no chain" (bs' === Nothing)
 
-    expected = mkBlockHeaders (chainLength nodeChain) $
+    expected = mkBlockHeaders $
         modelIntersection k localChain nodeChain
 
     isect = intersectionPoint localChain nodeChain
@@ -129,7 +127,7 @@ prop_unstableBlockHeaders TestCase{..} =
         , "Actual:      " ++ maybe "-" showBlockHeaders bs'
         ]
 
-    bs = mkBlockHeaders (chainLength nodeChain) localChain
+    bs = mkBlockHeaders localChain
     bs' = updateUnstableBlocks (coerce k) getTip getBlockHeader bs
       where
         getTip = tipId nodeChain
@@ -153,7 +151,7 @@ prop_updateUnstableBlocksIsEfficient TestCase{..} =
         , "Fetched:     " ++ unwords (map showHash (Set.toList fetchedHashes))
         ]
 
-    bs = mkBlockHeaders (chainLength nodeChain) localChain
+    bs = mkBlockHeaders localChain
     -- Run updateUnstableBlocks and record which blocks were fetched.
     bs' = updateUnstableBlocks (coerce k) getTip getBlockHeader bs
       where
@@ -175,7 +173,7 @@ prop_updateUnstableBlocksFailure TestCase{..} =
             | otherwise -> e
 
     res = updateUnstableBlocks (coerce k) getTip getBlockHeader bs
-    bs = mkBlockHeaders (chainLength nodeChain) localChain
+    bs = mkBlockHeaders localChain
     getTip
         | chainLength nodeChain `mod` 5 == 0 = Left "injected getTip failed"
         | otherwise = maybe (Left "no tip") Right $ tipId nodeChain
@@ -191,9 +189,8 @@ prop_updateUnstableBlocksFailure TestCase{..} =
 
 -- | Convert a test chain to 'BlockHeaders' so that it can be compared for
 -- equality.
-mkBlockHeaders :: Int -> [BlockHeader] -> BlockHeaders
-mkBlockHeaders h bs =
-    BlockHeaders (Seq.fromList bs) (Quantity $ fromIntegral h)
+mkBlockHeaders :: [BlockHeader] -> BlockHeaders
+mkBlockHeaders bs = BlockHeaders (Seq.fromList bs)
 
 {-------------------------------------------------------------------------------
                               Test chain functions
@@ -224,9 +221,7 @@ limitChain (Quantity k) bs = drop (max 0 (length bs - fromIntegral k)) bs
 
 showChain :: [BlockHeader] -> String
 showChain [] = "<empty chain>"
-showChain bs = unwords (map showHeaderHash bs)
-  where
-    showHeaderHash (BlockHeader _ _ _ (Hash h)) = B8.unpack h
+showChain bs = unwords (map (showHash . headerHash) bs)
 
 showSlot :: SlotId -> String
 showSlot (SlotId ep sl) = show ep ++ "." ++ show sl
@@ -328,15 +323,15 @@ prop_greatestCommonBlockHeader TestCase{..} =
         ]
 
     gcbh = greatestCommonBlockHeader ubs lbs
-    ubs = mkBlockHeaders 0 nodeChain
-    lbs = mkBlockHeaders 0 localChain
+    ubs = mkBlockHeaders nodeChain
+    lbs = mkBlockHeaders localChain
 
     -- Utils for poking around BlockHeaders.
-    nextBlock bh (BlockHeaders bs _) = seqHead $
+    nextBlock bh (BlockHeaders bs) = seqHead $
         Seq.drop 1 $ Seq.dropWhileL (/= bh) bs
-    firstUbs (BlockHeaders bs _) = seqHead bs
+    firstUbs (BlockHeaders bs) = seqHead bs
     seqHead = Seq.lookup 0 . Seq.take 1
-    isEmpty (BlockHeaders bs _) = Seq.null bs
+    isEmpty (BlockHeaders bs) = Seq.null bs
 
 {-------------------------------------------------------------------------------
                               Test data generation
@@ -345,8 +340,8 @@ prop_greatestCommonBlockHeader TestCase{..} =
 -- | Generate an infinite test chain. Take a slice of the list and use 'tipId'
 -- and 'headerIds' to access the tip and block headers. The tip of a test chain
 -- is the penultimate block.
-chain :: String -> [BlockHeader]
-chain p =
+chain :: String -> Hash "BlockHeader" -> [BlockHeader]
+chain p hash0 =
     [ BlockHeader
         (SlotId 0 (fromIntegral n))
         (mockBlockHeight n)
@@ -357,10 +352,7 @@ chain p =
   where
     mockBlockHeight = Quantity . fromIntegral
     hash :: Int -> Hash "BlockHeader"
-    hash n = Hash . B8.pack $ h
-      where
-        h | n < 0 = "genesis"
-          | otherwise = p ++ show n
+    hash n = if n < 0 then hash0 else Hash . B8.pack $ p ++ show n
 
 -- | Filter out test chain blocks that correspond to False values, and update
 -- parent hashes so that the chain is still continuous.
@@ -380,14 +372,15 @@ removeBlocks holes bs =
 genChain
     :: Quantity "block" Word32
     -> String
+    -> Hash "BlockHeader"
     -> Gen [BlockHeader]
-genChain (Quantity k) prefix = do
+genChain (Quantity k) prefix hash0 = do
     len <- choose (0, fromIntegral k)
     holes <- genHoles len
     return
         $ take len
         $ removeBlocks holes
-        $ chain prefix
+        $ chain prefix hash0
   where
     genHoles :: Int -> Gen [Bool]
     genHoles n =
@@ -397,26 +390,25 @@ genChain (Quantity k) prefix = do
 instance Arbitrary TestCase where
     arbitrary = do
         k <- arbitrary
-        base  <- genChain k "base"
-        local <- genChain k "local"
-        node  <- genChain k "node"
-        let baseTip = chainEnd base
+        base  <- genChain k "base" (Hash "genesis")
+        let baseHash = maybe (Hash "genesis") headerHash $ chainTip base
+        local <- genChain k "local" baseHash
+        node  <- genChain k "node" baseHash
         return TestCase
             { k = k
-            , nodeChain  = base <> startFrom baseTip node
-            , localChain = base <> startFrom baseTip local
+            , nodeChain  = base <> startFrom (length base) node
+            , localChain = base <> startFrom (length base) local
             }
       where
         bh = Quantity 0
-        startFrom (SlotId ep n) xs =
-            [ BlockHeader (SlotId ep (sl+n)) bh hh prev
+        startFrom n xs =
+            [ BlockHeader (SlotId 0 (sl+fromIntegral n)) bh hh prev
             | BlockHeader (SlotId _ sl) _ hh prev <- xs
             ]
 
     shrink TestCase{..} =
         [ TestCase k' (take n nodeChain) (take l localChain)
         | (k', n, l) <- shrink (k, length nodeChain, length localChain)
-        , n >= 1
         ]
 
 instance Arbitrary (Quantity "block" Word32) where
@@ -435,10 +427,8 @@ instance Arbitrary (Quantity "block" Word32) where
 
 -- | Shows just the headers of the unstable blocks.
 showBlockHeaders :: BlockHeaders -> String
-showBlockHeaders ubs = showHeaders ubs ++ " " ++ showHeight ubs
-  where
-    showHeaders = unwords . map (showHash . headerHash) . F.toList . getBlockHeaders
-    showHeight (BlockHeaders _ (Quantity h)) = "height=" ++ show h
+showBlockHeaders = unwords . map showBlockHeader . F.toList . getBlockHeaders
+    where showBlockHeader = showHash . headerHash
 
 showHash :: Hash a -> String
 showHash (Hash h) = B8.unpack h

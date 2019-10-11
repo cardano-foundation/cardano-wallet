@@ -54,8 +54,6 @@ import Data.Word
     ( Word32 )
 import GHC.Generics
     ( Generic )
-import Safe
-    ( lastMay )
 
 import qualified Data.Sequence as Seq
 
@@ -67,18 +65,16 @@ import qualified Data.Sequence as Seq
 -- The last block in this sequence is the network tip.
 -- The first block in this sequence is the block of depth /k/,
 -- which is the last unstable block.
-data BlockHeaders = BlockHeaders
-    { getBlockHeaders :: !(Seq BlockHeader)
+newtype BlockHeaders = BlockHeaders
+    { getBlockHeaders :: Seq BlockHeader
     -- ^ Double-ended queue of block headers, and their IDs.
-    , getBlockHeight :: !(Quantity "block" Word32)
-    -- ^ The block height of the tip of the sequence.
     } deriving stock (Show, Eq, Generic)
 
 instance NFData BlockHeaders
 
 -- | Constuct an empty unstable blocks sequence.
 emptyBlockHeaders :: BlockHeaders
-emptyBlockHeaders = BlockHeaders mempty (Quantity 0)
+emptyBlockHeaders = BlockHeaders mempty
 
 {-------------------------------------------------------------------------------
                    Managing the global unstable blocks state
@@ -189,13 +185,13 @@ updateUnstableBlocks (Quantity k) getTip getBlockHeader lbhs = do
 
 -- | The tip block header of the unstable blocks, if it exists.
 blockHeadersTip :: BlockHeaders -> Maybe BlockHeader
-blockHeadersTip (BlockHeaders Empty _) = Nothing
-blockHeadersTip (BlockHeaders (_ubs :|> bh) _) = Just bh
+blockHeadersTip (BlockHeaders Empty) = Nothing
+blockHeadersTip (BlockHeaders (_ubs :|> bh)) = Just bh
 
 -- | The base block header is the oldest block header in the unstable blocks,
 blockHeadersBase :: BlockHeaders -> Maybe BlockHeader
-blockHeadersBase (BlockHeaders Empty _) = Nothing
-blockHeadersBase (BlockHeaders (bh :<| _ubs) _) = Just bh
+blockHeadersBase (BlockHeaders Empty) = Nothing
+blockHeadersBase (BlockHeaders (bh :<| _ubs)) = Just bh
 
 -- | Whether we are at genesis or not.
 blockHeadersAtGenesis :: BlockHeaders -> Bool
@@ -213,12 +209,9 @@ appendBlockHeaders
     -> [BlockHeader]
     -- ^ Newly fetched block headers to add.
     -> BlockHeaders
-appendBlockHeaders (Quantity k) (BlockHeaders ubs h) bs =
-    BlockHeaders (ubs `appendBounded` (Seq.fromList bs)) h'
+appendBlockHeaders (Quantity k) (BlockHeaders ubs) bs =
+    BlockHeaders (ubs `appendBounded` (Seq.fromList bs))
   where
-    -- New block height is the height of the new tip block.
-    h' = maybe h blockHeight (lastMay bs)
-
     -- Concatenate sequences, ensuring that the result is no longer than k.
     appendBounded :: Seq a -> Seq a -> Seq a
     appendBounded a b = Seq.drop excess (a >< b)
@@ -227,29 +220,23 @@ appendBlockHeaders (Quantity k) (BlockHeaders ubs h) bs =
 -- | Remove unstable blocks which have a slot greater than or equal to the given
 -- slot.
 dropStartingFromSlotId :: SlotId -> BlockHeaders -> BlockHeaders
-dropStartingFromSlotId sl (BlockHeaders bs (Quantity h)) =
-    BlockHeaders bs' (Quantity h')
+dropStartingFromSlotId sl (BlockHeaders bs) =
+    BlockHeaders $ Seq.dropWhileR isAfter bs
   where
     isAfter = (>= sl) . slotId
-    bs' = Seq.dropWhileR isAfter bs
-    h' = h + fromIntegral (max 0 $ Seq.length bs' - Seq.length bs)
 
 -- | Drop any headers that are (strictly) after the given slot id.
 dropAfterSlotId :: SlotId -> BlockHeaders -> BlockHeaders
-dropAfterSlotId sl (BlockHeaders bs (Quantity h)) =
-    BlockHeaders bs' (Quantity h')
+dropAfterSlotId sl (BlockHeaders bs) =
+    BlockHeaders $ Seq.dropWhileR isAfter bs
   where
     isAfter = (> sl) . slotId
-    bs' = Seq.dropWhileR isAfter bs
-    h' = h + fromIntegral (max 0 $ Seq.length bs' - Seq.length bs)
 
 takeUntilSlotId :: SlotId -> BlockHeaders -> BlockHeaders
-takeUntilSlotId sl (BlockHeaders bs (Quantity h)) =
-    BlockHeaders bs' (Quantity h')
+takeUntilSlotId sl (BlockHeaders bs) =
+    BlockHeaders $ Seq.dropWhileL isBefore bs
   where
     isBefore = (< sl) . slotId
-    bs' = Seq.dropWhileL isBefore bs
-    h' = h + fromIntegral (max 0 $ Seq.length bs' - Seq.length bs)
 
 -- | If the two sequences overlap in terms of slots, return the block header of
 -- the last block that is common between the two. Otherwise return Nothing.
@@ -269,8 +256,8 @@ greatestCommonBlockHeader
     -> Maybe BlockHeader
 greatestCommonBlockHeader ubs lbs = case (minSlot, maxSlot) of
     (Just start, Just end) -> let
-          (BlockHeaders ubs' _) = trimRange start end ubs
-          (BlockHeaders lbs' _) = trimRange start end lbs
+          (BlockHeaders ubs') = trimRange start end ubs
+          (BlockHeaders lbs') = trimRange start end lbs
           pairs = Seq.zip ubs' lbs'
         in case Seq.dropWhileR (uncurry (/=)) pairs of
                _same :|> (bh, _) -> Just bh
