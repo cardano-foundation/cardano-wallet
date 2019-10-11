@@ -36,6 +36,10 @@ let
     tests = collectComponents "tests" isCardanoWallet haskellPackages;
     benchmarks = collectComponents "benchmarks" isCardanoWallet haskellPackages;
 
+    dockerImage = pkgs.callPackage ./nix/docker.nix {
+      inherit (self) cardano-wallet-jormungandr;
+    };
+
     shell = haskellPackages.shellFor {
       name = "cardano-wallet-shell";
       packages = ps: with ps; [
