@@ -14,6 +14,10 @@ module Cardano.Wallet.Network
     , Cursor
     , follow
 
+    -- * Helper for executing actions atomically a chain
+    , atomically
+    , onSameTip
+
     -- * Errors
     , ErrNetworkUnavailable (..)
     , ErrNetworkTip (..)
@@ -50,6 +54,8 @@ import Control.Monad
     ( when )
 import Control.Monad.IO.Class
     ( liftIO )
+import Control.Monad.Trans.Class
+    ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
 import Control.Retry
@@ -299,3 +305,23 @@ follow nl tr cps yield rollback header =
                         "Failed to roll backward: " <> show e
                 Right () -> do
                     step cursor'
+
+onSameTip :: BlockHeader -> BlockHeader -> Bool
+onSameTip = (==)
+
+atomically
+    :: Monad m
+    => (BlockHeader -> BlockHeader -> Bool)
+    -- ^ Compare the preceding, and succeding tip, and judge whether the result
+    -- of the action can be trusted.
+    -> NetworkLayer m t block
+    -> m a
+    -- ^ Race-sensitive action to run
+    -> ExceptT ErrNetworkTip m a
+atomically cond nl act = do
+    t1 <- networkTip nl
+    a <- lift act
+    t2 <- networkTip nl
+    if cond t1 t2
+    then return a
+    else error "Tip has changed. TODO: Don't error in this branch"
