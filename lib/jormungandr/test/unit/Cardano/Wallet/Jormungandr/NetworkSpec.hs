@@ -121,6 +121,10 @@ spec = do
             let regression5 = S {node = N {nodeDb = Map.fromList [(Hash {getHash = "0000"},MockBlock {mockBlockId = Hash {getHash = "0000"}, mockBlockPrev = Hash {getHash = "genesis"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 0}}),(Hash {getHash = "0001"},MockBlock {mockBlockId = Hash {getHash = "0001"}, mockBlockPrev = Hash {getHash = "0000"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 1}}),(Hash {getHash = "0002"},MockBlock {mockBlockId = Hash {getHash = "0002"}, mockBlockPrev = Hash {getHash = "genesis"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 0}}),(Hash {getHash = "0003"},MockBlock {mockBlockId = Hash {getHash = "0003"}, mockBlockPrev = Hash {getHash = "genesis"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 0}}),(Hash {getHash = "0004"},MockBlock {mockBlockId = Hash {getHash = "0004"}, mockBlockPrev = Hash {getHash = "0003"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 1}}),(Hash {getHash = "0005"},MockBlock {mockBlockId = Hash {getHash = "0005"}, mockBlockPrev = Hash {getHash = "0004"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 2}}),(Hash {getHash = "0006"},MockBlock {mockBlockId = Hash {getHash = "0006"}, mockBlockPrev = Hash {getHash = "0005"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 3}}),(Hash {getHash = "0007"},MockBlock {mockBlockId = Hash {getHash = "0007"}, mockBlockPrev = Hash {getHash = "0005"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 3}}),(Hash {getHash = "0008"},MockBlock {mockBlockId = Hash {getHash = "0008"}, mockBlockPrev = Hash {getHash = "0003"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 1}}),(Hash {getHash = "0009"},MockBlock {mockBlockId = Hash {getHash = "0009"}, mockBlockPrev = Hash {getHash = "0008"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 2}}),(Hash {getHash = "000a"},MockBlock {mockBlockId = Hash {getHash = "000a"}, mockBlockPrev = Hash {getHash = "0009"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 3}}),(Hash {getHash = "000b"},MockBlock {mockBlockId = Hash {getHash = "000b"}, mockBlockPrev = Hash {getHash = "000a"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 4}}),(Hash {getHash = "000c"},MockBlock {mockBlockId = Hash {getHash = "000c"}, mockBlockPrev = Hash {getHash = "000b"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 5}})], nodeChainIds = [Hash {getHash = "000c"},Hash {getHash = "000b"},Hash {getHash = "000a"},Hash {getHash = "0009"},Hash {getHash = "0008"},Hash {getHash = "0003"}], nodeNextBlockId = 13}, operations = [[NodeRewind 1],[NodeAddBlocks {getAddBlocks = [MockBlock {mockBlockId = Hash {getHash = "000d"}, mockBlockPrev = Hash {getHash = "000b"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 5}}]}],[NodeRewind 1],[NodeAddBlocks {getAddBlocks = [MockBlock {mockBlockId = Hash {getHash = "000e"}, mockBlockPrev = Hash {getHash = "000b"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 5}}]}],[NodeAddBlocks {getAddBlocks = [MockBlock {mockBlockId = Hash {getHash = "000f"}, mockBlockPrev = Hash {getHash = "000e"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 6}}]}],[NodeRewind 3,NodeAddBlocks {getAddBlocks = [MockBlock {mockBlockId = Hash {getHash = "0010"}, mockBlockPrev = Hash {getHash = "000a"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 4}}]}]], mockNodeK = Quantity {getQuantity = 4}, logs = []}
             withMaxSuccess 1 $ prop_sync regression5
 
+        it "Regression #6" $ do
+            let regression6 = S {node = N {nodeDb = Map.fromList [], nodeChainIds = [], nodeNextBlockId = 0}, operations = [[NodeAddBlocks {getAddBlocks = [MockBlock {mockBlockId = Hash {getHash = "0000"}, mockBlockPrev = Hash {getHash = "genesis"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 0}},MockBlock {mockBlockId = Hash {getHash = "0001"}, mockBlockPrev = Hash {getHash = "0000"}, mockBlockSlot = SlotId {epochNumber = 0, slotNumber = 1}}]}]], mockNodeK = Quantity {getQuantity = 2}, logs = []}
+            withMaxSuccess 1 $ prop_sync regression6
+
         it "Syncs with mock node" $
             withMaxSuccess 100000 prop_sync
 
@@ -230,8 +234,15 @@ showBlock (MockBlock ownId parentId sl) = mconcat $
         ]
 
 -- | Test Genesis block
+block0 :: J.Block
+block0 = toJBlock $ MockBlock genesisHash genesisHash (SlotId 0 0)
+
+-- | Test Genesis block
 block0H :: BlockHeader
-block0H = BlockHeader (SlotId 0 0) (Quantity 0) (Hash "genesis") (Hash "genesis")
+block0H = BlockHeader (SlotId 0 0) (Quantity 0) genesisHash genesisHash
+
+genesisHash :: Hash a
+genesisHash = Hash "genesis"
 
 ----------------------------------------------------------------------------
 -- Model consumer
@@ -305,7 +316,7 @@ mockNetworkLayer
 mockNetworkLayer logLine = do
     let jm = mockJormungandrClient logLine
     st <- newMVar emptyBlockHeaders
-    Right g0 <- runExceptT $ getInitialBlockchainParameters jm (Hash "genesis")
+    Right g0 <- runExceptT $ getInitialBlockchainParameters jm genesisHash
     pure $ fromJBlock <$> mkRawNetworkLayer g0 st jm
 
 -- | A network layer which returns mock blocks and mutates its state according
@@ -318,16 +329,17 @@ mockJormungandrClient
 mockJormungandrClient logLine = JormungandrClient
     { getTipId = do
         ch <- lift $ gets (nodeChainIds . node)
-        let tip = fromMaybe (Hash "genesis") $ headMay ch
+        let tip = fromMaybe genesisHash $ headMay ch
         lift . logLineP $ "getTipId" <> returns tip
         lift applyOps
         pure tip
 
     , getBlock = \blockId -> do
         bs <- lift $ gets (nodeDb . node)
-        let block = case Map.lookup blockId bs of
-                Just b -> pure $ toJBlock b
-                Nothing -> Left $ ErrGetBlockNotFound blockId
+        let block = case (blockId, Map.lookup blockId bs) of
+                (Hash "genesis", _) -> pure block0
+                (_, Just b) -> pure $ toJBlock b
+                (_, Nothing) -> Left $ ErrGetBlockNotFound blockId
         lift . logLineP $ "getBlock " <> show blockId
             <> returns (fmap (showBlock . fromJBlock) block)
         lift applyOps
@@ -335,7 +347,7 @@ mockJormungandrClient logLine = JormungandrClient
 
     , getDescendantIds = \parentId count -> do
         ch <- lift $ gets (nodeChainIds . node)
-        let res = fmap (take $ fromIntegral count) $ if parentId == Hash "genesis"
+        let res = fmap (take $ fromIntegral count) $ if parentId == headerHash block0H
                 then pure (reverse ch)
                 else if parentId `elem` ch then
                     pure $ reverse (takeWhile (/= parentId) ch)
@@ -348,8 +360,7 @@ mockJormungandrClient logLine = JormungandrClient
 
     , getInitialBlockchainParameters = \blockId -> do
         Quantity k <- lift $ gets mockNodeK
-        let block0 = MockBlock (coerce blockId) (Hash "") (SlotId 0 0)
-        pure (toJBlock block0, BlockchainParameters
+        pure (block0, BlockchainParameters
             { getGenesisBlockHash = blockId
             , getGenesisBlockDate = error "mock bp"
             , getFeePolicy = error "mock bp"
@@ -519,7 +530,7 @@ prop_generator (S n0 ops _ _) = continuous .&&. uniqueIds
         [] ->
             property True
         [b] ->
-            mockBlockPrev b === Hash "genesis"
+            mockBlockPrev b === genesisHash
         (p:b:_) ->
             counterexample ("Chain: " <> showBlock p <> " ==> " <> showBlock b)
             $ conjoin
@@ -555,7 +566,7 @@ genBlocksWith n empty count =
             | (i, gap) <- zip [1..count] empty, tipSlot + i == 0 || not gap
             ]
         bids = map mockBlockHash [nodeNextBlockId n..]
-        prevs = maybe (Hash "genesis") mockBlockId tip : bids
+        prevs = maybe genesisHash mockBlockId tip : bids
     in
         [ MockBlock bid prev slot
         | (bid, prev, slot) <- zip3 bids prevs slots
