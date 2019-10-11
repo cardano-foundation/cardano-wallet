@@ -92,7 +92,7 @@ serveWallet
     -> Maybe
         (  PortNumber
         -> PortNumber
-        -> NetworkLayer IO Tx (Block Tx)
+        -> NetworkLayer IO t (Block Tx)
         -> IO a
         )
     -- ^ Optional operation to run under the wallet server (e.g. test suite).
@@ -130,7 +130,7 @@ serveWallet (cfg, sb, tr) databaseDir listen bridge mAction = do
             withAction $ race_ ipcServer apiServer
 
     newApiLayer
-        :: NetworkLayer IO Tx (Block Tx)
+        :: NetworkLayer IO t (Block Tx)
         -> IO (ApiLayer s t k)
     newApiLayer nl = do
         let g0 = staticBlockchainParameters nl

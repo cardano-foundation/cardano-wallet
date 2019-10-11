@@ -313,7 +313,7 @@ data ApiLayer s t (k :: Depth -> * -> *)
     = ApiLayer
         (Trace IO Text)
         (Block (Tx t), BlockchainParameters)
-        (NetworkLayer IO (Tx t) (Block (Tx t)))
+        (NetworkLayer IO t (Block (Tx t)))
         (TransactionLayer t k)
         (DBFactory IO s t k)
         (WorkerRegistry WalletId (DBLayer IO s t k))

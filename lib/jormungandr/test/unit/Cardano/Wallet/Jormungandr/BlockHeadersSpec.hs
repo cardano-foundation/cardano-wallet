@@ -1,7 +1,11 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeFamilies #-}
+
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.Jormungandr.BlockHeadersSpec
@@ -11,7 +15,11 @@ module Cardano.Wallet.Jormungandr.BlockHeadersSpec
 import Prelude
 
 import Cardano.Wallet.Jormungandr.BlockHeaders
-    ( BlockHeaders (..), updateUnstableBlocks )
+    ( BlockHeaders (..)
+    , dropStartingFromSlotId
+    , greatestCommonBlockHeader
+    , updateUnstableBlocks
+    )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..), Hash (..), SlotId (..) )
 import Control.Monad
@@ -47,6 +55,9 @@ import Test.QuickCheck
     , property
     , vectorOf
     , withMaxSuccess
+    , (.&&.)
+    , (.||.)
+    , (=/=)
     , (===)
     )
 
@@ -71,6 +82,10 @@ spec = do
         it "Handles failure of node"
             $ withMaxSuccess 10000
             $ property prop_updateUnstableBlocksFailure
+    describe "Chain intersection" $ do
+        it "Calculates GCBH"
+            $ withMaxSuccess 1000
+            $ property prop_greatestCommonBlockHeader
 
 {-------------------------------------------------------------------------------
                         Unstable Block Headers Property
@@ -90,7 +105,7 @@ prop_unstableBlockHeaders TestCase{..} =
         | hasTip nodeChain = label lbl (bs' === Just expected)
         | otherwise = label "node has no chain" (bs' === Nothing)
 
-    expected = mkUnstableBlocks (chainLength nodeChain) $
+    expected = mkBlockHeaders (chainLength nodeChain) $
         modelIntersection k localChain nodeChain
 
     isect = intersectionPoint localChain nodeChain
@@ -110,11 +125,11 @@ prop_unstableBlockHeaders TestCase{..} =
         , "Local chain: " ++ showChain localChain
         , "Node chain:  " ++ showChain nodeChain
         , "Intersects:  " ++ maybe "-" showSlot isect
-        , "Expected:    " ++ showUnstableBlocks expected
-        , "Actual:      " ++ maybe "-" showUnstableBlocks bs'
+        , "Expected:    " ++ showBlockHeaders expected
+        , "Actual:      " ++ maybe "-" showBlockHeaders bs'
         ]
 
-    bs = mkUnstableBlocks (chainLength nodeChain) localChain
+    bs = mkBlockHeaders (chainLength nodeChain) localChain
     bs' = updateUnstableBlocks (coerce k) getTip getBlockHeader bs
       where
         getTip = tipId nodeChain
@@ -139,7 +154,7 @@ prop_updateUnstableBlocksIsEfficient TestCase{..} =
         , "Fetched:     " ++ unwords (map showHash (Set.toList fetchedHashes))
         ]
 
-    bs = mkUnstableBlocks (chainLength nodeChain) localChain
+    bs = mkBlockHeaders (chainLength nodeChain) localChain
     -- Run updateUnstableBlocks and record which blocks were fetched.
     bs' = updateUnstableBlocks (coerce k) getTip getBlockHeader bs
       where
@@ -163,7 +178,7 @@ prop_updateUnstableBlocksFailure TestCase{..} =
             | otherwise -> e
 
     res = updateUnstableBlocks (coerce k) getTip getBlockHeader bs
-    bs = mkUnstableBlocks (chainLength nodeChain) localChain
+    bs = mkBlockHeaders (chainLength nodeChain) localChain
     getTip
         | chainLength nodeChain `mod` 5 == 0 = Left "injected getTip failed"
         | otherwise = maybe (Left "no tip") Right $ tipId nodeChain
@@ -178,10 +193,10 @@ prop_updateUnstableBlocksFailure TestCase{..} =
                                 TestCase helpers
 -------------------------------------------------------------------------------}
 
--- | Convert a test chain to 'UnstableBlocks' so that it can be compared for
+-- | Convert a test chain to 'BlockHeaders' so that it can be compared for
 -- equality.
-mkUnstableBlocks :: Int -> [BlockHeader] -> BlockHeaders
-mkUnstableBlocks h bs =
+mkBlockHeaders :: Int -> [BlockHeader] -> BlockHeaders
+mkBlockHeaders h bs =
     BlockHeaders (Seq.fromList $ headerIds bs) (Quantity $ fromIntegral h)
 
 -- | Convert a test chain into an assoc list of block ids, their headers, and
@@ -302,6 +317,45 @@ takeToSlot :: SlotId -> [BlockHeader] -> [BlockHeader]
 takeToSlot sl = takeWhile ((< sl) . slotId)
 
 {-------------------------------------------------------------------------------
+                         Intersection of BlockHeaders
+-------------------------------------------------------------------------------}
+
+prop_greatestCommonBlockHeader :: TestCase -> Property
+prop_greatestCommonBlockHeader TestCase{..} =
+    counterexample ce prop
+  where
+    prop = case gcbh of
+        Just bh ->
+            -- The block after gcbh is different
+            (nextBlock bh ubs =/= nextBlock bh lbs .||.
+                nextBlock bh ubs === Nothing)
+            .&&.
+            -- All blocks up to and including the gcbh are the same.
+            (dropStartingFromSlotId (slotId bh) ubs
+                === dropStartingFromSlotId (slotId bh) lbs)
+        Nothing ->
+            -- No common block means that the first blocks are different, or one
+            -- chain is empty.
+            firstUbs ubs =/= firstUbs lbs .||. isEmpty ubs
+
+    ce = unlines
+        [ "Local chain: " ++ showChain localChain
+        , "Node chain:  " ++ showChain nodeChain
+        , "GCBH:        " ++ show gcbh
+        ]
+
+    gcbh = greatestCommonBlockHeader ubs lbs
+    ubs = mkBlockHeaders 0 nodeChain
+    lbs = mkBlockHeaders 0 localChain
+
+    -- Utils for poking around BlockHeaders.
+    nextBlock bh (BlockHeaders bs _) = seqHead $
+        Seq.drop 1 $ Seq.dropWhileL ((/= bh) . snd) bs
+    firstUbs (BlockHeaders bs _) = seqHead bs
+    seqHead = Seq.lookup 0 . Seq.take 1
+    isEmpty (BlockHeaders bs _) = Seq.null bs
+
+{-------------------------------------------------------------------------------
                               Test data generation
 -------------------------------------------------------------------------------}
 
@@ -388,8 +442,8 @@ instance Arbitrary (Quantity "block" Word32) where
 -------------------------------------------------------------------------------}
 
 -- | Shows just the headers of the unstable blocks.
-showUnstableBlocks :: BlockHeaders -> String
-showUnstableBlocks ubs = showHeaders ubs ++ " " ++ showHeight ubs
+showBlockHeaders :: BlockHeaders -> String
+showBlockHeaders ubs = showHeaders ubs ++ " " ++ showHeight ubs
   where
     showHeaders = unwords . map (showHash . fst) . F.toList . getBlockHeaders
     showHeight (BlockHeaders _ (Quantity h)) = "height=" ++ show h

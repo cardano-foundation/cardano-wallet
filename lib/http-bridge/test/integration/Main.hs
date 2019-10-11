@@ -227,17 +227,17 @@ main = do
     mkBaseUrl port = "http://localhost:" <> toText port <> "/"
 
     withCardanoWalletServer
-        :: forall network a. (network ~ HttpBridge 'Testnet)
+        :: forall a. ()
         => (CM.Configuration, Switchboard Text, Trace IO Text)
         -> HttpBridge.HttpBridgeConfig
         -> Maybe Listen
-        -> ((Port "wallet", Port "node", NetworkLayer IO Tx (Block Tx)) -> IO a)
+        -> ((Port "wallet", Port "node", NetworkLayer IO t (Block Tx)) -> IO a)
         -> IO a
     withCardanoWalletServer (logConfig, sb, tracer) bridgeConfig mlisten action = do
         defaultPort <- findPort
         let listen = fromMaybe (ListenOnPort defaultPort) mlisten
         res <- newEmptyMVar
-        void $ serveWallet @network (logConfig, sb, tracer) Nothing listen (Launch bridgeConfig) $
+        void $ serveWallet @t (logConfig, sb, tracer) Nothing listen (Launch bridgeConfig) $
             Just $ \port nodePort nl -> do
                 let port' = Port (fromIntegral port)
                 let nodePort' = Port (fromIntegral nodePort)

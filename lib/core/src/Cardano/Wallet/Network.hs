@@ -1,25 +1,29 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Wallet.Network
     (
     -- * Interface
       NetworkLayer (..)
+    , NextBlocksResult (..)
+    , Cursor
+    , follow
 
     -- * Errors
     , ErrNetworkUnavailable (..)
     , ErrNetworkTip (..)
     , ErrGetBlock (..)
     , ErrPostTx (..)
-    , isNetworkUnreachable
 
-    -- * Helpers
+    -- * Initialization
+    , isNetworkUnreachable
     , defaultRetryPolicy
     , waitForNetwork
-    , follow
     ) where
 
 import Prelude
@@ -29,7 +33,7 @@ import Cardano.BM.Trace
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), Hash (..), TxWitness )
+    ( BlockHeader (..), Hash (..), SlotId, Tx, TxWitness )
 import Control.Concurrent
     ( threadDelay )
 import Control.Exception
@@ -46,6 +50,8 @@ import Control.Retry
     , limitRetriesByCumulativeDelay
     , retrying
     )
+import Data.List.NonEmpty
+    ( NonEmpty (..) )
 import Data.Text
     ( Text )
 import Fmt
@@ -58,38 +64,52 @@ import UnliftIO.Exception
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 
-data NetworkLayer m tx block = NetworkLayer
-    { nextBlocks :: BlockHeader -> ExceptT ErrGetBlock m [block]
-        -- ^ Fetches a contiguous sequence of blocks from the node, starting
-        -- from the first block available with a slot greater than the given
-        -- block header.
+data NetworkLayer m target block = NetworkLayer
+    { nextBlocks
+        :: Cursor target
+        -> ExceptT ErrGetBlock m (NextBlocksResult target block)
+        -- ^ Starting from the given 'Cursor', fetches a contiguous sequence of
+        -- blocks from the node, if they are available. An updated cursor will
+        -- be returned with a 'RollFoward' result.
         --
         -- Blocks are returned in ascending slot order, without skipping blocks.
         --
-        -- This function will not necessarily return all blocks available after
-        -- the given point in time, but will return a reasonably-sized sequence.
+        -- If the node does not have any blocks after the specified cursor
+        -- point, it will return 'AwaitReply'.
         --
-        -- It may return the empty list if the node does not have any blocks
-        -- after the specified starting slot.
+        -- If the node has adopted an alternate fork of the chain, it will
+        -- return 'RollBackward' with a new cursor.
+
+    , initCursor
+        :: BlockHeader -> Cursor target
+        -- ^ Creates a cursor from the given block header so that 'nextBlocks'
+        -- can be used to fetch blocks.
+
+    , cursorSlotId
+        :: Cursor target -> SlotId
+        -- ^ Get the slot corresponding to a cursor.
 
     , networkTip
         :: ExceptT ErrNetworkTip m BlockHeader
         -- ^ Get the current network tip from the chain producer
 
     , postTx
-        :: (tx, [TxWitness]) -> ExceptT ErrPostTx m ()
+        :: (Tx target, [TxWitness]) -> ExceptT ErrPostTx m ()
         -- ^ Broadcast a transaction to the chain producer
 
     , staticBlockchainParameters
         :: (block, BlockchainParameters)
     }
 
-instance Functor m => Functor (NetworkLayer m tx) where
+instance Functor m => Functor (NetworkLayer m target) where
     fmap f nl = nl { nextBlocks = fmap (fmap f) . nextBlocks nl
                    , staticBlockchainParameters = (f block0, bp) }
       where
         (block0, bp) = staticBlockchainParameters nl
 
+{-------------------------------------------------------------------------------
+                                  Errors
+-------------------------------------------------------------------------------}
 
 -- | Network is unavailable
 data ErrNetworkUnavailable
@@ -98,11 +118,6 @@ data ErrNetworkUnavailable
     | ErrNetworkInvalid Text
       -- ^ Network backend reports that the requested network is invalid.
     deriving (Generic, Show, Eq)
-
--- | Exception predicate for 'ErrNetworkUnreachable'.
-isNetworkUnreachable :: ErrNetworkUnavailable -> Bool
-isNetworkUnreachable (ErrNetworkUnreachable _) = True
-isNetworkUnreachable (ErrNetworkInvalid _) = False
 
 -- | Error while trying to get the network tip
 data ErrNetworkTip
@@ -126,6 +141,16 @@ data ErrPostTx
     deriving (Generic, Show, Eq)
 
 instance Exception ErrPostTx
+
+{-------------------------------------------------------------------------------
+                              Initialization
+-------------------------------------------------------------------------------}
+
+-- | Exception predicate for 'ErrNetworkUnreachable'.
+isNetworkUnreachable :: ErrNetworkUnavailable -> Bool
+isNetworkUnreachable (ErrNetworkUnreachable _) = True
+isNetworkUnreachable (ErrNetworkInvalid _) = False
+
 
 -- | Wait until 'networkTip networkLayer' succeeds according to a given
 -- retry policy. Throws an exception otherwise.
@@ -155,12 +180,44 @@ defaultRetryPolicy =
   where
     second = 1000*1000
 
+{-------------------------------------------------------------------------------
+                                Chain Sync
+-------------------------------------------------------------------------------}
+
+-- | A cursor is local state kept by the chain consumer to use as the starting
+-- position for 'nextBlocks'. The actual type is opaque and determined by the
+-- backend @target@.
+data family Cursor target
+
+-- | The result of 'nextBlocks', which is instructions for what the chain
+-- consumer should do next.
+data NextBlocksResult target block
+    = AwaitReply
+        -- ^ There are no blocks available from the node, so wait.
+    | RollForward (Cursor target) BlockHeader [block]
+        -- ^ Apply the given contiguous non-empty sequence of blocks. Use the
+        -- updated cursor to get the next batch. The given block header is the
+        -- current tip of the node.
+    | RollBackward (Cursor target)
+        -- ^ The chain consumer must roll back its state, then use the cursor to
+        -- get the next batch of blocks.
+    | Recover
+       -- ^ An intersection could not be found. Start from scratch.
+
+instance Functor (NextBlocksResult target) where
+    fmap f = \case
+        AwaitReply -> AwaitReply
+        RollForward cur bh bs -> RollForward cur bh (fmap f bs)
+        RollBackward cur -> RollBackward cur
+        Recover -> Recover
+
 -- | Subscribe to a blockchain and get called with new block (in order)!
 follow
-    :: Show e
-    => NetworkLayer IO tx block
+    :: forall target block e. (Show e)
+    => NetworkLayer IO target block
     -- ^ The @NetworkLayer@ used to poll for new blocks.
     -> Trace IO Text
+    -- ^ Logger trace
     -> BlockHeader
     -- ^ The local tip to start at. Blocks /after/ the tip will be yielded.
     -> (NE.NonEmpty block -> BlockHeader -> ExceptT e IO ())
@@ -170,7 +227,7 @@ follow
     -- ^ Getter on the abstract 'block' type
     -> IO ()
 follow nl tr start yield header =
-    sleep 0 start
+    sleep 0 (initCursor nl start)
   where
     delay0 :: Int
     delay0 = 1000*1000 -- 1 second
@@ -181,53 +238,50 @@ follow nl tr start yield header =
     -- | Wait a short delay before querying for blocks again. We also take this
     -- opportunity to refresh the chain tip as it has probably increased in
     -- order to refine our syncing status.
-    sleep :: Int -> BlockHeader -> IO ()
-    sleep delay localTip =
-        io `catch` retry
+    sleep :: Int -> Cursor target -> IO ()
+    sleep delay cursor = do
+        when (delay > 0) (threadDelay delay)
+        step cursor `catch` retry
       where
-        io = do
-            when (delay > 0) (threadDelay delay)
-            runExceptT (networkTip nl) >>= \case
-                Right nodeTip ->
-                    step (localTip, nodeTip)
-                Left e -> do
-                    logWarning tr $ T.pack $
-                        "Failed to get network tip: " <> show e
-                    sleep (retryDelay delay) localTip
-
         retry (e :: SomeException) = do
             logError tr $ T.pack $
                 "Unexpected failure while following the chain: " <> show e
-            sleep (retryDelay delay) localTip
+            sleep (retryDelay delay) cursor
 
-    step :: (BlockHeader, BlockHeader) -> IO ()
-    step (localTip, nodeTip) = do
-        runExceptT (nextBlocks nl localTip) >>= \case
-            Left e -> do
-                logWarning tr $ T.pack $ "Failed to get next blocks: " <> show e
-                sleep delay0 localTip
-            Right [] -> do
-                logDebug tr "In sync with the node."
-                sleep delay0 localTip
-            Right (blockFirst : blocksRest) -> do
-                let blocks = blockFirst NE.:| blocksRest
+    step :: Cursor target -> IO ()
+    step cursor = runExceptT (nextBlocks nl cursor) >>= \case
+        Left e -> do
+            logWarning tr $ T.pack $ "Failed to get next blocks: " <> show e
+            sleep delay0 cursor
 
-                let nextLocalTip = header $ NE.last blocks
-                let (slotFirst, slotLast) =
-                        ( slotId . header . NE.head $ blocks
-                        , slotId . header . NE.last $ blocks
-                        )
-                liftIO $ logInfo tr $ mconcat
-                    [ "Applying blocks ["
-                    , pretty slotFirst
-                    , " ... "
-                    , pretty slotLast
-                    , "]"
-                    ]
+        Right AwaitReply -> do
+            logDebug tr "In sync with the node."
+            sleep delay0 cursor
 
-                runExceptT (yield blocks nodeTip) >>= \case
-                    Left e ->
-                        liftIO $ logNotice tr $ T.pack $
-                            "Stopped following chain: " <> show e
-                    Right () -> do
-                        step (nextLocalTip, nodeTip)
+        Right (RollForward cursor' _ []) -> do -- FIXME Make RollForward return NE
+            logDebug tr "In sync with the node."
+            sleep delay0 cursor'
+
+        Right (RollForward cursor' nodeTip (blockFirst : blocksRest)) -> do
+            let blocks = blockFirst :| blocksRest
+            let (slFst, slLst) =
+                    ( slotId . header . NE.head $ blocks
+                    , slotId . header . NE.last $ blocks
+                    )
+            liftIO $ logInfo tr $ mconcat
+                [ "Applying blocks [", pretty slFst, " ... ", pretty slLst, "]" ]
+
+            runExceptT (yield blocks nodeTip) >>= \case
+                Left e ->
+                    liftIO $ logNotice tr $ T.pack $
+                        "Stopped following chain: " <> show e
+                Right () -> do
+                    step cursor'
+
+        Right (RollBackward _) -> do
+              logError tr "Rollback! We are stuck now (issue #650)."
+              sleep maxBound cursor
+
+        Right Recover -> do
+              logInfo tr "Could not find chain intersection. Recovering wallet (issue #650)."
+              sleep maxBound cursor

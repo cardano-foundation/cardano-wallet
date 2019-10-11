@@ -123,7 +123,7 @@ serveWallet (cfg, sb, tr) databaseDir listen lj beforeMainLoop = do
     startServer
         :: Trace IO Text
         -> Port "node"
-        -> NetworkLayer IO Tx (Block Tx)
+        -> NetworkLayer IO t (Block Tx)
         -> ApiLayer s t k
         -> IO ()
     startServer tracer nPort nl wallet = do
@@ -139,7 +139,7 @@ serveWallet (cfg, sb, tr) databaseDir listen lj beforeMainLoop = do
 
     apiLayer
         :: Trace IO Text
-        -> NetworkLayer IO Tx (Block Tx)
+        -> NetworkLayer IO t (Block Tx)
         -> IO (ApiLayer s t k)
     apiLayer tracer nl = do
         let (block0, bp) = staticBlockchainParameters nl

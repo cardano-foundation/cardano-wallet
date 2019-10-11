@@ -67,7 +67,7 @@ import qualified Codec.CBOR.Write as CBOR
 
 -- | Initialize a bunch of faucet wallets and make them available for the
 -- integration tests scenarios.
-initFaucet :: NetworkLayer IO Tx (Block Tx) -> IO Faucet
+initFaucet :: NetworkLayer IO (HttpBridge n) (Block Tx) -> IO Faucet
 initFaucet nl = do
     wallets <- replicateM 100 genMnemonic
     let mkFaucet addr = TxOut addr (Coin 100000000000)

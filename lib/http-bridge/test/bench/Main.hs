@@ -249,10 +249,10 @@ bench_restoration (logConfig, tracer) (wid, wname, s) =
 withBenchNetworkLayer
     :: forall n a. KnownNetwork n
     => Trace IO Text
-    -> (NetworkLayer IO Tx (Block Tx) -> IO a)
+    -> (NetworkLayer IO (HttpBridge n) (Block Tx) -> IO a)
     -> IO a
 withBenchNetworkLayer tr action =
-    withNetworkLayer @n tr (Launch cfg) $ \case
+    withNetworkLayer tr (Launch cfg) $ \case
         Right (_, nw) -> action nw
         Left e -> do
             sayErr "There was some error starting the network layer:"
@@ -316,7 +316,7 @@ waitForWalletSync walletLayer wid = do
 -- | Poll the network tip until it reaches the slot corresponding to the current
 -- time.
 waitForNodeSync
-    :: NetworkLayer IO Tx (Block Tx)
+    :: NetworkLayer IO (HttpBridge n) (Block Tx)
     -> Text
     -> (SlotId -> SlotId -> IO ())
     -> IO SlotId

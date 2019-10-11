@@ -32,7 +32,13 @@ module Cardano.Wallet.Jormungandr.BlockHeaders
 
     -- * Operations
     , blockHeadersTip
+    , blockHeadersTipId
+    , blockHeadersBase
+    , blockHeadersAtGenesis
     , appendBlockHeaders
+    , dropStartingFromSlotId
+    , dropAfterSlotId
+    , greatestCommonBlockHeader
     ) where
 
 import Prelude
@@ -67,7 +73,7 @@ import qualified Data.Sequence as Seq
 data BlockHeaders = BlockHeaders
     { getBlockHeaders :: !(Seq (Hash "BlockHeader", BlockHeader))
     -- ^ Double-ended queue of block headers, and their IDs.
-    , blockHeight :: !(Quantity "block" Word32)
+    , getBlockHeight :: !(Quantity "block" Word32)
     -- ^ The block height of the tip of the sequence.
     } deriving stock (Show, Eq, Generic)
 
@@ -101,7 +107,7 @@ emptyBlockHeaders = BlockHeaders mempty (Quantity 0)
 --                        rollback point ⬏     node tip ⬏
 -- @
 --
--- To startBackend with, the node says the tip hash is @b15@.
+-- To start with, the node says the tip hash is @b15@.
 --
 -- Work backwards from tip, fetching blocks and adding them to @ac@, and
 -- removing overlapping blocks from @ubs@. Overlapping blocks occur when there
@@ -139,21 +145,21 @@ updateUnstableBlocks
     => Quantity "block" Word32
     -- ^ Maximum number of unstable blocks (/k/).
     -> m (Hash "BlockHeader")
-    -- ^ Fetches tip.
+    -- ^ Network Tip
     -> (Hash "BlockHeader" -> m (BlockHeader, Quantity "block" Word32))
     -- ^ Fetches block header and its chain height.
     -> BlockHeaders
     -- ^ Current unstable blocks state.
     -> m BlockHeaders
-updateUnstableBlocks (Quantity k) getTipId' getBlockHeader lbhs = do
-    t <- getTipId'
+updateUnstableBlocks (Quantity k) getTip getBlockHeader lbhs = do
+    tip0 <- getTip
     -- Trace backwards from the tip, accumulating new block headers, and
     -- removing overlapped unstable block headers.
-    (lbhs', nbhs) <- fetchBackwards lbhs [] 0 t
+    (lbhs', nbhs) <- fetchBackwards lbhs [] 0 tip0
     -- The new unstable blocks is the current local blocks up to where they
     -- meet the blocks fetched starting from the tip, with the fetched
     -- blocks appended.
-    pure $!! appendBlockHeaders k lbhs' nbhs
+    pure $!! appendBlockHeaders (Quantity k) lbhs' nbhs
   where
     -- | Fetch blocks backwards starting from the given id. If fetched blocks
     -- overlap the local blocks, the excess local blocks will be dropped.
@@ -167,12 +173,12 @@ updateUnstableBlocks (Quantity k) getTipId' getBlockHeader lbhs = do
         -> Hash "BlockHeader"
         -- ^ Starting point for block fetch
         -> m (BlockHeaders, [(Hash "BlockHeader", BlockHeader, Quantity "block" Word32)])
-    fetchBackwards ubs ac len t = do
-        (tipHeader, tipHeight) <- getBlockHeader t
+    fetchBackwards ubs ac len tip = do
+        (tipHeader, tipHeight) <- getBlockHeader tip
         -- Push the remote block.
-        let ac' = ((t, tipHeader, tipHeight):ac)
+        let ac' = ((tip, tipHeader, tipHeight):ac)
          -- Pop off any overlap.
-        let ubs' = dropStartingFromSlot tipHeader ubs
+        let ubs' = dropStartingFromSlotId (slotId tipHeader) ubs
         -- If remote blocks have met local blocks, or if more than k have been
         -- fetched, or we are at the genesis, then stop.
         -- Otherwise, continue from the parent of the current tip.
@@ -188,23 +194,33 @@ blockHeadersTip :: BlockHeaders -> Maybe BlockHeader
 blockHeadersTip (BlockHeaders Empty _) = Nothing
 blockHeadersTip (BlockHeaders (_ubs :|> (_, bh)) _) = Just bh
 
+-- | The base block header is the oldest block header in the unstable blocks,
+blockHeadersBase :: BlockHeaders -> Maybe BlockHeader
+blockHeadersBase (BlockHeaders Empty _) = Nothing
+blockHeadersBase (BlockHeaders ((_, bh) :<| _ubs) _) = Just bh
+
 -- | The tip block id of the unstable blocks, if it exists.
 blockHeadersTipId :: BlockHeaders -> Maybe (Hash "BlockHeader")
 blockHeadersTipId (BlockHeaders Empty _) = Nothing
 blockHeadersTipId (BlockHeaders (_ubs :|> (t, _)) _) = Just t
 
+-- | Whether we are at genesis or not.
+blockHeadersAtGenesis :: BlockHeaders -> Bool
+blockHeadersAtGenesis =
+    (== (SlotId 0 0)) . maybe (SlotId 0 0) slotId . blockHeadersTip
+
 -- | Add recently fetched block headers to the unstable blocks. This will drop
 -- the oldest block headers to ensure that there are at most /k/ items in the
 -- sequence.
 appendBlockHeaders
-    :: Word32
+    :: Quantity "block" Word32
     -- ^ Maximum length of sequence.
     -> BlockHeaders
     -- ^ Current unstable block headers, with rolled back blocks removed.
     -> [(Hash "BlockHeader", BlockHeader, Quantity "block" Word32)]
     -- ^ Newly fetched block headers to add.
     -> BlockHeaders
-appendBlockHeaders k (BlockHeaders ubs h) bs =
+appendBlockHeaders (Quantity k) (BlockHeaders ubs h) bs =
     BlockHeaders (ubs `appendBounded` more) h'
   where
     more = Seq.fromList [(a, b) | (a, b, _) <- bs]
@@ -217,11 +233,60 @@ appendBlockHeaders k (BlockHeaders ubs h) bs =
         where excess = max 0 (Seq.length a + Seq.length b - fromIntegral k)
 
 -- | Remove unstable blocks which have a slot greater than or equal to the given
--- block header's slot.
-dropStartingFromSlot :: BlockHeader -> BlockHeaders -> BlockHeaders
-dropStartingFromSlot bh (BlockHeaders bs (Quantity h)) =
+-- slot.
+dropStartingFromSlotId :: SlotId -> BlockHeaders -> BlockHeaders
+dropStartingFromSlotId sl (BlockHeaders bs (Quantity h)) =
     BlockHeaders bs' (Quantity h')
   where
-    isAfter = (>= slotId bh) . slotId . snd
+    isAfter = (>= sl) . slotId . snd
     bs' = Seq.dropWhileR isAfter bs
     h' = h + fromIntegral (max 0 $ Seq.length bs' - Seq.length bs)
+
+-- | Drop any headers that are (strictly) after the given slot id.
+dropAfterSlotId :: SlotId -> BlockHeaders -> BlockHeaders
+dropAfterSlotId sl (BlockHeaders bs (Quantity h)) =
+    BlockHeaders bs' (Quantity h')
+  where
+    isAfter = (> sl) . slotId . snd
+    bs' = Seq.dropWhileR isAfter bs
+    h' = h + fromIntegral (max 0 $ Seq.length bs' - Seq.length bs)
+
+takeUntilSlotId :: SlotId -> BlockHeaders -> BlockHeaders
+takeUntilSlotId sl (BlockHeaders bs (Quantity h)) =
+    BlockHeaders bs' (Quantity h')
+  where
+    isBefore = (< sl) . slotId . snd
+    bs' = Seq.dropWhileL isBefore bs
+    h' = h + fromIntegral (max 0 $ Seq.length bs' - Seq.length bs)
+
+-- | If the two sequences overlap in terms of slots, return the block header of
+-- the last block that is common between the two. Otherwise return Nothing.
+--
+-- For example:
+-- @
+--        | (1)         | (2)         | (3)         | (4)         | (5)
+-- Node   | abcdefg     |     efg     | abcdefg     | abcde       | abc
+-- Local  |   cdpqrst   | abc         | abcdefg     |             |     efg
+-- GCBH   | Just d      | Nothing     | Just g      | Nothing     | Nothing
+-- @
+greatestCommonBlockHeader
+    :: BlockHeaders
+    -- ^ Node's unstable blocks
+    -> BlockHeaders
+    -- ^ Local wallet unstable blocks
+    -> Maybe BlockHeader
+greatestCommonBlockHeader ubs lbs = case (minSlot, maxSlot) of
+    (Just start, Just end) -> let
+          (BlockHeaders ubs' _) = trimRange start end ubs
+          (BlockHeaders lbs' _) = trimRange start end lbs
+          pairs = Seq.zip ubs' lbs'
+        in case Seq.dropWhileR (uncurry (/=)) pairs of
+               _same :|> ((_, bh), _) -> Just bh
+               Empty -> Nothing
+    _ -> Nothing
+  where
+    trimRange start end = takeUntilSlotId start . dropAfterSlotId end
+    minSlot = max (baseSlot ubs) (baseSlot lbs)
+    maxSlot = min (tipSlot ubs) (tipSlot lbs)
+    tipSlot = fmap slotId . blockHeadersTip
+    baseSlot = fmap slotId . blockHeadersBase

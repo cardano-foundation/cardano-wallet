@@ -73,6 +73,7 @@ library
   exposed-modules:
       Cardano.Wallet.Jormungandr
       Cardano.Wallet.Jormungandr.Api
+      Cardano.Wallet.Jormungandr.Api.Client
       Cardano.Wallet.Jormungandr.Binary
       Cardano.Wallet.Jormungandr.BlockHeaders
       Cardano.Wallet.Jormungandr.Compatibility
@@ -130,15 +131,18 @@ test-suite unit
     , aeson-qq
     , binary
     , bytestring
-    , cardano-wallet-core
     , cardano-crypto
+    , cardano-wallet-core
     , cardano-wallet-jormungandr
     , containers
     , directory
+    , fmt
     , generic-arbitrary
     , generic-lens
     , hspec
+    , lifted-base
     , memory
+    , monad-control
     , QuickCheck
     , safe
     , text
@@ -159,6 +163,7 @@ test-suite unit
       Cardano.Wallet.Jormungandr.BlockHeadersSpec
       Cardano.Wallet.Jormungandr.CompatibilitySpec
       Cardano.Wallet.Jormungandr.EnvironmentSpec
+      Cardano.Wallet.Jormungandr.NetworkSpec
       Cardano.Wallet.Jormungandr.TransactionSpec
       Cardano.Wallet.TransactionSpecShared
 
@@ -176,10 +181,11 @@ test-suite integration
     ghc-options:
       -Werror
   build-depends:
-      aeson
+      base
+    , QuickCheck
+    , aeson
     , aeson-qq
     , async
-    , base
     , binary
     , bytestring
     , cardano-wallet-cli
@@ -204,11 +210,13 @@ test-suite integration
     , http-client
     , http-types
     , iohk-monitoring
+    , lifted-base
     , memory
+    , monad-control
     , persistent
     , process
-    , QuickCheck
     , retry
+    , safe
     , servant
     , template-haskell
     , temporary
