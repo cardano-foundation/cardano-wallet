@@ -5,6 +5,8 @@
 , iohkLib ? import ./nix/iohk-common.nix { inherit system crossSystem config; }
 # Use pinned Nixpkgs with Haskell.nix overlay
 , pkgs ? import ./nix/nixpkgs-haskell.nix  { inherit system crossSystem config; }
+# Use this git revision for stamping executables
+, gitrev ? iohkLib.commitIdFromGitRepo ./.
 }:
 
 with import ./nix/util.nix { inherit pkgs; };
@@ -19,15 +21,16 @@ let
     inherit pkgs src jmPkgs;
   };
 
-  inherit (haskellPackages.cardano-wallet-core.identifier) version;
 in {
-  inherit pkgs iohkLib src haskellPackages version;
+  inherit pkgs iohkLib src haskellPackages;
   inherit jormungandr jormungandr-cli;
+  inherit (haskellPackages.cardano-wallet-core.identifier) version;
 
   cardano-wallet-jormungandr = import ./nix/package-jormungandr.nix {
     inherit (haskellPackages.cardano-wallet-jormungandr.components.exes)
       cardano-wallet-jormungandr;
-    inherit pkgs jmPkgs version;
+    inherit pkgs jmPkgs gitrev;
+    haskellBuildUtils = iohkLib.haskellBuildUtils.package;
   };
 
   tests = collectComponents "tests" isCardanoWallet haskellPackages;
@@ -36,13 +39,13 @@ in {
   shell = haskellPackages.shellFor {
     name = "cardano-wallet-shell";
     packages = ps: with ps; [
+      bech32
       cardano-wallet-cli
-      cardano-wallet-launcher
       cardano-wallet-core
       cardano-wallet-core-integration
       cardano-wallet-jormungandr
+      cardano-wallet-launcher
       cardano-wallet-test-utils
-      bech32
       text-class
     ];
     buildInputs = (with pkgs.haskellPackages; [ stylish-haskell weeder ghcid ])

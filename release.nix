@@ -2,7 +2,10 @@
 , supportedCrossSystems ? [ "x86_64-linux" ]
 , scrubJobs ? true
 , cardano-wallet ? { outPath = ./.; rev = "abcdef"; }
-, projectArgs ? { config = { allowUnfree = false; inHydra = true; }; }
+, projectArgs ? {
+    config = { allowUnfree = false; inHydra = true; };
+    gitrev = cardano-wallet.rev;
+  }
 }:
 
 with (import ./nix/release-lib.nix) {
@@ -23,6 +26,7 @@ let
   jobs = {
     native = mapTestOn (packagePlatforms project);
     "${mingwW64.config}" = mapTestOnCross mingwW64 (packagePlatformsCross project);
+    musl64 = mapTestOnCross musl64 (packagePlatformsCross project);
   }
   // {
     # This aggregate job is what IOHK Hydra uses to update
@@ -35,8 +39,17 @@ let
         jobs.x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-linux
         jobs.native.shell.x86_64-linux
         jobs.native.shell.x86_64-darwin
+        jobs.cardano-wallet-jormungandr-win64
+        jobs.cardano-wallet-jormungandr-macos64
       ]
     );
+
+    # These derivations are used for the Daedalus installer.
+    daedalus-jormungandr = with jobs; {
+      linux = native.cardano-wallet-jormungandr.x86_64-linux;
+      macos = native.cardano-wallet-jormungandr.x86_64-darwin;
+      windows = x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-linux;
+    };
 
     # This is used for testing the build on windows.
     cardano-wallet-jormungandr-win64 = import ./nix/windows-release.nix {
@@ -46,12 +59,36 @@ let
       benchmarks = collectTests jobs.x86_64-pc-mingw32.benchmarks;
     };
 
-    # These derivations are used for the Daedalus installer.
-    daedalus-jormungandr = with jobs; {
-      linux = native.cardano-wallet-jormungandr.x86_64-linux;
-      macos = native.cardano-wallet-jormungandr.x86_64-darwin;
-      windows = x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-linux;
-    };
+    cardano-wallet-jormungandr-linux64 = let
+      name = "cardano-wallet-jormungandr-${project.version}";
+      tarname = "${name}-linux64.tar.gz";
+    in pkgs.runCommand "${name}-linux64" {
+      buildInputs = with pkgs.buildPackages; [ gnutar gzip binutils ];
+    } ''
+      cp -R ${jobs.musl64.cardano-wallet-jormungandr.x86_64-linux}/bin ${name}
+      chmod -R 755 ${name}
+      strip ${name}/*
+
+      mkdir -p $out/nix-support
+      tar -czf $out/${tarname} ${name}
+      echo "file binary-dist $out/${tarname}" > $out/nix-support/hydra-build-products
+    '';
+
+    # macOS binary and dependencies in tarball
+    cardano-wallet-jormungandr-macos64 = let
+      name = "cardano-wallet-jormungandr-${project.version}";
+      tarname = "${name}-macos64.tar.gz";
+    in pkgs.runCommand "${name}-macos64" {
+      buildInputs = with pkgs.buildPackages; [ gnutar gzip binutils nix ];
+    } ''
+      cp -R ${jobs.native.cardano-wallet-jormungandr.x86_64-darwin}/bin ${name}
+      chmod -R 755 ${name}
+
+      mkdir -p $out/nix-support
+      tar -czf $out/${tarname} ${name}
+      echo "file binary-dist $out/${tarname}" > $out/nix-support/hydra-build-products
+    '';
+
   }
   # Build the shell derivation in Hydra so that all its dependencies
   # are cached.

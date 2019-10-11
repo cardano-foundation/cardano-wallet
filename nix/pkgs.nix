@@ -87,6 +87,37 @@ let
         # Katip has Win32 (>=2.3 && <2.6) constraint
         packages.katip.doExactConfig = true;
       }
+
+      # Musl libc fully static build
+      (with pkgs.stdenv; let
+        gplWallet = true; # fixme
+        staticLibs = [ zlib openssl libffi ] ++ lib.optional gplWallet gmp6;
+        gmp6 = pkgs.gmp6.override { withStatic = true; };
+        zlib = pkgs.zlib.static;
+        openssl = (pkgs.openssl.override { static = true; }).out;
+        libffi = pkgs.libffi.overrideAttrs (oldAttrs: {
+          dontDisableStatic = true;
+          configureFlags = (oldAttrs.configureFlags or []) ++ [
+                    "--enable-static"
+                    "--disable-shared"
+          ];
+        });
+      in {
+        # Use a non-GMP compiler, for software licensing reasons.
+        ghc.package = lib.mkIf (hostPlatform.isMusl && !gplWallet)
+            pkgs.buildPackages.haskell.compiler.integer-simple.${compiler};
+
+        # Add GHC flags and libraries for fully static build
+        packages.cardano-wallet-jormungandr.components.exes.cardano-wallet-jormungandr = {
+          configureFlags =
+             lib.optionals hostPlatform.isMusl ([
+               "--disable-executable-dynamic"
+               "--disable-shared"
+               "--ghc-option=-optl=-pthread"
+               "--ghc-option=-optl=-static"
+             ] ++ map (drv: "--ghc-option=-optl=-L${drv}/lib") staticLibs);
+        };
+      })
     ];
     pkg-def-extras = [
       # Workaround for https://github.com/input-output-hk/haskell.nix/issues/214
