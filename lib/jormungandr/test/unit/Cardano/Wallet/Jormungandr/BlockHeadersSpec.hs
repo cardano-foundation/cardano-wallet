@@ -70,6 +70,10 @@ import qualified Data.Set as Set
 
 spec :: Spec
 spec = do
+    describe "Test Chain" $ do
+        it "Always generate valid test chains" $
+            property prop_generator
+
     describe "Unstable block headers" $ do
         it "Are updated by fetching blocks"
             $ withMaxSuccess 10000
@@ -336,6 +340,19 @@ prop_greatestCommonBlockHeader TestCase{..} =
 {-------------------------------------------------------------------------------
                               Test data generation
 -------------------------------------------------------------------------------}
+
+prop_generator :: TestCase -> Property
+prop_generator TestCase {..} = valid nodeChain .&&. valid localChain
+  where
+    valid c = continuous c .&&. slotsIncreasing c
+
+    continuous c =
+        counterexample ("Chain not continuous: " <> showChain c) $
+        and (zipWith (==) (map headerHash c) (map parentHeaderHash (drop 1 c)))
+
+    slotsIncreasing c = counterexample ("Slots not increasing: " ++ showChain c) $
+        let sls = map slotId c
+        in and (zipWith (<) sls (drop 1 sls))
 
 -- | Generate an infinite test chain. Take a slice of the list and use 'tipId'
 -- and 'headerIds' to access the tip and block headers. The tip of a test chain
