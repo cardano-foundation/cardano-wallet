@@ -84,7 +84,7 @@ import Test.QuickCheck
     , (===)
     )
 import Test.QuickCheck.Monadic
-    ( assert, monadicIO, monitor, run )
+    ( assert, monadicIO, monitor, pick, run )
 
 import qualified Cardano.Wallet.Jormungandr.Binary as J
 import qualified Data.ByteString.Char8 as B8
@@ -102,46 +102,48 @@ spec = do
 
     describe "Chain sync" $ do
         it "Regression #1" $
-            withMaxSuccess 1 $ prop_sync regression1
+            withMaxSuccess 1 $ prop_sync regression1 0
 
         it "Regression #2" $
-            withMaxSuccess 1 $ prop_sync regression2
+            withMaxSuccess 1 $ prop_sync regression2 0
 
         it "Regression #3" $
-            withMaxSuccess 1 $ prop_sync regression3
+            withMaxSuccess 1 $ prop_sync regression3 0
 
         it "Regression #4" $
-            withMaxSuccess 1 $ prop_sync regression4
+            withMaxSuccess 1 $ prop_sync regression4 0
 
         it "Regression #5" $
-            withMaxSuccess 1 $ prop_sync regression5
+            withMaxSuccess 1 $ prop_sync regression5 0
 
         it "Syncs with mock node" $
-            withMaxSuccess 100000 prop_sync
+            withMaxSuccess 10000 prop_sync
 
 {-------------------------------------------------------------------------------
                 Syncing of network layer in presence of rollback
                           and concurrent node updates.
 -------------------------------------------------------------------------------}
 
-prop_sync :: S -> Property
-prop_sync s0 = monadicIO $ do
+prop_sync :: S -> Int -> Property
+prop_sync s0 nCps = monadicIO $ do
     let logLineC msg = logLine $ "[CONSUMER] " <> msg
 
+    -- Run a model chain consumer on the mock network layer.
+    (c0Chain, c0Cps) <- pick $ genConsumer s0 nCps
     (consumer, s) <- run $ flip runStateT s0 $ do
         -- Set up network layer with mock Jormungandr
         nl <- mockNetworkLayer logLine
-        -- Run a model chain consumer on the mock network layer.
-        let initialConsumer = C [] (initCursor nl [])
-        consumerRestoreStep logLineC nl initialConsumer Nothing
-    let nodeChain = getNodeChain (node s)
+        consumerRestoreStep logLineC nl (C c0Chain (initCursor nl c0Cps)) Nothing
 
+    let nodeChain = getNodeChain (node s)
     monitor $ counterexample $ unlines
-        [ "Initial chain:   " <> showChain (getNodeChain $ node s0)
-        , "Applied blocks:  " <> showChain (consumerApplied consumer)
-        , "Node chain:      " <> showChain nodeChain
-        , "k =              " <> show (mockNodeK s0)
-        , "Logs:          \n" <> unlines (reverse (logs s))
+        [ "Initial consumer chain: " <> showChain c0Chain
+        , "Initial consumer cps:   " <> showCheckpoints c0Cps
+        , "Initial node chain:     " <> showChain (getNodeChain $ node s0)
+        , "Applied blocks:         " <> showChain (consumerApplied consumer)
+        , "Node chain:             " <> showChain nodeChain
+        , "k =                     " <> show (mockNodeK s0)
+        , "Logs:                 \n" <> unlines (reverse (logs s))
         ]
     monitor (classify (initialChainLength (const ( == 0))) "started with an empty chain")
     monitor (classify (initialChainLength (\k -> (> k))) "started with more than k blocks")
@@ -151,6 +153,7 @@ prop_sync s0 = monadicIO $ do
     monitor (classify (switchChain (>)) "switched to a shorter chain")
     monitor (classify (switchChain (const (== 0))) "rewinded without switch")
     monitor (classify (recoveredFromGenesis s) "recovered from genesis")
+    monitor (classify (startedFromScratch c0Cps) "started from scratch")
 
     -- Consumer chain should (eventually) be in sync with node chain.
     assert (consumerApplied consumer == nodeChain || null nodeChain)
@@ -193,17 +196,14 @@ prop_sync s0 = monadicIO $ do
     recoveredFromGenesis s =
         "[CONSUMER] Recover" `elem` logs s
 
+    startedFromScratch :: [BlockHeader] -> Bool
+    startedFromScratch = null
+
 showChain :: [MockBlock] -> String
 showChain [] = "∅"
-showChain chain = unwords . map showSlot . addGaps $ chain
+showChain chain = unwords . map showSlot . addGaps mockBlockSlot $ chain
   where
     showSlot = maybe "_" (showHash . mockBlockId)
-    addGaps [] = []
-    addGaps [b] = [Just b]
-    addGaps (b1:b2:bs) = [Just b1] ++ replicate gap Nothing ++ addGaps (b2:bs)
-      where
-        gap = slotNum b2 - slotNum b1 - 1
-        slotNum = fromIntegral . slotNumber . mockBlockSlot
 
 showBlock :: MockBlock -> String
 showBlock (MockBlock ownId parentId sl) = mconcat $
@@ -220,6 +220,21 @@ showBlock (MockBlock ownId parentId sl) = mconcat $
         [ "->"
         , B8.unpack (getHash parentId)
         ]
+
+showCheckpoints :: [BlockHeader] -> String
+showCheckpoints [] = "∅"
+showCheckpoints chain = unwords . map showHeader . addGaps slotId $ chain
+  where
+    showHeader = maybe "_" (showHash . headerHash)
+
+addGaps :: (a -> SlotId) -> [a] -> [Maybe a]
+addGaps _ []  = []
+addGaps _ [b] = [Just b]
+addGaps getSlot (b1:b2:bs) =
+    [Just b1] ++ replicate gap Nothing ++ addGaps getSlot (b2:bs)
+  where
+    gap = slotNum b2 - slotNum b1 - 1
+    slotNum = fromIntegral . slotNumber . getSlot
 
 -- | Test Genesis block
 block0 :: J.Block
@@ -242,7 +257,8 @@ parentGenesisHash = Hash "void"
 data Consumer = C
     { consumerApplied :: [MockBlock]
     -- ^ Blocks which have been received.
-    , _consumerCursor :: Cursor (Jormungandr 'Testnet)
+    --
+    , consumerCursor :: Cursor (Jormungandr 'Testnet)
     -- ^ Consumer state -- the cursor given by network layer.
     }
 
@@ -547,22 +563,6 @@ removeNoOp = filter isUseful
     isUseful (NodeGarbageCollect []) = False
     isUseful _ = True
 
-genBlocksWith :: Node -> [Bool] -> Int -> [MockBlock]
-genBlocksWith n empty count =
-    let
-        tip = getNodeTip n
-        tipSlot = maybe (-1) (fromIntegral . slotNumber . mockBlockSlot) tip
-        slots =
-            [ SlotId 0 (fromIntegral $ tipSlot + i)
-            | (i, gap) <- zip [1..count] empty, tipSlot + i == 0 || not gap
-            ]
-        bids = map mockBlockHash [nodeNextBlockId n..]
-        prevs = maybe genesisHash mockBlockId tip : bids
-    in
-        [ MockBlock bid prev slot
-        | (bid, prev, slot) <- zip3 bids prevs slots
-        ]
-
 instance Arbitrary S where
     arbitrary = do
         mockNodeK@(Quantity k) <- arbitrary
@@ -576,61 +576,6 @@ instance Arbitrary S where
         operations <- genNodeOps mockNodeK targetChainLength node
         let logs = []
         pure $ S{..}
-      where
-        -- Repeatedly generate operations then update state.
-        -- The state is used so that only valid operations are generated.
-        -- Stops generating ops once a target chain length is reached.
-        genNodeOps :: Quantity "block" Word32 -> Int -> Node -> Gen [[NodeOp]]
-        genNodeOps _ 0 _ = pure mempty
-        genNodeOps k chainLength initialNode = go initialNode []
-          where
-            go n ac = do
-                op <- genNodeOp k n
-                let n' = applyNodeOps op n
-                if length (nodeChainIds n') > chainLength
-                    then pure $ reverse (op:ac)
-                    else go n' (op:ac)
-
-        -- Given a node state generate a valid mutation.
-        genNodeOp :: Quantity "block" Word32 -> Node -> Gen [NodeOp]
-        genNodeOp (Quantity k) n = removeNoOp <$> frequency
-                [ (50, pure [])
-                , (35, pure . NodeAddBlocks <$> genBlocks n)
-                , (10, genSwitchChain (fromIntegral k) n)
-                , (5, pure . NodeGarbageCollect <$> genGC n)
-                ]
-
-        -- Generate a new contiguous batch of blocks
-        genBlocks :: Node -> Gen [MockBlock]
-        genBlocks n = do
-            count <- sized $ \s -> choose (1, s)
-            gaps <- genGaps count
-            pure $ genBlocksWith n gaps count
-
-        -- Switching chain is rewinding then adopting the blocks from a fork.
-        genSwitchChain :: Int -> Node -> Gen [NodeOp]
-        genSwitchChain k n = do
-            rewind <- genRewind (fromIntegral k) n
-            gaps <- genGaps (2 * rewind)
-            chainLength <- choose (0, 2*rewind)
-            let bs = genBlocksWith (nodeRewind rewind n) gaps chainLength
-            pure [NodeRewind rewind, NodeAddBlocks bs]
-
-        -- Rewinds are usually small to allow the node to make progress, so that
-        -- the test can stop. Sometimes the full k is rolled back.
-        genRewind :: Int -> Node -> Gen Int
-        genRewind k (N _ ch _) = frequency
-            [ (80, choose (1, min k 3))
-            , (15, choose (1, (min k (length ch `div` 3))))
-            , (5, min (length ch) <$> choose ((k - 1), k))
-            ]
-
-        genGC :: Node -> Gen [Hash "BlockHeader"]
-        genGC (N db ch _) = sublistOf (Map.keys db \\ ch)
-
-        genGaps :: Int -> Gen [Bool]
-        genGaps count = do
-            vectorOf count $ frequency [(1, pure True), (4, pure False)]
 
     shrink (S n ops k logs) = nub
         [ S n (filter (not . null) (removeNoOp <$> ops')) k logs
@@ -662,6 +607,93 @@ instance Arbitrary (Quantity "block" Word32) where
         | k' <- shrink (fromIntegral k :: Int)
         , k' >= 2
         ]
+
+-- Repeatedly generate operations then update state.
+-- The state is used so that only valid operations are generated.
+-- Stops generating ops once a target chain length is reached.
+genNodeOps :: Quantity "block" Word32 -> Int -> Node -> Gen [[NodeOp]]
+genNodeOps _ 0 _ = pure mempty
+genNodeOps k chainLength initialNode = go initialNode []
+  where
+    go n ac = do
+        op <- genNodeOp k n
+        let n' = applyNodeOps op n
+        if length (nodeChainIds n') > chainLength
+            then pure $ reverse (op:ac)
+            else go n' (op:ac)
+
+-- Given a node state generate a valid mutation.
+genNodeOp :: Quantity "block" Word32 -> Node -> Gen [NodeOp]
+genNodeOp (Quantity k) n = removeNoOp <$> frequency
+        [ (50, pure [])
+        , (35, pure . NodeAddBlocks <$> genBlocks n)
+        , (10, genSwitchChain (fromIntegral k) n)
+        , (5, pure . NodeGarbageCollect <$> genGC n)
+        ]
+
+-- Generate a new contiguous batch of blocks
+genBlocks :: Node -> Gen [MockBlock]
+genBlocks n = do
+    count <- sized $ \s -> choose (1, s)
+    gaps <- genGaps count
+    pure $ genBlocksWith n gaps count
+
+genBlocksWith :: Node -> [Bool] -> Int -> [MockBlock]
+genBlocksWith n empty count =
+    let
+        tip = getNodeTip n
+        tipSlot = maybe (-1) (fromIntegral . slotNumber . mockBlockSlot) tip
+        slots =
+            [ SlotId 0 (fromIntegral $ tipSlot + i)
+            | (i, gap) <- zip [1..count] empty, tipSlot + i == 0 || not gap
+            ]
+        bids = map mockBlockHash [nodeNextBlockId n..]
+        prevs = maybe genesisHash mockBlockId tip : bids
+    in
+        [ MockBlock bid prev slot
+        | (bid, prev, slot) <- zip3 bids prevs slots
+        ]
+
+-- Switching chain is rewinding then adopting the blocks from a fork.
+genSwitchChain :: Int -> Node -> Gen [NodeOp]
+genSwitchChain k n = do
+    rewind <- genRewind (fromIntegral k) n
+    gaps <- genGaps (2 * rewind)
+    chainLength <- choose (0, 2*rewind)
+    let bs = genBlocksWith (nodeRewind rewind n) gaps chainLength
+    pure [NodeRewind rewind, NodeAddBlocks bs]
+
+-- Rewinds are usually small to allow the node to make progress, so that
+-- the test can stop. Sometimes the full k is rolled back.
+genRewind :: Int -> Node -> Gen Int
+genRewind k (N _ ch _) = frequency
+    [ (80, choose (1, min k 3))
+    , (15, choose (1, (min k (length ch `div` 3))))
+    , (5, min (length ch) <$> choose ((k - 1), k))
+    ]
+
+genGC :: Node -> Gen [Hash "BlockHeader"]
+genGC (N db ch _) = sublistOf (Map.keys db \\ ch)
+
+genGaps :: Int -> Gen [Bool]
+genGaps count = do
+    vectorOf count $ frequency [(1, pure True), (4, pure False)]
+
+genConsumer :: S -> Int -> Gen ([MockBlock], [BlockHeader])
+genConsumer s nCps = do
+    n <- choose (0, max 0 nCps)
+    let chain = take n (getNodeChain (node s))
+    cps <- genCheckpoints chain
+    pure (chain, cps)
+
+genCheckpoints :: [MockBlock] -> Gen [BlockHeader]
+genCheckpoints blks = do
+    gaps <- (\gaps -> gaps ++ [True]) <$> genGaps (length blks - 1)
+    pure [ mkBlockHeader b | (b, keep) <- zip blks gaps, keep ]
+  where
+    mkBlockHeader :: MockBlock -> BlockHeader
+    mkBlockHeader (MockBlock hh ph sl) =
+        BlockHeader sl (Quantity 0) hh ph
 
 mockBlockHash :: Int -> Hash "BlockHeader"
 mockBlockHash num = Hash $ fmt $ padLeftF 4 '0' $ hexF num
