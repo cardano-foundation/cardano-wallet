@@ -141,7 +141,8 @@ prop_sync s0 = monadicIO $ do
     let nodeChain = drop 1 (getNodeChain (node s))
 
     monitor $ counterexample $ unlines
-        [ "Applied blocks:  " <> showChain (consumerApplied consumer)
+        [ "Initial chain:   " <> showChain (getNodeChain $ node s0)
+        , "Applied blocks:  " <> showChain (consumerApplied consumer)
         , "Node chain:      " <> showChain nodeChain
         , "k =              " <> show (mockNodeK s0)
         , "Logs:          \n" <> unlines (reverse (logs s))
