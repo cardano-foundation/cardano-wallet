@@ -95,6 +95,8 @@ module Test.Integration.Framework.DSL
 
     -- * Endpoints
     , postByronWalletEp
+    , migrateByronWalletEp
+    , estimateByronWalletEp
     , getByronWalletEp
     , listByronWalletEp
     , deleteByronWalletEp
@@ -1015,6 +1017,18 @@ listByronWalletEp :: (Method, Text)
 listByronWalletEp =
     ( "GET"
     , "v2/byron/wallets"
+    )
+
+migrateByronWalletEp :: ApiByronWallet -> ApiWallet -> (Method, Text)
+migrateByronWalletEp wSrc wDest =
+    ( "POST"
+    , "v2/byron/wallets/" <> wSrc ^. walletId <> "/migrate/" <> wDest ^. walletId
+    )
+
+estimateByronWalletEp :: ApiByronWallet -> (Method, Text)
+estimateByronWalletEp w =
+    ( "GET"
+    , "v2/byron/wallets/" <> w ^. walletId <> "/migrate"
     )
 
 getByronWalletEp :: ApiByronWallet -> (Method, Text)
