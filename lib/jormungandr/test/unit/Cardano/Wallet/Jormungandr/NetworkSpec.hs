@@ -497,11 +497,14 @@ shiftOp :: Node -> NodeOp -> (Node, NodeOp)
 shiftOp n = (\op -> (applyNodeOp op n, op)) . \case
     NodeAddBlocks bs ->
         NodeAddBlocks $ genBlocksWith n (repeat False) (length bs)
-    NodeRewind rw ->
-        NodeRewind $ min rw (length $ nodeChainIds n)
+    NodeRewind rw
+        | rw < chainLength -> NodeRewind rw
+        | otherwise -> NodeRewind 0
     NodeGarbageCollect ids ->
         let (ch, db) = (nodeChainIds n, nodeDb n) in
         NodeGarbageCollect $ (ids \\ ch) `intersect` (Map.keys db)
+  where
+    chainLength = length (nodeChainIds n)
 
 ----------------------------------------------------------------------------
 -- Mock block
@@ -668,9 +671,11 @@ genSwitchChain k n = do
 genRewind :: Int -> Node -> Gen Int
 genRewind k (N _ ch _) = frequency
     [ (80, choose (1, min k 3))
-    , (15, choose (1, (min k (length ch `div` 3))))
-    , (5, min (length ch) <$> choose ((k - 1), k))
+    , (15, choose (1, (min k (rMax `div` 3))))
+    , (5, min rMax <$> choose ((k - 1), k))
     ]
+  where
+    rMax = length ch - 1
 
 genGC :: Node -> Gen [Hash "BlockHeader"]
 genGC (N db ch _) = sublistOf (Map.keys db \\ ch)
