@@ -156,9 +156,10 @@ spec = do
             resp <- retrying once
                 (\_ x -> return $ fmap isRollForward x == Right True)
                 (const try)
-            fmap getRollForward resp `shouldBe` Right (Just [])
+            -- fmap getRollForward resp `shouldBe` Right Nothing
+            resp `shouldBe` Right AwaitReply
 
-        it "returns an error when the block header is unknown" $ \(nw, _) -> do
+        it "initiates recovery when the intersection is unknown" $ \(nw, _) -> do
             -- NOTE There's a very little chance of hash clash here. But,
             -- for what it's worth, I didn't bother retrying.
             bytes <- BS.pack <$> generate (vectorOf 32 arbitrary)
@@ -168,7 +169,7 @@ spec = do
                     , prevBlockHash = Hash bytes
                     }
             resp <- runExceptT $ nextBlocks nw (initCursor nw block)
-            resp `shouldBe` Left (ErrGetBlockNotFound (Hash bytes))
+            resp `shouldBe` Right Recover
 
     describe "Error paths" $ do
         let newBrokenNetworkLayer :: BaseUrl -> IO (NetworkLayer IO (Jormungandr n) ())
