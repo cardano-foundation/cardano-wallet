@@ -199,20 +199,20 @@ mkBlockHeaders h bs =
                               Test chain functions
 -------------------------------------------------------------------------------}
 
--- | Tip of a test chain is the penultimate block.
+-- | Tip of a test chain
 tipId :: [BlockHeader] -> Maybe (Hash "BlockHeader")
-tipId bs = parentHeaderHash <$> lastMay bs
+tipId = fmap headerHash . chainTip
 
--- | A test chain needs at least two headers to have a tip.
+-- | A test chain needs a headers to have a tip.
 hasTip :: [BlockHeader] -> Bool
-hasTip = (> 1) . length
+hasTip = not . null
 
 -- | Length of a test chain, not including the block header after the tip.
 chainLength :: [BlockHeader] -> Int
-chainLength bs = max 0 (length bs - 1)
+chainLength = length
 
 chainTip :: [BlockHeader] -> Maybe BlockHeader
-chainTip = initMay >=> lastMay
+chainTip = lastMay
 
 -- | Slot index of the tip of a chain.
 chainEnd :: [BlockHeader] -> SlotId
@@ -220,7 +220,7 @@ chainEnd = maybe (SlotId 0 0) slotId . chainTip
 
 -- | Limit the sequence to a certain size by removing items from the beginning.
 limitChain :: Quantity "block" Word32 -> [BlockHeader] -> [BlockHeader]
-limitChain (Quantity k) bs = drop (max 0 (length bs - fromIntegral k - 1)) bs
+limitChain (Quantity k) bs = drop (max 0 (length bs - fromIntegral k)) bs
 
 showChain :: [BlockHeader] -> String
 showChain [] = "<empty chain>"
@@ -348,15 +348,19 @@ prop_greatestCommonBlockHeader TestCase{..} =
 chain :: String -> [BlockHeader]
 chain p =
     [ BlockHeader
-        (SlotId 0 n)
+        (SlotId 0 (fromIntegral n))
         (mockBlockHeight n)
-        (Hash . B8.pack $ p ++ "hh" ++ hash n)
-        (Hash . B8.pack $ p ++ hash n)
-    | n <- [1..]
+        (hash n)
+        (hash (n - 1))
+    | n <- [0..]
     ]
   where
     mockBlockHeight = Quantity . fromIntegral
-    hash n = show (n - 1)
+    hash :: Int -> Hash "BlockHeader"
+    hash n = Hash . B8.pack $ h
+      where
+        h | n < 0 = "genesis"
+          | otherwise = p ++ show n
 
 -- | Filter out test chain blocks that correspond to False values, and update
 -- parent hashes so that the chain is still continuous.
@@ -393,15 +397,14 @@ genChain (Quantity k) prefix = do
 instance Arbitrary TestCase where
     arbitrary = do
         k <- arbitrary
-        let genesis = BlockHeader (SlotId 0 0) bh (Hash "genesis") (Hash "genesis")
         base  <- genChain k "base"
         local <- genChain k "local"
         node  <- genChain k "node"
         let baseTip = chainEnd base
         return TestCase
             { k = k
-            , nodeChain  = [genesis] <> base <> startFrom baseTip node
-            , localChain = [genesis] <> base <> startFrom baseTip local
+            , nodeChain  = base <> startFrom baseTip node
+            , localChain = base <> startFrom baseTip local
             }
       where
         bh = Quantity 0
