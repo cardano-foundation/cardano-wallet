@@ -140,7 +140,7 @@ updateUnstableBlocks
     -> m (Hash "BlockHeader")
     -- ^ Network Tip
     -> (Hash "BlockHeader" -> m BlockHeader)
-    -- ^ Fetches block header and its chain height.
+    -- ^ Fetches block header from its hash
     -> BlockHeaders
     -- ^ Current unstable blocks state.
     -> m BlockHeaders

@@ -2,8 +2,8 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeFamilies #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -100,7 +100,7 @@ data TestCase = TestCase
     } deriving (Show, Eq)
 
 prop_unstableBlockHeaders :: TestCase -> Property
-prop_unstableBlockHeaders TestCase{..} =
+prop_unstableBlockHeaders TestCase{k, nodeChain, localChain} =
     counterexample ce prop
   where
     prop
@@ -140,7 +140,7 @@ prop_unstableBlockHeaders TestCase{..} =
 -- | 'updateUnstableBlocks' should not fetch blocks that it already has headers
 -- for.
 prop_updateUnstableBlocksIsEfficient :: TestCase -> Property
-prop_updateUnstableBlocksIsEfficient TestCase{..} =
+prop_updateUnstableBlocksIsEfficient TestCase{k, nodeChain, localChain} =
     counterexample ce prop
   where
     prop = Set.size (Set.intersection localHashes fetchedHashes) <= 1
@@ -163,7 +163,7 @@ prop_updateUnstableBlocksIsEfficient TestCase{..} =
         getBlockHeader h = tell [h] *> lift (find ((== h) . headerHash) nodeChain)
 
 prop_updateUnstableBlocksFailure :: TestCase -> Property
-prop_updateUnstableBlocksFailure TestCase{..} =
+prop_updateUnstableBlocksFailure TestCase{k, nodeChain, localChain} =
     label lbl prop
   where
     prop
@@ -303,7 +303,7 @@ takeToSlot sl = takeWhile ((< sl) . slotId)
 -------------------------------------------------------------------------------}
 
 prop_greatestCommonBlockHeader :: TestCase -> Property
-prop_greatestCommonBlockHeader TestCase{..} =
+prop_greatestCommonBlockHeader TestCase{nodeChain, localChain} =
     counterexample ce prop
   where
     prop = case gcbh of
@@ -342,7 +342,8 @@ prop_greatestCommonBlockHeader TestCase{..} =
 -------------------------------------------------------------------------------}
 
 prop_generator :: TestCase -> Property
-prop_generator TestCase {..} = valid nodeChain .&&. valid localChain
+prop_generator TestCase{nodeChain, localChain} =
+    valid nodeChain .&&. valid localChain
   where
     valid c = continuous c .&&. slotsIncreasing c
 
@@ -364,12 +365,12 @@ chain p hash0 =
         (mockBlockHeight n)
         (hash n)
         (hash (n - 1))
-    | n <- [0..]
+    | n <- [1..]
     ]
   where
     mockBlockHeight = Quantity . fromIntegral
     hash :: Int -> Hash "BlockHeader"
-    hash n = if n < 0 then hash0 else Hash . B8.pack $ p ++ show n
+    hash n = if n == 0 then hash0 else Hash . B8.pack $ p ++ show n
 
 -- | Filter out test chain blocks that correspond to False values, and update
 -- parent hashes so that the chain is still continuous.
@@ -407,23 +408,25 @@ genChain (Quantity k) prefix hash0 = do
 instance Arbitrary TestCase where
     arbitrary = do
         k <- arbitrary
-        base  <- genChain k "base" (Hash "genesis")
-        let baseHash = maybe (Hash "genesis") headerHash $ chainTip base
-        local <- genChain k "local" baseHash
-        node  <- genChain k "node" baseHash
+        let genesis = BlockHeader (SlotId 0 0) (Quantity 0) (Hash "genesis") (Hash "void")
+        base  <- genChain k "base" (headerHash genesis)
+        let nextHash = maybe (headerHash genesis) headerHash (chainTip base)
+        local <- genChain k "local" nextHash
+        node  <- genChain k "node" nextHash
+        let baseTip = chainEnd base
         return TestCase
             { k = k
-            , nodeChain  = base <> startFrom (length base) node
-            , localChain = base <> startFrom (length base) local
+            , nodeChain  = [genesis] <> base <> startFrom baseTip node
+            , localChain = [genesis] <> base <> startFrom baseTip local
             }
       where
-        bh = Quantity 0
-        startFrom n xs =
-            [ BlockHeader (SlotId 0 (sl+fromIntegral n)) bh hh prev
-            | BlockHeader (SlotId _ sl) _ hh prev <- xs
+        startFrom (SlotId ep n) xs =
+            [ BlockHeader (SlotId ep (sl+fromIntegral n)) bh' hh prev
+            | BlockHeader (SlotId _ sl) (Quantity bh) hh prev <- xs
+            , let bh' = Quantity (bh+fromIntegral n+1)
             ]
 
-    shrink TestCase{..} =
+    shrink TestCase{k, nodeChain, localChain} =
         [ TestCase k' (take n nodeChain) (take l localChain)
         | (k', n, l) <- shrink (k, length nodeChain, length localChain)
         ]
