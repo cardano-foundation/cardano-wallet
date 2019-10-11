@@ -119,7 +119,7 @@ import Data.Typeable
 import Data.Word
     ( Word64 )
 import Fmt
-    ( commaizeF, padLeftF, padRightF, pretty, (+|), (|+) )
+    ( build, padLeftF, padRightF, pretty, (+|), (|+) )
 import System.Directory
     ( doesFileExist, getFileSize, removeFile )
 import System.FilePath
@@ -146,6 +146,7 @@ main = do
         ]
     putStrLn "\n--"
     utxoDiskSpaceTests
+    txHistoryDiskSpaceTests
 
 ----------------------------------------------------------------------------
 -- UTxO Benchmarks
@@ -273,7 +274,8 @@ bgroupWriteTxHistory db = bgroup "TxHistory (Write)"
     , bTxHistory          1       10000       10       10   [1..10000]
     , bTxHistory          1          50       50      100     [1..100]
     , bTxHistory          1         100       50      100     [1..100]
-    , bTxHistory          1         200       50      100     [1..100]
+    , bTxHistory          1        1000       50      100     [1..100]
+    , bTxHistory          1       10000       50      100     [1..100]
     ]
   where
     bTxHistory n s i o r =
@@ -495,9 +497,29 @@ utxoDiskSpaceTests = do
         ]
   where
     bUTxO n s = benchDiskSize $ \db -> do
-        putStrLn ("File size (bytes)/"+|n|+" CP x "+|s|+" UTxO")
+        putStrLn ("File size /"+|n|+" CP x "+|s|+" UTxO")
         walletFixture db
         benchPutUTxO n s db
+
+txHistoryDiskSpaceTests :: IO ()
+txHistoryDiskSpaceTests = do
+    putStrLn "Database disk space usage tests for TxHistory\n"
+    sequence_
+        --       #NTransactions  #NInputs #NOutputs
+        [ bTxs             100         10        20
+        , bTxs            1000         10        20
+        , bTxs           10000         10        20
+        , bTxs          100000         10        20
+        , bTxs             100         50       100
+        , bTxs            1000         50       100
+        , bTxs           10000         50       100
+        , bTxs          100000         50       100
+        ]
+  where
+    bTxs n i o = benchDiskSize $ \db -> do
+        putStrLn ("File size /"+|n|+" w/ "+|i|+"i + "+|o|+"o")
+        walletFixture db
+        benchPutTxHistory 1 n i o [1..100] db
 
 benchDiskSize :: (DBLayerBench -> IO ()) -> IO ()
 benchDiskSize action = bracket setupDB cleanupDB $ \(f, ctx, db) -> do
@@ -513,7 +535,18 @@ benchDiskSize action = bracket setupDB cleanupDB $ \(f, ctx, db) -> do
             False -> pure Nothing
         putStrLn $ "  " +|
             padRightF 28 ' ' (takeFileName f ++ sfx) <>
-            padLeftF 20 ' ' (maybe "-" commaizeF size)
+            padLeftF 20 ' ' (maybe "-" sizeF size)
+
+    sizeF size
+        | size < kb = build size <> " B"
+        | size < mb = build (size `div` kb) <> " KB"
+        | size < gb = build (size `div` mb) <> " MB"
+        | otherwise = build (size `div` gb) <> " GB"
+      where
+        kb = 1024
+        mb = 1024*kb
+        gb = 1024*mb
+
 
 ----------------------------------------------------------------------------
 -- Mock data to use for benchmarks
