@@ -74,7 +74,7 @@ spec :: forall t. (EncodeAddress t, DecodeAddress t) => SpecWith (Context t)
 spec = do
 
     describe "BYRON_ESTIMATE_06 - non-existing wallets" $  do
-        forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
+        forM_ falseWalletIds $ \(desc, walId) -> it desc $ \ctx -> do
             let endpoint = "v2/byron/wallets/" <> T.pack walId <> "/migrate"
             rg <- request @ApiByronWallet ctx ("GET", endpoint) Default Empty
             expectResponseCode @IO HTTP.status404 rg
@@ -87,10 +87,10 @@ spec = do
         expectResponseCode @IO HTTP.status501 r
 
     describe "BYRON_GET_06 - non-existing wallets" $  do
-        forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
+        forM_ falseWalletIds $ \(desc, walId) -> it desc $ \ctx -> do
             let endpoint = "v2/byron/wallets/" <> T.pack walId
             rg <- request @ApiByronWallet ctx ("GET", endpoint) Default Empty
-            if (title == "40 chars hex") then do
+            if (desc == valid40CharHexDesc) then do
                 expectResponseCode @IO HTTP.status501 rg
                 -- expectErrorMessage (errMsg404NoWallet $ T.pack walId) rg
             else do
@@ -109,10 +109,10 @@ spec = do
         expectResponseCode @IO HTTP.status501 r
 
     describe "BYRON_DELETE_04 - non-existing wallets" $  do
-        forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
+        forM_ falseWalletIds $ \(desc, walId) -> it desc $ \ctx -> do
             let endpoint = "v2/byron/wallets/" <> T.pack walId
             rg <- request @ApiByronWallet ctx ("DELETE", endpoint) Default Empty
-            if (title == "40 chars hex") then do
+            if (desc == valid40CharHexDesc) then do
                 expectResponseCode @IO HTTP.status501 rg
                 -- expectErrorMessage (errMsg404NoWallet $ T.pack walId) rg
             else do
@@ -507,3 +507,6 @@ incorrectSizeMnemonics =
         , mnemonics3
         , mnemonics6
         , mnemonics9 ]
+
+valid40CharHexDesc :: String
+valid40CharHexDesc = "40 chars hex"
