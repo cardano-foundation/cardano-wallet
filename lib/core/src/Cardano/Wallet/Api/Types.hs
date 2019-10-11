@@ -188,8 +188,8 @@ data ApiStakePool = ApiStakePool
     } deriving (Eq, Generic, Show)
 
 data StakePoolMetrics = StakePoolMetrics
-    { controlledStake :: !(Quantity "lovelace" Natural)
-    , producedBlocks :: !(Quantity "block" Natural)
+    { controlledStake :: !(Quantity "lovelace" Word64)
+    , producedBlocks :: !(Quantity "block" Word64)
     } deriving (Eq, Generic, Show)
 
 data ApiUtxoStatistics = ApiUtxoStatistics
@@ -298,6 +298,8 @@ data ApiErrorCode
     | StartTimeLaterThanEndTime
     | UnsupportedMediaType
     | UnexpectedError
+    | NotSynced
+    | StakeIsUnreachable
     deriving (Eq, Generic, Show)
 
 -- | Defines a point in time that can be formatted as and parsed from an

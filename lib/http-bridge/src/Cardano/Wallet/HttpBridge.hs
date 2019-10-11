@@ -56,6 +56,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
 import Cardano.Wallet.Primitive.Types
     ( Block )
+import Cardano.Wallet.StakePool.Metrics
+    ( StakePoolLayer (..) )
 import Control.Concurrent.Async
     ( race_ )
 import Data.Function
@@ -125,9 +127,12 @@ serveWallet (cfg, sb, tr) databaseDir listen bridge mAction = do
             let settings = Warp.defaultSettings
                     & setBeforeMainLoop beforeMainLoop
             let ipcServer = daedalusIPC tracerIPC port
-            let apiServer = Server.start settings tracerApi socket api
+            let apiServer = Server.start settings tracerApi socket api spl
             let withAction = maybe id (\cb -> race_ (cb port)) action
             withAction $ race_ ipcServer apiServer
+
+    spl = StakePoolLayer $
+        error "stake pool metrics is unimplemented on http-bridge"
 
     newApiLayer
         :: NetworkLayer IO t (Block Tx)

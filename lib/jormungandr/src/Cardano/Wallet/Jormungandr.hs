@@ -23,6 +23,9 @@
 
 module Cardano.Wallet.Jormungandr
     ( serveWallet
+
+    -- * To be used with ghci
+    , unsafeToSPBlock
     ) where
 
 import Prelude
@@ -90,6 +93,7 @@ import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Cardano.Wallet.Jormungandr.Binary as Binary
+import qualified Cardano.Wallet.StakePool.Metrics as SP
 import qualified Data.Text as T
 import qualified Network.Wai.Handler.Warp as Warp
 
@@ -131,32 +135,15 @@ serveWallet (cfg, sb, tr) databaseDir listen lj beforeMainLoop = do
         -> IO ()
     startServer tracer nPort nl wallet = do
         let (_, bp) = staticBlockchainParameters nl
+        spl <- SP.newStakePoolLayer (unsafeToSPBlock <$> nl) tracer
         Server.withListeningSocket listen $ \(wPort, socket) -> do
             let tracerIPC = appendName "daedalus-ipc" tracer
             let tracerApi = appendName "api" tracer
             let settings = Warp.defaultSettings
                     & setBeforeMainLoop (beforeMainLoop (Port wPort) nPort bp)
             let ipcServer = daedalusIPC tracerIPC wPort
-            let apiServer = Server.start settings tracerApi socket wallet
+            let apiServer = Server.start settings tracerApi socket wallet spl
             race_ ipcServer apiServer
-
-    -- Will be used to connect "Cardano.Wallet.StakePool.Metrics" with
-    -- our networkLayer.
-    _toSPBlock :: Binary.Block -> (BlockHeader, PoolId)
-    _toSPBlock b =
-        (convertHeader header, toJust $ Binary.producedBy header)
-      where
-        header = Binary.header b
-        convertHeader :: Binary.BlockHeader -> BlockHeader
-        convertHeader h = BlockHeader
-            (Binary.slot h)
-            (Quantity $ fromIntegral $ Binary.chainLength h)
-            (Binary.parentHeaderHash h)
-        toJust (Just x) = x
-        toJust Nothing = error
-            "Expected blockheader to contain the id of the\
-            \producing pool, which only happens on Praos/Genesis-blockchains\
-            \for blocks after block0."
 
     toWLBlock = Binary.convertBlock
 
@@ -219,3 +206,21 @@ serveWallet (cfg, sb, tr) databaseDir listen lj beforeMainLoop = do
         failWith (sb, tr) $ mempty
             <> "I successfully retrieved the genesis block from Jörmungandr, "
             <> "but there's no initial fee policy defined?"
+
+-- Will be used to connect "Cardano.Wallet.StakePool.Metrics" with
+-- our networkLayer.
+unsafeToSPBlock :: Binary.Block -> (BlockHeader, PoolId)
+unsafeToSPBlock b =
+    (convertHeader header, toJust $ Binary.producedBy header)
+  where
+    header = Binary.header b
+    convertHeader :: Binary.BlockHeader -> BlockHeader
+    convertHeader h = BlockHeader
+        (Binary.slot h)
+        (Quantity $ fromIntegral $ Binary.chainLength h)
+        (Binary.parentHeaderHash h)
+    toJust (Just x) = x
+    toJust Nothing = error
+        "Expected blockheader to contain the id of the\
+        \producing pool, which only happens on Praos/Genesis-blockchains\
+        \for blocks after block0."
