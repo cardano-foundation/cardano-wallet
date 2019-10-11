@@ -42,10 +42,11 @@ import Test.Integration.Framework.DSL
     )
 import Test.Integration.Framework.TestData
     ( arabicWalletName
+    , errMsg404NoEndpoint
     , errMsg405
     , errMsg406
     , errMsg415
-    , errMsg404NoEndpoint
+    , falseWalletIds
     , frenchMnemonics12
     , invalidMnemonics12
     , japaneseMnemonics12
@@ -64,7 +65,6 @@ import Test.Integration.Framework.TestData
     , russianWalletName
     , specMnemonicByron
     , wildcardsWalletName
-    , falseWalletIds
     )
 
 import qualified Data.Text as T
