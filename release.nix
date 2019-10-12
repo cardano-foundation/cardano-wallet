@@ -5,8 +5,11 @@
 , projectArgs ? { config = { allowUnfree = false; inHydra = true; }; }
 }:
 
-with (import ./nix/release-lib.nix) {
-  inherit (import ./nix/lib.nix {}) pkgs;
+let
+  iohkLib = import ./lib.nix {};
+
+in with (import ./nix/release-lib.nix) {
+  inherit (iohkLib) pkgs;
   inherit supportedSystems supportedCrossSystems scrubJobs projectArgs;
   packageSet = import cardano-wallet;
   gitrev = cardano-wallet.rev;
@@ -41,6 +44,7 @@ let
     cardano-wallet-jormungandr-win64 = import ./nix/windows-release.nix {
       inherit pkgs project;
       cardano-wallet-jormungandr = jobs.x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-linux;
+      jormungandrLib = iohkLib.jormungandrLib;
     };
   }
   # Build the shell derivation in Hydra so that all its dependencies

@@ -3,16 +3,18 @@
 , project
 , jpkgs ? import ./jormungandr.nix { inherit pkgs; }
 , jormungandr-win64 ? jpkgs.jormungandr-win64
+, jormungandrLib
 }:
 
 let
   testData = ../lib/jormungandr/test/data/jormungandr;
+  jormungandrConfig = builtins.toFile "config.yaml" (builtins.toJSON jormungandrLib.defaultJormungandrConfig);
   name = "cardano-wallet-jormungandr-${project.version}-win64";
   jm-bat = pkgs.writeText "jm.bat" ''
-    jormungandr.exe --config config.yaml --genesis-block-hash HASH
+    jormungandr.exe --config config.yaml --genesis-block-hash ${jormungandrLib.genesisHash}
   '';
   cw-bat = pkgs.writeText "cw.bat" ''
-    cardano-wallet-jormungandr.exe serve --node-port 8081 --genesis-hash HASH --database c:\\cardano-wallet-jormungandr\\wallet.db
+    cardano-wallet-jormungandr.exe serve --node-port 8081 --genesis-hash ${jormungandrLib.genesisHash}
   '';
 in pkgs.runCommand name {
   nativeBuildInputs = [ pkgs.zip pkgs.jq pkgs.gnused project.jormungandr-cli ];
@@ -23,10 +25,9 @@ in pkgs.runCommand name {
   cp -v ${cardano-wallet-jormungandr}/bin/* .
   cp -v ${jormungandr-win64}/bin/* .
   cp -v ${jm-bat} jm.bat
-  hash="$(jcli genesis hash --input block0.bin)"
-  sed -e "s/HASH/$hash/" ${cw-bat} > cw.bat
-  sed -e 's/storage:.*/storage: "c:\\\\cardano-wallet-jormungandr\\\\storage"/' \
-      ${testData}/config.yaml > config.yaml
+  cp -v ${pkgs.libffi}/bin/libffi-6.dll .
+  cp -v ${pkgs.openssl.out}/lib/libeay32.dll .
+  cp ${jormungandrConfig} config.yaml
   chmod -R +w .
 
   zip -r $out/${name}.zip .
