@@ -2,7 +2,7 @@
 , crossSystem ? null
 , config ? {}
 # Import IOHK common nix lib
-, iohkLib ? import ./nix/iohk-common.nix { inherit system crossSystem config; }
+, iohkLib ? import ./lib.nix { inherit system crossSystem config; }
 # Use nixpkgs pin from iohkLib
 , pkgs ? iohkLib.pkgs
 }:

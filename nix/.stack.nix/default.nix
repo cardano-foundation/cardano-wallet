@@ -44,6 +44,20 @@
           };
         })
     { packages = {}; }
+    {
+      packages = {
+        "iohk-monitoring" = {
+          flags = {
+            "disable-examples" = true;
+            "disable-ekg" = true;
+            "disable-systemd" = true;
+            "disable-prometheus" = true;
+            "disable-gui" = true;
+            "disable-graylog" = true;
+            };
+          };
+        };
+      }
     ];
   compiler = "ghc-8.6.5";
   }

@@ -2,4 +2,4 @@
 
 set -euo pipefail
 
-exec $(nix-build `dirname $0`/iohk-common.nix -A nix-tools.regeneratePackages --no-out-link)
+exec $(nix-build `dirname $0`/../lib.nix -A nix-tools.regeneratePackages --no-out-link)
