@@ -28,6 +28,7 @@ import Cardano.Wallet.DB.Model
     , ModelOp
     , emptyDatabase
     , mCreateWallet
+    , mListCheckpoints
     , mListWallets
     , mPutCheckpoint
     , mPutPrivateKey
@@ -83,6 +84,8 @@ newDBLayer = do
             cp `deepseq` alterDB errNoSuchWallet db (mPutCheckpoint pk cp)
 
         , readCheckpoint = readDB db . mReadCheckpoint
+
+        , listCheckpoints = readDB db . mListCheckpoints
 
         , rollbackTo = \pk pt -> ExceptT $
             alterDB errNoSuchWallet  db (mRollbackTo pk pt)

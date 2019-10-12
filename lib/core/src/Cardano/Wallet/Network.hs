@@ -215,8 +215,8 @@ follow
     -- ^ The @NetworkLayer@ used to poll for new blocks.
     -> Trace IO Text
     -- ^ Logger trace
-    -> BlockHeader
-    -- ^ The local tip to start at. Blocks /after/ the tip will be yielded.
+    -> [BlockHeader]
+    -- ^ A list of known tips to start from. Blocks /after/ the tip will be yielded.
     -> (NE.NonEmpty block -> BlockHeader -> ExceptT e0 IO ())
     -- ^ Callback with blocks and the current tip of the /node/.
     -- @follow@ stops polling and terminates if the callback errors.
@@ -226,8 +226,8 @@ follow
     -> (block -> BlockHeader)
     -- ^ Getter on the abstract 'block' type
     -> IO ()
-follow nl tr start yield rollback header =
-    sleep 0 (initCursor nl [start])
+follow nl tr cps yield rollback header =
+    sleep 0 (initCursor nl cps)
   where
     delay0 :: Int
     delay0 = 1000*1000 -- 1 second

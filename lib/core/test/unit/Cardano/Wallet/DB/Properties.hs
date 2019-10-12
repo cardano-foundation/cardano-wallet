@@ -750,7 +750,7 @@ prop_sparseCheckpointNoOlderThanK (GenSparseCheckpointsArgs (k, h)) = prop
     prop = property $ flip all cps $ \cp ->
         cp == 0 || (age cp - 100 <= int k)
 
-    age :: Word64 -> Int
+    age :: Word32 -> Int
     age cp = int h - int cp
 
 int :: Integral a => a -> Int

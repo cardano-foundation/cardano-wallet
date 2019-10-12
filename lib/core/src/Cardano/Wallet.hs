@@ -516,11 +516,10 @@ restoreWallet
     -> WalletId
     -> ExceptT ErrNoSuchWallet IO ()
 restoreWallet ctx wid = do
-    cp <- readWalletCheckpoint @ctx @s @t @k ctx wid
-    let startTip = currentTip cp
+    cps <- liftIO $ DB.listCheckpoints db (PrimaryKey wid)
     let forward = restoreBlocks @ctx @s @t @k ctx wid
     let backward = DB.rollbackTo db (PrimaryKey wid)
-    liftIO $ follow nw tr startTip forward backward (view #header)
+    liftIO $ follow nw tr cps forward backward (view #header)
   where
     db = ctx ^. dbLayer @s @t @k
     nw = ctx ^. networkLayer @t

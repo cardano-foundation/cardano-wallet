@@ -405,6 +405,11 @@ newDBLayer logConfig trace fp = do
                       pure (checkpointFromEntity @s @t cp utxo <$> s)
                   Nothing -> pure Nothing
 
+        , listCheckpoints = \(PrimaryKey wid) -> runQuery $
+            map (blockHeaderFromEntity . entityVal) <$> selectList
+                [ CheckpointWalletId ==. wid ]
+                [ Asc CheckpointSlot ]
+
         , rollbackTo = \(PrimaryKey wid) point -> ExceptT $ runQuery $ do
             findNearestPoint wid point >>= \case
                 Nothing -> selectLatestCheckpoint wid >>= \case
@@ -564,6 +569,14 @@ mkWalletMetadataUpdate meta =
     , WalDelegation =. delegationToPoolId (meta ^. #delegation)
     ]
 
+blockHeaderFromEntity :: Checkpoint -> W.BlockHeader
+blockHeaderFromEntity cp = W.BlockHeader
+    { slotId = checkpointSlot cp
+    , blockHeight = Quantity (checkpointBlockHeight cp)
+    , headerHash = getBlockId (checkpointHeaderHash cp)
+    , parentHeaderHash = getBlockId (checkpointParentHash cp)
+    }
+
 metadataFromEntity :: Wallet -> W.WalletMetadata
 metadataFromEntity wal = W.WalletMetadata
     { name = W.WalletName (walName wal)
@@ -610,7 +623,7 @@ mkCheckpointEntity wid wal =
         , checkpointSlot = sl
         , checkpointParentHash = BlockId (header ^. #parentHeaderHash)
         , checkpointHeaderHash = BlockId (header ^. #headerHash)
-        , checkpointBlockHeight = fromIntegral bh
+        , checkpointBlockHeight = bh
         , checkpointGenesisHash = BlockId (coerce (bp ^. #getGenesisBlockHash))
         , checkpointGenesisStart = coerce (bp ^. #getGenesisBlockDate)
         , checkpointFeePolicy = bp ^. #getFeePolicy
@@ -653,12 +666,11 @@ checkpointFromEntity cp utxo s =
         txMaxSize
         epochStability
         ) = cp
-    header = (W.BlockHeader slot blockHeight' headerHash parentHeaderHash)
+    header = (W.BlockHeader slot (Quantity bh) headerHash parentHeaderHash)
     utxo' = W.UTxO . Map.fromList $
         [ (W.TxIn input ix, W.TxOut addr coin)
         | UTxO _ _ (TxId input) ix addr coin <- utxo
         ]
-    blockHeight' = Quantity . toEnum . fromEnum $ bh
     bp = W.BlockchainParameters
         { getGenesisBlockHash = coerce genesisHash
         , getGenesisBlockDate = W.StartTime genesisStart
