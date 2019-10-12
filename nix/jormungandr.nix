@@ -22,7 +22,7 @@
 #
 ############################################################################
 
-{ iohkLib ? import ./iohk-common.nix {}
+{ iohkLib ? import ../lib.nix {}
 , pkgs ? iohkLib.pkgs
 }:
 

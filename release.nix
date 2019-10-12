@@ -6,7 +6,7 @@
 }:
 
 with (import ./nix/release-lib.nix) {
-  inherit (import ./nix/iohk-common.nix {}) pkgs;
+  inherit (import ./nix/lib.nix {}) pkgs;
   inherit supportedSystems supportedCrossSystems scrubJobs projectArgs;
   packageSet = import cardano-wallet;
   gitrev = cardano-wallet.rev;
