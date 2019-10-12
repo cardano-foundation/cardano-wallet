@@ -175,7 +175,8 @@ newtype MockChain = MockChain
     deriving stock (Eq, Show)
 
 -- | Generate arbitrary checkpoints, but that always have their tip at 0 0.
-newtype InitialCheckpoint s = InitialCheckpoint (Wallet s DummyTarget)
+newtype InitialCheckpoint s =
+    InitialCheckpoint { getInitialCheckpoint :: Wallet s DummyTarget }
     deriving newtype (Show, Eq, Buildable, NFData)
 
 instance (Arbitrary k, Ord k, Arbitrary v) => Arbitrary (KeyValPairs k v) where

@@ -91,6 +91,8 @@ import Control.Concurrent.MVar
 import Control.DeepSeq
     ( NFData )
 import Control.Exception
+    ( Exception, throwIO )
+import Control.Exception
     ( bracket )
 import Control.Monad
     ( forM, mapM_, void, when )
@@ -405,7 +407,9 @@ newDBLayer logConfig trace fp = do
 
         , rollbackTo = \(PrimaryKey wid) point -> ExceptT $ runQuery $ do
             findNearestPoint wid point >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                Nothing -> selectLatestCheckpoint wid >>= \case
+                    Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                    Just _  -> lift $ throwIO (ErrNoOlderCheckpoint wid point)
                 Just nearestPoint -> Right <$> do
                     deleteCheckpoints wid
                         [ CheckpointSlot >. point
@@ -913,6 +917,16 @@ findNearestPoint wid sl =
     fmap (checkpointSlot . entityVal) <$> selectFirst
         [CheckpointWalletId ==. wid, CheckpointSlot <=. sl]
         [Desc CheckpointSlot]
+
+-- | A fatal exception thrown when trying to rollback but, there's no checkpoint
+-- to rollback to. The database maintain the invariant that there's always at
+-- least one checkpoint (the first one made for genesis) present in the
+-- database.
+--
+-- If we don't find any checkpoint, it means that this invariant has been
+-- violated.
+data ErrRollbackTo = ErrNoOlderCheckpoint W.WalletId W.SlotId deriving (Show)
+instance Exception ErrRollbackTo
 
 {-------------------------------------------------------------------------------
                      DB queries for address discovery state

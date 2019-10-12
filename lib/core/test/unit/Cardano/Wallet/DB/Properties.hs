@@ -112,7 +112,6 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
-    , NonNegative (..)
     , Property
     , checkCoverage
     , counterexample
@@ -239,13 +238,12 @@ properties = do
             let h = Quantity 2714
             -- First unstable block: 554
             sparseCheckpoints k h `shouldBe`
-                [ 500  , 600  , 700  , 800  , 900
-                , 1000 , 1100 , 1200 , 1300 , 1400
-                , 1500 , 1600 , 1700 , 1800 , 1900
-                , 2000 , 2100 , 2200 , 2300 , 2400
-                , 2500 , 2600 , 2700 , 2704 , 2705
-                , 2706 , 2707 , 2708 , 2709 , 2710
-                , 2711 , 2712 , 2713 , 2714
+                [ 0    , 500  , 600  , 700  , 800  , 900
+                , 1000 , 1100 , 1200 , 1300 , 1400 , 1500
+                , 1600 , 1700 , 1800 , 1900 , 2000 , 2100
+                , 2200 , 2300 , 2400 , 2500 , 2600 , 2700
+                , 2704 , 2705 , 2706 , 2707 , 2708 , 2709
+                , 2710 , 2711 , 2712 , 2713 , 2714
                 ]
 
         it "The tip is always a checkpoint" $ \_ ->
@@ -736,6 +734,8 @@ prop_sparseCheckpointMinimum (GenSparseCheckpointsArgs (k, h)) = prop
 -- rollbacks up to `k` in the past. This means that, if the current block height
 -- is #3000, and `k=2160`, we should be able to rollback to #840. Since we make
 -- checkpoints every 100 blocks, it means that block #800 should be in the list.
+--
+-- Note: The initial checkpoint at #0 will always be present.
 prop_sparseCheckpointNoOlderThanK
     :: GenSparseCheckpointsArgs
     -> Property
@@ -747,7 +747,8 @@ prop_sparseCheckpointNoOlderThanK (GenSparseCheckpointsArgs (k, h)) = prop
     cps = sparseCheckpoints (Quantity k) (Quantity h)
 
     prop :: Property
-    prop = property $ flip all cps $ \cp -> (age cp - 100 <= int k)
+    prop = property $ flip all cps $ \cp ->
+        cp == 0 || (age cp - 100 <= int k)
 
     age :: Word64 -> Int
     age cp = int h - int cp
@@ -761,6 +762,6 @@ newtype GenSparseCheckpointsArgs
 
 instance Arbitrary GenSparseCheckpointsArgs where
     arbitrary = do
-        k <- fromIntegral @Int <$> suchThat arbitrary (>10)
-        h <- fromIntegral @Int . getNonNegative <$> arbitrary
+        k <- (\x -> 10 + (x `mod` 1000)) <$> arbitrary
+        h <- (`mod` 100000) <$> arbitrary
         pure $ GenSparseCheckpointsArgs ( k, h )

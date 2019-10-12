@@ -241,6 +241,12 @@ cleanDB db = listWallets db >>= mapM_ (runExceptT . removeWallet db)
 -- │cp000 │cp100 │cp101 │..    ..│cp111 │
 -- └───┴───┴───┴─  ──┴───┘
 --  @
+--
+-- NOTE: There might be cases where the chain following "fails" (because, for
+-- example, the node has switch to a different chain, different by more than k),
+-- and in such cases, we have no choice but rolling back from genesis.
+-- Therefore, we need to keep the very first checkpoint in the database, no
+-- matter what.
 sparseCheckpoints
     :: Quantity "block" Word32
         -- ^ Epoch Stability, i.e. how far we can rollback
@@ -259,9 +265,10 @@ sparseCheckpoints epochStability blkH =
             let x = if h < k then 0 else h - k
             in gapsSize * (x `div` gapsSize)
 
+        initial   = 0
         longTerm  = [minH,minH+gapsSize..h]
         shortTerm = if h < edgeSize
             then [0..h]
             else [h-edgeSize,h-edgeSize+1..h]
     in
-        L.sort $ L.nub $ longTerm ++ shortTerm
+        L.sort $ L.nub $ initial : (longTerm ++ shortTerm)

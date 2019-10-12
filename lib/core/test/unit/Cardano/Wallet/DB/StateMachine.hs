@@ -58,7 +58,7 @@ import Cardano.Wallet.DB
     , cleanDB
     )
 import Cardano.Wallet.DB.Arbitrary
-    ( GenTxHistory (..) )
+    ( GenState, GenTxHistory (..), InitialCheckpoint (..) )
 import Cardano.Wallet.DB.Model
     ( Database
     , Err (..)
@@ -445,7 +445,10 @@ lockstep m@(Model _ ws) c (At resp) = Event
 -------------------------------------------------------------------------------}
 
 {-# ANN generator ("HLint: ignore Use ++" :: String) #-}
-generator :: forall s. (Arbitrary (Wallet s DummyTarget)) => Model s Symbolic -> Maybe (Gen (Cmd s :@ Symbolic))
+generator
+    :: forall s. (Arbitrary (Wallet s DummyTarget), GenState s)
+    => Model s Symbolic
+    -> Maybe (Gen (Cmd s :@ Symbolic))
 generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
     [ withoutWid
     , if null wids then [] else withWid
@@ -453,7 +456,10 @@ generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
   where
     withoutWid :: [(Int, Gen (Cmd s (Reference WalletId Symbolic)))]
     withoutWid =
-        [ (5, CreateWallet <$> genId <*> arbitrary <*> arbitrary)
+        [ (5, CreateWallet
+            <$> genId
+            <*> (getInitialCheckpoint <$> arbitrary)
+            <*> arbitrary)
         ]
 
     withWid :: [(Int, Gen (Cmd s (Reference WalletId Symbolic)))]
@@ -537,9 +543,13 @@ symbolicResp m c =
   where
     (resp, _mock') = step m c
 
-type TestConstraints s k = (PersistKey k, Eq s, Show s, Arbitrary (Wallet s DummyTarget))
+type TestConstraints s k =
+    (PersistKey k, Eq s, GenState s, Arbitrary (Wallet s DummyTarget))
 
-sm :: TestConstraints s k => DBLayerTest s k -> StateMachine (Model s) (At (Cmd s)) IO (At (Resp s))
+sm
+    :: TestConstraints s k
+    => DBLayerTest s k
+    -> StateMachine (Model s) (At (Cmd s)) IO (At (Resp s))
 sm db = QSM.StateMachine
     { initModel = initModel
     , transition = transition
