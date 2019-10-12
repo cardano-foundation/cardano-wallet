@@ -26,6 +26,8 @@ let
     inherit (iohkLib.nix-tools) iohk-extras iohk-module;
   };
 
+  daedalusBridge = pkgs.callPackage ./nix/daedalus-bridge.nix { };
+
 in {
   inherit pkgs iohkLib src haskellPackages;
   inherit cardano-http-bridge cardano-sl-node jormungandr jormungandr-cli;

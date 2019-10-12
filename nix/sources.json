@@ -23,6 +23,18 @@
         "url": "https://github.com/input-output-hk/iohk-nix/archive/e12c8b0d56e9a776a0a4e06614ee3f631e209084.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
+    "jormungandr-nix": {
+        "branch": "master",
+        "description": "jormungandr nix scripts",
+        "homepage": null,
+        "owner": "input-output-hk",
+        "repo": "jormungandr-nix",
+        "rev": "00c9639a5031e593c5d257c0e0d8f5c746120f0b",
+        "sha256": "127nzgmlxr2w7a0xyd7rk9i855ds1r29k1i2pa49dz22rffdrjg9",
+        "type": "tarball",
+        "url": "https://github.com/input-output-hk/jormungandr-nix/archive/00c9639a5031e593c5d257c0e0d8f5c746120f0b.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
     "niv": {
         "branch": "iohk",
         "description": "Easy dependency management for Nix projects",
