@@ -106,7 +106,7 @@ combineMetrics
     -> m State
     -> ExceptT ErrListStakePools m (Map PoolId (Stake, Int))
 combineMetrics nl getActivityState =
-    atomically onSameTip nl ErrListStakePoolInconsistencyErr
+    atomically onSameTip nl ErrListStakePoolInconsistencyErr 5
     $ do
     (epoch, distr) <- withExceptT ErrListStakePoolsStakeIsUnreachable
         $ stakeDistribution nl

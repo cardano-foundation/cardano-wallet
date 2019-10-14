@@ -319,10 +319,12 @@ atomically
     -- of the action can be trusted.
     -> NetworkLayer m t block
     -> (ErrInconsistentTips -> e)
+    -> Int
+    -- ^ Retries
     -> ExceptT e m a
     -- ^ Race-sensitive action to run
     -> ExceptT e m a
-atomically cond nl err act = go 3
+atomically cond nl err retries act = go retries
   where
     go :: Int -> ExceptT e m a
     go 0 = throwE $ err ErrInconsistentTips
