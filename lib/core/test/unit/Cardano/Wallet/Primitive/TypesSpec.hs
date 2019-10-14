@@ -76,9 +76,9 @@ import Cardano.Wallet.Primitive.Types
     , slotMinBound
     , slotPred
     , slotRangeFromTimeRange
-    , slotRatio
     , slotStartTime
     , slotSucc
+    , syncProgress
     , walletNameMaxLength
     , walletNameMinLength
     , wholeRange
@@ -185,9 +185,9 @@ spec = do
 
     let slotsPerEpoch = EpochLength 21600
 
-    describe "slotRatio" $ do
+    describe "syncProgress" $ do
         it "works for any two slots" $ property $ \sl0 sl1 ->
-            slotRatio slotsPerEpoch sl0 sl1 `deepseq` ()
+            syncProgress slotsPerEpoch sl0 sl1 `deepseq` ()
     describe "flatSlot" $ do
         it "flatSlot . fromFlatSlot == id" $ property $ \sl ->
             fromFlatSlot slotsPerEpoch (flatSlot slotsPerEpoch sl) === sl

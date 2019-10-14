@@ -80,7 +80,7 @@ module Cardano.Wallet.Primitive.Types
     , SlotLength (..)
     , EpochLength (..)
     , StartTime (..)
-    , slotRatio
+    , syncProgress
     , flatSlot
     , fromFlatSlot
     , slotStartTime
@@ -1033,7 +1033,7 @@ data SlotParameters = SlotParameters
 -- it assumes that every next slot will be a block. But, as we ingest blocks,
 -- `h` becomes bigger and `X` becomes smaller making the progress estimation
 -- better and better. At some point, `X` is null, and we have `p = h / h`
-slotRatio
+syncProgress
     :: EpochLength
         -- ^ Known epoch length
     -> BlockHeader
@@ -1041,7 +1041,7 @@ slotRatio
     -> SlotId
         -- ^ Last slot that could have been produced
     -> Quantity "percent" Percentage
-slotRatio epochLength tip slotNow =
+syncProgress epochLength tip slotNow =
     let
         bhTip = fromIntegral . getQuantity $ blockHeight tip
         n0 = flatSlot epochLength (tip ^. #slotId)

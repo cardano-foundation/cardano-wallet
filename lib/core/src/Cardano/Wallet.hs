@@ -188,8 +188,8 @@ import Cardano.Wallet.Primitive.Types
     , log10
     , slotDifference
     , slotRangeFromTimeRange
-    , slotRatio
     , slotStartTime
+    , syncProgress
     , wholeRange
     )
 import Cardano.Wallet.Transaction
@@ -590,7 +590,7 @@ restoreBlocks ctx wid blocks nodeTip = do
     calculateMetadata bp h meta = do
         -- NOTE: Safe because current time is after start time.
         (Just now) <- liftIO $ W.slotAt sp <$> getCurrentTime
-        let p = slotRatio (bp ^. #getEpochLength) h now
+        let p = syncProgress (bp ^. #getEpochLength) h now
         pure (meta { status = newStatus p } :: WalletMetadata)
       where
         newStatus p =
