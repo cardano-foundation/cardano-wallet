@@ -268,7 +268,14 @@ findDatabases tr dir = do
 -- should be closed with 'destroyDBLayer'. If you use 'withDBLayer' then both of
 -- these things will be handled for you.
 newDBLayer
-    :: forall s t k. (IsOurs s, NFData s, Show s, PersistState s, PersistTx t, PersistKey k)
+    :: forall s t k.
+        ( IsOurs s
+        , NFData s
+        , Show s
+        , PersistState s
+        , PersistTx t
+        , PersistKey k
+        )
     => CM.Configuration
        -- ^ Logging configuration
     -> Trace IO Text
@@ -576,7 +583,8 @@ mkTxHistory wid txs = flatTxHistory
     ]
   where
     -- | Make flat lists of entities from the result of 'mkTxHistory'.
-    flatTxHistory :: [(TxMeta, ([TxIn], [TxOut]))] -> ([TxMeta], [TxIn], [TxOut])
+    flatTxHistory
+        :: [(TxMeta, ([TxIn], [TxOut]))] -> ([TxMeta], [TxIn], [TxOut])
     flatTxHistory entities =
         ( map fst entities
         , concatMap (fst . snd) entities
@@ -868,11 +876,15 @@ instance W.KeyToAddress t Seq.SeqKey => PersistState (Seq.SeqState t) where
                 (uncurry (==))
         let eGap = Seq.gap extPool
         let iGap = Seq.gap intPool
-        repsert (SeqStateKey wid) (SeqState wid eGap iGap (AddressPoolXPub xpub))
+        repsert
+            (SeqStateKey wid)
+            (SeqState wid eGap iGap (AddressPoolXPub xpub))
         insertAddressPool wid sl intPool
         insertAddressPool wid sl extPool
         deleteWhere [SeqStatePendingWalletId ==. wid]
-        dbChunked insertMany_ (mkSeqStatePendingIxs wid $ Seq.pendingChangeIxs st)
+        dbChunked
+            insertMany_
+            (mkSeqStatePendingIxs wid $ Seq.pendingChangeIxs st)
 
     selectState (wid, sl) = runMaybeT $ do
         st <- MaybeT $ selectFirst [SeqStateWalletId ==. wid] []
