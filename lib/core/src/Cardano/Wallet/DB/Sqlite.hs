@@ -91,9 +91,7 @@ import Control.Concurrent.MVar
 import Control.DeepSeq
     ( NFData )
 import Control.Exception
-    ( Exception, throwIO )
-import Control.Exception
-    ( bracket )
+    ( Exception, bracket, throwIO )
 import Control.Monad
     ( forM, mapM_, void, when )
 import Control.Monad.Catch
