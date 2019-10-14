@@ -92,7 +92,7 @@ import System.IO
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
-import qualified Cardano.Wallet.Jormungandr.Binary as Binary
+import qualified Cardano.Wallet.Jormungandr.Binary as J
 import qualified Cardano.Wallet.StakePool.Metrics as SP
 import qualified Data.Text as T
 import qualified Network.Wai.Handler.Warp as Warp
@@ -130,7 +130,7 @@ serveWallet (cfg, sb, tr) databaseDir listen lj beforeMainLoop = do
     startServer
         :: Trace IO Text
         -> Port "node"
-        -> NetworkLayer IO t Binary.Block
+        -> NetworkLayer IO t J.Block
         -> ApiLayer s t k
         -> IO ()
     startServer tracer nPort nl wallet = do
@@ -145,7 +145,7 @@ serveWallet (cfg, sb, tr) databaseDir listen lj beforeMainLoop = do
             let apiServer = Server.start settings tracerApi socket wallet spl
             race_ ipcServer apiServer
 
-    toWLBlock = Binary.convertBlock
+    toWLBlock = J.convertBlock
 
     apiLayer
         :: Trace IO Text
@@ -209,17 +209,17 @@ serveWallet (cfg, sb, tr) databaseDir listen lj beforeMainLoop = do
 
 -- Will be used to connect "Cardano.Wallet.StakePool.Metrics" with
 -- our networkLayer.
-unsafeToSPBlock :: Binary.Block -> (BlockHeader, PoolId)
+unsafeToSPBlock :: J.Block -> (BlockHeader, PoolId)
 unsafeToSPBlock b =
-    (convertHeader header, toJust $ Binary.producedBy header)
+    (convertHeader header, toJust $ J.producedBy header)
   where
-    header = Binary.header b
-    convertHeader :: Binary.BlockHeader -> BlockHeader
+    header = J.header b
+    convertHeader :: J.BlockHeader -> BlockHeader
     convertHeader h = BlockHeader
-        (Binary.slot h)
-        (Quantity $ fromIntegral $ Binary.chainLength h)
-        (Binary.headerHash h)
-        (Binary.parentHeaderHash h)
+        (J.slot h)
+        (Quantity $ fromIntegral $ J.chainLength h)
+        (J.headerHash h)
+        (J.parentHeaderHash h)
     toJust (Just x) = x
     toJust Nothing = error
         "Expected blockheader to contain the id of the\
