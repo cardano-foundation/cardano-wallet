@@ -17,6 +17,7 @@ module Cardano.Wallet.Network
     -- * Helper for executing actions atomically a chain
     , atomically
     , onSameTip
+    , ErrInconsistentTips (..)
 
     -- * Errors
     , ErrNetworkUnavailable (..)
@@ -55,7 +56,7 @@ import Control.Monad
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT, runExceptT )
+    ( ExceptT, runExceptT, throwE, withExceptT )
 import Control.Retry
     ( RetryPolicyM
     , exponentialBackoff
@@ -307,21 +308,28 @@ follow nl tr cps yield rollback header =
 onSameTip :: BlockHeader -> BlockHeader -> Bool
 onSameTip = (==)
 
+data ErrInconsistentTips
+    = ErrInconsistentTips
+    | ErrTipNotFound ErrNetworkTip
+
 atomically
-    :: Monad m
+    :: forall m a t block e. Monad m
     => (BlockHeader -> BlockHeader -> Bool)
     -- ^ Compare the preceding, and succeding tip, and judge whether the result
     -- of the action can be trusted.
     -> NetworkLayer m t block
-    -> (ExceptT ErrNetworkTip m BlockHeader -> m BlockHeader)
-    -> (BlockHeader -> BlockHeader -> m a)
-    -> m a
+    -> (ErrInconsistentTips -> e)
+    -> ExceptT e m a
     -- ^ Race-sensitive action to run
-    -> m a
-atomically cond nl runNetwork violation act = do
-    nodeTipBefore <- runNetwork $ networkTip nl
-    a <- act
-    nodeTipAfter <- runNetwork $ networkTip nl
-    if cond nodeTipBefore nodeTipAfter
-    then return a
-    else violation nodeTipBefore nodeTipAfter
+    -> ExceptT e m a
+atomically cond nl err act = go 3
+  where
+    go :: Int -> ExceptT e m a
+    go 0 = throwE $ err ErrInconsistentTips
+    go n = do
+        nodeTipBefore <- withExceptT (err . ErrTipNotFound) $ networkTip nl
+        a <- act
+        nodeTipAfter <- withExceptT (err . ErrTipNotFound) $ networkTip nl
+        if cond nodeTipBefore nodeTipAfter
+        then return a
+        else go (n - 1)
