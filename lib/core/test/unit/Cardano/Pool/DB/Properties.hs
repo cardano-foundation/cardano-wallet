@@ -31,7 +31,7 @@ import Cardano.BM.Trace
 import Cardano.DB.Sqlite
     ( SqliteContext )
 import Cardano.Pool.DB
-    ( DBLayer (..) )
+    ( DBLayer (..), ErrSlotAlreadyExists (..) )
 import Cardano.Pool.DB.Arbitrary
     ( StakePoolsFixture (..) )
 import Cardano.Pool.DB.Sqlite
@@ -44,6 +44,8 @@ import Control.Monad
     ( forM_ )
 import Control.Monad.IO.Class
     ( liftIO )
+import Control.Monad.Trans.Except
+    ( runExceptT )
 import Data.Functor
     ( ($>) )
 import Data.List.Extra
@@ -92,6 +94,8 @@ properties = do
     describe "Stake Pool properties" $ do
         it "putPoolProduction . readPoolProduction yields expected results"
             (property . prop_putReadPoolProduction)
+        it "putPoolProduction with already put slot yields error"
+            (property . prop_putSlotTwicePoolProduction)
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -119,3 +123,24 @@ prop_putReadPoolProduction db (StakePoolsFixture pairs) =
         forM_ epochs $ \(epoch) -> do
             res' <- readPoolProduction db' epoch
             readPoolProduction db epoch `shouldReturn` res'
+
+-- | Cannot put pool production with already put slot
+prop_putSlotTwicePoolProduction
+    :: DBLayer IO
+    -> StakePoolsFixture
+    -> Property
+prop_putSlotTwicePoolProduction db (StakePoolsFixture pairs) =
+    monadicIO (setup >>= prop)
+  where
+    setup = liftIO $ do
+        cleanDB db
+        db' <- MVar.newDBLayer
+        cleanDB db'
+        pure db'
+    prop db' = liftIO $ do
+        forM_ pairs $ \(pool, slot) -> do
+            let err = ErrSlotAlreadyExists slot
+            runExceptT (putPoolProduction db' slot pool) `shouldReturn` Right ()
+            runExceptT (putPoolProduction db' slot pool) `shouldReturn` Left err
+            runExceptT (putPoolProduction db slot pool) `shouldReturn` Right ()
+            --runExceptT (putPoolProduction db slot pool) `shouldReturn` Left err
