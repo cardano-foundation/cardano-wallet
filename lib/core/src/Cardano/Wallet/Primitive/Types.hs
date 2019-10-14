@@ -1010,18 +1010,40 @@ data SlotParameters = SlotParameters
         :: StartTime
     } deriving (Eq, Generic, Show)
 
--- | Compute the approximate ratio / progress between two slots. This is an
--- approximation for a few reasons, one of them being that we hard code the
--- epoch length as a static number whereas it may vary in practice.
+-- | Estimate restoration progress based on:
+--
+-- - The current local tip
+-- - The last slot
+--
+-- For the sake of this calculation, we are somewhat conflating the definitions
+-- of slots and block height. Because we can't reliably _trust_ that the current
+-- node is actually itself synced with the network. So, we compute the progress
+-- as:
+--
+-- @
+-- p = h / (h + X)
+-- @
+--
+-- Where:
+--
+-- - @h@: the number of blocks we have ingested so far.
+-- - @X@: the estimatd remaining slots to reach the network tip.
+--
+-- Initially, `X` gives a relatively poor estimation of the network height, as
+-- it assumes that every next slot will be a block. But, as we ingest blocks,
+-- `h` becomes bigger and `X` becomes smaller making the progress estimation
+-- better and better. At some point, `X` is null, and we have `p = h / h`
 slotRatio
     :: EpochLength
+        -- ^ Known epoch length
     -> BlockHeader
         -- ^ Local tip
     -> SlotId
+        -- ^ Last slot that could have been produced
     -> Quantity "percent" Percentage
 slotRatio epochLength tip slotNow =
     let
-        bhTip = fromIntegral . unQuantity $ blockHeight tip
+        bhTip = fromIntegral . getQuantity $ blockHeight tip
         n0 = flatSlot epochLength (tip ^. #slotId)
         n1 = flatSlot epochLength slotNow
         tolerance = 5
@@ -1030,8 +1052,6 @@ slotRatio epochLength tip slotNow =
     else
         Quantity $ toEnum $ fromIntegral $
             (100 * bhTip) `div` (bhTip + n1 - n0)
-  where
-    unQuantity (Quantity x) = x
 
 -- | Convert a 'SlotId' to the number of slots since genesis.
 flatSlot :: EpochLength -> SlotId -> Word64

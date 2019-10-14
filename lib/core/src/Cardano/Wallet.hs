@@ -546,47 +546,24 @@ restoreBlocks ctx wid blocks nodeTip = do
     DB.withLock db $ do
         (wallet, meta, _) <- readWallet @ctx @s @t @k ctx wid
         let bp = blockchainParameters wallet
-        let sp = SlotParameters (bp ^. #getEpochLength) (bp ^. #getSlotLength) (bp ^. #getGenesisBlockDate)
         let (txs0, cps) = NE.unzip $ applyBlocks @s @t blocks wallet
         let txs = fold txs0
         let k = bp ^. #getEpochStability
         let localTip = currentTip $ NE.last cps
 
-        (Just now) <- liftIO $ (W.slotAt sp) <$> getCurrentTime
-
-
-        let calculateMetadata :: BlockHeader -> WalletMetadata
-            calculateMetadata h = meta { status = status' }
-              where
-                progress' = slotRatio
-                    (bp ^. #getEpochLength)
-                     h
-                     now
-                status' =
-                    if progress' == maxBound
-                    then Ready
-                    else Restoring progress'
-
-        let makeCheckpoint :: Wallet s t -> ExceptT ErrNoSuchWallet IO ()
-            makeCheckpoint cp = do
-                liftIO $ logInfo tr $
-                    "Creating checkpoint at " <> pretty (currentTip cp)
-                DB.putCheckpoint db (PrimaryKey wid) cp
-
+        meta' <- liftIO $ calculateMetadata bp localTip meta
         let unstable = sparseCheckpoints k (blockHeight nodeTip)
-        forM_  cps $ \cp -> do
+        forM_ (NE.init cps) $ \cp -> do
             let (Quantity h) = blockHeight $ currentTip cp
             when (fromIntegral h `elem` unstable) (makeCheckpoint cp)
-
-        let meta' = calculateMetadata localTip
-        makeCheckpoint (NE.last cps) *> DB.prune db (PrimaryKey wid)
+        makeCheckpoint (NE.last cps)
+        DB.prune db (PrimaryKey wid)
         DB.putTxHistory db (PrimaryKey wid) txs
         DB.putWalletMeta db (PrimaryKey wid) meta'
 
-        let slotLast = view #header . NE.last $ blocks
         liftIO $ do
             logInfo tr $
-                pretty (calculateMetadata slotLast)
+                pretty meta'
             logInfo tr $ "discovered "
                 <> pretty (length txs) <> " new transaction(s)"
             logInfo tr $ "local tip: "
@@ -598,6 +575,32 @@ restoreBlocks ctx wid blocks nodeTip = do
   where
     db = ctx ^. dbLayer @s @t @k
     tr = ctx ^. logger
+
+    makeCheckpoint :: Wallet s t -> ExceptT ErrNoSuchWallet IO ()
+    makeCheckpoint cp = do
+        liftIO $ logInfo tr $
+            "Creating checkpoint at " <> pretty (currentTip cp)
+        DB.putCheckpoint db (PrimaryKey wid) cp
+
+    calculateMetadata
+        :: BlockchainParameters
+        -> BlockHeader
+        -> WalletMetadata
+        -> IO WalletMetadata
+    calculateMetadata bp h meta = do
+        -- NOTE: Safe because current time is after start time.
+        (Just now) <- liftIO $ W.slotAt sp <$> getCurrentTime
+        let p = slotRatio (bp ^. #getEpochLength) h now
+        pure (meta { status = newStatus p } :: WalletMetadata)
+      where
+        newStatus p =
+            if p == maxBound then Ready else Restoring p
+
+        sp :: SlotParameters
+        sp = SlotParameters
+            (bp ^. #getEpochLength)
+            (bp ^. #getSlotLength)
+            (bp ^. #getGenesisBlockDate)
 
 -- | Remove an existing wallet. Note that there's no particular work to
 -- be done regarding the restoration worker as it will simply terminate
