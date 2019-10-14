@@ -220,7 +220,7 @@ instance Functor (NextBlocksResult target) where
         RollForward cur bh bs -> RollForward cur bh (fmap f bs)
         RollBackward cur -> RollBackward cur
 
--- | Subscribe to a blockchain and get called with new block (in order)!
+-- | Subscribe to a blockchain!
 follow
     :: forall target block e0 e1. (Show e0, Show e1)
     => NetworkLayer IO target block

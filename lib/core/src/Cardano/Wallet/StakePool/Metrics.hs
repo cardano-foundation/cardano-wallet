@@ -189,14 +189,17 @@ worker nl tr = do
     logInfo tr' "worker started..."
     let s0 = State block0Header Map.empty
     mvar <- newMVar s0
-    void $ forkIO $ follow nl tr' block0Header (advance mvar) fst
+    void $ forkIO $ follow nl tr' [block0Header] (advance mvar) rollback fst
     return mvar
   where
     advance
-        :: MVar State -> NonEmpty (BlockHeader, PoolId) -> s -> ExceptT () IO ()
+        :: MVar State -> NonEmpty (BlockHeader, PoolId) -> BlockHeader -> ExceptT () IO ()
     advance mvar blocks _ = do
         liftIO $ modifyMVar_ mvar $ \s -> do
             (return $ foldl (flip applyBlock) s blocks )
+
+    rollback :: SlotId -> ExceptT () IO ()
+    rollback _slot = error "rollback unimplemented"
 
 --
 -- The following in memory model should likely be removed when we switch to

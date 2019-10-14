@@ -218,6 +218,7 @@ unsafeToSPBlock b =
     convertHeader h = BlockHeader
         (Binary.slot h)
         (Quantity $ fromIntegral $ Binary.chainLength h)
+        (Binary.headerHash h)
         (Binary.parentHeaderHash h)
     toJust (Just x) = x
     toJust Nothing = error
