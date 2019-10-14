@@ -23,6 +23,7 @@ module Cardano.Wallet.StakePool.Metrics
     , StakePoolLayer (..)
     , newStakePoolLayer
     , ErrListStakePools (..)
+    , ErrInconsistency (..)
     )
     where
 
@@ -31,7 +32,11 @@ import Prelude
 import Cardano.BM.Trace
     ( Trace, appendName, logInfo )
 import Cardano.Wallet.Network
-    ( ErrNetworkUnavailable (..), NetworkLayer (..), follow )
+    ( ErrNetworkTip (..)
+    , ErrNetworkUnavailable (..)
+    , NetworkLayer (..)
+    , follow
+    )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..), EpochNo, PoolId (..), SlotId (..), Stake )
 import Control.Concurrent
@@ -39,13 +44,14 @@ import Control.Concurrent
 import Control.Concurrent.MVar
     ( MVar, modifyMVar_, newMVar, readMVar )
 import Control.Monad
-    ( void )
+    ( unless, void )
 import Control.Monad.IO.Class
-    ( liftIO )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), throwE, withExceptT )
+    ( ExceptT (..), runExceptT, throwE, withExceptT )
+import Control.Retry
+    ( constantDelay, retrying )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Map.Merge.Strict
@@ -68,7 +74,12 @@ import qualified Data.Map.Strict as Map
 data ErrListStakePools
     = ErrListStakePoolsStakeIsUnreachable ErrNetworkUnavailable
     | ErrListStakePoolsMetricsIsUnsynced
-    | ErrListStakePoolInternalErrInconsistentData
+    | ErrListStakePoolInconsistencyErr ErrInconsistency
+
+data ErrInconsistency
+    = ErrInconsistencyBlockProducerNotInStakeDistr PoolId Int
+    | ErrInconsistencyNetworkTipUnavailible ErrNetworkTip
+    | ErrInconsistencyTipChanged BlockHeader BlockHeader
 
 newtype StakePoolLayer m = StakePoolLayer
     { listStakePools
@@ -83,28 +94,32 @@ newStakePoolLayer nl tr = do
     mvar <- worker nl tr
     return $ StakePoolLayer
         { listStakePools = Map.toList <$>
-            combineMetrics
-                (stakeDistribution nl)
-                (liftIO $ readMVar mvar)
+            combineMetrics nl (liftIO $ readMVar mvar)
         }
 
 -- | Combines two different sources of data: stake distribution and pool activity
 -- together.
 combineMetrics
-    :: forall m . Monad m
-    => ExceptT ErrNetworkUnavailable m (EpochNo, Map PoolId Stake)
+    :: MonadIO m
+    => NetworkLayer m t (BlockHeader, PoolId)
     -> m State
     -> ExceptT ErrListStakePools m (Map PoolId (Stake, Int))
-combineMetrics getStakeDistr getActivityState = do
-
-
+combineMetrics nl getActivityState = retry' $ do
+    nodeTipBefore <- networkTip' nl
     (epoch, distr) <- withExceptT ErrListStakePoolsStakeIsUnreachable
-        getStakeDistr
+        $ stakeDistribution nl
+
     s <- lift getActivityState
 
     m <- case activityForEpoch epoch s of
         Just x -> return x
         Nothing -> throwE ErrListStakePoolsMetricsIsUnsynced
+
+    nodeTipAfter <- networkTip' nl
+    unless (nodeTipBefore == nodeTipAfter) $
+        throwE
+        . ErrListStakePoolInconsistencyErr
+        $ ErrInconsistencyTipChanged nodeTipBefore nodeTipAfter
 
     mergeA
         stakeButNoActivity
@@ -113,11 +128,38 @@ combineMetrics getStakeDistr getActivityState = do
         distr m
   where
     -- What to do when we only find a pool in one of the two data-sources:
-    stakeButNoActivity :: WhenMissing (ExceptT ErrListStakePools m) k Stake (Stake, Int)
+    stakeButNoActivity
+        :: Monad m
+        => WhenMissing (ExceptT ErrListStakePools m) PoolId Stake (Stake, Int)
     stakeButNoActivity = traverseMissing $ \_k stake -> pure (stake, 0)
-    activityButNoStake :: WhenMissing (ExceptT ErrListStakePools m) k Int (Stake, Int)
-    activityButNoStake = traverseMissing $ \_ _ ->
-        throwE ErrListStakePoolInternalErrInconsistentData
+
+    activityButNoStake
+        :: Monad m
+        => WhenMissing (ExceptT ErrListStakePools m) PoolId Int (Stake, Int)
+    activityButNoStake = traverseMissing $ \pool count ->
+        throwE
+        . ErrListStakePoolInconsistencyErr
+        $ ErrInconsistencyBlockProducerNotInStakeDistr pool count
+
+    withInconsistency f = withExceptT (ErrListStakePoolInconsistencyErr . f)
+
+    networkTip' = (withInconsistency ErrInconsistencyNetworkTipUnavailible)
+        . networkTip
+
+    retry'
+        :: MonadIO m
+        => ExceptT ErrListStakePools m a
+        -> ExceptT ErrListStakePools m a
+    retry' act = ExceptT $ retrying policy shouldRetry (const $ runExceptT act)
+      where
+        policy = constantDelay 0
+        shouldRetry _ = \case
+            Right _
+                -> return False
+            Left (ErrListStakePoolInconsistencyErr (ErrInconsistencyTipChanged _ _))
+                -> return True
+            Left _
+                -> return False
 
     -- In case we wanted to calculate approximate performance (AP):
     --

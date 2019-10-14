@@ -1211,7 +1211,7 @@ instance LiftHandler ErrListStakePools where
                 , "Maybe the jörmungandr is not started, or it is on a BFT "
                 , "blockchain instead of, Praos/Genesis?"
                 ]
-        ErrListStakePoolInternalErrInconsistentData ->
+        ErrListStakePoolInconsistencyErr _ ->
             apiError err500 StakeIsUnreachable $ mconcat
                 [ "Internal error."
                 ]

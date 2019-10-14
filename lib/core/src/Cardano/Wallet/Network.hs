@@ -54,8 +54,6 @@ import Control.Monad
     ( when )
 import Control.Monad.IO.Class
     ( liftIO )
-import Control.Monad.Trans.Class
-    ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
 import Control.Retry
@@ -315,13 +313,15 @@ atomically
     -- ^ Compare the preceding, and succeding tip, and judge whether the result
     -- of the action can be trusted.
     -> NetworkLayer m t block
+    -> (ExceptT ErrNetworkTip m BlockHeader -> m BlockHeader)
+    -> (BlockHeader -> BlockHeader -> m a)
     -> m a
     -- ^ Race-sensitive action to run
-    -> ExceptT ErrNetworkTip m a
-atomically cond nl act = do
-    t1 <- networkTip nl
-    a <- lift act
-    t2 <- networkTip nl
-    if cond t1 t2
+    -> m a
+atomically cond nl runNetwork violation act = do
+    nodeTipBefore <- runNetwork $ networkTip nl
+    a <- act
+    nodeTipAfter <- runNetwork $ networkTip nl
+    if cond nodeTipBefore nodeTipAfter
     then return a
-    else error "Tip has changed. TODO: Don't error in this branch"
+    else violation nodeTipBefore nodeTipAfter
