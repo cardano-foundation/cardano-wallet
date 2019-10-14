@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -14,13 +15,33 @@ module Cardano.Wallet.Jormungandr.CompatibilitySpec
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( ChainCode (..), XPub (..) )
+    ( ChainCode (..), XPrv, XPub (..), unXPrv )
 import Cardano.Wallet.Jormungandr.Binary
     ( signData, singleAddressFromKey )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( BaseUrl (..), Jormungandr, Scheme (..), genConfigFile )
 import Cardano.Wallet.Jormungandr.Environment
     ( KnownNetwork (..), Network (..) )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( Depth (AccountK, AddressK, RootK)
+    , DerivationType (Hardened)
+    , Index
+    , KeyToAddress (..)
+    , Passphrase (..)
+    , passphraseMaxLength
+    , passphraseMinLength
+    , publicKey
+    )
+import Cardano.Wallet.Primitive.AddressDerivation.Random
+    ( RndKey
+    , generateKeyFromSeed
+    , minSeedLengthBytes
+    , unsafeGenerateKeyFromSeed
+    )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( IsOurs (..), knownAddresses )
+import Cardano.Wallet.Primitive.AddressDiscovery.Random
+    ( mkRndState )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
@@ -33,6 +54,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Unsafe
     ( unsafeDecodeAddress, unsafeFromHex )
+import Control.Monad
+    ( replicateM )
 import Data.Aeson.QQ
     ( aesonQQ )
 import Data.ByteArray.Encoding
@@ -50,18 +73,25 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
+    , InfiniteList (..)
+    , Property
+    , arbitraryBoundedEnum
+    , arbitraryPrintableChar
     , choose
     , frequency
     , oneof
     , property
     , vectorOf
     , withMaxSuccess
+    , (.&&.)
     , (===)
     )
 
+import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 
 spec :: Spec
 spec = do
@@ -275,6 +305,12 @@ spec = do
                 }
             }|]
 
+    describe "Random Address Discovery Properties" $ do
+        it "isOurs works as expected during key derivation in testnet" $ do
+            property (prop_derivedKeysAreOurs @'Testnet)
+        it "isOurs works as expected during key derivation in mainnet" $ do
+            property (prop_derivedKeysAreOurs @'Mainnet)
+
 negativeTest
     :: DecodeAddress t
     => Proxy t
@@ -331,8 +367,71 @@ goldenTestSignData _ (GoldenTestSignData ins outs expected) =
     hex = convertToBase @ByteString @ByteString Base16
 
 {-------------------------------------------------------------------------------
+                               Properties
+-------------------------------------------------------------------------------}
+
+prop_derivedKeysAreOurs
+    :: forall (n :: Network) t. (KeyToAddress t RndKey, t ~ Jormungandr n)
+    => Passphrase "seed"
+    -> Passphrase "encryption"
+    -> Index 'Hardened 'AccountK
+    -> Index 'Hardened 'AddressK
+    -> RndKey 'RootK XPrv
+    -> Property
+prop_derivedKeysAreOurs seed encPwd accIx addrIx rk' =
+    resPos .&&. addr `elem` knownAddresses stPos' .&&.
+    not resNeg .&&. addr `notElem` knownAddresses stNeg'
+  where
+    (resPos, stPos') = isOurs addr (mkRndState @t rootXPrv 0)
+    (resNeg, stNeg') = isOurs addr (mkRndState @t rk' 0)
+    key = publicKey $ unsafeGenerateKeyFromSeed (accIx, addrIx) seed encPwd
+    rootXPrv = generateKeyFromSeed seed encPwd
+    addr = keyToAddress @t key
+
+{-------------------------------------------------------------------------------
                              Arbitrary Instances
 -------------------------------------------------------------------------------}
+
+instance Arbitrary (Index 'Hardened 'AccountK) where
+    shrink _ = []
+    arbitrary = arbitraryBoundedEnum
+
+instance Arbitrary (Index 'Hardened 'AddressK) where
+    shrink _ = []
+    arbitrary = arbitraryBoundedEnum
+
+instance Arbitrary (RndKey 'RootK XPrv) where
+    shrink _ = []
+    arbitrary = genRootKeys
+
+genRootKeys :: Gen (RndKey 'RootK XPrv)
+genRootKeys = do
+    (s, e) <- (,)
+        <$> genPassphrase @"seed" (16, 32)
+        <*> genPassphrase @"encryption" (0, 16)
+    return $ generateKeyFromSeed s e
+  where
+    genPassphrase :: (Int, Int) -> Gen (Passphrase purpose)
+    genPassphrase range = do
+        n <- choose range
+        InfiniteList bytes _ <- arbitrary
+        return $ Passphrase $ BA.convert $ BS.pack $ take n bytes
+
+instance Show XPrv where
+    show = show . unXPrv
+
+instance {-# OVERLAPS #-} Arbitrary (Passphrase "encryption") where
+    arbitrary = do
+        let p = Proxy :: Proxy "encryption"
+        n <- choose (passphraseMinLength p, passphraseMaxLength p)
+        bytes <- T.encodeUtf8 . T.pack <$> replicateM n arbitraryPrintableChar
+        return $ Passphrase $ BA.convert bytes
+
+instance {-# OVERLAPS #-} Arbitrary (Passphrase "seed") where
+    arbitrary = do
+        n <- choose (minSeedLengthBytes, 64)
+        bytes <- BS.pack <$> vectorOf n arbitrary
+        return $ Passphrase $ BA.convert bytes
 
 instance {-# OVERLAPS #-} KnownNetwork n => Arbitrary (ShowFmt Address, Proxy n) where
     arbitrary = do
