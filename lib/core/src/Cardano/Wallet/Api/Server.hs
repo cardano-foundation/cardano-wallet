@@ -1200,10 +1200,11 @@ instance LiftHandler (Request, ServantErr) where
 
 instance LiftHandler ErrListStakePools where
     handler = \case
-        ErrListStakePoolsMetricsIsUnsynced ->
+        ErrListStakePoolsMetricsIsUnsynced p ->
             apiError err400 NotSynced $ mconcat
                 [ "I can't list stake pools yet because I need to scan the "
-                , "blockchain for metrics first."
+                , "blockchain for metrics first. I'm at "
+                , toText p
                 ]
         ErrListStakePoolsStakeIsUnreachable _ ->
             apiError err400 StakeIsUnreachable $ mconcat

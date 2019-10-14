@@ -156,6 +156,7 @@ import Cardano.Wallet.Primitive.Model
     , currentTip
     , getState
     , initWallet
+    , slotParams
     , updateState
     )
 import Cardano.Wallet.Primitive.Types
@@ -189,7 +190,7 @@ import Cardano.Wallet.Primitive.Types
     , slotDifference
     , slotRangeFromTimeRange
     , slotStartTime
-    , syncProgress
+    , syncProgressRelativeToCurrentTime
     , wholeRange
     )
 import Cardano.Wallet.Transaction
@@ -588,19 +589,11 @@ restoreBlocks ctx wid blocks nodeTip = do
         -> WalletMetadata
         -> IO WalletMetadata
     calculateMetadata bp h meta = do
-        -- NOTE: Safe because current time is after start time.
-        (Just now) <- liftIO $ W.slotAt sp <$> getCurrentTime
-        let p = syncProgress (bp ^. #getEpochLength) h now
+        p <- syncProgressRelativeToCurrentTime (slotParams bp) h
         pure (meta { status = newStatus p } :: WalletMetadata)
       where
         newStatus p =
             if p == maxBound then Ready else Restoring p
-
-        sp :: SlotParameters
-        sp = SlotParameters
-            (bp ^. #getEpochLength)
-            (bp ^. #getSlotLength)
-            (bp ^. #getGenesisBlockDate)
 
 -- | Remove an existing wallet. Note that there's no particular work to
 -- be done regarding the restoration worker as it will simply terminate

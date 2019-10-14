@@ -49,6 +49,10 @@ module Cardano.Wallet.Primitive.Model
     , availableUTxO
     , utxo
     , blockchainParameters
+
+    -- * Auxiliary
+    , slotParams
+
     ) where
 
 import Prelude
@@ -65,6 +69,7 @@ import Cardano.Wallet.Primitive.Types
     , FeePolicy (..)
     , Hash (..)
     , SlotLength (..)
+    , SlotParameters (SlotParameters)
     , StartTime (..)
     , TxIn (..)
     , TxMeta (..)
@@ -210,6 +215,13 @@ instance Buildable BlockchainParameters where
         epochLengthF (EpochLength s) = build s
         txMaxSizeF (Quantity s) = build s
         epochStabilityF (Quantity s) = build s
+
+slotParams :: BlockchainParameters -> SlotParameters
+slotParams bp =
+    SlotParameters
+        (bp ^. #getEpochLength)
+        (bp ^. #getSlotLength)
+        (bp ^. #getGenesisBlockDate)
 
 {-------------------------------------------------------------------------------
                           Construction & Modification

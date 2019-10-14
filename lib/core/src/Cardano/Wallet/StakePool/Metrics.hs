@@ -40,8 +40,16 @@ import Cardano.Wallet.Network
     , follow
     , onSameTip
     )
+import Cardano.Wallet.Primitive.Model
+    ( slotParams )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), EpochNo, PoolId (..), SlotId (..), Stake )
+    ( BlockHeader (..)
+    , EpochNo
+    , PoolId (..)
+    , SlotId (..)
+    , Stake
+    , syncProgressRelativeToCurrentTime
+    )
 import Control.Concurrent
     ( forkIO )
 import Control.Concurrent.MVar
@@ -59,6 +67,8 @@ import Data.Map.Merge.Strict
     ( WhenMissing, mergeA, traverseMissing, zipWithMatched )
 import Data.Map.Strict
     ( Map )
+import Data.Quantity
+    ( Percentage (..), Quantity (..) )
 import Data.Text
     ( Text )
 import Fmt
@@ -74,7 +84,7 @@ import qualified Data.Map.Strict as Map
 
 data ErrListStakePools
     = ErrListStakePoolsStakeIsUnreachable ErrNetworkUnavailable
-    | ErrListStakePoolsMetricsIsUnsynced
+    | ErrListStakePoolsMetricsIsUnsynced (Quantity "percent" Percentage)
     | ErrListStakePoolInconsistencyErr ErrInconsistentTips
 
 data ErrInconsistency
@@ -115,7 +125,10 @@ combineMetrics nl getActivityState =
 
     m <- case activityForEpoch epoch s of
         Just x -> return x
-        Nothing -> throwE ErrListStakePoolsMetricsIsUnsynced
+        Nothing -> do
+            let (_, bp) = staticBlockchainParameters nl
+            p <- liftIO $ syncProgressRelativeToCurrentTime (slotParams bp) (tip s)
+            throwE $ ErrListStakePoolsMetricsIsUnsynced p
 
     mergeA
         stakeButNoActivity

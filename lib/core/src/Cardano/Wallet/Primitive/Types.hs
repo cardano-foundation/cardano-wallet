@@ -81,6 +81,7 @@ module Cardano.Wallet.Primitive.Types
     , EpochLength (..)
     , StartTime (..)
     , syncProgress
+    , syncProgressRelativeToCurrentTime
     , flatSlot
     , fromFlatSlot
     , slotStartTime
@@ -189,7 +190,7 @@ import Data.Text.Class
     , toTextFromBoundedEnum
     )
 import Data.Time.Clock
-    ( NominalDiffTime, UTCTime, addUTCTime, diffUTCTime )
+    ( NominalDiffTime, UTCTime, addUTCTime, diffUTCTime, getCurrentTime )
 import Data.Word
     ( Word16, Word32, Word64 )
 import Fmt
@@ -1057,6 +1058,14 @@ syncProgress epochLength tip slotNow =
     else
         Quantity $ toEnum $ fromIntegral $
             (100 * bhTip) `div` (bhTip + n1 - n0)
+
+syncProgressRelativeToCurrentTime
+    :: SlotParameters
+    -> BlockHeader
+    -> IO (Quantity "percent" Percentage)
+syncProgressRelativeToCurrentTime sp tip = do
+    (Just now) <- slotAt sp <$> getCurrentTime
+    return $ syncProgress (sp ^. #getEpochLength) tip now
 
 -- | Convert a 'SlotId' to the number of slots since genesis.
 flatSlot :: EpochLength -> SlotId -> Word64
