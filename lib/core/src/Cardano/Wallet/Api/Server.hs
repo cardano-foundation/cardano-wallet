@@ -8,6 +8,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
@@ -73,14 +74,16 @@ import Cardano.Wallet.Api
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress (..)
-    , ApiBlockData (..)
+    , ApiBlockReference (..)
     , ApiByronWallet (..)
     , ApiByronWalletMigrationInfo (..)
     , ApiErrorCode (..)
     , ApiFee (..)
     , ApiMigrateByronWalletData (..)
+    , ApiNetworkInformation (..)
     , ApiStakePool
     , ApiT (..)
+    , ApiTimeReference (..)
     , ApiTransaction (..)
     , ApiTxId (..)
     , ApiTxInput (..)
@@ -154,10 +157,12 @@ import Control.Monad.Trans.Except
     ( ExceptT, throwE, withExceptT )
 import Data.Aeson
     ( (.=) )
+import Data.Function
+    ( (&) )
 import Data.Functor
     ( ($>), (<&>) )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( Lens', (.~), (^.) )
 import Data.Generics.Labels
     ()
 import Data.List
@@ -176,6 +181,8 @@ import Data.Text.Class
     ( toText )
 import Data.Time
     ( UTCTime )
+import Data.Time.Clock
+    ( getCurrentTime )
 import Fmt
     ( Buildable, pretty )
 import Network.HTTP.Media.RenderHeader
@@ -290,9 +297,9 @@ withListeningSocket portOpt = bracket acquire release
     -- TODO: make configurable, default to secure for now.
     hostPreference = "127.0.0.1"
 
-{-==============================================================================
+{-------------------------------------------------------------------------------
                                    Core API
-==============================================================================-}
+-------------------------------------------------------------------------------}
 
 coreApiServer
     :: forall ctx s t k.
@@ -306,7 +313,11 @@ coreApiServer
     => ctx
     -> Server (CoreApi t)
 coreApiServer ctx =
-    addresses ctx :<|> wallets ctx :<|> transactions ctx :<|> pools ctx
+    addresses ctx
+    :<|> wallets ctx
+    :<|> transactions ctx
+    :<|> pools ctx
+    :<|> network ctx
 
 {-------------------------------------------------------------------------------
                                     Wallets
@@ -547,8 +558,13 @@ postTransaction ctx (ApiT wid) body = do
     liftHandler $ withWorkerCtx ctx wid liftE3 $ \wrk ->
         W.submitTx wrk wid (tx, meta, wit)
 
-    return $ mkApiTransaction (txId @t tx)
-        (fmap Just <$> selection ^. #inputs) (selection ^. #outputs) meta
+    now <- liftIO getCurrentTime
+    pure $ mkApiTransaction
+        (txId @t tx)
+        (fmap Just <$> selection ^. #inputs)
+        (selection ^. #outputs)
+        (meta, now)
+        #pendingSince
   where
     liftE1 = throwE . ErrCreateUnsignedTxNoSuchWallet
     liftE2 = throwE . ErrSignTxNoSuchWallet
@@ -591,6 +607,14 @@ listTransactions ctx (ApiT wid) mStart mEnd mOrder = do
     defaultSortOrder :: SortOrder
     defaultSortOrder = Descending
 
+    -- Populate an API transaction record with 'TransactionInfo' from the wallet
+    -- layer.
+    mkApiTransactionFromInfo :: TransactionInfo -> ApiTransaction t
+    mkApiTransactionFromInfo (TransactionInfo txid ins outs meta depth txtime) =
+        apiTx { depth  }
+      where
+        apiTx = mkApiTransaction txid ins outs (meta, txtime) #insertedAt
+
 postTransactionFee
     :: forall ctx s t k.
         ( DefineTx t
@@ -626,9 +650,18 @@ listPools
     -> Handler [ApiStakePool]
 listPools _ctx = throwError err501
 
-{-==============================================================================
-                            Compatibility API
-==============================================================================-}
+{-------------------------------------------------------------------------------
+                                    Network
+-------------------------------------------------------------------------------}
+
+network
+    :: ctx
+    -> Handler ApiNetworkInformation
+network _ctx = throwError err501
+
+{-------------------------------------------------------------------------------
+                               Compatibility API
+-------------------------------------------------------------------------------}
 
 compatibilityApiServer
     :: ctx
@@ -736,36 +769,43 @@ createWallet ctx wid a0 a1 =
     re = ctx ^. workerRegistry @s @t @k
     df = ctx ^. dbFactory @s @t @k
 
--- Populate an API transaction record with 'TransactionInfo' from the wallet
--- layer.
-mkApiTransactionFromInfo :: TransactionInfo -> ApiTransaction t
-mkApiTransactionFromInfo (TransactionInfo txid ins outs meta depth txtime) =
-    apiTx { depth, insertedAt }
-  where
-    apiTx = mkApiTransaction txid ins outs meta
-    insertedAt = Just (ApiBlockData txtime (ApiT (meta ^. #slotId)))
-
 mkApiTransaction
     :: forall t.
        Hash "Tx"
     -> [(TxIn, Maybe TxOut)]
     -> [TxOut]
-    -> W.TxMeta
+    -> (W.TxMeta, UTCTime)
+    -> Lens' (ApiTransaction t) (Maybe ApiTimeReference)
     -> ApiTransaction t
-mkApiTransaction txid ins outs meta = ApiTransaction
-    { id = ApiT txid
-    , amount = meta ^. #amount
-    , insertedAt = Nothing
-    , depth = Quantity 0
-    , direction = ApiT (meta ^. #direction)
-    , inputs = [ApiTxInput (fmap convertTxOut o) (ApiT i) | (i, o) <- ins]
-    , outputs = NE.fromList (convertTxOut <$> outs)
-    , status = ApiT (meta ^. #status)
-    }
+mkApiTransaction txid ins outs (meta, timestamp) setTimeReference =
+    tx & setTimeReference .~ Just timeReference
   where
-      convertTxOut :: TxOut -> AddressAmount t
-      convertTxOut (TxOut addr (Coin c)) =
-          AddressAmount (ApiT addr, Proxy @t) (Quantity $ fromIntegral c)
+    tx :: ApiTransaction t
+    tx = ApiTransaction
+        { id = ApiT txid
+        , amount = meta ^. #amount
+        , insertedAt = Nothing
+        , pendingSince = Nothing
+        , depth = Quantity 0
+        , direction = ApiT (meta ^. #direction)
+        , inputs = [ApiTxInput (fmap toAddressAmount o) (ApiT i) | (i, o) <- ins]
+        , outputs = NE.fromList (toAddressAmount <$> outs)
+        , status = ApiT (meta ^. #status)
+        }
+
+    timeReference :: ApiTimeReference
+    timeReference = ApiTimeReference
+        { time = timestamp
+        , block = ApiBlockReference
+            { slotNumber = meta ^. (#slotId . #slotNumber)
+            , epochNumber = meta ^. (#slotId . #epochNumber)
+            }
+        }
+
+    toAddressAmount :: TxOut -> AddressAmount t
+    toAddressAmount (TxOut addr (Coin c)) =
+        AddressAmount (ApiT addr, Proxy @t) (Quantity $ fromIntegral c)
+
 
 coerceCoin :: AddressAmount t -> TxOut
 coerceCoin (AddressAmount (ApiT addr, _) (Quantity c)) =
@@ -1115,10 +1155,10 @@ instance LiftHandler ErrNetworkUnavailable where
                 [ "The node backend is unreachable: ", err
                 , ". Trying again in a bit might work."
                 ]
-        ErrNetworkInvalid network ->
+        ErrNetworkInvalid n ->
             apiError err503 NetworkMisconfigured $ mconcat
                 [ "The node backend is configured for the wrong network: "
-                , network, "."
+                , n, "."
                 ]
 
 instance LiftHandler ErrUpdatePassphrase where

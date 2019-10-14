@@ -1,0 +1,63 @@
+{
+    "seed": 3880157902387946925,
+    "samples": [
+        {
+            "status": "ready"
+        },
+        {
+            "status": "restoring",
+            "progress": {
+                "quantity": 32,
+                "unit": "percent"
+            }
+        },
+        {
+            "status": "restoring",
+            "progress": {
+                "quantity": 54,
+                "unit": "percent"
+            }
+        },
+        {
+            "status": "restoring",
+            "progress": {
+                "quantity": 88,
+                "unit": "percent"
+            }
+        },
+        {
+            "status": "restoring",
+            "progress": {
+                "quantity": 12,
+                "unit": "percent"
+            }
+        },
+        {
+            "status": "ready"
+        },
+        {
+            "status": "ready"
+        },
+        {
+            "status": "restoring",
+            "progress": {
+                "quantity": 30,
+                "unit": "percent"
+            }
+        },
+        {
+            "status": "restoring",
+            "progress": {
+                "quantity": 96,
+                "unit": "percent"
+            }
+        },
+        {
+            "status": "restoring",
+            "progress": {
+                "quantity": 68,
+                "unit": "percent"
+            }
+        }
+    ]
+}
