@@ -85,7 +85,8 @@ mPutPoolProduction :: SlotId -> PoolId -> ModelPoolOp ()
 mPutPoolProduction point poolId db@(PoolDatabase pools) =
     let alter slot = \case
             Nothing -> Just [slot]
-            Just slots -> Just (slot:slots)
+            Just slots -> Just $ sortDesc (slot:slots)
+        sortDesc = L.sortBy (flip compare)
     in if point `elem` concat (Map.elems pools) then
         (Left (SlotAlreadyExists point), db)
     else
