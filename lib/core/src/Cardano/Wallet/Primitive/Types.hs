@@ -75,6 +75,7 @@ module Cardano.Wallet.Primitive.Types
     , log10
 
     -- * Slotting
+    , SyncProgress(..)
     , SlotId (..)
     , SlotParameters (..)
     , SlotLength (..)
@@ -99,7 +100,6 @@ module Cardano.Wallet.Primitive.Types
     , WalletName(..)
     , walletNameMinLength
     , walletNameMaxLength
-    , WalletState(..)
     , WalletDelegation (..)
     , WalletPassphraseInfo(..)
     , WalletBalance(..)
@@ -237,7 +237,7 @@ data WalletMetadata = WalletMetadata
     , passphraseInfo
         :: !(Maybe WalletPassphraseInfo)
     , status
-        :: !WalletState
+        :: !SyncProgress
     , delegation
         :: !(WalletDelegation PoolId)
     } deriving (Eq, Show, Generic)
@@ -305,26 +305,6 @@ instance Buildable WalletId where
     build wid = prefixF 8 widF <> "..." <> suffixF 8 widF
       where
         widF = toText wid
-
-data WalletState
-    = Ready
-    | Restoring !(Quantity "percent" Percentage)
-    deriving (Generic, Eq, Show)
-
-instance NFData WalletState
-
-instance Ord WalletState where
-    Ready <= Ready = True
-    Ready <= Restoring _ = False
-    Restoring _ <= Ready = True
-    Restoring a <= Restoring b = a <= b
-
-instance Buildable WalletState where
-    build = \case
-        Ready ->
-            "restored"
-        Restoring (Quantity p) ->
-            "still restoring (" <> build (toText p) <> ")"
 
 data WalletDelegation poolId
     = NotDelegating
@@ -1009,6 +989,26 @@ data SlotParameters = SlotParameters
     , getGenesisBlockDate
         :: StartTime
     } deriving (Eq, Generic, Show)
+
+data SyncProgress
+    = Ready
+    | Restoring !(Quantity "percent" Percentage)
+    deriving (Generic, Eq, Show)
+
+instance NFData SyncProgress
+
+instance Ord SyncProgress where
+    Ready <= Ready = True
+    Ready <= Restoring _ = False
+    Restoring _ <= Ready = True
+    Restoring a <= Restoring b = a <= b
+
+instance Buildable SyncProgress where
+    build = \case
+        Ready ->
+            "restored"
+        Restoring (Quantity p) ->
+            "still restoring (" <> build (toText p) <> ")"
 
 -- | Estimate restoration progress based on:
 --

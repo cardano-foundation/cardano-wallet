@@ -84,6 +84,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolId (..)
     , ShowFmt (..)
     , SlotId (..)
+    , SyncProgress (..)
     , TxIn (..)
     , TxStatus (..)
     , WalletBalance (..)
@@ -91,7 +92,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletId (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
-    , WalletState (..)
     , isValidCoin
     )
 import Control.Applicative
@@ -179,7 +179,7 @@ data ApiWallet = ApiWallet
     , delegation :: !(ApiT (WalletDelegation (ApiT PoolId)))
     , name :: !(ApiT WalletName)
     , passphrase :: !(Maybe (ApiT WalletPassphraseInfo))
-    , state :: !(ApiT WalletState)
+    , state :: !(ApiT SyncProgress)
     } deriving (Eq, Generic, Show)
 
 data ApiStakePool = ApiStakePool
@@ -335,7 +335,7 @@ data ApiByronWallet = ApiByronWallet
     , balance :: !(ApiT WalletBalance)
     , name :: !(ApiT WalletName)
     , passphrase :: !(Maybe (ApiT WalletPassphraseInfo))
-    , state :: !(ApiT WalletState)
+    , state :: !(ApiT SyncProgress)
     } deriving (Eq, Generic, Show)
 
 newtype ApiByronWalletMigrationInfo = ApiByronWalletMigrationInfo
@@ -508,10 +508,10 @@ instance FromJSON (ApiT WalletPassphraseInfo) where
 instance ToJSON (ApiT WalletPassphraseInfo) where
     toJSON = genericToJSON defaultRecordTypeOptions . getApiT
 
-instance FromJSON (ApiT WalletState) where
-    parseJSON = fmap ApiT . genericParseJSON walletStateOptions
-instance ToJSON (ApiT WalletState) where
-    toJSON = genericToJSON walletStateOptions . getApiT
+instance FromJSON (ApiT SyncProgress) where
+    parseJSON = fmap ApiT . genericParseJSON syncProgressOptions
+instance ToJSON (ApiT SyncProgress) where
+    toJSON = genericToJSON syncProgressOptions . getApiT
 
 instance FromJSON ApiUtxoStatistics where
     parseJSON = genericParseJSON defaultRecordTypeOptions
@@ -612,17 +612,16 @@ walletDelegationOptions = taggedSumTypeOptions $ TaggedObjectOptions
     , _contentsFieldName = "target"
     }
 
--- | Options for encoding a wallet state. It can be serialized to and from JSON
--- as follows:
+-- | Options for encoding a synchronization progress. It can be serialized to
+-- and from JSON as follows:
 --
 -- >>> Aeson.encode Ready
 -- {"status":"ready"}
 --
 -- >>> Aeson.encode $ Restoring (Quantity 14)
 -- {"status":"restoring","progress":{"quantity":14,"unit":"percent"}}
-
-walletStateOptions :: Aeson.Options
-walletStateOptions = taggedSumTypeOptions $ TaggedObjectOptions
+syncProgressOptions :: Aeson.Options
+syncProgressOptions = taggedSumTypeOptions $ TaggedObjectOptions
     { _tagFieldName = "status"
     , _contentsFieldName = "progress"
     }

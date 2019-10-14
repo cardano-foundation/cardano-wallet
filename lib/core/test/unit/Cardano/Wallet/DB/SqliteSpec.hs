@@ -89,6 +89,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , SlotId (..)
     , SortOrder (..)
+    , SyncProgress (..)
     , TxIn (..)
     , TxMeta (TxMeta)
     , TxOut (..)
@@ -98,7 +99,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletMetadata (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
-    , WalletState (..)
     , wholeRange
     )
 import Cardano.Wallet.Unsafe

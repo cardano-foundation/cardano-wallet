@@ -79,6 +79,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolId (..)
     , SlotId (..)
     , SortOrder (..)
+    , SyncProgress (..)
     , TxIn (..)
     , TxIn (..)
     , TxOut (..)
@@ -89,7 +90,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletId (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
-    , WalletState (..)
     , computeUtxoStatistics
     , log10
     , poolIdBytesLength
@@ -238,7 +238,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletId)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletName)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletPassphraseInfo)
-            jsonRoundtripAndGolden $ Proxy @(ApiT WalletState)
+            jsonRoundtripAndGolden $ Proxy @(ApiT SyncProgress)
 
     describe "Textual encoding" $ do
 
@@ -741,7 +741,7 @@ instance (PassphraseMaxLength purpose, PassphraseMinLength purpose) =>
 instance Arbitrary WalletPassphraseInfo where
     arbitrary = WalletPassphraseInfo <$> genUniformTime
 
-instance Arbitrary WalletState where
+instance Arbitrary SyncProgress where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
