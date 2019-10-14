@@ -127,6 +127,9 @@ instance KeyToAddress (Jormungandr n) RndKey where
         $ CBOR.toStrictByteString
         $ CBOR.encodeAddress (getRawKey k)
             [ CBOR.encodeDerivationPathAttr pwd acctIx addrIx ]
+            -- Note that we do NOT include a protocol magic attribute here,
+            -- as we do not discriminate between Testnet and Mainnet: we'll
+            -- be using Byron Mainnet addresses on Jormungndr Testnet.
       where
         (acctIx, addrIx) = derivationPath k
         pwd = payloadPassphrase k
