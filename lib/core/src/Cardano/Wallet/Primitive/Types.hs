@@ -11,6 +11,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -79,7 +80,7 @@ module Cardano.Wallet.Primitive.Types
     , SlotLength (..)
     , EpochLength (..)
     , StartTime (..)
-    , slotRatio
+    , syncProgress
     , flatSlot
     , fromFlatSlot
     , slotStartTime
@@ -155,6 +156,10 @@ import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
+import Data.Generics.Internal.VL.Lens
+    ( (^.) )
+import Data.Generics.Labels
+    ()
 import Data.Int
     ( Int32 )
 import Data.List.NonEmpty
@@ -1005,25 +1010,48 @@ data SlotParameters = SlotParameters
         :: StartTime
     } deriving (Eq, Generic, Show)
 
--- | Compute the approximate ratio / progress between two slots. This is an
--- approximation for a few reasons, one of them being that we hard code the
--- epoch length as a static number whereas it may vary in practice.
-slotRatio
+-- | Estimate restoration progress based on:
+--
+-- - The current local tip
+-- - The last slot
+--
+-- For the sake of this calculation, we are somewhat conflating the definitions
+-- of slots and block height. Because we can't reliably _trust_ that the current
+-- node is actually itself synced with the network. So, we compute the progress
+-- as:
+--
+-- @
+-- p = h / (h + X)
+-- @
+--
+-- Where:
+--
+-- - @h@: the number of blocks we have ingested so far.
+-- - @X@: the estimatd remaining slots to reach the network tip.
+--
+-- Initially, `X` gives a relatively poor estimation of the network height, as
+-- it assumes that every next slot will be a block. But, as we ingest blocks,
+-- `h` becomes bigger and `X` becomes smaller making the progress estimation
+-- better and better. At some point, `X` is null, and we have `p = h / h`
+syncProgress
     :: EpochLength
+        -- ^ Known epoch length
+    -> BlockHeader
+        -- ^ Local tip
     -> SlotId
-        -- ^ Numerator
-    -> SlotId
-        -- ^ Denominator
+        -- ^ Last slot that could have been produced
     -> Quantity "percent" Percentage
-slotRatio epochLength a b =
+syncProgress epochLength tip slotNow =
     let
-        n0 = flatSlot epochLength a
-        n1 = flatSlot epochLength b
+        bhTip = fromIntegral . getQuantity $ blockHeight tip
+        n0 = flatSlot epochLength (tip ^. #slotId)
+        n1 = flatSlot epochLength slotNow
         tolerance = 5
-    in if distance n0 n1 < tolerance || n0 >= n1 then
+    in if distance n1 n0 < tolerance || n0 >= n1 then
         maxBound
     else
-        Quantity $ toEnum $ fromIntegral $ (100 * n0) `div` n1
+        Quantity $ toEnum $ fromIntegral $
+            (100 * bhTip) `div` (bhTip + n1 - n0)
 
 -- | Convert a 'SlotId' to the number of slots since genesis.
 flatSlot :: EpochLength -> SlotId -> Word64
