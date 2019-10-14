@@ -45,6 +45,7 @@ import Cardano.CLI
     , optionT
     , requireFilePath
     , runCli
+    , setUtf8Encoding
     , setupDirectory
     , stateDirOption
     , verbosityOption
@@ -125,6 +126,7 @@ import qualified Data.Text as T
 
 main :: IO ()
 main = do
+    setUtf8Encoding
     dataDir <- getDataDir "jormungandr"
     runCli $ cli $ mempty
         <> cmdLaunch dataDir
