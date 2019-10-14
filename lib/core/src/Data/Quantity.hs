@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE KindSignatures #-}
@@ -53,12 +54,15 @@ import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Text.Read
     ( decimal )
+import Fmt
+    ( Buildable (..) )
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
     ( KnownSymbol, Symbol, symbolVal )
 
 import qualified Data.Text as T
+import qualified Data.Text.Lazy.Builder as Builder
 
 
 -- | @Quantity (unit :: Symbol) a@ is a primitive @a@  multiplied by an @unit@.
@@ -117,6 +121,9 @@ instance FromText b => FromText (Quantity sym b) where
 instance ToText b => ToText (Quantity sym b) where
     toText (Quantity b) = toText b
 
+instance Buildable b => Buildable (Quantity sym b) where
+    build (Quantity b) = build b
+
 {-------------------------------------------------------------------------------
                                 Percentage
 -------------------------------------------------------------------------------}
@@ -153,6 +160,9 @@ instance FromText Percentage where
       where
         err = TextDecodingError
             "expected a value between 0 and 100 with a '%' suffix (e.g. '14%')"
+
+instance Buildable Percentage where
+    build = Builder.fromText . toText
 
 -- | Safe constructor for 'Percentage'
 mkPercentage

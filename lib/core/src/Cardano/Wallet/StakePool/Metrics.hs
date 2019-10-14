@@ -169,18 +169,21 @@ worker
     :: NetworkLayer IO tx (BlockHeader, PoolId)
     -> Trace IO Text
     -> IO (MVar State)
-worker nl tr = do
+worker nl oldTr = do
     let ((block0Header, _),_) = staticBlockchainParameters nl
-    let tr' = appendName "stakepool-metrics-collector" tr
-    logInfo tr' "worker started..."
+    let tr = appendName "stakepool-metrics-collector" oldTr
+    logInfo tr "worker started..."
     let s0 = State block0Header Map.empty
     mvar <- newMVar s0
-    void $ forkIO $ follow nl tr' [block0Header] (advance mvar) rollback fst
+    void $ forkIO $ follow nl tr [block0Header] (advance mvar) rollback fst
     return mvar
   where
     advance
-        :: MVar State -> NonEmpty (BlockHeader, PoolId) -> BlockHeader -> ExceptT () IO ()
-    advance mvar blocks _ = do
+        :: MVar State
+        -> NonEmpty (BlockHeader, PoolId)
+        -> BlockHeader
+        -> ExceptT () IO ()
+    advance mvar blocks _t = do
         liftIO $ modifyMVar_ mvar $ \s -> do
             (return $ foldl (flip applyBlock) s blocks )
 
