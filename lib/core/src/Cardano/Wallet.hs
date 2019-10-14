@@ -588,14 +588,13 @@ restoreBlocks ctx wid blocks nodeTip = do
         -> WalletMetadata
         -> IO WalletMetadata
     calculateMetadata bp h meta = do
-        -- NOTE: Safe because current time is after start time.
-        (Just now) <- liftIO $ W.slotAt sp <$> getCurrentTime
-        let p = syncProgress (bp ^. #getEpochLength) h now
-        pure (meta { status = newStatus p } :: WalletMetadata)
+        now <- liftIO getCurrentTime
+        let status' = maybe
+                (Restoring minBound)
+                (syncProgress (bp ^. #getEpochLength) h)
+                (W.slotAt sp now)
+        pure (meta { status = status' } :: WalletMetadata)
       where
-        newStatus p =
-            if p == maxBound then Ready else Restoring p
-
         sp :: SlotParameters
         sp = SlotParameters
             (bp ^. #getEpochLength)

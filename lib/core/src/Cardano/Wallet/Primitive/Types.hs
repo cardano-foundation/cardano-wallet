@@ -1044,7 +1044,7 @@ syncProgress
         -- ^ Local tip
     -> SlotId
         -- ^ Last slot that could have been produced
-    -> Quantity "percent" Percentage
+    -> SyncProgress
 syncProgress epochLength tip slotNow =
     let
         bhTip = fromIntegral . getQuantity $ blockHeight tip
@@ -1052,9 +1052,9 @@ syncProgress epochLength tip slotNow =
         n1 = flatSlot epochLength slotNow
         tolerance = 5
     in if distance n1 n0 < tolerance || n0 >= n1 then
-        maxBound
+        Ready
     else
-        Quantity $ toEnum $ fromIntegral $
+        Restoring $ Quantity $ toEnum $ fromIntegral $
             (100 * bhTip) `div` (bhTip + n1 - n0)
 
 -- | Convert a 'SlotId' to the number of slots since genesis.

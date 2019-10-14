@@ -56,6 +56,8 @@ import Cardano.Wallet
     , HasGenesisData
     , HasLogger
     , HasNetworkLayer
+    , genesisData
+    , networkLayer
     )
 import Cardano.Wallet.Api
     ( Addresses
@@ -103,7 +105,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.DB
     ( DBFactory )
 import Cardano.Wallet.Network
-    ( ErrNetworkUnavailable (..), NetworkLayer )
+    ( ErrNetworkTip (..), ErrNetworkUnavailable (..), NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress (..), WalletKey (..), digest, publicKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
@@ -655,9 +657,35 @@ listPools _ctx = throwError err501
 -------------------------------------------------------------------------------}
 
 network
-    :: ctx
+    :: forall s t k. ()
+    => ApiLayer s t k
     -> Handler ApiNetworkInformation
-network _ctx = throwError err501
+network ctx = do
+    nTip <- liftHandler (networkTip nl)
+    now <- liftIO getCurrentTime
+    pure $ ApiNetworkInformation
+        { ntpStatus =
+            ApiT W.NtpUnavailable
+        , protocolUpdates =
+            ApiT W.UpdatesUnavailable
+        , syncProgress = ApiT $ maybe
+            (W.Restoring minBound)
+            (W.syncProgress (bp ^. #getEpochLength) nTip)
+            (W.slotAt sp now)
+        , tip =
+            ApiBlockReference
+                { epochNumber = nTip ^. (#slotId . #epochNumber)
+                , slotNumber  = nTip ^. (#slotId . #slotNumber)
+                }
+        }
+  where
+    nl = ctx ^. networkLayer @t
+    (_, bp) = ctx ^. genesisData @t
+    sp :: W.SlotParameters
+    sp = W.SlotParameters
+        (bp ^. #getEpochLength)
+        (bp ^. #getSlotLength)
+        (bp ^. #getGenesisBlockDate)
 
 {-------------------------------------------------------------------------------
                                Compatibility API
@@ -1179,6 +1207,15 @@ instance LiftHandler ErrStartTimeLaterThanEndTime where
         , toText $ Iso8601Time $ errEndTime err
         , "'."
         ]
+
+instance LiftHandler ErrNetworkTip where
+    handler = \case
+        ErrNetworkTipNetworkUnreachable e -> handler e
+        ErrNetworkTipNotFound -> apiError err503 NetworkTipNotFound $ mconcat
+            [ "I couldn't get the current network tip at the moment. It's "
+            , "probably because the node is down or not started yet. Retrying "
+            , "in a bit might give better results!"
+            ]
 
 instance LiftHandler (Request, ServantErr) where
     handler (req, err@(ServantErr code _ body headers))
