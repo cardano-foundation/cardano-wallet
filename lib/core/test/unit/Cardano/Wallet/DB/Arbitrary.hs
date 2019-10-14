@@ -77,6 +77,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SlotParameters (..)
     , SortOrder (..)
+    , SyncProgress (..)
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
@@ -87,7 +88,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletMetadata (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
-    , WalletState (..)
     , flatSlot
     , isPending
     , slotSucc

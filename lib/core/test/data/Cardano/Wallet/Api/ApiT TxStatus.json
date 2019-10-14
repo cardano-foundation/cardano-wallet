@@ -1,15 +1,15 @@
 {
-    "seed": 2550702900618514290,
+    "seed": -6317740986646774461,
     "samples": [
         "pending",
-        "pending",
-        "invalidated",
-        "invalidated",
         "invalidated",
         "pending",
+        "pending",
+        "in_ledger",
         "invalidated",
         "invalidated",
-        "invalidated",
-        "invalidated"
+        "in_ledger",
+        "in_ledger",
+        "pending"
     ]
 }

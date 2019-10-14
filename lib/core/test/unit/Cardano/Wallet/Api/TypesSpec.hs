@@ -26,14 +26,16 @@ import Cardano.Wallet.Api
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress (..)
-    , ApiBlockData (..)
+    , ApiBlockReference (..)
     , ApiByronWallet (..)
     , ApiByronWalletMigrationInfo (..)
     , ApiFee (..)
     , ApiMigrateByronWalletData (..)
     , ApiMnemonicT (..)
+    , ApiNetworkInformation (..)
     , ApiStakePool (..)
     , ApiT (..)
+    , ApiTimeReference (..)
     , ApiTransaction (..)
     , ApiTxId (..)
     , ApiTxInput (..)
@@ -76,9 +78,12 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , Hash (..)
     , HistogramBar (..)
+    , NtpStatus (..)
     , PoolId (..)
+    , ProtocolUpdates (..)
     , SlotId (..)
     , SortOrder (..)
+    , SyncProgress (..)
     , TxIn (..)
     , TxIn (..)
     , TxOut (..)
@@ -89,7 +94,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletId (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
-    , WalletState (..)
     , computeUtxoStatistics
     , log10
     , poolIdBytesLength
@@ -208,7 +212,9 @@ spec = do
         "can perform roundtrip JSON serialization & deserialization, \
         \and match existing golden files" $ do
             jsonRoundtripAndGolden $ Proxy @(ApiAddress DummyTarget)
-            jsonRoundtripAndGolden $ Proxy @ApiBlockData
+            jsonRoundtripAndGolden $ Proxy @ApiTimeReference
+            jsonRoundtripAndGolden $ Proxy @ApiBlockReference
+            jsonRoundtripAndGolden $ Proxy @ApiNetworkInformation
             jsonRoundtripAndGolden $ Proxy @ApiStakePool
             jsonRoundtripAndGolden $ Proxy @(AddressAmount DummyTarget)
             jsonRoundtripAndGolden $ Proxy @(ApiTransaction DummyTarget)
@@ -238,7 +244,9 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletId)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletName)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletPassphraseInfo)
-            jsonRoundtripAndGolden $ Proxy @(ApiT WalletState)
+            jsonRoundtripAndGolden $ Proxy @(ApiT SyncProgress)
+            jsonRoundtripAndGolden $ Proxy @(ApiT NtpStatus)
+            jsonRoundtripAndGolden $ Proxy @(ApiT ProtocolUpdates)
 
     describe "Textual encoding" $ do
 
@@ -528,6 +536,7 @@ spec = do
                     { id = id (x :: ApiTransaction DummyTarget)
                     , amount = amount (x :: ApiTransaction DummyTarget)
                     , insertedAt = insertedAt (x :: ApiTransaction DummyTarget)
+                    , pendingSince = pendingSince (x :: ApiTransaction DummyTarget)
                     , depth = depth (x :: ApiTransaction DummyTarget)
                     , direction = direction (x :: ApiTransaction DummyTarget)
                     , inputs = inputs (x :: ApiTransaction DummyTarget)
@@ -544,11 +553,29 @@ spec = do
                     }
             in
                 x' === x .&&. show x' === show x
-        it "ApiBlockData" $ property $ \x ->
+        it "ApiTimeReference" $ property $ \x ->
             let
-                x' = ApiBlockData
-                    { time = time (x :: ApiBlockData)
-                    , block = block (x :: ApiBlockData)
+                x' = ApiTimeReference
+                    { time = time (x :: ApiTimeReference)
+                    , block = block (x :: ApiTimeReference)
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "ApiBlockReference" $ property $ \x ->
+            let
+                x' = ApiBlockReference
+                    { slotNumber = slotNumber (x :: ApiBlockReference)
+                    , epochNumber = epochNumber (x :: ApiBlockReference)
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "ApiNetworkInformation" $ property $ \x ->
+            let
+                x' = ApiNetworkInformation
+                    { ntpStatus = ntpStatus (x :: ApiNetworkInformation)
+                    , protocolUpdates = protocolUpdates (x :: ApiNetworkInformation)
+                    , syncProgress = syncProgress (x :: ApiNetworkInformation)
+                    , tip = tip (x :: ApiNetworkInformation)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -741,7 +768,7 @@ instance (PassphraseMaxLength purpose, PassphraseMinLength purpose) =>
 instance Arbitrary WalletPassphraseInfo where
     arbitrary = WalletPassphraseInfo <$> genUniformTime
 
-instance Arbitrary WalletState where
+instance Arbitrary SyncProgress where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
@@ -807,9 +834,29 @@ instance
             , (5, pure $ ApiMnemonicT y)
             ]
 
-instance Arbitrary ApiBlockData where
-    arbitrary = ApiBlockData <$> genUniformTime <*> arbitrary
-    shrink (ApiBlockData t b) = ApiBlockData t <$> shrink b
+instance Arbitrary ApiTimeReference where
+    arbitrary = ApiTimeReference <$> genUniformTime <*> arbitrary
+    shrink (ApiTimeReference t b) = ApiTimeReference t <$> shrink b
+
+instance Arbitrary ApiBlockReference where
+    arbitrary = ApiBlockReference <$> arbitrary <*> arbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiNetworkInformation where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary NtpStatus where
+    -- NOTE
+    -- At the moment, we've specified in the Swagger spec that only
+    -- `NtpUnavailable` will be returned, to make it clear for clients that this
+    -- isn't yet available as a feature.
+    arbitrary = pure NtpUnavailable
+    shrink _ = []
+
+instance Arbitrary ProtocolUpdates where
+    arbitrary = arbitraryBoundedEnum
+    shrink = genericShrink
 
 instance Arbitrary SlotId where
     arbitrary = SlotId <$> arbitrary <*> arbitrary
@@ -842,16 +889,18 @@ instance Arbitrary (ApiTransaction t) where
     arbitrary = do
         txStatus <- arbitrary
         txInsertedAt <- case txStatus of
-            (ApiT Pending) ->
-                pure Nothing
-            (ApiT Invalidated) ->
-                pure Nothing
-            (ApiT InLedger) ->
-                arbitrary
+            (ApiT Pending) -> pure Nothing
+            (ApiT Invalidated) -> pure Nothing
+            (ApiT InLedger) -> arbitrary
+        txPendingSince <- case txStatus of
+            (ApiT Pending) -> arbitrary
+            (ApiT Invalidated) -> pure Nothing
+            (ApiT InLedger) -> pure Nothing
         ApiTransaction
             <$> arbitrary
             <*> arbitrary
             <*> pure txInsertedAt
+            <*> pure txPendingSince
             <*> arbitrary
             <*> arbitrary
             <*> arbitrary
@@ -1018,6 +1067,9 @@ instance ToSchema (ApiTransaction t) where
 
 instance ToSchema ApiUtxoStatistics where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWalletUTxOsStatistics"
+
+instance ToSchema ApiNetworkInformation where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiNetworkInformation"
 
 -- | Utility function to provide an ad-hoc 'ToSchema' instance for a definition:
 -- we simply look it up within the Swagger specification.

@@ -61,7 +61,7 @@ Wallet
     walCreationTime       UTCTime        sql=creation_time
     walName               Text           sql=name
     walPassphraseLastUpdatedAt  UTCTime Maybe  sql=passphrase_last_updated_at
-    walStatus             W.WalletState  sql=status
+    walStatus             W.SyncProgress sql=status
     walDelegation         W.PoolId Maybe sql=delegation
 
     Primary walId

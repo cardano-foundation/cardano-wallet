@@ -1,15 +1,15 @@
 {
-    "seed": -8761265711042447705,
+    "seed": 1959377728147086495,
     "samples": [
         "incoming",
-        "outgoing",
-        "outgoing",
-        "outgoing",
-        "outgoing",
         "incoming",
         "outgoing",
+        "incoming",
+        "incoming",
         "outgoing",
         "incoming",
-        "incoming"
+        "incoming",
+        "outgoing",
+        "outgoing"
     ]
 }

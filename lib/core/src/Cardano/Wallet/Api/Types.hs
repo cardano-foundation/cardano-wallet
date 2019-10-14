@@ -41,13 +41,15 @@ module Cardano.Wallet.Api.Types
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
     , PostExternalTransactionData (..)
-    , ApiBlockData (..)
+    , ApiTimeReference (..)
     , ApiTransaction (..)
     , ApiFee (..)
     , ApiTxId (..)
     , ApiTxInput (..)
     , AddressAmount (..)
     , ApiErrorCode (..)
+    , ApiNetworkInformation (..)
+    , ApiBlockReference (..)
     , Iso8601Time (..)
 
     -- * API Types (Byron)
@@ -81,9 +83,12 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , EncodeAddress (..)
     , Hash (..)
+    , NtpStatus (..)
     , PoolId (..)
+    , ProtocolUpdates (..)
     , ShowFmt (..)
     , SlotId (..)
+    , SyncProgress (..)
     , TxIn (..)
     , TxStatus (..)
     , WalletBalance (..)
@@ -91,7 +96,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletId (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
-    , WalletState (..)
     , isValidCoin
     )
 import Control.Applicative
@@ -143,7 +147,7 @@ import Data.Time
 import Data.Time.Text
     ( iso8601, iso8601ExtendedUtc, utcTimeFromText, utcTimeToText )
 import Data.Word
-    ( Word64 )
+    ( Word16, Word64 )
 import Fmt
     ( pretty )
 import GHC.Generics
@@ -179,7 +183,7 @@ data ApiWallet = ApiWallet
     , delegation :: !(ApiT (WalletDelegation (ApiT PoolId)))
     , name :: !(ApiT WalletName)
     , passphrase :: !(Maybe (ApiT WalletPassphraseInfo))
-    , state :: !(ApiT WalletState)
+    , state :: !(ApiT SyncProgress)
     } deriving (Eq, Generic, Show)
 
 data ApiStakePool = ApiStakePool
@@ -249,7 +253,8 @@ newtype ApiTxId = ApiTxId
 data ApiTransaction t = ApiTransaction
     { id :: !(ApiT (Hash "Tx"))
     , amount :: !(Quantity "lovelace" Natural)
-    , insertedAt :: !(Maybe ApiBlockData)
+    , insertedAt :: !(Maybe ApiTimeReference)
+    , pendingSince :: !(Maybe ApiTimeReference)
     , depth :: !(Quantity "slot" Natural)
     , direction :: !(ApiT Direction)
     , inputs :: ![ApiTxInput t]
@@ -267,9 +272,26 @@ data AddressAmount t = AddressAmount
     , amount :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
 
-data ApiBlockData = ApiBlockData
-    { time :: UTCTime
-    , block :: !(ApiT SlotId)
+data ApiTimeReference = ApiTimeReference
+    { time :: !UTCTime
+    , block :: !ApiBlockReference
+    } deriving (Eq, Generic, Show)
+
+data ApiBlockReference = ApiBlockReference
+    { epochNumber :: !Word64
+    , slotNumber :: !Word16
+    -- FIXME
+    -- Make this available, it'll require to also store the block height with
+    -- TxMeta to make it properly available for transactions.
+    --
+    -- , blockHeight :: !(Quantity "block" Word32)
+    } deriving (Eq, Generic, Show)
+
+data ApiNetworkInformation = ApiNetworkInformation
+    { ntpStatus :: !(ApiT NtpStatus)
+    , protocolUpdates :: !(ApiT ProtocolUpdates)
+    , syncProgress :: !(ApiT SyncProgress)
+    , tip :: !ApiBlockReference
     } deriving (Eq, Generic, Show)
 
 -- | Error codes returned by the API, in the form of snake_cased strings
@@ -335,7 +357,7 @@ data ApiByronWallet = ApiByronWallet
     , balance :: !(ApiT WalletBalance)
     , name :: !(ApiT WalletName)
     , passphrase :: !(Maybe (ApiT WalletPassphraseInfo))
-    , state :: !(ApiT WalletState)
+    , state :: !(ApiT SyncProgress)
     } deriving (Eq, Generic, Show)
 
 newtype ApiByronWalletMigrationInfo = ApiByronWalletMigrationInfo
@@ -508,10 +530,10 @@ instance FromJSON (ApiT WalletPassphraseInfo) where
 instance ToJSON (ApiT WalletPassphraseInfo) where
     toJSON = genericToJSON defaultRecordTypeOptions . getApiT
 
-instance FromJSON (ApiT WalletState) where
-    parseJSON = fmap ApiT . genericParseJSON walletStateOptions
-instance ToJSON (ApiT WalletState) where
-    toJSON = genericToJSON walletStateOptions . getApiT
+instance FromJSON (ApiT SyncProgress) where
+    parseJSON = fmap ApiT . genericParseJSON syncProgressOptions
+instance ToJSON (ApiT SyncProgress) where
+    toJSON = genericToJSON syncProgressOptions . getApiT
 
 instance FromJSON ApiUtxoStatistics where
     parseJSON = genericParseJSON defaultRecordTypeOptions
@@ -538,9 +560,14 @@ instance FromJSON (ApiT SlotId) where
 instance ToJSON (ApiT SlotId) where
     toJSON = genericToJSON defaultRecordTypeOptions . getApiT
 
-instance FromJSON ApiBlockData where
+instance FromJSON ApiTimeReference where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiBlockData where
+instance ToJSON ApiTimeReference where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiBlockReference where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiBlockReference where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance DecodeAddress t => FromJSON (AddressAmount t) where
@@ -595,6 +622,21 @@ instance FromJSON (ApiT TxStatus) where
 instance ToJSON (ApiT TxStatus) where
     toJSON = genericToJSON defaultSumTypeOptions . getApiT
 
+instance FromJSON ApiNetworkInformation where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiNetworkInformation where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON (ApiT NtpStatus) where
+    parseJSON = fmap ApiT . genericParseJSON ntpStatusOptions
+instance ToJSON (ApiT NtpStatus) where
+    toJSON = genericToJSON ntpStatusOptions . getApiT
+
+instance FromJSON (ApiT ProtocolUpdates) where
+    parseJSON = fmap ApiT . genericParseJSON (prefixedSumTypeOptions "Updates")
+instance ToJSON (ApiT ProtocolUpdates) where
+    toJSON = genericToJSON (prefixedSumTypeOptions "Updates") . getApiT
+
 instance ToJSON ApiErrorCode where
     toJSON = genericToJSON defaultSumTypeOptions
 
@@ -607,25 +649,41 @@ instance ToJSON ApiErrorCode where
 -- >>> Aeson.encode $ Delegating poolId
 -- {"status":"delegating","target": "27522fe5-262e-42a5-8ccb-cef884ea2ba0"}
 walletDelegationOptions :: Aeson.Options
-walletDelegationOptions = taggedSumTypeOptions $ TaggedObjectOptions
-    { _tagFieldName = "status"
-    , _contentsFieldName = "target"
-    }
+walletDelegationOptions = taggedSumTypeOptions defaultSumTypeOptions $
+    TaggedObjectOptions
+        { _tagFieldName = "status"
+        , _contentsFieldName = "target"
+        }
 
--- | Options for encoding a wallet state. It can be serialized to and from JSON
--- as follows:
+-- | Options for encoding synchronization progress. It can be serialized to
+-- and from JSON as follows:
 --
 -- >>> Aeson.encode Ready
 -- {"status":"ready"}
 --
 -- >>> Aeson.encode $ Restoring (Quantity 14)
 -- {"status":"restoring","progress":{"quantity":14,"unit":"percent"}}
+syncProgressOptions :: Aeson.Options
+syncProgressOptions = taggedSumTypeOptions defaultSumTypeOptions $
+    TaggedObjectOptions
+        { _tagFieldName = "status"
+        , _contentsFieldName = "progress"
+        }
 
-walletStateOptions :: Aeson.Options
-walletStateOptions = taggedSumTypeOptions $ TaggedObjectOptions
-    { _tagFieldName = "status"
-    , _contentsFieldName = "progress"
-    }
+-- | Options for encoding ntp status. It can be serialized to and from JSON as
+-- follows:
+--
+-- >>> Aeson.encode NtpUnavailable
+-- {"status":"unavailable"}
+--
+-- >>> Aeson.encode $ NtpAvailable (Quantity 14)
+-- {"status":"available","drift":{"quantity":14,"unit":"microsecond"}}
+ntpStatusOptions :: Aeson.Options
+ntpStatusOptions = taggedSumTypeOptions (prefixedSumTypeOptions "Ntp") $
+    TaggedObjectOptions
+        { _tagFieldName = "status"
+        , _contentsFieldName = "drift"
+        }
 
 {-------------------------------------------------------------------------------
                              JSON Instances: Byron
@@ -704,16 +762,24 @@ defaultSumTypeOptions = Aeson.defaultOptions
     , tagSingleConstructors = True
     }
 
+prefixedSumTypeOptions :: String -> Aeson.Options
+prefixedSumTypeOptions prefix = Aeson.defaultOptions
+    { constructorTagModifier = camelTo2 '_' . drop (length prefix)
+    , tagSingleConstructors = True
+    }
+
 defaultRecordTypeOptions :: Aeson.Options
 defaultRecordTypeOptions = Aeson.defaultOptions
     { fieldLabelModifier = camelTo2 '_' . dropWhile (== '_')
     , omitNothingFields = True
     }
 
-taggedSumTypeOptions :: TaggedObjectOptions -> Aeson.Options
-taggedSumTypeOptions opts = defaultSumTypeOptions
+taggedSumTypeOptions :: Aeson.Options -> TaggedObjectOptions -> Aeson.Options
+taggedSumTypeOptions base opts = base
     { sumEncoding = TaggedObject (_tagFieldName opts) (_contentsFieldName opts)
     }
+
+
 
 {-------------------------------------------------------------------------------
                                    Helpers

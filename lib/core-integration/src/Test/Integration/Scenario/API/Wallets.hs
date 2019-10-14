@@ -17,8 +17,8 @@ import Cardano.Wallet.Primitive.Mnemonic
 import Cardano.Wallet.Primitive.Types
     ( DecodeAddress
     , EncodeAddress
+    , SyncProgress (..)
     , WalletDelegation (..)
-    , WalletState (..)
     , walletNameMaxLength
     , walletNameMinLength
     )

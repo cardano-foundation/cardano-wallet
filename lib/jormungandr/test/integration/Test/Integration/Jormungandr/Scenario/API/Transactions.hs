@@ -415,7 +415,7 @@ fixtureExternalTx ctx toSend = do
     let wSrc = getFromResponse Prelude.id r0
     -- we take input by lookking at transactions of the faucet wallet
     txsSrc <- listAllTransactions ctx wSrc
-    let (ApiTransaction (ApiT theTxId) _ _ _ _ _ outs _):_ = reverse txsSrc
+    let (ApiTransaction (ApiT theTxId) _ _ _ _ _ _ outs _):_ = reverse txsSrc
     let (AddressAmount ((ApiT addrSrc),_) (Quantity amt)):_ = NE.toList outs
     let (rootXPrv, pwd, st) = getSeqState mnemonicFaucet password
     -- we create change address

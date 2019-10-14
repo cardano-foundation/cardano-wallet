@@ -49,6 +49,7 @@ import Cardano.Wallet.Api.Types
     , ApiByronWalletMigrationInfo
     , ApiFee
     , ApiMigrateByronWalletData
+    , ApiNetworkInformation
     , ApiStakePool
     , ApiT
     , ApiTransaction
@@ -112,11 +113,21 @@ import Servant.API
 
 type Api t = CoreApi t :<|> CompatibilityApi t
 
-{-==============================================================================
-                                  Core API
-==============================================================================-}
+type CoreApi t =
+    Addresses t
+    :<|> Wallets
+    :<|> Transactions t
+    :<|> StakePools
+    :<|> Network
 
-type CoreApi t = Addresses t :<|> Wallets :<|> Transactions t :<|> StakePools
+type CompatibilityApi t =
+    DeleteByronWallet
+    :<|> GetByronWallet
+    :<|> GetByronWalletMigrationInfo
+    :<|> ListByronWallets
+    :<|> MigrateByronWallet
+    :<|> PostByronWallet
+
 
 {-------------------------------------------------------------------------------
                                   Addresses
@@ -241,17 +252,22 @@ type StakePools = ListStakePools
 type ListStakePools = "stake-pools"
     :> Get '[JSON] [ApiStakePool]
 
-{-==============================================================================
-                              Compatibility API
-==============================================================================-}
+{-------------------------------------------------------------------------------
+                                  Network
 
-type CompatibilityApi t =
-    DeleteByronWallet
-    :<|> GetByronWallet
-    :<|> GetByronWalletMigrationInfo
-    :<|> ListByronWallets
-    :<|> MigrateByronWallet
-    :<|> PostByronWallet
+  See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/Network
+-------------------------------------------------------------------------------}
+
+type Network =
+    "network"
+    :> "information"
+    :> Get '[JSON] ApiNetworkInformation
+
+{-------------------------------------------------------------------------------
+                              Compatibility API
+
+  See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/Byron-Wallets
+-------------------------------------------------------------------------------}
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteByronWallet
 type DeleteByronWallet = "byron"

@@ -62,10 +62,10 @@ import Cardano.Wallet.Primitive.Types
     , DefineTx
     , SlotId (..)
     , StartTime (..)
+    , SyncProgress (..)
     , UTxO (..)
     , WalletId (..)
     , WalletName (..)
-    , WalletState (..)
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )

@@ -170,6 +170,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SlotParameters (..)
     , SortOrder (..)
+    , SyncProgress (..)
     , TransactionInfo (..)
     , Tx (..)
     , TxIn (..)
@@ -183,7 +184,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletMetadata (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
-    , WalletState (..)
     , computeUtxoStatistics
     , log10
     , slotDifference

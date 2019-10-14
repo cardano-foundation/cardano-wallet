@@ -1,0 +1,155 @@
+{
+    "seed": -2318719910249052031,
+    "samples": [
+        {
+            "protocol_updates": "unavailable",
+            "sync_progress": {
+                "status": "restoring",
+                "progress": {
+                    "quantity": 79,
+                    "unit": "percent"
+                }
+            },
+            "tip": {
+                "epoch_number": 4943997,
+                "slot_number": 5557
+            },
+            "ntp_status": {
+                "status": "unavailable"
+            }
+        },
+        {
+            "protocol_updates": "unavailable",
+            "sync_progress": {
+                "status": "ready"
+            },
+            "tip": {
+                "epoch_number": 6672252,
+                "slot_number": 29878
+            },
+            "ntp_status": {
+                "status": "unavailable"
+            }
+        },
+        {
+            "protocol_updates": "unavailable",
+            "sync_progress": {
+                "status": "ready"
+            },
+            "tip": {
+                "epoch_number": 13943963,
+                "slot_number": 24850
+            },
+            "ntp_status": {
+                "status": "unavailable"
+            }
+        },
+        {
+            "protocol_updates": "unavailable",
+            "sync_progress": {
+                "status": "ready"
+            },
+            "tip": {
+                "epoch_number": 10675315,
+                "slot_number": 695
+            },
+            "ntp_status": {
+                "status": "unavailable"
+            }
+        },
+        {
+            "protocol_updates": "unavailable",
+            "sync_progress": {
+                "status": "restoring",
+                "progress": {
+                    "quantity": 0,
+                    "unit": "percent"
+                }
+            },
+            "tip": {
+                "epoch_number": 5393807,
+                "slot_number": 14321
+            },
+            "ntp_status": {
+                "status": "unavailable"
+            }
+        },
+        {
+            "protocol_updates": "unavailable",
+            "sync_progress": {
+                "status": "restoring",
+                "progress": {
+                    "quantity": 62,
+                    "unit": "percent"
+                }
+            },
+            "tip": {
+                "epoch_number": 111847,
+                "slot_number": 9430
+            },
+            "ntp_status": {
+                "status": "unavailable"
+            }
+        },
+        {
+            "protocol_updates": "unavailable",
+            "sync_progress": {
+                "status": "restoring",
+                "progress": {
+                    "quantity": 86,
+                    "unit": "percent"
+                }
+            },
+            "tip": {
+                "epoch_number": 12370988,
+                "slot_number": 10253
+            },
+            "ntp_status": {
+                "status": "unavailable"
+            }
+        },
+        {
+            "protocol_updates": "unavailable",
+            "sync_progress": {
+                "status": "restoring",
+                "progress": {
+                    "quantity": 16,
+                    "unit": "percent"
+                }
+            },
+            "tip": {
+                "epoch_number": 6433184,
+                "slot_number": 6447
+            },
+            "ntp_status": {
+                "status": "unavailable"
+            }
+        },
+        {
+            "protocol_updates": "unavailable",
+            "sync_progress": {
+                "status": "ready"
+            },
+            "tip": {
+                "epoch_number": 4365508,
+                "slot_number": 3541
+            },
+            "ntp_status": {
+                "status": "unavailable"
+            }
+        },
+        {
+            "protocol_updates": "unavailable",
+            "sync_progress": {
+                "status": "ready"
+            },
+            "tip": {
+                "epoch_number": 7296857,
+                "slot_number": 17655
+            },
+            "ntp_status": {
+                "status": "unavailable"
+            }
+        }
+    ]
+}

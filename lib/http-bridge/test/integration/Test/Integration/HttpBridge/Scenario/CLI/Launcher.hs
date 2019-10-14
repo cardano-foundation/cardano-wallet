@@ -15,7 +15,7 @@ import Cardano.CLI
 import Cardano.Wallet.Api.Types
     ( ApiWallet )
 import Cardano.Wallet.Primitive.Types
-    ( WalletState (..) )
+    ( SyncProgress (..) )
 import Control.Exception
     ( finally )
 import Control.Monad

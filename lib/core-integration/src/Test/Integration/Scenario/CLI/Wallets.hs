@@ -14,8 +14,8 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.Types
     ( DecodeAddress (..)
     , EncodeAddress (..)
+    , SyncProgress (..)
     , WalletDelegation (..)
-    , WalletState (..)
     , encodeAddress
     , walletNameMaxLength
     , walletNameMinLength

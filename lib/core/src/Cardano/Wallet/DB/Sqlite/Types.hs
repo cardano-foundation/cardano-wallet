@@ -37,9 +37,9 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , PoolId
     , SlotId (..)
+    , SyncProgress (..)
     , TxStatus (..)
     , WalletId (..)
-    , WalletState (..)
     , flatSlot
     , fromFlatSlot
     , isValidCoin
@@ -272,26 +272,26 @@ instance FromJSON SlotId where
     parseJSON = genericParseJSON defaultOptions
 
 ----------------------------------------------------------------------------
--- WalletState
+-- SyncProgress
 
-walletStateNum :: WalletState -> Word8
+walletStateNum :: SyncProgress -> Word8
 walletStateNum Ready = 100
 walletStateNum (Restoring (Quantity pc)) =
     fromIntegral $ getPercentage pc
 
-walletStateFromNum :: Word8 -> WalletState
+walletStateFromNum :: Word8 -> SyncProgress
 walletStateFromNum n | n < 100 = Restoring (Quantity pc)
                      | otherwise = Ready
     where Right pc = mkPercentage n
 
-instance PersistField WalletState where
+instance PersistField SyncProgress where
     toPersistValue = toPersistValue . walletStateNum
     fromPersistValue = fmap walletStateFromNum . fromPersistValue
 
-instance PersistFieldSql WalletState where
+instance PersistFieldSql SyncProgress where
     sqlType _ = sqlType (Proxy @Word8)
 
-instance Read WalletState where
+instance Read SyncProgress where
     readsPrec _ = error "readsPrec stub needed for persistent"
 
 ----------------------------------------------------------------------------

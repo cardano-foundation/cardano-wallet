@@ -935,7 +935,7 @@ data WalletClient t = WalletClient
 walletClient :: forall t. (DecodeAddress t, EncodeAddress t) => WalletClient t
 walletClient =
     let
-        addresses :<|> wallets :<|> transactions :<|> pools =
+        addresses :<|> wallets :<|> transactions :<|> pools :<|> _network =
             client (Proxy @("v2" :> CoreApi t))
 
         _listAddresses =

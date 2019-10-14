@@ -1,103 +1,103 @@
 {
-    "seed": 7041153508709726203,
+    "seed": -845498788431422403,
     "samples": [
         {
             "controlled_stake": {
-                "quantity": 719779080677,
+                "quantity": 22376304913,
                 "unit": "lovelace"
             },
             "produced_blocks": {
-                "quantity": 15058026,
+                "quantity": 6067105,
                 "unit": "block"
             }
         },
         {
             "controlled_stake": {
-                "quantity": 597077804285,
+                "quantity": 152289197189,
                 "unit": "lovelace"
             },
             "produced_blocks": {
-                "quantity": 11519028,
+                "quantity": 6630488,
                 "unit": "block"
             }
         },
         {
             "controlled_stake": {
-                "quantity": 684387851106,
+                "quantity": 231038307950,
                 "unit": "lovelace"
             },
             "produced_blocks": {
-                "quantity": 19565374,
+                "quantity": 3105498,
                 "unit": "block"
             }
         },
         {
             "controlled_stake": {
-                "quantity": 997802235550,
+                "quantity": 666989889272,
                 "unit": "lovelace"
             },
             "produced_blocks": {
-                "quantity": 19824147,
+                "quantity": 18828922,
                 "unit": "block"
             }
         },
         {
             "controlled_stake": {
-                "quantity": 242303422378,
+                "quantity": 931470067811,
                 "unit": "lovelace"
             },
             "produced_blocks": {
-                "quantity": 19007681,
+                "quantity": 22162473,
                 "unit": "block"
             }
         },
         {
             "controlled_stake": {
-                "quantity": 136436631662,
+                "quantity": 105715401468,
                 "unit": "lovelace"
             },
             "produced_blocks": {
-                "quantity": 4723053,
+                "quantity": 16279914,
                 "unit": "block"
             }
         },
         {
             "controlled_stake": {
-                "quantity": 967727310389,
+                "quantity": 33420510568,
                 "unit": "lovelace"
             },
             "produced_blocks": {
-                "quantity": 8442044,
+                "quantity": 6929515,
                 "unit": "block"
             }
         },
         {
             "controlled_stake": {
-                "quantity": 639752504568,
+                "quantity": 386244770795,
                 "unit": "lovelace"
             },
             "produced_blocks": {
-                "quantity": 5213982,
+                "quantity": 15026278,
                 "unit": "block"
             }
         },
         {
             "controlled_stake": {
-                "quantity": 348762079513,
+                "quantity": 801653371485,
                 "unit": "lovelace"
             },
             "produced_blocks": {
-                "quantity": 5223832,
+                "quantity": 3684927,
                 "unit": "block"
             }
         },
         {
             "controlled_stake": {
-                "quantity": 398444578442,
+                "quantity": 116585423211,
                 "unit": "lovelace"
             },
             "produced_blocks": {
-                "quantity": 5327767,
+                "quantity": 7867642,
                 "unit": "block"
             }
         }

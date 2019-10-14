@@ -1,0 +1,75 @@
+{
+    "seed": 836014604752226642,
+    "samples": [
+        {
+            "time": "2236-02-08T13:00:00Z",
+            "block": {
+                "epoch_number": 8433098,
+                "slot_number": 21301
+            }
+        },
+        {
+            "time": "2406-12-13T16:00:00Z",
+            "block": {
+                "epoch_number": 6519788,
+                "slot_number": 16098
+            }
+        },
+        {
+            "time": "2664-10-16T07:15:49.508686057886Z",
+            "block": {
+                "epoch_number": 5491657,
+                "slot_number": 3615
+            }
+        },
+        {
+            "time": "2008-09-13T12:47:34.494689542962Z",
+            "block": {
+                "epoch_number": 9057487,
+                "slot_number": 30325
+            }
+        },
+        {
+            "time": "2525-07-31T16:58:57.2851732035Z",
+            "block": {
+                "epoch_number": 7861822,
+                "slot_number": 24415
+            }
+        },
+        {
+            "time": "2522-06-11T22:26:40.344100887032Z",
+            "block": {
+                "epoch_number": 34148,
+                "slot_number": 23885
+            }
+        },
+        {
+            "time": "2394-10-30T00:00:00Z",
+            "block": {
+                "epoch_number": 4059192,
+                "slot_number": 29722
+            }
+        },
+        {
+            "time": "2034-01-05T16:59:32Z",
+            "block": {
+                "epoch_number": 3670678,
+                "slot_number": 4763
+            }
+        },
+        {
+            "time": "1973-06-01T22:42:07.888782380142Z",
+            "block": {
+                "epoch_number": 3152538,
+                "slot_number": 17474
+            }
+        },
+        {
+            "time": "2033-11-26T01:04:54.791439184649Z",
+            "block": {
+                "epoch_number": 6481016,
+                "slot_number": 10625
+            }
+        }
+    ]
+}
