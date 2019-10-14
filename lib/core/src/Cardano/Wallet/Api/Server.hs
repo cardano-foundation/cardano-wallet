@@ -727,10 +727,12 @@ deleteByronWallet
 deleteByronWallet _ _ = throwError err501
 
 getByronWallet
-    :: ctx
+    :: forall t k. DefineTx t
+    => ApiLayer (RndState t) t k
     -> ApiT WalletId
     -> Handler ApiByronWallet
-getByronWallet _ _ = throwError err501
+getByronWallet ctx wid =
+    fst <$> getByronWalletWithCreationTime ctx wid
 
 getByronWalletMigrationInfo
     :: ctx
@@ -895,6 +897,33 @@ getWalletWithCreationTime ctx (ApiT wid) = do
             ApiT <$> meta ^. #passphraseInfo
         , state =
             ApiT $ meta ^. #status
+        , tip = ApiBlockReference
+            { epochNumber = (currentTip wallet) ^. #slotId . #epochNumber
+            , slotNumber =  (currentTip wallet) ^. #slotId . #slotNumber
+            , height = natural $ (currentTip wallet) ^. #blockHeight
+            }
+        }
+
+getByronWalletWithCreationTime
+    :: forall t k. DefineTx t
+    => ApiLayer (RndState t) t k
+    -> ApiT WalletId
+    -> Handler (ApiByronWallet, UTCTime)
+getByronWalletWithCreationTime ctx (ApiT wid) = do
+    (wallet, meta, pending) <-
+        liftHandler $ withWorkerCtx ctx wid throwE $
+            \wrk -> W.readWallet wrk wid
+    return (mkApiByronWallet wallet meta pending, meta ^. #creationTime)
+  where
+    mkApiByronWallet wallet meta pending = ApiByronWallet
+        { id = ApiT wid
+        , balance = ApiT $ WalletBalance
+            { available = Quantity $ availableBalance pending wallet
+            , total = Quantity $ totalBalance pending wallet
+            }
+        , name = ApiT $ meta ^. #name
+        , passphrase = ApiT <$> meta ^. #passphraseInfo
+        , state = ApiT $ meta ^. #status
         , tip = ApiBlockReference
             { epochNumber = (currentTip wallet) ^. #slotId . #epochNumber
             , slotNumber =  (currentTip wallet) ^. #slotId . #slotNumber

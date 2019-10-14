@@ -43,6 +43,7 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( arabicWalletName
     , errMsg404NoEndpoint
+    , errMsg404NoWallet
     , errMsg405
     , errMsg406
     , errMsg415
@@ -84,15 +85,14 @@ spec = do
         w <- emptyWallet ctx
         let ep  = ( "GET", "v2/byron/wallets/" <> w ^. walletId )
         r <- request @ApiByronWallet ctx ep Default Empty
-        expectResponseCode @IO HTTP.status501 r
+        expectResponseCode @IO HTTP.status404 r
 
     describe "BYRON_GET_06 - non-existing wallets" $  do
         forM_ falseWalletIds $ \(desc, walId) -> it desc $ \ctx -> do
             let endpoint = "v2/byron/wallets/" <> T.pack walId
             rg <- request @ApiByronWallet ctx ("GET", endpoint) Default Empty
             if (desc == valid40CharHexDesc) then do
-                expectResponseCode @IO HTTP.status501 rg
-                -- expectErrorMessage (errMsg404NoWallet $ T.pack walId) rg
+                expectErrorMessage (errMsg404NoWallet $ T.pack walId) rg
             else do
                 expectResponseCode @IO HTTP.status404 rg
                 expectErrorMessage errMsg404NoEndpoint rg
