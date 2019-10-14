@@ -184,14 +184,14 @@ withDBLayer
     -> Trace IO Text
        -- ^ Logging object
     -> Maybe FilePath
-       -- ^ Database file location, or Nothing for in-memory database
+       -- ^ Path to database directory, or Nothing for in-memory database
     -> (DBLayer IO s t k -> IO a)
        -- ^ Action to run.
     -> IO a
-withDBLayer logConfig trace fp action =
+withDBLayer logConfig trace mDatabaseDir action =
     bracket before after (action . snd)
   where
-    before = newDBLayer logConfig trace fp
+    before = newDBLayer logConfig trace mDatabaseDir
     after = destroyDBLayer . fst
 
 -- | Instantiate a 'DBFactory' from a given directory
@@ -209,16 +209,16 @@ mkDBFactory
     -> Trace IO Text
        -- ^ Logging object
     -> Maybe FilePath
-       -- ^ Database file location, or Nothing for in-memory database
+       -- ^ Path to database directory, or Nothing for in-memory database
     -> DBFactory IO s t k
-mkDBFactory cfg tr databaseDir = case databaseDir of
+mkDBFactory cfg tr mDatabaseDir = case mDatabaseDir of
     Nothing -> DBFactory
         { withDatabase = \_ ->
             withDBLayer cfg tracerDB Nothing
         , removeDatabase = \_ ->
             pure ()
         }
-    Just folder -> DBFactory
+    Just databaseDir -> DBFactory
         { withDatabase = \wid ->
             withDBLayer cfg tracerDB (Just $ filepath wid)
         , removeDatabase = \wid -> do
@@ -230,7 +230,7 @@ mkDBFactory cfg tr databaseDir = case databaseDir of
             mapM_ removePathForcibly files
         }
       where
-        filepath wid = folder </> T.unpack (toText wid) <> ".sqlite"
+        filepath wid = databaseDir </> T.unpack (toText wid) <> ".sqlite"
   where
     tracerDB = appendName "database" tr
 
@@ -281,13 +281,13 @@ newDBLayer
     -> Trace IO Text
        -- ^ Logging object
     -> Maybe FilePath
-       -- ^ Database file location, or Nothing for in-memory database
+       -- ^ Path to database file, or Nothing for in-memory database
     -> IO (SqliteContext, DBLayer IO s t k)
-newDBLayer logConfig trace fp = do
+newDBLayer logConfig trace mDatabaseFile = do
     lock <- newMVar ()
     let trace' = transformTrace trace
     ctx@SqliteContext{runQuery} <-
-        startSqliteBackend logConfig migrateAll trace' fp
+        startSqliteBackend logConfig migrateAll trace' mDatabaseFile
     return (ctx, DBLayer
 
         {-----------------------------------------------------------------------
