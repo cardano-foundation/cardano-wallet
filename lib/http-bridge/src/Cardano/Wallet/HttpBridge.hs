@@ -158,7 +158,7 @@ serveWallet (cfg, sb, tr) databaseDir listen bridge mAction = do
     newApiLayer nl = do
         let g0 = staticBlockchainParameters nl
         let tl = HttpBridge.newTransactionLayer @n
-        wallets <- maybe (pure []) (Sqlite.findDatabases tr) databaseDir
+        wallets <- maybe (pure []) (Sqlite.findDatabases @k tr) databaseDir
         Server.newApiLayer tr g0 nl tl dbFactory wallets
 
     dbFactory

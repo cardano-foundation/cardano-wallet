@@ -77,7 +77,7 @@ import Cardano.Wallet.DB.Sqlite.TH
 import Cardano.Wallet.DB.Sqlite.Types
     ( AddressPoolXPub (..), BlockId (..), TxId (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), PersistKey (..) )
+    ( Depth (..), PersistKey (..), WalletKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.Types
@@ -112,6 +112,8 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( catMaybes )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -220,42 +222,49 @@ mkDBFactory cfg tr mDatabaseDir = case mDatabaseDir of
         }
     Just databaseDir -> DBFactory
         { withDatabase = \wid ->
-            withDBLayer cfg tracerDB (Just $ filepath wid)
+            withDBLayer cfg tracerDB (Just $ databaseFile wid)
         , removeDatabase = \wid -> do
             let files =
-                    [ filepath wid
-                    , filepath wid <> "-wal"
-                    , filepath wid <> "-shm"
+                    [ databaseFile wid
+                    , databaseFile wid <> "-wal"
+                    , databaseFile wid <> "-shm"
                     ]
             mapM_ removePathForcibly files
         }
       where
-        filepath wid = databaseDir </> T.unpack (toText wid) <> ".sqlite"
+        databaseFilePrefix = keyTypeDescriptor $ Proxy @k
+        databaseFile wid =
+            databaseDir </>
+            databaseFilePrefix <> "." <>
+            T.unpack (toText wid) <> ".sqlite"
   where
     tracerDB = appendName "database" tr
 
 -- | Lookup file-system for existing wallet databases
 findDatabases
-    :: Trace IO Text
+    :: forall k. PersistKey k
+    => Trace IO Text
     -> FilePath
     -> IO [W.WalletId]
 findDatabases tr dir = do
     files <- listDirectory dir
     fmap catMaybes $ forM files $ \file -> do
         isFile <- doesFileExist (dir </> file)
-        let (basename:rest) = T.splitOn "." $ T.pack file
-        case (isFile, fromText basename, rest) of
-            (True, Right wid, ["sqlite"]) -> do
-                logInfo tr $ "Found existing wallet: " <> basename
-                return (Just wid)
-            (True, Right _, _) -> do
-                return Nothing
-            _ -> do
-                logNotice tr $ mconcat
-                    [ "Found something else than a database file in the "
-                    , "database folder: ", T.pack file
-                    ]
-                return Nothing
+        case (isFile, T.splitOn "." $ T.pack file) of
+            (True, prefix : basename : ["sqlite"]) | prefix == expectedPrefix ->
+                case fromText basename of
+                    Right wid -> do
+                        logInfo tr $ "Found existing wallet: " <> basename
+                        return (Just wid)
+                    _ -> do
+                        logNotice tr $ mconcat
+                            [ "Found something other than a database file in "
+                            , "the database folder: ", T.pack file
+                            ]
+                        return Nothing
+            _ -> return Nothing
+  where
+    expectedPrefix = T.pack $ keyTypeDescriptor $ Proxy @k
 
 -- | Sets up a connection to the SQLite database.
 --

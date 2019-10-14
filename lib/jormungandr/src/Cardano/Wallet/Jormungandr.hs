@@ -170,7 +170,7 @@ serveWallet (cfg, sb, tr) databaseDir listen lj beforeMainLoop = do
     apiLayer tracer nl = do
         let (block0, bp) = staticBlockchainParameters nl
         let tl = newTransactionLayer @n (getGenesisBlockHash bp)
-        wallets <- maybe (pure []) (Sqlite.findDatabases tr) databaseDir
+        wallets <- maybe (pure []) (Sqlite.findDatabases @k tr) databaseDir
         Server.newApiLayer tracer (block0, bp) nl tl dbFactory wallets
 
     dbFactory

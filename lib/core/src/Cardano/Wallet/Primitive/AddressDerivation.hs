@@ -395,6 +395,10 @@ class WalletKey (key :: Depth -> * -> *) where
         => key depth XPub
         -> Digest a
 
+    -- | Get a short, human-readable string descriptor that uniquely identifies
+    --   the specified key type.
+    keyTypeDescriptor :: Proxy key -> String
+
     -- | Unwrap the 'WalletKey' to use the 'XPrv' or 'XPub'.
     getRawKey
         :: key depth raw

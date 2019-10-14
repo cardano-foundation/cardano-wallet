@@ -116,6 +116,7 @@ instance WalletKey SeqKey where
     digest = digestSeq
     getRawKey = getKey
     dummyKey = dummyKeySeq
+    keyTypeDescriptor _ = "seq"
 
 -- | Marker for the change chain. In practice, change of a transaction goes onto
 -- the addresses generated on the internal chain, whereas the external chain is
