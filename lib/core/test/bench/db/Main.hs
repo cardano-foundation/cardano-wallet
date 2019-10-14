@@ -40,10 +40,12 @@ import Prelude
 
 import Cardano.BM.Data.Tracer
     ( nullTracer )
+import Cardano.DB.Sqlite
+    ( SqliteContext, destroyDBLayer )
 import Cardano.Wallet.DB
     ( DBLayer (..), PrimaryKey (..), cleanDB )
 import Cardano.Wallet.DB.Sqlite
-    ( SqliteContext, destroyDBLayer, newDBLayer )
+    ( newDBLayer )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx (..), block0, genesisParameters )
 import Cardano.Wallet.Primitive.AddressDerivation

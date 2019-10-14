@@ -275,7 +275,7 @@ mReadTxHistory
     -> Range SlotId
     -> Maybe TxStatus
     -> ModelOp wid s t xprv (TxHistory t)
-mReadTxHistory wid order range mstatus db@Database{wallets,txs} = (Right res, db)
+mReadTxHistory wid order range mstatus db@(Database wallets txs) = (Right res, db)
   where
     res = maybe mempty getTxs $ Map.lookup wid wallets
     getTxs wal = filterTxHistory @t order range $ catMaybes

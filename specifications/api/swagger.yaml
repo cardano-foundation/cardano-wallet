@@ -1244,7 +1244,7 @@ paths:
     get:
       operationId: getByronWalletMigrationInfo
       tags: ["Byron Wallets"]
-      summary: Migrate
+      summary: Calculate Migration Cost
       description: |
         <p align="right">status: <strong>not implemented</strong></p>
 
