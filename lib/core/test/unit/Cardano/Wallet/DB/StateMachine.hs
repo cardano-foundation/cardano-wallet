@@ -58,7 +58,7 @@ import Cardano.Wallet.DB
     , cleanDB
     )
 import Cardano.Wallet.DB.Arbitrary
-    ( GenTxHistory (..) )
+    ( GenState, GenTxHistory (..), InitialCheckpoint (..) )
 import Cardano.Wallet.DB.Model
     ( Database
     , Err (..)
@@ -66,6 +66,7 @@ import Cardano.Wallet.DB.Model
     , emptyDatabase
     , mCleanDB
     , mCreateWallet
+    , mListCheckpoints
     , mListWallets
     , mPutCheckpoint
     , mPutPrivateKey
@@ -85,7 +86,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..)
+    ( BlockHeader
+    , Hash (..)
     , Range (..)
     , SlotId (..)
     , SortOrder (..)
@@ -235,6 +237,7 @@ data Cmd s wid
     | ListWallets
     | PutCheckpoint wid (MWallet s)
     | ReadCheckpoint wid
+    | ListCheckpoints wid
     | PutWalletMeta wid WalletMetadata
     | ReadWalletMeta wid
     | PutTxHistory wid (TxHistory DummyTarget)
@@ -252,6 +255,7 @@ data Success s wid
     | Metadata (Maybe WalletMetadata)
     | TxHistory (TxHistory DummyTarget)
     | PrivateKey (Maybe MPrivKey)
+    | BlockHeaders [BlockHeader]
     deriving (Show, Eq, Functor, Foldable, Traversable)
 
 newtype Resp s wid
@@ -284,6 +288,8 @@ runMock = \case
         first (Resp . fmap WalletIds) . mListWallets
     PutCheckpoint wid wal ->
         first (Resp . fmap Unit) . mPutCheckpoint wid wal
+    ListCheckpoints wid ->
+        first (Resp . fmap BlockHeaders) . mListCheckpoints wid
     ReadCheckpoint wid ->
         first (Resp . fmap Checkpoint) . mReadCheckpoint wid
     PutWalletMeta wid meta ->
@@ -335,6 +341,8 @@ runIO db = fmap Resp . go
             catchNoSuchWallet Unit $ putCheckpoint db (PrimaryKey wid) wal
         ReadCheckpoint wid ->
             Right . Checkpoint <$> readCheckpoint db (PrimaryKey wid)
+        ListCheckpoints wid ->
+            Right . BlockHeaders <$> listCheckpoints db (PrimaryKey wid)
         PutWalletMeta wid meta ->
             catchNoSuchWallet Unit $ putWalletMeta db (PrimaryKey wid) meta
         ReadWalletMeta wid ->
@@ -445,7 +453,10 @@ lockstep m@(Model _ ws) c (At resp) = Event
 -------------------------------------------------------------------------------}
 
 {-# ANN generator ("HLint: ignore Use ++" :: String) #-}
-generator :: forall s. (Arbitrary (Wallet s DummyTarget)) => Model s Symbolic -> Maybe (Gen (Cmd s :@ Symbolic))
+generator
+    :: forall s. (Arbitrary (Wallet s DummyTarget), GenState s)
+    => Model s Symbolic
+    -> Maybe (Gen (Cmd s :@ Symbolic))
 generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
     [ withoutWid
     , if null wids then [] else withWid
@@ -453,7 +464,10 @@ generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
   where
     withoutWid :: [(Int, Gen (Cmd s (Reference WalletId Symbolic)))]
     withoutWid =
-        [ (5, CreateWallet <$> genId <*> arbitrary <*> arbitrary)
+        [ (5, CreateWallet
+            <$> genId
+            <*> (getInitialCheckpoint <$> arbitrary)
+            <*> arbitrary)
         ]
 
     withWid :: [(Int, Gen (Cmd s (Reference WalletId Symbolic)))]
@@ -462,6 +476,7 @@ generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
         , (5, pure ListWallets)
         , (5, PutCheckpoint <$> genId' <*> arbitrary)
         , (5, ReadCheckpoint <$> genId')
+        , (5, ListCheckpoints <$> genId')
         , (5, PutWalletMeta <$> genId' <*> arbitrary)
         , (5, ReadWalletMeta <$> genId')
         , (5, PutTxHistory <$> genId' <*> fmap unGenTxHistory arbitrary)
@@ -537,9 +552,13 @@ symbolicResp m c =
   where
     (resp, _mock') = step m c
 
-type TestConstraints s k = (PersistKey k, Eq s, Show s, Arbitrary (Wallet s DummyTarget))
+type TestConstraints s k =
+    (PersistKey k, Eq s, GenState s, Arbitrary (Wallet s DummyTarget))
 
-sm :: TestConstraints s k => DBLayerTest s k -> StateMachine (Model s) (At (Cmd s)) IO (At (Resp s))
+sm
+    :: TestConstraints s k
+    => DBLayerTest s k
+    -> StateMachine (Model s) (At (Cmd s)) IO (At (Resp s))
 sm db = QSM.StateMachine
     { initModel = initModel
     , transition = transition
@@ -563,6 +582,7 @@ instance CommandNames (At (Cmd s)) where
     cmdName (At RemoveWallet{}) = "RemoveWallet"
     cmdName (At ListWallets{}) = "ListWallets"
     cmdName (At PutCheckpoint{}) = "PutCheckpoint"
+    cmdName (At ListCheckpoints{}) = "ListCheckpoints"
     cmdName (At ReadCheckpoint{}) = "ReadCheckpoint"
     cmdName (At PutWalletMeta{}) = "PutWalletMeta"
     cmdName (At ReadWalletMeta{}) = "ReadWalletMeta"
@@ -572,10 +592,12 @@ instance CommandNames (At (Cmd s)) where
     cmdName (At ReadPrivateKey{}) = "ReadPrivateKey"
     cmdName (At RollbackTo{}) = "RollbackTo"
     cmdNames _ =
-        [ "CleanDB", "CreateWallet", "CreateWallet", "RemoveWallet"
-        , "ListWallets", "PutCheckpoint", "ReadCheckpoint", "PutWalletMeta"
-        , "ReadWalletMeta", "PutTxHistory", "ReadTxHistory", "PutPrivateKey"
-        , "ReadPrivateKey", "RollbackTo"
+        [ "CleanDB"
+        , "CreateWallet", "RemoveWallet", "ListWallets"
+        , "PutCheckpoint", "ReadCheckpoint", "ListCheckpoints", "RollbackTo"
+        , "PutWalletMeta", "ReadWalletMeta"
+        , "PutTxHistory", "ReadTxHistory"
+        , "PutPrivateKey", "ReadPrivateKey"
         ]
 
 instance Functor f => Rank2.Functor (At f) where

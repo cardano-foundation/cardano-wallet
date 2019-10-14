@@ -47,6 +47,7 @@ module Cardano.Wallet.DB.Model
     , mListWallets
     , mPutCheckpoint
     , mReadCheckpoint
+    , mListCheckpoints
     , mRollbackTo
     , mPutWalletMeta
     , mReadWalletMeta
@@ -192,6 +193,13 @@ mReadCheckpoint wid db@(Database wallets _) =
   where
     mostRecentCheckpoint :: WalletDatabase s t xprv -> Maybe (Wallet s t)
     mostRecentCheckpoint = fmap snd . Map.lookupMax . checkpoints
+
+mListCheckpoints
+    :: Ord wid => wid -> ModelOp wid s t xprv [BlockHeader]
+mListCheckpoints wid db@(Database wallets _) =
+    (Right $ sort $ maybe [] tips (Map.lookup wid wallets), db)
+  where
+    tips = map currentTip . Map.elems . checkpoints
 
 mRollbackTo :: Ord wid => wid -> SlotId -> ModelOp wid s t xprv ()
 mRollbackTo wid point db@(Database wallets txs) = case Map.lookup wid wallets of

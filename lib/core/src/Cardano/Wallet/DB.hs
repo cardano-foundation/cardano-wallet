@@ -31,7 +31,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
-    ( DefineTx (..)
+    ( BlockHeader
+    , DefineTx (..)
     , Hash
     , Range (..)
     , SlotId (..)
@@ -46,7 +47,7 @@ import Control.Monad.Trans.Except
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
-    ( Word32, Word64 )
+    ( Word32 )
 import GHC.Generics
     ( Generic )
 
@@ -102,6 +103,12 @@ data DBLayer m s t k = DBLayer
         -- ^ Fetch the most recent checkpoint of a given wallet.
         --
         -- Return 'Nothing' if there's no such wallet.
+
+    , listCheckpoints
+        :: PrimaryKey WalletId
+        -> m [BlockHeader]
+        -- ^ List all known checkpoint tips, ordered by slot ids from the oldest
+        -- to the newest.
 
     , putWalletMeta
         :: PrimaryKey WalletId
@@ -241,27 +248,34 @@ cleanDB db = listWallets db >>= mapM_ (runExceptT . removeWallet db)
 -- │cp000 │cp100 │cp101 │..    ..│cp111 │
 -- └───┴───┴───┴─  ──┴───┘
 --  @
+--
+-- NOTE: There might be cases where the chain following "fails" (because, for
+-- example, the node has switch to a different chain, different by more than k),
+-- and in such cases, we have no choice but rolling back from genesis.
+-- Therefore, we need to keep the very first checkpoint in the database, no
+-- matter what.
 sparseCheckpoints
     :: Quantity "block" Word32
         -- ^ Epoch Stability, i.e. how far we can rollback
     -> Quantity "block" Word32
         -- ^ A given block height
-    -> [Word64]
+    -> [Word32]
         -- ^ The list of checkpoint heights that should be kept in DB.
 sparseCheckpoints epochStability blkH =
     let
         gapsSize = 100
         edgeSize = 10
 
-        k = fromIntegral $ getQuantity epochStability
-        h = fromIntegral $ getQuantity blkH
+        k = getQuantity epochStability
+        h = getQuantity blkH
         minH =
             let x = if h < k then 0 else h - k
             in gapsSize * (x `div` gapsSize)
 
+        initial   = 0
         longTerm  = [minH,minH+gapsSize..h]
         shortTerm = if h < edgeSize
             then [0..h]
             else [h-edgeSize,h-edgeSize+1..h]
     in
-        L.sort $ L.nub $ longTerm ++ shortTerm
+        L.sort $ L.nub $ initial : (longTerm ++ shortTerm)

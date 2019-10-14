@@ -130,7 +130,7 @@ Checkpoint
     checkpointSlot           W.SlotId     sql=slot
     checkpointHeaderHash     BlockId      sql=header_hash
     checkpointParentHash     BlockId      sql=parent_header_hash
-    checkpointBlockHeight    Word64       sql=block_height
+    checkpointBlockHeight    Word32       sql=block_height
     checkpointGenesisHash    BlockId      sql=genesis_hash
     checkpointGenesisStart   UTCTime      sql=genesis_start
     checkpointFeePolicy      W.FeePolicy  sql=fee_policy

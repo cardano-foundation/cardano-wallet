@@ -91,7 +91,7 @@ import Control.Concurrent.MVar
 import Control.DeepSeq
     ( NFData )
 import Control.Exception
-    ( bracket )
+    ( Exception, bracket, throwIO )
 import Control.Monad
     ( forM, mapM_, void, when )
 import Control.Monad.Catch
@@ -403,9 +403,16 @@ newDBLayer logConfig trace fp = do
                       pure (checkpointFromEntity @s @t cp utxo <$> s)
                   Nothing -> pure Nothing
 
+        , listCheckpoints = \(PrimaryKey wid) -> runQuery $
+            map (blockHeaderFromEntity . entityVal) <$> selectList
+                [ CheckpointWalletId ==. wid ]
+                [ Asc CheckpointSlot ]
+
         , rollbackTo = \(PrimaryKey wid) point -> ExceptT $ runQuery $ do
             findNearestPoint wid point >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                Nothing -> selectLatestCheckpoint wid >>= \case
+                    Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                    Just _  -> lift $ throwIO (ErrNoOlderCheckpoint wid point)
                 Just nearestPoint -> Right <$> do
                     deleteCheckpoints wid
                         [ CheckpointSlot >. point
@@ -560,6 +567,14 @@ mkWalletMetadataUpdate meta =
     , WalDelegation =. delegationToPoolId (meta ^. #delegation)
     ]
 
+blockHeaderFromEntity :: Checkpoint -> W.BlockHeader
+blockHeaderFromEntity cp = W.BlockHeader
+    { slotId = checkpointSlot cp
+    , blockHeight = Quantity (checkpointBlockHeight cp)
+    , headerHash = getBlockId (checkpointHeaderHash cp)
+    , parentHeaderHash = getBlockId (checkpointParentHash cp)
+    }
+
 metadataFromEntity :: Wallet -> W.WalletMetadata
 metadataFromEntity wal = W.WalletMetadata
     { name = W.WalletName (walName wal)
@@ -606,7 +621,7 @@ mkCheckpointEntity wid wal =
         , checkpointSlot = sl
         , checkpointParentHash = BlockId (header ^. #parentHeaderHash)
         , checkpointHeaderHash = BlockId (header ^. #headerHash)
-        , checkpointBlockHeight = fromIntegral bh
+        , checkpointBlockHeight = bh
         , checkpointGenesisHash = BlockId (coerce (bp ^. #getGenesisBlockHash))
         , checkpointGenesisStart = coerce (bp ^. #getGenesisBlockDate)
         , checkpointFeePolicy = bp ^. #getFeePolicy
@@ -649,12 +664,11 @@ checkpointFromEntity cp utxo s =
         txMaxSize
         epochStability
         ) = cp
-    header = (W.BlockHeader slot blockHeight' headerHash parentHeaderHash)
+    header = (W.BlockHeader slot (Quantity bh) headerHash parentHeaderHash)
     utxo' = W.UTxO . Map.fromList $
         [ (W.TxIn input ix, W.TxOut addr coin)
         | UTxO _ _ (TxId input) ix addr coin <- utxo
         ]
-    blockHeight' = Quantity . toEnum . fromEnum $ bh
     bp = W.BlockchainParameters
         { getGenesisBlockHash = coerce genesisHash
         , getGenesisBlockDate = W.StartTime genesisStart
@@ -913,6 +927,16 @@ findNearestPoint wid sl =
     fmap (checkpointSlot . entityVal) <$> selectFirst
         [CheckpointWalletId ==. wid, CheckpointSlot <=. sl]
         [Desc CheckpointSlot]
+
+-- | A fatal exception thrown when trying to rollback but, there's no checkpoint
+-- to rollback to. The database maintain the invariant that there's always at
+-- least one checkpoint (the first one made for genesis) present in the
+-- database.
+--
+-- If we don't find any checkpoint, it means that this invariant has been
+-- violated.
+data ErrRollbackTo = ErrNoOlderCheckpoint W.WalletId W.SlotId deriving (Show)
+instance Exception ErrRollbackTo
 
 {-------------------------------------------------------------------------------
                      DB queries for address discovery state
