@@ -27,6 +27,16 @@ x-date: &date
   format: iso-8601-date-and-time
   example: 2019-02-27T14:46:45Z
 
+x-slotNumber: &slotNumber
+  type: integer
+  minimum: 0
+  example: 1337
+
+x-epochNumber: &epochNumber
+  type: integer
+  minimum: 0
+  example: 14
+
 x-numberOfSlots: &numberOfSlots
   type: object
   required:
@@ -42,6 +52,16 @@ x-numberOfSlots: &numberOfSlots
       enum:
         - slot
       example: "slot"
+
+x-blockReference: &blockReference
+  description: A reference to a particular block.
+  type: object
+  required:
+    - slot_number
+    - epoch_number
+  properties:
+    slot_number: *slotNumber
+    epoch_number: *epochNumber
 
 x-numberOfBlocks: &numberOfBlocks
   type: object
@@ -74,6 +94,25 @@ x-percentage: &percentage
       type: string
       enum:
         - percent
+
+x-syncProgress: &syncProgress
+  type: object
+  required:
+    - status
+  properties:
+    status:
+      type: string
+      enum:
+        - ready
+        - restoring
+    progress:
+      <<: *percentage
+      description: |
+        <span style="position: relative; left: 35px; top: -21px; vertical-align: middle; background-color: rgba(142, 142, 220, 0.05); color: rgba(50, 50, 159, 0.9); margin: 0 5px; padding: 0 5px; border: 1px solid rgba(50, 50, 159, 0.1); line-height: 20px; font-size: 13px; border-radius: 2px;">
+        <strong>if:</strong> status == restoring
+        </span><br/>
+  example:
+    status: ready
 
 x-amount: &amount
   description: Coins, in Lovelace
@@ -164,21 +203,8 @@ x-walletAddressPoolGap: &walletAddressPoolGap
   default: 20
 
 x-walletState: &walletState
+  <<: *syncProgress
   description: Whether a wallet is ready to use or still syncing
-  type: object
-  required:
-    - status
-  properties:
-    status:
-      type: string
-      enum:
-        - ready
-        - restoring
-    progress:
-      <<: *percentage
-      description: Only present if status `restoring`
-  example:
-    status: ready
 
 x-walletBalance: &walletBalance
   description: Wallet current balance(s)
@@ -232,27 +258,32 @@ x-transactionAmount: &transactionAmount
   <<: *amount
 
 x-transactionInsertedAt: &transactionInsertedAt
-  description: Absolute time the transaction was inserted in a block
+  description: |
+    <span style="position: relative; left: 35px; top: -21px; vertical-align: middle; background-color: rgba(142, 142, 220, 0.05); color: rgba(50, 50, 159, 0.9); margin: 0 5px; padding: 0 5px; border: 1px solid rgba(50, 50, 159, 0.1); line-height: 20px; font-size: 13px; border-radius: 2px;">
+    <strong>if:</strong> status != pending
+    </span><br/>
+    Absolute time at which the transaction was inserted in a block.
   type: object
   required:
     - block
     - time
   properties:
     time: *date
-    block:
-      type: object
-      required:
-        - slot_number
-        - epoch_number
-      properties:
-        slot_number:
-          type: integer
-          minimum: 0
-          example: 1337
-        epoch_number:
-          type: integer
-          minimum: 0
-          example: 14
+    block: *blockReference
+
+x-transactionPendingSince: &transactionPendingSince
+  description: |
+    <span style="position: relative; left: 35px; top: -21px; vertical-align: middle; background-color: rgba(142, 142, 220, 0.05); color: rgba(50, 50, 159, 0.9); margin: 0 5px; padding: 0 5px; border: 1px solid rgba(50, 50, 159, 0.1); line-height: 20px; font-size: 13px; border-radius: 2px;">
+    <strong>if:</strong> status == pending
+    </span><br/>
+    The point in time at which a transaction became pending.
+  type: object
+  required:
+    - block
+    - time
+  properties:
+    time: *date
+    block: *blockReference
 
 x-transactionDepth: &transactionDepth
   description: Current depth of the transaction in the local chain
@@ -344,27 +375,42 @@ x-stakePoolMetrics: &stakePoolMetrics
       description: Number of blocks produced by a given stake pool
 
 x-networkInformationSyncProgress: &networkInformationSyncProgress
-  <<: *percentage
+  <<: *syncProgress
+  description: |
+    Estimated synchronization progress of the node with the underlying network. Note that this may
+    change quite arbitrarily as the node may switch to shorter or longer chain forks.
 
 x-networkInformationBlockchainHeight: &networkInformationBlockchainHeight
   <<: *numberOfSlots
 
-x-networkInformationLocalHeight: &networkInformationLocalHeight
-  <<: *numberOfSlots
-
 x-networkInformationNtpStatus: &networkInformationNtpStatus
   type: object
+  description: |
+    [Network Time Protocol](https://en.wikipedia.org/wiki/Network_Time_Protocol) information of the server.
+
+    **Important:**
+
+    - This piece of information only makes sense when the server runs on the same host machine as the node.
+    - `drift` is only returned if the underlying status is `available`.
+    - This work is still in progress; currently the status will always be set to `unavailable`.
   required:
     - status
   properties:
     status:
       type: string
       enum:
-        - available
-        - pending
         - unavailable
+        # Work in progress, always return `unavailable` at the moment.
+        #
+        # - available
+        # - pending
     drift:
       type: object
+      description: |
+        <span style="position: relative; left: 35px; top: -21px; vertical-align: middle; background-color: rgba(142, 142, 220, 0.05); color: rgba(50, 50, 159, 0.9); margin: 0 5px; padding: 0 5px; border: 1px solid rgba(50, 50, 159, 0.1); line-height: 20px; font-size: 13px; border-radius: 2px;">
+        <strong>if:</strong> status == available
+        </span><br/>
+        Drift offset of the local clock.
       required:
         - quantity
         - unit
@@ -379,26 +425,19 @@ x-networkInformationNtpStatus: &networkInformationNtpStatus
             - microseconds
 
 x-networkInformationTip: &networkInformationTip
+  <<: *blockReference
   description: Underlying node's network tip
-  type: object
-  required:
-    - slot_number
-    - epoch_number
-  properties:
-    slot_number:
-      type: integer
-      minimum: 0
-      example: 1337
-    epoch_number:
-      type: integer
-      minimum: 0
-      example: 14
 
-x-networkInformationSoftwareUpdate: &networkInformationSoftwareUpdate
+x-networkInformationProtocolUpdate: &networkInformationProtocolUpdate
   type: string
+  description: |
+    Whether protocol updates have been submitted and accepted by the network.
   enum:
-    - up_to_date
-    - update_available
+    - unavailable
+    # Implementation is only partial here and will always yield `unavailable`
+    #
+    # - up_to_date
+    # - update_available
 
 
 #############################################################################
@@ -420,18 +459,14 @@ definitions:
   ApiNetworkInformation: &ApiNetworkInformation
     type: object
     required:
-      - blockchainHeight
-      - localHeight
-      - ntpStatus
-      - software_update
-      - syncProgress
+      - ntp_status
+      - protocol_updates
+      - sync_progress
       - tip
     properties:
-      blockchainHeight: *networkInformationBlockchainHeight
-      localHeight: *networkInformationLocalHeight
-      ntpStatus: *networkInformationNtpStatus
-      software_update: *networkInformationSoftwareUpdate
-      syncProgress: *networkInformationSyncProgress
+      ntp_status: *networkInformationNtpStatus
+      protocol_updates: *networkInformationProtocolUpdate
+      sync_progress: *networkInformationSyncProgress
       tip: *networkInformationTip
 
   ApiStakePool: &ApiStakePool
@@ -478,6 +513,7 @@ definitions:
       id: *transactionId
       amount: *transactionAmount
       inserted_at: *transactionInsertedAt
+      pending_since: *transactionPendingSince
       depth: *transactionDepth
       direction: *transactionDirection
       inputs: *transactionInputs
@@ -1188,7 +1224,7 @@ paths:
         tags: ["Network"]
         summary: Information
         description: |
-          <p align="right">status: <strong>not implemented</strong></p>
+          <p align="right">status: <strong>provisional</strong></p>
         responses: *responsesGetNetworkInformation
 
   /byron/wallets:
