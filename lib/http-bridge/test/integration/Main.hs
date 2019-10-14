@@ -20,7 +20,7 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Trace
     ( Trace )
 import Cardano.CLI
-    ( Port (..), initTracer )
+    ( Port (..), initTracer, setUtf8Encoding )
 import Cardano.Faucet
     ( initFaucet )
 import Cardano.Launcher
@@ -114,6 +114,7 @@ instance KnownCommand (HttpBridge n) where
 
 main :: forall t. (t ~ HttpBridge 'Testnet) => IO ()
 main = do
+    setUtf8Encoding
     hspec $ do
         describe "Server CLI timeout test" (ServerCLI.specNoBackend @t)
         describe "Cardano.WalletSpec" Wallet.spec

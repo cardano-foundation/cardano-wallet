@@ -45,6 +45,7 @@ import Cardano.CLI
     , nodePortOption
     , optionT
     , runCli
+    , setUtf8Encoding
     , setupDirectory
     , stateDirOption
     , verbosityOption
@@ -104,6 +105,7 @@ import qualified Data.Text as T
 
 main :: forall (n :: Network). IO ()
 main = do
+    setUtf8Encoding
     dataDir <- getDataDir "http-bridge"
     runCli $ cli $ mempty
         <> cmdLaunch dataDir

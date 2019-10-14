@@ -15,7 +15,7 @@ import Prelude
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.CLI
-    ( initTracer )
+    ( initTracer, setUtf8Encoding )
 import Cardano.Faucet
     ( initFaucet )
 import Cardano.Launcher
@@ -79,29 +79,31 @@ instance KnownCommand (Jormungandr n) where
     commandName = "cardano-wallet-jormungandr"
 
 main :: forall t. (t ~ Jormungandr 'Testnet) => IO ()
-main = hspec $ do
-    describe "No backend required" $ do
-        describe "Cardano.Wallet.NetworkSpec" $ parallel Network.spec
-        describe "Mnemonics CLI tests" $ parallel (MnemonicsCLI.spec @t)
-        describe "Miscellaneous CLI tests" $ parallel (MiscellaneousCLI.spec @t)
-        describe "Launcher CLI tests" $ parallel (LauncherCLI.spec @t)
+main = do
+    setUtf8Encoding
+    hspec $ do
+        describe "No backend required" $ do
+            describe "Cardano.Wallet.NetworkSpec" $ parallel Network.spec
+            describe "Mnemonics CLI tests" $ parallel (MnemonicsCLI.spec @t)
+            describe "Miscellaneous CLI tests" $ parallel (MiscellaneousCLI.spec @t)
+            describe "Launcher CLI tests" $ parallel (LauncherCLI.spec @t)
 
-    describe "API Specifications" $ beforeAll start $ after tearDown $ do
-        Addresses.spec
-        StakePoolsApiJormungandr.spec
-        Transactions.spec
-        TransactionsApiJormungandr.spec @t
-        TransactionsCliJormungandr.spec @t
-        Wallets.spec
-        ByronWallets.spec
+        describe "API Specifications" $ beforeAll start $ after tearDown $ do
+            Addresses.spec
+            StakePoolsApiJormungandr.spec
+            Transactions.spec
+            TransactionsApiJormungandr.spec @t
+            TransactionsCliJormungandr.spec @t
+            Wallets.spec
+            ByronWallets.spec
 
-    describe "CLI Specifications" $ beforeAll start $ after tearDown $ do
-        AddressesCLI.spec @t
-        ServerCLI.spec @t
-        StakePoolsCliJormungandr.spec @t
-        TransactionsCLI.spec @t
-        WalletsCLI.spec @t
-        PortCLI.spec @t
+        describe "CLI Specifications" $ beforeAll start $ after tearDown $ do
+            AddressesCLI.spec @t
+            ServerCLI.spec @t
+            StakePoolsCliJormungandr.spec @t
+            TransactionsCLI.spec @t
+            WalletsCLI.spec @t
+            PortCLI.spec @t
 
 start :: IO (Context (Jormungandr 'Testnet))
 start = do
