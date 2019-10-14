@@ -753,9 +753,15 @@ migrateByronWallet _rndCtx _seqCtx _sourceWid _targetWid _migrateData =
     throwError err501
 
 listByronWallets
-    :: ctx
+    :: forall s t k. (DefineTx t, s ~ RndState t)
+    => ApiLayer s t k
     -> Handler [ApiByronWallet]
-listByronWallets _ = throwError err501
+listByronWallets ctx = do
+    wids <- liftIO $ Registry.keys re
+    fmap fst . sortOn snd <$>
+        mapM (getByronWalletWithCreationTime ctx) (ApiT <$> wids)
+  where
+    re = ctx ^. workerRegistry @s @t @k
 
 postByronWallet
     :: ctx

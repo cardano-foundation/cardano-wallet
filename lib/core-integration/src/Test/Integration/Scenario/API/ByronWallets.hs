@@ -100,7 +100,7 @@ spec = do
     it "BYRON_LIST_02 - Byron ep does not list new wallets" $ \ctx -> do
         _ <- emptyWallet ctx
         r <- request @ApiByronWallet ctx listByronWalletEp Default Empty
-        expectResponseCode @IO HTTP.status501 r
+        expectResponseCode @IO HTTP.status200 r
 
     it "BYRON_DELETE_02 - Byron ep does not delete new wallet" $ \ctx -> do
         w <- emptyWallet ctx
