@@ -240,7 +240,8 @@ mkDBFactory cfg tr mDatabaseDir = case mDatabaseDir of
   where
     tracerDB = appendName "database" tr
 
--- | Lookup file-system for existing wallet databases
+-- | Return all wallet databases that match the specified key type within the
+--   specified directory.
 findDatabases
     :: forall k. PersistKey k
     => Trace IO Text
