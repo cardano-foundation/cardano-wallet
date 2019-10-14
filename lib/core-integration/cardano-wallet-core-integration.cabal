@@ -64,12 +64,13 @@ library
       Test.Integration.Framework.Request
       Test.Integration.Framework.TestData
       Test.Integration.Scenario.API.Addresses
-      Test.Integration.Scenario.API.Transactions
       Test.Integration.Scenario.API.ByronWallets
+      Test.Integration.Scenario.API.Network
+      Test.Integration.Scenario.API.Transactions
       Test.Integration.Scenario.API.Wallets
       Test.Integration.Scenario.CLI.Addresses
-      Test.Integration.Scenario.CLI.Mnemonics
       Test.Integration.Scenario.CLI.Miscellaneous
+      Test.Integration.Scenario.CLI.Mnemonics
       Test.Integration.Scenario.CLI.Port
       Test.Integration.Scenario.CLI.Transactions
       Test.Integration.Scenario.CLI.Wallets

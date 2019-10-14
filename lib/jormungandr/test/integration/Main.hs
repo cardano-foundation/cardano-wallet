@@ -55,7 +55,7 @@ import Test.Hspec
 import Test.Integration.Framework.DSL
     ( Context (..), KnownCommand (..), TxDescription (..), tearDown )
 
-import qualified Cardano.Wallet.Jormungandr.NetworkSpec as Network
+import qualified Cardano.Wallet.Jormungandr.NetworkSpec as NetworkLayer
 import qualified Data.Text as T
 import qualified Test.Integration.Jormungandr.Scenario.API.StakePools as StakePoolsApiJormungandr
 import qualified Test.Integration.Jormungandr.Scenario.API.Transactions as TransactionsApiJormungandr
@@ -65,6 +65,7 @@ import qualified Test.Integration.Jormungandr.Scenario.CLI.StakePools as StakePo
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Transactions as TransactionsCliJormungandr
 import qualified Test.Integration.Scenario.API.Addresses as Addresses
 import qualified Test.Integration.Scenario.API.ByronWallets as ByronWallets
+import qualified Test.Integration.Scenario.API.Network as Network
 import qualified Test.Integration.Scenario.API.Transactions as Transactions
 import qualified Test.Integration.Scenario.API.Wallets as Wallets
 import qualified Test.Integration.Scenario.CLI.Addresses as AddressesCLI
@@ -83,7 +84,7 @@ main = do
     setUtf8Encoding
     hspec $ do
         describe "No backend required" $ do
-            describe "Cardano.Wallet.NetworkSpec" $ parallel Network.spec
+            describe "Cardano.Wallet.NetworkSpec" $ parallel NetworkLayer.spec
             describe "Mnemonics CLI tests" $ parallel (MnemonicsCLI.spec @t)
             describe "Miscellaneous CLI tests" $ parallel (MiscellaneousCLI.spec @t)
             describe "Launcher CLI tests" $ parallel (LauncherCLI.spec @t)
@@ -96,6 +97,7 @@ main = do
             TransactionsCliJormungandr.spec @t
             Wallets.spec
             ByronWallets.spec
+            Network.spec
 
         describe "CLI Specifications" $ beforeAll start $ after tearDown $ do
             AddressesCLI.spec @t
