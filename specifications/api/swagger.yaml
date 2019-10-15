@@ -948,6 +948,7 @@ x-responsesQuitStakePool: &responsesQuitStakePool
 
 x-responsesGetNetworkInformation: &responsesGetNetworkInformation
   <<: *responsesErr405
+  <<: *responsesErr406
   200:
     description: Ok
     schema: *ApiNetworkInformation
