@@ -916,22 +916,14 @@ getWalletWithCreationTime ctx (ApiT wid) = do
     return (mkApiWallet wallet meta pending, meta ^. #creationTime)
   where
     mkApiWallet wallet meta pending = ApiWallet
-        { id =
-            ApiT wid
-        , addressPoolGap =
-            ApiT $ getState wallet ^. #externalPool . #gap
-        , balance =
-            getWalletBalance wallet pending
-        , delegation =
-            ApiT $ ApiT <$> meta ^. #delegation
-        , name =
-            ApiT $ meta ^. #name
-        , passphrase =
-            ApiT <$> meta ^. #passphraseInfo
-        , state =
-            ApiT $ meta ^. #status
-        , tip =
-            getWalletTip wallet
+        { id = ApiT wid
+        , addressPoolGap = ApiT $ getState wallet ^. #externalPool . #gap
+        , balance = getWalletBalance wallet pending
+        , delegation = ApiT $ ApiT <$> meta ^. #delegation
+        , name = ApiT $ meta ^. #name
+        , passphrase = ApiT <$> meta ^. #passphraseInfo
+        , state = ApiT $ meta ^. #status
+        , tip = getWalletTip wallet
         }
 
 getByronWalletWithCreationTime
