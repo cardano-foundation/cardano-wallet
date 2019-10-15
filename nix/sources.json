@@ -1,4 +1,16 @@
 {
+    "cardano-shell": {
+        "branch": "master",
+        "description": "Node shell, a thin layer for running the node and it's modules.",
+        "homepage": null,
+        "owner": "input-output-hk",
+        "repo": "cardano-shell",
+        "rev": "a06b256c3cd836f823f85c729d1aae0c8c13011c",
+        "sha256": "0gh1mqq5gkqaf81nmp96n9rnw9x6jnqpr4hxa99m4pnbcyc03f93",
+        "type": "tarball",
+        "url": "https://github.com/input-output-hk/cardano-shell/archive/a06b256c3cd836f823f85c729d1aae0c8c13011c.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
     "gitignore": {
         "branch": "master",
         "description": "Nix function for filtering local git sources",
