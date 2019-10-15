@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -9,11 +10,15 @@ module Test.Integration.Scenario.API.Network
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiNetworkInformation )
+    ( ApiBlockReference (..), ApiNetworkInformation )
 import Cardano.Wallet.Primitive.Types
     ( SyncProgress (..) )
 import Control.Monad
     ( forM_ )
+import Data.Generics.Labels
+    ()
+import Data.Quantity
+    ( Quantity (..) )
 import Test.Hspec
     ( SpecWith, describe, it )
 import Test.Integration.Framework.DSL
@@ -22,8 +27,10 @@ import Test.Integration.Framework.DSL
     , Payload (..)
     , eventually
     , expectErrorMessage
+    , expectFieldBetween
     , expectFieldEqual
     , expectResponseCode
+    , getFromResponse
     , request
     , syncProgress
     , verify
@@ -39,7 +46,12 @@ spec = do
         let endpoint = ("GET", "v2/network/information")
         eventually $ do
             r <- request @ApiNetworkInformation ctx endpoint Default Empty
-            verify r [ expectFieldEqual syncProgress Ready ]
+            let (ApiBlockReference _ sl _) = getFromResponse #tip r
+            verify r
+                [ expectFieldEqual syncProgress Ready
+                , expectFieldBetween (#tip . #height)
+                    (Quantity 0, Quantity $ fromIntegral $ sl + 1)
+                ]
 
     describe "NETWORK - v2/network/information - Methods Not Allowed" $ do
         let matrix = ["POST", "CONNECT", "TRACE", "OPTIONS"]

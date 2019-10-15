@@ -543,4 +543,5 @@ instance Arbitrary TxMeta where
         <$> elements [Pending, InLedger, Invalidated]
         <*> elements [Incoming, Outgoing]
         <*> (SlotId <$> choose (0, 1000) <*> choose (0, 21599))
+        <*> fmap Quantity arbitrary
         <*> fmap (Quantity . fromIntegral) (arbitrary @Word32)
