@@ -27,7 +27,7 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), Hash (..), SlotId (..) )
+    ( BlockHeader (..), Hash (..), SlotId (..), SlotNo (unSlotNo) )
 import Control.Concurrent.MVar.Lifted
     ( newMVar )
 import Control.Monad.Fail
@@ -221,7 +221,7 @@ addGaps getSlot (b1:b2:bs) =
     [Just b1] ++ replicate gap Nothing ++ addGaps getSlot (b2:bs)
   where
     gap = slotNum b2 - slotNum b1 - 1
-    slotNum = fromIntegral . slotNumber . getSlot
+    slotNum = fromIntegral . unSlotNo . slotNumber . getSlot
 
 -- | Test Genesis block
 block0 :: J.Block
@@ -625,7 +625,10 @@ genBlocksWith :: Node -> [Bool] -> Int -> [MockBlock]
 genBlocksWith n empty count =
     let
         tip = getNodeTip n
-        tipSlot = maybe (-1) (fromIntegral . slotNumber . mockBlockSlot) tip
+        tipSlot = maybe
+            (-1)
+            (fromIntegral . unSlotNo . slotNumber . mockBlockSlot)
+            tip
         slots =
             [ SlotId 0 (fromIntegral $ tipSlot + i)
             | (i, gap) <- zip [1..count] empty, tipSlot + i == 0 || not gap

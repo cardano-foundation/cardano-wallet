@@ -13,8 +13,10 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     ( genesisParameters )
 import Cardano.Wallet.Primitive.Types
     ( EpochLength (..)
+    , EpochNo (..)
     , PoolId (..)
     , SlotId (..)
+    , SlotNo (..)
     , SlotParameters (..)
     , slotSucc
     )
@@ -55,9 +57,15 @@ data StakePoolsFixture = StakePoolsFixture
 instance Arbitrary SlotId where
     shrink (SlotId ep sl) =
         uncurry SlotId <$> shrink (ep, sl)
-    arbitrary = SlotId
-        <$> choose (0, fromIntegral arbitraryEpochLength)
-        <*> choose (0, fromIntegral arbitraryChainLength)
+    arbitrary = SlotId <$> arbitrary <*> arbitrary
+
+instance Arbitrary SlotNo where
+    shrink (SlotNo x) = SlotNo <$> shrink x
+    arbitrary = SlotNo <$> choose (0, fromIntegral arbitraryChainLength)
+
+instance Arbitrary EpochNo where
+    shrink (EpochNo x) = EpochNo <$> shrink x
+    arbitrary = EpochNo <$> choose (0, fromIntegral arbitraryEpochLength)
 
 arbitraryEpochLength :: Word32
 arbitraryEpochLength = 100

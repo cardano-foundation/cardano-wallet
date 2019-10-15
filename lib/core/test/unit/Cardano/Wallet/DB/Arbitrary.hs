@@ -72,9 +72,11 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Direction (..)
     , EpochLength (..)
+    , EpochNo (..)
     , Hash (..)
     , ShowFmt (..)
     , SlotId (..)
+    , SlotNo (..)
     , SlotParameters (..)
     , SortOrder (..)
     , SyncProgress (..)
@@ -303,17 +305,25 @@ instance Arbitrary WalletMetadata where
 
 instance Arbitrary BlockHeader where
     arbitrary = do
-        sid@(SlotId ep sl) <- arbitrary
+        sid@(SlotId (EpochNo ep) (SlotNo sl)) <- arbitrary
         let h = fromIntegral sl + fromIntegral ep * arbitraryEpochLength
         bytes <- B8.pack <$> vectorOf 8 (elements ['a'..'f'])
         pure $ BlockHeader sid (Quantity h) (Hash bytes) (Hash bytes)
 
 instance Arbitrary SlotId where
-    shrink (SlotId ep sl) =
-        uncurry SlotId <$> shrink (ep, sl)
+    shrink (SlotId (EpochNo ep) (SlotNo sl)) =
+        uncurry SlotId <$> shrink (EpochNo ep, SlotNo sl)
     arbitrary = SlotId
-        <$> choose (0, fromIntegral arbitraryEpochLength)
-        <*> choose (0, fromIntegral arbitraryChainLength)
+        <$> (EpochNo <$> choose (0, fromIntegral arbitraryEpochLength))
+        <*> (SlotNo <$> choose (0, fromIntegral arbitraryChainLength))
+
+instance Arbitrary SlotNo where
+    shrink (SlotNo x) = SlotNo <$> shrink x
+    arbitrary = SlotNo <$> arbitrary
+
+instance Arbitrary EpochNo where
+    shrink (EpochNo x) = EpochNo <$> shrink x
+    arbitrary = EpochNo <$> arbitrary
 
 arbitraryEpochLength :: Word32
 arbitraryEpochLength = 100

@@ -21,7 +21,7 @@ import Cardano.Wallet.Jormungandr.BlockHeaders
     , updateUnstableBlocks
     )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), Hash (..), SlotId (..) )
+    ( BlockHeader (..), EpochNo (..), Hash (..), SlotId (..), SlotNo (..) )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Writer
@@ -420,8 +420,8 @@ instance Arbitrary TestCase where
             , localChain = [genesis] <> base <> startFrom baseTip local
             }
       where
-        startFrom (SlotId ep n) xs =
-            [ BlockHeader (SlotId ep (sl+fromIntegral n)) bh' hh prev
+        startFrom (SlotId (EpochNo ep) (SlotNo n)) xs =
+            [ BlockHeader (SlotId (EpochNo ep) (sl+fromIntegral n)) bh' hh prev
             | BlockHeader (SlotId _ sl) (Quantity bh) hh prev <- xs
             , let bh' = Quantity (bh+fromIntegral n+1)
             ]

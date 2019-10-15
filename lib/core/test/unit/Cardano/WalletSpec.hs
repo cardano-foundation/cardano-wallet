@@ -64,8 +64,10 @@ import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
     , Direction (..)
+    , EpochNo (..)
     , Hash (..)
     , SlotId (..)
+    , SlotNo (..)
     , SortOrder (..)
     , TransactionInfo (txInfoMeta)
     , TransactionInfo (..)
@@ -503,6 +505,14 @@ instance Arbitrary SlotId where
     shrink _ = []
     arbitrary = SlotId <$> arbitrary <*> arbitrary
 
+instance Arbitrary SlotNo where
+    shrink (SlotNo x) = SlotNo <$> shrink x
+    arbitrary = SlotNo <$> arbitrary
+
+instance Arbitrary EpochNo where
+    shrink (EpochNo x) = EpochNo <$> shrink x
+    arbitrary = EpochNo <$> arbitrary
+
 instance Arbitrary SortOrder where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
@@ -541,6 +551,8 @@ instance Arbitrary TxMeta where
     arbitrary = TxMeta
         <$> elements [Pending, InLedger, Invalidated]
         <*> elements [Incoming, Outgoing]
-        <*> (SlotId <$> choose (0, 1000) <*> choose (0, 21599))
+        <*> (SlotId
+            <$> (EpochNo <$> choose (0, 1000))
+            <*> (SlotNo <$> choose (0, 21599)))
         <*> fmap Quantity arbitrary
         <*> fmap (Quantity . fromIntegral) (arbitrary @Word32)

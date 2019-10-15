@@ -23,7 +23,7 @@ import Cardano.Pool.DB.Arbitrary
 import Cardano.Pool.DB.Sqlite
     ( newDBLayer )
 import Cardano.Wallet.Primitive.Types
-    ( PoolId, SlotId (..) )
+    ( EpochNo, PoolId, SlotId (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Monad
@@ -44,8 +44,8 @@ import Data.Ord
     ( Down (..) )
 import Data.Text
     ( Text )
-import Data.Word
-    ( Word64 )
+import Fmt
+    ( pretty )
 import GHC.Conc
     ( TVar, newTVarIO )
 import Test.Hspec
@@ -68,6 +68,7 @@ import qualified Cardano.Pool.DB.MVar as MVar
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import qualified Data.Text as T
 
 -- | Provide a DBLayer to a Spec that requires it. The database is initialised
 -- once, and cleared with 'cleanDB' before each test.
@@ -184,7 +185,7 @@ prop_rollbackPools db f@(StakePoolsFixture pairs _) sl =
 
         assert $ all (<= sl) afterRollback
 
-    showSlot (SlotId epoch slot) = show epoch ++ "." ++ show slot
+    showSlot s = T.unpack $ pretty s
 
 -- | Can read pool production only for a given epoch
 prop_readPoolNoEpochLeaks
@@ -280,7 +281,7 @@ noEmptyPools pools = do
     let pools' = Map.filter (not . null) pools
     pools' `shouldBe` pools
 
-uniqueEpochs :: [(PoolId, SlotId)] -> [Word64]
+uniqueEpochs :: [(PoolId, SlotId)] -> [EpochNo]
 uniqueEpochs = nubOrd . map (epochNumber . snd)
 
 -- | Concatenate stake pool production for all epochs in the test fixture.

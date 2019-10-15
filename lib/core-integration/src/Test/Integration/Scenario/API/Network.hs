@@ -10,9 +10,9 @@ module Test.Integration.Scenario.API.Network
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiBlockReference (..), ApiNetworkInformation )
+    ( ApiBlockReference (..), ApiNetworkInformation, ApiT (..) )
 import Cardano.Wallet.Primitive.Types
-    ( SyncProgress (..) )
+    ( SlotNo (unSlotNo), SyncProgress (..) )
 import Control.Monad
     ( forM_ )
 import Data.Quantity
@@ -51,7 +51,9 @@ spec = do
             verify r
                 [ expectFieldEqual syncProgress Ready
                 , expectFieldBetween (#tip . #height)
-                    (Quantity 0, Quantity $ fromIntegral $ sl + 1)
+                    ( Quantity 0
+                    , Quantity $ fromIntegral $ unSlotNo $ (getApiT sl) + 1
+                    )
                 ]
     it "NETWORK2 - Wallet has the same tip as network/information" $ \ctx -> do
         let getNetworkInfo = request @ApiNetworkInformation ctx networkInfoEp Default Empty
@@ -60,13 +62,13 @@ spec = do
             sync <- getNetworkInfo
             verify sync [ expectFieldEqual syncProgress Ready ]
         r <- getNetworkInfo
-        let epochNum = getFromResponse (#tip . #epochNumber) r
-        let slotNum = getFromResponse (#tip . #slotNumber) r
+        let epochNum = getFromResponse (#tip . #epochNumber . #getApiT) r
+        let slotNum = getFromResponse (#tip . #slotNumber . #getApiT) r
         let blockHeight = getFromResponse (#tip . #height) r
 
         expectEventually' ctx state Ready w
-        expectEventually' ctx (#tip . #epochNumber) epochNum w
-        expectEventually' ctx (#tip . #slotNumber) slotNum  w
+        expectEventually' ctx (#tip . #epochNumber . #getApiT) epochNum w
+        expectEventually' ctx (#tip . #slotNumber . #getApiT) slotNum  w
         expectEventually' ctx (#tip . #height) blockHeight w
 
     describe "NETWORK - v2/network/information - Methods Not Allowed" $ do

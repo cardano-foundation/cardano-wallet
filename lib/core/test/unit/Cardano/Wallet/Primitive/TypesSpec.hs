@@ -31,6 +31,7 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , Dom (..)
     , EpochLength (..)
+    , EpochNo (..)
     , Hash (..)
     , HistogramBar (..)
     , Range (..)
@@ -38,6 +39,7 @@ import Cardano.Wallet.Primitive.Types
     , ShowFmt (..)
     , SlotId (..)
     , SlotLength (..)
+    , SlotNo (..)
     , SlotParameters (..)
     , StartTime (..)
     , TxIn (..)
@@ -889,7 +891,7 @@ instance Arbitrary SlotId where
     arbitrary = do
         ep <- choose (0, 10)
         sl <- choose (0, 100)
-        return (SlotId ep sl)
+        return (SlotId (EpochNo ep) (SlotNo sl))
 
 instance Arbitrary (Block Tx) where
     shrink (Block h txs) = Block h <$> shrink txs
@@ -950,10 +952,10 @@ instance {-# OVERLAPS #-} Arbitrary (EpochLength, SlotId) where
     shrink (a,b) =
         filter validSlotConfig $ zip (shrink a) (shrink b)
       where
-        validSlotConfig (EpochLength ep, SlotId _ sl) = sl < ep
+        validSlotConfig (EpochLength ep, SlotId _ (SlotNo sl)) = sl < ep
 
     arbitrary = do
         (EpochLength epochLength) <- arbitrary
-        ep <- choose (0, 1000)
-        sl <- choose (0, fromIntegral epochLength - 1)
+        ep <- EpochNo <$> choose (0, 1000)
+        sl <- SlotNo <$> choose (0, fromIntegral epochLength - 1)
         return (EpochLength epochLength, SlotId ep sl)

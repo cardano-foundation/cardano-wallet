@@ -71,7 +71,13 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Network.Ports
     ( PortNumber, getRandomPort, waitForPort )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), BlockHeader (..), Hash (..), SlotId (..), TxWitness )
+    ( Block (..)
+    , BlockHeader (..)
+    , EpochNo (..)
+    , Hash (..)
+    , SlotId (..)
+    , TxWitness
+    )
 import Control.Arrow
     ( left )
 import Control.Exception
@@ -224,7 +230,7 @@ rbNextBlocks bridge start = maybeTip (getNetworkTip bridge) >>= \case
         pure (epochBlocks ++ additionalBlocks)
     Nothing -> pure []
   where
-    nextStableEpoch ix = do
+    nextStableEpoch (EpochNo ix) = do
         epochBlocks <- getEpoch bridge ix
         pure $ filter (blockIsAfter start) epochBlocks
 

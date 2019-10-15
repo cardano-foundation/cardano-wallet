@@ -691,8 +691,8 @@ network ctx = do
             (W.slotAt sp now)
         , tip =
             ApiBlockReference
-                { epochNumber = nTip ^. (#slotId . #epochNumber)
-                , slotNumber  = nTip ^. (#slotId . #slotNumber)
+                { epochNumber = ApiT $ nTip ^. (#slotId . #epochNumber)
+                , slotNumber  = ApiT $ nTip ^. (#slotId . #slotNumber)
                 , height = natural (nTip ^. #blockHeight)
                 }
         }
@@ -884,8 +884,8 @@ mkApiTransaction txid ins outs (meta, timestamp) setTimeReference =
     timeReference = ApiTimeReference
         { time = timestamp
         , block = ApiBlockReference
-            { slotNumber = meta ^. (#slotId . #slotNumber)
-            , epochNumber = meta ^. (#slotId . #epochNumber)
+            { slotNumber = ApiT $ meta ^. (#slotId . #slotNumber )
+            , epochNumber = ApiT $ meta ^. (#slotId . #epochNumber)
             , height = natural (meta ^. #blockHeight)
             }
         }
@@ -947,8 +947,8 @@ getWalletBalance wallet pending = ApiT $ WalletBalance
 
 getWalletTip :: Wallet s t -> ApiBlockReference
 getWalletTip wallet = ApiBlockReference
-    { epochNumber = (currentTip wallet) ^. #slotId . #epochNumber
-    , slotNumber =  (currentTip wallet) ^. #slotId . #slotNumber
+    { epochNumber = ApiT $ (currentTip wallet) ^. #slotId . #epochNumber
+    , slotNumber = ApiT $ (currentTip wallet) ^. #slotId . #slotNumber
     , height = natural $ (currentTip wallet) ^. #blockHeight
     }
 
