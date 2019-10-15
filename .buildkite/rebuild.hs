@@ -159,19 +159,9 @@ buildStep dryRun bk =
             [ color "always"
             , [ "test" ]
             , [ "--coverage" ]
-            -- FIXME
-            -- Figure out what's going on with http-bridge cluster setup...
-            -- maybe...
-            , skip "http-bridge-integration"
             , fast opt
-            , case qaLevel bk of
-                QuickTest -> skip "integration"
-                FullTest -> []
-            , case behavior of
-                Serial ->
-                    ta (match serialTests ++ jobs 1) ++ jobs 1
-                Parallel ->
-                    ta (skip serialTests)
+            , [ "cardano-wallet-jormungandr:test:integration" ]
+            , ta (match "\"/CLI Specifications/\"")
             ]
 
     color arg = ["--color", arg]
