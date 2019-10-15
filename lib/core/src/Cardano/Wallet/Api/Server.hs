@@ -1174,10 +1174,10 @@ instance LiftHandler ErrSubmitTx where
 
 instance LiftHandler ErrNetworkUnavailable where
     handler = \case
-        ErrNetworkUnreachable err ->
+        ErrNetworkUnreachable _err ->
             apiError err503 NetworkUnreachable $ mconcat
-                [ "The node backend is unreachable: ", err
-                , ". Trying again in a bit might work."
+                [ "The node backend is unreachable at the moment. Trying again "
+                , "in a bit might work."
                 ]
         ErrNetworkInvalid n ->
             apiError err503 NetworkMisconfigured $ mconcat
