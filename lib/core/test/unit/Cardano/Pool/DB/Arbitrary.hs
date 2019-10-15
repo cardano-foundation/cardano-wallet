@@ -32,19 +32,30 @@ import Control.Monad
     ( foldM )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
+import Data.Ord
+    ( Down (..) )
 import Data.Word
     ( Word32 )
 import Test.QuickCheck
-    ( Arbitrary (..), Gen, InfiniteList (..), choose, elements, vectorOf )
+    ( Arbitrary (..)
+    , Gen
+    , InfiniteList (..)
+    , choose
+    , elements
+    , shuffle
+    , vectorOf
+    )
 
 import qualified Data.ByteString as BS
+import qualified Data.List as L
 
 {-------------------------------------------------------------------------------
                                  Modifiers
 -------------------------------------------------------------------------------}
 
-newtype StakePoolsFixture = StakePoolsFixture
-    { poolSlots :: [(PoolId, SlotId)] }
+data StakePoolsFixture = StakePoolsFixture
+    { poolSlots :: [(PoolId, SlotId)]
+    , rollbackSlots :: [SlotId] }
     deriving stock (Eq, Show)
 
 {-------------------------------------------------------------------------------
@@ -78,8 +89,13 @@ instance Arbitrary StakePoolsFixture where
         pools <- vectorOf poolsNumber arbitrary
         slotsNumber <- choose (0, 200)
         firstSlot <- arbitrary
-        StakePoolsFixture <$>
+        slotsGenerated <-
             foldM (appendPair pools) [] (generateNextSlots [firstSlot] slotsNumber)
+        rNum <- choose (1, slotsNumber + 1)
+        rSlots <-
+            (L.sortOn Down . take rNum) <$> shuffle (map snd slotsGenerated)
+        pure $ StakePoolsFixture slotsGenerated rSlots
+
       where
         epochLength :: EpochLength
         epochLength = genesisParameters ^. #getEpochLength

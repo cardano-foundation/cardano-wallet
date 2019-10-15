@@ -52,14 +52,17 @@ import Data.Functor
     ( ($>) )
 import Data.List.Extra
     ( nubOrd )
-import Data.Ord
-    ( Down (..) )
+import Data.Map.Strict
+    ( Map )
 import Data.Text
     ( Text )
+import Data.Word
+    ( Word64 )
 import GHC.Conc
     ( TVar, newTVarIO )
 import Test.Hspec
-    ( Spec
+    ( Expectation
+    , Spec
     , SpecWith
     , beforeAll
     , beforeWith
@@ -69,7 +72,17 @@ import Test.Hspec
     , shouldReturn
     )
 import Test.QuickCheck
-    ( Gen, Property, classify, conjoin, counterexample, elements, property )
+    ( Gen
+    , Property
+    , choose
+    , classify
+    , conjoin
+    , counterexample
+    , elements
+    , property
+    , shuffle
+    , (==>)
+    )
 import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor )
 
@@ -107,7 +120,14 @@ properties = do
         it "readPoolProduction for a given epoch should always give slots \
            \from given epoch"
             (property . prop_readPoolProductionEpochLeak)
-
+        it "readPoolProduction should never give pools with no slots"
+            (property . prop_readPoolProductionNoEmptyPools)
+        it "readPoolProduction should never give pools with no slots \
+           \after rollback - 1 slot rollbacks"
+            (property . prop_readPoolProductionNoEmptyPoolsAfterRollback1)
+        it "readPoolProduction should never give pools with no slots \
+           \after rollback - arbitrary slot rollbacks"
+            (property . prop_readPoolProductionNoEmptyPoolsAfterRollback2)
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -118,10 +138,9 @@ prop_putReadPoolProduction
     :: DBLayer IO
     -> StakePoolsFixture
     -> Property
-prop_putReadPoolProduction db (StakePoolsFixture pairs) =
+prop_putReadPoolProduction db (StakePoolsFixture pairs _) =
     monadicIO (setup >>= prop)
   where
-    epochs = nubOrd $ map (epochNumber . snd) pairs
     setup = liftIO $ do
         cleanDB db
         db' <- MVar.newDBLayer
@@ -132,7 +151,7 @@ prop_putReadPoolProduction db (StakePoolsFixture pairs) =
             unsafeRunExceptT $ putPoolProduction db slot pool
         forM_ pairs $ \(pool, slot) ->
             unsafeRunExceptT $ putPoolProduction db' slot pool
-        forM_ epochs $ \(epoch) -> do
+        forM_ (uniqueEpochs pairs) $ \epoch -> do
             res' <- readPoolProduction db' epoch
             readPoolProduction db epoch `shouldReturn` res'
 
@@ -141,7 +160,7 @@ prop_putSlotTwicePoolProduction
     :: DBLayer IO
     -> StakePoolsFixture
     -> Property
-prop_putSlotTwicePoolProduction db (StakePoolsFixture pairs) =
+prop_putSlotTwicePoolProduction db (StakePoolsFixture pairs _) =
     monadicIO (setup >>= prop)
   where
     setup = liftIO $ do
@@ -163,7 +182,7 @@ prop_rollbackPools
     -> StakePoolsFixture
     -> SlotId
     -> Property
-prop_rollbackPools db f@(StakePoolsFixture pairs) sl =
+prop_rollbackPools db f@(StakePoolsFixture pairs _) sl =
     monadicIO prop
   where
     prop = do
@@ -187,28 +206,18 @@ prop_rollbackPools db f@(StakePoolsFixture pairs) sl =
 
     showSlot (SlotId epoch slot) = show epoch ++ "." ++ show slot
 
--- | Concatenate stake pool production for all epochs in the test fixture.
-allPoolProduction :: DBLayer IO -> StakePoolsFixture -> IO [(SlotId, PoolId)]
-allPoolProduction db (StakePoolsFixture pairs) =
-    rearrange <$> mapM (readPoolProduction db) epochs
-  where
-    epochs = nubOrd $ map (epochNumber . snd) pairs
-    rearrange ms = concat
-        [ [ (sl, p) | sl <- sls ] | (p, sls) <- concatMap Map.assocs ms ]
-
 -- | Can read pool production only for a given epoch
 prop_readPoolProductionEpochLeak
     :: DBLayer IO
     -> StakePoolsFixture
     -> Property
-prop_readPoolProductionEpochLeak db (StakePoolsFixture pairs) =
+prop_readPoolProductionEpochLeak db (StakePoolsFixture pairs _) =
     monadicIO (setup >> prop)
   where
-    epochs = nubOrd $ map (epochNumber . snd) pairs
     slotPartition = L.groupBy ((==) `on` epochNumber)
         $ L.sortOn epochNumber
         $ map snd pairs
-    epochGroups = L.zip epochs slotPartition
+    epochGroups = L.zip (uniqueEpochs pairs) slotPartition
     setup = liftIO $ cleanDB db
     prop = liftIO $ do
         forM_ pairs $ \(pool, slot) ->
@@ -217,3 +226,74 @@ prop_readPoolProductionEpochLeak db (StakePoolsFixture pairs) =
             slots' <-
                 (Set.fromList . concat . Map.elems) <$> readPoolProduction db epoch
             slots' `shouldBe` (Set.fromList slots)
+
+-- | Read pool production only gives pools with non-empty slots
+prop_readPoolProductionNoEmptyPools
+    :: DBLayer IO
+    -> StakePoolsFixture
+    -> Property
+prop_readPoolProductionNoEmptyPools db (StakePoolsFixture pairs _) =
+    monadicIO (setup >> prop)
+  where
+    setup = liftIO $ cleanDB db
+    prop = liftIO $ do
+        forM_ pairs $ \(pool, slot) ->
+            unsafeRunExceptT $ putPoolProduction db slot pool
+        forM_ (uniqueEpochs pairs) $ \epoch -> do
+            res <- readPoolProduction db epoch
+            noEmptyPools res
+
+-- | Read pool production only gives pools with non-empty slots after
+-- 1 slot length rollback
+prop_readPoolProductionNoEmptyPoolsAfterRollback1
+    :: DBLayer IO
+    -> StakePoolsFixture
+    -> Property
+prop_readPoolProductionNoEmptyPoolsAfterRollback1 db (StakePoolsFixture pairs _) =
+    monadicIO (setup >> prop)
+  where
+    setup = liftIO $ cleanDB db
+    slots = map snd pairs
+    prop = liftIO $ do
+        forM_ pairs $ \(pool, slot) ->
+            unsafeRunExceptT $ putPoolProduction db slot pool
+        forM_ slots $ \slot -> do
+            _ <- rollbackTo db slot
+            forM_ (uniqueEpochs pairs) $ \epoch -> do
+                res <- readPoolProduction db epoch
+                noEmptyPools res
+
+-- | Read pool production only gives pools with non-empty slots after
+-- arbitrary slot length rollback
+prop_readPoolProductionNoEmptyPoolsAfterRollback2
+    :: DBLayer IO
+    -> StakePoolsFixture
+    -> Property
+prop_readPoolProductionNoEmptyPoolsAfterRollback2 db (StakePoolsFixture pairs rSlots) =
+    (length pairs > 10) ==> monadicIO (setup >> prop)
+  where
+    setup = liftIO $ cleanDB db
+    prop = liftIO $ do
+        forM_ pairs $ \(pool, slot) ->
+            unsafeRunExceptT $ putPoolProduction db slot pool
+        forM_ rSlots $ \slot -> do
+            rollbackTo db slot
+            forM_ (uniqueEpochs pairs) $ \epoch -> do
+                res <- readPoolProduction db epoch
+                noEmptyPools res
+
+noEmptyPools :: Map PoolId [SlotId] -> Expectation
+noEmptyPools pools = do
+    let pools' = Map.filter (not . null) pools
+    pools' `shouldBe` pools
+
+uniqueEpochs :: [(PoolId, SlotId)] -> [Word64]
+uniqueEpochs = nubOrd . map (epochNumber . snd)
+
+-- | Concatenate stake pool production for all epochs in the test fixture.
+allPoolProduction :: DBLayer IO -> StakePoolsFixture -> IO [(SlotId, PoolId)]
+allPoolProduction db (StakePoolsFixture pairs _) =
+    rearrange <$> mapM (readPoolProduction db) (uniqueEpochs pairs)
+  where
+    rearrange ms = concat
+        [ [ (sl, p) | sl <- sls ] | (p, sls) <- concatMap Map.assocs ms ]
