@@ -40,7 +40,7 @@ let
   windows = rec {
     # URL and hash of windows binary release
     url = "https://github.com/input-output-hk/jormungandr/releases/download/v${release.version}/jormungandr-v${release.version}-x86_64-pc-windows-msvc.zip";
-    sha256 = "1i0fgkmd16y26xf5dmsvd983lclm93zi5025f1xyqrd3xp4mjm7h";
+    sha256 = "sha256:16pxgi4igvfh2kccsbyizfc4wyxr8fs1872hpsmr99ppna09rqi3";
   };
 
   jormungandr-win64 = pkgs.runCommand "jormungandr-win64-${release.version}" {
