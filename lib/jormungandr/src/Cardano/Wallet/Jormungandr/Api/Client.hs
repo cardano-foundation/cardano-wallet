@@ -99,7 +99,7 @@ import Data.Word
 import Network.HTTP.Client
     ( Manager, defaultManagerSettings, newManager )
 import Network.HTTP.Types.Status
-    ( status400 )
+    ( status400, status404 )
 import Servant.API
     ( (:<|>) (..) )
 import Servant.Client
@@ -190,7 +190,7 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
 
     , getInitialBlockchainParameters = \block0 -> do
         jblock@(J.Block _ msgs) <- ExceptT $ run (cGetBlock (BlockId $ coerce block0)) >>= \case
-            Left (FailureResponse e) | responseStatusCode e == status400 ->
+            Left (FailureResponse e) | responseStatusCode e `elem` [status400, status404] ->
                 return . Left . ErrGetBlockchainParamsGenesisNotFound $ block0
             x -> do
                 let ctx = safeLink api (Proxy @GetBlock) (BlockId $ coerce block0)

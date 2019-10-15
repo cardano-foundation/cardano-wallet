@@ -17,10 +17,14 @@ import Control.Concurrent
     ( threadDelay )
 import Control.Exception
     ( finally )
+import Control.Monad
+    ( forM_ )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Product.Typed
     ( typed )
+import System.Command
+    ( Exit (..), Stderr (..), Stdout (..) )
 import System.Exit
     ( ExitCode (..) )
 import System.IO.Temp
@@ -35,10 +39,11 @@ import System.Process
 import Test.Hspec
     ( SpecWith, describe, it, pendingWith, runIO )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldReturn )
+    ( shouldBe, shouldContain, shouldReturn )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , KnownCommand (..)
+    , cardanoWalletCLI
     , collectStreams
     , expectPathEventuallyExist
     , proc'
@@ -160,6 +165,55 @@ spec = do
             --     out `shouldContainT` "Notice"
             --
             -- but in practice, we only have INFO logs on start-up.
+
+        describe "LOGGING - Exits nicely on wrong (yet hex-encoded)\
+            \genesis hash" $  do
+            let hashes = [ replicate 40 '1'
+                         , replicate 38 '1'
+                         , replicate 42 '1' ]
+            forM_ hashes $ \hash -> it hash $ \ctx -> do
+                let args =
+                        ["serve"
+                        , "--node-port"
+                        , show (ctx ^. typed @(Port "node"))
+                        , "--random-port"
+                        , "--genesis-hash"
+                        , hash
+                        ]
+                (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t args
+                c `shouldBe` ExitFailure 1
+                e `shouldBe` mempty
+                o `shouldContain` "Failed to retrieve the genesis block.\
+                    \ The block doesn't exist! Hint: double-check the\
+                    \ genesis hash you've just gave me via '--genesis-hash'\
+                    \ (i.e. " ++ hash ++ ")"
+
+        it "LOGGING - Non hex-encoded genesis hash shows error" $ \_ -> do
+            let args =
+                    ["serve"
+                    , "--genesis-hash"
+                    , replicate 37 '1'
+                    ]
+            (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t args
+            c `shouldBe` ExitFailure 1
+            o `shouldBe` mempty
+            e `shouldContain` "option --genesis-hash: Unable to decode\
+                \ (Hash \"Genesis\"): expected Base16 encoding"
+
+        it "LOGGINGDOWN - Exists nicely when Jörmungandr is down" $ \ctx -> do
+            let invalidPort = getPort (ctx ^. typed @(Port "node")) + 1
+            let args =
+                    ["serve"
+                    , "--node-port"
+                    , show invalidPort
+                    , "--genesis-hash"
+                    , block0H
+                    ]
+            (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t args
+            c `shouldBe` ExitFailure 1
+            e `shouldBe` mempty
+            o `shouldContain` "It looks like Jörmungandr is down?\
+                \ Hint: double-check Jörmungandr server's port."
 
 oneSecond :: Int
 oneSecond = 1000000

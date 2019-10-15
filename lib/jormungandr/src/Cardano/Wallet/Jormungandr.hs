@@ -93,8 +93,6 @@ import Network.Wai.Handler.Warp
     ( setBeforeMainLoop )
 import System.Exit
     ( ExitCode (..) )
-import System.IO
-    ( hPutStrLn, stderr )
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.Wallet.Api.Server as Server
@@ -211,17 +209,18 @@ serveWallet (cfg, sb, tr) databaseDir listen lj beforeMainLoop = do
 
     handleGenesisNotFound :: Hash "Genesis" -> IO ExitCode
     handleGenesisNotFound block0H = do
-        hPutStrLn stderr $ mconcat
-            [ "Hint: double-check the genesis hash you've just gave "
-            , "me via '--genesis-hash' (i.e. ", showT block0H, ")."
+        failWith (sb, tr) $ T.pack $ mconcat
+            [ "Failed to retrieve the genesis block. The block doesn't exist! "
+            , "Hint: double-check the genesis hash you've just gave "
+            , "me via '--genesis-hash' (i.e. " <> showT block0H <> ")."
             ]
-        failWith (sb, tr)
-            "Failed to retrieve the genesis block. The block doesn't exist!"
+
 
     handleNetworkUnreachable :: IO ExitCode
     handleNetworkUnreachable = do
         failWith (sb, tr)
-            "It looks like Jörmungandr is down?"
+            "It looks like Jörmungandr is down? Hint: double-check Jörmungandr\
+            \ server's port."
 
     handleNoInitialPolicy :: IO ExitCode
     handleNoInitialPolicy = do
