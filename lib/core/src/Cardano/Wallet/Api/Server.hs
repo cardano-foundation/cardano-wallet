@@ -911,8 +911,9 @@ getWalletWithCreationTime
     -> ApiT WalletId
     -> Handler (ApiWallet, UTCTime)
 getWalletWithCreationTime ctx (ApiT wid) = do
-    (wallet, meta, pending) <- liftHandler $ withWorkerCtx ctx wid throwE $ \wrk ->
-        W.readWallet wrk wid
+    (wallet, meta, pending) <-
+        liftHandler $ withWorkerCtx ctx wid throwE $
+            \wrk -> W.readWallet wrk wid
     return (mkApiWallet wallet meta pending, meta ^. #creationTime)
   where
     mkApiWallet wallet meta pending = ApiWallet
