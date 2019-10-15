@@ -57,10 +57,11 @@ module Test.Integration.Framework.DSL
     , direction
     , feeEstimator
     , inputs
+    , outputs
     , passphraseLastUpdate
     , state
     , status
-    , outputs
+    , syncProgress
     , walletId
     , walletName
 
@@ -92,6 +93,7 @@ module Test.Integration.Framework.DSL
     , toQueryString
     , utcIso8601ToText
     , prepExternalTxViaJcli
+    , eventually
 
     -- * Endpoints
     , postByronWalletEp
@@ -158,6 +160,7 @@ import Cardano.Wallet.Primitive.Types
     , HistogramBar (..)
     , PoolId (..)
     , SortOrder (..)
+    , SyncProgress (..)
     , TxIn (..)
     , TxOut (..)
     , TxStatus (..)
@@ -178,7 +181,7 @@ import Control.Concurrent.Async
 import Control.Concurrent.MVar
     ( MVar, modifyMVar_, newMVar, takeMVar )
 import Control.Exception
-    ( SomeException (..), finally, try )
+    ( SomeException (..), catch, finally, try )
 import Control.Monad
     ( forM_, join, unless, void, (>=>) )
 import Control.Monad.Catch
@@ -741,9 +744,38 @@ status =
     _set :: HasType (ApiT TxStatus) s => (s, TxStatus) -> s
     _set (s, v) = set typed (ApiT v) s
 
+syncProgress :: HasType (ApiT SyncProgress) s => Lens' s SyncProgress
+syncProgress =
+    lens _get _set
+  where
+    _get :: HasType (ApiT SyncProgress) s => s -> SyncProgress
+    _get = getApiT . view typed
+    _set :: HasType (ApiT SyncProgress) s => (s, SyncProgress) -> s
+    _set (s, v) = set typed (ApiT v) s
+
 --
 -- Helpers
 --
+
+-- Retry the given action a couple of time until it doesn't throw, or until it
+-- has been retried enough.
+eventually
+    :: IO ()
+    -> IO ()
+eventually io = do
+    winner <- race (threadDelay $ 60 * oneSecond) trial
+    case winner of
+        Left _ -> expectationFailure
+            "waited more than 60s for action to eventually resolve."
+        Right _ ->
+            return ()
+  where
+    trial :: IO ()
+    trial = io `catch` \(_ :: SomeException) -> do
+        let ms = 1000
+        threadDelay (500 * ms)
+        trial
+
 utcIso8601ToText :: UTCTime -> Text
 utcIso8601ToText = utcTimeToText iso8601ExtendedUtc
 

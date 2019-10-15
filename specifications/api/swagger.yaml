@@ -388,11 +388,7 @@ x-networkInformationNtpStatus: &networkInformationNtpStatus
   description: |
     [Network Time Protocol](https://en.wikipedia.org/wiki/Network_Time_Protocol) information of the server.
 
-    **Important:**
-
-    - This piece of information only makes sense when the server runs on the same host machine as the node.
-    - `drift` is only returned if the underlying status is `available`.
-    - This work is still in progress; currently the status will always be set to `unavailable`.
+    **Important:** This piece of information only makes sense when the server runs on the same host machine as the node.
   required:
     - status
   properties:
@@ -400,10 +396,8 @@ x-networkInformationNtpStatus: &networkInformationNtpStatus
       type: string
       enum:
         - unavailable
-        # Work in progress, always return `unavailable` at the moment.
-        #
-        # - available
-        # - pending
+        - available
+        - pending
     drift:
       type: object
       description: |
@@ -433,11 +427,8 @@ x-networkInformationProtocolUpdate: &networkInformationProtocolUpdate
   description: |
     Whether protocol updates have been submitted and accepted by the network.
   enum:
-    - unavailable
-    # Implementation is only partial here and will always yield `unavailable`
-    #
-    # - up_to_date
-    # - update_available
+    - up_to_date
+    - update_available
 
 
 #############################################################################
@@ -459,13 +450,9 @@ definitions:
   ApiNetworkInformation: &ApiNetworkInformation
     type: object
     required:
-      - ntp_status
-      - protocol_updates
       - sync_progress
       - tip
     properties:
-      ntp_status: *networkInformationNtpStatus
-      protocol_updates: *networkInformationProtocolUpdate
       sync_progress: *networkInformationSyncProgress
       tip: *networkInformationTip
 

@@ -133,10 +133,6 @@ module Cardano.Wallet.Primitive.Types
     -- * ProtocolMagic
     , ProtocolMagic (..)
 
-    -- * Network
-    , NtpStatus (..)
-    , ProtocolUpdates (..)
-
     -- * Polymorphic
     , Hash (..)
     , ShowFmt (..)
@@ -1044,7 +1040,7 @@ syncProgress
         -- ^ Local tip
     -> SlotId
         -- ^ Last slot that could have been produced
-    -> Quantity "percent" Percentage
+    -> SyncProgress
 syncProgress epochLength tip slotNow =
     let
         bhTip = fromIntegral . getQuantity $ blockHeight tip
@@ -1052,9 +1048,9 @@ syncProgress epochLength tip slotNow =
         n1 = flatSlot epochLength slotNow
         tolerance = 5
     in if distance n1 n0 < tolerance || n0 >= n1 then
-        maxBound
+        Ready
     else
-        Quantity $ toEnum $ fromIntegral $
+        Restoring $ Quantity $ toEnum $ fromIntegral $
             (100 * bhTip) `div` (bhTip + n1 - n0)
 
 -- | Convert a 'SlotId' to the number of slots since genesis.
@@ -1176,42 +1172,6 @@ instance NFData StartTime
 -- | Magic constant associated to a given network
 newtype ProtocolMagic = ProtocolMagic Int32
     deriving (Generic, Show)
-
-{-------------------------------------------------------------------------------
-                                   Network
--------------------------------------------------------------------------------}
-
--- | Network Time Protocol status.
---
--- TODO: Use a NTP-client to query some known NTP server and figure out by how
--- much is machine's clock drifting.
--- An existing NTP client implementation exists on `cardano-sl` and is fairly
--- decoupled from the rest of the code:
---
--- https://github.com/input-output-hk/cardano-sl/blob/1a792d7cd0f0c93a0f0c28f66372bce3c3808dbd/networking/src/Ntp/Client.hs
---
--- The idea would be to extract that piece of code into a separate package that
--- we could re-use to implement this functionality.
-data NtpStatus
-    = NtpUnavailable
-        -- ^ Couldn't get an answer from the NTP server in a timely manner
-    | NtpPending
-        -- ^ Awaiting from a response from the NTP server
-    | NtpAvailable (Quantity "microsecond" Word32)
-        -- ^ Local clock drift is known.
-    deriving (Generic, Eq, Show)
-
--- | Status about protocol updates we've seen on the network. Protocol updates
--- appear as "Update Proposals", and are made by nodes in order to change
--- ongoing protocol parameters such as the slot length.
---
--- FIXME: At the moment, we can't reliably provide this information because,
--- even if we can see update proposals as we process blocks, we don't have any
--- notion of acceptance and therefore are unable to tell if and when these
--- updates are accepted.
-data ProtocolUpdates =
-    UpdatesUnavailable
-    deriving (Generic, Eq, Show, Bounded, Enum)
 
 {-------------------------------------------------------------------------------
                                Polymorphic Types

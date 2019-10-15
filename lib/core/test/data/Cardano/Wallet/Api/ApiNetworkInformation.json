@@ -1,8 +1,104 @@
 {
-    "seed": -2318719910249052031,
+    "seed": 5444974691847566122,
     "samples": [
         {
-            "protocol_updates": "unavailable",
+            "sync_progress": {
+                "status": "ready"
+            },
+            "tip": {
+                "epoch_number": 2197662,
+                "slot_number": 19337
+            }
+        },
+        {
+            "sync_progress": {
+                "status": "restoring",
+                "progress": {
+                    "quantity": 88,
+                    "unit": "percent"
+                }
+            },
+            "tip": {
+                "epoch_number": 9126218,
+                "slot_number": 14093
+            }
+        },
+        {
+            "sync_progress": {
+                "status": "restoring",
+                "progress": {
+                    "quantity": 5,
+                    "unit": "percent"
+                }
+            },
+            "tip": {
+                "epoch_number": 2092214,
+                "slot_number": 348
+            }
+        },
+        {
+            "sync_progress": {
+                "status": "ready"
+            },
+            "tip": {
+                "epoch_number": 2188260,
+                "slot_number": 26260
+            }
+        },
+        {
+            "sync_progress": {
+                "status": "restoring",
+                "progress": {
+                    "quantity": 45,
+                    "unit": "percent"
+                }
+            },
+            "tip": {
+                "epoch_number": 14108445,
+                "slot_number": 19468
+            }
+        },
+        {
+            "sync_progress": {
+                "status": "ready"
+            },
+            "tip": {
+                "epoch_number": 7579956,
+                "slot_number": 8617
+            }
+        },
+        {
+            "sync_progress": {
+                "status": "restoring",
+                "progress": {
+                    "quantity": 2,
+                    "unit": "percent"
+                }
+            },
+            "tip": {
+                "epoch_number": 3882219,
+                "slot_number": 18465
+            }
+        },
+        {
+            "sync_progress": {
+                "status": "ready"
+            },
+            "tip": {
+                "epoch_number": 12868167,
+                "slot_number": 19489
+            }
+        },
+        {
+            "sync_progress": {
+                "status": "ready"
+            },
+            "tip": {
+                "epoch_number": 8259066,
+                "slot_number": 22600
+            }
+        },
+        {
             "sync_progress": {
                 "status": "restoring",
                 "progress": {
@@ -11,144 +107,8 @@
                 }
             },
             "tip": {
-                "epoch_number": 4943997,
-                "slot_number": 5557
-            },
-            "ntp_status": {
-                "status": "unavailable"
-            }
-        },
-        {
-            "protocol_updates": "unavailable",
-            "sync_progress": {
-                "status": "ready"
-            },
-            "tip": {
-                "epoch_number": 6672252,
-                "slot_number": 29878
-            },
-            "ntp_status": {
-                "status": "unavailable"
-            }
-        },
-        {
-            "protocol_updates": "unavailable",
-            "sync_progress": {
-                "status": "ready"
-            },
-            "tip": {
-                "epoch_number": 13943963,
-                "slot_number": 24850
-            },
-            "ntp_status": {
-                "status": "unavailable"
-            }
-        },
-        {
-            "protocol_updates": "unavailable",
-            "sync_progress": {
-                "status": "ready"
-            },
-            "tip": {
-                "epoch_number": 10675315,
-                "slot_number": 695
-            },
-            "ntp_status": {
-                "status": "unavailable"
-            }
-        },
-        {
-            "protocol_updates": "unavailable",
-            "sync_progress": {
-                "status": "restoring",
-                "progress": {
-                    "quantity": 0,
-                    "unit": "percent"
-                }
-            },
-            "tip": {
-                "epoch_number": 5393807,
-                "slot_number": 14321
-            },
-            "ntp_status": {
-                "status": "unavailable"
-            }
-        },
-        {
-            "protocol_updates": "unavailable",
-            "sync_progress": {
-                "status": "restoring",
-                "progress": {
-                    "quantity": 62,
-                    "unit": "percent"
-                }
-            },
-            "tip": {
-                "epoch_number": 111847,
-                "slot_number": 9430
-            },
-            "ntp_status": {
-                "status": "unavailable"
-            }
-        },
-        {
-            "protocol_updates": "unavailable",
-            "sync_progress": {
-                "status": "restoring",
-                "progress": {
-                    "quantity": 86,
-                    "unit": "percent"
-                }
-            },
-            "tip": {
-                "epoch_number": 12370988,
-                "slot_number": 10253
-            },
-            "ntp_status": {
-                "status": "unavailable"
-            }
-        },
-        {
-            "protocol_updates": "unavailable",
-            "sync_progress": {
-                "status": "restoring",
-                "progress": {
-                    "quantity": 16,
-                    "unit": "percent"
-                }
-            },
-            "tip": {
-                "epoch_number": 6433184,
-                "slot_number": 6447
-            },
-            "ntp_status": {
-                "status": "unavailable"
-            }
-        },
-        {
-            "protocol_updates": "unavailable",
-            "sync_progress": {
-                "status": "ready"
-            },
-            "tip": {
-                "epoch_number": 4365508,
-                "slot_number": 3541
-            },
-            "ntp_status": {
-                "status": "unavailable"
-            }
-        },
-        {
-            "protocol_updates": "unavailable",
-            "sync_progress": {
-                "status": "ready"
-            },
-            "tip": {
-                "epoch_number": 7296857,
-                "slot_number": 17655
-            },
-            "ntp_status": {
-                "status": "unavailable"
+                "epoch_number": 333522,
+                "slot_number": 9879
             }
         }
     ]
