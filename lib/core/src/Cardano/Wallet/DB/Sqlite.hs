@@ -77,7 +77,7 @@ import Cardano.Wallet.DB.Sqlite.TH
 import Cardano.Wallet.DB.Sqlite.Types
     ( AddressPoolXPub (..), BlockId (..), TxId (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), PersistKey (..) )
+    ( Depth (..), PersistKey (..), WalletKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.Types
@@ -112,6 +112,8 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( catMaybes )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -184,14 +186,14 @@ withDBLayer
     -> Trace IO Text
        -- ^ Logging object
     -> Maybe FilePath
-       -- ^ Database file location, or Nothing for in-memory database
+       -- ^ Path to database directory, or Nothing for in-memory database
     -> (DBLayer IO s t k -> IO a)
        -- ^ Action to run.
     -> IO a
-withDBLayer logConfig trace fp action =
+withDBLayer logConfig trace mDatabaseDir action =
     bracket before after (action . snd)
   where
-    before = newDBLayer logConfig trace fp
+    before = newDBLayer logConfig trace mDatabaseDir
     after = destroyDBLayer . fst
 
 -- | Instantiate a 'DBFactory' from a given directory
@@ -209,53 +211,61 @@ mkDBFactory
     -> Trace IO Text
        -- ^ Logging object
     -> Maybe FilePath
-       -- ^ Database file location, or Nothing for in-memory database
+       -- ^ Path to database directory, or Nothing for in-memory database
     -> DBFactory IO s t k
-mkDBFactory cfg tr databaseDir = case databaseDir of
+mkDBFactory cfg tr mDatabaseDir = case mDatabaseDir of
     Nothing -> DBFactory
         { withDatabase = \_ ->
             withDBLayer cfg tracerDB Nothing
         , removeDatabase = \_ ->
             pure ()
         }
-    Just folder -> DBFactory
+    Just databaseDir -> DBFactory
         { withDatabase = \wid ->
-            withDBLayer cfg tracerDB (Just $ filepath wid)
+            withDBLayer cfg tracerDB (Just $ databaseFile wid)
         , removeDatabase = \wid -> do
             let files =
-                    [ filepath wid
-                    , filepath wid <> "-wal"
-                    , filepath wid <> "-shm"
+                    [ databaseFile wid
+                    , databaseFile wid <> "-wal"
+                    , databaseFile wid <> "-shm"
                     ]
             mapM_ removePathForcibly files
         }
       where
-        filepath wid = folder </> T.unpack (toText wid) <> ".sqlite"
+        databaseFilePrefix = keyTypeDescriptor $ Proxy @k
+        databaseFile wid =
+            databaseDir </>
+            databaseFilePrefix <> "." <>
+            T.unpack (toText wid) <> ".sqlite"
   where
     tracerDB = appendName "database" tr
 
--- | Lookup file-system for existing wallet databases
+-- | Return all wallet databases that match the specified key type within the
+--   specified directory.
 findDatabases
-    :: Trace IO Text
+    :: forall k. PersistKey k
+    => Trace IO Text
     -> FilePath
     -> IO [W.WalletId]
 findDatabases tr dir = do
     files <- listDirectory dir
     fmap catMaybes $ forM files $ \file -> do
         isFile <- doesFileExist (dir </> file)
-        let (basename:rest) = T.splitOn "." $ T.pack file
-        case (isFile, fromText basename, rest) of
-            (True, Right wid, ["sqlite"]) -> do
-                logInfo tr $ "Found existing wallet: " <> basename
-                return (Just wid)
-            (True, Right _, _) -> do
-                return Nothing
-            _ -> do
-                logNotice tr $ mconcat
-                    [ "Found something else than a database file in the "
-                    , "database folder: ", T.pack file
-                    ]
-                return Nothing
+        case (isFile, T.splitOn "." $ T.pack file) of
+            (True, prefix : basename : ["sqlite"]) | prefix == expectedPrefix ->
+                case fromText basename of
+                    Right wid -> do
+                        logInfo tr $ "Found existing wallet: " <> basename
+                        return (Just wid)
+                    _ -> do
+                        logNotice tr $ mconcat
+                            [ "Found something other than a database file in "
+                            , "the database folder: ", T.pack file
+                            ]
+                        return Nothing
+            _ -> return Nothing
+  where
+    expectedPrefix = T.pack $ keyTypeDescriptor $ Proxy @k
 
 -- | Sets up a connection to the SQLite database.
 --
@@ -268,19 +278,26 @@ findDatabases tr dir = do
 -- should be closed with 'destroyDBLayer'. If you use 'withDBLayer' then both of
 -- these things will be handled for you.
 newDBLayer
-    :: forall s t k. (IsOurs s, NFData s, Show s, PersistState s, PersistTx t, PersistKey k)
+    :: forall s t k.
+        ( IsOurs s
+        , NFData s
+        , Show s
+        , PersistState s
+        , PersistTx t
+        , PersistKey k
+        )
     => CM.Configuration
        -- ^ Logging configuration
     -> Trace IO Text
        -- ^ Logging object
     -> Maybe FilePath
-       -- ^ Database file location, or Nothing for in-memory database
+       -- ^ Path to database file, or Nothing for in-memory database
     -> IO (SqliteContext, DBLayer IO s t k)
-newDBLayer logConfig trace fp = do
+newDBLayer logConfig trace mDatabaseFile = do
     lock <- newMVar ()
     let trace' = transformTrace trace
     ctx@SqliteContext{runQuery} <-
-        startSqliteBackend logConfig migrateAll trace' fp
+        startSqliteBackend logConfig migrateAll trace' mDatabaseFile
     return (ctx, DBLayer
 
         {-----------------------------------------------------------------------
@@ -576,7 +593,8 @@ mkTxHistory wid txs = flatTxHistory
     ]
   where
     -- | Make flat lists of entities from the result of 'mkTxHistory'.
-    flatTxHistory :: [(TxMeta, ([TxIn], [TxOut]))] -> ([TxMeta], [TxIn], [TxOut])
+    flatTxHistory
+        :: [(TxMeta, ([TxIn], [TxOut]))] -> ([TxMeta], [TxIn], [TxOut])
     flatTxHistory entities =
         ( map fst entities
         , concatMap (fst . snd) entities
@@ -868,11 +886,15 @@ instance W.KeyToAddress t Seq.SeqKey => PersistState (Seq.SeqState t) where
                 (uncurry (==))
         let eGap = Seq.gap extPool
         let iGap = Seq.gap intPool
-        repsert (SeqStateKey wid) (SeqState wid eGap iGap (AddressPoolXPub xpub))
+        repsert
+            (SeqStateKey wid)
+            (SeqState wid eGap iGap (AddressPoolXPub xpub))
         insertAddressPool wid sl intPool
         insertAddressPool wid sl extPool
         deleteWhere [SeqStatePendingWalletId ==. wid]
-        dbChunked insertMany_ (mkSeqStatePendingIxs wid $ Seq.pendingChangeIxs st)
+        dbChunked
+            insertMany_
+            (mkSeqStatePendingIxs wid $ Seq.pendingChangeIxs st)
 
     selectState (wid, sl) = runMaybeT $ do
         st <- MaybeT $ selectFirst [SeqStateWalletId ==. wid] []

@@ -126,6 +126,7 @@ instance WalletKey RndKey where
     digest = hash . unXPub . getKey
     getRawKey = getKey
     dummyKey = dummyKeyRnd
+    keyTypeDescriptor _ = "rnd"
 
 {-------------------------------------------------------------------------------
                                  Key generation

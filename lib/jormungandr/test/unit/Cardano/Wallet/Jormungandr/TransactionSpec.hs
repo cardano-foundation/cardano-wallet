@@ -301,7 +301,7 @@ unknownInputTest _ block0 = it title $ do
     let addr = keyToAddress @(Jormungandr n) $ publicKey $ xprv "address-number-0"
     let res = mkStdTx tl keyFrom inps outs
           where
-            tl = newTransactionLayer @n block0
+            tl = newTransactionLayer @n @SeqKey block0
             keyFrom = const Nothing
             inps =
                 [ ( TxIn (Hash "arbitrary") 0
@@ -324,7 +324,7 @@ tooNumerousInpsTest _ block0 = it title $ do
     let addr = keyToAddress @(Jormungandr n) $ publicKey $ xprv "address-number-0"
     let res = validateSelection tl (CoinSelection inps outs chngs)
           where
-            tl = newTransactionLayer @n block0
+            tl = newTransactionLayer @n @SeqKey block0
             inps = replicate 256
                 ( TxIn (Hash "arbitrary") 0
                 , TxOut addr (Coin 1)
@@ -346,7 +346,7 @@ tooNumerousOutsTest _ block0 = it title $ do
     let addr = keyToAddress @(Jormungandr n) $ publicKey $ xprv "address-number-0"
     let res = validateSelection tl (CoinSelection inps outs chngs)
           where
-            tl = newTransactionLayer @n block0
+            tl = newTransactionLayer @n @SeqKey block0
             inps = replicate 255
                 ( TxIn (Hash "arbitrary") 0
                 , TxOut addr (Coin 10)

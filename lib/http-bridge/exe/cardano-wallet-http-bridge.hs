@@ -66,10 +66,10 @@ import Cardano.Wallet.HttpBridge.Network
     ( HttpBridgeBackend (..), HttpBridgeConfig (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress )
+import Cardano.Wallet.Primitive.AddressDerivation.Random
+    ( RndKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( SeqKey )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState )
 import Cardano.Wallet.Version
     ( showVersion, version )
 import Control.Applicative
@@ -146,8 +146,10 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
         Right Testnet -> exec @(HttpBridge 'Testnet) args
         Right Mainnet -> exec @(HttpBridge 'Mainnet) args
     exec
-        :: forall t k n s. (t ~ HttpBridge n, s ~ SeqState t, k ~ SeqKey)
-        => (KeyToAddress t k, KnownNetwork n)
+        :: forall t n. (t ~ HttpBridge n)
+        =>  ( KeyToAddress t RndKey
+            , KeyToAddress t SeqKey
+            , KnownNetwork n)
         => LaunchArgs
         -> IO ()
     exec (LaunchArgs network listen (Port nodePort) mStateDir verbosity) = do
@@ -158,7 +160,7 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
         setupDirectory (logInfo tr) stateDir
         setupDirectory (logInfo tr) databaseDir
         logInfo tr $ "Running as v" <> T.pack (showVersion version)
-        exitWith =<< serveWallet @t @k @n @s
+        exitWith =<< serveWallet @t @n
             (cfg, sb, tr)
             (Just databaseDir)
             listen
@@ -193,15 +195,19 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
         Testnet -> exec @(HttpBridge 'Testnet) args
         Mainnet -> exec @(HttpBridge 'Mainnet) args
     exec
-        :: forall t k n s. (t ~ HttpBridge n, s ~ SeqState t, k ~ SeqKey)
-        => (KeyToAddress t k, KnownNetwork n)
+        :: forall t n.
+            ( t ~ HttpBridge n
+            , KeyToAddress t RndKey
+            , KeyToAddress t SeqKey
+            , KnownNetwork n
+            )
         => ServeArgs
         -> IO ()
     exec (ServeArgs _ listen (Port nodePort) databaseDir verbosity) = do
         (cfg, sb, tr) <- initTracer (verbosityToMinSeverity verbosity) "serve"
         whenJust databaseDir $ setupDirectory (logInfo tr)
         logInfo tr $ "Running as v" <> T.pack (showVersion version)
-        exitWith =<< serveWallet @t @k @n @s
+        exitWith =<< serveWallet @t @n
             (cfg, sb, tr)
             databaseDir
             listen
