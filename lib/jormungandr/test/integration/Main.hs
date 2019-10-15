@@ -71,6 +71,7 @@ import qualified Test.Integration.Scenario.API.Wallets as Wallets
 import qualified Test.Integration.Scenario.CLI.Addresses as AddressesCLI
 import qualified Test.Integration.Scenario.CLI.Miscellaneous as MiscellaneousCLI
 import qualified Test.Integration.Scenario.CLI.Mnemonics as MnemonicsCLI
+import qualified Test.Integration.Scenario.CLI.Network as NetworkCLI
 import qualified Test.Integration.Scenario.CLI.Port as PortCLI
 import qualified Test.Integration.Scenario.CLI.Transactions as TransactionsCLI
 import qualified Test.Integration.Scenario.CLI.Wallets as WalletsCLI
@@ -106,6 +107,7 @@ main = do
             TransactionsCLI.spec @t
             WalletsCLI.spec @t
             PortCLI.spec @t
+            NetworkCLI.spec @t
 
 start :: IO (Context (Jormungandr 'Testnet))
 start = do
