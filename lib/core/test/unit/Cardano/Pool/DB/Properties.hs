@@ -46,10 +46,14 @@ import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
     ( runExceptT )
+import Data.Function
+    ( on )
 import Data.Functor
     ( ($>) )
 import Data.List.Extra
     ( nubOrd )
+import Data.Ord
+    ( Down (..) )
 import Data.Text
     ( Text )
 import GHC.Conc
@@ -70,7 +74,9 @@ import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor )
 
 import qualified Cardano.Pool.DB.MVar as MVar
+import qualified Data.List as L
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 
 -- | Provide a DBLayer to a Spec that requires it. The database is initialised
 -- once, and cleared with 'cleanDB' before each test.
@@ -98,6 +104,10 @@ properties = do
             (property . prop_putSlotTwicePoolProduction)
         it "Rollback of stake pool production"
             (property . prop_rollbackPools)
+        it "readPoolProduction for a given epoch should always give slots \
+           \from given epoch"
+            (property . prop_readPoolProductionEpochLeak)
+
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -185,3 +195,25 @@ allPoolProduction db (StakePoolsFixture pairs) =
     epochs = nubOrd $ map (epochNumber . snd) pairs
     rearrange ms = concat
         [ [ (sl, p) | sl <- sls ] | (p, sls) <- concatMap Map.assocs ms ]
+
+-- | Can read pool production only for a given epoch
+prop_readPoolProductionEpochLeak
+    :: DBLayer IO
+    -> StakePoolsFixture
+    -> Property
+prop_readPoolProductionEpochLeak db (StakePoolsFixture pairs) =
+    monadicIO (setup >> prop)
+  where
+    epochs = nubOrd $ map (epochNumber . snd) pairs
+    slotPartition = L.groupBy ((==) `on` epochNumber)
+        $ L.sortOn epochNumber
+        $ map snd pairs
+    epochGroups = L.zip epochs slotPartition
+    setup = liftIO $ cleanDB db
+    prop = liftIO $ do
+        forM_ pairs $ \(pool, slot) ->
+            unsafeRunExceptT $ putPoolProduction db slot pool
+        forM_ epochGroups $ \(epoch, slots) -> do
+            slots' <-
+                (Set.fromList . concat . Map.elems) <$> readPoolProduction db epoch
+            slots' `shouldBe` (Set.fromList slots)
