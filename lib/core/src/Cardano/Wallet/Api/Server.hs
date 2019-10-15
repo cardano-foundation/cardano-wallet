@@ -124,6 +124,7 @@ import Cardano.Wallet.Primitive.Fee
     ( Fee (..) )
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters
+    , Wallet
     , availableBalance
     , currentTip
     , getState
@@ -931,11 +932,8 @@ getWalletWithCreationTime ctx (ApiT wid) = do
             ApiT <$> meta ^. #passphraseInfo
         , state =
             ApiT $ meta ^. #status
-        , tip = ApiBlockReference
-            { epochNumber = (currentTip wallet) ^. #slotId . #epochNumber
-            , slotNumber =  (currentTip wallet) ^. #slotId . #slotNumber
-            , height = natural $ (currentTip wallet) ^. #blockHeight
-            }
+        , tip =
+            getWalletTip wallet
         }
 
 getByronWalletWithCreationTime
@@ -958,12 +956,15 @@ getByronWalletWithCreationTime ctx (ApiT wid) = do
         , name = ApiT $ meta ^. #name
         , passphrase = ApiT <$> meta ^. #passphraseInfo
         , state = ApiT $ meta ^. #status
-        , tip = ApiBlockReference
-            { epochNumber = (currentTip wallet) ^. #slotId . #epochNumber
-            , slotNumber =  (currentTip wallet) ^. #slotId . #slotNumber
-            , height = natural $ (currentTip wallet) ^. #blockHeight
-            }
+        , tip = getWalletTip wallet
         }
+
+getWalletTip :: Wallet s t -> ApiBlockReference
+getWalletTip wallet = ApiBlockReference
+    { epochNumber = (currentTip wallet) ^. #slotId . #epochNumber
+    , slotNumber =  (currentTip wallet) ^. #slotId . #slotNumber
+    , height = natural $ (currentTip wallet) ^. #blockHeight
+    }
 
 {-------------------------------------------------------------------------------
                                 Api Layer
