@@ -171,6 +171,8 @@ import Fmt
     ( Buildable, pretty )
 import GHC.Generics
     ( Generic )
+import GHC.IO.Encoding
+    ( setLocaleEncoding )
 import GHC.TypeLits
     ( Symbol )
 import Network.HTTP.Client
@@ -1190,6 +1192,7 @@ withLogging configFile minSeverity action = bracket before after (action . snd)
 -- prints UTF-8 characters regardless of the @LANG@ environment variable.
 setUtf8Encoding :: IO ()
 setUtf8Encoding = do
+    setLocaleEncoding utf8
     hSetEncoding stdout utf8
     hSetEncoding stderr utf8
 

@@ -249,7 +249,7 @@ import Numeric.Natural
 import Prelude hiding
     ( fail )
 import System.Command
-    ( CmdOption (..), CmdResult, Stderr, Stdout (..), command )
+    ( CmdResult, Stderr, Stdout (..), command )
 import System.Directory
     ( doesPathExist )
 import System.Exit
@@ -1171,7 +1171,7 @@ runJcli
     :: CmdResult r
     => [String]
     -> IO r
-runJcli = command [BinaryPipes] "jcli"
+runJcli = command [] "jcli"
 
 -- | A class to select the right command for a given 'Context t'
 class KnownCommand t where
@@ -1182,7 +1182,7 @@ cardanoWalletCLI
     :: forall t r. (CmdResult r, KnownCommand t)
     => [String]
     -> IO r
-cardanoWalletCLI = command [BinaryPipes] (commandName @t)
+cardanoWalletCLI = command [] (commandName @t)
 
 generateMnemonicsViaCLI
     :: forall t r. (CmdResult r, KnownCommand t)
