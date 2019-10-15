@@ -11,7 +11,7 @@ import Prelude
 import Cardano.Wallet.Api.Types
     ( ApiNetworkInformation )
 import Cardano.Wallet.Primitive.Types
-    ( NtpStatus (..), ProtocolUpdates (..), SyncProgress (..) )
+    ( SyncProgress (..) )
 import Test.Hspec
     ( SpecWith, it )
 import Test.Integration.Framework.DSL
@@ -20,8 +20,6 @@ import Test.Integration.Framework.DSL
     , Payload (..)
     , eventually
     , expectFieldEqual
-    , ntpStatus
-    , protocolUpdates
     , request
     , syncProgress
     , verify
@@ -33,8 +31,4 @@ spec = do
         let endpoint = ("GET", "v2/network/information")
         eventually $ do
             r <- request @ApiNetworkInformation ctx endpoint Default Empty
-            verify r
-                [ expectFieldEqual syncProgress Ready
-                , expectFieldEqual protocolUpdates UpdatesUnavailable
-                , expectFieldEqual ntpStatus NtpUnavailable
-                ]
+            verify r [ expectFieldEqual syncProgress Ready ]

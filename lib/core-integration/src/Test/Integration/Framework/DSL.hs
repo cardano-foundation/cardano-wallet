@@ -57,10 +57,8 @@ module Test.Integration.Framework.DSL
     , direction
     , feeEstimator
     , inputs
-    , ntpStatus
     , outputs
     , passphraseLastUpdate
-    , protocolUpdates
     , state
     , status
     , syncProgress
@@ -160,9 +158,7 @@ import Cardano.Wallet.Primitive.Types
     , EncodeAddress (..)
     , Hash (..)
     , HistogramBar (..)
-    , NtpStatus (..)
     , PoolId (..)
-    , ProtocolUpdates (..)
     , SortOrder (..)
     , SyncProgress (..)
     , TxIn (..)
@@ -755,24 +751,6 @@ syncProgress =
     _get :: HasType (ApiT SyncProgress) s => s -> SyncProgress
     _get = getApiT . view typed
     _set :: HasType (ApiT SyncProgress) s => (s, SyncProgress) -> s
-    _set (s, v) = set typed (ApiT v) s
-
-ntpStatus :: HasType (ApiT NtpStatus) s => Lens' s NtpStatus
-ntpStatus =
-    lens _get _set
-  where
-    _get :: HasType (ApiT NtpStatus) s => s -> NtpStatus
-    _get = getApiT . view typed
-    _set :: HasType (ApiT NtpStatus) s => (s, NtpStatus) -> s
-    _set (s, v) = set typed (ApiT v) s
-
-protocolUpdates :: HasType (ApiT ProtocolUpdates) s => Lens' s ProtocolUpdates
-protocolUpdates =
-    lens _get _set
-  where
-    _get :: HasType (ApiT ProtocolUpdates) s => s -> ProtocolUpdates
-    _get = getApiT . view typed
-    _set :: HasType (ApiT ProtocolUpdates) s => (s, ProtocolUpdates) -> s
     _set (s, v) = set typed (ApiT v) s
 
 --

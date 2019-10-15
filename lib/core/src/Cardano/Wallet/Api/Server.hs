@@ -664,11 +664,7 @@ network ctx = do
     nTip <- liftHandler (networkTip nl)
     now <- liftIO getCurrentTime
     pure $ ApiNetworkInformation
-        { ntpStatus =
-            ApiT W.NtpUnavailable
-        , protocolUpdates =
-            ApiT W.UpdatesUnavailable
-        , syncProgress = ApiT $ maybe
+        { syncProgress = ApiT $ maybe
             (W.Restoring minBound)
             (W.syncProgress (bp ^. #getEpochLength) nTip)
             (W.slotAt sp now)

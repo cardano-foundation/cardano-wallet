@@ -83,9 +83,7 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , EncodeAddress (..)
     , Hash (..)
-    , NtpStatus (..)
     , PoolId (..)
-    , ProtocolUpdates (..)
     , ShowFmt (..)
     , SlotId (..)
     , SyncProgress (..)
@@ -288,9 +286,7 @@ data ApiBlockReference = ApiBlockReference
     } deriving (Eq, Generic, Show)
 
 data ApiNetworkInformation = ApiNetworkInformation
-    { ntpStatus :: !(ApiT NtpStatus)
-    , protocolUpdates :: !(ApiT ProtocolUpdates)
-    , syncProgress :: !(ApiT SyncProgress)
+    { syncProgress :: !(ApiT SyncProgress)
     , tip :: !ApiBlockReference
     } deriving (Eq, Generic, Show)
 
@@ -627,16 +623,6 @@ instance FromJSON ApiNetworkInformation where
 instance ToJSON ApiNetworkInformation where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON (ApiT NtpStatus) where
-    parseJSON = fmap ApiT . genericParseJSON ntpStatusOptions
-instance ToJSON (ApiT NtpStatus) where
-    toJSON = genericToJSON ntpStatusOptions . getApiT
-
-instance FromJSON (ApiT ProtocolUpdates) where
-    parseJSON = fmap ApiT . genericParseJSON (prefixedSumTypeOptions "Updates")
-instance ToJSON (ApiT ProtocolUpdates) where
-    toJSON = genericToJSON (prefixedSumTypeOptions "Updates") . getApiT
-
 instance ToJSON ApiErrorCode where
     toJSON = genericToJSON defaultSumTypeOptions
 
@@ -668,21 +654,6 @@ syncProgressOptions = taggedSumTypeOptions defaultSumTypeOptions $
     TaggedObjectOptions
         { _tagFieldName = "status"
         , _contentsFieldName = "progress"
-        }
-
--- | Options for encoding ntp status. It can be serialized to and from JSON as
--- follows:
---
--- >>> Aeson.encode NtpUnavailable
--- {"status":"unavailable"}
---
--- >>> Aeson.encode $ NtpAvailable (Quantity 14)
--- {"status":"available","drift":{"quantity":14,"unit":"microsecond"}}
-ntpStatusOptions :: Aeson.Options
-ntpStatusOptions = taggedSumTypeOptions (prefixedSumTypeOptions "Ntp") $
-    TaggedObjectOptions
-        { _tagFieldName = "status"
-        , _contentsFieldName = "drift"
         }
 
 {-------------------------------------------------------------------------------
@@ -762,12 +733,6 @@ defaultSumTypeOptions = Aeson.defaultOptions
     , tagSingleConstructors = True
     }
 
-prefixedSumTypeOptions :: String -> Aeson.Options
-prefixedSumTypeOptions prefix = Aeson.defaultOptions
-    { constructorTagModifier = camelTo2 '_' . drop (length prefix)
-    , tagSingleConstructors = True
-    }
-
 defaultRecordTypeOptions :: Aeson.Options
 defaultRecordTypeOptions = Aeson.defaultOptions
     { fieldLabelModifier = camelTo2 '_' . dropWhile (== '_')
@@ -778,8 +743,6 @@ taggedSumTypeOptions :: Aeson.Options -> TaggedObjectOptions -> Aeson.Options
 taggedSumTypeOptions base opts = base
     { sumEncoding = TaggedObject (_tagFieldName opts) (_contentsFieldName opts)
     }
-
-
 
 {-------------------------------------------------------------------------------
                                    Helpers

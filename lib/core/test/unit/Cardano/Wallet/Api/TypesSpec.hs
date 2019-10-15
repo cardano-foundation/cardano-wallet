@@ -78,9 +78,7 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , Hash (..)
     , HistogramBar (..)
-    , NtpStatus (..)
     , PoolId (..)
-    , ProtocolUpdates (..)
     , SlotId (..)
     , SortOrder (..)
     , SyncProgress (..)
@@ -245,8 +243,6 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletName)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletPassphraseInfo)
             jsonRoundtripAndGolden $ Proxy @(ApiT SyncProgress)
-            jsonRoundtripAndGolden $ Proxy @(ApiT NtpStatus)
-            jsonRoundtripAndGolden $ Proxy @(ApiT ProtocolUpdates)
 
     describe "Textual encoding" $ do
 
@@ -572,9 +568,7 @@ spec = do
         it "ApiNetworkInformation" $ property $ \x ->
             let
                 x' = ApiNetworkInformation
-                    { ntpStatus = ntpStatus (x :: ApiNetworkInformation)
-                    , protocolUpdates = protocolUpdates (x :: ApiNetworkInformation)
-                    , syncProgress = syncProgress (x :: ApiNetworkInformation)
+                    { syncProgress = syncProgress (x :: ApiNetworkInformation)
                     , tip = tip (x :: ApiNetworkInformation)
                     }
             in
@@ -844,18 +838,6 @@ instance Arbitrary ApiBlockReference where
 
 instance Arbitrary ApiNetworkInformation where
     arbitrary = genericArbitrary
-    shrink = genericShrink
-
-instance Arbitrary NtpStatus where
-    -- NOTE
-    -- At the moment, we've specified in the Swagger spec that only
-    -- `NtpUnavailable` will be returned, to make it clear for clients that this
-    -- isn't yet available as a feature.
-    arbitrary = pure NtpUnavailable
-    shrink _ = []
-
-instance Arbitrary ProtocolUpdates where
-    arbitrary = arbitraryBoundedEnum
     shrink = genericShrink
 
 instance Arbitrary SlotId where
