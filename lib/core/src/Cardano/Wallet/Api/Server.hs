@@ -721,10 +721,19 @@ compatibilityApiServer rndCtx seqCtx =
     :<|> postByronWallet rndCtx
 
 deleteByronWallet
-    :: ctx
+    :: forall s t k. (s ~ RndState t)
+    => ApiLayer s t k
     -> ApiT WalletId
     -> Handler NoContent
-deleteByronWallet _ _ = throwError err501
+deleteByronWallet ctx (ApiT wid) = do
+    liftHandler $ withWorkerCtx ctx wid throwE $
+        \worker -> W.removeWallet worker wid
+    liftIO $ Registry.remove re wid
+    liftIO $ (df ^. #removeDatabase) wid
+    return NoContent
+  where
+    re = ctx ^. workerRegistry @s @t @k
+    df = ctx ^. dbFactory @s @t @k
 
 getByronWallet
     :: forall t k. DefineTx t
