@@ -111,6 +111,7 @@ module Test.Integration.Framework.DSL
     , postExternalTxEp
     , postTxFeeEp
     , listTxEp
+    , networkInfoEp
     , updateWalletPassEp
 
     -- * CLI
@@ -1039,6 +1040,11 @@ verify a = mapM_ (a &)
 --- Endoints
 ---
 
+networkInfoEp :: (Method, Text)
+networkInfoEp =
+    ( "GET"
+    , "v2/network/information"
+    )
 
 postByronWalletEp :: (Method, Text)
 postByronWalletEp =
