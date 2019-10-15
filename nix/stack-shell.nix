@@ -5,7 +5,7 @@
 }:
 with pkgs;
 
-haskell.lib.buildStackProject {
+haskell.lib.buildStackProject rec {
   name = "cardano-wallet-stack-env";
   ghc = walletPackages.haskellPackages._config.ghc.package;
 
@@ -15,5 +15,5 @@ haskell.lib.buildStackProject {
     (lib.optionals stdenv.isDarwin (with darwin.apple_sdk.frameworks; [ Cocoa CoreServices libcxx libiconv ]));
 
   phases = ["nobuildPhase"];
-  nobuildPhase = "mkdir -p $out";
+  nobuildPhase = "echo '${pkgs.lib.concatStringsSep "\n" ([ghc] ++ buildInputs)}' > $out";
 }
