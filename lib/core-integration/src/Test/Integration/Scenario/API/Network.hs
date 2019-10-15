@@ -15,8 +15,6 @@ import Cardano.Wallet.Primitive.Types
     ( SyncProgress (..) )
 import Control.Monad
     ( forM_ )
-import Data.Generics.Labels
-    ()
 import Data.Quantity
     ( Quantity (..) )
 import Test.Hspec
@@ -25,13 +23,17 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
+    , emptyWallet
     , eventually
     , expectErrorMessage
+    , expectEventually'
     , expectFieldBetween
     , expectFieldEqual
     , expectResponseCode
     , getFromResponse
+    , networkInfoEp
     , request
+    , state
     , syncProgress
     , verify
     )
@@ -43,15 +45,29 @@ import qualified Network.HTTP.Types.Status as HTTP
 spec :: forall t. SpecWith (Context t)
 spec = do
     it "NETWORK - Can query network information" $ \ctx -> do
-        let endpoint = ("GET", "v2/network/information")
         eventually $ do
-            r <- request @ApiNetworkInformation ctx endpoint Default Empty
+            r <- request @ApiNetworkInformation ctx networkInfoEp Default Empty
             let (ApiBlockReference _ sl _) = getFromResponse #tip r
             verify r
                 [ expectFieldEqual syncProgress Ready
                 , expectFieldBetween (#tip . #height)
                     (Quantity 0, Quantity $ fromIntegral $ sl + 1)
                 ]
+    it "NETWORK2 - Wallet has the same tip as network/information" $ \ctx -> do
+        let getNetworkInfo = request @ApiNetworkInformation ctx networkInfoEp Default Empty
+        w <- emptyWallet ctx
+        eventually $ do
+            sync <- getNetworkInfo
+            verify sync [ expectFieldEqual syncProgress Ready ]
+        r <- getNetworkInfo
+        let epochNum = getFromResponse (#tip . #epochNumber) r
+        let slotNum = getFromResponse (#tip . #slotNumber) r
+        let blockHeight = getFromResponse (#tip . #height) r
+
+        expectEventually' ctx state Ready w
+        expectEventually' ctx (#tip . #epochNumber) epochNum w
+        expectEventually' ctx (#tip . #slotNumber) slotNum  w
+        expectEventually' ctx (#tip . #height) blockHeight w
 
     describe "NETWORK - v2/network/information - Methods Not Allowed" $ do
         let matrix = ["POST", "CONNECT", "TRACE", "OPTIONS"]
@@ -86,6 +102,5 @@ spec = do
                     )
                   ]
         forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> do
-            let ep = ("GET", "v2/network/information")
-            r <- request @ApiNetworkInformation ctx ep headers Empty
+            r <- request @ApiNetworkInformation ctx networkInfoEp headers Empty
             verify r expectations
