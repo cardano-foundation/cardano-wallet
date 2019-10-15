@@ -30,8 +30,9 @@ module Cardano.CLI
     , cmdWallet
     , cmdTransaction
     , cmdAddress
-    , cmdVersion
     , cmdStakePool
+    , cmdNetwork
+    , cmdVersion
 
     -- * Option & Argument Parsers
     , optionT
@@ -98,6 +99,7 @@ import Cardano.Wallet.Api.Types
     , ApiAddress
     , ApiFee
     , ApiMnemonicT (..)
+    , ApiNetworkInformation
     , ApiStakePool
     , ApiT (..)
     , ApiTransaction
@@ -697,6 +699,34 @@ cmdStakePoolList = command "list" $ info (helper <*> cmd) $ mempty
         runClient wPort Aeson.encodePretty $ listPools (walletClient @t)
 
 {-------------------------------------------------------------------------------
+                            Commands - 'network'
+-------------------------------------------------------------------------------}
+
+cmdNetwork
+    :: forall t. (DecodeAddress t, EncodeAddress t)
+    => Mod CommandFields (IO ())
+cmdNetwork = command "network" $ info (helper <*> cmds) $ mempty
+    <> progDesc "Manage network."
+  where
+    cmds = subparser $ mempty
+        <> cmdNetworkInformation @t
+
+-- | Arguments for 'network information' command
+newtype NetworkInformationArgs = NetworkInformationArgs
+    { _port :: Port "Wallet"
+    }
+
+cmdNetworkInformation
+    :: forall t. (DecodeAddress t, EncodeAddress t)
+    => Mod CommandFields (IO ())
+cmdNetworkInformation = command "information" $ info (helper <*> cmd) $ mempty
+    <> progDesc "View network information."
+  where
+    cmd = fmap exec $ NetworkInformationArgs <$> portOption
+    exec (NetworkInformationArgs wPort) = do
+        runClient wPort Aeson.encodePretty $ networkInformation (walletClient @t)
+
+{-------------------------------------------------------------------------------
                             Commands - 'launch'
 -------------------------------------------------------------------------------}
 
@@ -930,12 +960,14 @@ data WalletClient t = WalletClient
         -> ClientM ApiTxId
     , listPools
         :: ClientM [ApiStakePool]
+    , networkInformation
+        :: ClientM ApiNetworkInformation
     }
 
 walletClient :: forall t. (DecodeAddress t, EncodeAddress t) => WalletClient t
 walletClient =
     let
-        addresses :<|> wallets :<|> transactions :<|> pools :<|> _network =
+        addresses :<|> wallets :<|> transactions :<|> pools :<|> network =
             client (Proxy @("v2" :> CoreApi t))
 
         _listAddresses =
@@ -957,6 +989,8 @@ walletClient =
             = transactions
 
         _listPools = pools
+
+        _networkInformation = network
     in
         WalletClient
             { listAddresses = _listAddresses
@@ -972,6 +1006,7 @@ walletClient =
             , postTransactionFee = _postTransactionFee
             , getWalletUtxoStatistics = _getWalletUtxoStatistics
             , listPools = _listPools
+            , networkInformation = _networkInformation
             }
 
 runClient
