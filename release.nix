@@ -46,7 +46,7 @@ let
       testData = ./lib/jormungandr/test/data/jormungandr;
       name = "cardano-wallet-jormungandr-${project.version}-win64.zip";
       jm-bat = pkgs.writeText "jm.bat" ''
-        jormungandr.exe --config config.yaml --genesis-block block0.bin -- --secret secret.yaml
+        jormungandr.exe -- --config config.yaml --genesis-block block0.bin --secret secret.yaml
       '';
       cw-bat = pkgs.writeText "cw.bat" ''
         cardano-wallet-jormungandr.exe serve --node-port 8081 --genesis-block-hash HASH --database c:\\cardano-wallet-jormungandr\\wallets

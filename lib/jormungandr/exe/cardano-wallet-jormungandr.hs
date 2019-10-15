@@ -41,10 +41,8 @@ import Cardano.CLI
     , getDataDir
     , initTracer
     , listenOption
-    , nodePortMaybeOption
     , nodePortOption
     , optionT
-    , requireFilePath
     , runCli
     , setUtf8Encoding
     , setupDirectory
@@ -80,7 +78,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Version
     ( showVersion, version )
 import Control.Applicative
-    ( optional, (<|>) )
+    ( optional )
 import Data.Maybe
     ( fromMaybe )
 import Data.Text
@@ -159,15 +157,9 @@ beforeMainLoop tr port _ _ = do
 -- | Arguments for the 'launch' command
 data LaunchArgs = LaunchArgs
     { _listen :: Listen
-    , _nodePort :: Maybe (Port "Node")
     , _stateDir :: Maybe FilePath
     , _verbosity :: Verbosity
-    , _jormungandrArgs :: JormungandrArgs
-    }
-
-data JormungandrArgs = JormungandrArgs
-    { genesisBlock :: Either (Hash "Genesis") FilePath
-    , extraJormungandrArgs :: [Text]
+    , _jormungandrArgs :: [String]
     }
 
 cmdLaunch
@@ -181,28 +173,14 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
   where
     cmd = fmap exec $ LaunchArgs
         <$> listenOption
-        <*> nodePortMaybeOption
         <*> stateDirOption dataDir
         <*> verbosityOption
-        <*> (JormungandrArgs
-            <$> genesisBlockOption
-            <*> extraArguments)
-    exec (LaunchArgs listen nodePort mStateDir verbosity jArgs) = do
+        <*> extraArguments
+    exec (LaunchArgs listen mStateDir verbosity jArgs) = do
         let minSeverity = verbosityToMinSeverity verbosity
         (cfg, sb, tr) <- initTracer minSeverity "launch"
-        case genesisBlock jArgs of
-            Right block0File -> requireFilePath block0File
-            Left _ -> pure ()
         let stateDir = fromMaybe (dataDir </> "testnet") mStateDir
         let databaseDir = stateDir </> "wallets"
-        let cp = JormungandrConfig
-                { _stateDir = stateDir
-                , _genesisBlock = genesisBlock jArgs
-                , _restApiPort = fromIntegral . getPort <$> nodePort
-                , _minSeverity = minSeverity
-                , _outputStream = Inherit
-                , _extraArgs = extraJormungandrArgs jArgs
-                }
         setupDirectory (logInfo tr) stateDir
         setupDirectory (logInfo tr) databaseDir
         logInfo tr $ "Running as v" <> T.pack (showVersion version)
@@ -210,7 +188,7 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
             (cfg, sb, tr)
             (Just databaseDir)
             listen
-            (Launch cp)
+            (Launch (JormungandrConfig jArgs Inherit))
             (beforeMainLoop tr)
 
 {-------------------------------------------------------------------------------
@@ -236,7 +214,7 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
         <*> nodePortOption
         <*> optional databaseOption
         <*> verbosityOption
-        <*> genesisHashOption
+        <*> genesisBlockHashOption
     exec
         :: forall t k n s. (n ~ 'Testnet, t ~ Jormungandr n, s ~ SeqState t, k ~ SeqKey)
         => (KeyToAddress t k, KnownNetwork n)
@@ -263,27 +241,15 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
                                  Options
 -------------------------------------------------------------------------------}
 
-genesisBlockOption :: Parser (Either (Hash "Genesis") FilePath)
-genesisBlockOption =
-    fmap Left genesisHashOption <|>
-    fmap Right genesisBlockFileOption
-
--- | --genesis-block=FILE
-genesisBlockFileOption :: Parser FilePath
-genesisBlockFileOption = optionT $ mempty
-    <> long "genesis-block"
-    <> metavar "FILE"
-    <> help "Path to the genesis block in binary format."
-
--- | --genesis-block-hash=STRING
-genesisHashOption :: Parser (Hash "Genesis")
-genesisHashOption = optionT $ mempty
-    <> long "genesis-block-hash"
-    <> metavar "STRING"
-    <> help "Blake2b_256 hash of the genesis block, in base 16."
-
 -- | -- [ARGUMENTS...]
-extraArguments :: Parser [Text]
+extraArguments :: Parser [String]
 extraArguments = some $ argument str $ mempty
     <> metavar "[-- ARGUMENTS...]"
     <> help "Extra arguments to be passed to jormungandr."
+
+-- | --genesis-block-hash=STRING
+genesisBlockHashOption :: Parser (Hash "Genesis")
+genesisBlockHashOption = optionT $ mempty
+    <> long "genesis-block-hash"
+    <> metavar "STRING"
+    <> help "Blake2b_256 hash of the genesis block, in base 16."

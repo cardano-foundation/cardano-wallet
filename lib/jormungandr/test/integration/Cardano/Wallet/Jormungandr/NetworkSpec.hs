@@ -12,8 +12,6 @@ module Cardano.Wallet.Jormungandr.NetworkSpec
 
 import Prelude
 
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
 import Cardano.BM.Trace
     ( nullTracer )
 import Cardano.Wallet.Jormungandr.Api
@@ -24,12 +22,13 @@ import Cardano.Wallet.Jormungandr.BlockHeaders
     ( emptyBlockHeaders )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr, Network (..) )
+import Cardano.Wallet.Jormungandr.Launch
+    ( setupConfig, teardownConfig )
 import Cardano.Wallet.Jormungandr.Network
     ( BaseUrl (..)
     , ErrGetDescendants (..)
     , ErrUnexpectedNetworkFailure (..)
     , JormungandrBackend (..)
-    , JormungandrConfig (..)
     , JormungandrConnParams (..)
     , Scheme (..)
     , mkRawNetworkLayer
@@ -70,7 +69,7 @@ import Control.Concurrent.MVar
 import Control.DeepSeq
     ( deepseq )
 import Control.Exception
-    ( throwIO )
+    ( bracket, throwIO )
 import Control.Monad
     ( void )
 import Control.Monad.IO.Class
@@ -93,10 +92,6 @@ import Network.HTTP.Client
     ( defaultManagerSettings, newManager )
 import Servant.Links
     ( safeLink )
-import System.IO.Temp
-    ( withSystemTempDirectory )
-import System.Process
-    ( StdStream (..) )
 import Test.Hspec
     ( Spec
     , anyException
@@ -336,14 +331,7 @@ spec = do
     second :: Int
     second = 1000000
 
-    startNode cb = withSystemTempDirectory "jormungandr-state" $ \stateDir -> do
-        let cfg = JormungandrConfig
-                stateDir
-                (Right "test/data/jormungandr/block0.bin")
-                Nothing
-                Info
-                Inherit
-                ["--secret", "test/data/jormungandr/secret.yaml"]
+    startNode cb = bracket setupConfig teardownConfig $ \(cfg, _, _) -> do
         let tr = nullTracer
         e <- withJormungandr tr cfg $ \cp -> withNetworkLayer tr (UseRunning cp) $ \case
             Right (_, nw) -> cb (nw, _restApi cp)

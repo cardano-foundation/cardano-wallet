@@ -191,9 +191,17 @@ serveWallet (cfg, sb, tr) databaseDir listen lj beforeMainLoop = do
                 handleGenesisNotFound h
             ErrGetBlockchainParamsIncompleteParams _ ->
                 handleNoInitialPolicy
-        ErrStartupGenesisBlockFailed file ->
+        ErrStartupInvalidGenesisBlock file ->
             failWith (sb, tr) $ mempty
                 <> "As far as I can tell, this isn't a valid block file: "
+                <> T.pack file
+        ErrStartupInvalidGenesisHash h ->
+            failWith (sb, tr) $ mempty
+                <> "As far as I can tell, this isn't a valid block hash: "
+                <> T.pack h
+        ErrStartupInvalidConfigFile file ->
+            failWith (sb, tr) $ mempty
+                <> "As far as I can tell, this isn't a valid config file: "
                 <> T.pack file
         ErrStartupCommandExited pe -> case pe of
             ProcessDidNotStart _cmd exc ->
@@ -206,6 +214,20 @@ serveWallet (cfg, sb, tr) databaseDir listen lj beforeMainLoop = do
             failWith (sb, tr) $ mempty
                 <> "Waited too long for Jörmungandr to become available. "
                 <> "Giving up!"
+        ErrStartupRestApiNotEnabled _ ->
+            failWith (sb, tr) $ mempty
+                <> "The REST api is not enabled in the configuration you're "
+                <> "passing down to Jörmungandr, but I need this to be enabled!"
+        ErrStartupMissingArgument missing ->
+            failWith (sb, tr) $ mempty
+                <> "I couldn't launch Jörmungandr with the arguments you've "
+                <> "provided. In particular, I am looking for '"
+                <> T.pack missing
+                <> "' and it's not there."
+        ErrStartupMissingFile p ->
+            failWith (sb, tr) $ mempty
+                <> "I couldn't find any file at the given location: "
+                <> T.pack p
 
     handleGenesisNotFound :: Hash "Genesis" -> IO ExitCode
     handleGenesisNotFound block0H = do

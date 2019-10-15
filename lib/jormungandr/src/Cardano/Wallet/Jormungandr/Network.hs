@@ -28,10 +28,10 @@ module Cardano.Wallet.Jormungandr.Network
     -- * Starting the network layer
       JormungandrBackend (..)
     , JormungandrConnParams (..)
+    , JormungandrConfig (..)
     , withNetworkLayer
 
     -- * Launching the node backend
-    , JormungandrConfig (..)
     , withJormungandr
     , connParamsPort
 
@@ -53,10 +53,8 @@ module Cardano.Wallet.Jormungandr.Network
 
 import Prelude
 
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
 import Cardano.BM.Trace
-    ( Trace, logInfo )
+    ( Trace )
 import Cardano.Launcher
     ( Command (..)
     , ProcessHasExited
@@ -99,13 +97,13 @@ import Cardano.Wallet.Jormungandr.BlockHeaders
     , updateUnstableBlocks
     )
 import Cardano.Wallet.Jormungandr.Compatibility
-    ( Jormungandr, genConfigFile, localhostBaseUrl )
+    ( Jormungandr )
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx )
 import Cardano.Wallet.Network
     ( Cursor, NetworkLayer (..), NextBlocksResult (..), defaultRetryPolicy )
 import Cardano.Wallet.Network.Ports
-    ( PortNumber, getRandomPort, waitForPort )
+    ( waitForPort )
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
@@ -113,7 +111,7 @@ import Cardano.Wallet.Primitive.Types
 import Control.Concurrent.MVar.Lifted
     ( MVar, modifyMVar, newMVar, readMVar )
 import Control.Exception
-    ( Exception, bracket )
+    ( Exception )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Class
@@ -121,13 +119,15 @@ import Control.Monad.Trans.Class
 import Control.Monad.Trans.Control
     ( MonadBaseControl )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT, throwE, withExceptT )
+    ( ExceptT (..), except, runExceptT, throwE, withExceptT )
+import Data.Aeson
+    ( (.:) )
 import Data.ByteArray.Encoding
-    ( Base (Base16), convertToBase )
+    ( Base (..), convertFromBase )
 import Data.Coerce
     ( coerce )
-import Data.Function
-    ( (&) )
+import Data.Functor
+    ( (<&>) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -135,15 +135,14 @@ import Data.Text
 import Data.Word
     ( Word32 )
 import System.Directory
-    ( removeFile )
-import System.FilePath
-    ( (</>) )
+    ( doesFileExist )
 
 import qualified Cardano.Wallet.Jormungandr.Binary as J
+import qualified Data.Aeson as Aeson
+import qualified Data.Aeson.Types as Aeson
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
-import qualified Data.Char as C
-import qualified Data.Text as T
 import qualified Data.Yaml as Yaml
 
 -- | Whether to start Jormungandr with the given config, or to connect to an
@@ -153,22 +152,22 @@ data JormungandrBackend
     | Launch JormungandrConfig
     deriving (Show, Eq)
 
+-- | Jormungandr configuration parameters, used for starting the Jormungandr
+-- node backend.
+data JormungandrConfig = JormungandrConfig
+    { _args :: [String]
+    , _outputStream :: StdStream
+    } deriving (Show, Eq)
+
 -- | Parameters for connecting to a Jormungandr REST API.
 data JormungandrConnParams = JormungandrConnParams
     { _genesisHash :: Hash "Genesis"
     , _restApi :: BaseUrl
     } deriving (Show, Eq)
 
--- | A subset of the Jormungandr configuration parameters, used for starting the
--- Jormungandr node backend.
-data JormungandrConfig = JormungandrConfig
-    { _stateDir :: FilePath
-    , _genesisBlock :: Either (Hash "Genesis") FilePath
-    , _restApiPort :: Maybe PortNumber
-    , _minSeverity :: Severity
-    , _outputStream :: StdStream
-    , _extraArgs :: [Text]
-    } deriving (Show, Eq)
+-- | Extract the port number from the base URL part of the connection params.
+connParamsPort :: JormungandrConnParams -> Int
+connParamsPort (JormungandrConnParams _ url) = baseUrlPort url
 
 -- | Starts the network layer and runs the given action with a
 -- 'NetworkLayer'. The caller is responsible for handling errors which may have
@@ -445,64 +444,102 @@ withJormungandr
     -> (JormungandrConnParams -> IO a)
     -- ^ Action to run while node is running.
     -> IO (Either ErrStartup a)
-withJormungandr tr (JormungandrConfig stateDir block0 mPort logSeverity output extraArgs) cb =
-    bracket setupConfig cleanupConfig startBackend
+withJormungandr tr (JormungandrConfig args output) cb = do
+    runExceptT $ do
+        (config, block0Arg) <- except (extractArgs args)
+        baseUrl <- ExceptT $ decodeRestUrlFromFile config
+        block0H <- case block0Arg of
+            Right block0File -> do
+                ExceptT $ requireFilePath block0File
+                ExceptT $ readBlockHash block0File
+            Left block0H ->
+                pure block0H
+        let cmd = Command "jormungandr" args (return ()) output
+        let tr' = transformLauncherTrace tr
+        let params = JormungandrConnParams block0H baseUrl
+        res <- withExceptT ErrStartupCommandExited $ ExceptT $
+            withBackendProcess tr' cmd (wait params)
+        either throwE pure res
   where
-    nodeConfigFile = stateDir </> "jormungandr-config.yaml"
-    setupConfig = do
-        apiPort <- maybe getRandomPort pure mPort
-        p2pPort <- getRandomPort
-        let baseUrl = localhostBaseUrl $ fromIntegral apiPort
-        genConfigFile stateDir p2pPort baseUrl
-            & Yaml.encodeFile nodeConfigFile
-        logInfo tr $ mempty
-            <> "Generated Jörmungandr's configuration to: "
-            <> T.pack nodeConfigFile
-        pure (apiPort, baseUrl)
-    cleanupConfig _ = removeFile nodeConfigFile
+    wait params = do
+        res <- waitForPort defaultRetryPolicy (toEnum $ connParamsPort params)
+        if res
+            then Right <$> cb params
+            else pure $ Left ErrStartupNodeNotListening
 
-    startBackend (apiPort, baseUrl) = getGenesisBlockArg block0 >>= \case
-        Right (block0H, genesisBlockArg) -> do
-            let args = genesisBlockArg ++
-                    [ "--config", nodeConfigFile
-                    , "--log-level", C.toLower <$> show logSeverity
-                    ] ++ map T.unpack extraArgs
-            let cmd = Command "jormungandr" args (return ()) output
-            let tr' = transformLauncherTrace tr
-            res <- withBackendProcess tr' cmd $
-                waitForPort defaultRetryPolicy apiPort >>= \case
-                    True -> Right <$> cb (JormungandrConnParams block0H baseUrl)
-                    False -> pure $ Left ErrStartupNodeNotListening
-            pure $ either (Left . ErrStartupCommandExited) id res
+-- | Extract args we need from Jörmungandr. Jörmungandr arguments are passed down
+-- to it, but we're still interested in two arguments:
+--
+-- - The configuration file, in order to extract the REST api url
+-- - The genesis block, or genesis block hash
+extractArgs
+    :: [String]
+    -> Either ErrStartup (FilePath, Either (Hash "Genesis") FilePath)
+extractArgs = search (Nothing, Nothing)
+  where
+    search (config, block0) (k:v:q)
+        | k == "--config" = search (Just v, block0) q
+        | k == "--genesis-block" = search (config, Just (Right v)) q
+        | k == "--genesis-block-hash" = case convertFromBase Base16 (B8.pack v) of
+            Left _  ->
+                Left $ ErrStartupInvalidGenesisHash v
+            Right h
+                | BS.length h /= 32 -> Left $ ErrStartupInvalidGenesisHash v
+                | otherwise -> search (config, Just (Left $ Hash h)) q
+        | otherwise = search (config, block0) (v:q)
 
-        Left e -> pure $ Left e
+    search (Just config, Just block0) _ =
+        Right (config, block0)
 
-getGenesisBlockArg
-    :: Either (Hash "Genesis") FilePath
-    -> IO (Either ErrStartup (Hash "Genesis", [String]))
-getGenesisBlockArg (Left hash@(Hash b)) = do
-    let hexHash = B8.unpack $ convertToBase Base16 b
-    pure $ Right (hash, ["--genesis-block-hash", hexHash])
-getGenesisBlockArg (Right file) = do
-    let mkArg hash = (hash, ["--genesis-block", file])
-    fmap mkArg <$> parseBlock0H file
+    search (Nothing, _) _ =
+        Left $ ErrStartupMissingArgument "--config"
 
-parseBlock0H :: FilePath -> IO (Either ErrStartup (Hash "Genesis"))
-parseBlock0H file = parse <$> BL.readFile file
+    search (_, Nothing) _ =
+        Left $ ErrStartupMissingArgument "--genesis-block-hash or --genesis-block"
+
+-- | Extract the REST api url from a Yaml or JSON config file
+decodeRestUrlFromFile
+    :: FilePath
+    -> IO (Either ErrStartup BaseUrl)
+decodeRestUrlFromFile configFile = do
+    requireFilePath configFile >>= \case
+        Left e -> pure (Left e)
+        Right () -> Yaml.decodeFileEither configFile <&> \case
+            Left _ -> Left (ErrStartupInvalidConfigFile configFile)
+            Right value ->
+                let err = ErrStartupRestApiNotEnabled configFile in
+                maybe (Left err) Right (Aeson.parseMaybe parser value)
+  where
+    parser = Aeson.withObject "config" $ \o -> do
+        rest <- o .: "rest"
+        Aeson.withObject "rest" (.: "listen") rest
+
+-- | Read a binary block file and extract its id from it
+readBlockHash :: FilePath -> IO (Either ErrStartup (Hash "Genesis"))
+readBlockHash file = parse <$> BL.readFile file
   where
     parse bytes = case runGetOrFail J.getBlockId bytes of
         Right (_, _, block0H) -> Right (coerce block0H)
-        Left _ -> Left (ErrStartupGenesisBlockFailed file)
+        Left _ -> Left (ErrStartupInvalidGenesisBlock file)
 
--- | Extract the port number from the base URL part of the connection params.
-connParamsPort :: JormungandrConnParams -> Int
-connParamsPort (JormungandrConnParams _ url) = baseUrlPort url
+-- | Look whether a particular filepath is correctly resolved on the filesystem.
+-- This makes for a better user experience when passing wrong filepaths via
+-- options or arguments, especially when they get forwarded to other services.
+requireFilePath :: FilePath -> IO (Either ErrStartup ())
+requireFilePath path = doesFileExist path <&> \case
+    True -> Right ()
+    False -> Left (ErrStartupMissingFile path)
 
 data ErrStartup
     = ErrStartupNodeNotListening
-    | ErrStartupGetBlockchainParameters ErrGetBlockchainParams
-    | ErrStartupGenesisBlockFailed FilePath
     | ErrStartupCommandExited ProcessHasExited
+    | ErrStartupGetBlockchainParameters ErrGetBlockchainParams
+    | ErrStartupInvalidGenesisBlock FilePath
+    | ErrStartupInvalidGenesisHash String
+    | ErrStartupInvalidConfigFile FilePath
+    | ErrStartupMissingArgument String
+    | ErrStartupMissingFile FilePath
+    | ErrStartupRestApiNotEnabled FilePath
     deriving (Show, Eq)
 
 instance Exception ErrStartup

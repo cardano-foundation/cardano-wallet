@@ -14,10 +14,14 @@ import Cardano.CLI
     ( Port (..) )
 import Cardano.Wallet.Api.Types
     ( ApiWallet )
+import Cardano.Wallet.Jormungandr.Launch
+    ( setupConfig, teardownConfig )
+import Cardano.Wallet.Jormungandr.Network
+    ( JormungandrConfig (..) )
 import Cardano.Wallet.Primitive.Types
     ( SyncProgress (..) )
 import Control.Exception
-    ( finally )
+    ( bracket, finally )
 import Control.Monad
     ( forM_ )
 import Data.Proxy
@@ -65,26 +69,27 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( versionLine )
 import Test.Utils.Ports
-    ( findPort, randomUnusedTCPPorts )
+    ( findPort )
 
 import qualified Data.Text.IO as TIO
 
 spec :: forall t. (KnownCommand t) => Spec
 spec = do
     let block0 = "test/data/jormungandr/block0.bin"
+    let config = "test/data/jormungandr/config.yaml"
     let secret = "test/data/jormungandr/secret.yaml"
     describe "LAUNCH - cardano-wallet launch [SERIAL]" $ do
         it "LAUNCH - Stop when --state-dir is an existing file" $ withTempFile $ \f _ -> do
-            let args =
-                    [ "launch"
-                    , "--genesis-block", block0
-                    , "--secret", secret
-                    , "--state-dir", f
-                    ]
-            (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t args
-            c `shouldBe` ExitFailure 1
-            o `shouldBe` mempty
-            e `shouldBe` f ++ " must be a directory, but it is a file. Exiting.\n"
+            withJArgs $ \jargs -> do
+                let args =
+                        [ "launch"
+                        , "--state-dir", f
+                        , "--"
+                        ] ++ jargs
+                (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t args
+                c `shouldBe` ExitFailure 1
+                o `shouldBe` mempty
+                e `shouldBe` f ++ " must be a directory, but it is a file. Exiting.\n"
 
         describe "LAUNCH - Can start launcher with --state-dir" $ do
             let tests =
@@ -93,138 +98,215 @@ spec = do
                     ]
             forM_ tests $ \(title, before) -> it title $ withTempDir $ \d -> do
                 before d
+                withJArgs $ \jargs -> do
+                    let args =
+                            [ "launch"
+                            , "--random-port"
+                            , "--state-dir", d
+                            , "--"
+                            ] ++ jargs
+                    let process = proc' (commandName @t) args
+                    withCreateProcess process $ \_ (Just o) (Just e) ph -> do
+                        expectPathEventuallyExist d
+                        expectPathEventuallyExist (d <> "/wallets")
+                      `finally` do
+                        terminateProcess ph
+                        TIO.hGetContents o >>= TIO.putStrLn
+                        TIO.hGetContents e >>= TIO.putStrLn
+
+        it "LAUNCH - Can start launcher with --state-dir (nested dir)" $ withTempDir $ \d -> do
+            withJArgs $ \jargs -> do
+                let dir = d ++ "/a/b/c/d/e/f/g"
                 let args =
                         [ "launch"
                         , "--random-port"
-                        , "--state-dir", d
-                        , "--genesis-block", block0
+                        , "--state-dir", dir
                         , "--"
-                        , "--secret", secret
-                        ]
+                        ] ++ jargs
                 let process = proc' (commandName @t) args
                 withCreateProcess process $ \_ (Just o) (Just e) ph -> do
-                    expectPathEventuallyExist d
-                    expectPathEventuallyExist (d <> "/chain")
-                    expectPathEventuallyExist (d <> "/jormungandr-config.yaml")
-                    expectPathEventuallyExist (d <> "/wallets")
+                    expectPathEventuallyExist dir
+                    expectPathEventuallyExist (dir <> "/wallets")
                   `finally` do
                     terminateProcess ph
                     TIO.hGetContents o >>= TIO.putStrLn
                     TIO.hGetContents e >>= TIO.putStrLn
 
-        it "LAUNCH - Can start launcher with --state-dir (nested dir)" $ withTempDir $ \d -> do
-            let dir = d ++ "/a/b/c/d/e/f/g"
+        it "LAUNCH - Missing --genesis-block option" $ do
             let args =
                     [ "launch"
-                    , "--random-port"
-                    , "--state-dir", dir
-                    , "--genesis-block", block0
                     , "--"
-                    , "--secret", secret
+                    , "--config", config
                     ]
-            let process = proc' (commandName @t) args
-            withCreateProcess process $ \_ (Just o) (Just e) ph -> do
-                expectPathEventuallyExist dir
-                expectPathEventuallyExist (dir <> "/chain")
-                expectPathEventuallyExist (dir <> "/jormungandr-config.yaml")
-                expectPathEventuallyExist (dir <> "/wallets")
-              `finally` do
-                terminateProcess ph
-                TIO.hGetContents o >>= TIO.putStrLn
-                TIO.hGetContents e >>= TIO.putStrLn
+            (Exit c, Stdout o, Stderr _) <- cardanoWalletCLI @t args
+            c `shouldBe` ExitFailure 1
+            o `shouldContain`
+                "I am looking for '--genesis-block-hash or --genesis-block' and it's not there"
 
-        it "LAUNCH - Non-Existing files for --genesis-block" $ do
+        it "LAUNCH - Missing --config option" $ do
+            let args =
+                    [ "launch"
+                    , "--"
+                    , "--genesis-block", block0
+                    ]
+            (Exit c, Stdout o, Stderr _) <- cardanoWalletCLI @t args
+            c `shouldBe` ExitFailure 1
+            o `shouldContain`
+                "I am looking for '--config' and it's not there"
+
+        it "LAUNCH - Non-Existing file for --genesis-block" $ do
             let block0' = block0 <> ".doesnexist"
             let args =
                     [ "launch"
-                    , "--genesis-block", block0'
                     , "--"
-                    , "--secret", secret
+                    , "--config", config
+                    , "--genesis-block", block0'
                     ]
-            (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t args
+            (Exit c, Stdout o, Stderr _) <- cardanoWalletCLI @t args
             c `shouldBe` ExitFailure 1
-            o `shouldBe` mempty
-            e `shouldContain`
+            o `shouldContain`
                 ("I couldn't find any file at the given location: " <> block0')
+
+        it "LAUNCH - Non-Existing file for --config" $ do
+            let config' = config <> ".doesnexist"
+            let args =
+                    [ "launch"
+                    , "--"
+                    , "--config", config'
+                    , "--genesis-block", block0
+                    ]
+            (Exit c, Stdout o, Stderr _) <- cardanoWalletCLI @t args
+            c `shouldBe` ExitFailure 1
+            o `shouldContain`
+                ("I couldn't find any file at the given location: " <> config')
+
+        it "LAUNCH - Invalid block header hash (not base16)" $ do
+            let h = "patate"
+            let args =
+                    [ "launch"
+                    , "--"
+                    , "--config", config
+                    , "--genesis-block-hash", h
+                    ]
+            (Exit c, Stdout o, Stderr _) <- cardanoWalletCLI @t args
+            c `shouldBe` ExitFailure 1
+            o `shouldContain`
+                ("As far as I can tell, this isn't a valid block hash: " <> h)
+
+        it "LAUNCH - Invalid block header hash (not 32 bytes)" $ do
+            let h = "000000000000"
+            let args =
+                    [ "launch"
+                    , "--"
+                    , "--config", config
+                    , "--genesis-block-hash", h
+                    ]
+            (Exit c, Stdout o, Stderr _) <- cardanoWalletCLI @t args
+            c `shouldBe` ExitFailure 1
+            o `shouldContain`
+                ("As far as I can tell, this isn't a valid block hash: " <> h)
 
         it "LAUNCH - Invalid block0 file (not a serialized block)" $ do
             let args =
                     [ "launch"
-                    , "--genesis-block", secret
                     , "--"
-                    , "--secret", secret
+                    , "--config", config
+                    , "--genesis-block", config
                     ]
             (Exit c, Stdout o, Stderr _) <- cardanoWalletCLI @t args
             c `shouldBe` ExitFailure 1
-            o `shouldContain` ("As far as I can tell, this isn't a valid block file: " <> secret)
+            o `shouldContain`
+                ("As far as I can tell, this isn't a valid block file: " <> config)
 
-        it "LAUNCH - Restoration workers restart" $ withTempDir $ \d -> do
-            pendingWith
-                "The test fails unexpectedly in CI and simply hangs for minutes \
-                \before eventually timing out. What's happening is unclear put \
-                \prevents ongoing work to be integrated. So, disabling this \
-                \while investigating the origin of the problem. \
-                \See also: https://travis-ci.org/input-output-hk/cardano-wallet/jobs/565974586"
-            port <- Port @"wallet" <$> findPort -- Arbitrary but known.
-            let baseUrl = "http://localhost:" <> toText port <> "/"
-            ctx <- (port,) . (baseUrl,) <$> newManager defaultManagerSettings
+        it "LAUNCH - Invalid config file (not JSON)" $ do
             let args =
                     [ "launch"
-                    , "--port", show port
-                    , "--state-dir", d
-                    , "--genesis-block", block0
                     , "--"
-                    , "--secret", secret
+                    , "--config", block0
+                    , "--genesis-block", block0
                     ]
-            let process = proc' (commandName @t) args
-            wallet <- withCreateProcess process $ \_ (Just o) (Just e) ph -> do
-                Stdout m <- generateMnemonicsViaCLI @t []
-                waitForServer @t ctx
-                let pwd = "passphrase"
-                (_, out, _) <- createWalletViaCLI @t ctx ["n"] m "\n" pwd
-                expectValidJSON (Proxy @ApiWallet) out
-              `finally` do
-                terminateProcess ph
-                TIO.hGetContents o >>= TIO.putStrLn
-                TIO.hGetContents e >>= TIO.putStrLn
-            withCreateProcess process $ \_ (Just o) (Just e) ph -> do
-                waitForServer @t ctx
-                expectEventually' ctx state Ready wallet
-              `finally` do
-                terminateProcess ph
-                TIO.hGetContents o >>= TIO.putStrLn
-                TIO.hGetContents e >>= TIO.putStrLn
+            (Exit c, Stdout o, Stderr _) <- cardanoWalletCLI @t args
+            c `shouldBe` ExitFailure 1
+            o `shouldContain`
+                ("As far as I can tell, this isn't a valid config file: " <> block0)
+
+        it "LAUNCH - Invalid config file (not JSON)" $ do
+            let args =
+                    [ "launch"
+                    , "--"
+                    , "--config", block0
+                    , "--genesis-block", block0
+                    ]
+            (Exit c, Stdout o, Stderr _) <- cardanoWalletCLI @t args
+            c `shouldBe` ExitFailure 1
+            o `shouldContain`
+                ("As far as I can tell, this isn't a valid config file: " <> block0)
+
+        it "LAUNCH - Invalid config file (missing rest configuration)" $ do
+            let args =
+                    [ "launch"
+                    , "--"
+                    , "--config", secret
+                    , "--genesis-block", block0
+                    ]
+            (Exit c, Stdout o, Stderr _) <- cardanoWalletCLI @t args
+            c `shouldBe` ExitFailure 1
+            o `shouldContain`
+                ("The REST api is not enabled in the configuration you're \
+                \passing down to Jörmungandr, but I need this to be enabled!")
+
+    it "LAUNCH - Restoration workers restart" $ withTempDir $ \d -> do
+        pendingWith
+            "The test fails unexpectedly in CI and simply hangs for minutes \
+            \before eventually timing out. What's happening is unclear put \
+            \prevents ongoing work to be integrated. So, disabling this \
+            \while investigating the origin of the problem. \
+            \See also: https://travis-ci.org/input-output-hk/cardano-wallet/jobs/565974586"
+        port <- Port @"wallet" <$> findPort -- Arbitrary but known.
+        let baseUrl = "http://localhost:" <> toText port <> "/"
+        ctx <- (port,) . (baseUrl,) <$> newManager defaultManagerSettings
+        let args =
+                [ "launch"
+                , "--port", show port
+                , "--state-dir", d
+                , "--"
+                ]
+        let process = proc' (commandName @t) args
+        wallet <- withCreateProcess process $ \_ (Just o) (Just e) ph -> do
+            Stdout m <- generateMnemonicsViaCLI @t []
+            waitForServer @t ctx
+            let pwd = "passphrase"
+            (_, out, _) <- createWalletViaCLI @t ctx ["n"] m "\n" pwd
+            expectValidJSON (Proxy @ApiWallet) out
+          `finally` do
+            terminateProcess ph
+            TIO.hGetContents o >>= TIO.putStrLn
+            TIO.hGetContents e >>= TIO.putStrLn
+        withCreateProcess process $ \_ (Just o) (Just e) ph -> do
+            waitForServer @t ctx
+            expectEventually' ctx state Ready wallet
+          `finally` do
+            terminateProcess ph
+            TIO.hGetContents o >>= TIO.putStrLn
+            TIO.hGetContents e >>= TIO.putStrLn
 
     describe "DaedalusIPC" $ do
-        let defaultArgs nodePort =
-                [ commandName @t
-                , "launch"
-                , "--node-port", show nodePort
-                , "--genesis-block", block0
-                , "--quiet"
-                , "--"
-                , "--secret", secret
-                ]
-        let tests =
-                [ (const ["--random-port"], " [SERIAL]")
-                , (\fixedPort -> ["--port", fixedPort], "")
-                , (const [], " [SERIAL]")
-                ]
-        forM_ tests $ \(args, tag) -> do
-            let title = "should reply with the port when asked "
-                    <> show (args "FIXED") <> tag
-            it title $ withTempDir $ \d -> do
-                [fixedPort, nodePort] <- randomUnusedTCPPorts 2
-                let filepath = "test/integration/js/mock-daedalus.js"
-                let stateDir = ["--state-dir", d]
-                let scriptArgs = concat
-                        [defaultArgs nodePort, args (show fixedPort), stateDir]
-                (_, _, _, ph) <- createProcess (proc filepath scriptArgs)
+        it "should reply with the port when asked --random-port" $ withTempDir $ \d -> do
+            let filepath = "test/integration/js/mock-daedalus.js"
+            withJArgs $ \jargs -> do
+                let args =
+                        [ commandName @t
+                        , "launch"
+                        , "--random-port"
+                        , "--state-dir", d
+                        , "--"
+                        ] ++ jargs
+                (_, _, _, ph) <- createProcess (proc filepath args)
                 waitForProcess ph `shouldReturn` ExitSuccess
 
     describe "LOGGING - cardano-wallet launch logging [SERIAL]" $ do
-        let defaultArgs = [ "launch", "--genesis-block", block0 ]
-        let nodeArgs = [ "--", "--secret", secret ]
+        let defaultArgs = ["launch"]
+        let nodeArgs = []
         it "LOGGING - Launch can log --verbose" $ withTempDir $ \d -> do
             pendingWith "See 'LAUNCH - Restoration workers restart'"
             let args = defaultArgs ++ ["--state-dir", d, "--verbose"] ++ nodeArgs
@@ -258,3 +340,7 @@ withTempDir = withSystemTempDirectory "integration-state"
 
 withTempFile :: (FilePath -> Handle -> IO a) -> IO a
 withTempFile = withSystemTempFile "temp-file"
+
+withJArgs :: ([String] -> IO a) -> IO a
+withJArgs io = bracket setupConfig teardownConfig $
+    \((JormungandrConfig args _), _,_) -> io args
