@@ -65,9 +65,9 @@ import Test.Hspec
     , shouldReturn
     )
 import Test.QuickCheck
-    ( Gen, Property, elements, property )
+    ( Gen, Property, classify, conjoin, counterexample, elements, property )
 import Test.QuickCheck.Monadic
-    ( monadicIO )
+    ( assert, monadicIO, monitor )
 
 import qualified Cardano.Pool.DB.MVar as MVar
 import qualified Data.Map.Strict as Map
@@ -96,6 +96,8 @@ properties = do
             (property . prop_putReadPoolProduction)
         it "putPoolProduction with already put slot yields error"
             (property . prop_putSlotTwicePoolProduction)
+        it "Rollback of stake pool production"
+            (property . prop_rollbackPools)
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -144,3 +146,42 @@ prop_putSlotTwicePoolProduction db (StakePoolsFixture pairs) =
             runExceptT (putPoolProduction db' slot pool) `shouldReturn` Left err
             runExceptT (putPoolProduction db slot pool) `shouldReturn` Right ()
             runExceptT (putPoolProduction db slot pool) `shouldReturn` Left err
+
+-- | Rolling back wipes out pool production statistics after the rollback point.
+prop_rollbackPools
+    :: DBLayer IO
+    -> StakePoolsFixture
+    -> SlotId
+    -> Property
+prop_rollbackPools db f@(StakePoolsFixture pairs) sl =
+    monadicIO prop
+  where
+    prop = do
+        (beforeRollback, afterRollback) <- liftIO $ do
+            runExceptT $ forM_ pairs $ \(pool, slot) ->
+                putPoolProduction db slot pool
+            before <- map fst <$> allPoolProduction db f
+            rollbackTo db sl
+            after <- map fst <$> allPoolProduction db f
+            pure (before, after)
+
+        monitor $ counterexample $ unlines
+            [ "Rollback point:    " <> showSlot sl
+            , "Production before: " <> unwords (map showSlot beforeRollback)
+            , "Production after:  " <> unwords (map showSlot afterRollback)
+            ]
+        monitor $ classify (any (> sl) beforeRollback) "something to roll back"
+        monitor $ classify (all (<= sl) beforeRollback) "nothing to roll back"
+
+        assert $ all (<= sl) afterRollback
+
+    showSlot (SlotId ep sl) = show ep ++ "." ++ show sl
+
+-- | Concatenate stake pool production for all epochs in the test fixture.
+allPoolProduction :: DBLayer IO -> StakePoolsFixture -> IO [(SlotId, PoolId)]
+allPoolProduction db (StakePoolsFixture pairs) =
+    rearrange <$> mapM (readPoolProduction db) epochs
+  where
+    epochs = nubOrd $ map (epochNumber . snd) pairs
+    rearrange ms = concat
+        [ [ (sl, p) | sl <- sls ] | (p, sls) <- concatMap Map.assocs ms ]
