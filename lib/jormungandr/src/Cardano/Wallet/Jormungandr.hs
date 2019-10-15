@@ -212,9 +212,8 @@ serveWallet (cfg, sb, tr) databaseDir listen lj beforeMainLoop = do
         failWith (sb, tr) $ T.pack $ mconcat
             [ "Failed to retrieve the genesis block. The block doesn't exist! "
             , "Hint: double-check the genesis hash you've just gave "
-            , "me via '--genesis-hash' (i.e. " <> showT block0H <> ")."
+            , "me via '--genesis-block-hash' (i.e. " <> showT block0H <> ")."
             ]
-
 
     handleNetworkUnreachable :: IO ExitCode
     handleNetworkUnreachable = do

@@ -65,7 +65,7 @@ spec = do
             withTempDir $ \d -> do
                 let db = d ++ "/db-file"
                 let args =
-                        [ "serve", "--database", db, "--genesis-hash", block0H ]
+                        [ "serve", "--database", db, "--genesis-block-hash", block0H ]
                 let process = proc' (commandName @t) args
                 withCreateProcess process $ \_ _ _ ph -> do
                     expectPathEventuallyExist db
@@ -79,7 +79,7 @@ spec = do
                 , "serve"
                 , "--node-port"
                 , show nodePort
-                , "--genesis-hash"
+                , "--genesis-block-hash"
                 , block0H
                 ]
 
@@ -109,7 +109,7 @@ spec = do
                     , show (ctx ^. typed @(Port "node"))
                     , "--random-port"
                     , "--verbose"
-                    , "--genesis-hash"
+                    , "--genesis-block-hash"
                     , block0H
                     ]
             let process = proc' (commandName @t) args
@@ -134,7 +134,7 @@ spec = do
                     , show (ctx ^. typed @(Port "node"))
                     , "--random-port"
                     , "--quiet"
-                    , "--genesis-hash"
+                    , "--genesis-block-hash"
                     , block0H
                     ]
             let process = proc' (commandName @t) args
@@ -151,7 +151,7 @@ spec = do
                     , "--node-port"
                     , show (ctx ^. typed @(Port "node"))
                     , "--random-port"
-                    , "--genesis-hash"
+                    , "--genesis-block-hash"
                     , block0H
                     ]
             let process = proc' (commandName @t) args

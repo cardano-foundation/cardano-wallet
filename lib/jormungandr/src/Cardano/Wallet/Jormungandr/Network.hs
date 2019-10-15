@@ -122,6 +122,8 @@ import Control.Monad.Trans.Control
     ( MonadBaseControl )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT, throwE, withExceptT )
+import Data.ByteArray.Encoding
+    ( Base (Base16), convertToBase )
 import Data.Coerce
     ( coerce )
 import Data.Function
@@ -138,6 +140,7 @@ import System.FilePath
     ( (</>) )
 
 import qualified Cardano.Wallet.Jormungandr.Binary as J
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Char as C
 import qualified Data.Text as T
@@ -160,11 +163,11 @@ data JormungandrConnParams = JormungandrConnParams
 -- Jormungandr node backend.
 data JormungandrConfig = JormungandrConfig
     { _stateDir :: FilePath
-    , _genesisBlock :: FilePath
-    , _secretFile :: FilePath
+    , _genesisBlock :: Either (Hash "Genesis") FilePath
     , _restApiPort :: Maybe PortNumber
     , _minSeverity :: Severity
     , _outputStream :: StdStream
+    , _extraArgs :: [Text]
     } deriving (Show, Eq)
 
 -- | Starts the network layer and runs the given action with a
@@ -442,7 +445,7 @@ withJormungandr
     -> (JormungandrConnParams -> IO a)
     -- ^ Action to run while node is running.
     -> IO (Either ErrStartup a)
-withJormungandr tr (JormungandrConfig stateDir block0File secretsFile mPort logSeverity output) cb =
+withJormungandr tr (JormungandrConfig stateDir block0 mPort logSeverity output extraArgs) cb =
     bracket setupConfig cleanupConfig startBackend
   where
     nodeConfigFile = stateDir </> "jormungandr-config.yaml"
@@ -458,14 +461,12 @@ withJormungandr tr (JormungandrConfig stateDir block0File secretsFile mPort logS
         pure (apiPort, baseUrl)
     cleanupConfig _ = removeFile nodeConfigFile
 
-    startBackend (apiPort, baseUrl) = parseBlock0H block0File >>= \case
-        Right block0H -> do
-            let args =
-                    [ "--genesis-block", block0File
-                    , "--config", nodeConfigFile
-                    , "--secret", secretsFile
+    startBackend (apiPort, baseUrl) = getGenesisBlockArg block0 >>= \case
+        Right (block0H, genesisBlockArg) -> do
+            let args = genesisBlockArg ++
+                    [ "--config", nodeConfigFile
                     , "--log-level", C.toLower <$> show logSeverity
-                    ]
+                    ] ++ map T.unpack extraArgs
             let cmd = Command "jormungandr" args (return ()) output
             let tr' = transformLauncherTrace tr
             res <- withBackendProcess tr' cmd $
@@ -474,7 +475,17 @@ withJormungandr tr (JormungandrConfig stateDir block0File secretsFile mPort logS
                     False -> pure $ Left ErrStartupNodeNotListening
             pure $ either (Left . ErrStartupCommandExited) id res
 
-        Left _ -> pure $ Left $ ErrStartupGenesisBlockFailed block0File
+        Left e -> pure $ Left e
+
+getGenesisBlockArg
+    :: Either (Hash "Genesis") FilePath
+    -> IO (Either ErrStartup (Hash "Genesis", [String]))
+getGenesisBlockArg (Left hash@(Hash b)) = do
+    let hexHash = B8.unpack $ convertToBase Base16 b
+    pure $ Right (hash, ["--genesis-block-hash", hexHash])
+getGenesisBlockArg (Right file) = do
+    let mkArg hash = (hash, ["--genesis-block", file])
+    fmap mkArg <$> parseBlock0H file
 
 parseBlock0H :: FilePath -> IO (Either ErrStartup (Hash "Genesis"))
 parseBlock0H file = parse <$> BL.readFile file
