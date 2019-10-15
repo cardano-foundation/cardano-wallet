@@ -788,32 +788,32 @@ createWallet ctx wid a0 a1 =
     liftIO (Registry.lookup re wid) >>= \case
         Just _ ->
             throwE $ ErrCreateWalletAlreadyExists $ ErrWalletAlreadyExists wid
-        Nothing -> do
-            let config = MkWorker
-                    { workerBefore = \ctx' _ -> do
-                        -- FIXME:
-                        -- Review error handling here
-                        void $ unsafeRunExceptT $
-                            W.createWallet @(WorkerCtx ctx) @s @t @k ctx' wid a0 a1
-
-                    , workerMain = \ctx' _ -> do
-                        -- FIXME:
-                        -- Review error handling here
-                        unsafeRunExceptT $
-                            W.restoreWallet @(WorkerCtx ctx) @s @t @k ctx' wid
-
-                    , workerAfter =
-                        defaultWorkerAfter
-
-                    , workerAcquire =
-                        (df ^. #withDatabase) wid
-                    }
+        Nothing ->
             liftIO (newWorker @_ @_ @ctx ctx wid config) >>= \case
                 Nothing ->
                     throwE ErrCreateWalletFailedToCreateWorker
                 Just worker ->
                     liftIO (Registry.insert re worker) $> wid
   where
+    config = MkWorker
+        { workerBefore = \ctx' _ -> do
+            -- FIXME:
+            -- Review error handling here
+            void $ unsafeRunExceptT $
+                W.createWallet @(WorkerCtx ctx) @s @t @k ctx' wid a0 a1
+
+        , workerMain = \ctx' _ -> do
+            -- FIXME:
+            -- Review error handling here
+            unsafeRunExceptT $
+                W.restoreWallet @(WorkerCtx ctx) @s @t @k ctx' wid
+
+        , workerAfter =
+            defaultWorkerAfter
+
+        , workerAcquire =
+            (df ^. #withDatabase) wid
+        }
     re = ctx ^. workerRegistry @s @t @k
     df = ctx ^. dbFactory @s @t @k
 
