@@ -113,17 +113,18 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Random
     ( RndKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( SeqKey (..), generateKeyFromSeed )
+    ( SeqKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
-    ( RndState )
+    ( RndState, mkRndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..), defaultAddressPoolGap, mkSeqState )
 import Cardano.Wallet.Primitive.Fee
     ( Fee (..) )
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters
+    , Wallet
     , availableBalance
     , currentTip
     , getState
@@ -186,6 +187,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Set
+    ( Set )
 import Data.Streaming.Network
     ( bindPortTCP, bindRandomPortTCP )
 import Data.Text
@@ -237,8 +240,12 @@ import Servant
     )
 import Servant.Server
     ( Handler (..), ServantErr (..) )
+import System.Random
+    ( getStdRandom, random )
 
 import qualified Cardano.Wallet as W
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Random as Rnd
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Data.Aeson as Aeson
@@ -385,7 +392,7 @@ getWallet
     -> ApiT WalletId
     -> Handler ApiWallet
 getWallet ctx wid =
-    fst <$> getWalletWithCreationTime ctx wid
+    fst <$> getWalletWithCreationTime mkApiWallet ctx wid
 
 listWallets
     :: forall ctx s t k.
@@ -398,7 +405,7 @@ listWallets
 listWallets ctx = do
     wids <- liftIO $ Registry.keys re
     fmap fst . sortOn snd <$>
-        mapM (getWalletWithCreationTime ctx) (ApiT <$> wids)
+        mapM (getWalletWithCreationTime mkApiWallet ctx) (ApiT <$> wids)
   where
     re = ctx ^. workerRegistry @s @t @k
 
@@ -418,7 +425,7 @@ postWallet ctx body = do
     let secondFactor =
             maybe mempty getApiMnemonicT (body ^. #mnemonicSecondFactor)
     let pwd = getApiT (body ^. #passphrase)
-    let rootXPrv = generateKeyFromSeed (seed, secondFactor) pwd
+    let rootXPrv = Seq.generateKeyFromSeed (seed, secondFactor) pwd
     let g = maybe defaultAddressPoolGap getApiT (body ^. #addressPoolGap)
     let s = mkSeqState (rootXPrv, pwd) g
     let wid = WalletId $ digest $ publicKey rootXPrv
@@ -721,16 +728,27 @@ compatibilityApiServer rndCtx seqCtx =
     :<|> postByronWallet rndCtx
 
 deleteByronWallet
-    :: ctx
+    :: forall s t k. (s ~ RndState t)
+    => ApiLayer s t k
     -> ApiT WalletId
     -> Handler NoContent
-deleteByronWallet _ _ = throwError err501
+deleteByronWallet ctx (ApiT wid) = do
+    liftHandler $ withWorkerCtx ctx wid throwE $
+        \worker -> W.removeWallet worker wid
+    liftIO $ Registry.remove re wid
+    liftIO $ (df ^. #removeDatabase) wid
+    return NoContent
+  where
+    re = ctx ^. workerRegistry @s @t @k
+    df = ctx ^. dbFactory @s @t @k
 
 getByronWallet
-    :: ctx
+    :: forall t k. DefineTx t
+    => ApiLayer (RndState t) t k
     -> ApiT WalletId
     -> Handler ApiByronWallet
-getByronWallet _ _ = throwError err501
+getByronWallet ctx wid =
+    fst <$> getWalletWithCreationTime mkApiByronWallet ctx wid
 
 getByronWalletMigrationInfo
     :: ctx
@@ -751,15 +769,36 @@ migrateByronWallet _rndCtx _seqCtx _sourceWid _targetWid _migrateData =
     throwError err501
 
 listByronWallets
-    :: ctx
+    :: forall s t k. (DefineTx t, s ~ RndState t)
+    => ApiLayer s t k
     -> Handler [ApiByronWallet]
-listByronWallets _ = throwError err501
+listByronWallets ctx = do
+    wids <- liftIO $ Registry.keys re
+    fmap fst . sortOn snd <$>
+        mapM (getWalletWithCreationTime mkApiByronWallet ctx) (ApiT <$> wids)
+  where
+    re = ctx ^. workerRegistry @s @t @k
 
 postByronWallet
-    :: ctx
+    :: forall t. (DefineTx t, KeyToAddress t RndKey)
+    => ApiLayer (RndState t) t RndKey
     -> ByronWalletPostData
     -> Handler ApiByronWallet
-postByronWallet _ _ = throwError err501
+postByronWallet ctx body = do
+    void
+        . liftHandler
+        . createWallet ctx wid name
+        . mkRndState rootXPrv
+        =<< liftIO (getStdRandom random)
+    liftHandler $ withWorkerCtx ctx wid throwE $ \worker ->
+        W.attachPrivateKey worker wid (rootXPrv, passphrase)
+    getByronWallet ctx (ApiT wid)
+  where
+    mnemonicSentence = getApiMnemonicT (body ^. #mnemonicSentence)
+    name = getApiT (body ^. #name)
+    passphrase = getApiT (body ^. #passphrase)
+    rootXPrv = Rnd.generateKeyFromSeed mnemonicSentence passphrase
+    wid = WalletId $ digest $ publicKey rootXPrv
 
 {-------------------------------------------------------------------------------
                                 Helpers
@@ -788,32 +827,32 @@ createWallet ctx wid a0 a1 =
     liftIO (Registry.lookup re wid) >>= \case
         Just _ ->
             throwE $ ErrCreateWalletAlreadyExists $ ErrWalletAlreadyExists wid
-        Nothing -> do
-            let config = MkWorker
-                    { workerBefore = \ctx' _ -> do
-                        -- FIXME:
-                        -- Review error handling here
-                        void $ unsafeRunExceptT $
-                            W.createWallet @(WorkerCtx ctx) @s @t @k ctx' wid a0 a1
-
-                    , workerMain = \ctx' _ -> do
-                        -- FIXME:
-                        -- Review error handling here
-                        unsafeRunExceptT $
-                            W.restoreWallet @(WorkerCtx ctx) @s @t @k ctx' wid
-
-                    , workerAfter =
-                        defaultWorkerAfter
-
-                    , workerAcquire =
-                        (df ^. #withDatabase) wid
-                    }
+        Nothing ->
             liftIO (newWorker @_ @_ @ctx ctx wid config) >>= \case
                 Nothing ->
                     throwE ErrCreateWalletFailedToCreateWorker
                 Just worker ->
                     liftIO (Registry.insert re worker) $> wid
   where
+    config = MkWorker
+        { workerBefore = \ctx' _ -> do
+            -- FIXME:
+            -- Review error handling here
+            void $ unsafeRunExceptT $
+                W.createWallet @(WorkerCtx ctx) @s @t @k ctx' wid a0 a1
+
+        , workerMain = \ctx' _ -> do
+            -- FIXME:
+            -- Review error handling here
+            unsafeRunExceptT $
+                W.restoreWallet @(WorkerCtx ctx) @s @t @k ctx' wid
+
+        , workerAfter =
+            defaultWorkerAfter
+
+        , workerAcquire =
+            (df ^. #withDatabase) wid
+        }
     re = ctx ^. workerRegistry @s @t @k
     df = ctx ^. dbFactory @s @t @k
 
@@ -863,44 +902,55 @@ natural :: Quantity q Word32 -> Quantity q Natural
 natural = Quantity . fromIntegral . getQuantity
 
 getWalletWithCreationTime
-    :: forall ctx s t k.
-        ( DefineTx t
-        , s ~ SeqState t
-        , ctx ~ ApiLayer s t k
-        )
-    => ctx
+    :: forall s t k w. DefineTx t
+    => (WalletId -> Wallet s t -> WalletMetadata -> Set (Tx t) -> w)
+    -> ApiLayer s t k
     -> ApiT WalletId
-    -> Handler (ApiWallet, UTCTime)
-getWalletWithCreationTime ctx (ApiT wid) = do
-    (wallet, meta, pending) <- liftHandler $ withWorkerCtx ctx wid throwE $ \wrk ->
-        W.readWallet wrk wid
-    return (mkApiWallet wallet meta pending, meta ^. #creationTime)
-  where
-    mkApiWallet wallet meta pending = ApiWallet
-        { id =
-            ApiT wid
-        , addressPoolGap =
-            ApiT $ getState wallet ^. #externalPool . #gap
-        , balance = ApiT $ WalletBalance
-            { available =
-                Quantity $ availableBalance pending wallet
-            , total =
-                Quantity $ totalBalance pending wallet
-            }
-        , delegation =
-            ApiT $ ApiT <$> meta ^. #delegation
-        , name =
-            ApiT $ meta ^. #name
-        , passphrase =
-            ApiT <$> meta ^. #passphraseInfo
-        , state =
-            ApiT $ meta ^. #status
-        , tip = ApiBlockReference
-            { epochNumber = (currentTip wallet) ^. #slotId . #epochNumber
-            , slotNumber =  (currentTip wallet) ^. #slotId . #slotNumber
-            , height = natural $ (currentTip wallet) ^. #blockHeight
-            }
-        }
+    -> Handler (w, UTCTime)
+getWalletWithCreationTime mk ctx (ApiT wid) = do
+    (wallet, meta, pending) <-
+        liftHandler $ withWorkerCtx ctx wid throwE $
+            \wrk -> W.readWallet wrk wid
+    return (mk wid wallet meta pending, meta ^. #creationTime)
+
+mkApiWallet
+    :: forall s t. (DefineTx t, s ~ SeqState t)
+    => WalletId -> Wallet s t -> WalletMetadata -> Set (Tx t) -> ApiWallet
+mkApiWallet wid wallet meta pending = ApiWallet
+    { addressPoolGap = ApiT $ getState wallet ^. #externalPool . #gap
+    , balance = getWalletBalance wallet pending
+    , delegation = ApiT $ ApiT <$> meta ^. #delegation
+    , id = ApiT wid
+    , name = ApiT $ meta ^. #name
+    , passphrase = ApiT <$> meta ^. #passphraseInfo
+    , state = ApiT $ meta ^. #status
+    , tip = getWalletTip wallet
+    }
+
+mkApiByronWallet
+    :: forall s t. (DefineTx t, s ~ RndState t)
+    => WalletId -> Wallet s t -> WalletMetadata -> Set (Tx t) -> ApiByronWallet
+mkApiByronWallet wid wallet meta pending = ApiByronWallet
+    { balance = getWalletBalance wallet pending
+    , id = ApiT wid
+    , name = ApiT $ meta ^. #name
+    , passphrase = ApiT <$> meta ^. #passphraseInfo
+    , state = ApiT $ meta ^. #status
+    , tip = getWalletTip wallet
+    }
+
+getWalletBalance :: DefineTx t => Wallet s t -> Set (Tx t) -> ApiT WalletBalance
+getWalletBalance wallet pending = ApiT $ WalletBalance
+    { available = Quantity $ availableBalance pending wallet
+    , total = Quantity $ totalBalance pending wallet
+    }
+
+getWalletTip :: Wallet s t -> ApiBlockReference
+getWalletTip wallet = ApiBlockReference
+    { epochNumber = (currentTip wallet) ^. #slotId . #epochNumber
+    , slotNumber =  (currentTip wallet) ^. #slotId . #slotNumber
+    , height = natural $ (currentTip wallet) ^. #blockHeight
+    }
 
 {-------------------------------------------------------------------------------
                                 Api Layer

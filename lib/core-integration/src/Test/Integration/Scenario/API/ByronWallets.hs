@@ -32,17 +32,21 @@ import Test.Integration.Framework.DSL
     , Payload (..)
     , emptyWallet
     , expectErrorMessage
+    , expectFieldEqual
     , expectResponseCode
+    , getFromResponse
     , json
     , listByronWalletEp
     , postByronWalletEp
     , request
     , verify
     , walletId
+    , walletName
     )
 import Test.Integration.Framework.TestData
     ( arabicWalletName
     , errMsg404NoEndpoint
+    , errMsg404NoWallet
     , errMsg405
     , errMsg406
     , errMsg415
@@ -84,15 +88,14 @@ spec = do
         w <- emptyWallet ctx
         let ep  = ( "GET", "v2/byron/wallets/" <> w ^. walletId )
         r <- request @ApiByronWallet ctx ep Default Empty
-        expectResponseCode @IO HTTP.status501 r
+        expectResponseCode @IO HTTP.status404 r
 
     describe "BYRON_GET_06 - non-existing wallets" $  do
         forM_ falseWalletIds $ \(desc, walId) -> it desc $ \ctx -> do
             let endpoint = "v2/byron/wallets/" <> T.pack walId
             rg <- request @ApiByronWallet ctx ("GET", endpoint) Default Empty
             if (desc == valid40CharHexDesc) then do
-                expectResponseCode @IO HTTP.status501 rg
-                -- expectErrorMessage (errMsg404NoWallet $ T.pack walId) rg
+                expectErrorMessage (errMsg404NoWallet $ T.pack walId) rg
             else do
                 expectResponseCode @IO HTTP.status404 rg
                 expectErrorMessage errMsg404NoEndpoint rg
@@ -100,21 +103,20 @@ spec = do
     it "BYRON_LIST_02 - Byron ep does not list new wallets" $ \ctx -> do
         _ <- emptyWallet ctx
         r <- request @ApiByronWallet ctx listByronWalletEp Default Empty
-        expectResponseCode @IO HTTP.status501 r
+        expectResponseCode @IO HTTP.status200 r
 
     it "BYRON_DELETE_02 - Byron ep does not delete new wallet" $ \ctx -> do
         w <- emptyWallet ctx
         let ep  = ( "DELETE", "v2/byron/wallets/" <> w ^. walletId )
         r <- request @ApiByronWallet ctx ep Default Empty
-        expectResponseCode @IO HTTP.status501 r
+        expectResponseCode @IO HTTP.status404 r
 
     describe "BYRON_DELETE_04 - non-existing wallets" $  do
         forM_ falseWalletIds $ \(desc, walId) -> it desc $ \ctx -> do
             let endpoint = "v2/byron/wallets/" <> T.pack walId
             rg <- request @ApiByronWallet ctx ("DELETE", endpoint) Default Empty
             if (desc == valid40CharHexDesc) then do
-                expectResponseCode @IO HTTP.status501 rg
-                -- expectErrorMessage (errMsg404NoWallet $ T.pack walId) rg
+                expectErrorMessage (errMsg404NoWallet $ T.pack walId) rg
             else do
                 expectResponseCode @IO HTTP.status404 rg
                 expectErrorMessage errMsg404NoEndpoint rg
@@ -127,10 +129,10 @@ spec = do
                 "passphrase": "Secure Passphrase"
             }|]
         r <- request @ApiByronWallet ctx postByronWalletEp Default payload
-        expectResponseCode @IO HTTP.status501 r
+        expectResponseCode @IO HTTP.status202 r
 
         rg <- request @ApiByronWallet ctx listByronWalletEp Default Empty
-        expectResponseCode @IO HTTP.status501 rg
+        expectResponseCode @IO HTTP.status200 rg
 
     it "BYRON_RESTORE_02 - One can restore previously deleted wallet" $ \_ -> do
         m <- mnemonicToText @12 . entropyToMnemonic <$> genEntropy
@@ -151,27 +153,27 @@ spec = do
                 "passphrase": "Secure Passphrase"
                 } |]
         r1 <- request @ApiByronWallet ctx postByronWalletEp Default payload
-        expectResponseCode @IO HTTP.status501 r1
+        expectResponseCode @IO HTTP.status202 r1
 
         r2 <- request @ApiByronWallet ctx postByronWalletEp Default payload
         verify r2
-            [ expectResponseCode @IO HTTP.status501
-            -- , expectErrorMessage ("This operation would yield a wallet with the\
-            --     \ following id: " ++ T.unpack (getFromResponse walletId r1) ++
-            --     " However, I already know of a wallet with this id.")
+            [ expectResponseCode @IO HTTP.status409
+            , expectErrorMessage ("This operation would yield a wallet with the\
+                 \ following id: " ++ T.unpack (getFromResponse walletId r1) ++
+                 " However, I already know of a wallet with this id.")
             ]
 
     describe "BYRON_RESTORE_04 - Wallet name" $ do
         let walNameMax = T.pack (replicate walletNameMaxLength 'ą')
         let matrix =
                 [ ( show walletNameMinLength ++ " char long", "1"
-                  , [ expectResponseCode @IO HTTP.status501
-                    -- , expectFieldEqual walletName "1"
+                  , [ expectResponseCode @IO HTTP.status202
+                    , expectFieldEqual walletName "1"
                     ]
                   )
                 , ( show walletNameMaxLength ++ " char long", walNameMax
-                  , [ expectResponseCode @IO HTTP.status501
-                    -- , expectFieldEqual walletName walNameMax
+                  , [ expectResponseCode @IO HTTP.status202
+                    , expectFieldEqual walletName walNameMax
                     ]
                   )
                 , ( show (walletNameMaxLength + 1) ++ " char long"
@@ -188,28 +190,28 @@ spec = do
                      ]
                   )
                 , ( "Russian name", russianWalletName
-                  , [ expectResponseCode @IO HTTP.status501
-                    -- , expectFieldEqual walletName russianWalletName
+                  , [ expectResponseCode @IO HTTP.status202
+                    , expectFieldEqual walletName russianWalletName
                     ]
                   )
                 , ( "Polish name", polishWalletName
-                  , [ expectResponseCode @IO HTTP.status501
-                    -- , expectFieldEqual walletName polishWalletName
+                  , [ expectResponseCode @IO HTTP.status202
+                    , expectFieldEqual walletName polishWalletName
                     ]
                   )
                 , ( "Kanji name", kanjiWalletName
-                  , [ expectResponseCode @IO HTTP.status501
-                    -- , expectFieldEqual walletName kanjiWalletName
+                  , [ expectResponseCode @IO HTTP.status202
+                    , expectFieldEqual walletName kanjiWalletName
                     ]
                   )
                 , ( "Arabic name", arabicWalletName
-                  , [ expectResponseCode @IO HTTP.status501
-                    -- , expectFieldEqual walletName arabicWalletName
+                  , [ expectResponseCode @IO HTTP.status202
+                    , expectFieldEqual walletName arabicWalletName
                     ]
                   )
                 , ( "Wildcards name", wildcardsWalletName
-                  , [ expectResponseCode @IO HTTP.status501
-                    -- , expectFieldEqual walletName wildcardsWalletName
+                  , [ expectResponseCode @IO HTTP.status202
+                    , expectFieldEqual walletName wildcardsWalletName
                     ]
                   )
                 ]
@@ -350,7 +352,7 @@ spec = do
         let matrix =
                 [ ( show passphraseMinLength ++ " char long"
                   , T.pack (replicate passphraseMinLength 'ź')
-                  , [ expectResponseCode @IO HTTP.status501 ]
+                  , [ expectResponseCode @IO HTTP.status202 ]
                   )
                 , ( show (passphraseMinLength - 1) ++ " char long"
                   , T.pack (replicate (passphraseMinLength - 1) 'ż')
@@ -360,7 +362,7 @@ spec = do
                     ]
                   )
                 , ( show passphraseMaxLength ++ " char long", passphraseMax
-                  , [ expectResponseCode @IO HTTP.status501 ]
+                  , [ expectResponseCode @IO HTTP.status202 ]
                   )
                 , ( show (passphraseMaxLength + 1) ++ " char long"
                   , T.pack (replicate (passphraseMaxLength + 1) 'ę')
@@ -376,19 +378,19 @@ spec = do
                      ]
                   )
                 , ( "Russian passphrase", russianWalletName
-                  , [ expectResponseCode @IO HTTP.status501 ]
+                  , [ expectResponseCode @IO HTTP.status202 ]
                   )
                 , ( "Polish passphrase", polishWalletName
-                  , [ expectResponseCode @IO HTTP.status501 ]
+                  , [ expectResponseCode @IO HTTP.status202 ]
                   )
                 , ( "Kanji passphrase", kanjiWalletName
-                  , [ expectResponseCode @IO HTTP.status501 ]
+                  , [ expectResponseCode @IO HTTP.status202 ]
                   )
                 , ( "Arabic passphrase", arabicWalletName
-                  , [ expectResponseCode @IO HTTP.status501 ]
+                  , [ expectResponseCode @IO HTTP.status202 ]
                   )
                 , ( "Wildcards passphrase", wildcardsWalletName
-                  , [ expectResponseCode @IO HTTP.status501 ]
+                  , [ expectResponseCode @IO HTTP.status202 ]
                   )
                 ]
         forM_ matrix $ \(title, passphrase, expectations) -> it title $ \ctx -> do
@@ -450,7 +452,7 @@ spec = do
                    )
                  , ( "No Accept -> 202"
                    , Headers [ ("Content-Type", "application/json") ]
-                   , [ expectResponseCode @IO HTTP.status501 ]
+                   , [ expectResponseCode @IO HTTP.status202 ]
                    )
                  , ( "No Content-Type -> 415"
                    , Headers [ ("Accept", "application/json") ]
