@@ -186,7 +186,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletPassphraseInfo (..)
     , computeUtxoStatistics
     , log10
-    , slotDifference
     , slotRangeFromTimeRange
     , slotStartTime
     , syncProgress
@@ -552,9 +551,9 @@ restoreBlocks ctx wid blocks nodeTip = do
         let localTip = currentTip $ NE.last cps
 
         meta' <- liftIO $ calculateMetadata bp localTip meta
-        let unstable = sparseCheckpoints k (blockHeight nodeTip)
+        let unstable = sparseCheckpoints k (nodeTip ^. #blockHeight)
         forM_ (NE.init cps) $ \cp -> do
-            let (Quantity h) = blockHeight $ currentTip cp
+            let (Quantity h) = currentTip cp ^. #blockHeight
             when (fromIntegral h `elem` unstable) (makeCheckpoint cp)
         makeCheckpoint (NE.last cps)
         DB.prune db (PrimaryKey wid)
@@ -792,6 +791,7 @@ signTx ctx wid pwd (CoinSelection ins outs chgs) =
                             { status = Pending
                             , direction = Outgoing
                             , slotId = (currentTip cp) ^. #slotId
+                            , blockHeight = (currentTip cp) ^. #blockHeight
                             , amount = Quantity (amtInps - amtChng)
                             }
                     return (tx, meta, wit)
@@ -856,7 +856,7 @@ listTransactions
 listTransactions ctx wid mStart mEnd order = do
     cp <- withExceptT ErrListTransactionsNoSuchWallet $
         readWalletCheckpoint @ctx @s @t @k ctx wid
-    let tip = currentTip cp ^. #slotId
+    let tip = currentTip cp
     let sp = fromBlockchainParameters (blockchainParameters cp)
     maybe (pure []) (listTransactionsWithinRange sp tip) =<< (getSlotRange sp)
   where
@@ -883,7 +883,7 @@ listTransactions ctx wid mStart mEnd order = do
 
     listTransactionsWithinRange
         :: SlotParameters
-        -> SlotId
+        -> BlockHeader
         -> Range SlotId
         -> ExceptT ErrListTransactions IO [TransactionInfo]
     listTransactionsWithinRange sp tip sr = do
@@ -896,7 +896,7 @@ listTransactions ctx wid mStart mEnd order = do
     -- applying blocks, but that is future work (issue #573).
     assemble
         :: SlotParameters
-        -> SlotId
+        -> BlockHeader
         -> [(Tx t, TxMeta)]
         -> [TransactionInfo]
     assemble sp tip txs = map mkTxInfo txs
@@ -908,9 +908,12 @@ listTransactions ctx wid mStart mEnd order = do
             , txInfoOutputs = W.outputs @t tx
             , txInfoMeta = meta
             , txInfoDepth =
-                slotDifference sp tip (meta ^. #slotId)
+                Quantity $ fromIntegral $ if tipH > txH then tipH - txH else 0
             , txInfoTime = txTime (meta ^. #slotId)
             }
+          where
+            txH = getQuantity (meta ^. #blockHeight)
+            tipH = getQuantity (tip ^. #blockHeight)
         txOuts = Map.fromList
             [ (txId @t tx, W.outputs @t tx)
             | ((tx, _)) <- txs

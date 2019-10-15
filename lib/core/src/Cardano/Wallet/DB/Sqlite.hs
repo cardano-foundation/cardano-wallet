@@ -344,14 +344,14 @@ newDBLayer logConfig trace fp = do
                         ]
                     updateTxMetas wid
                         [ TxMetaDirection ==. W.Outgoing
-                        , TxMetaSlotId >. point
+                        , TxMetaSlot >. point
                         ]
                         [ TxMetaStatus =. W.Pending
-                        , TxMetaSlotId =. nearestPoint
+                        , TxMetaSlot =. nearestPoint
                         ]
                     deleteTxMetas wid
                         [ TxMetaDirection ==. W.Incoming
-                        , TxMetaSlotId >. point
+                        , TxMetaSlot >. point
                         ]
 
         , prune = \(PrimaryKey wid) -> ExceptT $ runQuery $
@@ -395,8 +395,8 @@ newDBLayer logConfig trace fp = do
 
         , readTxHistory = \(PrimaryKey wid) order range status -> runQuery $
               selectTxHistory @t wid order $ catMaybes
-                [ (TxMetaSlotId >=.) <$> W.inclusiveLowerBound range
-                , (TxMetaSlotId <=.) <$> W.inclusiveUpperBound range
+                [ (TxMetaSlot >=.) <$> W.inclusiveLowerBound range
+                , (TxMetaSlot <=.) <$> W.inclusiveUpperBound range
                 , (TxMetaStatus ==.) <$> status
                 ]
 
@@ -617,10 +617,10 @@ mkTxMetaEntity wid txid meta = TxMeta
     , txMetaWalletId = wid
     , txMetaStatus = meta ^. #status
     , txMetaDirection = meta ^. #direction
-    , txMetaSlotId = meta ^. #slotId
-    , txMetaAmount = getAmount (meta ^. #amount)
+    , txMetaSlot = meta ^. #slotId
+    , txMetaBlockHeight = getQuantity (meta ^. #blockHeight)
+    , txMetaAmount = getQuantity (meta ^. #amount)
     }
-    where getAmount (Quantity n) = n
 
 -- note: TxIn records must already be sorted by order
 -- and TxOut records must already be sorted by index
@@ -651,7 +651,8 @@ txHistoryFromEntity metas ins outs = map mkItem metas
     mkTxMeta m = W.TxMeta
         { W.status = txMetaStatus m
         , W.direction = txMetaDirection m
-        , W.slotId = txMetaSlotId m
+        , W.slotId = txMetaSlot m
+        , W.blockHeight = Quantity (txMetaBlockHeight m)
         , W.amount = Quantity (txMetaAmount m)
         }
 
@@ -791,8 +792,8 @@ selectTxHistory wid order conditions = do
     -- The secondary sort by TxId is to make the ordering stable
     -- so that testing with random data always works.
     sortOpt = case order of
-        W.Ascending -> [Asc TxMetaSlotId, Desc TxMetaTxId]
-        W.Descending -> [Desc TxMetaSlotId, Asc TxMetaTxId]
+        W.Ascending -> [Asc TxMetaSlot, Desc TxMetaTxId]
+        W.Descending -> [Desc TxMetaSlot, Asc TxMetaTxId]
 
 selectPrivateKey
     :: (MonadIO m, PersistKey k)

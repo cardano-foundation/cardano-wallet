@@ -85,12 +85,13 @@ PrivateKey                             sql=private_key
 -- transaction with different metadata values. The associated inputs and outputs
 -- of the transaction are in the TxIn and TxOut tables.
 TxMeta
-    txMetaTxId       TxId         sql=tx_id
-    txMetaWalletId   W.WalletId   sql=wallet_id
-    txMetaStatus     W.TxStatus   sql=status
-    txMetaDirection  W.Direction  sql=direction
-    txMetaSlotId     W.SlotId     sql=slot
-    txMetaAmount     Natural      sql=amount
+    txMetaTxId         TxId         sql=tx_id
+    txMetaWalletId     W.WalletId   sql=wallet_id
+    txMetaStatus       W.TxStatus   sql=status
+    txMetaDirection    W.Direction  sql=direction
+    txMetaSlot         W.SlotId     sql=slot
+    txMetaBlockHeight  Word32       sql=block_height
+    txMetaAmount       Natural      sql=amount
 
     Primary txMetaTxId txMetaWalletId
     Foreign Wallet fk_wallet_tx_meta txMetaWalletId ! ON DELETE CASCADE

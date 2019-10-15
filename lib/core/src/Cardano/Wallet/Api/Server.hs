@@ -185,6 +185,8 @@ import Data.Time
     ( UTCTime )
 import Data.Time.Clock
     ( getCurrentTime )
+import Data.Word
+    ( Word32 )
 import Fmt
     ( Buildable, pretty )
 import Network.HTTP.Media.RenderHeader
@@ -201,6 +203,8 @@ import Network.Wai.Middleware.Logging
     ( newApiLoggerSettings, obfuscateKeys, withApiLogger )
 import Network.Wai.Middleware.ServantError
     ( handleRawError )
+import Numeric.Natural
+    ( Natural )
 import Servant
     ( (:<|>) (..)
     , (:>)
@@ -672,6 +676,7 @@ network ctx = do
             ApiBlockReference
                 { epochNumber = nTip ^. (#slotId . #epochNumber)
                 , slotNumber  = nTip ^. (#slotId . #slotNumber)
+                , height = natural (nTip ^. #blockHeight)
                 }
         }
   where
@@ -823,6 +828,7 @@ mkApiTransaction txid ins outs (meta, timestamp) setTimeReference =
         , block = ApiBlockReference
             { slotNumber = meta ^. (#slotId . #slotNumber)
             , epochNumber = meta ^. (#slotId . #epochNumber)
+            , height = natural (meta ^. #blockHeight)
             }
         }
 
@@ -830,10 +836,12 @@ mkApiTransaction txid ins outs (meta, timestamp) setTimeReference =
     toAddressAmount (TxOut addr (Coin c)) =
         AddressAmount (ApiT addr, Proxy @t) (Quantity $ fromIntegral c)
 
-
 coerceCoin :: AddressAmount t -> TxOut
 coerceCoin (AddressAmount (ApiT addr, _) (Quantity c)) =
     TxOut addr (Coin $ fromIntegral c)
+
+natural :: Quantity q Word32 -> Quantity q Natural
+natural = Quantity . fromIntegral . getQuantity
 
 getWalletWithCreationTime
     :: forall ctx s t k.

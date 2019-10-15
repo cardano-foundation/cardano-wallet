@@ -72,6 +72,7 @@ import Cardano.Wallet.Primitive.Types
     , EpochLength (..)
     , Hash (..)
     , Range (..)
+    , SlotId (..)
     , SortOrder (..)
     , SyncProgress (..)
     , TxIn (..)
@@ -386,12 +387,15 @@ mkTxHistory numTx numInputs numOutputs range =
       , force TxMeta
           { status = [InLedger, Pending, Invalidated] !! (i `mod` 3)
           , direction = Incoming
-          , slotId = fromFlatSlot epochLength (range !! (i `mod` length range))
+          , slotId = sl i
+          , blockHeight = Quantity $ fromIntegral $ slotNumber $ sl i
           , amount = Quantity (fromIntegral numOutputs)
           }
       )
     | !i <- [1..numTx]
     ]
+  where
+    sl i = fromFlatSlot epochLength (range !! (i `mod` length range))
 
 mkInputs :: Int -> Int -> [TxIn]
 mkInputs prefix n =

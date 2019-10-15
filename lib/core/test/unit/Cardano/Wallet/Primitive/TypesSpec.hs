@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
@@ -40,7 +41,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotParameters (..)
     , StartTime (..)
     , TxIn (..)
-    , TxMeta (TxMeta)
+    , TxMeta (..)
     , TxOut (..)
     , TxStatus (..)
     , UTxO (..)
@@ -173,15 +174,32 @@ spec = do
             let wid = WalletId $ digest $ publicKey xprv
             "336c96f1...b8cac9ce" === pretty @_ @Text wid
         it "TxMeta (1)" $ do
-            let txMeta = TxMeta Pending Outgoing (SlotId 14 42) (Quantity 1337)
-            "-0.001337 pending since 14.42" === pretty @_ @Text txMeta
+            let txMeta = TxMeta
+                    { status = Pending
+                    , direction = Outgoing
+                    , slotId = SlotId 14 42
+                    , blockHeight = Quantity 37
+                    , amount = Quantity 1337
+                    }
+            "-0.001337 pending since 14.42#37" === pretty @_ @Text txMeta
         it "TxMeta (2)" $ do
-            let txMeta =
-                    TxMeta InLedger Incoming (SlotId 14 0) (Quantity 13371442)
-            "+13.371442 in ledger since 14.0" === pretty @_ @Text txMeta
+            let txMeta = TxMeta
+                    { status = InLedger
+                    , direction = Incoming
+                    , slotId = SlotId 14 0
+                    , blockHeight = Quantity 1
+                    , amount = Quantity 13371442
+                    }
+            "+13.371442 in ledger since 14.0#1" === pretty @_ @Text txMeta
         it "TxMeta (3)" $ do
-            let txMeta = TxMeta Invalidated Incoming (SlotId 0 42) (Quantity 0)
-            "+0.000000 invalidated since 0.42" === pretty @_ @Text txMeta
+            let txMeta = TxMeta
+                    { status = Invalidated
+                    , direction = Incoming
+                    , slotId = SlotId 0 42
+                    , blockHeight = Quantity 8
+                    , amount = Quantity 0
+                    }
+            "+0.000000 invalidated since 0.42#8" === pretty @_ @Text txMeta
 
     let slotsPerEpoch = EpochLength 21600
 

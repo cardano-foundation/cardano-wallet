@@ -621,17 +621,18 @@ data TxMeta = TxMeta
     { status :: !TxStatus
     , direction :: !Direction
     , slotId :: !SlotId
+    , blockHeight :: !(Quantity "block" Word32)
     , amount :: !(Quantity "lovelace" Natural)
     } deriving (Show, Eq, Ord, Generic)
 
 instance NFData TxMeta
 
 instance Buildable TxMeta where
-    build (TxMeta s d sl (Quantity a)) = mempty
+    build (TxMeta s d sl (Quantity bh) (Quantity a)) = mempty
         <> (case d of; Incoming -> "+"; Outgoing -> "-")
         <> fixedF @Double 6 (fromIntegral a / 1e6)
         <> " " <> build s
-        <> " since " <> build sl
+        <> " since " <> build sl <> "#" <> build bh
 
 data TxStatus
     = Pending
@@ -687,7 +688,7 @@ data TransactionInfo = TransactionInfo
     -- ^ Payment destination.
     , txInfoMeta :: !TxMeta
     -- ^ Other information calculated from the transaction.
-    , txInfoDepth :: Quantity "slot" Natural
+    , txInfoDepth :: Quantity "block" Natural
     -- ^ Number of slots since the transaction slot.
     , txInfoTime :: UTCTime
     -- ^ Creation time of the block including this transaction.
@@ -1043,7 +1044,7 @@ syncProgress
     -> SyncProgress
 syncProgress epochLength tip slotNow =
     let
-        bhTip = fromIntegral . getQuantity $ blockHeight tip
+        bhTip = fromIntegral . getQuantity $ tip ^. #blockHeight
         n0 = flatSlot epochLength (tip ^. #slotId)
         n1 = flatSlot epochLength slotNow
         tolerance = 5

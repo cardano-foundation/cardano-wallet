@@ -352,6 +352,7 @@ instance Arbitrary TxMeta where
         <$> arbitrary
         <*> elements [Incoming, Outgoing]
         <*> arbitrary
+        <*> fmap Quantity arbitrary
         <*> fmap (Quantity . fromIntegral) (arbitrary @Word32)
 
 instance Arbitrary TxStatus where
