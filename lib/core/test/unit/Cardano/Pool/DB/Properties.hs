@@ -1,18 +1,4 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
-{-# LANGUAGE TypeFamilies #-}
-
-{-# OPTIONS_GHC -fno-warn-unused-imports #-}
 
 module Cardano.Pool.DB.Properties
     ( properties
@@ -54,6 +40,8 @@ import Data.List.Extra
     ( nubOrd )
 import Data.Map.Strict
     ( Map )
+import Data.Ord
+    ( Down (..) )
 import Data.Text
     ( Text )
 import Data.Word
@@ -72,17 +60,7 @@ import Test.Hspec
     , shouldReturn
     )
 import Test.QuickCheck
-    ( Gen
-    , Property
-    , choose
-    , classify
-    , conjoin
-    , counterexample
-    , elements
-    , property
-    , shuffle
-    , (==>)
-    )
+    ( Property, classify, counterexample, property, (==>) )
 import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor )
 
@@ -119,15 +97,23 @@ properties = do
             (property . prop_rollbackPools)
         it "readPoolProduction for a given epoch should always give slots \
            \from given epoch"
-            (property . prop_readPoolProductionEpochLeak)
+            (property . prop_readPoolNoEpochLeaks)
         it "readPoolProduction should never give pools with no slots"
-            (property . prop_readPoolProductionNoEmptyPools)
+            (property . (prop_readPoolCond noEmptyPools))
         it "readPoolProduction should never give pools with no slots \
-           \after rollback - 1 slot rollbacks"
-            (property . prop_readPoolProductionNoEmptyPoolsAfterRollback1)
+           \after consecutive 1-slot-depth rollbacks"
+            (property . (prop_readPoolCondAfterDeterministicRollbacks noEmptyPools))
         it "readPoolProduction should never give pools with no slots \
-           \after rollback - arbitrary slot rollbacks"
-            (property . prop_readPoolProductionNoEmptyPoolsAfterRollback2)
+           \after rollback - arbitrary N-slot-depth rollbacks"
+            (property . (prop_readPoolCondAfterRandomRollbacks noEmptyPools))
+        it "readPoolProduction should give pools with descending slots"
+            (property . (prop_readPoolCond descSlotsPerPool))
+        it "readPoolProduction should give pools with descending slots \
+           \after consecutive 1-slot-depth rollbacks"
+            (property . (prop_readPoolCondAfterDeterministicRollbacks descSlotsPerPool))
+        it "readPoolProduction should never give pools with no slots \
+           \after rollback - arbitrary N-slot-depth rollbacks"
+            (property . (prop_readPoolCondAfterRandomRollbacks descSlotsPerPool))
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -207,11 +193,11 @@ prop_rollbackPools db f@(StakePoolsFixture pairs _) sl =
     showSlot (SlotId epoch slot) = show epoch ++ "." ++ show slot
 
 -- | Can read pool production only for a given epoch
-prop_readPoolProductionEpochLeak
+prop_readPoolNoEpochLeaks
     :: DBLayer IO
     -> StakePoolsFixture
     -> Property
-prop_readPoolProductionEpochLeak db (StakePoolsFixture pairs _) =
+prop_readPoolNoEpochLeaks db (StakePoolsFixture pairs _) =
     monadicIO (setup >> prop)
   where
     slotPartition = L.groupBy ((==) `on` epochNumber)
@@ -227,29 +213,14 @@ prop_readPoolProductionEpochLeak db (StakePoolsFixture pairs _) =
                 (Set.fromList . concat . Map.elems) <$> readPoolProduction db epoch
             slots' `shouldBe` (Set.fromList slots)
 
--- | Read pool production only gives pools with non-empty slots
-prop_readPoolProductionNoEmptyPools
-    :: DBLayer IO
+-- | Read pool production satisfies conditions after consecutive
+-- 1-slot-depth rollbacks
+prop_readPoolCondAfterDeterministicRollbacks
+    :: (Map PoolId [SlotId] -> Expectation)
+    -> DBLayer IO
     -> StakePoolsFixture
     -> Property
-prop_readPoolProductionNoEmptyPools db (StakePoolsFixture pairs _) =
-    monadicIO (setup >> prop)
-  where
-    setup = liftIO $ cleanDB db
-    prop = liftIO $ do
-        forM_ pairs $ \(pool, slot) ->
-            unsafeRunExceptT $ putPoolProduction db slot pool
-        forM_ (uniqueEpochs pairs) $ \epoch -> do
-            res <- readPoolProduction db epoch
-            noEmptyPools res
-
--- | Read pool production only gives pools with non-empty slots after
--- 1 slot length rollback
-prop_readPoolProductionNoEmptyPoolsAfterRollback1
-    :: DBLayer IO
-    -> StakePoolsFixture
-    -> Property
-prop_readPoolProductionNoEmptyPoolsAfterRollback1 db (StakePoolsFixture pairs _) =
+prop_readPoolCondAfterDeterministicRollbacks cond db (StakePoolsFixture pairs _) =
     monadicIO (setup >> prop)
   where
     setup = liftIO $ cleanDB db
@@ -261,15 +232,17 @@ prop_readPoolProductionNoEmptyPoolsAfterRollback1 db (StakePoolsFixture pairs _)
             _ <- rollbackTo db slot
             forM_ (uniqueEpochs pairs) $ \epoch -> do
                 res <- readPoolProduction db epoch
-                noEmptyPools res
+                cond res
 
--- | Read pool production only gives pools with non-empty slots after
--- arbitrary slot length rollback
-prop_readPoolProductionNoEmptyPoolsAfterRollback2
-    :: DBLayer IO
+-- | Read pool production satisfies conditions after consecutive
+-- arbitrary N-slot-depth rollbacks
+prop_readPoolCondAfterRandomRollbacks
+    :: (Map PoolId [SlotId] -> Expectation)
+    -> DBLayer IO
     -> StakePoolsFixture
     -> Property
-prop_readPoolProductionNoEmptyPoolsAfterRollback2 db (StakePoolsFixture pairs rSlots) =
+prop_readPoolCondAfterRandomRollbacks cond db
+    (StakePoolsFixture pairs rSlots) =
     (length pairs > 10) ==> monadicIO (setup >> prop)
   where
     setup = liftIO $ cleanDB db
@@ -280,7 +253,31 @@ prop_readPoolProductionNoEmptyPoolsAfterRollback2 db (StakePoolsFixture pairs rS
             rollbackTo db slot
             forM_ (uniqueEpochs pairs) $ \epoch -> do
                 res <- readPoolProduction db epoch
-                noEmptyPools res
+                cond res
+
+-- | Read pool production satisfies condition
+prop_readPoolCond
+    :: (Map PoolId [SlotId] -> Expectation)
+    -> DBLayer IO
+    -> StakePoolsFixture
+    -> Property
+prop_readPoolCond cond db (StakePoolsFixture pairs _) =
+    monadicIO (setup >> prop)
+  where
+    setup = liftIO $ cleanDB db
+    prop = liftIO $ do
+        forM_ pairs $ \(pool, slot) ->
+            unsafeRunExceptT $ putPoolProduction db slot pool
+        forM_ (uniqueEpochs pairs) $ \epoch -> do
+            res <- readPoolProduction db epoch
+            cond res
+
+descSlotsPerPool :: Map PoolId [SlotId] -> Expectation
+descSlotsPerPool pools = do
+    let checkIfDesc slots =
+            L.sortOn Down slots == slots
+    let pools' = Map.filter checkIfDesc pools
+    pools' `shouldBe` pools
 
 noEmptyPools :: Map PoolId [SlotId] -> Expectation
 noEmptyPools pools = do
