@@ -187,6 +187,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Set
+    ( Set )
 import Data.Streaming.Network
     ( bindPortTCP, bindRandomPortTCP )
 import Data.Text
@@ -918,12 +920,8 @@ getWalletWithCreationTime ctx (ApiT wid) = do
             ApiT wid
         , addressPoolGap =
             ApiT $ getState wallet ^. #externalPool . #gap
-        , balance = ApiT $ WalletBalance
-            { available =
-                Quantity $ availableBalance pending wallet
-            , total =
-                Quantity $ totalBalance pending wallet
-            }
+        , balance =
+            getWalletBalance wallet pending
         , delegation =
             ApiT $ ApiT <$> meta ^. #delegation
         , name =
@@ -949,15 +947,18 @@ getByronWalletWithCreationTime ctx (ApiT wid) = do
   where
     mkApiByronWallet wallet meta pending = ApiByronWallet
         { id = ApiT wid
-        , balance = ApiT $ WalletBalance
-            { available = Quantity $ availableBalance pending wallet
-            , total = Quantity $ totalBalance pending wallet
-            }
+        , balance = getWalletBalance wallet pending
         , name = ApiT $ meta ^. #name
         , passphrase = ApiT <$> meta ^. #passphraseInfo
         , state = ApiT $ meta ^. #status
         , tip = getWalletTip wallet
         }
+
+getWalletBalance :: DefineTx t => Wallet s t -> Set (Tx t) -> ApiT WalletBalance
+getWalletBalance wallet pending = ApiT $ WalletBalance
+    { available = Quantity $ availableBalance pending wallet
+    , total = Quantity $ totalBalance pending wallet
+    }
 
 getWalletTip :: Wallet s t -> ApiBlockReference
 getWalletTip wallet = ApiBlockReference
