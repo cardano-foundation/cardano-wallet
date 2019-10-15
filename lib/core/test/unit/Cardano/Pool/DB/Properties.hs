@@ -60,9 +60,9 @@ import Test.Hspec
     , shouldReturn
     )
 import Test.QuickCheck
-    ( Property, classify, counterexample, property, (==>) )
+    ( Property, classify, counterexample, property )
 import Test.QuickCheck.Monadic
-    ( assert, monadicIO, monitor )
+    ( assert, monadicIO, monitor, run )
 
 import qualified Cardano.Pool.DB.MVar as MVar
 import qualified Data.List as L
@@ -147,18 +147,12 @@ prop_putSlotTwicePoolProduction
     -> StakePoolsFixture
     -> Property
 prop_putSlotTwicePoolProduction db (StakePoolsFixture pairs _) =
-    monadicIO (setup >>= prop)
+    monadicIO (setup >> prop)
   where
-    setup = liftIO $ do
-        cleanDB db
-        db' <- MVar.newDBLayer
-        cleanDB db'
-        pure db'
-    prop db' = liftIO $ do
+    setup = liftIO $ cleanDB db
+    prop = liftIO $ do
         forM_ pairs $ \(pool, slot) -> do
             let err = ErrSlotAlreadyExists slot
-            runExceptT (putPoolProduction db' slot pool) `shouldReturn` Right ()
-            runExceptT (putPoolProduction db' slot pool) `shouldReturn` Left err
             runExceptT (putPoolProduction db slot pool) `shouldReturn` Right ()
             runExceptT (putPoolProduction db slot pool) `shouldReturn` Left err
 
@@ -172,7 +166,7 @@ prop_rollbackPools db f@(StakePoolsFixture pairs _) sl =
     monadicIO prop
   where
     prop = do
-        (beforeRollback, afterRollback) <- liftIO $ do
+        (beforeRollback, afterRollback) <- run $ do
             forM_ pairs $ \(pool, slot) ->
                 runExceptT $ putPoolProduction db slot pool
             before <- map fst <$> allPoolProduction db f
@@ -243,17 +237,19 @@ prop_readPoolCondAfterRandomRollbacks
     -> Property
 prop_readPoolCondAfterRandomRollbacks cond db
     (StakePoolsFixture pairs rSlots) =
-    (length pairs > 10) ==> monadicIO (setup >> prop)
+    monadicIO (setup >> prop)
   where
     setup = liftIO $ cleanDB db
-    prop = liftIO $ do
-        forM_ pairs $ \(pool, slot) ->
+    prop = do
+        run $ forM_ pairs $ \(pool, slot) ->
             unsafeRunExceptT $ putPoolProduction db slot pool
-        forM_ rSlots $ \slot -> do
+        run $ forM_ rSlots $ \slot -> do
             rollbackTo db slot
             forM_ (uniqueEpochs pairs) $ \epoch -> do
                 res <- readPoolProduction db epoch
                 cond res
+        monitor $ classify (length pairs <= 10) "number of slots <= 10"
+        monitor $ classify (length pairs > 10) "number of slots > 10"
 
 -- | Read pool production satisfies condition
 prop_readPoolCond
