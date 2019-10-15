@@ -392,7 +392,7 @@ getWallet
     -> ApiT WalletId
     -> Handler ApiWallet
 getWallet ctx wid =
-    fst <$> getWalletWithCreationTime ctx wid
+    fst <$> getWalletWithCreationTime mkApiWallet ctx wid
 
 listWallets
     :: forall ctx s t k.
@@ -405,7 +405,7 @@ listWallets
 listWallets ctx = do
     wids <- liftIO $ Registry.keys re
     fmap fst . sortOn snd <$>
-        mapM (getWalletWithCreationTime ctx) (ApiT <$> wids)
+        mapM (getWalletWithCreationTime mkApiWallet ctx) (ApiT <$> wids)
   where
     re = ctx ^. workerRegistry @s @t @k
 
@@ -748,7 +748,7 @@ getByronWallet
     -> ApiT WalletId
     -> Handler ApiByronWallet
 getByronWallet ctx wid =
-    fst <$> getByronWalletWithCreationTime ctx wid
+    fst <$> getWalletWithCreationTime mkApiByronWallet ctx wid
 
 getByronWalletMigrationInfo
     :: ctx
@@ -775,7 +775,7 @@ listByronWallets
 listByronWallets ctx = do
     wids <- liftIO $ Registry.keys re
     fmap fst . sortOn snd <$>
-        mapM (getByronWalletWithCreationTime ctx) (ApiT <$> wids)
+        mapM (getWalletWithCreationTime mkApiByronWallet ctx) (ApiT <$> wids)
   where
     re = ctx ^. workerRegistry @s @t @k
 
@@ -902,50 +902,42 @@ natural :: Quantity q Word32 -> Quantity q Natural
 natural = Quantity . fromIntegral . getQuantity
 
 getWalletWithCreationTime
-    :: forall ctx s t k.
-        ( DefineTx t
-        , s ~ SeqState t
-        , ctx ~ ApiLayer s t k
-        )
-    => ctx
+    :: forall s t k w. DefineTx t
+    => (WalletId -> Wallet s t -> WalletMetadata -> Set (Tx t) -> w)
+    -> ApiLayer s t k
     -> ApiT WalletId
-    -> Handler (ApiWallet, UTCTime)
-getWalletWithCreationTime ctx (ApiT wid) = do
+    -> Handler (w, UTCTime)
+getWalletWithCreationTime mk ctx (ApiT wid) = do
     (wallet, meta, pending) <-
         liftHandler $ withWorkerCtx ctx wid throwE $
             \wrk -> W.readWallet wrk wid
-    return (mkApiWallet wallet meta pending, meta ^. #creationTime)
-  where
-    mkApiWallet wallet meta pending = ApiWallet
-        { id = ApiT wid
-        , addressPoolGap = ApiT $ getState wallet ^. #externalPool . #gap
-        , balance = getWalletBalance wallet pending
-        , delegation = ApiT $ ApiT <$> meta ^. #delegation
-        , name = ApiT $ meta ^. #name
-        , passphrase = ApiT <$> meta ^. #passphraseInfo
-        , state = ApiT $ meta ^. #status
-        , tip = getWalletTip wallet
-        }
+    return (mk wid wallet meta pending, meta ^. #creationTime)
 
-getByronWalletWithCreationTime
-    :: forall t k. DefineTx t
-    => ApiLayer (RndState t) t k
-    -> ApiT WalletId
-    -> Handler (ApiByronWallet, UTCTime)
-getByronWalletWithCreationTime ctx (ApiT wid) = do
-    (wallet, meta, pending) <-
-        liftHandler $ withWorkerCtx ctx wid throwE $
-            \wrk -> W.readWallet wrk wid
-    return (mkApiByronWallet wallet meta pending, meta ^. #creationTime)
-  where
-    mkApiByronWallet wallet meta pending = ApiByronWallet
-        { id = ApiT wid
-        , balance = getWalletBalance wallet pending
-        , name = ApiT $ meta ^. #name
-        , passphrase = ApiT <$> meta ^. #passphraseInfo
-        , state = ApiT $ meta ^. #status
-        , tip = getWalletTip wallet
-        }
+mkApiWallet
+    :: forall s t. (DefineTx t, s ~ SeqState t)
+    => WalletId -> Wallet s t -> WalletMetadata -> Set (Tx t) -> ApiWallet
+mkApiWallet wid wallet meta pending = ApiWallet
+    { addressPoolGap = ApiT $ getState wallet ^. #externalPool . #gap
+    , balance = getWalletBalance wallet pending
+    , delegation = ApiT $ ApiT <$> meta ^. #delegation
+    , id = ApiT wid
+    , name = ApiT $ meta ^. #name
+    , passphrase = ApiT <$> meta ^. #passphraseInfo
+    , state = ApiT $ meta ^. #status
+    , tip = getWalletTip wallet
+    }
+
+mkApiByronWallet
+    :: forall s t. (DefineTx t, s ~ RndState t)
+    => WalletId -> Wallet s t -> WalletMetadata -> Set (Tx t) -> ApiByronWallet
+mkApiByronWallet wid wallet meta pending = ApiByronWallet
+    { balance = getWalletBalance wallet pending
+    , id = ApiT wid
+    , name = ApiT $ meta ^. #name
+    , passphrase = ApiT <$> meta ^. #passphraseInfo
+    , state = ApiT $ meta ^. #status
+    , tip = getWalletTip wallet
+    }
 
 getWalletBalance :: DefineTx t => Wallet s t -> Set (Tx t) -> ApiT WalletBalance
 getWalletBalance wallet pending = ApiT $ WalletBalance
