@@ -189,7 +189,7 @@ import Cardano.Wallet.Primitive.Types
     , log10
     , slotRangeFromTimeRange
     , slotStartTime
-    , syncProgressRelativeToCurrentTime
+    , syncProgressRelativeToTime
     , wholeRange
     )
 import Cardano.Wallet.Transaction
@@ -588,7 +588,7 @@ restoreBlocks ctx wid blocks nodeTip = do
         -> WalletMetadata
         -> IO WalletMetadata
     calculateMetadata bp h meta = do
-        p <- syncProgressRelativeToCurrentTime (slotParams bp) h
+        p <- syncProgressRelativeToTime (slotParams bp) h <$> getCurrentTime
         pure (meta { status = p } :: WalletMetadata)
 
 -- | Remove an existing wallet. Note that there's no particular work to

@@ -82,7 +82,7 @@ module Cardano.Wallet.Primitive.Types
     , EpochLength (..)
     , StartTime (..)
     , syncProgress
-    , syncProgressRelativeToCurrentTime
+    , syncProgressRelativeToTime
     , flatSlot
     , fromFlatSlot
     , slotStartTime
@@ -188,7 +188,7 @@ import Data.Text.Class
     , toTextFromBoundedEnum
     )
 import Data.Time.Clock
-    ( NominalDiffTime, UTCTime, addUTCTime, diffUTCTime, getCurrentTime )
+    ( NominalDiffTime, UTCTime, addUTCTime, diffUTCTime )
 import Data.Word
     ( Word16, Word32, Word64 )
 import Fmt
@@ -1055,15 +1055,20 @@ syncProgress epochLength tip slotNow =
         Restoring $ Quantity $ toEnum $ fromIntegral $
             (100 * bhTip) `div` (bhTip + n1 - n0)
 
-syncProgressRelativeToCurrentTime
+-- | Helper to compare the /local tip/ with the slot corresponding to a
+-- @UTCTime@, and calculate progress based on that.
+syncProgressRelativeToTime
     :: SlotParameters
     -> BlockHeader
-    -> IO SyncProgress
-syncProgressRelativeToCurrentTime sp tip = getCurrentTime >>= \now ->
-    return $ maybe
+    -- ^ Local tip
+    -> UTCTime
+    -- ^ Where we believe the network tip is (e.g. @getCurrentTime@).
+    -> SyncProgress
+syncProgressRelativeToTime sp tip time =
+    maybe
         (Restoring minBound)
         (syncProgress (sp ^. #getEpochLength) tip)
-        (slotAt sp now)
+        (slotAt sp time)
 
 -- | Convert a 'SlotId' to the number of slots since genesis.
 flatSlot :: EpochLength -> SlotId -> Word64
