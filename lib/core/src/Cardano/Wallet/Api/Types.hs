@@ -182,6 +182,7 @@ data ApiWallet = ApiWallet
     , name :: !(ApiT WalletName)
     , passphrase :: !(Maybe (ApiT WalletPassphraseInfo))
     , state :: !(ApiT SyncProgress)
+    , tip :: !ApiBlockReference
     } deriving (Eq, Generic, Show)
 
 data ApiStakePool = ApiStakePool
@@ -253,7 +254,7 @@ data ApiTransaction t = ApiTransaction
     , amount :: !(Quantity "lovelace" Natural)
     , insertedAt :: !(Maybe ApiTimeReference)
     , pendingSince :: !(Maybe ApiTimeReference)
-    , depth :: !(Quantity "slot" Natural)
+    , depth :: !(Quantity "block" Natural)
     , direction :: !(ApiT Direction)
     , inputs :: ![ApiTxInput t]
     , outputs :: !(NonEmpty (AddressAmount t))
@@ -278,11 +279,7 @@ data ApiTimeReference = ApiTimeReference
 data ApiBlockReference = ApiBlockReference
     { epochNumber :: !Word64
     , slotNumber :: !Word16
-    -- FIXME
-    -- Make this available, it'll require to also store the block height with
-    -- TxMeta to make it properly available for transactions.
-    --
-    -- , blockHeight :: !(Quantity "block" Word32)
+    , height :: !(Quantity "block" Natural)
     } deriving (Eq, Generic, Show)
 
 data ApiNetworkInformation = ApiNetworkInformation
@@ -354,6 +351,7 @@ data ApiByronWallet = ApiByronWallet
     , name :: !(ApiT WalletName)
     , passphrase :: !(Maybe (ApiT WalletPassphraseInfo))
     , state :: !(ApiT SyncProgress)
+    , tip :: !ApiBlockReference
     } deriving (Eq, Generic, Show)
 
 newtype ApiByronWalletMigrationInfo = ApiByronWalletMigrationInfo

@@ -32,6 +32,7 @@ import Cardano.CLI
     , cli
     , cmdAddress
     , cmdMnemonic
+    , cmdNetwork
     , cmdStakePool
     , cmdTransaction
     , cmdVersion
@@ -135,8 +136,9 @@ main = do
         <> cmdWallet @(Jormungandr 'Testnet)
         <> cmdTransaction @(Jormungandr 'Testnet)
         <> cmdAddress @(Jormungandr 'Testnet)
-        <> cmdVersion
         <> cmdStakePool @(Jormungandr 'Testnet)
+        <> cmdNetwork @(Jormungandr 'Testnet)
+        <> cmdVersion
 
 beforeMainLoop
     :: Trace IO Text

@@ -94,6 +94,11 @@ spec = do
                 , "list"
                 , "address list"
                 , "address list " ++ wid ++ " --port"
+                -- network information
+                , "network"
+                , "network info"
+                , "networ information"
+                , "network information --port"
                 ]
         forM_ badArgs $ \args -> it args $ \_ -> do
             (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t $ words args

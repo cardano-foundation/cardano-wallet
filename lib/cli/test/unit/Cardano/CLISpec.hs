@@ -17,6 +17,7 @@ import Cardano.CLI
     , cli
     , cmdAddress
     , cmdMnemonic
+    , cmdNetwork
     , cmdStakePool
     , cmdTransaction
     , cmdWallet
@@ -84,6 +85,7 @@ spec = do
                 <> cmdTransaction @DummyTarget
                 <> cmdAddress @DummyTarget
                 <> cmdStakePool @DummyTarget
+                <> cmdNetwork @DummyTarget
 
         let defaultPrefs = prefs (mempty <> columns 65)
 
@@ -118,6 +120,7 @@ spec = do
             , "  transaction              Manage transactions."
             , "  address                  Manage addresses."
             , "  stake-pool               Manage stake pools."
+            , "  network                  Manage network."
             ]
 
         ["mnemonic", "--help"] `shouldShowUsage`
@@ -327,6 +330,27 @@ spec = do
         ["stake-pool", "list", "--help"] `shouldShowUsage`
             [ "Usage:  stake-pool list [--port INT]"
             , "  List all known stake pools."
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , "  --port INT               port used for serving the wallet"
+            , "                           API. (default: 8090)"
+            ]
+
+        ["network", "--help"] `shouldShowUsage`
+            [ "Usage:  network COMMAND"
+            , "  Manage network."
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , ""
+            , "Available commands:"
+            , "  information              View network information."
+            ]
+
+        ["network", "information", "--help"] `shouldShowUsage`
+            [ "Usage:  network information [--port INT]"
+            , "  View network information."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"

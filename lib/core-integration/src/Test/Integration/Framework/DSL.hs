@@ -753,6 +753,7 @@ syncProgress =
     _set :: HasType (ApiT SyncProgress) s => (s, SyncProgress) -> s
     _set (s, v) = set typed (ApiT v) s
 
+
 --
 -- Helpers
 --

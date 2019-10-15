@@ -35,6 +35,7 @@ import Cardano.CLI
     , cli
     , cmdAddress
     , cmdMnemonic
+    , cmdNetwork
     , cmdTransaction
     , cmdVersion
     , cmdWallet
@@ -114,6 +115,7 @@ main = do
         <> cmdWallet @(HttpBridge n)
         <> cmdTransaction @(HttpBridge n)
         <> cmdAddress @(HttpBridge n)
+        <> cmdNetwork @(HttpBridge n)
         <> cmdVersion
 
 {-------------------------------------------------------------------------------

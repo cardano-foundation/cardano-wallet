@@ -143,7 +143,7 @@ import Data.Text.Class
 import Data.Typeable
     ( Typeable, splitTyConApp, tyConName, typeRep )
 import Data.Word
-    ( Word8 )
+    ( Word32, Word8 )
 import GHC.TypeLits
     ( KnownSymbol, natVal, symbolVal )
 import Numeric.Natural
@@ -434,6 +434,7 @@ spec = do
                     , name = name (x :: ApiWallet)
                     , passphrase = passphrase (x :: ApiWallet)
                     , state = state (x :: ApiWallet)
+                    , tip = tip (x :: ApiWallet)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -445,6 +446,7 @@ spec = do
                     , name = name (x :: ApiByronWallet)
                     , passphrase = passphrase (x :: ApiByronWallet)
                     , state = state (x :: ApiByronWallet)
+                    , tip = tip (x :: ApiByronWallet)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -562,6 +564,7 @@ spec = do
                 x' = ApiBlockReference
                     { slotNumber = slotNumber (x :: ApiBlockReference)
                     , epochNumber = epochNumber (x :: ApiBlockReference)
+                    , height = height (x :: ApiBlockReference)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -833,7 +836,7 @@ instance Arbitrary ApiTimeReference where
     shrink (ApiTimeReference t b) = ApiTimeReference t <$> shrink b
 
 instance Arbitrary ApiBlockReference where
-    arbitrary = ApiBlockReference <$> arbitrary <*> arbitrary
+    arbitrary = genericArbitrary
     shrink = genericShrink
 
 instance Arbitrary ApiNetworkInformation where
@@ -946,6 +949,9 @@ instance Arbitrary Direction where
 instance Arbitrary TxStatus where
     arbitrary = genericArbitrary
     shrink = genericShrink
+
+instance Arbitrary (Quantity "block" Natural) where
+    arbitrary  =fmap (Quantity . fromIntegral) (arbitrary @Word32)
 
 {-------------------------------------------------------------------------------
                    Specification / Servant-Swagger Machinery

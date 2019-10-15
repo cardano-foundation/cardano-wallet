@@ -71,6 +71,7 @@ library
       Test.Integration.Scenario.CLI.Addresses
       Test.Integration.Scenario.CLI.Miscellaneous
       Test.Integration.Scenario.CLI.Mnemonics
+      Test.Integration.Scenario.CLI.Network
       Test.Integration.Scenario.CLI.Port
       Test.Integration.Scenario.CLI.Transactions
       Test.Integration.Scenario.CLI.Wallets

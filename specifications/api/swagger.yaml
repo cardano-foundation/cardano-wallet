@@ -37,32 +37,6 @@ x-epochNumber: &epochNumber
   minimum: 0
   example: 14
 
-x-numberOfSlots: &numberOfSlots
-  type: object
-  required:
-    - quantity
-    - unit
-  properties:
-    quantity:
-      type: integer
-      minimum: 0
-      example: 1337
-    unit:
-      type: string
-      enum:
-        - slot
-      example: "slot"
-
-x-blockReference: &blockReference
-  description: A reference to a particular block.
-  type: object
-  required:
-    - slot_number
-    - epoch_number
-  properties:
-    slot_number: *slotNumber
-    epoch_number: *epochNumber
-
 x-numberOfBlocks: &numberOfBlocks
   type: object
   required:
@@ -78,6 +52,18 @@ x-numberOfBlocks: &numberOfBlocks
       enum:
         - block
       example: "block"
+
+x-blockReference: &blockReference
+  description: A reference to a particular block.
+  type: object
+  required:
+    - slot_number
+    - epoch_number
+    - height
+  properties:
+    slot_number: *slotNumber
+    epoch_number: *epochNumber
+    height: *numberOfBlocks
 
 x-percentage: &percentage
   type: object
@@ -287,7 +273,7 @@ x-transactionPendingSince: &transactionPendingSince
 
 x-transactionDepth: &transactionDepth
   description: Current depth of the transaction in the local chain
-  <<: *numberOfSlots
+  <<: *numberOfBlocks
 
 x-transactionDirection: &transactionDirection
   type: string
@@ -379,9 +365,6 @@ x-networkInformationSyncProgress: &networkInformationSyncProgress
   description: |
     Estimated synchronization progress of the node with the underlying network. Note that this may
     change quite arbitrarily as the node may switch to shorter or longer chain forks.
-
-x-networkInformationBlockchainHeight: &networkInformationBlockchainHeight
-  <<: *numberOfSlots
 
 x-networkInformationNtpStatus: &networkInformationNtpStatus
   type: object
@@ -516,6 +499,7 @@ definitions:
       - delegation
       - name
       - state
+      - tip
     properties:
       id: *walletId
       address_pool_gap: *walletAddressPoolGap
@@ -524,6 +508,7 @@ definitions:
       name: *walletName
       passphrase: *walletPassphraseInfo
       state: *walletState
+      tip: *blockReference
 
   ApiByronWallet: &ApiByronWallet
     type: object
@@ -532,12 +517,14 @@ definitions:
       - balance
       - name
       - state
+      - tip
     properties:
       id: *walletId
       balance: *walletBalance
       name: *walletName
       passphrase: *walletPassphraseInfo
       state: *walletState
+      tip: *blockReference
 
   ApiByronWalletMigrationInfo: &ApiByronWalletMigrationInfo
     type: object
@@ -948,6 +935,7 @@ x-responsesQuitStakePool: &responsesQuitStakePool
 
 x-responsesGetNetworkInformation: &responsesGetNetworkInformation
   <<: *responsesErr405
+  <<: *responsesErr406
   200:
     description: Ok
     schema: *ApiNetworkInformation

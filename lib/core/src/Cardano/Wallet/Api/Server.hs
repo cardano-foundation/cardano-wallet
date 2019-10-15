@@ -123,7 +123,12 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Fee
     ( Fee (..) )
 import Cardano.Wallet.Primitive.Model
-    ( BlockchainParameters, availableBalance, getState, totalBalance )
+    ( BlockchainParameters
+    , availableBalance
+    , currentTip
+    , getState
+    , totalBalance
+    )
 import Cardano.Wallet.Primitive.Types
     ( Address
     , AddressState
@@ -191,6 +196,8 @@ import Data.Time
     ( UTCTime )
 import Data.Time.Clock
     ( getCurrentTime )
+import Data.Word
+    ( Word32 )
 import Fmt
     ( Buildable, pretty )
 import Network.HTTP.Media.RenderHeader
@@ -207,6 +214,8 @@ import Network.Wai.Middleware.Logging
     ( newApiLoggerSettings, obfuscateKeys, withApiLogger )
 import Network.Wai.Middleware.ServantError
     ( handleRawError )
+import Numeric.Natural
+    ( Natural )
 import Servant
     ( (:<|>) (..)
     , (:>)
@@ -677,6 +686,7 @@ network ctx = do
             ApiBlockReference
                 { epochNumber = nTip ^. (#slotId . #epochNumber)
                 , slotNumber  = nTip ^. (#slotId . #slotNumber)
+                , height = natural (nTip ^. #blockHeight)
                 }
         }
   where
@@ -837,6 +847,7 @@ mkApiTransaction txid ins outs (meta, timestamp) setTimeReference =
         , block = ApiBlockReference
             { slotNumber = meta ^. (#slotId . #slotNumber)
             , epochNumber = meta ^. (#slotId . #epochNumber)
+            , height = natural (meta ^. #blockHeight)
             }
         }
 
@@ -844,10 +855,12 @@ mkApiTransaction txid ins outs (meta, timestamp) setTimeReference =
     toAddressAmount (TxOut addr (Coin c)) =
         AddressAmount (ApiT addr, Proxy @t) (Quantity $ fromIntegral c)
 
-
 coerceCoin :: AddressAmount t -> TxOut
 coerceCoin (AddressAmount (ApiT addr, _) (Quantity c)) =
     TxOut addr (Coin $ fromIntegral c)
+
+natural :: Quantity q Word32 -> Quantity q Natural
+natural = Quantity . fromIntegral . getQuantity
 
 getWalletWithCreationTime
     :: forall ctx s t k.
@@ -882,6 +895,11 @@ getWalletWithCreationTime ctx (ApiT wid) = do
             ApiT <$> meta ^. #passphraseInfo
         , state =
             ApiT $ meta ^. #status
+        , tip = ApiBlockReference
+            { epochNumber = (currentTip wallet) ^. #slotId . #epochNumber
+            , slotNumber =  (currentTip wallet) ^. #slotId . #slotNumber
+            , height = natural $ (currentTip wallet) ^. #blockHeight
+            }
         }
 
 {-------------------------------------------------------------------------------
@@ -1188,10 +1206,10 @@ instance LiftHandler ErrSubmitTx where
 
 instance LiftHandler ErrNetworkUnavailable where
     handler = \case
-        ErrNetworkUnreachable err ->
+        ErrNetworkUnreachable _err ->
             apiError err503 NetworkUnreachable $ mconcat
-                [ "The node backend is unreachable: ", err
-                , ". Trying again in a bit might work."
+                [ "The node backend is unreachable at the moment. Trying again "
+                , "in a bit might work."
                 ]
         ErrNetworkInvalid n ->
             apiError err503 NetworkMisconfigured $ mconcat

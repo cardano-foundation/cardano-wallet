@@ -620,7 +620,7 @@ testPk1 = PrimaryKey testWid1
 testTxs :: [(Tx, TxMeta)]
 testTxs =
     [ ( Tx [TxIn (Hash "tx1") 0] [TxOut (Address "addr") (Coin 1)]
-      , TxMeta InLedger Incoming (SlotId 14 0) (Quantity 1337144)
+      , TxMeta InLedger Incoming (SlotId 14 0) (Quantity 0) (Quantity 1337144)
       )
     ]
 
