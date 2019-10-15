@@ -113,11 +113,11 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Random
     ( RndKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( SeqKey (..), generateKeyFromSeed )
+    ( SeqKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
-    ( RndState )
+    ( RndState, mkRndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..), defaultAddressPoolGap, mkSeqState )
 import Cardano.Wallet.Primitive.Fee
@@ -237,8 +237,12 @@ import Servant
     )
 import Servant.Server
     ( Handler (..), ServantErr (..) )
+import System.Random
+    ( getStdRandom, random )
 
 import qualified Cardano.Wallet as W
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Random as Rnd
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Data.Aeson as Aeson
@@ -418,7 +422,7 @@ postWallet ctx body = do
     let secondFactor =
             maybe mempty getApiMnemonicT (body ^. #mnemonicSecondFactor)
     let pwd = getApiT (body ^. #passphrase)
-    let rootXPrv = generateKeyFromSeed (seed, secondFactor) pwd
+    let rootXPrv = Seq.generateKeyFromSeed (seed, secondFactor) pwd
     let g = maybe defaultAddressPoolGap getApiT (body ^. #addressPoolGap)
     let s = mkSeqState (rootXPrv, pwd) g
     let wid = WalletId $ digest $ publicKey rootXPrv
@@ -773,10 +777,25 @@ listByronWallets ctx = do
     re = ctx ^. workerRegistry @s @t @k
 
 postByronWallet
-    :: ctx
+    :: forall t. (DefineTx t, KeyToAddress t RndKey)
+    => ApiLayer (RndState t) t RndKey
     -> ByronWalletPostData
     -> Handler ApiByronWallet
-postByronWallet _ _ = throwError err501
+postByronWallet ctx body = do
+    void
+        . liftHandler
+        . createWallet ctx wid name
+        . mkRndState rootXPrv
+        =<< liftIO (getStdRandom random)
+    liftHandler $ withWorkerCtx ctx wid throwE $ \worker ->
+        W.attachPrivateKey worker wid (rootXPrv, passphrase)
+    getByronWallet ctx (ApiT wid)
+  where
+    mnemonicSentence = getApiMnemonicT (body ^. #mnemonicSentence)
+    name = getApiT (body ^. #name)
+    passphrase = getApiT (body ^. #passphrase)
+    rootXPrv = Rnd.generateKeyFromSeed mnemonicSentence passphrase
+    wid = WalletId $ digest $ publicKey rootXPrv
 
 {-------------------------------------------------------------------------------
                                 Helpers

@@ -987,8 +987,14 @@ tearDown ctx = do
         let endpoint = "v2/wallets" </> wal ^. walletId
         d <- request @Value ctx ("DELETE", endpoint) None Empty
         expectResponseCode HTTP.status204 d
+    respByron <-
+        request @[ApiByronWallet] ctx ("GET", "v2/byron/wallets") Default Empty
+    forM_ (wallets (snd respByron)) $ \wal -> do
+        let endpoint = "v2/byron/wallets" </> wal ^. walletId
+        d <- request @Value ctx ("DELETE", endpoint) None Empty
+        expectResponseCode HTTP.status204 d
  where
-     wallets :: Either RequestException [ApiWallet] -> [ApiWallet]
+     wallets :: forall w . Either RequestException [w] -> [w]
      wallets c = case c of
          Left e -> error $ "deleteAllWallets: Cannot return wallets: " <> show e
          Right s -> s
