@@ -143,4 +143,4 @@ prop_putSlotTwicePoolProduction db (StakePoolsFixture pairs) =
             runExceptT (putPoolProduction db' slot pool) `shouldReturn` Right ()
             runExceptT (putPoolProduction db' slot pool) `shouldReturn` Left err
             runExceptT (putPoolProduction db slot pool) `shouldReturn` Right ()
-            --runExceptT (putPoolProduction db slot pool) `shouldReturn` Left err
+            runExceptT (putPoolProduction db slot pool) `shouldReturn` Left err
