@@ -499,6 +499,7 @@ definitions:
       - delegation
       - name
       - state
+      - tip
     properties:
       id: *walletId
       address_pool_gap: *walletAddressPoolGap
@@ -507,6 +508,7 @@ definitions:
       name: *walletName
       passphrase: *walletPassphraseInfo
       state: *walletState
+      tip: *blockReference
 
   ApiByronWallet: &ApiByronWallet
     type: object
@@ -515,12 +517,14 @@ definitions:
       - balance
       - name
       - state
+      - tip
     properties:
       id: *walletId
       balance: *walletBalance
       name: *walletName
       passphrase: *walletPassphraseInfo
       state: *walletState
+      tip: *blockReference
 
   ApiByronWalletMigrationInfo: &ApiByronWalletMigrationInfo
     type: object

@@ -182,6 +182,7 @@ data ApiWallet = ApiWallet
     , name :: !(ApiT WalletName)
     , passphrase :: !(Maybe (ApiT WalletPassphraseInfo))
     , state :: !(ApiT SyncProgress)
+    , tip :: !ApiBlockReference
     } deriving (Eq, Generic, Show)
 
 data ApiStakePool = ApiStakePool
@@ -350,6 +351,7 @@ data ApiByronWallet = ApiByronWallet
     , name :: !(ApiT WalletName)
     , passphrase :: !(Maybe (ApiT WalletPassphraseInfo))
     , state :: !(ApiT SyncProgress)
+    , tip :: !ApiBlockReference
     } deriving (Eq, Generic, Show)
 
 newtype ApiByronWalletMigrationInfo = ApiByronWalletMigrationInfo

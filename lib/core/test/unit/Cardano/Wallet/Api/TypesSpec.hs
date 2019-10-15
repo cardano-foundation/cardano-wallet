@@ -434,6 +434,7 @@ spec = do
                     , name = name (x :: ApiWallet)
                     , passphrase = passphrase (x :: ApiWallet)
                     , state = state (x :: ApiWallet)
+                    , tip = tip (x :: ApiWallet)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -445,6 +446,7 @@ spec = do
                     , name = name (x :: ApiByronWallet)
                     , passphrase = passphrase (x :: ApiByronWallet)
                     , state = state (x :: ApiByronWallet)
+                    , tip = tip (x :: ApiByronWallet)
                     }
             in
                 x' === x .&&. show x' === show x

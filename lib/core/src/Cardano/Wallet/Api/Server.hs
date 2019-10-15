@@ -117,7 +117,12 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Fee
     ( Fee (..) )
 import Cardano.Wallet.Primitive.Model
-    ( BlockchainParameters, availableBalance, getState, totalBalance )
+    ( BlockchainParameters
+    , availableBalance
+    , currentTip
+    , getState
+    , totalBalance
+    )
 import Cardano.Wallet.Primitive.Types
     ( Address
     , AddressState
@@ -876,6 +881,11 @@ getWalletWithCreationTime ctx (ApiT wid) = do
             ApiT <$> meta ^. #passphraseInfo
         , state =
             ApiT $ meta ^. #status
+        , tip = ApiBlockReference
+            { epochNumber = (currentTip wallet) ^. #slotId . #epochNumber
+            , slotNumber =  (currentTip wallet) ^. #slotId . #slotNumber
+            , height = natural $ (currentTip wallet) ^. #blockHeight
+            }
         }
 
 {-------------------------------------------------------------------------------
