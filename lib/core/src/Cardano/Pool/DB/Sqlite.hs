@@ -120,9 +120,12 @@ newDBLayer logConfig trace fp = do
             Map.empty <$> selectPoolProduction epoch
 
         , rollbackTo = \(W.SlotId epoch slot) ->
-             runQuery $ deleteWhere
-                 [ PoolProductionEpochNumber >. epoch
-                 , PoolProductionSlotNumber >. slot ]
+             runQuery $ do
+                deleteWhere
+                    [ PoolProductionEpochNumber >. epoch ]
+                deleteWhere
+                    [ PoolProductionEpochNumber ==. epoch
+                    , PoolProductionSlotNumber >. slot ]
 
         , cleanDB = runQuery $ deleteWhere ([] :: [Filter PoolProduction])
 
