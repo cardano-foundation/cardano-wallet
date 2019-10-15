@@ -158,8 +158,8 @@ prop_rollbackPools db f@(StakePoolsFixture pairs) sl =
   where
     prop = do
         (beforeRollback, afterRollback) <- liftIO $ do
-            runExceptT $ forM_ pairs $ \(pool, slot) ->
-                putPoolProduction db slot pool
+            forM_ pairs $ \(pool, slot) ->
+                runExceptT $ putPoolProduction db slot pool
             before <- map fst <$> allPoolProduction db f
             rollbackTo db sl
             after <- map fst <$> allPoolProduction db f
@@ -175,7 +175,7 @@ prop_rollbackPools db f@(StakePoolsFixture pairs) sl =
 
         assert $ all (<= sl) afterRollback
 
-    showSlot (SlotId ep sl) = show ep ++ "." ++ show sl
+    showSlot (SlotId epoch slot) = show epoch ++ "." ++ show slot
 
 -- | Concatenate stake pool production for all epochs in the test fixture.
 allPoolProduction :: DBLayer IO -> StakePoolsFixture -> IO [(SlotId, PoolId)]
