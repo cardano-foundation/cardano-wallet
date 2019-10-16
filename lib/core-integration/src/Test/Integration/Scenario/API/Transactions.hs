@@ -146,11 +146,11 @@ spec = do
         rb <- request @ApiWallet ctx (getWalletEp wb) Default Empty
         verify rb
             [ expectSuccess
-            , expectEventually ctx balanceAvailable (faucetAmt + amt)
+            , expectEventually ctx getWalletEp balanceAvailable (faucetAmt + amt)
             ]
 
         verify ra
-            [ expectEventually ctx balanceAvailable (faucetAmt - feeMax - amt)
+            [ expectEventually ctx getWalletEp balanceAvailable (faucetAmt - feeMax - amt)
             ]
 
     it "TRANS_CREATE_02 - Multiple Output Tx to single wallet" $ \ctx -> do
@@ -200,8 +200,8 @@ spec = do
             ]
         rd <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
         verify rd
-            [ expectEventually ctx balanceAvailable (2*amt)
-            , expectEventually ctx balanceTotal (2*amt)
+            [ expectEventually ctx getWalletEp balanceAvailable (2*amt)
+            , expectEventually ctx getWalletEp balanceTotal (2*amt)
             ]
 
     it "TRANS_CREATE_02 - Multiple Output Tx to different wallets" $ \ctx -> do
@@ -257,8 +257,8 @@ spec = do
             rd <- request @ApiWallet ctx (getWalletEp wDest) Default payload
             verify rd
                 [ expectSuccess
-                , expectEventually ctx balanceAvailable amt
-                , expectEventually ctx balanceTotal amt
+                , expectEventually ctx getWalletEp balanceAvailable amt
+                , expectEventually ctx getWalletEp balanceTotal amt
                 ]
 
     it "TRANS_CREATE_02 - Multiple Output Txs don't work on single UTxO" $ \ctx -> do
@@ -328,8 +328,8 @@ spec = do
 
         rd <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
         verify rd
-            [ expectEventually ctx balanceAvailable amt
-            , expectEventually ctx balanceTotal amt
+            [ expectEventually ctx getWalletEp balanceAvailable amt
+            , expectEventually ctx getWalletEp balanceTotal amt
             ]
 
         ra2 <- request @ApiWallet ctx (getWalletEp wSrc) Default Empty
@@ -1059,8 +1059,8 @@ spec = do
 
         tx <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
         expectResponseCode HTTP.status202 tx
-        expectEventually' ctx balanceAvailable amt wDest
-        expectEventually' ctx balanceTotal amt wDest
+        expectEventually' ctx getWalletEp balanceAvailable amt wDest
+        expectEventually' ctx getWalletEp balanceTotal amt wDest
 
         -- Verify Tx list contains Incoming and Outgoing
         r <- request @([ApiTransaction t]) ctx (listTxEp wSrc mempty)

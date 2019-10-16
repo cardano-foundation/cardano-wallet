@@ -69,6 +69,7 @@ import Test.Integration.Framework.DSL
     , feeEstimator
     , fixtureWallet
     , fixtureWalletWith
+    , getWalletEp
     , getWalletViaCLI
     , listAddresses
     , listAllTransactions
@@ -138,8 +139,8 @@ spec = do
             , expectCliFieldEqual balanceAvailable (faucetAmt - faucetUtxoAmt)
             ]
 
-        expectEventually' ctx balanceAvailable amt wDest
-        expectEventually' ctx balanceTotal amt wDest
+        expectEventually' ctx getWalletEp balanceAvailable amt wDest
+        expectEventually' ctx getWalletEp balanceTotal amt wDest
 
         -- verify balance on dest wallet
         Stdout gOutDest <- getWalletViaCLI @t ctx (T.unpack (wDest ^. walletId))
@@ -190,8 +191,8 @@ spec = do
             , expectCliFieldEqual balanceAvailable (faucetAmt - 2*faucetUtxoAmt)
             ]
 
-        expectEventually' ctx balanceAvailable (2*amt) wDest
-        expectEventually' ctx balanceTotal (2*amt) wDest
+        expectEventually' ctx getWalletEp balanceAvailable (2*amt) wDest
+        expectEventually' ctx getWalletEp balanceTotal (2*amt) wDest
 
         -- verify balance on dest wallet
         Stdout gOutDest <- getWalletViaCLI @t ctx (T.unpack (wDest ^. walletId))
@@ -245,8 +246,8 @@ spec = do
             ]
 
         forM_ [wDest1, wDest2] $ \wDest -> do
-            expectEventually' ctx balanceAvailable amt wDest
-            expectEventually' ctx balanceTotal amt wDest
+            expectEventually' ctx getWalletEp balanceAvailable amt wDest
+            expectEventually' ctx getWalletEp balanceTotal amt wDest
 
             -- verify balance on dest wallets
             Stdout gOutDest <- getWalletViaCLI @t ctx (T.unpack (wDest ^. walletId))
@@ -306,8 +307,8 @@ spec = do
             , expectCliFieldEqual balanceAvailable 0
             ]
 
-        expectEventually' ctx balanceAvailable amt wDest
-        expectEventually' ctx balanceTotal amt wDest
+        expectEventually' ctx getWalletEp balanceAvailable amt wDest
+        expectEventually' ctx getWalletEp balanceTotal amt wDest
 
         Stdout gOutDest <- getWalletViaCLI @t ctx (T.unpack (wDest ^. walletId))
         destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
@@ -698,8 +699,8 @@ spec = do
         -- post transaction
         (c, _, _) <- postTransactionViaCLI @t ctx "cardano-wallet" args
         c `shouldBe` ExitSuccess
-        expectEventually' ctx balanceAvailable amt wDest
-        expectEventually' ctx balanceTotal amt wDest
+        expectEventually' ctx getWalletEp balanceAvailable amt wDest
+        expectEventually' ctx getWalletEp balanceTotal amt wDest
 
         -- Verify Tx list contains Incoming and Outgoing
         (Exit code, Stdout out, Stderr err) <-

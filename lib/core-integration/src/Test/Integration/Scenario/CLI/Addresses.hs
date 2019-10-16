@@ -42,6 +42,7 @@ import Test.Integration.Framework.DSL
     , expectEventually'
     , expectValidJSON
     , fixtureWallet
+    , getWalletEp
     , listAddressesViaCLI
     , postTransactionViaCLI
     , state
@@ -164,7 +165,7 @@ spec = do
             cTx `shouldBe` ExitSuccess
 
         -- make sure all transactions are in ledger
-        expectEventually' ctx balanceAvailable 10 wDest
+        expectEventually' ctx getWalletEp balanceAvailable 10 wDest
 
         -- verify new address_pool_gap has been created
         (Exit c1, Stdout o1, Stderr e1) <- listAddressesViaCLI @t ctx [widDest]

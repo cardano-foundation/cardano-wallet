@@ -207,8 +207,8 @@ spec = do
         request @ApiTxId ctx postExternalTxEp headers payload
          >>= expectResponseCode HTTP.status202
 
-        expectEventually' ctx balanceAvailable amt w
-        expectEventually' ctx balanceTotal amt w
+        expectEventually' ctx getWalletEp balanceAvailable amt w
+        expectEventually' ctx getWalletEp balanceTotal amt w
 
     it "TRANS_EXTERNAL_CREATE_01 - proper single output transaction and \
        \proper binary format" $ \ctx -> do
@@ -229,11 +229,11 @@ spec = do
         rb <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
         verify rb
             [ expectSuccess
-            , expectEventually ctx balanceAvailable toSend
+            , expectEventually ctx getWalletEp balanceAvailable toSend
             ]
         ra <- request @ApiWallet ctx (getWalletEp wSrc) Default Empty
         verify ra
-            [ expectEventually ctx balanceAvailable (faucetAmt - fee - toSend)
+            [ expectEventually ctx getWalletEp balanceAvailable (faucetAmt - fee - toSend)
             ]
 
     it "TRANS_EXTERNAL_CREATE_02 - proper single output transaction and \

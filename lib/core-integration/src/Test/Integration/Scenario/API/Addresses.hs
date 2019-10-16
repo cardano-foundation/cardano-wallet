@@ -165,7 +165,7 @@ spec = do
 
         -- make sure all transactions are in ledger
         rb <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
-        expectEventually ctx balanceAvailable 10 rb
+        expectEventually ctx getWalletEp balanceAvailable 10 rb
 
         -- verify new address_pool_gap has been created
         rAddr <- request @[ApiAddress t] ctx (getAddressesEp wDest "") Default Empty

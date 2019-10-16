@@ -55,6 +55,7 @@ import Test.Integration.Framework.DSL
     , expectWalletUTxO
     , fixtureWallet
     , generateMnemonicsViaCLI
+    , getWalletEp
     , getWalletUtxoStatisticsViaCLI
     , getWalletViaCLI
     , listAddresses
@@ -100,7 +101,7 @@ spec = do
             , expectCliFieldEqual addressPoolGap 20
             , expectCliFieldEqual balanceAvailable 0
             , expectCliFieldEqual balanceTotal 0
-            , expectEventually' ctx state Ready
+            , expectEventually' ctx getWalletEp state Ready
             , expectCliFieldEqual delegation (NotDelegating)
             , expectCliFieldNotEqual passphraseLastUpdate Nothing
             ]
@@ -134,8 +135,8 @@ spec = do
         _ <- expectValidJSON (Proxy @(ApiTransaction t)) op
         cp `shouldBe` ExitSuccess
 
-        expectEventually' ctx balanceAvailable amount wDest
-        expectEventually' ctx balanceTotal amount wDest
+        expectEventually' ctx getWalletEp balanceAvailable amount wDest
+        expectEventually' ctx getWalletEp balanceTotal amount wDest
 
         -- delete wallet
         Exit cd <- deleteWalletViaCLI @t ctx $ T.unpack (wDest ^. walletId)
@@ -147,7 +148,7 @@ spec = do
         T.unpack e2 `shouldContain` cmdOk
         wRestored <- expectValidJSON (Proxy @ApiWallet) o2
         verify wRestored
-            [ expectEventually' ctx state Ready
+            [ expectEventually' ctx getWalletEp state Ready
             , expectCliFieldEqual walletId (wDest ^. walletId)
             ]
 
@@ -601,8 +602,10 @@ spec = do
             _ <- expectValidJSON (Proxy @(ApiTransaction t)) op
             cp `shouldBe` ExitSuccess
             let coinsSent = map fromIntegral $ take alreadyAbsorbed coins
-            expectEventually' ctx balanceAvailable (fromIntegral $ sum coinsSent) wDest
-            expectEventually' ctx balanceTotal (fromIntegral $ sum coinsSent) wDest
+            expectEventually' ctx getWalletEp balanceAvailable
+                (fromIntegral $ sum coinsSent) wDest
+            expectEventually' ctx getWalletEp balanceTotal
+                (fromIntegral $ sum coinsSent) wDest
             --verify utxo
             (Exit c, Stdout o, Stderr e)
                     <- getWalletUtxoStatisticsViaCLI @t ctx $ T.unpack (wDest ^. walletId)

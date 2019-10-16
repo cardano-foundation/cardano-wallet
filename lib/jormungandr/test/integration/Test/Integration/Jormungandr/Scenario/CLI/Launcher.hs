@@ -56,6 +56,7 @@ import Test.Integration.Framework.DSL
     , expectPathEventuallyExist
     , expectValidJSON
     , generateMnemonicsViaCLI
+    , getWalletEp
     , proc'
     , shouldContainT
     , shouldNotContainT
@@ -190,7 +191,7 @@ spec = do
                 TIO.hGetContents e >>= TIO.putStrLn
             withCreateProcess process $ \_ (Just o) (Just e) ph -> do
                 waitForServer @t ctx
-                expectEventually' ctx state Ready wallet
+                expectEventually' ctx getWalletEp state Ready wallet
               `finally` do
                 terminateProcess ph
                 TIO.hGetContents o >>= TIO.putStrLn
