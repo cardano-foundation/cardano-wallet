@@ -20,6 +20,7 @@ module Cardano.Wallet.DB
     , sparseCheckpoints
 
       -- * Errors
+    , ErrNoSuchTransaction (..)
     , ErrNoSuchWallet(..)
     , ErrWalletAlreadyExists(..)
     ) where
@@ -183,6 +184,11 @@ data DBLayer m s t k = DBLayer
 -- | Can't perform given operation because there's no wallet
 newtype ErrNoSuchWallet
     = ErrNoSuchWallet WalletId -- Wallet is gone or doesn't exist yet
+    deriving (Eq, Show)
+
+-- | Can't perform given operation because there's no transaction
+newtype ErrNoSuchTransaction
+    = ErrNoSuchTransaction (Hash "Tx")
     deriving (Eq, Show)
 
 -- | Forbidden operation was executed on an already existing wallet

@@ -41,9 +41,11 @@ import Cardano.Wallet
     , ErrCreateUnsignedTx (..)
     , ErrDecodeSignedTx (..)
     , ErrEstimateTxFee (..)
+    , ErrForgetPendingTx (..)
     , ErrListTransactions (..)
     , ErrListUTxOStatistics (..)
     , ErrMkStdTx (..)
+    , ErrNoSuchTransaction (..)
     , ErrNoSuchWallet (..)
     , ErrPostTx (..)
     , ErrSignTx (..)
@@ -559,6 +561,7 @@ transactions ctx =
     :<|> listTransactions ctx
     :<|> postTransactionFee ctx
     :<|> postExternalTransaction ctx
+    :<|> deleteTransaction ctx
 
 postTransaction
     :: forall ctx s t k.
@@ -610,6 +613,23 @@ postExternalTransaction
 postExternalTransaction ctx (PostExternalTransactionData load) = do
     tx <- liftHandler $ W.submitExternalTx @ctx @t @k ctx load
     return $ ApiTxId (ApiT (txId @t tx))
+
+deleteTransaction
+    :: forall ctx s t k.
+        ( s ~ SeqState t
+        , ctx ~ ApiLayer s t k
+        , DefineTx t
+        )
+    => ctx
+    -> ApiT WalletId
+    -> ApiTxId
+    -> Handler NoContent
+deleteTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
+    liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
+        W.forgetPendingTx wrk wid tid
+    return NoContent
+  where
+    liftE = throwE . ErrForgetPendingTxNoSuchWallet
 
 listTransactions
     :: forall ctx s t k.
@@ -1079,6 +1099,14 @@ instance LiftHandler ErrNoSuchWallet where
                 , toText wid
                 ]
 
+instance LiftHandler ErrNoSuchTransaction where
+    handler = \case
+        ErrNoSuchTransaction tid ->
+            apiError err404 NoSuchTransaction $ mconcat
+                [ "I couldn't find a transaction with the given id: "
+                , toText tid
+                ]
+
 instance LiftHandler ErrWalletAlreadyExists where
     handler = \case
         ErrWalletAlreadyExists wid ->
@@ -1235,6 +1263,16 @@ instance LiftHandler ErrSubmitExternalTx where
             { errHTTPCode = 400
             , errReasonPhrase = errReasonPhrase err400
             }
+
+instance LiftHandler ErrForgetPendingTx where
+    handler = \case
+        ErrForgetPendingTxNoSuchWallet e -> handler e
+        ErrForgetPendingTxNoSuchTransaction e -> handler e
+        ErrForgetPendingTxTransactionIsNotPending tid ->
+            apiError err404 TransactionNotPending $ mconcat
+                [ "The transaction with id : ", pretty tid,
+                  "cannot be forgotten as it is not pending anymore."
+                ]
 
 instance LiftHandler ErrSubmitTx where
     handler = \case
