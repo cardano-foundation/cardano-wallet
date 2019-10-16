@@ -42,6 +42,6 @@ AnyAddressState
     anyAddressStateCheckpointSlot  W.SlotId    sql=slot
     anyAddressStateProportion      Double      sql=proportion
 
-    UniqueAnyAddressState anyAddressStateWalletId anyAddressStateCheckpointSlot
+    UniqueAnyAddressState anyAddressStateWalletId anyAddressStateCheckpointSlot ! ON DELETE CASCADE
     deriving Show Generic
 |]
