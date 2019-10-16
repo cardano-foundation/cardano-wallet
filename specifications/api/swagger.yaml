@@ -1188,21 +1188,6 @@ paths:
         - *parametersTransactionId
       responses: *responsesDeleteTransaction
 
-  /external-transactions:
-    post:
-      operationId: postExternalTransaction
-      tags: ["Transactions"]
-      summary: Submit External Transaction
-      consumes: ["application/octet-stream"]
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-
-        Submits a transaction that was created and signed outside of cardano-wallet.
-      parameters:
-        - <<: *parametersBody
-          schema: *signedTransactionBlob
-      responses: *responsesPostExternalTransaction
-
   /wallets/{walletId}/addresses:
     get:
       operationId: listAddresses

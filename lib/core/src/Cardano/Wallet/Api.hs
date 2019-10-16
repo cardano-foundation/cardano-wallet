@@ -234,11 +234,6 @@ type ListTransactions t = "wallets"
     :> QueryParam "order" (ApiT SortOrder)
     :> Get '[JSON] [ApiTransaction t]
 
--- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postExternalTransaction
-type PostExternalTransaction = "external-transactions"
-    :> ReqBody '[OctetStream] PostExternalTransactionData
-    :> PostAccepted '[JSON] ApiTxId
-
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteTransaction
 type DeleteTransaction = "wallets"
     :> Capture "walletId" (ApiT WalletId)
