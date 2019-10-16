@@ -737,11 +737,8 @@ instance MimeRender OctetStream PostExternalTransactionData where
    mimeRender _ (PostExternalTransactionData val) = BL.fromStrict val
 
 instance FromHttpApiData ApiTxId where
-    parseUrlPiece = first (T.pack . getTextDecodingError) . fromText
-
-instance FromText ApiTxId where
-    fromText txt = case fromText txt of
-        Left err -> Left $ TextDecodingError $ show err
+    parseUrlPiece txt = case fromText txt of
+        Left (TextDecodingError err) -> Left $ T.pack err
         Right tid -> Right $ ApiTxId $ ApiT tid
 
 instance ToHttpApiData ApiTxId where

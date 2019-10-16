@@ -616,8 +616,7 @@ postExternalTransaction ctx (PostExternalTransactionData load) = do
 
 deleteTransaction
     :: forall ctx s t k.
-        ( s ~ SeqState t
-        , ctx ~ ApiLayer s t k
+        ( ctx ~ ApiLayer s t k
         , DefineTx t
         )
     => ctx
@@ -1270,8 +1269,8 @@ instance LiftHandler ErrForgetPendingTx where
         ErrForgetPendingTxNoSuchTransaction e -> handler e
         ErrForgetPendingTxTransactionIsNotPending tid ->
             apiError err404 TransactionNotPending $ mconcat
-                [ "The transaction with id : ", pretty tid,
-                  "cannot be forgotten as it is not pending anymore."
+                [ "The transaction with id : ", toText tid,
+                  " cannot be forgotten as it is not pending anymore."
                 ]
 
 instance LiftHandler ErrSubmitTx where
