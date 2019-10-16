@@ -104,7 +104,6 @@ import Servant.API
     , NoContent
     , OctetStream
     , PostAccepted
-    , PostNoContent
     , Put
     , PutNoContent
     , QueryParam
@@ -125,9 +124,8 @@ type CompatibilityApi t =
     :<|> GetByronWallet
     :<|> GetByronWalletMigrationInfo
     :<|> ListByronWallets
-    :<|> MigrateByronWallet
+    :<|> MigrateByronWallet t
     :<|> PostByronWallet
-
 
 {-------------------------------------------------------------------------------
                                   Addresses
@@ -293,13 +291,13 @@ type ListByronWallets = "byron"
     :> Get '[JSON] [ApiByronWallet]
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/migrateByronWallet
-type MigrateByronWallet = "byron"
+type MigrateByronWallet t = "byron"
     :> "wallets"
     :> Capture "sourceWalletId" (ApiT WalletId)
     :> "migrate"
     :> Capture "targetWalletId" (ApiT WalletId)
     :> ReqBody '[JSON] ApiMigrateByronWalletData
-    :> PostNoContent '[Any] NoContent
+    :> PostAccepted '[JSON] [ApiTransaction t]
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postByronWallet
 type PostByronWallet = "byron"
