@@ -42,7 +42,10 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     flags = { development = false; };
     package = {
       specVersion = "1.10";
-      identifier = { name = "cardano-wallet-launcher"; version = "2019.9.13"; };
+      identifier = {
+        name = "cardano-wallet-launcher";
+        version = "2019.10.16";
+        };
       license = "Apache-2.0";
       copyright = "2019 IOHK";
       maintainer = "operations@iohk.io";

@@ -102,7 +102,7 @@ spec = do
         it "LOGGING - Launch can log --verbose" $ \ctx -> do
             pendingWith
                 "Somewhat unreliable in CI. Often fails with: \
-                \'does not contain \"Running as v2019.9.13\"'"
+                \'does not contain \"Running as v2019.10.16\"'"
             let args =
                     ["serve"
                     , "--node-port"
@@ -127,7 +127,7 @@ spec = do
         it "LOGGING - Serve --quiet logs Error only" $ \ctx -> do
             pendingWith
                 "Somewhat unreliable in CI. Often fails with: \
-                \'does not contain \"Running as v2019.9.13\"'"
+                \'does not contain \"Running as v2019.10.16\"'"
             let args =
                     ["serve"
                     , "--node-port"
@@ -145,7 +145,7 @@ spec = do
         it "LOGGING - Serve default logs Info" $ \ctx -> do
             pendingWith
                 "Somewhat unreliable in CI. Often fails with: \
-                \'does not contain \"Running as v2019.9.13\"'"
+                \'does not contain \"Running as v2019.10.16\"'"
             let args =
                     ["serve"
                     , "--node-port"
