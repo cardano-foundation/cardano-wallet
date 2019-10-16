@@ -176,7 +176,7 @@ waitForNetwork nw policy = do
 -- for no longer than a minute.
 defaultRetryPolicy :: Monad m => RetryPolicyM m
 defaultRetryPolicy =
-    limitRetriesByCumulativeDelay (60 * second) (exponentialBackoff 10000)
+    limitRetriesByCumulativeDelay (3600 * second) (exponentialBackoff 10000)
   where
     second = 1000*1000
 
