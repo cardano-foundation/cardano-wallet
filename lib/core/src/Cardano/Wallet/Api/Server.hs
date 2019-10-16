@@ -184,7 +184,7 @@ import Data.Generics.Internal.VL.Lens
 import Data.Generics.Labels
     ()
 import Data.List
-    ( sortOn )
+    ( isSubsequenceOf, sortOn )
 import Data.Maybe
     ( fromMaybe, isJust )
 import Data.Proxy
@@ -1327,7 +1327,7 @@ instance LiftHandler (Request, ServantErr) where
             ]
         415 ->
             let cType =
-                    if "external-transactions" `elem` (pathInfo req)
+                    if ["proxy", "transactions"] `isSubsequenceOf` pathInfo req
                         then "application/octet-stream"
                         else "application/json"
             in apiError err' UnsupportedMediaType $ mconcat

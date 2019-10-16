@@ -989,9 +989,9 @@ tearDown ctx = do
         d <- request @Value ctx ("DELETE", endpoint) None Empty
         expectResponseCode HTTP.status204 d
     respByron <-
-        request @[ApiByronWallet] ctx ("GET", "v2/byron/wallets") Default Empty
+        request @[ApiByronWallet] ctx ("GET", "v2/byron-wallets") Default Empty
     forM_ (wallets (snd respByron)) $ \wal -> do
-        let endpoint = "v2/byron/wallets" </> wal ^. walletId
+        let endpoint = "v2/byron-wallets" </> wal ^. walletId
         d <- request @Value ctx ("DELETE", endpoint) None Empty
         expectResponseCode HTTP.status204 d
  where
@@ -1055,37 +1055,37 @@ networkInfoEp =
 postByronWalletEp :: (Method, Text)
 postByronWalletEp =
     ( "POST"
-    , "v2/byron/wallets"
+    , "v2/byron-wallets"
     )
 
 listByronWalletEp :: (Method, Text)
 listByronWalletEp =
     ( "GET"
-    , "v2/byron/wallets"
+    , "v2/byron-wallets"
     )
 
 migrateByronWalletEp :: ApiByronWallet -> ApiWallet -> (Method, Text)
 migrateByronWalletEp wSrc wDest =
     ( "POST"
-    , "v2/byron/wallets/" <> wSrc ^. walletId <> "/migrate/" <> wDest ^. walletId
+    , "v2/byron-wallets/" <> wSrc ^. walletId <> "/migrations/" <> wDest ^. walletId
     )
 
 calculateByronMigrationCostEp :: ApiByronWallet -> (Method, Text)
 calculateByronMigrationCostEp w =
     ( "GET"
-    , "v2/byron/wallets/" <> w ^. walletId <> "/migrate"
+    , "v2/byron-wallets/" <> w ^. walletId <> "/migrations"
     )
 
 getByronWalletEp :: ApiByronWallet -> (Method, Text)
 getByronWalletEp w =
     ( "GET"
-    , "v2/byron/wallets/" <> w ^. walletId
+    , "v2/byron-wallets/" <> w ^. walletId
     )
 
 deleteByronWalletEp :: ApiByronWallet -> (Method, Text)
 deleteByronWalletEp w =
     ( "DELETE"
-    , "v2/byron/wallets/" <> w ^. walletId
+    , "v2/byron-wallets/" <> w ^. walletId
     )
 
 listStakePoolsEp :: (Method, Text)
@@ -1103,7 +1103,7 @@ postWalletEp =
 postExternalTxEp :: (Method, Text)
 postExternalTxEp =
     ( "POST"
-    , "v2/external-transactions"
+    , "v2/proxy/transactions"
     )
 
 getWalletEp :: ApiWallet -> (Method, Text)
