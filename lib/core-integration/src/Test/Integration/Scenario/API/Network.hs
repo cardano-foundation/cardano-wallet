@@ -26,10 +26,11 @@ import Test.Integration.Framework.DSL
     , eventually
     , expectErrorMessage
     , expectEventually'
-    , expectEventuallyByron'
     , expectFieldEqual
     , expectResponseCode
+    , getByronWalletEp
     , getFromResponse
+    , getWalletEp
     , networkInfoEp
     , request
     , state
@@ -59,10 +60,10 @@ spec = do
         let slotNum = getFromResponse (#nodeTip . #slotNumber . #getApiT) r
         let blockHeight = getFromResponse (#nodeTip . #height) r
 
-        expectEventually' ctx state Ready w
-        expectEventually' ctx (#tip . #epochNumber . #getApiT) epochNum w
-        expectEventually' ctx (#tip . #slotNumber . #getApiT) slotNum  w
-        expectEventually' ctx (#tip . #height) blockHeight w
+        expectEventually' ctx getWalletEp state Ready w
+        expectEventually' ctx getWalletEp (#tip . #epochNumber . #getApiT) epochNum w
+        expectEventually' ctx getWalletEp (#tip . #slotNumber . #getApiT) slotNum  w
+        expectEventually' ctx getWalletEp (#tip . #height) blockHeight w
 
     it "NETWORK_BYRON - Byron wallet has the same tip as network/information" $ \ctx -> do
         let getNetworkInfo = request @ApiNetworkInformation ctx networkInfoEp Default Empty
@@ -75,10 +76,10 @@ spec = do
         let slotNum = getFromResponse (#nodeTip . #slotNumber . #getApiT) r
         let blockHeight = getFromResponse (#nodeTip . #height) r
 
-        expectEventuallyByron' ctx state Ready w
-        expectEventuallyByron' ctx (#tip . #epochNumber . #getApiT) epochNum w
-        expectEventuallyByron' ctx (#tip . #slotNumber . #getApiT) slotNum  w
-        expectEventuallyByron' ctx (#tip . #height) blockHeight w
+        expectEventually' ctx getByronWalletEp state Ready w
+        expectEventually' ctx getByronWalletEp (#tip . #epochNumber . #getApiT) epochNum w
+        expectEventually' ctx getByronWalletEp (#tip . #slotNumber . #getApiT) slotNum  w
+        expectEventually' ctx getByronWalletEp (#tip . #height) blockHeight w
 
     describe "NETWORK - v2/network/information - Methods Not Allowed" $ do
         let matrix = ["POST", "CONNECT", "TRACE", "OPTIONS"]

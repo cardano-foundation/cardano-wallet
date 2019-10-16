@@ -46,7 +46,7 @@ import Test.Integration.Framework.DSL
     , emptyWallet
     , emptyWalletWith
     , expectErrorMessage
-    , expectEventuallyByron
+    , expectEventually
     , expectFieldEqual
     , expectFieldNotEqual
     , expectListItemFieldEqual
@@ -297,7 +297,7 @@ spec = do
                     [ expectFieldEqual walletName name
                     , expectFieldEqual balanceAvailable 0
                     , expectFieldEqual balanceTotal 0
-                    , expectEventuallyByron ctx state Ready
+                    , expectEventually ctx getByronWalletEp state Ready
                     , expectFieldNotEqual passphraseLastUpdate Nothing
                     ]
         -- create

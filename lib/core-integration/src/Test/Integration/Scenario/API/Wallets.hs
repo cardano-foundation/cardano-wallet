@@ -128,7 +128,7 @@ spec = do
             , expectFieldEqual addressPoolGap 30
             , expectFieldEqual balanceAvailable 0
             , expectFieldEqual balanceTotal 0
-            , expectEventually ctx state Ready
+            , expectEventually ctx getWalletEp state Ready
             , expectFieldEqual delegation (NotDelegating)
             , expectFieldEqual walletId "2cf060fe53e4e0593f145f22b858dfc60676d4ab"
             , expectFieldNotEqual passphraseLastUpdate Nothing
@@ -166,8 +166,8 @@ spec = do
 
         rGet <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
         verify rGet
-            [ expectEventually ctx balanceTotal 1
-            , expectEventually ctx balanceAvailable 1
+            [ expectEventually ctx getWalletEp balanceTotal 1
+            , expectEventually ctx getWalletEp balanceAvailable 1
             ]
 
         -- delete wallet
@@ -178,8 +178,8 @@ spec = do
         rRestore <- request @ApiWallet ctx ("POST", "v2/wallets") Default payldCrt
         verify rRestore
             [ expectResponseCode @IO HTTP.status202
-            , expectEventually ctx balanceAvailable 1
-            , expectEventually ctx balanceTotal 1
+            , expectEventually ctx getWalletEp balanceAvailable 1
+            , expectEventually ctx getWalletEp balanceTotal 1
             ]
 
     it "WALLETS_CREATE_03,09 - Cannot create wallet that exists" $ \ctx -> do
@@ -820,7 +820,7 @@ spec = do
             , expectFieldEqual addressPoolGap 20
             , expectFieldEqual balanceAvailable 0
             , expectFieldEqual balanceTotal 0
-            , expectEventually ctx state Ready
+            , expectEventually ctx getWalletEp state Ready
             , expectFieldEqual delegation (NotDelegating)
             , expectFieldEqual walletId walId
             , expectFieldNotEqual passphraseLastUpdate Nothing
@@ -959,7 +959,7 @@ spec = do
                     , expectFieldEqual addressPoolGap 20
                     , expectFieldEqual balanceAvailable 0
                     , expectFieldEqual balanceTotal 0
-                    , expectEventually ctx state Ready
+                    , expectEventually ctx getWalletEp state Ready
                     , expectFieldEqual delegation (NotDelegating)
                     , expectFieldEqual walletId walId
                     , expectFieldEqual passphraseLastUpdate passLastUpdateValue
@@ -1477,8 +1477,10 @@ spec = do
             rGet <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
             let coinsSent = map fromIntegral $ take alreadyAbsorbed coins
             verify rGet
-                [ expectEventually ctx balanceTotal (fromIntegral $ sum coinsSent)
-                , expectEventually ctx balanceAvailable (fromIntegral $ sum coinsSent)
+                [ expectEventually ctx getWalletEp balanceTotal
+                    (fromIntegral $ sum coinsSent)
+                , expectEventually ctx getWalletEp balanceAvailable
+                    (fromIntegral $ sum coinsSent)
                 ]
             --verify utxo
             rStat1 <- request @ApiUtxoStatistics ctx (getWalletUtxoEp wDest) Default Empty

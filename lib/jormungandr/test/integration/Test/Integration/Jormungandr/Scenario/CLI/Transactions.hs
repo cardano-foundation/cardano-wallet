@@ -47,6 +47,7 @@ import Test.Integration.Framework.DSL
     , expectEventually'
     , expectValidJSON
     , faucetAmt
+    , getWalletEp
     , getWalletViaCLI
     , listAddresses
     , postExternalTransactionViaCLI
@@ -81,8 +82,8 @@ spec = do
         out `shouldContain` "id"
         code `shouldBe` ExitSuccess
 
-        expectEventually' ctx balanceAvailable amt w
-        expectEventually' ctx balanceTotal amt w
+        expectEventually' ctx getWalletEp balanceAvailable amt w
+        expectEventually' ctx getWalletEp balanceTotal amt w
 
     it "TRANS_EXTERNAL_CREATE_01 - proper single output transaction and \
        \proper binary format" $ \ctx -> do
@@ -107,8 +108,8 @@ spec = do
             [ expectCliFieldEqual balanceTotal (faucetAmt - fee - toSend)
             ]
 
-        expectEventually' ctx balanceAvailable toSend wDest
-        expectEventually' ctx balanceTotal toSend wDest
+        expectEventually' ctx getWalletEp balanceAvailable toSend wDest
+        expectEventually' ctx getWalletEp balanceTotal toSend wDest
 
         -- verify balance on dest wallet
         Stdout gOutDest <- getWalletViaCLI @t ctx (T.unpack (wDest ^. walletId))
