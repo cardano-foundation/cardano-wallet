@@ -208,6 +208,7 @@ type Transactions t =
     :<|> ListTransactions t
     :<|> PostTransactionFee t
     :<|> PostExternalTransaction
+    :<|> DeleteTransaction
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransaction
 type CreateTransaction t = "wallets"
@@ -232,6 +233,13 @@ type ListTransactions t = "wallets"
     :> QueryParam "end" Iso8601Time
     :> QueryParam "order" (ApiT SortOrder)
     :> Get '[JSON] [ApiTransaction t]
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteTransaction
+type DeleteTransaction = "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "transactions"
+    :> Capture "transactionId" ApiTxId
+    :> DeleteNoContent '[Any] NoContent
 
 {-------------------------------------------------------------------------------
                                   StakePools

@@ -97,6 +97,7 @@ import System.Exit
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
+import qualified Cardano.Wallet.Jormungandr.Binary as J
 import qualified Data.Text as T
 import qualified Network.Wai.Handler.Warp as Warp
 
@@ -128,21 +129,21 @@ serveWallet (cfg, sb, tr) databaseDir listen lj beforeMainLoop = do
             let nPort = Port $ baseUrlPort $ _restApi cp
             waitForService "Jörmungandr" (sb, tr) nPort $
                 waitForNetwork nl defaultRetryPolicy
-            rndApi <- apiLayer tr nl
-            seqApi <- apiLayer tr nl
-            startServer tr nPort nl rndApi seqApi
+            let (_, bp) = staticBlockchainParameters nl
+            rndApi <- apiLayer tr (toWLBlock <$> nl)
+            seqApi <- apiLayer tr (toWLBlock <$> nl)
+            startServer tr nPort bp rndApi seqApi
             pure ExitSuccess
         Left e -> handleNetworkStartupError e
   where
     startServer
         :: Trace IO Text
         -> Port "node"
-        -> NetworkLayer IO t (Block Tx)
+        -> BlockchainParameters
         -> ApiLayer (RndState t) t RndKey
         -> ApiLayer (SeqState t) t SeqKey
         -> IO ()
-    startServer tracer nPort nl rndWallet seqWallet = do
-        let (_, bp) = staticBlockchainParameters nl
+    startServer tracer nPort bp rndWallet seqWallet = do
         Server.withListeningSocket listen $ \(wPort, socket) -> do
             let tracerIPC = appendName "daedalus-ipc" tracer
             let tracerApi = appendName "api" tracer
@@ -152,6 +153,8 @@ serveWallet (cfg, sb, tr) databaseDir listen lj beforeMainLoop = do
             let apiServer =
                     Server.start settings tracerApi socket rndWallet seqWallet
             race_ ipcServer apiServer
+
+    toWLBlock = J.convertBlock
 
     apiLayer
         :: forall s k .

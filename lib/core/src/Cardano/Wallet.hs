@@ -72,6 +72,7 @@ module Cardano.Wallet
     , updateWalletPassphrase
     , ErrWalletAlreadyExists (..)
     , ErrNoSuchWallet (..)
+    , ErrNoSuchTransaction (..)
     , ErrListUTxOStatistics (..)
     , ErrUpdatePassphrase (..)
 
@@ -81,6 +82,7 @@ module Cardano.Wallet
     -- ** Transaction
     , createUnsignedTx
     , estimateTxFee
+    , forgetPendingTx
     , listTransactions
     , signTx
     , submitExternalTx
@@ -93,6 +95,7 @@ module Cardano.Wallet
     , ErrCoinSelection (..)
     , ErrSubmitTx (..)
     , ErrSubmitExternalTx (..)
+    , ErrForgetPendingTx (..)
     , ErrPostTx (..)
     , ErrDecodeSignedTx (..)
     , ErrValidateSelection
@@ -110,6 +113,7 @@ import Cardano.BM.Trace
     ( Trace, logDebug, logInfo )
 import Cardano.Wallet.DB
     ( DBLayer
+    , ErrNoSuchTransaction (..)
     , ErrNoSuchWallet (..)
     , ErrWalletAlreadyExists (..)
     , PrimaryKey (..)
@@ -167,6 +171,7 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , DefineTx (..)
     , Direction (..)
+    , Hash (..)
     , Range (..)
     , SlotId (..)
     , SlotParameters (..)
@@ -829,6 +834,17 @@ submitExternalTx ctx bytes = do
     nw = ctx ^. networkLayer @t
     tl = ctx ^. transactionLayer @t @k
 
+-- | Forget pending transaction.
+forgetPendingTx
+    :: forall ctx s t k.
+        ( HasDBLayer s t k ctx
+        , DefineTx t
+        )
+    => ctx
+    -> WalletId
+    -> Hash "Tx"
+    -> ExceptT ErrForgetPendingTx IO ()
+forgetPendingTx _ctx _wid _tid = undefined
 
 -- | List all transactions and metadata from history for a given wallet.
 listTransactions
@@ -1011,6 +1027,13 @@ data ErrSubmitTx
 data ErrSubmitExternalTx
     = ErrSubmitExternalTxNetwork ErrPostTx
     | ErrSubmitExternalTxDecode ErrDecodeSignedTx
+    deriving (Show, Eq)
+
+-- | Errors that can occur when trying to change a wallet's passphrase.
+data ErrForgetPendingTx
+    = ErrForgetPendingTxNoSuchWallet ErrNoSuchWallet
+    | ErrForgetPendingTxNoSuchTransaction ErrNoSuchTransaction
+    | ErrForgetPendingTxTransactionIsNotPending (Hash "Tx")
     deriving (Show, Eq)
 
 -- | Errors that can occur when trying to change a wallet's passphrase.

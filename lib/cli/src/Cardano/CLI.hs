@@ -958,6 +958,10 @@ data WalletClient t = WalletClient
     , postExternalTransaction
         :: PostExternalTransactionData
         -> ClientM ApiTxId
+    , deleteTransaction
+        :: ApiT WalletId
+        -> ApiTxId
+        -> ClientM NoContent
     , listPools
         :: ClientM [ApiStakePool]
     , networkInformation
@@ -986,6 +990,7 @@ walletClient =
             :<|> _listTransactions
             :<|> _postTransactionFee
             :<|> _postExternalTransaction
+            :<|> _deleteTransaction
             = transactions
 
         _listPools = pools
@@ -1003,6 +1008,7 @@ walletClient =
             , listTransactions = _listTransactions
             , postTransaction = _postTransaction
             , postExternalTransaction = _postExternalTransaction
+            , deleteTransaction = _deleteTransaction
             , postTransactionFee = _postTransactionFee
             , getWalletUtxoStatistics = _getWalletUtxoStatistics
             , listPools = _listPools

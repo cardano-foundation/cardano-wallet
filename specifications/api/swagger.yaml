@@ -674,6 +674,15 @@ x-parametersWalletId: &parametersWalletId
   maxLength: 40
   minLength: 40
 
+x-parametersTransactionId: &parametersTransactionId
+  in: path
+  name: transactionId
+  required: true
+  type: string
+  format: hex
+  maxLength: 64
+  minLength: 64
+
 x-parametersStakePoolId: &parametersStakePoolId
   in: path
   name: stakePoolId
@@ -857,6 +866,16 @@ x-responsesPutWallet: &responsesPutWallet
     schema: *ApiWallet
 
 x-responsesPutWalletPassphrase: &responsesPutWalletPassphrase
+  <<: *responsesErr400
+  <<: *responsesErr403
+  <<: *responsesErr404
+  <<: *responsesErr405
+  <<: *responsesErr406
+  <<: *responsesErr415
+  204:
+    description: No Content
+
+x-responsesDeleteTransaction: &responsesDeleteTransaction
   <<: *responsesErr400
   <<: *responsesErr403
   <<: *responsesErr404
@@ -1154,6 +1173,20 @@ paths:
         - <<: *parametersBody
           schema: *ApiPostTransactionFeeData
       responses: *responsesPostTransactionFee
+
+  /wallets/{walletId}/transactions/{transactionId}:
+    delete:
+      operationId: deleteTransaction
+      tags: ["Transactions"]
+      summary: Delete
+      description: |
+        <p align="right">status: <strong>under development</strong></p>
+
+        Forget pending transaction.
+      parameters:
+        - *parametersWalletId
+        - *parametersTransactionId
+      responses: *responsesDeleteTransaction
 
   /wallets/{walletId}/addresses:
     get:

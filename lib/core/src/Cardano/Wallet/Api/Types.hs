@@ -298,6 +298,8 @@ data ApiNetworkInformation = ApiNetworkInformation
 -- | Error codes returned by the API, in the form of snake_cased strings
 data ApiErrorCode
     = NoSuchWallet
+    | NoSuchTransaction
+    | TransactionNotPending
     | WalletAlreadyExists
     | NoRootKey
     | WrongEncryptionPassphrase
@@ -733,6 +735,14 @@ instance MimeUnrender OctetStream PostExternalTransactionData where
 
 instance MimeRender OctetStream PostExternalTransactionData where
    mimeRender _ (PostExternalTransactionData val) = BL.fromStrict val
+
+instance FromHttpApiData ApiTxId where
+    parseUrlPiece txt = case fromText txt of
+        Left (TextDecodingError err) -> Left $ T.pack err
+        Right tid -> Right $ ApiTxId $ ApiT tid
+
+instance ToHttpApiData ApiTxId where
+    toUrlPiece (ApiTxId (ApiT tid)) = toText tid
 
 {-------------------------------------------------------------------------------
                                 Aeson Options
