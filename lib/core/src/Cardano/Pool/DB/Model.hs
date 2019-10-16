@@ -41,11 +41,9 @@ module Cardano.Pool.DB.Model
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( PoolId, SlotId (..) )
+    ( EpochNo (..), PoolId, SlotId (..) )
 import Data.Map.Strict
     ( Map )
-import Data.Word
-    ( Word64 )
 import GHC.Generics
     ( Generic )
 
@@ -92,7 +90,7 @@ mPutPoolProduction point poolId db@(PoolDatabase pools) =
     else
         (Right (), PoolDatabase (Map.alter (alter point) poolId pools))
 
-mReadPoolProduction :: Word64 -> ModelPoolOp (Map PoolId [SlotId])
+mReadPoolProduction :: EpochNo -> ModelPoolOp (Map PoolId [SlotId])
 mReadPoolProduction epoch db@(PoolDatabase pools) =
     let updateSlots e = Map.map (filter (\(SlotId e' _) -> e' == e))
         updatePools = Map.filter (not . L.null)

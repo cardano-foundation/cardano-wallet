@@ -19,8 +19,10 @@ import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
     , EpochLength (..)
+    , EpochNo (..)
     , Hash (..)
     , SlotId (..)
+    , SlotNo (..)
     , flatSlot
     , slotMinBound
     )
@@ -31,7 +33,7 @@ import Control.Monad.Trans.Except
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
-    ( Word16, Word32, Word64 )
+    ( Word16, Word32 )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldSatisfy )
 
@@ -96,7 +98,8 @@ spec = do
                     , headerHash = Hash "http-bridge"
                     , parentHeaderHash = mockHash (SlotId 99 21599)
                     }
-            Right blocks <- runExceptT $ getBlocks <$> nextBlocks network (cursor h)
+            Right blocks <-
+                runExceptT $ getBlocks <$> nextBlocks network (cursor h)
             -- an entire epoch's worth of blocks
             length blocks `shouldBe` 21599
             map (epochNumber . slotId . header) blocks
@@ -109,7 +112,8 @@ spec = do
                     , headerHash = Hash "http-bridge"
                     , parentHeaderHash = mockHash (SlotId 104 9999)
                     }
-            Right blocks <- runExceptT $ getBlocks <$> nextBlocks network (cursor h)
+            Right blocks <-
+                runExceptT $ getBlocks <$> nextBlocks network (cursor h)
             -- the number of remaining blocks in epoch 104
             length blocks `shouldBe` 11599
             map (epochNumber . slotId . header) blocks
@@ -170,7 +174,7 @@ mockHeaderFromHash h = BlockHeader slot (mockBlockHeight slot) hh prevHash
     prevHash =
         case (ep, sl) of
             (0, 0) -> Hash "genesis"
-            (_, 0) -> mockHash (SlotId (ep-1) (slotsPerEpoch - 1))
+            (_, 0) -> mockHash (SlotId (ep-1) ((SlotNo slotsPerEpoch) - 1))
             _ -> mockHash (SlotId ep (sl - 1))
 
 -- | Uses the flat SlotId as blockHeight. This would only happen naturally if
@@ -180,7 +184,7 @@ mockBlockHeight = Quantity . fromIntegral . flatSlot (EpochLength slotsPerEpoch)
 
 -- | Generate an entire epoch's worth of mock blocks. There are no transactions
 -- generated.
-mockEpoch :: Word64 -> [Block Tx]
+mockEpoch :: EpochNo -> [Block Tx]
 mockEpoch ep =
     [ Block (mockHeaderFromHash (mockHash sl)) mempty
     | sl <- [ SlotId ep i | i <- epochs ]
@@ -191,7 +195,7 @@ mockEpoch ep =
 mockNetworkLayer
     :: Monad m
     => (String -> m ()) -- ^ logger function
-    -> Word64 -- ^ make getEpoch fail for epochs after this
+    -> EpochNo -- ^ make getEpoch fail for epochs after this
     -> SlotId -- ^ the tip block
     -> NetworkLayer m (HttpBridge 'Testnet) (Block Tx)
 mockNetworkLayer logLine firstUnstableEpoch tip =
@@ -201,7 +205,7 @@ mockNetworkLayer logLine firstUnstableEpoch tip =
 mockHttpBridge
     :: Monad m
     => (String -> m ()) -- ^ logger function
-    -> Word64 -- ^ make getEpoch fail for epochs after this
+    -> EpochNo -- ^ make getEpoch fail for epochs after this
     -> SlotId -- ^ the tip block
     -> HttpBridgeLayer m
 mockHttpBridge logLine firstUnstableEpoch tip = HttpBridgeLayer
@@ -209,7 +213,8 @@ mockHttpBridge logLine firstUnstableEpoch tip = HttpBridgeLayer
         lift $ logLine $ "mock getBlock " ++ show hash
         pure $ Block (mockHeaderFromHash hash) mempty
 
-    , getEpoch = \ep -> do
+    , getEpoch = \rawEp -> do
+        let ep = EpochNo rawEp
         lift $ logLine $ "mock getEpoch " ++ show ep
         if ep < firstUnstableEpoch then
             pure $ mockEpoch ep

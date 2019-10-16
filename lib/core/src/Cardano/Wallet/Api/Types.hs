@@ -82,10 +82,11 @@ import Cardano.Wallet.Primitive.Types
     , DecodeAddress (..)
     , Direction (..)
     , EncodeAddress (..)
+    , EpochNo (..)
     , Hash (..)
     , PoolId (..)
     , ShowFmt (..)
-    , SlotId (..)
+    , SlotNo (..)
     , SyncProgress (..)
     , TxIn (..)
     , TxStatus (..)
@@ -145,7 +146,7 @@ import Data.Time
 import Data.Time.Text
     ( iso8601, iso8601ExtendedUtc, utcTimeFromText, utcTimeToText )
 import Data.Word
-    ( Word16, Word64 )
+    ( Word64 )
 import Fmt
     ( pretty )
 import GHC.Generics
@@ -277,8 +278,8 @@ data ApiTimeReference = ApiTimeReference
     } deriving (Eq, Generic, Show)
 
 data ApiBlockReference = ApiBlockReference
-    { epochNumber :: !Word64
-    , slotNumber :: !Word16
+    { epochNumber :: !(ApiT EpochNo)
+    , slotNumber :: !(ApiT SlotNo)
     , height :: !(Quantity "block" Natural)
     } deriving (Eq, Generic, Show)
 
@@ -549,11 +550,6 @@ instance DecodeAddress t => FromJSON (PostTransactionFeeData t) where
 instance EncodeAddress t => ToJSON (PostTransactionFeeData t) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON (ApiT SlotId) where
-    parseJSON = fmap ApiT . genericParseJSON defaultRecordTypeOptions
-instance ToJSON (ApiT SlotId) where
-    toJSON = genericToJSON defaultRecordTypeOptions . getApiT
-
 instance FromJSON ApiTimeReference where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiTimeReference where
@@ -563,6 +559,16 @@ instance FromJSON ApiBlockReference where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiBlockReference where
     toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON (ApiT EpochNo) where
+    parseJSON = fmap (ApiT . EpochNo) . parseJSON
+instance ToJSON (ApiT EpochNo) where
+    toJSON (ApiT (EpochNo en))= toJSON en
+
+instance FromJSON (ApiT SlotNo) where
+    parseJSON = fmap (ApiT . SlotNo) . parseJSON
+instance ToJSON (ApiT SlotNo) where
+    toJSON (ApiT (SlotNo sn)) = toJSON sn
 
 instance DecodeAddress t => FromJSON (AddressAmount t) where
     parseJSON bytes = do

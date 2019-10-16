@@ -20,11 +20,9 @@ module Cardano.Wallet.StakePool.Metrics
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), PoolId (..), SlotId (..) )
+    ( BlockHeader (..), EpochNo (..), PoolId (..), SlotId (..) )
 import Data.Map.Strict
     ( Map )
-import Data.Word
-    ( Word64 )
 import Fmt
     ( Buildable (..), blockListF', fmt, (+|), (|+) )
 import GHC.Generics
@@ -34,7 +32,7 @@ import qualified Data.Map.Strict as Map
 
 -- | For a given epoch, and state, this function returns /how many/ blocks
 -- each pool produced.
-activityForEpoch :: Word64 -> State -> Map PoolId Int
+activityForEpoch :: EpochNo -> State -> Map PoolId Int
 activityForEpoch epoch s =
     Map.filter (> 0)
     $ Map.map (length . filter slotInCurrentEpoch)

@@ -18,13 +18,11 @@ module Cardano.Pool.DB
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( PoolId, SlotId (..) )
+    ( EpochNo (..), PoolId, SlotId (..) )
 import Control.Monad.Trans.Except
     ( ExceptT )
 import Data.Map.Strict
     ( Map )
-import Data.Word
-    ( Word64 )
 
 -- | A Database interface for storing pool production in DB.
 data DBLayer m = DBLayer
@@ -35,7 +33,7 @@ data DBLayer m = DBLayer
         -- ^ Write for a given slot id the id of stake pool that produced a
         -- a corresponding block
 
-    , readPoolProduction :: Word64 -> m (Map PoolId [SlotId])
+    , readPoolProduction :: EpochNo -> m (Map PoolId [SlotId])
         -- ^ Read the all stake pools together with corresponding slot ids
         -- for a given epoch.
 

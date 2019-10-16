@@ -40,14 +40,14 @@ import Cardano.Pool.DB
 import Cardano.Pool.DB.Sqlite.TH
 import Cardano.Pool.DB.Sqlite.Types
     ()
+import Cardano.Wallet.Primitive.Types
+    ( EpochNo (..), SlotId (..), SlotNo (..) )
 import Control.Exception
     ( bracket )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Data.Text
     ( Text )
-import Data.Word
-    ( Word64 )
 import Database.Persist.Sql
     ( Entity (..)
     , Filter
@@ -62,7 +62,6 @@ import Database.Persist.Sqlite
     ( SqlPersistT )
 
 import qualified Cardano.BM.Configuration.Model as CM
-import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Map.Strict as Map
 
 -- | Runs an action with a connection to the SQLite database.
@@ -110,16 +109,16 @@ newDBLayer logConfig trace fp = do
     ctx@SqliteContext{runQuery} <-
         startSqliteBackend logConfig migrateAll trace' fp
     return (ctx, DBLayer
-        { putPoolProduction = \s@(W.SlotId epoch slot) pool ->
+        { putPoolProduction = \s@(SlotId (EpochNo epoch) (SlotNo slot)) pool ->
             ExceptT $ runQuery $ handleConstraint (ErrSlotAlreadyExists s) $
             insert_ (PoolProduction epoch slot pool)
 
         , readPoolProduction = \epoch ->
             runQuery $ foldl (\m (PoolProduction e s p) ->
-                Map.alter (alter (W.SlotId e s)) p m)
+                Map.alter (alter (SlotId (EpochNo e) (SlotNo s))) p m)
             Map.empty <$> selectPoolProduction epoch
 
-        , rollbackTo = \(W.SlotId epoch slot) ->
+        , rollbackTo = \(SlotId (EpochNo epoch) (SlotNo slot)) ->
              runQuery $ do
                 deleteWhere
                     [ PoolProductionEpochNumber >. epoch ]
@@ -136,9 +135,9 @@ newDBLayer logConfig trace fp = do
           Just slots -> Just (slot:slots)
 
 selectPoolProduction
-    :: Word64
+    :: EpochNo
     -> SqlPersistT IO [PoolProduction]
-selectPoolProduction epoch = fmap entityVal <$>
+selectPoolProduction (EpochNo epoch) = fmap entityVal <$>
     selectList
         [PoolProductionEpochNumber ==. epoch]
         [Asc PoolProductionSlotNumber]

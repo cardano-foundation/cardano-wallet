@@ -33,10 +33,12 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Direction (..)
     , EpochLength (..)
+    , EpochNo (..)
     , FeePolicy
     , Hash (..)
     , PoolId
     , SlotId (..)
+    , SlotNo (..)
     , SyncProgress (..)
     , TxStatus (..)
     , WalletId (..)
@@ -270,6 +272,18 @@ instance ToJSON SlotId where
 
 instance FromJSON SlotId where
     parseJSON = genericParseJSON defaultOptions
+
+instance ToJSON SlotNo where
+    toJSON (SlotNo n) = toJSON n
+
+instance FromJSON SlotNo where
+    parseJSON = fmap SlotNo . parseJSON
+
+instance ToJSON EpochNo where
+    toJSON (EpochNo n) = toJSON n
+
+instance FromJSON EpochNo where
+    parseJSON = fmap EpochNo . parseJSON
 
 ----------------------------------------------------------------------------
 -- SyncProgress

@@ -60,7 +60,9 @@ import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
     , DefineTx
+    , EpochNo (..)
     , SlotId (..)
+    , SlotNo (..)
     , StartTime (..)
     , SyncProgress (..)
     , UTxO (..)
@@ -347,7 +349,7 @@ getCurrentSlot :: Text -> IO SlotId
 getCurrentSlot net = calcSlot <$> startTime net <*> getPOSIXTime
   where
     calcSlot :: POSIXTime -> POSIXTime -> SlotId
-    calcSlot start now = SlotId ep idx
+    calcSlot start now = SlotId (EpochNo ep) (SlotNo idx)
       where
         d = now - start
         slotDur = 20
