@@ -464,8 +464,8 @@ withJormungandr tr (JormungandrConfig stateDir block0 mPort logSeverity output e
     startBackend (apiPort, baseUrl) = getGenesisBlockArg block0 >>= \case
         Right (block0H, genesisBlockArg) -> do
             let args = genesisBlockArg ++
-                    [ "--config", nodeConfigFile
-                    , "--log-level", C.toLower <$> show logSeverity
+                    [ -- "--config", nodeConfigFile
+                     "--log-level", C.toLower <$> show logSeverity
                     ] ++ map T.unpack extraArgs
             let cmd = Command "jormungandr" args (return ()) output
             let tr' = transformLauncherTrace tr
