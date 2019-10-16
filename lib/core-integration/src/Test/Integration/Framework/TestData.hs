@@ -1,4 +1,6 @@
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Test.Integration.Framework.TestData
     ( -- * Mnemonics
@@ -41,6 +43,7 @@ module Test.Integration.Framework.TestData
     , simplePayload
     , updateNamePayload
     , updatePassPayload
+    , getHeaderCases
 
     -- * Error messages
     , errMsgWalletIdEncoding
@@ -71,7 +74,44 @@ import Cardano.Wallet.Version
 import Data.Text
     ( Text, pack, unpack )
 import Test.Integration.Framework.DSL
-    ( Payload (..), json )
+    ( Headers (..)
+    , Payload (..)
+    , RequestException
+    , expectErrorMessage
+    , expectResponseCode
+    , json
+    )
+
+import qualified Network.HTTP.Types.Status as HTTP
+
+-- useful for testing GET/DELETE endpoints (ones without payload)
+getHeaderCases
+    :: forall a. (Show a)
+    => HTTP.Status
+    -> [(String, Headers, [(HTTP.Status, Either RequestException a) -> IO ()])]
+getHeaderCases expectedOKStatus =
+          [ ( "No HTTP headers -> OK", None
+            , [ expectResponseCode @IO expectedOKStatus ] )
+          , ( "Accept: text/plain -> 406"
+            , Headers
+                  [ ("Content-Type", "application/json")
+                  , ("Accept", "text/plain") ]
+            , [ expectResponseCode @IO HTTP.status406
+              , expectErrorMessage errMsg406 ]
+            )
+          , ( "No Accept -> OK"
+            , Headers [ ("Content-Type", "application/json") ]
+            , [ expectResponseCode @IO expectedOKStatus ]
+            )
+          , ( "No Content-Type -> OK"
+            , Headers [ ("Accept", "application/json") ]
+            , [ expectResponseCode @IO expectedOKStatus ]
+            )
+          , ( "Content-Type: text/plain -> OK"
+            , Headers [ ("Content-Type", "text/plain") ]
+            , [ expectResponseCode @IO expectedOKStatus ]
+            )
+          ]
 
 falseWalletIds :: [(String, String)]
 falseWalletIds =

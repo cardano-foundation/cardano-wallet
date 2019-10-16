@@ -81,6 +81,7 @@ import Test.Integration.Framework.TestData
     , falseWalletIds
     , frenchMnemonics12
     , frenchMnemonics21
+    , getHeaderCases
     , invalidMnemonics12
     , invalidMnemonics15
     , japaneseMnemonics12
@@ -862,7 +863,8 @@ spec = do
             expectErrorMessage errMsg405 r
 
     describe "WALLETS_GET_05 - HTTP headers" $ do
-        forM_ getHeaderCases $ \(title, headers, expectations) -> it title $ \ctx -> do
+        forM_ (getHeaderCases HTTP.status200)
+            $ \(title, headers, expectations) -> it title $ \ctx -> do
             r <- request @ApiWallet ctx ("POST", "v2/wallets") Default simplePayload
             let endpoint = "v2/wallets" </> (getFromResponse walletId r)
             rg <- request @ApiWallet ctx ("GET", endpoint) headers Empty
@@ -916,7 +918,8 @@ spec = do
             ]
 
     describe "WALLETS_LIST_03 - HTTP headers" $ do
-        forM_ getHeaderCases $ \(title, headers, expectations) -> it title $ \ctx -> do
+        forM_ (getHeaderCases HTTP.status200)
+            $ \(title, headers, expectations) -> it title $ \ctx -> do
             _ <- request @ApiWallet ctx ("POST", "v2/wallets") Default simplePayload
             rl <- request @ApiWallet ctx ("GET", "v2/wallets") headers Empty
             verify rl expectations
@@ -939,34 +942,11 @@ spec = do
         expectErrorMessage errMsg404NoEndpoint rg
 
     describe "WALLETS_DELETE_03 - HTTP headers" $ do
-        let matrix =
-                  [ ( "No HTTP headers -> 204", None
-                    , [ expectResponseCode @IO HTTP.status204 ] )
-                  , ( "Accept: text/plain -> 406"
-                    , Headers
-                          [ ("Content-Type", "application/json")
-                          , ("Accept", "text/plain") ]
-                    , [ expectResponseCode @IO HTTP.status406
-                      , expectErrorMessage errMsg406 ]
-                    )
-                  , ( "No Accept -> 204"
-                    , Headers [ ("Content-Type", "application/json") ]
-                    , [ expectResponseCode @IO HTTP.status204 ]
-                    )
-                  , ( "No Content-Type -> 204"
-                    , Headers [ ("Accept", "application/json") ]
-                    , [ expectResponseCode @IO HTTP.status204 ]
-                    )
-                  , ( "Content-Type: text/plain -> 204"
-                    , Headers [ ("Content-Type", "text/plain") ]
-                    , [ expectResponseCode @IO HTTP.status204 ]
-                    )
-                  ]
-        forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> do
-            r <- request @ApiWallet ctx ("POST", "v2/wallets") Default simplePayload
-            let endpoint = "v2/wallets" </> (getFromResponse walletId r)
-            rl <- request @ApiWallet ctx ("DELETE", endpoint) headers Empty
-            verify rl expectations
+        forM_ (getHeaderCases HTTP.status204)
+            $ \(title, headers, expectations) -> it title $ \ctx -> do
+            w <- emptyWallet ctx
+            rd <- request @ApiWallet ctx (deleteWalletEp w) headers Empty
+            verify rd expectations
 
     it "WALLETS_UPDATE_01 - Updated wallet name is available" $ \ctx -> do
 
@@ -1584,27 +1564,3 @@ spec = do
             r <- request @ApiUtxoStatistics ctx (method, endpoint) Default Empty
             expectResponseCode @IO HTTP.status405 r
             expectErrorMessage errMsg405 r
- where
-    getHeaderCases =
-              [ ( "No HTTP headers -> 200", None
-                , [ expectResponseCode @IO HTTP.status200 ] )
-              , ( "Accept: text/plain -> 406"
-                , Headers
-                      [ ("Content-Type", "application/json")
-                      , ("Accept", "text/plain") ]
-                , [ expectResponseCode @IO HTTP.status406
-                  , expectErrorMessage errMsg406 ]
-                )
-              , ( "No Accept -> 200"
-                , Headers [ ("Content-Type", "application/json") ]
-                , [ expectResponseCode @IO HTTP.status200 ]
-                )
-              , ( "No Content-Type -> 200"
-                , Headers [ ("Accept", "application/json") ]
-                , [ expectResponseCode @IO HTTP.status200 ]
-                )
-              , ( "Content-Type: text/plain -> 200"
-                , Headers [ ("Content-Type", "text/plain") ]
-                , [ expectResponseCode @IO HTTP.status200 ]
-                )
-              ]
