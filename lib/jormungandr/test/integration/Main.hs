@@ -17,7 +17,7 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Trace
     ( Trace )
 import Cardano.CLI
-    ( withLogging )
+    ( Port (..), withLogging )
 import Cardano.Faucet
     ( initFaucet )
 import Cardano.Launcher
@@ -48,12 +48,12 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
-import Data.Text.Class
-    ( showT )
 import GHC.IO.Encoding
     ( mkTextEncoding, setLocaleEncoding )
 import Network.HTTP.Client
     ( defaultManagerSettings, newManager )
+import Network.Socket
+    ( SockAddr (..) )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -127,15 +127,16 @@ specWithServer (cfg, tr) = beforeAll start . after tearDown
         ctx <- newEmptyMVar
         pid <- async $ bracket setupConfig teardownConfig $ \jmCfg -> do
             let listen = ListenOnRandomPort
-            serveWallet (cfg, tr) Nothing listen (Launch jmCfg) $ \wPort nPort bp -> do
-                let baseUrl = "http://localhost:" <> T.pack (showT wPort) <> "/"
+            serveWallet (cfg, tr) Nothing "127.0.0.1" listen (Launch jmCfg) $
+                \wAddr nPort bp -> do
+                let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
                 manager <- (baseUrl,) <$> newManager defaultManagerSettings
                 faucet <- initFaucet
                 putMVar ctx $  Context
                     { _cleanup = pure ()
                     , _manager = manager
                     , _nodePort = nPort
-                    , _walletPort = wPort
+                    , _walletPort = sockAddrPort wAddr
                     , _faucet = faucet
                     , _feeEstimator = mkFeeEstimator (getFeePolicy bp)
                     , _target = Proxy
@@ -147,6 +148,12 @@ specWithServer (cfg, tr) = beforeAll start . after tearDown
 -- encountered.
 setUtf8LenientCodecs :: IO ()
 setUtf8LenientCodecs = mkTextEncoding "UTF-8//IGNORE" >>= setLocaleEncoding
+
+sockAddrPort :: SockAddr -> Port a
+sockAddrPort addr = Port . fromIntegral $ case addr of
+    SockAddrInet p _ -> p
+    SockAddrInet6 p _ _ _ -> p
+    _ -> 0
 
 mkFeeEstimator :: FeePolicy -> TxDescription -> (Natural, Natural)
 mkFeeEstimator policy (TxDescription nInps nOuts) =

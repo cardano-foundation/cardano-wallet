@@ -36,7 +36,7 @@ import Cardano.Launcher
 import Cardano.Wallet.Api
     ( ApiLayer )
 import Cardano.Wallet.Api.Server
-    ( Listen (..) )
+    ( HostPreference, Listen (..), ListenError (..) )
 import Cardano.Wallet.DaedalusIPC
     ( daedalusIPC )
 import Cardano.Wallet.DB
@@ -87,6 +87,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..), showT )
+import Network.Socket
+    ( SockAddr, getSocketName )
 import Network.Wai.Handler.Warp
     ( setBeforeMainLoop )
 import System.Exit
@@ -111,14 +113,16 @@ serveWallet
     -- ^ Logging config.
     -> Maybe FilePath
     -- ^ Database folder filepath
+    -> HostPreference
+    -- ^ Which host to bind.
     -> Listen
     -- ^ HTTP API Server port.
     -> JormungandrBackend
     -- ^ Whether and how to launch or use the node backend.
-    -> (Port "wallet" -> Port "node" -> BlockchainParameters -> IO ())
+    -> (SockAddr -> Port "node" -> BlockchainParameters -> IO ())
     -- ^ Callback to run before the main loop
     -> IO ExitCode
-serveWallet (cfg, tr) databaseDir listen lj beforeMainLoop = do
+serveWallet (cfg, tr) databaseDir hostPref listen lj beforeMainLoop = do
     installSignalHandlers tr
     logInfo tr "Wallet backend server starting..."
     logInfo tr $ "Node is Jörmungandr on " <> toText (networkVal @n)
@@ -131,7 +135,6 @@ serveWallet (cfg, tr) databaseDir listen lj beforeMainLoop = do
             rndApi <- apiLayer tr (toWLBlock <$> nl)
             seqApi <- apiLayer tr (toWLBlock <$> nl)
             startServer tr nPort bp rndApi seqApi
-            pure ExitSuccess
         Left e -> handleNetworkStartupError e
   where
     startServer
@@ -140,17 +143,21 @@ serveWallet (cfg, tr) databaseDir listen lj beforeMainLoop = do
         -> BlockchainParameters
         -> ApiLayer (RndState t) t RndKey
         -> ApiLayer (SeqState t) t SeqKey
-        -> IO ()
+        -> IO ExitCode
     startServer tracer nPort bp rndWallet seqWallet = do
-        Server.withListeningSocket listen $ \(wPort, socket) -> do
-            let tracerIPC = appendName "daedalus-ipc" tracer
-            let tracerApi = appendName "api" tracer
-            let settings = Warp.defaultSettings
-                    & setBeforeMainLoop (beforeMainLoop (Port wPort) nPort bp)
-            let ipcServer = daedalusIPC tracerIPC wPort
-            let apiServer =
-                    Server.start settings tracerApi socket rndWallet seqWallet
-            race_ ipcServer apiServer
+        Server.withListeningSocket hostPref listen $ \case
+            Right (wPort, socket) -> do
+                sockAddr <- getSocketName socket
+                let tracerIPC = appendName "daedalus-ipc" tracer
+                let tracerApi = appendName "api" tracer
+                let settings = Warp.defaultSettings
+                        & setBeforeMainLoop (beforeMainLoop sockAddr nPort bp)
+                let ipcServer = daedalusIPC tracerIPC wPort
+                let apiServer =
+                        Server.start settings tracerApi socket rndWallet seqWallet
+                race_ ipcServer apiServer
+                pure ExitSuccess
+            Left e -> handleApiServerStartupError e
 
     toWLBlock = J.convertBlock
 
@@ -231,3 +238,25 @@ serveWallet (cfg, tr) databaseDir listen lj beforeMainLoop = do
         failWith tr $ mempty
             <> "I successfully retrieved the genesis block from Jörmungandr, "
             <> "but there's no initial fee policy defined?"
+
+    handleApiServerStartupError :: ListenError -> IO ExitCode
+    handleApiServerStartupError = \case
+        ListenErrorHostDoesNotExist host ->
+            failWith tr $ mempty
+                <> "Can't listen on "
+                <> T.pack (show host)
+                <> ". It does not exist."
+        ListenErrorInvalidAddress host ->
+            failWith tr $ mempty
+                <> "Can't listen on "
+                <> T.pack (show host)
+                <> ". Invalid address."
+        ListenErrorAddressAlreadyInUse mPort ->
+            failWith tr $ mempty
+                <> "The API server listen port "
+                <> maybe "(unknown)" (T.pack . show) mPort
+                <> " is already in use."
+        ListenErrorOperationNotPermitted ->
+            failWith tr $ mempty
+                <> "Cannot listen on the given port. "
+                <> "The operation is not permitted."

@@ -58,6 +58,7 @@ library
     , lifted-base
     , monad-control
     , memory
+    , network
     , safe
     , servant
     , servant-client
@@ -102,6 +103,7 @@ executable cardano-wallet-jormungandr
     , cardano-wallet-launcher
     , filepath
     , iohk-monitoring
+    , network
     , optparse-applicative
     , process
     , text
@@ -211,6 +213,7 @@ test-suite integration
     , lifted-base
     , memory
     , monad-control
+    , network
     , persistent
     , process
     , retry

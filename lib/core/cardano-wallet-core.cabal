@@ -206,6 +206,7 @@ test-suite unit
       Cardano.Pool.DB.Properties
       Cardano.Pool.DB.SqliteSpec
       Cardano.Pool.MetricsSpec
+      Cardano.Wallet.Api.ServerSpec
       Cardano.Wallet.Api.TypesSpec
       Cardano.Wallet.ApiSpec
       Cardano.Wallet.DB.Arbitrary

@@ -26,6 +26,8 @@
 
 module Cardano.Wallet.Api.Server
     ( Listen (..)
+    , ListenError (..)
+    , HostPreference
     , start
     , newApiLayer
     , withListeningSocket
@@ -164,9 +166,11 @@ import Control.DeepSeq
     ( NFData )
 import Control.Exception
     ( AsyncException (..)
+    , IOException
     , SomeException
     , asyncExceptionFromException
     , bracket
+    , tryJust
     )
 import Control.Monad
     ( forM_, void )
@@ -195,7 +199,7 @@ import Data.Quantity
 import Data.Set
     ( Set )
 import Data.Streaming.Network
-    ( bindPortTCP, bindRandomPortTCP )
+    ( HostPreference, bindPortTCP, bindRandomPortTCP )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -245,6 +249,12 @@ import Servant
     )
 import Servant.Server
     ( Handler (..), ServantErr (..) )
+import System.IO.Error
+    ( ioeGetErrorType
+    , isAlreadyInUseError
+    , isDoesNotExistError
+    , isPermissionError
+    )
 import System.Random
     ( getStdRandom, random )
 
@@ -312,19 +322,44 @@ start settings trace socket rndCtx seqCtx = do
 -- | Run an action with a TCP socket bound to a port specified by the `Listen`
 -- parameter.
 withListeningSocket
-    :: Listen
+    :: HostPreference
+    -- ^ Which host to bind.
+    -> Listen
     -- ^ Whether to listen on a given port, or random port.
-    -> ((Port, Socket) -> IO ())
+    -> (Either ListenError (Port, Socket) -> IO a)
     -- ^ Action to run with listening socket.
-    -> IO ()
-withListeningSocket portOpt = bracket acquire release
+    -> IO a
+withListeningSocket hostPreference portOpt = bracket acquire release
   where
-    acquire = case portOpt of
+    acquire = tryJust handleErr $ case portOpt of
         ListenOnPort port -> (port,) <$> bindPortTCP port hostPreference
         ListenOnRandomPort -> bindRandomPortTCP hostPreference
-    release (_, socket) = liftIO $ close socket
-    -- TODO: make configurable, default to secure for now.
-    hostPreference = "127.0.0.1"
+    release (Right (_, socket)) = liftIO $ close socket
+    release (Left _) = pure ()
+    handleErr = ioToListenError hostPreference portOpt
+
+data ListenError
+    = ListenErrorAddressAlreadyInUse (Maybe Port)
+    | ListenErrorOperationNotPermitted
+    | ListenErrorHostDoesNotExist HostPreference
+    | ListenErrorInvalidAddress HostPreference
+    deriving (Show, Eq)
+
+ioToListenError :: HostPreference -> Listen -> IOException -> Maybe ListenError
+ioToListenError hostPreference portOpt e
+    | isAlreadyInUseError e =
+        Just (ListenErrorAddressAlreadyInUse (listenPort portOpt))
+    | isPermissionError e =
+        Just ListenErrorOperationNotPermitted
+    | isDoesNotExistError e =
+        Just (ListenErrorHostDoesNotExist hostPreference)
+    | show (ioeGetErrorType e) == "invalid argument" =
+        Just (ListenErrorInvalidAddress hostPreference)
+    | otherwise =
+        Nothing
+  where
+    listenPort (ListenOnPort port) = Just port
+    listenPort ListenOnRandomPort = Nothing
 
 {-------------------------------------------------------------------------------
                                    Core API
