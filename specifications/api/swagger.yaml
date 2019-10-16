@@ -962,6 +962,24 @@ x-responsesGetNetworkInformation: &responsesGetNetworkInformation
 #                                                                           #
 #############################################################################
 
+x-tagGroups:
+  - name: Shelley (Sequential)
+    tags:
+    - Wallets
+    - Addresses
+    - Transactions
+    - Stake Pools
+
+  - name: Byron (Random)
+    tags:
+    - Byron Wallets
+    - Byron Migrations
+
+  - name: Miscellaneous
+    tags:
+    - Network
+    - Proxy
+
 paths:
   /wallets:
     get:
@@ -1137,21 +1155,6 @@ paths:
           schema: *ApiPostTransactionFeeData
       responses: *responsesPostTransactionFee
 
-  /external-transactions:
-    post:
-      operationId: postExternalTransaction
-      tags: ["Transactions"]
-      summary: Submit External Transaction
-      consumes: ["application/octet-stream"]
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-
-        Submits a transaction that was created and signed outside of cardano-wallet.
-      parameters:
-        - <<: *parametersBody
-          schema: *signedTransactionBlob
-      responses: *responsesPostExternalTransaction
-
   /wallets/{walletId}/addresses:
     get:
       operationId: listAddresses
@@ -1208,22 +1211,13 @@ paths:
           schema: *parametersQuitStakePool
       responses: *responsesQuitStakePool
 
-  /network/information:
-    get:
-        operationId: getNetworkInformation
-        tags: ["Network"]
-        summary: Information
-        description: |
-          <p align="right">status: <strong>provisional</strong></p>
-        responses: *responsesGetNetworkInformation
-
-  /byron/wallets:
+  /byron-wallets:
     get:
       operationId: listByronWallets
       tags: ["Byron Wallets"]
       summary: List
       description: |
-        <p align="right">status: <strong>not implemented</strong></p>
+        <p align="right">status: <strong>under testing</strong></p>
 
         Return a list of known Byron wallets, ordered from oldest to newest.
       responses: *responsesListByronWallets
@@ -1233,7 +1227,7 @@ paths:
       tags: ["Byron Wallets"]
       summary: Restore
       description: |
-        <p align="right">status: <strong>not implemented</strong></p>
+        <p align="right">status: <strong>under testing</strong></p>
 
         Restore a Byron wallet from a mnemonic sentence.
       parameters:
@@ -1241,13 +1235,13 @@ paths:
           schema: *ApiByronWalletPostData
       responses: *responsesPostByronWallet
 
-  /byron/wallets/{walletId}:
+  /byron-wallets/{walletId}:
     get:
       operationId: getByronWallet
       tags: ["Byron Wallets"]
       summary: Get
       description: |
-        <p align="right">status: <strong>not implemented</strong></p>
+        <p align="right">status: <strong>under testing</strong></p>
 
         Return information about a Byron wallet.
       parameters:
@@ -1259,18 +1253,18 @@ paths:
       tags: ["Byron Wallets"]
       summary: Delete
       description: |
-        <p align="right">status: <strong>not implemented</strong></p>
+        <p align="right">status: <strong>under testing</strong></p>
 
         Delete a Byron wallet.
       parameters:
         - *parametersWalletId
       responses: *responsesDeleteWallet
 
-  /byron/wallets/{walletId}/migrate:
+  /byron-wallets/{walletId}/migrations:
     get:
       operationId: getByronWalletMigrationInfo
-      tags: ["Byron Wallets"]
-      summary: Calculate Migration Cost
+      tags: ["Byron Migrations"]
+      summary: Calculate Cost
       description: |
         <p align="right">status: <strong>not implemented</strong></p>
 
@@ -1280,10 +1274,10 @@ paths:
         - *parametersWalletId
       responses: *responsesGetByronWalletMigrationInfo
 
-  /byron/wallets/{sourceWalletId}/migrate/{targetWalletId}:
+  /byron-wallets/{sourceWalletId}/migrations/{targetWalletId}:
     post:
       operationId: migrateByronWallet
-      tags: ["Byron Wallets"]
+      tags: ["Byron Migrations"]
       summary: Migrate
       description: |
         <p align="right">status: <strong>not implemented</strong></p>
@@ -1297,3 +1291,27 @@ paths:
         - <<: *parametersBody
           schema: *ApiMigrateByronWalletData
       responses: *responsesMigrateByronWallet
+
+  /network/information:
+    get:
+        operationId: getNetworkInformation
+        tags: ["Network"]
+        summary: Information
+        description: |
+          <p align="right">status: <strong>stable</strong></p>
+        responses: *responsesGetNetworkInformation
+
+  /proxy/transactions:
+    post:
+      operationId: postExternalTransaction
+      tags: ["Proxy"]
+      summary: Submit External Transaction
+      consumes: ["application/octet-stream"]
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Submits a transaction that was created and signed outside of cardano-wallet.
+      parameters:
+        - <<: *parametersBody
+          schema: *signedTransactionBlob
+      responses: *responsesPostExternalTransaction

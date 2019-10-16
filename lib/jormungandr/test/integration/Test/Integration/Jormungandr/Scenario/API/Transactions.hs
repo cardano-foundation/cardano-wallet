@@ -277,7 +277,7 @@ spec = do
             ]
 
     describe "TRANS_EXTERNAL_CREATE_04 - \
-        \v2/external-transactions - Methods Not Allowed" $ do
+        \v2/proxy/transactions - Methods Not Allowed" $ do
 
         let matrix = ["PUT", "DELETE", "CONNECT", "TRACE", "OPTIONS", "GET"]
         forM_ matrix $ \method -> it (show method) $ \ctx -> do
@@ -289,7 +289,7 @@ spec = do
             let payload = (NonJson . BL.fromStrict . toRawBytes Base16) txBlob
             let headers = Headers [ ("Content-Type", "application/octet-stream") ]
 
-            let endpoint = "v2/external-transactions"
+            let endpoint = "v2/proxy/transactions"
             r <- request @ApiTxId ctx (method, endpoint) headers payload
             expectResponseCode @IO HTTP.status405 r
             expectErrorMessage errMsg405 r
