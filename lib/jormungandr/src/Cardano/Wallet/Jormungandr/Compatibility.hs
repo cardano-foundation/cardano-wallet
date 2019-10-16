@@ -251,7 +251,7 @@ genConfigFile stateDir addressPort (BaseUrl _ host port _) = object
 -------------------------------------------------------------------------------}
 
 localhostBaseUrl :: Int -> BaseUrl
-localhostBaseUrl port = BaseUrl Http "127.0.0.1" port "/api"
+localhostBaseUrl port = BaseUrl Http "127.0.0.1" port ""
 
 -- | Format an API 'BaseUrl', for logging, etc.
 baseUrlToText :: BaseUrl -> T.Text

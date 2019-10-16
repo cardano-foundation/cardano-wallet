@@ -191,10 +191,14 @@ serveWallet (cfg, sb, tr) databaseDir listen lj beforeMainLoop = do
                 handleGenesisNotFound h
             ErrGetBlockchainParamsIncompleteParams _ ->
                 handleNoInitialPolicy
-        ErrStartupGenesisBlockFailed file ->
+        ErrStartupInvalidGenesisBlock file ->
             failWith (sb, tr) $ mempty
                 <> "As far as I can tell, this isn't a valid block file: "
                 <> T.pack file
+        ErrStartupInvalidGenesisHash h ->
+            failWith (sb, tr) $ mempty
+                <> "As far as I can tell, this isn't a valid block hash: "
+                <> T.pack h
         ErrStartupCommandExited pe -> case pe of
             ProcessDidNotStart _cmd exc ->
                 failWith (sb, tr) $

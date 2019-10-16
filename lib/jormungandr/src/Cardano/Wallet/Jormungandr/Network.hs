@@ -492,7 +492,7 @@ parseBlock0H file = parse <$> BL.readFile file
   where
     parse bytes = case runGetOrFail J.getBlockId bytes of
         Right (_, _, block0H) -> Right (coerce block0H)
-        Left _ -> Left (ErrStartupGenesisBlockFailed file)
+        Left _ -> Left (ErrStartupInvalidGenesisBlock file)
 
 -- | Extract the port number from the base URL part of the connection params.
 connParamsPort :: JormungandrConnParams -> Int
@@ -500,9 +500,10 @@ connParamsPort (JormungandrConnParams _ url) = baseUrlPort url
 
 data ErrStartup
     = ErrStartupNodeNotListening
-    | ErrStartupGetBlockchainParameters ErrGetBlockchainParams
-    | ErrStartupGenesisBlockFailed FilePath
     | ErrStartupCommandExited ProcessHasExited
+    | ErrStartupGetBlockchainParameters ErrGetBlockchainParams
+    | ErrStartupInvalidGenesisBlock FilePath
+    | ErrStartupInvalidGenesisHash String
     deriving (Show, Eq)
 
 instance Exception ErrStartup
