@@ -35,7 +35,9 @@ module Test.Integration.Framework.DSL
     , expectListSizeEqual
     , expectResponseCode
     , expectEventually
+    , expectEventuallyByron
     , expectEventually'
+    , expectEventuallyByron'
     , expectValidJSON
     , expectCliFieldBetween
     , expectCliFieldEqual
@@ -113,6 +115,7 @@ module Test.Integration.Framework.DSL
     , listTxEp
     , networkInfoEp
     , updateWalletPassEp
+    , listWalletsEp
 
     -- * CLI
     , runJcli
@@ -471,6 +474,34 @@ expectEventually ctx getter target (_, res) = case res of
         let target' = getFromResponse getter r
         unless (target' >= target) $
             let ms = 1000 in threadDelay (500 * ms) *> loopUntilRestore wid
+-- FIXME
+-- expectEventuallyByron should be probably merged with expectEventually
+expectEventuallyByron
+    :: (MonadIO m, MonadCatch m, MonadFail m)
+    => (Ord a, Show a)
+    => (HasType (Text, Manager) ctx)
+    => ctx
+    -> Lens' ApiByronWallet a
+    -> a
+    -> (HTTP.Status, Either RequestException ApiByronWallet)
+    -> m ()
+expectEventuallyByron ctx getter target (_, res) = case res of
+    Left e -> wantedSuccessButError e
+    Right s -> liftIO $ do
+        let wid = s ^. walletId
+        winner <- race (threadDelay $ 60 * oneSecond) (loopUntilRestore wid)
+        case winner of
+            Left _ -> expectationFailure $
+                "waited more than 60s for value to exceed " <> show target
+            Right _ ->
+                return ()
+  where
+    loopUntilRestore :: Text -> IO ()
+    loopUntilRestore wid = do
+        r <- request @ApiByronWallet ctx ("GET", "v2/byron/wallets/" <> wid) Default Empty
+        let target' = getFromResponse getter r
+        unless (target' >= target) $
+            let ms = 1000 in threadDelay (500 * ms) *> loopUntilRestore wid
 
 -- | Like `expectEventually'` but the target is part of the response
 expectEventuallyL
@@ -511,6 +542,21 @@ expectEventually'
 expectEventually' ctx target value wallet = do
     rb <- request @ApiWallet ctx (getWalletEp wallet) Default Empty
     expectEventually ctx target value rb
+
+--FIXME
+-- expectEventuallyByron' should be probably merged with expectEventually'
+expectEventuallyByron'
+    :: (MonadIO m, MonadCatch m, MonadFail m)
+    => (Ord a, Show a)
+    => (HasType (Text, Manager) ctx)
+    => ctx
+    -> Lens' ApiByronWallet a
+    -> a
+    -> ApiByronWallet
+    -> m ()
+expectEventuallyByron' ctx target value wallet = do
+    rb <- request @ApiByronWallet ctx (getByronWalletEp wallet) Default Empty
+    expectEventuallyByron ctx target value rb
 --
 -- CLI output expectations
 --
@@ -1110,6 +1156,12 @@ getWalletEp :: ApiWallet -> (Method, Text)
 getWalletEp w =
     ( "GET"
     , "v2/wallets/" <> w ^. walletId
+    )
+
+listWalletsEp :: (Method, Text)
+listWalletsEp =
+    ( "GET"
+    , "v2/wallets"
     )
 
 deleteWalletEp :: ApiWallet -> (Method, Text)
