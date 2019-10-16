@@ -290,11 +290,11 @@ instance FromJSON EpochNo where
 
 walletStateNum :: SyncProgress -> Word8
 walletStateNum Ready = 100
-walletStateNum (Restoring (Quantity pc)) =
+walletStateNum (Syncing (Quantity pc)) =
     fromIntegral $ getPercentage pc
 
 walletStateFromNum :: Word8 -> SyncProgress
-walletStateFromNum n | n < 100 = Restoring (Quantity pc)
+walletStateFromNum n | n < 100 = Syncing (Quantity pc)
                      | otherwise = Ready
     where Right pc = mkPercentage n
 

@@ -10,13 +10,11 @@ module Test.Integration.Scenario.API.Network
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiBlockReference (..), ApiNetworkInformation, ApiT (..) )
+    ( ApiNetworkInformation )
 import Cardano.Wallet.Primitive.Types
-    ( SlotNo (unSlotNo), SyncProgress (..) )
+    ( SyncProgress (..) )
 import Control.Monad
     ( forM_ )
-import Data.Quantity
-    ( Quantity (..) )
 import Test.Hspec
     ( SpecWith, describe, it )
 import Test.Integration.Framework.DSL
@@ -27,7 +25,6 @@ import Test.Integration.Framework.DSL
     , eventually
     , expectErrorMessage
     , expectEventually'
-    , expectFieldBetween
     , expectFieldEqual
     , expectResponseCode
     , getFromResponse
@@ -47,14 +44,8 @@ spec = do
     it "NETWORK - Can query network information" $ \ctx -> do
         eventually $ do
             r <- request @ApiNetworkInformation ctx networkInfoEp Default Empty
-            let (ApiBlockReference _ sl _) = getFromResponse #tip r
-            verify r
-                [ expectFieldEqual syncProgress Ready
-                , expectFieldBetween (#tip . #height)
-                    ( Quantity 0
-                    , Quantity $ fromIntegral $ unSlotNo $ (getApiT sl) + 1
-                    )
-                ]
+            verify r [ expectFieldEqual syncProgress Ready ]
+
     it "NETWORK2 - Wallet has the same tip as network/information" $ \ctx -> do
         let getNetworkInfo = request @ApiNetworkInformation ctx networkInfoEp Default Empty
         w <- emptyWallet ctx
@@ -62,9 +53,9 @@ spec = do
             sync <- getNetworkInfo
             verify sync [ expectFieldEqual syncProgress Ready ]
         r <- getNetworkInfo
-        let epochNum = getFromResponse (#tip . #epochNumber . #getApiT) r
-        let slotNum = getFromResponse (#tip . #slotNumber . #getApiT) r
-        let blockHeight = getFromResponse (#tip . #height) r
+        let epochNum = getFromResponse (#nodeTip . #epochNumber . #getApiT) r
+        let slotNum = getFromResponse (#nodeTip . #slotNumber . #getApiT) r
+        let blockHeight = getFromResponse (#nodeTip . #height) r
 
         expectEventually' ctx state Ready w
         expectEventually' ctx (#tip . #epochNumber . #getApiT) epochNum w

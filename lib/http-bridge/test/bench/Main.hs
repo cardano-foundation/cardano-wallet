@@ -312,7 +312,7 @@ waitForWalletSync walletLayer wid = do
     (_, meta, _) <- unsafeRunExceptT $ W.readWallet walletLayer wid
     case meta ^. #status of
         Ready -> return ()
-        Restoring (Quantity p) -> do
+        Syncing (Quantity p) -> do
             sayErr . fmt $ "[INFO] restoring: "+||p||+"%"
             threadDelay 1000000
             waitForWalletSync walletLayer wid

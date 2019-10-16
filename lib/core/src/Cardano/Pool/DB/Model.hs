@@ -80,7 +80,7 @@ mCleanPoolProduction :: ModelPoolOp ()
 mCleanPoolProduction _ = (Right (), emptyPoolDatabase)
 
 mPutPoolProduction :: SlotId -> PoolId -> ModelPoolOp ()
-mPutPoolProduction point poolId db@(PoolDatabase pools) =
+mPutPoolProduction point poolId db@PoolDatabase{pools} =
     let alter slot = \case
             Nothing -> Just [slot]
             Just slots -> Just $ sortDesc (slot:slots)
@@ -91,13 +91,13 @@ mPutPoolProduction point poolId db@(PoolDatabase pools) =
         (Right (), PoolDatabase (Map.alter (alter point) poolId pools))
 
 mReadPoolProduction :: EpochNo -> ModelPoolOp (Map PoolId [SlotId])
-mReadPoolProduction epoch db@(PoolDatabase pools) =
+mReadPoolProduction epoch db@PoolDatabase{pools} =
     let updateSlots e = Map.map (filter (\(SlotId e' _) -> e' == e))
         updatePools = Map.filter (not . L.null)
     in (Right (updatePools $ (updateSlots epoch) pools), db)
 
 mRollbackTo :: SlotId -> ModelPoolOp ()
-mRollbackTo point (PoolDatabase pools) =
+mRollbackTo point PoolDatabase{pools} =
     let updateSlots = Map.map (filter (<= point))
         updatePools = Map.filter (not . L.null)
     in (Right (), PoolDatabase (updatePools $ updateSlots pools))

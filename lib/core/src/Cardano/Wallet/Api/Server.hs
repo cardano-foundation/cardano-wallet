@@ -85,6 +85,7 @@ import Cardano.Wallet.Api.Types
     , ApiFee (..)
     , ApiMigrateByronWalletData (..)
     , ApiNetworkInformation (..)
+    , ApiNetworkTip (..)
     , ApiStakePool
     , ApiT (..)
     , ApiTimeReference (..)
@@ -107,7 +108,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.DB
     ( DBFactory )
 import Cardano.Wallet.Network
-    ( ErrNetworkTip (..), ErrNetworkUnavailable (..), NetworkLayer (..) )
+    ( ErrNetworkTip (..), ErrNetworkUnavailable (..), NetworkLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress (..), WalletKey (..), digest, publicKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
@@ -148,6 +149,9 @@ import Cardano.Wallet.Primitive.Types
     , WalletId (..)
     , WalletMetadata (..)
     , WalletName
+    , slotAt
+    , slotMinBound
+    , syncProgressRelativeToTime
     )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..), MkWorker (..), newWorker, workerResource )
@@ -182,7 +186,7 @@ import Data.Generics.Labels
 import Data.List
     ( sortOn )
 import Data.Maybe
-    ( isJust )
+    ( fromMaybe, isJust )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -244,6 +248,7 @@ import System.Random
     ( getStdRandom, random )
 
 import qualified Cardano.Wallet as W
+import qualified Cardano.Wallet.Network as NW
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -682,18 +687,22 @@ network
     => ApiLayer s t k
     -> Handler ApiNetworkInformation
 network ctx = do
-    nTip <- liftHandler (networkTip nl)
     now <- liftIO getCurrentTime
+    nodeTip <- liftHandler (NW.networkTip nl)
+    let ntrkTip = fromMaybe slotMinBound (slotAt sp now)
     pure $ ApiNetworkInformation
-        { syncProgress = ApiT $ maybe
-            (W.Restoring minBound)
-            (W.syncProgress (bp ^. #getEpochLength) nTip)
-            (W.slotAt sp now)
-        , tip =
+        { syncProgress =
+            ApiT $ syncProgressRelativeToTime sp nodeTip now
+        , nodeTip =
             ApiBlockReference
-                { epochNumber = ApiT $ nTip ^. (#slotId . #epochNumber)
-                , slotNumber  = ApiT $ nTip ^. (#slotId . #slotNumber)
-                , height = natural (nTip ^. #blockHeight)
+                { epochNumber = ApiT $ nodeTip ^. (#slotId . #epochNumber)
+                , slotNumber  = ApiT $ nodeTip ^. (#slotId . #slotNumber)
+                , height = natural (nodeTip ^. #blockHeight)
+                }
+        , networkTip =
+            ApiNetworkTip
+                { epochNumber = ApiT $ ntrkTip ^. #epochNumber
+                , slotNumber = ApiT $ ntrkTip ^. #slotNumber
                 }
         }
   where

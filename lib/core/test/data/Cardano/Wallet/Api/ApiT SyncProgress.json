@@ -1,34 +1,27 @@
 {
-    "seed": 3880157902387946925,
+    "seed": 8571611140361726214,
     "samples": [
         {
+            "status": "syncing",
+            "progress": {
+                "quantity": 79,
+                "unit": "percent"
+            }
+        },
+        {
+            "status": "syncing",
+            "progress": {
+                "quantity": 35,
+                "unit": "percent"
+            }
+        },
+        {
             "status": "ready"
         },
         {
-            "status": "restoring",
+            "status": "syncing",
             "progress": {
-                "quantity": 32,
-                "unit": "percent"
-            }
-        },
-        {
-            "status": "restoring",
-            "progress": {
-                "quantity": 54,
-                "unit": "percent"
-            }
-        },
-        {
-            "status": "restoring",
-            "progress": {
-                "quantity": 88,
-                "unit": "percent"
-            }
-        },
-        {
-            "status": "restoring",
-            "progress": {
-                "quantity": 12,
+                "quantity": 73,
                 "unit": "percent"
             }
         },
@@ -39,25 +32,20 @@
             "status": "ready"
         },
         {
-            "status": "restoring",
+            "status": "ready"
+        },
+        {
+            "status": "ready"
+        },
+        {
+            "status": "syncing",
             "progress": {
                 "quantity": 30,
                 "unit": "percent"
             }
         },
         {
-            "status": "restoring",
-            "progress": {
-                "quantity": 96,
-                "unit": "percent"
-            }
-        },
-        {
-            "status": "restoring",
-            "progress": {
-                "quantity": 68,
-                "unit": "percent"
-            }
+            "status": "ready"
         }
     ]
 }

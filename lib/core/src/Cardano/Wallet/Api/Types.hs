@@ -50,6 +50,7 @@ module Cardano.Wallet.Api.Types
     , ApiErrorCode (..)
     , ApiNetworkInformation (..)
     , ApiBlockReference (..)
+    , ApiNetworkTip (..)
     , Iso8601Time (..)
 
     -- * API Types (Byron)
@@ -283,9 +284,15 @@ data ApiBlockReference = ApiBlockReference
     , height :: !(Quantity "block" Natural)
     } deriving (Eq, Generic, Show)
 
+data ApiNetworkTip = ApiNetworkTip
+    { epochNumber :: !(ApiT EpochNo)
+    , slotNumber :: !(ApiT SlotNo)
+    } deriving (Eq, Generic, Show)
+
 data ApiNetworkInformation = ApiNetworkInformation
     { syncProgress :: !(ApiT SyncProgress)
-    , tip :: !ApiBlockReference
+    , nodeTip :: !ApiBlockReference
+    , networkTip :: !ApiNetworkTip
     } deriving (Eq, Generic, Show)
 
 -- | Error codes returned by the API, in the form of snake_cased strings
@@ -569,6 +576,11 @@ instance FromJSON (ApiT SlotNo) where
     parseJSON = fmap (ApiT . SlotNo) . parseJSON
 instance ToJSON (ApiT SlotNo) where
     toJSON (ApiT (SlotNo sn)) = toJSON sn
+
+instance FromJSON ApiNetworkTip where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiNetworkTip where
+    toJSON = genericToJSON defaultRecordTypeOptions
 
 instance DecodeAddress t => FromJSON (AddressAmount t) where
     parseJSON bytes = do

@@ -1005,22 +1005,22 @@ data SlotParameters = SlotParameters
 
 data SyncProgress
     = Ready
-    | Restoring !(Quantity "percent" Percentage)
+    | Syncing !(Quantity "percent" Percentage)
     deriving (Generic, Eq, Show)
 
 instance NFData SyncProgress
 
 instance Ord SyncProgress where
     Ready <= Ready = True
-    Ready <= Restoring _ = False
-    Restoring _ <= Ready = True
-    Restoring a <= Restoring b = a <= b
+    Ready <= Syncing _ = False
+    Syncing _ <= Ready = True
+    Syncing a <= Syncing b = a <= b
 
 instance Buildable SyncProgress where
     build = \case
         Ready ->
             "restored"
-        Restoring (Quantity p) ->
+        Syncing (Quantity p) ->
             "still restoring (" <> build (toText p) <> ")"
 
 -- | Estimate restoration progress based on:
@@ -1063,7 +1063,7 @@ syncProgress epochLength tip slotNow =
     in if distance n1 n0 < tolerance || n0 >= n1 then
         Ready
     else
-        Restoring $ Quantity $ toEnum $ fromIntegral $
+        Syncing $ Quantity $ toEnum $ fromIntegral $
             (100 * bhTip) `div` (bhTip + n1 - n0)
 
 -- | Helper to compare the /local tip/ with the slot corresponding to a
@@ -1077,7 +1077,7 @@ syncProgressRelativeToTime
     -> SyncProgress
 syncProgressRelativeToTime sp tip time =
     maybe
-        (Restoring minBound)
+        (Syncing minBound)
         (syncProgress (sp ^. #getEpochLength) tip)
         (slotAt sp time)
 
