@@ -95,8 +95,7 @@ type Api =
 
 -- | Retrieve a block by its id.
 type GetBlock
-    =  "api"
-    :> "v0"
+    = "v0"
     :> "block"
     :> Capture "blockHeaderHash" BlockId
     :> Get '[JormungandrBinary] Block
@@ -112,8 +111,7 @@ type GetBlock
 -- >                   \       \                  \
 -- >                  parent    +--- descendants ---+
 type GetBlockDescendantIds
-    = "api"
-    :> "v0"
+    = "v0"
     :> "block"
     :> Capture "blockId" BlockId
     :> "next_id"
@@ -122,22 +120,19 @@ type GetBlockDescendantIds
 
 -- | Retrieve the header of the latest known block.
 type GetTipId
-    = "api"
-    :> "v0"
+    = "v0"
     :> "tip"
     :> Get '[Hex] BlockId
 
 type PostMessage
-    = "api"
-    :> "v0"
+    = "v0"
     :> "message"
     :> ReqBody '[JormungandrBinary] (Tx, [TxWitness])
     :> Post '[NoContent] NoContent
 
 -- | Retrieve stake distribution
 type GetStakeDistribution
-    = "api"
-    :> "v0"
+    = "v0"
     :> "stake"
     :> Get '[JSON] StakeApiResponse
 

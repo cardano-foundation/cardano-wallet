@@ -113,7 +113,7 @@ start :: IO (Context (Jormungandr 'Testnet))
 start = do
     ctx <- newEmptyMVar
     logCfg <- initTracer Info "integration"
-    pid <- async $ bracket setupConfig teardownConfig $ \(jmCfg, _, _) -> do
+    pid <- async $ bracket setupConfig teardownConfig $ \jmCfg -> do
         let listen = ListenOnRandomPort
         serveWallet logCfg Nothing listen (Launch jmCfg) $ \wPort nPort bp -> do
             let baseUrl = "http://localhost:" <> T.pack (showT wPort) <> "/"

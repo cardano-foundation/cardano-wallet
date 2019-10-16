@@ -91,7 +91,7 @@ spec = do
             (_, _, _, ph) <- createProcess (proc filepath scriptArgs)
             waitForProcess ph `shouldReturn` ExitSuccess
 
-        it "Should reply with the port --port" $ \ctx -> do
+        it "Should reply with the port --random" $ \ctx -> do
             walletPort <- findPort
             let scriptArgs = defaultArgs (ctx ^. typed @(Port "node"))
                     ++ ["--port", show walletPort]

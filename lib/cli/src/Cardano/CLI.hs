@@ -70,6 +70,7 @@ module Cardano.CLI
 
     -- * Helpers
     , decodeError
+    , requireFilePath
     , getDataDir
     , waitForService
     , setupDirectory
@@ -1365,6 +1366,18 @@ waitForService (Service service) (sb, tracer) port action = do
         ]
     action `catch` handler
     logInfo tracer $ service <> " is ready."
+
+-- | Look whether a particular filepath is correctly resolved on the filesystem.
+-- This makes for a better user experience when passing wrong filepaths via
+-- options or arguments, especially when they get forwarded to other services.
+requireFilePath :: FilePath -> IO ()
+requireFilePath path = doesFileExist path >>= \case
+    True -> return ()
+    False -> do
+        putErrLn $ "I couldn't find any file at the given location: " <> pathT
+        exitFailure
+  where
+    pathT = T.pack path
 
 -- Terminate the applicatio and make sure to flush logs before exiting.
 failWith
