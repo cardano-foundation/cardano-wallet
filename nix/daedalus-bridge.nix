@@ -1,4 +1,4 @@
-{ target, pkgs, haskellPackages, system, crossSystem, jormungandr }:
+{ target, pkgs, haskellPackages, system, crossSystem, jormungandr, jormungandr-cli }:
 
 let
   commonLib = import ../lib.nix {};
@@ -11,6 +11,7 @@ in pkgs.runCommandCC "daedalus-bridge" {} ''
   cd $out/bin
   cp ${haskellPackages.cardano-wallet-jormungandr.components.exes.cardano-wallet-jormungandr}/bin/cardano-wallet-jormungandr* .
   cp ${cardano-shell.nix-tools.cexes.cardano-launcher.cardano-launcher}/bin/cardano-launcher* .
+  cp ${jormungandr-cli}/bin/jcli* .
   #cp {nix-tools.cexes.cardano-node.cardano-node}/bin/cardano-node* .
   ${pkgs.lib.optionalString (target == "x86_64-windows") ''
     echo ${jormungandr}

@@ -51,7 +51,7 @@ in {
   tests = collectComponents "tests" isCardanoWallet haskellPackages;
   benchmarks = collectComponents "benchmarks" isCardanoWallet haskellPackages;
 
-  daedalus-bridge = import ./nix/daedalus-bridge.nix { inherit target pkgs haskellPackages system crossSystem jormungandr; };
+  daedalus-bridge = import ./nix/daedalus-bridge.nix { inherit target pkgs haskellPackages system crossSystem jormungandr jormungandr-cli; };
 
   shell = haskellPackages.shellFor {
     name = "cardano-wallet-shell";
