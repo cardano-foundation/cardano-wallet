@@ -73,7 +73,7 @@ initFaucet nl = do
     let mkFaucet addr = TxOut addr (Coin 100000000000)
     let outs = mconcat [ mkFaucet <$> take 10 (addresses w) | w <- wallets ]
     unsafeRunExceptT $ postTx nl (mkRedeemTx outs)
-    Faucet <$> newMVar wallets
+    Faucet <$> newMVar wallets <*> newMVar mempty
   where
     genMnemonic :: IO (Mnemonic 15)
     genMnemonic = entropyToMnemonic <$> genEntropy

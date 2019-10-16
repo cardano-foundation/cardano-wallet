@@ -81,6 +81,7 @@ module Test.Integration.Framework.DSL
     , listAllTransactions
     , tearDown
     , fixtureWallet
+    , fixtureByronWallet
     , fixtureWalletWith
     , faucetAmt
     , faucetUtxoAmt
@@ -837,25 +838,46 @@ fixtureWallet
     :: Context t
     -> IO ApiWallet
 fixtureWallet ctx = do
-    mnemonics <- mnemonicToText <$> nextWallet (_faucet ctx)
+    mnemonics <- mnemonicToText <$> nextWallet @"seq" (_faucet ctx)
     let payload = Json [aesonQQ| {
             "name": "Faucet Wallet",
             "mnemonic_sentence": #{mnemonics},
             "passphrase": "cardano-wallet"
             } |]
-    r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
-    let wid = getFromResponse walletId r
-    race (threadDelay sixtySeconds) (checkBalance wid) >>= \case
+    (_, w) <- unsafeRequest @ApiWallet ctx postWalletEp payload
+    race (threadDelay sixtySeconds) (checkBalance w) >>= \case
         Left _ -> fail "fixtureWallet: waited too long for initial transaction"
         Right a -> return a
   where
     sixtySeconds = 60*oneSecond
-    checkBalance :: Text -> IO ApiWallet
-    checkBalance wid = do
-        r <- request @ApiWallet ctx ("GET", "v2/wallets/" <> wid) Default Empty
+    checkBalance w = do
+        r <- request @ApiWallet ctx (getWalletEp w) Default Empty
         if getFromResponse balanceAvailable r > 0
             then return (getFromResponse id r)
-            else threadDelay oneSecond *> checkBalance wid
+            else threadDelay oneSecond *> checkBalance w
+
+-- | Restore a Byron faucet and wait until funds are available.
+fixtureByronWallet
+    :: Context t
+    -> IO ApiByronWallet
+fixtureByronWallet ctx = do
+    mnemonics <- mnemonicToText <$> nextWallet @"rnd" (_faucet ctx)
+    let payload = Json [aesonQQ| {
+            "name": "Faucet Byron Wallet",
+            "mnemonic_sentence": #{mnemonics},
+            "passphrase": "cardano-wallet"
+            } |]
+    (_, w) <- unsafeRequest @ApiByronWallet ctx postByronWalletEp payload
+    race (threadDelay sixtySeconds) (checkBalance w) >>= \case
+        Left _ -> fail "fixtureByronWallet: waited too long for initial transaction"
+        Right a -> return a
+  where
+    sixtySeconds = 60*oneSecond
+    checkBalance w = do
+        r <- request @ApiByronWallet ctx (getByronWalletEp w) Default Empty
+        if getFromResponse balanceAvailable r > 0
+            then return (getFromResponse id r)
+            else threadDelay oneSecond *> checkBalance w
 
 -- | Restore a wallet with the given UTxO distribution. Note that there's a
 -- limitation to what can be done here. We only have 10 UTxO available in each
