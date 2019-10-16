@@ -145,16 +145,16 @@ spec = do
             else
                 expectErrorMessage errMsg404NoEndpoint rg
 
-    describe "BYRON_GET_07 - v2/byron/wallets/<wid> - Methods Not Allowed" $ do
+    describe "BYRON_GET_07 - v2/byron-wallets/<wid> - Methods Not Allowed" $ do
         let matrix = ["PUT", "POST", "CONNECT", "TRACE", "OPTIONS"]
         forM_ matrix $ \method -> it (show method) $ \ctx -> do
             w <- emptyByronWallet ctx
-            let ep = "v2/byron/wallets/" <> w ^. walletId
+            let ep = "v2/byron-wallets/" <> w ^. walletId
             r <- request @ApiByronWallet ctx (method, ep) Default Empty
             expectResponseCode @IO HTTP.status405 r
             expectErrorMessage errMsg405 r
 
-    describe "BYRON_GET_07 - v2/byron/wallets/<wid> - HTTP headers" $ do
+    describe "BYRON_GET_07 - v2/byron-wallets/<wid> - HTTP headers" $ do
         forM_ (getHeaderCases HTTP.status200)
             $ \(title, headers, expec) -> it title $ \ctx -> do
             w <- emptyByronWallet ctx
@@ -674,7 +674,7 @@ spec = do
             expectResponseCode @IO HTTP.status400 r
 
     describe "BYRON_RESTORE_07, LIST_05 -\
-        \ v2/byron/wallets - Methods Not Allowed" $ do
+        \ v2/byron-wallets - Methods Not Allowed" $ do
         let matrix = ["PUT", "DELETE", "CONNECT", "TRACE", "OPTIONS"]
         forM_ matrix $ \method -> it (show method) $ \ctx -> do
             r <- request @ApiByronWallet ctx (method, "v2/byron-wallets") Default Empty
