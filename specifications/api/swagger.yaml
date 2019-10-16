@@ -702,6 +702,46 @@ x-parametersJoinStakePool: &parametersJoinStakePool
 x-parametersQuitStakePool: &parametersQuitStakePool
   <<: *parametersJoinStakePool
 
+x-parametersStartDate: &parametersStartDate
+  in: query
+  name: start
+  type: string
+  format: ISO 8601
+  description: |
+    An optional start time in ISO 8601 date-and-time format. Basic and
+    extended formats are both accepted. Times can be local (with a
+    timezone offset) or UTC.
+
+    If both a start time and an end time are specified, then the start
+    time must not be later than the end time.
+
+    Example: `2008-08-08T08:08:08Z`
+
+x-parametersEndDate: &parametersEndDate
+  in: query
+  name: end
+  type: string
+  format: ISO 8601
+  description: |
+    An optional end time in ISO 8601 date-and-time format. Basic and
+    extended formats are both accepted. Times can be local (with a
+    timezone offset) or UTC.
+
+    If both a start time and an end time are specified, then the start
+    time must not be later than the end time.
+
+    Example: `2008-08-08T08:08:08Z`
+
+x-parametersSortOrder: &parametersSortOrder
+  in: query
+  name: order
+  type: string
+  enum:
+    - ascending
+    - descending
+  default: descending
+  description: An optional sort order.
+
 
 #############################################################################
 #                                                                           #
@@ -992,6 +1032,7 @@ x-tagGroups:
   - name: Byron (Random)
     tags:
     - Byron Wallets
+    - Byron Transactions
     - Byron Migrations
 
   - name: Miscellaneous
@@ -1109,40 +1150,9 @@ paths:
         Lists all incoming and outgoing wallet's transactions.
       parameters:
         - *parametersWalletId
-        - in: query
-          name: start
-          type: string
-          format: ISO 8601
-          description: |
-            An optional start time in ISO 8601 date-and-time format. Basic and
-            extended formats are both accepted. Times can be local (with a
-            timezone offset) or UTC.
-
-            If both a start time and an end time are specified, then the start
-            time must not be later than the end time.
-
-            Example: `2008-08-08T08:08:08Z`
-        - in: query
-          name: end
-          type: string
-          format: ISO 8601
-          description: |
-            An optional end time in ISO 8601 date-and-time format. Basic and
-            extended formats are both accepted. Times can be local (with a
-            timezone offset) or UTC.
-
-            If both a start time and an end time are specified, then the start
-            time must not be later than the end time.
-
-            Example: `2008-08-08T08:08:08Z`
-        - in: query
-          name: order
-          type: string
-          enum:
-            - ascending
-            - descending
-          default: descending
-          description: An optional sort order.
+        - *parametersStartDate
+        - *parametersEndDate
+        - *parametersSortOrder
       responses: *responsesListTransactions
 
     post:
@@ -1292,6 +1302,22 @@ paths:
       parameters:
         - *parametersWalletId
       responses: *responsesDeleteWallet
+
+  /byron-wallets/{walletId}/transactions:
+    get:
+      operationId: listByronTransactions
+      tags: ["Byron Transactions"]
+      summary: List
+      description: |
+        <p align="right">status: <strong>under testing</strong></p>
+
+        List all incoming and outgoing transactions for the given wallet.
+      parameters:
+        - *parametersWalletId
+        - *parametersStartDate
+        - *parametersEndDate
+        - *parametersSortOrder
+      responses: *responsesListTransactions
 
   /byron-wallets/{walletId}/migrations:
     get:

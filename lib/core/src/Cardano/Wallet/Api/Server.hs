@@ -632,7 +632,6 @@ deleteTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
 listTransactions
     :: forall ctx s t k.
         ( DefineTx t
-        , s ~ SeqState t
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -751,6 +750,7 @@ compatibilityApiServer rndCtx seqCtx =
     :<|> getByronWallet rndCtx
     :<|> getByronWalletMigrationInfo rndCtx
     :<|> listByronWallets rndCtx
+    :<|> listByronTransactions rndCtx
     :<|> migrateByronWallet rndCtx seqCtx
     :<|> postByronWallet rndCtx
 
@@ -826,6 +826,20 @@ postByronWallet ctx body = do
     passphrase = getApiT (body ^. #passphrase)
     rootXPrv = Rnd.generateKeyFromSeed mnemonicSentence passphrase
     wid = WalletId $ digest $ publicKey rootXPrv
+
+listByronTransactions
+    :: forall ctx s t k.
+        ( DefineTx t
+        , ctx ~ ApiLayer s t k
+        )
+    => ctx
+    -> ApiT WalletId
+    -> Maybe Iso8601Time
+    -> Maybe Iso8601Time
+    -> Maybe (ApiT SortOrder)
+    -> Handler [ApiTransaction t]
+listByronTransactions =
+    listTransactions
 
 {-------------------------------------------------------------------------------
                                 Helpers
