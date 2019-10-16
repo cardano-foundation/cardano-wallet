@@ -78,8 +78,9 @@ spec = do
             let args =
                     [ "launch"
                     , "--genesis-block", block0
-                    , "--secret", secret
                     , "--state-dir", f
+                    , "--"
+                    , "--secret", secret
                     ]
             (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t args
             c `shouldBe` ExitFailure 1
@@ -202,7 +203,9 @@ spec = do
                 , "--node-port", show nodePort
                 , "--genesis-block", block0
                 , "--quiet"
-                , "--"
+                ]
+        let nodeArgs =
+                [ "--"
                 , "--secret", secret
                 ]
         let tests =
@@ -218,7 +221,7 @@ spec = do
                 let filepath = "test/integration/js/mock-daedalus.js"
                 let stateDir = ["--state-dir", d]
                 let scriptArgs = concat
-                        [defaultArgs nodePort, args (show fixedPort), stateDir]
+                        [defaultArgs nodePort, args (show fixedPort), stateDir, nodeArgs]
                 (_, _, _, ph) <- createProcess (proc filepath scriptArgs)
                 waitForProcess ph `shouldReturn` ExitSuccess
 
