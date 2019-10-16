@@ -339,11 +339,11 @@ spec = do
     startNode cb = withSystemTempDirectory "jormungandr-state" $ \stateDir -> do
         let cfg = JormungandrConfig
                 stateDir
-                "test/data/jormungandr/block0.bin"
-                "test/data/jormungandr/secret.yaml"
+                (Right "test/data/jormungandr/block0.bin")
                 Nothing
                 Info
                 Inherit
+                ["--secret", "test/data/jormungandr/secret.yaml"]
         let tr = nullTracer
         e <- withJormungandr tr cfg $ \cp -> withNetworkLayer tr (UseRunning cp) $ \case
             Right (_, nw) -> cb (nw, _restApi cp)

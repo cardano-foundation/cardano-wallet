@@ -15,7 +15,7 @@ cardano-wallet-jormungandr launch --genesis-block test/data/jormungandr/block0.b
 or
 ```
 ormungandr --genesis-block test/data/jormungandr/block0.bin --config test/data/jormungandr/config.yaml --secret test/data/jormungandr/secret.yaml
-cardano-wallet-jormungandr serve --genesis-hash 1e96373...21cfd46
+cardano-wallet-jormungandr serve --genesis-block-hash 1e96373...21cfd46
 ```
 
 ### Single wallet tracks block height

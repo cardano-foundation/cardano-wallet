@@ -78,8 +78,9 @@ spec = do
             let args =
                     [ "launch"
                     , "--genesis-block", block0
-                    , "--secret", secret
                     , "--state-dir", f
+                    , "--"
+                    , "--secret", secret
                     ]
             (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t args
             c `shouldBe` ExitFailure 1
@@ -98,6 +99,7 @@ spec = do
                         , "--random-port"
                         , "--state-dir", d
                         , "--genesis-block", block0
+                        , "--"
                         , "--secret", secret
                         ]
                 let process = proc' (commandName @t) args
@@ -118,6 +120,7 @@ spec = do
                     , "--random-port"
                     , "--state-dir", dir
                     , "--genesis-block", block0
+                    , "--"
                     , "--secret", secret
                     ]
             let process = proc' (commandName @t) args
@@ -136,6 +139,7 @@ spec = do
             let args =
                     [ "launch"
                     , "--genesis-block", block0'
+                    , "--"
                     , "--secret", secret
                     ]
             (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t args
@@ -148,24 +152,12 @@ spec = do
             let args =
                     [ "launch"
                     , "--genesis-block", secret
+                    , "--"
                     , "--secret", secret
                     ]
             (Exit c, Stdout o, Stderr _) <- cardanoWalletCLI @t args
             c `shouldBe` ExitFailure 1
             o `shouldContain` ("As far as I can tell, this isn't a valid block file: " <> secret)
-
-        it "LAUNCH - Non-Existing files for --secret" $ do
-            let secret' = secret <> ".doesnexist"
-            let args =
-                    [ "launch"
-                    , "--genesis-block", block0
-                    , "--secret", secret'
-                    ]
-            (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t args
-            c `shouldBe` ExitFailure 1
-            o `shouldBe` mempty
-            e `shouldContain`
-                ("I couldn't find any file at the given location: " <> secret')
 
         it "LAUNCH - Restoration workers restart" $ withTempDir $ \d -> do
             pendingWith
@@ -182,6 +174,7 @@ spec = do
                     , "--port", show port
                     , "--state-dir", d
                     , "--genesis-block", block0
+                    , "--"
                     , "--secret", secret
                     ]
             let process = proc' (commandName @t) args
@@ -209,8 +202,11 @@ spec = do
                 , "launch"
                 , "--node-port", show nodePort
                 , "--genesis-block", block0
-                , "--secret", secret
                 , "--quiet"
+                ]
+        let nodeArgs =
+                [ "--"
+                , "--secret", secret
                 ]
         let tests =
                 [ (const ["--random-port"], " [SERIAL]")
@@ -225,19 +221,16 @@ spec = do
                 let filepath = "test/integration/js/mock-daedalus.js"
                 let stateDir = ["--state-dir", d]
                 let scriptArgs = concat
-                        [defaultArgs nodePort, args (show fixedPort), stateDir]
+                        [defaultArgs nodePort, args (show fixedPort), stateDir, nodeArgs]
                 (_, _, _, ph) <- createProcess (proc filepath scriptArgs)
                 waitForProcess ph `shouldReturn` ExitSuccess
 
     describe "LOGGING - cardano-wallet launch logging [SERIAL]" $ do
-        let defaultArgs =
-                [ "launch"
-                , "--genesis-block", block0
-                , "--secret", secret
-                ]
+        let defaultArgs = [ "launch", "--genesis-block", block0 ]
+        let nodeArgs = [ "--", "--secret", secret ]
         it "LOGGING - Launch can log --verbose" $ withTempDir $ \d -> do
             pendingWith "See 'LAUNCH - Restoration workers restart'"
-            let args = defaultArgs ++ ["--state-dir", d, "--verbose"]
+            let args = defaultArgs ++ ["--state-dir", d, "--verbose"] ++ nodeArgs
             let process = proc' (commandName @t) args
             (out, _) <- collectStreams (35, 0) process
             out `shouldContainT` versionLine
@@ -247,7 +240,7 @@ spec = do
 
         it "LOGGING - Launch --quiet logs Error only" $ withTempDir $ \d -> do
             pendingWith "See 'LAUNCH - Restoration workers restart'"
-            let args = defaultArgs ++ ["--state-dir", d, "--quiet"]
+            let args = defaultArgs ++ ["--state-dir", d, "--quiet"] ++ nodeArgs
             let process = proc' (commandName @t) args
             (out, err) <- collectStreams (10, 10) process
             out `shouldBe` mempty
@@ -255,7 +248,7 @@ spec = do
 
         it "LOGGING - Launch default logs Info" $ withTempDir $ \d -> do
             pendingWith "See 'LAUNCH - Restoration workers restart'"
-            let args = defaultArgs ++ ["--state-dir", d]
+            let args = defaultArgs ++ ["--state-dir", d] ++ nodeArgs
             let process = proc' (commandName @t) args
             (out, _) <- collectStreams (20, 0) process
             out `shouldNotContainT` "Debug"

@@ -80,7 +80,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Version
     ( showVersion, version )
 import Control.Applicative
-    ( optional )
+    ( optional, (<|>) )
 import Data.Maybe
     ( fromMaybe )
 import Data.Text
@@ -91,6 +91,7 @@ import Options.Applicative
     ( CommandFields
     , Mod
     , Parser
+    , argument
     , command
     , footer
     , help
@@ -99,6 +100,8 @@ import Options.Applicative
     , long
     , metavar
     , progDesc
+    , some
+    , str
     )
 import System.Exit
     ( exitWith )
@@ -163,8 +166,8 @@ data LaunchArgs = LaunchArgs
     }
 
 data JormungandrArgs = JormungandrArgs
-    { genesisBlock :: FilePath
-    , secretFile :: FilePath
+    { genesisBlock :: Either (Hash "Genesis") FilePath
+    , extraJormungandrArgs :: [Text]
     }
 
 cmdLaunch
@@ -183,21 +186,22 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
         <*> verbosityOption
         <*> (JormungandrArgs
             <$> genesisBlockOption
-            <*> secretFileOption)
+            <*> extraArguments)
     exec (LaunchArgs listen nodePort mStateDir verbosity jArgs) = do
         let minSeverity = verbosityToMinSeverity verbosity
         (cfg, sb, tr) <- initTracer minSeverity "launch"
-        requireFilePath (genesisBlock jArgs)
-        requireFilePath (secretFile jArgs)
+        case genesisBlock jArgs of
+            Right block0File -> requireFilePath block0File
+            Left _ -> pure ()
         let stateDir = fromMaybe (dataDir </> "testnet") mStateDir
         let databaseDir = stateDir </> "wallets"
         let cp = JormungandrConfig
                 { _stateDir = stateDir
                 , _genesisBlock = genesisBlock jArgs
-                , _secretFile = secretFile jArgs
                 , _restApiPort = fromIntegral . getPort <$> nodePort
                 , _minSeverity = minSeverity
                 , _outputStream = Inherit
+                , _extraArgs = extraJormungandrArgs jArgs
                 }
         setupDirectory (logInfo tr) stateDir
         setupDirectory (logInfo tr) databaseDir
@@ -259,23 +263,27 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
                                  Options
 -------------------------------------------------------------------------------}
 
--- | --secret=FILE
-secretFileOption :: Parser FilePath
-secretFileOption = optionT $ mempty
-    <> long "secret"
-    <> metavar "FILE"
-    <> help "Path to secrets (.yaml/.json)."
+genesisBlockOption :: Parser (Either (Hash "Genesis") FilePath)
+genesisBlockOption =
+    fmap Left genesisHashOption <|>
+    fmap Right genesisBlockFileOption
 
 -- | --genesis-block=FILE
-genesisBlockOption :: Parser FilePath
-genesisBlockOption = optionT $ mempty
+genesisBlockFileOption :: Parser FilePath
+genesisBlockFileOption = optionT $ mempty
     <> long "genesis-block"
     <> metavar "FILE"
     <> help "Path to the genesis block in binary format."
 
--- | --genesis-hash=STRING
+-- | --genesis-block-hash=STRING
 genesisHashOption :: Parser (Hash "Genesis")
 genesisHashOption = optionT $ mempty
-    <> long "genesis-hash"
+    <> long "genesis-block-hash"
     <> metavar "STRING"
     <> help "Blake2b_256 hash of the genesis block, in base 16."
+
+-- | -- [ARGUMENTS...]
+extraArguments :: Parser [Text]
+extraArguments = some $ argument str $ mempty
+    <> metavar "[-- ARGUMENTS...]"
+    <> help "Extra arguments to be passed to jormungandr."

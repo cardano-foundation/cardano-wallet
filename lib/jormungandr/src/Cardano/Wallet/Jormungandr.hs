@@ -191,10 +191,14 @@ serveWallet (cfg, sb, tr) databaseDir listen lj beforeMainLoop = do
                 handleGenesisNotFound h
             ErrGetBlockchainParamsIncompleteParams _ ->
                 handleNoInitialPolicy
-        ErrStartupGenesisBlockFailed file ->
+        ErrStartupInvalidGenesisBlock file ->
             failWith (sb, tr) $ mempty
                 <> "As far as I can tell, this isn't a valid block file: "
                 <> T.pack file
+        ErrStartupInvalidGenesisHash h ->
+            failWith (sb, tr) $ mempty
+                <> "As far as I can tell, this isn't a valid block hash: "
+                <> T.pack h
         ErrStartupCommandExited pe -> case pe of
             ProcessDidNotStart _cmd exc ->
                 failWith (sb, tr) $
@@ -212,9 +216,8 @@ serveWallet (cfg, sb, tr) databaseDir listen lj beforeMainLoop = do
         failWith (sb, tr) $ T.pack $ mconcat
             [ "Failed to retrieve the genesis block. The block doesn't exist! "
             , "Hint: double-check the genesis hash you've just gave "
-            , "me via '--genesis-hash' (i.e. " <> showT block0H <> ")."
+            , "me via '--genesis-block-hash' (i.e. " <> showT block0H <> ")."
             ]
-
 
     handleNetworkUnreachable :: IO ExitCode
     handleNetworkUnreachable = do

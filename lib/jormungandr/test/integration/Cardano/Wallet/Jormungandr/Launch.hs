@@ -34,6 +34,8 @@ import System.IO
 import System.IO.Temp
     ( createTempDirectory, getCanonicalTemporaryDirectory )
 
+import qualified Data.Text as T
+
 -- | Starts jormungandr on a random port using the integration tests config.
 -- The data directory will be stored in a unique location under the system
 -- temporary directory.
@@ -43,10 +45,16 @@ setupConfig = do
     tmp <- getCanonicalTemporaryDirectory
     configDir <- createTempDirectory tmp "cardano-wallet-jormungandr"
     logFile <- openFile (configDir </> "jormungandr.log") WriteMode
-    pure $ JormungandrConfig configDir (dir </> "block0.bin") (dir </> "secret.yaml") Nothing minBound (UseHandle logFile)
+    pure $ JormungandrConfig
+        configDir
+        (Right $ dir </> "block0.bin")
+        Nothing
+        minBound
+        (UseHandle logFile)
+        ["--secret", T.pack (dir </> "secret.yaml")]
 
 teardownConfig :: JormungandrConfig -> IO ()
-teardownConfig (JormungandrConfig d _ _ _ _ output) = do
+teardownConfig (JormungandrConfig d _ _ _ output _) = do
     case output of
         UseHandle h -> hClose h
         _ -> pure ()

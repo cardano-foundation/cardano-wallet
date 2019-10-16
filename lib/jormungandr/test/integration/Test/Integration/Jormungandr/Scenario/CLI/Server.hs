@@ -65,7 +65,7 @@ spec = do
             withTempDir $ \d -> do
                 let db = d ++ "/db-file"
                 let args =
-                        [ "serve", "--database", db, "--genesis-hash", block0H ]
+                        [ "serve", "--database", db, "--genesis-block-hash", block0H ]
                 let process = proc' (commandName @t) args
                 withCreateProcess process $ \_ _ _ ph -> do
                     expectPathEventuallyExist db
@@ -79,7 +79,7 @@ spec = do
                 , "serve"
                 , "--node-port"
                 , show nodePort
-                , "--genesis-hash"
+                , "--genesis-block-hash"
                 , block0H
                 ]
 
@@ -109,7 +109,7 @@ spec = do
                     , show (ctx ^. typed @(Port "node"))
                     , "--random-port"
                     , "--verbose"
-                    , "--genesis-hash"
+                    , "--genesis-block-hash"
                     , block0H
                     ]
             let process = proc' (commandName @t) args
@@ -134,7 +134,7 @@ spec = do
                     , show (ctx ^. typed @(Port "node"))
                     , "--random-port"
                     , "--quiet"
-                    , "--genesis-hash"
+                    , "--genesis-block-hash"
                     , block0H
                     ]
             let process = proc' (commandName @t) args
@@ -151,7 +151,7 @@ spec = do
                     , "--node-port"
                     , show (ctx ^. typed @(Port "node"))
                     , "--random-port"
-                    , "--genesis-hash"
+                    , "--genesis-block-hash"
                     , block0H
                     ]
             let process = proc' (commandName @t) args
@@ -177,7 +177,7 @@ spec = do
                         , "--node-port"
                         , show (ctx ^. typed @(Port "node"))
                         , "--random-port"
-                        , "--genesis-hash"
+                        , "--genesis-block-hash"
                         , hash
                         ]
                 (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t args
@@ -185,19 +185,19 @@ spec = do
                 e `shouldBe` mempty
                 o `shouldContain` "Failed to retrieve the genesis block.\
                     \ The block doesn't exist! Hint: double-check the\
-                    \ genesis hash you've just gave me via '--genesis-hash'\
+                    \ genesis hash you've just gave me via '--genesis-block-hash'\
                     \ (i.e. " ++ hash ++ ")"
 
         it "LOGGING - Non hex-encoded genesis hash shows error" $ \_ -> do
             let args =
                     ["serve"
-                    , "--genesis-hash"
+                    , "--genesis-block-hash"
                     , replicate 37 '1'
                     ]
             (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t args
             c `shouldBe` ExitFailure 1
             o `shouldBe` mempty
-            e `shouldContain` "option --genesis-hash: Unable to decode\
+            e `shouldContain` "option --genesis-block-hash: Unable to decode\
                 \ (Hash \"Genesis\"): expected Base16 encoding"
 
         it "LOGGINGDOWN - Exists nicely when Jörmungandr is down" $ \ctx -> do
@@ -206,7 +206,7 @@ spec = do
                     ["serve"
                     , "--node-port"
                     , show invalidPort
-                    , "--genesis-hash"
+                    , "--genesis-block-hash"
                     , block0H
                     ]
             (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t args
