@@ -764,7 +764,7 @@ migrateByronWallet
     -> ApiT WalletId
        -- ^ Target wallet (new-style)
     -> ApiMigrateByronWalletData
-    -> Handler NoContent
+    -> Handler [ApiTransaction t]
 migrateByronWallet _rndCtx _seqCtx _sourceWid _targetWid _migrateData =
     throwError err501
 

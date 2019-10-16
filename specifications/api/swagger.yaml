@@ -821,8 +821,11 @@ x-responsesMigrateByronWallet: &responsesMigrateByronWallet
   <<: *responsesErr404
   <<: *responsesErr405
   <<: *responsesErr406
-  204:
-    description: No Content
+  200:
+    description: Ok
+    schema:
+      type: array
+      items: *ApiTransaction
 
 x-responsesDeleteWallet: &responsesDeleteWallet
   <<: *responsesErr404
