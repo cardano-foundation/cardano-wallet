@@ -90,12 +90,12 @@ x-syncProgress: &syncProgress
       type: string
       enum:
         - ready
-        - restoring
+        - syncing
     progress:
       <<: *percentage
       description: |
         <span style="position: relative; left: 35px; top: -21px; vertical-align: middle; background-color: rgba(142, 142, 220, 0.05); color: rgba(50, 50, 159, 0.9); margin: 0 5px; padding: 0 5px; border: 1px solid rgba(50, 50, 159, 0.1); line-height: 20px; font-size: 13px; border-radius: 2px;">
-        <strong>if:</strong> status == restoring
+        <strong>if:</strong> status == syncing
         </span><br/>
   example:
     status: ready
@@ -401,9 +401,19 @@ x-networkInformationNtpStatus: &networkInformationNtpStatus
           enum:
             - microseconds
 
-x-networkInformationTip: &networkInformationTip
+x-networkInformationNodeTip: &networkInformationNodeTip
   <<: *blockReference
-  description: Underlying node's network tip
+  description: Underlying node's tip
+
+x-networkInformationNetworkTip: &networkInformationNetworkTip
+  description: Projected network's tip
+  type: object
+  required:
+    - slot_number
+    - epoch_number
+  properties:
+    slot_number: *slotNumber
+    epoch_number: *epochNumber
 
 x-networkInformationProtocolUpdate: &networkInformationProtocolUpdate
   type: string
@@ -434,10 +444,12 @@ definitions:
     type: object
     required:
       - sync_progress
-      - tip
+      - node_tip
+      - network_tip
     properties:
       sync_progress: *networkInformationSyncProgress
-      tip: *networkInformationTip
+      node_tip: *networkInformationNodeTip
+      network_tip: *networkInformationNetworkTip
 
   ApiStakePool: &ApiStakePool
     type: object

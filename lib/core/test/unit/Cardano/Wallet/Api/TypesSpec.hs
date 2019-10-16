@@ -33,6 +33,7 @@ import Cardano.Wallet.Api.Types
     , ApiMigrateByronWalletData (..)
     , ApiMnemonicT (..)
     , ApiNetworkInformation (..)
+    , ApiNetworkTip (..)
     , ApiStakePool (..)
     , ApiT (..)
     , ApiTimeReference (..)
@@ -213,6 +214,7 @@ spec = do
         \and match existing golden files" $ do
             jsonRoundtripAndGolden $ Proxy @(ApiAddress DummyTarget)
             jsonRoundtripAndGolden $ Proxy @ApiTimeReference
+            jsonRoundtripAndGolden $ Proxy @ApiNetworkTip
             jsonRoundtripAndGolden $ Proxy @ApiBlockReference
             jsonRoundtripAndGolden $ Proxy @ApiNetworkInformation
             jsonRoundtripAndGolden $ Proxy @ApiStakePool
@@ -569,11 +571,20 @@ spec = do
                     }
             in
                 x' === x .&&. show x' === show x
+        it "ApiNetworkTip" $ property $ \x ->
+            let
+                x' = ApiNetworkTip
+                    { slotNumber = slotNumber (x :: ApiNetworkTip)
+                    , epochNumber = epochNumber (x :: ApiNetworkTip)
+                    }
+            in
+                x' === x .&&. show x' === show x
         it "ApiNetworkInformation" $ property $ \x ->
             let
                 x' = ApiNetworkInformation
                     { syncProgress = syncProgress (x :: ApiNetworkInformation)
-                    , tip = tip (x :: ApiNetworkInformation)
+                    , nodeTip = nodeTip (x :: ApiNetworkInformation)
+                    , networkTip = networkTip (x :: ApiNetworkInformation)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -837,6 +848,10 @@ instance Arbitrary ApiTimeReference where
     shrink (ApiTimeReference t b) = ApiTimeReference t <$> shrink b
 
 instance Arbitrary ApiBlockReference where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiNetworkTip where
     arbitrary = genericArbitrary
     shrink = genericShrink
 

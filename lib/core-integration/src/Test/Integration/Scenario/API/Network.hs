@@ -47,10 +47,10 @@ spec = do
     it "NETWORK - Can query network information" $ \ctx -> do
         eventually $ do
             r <- request @ApiNetworkInformation ctx networkInfoEp Default Empty
-            let (ApiBlockReference _ sl _) = getFromResponse #tip r
+            let (ApiBlockReference _ sl _) = getFromResponse #nodeTip r
             verify r
                 [ expectFieldEqual syncProgress Ready
-                , expectFieldBetween (#tip . #height)
+                , expectFieldBetween (#nodeTip . #height)
                     ( Quantity 0
                     , Quantity $ fromIntegral $ unSlotNo $ (getApiT sl) + 1
                     )
@@ -62,9 +62,9 @@ spec = do
             sync <- getNetworkInfo
             verify sync [ expectFieldEqual syncProgress Ready ]
         r <- getNetworkInfo
-        let epochNum = getFromResponse (#tip . #epochNumber . #getApiT) r
-        let slotNum = getFromResponse (#tip . #slotNumber . #getApiT) r
-        let blockHeight = getFromResponse (#tip . #height) r
+        let epochNum = getFromResponse (#nodeTip . #epochNumber . #getApiT) r
+        let slotNum = getFromResponse (#nodeTip . #slotNumber . #getApiT) r
+        let blockHeight = getFromResponse (#nodeTip . #height) r
 
         expectEventually' ctx state Ready w
         expectEventually' ctx (#tip . #epochNumber . #getApiT) epochNum w

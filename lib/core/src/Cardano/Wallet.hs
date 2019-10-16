@@ -403,7 +403,7 @@ createWallet ctx wid wname s = do
             { name = wname
             , creationTime = now
             , passphraseInfo = Nothing
-            , status = Restoring minBound
+            , status = Syncing minBound
             , delegation = NotDelegating
             }
     DB.createWallet db (PrimaryKey wid) cp meta hist $> wid

@@ -291,7 +291,7 @@ instance Arbitrary WalletMetadata where
         <$> (WalletName <$> elements ["bulbazaur", "charmander", "squirtle"])
         <*> genUniformTime
         <*> (fmap WalletPassphraseInfo <$> liftArbitrary genUniformTime)
-        <*> oneof [pure Ready, Restoring . Quantity <$> genPercentage]
+        <*> oneof [pure Ready, Syncing . Quantity <$> genPercentage]
         <*> pure NotDelegating
       where
         genPercentage :: Gen Percentage
