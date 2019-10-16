@@ -45,8 +45,7 @@ PoolProduction
     poolProductionEpochNumber    Word64       sql=epoch_number
     poolProductionSlotNumber     Word16       sql=slot_number
     poolProductionPoolId         W.PoolId     sql=pool_id
-    Primary
-        poolProductionEpochNumber
-        poolProductionSlotNumber
+
+    Primary poolProductionEpochNumber poolProductionSlotNumber
     deriving Show Generic
 |]
