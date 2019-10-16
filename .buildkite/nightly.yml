@@ -30,6 +30,8 @@ steps:
     agents:
       system: x86_64-linux
 
+  - block: 'Delete CI Caches'
+
   - label: 'Clean up CI cache'
     command:
       - "nix-build .buildkite/default.nix -o sr"
@@ -37,13 +39,14 @@ steps:
     agents:
       system: x86_64-linux
 
-  - block: 'Delete CI Caches'
   - label: 'Purge CI cache'
     command:
       - "nix-build .buildkite/default.nix -o sr"
       - "./sr/bin/rebuild purge-cache --build-dir=$BUILD_DIR --cache-dir=$CACHE_DIR"
     agents:
       system: x86_64-linux
+
   - wait
+
   - label: "Rebuild master branch"
     trigger: "cardano-wallet"
