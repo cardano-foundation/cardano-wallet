@@ -63,7 +63,7 @@ import GHC.IO.Handle.FD
 import System.Environment
     ( lookupEnv )
 import System.Info
-    ( arch )
+    ( os )
 import System.IO
     ( Handle, hFlush, hGetLine, hSetNewlineMode, noNewlineTranslation )
 import System.IO.Error
@@ -214,7 +214,7 @@ readMessage :: Handle -> IO BL.ByteString
 readMessage = if isWindows then windowsReadMessage else posixReadMessage
 
 isWindows :: Bool
-isWindows = arch == "windows"
+isWindows = os == "windows"
 
 windowsReadMessage :: Handle -> IO BL.ByteString
 windowsReadMessage handle = do
