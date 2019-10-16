@@ -9,7 +9,7 @@ steps:
   - label: 'Restore benchmark - testnet'
     command: "./.buildkite/bench-restore.sh"
     env:
-      HOME: "/cache/cardano-wallet"
+      HOME: "/cache/cardano-wallet.home"
       NETWORK: testnet
     timeout_in_minutes: 60
     agents:
@@ -18,7 +18,7 @@ steps:
   - label: 'Restore benchmark - mainnet'
     command: "./.buildkite/bench-restore.sh"
     env:
-      HOME: "/cache/cardano-wallet"
+      HOME: "/cache/cardano-wallet.home"
       NETWORK: mainnet
     timeout_in_minutes: 120
     agents:
