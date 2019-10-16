@@ -5,10 +5,10 @@
         "homepage": null,
         "owner": "input-output-hk",
         "repo": "cardano-shell",
-        "rev": "db5ec0511e09685590b71d14002080e89dc6c7a9",
-        "sha256": "0p1bw48lzchfz0qa1d4n4lxjd457kchs0ylyr8111nz6ivsjpkzc",
+        "rev": "7a818677756110a6068c7affc4bb043ea81e390e",
+        "sha256": "1z6wwsivcw03jks4xypqcpwcz487b0g565w6wrbhdln36r6q4lfb",
         "type": "tarball",
-        "url": "https://github.com/input-output-hk/cardano-shell/archive/db5ec0511e09685590b71d14002080e89dc6c7a9.tar.gz",
+        "url": "https://github.com/input-output-hk/cardano-shell/archive/7a818677756110a6068c7affc4bb043ea81e390e.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "gitignore": {
