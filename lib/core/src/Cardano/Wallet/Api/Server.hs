@@ -45,7 +45,6 @@ import Cardano.Wallet
     , ErrListTransactions (..)
     , ErrListUTxOStatistics (..)
     , ErrMkStdTx (..)
-    , ErrNoSuchTransaction (..)
     , ErrNoSuchWallet (..)
     , ErrPostTx (..)
     , ErrSignTx (..)
@@ -1098,14 +1097,6 @@ instance LiftHandler ErrNoSuchWallet where
                 , toText wid
                 ]
 
-instance LiftHandler ErrNoSuchTransaction where
-    handler = \case
-        ErrNoSuchTransaction tid ->
-            apiError err404 NoSuchTransaction $ mconcat
-                [ "I couldn't find a transaction with the given id: "
-                , toText tid
-                ]
-
 instance LiftHandler ErrWalletAlreadyExists where
     handler = \case
         ErrWalletAlreadyExists wid ->
@@ -1266,7 +1257,11 @@ instance LiftHandler ErrSubmitExternalTx where
 instance LiftHandler ErrForgetPendingTx where
     handler = \case
         ErrForgetPendingTxNoSuchWallet e -> handler e
-        ErrForgetPendingTxNoSuchTransaction e -> handler e
+        ErrForgetPendingTxNoSuchTransaction tid ->
+            apiError err404 NoSuchTransaction $ mconcat
+                [ "I couldn't find a transaction with the given id: "
+                , toText tid
+                ]
         ErrForgetPendingTxTransactionIsNotPending tid ->
             apiError err404 TransactionNotPending $ mconcat
                 [ "The transaction with id : ", toText tid,
