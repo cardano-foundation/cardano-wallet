@@ -124,6 +124,7 @@ type CompatibilityApi t =
     :<|> GetByronWallet
     :<|> GetByronWalletMigrationInfo
     :<|> ListByronWallets
+    :<|> ListByronTransactions t
     :<|> MigrateByronWallet t
     :<|> PostByronWallet
 
@@ -306,6 +307,15 @@ type GetByronWalletMigrationInfo = "byron-wallets"
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listByronWallets
 type ListByronWallets = "byron-wallets"
     :> Get '[JSON] [ApiByronWallet]
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listByronTransactions
+type ListByronTransactions t = "byron-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "transactions"
+    :> QueryParam "start" Iso8601Time
+    :> QueryParam "end" Iso8601Time
+    :> QueryParam "order" (ApiT SortOrder)
+    :> Get '[JSON] [ApiTransaction t]
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/migrateByronWallet
 type MigrateByronWallet t = "byron-wallets"
