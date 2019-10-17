@@ -234,7 +234,7 @@ $ jormungandr --genesis-block block0.bin --config config.yaml --secret secret.ya
 Then, start the wallet backend server:
 
 ```
-$ cardano-wallet serve --genesis-hash $(jcli genesis hash --input block0.bin)
+$ cardano-wallet serve --genesis-block-hash $(jcli genesis hash --input block0.bin)
 ```
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
