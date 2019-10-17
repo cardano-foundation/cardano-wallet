@@ -17,13 +17,13 @@ import Cardano.BM.Trace
 import Cardano.DB.Sqlite
     ( SqliteContext )
 import Cardano.Pool.DB
-    ( DBLayer (..), ErrSlotAlreadyExists (..) )
+    ( DBLayer (..), ErrPointAlreadyExists (..) )
 import Cardano.Pool.DB.Arbitrary
     ( StakePoolsFixture (..) )
 import Cardano.Pool.DB.Sqlite
     ( newDBLayer )
 import Cardano.Wallet.Primitive.Types
-    ( EpochNo, PoolId, SlotId (..) )
+    ( BlockHeader (..), EpochNo, PoolId, SlotId (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Monad
@@ -153,7 +153,7 @@ prop_putSlotTwicePoolProduction db (StakePoolsFixture pairs _) =
     setup = liftIO $ cleanDB db
     prop = liftIO $ do
         forM_ pairs $ \(pool, slot) -> do
-            let err = ErrSlotAlreadyExists slot
+            let err = ErrPointAlreadyExists slot
             runExceptT (putPoolProduction db slot pool) `shouldReturn` Right ()
             runExceptT (putPoolProduction db slot pool) `shouldReturn` Left err
 
@@ -168,8 +168,8 @@ prop_rollbackPools db f@(StakePoolsFixture pairs _) sl =
   where
     prop = do
         (beforeRollback, afterRollback) <- run $ do
-            forM_ pairs $ \(pool, slot) ->
-                runExceptT $ putPoolProduction db slot pool
+            forM_ pairs $ \(pool, point) ->
+                runExceptT $ putPoolProduction db point pool
             before <- map fst <$> allPoolProduction db f
             rollbackTo db sl
             after <- map fst <$> allPoolProduction db f
@@ -197,21 +197,21 @@ prop_readPoolNoEpochLeaks db (StakePoolsFixture pairs _) =
   where
     slotPartition = L.groupBy ((==) `on` epochNumber)
         $ L.sortOn epochNumber
-        $ map snd pairs
+        $ map (slotId . snd) pairs
     epochGroups = L.zip (uniqueEpochs pairs) slotPartition
     setup = liftIO $ cleanDB db
     prop = liftIO $ do
         forM_ pairs $ \(pool, slot) ->
             unsafeRunExceptT $ putPoolProduction db slot pool
         forM_ epochGroups $ \(epoch, slots) -> do
-            slots' <-
-                (Set.fromList . concat . Map.elems) <$> readPoolProduction db epoch
+            slots' <- (Set.fromList . map slotId . concat . Map.elems) <$>
+                readPoolProduction db epoch
             slots' `shouldBe` (Set.fromList slots)
 
 -- | Read pool production satisfies conditions after consecutive
 -- 1-slot-depth rollbacks
 prop_readPoolCondAfterDeterministicRollbacks
-    :: (Map PoolId [SlotId] -> Expectation)
+    :: (Map PoolId [BlockHeader] -> Expectation)
     -> DBLayer IO
     -> StakePoolsFixture
     -> Property
@@ -219,10 +219,10 @@ prop_readPoolCondAfterDeterministicRollbacks cond db (StakePoolsFixture pairs _)
     monadicIO (setup >> prop)
   where
     setup = liftIO $ cleanDB db
-    slots = map snd pairs
+    slots = map (slotId . snd) pairs
     prop = liftIO $ do
-        forM_ pairs $ \(pool, slot) ->
-            unsafeRunExceptT $ putPoolProduction db slot pool
+        forM_ pairs $ \(pool, point) ->
+            unsafeRunExceptT $ putPoolProduction db point pool
         forM_ slots $ \slot -> do
             _ <- rollbackTo db slot
             forM_ (uniqueEpochs pairs) $ \epoch -> do
@@ -232,7 +232,7 @@ prop_readPoolCondAfterDeterministicRollbacks cond db (StakePoolsFixture pairs _)
 -- | Read pool production satisfies conditions after consecutive
 -- arbitrary N-slot-depth rollbacks
 prop_readPoolCondAfterRandomRollbacks
-    :: (Map PoolId [SlotId] -> Expectation)
+    :: (Map PoolId [BlockHeader] -> Expectation)
     -> DBLayer IO
     -> StakePoolsFixture
     -> Property
@@ -254,7 +254,7 @@ prop_readPoolCondAfterRandomRollbacks cond db
 
 -- | Read pool production satisfies condition
 prop_readPoolCond
-    :: (Map PoolId [SlotId] -> Expectation)
+    :: (Map PoolId [BlockHeader] -> Expectation)
     -> DBLayer IO
     -> StakePoolsFixture
     -> Property
@@ -269,20 +269,20 @@ prop_readPoolCond cond db (StakePoolsFixture pairs _) =
             res <- readPoolProduction db epoch
             cond res
 
-descSlotsPerPool :: Map PoolId [SlotId] -> Expectation
+descSlotsPerPool :: Map PoolId [BlockHeader] -> Expectation
 descSlotsPerPool pools = do
     let checkIfDesc slots =
             L.sortOn Down slots == slots
     let pools' = Map.filter checkIfDesc pools
     pools' `shouldBe` pools
 
-noEmptyPools :: Map PoolId [SlotId] -> Expectation
+noEmptyPools :: Map PoolId [BlockHeader] -> Expectation
 noEmptyPools pools = do
     let pools' = Map.filter (not . null) pools
     pools' `shouldBe` pools
 
-uniqueEpochs :: [(PoolId, SlotId)] -> [EpochNo]
-uniqueEpochs = nubOrd . map (epochNumber . snd)
+uniqueEpochs :: [(PoolId, BlockHeader)] -> [EpochNo]
+uniqueEpochs = nubOrd . map (epochNumber . slotId . snd)
 
 -- | Concatenate stake pool production for all epochs in the test fixture.
 allPoolProduction :: DBLayer IO -> StakePoolsFixture -> IO [(SlotId, PoolId)]
@@ -290,4 +290,4 @@ allPoolProduction db (StakePoolsFixture pairs _) =
     rearrange <$> mapM (readPoolProduction db) (uniqueEpochs pairs)
   where
     rearrange ms = concat
-        [ [ (sl, p) | sl <- sls ] | (p, sls) <- concatMap Map.assocs ms ]
+        [ [ (slotId h, p) | h <- hs ] | (p, hs) <- concatMap Map.assocs ms ]

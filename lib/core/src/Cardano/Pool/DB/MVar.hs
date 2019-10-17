@@ -17,7 +17,7 @@ module Cardano.Pool.DB.MVar
 import Prelude
 
 import Cardano.Pool.DB
-    ( DBLayer (..), ErrSlotAlreadyExists (..) )
+    ( DBLayer (..), ErrPointAlreadyExists (..) )
 import Cardano.Pool.DB.Model
     ( ModelPoolOp
     , PoolDatabase
@@ -48,7 +48,7 @@ newDBLayer = do
 
         { putPoolProduction = \sl pool -> ExceptT $ do
             pool `deepseq`
-                alterPoolDB errSlotAlreadyExists db (mPutPoolProduction sl pool)
+                alterPoolDB errPointAlreadyExists db (mPutPoolProduction sl pool)
 
         , readPoolProduction = readPoolDB db . mReadPoolProduction
 
@@ -81,11 +81,11 @@ readPoolDB
 readPoolDB db op =
     alterPoolDB Just db op >>= either (throwIO . MVarPoolDBError) pure
 
-errSlotAlreadyExists
+errPointAlreadyExists
     :: PoolErr
-    -> Maybe ErrSlotAlreadyExists
-errSlotAlreadyExists (SlotAlreadyExists slotid) =
-    Just (ErrSlotAlreadyExists slotid)
+    -> Maybe ErrPointAlreadyExists
+errPointAlreadyExists (PointAlreadyExists slotid) =
+    Just (ErrPointAlreadyExists slotid)
 
 newtype MVarPoolDBError = MVarPoolDBError PoolErr
     deriving (Show)

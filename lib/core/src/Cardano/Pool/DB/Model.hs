@@ -41,7 +41,7 @@ module Cardano.Pool.DB.Model
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( EpochNo (..), PoolId, SlotId (..) )
+    ( BlockHeader (..), EpochNo (..), PoolId, SlotId (..) )
 import Data.Map.Strict
     ( Map )
 import GHC.Generics
@@ -55,7 +55,7 @@ import qualified Data.Map.Strict as Map
 -------------------------------------------------------------------------------}
 
 newtype PoolDatabase = PoolDatabase
-    { pools :: (Map PoolId [SlotId])
+    { pools :: (Map PoolId [BlockHeader])
     -- ^ Information of what blocks were produced by which stake pools
     } deriving (Generic, Show, Eq)
 
@@ -69,7 +69,7 @@ emptyPoolDatabase = PoolDatabase mempty
 
 type ModelPoolOp a = PoolDatabase -> (Either PoolErr a, PoolDatabase)
 
-newtype PoolErr = SlotAlreadyExists SlotId
+newtype PoolErr = PointAlreadyExists BlockHeader
     deriving (Show, Eq)
 
 {-------------------------------------------------------------------------------
@@ -79,25 +79,25 @@ newtype PoolErr = SlotAlreadyExists SlotId
 mCleanPoolProduction :: ModelPoolOp ()
 mCleanPoolProduction _ = (Right (), emptyPoolDatabase)
 
-mPutPoolProduction :: SlotId -> PoolId -> ModelPoolOp ()
+mPutPoolProduction :: BlockHeader -> PoolId -> ModelPoolOp ()
 mPutPoolProduction point poolId db@PoolDatabase{pools} =
     let alter slot = \case
             Nothing -> Just [slot]
             Just slots -> Just $ sortDesc (slot:slots)
         sortDesc = L.sortBy (flip compare)
     in if point `elem` concat (Map.elems pools) then
-        (Left (SlotAlreadyExists point), db)
+        (Left (PointAlreadyExists point), db)
     else
         (Right (), PoolDatabase (Map.alter (alter point) poolId pools))
 
-mReadPoolProduction :: EpochNo -> ModelPoolOp (Map PoolId [SlotId])
+mReadPoolProduction :: EpochNo -> ModelPoolOp (Map PoolId [BlockHeader])
 mReadPoolProduction epoch db@PoolDatabase{pools} =
-    let updateSlots e = Map.map (filter (\(SlotId e' _) -> e' == e))
+    let updateSlots e = Map.map (filter (\x -> epochNumber (slotId x) == e))
         updatePools = Map.filter (not . L.null)
     in (Right (updatePools $ (updateSlots epoch) pools), db)
 
 mRollbackTo :: SlotId -> ModelPoolOp ()
 mRollbackTo point PoolDatabase{pools} =
-    let updateSlots = Map.map (filter (<= point))
+    let updateSlots = Map.map (filter ((<= point) . slotId))
         updatePools = Map.filter (not . L.null)
     in (Right (), PoolDatabase (updatePools $ updateSlots pools))

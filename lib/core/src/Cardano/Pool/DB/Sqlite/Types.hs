@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -15,14 +16,27 @@
 -- The ToJSON/FromJSON and Read instance orphans exist due to class constraints
 -- on Persistent functions.
 
-module Cardano.Pool.DB.Sqlite.Types where
+module Cardano.Pool.DB.Sqlite.Types
+    ( sqlSettings'
+    , BlockId (..)
+    ) where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( PoolId )
+    ( EpochLength (..)
+    , EpochNo
+    , Hash (..)
+    , PoolId
+    , SlotId (..)
+    , SlotNo
+    , flatSlot
+    , fromFlatSlot
+    )
 import Control.Monad
     ( (>=>) )
+import Data.Aeson
+    ( FromJSON, ToJSON, genericParseJSON, genericToJSON )
 import Data.Bifunctor
     ( first )
 import Data.Proxy
@@ -36,13 +50,20 @@ import Data.Text.Class
     , fromTextMaybe
     , getTextDecodingError
     )
+import Data.Word
+    ( Word16, Word64 )
 import Database.Persist.Sqlite
     ( PersistField (..), PersistFieldSql (..), PersistValue )
 import Database.Persist.TH
     ( MkPersistSettings (..), sqlSettings )
+import GHC.Generics
+    ( Generic )
+import Web.HttpApiData
+    ( FromHttpApiData (..), ToHttpApiData (..) )
 import Web.PathPieces
     ( PathPiece (..) )
 
+import qualified Data.Aeson as Aeson
 import qualified Data.Text as T
 
 ----------------------------------------------------------------------------
@@ -79,3 +100,51 @@ instance Read PoolId where
 instance PathPiece PoolId where
     fromPathPiece = fromTextMaybe
     toPathPiece = toText
+
+----------------------------------------------------------------------------
+-- BlockId
+
+-- Wraps Hash "BlockHeader" because the persistent dsl doesn't like it raw.
+newtype BlockId = BlockId { getBlockId :: Hash "BlockHeader" }
+    deriving (Show, Eq, Ord, Generic)
+
+instance PersistField BlockId where
+    toPersistValue = toPersistValue . toText . getBlockId
+    fromPersistValue = fmap BlockId <$> fromPersistValueFromText
+
+instance PersistFieldSql BlockId where
+    sqlType _ = sqlType (Proxy @Text)
+
+instance Read BlockId where
+    readsPrec _ = error "readsPrec stub needed for persistent"
+
+----------------------------------------------------------------------------
+-- SlotId
+
+-- | As a short-to-medium term solution of persisting 'SlotId', we use
+-- 'flatSlot' with an artificial epochLength. I.e. /not the same epochLength as
+-- the blockchain/. This is just for the sake of storing the 64 bit epoch and
+-- the 16 bit slot inside a single 64-bit field.
+artificialEpochLength :: EpochLength
+artificialEpochLength = EpochLength $ fromIntegral (maxBound :: Word16)
+
+instance PersistFieldSql SlotId where
+    sqlType _ = sqlType (Proxy @Word64)
+
+instance PersistField SlotId where
+    toPersistValue = toPersistValue . flatSlot artificialEpochLength
+    fromPersistValue = fmap (fromFlatSlot artificialEpochLength) . fromPersistValue
+
+instance ToJSON SlotId where toJSON = genericToJSON Aeson.defaultOptions
+instance FromJSON SlotId where parseJSON = genericParseJSON Aeson.defaultOptions
+instance ToJSON SlotNo where toJSON = genericToJSON Aeson.defaultOptions
+instance FromJSON SlotNo where parseJSON = genericParseJSON Aeson.defaultOptions
+instance ToJSON EpochNo where toJSON = genericToJSON Aeson.defaultOptions
+instance FromJSON EpochNo where parseJSON = genericParseJSON Aeson.defaultOptions
+instance ToHttpApiData SlotId where
+    toUrlPiece = error "toUrlPiece stub needed for persistent"
+instance FromHttpApiData SlotId where
+    parseUrlPiece = error "parseUrlPiece stub needed for persistent"
+instance PathPiece SlotId where
+    toPathPiece = error "toPathPiece stub needed for persistent"
+    fromPathPiece = error "fromPathPiece stub needed for persistent"
