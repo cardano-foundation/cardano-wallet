@@ -35,6 +35,10 @@ Available COMMANDS:
     <a href="#transaction-submit">submit</a>            Submit an externally-signed transaction
   address
     <a href="#address-list">list</a>              List all known addresses of a wallet
+  stake-pool
+      <a href="#stake-pool-list">list</a>            List all known stake pools
+  network
+    <a href="#network-information">information</a>       View network information
   <a href="#version">version</a>             Show the program's current version
 </pre> 
 
@@ -81,13 +85,13 @@ This is a shortcut command for those looking into an _out-of-the-box_ solution f
 >   [--node-port INT]
 >   [--state-dir DIR]
 >   ([--quiet] | [--verbose])
->   --genesis-block FILE
->   --bft-leaders FILE
+>   (--genesis-block-hash STRING | --genesis-block FILE) 
+>    [-- ARGUMENTS...]
 
 - :information_source: Please note that launch will generate a configuration for Jörmungandr in a folder specified by '--state-dir'.
-- :information_source: The wallet backend only works with Jörmungandr in BFT mode with a test discrimination.
+- :information_source: The wallet backend only works with Jörmungandr in Genesis/Paros mode with a test discrimination.
 
-##### --genesis-block
+##### --genesis-block | --genesis-block-hash
 
 The genesis block file can be obtained using Jörmungandr's tool command-line `jcli` as follows:
 
@@ -120,7 +124,7 @@ blockchain_configuration:
   #
   # * BFT consensus: bft
   # * Genesis Praos consensus: genesis
-  block0_consensus: bft
+  block0_consensus: genesis_praos
 
   # Number of slots in each epoch
   slots_per_epoch: 500
@@ -138,7 +142,7 @@ blockchain_configuration:
     - ed25519_pk1haythczarvl75wt6y6fmq0gjz7j9xcyfatwchj523wdawechkd8qp735w5
 
   # Genesis praos parameter D
-  bft_slots_ratio: 0.220
+  bft_slots_ratio: 0
 
   # Genesis praos active slot coefficient
   # Determines minimum stake required to try becoming slot leader, must be in range (0,1]
@@ -167,25 +171,10 @@ initial:
 ```
 </details>
 
-
-##### --bft-leaders
-
-The BFT leaders is a yaml file listing the private keys of the BFT leaders defined in the genesis file. For example:
-
-<details>
-  <summary>secret.yaml</summary>
-
-```yaml
-bft:
-  signing_key: ed25519_sk1ga6n6fdsrruumg6nh0epdrqswrsdxhq4q7g5enun8v2jnk4u2gls08wfu3
-```
-
-</details>
-
 ##### example
 
 ```
-$ cardano-wallet launch --genesis-file block0.bin --bft-leaders secret.yaml
+$ cardano-wallet launch --genesis-block block0.bin -- --secret secret.yaml
 ```
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
@@ -502,6 +491,24 @@ $ cardano-wallet list addresses 2512a00e9653fe49a44a5886202e24d77eeb998f
 ```
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
+
+## stake pool list
+
+> `cardano-wallet stake-pool list [--port=INT]` 
+
+List all known stake pools with some statistics about them.
+
+```
+$ cardano-wallet stake-pools list
+```
+
+<p align=right><a href="#">top :arrow_heading_up:</a></p>
+
+## network information
+
+> `cardano-wallet network information [--port=INT]` 
+
+View network information and syncing progress between the node and the blockchain.
 
 ## version
 
