@@ -47,6 +47,8 @@ import Control.Retry
     ( RetryPolicyM, retrying )
 import Data.Either
     ( isLeft )
+import Data.Generics.Internal.VL.Lens
+    ( (^.) )
 import Data.Map.Merge.Strict
     ( WhenMatched, WhenMissing, mergeA, traverseMissing, zipWithMatched )
 import Data.Map.Strict
@@ -68,6 +70,7 @@ data ErrListStakePools
     = ErrListStakePoolsStakeIsUnreachable ErrNetworkUnavailable
     | ErrListStakePoolsMetricsIsUnsynced (Quantity "percent" Percentage)
     | ErrListStakePoolInconsistencyErr ErrMetricsInconsistency
+    | ErrLostStakePoolTooVolatile
 
 newtype StakePoolLayer m = StakePoolLayer
      { listStakePools
@@ -82,21 +85,41 @@ newStakePoolLayer
 newStakePoolLayer nl db = do
     return $ StakePoolLayer
         { listStakePools = do
-            -- TODO: Use withinSameTip here!
-            (epochNo, stakeDistr) <- withE1 $ stakeDistribution nl
+            -- 1. Get the stake distr and its unstable blocks
+            (stakeDistr, unstable) <- withinSameTip retryPolicy getTip withE1 $ \_tip -> do
+                (_epochNo, stakeDistr) <- withE2 $ stakeDistribution nl
+                let (unstable :: [BlockHeader]) = getUnstable nl
+                return (stakeDistr, unstable)
 
+            -- 2. Get the pool productions from DB
+            let epochNo = ((last unstable) :: BlockHeader) ^. #slotId ^. #epochNumber
             production <- liftIO $ convert <$> readPoolProduction db epochNo
 
-            case combineMetrics stakeDistr production of
+            -- 3. Find the last intersection between the the unstable blocks
+            -- and the pool productions.
+            -- Use jörmungandr @greatestCommonBlockHeader@
+            let intersection = undefined production unstable
+
+            let production' = Map.filter (<= intersection) production
+
+            case combineMetrics stakeDistr production' of
                 Left e -> throwE $ ErrListStakePoolInconsistencyErr e
                 Right r -> return $ Map.toList r
         }
   where
-    withE1 = withExceptT ErrListStakePoolsStakeIsUnreachable
+    withE1 ErrWithinSameTipMaxRetries = throwE ErrLostStakePoolTooVolatile
+    withE2 = withExceptT ErrListStakePoolsStakeIsUnreachable
 
     -- TODO: It might be cleaner to change the DB-layer instead of having
     -- this Map.map here.
     convert = Map.map (Quantity . fromIntegral . length)
+
+    retryPolicy = error "TODO"
+    getUnstable :: NetworkLayer IO tx (BlockHeader, PoolId) -> [BlockHeader]
+    getUnstable = error "TODO"
+
+    getTip = withExceptT (error "TODO") $ networkTip nl
+    --getTip = undefined
 
 -- | For a given epoch, and state, this function returns /how many/ blocks
 -- each pool produced.
@@ -181,6 +204,7 @@ withinSameTip
         -- ^ On failure
     -> m header
         -- ^ A getter for that header.
+    -> (ErrWithinSameTip -> m a)
     -> (header -> m a)
         -- ^ The action to run
     -> m a
