@@ -164,7 +164,6 @@ import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Data.List as L
 import qualified Data.Map as Map
 import qualified Data.Text as T
 
@@ -443,14 +442,18 @@ newDBLayer logConfig trace mDatabaseFile = do
               selectWallet wid >>= \case
                   Just _ -> do
                       metas <- selectPendingTxs wid (TxId tid)
-                      when (L.null metas) $ do
-                          lift $ throwIO (ErrRemovePendingTxNoSuchTransaction tid)
                       let checkStatus = not . any
                               (\(TxMeta _ _ st _ _ _ _) -> st == W.Pending)
-                      when (checkStatus metas) $ do
-                          lift $ throwIO (ErrRemovePendingTxTransactionNoMorePending tid)
-                      deletePendingTx wid (TxId tid)
-                      pure $ Right ()
+                      case metas of
+                          [] ->
+                              pure $ Left $
+                              ErrRemovePendingTxNoSuchTransaction tid
+                          _ -> if (checkStatus metas) then
+                                  pure $ Left $
+                                  ErrRemovePendingTxTransactionNoMorePending tid
+                               else do
+                                  deletePendingTx wid (TxId tid)
+                                  pure $ Right ()
                   Nothing -> pure $ Left $ ErrRemovePendingTxNoSuchWallet wid
 
         {-----------------------------------------------------------------------
