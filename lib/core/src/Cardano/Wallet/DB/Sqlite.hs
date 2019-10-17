@@ -51,6 +51,7 @@ import Cardano.Wallet.DB
     ( DBFactory (..)
     , DBLayer (..)
     , ErrNoSuchWallet (..)
+    , ErrRemovePendingTx (..)
     , ErrWalletAlreadyExists (..)
     , PrimaryKey (..)
     , sparseCheckpoints
@@ -163,6 +164,7 @@ import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Data.List as L
 import qualified Data.Map as Map
 import qualified Data.Text as T
 
@@ -436,7 +438,20 @@ newDBLayer logConfig trace mDatabaseFile = do
                                        Pending Tx
         -----------------------------------------------------------------------}
 
-        , removePendingTx = undefined
+        , removePendingTx = \(PrimaryKey wid) tid ->
+              ExceptT $ runQuery $
+              selectWallet wid >>= \case
+                  Just _ -> do
+                      metas <- selectPendingTxs wid (TxId tid)
+                      when (L.null metas) $ do
+                          lift $ throwIO (ErrRemovePendingTxNoSuchTransaction tid)
+                      let checkStatus = not . any
+                              (\(TxMeta _ _ st _ _ _ _) -> st == W.Pending)
+                      when (checkStatus metas) $ do
+                          lift $ throwIO (ErrRemovePendingTxTransactionNoMorePending tid)
+                      deletePendingTx wid (TxId tid)
+                      pure $ Right ()
+                  Nothing -> pure $ Left $ ErrRemovePendingTxNoSuchWallet wid
 
         {-----------------------------------------------------------------------
                                        Lock
@@ -818,6 +833,21 @@ selectTxHistory wid order conditions = do
     sortOpt = case order of
         W.Ascending -> [Asc TxMetaSlot, Desc TxMetaTxId]
         W.Descending -> [Desc TxMetaSlot, Asc TxMetaTxId]
+
+selectPendingTxs
+    :: W.WalletId
+    -> TxId
+    -> SqlPersistT IO [TxMeta]
+selectPendingTxs wid tid =
+    fmap entityVal <$> selectList
+        [TxMetaWalletId ==. wid, TxMetaTxId ==. tid] []
+
+deletePendingTx
+    :: W.WalletId
+    -> TxId
+    -> SqlPersistT IO ()
+deletePendingTx wid tid = deleteWhere
+    [TxMetaWalletId ==. wid, TxMetaTxId ==. tid, TxMetaStatus ==. W.Pending ]
 
 selectPrivateKey
     :: (MonadIO m, PersistKey k)

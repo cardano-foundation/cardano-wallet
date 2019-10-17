@@ -43,6 +43,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletId
     , WalletMetadata
     )
+import Control.Exception
+    ( Exception )
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
 import Data.Quantity
@@ -198,6 +200,8 @@ data ErrRemovePendingTx
     | ErrRemovePendingTxNoSuchTransaction (Hash "Tx")
     | ErrRemovePendingTxTransactionNoMorePending (Hash "Tx")
     deriving (Eq, Show)
+
+instance Exception ErrRemovePendingTx
 
 -- | Can't perform given operation because there's no transaction
 newtype ErrNoSuchTransaction
