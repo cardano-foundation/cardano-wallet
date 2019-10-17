@@ -102,6 +102,7 @@ library
       Cardano.Wallet.DB.Sqlite.Types
       Cardano.Wallet.DaedalusIPC
       Cardano.Wallet.Network
+      Cardano.Wallet.Network.BlockHeaders
       Cardano.Wallet.Network.Ports
       Cardano.Wallet.Primitive.AddressDerivation
       Cardano.Wallet.Primitive.AddressDerivation.Random
@@ -175,6 +176,7 @@ test-suite unit
     , quickcheck-state-machine >= 0.6.0
     , random
     , retry
+    , safe
     , servant
     , servant-server
     , servant-swagger
@@ -212,6 +214,7 @@ test-suite unit
       Cardano.Wallet.DB.SqliteSpec
       Cardano.Wallet.DB.StateMachine
       Cardano.Wallet.DummyTarget.Primitive.Types
+      Cardano.Wallet.Network.BlockHeadersSpec
       Cardano.Wallet.NetworkSpec
       Cardano.Wallet.Primitive.AddressDerivation.RandomSpec
       Cardano.Wallet.Primitive.AddressDerivation.SequentialSpec

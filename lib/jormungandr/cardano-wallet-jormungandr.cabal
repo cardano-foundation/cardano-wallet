@@ -75,7 +75,6 @@ library
       Cardano.Wallet.Jormungandr.Api
       Cardano.Wallet.Jormungandr.Api.Client
       Cardano.Wallet.Jormungandr.Binary
-      Cardano.Wallet.Jormungandr.BlockHeaders
       Cardano.Wallet.Jormungandr.Compatibility
       Cardano.Wallet.Jormungandr.Environment
       Cardano.Wallet.Jormungandr.Network
@@ -160,7 +159,6 @@ test-suite unit
   other-modules:
       Cardano.Wallet.Jormungandr.ApiSpec
       Cardano.Wallet.Jormungandr.BinarySpec
-      Cardano.Wallet.Jormungandr.BlockHeadersSpec
       Cardano.Wallet.Jormungandr.CompatibilitySpec
       Cardano.Wallet.Jormungandr.EnvironmentSpec
       Cardano.Wallet.Jormungandr.NetworkSpec

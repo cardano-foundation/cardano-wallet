@@ -21,7 +21,7 @@
 -- point.
 --
 
-module Cardano.Wallet.Jormungandr.BlockHeaders
+module Cardano.Wallet.Network.BlockHeaders
     (
     -- * Types
       BlockHeaders(..)

@@ -16,14 +16,14 @@ import Prelude
 
 import Cardano.Wallet.Jormungandr.Api.Client
     ( JormungandrClient (..) )
-import Cardano.Wallet.Jormungandr.BlockHeaders
-    ( emptyBlockHeaders )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr, Network (Testnet) )
 import Cardano.Wallet.Jormungandr.Network
     ( ErrGetDescendants (..), mkRawNetworkLayer )
 import Cardano.Wallet.Network
     ( Cursor, ErrGetBlock (..), NetworkLayer (..), NextBlocksResult (..) )
+import Cardano.Wallet.Network.BlockHeaders
+    ( emptyBlockHeaders )
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types

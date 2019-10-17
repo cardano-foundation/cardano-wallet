@@ -20,8 +20,6 @@ import Cardano.Wallet.Jormungandr.Api
     ( GetTipId, api )
 import Cardano.Wallet.Jormungandr.Binary
     ( MessageType (..), fragmentId, putSignedTx, runPut, withHeader )
-import Cardano.Wallet.Jormungandr.BlockHeaders
-    ( emptyBlockHeaders )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr, Network (..) )
 import Cardano.Wallet.Jormungandr.Network
@@ -46,6 +44,8 @@ import Cardano.Wallet.Network
     , NetworkLayer (..)
     , NextBlocksResult (..)
     )
+import Cardano.Wallet.Network.BlockHeaders
+    ( emptyBlockHeaders )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( SeqKey )
 import Cardano.Wallet.Primitive.Types
