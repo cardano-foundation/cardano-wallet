@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Cardano.Pool.MetricsSpec (spec) where
@@ -8,7 +9,7 @@ module Cardano.Pool.MetricsSpec (spec) where
 import Prelude
 
 import Cardano.Pool.Metrics
-    ( State (..), applyBlock )
+    ( State (..), applyBlock, combineMetrics )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , EpochLength (..)
@@ -21,11 +22,20 @@ import Cardano.Wallet.Primitive.Types
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
-    ( Word32 )
+    ( Word32, Word64 )
+import Numeric.Natural
+    ( Natural )
 import Test.Hspec
     ( Spec, describe, it, shouldBe )
 import Test.QuickCheck
-    ( Arbitrary (..), InfiniteList (..), property, (===) )
+    ( Arbitrary (..)
+    , InfiniteList (..)
+    , checkCoverage
+    , cover
+    , property
+    , withMaxSuccess
+    , (===)
+    )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 
@@ -34,7 +44,7 @@ import qualified Data.Map as Map
 
 spec :: Spec
 spec = do
-    describe "Counting how many blocks each pool produced" $
+    describe "Counting how many blocks each pool produced" $ do
         describe "State" $ do
             it "stores the last applied blockHeader"
                 $ property $ \s b@(header,_) -> do
@@ -47,6 +57,30 @@ spec = do
                 let count = Map.foldl (\r l -> r + (length l)) 0 . activity
                 count s' === (count s + 1)
 
+        describe "combineMetrics" $ do
+            it "pools with no entry for productions are included" $
+                property $ \stakeDistr -> do
+                    combineMetrics stakeDistr Map.empty
+                    `shouldBe`
+                    (Right $ Map.map (, Quantity 0) stakeDistr)
+
+            it "it fails if a block-producer is not in the stake distr" $ do
+                checkCoverage
+                . property
+                . withMaxSuccess 1000
+                $ \stakeDistr poolProd ->
+                    let
+                        aPoolWithoutStakeProduced =
+                            not . Map.null $ Map.difference poolProd stakeDistr
+                    in cover 20 aPoolWithoutStakeProduced
+                        "A pool without stake produced" $
+                       cover 1 (not aPoolWithoutStakeProduced)
+                        "Successfully combined the maps" $
+                        case combineMetrics stakeDistr poolProd of
+                            Left _ ->
+                                aPoolWithoutStakeProduced === True
+                            Right x ->
+                                Map.map fst x === stakeDistr
 
 instance Arbitrary BlockHeader where
     arbitrary = BlockHeader
@@ -78,6 +112,12 @@ instance Arbitrary (Hash tag) where
 
 instance Arbitrary (Quantity "block" Word32) where
      arbitrary = Quantity . fromIntegral <$> (arbitrary @Word)
+
+instance Arbitrary (Quantity "lovelace" Word64) where
+     arbitrary = Quantity . fromIntegral <$> (arbitrary @Word64)
+
+instance Arbitrary (Quantity "block" Natural) where
+     arbitrary = Quantity . fromIntegral <$> (arbitrary @Word64)
 
 instance Arbitrary PoolId where
     arbitrary = do
