@@ -73,6 +73,8 @@ import Cardano.Wallet.Version
     ( showVersion, version )
 import Control.Applicative
     ( optional, (<|>) )
+import Data.List
+    ( isPrefixOf )
 import Data.Maybe
     ( fromMaybe )
 import Data.Text
@@ -90,11 +92,14 @@ import Options.Applicative
     , helper
     , info
     , long
+    , many
     , metavar
+    , option
     , progDesc
-    , some
     , str
     )
+import Options.Applicative.Types
+    ( readerAsk, readerError )
 import System.Exit
     ( exitWith )
 import System.FilePath
@@ -158,8 +163,9 @@ data LaunchArgs = LaunchArgs
     }
 
 data JormungandrArgs = JormungandrArgs
-    { genesisBlock :: Either (Hash "Genesis") FilePath
-    , extraJormungandrArgs :: [Text]
+    { _genesisBlock :: Either (Hash "Genesis") FilePath
+    , _configFile :: Maybe FilePath
+    , _extraJormungandrArgs :: [String]
     }
 
 cmdLaunch
@@ -178,24 +184,26 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
         <*> verbosityOption
         <*> (JormungandrArgs
             <$> genesisBlockOption
+            <*> configFileOption
             <*> extraArguments)
     exec (LaunchArgs listen nodePort mStateDir verbosity jArgs) = do
-        let minSeverity = verbosityToMinSeverity verbosity
-        (cfg, sb, tr) <- initTracer minSeverity "launch"
-        case genesisBlock jArgs of
+        let minSeverity_ = verbosityToMinSeverity verbosity
+        (cfg, sb, tr) <- initTracer minSeverity_ "launch"
+        case _genesisBlock jArgs of
             Right block0File -> requireFilePath block0File
             Left _ -> pure ()
-        let stateDir = fromMaybe (dataDir </> "testnet") mStateDir
-        let databaseDir = stateDir </> "wallets"
+        let stateDir_ = fromMaybe (dataDir </> "testnet") mStateDir
+        let databaseDir = stateDir_ </> "wallets"
         let cp = JormungandrConfig
-                { _stateDir = stateDir
-                , _genesisBlock = genesisBlock jArgs
-                , _restApiPort = fromIntegral . getPort <$> nodePort
-                , _minSeverity = minSeverity
-                , _outputStream = Inherit
-                , _extraArgs = extraJormungandrArgs jArgs
+                { stateDir = stateDir_
+                , genesisBlock = _genesisBlock jArgs
+                , restApiPort = fromIntegral . getPort <$> nodePort
+                , minSeverity = minSeverity_
+                , outputStream = Inherit
+                , configFile = _configFile jArgs
+                , extraArgs = _extraJormungandrArgs jArgs
                 }
-        setupDirectory (logInfo tr) stateDir
+        setupDirectory (logInfo tr) stateDir_
         setupDirectory (logInfo tr) databaseDir
         logInfo tr $ "Running as v" <> T.pack (showVersion version)
         exitWith =<< serveWallet
@@ -272,8 +280,21 @@ genesisHashOption = optionT $ mempty
     <> metavar "STRING"
     <> help "Blake2b_256 hash of the genesis block, in base 16."
 
+-- | [--config=FILE.YAML]
+configFileOption :: Parser (Maybe FilePath)
+configFileOption = optional $ option str $ mempty
+    <> long "config"
+    <> metavar "FILE.YAML"
+    <> help "Config file for jormungandr (note that this will be copied to a temporary location)"
+
 -- | -- [ARGUMENTS...]
-extraArguments :: Parser [Text]
-extraArguments = some $ argument str $ mempty
+extraArguments :: Parser [String]
+extraArguments = many $ argument jmArg $ mempty
     <> metavar "[-- ARGUMENTS...]"
     <> help "Extra arguments to be passed to jormungandr."
+  where
+    jmArg = do
+        arg <- readerAsk
+        if "--config" `isPrefixOf` arg
+            then readerError "The --config option must be placed before the --"
+            else pure arg

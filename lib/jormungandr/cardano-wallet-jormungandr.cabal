@@ -52,6 +52,7 @@ library
     , extra
     , filepath
     , fmt
+    , generic-lens
     , http-client
     , http-types
     , iohk-monitoring
@@ -66,6 +67,7 @@ library
     , text-class
     , time
     , transformers
+    , unordered-containers
     , yaml
     , warp
   hs-source-dirs:

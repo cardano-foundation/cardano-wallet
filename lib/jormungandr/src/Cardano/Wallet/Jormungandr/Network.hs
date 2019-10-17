@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -100,7 +101,7 @@ import Cardano.Wallet.Jormungandr.BlockHeaders
     , updateUnstableBlocks
     )
 import Cardano.Wallet.Jormungandr.Compatibility
-    ( Jormungandr, genConfigFile, localhostBaseUrl )
+    ( Jormungandr, genConfigFileYaml, localhostBaseUrl )
 import Cardano.Wallet.Network
     ( Cursor, NetworkLayer (..), NextBlocksResult (..), defaultRetryPolicy )
 import Cardano.Wallet.Network.Ports
@@ -125,49 +126,47 @@ import Data.ByteArray.Encoding
     ( Base (Base16), convertToBase )
 import Data.Coerce
     ( coerce )
-import Data.Function
-    ( (&) )
+import Data.Generics.Internal.VL.Lens
+    ( (^.) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
 import Data.Word
     ( Word32 )
-import System.Directory
-    ( removeFile )
-import System.FilePath
-    ( (</>) )
+import GHC.Generics
+    ( Generic )
 
 import qualified Cardano.Wallet.Jormungandr.Binary as J
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Char as C
 import qualified Data.Text as T
-import qualified Data.Yaml as Yaml
 
 -- | Whether to start Jormungandr with the given config, or to connect to an
 -- already running Jormungandr REST API using the given parameters.
 data JormungandrBackend
     = UseRunning JormungandrConnParams
     | Launch JormungandrConfig
-    deriving (Show, Eq)
+    deriving (Show, Eq, Generic)
 
 -- | Parameters for connecting to a Jormungandr REST API.
 data JormungandrConnParams = JormungandrConnParams
-    { _genesisHash :: Hash "Genesis"
-    , _restApi :: BaseUrl
-    } deriving (Show, Eq)
+    { genesisHash :: Hash "Genesis"
+    , restApi :: BaseUrl
+    } deriving (Show, Eq, Generic)
 
 -- | A subset of the Jormungandr configuration parameters, used for starting the
 -- Jormungandr node backend.
 data JormungandrConfig = JormungandrConfig
-    { _stateDir :: FilePath
-    , _genesisBlock :: Either (Hash "Genesis") FilePath
-    , _restApiPort :: Maybe PortNumber
-    , _minSeverity :: Severity
-    , _outputStream :: StdStream
-    , _extraArgs :: [Text]
-    } deriving (Show, Eq)
+    { stateDir :: FilePath
+    , genesisBlock :: Either (Hash "Genesis") FilePath
+    , restApiPort :: Maybe PortNumber
+    , minSeverity :: Severity
+    , outputStream :: StdStream
+    , configFile :: Maybe FilePath
+    , extraArgs :: [String]
+    } deriving (Show, Eq, Generic)
 
 -- | Starts the network layer and runs the given action with a
 -- 'NetworkLayer'. The caller is responsible for handling errors which may have
@@ -444,37 +443,42 @@ withJormungandr
     -> (JormungandrConnParams -> IO a)
     -- ^ Action to run while node is running.
     -> IO (Either ErrStartup a)
-withJormungandr tr (JormungandrConfig stateDir block0 mPort logSeverity output extraArgs) cb =
+withJormungandr tr cfg cb =
     bracket setupConfig cleanupConfig startBackend
   where
-    nodeConfigFile = stateDir </> "jormungandr-config.yaml"
     setupConfig = do
-        apiPort <- maybe getRandomPort pure mPort
+        apiPort <- maybe getRandomPort pure (cfg ^. #restApiPort)
         p2pPort <- getRandomPort
         let baseUrl = localhostBaseUrl $ fromIntegral apiPort
-        genConfigFile stateDir p2pPort baseUrl
-            & Yaml.encodeFile nodeConfigFile
+        nodeConfigFile <- genConfigFileYaml
+            (cfg ^. #stateDir)
+            p2pPort
+            baseUrl
+            (cfg ^. #configFile)
         logInfo tr $ mempty
             <> "Generated Jörmungandr's configuration to: "
             <> T.pack nodeConfigFile
-        pure (apiPort, baseUrl)
-    cleanupConfig _ = removeFile nodeConfigFile
+        pure (apiPort, baseUrl, nodeConfigFile)
+    cleanupConfig (_, _, _cfgFile) = pure () -- removeFile cfgFile
 
-    startBackend (apiPort, baseUrl) = getGenesisBlockArg block0 >>= \case
-        Right (block0H, genesisBlockArg) -> do
-            let args = genesisBlockArg ++
-                    [ "--config", nodeConfigFile
-                    , "--log-level", C.toLower <$> show logSeverity
-                    ] ++ map T.unpack extraArgs
-            let cmd = Command "jormungandr" args (return ()) output
-            let tr' = transformLauncherTrace tr
-            res <- withBackendProcess tr' cmd $
-                waitForPort defaultRetryPolicy apiPort >>= \case
-                    True -> Right <$> cb (JormungandrConnParams block0H baseUrl)
-                    False -> pure $ Left ErrStartupNodeNotListening
-            pure $ either (Left . ErrStartupCommandExited) id res
+    startBackend (apiPort, baseUrl, nodeConfigFile) =
+        getGenesisBlockArg (cfg ^. #genesisBlock) >>= \case
+            Right (block0H, genesisBlockArg) -> do
+                let logLevel = C.toLower <$> show (cfg ^. #minSeverity)
+                let args = genesisBlockArg ++
+                        [ "--config", nodeConfigFile
+                        , "--log-level", logLevel
+                        ] ++ (cfg ^. #extraArgs)
+                let cmd = Command "jormungandr" args
+                            (return ()) (cfg ^. #outputStream)
+                let tr' = transformLauncherTrace tr
+                res <- withBackendProcess tr' cmd $
+                    waitForPort defaultRetryPolicy apiPort >>= \case
+                        True -> Right <$> cb (JormungandrConnParams block0H baseUrl)
+                        False -> pure $ Left ErrStartupNodeNotListening
+                pure $ either (Left . ErrStartupCommandExited) id res
 
-        Left e -> pure $ Left e
+            Left e -> pure $ Left e
 
 getGenesisBlockArg
     :: Either (Hash "Genesis") FilePath

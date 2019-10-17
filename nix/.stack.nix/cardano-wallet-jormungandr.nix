@@ -81,6 +81,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."extra" or (buildDepError "extra"))
           (hsPkgs."filepath" or (buildDepError "filepath"))
           (hsPkgs."fmt" or (buildDepError "fmt"))
+          (hsPkgs."generic-lens" or (buildDepError "generic-lens"))
           (hsPkgs."http-client" or (buildDepError "http-client"))
           (hsPkgs."http-types" or (buildDepError "http-types"))
           (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
@@ -95,6 +96,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."text-class" or (buildDepError "text-class"))
           (hsPkgs."time" or (buildDepError "time"))
           (hsPkgs."transformers" or (buildDepError "transformers"))
+          (hsPkgs."unordered-containers" or (buildDepError "unordered-containers"))
           (hsPkgs."yaml" or (buildDepError "yaml"))
           (hsPkgs."warp" or (buildDepError "warp"))
           ];

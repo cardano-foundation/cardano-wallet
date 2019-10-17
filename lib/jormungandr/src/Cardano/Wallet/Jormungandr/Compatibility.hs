@@ -25,6 +25,7 @@ module Cardano.Wallet.Jormungandr.Compatibility
     , BaseUrl (..)
     , Scheme (..)
     , genConfigFile
+    , genConfigFileYaml
     , localhostBaseUrl
     , baseUrlToText
     ) where
@@ -66,6 +67,10 @@ import Data.ByteString
     ( ByteString )
 import Data.ByteString.Base58
     ( bitcoinAlphabet, decodeBase58, encodeBase58 )
+import Data.Function
+    ( (&) )
+import Data.List
+    ( foldl' )
 import Data.Maybe
     ( fromJust, isJust )
 import Data.Proxy
@@ -85,11 +90,13 @@ import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.CBOR.Write as CBOR
-import qualified Data.Aeson as Aeson
+import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Data.Yaml as Yaml
 
 -- | A type representing the Jormungandr as a network target. This has an
 -- influence on binary serializer & network primitives. See also 'TxId'
@@ -223,28 +230,66 @@ instance KnownNetwork n => DecodeAddress (Jormungandr n) where
                 <> B8.unpack (BS.pack [discriminant])
                 <> "."
 
--- | Generate a configuration file for Jörmungandr@0.3.999
+-- | Generate a configuration file for Jörmungandr@0.6
+-- Will throw "YamlException" or "IOException" when files cannot be
+-- read/written.
+genConfigFileYaml
+    :: FilePath
+    -- ^ State directory
+    -> PortNumber
+    -- ^ P2P port
+    -> BaseUrl
+    -- ^ Rest API base URL
+    -> Maybe FilePath
+    -- ^ User's config file
+    -> IO FilePath
+genConfigFileYaml stateDir addressPort restApiUrl baseConfig = do
+    let nodeConfigFile = stateDir </> "jormungandr-config.yaml"
+    base <- maybe (pure Aeson.Null) Yaml.decodeFileThrow baseConfig
+    genConfigFile stateDir addressPort restApiUrl base
+        & Yaml.encodeFile nodeConfigFile
+    pure nodeConfigFile
+
+-- | Create a Jormungandr config by first making some defaults, then adding the
+-- user's config file (if provided), then setting the API port to the value that
+-- we have chosen.
 genConfigFile
     :: FilePath
     -> PortNumber
     -> BaseUrl
     -> Aeson.Value
-genConfigFile stateDir addressPort (BaseUrl _ host port _) = object
-    [ "storage" .= (stateDir </> "chain")
-    , "rest" .= object
-        [ "listen" .= String listen ]
-    , "p2p" .= object
-        [ "trusted_peers" .= ([] :: [()])
-        , "topics_of_interest" .= object
-            [ "messages" .= String "low"
-            , "blocks" .= String "normal"
-            ]
-        , "public_address" .= String publicAddress
-        ]
-    ]
+    -> Aeson.Value
+genConfigFile stateDir addressPort (BaseUrl _ host port _) user =
+    mergeObjects [defaults, user, override]
   where
+    defaults = object
+        [ "storage" .= (stateDir </> "chain")
+        , "p2p" .= object
+            [ "trusted_peers" .= ([] :: [()])
+            , "topics_of_interest" .= object
+                [ "messages" .= String "low"
+                , "blocks" .= String "normal"
+                ]
+            , "public_address" .= String publicAddress
+            ]
+        ]
+    override = object
+        [ "rest" .= object
+            [ "listen" .= String listen ]
+        ]
     listen = T.pack $ mconcat [host, ":", show port]
     publicAddress = T.pack $ mconcat ["/ip4/127.0.0.1/tcp/", show addressPort]
+
+-- | Recursively merge JSON objects, with the rightmost values taking
+-- precedence.
+mergeObjects :: [Aeson.Value] -> Aeson.Value
+mergeObjects = foldl' merge Aeson.Null
+  where
+    merge :: Aeson.Value -> Aeson.Value -> Aeson.Value
+    merge (Aeson.Object a) (Aeson.Object b) = Aeson.Object $
+        HM.unionWith merge a b
+    merge a Aeson.Null = a
+    merge _ b = b
 
 {-------------------------------------------------------------------------------
                                      Base URL

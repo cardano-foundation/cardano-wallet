@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -54,7 +55,6 @@ import Cardano.Wallet.Jormungandr.Network
     , ErrGetBlockchainParams (..)
     , ErrStartup (..)
     , JormungandrBackend (..)
-    , JormungandrConnParams (..)
     , withNetworkLayer
     )
 import Cardano.Wallet.Jormungandr.Primitive.Types
@@ -85,6 +85,8 @@ import Control.DeepSeq
     ( NFData )
 import Data.Function
     ( (&) )
+import Data.Generics.Internal.VL.Lens
+    ( (^.) )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -126,7 +128,7 @@ serveWallet (cfg, sb, tr) databaseDir listen lj beforeMainLoop = do
     logInfo tr $ "Node is Jörmungandr on " <> toText (networkVal @n)
     withNetworkLayer tr lj $ \case
         Right (cp, nl) -> do
-            let nPort = Port $ baseUrlPort $ _restApi cp
+            let nPort = Port $ baseUrlPort $ cp ^. #restApi
             waitForService "Jörmungandr" (sb, tr) nPort $
                 waitForNetwork nl defaultRetryPolicy
             let (_, bp) = staticBlockchainParameters nl

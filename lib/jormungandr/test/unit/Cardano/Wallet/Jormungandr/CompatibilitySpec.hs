@@ -290,20 +290,35 @@ spec = do
         it "example configuration" $ do
             let stateDir = "/state-dir"
             let baseUrl = BaseUrl Http "127.0.0.1" 8080 "/api"
-            genConfigFile stateDir 8081 baseUrl `shouldBe` [aesonQQ|{
+            let user = [aesonQQ|{
+                "yolo": true,
+                "p2p": {
+                    "trusted_peers": [{
+                        "address": "/ip4/208.80.152.201/tcp/3000",
+                        "id": "hello"
+                     }]
+                 }
+            }|]
+            let expected = [aesonQQ|{
                 "storage": "/state-dir/chain",
                 "rest": {
                     "listen": "127.0.0.1:8080"
                 },
                 "p2p": {
-                    "trusted_peers": [],
+                    "trusted_peers": [{
+                        "address": "/ip4/208.80.152.201/tcp/3000",
+                        "id": "hello"
+                     }],
                     "topics_of_interest": {
                         "messages": "low",
                         "blocks": "normal"
                     },
                     "public_address" : "/ip4/127.0.0.1/tcp/8081"
-                }
+                },
+                "yolo": true
             }|]
+
+            genConfigFile stateDir 8081 baseUrl user `shouldBe` expected
 
     describe "Random Address Discovery Properties" $ do
         it "isOurs works as expected during key derivation in testnet" $ do

@@ -336,17 +336,18 @@ spec = do
     second :: Int
     second = 1000000
 
-    startNode cb = withSystemTempDirectory "jormungandr-state" $ \stateDir -> do
+    startNode cb = withSystemTempDirectory "jormungandr-state" $ \stateDir_ -> do
         let cfg = JormungandrConfig
-                stateDir
+                stateDir_
                 (Right "test/data/jormungandr/block0.bin")
                 Nothing
                 Info
                 Inherit
+                Nothing
                 ["--secret", "test/data/jormungandr/secret.yaml"]
         let tr = nullTracer
         e <- withJormungandr tr cfg $ \cp -> withNetworkLayer tr (UseRunning cp) $ \case
-            Right (_, nw) -> cb (nw, _restApi cp)
+            Right (_, nw) -> cb (nw, restApi cp)
             Left e -> throwIO e
         either throwIO (\_ -> return ()) e
 
