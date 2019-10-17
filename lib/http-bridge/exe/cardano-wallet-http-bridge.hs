@@ -51,7 +51,7 @@ import Cardano.CLI
     , verbosityOption
     , verbosityToArgs
     , verbosityToMinSeverity
-    , withLobemo
+    , withLogging
     )
 import Cardano.Launcher
     ( StdStream (..) )
@@ -156,7 +156,7 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
         -> IO ()
     exec (LaunchArgs network listen (Port nodePort) mStateDir verbosity) = do
         let minSeverity = verbosityToMinSeverity verbosity
-        withLobemo Nothing minSeverity $ \(cfg, _sb, tr) -> do
+        withLogging Nothing minSeverity $ \(cfg, _sb, tr) -> do
             let stateDir = fromMaybe (stateDirForNetwork dataDir network) mStateDir
             let bridgeConfig = HttpBridgeConfig
                     network
@@ -213,7 +213,7 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
         -> IO ()
     exec (ServeArgs _ listen (Port nodePort) databaseDir verbosity) = do
         let minSeverity = verbosityToMinSeverity verbosity
-        withLobemo Nothing minSeverity $ \(cfg, _sb, tr) -> do
+        withLogging Nothing minSeverity $ \(cfg, _sb, tr) -> do
             whenJust databaseDir $ setupDirectory (logInfo tr)
             logInfo tr $ "Running as v" <> T.pack (showVersion version)
             exitWith =<< serveWallet @t @n

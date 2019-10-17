@@ -51,7 +51,7 @@ import Cardano.CLI
     , stateDirOption
     , verbosityOption
     , verbosityToMinSeverity
-    , withLobemo
+    , withLogging
     )
 import Cardano.Launcher
     ( StdStream (..) )
@@ -184,7 +184,7 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
             <*> extraArguments)
     exec (LaunchArgs listen nodePort mStateDir logCfg verbosity jArgs) = do
         let minSeverity = verbosityToMinSeverity verbosity
-        withLobemo logCfg minSeverity $ \(cfg, _sb, tr) -> do
+        withLogging logCfg minSeverity $ \(cfg, _sb, tr) -> do
             case genesisBlock jArgs of
                 Right block0File -> requireFilePath block0File
                 Left _ -> pure ()
@@ -239,7 +239,7 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
         -> IO ()
     exec (ServeArgs listen nodePort databaseDir logCfg verbosity block0H) = do
         let minSeverity = verbosityToMinSeverity verbosity
-        withLobemo logCfg minSeverity $ \(cfg, _sb, tr) -> do
+        withLogging logCfg minSeverity $ \(cfg, _sb, tr) -> do
             let baseUrl = localhostBaseUrl $ getPort nodePort
             let cp = JormungandrConnParams block0H baseUrl
             whenJust databaseDir $ setupDirectory (logInfo tr)

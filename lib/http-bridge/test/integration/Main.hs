@@ -18,7 +18,7 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Trace
     ( Trace )
 import Cardano.CLI
-    ( Port (..), setUtf8Encoding, withLobemo )
+    ( Port (..), setUtf8Encoding, withLogging )
 import Cardano.Faucet
     ( initFaucet )
 import Cardano.Launcher
@@ -147,7 +147,7 @@ main = do
     -- Run a local cluster of cardano-sl nodes, a cardano-http-bridge on top and
     -- a cardano wallet server connected to the bridge.
     startCluster :: IO (Context (HttpBridge 'Testnet))
-    startCluster = withLobemo Nothing Info $ \(logConfig, _sb, tracer) -> do
+    startCluster = withLogging Nothing Info $ \(logConfig, _sb, tracer) -> do
         [ nodeApiPort, docPort ] <- randomUnusedTCPPorts 2
         let [core0Port, core1Port, core2Port] = [3000..3002] :: [Int]
         let relayPort = 3100 :: Int -- ports are hardcoded in topology.json

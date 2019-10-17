@@ -15,7 +15,7 @@ import Prelude
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.CLI
-    ( setUtf8Encoding, withLobemo )
+    ( setUtf8Encoding, withLogging )
 import Cardano.Faucet
     ( initFaucet )
 import Cardano.Launcher
@@ -110,7 +110,7 @@ main = do
             NetworkCLI.spec @t
 
 start :: IO (Context (Jormungandr 'Testnet))
-start = withLobemo Nothing Info $ \(cfg, _sb, tr) -> do
+start = withLogging Nothing Info $ \(cfg, _sb, tr) -> do
     ctx <- newEmptyMVar
     pid <- async $ bracket setupConfig teardownConfig $ \jmCfg -> do
         let listen = ListenOnRandomPort

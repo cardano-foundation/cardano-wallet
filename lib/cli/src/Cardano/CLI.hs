@@ -52,7 +52,7 @@ module Cardano.CLI
 
     -- * Logging
     , Verbosity (..)
-    , withLobemo
+    , withLogging
     , initTracer
     , verbosityToArgs
     , verbosityToMinSeverity
@@ -1170,7 +1170,7 @@ initTracer configFile minSeverity = do
 
 -- | Run an action with logging available and configured. When the action is
 -- finished (normally or otherwise), log messages are flushed.
-withLobemo
+withLogging
     :: Maybe FilePath
     -- ^ Configuration file - uses default otherwise.
     -> Severity
@@ -1178,7 +1178,7 @@ withLobemo
     -> ((CM.Configuration, Switchboard Text, Trace IO Text) -> IO a)
     -- ^ The action to run with logging configured.
     -> IO a
-withLobemo configFile minSeverity = bracket before after
+withLogging configFile minSeverity = bracket before after
   where
     before = initTracer configFile minSeverity
     after (_, sb, tr) = do
