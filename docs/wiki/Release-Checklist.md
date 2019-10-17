@@ -41,7 +41,7 @@
 
 ## Manual ad-hoc verifications
 
-- [ ] Execute all [manual scenarios](https://github.com/input-output-hk/cardano-wallet/tree/master/lib/core/test/manual/) on the binaries to be released.
+- [ ] Execute all [manual scenarios](https://github.com/input-output-hk/cardano-wallet/tree/master/lib/core/test/manual/), [and here](https://github.com/input-output-hk/cardano-wallet/tree/master/lib/jormungandr/test/manual) on the binaries to be released.
 
 - [ ] Verify that sensitive fields listed in [Cardano/Wallet/Api/Server](https://github.com/input-output-hk/cardano-wallet/blob/master/lib/core/src/Cardano/Wallet/Api/Server.hs#L218-L224) are still accurate and aren't missing any new ones.
 ```
