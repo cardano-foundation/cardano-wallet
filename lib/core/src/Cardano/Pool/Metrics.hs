@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE LambdaCase #-}
@@ -11,6 +12,8 @@
 -- - "Cardano.Wallet.Api.Server" - which presents the results in an endpoint
 module Cardano.Pool.Metrics
     ( activityForEpoch
+    , combineMetrics
+    , ErrMetricsInconsistency (..)
 
     , State (..)
     , applyBlock
@@ -21,12 +24,20 @@ import Prelude
 
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..), EpochNo (..), PoolId (..), SlotId (..) )
+import Data.Map.Merge.Strict
+    ( WhenMatched, WhenMissing, mergeA, traverseMissing, zipWithMatched )
 import Data.Map.Strict
     ( Map )
+import Data.Quantity
+    ( Quantity (..) )
+import Data.Word
+    ( Word64 )
 import Fmt
     ( Buildable (..), blockListF', fmt, (+|), (|+) )
 import GHC.Generics
     ( Generic )
+import Numeric.Natural
+    ( Natural )
 
 import qualified Data.Map.Strict as Map
 
@@ -39,6 +50,63 @@ activityForEpoch epoch s =
     (activity s)
   where
     slotInCurrentEpoch = ((epoch ==) . epochNumber)
+
+data ErrMetricsInconsistency
+    = ErrMetricsInconsistencyBlockProducerNotInStakeDistr
+        PoolId
+        (Quantity "block" Natural)
+    deriving (Show, Eq)
+
+-- | Combines two different sources of data into one:
+--
+-- 1. A stake-distribution map
+-- 2. A pool-production map
+--
+-- If a pool has produced a block without existing in the stake-distribution,
+-- i.e it exists in (2) but not (1), this function will return
+-- @Left ErrMetricsInconsistencyBlockProducerNotInStakeDistr@.
+--
+-- If a pool is in (1) but not (2), it simply means it has produced 0 blocks so
+-- far.
+combineMetrics
+    :: Map PoolId (Quantity "lovelace" Word64)
+    -> Map PoolId (Quantity "block" Natural)
+    -> Either
+        ErrMetricsInconsistency
+        (Map PoolId (Quantity "lovelace" Word64, Quantity "block" Natural))
+combineMetrics =
+    mergeA
+        stakeButNoActivity
+        activityButNoStake
+        stakeAndActivity
+  where
+    stakeButNoActivity
+        :: WhenMissing
+            (Either ErrMetricsInconsistency)
+            PoolId
+            (Quantity "lovelace" Word64)
+            (Quantity "lovelace" Word64, Quantity "block" Natural)
+    stakeButNoActivity = traverseMissing $ \_k stake ->
+        pure (stake, Quantity 0)
+
+    activityButNoStake
+        :: WhenMissing
+            (Either ErrMetricsInconsistency)
+            PoolId
+            (Quantity "block" Natural)
+            (Quantity "lovelace" Word64, Quantity "block" Natural)
+    activityButNoStake = traverseMissing $ \pool count ->
+        Left $ ErrMetricsInconsistencyBlockProducerNotInStakeDistr pool count
+
+    stakeAndActivity
+        :: WhenMatched
+            (Either ErrMetricsInconsistency)
+            PoolId
+            (Quantity "lovelace" Word64)
+            (Quantity "block" Natural)
+            (Quantity "lovelace" Word64, Quantity "block" Natural)
+    stakeAndActivity =
+        zipWithMatched (\_k stake productions -> (stake, productions))
 
 --
 -- Internals
