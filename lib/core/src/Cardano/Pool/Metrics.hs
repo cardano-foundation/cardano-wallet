@@ -7,9 +7,9 @@
 --
 -- It interacts with:
 -- - "Cardano.Wallet.Network" which provides the chain
--- - "Cardano.Wallet.DB" - which can persist the metrics
+-- - "Cardano.Pool.DB" - which can persist the metrics
 -- - "Cardano.Wallet.Api.Server" - which presents the results in an endpoint
-module Cardano.Wallet.StakePool.Metrics
+module Cardano.Pool.Metrics
     ( activityForEpoch
 
     , State (..)
