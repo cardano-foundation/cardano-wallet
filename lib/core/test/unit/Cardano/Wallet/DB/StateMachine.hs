@@ -503,7 +503,7 @@ generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
         , (3, PutPrivateKey <$> genId' <*> genPrivKey)
         , (3, ReadPrivateKey <$> genId')
         , (1, RollbackTo <$> genId' <*> arbitrary)
-        , (1, RemovePendingTx <$> genId' <*> arbitrary)
+        , (4, RemovePendingTx <$> genId' <*> arbitrary)
         ]
 
     genId :: Gen MWid
@@ -700,6 +700,8 @@ data Tag
       -- ^ Multiple checkpoints are successfully saved to a wallet.
     | RolledBackOnce
       -- ^ We have rolled back at least once
+    | RemovePendingTxTwice
+      -- ^ The same pending tx is removed twice.
     deriving (Bounded, Enum, Eq, Ord, Show)
 
 -- | The list of all possible 'Tag' values.
@@ -722,6 +724,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
     , countAction SuccessfulReadPrivateKey (>= 1) isReadPrivateKeySuccess
     , countAction PutCheckpointTwice (>= 2) isPutCheckpointSuccess
     , countAction RolledBackOnce (>= 1) isRollbackSuccess
+    , removePendingTxTwice
     ]
   where
     isRollbackSuccess :: Event s Symbolic -> Maybe MWid
@@ -787,6 +790,15 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
       where
         match ev = case (cmd ev, mockResp ev) of
             (At (RemoveWallet wid), Resp _) ->
+                Just wid
+            _otherwise ->
+                Nothing
+
+    removePendingTxTwice :: Fold (Event s Symbolic) (Maybe Tag)
+    removePendingTxTwice = countAction RemovePendingTxTwice (>= 2) match
+      where
+        match ev = case (cmd ev, mockResp ev) of
+            (At (RemovePendingTx wid _), Resp _) ->
                 Just wid
             _otherwise ->
                 Nothing
