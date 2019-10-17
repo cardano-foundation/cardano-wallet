@@ -71,7 +71,7 @@ outputs of previous transactions.
 Therefore, new transactions spend outputs of previous transactions, and produce
 new outputs that can be consumed by future transactions. An unspent transaction
 output (i.e. not used as an input of any transaction) is called a **UTxO** (as
-in **U**nspent **Tx** **O**utput) and represent an amount of money owned by a 
+in **U**nspent **Tx** **O**utput) and represents an amount of money owned by a 
 participant. 
 
 
