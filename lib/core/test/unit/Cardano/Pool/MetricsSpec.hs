@@ -3,10 +3,12 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-module Cardano.Wallet.StakePool.MetricsSpec (spec) where
+module Cardano.Pool.MetricsSpec (spec) where
 
 import Prelude
 
+import Cardano.Pool.Metrics
+    ( State (..), applyBlock )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , EpochLength (..)
@@ -16,8 +18,6 @@ import Cardano.Wallet.Primitive.Types
     , flatSlot
     , fromFlatSlot
     )
-import Cardano.Wallet.StakePool.Metrics
-    ( State (..), applyBlock )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
