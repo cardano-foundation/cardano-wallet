@@ -20,7 +20,7 @@ module Cardano.Wallet.DB
     , sparseCheckpoints
 
       -- * Errors
-    , ErrNoSuchTransaction (..)
+    , ErrRemovePendingTx (..)
     , ErrNoSuchWallet(..)
     , ErrWalletAlreadyExists(..)
     ) where
@@ -175,6 +175,12 @@ data DBLayer m s t k = DBLayer
         -> ExceptT ErrNoSuchWallet m ()
         -- ^ Prune database entities and remove entities that can be discarded.
 
+    , removePendingTx
+        :: PrimaryKey WalletId
+        -> Hash "Tx"
+        -> ExceptT ErrRemovePendingTx m ()
+        -- ^ Remove a pending transaction.
+
     , withLock
         :: forall e a. ()
         => ExceptT e m a
@@ -184,6 +190,13 @@ data DBLayer m s t k = DBLayer
 -- | Can't perform given operation because there's no wallet
 newtype ErrNoSuchWallet
     = ErrNoSuchWallet WalletId -- Wallet is gone or doesn't exist yet
+    deriving (Eq, Show)
+
+-- | Can't perform removing pending transaction
+data ErrRemovePendingTx
+    = ErrRemovePendingTxNoSuchWallet WalletId
+    | ErrRemovePendingTxNoSuchTransaction (Hash "Tx")
+    | ErrRemovePendingTxTransactionNoMorePending (Hash "Tx")
     deriving (Eq, Show)
 
 -- | Can't perform given operation because there's no transaction

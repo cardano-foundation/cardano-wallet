@@ -19,12 +19,14 @@ import Prelude
 import Cardano.Wallet.DB
     ( DBLayer (..)
     , ErrNoSuchWallet (..)
+    , ErrRemovePendingTx (..)
     , ErrWalletAlreadyExists (..)
     , PrimaryKey (..)
     )
 import Cardano.Wallet.DB.Model
     ( Database
     , Err (..)
+    , ErrErasePendingTx (..)
     , ModelOp
     , emptyDatabase
     , mCreateWallet
@@ -38,6 +40,7 @@ import Cardano.Wallet.DB.Model
     , mReadPrivateKey
     , mReadTxHistory
     , mReadWalletMeta
+    , mRemovePendingTx
     , mRemoveWallet
     , mRollbackTo
     )
@@ -88,7 +91,7 @@ newDBLayer = do
         , listCheckpoints = readDB db . mListCheckpoints
 
         , rollbackTo = \pk pt -> ExceptT $
-            alterDB errNoSuchWallet  db (mRollbackTo pk pt)
+            alterDB errNoSuchWallet db (mRollbackTo pk pt)
 
         , prune = \_ -> error "MVar.prune: not implemented"
 
@@ -119,6 +122,13 @@ newDBLayer = do
             prv `deepseq` alterDB errNoSuchWallet db (mPutPrivateKey pk prv)
 
         , readPrivateKey = readDB db . mReadPrivateKey
+
+        {-----------------------------------------------------------------------
+                                       Pending Tx
+        -----------------------------------------------------------------------}
+
+        , removePendingTx = \pk tid -> ExceptT $ do
+            alterDB errCannotRemovePendingTx db (mRemovePendingTx pk tid)
 
         {-----------------------------------------------------------------------
                                        Lock
@@ -157,6 +167,15 @@ readDB db op = alterDB Just db op >>= either (throwIO . MVarDBError) pure
 errNoSuchWallet :: Err (PrimaryKey WalletId) -> Maybe ErrNoSuchWallet
 errNoSuchWallet (NoSuchWallet (PrimaryKey wid)) = Just (ErrNoSuchWallet wid)
 errNoSuchWallet _ = Nothing
+
+errCannotRemovePendingTx :: Err (PrimaryKey WalletId) -> Maybe ErrRemovePendingTx
+errCannotRemovePendingTx (CannotRemovePendingTx (ErrErasePendingTxNoSuchWallet (PrimaryKey wid))) =
+    Just (ErrRemovePendingTxNoSuchWallet wid)
+errCannotRemovePendingTx (CannotRemovePendingTx (ErrErasePendingTxNoTx tid)) =
+    Just (ErrRemovePendingTxNoSuchTransaction tid)
+errCannotRemovePendingTx (CannotRemovePendingTx (ErrErasePendingTxNoPendingTx tid)) =
+    Just (ErrRemovePendingTxTransactionNoMorePending tid)
+errCannotRemovePendingTx _ = Nothing
 
 errWalletAlreadyExists
     :: Err (PrimaryKey WalletId)

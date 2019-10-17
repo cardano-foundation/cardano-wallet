@@ -22,8 +22,10 @@ import Cardano.Wallet.Primitive.Types
     )
 import Control.Concurrent.MVar
     ( MVar, modifyMVar, newMVar, readMVar )
+import Control.Monad.IO.Class
+    ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
-    ( runExceptT )
+    ( runExceptT, throwE )
 import Control.Retry
     ( limitRetries )
 import Data.List.NonEmpty
@@ -123,9 +125,9 @@ prop_withinSameTipEventually
 prop_withinSameTipEventually (WithinSameTip source maxRetry) = monadicIO $ do
     retries <- run $ newMVar (0 :: Int)
     getNetworkTip <- run (mkNetworkTipGetter <$> newMVar source)
-    let action _ = modifyMVar retries $ \n -> pure (n+1, ())
+    let action _ = liftIO $ modifyMVar retries $ \n -> pure (n+1, ())
     let policy = limitRetries maxRetry
-    result <- run $ runExceptT $ withinSameTip policy getNetworkTip action
+    result <- run $ runExceptT $ withinSameTip policy throwE getNetworkTip action
     run (readMVar retries) >>= monitor . label . ("retry="<>) . show
     assert (result == Right ())
 
@@ -137,14 +139,14 @@ prop_withinSameTipMaxRetries (WithinSameTip source maxRetry) =
         getNetworkTip <- run (mkNetworkTipGetter <$> newMVar source)
         let action _ = pure ()
         let policy = limitRetries (maxRetry - 1)
-        result <- run $ runExceptT $ withinSameTip policy getNetworkTip action
+        result <- run $ runExceptT $ withinSameTip policy throwE getNetworkTip action
         assert (result == Right ())
 
 mkNetworkTipGetter
-    :: MVar (NonEmpty header) -> IO header
-mkNetworkTipGetter = flip modifyMVar $ \headers -> case headers of
+    :: MonadIO m => MVar (NonEmpty header) -> m header
+mkNetworkTipGetter = liftIO . flip modifyMVar (\headers -> case headers of
     (h :| []) -> pure (headers, h)
-    (h :| q)  -> pure (NE.fromList q, h)
+    (h :| q)  -> pure (NE.fromList q, h))
 
 instance Arbitrary (WithinSameTip Char) where
     arbitrary = do

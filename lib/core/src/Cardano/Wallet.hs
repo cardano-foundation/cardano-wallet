@@ -72,7 +72,6 @@ module Cardano.Wallet
     , updateWalletPassphrase
     , ErrWalletAlreadyExists (..)
     , ErrNoSuchWallet (..)
-    , ErrNoSuchTransaction (..)
     , ErrListUTxOStatistics (..)
     , ErrUpdatePassphrase (..)
 
@@ -113,7 +112,6 @@ import Cardano.BM.Trace
     ( Trace, logDebug, logInfo )
 import Cardano.Wallet.DB
     ( DBLayer
-    , ErrNoSuchTransaction (..)
     , ErrNoSuchWallet (..)
     , ErrWalletAlreadyExists (..)
     , PrimaryKey (..)
@@ -1032,7 +1030,7 @@ data ErrSubmitExternalTx
 -- | Errors that can occur when trying to change a wallet's passphrase.
 data ErrForgetPendingTx
     = ErrForgetPendingTxNoSuchWallet ErrNoSuchWallet
-    | ErrForgetPendingTxNoSuchTransaction ErrNoSuchTransaction
+    | ErrForgetPendingTxNoSuchTransaction (Hash "Tx")
     | ErrForgetPendingTxTransactionIsNotPending (Hash "Tx")
     deriving (Show, Eq)
 

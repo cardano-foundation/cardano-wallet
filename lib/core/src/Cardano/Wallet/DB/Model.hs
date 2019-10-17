@@ -40,6 +40,7 @@ module Cardano.Wallet.DB.Model
     -- * Model Operation Types
     , ModelOp
     , Err (..)
+    , ErrErasePendingTx (..)
     -- * Model database functions
     , mCleanDB
     , mCreateWallet
@@ -55,6 +56,7 @@ module Cardano.Wallet.DB.Model
     , mReadTxHistory
     , mPutPrivateKey
     , mReadPrivateKey
+    , mRemovePendingTx
     ) where
 
 import Prelude
@@ -146,6 +148,13 @@ type ModelOp wid s t xprv a =
 data Err wid
     = NoSuchWallet wid
     | WalletAlreadyExists wid
+    | CannotRemovePendingTx (ErrErasePendingTx wid)
+    deriving (Show, Eq, Functor, Foldable, Traversable)
+
+data ErrErasePendingTx wid
+    = ErrErasePendingTxNoSuchWallet wid
+    | ErrErasePendingTxNoTx (Hash "Tx")
+    | ErrErasePendingTxNoPendingTx (Hash "Tx")
     deriving (Show, Eq, Functor, Foldable, Traversable)
 
 {-------------------------------------------------------------------------------
@@ -200,6 +209,21 @@ mListCheckpoints wid db@(Database wallets _) =
     (Right $ sort $ maybe [] tips (Map.lookup wid wallets), db)
   where
     tips = map currentTip . Map.elems . checkpoints
+
+mRemovePendingTx :: Ord wid => wid -> (Hash "Tx") -> ModelOp wid s t xprv ()
+mRemovePendingTx wid tid db@(Database wallets txs) = case Map.lookup wid wallets of
+    Nothing ->
+        ( Left (CannotRemovePendingTx (ErrErasePendingTxNoSuchWallet wid)), db )
+    Just wal -> case Map.lookup tid (txHistory wal) of
+        Nothing ->
+            ( Left (CannotRemovePendingTx (ErrErasePendingTxNoTx tid)), db )
+        Just txMeta ->
+            if status txMeta == Pending then
+                ( Right (), Database updateWallets txs )
+            else ( Left (CannotRemovePendingTx (ErrErasePendingTxNoPendingTx tid)), db )
+    where
+        updateWallets = Map.adjust changeTxMeta wid wallets
+        changeTxMeta meta = meta { txHistory = Map.delete tid (txHistory meta) }
 
 mRollbackTo :: Ord wid => wid -> SlotId -> ModelOp wid s t xprv ()
 mRollbackTo wid point db@(Database wallets txs) = case Map.lookup wid wallets of
