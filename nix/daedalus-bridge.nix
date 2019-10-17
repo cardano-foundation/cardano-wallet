@@ -5,7 +5,12 @@ let
   pkgsCross = commonLib.getPkgs { crossSystem = pkgs.lib.systems.examples.mingwW64; };
   cardano-shell = import commonLib.sources.cardano-shell { inherit system crossSystem; }; # todo, shell should accept target
   jormungandrConfig = builtins.toFile "config.yaml" (builtins.toJSON commonLib.jormungandrLib.defaultJormungandrConfig);
-in pkgs.runCommandCC "daedalus-bridge" {} ''
+in pkgs.runCommandCC "daedalus-bridge" {
+  passthru = {
+    node-version = jormungandr.version;
+    wallet-version = haskellPackages.cardano-wallet-jormungandr.identifier.version;
+  };
+} ''
   mkdir -pv $out/bin $out/config
   cp ${jormungandrConfig} $out/config/jormungandr-config.yaml
   cd $out/bin
