@@ -114,7 +114,7 @@ import Cardano.Wallet.Network.Ports
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), Hash (..), SlotId (..) )
+    ( BlockHeader (..), EpochNo, Hash (..), PoolId, SlotId (..) )
 import Control.Concurrent.MVar.Lifted
     ( MVar, modifyMVar, newMVar, readMVar )
 import Control.Exception
@@ -133,12 +133,14 @@ import Data.Coerce
     ( coerce )
 import Data.Function
     ( (&) )
+import Data.Map.Strict
+    ( Map )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
 import Data.Word
-    ( Word32 )
+    ( Word32, Word64 )
 import System.Directory
     ( removeFile )
 import System.FilePath
@@ -251,6 +253,9 @@ mkRawNetworkLayer (block0, bp) st j = NetworkLayer
     { networkTip =
         _networkTip
 
+    , findIntersection =
+        _findIntersection
+
     , nextBlocks =
         _nextBlocks
 
@@ -265,11 +270,9 @@ mkRawNetworkLayer (block0, bp) st j = NetworkLayer
 
     , staticBlockchainParameters =
         (block0, bp)
-    , stakeDistribution = do
-        r <- getStakeDistribution j
-        let epochNo = getApiT . epoch $ r
-        let distr = map (\(ApiT a, ApiT b) -> (a,b)) . pools . stake $ r
-        return (epochNo, Map.fromList distr)
+
+    , stakeDistribution =
+        _stakeDistribution
     }
   where
     -- security parameter, the maximum number of unstable blocks
@@ -287,6 +290,11 @@ mkRawNetworkLayer (block0, bp) st j = NetworkLayer
             Just t -> Right (bs', t)
             Nothing -> Left ErrNetworkTipNotFound
 
+    _findIntersection :: Cursor t -> m (Maybe BlockHeader)
+    _findIntersection (Cursor localChain) = do
+        nodeChain <- readMVar st
+        pure (greatestCommonBlockHeader nodeChain localChain)
+
     _initCursor :: [BlockHeader] -> Cursor t
     _initCursor bhs =
         Cursor $ appendBlockHeaders k emptyBlockHeaders bhs
@@ -294,6 +302,17 @@ mkRawNetworkLayer (block0, bp) st j = NetworkLayer
     _cursorSlotId :: Cursor t -> SlotId
     _cursorSlotId (Cursor unstable) =
         maybe (SlotId 0 0) slotId (blockHeadersTip unstable)
+
+    _stakeDistribution
+        :: ExceptT ErrNetworkUnavailable m
+            ( EpochNo
+            , Map PoolId (Quantity "lovelace" Word64)
+            )
+    _stakeDistribution = do
+        r <- getStakeDistribution j
+        let epochNo = getApiT . epoch $ r
+        let distr = map (\(ApiT a, ApiT b) -> (a,b)) . pools . stake $ r
+        return (epochNo, Map.fromList distr)
 
     _nextBlocks
         :: Cursor t
