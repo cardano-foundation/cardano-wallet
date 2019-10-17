@@ -40,7 +40,7 @@ import Cardano.Wallet.Jormungandr.Binary
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..), PoolId (..), ShowFmt (..), TxWitness )
+    ( EpochNo (..), Hash (..), PoolId (..), ShowFmt (..), TxWitness )
 import Control.Applicative
     ( many )
 import Control.Arrow
@@ -139,7 +139,7 @@ type GetStakeDistribution
 newtype BlockId = BlockId { getBlockId :: Hash "BlockHeader" }
 
 data StakeApiResponse = StakeApiResponse
-    { epoch :: Word64
+    { epoch :: ApiT EpochNo
     , stake :: ApiStakeDistribution
     } deriving (Show, Eq, Generic)
 
@@ -203,6 +203,9 @@ instance FromJSON (ApiStakeDistribution) where
 
 instance FromJSON (ApiT (Quantity "lovelace" Word64)) where
     parseJSON = fmap (ApiT . Quantity) . parseJSON
+
+instance FromJSON (ApiT EpochNo) where
+    parseJSON = fmap (ApiT . EpochNo) . parseJSON
 
 instance FromJSON (ApiT PoolId) where
     parseJSON val = do

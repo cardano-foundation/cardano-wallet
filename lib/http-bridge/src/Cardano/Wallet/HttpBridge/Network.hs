@@ -193,6 +193,8 @@ mkNetworkLayer httpBridge = NetworkLayer
         postSignedTx httpBridge
     , staticBlockchainParameters =
         (block0, byronBlockchainParameters @n)
+    , stakeDistribution =
+        error "stakeDistribution is unimplemented for http-bridge"
     }
 
 -- | Creates a cardano-http-bridge 'NetworkLayer' using the given connection
