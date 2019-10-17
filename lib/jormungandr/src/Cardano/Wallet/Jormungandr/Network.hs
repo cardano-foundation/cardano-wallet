@@ -94,7 +94,11 @@ import Cardano.Wallet.Jormungandr.Api.Client
     )
 import Cardano.Wallet.Jormungandr.Binary
     ( runGetOrFail )
-import Cardano.Wallet.Jormungandr.BlockHeaders
+import Cardano.Wallet.Jormungandr.Compatibility
+    ( Jormungandr, genConfigFile, localhostBaseUrl )
+import Cardano.Wallet.Network
+    ( Cursor, NetworkLayer (..), NextBlocksResult (..), defaultRetryPolicy )
+import Cardano.Wallet.Network.BlockHeaders
     ( BlockHeaders (..)
     , appendBlockHeaders
     , blockHeadersAtGenesis
@@ -105,10 +109,6 @@ import Cardano.Wallet.Jormungandr.BlockHeaders
     , greatestCommonBlockHeader
     , updateUnstableBlocks
     )
-import Cardano.Wallet.Jormungandr.Compatibility
-    ( Jormungandr, genConfigFile, localhostBaseUrl )
-import Cardano.Wallet.Network
-    ( Cursor, NetworkLayer (..), NextBlocksResult (..), defaultRetryPolicy )
 import Cardano.Wallet.Network.Ports
     ( PortNumber, getRandomPort, waitForPort )
 import Cardano.Wallet.Primitive.Model

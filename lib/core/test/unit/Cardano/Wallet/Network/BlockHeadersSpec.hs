@@ -8,13 +8,13 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.Jormungandr.BlockHeadersSpec
+module Cardano.Wallet.Network.BlockHeadersSpec
     ( spec
     ) where
 
 import Prelude
 
-import Cardano.Wallet.Jormungandr.BlockHeaders
+import Cardano.Wallet.Network.BlockHeaders
     ( BlockHeaders (..)
     , dropStartingFromSlotId
     , greatestCommonBlockHeader
