@@ -181,7 +181,7 @@ spec = do
                 st <- newMVar emptyBlockHeaders
                 let jor = Jormungandr.mkJormungandrClient mgr baseUrl
                 let g0 = (error "block0", error "BlockchainParameters")
-                return (void $ mkRawNetworkLayer g0 st jor)
+                return (void $ mkRawNetworkLayer g0 1000 st jor)
 
         let makeUnreachableNetworkLayer = do
                 port <- head <$> randomUnusedTCPPorts 1

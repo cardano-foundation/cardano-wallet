@@ -233,7 +233,7 @@ newNetworkLayer baseUrl block0H = do
     st <- newMVar emptyBlockHeaders
     let jor = mkJormungandrClient mgr baseUrl
     g0 <- getInitialBlockchainParameters jor (coerce block0H)
-    return (mkRawNetworkLayer g0 st jor)
+    return (mkRawNetworkLayer g0 1000 st jor)
 
 -- | Wrap a Jormungandr client into a 'NetworkLayer' common interface.
 --
@@ -246,10 +246,12 @@ mkRawNetworkLayer
         , block ~ J.Block
         )
     => (block, BlockchainParameters)
+    -> Word
+        -- ^ Batch size when fetching blocks from Jörmungandr
     -> MVar BlockHeaders
     -> JormungandrClient m
     -> NetworkLayer m t block
-mkRawNetworkLayer (block0, bp) st j = NetworkLayer
+mkRawNetworkLayer (block0, bp) batchSize st j = NetworkLayer
     { networkTip =
         _networkTip
 
@@ -331,7 +333,7 @@ mkRawNetworkLayer (block0, bp) st j = NetworkLayer
                                 (coerce genesis)
                                 headerHash
                                 (blockHeadersTip localChain)
-                        lift (runExceptT $ getBlocks j k start) >>= \case
+                        lift (runExceptT $ getBlocks j batchSize start) >>= \case
                             Right blks ->
                                 pure (tryRollForward nodeTip blks)
                             Left (ErrGetBlockNotFound _) ->
