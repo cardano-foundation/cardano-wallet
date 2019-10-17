@@ -53,6 +53,7 @@ import Prelude hiding
 import Cardano.Wallet.DB
     ( DBLayer (..)
     , ErrNoSuchWallet (..)
+    , ErrRemovePendingTx (..)
     , ErrWalletAlreadyExists (..)
     , PrimaryKey (..)
     , cleanDB
@@ -62,6 +63,7 @@ import Cardano.Wallet.DB.Arbitrary
 import Cardano.Wallet.DB.Model
     ( Database
     , Err (..)
+    , ErrErasePendingTx (..)
     , TxHistory
     , emptyDatabase
     , mCleanDB
@@ -76,6 +78,7 @@ import Cardano.Wallet.DB.Model
     , mReadPrivateKey
     , mReadTxHistory
     , mReadWalletMeta
+    , mRemovePendingTx
     , mRemoveWallet
     , mRollbackTo
     )
@@ -245,6 +248,7 @@ data Cmd s wid
     | PutPrivateKey wid MPrivKey
     | ReadPrivateKey wid
     | RollbackTo wid SlotId
+    | RemovePendingTx wid (Hash "Tx")
     deriving (Show, Functor, Foldable, Traversable)
 
 data Success s wid
@@ -306,6 +310,8 @@ runMock = \case
         first (Resp . fmap PrivateKey) . mReadPrivateKey wid
     RollbackTo wid sl ->
         first (Resp . fmap Unit) . mRollbackTo wid sl
+    RemovePendingTx wid tid ->
+        first (Resp . fmap Unit) . mRemovePendingTx wid tid
 
 {-------------------------------------------------------------------------------
   Interpreter: real I/O
@@ -359,17 +365,30 @@ runIO db = fmap Resp . go
                 <$> readPrivateKey db (PrimaryKey wid)
         RollbackTo wid sl ->
             catchNoSuchWallet Unit $ rollbackTo db (PrimaryKey wid) sl
+        RemovePendingTx wid tid ->
+            catchCannotRemovePendingTx Unit $
+                removePendingTx db (PrimaryKey wid) tid
 
     catchWalletAlreadyExists f =
         fmap (bimap errWalletAlreadyExists f) . runExceptT
     catchNoSuchWallet f =
         fmap (bimap errNoSuchWallet f) . runExceptT
+    catchCannotRemovePendingTx f =
+        fmap (bimap errCannotRemovePendingTx f) . runExceptT
 
     errNoSuchWallet :: ErrNoSuchWallet -> Err WalletId
     errNoSuchWallet (ErrNoSuchWallet wid) = NoSuchWallet wid
 
     errWalletAlreadyExists :: ErrWalletAlreadyExists -> Err WalletId
     errWalletAlreadyExists (ErrWalletAlreadyExists wid) = WalletAlreadyExists wid
+
+    errCannotRemovePendingTx :: ErrRemovePendingTx -> Err WalletId
+    errCannotRemovePendingTx (ErrRemovePendingTxNoSuchWallet wid) =
+        CannotRemovePendingTx (ErrErasePendingTxNoSuchWallet wid)
+    errCannotRemovePendingTx (ErrRemovePendingTxNoSuchTransaction tid) =
+        CannotRemovePendingTx (ErrErasePendingTxNoTx tid)
+    errCannotRemovePendingTx (ErrRemovePendingTxTransactionNoMorePending tid) =
+        CannotRemovePendingTx (ErrErasePendingTxNoPendingTx tid)
 
     unPrimaryKey :: PrimaryKey key -> key
     unPrimaryKey (PrimaryKey key) = key
@@ -484,6 +503,7 @@ generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
         , (3, PutPrivateKey <$> genId' <*> genPrivKey)
         , (3, ReadPrivateKey <$> genId')
         , (1, RollbackTo <$> genId' <*> arbitrary)
+        , (1, RemovePendingTx <$> genId' <*> arbitrary)
         ]
 
     genId :: Gen MWid
@@ -591,6 +611,7 @@ instance CommandNames (At (Cmd s)) where
     cmdName (At PutPrivateKey{}) = "PutPrivateKey"
     cmdName (At ReadPrivateKey{}) = "ReadPrivateKey"
     cmdName (At RollbackTo{}) = "RollbackTo"
+    cmdName (At RemovePendingTx{}) = "RemovePendingTx"
     cmdNames _ =
         [ "CleanDB"
         , "CreateWallet", "RemoveWallet", "ListWallets"
@@ -598,6 +619,7 @@ instance CommandNames (At (Cmd s)) where
         , "PutWalletMeta", "ReadWalletMeta"
         , "PutTxHistory", "ReadTxHistory"
         , "PutPrivateKey", "ReadPrivateKey"
+        , "RemovePendingTx"
         ]
 
 instance Functor f => Rank2.Functor (At f) where

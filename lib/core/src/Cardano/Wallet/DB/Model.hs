@@ -56,7 +56,7 @@ module Cardano.Wallet.DB.Model
     , mReadTxHistory
     , mPutPrivateKey
     , mReadPrivateKey
-    , mRemovePending
+    , mRemovePendingTx
     ) where
 
 import Prelude
@@ -210,8 +210,8 @@ mListCheckpoints wid db@(Database wallets _) =
   where
     tips = map currentTip . Map.elems . checkpoints
 
-mRemovePending :: Ord wid => wid -> (Hash "Tx") -> ModelOp wid s t xprv ()
-mRemovePending wid tid db@(Database wallets txs) = case Map.lookup wid wallets of
+mRemovePendingTx :: Ord wid => wid -> (Hash "Tx") -> ModelOp wid s t xprv ()
+mRemovePendingTx wid tid db@(Database wallets txs) = case Map.lookup wid wallets of
     Nothing ->
         ( Left (CannotRemovePendingTx (ErrErasePendingTxNoSuchWallet wid)), db )
     Just wal -> case Map.lookup tid (txHistory wal) of

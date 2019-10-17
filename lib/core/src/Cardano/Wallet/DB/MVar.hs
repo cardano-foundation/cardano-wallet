@@ -40,7 +40,7 @@ import Cardano.Wallet.DB.Model
     , mReadPrivateKey
     , mReadTxHistory
     , mReadWalletMeta
-    , mRemovePending
+    , mRemovePendingTx
     , mRemoveWallet
     , mRollbackTo
     )
@@ -128,7 +128,7 @@ newDBLayer = do
         -----------------------------------------------------------------------}
 
         , removePendingTx = \pk tid -> ExceptT $ do
-            alterDB errCannotRemovePendingTx db (mRemovePending pk tid)
+            alterDB errCannotRemovePendingTx db (mRemovePendingTx pk tid)
 
         {-----------------------------------------------------------------------
                                        Lock
