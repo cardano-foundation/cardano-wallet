@@ -448,14 +448,16 @@ newDBLayer logConfig trace mDatabaseFile = do
                           [] ->
                               pure $ Left $
                               ErrRemovePendingTxNoSuchTransaction tid
-                          _ -> if (checkStatus metas) then
-                                  pure $ Left $
-                                  ErrRemovePendingTxTransactionNoMorePending tid
-                               else do
-                                  deletePendingTx wid (TxId tid)
-                                  pure $ Right ()
-                  Nothing -> pure $ Left $ ErrRemovePendingTxNoSuchWallet wid
 
+                          txs | checkStatus txs -> do
+                                 deletePendingTx wid (TxId tid)
+                                 pure $ Right ()
+
+                          _ ->
+                              pure $ Left $
+                              ErrRemovePendingTxTransactionNoMorePending tid
+
+                  Nothing -> pure $ Left $ ErrRemovePendingTxNoSuchWallet wid
         {-----------------------------------------------------------------------
                                        Lock
         -----------------------------------------------------------------------}
