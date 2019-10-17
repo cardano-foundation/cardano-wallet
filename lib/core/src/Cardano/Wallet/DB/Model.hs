@@ -40,6 +40,7 @@ module Cardano.Wallet.DB.Model
     -- * Model Operation Types
     , ModelOp
     , Err (..)
+    , ErrErasePendingTx (..)
     -- * Model database functions
     , mCleanDB
     , mCreateWallet
@@ -55,6 +56,7 @@ module Cardano.Wallet.DB.Model
     , mReadTxHistory
     , mPutPrivateKey
     , mReadPrivateKey
+    , mRemovePending
     ) where
 
 import Prelude
@@ -146,6 +148,13 @@ type ModelOp wid s t xprv a =
 data Err wid
     = NoSuchWallet wid
     | WalletAlreadyExists wid
+    | CannotRemovePendingTx (ErrErasePendingTx wid)
+    deriving (Show, Eq, Functor, Foldable, Traversable)
+
+data ErrErasePendingTx wid
+    = ErrErasePendingTxNoSuchWallet wid
+    | ErrErasePendingTxNoTx (Hash "Tx")
+    | ErrErasePendingTxNoPendingTx (Hash "Tx")
     deriving (Show, Eq, Functor, Foldable, Traversable)
 
 {-------------------------------------------------------------------------------
@@ -200,6 +209,9 @@ mListCheckpoints wid db@(Database wallets _) =
     (Right $ sort $ maybe [] tips (Map.lookup wid wallets), db)
   where
     tips = map currentTip . Map.elems . checkpoints
+
+mRemovePending :: wid -> (Hash "Tx") -> ModelOp wid s t xprv ()
+mRemovePending _wid _tid _db = undefined
 
 mRollbackTo :: Ord wid => wid -> SlotId -> ModelOp wid s t xprv ()
 mRollbackTo wid point db@(Database wallets txs) = case Map.lookup wid wallets of
