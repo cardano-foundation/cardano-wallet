@@ -210,8 +210,20 @@ mListCheckpoints wid db@(Database wallets _) =
   where
     tips = map currentTip . Map.elems . checkpoints
 
-mRemovePending :: wid -> (Hash "Tx") -> ModelOp wid s t xprv ()
-mRemovePending _wid _tid _db = undefined
+mRemovePending :: Ord wid => wid -> (Hash "Tx") -> ModelOp wid s t xprv ()
+mRemovePending wid tid db@(Database wallets txs) = case Map.lookup wid wallets of
+    Nothing ->
+        ( Left (CannotRemovePendingTx (ErrErasePendingTxNoSuchWallet wid)), db )
+    Just wal -> case Map.lookup tid (txHistory wal) of
+        Nothing ->
+            ( Left (CannotRemovePendingTx (ErrErasePendingTxNoTx tid)), db )
+        Just txMeta ->
+            if status txMeta == Pending then
+                ( Right (), Database updateWallets txs )
+            else ( Left (CannotRemovePendingTx (ErrErasePendingTxNoPendingTx tid)), db )
+    where
+        updateWallets = Map.adjust changeTxMeta wid wallets
+        changeTxMeta meta = meta { txHistory = Map.delete tid (txHistory meta) }
 
 mRollbackTo :: Ord wid => wid -> SlotId -> ModelOp wid s t xprv ()
 mRollbackTo wid point db@(Database wallets txs) = case Map.lookup wid wallets of
