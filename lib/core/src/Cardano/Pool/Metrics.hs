@@ -14,7 +14,11 @@
 -- - "Cardano.Pool.DB" - which can persist the metrics
 -- - "Cardano.Wallet.Api.Server" - which presents the results in an endpoint
 module Cardano.Pool.Metrics
-    ( activityForEpoch
+    ( StakePoolLayer (..)
+    , ErrListStakePools (..)
+    , newStakePoolLayer
+
+    , activityForEpoch
     , combineMetrics
     , ErrMetricsInconsistency (..)
 
@@ -29,10 +33,16 @@ module Cardano.Pool.Metrics
 
 import Prelude
 
+import Cardano.Pool.DB
+    ( DBLayer (..) )
+import Cardano.Wallet.Network
+    ( ErrNetworkUnavailable, NetworkLayer (..) )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..), EpochNo (..), PoolId (..), SlotId (..) )
 import Control.Monad.IO.Class
-    ( MonadIO )
+    ( MonadIO, liftIO )
+import Control.Monad.Trans.Except
+    ( ExceptT (..), throwE, withExceptT )
 import Control.Retry
     ( RetryPolicyM, retrying )
 import Data.Either
@@ -42,7 +52,7 @@ import Data.Map.Merge.Strict
 import Data.Map.Strict
     ( Map )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Percentage, Quantity (..) )
 import Data.Word
     ( Word64 )
 import Fmt
@@ -53,6 +63,40 @@ import Numeric.Natural
     ( Natural )
 
 import qualified Data.Map.Strict as Map
+
+data ErrListStakePools
+    = ErrListStakePoolsStakeIsUnreachable ErrNetworkUnavailable
+    | ErrListStakePoolsMetricsIsUnsynced (Quantity "percent" Percentage)
+    | ErrListStakePoolInconsistencyErr ErrMetricsInconsistency
+
+newtype StakePoolLayer m = StakePoolLayer
+     { listStakePools
+         :: ExceptT ErrListStakePools m
+            [(PoolId, (Quantity "lovelace" Word64, Quantity "block" Natural))]
+     }
+
+newStakePoolLayer
+    :: NetworkLayer IO tx (BlockHeader, PoolId)
+    -> DBLayer IO
+    -> IO (StakePoolLayer IO)
+newStakePoolLayer nl db = do
+    return $ StakePoolLayer
+        { listStakePools = do
+            -- TODO: Use withinSameTip here!
+            (epochNo, stakeDistr) <- withE1 $ stakeDistribution nl
+
+            production <- liftIO $ convert <$> readPoolProduction db epochNo
+
+            case combineMetrics stakeDistr production of
+                Left e -> throwE $ ErrListStakePoolInconsistencyErr e
+                Right r -> return $ Map.toList r
+        }
+  where
+    withE1 = withExceptT ErrListStakePoolsStakeIsUnreachable
+
+    -- TODO: It might be cleaner to change the DB-layer instead of having
+    -- this Map.map here.
+    convert = Map.map (Quantity . fromIntegral . length)
 
 -- | For a given epoch, and state, this function returns /how many/ blocks
 -- each pool produced.
