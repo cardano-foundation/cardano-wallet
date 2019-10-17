@@ -3,6 +3,9 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+
 -- | This module can fold over a blockchain to collect metrics about
 -- Stake pools.
 --
@@ -15,6 +18,10 @@ module Cardano.Pool.Metrics
     , combineMetrics
     , ErrMetricsInconsistency (..)
 
+    -- * Helper
+    , withinSameTip
+    , ErrWithinSameTip (..)
+
     , State (..)
     , applyBlock
     )
@@ -24,6 +31,14 @@ import Prelude
 
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..), EpochNo (..), PoolId (..), SlotId (..) )
+import Control.Monad.IO.Class
+    ( MonadIO )
+import Control.Monad.Trans.Except
+    ( ExceptT (..) )
+import Control.Retry
+    ( RetryPolicyM, retrying )
+import Data.Either
+    ( isLeft )
 import Data.Map.Merge.Strict
     ( WhenMatched, WhenMissing, mergeA, traverseMissing, zipWithMatched )
 import Data.Map.Strict
@@ -108,6 +123,41 @@ combineMetrics =
     stakeAndActivity =
         zipWithMatched (\_k stake productions -> (stake, productions))
 
+-- | Runs an action by making sure that the network header hasn't changed before
+-- and after the action. This is useful in order to combine data from different
+-- sources and make sure that all data retrieval and computations happens on a
+-- same version.
+--
+-- The action __must__ be retry-able (i.e. read-only) for it will be retried if
+-- the tip has changed before and after the call.
+withinSameTip
+    :: forall m header a. (MonadIO m, Eq header)
+    => RetryPolicyM m
+        -- ^ Retrying policy to command what to do in case the action wasn't
+        -- executed within the same tip.
+    -> m header
+        -- ^ A getter for that header.
+    -> (header -> m a)
+        -- ^ The action to run
+    -> ExceptT ErrWithinSameTip m a
+withinSameTip policy getTip action = do
+    let shouldRetry = const (pure . isLeft)
+    ExceptT $ retrying policy shouldRetry (const trial)
+  where
+    trial :: m (Either ErrWithinSameTip a)
+    trial = do
+        start <- getTip
+        a <- action start
+        end <- getTip
+        pure $ if (start /= end)
+            then Left ErrWithinSameTipMaxRetries
+            else Right a
+
+data ErrWithinSameTip
+    = ErrWithinSameTipMaxRetries
+        -- ^ Retried too many times
+    deriving (Generic, Show, Eq)
+
 --
 -- Internals
 --
@@ -140,3 +190,6 @@ applyBlock (newTip, poolId) (State _prevTip prevMap) =
     alter = \case
         Nothing -> Just [slot]
         Just slots -> Just (slot:slots)
+
+
+
