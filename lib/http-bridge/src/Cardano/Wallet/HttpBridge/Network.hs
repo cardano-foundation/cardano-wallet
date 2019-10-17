@@ -184,7 +184,7 @@ mkNetworkLayer httpBridge = NetworkLayer
         withExceptT ErrGetBlockNetworkUnreachable $
             nextBlocksResult nodeTip <$> rbNextBlocks httpBridge sl
     , initCursor =
-        Cursor
+        Cursor . pure . last
     , cursorSlotId = \(Cursor [BlockHeader sl _ _ _]) ->
         sl
     , networkTip =
