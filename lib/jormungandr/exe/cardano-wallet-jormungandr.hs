@@ -39,8 +39,8 @@ import Cardano.CLI
     , cmdWallet
     , databaseOption
     , getDataDir
-    , initTracer
     , listenOption
+    , loggingConfigFileOption
     , nodePortMaybeOption
     , nodePortOption
     , optionT
@@ -51,6 +51,7 @@ import Cardano.CLI
     , stateDirOption
     , verbosityOption
     , verbosityToMinSeverity
+    , withLobemo
     )
 import Cardano.Launcher
     ( StdStream (..) )
@@ -153,6 +154,7 @@ data LaunchArgs = LaunchArgs
     { _listen :: Listen
     , _nodePort :: Maybe (Port "Node")
     , _stateDir :: Maybe FilePath
+    , _loggingConfigFile :: Maybe FilePath
     , _verbosity :: Verbosity
     , _jormungandrArgs :: JormungandrArgs
     }
@@ -175,35 +177,36 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
         <$> listenOption
         <*> nodePortMaybeOption
         <*> stateDirOption dataDir
+        <*> optional loggingConfigFileOption
         <*> verbosityOption
         <*> (JormungandrArgs
             <$> genesisBlockOption
             <*> extraArguments)
-    exec (LaunchArgs listen nodePort mStateDir verbosity jArgs) = do
+    exec (LaunchArgs listen nodePort mStateDir logCfg verbosity jArgs) = do
         let minSeverity = verbosityToMinSeverity verbosity
-        (cfg, sb, tr) <- initTracer minSeverity "launch"
-        case genesisBlock jArgs of
-            Right block0File -> requireFilePath block0File
-            Left _ -> pure ()
-        let stateDir = fromMaybe (dataDir </> "testnet") mStateDir
-        let databaseDir = stateDir </> "wallets"
-        let cp = JormungandrConfig
-                { _stateDir = stateDir
-                , _genesisBlock = genesisBlock jArgs
-                , _restApiPort = fromIntegral . getPort <$> nodePort
-                , _minSeverity = minSeverity
-                , _outputStream = Inherit
-                , _extraArgs = extraJormungandrArgs jArgs
-                }
-        setupDirectory (logInfo tr) stateDir
-        setupDirectory (logInfo tr) databaseDir
-        logInfo tr $ "Running as v" <> T.pack (showVersion version)
-        exitWith =<< serveWallet
-            (cfg, sb, tr)
-            (Just databaseDir)
-            listen
-            (Launch cp)
-            (beforeMainLoop tr)
+        withLobemo logCfg minSeverity $ \(cfg, _sb, tr) -> do
+            case genesisBlock jArgs of
+                Right block0File -> requireFilePath block0File
+                Left _ -> pure ()
+            let stateDir = fromMaybe (dataDir </> "testnet") mStateDir
+            let databaseDir = stateDir </> "wallets"
+            let cp = JormungandrConfig
+                    { _stateDir = stateDir
+                    , _genesisBlock = genesisBlock jArgs
+                    , _restApiPort = fromIntegral . getPort <$> nodePort
+                    , _minSeverity = minSeverity
+                    , _outputStream = Inherit
+                    , _extraArgs = extraJormungandrArgs jArgs
+                    }
+            setupDirectory (logInfo tr) stateDir
+            setupDirectory (logInfo tr) databaseDir
+            logInfo tr $ "Running as v" <> T.pack (showVersion version)
+            exitWith =<< serveWallet
+                (cfg, tr)
+                (Just databaseDir)
+                listen
+                (Launch cp)
+                (beforeMainLoop tr)
 
 {-------------------------------------------------------------------------------
                             Command - 'serve'
@@ -214,6 +217,7 @@ data ServeArgs = ServeArgs
     { _listen :: Listen
     , _nodePort :: Port "Node"
     , _database :: Maybe FilePath
+    , _loggingConfigFile :: Maybe FilePath
     , _verbosity :: Verbosity
     , _block0H :: Hash "Genesis"
     }
@@ -227,23 +231,25 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
         <$> listenOption
         <*> nodePortOption
         <*> optional databaseOption
+        <*> optional loggingConfigFileOption
         <*> verbosityOption
         <*> genesisHashOption
     exec
         :: ServeArgs
         -> IO ()
-    exec (ServeArgs listen nodePort databaseDir verbosity block0H) = do
-        (cfg, sb, tr) <- initTracer (verbosityToMinSeverity verbosity) "serve"
-        let baseUrl = localhostBaseUrl $ getPort nodePort
-        let cp = JormungandrConnParams block0H baseUrl
-        whenJust databaseDir $ setupDirectory (logInfo tr)
-        logInfo tr $ "Running as v" <> T.pack (showVersion version)
-        exitWith =<< serveWallet
-            (cfg, sb, tr)
-            databaseDir
-            listen
-            (UseRunning cp)
-            (beforeMainLoop tr)
+    exec (ServeArgs listen nodePort databaseDir logCfg verbosity block0H) = do
+        let minSeverity = verbosityToMinSeverity verbosity
+        withLobemo logCfg minSeverity $ \(cfg, _sb, tr) -> do
+            let baseUrl = localhostBaseUrl $ getPort nodePort
+            let cp = JormungandrConnParams block0H baseUrl
+            whenJust databaseDir $ setupDirectory (logInfo tr)
+            logInfo tr $ "Running as v" <> T.pack (showVersion version)
+            exitWith =<< serveWallet
+                (cfg, tr)
+                databaseDir
+                listen
+                (UseRunning cp)
+                (beforeMainLoop tr)
 
     whenJust m fn = case m of
        Nothing -> pure ()

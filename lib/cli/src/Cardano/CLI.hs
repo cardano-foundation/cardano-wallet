@@ -42,6 +42,7 @@ module Cardano.CLI
     , nodePortOption
     , nodePortMaybeOption
     , stateDirOption
+    , loggingConfigFileOption
     , verbosityOption
 
     -- * Types
@@ -51,6 +52,7 @@ module Cardano.CLI
 
     -- * Logging
     , Verbosity (..)
+    , withLobemo
     , initTracer
     , verbosityToArgs
     , verbosityToMinSeverity
@@ -89,7 +91,7 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Setup
     ( setupTrace_, shutdown )
 import Cardano.BM.Trace
-    ( Trace, appendName, logAlert, logInfo )
+    ( Trace, logAlert, logDebug, logInfo )
 import Cardano.Wallet.Api
     ( CoreApi )
 import Cardano.Wallet.Api.Server
@@ -871,6 +873,13 @@ sortOrderOption = optionT $ mempty
     <> help "specifies a sort order, either 'ascending' or 'descending'."
     <> showDefaultWith showT
 
+-- | [--logging-config=FILE.YAML]
+loggingConfigFileOption :: Parser FilePath
+loggingConfigFileOption = optionT $ mempty
+    <> long "logging-config"
+    <> metavar "FILE.YAML"
+    <> help "File to configure the iohk-monitoring framework."
+
 -- | [(--quiet|--verbose)]
 verbosityOption :: Parser Verbosity
 verbosityOption = (Quiet <$ quiet) <|> (Verbose <$ verbose) <|> (pure Default)
@@ -1146,15 +1155,35 @@ verbosityToMinSeverity = \case
 
 -- | Initialize logging at the specified minimum 'Severity' level.
 initTracer
-    :: Severity
-    -> Text
+    :: Maybe FilePath
+    -> Severity
     -> IO (CM.Configuration, Switchboard Text, Trace IO Text)
-initTracer minSeverity cmd = do
-    c <- defaultConfigStdout
-    CM.setMinSeverity c minSeverity
-    CM.setSetupBackends c [CM.KatipBK, CM.AggregationBK]
-    (tr, sb) <- setupTrace_ c "cardano-wallet"
-    pure (c, sb, appendName cmd tr)
+initTracer configFile minSeverity = do
+    let defaultConfig = do
+            c <- defaultConfigStdout
+            CM.setMinSeverity c minSeverity
+            CM.setSetupBackends c [CM.KatipBK, CM.AggregationBK]
+            pure c
+    cfg <- maybe defaultConfig CM.setup configFile
+    (tr, sb) <- setupTrace_ cfg "cardano-wallet"
+    pure (cfg, sb, tr)
+
+-- | Run an action with logging available and configured. When the action is
+-- finished (normally or otherwise), log messages are flushed.
+withLobemo
+    :: Maybe FilePath
+    -- ^ Configuration file - uses default otherwise.
+    -> Severity
+    -- ^ Minimum severity level to log
+    -> ((CM.Configuration, Switchboard Text, Trace IO Text) -> IO a)
+    -- ^ The action to run with logging configured.
+    -> IO a
+withLobemo configFile minSeverity = bracket before after
+  where
+    before = initTracer configFile minSeverity
+    after (_, sb, tr) = do
+        logDebug tr "Logging shutdown."
+        shutdown sb
 
 {-------------------------------------------------------------------------------
                             Unicode Terminal Helpers
@@ -1343,23 +1372,23 @@ getDataDir backendDir = do
 waitForService
     :: Service
         -- ^ Name of the service
-    -> (Switchboard Text, Trace IO Text)
+    -> Trace IO Text
         -- ^ A 'Trace' for logging
     -> Port "node"
         -- ^ TCP Port of the service
     -> IO ()
         -- ^ Service we're waiting after.
     -> IO ()
-waitForService (Service service) (sb, tracer) port action = do
+waitForService (Service service) tracer port action = do
     let handler (ErrNetworkTipNetworkUnreachable (ErrNetworkInvalid net)) = do
-            exitWith =<< failWith (sb, tracer) (mconcat
+            exitWith =<< failWith tracer (mconcat
                 [ "The node backend is not running on the \"", net, "\" "
                 , "network. Please start the wallet server and the node "
                 , "backend on the same network. Exiting now."
                 ])
 
         handler _ = do
-            exitWith =<< failWith (sb, tracer) (mconcat
+            exitWith =<< failWith tracer (mconcat
                 [ "Waited too long for "
                 , service
                 , " to become available. Giving up!"
@@ -1387,14 +1416,13 @@ requireFilePath path = doesFileExist path >>= \case
 
 -- Terminate the applicatio and make sure to flush logs before exiting.
 failWith
-    :: (Switchboard Text, Trace IO Text)
+    :: Trace IO Text
         -- ^ A 'Trace' for logging
     -> Text
         -- ^ A message to before exiting
     -> IO ExitCode
-failWith (sb, tr) msg = do
+failWith tr msg = do
     logAlert tr msg
-    shutdown sb -- Effectively flush logs
     pure (ExitFailure 1)
 
 -- | Make a parser optional

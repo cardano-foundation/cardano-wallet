@@ -20,8 +20,6 @@ module Cardano.Wallet.HttpBridge
 
 import Prelude
 
-import Cardano.BM.Backend.Switchboard
-    ( Switchboard )
 import Cardano.BM.Trace
     ( Trace, appendName, logInfo )
 import Cardano.CLI
@@ -94,7 +92,7 @@ serveWallet
         , KeyToAddress t SeqKey
         , KnownNetwork n
         )
-    => (CM.Configuration, Switchboard Text, Trace IO Text)
+    => (CM.Configuration, Trace IO Text)
     -- ^ Logging config.
     -> Maybe FilePath
     -- ^ Database file.
@@ -110,13 +108,13 @@ serveWallet
         )
     -- ^ Optional operation to run under the wallet server (e.g. test suite).
     -> IO ExitCode
-serveWallet (cfg, sb, tr) databaseDir listen bridge mAction = do
+serveWallet (cfg, tr) databaseDir listen bridge mAction = do
     installSignalHandlers tr
     logInfo tr "Wallet backend server starting..."
     logInfo tr $ "Node is Http-Bridge on " <> toText (networkVal @n)
     HttpBridge.withNetworkLayer @n tr bridge $ \case
         Right (bridgePort, nl) -> do
-            waitForService "http-bridge" (sb, tr) (Port $ fromEnum bridgePort) $
+            waitForService "http-bridge" tr (Port $ fromEnum bridgePort) $
                 waitForNetwork nl defaultRetryPolicy
             wlRnd <- newApiLayer nl
             wlSeq <- newApiLayer nl
@@ -177,11 +175,11 @@ serveWallet (cfg, sb, tr) databaseDir listen bridge mAction = do
     handleNetworkStartupError = \case
         ErrStartupCommandExited pe -> case pe of
             ProcessDidNotStart _cmd exc -> do
-                failWith (sb, tr) $
+                failWith tr $
                     "Could not start the node backend. " <> T.pack (show exc)
             ProcessHasExited _cmd st -> do
-                failWith (sb, tr) $
+                failWith tr $
                     "The node exited with status " <> T.pack (show st)
         ErrStartupNodeNotListening -> do
-            failWith (sb, tr)
+            failWith tr
                 "Waited too long for http-bridge to become available. Giving up!"

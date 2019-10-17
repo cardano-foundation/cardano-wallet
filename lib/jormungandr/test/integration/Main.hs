@@ -15,7 +15,7 @@ import Prelude
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.CLI
-    ( initTracer, setUtf8Encoding )
+    ( setUtf8Encoding, withLobemo )
 import Cardano.Faucet
     ( initFaucet )
 import Cardano.Launcher
@@ -110,12 +110,11 @@ main = do
             NetworkCLI.spec @t
 
 start :: IO (Context (Jormungandr 'Testnet))
-start = do
+start = withLobemo Nothing Info $ \(cfg, _sb, tr) -> do
     ctx <- newEmptyMVar
-    logCfg <- initTracer Info "integration"
     pid <- async $ bracket setupConfig teardownConfig $ \jmCfg -> do
         let listen = ListenOnRandomPort
-        serveWallet logCfg Nothing listen (Launch jmCfg) $ \wPort nPort bp -> do
+        serveWallet (cfg, tr) Nothing listen (Launch jmCfg) $ \wPort nPort bp -> do
             let baseUrl = "http://localhost:" <> T.pack (showT wPort) <> "/"
             manager <- (baseUrl,) <$> newManager defaultManagerSettings
             faucet <- initFaucet
