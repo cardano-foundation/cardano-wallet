@@ -17,6 +17,11 @@ module Cardano.Pool.Metrics
     ( -- * Types
       Block (..)
 
+    -- * Listing stake-pools from the DB
+    , StakePoolLayer (..)
+    , newStakePoolLayer
+    , ErrListStakePools (..)
+
       -- * Following the chain
     , monitorStakePools
 
@@ -29,9 +34,11 @@ module Cardano.Pool.Metrics
 import Prelude
 
 import Cardano.BM.Trace
-    ( Trace, logDebug, logNotice )
+    ( Trace, logDebug, logInfo, logNotice )
 import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists )
+import Cardano.Wallet.DB
+    ()
 import Cardano.Wallet.Network
     ( ErrNetworkTip
     , ErrNetworkUnavailable
@@ -49,11 +56,11 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
-    ( runExceptT, throwE, withExceptT )
+    ( ExceptT, runExceptT, throwE, withExceptT )
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( view, (^.) )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Map.Merge.Strict
@@ -61,11 +68,13 @@ import Data.Map.Merge.Strict
 import Data.Map.Strict
     ( Map )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Percentage, Quantity (..) )
 import Data.Text
     ( Text )
 import Data.Word
     ( Word64 )
+import Fmt
+    ( pretty )
 import GHC.Generics
     ( Generic )
 import Numeric.Natural
@@ -78,6 +87,83 @@ data Block = Block
     { header :: BlockHeader
     , producer :: PoolId
     } deriving (Eq, Show, Generic)
+
+--------------------------------------------------------------------------------
+-- StakePoolLayer
+--------------------------------------------------------------------------------
+
+-- | @StakePoolLayer@ is a thin layer ontop of the DB. It is /one/ value that
+-- can easily be passed to the API-server, where it can be used in a simple way.
+newtype StakePoolLayer m = StakePoolLayer
+      { listStakePools
+          :: ExceptT ErrListStakePools m
+             [(PoolId, (Quantity "lovelace" Word64, Quantity "block" Natural))]
+      }
+
+data ErrListStakePools
+     = ErrMetricsIsUnsynced (Quantity "percent" Percentage)
+     | ErrListStakePoolsMetricsInconsistency ErrMetricsInconsistency
+     | ErrListStakePoolsErrNetworkTip ErrNetworkTip
+
+newStakePoolLayer
+     :: DBLayer IO
+     -> NetworkLayer IO t block
+     -> Trace IO Text
+     -> IO (StakePoolLayer IO)
+newStakePoolLayer db nl tr = do
+     return $ StakePoolLayer
+        { listStakePools = do
+            nodeTip <- withExceptT ErrListStakePoolsErrNetworkTip
+                $ networkTip nl
+            let nodeEpoch = nodeTip ^. #slotId . #epochNumber
+
+            distr <- liftIO $ Map.fromList <$>
+                readStakeDistribution db nodeEpoch
+            prod <- liftIO $ count <$>
+                readPoolProduction db nodeEpoch
+
+            when (Map.null distr || Map.null prod) $ do
+                computeProgress nodeTip >>= throwE . ErrMetricsIsUnsynced
+
+            case combineMetrics distr prod of
+                Right x ->
+                    return $ Map.toList x
+                Left e ->
+                    throwE $ ErrListStakePoolsMetricsInconsistency e
+        }
+  where
+    count = Map.map (Quantity . fromIntegral . length)
+
+    poolProductionTip = readPoolProductionCursor db 1 >>= \case
+        [x] -> return $ Just x
+        _ -> return Nothing
+
+    computeProgress
+        :: BlockHeader -- ^ The node tip, which respresents 100%.
+        -> ExceptT e IO (Quantity "percent" Percentage)
+    computeProgress nodeTip = liftIO $ do
+        mDbTip <- poolProductionTip
+        Quantity <$> case mDbTip of
+            Nothing -> return minBound
+            Just dbTip -> do
+                liftIO $ logDebug tr $ mconcat
+                    [ "The node tip is:\n"
+                    , pretty nodeTip
+                    , ",\nbut the last pool production stored in the db"
+                    , " is from:\n"
+                    , pretty dbTip
+                    ]
+                return $ progress dbTip nodeTip
+
+    progress :: BlockHeader -> BlockHeader -> Percentage
+    progress tip target =
+        let
+            s0 = getQuantity $ tip ^. #blockHeight
+            s1 = getQuantity $ target ^. #blockHeight
+        in toEnum $ round $ 100 * (toD s0) / (toD s1)
+      where
+        toD :: Integral i => i -> Double
+        toD = fromIntegral
 
 -- | 'monitorStakePools' follows the chain and puts pool productions and stake
 -- distributions to a 'DBLayer', such that the data in the database is always
@@ -124,6 +210,7 @@ monitorStakePools nl db tr = do
             networkTip nl
         when (nodeTip /= currentTip) $ throwE ErrMonitorStakePoolsWrongTip
         -- FIXME Do the next operation in a database transaction
+        liftIO $ logInfo tr $ "writing stake-distribution for epoch " <> pretty ep
         lift $ putStakeDistribution db ep (Map.toList dist)
         forM_ blocks $ \b -> withExceptT ErrMonitorStakePoolsPoolAlreadyExists $
             putPoolProduction db (header b) (producer b)
