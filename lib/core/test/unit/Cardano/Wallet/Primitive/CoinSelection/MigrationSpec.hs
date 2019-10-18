@@ -21,7 +21,7 @@ import Cardano.Wallet.Primitive.Types
 import Test.Hspec
     ( Spec, describe, it, shouldSatisfy )
 import Test.QuickCheck
-    ( conjoin, counterexample, property, (===) )
+    ( conjoin, counterexample, property, withMaxSuccess, (===) )
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -32,13 +32,13 @@ spec = do
     describe "Coin selection for migration PATATE" $ do
 
         it "No coin selection has ouputs" $
-            property $ \feeOpts batchSize utxo -> do
+            property $ withMaxSuccess 1000 $ \feeOpts batchSize utxo -> do
                 let allOutputs = outputs =<<
                         selectCoinsForMigration feeOpts batchSize utxo
                 allOutputs `shouldSatisfy` null
 
         it "Every coin in the selection change >= minimum threshold coin" $
-            property $ \feeOpts batchSize utxo -> do
+            property $ withMaxSuccess 1000 $ \feeOpts batchSize utxo -> do
                 let allChange = change
                         =<< selectCoinsForMigration feeOpts batchSize utxo
                 let undersizedCoins =
@@ -46,13 +46,13 @@ spec = do
                 undersizedCoins `shouldSatisfy` null
 
         it "Total input UTxO value >= sum of selection change coins" $
-            property $ \feeOpts batchSize utxo -> do
+            property $ withMaxSuccess 1000 $ \feeOpts batchSize utxo -> do
                 let sumCoinSelectionChange = changeBalance <$>
                         selectCoinsForMigration feeOpts batchSize utxo
                 balance utxo >= fromIntegral (sum sumCoinSelectionChange)
 
         it "Every selection input is unique" $
-            property $ \feeOpts batchSize utxo -> do
+            property $ withMaxSuccess 1000 $ \feeOpts batchSize utxo -> do
                 let selectionInputList = inputs =<<
                         selectCoinsForMigration feeOpts batchSize utxo
                 let selectionInputSet =
@@ -60,7 +60,7 @@ spec = do
                 Set.size selectionInputSet === length selectionInputSet
 
         it "Every selection input is a member of the UTxO" $
-            property $ \feeOpts batchSize utxo -> do
+            property $ withMaxSuccess 1000 $ \feeOpts batchSize utxo -> do
                 let selectionInputSet =
                         Set.fromList $ inputs =<<
                             selectCoinsForMigration feeOpts batchSize utxo
@@ -69,7 +69,7 @@ spec = do
                 selectionInputSet `Set.isSubsetOf` utxoSet
 
         it "Every coin selection is well-balanced" $
-            property $ \feeOpts batchSize utxo -> do
+            property $ withMaxSuccess 1000 $ \feeOpts batchSize utxo -> do
                 let selections = selectCoinsForMigration feeOpts batchSize utxo
                 conjoin
                     [ counterexample example (actualFee === expectedFee)
