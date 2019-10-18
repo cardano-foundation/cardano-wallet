@@ -23,7 +23,7 @@ import Prelude
 import Cardano.Pool.DB.Sqlite.Types
     ( sqlSettings' )
 import Data.Word
-    ( Word16, Word64 )
+    ( Word32 )
 import Database.Persist.Class
     ( AtLeastOneUniqueKey (..), OnlyOneUniqueKey (..) )
 import Database.Persist.TH
@@ -31,6 +31,7 @@ import Database.Persist.TH
 import GHC.Generics
     ( Generic (..) )
 
+import qualified Cardano.Pool.DB.Sqlite.Types as W
 import qualified Cardano.Wallet.Primitive.Types as W
 
 share
@@ -42,10 +43,12 @@ share
 
 -- The set of stake pools that produced a given block
 PoolProduction
-    poolProductionEpochNumber    Word64       sql=epoch_number
-    poolProductionSlotNumber     Word16       sql=slot_number
     poolProductionPoolId         W.PoolId     sql=pool_id
+    poolProductionSlot           W.SlotId     sql=slot
+    poolProductionHeaderHash     W.BlockId    sql=header_hash
+    poolProductionParentHash     W.BlockId    sql=parent_header_hash
+    poolProductionBlockHeight    Word32       sql=block_height
 
-    Primary poolProductionEpochNumber poolProductionSlotNumber
+    Primary poolProductionSlot
     deriving Show Generic
 |]

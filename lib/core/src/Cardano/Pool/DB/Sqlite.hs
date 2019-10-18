@@ -36,16 +36,21 @@ import Cardano.DB.Sqlite
     , transformTrace
     )
 import Cardano.Pool.DB
-    ( DBLayer (..), ErrSlotAlreadyExists (..) )
-import Cardano.Pool.DB.Sqlite.TH
+    ( DBLayer (..), ErrPointAlreadyExists (..) )
 import Cardano.Pool.DB.Sqlite.Types
-    ()
+    ( BlockId (..) )
 import Cardano.Wallet.Primitive.Types
-    ( EpochNo (..), SlotId (..), SlotNo (..) )
+    ( BlockHeader (..), EpochNo (..), PoolId, SlotId (..) )
 import Control.Exception
     ( bracket )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
+import Data.List
+    ( foldl' )
+import Data.Map.Strict
+    ( Map )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text
     ( Text )
 import Database.Persist.Sql
@@ -55,11 +60,13 @@ import Database.Persist.Sql
     , deleteWhere
     , insert_
     , selectList
-    , (==.)
     , (>.)
+    , (>=.)
     )
 import Database.Persist.Sqlite
     ( SqlPersistT )
+
+import Cardano.Pool.DB.Sqlite.TH
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Data.Map.Strict as Map
@@ -109,35 +116,58 @@ newDBLayer logConfig trace fp = do
     ctx@SqliteContext{runQuery} <-
         startSqliteBackend logConfig migrateAll trace' fp
     return (ctx, DBLayer
-        { putPoolProduction = \s@(SlotId (EpochNo epoch) (SlotNo slot)) pool ->
-            ExceptT $ runQuery $ handleConstraint (ErrSlotAlreadyExists s) $
-            insert_ (PoolProduction epoch slot pool)
+        { putPoolProduction = \point pool -> ExceptT $ runQuery $
+            handleConstraint (ErrPointAlreadyExists point) $
+                insert_ (mkPoolProduction pool point)
 
-        , readPoolProduction = \epoch ->
-            runQuery $ foldl (\m (PoolProduction e s p) ->
-                Map.alter (alter (SlotId (EpochNo e) (SlotNo s))) p m)
-            Map.empty <$> selectPoolProduction epoch
+        , readPoolProduction = \epoch -> runQuery $ do
+            production <- fmap fromPoolProduction <$> selectPoolProduction epoch
 
-        , rollbackTo = \(SlotId (EpochNo epoch) (SlotNo slot)) ->
-             runQuery $ do
-                deleteWhere
-                    [ PoolProductionEpochNumber >. epoch ]
-                deleteWhere
-                    [ PoolProductionEpochNumber ==. epoch
-                    , PoolProductionSlotNumber >. slot ]
+            let toMap :: Ord a => Map a [b] -> (a,b) -> Map a [b]
+                toMap m (k, v) = Map.alter (alter v) k m
+                  where
+                    alter x = \case
+                      Nothing -> Just [x]
+                      Just xs -> Just (x:xs)
 
-        , cleanDB = runQuery $ deleteWhere ([] :: [Filter PoolProduction])
+            pure (foldl' toMap Map.empty production)
 
+        , rollbackTo = \point -> runQuery $
+            deleteWhere [ PoolProductionSlot >. point ]
+
+        , cleanDB = runQuery $
+            deleteWhere ([] :: [Filter PoolProduction])
         })
-  where
-      alter slot = \case
-          Nothing -> Just [slot]
-          Just slots -> Just (slot:slots)
 
 selectPoolProduction
     :: EpochNo
     -> SqlPersistT IO [PoolProduction]
-selectPoolProduction (EpochNo epoch) = fmap entityVal <$>
+selectPoolProduction epoch = fmap entityVal <$>
     selectList
-        [PoolProductionEpochNumber ==. epoch]
-        [Asc PoolProductionSlotNumber]
+        [PoolProductionSlot >=. SlotId epoch 0]
+        [Asc PoolProductionSlot]
+
+mkPoolProduction
+    :: PoolId
+    -> BlockHeader
+    -> PoolProduction
+mkPoolProduction pool block = PoolProduction
+    { poolProductionPoolId = pool
+    , poolProductionSlot = slotId block
+    , poolProductionHeaderHash = BlockId (headerHash block)
+    , poolProductionParentHash = BlockId (parentHeaderHash block)
+    , poolProductionBlockHeight = getQuantity (blockHeight block)
+    }
+
+fromPoolProduction
+    :: PoolProduction
+    -> (PoolId, BlockHeader)
+fromPoolProduction (PoolProduction pool slot headerH parentH height) =
+    ( pool
+    , BlockHeader
+        { slotId = slot
+        , blockHeight = Quantity height
+        , headerHash = getBlockId headerH
+        , parentHeaderHash = getBlockId parentH
+        }
+    )

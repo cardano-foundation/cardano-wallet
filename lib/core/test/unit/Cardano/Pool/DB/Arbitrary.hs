@@ -12,20 +12,26 @@ import Prelude
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( genesisParameters )
 import Cardano.Wallet.Primitive.Types
-    ( EpochLength (..)
+    ( BlockHeader (..)
+    , EpochLength (..)
     , EpochNo (..)
+    , Hash (..)
     , PoolId (..)
     , SlotId (..)
     , SlotNo (..)
     , SlotParameters (..)
     , slotSucc
     )
+import Control.Arrow
+    ( second )
 import Control.Monad
     ( foldM )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Ord
     ( Down (..) )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Word
     ( Word32 )
 import Test.QuickCheck
@@ -46,7 +52,7 @@ import qualified Data.List as L
 -------------------------------------------------------------------------------}
 
 data StakePoolsFixture = StakePoolsFixture
-    { poolSlots :: [(PoolId, SlotId)]
+    { poolSlots :: [(PoolId, BlockHeader)]
     , rollbackSlots :: [SlotId] }
     deriving stock (Eq, Show)
 
@@ -92,9 +98,16 @@ instance Arbitrary StakePoolsFixture where
         rNum <- choose (1, slotsNumber + 1)
         rSlots <-
             (L.sortOn Down . take rNum) <$> shuffle (map snd slotsGenerated)
-        pure $ StakePoolsFixture slotsGenerated rSlots
-
+        pure $ StakePoolsFixture (second mkBlockHeader <$> slotsGenerated) rSlots
       where
+        mkBlockHeader :: SlotId -> BlockHeader
+        mkBlockHeader s = BlockHeader
+            { slotId = s
+            , blockHeight = Quantity 0
+            , headerHash = Hash "headerHash"
+            , parentHeaderHash = Hash "parentHeaderHash"
+            }
+
         epochLength :: EpochLength
         epochLength = genesisParameters ^. #getEpochLength
 
