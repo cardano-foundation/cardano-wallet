@@ -13,14 +13,12 @@ module Main where
 
 import Prelude
 
-import Cardano.BM.Backend.Switchboard
-    ( Switchboard )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Trace
     ( Trace )
 import Cardano.CLI
-    ( Port (..), initTracer, setUtf8Encoding )
+    ( Port (..), setUtf8Encoding, withLogging )
 import Cardano.Faucet
     ( initFaucet )
 import Cardano.Launcher
@@ -149,8 +147,7 @@ main = do
     -- Run a local cluster of cardano-sl nodes, a cardano-http-bridge on top and
     -- a cardano wallet server connected to the bridge.
     startCluster :: IO (Context (HttpBridge 'Testnet))
-    startCluster = do
-        (logConfig, sb, tracer) <- initTracer Info "http-bridge-integration"
+    startCluster = withLogging Nothing Info $ \(logConfig, tracer) -> do
         [ nodeApiPort, docPort ] <- randomUnusedTCPPorts 2
         let [core0Port, core1Port, core2Port] = [3000..3002] :: [Int]
         let relayPort = 3100 :: Int -- ports are hardcoded in topology.json
@@ -185,7 +182,7 @@ main = do
         wait "cardano-node-simple" (waitForCluster nodeApiAddress)
 
         let withServer = withCardanoWalletServer
-                (logConfig, sb, tracer)
+                (logConfig, tracer)
                 (HttpBridgeConfig (Left Local) (Just networkDir) Nothing [] Inherit)
                 (Just ListenOnRandomPort)
 
@@ -229,16 +226,16 @@ main = do
 
     withCardanoWalletServer
         :: forall a. ()
-        => (CM.Configuration, Switchboard Text, Trace IO Text)
+        => (CM.Configuration, Trace IO Text)
         -> HttpBridge.HttpBridgeConfig
         -> Maybe Listen
         -> ((Port "wallet", Port "node", NetworkLayer IO t (Block Tx)) -> IO a)
         -> IO a
-    withCardanoWalletServer (logConfig, sb, tracer) bridgeConfig mlisten action = do
+    withCardanoWalletServer (logConfig, tracer) bridgeConfig mlisten action = do
         defaultPort <- findPort
         let listen = fromMaybe (ListenOnPort defaultPort) mlisten
         res <- newEmptyMVar
-        void $ serveWallet @t (logConfig, sb, tracer) Nothing listen (Launch bridgeConfig) $
+        void $ serveWallet @t (logConfig, tracer) Nothing listen (Launch bridgeConfig) $
             Just $ \port nodePort nl -> do
                 let port' = Port (fromIntegral port)
                 let nodePort' = Port (fromIntegral nodePort)

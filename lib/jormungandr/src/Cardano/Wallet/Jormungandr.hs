@@ -27,8 +27,6 @@ module Cardano.Wallet.Jormungandr
 
 import Prelude
 
-import Cardano.BM.Backend.Switchboard
-    ( Switchboard )
 import Cardano.BM.Trace
     ( Trace, appendName, logInfo )
 import Cardano.CLI
@@ -109,7 +107,7 @@ serveWallet
         ( n ~ 'Testnet
         , t ~ Jormungandr n
         )
-    => (CM.Configuration, Switchboard Text, Trace IO Text)
+    => (CM.Configuration, Trace IO Text)
     -- ^ Logging config.
     -> Maybe FilePath
     -- ^ Database folder filepath
@@ -120,14 +118,14 @@ serveWallet
     -> (Port "wallet" -> Port "node" -> BlockchainParameters -> IO ())
     -- ^ Callback to run before the main loop
     -> IO ExitCode
-serveWallet (cfg, sb, tr) databaseDir listen lj beforeMainLoop = do
+serveWallet (cfg, tr) databaseDir listen lj beforeMainLoop = do
     installSignalHandlers tr
     logInfo tr "Wallet backend server starting..."
     logInfo tr $ "Node is Jörmungandr on " <> toText (networkVal @n)
     withNetworkLayer tr lj $ \case
         Right (cp, nl) -> do
             let nPort = Port $ baseUrlPort $ _restApi cp
-            waitForService "Jörmungandr" (sb, tr) nPort $
+            waitForService "Jörmungandr" tr nPort $
                 waitForNetwork nl defaultRetryPolicy
             let (_, bp) = staticBlockchainParameters nl
             rndApi <- apiLayer tr (toWLBlock <$> nl)
@@ -195,28 +193,28 @@ serveWallet (cfg, sb, tr) databaseDir listen lj beforeMainLoop = do
             ErrGetBlockchainParamsIncompleteParams _ ->
                 handleNoInitialPolicy
         ErrStartupInvalidGenesisBlock file ->
-            failWith (sb, tr) $ mempty
+            failWith tr $ mempty
                 <> "As far as I can tell, this isn't a valid block file: "
                 <> T.pack file
         ErrStartupInvalidGenesisHash h ->
-            failWith (sb, tr) $ mempty
+            failWith tr $ mempty
                 <> "As far as I can tell, this isn't a valid block hash: "
                 <> T.pack h
         ErrStartupCommandExited pe -> case pe of
             ProcessDidNotStart _cmd exc ->
-                failWith (sb, tr) $
+                failWith tr $
                     "Could not start the node backend. " <> T.pack (show exc)
             ProcessHasExited _cmd st ->
-                failWith (sb, tr) $
+                failWith tr $
                     "The node exited with status " <> T.pack (show st)
         ErrStartupNodeNotListening -> do
-            failWith (sb, tr) $ mempty
+            failWith tr $ mempty
                 <> "Waited too long for Jörmungandr to become available. "
                 <> "Giving up!"
 
     handleGenesisNotFound :: Hash "Genesis" -> IO ExitCode
     handleGenesisNotFound block0H = do
-        failWith (sb, tr) $ T.pack $ mconcat
+        failWith tr $ T.pack $ mconcat
             [ "Failed to retrieve the genesis block. The block doesn't exist! "
             , "Hint: double-check the genesis hash you've just gave "
             , "me via '--genesis-block-hash' (i.e. " <> showT block0H <> ")."
@@ -224,12 +222,12 @@ serveWallet (cfg, sb, tr) databaseDir listen lj beforeMainLoop = do
 
     handleNetworkUnreachable :: IO ExitCode
     handleNetworkUnreachable = do
-        failWith (sb, tr)
+        failWith tr
             "It looks like Jörmungandr is down? Hint: double-check Jörmungandr\
             \ server's port."
 
     handleNoInitialPolicy :: IO ExitCode
     handleNoInitialPolicy = do
-        failWith (sb, tr) $ mempty
+        failWith tr $ mempty
             <> "I successfully retrieved the genesis block from Jörmungandr, "
             <> "but there's no initial fee policy defined?"

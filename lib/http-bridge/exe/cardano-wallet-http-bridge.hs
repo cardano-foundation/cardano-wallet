@@ -41,7 +41,6 @@ import Cardano.CLI
     , cmdWallet
     , databaseOption
     , getDataDir
-    , initTracer
     , listenOption
     , nodePortOption
     , optionT
@@ -52,6 +51,7 @@ import Cardano.CLI
     , verbosityOption
     , verbosityToArgs
     , verbosityToMinSeverity
+    , withLogging
     )
 import Cardano.Launcher
     ( StdStream (..) )
@@ -155,19 +155,25 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
         => LaunchArgs
         -> IO ()
     exec (LaunchArgs network listen (Port nodePort) mStateDir verbosity) = do
-        (cfg, sb, tr) <- initTracer (verbosityToMinSeverity verbosity) "serve"
-        let stateDir = fromMaybe (stateDirForNetwork dataDir network) mStateDir
-        let bridgeConfig = HttpBridgeConfig network (Just stateDir) (Just (fromIntegral nodePort)) (verbosityToArgs verbosity) Inherit
-        let databaseDir = stateDir </> "wallets"
-        setupDirectory (logInfo tr) stateDir
-        setupDirectory (logInfo tr) databaseDir
-        logInfo tr $ "Running as v" <> T.pack (showVersion version)
-        exitWith =<< serveWallet @t @n
-            (cfg, sb, tr)
-            (Just databaseDir)
-            listen
-            (Launch bridgeConfig)
-            Nothing
+        let minSeverity = verbosityToMinSeverity verbosity
+        withLogging Nothing minSeverity $ \(cfg, tr) -> do
+            let stateDir = fromMaybe (stateDirForNetwork dataDir network) mStateDir
+            let bridgeConfig = HttpBridgeConfig
+                    network
+                    (Just stateDir)
+                    (Just (fromIntegral nodePort))
+                    (verbosityToArgs verbosity)
+                    Inherit
+            let databaseDir = stateDir </> "wallets"
+            setupDirectory (logInfo tr) stateDir
+            setupDirectory (logInfo tr) databaseDir
+            logInfo tr $ "Running as v" <> T.pack (showVersion version)
+            exitWith =<< serveWallet @t @n
+                (cfg, tr)
+                (Just databaseDir)
+                listen
+                (Launch bridgeConfig)
+                Nothing
 
 {-------------------------------------------------------------------------------
                             Command - 'serve'
@@ -206,15 +212,16 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
         => ServeArgs
         -> IO ()
     exec (ServeArgs _ listen (Port nodePort) databaseDir verbosity) = do
-        (cfg, sb, tr) <- initTracer (verbosityToMinSeverity verbosity) "serve"
-        whenJust databaseDir $ setupDirectory (logInfo tr)
-        logInfo tr $ "Running as v" <> T.pack (showVersion version)
-        exitWith =<< serveWallet @t @n
-            (cfg, sb, tr)
-            databaseDir
-            listen
-            (UseRunning (fromIntegral nodePort))
-            Nothing
+        let minSeverity = verbosityToMinSeverity verbosity
+        withLogging Nothing minSeverity $ \(cfg, tr) -> do
+            whenJust databaseDir $ setupDirectory (logInfo tr)
+            logInfo tr $ "Running as v" <> T.pack (showVersion version)
+            exitWith =<< serveWallet @t @n
+                (cfg, tr)
+                databaseDir
+                listen
+                (UseRunning (fromIntegral nodePort))
+                Nothing
 
     whenJust m fn = case m of
        Nothing -> pure ()

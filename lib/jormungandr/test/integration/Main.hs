@@ -14,8 +14,10 @@ import Prelude
 
 import Cardano.BM.Data.Severity
     ( Severity (..) )
+import Cardano.BM.Trace
+    ( Trace )
 import Cardano.CLI
-    ( initTracer, setUtf8Encoding )
+    ( setUtf8Encoding, withLogging )
 import Cardano.Faucet
     ( initFaucet )
 import Cardano.Launcher
@@ -44,6 +46,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text
+    ( Text )
 import Data.Text.Class
     ( showT )
 import Network.HTTP.Client
@@ -51,10 +55,11 @@ import Network.HTTP.Client
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( after, beforeAll, describe, hspec, parallel )
+    ( Spec, SpecWith, after, beforeAll, describe, hspec, parallel )
 import Test.Integration.Framework.DSL
     ( Context (..), KnownCommand (..), TxDescription (..), tearDown )
 
+import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.Wallet.Jormungandr.NetworkSpec as NetworkLayer
 import qualified Data.Text as T
 import qualified Test.Integration.Jormungandr.Scenario.API.StakePools as StakePoolsApiJormungandr
@@ -81,7 +86,7 @@ instance KnownCommand (Jormungandr n) where
     commandName = "cardano-wallet-jormungandr"
 
 main :: forall t. (t ~ Jormungandr 'Testnet) => IO ()
-main = do
+main = withLogging Nothing Info $ \logging -> do
     setUtf8Encoding
     hspec $ do
         describe "No backend required" $ do
@@ -90,7 +95,7 @@ main = do
             describe "Miscellaneous CLI tests" $ parallel (MiscellaneousCLI.spec @t)
             describe "Launcher CLI tests" $ parallel (LauncherCLI.spec @t)
 
-        describe "API Specifications" $ beforeAll start $ after tearDown $ do
+        describe "API Specifications" $ specWithServer logging $ do
             Addresses.spec
             StakePoolsApiJormungandr.spec
             Transactions.spec
@@ -100,7 +105,7 @@ main = do
             ByronWallets.spec
             Network.spec
 
-        describe "CLI Specifications" $ beforeAll start $ after tearDown $ do
+        describe "CLI Specifications" $ specWithServer logging $ do
             AddressesCLI.spec @t
             ServerCLI.spec @t
             StakePoolsCliJormungandr.spec @t
@@ -109,27 +114,32 @@ main = do
             PortCLI.spec @t
             NetworkCLI.spec @t
 
-start :: IO (Context (Jormungandr 'Testnet))
-start = do
-    ctx <- newEmptyMVar
-    logCfg <- initTracer Info "integration"
-    pid <- async $ bracket setupConfig teardownConfig $ \jmCfg -> do
-        let listen = ListenOnRandomPort
-        serveWallet logCfg Nothing listen (Launch jmCfg) $ \wPort nPort bp -> do
-            let baseUrl = "http://localhost:" <> T.pack (showT wPort) <> "/"
-            manager <- (baseUrl,) <$> newManager defaultManagerSettings
-            faucet <- initFaucet
-            putMVar ctx $  Context
-                { _cleanup = pure ()
-                , _manager = manager
-                , _nodePort = nPort
-                , _walletPort = wPort
-                , _faucet = faucet
-                , _feeEstimator = mkFeeEstimator (getFeePolicy bp)
-                , _target = Proxy
-                }
-    race (takeMVar ctx) (wait pid) >>=
-        either pure (throwIO . ProcessHasExited "integration")
+specWithServer
+    :: (CM.Configuration, Trace IO Text)
+    -> SpecWith (Context (Jormungandr 'Testnet))
+    -> Spec
+specWithServer (cfg, tr) = beforeAll start . after tearDown
+  where
+    start :: IO (Context (Jormungandr 'Testnet))
+    start = do
+        ctx <- newEmptyMVar
+        pid <- async $ bracket setupConfig teardownConfig $ \jmCfg -> do
+            let listen = ListenOnRandomPort
+            serveWallet (cfg, tr) Nothing listen (Launch jmCfg) $ \wPort nPort bp -> do
+                let baseUrl = "http://localhost:" <> T.pack (showT wPort) <> "/"
+                manager <- (baseUrl,) <$> newManager defaultManagerSettings
+                faucet <- initFaucet
+                putMVar ctx $  Context
+                    { _cleanup = pure ()
+                    , _manager = manager
+                    , _nodePort = nPort
+                    , _walletPort = wPort
+                    , _faucet = faucet
+                    , _feeEstimator = mkFeeEstimator (getFeePolicy bp)
+                    , _target = Proxy
+                    }
+        race (takeMVar ctx) (wait pid) >>=
+            either pure (throwIO . ProcessHasExited "integration")
 
 mkFeeEstimator :: FeePolicy -> TxDescription -> (Natural, Natural)
 mkFeeEstimator policy (TxDescription nInps nOuts) =
