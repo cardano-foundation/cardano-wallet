@@ -45,7 +45,9 @@ selectCoinsForMigration feeOpts batchSize utxo =
     migrate :: State [(TxIn, TxOut)] [CoinSelection]
     migrate = do
         batch <- getNextBatch
-        case adjustForFee (mkCoinSelection batch) of
+        if null batch then
+            pure []
+        else case adjustForFee (mkCoinSelection batch) of
             Nothing -> pure []
             Just coinSel -> do
                 rest <- migrate
@@ -90,7 +92,7 @@ selectCoinsForMigration feeOpts batchSize utxo =
         -- sign of `diff` making for the right modification.
         -- We then recursively call ourselves for this might reduce the number
         -- of outputs and change the fee.
-        | otherwise = adjustForFee $ coinSel
+        | otherwise = Just $ coinSel
             { change = modifyFirst (change coinSel) (+ diff) }
       where
         diff :: Integer

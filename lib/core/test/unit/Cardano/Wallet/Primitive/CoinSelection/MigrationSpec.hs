@@ -7,7 +7,7 @@ module Cardano.Wallet.Primitive.CoinSelection.MigrationSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (change, inputs, outputs) )
+    ( CoinSelection (..), outputBalance )
 import Cardano.Wallet.Primitive.CoinSelection.Migration
     ( selectCoinsForMigration )
 import Cardano.Wallet.Primitive.CoinSelectionSpec
@@ -17,7 +17,7 @@ import Cardano.Wallet.Primitive.Fee
 import Cardano.Wallet.Primitive.FeeSpec
     ()
 import Cardano.Wallet.Primitive.Types
-    ( Coin (..), TxOut (coin), UTxO (getUTxO) )
+    ( TxOut (coin), UTxO (getUTxO), balance )
 import Test.Hspec
     ( Spec, describe, it, shouldSatisfy )
 import Test.QuickCheck
@@ -31,11 +31,11 @@ spec = do
 
     describe "Coin selection for migration" $ do
 
-        it "No coin selection has change" $
+        it "No coin selection has ouputs" $
             property $ \feeOpts batchSize utxo -> do
-                let allChange = change =<<
+                let allOutputs = outputs =<<
                         selectCoinsForMigration feeOpts batchSize utxo
-                allChange `shouldSatisfy` null
+                allOutputs `shouldSatisfy` null
 
         it "Every coin in the selection output >= minimum threshold coin" $
             property $ \feeOpts batchSize utxo -> do
@@ -47,10 +47,9 @@ spec = do
 
         it "Total input UTxO value >= sum of selection output coins" $
             property $ \feeOpts batchSize utxo -> do
-                let sumCoinSelectionOutput = mconcat $
-                        sumCoinSelectionOutputs <$>
-                            selectCoinsForMigration feeOpts batchSize utxo
-                sumUTxO utxo >= sumCoinSelectionOutput
+                let sumCoinSelectionOutput = outputBalance <$>
+                        selectCoinsForMigration feeOpts batchSize utxo
+                balance utxo >= fromIntegral (sum sumCoinSelectionOutput)
 
         it "Every selection input is unique" $
             property $ \feeOpts batchSize utxo -> do
@@ -68,26 +67,3 @@ spec = do
                 let utxoSet =
                         Set.fromList $ Map.toList $ getUTxO utxo
                 selectionInputSet `Set.isSubsetOf` utxoSet
-
-{-------------------------------------------------------------------------------
-                                   Helpers
--------------------------------------------------------------------------------}
-
--- Calculate the total value of all outputs in the given coin selection.
-sumCoinSelectionOutputs :: CoinSelection -> Coin
-sumCoinSelectionOutputs = mconcat . fmap coin . outputs
-
--- Calculate the total value of all unspent outputs in the given UTxO.
-sumUTxO :: UTxO -> Coin
-sumUTxO = mconcat . fmap coin . Map.elems . getUTxO
-
-{-------------------------------------------------------------------------------
-                                  Instances
--------------------------------------------------------------------------------}
-
-instance Semigroup Coin where
-    Coin a <> Coin b = Coin $ a + b
-
-instance Monoid Coin where
-    mempty = minBound
-
