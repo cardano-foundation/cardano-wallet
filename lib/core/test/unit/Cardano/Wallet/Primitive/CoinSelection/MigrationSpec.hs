@@ -28,41 +28,43 @@ import qualified Data.Set as Set
 
 spec :: Spec
 spec = do
-    let maxN = 10
+
     describe "Coin selection for migration" $ do
+
         it "No coin selection has change" $
-            property $ \utxo feeOpts -> do
-                let allChange =
-                        change =<< selectCoinsForMigration feeOpts maxN utxo
+            property $ \feeOpts batchSize utxo -> do
+                let allChange = change =<<
+                        selectCoinsForMigration feeOpts batchSize utxo
                 allChange `shouldSatisfy` null
 
         it "Every coin in the selection output >= minimum threshold coin" $
-            property $ \utxo feeOpts -> do
+            property $ \feeOpts batchSize utxo -> do
                 let allCoins = fmap coin . outputs
-                        =<< selectCoinsForMigration feeOpts maxN utxo
-                let undersizedCoins = filter (< (dustThreshold feeOpts)) allCoins
+                        =<< selectCoinsForMigration feeOpts batchSize utxo
+                let undersizedCoins =
+                        filter (< (dustThreshold feeOpts)) allCoins
                 undersizedCoins `shouldSatisfy` null
 
         it "Total input UTxO value >= sum of selection output coins" $
-            property $ \utxo feeOpts -> do
+            property $ \feeOpts batchSize utxo -> do
                 let sumCoinSelectionOutput = mconcat $
                         sumCoinSelectionOutputs <$>
-                            selectCoinsForMigration feeOpts maxN utxo
+                            selectCoinsForMigration feeOpts batchSize utxo
                 sumUTxO utxo >= sumCoinSelectionOutput
 
         it "Every selection input is unique" $
-            property $ \utxo feeOpts -> do
-                let selectionInputList =
-                        inputs =<< selectCoinsForMigration feeOpts maxN utxo
+            property $ \feeOpts batchSize utxo -> do
+                let selectionInputList = inputs =<<
+                        selectCoinsForMigration feeOpts batchSize utxo
                 let selectionInputSet =
                         Set.fromList selectionInputList
                 Set.size selectionInputSet === length selectionInputSet
 
         it "Every selection input is a member of the UTxO" $
-            property $ \utxo feeOpts -> do
+            property $ \feeOpts batchSize utxo -> do
                 let selectionInputSet =
                         Set.fromList $ inputs =<<
-                            selectCoinsForMigration feeOpts maxN utxo
+                            selectCoinsForMigration feeOpts batchSize utxo
                 let utxoSet =
                         Set.fromList $ Map.toList $ getUTxO utxo
                 selectionInputSet `Set.isSubsetOf` utxoSet
