@@ -21,7 +21,7 @@ import Cardano.Wallet.Primitive.Types
 import Test.Hspec
     ( Spec, describe, it, shouldSatisfy )
 import Test.QuickCheck
-    ( conjoin, property, (===) )
+    ( conjoin, counterexample, property, (===) )
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -29,7 +29,7 @@ import qualified Data.Set as Set
 spec :: Spec
 spec = do
 
-    describe "Coin selection for migration" $ do
+    describe "Coin selection for migration PATATE" $ do
 
         it "No coin selection has ouputs" $
             property $ \feeOpts batchSize utxo -> do
@@ -72,8 +72,13 @@ spec = do
             property $ \feeOpts batchSize utxo -> do
                 let selections = selectCoinsForMigration feeOpts batchSize utxo
                 conjoin
-                    [ actualFee === expectedFee
+                    [ counterexample example (actualFee === expectedFee)
                     | s <- selections
                     , let actualFee = inputBalance s - changeBalance s
                     , let (Fee expectedFee) = estimate feeOpts s
+                    , let example = unlines
+                            [ "Coin Selection: " <> show s
+                            , "Actual fee: " <> show actualFee
+                            , "Expected fee: " <> show expectedFee
+                            ]
                     ]
