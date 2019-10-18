@@ -53,6 +53,8 @@ module Test.Integration.Framework.TestData
     , errMsg403UTxO
     , errMsg403WrongPass
     , errMsg404NoEndpoint
+    , errMsg404NoPendingAnymore
+    , errMsg404CannotFindTx
     , errMsg404NoRootKey
     , errMsg404NoWallet
     , errMsg403InputsDepleted
@@ -343,6 +345,14 @@ errMsg404NoEndpoint :: String
 errMsg404NoEndpoint = "I couldn't find the requested endpoint. If the endpoint\
     \ contains path parameters, please ensure they are well-formed, otherwise I\
     \ won't be able to route them correctly."
+
+errMsg404NoPendingAnymore :: Text -> String
+errMsg404NoPendingAnymore tid = "The transaction with id : " ++ unpack tid ++
+    " cannot be forgotten as it is not pending anymore."
+
+errMsg404CannotFindTx :: Text -> String
+errMsg404CannotFindTx tid = "I couldn't find a transaction with the given id: "
+    ++ unpack tid
 
 errMsg404NoRootKey :: Text -> String
 errMsg404NoRootKey wid = "I couldn't find a root private key for the given\

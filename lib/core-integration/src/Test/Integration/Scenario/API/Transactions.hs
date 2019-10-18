@@ -14,9 +14,21 @@ module Test.Integration.Scenario.API.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiFee, ApiTransaction (..), ApiTxId (..), ApiWallet, insertedAt, time )
+    ( ApiFee
+    , ApiT (..)
+    , ApiTransaction (..)
+    , ApiTxId (..)
+    , ApiWallet
+    , insertedAt
+    , time
+    )
 import Cardano.Wallet.Primitive.Types
-    ( DecodeAddress (..), Direction (..), EncodeAddress (..), TxStatus (..) )
+    ( DecodeAddress (..)
+    , Direction (..)
+    , EncodeAddress (..)
+    , Hash (..)
+    , TxStatus (..)
+    )
 import Control.Monad
     ( forM_ )
 import Data.Aeson
@@ -80,7 +92,9 @@ import Test.Integration.Framework.TestData
     , errMsg403NotEnoughMoney
     , errMsg403UTxO
     , errMsg403WrongPass
+    , errMsg404CannotFindTx
     , errMsg404NoEndpoint
+    , errMsg404NoPendingAnymore
     , errMsg404NoWallet
     , errMsg405
     , errMsg406
@@ -90,7 +104,10 @@ import Test.Integration.Framework.TestData
     , polishWalletName
     , wildcardsWalletName
     )
+import Web.HttpApiData
+    ( ToHttpApiData (..) )
 
+import qualified Data.ByteString as BS
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Integration.Framework.DSL as DSL
@@ -1516,28 +1533,37 @@ spec = do
             , expectFieldEqual balanceAvailable (faucetAmt - faucetUtxoAmt)
             ]
 
-        rb <- request @ApiTxId ctx (deleteTxEp wa (ApiTxId txId)) Default Empty
-        expectResponseCode @IO HTTP.status204 rb
+        rDel <- request @ApiTxId ctx (deleteTxEp wa (ApiTxId txId)) Default Empty
+        expectResponseCode @IO HTTP.status204 rDel
 
-        rc <- request @ApiWallet ctx (getWalletEp wa) Default Empty
-        verify rc
+        rb <- request @ApiWallet ctx (getWalletEp wa) Default Empty
+        verify rb
             [ expectSuccess
-            , expectFieldBetween balanceTotal
-                ( faucetAmt - feeMax - amt
-                , faucetAmt - feeMin - amt
-                )
-            , expectFieldEqual balanceAvailable (faucetAmt - faucetUtxoAmt)
+            , expectFieldEqual balanceTotal faucetAmt
+            , expectFieldEqual balanceAvailable faucetAmt
             ]
 
-        rd <- request @ApiWallet ctx (getWalletEp wb) Default Empty
-        verify rd
+        rc <- request @ApiWallet ctx (getWalletEp wb) Default Empty
+        verify rc
             [ expectSuccess
             , expectEventually ctx getWalletEp balanceAvailable (faucetAmt + amt)
             ]
 
-        verify rc
+        verify rb
             [ expectEventually ctx getWalletEp balanceAvailable (faucetAmt - feeMax - amt)
             ]
+
+        rDel1 <- request @ApiTxId ctx (deleteTxEp wa (ApiTxId txId)) Default Empty
+        expectResponseCode @IO HTTP.status404 rDel1
+        expectErrorMessage (errMsg404NoPendingAnymore (toUrlPiece (ApiTxId txId))) rDel1
+
+        let (ApiT (Hash load)) = txId
+        let txIdCorrupted = ApiT $ Hash $ BS.snoc (BS.tail load) (BS.head load)
+
+        rDel2 <-
+             request @ApiTxId ctx (deleteTxEp wa (ApiTxId txIdCorrupted)) Default Empty
+        expectResponseCode @IO HTTP.status404 rDel2
+        expectErrorMessage (errMsg404CannotFindTx (toUrlPiece (ApiTxId txIdCorrupted))) rDel2
 
     describe "TRANS_DELETE_02 - False wallet ids" $ do
         forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
