@@ -1064,7 +1064,7 @@ withWorkerCtx ctx wid onMissing action =
 defaultWorkerAfter :: Trace IO Text -> Either SomeException a -> IO ()
 defaultWorkerAfter tr = \case
     Right _ ->
-        logNotice tr "Worker has exited: main action is over"
+        logNotice tr "Worker has exited: main action is over."
     Left e -> case asyncExceptionFromException e of
         Just ThreadKilled ->
             logNotice tr "Worker has exited: killed by parent."
