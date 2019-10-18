@@ -15,7 +15,7 @@ module Cardano.Wallet.Primitive.CoinSelection.Migration
 import Prelude
 
 import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (..) )
+    ( CoinSelection (..), inputBalance, outputBalance )
 import Cardano.Wallet.Primitive.Fee
     ( Fee (..), FeeOptions (..) )
 import Cardano.Wallet.Primitive.Types
@@ -23,11 +23,11 @@ import Cardano.Wallet.Primitive.Types
 import Control.Monad.Trans.State
     ( State, evalState, get, put )
 import Data.List
-    ( foldl', splitAt )
+    ( splitAt )
 import Data.Maybe
     ( mapMaybe )
 import Data.Word
-    ( Word64, Word8 )
+    ( Word8 )
 
 import qualified Data.Map.Strict as Map
 
@@ -120,16 +120,3 @@ selectCoinsForMigration feeOpts batchSize utxo =
         let (batch, rest) = splitAt (fromIntegral batchSize) xs
         put rest
         pure batch
-
-{-------------------------------------------------------------------------------
-                                 Helpers
--------------------------------------------------------------------------------}
-
-inputBalance :: CoinSelection -> Word64
-inputBalance =  foldl' (\total -> addTxOut total . snd) 0 . inputs
-
-outputBalance :: CoinSelection -> Word64
-outputBalance = foldl' addTxOut 0 . outputs
-
-addTxOut :: Integral a => a -> TxOut -> a
-addTxOut total out = total + (fromIntegral (getCoin (coin out)))

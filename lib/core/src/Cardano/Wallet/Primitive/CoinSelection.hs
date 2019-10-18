@@ -16,6 +16,8 @@ module Cardano.Wallet.Primitive.CoinSelection
     (
       -- * Coin Selection
       CoinSelection(..)
+    , inputBalance
+    , outputBalance
     , ErrCoinSelection (..)
     , CoinSelectionOptions (..)
 
@@ -31,6 +33,8 @@ import Control.Monad
     ( forM_ )
 import Crypto.Number.Generate
     ( generateBetween )
+import Data.List
+    ( foldl' )
 import Data.Vector.Mutable
     ( IOVector )
 import Data.Word
@@ -86,6 +90,17 @@ data CoinSelectionOptions e = CoinSelectionOptions
         :: CoinSelection -> Either e ()
             -- ^ Returns any backend-specific error regarding coin selection
     } deriving (Generic)
+
+-- | Calculate the sum of all input values
+inputBalance :: CoinSelection -> Word64
+inputBalance =  foldl' (\total -> addTxOut total . snd) 0 . inputs
+
+-- | Calculate the sum of all output values
+outputBalance :: CoinSelection -> Word64
+outputBalance = foldl' addTxOut 0 . outputs
+
+addTxOut :: Integral a => a -> TxOut -> a
+addTxOut total out = total + (fromIntegral (getCoin (coin out)))
 
 data ErrCoinSelection e
     = ErrNotEnoughMoney Word64 Word64
