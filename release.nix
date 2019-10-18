@@ -43,6 +43,13 @@ let
       inherit pkgs project;
       cardano-wallet-jormungandr = jobs.x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-linux;
     };
+
+    # These derivations are used for the Daedalus installer.
+    daedalus-jormungandr = with jobs; {
+      linux = native.cardano-wallet-jormungandr.x86_64-linux;
+      macos = native.cardano-wallet-jormungandr.x86_64-darwin;
+      windows = x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-linux;
+    };
   }
   # Build the shell derivation in Hydra so that all its dependencies
   # are cached.
