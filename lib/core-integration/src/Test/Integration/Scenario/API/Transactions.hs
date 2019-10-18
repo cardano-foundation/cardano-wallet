@@ -1539,6 +1539,17 @@ spec = do
             [ expectEventually ctx getWalletEp balanceAvailable (faucetAmt - feeMax - amt)
             ]
 
+    describe "TRANS_DELETE_02 - False wallet ids" $ do
+        forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
+            let txId = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
+            let endpoint = "v2/wallets/" <> walId <> "/transactions/" <> txId
+            r <- request @ApiTxId @IO ctx ("DELETE", T.pack endpoint) Default Empty
+            expectResponseCode HTTP.status404 r
+            if (title == "40 chars hex") then
+                expectErrorMessage (errMsg404NoWallet $ T.pack walId) r
+            else
+                expectErrorMessage errMsg404NoEndpoint r
+
   where
     unsafeGetTransactionTime
         :: [ApiTransaction t]
