@@ -37,7 +37,7 @@ import System.Process
     , withCreateProcess
     )
 import Test.Hspec
-    ( SpecWith, describe, it, pendingWith, runIO )
+    ( SpecWith, describe, it, runIO )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain, shouldReturn )
 import Test.Integration.Framework.DSL
@@ -73,7 +73,7 @@ spec = do
                     terminateProcess ph
             threadDelay oneSecond
 
-    describe "DaedalusIPC" $ do
+    describe "DaedalusIPC [SERIAL]" $ do
         let defaultArgs nodePort =
                 [ commandName @t
                 , "serve"
@@ -98,11 +98,8 @@ spec = do
             (_, _, _, ph) <- createProcess (proc filepath scriptArgs)
             waitForProcess ph `shouldReturn` ExitSuccess
 
-    describe "LOGGING - cardano-wallet serve logging" $ do
+    describe "LOGGING - cardano-wallet serve logging [SERIAL]" $ do
         it "LOGGING - Launch can log --verbose" $ \ctx -> do
-            pendingWith
-                "Somewhat unreliable in CI. Often fails with: \
-                \'does not contain \"Running as v2019.10.16\"'"
             let args =
                     ["serve"
                     , "--node-port"
@@ -125,9 +122,6 @@ spec = do
             out `shouldContainT` "Info"
 
         it "LOGGING - Serve --quiet logs Error only" $ \ctx -> do
-            pendingWith
-                "Somewhat unreliable in CI. Often fails with: \
-                \'does not contain \"Running as v2019.10.16\"'"
             let args =
                     ["serve"
                     , "--node-port"
@@ -143,9 +137,6 @@ spec = do
             err `shouldBe` mempty
 
         it "LOGGING - Serve default logs Info" $ \ctx -> do
-            pendingWith
-                "Somewhat unreliable in CI. Often fails with: \
-                \'does not contain \"Running as v2019.10.16\"'"
             let args =
                     ["serve"
                     , "--node-port"

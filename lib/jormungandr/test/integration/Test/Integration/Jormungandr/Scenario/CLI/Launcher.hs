@@ -37,20 +37,14 @@ import System.IO
 import System.IO.Temp
     ( withSystemTempDirectory, withSystemTempFile )
 import System.Process
-    ( createProcess
-    , proc
-    , terminateProcess
-    , waitForProcess
-    , withCreateProcess
-    )
+    ( terminateProcess, withCreateProcess )
 import Test.Hspec
     ( Spec, describe, it, pendingWith )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldContain, shouldReturn )
+    ( shouldBe, shouldContain )
 import Test.Integration.Framework.DSL
     ( KnownCommand (..)
     , cardanoWalletCLI
-    , collectStreams
     , createWalletViaCLI
     , expectEventually'
     , expectPathEventuallyExist
@@ -58,15 +52,11 @@ import Test.Integration.Framework.DSL
     , generateMnemonicsViaCLI
     , getWalletEp
     , proc'
-    , shouldContainT
-    , shouldNotContainT
     , state
     , waitForServer
     )
-import Test.Integration.Framework.TestData
-    ( versionLine )
 import Test.Utils.Ports
-    ( findPort, randomUnusedTCPPorts )
+    ( findPort )
 
 import qualified Data.Text.IO as TIO
 
@@ -196,66 +186,6 @@ spec = do
                 terminateProcess ph
                 TIO.hGetContents o >>= TIO.putStrLn
                 TIO.hGetContents e >>= TIO.putStrLn
-
-    describe "DaedalusIPC" $ do
-        let defaultArgs nodePort =
-                [ commandName @t
-                , "launch"
-                , "--node-port", show nodePort
-                , "--genesis-block", block0
-                , "--quiet"
-                ]
-        let nodeArgs =
-                [ "--"
-                , "--secret", secret
-                ]
-        let tests =
-                [ (const ["--random-port"], " [SERIAL]")
-                , (\fixedPort -> ["--port", fixedPort], "")
-                , (const [], " [SERIAL]")
-                ]
-        forM_ tests $ \(args, tag) -> do
-            let title = "should reply with the port when asked "
-                    <> show (args "FIXED") <> tag
-            it title $ withTempDir $ \d -> do
-                [fixedPort, nodePort] <- randomUnusedTCPPorts 2
-                let filepath = "test/integration/js/mock-daedalus.js"
-                let stateDir = ["--state-dir", d]
-                let scriptArgs = concat
-                        [defaultArgs nodePort, args (show fixedPort), stateDir, nodeArgs]
-                (_, _, _, ph) <- createProcess (proc filepath scriptArgs)
-                waitForProcess ph `shouldReturn` ExitSuccess
-
-    describe "LOGGING - cardano-wallet launch logging [SERIAL]" $ do
-        let defaultArgs = [ "launch", "--genesis-block", block0 ]
-        let nodeArgs = [ "--", "--secret", secret ]
-        it "LOGGING - Launch can log --verbose" $ withTempDir $ \d -> do
-            pendingWith "See 'LAUNCH - Restoration workers restart'"
-            let args = defaultArgs ++ ["--state-dir", d, "--verbose"] ++ nodeArgs
-            let process = proc' (commandName @t) args
-            (out, _) <- collectStreams (35, 0) process
-            out `shouldContainT` versionLine
-            out `shouldContainT` "Debug"
-            out `shouldContainT` "Info"
-            out `shouldContainT` "Notice"
-
-        it "LOGGING - Launch --quiet logs Error only" $ withTempDir $ \d -> do
-            pendingWith "See 'LAUNCH - Restoration workers restart'"
-            let args = defaultArgs ++ ["--state-dir", d, "--quiet"] ++ nodeArgs
-            let process = proc' (commandName @t) args
-            (out, err) <- collectStreams (10, 10) process
-            out `shouldBe` mempty
-            err `shouldBe` mempty
-
-        it "LOGGING - Launch default logs Info" $ withTempDir $ \d -> do
-            pendingWith "See 'LAUNCH - Restoration workers restart'"
-            let args = defaultArgs ++ ["--state-dir", d] ++ nodeArgs
-            let process = proc' (commandName @t) args
-            (out, _) <- collectStreams (20, 0) process
-            out `shouldNotContainT` "Debug"
-            out `shouldContainT` versionLine
-            out `shouldContainT` "Info"
-            out `shouldContainT` "Notice"
 
 withTempDir :: (FilePath -> IO a) -> IO a
 withTempDir = withSystemTempDirectory "integration-state"
