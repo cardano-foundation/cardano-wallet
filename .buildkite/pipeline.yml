@@ -2,6 +2,7 @@ env:
   BUILD_DIR: "/build/cardano-wallet"
   STACK_ROOT: "/build/cardano-wallet.stack"
   CACHE_DIR: "/cache/cardano-wallet"
+  LC_ALL: "en_US.UTF-8"
 
 steps:
   - label: 'Stack Rebuild'

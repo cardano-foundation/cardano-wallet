@@ -17,13 +17,7 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Trace
     ( Trace )
 import Cardano.CLI
-<<<<<<< HEAD
-    ( setUtf8Encoding, withLogging )
-||||||| merged common ancestors
-    ( initTracer, setUtf8Encoding )
-=======
-    ( initTracer )
->>>>>>> Make integration tests tolerant of text decoding errors
+    ( withLogging )
 import Cardano.Faucet
     ( initFaucet )
 import Cardano.Launcher
@@ -148,28 +142,6 @@ specWithServer (cfg, tr) = beforeAll start . after tearDown
                     }
         race (takeMVar ctx) (wait pid) >>=
             either pure (throwIO . ProcessHasExited "integration")
-||||||| merged common ancestors
-start :: IO (Context (Jormungandr 'Testnet))
-start = do
-    ctx <- newEmptyMVar
-    logCfg <- initTracer Info "integration"
-    pid <- async $ bracket setupConfig teardownConfig $ \jmCfg -> do
-        let listen = ListenOnRandomPort
-        serveWallet logCfg Nothing listen (Launch jmCfg) $ \wPort nPort bp -> do
-            let baseUrl = "http://localhost:" <> T.pack (showT wPort) <> "/"
-            manager <- (baseUrl,) <$> newManager defaultManagerSettings
-            faucet <- initFaucet
-            putMVar ctx $  Context
-                { _cleanup = pure ()
-                , _manager = manager
-                , _nodePort = nPort
-                , _walletPort = wPort
-                , _faucet = faucet
-                , _feeEstimator = mkFeeEstimator (getFeePolicy bp)
-                , _target = Proxy
-                }
-    race (takeMVar ctx) (wait pid) >>=
-        either pure (throwIO . ProcessHasExited "integration")
 
 -- | Set a utf8 text encoding that doesn't crash when non-utf8 bytes are
 -- encountered.
