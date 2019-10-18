@@ -149,7 +149,7 @@ buildStep dryRun bk =
             , [ "--haddock" ]
             , [ "--haddock-internal" ]
             , [ "--no-haddock-deps" ]
-            -- , [ "--coverage" ]
+            , [ "--coverage" ]
             , fast opt
             , args
             ]
@@ -158,7 +158,7 @@ buildStep dryRun bk =
         run dryRun "stack" $ concat
             [ color "always"
             , [ "test" ]
-            -- , [ "--coverage" ]
+            , [ "--coverage" ]
             , fast opt
             , [ "cardano-wallet-jormungandr:test:integration" ]
             , ta (match "\"/CLI Specifications/\"")
@@ -241,8 +241,7 @@ qaLevel = maybe QuickTest level
 
 -- | Whether to upload test coverage information to coveralls.io.
 shouldUploadCoverage :: Maybe BuildkiteEnv -> Bool
--- shouldUploadCoverage bk = qaLevel bk == FullTest
-shouldUploadCoverage _bk = False
+shouldUploadCoverage bk = qaLevel bk == FullTest
 
 ----------------------------------------------------------------------------
 -- Weeder - uses contents of .stack-work to determine unused dependencies
