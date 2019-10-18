@@ -12,6 +12,10 @@ import Cardano.Wallet.Primitive.CoinSelection.Migration
     ( selectCoinsForMigration )
 import Cardano.Wallet.Primitive.CoinSelectionSpec
     ()
+import Cardano.Wallet.Primitive.Fee
+    ( FeeOptions (..) )
+import Cardano.Wallet.Primitive.FeeSpec
+    ()
 import Cardano.Wallet.Primitive.Types
     ( Coin (..), TxOut (coin), UTxO (getUTxO) )
 import Test.Hspec
@@ -24,42 +28,41 @@ import qualified Data.Set as Set
 
 spec :: Spec
 spec = do
-
+    let maxN = 10
     describe "Coin selection for migration" $ do
-
         it "No coin selection has change" $
-            property $ \utxo minCoinSize -> do
+            property $ \utxo feeOpts -> do
                 let allChange =
-                        change =<< selectCoinsForMigration utxo minCoinSize
+                        change =<< selectCoinsForMigration feeOpts maxN utxo
                 allChange `shouldSatisfy` null
 
         it "Every coin in the selection output >= minimum threshold coin" $
-            property $ \utxo minCoinSize -> do
+            property $ \utxo feeOpts -> do
                 let allCoins = fmap coin . outputs
-                        =<< selectCoinsForMigration utxo minCoinSize
-                let undersizedCoins = filter (< minCoinSize) allCoins
+                        =<< selectCoinsForMigration feeOpts maxN utxo
+                let undersizedCoins = filter (< (dustThreshold feeOpts)) allCoins
                 undersizedCoins `shouldSatisfy` null
 
         it "Total input UTxO value >= sum of selection output coins" $
-            property $ \utxo minCoinSize -> do
+            property $ \utxo feeOpts -> do
                 let sumCoinSelectionOutput = mconcat $
                         sumCoinSelectionOutputs <$>
-                            selectCoinsForMigration utxo minCoinSize
+                            selectCoinsForMigration feeOpts maxN utxo
                 sumUTxO utxo >= sumCoinSelectionOutput
 
         it "Every selection input is unique" $
-            property $ \utxo minCoinSize -> do
+            property $ \utxo feeOpts -> do
                 let selectionInputList =
-                        inputs =<< selectCoinsForMigration utxo minCoinSize
+                        inputs =<< selectCoinsForMigration feeOpts maxN utxo
                 let selectionInputSet =
                         Set.fromList selectionInputList
                 Set.size selectionInputSet === length selectionInputSet
 
         it "Every selection input is a member of the UTxO" $
-            property $ \utxo minCoinSize -> do
+            property $ \utxo feeOpts -> do
                 let selectionInputSet =
                         Set.fromList $ inputs =<<
-                            selectCoinsForMigration utxo minCoinSize
+                            selectCoinsForMigration feeOpts maxN utxo
                 let utxoSet =
                         Set.fromList $ Map.toList $ getUTxO utxo
                 selectionInputSet `Set.isSubsetOf` utxoSet
