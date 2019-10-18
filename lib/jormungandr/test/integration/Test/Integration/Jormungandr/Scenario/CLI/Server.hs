@@ -37,7 +37,7 @@ import System.Process
     , withCreateProcess
     )
 import Test.Hspec
-    ( SpecWith, describe, it, runIO )
+    ( SpecWith, describe, it, pendingWith, runIO )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain, shouldReturn )
 import Test.Integration.Framework.DSL
@@ -86,12 +86,14 @@ spec = do
         let filepath = "test/integration/js/mock-daedalus.js"
 
         it "Should reply with the port --random" $ \ctx -> do
+            pendingWith "Seems to cause some sort of race condition with --coverage"
             let scriptArgs = defaultArgs (ctx ^. typed @(Port "node"))
                     ++ ["--random-port"]
             (_, _, _, ph) <- createProcess (proc filepath scriptArgs)
             waitForProcess ph `shouldReturn` ExitSuccess
 
         it "Should reply with the port --random" $ \ctx -> do
+            pendingWith "Seems to cause some sort of race condition with --coverage"
             walletPort <- findPort
             let scriptArgs = defaultArgs (ctx ^. typed @(Port "node"))
                     ++ ["--port", show walletPort]
@@ -162,10 +164,6 @@ spec = do
                          , replicate 38 '1'
                          , replicate 42 '1' ]
             forM_ hashes $ \hash -> it hash $ \ctx -> do
-                pendingWith
-                    "Somewhat unreliable in CI. Often fails with: \
-                    \'hGetContents: invalid argument (invalid byte sequence)'. \
-                    \See #821"
                 let args =
                         ["serve"
                         , "--node-port"
@@ -183,7 +181,6 @@ spec = do
                     \ (i.e. " ++ hash ++ ")"
 
         it "LOGGING - Non hex-encoded genesis hash shows error" $ \_ -> do
-            pendingWith "Somewhat unreliable in CI. "
             let args =
                     ["serve"
                     , "--genesis-block-hash"
@@ -196,7 +193,6 @@ spec = do
                 \ (Hash \"Genesis\"): expected Base16 encoding"
 
         it "LOGGINGDOWN - Exists nicely when Jörmungandr is down" $ \ctx -> do
-            pendingWith "Somewhat unreliable in CI."
             let invalidPort = getPort (ctx ^. typed @(Port "node")) + 1
             let args =
                     ["serve"
