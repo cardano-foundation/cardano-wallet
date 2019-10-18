@@ -200,6 +200,7 @@ data ApiStakePool = ApiStakePool
 data StakePoolMetrics = StakePoolMetrics
     { controlledStake :: !(Quantity "lovelace" Natural)
     , producedBlocks :: !(Quantity "block" Natural)
+    , performance :: !Double
     } deriving (Eq, Generic, Show)
 
 data ApiUtxoStatistics = ApiUtxoStatistics

@@ -57,12 +57,16 @@ import Control.Monad.Trans.Except
     ( ExceptT, runExceptT, throwE, withExceptT )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
+import Data.List
+    ( sortOn )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Map.Merge.Strict
     ( mergeA, traverseMissing, zipWithMatched )
 import Data.Map.Strict
     ( Map )
+import Data.Ord
+    ( Down (..) )
 import Data.Quantity
     ( Percentage, Quantity (..) )
 import Data.Text
@@ -92,7 +96,7 @@ data Block = Block
 newtype StakePoolLayer m = StakePoolLayer
       { listStakePools
           :: ExceptT ErrListStakePools m
-             [(PoolId, (Quantity "lovelace" Word64, Quantity "block" Natural))]
+             [(PoolId, (Quantity "lovelace" Word64, Quantity "block" Natural, Double))]
       }
 
 data ErrListStakePools
@@ -121,8 +125,10 @@ newStakePoolLayer db nl tr = do
                 computeProgress nodeTip >>= throwE . ErrMetricsIsUnsynced
 
             case combineMetrics distr prod of
-                Right x ->
-                    return $ Map.toList x
+                Right x -> return
+                    $ sortOn (\(_,(_,_,perf)) -> Down perf)
+                    $ Map.toList
+                    $ calculatePerformance x
                 Left e ->
                     throwE $ ErrListStakePoolsMetricsInconsistency e
         }
@@ -237,6 +243,28 @@ data ErrMonitorStakePools
     | ErrMonitorStakePoolsNetworkTip ErrNetworkTip
     | ErrMonitorStakePoolsWrongTip
     deriving (Show, Eq)
+
+calculatePerformance
+    :: Map PoolId (Quantity "lovelace" Word64, Quantity "block" Natural)
+    -> Map PoolId (Quantity "lovelace" Word64, Quantity "block" Natural, Double)
+calculatePerformance m = (flip Map.map) m $ \(Quantity stake, Quantity blocks) ->
+    let
+        s = fromIntegral stake
+        p = fromIntegral blocks
+        perf =
+            -- TODO: totalBlocks == 0 should be impossible?
+            if s == 0 || p == 0 || totalBlocks == 0
+            then 0
+            else (p / totalBlocks) * (totalStake / s)
+    in
+        (Quantity stake, Quantity blocks, perf)
+  where
+    totalStake = fromIntegral $
+        Map.foldl' (+) 0
+        $ Map.map (\(Quantity x, _) -> x) m
+    totalBlocks = fromIntegral $
+        Map.foldl' (+) 0
+        $ Map.map (\(_, Quantity x) -> x) m
 
 -- | Combines two different sources of data into one:
 --

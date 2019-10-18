@@ -773,15 +773,15 @@ listPools spl = liftHandler (map mkApiStakePool <$> listStakePools spl)
   where
     mkApiStakePool
         :: ( W.PoolId,
-            (Quantity "lovelace" Word64, Quantity "block" Natural)
+            (Quantity "lovelace" Word64, Quantity "block" Natural, Double)
             )
         -> ApiStakePool
-    mkApiStakePool (pool, ((Quantity stake), blocks)) =
+    mkApiStakePool (pool, ((Quantity stake), blocks, ap)) =
         -- TODO: Make sure the stake-types match (Word64 vs Natural)
         -- to avoid unwrapping Quantity.
         ApiStakePool
             (ApiT pool)
-            (StakePoolMetrics (Quantity $ fromIntegral stake) blocks)
+            (StakePoolMetrics (Quantity $ fromIntegral stake) blocks ap)
 
 joinStakePool
     :: forall n k.
