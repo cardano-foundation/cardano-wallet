@@ -7,13 +7,13 @@ module Cardano.Wallet.Primitive.CoinSelection.MigrationSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (..), outputBalance )
+    ( CoinSelection (..), inputBalance, outputBalance )
 import Cardano.Wallet.Primitive.CoinSelection.Migration
     ( selectCoinsForMigration )
 import Cardano.Wallet.Primitive.CoinSelectionSpec
     ()
 import Cardano.Wallet.Primitive.Fee
-    ( FeeOptions (..) )
+    ( Fee (..), FeeOptions (..) )
 import Cardano.Wallet.Primitive.FeeSpec
     ()
 import Cardano.Wallet.Primitive.Types
@@ -21,7 +21,7 @@ import Cardano.Wallet.Primitive.Types
 import Test.Hspec
     ( Spec, describe, it, shouldSatisfy )
 import Test.QuickCheck
-    ( property, (===) )
+    ( conjoin, property, (===) )
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -67,3 +67,13 @@ spec = do
                 let utxoSet =
                         Set.fromList $ Map.toList $ getUTxO utxo
                 selectionInputSet `Set.isSubsetOf` utxoSet
+
+        it "Every coin selection is well-balanced" $
+            property $ \feeOpts batchSize utxo -> do
+                let selections = selectCoinsForMigration feeOpts batchSize utxo
+                conjoin
+                    [ actualFee === expectedFee
+                    | s <- selections
+                    , let actualFee = inputBalance s - outputBalance s
+                    , let (Fee expectedFee) = estimate feeOpts s
+                    ]
