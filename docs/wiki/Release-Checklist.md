@@ -24,7 +24,7 @@
 
 - [ ] Verify all PRs since the last release have a corresponding milestone (hint: we can filter PR by merge date on github using `merged:>yyyy-mm-dd` filter).
 
-- [ ] List of all the stories and corresponding PRs included in the release.
+- [ ] List of all the stories and corresponding PRs included in the release. A useful script for this [here](https://gist.github.com/KtorZ/5098d42611658c65a5df835b0e73336f)
 
 - [ ] Write release notes in the [release page](https://github.com/input-output-hk/cardano-wallet/releases), following the [RELEASE_TEMPLATE](https://github.com/input-output-hk/cardano-wallet/blob/master/.github/RELEASE_TEMPLATE.md).
 
