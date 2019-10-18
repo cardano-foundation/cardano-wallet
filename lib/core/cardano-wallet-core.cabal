@@ -112,6 +112,7 @@ library
       Cardano.Wallet.Primitive.AddressDiscovery.Sequential
       Cardano.Wallet.Primitive.CoinSelection
       Cardano.Wallet.Primitive.CoinSelection.LargestFirst
+      Cardano.Wallet.Primitive.CoinSelection.Migration
       Cardano.Wallet.Primitive.CoinSelection.Random
       Cardano.Wallet.Primitive.Fee
       Cardano.Wallet.Primitive.Mnemonic
@@ -223,6 +224,7 @@ test-suite unit
       Cardano.Wallet.Primitive.AddressDiscovery.RandomSpec
       Cardano.Wallet.Primitive.AddressDiscovery.SequentialSpec
       Cardano.Wallet.Primitive.CoinSelection.LargestFirstSpec
+      Cardano.Wallet.Primitive.CoinSelection.MigrationSpec
       Cardano.Wallet.Primitive.CoinSelection.RandomSpec
       Cardano.Wallet.Primitive.CoinSelectionSpec
       Cardano.Wallet.Primitive.FeeSpec
