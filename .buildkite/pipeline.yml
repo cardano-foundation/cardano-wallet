@@ -8,10 +8,7 @@ steps:
   - label: 'Stack Rebuild'
     command:
       - "nix-build .buildkite/default.nix -o sr"
-      - "echo --- Running tests with LANG=C"
-      - "LANG=C ./sr/bin/rebuild --build-dir=$BUILD_DIR --cache-dir=$CACHE_DIR || true"
-      - "echo --- Running tests with LANG=en_US.UTF-8"
-      - "LANG=en_US.UTF-8 ./sr/bin/rebuild --build-dir=$BUILD_DIR --cache-dir=$CACHE_DIR || true"
+      - "./sr/bin/rebuild --build-dir=$BUILD_DIR --cache-dir=$CACHE_DIR"
     timeout_in_minutes: 120
     artifact_paths:
       - "/build/cardano-wallet/.stack-work/logs/cardano-wallet*.log"
