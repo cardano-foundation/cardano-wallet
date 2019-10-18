@@ -150,6 +150,12 @@ newDBLayer logConfig trace fp = do
             deleteWhere [ PoolProductionSlot >. point ]
             deleteWhere [ StakeDistributionEpoch >. epoch ]
 
+
+        , readCursor = \k -> runQuery $ do
+            reverse . map (snd . fromPoolProduction . entityVal) <$> selectList
+                []
+                [Desc PoolProductionSlot, LimitTo k]
+
         , cleanDB = runQuery $
             deleteWhere ([] :: [Filter PoolProduction])
         })

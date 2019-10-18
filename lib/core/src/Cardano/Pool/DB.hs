@@ -56,6 +56,13 @@ data DBLayer m = DBLayer
         :: EpochNo
         -> m [(PoolId, Quantity "lovelace" Word64)]
 
+    , readCursor
+        :: Int -> m [BlockHeader]
+        -- ^ Read the latest @k@ blockheaders in ascending order. The tip will
+        -- be the last element in the list.
+        --
+        -- This is useful for the @NetworkLayer@ to know how far we have synced.
+
     , rollbackTo
         :: SlotId -> m ()
         -- ^ Remove all entries of slot ids newer than the argument
