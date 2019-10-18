@@ -75,6 +75,8 @@ import Cardano.Wallet.Version
     ( showVersion, version )
 import Control.Applicative
     ( optional, (<|>) )
+import Data.List
+    ( isPrefixOf )
 import Data.Maybe
     ( fromMaybe )
 import Data.Text
@@ -92,11 +94,12 @@ import Options.Applicative
     , helper
     , info
     , long
+    , many
     , metavar
     , progDesc
-    , some
-    , str
     )
+import Options.Applicative.Types
+    ( readerAsk, readerError )
 import System.Exit
     ( exitWith )
 import System.FilePath
@@ -163,7 +166,7 @@ data LaunchArgs = LaunchArgs
 
 data JormungandrArgs = JormungandrArgs
     { genesisBlock :: Either (Hash "Genesis") FilePath
-    , extraJormungandrArgs :: [Text]
+    , extraJormungandrArgs :: [String]
     }
 
 cmdLaunch
@@ -286,7 +289,25 @@ genesisHashOption = optionT $ mempty
     <> help "Blake2b_256 hash of the genesis block, in base 16."
 
 -- | -- [ARGUMENTS...]
-extraArguments :: Parser [Text]
-extraArguments = some $ argument str $ mempty
+extraArguments :: Parser [String]
+extraArguments = many $ argument jmArg $ mempty
     <> metavar "[-- ARGUMENTS...]"
     <> help "Extra arguments to be passed to jormungandr."
+  where
+    jmArg = do
+        arg <- readerAsk
+        case validate arg of
+            Just err -> readerError err
+            Nothing -> pure arg
+    validate arg
+        | "--genesis-block" `isPrefixOf` arg = Just $
+            "The " <> arg <> " option must be placed before the --"
+        | "--rest-listen" `isPrefixOf` arg = Just $
+            suggestion "--rest-listen"
+        | "--storage" `isPrefixOf` arg = Just $
+            suggestion "--storage"
+        | otherwise = Nothing
+    suggestion arg = "The " <> arg <> " argument is used by "
+        <> "`cardano-wallet-jormungandr launch'."
+        <> "\nIf you need this level of flexibility, run `jormungandr' "
+        <> " separately and use `cardano-wallet-jormungandr serve'."

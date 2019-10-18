@@ -57,7 +57,7 @@ import Prelude
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Trace
-    ( Trace, logInfo )
+    ( Trace )
 import Cardano.Launcher
     ( Command (..)
     , ProcessHasExited
@@ -95,7 +95,7 @@ import Cardano.Wallet.Jormungandr.Api.Client
 import Cardano.Wallet.Jormungandr.Binary
     ( runGetOrFail )
 import Cardano.Wallet.Jormungandr.Compatibility
-    ( Jormungandr, genConfigFile, localhostBaseUrl )
+    ( Jormungandr, localhostBaseUrl )
 import Cardano.Wallet.Network
     ( Cursor, NetworkLayer (..), NextBlocksResult (..), defaultRetryPolicy )
 import Cardano.Wallet.Network.BlockHeaders
@@ -118,7 +118,7 @@ import Cardano.Wallet.Primitive.Types
 import Control.Concurrent.MVar.Lifted
     ( MVar, modifyMVar, newMVar, readMVar )
 import Control.Exception
-    ( Exception, bracket )
+    ( Exception )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Class
@@ -131,8 +131,6 @@ import Data.ByteArray.Encoding
     ( Base (Base16), convertToBase )
 import Data.Coerce
     ( coerce )
-import Data.Function
-    ( (&) )
 import Data.Map.Strict
     ( Map )
 import Data.Quantity
@@ -141,8 +139,6 @@ import Data.Text
     ( Text )
 import Data.Word
     ( Word32, Word64 )
-import System.Directory
-    ( removeFile )
 import System.FilePath
     ( (</>) )
 
@@ -151,8 +147,6 @@ import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Char as C
 import qualified Data.Map as Map
-import qualified Data.Text as T
-import qualified Data.Yaml as Yaml
 
 -- | Whether to start Jormungandr with the given config, or to connect to an
 -- already running Jormungandr REST API using the given parameters.
@@ -175,7 +169,7 @@ data JormungandrConfig = JormungandrConfig
     , _restApiPort :: Maybe PortNumber
     , _minSeverity :: Severity
     , _outputStream :: StdStream
-    , _extraArgs :: [Text]
+    , _extraArgs :: [String]
     } deriving (Show, Eq)
 
 -- | Starts the network layer and runs the given action with a
@@ -477,28 +471,16 @@ withJormungandr
     -> (JormungandrConnParams -> IO a)
     -- ^ Action to run while node is running.
     -> IO (Either ErrStartup a)
-withJormungandr tr (JormungandrConfig stateDir block0 mPort logSeverity output extraArgs) cb =
-    bracket setupConfig cleanupConfig startBackend
-  where
-    nodeConfigFile = stateDir </> "jormungandr-config.yaml"
-    setupConfig = do
-        apiPort <- maybe getRandomPort pure mPort
-        p2pPort <- getRandomPort
-        let baseUrl = localhostBaseUrl $ fromIntegral apiPort
-        genConfigFile stateDir p2pPort baseUrl
-            & Yaml.encodeFile nodeConfigFile
-        logInfo tr $ mempty
-            <> "Generated Jörmungandr's configuration to: "
-            <> T.pack nodeConfigFile
-        pure (apiPort, baseUrl)
-    cleanupConfig _ = removeFile nodeConfigFile
-
-    startBackend (apiPort, baseUrl) = getGenesisBlockArg block0 >>= \case
+withJormungandr tr (JormungandrConfig stateDir block0 mPort logSeverity output extraArgs) cb = do
+    apiPort <- maybe getRandomPort pure mPort
+    let baseUrl = localhostBaseUrl $ fromIntegral apiPort
+    getGenesisBlockArg block0 >>= \case
         Right (block0H, genesisBlockArg) -> do
             let args = genesisBlockArg ++
-                    [ "--config", nodeConfigFile
+                    [ "--rest-listen", "127.0.0.1:" <> show apiPort
+                    , "--storage", stateDir </> "chain"
                     , "--log-level", C.toLower <$> show logSeverity
-                    ] ++ map T.unpack extraArgs
+                    ] ++ extraArgs
             let cmd = Command "jormungandr" args (return ()) output
             let tr' = transformLauncherTrace tr
             res <- withBackendProcess tr' cmd $
