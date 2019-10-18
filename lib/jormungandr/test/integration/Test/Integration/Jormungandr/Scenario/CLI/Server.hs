@@ -166,12 +166,15 @@ spec = do
             --
             -- but in practice, we only have INFO logs on start-up.
 
-        describe "LOGGING - Exits nicely on wrong (yet hex-encoded)\
-            \genesis hash" $  do
+        describe "LOGGING - Exits nicely on wrong genesis hash" $  do
             let hashes = [ replicate 40 '1'
                          , replicate 38 '1'
                          , replicate 42 '1' ]
             forM_ hashes $ \hash -> it hash $ \ctx -> do
+                pendingWith
+                    "Somewhat unreliable in CI. Often fails with: \
+                    \'hGetContents: invalid argument (invalid byte sequence)'. \
+                    \See #821"
                 let args =
                         ["serve"
                         , "--node-port"
@@ -189,6 +192,7 @@ spec = do
                     \ (i.e. " ++ hash ++ ")"
 
         it "LOGGING - Non hex-encoded genesis hash shows error" $ \_ -> do
+            pendingWith "Somewhat unreliable in CI. "
             let args =
                     ["serve"
                     , "--genesis-block-hash"
@@ -201,6 +205,7 @@ spec = do
                 \ (Hash \"Genesis\"): expected Base16 encoding"
 
         it "LOGGINGDOWN - Exists nicely when Jörmungandr is down" $ \ctx -> do
+            pendingWith "Somewhat unreliable in CI."
             let invalidPort = getPort (ctx ^. typed @(Port "node")) + 1
             let args =
                     ["serve"
