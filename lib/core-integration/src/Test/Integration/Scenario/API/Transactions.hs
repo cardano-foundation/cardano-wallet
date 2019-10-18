@@ -7,6 +7,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
+
 module Test.Integration.Scenario.API.Transactions
     ( spec
     ) where
@@ -16,7 +17,7 @@ import Prelude
 import Cardano.Wallet.Api.Types
     ( ApiFee
     , ApiT (..)
-    , ApiTransaction (..)
+    , ApiTransaction
     , ApiTxId (..)
     , ApiWallet
     , insertedAt
@@ -48,10 +49,12 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , TxDescription (..)
+    , amount
     , balanceAvailable
     , balanceTotal
     , deleteTxEp
     , deleteWalletEp
+    , direction
     , emptyWallet
     , expectErrorMessage
     , expectEventually
@@ -77,6 +80,7 @@ import Test.Integration.Framework.DSL
     , postTxEp
     , postTxFeeEp
     , request
+    , status
     , toQueryString
     , utcIso8601ToText
     , verify
@@ -110,7 +114,6 @@ import Web.HttpApiData
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
-import qualified Test.Integration.Framework.DSL as DSL
 
 data TestCase a = TestCase
     { query :: T.Text
@@ -145,9 +148,9 @@ spec = do
         verify r
             [ expectSuccess
             , expectResponseCode HTTP.status202
-            , expectFieldBetween DSL.amount (feeMin + amt, feeMax + amt)
-            , expectFieldEqual DSL.direction Outgoing
-            , expectFieldEqual DSL.status Pending
+            , expectFieldBetween amount (feeMin + amt, feeMax + amt)
+            , expectFieldEqual direction Outgoing
+            , expectFieldEqual status Pending
             ]
 
         ra <- request @ApiWallet ctx (getWalletEp wa) Default Empty
@@ -204,9 +207,9 @@ spec = do
         ra <- request @ApiWallet ctx (getWalletEp wSrc) Default Empty
         verify r
             [ expectResponseCode HTTP.status202
-            , expectFieldBetween DSL.amount (feeMin + (2*amt), feeMax + (2*amt))
-            , expectFieldEqual DSL.direction Outgoing
-            , expectFieldEqual DSL.status Pending
+            , expectFieldBetween amount (feeMin + (2*amt), feeMax + (2*amt))
+            , expectFieldEqual direction Outgoing
+            , expectFieldEqual status Pending
             ]
         verify ra
             [ expectFieldBetween balanceTotal
@@ -259,9 +262,9 @@ spec = do
         ra <- request @ApiWallet ctx (getWalletEp wSrc) Default Empty
         verify r
             [ expectResponseCode HTTP.status202
-            , expectFieldBetween DSL.amount (feeMin + (2*amt), feeMax + (2*amt))
-            , expectFieldEqual DSL.direction Outgoing
-            , expectFieldEqual DSL.status Pending
+            , expectFieldBetween amount (feeMin + (2*amt), feeMax + (2*amt))
+            , expectFieldEqual direction Outgoing
+            , expectFieldEqual status Pending
             ]
         verify ra
             [ expectFieldBetween balanceTotal
@@ -332,9 +335,9 @@ spec = do
         r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
-            , expectFieldEqual DSL.amount (feeMin + amt)
-            , expectFieldEqual DSL.direction Outgoing
-            , expectFieldEqual DSL.status Pending
+            , expectFieldEqual amount (feeMin + amt)
+            , expectFieldEqual direction Outgoing
+            , expectFieldEqual status Pending
             ]
 
         ra <- request @ApiWallet ctx (getWalletEp wSrc) Default Empty
@@ -745,7 +748,7 @@ spec = do
         verify r
             [ expectSuccess
             , expectResponseCode HTTP.status202
-            , expectFieldBetween DSL.amount (feeMin - amt, feeMax + amt)
+            , expectFieldBetween amount (feeMin - amt, feeMax + amt)
             ]
 
     it "TRANS_ESTIMATE_02 - Multiple Output Fee Estimation to single wallet" $ \ctx -> do
@@ -780,7 +783,7 @@ spec = do
         r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
-            , expectFieldBetween DSL.amount (feeMin - (2*amt), feeMax + (2*amt))
+            , expectFieldBetween amount (feeMin - (2*amt), feeMax + (2*amt))
             ]
 
     it "TRANS_ESTIMATE_02 - Multiple Output Fee Estimation to different wallets" $ \ctx -> do
@@ -819,7 +822,7 @@ spec = do
         r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
-            , expectFieldBetween DSL.amount (feeMin - (2*amt), feeMax + (2*amt))
+            , expectFieldBetween amount (feeMin - (2*amt), feeMax + (2*amt))
             ]
 
     it "TRANS_ESTIMATE_02 - Multiple Output Fee Estimation don't work on single UTxO" $ \ctx -> do
@@ -874,7 +877,7 @@ spec = do
         r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
-            , expectFieldBetween DSL.amount (feeMin - amt, feeMax + amt)
+            , expectFieldBetween amount (feeMin - amt, feeMax + amt)
             ]
 
     it "TRANS_ESTIMATE_04 - Not enough money" $ \ctx -> do
@@ -1085,8 +1088,8 @@ spec = do
         expectResponseCode @IO HTTP.status200 r
 
         verify r
-            [ expectListItemFieldEqual 0 DSL.direction Outgoing
-            , expectListItemFieldEqual 1 DSL.direction Incoming
+            [ expectListItemFieldEqual 0 direction Outgoing
+            , expectListItemFieldEqual 1 direction Incoming
             ]
 
     -- This scenario covers the following matrix of cases. Cases were generated
@@ -1132,8 +1135,8 @@ spec = do
                         ]
                     , assertions =
                         [ expectListSizeEqual 2
-                        , expectListItemFieldEqual 0 DSL.amount a1
-                        , expectListItemFieldEqual 1 DSL.amount a2
+                        , expectListItemFieldEqual 0 amount a1
+                        , expectListItemFieldEqual 1 amount a2
                         ]
                     }
                 , TestCase -- 2
@@ -1144,8 +1147,8 @@ spec = do
                         ]
                     , assertions =
                         [ expectListSizeEqual 2
-                        , expectListItemFieldEqual 0 DSL.amount a2
-                        , expectListItemFieldEqual 1 DSL.amount a1
+                        , expectListItemFieldEqual 0 amount a2
+                        , expectListItemFieldEqual 1 amount a1
                         ]
                     }
                 , TestCase -- 3
@@ -1155,7 +1158,7 @@ spec = do
                         ]
                     , assertions =
                         [ expectListSizeEqual 1
-                        , expectListItemFieldEqual 0 DSL.amount a1
+                        , expectListItemFieldEqual 0 amount a1
                         ]
                     }
                 , TestCase -- 4
@@ -1163,8 +1166,8 @@ spec = do
                         [ ("start", utcIso8601ToText t1) ]
                     , assertions =
                         [ expectListSizeEqual 2
-                        , expectListItemFieldEqual 0 DSL.amount a2
-                        , expectListItemFieldEqual 1 DSL.amount a1
+                        , expectListItemFieldEqual 0 amount a2
+                        , expectListItemFieldEqual 1 amount a1
                         ]
                     }
                 , TestCase --5
@@ -1174,7 +1177,7 @@ spec = do
                         ]
                     , assertions =
                         [ expectListSizeEqual 1
-                        , expectListItemFieldEqual 0 DSL.amount a2
+                        , expectListItemFieldEqual 0 amount a2
                         ]
                     }
                 , TestCase -- 6
@@ -1192,7 +1195,7 @@ spec = do
                         ]
                     , assertions =
                         [ expectListSizeEqual 1
-                        , expectListItemFieldEqual 0 DSL.amount a2
+                        , expectListItemFieldEqual 0 amount a2
                         ]
                     }
                 , TestCase -- 8
@@ -1203,7 +1206,7 @@ spec = do
                         ]
                     , assertions =
                         [ expectListSizeEqual 1
-                        , expectListItemFieldEqual 0 DSL.amount a2
+                        , expectListItemFieldEqual 0 amount a2
                         ]
                     }
                 , TestCase -- 9
@@ -1214,7 +1217,7 @@ spec = do
                         ]
                     , assertions =
                         [ expectListSizeEqual 1
-                        , expectListItemFieldEqual 0 DSL.amount a1
+                        , expectListItemFieldEqual 0 amount a1
                         ]
                     }
                 , TestCase -- 10
@@ -1224,8 +1227,8 @@ spec = do
                         ]
                     , assertions =
                         [ expectListSizeEqual 2
-                        , expectListItemFieldEqual 0 DSL.amount a2
-                        , expectListItemFieldEqual 1 DSL.amount a1
+                        , expectListItemFieldEqual 0 amount a2
+                        , expectListItemFieldEqual 1 amount a1
                         ]
                     }
                 , TestCase -- 11
@@ -1235,8 +1238,8 @@ spec = do
                         ]
                     , assertions =
                         [ expectListSizeEqual 2
-                        , expectListItemFieldEqual 0 DSL.amount a2
-                        , expectListItemFieldEqual 1 DSL.amount a1
+                        , expectListItemFieldEqual 0 amount a2
+                        , expectListItemFieldEqual 1 amount a1
                         ]
                     }
                 , TestCase -- 12
@@ -1246,16 +1249,16 @@ spec = do
                         ]
                     , assertions =
                         [ expectListSizeEqual 2
-                        , expectListItemFieldEqual 0 DSL.amount a2
-                        , expectListItemFieldEqual 1 DSL.amount a1
+                        , expectListItemFieldEqual 0 amount a2
+                        , expectListItemFieldEqual 1 amount a1
                         ]
                     }
                 , TestCase -- 13
                     { query = mempty
                     , assertions =
                         [ expectListSizeEqual 2
-                        , expectListItemFieldEqual 0 DSL.amount a2
-                        , expectListItemFieldEqual 1 DSL.amount a1
+                        , expectListItemFieldEqual 0 amount a2
+                        , expectListItemFieldEqual 1 amount a1
                         ]
                     }
                 , TestCase -- 14
@@ -1263,8 +1266,8 @@ spec = do
                         [ ("end", utcIso8601ToText t2) ]
                     , assertions =
                         [ expectListSizeEqual 2
-                        , expectListItemFieldEqual 0 DSL.amount a2
-                        , expectListItemFieldEqual 1 DSL.amount a1
+                        , expectListItemFieldEqual 0 amount a2
+                        , expectListItemFieldEqual 1 amount a1
                         ]
                     }
                 , TestCase -- 15
@@ -1272,8 +1275,8 @@ spec = do
                         [ ("end", utcIso8601ToText $ plusOneSecond t2) ]
                     , assertions =
                         [ expectListSizeEqual 2
-                        , expectListItemFieldEqual 0 DSL.amount a2
-                        , expectListItemFieldEqual 1 DSL.amount a1
+                        , expectListItemFieldEqual 0 amount a2
+                        , expectListItemFieldEqual 1 amount a1
                         ]
                     }
                 , TestCase -- 16
@@ -1281,7 +1284,7 @@ spec = do
                         [ ("end", utcIso8601ToText $ minusOneSecond t2) ]
                     , assertions =
                         [ expectListSizeEqual 1
-                        , expectListItemFieldEqual 0 DSL.amount a1
+                        , expectListItemFieldEqual 0 amount a1
                         ]
                     }
                 , TestCase -- 17
@@ -1291,7 +1294,7 @@ spec = do
                         ]
                     , assertions =
                         [ expectListSizeEqual 1
-                        , expectListItemFieldEqual 0 DSL.amount a1
+                        , expectListItemFieldEqual 0 amount a1
                         ]
                     }
                 , TestCase -- 18
@@ -1301,7 +1304,7 @@ spec = do
                         ]
                     , assertions =
                         [ expectListSizeEqual 1
-                        , expectListItemFieldEqual 0 DSL.amount a2
+                        , expectListItemFieldEqual 0 amount a2
                         ]
                     }
                 ]
@@ -1516,12 +1519,12 @@ spec = do
         verify r
             [ expectSuccess
             , expectResponseCode HTTP.status202
-            , expectFieldBetween DSL.amount (feeMin + amt, feeMax + amt)
-            , expectFieldEqual DSL.direction Outgoing
-            , expectFieldEqual DSL.status Pending
+            , expectFieldBetween amount (feeMin + amt, feeMax + amt)
+            , expectFieldEqual direction Outgoing
+            , expectFieldEqual status Pending
             ]
 
-        let (ApiTransaction txId _ _ _ _ _ _ _ _) = getFromResponse Prelude.id r
+        let txId = getFromResponse #id r
 
         ra <- request @ApiWallet ctx (getWalletEp wa) Default Empty
         verify ra
