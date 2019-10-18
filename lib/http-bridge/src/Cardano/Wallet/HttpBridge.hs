@@ -26,6 +26,8 @@ import Cardano.CLI
     ( failWith )
 import Cardano.Launcher
     ( ProcessHasExited (..), installSignalHandlers )
+import Cardano.Pool.Metrics
+    ( StakePoolLayer (..) )
 import Cardano.Wallet.Api
     ( ApiLayer )
 import Cardano.Wallet.Api.Server
@@ -136,7 +138,8 @@ serveWallet (cfg, tr) databaseDir listen bridge mAction = do
                   let settings = Warp.defaultSettings
                           & setBeforeMainLoop beforeMainLoop
                   let ipcServer = daedalusIPC tracerIPC port
-                  let apiServer = Server.start settings tracerApi socket apiRnd apiSeq
+                  let apiServer = Server.start
+                        settings tracerApi socket apiRnd apiSeq dummyPool
                   let withAction = maybe id (\cb -> race_ (cb port)) action
                   withAction $ race_ ipcServer apiServer
                   pure ExitSuccess
@@ -170,6 +173,12 @@ serveWallet (cfg, tr) databaseDir listen bridge mAction = do
         => DBFactory IO s t k
     dbFactory =
         Sqlite.mkDBFactory cfg tr databaseDir
+
+    dummyPool :: StakePoolLayer IO
+    dummyPool = StakePoolLayer
+        { listStakePools =
+            error "StakePoolLayer: not implemented for http-bridge"
+        }
 
     handleNetworkStartupError :: ErrStartup -> IO ExitCode
     handleNetworkStartupError = \case

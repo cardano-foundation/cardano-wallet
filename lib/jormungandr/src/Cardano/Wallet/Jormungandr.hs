@@ -33,6 +33,8 @@ import Cardano.CLI
     ( Port (..), failWith )
 import Cardano.Launcher
     ( ProcessHasExited (..), installSignalHandlers )
+import Cardano.Pool.Metrics
+    ( StakePoolLayer, newStakePoolLayer )
 import Cardano.Wallet.Api
     ( ApiLayer )
 import Cardano.Wallet.Api.Server
@@ -97,6 +99,7 @@ import System.Exit
     ( ExitCode (..) )
 
 import qualified Cardano.BM.Configuration.Model as CM
+import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Cardano.Wallet.Jormungandr.Binary as J
@@ -136,7 +139,13 @@ serveWallet (cfg, tr) databaseDir hostPref listen lj beforeMainLoop = do
             let seqTl = newTransactionLayer @n (getGenesisBlockHash bp)
             rndApi <- apiLayer tr rndTl (toWLBlock <$> nl)
             seqApi <- apiLayer tr seqTl (toWLBlock <$> nl)
-            startServer tr nPort bp rndApi seqApi
+
+            -- StakePool
+            let path = fmap Pool.defaultFilePath databaseDir
+            Pool.withDBLayer cfg tr path $
+                \splDB -> do
+                    spl <- newStakePoolLayer splDB nl tr
+                    startServer tr nPort bp rndApi seqApi spl
         Left e -> handleNetworkStartupError e
   where
     startServer
@@ -145,8 +154,9 @@ serveWallet (cfg, tr) databaseDir hostPref listen lj beforeMainLoop = do
         -> BlockchainParameters
         -> ApiLayer (RndState t) t RndKey
         -> ApiLayer (SeqState t) t SeqKey
+        -> StakePoolLayer IO
         -> IO ExitCode
-    startServer tracer nPort bp rndWallet seqWallet = do
+    startServer tracer nPort bp rndWallet seqWallet spl = do
         Server.withListeningSocket hostPref listen $ \case
             Right (wPort, socket) -> do
                 sockAddr <- getSocketName socket
@@ -156,7 +166,8 @@ serveWallet (cfg, tr) databaseDir hostPref listen lj beforeMainLoop = do
                         & setBeforeMainLoop (beforeMainLoop sockAddr nPort bp)
                 let ipcServer = daedalusIPC tracerIPC wPort
                 let apiServer =
-                        Server.start settings tracerApi socket rndWallet seqWallet
+                        Server.start
+                            settings tracerApi socket rndWallet seqWallet spl
                 race_ ipcServer apiServer
                 pure ExitSuccess
             Left e -> handleApiServerStartupError e

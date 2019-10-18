@@ -22,6 +22,7 @@
 module Cardano.Pool.DB.Sqlite
     ( newDBLayer
     , withDBLayer
+    , defaultFilePath
     ) where
 
 import Prelude
@@ -75,6 +76,14 @@ import Cardano.Pool.DB.Sqlite.TH
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Data.Map.Strict as Map
+
+-- | Return the preferred @FilePath@ for the stake pool .sqlite file, given a
+-- parent directory.
+defaultFilePath
+    :: FilePath
+    -- ^ The directory in which the .sqlite file will be located.
+    -> FilePath
+defaultFilePath = (<> "/stake-pool.sqlite")
 
 -- | Runs an action with a connection to the SQLite database.
 --
