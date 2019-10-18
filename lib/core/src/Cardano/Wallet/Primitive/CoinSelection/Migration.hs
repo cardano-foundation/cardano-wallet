@@ -10,12 +10,17 @@
 
 module Cardano.Wallet.Primitive.CoinSelection.Migration
     ( selectCoinsForMigration
+    , idealBatchSize
     ) where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (..), changeBalance, inputBalance )
+    ( CoinSelection (..)
+    , CoinSelectionOptions (..)
+    , changeBalance
+    , inputBalance
+    )
 import Cardano.Wallet.Primitive.Fee
     ( Fee (..), FeeOptions (..) )
 import Cardano.Wallet.Primitive.Types
@@ -122,3 +127,17 @@ selectCoinsForMigration feeOpts batchSize utxo =
         let (batch, rest) = splitAt (fromIntegral batchSize) xs
         put rest
         pure batch
+
+-- | Try to find a fix "ideal" number of input transactions that would generate
+-- rather balanced transactions.
+idealBatchSize :: CoinSelectionOptions e -> Int
+idealBatchSize coinselOpts = fromIntegral (fixPoint 1)
+  where
+    fixPoint :: Word8 -> Word8
+    fixPoint !n
+        | maxN n <= n = n
+        | n == maxBound = n
+        | otherwise = fixPoint (n + 1)
+      where
+        maxN :: Word8 -> Word8
+        maxN = maximumNumberOfInputs coinselOpts

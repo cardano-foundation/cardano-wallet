@@ -9,7 +9,7 @@ import Prelude
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..), changeBalance, inputBalance )
 import Cardano.Wallet.Primitive.CoinSelection.Migration
-    ( selectCoinsForMigration )
+    ( idealBatchSize, selectCoinsForMigration )
 import Cardano.Wallet.Primitive.CoinSelectionSpec
     ()
 import Cardano.Wallet.Primitive.Fee
@@ -21,7 +21,7 @@ import Cardano.Wallet.Primitive.Types
 import Test.Hspec
     ( Spec, describe, it, shouldSatisfy )
 import Test.QuickCheck
-    ( conjoin, counterexample, property, withMaxSuccess, (===) )
+    ( conjoin, counterexample, label, property, withMaxSuccess, (===) )
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -29,7 +29,13 @@ import qualified Data.Set as Set
 spec :: Spec
 spec = do
 
-    describe "Coin selection for migration PATATE" $ do
+    describe "idealBatchSize" $ do
+        it "Eventually converge for decreasing functions" $ do
+            property $ \coinselOpts -> do
+                let batchSize = idealBatchSize coinselOpts
+                label (show batchSize) True
+
+    describe "selectCoinsForMigration" $ do
 
         it "No coin selection has ouputs" $
             property $ withMaxSuccess 1000 $ \feeOpts batchSize utxo -> do
