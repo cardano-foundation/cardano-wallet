@@ -639,7 +639,7 @@ cmdTransactionForget
     :: forall t. (DecodeAddress t, EncodeAddress t)
     => Mod CommandFields (IO ())
 cmdTransactionForget = command "forget" $ info (helper <*> cmd) $ mempty
-    <> progDesc "Forget a pending transaction."
+    <> progDesc "Forget a pending transaction with specified id."
   where
     cmd = fmap exec $ TransactionForgetArgs
         <$> portOption
