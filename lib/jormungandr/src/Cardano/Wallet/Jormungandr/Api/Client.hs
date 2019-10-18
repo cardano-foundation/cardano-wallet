@@ -92,10 +92,6 @@ import Data.Maybe
     ( mapMaybe )
 import Data.Proxy
     ( Proxy (..) )
-import Data.Quantity
-    ( Quantity (..) )
-import Data.Word
-    ( Word32 )
 import Network.HTTP.Client
     ( Manager, defaultManagerSettings, newManager )
 import Network.HTTP.Types.Status
@@ -291,16 +287,14 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
 getBlocks
     :: Monad m
     => JormungandrClient m
-    -> Quantity "block" Word32
-        -- ^ Epoch stability, we can't fetch more than `k` block at once.
+    -> Word
+        -- ^ Batch size to be used for fetching blocks
     -> Hash "BlockHeader"
         -- ^ Block ID to start from
     -> ExceptT ErrGetBlock m [J.Block]
-getBlocks j (Quantity k) start = do
+getBlocks j batchSize start = do
     ids <- withExceptT liftE $ getDescendantIds j start batchSize
     mapM (getBlock j) ids
-  where
-     batchSize = fromIntegral k
 
 -- | Get a block header corresponding to a header hash.
 getBlockHeader
