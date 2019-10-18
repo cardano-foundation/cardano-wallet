@@ -64,6 +64,7 @@ import Web.PathPieces
     ( PathPiece (..) )
 
 import qualified Data.Aeson as Aeson
+import qualified Data.Aeson.Types as Aeson
 import qualified Data.Text as T
 
 ----------------------------------------------------------------------------
@@ -84,6 +85,10 @@ fromPersistValueFromText :: FromText a => PersistValue -> Either Text a
 fromPersistValueFromText = fromPersistValue >=> fromTextWithErr
     where fromTextWithErr = first ("not a valid value: " <>) . fromText'
 
+-- | Aeson parser defined in terms of 'fromText'
+aesonFromText :: FromText a => String -> Aeson.Value -> Aeson.Parser a
+aesonFromText what = Aeson.withText what $ either (fail . show) pure . fromText
+
 ----------------------------------------------------------------------------
 -- PoolId
 
@@ -100,6 +105,9 @@ instance Read PoolId where
 instance PathPiece PoolId where
     fromPathPiece = fromTextMaybe
     toPathPiece = toText
+
+instance ToJSON PoolId where toJSON = Aeson.String . toText
+instance FromJSON PoolId where parseJSON = aesonFromText "PoolId"
 
 ----------------------------------------------------------------------------
 -- BlockId
