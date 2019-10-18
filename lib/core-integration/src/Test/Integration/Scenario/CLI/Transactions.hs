@@ -13,7 +13,14 @@ import Prelude
 import Cardano.CLI
     ( Port )
 import Cardano.Wallet.Api.Types
-    ( ApiFee, ApiTransaction, ApiWallet, getApiT, insertedAt, time )
+    ( ApiFee
+    , ApiTransaction
+    , ApiTxId (..)
+    , ApiWallet
+    , getApiT
+    , insertedAt
+    , time
+    )
 import Cardano.Wallet.Primitive.Types
     ( DecodeAddress (..)
     , Direction (..)
@@ -95,6 +102,8 @@ import Test.Integration.Framework.TestData
     , polishWalletName
     , wildcardsWalletName
     )
+import Web.HttpApiData
+    ( ToHttpApiData (..) )
 
 import qualified Data.Text as T
 
@@ -934,7 +943,8 @@ spec = do
             ]
         c `shouldBe` ExitSuccess
 
-        let txId = txJson ^. #id
+        let txId' = txJson ^. #id
+        let txId = toUrlPiece (ApiTxId txId')
 
         -- verify balance on src wallet
         Stdout gOutSrc <- getWalletViaCLI @t ctx (T.unpack (wSrc ^. walletId))
@@ -945,7 +955,7 @@ spec = do
 
         -- forget transaction
         let wid = T.unpack $ wSrc ^. walletId
-        Exit c1 <- deleteTransactionViaCLI @t ctx wid (show $ getApiT txId)
+        Exit c1 <- deleteTransactionViaCLI @t ctx wid (T.unpack txId)
         c1 `shouldBe` ExitSuccess
 
         -- verify again balance on src wallet
