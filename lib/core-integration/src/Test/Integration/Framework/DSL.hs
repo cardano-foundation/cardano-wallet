@@ -115,6 +115,7 @@ module Test.Integration.Framework.DSL
     , networkInfoEp
     , updateWalletPassEp
     , listWalletsEp
+    , deleteTxEp
 
     -- * CLI
     , runJcli
@@ -144,6 +145,7 @@ import Cardano.Wallet.Api.Types
     , ApiByronWallet
     , ApiT (..)
     , ApiTransaction
+    , ApiTxId
     , ApiTxInput (..)
     , ApiUtxoStatistics (..)
     , ApiWallet
@@ -1150,6 +1152,12 @@ postTxEp :: ApiWallet -> (Method, Text)
 postTxEp w =
     ( "POST"
     , "v2/wallets/" <> w ^. walletId <> "/transactions"
+    )
+
+deleteTxEp :: ApiWallet -> ApiTxId -> (Method, Text)
+deleteTxEp w tid =
+    ( "DELETE"
+    , "v2/wallets/" <> w ^. walletId <> "/transactions/" <> (toUrlPiece tid)
     )
 
 listTxEp :: ApiWallet -> Text -> (Method, Text)
