@@ -147,7 +147,7 @@ main = do
     -- Run a local cluster of cardano-sl nodes, a cardano-http-bridge on top and
     -- a cardano wallet server connected to the bridge.
     startCluster :: IO (Context (HttpBridge 'Testnet))
-    startCluster = withLogging Nothing Info $ \(logConfig, _sb, tracer) -> do
+    startCluster = withLogging Nothing Info $ \(logConfig, tracer) -> do
         [ nodeApiPort, docPort ] <- randomUnusedTCPPorts 2
         let [core0Port, core1Port, core2Port] = [3000..3002] :: [Int]
         let relayPort = 3100 :: Int -- ports are hardcoded in topology.json

@@ -53,7 +53,6 @@ module Cardano.CLI
     -- * Logging
     , Verbosity (..)
     , withLogging
-    , initTracer
     , verbosityToArgs
     , verbosityToMinSeverity
 
@@ -1157,7 +1156,7 @@ verbosityToMinSeverity = \case
 initTracer
     :: Maybe FilePath
     -> Severity
-    -> IO (CM.Configuration, Switchboard Text, Trace IO Text)
+    -> IO (Switchboard Text, (CM.Configuration, Trace IO Text))
 initTracer configFile minSeverity = do
     let defaultConfig = do
             c <- defaultConfigStdout
@@ -1166,7 +1165,7 @@ initTracer configFile minSeverity = do
             pure c
     cfg <- maybe defaultConfig CM.setup configFile
     (tr, sb) <- setupTrace_ cfg "cardano-wallet"
-    pure (cfg, sb, tr)
+    pure (sb, (cfg, tr))
 
 -- | Run an action with logging available and configured. When the action is
 -- finished (normally or otherwise), log messages are flushed.
@@ -1175,13 +1174,13 @@ withLogging
     -- ^ Configuration file - uses default otherwise.
     -> Severity
     -- ^ Minimum severity level to log
-    -> ((CM.Configuration, Switchboard Text, Trace IO Text) -> IO a)
+    -> ((CM.Configuration, Trace IO Text) -> IO a)
     -- ^ The action to run with logging configured.
     -> IO a
-withLogging configFile minSeverity = bracket before after
+withLogging configFile minSeverity action = bracket before after (action . snd)
   where
     before = initTracer configFile minSeverity
-    after (_, sb, tr) = do
+    after (sb, (_, tr)) = do
         logDebug tr "Logging shutdown."
         shutdown sb
 
