@@ -10,7 +10,7 @@ module Cardano.Pool.MetricsSpec (spec) where
 import Prelude
 
 import Cardano.Pool.Metrics
-    ( State (..), applyBlock, combineMetrics, withinSameTip )
+    ( Block (..), State (..), applyBlock, combineMetrics, withinSameTip )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , EpochLength (..)
@@ -76,8 +76,8 @@ spec = do
     describe "Counting how many blocks each pool produced" $ do
         describe "State" $ do
             it "stores the last applied blockHeader"
-                $ property $ \s b@(header,_) -> do
-                tip (applyBlock b s) `shouldBe` header
+                $ property $ \s b@(Block h _) -> do
+                tip (applyBlock b s) `shouldBe` h
 
             it "counts every block it applies (total activity increases by 1\
                \when a block is applied"
@@ -184,6 +184,10 @@ instance Arbitrary (Hash tag) where
     shrink x = [zeros | x /= zeros]
       where
         zeros = Hash $ BS.pack $ replicate 32 0
+
+instance Arbitrary Block where
+     arbitrary = genericArbitrary
+     shrink = genericShrink
 
 instance Arbitrary (Quantity "block" Word32) where
      arbitrary = Quantity . fromIntegral <$> (arbitrary @Word)
