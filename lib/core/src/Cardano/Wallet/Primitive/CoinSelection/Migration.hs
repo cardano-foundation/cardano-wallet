@@ -15,7 +15,7 @@ module Cardano.Wallet.Primitive.CoinSelection.Migration
 import Prelude
 
 import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (..), inputBalance, outputBalance )
+    ( CoinSelection (..), changeBalance, inputBalance )
 import Cardano.Wallet.Primitive.Fee
     ( Fee (..), FeeOptions (..) )
 import Cardano.Wallet.Primitive.Types
@@ -92,14 +92,14 @@ selectCoinsForMigration feeOpts batchSize utxo =
         -- sign of `diff` making for the right modification.
         -- We then recursively call ourselves for this might reduce the number
         -- of outputs and change the fee.
-        | otherwise = Just $ coinSel
+        | otherwise = adjustForFee $ coinSel
             { change = modifyFirst (change coinSel) (+ diff) }
       where
         diff :: Integer
         diff = fromIntegral actualFee - fromIntegral requiredFee
           where
             (Fee requiredFee) = estimate feeOpts coinSel
-            actualFee = inputBalance coinSel - outputBalance coinSel
+            actualFee = inputBalance coinSel - changeBalance coinSel
 
     -- | Apply the given function to the first coin of the list. If the
     -- operation makes the 'Coin' smaller than the dust threshold, the coin is
