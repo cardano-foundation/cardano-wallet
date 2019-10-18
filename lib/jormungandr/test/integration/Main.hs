@@ -17,7 +17,7 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Trace
     ( Trace )
 import Cardano.CLI
-    ( setUtf8Encoding, withLogging )
+    ( withLogging )
 import Cardano.Faucet
     ( initFaucet )
 import Cardano.Launcher
@@ -50,6 +50,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( showT )
+import GHC.IO.Encoding
+    ( mkTextEncoding, setLocaleEncoding )
 import Network.HTTP.Client
     ( defaultManagerSettings, newManager )
 import Numeric.Natural
@@ -87,7 +89,7 @@ instance KnownCommand (Jormungandr n) where
 
 main :: forall t. (t ~ Jormungandr 'Testnet) => IO ()
 main = withLogging Nothing Info $ \logging -> do
-    setUtf8Encoding
+    setUtf8LenientCodecs
     hspec $ do
         describe "No backend required" $ do
             describe "Cardano.Wallet.NetworkSpec" $ parallel NetworkLayer.spec
@@ -140,6 +142,11 @@ specWithServer (cfg, tr) = beforeAll start . after tearDown
                     }
         race (takeMVar ctx) (wait pid) >>=
             either pure (throwIO . ProcessHasExited "integration")
+
+-- | Set a utf8 text encoding that doesn't crash when non-utf8 bytes are
+-- encountered.
+setUtf8LenientCodecs :: IO ()
+setUtf8LenientCodecs = mkTextEncoding "UTF-8//IGNORE" >>= setLocaleEncoding
 
 mkFeeEstimator :: FeePolicy -> TxDescription -> (Natural, Natural)
 mkFeeEstimator policy (TxDescription nInps nOuts) =

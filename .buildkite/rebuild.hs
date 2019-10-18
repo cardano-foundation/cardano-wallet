@@ -43,7 +43,7 @@ import Data.ByteString
 import Data.Char
     ( isSpace )
 import Data.Maybe
-    ( mapMaybe, maybeToList )
+    ( fromMaybe, mapMaybe, maybeToList )
 import Safe
     ( headMay, readMay )
 import System.Exit
@@ -62,7 +62,9 @@ main = do
     case cmd of
         Build -> do
             doMaybe (setupBuildDirectory optDryRun) optBuildDirectory
-            whenRun optDryRun $ cacheGetStep cacheConfig
+            whenRun optDryRun $ do
+                cacheGetStep cacheConfig
+                cleanBuildDirectory (fromMaybe "." optBuildDirectory)
             buildResult <- buildStep optDryRun bk
             when (shouldUploadCoverage bk) $ uploadCoverageStep optDryRun
             whenRun optDryRun $ cachePutStep cacheConfig
@@ -193,6 +195,11 @@ setupBuildDirectory dryRun buildDir = do
         cptree src buildDir
         cd buildDir
 
+-- Remove certain files which get cached but could cause problems for subsequent
+-- builds.
+cleanBuildDirectory :: FilePath -> IO ()
+cleanBuildDirectory buildDir = findTix buildDir >>= mapM_ rm
+
 ----------------------------------------------------------------------------
 -- Buildkite
 -- https://buildkite.com/docs/pipelines/environment-variables
@@ -266,12 +273,11 @@ uploadCoverageStep dryRun = do
             eprintf ("Environment variable "%s%" not set.\n") var
             eprintf "Not uploading coverage information.\n"
         Just repoToken ->
-            (findTix >>= generate) .&&. upload repoToken >>= \case
+            (findTix "lib" >>= generate) .&&. upload repoToken >>= \case
                 ExitSuccess -> echo "Coverage information upload successful."
                 ExitFailure _ -> echo "Coverage information upload failed."
   where
     var = "CARDANO_WALLET_COVERALLS_REPO_TOKEN"
-    findTix = fold (find (suffix ".tix") "lib") Fold.list
     generate tixFiles = run dryRun "stack"
         ([ "hpc"
         , "report"
@@ -282,6 +288,9 @@ uploadCoverageStep dryRun = do
         logCommand "shc" shcArgs
         whenRun' dryRun ExitSuccess $
             proc "shc" (["--repo-token", repoToken] ++ shcArgs) empty
+
+findTix :: FilePath -> IO [FilePath]
+findTix dir = fold (find (suffix ".tix") dir) Fold.list
 
 ----------------------------------------------------------------------------
 -- Stack root and .stack-work caching.
