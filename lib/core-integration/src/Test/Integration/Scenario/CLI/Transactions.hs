@@ -56,6 +56,7 @@ import Test.Integration.Framework.DSL
     , balanceAvailable
     , balanceTotal
     , cardanoWalletCLI
+    , deleteTransactionViaCLI
     , deleteWalletViaCLI
     , direction
     , emptyWallet
@@ -905,6 +906,66 @@ spec = do
               oJson1 <- expectValidJSON (Proxy @([ApiTransaction t])) o1
               oJson2 <- expectValidJSON (Proxy @([ApiTransaction t])) o2
               length <$> [oJson1, oJson2] `shouldSatisfy` all (== 0)
+
+    it "TRANS_DELETE_01 - Can forget pending transaction via CLI" $ \ctx -> do
+        wSrc <- fixtureWallet ctx
+        wDest <- emptyWallet ctx
+        addr:_ <- listAddresses ctx wDest
+        let addrStr =
+                encodeAddress (Proxy @t) (getApiT $ fst $ addr ^. #id)
+        let amt = 14
+        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
+                { nInputs = 1
+                , nOutputs = 1
+                }
+        let args = T.unpack <$>
+                [ wSrc ^. walletId
+                , "--payment", T.pack (show amt) <> "@" <> addrStr
+                ]
+
+        -- post transaction
+        (c, out, err) <- postTransactionViaCLI @t ctx "cardano-wallet" args
+        err `shouldBe` "Please enter your passphrase: **************\nOk.\n"
+        txJson <- expectValidJSON (Proxy @(ApiTransaction t)) out
+        verify txJson
+            [ expectCliFieldBetween amount (feeMin + amt, feeMax + amt)
+            , expectCliFieldEqual direction Outgoing
+            , expectCliFieldEqual status Pending
+            ]
+        c `shouldBe` ExitSuccess
+
+        let txId = txJson ^. #id
+
+        -- verify balance on src wallet
+        Stdout gOutSrc <- getWalletViaCLI @t ctx (T.unpack (wSrc ^. walletId))
+        gJson <- expectValidJSON (Proxy @ApiWallet) gOutSrc
+        verify gJson
+            [ expectCliFieldEqual balanceAvailable (faucetAmt - faucetUtxoAmt)
+            ]
+
+        -- forget transaction
+        let wid = T.unpack $ wSrc ^. walletId
+        Exit c1 <- deleteTransactionViaCLI @t ctx wid (show $ getApiT txId)
+        c1 `shouldBe` ExitSuccess
+
+        -- verify again balance on src wallet
+        Stdout gOutSrc1 <- getWalletViaCLI @t ctx (T.unpack (wSrc ^. walletId))
+        gJson1 <- expectValidJSON (Proxy @ApiWallet) gOutSrc1
+        verify gJson1
+            [ expectCliFieldEqual balanceAvailable faucetAmt
+            ]
+
+        expectEventually' ctx getWalletEp balanceAvailable amt wDest
+        expectEventually' ctx getWalletEp balanceTotal amt wDest
+
+        -- verify balance on dest wallet
+        Stdout gOutDest <- getWalletViaCLI @t ctx (T.unpack (wDest ^. walletId))
+        destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
+        verify destJson
+            [ expectCliFieldEqual balanceAvailable amt
+            , expectCliFieldEqual balanceTotal amt
+            ]
+
   where
       unsafeGetTransactionTime
           :: [ApiTransaction t]

@@ -135,6 +135,7 @@ module Test.Integration.Framework.DSL
     , postTransactionFeeViaCLI
     , listTransactionsViaCLI
     , postExternalTransactionViaCLI
+    , deleteTransactionViaCLI
     ) where
 
 import Cardano.CLI
@@ -1376,6 +1377,17 @@ postExternalTransactionViaCLI ctx args = cardanoWalletCLI @t $ join
     [ ["transaction", "submit"]
     , ["--port", show (ctx ^. typed @(Port "wallet"))]
     , args
+    ]
+
+deleteTransactionViaCLI
+    :: forall t r s. (CmdResult r, KnownCommand t, HasType (Port "wallet") s)
+    => s
+    -> String
+    -> String
+    -> IO r
+deleteTransactionViaCLI ctx wid tid = cardanoWalletCLI @t $ join
+    [ ["transaction", "forget"]
+    , ["--port", show (ctx ^. typed @(Port "wallet")), wid, tid]
     ]
 
 proc' :: FilePath -> [String] -> CreateProcess
