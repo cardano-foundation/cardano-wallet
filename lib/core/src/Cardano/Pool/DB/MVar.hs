@@ -25,7 +25,9 @@ import Cardano.Pool.DB.Model
     , emptyPoolDatabase
     , mCleanPoolProduction
     , mPutPoolProduction
+    , mPutStakeDistribution
     , mReadPoolProduction
+    , mReadStakeDistribution
     , mRollbackTo
     )
 import Control.Concurrent.MVar
@@ -50,11 +52,20 @@ newDBLayer = do
             pool `deepseq`
                 alterPoolDB errPointAlreadyExists db (mPutPoolProduction sl pool)
 
-        , readPoolProduction = readPoolDB db . mReadPoolProduction
+        , readPoolProduction =
+            readPoolDB db . mReadPoolProduction
 
-        , rollbackTo = void . alterPoolDB (const Nothing) db . mRollbackTo
+        , putStakeDistribution = \a0 a1 ->
+            void $ alterPoolDB (const Nothing) db (mPutStakeDistribution a0 a1)
 
-        , cleanDB = void $ alterPoolDB (const Nothing) db mCleanPoolProduction
+        , readStakeDistribution =
+            readPoolDB db . mReadStakeDistribution
+
+        , rollbackTo =
+            void . alterPoolDB (const Nothing) db . mRollbackTo
+
+        , cleanDB =
+            void $ alterPoolDB (const Nothing) db mCleanPoolProduction
         }
 
 alterPoolDB

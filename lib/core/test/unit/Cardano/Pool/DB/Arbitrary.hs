@@ -1,4 +1,6 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedLabels #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -33,18 +35,11 @@ import Data.Ord
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
-    ( Word32 )
+    ( Word32, Word64 )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Gen
-    , InfiniteList (..)
-    , choose
-    , elements
-    , shuffle
-    , vectorOf
-    )
+    ( Arbitrary (..), Gen, choose, elements, shuffle, vectorOf )
 
-import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
 
 {-------------------------------------------------------------------------------
@@ -73,6 +68,10 @@ instance Arbitrary EpochNo where
     shrink (EpochNo x) = EpochNo <$> shrink x
     arbitrary = EpochNo <$> choose (0, fromIntegral arbitraryEpochLength)
 
+instance Arbitrary (Quantity "lovelace" Word64) where
+    shrink (Quantity q) = [ Quantity q' | q' <- shrink q ]
+    arbitrary = Quantity <$> arbitrary
+
 arbitraryEpochLength :: Word32
 arbitraryEpochLength = 100
 
@@ -81,11 +80,8 @@ arbitraryChainLength = 10
 
 instance Arbitrary PoolId where
     arbitrary = do
-        InfiniteList bytes _ <- arbitrary
-        return $ PoolId $ BS.pack $ take 32 bytes
-    shrink x = [zeros | x /= zeros]
-      where
-        zeros = PoolId $ BS.pack $ replicate 32 0
+        bytes <- vectorOf 32 (elements ['a'..'z'])
+        return $ PoolId $ B8.pack bytes
 
 instance Arbitrary StakePoolsFixture where
     arbitrary = do

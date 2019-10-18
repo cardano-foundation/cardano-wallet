@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TupleSections #-}
 
 module Cardano.Pool.DB.Properties
@@ -42,8 +43,12 @@ import Data.Map.Strict
     ( Map )
 import Data.Ord
     ( Down (..) )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Word
+    ( Word64 )
 import Fmt
     ( pretty )
 import GHC.Conc
@@ -115,6 +120,10 @@ properties = do
         it "readPoolProduction should never give pools with no slots \
            \after rollback - arbitrary N-slot-depth rollbacks"
             (property . (prop_readPoolCondAfterRandomRollbacks descSlotsPerPool))
+        it "readStakeDistribution . putStakeDistribution == pure"
+            (property . prop_putStakeReadStake)
+        it "readStake . putStake a1 . putStake s0 == pure a1"
+            (property . prop_putStakePutStake)
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -268,6 +277,46 @@ prop_readPoolCond cond db (StakePoolsFixture pairs _) =
         forM_ (uniqueEpochs pairs) $ \epoch -> do
             res <- readPoolProduction db epoch
             cond res
+
+-- | read . put == pure
+prop_putStakeReadStake
+    :: DBLayer IO
+    -> EpochNo
+    -> [(PoolId, Quantity "lovelace" Word64)]
+    -> Property
+prop_putStakeReadStake db epoch distribution =
+    monadicIO (setup >> prop)
+  where
+    setup = run (cleanDB db)
+    prop = do
+        run $ putStakeDistribution db epoch distribution
+        distribution' <- run $ readStakeDistribution db epoch
+        monitor $ counterexample $ unlines
+            [ "Read from DB: " <> show distribution' ]
+        monitor $ classify (null distribution) "Empty distributions"
+        assert (L.sort distribution' == L.sort distribution)
+
+-- | read $ put B $ put A == B
+prop_putStakePutStake
+    :: DBLayer IO
+    -> EpochNo
+    -> [(PoolId, Quantity "lovelace" Word64)]
+    -> [(PoolId, Quantity "lovelace" Word64)]
+    -> Property
+prop_putStakePutStake db epoch a b =
+    monadicIO (setup >> prop)
+  where
+    setup = run (cleanDB db)
+    prop = do
+        run $ putStakeDistribution db epoch a
+        run $ putStakeDistribution db epoch b
+        res <- run $ readStakeDistribution db epoch
+        monitor $ counterexample $ unlines
+            [ "Read from DB: " <> show res ]
+        monitor $ classify (null a) "a is empty"
+        monitor $ classify (null b) "b is empty"
+        monitor $ classify (null a && null b) "a & b are empty"
+        assert (L.sort res == L.sort b)
 
 descSlotsPerPool :: Map PoolId [BlockHeader] -> Expectation
 descSlotsPerPool pools = do

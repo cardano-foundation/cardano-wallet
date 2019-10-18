@@ -53,13 +53,17 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Word
+    ( Word64 )
 import Database.Persist.Sql
     ( Entity (..)
     , Filter
     , SelectOpt (..)
     , deleteWhere
+    , insertMany_
     , insert_
     , selectList
+    , (==.)
     , (>.)
     , (>=.)
     )
@@ -132,20 +136,38 @@ newDBLayer logConfig trace fp = do
 
             pure (foldl' toMap Map.empty production)
 
-        , rollbackTo = \point -> runQuery $
+        , putStakeDistribution = \epoch@(EpochNo ep) distribution -> runQuery $ do
+            deleteWhere [StakeDistributionEpoch ==. ep]
+            insertMany_ (mkStakeDistribution epoch distribution)
+
+        , readStakeDistribution = \(EpochNo epoch) -> runQuery $ do
+            fmap (fromStakeDistribution . entityVal) <$> selectList
+                [ StakeDistributionEpoch ==. epoch ]
+                []
+
+        , rollbackTo = \point -> runQuery $ do
+            let (EpochNo epoch) = epochNumber point
             deleteWhere [ PoolProductionSlot >. point ]
+            deleteWhere [ StakeDistributionEpoch >. epoch ]
 
         , cleanDB = runQuery $
             deleteWhere ([] :: [Filter PoolProduction])
         })
 
+{-------------------------------------------------------------------------------
+                                   Queries
+-------------------------------------------------------------------------------}
+
 selectPoolProduction
     :: EpochNo
     -> SqlPersistT IO [PoolProduction]
-selectPoolProduction epoch = fmap entityVal <$>
-    selectList
-        [PoolProductionSlot >=. SlotId epoch 0]
-        [Asc PoolProductionSlot]
+selectPoolProduction epoch = fmap entityVal <$> selectList
+    [PoolProductionSlot >=. SlotId epoch 0]
+    [Asc PoolProductionSlot]
+
+{-------------------------------------------------------------------------------
+                              To / From SQLite
+-------------------------------------------------------------------------------}
 
 mkPoolProduction
     :: PoolId
@@ -170,4 +192,23 @@ fromPoolProduction (PoolProduction pool slot headerH parentH height) =
         , headerHash = getBlockId headerH
         , parentHeaderHash = getBlockId parentH
         }
+    )
+
+mkStakeDistribution
+    :: EpochNo
+    -> [(PoolId, Quantity "lovelace" Word64)]
+    -> [StakeDistribution]
+mkStakeDistribution (EpochNo epoch) = map $ \(pool, (Quantity stake)) ->
+    StakeDistribution
+        { stakeDistributionPoolId = pool
+        , stakeDistributionEpoch = epoch
+        , stakeDistributionStake = stake
+        }
+
+fromStakeDistribution
+    :: StakeDistribution
+    -> (PoolId, Quantity "lovelace" Word64)
+fromStakeDistribution distribution =
+    ( stakeDistributionPoolId distribution
+    , Quantity (stakeDistributionStake distribution)
     )

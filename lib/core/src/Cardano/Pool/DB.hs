@@ -23,6 +23,10 @@ import Control.Monad.Trans.Except
     ( ExceptT )
 import Data.Map.Strict
     ( Map )
+import Data.Quantity
+    ( Quantity (..) )
+import Data.Word
+    ( Word64 )
 
 -- | A Database interface for storing pool production in DB.
 data DBLayer m = DBLayer
@@ -38,6 +42,19 @@ data DBLayer m = DBLayer
         -> m (Map PoolId [BlockHeader])
         -- ^ Read the all stake pools together with corresponding slot ids
         -- for a given epoch.
+
+    , putStakeDistribution
+        :: EpochNo
+        -> [(PoolId, Quantity "lovelace" Word64)]
+        -> m ()
+        -- ^ Replace an existing distribution for the given epoch by the one
+        -- given as argument.
+        --
+        -- If there's no existing distribution, simply inserts it.
+
+    , readStakeDistribution
+        :: EpochNo
+        -> m [(PoolId, Quantity "lovelace" Word64)]
 
     , rollbackTo
         :: SlotId -> m ()
