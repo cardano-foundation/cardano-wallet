@@ -44,7 +44,12 @@ import Cardano.Wallet.Primitive.Types
 import Control.Concurrent
     ( threadDelay )
 import Control.Exception
-    ( Exception (..), SomeException, catch )
+    ( AsyncException (..)
+    , Exception (..)
+    , SomeException
+    , asyncExceptionFromException
+    , catch
+    )
 import Control.Monad
     ( when )
 import Control.Monad.IO.Class
@@ -268,10 +273,18 @@ follow nl tr cps yield rollback header =
         when (delay > 0) (threadDelay delay)
         step cursor `catch` retry
       where
-        retry (e :: SomeException) = do
-            logError tr $ T.pack $
-                "Unexpected failure while following the chain: " <> show e
-            sleep (retryDelay delay) cursor
+        retry (e :: SomeException) = case asyncExceptionFromException e of
+            Just ThreadKilled ->
+                return ()
+            Just UserInterrupt ->
+                return ()
+            Just _ ->
+                logError tr $ "Non-recoverable error following the chain: " <> eT
+            _ -> do
+                logError tr $ "Recoverable error following the chain: " <> eT
+                sleep (retryDelay delay) cursor
+          where
+            eT = T.pack (show e)
 
     step :: Cursor target -> IO ()
     step cursor = runExceptT (nextBlocks nl cursor) >>= \case
