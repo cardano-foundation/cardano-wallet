@@ -7,7 +7,7 @@ module Cardano.Wallet.Primitive.CoinSelection.MigrationSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (..), inputBalance, outputBalance )
+    ( CoinSelection (..), changeBalance, inputBalance )
 import Cardano.Wallet.Primitive.CoinSelection.Migration
     ( selectCoinsForMigration )
 import Cardano.Wallet.Primitive.CoinSelectionSpec
@@ -17,7 +17,7 @@ import Cardano.Wallet.Primitive.Fee
 import Cardano.Wallet.Primitive.FeeSpec
     ()
 import Cardano.Wallet.Primitive.Types
-    ( TxOut (coin), UTxO (getUTxO), balance )
+    ( UTxO (getUTxO), balance )
 import Test.Hspec
     ( Spec, describe, it, shouldSatisfy )
 import Test.QuickCheck
@@ -37,19 +37,19 @@ spec = do
                         selectCoinsForMigration feeOpts batchSize utxo
                 allOutputs `shouldSatisfy` null
 
-        it "Every coin in the selection output >= minimum threshold coin" $
+        it "Every coin in the selection change >= minimum threshold coin" $
             property $ \feeOpts batchSize utxo -> do
-                let allCoins = fmap coin . outputs
+                let allChange = change
                         =<< selectCoinsForMigration feeOpts batchSize utxo
                 let undersizedCoins =
-                        filter (< (dustThreshold feeOpts)) allCoins
+                        filter (< (dustThreshold feeOpts)) allChange
                 undersizedCoins `shouldSatisfy` null
 
-        it "Total input UTxO value >= sum of selection output coins" $
+        it "Total input UTxO value >= sum of selection change coins" $
             property $ \feeOpts batchSize utxo -> do
-                let sumCoinSelectionOutput = outputBalance <$>
+                let sumCoinSelectionChange = changeBalance <$>
                         selectCoinsForMigration feeOpts batchSize utxo
-                balance utxo >= fromIntegral (sum sumCoinSelectionOutput)
+                balance utxo >= fromIntegral (sum sumCoinSelectionChange)
 
         it "Every selection input is unique" $
             property $ \feeOpts batchSize utxo -> do
@@ -74,6 +74,6 @@ spec = do
                 conjoin
                     [ actualFee === expectedFee
                     | s <- selections
-                    , let actualFee = inputBalance s - outputBalance s
+                    , let actualFee = inputBalance s - changeBalance s
                     , let (Fee expectedFee) = estimate feeOpts s
                     ]
