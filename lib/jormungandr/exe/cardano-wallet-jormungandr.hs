@@ -308,6 +308,6 @@ extraArguments = many $ argument jmArg $ mempty
             suggestion "--storage"
         | otherwise = Nothing
     suggestion arg = "The " <> arg <> " argument is used by "
-        <> "`cardano-wallet-jormungandr launch'."
-        <> "\nIf you need this level of flexibility, run `jormungandr' "
-        <> " separately and use `cardano-wallet-jormungandr serve'."
+        <> "\"cardano-wallet-jormungandr launch\"."
+        <> "\nIf you need this level of flexibility, run \"jormungandr\" "
+        <> "separately and use \"cardano-wallet-jormungandr serve\"."
