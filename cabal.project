@@ -2,3 +2,32 @@ packages:
   lib/*/*.cabal
 
 flags: +development
+
+package cardano-crypto
+  tests: False
+
+package contra-tracer
+  tests: False
+
+package iohk-monitoring
+  tests: False
+
+source-repository-package
+  type: git
+  location: https://github.com/input-output-hk/cardano-crypto
+  tag: 3c5db489c71a4d70ee43f5f9b979fcde3c797f2a
+
+source-repository-package
+  type: git
+  location: https://github.com/input-output-hk/iohk-monitoring-framework
+  tag: bd31cd2f3922010ddb76bb869f29c4e63bb8001b
+  subdir: contra-tracer
+
+source-repository-package
+  type: git
+  location: https://github.com/input-output-hk/iohk-monitoring-framework
+  tag: bd31cd2f3922010ddb76bb869f29c4e63bb8001b
+  subdir: iohk-monitoring
+
+constraints:
+  servant-server == 0.15
