@@ -189,8 +189,7 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
             <$> genesisBlockOption
             <*> extraArguments)
     exec (LaunchArgs hostPreference listen nodePort mStateDir logCfg verbosity jArgs) = do
-        let minSeverity = verbosityToMinSeverity verbosity
-        withLogging logCfg minSeverity $ \(cfg, tr) -> do
+        withLogging logCfg (verbosityToMinSeverity verbosity) $ \(cfg, tr) -> do
             case genesisBlock jArgs of
                 Right block0File -> requireFilePath block0File
                 Left _ -> pure ()
@@ -200,7 +199,6 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
                     { _stateDir = stateDir
                     , _genesisBlock = genesisBlock jArgs
                     , _restApiPort = fromIntegral . getPort <$> nodePort
-                    , _minSeverity = minSeverity
                     , _outputStream = Inherit
                     , _extraArgs = extraJormungandrArgs jArgs
                     }

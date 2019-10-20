@@ -65,14 +65,13 @@ setupConfig = do
             configDir
             (Right $ dir </> "block0.bin")
             Nothing
-            minBound
             (UseHandle logFile)
             ["--secret", dir </> "secret.yaml"]
     genConfigYaml cfg
     pure cfg
 
 teardownConfig :: JormungandrConfig -> IO ()
-teardownConfig (JormungandrConfig d _ _ _ output _) = do
+teardownConfig (JormungandrConfig d _ _ output _) = do
     case output of
         UseHandle h -> hClose h
         _ -> pure ()
@@ -109,7 +108,7 @@ spec = describe "genConfigFile integration tests helper" $ do
         }|]
 
 genConfigYaml :: JormungandrConfig -> IO ()
-genConfigYaml (JormungandrConfig stateDir _ _ _ _ _) = do
+genConfigYaml (JormungandrConfig stateDir _ _ _ _) = do
     p2pPort <- getRandomPort
     genConfigFile stateDir p2pPort
         & Yaml.encodeFile nodeConfigFile

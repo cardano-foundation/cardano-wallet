@@ -54,8 +54,6 @@ module Cardano.Wallet.Jormungandr.Network
 
 import Prelude
 
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
 import Cardano.BM.Trace
     ( Trace )
 import Cardano.Launcher
@@ -145,7 +143,6 @@ import System.FilePath
 import qualified Cardano.Wallet.Jormungandr.Binary as J
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
-import qualified Data.Char as C
 import qualified Data.Map as Map
 
 -- | Whether to start Jormungandr with the given config, or to connect to an
@@ -167,7 +164,6 @@ data JormungandrConfig = JormungandrConfig
     { _stateDir :: FilePath
     , _genesisBlock :: Either (Hash "Genesis") FilePath
     , _restApiPort :: Maybe PortNumber
-    , _minSeverity :: Severity
     , _outputStream :: StdStream
     , _extraArgs :: [String]
     } deriving (Show, Eq)
@@ -471,7 +467,7 @@ withJormungandr
     -> (JormungandrConnParams -> IO a)
     -- ^ Action to run while node is running.
     -> IO (Either ErrStartup a)
-withJormungandr tr (JormungandrConfig stateDir block0 mPort logSeverity output extraArgs) cb = do
+withJormungandr tr (JormungandrConfig stateDir block0 mPort output extraArgs) cb = do
     apiPort <- maybe getRandomPort pure mPort
     let baseUrl = localhostBaseUrl $ fromIntegral apiPort
     getGenesisBlockArg block0 >>= \case
@@ -479,7 +475,6 @@ withJormungandr tr (JormungandrConfig stateDir block0 mPort logSeverity output e
             let args = genesisBlockArg ++
                     [ "--rest-listen", "127.0.0.1:" <> show apiPort
                     , "--storage", stateDir </> "chain"
-                    , "--log-level", C.toLower <$> show logSeverity
                     ] ++ extraArgs
             let cmd = Command "jormungandr" args (return ()) output
             let tr' = transformLauncherTrace tr
