@@ -31,6 +31,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Word
     ( Word8 )
+import Numeric.Natural
+    ( Natural )
 import Test.Hspec
     ( Spec, SpecWith, describe, it, shouldSatisfy )
 import Test.QuickCheck
@@ -69,21 +71,21 @@ spec = do
                 batchSize <- pick genBatchSize
                 feeOpts <- pick (genFeeOptions dust)
                 let selections = selectCoinsForMigration feeOpts batchSize utxo
-                monitor $ label $ accuracy
+                monitor $ label $ accuracy dust
                     (balance utxo)
                     (fromIntegral $ sum $ inputBalance <$> selections)
               where
                 title :: String
                 title = "dust=" <> show (round (100 * r) :: Int) <> "%"
 
-                accuracy :: Integral r => r -> r -> String
-                accuracy sup real
-                    | a >= 1.0  = "PERFECT  (== 100%)"
-                    | a > 0.99  = "GREAT    (>   99%)"
-                    | a > 0.95  = "OKAY     (>   95%)"
-                    | a > 0.90  = "MEDIOCRE (>   90%)"
-                    | a > 0.80  = "BAD      (>   80%)"
-                    | otherwise = "POOR     (<=  80%)"
+                accuracy :: Coin -> Natural -> Natural -> String
+                accuracy (Coin dust) sup real
+                    | a >= 1.0 =
+                        "PERFECT  (== 100%)"
+                    | a > 0.99 || (sup - real) < fromIntegral dust =
+                        "OKAY     (>   99%)"
+                    | otherwise =
+                        "MEDIOCRE (<=  99%)"
                   where
                     a = double real / double sup
                     double = fromRational @Double . fromIntegral
@@ -153,14 +155,12 @@ genBatchSize :: Gen Word8
 genBatchSize = choose (50, 150)
 
 genFeeOptions :: Coin -> Gen FeeOptions
-genFeeOptions t = do
-    a <- choose (1, 50)
-    b <- choose (100000, 500000)
+genFeeOptions (Coin dust) = do
     pure $ FeeOptions
         { estimate = \s ->
-            let x = length (inputs s) + length (outputs s)
-            in Fee $ fromIntegral $ a * x + b
-        , dustThreshold = t
+            let x = fromIntegral (length (inputs s) + length (outputs s))
+            in Fee $ (dust `div` 100) * x + dust
+        , dustThreshold = Coin dust
         }
 
 -- | Generate a given UTxO with a particular percentage of dust
