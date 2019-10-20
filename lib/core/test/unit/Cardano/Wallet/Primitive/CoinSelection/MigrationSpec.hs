@@ -1,3 +1,5 @@
+{-# LANGUAGE TypeApplications #-}
+
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.Primitive.CoinSelection.MigrationSpec
@@ -17,23 +19,76 @@ import Cardano.Wallet.Primitive.Fee
 import Cardano.Wallet.Primitive.FeeSpec
     ()
 import Cardano.Wallet.Primitive.Types
-    ( UTxO (getUTxO), balance )
+    ( Address (..)
+    , Coin (..)
+    , Hash (..)
+    , TxIn (..)
+    , TxOut (..)
+    , UTxO (..)
+    , balance
+    )
+import Data.ByteString
+    ( ByteString )
+import Data.Word
+    ( Word8 )
 import Test.Hspec
-    ( Spec, describe, it, shouldSatisfy )
+    ( Spec, SpecWith, describe, it, shouldSatisfy )
 import Test.QuickCheck
-    ( conjoin, counterexample, label, property, withMaxSuccess, (===) )
+    ( Arbitrary (..)
+    , Gen
+    , choose
+    , conjoin
+    , counterexample
+    , frequency
+    , label
+    , property
+    , vectorOf
+    , withMaxSuccess
+    , (===)
+    )
+import Test.QuickCheck.Monadic
+    ( monadicIO, monitor, pick )
 
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 spec :: Spec
 spec = do
-
     describe "idealBatchSize" $ do
         it "Eventually converge for decreasing functions" $ do
             property $ \coinselOpts -> do
                 let batchSize = idealBatchSize coinselOpts
                 label (show batchSize) True
+
+    describe "accuracy of selectCoinsForMigration" $ do
+        let testAccuracy :: Double -> SpecWith ()
+            testAccuracy r = it title $ withMaxSuccess 1000 $ monadicIO $ do
+                let dust = Coin 100
+                utxo <- pick (genUTxO r dust)
+                batchSize <- pick genBatchSize
+                feeOpts <- pick (genFeeOptions dust)
+                let selections = selectCoinsForMigration feeOpts batchSize utxo
+                monitor $ label $ accuracy
+                    (balance utxo)
+                    (fromIntegral $ sum $ inputBalance <$> selections)
+              where
+                title :: String
+                title = "dust=" <> show (round (100 * r) :: Int) <> "%"
+
+                accuracy :: Integral r => r -> r -> String
+                accuracy sup real
+                    | a >= 1.0  = "PERFECT  (== 100%)"
+                    | a > 0.99  = "GREAT    (>   99%)"
+                    | a > 0.95  = "OKAY     (>   95%)"
+                    | a > 0.90  = "MEDIOCRE (>   90%)"
+                    | a > 0.80  = "BAD      (>   80%)"
+                    | otherwise = "POOR     (<=  80%)"
+                  where
+                    a = double real / double sup
+                    double = fromRational @Double . fromIntegral
+
+        mapM_ testAccuracy [ 0.01 , 0.05 , 0.10 , 0.25 , 0.50 ]
 
     describe "selectCoinsForMigration" $ do
 
@@ -88,3 +143,51 @@ spec = do
                             , "Expected fee: " <> show expectedFee
                             ]
                     ]
+
+
+{-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------}
+
+genBatchSize :: Gen Word8
+genBatchSize = choose (50, 150)
+
+genFeeOptions :: Coin -> Gen FeeOptions
+genFeeOptions t = do
+    a <- choose (1, 50)
+    b <- choose (100000, 500000)
+    pure $ FeeOptions
+        { estimate = \s ->
+            let x = length (inputs s) + length (outputs s)
+            in Fee $ fromIntegral $ a * x + b
+        , dustThreshold = t
+        }
+
+-- | Generate a given UTxO with a particular percentage of dust
+genUTxO :: Double -> Coin -> Gen UTxO
+genUTxO r (Coin dust) = do
+    n <- choose (10, 1000)
+    inps <- genTxIn n
+    outs <- genTxOut n
+    pure $ UTxO $ Map.fromList $ zip inps outs
+  where
+    genTxIn :: Int -> Gen [TxIn]
+    genTxIn n = do
+        ids <- vectorOf n (Hash <$> genBytes 8)
+        ixs <- vectorOf n arbitrary
+        pure $ zipWith TxIn ids ixs
+
+    genTxOut :: Int -> Gen [TxOut]
+    genTxOut n = do
+        coins <- vectorOf n genCoin
+        addrs <- vectorOf n (Address <$> genBytes 8)
+        pure $ zipWith TxOut addrs coins
+
+    genBytes :: Int -> Gen ByteString
+    genBytes n = B8.pack <$> vectorOf n arbitrary
+
+    genCoin :: Gen Coin
+    genCoin = Coin <$> frequency
+        [ (round (100*r), choose (1, dust))
+        , (round (100*(1-r)), choose (dust, 1000*dust))
+        ]
