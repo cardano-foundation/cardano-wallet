@@ -73,7 +73,7 @@ import qualified Data.Map.Strict as Map
 
 data Block = Block
     { header :: BlockHeader
-    , producer :: Maybe PoolId
+    , producer :: PoolId
     } deriving (Eq, Show, Generic)
 
 data ErrMetricsWorker
