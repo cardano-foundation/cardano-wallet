@@ -442,7 +442,7 @@ newDBLayer logConfig trace mDatabaseFile = do
               selectWallet wid >>= \case
                   Just _ -> do
                       metas <- selectPendingTxs wid (TxId tid)
-                      let checkStatus = not . any
+                      let checkStatus = any
                               (\(TxMeta _ _ st _ _ _ _) -> st == W.Pending)
                       case metas of
                           [] ->

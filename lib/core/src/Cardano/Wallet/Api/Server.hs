@@ -43,12 +43,12 @@ import Cardano.Wallet
     , ErrCreateUnsignedTx (..)
     , ErrDecodeSignedTx (..)
     , ErrEstimateTxFee (..)
-    , ErrForgetPendingTx (..)
     , ErrListTransactions (..)
     , ErrListUTxOStatistics (..)
     , ErrMkStdTx (..)
     , ErrNoSuchWallet (..)
     , ErrPostTx (..)
+    , ErrRemovePendingTx (..)
     , ErrSignTx (..)
     , ErrStartTimeLaterThanEndTime (..)
     , ErrSubmitExternalTx (..)
@@ -662,7 +662,7 @@ deleteTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
         W.forgetPendingTx wrk wid tid
     return NoContent
   where
-    liftE = throwE . ErrForgetPendingTxNoSuchWallet
+    liftE (ErrNoSuchWallet wid') = throwE $ ErrRemovePendingTxNoSuchWallet wid'
 
 listTransactions
     :: forall ctx s t k.
@@ -1303,16 +1303,17 @@ instance LiftHandler ErrSubmitExternalTx where
             , errReasonPhrase = errReasonPhrase err400
             }
 
-instance LiftHandler ErrForgetPendingTx where
+instance LiftHandler ErrRemovePendingTx where
     handler = \case
-        ErrForgetPendingTxNoSuchWallet e -> handler e
-        ErrForgetPendingTxNoSuchTransaction tid ->
+        ErrRemovePendingTxNoSuchWallet wid ->
+            handler (ErrNoSuchWallet wid)
+        ErrRemovePendingTxNoSuchTransaction tid ->
             apiError err404 NoSuchTransaction $ mconcat
                 [ "I couldn't find a transaction with the given id: "
                 , toText tid
                 ]
-        ErrForgetPendingTxTransactionIsNotPending tid ->
-            apiError err404 TransactionNotPending $ mconcat
+        ErrRemovePendingTxTransactionNoMorePending tid ->
+            apiError err403 TransactionNotPending $ mconcat
                 [ "The transaction with id : ", toText tid,
                   " cannot be forgotten as it is not pending anymore."
                 ]

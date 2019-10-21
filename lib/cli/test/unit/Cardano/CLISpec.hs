@@ -243,6 +243,8 @@ spec = do
             , "                           a wallet."
             , "  submit                   Submit an externally-signed"
             , "                           transaction."
+            , "  forget                   Forget a pending transaction with"
+            , "                           specified id."
             ]
 
         ["transaction", "create", "--help"] `shouldShowUsage`
@@ -291,6 +293,28 @@ spec = do
             , "                           'ascending' or 'descending'."
             ]
 
+        ["transaction", "submit", "--help"] `shouldShowUsage`
+            [ "Usage:  transaction submit [--port INT] BINARY_BLOB"
+            , "  Submit an externally-signed transaction."
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , "  --port INT               port used for serving the wallet"
+            , "                           API. (default: 8090)"
+            , "  BINARY_BLOB              hex-encoded binary blob of"
+            , "                           externally-signed transaction."
+            ]
+
+        ["transaction", "forget", "--help"] `shouldShowUsage`
+            [ "Usage:  transaction forget [--port INT] WALLET_ID TRANSACTION_ID"
+            , "  Forget a pending transaction with specified id."
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , "  --port INT               port used for serving the wallet"
+            , "                           API. (default: 8090)"
+            ]
+
         ["address", "--help"] `shouldShowUsage`
             [ "Usage:  address COMMAND"
             , "  Manage addresses."
@@ -313,18 +337,6 @@ spec = do
             , "                           API. (default: 8090)"
             , "  --state STRING           only addresses with the given state:"
             , "                           either 'used' or 'unused'."
-            ]
-
-        ["transaction", "submit", "--help"] `shouldShowUsage`
-            [ "Usage:  transaction submit [--port INT] BINARY_BLOB"
-            , "  Submit an externally-signed transaction."
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet"
-            , "                           API. (default: 8090)"
-            , "  BINARY_BLOB              hex-encoded binary blob of"
-            , "                           externally-signed transaction."
             ]
 
         ["stake-pool", "list", "--help"] `shouldShowUsage`

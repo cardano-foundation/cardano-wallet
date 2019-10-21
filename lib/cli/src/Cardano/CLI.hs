@@ -105,7 +105,7 @@ import Cardano.Wallet.Api.Types
     , ApiStakePool
     , ApiT (..)
     , ApiTransaction
-    , ApiTxId
+    , ApiTxId (..)
     , ApiUtxoStatistics
     , ApiWallet
     , Iso8601Time (..)
@@ -132,6 +132,7 @@ import Cardano.Wallet.Primitive.Types
     ( AddressState
     , DecodeAddress
     , EncodeAddress
+    , Hash
     , SortOrder
     , WalletId
     , WalletName
@@ -527,6 +528,7 @@ cmdTransaction = command "transaction" $ info (helper <*> cmds) $ mempty
         <> cmdTransactionFees @t
         <> cmdTransactionList @t
         <> cmdTransactionSubmit @t
+        <> cmdTransactionForget @t
 
 -- | Arguments for 'transaction create' command
 data TransactionCreateArgs t = TransactionCreateArgs
@@ -625,6 +627,28 @@ cmdTransactionSubmit = command "submit" $ info (helper <*> cmd) $ mempty
     exec (TransactionSubmitArgs wPort wPayload) = do
         runClient wPort Aeson.encodePretty $
             postExternalTransaction (walletClient @t) wPayload
+
+-- | Arguments for 'transaction forget' command
+data TransactionForgetArgs = TransactionForgetArgs
+    { _port :: Port "Wallet"
+    , _wid :: WalletId
+    , _txid :: Hash "Tx"
+    }
+
+cmdTransactionForget
+    :: forall t. (DecodeAddress t, EncodeAddress t)
+    => Mod CommandFields (IO ())
+cmdTransactionForget = command "forget" $ info (helper <*> cmd) $ mempty
+    <> progDesc "Forget a pending transaction with specified id."
+  where
+    cmd = fmap exec $ TransactionForgetArgs
+        <$> portOption
+        <*> walletIdArgument
+        <*> transactionIdArgument
+    exec (TransactionForgetArgs wPort wId txId) = do
+        runClient wPort (const mempty) $ deleteTransaction (walletClient @t)
+            (ApiT wId)
+            (ApiTxId $ ApiT txId)
 
 {-------------------------------------------------------------------------------
                             Commands - 'address'
@@ -907,6 +931,11 @@ verbosityOption = (Quiet <$ quiet) <|> (Verbose <$ verbose) <|> (pure Default)
 walletIdArgument :: Parser WalletId
 walletIdArgument = argumentT $ mempty
     <> metavar "WALLET_ID"
+
+-- | <transaction-id=TX_ID>
+transactionIdArgument :: Parser (Hash "Tx")
+transactionIdArgument = argumentT $ mempty
+    <> metavar "TRANSACTION_ID"
 
 -- | <name=STRING>
 walletNameArgument :: Parser WalletName

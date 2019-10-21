@@ -115,6 +115,7 @@ module Test.Integration.Framework.DSL
     , networkInfoEp
     , updateWalletPassEp
     , listWalletsEp
+    , deleteTxEp
 
     -- * CLI
     , runJcli
@@ -134,6 +135,7 @@ module Test.Integration.Framework.DSL
     , postTransactionFeeViaCLI
     , listTransactionsViaCLI
     , postExternalTransactionViaCLI
+    , deleteTransactionViaCLI
     ) where
 
 import Cardano.CLI
@@ -144,6 +146,7 @@ import Cardano.Wallet.Api.Types
     , ApiByronWallet
     , ApiT (..)
     , ApiTransaction
+    , ApiTxId
     , ApiTxInput (..)
     , ApiUtxoStatistics (..)
     , ApiWallet
@@ -1152,6 +1155,12 @@ postTxEp w =
     , "v2/wallets/" <> w ^. walletId <> "/transactions"
     )
 
+deleteTxEp :: ApiWallet -> ApiTxId -> (Method, Text)
+deleteTxEp w tid =
+    ( "DELETE"
+    , "v2/wallets/" <> w ^. walletId <> "/transactions/" <> (toUrlPiece tid)
+    )
+
 listTxEp :: ApiWallet -> Text -> (Method, Text)
 listTxEp w query =
     ( "GET"
@@ -1368,6 +1377,17 @@ postExternalTransactionViaCLI ctx args = cardanoWalletCLI @t $ join
     [ ["transaction", "submit"]
     , ["--port", show (ctx ^. typed @(Port "wallet"))]
     , args
+    ]
+
+deleteTransactionViaCLI
+    :: forall t r s. (CmdResult r, KnownCommand t, HasType (Port "wallet") s)
+    => s
+    -> String
+    -> String
+    -> IO r
+deleteTransactionViaCLI ctx wid tid = cardanoWalletCLI @t $ join
+    [ ["transaction", "forget"]
+    , ["--port", show (ctx ^. typed @(Port "wallet")), wid, tid]
     ]
 
 proc' :: FilePath -> [String] -> CreateProcess

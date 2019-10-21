@@ -94,7 +94,7 @@ module Cardano.Wallet
     , ErrCoinSelection (..)
     , ErrSubmitTx (..)
     , ErrSubmitExternalTx (..)
-    , ErrForgetPendingTx (..)
+    , ErrRemovePendingTx (..)
     , ErrPostTx (..)
     , ErrDecodeSignedTx (..)
     , ErrValidateSelection
@@ -113,6 +113,7 @@ import Cardano.BM.Trace
 import Cardano.Wallet.DB
     ( DBLayer
     , ErrNoSuchWallet (..)
+    , ErrRemovePendingTx (..)
     , ErrWalletAlreadyExists (..)
     , PrimaryKey (..)
     , sparseCheckpoints
@@ -850,8 +851,11 @@ forgetPendingTx
     => ctx
     -> WalletId
     -> Hash "Tx"
-    -> ExceptT ErrForgetPendingTx IO ()
-forgetPendingTx _ctx _wid _tid = undefined
+    -> ExceptT ErrRemovePendingTx IO ()
+forgetPendingTx ctx wid tid =
+    DB.withLock db $ DB.removePendingTx db (PrimaryKey wid) tid
+  where
+    db = ctx ^. dbLayer @s @t @k
 
 -- | List all transactions and metadata from history for a given wallet.
 listTransactions
@@ -1034,13 +1038,6 @@ data ErrSubmitTx
 data ErrSubmitExternalTx
     = ErrSubmitExternalTxNetwork ErrPostTx
     | ErrSubmitExternalTxDecode ErrDecodeSignedTx
-    deriving (Show, Eq)
-
--- | Errors that can occur when trying to change a wallet's passphrase.
-data ErrForgetPendingTx
-    = ErrForgetPendingTxNoSuchWallet ErrNoSuchWallet
-    | ErrForgetPendingTxNoSuchTransaction (Hash "Tx")
-    | ErrForgetPendingTxTransactionIsNotPending (Hash "Tx")
     deriving (Show, Eq)
 
 -- | Errors that can occur when trying to change a wallet's passphrase.
