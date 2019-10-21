@@ -28,6 +28,7 @@ Haskell Node
 - [Data Diffusion and Peer Networking](https://hydra.iohk.io/build/1070091/download/1/network.pdf)
 - Low-Level Specifications
   - [[Byron] On-Chain Binary Formats](https://github.com/input-output-hk/cardano-sl/blob/master/docs/on-the-wire/current-spec.cddl)
+  - [[Shelley] On-Chain Binary Formats - Draft](https://github.com/input-output-hk/ouroboros-network/blob/master/ouroboros-network/test/messages.cddl)
 
 Emurgo
 ------
