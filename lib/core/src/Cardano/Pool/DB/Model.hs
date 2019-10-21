@@ -38,6 +38,7 @@ module Cardano.Pool.DB.Model
     , mPutStakeDistribution
     , mReadStakeDistribution
     , mRollbackTo
+    , mReadCursor
     ) where
 
 import Prelude
@@ -48,6 +49,8 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( fromMaybe )
+import Data.Ord
+    ( Down (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
@@ -125,6 +128,13 @@ mReadStakeDistribution epoch db@PoolDatabase{distributions} =
     ( Right $ fromMaybe mempty $ Map.lookup epoch distributions
     , db
     )
+
+mReadCursor :: Int -> ModelPoolOp [BlockHeader]
+mReadCursor k db@PoolDatabase{pools} =
+    let allHeaders = foldMap snd $ Map.toList pools
+        sortDesc = L.sortOn (Down . slotId)
+        limit = take k
+    in (Right $ reverse $ limit $ sortDesc allHeaders, db)
 
 mRollbackTo :: SlotId -> ModelPoolOp ()
 mRollbackTo point PoolDatabase{pools, distributions} =

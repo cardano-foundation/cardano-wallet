@@ -26,6 +26,7 @@ import Cardano.Pool.DB.Model
     , mCleanPoolProduction
     , mPutPoolProduction
     , mPutStakeDistribution
+    , mReadCursor
     , mReadPoolProduction
     , mReadStakeDistribution
     , mRollbackTo
@@ -60,6 +61,8 @@ newDBLayer = do
 
         , readStakeDistribution =
             readPoolDB db . mReadStakeDistribution
+
+        , readCursor = readPoolDB db . mReadCursor
 
         , rollbackTo =
             void . alterPoolDB (const Nothing) db . mRollbackTo
