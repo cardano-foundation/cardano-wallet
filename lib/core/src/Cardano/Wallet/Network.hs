@@ -34,7 +34,8 @@ import Cardano.BM.Trace
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..)
+    ( Block
+    , BlockHeader (..)
     , EpochNo
     , Hash (..)
     , PoolId (..)
@@ -123,7 +124,14 @@ data NetworkLayer m target block = NetworkLayer
         -- ^ Broadcast a transaction to the chain producer
 
     , staticBlockchainParameters
-        :: (block, BlockchainParameters)
+        :: (Block (Tx target), BlockchainParameters)
+        -- ^ Get the genesis block and blockchain parameters.
+        --
+        -- Note: The genesis block is a Wallet @Block@-type and not the
+        -- @block@ type-parameter used in @nextBlocks@. This is due to:
+        -- 1. "Cardano.Pool.Metrics" wanting to use a @block@-type specific to
+        -- non-genesis blocks.
+        -- 2. The genesis block only being needed in the Wallet (currently).
 
     , stakeDistribution
         :: ExceptT ErrNetworkUnavailable m
@@ -133,10 +141,7 @@ data NetworkLayer m target block = NetworkLayer
     }
 
 instance Functor m => Functor (NetworkLayer m target) where
-    fmap f nl = nl { nextBlocks = fmap (fmap f) . nextBlocks nl
-                   , staticBlockchainParameters = (f block0, bp) }
-      where
-        (block0, bp) = staticBlockchainParameters nl
+    fmap f nl = nl { nextBlocks = fmap (fmap f) . nextBlocks nl }
 
 {-------------------------------------------------------------------------------
                                   Errors
