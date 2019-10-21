@@ -932,7 +932,7 @@ walletIdArgument :: Parser WalletId
 walletIdArgument = argumentT $ mempty
     <> metavar "WALLET_ID"
 
--- | <wallet-id=WALLET_ID>
+-- | <transaction-id=TX_ID>
 transactionIdArgument :: Parser (Hash "Tx")
 transactionIdArgument = argumentT $ mempty
     <> metavar "TRANSACTION_ID"
