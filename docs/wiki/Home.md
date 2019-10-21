@@ -3,17 +3,16 @@
 - [Members](https://github.com/orgs/input-output-hk/teams/wallet-backend)
 - [Development Process](https://github.com/input-output-hk/cardano-wallet/wiki/Development-Process)
 - [Coding Standards](https://github.com/input-output-hk/cardano-wallet/wiki/Coding-Standards)
+- [Release Checklist](https://github.com/input-output-hk/cardano-wallet/wiki/Release-Checklist)
 
-# Project
+# Project / Product
 
 - [Roadmap](https://github.com/input-output-hk/cardano-wallet/wiki/Roadmap)
 - [Building](https://github.com/input-output-hk/cardano-wallet/wiki/Building)
 - [Testing](https://github.com/input-output-hk/cardano-wallet/wiki/Testing)
 - [Command-Line Interface](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface)
 - [Logging Guidelines](https://github.com/input-output-hk/cardano-wallet/wiki/Logging-Guidelines)
-- [Blackboard - Ideas & Thoughts](https://github.com/input-output-hk/cardano-wallet/wiki/Blackboard)
-- [Release Checklist](https://github.com/input-output-hk/cardano-wallet/wiki/Release-Checklist)
-
+- [Resources](https://github.com/input-output-hk/cardano-wallet/wiki/Resources)
 
 # Knowledge Base (Cardano)
 
@@ -25,7 +24,3 @@
 # Knowledge Base (Haskell)
 
 - [Specifying exceptions with Servant and Swagger](https://github.com/input-output-hk/cardano-wallet/wiki/Specifying-exceptions-with-Servant-and-Swagger)
-
-# Resources
-
-- [Cardano Eco-System]()
