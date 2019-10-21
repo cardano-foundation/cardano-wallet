@@ -62,7 +62,7 @@ import Cardano.Wallet.Jormungandr.Transaction
 import Cardano.Wallet.Network
     ( NetworkLayer (..), defaultRetryPolicy, waitForNetwork )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( KeyToAddress, PersistKey )
+    ( PersistKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
     ( RndKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
@@ -77,6 +77,8 @@ import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
     ( Block, Hash (..) )
+import Cardano.Wallet.Transaction
+    ( TransactionLayer )
 import Control.Concurrent.Async
     ( race_ )
 import Control.DeepSeq
@@ -132,8 +134,10 @@ serveWallet (cfg, tr) databaseDir hostPref listen lj beforeMainLoop = do
             waitForService "Jörmungandr" tr nPort $
                 waitForNetwork nl defaultRetryPolicy
             let (_, bp) = staticBlockchainParameters nl
-            rndApi <- apiLayer tr (toWLBlock <$> nl)
-            seqApi <- apiLayer tr (toWLBlock <$> nl)
+            let rndTl = newTransactionLayer @n (getGenesisBlockHash bp)
+            let seqTl = newTransactionLayer @n (getGenesisBlockHash bp)
+            rndApi <- apiLayer tr rndTl (toWLBlock <$> nl)
+            seqApi <- apiLayer tr seqTl (toWLBlock <$> nl)
             startServer tr nPort bp rndApi seqApi
         Left e -> handleNetworkStartupError e
   where
@@ -162,20 +166,19 @@ serveWallet (cfg, tr) databaseDir hostPref listen lj beforeMainLoop = do
     toWLBlock = J.convertBlock
 
     apiLayer
-        :: forall s k .
-            ( KeyToAddress (Jormungandr 'Testnet) k
-            , IsOurs s
+        :: forall s k.
+            ( IsOurs s
             , NFData s
             , Show s
             , PersistState s
             , PersistKey k
             )
         => Trace IO Text
+        -> TransactionLayer t k
         -> NetworkLayer IO t (Block Tx)
         -> IO (ApiLayer s t k)
-    apiLayer tracer nl = do
+    apiLayer tracer tl nl = do
         let (block0, bp) = staticBlockchainParameters nl
-        let tl = newTransactionLayer @n (getGenesisBlockHash bp)
         wallets <- maybe (pure []) (Sqlite.findDatabases @k tr) databaseDir
         Server.newApiLayer tracer (block0, bp) nl tl dbFactory wallets
 

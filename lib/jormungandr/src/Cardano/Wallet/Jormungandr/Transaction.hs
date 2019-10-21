@@ -10,6 +10,7 @@
 module Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer
     , sign
+    , mkTxWitness
     , ErrExceededInpsOrOuts (..)
     ) where
 
@@ -19,10 +20,12 @@ import Cardano.Wallet.Jormungandr.Binary
     ( Message (..)
     , fragmentId
     , getMessage
+    , legacyUtxoWitness
     , maxNumberOfInputs
     , maxNumberOfOutputs
     , runGetOrFail
     , signData
+    , utxoWitness
     )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
@@ -30,10 +33,14 @@ import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (AddressK), KeyToAddress, Passphrase (..), WalletKey (..), XPrv )
+import Cardano.Wallet.Primitive.AddressDerivation.Random
+    ( RndKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Sequential
+    ( SeqKey )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..), TxOut (..), TxWitness (..) )
+    ( Coin, Hash (..), TxIn, TxOut (..), TxWitness (..) )
 import Cardano.Wallet.Transaction
     ( ErrDecodeSignedTx (..)
     , ErrMkStdTx (..)
@@ -65,10 +72,11 @@ newTransactionLayer
     :: forall n k t.
         ( t ~ Jormungandr n
         , KeyToAddress (Jormungandr n) k
+        , MkTxWitness k
         )
     => Hash "Genesis"
     -> TransactionLayer t k
-newTransactionLayer (Hash block0) = TransactionLayer
+newTransactionLayer block0H = TransactionLayer
     { mkStdTx = \keyFrom rnps outs -> do
         -- NOTE
         -- For signing, we need to embed a hash of the transaction data
@@ -76,9 +84,9 @@ newTransactionLayer (Hash block0) = TransactionLayer
         -- this is a transaction id as Byron nodes or the http-bridge
         -- defines them.
         let inps = fmap (second coin) rnps
-        let bs = block0 <> getHash (signData inps outs)
-        wits <- forM rnps $ \(_, TxOut addr _) -> sign bs
-            <$> maybeToRight (ErrKeyNotFoundForAddress addr) (keyFrom addr)
+        wits <- forM rnps $ \(_, TxOut addr _) -> do
+            xprv <- maybeToRight (ErrKeyNotFoundForAddress addr) (keyFrom addr)
+            pure (mkTxWitness block0H inps outs xprv)
         let tx = Tx
                 { txid = fragmentId inps outs wits
                 , inputs = inps
@@ -109,13 +117,40 @@ newTransactionLayer (Hash block0) = TransactionLayer
             $ Left ErrExceededInpsOrOuts
     }
 
+-- | Provide a transaction witness for a given private key. The type of witness
+-- if different between types of keys and, with backward-compatible support, we
+-- may have to support many types for one backend target.
+class MkTxWitness (k :: Depth -> * -> *) where
+    mkTxWitness
+        :: Hash "Genesis"
+        -> [(TxIn, Coin)]
+        -> [TxOut]
+        -> (k 'AddressK XPrv , Passphrase "encryption")
+        -> TxWitness
+
+instance MkTxWitness SeqKey where
+    mkTxWitness (Hash block0) inps outs xprv =
+        let
+            payload = block0 <> getHash (signData inps outs)
+        in
+            utxoWitness (sign payload xprv)
+
+instance MkTxWitness RndKey where
+    mkTxWitness (Hash block0) inps outs xprv =
+        let
+            xpub = getRawKey $ publicKey $ fst xprv
+            payload = block0 <> getHash (signData inps outs)
+        in
+            legacyUtxoWitness xpub (sign payload xprv)
+
+-- | Sign some arbitrary binary data using a private key.
 sign
     :: WalletKey k
     => ByteString
     -> (k 'AddressK XPrv, Passphrase "encryption")
-    -> TxWitness
+    -> ByteString
 sign bytes (key, (Passphrase pwd)) =
-    TxWitness . CC.unXSignature $ CC.sign pwd (getRawKey key) bytes
+    CC.unXSignature $ CC.sign pwd (getRawKey key) bytes
 
 -- | Transaction with improper number of inputs and outputs is tried
 data ErrExceededInpsOrOuts = ErrExceededInpsOrOuts

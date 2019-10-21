@@ -39,6 +39,11 @@ module Cardano.Wallet.Jormungandr.Binary
     , putSignedTx
     , putTx
 
+    -- * Transaction witnesses
+    , signData
+    , utxoWitness
+    , legacyUtxoWitness
+
     -- * Purification of chain block types
     , convertBlock
     , convertBlockHeader
@@ -48,7 +53,7 @@ module Cardano.Wallet.Jormungandr.Binary
     , getAddress
     , singleAddressFromKey
 
-      -- * Legacy Decoders
+      -- * Legacy
     , decodeLegacyAddress
 
       -- * Helpers
@@ -57,7 +62,6 @@ module Cardano.Wallet.Jormungandr.Binary
     , fragmentId
     , maxNumberOfInputs
     , maxNumberOfOutputs
-    , signData
     , withHeader
 
       -- * Re-export
@@ -71,7 +75,7 @@ module Cardano.Wallet.Jormungandr.Binary
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( XPub (xpubPublicKey) )
+    ( XPub (xpubPublicKey), unXPub )
 import Cardano.Wallet.Jormungandr.Environment
     ( KnownNetwork, Network (..), single )
 import Cardano.Wallet.Jormungandr.Primitive.Types
@@ -266,6 +270,21 @@ data TxWitnessTag
     | TxWitnessMultisig
     deriving (Show, Eq)
 
+putTxWitnessTag :: TxWitnessTag -> Put
+putTxWitnessTag = \case
+    TxWitnessLegacyUTxO -> putWord8 0
+    TxWitnessUTxO -> putWord8 1
+    TxWitnessAccount -> putWord8 2
+    TxWitnessMultisig -> putWord8 3
+
+getTxWitnessTag :: Get TxWitnessTag
+getTxWitnessTag = getWord8 >>= \case
+    0 -> pure TxWitnessLegacyUTxO
+    1 -> pure TxWitnessUTxO
+    2 -> pure TxWitnessAccount
+    3 -> pure TxWitnessMultisig
+    other -> fail $ "Invalid witness type: " ++ show other
+
 -- | Decode a message (header + contents).
 getMessage :: Get Message
 getMessage = label "getMessage" $ do
@@ -305,6 +324,22 @@ txWitnessSize = \case
     TxWitnessAccount -> 64
     TxWitnessMultisig -> 68
 
+txWitnessTagSize :: Int
+txWitnessTagSize = 1
+
+-- | Construct a UTxO witness from a signature
+utxoWitness :: ByteString -> TxWitness
+utxoWitness bytes = TxWitness $ BL.toStrict $ runPut $ do
+    putTxWitnessTag TxWitnessUTxO
+    putByteString bytes
+
+-- | Construct a legacy UTxO witness from a public key and a signature
+legacyUtxoWitness :: XPub -> ByteString -> TxWitness
+legacyUtxoWitness xpub bytes = TxWitness $ BL.toStrict $ runPut $ do
+    putTxWitnessTag TxWitnessLegacyUTxO
+    putByteString (unXPub xpub)
+    putByteString bytes
+
 -- | Decode the contents of a @Transaction@-message.
 getTransaction :: Int -> Get (Tx, [TxWitness])
 getTransaction n = label "getTransaction" $ do
@@ -319,19 +354,11 @@ getTransaction n = label "getTransaction" $ do
   where
     getWitness :: Get TxWitness
     getWitness = do
-        tag <- getTxWitnessTag
-        let len = txWitnessSize tag
+        tag <- lookAhead getTxWitnessTag
+        let len = txWitnessSize tag + txWitnessTagSize
         -- NOTE: Regardless of the type of witness, we decode it as a
         -- @TxWitness@.
         TxWitness <$> isolate len (getByteString len)
-
-    getTxWitnessTag :: Get TxWitnessTag
-    getTxWitnessTag = getWord8 >>= \case
-        0 -> pure TxWitnessLegacyUTxO
-        1 -> pure TxWitnessUTxO
-        2 -> pure TxWitnessAccount
-        3 -> pure TxWitnessMultisig
-        other -> fail $ "Invalid witness type: " ++ show other
 
     getTokenTransfer :: Get ([(TxIn, Coin)], [TxOut])
     getTokenTransfer = label "getTokenTransfer" $ do
@@ -362,9 +389,7 @@ putSignedTx inputs outputs witnesses = do
   where
     -- Assumes the `TxWitness` has been faithfully constructed
     putWitness :: TxWitness -> Put
-    putWitness (TxWitness bytes) = do
-        putWord8 1
-        putByteString bytes
+    putWitness (TxWitness bytes) = putByteString bytes
 
 putTx :: [(TxIn, Coin)] -> [TxOut] -> Put
 putTx inputs outputs = do
@@ -652,7 +677,7 @@ convertBlockHeader h = (W.BlockHeader (slot h) (bh h) (Hash "") (Hash ""))
     bh = Quantity . fromIntegral . chainLength
 
 {-------------------------------------------------------------------------------
-                              Legacy Decoders
+                                    Legacy
 -------------------------------------------------------------------------------}
 
 -- | Attempt decoding a 'ByteString' into an 'Address'. This merely checks that
