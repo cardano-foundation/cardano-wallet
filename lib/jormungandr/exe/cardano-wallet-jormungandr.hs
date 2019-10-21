@@ -89,7 +89,7 @@ import Options.Applicative
     , Parser
     , argument
     , command
-    , footer
+    , footerDoc
     , help
     , helper
     , info
@@ -106,6 +106,7 @@ import System.FilePath
     ( (</>) )
 
 import qualified Data.Text as T
+import qualified Options.Applicative.Help.Pretty as D
 
 {-------------------------------------------------------------------------------
                               Main entry point
@@ -174,9 +175,26 @@ cmdLaunch
     -> Mod CommandFields (IO ())
 cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
     <> progDesc "Launch and monitor a wallet server and its chain producers."
-    <> footer
-        "Please note that launch will generate a configuration for Jörmungandr \
-        \in a folder specified by '--state-dir'."
+    <> footerDoc (Just $ D.empty
+        <> D.text "Examples:"
+        <> D.line
+        <> D.text "1) Minimal setup, relying on sensible defaults:" <> D.line
+        <> D.text "    launch --genesis-block block0.bin" <> D.line
+        <> D.line
+        <> D.text "2) Launching a full node: " <> D.line
+        <> D.text "    launch --genesis-block block0.bin -- --secret secret.yaml" <> D.line
+        <> D.line
+        <> D.text "3) Bootstrapping from trusted peers*:" <> D.line
+        <> D.text "    launch --genesis-block-hash 4c05c5bb -- --config config.yaml" <> D.line
+        <> D.line
+        <> D.text "(*) assuming 'trusted_peers' is defined in 'config.yaml'"
+        <> D.line
+        <> D.line
+        <> D.text "Please also note that 'launch' will define a 'rest' and" <> D.line
+        <> D.text "'storage' configuration for Jörmungandr so in case you" <> D.line
+        <> D.text "provide a configuration file as extra arguments, make sure" <> D.line
+        <> D.text "not to define any these configuration settings."
+       )
   where
     cmd = fmap exec $ LaunchArgs
         <$> hostPreferenceOption
@@ -290,7 +308,7 @@ genesisHashOption = optionT $ mempty
 extraArguments :: Parser [String]
 extraArguments = many $ argument jmArg $ mempty
     <> metavar "[-- ARGUMENTS...]"
-    <> help "Extra arguments to be passed to jormungandr."
+    <> help "Extra arguments to be passed to Jörmungandr."
   where
     jmArg = do
         arg <- readerAsk
@@ -305,7 +323,6 @@ extraArguments = many $ argument jmArg $ mempty
         | "--storage" `isPrefixOf` arg = Just $
             suggestion "--storage"
         | otherwise = Nothing
-    suggestion arg = "The " <> arg <> " argument is used by "
-        <> "\"cardano-wallet-jormungandr launch\"."
+    suggestion arg = "The " <> arg <> " argument is used by the launch command."
         <> "\nIf you need this level of flexibility, run \"jormungandr\" "
         <> "separately and use \"cardano-wallet-jormungandr serve\"."
