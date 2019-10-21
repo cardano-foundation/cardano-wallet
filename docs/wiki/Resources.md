@@ -5,6 +5,7 @@ Wallet
 - [About Address Derivation](https://github.com/input-output-hk/cardano-wallet/wiki/About-Address-Derivation)
 - [About Coin Selection](https://github.com/input-output-hk/cardano-wallet/wiki/About-Coin-Selection)
 - [About UTxO](https://github.com/input-output-hk/cardano-wallet/wiki/About-UTxO)
+- [Formal Specification for a Cardano Wallet](https://github.com/input-output-hk/cardano-wallet/blob/master/specifications/wallet/formal-specification-for-a-cardano-wallet.pdf)
 - [[Byron] About Address Format](https://github.com/input-output-hk/cardano-wallet/wiki/About-Address-Format---Byron)
 
 Jörmungandr
