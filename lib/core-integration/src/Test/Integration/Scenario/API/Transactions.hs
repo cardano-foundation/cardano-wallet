@@ -81,12 +81,12 @@ import Test.Integration.Framework.TestData
     , errMsg400StartTimeLaterThanEndTime
     , errMsg403Fee
     , errMsg403InputsDepleted
+    , errMsg403NoPendingAnymore
     , errMsg403NotEnoughMoney
     , errMsg403UTxO
     , errMsg403WrongPass
     , errMsg404CannotFindTx
     , errMsg404NoEndpoint
-    , errMsg404NoPendingAnymore
     , errMsg404NoWallet
     , errMsg405
     , errMsg406
@@ -1583,8 +1583,8 @@ spec = do
             ]
 
         rDel1 <- request @ApiTxId ctx (deleteTxEp wSrc (ApiTxId txId)) Default Empty
-        expectResponseCode @IO HTTP.status404 rDel1
-        expectErrorMessage (errMsg404NoPendingAnymore (toUrlPiece (ApiTxId txId))) rDel1
+        expectResponseCode @IO HTTP.status403 rDel1
+        expectErrorMessage (errMsg403NoPendingAnymore (toUrlPiece (ApiTxId txId))) rDel1
 
     it "TRANS_DELETE_03 - checking no transaction id error" $ \ctx -> do
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default simplePayload

@@ -52,8 +52,8 @@ module Test.Integration.Framework.TestData
     , errMsg403NotEnoughMoney
     , errMsg403UTxO
     , errMsg403WrongPass
+    , errMsg403NoPendingAnymore
     , errMsg404NoEndpoint
-    , errMsg404NoPendingAnymore
     , errMsg404CannotFindTx
     , errMsg404NoRootKey
     , errMsg404NoWallet
@@ -346,8 +346,8 @@ errMsg404NoEndpoint = "I couldn't find the requested endpoint. If the endpoint\
     \ contains path parameters, please ensure they are well-formed, otherwise I\
     \ won't be able to route them correctly."
 
-errMsg404NoPendingAnymore :: Text -> String
-errMsg404NoPendingAnymore tid = "The transaction with id : " ++ unpack tid ++
+errMsg403NoPendingAnymore :: Text -> String
+errMsg403NoPendingAnymore tid = "The transaction with id : " ++ unpack tid ++
     " cannot be forgotten as it is not pending anymore."
 
 errMsg404CannotFindTx :: Text -> String

@@ -1305,14 +1305,15 @@ instance LiftHandler ErrSubmitExternalTx where
 
 instance LiftHandler ErrRemovePendingTx where
     handler = \case
-        ErrRemovePendingTxNoSuchWallet wid -> handler (ErrNoSuchWallet wid)
+        ErrRemovePendingTxNoSuchWallet wid ->
+            handler (ErrNoSuchWallet wid)
         ErrRemovePendingTxNoSuchTransaction tid ->
             apiError err404 NoSuchTransaction $ mconcat
                 [ "I couldn't find a transaction with the given id: "
                 , toText tid
                 ]
         ErrRemovePendingTxTransactionNoMorePending tid ->
-            apiError err404 TransactionNotPending $ mconcat
+            apiError err403 TransactionNotPending $ mconcat
                 [ "The transaction with id : ", toText tid,
                   " cannot be forgotten as it is not pending anymore."
                 ]
