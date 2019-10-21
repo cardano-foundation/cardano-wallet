@@ -922,11 +922,7 @@ spec = do
         addr:_ <- listAddresses ctx wDest
         let addrStr =
                 encodeAddress (Proxy @t) (getApiT $ fst $ addr ^. #id)
-        let amt = 14
-        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
-                { nInputs = 1
-                , nOutputs = 1
-                }
+        let amt = 1
         let args = T.unpack <$>
                 [ wSrc ^. walletId
                 , "--payment", T.pack (show amt) <> "@" <> addrStr
@@ -937,8 +933,7 @@ spec = do
         err `shouldBe` "Please enter your passphrase: **************\nOk.\n"
         txJson <- expectValidJSON (Proxy @(ApiTransaction t)) out
         verify txJson
-            [ expectCliFieldBetween amount (feeMin + amt, feeMax + amt)
-            , expectCliFieldEqual direction Outgoing
+            [ expectCliFieldEqual direction Outgoing
             , expectCliFieldEqual status Pending
             ]
         c `shouldBe` ExitSuccess
@@ -975,7 +970,6 @@ spec = do
             [ expectCliFieldEqual balanceAvailable amt
             , expectCliFieldEqual balanceTotal amt
             ]
-
   where
       unsafeGetTransactionTime
           :: [ApiTransaction t]
