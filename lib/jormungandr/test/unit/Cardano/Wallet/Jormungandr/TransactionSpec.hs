@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.Jormungandr.TransactionSpec
@@ -30,8 +31,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , keyToAddress
     , publicKey
     )
+import Cardano.Wallet.Primitive.AddressDerivation.Random
+    ( RndKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( SeqKey, unsafeGenerateKeyFromSeed )
+    ( SeqKey )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
@@ -55,6 +58,8 @@ import Test.Hspec
 import Test.QuickCheck
     ( property )
 
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Random as Rnd
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Sequential as Seq
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map as Map
@@ -85,17 +90,18 @@ estimateMaxNumberOfInputsSpec = describe "estimateMaxNumberOfInputs" $ do
 mkStdTxSpec :: Spec
 mkStdTxSpec = do
     let (xprv0, pwd0) =
-            xprvFromSeed "arbitrary-seed-0"
+            xprvSeqFromSeed "arbitrary-seed-0"
         -- ^ 30c8422fd3cbaf54449df9f627a1f88cf85d4fee84083a91cdb6f0dbdb09c24d
         --   ed29409c6a8275a643a2e79d280d97a898a3366706f3f677434b75c9d98680d0
     let (xprv1, pwd1) =
-            xprvFromSeed "arbitrary-seed-1"
+            xprvSeqFromSeed "arbitrary-seed-1"
         -- ^ b81e217576bf2683f3359f50d0bf938ca3c61fdf7a2d0c1b2b35f7fb174dc042
         --   6bb7377c9ea9cb481b4c3df601379fbf69033add18c1d272d7975c43682afc48
     let (xprv2, pwd2) =
-            xprvFromSeed "arbitrary-seed-2"
+            xprvSeqFromSeed "arbitrary-seed-2"
         -- ^ e01bfb39e3e595fce0b9b19e386a82816e0cef8aa823c75a32bc0f39bcf7c14e
         --   8a03d255df0440b6d0fcf5d5199a582d1df7d858bd7556d4941ebf6223fa66d1
+
     let txin0 = Hash $ unsafeFromHex
             "666984dec4bc0ff1888be97bfe0694a96b35c58d025405ead51d5cc72a3019f4"
     let txin1 = Hash $ unsafeFromHex
@@ -104,7 +110,7 @@ mkStdTxSpec = do
             "13c3d835c53a198f7c8513b04d99eeb23c745c0a73364c2f0e802fa38eec9dba"
 
     describe "mkStdTx 'Mainnet" $ do
-        let proxy = Proxy @(Jormungandr 'Mainnet)
+        let tl = newTransactionLayer @'Mainnet block0
         let keyToAddress' = keyToAddress @(Jormungandr 'Mainnet)
         let addr0 = keyToAddress' (publicKey xprv0)
         -- ^ ca1qvk32hg8rppc0wn0lzpkq996pd3xkxqguel8tharwrpdch6czu2luh3truq
@@ -134,7 +140,7 @@ mkStdTxSpec = do
         --   | jcli transaction add-witness wit0.bin \
         --   | jcli transaction seal \
         --   | jcli transaction to-message
-        goldenTestStdTx proxy keystore block0
+        goldenTestStdTx tl keystore
             [ (TxIn txin0 0, TxOut addr0 (Coin 10000)) ]
             [ TxOut addr1 (Coin 14)
             , TxOut addr2 (Coin 9986)
@@ -170,7 +176,7 @@ mkStdTxSpec = do
         --   | jcli transaction add-witness wit1.bin \
         --   | jcli transaction seal \
         --   | jcli transaction to-message
-        goldenTestStdTx proxy keystore block0
+        goldenTestStdTx tl keystore
             [ (TxIn txin0 0, TxOut addr0 (Coin 10000))
             , (TxIn txin1 1, TxOut addr1 (Coin 999999999))
             ]
@@ -190,13 +196,10 @@ mkStdTxSpec = do
             \080f5ac10474c7f6decbbc35f1620817b15bf1594981c034b7f6a15d0a24ec743d\
             \332f1774eb8733a5d40c"
 
-    describe "mkStdTx unknown input" $ do
-        unknownInputTest (Proxy @'Mainnet) block0
-        unknownInputTest (Proxy @'Testnet) block0
-
     describe "mkStdTx 'Testnet" $ do
-        let proxy = Proxy @(Jormungandr 'Testnet)
+        let tl = newTransactionLayer @'Testnet block0
         let keyToAddress' = keyToAddress @(Jormungandr 'Testnet)
+
         let addr0 = keyToAddress' (publicKey xprv0)
         -- ^ ta1svk32hg8rppc0wn0lzpkq996pd3xkxqguel8tharwrpdch6czu2luue5k36
         let addr1 = keyToAddress' (publicKey xprv1)
@@ -211,7 +214,7 @@ mkStdTxSpec = do
                 ]
 
         -- See 'Mainnet description
-        goldenTestStdTx proxy keystore block0
+        goldenTestStdTx tl keystore
             [ (TxIn txin0 0, TxOut addr0 (Coin 10000)) ]
             [ TxOut addr1 (Coin 14)
             , TxOut addr2 (Coin 9986)
@@ -224,7 +227,7 @@ mkStdTxSpec = do
             \dd66f34c185212b4a4133b9fdc857487cc4497fc356ed01e91726c0d"
 
         -- See 'Mainnet description
-        goldenTestStdTx proxy keystore block0
+        goldenTestStdTx tl keystore
             [ (TxIn txin0 0, TxOut addr0 (Coin 10000))
             , (TxIn txin1 1, TxOut addr1 (Coin 999999999))
             ]
@@ -244,6 +247,10 @@ mkStdTxSpec = do
             \d6bd5c813d6f3f454f4935b009eabbac1ffd768a07e37773e5b568e8c76c57e53d\
             \a6b26d3da9f466b78200"
 
+    describe "mkStdTx unknown input" $ do
+        unknownInputTest (Proxy @'Mainnet) block0
+        unknownInputTest (Proxy @'Testnet) block0
+
     describe "validateSelection cannot accept selection that violates maxNumberOfInputs" $ do
         tooNumerousInpsTest (Proxy @'Mainnet) block0
         tooNumerousInpsTest (Proxy @'Testnet) block0
@@ -253,15 +260,14 @@ mkStdTxSpec = do
         tooNumerousOutsTest (Proxy @'Testnet) block0
 
 goldenTestStdTx
-    :: forall n. (KnownNetwork n)
-    => Proxy (Jormungandr n)
-    -> (Address -> Maybe (SeqKey 'AddressK XPrv, Passphrase "encryption"))
-    -> Hash "Genesis"
+    :: forall t n k. (t ~ Jormungandr n, KnownNetwork n)
+    => TransactionLayer t k
+    -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
     -> [(TxIn, TxOut)]
     -> [TxOut]
     -> ByteString
     -> SpecWith ()
-goldenTestStdTx _ keystore block0 inps outs bytes' = it title $ do
+goldenTestStdTx tl keystore inps outs bytes' = it title $ do
     let tx = mkStdTx tl keystore inps outs
     let bytes = fmap
             (\(Tx _ i o, w) -> hex
@@ -272,18 +278,28 @@ goldenTestStdTx _ keystore block0 inps outs bytes' = it title $ do
             tx
     bytes `shouldBe` Right bytes'
   where
-    tl = newTransactionLayer @n block0
     title = "golden test mkStdTx: " <> show inps <> show outs
 
-xprvFromSeed
+xprvSeqFromSeed
     :: ByteString
     -> (SeqKey depth XPrv, Passphrase "encryption")
-xprvFromSeed seed =
-    ( unsafeGenerateKeyFromSeed (Passphrase (BA.convert seed), mempty) pwd
+xprvSeqFromSeed seed =
+    ( Seq.unsafeGenerateKeyFromSeed (Passphrase (BA.convert seed), mempty) pwd
     , pwd
     )
   where
     pwd = mempty
+
+xprvRndFromSeed
+    :: ByteString
+    -> (RndKey 'AddressK XPrv, Passphrase "encryption")
+xprvRndFromSeed seed =
+    ( Rnd.unsafeGenerateKeyFromSeed derPath (Passphrase $ BA.convert seed) pwd
+    , pwd
+    )
+  where
+    pwd = mempty
+    derPath = (minBound, minBound)
 
 mkKeystore :: Ord k => [(k,v)] -> (k -> Maybe v)
 mkKeystore pairs k =
@@ -298,7 +314,8 @@ unknownInputTest
     -> Hash "Genesis"
     -> SpecWith ()
 unknownInputTest _ block0 = it title $ do
-    let addr = keyToAddress @(Jormungandr n) $ publicKey $ xprv "address-number-0"
+    let addr = keyToAddress @(Jormungandr n) $ publicKey $ fst $
+            xprvSeqFromSeed "address-number-0"
     let res = mkStdTx tl keyFrom inps outs
           where
             tl = newTransactionLayer @n @SeqKey block0
@@ -321,7 +338,8 @@ tooNumerousInpsTest
     -> Hash "Genesis"
     -> SpecWith ()
 tooNumerousInpsTest _ block0 = it title $ do
-    let addr = keyToAddress @(Jormungandr n) $ publicKey $ xprv "address-number-0"
+    let addr = keyToAddress @(Jormungandr n) $ publicKey $ fst $
+            xprvSeqFromSeed "address-number-0"
     let res = validateSelection tl (CoinSelection inps outs chngs)
           where
             tl = newTransactionLayer @n @SeqKey block0
@@ -343,7 +361,8 @@ tooNumerousOutsTest
     -> Hash "Genesis"
     -> SpecWith ()
 tooNumerousOutsTest _ block0 = it title $ do
-    let addr = keyToAddress @(Jormungandr n) $ publicKey $ xprv "address-number-0"
+    let addr = keyToAddress @(Jormungandr n) $ publicKey $ fst $
+            xprvSeqFromSeed "address-number-0"
     let res = validateSelection tl (CoinSelection inps outs chngs)
           where
             tl = newTransactionLayer @n @SeqKey block0
@@ -358,8 +377,3 @@ tooNumerousOutsTest _ block0 = it title $ do
     title = "Too numerous outputs yields an error ("
         <> T.unpack (toText (networkVal @n))
         <> ")"
-
-
-xprv :: ByteString -> SeqKey depth XPrv
-xprv seed =
-    unsafeGenerateKeyFromSeed (Passphrase (BA.convert seed), mempty) mempty
