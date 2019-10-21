@@ -165,6 +165,8 @@ import Servant
     )
 import Servant.Swagger.Test
     ( validateEveryToJSON )
+import System.Environment
+    ( lookupEnv )
 import Test.Aeson.GenericSpecs
     ( GoldenDirectoryOption (CustomDirectoryName)
     , Proxy (Proxy)
@@ -1021,8 +1023,12 @@ specification :: Swagger
 specification =
     unsafeDecode bytes
   where
-    bytes = $(makeRelativeToProject "../../specifications/api/swagger.yaml"
-        >>= embedFile)
+    bytes = $(
+        let swaggerYaml = "../../specifications/api/swagger.yaml"
+        in liftIO (lookupEnv "SWAGGER_YAML") >>=
+        maybe (makeRelativeToProject swaggerYaml) pure >>=
+        embedFile
+        )
     unsafeDecode =
         either (error . (msg <>) . show) Prelude.id . Yaml.decodeEither'
     msg = "Whoops! Failed to parse or find the api specification document: "
