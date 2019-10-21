@@ -159,12 +159,11 @@ spec = do
             --
             -- but in practice, we only have INFO logs on start-up.
 
-        describe "LOGGING - Exits nicely on wrong genesis hash" $  do
-            let hashes =
-                    [ replicate 40 '1'
-                    , replicate 38 '1'
-                    , replicate 42 '1'
-                    ]
+        describe "LOGGING - Exits nicely on wrong (yet hex-encoded)\
+            \genesis hash" $  do
+            let hashes = [ replicate 40 '1'
+                         , replicate 38 '1'
+                         , replicate 42 '1' ]
             forM_ hashes $ \hash -> it hash $ \ctx -> do
                 let args =
                         ["serve"
