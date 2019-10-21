@@ -71,6 +71,7 @@ import qualified Test.Integration.Jormungandr.Scenario.CLI.Server as ServerCLI
 import qualified Test.Integration.Jormungandr.Scenario.CLI.StakePools as StakePoolsCliJormungandr
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Transactions as TransactionsCliJormungandr
 import qualified Test.Integration.Scenario.API.Addresses as Addresses
+import qualified Test.Integration.Scenario.API.ByronTransactions as ByronTransactions
 import qualified Test.Integration.Scenario.API.ByronWallets as ByronWallets
 import qualified Test.Integration.Scenario.API.Network as Network
 import qualified Test.Integration.Scenario.API.Transactions as Transactions
@@ -105,6 +106,7 @@ main = withLogging Nothing Info $ \logging -> do
             TransactionsCliJormungandr.spec @t
             Wallets.spec
             ByronWallets.spec
+            ByronTransactions.spec
             Network.spec
 
         describe "CLI Specifications" $ specWithServer logging $ do

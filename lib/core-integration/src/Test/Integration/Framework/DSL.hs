@@ -101,6 +101,7 @@ module Test.Integration.Framework.DSL
     , calculateByronMigrationCostEp
     , getByronWalletEp
     , listByronWalletEp
+    , listByronTxEp
     , deleteByronWalletEp
     , getWalletEp
     , deleteWalletEp
@@ -1065,6 +1066,12 @@ listByronWalletEp :: (Method, Text)
 listByronWalletEp =
     ( "GET"
     , "v2/byron-wallets"
+    )
+
+listByronTxEp :: ApiByronWallet -> Text -> (Method, Text)
+listByronTxEp w query =
+    ( "GET"
+    , "v2/byron-wallets/" <> w ^. walletId <> "/transactions" <> query
     )
 
 migrateByronWalletEp :: ApiByronWallet -> ApiWallet -> (Method, Text)
