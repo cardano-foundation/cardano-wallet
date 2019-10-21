@@ -7,7 +7,6 @@
 
 # Project / Product
 
-- [Roadmap](https://github.com/input-output-hk/cardano-wallet/wiki/Roadmap)
 - [Building](https://github.com/input-output-hk/cardano-wallet/wiki/Building)
 - [Testing](https://github.com/input-output-hk/cardano-wallet/wiki/Testing)
 - [Command-Line Interface](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface)
