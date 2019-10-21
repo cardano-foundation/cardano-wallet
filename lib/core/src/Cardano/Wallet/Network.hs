@@ -13,6 +13,7 @@ module Cardano.Wallet.Network
     , NextBlocksResult (..)
     , Cursor
     , follow
+    , FollowAction (..)
 
     -- * Errors
     , ErrNetworkUnavailable (..)
@@ -238,6 +239,22 @@ instance Functor (NextBlocksResult target) where
         RollForward cur bh bs -> RollForward cur bh (fmap f bs)
         RollBackward cur -> RollBackward cur
 
+-- | @FollowAction@ enables the callback of @follow@ to signal if the
+-- chain-following should @ExitWith@, @Continue@, or if the current callback
+-- should be forgotten and retried (@Retry@).
+--
+-- NOTE: @Retry@ is needed to handle data-races in
+-- 'Cardano.Pool.Metrics', where it is essensial that we fetch the stake
+-- distribution while the node-tip
+data FollowAction err
+    = ExitWith err
+      -- ^ Stop following the chain.
+    | Continue
+      -- ^ Continue following the chain.
+    | Retry
+      -- ^ Forget about the blocks in the current callback, and retry again.
+    deriving (Eq, Show)
+
 -- | Subscribe to a blockchain and get called with new block (in order)!
 follow
     :: forall target block e0 e1. (Show e0, Show e1)
@@ -247,10 +264,10 @@ follow
     -- ^ Logger trace
     -> [BlockHeader]
     -- ^ A list of known tips to start from. Blocks /after/ the tip will be yielded.
-    -> (NE.NonEmpty block -> BlockHeader -> ExceptT e0 IO ())
+    -> (NE.NonEmpty block -> BlockHeader -> IO (FollowAction e0))
     -- ^ Callback with blocks and the current tip of the /node/.
     -- @follow@ stops polling and terminates if the callback errors.
-    -> (SlotId -> ExceptT e1 IO ())
+    -> (SlotId -> IO (FollowAction e1))
     -- ^ Callback with a point of rollback when needed.
     -- @follow@ stops polling and terminates if the callback errors.
     -> (block -> BlockHeader)
@@ -309,19 +326,26 @@ follow nl tr cps yield rollback header =
             liftIO $ logInfo tr $ mconcat
                 [ "Applying blocks [", pretty slFst, " ... ", pretty slLst, "]" ]
 
-            runExceptT (yield blocks nodeTip) >>= \case
-                Left e ->
-                    liftIO $ logError tr $ T.pack $
-                        "Failed to roll forward: " <> show e
-                Right () -> do
-                    step cursor'
+            yield blocks nodeTip
+                >>= handle cursor' "Failed to roll forward: "
 
         Right (RollBackward cursor') -> do
             let point = cursorSlotId nl cursor'
             logInfo tr $ "Rolling back to " <> pretty point
-            runExceptT (rollback point) >>= \case
-                Left e ->
-                    liftIO $ logError tr $ T.pack $
-                        "Failed to roll backward: " <> show e
-                Right () -> do
+            rollback point
+                >>= handle cursor' "Failed to roll backward: "
+      where
+        handle ::
+            Show e
+            => Cursor target
+            -> String
+            -> FollowAction e
+            -> IO ()
+        handle cursor' msg x = case x of
+                ExitWith e ->
+                    logError tr $ T.pack $
+                        msg <> show e
+                Continue ->
                     step cursor'
+                Retry ->
+                    step cursor

@@ -118,7 +118,12 @@ import Cardano.Wallet.DB
     , sparseCheckpoints
     )
 import Cardano.Wallet.Network
-    ( ErrNetworkUnavailable (..), ErrPostTx (..), NetworkLayer (..), follow )
+    ( ErrNetworkUnavailable (..)
+    , ErrPostTx (..)
+    , FollowAction (..)
+    , NetworkLayer (..)
+    , follow
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (RootK)
     , ErrWrongPassphrase (..)
@@ -206,13 +211,13 @@ import Cardano.Wallet.Unsafe
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( forM, forM_, when )
+    ( forM, forM_, void, when )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), except, throwE, withExceptT )
+    ( ExceptT (..), except, runExceptT, throwE, withExceptT )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..), maybeToExceptT )
 import Control.Monad.Trans.State
@@ -520,13 +525,16 @@ restoreWallet
     -> ExceptT ErrNoSuchWallet IO ()
 restoreWallet ctx wid = do
     cps <- liftIO $ DB.listCheckpoints db (PrimaryKey wid)
-    let forward = restoreBlocks @ctx @s @t @k ctx wid
-    let backward = DB.rollbackTo db (PrimaryKey wid)
-    liftIO $ follow nw tr cps forward backward (view #header)
+    let forward bs h = run $ restoreBlocks @ctx @s @t @k ctx wid bs h
+    let backward sid = run $ DB.rollbackTo db (PrimaryKey wid) sid
+    void $ liftIO $ follow nw tr cps forward backward (view #header)
   where
     db = ctx ^. dbLayer @s @t @k
     nw = ctx ^. networkLayer @t
     tr = ctx ^. logger
+
+    run :: ExceptT ErrNoSuchWallet IO () -> IO (FollowAction ErrNoSuchWallet)
+    run = fmap (either ExitWith (const Continue)) . runExceptT
 
 -- | Apply the given blocks to the wallet and update the wallet state,
 -- transaction history and corresponding metadata.
@@ -593,6 +601,7 @@ restoreBlocks ctx wid blocks nodeTip = do
     calculateMetadata bp h meta = do
         p <- syncProgressRelativeToTime (slotParams bp) h <$> getCurrentTime
         pure (meta { status = p } :: WalletMetadata)
+
 
 -- | Remove an existing wallet. Note that there's no particular work to
 -- be done regarding the restoration worker as it will simply terminate
