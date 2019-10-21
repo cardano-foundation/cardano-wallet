@@ -10,7 +10,6 @@
 - [Building](https://github.com/input-output-hk/cardano-wallet/wiki/Building)
 - [Testing](https://github.com/input-output-hk/cardano-wallet/wiki/Testing)
 - [Command-Line Interface](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface)
-- [Logging Guidelines](https://github.com/input-output-hk/cardano-wallet/wiki/Logging-Guidelines)
 - [Resources](https://github.com/input-output-hk/cardano-wallet/wiki/Resources)
 
 # Knowledge Base (Cardano)
@@ -23,3 +22,7 @@
 # Knowledge Base (Haskell)
 
 - [Specifying exceptions with Servant and Swagger](https://github.com/input-output-hk/cardano-wallet/wiki/Specifying-exceptions-with-Servant-and-Swagger)
+
+# Knowledge Base (Misc)
+
+- [Logging Guidelines](https://github.com/input-output-hk/cardano-wallet/wiki/Logging-Guidelines)
