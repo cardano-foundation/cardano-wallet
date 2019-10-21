@@ -40,7 +40,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Sequential
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Coin, Hash (..), TxIn, TxOut (..), TxWitness (..) )
+    ( Hash (..), TxOut (..), TxWitness (..) )
 import Cardano.Wallet.Transaction
     ( ErrDecodeSignedTx (..)
     , ErrMkStdTx (..)
@@ -76,7 +76,7 @@ newTransactionLayer
         )
     => Hash "Genesis"
     -> TransactionLayer t k
-newTransactionLayer block0H = TransactionLayer
+newTransactionLayer (Hash block0H) = TransactionLayer
     { mkStdTx = \keyFrom rnps outs -> do
         -- NOTE
         -- For signing, we need to embed a hash of the transaction data
@@ -86,7 +86,8 @@ newTransactionLayer block0H = TransactionLayer
         let inps = fmap (second coin) rnps
         wits <- forM rnps $ \(_, TxOut addr _) -> do
             xprv <- maybeToRight (ErrKeyNotFoundForAddress addr) (keyFrom addr)
-            pure (mkTxWitness block0H inps outs xprv)
+            let payload = block0H <> getHash (signData inps outs)
+            pure $ mkTxWitness (fst xprv) (sign payload xprv)
         let tx = Tx
                 { txid = fragmentId inps outs wits
                 , inputs = inps
@@ -118,30 +119,30 @@ newTransactionLayer block0H = TransactionLayer
     }
 
 -- | Provide a transaction witness for a given private key. The type of witness
--- if different between types of keys and, with backward-compatible support, we
--- may have to support many types for one backend target.
+-- is different between types of keys and, with backward-compatible support, we
+-- need to support many types for one backend target.
+--
+-- We have tightly coupled the type of witness to the type of key for because:
+--
+-- - RndKey can only be used with legacy / Byron wallets as they require a
+--   special address structure (to embed the derivation path).
+--
+-- - SeqKey could theorically be used with the legacy address structure (as
+-- Yoroi does) however, our implementation only associate SeqKey to new
+-- addresses.
 class MkTxWitness (k :: Depth -> * -> *) where
     mkTxWitness
-        :: Hash "Genesis"
-        -> [(TxIn, Coin)]
-        -> [TxOut]
-        -> (k 'AddressK XPrv , Passphrase "encryption")
+        :: k 'AddressK XPrv
+        -> ByteString
         -> TxWitness
 
 instance MkTxWitness SeqKey where
-    mkTxWitness (Hash block0) inps outs xprv =
-        let
-            payload = block0 <> getHash (signData inps outs)
-        in
-            utxoWitness (sign payload xprv)
+    mkTxWitness _ = utxoWitness
 
 instance MkTxWitness RndKey where
-    mkTxWitness (Hash block0) inps outs xprv =
-        let
-            xpub = getRawKey $ publicKey $ fst xprv
-            payload = block0 <> getHash (signData inps outs)
-        in
-            legacyUtxoWitness xpub (sign payload xprv)
+    mkTxWitness xprv = legacyUtxoWitness xpub
+      where
+        xpub = getRawKey $ publicKey xprv
 
 -- | Sign some arbitrary binary data using a private key.
 sign
