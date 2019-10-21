@@ -15,7 +15,6 @@
 -- - "Cardano.Wallet.Api.Server" - which presents the results in an endpoint
 module Cardano.Pool.Metrics
     ( Block (..)
-    , activityForEpoch
     , combineMetrics
     , ErrMetricsInconsistency (..)
 
@@ -24,9 +23,6 @@ module Cardano.Pool.Metrics
     -- * Helper
     , withinSameTip
     , ErrWithinSameTip (..)
-
-    , State (..)
-    , applyBlock
     )
     where
 
@@ -43,7 +39,7 @@ import Cardano.Wallet.Network
     , staticBlockchainParameters
     )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), EpochNo (..), PoolId (..), SlotId (..) )
+    ( BlockHeader (..), PoolId (..), SlotId (..) )
 import Control.Monad
     ( forM_, unless )
 import Control.Monad.IO.Class
@@ -68,8 +64,6 @@ import Data.Text
     ( Text )
 import Data.Word
     ( Word64 )
-import Fmt
-    ( Buildable (..), blockListF', fmt, (+|), (|+) )
 import GHC.Generics
     ( Generic )
 import Numeric.Natural
@@ -168,16 +162,6 @@ worker nl db tr = do
     getTip = withExceptT (const ErrMetricsWorkerTipIsUnreachable) $
         networkTip nl
 
--- | For a given epoch, and state, this function returns /how many/ blocks
--- each pool produced.
-activityForEpoch :: EpochNo -> State -> Map PoolId Int
-activityForEpoch epoch s =
-    Map.filter (> 0)
-    $ Map.map (length . filter slotInCurrentEpoch)
-    (activity s)
-  where
-    slotInCurrentEpoch = ((epoch ==) . epochNumber)
-
 data ErrMetricsInconsistency
     = ErrMetricsInconsistencyBlockProducerNotInStakeDistr
         PoolId
@@ -274,38 +258,3 @@ data ErrWithinSameTip
     = ErrWithinSameTipMaxRetries
         -- ^ Retried too many times
     deriving (Generic, Show, Eq)
-
---
--- Internals
---
-
--- | In-memory state keeping track of which pool produced blocks at which slots.
-data State = State
-    { tip :: BlockHeader
-      -- ^ The blockHeader of the most recently applied block. Used to resume
-      -- restoration from @NetworkLayer@.
-    , activity :: Map PoolId [SlotId]
-    -- ^ Mapping from pools to the slots where pool produced blocks.
-    --
-    -- This is needed internally to support rollback, but publicly, only the
-    -- /length of/ the SlotId-list is likely needed.
-    } deriving (Eq, Show, Generic)
-
-instance Buildable State where
-    build (State t m) =
-        fmt ("Stakepool metrics at tip: "+|t|+"\n") <>
-        blockListF'
-            mempty
-            (\(k,v) -> fmt (""+|k|+": "+|length v|+"") )
-            (Map.toList m)
-
-applyBlock :: Block -> State -> State
-applyBlock (Block newTip mpoolId) s@(State _prevTip prevMap) =
-    case mpoolId of
-        Just pool -> State newTip (Map.alter alter pool prevMap)
-        Nothing -> s
-  where
-    slot = slotId newTip
-    alter = \case
-        Nothing -> Just [slot]
-        Just slots -> Just (slot:slots)

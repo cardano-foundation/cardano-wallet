@@ -10,7 +10,7 @@ module Cardano.Pool.MetricsSpec (spec) where
 import Prelude
 
 import Cardano.Pool.Metrics
-    ( Block (..), State (..), applyBlock, combineMetrics, withinSameTip )
+    ( Block (..), combineMetrics, withinSameTip )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , EpochLength (..)
@@ -74,18 +74,6 @@ spec = do
             (property prop_withinSameTipMaxRetries)
 
     describe "Counting how many blocks each pool produced" $ do
-        describe "State" $ do
-            it "stores the last applied blockHeader"
-                $ property $ \s b@(Block h _) -> do
-                tip (applyBlock b s) `shouldBe` h
-
-            it "counts every block it applies (total activity increases by 1\
-               \when a block is applied"
-                $ property $ \s block -> do
-                let s' = applyBlock block s
-                let count = Map.foldl (\r l -> r + (length l)) 0 . activity
-                count s' === (count s + 1)
-
         describe "combineMetrics" $ do
             it "pools with no entry for productions are included" $
                 property $ \stakeDistr -> do
@@ -163,10 +151,6 @@ instance Arbitrary BlockHeader where
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary
-    shrink = genericShrink
-
-instance Arbitrary State where
-    arbitrary = genericArbitrary
     shrink = genericShrink
 
 instance Arbitrary SlotId where
