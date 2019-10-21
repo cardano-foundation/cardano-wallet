@@ -11,9 +11,8 @@
 , cardano-http-bridge
 
 # Dependencies of cardano-wallet-jormungandr
-, jpkgs ? import ./jormungandr.nix { inherit pkgs; }
-, jormungandr-win64 ? jpkgs.jormungandr-win64
-, jormungandr ? jpkgs.jormungandr
+, jmPkgs ? import ./jormungandr.nix { inherit pkgs; }
+, jormungandr ? jmPkgs.jormungandr
 
 # Customisations for cross-compiling
 , iohk-extras ? {}
@@ -27,12 +26,6 @@ let
 
   # Grab the compiler name from stack-to-nix output.
   compiler = (stack-pkgs.extras {}).compiler.nix-name;
-
-  # Make a postInstall wrapping script to provide dependencies.
-  # For the windows build, also copy DLL dependencies.
-  provideDeps = { nix, darwin ? "", windows ? "" }:
-    with pkgs.stdenv.hostPlatform;
-    if isWindows then windows else (if isDarwin then darwin else nix);
 
   # Chop out a subdirectory of the source, so that the package is only
   # rebuilt when something in the subdirectory changes.
@@ -77,31 +70,12 @@ let
           unit.build-tools = [ jormungandr ];
         };
 
-        packages.cardano-wallet-jormungandr.components.exes.cardano-wallet-jormungandr = {
-          build-tools = [ pkgs.makeWrapper];
-          postInstall = provideDeps {
-            nix = ''
-              wrapProgram $out/bin/cardano-wallet-jormungandr \
-                --prefix PATH : ${jormungandr}/bin
-            '';
-            darwin = ''
-              cp ${jormungandr}/bin/* $out/bin
-            '';
-            windows = ''
-              cp -v ${pkgs.libffi}/bin/libffi-6.dll $out/bin
-              cp ${jormungandr-win64}/* $out/bin
-            '';
-          };
-        };
-
         packages.cardano-wallet-http-bridge.components.exes.cardano-wallet-http-bridge = {
           build-tools = [ pkgs.makeWrapper];
-          postInstall = provideDeps {
-            nix = ''
-              wrapProgram $out/bin/cardano-wallet-http-bridge \
-                --prefix PATH : ${cardano-http-bridge}/bin
-            '';
-          };
+          postInstall = ''
+            wrapProgram $out/bin/cardano-wallet-http-bridge \
+              --prefix PATH : ${cardano-http-bridge}/bin
+          '';
         };
 
         packages.cardano-wallet-http-bridge.components.benchmarks.restore = {

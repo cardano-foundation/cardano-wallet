@@ -1,8 +1,15 @@
+############################################################################
+# Windows release CARDAN~1.ZIP
+#
+# This bundles up the windows build and its dependencies, adds an
+# example self-node configuration, and some .BAT files for launching,
+# and sets up the Hydra build artifact.
+#
+############################################################################
+
 { pkgs
 , cardano-wallet-jormungandr
 , project
-, jpkgs ? import ./jormungandr.nix { inherit pkgs; }
-, jormungandr-win64 ? jpkgs.jormungandr-win64
 }:
 
 let
@@ -21,7 +28,6 @@ in pkgs.runCommand name {
   cd jm
 
   cp -v ${cardano-wallet-jormungandr}/bin/* .
-  cp -v ${jormungandr-win64}/bin/* .
   cp -v ${testData}/block0.bin ${testData}/secret.yaml .
   cp -v ${jm-bat} jm.bat
   hash="$(jcli genesis hash --input block0.bin)"
