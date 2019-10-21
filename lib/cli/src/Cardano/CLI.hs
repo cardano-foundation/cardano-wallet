@@ -38,6 +38,7 @@ module Cardano.CLI
     , optionT
     , argumentT
     , databaseOption
+    , hostPreferenceOption
     , listenOption
     , nodePortOption
     , nodePortMaybeOption
@@ -94,7 +95,7 @@ import Cardano.BM.Trace
 import Cardano.Wallet.Api
     ( CoreApi )
 import Cardano.Wallet.Api.Server
-    ( Listen (..) )
+    ( HostPreference, Listen (..) )
 import Cardano.Wallet.Api.Types
     ( AddressAmount
     , ApiAddress
@@ -200,6 +201,7 @@ import Options.Applicative
     , progDesc
     , showDefaultWith
     , showHelpOnEmpty
+    , str
     , strOption
     , subparser
     , value
@@ -765,6 +767,17 @@ databaseOption = optionT $ mempty
     <> long "database"
     <> metavar "DIR"
     <> help "use this directory for storing wallets. Run in-memory otherwise."
+
+-- | [--listen-address=HOSTSPEC], default: 127.0.0.1
+hostPreferenceOption :: Parser HostPreference
+hostPreferenceOption = option str $ mempty
+    <> long "listen-address"
+    <> metavar "HOST"
+    <> help
+        ("Specification of which host to the bind API server to. " <>
+         "Can be an IPv[46] address, hostname, or '*'.")
+    <> value "127.0.0.1"
+    <> showDefaultWith (const "127.0.0.1")
 
 -- | [--random-port|--port=INT]
 listenOption :: Parser Listen

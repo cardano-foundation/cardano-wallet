@@ -29,7 +29,7 @@ import Cardano.Launcher
 import Cardano.Wallet.Api
     ( ApiLayer )
 import Cardano.Wallet.Api.Server
-    ( Listen (..) )
+    ( Listen (..), ListenError (..) )
 import Cardano.Wallet.DaedalusIPC
     ( daedalusIPC )
 import Cardano.Wallet.DB
@@ -121,27 +121,28 @@ serveWallet (cfg, tr) databaseDir listen bridge mAction = do
             let mkCallback action apiPort =
                     action (fromIntegral apiPort) bridgePort nl
             withServer wlRnd wlSeq (mkCallback <$> mAction)
-            pure ExitSuccess
         Left e -> handleNetworkStartupError e
   where
     withServer
         :: ApiLayer (RndState t) t RndKey
         -> ApiLayer (SeqState t) t SeqKey
         -> Maybe (Int -> IO a)
-        -> IO ()
+        -> IO ExitCode
     withServer apiRnd apiSeq action = do
-        Server.withListeningSocket listen $ \(port, socket) -> do
-            let tracerIPC = appendName "daedalus-ipc" tr
-            let tracerApi = appendName "api" tr
-            let beforeMainLoop = logInfo tr $
-                    "Wallet backend server listening on: " <> toText port
-            let settings = Warp.defaultSettings
-                    & setBeforeMainLoop beforeMainLoop
-            let ipcServer = daedalusIPC tracerIPC port
-            let apiServer = Server.start settings tracerApi socket apiRnd apiSeq
-            let withAction = maybe id (\cb -> race_ (cb port)) action
-            withAction $ race_ ipcServer apiServer
-
+        Server.withListeningSocket "127.0.0.1" listen $ \case
+            Right (port, socket) -> do
+                  let tracerIPC = appendName "daedalus-ipc" tr
+                  let tracerApi = appendName "api" tr
+                  let beforeMainLoop = logInfo tr $
+                          "Wallet backend server listening on: " <> toText port
+                  let settings = Warp.defaultSettings
+                          & setBeforeMainLoop beforeMainLoop
+                  let ipcServer = daedalusIPC tracerIPC port
+                  let apiServer = Server.start settings tracerApi socket apiRnd apiSeq
+                  let withAction = maybe id (\cb -> race_ (cb port)) action
+                  withAction $ race_ ipcServer apiServer
+                  pure ExitSuccess
+            Left e -> handleApiServerStartupError e
     newApiLayer
         :: forall s k .
             ( IsOurs s
@@ -183,3 +184,26 @@ serveWallet (cfg, tr) databaseDir listen bridge mAction = do
         ErrStartupNodeNotListening -> do
             failWith tr
                 "Waited too long for http-bridge to become available. Giving up!"
+
+
+    handleApiServerStartupError :: ListenError -> IO ExitCode
+    handleApiServerStartupError = \case
+        ListenErrorHostDoesNotExist host ->
+            failWith tr $ mempty
+                <> "Can't listen on "
+                <> T.pack (show host)
+                <> ". It does not exist."
+        ListenErrorInvalidAddress host ->
+            failWith tr $ mempty
+                <> "Can't listen on "
+                <> T.pack (show host)
+                <> ". Invalid address."
+        ListenErrorAddressAlreadyInUse mPort ->
+            failWith tr $ mempty
+                <> "The API server listen port "
+                <> maybe "(unknown)" (T.pack . show) mPort
+                <> " is already in use."
+        ListenErrorOperationNotPermitted ->
+            failWith tr $ mempty
+                <> "Cannot listen on the given port. "
+                <> "The operation is not permitted."

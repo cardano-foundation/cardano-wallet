@@ -39,6 +39,7 @@ import Cardano.CLI
     , cmdWallet
     , databaseOption
     , getDataDir
+    , hostPreferenceOption
     , listenOption
     , loggingConfigFileOption
     , nodePortMaybeOption
@@ -56,7 +57,7 @@ import Cardano.CLI
 import Cardano.Launcher
     ( StdStream (..) )
 import Cardano.Wallet.Api.Server
-    ( Listen (..) )
+    ( HostPreference, Listen (..) )
 import Cardano.Wallet.Jormungandr
     ( serveWallet )
 import Cardano.Wallet.Jormungandr.Compatibility
@@ -78,8 +79,8 @@ import Data.Maybe
     ( fromMaybe )
 import Data.Text
     ( Text )
-import Data.Text.Class
-    ( toText )
+import Network.Socket
+    ( SockAddr )
 import Options.Applicative
     ( CommandFields
     , Mod
@@ -138,12 +139,12 @@ main = do
 
 beforeMainLoop
     :: Trace IO Text
-    -> Port "wallet"
+    -> SockAddr
     -> Port "node"
     -> BlockchainParameters
     -> IO ()
-beforeMainLoop tr port _ _ = do
-    logInfo tr $ "Wallet backend server listening on: " <> toText port
+beforeMainLoop tr addr _ _ = do
+    logInfo tr $ "Wallet backend server listening on " <> T.pack (show addr)
 
 {-------------------------------------------------------------------------------
                             Command - 'launch'
@@ -151,7 +152,8 @@ beforeMainLoop tr port _ _ = do
 
 -- | Arguments for the 'launch' command
 data LaunchArgs = LaunchArgs
-    { _listen :: Listen
+    { _hostPreference :: HostPreference
+    , _listen :: Listen
     , _nodePort :: Maybe (Port "Node")
     , _stateDir :: Maybe FilePath
     , _loggingConfigFile :: Maybe FilePath
@@ -174,7 +176,8 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
         \in a folder specified by '--state-dir'."
   where
     cmd = fmap exec $ LaunchArgs
-        <$> listenOption
+        <$> hostPreferenceOption
+        <*> listenOption
         <*> nodePortMaybeOption
         <*> stateDirOption dataDir
         <*> optional loggingConfigFileOption
@@ -182,7 +185,7 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
         <*> (JormungandrArgs
             <$> genesisBlockOption
             <*> extraArguments)
-    exec (LaunchArgs listen nodePort mStateDir logCfg verbosity jArgs) = do
+    exec (LaunchArgs hostPreference listen nodePort mStateDir logCfg verbosity jArgs) = do
         let minSeverity = verbosityToMinSeverity verbosity
         withLogging logCfg minSeverity $ \(cfg, tr) -> do
             case genesisBlock jArgs of
@@ -204,6 +207,7 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
             exitWith =<< serveWallet
                 (cfg, tr)
                 (Just databaseDir)
+                hostPreference
                 listen
                 (Launch cp)
                 (beforeMainLoop tr)
@@ -214,7 +218,8 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
 
 -- | Arguments for the 'serve' command
 data ServeArgs = ServeArgs
-    { _listen :: Listen
+    { _hostPreference :: HostPreference
+    , _listen :: Listen
     , _nodePort :: Port "Node"
     , _database :: Maybe FilePath
     , _loggingConfigFile :: Maybe FilePath
@@ -228,7 +233,8 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
     <> progDesc "Serve API that listens for commands/actions."
   where
     cmd = fmap exec $ ServeArgs
-        <$> listenOption
+        <$> hostPreferenceOption
+        <*> listenOption
         <*> nodePortOption
         <*> optional databaseOption
         <*> optional loggingConfigFileOption
@@ -237,7 +243,7 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
     exec
         :: ServeArgs
         -> IO ()
-    exec (ServeArgs listen nodePort databaseDir logCfg verbosity block0H) = do
+    exec (ServeArgs hostPreference listen nodePort databaseDir logCfg verbosity block0H) = do
         let minSeverity = verbosityToMinSeverity verbosity
         withLogging logCfg minSeverity $ \(cfg, tr) -> do
             let baseUrl = localhostBaseUrl $ getPort nodePort
@@ -247,6 +253,7 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
             exitWith =<< serveWallet
                 (cfg, tr)
                 databaseDir
+                hostPreference
                 listen
                 (UseRunning cp)
                 (beforeMainLoop tr)

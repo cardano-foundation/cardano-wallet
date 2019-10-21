@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
@@ -194,12 +195,14 @@ spec = describe "Logging Middleware"
         tvar <- newTVarIO []
         mvar <- newEmptyMVar
         mngr <- newManager defaultManagerSettings
-        handle <- async $ withListeningSocket listen $ \(p, socket) -> do
-            logSettings <- newApiLoggerSettings
-                <&> obfuscateKeys (\r -> r `seq` ["sensitive"])
-            let warpSettings = Warp.defaultSettings
-                    & setBeforeMainLoop (putMVar mvar p)
-            start logSettings warpSettings (traceInTVarIO tvar) socket
+        handle <- async $ withListeningSocket "127.0.0.1" listen $ \case
+            Right (p, socket) -> do
+                logSettings <- newApiLoggerSettings
+                    <&> obfuscateKeys (\r -> r `seq` ["sensitive"])
+                let warpSettings = Warp.defaultSettings
+                        & setBeforeMainLoop (putMVar mvar p)
+                start logSettings warpSettings (traceInTVarIO tvar) socket
+            Left e -> error (show e)
         p <- readMVar mvar
         return $ Context
             { logs = tvar
