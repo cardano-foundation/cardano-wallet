@@ -25,3 +25,7 @@
 # Knowledge Base (Haskell)
 
 - [Specifying exceptions with Servant and Swagger](https://github.com/input-output-hk/cardano-wallet/wiki/Specifying-exceptions-with-Servant-and-Swagger)
+
+# Resources
+
+- [Cardano Eco-System]()
