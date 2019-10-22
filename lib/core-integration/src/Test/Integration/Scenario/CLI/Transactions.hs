@@ -970,6 +970,19 @@ spec = do
             [ expectCliFieldEqual balanceAvailable amt
             , expectCliFieldEqual balanceTotal amt
             ]
+
+        (Exit c2, Stdout out2, Stderr err2) <-
+            listTransactionsViaCLI @t ctx [T.unpack $ wSrc ^. walletId]
+        err2 `shouldBe` "Ok.\n"
+        c2 `shouldBe` ExitSuccess
+
+        txsJson <- expectValidJSON (Proxy @([ApiTransaction t])) out2
+        let txJson2 = filter (\json -> json ^. #id == txId') txsJson
+        verify txJson2
+            [ expectCliListItemFieldEqual 0 direction Outgoing
+            , expectCliListItemFieldEqual 0 status InLedger
+            ]
+
   where
       unsafeGetTransactionTime
           :: [ApiTransaction t]
