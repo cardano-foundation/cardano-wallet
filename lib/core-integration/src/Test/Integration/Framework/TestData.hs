@@ -347,7 +347,7 @@ errMsg404NoEndpoint = "I couldn't find the requested endpoint. If the endpoint\
     \ won't be able to route them correctly."
 
 errMsg403NoPendingAnymore :: Text -> String
-errMsg403NoPendingAnymore tid = "The transaction with id : " ++ unpack tid ++
+errMsg403NoPendingAnymore tid = "The transaction with id: " ++ unpack tid ++
     " cannot be forgotten as it is not pending anymore."
 
 errMsg404CannotFindTx :: Text -> String

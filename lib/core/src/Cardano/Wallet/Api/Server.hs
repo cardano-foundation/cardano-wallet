@@ -1314,7 +1314,7 @@ instance LiftHandler ErrRemovePendingTx where
                 ]
         ErrRemovePendingTxTransactionNoMorePending tid ->
             apiError err403 TransactionNotPending $ mconcat
-                [ "The transaction with id : ", toText tid,
+                [ "The transaction with id: ", toText tid,
                   " cannot be forgotten as it is not pending anymore."
                 ]
 
