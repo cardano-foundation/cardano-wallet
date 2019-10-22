@@ -12,8 +12,6 @@ module Cardano.Wallet.Jormungandr.NetworkSpec
 
 import Prelude
 
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
 import Cardano.BM.Trace
     ( nullTracer )
 import Cardano.Wallet.Jormungandr.Api
@@ -341,7 +339,6 @@ spec = do
                 stateDir
                 (Right "test/data/jormungandr/block0.bin")
                 Nothing
-                Info
                 Inherit
                 ["--secret", "test/data/jormungandr/secret.yaml"]
         let tr = nullTracer

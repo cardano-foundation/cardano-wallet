@@ -75,6 +75,8 @@ import Cardano.Wallet.Version
     ( showVersion, version )
 import Control.Applicative
     ( optional, (<|>) )
+import Data.List
+    ( isPrefixOf )
 import Data.Maybe
     ( fromMaybe )
 import Data.Text
@@ -87,22 +89,24 @@ import Options.Applicative
     , Parser
     , argument
     , command
-    , footer
+    , footerDoc
     , help
     , helper
     , info
     , long
+    , many
     , metavar
     , progDesc
-    , some
-    , str
     )
+import Options.Applicative.Types
+    ( readerAsk, readerError )
 import System.Exit
     ( exitWith )
 import System.FilePath
     ( (</>) )
 
 import qualified Data.Text as T
+import qualified Options.Applicative.Help.Pretty as D
 
 {-------------------------------------------------------------------------------
                               Main entry point
@@ -163,7 +167,7 @@ data LaunchArgs = LaunchArgs
 
 data JormungandrArgs = JormungandrArgs
     { genesisBlock :: Either (Hash "Genesis") FilePath
-    , extraJormungandrArgs :: [Text]
+    , extraJormungandrArgs :: [String]
     }
 
 cmdLaunch
@@ -171,9 +175,26 @@ cmdLaunch
     -> Mod CommandFields (IO ())
 cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
     <> progDesc "Launch and monitor a wallet server and its chain producers."
-    <> footer
-        "Please note that launch will generate a configuration for Jörmungandr \
-        \in a folder specified by '--state-dir'."
+    <> footerDoc (Just $ D.empty
+        <> D.text "Examples:"
+        <> D.line
+        <> D.text "1) Minimal setup, relying on sensible defaults:" <> D.line
+        <> D.text "    launch --genesis-block block0.bin" <> D.line
+        <> D.line
+        <> D.text "2) Launching a full node: " <> D.line
+        <> D.text "    launch --genesis-block block0.bin -- --secret secret.yaml" <> D.line
+        <> D.line
+        <> D.text "3) Bootstrapping from trusted peers*:" <> D.line
+        <> D.text "    launch --genesis-block-hash 4c05c5bb -- --config config.yaml" <> D.line
+        <> D.line
+        <> D.text "(*) assuming 'trusted_peers' is defined in 'config.yaml'"
+        <> D.line
+        <> D.line
+        <> D.text "Please also note that 'launch' will define a 'rest' and" <> D.line
+        <> D.text "'storage' configuration for Jörmungandr so in case you" <> D.line
+        <> D.text "provide a configuration file as extra arguments, make sure" <> D.line
+        <> D.text "not to define any these configuration settings."
+       )
   where
     cmd = fmap exec $ LaunchArgs
         <$> hostPreferenceOption
@@ -186,8 +207,7 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
             <$> genesisBlockOption
             <*> extraArguments)
     exec (LaunchArgs hostPreference listen nodePort mStateDir logCfg verbosity jArgs) = do
-        let minSeverity = verbosityToMinSeverity verbosity
-        withLogging logCfg minSeverity $ \(cfg, tr) -> do
+        withLogging logCfg (verbosityToMinSeverity verbosity) $ \(cfg, tr) -> do
             case genesisBlock jArgs of
                 Right block0File -> requireFilePath block0File
                 Left _ -> pure ()
@@ -197,7 +217,6 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
                     { _stateDir = stateDir
                     , _genesisBlock = genesisBlock jArgs
                     , _restApiPort = fromIntegral . getPort <$> nodePort
-                    , _minSeverity = minSeverity
                     , _outputStream = Inherit
                     , _extraArgs = extraJormungandrArgs jArgs
                     }
@@ -286,7 +305,24 @@ genesisHashOption = optionT $ mempty
     <> help "Blake2b_256 hash of the genesis block, in base 16."
 
 -- | -- [ARGUMENTS...]
-extraArguments :: Parser [Text]
-extraArguments = some $ argument str $ mempty
+extraArguments :: Parser [String]
+extraArguments = many $ argument jmArg $ mempty
     <> metavar "[-- ARGUMENTS...]"
-    <> help "Extra arguments to be passed to jormungandr."
+    <> help "Extra arguments to be passed to Jörmungandr."
+  where
+    jmArg = do
+        arg <- readerAsk
+        case validate arg of
+            Just err -> readerError err
+            Nothing -> pure arg
+    validate arg
+        | "--genesis-block" `isPrefixOf` arg = Just $
+            "The " <> arg <> " option must be placed before the --"
+        | "--rest-listen" `isPrefixOf` arg = Just $
+            suggestion "--rest-listen"
+        | "--storage" `isPrefixOf` arg = Just $
+            suggestion "--storage"
+        | otherwise = Nothing
+    suggestion arg = "The " <> arg <> " argument is used by the launch command."
+        <> "\nIf you need this level of flexibility, run \"jormungandr\" "
+        <> "separately and use \"cardano-wallet-jormungandr serve\"."

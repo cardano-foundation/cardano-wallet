@@ -24,7 +24,6 @@ module Cardano.Wallet.Jormungandr.Compatibility
       -- * Node's Configuration
     , BaseUrl (..)
     , Scheme (..)
-    , genConfigFile
     , localhostBaseUrl
     , baseUrlToText
     ) where
@@ -39,8 +38,6 @@ import Cardano.Wallet.Jormungandr.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
-import Cardano.Wallet.Network.Ports
-    ( PortNumber )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress (..), getRawKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
@@ -60,8 +57,6 @@ import Control.Arrow
     ( second )
 import Control.Monad
     ( when )
-import Data.Aeson
-    ( Value (..), object, (.=) )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Base58
@@ -78,14 +73,11 @@ import Data.Word
     ( Word16 )
 import Servant.Client.Core
     ( BaseUrl (..), Scheme (..), showBaseUrl )
-import System.FilePath
-    ( FilePath, (</>) )
 
 import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.CBOR.Write as CBOR
-import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
@@ -222,29 +214,6 @@ instance KnownNetwork n => DecodeAddress (Jormungandr n) where
                 <> " =/= "
                 <> B8.unpack (BS.pack [discriminant])
                 <> "."
-
--- | Generate a configuration file for Jörmungandr@0.3.999
-genConfigFile
-    :: FilePath
-    -> PortNumber
-    -> BaseUrl
-    -> Aeson.Value
-genConfigFile stateDir addressPort (BaseUrl _ host port _) = object
-    [ "storage" .= (stateDir </> "chain")
-    , "rest" .= object
-        [ "listen" .= String listen ]
-    , "p2p" .= object
-        [ "trusted_peers" .= ([] :: [()])
-        , "topics_of_interest" .= object
-            [ "messages" .= String "low"
-            , "blocks" .= String "normal"
-            ]
-        , "public_address" .= String publicAddress
-        ]
-    ]
-  where
-    listen = T.pack $ mconcat [host, ":", show port]
-    publicAddress = T.pack $ mconcat ["/ip4/127.0.0.1/tcp/", show addressPort]
 
 {-------------------------------------------------------------------------------
                                      Base URL

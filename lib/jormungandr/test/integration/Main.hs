@@ -29,7 +29,7 @@ import Cardano.Wallet.Jormungandr
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr, Network (..) )
 import Cardano.Wallet.Jormungandr.Launch
-    ( setupConfig, teardownConfig )
+    ( withConfig )
 import Cardano.Wallet.Jormungandr.Network
     ( JormungandrBackend (..) )
 import Cardano.Wallet.Primitive.Fee
@@ -41,7 +41,7 @@ import Control.Concurrent.Async
 import Control.Concurrent.MVar
     ( newEmptyMVar, putMVar, takeMVar )
 import Control.Exception
-    ( bracket, throwIO )
+    ( throwIO )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -122,15 +122,14 @@ specWithServer
     :: (CM.Configuration, Trace IO Text)
     -> SpecWith (Context (Jormungandr 'Testnet))
     -> Spec
-specWithServer (cfg, tr) = beforeAll start . after tearDown
+specWithServer logCfg = beforeAll start . after tearDown
   where
     start :: IO (Context (Jormungandr 'Testnet))
     start = do
         ctx <- newEmptyMVar
-        pid <- async $ bracket setupConfig teardownConfig $ \jmCfg -> do
+        pid <- async $ withConfig $ \jmCfg -> do
             let listen = ListenOnRandomPort
-            serveWallet (cfg, tr) Nothing "127.0.0.1" listen (Launch jmCfg) $
-                \wAddr nPort bp -> do
+            serveWallet logCfg Nothing "127.0.0.1" listen (Launch jmCfg) $ \wAddr nPort bp -> do
                 let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
                 manager <- (baseUrl,) <$> newManager defaultManagerSettings
                 faucet <- initFaucet
