@@ -64,6 +64,8 @@ let
         };
 
         packages.cardano-wallet-jormungandr.components.tests = {
+          # Some tests want to write ~/.local/share/cardano-wallet
+          integration.preBuild = "export HOME=`pwd`";
           # provide jormungandr command to test suites
           integration.build-tools = [ jormungandr jormungandr-cli ];
           unit.build-tools = [ jormungandr ];
@@ -95,6 +97,7 @@ let
         packages.cardano-wallet-jormungandr.components.all.postInstall = pkgs.lib.mkForce "";
         packages.cardano-wallet-http-bridge.components.all.postInstall = pkgs.lib.mkForce "";
         packages.cardano-wallet-core.components.all.preBuild = pkgs.lib.mkForce "";
+        packages.cardano-wallet-jormungandr.components.all.preBuild = pkgs.lib.mkForce "";
       }
 
       # Misc. build fixes for dependencies
