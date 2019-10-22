@@ -1035,6 +1035,21 @@ spec = do
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1
 
+    describe "TRANS_DELETE_04 - False wallet ids via CLI" $ do
+        forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
+            let txId = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
+            -- forget transaction once again
+            (Exit c, Stdout out, Stderr err) <-
+                deleteTransactionViaCLI @t ctx walId (T.unpack txId)
+            out `shouldBe` ""
+            c `shouldBe` ExitFailure 1
+            if (title == "40 chars hex") then
+                err `shouldContain` "I couldn't find a wallet with \
+                    \the given id: 1111111111111111111111111111111111111111"
+            else
+                err `shouldContain` "wallet id should be an \
+                    \hex-encoded string of 40 characters"
+
   where
       unsafeGetTransactionTime
           :: [ApiTransaction t]
