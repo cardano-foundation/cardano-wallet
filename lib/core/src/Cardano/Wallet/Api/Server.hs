@@ -45,10 +45,8 @@ import Cardano.Wallet
     , ErrEstimateTxFee (..)
     , ErrListTransactions (..)
     , ErrListUTxOStatistics (..)
-    , ErrMigrationWallet (..)
     , ErrMkStdTx (..)
     , ErrNoSuchWallet (..)
-    , ErrPostTransaction (..)
     , ErrPostTx (..)
     , ErrRemovePendingTx (..)
     , ErrSignTx (..)
@@ -178,8 +176,6 @@ import Control.Monad
     ( forM, forM_, void )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
-import Control.Monad.Trans.Class
-    ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT, throwE, withExceptT )
 import Data.Aeson
@@ -824,10 +820,7 @@ getByronWalletMigrationInfo
     => ApiLayer s t k
     -> ApiT WalletId
     -> Handler ApiByronWalletMigrationInfo
-getByronWalletMigrationInfo ctx (ApiT wid) = do
-    (cost,_) <- liftHandler $ withWorkerCtx ctx wid throwE $ \wrk ->
-        W.createMigration wrk wid
-    return $ ApiByronWalletMigrationInfo (Quantity $ fromIntegral cost)
+getByronWalletMigrationInfo _ _ = throwError err501
 
 migrateByronWallet
     :: forall t.
@@ -838,40 +831,28 @@ migrateByronWallet
     => ApiLayer (RndState t) t RndKey
     -> ApiLayer (SeqState t) t SeqKey
     -> ApiT WalletId
-       -- ^ Source wallet (Byron)
+        -- ^ Source wallet (Byron)
     -> ApiT WalletId
-       -- ^ Target wallet (new-style)
+        -- ^ Target wallet (new-style)
     -> ApiMigrateByronWalletData
     -> Handler [ApiTransaction t]
-migrateByronWallet rndCtx seqCtx (ApiT sWid) (ApiT dWid) migrateData = do
-    -- (a) checking if source and destination wallets are in sequential and random
-    -- scheme, respectively --ie., incorrect schemes
-    {--
-    _ <- liftHandler $ withWorkerCtx seqCtx sWid (\_ -> lift $ pure ()) $ \wrk ->
-        W.readWallet wrk sWid
-    when (isRight res) $ liftHandler $ throwE ErrMigrationWalletSeqWalletInSource
-    --}
-
-    -- (b) checking if wallets are present
-    _ <- liftHandler $ withWorkerCtx rndCtx sWid liftE1 $ \wrk ->
-        W.readWallet wrk sWid
-    _ <- liftHandler $ withWorkerCtx seqCtx dWid liftE1 $ \wrk ->
-        W.readWallet wrk dWid
-
-    -- (c) get coin selections
-    (_,coinSels) <- liftHandler $ withWorkerCtx rndCtx sWid throwE $ \wrk ->
-        W.createMigration wrk sWid
-
-    --(d) posting txs
+migrateByronWallet rndCtx seqCtx (ApiT rndWid) (ApiT seqWid) migrateData = do
     let (ApiMigrateByronWalletData (ApiT pwd)) = migrateData
+
+    -- FIXME
+    -- Better error handling here to inform users if they messed up with the
+    -- wallet ids.
+    (_, cs) <- liftHandler $ withWorkerCtx rndCtx rndWid throwE $ \rndWrk ->
+        withWorkerCtx seqCtx seqWid throwE $ \seqWrk ->
+            W.createMigration (rndWrk, rndWid) (seqWrk, rndWid)
+
     now <- liftIO getCurrentTime
-    forM coinSels $ \selection -> do
-        (tx, meta, wit) <- liftHandler $ withWorkerCtx rndCtx sWid liftE2 $ \wrk ->
-            W.signTx wrk sWid pwd selection
 
-        liftHandler $ withWorkerCtx rndCtx sWid liftE3 $ \wrk ->
-            W.submitTx wrk sWid (tx, meta, wit)
-
+    forM cs $ \selection -> do
+        (tx, meta, wit) <- liftHandler $ withWorkerCtx rndCtx rndWid liftE1 $ \wrk ->
+            W.signTx wrk rndWid pwd selection
+        liftHandler $ withWorkerCtx rndCtx rndWid liftE2 $ \wrk ->
+            W.submitTx wrk rndWid (tx, meta, wit)
         pure $ mkApiTransaction
             (txId @t tx)
             (fmap Just <$> selection ^. #inputs)
@@ -879,9 +860,8 @@ migrateByronWallet rndCtx seqCtx (ApiT sWid) (ApiT dWid) migrateData = do
             (meta, now)
             #pendingSince
   where
-    liftE1 = throwE . ErrMigrationWalletNoSuchWallet
-    liftE2 = throwE . ErrMigrationWalletPostTx . ErrPostTransactionSign
-    liftE3 = throwE . ErrMigrationWalletPostTx . ErrPostTransactionSubmit
+    liftE1 = throwE . ErrSignTxNoSuchWallet
+    liftE2 = throwE . ErrSubmitTxNoSuchWallet
 
 listByronWallets
     :: forall s t k. (DefineTx t, s ~ RndState t)
