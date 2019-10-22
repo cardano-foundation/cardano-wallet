@@ -43,6 +43,7 @@ import Test.Integration.Framework.DSL
     , deleteTxEp
     , deleteWalletEp
     , direction
+    , emptyByronWallet
     , emptyWallet
     , eventually
     , expectErrorMessage
@@ -1600,6 +1601,58 @@ spec = do
             else
                 expectErrorMessage errMsg404NoEndpoint r
 
+    it "BYRON_TRANS_DELETE -\
+        \ Cannot delete tx on Byron wallet using shelley ep" $ \ctx -> do
+            w <- emptyByronWallet ctx
+            let wid = w ^. walletId
+            let txId = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
+            let endpoint = "v2/wallets/" <> wid <> "/transactions/" <> txId
+            r <- request @ApiTxId @IO ctx ("DELETE", endpoint) Default Empty
+            expectResponseCode HTTP.status404 r
+            expectErrorMessage (errMsg404NoWallet wid) r
+
+    it "BYRON_TRANS_ESTIMATE -\
+        \ Cannot estimate tx on Byron wallet using shelley ep" $ \ctx -> do
+            w <- emptyByronWallet ctx
+            let wid = w ^. walletId
+            wDest <- emptyWallet ctx
+            addr:_ <- listAddresses ctx wDest
+            let destination = addr ^. #id
+            let payload = Json [json|{
+                    "payments": [{
+                        "address": #{destination},
+                        "amount": {
+                            "quantity": 1,
+                            "unit": "lovelace"
+                        }
+                    }]
+                }|]
+            let endpoint = "v2/wallets/" <> wid <> "/transactions/fees"
+            r <- request @ApiFee ctx ("POST", endpoint) Default payload
+            expectResponseCode @IO HTTP.status404 r
+            expectErrorMessage (errMsg404NoWallet wid) r
+
+    it "BYRON_TRANS_CREATE -\
+        \ Cannot create tx on Byron wallet using shelley ep" $ \ctx -> do
+            w <- emptyByronWallet ctx
+            let wid = w ^. walletId
+            wDest <- emptyWallet ctx
+            addr:_ <- listAddresses ctx wDest
+            let destination = addr ^. #id
+            let payload = Json [json|{
+                    "payments": [{
+                        "address": #{destination},
+                        "amount": {
+                            "quantity": 1,
+                            "unit": "lovelace"
+                        }
+                    }],
+                    "passphrase": "cardano-wallet"
+                }|]
+            let endpoint = "v2/wallets/" <> wid <> "/transactions"
+            r <- request @(ApiTransaction t) ctx ("POST", endpoint) Default payload
+            expectResponseCode @IO HTTP.status404 r
+            expectErrorMessage (errMsg404NoWallet wid) r
   where
     unsafeGetTransactionTime
         :: [ApiTransaction t]

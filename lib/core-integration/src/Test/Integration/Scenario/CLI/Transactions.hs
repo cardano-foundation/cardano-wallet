@@ -66,6 +66,7 @@ import Test.Integration.Framework.DSL
     , deleteTransactionViaCLI
     , deleteWalletViaCLI
     , direction
+    , emptyByronWallet
     , emptyWallet
     , eventually
     , expectCliFieldBetween
@@ -1038,6 +1039,41 @@ spec = do
                 err `shouldContain` "wallet id should be an \
                     \hex-encoded string of 40 characters"
 
+        it "BYRON_TX_LIST_03 -\
+            \ Shelley CLI does not list Byron wallet transactions" $ \ctx -> do
+            wid <- emptyByronWallet' ctx
+            (Exit c, Stdout o, Stderr e) <- listTransactionsViaCLI @t ctx [wid]
+            e `shouldContain` errMsg404NoWallet (T.pack wid)
+            o `shouldBe` mempty
+            c `shouldBe` ExitFailure 1
+
+        it "BYRON_TRANS_DELETE -\
+            \ Cannot delete tx on Byron wallet using shelley CLI" $ \ctx -> do
+            wid <- emptyByronWallet' ctx
+            (Exit c, Stdout o, Stderr e)
+                <- deleteTransactionViaCLI @t ctx wid (replicate 64 '1')
+            e `shouldContain` errMsg404NoWallet (T.pack wid)
+            o `shouldBe` mempty
+            c `shouldBe` ExitFailure 1
+
+        describe "BYRON_TRANS_CREATE / BYRON_TRANS_ESTIMATE -\
+            \ Cannot create/estimate tx on Byron wallet using shelley CLI" $ do
+            forM_ ["create", "fees"] $ \action -> it action $ \ctx -> do
+                wSrc <- emptyByronWallet ctx
+                wDest <- emptyWallet ctx
+                addrs:_ <- listAddresses ctx wDest
+                let addr = encodeAddress (Proxy @t) (getApiT $ fst $ addrs ^. #id)
+                let port = T.pack $ show $ ctx ^. typed @(Port "wallet")
+                let args = T.unpack <$>
+                        [ "transaction", T.pack action, "--port", port
+                        , wSrc ^. walletId, "--payment", "11@" <> addr
+                        ]
+                -- make sure CLI returns error before asking for passphrase
+                (Exit c, Stdout out, Stderr err) <- cardanoWalletCLI @t args
+                err `shouldContain` "I couldn't find a wallet with \
+                    \the given id: " ++ T.unpack ( wSrc ^. walletId )
+                out `shouldBe` ""
+                c `shouldBe` ExitFailure 1
   where
       unsafeGetTransactionTime
           :: [ApiTransaction t]
@@ -1049,6 +1085,9 @@ spec = do
 
       emptyWallet' :: Context t -> IO String
       emptyWallet' = fmap (T.unpack . view walletId) . emptyWallet
+
+      emptyByronWallet' :: Context t -> IO String
+      emptyByronWallet' = fmap (T.unpack . view walletId) . emptyByronWallet
 
       sortOrderMatrix :: [Maybe SortOrder]
       sortOrderMatrix = Nothing : fmap pure enumerate
