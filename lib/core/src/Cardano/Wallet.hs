@@ -104,6 +104,7 @@ module Cardano.Wallet
     , ErrListTransactions (..)
     , ErrNetworkUnavailable (..)
     , ErrStartTimeLaterThanEndTime (..)
+    , ErrMigrationWallet (..)
     ) where
 
 import Prelude hiding
@@ -1093,6 +1094,19 @@ data ErrStartTimeLaterThanEndTime = ErrStartTimeLaterThanEndTime
     { errStartTime :: UTCTime
     , errEndTime :: UTCTime
     } deriving (Show, Eq)
+
+data ErrPostTransaction e
+    = ErrPostTransactionCreate (ErrCreateUnsignedTx e)
+    | ErrPostTransactionSign ErrSignTx
+    | ErrPostTransactionSubmit ErrSubmitTx
+    deriving (Show, Eq)
+
+data ErrMigrationWallet e
+    = ErrMigrationWalletNoSuchWallet ErrNoSuchWallet
+    | ErrMigrationWalletSeqWalletInSource
+    | ErrMigrationWalletRndWalletInDestination
+    | ErrMigrationWalletPostTx (ErrPostTransaction e)
+    deriving (Show, Eq)
 
 {-------------------------------------------------------------------------------
                                    Utils
