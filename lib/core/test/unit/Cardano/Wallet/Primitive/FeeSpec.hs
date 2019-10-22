@@ -436,7 +436,7 @@ feeOptions
     -> Word64
     -> FeeOptions
 feeOptions fee dust = FeeOptions
-    { estimate =
+    { estimateFee =
         \_ -> Fee fee
     , dustThreshold =
         Coin dust
@@ -605,7 +605,7 @@ instance Arbitrary FeeOptions where
         c <- choose (0, 10) -- price per transaction
         a <- choose (0, 10) -- price per input/output
         return $ FeeOptions
-            { estimate =
+            { estimateFee =
                 \s -> Fee
                     $ fromIntegral
                     $ c + a * (length (inputs s) + length (outputs s))

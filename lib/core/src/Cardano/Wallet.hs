@@ -674,7 +674,7 @@ feeOpts
     -> FeePolicy
     -> FeeOptions
 feeOpts tl feePolicy = FeeOptions
-    { estimate = computeFee feePolicy . estimateSize tl
+    { estimateFee = computeFee feePolicy . estimateSize tl
     , dustThreshold = minBound
     }
 
@@ -747,8 +747,7 @@ estimateTxFee ctx wid recipients = do
     (sel, _utxo') <- withExceptT ErrEstimateTxFeeCoinSelection $ do
         let opts = coinSelOpts tl (bp ^. #getTxMaxSize)
         CoinSelection.random opts recipients utxo
-    let estimateFee = computeFee (bp ^. #getFeePolicy) . estimateSize tl
-    pure $ estimateFee sel
+    pure $ computeFee (bp ^. #getFeePolicy) $ estimateSize tl sel
   where
     tl = ctx ^. transactionLayer @t @k
 

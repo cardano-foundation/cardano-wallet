@@ -103,7 +103,7 @@ selectCoinsForMigration feeOpts batchSize utxo =
         diff :: Integer
         diff = fromIntegral actualFee - fromIntegral requiredFee
           where
-            (Fee requiredFee) = estimate feeOpts coinSel
+            (Fee requiredFee) = estimateFee feeOpts coinSel
             actualFee = inputBalance coinSel - changeBalance coinSel
 
     -- | Apply the given function to the first coin of the list. If the

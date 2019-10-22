@@ -138,7 +138,7 @@ spec = do
                     [ counterexample example (actualFee === expectedFee)
                     | s <- selections
                     , let actualFee = inputBalance s - changeBalance s
-                    , let (Fee expectedFee) = estimate feeOpts s
+                    , let (Fee expectedFee) = estimateFee feeOpts s
                     , let example = unlines
                             [ "Coin Selection: " <> show s
                             , "Actual fee: " <> show actualFee
@@ -156,7 +156,7 @@ genBatchSize = choose (50, 150)
 genFeeOptions :: Coin -> Gen FeeOptions
 genFeeOptions (Coin dust) = do
     pure $ FeeOptions
-        { estimate = \s ->
+        { estimateFee = \s ->
             let x = fromIntegral (length (inputs s) + length (outputs s))
             in Fee $ (dust `div` 100) * x + dust
         , dustThreshold = Coin dust
