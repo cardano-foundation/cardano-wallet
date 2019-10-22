@@ -50,6 +50,8 @@ import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
     ( runExceptT, throwE, withExceptT )
+import Data.Functor
+    ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.List.NonEmpty
@@ -69,6 +71,7 @@ import GHC.Generics
 import Numeric.Natural
     ( Natural )
 
+import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Map.Strict as Map
 
 data Block = Block
@@ -98,10 +101,11 @@ monitorStakePools nl db tr = do
   where
     initCursor :: IO [BlockHeader]
     initCursor = do
-        let (_block0, bp) = staticBlockchainParameters nl
+        let (block0, bp) = staticBlockchainParameters nl
         let k = fromIntegral . getQuantity . view #getEpochStability $ bp
-        readCursor db k
-
+        readCursor db k <&> \case
+            [] -> [W.header block0]
+            xs -> xs
     backward
         :: SlotId
         -> IO (FollowAction ErrMonitorStakePools)
