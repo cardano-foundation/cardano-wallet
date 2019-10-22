@@ -151,7 +151,7 @@ newDBLayer logConfig trace fp = do
             deleteWhere [ StakeDistributionEpoch >. epoch ]
 
 
-        , readCursor = \k -> runQuery $ do
+        , readPoolProductionCursor = \k -> runQuery $ do
             reverse . map (snd . fromPoolProduction . entityVal) <$> selectList
                 []
                 [Desc PoolProductionSlot, LimitTo k]

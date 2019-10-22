@@ -103,7 +103,7 @@ monitorStakePools nl db tr = do
     initCursor = do
         let (block0, bp) = staticBlockchainParameters nl
         let k = fromIntegral . getQuantity . view #getEpochStability $ bp
-        readCursor db k <&> \case
+        readPoolProductionCursor db k <&> \case
             [] -> [W.header block0]
             xs -> xs
     backward

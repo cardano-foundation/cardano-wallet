@@ -56,7 +56,7 @@ data DBLayer m = DBLayer
         :: EpochNo
         -> m [(PoolId, Quantity "lovelace" Word64)]
 
-    , readCursor
+    , readPoolProductionCursor
         :: Int -> m [BlockHeader]
         -- ^ Read the latest @k@ blockheaders in ascending order. The tip will
         -- be the last element in the list.
