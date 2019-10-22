@@ -86,7 +86,7 @@ module Cardano.Wallet
     , signTx
     , submitExternalTx
     , submitTx
-    , estimateByronWalletMigrationCost
+    , estimateWalletMigrationCost
     , ErrCreateUnsignedTx (..)
     , ErrEstimateTxFee (..)
     , ErrSignTx (..)
@@ -755,9 +755,9 @@ estimateTxFee ctx wid recipients = do
     tl = ctx ^. transactionLayer @t @k
 
 
--- | Estimate a Byron wallet migration cost by estimating fee by doing migration
+-- | Estimate a wallet migration cost by estimating fee by doing migration
 -- coin selection first
-estimateByronWalletMigrationCost
+estimateWalletMigrationCost
     :: forall ctx s t k .
         ( HasTransactionLayer t k ctx
         , HasDBLayer s t k ctx
@@ -765,19 +765,17 @@ estimateByronWalletMigrationCost
         )
     => ctx
     -> WalletId
-    -> ExceptT ErrMigrationCost IO Word64
-estimateByronWalletMigrationCost ctx wid = do
-    (wal, _, pending) <- withExceptT ErrMigrationCostNoSuchWallet $
-        readWallet @ctx @s @t @k ctx wid
+    -> ExceptT ErrNoSuchWallet IO Word64
+estimateWalletMigrationCost ctx wid = do
+    (wal, _, pending) <- readWallet @ctx @s @t @k ctx wid
     let bp = blockchainParameters wal
     let utxo = availableUTxO @s @t pending wal
     let cOpts = coinSelOpts tl (bp ^. #getTxMaxSize)
     let fOpts = feeOpts tl (bp ^. #getFeePolicy)
     let batchSize = fromIntegral $ idealBatchSize cOpts
-    let _sel = selectCoinsForMigration fOpts batchSize utxo
-    --- TO DO
-    let res = 1 :: Word64
-    pure res
+    let coinSel = selectCoinsForMigration fOpts batchSize utxo
+    let fees = fmap (estimateFee fOpts) coinSel
+    pure $ foldl (\acc (Fee fee) -> acc + fee) 0 fees
   where
     tl = ctx ^. transactionLayer @t @k
 
@@ -1095,10 +1093,6 @@ data ErrStartTimeLaterThanEndTime = ErrStartTimeLaterThanEndTime
     { errStartTime :: UTCTime
     , errEndTime :: UTCTime
     } deriving (Show, Eq)
-
--- | Errors that can occur when evaluation Byron wallet migration cost
-newtype ErrMigrationCost = ErrMigrationCostNoSuchWallet ErrNoSuchWallet
-    deriving (Show, Eq)
 
 {-------------------------------------------------------------------------------
                                    Utils
