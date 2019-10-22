@@ -93,9 +93,9 @@ main = withLogging Nothing Info $ \logging -> do
     hspec $ do
         describe "No backend required" $ do
             describe "Cardano.Wallet.NetworkSpec" $ parallel NetworkLayer.spec
-            describe "Mnemonics CLI tests" $ MnemonicsCLI.spec @t
-            describe "Miscellaneous CLI tests" $ MiscellaneousCLI.spec @t
-            describe "Launcher CLI tests" $ LauncherCLI.spec @t
+            describe "Mnemonics CLI tests" $ parallel (MnemonicsCLI.spec @t)
+            describe "Miscellaneous CLI tests" $ parallel (MiscellaneousCLI.spec @t)
+            describe "Launcher CLI tests" $ parallel (LauncherCLI.spec @t)
 
         describe "API Specifications" $ specWithServer logging $ do
             Addresses.spec
