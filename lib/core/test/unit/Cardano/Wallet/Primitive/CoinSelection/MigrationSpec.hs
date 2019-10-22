@@ -92,7 +92,7 @@ spec = do
 
         mapM_ testAccuracy [ 0.01 , 0.05 , 0.10 , 0.25 , 0.50 ]
 
-    describe "selectCoinsForMigration" $ do
+    describe "selectCoinsForMigration properties" $ do
 
         it "No coin selection has ouputs" $
             property $ withMaxSuccess 1000 $ \feeOpts batchSize utxo -> do
