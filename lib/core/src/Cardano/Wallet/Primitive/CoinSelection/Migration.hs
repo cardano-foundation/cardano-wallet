@@ -60,7 +60,7 @@ selectCoinsForMigration feeOpts batchSize utxo =
 
     -- Construct a provisional 'CoinSelection' from the given selected inputs.
     -- Note that the selection may look a bit weird at first sight as it has
-    -- not outputs (we are paying everything to ourselves!)
+    -- no outputs (we are paying everything to ourselves!).
     mkCoinSelection :: [(TxIn, TxOut)] -> CoinSelection
     mkCoinSelection inps = CoinSelection
         { inputs = inps
