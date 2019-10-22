@@ -56,8 +56,10 @@ import Network.Socket
     ( SockAddr (..) )
 import Numeric.Natural
     ( Natural )
+import System.Exit
+    ( ExitCode (..) )
 import Test.Hspec
-    ( Spec, SpecWith, after, beforeAll, describe, hspec, parallel )
+    ( Spec, SpecWith, after, afterAll, beforeAll, describe, hspec, parallel )
 import Test.Integration.Framework.DSL
     ( Context (..), KnownCommand (..), TxDescription (..), tearDown )
 
@@ -122,19 +124,21 @@ specWithServer
     :: (CM.Configuration, Trace IO Text)
     -> SpecWith (Context (Jormungandr 'Testnet))
     -> Spec
-specWithServer logCfg = beforeAll start . after tearDown
+specWithServer logCfg = beforeAll start . afterAll _cleanup . after tearDown
   where
     start :: IO (Context (Jormungandr 'Testnet))
     start = do
         ctx <- newEmptyMVar
-        pid <- async $ withConfig $ \jmCfg -> do
+        finished <- newEmptyMVar
+        let untilFinished = fmap (either id id) . race (takeMVar finished)
+        pid <- async $ withConfig $ \jmCfg -> untilFinished $ do
             let listen = ListenOnRandomPort
             serveWallet logCfg Nothing "127.0.0.1" listen (Launch jmCfg) $ \wAddr nPort bp -> do
                 let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
                 manager <- (baseUrl,) <$> newManager defaultManagerSettings
                 faucet <- initFaucet
-                putMVar ctx $  Context
-                    { _cleanup = pure ()
+                putMVar ctx $ Context
+                    { _cleanup = putMVar finished ExitSuccess
                     , _manager = manager
                     , _nodePort = nPort
                     , _walletPort = sockAddrPort wAddr
