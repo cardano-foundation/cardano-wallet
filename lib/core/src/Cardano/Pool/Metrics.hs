@@ -105,6 +105,8 @@ worker nl db tr = do
         handleResult = \case
             Left ErrMetricsWorkerTipTooVolatile
                 -> Retry
+            Left e@ErrMetricsWorkerDataInconsistencyDuplicateBlock
+                -> ExitWith e
             Left e
                 -> ExitWith e
                 -- TODO: Make all cases explicit here.
