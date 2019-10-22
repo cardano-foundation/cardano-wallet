@@ -29,6 +29,8 @@ import Control.Monad.Trans.State
     ( State, evalState, get, put )
 import Data.List
     ( splitAt )
+import Data.List.NonEmpty
+    ( NonEmpty ((:|)) )
 import Data.Maybe
     ( mapMaybe )
 import Data.Word
@@ -78,12 +80,12 @@ selectCoinsForMigration feeOpts batchSize utxo =
     -- | Attempt to balance the coin selection by reducing or increasing the
     -- change values based on the computed fees.
     adjustForFee :: CoinSelection -> Maybe CoinSelection
-    adjustForFee !coinSel
+    adjustForFee !coinSel = case change coinSel of
         -- If there's no change, nothing to adjust
-        | null (change coinSel) = Nothing
+        [] -> Nothing
 
         -- No difference between required and computed, we're done
-        | diff == 0 = Just coinSel
+        (_ : _) | diff == 0 -> Just coinSel
 
         -- Otherwise, we have 2 cases:
         --
@@ -97,8 +99,8 @@ selectCoinsForMigration feeOpts batchSize utxo =
         -- sign of `diff` making for the right modification.
         -- We then recursively call ourselves for this might reduce the number
         -- of outputs and change the fee.
-        | otherwise = adjustForFee $ coinSel
-            { change = modifyFirst (change coinSel) (+ diff) }
+        (c : cs) -> adjustForFee $ coinSel
+            { change = modifyFirst (c :| cs) (+ diff) }
       where
         diff :: Integer
         diff = fromIntegral actualFee - fromIntegral requiredFee
@@ -109,9 +111,8 @@ selectCoinsForMigration feeOpts batchSize utxo =
     -- | Apply the given function to the first coin of the list. If the
     -- operation makes the 'Coin' smaller than the dust threshold, the coin is
     -- discarded.
-    modifyFirst :: [Coin] -> (Integer -> Integer) -> [Coin]
-    modifyFirst [] _  = error "modifyFirst: empty list of 'Coin'"
-    modifyFirst ((Coin c):cs) op
+    modifyFirst :: NonEmpty Coin -> (Integer -> Integer) -> [Coin]
+    modifyFirst (Coin c :| cs) op
         | c' < threshold = cs
         | otherwise = (Coin (fromIntegral c')):cs
       where
