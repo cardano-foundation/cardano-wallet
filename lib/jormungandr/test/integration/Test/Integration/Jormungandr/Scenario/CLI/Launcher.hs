@@ -97,7 +97,6 @@ spec = do
                 withCreateProcess process $ \_ (Just o) (Just e) ph -> do
                     expectPathEventuallyExist d
                     expectPathEventuallyExist (d <> "/chain")
-                    expectPathEventuallyExist (d <> "/jormungandr-config.yaml")
                     expectPathEventuallyExist (d <> "/wallets")
                   `finally` do
                     terminateProcess ph
@@ -118,7 +117,6 @@ spec = do
             withCreateProcess process $ \_ (Just o) (Just e) ph -> do
                 expectPathEventuallyExist dir
                 expectPathEventuallyExist (dir <> "/chain")
-                expectPathEventuallyExist (dir <> "/jormungandr-config.yaml")
                 expectPathEventuallyExist (dir <> "/wallets")
               `finally` do
                 terminateProcess ph
@@ -148,7 +146,32 @@ spec = do
                     ]
             (Exit c, Stdout o, Stderr _) <- cardanoWalletCLI @t args
             c `shouldBe` ExitFailure 1
-            o `shouldContain` ("As far as I can tell, this isn't a valid block file: " <> secret)
+            o `shouldContain`
+                ("As far as I can tell, this isn't a valid block file: " <> secret)
+
+        it "LAUNCH - Conflicting --rest-listen in extra arguments" $ do
+            let args =
+                    [ "launch"
+                    , "--genesis-block", block0
+                    , "--"
+                    , "--rest-listen", "127.0.0.1:8080"
+                    ]
+            (Exit c, Stdout _, Stderr e) <- cardanoWalletCLI @t args
+            c `shouldBe` ExitFailure 1
+            e `shouldContain`
+                "The --rest-listen argument is used by the launch command."
+
+        it "LAUNCH - Conflicting --storage in extra arguments" $ do
+            let args =
+                    [ "launch"
+                    , "--genesis-block", block0
+                    , "--"
+                    , "--storage", "/tmp/whatever"
+                    ]
+            (Exit c, Stdout _, Stderr e) <- cardanoWalletCLI @t args
+            c `shouldBe` ExitFailure 1
+            e `shouldContain`
+                "The --storage argument is used by the launch command."
 
         it "LAUNCH - Restoration workers restart" $ withTempDir $ \d -> do
             pendingWith
