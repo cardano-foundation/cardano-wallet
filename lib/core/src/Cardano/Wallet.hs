@@ -86,7 +86,7 @@ module Cardano.Wallet
     , signTx
     , submitExternalTx
     , submitTx
-    , estimateWalletMigrationCost
+    , createMigration
     , ErrCreateUnsignedTx (..)
     , ErrEstimateTxFee (..)
     , ErrSignTx (..)
@@ -105,6 +105,7 @@ module Cardano.Wallet
     , ErrNetworkUnavailable (..)
     , ErrStartTimeLaterThanEndTime (..)
     , ErrMigrationWallet (..)
+    , ErrPostTransaction (..)
     ) where
 
 import Prelude hiding
@@ -147,6 +148,8 @@ import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..)
     , CoinSelectionOptions (..)
     , ErrCoinSelection (..)
+    , changeBalance
+    , inputBalance
     , shuffle
     )
 import Cardano.Wallet.Primitive.CoinSelection.Migration
@@ -756,9 +759,9 @@ estimateTxFee ctx wid recipients = do
     tl = ctx ^. transactionLayer @t @k
 
 
--- | Estimate a wallet migration cost by estimating fee by doing migration
--- coin selection first
-estimateWalletMigrationCost
+-- | Evaluate wallet migration cost by estimating fee by doing migration
+-- coin selection and returning it also
+createMigration
     :: forall ctx s t k .
         ( HasTransactionLayer t k ctx
         , HasDBLayer s t k ctx
@@ -766,17 +769,17 @@ estimateWalletMigrationCost
         )
     => ctx
     -> WalletId
-    -> ExceptT ErrNoSuchWallet IO Word64
-estimateWalletMigrationCost ctx wid = do
+    -> ExceptT ErrNoSuchWallet IO (Word64,[CoinSelection])
+createMigration ctx wid = do
     (wal, _, pending) <- readWallet @ctx @s @t @k ctx wid
     let bp = blockchainParameters wal
     let utxo = availableUTxO @s @t pending wal
     let cOpts = coinSelOpts tl (bp ^. #getTxMaxSize)
     let fOpts = feeOpts tl (bp ^. #getFeePolicy)
     let batchSize = fromIntegral $ idealBatchSize cOpts
-    let coinSel = selectCoinsForMigration fOpts batchSize utxo
-    let fees = fmap (estimateFee fOpts) coinSel
-    pure $ foldl (\acc (Fee fee) -> acc + fee) 0 fees
+    let coinSels = selectCoinsForMigration fOpts batchSize utxo
+    let fees = fmap (\sel -> inputBalance sel - changeBalance sel) coinSels
+    pure (foldl (+) 0 fees, coinSels)
   where
     tl = ctx ^. transactionLayer @t @k
 
@@ -1095,17 +1098,16 @@ data ErrStartTimeLaterThanEndTime = ErrStartTimeLaterThanEndTime
     , errEndTime :: UTCTime
     } deriving (Show, Eq)
 
-data ErrPostTransaction e
-    = ErrPostTransactionCreate (ErrCreateUnsignedTx e)
-    | ErrPostTransactionSign ErrSignTx
+data ErrPostTransaction
+    = ErrPostTransactionSign ErrSignTx
     | ErrPostTransactionSubmit ErrSubmitTx
     deriving (Show, Eq)
 
-data ErrMigrationWallet e
+data ErrMigrationWallet
     = ErrMigrationWalletNoSuchWallet ErrNoSuchWallet
-    | ErrMigrationWalletSeqWalletInSource
-    | ErrMigrationWalletRndWalletInDestination
-    | ErrMigrationWalletPostTx (ErrPostTransaction e)
+    | ErrMigrationWalletSeqWalletInSource WalletId
+    | ErrMigrationWalletRndWalletInDestination WalletId
+    | ErrMigrationWalletPostTx ErrPostTransaction
     deriving (Show, Eq)
 
 {-------------------------------------------------------------------------------
