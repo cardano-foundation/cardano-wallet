@@ -23,15 +23,18 @@ import Cardano.Wallet.Jormungandr.Binary
     , Message (..)
     , MessageType (..)
     , Milli (..)
+    , TxWitnessTag (..)
     , fragmentId
     , getAddress
     , getBlock
     , getMessage
     , putAddress
     , putSignedTx
+    , putTxWitnessTag
     , runGet
     , runPut
     , singleAddressFromKey
+    , txWitnessSize
     , withHeader
     )
 import Cardano.Wallet.Jormungandr.Compatibility
@@ -408,8 +411,13 @@ instance Arbitrary SignedTx where
 
 -- | Only generates single address witnesses
 instance Arbitrary TxWitness where
-    arbitrary = TxWitness <$> genFixed 64
-    shrink (TxWitness bytes) = TxWitness <$> shrinkFixedBS bytes
+    arbitrary = taggedWitness TxWitnessUTxO . TxWitness
+        <$> genFixed (txWitnessSize TxWitnessUTxO)
 
 prependTag :: Int -> ByteString -> ByteString
 prependTag tag bs = BS.pack [fromIntegral tag] <> bs
+
+taggedWitness :: TxWitnessTag -> TxWitness -> TxWitness
+taggedWitness tag (TxWitness bytes) = TxWitness (prefix <> bytes)
+  where
+    prefix = BL.toStrict $ runPut $ putTxWitnessTag tag

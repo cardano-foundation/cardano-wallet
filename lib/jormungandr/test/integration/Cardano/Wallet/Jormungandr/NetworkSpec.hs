@@ -17,7 +17,15 @@ import Cardano.BM.Trace
 import Cardano.Wallet.Jormungandr.Api
     ( GetTipId, api )
 import Cardano.Wallet.Jormungandr.Binary
-    ( MessageType (..), fragmentId, putSignedTx, runPut, withHeader )
+    ( MessageType (..)
+    , TxWitnessTag (..)
+    , fragmentId
+    , putSignedTx
+    , putTxWitnessTag
+    , runPut
+    , txWitnessSize
+    , withHeader
+    )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr, Network (..) )
 import Cardano.Wallet.Jormungandr.Network
@@ -348,7 +356,7 @@ spec = do
         either throwIO (\_ -> return ()) e
 
     pkWitness :: TxWitness
-    pkWitness = TxWitness $ BS.pack $ replicate 64 3
+    pkWitness = TxWitness $ BS.pack $ [1] <> replicate 64 3
 
     proxy :: Proxy (Jormungandr 'Mainnet)
     proxy = Proxy
@@ -451,8 +459,8 @@ instance Arbitrary SignedTx where
 
 -- | Only generates single address witnesses
 instance Arbitrary TxWitness where
-    arbitrary = TxWitness <$> genFixed 64
-    shrink (TxWitness bytes) = TxWitness <$> shrinkFixedBS bytes
+    arbitrary = taggedWitness TxWitnessUTxO . TxWitness
+        <$> genFixed (txWitnessSize TxWitnessUTxO)
 
 instance Arbitrary (Hash "Tx") where
     arbitrary = Hash <$> genFixed 32
@@ -501,6 +509,11 @@ shrinkFixedBS bs = [zeros | bs /= zeros]
 
 prependTag :: Int -> ByteString -> ByteString
 prependTag tag bs = BS.pack [fromIntegral tag] <> bs
+
+taggedWitness :: TxWitnessTag -> TxWitness -> TxWitness
+taggedWitness tag (TxWitness bytes) = TxWitness (prefix <> bytes)
+  where
+    prefix = BL.toStrict $ runPut $ putTxWitnessTag tag
 
 getRollForward :: NextBlocksResult target block -> Maybe [block]
 getRollForward AwaitReply = Nothing
