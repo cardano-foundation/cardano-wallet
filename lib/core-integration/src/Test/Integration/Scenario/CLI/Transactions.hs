@@ -93,6 +93,7 @@ import Test.Integration.Framework.TestData
     ( arabicWalletName
     , errMsg403Fee
     , errMsg403InputsDepleted
+    , errMsg403NoPendingAnymore
     , errMsg403NotEnoughMoney
     , errMsg403UTxO
     , errMsg403WrongPass
@@ -982,6 +983,44 @@ spec = do
             [ expectCliListItemFieldEqual 0 direction Outgoing
             , expectCliListItemFieldEqual 0 status InLedger
             ]
+
+    it "TRANS_DELETE_02 - Checking not pending anymore error via CLI" $ \ctx -> do
+        wSrc <- fixtureWallet ctx
+        wDest <- emptyWallet ctx
+        addr:_ <- listAddresses ctx wDest
+        let addrStr =
+                encodeAddress (Proxy @t) (getApiT $ fst $ addr ^. #id)
+        let amt = 1
+        let args = T.unpack <$>
+                [ wSrc ^. walletId
+                , "--payment", T.pack (show amt) <> "@" <> addrStr
+                ]
+
+        -- post transaction
+        (c, out, err) <- postTransactionViaCLI @t ctx "cardano-wallet" args
+        err `shouldBe` "Please enter your passphrase: **************\nOk.\n"
+        txJson <- expectValidJSON (Proxy @(ApiTransaction t)) out
+        verify txJson
+            [ expectCliFieldEqual direction Outgoing
+            , expectCliFieldEqual status Pending
+            ]
+        c `shouldBe` ExitSuccess
+
+        let txId' = txJson ^. #id
+        let txId = toUrlPiece (ApiTxId txId')
+
+        -- forget transaction
+        let wid = T.unpack $ wSrc ^. walletId
+        Exit c1 <- deleteTransactionViaCLI @t ctx wid (T.unpack txId)
+        c1 `shouldBe` ExitSuccess
+
+        expectEventually' ctx getWalletEp balanceTotal amt wDest
+
+        -- forget transaction once again
+        (Exit c2, Stdout out2, Stderr err2) <- deleteTransactionViaCLI @t ctx wid (T.unpack txId)
+        err2 `shouldContain` errMsg403NoPendingAnymore txId
+        out2 `shouldBe` ""
+        c2 `shouldBe` ExitFailure 1
 
   where
       unsafeGetTransactionTime
