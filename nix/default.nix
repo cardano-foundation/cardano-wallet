@@ -13,6 +13,7 @@
 # Dependencies of cardano-wallet-jormungandr
 , jmPkgs ? import ./jormungandr.nix { inherit pkgs; }
 , jormungandr ? jmPkgs.jormungandr
+, jormungandr-cli ? jmPkgs.jormungandr-cli
 
 # Customisations for cross-compiling
 , iohk-extras ? {}
@@ -64,7 +65,7 @@ let
 
         packages.cardano-wallet-jormungandr.components.tests = {
           # provide jormungandr command to test suites
-          integration.build-tools = [ jormungandr ];
+          integration.build-tools = [ jormungandr jormungandr-cli ];
           unit.build-tools = [ jormungandr ];
         };
 
