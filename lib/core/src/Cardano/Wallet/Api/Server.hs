@@ -820,7 +820,9 @@ getByronWalletMigrationInfo
     => ApiLayer s t k
     -> ApiT WalletId
     -> Handler ApiByronWalletMigrationInfo
-getByronWalletMigrationInfo _ _ = throwError err501
+getByronWalletMigrationInfo _ _ =
+-- TODO let fees = sum $ (\sel -> inputBalance sel - changeBalance sel) <$> coinSels
+    throwError err501
 
 migrateByronWallet
     :: forall t.
@@ -842,9 +844,10 @@ migrateByronWallet rndCtx seqCtx (ApiT rndWid) (ApiT seqWid) migrateData = do
     -- FIXME
     -- Better error handling here to inform users if they messed up with the
     -- wallet ids.
-    (_, cs) <- liftHandler $ withWorkerCtx rndCtx rndWid throwE $ \rndWrk ->
+    cs <- liftHandler $ withWorkerCtx rndCtx rndWid throwE $ \rndWrk -> do
+        cs <- W.createMigration rndWrk rndWid
         withWorkerCtx seqCtx seqWid throwE $ \seqWrk ->
-            W.createMigration (rndWrk, rndWid) (seqWrk, rndWid)
+            W.executeMigration seqWrk seqWid cs
 
     now <- liftIO getCurrentTime
 

@@ -87,6 +87,7 @@ module Cardano.Wallet
     , submitExternalTx
     , submitTx
     , createMigration
+    , executeMigration
     , ErrCreateUnsignedTx (..)
     , ErrEstimateTxFee (..)
     , ErrSignTx (..)
@@ -146,8 +147,6 @@ import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..)
     , CoinSelectionOptions (..)
     , ErrCoinSelection (..)
-    , changeBalance
-    , inputBalance
     , shuffle
     )
 import Cardano.Wallet.Primitive.CoinSelection.Migration
@@ -255,7 +254,7 @@ import Data.Text
 import Data.Time.Clock
     ( UTCTime, getCurrentTime )
 import Data.Word
-    ( Word16, Word64 )
+    ( Word16 )
 import Fmt
     ( Buildable, blockListF, pretty )
 import GHC.Generics
@@ -756,48 +755,58 @@ estimateTxFee ctx wid recipients = do
   where
     tl = ctx ^. transactionLayer @t @k
 
--- | Evaluate wallet migration cost by estimating fee by doing migration
--- coin selection and returning it also
+-- | Construct a set of transaction to migrate all funds of a given wallets to
+-- another wallet. This returns a list of coin selection where only change
+-- outputs are specified.
 createMigration
-    :: forall from s t k to s' t' k'.
-        ( HasTransactionLayer t k from
-        , HasDBLayer s t k from
-        , HasDBLayer s' t' k' to
+    :: forall ctx s t k.
+        ( HasTransactionLayer t k ctx
+        , HasDBLayer s t k ctx
         , DefineTx t
-        , GenChange s'
-        , IsOurs s'
-        , NFData s'
-        , Show s'
         )
-    => (from, WalletId)
-    -> (to, WalletId)
-    -> ExceptT ErrNoSuchWallet IO (Word64, [CoinSelection])
-createMigration (from, fromId) (to, toId) = do
-    (cpFrom, _, pending) <- readWallet @from @s @t @k from fromId
-    cpTo <- readWalletCheckpoint @to @s' @t' @k' to toId
+    => ctx
+    -> WalletId
+    -> ExceptT ErrNoSuchWallet IO [CoinSelection]
+createMigration ctx wid = do
+    (cp, _, pending) <- readWallet @ctx @s @t @k ctx wid
+    let bp = blockchainParameters cp
+    let utxo = availableUTxO @s @t pending cp
+    -- FIXME
+    -- Set threshold to 'b' (constant from the fee policy) instead of 'minBound'
+    let fOpts = feeOpts tl (bp ^. #getFeePolicy)
+    let cOpts = coinSelOpts tl (bp ^. #getTxMaxSize)
+    pure $ selectCoinsForMigration fOpts (idealBatchSize cOpts) utxo
+  where
+    tl = ctx ^. transactionLayer @t @k
 
+-- | Generate output addresses for a given migration. This effectively
+-- transforms all change into outputs and register generated addresses as
+-- pending change addresses.
+executeMigration
+    :: forall ctx s t k.
+        ( HasDBLayer s t k ctx
+        , DefineTx t
+        , GenChange s
+        , IsOurs s
+        , NFData s
+        , Show s
+        )
+    => ctx
+    -> WalletId
+    -> [CoinSelection]
+    -> ExceptT ErrNoSuchWallet IO [CoinSelection]
+executeMigration ctx wid cs = do
+    cp <- readWalletCheckpoint @ctx @s @t @k ctx wid
     let pwd = error "FIXME: genChange should NOT require a pwd for seq wallets!!"
-
-    let (coinSels, s') = flip runState (getState cpTo) $ do
-            let bp = blockchainParameters cpFrom
-            let utxo = availableUTxO @s @t pending cpFrom
-            let fOpts = feeOpts tlFrom (bp ^. #getFeePolicy)
-                    -- FIXME Set threshold to 'b' (constant from fee policy)
-            let cOpts = coinSelOpts tlFrom (bp ^. #getTxMaxSize)
-            let cs = selectCoinsForMigration fOpts (idealBatchSize cOpts) utxo
+    let (cs', s') = flip runState (getState cp) $ do
             forM cs $ \sel -> do
                 outs <- forM (change sel) $ \c -> do
                     addr <- state (genChange pwd)
                     pure (TxOut addr c)
                 pure (sel { change = [], outputs = outs })
-
-    DB.putCheckpoint dbTo (PrimaryKey toId) (updateState s' cpTo)
-
-    let fees = sum $ (\sel -> inputBalance sel - changeBalance sel) <$> coinSels
-    pure ( fees, coinSels )
+    DB.putCheckpoint db (PrimaryKey wid) (updateState s' cp) $> cs'
   where
-    tlFrom = from ^. transactionLayer @t @k
-    dbTo = to ^. dbLayer @s' @t' @k'
+    db = ctx ^. dbLayer @s @t @k
 
 -- | Produce witnesses and construct a transaction from a given
 -- selection. Requires the encryption passphrase in order to decrypt
