@@ -37,7 +37,27 @@ let
     cargoSha256 = "1kba65rnm2vyqsjhcnfwy1m44x1w3xxlzinykmb89jy6qr8gvp42";
   };
 
+  windows = rec {
+    # URL and hash of windows binary release
+    url = "https://github.com/input-output-hk/jormungandr/releases/download/v${release.version}/jormungandr-v${release.version}-x86_64-pc-windows-msvc.zip";
+    sha256 = "16pxgi4igvfh2kccsbyizfc4wyxr8fs1872hpsmr99ppna09rqi3";
+  };
+
+  jormungandr-win64 = pkgs.runCommand "jormungandr-win64-${release.version}" {
+    nativeBuildInputs = [ pkgs.buildPackages.unzip ];
+  } ''
+    mkdir -p $out/bin
+    cd $out/bin
+    unzip ${pkgs.fetchurl windows}
+  '';
+
+  nonWindows = pkg: if pkgs.stdenv.hostPlatform.isWindows
+    then jormungandr-win64
+    else pkg;
+
 in {
-  jormungandr = iohkLib.rust-packages.pkgs.makeJormungandr release;
-  jormungandr-cli = iohkLib.rust-packages.pkgs.makeJcli release;
+  jormungandr = nonWindows (iohkLib.rust-packages.pkgs.makeJormungandr release);
+  jormungandr-cli = nonWindows (iohkLib.rust-packages.pkgs.makeJcli release);
+
+  inherit jormungandr-win64;
 }

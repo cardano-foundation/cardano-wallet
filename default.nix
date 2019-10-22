@@ -13,8 +13,8 @@ let
   haskell = iohkLib.nix-tools.haskell { inherit pkgs; };
   src = iohkLib.cleanSourceHaskell ./.;
 
-  inherit (import ./nix/jormungandr.nix { inherit iohkLib pkgs; })
-    jormungandr jormungandr-cli;
+  jmPkgs = import ./nix/jormungandr.nix { inherit iohkLib pkgs; };
+  inherit (jmPkgs) jormungandr jormungandr-cli;
 
   cardano-http-bridge = iohkLib.rust-packages.pkgs.callPackage
     ./nix/cardano-http-bridge.nix { inherit pkgs; };
@@ -26,15 +26,19 @@ let
     inherit (iohkLib.nix-tools) iohk-extras iohk-module;
   };
 
-in {
-  inherit pkgs iohkLib src haskellPackages;
-  inherit cardano-http-bridge cardano-sl-node jormungandr jormungandr-cli;
   inherit (haskellPackages.cardano-wallet-core.identifier) version;
+in {
+  inherit pkgs iohkLib src haskellPackages version;
+  inherit cardano-http-bridge cardano-sl-node jormungandr jormungandr-cli;
 
   inherit (haskellPackages.cardano-wallet-http-bridge.components.exes)
     cardano-wallet-http-bridge;
-  inherit (haskellPackages.cardano-wallet-jormungandr.components.exes)
-    cardano-wallet-jormungandr;
+
+  cardano-wallet-jormungandr = import ./nix/package-jormungandr.nix {
+    inherit (haskellPackages.cardano-wallet-jormungandr.components.exes)
+      cardano-wallet-jormungandr;
+    inherit pkgs jmPkgs version;
+  };
 
   tests = collectComponents "tests" isCardanoWallet haskellPackages;
   benchmarks = collectComponents "benchmarks" isCardanoWallet haskellPackages;
