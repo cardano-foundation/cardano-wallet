@@ -44,6 +44,7 @@ import Test.Integration.Framework.DSL
     , deleteWalletEp
     , direction
     , emptyWallet
+    , eventually
     , expectErrorMessage
     , expectEventually
     , expectEventually'
@@ -1484,9 +1485,9 @@ spec = do
 
     it "TRANS_DELETE_01 - Single Output Transaction" $ \ctx -> do
         (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+        -- post transaction
         addrs <- listAddresses ctx wDest
-
-        let amt = 1
+        let amt = 1 :: Int
         let destination = (addrs !! 1) ^. #id
         let payload = Json [json|{
                 "payments": [{
@@ -1498,61 +1499,54 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        let (_, feeMax) = ctx ^. feeEstimator $ TxDescription
-                { nInputs = 1
-                , nOutputs = 1
-                }
-
-        r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
-        verify r
+        rMkTx <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+        let txId = getFromResponse #id rMkTx
+        verify rMkTx
             [ expectSuccess
             , expectResponseCode HTTP.status202
             , expectFieldEqual direction Outgoing
             , expectFieldEqual status Pending
             ]
 
-        let txId = getFromResponse #id r
-
-        ra <- request @ApiWallet ctx (getWalletEp wSrc) Default Empty
-        verify ra
+        -- verify balance on src wallet
+        request @ApiWallet ctx (getWalletEp wSrc) Default Empty >>= flip verify
             [ expectSuccess
             , expectFieldEqual balanceAvailable (faucetAmt - faucetUtxoAmt)
             ]
 
-        rDel <- request @ApiTxId ctx (deleteTxEp wSrc (ApiTxId txId)) Default Empty
-        expectResponseCode @IO HTTP.status204 rDel
+        -- forget transaction
+        request @ApiTxId ctx (deleteTxEp wSrc (ApiTxId txId)) Default Empty
+            >>= expectResponseCode @IO HTTP.status204
 
-        rb <- request @ApiWallet ctx (getWalletEp wSrc) Default Empty
-        verify rb
+        -- verify again balance on src wallet
+        request @ApiWallet ctx (getWalletEp wSrc) Default Empty >>= flip verify
             [ expectSuccess
             , expectFieldEqual balanceTotal faucetAmt
             , expectFieldEqual balanceAvailable faucetAmt
             ]
 
-        rc <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
-        verify rc
-            [ expectSuccess
-            , expectEventually ctx getWalletEp balanceAvailable amt
-            ]
+        -- transaction eventually is in source wallet
+        eventually $ do
+            let ep = listTxEp wSrc mempty
+            request @[ApiTransaction t] ctx ep Default Empty >>= flip verify
+                [ expectListItemFieldEqual 0 direction Outgoing
+                , expectListItemFieldEqual 0 status InLedger
+                ]
 
-        verify rb
-            [ expectEventually ctx getWalletEp balanceAvailable (faucetAmt - feeMax - amt)
-            ]
-
-        rd <- request @([ApiTransaction t]) ctx (listTxEp wSrc mempty)
-            Default Empty
-        expectResponseCode @IO HTTP.status200 rd
-
-        verify rd
-            [ expectListItemFieldEqual 0 direction Outgoing
-            , expectListItemFieldEqual 0 status InLedger
-            ]
+        -- transaction eventually is in target wallet
+        eventually $ do
+            let ep = listTxEp wDest mempty
+            request @[ApiTransaction t] ctx ep Default Empty >>= flip verify
+                [ expectListItemFieldEqual 0 direction Incoming
+                , expectListItemFieldEqual 0 status InLedger
+                ]
 
     it "TRANS_DELETE_02 - checking not pending anymore error" $ \ctx -> do
         (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
-        addrs <- listAddresses ctx wDest
 
-        let amt = 1
+        -- post transaction
+        addrs <- listAddresses ctx wDest
+        let amt = 1 :: Int
         let destination = (addrs !! 1) ^. #id
         let payload = Json [json|{
                 "payments": [{
@@ -1564,27 +1558,27 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-
-        r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
-        verify r
+        rMkTx <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+        let txId = getFromResponse #id rMkTx
+        verify rMkTx
             [ expectSuccess
             , expectResponseCode HTTP.status202
             ]
 
-        let txId = getFromResponse #id r
+        -- Wait for the transaction to be accepted
+        eventually $ do
+            let ep = listTxEp wSrc mempty
+            request @([ApiTransaction t]) ctx ep Default Empty >>= flip verify
+                [ expectListItemFieldEqual 0 direction Outgoing
+                , expectListItemFieldEqual 0 status InLedger
+                ]
 
-        rDel <- request @ApiTxId ctx (deleteTxEp wSrc (ApiTxId txId)) Default Empty
-        expectResponseCode @IO HTTP.status204 rDel
-
-        ra <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
-        verify ra
-            [ expectSuccess
-            , expectEventually ctx getWalletEp balanceAvailable amt
-            ]
-
-        rDel1 <- request @ApiTxId ctx (deleteTxEp wSrc (ApiTxId txId)) Default Empty
-        expectResponseCode @IO HTTP.status403 rDel1
-        expectErrorMessage (errMsg403NoPendingAnymore (toUrlPiece (ApiTxId txId))) rDel1
+        -- Try Forget transaction once it's no longer pending
+        let ep = deleteTxEp wSrc (ApiTxId txId)
+        rDel <- request @ApiTxId ctx ep Default Empty
+        expectResponseCode @IO HTTP.status403 rDel
+        let err = errMsg403NoPendingAnymore (toUrlPiece (ApiTxId txId))
+        expectErrorMessage err rDel
 
     it "TRANS_DELETE_03 - checking no transaction id error" $ \ctx -> do
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default simplePayload
