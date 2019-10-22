@@ -97,6 +97,7 @@ import Test.Integration.Framework.TestData
     , errMsg403NotEnoughMoney
     , errMsg403UTxO
     , errMsg403WrongPass
+    , errMsg404CannotFindTx
     , errMsg404NoWallet
     , falseWalletIds
     , kanjiWalletName
@@ -1017,10 +1018,22 @@ spec = do
         expectEventually' ctx getWalletEp balanceTotal amt wDest
 
         -- forget transaction once again
-        (Exit c2, Stdout out2, Stderr err2) <- deleteTransactionViaCLI @t ctx wid (T.unpack txId)
+        (Exit c2, Stdout out2, Stderr err2) <-
+            deleteTransactionViaCLI @t ctx wid (T.unpack txId)
         err2 `shouldContain` errMsg403NoPendingAnymore txId
         out2 `shouldBe` ""
         c2 `shouldBe` ExitFailure 1
+
+    it "TRANS_DELETE_03 - Checking no transaction id error via CLI" $ \ctx -> do
+        wSrc <- fixtureWallet ctx
+        let wid = T.unpack $ wSrc ^. walletId
+        let txId = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
+        -- forget transaction once again
+        (Exit c, Stdout out, Stderr err) <-
+            deleteTransactionViaCLI @t ctx wid (T.unpack txId)
+        err `shouldContain` errMsg404CannotFindTx txId
+        out `shouldBe` ""
+        c `shouldBe` ExitFailure 1
 
   where
       unsafeGetTransactionTime
