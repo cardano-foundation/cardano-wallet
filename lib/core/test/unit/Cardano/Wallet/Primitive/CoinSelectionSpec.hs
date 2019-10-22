@@ -62,6 +62,7 @@ import Test.QuickCheck
     , checkCoverageWith
     , choose
     , cover
+    , elements
     , generate
     , oneof
     , scale
@@ -205,6 +206,22 @@ coinSelectionUnitTest run lbl expected (CoinSelectionFixture n fn utxoF outsF) =
 -------------------------------------------------------------------------------}
 
 deriving instance Arbitrary a => Arbitrary (ShowFmt a)
+
+instance Arbitrary (CoinSelectionOptions e) where
+    arbitrary = do
+        -- NOTE Functions have to be decreasing functions
+        fn <- elements
+            [ (maxBound -)
+            , \x ->
+                if x > maxBound `div` 2
+                    then maxBound
+                    else maxBound - (2 * x)
+            , const 42
+            ]
+        pure $ CoinSelectionOptions fn (const (pure ()))
+
+instance Show (CoinSelectionOptions e) where
+    show _ = "CoinSelectionOptions"
 
 instance Arbitrary a => Arbitrary (NonEmpty a) where
     shrink xs = catMaybes (NE.nonEmpty <$> shrink (NE.toList xs))

@@ -436,7 +436,7 @@ feeOptions
     -> Word64
     -> FeeOptions
 feeOptions fee dust = FeeOptions
-    { estimate =
+    { estimateFee =
         \_ -> Fee fee
     , dustThreshold =
         Coin dust
@@ -598,3 +598,19 @@ instance Arbitrary CoinSelection where
             >>= \n -> vectorOf n arbitrary
             >>= genTxOut
         genSelection (NE.fromList outs)
+
+instance Arbitrary FeeOptions where
+    arbitrary = do
+        t <- choose (0, 10) -- dust threshold
+        c <- choose (0, 10) -- price per transaction
+        a <- choose (0, 10) -- price per input/output
+        return $ FeeOptions
+            { estimateFee =
+                \s -> Fee
+                    $ fromIntegral
+                    $ c + a * (length (inputs s) + length (outputs s))
+            , dustThreshold = Coin t
+            }
+
+instance Show FeeOptions where
+    show (FeeOptions _ dust) = show dust

@@ -98,7 +98,7 @@ computeFee policy (Quantity sz) =
 -------------------------------------------------------------------------------}
 
 data FeeOptions = FeeOptions
-    { estimate
+    { estimateFee
       :: CoinSelection -> Fee
       -- ^ Estimate fees based on number of inputs and values of the outputs
       -- Some pointers / order of magnitude from the current configuration:
@@ -150,13 +150,16 @@ adjustForFee
     -> CoinSelection
     -> ExceptT ErrAdjustForFee m CoinSelection
 adjustForFee unsafeOpt utxo coinSel = do
-    let opt = invariant "adjustForFee: fee must be non-null" unsafeOpt (not . nullFee)
+    let opt = invariant
+            "adjustForFee: fee must be non-null" unsafeOpt (not . nullFee)
     CoinSelection inps' outs' chgs' <- senderPaysFee opt utxo coinSel
-    let neInps = invariant "adjustForFee: empty list of inputs" inps' (not . null)
-    let neOuts = invariant "adjustForFee: empty list of outputs" outs' (not .  null)
+    let neInps = invariant
+            "adjustForFee: empty list of inputs" inps' (not . null)
+    let neOuts = invariant
+            "adjustForFee: empty list of outputs" outs' (not .  null)
     return $ CoinSelection neInps neOuts chgs'
   where
-    nullFee opt = estimate opt coinSel == Fee 0
+    nullFee opt = estimateFee opt coinSel == Fee 0
 
 -- | The sender pays fee in this scenario, so fees are removed from the change
 -- outputs, and new inputs are selected if necessary.
@@ -175,7 +178,7 @@ senderPaysFee opt utxo sel = evalStateT (go sel) utxo where
         -- 1/
         -- We compute fees using all inputs, outputs and changes since
         -- all of them have an influence on the fee calculation.
-        let upperBound = estimate opt coinSel
+        let upperBound = estimateFee opt coinSel
         -- 2/
         -- Substract fee from change outputs, proportionally to their value.
         let (Fee remainingFee, chgs') = reduceChangeOutputs opt upperBound chgs
