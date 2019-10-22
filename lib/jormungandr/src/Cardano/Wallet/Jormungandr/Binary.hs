@@ -43,6 +43,10 @@ module Cardano.Wallet.Jormungandr.Binary
     , signData
     , utxoWitness
     , legacyUtxoWitness
+    , TxWitnessTag (..)
+    , putTxWitnessTag
+    , getTxWitnessTag
+    , txWitnessSize
 
     -- * Purification of chain block types
     , convertBlock
@@ -626,7 +630,7 @@ estimateMaxNumberOfInputsParams = EstimateMaxNumberOfInputsParams
     , estBlockHashSize = 32
 
     -- The length of the smallest type of witness.
-    , estTxWitnessSize = txWitnessSize TxWitnessUTxO
+    , estTxWitnessSize = txWitnessSize TxWitnessUTxO + txWitnessTagSize
     }
 
 -- | Jörmungandr distinguish 'fragment id' (what we commonly call 'txId')
