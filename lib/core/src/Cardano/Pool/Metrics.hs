@@ -14,60 +14,141 @@
 -- - "Cardano.Pool.DB" - which can persist the metrics
 -- - "Cardano.Wallet.Api.Server" - which presents the results in an endpoint
 module Cardano.Pool.Metrics
-    ( activityForEpoch
-    , combineMetrics
+    ( -- * Types
+      Block (..)
+
+      -- * Following the chain
+    , monitorStakePools
+
+      -- * Combining Metrics
     , ErrMetricsInconsistency (..)
-
-    -- * Helper
-    , withinSameTip
-    , ErrWithinSameTip (..)
-
-    , State (..)
-    , applyBlock
+    , combineMetrics
     )
     where
 
 import Prelude
 
+import Cardano.BM.Trace
+    ( Trace, logDebug, logNotice )
+import Cardano.Pool.DB
+    ( DBLayer (..), ErrPointAlreadyExists )
+import Cardano.Wallet.Network
+    ( ErrNetworkTip
+    , ErrNetworkUnavailable
+    , FollowAction (..)
+    , NetworkLayer (networkTip, stakeDistribution)
+    , follow
+    , staticBlockchainParameters
+    )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), EpochNo (..), PoolId (..), SlotId (..) )
+    ( BlockHeader (..), PoolId (..), SlotId (..) )
+import Control.Monad
+    ( forM_, when )
 import Control.Monad.IO.Class
-    ( MonadIO )
-import Control.Retry
-    ( RetryPolicyM, retrying )
-import Data.Either
-    ( isLeft )
+    ( liftIO )
+import Control.Monad.Trans.Class
+    ( lift )
+import Control.Monad.Trans.Except
+    ( runExceptT, throwE, withExceptT )
+import Data.Functor
+    ( (<&>) )
+import Data.Generics.Internal.VL.Lens
+    ( view )
+import Data.List.NonEmpty
+    ( NonEmpty )
 import Data.Map.Merge.Strict
-    ( WhenMatched, WhenMissing, mergeA, traverseMissing, zipWithMatched )
+    ( mergeA, traverseMissing, zipWithMatched )
 import Data.Map.Strict
     ( Map )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text
+    ( Text )
 import Data.Word
     ( Word64 )
-import Fmt
-    ( Buildable (..), blockListF', fmt, (+|), (|+) )
 import GHC.Generics
     ( Generic )
 import Numeric.Natural
     ( Natural )
 
+import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Map.Strict as Map
 
--- | For a given epoch, and state, this function returns /how many/ blocks
--- each pool produced.
-activityForEpoch :: EpochNo -> State -> Map PoolId Int
-activityForEpoch epoch s =
-    Map.filter (> 0)
-    $ Map.map (length . filter slotInCurrentEpoch)
-    (activity s)
-  where
-    slotInCurrentEpoch = ((epoch ==) . epochNumber)
+data Block = Block
+    { header :: BlockHeader
+    , producer :: PoolId
+    } deriving (Eq, Show, Generic)
 
-data ErrMetricsInconsistency
-    = ErrMetricsInconsistencyBlockProducerNotInStakeDistr
-        PoolId
-        (Quantity "block" Natural)
+-- | 'monitorStakePools' follows the chain and puts pool productions and stake
+-- distributions to a 'DBLayer', such that the data in the database is always
+-- consistent.
+--
+-- The pool productions and stake distrubtions in the db can /never/ be from
+-- different forks such that it's safe for readers to access it.
+--
+-- FIXME: This last statement is only true if 'putStakeProduction' and
+-- 'putPoolProduction' are running in the same db transaction, which would be
+-- the case if we make 'SqlPersistT' the top-level monad for the 'DBLayer'
+-- instead of 'IO'.
+monitorStakePools
+    :: NetworkLayer IO t Block
+    -> DBLayer IO
+    -> Trace IO Text
+    -> IO ()
+monitorStakePools nl db tr = do
+    cursor <- initCursor
+    follow nl tr cursor forward backward header
+  where
+    initCursor :: IO [BlockHeader]
+    initCursor = do
+        let (block0, bp) = staticBlockchainParameters nl
+        let k = fromIntegral . getQuantity . view #getEpochStability $ bp
+        readCursor db k <&> \case
+            [] -> [W.header block0]
+            xs -> xs
+    backward
+        :: SlotId
+        -> IO (FollowAction ErrMonitorStakePools)
+    backward point = do
+        liftIO $ rollbackTo db point
+        return Continue
+
+    forward
+        :: NonEmpty Block
+        -> BlockHeader
+        -> IO (FollowAction ErrMonitorStakePools)
+    forward blocks nodeTip = handler $ do
+        (ep, dist) <- withExceptT ErrMonitorStakePoolsNetworkUnavailable $
+            stakeDistribution nl
+        currentTip <- withExceptT ErrMonitorStakePoolsNetworkTip $
+            networkTip nl
+        when (nodeTip /= currentTip) $ throwE ErrMonitorStakePoolsWrongTip
+        -- FIXME Do the next operation in a database transaction
+        lift $ putStakeDistribution db ep (Map.toList dist)
+        forM_ blocks $ \b -> withExceptT ErrMonitorStakePoolsPoolAlreadyExists $
+            putPoolProduction db (header b) (producer b)
+      where
+        handler action = runExceptT action >>= \case
+            Left ErrMonitorStakePoolsNetworkUnavailable{} -> do
+                logNotice tr "Network is not available."
+                pure RetryLater
+            Left ErrMonitorStakePoolsNetworkTip{} -> do
+                logNotice tr "Network is not available."
+                pure RetryLater
+            Left ErrMonitorStakePoolsWrongTip{} -> do
+                logDebug tr "Race condition when fetching stake distribution."
+                pure RetryImmediately
+            Left e@ErrMonitorStakePoolsPoolAlreadyExists{} ->
+                pure (ExitWith e)
+            Right () ->
+                pure Continue
+
+-- | Internal error data-type used to drive the 'forward' logic
+data ErrMonitorStakePools
+    = ErrMonitorStakePoolsNetworkUnavailable ErrNetworkUnavailable
+    | ErrMonitorStakePoolsPoolAlreadyExists ErrPointAlreadyExists
+    | ErrMonitorStakePoolsNetworkTip ErrNetworkTip
+    | ErrMonitorStakePoolsWrongTip
     deriving (Show, Eq)
 
 -- | Combines two different sources of data into one:
@@ -93,106 +174,24 @@ combineMetrics =
         activityButNoStake
         stakeAndActivity
   where
-    stakeButNoActivity
-        :: WhenMissing
-            (Either ErrMetricsInconsistency)
-            PoolId
-            (Quantity "lovelace" Word64)
-            (Quantity "lovelace" Word64, Quantity "block" Natural)
     stakeButNoActivity = traverseMissing $ \_k stake ->
         pure (stake, Quantity 0)
 
-    activityButNoStake
-        :: WhenMissing
-            (Either ErrMetricsInconsistency)
-            PoolId
-            (Quantity "block" Natural)
-            (Quantity "lovelace" Word64, Quantity "block" Natural)
     activityButNoStake = traverseMissing $ \pool count ->
-        Left $ ErrMetricsInconsistencyBlockProducerNotInStakeDistr pool count
+        Left $ ErrProducerNotInDistribution pool count
 
-    stakeAndActivity
-        :: WhenMatched
-            (Either ErrMetricsInconsistency)
-            PoolId
-            (Quantity "lovelace" Word64)
-            (Quantity "block" Natural)
-            (Quantity "lovelace" Word64, Quantity "block" Natural)
     stakeAndActivity =
         zipWithMatched (\_k stake productions -> (stake, productions))
 
--- | Runs an action by making sure that the network header hasn't changed before
--- and after the action. This is useful in order to combine data from different
--- sources and make sure that all data retrieval and computations happens on a
--- same version.
---
--- The action __must__ be retry-able (i.e. read-only) for it will be retried if
--- the tip has changed before and after the call.
-withinSameTip
-    :: forall m header a. (MonadIO m, Eq header)
-    => RetryPolicyM m
-        -- ^ Retrying policy to command what to do in case the action wasn't
-        -- executed within the same tip.
-    -> (ErrWithinSameTip -> m a)
-        -- ^ On failure
-    -> m header
-        -- ^ A getter for that header.
-    -> (header -> m a)
-        -- ^ The action to run
-    -> m a
-withinSameTip policy liftE getTip action = do
-    let shouldRetry = const (pure . isLeft)
-    res <- retrying policy shouldRetry (const trial)
-    case res of
-        Left e -> liftE e
-        Right r -> return r
-  where
-    trial :: m (Either ErrWithinSameTip a)
-    trial = do
-        start <- getTip
-        a <- action start
-        end <- getTip
-        pure $ if (start /= end)
-            then Left ErrWithinSameTipMaxRetries
-            else Right a
-
-data ErrWithinSameTip
-    = ErrWithinSameTipMaxRetries
-        -- ^ Retried too many times
-    deriving (Generic, Show, Eq)
-
---
--- Internals
---
-
--- | In-memory state keeping track of which pool produced blocks at which slots.
-data State = State
-    { tip :: BlockHeader
-      -- ^ The blockHeader of the most recently applied block. Used to resume
-      -- restoration from @NetworkLayer@.
-    , activity :: Map PoolId [SlotId]
-    -- ^ Mapping from pools to the slots where pool produced blocks.
-    --
-    -- This is needed internally to support rollback, but publicly, only the
-    -- /length of/ the SlotId-list is likely needed.
-    } deriving (Eq, Show, Generic)
-
-instance Buildable State where
-    build (State t m) =
-        fmt ("Stakepool metrics at tip: "+|t|+"\n") <>
-        blockListF'
-            mempty
-            (\(k,v) -> fmt (""+|k|+": "+|length v|+"") )
-            (Map.toList m)
-
-applyBlock :: (BlockHeader, PoolId) -> State -> State
-applyBlock (newTip, poolId) (State _prevTip prevMap) =
-        State newTip (Map.alter alter poolId prevMap)
-  where
-    slot = slotId newTip
-    alter = \case
-        Nothing -> Just [slot]
-        Just slots -> Just (slot:slots)
-
-
-
+-- | Possible errors returned by 'combineMetrics'.
+data ErrMetricsInconsistency
+    = ErrProducerNotInDistribution PoolId (Quantity "block" Natural)
+        -- ^ Somehow, we tried to combine invalid metrics together and passed
+        -- a passed a block production that doesn't match the producers found in
+        -- the stake activity.
+        --
+        -- Note that the opposite case is okay as we only observe pools that
+        -- have produced blocks. So it could be the case that a pool exists in
+        -- the distribution but not in the production! (In which case, we'll
+        -- assign it a production of '0').
+    deriving (Show, Eq)
