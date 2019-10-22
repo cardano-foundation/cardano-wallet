@@ -22,7 +22,7 @@ let
 
   haskellPackages = import ./nix/default.nix {
     inherit pkgs haskell src;
-    inherit cardano-http-bridge cardano-sl-node jormungandr;
+    inherit cardano-http-bridge cardano-sl-node jmPkgs;
     inherit (iohkLib.nix-tools) iohk-extras iohk-module;
   };
 

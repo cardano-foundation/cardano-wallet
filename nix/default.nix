@@ -11,9 +11,7 @@
 , cardano-http-bridge
 
 # Dependencies of cardano-wallet-jormungandr
-, jmPkgs ? import ./jormungandr.nix { inherit pkgs; }
-, jormungandr ? jmPkgs.jormungandr
-, jormungandr-cli ? jmPkgs.jormungandr-cli
+, jmPkgs
 
 # Customisations for cross-compiling
 , iohk-extras ? {}
@@ -72,8 +70,11 @@ let
           # Some tests want to write ~/.local/share/cardano-wallet
           integration.preBuild = "export HOME=`pwd`";
           # provide jormungandr command to test suites
-          integration.build-tools = [ jormungandr jormungandr-cli ];
-          unit.build-tools = [ jormungandr ];
+          integration.build-tools = [
+            jmPkgs.jormungandr
+            jmPkgs.jormungandr-cli
+          ];
+          unit.build-tools = [ jmPkgs.jormungandr ];
         };
 
         packages.cardano-wallet-http-bridge.components.exes.cardano-wallet-http-bridge = {

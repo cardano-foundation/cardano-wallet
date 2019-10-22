@@ -15,7 +15,7 @@ with (import ./nix/release-lib.nix) {
 with pkgs.lib;
 
 let
-  testsSupportedSystems = [ "x86_64-linux" ];
+  testsSupportedSystems = [ "x86_64-linux" "x86_64-darwin" ];
   collectTests = ds: filter (d: elem d.system testsSupportedSystems) (collect isDerivation ds);
 
   inherit (systems.examples) mingwW64 musl64;
