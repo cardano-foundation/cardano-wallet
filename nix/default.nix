@@ -59,8 +59,13 @@ let
       # Add dependencies
       {
         packages.cardano-wallet-http-bridge.components.tests = {
-          integration.build-tools = [ cardano-http-bridge cardano-sl-node ];
+          # Provide dependencies of tests
+          http-bridge-integration.build-tools = [ cardano-http-bridge cardano-sl-node ];
           unit.build-tools = [ cardano-http-bridge ];
+          # Some of the integration tests try to connect to actual
+          # byron testnet, which isn't possible in a sandboxed
+          # build. Disable them all.
+          http-bridge-integration.buildable = pkgs.lib.mkForce false;
         };
 
         packages.cardano-wallet-jormungandr.components.tests = {
