@@ -58,6 +58,7 @@ import Cardano.Wallet
     , ErrWalletAlreadyExists (..)
     , ErrWithRootKey (..)
     , ErrWrongPassphrase (..)
+    , HasDBLayer
     , HasGenesisData
     , HasLogger
     , HasNetworkLayer
@@ -130,6 +131,8 @@ import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters
     , Wallet
     , availableBalance
+    , availableUTxO
+    , blockchainParameters
     , currentTip
     , getState
     , totalBalance
@@ -813,10 +816,16 @@ getByronWallet ctx wid =
     fst <$> getWalletWithCreationTime mkApiByronWallet ctx wid
 
 getByronWalletMigrationInfo
-    :: ctx
+    :: forall ctx s t k.
+       ( s ~ RndState t
+       , ctx ~ ApiLayer s t k )
+    => ApiLayer s t k
     -> ApiT WalletId
     -> Handler ApiByronWalletMigrationInfo
-getByronWalletMigrationInfo _ _ = throwError err501
+getByronWalletMigrationInfo ctx (ApiT wid) = do
+    cost <- liftHandler $ withWorkerCtx ctx wid throwE $
+        W.estimateByronWalletMigrationCost @ctx @s @t @k ctx wid
+    return $ ApiByronWalletMigrationInfo (Quantity cost)
 
 migrateByronWallet
     :: rndCtx

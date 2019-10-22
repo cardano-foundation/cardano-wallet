@@ -86,6 +86,7 @@ module Cardano.Wallet
     , signTx
     , submitExternalTx
     , submitTx
+    , estimateByronWalletMigrationCost
     , ErrCreateUnsignedTx (..)
     , ErrEstimateTxFee (..)
     , ErrSignTx (..)
@@ -147,6 +148,8 @@ import Cardano.Wallet.Primitive.CoinSelection
     , ErrCoinSelection (..)
     , shuffle
     )
+import Cardano.Wallet.Primitive.CoinSelection.Migration
+    ( idealBatchSize, selectCoinsForMigration )
 import Cardano.Wallet.Primitive.Fee
     ( ErrAdjustForFee (..)
     , Fee (..)
@@ -250,7 +253,7 @@ import Data.Text
 import Data.Time.Clock
     ( UTCTime, getCurrentTime )
 import Data.Word
-    ( Word16 )
+    ( Word16, Word64 )
 import Fmt
     ( Buildable, blockListF, pretty )
 import GHC.Generics
@@ -751,6 +754,34 @@ estimateTxFee ctx wid recipients = do
   where
     tl = ctx ^. transactionLayer @t @k
 
+
+-- | Estimate a Byron wallet migration cost by estimating fee by doing migration
+-- coin selection first
+estimateByronWalletMigrationCost
+    :: forall ctx s t k .
+        ( HasTransactionLayer t k ctx
+        , HasDBLayer s t k ctx
+        , DefineTx t
+        )
+    => ctx
+    -> WalletId
+    -> ExceptT ErrMigrationCost IO Word64
+estimateByronWalletMigrationCost ctx wid = do
+    (wal, _, pending) <- withExceptT ErrMigrationCostNoSuchWallet $
+        readWallet @ctx @s @t @k ctx wid
+    let bp = blockchainParameters wal
+    let utxo = availableUTxO @s @t pending wal
+    let cOpts = coinSelOpts tl (bp ^. #getTxMaxSize)
+    let fOpts = feeOpts tl (bp ^. #getFeePolicy)
+    let batchSize = fromIntegral $ idealBatchSize cOpts
+    let _sel = selectCoinsForMigration fOpts batchSize utxo
+    --- TO DO
+    let res = 1 :: Word64
+    pure res
+  where
+    tl = ctx ^. transactionLayer @t @k
+
+
 -- | Produce witnesses and construct a transaction from a given
 -- selection. Requires the encryption passphrase in order to decrypt
 -- the root private key. Note that this doesn't broadcast the
@@ -1064,6 +1095,10 @@ data ErrStartTimeLaterThanEndTime = ErrStartTimeLaterThanEndTime
     { errStartTime :: UTCTime
     , errEndTime :: UTCTime
     } deriving (Show, Eq)
+
+-- | Errors that can occur when evaluation Byron wallet migration cost
+newtype ErrMigrationCost = ErrMigrationCostNoSuchWallet ErrNoSuchWallet
+    deriving (Show, Eq)
 
 {-------------------------------------------------------------------------------
                                    Utils
