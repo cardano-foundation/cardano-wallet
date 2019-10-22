@@ -14,40 +14,48 @@
 -- - "Cardano.Pool.DB" - which can persist the metrics
 -- - "Cardano.Wallet.Api.Server" - which presents the results in an endpoint
 module Cardano.Pool.Metrics
-    ( Block (..)
-    , combineMetrics
-    , ErrMetricsInconsistency (..)
+    ( -- * Types
+      Block (..)
 
-    , worker
+      -- * Following the chain
+    , monitorStakePools
+
+      -- * Combining Metrics
+    , ErrMetricsInconsistency (..)
+    , combineMetrics
     )
     where
 
 import Prelude
 
 import Cardano.BM.Trace
-    ( Trace )
+    ( Trace, logDebug, logNotice )
 import Cardano.Pool.DB
-    ( DBLayer (..) )
+    ( DBLayer (..), ErrPointAlreadyExists )
 import Cardano.Wallet.Network
-    ( FollowAction (..)
+    ( ErrNetworkTip
+    , ErrNetworkUnavailable
+    , FollowAction (..)
     , NetworkLayer (networkTip, stakeDistribution)
     , follow
     , staticBlockchainParameters
     )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), EpochNo, PoolId (..), SlotId (..) )
+    ( BlockHeader (..), PoolId (..), SlotId (..) )
 import Control.Monad
-    ( forM_, unless )
+    ( forM_, when )
 import Control.Monad.IO.Class
     ( liftIO )
+import Control.Monad.Trans.Class
+    ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT, runExceptT, throwE, withExceptT )
+    ( runExceptT, throwE, withExceptT )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Map.Merge.Strict
-    ( WhenMatched, WhenMissing, mergeA, traverseMissing, zipWithMatched )
+    ( mergeA, traverseMissing, zipWithMatched )
 import Data.Map.Strict
     ( Map )
 import Data.Quantity
@@ -68,102 +76,75 @@ data Block = Block
     , producer :: PoolId
     } deriving (Eq, Show, Generic)
 
-data ErrMetricsWorker
-    = ErrMetricsWorkerTipTooVolatile
-    | ErrMetricsWorkerStakeDistributionUnavailable
-    | ErrMetricsWorkerDataInconsistencyBlockWithoutProducer
-    | ErrMetricsWorkerDataInconsistencyDuplicateBlock
-    | ErrMetricsWorkerTipIsUnreachable
-    deriving (Show, Eq)
-
--- | @worker@ follows the chain and puts pool productions and stake
--- distributions to a @DBLayer@, such that the data in the @DB@ always is
+-- | 'monitorStakePools' follows the chain and puts pool productions and stake
+-- distributions to a 'DBLayer', such that the data in the database is always
 -- consistent.
 --
--- The pool productions and stake distrubtions in the DB can /never/ be from
--- different forks.
-worker
+-- The pool productions and stake distrubtions in the db can /never/ be from
+-- different forks such that it's safe for readers to access it.
+--
+-- FIXME: This last statement is only true if 'putStakeProduction' and
+-- 'putPoolProduction' are running in the same db transaction, which would be
+-- the case if we make 'SqlPersistT' the top-level monad for the 'DBLayer'
+-- instead of 'IO'.
+monitorStakePools
     :: NetworkLayer IO t Block
     -> DBLayer IO
     -> Trace IO Text
     -> IO ()
-worker nl db tr = do
-    -- Read the k latest headers the DB knows about
-    let (_block0, bp) = staticBlockchainParameters nl
-    let k = fromIntegral . getQuantity . view #getEpochStability $ bp
-    knownHeaders <- readCursor db k
-
-    follow nl tr knownHeaders advance' rollback header
+monitorStakePools nl db tr = do
+    cursor <- initCursor
+    follow nl tr cursor forward backward header
   where
+    initCursor :: IO [BlockHeader]
+    initCursor = do
+        let (_block0, bp) = staticBlockchainParameters nl
+        let k = fromIntegral . getQuantity . view #getEpochStability $ bp
+        readCursor db k
 
-    advance'
-        :: NonEmpty Block
-        -> BlockHeader
-        -> IO (FollowAction ErrMetricsWorker)
-    advance' bs h = handleResult <$> runExceptT (advance bs h)
-      where
-        handleResult = \case
-            Left ErrMetricsWorkerTipTooVolatile
-                -> Retry
-            Left e@ErrMetricsWorkerDataInconsistencyDuplicateBlock
-                -> ExitWith e
-            Left e
-                -> ExitWith e
-                -- TODO: Make all cases explicit here.
-            Right ()
-                -> Continue
-
-    advance
-        :: NonEmpty Block
-        -> BlockHeader
-        -> ExceptT ErrMetricsWorker IO ()
-    advance blocks nodeTip = do
-        distr <- stakeDistributionConsistentWithTip nodeTip
-        liftIO $ uncurry (putStakeDistribution db) distr
-
-        forM_ blocks $ \block ->
-            -- TODO: We might want to batch the insertion to the DB.
-            -- TODO: What do we do if the production already exists?!
-            withExceptT
-                (const ErrMetricsWorkerDataInconsistencyDuplicateBlock)
-                $ putPoolProduction db (header block) (producer block)
-      where
-        -- | Get a stake distribution and next batch of blocks such that we know
-        -- they are from the same chain.
-        --
-        -- Assumtion: We don't expect the node to switch from tip A to tip B,
-        -- and back to tip A.
-        --
-        -- If the tip is still the same after we have fetched the stake
-        -- distribution, we conclude that the stake-distrubtion is from the same
-        -- chain as the tip.
-        stakeDistributionConsistentWithTip
-            :: BlockHeader
-            -> ExceptT ErrMetricsWorker IO
-                (EpochNo, [(PoolId, Quantity "lovelace" Word64)])
-        stakeDistributionConsistentWithTip tip = do
-            (e, distr) <- withExceptT
-                (const ErrMetricsWorkerStakeDistributionUnavailable)
-                $ stakeDistribution nl
-            tipAfter <- getTip
-            unless (tip == tipAfter) $
-                -- The tip has changed. We cannot guarantee that the blocks and
-                -- the stake-distribution are on the same chain.
-                throwE ErrMetricsWorkerTipTooVolatile
-            return (e, Map.toList distr)
-
-    rollback :: SlotId -> IO (FollowAction ErrMetricsWorker)
-    rollback point = do
+    backward
+        :: SlotId
+        -> IO (FollowAction ErrMonitorStakePools)
+    backward point = do
         liftIO $ rollbackTo db point
         return Continue
 
-    getTip = withExceptT (const ErrMetricsWorkerTipIsUnreachable) $
-        networkTip nl
+    forward
+        :: NonEmpty Block
+        -> BlockHeader
+        -> IO (FollowAction ErrMonitorStakePools)
+    forward blocks nodeTip = handler $ do
+        (ep, dist) <- withExceptT ErrMonitorStakePoolsNetworkUnavailable $
+            stakeDistribution nl
+        currentTip <- withExceptT ErrMonitorStakePoolsNetworkTip $
+            networkTip nl
+        when (nodeTip /= currentTip) $ throwE ErrMonitorStakePoolsWrongTip
+        -- FIXME Do the next operation in a database transaction
+        lift $ putStakeDistribution db ep (Map.toList dist)
+        forM_ blocks $ \b -> withExceptT ErrMonitorStakePoolsPoolAlreadyExists $
+            putPoolProduction db (header b) (producer b)
+      where
+        handler action = runExceptT action >>= \case
+            Left ErrMonitorStakePoolsNetworkUnavailable{} -> do
+                logNotice tr "Network is not available."
+                pure RetryLater
+            Left ErrMonitorStakePoolsNetworkTip{} -> do
+                logNotice tr "Network is not available."
+                pure RetryLater
+            Left ErrMonitorStakePoolsWrongTip{} -> do
+                logDebug tr "Race condition when fetching stake distribution."
+                pure RetryImmediately
+            Left e@ErrMonitorStakePoolsPoolAlreadyExists{} ->
+                pure (ExitWith e)
+            Right () ->
+                pure Continue
 
-data ErrMetricsInconsistency
-    = ErrMetricsInconsistencyBlockProducerNotInStakeDistr
-        PoolId
-        (Quantity "block" Natural)
+-- | Internal error data-type used to drive the 'forward' logic
+data ErrMonitorStakePools
+    = ErrMonitorStakePoolsNetworkUnavailable ErrNetworkUnavailable
+    | ErrMonitorStakePoolsPoolAlreadyExists ErrPointAlreadyExists
+    | ErrMonitorStakePoolsNetworkTip ErrNetworkTip
+    | ErrMonitorStakePoolsWrongTip
     deriving (Show, Eq)
 
 -- | Combines two different sources of data into one:
@@ -189,30 +170,24 @@ combineMetrics =
         activityButNoStake
         stakeAndActivity
   where
-    stakeButNoActivity
-        :: WhenMissing
-            (Either ErrMetricsInconsistency)
-            PoolId
-            (Quantity "lovelace" Word64)
-            (Quantity "lovelace" Word64, Quantity "block" Natural)
     stakeButNoActivity = traverseMissing $ \_k stake ->
         pure (stake, Quantity 0)
 
-    activityButNoStake
-        :: WhenMissing
-            (Either ErrMetricsInconsistency)
-            PoolId
-            (Quantity "block" Natural)
-            (Quantity "lovelace" Word64, Quantity "block" Natural)
     activityButNoStake = traverseMissing $ \pool count ->
-        Left $ ErrMetricsInconsistencyBlockProducerNotInStakeDistr pool count
+        Left $ ErrProducerNotInDistribution pool count
 
-    stakeAndActivity
-        :: WhenMatched
-            (Either ErrMetricsInconsistency)
-            PoolId
-            (Quantity "lovelace" Word64)
-            (Quantity "block" Natural)
-            (Quantity "lovelace" Word64, Quantity "block" Natural)
     stakeAndActivity =
         zipWithMatched (\_k stake productions -> (stake, productions))
+
+-- | Possible errors returned by 'combineMetrics'.
+data ErrMetricsInconsistency
+    = ErrProducerNotInDistribution PoolId (Quantity "block" Natural)
+        -- ^ Somehow, we tried to combine invalid metrics together and passed
+        -- a passed a block production that doesn't match the producers found in
+        -- the stake activity.
+        --
+        -- Note that the opposite case is okay as we only observe pools that
+        -- have produced blocks. So it could be the case that a pool exists in
+        -- the distribution but not in the production! (In which case, we'll
+        -- assign it a production of '0').
+    deriving (Show, Eq)

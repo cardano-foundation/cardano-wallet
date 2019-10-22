@@ -256,8 +256,10 @@ data FollowAction err
       -- ^ Stop following the chain.
     | Continue
       -- ^ Continue following the chain.
-    | Retry
-      -- ^ Forget about the blocks in the current callback, and retry again.
+    | RetryImmediately
+      -- ^ Forget about the blocks in the current callback, and retry immediately.
+    | RetryLater
+      -- ^ Like 'RetryImmediately' but only retries after a short delay
     deriving (Eq, Show)
 
 -- | Subscribe to a blockchain and get called with new block (in order)!
@@ -331,26 +333,20 @@ follow nl tr cps yield rollback header =
             liftIO $ logInfo tr $ mconcat
                 [ "Applying blocks [", pretty slFst, " ... ", pretty slLst, "]" ]
 
-            yield blocks nodeTip
-                >>= handle cursor' "Failed to roll forward: "
+            yield blocks nodeTip >>= handle cursor' "Failed to roll forward: "
 
         Right (RollBackward cursor') -> do
             let point = cursorSlotId nl cursor'
             logInfo tr $ "Rolling back to " <> pretty point
-            rollback point
-                >>= handle cursor' "Failed to roll backward: "
+            rollback point >>= handle cursor' "Failed to roll backward: "
       where
-        handle ::
-            Show e
-            => Cursor target
-            -> String
-            -> FollowAction e
-            -> IO ()
-        handle cursor' msg x = case x of
-                ExitWith e ->
-                    logError tr $ T.pack $
-                        msg <> show e
-                Continue ->
-                    step cursor'
-                Retry ->
-                    step cursor
+        handle :: Show e => Cursor target -> String -> FollowAction e -> IO ()
+        handle cursor' msg = \case
+            ExitWith e ->
+                logError tr $ T.pack $ msg <> show e
+            Continue ->
+                step cursor'
+            RetryImmediately ->
+                step cursor
+            RetryLater ->
+                sleep delay0 cursor
