@@ -1539,12 +1539,10 @@ spec = do
             [ expectEventually ctx getWalletEp balanceAvailable (faucetAmt - feeMax - amt)
             ]
 
-        rd <- request @([ApiTransaction t]) ctx (listTxEp wSrc mempty)
-            Default Empty
-        expectResponseCode @IO HTTP.status200 rd
+        rd <- request @([ApiTransaction t]) ctx (listTxEp wDest mempty) Default Empty
 
         verify rd
-            [ expectListItemFieldEqual 0 direction Outgoing
+            [ expectListItemFieldEqual 0 direction Incoming
             , expectListItemFieldEqual 0 status InLedger
             ]
 
