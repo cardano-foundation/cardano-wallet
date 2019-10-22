@@ -164,8 +164,8 @@ selectCoinsForMigration feeOpts batchSize utxo =
 
 -- | Try to find a fix "ideal" number of input transactions that would generate
 -- rather balanced transactions.
-idealBatchSize :: CoinSelectionOptions e -> Int
-idealBatchSize coinselOpts = fromIntegral (fixPoint 1)
+idealBatchSize :: CoinSelectionOptions e -> Word8
+idealBatchSize coinselOpts = fixPoint 1
   where
     fixPoint :: Word8 -> Word8
     fixPoint !n

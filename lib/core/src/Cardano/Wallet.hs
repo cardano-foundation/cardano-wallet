@@ -104,8 +104,6 @@ module Cardano.Wallet
     , ErrListTransactions (..)
     , ErrNetworkUnavailable (..)
     , ErrStartTimeLaterThanEndTime (..)
-    , ErrMigrationWallet (..)
-    , ErrPostTransaction (..)
     ) where
 
 import Prelude hiding
@@ -180,7 +178,7 @@ import Cardano.Wallet.Primitive.Types
     , Block (..)
     , BlockHeader (..)
     , Coin (..)
-    , DefineTx (..)
+    , DefineTx
     , Direction (..)
     , Hash (..)
     , Range (..)
@@ -189,7 +187,7 @@ import Cardano.Wallet.Primitive.Types
     , SortOrder (..)
     , SyncProgress (..)
     , TransactionInfo (..)
-    , Tx (..)
+    , Tx
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
@@ -758,31 +756,48 @@ estimateTxFee ctx wid recipients = do
   where
     tl = ctx ^. transactionLayer @t @k
 
-
 -- | Evaluate wallet migration cost by estimating fee by doing migration
 -- coin selection and returning it also
 createMigration
-    :: forall ctx s t k .
-        ( HasTransactionLayer t k ctx
-        , HasDBLayer s t k ctx
+    :: forall from s t k to s' t' k'.
+        ( HasTransactionLayer t k from
+        , HasDBLayer s t k from
+        , HasDBLayer s' t' k' to
         , DefineTx t
+        , GenChange s'
+        , IsOurs s'
+        , NFData s'
+        , Show s'
         )
-    => ctx
-    -> WalletId
-    -> ExceptT ErrNoSuchWallet IO (Word64,[CoinSelection])
-createMigration ctx wid = do
-    (wal, _, pending) <- readWallet @ctx @s @t @k ctx wid
-    let bp = blockchainParameters wal
-    let utxo = availableUTxO @s @t pending wal
-    let cOpts = coinSelOpts tl (bp ^. #getTxMaxSize)
-    let fOpts = feeOpts tl (bp ^. #getFeePolicy)
-    let batchSize = fromIntegral $ idealBatchSize cOpts
-    let coinSels = selectCoinsForMigration fOpts batchSize utxo
-    let fees = fmap (\sel -> inputBalance sel - changeBalance sel) coinSels
-    pure (foldl (+) 0 fees, coinSels)
-  where
-    tl = ctx ^. transactionLayer @t @k
+    => (from, WalletId)
+    -> (to, WalletId)
+    -> ExceptT ErrNoSuchWallet IO (Word64, [CoinSelection])
+createMigration (from, fromId) (to, toId) = do
+    (cpFrom, _, pending) <- readWallet @from @s @t @k from fromId
+    cpTo <- readWalletCheckpoint @to @s' @t' @k' to toId
 
+    let pwd = error "FIXME: genChange should NOT require a pwd for seq wallets!!"
+
+    let (coinSels, s') = flip runState (getState cpTo) $ do
+            let bp = blockchainParameters cpFrom
+            let utxo = availableUTxO @s @t pending cpFrom
+            let fOpts = feeOpts tlFrom (bp ^. #getFeePolicy)
+                    -- FIXME Set threshold to 'b' (constant from fee policy)
+            let cOpts = coinSelOpts tlFrom (bp ^. #getTxMaxSize)
+            let cs = selectCoinsForMigration fOpts (idealBatchSize cOpts) utxo
+            forM cs $ \sel -> do
+                outs <- forM (change sel) $ \c -> do
+                    addr <- state (genChange pwd)
+                    pure (TxOut addr c)
+                pure (sel { change = [], outputs = outs })
+
+    DB.putCheckpoint dbTo (PrimaryKey toId) (updateState s' cpTo)
+
+    let fees = sum $ (\sel -> inputBalance sel - changeBalance sel) <$> coinSels
+    pure ( fees, coinSels )
+  where
+    tlFrom = from ^. transactionLayer @t @k
+    dbTo = to ^. dbLayer @s' @t' @k'
 
 -- | Produce witnesses and construct a transaction from a given
 -- selection. Requires the encryption passphrase in order to decrypt
@@ -952,7 +967,7 @@ listTransactions ctx wid mStart mEnd order = do
     assemble sp tip txs = map mkTxInfo txs
       where
         mkTxInfo (tx, meta) = TransactionInfo
-            { txInfoId = txId @t tx
+            { txInfoId = W.txId @t tx
             , txInfoInputs =
                 [(txIn, lookupOutput txIn) | txIn <- W.inputs @t tx]
             , txInfoOutputs = W.outputs @t tx
@@ -965,7 +980,7 @@ listTransactions ctx wid mStart mEnd order = do
             txH = getQuantity (meta ^. #blockHeight)
             tipH = getQuantity (tip ^. #blockHeight)
         txOuts = Map.fromList
-            [ (txId @t tx, W.outputs @t tx)
+            [ (W.txId @t tx, W.outputs @t tx)
             | ((tx, _)) <- txs
             ]
         -- Because we only track the UTxO of this wallet, we can only
@@ -1097,18 +1112,6 @@ data ErrStartTimeLaterThanEndTime = ErrStartTimeLaterThanEndTime
     { errStartTime :: UTCTime
     , errEndTime :: UTCTime
     } deriving (Show, Eq)
-
-data ErrPostTransaction
-    = ErrPostTransactionSign ErrSignTx
-    | ErrPostTransactionSubmit ErrSubmitTx
-    deriving (Show, Eq)
-
-data ErrMigrationWallet
-    = ErrMigrationWalletNoSuchWallet ErrNoSuchWallet
-    | ErrMigrationWalletSeqWalletInSource WalletId
-    | ErrMigrationWalletRndWalletInDestination WalletId
-    | ErrMigrationWalletPostTx ErrPostTransaction
-    deriving (Show, Eq)
 
 {-------------------------------------------------------------------------------
                                    Utils
