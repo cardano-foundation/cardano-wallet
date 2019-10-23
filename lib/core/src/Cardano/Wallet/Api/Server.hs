@@ -852,19 +852,18 @@ migrateByronWallet rndCtx seqCtx (ApiT rndWid) (ApiT seqWid) migrateData = do
     now <- liftIO getCurrentTime
 
     forM cs $ \selection -> do
-        (tx, meta, wit) <- liftHandler $ withWorkerCtx rndCtx rndWid liftE1 $
-            \wrk -> W.signTx wrk rndWid pwd selection
-        liftHandler $ withWorkerCtx rndCtx rndWid liftE2 $
-            \wrk -> W.submitTx wrk rndWid (tx, meta, wit)
+        (tx, meta, wit) <- liftHandler
+            $ withWorkerCtx rndCtx rndWid (throwE . ErrSignTxNoSuchWallet)
+            $ \wrk -> W.signTx wrk rndWid pwd selection
+        liftHandler
+            $ withWorkerCtx rndCtx rndWid (throwE . ErrSubmitTxNoSuchWallet)
+            $ \wrk -> W.submitTx wrk rndWid (tx, meta, wit)
         pure $ mkApiTransaction
             (txId @t tx)
             (fmap Just <$> selection ^. #inputs)
             (selection ^. #outputs)
             (meta, now)
             #pendingSince
-  where
-    liftE1 = throwE . ErrSignTxNoSuchWallet
-    liftE2 = throwE . ErrSubmitTxNoSuchWallet
 
 listByronWallets
     :: forall s t k. (DefineTx t, s ~ RndState t)
