@@ -697,8 +697,8 @@ data TransactionInfo = TransactionInfo
     -- ^ Creation time of the block including this transaction.
     } deriving (Show, Eq, Ord)
 
--- | A linear equation a free variable `x`. Represents the @\s -> a + b*s@
--- function where @s@ can be the transaction size in bytes or, a number of
+-- | A linear equation of a free variable `x`. Represents the @\x -> a + b*x@
+-- function where @x@ can be the transaction size in bytes or, a number of
 -- inputs + outputs.
 --
 -- @a@ and @b@ are constant coefficients.
@@ -710,15 +710,17 @@ instance NFData FeePolicy
 
 instance ToText FeePolicy where
     toText (LinearFee (Quantity a) (Quantity b)) =
-        toText a <> "x + " <> toText b
+        toText a <> " + " <> toText b <> "x"
 
 instance FromText FeePolicy where
-    fromText txt = case T.splitOn "x + " txt of
-        [a, b] -> LinearFee
+    fromText txt = case T.splitOn " + " txt of
+        [a, b] | T.takeEnd 1 b == "x" -> LinearFee
             <$> fmap Quantity (fromText a)
-            <*> fmap Quantity (fromText b)
+            <*> fmap Quantity (fromText (T.dropEnd 1 b))
         _ ->
-            Left $ TextDecodingError "not a linear equation"
+            Left $ TextDecodingError
+                "Unable to decode FeePolicy: \
+                \Linear equation not in expected format: a + bx"
 
 {-------------------------------------------------------------------------------
                                     Address
