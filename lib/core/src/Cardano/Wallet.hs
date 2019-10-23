@@ -803,7 +803,7 @@ executeMigration
     -> ExceptT ErrNoSuchWallet IO [CoinSelection]
 executeMigration ctx wid cs = do
     cp <- readWalletCheckpoint @ctx @s @t @k ctx wid
-    let pwd = error "FIXME: genChange should NOT require a pwd for seq wallets!!"
+    let pwd = error "FIXME: genChange should NOT require a pwd for seq wallets!"
     let (cs', s') = flip runState (getState cp) $ do
             forM cs $ \sel -> do
                 outs <- forM (change sel) $ \c -> do

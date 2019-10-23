@@ -852,10 +852,10 @@ migrateByronWallet rndCtx seqCtx (ApiT rndWid) (ApiT seqWid) migrateData = do
     now <- liftIO getCurrentTime
 
     forM cs $ \selection -> do
-        (tx, meta, wit) <- liftHandler $ withWorkerCtx rndCtx rndWid liftE1 $ \wrk ->
-            W.signTx wrk rndWid pwd selection
-        liftHandler $ withWorkerCtx rndCtx rndWid liftE2 $ \wrk ->
-            W.submitTx wrk rndWid (tx, meta, wit)
+        (tx, meta, wit) <- liftHandler $ withWorkerCtx rndCtx rndWid liftE1 $
+            \wrk -> W.signTx wrk rndWid pwd selection
+        liftHandler $ withWorkerCtx rndCtx rndWid liftE2 $
+            \wrk -> W.submitTx wrk rndWid (tx, meta, wit)
         pure $ mkApiTransaction
             (txId @t tx)
             (fmap Just <$> selection ^. #inputs)
