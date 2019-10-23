@@ -86,7 +86,7 @@ module Cardano.Wallet
     , signTx
     , submitExternalTx
     , submitTx
-    , createMigration
+    , createMigrationSourceData
     , executeMigration
     , ErrCreateUnsignedTx (..)
     , ErrEstimateTxFee (..)
@@ -755,10 +755,15 @@ estimateTxFee ctx wid recipients = do
   where
     tl = ctx ^. transactionLayer @t @k
 
--- | Construct a set of transaction to migrate all funds of a given wallets to
--- another wallet. This returns a list of coin selection where only change
--- outputs are specified.
-createMigration
+-- | Constructs a set of coin selections that select all funds from the given
+--   source wallet, returning them as change.
+--
+-- If the coin selections returned by this function are used to create
+-- transactions from the given wallet to a target wallet, executing those
+-- transactions will have the effect of migrating all funds from the given
+-- source wallet to the specified target wallet.
+--
+createMigrationSourceData
     :: forall ctx s t k.
         ( HasTransactionLayer t k ctx
         , HasDBLayer s t k ctx
@@ -766,8 +771,9 @@ createMigration
         )
     => ctx
     -> WalletId
+       -- ^ The source wallet ID.
     -> ExceptT ErrNoSuchWallet IO [CoinSelection]
-createMigration ctx wid = do
+createMigrationSourceData ctx wid = do
     (cp, _, pending) <- readWallet @ctx @s @t @k ctx wid
     let bp = blockchainParameters cp
     let utxo = availableUTxO @s @t pending cp
