@@ -83,7 +83,7 @@ defaultFilePath
     :: FilePath
     -- ^ The directory in which the .sqlite file will be located.
     -> FilePath
-defaultFilePath = (<> "/stake-pool.sqlite")
+defaultFilePath = (<> "/stake-pools.sqlite")
 
 -- | Runs an action with a connection to the SQLite database.
 --
