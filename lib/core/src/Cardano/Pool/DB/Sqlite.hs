@@ -63,6 +63,7 @@ import Database.Persist.Sql
     , insertMany_
     , insert_
     , selectList
+    , (<.)
     , (==.)
     , (>.)
     , (>=.)
@@ -168,7 +169,8 @@ selectPoolProduction
     :: EpochNo
     -> SqlPersistT IO [PoolProduction]
 selectPoolProduction epoch = fmap entityVal <$> selectList
-    [PoolProductionSlot >=. SlotId epoch 0]
+    [ PoolProductionSlot >=. SlotId epoch 0
+    , PoolProductionSlot <. SlotId (epoch + 1) 0 ]
     [Asc PoolProductionSlot]
 
 {-------------------------------------------------------------------------------
