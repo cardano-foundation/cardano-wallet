@@ -697,8 +697,8 @@ data TransactionInfo = TransactionInfo
     -- ^ Creation time of the block including this transaction.
     } deriving (Show, Eq, Ord)
 
--- | A linear equation a free variable `x`. Represents the @\s -> a + b*s@
--- function where @s@ can be the transaction size in bytes or, a number of
+-- | A linear equation of a free variable `x`. Represents the @\x -> a + b*x@
+-- function where @x@ can be the transaction size in bytes or, a number of
 -- inputs + outputs.
 --
 -- @a@ and @b@ are constant coefficients.
