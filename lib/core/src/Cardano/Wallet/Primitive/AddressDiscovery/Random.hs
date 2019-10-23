@@ -154,6 +154,7 @@ addDiscoveredAddress addr path st =
        , pendingAddresses = Map.delete path (pendingAddresses st) }
 
 instance KeyToAddress t RndKey => GenChange (RndState t) where
+    type ArgGenChange (RndState t) = Passphrase "encryption"
     genChange pwd st = (address, st')
       where
         address = deriveRndStateAddress @t st pwd path

@@ -419,7 +419,7 @@ fixtureExternalTx ctx toSend = do
     let (AddressAmount ((ApiT addrSrc),_) (Quantity amt)):_ = NE.toList outs
     let (rootXPrv, pwd, st) = getSeqState mnemonicFaucet password
     -- we create change address
-    let (addrChng, st') = genChange pwd st
+    let (addrChng, st') = genChange () st
     -- we generate address private keys for all source wallet addresses
     let (Just keysAddrSrc) = isOwned st' (rootXPrv, pwd) addrSrc
     let (Just keysAddrChng) = isOwned st' (rootXPrv, pwd) addrChng

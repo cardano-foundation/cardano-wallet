@@ -83,8 +83,9 @@ class IsOurs s => IsOwned s key where
 -- instance, in BIP-44, change addresses belong to a particular change chain
 -- (also called "Internal Chain").
 class GenChange s where
+    type ArgGenChange s :: *
     genChange
-        :: Passphrase "encryption"
+        :: ArgGenChange s
         -> s
         -> (Address, s)
         -- ^ Generate a new change address for the given scheme. The rules for

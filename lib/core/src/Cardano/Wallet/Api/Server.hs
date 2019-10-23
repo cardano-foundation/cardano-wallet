@@ -124,6 +124,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState, mkRndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..), defaultAddressPoolGap, mkSeqState )
+import Cardano.Wallet.Primitive.CoinSelection
+    ( CoinSelection, changeBalance, inputBalance )
 import Cardano.Wallet.Primitive.Fee
     ( Fee (..) )
 import Cardano.Wallet.Primitive.Model
@@ -173,7 +175,7 @@ import Control.Exception
     , tryJust
     )
 import Control.Monad
-    ( forM_, void )
+    ( forM, forM_, void )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
@@ -209,7 +211,7 @@ import Data.Time
 import Data.Time.Clock
     ( getCurrentTime )
 import Data.Word
-    ( Word32 )
+    ( Word32, Word64 )
 import Fmt
     ( Buildable, pretty )
 import Network.HTTP.Media.RenderHeader
@@ -618,7 +620,7 @@ postTransaction ctx (ApiT wid) body = do
         W.createUnsignedTx wrk wid outs
 
     (tx, meta, wit) <- liftHandler $ withWorkerCtx ctx wid liftE2 $ \wrk ->
-        W.signTx wrk wid pwd selection
+        W.signTx wrk wid () pwd selection
 
     liftHandler $ withWorkerCtx ctx wid liftE3 $ \wrk ->
         W.submitTx wrk wid (tx, meta, wit)
@@ -813,22 +815,79 @@ getByronWallet ctx wid =
     fst <$> getWalletWithCreationTime mkApiByronWallet ctx wid
 
 getByronWalletMigrationInfo
-    :: ctx
+    :: forall ctx s t k.
+       ( DefineTx t
+       , s ~ RndState t
+       , ctx ~ ApiLayer s t k )
+    => ApiLayer s t k
+        -- ^ Source wallet context (Byron)
     -> ApiT WalletId
+        -- ^ Source wallet (Byron)
     -> Handler ApiByronWalletMigrationInfo
-getByronWalletMigrationInfo _ _ = throwError err501
+getByronWalletMigrationInfo ctx (ApiT wid) =
+    infoFromSelections <$> getSelections
+  where
+    infoFromSelections :: [CoinSelection] -> ApiByronWalletMigrationInfo
+    infoFromSelections =
+        ApiByronWalletMigrationInfo
+            . Quantity
+            . fromIntegral
+            . sum
+            . fmap selectionFee
+
+    selectionFee :: CoinSelection -> Word64
+    selectionFee s = inputBalance s - changeBalance s
+
+    getSelections :: Handler [CoinSelection]
+    getSelections =
+        liftHandler
+            $ withWorkerCtx ctx wid throwE
+            $ flip W.createMigrationSourceData wid
 
 migrateByronWallet
-    :: rndCtx
-    -> seqCtx
+    :: forall t.
+       ( DefineTx t
+       , KeyToAddress t RndKey
+       , KeyToAddress t SeqKey
+       )
+    => ApiLayer (RndState t) t RndKey
+        -- ^ Source wallet context (Byron)
+    -> ApiLayer (SeqState t) t SeqKey
+        -- ^ Target wallet context (Shelley)
     -> ApiT WalletId
-       -- ^ Source wallet (Byron)
+        -- ^ Source wallet (Byron)
     -> ApiT WalletId
-       -- ^ Target wallet (new-style)
+        -- ^ Target wallet (Shelley)
     -> ApiMigrateByronWalletData
     -> Handler [ApiTransaction t]
-migrateByronWallet _rndCtx _seqCtx _sourceWid _targetWid _migrateData =
-    throwError err501
+migrateByronWallet rndCtx seqCtx (ApiT rndWid) (ApiT seqWid) migrateData = do
+
+    -- FIXME
+    -- Better error handling here to inform users if they messed up with the
+    -- wallet ids.
+    cs <- liftHandler $
+        withWorkerCtx rndCtx rndWid throwE $ \rndWrk ->
+        withWorkerCtx seqCtx seqWid throwE $ \seqWrk -> do
+            cs <- W.createMigrationSourceData rndWrk rndWid
+            W.assignMigrationTargetAddresses seqWrk seqWid () cs
+
+    now <- liftIO getCurrentTime
+
+    forM cs $ \selection -> do
+        (tx, meta, wit) <- liftHandler
+            $ withWorkerCtx rndCtx rndWid (throwE . ErrSignTxNoSuchWallet)
+            $ \wrk -> W.signTx wrk rndWid passphrase passphrase selection
+        liftHandler
+            $ withWorkerCtx rndCtx rndWid (throwE . ErrSubmitTxNoSuchWallet)
+            $ \wrk -> W.submitTx wrk rndWid (tx, meta, wit)
+        pure $ mkApiTransaction
+            (txId @t tx)
+            (fmap Just <$> selection ^. #inputs)
+            (selection ^. #outputs)
+            (meta, now)
+            #pendingSince
+  where
+    passphrase = getApiT $ migrateData ^. #passphrase
 
 listByronWallets
     :: forall s t k. (DefineTx t, s ~ RndState t)

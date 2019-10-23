@@ -104,7 +104,7 @@ spec = do
         forM_ (take 1 falseWalletIds) $ \(desc, walId) -> it desc $ \ctx -> do
             let endpoint = "v2/byron-wallets/" <> T.pack walId <> "/migrations"
             rg <- request @ApiByronWallet ctx ("GET", endpoint) Default Empty
-            expectResponseCode @IO HTTP.status501 rg
+            expectResponseCode @IO HTTP.status404 rg
 
         forM_ (drop 1 falseWalletIds) $ \(desc, walId) -> it desc $ \ctx -> do
             let endpoint = "v2/byron-wallets/" <> T.pack walId <> "/migrations"
