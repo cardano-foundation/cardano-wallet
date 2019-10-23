@@ -861,7 +861,6 @@ migrateByronWallet
     -> ApiMigrateByronWalletData
     -> Handler [ApiTransaction t]
 migrateByronWallet rndCtx seqCtx (ApiT rndWid) (ApiT seqWid) migrateData = do
-    let (ApiMigrateByronWalletData (ApiT pwd)) = migrateData
 
     -- FIXME
     -- Better error handling here to inform users if they messed up with the
@@ -877,7 +876,7 @@ migrateByronWallet rndCtx seqCtx (ApiT rndWid) (ApiT seqWid) migrateData = do
     forM cs $ \selection -> do
         (tx, meta, wit) <- liftHandler
             $ withWorkerCtx rndCtx rndWid (throwE . ErrSignTxNoSuchWallet)
-            $ \wrk -> W.signTx wrk rndWid pwd selection
+            $ \wrk -> W.signTx wrk rndWid passphrase selection
         liftHandler
             $ withWorkerCtx rndCtx rndWid (throwE . ErrSubmitTxNoSuchWallet)
             $ \wrk -> W.submitTx wrk rndWid (tx, meta, wit)
@@ -887,6 +886,8 @@ migrateByronWallet rndCtx seqCtx (ApiT rndWid) (ApiT seqWid) migrateData = do
             (selection ^. #outputs)
             (meta, now)
             #pendingSince
+  where
+    passphrase = getApiT $ migrateData ^. #passphrase
 
 listByronWallets
     :: forall s t k. (DefineTx t, s ~ RndState t)
