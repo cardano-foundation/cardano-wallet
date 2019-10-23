@@ -95,7 +95,7 @@ import Data.Proxy
 import Network.HTTP.Client
     ( Manager, defaultManagerSettings, newManager )
 import Network.HTTP.Types.Status
-    ( status400, status404 )
+    ( status400, status404, status503 )
 import Servant.API
     ( (:<|>) (..) )
 import Servant.Client
@@ -115,6 +115,7 @@ import Servant.Links
 
 import qualified Cardano.Wallet.Jormungandr.Binary as J
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
 {-------------------------------------------------------------------------------
@@ -266,6 +267,11 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
         -- initialise, or restarting the node.
         Left (ConnectionError e) ->
             return $ Left $ ErrNetworkUnreachable e
+
+        -- The node has started but its REST API is not ready yet to serve
+        -- requests.
+        Left (FailureResponse e) | responseStatusCode e == status503 ->
+            return $ Left $ ErrNetworkUnreachable $ T.pack $ show e
 
         -- Other errors (status code, decode failure, invalid content type
         -- headers). These are considered to be programming errors, so crash.
