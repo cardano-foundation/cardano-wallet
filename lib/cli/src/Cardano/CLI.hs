@@ -117,7 +117,7 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData (..)
     )
 import Cardano.Wallet.Network
-    ( ErrNetworkTip (..), ErrNetworkUnavailable (..) )
+    ( ErrNetworkUnavailable (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( FromMnemonic (..)
     , Passphrase (..)
@@ -1421,7 +1421,7 @@ waitForService
         -- ^ Service we're waiting after.
     -> IO ()
 waitForService (Service service) tracer port action = do
-    let handler (ErrNetworkTipNetworkUnreachable (ErrNetworkInvalid net)) = do
+    let handler (ErrNetworkInvalid net) = do
             exitWith =<< failWith tracer (mconcat
                 [ "The node backend is not running on the \"", net, "\" "
                 , "network. Please start the wallet server and the node "

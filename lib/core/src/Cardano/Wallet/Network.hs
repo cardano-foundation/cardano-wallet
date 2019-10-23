@@ -22,7 +22,6 @@ module Cardano.Wallet.Network
     , ErrPostTx (..)
 
     -- * Initialization
-    , isNetworkUnreachable
     , defaultRetryPolicy
     , waitForNetwork
     ) where
@@ -155,6 +154,8 @@ data ErrNetworkUnavailable
       -- ^ Network backend reports that the requested network is invalid.
     deriving (Generic, Show, Eq)
 
+instance Exception ErrNetworkUnavailable
+
 -- | Error while trying to get the network tip
 data ErrNetworkTip
     = ErrNetworkTipNetworkUnreachable ErrNetworkUnavailable
@@ -182,20 +183,14 @@ instance Exception ErrPostTx
                               Initialization
 -------------------------------------------------------------------------------}
 
--- | Exception predicate for 'ErrNetworkUnreachable'.
-isNetworkUnreachable :: ErrNetworkUnavailable -> Bool
-isNetworkUnreachable (ErrNetworkUnreachable _) = True
-isNetworkUnreachable (ErrNetworkInvalid _) = False
-
-
 -- | Wait until 'networkTip networkLayer' succeeds according to a given
 -- retry policy. Throws an exception otherwise.
 waitForNetwork
-    :: NetworkLayer IO tx block
+    :: ExceptT ErrNetworkUnavailable IO ()
     -> RetryPolicyM IO
     -> IO ()
-waitForNetwork nw policy = do
-    r <- retrying policy shouldRetry (const $ runExceptT (networkTip nw))
+waitForNetwork getStatus policy = do
+    r <- retrying policy shouldRetry (const $ runExceptT getStatus)
     case r of
         Right _ -> return ()
         Left e -> throwIO e
@@ -203,10 +198,10 @@ waitForNetwork nw policy = do
     shouldRetry _ = \case
         Right _ ->
             return False
-        Left ErrNetworkTipNotFound ->
+        Left ErrNetworkInvalid{} ->
+            return False
+        Left ErrNetworkUnreachable{} ->
             return True
-        Left (ErrNetworkTipNetworkUnreachable e) ->
-            return $ isNetworkUnreachable e
 
 -- | A default 'RetryPolicy' with a delay that starts short, and that retries
 -- for no longer than a minute.

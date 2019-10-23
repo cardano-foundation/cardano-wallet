@@ -35,6 +35,8 @@ import Prelude
 
 import Cardano.BM.Trace
     ( Trace, logDebug, logInfo )
+import Cardano.CLI
+    ( Port (..), waitForService )
 import Cardano.Launcher
     ( Command (Command)
     , ProcessHasExited
@@ -67,6 +69,7 @@ import Cardano.Wallet.Network
     , NetworkLayer (..)
     , NextBlocksResult (..)
     , defaultRetryPolicy
+    , waitForNetwork
     )
 import Cardano.Wallet.Network.Ports
     ( PortNumber, getRandomPort, waitForPort )
@@ -88,6 +91,8 @@ import Control.Monad.Catch
     ( throwM )
 import Control.Monad.Fail
     ( MonadFail )
+import Control.Monad.IO.Class
+    ( liftIO )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
@@ -96,6 +101,8 @@ import Crypto.Hash
     ( HashAlgorithm, digestFromByteString )
 import Data.ByteArray
     ( convert )
+import Data.Functor
+    ( (<&>) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -144,7 +151,7 @@ withNetworkLayer
     -> (Either ErrStartup (PortNumber, NetworkLayer IO t (Block Tx)) -> IO a)
     -> IO a
 withNetworkLayer tr (UseRunning port) cb = do
-    nl <- newNetworkLayer @n port
+    nl <- newNetworkLayer @n tr port
     logInfo tr $ "Using cardano-http-bridge port " <> T.pack (show port)
     cb (Right (port, nl))
 withNetworkLayer tr (Launch cfg) cb = do
@@ -203,9 +210,18 @@ mkNetworkLayer httpBridge = NetworkLayer
 -- settings.
 newNetworkLayer
     :: forall n t. (KnownNetwork (n :: Network), t ~ HttpBridge n)
-    => PortNumber
+    => Trace IO Text
+    -> PortNumber
     -> IO (NetworkLayer IO t (Block Tx))
-newNetworkLayer port = mkNetworkLayer @n <$> newHttpBridgeLayer @n port
+newNetworkLayer tr port = do
+    bridge <- newHttpBridgeLayer @n port
+    liftIO $ waitForService "http-bridge" tr (Port $ fromEnum port) $ do
+        let getStatus = runExceptT (getNetworkTip bridge) <&> \case
+                Right _ -> Right ()
+                Left ErrNetworkTipNotFound -> Right ()
+                Left (ErrNetworkTipNetworkUnreachable e) -> Left e
+        waitForNetwork (ExceptT getStatus) defaultRetryPolicy
+    pure (mkNetworkLayer @n bridge)
 
 -- | Retrieve a chunk of blocks from cardano-http-bridge.
 --

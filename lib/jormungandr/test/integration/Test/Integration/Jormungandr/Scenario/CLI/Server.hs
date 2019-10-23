@@ -194,21 +194,6 @@ spec = do
             e `shouldContain` "option --genesis-block-hash: Unable to decode\
                 \ (Hash \"Genesis\"): expected Base16 encoding"
 
-        it "LOGGINGDOWN - Exists nicely when Jörmungandr is down" $ \ctx -> do
-            let invalidPort = getPort (ctx ^. typed @(Port "node")) + 1
-            let args =
-                    ["serve"
-                    , "--node-port"
-                    , show invalidPort
-                    , "--genesis-block-hash"
-                    , block0H
-                    ]
-            (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t args
-            c `shouldBe` ExitFailure 1
-            e `shouldBe` mempty
-            o `shouldContain` "It looks like Jörmungandr is down?\
-                \ Hint: double-check Jörmungandr server's port."
-
 oneSecond :: Int
 oneSecond = 1000000
 

@@ -56,6 +56,8 @@ import Prelude
 
 import Cardano.BM.Trace
     ( Trace )
+import Cardano.CLI
+    ( Port (..), waitForService )
 import Cardano.Launcher
     ( Command (..)
     , ProcessHasExited
@@ -97,7 +99,12 @@ import Cardano.Wallet.Jormungandr.Compatibility
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Network
-    ( Cursor, NetworkLayer (..), NextBlocksResult (..), defaultRetryPolicy )
+    ( Cursor
+    , NetworkLayer (..)
+    , NextBlocksResult (..)
+    , defaultRetryPolicy
+    , waitForNetwork
+    )
 import Cardano.Wallet.Network.BlockHeaders
     ( BlockHeaders (..)
     , appendBlockHeaders
@@ -119,6 +126,8 @@ import Control.Concurrent.MVar.Lifted
     ( MVar, modifyMVar, newMVar, readMVar )
 import Control.Exception
     ( Exception )
+import Control.Monad
+    ( void )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Class
@@ -184,7 +193,7 @@ withNetworkLayer
     -- ^ The action to run. It will be passed the connection parameters used,
     -- and a network layer if startup was successful.
     -> IO a
-withNetworkLayer _ (UseRunning cp) action = withNetworkLayerConn cp action
+withNetworkLayer tr (UseRunning cp) action = withNetworkLayerConn tr cp action
 withNetworkLayer tr (Launch lj) action = withNetworkLayerLaunch tr lj action
 
 withNetworkLayerLaunch
@@ -198,39 +207,43 @@ withNetworkLayerLaunch
     -- and a network layer if startup was successful.
     -> IO a
 withNetworkLayerLaunch tr lj action = do
-    res <- withJormungandr tr lj $ \cp -> withNetworkLayerConn cp action
+    res <- withJormungandr tr lj $ \cp -> withNetworkLayerConn tr cp action
     either (action . Left) pure res
 
 withNetworkLayerConn
     :: forall n a t. (t ~ Jormungandr n)
-    => JormungandrConnParams
+    => Trace IO Text
+    -- ^ Logging of network layer startup
+    -> JormungandrConnParams
     -- ^ Parameters for connecting to Jörmungandr node which is already running.
     -> (Either ErrStartup (JormungandrConnParams, NetworkLayer IO t J.Block) -> IO a)
     -- ^ Action to run with the network layer.
     -> IO a
-withNetworkLayerConn cp@(JormungandrConnParams block0H baseUrl) action =
+withNetworkLayerConn tr cp@(JormungandrConnParams block0H baseUrl) action =
     runExceptT go >>= action . fmap (cp,)
   where
     go = withExceptT ErrStartupGetBlockchainParameters new
-    new = newNetworkLayer baseUrl block0H
+    new = newNetworkLayer tr baseUrl block0H
 
 -- | Creates a new 'NetworkLayer' connecting to an underlying 'Jormungandr'
 -- backend target.
 newNetworkLayer
     :: forall n t. (t ~ Jormungandr n)
-    => BaseUrl
+    => Trace IO Text
+    -> BaseUrl
     -> Hash "Genesis"
     -> ExceptT ErrGetBlockchainParams IO (NetworkLayer IO t J.Block)
-newNetworkLayer baseUrl block0H = do
+newNetworkLayer tr baseUrl block0H = do
     mgr <- liftIO $ newManager defaultManagerSettings
     st <- newMVar emptyBlockHeaders
     let jor = mkJormungandrClient mgr baseUrl
+    liftIO $ waitForService "Jörmungandr" tr (Port $ baseUrlPort baseUrl) $
+        waitForNetwork (void $ getTipId jor) defaultRetryPolicy
     (block0, bp) <- getInitialBlockchainParameters jor (coerce block0H)
     return (mkRawNetworkLayer (convert block0, bp) 1000 st jor)
   where
     convert :: J.Block -> W.Block Tx
     convert = J.convertBlock
-
 
 -- | Wrap a Jormungandr client into a 'NetworkLayer' common interface.
 --
@@ -485,7 +498,7 @@ withJormungandr tr (JormungandrConfig stateDir block0 mPort output extraArgs) cb
                     ] ++ extraArgs
             let cmd = Command "jormungandr" args (return ()) output
             let tr' = transformLauncherTrace tr
-            res <- withBackendProcess tr' cmd $
+            res <- withBackendProcess tr' cmd $ do
                 waitForPort defaultRetryPolicy apiPort >>= \case
                     True -> Right <$> cb (JormungandrConnParams block0H baseUrl)
                     False -> pure $ Left ErrStartupNodeNotListening

@@ -30,7 +30,7 @@ import Prelude
 import Cardano.BM.Trace
     ( Trace, appendName, logInfo )
 import Cardano.CLI
-    ( Port (..), failWith, waitForService )
+    ( Port (..), failWith )
 import Cardano.Launcher
     ( ProcessHasExited (..), installSignalHandlers )
 import Cardano.Wallet.Api
@@ -60,7 +60,7 @@ import Cardano.Wallet.Jormungandr.Primitive.Types
 import Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Network
-    ( NetworkLayer (..), defaultRetryPolicy, waitForNetwork )
+    ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( PersistKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
@@ -131,8 +131,6 @@ serveWallet (cfg, tr) databaseDir hostPref listen lj beforeMainLoop = do
     withNetworkLayer tr lj $ \case
         Right (cp, nl) -> do
             let nPort = Port $ baseUrlPort $ _restApi cp
-            waitForService "Jörmungandr" tr nPort $
-                waitForNetwork nl defaultRetryPolicy
             let (_, bp) = staticBlockchainParameters nl
             let rndTl = newTransactionLayer @n (getGenesisBlockHash bp)
             let seqTl = newTransactionLayer @n (getGenesisBlockHash bp)
