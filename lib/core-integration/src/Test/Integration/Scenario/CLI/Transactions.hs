@@ -450,7 +450,7 @@ spec = do
                 err `shouldContain` "I couldn't find a wallet with \
                     \the given id: 1111111111111111111111111111111111111111"
             else
-                err `shouldContain` "wallet id should be an \
+                err `shouldContain` "wallet id should be a \
                     \hex-encoded string of 40 characters"
 
     it "TRANS_CREATE_07 - 'almost' valid walletId" $ \ctx -> do
@@ -465,7 +465,7 @@ spec = do
                 ]
         -- make sure CLI returns error before asking for passphrase
         (Exit c, Stdout out, Stderr err) <- cardanoWalletCLI @t args
-        err `shouldContain` "wallet id should be an hex-encoded\
+        err `shouldContain` "wallet id should be a hex-encoded\
             \ string of 40 characters"
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1
@@ -837,7 +837,7 @@ spec = do
         (Exit code, Stdout out, Stderr err) <-
             listTransactionsViaCLI @t ctx [invalidWid]
 
-        err `shouldContain` "wallet id should be an hex-encoded\
+        err `shouldContain` "wallet id should be a hex-encoded\
             \ string of 40 characters"
         code `shouldBe` ExitFailure 1
         out `shouldBe` mempty
@@ -862,7 +862,7 @@ spec = do
                     errMsg404NoWallet "1111111111111111111111111111111111111111"
             else
                 e `shouldContain`
-                    "wallet id should be an hex-encoded string of 40 characters"
+                    "wallet id should be a hex-encoded string of 40 characters"
 
     it "TRANS_LIST_RANGE_01 - \
        \Transaction at time t is SELECTED by small ranges that cover it" $
@@ -1035,7 +1035,7 @@ spec = do
                 err `shouldContain` "I couldn't find a wallet with \
                     \the given id: 1111111111111111111111111111111111111111"
             else
-                err `shouldContain` "wallet id should be an \
+                err `shouldContain` "wallet id should be a \
                     \hex-encoded string of 40 characters"
 
   where

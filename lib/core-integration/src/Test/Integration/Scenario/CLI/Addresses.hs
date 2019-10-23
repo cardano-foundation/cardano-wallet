@@ -188,13 +188,13 @@ spec = do
                     errMsg404NoWallet "1111111111111111111111111111111111111111"
             else
                 e `shouldContain`
-                    "wallet id should be an hex-encoded string of 40 characters"
+                    "wallet id should be a hex-encoded string of 40 characters"
 
     it "ADDRESS_LIST_04 - 'almost' valid walletId" $ \ctx -> do
         wid <- emptyWallet' ctx
         (Exit c, Stdout o, Stderr e) <- listAddressesViaCLI @t ctx [wid ++ "0"]
         e `shouldContain`
-            "wallet id should be an hex-encoded string of 40 characters"
+            "wallet id should be a hex-encoded string of 40 characters"
         o `shouldBe` ""
         c `shouldBe` ExitFailure 1
 

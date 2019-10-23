@@ -361,7 +361,7 @@ spec = do
             |] `shouldBe` (Left @String @(ApiT (Hash "Tx")) msg)
 
         it "ApiT WalletId" $ do
-            let msg = "Error in $: wallet id should be an hex-encoded \
+            let msg = "Error in $: wallet id should be a hex-encoded \
                     \string of 40 characters"
             Aeson.parseEither parseJSON [aesonQQ|
                 "invalid-id"
@@ -408,7 +408,7 @@ spec = do
 
     describe "verify HttpApiData parsing failures too" $ do
         it "ApiT WalletId" $ do
-            let msg = "wallet id should be an hex-encoded string of 40 characters"
+            let msg = "wallet id should be a hex-encoded string of 40 characters"
             parseUrlPiece "invalid-id"
                 `shouldBe` (Left @Text @(ApiT WalletId) msg)
 
