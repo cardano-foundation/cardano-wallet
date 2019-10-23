@@ -813,7 +813,6 @@ assignMigrationTargetAddresses
     -> ExceptT ErrNoSuchWallet IO [CoinSelection]
 assignMigrationTargetAddresses ctx wid cs = do
     cp <- readWalletCheckpoint @ctx @s @t @k ctx wid
-    let pwd = error "FIXME: genChange should NOT require a pwd for seq wallets!"
     let (cs', s') = flip runState (getState cp) $ do
             forM cs $ \sel -> do
                 outs <- forM (change sel) $ \c -> do
@@ -823,6 +822,8 @@ assignMigrationTargetAddresses ctx wid cs = do
     DB.putCheckpoint db (PrimaryKey wid) (updateState s' cp) $> cs'
   where
     db = ctx ^. dbLayer @s @t @k
+    pwd = error
+        "FIXME: genChange should NOT require a password for sequential wallets."
 
 -- | Produce witnesses and construct a transaction from a given
 -- selection. Requires the encryption passphrase in order to decrypt
