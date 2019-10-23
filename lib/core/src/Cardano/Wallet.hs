@@ -155,7 +155,6 @@ import Cardano.Wallet.Primitive.Fee
     ( ErrAdjustForFee (..)
     , Fee (..)
     , FeeOptions (..)
-    , FeePolicy
     , adjustForFee
     , computeFee
     )
@@ -179,6 +178,7 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , DefineTx
     , Direction (..)
+    , FeePolicy (LinearFee)
     , Hash (..)
     , Range (..)
     , SlotId (..)
@@ -777,11 +777,11 @@ createMigrationSourceData ctx wid = do
     (cp, _, pending) <- readWallet @ctx @s @t @k ctx wid
     let bp = blockchainParameters cp
     let utxo = availableUTxO @s @t pending cp
-    -- FIXME
-    -- Set threshold to 'b' (constant from the fee policy) instead of 'minBound'
-    let fOpts = feeOpts tl (bp ^. #getFeePolicy)
-    let cOpts = coinSelOpts tl (bp ^. #getTxMaxSize)
-    pure $ selectCoinsForMigration fOpts (idealBatchSize cOpts) utxo
+    let feePolicy@(LinearFee (Quantity a) _) = bp ^. #getFeePolicy
+    let feeOptions = (feeOpts tl feePolicy)
+            { dustThreshold = Coin $ ceiling a }
+    let selOptions = coinSelOpts tl (bp ^. #getTxMaxSize)
+    pure $ selectCoinsForMigration feeOptions (idealBatchSize selOptions) utxo
   where
     tl = ctx ^. transactionLayer @t @k
 
