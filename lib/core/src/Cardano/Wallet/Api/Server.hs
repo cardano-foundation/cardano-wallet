@@ -847,7 +847,7 @@ migrateByronWallet rndCtx seqCtx (ApiT rndWid) (ApiT seqWid) migrateData = do
     cs <- liftHandler $ withWorkerCtx rndCtx rndWid throwE $ \rndWrk -> do
         cs <- W.createMigrationSourceData rndWrk rndWid
         withWorkerCtx seqCtx seqWid throwE $ \seqWrk ->
-            W.executeMigration seqWrk seqWid cs
+            W.assignMigrationTargetAddresses seqWrk seqWid cs
 
     now <- liftIO getCurrentTime
 
