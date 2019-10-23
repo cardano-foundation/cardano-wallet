@@ -1190,7 +1190,7 @@ paths:
       tags: ["Transactions"]
       summary: Delete
       description: |
-        <p align="right">status: <strong>under development</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
 
         Forget pending transaction.
       parameters:
@@ -1318,6 +1318,20 @@ paths:
         - *parametersEndDate
         - *parametersSortOrder
       responses: *responsesListTransactions
+
+  /byron-wallets/{walletId}/transactions/{transactionId}:
+    delete:
+      operationId: deleteTransaction
+      tags: ["Byron Transactions"]
+      summary: Delete
+      description: |
+        <p align="right">status: <strong>under development</strong></p>
+
+        Forget pending transaction.
+      parameters:
+        - *parametersWalletId
+        - *parametersTransactionId
+      responses: *responsesDeleteTransaction
 
   /byron-wallets/{walletId}/migrations:
     get:
