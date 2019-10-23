@@ -32,6 +32,7 @@ import Cardano.Wallet.Primitive.Types
     , Dom (..)
     , EpochLength (..)
     , EpochNo (..)
+    , FeePolicy (..)
     , Hash (..)
     , HistogramBar (..)
     , Range (..)
@@ -109,7 +110,7 @@ import Data.Set
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( TextDecodingError (..), fromText )
+    ( TextDecodingError (..), fromText, toText )
 import Data.Time
     ( UTCTime )
 import Data.Time.Utils
@@ -168,6 +169,20 @@ spec = do
         textRoundtrip $ Proxy @WalletId
         textRoundtrip $ Proxy @(Hash "Genesis")
         textRoundtrip $ Proxy @(Hash "Tx")
+
+        it "FeePolicy" $ property $ withMaxSuccess 10000 $
+            \fp@(LinearFee (Quantity a) (Quantity b)) ->
+                -- We have to be a little careful here, as small errors can
+                -- occur when encoding and decoding floating point numbers to
+                -- and from text. Rather than requiring absolute equality, we
+                -- instead require that the decoded values are close enough to
+                -- the original values, allowing for a small margin of error.
+                let Right (LinearFee (Quantity a') (Quantity b')) =
+                        fromText (toText fp) in
+                let epsilon = 1e-6 in
+                (abs (a - a') `shouldSatisfy` (< epsilon))
+                    .&&.
+                    (abs (b - b') `shouldSatisfy` (< epsilon))
 
     describe "Buildable" $ do
         it "WalletId" $ do
@@ -791,6 +806,16 @@ deriving instance Arbitrary a => Arbitrary (ShowFmt a)
 instance Arbitrary Direction where
     arbitrary = arbitraryBoundedEnum
     shrink = genericShrink
+
+instance Arbitrary FeePolicy where
+    arbitrary = do
+        NonNegative a <- arbitrary
+        NonNegative b <- arbitrary
+        return $ LinearFee (Quantity a) (Quantity b)
+    shrink (LinearFee (Quantity a) (Quantity b)) =
+        f <$> shrink (a, b)
+      where
+        f (x, y) = LinearFee (Quantity x) (Quantity y)
 
 instance Arbitrary (Hash "Genesis") where
     arbitrary = Hash . BS.pack <$> arbitrary
