@@ -23,7 +23,7 @@ import Prelude
 import Cardano.BM.Trace
     ( Trace, appendName, logInfo )
 import Cardano.CLI
-    ( Port (..), failWith, waitForService )
+    ( failWith )
 import Cardano.Launcher
     ( ProcessHasExited (..), installSignalHandlers )
 import Cardano.Wallet.Api
@@ -45,7 +45,7 @@ import Cardano.Wallet.HttpBridge.Network
 import Cardano.Wallet.HttpBridge.Primitive.Types
     ( Tx )
 import Cardano.Wallet.Network
-    ( NetworkLayer (..), defaultRetryPolicy, waitForNetwork )
+    ( NetworkLayer (..) )
 import Cardano.Wallet.Network.Ports
     ( PortNumber )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -114,8 +114,6 @@ serveWallet (cfg, tr) databaseDir listen bridge mAction = do
     logInfo tr $ "Node is Http-Bridge on " <> toText (networkVal @n)
     HttpBridge.withNetworkLayer @n tr bridge $ \case
         Right (bridgePort, nl) -> do
-            waitForService "http-bridge" tr (Port $ fromEnum bridgePort) $
-                waitForNetwork nl defaultRetryPolicy
             wlRnd <- newApiLayer nl
             wlSeq <- newApiLayer nl
             let mkCallback action apiPort =
@@ -143,6 +141,7 @@ serveWallet (cfg, tr) databaseDir listen bridge mAction = do
                   withAction $ race_ ipcServer apiServer
                   pure ExitSuccess
             Left e -> handleApiServerStartupError e
+
     newApiLayer
         :: forall s k .
             ( IsOurs s
@@ -184,7 +183,6 @@ serveWallet (cfg, tr) databaseDir listen bridge mAction = do
         ErrStartupNodeNotListening -> do
             failWith tr
                 "Waited too long for http-bridge to become available. Giving up!"
-
 
     handleApiServerStartupError :: ListenError -> IO ExitCode
     handleApiServerStartupError = \case

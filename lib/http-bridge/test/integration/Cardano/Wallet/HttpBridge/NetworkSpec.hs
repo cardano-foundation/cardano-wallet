@@ -187,11 +187,15 @@ spec = do
             RollForward _ _ bs -> bs
             _ -> error "Only expecting RollForward from HttpBridge"
 
-    newNetworkLayer = fmap fromIntegral findPort >>= HttpBridge.newNetworkLayer @'Testnet
-    newNetworkLayerInvalid = HttpBridge.newNetworkLayer @'Mainnet
-    withBridge cb = HttpBridge.withNetworkLayer @'Testnet nullTracer (HttpBridge.Launch cfg) $ \case
-        Right (port, nw) -> cb (nw, port)
-        Left e -> throwIO e
+    newNetworkLayer = fmap fromIntegral findPort
+        >>= HttpBridge.newNetworkLayer @'Testnet nullTracer
+    newNetworkLayerInvalid =
+        HttpBridge.newNetworkLayer @'Mainnet nullTracer
+    withBridge cb =
+        HttpBridge.withNetworkLayer @'Testnet nullTracer (HttpBridge.Launch cfg)
+            $ \case
+                Right (port, nw) -> cb (nw, port)
+                Left e -> throwIO e
     cfg = HttpBridge.HttpBridgeConfig (Right Testnet) Nothing Nothing [] Inherit
 
     -- The underlying HttpBridgeLayer is only needs the slot of the header.
