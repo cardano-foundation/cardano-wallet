@@ -1321,7 +1321,7 @@ paths:
 
   /byron-wallets/{walletId}/transactions/{transactionId}:
     delete:
-      operationId: deleteTransaction
+      operationId: deleteByronTransaction
       tags: ["Byron Transactions"]
       summary: Delete
       description: |
