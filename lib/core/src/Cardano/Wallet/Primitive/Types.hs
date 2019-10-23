@@ -710,15 +710,17 @@ instance NFData FeePolicy
 
 instance ToText FeePolicy where
     toText (LinearFee (Quantity a) (Quantity b)) =
-        toText a <> "x + " <> toText b
+        toText a <> " + " <> toText b <> "x"
 
 instance FromText FeePolicy where
-    fromText txt = case T.splitOn "x + " txt of
-        [a, b] -> LinearFee
+    fromText txt = case T.splitOn " + " txt of
+        [a, b] | T.takeEnd 1 b == "x" -> LinearFee
             <$> fmap Quantity (fromText a)
-            <*> fmap Quantity (fromText b)
+            <*> fmap Quantity (fromText (T.dropEnd 1 b))
         _ ->
-            Left $ TextDecodingError "not a linear equation"
+            Left $ TextDecodingError
+                "Unable to decode FeePolicy: \
+                \Linear equation not in expected format: a + bx"
 
 {-------------------------------------------------------------------------------
                                     Address
