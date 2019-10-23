@@ -90,7 +90,7 @@ import Cardano.Wallet.Primitive.Types
 import Control.DeepSeq
     ( deepseq )
 import Control.Monad
-    ( replicateM )
+    ( forM_, replicateM )
 import Crypto.Hash
     ( hash )
 import Data.ByteString
@@ -578,6 +578,21 @@ spec = do
             let err = "Unable to decode (Hash \"Genesis\"): \
                       \expected Base16 encoding"
             fromText @(Hash "Genesis") "----" === Left (TextDecodingError err)
+        let invalidFeePolicyTexts =
+                [ "1"
+                , "1x"
+                , "1 + 1"
+                , "1x + 1"
+                , "1+1x"
+                , "1 +1x"
+                , "1+ 1x"
+                ]
+        forM_ invalidFeePolicyTexts $ \policyText ->
+            it ("fail fromText @FeePolicy " <> show policyText) $ do
+                let err =
+                        "Unable to decode FeePolicy: \
+                        \Linear equation not in expected format: a + bx"
+                fromText @FeePolicy policyText === Left (TextDecodingError err)
 
     describe "Lemma 2.1 - Properties of UTxO operations" $ do
         it "2.1.1) ins⊲ u ⊆ u"
