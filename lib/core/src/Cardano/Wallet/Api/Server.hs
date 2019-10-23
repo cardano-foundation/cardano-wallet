@@ -820,7 +820,9 @@ getByronWalletMigrationInfo
        , s ~ RndState t
        , ctx ~ ApiLayer s t k )
     => ApiLayer s t k
+        -- ^ Source wallet context (Byron)
     -> ApiT WalletId
+        -- ^ Source wallet (Byron)
     -> Handler ApiByronWalletMigrationInfo
 getByronWalletMigrationInfo ctx (ApiT wid) =
     infoFromSelections <$> getSelections
@@ -849,11 +851,13 @@ migrateByronWallet
        , KeyToAddress t SeqKey
        )
     => ApiLayer (RndState t) t RndKey
+        -- ^ Source wallet context (Byron)
     -> ApiLayer (SeqState t) t SeqKey
+        -- ^ Target wallet context (Shelley)
     -> ApiT WalletId
         -- ^ Source wallet (Byron)
     -> ApiT WalletId
-        -- ^ Target wallet (new-style)
+        -- ^ Target wallet (Shelley)
     -> ApiMigrateByronWalletData
     -> Handler [ApiTransaction t]
 migrateByronWallet rndCtx seqCtx (ApiT rndWid) (ApiT seqWid) migrateData = do
