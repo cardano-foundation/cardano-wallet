@@ -5,12 +5,12 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 -- |
@@ -458,7 +458,8 @@ instance KeyToAddress t SeqKey => GenChange (SeqState t) where
     -- therefore, rotate the change addresses when we need extra change outputs.
     --
     -- See also: 'nextChangeIndex'
-    genChange _pwd (SeqState intPool extPool pending) =
+    type ArgGenChange (SeqState t) = ()
+    genChange () (SeqState intPool extPool pending) =
         let
             (ix, pending') = nextChangeIndex intPool pending
             accountXPub = accountPubKey intPool

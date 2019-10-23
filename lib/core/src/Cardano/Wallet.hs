@@ -808,22 +808,22 @@ assignMigrationTargetAddresses
     => ctx
     -> WalletId
     -- ^ The target wallet ID.
+    -> ArgGenChange s
+    -- ^ Bits necessary to generate change address for a state @s@
     -> [CoinSelection]
     -- ^ Migration data for the source wallet.
     -> ExceptT ErrNoSuchWallet IO [CoinSelection]
-assignMigrationTargetAddresses ctx wid cs = do
+assignMigrationTargetAddresses ctx wid argGenChange cs = do
     cp <- readWalletCheckpoint @ctx @s @t @k ctx wid
     let (cs', s') = flip runState (getState cp) $ do
             forM cs $ \sel -> do
                 outs <- forM (change sel) $ \c -> do
-                    addr <- state (genChange pwd)
+                    addr <- state (genChange argGenChange)
                     pure (TxOut addr c)
                 pure (sel { change = [], outputs = outs })
     DB.putCheckpoint db (PrimaryKey wid) (updateState s' cp) $> cs'
   where
     db = ctx ^. dbLayer @s @t @k
-    pwd = error
-        "FIXME: genChange should NOT require a password for sequential wallets."
 
 -- | Produce witnesses and construct a transaction from a given
 -- selection. Requires the encryption passphrase in order to decrypt
@@ -840,16 +840,17 @@ signTx
         )
     => ctx
     -> WalletId
+    -> ArgGenChange s
     -> Passphrase "encryption"
     -> CoinSelection
     -> ExceptT ErrSignTx IO (Tx t, TxMeta, [TxWitness])
-signTx ctx wid pwd (CoinSelection ins outs chgs) =
+signTx ctx wid argGenChange pwd (CoinSelection ins outs chgs) =
     DB.withLock db $ do
         cp <- withExceptT ErrSignTxNoSuchWallet $
             readWalletCheckpoint @ctx @s @t @k ctx wid
         let (changeOuts, s') = flip runState (getState cp) $
                 forM chgs $ \c -> do
-                    addr <- state (genChange pwd)
+                    addr <- state (genChange argGenChange)
                     return $ TxOut addr c
         allShuffledOuts <- liftIO $ shuffle (outs ++ changeOuts)
         withRootKey @_ @s @t ctx wid pwd ErrSignTxWithRootKey $ \xprv -> do

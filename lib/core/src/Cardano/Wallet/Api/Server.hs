@@ -620,7 +620,7 @@ postTransaction ctx (ApiT wid) body = do
         W.createUnsignedTx wrk wid outs
 
     (tx, meta, wit) <- liftHandler $ withWorkerCtx ctx wid liftE2 $ \wrk ->
-        W.signTx wrk wid pwd selection
+        W.signTx wrk wid () pwd selection
 
     liftHandler $ withWorkerCtx ctx wid liftE3 $ \wrk ->
         W.submitTx wrk wid (tx, meta, wit)
@@ -869,14 +869,14 @@ migrateByronWallet rndCtx seqCtx (ApiT rndWid) (ApiT seqWid) migrateData = do
         withWorkerCtx rndCtx rndWid throwE $ \rndWrk ->
         withWorkerCtx seqCtx seqWid throwE $ \seqWrk -> do
             cs <- W.createMigrationSourceData rndWrk rndWid
-            W.assignMigrationTargetAddresses seqWrk seqWid cs
+            W.assignMigrationTargetAddresses seqWrk seqWid () cs
 
     now <- liftIO getCurrentTime
 
     forM cs $ \selection -> do
         (tx, meta, wit) <- liftHandler
             $ withWorkerCtx rndCtx rndWid (throwE . ErrSignTxNoSuchWallet)
-            $ \wrk -> W.signTx wrk rndWid passphrase selection
+            $ \wrk -> W.signTx wrk rndWid passphrase passphrase selection
         liftHandler
             $ withWorkerCtx rndCtx rndWid (throwE . ErrSubmitTxNoSuchWallet)
             $ \wrk -> W.submitTx wrk rndWid (tx, meta, wit)
