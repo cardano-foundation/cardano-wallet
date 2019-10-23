@@ -37,7 +37,7 @@ import Cardano.Wallet.Primitive.Fee
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters (..) )
 import Control.Concurrent.Async
-    ( async, race, wait )
+    ( race )
 import Control.Concurrent.MVar
     ( newEmptyMVar, putMVar, takeMVar )
 import Control.Exception
@@ -56,10 +56,10 @@ import Network.Socket
     ( SockAddr (..) )
 import Numeric.Natural
     ( Natural )
-import System.Exit
-    ( ExitCode (..) )
 import Test.Hspec
-    ( Spec, SpecWith, after, afterAll, beforeAll, describe, hspec, parallel )
+    ( Spec, SpecWith, after, describe, hspec, parallel )
+import Test.Hspec.Extra
+    ( aroundAll )
 import Test.Integration.Framework.DSL
     ( Context (..), KnownCommand (..), TxDescription (..), tearDown )
 
@@ -124,21 +124,17 @@ specWithServer
     :: (CM.Configuration, Trace IO Text)
     -> SpecWith (Context (Jormungandr 'Testnet))
     -> Spec
-specWithServer logCfg = beforeAll start . afterAll _cleanup . after tearDown
+specWithServer logCfg = aroundAll withContext . after tearDown
   where
-    start :: IO (Context (Jormungandr 'Testnet))
-    start = do
+    withContext :: (Context (Jormungandr 'Testnet) -> IO ()) -> IO ()
+    withContext action = do
         ctx <- newEmptyMVar
-        finished <- newEmptyMVar
-        let untilFinished = fmap (either id id) . race (takeMVar finished)
-        pid <- async $ withConfig $ \jmCfg -> untilFinished $ do
-            let listen = ListenOnRandomPort
-            serveWallet logCfg Nothing "127.0.0.1" listen (Launch jmCfg) $ \wAddr nPort bp -> do
+        let setupContext wAddr nPort bp = do
                 let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
                 manager <- (baseUrl,) <$> newManager defaultManagerSettings
                 faucet <- initFaucet
                 putMVar ctx $ Context
-                    { _cleanup = putMVar finished ExitSuccess
+                    { _cleanup = pure ()
                     , _manager = manager
                     , _nodePort = nPort
                     , _walletPort = sockAddrPort wAddr
@@ -146,8 +142,12 @@ specWithServer logCfg = beforeAll start . afterAll _cleanup . after tearDown
                     , _feeEstimator = mkFeeEstimator (getFeePolicy bp)
                     , _target = Proxy
                     }
-        race (takeMVar ctx) (wait pid) >>=
+        race (takeMVar ctx >>= action) (withServer setupContext) >>=
             either pure (throwIO . ProcessHasExited "integration")
+
+    withServer setup = withConfig $ \jmCfg ->
+        serveWallet logCfg Nothing "127.0.0.1"
+            ListenOnRandomPort (Launch jmCfg) setup
 
 -- | Set a utf8 text encoding that doesn't crash when non-utf8 bytes are
 -- encountered.
