@@ -211,7 +211,7 @@ import Data.Time
 import Data.Time.Clock
     ( getCurrentTime )
 import Data.Word
-    ( Word32 )
+    ( Word32, Word64 )
 import Fmt
     ( Buildable, pretty )
 import Network.HTTP.Media.RenderHeader
@@ -831,7 +831,11 @@ getByronWalletMigrationInfo ctx (ApiT wid) =
             . Quantity
             . fromIntegral
             . sum
-            . fmap (\s -> inputBalance s - changeBalance s)
+            . fmap selectionFee
+
+    selectionFee :: CoinSelection -> Word64
+    selectionFee s = inputBalance s - changeBalance s
+
     getSelections :: Handler [CoinSelection]
     getSelections =
         liftHandler
