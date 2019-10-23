@@ -571,7 +571,7 @@ spec = do
             let walName = T.pack (replicate (walletNameMaxLength + 1) 'x')
             fromText @WalletName walName === Left (TextDecodingError err)
         it "fail fromText @WalletId \"101\"" $ do
-            let err = "wallet id should be an hex-encoded string \
+            let err = "wallet id should be a hex-encoded string \
                       \of 40 characters"
             fromText @WalletId "101" === Left (TextDecodingError err)
         it "fail fromText (@Hash \"Genesis\")" $ do

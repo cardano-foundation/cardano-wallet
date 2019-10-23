@@ -278,7 +278,7 @@ versionLine = "Running as v" <> pack (showVersion version)
   --- Error messages
   ---
 errMsgWalletIdEncoding :: String
-errMsgWalletIdEncoding = "wallet id should be an hex-encoded string of 40 characters"
+errMsgWalletIdEncoding = "wallet id should be a hex-encoded string of 40 characters"
 
 errMsg400StartTimeLaterThanEndTime :: String -> String -> String
 errMsg400StartTimeLaterThanEndTime startTime endTime = mconcat

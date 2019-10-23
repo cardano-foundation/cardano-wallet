@@ -297,7 +297,7 @@ instance FromText WalletId where
         (Right . WalletId)
         (decodeHex txt >>= digestFromByteString @_ @ByteString)
       where
-        msg = "wallet id should be an hex-encoded string of 40 characters"
+        msg = "wallet id should be a hex-encoded string of 40 characters"
         decodeHex =
             either (const Nothing) Just . convertFromBase Base16 . T.encodeUtf8
 
