@@ -131,7 +131,7 @@ type CompatibilityApi t =
     :<|> ListByronTransactions t
     :<|> MigrateByronWallet t
     :<|> PostByronWallet
-    :<|> DeleteTransaction
+    :<|> DeleteByronTransaction
 
 {-------------------------------------------------------------------------------
                                   Addresses
@@ -331,7 +331,7 @@ type MigrateByronWallet t = "byron-wallets"
     :> PostAccepted '[JSON] [ApiTransaction t]
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteByronTransaction
-type DeleteTransaction = "byron-wallets"
+type DeleteByronTransaction = "byron-wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "transactions"
     :> Capture "transactionId" ApiTxId

@@ -822,6 +822,7 @@ compatibilityApiServer rndCtx seqCtx =
     :<|> listByronTransactions rndCtx
     :<|> migrateByronWallet rndCtx seqCtx
     :<|> postByronWallet rndCtx
+    :<|> deleteByronTransaction rndCtx
 
 deleteByronWallet
     :: forall s t k. (s ~ RndState t)
@@ -966,6 +967,23 @@ listByronTransactions
     -> Handler [ApiTransaction t]
 listByronTransactions =
     listTransactions
+
+deleteByronTransaction
+    :: forall ctx s t k.
+        ( s ~ RndState t
+        , ctx ~ ApiLayer s t k
+        , DefineTx t
+        )
+    => ctx
+    -> ApiT WalletId
+    -> ApiTxId
+    -> Handler NoContent
+deleteByronTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
+    liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
+        W.forgetPendingTx wrk wid tid
+    return NoContent
+  where
+    liftE (ErrNoSuchWallet wid') = throwE $ ErrRemovePendingTxNoSuchWallet wid'
 
 {-------------------------------------------------------------------------------
                                 Helpers
