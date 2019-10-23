@@ -124,6 +124,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState, mkRndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..), defaultAddressPoolGap, mkSeqState )
+import Cardano.Wallet.Primitive.CoinSelection
+    ( CoinSelection, changeBalance, inputBalance )
 import Cardano.Wallet.Primitive.Fee
     ( Fee (..) )
 import Cardano.Wallet.Primitive.Model
@@ -820,9 +822,21 @@ getByronWalletMigrationInfo
     => ApiLayer s t k
     -> ApiT WalletId
     -> Handler ApiByronWalletMigrationInfo
-getByronWalletMigrationInfo _ _ =
--- TODO let fees = sum $ (\sel -> inputBalance sel - changeBalance sel) <$> coinSels
-    throwError err501
+getByronWalletMigrationInfo ctx (ApiT wid) =
+    infoFromSelections <$> getSelections
+  where
+    infoFromSelections :: [CoinSelection] -> ApiByronWalletMigrationInfo
+    infoFromSelections =
+        ApiByronWalletMigrationInfo
+            . Quantity
+            . fromIntegral
+            . sum
+            . fmap (\s -> inputBalance s - changeBalance s)
+    getSelections :: Handler [CoinSelection]
+    getSelections =
+        liftHandler
+            $ withWorkerCtx ctx wid throwE
+            $ flip W.createMigrationSourceData wid
 
 migrateByronWallet
     :: forall t.
