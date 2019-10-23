@@ -9,6 +9,8 @@ module Test.Integration.Scenario.CLI.Wallets
 
 import Prelude
 
+import Cardano.CLI
+    ( Port )
 import Cardano.Wallet.Api.Types
     ( ApiTransaction, ApiUtxoStatistics, ApiWallet, getApiT )
 import Cardano.Wallet.Primitive.Types
@@ -24,6 +26,8 @@ import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
+import Data.Generics.Product.Typed
+    ( typed )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -42,9 +46,11 @@ import Test.Integration.Framework.DSL
     , addressPoolGap
     , balanceAvailable
     , balanceTotal
+    , cardanoWalletCLI
     , createWalletViaCLI
     , delegation
     , deleteWalletViaCLI
+    , emptyByronWallet
     , emptyWallet
     , emptyWalletWith
     , expectCliFieldEqual
@@ -90,6 +96,62 @@ spec
     :: forall t. (EncodeAddress t, DecodeAddress t, KnownCommand t)
     => SpecWith (Context t)
 spec = do
+    it "BYRON_GET_03 - Shelley CLI does not show Byron wallet" $ \ctx -> do
+        wid <- emptyByronWallet' ctx
+        (Exit c, Stdout out, Stderr err) <- getWalletViaCLI @t ctx wid
+        out `shouldBe` ""
+        c `shouldBe` ExitFailure 1
+        err `shouldContain` errMsg404NoWallet (T.pack wid)
+
+    it "BYRON_LIST_03 - Shelley CLI does not list Byron wallet" $ \ctx -> do
+        _ <- emptyByronWallet' ctx
+        wid <- emptyWallet' ctx
+        (Exit c, Stdout out, Stderr err) <- listWalletsViaCLI @t ctx
+        c `shouldBe` ExitSuccess
+        err `shouldBe` cmdOk
+        j <- expectValidJSON (Proxy @[ApiWallet]) out
+        length j `shouldBe` 1
+        expectCliListItemFieldEqual 0 walletId (T.pack wid) j
+
+    it "BYRON_DELETE_03 - Shelley CLI does not delete Byron wallet" $ \ctx -> do
+        wid <- emptyByronWallet' ctx
+        (Exit c, Stdout out, Stderr err) <- deleteWalletViaCLI @t ctx wid
+        out `shouldBe` ""
+        c `shouldBe` ExitFailure 1
+        err `shouldContain` errMsg404NoWallet (T.pack wid)
+
+    it "BYRON_WALLETS_UTXO -\
+        \ Cannot show Byron wal utxo with shelley CLI" $ \ctx -> do
+        wid <- emptyByronWallet' ctx
+        (Exit c, Stdout o, Stderr e) <- getWalletUtxoStatisticsViaCLI @t ctx wid
+        c `shouldBe` ExitFailure 1
+        e `shouldContain` errMsg404NoWallet (T.pack wid)
+        o `shouldBe` mempty
+
+    it "BYRON_WALLETS_UPDATE_PASS -\
+        \ Cannot update Byron wal with shelley CLI" $ \ctx -> do
+        wid <- emptyByronWallet' ctx
+        let port = T.pack $ show $ ctx ^. typed @(Port "wallet")
+        let args = T.unpack <$>
+                [ "wallet", "update", "passphrase"
+                , "--port", port, T.pack wid ]
+        (Exit c, Stdout out, Stderr err) <- cardanoWalletCLI @t args
+        out `shouldBe` ""
+        c `shouldBe` ExitFailure 1
+        err `shouldContain` errMsg404NoWallet (T.pack wid)
+
+    it "BYRON_WALLETS_UPDATE -\
+        \ Cannot update name Byron wal with shelley CLI" $ \ctx -> do
+        wid <- emptyByronWallet' ctx
+        let port = T.pack $ show $ ctx ^. typed @(Port "wallet")
+        let args = T.unpack <$>
+                [ "wallet", "update", "name"
+                , "--port", port, T.pack wid, "name" ]
+        (Exit c, Stdout out, Stderr err) <- cardanoWalletCLI @t args
+        out `shouldBe` ""
+        c `shouldBe` ExitFailure 1
+        err `shouldContain` errMsg404NoWallet (T.pack wid)
+
     it "WALLETS_CREATE_01,08 - Can create a wallet" $ \ctx -> do
         Stdout m <- generateMnemonicsViaCLI @t []
         (c, out, err) <- createWalletViaCLI @t ctx ["n"] m "\n" "secure-passphrase"
@@ -647,6 +709,9 @@ spec = do
               ec `shouldBe` expEc
               out `shouldBe` expOut
               T.unpack err `shouldContain` expErr
+
+emptyByronWallet' :: Context t -> IO String
+emptyByronWallet' = fmap (T.unpack . view walletId) . emptyByronWallet
 
 emptyWallet' :: Context t -> IO String
 emptyWallet' = fmap (T.unpack . view walletId) . emptyWallet
