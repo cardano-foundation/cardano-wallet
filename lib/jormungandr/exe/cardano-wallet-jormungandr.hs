@@ -323,6 +323,6 @@ extraArguments = many $ argument jmArg $ mempty
         | "--storage" `isPrefixOf` arg = Just $
             suggestion "--storage"
         | otherwise = Nothing
-    suggestion arg = "The " <> arg <> " argument is used by the launch command."
-        <> "\nIf you need this level of flexibility, run \"jormungandr\" "
-        <> "separately and use \"cardano-wallet-jormungandr serve\"."
+    suggestion arg = "The " <> arg <> " argument is used by the 'launch'"
+        <> " command.\nIf you need to use this option,"
+        <> " run Jörmungandr separately and use 'serve'."
