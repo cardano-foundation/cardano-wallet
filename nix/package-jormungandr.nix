@@ -9,15 +9,16 @@
 { pkgs
 , version
 , cardano-wallet-jormungandr
-, jmPkgs ? import ./jormungandr.nix { inherit pkgs; }
-, jormungandr ? jmPkgs.jormungandr
-, jormungandr-win64 ? jmPkgs.jormungandr-win64
+, jmPkgs
 }:
 
 with pkgs.lib;
 
 let
   name = "cardano-wallet-jormungandr-${version}";
+
+  jormungandr = jmPkgs.jormungandr;
+  jormungandr-win64 = jmPkgs.jormungandr-win64;
 
   deps = {
     nix = ''

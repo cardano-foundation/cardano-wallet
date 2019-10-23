@@ -1,21 +1,15 @@
 { pkgs
 
-# haskell.nix
-, haskell
-
 # Filtered sources of this project
 , src
 
 # Dependencies of cardano-wallet-jormungandr
 , jmPkgs
-
-# Customisations for cross-compiling
-, iohk-extras ? {}
-, iohk-module ? {}
-
 }:
 
 let
+  haskell = pkgs.haskell-nix;
+
   # our packages
   stack-pkgs = import ./.stack.nix/default.nix;
 
@@ -87,15 +81,14 @@ let
         # Katip has Win32 (>=2.3 && <2.6) constraint
         packages.katip.doExactConfig = true;
       }
-
-      # The iohk-module will supply us with the necessary
-      # cross compilation plumbing to make Template Haskell
-      # work when cross compiling.
-      iohk-module
     ];
     pkg-def-extras = [
-      # Use the iohk-extras patched GHC for cross-compiling.
-      iohk-extras.${compiler}
+      # Workaround for https://github.com/input-output-hk/haskell.nix/issues/214
+      (hackage: {
+        packages = {
+          "hsc2hs" = (((hackage.hsc2hs)."0.68.4").revisions).default;
+        };
+      })
     ];
   };
 
