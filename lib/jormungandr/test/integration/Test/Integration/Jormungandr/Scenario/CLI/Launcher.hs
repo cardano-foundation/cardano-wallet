@@ -159,7 +159,7 @@ spec = do
             (Exit c, Stdout _, Stderr e) <- cardanoWalletCLI @t args
             c `shouldBe` ExitFailure 1
             e `shouldContain`
-                "The --rest-listen argument is used by the launch command."
+                "The --rest-listen option is used by the 'launch' command."
 
         it "LAUNCH - Conflicting --storage in extra arguments" $ do
             let args =
@@ -171,7 +171,7 @@ spec = do
             (Exit c, Stdout _, Stderr e) <- cardanoWalletCLI @t args
             c `shouldBe` ExitFailure 1
             e `shouldContain`
-                "The --storage argument is used by the launch command."
+                "The --storage option is used by the 'launch' command."
 
         it "LAUNCH - Restoration workers restart" $ withTempDir $ \d -> do
             pendingWith
