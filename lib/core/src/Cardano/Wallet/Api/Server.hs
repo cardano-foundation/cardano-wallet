@@ -77,6 +77,7 @@ import Cardano.Wallet.Api
     , CoreApi
     , HasDBFactory
     , HasWorkerRegistry
+    , StakePoolApi
     , StakePools
     , Transactions
     , Wallets
@@ -312,7 +313,9 @@ start settings trace socket rndCtx seqCtx spl = do
   where
     -- | A Servant server for our wallet API
     server :: Server (Api t)
-    server = coreApiServer seqCtx spl :<|> compatibilityApiServer rndCtx seqCtx
+    server = coreApiServer seqCtx
+        :<|> compatibilityApiServer rndCtx seqCtx
+        :<|> stakePoolServer spl
 
     application :: Application
     application = serve (Proxy @("v2" :> Api t)) server
@@ -389,14 +392,17 @@ coreApiServer
         , ctx ~ ApiLayer s t k
         )
     => ctx
-    -> StakePoolLayer IO
     -> Server (CoreApi t)
-coreApiServer ctx spl =
+coreApiServer ctx =
     addresses ctx
     :<|> wallets ctx
     :<|> transactions ctx
-    :<|> pools spl
     :<|> network ctx
+
+stakePoolServer
+    :: StakePoolLayer IO
+    -> Server StakePoolApi
+stakePoolServer = pools
 
 {-------------------------------------------------------------------------------
                                     Wallets

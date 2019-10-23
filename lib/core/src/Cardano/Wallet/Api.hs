@@ -20,9 +20,12 @@ module Cardano.Wallet.Api
     , Addresses
     , Wallets
     , Transactions
+
+      -- * Stake Pool API
+    , StakePoolApi
     , StakePools
 
-    -- * Compatibility API
+      -- * Compatibility API
     , CompatibilityApi
 
       -- * Api Layer
@@ -110,14 +113,15 @@ import Servant.API
     , ReqBody
     )
 
-type Api t = CoreApi t :<|> CompatibilityApi t
+type Api t = CoreApi t :<|> CompatibilityApi t :<|> StakePoolApi
 
 type CoreApi t =
     Addresses t
     :<|> Wallets
     :<|> Transactions t
-    :<|> StakePools
     :<|> Network
+
+type StakePoolApi = StakePools
 
 type CompatibilityApi t =
     DeleteByronWallet
