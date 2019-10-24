@@ -172,11 +172,11 @@ newStakePoolLayer db nl tr = do
 -- the case if we make 'SqlPersistT' the top-level monad for the 'DBLayer'
 -- instead of 'IO'.
 monitorStakePools
-    :: NetworkLayer IO t Block
+    :: Trace IO Text
+    -> NetworkLayer IO t Block
     -> DBLayer IO
-    -> Trace IO Text
     -> IO ()
-monitorStakePools nl db tr = do
+monitorStakePools tr nl db = do
     cursor <- initCursor
     logInfo tr $ mconcat
         [ "Start monitoring stake pools. Currently at "
