@@ -45,8 +45,8 @@ in {
       bech32
       text-class
     ];
-    buildInputs = (with pkgs.haskellPackages; [ weeder ghcid ])
-      ++ (with iohkLib; [ hlint stylish-haskell openapi-spec-validator ])
+    buildInputs = (with iohkLib.pkgs.haskellPackages; [ stylish-haskell weeder ghcid ])
+      ++ (with iohkLib; [ hlint openapi-spec-validator ])
       ++ [ jormungandr jormungandr-cli
            pkgs.pkgconfig pkgs.sqlite-interactive ];
   };
