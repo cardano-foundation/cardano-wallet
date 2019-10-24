@@ -37,8 +37,6 @@ import Cardano.BM.Trace
     ( Trace, logDebug, logInfo, logNotice )
 import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists )
-import Cardano.Wallet.DB
-    ()
 import Cardano.Wallet.Network
     ( ErrNetworkTip
     , ErrNetworkUnavailable
