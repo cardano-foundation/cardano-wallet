@@ -550,7 +550,7 @@ instance Arbitrary TxOut where
 instance Arbitrary TxMeta where
     shrink _ = []
     arbitrary = TxMeta
-        <$> elements [Pending, InLedger, Invalidated]
+        <$> elements [Pending, InLedger]
         <*> elements [Incoming, Outgoing]
         <*> (SlotId
             <$> (EpochNo <$> choose (0, 1000))

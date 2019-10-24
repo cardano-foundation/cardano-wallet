@@ -640,7 +640,6 @@ instance Buildable TxMeta where
 data TxStatus
     = Pending
     | InLedger
-    | Invalidated
     deriving (Show, Eq, Ord, Bounded, Enum, Generic)
 
 instance NFData TxStatus

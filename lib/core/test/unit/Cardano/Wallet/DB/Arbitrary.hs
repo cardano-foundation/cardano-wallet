@@ -366,7 +366,7 @@ instance Arbitrary TxMeta where
         <*> fmap (Quantity . fromIntegral) (arbitrary @Word32)
 
 instance Arbitrary TxStatus where
-    arbitrary = elements [Pending, InLedger, Invalidated]
+    arbitrary = elements [Pending, InLedger]
 
 instance Arbitrary Coin where
     arbitrary = Coin <$> choose (1, 100000)

@@ -386,7 +386,7 @@ mkTxHistory :: Int -> Int -> Int -> [Word64] -> [(Tx, TxMeta)]
 mkTxHistory numTx numInputs numOutputs range =
     [ ( force (Tx (mkInputs i numInputs) (mkOutputs i numOutputs))
       , force TxMeta
-          { status = [InLedger, Pending, Invalidated] !! (i `mod` 3)
+          { status = [InLedger, Pending] !! (i `mod` 2)
           , direction = Incoming
           , slotId = sl i
           , blockHeight = Quantity $ fromIntegral $ unSlotNo $ slotNumber $ sl i

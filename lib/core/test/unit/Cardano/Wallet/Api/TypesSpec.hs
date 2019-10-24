@@ -903,11 +903,9 @@ instance Arbitrary (ApiTransaction t) where
         txStatus <- arbitrary
         txInsertedAt <- case txStatus of
             (ApiT Pending) -> pure Nothing
-            (ApiT Invalidated) -> pure Nothing
             (ApiT InLedger) -> arbitrary
         txPendingSince <- case txStatus of
             (ApiT Pending) -> arbitrary
-            (ApiT Invalidated) -> pure Nothing
             (ApiT InLedger) -> pure Nothing
         ApiTransaction
             <$> arbitrary
