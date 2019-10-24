@@ -152,6 +152,7 @@ test-suite unit
     , bytestring
     , cardano-crypto
     , cardano-wallet-core
+    , cardano-wallet-launcher
     , cardano-wallet-test-utils
     , cborg
     , containers
@@ -238,6 +239,7 @@ test-suite unit
       Data.Time.TextSpec
       Data.Time.UtilsSpec
       Network.Wai.Middleware.LoggingSpec
+      Spec
 
 benchmark db
   default-language:

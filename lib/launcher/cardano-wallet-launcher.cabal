@@ -44,6 +44,7 @@ library
   if os(windows)
     build-depends: Win32
     other-modules: Cardano.Launcher.Windows
+    cpp-options:   -DWINDOWS
   else
     build-depends: unix
     other-modules: Cardano.Launcher.POSIX
