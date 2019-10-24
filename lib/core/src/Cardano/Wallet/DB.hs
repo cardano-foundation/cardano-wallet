@@ -194,7 +194,7 @@ newtype ErrNoSuchWallet
 
 -- | Can't perform removing pending transaction
 data ErrRemovePendingTx
-    = ErrRemovePendingTxNoSuchWallet WalletId
+    = ErrRemovePendingTxNoSuchWallet ErrNoSuchWallet
     | ErrRemovePendingTxNoSuchTransaction (Hash "Tx")
     | ErrRemovePendingTxTransactionNoMorePending (Hash "Tx")
     deriving (Eq, Show)

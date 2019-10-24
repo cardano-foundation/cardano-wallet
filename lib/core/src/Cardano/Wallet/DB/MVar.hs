@@ -170,7 +170,7 @@ errNoSuchWallet _ = Nothing
 
 errCannotRemovePendingTx :: Err (PrimaryKey WalletId) -> Maybe ErrRemovePendingTx
 errCannotRemovePendingTx (CannotRemovePendingTx (ErrErasePendingTxNoSuchWallet (PrimaryKey wid))) =
-    Just (ErrRemovePendingTxNoSuchWallet wid)
+    Just (ErrRemovePendingTxNoSuchWallet (ErrNoSuchWallet wid))
 errCannotRemovePendingTx (CannotRemovePendingTx (ErrErasePendingTxNoTx tid)) =
     Just (ErrRemovePendingTxNoSuchTransaction tid)
 errCannotRemovePendingTx (CannotRemovePendingTx (ErrErasePendingTxNoPendingTx tid)) =

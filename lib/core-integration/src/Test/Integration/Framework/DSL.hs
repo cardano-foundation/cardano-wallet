@@ -82,7 +82,6 @@ module Test.Integration.Framework.DSL
     , tearDown
     , fixtureByronWallet
     , fixtureWallet
-    , fixtureByronWallet
     , fixtureWalletWith
     , faucetAmt
     , faucetUtxoAmt
@@ -835,13 +834,6 @@ emptyWalletWith ctx (name, passphrase, addrPoolGap) = do
     r <- request @ApiWallet ctx postWalletEp Default payload
     expectResponseCode @IO HTTP.status202 r
     return (getFromResponse id r)
-
-
--- | Restore a faucet and wait until funds are available.
-fixtureByronWallet
-    :: Context t
-    -> IO ApiByronWallet
-fixtureByronWallet _ = error "fixtureByronWallet: not yet implemented"
 
 -- | Restore a faucet and wait until funds are available.
 fixtureWallet

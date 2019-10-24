@@ -684,7 +684,7 @@ deleteTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
         W.forgetPendingTx wrk wid tid
     return NoContent
   where
-    liftE (ErrNoSuchWallet wid') = throwE $ ErrRemovePendingTxNoSuchWallet wid'
+    liftE = throwE . ErrRemovePendingTxNoSuchWallet
 
 listTransactions
     :: forall ctx s t k.
@@ -983,7 +983,7 @@ deleteByronTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
         W.forgetPendingTx wrk wid tid
     return NoContent
   where
-    liftE (ErrNoSuchWallet wid') = throwE $ ErrRemovePendingTxNoSuchWallet wid'
+    liftE = throwE . ErrRemovePendingTxNoSuchWallet
 
 {-------------------------------------------------------------------------------
                                 Helpers
@@ -1414,8 +1414,7 @@ instance LiftHandler ErrSubmitExternalTx where
 
 instance LiftHandler ErrRemovePendingTx where
     handler = \case
-        ErrRemovePendingTxNoSuchWallet wid ->
-            handler (ErrNoSuchWallet wid)
+        ErrRemovePendingTxNoSuchWallet wid -> handler wid
         ErrRemovePendingTxNoSuchTransaction tid ->
             apiError err404 NoSuchTransaction $ mconcat
                 [ "I couldn't find a transaction with the given id: "
