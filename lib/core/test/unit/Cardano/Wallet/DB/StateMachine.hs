@@ -383,7 +383,7 @@ runIO db = fmap Resp . go
     errWalletAlreadyExists (ErrWalletAlreadyExists wid) = WalletAlreadyExists wid
 
     errCannotRemovePendingTx :: ErrRemovePendingTx -> Err WalletId
-    errCannotRemovePendingTx (ErrRemovePendingTxNoSuchWallet wid) =
+    errCannotRemovePendingTx (ErrRemovePendingTxNoSuchWallet (ErrNoSuchWallet wid)) =
         CannotRemovePendingTx (ErrErasePendingTxNoSuchWallet wid)
     errCannotRemovePendingTx (ErrRemovePendingTxNoSuchTransaction tid) =
         CannotRemovePendingTx (ErrErasePendingTxNoTx tid)

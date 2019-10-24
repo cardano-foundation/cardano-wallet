@@ -457,7 +457,8 @@ newDBLayer logConfig trace mDatabaseFile = do
                               pure $ Left $
                               ErrRemovePendingTxTransactionNoMorePending tid
 
-                  Nothing -> pure $ Left $ ErrRemovePendingTxNoSuchWallet wid
+                  Nothing ->
+                      pure $ Left $ ErrRemovePendingTxNoSuchWallet (ErrNoSuchWallet wid)
         {-----------------------------------------------------------------------
                                        Lock
         -----------------------------------------------------------------------}

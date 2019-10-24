@@ -80,8 +80,8 @@ module Test.Integration.Framework.DSL
     , listTransactions
     , listAllTransactions
     , tearDown
-    , fixtureWallet
     , fixtureByronWallet
+    , fixtureWallet
     , fixtureWalletWith
     , faucetAmt
     , faucetUtxoAmt
@@ -98,12 +98,14 @@ module Test.Integration.Framework.DSL
 
     -- * Endpoints
     , postByronWalletEp
+    , postByronTxEp
     , migrateByronWalletEp
     , calculateByronMigrationCostEp
     , getByronWalletEp
     , listByronWalletEp
     , listByronTxEp
     , deleteByronWalletEp
+    , deleteByronTxEp
     , getWalletEp
     , deleteWalletEp
     , getWalletUtxoEp
@@ -1093,6 +1095,12 @@ listByronWalletEp =
     , "v2/byron-wallets"
     )
 
+postByronTxEp :: ApiByronWallet -> (Method, Text)
+postByronTxEp w =
+    ( "POST"
+    , "v2/byron-wallets/" <> w ^. walletId <> "/transactions"
+    )
+
 listByronTxEp :: ApiByronWallet -> Text -> (Method, Text)
 listByronTxEp w query =
     ( "GET"
@@ -1121,6 +1129,12 @@ deleteByronWalletEp :: ApiByronWallet -> (Method, Text)
 deleteByronWalletEp w =
     ( "DELETE"
     , "v2/byron-wallets/" <> w ^. walletId
+    )
+
+deleteByronTxEp :: ApiByronWallet -> ApiTxId -> (Method, Text)
+deleteByronTxEp w tid =
+    ( "DELETE"
+    , "v2/byron-wallets/" <> w ^. walletId <> "/transactions/" <> (toUrlPiece tid)
     )
 
 listStakePoolsEp :: (Method, Text)

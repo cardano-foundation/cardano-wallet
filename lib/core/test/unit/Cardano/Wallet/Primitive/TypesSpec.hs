@@ -195,15 +195,6 @@ spec = do
                     , amount = Quantity 13371442
                     }
             "+13.371442 in ledger since 14.0#1" === pretty @_ @Text txMeta
-        it "TxMeta (3)" $ do
-            let txMeta = TxMeta
-                    { status = Invalidated
-                    , direction = Incoming
-                    , slotId = SlotId 0 42
-                    , blockHeight = Quantity 8
-                    , amount = Quantity 0
-                    }
-            "+0.000000 invalidated since 0.42#8" === pretty @_ @Text txMeta
 
     let slotsPerEpoch = EpochLength 21600
 
