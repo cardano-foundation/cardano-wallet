@@ -1192,7 +1192,11 @@ paths:
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
-        Forget pending transaction.
+        Forget pending transaction. Importantly, a transaction, when sent,
+        cannot be cancelled. One can only request forgetting about it
+        in order to try spending (concurrently) the same UTxO in another
+        transaction. But, the transaction may still show up later in a block
+        and therefore, appear in the wallet.
       parameters:
         - *parametersWalletId
         - *parametersTransactionId
@@ -1325,9 +1329,13 @@ paths:
       tags: ["Byron Transactions"]
       summary: Delete
       description: |
-        <p align="right">status: <strong>under development</strong></p>
+        <p align="right">status: <strong>under testing</strong></p>
 
-        Forget pending transaction.
+        Forget pending Byron transaction. Importantly, a transaction, when sent,
+        cannot be cancelled. One can only request forgetting about it
+        in order to try spending (concurrently) the same UTxO in another
+        transaction. But, the transaction may still show up later in a block
+        and therefore, appear in the wallet.
       parameters:
         - *parametersWalletId
         - *parametersTransactionId

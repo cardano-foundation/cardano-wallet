@@ -841,7 +841,7 @@ emptyWalletWith ctx (name, passphrase, addrPoolGap) = do
 fixtureByronWallet
     :: Context t
     -> IO ApiByronWallet
-fixtureByronWallet _ = undefined
+fixtureByronWallet _ = error "fixtureByronWallet: not yet implemented"
 
 -- | Restore a faucet and wait until funds are available.
 fixtureWallet
