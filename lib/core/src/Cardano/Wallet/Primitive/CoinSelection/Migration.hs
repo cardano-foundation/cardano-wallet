@@ -136,10 +136,12 @@ selectCoinsForMigration feeOpts batchSize utxo =
             { change = modifyFirst (c :| cs) (+ diff) }
       where
         diff :: Integer
-        diff = fromIntegral actualFee - fromIntegral requiredFee
+        diff = actualFee - integer requiredFee
           where
-            (Fee requiredFee) = estimateFee feeOpts coinSel
-            actualFee = inputBalance coinSel - changeBalance coinSel
+            (Fee requiredFee) =
+                estimateFee feeOpts coinSel
+            actualFee =
+                integer (inputBalance coinSel) - integer (changeBalance coinSel)
 
     -- | Apply the given function to the first coin of the list. If the
     -- operation makes the 'Coin' smaller than the dust threshold, the coin is
@@ -150,10 +152,10 @@ selectCoinsForMigration feeOpts batchSize utxo =
         | otherwise = (Coin (fromIntegral c')):cs
       where
         c' :: Integer
-        c' = op (fromIntegral c)
+        c' = op (integer c)
 
         threshold :: Integer
-        threshold = fromIntegral (getCoin (dustThreshold feeOpts))
+        threshold = integer (getCoin (dustThreshold feeOpts))
 
     getNextBatch :: State [a] [a]
     getNextBatch = do
@@ -175,3 +177,7 @@ idealBatchSize coinselOpts = fromIntegral (fixPoint 1)
       where
         maxN :: Word8 -> Word8
         maxN = maximumNumberOfInputs coinselOpts
+
+-- | Safe conversion of an integral type to an integer
+integer :: Integral a => a -> Integer
+integer = fromIntegral
