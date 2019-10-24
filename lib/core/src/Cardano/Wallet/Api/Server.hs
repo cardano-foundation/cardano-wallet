@@ -1476,6 +1476,30 @@ instance LiftHandler ErrNetworkTip where
             , "in a bit might give better results!"
             ]
 
+instance LiftHandler ErrListStakePools where
+     handler = \case
+         ErrListStakePoolsMetricsInconsistency e -> handler e
+         ErrListStakePoolsErrNetworkTip e -> handler e
+         ErrMetricsIsUnsynced p ->
+             apiError err503 NotSynced $ mconcat
+                 [ "I can't list stake pools yet because I need to scan the "
+                 , "blockchain for metrics first. I'm at "
+                 , toText p
+                 ]
+
+instance LiftHandler ErrMetricsInconsistency where
+    handler = \case
+        ErrProducerNotInDistribution producer blocks ->
+            apiError err500 UnexpectedError $ mconcat
+                [ "Something is terribly wrong with the metrics I collected."
+                , "\n\nThe pool "
+                , toText producer
+                , " has produced "
+                , toText $ getQuantity blocks
+                , " blocks, but it doesn't exist (at all) in the"
+                , " stake-distribution."
+                ]
+
 instance LiftHandler (Request, ServantErr) where
     handler (req, err@(ServantErr code _ body headers))
       | not (isJSON body) = case code of
@@ -1523,31 +1547,3 @@ instance LiftHandler (Request, ServantErr) where
                 , renderHeader $ contentType $ Proxy @JSON
                 ) : headers
             }
-
-instance LiftHandler ErrListStakePools where
-     handler = \case
-         ErrMetricsIsUnsynced p ->
-             apiError err400 NotSynced $ mconcat
-                 [ "I can't list stake pools yet because I need to scan the "
-                 , "blockchain for metrics first. I'm at "
-                 , toText p
-                 ]
-         ErrListStakePoolsMetricsInconsistency
-            (ErrProducerNotInDistribution producer blocks) ->
-                apiError err500 UnexpectedError $ mconcat
-                    [ "Something is terribly wrong with the metrics I collected."
-                    , "\n\nThe pool "
-                    , toText producer
-                    , " has produced "
-                    , toText $ getQuantity blocks
-                    , " blocks, but it doesn't exist (at all) in the"
-                    , " stake-distribution."
-                    ]
-         ErrListStakePoolsErrNetworkTip e ->
-            apiError err500 NetworkTipNotFound $ mconcat
-                [ "I can't reach the node to figure out the current tip. "
-                , "Here's some information about what happened:\n\n"
-                , T.pack $ show e
-                ]
-
-

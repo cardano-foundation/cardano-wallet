@@ -21,7 +21,7 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
-    , emptyWallet
+    , eventually
     , expectErrorMessage
     , expectResponseCode
     , listStakePoolsEp
@@ -35,9 +35,9 @@ import qualified Network.HTTP.Types.Status as HTTP
 spec :: forall t. (EncodeAddress t, DecodeAddress t) => SpecWith (Context t)
 spec = do
     it "STAKE_POOLS_LIST_01 - List stake pools" $ \ctx -> do
-        _ <- emptyWallet ctx
-        r <- request @ApiStakePool ctx listStakePoolsEp Default Empty
-        expectResponseCode HTTP.status501 r
+        eventually $ do
+            r <- request @[ApiStakePool] ctx listStakePoolsEp Default Empty
+            expectResponseCode HTTP.status200 r
 
     describe "STAKE_POOLS_LIST_02 - v2/stake-pools - Methods Not Allowed" $ do
         let methods = ["POST", "PUT", "DELETE", "CONNECT", "TRACE", "OPTIONS"]
