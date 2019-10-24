@@ -110,7 +110,7 @@ import Data.Set
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( TextDecodingError (..), fromText, toText )
+    ( TextDecodingError (..), fromText )
 import Data.Time
     ( UTCTime )
 import Data.Time.Utils
@@ -164,25 +164,12 @@ spec = do
         textRoundtrip $ Proxy @Address
         textRoundtrip $ Proxy @AddressState
         textRoundtrip $ Proxy @Direction
+        textRoundtrip $ Proxy @FeePolicy
         textRoundtrip $ Proxy @TxStatus
         textRoundtrip $ Proxy @WalletName
         textRoundtrip $ Proxy @WalletId
         textRoundtrip $ Proxy @(Hash "Genesis")
         textRoundtrip $ Proxy @(Hash "Tx")
-
-        it "FeePolicy" $ property $ withMaxSuccess 10000 $
-            \fp@(LinearFee (Quantity a) (Quantity b)) ->
-                -- We have to be a little careful here, as small errors can
-                -- occur when encoding and decoding floating point numbers to
-                -- and from text. Rather than requiring absolute equality, we
-                -- instead require that the decoded values are close enough to
-                -- the original values, allowing for a small margin of error.
-                let Right (LinearFee (Quantity a') (Quantity b')) =
-                        fromText (toText fp) in
-                let epsilon = 1e-6 in
-                (abs (a - a') `shouldSatisfy` (< epsilon))
-                    .&&.
-                    (abs (b - b') `shouldSatisfy` (< epsilon))
 
     describe "Buildable" $ do
         it "WalletId" $ do

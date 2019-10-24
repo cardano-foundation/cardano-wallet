@@ -45,13 +45,15 @@ import Data.Maybe
 import Data.Text
     ( Text )
 import Data.Text.Read
-    ( decimal, rational, signed )
+    ( decimal, signed )
 import Fmt
     ( Buildable )
 import GHC.Generics
     ( Generic )
 import Numeric.Natural
     ( Natural )
+import Text.Read
+    ( readEither )
 
 import qualified Data.Char as C
 import qualified Data.Text as T
@@ -124,10 +126,7 @@ instance ToText Integer where
     toText = T.pack . show
 
 instance FromText Double where
-    fromText t = do
-        (parsedValue, unconsumedInput) <- first (const err) $ rational t
-        unless (T.null unconsumedInput) $ Left err
-        pure parsedValue
+    fromText = first (const err) . readEither . T.unpack
       where
         err = TextDecodingError "Expecting floating number"
 
