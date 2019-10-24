@@ -80,6 +80,7 @@ module Test.Integration.Framework.DSL
     , listTransactions
     , listAllTransactions
     , tearDown
+    , fixtureByronWallet
     , fixtureWallet
     , fixtureByronWallet
     , fixtureWalletWith
@@ -98,12 +99,14 @@ module Test.Integration.Framework.DSL
 
     -- * Endpoints
     , postByronWalletEp
+    , postByronTxEp
     , migrateByronWalletEp
     , calculateByronMigrationCostEp
     , getByronWalletEp
     , listByronWalletEp
     , listByronTxEp
     , deleteByronWalletEp
+    , deleteByronTxEp
     , getWalletEp
     , deleteWalletEp
     , getWalletUtxoEp
@@ -833,6 +836,13 @@ emptyWalletWith ctx (name, passphrase, addrPoolGap) = do
     expectResponseCode @IO HTTP.status202 r
     return (getFromResponse id r)
 
+
+-- | Restore a faucet and wait until funds are available.
+fixtureByronWallet
+    :: Context t
+    -> IO ApiByronWallet
+fixtureByronWallet _ = undefined
+
 -- | Restore a faucet and wait until funds are available.
 fixtureWallet
     :: Context t
@@ -1093,6 +1103,12 @@ listByronWalletEp =
     , "v2/byron-wallets"
     )
 
+postByronTxEp :: ApiByronWallet -> (Method, Text)
+postByronTxEp w =
+    ( "POST"
+    , "v2/byron-wallets/" <> w ^. walletId <> "/transactions"
+    )
+
 listByronTxEp :: ApiByronWallet -> Text -> (Method, Text)
 listByronTxEp w query =
     ( "GET"
@@ -1121,6 +1137,12 @@ deleteByronWalletEp :: ApiByronWallet -> (Method, Text)
 deleteByronWalletEp w =
     ( "DELETE"
     , "v2/byron-wallets/" <> w ^. walletId
+    )
+
+deleteByronTxEp :: ApiByronWallet -> ApiTxId -> (Method, Text)
+deleteByronTxEp w tid =
+    ( "DELETE"
+    , "v2/byron-wallets/" <> w ^. walletId <> "/transactions/" <> (toUrlPiece tid)
     )
 
 listStakePoolsEp :: (Method, Text)

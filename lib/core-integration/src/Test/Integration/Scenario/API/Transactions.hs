@@ -24,6 +24,8 @@ import Data.Aeson
     ( Value )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
+import Data.Text
+    ( Text )
 import Data.Time.Clock
     ( UTCTime, addUTCTime )
 import Data.Time.Utils
@@ -31,7 +33,7 @@ import Data.Time.Utils
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( SpecWith, describe, it, shouldSatisfy )
+    ( SpecWith, describe, it, shouldSatisfy, xit )
 import Test.Integration.Framework.DSL
     ( Context
     , Headers (..)
@@ -40,6 +42,7 @@ import Test.Integration.Framework.DSL
     , amount
     , balanceAvailable
     , balanceTotal
+    , deleteByronTxEp
     , deleteTxEp
     , deleteWalletEp
     , direction
@@ -58,6 +61,7 @@ import Test.Integration.Framework.DSL
     , faucetAmt
     , faucetUtxoAmt
     , feeEstimator
+    , fixtureByronWallet
     , fixtureWallet
     , fixtureWalletWith
     , getFromResponse
@@ -65,8 +69,10 @@ import Test.Integration.Framework.DSL
     , json
     , listAddresses
     , listAllTransactions
+    , listByronTxEp
     , listTransactions
     , listTxEp
+    , postByronTxEp
     , postTxEp
     , postTxFeeEp
     , request
@@ -1541,44 +1547,15 @@ spec = do
                 , expectListItemFieldEqual 0 status InLedger
                 ]
 
-    it "TRANS_DELETE_02 - checking not pending anymore error" $ \ctx -> do
-        (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+    transactionDeleteTest02
+        "wallets" it fixtureWallet emptyWallet ("cardano-wallet" :: Text)
+        postTxEp listTxEp deleteTxEp
 
-        -- post transaction
-        addrs <- listAddresses ctx wDest
-        let amt = 1 :: Int
-        let destination = (addrs !! 1) ^. #id
-        let payload = Json [json|{
-                "payments": [{
-                    "address": #{destination},
-                    "amount": {
-                        "quantity": #{amt},
-                        "unit": "lovelace"
-                    }
-                }],
-                "passphrase": "cardano-wallet"
-            }|]
-        rMkTx <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
-        let txId = getFromResponse #id rMkTx
-        verify rMkTx
-            [ expectSuccess
-            , expectResponseCode HTTP.status202
-            ]
-
-        -- Wait for the transaction to be accepted
-        eventually $ do
-            let ep = listTxEp wSrc mempty
-            request @([ApiTransaction t]) ctx ep Default Empty >>= flip verify
-                [ expectListItemFieldEqual 0 direction Outgoing
-                , expectListItemFieldEqual 0 status InLedger
-                ]
-
-        -- Try Forget transaction once it's no longer pending
-        let ep = deleteTxEp wSrc (ApiTxId txId)
-        rDel <- request @ApiTxId ctx ep Default Empty
-        expectResponseCode @IO HTTP.status403 rDel
-        let err = errMsg403NoPendingAnymore (toUrlPiece (ApiTxId txId))
-        expectErrorMessage err rDel
+    -- xit -> it when submitting byron tx is supported by Jormungadr
+    -- Then we need also to add impl of fixtureByronWallet in DSL
+    transactionDeleteTest02
+        "byron-wallets" xit fixtureByronWallet emptyWallet ("Secure Passphrase" :: Text)
+        postByronTxEp listByronTxEp deleteByronTxEp
 
     transactionDeleteTest03 emptyWallet "wallets"
 
@@ -1641,9 +1618,50 @@ spec = do
             expectResponseCode @IO HTTP.status404 r
             expectErrorMessage (errMsg404NoWallet wid) r
   where
-    transactionDeleteTest03 emptWallet resource =
+    transactionDeleteTest02
+        str action fWallet eWallet passwd postTxEndp listTxEndp deleteTxEndp =
+        action ("TRANS_DELETE_02 - checking not pending anymore error for " <> str) $ \ctx -> do
+            (wSrc, wDest) <- (,) <$> fWallet ctx <*> eWallet ctx
+
+            -- post transaction
+            addrs <- listAddresses ctx wDest
+            let amt = 1 :: Int
+            let destination = (addrs !! 1) ^. #id
+            let payload = Json [json|{
+                    "payments": [{
+                        "address": #{destination},
+                        "amount": {
+                            "quantity": #{amt},
+                            "unit": "lovelace"
+                        }
+                    }],
+                    "passphrase": #{passwd}
+                }|]
+            rMkTx <- request @(ApiTransaction t) ctx (postTxEndp wSrc) Default payload
+            let txId = getFromResponse #id rMkTx
+            verify rMkTx
+                [ expectSuccess
+                , expectResponseCode HTTP.status202
+                ]
+
+            -- Wait for the transaction to be accepted
+            eventually $ do
+                let ep = listTxEndp wSrc mempty
+                request @([ApiTransaction t]) ctx ep Default Empty >>= flip verify
+                    [ expectListItemFieldEqual 0 direction Outgoing
+                    , expectListItemFieldEqual 0 status InLedger
+                    ]
+
+            -- Try Forget transaction once it's no longer pending
+            let ep = deleteTxEndp wSrc (ApiTxId txId)
+            rDel <- request @ApiTxId ctx ep Default Empty
+            expectResponseCode @IO HTTP.status403 rDel
+            let err = errMsg403NoPendingAnymore (toUrlPiece (ApiTxId txId))
+            expectErrorMessage err rDel
+
+    transactionDeleteTest03 eWallet resource =
         it ("TRANS_DELETE_03 - checking no transaction id error for " <> resource) $ \ctx -> do
-            w <- emptWallet ctx
+            w <- eWallet ctx
             let walId = w ^. walletId
             let txId = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
             let endpoint = "v2/" <> T.pack resource <> "/" <> walId <> "/transactions/" <> txId
@@ -1662,7 +1680,6 @@ spec = do
                     expectErrorMessage (errMsg404NoWallet $ T.pack walId) r
                 else
                     expectErrorMessage errMsg404NoEndpoint r
-
 
     unsafeGetTransactionTime
         :: [ApiTransaction t]
