@@ -39,6 +39,8 @@ let
     cardano-wallet-jormungandr-win64 = import ./nix/windows-release.nix {
       inherit pkgs project;
       cardano-wallet-jormungandr = jobs.x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-linux;
+      tests = collectTests jobs.x86_64-pc-mingw32.tests;
+      benchmarks = collectTests jobs.x86_64-pc-mingw32.benchmarks;
     };
 
     # These derivations are used for the Daedalus installer.
