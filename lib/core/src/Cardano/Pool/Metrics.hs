@@ -55,8 +55,6 @@ import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT, throwE, withExceptT )
-import Data.Functor
-    ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.List.NonEmpty
@@ -78,7 +76,6 @@ import GHC.Generics
 import Numeric.Natural
     ( Natural )
 
-import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Map.Strict as Map
 
 data Block = Block
@@ -181,15 +178,20 @@ monitorStakePools
     -> IO ()
 monitorStakePools nl db tr = do
     cursor <- initCursor
+    logInfo tr $ mconcat
+        [ "Start monitoring stake pools. Currently at "
+        , case cursor of
+            [] -> "genesis"
+            _  -> pretty (last cursor)
+        ]
     follow nl tr cursor forward backward header
   where
     initCursor :: IO [BlockHeader]
     initCursor = do
-        let (block0, bp) = staticBlockchainParameters nl
+        let (_, bp) = staticBlockchainParameters nl
         let k = fromIntegral . getQuantity . view #getEpochStability $ bp
-        readPoolProductionCursor db k <&> \case
-            [] -> [W.header block0]
-            xs -> xs
+        readPoolProductionCursor db k
+
     backward
         :: SlotId
         -> IO (FollowAction ErrMonitorStakePools)
@@ -208,7 +210,7 @@ monitorStakePools nl db tr = do
             networkTip nl
         when (nodeTip /= currentTip) $ throwE ErrMonitorStakePoolsWrongTip
         -- FIXME Do the next operation in a database transaction
-        liftIO $ logInfo tr $ "writing stake-distribution for epoch " <> pretty ep
+        liftIO $ logInfo tr $ "Writing stake-distribution for epoch " <> pretty ep
         lift $ putStakeDistribution db ep (Map.toList dist)
         forM_ blocks $ \b -> withExceptT ErrMonitorStakePoolsPoolAlreadyExists $
             putPoolProduction db (header b) (producer b)
