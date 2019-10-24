@@ -22,6 +22,7 @@
 module Cardano.Pool.DB.Sqlite
     ( newDBLayer
     , withDBLayer
+    , defaultFilePath
     ) where
 
 import Prelude
@@ -63,6 +64,7 @@ import Database.Persist.Sql
     , insertMany_
     , insert_
     , selectList
+    , (<.)
     , (==.)
     , (>.)
     , (>=.)
@@ -74,6 +76,14 @@ import Cardano.Pool.DB.Sqlite.TH
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Data.Map.Strict as Map
+
+-- | Return the preferred @FilePath@ for the stake pool .sqlite file, given a
+-- parent directory.
+defaultFilePath
+    :: FilePath
+    -- ^ The directory in which the .sqlite file will be located.
+    -> FilePath
+defaultFilePath = (<> "/stake-pools.sqlite")
 
 -- | Runs an action with a connection to the SQLite database.
 --
@@ -151,7 +161,7 @@ newDBLayer logConfig trace fp = do
             deleteWhere [ StakeDistributionEpoch >. epoch ]
 
 
-        , readCursor = \k -> runQuery $ do
+        , readPoolProductionCursor = \k -> runQuery $ do
             reverse . map (snd . fromPoolProduction . entityVal) <$> selectList
                 []
                 [Desc PoolProductionSlot, LimitTo k]
@@ -168,7 +178,8 @@ selectPoolProduction
     :: EpochNo
     -> SqlPersistT IO [PoolProduction]
 selectPoolProduction epoch = fmap entityVal <$> selectList
-    [PoolProductionSlot >=. SlotId epoch 0]
+    [ PoolProductionSlot >=. SlotId epoch 0
+    , PoolProductionSlot <. SlotId (epoch + 1) 0 ]
     [Asc PoolProductionSlot]
 
 {-------------------------------------------------------------------------------

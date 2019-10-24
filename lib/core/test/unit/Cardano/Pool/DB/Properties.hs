@@ -101,8 +101,8 @@ properties = do
             (property . prop_putSlotTwicePoolProduction)
         it "Rollback of stake pool production"
             (property . prop_rollbackPools)
-        it "readCursor should return the last applied blocks"
-            (property . prop_readCursorTipIsLast)
+        it "readPoolProductionCursor should return the last applied blocks"
+            (property . prop_readPoolProductionCursorTipIsLast)
         it "readPoolProduction for a given epoch should always give slots \
            \from given epoch"
             (property . prop_readPoolNoEpochLeaks)
@@ -199,18 +199,18 @@ prop_rollbackPools db f@(StakePoolsFixture pairs _) sl =
     showSlot s = T.unpack $ pretty s
 
 -- | Last element of cursor is the tip
-prop_readCursorTipIsLast
+prop_readPoolProductionCursorTipIsLast
     :: DBLayer IO
     -> StakePoolsFixture
     -> Property
-prop_readCursorTipIsLast db (StakePoolsFixture pairs _) =
+prop_readPoolProductionCursorTipIsLast db (StakePoolsFixture pairs _) =
     monadicIO (setup >> prop)
   where
     setup = liftIO $ cleanDB db
     prop = do
         run $ forM_ pairs $ \(pool, slot) ->
             unsafeRunExceptT $ putPoolProduction db slot pool
-        tip <- run $ last <$> readCursor db 2
+        tip <- run $ last <$> readPoolProductionCursor db 2
         assert $ tip == snd (head pairs)
 
 -- | Can read pool production only for a given epoch

@@ -37,6 +37,11 @@ import Prelude
 
 import Cardano.BM.Trace
     ( Trace, logError, logNotice )
+import Cardano.Pool.Metrics
+    ( ErrListStakePools (..)
+    , ErrMetricsInconsistency (..)
+    , StakePoolLayer (..)
+    )
 import Cardano.Wallet
     ( ErrAdjustForFee (..)
     , ErrCoinSelection (..)
@@ -72,6 +77,7 @@ import Cardano.Wallet.Api
     , CoreApi
     , HasDBFactory
     , HasWorkerRegistry
+    , StakePoolApi
     , StakePools
     , Transactions
     , Wallets
@@ -89,7 +95,7 @@ import Cardano.Wallet.Api.Types
     , ApiMigrateByronWalletData (..)
     , ApiNetworkInformation (..)
     , ApiNetworkTip (..)
-    , ApiStakePool
+    , ApiStakePool (..)
     , ApiT (..)
     , ApiTimeReference (..)
     , ApiTransaction (..)
@@ -102,6 +108,7 @@ import Cardano.Wallet.Api.Types
     , PostExternalTransactionData (..)
     , PostTransactionData
     , PostTransactionFeeData
+    , StakePoolMetrics (..)
     , WalletBalance (..)
     , WalletPostData (..)
     , WalletPutData (..)
@@ -244,10 +251,8 @@ import Servant
     , err409
     , err410
     , err500
-    , err501
     , err503
     , serve
-    , throwError
     )
 import Servant.Server
     ( Handler (..), ServantErr (..) )
@@ -297,8 +302,9 @@ start
     -> Socket
     -> ApiLayer (RndState t) t RndKey
     -> ApiLayer (SeqState t) t SeqKey
+    -> StakePoolLayer IO
     -> IO ()
-start settings trace socket rndCtx seqCtx = do
+start settings trace socket rndCtx seqCtx spl = do
     logSettings <- newApiLoggerSettings <&> obfuscateKeys (const sensitive)
     Warp.runSettingsSocket settings socket
         $ handleRawError (curry handler)
@@ -307,7 +313,9 @@ start settings trace socket rndCtx seqCtx = do
   where
     -- | A Servant server for our wallet API
     server :: Server (Api t)
-    server = coreApiServer seqCtx :<|> compatibilityApiServer rndCtx seqCtx
+    server = coreApiServer seqCtx
+        :<|> compatibilityApiServer rndCtx seqCtx
+        :<|> stakePoolServer spl
 
     application :: Application
     application = serve (Proxy @("v2" :> Api t)) server
@@ -389,8 +397,12 @@ coreApiServer ctx =
     addresses ctx
     :<|> wallets ctx
     :<|> transactions ctx
-    :<|> pools ctx
     :<|> network ctx
+
+stakePoolServer
+    :: StakePoolLayer IO
+    -> Server StakePoolApi
+stakePoolServer = pools
 
 {-------------------------------------------------------------------------------
                                     Wallets
@@ -730,14 +742,26 @@ postTransactionFee ctx (ApiT wid) body = do
 -------------------------------------------------------------------------------}
 
 pools
-    :: ctx
+    :: StakePoolLayer IO
     -> Server StakePools
 pools = listPools
 
 listPools
-    :: ctx
+    :: StakePoolLayer IO
     -> Handler [ApiStakePool]
-listPools _ctx = throwError err501
+listPools spl = liftHandler (map mkApiStakePool <$> listStakePools spl)
+  where
+    mkApiStakePool
+        :: ( W.PoolId,
+            (Quantity "lovelace" Word64, Quantity "block" Natural)
+            )
+        -> ApiStakePool
+    mkApiStakePool (pool, ((Quantity stake), blocks)) =
+        -- TODO: Make sure the stake-types match (Word64 vs Natural)
+        -- to avoid unwrapping Quantity.
+        ApiStakePool
+            (ApiT pool)
+            (StakePoolMetrics (Quantity $ fromIntegral stake) blocks)
 
 {-------------------------------------------------------------------------------
                                     Network
@@ -1451,6 +1475,30 @@ instance LiftHandler ErrNetworkTip where
             , "probably because the node is down or not started yet. Retrying "
             , "in a bit might give better results!"
             ]
+
+instance LiftHandler ErrListStakePools where
+     handler = \case
+         ErrListStakePoolsMetricsInconsistency e -> handler e
+         ErrListStakePoolsErrNetworkTip e -> handler e
+         ErrMetricsIsUnsynced p ->
+             apiError err503 NotSynced $ mconcat
+                 [ "I can't list stake pools yet because I need to scan the "
+                 , "blockchain for metrics first. I'm at "
+                 , toText p
+                 ]
+
+instance LiftHandler ErrMetricsInconsistency where
+    handler = \case
+        ErrProducerNotInDistribution producer blocks ->
+            apiError err500 UnexpectedError $ mconcat
+                [ "Something is terribly wrong with the metrics I collected."
+                , "\n\nThe pool "
+                , toText producer
+                , " has produced "
+                , toText $ getQuantity blocks
+                , " blocks, but it doesn't exist (at all) in the"
+                , " stake-distribution."
+                ]
 
 instance LiftHandler (Request, ServantErr) where
     handler (req, err@(ServantErr code _ body headers))

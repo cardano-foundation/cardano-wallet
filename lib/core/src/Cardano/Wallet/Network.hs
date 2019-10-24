@@ -290,7 +290,7 @@ follow nl tr cps yield rollback header =
     sleep :: Int -> Cursor target -> IO ()
     sleep delay cursor = do
         when (delay > 0) (threadDelay delay)
-        step cursor `catch` retry
+        step delay cursor `catch` retry
       where
         retry (e :: SomeException) = case asyncExceptionFromException e of
             Just ThreadKilled ->
@@ -305,11 +305,11 @@ follow nl tr cps yield rollback header =
           where
             eT = T.pack (show e)
 
-    step :: Cursor target -> IO ()
-    step cursor = runExceptT (nextBlocks nl cursor) >>= \case
+    step :: Int -> Cursor target -> IO ()
+    step delay cursor = runExceptT (nextBlocks nl cursor) >>= \case
         Left e -> do
             logWarning tr $ T.pack $ "Failed to get next blocks: " <> show e
-            sleep delay0 cursor
+            sleep (retryDelay delay) cursor
 
         Right AwaitReply -> do
             logDebug tr "In sync with the node."
@@ -340,8 +340,8 @@ follow nl tr cps yield rollback header =
             ExitWith e ->
                 logError tr $ T.pack $ msg <> show e
             Continue ->
-                step cursor'
+                step delay0 cursor'
             RetryImmediately ->
-                step cursor
+                step delay0 cursor
             RetryLater ->
                 sleep delay0 cursor

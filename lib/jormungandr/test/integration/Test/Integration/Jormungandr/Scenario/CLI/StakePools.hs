@@ -18,16 +18,14 @@ import System.Exit
 import Test.Hspec
     ( SpecWith, it, shouldBe )
 import Test.Integration.Framework.DSL
-    ( Context (..), KnownCommand (..), listStakePoolsViaCLI )
+    ( Context (..), KnownCommand (..), eventually, listStakePoolsViaCLI )
 
 spec
     :: forall t. (EncodeAddress t, DecodeAddress t, KnownCommand t)
     => SpecWith (Context t)
 spec = do
     it "STAKE_POOLS_LIST_01 - List stake pools" $ \ctx -> do
-        (Exit c, Stdout o, Stderr e) <- listStakePoolsViaCLI @t ctx
-        e `shouldBe` "It looks like something unexpected went wrong. \
-            \Unfortunately I don't yet know how to handle this type of \
-            \situation. Here's some information about what happened: \n"
-        o `shouldBe` mempty
-        c `shouldBe` ExitFailure 1
+        eventually $ do
+            (Exit c, Stdout _, Stderr e) <- listStakePoolsViaCLI @t ctx
+            e `shouldBe` "Ok.\n"
+            c `shouldBe` ExitSuccess

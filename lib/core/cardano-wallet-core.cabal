@@ -176,7 +176,6 @@ test-suite unit
     , QuickCheck
     , quickcheck-state-machine >= 0.6.0
     , random
-    , retry
     , safe
     , servant
     , servant-server

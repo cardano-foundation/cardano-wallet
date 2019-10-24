@@ -85,6 +85,7 @@ import Servant
     , Server
     , err400
     , err500
+    , err503
     , serve
     , throwError
     )
@@ -166,6 +167,13 @@ spec = describe "Logging Middleware"
         expectLogs ctx
             [ (Info, "[GET] /error500")
             , (Error, "500 Internal Server Error")
+            ]
+
+    it "GET, 503" $ \ctx -> do
+        get ctx "/error503"
+        expectLogs ctx
+            [ (Info, "[GET] /error503")
+            , (Warning, "503 Service Unavailable")
             ]
 
     it "different request ids" $ \ctx -> property $ \(NumberOfRequests n) ->
@@ -372,6 +380,7 @@ start logSettings warpSettings trace socket = do
         :<|> hLong
         :<|> hErr400
         :<|> hErr500
+        :<|> hErr503
       where
         hGet = return 14 :: Handler Int
         hDelete = return NoContent :: Handler NoContent
@@ -380,6 +389,7 @@ start logSettings warpSettings trace socket = do
         hLong = liftIO (threadDelay $ 200*ms) $> 14 :: Handler Int
         hErr400 = throwError err400 :: Handler ()
         hErr500 = throwError err500 :: Handler ()
+        hErr503 = throwError err503 :: Handler ()
 
 type Api =
     "get" :> Get '[JSON] Int
@@ -389,3 +399,4 @@ type Api =
     :<|> "long" :> Get '[JSON] Int
     :<|> "error400" :> Get '[JSON] ()
     :<|> "error500" :> Get '[JSON] ()
+    :<|> "error503" :> Get '[JSON] ()

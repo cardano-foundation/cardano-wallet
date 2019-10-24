@@ -23,6 +23,9 @@
 
 module Cardano.Wallet.Jormungandr
     ( serveWallet
+
+      -- * Utilities
+    , toSPBlock
     ) where
 
 import Prelude
@@ -33,6 +36,8 @@ import Cardano.CLI
     ( Port (..), failWith )
 import Cardano.Launcher
     ( ProcessHasExited (..), installSignalHandlers )
+import Cardano.Pool.Metrics
+    ( StakePoolLayer, monitorStakePools, newStakePoolLayer )
 import Cardano.Wallet.Api
     ( ApiLayer )
 import Cardano.Wallet.Api.Server
@@ -76,15 +81,23 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Block, Hash (..) )
+    ( Block, BlockHeader (..), Hash (..) )
 import Cardano.Wallet.Transaction
     ( TransactionLayer )
+import Control.Concurrent
+    ( forkIO )
 import Control.Concurrent.Async
     ( race_ )
 import Control.DeepSeq
     ( NFData )
+import Control.Monad
+    ( void )
 import Data.Function
     ( (&) )
+import Data.Maybe
+    ( fromMaybe )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -97,6 +110,8 @@ import System.Exit
     ( ExitCode (..) )
 
 import qualified Cardano.BM.Configuration.Model as CM
+import qualified Cardano.Pool.DB.Sqlite as Pool
+import qualified Cardano.Pool.Metrics as Pool
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Cardano.Wallet.Jormungandr.Binary as J
@@ -136,7 +151,18 @@ serveWallet (cfg, tr) databaseDir hostPref listen lj beforeMainLoop = do
             let seqTl = newTransactionLayer @n (getGenesisBlockHash bp)
             rndApi <- apiLayer tr rndTl (toWLBlock <$> nl)
             seqApi <- apiLayer tr seqTl (toWLBlock <$> nl)
-            startServer tr nPort bp rndApi seqApi
+
+            -- StakePool
+            let path = fmap Pool.defaultFilePath databaseDir
+            Pool.withDBLayer cfg tr path $
+                \splDB -> do
+                    -- TODO: I believe @KTorZ wants us to use @WorkerRegistry@
+                    -- here, instead of @forkIO@
+                    void $ forkIO $
+                        monitorStakePools (toSPBlock <$> nl) splDB tr
+
+                    spl <- newStakePoolLayer splDB nl tr
+                    startServer tr nPort bp rndApi seqApi spl
         Left e -> handleNetworkStartupError e
   where
     startServer
@@ -145,8 +171,9 @@ serveWallet (cfg, tr) databaseDir hostPref listen lj beforeMainLoop = do
         -> BlockchainParameters
         -> ApiLayer (RndState t) t RndKey
         -> ApiLayer (SeqState t) t SeqKey
+        -> StakePoolLayer IO
         -> IO ExitCode
-    startServer tracer nPort bp rndWallet seqWallet = do
+    startServer tracer nPort bp rndWallet seqWallet spl = do
         Server.withListeningSocket hostPref listen $ \case
             Right (wPort, socket) -> do
                 sockAddr <- getSocketName socket
@@ -156,7 +183,8 @@ serveWallet (cfg, tr) databaseDir hostPref listen lj beforeMainLoop = do
                         & setBeforeMainLoop (beforeMainLoop sockAddr nPort bp)
                 let ipcServer = daedalusIPC tracerIPC wPort
                 let apiServer =
-                        Server.start settings tracerApi socket rndWallet seqWallet
+                        Server.start
+                            settings tracerApi socket rndWallet seqWallet spl
                 race_ ipcServer apiServer
                 pure ExitSuccess
             Left e -> handleApiServerStartupError e
@@ -261,3 +289,21 @@ serveWallet (cfg, tr) databaseDir hostPref listen lj beforeMainLoop = do
             failWith tr $ mempty
                 <> "Cannot listen on the given port. "
                 <> "The operation is not permitted."
+
+--------------------------------------------------------------------------------
+-- Exported Utilities
+--------------------------------------------------------------------------------
+
+-- | Covert a raw block to one that the "Cardano.Pool.Metrics" module accepts.
+toSPBlock :: J.Block -> Pool.Block
+toSPBlock b = Pool.Block
+     (convertHeader header)
+     (fromMaybe (error "block has no producer") $ J.producedBy header)
+   where
+     header = J.header b
+     convertHeader :: J.BlockHeader -> BlockHeader
+     convertHeader h = BlockHeader
+         (J.slot h)
+         (Quantity $ fromIntegral $ J.chainLength h)
+         (J.headerHash h)
+         (J.parentHeaderHash h)

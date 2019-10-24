@@ -62,7 +62,7 @@ newDBLayer = do
         , readStakeDistribution =
             readPoolDB db . mReadStakeDistribution
 
-        , readCursor = readPoolDB db . mReadCursor
+        , readPoolProductionCursor = readPoolDB db . mReadCursor
 
         , rollbackTo =
             void . alterPoolDB (const Nothing) db . mRollbackTo
