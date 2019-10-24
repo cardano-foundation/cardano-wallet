@@ -56,6 +56,7 @@ library
     , text
     , text-class
     , time
+    , QuickCheck
   hs-source-dirs:
       src
   exposed-modules:
@@ -77,3 +78,4 @@ library
       Test.Integration.Scenario.CLI.Port
       Test.Integration.Scenario.CLI.Transactions
       Test.Integration.Scenario.CLI.Wallets
+      Cardano.Wallet.TransactionSpecShared

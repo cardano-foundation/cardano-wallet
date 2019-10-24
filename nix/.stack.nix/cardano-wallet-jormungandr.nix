@@ -130,6 +130,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."bytestring" or (buildDepError "bytestring"))
             (hsPkgs."cardano-crypto" or (buildDepError "cardano-crypto"))
             (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
+            (hsPkgs."cardano-wallet-core-integration" or (buildDepError "cardano-wallet-core-integration"))
             (hsPkgs."cardano-wallet-jormungandr" or (buildDepError "cardano-wallet-jormungandr"))
             (hsPkgs."containers" or (buildDepError "containers"))
             (hsPkgs."directory" or (buildDepError "directory"))
@@ -200,6 +201,10 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."transformers" or (buildDepError "transformers"))
             (hsPkgs."warp" or (buildDepError "warp"))
             (hsPkgs."yaml" or (buildDepError "yaml"))
+            ];
+          build-tools = [
+            (hsPkgs.buildPackages.nodejs or (pkgs.buildPackages.nodejs or (buildToolDepError "nodejs")))
+            (hsPkgs.buildPackages.cardano-wallet-jormungandr or (pkgs.buildPackages.cardano-wallet-jormungandr or (buildToolDepError "cardano-wallet-jormungandr")))
             ];
           buildable = true;
           };

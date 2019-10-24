@@ -11,8 +11,7 @@
 , cardano-http-bridge
 
 # Dependencies of cardano-wallet-jormungandr
-, jmPkgs ? import ./jormungandr.nix { inherit pkgs; }
-, jormungandr ? jmPkgs.jormungandr
+, jmPkgs
 
 # Customisations for cross-compiling
 , iohk-extras ? {}
@@ -58,16 +57,24 @@ let
       # Add dependencies
       {
         packages.cardano-wallet-http-bridge.components.tests = {
-          integration.build-tools = [ cardano-http-bridge cardano-sl-node ];
+          # Provide dependencies of tests
+          http-bridge-integration.build-tools = [ cardano-http-bridge cardano-sl-node ];
           unit.build-tools = [ cardano-http-bridge ];
+          # Some of the integration tests try to connect to actual
+          # byron testnet, which isn't possible in a sandboxed
+          # build. Disable them all.
+          http-bridge-integration.buildable = pkgs.lib.mkForce false;
         };
 
-        # fixme: better way of setting environment variables
-        packages.cardano-wallet-http-bridge.preBuild = "export NETWORK=testnet";
-
         packages.cardano-wallet-jormungandr.components.tests = {
-          integration.build-tools = [ jormungandr ];
-          unit.build-tools = [ jormungandr ];
+          # Some tests want to write ~/.local/share/cardano-wallet
+          integration.preBuild = "export HOME=`pwd`";
+          # provide jormungandr command to test suites
+          integration.build-tools = [
+            jmPkgs.jormungandr
+            jmPkgs.jormungandr-cli
+          ];
+          unit.build-tools = [ jmPkgs.jormungandr ];
         };
 
         packages.cardano-wallet-http-bridge.components.exes.cardano-wallet-http-bridge = {
@@ -88,9 +95,15 @@ let
           '';
         };
 
+        packages.cardano-wallet-core.components.tests.unit.preBuild = ''
+          export SWAGGER_YAML=${src + /specifications/api/swagger.yaml}
+        '';
+
         # Workaround for Haskell.nix issue
         packages.cardano-wallet-jormungandr.components.all.postInstall = pkgs.lib.mkForce "";
         packages.cardano-wallet-http-bridge.components.all.postInstall = pkgs.lib.mkForce "";
+        packages.cardano-wallet-core.components.all.preBuild = pkgs.lib.mkForce "";
+        packages.cardano-wallet-jormungandr.components.all.preBuild = pkgs.lib.mkForce "";
       }
 
       # Misc. build fixes for dependencies
@@ -109,19 +122,14 @@ let
         packages.katip.doExactConfig = true;
       }
 
-      # the iohk-module will supply us with the necessary
+      # The iohk-module will supply us with the necessary
       # cross compilation plumbing to make Template Haskell
-      # work when cross compiling.  For now we need to
-      # list the packages that require template haskell
-      # explicity here.
+      # work when cross compiling.
       iohk-module
     ];
     pkg-def-extras = [
+      # Use the iohk-extras patched GHC for cross-compiling.
       iohk-extras.${compiler}
-      (hackage: { packages = {
-        "transformers" = (((hackage.transformers)."0.5.6.2").revisions).default;
-        "process" = (((hackage.process)."1.6.5.0").revisions).default;
-      }; })
     ];
   };
 

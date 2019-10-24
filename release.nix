@@ -15,7 +15,7 @@ with (import ./nix/release-lib.nix) {
 with pkgs.lib;
 
 let
-  testsSupportedSystems = [ "x86_64-linux" ];
+  testsSupportedSystems = [ "x86_64-linux" "x86_64-darwin" ];
   collectTests = ds: filter (d: elem d.system testsSupportedSystems) (collect isDerivation ds);
 
   inherit (systems.examples) mingwW64 musl64;
@@ -28,8 +28,7 @@ let
     # This aggregate job is what IOHK Hydra uses to update
     # the CI status in GitHub.
     required = mkRequiredJob (
-      # fixme: fix failing tests
-      # collectTests jobs.native.tests ++
+      collectTests jobs.native.tests ++
       collectTests jobs.native.benchmarks ++
       [ jobs.native.cardano-wallet-http-bridge.x86_64-linux
         jobs.native.cardano-wallet-http-bridge.x86_64-darwin

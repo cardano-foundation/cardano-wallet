@@ -27,16 +27,11 @@ import System.Exit
 import System.IO.Temp
     ( withSystemTempDirectory )
 import System.Process
-    ( createProcess
-    , proc
-    , terminateProcess
-    , waitForProcess
-    , withCreateProcess
-    )
+    ( terminateProcess, withCreateProcess )
 import Test.Hspec
     ( Spec, SpecWith, describe, it )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldContain, shouldReturn )
+    ( shouldBe, shouldContain )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , KnownCommand (..)
@@ -49,8 +44,6 @@ import Test.Integration.Framework.DSL
     )
 import Test.Integration.Framework.TestData
     ( versionLine )
-import Test.Utils.Ports
-    ( findPort )
 
 spec :: forall t. KnownCommand t => SpecWith (Context t)
 spec = do
@@ -81,29 +74,6 @@ spec = do
                 \ Exiting now."
             err `shouldBe` mempty
             c `shouldBe` ExitFailure 1
-
-    describe "DaedalusIPC" $ do
-        let defaultArgs nodePort =
-                [ commandName @t
-                , "serve"
-                , "--node-port"
-                , show nodePort
-                ]
-
-        let filepath = "test/integration/js/mock-daedalus.js"
-
-        it "Should reply with the port --random" $ \ctx -> do
-            let scriptArgs = defaultArgs (ctx ^. typed @(Port "node"))
-                    ++ ["--random-port"]
-            (_, _, _, ph) <- createProcess (proc filepath scriptArgs)
-            waitForProcess ph `shouldReturn` ExitSuccess
-
-        it "Should reply with the port --random" $ \ctx -> do
-            walletPort <- findPort
-            let scriptArgs = defaultArgs (ctx ^. typed @(Port "node"))
-                    ++ ["--port", show walletPort]
-            (_, _, _, ph) <- createProcess (proc filepath scriptArgs)
-            waitForProcess ph `shouldReturn` ExitSuccess
 
     describe "LOGGING - cardano-wallet serve logging" $ do
         it "LOGGING - Launch can log --verbose" $ \ctx -> do

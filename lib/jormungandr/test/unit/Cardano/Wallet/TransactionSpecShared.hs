@@ -1,1 +1,0 @@
-../../../../../core/test/unit/Cardano/Wallet/TransactionSpecShared.hs

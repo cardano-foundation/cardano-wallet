@@ -40,8 +40,8 @@ spec = do
 
     it "1st process exits with 0, others are cancelled" $ do
         let commands =
-              [ Command "./test/data/once.sh" ["0"] (pure ()) Inherit
-              , Command "./test/data/forever.sh" [] (pure ()) Inherit
+              [ mockCommand 0 (pure ())
+              , foreverCommand
               ]
         (ProcessHasExited name code) <- launch nullTracer commands
         name `shouldBe` cmdName (commands !! 0)
@@ -49,8 +49,8 @@ spec = do
 
     it "2nd process exits with 0, others are cancelled" $ do
         let commands =
-              [ Command "./test/data/forever.sh" [] (pure ()) Inherit
-              , Command "./test/data/once.sh" ["0"] (pure ()) Inherit
+              [ foreverCommand
+              , mockCommand 0 (pure ())
               ]
         (ProcessHasExited name code) <- launch nullTracer commands
         name `shouldBe` cmdName (commands !! 1)
@@ -58,8 +58,8 @@ spec = do
 
     it "1st process exits with 14, others are cancelled" $ do
         let commands =
-              [ Command "./test/data/once.sh" ["14"] (pure ()) Inherit
-              , Command "./test/data/forever.sh" [] (pure ()) Inherit
+              [ mockCommand 14 (pure ())
+              , foreverCommand
               ]
         (ProcessHasExited name code) <- launch nullTracer commands
         name `shouldBe` cmdName (commands !! 0)
@@ -67,8 +67,8 @@ spec = do
 
     it "2nd process exits with 14, others are cancelled" $ do
         let commands =
-              [ Command "./test/data/forever.sh" [] (pure ()) Inherit
-              , Command "./test/data/once.sh" ["14"] (pure ()) Inherit
+              [ foreverCommand
+              , mockCommand 14 (pure ())
               ]
         (ProcessHasExited name code) <- launch nullTracer commands
         name `shouldBe` cmdName (commands !! 1)
@@ -78,7 +78,7 @@ spec = do
         mvar <- newEmptyMVar
         let before = putMVar mvar "executed"
         let commands =
-                [ Command "./test/data/once.sh" ["0"] before Inherit
+                [ mockCommand 0 before
                 ]
         (ProcessHasExited _ code) <- launch nullTracer commands
         code `shouldBe` ExitSuccess
@@ -90,3 +90,12 @@ spec = do
                 ]
         ProcessDidNotStart name _exc <- launch nullTracer commands
         name `shouldBe` "foobar"
+
+-- | A command that will run for a short time then exit with the given status.
+mockCommand :: Int -> IO () -> Command
+mockCommand exitStatus before =
+    Command "sh" ["-c", "sleep 1; exit " ++ show exitStatus] before Inherit
+
+-- | A command that will run for longer than the other commands.
+foreverCommand :: Command
+foreverCommand = Command "sleep" ["30"] (pure ()) Inherit

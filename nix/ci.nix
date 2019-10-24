@@ -10,8 +10,7 @@ builtins.mapAttrs (system: _:
       inherit (walletPkgs)
         cardano-wallet-http-bridge
         cardano-wallet-jormungandr
-        # fixme: fix failing tests
-        # tests
+        tests
         benchmarks;
     }
 ) {

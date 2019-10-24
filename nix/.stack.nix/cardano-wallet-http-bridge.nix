@@ -121,6 +121,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."bytestring" or (buildDepError "bytestring"))
             (hsPkgs."cardano-crypto" or (buildDepError "cardano-crypto"))
             (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
+            (hsPkgs."cardano-wallet-core-integration" or (buildDepError "cardano-wallet-core-integration"))
             (hsPkgs."cardano-wallet-http-bridge" or (buildDepError "cardano-wallet-http-bridge"))
             (hsPkgs."cborg" or (buildDepError "cborg"))
             (hsPkgs."containers" or (buildDepError "containers"))
@@ -169,6 +170,9 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."text-class" or (buildDepError "text-class"))
             (hsPkgs."time" or (buildDepError "time"))
             (hsPkgs."transformers" or (buildDepError "transformers"))
+            ];
+          build-tools = [
+            (hsPkgs.buildPackages.cardano-wallet-http-bridge or (pkgs.buildPackages.cardano-wallet-http-bridge or (buildToolDepError "cardano-wallet-http-bridge")))
             ];
           buildable = true;
           };

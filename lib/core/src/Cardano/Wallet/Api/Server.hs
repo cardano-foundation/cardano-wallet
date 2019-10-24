@@ -349,13 +349,20 @@ data ListenError
 
 ioToListenError :: HostPreference -> Listen -> IOException -> Maybe ListenError
 ioToListenError hostPreference portOpt e
+    -- A socket is already listening on that address and port
     | isAlreadyInUseError e =
         Just (ListenErrorAddressAlreadyInUse (listenPort portOpt))
+    -- Usually caused by trying to listen on a privileged port
     | isPermissionError e =
         Just ListenErrorOperationNotPermitted
+    -- Bad hostname
     | isDoesNotExistError e =
         Just (ListenErrorHostDoesNotExist hostPreference)
+    -- Address is valid, but can't be used for listening -- Linux
     | show (ioeGetErrorType e) == "invalid argument" =
+        Just (ListenErrorInvalidAddress hostPreference)
+    -- Address is valid, but can't be used for listening -- Darwin
+    | show (ioeGetErrorType e) == "unsupported operation" =
         Just (ListenErrorInvalidAddress hostPreference)
     | otherwise =
         Nothing
