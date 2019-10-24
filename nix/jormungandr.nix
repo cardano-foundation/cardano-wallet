@@ -4,20 +4,27 @@
 # These use the functions from iohk-nix to build the version that we
 # require for cardano-wallet.
 #
+# Linux and macOS versions are built from source, and so can be any revision.
+# The Windows version comes from the binary releases, and so the
+# versions are limited to the binary releases provided.
+#
 # To change the version:
+#
 # 1. Adjust the "version" and/or "rev" variables below.
-# 2. Then invert the first digit in *both* sha256 and
-#    cargoSha256. That is, change 0 to 1 and 1 to 0. It's important
-#    that you change them to something different than before,
-#    otherwise you may get the previous version from your local cache.
-# 3. Run "nix-build -A jormungandr.src" (or let CI do it for you).
-#    It will say that the hash is wrong. Update sha256 to the value it got.
-# 4. Run "nix-build -A jormungandr". After some time downloading
-#    crates, it should say that the vendor hash is wrong.
-#    Update cargoSha256 with the value it got.
-# 5. Run "nix-build -A jormungandr". It should complete the build.
-# 6. Test that "nix-build -A jormungandr-cli" also works.
-# 7. If you now run "nix-shell" you should have updated versions of
+#
+# 2. Then invert the first digit in *all* sha256 hashes.
+#    That is, change 0 to 1 and 1 to 0. It's important that you change
+#    them to something different than before, otherwise you may get
+#    the previous version from your local cache. So change:
+#     - release.sha256       --  -source
+#     - release.cargoSha256  --  -vendor
+#     - windows.sha256       --  .zip
+#
+# 3. Keep running "nix-build nix/jormungandr.nix" (or let CI do it for you)
+#    until there are no errors about "hash mismatch in fixed-output derivation".
+#    Update the corresponding sha256 entry each time.
+#
+# 4. If you now run "nix-shell" you should have updated versions of
 #    jormungandr and jcli.
 #
 ############################################################################
@@ -40,7 +47,7 @@ let
   windows = rec {
     # URL and hash of windows binary release
     url = "https://github.com/input-output-hk/jormungandr/releases/download/v${release.version}/jormungandr-v${release.version}-x86_64-pc-windows-msvc.zip";
-    sha256 = "16pxgi4igvfh2kccsbyizfc4wyxr8fs1872hpsmr99ppna09rqi3";
+    sha256 = "1k5c8qcq6c0677j420bgxfik9vkkiajmpvrra7xjxhs1j48005yf";
   };
 
   jormungandr-win64 = pkgs.runCommand "jormungandr-win64-${release.version}" {
@@ -55,9 +62,10 @@ let
     then jormungandr-win64
     else pkg;
 
-in {
+in rec {
   jormungandr = nonWindows (iohkLib.rust-packages.pkgs.makeJormungandr release);
   jormungandr-cli = nonWindows (iohkLib.rust-packages.pkgs.makeJcli release);
 
   inherit jormungandr-win64;
+  inherit (jormungandr) src;
 }
