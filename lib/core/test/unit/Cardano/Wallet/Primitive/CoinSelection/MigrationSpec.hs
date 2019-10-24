@@ -38,6 +38,7 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
+    , Property
     , choose
     , conjoin
     , counterexample
@@ -93,58 +94,110 @@ spec = do
         mapM_ testAccuracy [ 0.01 , 0.05 , 0.10 , 0.25 , 0.50 ]
 
     describe "selectCoinsForMigration properties" $ do
-
-        it "No coin selection has ouputs" $
-            property $ withMaxSuccess 1000 $ \feeOpts batchSize utxo -> do
-                let allOutputs = outputs =<<
-                        selectCoinsForMigration feeOpts batchSize utxo
-                allOutputs `shouldSatisfy` null
+        it "No coin selection has outputs" $
+            property $ withMaxSuccess 1000 prop_onlyChangeOutputs
 
         it "Every coin in the selection change >= minimum threshold coin" $
-            property $ withMaxSuccess 1000 $ \feeOpts batchSize utxo -> do
-                let allChange = change
-                        =<< selectCoinsForMigration feeOpts batchSize utxo
-                let undersizedCoins =
-                        filter (< (dustThreshold feeOpts)) allChange
-                undersizedCoins `shouldSatisfy` null
+            property $ withMaxSuccess 1000 prop_noLessThanThreshold
 
         it "Total input UTxO value >= sum of selection change coins" $
-            property $ withMaxSuccess 1000 $ \feeOpts batchSize utxo -> do
-                let sumCoinSelectionChange = changeBalance <$>
-                        selectCoinsForMigration feeOpts batchSize utxo
-                balance utxo >= fromIntegral (sum sumCoinSelectionChange)
+            property $ withMaxSuccess 1000 prop_inputsGreaterThanOutputs
 
         it "Every selection input is unique" $
-            property $ withMaxSuccess 1000 $ \feeOpts batchSize utxo -> do
-                let selectionInputList = inputs =<<
-                        selectCoinsForMigration feeOpts batchSize utxo
-                let selectionInputSet =
-                        Set.fromList selectionInputList
-                Set.size selectionInputSet === length selectionInputSet
+            property $ withMaxSuccess 1000 prop_inputsAreUnique
 
         it "Every selection input is a member of the UTxO" $
-            property $ withMaxSuccess 1000 $ \feeOpts batchSize utxo -> do
-                let selectionInputSet =
-                        Set.fromList $ inputs =<<
-                            selectCoinsForMigration feeOpts batchSize utxo
-                let utxoSet =
-                        Set.fromList $ Map.toList $ getUTxO utxo
-                selectionInputSet `Set.isSubsetOf` utxoSet
+            property $ withMaxSuccess 1000 prop_inputsStillInUTxO
 
         it "Every coin selection is well-balanced" $
-            property $ withMaxSuccess 1000 $ \feeOpts batchSize utxo -> do
-                let selections = selectCoinsForMigration feeOpts batchSize utxo
-                conjoin
-                    [ counterexample example (actualFee === expectedFee)
-                    | s <- selections
-                    , let actualFee = inputBalance s - changeBalance s
-                    , let (Fee expectedFee) = estimateFee feeOpts s
-                    , let example = unlines
-                            [ "Coin Selection: " <> show s
-                            , "Actual fee: " <> show actualFee
-                            , "Expected fee: " <> show expectedFee
-                            ]
-                    ]
+            property $ withMaxSuccess 1000 prop_wellBalanced
+
+{-------------------------------------------------------------------------------
+                                  Properties
+-------------------------------------------------------------------------------}
+
+-- | No coin selection has outputs
+prop_onlyChangeOutputs
+    :: FeeOptions
+    -> Word8
+    -> UTxO
+    -> Property
+prop_onlyChangeOutputs feeOpts batchSize utxo = do
+    let allOutputs = outputs =<<
+            selectCoinsForMigration feeOpts batchSize utxo
+    property (allOutputs `shouldSatisfy` null)
+
+-- | Every coin in the selection change >= minimum threshold coin
+prop_noLessThanThreshold
+    :: FeeOptions
+    -> Word8
+    -> UTxO
+    -> Property
+prop_noLessThanThreshold feeOpts batchSize utxo = do
+    let allChange = change
+            =<< selectCoinsForMigration feeOpts batchSize utxo
+    let undersizedCoins =
+            filter (< (dustThreshold feeOpts)) allChange
+    property (undersizedCoins `shouldSatisfy` null)
+
+-- | Total input UTxO value >= sum of selection change coins
+prop_inputsGreaterThanOutputs
+    :: FeeOptions
+    -> Word8
+    -> UTxO
+    -> Property
+prop_inputsGreaterThanOutputs feeOpts batchSize utxo = do
+    let sumCoinSelectionChange = changeBalance <$>
+            selectCoinsForMigration feeOpts batchSize utxo
+    property (balance utxo >= fromIntegral (sum sumCoinSelectionChange))
+
+-- | Every selected input is unique, i.e. selected only once
+prop_inputsAreUnique
+    :: FeeOptions
+    -> Word8
+    -> UTxO
+    -> Property
+prop_inputsAreUnique feeOpts batchSize utxo = do
+    let selectionInputList = inputs =<<
+            selectCoinsForMigration feeOpts batchSize utxo
+    let selectionInputSet =
+            Set.fromList selectionInputList
+    Set.size selectionInputSet === length selectionInputSet
+
+-- | Every selection input is still a member of the UTxO" $
+prop_inputsStillInUTxO
+    :: FeeOptions
+    -> Word8
+    -> UTxO
+    -> Property
+prop_inputsStillInUTxO feeOpts batchSize utxo = do
+    let selectionInputSet =
+            Set.fromList $ inputs =<<
+                selectCoinsForMigration feeOpts batchSize utxo
+    let utxoSet =
+            Set.fromList $ Map.toList $ getUTxO utxo
+    property (selectionInputSet `Set.isSubsetOf` utxoSet)
+
+-- | Every coin selection is well-balanced (i.e. actual fees are exactly the
+-- expected fees)
+prop_wellBalanced
+    :: FeeOptions
+    -> Word8
+    -> UTxO
+    -> Property
+prop_wellBalanced feeOpts batchSize utxo = do
+    let selections = selectCoinsForMigration feeOpts batchSize utxo
+    conjoin
+        [ counterexample example (actualFee === expectedFee)
+        | s <- selections
+        , let actualFee = inputBalance s - changeBalance s
+        , let (Fee expectedFee) = estimateFee feeOpts s
+        , let example = unlines
+                [ "Coin Selection: " <> show s
+                , "Actual fee: " <> show actualFee
+                , "Expected fee: " <> show expectedFee
+                ]
+        ]
 
 {-------------------------------------------------------------------------------
                                   Generators
