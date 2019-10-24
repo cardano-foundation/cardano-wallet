@@ -29,6 +29,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Data.ByteString
     ( ByteString )
+import Data.Function
+    ( (&) )
 import Data.Word
     ( Word8 )
 import Numeric.Natural
@@ -169,9 +171,13 @@ prop_inputsGreaterThanOutputs
     -> UTxO
     -> Property
 prop_inputsGreaterThanOutputs feeOpts batchSize utxo = do
-    let sumCoinSelectionChange = changeBalance <$>
-            selectCoinsForMigration feeOpts batchSize utxo
-    property (balance utxo >= fromIntegral (sum sumCoinSelectionChange))
+    let selections  = selectCoinsForMigration feeOpts batchSize utxo
+    let totalChange = sum (changeBalance <$> selections)
+    let balanceUTxO = balance utxo
+    property (balanceUTxO >= fromIntegral totalChange)
+        & counterexample ("Total change balance: " <> show totalChange)
+        & counterexample ("Total UTxO balance: " <> show balanceUTxO)
+        & counterexample ("Selections: " <> show selections)
 
 -- | Every selected input is unique, i.e. selected only once
 prop_inputsAreUnique
