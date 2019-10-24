@@ -97,18 +97,10 @@ spec = do
         it "fromText . toText == pure" $ property $ \(x :: Natural) ->
             (fromText . toText) x === pure x
 
-    describe "Rational" $ do
+    describe "Double" $ do
         it "fromText \"patate\"" $
             let err = "Expecting floating number"
             in fromText @Double "patate" === Left (TextDecodingError err)
-
-        it "fromText . toText == pure" $ property $ \(x :: Rational) ->
-            let
-                d = fromRational x
-                eps = 1e6 :: Double
-            in case fromText (toText d) of
-                Left _ -> False
-                Right d' -> abs (d - d') < eps
 
     describe "Text" $ do
         it "fromText \"patate\"" $
@@ -120,6 +112,7 @@ spec = do
 
     describe "Can perform roundtrip textual encoding & decoding" $ do
         textRoundtrip $ Proxy @String
+        textRoundtrip $ Proxy @Double
 
     describe "BoundedEnum" $ do
         it "fromTextToBoundedEnum s (toTextFromBoundedEnum s a) == Right a" $
