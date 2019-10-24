@@ -67,6 +67,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( ToText (..) )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -78,6 +80,7 @@ import Test.Integration.Framework.DSL
     , TxDescription (..)
     , balanceAvailable
     , balanceTotal
+    , deleteTxEp
     , emptyWallet
     , expectErrorMessage
     , expectEventually
@@ -108,6 +111,7 @@ import Test.Integration.Framework.Request
 import Test.Integration.Framework.TestData
     ( errMsg400MalformedTxPayload
     , errMsg403TxTooBig
+    , errMsg404CannotFindTx
     , errMsg405
     , errMsg406
     , errMsg415OctetStream
@@ -207,6 +211,34 @@ spec = do
         request @ApiTxId ctx postExternalTxEp headers payload
          >>= expectResponseCode HTTP.status202
 
+        expectEventually' ctx getWalletEp balanceAvailable amt w
+        expectEventually' ctx getWalletEp balanceTotal amt w
+
+    it "TRANS_DELETE_05 - \
+        \Cannot forget external tx -> 404" $ \ctx -> do
+
+        w <- emptyWallet ctx
+        addr:_ <- listAddresses ctx w
+        let addrStr = encodeAddress (Proxy @t) (getApiT $ fst $ addr ^. #id)
+        let amt = 1234
+
+        txBlob <- prepExternalTxViaJcli (ctx ^. typed @(Port "node")) addrStr amt
+        let payload = (NonJson . BL.fromStrict . toRawBytes Base16) txBlob
+        let headers = Headers
+                        [ ("Content-Type", "application/octet-stream")
+                        , ("Accept", "application/json")]
+
+        r <- request @ApiTxId ctx postExternalTxEp headers payload
+        let txId = getFromResponse #id r
+        let txIdH = toText $ getApiT txId
+
+        -- try to forget external tx
+        let endpoint = (deleteTxEp w (ApiTxId txId))
+        ra <- request @ApiTxId @IO ctx endpoint Default Empty
+        expectResponseCode @IO HTTP.status404 ra
+        expectErrorMessage (errMsg404CannotFindTx txIdH) ra
+
+        -- tx eventually gets into ledger (funds are on the wallet)
         expectEventually' ctx getWalletEp balanceAvailable amt w
         expectEventually' ctx getWalletEp balanceTotal amt w
 

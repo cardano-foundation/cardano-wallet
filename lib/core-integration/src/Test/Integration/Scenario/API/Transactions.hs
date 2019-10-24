@@ -15,7 +15,14 @@ module Test.Integration.Scenario.API.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiFee, ApiT, ApiTransaction, ApiTxId (..), ApiWallet, insertedAt, time )
+    ( ApiFee
+    , ApiT (..)
+    , ApiTransaction
+    , ApiTxId (..)
+    , ApiWallet
+    , insertedAt
+    , time
+    )
 import Cardano.Wallet.Primitive.Types
     ( DecodeAddress (..)
     , Direction (..)
@@ -33,6 +40,8 @@ import Data.Generics.Product.Typed
     ( HasType )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( ToText (..) )
 import Data.Time.Clock
     ( UTCTime, addUTCTime )
 import Data.Time.Utils
@@ -110,6 +119,7 @@ import Test.Integration.Framework.TestData
     , errMsg406
     , errMsg415
     , falseWalletIds
+    , getHeaderCases
     , kanjiWalletName
     , polishWalletName
     , wildcardsWalletName
@@ -1512,6 +1522,56 @@ spec = do
     transactionDeleteTest04 "wallets"
 
     transactionDeleteTest04 "byron-wallets"
+
+    it "TRANS_DELETE_06 -\
+     \ Cannot forget tx that is performed from different wallet -> 404"
+     $ \ctx -> do
+         wDifferent <- emptyWallet ctx
+         (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+         rMkTx <- postTx ctx wSrc wDest (1 :: Natural)
+         let txId = toText $ getApiT $ getFromResponse #id rMkTx
+         let endpoint = "v2/wallets/"
+                     <> wDifferent ^. walletId
+                     <> "/transactions/"
+                     <> txId
+         ra <- request @ApiTxId @IO ctx ("DELETE", endpoint) Default Empty
+         expectResponseCode @IO HTTP.status404 ra
+         expectErrorMessage (errMsg404CannotFindTx txId) ra
+
+    describe "TRANS_DELETE_07 - invalid tx id" $ do
+        let txIds =
+                [ replicate 63 '1'
+                , replicate 65 '1'
+                , replicate 64 'ś'
+                ]
+        forM_ txIds $ \tid -> it (show tid) $ \ctx -> do
+            w <- emptyWallet ctx
+            let wid = w ^. walletId
+            let endpoint = "v2/wallets/" <> wid <> "/transactions/" <> T.pack tid
+            r <- request @ApiTxId @IO ctx ("DELETE", endpoint) Default Empty
+            expectResponseCode @IO HTTP.status404 r
+            expectErrorMessage errMsg404NoEndpoint r
+
+    describe "TRANS_DELETE_08 - HTTP headers" $ do
+        forM_ (getHeaderCases HTTP.status204)
+            $ \(title, headers, expectations) -> it title $ \ctx -> do
+            (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+            rMkTx <- postTx ctx wSrc wDest (1 :: Natural)
+            let txId = getFromResponse #id rMkTx
+            let ep = deleteTxEp wSrc (ApiTxId txId)
+            r <- request @ApiTxId @IO ctx ep headers Empty
+            verify r expectations
+
+    describe "TRANS_DELETE_09 -\
+        \ v2/wallets/{id}/transactions/id - Methods Not Allowed" $ do
+        let matrix = ["POST", "CONNECT", "TRACE", "OPTIONS", "PUT", "GET"]
+        forM_ matrix $ \method -> it (show method) $ \ctx -> do
+            let txId = replicate 64 '1'
+            let wid = replicate 40 '1'
+            let endpoint = "v2/wallets/" <> wid <> "/transactions/" <> txId
+            r <- request @ApiTxId @IO ctx (method, T.pack endpoint) Default Empty
+            expectResponseCode @IO HTTP.status405 r
+            expectErrorMessage errMsg405 r
 
     it "BYRON_TRANS_DELETE -\
         \ Cannot delete tx on Byron wallet using shelley ep" $ \ctx -> do
