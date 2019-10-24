@@ -96,7 +96,6 @@ import Test.Integration.Framework.TestData
     , falseWalletIds
     , kanjiWalletName
     , polishWalletName
-    , simplePayload
     , wildcardsWalletName
     )
 import Web.HttpApiData
@@ -1581,14 +1580,9 @@ spec = do
         let err = errMsg403NoPendingAnymore (toUrlPiece (ApiTxId txId))
         expectErrorMessage err rDel
 
-    it "TRANS_DELETE_03 - checking no transaction id error" $ \ctx -> do
-        r <- request @ApiWallet ctx ("POST", "v2/wallets") Default simplePayload
-        let walId = getFromResponse walletId r
-        let txId = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
-        let endpoint = "v2/wallets/" <> walId <> "/transactions/" <> txId
-        ra <- request @ApiTxId @IO ctx ("DELETE", endpoint) Default Empty
-        expectResponseCode @IO HTTP.status404 ra
-        expectErrorMessage (errMsg404CannotFindTx txId) ra
+    transactionDeleteTest03 emptyWallet "wallets"
+
+    transactionDeleteTest03 emptyByronWallet "byron-wallets"
 
     describe "TRANS_DELETE_04 - False wallet ids" $ do
         forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
@@ -1654,6 +1648,16 @@ spec = do
             expectResponseCode @IO HTTP.status404 r
             expectErrorMessage (errMsg404NoWallet wid) r
   where
+    transactionDeleteTest03 emptWallet resource =
+        it ("TRANS_DELETE_03 - checking no transaction id error " <> resource) $ \ctx -> do
+            w <- emptWallet ctx
+            let walId = w ^. walletId
+            let txId = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
+            let endpoint = "v2/" <> T.pack resource <> "/" <> walId <> "/transactions/" <> txId
+            ra <- request @ApiTxId @IO ctx ("DELETE", endpoint) Default Empty
+            expectResponseCode @IO HTTP.status404 ra
+            expectErrorMessage (errMsg404CannotFindTx txId) ra
+
     unsafeGetTransactionTime
         :: [ApiTransaction t]
         -> UTCTime
