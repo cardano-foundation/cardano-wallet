@@ -112,6 +112,28 @@ spec = do
         it "Every coin selection is well-balanced" $
             property $ withMaxSuccess 1000 prop_wellBalanced
 
+    describe "selectCoinsForMigration regressions" $ do
+        it "regression #1" $ do
+            let feeOpts = FeeOptions
+                    { dustThreshold = Coin 9
+                    , estimateFee = \s -> Fee
+                        $ fromIntegral
+                        $ 5 * (length (inputs s) + length (outputs s))
+                    }
+            let batchSize = 1
+            let utxo = UTxO $ Map.fromList
+                    [ ( TxIn
+                        { inputId = Hash "|\243^\SUBg\242\231\&1\213\203"
+                        , inputIx = 2
+                        }
+                      , TxOut
+                        { address = Address "ADDR03"
+                        , coin = Coin 2
+                        }
+                      )
+                    ]
+            property (prop_inputsGreaterThanOutputs feeOpts batchSize utxo)
+
 {-------------------------------------------------------------------------------
                                   Properties
 -------------------------------------------------------------------------------}
