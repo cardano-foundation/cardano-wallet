@@ -1584,16 +1584,9 @@ spec = do
 
     transactionDeleteTest03 emptyByronWallet "byron-wallets"
 
-    describe "TRANS_DELETE_04 - False wallet ids" $ do
-        forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
-            let txId = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
-            let endpoint = "v2/wallets/" <> walId <> "/transactions/" <> txId
-            r <- request @ApiTxId @IO ctx ("DELETE", T.pack endpoint) Default Empty
-            expectResponseCode HTTP.status404 r
-            if (title == "40 chars hex") then
-                expectErrorMessage (errMsg404NoWallet $ T.pack walId) r
-            else
-                expectErrorMessage errMsg404NoEndpoint r
+    transactionDeleteTest04 "wallets"
+
+    transactionDeleteTest04 "byron-wallets"
 
     it "BYRON_TRANS_DELETE -\
         \ Cannot delete tx on Byron wallet using shelley ep" $ \ctx -> do
@@ -1649,7 +1642,7 @@ spec = do
             expectErrorMessage (errMsg404NoWallet wid) r
   where
     transactionDeleteTest03 emptWallet resource =
-        it ("TRANS_DELETE_03 - checking no transaction id error " <> resource) $ \ctx -> do
+        it ("TRANS_DELETE_03 - checking no transaction id error for " <> resource) $ \ctx -> do
             w <- emptWallet ctx
             let walId = w ^. walletId
             let txId = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
@@ -1657,6 +1650,19 @@ spec = do
             ra <- request @ApiTxId @IO ctx ("DELETE", endpoint) Default Empty
             expectResponseCode @IO HTTP.status404 ra
             expectErrorMessage (errMsg404CannotFindTx txId) ra
+
+    transactionDeleteTest04 resource =
+        describe ("TRANS_DELETE_04 - False wallet ids for " <> resource) $ do
+            forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
+                let txId = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
+                let endpoint = "v2/" <> resource <> "/" <> walId <> "/transactions/" <> txId
+                r <- request @ApiTxId @IO ctx ("DELETE", T.pack endpoint) Default Empty
+                expectResponseCode HTTP.status404 r
+                if (title == "40 chars hex") then
+                    expectErrorMessage (errMsg404NoWallet $ T.pack walId) r
+                else
+                    expectErrorMessage errMsg404NoEndpoint r
+
 
     unsafeGetTransactionTime
         :: [ApiTransaction t]
