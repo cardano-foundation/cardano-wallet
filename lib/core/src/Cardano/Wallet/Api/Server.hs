@@ -31,6 +31,7 @@ module Cardano.Wallet.Api.Server
     , start
     , newApiLayer
     , withListeningSocket
+    , defaultWorkerAfter
     ) where
 
 import Prelude

@@ -41,7 +41,7 @@ import Cardano.Pool.Metrics
 import Cardano.Wallet.Api
     ( ApiLayer )
 import Cardano.Wallet.Api.Server
-    ( HostPreference, Listen (..), ListenError (..) )
+    ( HostPreference, Listen (..), ListenError (..), defaultWorkerAfter )
 import Cardano.Wallet.DaedalusIPC
     ( daedalusIPC )
 import Cardano.Wallet.DB
@@ -85,7 +85,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Transaction
     ( TransactionLayer )
 import Control.Concurrent
-    ( forkIO )
+    ( forkFinally )
 import Control.Concurrent.Async
     ( race_ )
 import Control.DeepSeq
@@ -206,9 +206,13 @@ serveWallet (cfg, tr) databaseDir hostPref listen lj beforeMainLoop = do
         -> NetworkLayer IO t J.Block
         -> Pool.DBLayer IO
         -> IO (StakePoolLayer IO)
-    stakePoolLayer tracer nl db = do
-        void $ forkIO $ monitorStakePools (toSPBlock <$> nl) db tr
-        newStakePoolLayer db nl tracer
+    stakePoolLayer trRoot nl db = do
+        void $ forkFinally (monitorStakePools tr' nl' db) onExit
+        newStakePoolLayer db nl trRoot
+      where
+        tr' = appendName "stake-pools" trRoot
+        nl' = toSPBlock <$> nl
+        onExit = defaultWorkerAfter tr'
 
     dbFactory
         :: forall s k .
