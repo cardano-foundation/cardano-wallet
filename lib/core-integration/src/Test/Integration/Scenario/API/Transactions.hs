@@ -130,26 +130,12 @@ spec = do
 
     it "TRANS_CREATE_01 - Single Output Transaction" $ \ctx -> do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
-        addrs <- listAddresses ctx wb
-
-        let amt = 1
-        let destination = (addrs !! 1) ^. #id
-        let payload = Json [json|{
-                "payments": [{
-                    "address": #{destination},
-                    "amount": {
-                        "quantity": #{amt},
-                        "unit": "lovelace"
-                    }
-                }],
-                "passphrase": "cardano-wallet"
-            }|]
         let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
                 { nInputs = 1
                 , nOutputs = 1
                 }
-
-        r <- request @(ApiTransaction t) ctx (postTxEp wa) Default payload
+        let amt = (1 :: Natural)
+        r <- postTx ctx wa wb amt
         verify r
             [ expectSuccess
             , expectResponseCode HTTP.status202
@@ -1719,6 +1705,23 @@ spec = do
                     expectErrorMessage (errMsg404NoWallet $ T.pack walId) r
                 else
                     expectErrorMessage errMsg404NoEndpoint r
+
+    postTx ctx wSrc wDest amt = do
+        addrs <- listAddresses ctx wDest
+        let destination = (addrs !! 1) ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": "cardano-wallet"
+            }|]
+        r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+        expectResponseCode HTTP.status202 r
+        return r
 
     unsafeGetTransactionTime
         :: [ApiTransaction t]
