@@ -110,6 +110,7 @@ import System.Exit
     ( ExitCode (..) )
 
 import qualified Cardano.BM.Configuration.Model as CM
+import qualified Cardano.Pool.DB as Pool
 import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Cardano.Pool.Metrics as Pool
 import qualified Cardano.Wallet.Api.Server as Server
@@ -149,20 +150,12 @@ serveWallet (cfg, tr) databaseDir hostPref listen lj beforeMainLoop = do
             let (_, bp) = staticBlockchainParameters nl
             let rndTl = newTransactionLayer @n (getGenesisBlockHash bp)
             let seqTl = newTransactionLayer @n (getGenesisBlockHash bp)
-            rndApi <- apiLayer tr rndTl (toWLBlock <$> nl)
-            seqApi <- apiLayer tr seqTl (toWLBlock <$> nl)
-
-            -- StakePool
-            let path = fmap Pool.defaultFilePath databaseDir
-            Pool.withDBLayer cfg tr path $
-                \splDB -> do
-                    -- TODO: I believe @KTorZ wants us to use @WorkerRegistry@
-                    -- here, instead of @forkIO@
-                    void $ forkIO $
-                        monitorStakePools (toSPBlock <$> nl) splDB tr
-
-                    spl <- newStakePoolLayer splDB nl tr
-                    startServer tr nPort bp rndApi seqApi spl
+            let poolDBPath = Pool.defaultFilePath <$> databaseDir
+            Pool.withDBLayer cfg tr poolDBPath $ \db -> do
+                spl <- stakePoolLayer tr nl db
+                rndApi <- apiLayer tr rndTl nl
+                seqApi <- apiLayer tr seqTl nl
+                startServer tr nPort bp rndApi seqApi spl
         Left e -> handleNetworkStartupError e
   where
     startServer
@@ -189,8 +182,6 @@ serveWallet (cfg, tr) databaseDir hostPref listen lj beforeMainLoop = do
                 pure ExitSuccess
             Left e -> handleApiServerStartupError e
 
-    toWLBlock = J.convertBlock
-
     apiLayer
         :: forall s k.
             ( IsOurs s
@@ -201,12 +192,23 @@ serveWallet (cfg, tr) databaseDir hostPref listen lj beforeMainLoop = do
             )
         => Trace IO Text
         -> TransactionLayer t k
-        -> NetworkLayer IO t (Block Tx)
+        -> NetworkLayer IO t J.Block
         -> IO (ApiLayer s t k)
     apiLayer tracer tl nl = do
         let (block0, bp) = staticBlockchainParameters nl
         wallets <- maybe (pure []) (Sqlite.findDatabases @k tr) databaseDir
-        Server.newApiLayer tracer (block0, bp) nl tl dbFactory wallets
+        Server.newApiLayer tracer (block0, bp) nl' tl dbFactory wallets
+      where
+        nl' = toWLBlock <$> nl
+
+    stakePoolLayer
+        :: Trace IO Text
+        -> NetworkLayer IO t J.Block
+        -> Pool.DBLayer IO
+        -> IO (StakePoolLayer IO)
+    stakePoolLayer tracer nl db = do
+        void $ forkIO $ monitorStakePools (toSPBlock <$> nl) db tr
+        newStakePoolLayer db nl tracer
 
     dbFactory
         :: forall s k .
@@ -307,3 +309,6 @@ toSPBlock b = Pool.Block
          (Quantity $ fromIntegral $ J.chainLength h)
          (J.headerHash h)
          (J.parentHeaderHash h)
+
+toWLBlock :: J.Block -> Block Tx
+toWLBlock = J.convertBlock
