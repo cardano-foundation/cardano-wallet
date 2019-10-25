@@ -79,7 +79,6 @@ import Cardano.Wallet.Api
     , HasDBFactory
     , HasWorkerRegistry
     , StakePoolApi
-    , StakePools
     , Transactions
     , Wallets
     , dbFactory
@@ -157,6 +156,7 @@ import Cardano.Wallet.Primitive.Types
     , DefineTx (..)
     , Hash (..)
     , HistogramBar (..)
+    , PoolId
     , SortOrder (..)
     , TransactionInfo (TransactionInfo)
     , TxIn
@@ -255,8 +255,10 @@ import Servant
     , err409
     , err410
     , err500
+    , err501
     , err503
     , serve
+    , throwError
     )
 import Servant.Server
     ( Handler (..), ServantErr (..) )
@@ -747,8 +749,11 @@ postTransactionFee ctx (ApiT wid) body = do
 
 pools
     :: StakePoolLayer IO
-    -> Server StakePools
-pools = listPools
+    -> Server StakePoolApi
+pools spl =
+    listPools spl
+    :<|> joinPool spl
+    :<|> quitPool spl
 
 listPools
     :: StakePoolLayer IO
@@ -766,6 +771,22 @@ listPools spl = liftHandler (map mkApiStakePool <$> listStakePools spl)
         ApiStakePool
             (ApiT pool)
             (StakePoolMetrics (Quantity $ fromIntegral stake) blocks)
+
+joinPool
+    :: StakePoolLayer IO
+    -> ApiT PoolId
+    -> ApiT WalletId
+    -> ApiMigrateByronWalletData
+    -> Handler NoContent
+joinPool _ _ _ _ = throwError err501
+
+quitPool
+    :: StakePoolLayer IO
+    -> ApiT PoolId
+    -> ApiT WalletId
+    -> ApiMigrateByronWalletData
+    -> Handler NoContent
+quitPool _ _ _ _ = throwError err501
 
 {-------------------------------------------------------------------------------
                                     Network

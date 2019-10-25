@@ -97,6 +97,7 @@ import Cardano.Wallet.Api.Types
     ( AddressAmount
     , ApiAddress
     , ApiFee
+    , ApiMigrateByronWalletData
     , ApiMnemonicT (..)
     , ApiNetworkInformation
     , ApiStakePool
@@ -128,7 +129,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState, Hash, SortOrder, WalletId, WalletName )
+    ( AddressState, Hash, PoolId, SortOrder, WalletId, WalletName )
 import Cardano.Wallet.Version
     ( showVersion, version )
 import Control.Applicative
@@ -1001,6 +1002,16 @@ data WalletClient t = WalletClient
         -> ClientM NoContent
     , listPools
         :: ClientM [ApiStakePool]
+    , joinPool
+        :: ApiT PoolId
+        -> ApiT WalletId
+        -> ApiMigrateByronWalletData
+        -> ClientM NoContent
+    , quitPool
+        :: ApiT PoolId
+        -> ApiT WalletId
+        -> ApiMigrateByronWalletData
+        -> ClientM NoContent
     , networkInformation
         :: ClientM ApiNetworkInformation
     }
@@ -1030,7 +1041,11 @@ walletClient =
             :<|> _deleteTransaction
             = transactions
 
-        _listPools = pools
+        _listPools
+            :<|> _joinPool
+            :<|> _quitPool
+            = pools
+
 
         _networkInformation = network
     in
@@ -1049,6 +1064,8 @@ walletClient =
             , postTransactionFee = _postTransactionFee
             , getWalletUtxoStatistics = _getWalletUtxoStatistics
             , listPools = _listPools
+            , joinPool = _joinPool
+            , quitPool = _quitPool
             , networkInformation = _networkInformation
             }
 

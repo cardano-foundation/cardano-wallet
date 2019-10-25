@@ -23,7 +23,6 @@ module Cardano.Wallet.Api
 
       -- * Stake Pool API
     , StakePoolApi
-    , StakePools
 
       -- * Compatibility API
     , CompatibilityApi
@@ -77,7 +76,13 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState, Block, DefineTx (..), SortOrder (..), WalletId (..) )
+    ( AddressState
+    , Block
+    , DefineTx (..)
+    , PoolId
+    , SortOrder (..)
+    , WalletId (..)
+    )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..), WorkerRegistry )
 import Cardano.Wallet.Transaction
@@ -121,7 +126,10 @@ type CoreApi t =
     :<|> Transactions t
     :<|> Network
 
-type StakePoolApi = StakePools
+type StakePoolApi =
+    ListStakePools
+    :<|> JoinStakePool
+    :<|> QuitStakePool
 
 type CompatibilityApi n =
     DeleteByronWallet
@@ -253,11 +261,25 @@ type DeleteTransaction = "wallets"
   See also: https://input-output-hk.github.io/cardano-wallet/api/edge/#tag/Stake-Pools
 -------------------------------------------------------------------------------}
 
-type StakePools = ListStakePools
-
 -- | https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listStakePools
 type ListStakePools = "stake-pools"
     :> Get '[JSON] [ApiStakePool]
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/joinStakePool
+type JoinStakePool = "stake-pools"
+    :> Capture "stakePoolId" (ApiT PoolId)
+    :> "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> ReqBody '[JSON] ApiMigrateByronWalletData
+    :> PutNoContent '[Any] NoContent
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/quitStakePool
+type QuitStakePool = "stake-pools"
+    :> Capture "stakePoolId" (ApiT PoolId)
+    :> "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> ReqBody '[JSON] ApiMigrateByronWalletData
+    :> DeleteNoContent '[Any] NoContent
 
 {-------------------------------------------------------------------------------
                                   Network
