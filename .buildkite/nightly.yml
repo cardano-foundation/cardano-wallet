@@ -6,24 +6,6 @@ env:
   SCRATCH_DIR: "/scratch/cardano-wallet"
 
 steps:
-  - label: 'Restore benchmark - testnet'
-    command: "./.buildkite/bench-restore.sh"
-    env:
-      HOME: "/cache/cardano-wallet.home"
-      NETWORK: testnet
-    timeout_in_minutes: 60
-    agents:
-      system: x86_64-linux
-
-  - label: 'Restore benchmark - mainnet'
-    command: "./.buildkite/bench-restore.sh"
-    env:
-      HOME: "/cache/cardano-wallet.home"
-      NETWORK: mainnet
-    timeout_in_minutes: 120
-    agents:
-      system: x86_64-linux
-
   - label: 'Database benchmark'
     command: "./.buildkite/bench-db.sh"
     timeout_in_minutes: 120
