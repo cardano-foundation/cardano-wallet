@@ -53,12 +53,15 @@ module Test.Integration.Framework.DSL
     , amount
     , balanceAvailable
     , balanceTotal
+    , blocks
     , delegation
     , direction
     , feeEstimator
     , inputs
+    , metrics
     , outputs
     , passphraseLastUpdate
+    , stake
     , state
     , status
     , syncProgress
@@ -95,6 +98,7 @@ module Test.Integration.Framework.DSL
     , utcIso8601ToText
     , prepExternalTxViaJcli
     , eventually
+    , eventuallyUsingDelay
 
     -- * Endpoints
     , postByronWalletEp
@@ -152,6 +156,7 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics (..)
     , ApiWallet
     , Iso8601Time (..)
+    , StakePoolMetrics
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, getAddressPoolGap, mkAddressPoolGap )
@@ -762,17 +767,55 @@ syncProgress =
     _set :: HasType (ApiT SyncProgress) s => (s, SyncProgress) -> s
     _set (s, v) = set typed (ApiT v) s
 
+metrics :: HasType StakePoolMetrics s => Lens' s StakePoolMetrics
+metrics =
+    lens _get _set
+  where
+    _get :: HasType StakePoolMetrics s => s -> StakePoolMetrics
+    _get = view typed
+    _set :: HasType StakePoolMetrics s => (s, StakePoolMetrics) -> s
+    _set (s, v) = set typed v s
+
+stake
+    :: HasField' "controlledStake" s (Quantity "lovelace" Natural)
+    => Lens' s Natural
+stake = lens
+    (getQuantity . getField @"controlledStake")
+    (\(s, v) -> setField @"controlledStake" (Quantity v) s)
+
+blocks
+    :: HasField' "producedBlocks" s (Quantity "block" Natural)
+    => Lens' s Natural
+blocks = lens
+    (getQuantity . getField @"producedBlocks")
+    (\(s, v) -> setField @"producedBlocks" (Quantity v) s)
 
 --
 -- Helpers
 --
 
+
 -- Retry the given action a couple of time until it doesn't throw, or until it
 -- has been retried enough.
+--
+-- It is like @eventuallyUsingDelay@, but with the default delay of 500 ms
+-- between retries.
 eventually
     :: IO ()
     -> IO ()
-eventually io = do
+eventually = eventuallyUsingDelay (500 * ms)
+  where
+    ms = 1000
+
+-- Retry the given action a couple of time until it doesn't throw, or until it
+-- has been retried enough.
+--
+-- It sleeps for a specified delay between retries.
+eventuallyUsingDelay
+    :: Int -- ^ Delay in microseconds
+    -> IO ()
+    -> IO ()
+eventuallyUsingDelay delay io = do
     winner <- race (threadDelay $ 60 * oneSecond) trial
     case winner of
         Left _ -> expectationFailure
@@ -782,8 +825,7 @@ eventually io = do
   where
     trial :: IO ()
     trial = io `catch` \(_ :: SomeException) -> do
-        let ms = 1000
-        threadDelay (500 * ms)
+        threadDelay delay
         trial
 
 utcIso8601ToText :: UTCTime -> Text
