@@ -12,7 +12,7 @@ module Test.Integration.Scenario.API.ByronWallets
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiByronWallet, ApiWallet )
+    ( ApiByronWallet, ApiByronWalletMigrationInfo (..), ApiWallet )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Mnemonic
@@ -23,6 +23,8 @@ import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text
     ( Text )
 -- import Numeric.Natural
@@ -37,6 +39,7 @@ import Test.Integration.Framework.DSL
     , Payload (..)
     , balanceAvailable
     , balanceTotal
+    , calculateByronMigrationCostEp
     , deleteByronWalletEp
     , deleteWalletEp
     , emptyByronWallet
@@ -97,6 +100,15 @@ import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall t n. (n ~ 'Testnet) => SpecWith (Context t)
 spec = do
+
+    it "BYRON_ESTIMATE_01 - \
+        \migrating an empty wallet should generate a fee of zero."
+        $ \ctx -> do
+            w <- emptyByronWallet ctx
+            r@(_, Right (ApiByronWalletMigrationInfo fee)) <-
+                request ctx (calculateByronMigrationCostEp w) Default Empty
+            expectResponseCode @IO HTTP.status200 r
+            fee `shouldBe` Quantity 0
 
     describe "BYRON_ESTIMATE_06 - non-existing wallets" $  do
         forM_ (take 1 falseWalletIds) $ \(desc, walId) -> it desc $ \ctx -> do
