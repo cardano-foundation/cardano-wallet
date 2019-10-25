@@ -9,8 +9,6 @@ module Test.Integration.Jormungandr.Scenario.CLI.StakePools
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types
-    ( DecodeAddress, EncodeAddress )
 import System.Command
     ( Exit (..), Stderr (..), Stdout (..) )
 import System.Exit
@@ -21,7 +19,7 @@ import Test.Integration.Framework.DSL
     ( Context (..), KnownCommand (..), eventually, listStakePoolsViaCLI )
 
 spec
-    :: forall t. (EncodeAddress t, DecodeAddress t, KnownCommand t)
+    :: forall t. (KnownCommand t)
     => SpecWith (Context t)
 spec = do
     it "STAKE_POOLS_LIST_01 - List stake pools" $ \ctx -> do

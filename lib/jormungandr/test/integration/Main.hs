@@ -27,11 +27,13 @@ import Cardano.Wallet.Api.Server
 import Cardano.Wallet.Jormungandr
     ( serveWallet )
 import Cardano.Wallet.Jormungandr.Compatibility
-    ( Jormungandr, Network (..) )
+    ( Jormungandr )
 import Cardano.Wallet.Jormungandr.Launch
     ( withConfig )
 import Cardano.Wallet.Jormungandr.Network
     ( JormungandrBackend (..) )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( Network (..) )
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Model
@@ -87,10 +89,10 @@ import qualified Test.Integration.Scenario.CLI.Transactions as TransactionsCLI
 import qualified Test.Integration.Scenario.CLI.Wallets as WalletsCLI
 
 -- | Define the actual executable name for the bridge CLI
-instance KnownCommand (Jormungandr n) where
+instance KnownCommand Jormungandr where
     commandName = "cardano-wallet-jormungandr"
 
-main :: forall t. (t ~ Jormungandr 'Testnet) => IO ()
+main :: forall t. (t ~ Jormungandr) => IO ()
 main = withLogging Nothing Info $ \logging -> do
     setUtf8LenientCodecs
     hspec $ do
@@ -122,11 +124,11 @@ main = withLogging Nothing Info $ \logging -> do
 
 specWithServer
     :: (CM.Configuration, Trace IO Text)
-    -> SpecWith (Context (Jormungandr 'Testnet))
+    -> SpecWith (Context Jormungandr)
     -> Spec
 specWithServer logCfg = aroundAll withContext . after tearDown
   where
-    withContext :: (Context (Jormungandr 'Testnet) -> IO ()) -> IO ()
+    withContext :: (Context Jormungandr -> IO ()) -> IO ()
     withContext action = do
         ctx <- newEmptyMVar
         let setupContext wAddr nPort bp = do
@@ -146,7 +148,7 @@ specWithServer logCfg = aroundAll withContext . after tearDown
             either pure (throwIO . ProcessHasExited "integration")
 
     withServer setup = withConfig $ \jmCfg ->
-        serveWallet logCfg Nothing "127.0.0.1"
+        serveWallet @'Testnet logCfg Nothing "127.0.0.1"
             ListenOnRandomPort (Launch jmCfg) setup
 
 -- | Set a utf8 text encoding that doesn't crash when non-utf8 bytes are

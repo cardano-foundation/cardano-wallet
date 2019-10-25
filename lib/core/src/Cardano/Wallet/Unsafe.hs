@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
@@ -19,10 +20,12 @@ import Prelude
 
 import Cardano.Crypto.Wallet
     ( XPrv )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( DecodeAddress (..) )
 import Cardano.Wallet.Primitive.Mnemonic
     ( ConsistentEntropy, EntropySize, Mnemonic, mkMnemonic )
 import Cardano.Wallet.Primitive.Types
-    ( Address, DecodeAddress (..) )
+    ( Address )
 import Control.Monad
     ( (>=>) )
 import Control.Monad.Fail
@@ -35,8 +38,6 @@ import Data.ByteArray.Encoding
     ( Base (..), convertFromBase )
 import Data.ByteString
     ( ByteString )
-import Data.Proxy
-    ( Proxy )
 import Data.Text
     ( Text )
 import GHC.Stack
@@ -54,9 +55,12 @@ unsafeFromHex =
     either (error . show) id . convertFromBase @ByteString @ByteString Base16
 
 -- | Decode a bech32-encoded 'Text' into an 'Address', or fail.
-unsafeDecodeAddress :: (HasCallStack, DecodeAddress t) => Proxy t -> Text -> Address
-unsafeDecodeAddress proxy =
-    either (error . show ) id . decodeAddress proxy
+unsafeDecodeAddress
+    :: forall n. (HasCallStack, DecodeAddress n)
+    => Text
+    -> Address
+unsafeDecodeAddress =
+    either (error . show ) id . decodeAddress @n
 
 -- | Run a decoder on a hex-encoded 'ByteString', or fail.
 unsafeDecodeHex :: HasCallStack => Get a -> ByteString -> a

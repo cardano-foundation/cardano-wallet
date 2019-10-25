@@ -20,6 +20,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , FromMnemonic (..)
     , FromMnemonicError (..)
     , Index
+    , Network (..)
     , Passphrase (..)
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
@@ -55,6 +56,7 @@ import Test.QuickCheck
     , arbitraryPrintableChar
     , choose
     , expectFailure
+    , genericShrink
     , property
     , (.&&.)
     , (===)
@@ -86,6 +88,7 @@ spec = do
 
     describe "Text Roundtrip" $ do
         textRoundtrip $ Proxy @(Passphrase "encryption")
+        textRoundtrip $ Proxy @Network
 
     describe "Enum Roundtrip" $ do
         it "Index @'Hardened _" (property prop_roundtripEnumIndexHard)
@@ -304,6 +307,10 @@ instance Arbitrary (SeqKey 'RootK XPub) where
 instance Arbitrary (RndKey 'RootK XPrv) where
     shrink _ = []
     arbitrary = genRootKeysRnd
+
+instance Arbitrary Network where
+    arbitrary = arbitraryBoundedEnum
+    shrink = genericShrink
 
 genRootKeysSeq :: Gen (SeqKey 'RootK XPrv)
 genRootKeysSeq = do

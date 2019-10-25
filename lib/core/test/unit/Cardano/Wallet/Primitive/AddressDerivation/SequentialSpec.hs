@@ -1,5 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -10,12 +12,16 @@ module Cardano.Wallet.Primitive.AddressDerivation.SequentialSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
+    ( ChainCode (..)
+    , Depth (..)
     , DerivationType (..)
     , Index
+    , Network (..)
     , Passphrase (..)
     , WalletKey (..)
     , XPrv
+    , XPub (..)
+    , keyToAddress
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( ChangeChain (..)
@@ -29,8 +35,12 @@ import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
     ()
+import Control.Exception
+    ( SomeException, evaluate )
+import Data.List
+    ( isSubsequenceOf )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec, describe, it, shouldThrow )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
@@ -60,6 +70,21 @@ spec = do
             property prop_accountKeyDerivation
         it "N(CKDpriv((kpar, cpar), i)) === CKDpub(N(kpar, cpar), i)" $
             property prop_publicChildKeyDerivation
+
+    describe "Encoding" $ do
+        let cc = ChainCode "<ChainCode is not used by singleAddressToKey>"
+
+        let userException str (e :: SomeException) = str `isSubsequenceOf` show e
+
+        it "throws when encoding XPub of invalid length (Mainnet)" $ do
+            let msg = "length was 2, but expected to be 33"
+            evaluate (keyToAddress @'Mainnet (SeqKey $ XPub "\148" cc))
+                `shouldThrow` userException msg
+
+        it "throws when encoding XPub of invalid length (Testnet)" $ do
+            let msg = "length was 2, but expected to be 33"
+            evaluate (keyToAddress @'Testnet (SeqKey $ XPub "\148" cc))
+                `shouldThrow` userException msg
 
 {-------------------------------------------------------------------------------
                                Properties

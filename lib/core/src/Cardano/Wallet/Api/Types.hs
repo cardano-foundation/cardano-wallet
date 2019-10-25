@@ -69,10 +69,13 @@ import Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation
     ( FromMnemonic (..)
+    , Network (..)
     , Passphrase (..)
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
     )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( DecodeAddress (..), EncodeAddress (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types
@@ -80,9 +83,7 @@ import Cardano.Wallet.Primitive.Types
     , AddressState (..)
     , BoundType
     , Coin (..)
-    , DecodeAddress (..)
     , Direction (..)
-    , EncodeAddress (..)
     , EpochNo (..)
     , Hash (..)
     , PoolId (..)
@@ -171,8 +172,8 @@ import qualified Data.Text.Encoding as T
                                   API Types
 -------------------------------------------------------------------------------}
 
-data ApiAddress t = ApiAddress
-    { id :: !(ApiT Address, Proxy t)
+data ApiAddress (n :: Network) = ApiAddress
+    { id :: !(ApiT Address, Proxy n)
     , state :: !(ApiT AddressState)
     } deriving (Eq, Generic, Show)
 
@@ -230,13 +231,13 @@ data WalletPutPassphraseData = WalletPutPassphraseData
     , newPassphrase :: !(ApiT (Passphrase "encryption-new"))
     } deriving (Eq, Generic, Show)
 
-data PostTransactionData t = PostTransactionData
-    { payments :: !(NonEmpty (AddressAmount t))
+data PostTransactionData n = PostTransactionData
+    { payments :: !(NonEmpty (AddressAmount n))
     , passphrase :: !(ApiT (Passphrase "encryption"))
     } deriving (Eq, Generic, Show)
 
-newtype PostTransactionFeeData t = PostTransactionFeeData
-    { payments :: (NonEmpty (AddressAmount t))
+newtype PostTransactionFeeData n = PostTransactionFeeData
+    { payments :: (NonEmpty (AddressAmount n))
     } deriving (Eq, Generic, Show)
 
 newtype PostExternalTransactionData = PostExternalTransactionData
@@ -251,25 +252,25 @@ newtype ApiTxId = ApiTxId
     { id :: ApiT (Hash "Tx")
     } deriving (Eq, Generic, Show)
 
-data ApiTransaction t = ApiTransaction
+data ApiTransaction n = ApiTransaction
     { id :: !(ApiT (Hash "Tx"))
     , amount :: !(Quantity "lovelace" Natural)
     , insertedAt :: !(Maybe ApiTimeReference)
     , pendingSince :: !(Maybe ApiTimeReference)
     , depth :: !(Quantity "block" Natural)
     , direction :: !(ApiT Direction)
-    , inputs :: ![ApiTxInput t]
-    , outputs :: !(NonEmpty (AddressAmount t))
+    , inputs :: ![ApiTxInput n]
+    , outputs :: !(NonEmpty (AddressAmount n))
     , status :: !(ApiT TxStatus)
     } deriving (Eq, Generic, Show)
 
-data ApiTxInput t = ApiTxInput
-    { source :: !(Maybe (AddressAmount t))
+data ApiTxInput n = ApiTxInput
+    { source :: !(Maybe (AddressAmount n))
     , input :: !(ApiT TxIn)
     } deriving (Eq, Generic, Show)
 
-data AddressAmount t = AddressAmount
-    { address :: !(ApiT Address, Proxy t)
+data AddressAmount (n :: Network) = AddressAmount
+    { address :: !(ApiT Address, Proxy n)
     , amount :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
 
@@ -416,22 +417,22 @@ getApiMnemonicT (ApiMnemonicT (pw, _)) = pw
                                JSON Instances
 -------------------------------------------------------------------------------}
 
-instance DecodeAddress t => FromJSON (ApiAddress t) where
+instance DecodeAddress n => FromJSON (ApiAddress n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance EncodeAddress t => ToJSON (ApiAddress t) where
+instance EncodeAddress n => ToJSON (ApiAddress n) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance {-# OVERLAPS #-} DecodeAddress t => FromJSON (ApiT Address, Proxy t)
+instance {-# OVERLAPS #-} DecodeAddress n => FromJSON (ApiT Address, Proxy n)
   where
     parseJSON x = do
-        let proxy = Proxy @t
+        let proxy = Proxy @n
         addr <- parseJSON x >>= eitherToParser
             . bimap ShowFmt ApiT
-            . decodeAddress proxy
+            . decodeAddress @n
         return (addr, proxy)
-instance {-# OVERLAPS #-} EncodeAddress t => ToJSON (ApiT Address, Proxy t)
+instance {-# OVERLAPS #-} EncodeAddress n => ToJSON (ApiT Address, Proxy n)
   where
-    toJSON (addr, proxy) = toJSON . encodeAddress proxy . getApiT $ addr
+    toJSON (addr, _) = toJSON . encodeAddress @n . getApiT $ addr
 
 instance FromJSON (ApiT AddressState) where
     parseJSON = fmap ApiT . genericParseJSON defaultSumTypeOptions
@@ -585,7 +586,7 @@ instance FromJSON ApiNetworkTip where
 instance ToJSON ApiNetworkTip where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance DecodeAddress t => FromJSON (AddressAmount t) where
+instance DecodeAddress n => FromJSON (AddressAmount n) where
     parseJSON bytes = do
         v@(AddressAmount _ (Quantity c)) <-
             genericParseJSON defaultRecordTypeOptions bytes
@@ -595,18 +596,18 @@ instance DecodeAddress t => FromJSON (AddressAmount t) where
                 "invalid coin value: value has to be lower than or equal to "
                 <> show (getCoin maxBound) <> " lovelace."
 
-instance EncodeAddress t => ToJSON (AddressAmount t) where
+instance EncodeAddress n => ToJSON (AddressAmount n) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance DecodeAddress t => FromJSON (ApiTransaction t) where
+instance DecodeAddress n => FromJSON (ApiTransaction n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance EncodeAddress t => ToJSON (ApiTransaction t) where
+instance EncodeAddress n => ToJSON (ApiTransaction n) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance DecodeAddress t => FromJSON (ApiTxInput t) where
+instance DecodeAddress n => FromJSON (ApiTxInput n) where
     parseJSON v = ApiTxInput <$> optional (parseJSON v) <*> parseJSON v
 
-instance EncodeAddress t => ToJSON (ApiTxInput t) where
+instance EncodeAddress n => ToJSON (ApiTxInput n) where
     toJSON (ApiTxInput s i) =
         Object (maybe mempty (fromValue . toJSON) s <> fromValue (toJSON i))
       where
@@ -698,7 +699,7 @@ instance ToJSON ApiMigrateByronWalletData where
                              FromText/ToText instances
 -------------------------------------------------------------------------------}
 
-instance DecodeAddress t => FromText (AddressAmount t) where
+instance DecodeAddress n => FromText (AddressAmount n) where
     fromText text = do
         let err = Left . TextDecodingError $ "Parse error. Expecting format \
             \\"<amount>@<address>\" but got " <> show text
@@ -706,13 +707,13 @@ instance DecodeAddress t => FromText (AddressAmount t) where
             [] -> err
             [_] -> err
             [l, r] -> AddressAmount
-                <$> fmap ((,Proxy @t) . ApiT) (decodeAddress (Proxy @t) r)
+                <$> fmap ((,Proxy @n) . ApiT) (decodeAddress @n r)
                 <*> fromText l
             _ -> err
 
-instance EncodeAddress t => ToText (AddressAmount t) where
-    toText (AddressAmount (ApiT addr, proxy) coins) =
-        toText coins <> "@" <> encodeAddress proxy addr
+instance EncodeAddress n => ToText (AddressAmount n) where
+    toText (AddressAmount (ApiT addr, _) coins) =
+        toText coins <> "@" <> encodeAddress @n addr
 
 instance FromText PostExternalTransactionData where
     fromText text = case convertFromBase Base16 (T.encodeUtf8 text) of

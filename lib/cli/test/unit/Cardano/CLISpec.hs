@@ -24,24 +24,14 @@ import Cardano.CLI
     , hGetLine
     , hGetSensitiveLine
     )
-import Cardano.Crypto.Wallet
-    ( unXPub )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( KeyToAddress (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( SeqKey (..) )
-import Cardano.Wallet.Primitive.Types
-    ( Address (..), DecodeAddress (..), EncodeAddress (..) )
+    ( Network (..) )
 import Control.Concurrent
     ( forkFinally )
 import Control.Concurrent.MVar
     ( newEmptyMVar, putMVar, takeMVar )
 import Control.Monad
     ( mapM_ )
-import Data.Bifunctor
-    ( bimap )
-import Data.ByteArray.Encoding
-    ( Base (Base16), convertFromBase, convertToBase )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -73,7 +63,6 @@ import Test.Text.Roundtrip
     ( textRoundtrip )
 
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
 
 spec :: Spec
@@ -81,11 +70,11 @@ spec = do
     describe "Specification / Usage Overview" $ do
         let parser = cli $ mempty
                 <> cmdMnemonic
-                <> cmdWallet @DummyTarget
-                <> cmdTransaction @DummyTarget
-                <> cmdAddress @DummyTarget
-                <> cmdStakePool @DummyTarget
-                <> cmdNetwork @DummyTarget
+                <> cmdWallet @'Testnet
+                <> cmdTransaction @'Testnet
+                <> cmdAddress @'Testnet
+                <> cmdStakePool @'Testnet
+                <> cmdNetwork @'Testnet
 
         let defaultPrefs = prefs (mempty <> columns 65)
 
@@ -512,23 +501,3 @@ instance Arbitrary (Port "test") where
     shrink p
         | p == minBound = []
         | otherwise = [pred p]
-
-{-------------------------------------------------------------------------------
-                                 Dummy Target
--------------------------------------------------------------------------------}
-
-data DummyTarget
-
-instance KeyToAddress DummyTarget SeqKey where
-    keyToAddress = Address . unXPub . getKey
-
-instance EncodeAddress DummyTarget where
-    encodeAddress _ = T.decodeUtf8 . convertToBase Base16 . unAddress
-
-instance DecodeAddress DummyTarget where
-    decodeAddress _ = bimap decodingError Address
-        . convertFromBase Base16
-        . T.encodeUtf8
-      where
-        decodingError _ = TextDecodingError
-            "Unable to decode Address: expected Base16 encoding"

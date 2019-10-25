@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -70,8 +71,8 @@ import qualified Data.ByteString.Lazy as BL
 -- | Construct a 'TransactionLayer' compatible with Shelley and 'Jörmungandr'
 newTransactionLayer
     :: forall n k t.
-        ( t ~ Jormungandr n
-        , KeyToAddress (Jormungandr n) k
+        ( t ~ Jormungandr
+        , KeyToAddress n k
         , MkTxWitness k
         )
     => Hash "Genesis"
@@ -111,7 +112,7 @@ newTransactionLayer (Hash block0H) = TransactionLayer
         Quantity $ length inps + length outs + length chgs
 
     , estimateMaxNumberOfInputs =
-        estimateMaxNumberOfInputsBase @t @k Binary.estimateMaxNumberOfInputsParams
+        estimateMaxNumberOfInputsBase @t @n @k Binary.estimateMaxNumberOfInputsParams
 
     , validateSelection = \(CoinSelection inps outs _) -> do
         when (length inps > maxNumberOfInputs || length outs > maxNumberOfOutputs)
@@ -166,4 +167,4 @@ instance Buildable ErrExceededInpsOrOuts where
         maxI = toText maxNumberOfInputs
         maxO = toText maxNumberOfOutputs
 
-type instance ErrValidateSelection (Jormungandr n) = ErrExceededInpsOrOuts
+type instance ErrValidateSelection Jormungandr = ErrExceededInpsOrOuts

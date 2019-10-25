@@ -6,7 +6,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
-
+{-# LANGUAGE TypeFamilies #-}
 
 module Test.Integration.Scenario.API.Transactions
     ( spec
@@ -23,13 +23,10 @@ import Cardano.Wallet.Api.Types
     , insertedAt
     , time
     )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( Network (..) )
 import Cardano.Wallet.Primitive.Types
-    ( DecodeAddress (..)
-    , Direction (..)
-    , EncodeAddress (..)
-    , TxStatus (..)
-    , WalletBalance
-    )
+    ( Direction (..), TxStatus (..), WalletBalance, WalletId )
 import Control.Monad
     ( forM_ )
 import Data.Aeson
@@ -135,9 +132,8 @@ data TestCase a = TestCase
     , assertions :: [(HTTP.Status, Either RequestException a) -> IO ()]
     }
 
-spec :: forall t. (EncodeAddress t, DecodeAddress t) => SpecWith (Context t)
+spec :: forall t n. (n ~ 'Testnet) => SpecWith (Context t)
 spec = do
-
     it "TRANS_CREATE_01 - Single Output Transaction" $ \ctx -> do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
         let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
@@ -204,7 +200,7 @@ spec = do
                 , nOutputs = 2
                 }
 
-        r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+        r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
         ra <- request @ApiWallet ctx (getWalletEp wSrc) Default Empty
         verify r
             [ expectResponseCode HTTP.status202
@@ -259,7 +255,7 @@ spec = do
                 , nOutputs = 2
                 }
 
-        r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+        r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
         ra <- request @ApiWallet ctx (getWalletEp wSrc) Default Empty
         verify r
             [ expectResponseCode HTTP.status202
@@ -309,7 +305,7 @@ spec = do
                 "passphrase": "Secure Passphrase"
             }|]
 
-        r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+        r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403UTxO
@@ -333,7 +329,7 @@ spec = do
                 }],
                 "passphrase": "Secure Passphrase"
             }|]
-        r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+        r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
             , expectFieldEqual amount (feeMin + amt)
@@ -361,7 +357,7 @@ spec = do
 
     it "TRANS_CREATE_04 - Error shown when ErrInputsDepleted encountered" $ \ctx -> do
         (wSrc, payload) <- fixtureErrInputsDepleted ctx
-        r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+        r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403InputsDepleted
@@ -384,7 +380,7 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+        r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403Fee
@@ -407,7 +403,7 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+        r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status403
             , expectErrorMessage $
@@ -430,7 +426,7 @@ spec = do
                 }],
                 "passphrase": "This password is wrong"
             }|]
-        r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+        r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403WrongPass
@@ -449,7 +445,7 @@ spec = do
                     }],
                     "passphrase": "cardano-wallet"
                 }|]
-            r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+            r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
             verify r
                 [ expectResponseCode HTTP.status400
                 , expectErrorMessage errMsg
@@ -467,7 +463,7 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+        r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status400
             , expectErrorMessage "expected Text, encountered Array"
@@ -485,7 +481,7 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+        r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status400
             , expectErrorMessage "expected Text, encountered Num"
@@ -502,14 +498,14 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+        r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status400
             , expectErrorMessage "key 'address' not present"
             ]
 
     describe "TRANS_CREATE_06 - Invalid amount" $ do
-        forM_ (matrixInvalidQuantities @(ApiTransaction t)) $ \(title, amt, expectations) -> it title $ \ctx -> do
+        forM_ (matrixInvalidQuantities @(ApiTransaction n)) $ \(title, amt, expectations) -> it title $ \ctx -> do
             wSrc <- emptyWallet ctx
             wDest <- emptyWallet ctx
             addr:_ <- listAddresses ctx wDest
@@ -522,7 +518,7 @@ spec = do
                     }],
                     "passphrase": "cardano-wallet"
                 }|]
-            r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+            r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
             verify r expectations
 
     describe "TRANS_CREATE_07 - False wallet ids" $ do
@@ -541,7 +537,7 @@ spec = do
                     "passphrase": "cardano-wallet"
                 }|]
             let endpoint = "v2/wallets/" <> walId <> "/transactions"
-            r <- request @(ApiTransaction t) ctx ("POST", T.pack endpoint)
+            r <- request @(ApiTransaction n) ctx ("POST", T.pack endpoint)
                     Default payload
             expectResponseCode HTTP.status404 r
             if (title == "40 chars hex") then
@@ -567,7 +563,7 @@ spec = do
         let endpoint =
                 "v2/wallets/" <> T.unpack (T.append (w ^. walletId) "0")
                 <> "/transactions"
-        r <- request @(ApiTransaction t) ctx ("POST", T.pack endpoint)
+        r <- request @(ApiTransaction n) ctx ("POST", T.pack endpoint)
                 Default payload
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage errMsg404NoEndpoint r
@@ -588,7 +584,7 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        r <- request @(ApiTransaction t) ctx (postTxEp w) Default payload
+        r <- request @(ApiTransaction n) ctx (postTxEp w) Default payload
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
@@ -613,13 +609,13 @@ spec = do
                     "passphrase": "cardano-wallet"
                 }|]
             let endpoint = "v2/wallets/" <> w ^. walletId <> "/transactions"
-            r <- request @(ApiTransaction t) ctx (method, endpoint)
+            r <- request @(ApiTransaction n) ctx (method, endpoint)
                     Default payload
             expectResponseCode @IO HTTP.status405 r
             expectErrorMessage errMsg405 r
 
     describe "TRANS_CREATE_08 - HTTP headers" $ do
-        forM_ (matrixHeaders @(ApiTransaction t)) $ \(title, headers, expectations) -> it title $ \ctx -> do
+        forM_ (matrixHeaders @(ApiTransaction n)) $ \(title, headers, expectations) -> it title $ \ctx -> do
             w <- emptyWallet ctx
             wDest <- emptyWallet ctx
             addr:_ <- listAddresses ctx wDest
@@ -634,7 +630,7 @@ spec = do
                     }],
                     "passphrase": "cardano-wallet"
                 }|]
-            r <- request @(ApiTransaction t) ctx (postTxEp w)
+            r <- request @(ApiTransaction n) ctx (postTxEp w)
                     headers payload
             verify r expectations
 
@@ -656,7 +652,7 @@ spec = do
         forM_ matrix $ \(name, nonJson) -> it name $ \ctx -> do
             w <- emptyWallet ctx
             let payload = nonJson
-            r <- request @(ApiTransaction t) ctx (postTxEp w)
+            r <- request @(ApiTransaction n) ctx (postTxEp w)
                     Default payload
             expectResponseCode @IO HTTP.status400 r
 
@@ -1078,13 +1074,13 @@ spec = do
                 "passphrase": "cardano-wallet"
             }|]
 
-        tx <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+        tx <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
         expectResponseCode HTTP.status202 tx
         expectEventually' ctx getWalletEp balanceAvailable amt wDest
         expectEventually' ctx getWalletEp balanceTotal amt wDest
 
         -- Verify Tx list contains Incoming and Outgoing
-        r <- request @([ApiTransaction t]) ctx (listTxEp wSrc mempty)
+        r <- request @([ApiTransaction n]) ctx (listTxEp wSrc mempty)
             Default Empty
         expectResponseCode @IO HTTP.status200 r
 
@@ -1127,7 +1123,7 @@ spec = do
                 ]
         txs <- listAllTransactions ctx w
         let [Just t2, Just t1] = fmap (fmap time . insertedAt) txs
-        let matrix :: [TestCase [ApiTransaction t]] =
+        let matrix :: [TestCase [ApiTransaction n]] =
                 [ TestCase -- 1
                     { query = toQueryString
                         [ ("start", utcIso8601ToText t1)
@@ -1311,7 +1307,7 @@ spec = do
                 ]
 
         forM_ matrix $ \tc -> do
-          rf <- request @([ApiTransaction t]) ctx (listTxEp w (query tc))
+          rf <- request @([ApiTransaction n]) ctx (listTxEp w (query tc))
               Default Empty
           verify rf (assertions tc)
 
@@ -1320,7 +1316,7 @@ spec = do
             \ ascending, descending."
         let startEndErr = "Expecting ISO 8601 date-and-time format\
             \ (basic or extended), e.g. 2012-09-25T10:15:00Z."
-        let queries :: [TestCase [ApiTransaction t]] =
+        let queries :: [TestCase [ApiTransaction n]] =
                 [
                   TestCase
                     { query = toQueryString [ ("start", "2009") ]
@@ -1385,7 +1381,7 @@ spec = do
 
         forM_ queries $ \tc -> it (T.unpack $ query tc) $ \ctx -> do
             w <- emptyWallet ctx
-            r <- request @([ApiTransaction t]) ctx (listTxEp w (query tc))
+            r <- request @([ApiTransaction n]) ctx (listTxEp w (query tc))
                 Default Empty
             verify r (assertions tc)
 
@@ -1398,7 +1394,7 @@ spec = do
                       [ ("start", T.pack startTime)
                       , ("end", T.pack endTime)
                       ]
-              r <- request @([ApiTransaction t]) ctx (listTxEp w q)
+              r <- request @([ApiTransaction n]) ctx (listTxEp w q)
                   Default Empty
               expectResponseCode @IO HTTP.status400 r
               expectErrorMessage
@@ -1431,7 +1427,7 @@ spec = do
                   ]
         forM_ headerCases $ \(title, headers, expectations) -> it title $ \ctx -> do
             w <- emptyWallet ctx
-            r <- request @([ApiTransaction t]) ctx (listTxEp w mempty) headers Empty
+            r <- request @([ApiTransaction n]) ctx (listTxEp w mempty) headers Empty
             verify r expectations
 
     it "TRANS_LIST_04 - 'almost' valid walletId" $ \ctx -> do
@@ -1439,7 +1435,7 @@ spec = do
         let endpoint = "v2/wallets/"
                 <> T.unpack (T.append (w ^. walletId) "0")
                 <> "/transactions"
-        r <- request @([ApiTransaction t]) ctx ("GET", T.pack endpoint)
+        r <- request @([ApiTransaction n]) ctx ("GET", T.pack endpoint)
                 Default Empty
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage errMsg404NoEndpoint r
@@ -1447,7 +1443,7 @@ spec = do
     it "TRANS_LIST_04 - Deleted wallet" $ \ctx -> do
         w <- emptyWallet ctx
         _ <- request @ApiWallet ctx (deleteWalletEp w) Default Empty
-        r <- request @([ApiTransaction t]) ctx (listTxEp w mempty)
+        r <- request @([ApiTransaction n]) ctx (listTxEp w mempty)
             Default Empty
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
@@ -1455,7 +1451,7 @@ spec = do
     describe "TRANS_LIST_04 - False wallet ids" $ do
         forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
             let endpoint = "v2/wallets/" <> walId <> "/transactions"
-            r <- request @([ApiTransaction t]) ctx ("GET", T.pack endpoint)
+            r <- request @([ApiTransaction n]) ctx ("GET", T.pack endpoint)
                     Default Empty
             expectResponseCode HTTP.status404 r
             if (title == "40 chars hex") then
@@ -1497,21 +1493,23 @@ spec = do
 
     describe "TRANS_DELETE_01 - Single Output Transaction for " $ do
         txDeleteForgetSingleOutputTxTest
-            "wallets" it fixtureWallet postTxEp listTxEp deleteTxEp getWalletEp
+            "wallets" it fixtureWallet
+            postTxEp listTxEp deleteTxEp getWalletEp
         -- xit -> it when submitting byron tx is supported by Jormungadr
         -- Then we need also to add impl of fixtureByronWallet in DSL
         txDeleteForgetSingleOutputTxTest
-            "byron-wallets" xit fixtureByronWallet postByronTxEp listByronTxEp
-            deleteByronTxEp getByronWalletEp
+            "byron-wallets" xit fixtureByronWallet
+            postByronTxEp listByronTxEp deleteByronTxEp getByronWalletEp
 
     describe "TRANS_DELETE_02 - checking not pending anymore error for " $ do
         txDeleteNoLongerPendingTest
-            "wallets" it fixtureWallet emptyWallet postTxEp listTxEp deleteTxEp
+            "wallets" it fixtureWallet
+            postTxEp listTxEp deleteTxEp
         -- xit -> it when submitting byron tx is supported by Jormungadr
         -- Then we need also to add impl of fixtureByronWallet in DSL
         txDeleteNoLongerPendingTest
-            "byron-wallets" xit fixtureByronWallet emptyWallet postByronTxEp
-            listByronTxEp deleteByronTxEp
+            "byron-wallets" xit fixtureByronWallet
+            postByronTxEp listByronTxEp deleteByronTxEp
 
     describe "TRANS_DELETE_03 - checking no transaction id error for " $ do
         txDeleteNotExistsingTxIdTest emptyWallet "wallets"
@@ -1587,7 +1585,7 @@ spec = do
                     "passphrase": "cardano-wallet"
                 }|]
             let endpoint = "v2/wallets/" <> wid <> "/transactions"
-            r <- request @(ApiTransaction t) ctx ("POST", endpoint) Default payload
+            r <- request @(ApiTransaction n) ctx ("POST", endpoint) Default payload
             expectResponseCode @IO HTTP.status404 r
             expectErrorMessage (errMsg404NoWallet wid) r
   where
@@ -1642,7 +1640,7 @@ spec = do
             -- transaction eventually is in source wallet
             eventually $ do
                 let ep = listTxEndpSrc wSrc mempty
-                request @[ApiTransaction t] ctx ep Default Empty >>= flip verify
+                request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
                     [ expectListItemFieldEqual 0 direction Outgoing
                     , expectListItemFieldEqual 0 status InLedger
                     ]
@@ -1650,24 +1648,38 @@ spec = do
             -- transaction eventually is in target wallet
             eventually $ do
                 let ep = listTxEp wDest mempty
-                request @[ApiTransaction t] ctx ep Default Empty >>= flip verify
+                request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
                     [ expectListItemFieldEqual 0 direction Incoming
                     , expectListItemFieldEqual 0 status InLedger
                     ]
 
     txDeleteNoLongerPendingTest
-        str action fWallet eWallet postTxEndp listTxEndp deleteTxEndp =
+       :: forall wal .
+           ( Eq wal
+           , FromJSON wal
+           , Show wal
+           , HasType (ApiT WalletBalance) wal
+           )
+       => String
+       -> (String -> (Context t -> IO ()) -> SpecWith (Context t))
+       -> (Context t -> IO wal)
+       -> (wal -> (Method, Text))
+       -> (wal -> Text -> (Method, Text))
+       -> (wal -> ApiTxId -> (Method, Text))
+       -> SpecWith (Context t)
+    txDeleteNoLongerPendingTest
+        str action fWallet postTxEndp listTxEndp deleteTxEndp =
         action str $ \ctx -> do
-            (wSrc, wDest) <- (,) <$> fWallet ctx <*> eWallet ctx
+            (wSrc, wDest) <- (,) <$> fWallet ctx <*> emptyWallet ctx
 
             -- post transaction
-            rTx <- postTx ctx (wSrc, postTxEndp) wDest (1 :: Int)
+            rTx <- postTx ctx (wSrc, postTxEndp) wDest (1 :: Natural)
             let txId = getFromResponse #id rTx
 
             -- Wait for the transaction to be accepted
             eventually $ do
                 let ep = listTxEndp wSrc mempty
-                request @([ApiTransaction t]) ctx ep Default Empty >>= flip verify
+                request @([ApiTransaction n]) ctx ep Default Empty >>= flip verify
                     [ expectListItemFieldEqual 0 direction Outgoing
                     , expectListItemFieldEqual 0 status InLedger
                     ]
@@ -1717,7 +1729,12 @@ spec = do
                 expectResponseCode @IO HTTP.status404 r
                 expectErrorMessage errMsg404NoEndpoint r
 
-    txDeleteFromDifferentWalletTest eWallet resource=
+    txDeleteFromDifferentWalletTest
+        :: (HasType (ApiT WalletId) wal)
+        => (Context t -> IO wal)
+        -> String
+        -> SpecWith (Context t)
+    txDeleteFromDifferentWalletTest eWallet resource =
         it resource $ \ctx -> do
             -- post tx
             (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
@@ -1759,6 +1776,12 @@ spec = do
                     expectResponseCode @IO HTTP.status405 r
                     expectErrorMessage errMsg405 r
 
+    postTx
+        :: Context t
+        -> (wal, wal -> (Method, Text))
+        -> ApiWallet
+        -> Natural
+        -> IO (HTTP.Status, Either RequestException (ApiTransaction n))
     postTx ctx (wSrc, postTxEndp) wDest amt = do
         addrs <- listAddresses ctx wDest
         let destination = (addrs !! 1) ^. #id
@@ -1772,12 +1795,12 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        r <- request @(ApiTransaction t) ctx (postTxEndp wSrc) Default payload
+        r <- request @(ApiTransaction n) ctx (postTxEndp wSrc) Default payload
         expectResponseCode HTTP.status202 r
         return r
 
     unsafeGetTransactionTime
-        :: [ApiTransaction t]
+        :: [ApiTransaction n]
         -> UTCTime
     unsafeGetTransactionTime txs =
         case fmap time . insertedAt <$> txs of

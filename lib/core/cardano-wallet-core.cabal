@@ -34,7 +34,9 @@ library
       aeson
     , async
     , base
+    , base58-bytestring
     , basement
+    , bech32
     , binary
     , bytestring
     , cardano-crypto
@@ -223,6 +225,7 @@ test-suite unit
       Cardano.Wallet.Primitive.AddressDerivationSpec
       Cardano.Wallet.Primitive.AddressDiscovery.RandomSpec
       Cardano.Wallet.Primitive.AddressDiscovery.SequentialSpec
+      Cardano.Wallet.Primitive.AddressDiscoverySpec
       Cardano.Wallet.Primitive.CoinSelection.LargestFirstSpec
       Cardano.Wallet.Primitive.CoinSelection.MigrationSpec
       Cardano.Wallet.Primitive.CoinSelection.RandomSpec

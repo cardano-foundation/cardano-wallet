@@ -67,7 +67,12 @@ import Cardano.Wallet.DB.StateMachine
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx (..), block0, genesisParameters )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), Passphrase (..), PersistKey, encryptPassphrase )
+    ( Depth (..)
+    , Network (..)
+    , Passphrase (..)
+    , PersistKey
+    , encryptPassphrase
+    )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
     ( RndKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
@@ -262,7 +267,7 @@ simpleSpec cp = do
 -------------------------------------------------------------------------------}
 
 loggingSpec :: Spec
-loggingSpec = withLoggingDB @(SeqState DummyTarget) @DummyTarget @SeqKey $ do
+loggingSpec = withLoggingDB @(SeqState 'Testnet) @DummyTarget @SeqKey $ do
     describe "Sqlite query logging" $ do
         it "should log queries at DEBUG level" $ \(getLogs, db) -> do
             unsafeRunExceptT $ createWallet db testPk testCpSeq testMetadata mempty
@@ -368,8 +373,8 @@ shouldHaveLog msgs (sev, str) = unless (any match msgs) $
                                 File Mode Spec
 -------------------------------------------------------------------------------}
 
-type TestDBSeq = DBLayer IO (SeqState DummyTarget) DummyTarget SeqKey
-type TestDBRnd = DBLayer IO (RndState DummyTarget) DummyTarget RndKey
+type TestDBSeq = DBLayer IO (SeqState 'Testnet) DummyTarget SeqKey
+type TestDBRnd = DBLayer IO (RndState 'Testnet) DummyTarget RndKey
 
 fileModeSpec :: Spec
 fileModeSpec =  do
@@ -377,7 +382,7 @@ fileModeSpec =  do
         it "Opening and closing of db works" $ do
             replicateM_ 25 $ do
                 db <- Just <$> temporaryDBFile
-                (ctx, _) <- newDBLayer' @(SeqState DummyTarget) @DummyTarget db
+                (ctx, _) <- newDBLayer' @(SeqState 'Testnet) @DummyTarget db
                 destroyDBLayer ctx
 
     describe "Sqlite database file" $ do
@@ -451,7 +456,7 @@ fileModeSpec =  do
 
     describe "random operation chunks property" $ do
         it "realize a random batch of operations upon one db open"
-            (property $ prop_randomOpChunks @(SeqState DummyTarget) @DummyTarget)
+            (property $ prop_randomOpChunks @(SeqState 'Testnet) @DummyTarget)
 
 -- This property checks that executing series of wallet operations in a single
 -- SQLite session has the same effect as executing the same operations over
@@ -507,7 +512,7 @@ prop_randomOpChunks (KeyValPairs pairs) =
 testOpeningCleaning
     :: (Show s, Eq s)
     => FilePath
-    -> (DBLayer IO (SeqState DummyTarget) DummyTarget SeqKey -> IO s)
+    -> (DBLayer IO (SeqState 'Testnet) DummyTarget SeqKey -> IO s)
     -> s
     -> s
     -> Expectation
@@ -524,7 +529,7 @@ testOpeningCleaning filepath call expectedAfterOpen expectedAfterClean = do
 
 -- | Run a test action inside withDBLayer, then check assertions.
 withTestDBFile
-    :: (DBLayer IO (SeqState DummyTarget) DummyTarget SeqKey -> IO ())
+    :: (DBLayer IO (SeqState 'Testnet) DummyTarget SeqKey -> IO ())
     -> (FilePath -> IO a)
     -> IO a
 withTestDBFile action expectations = do
@@ -587,10 +592,10 @@ cutRandomly = iter []
                                    Test data
 -------------------------------------------------------------------------------}
 
-testCp :: Wallet (SeqState DummyTarget) DummyTarget
+testCp :: Wallet (SeqState 'Testnet) DummyTarget
 testCp = snd $ initWallet block0 genesisParameters initDummyState
   where
-    initDummyState :: SeqState DummyTarget
+    initDummyState :: SeqState 'Testnet
     initDummyState = mkSeqState (xprv, mempty) defaultAddressPoolGap
       where
         bytes = entropyToBytes <$> unsafePerformIO $ genEntropy @(EntropySize 15)
@@ -637,10 +642,10 @@ class GenerateTestKey (key :: Depth -> * -> *) where
                            Test data - Sequential AD
 -------------------------------------------------------------------------------}
 
-testCpSeq :: Wallet (SeqState DummyTarget) DummyTarget
+testCpSeq :: Wallet (SeqState 'Testnet) DummyTarget
 testCpSeq = snd $ initWallet block0 genesisParameters initDummyStateSeq
 
-initDummyStateSeq :: SeqState DummyTarget
+initDummyStateSeq :: SeqState 'Testnet
 initDummyStateSeq = mkSeqState (xprv, mempty) defaultAddressPoolGap
   where
       bytes = entropyToBytes <$> unsafePerformIO $ genEntropy @(EntropySize 15)
@@ -670,9 +675,9 @@ instance GenerateTestKey RndKey where
         pure (Rnd.generateKeyFromSeed (coerce phr) phr, h)
 
 {-# NOINLINE initDummyStateRnd #-}
-initDummyStateRnd :: RndState DummyTarget
+initDummyStateRnd :: RndState 'Testnet
 initDummyStateRnd = mkRndState xprv 0
     where xprv = fst $ unsafePerformIO generateTestKey
 
-testCpRnd :: Wallet (RndState DummyTarget) DummyTarget
+testCpRnd :: Wallet (RndState 'Testnet) DummyTarget
 testCpRnd = snd $ initWallet block0 genesisParameters initDummyStateRnd

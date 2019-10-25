@@ -17,11 +17,10 @@ module Cardano.Wallet.Primitive.AddressDiscovery.SequentialSpec
 
 import Prelude
 
-import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( DummyTarget )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , KeyToAddress (..)
+    , Network (..)
     , Passphrase (..)
     , WalletKey (..)
     , XPrv
@@ -238,7 +237,7 @@ prop_roundtripEnumGap g =
 -- | After a lookup, a property should never grow more than its gap value.
 prop_poolGrowWithinGap
     :: (Typeable chain)
-    => (AddressPool DummyTarget chain, Address)
+    => (AddressPool 'Testnet chain, Address)
     -> Property
 prop_poolGrowWithinGap (pool, addr) =
     cover 10 (isJust $ fst res) "pool hit" prop
@@ -256,7 +255,7 @@ prop_poolGrowWithinGap (pool, addr) =
 -- | A pool gives back its addresses in correct order and can be reconstructed
 prop_roundtripMkAddressPool
     :: (Typeable chain)
-    => AddressPool DummyTarget chain
+    => AddressPool 'Testnet chain
     -> Property
 prop_roundtripMkAddressPool pool =
     ( mkAddressPool
@@ -267,7 +266,7 @@ prop_roundtripMkAddressPool pool =
 
 -- | A pool always contains a number of addresses at least equal to its gap
 prop_poolAtLeastGapAddresses
-    :: AddressPool DummyTarget chain
+    :: AddressPool 'Testnet chain
     -> Property
 prop_poolAtLeastGapAddresses pool =
     property prop
@@ -283,7 +282,7 @@ prop_poolEventuallyDiscoverOurs (g, addr) =
     addr `elem` ours ==> withMaxSuccess 10 $ property prop
   where
     ours = take 25 (ourAddresses (changeChain @c))
-    pool = flip execState (mkAddressPool @DummyTarget @c ourAccount g mempty) $
+    pool = flip execState (mkAddressPool @'Testnet @c ourAccount g mempty) $
         forM ours (state . lookupAddress)
     prop = (fromEnum <$> fst (lookupAddress addr pool)) === elemIndex addr ours
 
@@ -306,7 +305,7 @@ prop_genChangeGap g =
         length (fst $ changeAddresses [] s0) === fromEnum g
 
 prop_changeAddressRotation
-    :: SeqState DummyTarget
+    :: SeqState 'Testnet
     -> Property
 prop_changeAddressRotation s0 =
     property prop
@@ -316,7 +315,7 @@ prop_changeAddressRotation s0 =
         ShowFmt (fst $ changeAddresses [] s') === ShowFmt (reverse as)
 
 prop_changeNoLock
-    :: (SeqState DummyTarget, Int)
+    :: (SeqState 'Testnet, Int)
     -> Property
 prop_changeNoLock (s0, ix) =
     ShowFmt xs =/= ShowFmt ys .&&. ShowFmt addr `notElem` (ShowFmt <$> ys)
@@ -328,7 +327,7 @@ prop_changeNoLock (s0, ix) =
     (ys, _) = changeAddresses [] s'
 
 prop_lookupDiscovered
-    :: (SeqState DummyTarget, Address)
+    :: (SeqState 'Testnet, Address)
     -> Property
 prop_lookupDiscovered (s0, addr) =
     let (ours, s) = isOurs addr s0 in ours ==> prop s
@@ -344,7 +343,7 @@ prop_lookupDiscovered (s0, addr) =
 -------------------------------------------------------------------------------}
 
 prop_compareKnownUnknown
-    :: (SeqState DummyTarget, ShowFmt Address, ShowFmt Address)
+    :: (SeqState 'Testnet, ShowFmt Address, ShowFmt Address)
     -> Property
 prop_compareKnownUnknown (s, ShowFmt known, ShowFmt addr) =
     case (fst $ isOurs known s, fst $ isOurs addr s) of
@@ -354,7 +353,7 @@ prop_compareKnownUnknown (s, ShowFmt known, ShowFmt addr) =
     prop ordering = compareDiscovery s known addr === ordering
 
 prop_compareAntiSymmetric
-    :: (SeqState DummyTarget, ShowFmt Address, ShowFmt Address)
+    :: (SeqState 'Testnet, ShowFmt Address, ShowFmt Address)
     -> Property
 prop_compareAntiSymmetric (s, ShowFmt a1, ShowFmt a2) =
     cover 90 (a1 /= a2) "a1 /= a2" prop
@@ -370,7 +369,7 @@ prop_compareAntiSymmetric (s, ShowFmt a1, ShowFmt a2) =
 -------------------------------------------------------------------------------}
 
 prop_knownAddressesAreOurs
-    :: SeqState DummyTarget
+    :: SeqState 'Testnet
     -> Property
 prop_knownAddressesAreOurs s =
     map (\x -> (ShowFmt x, fst (isOurs x s))) (knownAddresses s)
@@ -378,7 +377,7 @@ prop_knownAddressesAreOurs s =
     map (\x -> (ShowFmt x, True)) (knownAddresses s)
 
 prop_atLeastKnownAddresses
-    :: SeqState DummyTarget
+    :: SeqState 'Testnet
     -> Property
 prop_atLeastKnownAddresses s =
     property $ length (knownAddresses s) >= g (externalPool s)
@@ -386,8 +385,8 @@ prop_atLeastKnownAddresses s =
     g = fromEnum . getAddressPoolGap . gap
 
 prop_changeIsOnlyKnownAfterGeneration
-    :: ( AddressPool DummyTarget 'InternalChain
-       , AddressPool DummyTarget 'ExternalChain
+    :: ( AddressPool 'Testnet 'InternalChain
+       , AddressPool 'Testnet 'ExternalChain
        )
     -> Property
 prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) =
@@ -424,13 +423,13 @@ ourAddresses
     :: ChangeChain
     -> [Address]
 ourAddresses cc =
-    keyToAddress @DummyTarget . deriveAddressPublicKey ourAccount cc
+    keyToAddress @'Testnet . deriveAddressPublicKey ourAccount cc
         <$> [minBound..maxBound]
 
 changeAddresses
     :: [Address]
-    -> SeqState DummyTarget
-    -> ([Address], SeqState DummyTarget)
+    -> SeqState 'Testnet
+    -> ([Address], SeqState 'Testnet)
 changeAddresses as s =
     let (a, s') = genChange mempty s
     in if a `elem` as then (as, s) else changeAddresses (a:as) s'
@@ -460,9 +459,9 @@ instance Arbitrary Address where
             bytes <- Passphrase . BA.convert . BS.pack . take 32 . getInfiniteList
                 <$> arbitrary
             let xprv = unsafeGenerateKeyFromSeed (bytes, mempty) mempty :: SeqKey 'AddressK XPrv
-            return $ keyToAddress @DummyTarget $ publicKey xprv
+            return $ keyToAddress @'Testnet $ publicKey xprv
 
-instance Typeable chain => Arbitrary (AddressPool DummyTarget chain) where
+instance Typeable chain => Arbitrary (AddressPool 'Testnet chain) where
     shrink pool =
         let
             key = accountPubKey pool
@@ -485,7 +484,7 @@ instance Typeable chain => Arbitrary (AddressPool DummyTarget chain) where
         let addrs = take n (ourAddresses (changeChain @chain))
         return $ mkAddressPool ourAccount g addrs
 
-instance Arbitrary (SeqState DummyTarget) where
+instance Arbitrary (SeqState 'Testnet) where
     shrink (SeqState intPool extPool ixs) =
         (\(i, e) -> SeqState i e ixs) <$> shrink (intPool, extPool)
     arbitrary = do

@@ -184,7 +184,7 @@ data JormungandrConfig = JormungandrConfig
 -- 'NetworkLayer'. The caller is responsible for handling errors which may have
 -- occurred while starting the Node.
 withNetworkLayer
-    :: forall n a t. (t ~ Jormungandr n)
+    :: forall a t. (t ~ Jormungandr)
     => Trace IO Text
     -- ^ Logging
     -> JormungandrBackend
@@ -197,7 +197,7 @@ withNetworkLayer tr (UseRunning cp) action = withNetworkLayerConn tr cp action
 withNetworkLayer tr (Launch lj) action = withNetworkLayerLaunch tr lj action
 
 withNetworkLayerLaunch
-    :: forall n a t. (t ~ Jormungandr n)
+    :: forall a t. (t ~ Jormungandr)
     => Trace IO Text
     -- ^ Logging of node startup.
     -> JormungandrConfig
@@ -211,7 +211,7 @@ withNetworkLayerLaunch tr lj action = do
     either (action . Left) pure res
 
 withNetworkLayerConn
-    :: forall n a t. (t ~ Jormungandr n)
+    :: forall a t. (t ~ Jormungandr)
     => Trace IO Text
     -- ^ Logging of network layer startup
     -> JormungandrConnParams
@@ -228,7 +228,7 @@ withNetworkLayerConn tr cp@(JormungandrConnParams block0H baseUrl) action =
 -- | Creates a new 'NetworkLayer' connecting to an underlying 'Jormungandr'
 -- backend target.
 newNetworkLayer
-    :: forall n t. (t ~ Jormungandr n)
+    :: forall t. (t ~ Jormungandr)
     => Trace IO Text
     -> BaseUrl
     -> Hash "Genesis"
@@ -250,9 +250,9 @@ newNetworkLayer tr baseUrl block0H = do
 -- This version provides the full, raw blocks from
 -- "Cardano.Wallet.Jormungandr.Binary".
 mkRawNetworkLayer
-    :: forall m n t block.
+    :: forall m t block.
         ( MonadBaseControl IO m
-        , t ~ Jormungandr n
+        , t ~ Jormungandr
         , block ~ J.Block
         )
     => (W.Block Tx, BlockchainParameters)
@@ -414,7 +414,7 @@ mkRawNetworkLayer (block0, bp) batchSize st j = NetworkLayer
 
 -- Use a block headers sequence as the wallet state. This can easily be
 -- intersected with the global node state.
-data instance Cursor (Jormungandr n) = Cursor BlockHeaders
+data instance Cursor Jormungandr = Cursor BlockHeaders
 
 -- | Direction in which to move the local chain.
 data Direction
@@ -427,7 +427,7 @@ data Direction
 -- If there is intersection, then the decision is simple. Otherwise, find
 -- whether the local chain is behind or ahead of the node chain.
 direction
-    :: forall n t. (t ~ Jormungandr n)
+    :: forall t. (t ~ Jormungandr)
     => Cursor t
     -- ^ Local wallet unstable blocks
     -> BlockHeaders
@@ -454,7 +454,7 @@ direction (Cursor local) node = case greatestCommonBlockHeader node local of
 
 -- | Pushes the received blockheaders onto the local state.
 cursorForward
-    :: forall n t block. (t ~ Jormungandr n, block ~ J.Block)
+    :: forall t block. (t ~ Jormungandr, block ~ J.Block)
     => Quantity "block" Word32
     -- ^ Epoch Stability, a.k.a 'k'
     -> [block]
@@ -467,7 +467,7 @@ cursorForward k bs (Cursor cursor) =
 
 -- | Clears local state after the rollback point.
 cursorBackward
-    :: forall n t. (t ~ Jormungandr n)
+    :: forall t. (t ~ Jormungandr)
     => BlockHeader
     -> Cursor t
     -> Cursor t

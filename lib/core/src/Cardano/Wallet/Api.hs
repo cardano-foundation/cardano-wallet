@@ -123,13 +123,13 @@ type CoreApi t =
 
 type StakePoolApi = StakePools
 
-type CompatibilityApi t =
+type CompatibilityApi n =
     DeleteByronWallet
     :<|> GetByronWallet
     :<|> GetByronWalletMigrationInfo
     :<|> ListByronWallets
-    :<|> ListByronTransactions t
-    :<|> MigrateByronWallet t
+    :<|> ListByronTransactions n
+    :<|> MigrateByronWallet n
     :<|> PostByronWallet
     :<|> DeleteByronTransaction
 
@@ -209,36 +209,36 @@ type GetUTxOsStatistics = "wallets"
   See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/Transactions
 -------------------------------------------------------------------------------}
 
-type Transactions t =
-    CreateTransaction t
-    :<|> ListTransactions t
-    :<|> PostTransactionFee t
+type Transactions n =
+    CreateTransaction n
+    :<|> ListTransactions n
+    :<|> PostTransactionFee n
     :<|> PostExternalTransaction
     :<|> DeleteTransaction
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransaction
-type CreateTransaction t = "wallets"
+type CreateTransaction n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "transactions"
-    :> ReqBody '[JSON] (PostTransactionData t)
-    :> PostAccepted '[JSON] (ApiTransaction t)
+    :> ReqBody '[JSON] (PostTransactionData n)
+    :> PostAccepted '[JSON] (ApiTransaction n)
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransactionFee
-type PostTransactionFee t = "wallets"
+type PostTransactionFee n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "transactions"
     :> "fees"
-    :> ReqBody '[JSON] (PostTransactionFeeData t)
+    :> ReqBody '[JSON] (PostTransactionFeeData n)
     :> PostAccepted '[JSON] ApiFee
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listTransaction
-type ListTransactions t = "wallets"
+type ListTransactions n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "transactions"
     :> QueryParam "start" Iso8601Time
     :> QueryParam "end" Iso8601Time
     :> QueryParam "order" (ApiT SortOrder)
-    :> Get '[JSON] [ApiTransaction t]
+    :> Get '[JSON] [ApiTransaction n]
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteTransaction
 type DeleteTransaction = "wallets"
@@ -314,21 +314,21 @@ type ListByronWallets = "byron-wallets"
     :> Get '[JSON] [ApiByronWallet]
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listByronTransactions
-type ListByronTransactions t = "byron-wallets"
+type ListByronTransactions n = "byron-wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "transactions"
     :> QueryParam "start" Iso8601Time
     :> QueryParam "end" Iso8601Time
     :> QueryParam "order" (ApiT SortOrder)
-    :> Get '[JSON] [ApiTransaction t]
+    :> Get '[JSON] [ApiTransaction n]
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/migrateByronWallet
-type MigrateByronWallet t = "byron-wallets"
+type MigrateByronWallet n = "byron-wallets"
     :> Capture "sourceWalletId" (ApiT WalletId)
     :> "migrations"
     :> Capture "targetWalletId" (ApiT WalletId)
     :> ReqBody '[JSON] ApiMigrateByronWalletData
-    :> PostAccepted '[JSON] [ApiTransaction t]
+    :> PostAccepted '[JSON] [ApiTransaction n]
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteByronTransaction
 type DeleteByronTransaction = "byron-wallets"

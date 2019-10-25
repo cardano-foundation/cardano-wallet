@@ -2,12 +2,14 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -35,6 +37,8 @@ module Cardano.Wallet.Primitive.AddressDerivation.Sequential
     -- * Storing and retrieving keys
     , deserializeXPubSeq
     , serializeXPubSeq
+    -- * Encoding / Decoding
+    , decodeShelleyAddress
     ) where
 
 import Prelude
@@ -52,24 +56,32 @@ import Cardano.Crypto.Wallet
     , xPrvChangePass
     , xprv
     , xpub
+    , xpubPublicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
+    ( DelegationAddress (..)
+    , Depth (..)
     , DerivationType (..)
     , Index (..)
     , InspectAddress (..)
+    , KeyToAddress (..)
+    , Network (..)
+    , NetworkVal
     , Passphrase (..)
     , PersistKey (..)
     , WalletKey (..)
+    , networkVal
     )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), Hash (..), invariant )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
-    ( (<=<) )
+    ( when, (<=<) )
 import Crypto.Hash
     ( Digest, HashAlgorithm, hash )
+import Data.Binary.Put
+    ( putByteString, putWord8, runPut )
 import Data.ByteArray.Encoding
     ( Base (..), convertFromBase, convertToBase )
 import Data.ByteString
@@ -79,6 +91,7 @@ import Data.Maybe
 import Data.Text.Class
     ( CaseStyle (..)
     , FromText (..)
+    , TextDecodingError (..)
     , ToText (..)
     , fromTextToBoundedEnum
     , toTextFromBoundedEnum
@@ -86,17 +99,19 @@ import Data.Text.Class
 import Data.Typeable
     ( Typeable )
 import Data.Word
-    ( Word32 )
+    ( Word32, Word8 )
 import GHC.Generics
     ( Generic )
+import GHC.Stack
+    ( HasCallStack )
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BL
 
 {-------------------------------------------------------------------------------
                             Sequential Derivation
 -------------------------------------------------------------------------------}
-
 
 -- | A cryptographic key for sequential-scheme address derivation, with
 -- phantom-types to disambiguate key types.
@@ -106,18 +121,11 @@ import qualified Data.ByteString as BS
 -- let accountPubKey = SeqKey 'AccountK XPub
 -- let addressPubKey = SeqKey 'AddressK XPub
 -- @
-newtype SeqKey (depth :: Depth) key = SeqKey { getKey :: key }
+newtype SeqKey (depth :: Depth) key =
+    SeqKey { getKey :: key }
     deriving stock (Generic, Show, Eq)
 
 instance (NFData key) => NFData (SeqKey depth key)
-
-instance WalletKey SeqKey where
-    changePassphrase = changePassphraseSeq
-    publicKey = publicKeySeq
-    digest = digestSeq
-    getRawKey = getKey
-    dummyKey = dummyKeySeq
-    keyTypeDescriptor _ = "seq"
 
 -- | Marker for the change chain. In practice, change of a transaction goes onto
 -- the addresses generated on the internal chain, whereas the external chain is
@@ -146,6 +154,18 @@ instance ToText ChangeChain where
 
 instance FromText ChangeChain where
     fromText = fromTextToBoundedEnum SnakeLowerCase
+
+-- | Size, in bytes, of a public key (without chain code)
+publicKeySize :: Int
+publicKeySize = 32
+
+-- Serialized length in bytes of a Single Address
+addrSingleSize :: Int
+addrSingleSize = 1 + publicKeySize
+
+-- Serialized length in bytes of a Grouped Address
+addrGroupedSize :: Int
+addrGroupedSize = addrSingleSize + publicKeySize
 
 -- | Purpose is a constant set to 44' (or 0x8000002C) following the BIP-44
 -- recommendation. It indicates that the subtree of this node is used
@@ -280,28 +300,17 @@ deriveAddressPublicKey (SeqKey accXPub) changeChain (Index addrIx) =
         \error, or, we may have reached the maximum number of addresses for \
         \a given wallet."
 
-
-{-------------------------------------------------------------------------------
-                                   Passphrase
--------------------------------------------------------------------------------}
-
--- | Re-encrypt a private key using a different passphrase.
---
--- **Important**:
--- This function doesn't check that the old passphrase is correct! Caller is
--- expected to have already checked that. Using an incorrect passphrase here
--- will lead to very bad thing.
-changePassphraseSeq
-    :: Passphrase "encryption-old"
-    -> Passphrase "encryption-new"
-    -> SeqKey purpose XPrv
-    -> SeqKey purpose XPrv
-changePassphraseSeq (Passphrase oldPwd) (Passphrase newPwd) (SeqKey prv) =
-    SeqKey $ xPrvChangePass oldPwd newPwd prv
-
 {-------------------------------------------------------------------------------
                             WalletKey implementation
 -------------------------------------------------------------------------------}
+
+instance WalletKey SeqKey where
+    changePassphrase = changePassphraseSeq
+    publicKey = publicKeySeq
+    digest = digestSeq
+    getRawKey = getKey
+    dummyKey = dummyKeySeq
+    keyTypeDescriptor _ = "seq"
 
 -- | Extract the public key part of a private key.
 publicKeySeq
@@ -321,6 +330,141 @@ digestSeq (SeqKey k) =
 dummyKeySeq :: SeqKey 'AddressK XPub
 dummyKeySeq = SeqKey key
     where Right key = xpub (BS.replicate 64 0)
+
+-- | Re-encrypt a private key using a different passphrase.
+--
+-- **Important**:
+-- This function doesn't check that the old passphrase is correct! Caller is
+-- expected to have already checked that. Using an incorrect passphrase here
+-- will lead to very bad thing.
+changePassphraseSeq
+    :: Passphrase "encryption-old"
+    -> Passphrase "encryption-new"
+    -> SeqKey depth XPrv
+    -> SeqKey depth XPrv
+changePassphraseSeq (Passphrase oldPwd) (Passphrase newPwd) (SeqKey prv) =
+    SeqKey $ xPrvChangePass oldPwd newPwd prv
+
+{-------------------------------------------------------------------------------
+                         Relationship Key / Address
+-------------------------------------------------------------------------------}
+
+instance KeyToAddress 'Mainnet SeqKey where
+    keyToAddress xpub0 =
+        encodeShelleyAddress (single @'Mainnet) [getKey xpub0]
+
+instance KeyToAddress 'Testnet SeqKey where
+    keyToAddress xpub0 =
+        encodeShelleyAddress (single @'Testnet) [getKey xpub0]
+
+instance DelegationAddress 'Mainnet SeqKey where
+    delegationAddress xpub0 xpub1 =
+        encodeShelleyAddress (grouped @'Mainnet) [getKey xpub0, getKey xpub1]
+
+instance DelegationAddress 'Testnet SeqKey where
+    delegationAddress xpub0 xpub1 =
+        encodeShelleyAddress (grouped @'Testnet) [getKey xpub0, getKey xpub1]
+
+-- | Embed some constants into a network type.
+class KnownNetwork (n :: Network) where
+    single :: Word8
+        -- ^ Address discriminant byte for single addresses, this is the first byte of
+        -- every addresses using the Shelley format carrying only a spending key.
+    grouped :: Word8
+        -- ^ Address discriminant byte for grouped addresses, this is the first byte of
+        -- every addresses using the Shelley format carrying both a spending and a
+        -- delegation key.
+
+instance KnownNetwork 'Mainnet where
+    single = 0x03
+    grouped = 0x04
+
+instance KnownNetwork 'Testnet where
+    single = 0x83
+    grouped = 0x84
+
+-- | We use this to define both instance separately to avoid having to carry a
+-- 'KnownNetwork' constraint around.
+encodeShelleyAddress :: Word8 -> [XPub] -> Address
+encodeShelleyAddress discriminant keys =
+    Address $ invariantSize $ BL.toStrict $ runPut $ do
+        putWord8 discriminant
+        mapM_ putByteString (xpubPublicKey <$> keys)
+  where
+    invariantSize :: HasCallStack => ByteString -> ByteString
+    invariantSize bytes
+        | BS.length bytes == len = bytes
+        | otherwise = error
+            $ "length was "
+            ++ show (BS.length bytes)
+            ++ ", but expected to be "
+            ++ (show len)
+      where
+        len = 1 + length keys * publicKeySize
+
+-- | Verify the structure of a payload decoded from a Bech32 text string
+decodeShelleyAddress
+    :: forall n. (KnownNetwork n, NetworkVal n)
+    => ByteString
+    -> Either TextDecodingError Address
+decodeShelleyAddress bytes = do
+    case BS.length bytes of
+        n | n == addrSingleSize -> do
+            let firstByte = BS.take 1 bytes
+            when (firstByte /= BS.pack [single @n]) $
+                if firstByte `elem`
+                    (BS.pack <$> [[single @'Mainnet], [single @'Testnet]])
+                    then Left invalidNetwork
+                    else Left invalidFirstByte
+        n | n == addrGroupedSize -> do
+            let firstByte = BS.take 1 bytes
+            when (firstByte /= BS.pack [grouped @n]) $
+                if firstByte `elem`
+                    (BS.pack <$> [[grouped @'Mainnet], [grouped @'Testnet]])
+                    then Left invalidNetwork
+                    else Left invalidFirstByte
+        _ ->
+            Left $ TextDecodingError $
+                "Invalid Address length (" <> show (BS.length bytes)
+                <> "): expected either "
+                <> show addrSingleSize
+                <> " or "
+                <> show addrGroupedSize
+                <> " bytes."
+    return (Address bytes)
+  where
+    invalidFirstByte = TextDecodingError
+        "Invalid Address first byte."
+    invalidNetwork = TextDecodingError $
+        "This Address belongs to another network. Network is: "
+        <> show (networkVal @n) <> "."
+
+-- FIXME
+-- 'SeqKey' (as well as 'RndKey') was actually a wrong division for separating
+-- HD derivations schemes.
+-- Keys are actually the same entities, but the division operates at the address
+-- level (Byron addresses have a different structure than Shelley ones).
+-- This class here makes strong assumptions on the structure of the address and
+-- addresses are the in the new Shelley format -- which is an okay-ish
+-- assumption since we've been treating 'SeqKey' as key associated with Shelley
+-- addresses so far. But this will change as soon as we decide to support Yoroi
+-- legacy wallets.
+instance InspectAddress SeqKey where
+    type SpendingKey SeqKey = ByteString
+    getSpendingKey (Address bytes)
+        | let l = BS.length bytes in l == addrSingleSize || l == addrGroupedSize =
+            BS.take publicKeySize $ BS.drop 1 bytes
+        | otherwise =
+            error "InspectAddress: tried to inspect an incompatible address"
+
+    type DelegationKey SeqKey = ByteString
+    getDelegationKey (Address bytes)
+        | BS.length bytes == addrSingleSize =
+            Nothing
+        | BS.length bytes == addrGroupedSize =
+            Just $ BS.drop addrSingleSize bytes
+        | otherwise =
+            error "InspectAddress: tried to inspect an incompatible address"
 
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys
@@ -350,43 +494,6 @@ deserializeXPrvSeq (k, h) = (,)
     <*> fmap Hash (fromHexText h)
   where
     xprvFromText = xprv <=< fromHexText
-
--- FIXME
--- 'SeqKey' (as well as 'RndKey') was actually a wrong division for separating
--- HD derivations schemes.
--- Keys are actually the same entities, but the division operates at the address
--- level (Byron addresses have a different structure than Shelley ones).
--- This class here makes strong assumptions on the structure of the address and
--- addresses are the in the new Shelley format -- which is an okay-ish
--- assumption since we've been treating 'SeqKey' as key associated with Shelley
--- addresses so far. But this will change as soon as we decide to support Yoroi
--- legacy wallets.
-instance InspectAddress SeqKey where
-    type SpendingKey SeqKey = ByteString
-    getSpendingKey (Address bytes)
-        | let l = BS.length bytes in l == addrLenSingle || l == addrLenGrouped =
-            BS.take (addrLenSingle - 1) $ BS.drop 1 bytes
-        | otherwise =
-            error "InspectAddress: tried to inspect an incompatible address"
-
-    type DelegationKey SeqKey = ByteString
-    getDelegationKey (Address bytes)
-        | BS.length bytes == addrLenSingle =
-            Nothing
-
-        | BS.length bytes == addrLenGrouped =
-            Just $ BS.drop addrLenSingle bytes
-
-        | otherwise =
-            error "InspectAddress: tried to inspect an incompatible address"
-
--- Serialized length in bytes of a Single Address
-addrLenSingle :: Int
-addrLenSingle = 33
-
--- Serialized length in bytes of a Grouped Address
-addrLenGrouped :: Int
-addrLenGrouped = 65
 
 -- | Convert a public key into a hexadecimal string suitable for storing in a
 -- text file or database column.

@@ -49,7 +49,13 @@ import Cardano.Wallet.DB.Sqlite
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx (..), block0, genesisParameters )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), KeyToAddress (..), Passphrase (..), WalletKey (..), XPub )
+    ( Depth (..)
+    , KeyToAddress (..)
+    , Network (..)
+    , Passphrase (..)
+    , WalletKey (..)
+    , XPub
+    )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( SeqKey (..), generateKeyFromSeed, unsafeGenerateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -559,8 +565,8 @@ benchDiskSize action = bracket setupDB cleanupDB $ \(f, ctx, db) -> do
 ----------------------------------------------------------------------------
 -- Mock data to use for benchmarks
 
-type DBLayerBench = DBLayer IO (SeqState DummyTarget) DummyTarget SeqKey
-type WalletBench = Wallet (SeqState DummyTarget) DummyTarget
+type DBLayerBench = DBLayer IO (SeqState 'Testnet) DummyTarget SeqKey
+type WalletBench = Wallet (SeqState 'Testnet) DummyTarget
 
 instance NFData (DBLayer m s t k) where
     rnf _ = ()
@@ -571,7 +577,7 @@ instance NFData SqliteContext where
 testCp :: WalletBench
 testCp = snd $ initWallet block0 genesisParameters initDummyState
 
-initDummyState :: SeqState DummyTarget
+initDummyState :: SeqState 'Testnet
 initDummyState =
     mkSeqState (xprv, mempty) defaultAddressPoolGap
   where

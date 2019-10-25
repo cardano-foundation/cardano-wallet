@@ -41,6 +41,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
     , Index (..)
+    , Network (..)
     , Passphrase (..)
     , WalletKey (..)
     , XPrv
@@ -415,7 +416,7 @@ instance Arbitrary (Index 'Hardened 'AddressK) where
                               Sequential State
 -------------------------------------------------------------------------------}
 
-instance Arbitrary (SeqState DummyTarget) where
+instance Arbitrary (SeqState 'Testnet) where
     shrink (SeqState intPool extPool ixs) =
         (\(i, e, x) -> SeqState i e x) <$> shrink (intPool, extPool, ixs)
     arbitrary = do
@@ -446,7 +447,7 @@ instance Arbitrary (SeqKey 'RootK XPrv) where
 instance Arbitrary (Seq.PendingIxs) where
     arbitrary = pure Seq.emptyPendingIxs
 
-instance Typeable chain => Arbitrary (AddressPool DummyTarget chain) where
+instance Typeable chain => Arbitrary (AddressPool 'Testnet chain) where
     arbitrary = pure $ mkAddressPool arbitrarySeqAccount minBound mempty
 
 -- Properties are quite heavy on the generation of values, although for
@@ -476,7 +477,7 @@ arbitrarySeqAccount =
                                  Random State
 -------------------------------------------------------------------------------}
 
-instance Arbitrary (RndState DummyTarget) where
+instance Arbitrary (RndState 'Testnet) where
     shrink (RndState k ix addrs pending g) =
         [ RndState k ix' addrs' pending' g
         | (ix', addrs', pending') <- shrink (ix, addrs, pending)
@@ -514,6 +515,8 @@ rootKeysRnd = unsafePerformIO $ generate (vectorOf 10 genRootKeysRnd)
 -------------------------------------------------------------------------------}
 
 deriving instance Arbitrary a => Arbitrary (ShowFmt a)
+
+deriving instance Eq (SeqState 'Testnet)
 
 -- Necessary unsound Show instance for QuickCheck failure reporting
 instance Show XPrv where

@@ -121,19 +121,14 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PassphraseMaxLength
     , PassphraseMinLength
     )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( DecodeAddress, EncodeAddress )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, defaultAddressPoolGap )
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState
-    , DecodeAddress
-    , EncodeAddress
-    , Hash
-    , SortOrder
-    , WalletId
-    , WalletName
-    )
+    ( AddressState, Hash, SortOrder, WalletId, WalletName )
 import Cardano.Wallet.Version
     ( showVersion, version )
 import Control.Applicative
