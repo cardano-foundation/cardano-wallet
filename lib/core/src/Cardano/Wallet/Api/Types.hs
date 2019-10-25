@@ -33,6 +33,7 @@ module Cardano.Wallet.Api.Types
     , ApiStakePool (..)
     , StakePoolMetrics (..)
     , ApiWallet (..)
+    , ApiWalletPassphrase (..)
     , ApiUtxoStatistics (..)
     , WalletBalance (..)
     , WalletPostData (..)
@@ -56,7 +57,6 @@ module Cardano.Wallet.Api.Types
     -- * API Types (Byron)
     , ApiByronWallet (..)
     , ApiByronWalletMigrationInfo (..)
-    , ApiMigrateByronWalletData (..)
     , ByronWalletPostData (..)
 
     -- * Polymorphic Types
@@ -186,6 +186,10 @@ data ApiWallet = ApiWallet
     , passphrase :: !(Maybe (ApiT WalletPassphraseInfo))
     , state :: !(ApiT SyncProgress)
     , tip :: !ApiBlockReference
+    } deriving (Eq, Generic, Show)
+
+newtype ApiWalletPassphrase = ApiWalletPassphrase
+    { passphrase :: ApiT (Passphrase "encryption")
     } deriving (Eq, Generic, Show)
 
 data ApiStakePool = ApiStakePool
@@ -370,10 +374,6 @@ newtype ApiByronWalletMigrationInfo = ApiByronWalletMigrationInfo
     { migrationCost :: Quantity "lovelace" Natural
     } deriving (Eq, Generic, Show)
 
-newtype ApiMigrateByronWalletData = ApiMigrateByronWalletData
-    { passphrase :: ApiT (Passphrase "encryption")
-    } deriving (Eq, Generic, Show)
-
 {-------------------------------------------------------------------------------
                               Polymorphic Types
 -------------------------------------------------------------------------------}
@@ -442,6 +442,11 @@ instance ToJSON (ApiT AddressState) where
 instance FromJSON ApiWallet where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiWallet where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiWalletPassphrase where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiWalletPassphrase where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON WalletPostData where
@@ -688,11 +693,6 @@ instance ToJSON ApiByronWallet where
 instance FromJSON ApiByronWalletMigrationInfo where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiByronWalletMigrationInfo where
-    toJSON = genericToJSON defaultRecordTypeOptions
-
-instance FromJSON ApiMigrateByronWalletData where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiMigrateByronWalletData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 {-------------------------------------------------------------------------------

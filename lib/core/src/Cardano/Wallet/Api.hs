@@ -50,7 +50,6 @@ import Cardano.Wallet.Api.Types
     , ApiByronWallet
     , ApiByronWalletMigrationInfo
     , ApiFee
-    , ApiMigrateByronWalletData
     , ApiNetworkInformation
     , ApiStakePool
     , ApiT
@@ -58,6 +57,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxId
     , ApiUtxoStatistics
     , ApiWallet
+    , ApiWalletPassphrase
     , ByronWalletPostData
     , Iso8601Time
     , PostExternalTransactionData
@@ -270,7 +270,7 @@ type JoinStakePool = "stake-pools"
     :> Capture "stakePoolId" (ApiT PoolId)
     :> "wallets"
     :> Capture "walletId" (ApiT WalletId)
-    :> ReqBody '[JSON] ApiMigrateByronWalletData
+    :> ReqBody '[JSON] ApiWalletPassphrase
     :> PutNoContent '[Any] NoContent
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/quitStakePool
@@ -278,7 +278,7 @@ type QuitStakePool = "stake-pools"
     :> Capture "stakePoolId" (ApiT PoolId)
     :> "wallets"
     :> Capture "walletId" (ApiT WalletId)
-    :> ReqBody '[JSON] ApiMigrateByronWalletData
+    :> ReqBody '[JSON] ApiWalletPassphrase
     :> DeleteNoContent '[Any] NoContent
 
 {-------------------------------------------------------------------------------
@@ -349,7 +349,7 @@ type MigrateByronWallet n = "byron-wallets"
     :> Capture "sourceWalletId" (ApiT WalletId)
     :> "migrations"
     :> Capture "targetWalletId" (ApiT WalletId)
-    :> ReqBody '[JSON] ApiMigrateByronWalletData
+    :> ReqBody '[JSON] ApiWalletPassphrase
     :> PostAccepted '[JSON] [ApiTransaction n]
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteByronTransaction

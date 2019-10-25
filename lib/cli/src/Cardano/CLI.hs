@@ -97,7 +97,6 @@ import Cardano.Wallet.Api.Types
     ( AddressAmount
     , ApiAddress
     , ApiFee
-    , ApiMigrateByronWalletData
     , ApiMnemonicT (..)
     , ApiNetworkInformation
     , ApiStakePool
@@ -106,6 +105,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxId (..)
     , ApiUtxoStatistics
     , ApiWallet
+    , ApiWalletPassphrase
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
     , PostTransactionData (..)
@@ -1005,12 +1005,12 @@ data WalletClient t = WalletClient
     , joinPool
         :: ApiT PoolId
         -> ApiT WalletId
-        -> ApiMigrateByronWalletData
+        -> ApiWalletPassphrase
         -> ClientM NoContent
     , quitPool
         :: ApiT PoolId
         -> ApiT WalletId
-        -> ApiMigrateByronWalletData
+        -> ApiWalletPassphrase
         -> ClientM NoContent
     , networkInformation
         :: ClientM ApiNetworkInformation

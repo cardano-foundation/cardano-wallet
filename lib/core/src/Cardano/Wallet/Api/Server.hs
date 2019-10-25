@@ -92,7 +92,6 @@ import Cardano.Wallet.Api.Types
     , ApiByronWalletMigrationInfo (..)
     , ApiErrorCode (..)
     , ApiFee (..)
-    , ApiMigrateByronWalletData (..)
     , ApiNetworkInformation (..)
     , ApiNetworkTip (..)
     , ApiStakePool (..)
@@ -103,6 +102,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxInput (..)
     , ApiUtxoStatistics (..)
     , ApiWallet (..)
+    , ApiWalletPassphrase (..)
     , ByronWalletPostData (..)
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
@@ -776,7 +776,7 @@ joinPool
     :: StakePoolLayer IO
     -> ApiT PoolId
     -> ApiT WalletId
-    -> ApiMigrateByronWalletData
+    -> ApiWalletPassphrase
     -> Handler NoContent
 joinPool _ _ _ _ = throwError err501
 
@@ -784,7 +784,7 @@ quitPool
     :: StakePoolLayer IO
     -> ApiT PoolId
     -> ApiT WalletId
-    -> ApiMigrateByronWalletData
+    -> ApiWalletPassphrase
     -> Handler NoContent
 quitPool _ _ _ _ = throwError err501
 
@@ -915,7 +915,7 @@ migrateByronWallet
         -- ^ Source wallet (Byron)
     -> ApiT WalletId
         -- ^ Target wallet (Shelley)
-    -> ApiMigrateByronWalletData
+    -> ApiWalletPassphrase
     -> Handler [ApiTransaction n]
 migrateByronWallet rndCtx seqCtx (ApiT rndWid) (ApiT seqWid) migrateData = do
 
