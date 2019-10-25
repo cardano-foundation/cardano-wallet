@@ -1006,7 +1006,7 @@ data WalletClient t = WalletClient
         :: ApiT PoolId
         -> ApiT WalletId
         -> ApiWalletPassphrase
-        -> ClientM NoContent
+        -> ClientM (ApiTransaction t)
     , deleteStakeInPool
         :: ApiT PoolId
         -> ApiT WalletId
@@ -1020,7 +1020,7 @@ walletClient :: forall t. (DecodeAddress t, EncodeAddress t) => WalletClient t
 walletClient =
     let
         (addresses :<|> wallets :<|> transactions :<|> network) :<|> pools =
-            client (Proxy @("v2" :> (CoreApi t :<|> StakePoolApi)))
+            client (Proxy @("v2" :> (CoreApi t :<|> StakePoolApi t)))
 
         _listAddresses =
             addresses

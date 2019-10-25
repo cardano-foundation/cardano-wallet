@@ -118,7 +118,7 @@ import Servant.API
     , ReqBody
     )
 
-type Api t = CoreApi t :<|> CompatibilityApi t :<|> StakePoolApi
+type Api t = CoreApi t :<|> CompatibilityApi t :<|> StakePoolApi t
 
 type CoreApi t =
     Addresses t
@@ -126,9 +126,9 @@ type CoreApi t =
     :<|> Transactions t
     :<|> Network
 
-type StakePoolApi =
+type StakePoolApi t =
     ListStakePools
-    :<|> PutStakeInPool
+    :<|> PutStakeInPool t
     :<|> DeleteStakeInPool
 
 type CompatibilityApi n =
@@ -266,12 +266,12 @@ type ListStakePools = "stake-pools"
     :> Get '[JSON] [ApiStakePool]
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/joinStakePool
-type PutStakeInPool = "stake-pools"
+type PutStakeInPool t = "stake-pools"
     :> Capture "stakePoolId" (ApiT PoolId)
     :> "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> ReqBody '[JSON] ApiWalletPassphrase
-    :> PutNoContent '[Any] NoContent
+    :> Put '[JSON] (ApiTransaction t)
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/quitStakePool
 type DeleteStakeInPool = "stake-pools"
