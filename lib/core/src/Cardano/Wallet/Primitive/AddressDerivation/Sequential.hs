@@ -57,12 +57,13 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
     , Index (..)
+    , InspectAddress (..)
     , Passphrase (..)
     , PersistKey (..)
     , WalletKey (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..), invariant )
+    ( Address (..), Hash (..), invariant )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
@@ -349,6 +350,43 @@ deserializeXPrvSeq (k, h) = (,)
     <*> fmap Hash (fromHexText h)
   where
     xprvFromText = xprv <=< fromHexText
+
+-- FIXME
+-- 'SeqKey' (as well as 'RndKey') was actually a wrong division for separating
+-- HD derivations schemes.
+-- Keys are actually the same entities, but the division operates at the address
+-- level (Byron addresses have a different structure than Shelley ones).
+-- This class here makes strong assumptions on the structure of the address and
+-- addresses are the in the new Shelley format -- which is an okay-ish
+-- assumption since we've been treating 'SeqKey' as key associated with Shelley
+-- addresses so far. But this will change as soon as we decide to support Yoroi
+-- legacy wallets.
+instance InspectAddress SeqKey where
+    type SpendingKey SeqKey = ByteString
+    getSpendingKey (Address bytes)
+        | let l = BS.length bytes in l == addrLenSingle || l == addrLenGrouped =
+            BS.take (addrLenSingle - 1) $ BS.drop 1 bytes
+        | otherwise =
+            error "InspectAddress: tried to inspect an incompatible address"
+
+    type DelegationKey SeqKey = ByteString
+    getDelegationKey (Address bytes)
+        | BS.length bytes == addrLenSingle =
+            Nothing
+
+        | BS.length bytes == addrLenGrouped =
+            Just $ BS.drop addrLenSingle bytes
+
+        | otherwise =
+            error "InspectAddress: tried to inspect an incompatible address"
+
+-- Serialized length in bytes of a Single Address
+addrLenSingle :: Int
+addrLenSingle = 33
+
+-- Serialized length in bytes of a Grouped Address
+addrLenGrouped :: Int
+addrLenGrouped = 65
 
 -- | Convert a public key into a hexadecimal string suitable for storing in a
 -- text file or database column.

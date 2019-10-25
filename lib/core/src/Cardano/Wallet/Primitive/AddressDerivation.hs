@@ -36,12 +36,14 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , Index (..)
     , DerivationType (..)
     , XPub
+    , unXPub
     , XPrv
 
     -- * Backends Interoperability
     , KeyToAddress(..)
     , WalletKey(..)
     , PersistKey(..)
+    , InspectAddress(..)
     , dummyAddress
 
     -- * Passphrase
@@ -58,7 +60,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( XPrv, XPub )
+    ( XPrv, XPub, unXPub )
 import Cardano.Wallet.Primitive.Mnemonic
     ( CheckSumBits
     , ConsistentEntropy
@@ -437,3 +439,10 @@ class WalletKey key => PersistKey (key :: Depth -> * -> *) where
     deserializeXPrv
         :: (ByteString, ByteString)
         -> Either String (key 'RootK XPrv, Hash "encryption")
+
+-- | Access constituants of an address.
+class InspectAddress (key :: Depth -> * -> *) where
+    type SpendingKey key :: *
+    type DelegationKey key :: *
+    getSpendingKey :: Address -> SpendingKey key
+    getDelegationKey :: Address -> Maybe (DelegationKey key)
