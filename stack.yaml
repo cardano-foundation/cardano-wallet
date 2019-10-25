@@ -17,15 +17,15 @@ extra-deps:
 - quickcheck-state-machine-0.6.0
 - command-0.1.1
 
-# persistent-sqlite with CASCADE DELETE support
+# persistent-2.10.2 with CASCADE DELETE support for SQLite.
 #
 # See: https://github.com/input-output-hk/persistent/tree/cardano-wallet
 - git: https://github.com/input-output-hk/persistent
-  commit: 79f2ece07eafae005a703c8eda1bd2420b5e07b5
+  commit: 107787ecc4c8a112375493cd66574f788f950fce
   subdirs:
-      - persistent-sqlite
-- persistent-template-2.7.2
-- persistent-2.10.1
+    - persistent
+    - persistent-sqlite
+    - persistent-template
 
 # cardano-crypto
 - git: https://github.com/input-output-hk/cardano-crypto

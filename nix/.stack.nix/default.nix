@@ -5,8 +5,6 @@
         "base58-bytestring" = (((hackage.base58-bytestring)."0.1.0").revisions).default;
         "quickcheck-state-machine" = (((hackage.quickcheck-state-machine)."0.6.0").revisions).default;
         "command" = (((hackage.command)."0.1.1").revisions).default;
-        "persistent-template" = (((hackage.persistent-template)."2.7.2").revisions).default;
-        "persistent" = (((hackage.persistent)."2.10.1").revisions).default;
         "time-units" = (((hackage.time-units)."1.0.0").revisions).default;
         "libsystemd-journal" = (((hackage.libsystemd-journal)."1.4.4").revisions).default;
         bech32 = ./bech32.nix;
@@ -17,7 +15,9 @@
         text-class = ./text-class.nix;
         cardano-wallet-test-utils = ./cardano-wallet-test-utils.nix;
         cardano-wallet-jormungandr = ./cardano-wallet-jormungandr.nix;
+        persistent = ./persistent.nix;
         persistent-sqlite = ./persistent-sqlite.nix;
+        persistent-template = ./persistent-template.nix;
         cardano-crypto = ./cardano-crypto.nix;
         contra-tracer = ./contra-tracer.nix;
         iohk-monitoring = ./iohk-monitoring.nix;
