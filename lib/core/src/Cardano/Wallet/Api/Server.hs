@@ -754,8 +754,8 @@ pools
     -> Server (StakePoolApi t)
 pools spl =
     listPools spl
-    :<|> putStakeInPool spl
-    :<|> deleteStakeInPool spl
+    :<|> putStakeInPool
+    :<|> deleteStakeInPool
 
 listPools
     :: StakePoolLayer IO
@@ -776,20 +776,18 @@ listPools spl = liftHandler (map mkApiStakePool <$> listStakePools spl)
 
 putStakeInPool
     :: forall t. DefineTx t
-    => StakePoolLayer IO
-    -> ApiT PoolId
+    => ApiT PoolId
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction t)
-putStakeInPool _ _ _ _ = throwError err501
+putStakeInPool _ _ _ = throwError err501
 
 deleteStakeInPool
-    :: StakePoolLayer IO
-    -> ApiT PoolId
+    :: ApiT PoolId
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler NoContent
-deleteStakeInPool _ _ _ _ = throwError err501
+deleteStakeInPool _ _ _ = throwError err501
 
 {-------------------------------------------------------------------------------
                                     Network
