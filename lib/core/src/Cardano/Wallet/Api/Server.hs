@@ -752,8 +752,8 @@ pools
     -> Server StakePoolApi
 pools spl =
     listPools spl
-    :<|> joinPool spl
-    :<|> quitPool spl
+    :<|> putStakeInPool spl
+    :<|> deleteStakeInPool spl
 
 listPools
     :: StakePoolLayer IO
@@ -772,21 +772,21 @@ listPools spl = liftHandler (map mkApiStakePool <$> listStakePools spl)
             (ApiT pool)
             (StakePoolMetrics (Quantity $ fromIntegral stake) blocks)
 
-joinPool
+putStakeInPool
     :: StakePoolLayer IO
     -> ApiT PoolId
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler NoContent
-joinPool _ _ _ _ = throwError err501
+putStakeInPool _ _ _ _ = throwError err501
 
-quitPool
+deleteStakeInPool
     :: StakePoolLayer IO
     -> ApiT PoolId
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler NoContent
-quitPool _ _ _ _ = throwError err501
+deleteStakeInPool _ _ _ _ = throwError err501
 
 {-------------------------------------------------------------------------------
                                     Network

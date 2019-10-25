@@ -128,8 +128,8 @@ type CoreApi t =
 
 type StakePoolApi =
     ListStakePools
-    :<|> JoinStakePool
-    :<|> QuitStakePool
+    :<|> PutStakeInPool
+    :<|> DeleteStakeInPool
 
 type CompatibilityApi n =
     DeleteByronWallet
@@ -266,7 +266,7 @@ type ListStakePools = "stake-pools"
     :> Get '[JSON] [ApiStakePool]
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/joinStakePool
-type JoinStakePool = "stake-pools"
+type PutStakeInPool = "stake-pools"
     :> Capture "stakePoolId" (ApiT PoolId)
     :> "wallets"
     :> Capture "walletId" (ApiT WalletId)
@@ -274,7 +274,7 @@ type JoinStakePool = "stake-pools"
     :> PutNoContent '[Any] NoContent
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/quitStakePool
-type QuitStakePool = "stake-pools"
+type DeleteStakeInPool = "stake-pools"
     :> Capture "stakePoolId" (ApiT PoolId)
     :> "wallets"
     :> Capture "walletId" (ApiT WalletId)
