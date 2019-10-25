@@ -35,12 +35,19 @@ module Cardano.Wallet.Primitive.AddressDerivation
       Depth (..)
     , Index (..)
     , DerivationType (..)
-    , XPub
-    , unXPub
+    , XPub (..)
+    , ChainCode (..)
     , XPrv
+    , unXPub
+
+    -- * Network Discrimination
+    , Network (..)
+    , NetworkVal
+    , networkVal
 
     -- * Backends Interoperability
     , KeyToAddress(..)
+    , DelegationAddress(..)
     , WalletKey(..)
     , PersistKey(..)
     , InspectAddress(..)
@@ -60,7 +67,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( XPrv, XPub, unXPub )
+    ( ChainCode (..), XPrv, XPub (..), unXPub )
 import Cardano.Wallet.Primitive.Mnemonic
     ( CheckSumBits
     , ConsistentEntropy
@@ -102,7 +109,13 @@ import Data.String
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( CaseStyle (..)
+    , FromText (..)
+    , TextDecodingError (..)
+    , ToText (..)
+    , fromTextToBoundedEnum
+    , toTextFromBoundedEnum
+    )
 import Data.Word
     ( Word32 )
 import Fmt
@@ -111,6 +124,7 @@ import GHC.Generics
     ( Generic )
 import GHC.TypeLits
     ( KnownNat, Nat, Symbol, natVal )
+
 
 import qualified Basement.Compat.Base as B
 import qualified Data.ByteArray as BA
@@ -370,7 +384,27 @@ instance MonadRandom ((->) (Passphrase "salt")) where
     getRandomBytes _ (Passphrase salt) = BA.convert salt
 
 {-------------------------------------------------------------------------------
-                          Backend-dependent functions
+                          Network Discrimination
+-------------------------------------------------------------------------------}
+
+-- | Available network options.
+data Network = Mainnet | Testnet
+    deriving (Generic, Show, Eq, Bounded, Enum)
+
+instance FromText Network where
+    fromText = fromTextToBoundedEnum SnakeLowerCase
+
+instance ToText Network where
+    toText = toTextFromBoundedEnum SnakeLowerCase
+
+class NetworkVal (n :: Network) where
+    networkVal :: Network
+
+instance NetworkVal 'Mainnet where networkVal = Mainnet
+instance NetworkVal 'Testnet where networkVal = Testnet
+
+{-------------------------------------------------------------------------------
+                     Interface over keys / address types
 -------------------------------------------------------------------------------}
 
 class WalletKey (key :: Depth -> * -> *) where
@@ -410,20 +444,38 @@ class WalletKey (key :: Depth -> * -> *) where
     dummyKey :: key 'AddressK XPub
 
 -- | Encoding of addresses for certain key types and backend targets.
-class WalletKey key => KeyToAddress target (key :: Depth -> * -> *) where
-    -- | Convert a public key to an 'Address' depending on a particular target.
+--
+-- TODO: Rename 'KeyToAddress' into 'PaymentAddress'
+class WalletKey key => KeyToAddress (network :: Network) (key :: Depth -> * -> *) where
+    -- | Convert a public key to a payment 'Address' valid for the given
+    -- network discrimination.
     --
     -- Note that 'keyToAddress' is ambiguous and requires therefore a type
-    -- application. See also 'TxId'.
+    -- application.
     keyToAddress :: key 'AddressK XPub -> Address
+
+class WalletKey key => DelegationAddress (network :: Network) (key :: Depth -> * -> *) where
+    -- | Convert a public key and a staking key to a delegation 'Address' valid
+    -- for the given network discrimination. Funds sent to this address will be
+    -- delegated according to the delegation settings attached to the delegation
+    -- key.
+    --
+    -- Note that 'delegationAddress' is ambiguous and requires therefore a type
+    -- application.
+    delegationAddress
+        :: key 'AddressK XPub
+            -- ^ Payment key
+        -> key 'AddressK XPub
+            -- ^ Staking key
+        -> Address
 
 -- | Produce a fake address of representative size for the target and key
 -- type. This can be used in transaction size estimations.
 --
 -- This function is ambiguous, like 'keyToAddress', and types need to be
 -- applied.
-dummyAddress :: forall target key. KeyToAddress target key => Address
-dummyAddress = keyToAddress @target @key dummyKey
+dummyAddress :: forall network key. KeyToAddress network key => Address
+dummyAddress = keyToAddress @network @key dummyKey
 
 -- | Operations for saving a 'WalletKey' into a database, and restoring it from
 -- a database. The keys should be encoded in hexadecimal strings.

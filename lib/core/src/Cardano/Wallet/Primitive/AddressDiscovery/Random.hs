@@ -37,6 +37,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationType (..)
     , Index (..)
     , KeyToAddress (..)
+    , Network
     , Passphrase (..)
     , XPrv
     , publicKey
@@ -73,7 +74,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 -- | HD random address discovery state and key material for AD.
-data RndState target = RndState
+data RndState (network :: Network) = RndState
     { rndKey :: RndKey 'RootK XPrv
     -- ^ The wallet root key.
     , accountIndex :: Index 'Hardened 'AccountK
@@ -91,17 +92,17 @@ data RndState target = RndState
     -- ^ The state of the RNG.
     } deriving (Generic)
 
-instance NFData (RndState target) where
+instance NFData (RndState network) where
     rnf (RndState !_ !_ !_ !_ g) = seq (show g) ()
 
 -- | There's no instance of 'Show' for 'XPrv'
-instance Show (RndState target) where
+instance Show (RndState network) where
     show (RndState _key ix addrs pending g) = unwords
         [ "RndState <xprv>", p ix, p addrs, p pending, p g ]
       where
         p x = "(" ++ show x ++ ")"
 
-instance Buildable (RndState target) where
+instance Buildable (RndState network) where
     build (RndState _ ix addrs pending gen) = "RndState:\n"
         <> indentF 4 ("Account ix:       " <> build ix)
         <> indentF 4 ("Random Generator: " <> build (show gen))
@@ -114,13 +115,13 @@ type DerivationPath = (Index 'Hardened 'AccountK, Index 'Hardened 'AddressK)
 -- An address is considered to belong to the 'RndState' wallet if it can be decoded
 -- as a Byron HD random address, and where the wallet key can be used to decrypt
 -- the address derivation path.
-instance IsOurs (RndState t) where
+instance IsOurs (RndState n) where
     isOurs addr st@(RndState{rndKey}) =
         (isJust path, maybe id (addDiscoveredAddress addr) path st)
       where
         path = addressToPath addr rndKey
 
-instance IsOwned (RndState t) RndKey where
+instance IsOwned (RndState n) RndKey where
     isOwned (st@RndState{rndKey}) (_,pwd) addr =
         (, pwd) . deriveAddressKeyFromPath st pwd <$> addressToPath addr rndKey
 
@@ -135,7 +136,7 @@ addressToPath (Address addr) key = do
 
 -- | Initialize the HD random address discovery state from a root key and RNG
 -- seed.
-mkRndState :: RndKey 'RootK XPrv -> Int -> RndState t
+mkRndState :: RndKey 'RootK XPrv -> Int -> RndState n
 mkRndState key seed = RndState
     { rndKey = key
     , accountIndex = minBound
@@ -148,16 +149,16 @@ mkRndState key seed = RndState
 -- set of discovered addresses. If the address was in the 'pendingAddresses' set
 -- (i.e. it was a newly generated change address), then it is removed from
 -- there.
-addDiscoveredAddress :: Address -> DerivationPath -> RndState t -> RndState t
+addDiscoveredAddress :: Address -> DerivationPath -> RndState n -> RndState n
 addDiscoveredAddress addr path st =
     st { addresses = Map.insert path addr (addresses st)
        , pendingAddresses = Map.delete path (pendingAddresses st) }
 
-instance KeyToAddress t RndKey => GenChange (RndState t) where
-    type ArgGenChange (RndState t) = Passphrase "encryption"
+instance KeyToAddress n RndKey => GenChange (RndState n) where
+    type ArgGenChange (RndState n) = Passphrase "encryption"
     genChange pwd st = (address, st')
       where
-        address = deriveRndStateAddress @t st pwd path
+        address = deriveRndStateAddress @n st pwd path
         (path, gen') = findUnusedPath (gen st) (accountIndex st)
             (unavailablePaths st)
         st' = st
@@ -167,7 +168,7 @@ instance KeyToAddress t RndKey => GenChange (RndState t) where
 
 -- | Returns the set of derivation paths that should not be used for new address
 -- generation because they are already in use.
-unavailablePaths :: RndState t -> Set DerivationPath
+unavailablePaths :: RndState n -> Set DerivationPath
 unavailablePaths st = Map.keysSet $ addresses st <> pendingAddresses st
 
 -- | Randomly generates an address derivation path for a given account. If the
@@ -199,7 +200,7 @@ randomIndex g = (Index ix, g')
 -- | Use the key material in 'RndState' to derive a change address for a given
 -- derivation path.
 deriveAddressKeyFromPath
-    :: RndState t
+    :: RndState n
     -> Passphrase "encryption"
     -> DerivationPath
     -> RndKey 'AddressK XPrv
@@ -210,21 +211,21 @@ deriveAddressKeyFromPath st passphrase (accIx, addrIx) = addrXPrv
 
 -- | Use the key material in 'RndState' to derive a change address.
 deriveRndStateAddress
-    :: forall t. (KeyToAddress t RndKey)
-    => RndState t
+    :: forall n. (KeyToAddress n RndKey)
+    => RndState n
     -> Passphrase "encryption"
     -> DerivationPath
     -> Address
 deriveRndStateAddress st passphrase path =
-    keyToAddress @t $ publicKey $ deriveAddressKeyFromPath st passphrase path
+    keyToAddress @n $ publicKey $ deriveAddressKeyFromPath st passphrase path
 
 -- Unlike sequential derivation, we can't derive an order from the index only
 -- (they are randomly generated), nor anything else in the address itself.
 --
 -- Therefore, we'll simply consider that addresses using the random address
 -- derivation scheme won't be ordered in any particular order.
-instance CompareDiscovery (RndState t) where
+instance CompareDiscovery (RndState n) where
     compareDiscovery _ _ _ = EQ
 
-instance KnownAddresses (RndState t) where
+instance KnownAddresses (RndState n) where
     knownAddresses s = Map.elems (addresses s)

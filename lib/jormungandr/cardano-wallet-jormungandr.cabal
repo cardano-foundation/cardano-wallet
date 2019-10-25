@@ -42,7 +42,6 @@ library
     , cardano-wallet-core
     , cardano-wallet-cli
     , cardano-wallet-launcher
-    , cborg
     , containers
     , cryptonite
     , deepseq
@@ -77,7 +76,6 @@ library
       Cardano.Wallet.Jormungandr.Api.Client
       Cardano.Wallet.Jormungandr.Binary
       Cardano.Wallet.Jormungandr.Compatibility
-      Cardano.Wallet.Jormungandr.Environment
       Cardano.Wallet.Jormungandr.Network
       Cardano.Wallet.Jormungandr.Primitive.Types
       Cardano.Wallet.Jormungandr.Transaction
@@ -163,7 +161,6 @@ test-suite unit
       Cardano.Wallet.Jormungandr.ApiSpec
       Cardano.Wallet.Jormungandr.BinarySpec
       Cardano.Wallet.Jormungandr.CompatibilitySpec
-      Cardano.Wallet.Jormungandr.EnvironmentSpec
       Cardano.Wallet.Jormungandr.NetworkSpec
       Cardano.Wallet.Jormungandr.TransactionSpec
 

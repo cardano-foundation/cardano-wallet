@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Test.Integration.Scenario.CLI.Addresses
     ( spec
@@ -11,10 +12,14 @@ import Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiAddress, getApiT )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( Network (..) )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( EncodeAddress (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState (..), DecodeAddress (..), EncodeAddress (..) )
+    ( AddressState (..) )
 import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens
@@ -55,7 +60,7 @@ import Test.Integration.Framework.TestData
 import qualified Data.Text as T
 
 spec
-    :: forall t. (EncodeAddress t, DecodeAddress t, KnownCommand t)
+    :: forall t n. (n ~ 'Testnet, KnownCommand t)
     => SpecWith (Context t)
 spec = do
 
@@ -65,7 +70,7 @@ spec = do
         (Exit c, Stdout out, Stderr err) <- listAddressesViaCLI @t ctx [walId]
         err `shouldBe` "Ok.\n"
         c `shouldBe` ExitSuccess
-        json <- expectValidJSON (Proxy @[ApiAddress t]) out
+        json <- expectValidJSON (Proxy @[ApiAddress n]) out
         length json `shouldBe` g
         forM_ [0..(g-1)] $ \addrNum -> do
             expectCliListItemFieldEqual addrNum state Unused json
@@ -77,7 +82,7 @@ spec = do
         (Exit c, Stdout out, Stderr err) <- listAddressesViaCLI @t ctx [walId]
         err `shouldBe` "Ok.\n"
         c `shouldBe` ExitSuccess
-        json <- expectValidJSON (Proxy @[ApiAddress t]) out
+        json <- expectValidJSON (Proxy @[ApiAddress n]) out
         length json `shouldBe` addrPoolGap
         forM_ [0..59] $ \addrNum -> do
             expectCliListItemFieldEqual addrNum state Unused json
@@ -89,7 +94,7 @@ spec = do
             <- listAddressesViaCLI @t ctx ["--state", "used", walId]
         e1 `shouldBe` "Ok.\n"
         c1 `shouldBe` ExitSuccess
-        j1 <- expectValidJSON (Proxy @[ApiAddress t]) o1
+        j1 <- expectValidJSON (Proxy @[ApiAddress n]) o1
         length j1 `shouldBe` 10
         forM_ [0..9] $ \addrNum -> do
             expectCliListItemFieldEqual addrNum state Used j1
@@ -97,7 +102,7 @@ spec = do
             <- listAddressesViaCLI @t ctx ["--state", "unused", walId]
         e2 `shouldBe` "Ok.\n"
         c2 `shouldBe` ExitSuccess
-        j2 <- expectValidJSON (Proxy @[ApiAddress t]) o2
+        j2 <- expectValidJSON (Proxy @[ApiAddress n]) o2
         length j2 `shouldBe` g
         forM_ [0..(g-10)] $ \addrNum -> do
             expectCliListItemFieldEqual addrNum state Unused j2
@@ -109,14 +114,14 @@ spec = do
             <- listAddressesViaCLI @t ctx ["--state", "used", walId]
         e1 `shouldBe` "Ok.\n"
         c1 `shouldBe` ExitSuccess
-        j1 <- expectValidJSON (Proxy @[ApiAddress t]) o1
+        j1 <- expectValidJSON (Proxy @[ApiAddress n]) o1
         length j1 `shouldBe` 0
 
         (Exit c2, Stdout o2, Stderr e2)
             <- listAddressesViaCLI @t ctx ["--state", "unused", walId]
         e2 `shouldBe` "Ok.\n"
         c2 `shouldBe` ExitSuccess
-        j2 <- expectValidJSON (Proxy @[ApiAddress t]) o2
+        j2 <- expectValidJSON (Proxy @[ApiAddress n]) o2
         length j2 `shouldBe` 20
         forM_ [0..19] $ \addrNum -> do
             expectCliListItemFieldEqual addrNum state Unused j2
@@ -153,14 +158,14 @@ spec = do
         (Exit c, Stdout o, Stderr e) <- listAddressesViaCLI @t ctx [widDest]
         e `shouldBe` "Ok.\n"
         c `shouldBe` ExitSuccess
-        j <- expectValidJSON (Proxy @[ApiAddress t]) o
+        j <- expectValidJSON (Proxy @[ApiAddress n]) o
         length j `shouldBe` initPoolGap
         forM_ [0..initPoolGap - 1] $ \addrNum -> do
             expectCliListItemFieldEqual addrNum state Unused j
 
         -- run 10 transactions to make all addresses `Used`
         forM_ [0..initPoolGap - 1] $ \addrNum -> do
-            let dest = encodeAddress (Proxy @t) (getApiT $ fst $ (j !! addrNum) ^. #id)
+            let dest = encodeAddress @n (getApiT $ fst $ (j !! addrNum) ^. #id)
             let args = [wSrc, "--payment" , T.unpack $ "1@" <> dest]
             (cTx, _, _) <- postTransactionViaCLI @t ctx "cardano-wallet" args
             cTx `shouldBe` ExitSuccess
@@ -172,7 +177,7 @@ spec = do
         (Exit c1, Stdout o1, Stderr e1) <- listAddressesViaCLI @t ctx [widDest]
         e1 `shouldBe` "Ok.\n"
         c1 `shouldBe` ExitSuccess
-        j1 <- expectValidJSON (Proxy @[ApiAddress t]) o1
+        j1 <- expectValidJSON (Proxy @[ApiAddress n]) o1
         length j1 `shouldBe` 2*initPoolGap
         forM_ [0..initPoolGap - 1] $ \addrNum -> do
             expectCliListItemFieldEqual addrNum state Used j1

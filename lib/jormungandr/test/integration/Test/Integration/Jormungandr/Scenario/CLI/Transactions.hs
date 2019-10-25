@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Test.Integration.Jormungandr.Scenario.CLI.Transactions
     ( spec
@@ -17,8 +18,12 @@ import Cardano.Wallet.Jormungandr.Binary
     ( MessageType (..) )
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( Network (..) )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( EncodeAddress (..) )
 import Cardano.Wallet.Primitive.Types
-    ( DecodeAddress (..), EncodeAddress (..), Hash (..) )
+    ( Hash (..) )
 import Data.ByteArray.Encoding
     ( Base (Base16, Base64), convertToBase )
 import Data.Generics.Internal.VL.Lens
@@ -64,14 +69,14 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
 spec
-    :: forall t. (EncodeAddress t, DecodeAddress t, KnownCommand t)
+    :: forall t n. (n ~ 'Testnet, KnownCommand t)
     => SpecWith (Context t)
 spec = do
     it "TRANS_EXTERNAL_CREATE_01x - \
         \single output tx signed via jcli" $ \ctx -> do
         w <- emptyWallet ctx
         addr:_ <- listAddresses ctx w
-        let addrStr = encodeAddress (Proxy @t) (getApiT $ fst $ addr ^. #id)
+        let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
         let amt = 4321
 
         txBlob <- prepExternalTxViaJcli (ctx ^. typed @(Port "node")) addrStr amt

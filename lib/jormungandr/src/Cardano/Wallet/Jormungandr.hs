@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
@@ -49,9 +50,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Sqlite
     ( PersistState )
 import Cardano.Wallet.Jormungandr.Compatibility
-    ( Jormungandr, Network (..) )
-import Cardano.Wallet.Jormungandr.Environment
-    ( KnownNetwork (..) )
+    ( Jormungandr )
 import Cardano.Wallet.Jormungandr.Network
     ( BaseUrl (..)
     , ErrGetBlockchainParams (..)
@@ -67,13 +66,13 @@ import Cardano.Wallet.Jormungandr.Transaction
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( PersistKey )
+    ( KeyToAddress, Network, NetworkVal, PersistKey, networkVal )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
     ( RndKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( SeqKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( IsOurs )
+    ( DecodeAddress, EncodeAddress, IsOurs )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -123,9 +122,13 @@ import qualified Network.Wai.Handler.Warp as Warp
 -- which was passed from the CLI and environment and starts all components of
 -- the wallet.
 serveWallet
-    :: forall t n .
-        ( n ~ 'Testnet
-        , t ~ Jormungandr n
+    :: forall (n :: Network) t.
+        ( t ~ Jormungandr
+        , NetworkVal n
+        , DecodeAddress n
+        , EncodeAddress n
+        , KeyToAddress n RndKey
+        , KeyToAddress n SeqKey
         )
     => (CM.Configuration, Trace IO Text)
     -- ^ Logging config.
@@ -162,8 +165,8 @@ serveWallet (cfg, tr) databaseDir hostPref listen lj beforeMainLoop = do
         :: Trace IO Text
         -> Port "node"
         -> BlockchainParameters
-        -> ApiLayer (RndState t) t RndKey
-        -> ApiLayer (SeqState t) t SeqKey
+        -> ApiLayer (RndState n) t RndKey
+        -> ApiLayer (SeqState n) t SeqKey
         -> StakePoolLayer IO
         -> IO ExitCode
     startServer tracer nPort bp rndWallet seqWallet spl = do

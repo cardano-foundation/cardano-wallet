@@ -160,6 +160,8 @@ import Cardano.Wallet.Api.Types
     , Iso8601Time (..)
     , StakePoolMetrics
     )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( Network (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, getAddressPoolGap, mkAddressPoolGap )
 import Cardano.Wallet.Primitive.Mnemonic
@@ -167,9 +169,7 @@ import Cardano.Wallet.Primitive.Mnemonic
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
-    , DecodeAddress (..)
     , Direction (..)
-    , EncodeAddress (..)
     , Hash (..)
     , HistogramBar (..)
     , PoolId (..)
@@ -930,8 +930,7 @@ fixtureByronWallet ctx = do
 -- This function makes no attempt at ensuring the request is valid, so be
 -- careful.
 fixtureWalletWith
-    :: forall t. (EncodeAddress t, DecodeAddress t)
-    => Context t
+    :: Context t
     -> [Natural]
     -> IO ApiWallet
 fixtureWalletWith ctx coins0 = do
@@ -954,7 +953,7 @@ fixtureWalletWith ctx coins0 = do
         balance <- getFromResponse balanceAvailable
             <$> request @ApiWallet ctx (getWalletEp dest) Default Empty
         addrs <- fmap (view #id) . getFromResponse id
-            <$> request @[ApiAddress t] ctx (getAddressesEp dest "") Default Empty
+            <$> request @[ApiAddress 'Testnet] ctx (getAddressesEp dest "") Default Empty
         let payments = for (zip coins addrs) $ \(amt, addr) -> [aesonQQ|{
                 "address": #{addr},
                 "amount": {
@@ -966,7 +965,7 @@ fixtureWalletWith ctx coins0 = do
                 "payments": #{payments :: [Value]},
                 "passphrase": "cardano-wallet"
             }|]
-        request @(ApiTransaction t) ctx (postTxEp src) Default payload
+        request @(ApiTransaction 'Testnet) ctx (postTxEp src) Default payload
             >>= expectResponseCode HTTP.status202
         expectEventually' ctx getWalletEp balanceAvailable (sum (balance:coins)) dest
         expectEventuallyL ctx balanceAvailable balanceTotal src
@@ -1010,31 +1009,28 @@ json :: QuasiQuoter
 json = aesonQQ
 
 listAddresses
-    :: forall t. DecodeAddress t
-    => Context t
+    :: Context t
     -> ApiWallet
-    -> IO [ApiAddress t]
+    -> IO [ApiAddress 'Testnet]
 listAddresses ctx w = do
-    (_, addrs) <- unsafeRequest @[ApiAddress t] ctx (getAddressesEp w "") Empty
+    (_, addrs) <- unsafeRequest @[ApiAddress 'Testnet] ctx (getAddressesEp w "") Empty
     return addrs
 
 listAllTransactions
-    :: forall t. DecodeAddress t
-    => Context t
+    :: Context t
     -> ApiWallet
-    -> IO [ApiTransaction t]
+    -> IO [ApiTransaction 'Testnet]
 listAllTransactions ctx w = listTransactions ctx w Nothing Nothing Nothing
 
 listTransactions
-    :: forall t. DecodeAddress t
-    => Context t
+    :: Context t
     -> ApiWallet
     -> Maybe UTCTime
     -> Maybe UTCTime
     -> Maybe SortOrder
-    -> IO [ApiTransaction t]
+    -> IO [ApiTransaction 'Testnet]
 listTransactions ctx wallet mStart mEnd mOrder = do
-    (_, txs) <- unsafeRequest @[ApiTransaction t] ctx path Empty
+    (_, txs) <- unsafeRequest @[ApiTransaction 'Testnet] ctx path Empty
     return txs
   where
     path = listTxEp wallet $ toQueryString $ catMaybes

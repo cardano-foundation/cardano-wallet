@@ -39,6 +39,9 @@ module Cardano.Wallet.Primitive.AddressDerivation.Random
       -- * Derivation
     , deriveAccountPrivateKey
     , deriveAddressPrivateKey
+
+      -- * Encoding / Decoding
+    , decodeLegacyAddress
     ) where
 
 import Prelude
@@ -60,12 +63,14 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
     , Index (..)
+    , KeyToAddress (..)
+    , Network (..)
     , Passphrase (..)
     , PersistKey (..)
     , WalletKey (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..), invariant )
+    ( Address (..), Hash (..), ProtocolMagic (..), invariant )
 import Control.DeepSeq
     ( NFData )
 import Crypto.Hash
@@ -81,11 +86,15 @@ import Data.ByteString
 import GHC.Generics
     ( Generic )
 
+import qualified Cardano.Byron.Codec.Cbor as CBOR
+import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Encoding as CBOR
+import qualified Codec.CBOR.Read as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.KDF.PBKDF2 as PBKDF2
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.ByteString.Lazy as BL
 
 {-------------------------------------------------------------------------------
                                    Key Types
@@ -127,6 +136,47 @@ instance WalletKey RndKey where
     getRawKey = getKey
     dummyKey = dummyKeyRnd
     keyTypeDescriptor _ = "rnd"
+
+instance KeyToAddress 'Testnet RndKey where
+    keyToAddress k = Address
+        $ CBOR.toStrictByteString
+        $ CBOR.encodeAddress (getRawKey k)
+            [ CBOR.encodeDerivationPathAttr pwd acctIx addrIx
+            , CBOR.encodeProtocolMagicAttr protocolMagic
+            ]
+      where
+        protocolMagic = ProtocolMagic 764824073
+        (acctIx, addrIx) = derivationPath k
+        pwd = payloadPassphrase k
+
+instance KeyToAddress 'Mainnet RndKey where
+    keyToAddress k = Address
+        $ CBOR.toStrictByteString
+        $ CBOR.encodeAddress (getRawKey k)
+            [ CBOR.encodeDerivationPathAttr pwd acctIx addrIx ]
+      where
+        (acctIx, addrIx) = derivationPath k
+        pwd = payloadPassphrase k
+
+{-------------------------------------------------------------------------------
+                            Encoding / Decoding
+-------------------------------------------------------------------------------}
+
+-- | Attempt decoding a 'ByteString' into an 'Address'. This merely checks that
+-- the underlying bytestring has a "valid" structure / format without doing much
+-- more.
+decodeLegacyAddress :: ByteString -> Maybe Address
+decodeLegacyAddress bytes =
+    case CBOR.deserialiseFromBytes addressPayloadDecoder (BL.fromStrict bytes) of
+        Right _ -> Just (Address bytes)
+        Left _ -> Nothing
+  where
+    addressPayloadDecoder :: CBOR.Decoder s ()
+    addressPayloadDecoder = ()
+        <$ CBOR.decodeListLenCanonicalOf 2 -- Declare 2-Tuple
+        <* CBOR.decodeTag -- CBOR Tag
+        <* CBOR.decodeBytes -- Payload
+        <* CBOR.decodeWord32 -- CRC
 
 {-------------------------------------------------------------------------------
                                  Key generation

@@ -17,13 +17,12 @@ module Cardano.Wallet.Primitive.AddressDiscovery.RandomSpec
 
 import Prelude
 
-import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( DummyTarget )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
     , Index (..)
     , KeyToAddress (..)
+    , Network (..)
     , Passphrase (..)
     , WalletKey (..)
     , fromMnemonic
@@ -210,8 +209,8 @@ checkIsOwned GoldenTest{..} = do
         Just (addrXPrv, pwd)
         else Nothing
 
-rndStateFromMnem :: [Text] -> RndState DummyTarget
-rndStateFromMnem mnem = mkRndState @DummyTarget rootXPrv 0
+rndStateFromMnem :: [Text] -> RndState 'Testnet
+rndStateFromMnem mnem = mkRndState @'Testnet rootXPrv 0
   where
     rootXPrv = generateKeyFromSeed (Passphrase seed) (Passphrase "")
     Right (Passphrase seed) = fromMnemonic @'[12] mnem
@@ -233,7 +232,7 @@ propSpec = describe "Random Address Discovery Properties" $ do
 
 -- | A pair of random address discovery state, and the encryption passphrase for
 -- the RndState root key.
-data Rnd = Rnd (RndState DummyTarget) (Passphrase "encryption")
+data Rnd = Rnd (RndState 'Testnet) (Passphrase "encryption")
 
 prop_derivedKeysAreOurs
     :: Rnd
@@ -244,7 +243,7 @@ prop_derivedKeysAreOurs
     (Rnd st@(RndState rk accIx _ _ _) pwd) (Rnd st' _) addrIx =
     fst (isOurs addr st) .&&. not (fst (isOurs addr st'))
   where
-    addr = keyToAddress @DummyTarget addrKey
+    addr = keyToAddress @'Testnet addrKey
     accKey = deriveAccountPrivateKey pwd rk accIx
     addrKey = publicKey $ deriveAddressPrivateKey pwd accKey addrIx
 
@@ -261,7 +260,7 @@ prop_derivedKeysAreOwned
     .&&.
     isOwned st' (rk', pwd') addr === Nothing
   where
-    addr = keyToAddress @DummyTarget (publicKey addrKeyPrv)
+    addr = keyToAddress @'Testnet (publicKey addrKeyPrv)
     accKey = deriveAccountPrivateKey pwd rk accIx
     addrKeyPrv = deriveAddressPrivateKey pwd accKey addrIx
 
@@ -294,7 +293,7 @@ prop_forbiddenAddreses (Rnd st@(RndState rk accIx _ _ _) pwd) addrIx = conjoin
 
     forbidden s = Set.fromList $ Map.elems $ addresses s <> pendingAddresses s
 
-    addr = keyToAddress @DummyTarget (publicKey addrKeyPrv)
+    addr = keyToAddress @'Testnet (publicKey addrKeyPrv)
     accKey = deriveAccountPrivateKey pwd rk accIx
     addrKeyPrv = deriveAddressPrivateKey pwd accKey addrIx
 

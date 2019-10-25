@@ -61,12 +61,14 @@ import Cardano.Wallet.Api.Server
 import Cardano.Wallet.Jormungandr
     ( serveWallet )
 import Cardano.Wallet.Jormungandr.Compatibility
-    ( Jormungandr, Network (Testnet), localhostBaseUrl )
+    ( localhostBaseUrl )
 import Cardano.Wallet.Jormungandr.Network
     ( JormungandrBackend (..)
     , JormungandrConfig (..)
     , JormungandrConnParams (..)
     )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( Network (..) )
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters )
 import Cardano.Wallet.Primitive.Types
@@ -134,11 +136,11 @@ main = do
         <> cmdLaunch dataDir
         <> cmdServe
         <> cmdMnemonic
-        <> cmdWallet @(Jormungandr 'Testnet)
-        <> cmdTransaction @(Jormungandr 'Testnet)
-        <> cmdAddress @(Jormungandr 'Testnet)
-        <> cmdStakePool @(Jormungandr 'Testnet)
-        <> cmdNetwork @(Jormungandr 'Testnet)
+        <> cmdWallet @'Testnet
+        <> cmdTransaction @'Testnet
+        <> cmdAddress @'Testnet
+        <> cmdStakePool @'Testnet
+        <> cmdNetwork @'Testnet
         <> cmdVersion
 
 beforeMainLoop
@@ -223,7 +225,7 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
             setupDirectory (logInfo tr) stateDir
             setupDirectory (logInfo tr) databaseDir
             logInfo tr $ "Running as v" <> T.pack (showVersion version)
-            exitWith =<< serveWallet
+            exitWith =<< serveWallet @'Testnet
                 (cfg, tr)
                 (Just databaseDir)
                 hostPreference
@@ -269,7 +271,7 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
             let cp = JormungandrConnParams block0H baseUrl
             whenJust databaseDir $ setupDirectory (logInfo tr)
             logInfo tr $ "Running as v" <> T.pack (showVersion version)
-            exitWith =<< serveWallet
+            exitWith =<< serveWallet @'Testnet
                 (cfg, tr)
                 databaseDir
                 hostPreference

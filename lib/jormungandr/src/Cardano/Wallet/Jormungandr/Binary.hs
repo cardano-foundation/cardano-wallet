@@ -55,10 +55,6 @@ module Cardano.Wallet.Jormungandr.Binary
     -- * Addresses
     , putAddress
     , getAddress
-    , singleAddressFromKey
-
-      -- * Legacy
-    , decodeLegacyAddress
 
       -- * Helpers
     , blake2b256
@@ -79,11 +75,11 @@ module Cardano.Wallet.Jormungandr.Binary
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( XPub (xpubPublicKey), unXPub )
-import Cardano.Wallet.Jormungandr.Environment
-    ( KnownNetwork, Network (..), single )
+    ( XPub, unXPub )
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( Network (..) )
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
@@ -123,20 +119,11 @@ import Data.Binary.Get
     , skip
     )
 import Data.Binary.Put
-    ( Put
-    , putByteString
-    , putLazyByteString
-    , putWord16be
-    , putWord64be
-    , putWord8
-    , runPut
-    )
+    ( Put, putByteString, putWord16be, putWord64be, putWord8, runPut )
 import Data.Bits
     ( shift, (.&.) )
 import Data.ByteString
     ( ByteString )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Time.Clock
@@ -147,8 +134,6 @@ import Data.Word
     ( Word16, Word32, Word64, Word8 )
 
 import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Codec.CBOR.Decoding as CBOR
-import qualified Codec.CBOR.Read as CBOR
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
@@ -563,25 +548,9 @@ getAddress = do
 putAddress :: Address -> Put
 putAddress (Address bs) = putByteString bs
 
-singleAddressFromKey :: forall n. KnownNetwork n => Proxy n -> XPub -> Address
-singleAddressFromKey _ xPub = Address $ BL.toStrict $ runPut $ do
-    putWord8 (single @n)
-    isolatePut 32 $ putByteString (xpubPublicKey xPub)
-
 {-------------------------------------------------------------------------------
                               Helpers
 -------------------------------------------------------------------------------}
-
--- | Make sure a 'Put' encodes into a specific length
-isolatePut :: Int -> Put -> Put
-isolatePut l x = do
-    let bs = runPut x
-    if BL.length bs == (fromIntegral l)
-    then putLazyByteString bs
-    else fail $ "length was "
-        ++ show (BL.length bs)
-        ++ ", but expected to be "
-        ++ (show l)
 
 -- | Add a corresponding header to a message. Every message is encoded as:
 --
@@ -664,23 +633,3 @@ convertBlockHeader h = (W.BlockHeader (slot h) (bh h) (Hash "") (Hash ""))
     }
   where
     bh = Quantity . fromIntegral . chainLength
-
-{-------------------------------------------------------------------------------
-                                    Legacy
--------------------------------------------------------------------------------}
-
--- | Attempt decoding a 'ByteString' into an 'Address'. This merely checks that
--- the underlying bytestring has a "valid" structure / format without doing much
--- more.
-decodeLegacyAddress :: ByteString -> Maybe Address
-decodeLegacyAddress bytes =
-    case CBOR.deserialiseFromBytes addressPayloadDecoder (BL.fromStrict bytes) of
-        Right _ -> Just (Address bytes)
-        Left _ -> Nothing
-  where
-    addressPayloadDecoder :: CBOR.Decoder s ()
-    addressPayloadDecoder = ()
-        <$ CBOR.decodeListLenCanonicalOf 2 -- Declare 2-Tuple
-        <* CBOR.decodeTag -- CBOR Tag
-        <* CBOR.decodeBytes -- Payload
-        <* CBOR.decodeWord32 -- CRC

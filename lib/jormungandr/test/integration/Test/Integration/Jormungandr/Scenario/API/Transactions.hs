@@ -4,6 +4,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Test.Integration.Jormungandr.Scenario.API.Transactions
     ( spec
@@ -28,29 +29,20 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Jormungandr.Binary
     ( MessageType (..), putSignedTx, runPut, withHeader )
-import Cardano.Wallet.Jormungandr.Compatibility
-    ( Jormungandr, Network (..) )
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Passphrase (..), fromMnemonic )
+    ( Network (..), Passphrase (..), fromMnemonic )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( GenChange (..), IsOwned (..) )
+    ( EncodeAddress (..), GenChange (..), IsOwned (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, mkSeqState )
 import Cardano.Wallet.Primitive.Types
-    ( Coin (..)
-    , DecodeAddress (..)
-    , EncodeAddress (..)
-    , TxIn (..)
-    , TxOut (..)
-    , TxWitness
-    , encodeAddress
-    )
+    ( Coin (..), TxIn (..), TxOut (..), TxWitness )
 import Cardano.Wallet.Transaction
     ( TransactionLayer (..) )
 import Control.Monad
@@ -61,8 +53,6 @@ import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Generics.Product.Typed
     ( typed )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -122,17 +112,17 @@ import qualified Data.Map as Map
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 
-spec :: forall t. (EncodeAddress t, DecodeAddress t) => SpecWith (Context t)
+spec :: forall t n. (n ~ 'Testnet) => SpecWith (Context t)
 spec = do
 
     it "TRANS_CREATE_09 - 0 amount transaction is accepted on single output tx" $ \ctx -> do
         (wSrc, payload) <- fixtureZeroAmtSingle ctx
-        r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+        r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
         expectResponseCode HTTP.status202 r
 
     it "TRANS_CREATE_09 - 0 amount transaction is accepted on multi-output tx" $ \ctx -> do
         (wSrc, payload) <- fixtureZeroAmtMulti ctx
-        r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+        r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
         expectResponseCode HTTP.status202 r
 
     it "TRANS_ESTIMATE_09 - \
@@ -180,7 +170,7 @@ spec = do
                     "passphrase": "Secure Passphrase"
                 }|]
             fee <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
-            tx <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+            tx <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
             verify fee
              [ expectResponseCode HTTP.status403
              , expectErrorMessage (errMsg403TxTooBig errInps)
@@ -195,7 +185,7 @@ spec = do
 
         w <- emptyWallet ctx
         addr:_ <- listAddresses ctx w
-        let addrStr = encodeAddress (Proxy @t) (getApiT $ fst $ addr ^. #id)
+        let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
         let amt = 1234
 
         txBlob <- prepExternalTxViaJcli (ctx ^. typed @(Port "node")) addrStr amt
@@ -283,7 +273,7 @@ spec = do
         forM_ matrix $ \method -> it (show method) $ \ctx -> do
             w <- emptyWallet ctx
             addr:_ <- listAddresses ctx w
-            let addrStr = encodeAddress (Proxy @t) (getApiT $ fst $ addr ^. #id)
+            let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
 
             txBlob <- prepExternalTxViaJcli (ctx ^. typed @(Port "node")) addrStr 1
             let payload = (NonJson . BL.fromStrict . toRawBytes Base16) txBlob
@@ -301,7 +291,7 @@ spec = do
 
             w <- emptyWallet ctx
             addr:_ <- listAddresses ctx w
-            let addrStr = encodeAddress (Proxy @t) (getApiT $ fst $ addr ^. #id)
+            let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
 
             txBlob <- prepExternalTxViaJcli (ctx ^. typed @(Port "node")) addrStr 1
             let payload = (NonJson . BL.fromStrict . toRawBytes Base16) txBlob
@@ -391,8 +381,10 @@ data ExternalTxFixture = ExternalTxFixture
     }
 
 fixtureExternalTx
-    :: forall t. (EncodeAddress t, DecodeAddress t)
-    => (Context t) -> Natural -> IO ExternalTxFixture
+    :: forall t n. (n ~ 'Testnet)
+    => (Context t)
+    -> Natural
+    -> IO ExternalTxFixture
 fixtureExternalTx ctx toSend = do
     -- we use faucet wallet as wSrc
     let password = "cardano-wallet" :: Text
@@ -481,8 +473,7 @@ fixtureExternalTx ctx toSend = do
               rootXPrv = generateKeyFromSeed (seed, mempty) pwd
           in (rootXPrv
              , pwd
-             , mkSeqState @(Jormungandr 'Testnet)
-               (rootXPrv, pwd) defaultAddressPoolGap
+             , mkSeqState @n (rootXPrv, pwd) defaultAddressPoolGap
              )
 
 encodeTx :: (Tx, [TxWitness]) -> MessageType -> Base -> Text

@@ -12,8 +12,6 @@ module Cardano.Wallet.Jormungandr.BinarySpec
 
 import Prelude
 
-import Cardano.Crypto.Wallet
-    ( ChainCode (..), XPub (..) )
 import Cardano.Wallet.Jormungandr.Binary
     ( Block (..)
     , BlockHeader (..)
@@ -28,21 +26,17 @@ import Cardano.Wallet.Jormungandr.Binary
     , getAddress
     , getBlock
     , getMessage
-    , putAddress
     , putSignedTx
     , putTxWitnessTag
     , runGet
     , runPut
-    , singleAddressFromKey
     , txWitnessSize
     , withHeader
     )
-import Cardano.Wallet.Jormungandr.Compatibility
-    ( Jormungandr )
-import Cardano.Wallet.Jormungandr.Environment
-    ( Network (..) )
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( Network (..) )
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
@@ -69,8 +63,6 @@ import Data.Either
     ( isRight )
 import Data.List
     ( isSuffixOf )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Time.Clock.POSIX
@@ -82,15 +74,7 @@ import GHC.Generics
 import System.Directory
     ( getDirectoryContents )
 import Test.Hspec
-    ( Spec
-    , describe
-    , expectationFailure
-    , it
-    , runIO
-    , shouldBe
-    , shouldSatisfy
-    , shouldThrow
-    )
+    ( Spec, describe, expectationFailure, it, runIO, shouldBe, shouldSatisfy )
 import Test.QuickCheck
     ( Arbitrary (..), Gen, choose, oneof, property, shrinkList, vectorOf )
 import Test.QuickCheck.Arbitrary.Generic
@@ -106,7 +90,6 @@ spec :: Spec
 spec = do
     describe "Decoding" $ do
         it "should decode a genesis block (Testnet)" $ do
-            let proxy = Proxy @(Jormungandr 'Testnet)
             let bytes =
                     "00520000000001ca000000000000000000000000f7becdf807c706cef5\
                     \4ec4832d2a747591c3f2141de3e4f2aef59a130d890c12000000000000\
@@ -165,7 +148,7 @@ spec = do
                         , inputs = []
                         , outputs =
                             [ TxOut
-                                { address = unsafeDecodeAddress proxy
+                                { address = unsafeDecodeAddress @'Testnet
                                     "ta1svejfsmcd8qjy6y6xkghmaf6fu3f\
                                     \fga99a59up04lrjnhpl8afzj7w4yyxw"
                                 , coin = Coin 14
@@ -277,32 +260,6 @@ spec = do
                     return ()
 
     describe "Encoding" $ do
-        let cc = ChainCode "<ChainCode is not used by singleAddressToKey>"
-        let mainnet = Proxy @'Mainnet
-        let testnet = Proxy @'Testnet
-
-        let userException str (e :: SomeException) = show e == str
-
-        it "throws when encoding XPub of invalid length (Mainnet)" $ do
-            let msg = "length was 1, but expected to be 32"
-            evaluate (singleAddressFromKey mainnet (XPub "\148" cc))
-                `shouldThrow` userException msg
-
-        it "throws when encoding XPub of invalid length (Testnet)" $ do
-            let msg = "length was 1, but expected to be 32"
-            evaluate (singleAddressFromKey testnet (XPub "\148" cc))
-                `shouldThrow` userException msg
-
-        it "decode (encode address) === address" $ property $
-            \addr -> monadicIO $ liftIO $ do
-                let encode = runPut . putAddress
-                let decode = runGet getAddress
-                addr' <- try' (decode $ encode addr)
-                if addr' == Right addr
-                then return ()
-                else expectationFailure $
-                    "addr /= decode (encode addr) == " ++ show addr'
-
         it "decode (encode tx) === tx" $ property $
             \(SignedTx signedTx) -> monadicIO $ liftIO $ do
                 let encode ((Tx _ inps outs), wits) = runPut
@@ -315,7 +272,6 @@ spec = do
                 then return ()
                 else expectationFailure $
                     "tx /= decode (encode tx) == " ++ show tx'
-
   where
     unMessage :: Message -> (Tx, [TxWitness])
     unMessage m = case m of
