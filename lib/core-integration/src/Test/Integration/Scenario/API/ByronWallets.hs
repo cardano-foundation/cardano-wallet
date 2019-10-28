@@ -12,7 +12,11 @@ module Test.Integration.Scenario.API.ByronWallets
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiByronWallet, ApiByronWalletMigrationInfo (..), ApiWallet )
+    ( ApiByronWallet
+    , ApiByronWalletMigrationInfo (..)
+    , ApiTransaction
+    , ApiWallet
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Mnemonic
@@ -58,6 +62,7 @@ import Test.Integration.Framework.DSL
     , json
     , listByronWalletEp
     , listWalletsEp
+    , migrateByronWalletEp
     , passphraseLastUpdate
     , postByronWalletEp
     , request
@@ -109,6 +114,21 @@ spec = do
                 request ctx (calculateByronMigrationCostEp w) Default Empty
             expectResponseCode @IO HTTP.status200 r
             fee `shouldBe` Quantity 0
+
+    it "BYRON_ESTIMATE_02 - \
+        \migrating an empty wallet should not generate transactions."
+        $ \ctx -> do
+            mnemonic <- genMnemonics
+            source <- emptyByronWalletWith
+                ctx ("byron-wallet-name", mnemonic, "Secure Passphrase")
+            target <- emptyWallet ctx
+            let payload = Json [json| {
+                    "passphrase": "Secure Passphrase"
+                }|]
+            r@(_, Right transactions) <- request @[ApiTransaction n]
+                ctx (migrateByronWalletEp source target) Default payload
+            expectResponseCode @IO HTTP.status202 r
+            transactions `shouldBe` []
 
     describe "BYRON_ESTIMATE_06 - non-existing wallets" $  do
         forM_ (take 1 falseWalletIds) $ \(desc, walId) -> it desc $ \ctx -> do
