@@ -3,6 +3,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Test.Integration.Scenario.API.ByronWallets
     ( spec
@@ -12,15 +13,12 @@ import Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiByronWallet, ApiWallet )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
-    ( DecodeAddress
-    , EncodeAddress
-    , SyncProgress (..)
-    , walletNameMaxLength
-    , walletNameMinLength
-    )
+    ( SyncProgress (..), walletNameMaxLength, walletNameMinLength )
 import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens
@@ -97,7 +95,7 @@ import Test.Integration.Framework.TestData
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
-spec :: forall t. (EncodeAddress t, DecodeAddress t) => SpecWith (Context t)
+spec :: forall t n. (n ~ 'Testnet) => SpecWith (Context t)
 spec = do
 
     describe "BYRON_ESTIMATE_06 - non-existing wallets" $  do

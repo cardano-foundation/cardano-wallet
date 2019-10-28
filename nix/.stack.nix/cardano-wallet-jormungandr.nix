@@ -71,7 +71,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
           (hsPkgs."cardano-wallet-cli" or (buildDepError "cardano-wallet-cli"))
           (hsPkgs."cardano-wallet-launcher" or (buildDepError "cardano-wallet-launcher"))
-          (hsPkgs."cborg" or (buildDepError "cborg"))
           (hsPkgs."containers" or (buildDepError "containers"))
           (hsPkgs."cryptonite" or (buildDepError "cryptonite"))
           (hsPkgs."deepseq" or (buildDepError "deepseq"))

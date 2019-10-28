@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
@@ -49,9 +50,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Sqlite
     ( PersistState )
 import Cardano.Wallet.Jormungandr.Compatibility
-    ( Jormungandr, Network (..) )
-import Cardano.Wallet.Jormungandr.Environment
-    ( KnownNetwork (..) )
+    ( Jormungandr )
 import Cardano.Wallet.Jormungandr.Network
     ( BaseUrl (..)
     , ErrGetBlockchainParams (..)
@@ -67,13 +66,18 @@ import Cardano.Wallet.Jormungandr.Transaction
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( PersistKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( RndKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( SeqKey )
+    ( NetworkDiscriminant
+    , NetworkDiscriminantVal
+    , PaymentAddress
+    , PersistKey
+    , networkDiscriminantVal
+    )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( IsOurs )
+    ( DecodeAddress, EncodeAddress, IsOurs )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -123,9 +127,13 @@ import qualified Network.Wai.Handler.Warp as Warp
 -- which was passed from the CLI and environment and starts all components of
 -- the wallet.
 serveWallet
-    :: forall t n .
-        ( n ~ 'Testnet
-        , t ~ Jormungandr n
+    :: forall (n :: NetworkDiscriminant) t.
+        ( t ~ Jormungandr
+        , NetworkDiscriminantVal n
+        , DecodeAddress n
+        , EncodeAddress n
+        , PaymentAddress n ByronKey
+        , PaymentAddress n ShelleyKey
         )
     => (CM.Configuration, Trace IO Text)
     -- ^ Logging config.
@@ -143,7 +151,7 @@ serveWallet
 serveWallet (cfg, tr) databaseDir hostPref listen lj beforeMainLoop = do
     installSignalHandlers tr
     logInfo tr "Wallet backend server starting..."
-    logInfo tr $ "Node is Jörmungandr on " <> toText (networkVal @n)
+    logInfo tr $ "Node is Jörmungandr on " <> toText (networkDiscriminantVal @n)
     withNetworkLayer tr lj $ \case
         Right (cp, nl) -> do
             let nPort = Port $ baseUrlPort $ _restApi cp
@@ -162,8 +170,8 @@ serveWallet (cfg, tr) databaseDir hostPref listen lj beforeMainLoop = do
         :: Trace IO Text
         -> Port "node"
         -> BlockchainParameters
-        -> ApiLayer (RndState t) t RndKey
-        -> ApiLayer (SeqState t) t SeqKey
+        -> ApiLayer (RndState n) t ByronKey
+        -> ApiLayer (SeqState n) t ShelleyKey
         -> StakePoolLayer IO
         -> IO ExitCode
     startServer tracer nPort bp rndWallet seqWallet spl = do

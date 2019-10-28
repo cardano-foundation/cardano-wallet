@@ -49,9 +49,15 @@ import Cardano.Wallet.DB.Sqlite
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx (..), block0, genesisParameters )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), KeyToAddress (..), Passphrase (..), WalletKey (..), XPub )
-import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( SeqKey (..), generateKeyFromSeed, unsafeGenerateKeyFromSeed )
+    ( Depth (..)
+    , NetworkDiscriminant (..)
+    , Passphrase (..)
+    , PaymentAddress (..)
+    , WalletKey (..)
+    , XPub
+    )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey (..), generateKeyFromSeed, unsafeGenerateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , SeqState (..)
@@ -472,7 +478,7 @@ benchPutSeqState numCheckpoints numAddrs db =
         ]
 
 mkPool
-    :: forall t c. (KeyToAddress t SeqKey, Typeable c)
+    :: forall t c. (PaymentAddress t ShelleyKey, Typeable c)
     => Int -> Int -> AddressPool t c
 mkPool numAddrs i = mkAddressPool ourAccount defaultAddressPoolGap addrs
   where
@@ -559,8 +565,8 @@ benchDiskSize action = bracket setupDB cleanupDB $ \(f, ctx, db) -> do
 ----------------------------------------------------------------------------
 -- Mock data to use for benchmarks
 
-type DBLayerBench = DBLayer IO (SeqState DummyTarget) DummyTarget SeqKey
-type WalletBench = Wallet (SeqState DummyTarget) DummyTarget
+type DBLayerBench = DBLayer IO (SeqState 'Testnet) DummyTarget ShelleyKey
+type WalletBench = Wallet (SeqState 'Testnet) DummyTarget
 
 instance NFData (DBLayer m s t k) where
     rnf _ = ()
@@ -571,7 +577,7 @@ instance NFData SqliteContext where
 testCp :: WalletBench
 testCp = snd $ initWallet block0 genesisParameters initDummyState
 
-initDummyState :: SeqState DummyTarget
+initDummyState :: SeqState 'Testnet
 initDummyState =
     mkSeqState (xprv, mempty) defaultAddressPoolGap
   where
@@ -593,7 +599,7 @@ testWid = WalletId (hash ("test" :: ByteString))
 testPk :: PrimaryKey WalletId
 testPk = PrimaryKey testWid
 
-ourAccount :: SeqKey 'AccountK XPub
+ourAccount :: ShelleyKey 'AccountK XPub
 ourAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, mempty) mempty
   where seed = Passphrase $ BA.convert $ BS.replicate 32 0
 

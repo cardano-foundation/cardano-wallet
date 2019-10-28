@@ -41,16 +41,17 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
     , Index (..)
+    , NetworkDiscriminant (..)
     , Passphrase (..)
     , WalletKey (..)
     , XPrv
     , XPub
     , publicKey
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( RndKey (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( SeqKey (..), unsafeGenerateKeyFromSeed )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey (..), unsafeGenerateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
@@ -150,8 +151,8 @@ import Test.QuickCheck
 import Test.Utils.Time
     ( genUniformTime )
 
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Random as Rnd
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Sequential as Seq
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Rnd
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -415,13 +416,13 @@ instance Arbitrary (Index 'Hardened 'AddressK) where
                               Sequential State
 -------------------------------------------------------------------------------}
 
-instance Arbitrary (SeqState DummyTarget) where
+instance Arbitrary (SeqState 'Testnet) where
     shrink (SeqState intPool extPool ixs) =
         (\(i, e, x) -> SeqState i e x) <$> shrink (intPool, extPool, ixs)
     arbitrary = do
         SeqState <$> arbitrary <*> arbitrary <*> arbitrary
 
-instance Arbitrary (SeqKey 'RootK XPrv) where
+instance Arbitrary (ShelleyKey 'RootK XPrv) where
     shrink _ = []
     arbitrary = elements rootKeysSeq
 
@@ -446,17 +447,17 @@ instance Arbitrary (SeqKey 'RootK XPrv) where
 instance Arbitrary (Seq.PendingIxs) where
     arbitrary = pure Seq.emptyPendingIxs
 
-instance Typeable chain => Arbitrary (AddressPool DummyTarget chain) where
+instance Typeable chain => Arbitrary (AddressPool 'Testnet chain) where
     arbitrary = pure $ mkAddressPool arbitrarySeqAccount minBound mempty
 
 -- Properties are quite heavy on the generation of values, although for
 -- private keys, it isn't particularly useful / relevant to generate many of
 -- them as they're really treated as an opaque type. Instead, we generate them
 -- once, and picks from the list.
-rootKeysSeq :: [SeqKey 'RootK XPrv]
+rootKeysSeq :: [ShelleyKey 'RootK XPrv]
 rootKeysSeq = unsafePerformIO $ generate (vectorOf 10 genRootKeysSeq)
   where
-    genRootKeysSeq :: Gen (SeqKey 'RootK XPrv)
+    genRootKeysSeq :: Gen (ShelleyKey 'RootK XPrv)
     genRootKeysSeq = do
         (s, g, e) <- (,,)
             <$> genPassphrase @"seed" (16, 32)
@@ -466,7 +467,7 @@ rootKeysSeq = unsafePerformIO $ generate (vectorOf 10 genRootKeysSeq)
 {-# NOINLINE rootKeysSeq #-}
 
 arbitrarySeqAccount
-    :: SeqKey 'AccountK XPub
+    :: ShelleyKey 'AccountK XPub
 arbitrarySeqAccount =
     publicKey $ unsafeGenerateKeyFromSeed (seed, mempty) mempty
   where
@@ -476,7 +477,7 @@ arbitrarySeqAccount =
                                  Random State
 -------------------------------------------------------------------------------}
 
-instance Arbitrary (RndState DummyTarget) where
+instance Arbitrary (RndState 'Testnet) where
     shrink (RndState k ix addrs pending g) =
         [ RndState k ix' addrs' pending' g
         | (ix', addrs', pending') <- shrink (ix, addrs, pending)
@@ -490,11 +491,11 @@ instance Arbitrary (RndState DummyTarget) where
       where
         seed = Passphrase $ BA.convert $ BS.replicate 32 0
 
-instance Arbitrary (RndKey 'RootK XPrv) where
+instance Arbitrary (ByronKey 'RootK XPrv) where
     shrink _ = []
     arbitrary = elements rootKeysRnd
 
-genRootKeysRnd :: Gen (RndKey 'RootK XPrv)
+genRootKeysRnd :: Gen (ByronKey 'RootK XPrv)
 genRootKeysRnd = Rnd.generateKeyFromSeed
     <$> genPassphrase @"seed" (16, 32)
     <*> genPassphrase @"encryption" (0, 16)
@@ -505,7 +506,7 @@ genPassphrase range = do
     InfiniteList bytes _ <- arbitrary
     return $ Passphrase $ BA.convert $ BS.pack $ take n bytes
 
-rootKeysRnd :: [RndKey 'RootK XPrv]
+rootKeysRnd :: [ByronKey 'RootK XPrv]
 rootKeysRnd = unsafePerformIO $ generate (vectorOf 10 genRootKeysRnd)
 {-# NOINLINE rootKeysRnd #-}
 
@@ -514,6 +515,8 @@ rootKeysRnd = unsafePerformIO $ generate (vectorOf 10 genRootKeysRnd)
 -------------------------------------------------------------------------------}
 
 deriving instance Arbitrary a => Arbitrary (ShowFmt a)
+
+deriving instance Eq (SeqState 'Testnet)
 
 -- Necessary unsound Show instance for QuickCheck failure reporting
 instance Show XPrv where
@@ -537,7 +540,7 @@ deriving instance Buildable a => Buildable (Identity a)
 instance Buildable GenTxHistory where
     build (GenTxHistory txs) = blockListF' "-" tupleF txs
 
-instance Buildable (SeqKey depth XPrv, Hash "encryption") where
+instance Buildable (ShelleyKey depth XPrv, Hash "encryption") where
     build (_, h) = tupleF (xprvF, prefixF 8 hF <> "..." <> suffixF 8 hF)
       where
         xprvF = "XPrv" :: Builder

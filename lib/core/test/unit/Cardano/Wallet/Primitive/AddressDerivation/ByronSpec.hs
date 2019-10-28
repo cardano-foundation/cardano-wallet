@@ -8,7 +8,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.Primitive.AddressDerivation.RandomSpec
+module Cardano.Wallet.Primitive.AddressDerivation.ByronSpec
     ( spec
     ) where
 
@@ -25,8 +25,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , XPrv
     , fromMnemonic
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( RndKey (..)
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey (..)
     , generateKeyFromSeed
     , minSeedLengthBytes
     , unsafeGenerateKeyFromSeed
@@ -70,7 +70,7 @@ prop_keyDerivation
 prop_keyDerivation seed encPwd accIx addrIx =
     rndKey `seq` property () -- NOTE Making sure this doesn't throw
   where
-    rndKey :: RndKey 'AddressK XPrv
+    rndKey :: ByronKey 'AddressK XPrv
     rndKey = unsafeGenerateKeyFromSeed (accIx, addrIx) seed encPwd
 
 {-------------------------------------------------------------------------------
@@ -92,7 +92,7 @@ goldenSpec = describe "Golden tests" $ do
 data GenerateKeyFromSeed = GenerateKeyFromSeed
     { mnem :: [Text]
     , pwd :: Passphrase "encryption"
-    , rootKey :: RndKey 'RootK XPrv
+    , rootKey :: ByronKey 'RootK XPrv
     }
 
 generateTest :: GenerateKeyFromSeed -> Expectation
@@ -136,8 +136,8 @@ defMnemonic =
 -------------------------------------------------------------------------------}
 
 -- | Get a private key from a hex string, without error checking.
-xprv16 :: ByteString -> RndKey 'RootK XPrv
-xprv16 hex = RndKey k () (error "passphrase not used for tests")
+xprv16 :: ByteString -> ByronKey 'RootK XPrv
+xprv16 hex = ByronKey k () (error "passphrase not used for tests")
   where
     Right k = xprvFromText hex
     xprvFromText = xprv <=< fromHexText

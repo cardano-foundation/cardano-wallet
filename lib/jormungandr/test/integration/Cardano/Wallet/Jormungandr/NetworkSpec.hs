@@ -27,7 +27,7 @@ import Cardano.Wallet.Jormungandr.Binary
     , withHeader
     )
 import Cardano.Wallet.Jormungandr.Compatibility
-    ( Jormungandr, Network (..) )
+    ( Jormungandr )
 import Cardano.Wallet.Jormungandr.Network
     ( BaseUrl (..)
     , ErrGetDescendants (..)
@@ -52,8 +52,10 @@ import Cardano.Wallet.Network
     )
 import Cardano.Wallet.Network.BlockHeaders
     ( emptyBlockHeaders )
-import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( SeqKey )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( NetworkDiscriminant (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , BlockHeader (..)
@@ -181,7 +183,7 @@ spec = do
             fmap (isRollBackwardTo nw (SlotId 0 0)) resp `shouldBe` Right True
 
     describe "Error paths" $ do
-        let newBrokenNetworkLayer :: BaseUrl -> IO (NetworkLayer IO (Jormungandr n) ())
+        let newBrokenNetworkLayer :: BaseUrl -> IO (NetworkLayer IO Jormungandr ())
             newBrokenNetworkLayer baseUrl = do
                 mgr <- newManager defaultManagerSettings
                 st <- newMVar emptyBlockHeaders
@@ -297,7 +299,7 @@ spec = do
         it "no input, one output" $ \(nw, _) -> do
             -- Would be rejected eventually.
             let outs =
-                    [ (TxOut $ unsafeDecodeAddress proxy
+                    [ (TxOut $ unsafeDecodeAddress @'Mainnet
                         "ca1qwunuat6snw60g99ul6qvte98fja\
                         \le2k0uu5mrymylqz2ntgzs6vs386wxd")
                       (Coin 1227362560)
@@ -313,7 +315,7 @@ spec = do
             runExceptT (postTx nw tx) `shouldThrow` anyException
 
     describe "Decode External Tx" $ do
-        let tl = newTransactionLayer @'Testnet @SeqKey (Hash "genesis")
+        let tl = newTransactionLayer @'Testnet @ShelleyKey (Hash "genesis")
 
         it "decodeExternalTx works ok with properly constructed binary blob" $ do
             property $ \(SignedTx signedTx) -> monadicIO $ liftIO $ do
@@ -353,9 +355,6 @@ spec = do
     pkWitness :: TxWitness
     pkWitness = TxWitness $ BS.pack $ [1] <> replicate 64 3
 
-    proxy :: Proxy (Jormungandr 'Mainnet)
-    proxy = Proxy
-
     txNonEmpty :: Tx
     txNonEmpty = Tx
         { txid = Hash "unused"
@@ -369,13 +368,13 @@ spec = do
             ]
         , outputs =
             [ TxOut
-                { address = unsafeDecodeAddress proxy
+                { address = unsafeDecodeAddress @'Mainnet
                     "ca1q0u7k6ltp3e52pch47rhdkld2gdv\
                     \gu26rwyqh02csu3ah3384f2nvhlk7a6"
                 , coin = Coin 933636862791
                 }
             , TxOut
-                { address = unsafeDecodeAddress proxy
+                { address = unsafeDecodeAddress @'Mainnet
                     "ca1qwunuat6snw60g99ul6qvte98fja\
                     \le2k0uu5mrymylqz2ntgzs6vs386wxd"
                 , coin = Coin 1227362560
@@ -396,13 +395,13 @@ spec = do
             ]
         , outputs =
             [ TxOut
-                { address = unsafeDecodeAddress proxy
+                { address = unsafeDecodeAddress @'Mainnet
                     "ca1q0u7k6ltp3e52pch47rhdkld2gdv\
                     \gu26rwyqh02csu3ah3384f2nvhlk7a6"
                 , coin = Coin 5
                 }
             , TxOut
-                { address = unsafeDecodeAddress proxy
+                { address = unsafeDecodeAddress @'Mainnet
                     "ca1qwunuat6snw60g99ul6qvte98fja\
                     \le2k0uu5mrymylqz2ntgzs6vs386wxd"
                 , coin = Coin 5

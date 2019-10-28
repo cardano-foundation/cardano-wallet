@@ -26,8 +26,8 @@
 --
 -- The actual implementations are in the following modules:
 --
---  * "Cardano.Wallet.Primitive.AddressDerivation.Sequential"
---  * "Cardano.Wallet.Primitive.AddressDerivation.Random"
+--  * "Cardano.Wallet.Primitive.AddressDerivation.Shelley"
+--  * "Cardano.Wallet.Primitive.AddressDerivation.Byron"
 
 module Cardano.Wallet.Primitive.AddressDerivation
     (
@@ -35,13 +35,22 @@ module Cardano.Wallet.Primitive.AddressDerivation
       Depth (..)
     , Index (..)
     , DerivationType (..)
-    , XPub
+    , XPub (..)
+    , ChainCode (..)
     , XPrv
+    , unXPub
+
+    -- * Network Discrimination
+    , NetworkDiscriminant (..)
+    , NetworkDiscriminantVal
+    , networkDiscriminantVal
 
     -- * Backends Interoperability
-    , KeyToAddress(..)
+    , PaymentAddress(..)
+    , DelegationAddress(..)
     , WalletKey(..)
     , PersistKey(..)
+    , InspectAddress(..)
     , dummyAddress
 
     -- * Passphrase
@@ -58,7 +67,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( XPrv, XPub )
+    ( ChainCode (..), XPrv, XPub (..), unXPub )
 import Cardano.Wallet.Primitive.Mnemonic
     ( CheckSumBits
     , ConsistentEntropy
@@ -100,7 +109,13 @@ import Data.String
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( CaseStyle (..)
+    , FromText (..)
+    , TextDecodingError (..)
+    , ToText (..)
+    , fromTextToBoundedEnum
+    , toTextFromBoundedEnum
+    )
 import Data.Word
     ( Word32 )
 import Fmt
@@ -109,6 +124,7 @@ import GHC.Generics
     ( Generic )
 import GHC.TypeLits
     ( KnownNat, Nat, Symbol, natVal )
+
 
 import qualified Basement.Compat.Base as B
 import qualified Data.ByteArray as BA
@@ -368,7 +384,27 @@ instance MonadRandom ((->) (Passphrase "salt")) where
     getRandomBytes _ (Passphrase salt) = BA.convert salt
 
 {-------------------------------------------------------------------------------
-                          Backend-dependent functions
+                             Network Discrimination
+-------------------------------------------------------------------------------}
+
+-- | Available network options.
+data NetworkDiscriminant = Mainnet | Testnet
+    deriving (Generic, Show, Eq, Bounded, Enum)
+
+instance FromText NetworkDiscriminant where
+    fromText = fromTextToBoundedEnum SnakeLowerCase
+
+instance ToText NetworkDiscriminant where
+    toText = toTextFromBoundedEnum SnakeLowerCase
+
+class NetworkDiscriminantVal (n :: NetworkDiscriminant) where
+    networkDiscriminantVal :: NetworkDiscriminant
+
+instance NetworkDiscriminantVal 'Mainnet where networkDiscriminantVal = Mainnet
+instance NetworkDiscriminantVal 'Testnet where networkDiscriminantVal = Testnet
+
+{-------------------------------------------------------------------------------
+                     Interface over keys / address types
 -------------------------------------------------------------------------------}
 
 class WalletKey (key :: Depth -> * -> *) where
@@ -408,20 +444,36 @@ class WalletKey (key :: Depth -> * -> *) where
     dummyKey :: key 'AddressK XPub
 
 -- | Encoding of addresses for certain key types and backend targets.
-class WalletKey key => KeyToAddress target (key :: Depth -> * -> *) where
-    -- | Convert a public key to an 'Address' depending on a particular target.
+class WalletKey key => PaymentAddress (network :: NetworkDiscriminant) (key :: Depth -> * -> *) where
+    -- | Convert a public key to a payment 'Address' valid for the given
+    -- network discrimination.
     --
-    -- Note that 'keyToAddress' is ambiguous and requires therefore a type
-    -- application. See also 'TxId'.
-    keyToAddress :: key 'AddressK XPub -> Address
+    -- Note that 'paymentAddress' is ambiguous and requires therefore a type
+    -- application.
+    paymentAddress :: key 'AddressK XPub -> Address
+
+class WalletKey key => DelegationAddress (network :: NetworkDiscriminant) (key :: Depth -> * -> *) where
+    -- | Convert a public key and a staking key to a delegation 'Address' valid
+    -- for the given network discrimination. Funds sent to this address will be
+    -- delegated according to the delegation settings attached to the delegation
+    -- key.
+    --
+    -- Note that 'delegationAddress' is ambiguous and requires therefore a type
+    -- application.
+    delegationAddress
+        :: key 'AddressK XPub
+            -- ^ Payment key
+        -> key 'AddressK XPub
+            -- ^ Staking key
+        -> Address
 
 -- | Produce a fake address of representative size for the target and key
 -- type. This can be used in transaction size estimations.
 --
--- This function is ambiguous, like 'keyToAddress', and types need to be
+-- This function is ambiguous, like 'paymentAddress', and types need to be
 -- applied.
-dummyAddress :: forall target key. KeyToAddress target key => Address
-dummyAddress = keyToAddress @target @key dummyKey
+dummyAddress :: forall network key. PaymentAddress network key => Address
+dummyAddress = paymentAddress @network @key dummyKey
 
 -- | Operations for saving a 'WalletKey' into a database, and restoring it from
 -- a database. The keys should be encoded in hexadecimal strings.
@@ -437,3 +489,10 @@ class WalletKey key => PersistKey (key :: Depth -> * -> *) where
     deserializeXPrv
         :: (ByteString, ByteString)
         -> Either String (key 'RootK XPrv, Hash "encryption")
+
+-- | Access constituants of an address.
+class InspectAddress (key :: Depth -> * -> *) where
+    type SpendingKey key :: *
+    type DelegationKey key :: *
+    getSpendingKey :: Address -> SpendingKey key
+    getDelegationKey :: Address -> Maybe (DelegationKey key)

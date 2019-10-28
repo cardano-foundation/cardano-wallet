@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Test.Integration.Scenario.CLI.Wallets
     ( spec
@@ -13,12 +14,13 @@ import Cardano.CLI
     ( Port )
 import Cardano.Wallet.Api.Types
     ( ApiTransaction, ApiUtxoStatistics, ApiWallet, getApiT )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( NetworkDiscriminant (..) )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( encodeAddress )
 import Cardano.Wallet.Primitive.Types
-    ( DecodeAddress (..)
-    , EncodeAddress (..)
-    , SyncProgress (..)
+    ( SyncProgress (..)
     , WalletDelegation (..)
-    , encodeAddress
     , walletNameMaxLength
     , walletNameMinLength
     )
@@ -93,7 +95,7 @@ import Test.Integration.Framework.TestData
 import qualified Data.Text as T
 
 spec
-    :: forall t. (EncodeAddress t, DecodeAddress t, KnownCommand t)
+    :: forall t n. (n ~ 'Testnet, KnownCommand t)
     => SpecWith (Context t)
 spec = do
     it "BYRON_GET_03 - Shelley CLI does not show Byron wallet" $ \ctx -> do
@@ -185,8 +187,7 @@ spec = do
         --send transaction to the wallet
         let amount = 11
         addrs:_ <- listAddresses ctx wDest
-        let addr =
-                encodeAddress (Proxy @t) (getApiT $ fst $ addrs ^. #id)
+        let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
         let args = T.unpack <$>
                 [ wSrc ^. walletId
                 , "--payment", T.pack (show amount) <> "@" <> addr
@@ -194,7 +195,7 @@ spec = do
 
         (cp, op, ep) <- postTransactionViaCLI @t ctx "cardano-wallet" args
         T.unpack ep `shouldContain` cmdOk
-        _ <- expectValidJSON (Proxy @(ApiTransaction t)) op
+        _ <- expectValidJSON (Proxy @(ApiTransaction n)) op
         cp `shouldBe` ExitSuccess
 
         expectEventually' ctx getWalletEp balanceAvailable amount wDest
@@ -596,7 +597,7 @@ spec = do
         let newPass = "cardano-wallet2"
         let expectTxOK (ec, out, err) = do
                 ec `shouldBe` ExitSuccess
-                _ <- expectValidJSON (Proxy @(ApiTransaction t)) out
+                _ <- expectValidJSON (Proxy @(ApiTransaction n)) out
                 T.unpack err `shouldContain` cmdOk
         let matrix =
                 [ ("Old passphrase -> fail", oldPass
@@ -616,8 +617,7 @@ spec = do
                 updateWalletPassphraseViaCLI @t ctx wid oldPass newPass newPass
             expect (ExitSuccess, "\n", cmdOk) (c, out, err)
 
-            let addrStr =
-                    encodeAddress (Proxy @t) (getApiT $ fst $ addr ^. #id)
+            let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
             let args = T.unpack <$>
                     [ wSrc ^. walletId
                     , "--payment", "1@" <> addrStr
@@ -652,8 +652,7 @@ spec = do
         let coins = [13, 43, 66, 101, 1339] :: [Integer]
         let matrix = zip coins [1..]
         addrs:_ <- listAddresses ctx wDest
-        let addr =
-                encodeAddress (Proxy @t) (getApiT $ fst $ addrs ^. #id)
+        let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
         forM_ matrix $ \(amount, alreadyAbsorbed) -> do
             let args = T.unpack <$>
                     [ wSrc ^. walletId
@@ -661,7 +660,7 @@ spec = do
                     ]
             (cp, op, ep) <- postTransactionViaCLI @t ctx "cardano-wallet" args
             T.unpack ep `shouldContain` cmdOk
-            _ <- expectValidJSON (Proxy @(ApiTransaction t)) op
+            _ <- expectValidJSON (Proxy @(ApiTransaction n)) op
             cp `shouldBe` ExitSuccess
             let coinsSent = map fromIntegral $ take alreadyAbsorbed coins
             expectEventually' ctx getWalletEp balanceAvailable

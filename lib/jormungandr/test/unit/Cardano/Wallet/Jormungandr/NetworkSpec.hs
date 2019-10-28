@@ -17,7 +17,7 @@ import Prelude
 import Cardano.Wallet.Jormungandr.Api.Client
     ( JormungandrClient (..) )
 import Cardano.Wallet.Jormungandr.Compatibility
-    ( Jormungandr, Network (Testnet) )
+    ( Jormungandr )
 import Cardano.Wallet.Jormungandr.Network
     ( ErrGetDescendants (..), mkRawNetworkLayer )
 import Cardano.Wallet.Network
@@ -259,7 +259,7 @@ data Consumer = C
     { consumerApplied :: [MockBlock]
     -- ^ Blocks which have been received.
     --
-    , consumerCursor :: Cursor (Jormungandr 'Testnet)
+    , consumerCursor :: Cursor Jormungandr
     -- ^ Consumer state -- the cursor given by network layer.
 
     , consumerIntersected :: Int
@@ -321,7 +321,7 @@ consumerRestoreStep logLine nw (C bs cur hit total) mLimit = do
 -- Network layer with mock jormungandr node
 
 type TestNetworkLayer m =
-    NetworkLayer (StateT S m) (Jormungandr 'Testnet) MockBlock
+    NetworkLayer (StateT S m) Jormungandr MockBlock
 
 -- | Instantiate new network layer with mock jormungandr.
 mockNetworkLayer

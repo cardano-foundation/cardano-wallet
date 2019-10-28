@@ -1,9 +1,11 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -24,6 +26,8 @@ module Cardano.Wallet.Primitive.AddressDiscovery
     , GenChange(..)
     , CompareDiscovery(..)
     , KnownAddresses(..)
+    , EncodeAddress(..)
+    , DecodeAddress(..)
     ) where
 
 import Prelude
@@ -31,9 +35,36 @@ import Prelude
 import Cardano.Crypto.Wallet
     ( XPrv )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), Passphrase (..) )
+    ( Depth (..), NetworkDiscriminant (..), Passphrase (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( decodeLegacyAddress )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( decodeShelleyAddress )
 import Cardano.Wallet.Primitive.Types
-    ( Address )
+    ( Address (..) )
+import Codec.Binary.Bech32
+    ( HumanReadablePart
+    , dataPartFromBytes
+    , dataPartToBytes
+    , humanReadablePartFromText
+    )
+import Data.ByteString
+    ( ByteString )
+import Data.ByteString.Base58
+    ( bitcoinAlphabet, decodeBase58, encodeBase58 )
+import Data.Function
+    ( (&) )
+import Data.Maybe
+    ( isJust )
+import Data.Text
+    ( Text )
+import Data.Text.Class
+    ( TextDecodingError (..) )
+import GHC.Stack
+    ( HasCallStack )
+
+import qualified Codec.Binary.Bech32 as Bech32
+import qualified Data.Text.Encoding as T
 
 -- | This abstraction exists to give us the ability to keep the wallet business
 -- logic agnostic to the address derivation and discovery mechanisms.
@@ -123,3 +154,98 @@ class KnownAddresses s where
     knownAddresses
         :: s
         -> [Address]
+
+-- | An abstract class to allow encoding of addresses depending on the target
+-- backend used.
+class EncodeAddress (n :: NetworkDiscriminant) where
+    encodeAddress :: Address -> Text
+
+-- | An abstract class to allow decoding of addresses depending on the target
+-- backend used.
+class DecodeAddress (n :: NetworkDiscriminant) where
+    decodeAddress :: Text -> Either TextDecodingError Address
+
+{-------------------------------------------------------------------------------
+                                  Instances
+-------------------------------------------------------------------------------}
+
+-- | Encode an 'Address' to a human-readable format. This produces two kinds of
+-- encodings:
+--
+-- - [Base58](https://en.wikipedia.org/wiki/Base58)
+--   for legacy / Byron addresses
+-- - [Bech32](https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki)
+--   for Shelley addresses
+--
+-- The right encoding is picked by looking at the raw 'Address' representation
+-- in order to figure out to which class the address belongs.
+instance EncodeAddress 'Mainnet where
+    encodeAddress = gEncodeAddress (unsafeHumanReadablePart "ca")
+
+instance EncodeAddress 'Testnet where
+    encodeAddress = gEncodeAddress (unsafeHumanReadablePart "ta")
+
+gEncodeAddress :: HumanReadablePart -> Address -> Text
+gEncodeAddress hrp (Address bytes) =
+    if isJust (decodeLegacyAddress bytes) then base58 else bech32
+  where
+    base58 = T.decodeUtf8 $ encodeBase58 bitcoinAlphabet bytes
+    bech32 = Bech32.encodeLenient hrp (dataPartFromBytes bytes)
+
+-- | Decode text string into an 'Address'. Jörmungandr recognizes two kind of
+-- addresses:
+--
+-- - Legacy / Byron addresses encoded as `Base58`
+-- - Shelley addresses, encoded as `Bech32`
+--
+-- See also 'EncodeAddress Jormungandr'
+instance DecodeAddress 'Mainnet where
+    decodeAddress = gDecodeAddress (decodeShelleyAddress @'Mainnet)
+
+instance DecodeAddress 'Testnet where
+    decodeAddress = gDecodeAddress (decodeShelleyAddress @'Testnet)
+
+gDecodeAddress
+    :: (ByteString -> Either TextDecodingError Address)
+    -> Text
+    -> Either TextDecodingError Address
+gDecodeAddress decodeShelley text =
+    case (tryBech32, tryBase58) of
+        (Just bytes, _) -> decodeShelley bytes
+        (_, Just bytes) -> decodeLegacyAddress bytes
+            & maybeToEither (TextDecodingError
+            "Unable to decode Address: neither Bech32-encoded nor a \
+            \valid Byron Address.")
+        (Nothing, Nothing) -> Left $ TextDecodingError
+            "Unable to decode Address: encoding is neither Bech32 nor \
+            \Base58."
+  where
+    -- | Attempt decoding a legacy 'Address' using a Base58 encoding.
+    tryBase58 :: Maybe ByteString
+    tryBase58 =
+        decodeBase58 bitcoinAlphabet (T.encodeUtf8 text)
+
+    -- | Attempt decoding an 'Address' using a Bech32 encoding.
+    tryBech32 :: Maybe ByteString
+    tryBech32 = do
+        (_, dp) <- either (const Nothing) Just (Bech32.decodeLenient text)
+        dataPartToBytes dp
+
+    -- | Convert a 'Maybe' to a 'Either e' with the given error @e@
+    maybeToEither :: e -> Maybe a -> Either e a
+    maybeToEither e = maybe (Left e) Right
+
+{-------------------------------------------------------------------------------
+                                  Helpers
+-------------------------------------------------------------------------------}
+
+-- | Bech32 human readable part
+unsafeHumanReadablePart
+    :: HasCallStack
+    => Text
+    -> HumanReadablePart
+unsafeHumanReadablePart =
+    either errUnsafe id . humanReadablePartFromText
+  where
+    errUnsafe _ =
+        error "Programmers hard-coded an invalid bech32 human-readable part?"

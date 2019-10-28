@@ -17,24 +17,25 @@ import Cardano.Wallet.Jormungandr.Binary
     ( MessageType (..), putSignedTx, runPut, withHeader )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
-import Cardano.Wallet.Jormungandr.Environment
-    ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Jormungandr.Transaction
     ( ErrExceededInpsOrOuts (..), newTransactionLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
-    , KeyToAddress (..)
+    , NetworkDiscriminant (..)
+    , NetworkDiscriminantVal
     , Passphrase (..)
+    , PaymentAddress (..)
     , XPrv
-    , keyToAddress
+    , networkDiscriminantVal
+    , paymentAddress
     , publicKey
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( RndKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( SeqKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
@@ -58,8 +59,8 @@ import Test.Hspec
 import Test.QuickCheck
     ( property )
 
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Random as Rnd
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Sequential as Seq
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Rnd
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map as Map
@@ -78,10 +79,10 @@ estimateMaxNumberOfInputsSpec :: Spec
 estimateMaxNumberOfInputsSpec = describe "estimateMaxNumberOfInputs" $ do
     it "Property for mainnet addresses" $
         property $ propMaxNumberOfInputsEstimation
-        (newTransactionLayer (Hash "") :: TransactionLayer (Jormungandr 'Mainnet) SeqKey)
+        (newTransactionLayer @'Mainnet (Hash "") :: TransactionLayer Jormungandr ShelleyKey)
     it "Property for testnet addresses" $
         property $ propMaxNumberOfInputsEstimation
-        (newTransactionLayer (Hash "") :: TransactionLayer (Jormungandr 'Testnet) SeqKey)
+        (newTransactionLayer @'Testnet (Hash "") :: TransactionLayer Jormungandr ShelleyKey)
 
 {-------------------------------------------------------------------------------
                                   mkStdTx
@@ -120,12 +121,12 @@ mkStdTxSpec = do
 
     describe "mkStdTx 'Mainnet" $ do
         let tl = newTransactionLayer @'Mainnet block0
-        let keyToAddress' = keyToAddress @(Jormungandr 'Mainnet)
-        let addr0 = keyToAddress' (publicKey xprv0)
+        let paymentAddress' = paymentAddress @'Mainnet
+        let addr0 = paymentAddress' (publicKey xprv0)
         -- ^ ca1qvk32hg8rppc0wn0lzpkq996pd3xkxqguel8tharwrpdch6czu2luh3truq
-        let addr1 = keyToAddress' (publicKey xprv1)
+        let addr1 = paymentAddress' (publicKey xprv1)
         -- ^ ca1qwedmnalvvgqqgt2dczppejvyrn2lydmk2pxya4dd076wal8v6eykzfapdx
-        let addr2 = keyToAddress' (publicKey xprv2)
+        let addr2 = paymentAddress' (publicKey xprv2)
         -- ^ ca1qvp2m296efkn4zy63y769x4g52g5vrt7e9dnvszt7z2vrfe0ya66vznknfn
 
         let keystore = mkKeystore
@@ -207,15 +208,15 @@ mkStdTxSpec = do
 
     describe "mkStdTx (legacy) 'Mainnet" $ do
         let tl = newTransactionLayer @'Mainnet block0
-        let addrRnd0 = keyToAddress @(Jormungandr 'Mainnet) (publicKey xprvRnd0)
+        let addrRnd0 = paymentAddress @'Mainnet (publicKey xprvRnd0)
         -- ^ DdzFFzCqrhsyySN2fbNnZf4kh2gg9t4mZzcnCiiw1EFG4ynvCGi35qgdUPh1DJp5Z28SVQxsxfNn7CaRB6DbvvvXZzdtMJ4ML2RrXvrG
-        let addrRnd1 = keyToAddress @(Jormungandr 'Mainnet) (publicKey xprvRnd1)
+        let addrRnd1 = paymentAddress @'Mainnet (publicKey xprvRnd1)
         -- ^ DdzFFzCqrhsrqGWaofA6TmXeChoV5YGk8GyvLE2DCyTib8YpQn4qxsomw4oagtcpa321iQynEtT2D31xG5XGLSWTLHe9CZz26CwZZBQf
-        let addr0 = keyToAddress @(Jormungandr 'Mainnet) (publicKey xprv0)
+        let addr0 = paymentAddress @'Mainnet (publicKey xprv0)
         -- ^ ca1qvk32hg8rppc0wn0lzpkq996pd3xkxqguel8tharwrpdch6czu2luh3truq
-        let addr1 = keyToAddress @(Jormungandr 'Mainnet) (publicKey xprv1)
+        let addr1 = paymentAddress @'Mainnet (publicKey xprv1)
         -- ^ ca1qwedmnalvvgqqgt2dczppejvyrn2lydmk2pxya4dd076wal8v6eykzfapdx
-        let addr2 = keyToAddress @(Jormungandr 'Mainnet) (publicKey xprv2)
+        let addr2 = paymentAddress @'Mainnet (publicKey xprv2)
         -- ^ ca1qvp2m296efkn4zy63y769x4g52g5vrt7e9dnvszt7z2vrfe0ya66vznknfn
 
         let keystore = mkKeystore
@@ -265,13 +266,13 @@ mkStdTxSpec = do
 
     describe "mkStdTx 'Testnet" $ do
         let tl = newTransactionLayer @'Testnet block0
-        let keyToAddress' = keyToAddress @(Jormungandr 'Testnet)
+        let paymentAddress' = paymentAddress @'Testnet
 
-        let addr0 = keyToAddress' (publicKey xprv0)
+        let addr0 = paymentAddress' (publicKey xprv0)
         -- ^ ta1svk32hg8rppc0wn0lzpkq996pd3xkxqguel8tharwrpdch6czu2luue5k36
-        let addr1 = keyToAddress' (publicKey xprv1)
+        let addr1 = paymentAddress' (publicKey xprv1)
         -- ^ ta1swedmnalvvgqqgt2dczppejvyrn2lydmk2pxya4dd076wal8v6eykfpz5qu
-        let addr2 = keyToAddress' (publicKey xprv2)
+        let addr2 = paymentAddress' (publicKey xprv2)
         -- ^ ta1svp2m296efkn4zy63y769x4g52g5vrt7e9dnvszt7z2vrfe0ya66vfmfxyf
 
         let keystore = mkKeystore
@@ -317,15 +318,15 @@ mkStdTxSpec = do
     describe "mkStdTx (legacy) 'Testnet" $ do
         let tl = newTransactionLayer @'Testnet block0
 
-        let addrRnd0 = keyToAddress @(Jormungandr 'Mainnet) (publicKey xprvRnd0)
+        let addrRnd0 = paymentAddress @'Mainnet (publicKey xprvRnd0)
         -- ^ DdzFFzCqrhsyySN2fbNnZf4kh2gg9t4mZzcnCiiw1EFG4ynvCGi35qgdUPh1DJp5Z28SVQxsxfNn7CaRB6DbvvvXZzdtMJ4ML2RrXvrG
-        let addrRnd1 = keyToAddress @(Jormungandr 'Mainnet) (publicKey xprvRnd1)
+        let addrRnd1 = paymentAddress @'Mainnet (publicKey xprvRnd1)
         -- ^ DdzFFzCqrhsrqGWaofA6TmXeChoV5YGk8GyvLE2DCyTib8YpQn4qxsomw4oagtcpa321iQynEtT2D31xG5XGLSWTLHe9CZz26CwZZBQf
-        let addr0 = keyToAddress @(Jormungandr 'Testnet) (publicKey xprv0)
+        let addr0 = paymentAddress @'Testnet (publicKey xprv0)
         -- ^ ta1svk32hg8rppc0wn0lzpkq996pd3xkxqguel8tharwrpdch6czu2luue5k36
-        let addr1 = keyToAddress @(Jormungandr 'Testnet) (publicKey xprv1)
+        let addr1 = paymentAddress @'Testnet (publicKey xprv1)
         -- ^ ta1swedmnalvvgqqgt2dczppejvyrn2lydmk2pxya4dd076wal8v6eykfpz5qu
-        let addr2 = keyToAddress @(Jormungandr 'Testnet) (publicKey xprv2)
+        let addr2 = paymentAddress @'Testnet (publicKey xprv2)
         -- ^ ta1svp2m296efkn4zy63y769x4g52g5vrt7e9dnvszt7z2vrfe0ya66vfmfxyf
 
         let keystore = mkKeystore
@@ -386,7 +387,7 @@ mkStdTxSpec = do
         tooNumerousOutsTest (Proxy @'Testnet) block0
 
 goldenTestStdTx
-    :: forall t n k. (t ~ Jormungandr n)
+    :: forall t k. (t ~ Jormungandr)
     => TransactionLayer t k
     -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
     -> [(TxIn, TxOut)]
@@ -408,7 +409,7 @@ goldenTestStdTx tl keystore inps outs bytes' = it title $ do
 
 xprvSeqFromSeed
     :: ByteString
-    -> (SeqKey depth XPrv, Passphrase "encryption")
+    -> (ShelleyKey depth XPrv, Passphrase "encryption")
 xprvSeqFromSeed seed =
     ( Seq.unsafeGenerateKeyFromSeed (Passphrase (BA.convert seed), mempty) pwd
     , pwd
@@ -418,7 +419,7 @@ xprvSeqFromSeed seed =
 
 xprvRndFromSeed
     :: ByteString
-    -> (RndKey 'AddressK XPrv, Passphrase "encryption")
+    -> (ByronKey 'AddressK XPrv, Passphrase "encryption")
 xprvRndFromSeed seed =
     ( Rnd.unsafeGenerateKeyFromSeed derPath (Passphrase $ BA.convert seed) pwd
     , pwd
@@ -435,16 +436,16 @@ hex :: ByteString -> ByteString
 hex = convertToBase Base16
 
 unknownInputTest
-    :: forall n. (KnownNetwork n)
+    :: forall n. (PaymentAddress n ShelleyKey, NetworkDiscriminantVal n)
     => Proxy n
     -> Hash "Genesis"
     -> SpecWith ()
 unknownInputTest _ block0 = it title $ do
-    let addr = keyToAddress @(Jormungandr n) $ publicKey $ fst $
+    let addr = paymentAddress @n $ publicKey $ fst $
             xprvSeqFromSeed "address-number-0"
     let res = mkStdTx tl keyFrom inps outs
           where
-            tl = newTransactionLayer @n @SeqKey block0
+            tl = newTransactionLayer @n @ShelleyKey block0
             keyFrom = const Nothing
             inps =
                 [ ( TxIn (Hash "arbitrary") 0
@@ -455,20 +456,20 @@ unknownInputTest _ block0 = it title $ do
     res `shouldBe` Left (ErrKeyNotFoundForAddress addr)
   where
     title = "Unknown input address yields an error ("
-        <> T.unpack (toText (networkVal @n))
+        <> T.unpack (toText (networkDiscriminantVal @n))
         <> ")"
 
 tooNumerousInpsTest
-    :: forall n. (KnownNetwork n)
+    :: forall n. (PaymentAddress n ShelleyKey, NetworkDiscriminantVal n)
     => Proxy n
     -> Hash "Genesis"
     -> SpecWith ()
 tooNumerousInpsTest _ block0 = it title $ do
-    let addr = keyToAddress @(Jormungandr n) $ publicKey $ fst $
+    let addr = paymentAddress @n $ publicKey $ fst $
             xprvSeqFromSeed "address-number-0"
     let res = validateSelection tl (CoinSelection inps outs chngs)
           where
-            tl = newTransactionLayer @n @SeqKey block0
+            tl = newTransactionLayer @n @ShelleyKey block0
             inps = replicate 256
                 ( TxIn (Hash "arbitrary") 0
                 , TxOut addr (Coin 1)
@@ -478,20 +479,20 @@ tooNumerousInpsTest _ block0 = it title $ do
     res `shouldBe` Left ErrExceededInpsOrOuts
   where
     title = "Too numerous inputs yields an error ("
-        <> T.unpack (toText (networkVal @n))
+        <> T.unpack (toText (networkDiscriminantVal @n))
         <> ")"
 
 tooNumerousOutsTest
-    :: forall n. (KnownNetwork n)
+    :: forall n. (PaymentAddress n ShelleyKey, NetworkDiscriminantVal n)
     => Proxy n
     -> Hash "Genesis"
     -> SpecWith ()
 tooNumerousOutsTest _ block0 = it title $ do
-    let addr = keyToAddress @(Jormungandr n) $ publicKey $ fst $
+    let addr = paymentAddress @n $ publicKey $ fst $
             xprvSeqFromSeed "address-number-0"
     let res = validateSelection tl (CoinSelection inps outs chngs)
           where
-            tl = newTransactionLayer @n @SeqKey block0
+            tl = newTransactionLayer @n @ShelleyKey block0
             inps = replicate 255
                 ( TxIn (Hash "arbitrary") 0
                 , TxOut addr (Coin 10)
@@ -501,5 +502,5 @@ tooNumerousOutsTest _ block0 = it title $ do
     res `shouldBe` Left ErrExceededInpsOrOuts
   where
     title = "Too numerous outputs yields an error ("
-        <> T.unpack (toText (networkVal @n))
+        <> T.unpack (toText (networkDiscriminantVal @n))
         <> ")"

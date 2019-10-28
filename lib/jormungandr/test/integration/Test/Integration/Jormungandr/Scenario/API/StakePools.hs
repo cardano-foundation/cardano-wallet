@@ -11,8 +11,6 @@ import Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiStakePool )
-import Cardano.Wallet.Primitive.Types
-    ( DecodeAddress, EncodeAddress )
 import Control.Monad
     ( forM_ )
 import Test.Hspec
@@ -40,7 +38,7 @@ import Test.Integration.Framework.TestData
 
 import qualified Network.HTTP.Types.Status as HTTP
 
-spec :: forall t. (EncodeAddress t, DecodeAddress t) => SpecWith (Context t)
+spec :: forall t. SpecWith (Context t)
 spec = do
     it "STAKE_POOLS_LIST_01 - List stake pools" $ \ctx -> do
         eventually $ do

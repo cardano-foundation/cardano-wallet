@@ -2,12 +2,14 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -19,11 +21,11 @@
 -- Implementation of address derivation for the sequential schemes, as
 -- implemented by Yoroi/Icarus and cardano-cli.
 
-module Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( -- * SeqKey types
-      SeqKey(..)
+module Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( -- * ShelleyKey types
+      ShelleyKey(..)
     , ChangeChain(..)
-    -- * SeqKey generation and derivation
+    -- * ShelleyKey generation and derivation
     , generateKeyFromSeed
     , unsafeGenerateKeyFromSeed
     , minSeedLengthBytes
@@ -35,6 +37,8 @@ module Cardano.Wallet.Primitive.AddressDerivation.Sequential
     -- * Storing and retrieving keys
     , deserializeXPubSeq
     , serializeXPubSeq
+    -- * Encoding / Decoding
+    , decodeShelleyAddress
     ) where
 
 import Prelude
@@ -52,23 +56,32 @@ import Cardano.Crypto.Wallet
     , xPrvChangePass
     , xprv
     , xpub
+    , xpubPublicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
+    ( DelegationAddress (..)
+    , Depth (..)
     , DerivationType (..)
     , Index (..)
+    , InspectAddress (..)
+    , NetworkDiscriminant (..)
+    , NetworkDiscriminantVal
     , Passphrase (..)
+    , PaymentAddress (..)
     , PersistKey (..)
     , WalletKey (..)
+    , networkDiscriminantVal
     )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..), invariant )
+    ( Address (..), Hash (..), invariant )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
-    ( (<=<) )
+    ( when, (<=<) )
 import Crypto.Hash
     ( Digest, HashAlgorithm, hash )
+import Data.Binary.Put
+    ( putByteString, putWord8, runPut )
 import Data.ByteArray.Encoding
     ( Base (..), convertFromBase, convertToBase )
 import Data.ByteString
@@ -78,6 +91,7 @@ import Data.Maybe
 import Data.Text.Class
     ( CaseStyle (..)
     , FromText (..)
+    , TextDecodingError (..)
     , ToText (..)
     , fromTextToBoundedEnum
     , toTextFromBoundedEnum
@@ -85,38 +99,33 @@ import Data.Text.Class
 import Data.Typeable
     ( Typeable )
 import Data.Word
-    ( Word32 )
+    ( Word32, Word8 )
 import GHC.Generics
     ( Generic )
+import GHC.Stack
+    ( HasCallStack )
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BL
 
 {-------------------------------------------------------------------------------
                             Sequential Derivation
 -------------------------------------------------------------------------------}
 
-
 -- | A cryptographic key for sequential-scheme address derivation, with
 -- phantom-types to disambiguate key types.
 --
 -- @
--- let rootPrivateKey = SeqKey 'RootK XPrv
--- let accountPubKey = SeqKey 'AccountK XPub
--- let addressPubKey = SeqKey 'AddressK XPub
+-- let rootPrivateKey = ShelleyKey 'RootK XPrv
+-- let accountPubKey = ShelleyKey 'AccountK XPub
+-- let addressPubKey = ShelleyKey 'AddressK XPub
 -- @
-newtype SeqKey (depth :: Depth) key = SeqKey { getKey :: key }
+newtype ShelleyKey (depth :: Depth) key =
+    ShelleyKey { getKey :: key }
     deriving stock (Generic, Show, Eq)
 
-instance (NFData key) => NFData (SeqKey depth key)
-
-instance WalletKey SeqKey where
-    changePassphrase = changePassphraseSeq
-    publicKey = publicKeySeq
-    digest = digestSeq
-    getRawKey = getKey
-    dummyKey = dummyKeySeq
-    keyTypeDescriptor _ = "seq"
+instance (NFData key) => NFData (ShelleyKey depth key)
 
 -- | Marker for the change chain. In practice, change of a transaction goes onto
 -- the addresses generated on the internal chain, whereas the external chain is
@@ -145,6 +154,18 @@ instance ToText ChangeChain where
 
 instance FromText ChangeChain where
     fromText = fromTextToBoundedEnum SnakeLowerCase
+
+-- | Size, in bytes, of a public key (without chain code)
+publicKeySize :: Int
+publicKeySize = 32
+
+-- Serialized length in bytes of a Single Address
+addrSingleSize :: Int
+addrSingleSize = 1 + publicKeySize
+
+-- Serialized length in bytes of a Grouped Address
+addrGroupedSize :: Int
+addrGroupedSize = addrSingleSize + publicKeySize
 
 -- | Purpose is a constant set to 44' (or 0x8000002C) following the BIP-44
 -- recommendation. It indicates that the subtree of this node is used
@@ -180,7 +201,7 @@ generateKeyFromSeed
     :: (Passphrase "seed", Passphrase "generation")
        -- ^ The actual seed and its recovery / generation passphrase
     -> Passphrase "encryption"
-    -> SeqKey 'RootK XPrv
+    -> ShelleyKey 'RootK XPrv
 generateKeyFromSeed = unsafeGenerateKeyFromSeed
 
 -- | Generate a new key from seed. Note that the @depth@ is left open so that
@@ -191,14 +212,14 @@ unsafeGenerateKeyFromSeed
     :: (Passphrase "seed", Passphrase "generation")
         -- ^ The actual seed and its recovery / generation passphrase
     -> Passphrase "encryption"
-    -> SeqKey depth XPrv
+    -> ShelleyKey depth XPrv
 unsafeGenerateKeyFromSeed (Passphrase seed, Passphrase gen) (Passphrase pwd) =
     let
         seed' = invariant
             ("seed length : " <> show (BA.length seed) <> " in (Passphrase \"seed\") is not valid")
             seed
             (\s -> BA.length s >= minSeedLengthBytes && BA.length s <= 255)
-    in SeqKey $ generateNew seed' gen pwd
+    in ShelleyKey $ generateNew seed' gen pwd
 
 -- | Derives account private key from the given root private key, using
 -- derivation scheme 2 (see <https://github.com/input-output-hk/cardano-crypto/ cardano-crypto>
@@ -210,10 +231,10 @@ unsafeGenerateKeyFromSeed (Passphrase seed, Passphrase gen) (Passphrase pwd) =
 -- doesn't belong to the wallet.
 deriveAccountPrivateKey
     :: Passphrase "encryption"
-    -> SeqKey 'RootK XPrv
+    -> ShelleyKey 'RootK XPrv
     -> Index 'Hardened 'AccountK
-    -> SeqKey 'AccountK XPrv
-deriveAccountPrivateKey (Passphrase pwd) (SeqKey rootXPrv) (Index accIx) =
+    -> ShelleyKey 'AccountK XPrv
+deriveAccountPrivateKey (Passphrase pwd) (ShelleyKey rootXPrv) (Index accIx) =
     let
         purposeXPrv = -- lvl1 derivation; hardened derivation of purpose'
             deriveXPrv DerivationScheme2 pwd rootXPrv purposeIndex
@@ -222,7 +243,7 @@ deriveAccountPrivateKey (Passphrase pwd) (SeqKey rootXPrv) (Index accIx) =
         acctXPrv = -- lvl3 derivation; hardened derivation of account' index
             deriveXPrv DerivationScheme2 pwd coinTypeXPrv accIx
     in
-        SeqKey acctXPrv
+        ShelleyKey acctXPrv
 
 -- | Derives address private key from the given account private key, using
 -- derivation scheme 2 (see <https://github.com/input-output-hk/cardano-crypto/ cardano-crypto>
@@ -237,12 +258,12 @@ deriveAccountPrivateKey (Passphrase pwd) (SeqKey rootXPrv) (Index accIx) =
 -- doesn't belong to the wallet.
 deriveAddressPrivateKey
     :: Passphrase "encryption"
-    -> SeqKey 'AccountK XPrv
+    -> ShelleyKey 'AccountK XPrv
     -> ChangeChain
     -> Index 'Soft 'AddressK
-    -> SeqKey 'AddressK XPrv
+    -> ShelleyKey 'AddressK XPrv
 deriveAddressPrivateKey
-        (Passphrase pwd) (SeqKey accXPrv) changeChain (Index addrIx) =
+        (Passphrase pwd) (ShelleyKey accXPrv) changeChain (Index addrIx) =
     let
         changeCode =
             fromIntegral $ fromEnum changeChain
@@ -251,7 +272,7 @@ deriveAddressPrivateKey
         addrXPrv = -- lvl5 derivation; soft derivation of address index
             deriveXPrv DerivationScheme2 pwd changeXPrv addrIx
     in
-        SeqKey addrXPrv
+        ShelleyKey addrXPrv
 
 -- | Derives address public key from the given account public key, using
 -- derivation scheme 2 (see <https://github.com/input-output-hk/cardano-crypto/ cardano-crypto>
@@ -259,18 +280,18 @@ deriveAddressPrivateKey
 --
 -- This is the preferred way of deriving new sequential address public keys.
 deriveAddressPublicKey
-    :: SeqKey 'AccountK XPub
+    :: ShelleyKey 'AccountK XPub
     -> ChangeChain
     -> Index 'Soft 'AddressK
-    -> SeqKey 'AddressK XPub
-deriveAddressPublicKey (SeqKey accXPub) changeChain (Index addrIx) =
+    -> ShelleyKey 'AddressK XPub
+deriveAddressPublicKey (ShelleyKey accXPub) changeChain (Index addrIx) =
     fromMaybe errWrongIndex $ do
         let changeCode = fromIntegral $ fromEnum changeChain
         changeXPub <- -- lvl4 derivation in bip44 is derivation of change chain
             deriveXPub DerivationScheme2 accXPub changeCode
         addrXPub <- -- lvl5 derivation in bip44 is derivation of address chain
             deriveXPub DerivationScheme2 changeXPub addrIx
-        return $ SeqKey addrXPub
+        return $ ShelleyKey addrXPub
   where
     errWrongIndex = error $
         "Cardano.Wallet.Primitive.AddressDerivation.deriveAddressPublicKey \
@@ -279,10 +300,36 @@ deriveAddressPublicKey (SeqKey accXPub) changeChain (Index addrIx) =
         \error, or, we may have reached the maximum number of addresses for \
         \a given wallet."
 
-
 {-------------------------------------------------------------------------------
-                                   Passphrase
+                            WalletKey implementation
 -------------------------------------------------------------------------------}
+
+instance WalletKey ShelleyKey where
+    changePassphrase = changePassphraseSeq
+    publicKey = publicKeySeq
+    digest = digestSeq
+    getRawKey = getKey
+    dummyKey = dummyKeySeq
+    keyTypeDescriptor _ = "seq"
+
+-- | Extract the public key part of a private key.
+publicKeySeq
+    :: ShelleyKey depth XPrv
+    -> ShelleyKey depth XPub
+publicKeySeq (ShelleyKey k) =
+    ShelleyKey (toXPub k)
+
+-- | Hash a public key to some other representation.
+digestSeq
+    :: HashAlgorithm a
+    => ShelleyKey depth XPub
+    -> Digest a
+digestSeq (ShelleyKey k) =
+    hash (unXPub k)
+
+dummyKeySeq :: ShelleyKey 'AddressK XPub
+dummyKeySeq = ShelleyKey key
+    where Right key = xpub (BS.replicate 64 0)
 
 -- | Re-encrypt a private key using a different passphrase.
 --
@@ -293,46 +340,134 @@ deriveAddressPublicKey (SeqKey accXPub) changeChain (Index addrIx) =
 changePassphraseSeq
     :: Passphrase "encryption-old"
     -> Passphrase "encryption-new"
-    -> SeqKey purpose XPrv
-    -> SeqKey purpose XPrv
-changePassphraseSeq (Passphrase oldPwd) (Passphrase newPwd) (SeqKey prv) =
-    SeqKey $ xPrvChangePass oldPwd newPwd prv
+    -> ShelleyKey depth XPrv
+    -> ShelleyKey depth XPrv
+changePassphraseSeq (Passphrase oldPwd) (Passphrase newPwd) (ShelleyKey prv) =
+    ShelleyKey $ xPrvChangePass oldPwd newPwd prv
 
 {-------------------------------------------------------------------------------
-                            WalletKey implementation
+                         Relationship Key / Address
 -------------------------------------------------------------------------------}
 
--- | Extract the public key part of a private key.
-publicKeySeq
-    :: SeqKey depth XPrv
-    -> SeqKey depth XPub
-publicKeySeq (SeqKey k) =
-    SeqKey (toXPub k)
+instance PaymentAddress 'Mainnet ShelleyKey where
+    paymentAddress xpub0 =
+        encodeShelleyAddress (single @'Mainnet) [getKey xpub0]
 
--- | Hash a public key to some other representation.
-digestSeq
-    :: HashAlgorithm a
-    => SeqKey depth XPub
-    -> Digest a
-digestSeq (SeqKey k) =
-    hash (unXPub k)
+instance PaymentAddress 'Testnet ShelleyKey where
+    paymentAddress xpub0 =
+        encodeShelleyAddress (single @'Testnet) [getKey xpub0]
 
-dummyKeySeq :: SeqKey 'AddressK XPub
-dummyKeySeq = SeqKey key
-    where Right key = xpub (BS.replicate 64 0)
+instance DelegationAddress 'Mainnet ShelleyKey where
+    delegationAddress xpub0 xpub1 =
+        encodeShelleyAddress (grouped @'Mainnet) [getKey xpub0, getKey xpub1]
+
+instance DelegationAddress 'Testnet ShelleyKey where
+    delegationAddress xpub0 xpub1 =
+        encodeShelleyAddress (grouped @'Testnet) [getKey xpub0, getKey xpub1]
+
+-- | Embed some constants into a network type.
+class KnownNetwork (n :: NetworkDiscriminant) where
+    single :: Word8
+        -- ^ Address discriminant byte for single addresses, this is the first byte of
+        -- every addresses using the Shelley format carrying only a spending key.
+    grouped :: Word8
+        -- ^ Address discriminant byte for grouped addresses, this is the first byte of
+        -- every addresses using the Shelley format carrying both a spending and a
+        -- delegation key.
+
+instance KnownNetwork 'Mainnet where
+    single = 0x03
+    grouped = 0x04
+
+instance KnownNetwork 'Testnet where
+    single = 0x83
+    grouped = 0x84
+
+-- | We use this to define both instance separately to avoid having to carry a
+-- 'KnownNetwork' constraint around.
+encodeShelleyAddress :: Word8 -> [XPub] -> Address
+encodeShelleyAddress discriminant keys =
+    Address $ invariantSize $ BL.toStrict $ runPut $ do
+        putWord8 discriminant
+        mapM_ putByteString (xpubPublicKey <$> keys)
+  where
+    invariantSize :: HasCallStack => ByteString -> ByteString
+    invariantSize bytes
+        | BS.length bytes == len = bytes
+        | otherwise = error
+            $ "length was "
+            ++ show (BS.length bytes)
+            ++ ", but expected to be "
+            ++ (show len)
+      where
+        len = 1 + length keys * publicKeySize
+
+-- | Verify the structure of a payload decoded from a Bech32 text string
+decodeShelleyAddress
+    :: forall n. (KnownNetwork n, NetworkDiscriminantVal n)
+    => ByteString
+    -> Either TextDecodingError Address
+decodeShelleyAddress bytes = do
+    case BS.length bytes of
+        n | n == addrSingleSize -> do
+            let firstByte = BS.take 1 bytes
+            when (firstByte /= BS.pack [single @n]) $
+                if firstByte `elem`
+                    (BS.pack <$> [[single @'Mainnet], [single @'Testnet]])
+                    then Left invalidNetwork
+                    else Left invalidFirstByte
+        n | n == addrGroupedSize -> do
+            let firstByte = BS.take 1 bytes
+            when (firstByte /= BS.pack [grouped @n]) $
+                if firstByte `elem`
+                    (BS.pack <$> [[grouped @'Mainnet], [grouped @'Testnet]])
+                    then Left invalidNetwork
+                    else Left invalidFirstByte
+        _ ->
+            Left $ TextDecodingError $
+                "Invalid Address length (" <> show (BS.length bytes)
+                <> "): expected either "
+                <> show addrSingleSize
+                <> " or "
+                <> show addrGroupedSize
+                <> " bytes."
+    return (Address bytes)
+  where
+    invalidFirstByte = TextDecodingError
+        "Invalid Address first byte."
+    invalidNetwork = TextDecodingError $
+        "This Address belongs to another network. Network is: "
+        <> show (networkDiscriminantVal @n) <> "."
+
+instance InspectAddress ShelleyKey where
+    type SpendingKey ShelleyKey = ByteString
+    getSpendingKey (Address bytes)
+        | let l = BS.length bytes in l == addrSingleSize || l == addrGroupedSize =
+            BS.take publicKeySize $ BS.drop 1 bytes
+        | otherwise =
+            error "InspectAddress: tried to inspect an incompatible address"
+
+    type DelegationKey ShelleyKey = ByteString
+    getDelegationKey (Address bytes)
+        | BS.length bytes == addrSingleSize =
+            Nothing
+        | BS.length bytes == addrGroupedSize =
+            Just $ BS.drop addrSingleSize bytes
+        | otherwise =
+            error "InspectAddress: tried to inspect an incompatible address"
 
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys
 -------------------------------------------------------------------------------}
 
-instance PersistKey SeqKey where
+instance PersistKey ShelleyKey where
     serializeXPrv = serializeXPrvSeq
     deserializeXPrv = deserializeXPrvSeq
 
 -- | Convert a private key and its password hash into hexadecimal strings
 -- suitable for storing in a text file or database column.
 serializeXPrvSeq
-    :: (SeqKey 'RootK XPrv, Hash "encryption")
+    :: (ShelleyKey 'RootK XPrv, Hash "encryption")
     -> (ByteString, ByteString)
 serializeXPrvSeq (k, h) =
     ( toHexText . unXPrv . getRawKey $ k
@@ -343,22 +478,22 @@ serializeXPrvSeq (k, h) =
 deserializeXPrvSeq
     :: (ByteString, ByteString)
        -- ^ Hexadecimal encoded private key and password hash
-    -> Either String (SeqKey purpose XPrv, Hash "encryption")
+    -> Either String (ShelleyKey purpose XPrv, Hash "encryption")
 deserializeXPrvSeq (k, h) = (,)
-    <$> fmap SeqKey (xprvFromText k)
+    <$> fmap ShelleyKey (xprvFromText k)
     <*> fmap Hash (fromHexText h)
   where
     xprvFromText = xprv <=< fromHexText
 
 -- | Convert a public key into a hexadecimal string suitable for storing in a
 -- text file or database column.
-serializeXPubSeq :: SeqKey purpose XPub -> ByteString
+serializeXPubSeq :: ShelleyKey purpose XPub -> ByteString
 serializeXPubSeq = toHexText . unXPub . getRawKey
 
 -- | The reverse of 'serializeXPub'. This will fail if the input is not
 -- hexadecimal string of the correct length.
-deserializeXPubSeq :: ByteString -> Either String (SeqKey purpose XPub)
-deserializeXPubSeq = fmap SeqKey . (xpub <=< fromHexText)
+deserializeXPubSeq :: ByteString -> Either String (ShelleyKey purpose XPub)
+deserializeXPubSeq = fmap ShelleyKey . (xpub <=< fromHexText)
 
 toHexText :: ByteString -> ByteString
 toHexText = convertToBase Base16
@@ -394,13 +529,13 @@ fromHexText = convertFromBase Base16
 -- gives a root private key. Then, child keys can be created safely using the
 -- various key derivation methods:
 --
--- - 'publicKey' --> For any @SeqKey _ XPrv@ to @SeqKey _ XPub@
+-- - 'publicKey' --> For any @ShelleyKey _ XPrv@ to @ShelleyKey _ XPub@
 -- - 'deriveAccountPrivateKey' -->
---      From @SeqKey RootK XPrv@ to @SeqKey AccountK XPrv@
+--      From @ShelleyKey RootK XPrv@ to @ShelleyKey AccountK XPrv@
 -- - 'deriveAddressPrivateKey' -->
---      From @SeqKey AccountK XPrv@ to @SeqKey AddressK XPrv@
+--      From @ShelleyKey AccountK XPrv@ to @ShelleyKey AddressK XPrv@
 -- - 'deriveAddressPublicKey' -->
---      From @SeqKey AccountK XPub@ to @SeqKey AddressK XPub@
+--      From @ShelleyKey AccountK XPub@ to @ShelleyKey AddressK XPub@
 --
 -- For example:
 --
@@ -408,12 +543,12 @@ fromHexText = convertFromBase Base16
 -- -- Access public key for: m|coinType'|purpose'|0'
 -- let seed = "My Secret Seed"
 --
--- let rootXPrv :: SeqKey 'RootK XPrv
+-- let rootXPrv :: ShelleyKey 'RootK XPrv
 --     rootXPrv = generateKeyFromSeed (seed, mempty) mempty
 --
 -- let accIx :: Index 'Hardened 'AccountK
 --     accIx = toEnum 0x80000000
 --
--- let accXPub :: SeqKey 'AccountL XPub
+-- let accXPub :: ShelleyKey 'AccountL XPub
 --     accXPub = publicKey $ deriveAccountPrivateKey mempty rootXPrv accIx
 -- @

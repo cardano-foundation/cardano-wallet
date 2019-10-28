@@ -217,7 +217,7 @@ type MPrivKey = String
 fromMockPrivKey :: PersistKey k => MPrivKey -> (k 'RootK XPrv, Hash "encryption")
 fromMockPrivKey s = (k, Hash (B8.pack s))
   where
-    -- Produce a key by deserializing zeroes in either SeqKey or RndKey format.
+    -- Produce a key by deserializing zeroes in either ShelleyKey or ByronKey format.
     Right (k, _) = deserializeXPrv (zeroes, mempty) <|>
         deserializeXPrv (zeroes <> ":", mempty)
     zeroes = B8.replicate 256 '0'

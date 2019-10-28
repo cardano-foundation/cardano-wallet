@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -14,27 +13,14 @@ module Cardano.Wallet.DummyTarget.Primitive.Types
 
 import Prelude
 
-import Cardano.Crypto.Wallet
-    ( unXPub )
 import Cardano.Wallet.DB.Sqlite
     ( PersistTx (..) )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( KeyToAddress (..), WalletKey (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( RndKey (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( SeqKey (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState (..) )
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
-    , Block (..)
+    ( Block (..)
     , BlockHeader (..)
-    , DecodeAddress (..)
     , DefineTx
-    , EncodeAddress (..)
     , EpochLength (..)
     , FeePolicy (..)
     , Hash (..)
@@ -50,16 +36,10 @@ import Crypto.Hash
     ( hash )
 import Crypto.Hash.Algorithms
     ( Blake2b_256 )
-import Data.Bifunctor
-    ( bimap )
-import Data.ByteArray.Encoding
-    ( Base (Base16), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text.Class
-    ( TextDecodingError (..) )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 import Fmt
@@ -67,13 +47,9 @@ import Fmt
 import GHC.Generics
     ( Generic )
 
-import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteArray as BA
-import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
-import qualified Data.Text.Encoding as T
 
 data DummyTarget
 
@@ -87,32 +63,6 @@ instance NFData Tx
 instance PersistTx DummyTarget where
     resolvedInputs = flip zip (repeat Nothing) . inputs
     mkTx _ inps = Tx (fst <$> inps)
-
-instance KeyToAddress DummyTarget SeqKey where
-    keyToAddress =
-        Address . BS.take 8 . convertToBase Base16 . unXPub . getRawKey
-
-instance KeyToAddress DummyTarget RndKey where
-    keyToAddress k = Address
-        $ CBOR.toStrictByteString
-        $ CBOR.encodeAddress (getRawKey k)
-            [ CBOR.encodeDerivationPathAttr pwd acctIx addrIx ]
-      where
-        (acctIx, addrIx) = derivationPath k
-        pwd = payloadPassphrase k
-
-instance EncodeAddress DummyTarget where
-    encodeAddress _ = T.decodeUtf8 . convertToBase Base16 . unAddress
-
-instance DecodeAddress DummyTarget where
-    decodeAddress _ = bimap decodingError Address
-        . convertFromBase Base16
-        . T.encodeUtf8
-      where
-        decodingError _ = TextDecodingError
-            "Unable to decode Address: expected Base16 encoding"
-
-deriving instance Eq (SeqState DummyTarget)
 
 instance DefineTx DummyTarget where
     type Tx DummyTarget = Tx

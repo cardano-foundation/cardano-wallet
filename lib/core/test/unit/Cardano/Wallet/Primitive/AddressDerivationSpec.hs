@@ -20,6 +20,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , FromMnemonic (..)
     , FromMnemonicError (..)
     , Index
+    , NetworkDiscriminant (..)
     , Passphrase (..)
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
@@ -30,10 +31,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , encryptPassphrase
     , getIndex
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( RndKey (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( SeqKey (..), deserializeXPubSeq, serializeXPubSeq )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey (..), deserializeXPubSeq, serializeXPubSeq )
 import Cardano.Wallet.Primitive.Types
     ( Hash (..) )
 import Control.Monad
@@ -55,6 +56,7 @@ import Test.QuickCheck
     , arbitraryPrintableChar
     , choose
     , expectFailure
+    , genericShrink
     , property
     , (.&&.)
     , (===)
@@ -65,8 +67,8 @@ import Test.QuickCheck.Monadic
 import Test.Text.Roundtrip
     ( textRoundtrip )
 
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Random as Rnd
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Sequential as Seq
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Rnd
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
@@ -86,6 +88,7 @@ spec = do
 
     describe "Text Roundtrip" $ do
         textRoundtrip $ Proxy @(Passphrase "encryption")
+        textRoundtrip $ Proxy @NetworkDiscriminant
 
     describe "Enum Roundtrip" $ do
         it "Index @'Hardened _" (property prop_roundtripEnumIndexHard)
@@ -179,8 +182,8 @@ spec = do
             res `shouldSatisfy` isRight
 
     describe "Keys storing and retrieving roundtrips" $ do
-        it "XPrv SeqKey" (property (prop_roundtripXPrv @SeqKey))
-        it "XPrv RndKey" (property (prop_roundtripXPrv @RndKey))
+        it "XPrv ShelleyKey" (property (prop_roundtripXPrv @ShelleyKey))
+        it "XPrv ByronKey" (property (prop_roundtripXPrv @ByronKey))
         it "XPub" (property prop_roundtripXPub)
 
 {-------------------------------------------------------------------------------
@@ -220,7 +223,7 @@ prop_roundtripXPrv xpriv = do
     xpriv' === Right xpriv
 
 prop_roundtripXPub
-    :: SeqKey 'RootK XPrv
+    :: ShelleyKey 'RootK XPrv
     -> Property
 prop_roundtripXPub xpriv = do
     let xpub = publicKey xpriv
@@ -293,19 +296,23 @@ instance Show XPrv where
 instance Eq XPrv where
     a == b = unXPrv a == unXPrv b
 
-instance Arbitrary (SeqKey 'RootK XPrv) where
+instance Arbitrary (ShelleyKey 'RootK XPrv) where
     shrink _ = []
     arbitrary = genRootKeysSeq
 
-instance Arbitrary (SeqKey 'RootK XPub) where
+instance Arbitrary (ShelleyKey 'RootK XPub) where
     shrink _ = []
     arbitrary = publicKey <$> arbitrary
 
-instance Arbitrary (RndKey 'RootK XPrv) where
+instance Arbitrary (ByronKey 'RootK XPrv) where
     shrink _ = []
     arbitrary = genRootKeysRnd
 
-genRootKeysSeq :: Gen (SeqKey 'RootK XPrv)
+instance Arbitrary NetworkDiscriminant where
+    arbitrary = arbitraryBoundedEnum
+    shrink = genericShrink
+
+genRootKeysSeq :: Gen (ShelleyKey 'RootK XPrv)
 genRootKeysSeq = do
     (s, g, e) <- (,,)
         <$> genPassphrase @"seed" (16, 32)
@@ -313,7 +320,7 @@ genRootKeysSeq = do
         <*> genPassphrase @"encryption" (0, 16)
     return $ Seq.generateKeyFromSeed (s, g) e
 
-genRootKeysRnd :: Gen (RndKey 'RootK XPrv)
+genRootKeysRnd :: Gen (ByronKey 'RootK XPrv)
 genRootKeysRnd = Rnd.generateKeyFromSeed
     <$> genPassphrase @"seed" (16, 32)
     <*> genPassphrase @"encryption" (0, 16)

@@ -79,6 +79,10 @@ import Cardano.Wallet.DB.Sqlite.Types
     ( AddressPoolXPub (..), BlockId (..), TxId (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), PersistKey (..), WalletKey (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey, nullKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.Types
@@ -158,8 +162,6 @@ import System.FilePath
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.Wallet.Primitive.AddressDerivation as W
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Random as Rnd
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.Model as W
@@ -920,7 +922,7 @@ class DefineTx t => PersistTx t where
                           Sequential address discovery
 -------------------------------------------------------------------------------}
 
-instance W.KeyToAddress t Seq.SeqKey => PersistState (Seq.SeqState t) where
+instance W.PaymentAddress t ShelleyKey => PersistState (Seq.SeqState t) where
     insertState (wid, sl) st = do
         let (intPool, extPool) = (Seq.internalPool st, Seq.externalPool st)
         let (xpub, _) = W.invariant
@@ -960,7 +962,7 @@ insertAddressPool wid sl pool =
         ]
 
 selectAddressPool
-    :: forall t c. (W.KeyToAddress t Seq.SeqKey, Typeable c)
+    :: forall t c. (W.PaymentAddress t ShelleyKey, Typeable c)
     => W.WalletId
     -> W.SlotId
     -> Seq.AddressPoolGap
@@ -1079,5 +1081,5 @@ selectRndStatePending wid = do
 
 -- | Gets the wallet root key to put in RndState. If there is none yet, just
 -- return a placeholder.
-selectRndStateKey :: W.WalletId -> SqlPersistT IO (Rnd.RndKey 'RootK XPrv)
-selectRndStateKey wid = maybe Rnd.nullKey fst <$> selectPrivateKey wid
+selectRndStateKey :: W.WalletId -> SqlPersistT IO (ByronKey 'RootK XPrv)
+selectRndStateKey wid = maybe nullKey fst <$> selectPrivateKey wid

@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -32,11 +33,11 @@ import Cardano.Wallet.Jormungandr.Compatibility
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (AddressK), KeyToAddress, Passphrase (..), WalletKey (..), XPrv )
-import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( RndKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( SeqKey )
+    ( Depth (AddressK), Passphrase (..), PaymentAddress, WalletKey (..), XPrv )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
@@ -70,8 +71,8 @@ import qualified Data.ByteString.Lazy as BL
 -- | Construct a 'TransactionLayer' compatible with Shelley and 'Jörmungandr'
 newTransactionLayer
     :: forall n k t.
-        ( t ~ Jormungandr n
-        , KeyToAddress (Jormungandr n) k
+        ( t ~ Jormungandr
+        , PaymentAddress n k
         , MkTxWitness k
         )
     => Hash "Genesis"
@@ -111,7 +112,7 @@ newTransactionLayer (Hash block0H) = TransactionLayer
         Quantity $ length inps + length outs + length chgs
 
     , estimateMaxNumberOfInputs =
-        estimateMaxNumberOfInputsBase @t @k Binary.estimateMaxNumberOfInputsParams
+        estimateMaxNumberOfInputsBase @t @n @k Binary.estimateMaxNumberOfInputsParams
 
     , validateSelection = \(CoinSelection inps outs _) -> do
         when (length inps > maxNumberOfInputs || length outs > maxNumberOfOutputs)
@@ -124,11 +125,11 @@ newTransactionLayer (Hash block0H) = TransactionLayer
 --
 -- We have tightly coupled the type of witness to the type of key for because:
 --
--- - RndKey can only be used with legacy / Byron wallets as they require a
+-- - ByronKey can only be used with legacy / Byron wallets as they require a
 --   special address structure (to embed the derivation path).
 --
--- - SeqKey could theorically be used with the legacy address structure (as
--- Yoroi does) however, our implementation only associate SeqKey to new
+-- - ShelleyKey could theorically be used with the legacy address structure (as
+-- Yoroi does) however, our implementation only associate ShelleyKey to new
 -- addresses.
 class MkTxWitness (k :: Depth -> * -> *) where
     mkTxWitness
@@ -136,10 +137,10 @@ class MkTxWitness (k :: Depth -> * -> *) where
         -> ByteString
         -> TxWitness
 
-instance MkTxWitness SeqKey where
+instance MkTxWitness ShelleyKey where
     mkTxWitness _ = utxoWitness
 
-instance MkTxWitness RndKey where
+instance MkTxWitness ByronKey where
     mkTxWitness xprv = legacyUtxoWitness xpub
       where
         xpub = getRawKey $ publicKey xprv
@@ -166,4 +167,4 @@ instance Buildable ErrExceededInpsOrOuts where
         maxI = toText maxNumberOfInputs
         maxO = toText maxNumberOfOutputs
 
-type instance ErrValidateSelection (Jormungandr n) = ErrExceededInpsOrOuts
+type instance ErrValidateSelection Jormungandr = ErrExceededInpsOrOuts

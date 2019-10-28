@@ -53,10 +53,12 @@ import Cardano.Wallet.Api.Types
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
     )
-import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( DummyTarget )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Passphrase (..), PassphraseMaxLength (..), PassphraseMinLength (..) )
+    ( NetworkDiscriminant (..)
+    , Passphrase (..)
+    , PassphraseMaxLength (..)
+    , PassphraseMinLength (..)
+    )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Mnemonic
@@ -186,6 +188,7 @@ import Test.QuickCheck
     , arbitraryPrintableChar
     , choose
     , frequency
+    , oneof
     , property
     , scale
     , vectorOf
@@ -216,14 +219,14 @@ spec = do
     describe
         "can perform roundtrip JSON serialization & deserialization, \
         \and match existing golden files" $ do
-            jsonRoundtripAndGolden $ Proxy @(ApiAddress DummyTarget)
+            jsonRoundtripAndGolden $ Proxy @(ApiAddress 'Testnet)
             jsonRoundtripAndGolden $ Proxy @ApiTimeReference
             jsonRoundtripAndGolden $ Proxy @ApiNetworkTip
             jsonRoundtripAndGolden $ Proxy @ApiBlockReference
             jsonRoundtripAndGolden $ Proxy @ApiNetworkInformation
             jsonRoundtripAndGolden $ Proxy @ApiStakePool
-            jsonRoundtripAndGolden $ Proxy @(AddressAmount DummyTarget)
-            jsonRoundtripAndGolden $ Proxy @(ApiTransaction DummyTarget)
+            jsonRoundtripAndGolden $ Proxy @(AddressAmount 'Testnet)
+            jsonRoundtripAndGolden $ Proxy @(ApiTransaction 'Testnet)
             jsonRoundtripAndGolden $ Proxy @ApiWallet
             jsonRoundtripAndGolden $ Proxy @ApiByronWallet
             jsonRoundtripAndGolden $ Proxy @ApiByronWalletMigrationInfo
@@ -232,8 +235,8 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiFee
             jsonRoundtripAndGolden $ Proxy @StakePoolMetrics
             jsonRoundtripAndGolden $ Proxy @ApiTxId
-            jsonRoundtripAndGolden $ Proxy @(PostTransactionData DummyTarget)
-            jsonRoundtripAndGolden $ Proxy @(PostTransactionFeeData DummyTarget)
+            jsonRoundtripAndGolden $ Proxy @(PostTransactionData 'Testnet)
+            jsonRoundtripAndGolden $ Proxy @(PostTransactionFeeData 'Testnet)
             jsonRoundtripAndGolden $ Proxy @WalletPostData
             jsonRoundtripAndGolden $ Proxy @ByronWalletPostData
             jsonRoundtripAndGolden $ Proxy @WalletPutData
@@ -241,7 +244,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiT (Hash "Tx"))
             jsonRoundtripAndGolden $ Proxy @(ApiT (Passphrase "encryption"))
             jsonRoundtripAndGolden $ Proxy @(ApiT (WalletDelegation (ApiT PoolId)))
-            jsonRoundtripAndGolden $ Proxy @(ApiT Address, Proxy DummyTarget)
+            jsonRoundtripAndGolden $ Proxy @(ApiT Address, Proxy 'Testnet)
             jsonRoundtripAndGolden $ Proxy @(ApiT AddressPoolGap)
             jsonRoundtripAndGolden $ Proxy @(ApiT Direction)
             jsonRoundtripAndGolden $ Proxy @(ApiT TxStatus)
@@ -252,23 +255,21 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiT SyncProgress)
 
     describe "Textual encoding" $ do
-
         describe "Can perform roundtrip textual encoding & decoding" $ do
-
             textRoundtrip $ Proxy @Iso8601Time
             textRoundtrip $ Proxy @SortOrder
 
     describe "AddressAmount" $ do
         it "fromText . toText === pure"
             $ property
-            $ \(i :: AddressAmount DummyTarget) ->
+            $ \(i :: AddressAmount 'Testnet) ->
                 (fromText . toText) i === pure i
         it "fromText \"22323\"" $
             let err =
                     "Parse error. " <>
                     "Expecting format \"<amount>@<address>\" but got \"22323\""
             in
-                fromText @(AddressAmount DummyTarget) "22323"
+                fromText @(AddressAmount 'Testnet) "22323"
                     === Left (TextDecodingError err)
 
     describe
@@ -281,19 +282,19 @@ spec = do
     describe
         "verify that every type used with JSON content type in a servant API \
         \has compatible ToJSON and ToSchema instances using validateToJSON." $
-        validateEveryToJSON (Proxy :: Proxy (Api DummyTarget))
+        validateEveryToJSON (Proxy :: Proxy (Api 'Testnet))
 
     describe
         "verify that every path specified by the servant server matches an \
         \existing path in the specification" $
-        validateEveryPath (Proxy :: Proxy (Api DummyTarget))
+        validateEveryPath (Proxy :: Proxy (Api 'Testnet))
 
     describe "verify JSON parsing failures too" $ do
         it "ApiT Address" $ do
             let msg = "Error in $: Unable to decode Address: \
-                    \expected Base16 encoding"
+                    \encoding is neither Bech32 nor Base58."
             Aeson.parseEither parseJSON [aesonQQ|"-----"|]
-                `shouldBe` (Left @String @(ApiT Address, Proxy DummyTarget) msg)
+                `shouldBe` (Left @String @(ApiT Address, Proxy 'Testnet) msg)
 
         it "ApiT (Passphrase \"encryption\") (too short)" $ do
             let minLength = passphraseMinLength (Proxy :: Proxy "encryption")
@@ -375,23 +376,23 @@ spec = do
             let msg = "Error in $.amount.quantity: expected Natural, \
                     \encountered negative number -14"
             Aeson.parseEither parseJSON [aesonQQ|
-                { "address": "c5371514e37584e4"
+                { "address": "ta1sdaa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677ztw225s"
                 , "amount": {"unit":"lovelace","quantity":-14}
                 }
-            |] `shouldBe` (Left @String @(AddressAmount DummyTarget) msg)
+            |] `shouldBe` (Left @String @(AddressAmount 'Testnet) msg)
 
         it "AddressAmount (too big)" $ do
             let msg = "Error in $: invalid coin value: value has to be lower \
                     \than or equal to " <> show (getCoin maxBound)
                     <> " lovelace."
             Aeson.parseEither parseJSON [aesonQQ|
-                { "address": "c5371514e37584e4"
+                { "address": "ta1sdaa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677ztw225s"
                 , "amount":
                     { "unit":"lovelace"
                     ,"quantity":#{getCoin maxBound + 1}
                     }
                 }
-            |] `shouldBe` (Left @String @(AddressAmount DummyTarget) msg)
+            |] `shouldBe` (Left @String @(AddressAmount 'Testnet) msg)
 
         it "ApiT PoolId" $ do
             let msg = "Error in $: \"stake pool id wrongly formatted: expected \
@@ -426,8 +427,8 @@ spec = do
         it "ApiAddress" $ property $ \x ->
             let
                 x' = ApiAddress
-                    { id = id (x :: ApiAddress DummyTarget)
-                    , state = state (x :: ApiAddress DummyTarget)
+                    { id = id (x :: ApiAddress 'Testnet)
+                    , state = state (x :: ApiAddress 'Testnet)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -516,15 +517,15 @@ spec = do
         it "PostTransactionData" $ property $ \x ->
             let
                 x' = PostTransactionData
-                    { payments = payments (x :: PostTransactionData DummyTarget)
-                    , passphrase = passphrase (x :: PostTransactionData DummyTarget)
+                    { payments = payments (x :: PostTransactionData 'Testnet)
+                    , passphrase = passphrase (x :: PostTransactionData 'Testnet)
                     }
             in
                 x' === x .&&. show x' === show x
         it "PostTransactionFeeData" $ property $ \x ->
             let
                 x' = PostTransactionFeeData
-                    { payments = payments (x :: PostTransactionFeeData DummyTarget)
+                    { payments = payments (x :: PostTransactionFeeData 'Testnet)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -538,23 +539,23 @@ spec = do
         it "ApiTransaction" $ property $ \x ->
             let
                 x' = ApiTransaction
-                    { id = id (x :: ApiTransaction DummyTarget)
-                    , amount = amount (x :: ApiTransaction DummyTarget)
-                    , insertedAt = insertedAt (x :: ApiTransaction DummyTarget)
-                    , pendingSince = pendingSince (x :: ApiTransaction DummyTarget)
-                    , depth = depth (x :: ApiTransaction DummyTarget)
-                    , direction = direction (x :: ApiTransaction DummyTarget)
-                    , inputs = inputs (x :: ApiTransaction DummyTarget)
-                    , outputs = outputs (x :: ApiTransaction DummyTarget)
-                    , status = status (x :: ApiTransaction DummyTarget)
+                    { id = id (x :: ApiTransaction 'Testnet)
+                    , amount = amount (x :: ApiTransaction 'Testnet)
+                    , insertedAt = insertedAt (x :: ApiTransaction 'Testnet)
+                    , pendingSince = pendingSince (x :: ApiTransaction 'Testnet)
+                    , depth = depth (x :: ApiTransaction 'Testnet)
+                    , direction = direction (x :: ApiTransaction 'Testnet)
+                    , inputs = inputs (x :: ApiTransaction 'Testnet)
+                    , outputs = outputs (x :: ApiTransaction 'Testnet)
+                    , status = status (x :: ApiTransaction 'Testnet)
                     }
             in
                 x' === x .&&. show x' === show x
         it "AddressAmount" $ property $ \x ->
             let
                 x' = AddressAmount
-                    { address = address (x :: AddressAmount DummyTarget)
-                    , amount = amount (x :: AddressAmount DummyTarget)
+                    { address = address (x :: AddressAmount 'Testnet)
+                    , amount = amount (x :: AddressAmount 'Testnet)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -652,7 +653,7 @@ httpApiDataRoundtrip proxy =
                               Arbitrary Instances
 -------------------------------------------------------------------------------}
 
-instance Arbitrary (Proxy DummyTarget) where
+instance Arbitrary (Proxy 'Testnet) where
     shrink _ = []
     arbitrary = pure Proxy
 
@@ -667,7 +668,20 @@ instance Arbitrary AddressState where
     shrink = genericShrink
 
 instance Arbitrary Address where
-    arbitrary = Address . B8.pack <$> replicateM 32 arbitrary
+    arbitrary = Address <$> oneof
+        [ (\bytes -> BS.pack (0x83:bytes)) <$> vectorOf 32 arbitrary
+        , (\bytes -> BS.pack (0x84:bytes)) <$> vectorOf 64 arbitrary
+        , do
+            n <- choose (30, 60)
+            let prefix = BS.pack
+                    [ 130       -- Array(2)
+                    , 216, 24   -- Tag 24
+                    , 88, fromIntegral n -- Bytes(n), n > 23 && n < 256
+                    ]
+            addrPayload <- BS.pack <$> vectorOf n arbitrary
+            let crc = BS.pack [26,1,2,3,4]
+            return (prefix <> addrPayload <> crc)
+        ]
 
 instance Arbitrary (Quantity "lovelace" Natural) where
     shrink (Quantity 0) = []

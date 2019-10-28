@@ -859,10 +859,10 @@ rndMnemonics = unsafeMkMnemonic <$>
 {-# LANGUAGE TypeApplications #-}
 
 import Cardano.Wallet.Jormungandr.Compatibility
-    ( Jormungandr, Network (..) )
+    ( Jormungandr, NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( KeyToAddress (..), Passphrase (..), publicKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Random
+    ( PaymentAddress (..), Passphrase (..), publicKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( deriveAccountPrivateKey, deriveAddressPrivateKey, generateKeyFromSeed )
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToBytes
@@ -916,7 +916,7 @@ addresses mw =
         addrXPrv =
             deriveAddressPrivateKey pwd accXPrv
     in
-        [ keyToAddress @(Jormungandr 'Mainnet) (publicKey $ addrXPrv ix)
+        [ paymentAddress @(Jormungandr 'Mainnet) (publicKey $ addrXPrv ix)
         | ix <- [minBound..maxBound]
         ]
 -}

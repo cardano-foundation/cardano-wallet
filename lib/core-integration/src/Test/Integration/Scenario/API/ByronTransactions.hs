@@ -5,6 +5,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Test.Integration.Scenario.API.ByronTransactions
     ( spec
@@ -14,8 +15,8 @@ import Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiByronWallet, ApiTransaction )
-import Cardano.Wallet.Primitive.Types
-    ( DecodeAddress (..), EncodeAddress (..) )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( NetworkDiscriminant (..) )
 import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens
@@ -56,12 +57,12 @@ data TestCase a = TestCase
     , assertions :: [(HTTP.Status, Either RequestException a) -> IO ()]
     }
 
-spec :: forall t. (EncodeAddress t, DecodeAddress t) => SpecWith (Context t)
+spec :: forall t n. (n ~ 'Testnet) => SpecWith (Context t)
 spec = do
 
     it "BYRON_TX_LIST_01 - 0 txs on empty Byron wallet" $ \ctx -> do
         w <- emptyByronWallet ctx
-        r <- request @([ApiTransaction t]) ctx (listByronTxEp w mempty)
+        r <- request @([ApiTransaction n]) ctx (listByronTxEp w mempty)
             Default Empty
         verify r
             [ expectResponseCode @IO HTTP.status200
@@ -72,7 +73,7 @@ spec = do
         pendingWith "Blocked by #849"
         -- TODO make it fixtureByronWallet after #849 and adjust expectations
         w <- emptyByronWallet ctx
-        r <- request @([ApiTransaction t]) ctx (listByronTxEp w mempty)
+        r <- request @([ApiTransaction n]) ctx (listByronTxEp w mempty)
             Default Empty
         verify r
             [ expectResponseCode @IO HTTP.status200
@@ -84,7 +85,7 @@ spec = do
             \ ascending, descending."
         let startEndErr = "Expecting ISO 8601 date-and-time format\
             \ (basic or extended), e.g. 2012-09-25T10:15:00Z."
-        let queries :: [TestCase [ApiTransaction t]] =
+        let queries :: [TestCase [ApiTransaction n]] =
                 [
                   TestCase
                     { query = toQueryString [ ("start", "2009") ]
@@ -149,7 +150,7 @@ spec = do
 
         forM_ queries $ \tc -> it (T.unpack $ query tc) $ \ctx -> do
             w <- emptyByronWallet ctx
-            r <- request @([ApiTransaction t]) ctx (listByronTxEp w (query tc))
+            r <- request @([ApiTransaction n]) ctx (listByronTxEp w (query tc))
                 Default Empty
             verify r (assertions tc)
 
@@ -162,7 +163,7 @@ spec = do
                       [ ("start", T.pack startTime)
                       , ("end", T.pack endTime)
                       ]
-              r <- request @([ApiTransaction t]) ctx (listByronTxEp w q)
+              r <- request @([ApiTransaction n]) ctx (listByronTxEp w q)
                   Default Empty
               expectResponseCode @IO HTTP.status400 r
               expectErrorMessage
@@ -173,7 +174,7 @@ spec = do
         w <- emptyWallet ctx
         let wid = w ^. walletId
         let ep = ("GET", "v2/byron-wallets/" <> wid <> "/transactions")
-        r <- request @([ApiTransaction t]) ctx ep Default Empty
+        r <- request @([ApiTransaction n]) ctx ep Default Empty
         verify r
             [ expectResponseCode @IO HTTP.status404
             , expectErrorMessage (errMsg404NoWallet wid)
@@ -184,7 +185,7 @@ spec = do
         w <- emptyByronWallet ctx
         let wid = w ^. walletId
         let ep = ("GET", "v2/wallets/" <> wid <> "/transactions")
-        r <- request @([ApiTransaction t]) ctx ep Default Empty
+        r <- request @([ApiTransaction n]) ctx ep Default Empty
         verify r
             [ expectResponseCode @IO HTTP.status404
             , expectErrorMessage (errMsg404NoWallet wid)
@@ -195,7 +196,7 @@ spec = do
         let endpoint = "v2/byron-wallets/"
                 <> T.unpack (T.append (w ^. walletId) "0")
                 <> "/transactions"
-        r <- request @([ApiTransaction t]) ctx ("GET", T.pack endpoint)
+        r <- request @([ApiTransaction n]) ctx ("GET", T.pack endpoint)
                 Default Empty
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage errMsg404NoEndpoint r
@@ -203,7 +204,7 @@ spec = do
     it "BYRON_TX_LIST_04 - Deleted wallet" $ \ctx -> do
         w <- emptyByronWallet ctx
         _ <- request @ApiByronWallet ctx (deleteByronWalletEp w) Default Empty
-        r <- request @([ApiTransaction t]) ctx (listByronTxEp w mempty)
+        r <- request @([ApiTransaction n]) ctx (listByronTxEp w mempty)
             Default Empty
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
@@ -211,7 +212,7 @@ spec = do
     describe "BYRON_TX_LIST_04 - False wallet ids" $ do
         forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
             let endpoint = "v2/byron-wallets/" <> walId <> "/transactions"
-            r <- request @([ApiTransaction t]) ctx ("GET", T.pack endpoint)
+            r <- request @([ApiTransaction n]) ctx ("GET", T.pack endpoint)
                     Default Empty
             expectResponseCode HTTP.status404 r
             if (title == "40 chars hex") then
@@ -223,5 +224,5 @@ spec = do
         forM_ (getHeaderCases HTTP.status200)
             $ \(title, h, expec) -> it title $ \ctx -> do
             w <- emptyByronWallet ctx
-            r <- request @([ApiTransaction t]) ctx (listByronTxEp w mempty) h Empty
+            r <- request @([ApiTransaction n]) ctx (listByronTxEp w mempty) h Empty
             verify r expec

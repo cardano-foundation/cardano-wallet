@@ -3,6 +3,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Test.Integration.Scenario.API.Wallets
     ( spec
@@ -12,12 +13,12 @@ import Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiTransaction, ApiUtxoStatistics, ApiWallet )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
-    ( DecodeAddress
-    , EncodeAddress
-    , SyncProgress (..)
+    ( SyncProgress (..)
     , WalletDelegation (..)
     , walletNameMaxLength
     , walletNameMinLength
@@ -112,7 +113,7 @@ import Test.Integration.Framework.TestData
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
-spec :: forall t. (EncodeAddress t, DecodeAddress t) => SpecWith (Context t)
+spec :: forall t n. (n ~ 'Testnet) => SpecWith (Context t)
 spec = do
     it "WALLETS_CREATE_01 - Create a wallet" $ \ctx -> do
         let payload = Json [json| {
@@ -161,7 +162,7 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        rTrans <- request @(ApiTransaction t) ctx (postTxEp wSrc)
+        rTrans <- request @(ApiTransaction n) ctx (postTxEp wSrc)
             Default payload
         expectResponseCode @IO HTTP.status202 rTrans
 
@@ -1394,7 +1395,7 @@ spec = do
                     }],
                     "passphrase": #{pass}
                     }|]
-            r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payloadTrans
+            r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payloadTrans
             verify r expectations
 
     describe "WALLETS_UPDATE_PASS_07 - HTTP headers" $ do
@@ -1471,7 +1472,7 @@ spec = do
                     }],
                     "passphrase": "cardano-wallet"
                 }|]
-            rTrans <- request @(ApiTransaction t) ctx (postTxEp wSrc)
+            rTrans <- request @(ApiTransaction n) ctx (postTxEp wSrc)
                 Default payload
             expectResponseCode @IO HTTP.status202 rTrans
 

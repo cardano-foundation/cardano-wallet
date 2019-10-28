@@ -51,8 +51,6 @@ module Cardano.Wallet.Primitive.Types
     -- * Address
     , Address (..)
     , AddressState (..)
-    , EncodeAddress (..)
-    , DecodeAddress (..)
 
     -- * Coin
     , Coin (..)
@@ -793,16 +791,6 @@ instance FromText Address where
         . T.encodeUtf8
       where
         textDecodingError = TextDecodingError . show
-
--- | An abstract class to allow encoding of addresses depending on the target
--- backend used.
-class EncodeAddress t where
-    encodeAddress :: Proxy t -> Address -> Text
-
--- | An abstract class to allow decoding of addresses depending on the target
--- backend used.
-class DecodeAddress t where
-    decodeAddress :: Proxy t -> Text -> Either TextDecodingError Address
 
 -- | Denotes if an address has been previously used or not... whether that be
 -- in the output of a transaction on the blockchain or one in our pending set.
