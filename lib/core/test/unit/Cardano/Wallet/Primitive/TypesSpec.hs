@@ -100,7 +100,7 @@ import Data.Function
 import Data.Function.Utils
     ( applyN )
 import Data.Maybe
-    ( fromMaybe, isJust, isNothing )
+    ( catMaybes, fromMaybe, isJust, isNothing )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -132,6 +132,7 @@ import Test.QuickCheck
     , choose
     , counterexample
     , cover
+    , infiniteList
     , oneof
     , property
     , scale
@@ -215,6 +216,18 @@ spec = do
                 cover 10 (rangeIsFinite r) "finite range" $
                 rangeIsValid r .&&.
                     all rangeIsValid (shrink r)
+
+        it "arbitrary non-singleton ranges are valid" $
+            withMaxSuccess 1000 $ property $ \(nsr :: NonSingletonRange Int) ->
+                let isValidNonSingleton r =
+                        rangeIsValid r && not (rangeIsSingleton r) in
+                checkCoverage $
+                cover 10 (rangeIsFinite (getNonSingletonRange nsr))
+                    "finite range" $
+                isValidNonSingleton (getNonSingletonRange nsr) .&&.
+                    all
+                        (isValidNonSingleton . getNonSingletonRange)
+                        (shrink nsr)
 
         it "functions is{Before,Within,After}Range are mutually exclusive" $
             withMaxSuccess 1000 $ property $ \(a :: Integer) r ->
@@ -850,6 +863,29 @@ makeRangeValid :: Ord a => Range a -> Range a
 makeRangeValid = \case
     Range (Just p) (Just q) -> Range (Just $ min p q) (Just $ max p q)
     r -> r
+
+-- A range that contains more than a single element.
+newtype NonSingletonRange a = NonSingletonRange
+    { getNonSingletonRange :: Range a
+    } deriving Show
+
+instance (Arbitrary a, Ord a) => Arbitrary (NonSingletonRange a) where
+    arbitrary = do
+        -- Iterate through the infinite list of arbitrary ranges and return
+        -- the first range that is not a singleton range:
+        ranges <- infiniteList
+        pure $ head $ catMaybes $
+            makeNonSingletonRangeValid . NonSingletonRange <$> ranges
+    shrink (NonSingletonRange (Range x y)) = catMaybes $
+        makeNonSingletonRangeValid . NonSingletonRange . uncurry Range
+            <$> shrink (x, y)
+
+-- Ensures that a range is not a singleton range.
+makeNonSingletonRangeValid
+    :: Ord a => NonSingletonRange a -> Maybe (NonSingletonRange a)
+makeNonSingletonRangeValid (NonSingletonRange r)
+    | rangeIsSingleton r = Nothing
+    | otherwise = Just $ NonSingletonRange $ makeRangeValid r
 
 instance Arbitrary TxOut where
     -- No Shrinking
