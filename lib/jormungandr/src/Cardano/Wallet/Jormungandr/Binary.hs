@@ -251,6 +251,7 @@ data Message
 data MessageType
     = MsgTypeInitial
     | MsgTypeTransaction
+    | MsgTypeCertificate
 
 data TxWitnessTag
     = TxWitnessLegacyUTxO
@@ -303,6 +304,7 @@ messageTypeTag :: MessageType -> Word8
 messageTypeTag = \case
     MsgTypeInitial -> 0
     MsgTypeTransaction -> 2
+    MsgTypeCertificate -> 3
 
 -- | Decode the contents of a @Initial@-message.
 getInitial :: Get [ConfigParam]
