@@ -19,7 +19,7 @@ import Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
-    , KeyToAddress (..)
+    , PaymentAddress (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , WalletKey (..)
@@ -423,7 +423,7 @@ ourAddresses
     :: ChangeChain
     -> [Address]
 ourAddresses cc =
-    keyToAddress @'Testnet . deriveAddressPublicKey ourAccount cc
+    paymentAddress @'Testnet . deriveAddressPublicKey ourAccount cc
         <$> [minBound..maxBound]
 
 changeAddresses
@@ -459,7 +459,7 @@ instance Arbitrary Address where
             bytes <- Passphrase . BA.convert . BS.pack . take 32 . getInfiniteList
                 <$> arbitrary
             let xprv = unsafeGenerateKeyFromSeed (bytes, mempty) mempty :: SeqKey 'AddressK XPrv
-            return $ keyToAddress @'Testnet $ publicKey xprv
+            return $ paymentAddress @'Testnet $ publicKey xprv
 
 instance Typeable chain => Arbitrary (AddressPool 'Testnet chain) where
     shrink pool =

@@ -62,7 +62,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
     , Index
-    , KeyToAddress (..)
+    , PaymentAddress (..)
     , NetworkDiscriminant
     , Passphrase (..)
     , WalletKey (..)
@@ -247,7 +247,7 @@ addresses = map fst . L.sortOn snd . Map.toList . indexedAddresses
 -- The pool will grow from the start if less than @g :: AddressPoolGap@ are
 -- given, such that, there are always @g@ undiscovered addresses in the pool.
 mkAddressPool
-    :: forall n c. (KeyToAddress n SeqKey, Typeable c)
+    :: forall n c. (PaymentAddress n SeqKey, Typeable c)
     => SeqKey 'AccountK XPub
     -> AddressPoolGap
     -> [Address]
@@ -271,7 +271,7 @@ mkAddressPool key g addrs = AddressPool
 -- possible that the pool is not amended at all - this happens in the case that
 -- an address is discovered 'far' from the edge.
 lookupAddress
-    :: forall n c. (KeyToAddress n SeqKey, Typeable c)
+    :: forall n c. (PaymentAddress n SeqKey, Typeable c)
     => Address
     -> AddressPool n c
     -> (Maybe (Index 'Soft 'AddressK), AddressPool n c)
@@ -285,7 +285,7 @@ lookupAddress !target !pool =
 -- | If an address is discovered near the edge, we extend the address sequence,
 -- otherwise we return the pool untouched.
 extendAddressPool
-    :: forall n c. (KeyToAddress n SeqKey, Typeable c)
+    :: forall n c. (PaymentAddress n SeqKey, Typeable c)
     => Index 'Soft 'AddressK
     -> AddressPool n c
     -> AddressPool n c
@@ -304,7 +304,7 @@ extendAddressPool !ix !pool
 
 -- | Compute the pool extension from a starting index
 nextAddresses
-    :: forall n. KeyToAddress n SeqKey
+    :: forall n. PaymentAddress n SeqKey
     => Proxy n
     -> SeqKey 'AccountK XPub
     -> AddressPoolGap
@@ -320,7 +320,7 @@ nextAddresses _ !key (AddressPoolGap !g) !cc !fromIx =
         "nextAddresses: toIx should be greater than fromIx"
         (toEnum $ fromEnum fromIx + fromEnum g - 1)
         (>= fromIx)
-    newAddress = keyToAddress @n . deriveAddressPublicKey key cc
+    newAddress = paymentAddress @n . deriveAddressPublicKey key cc
 
 {-------------------------------------------------------------------------------
                             Pending Change Indexes
@@ -420,7 +420,7 @@ instance Buildable (SeqState n) where
 
 -- | Construct a Sequential state for a wallet.
 mkSeqState
-    :: KeyToAddress n SeqKey
+    :: PaymentAddress n SeqKey
     => (SeqKey 'RootK XPrv, Passphrase "encryption")
     -> AddressPoolGap
     -> SeqState n
@@ -440,7 +440,7 @@ mkSeqState (rootXPrv, pwd) g =
 -- account discovery algorithm is only specified for the external chain so
 -- in theory, there's nothing forcing a wallet to generate change
 -- addresses on the internal chain anywhere in the available range.
-instance KeyToAddress n SeqKey => IsOurs (SeqState n) where
+instance PaymentAddress n SeqKey => IsOurs (SeqState n) where
     isOurs addr (SeqState !s1 !s2 !ixs) =
         let
             (internal, !s1') = lookupAddress addr s1
@@ -452,7 +452,7 @@ instance KeyToAddress n SeqKey => IsOurs (SeqState n) where
         in
             (ixs' `deepseq` ours `deepseq` ours, SeqState s1' s2' ixs')
 
-instance KeyToAddress n SeqKey => GenChange (SeqState n) where
+instance PaymentAddress n SeqKey => GenChange (SeqState n) where
     -- | We pick indexes in sequence from the first known available index (i.e.
     -- @length addrs - gap@) but we do not generate _new change addresses_. As a
     -- result, we can't generate more than @gap@ _pending_ change addresses and
@@ -465,11 +465,11 @@ instance KeyToAddress n SeqKey => GenChange (SeqState n) where
             (ix, pending') = nextChangeIndex intPool pending
             accountXPub = accountPubKey intPool
             addressXPub = deriveAddressPublicKey accountXPub InternalChain ix
-            addr = keyToAddress @n addressXPub
+            addr = paymentAddress @n addressXPub
         in
             (addr, SeqState intPool extPool pending')
 
-instance KeyToAddress n SeqKey => IsOwned (SeqState n) SeqKey where
+instance PaymentAddress n SeqKey => IsOwned (SeqState n) SeqKey where
     isOwned (SeqState !s1 !s2 _) (rootPrv, pwd) addr =
         let
             xPrv1 = lookupAndDeriveXPrv s1
@@ -491,7 +491,7 @@ instance KeyToAddress n SeqKey => IsOwned (SeqState n) SeqKey where
             in
                 deriveAddressPrivateKey pwd accountPrv cc <$> addrIx
 
-instance KeyToAddress n SeqKey => CompareDiscovery (SeqState n) where
+instance PaymentAddress n SeqKey => CompareDiscovery (SeqState n) where
     compareDiscovery (SeqState !s1 !s2 _) a1 a2 =
         let
             ix a = fst . lookupAddress a

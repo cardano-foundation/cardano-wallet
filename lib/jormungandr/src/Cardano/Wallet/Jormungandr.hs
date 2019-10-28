@@ -66,7 +66,7 @@ import Cardano.Wallet.Jormungandr.Transaction
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( KeyToAddress
+    ( PaymentAddress
     , NetworkDiscriminant
     , NetworkDiscriminantVal
     , PersistKey
@@ -132,8 +132,8 @@ serveWallet
         , NetworkDiscriminantVal n
         , DecodeAddress n
         , EncodeAddress n
-        , KeyToAddress n RndKey
-        , KeyToAddress n SeqKey
+        , PaymentAddress n RndKey
+        , PaymentAddress n SeqKey
         )
     => (CM.Configuration, Trace IO Text)
     -- ^ Logging config.

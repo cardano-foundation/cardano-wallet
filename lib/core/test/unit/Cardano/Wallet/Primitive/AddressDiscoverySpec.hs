@@ -20,7 +20,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Depth (AccountK, AddressK, RootK)
     , DerivationType (Hardened)
     , Index
-    , KeyToAddress (..)
+    , PaymentAddress (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , networkDiscriminantVal
@@ -184,7 +184,7 @@ spec = do
 -------------------------------------------------------------------------------}
 
 prop_derivedKeysAreOurs
-    :: forall (n :: NetworkDiscriminant). (KeyToAddress n RndKey)
+    :: forall (n :: NetworkDiscriminant). (PaymentAddress n RndKey)
     => Passphrase "seed"
     -> Passphrase "encryption"
     -> Index 'Hardened 'AccountK
@@ -199,7 +199,7 @@ prop_derivedKeysAreOurs seed encPwd accIx addrIx rk' =
     (resNeg, stNeg') = isOurs addr (mkRndState @n rk' 0)
     key = publicKey $ unsafeGenerateKeyFromSeed (accIx, addrIx) seed encPwd
     rootXPrv = generateKeyFromSeed seed encPwd
-    addr = keyToAddress @n key
+    addr = paymentAddress @n key
 
 
 negativeTest
@@ -214,7 +214,7 @@ negativeTest _proxy input msg = it ("decodeAddress failure: " <> msg) $
 -- | Generate addresses from the given keys and compare the result with an
 -- expected output obtained from jcli (see appendix below)
 goldenTestAddr
-    :: forall n. (KeyToAddress n SeqKey, DelegationAddress n SeqKey, EncodeAddress n)
+    :: forall n. (PaymentAddress n SeqKey, DelegationAddress n SeqKey, EncodeAddress n)
     => Proxy n
     -> [ByteString]
     -> Text
@@ -223,7 +223,7 @@ goldenTestAddr _proxy pubkeys expected = it ("golden test: " <> T.unpack expecte
     case traverse (convertFromBase Base16) pubkeys of
         Right [spending] -> do
             let xpub = SeqKey (XPub spending chainCode)
-            let addr = encodeAddress @n (keyToAddress @n xpub)
+            let addr = encodeAddress @n (paymentAddress @n xpub)
             addr `shouldBe` expected
         Right [spending, delegation] -> do
             let xpubSpending = SeqKey (XPub spending chainCode)

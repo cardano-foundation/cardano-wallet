@@ -21,7 +21,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , WalletKey (..)
     , XPrv
     , XPub (..)
-    , keyToAddress
+    , paymentAddress
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( ChangeChain (..)
@@ -78,12 +78,12 @@ spec = do
 
         it "throws when encoding XPub of invalid length (Mainnet)" $ do
             let msg = "length was 2, but expected to be 33"
-            evaluate (keyToAddress @'Mainnet (SeqKey $ XPub "\148" cc))
+            evaluate (paymentAddress @'Mainnet (SeqKey $ XPub "\148" cc))
                 `shouldThrow` userException msg
 
         it "throws when encoding XPub of invalid length (Testnet)" $ do
             let msg = "length was 2, but expected to be 33"
-            evaluate (keyToAddress @'Testnet (SeqKey $ XPub "\148" cc))
+            evaluate (paymentAddress @'Testnet (SeqKey $ XPub "\148" cc))
                 `shouldThrow` userException msg
 
 {-------------------------------------------------------------------------------

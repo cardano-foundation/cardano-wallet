@@ -64,7 +64,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationType (..)
     , Index (..)
     , InspectAddress (..)
-    , KeyToAddress (..)
+    , PaymentAddress (..)
     , NetworkDiscriminant (..)
     , NetworkDiscriminantVal
     , Passphrase (..)
@@ -349,12 +349,12 @@ changePassphraseSeq (Passphrase oldPwd) (Passphrase newPwd) (SeqKey prv) =
                          Relationship Key / Address
 -------------------------------------------------------------------------------}
 
-instance KeyToAddress 'Mainnet SeqKey where
-    keyToAddress xpub0 =
+instance PaymentAddress 'Mainnet SeqKey where
+    paymentAddress xpub0 =
         encodeShelleyAddress (single @'Mainnet) [getKey xpub0]
 
-instance KeyToAddress 'Testnet SeqKey where
-    keyToAddress xpub0 =
+instance PaymentAddress 'Testnet SeqKey where
+    paymentAddress xpub0 =
         encodeShelleyAddress (single @'Testnet) [getKey xpub0]
 
 instance DelegationAddress 'Mainnet SeqKey where

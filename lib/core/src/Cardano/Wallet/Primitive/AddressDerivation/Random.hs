@@ -63,7 +63,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
     , Index (..)
-    , KeyToAddress (..)
+    , PaymentAddress (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , PersistKey (..)
@@ -137,8 +137,8 @@ instance WalletKey RndKey where
     dummyKey = dummyKeyRnd
     keyTypeDescriptor _ = "rnd"
 
-instance KeyToAddress 'Testnet RndKey where
-    keyToAddress k = Address
+instance PaymentAddress 'Testnet RndKey where
+    paymentAddress k = Address
         $ CBOR.toStrictByteString
         $ CBOR.encodeAddress (getRawKey k)
             [ CBOR.encodeDerivationPathAttr pwd acctIx addrIx
@@ -149,8 +149,8 @@ instance KeyToAddress 'Testnet RndKey where
         (acctIx, addrIx) = derivationPath k
         pwd = payloadPassphrase k
 
-instance KeyToAddress 'Mainnet RndKey where
-    keyToAddress k = Address
+instance PaymentAddress 'Mainnet RndKey where
+    paymentAddress k = Address
         $ CBOR.toStrictByteString
         $ CBOR.encodeAddress (getRawKey k)
             [ CBOR.encodeDerivationPathAttr pwd acctIx addrIx ]

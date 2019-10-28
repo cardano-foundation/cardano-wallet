@@ -33,7 +33,7 @@ import Cardano.Wallet.Jormungandr.Compatibility
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (AddressK), KeyToAddress, Passphrase (..), WalletKey (..), XPrv )
+    ( Depth (AddressK), PaymentAddress, Passphrase (..), WalletKey (..), XPrv )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
     ( RndKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
@@ -72,7 +72,7 @@ import qualified Data.ByteString.Lazy as BL
 newTransactionLayer
     :: forall n k t.
         ( t ~ Jormungandr
-        , KeyToAddress n k
+        , PaymentAddress n k
         , MkTxWitness k
         )
     => Hash "Genesis"

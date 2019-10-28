@@ -50,7 +50,7 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx (..), block0, genesisParameters )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
-    , KeyToAddress (..)
+    , PaymentAddress (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , WalletKey (..)
@@ -478,7 +478,7 @@ benchPutSeqState numCheckpoints numAddrs db =
         ]
 
 mkPool
-    :: forall t c. (KeyToAddress t SeqKey, Typeable c)
+    :: forall t c. (PaymentAddress t SeqKey, Typeable c)
     => Int -> Int -> AddressPool t c
 mkPool numAddrs i = mkAddressPool ourAccount defaultAddressPoolGap addrs
   where
