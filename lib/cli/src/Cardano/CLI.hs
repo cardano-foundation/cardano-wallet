@@ -57,9 +57,6 @@ module Cardano.CLI
     , verbosityToArgs
     , verbosityToMinSeverity
 
-    -- * Unicode Terminal Helpers
-    , setUtf8Encoding
-
     -- * ANSI Terminal Helpers
     , putErrLn
     , hPutErrLn
@@ -173,8 +170,6 @@ import Fmt
     ( Buildable, pretty )
 import GHC.Generics
     ( Generic )
-import GHC.IO.Encoding
-    ( setLocaleEncoding )
 import GHC.TypeLits
     ( Symbol )
 import Network.HTTP.Client
@@ -244,11 +239,8 @@ import System.IO
     , hPutChar
     , hSetBuffering
     , hSetEcho
-    , hSetEncoding
     , stderr
     , stdin
-    , stdout
-    , utf8
     )
 
 import qualified Cardano.BM.Configuration.Model as CM
@@ -375,9 +367,9 @@ cmdWalletCreate = command "create" $ info (helper <*> cmd) $ mempty
             getLine prompt parser
         wSndFactor <- do
             let prompt =
-                    "(Enter a blank line if you do not wish to use a second \
-                    \factor.)\n\
-                    \Please enter a 9–12 word mnemonic second factor: "
+                    "(Enter a blank line if you do not wish to use a second " <>
+                    "factor.)\n" <>
+                    "Please enter a 9–12 word mnemonic second factor: "
             let parser =
                     optionalE (fromMnemonic @'[9,12] @"generation") . T.words
             getLine prompt parser <&> \case
@@ -837,8 +829,8 @@ paymentOption = optionT $ mempty
     <> long "payment"
     <> metavar "PAYMENT"
     <> help
-        "address to send to and amount to send separated by @\
-        \, e.g. '<amount>@<address>'"
+        ("address to send to and amount to send separated by @" <>
+        ", e.g. '<amount>@<address>'")
 
 -- | [--address-pool-gap=INT], default: 20
 poolGapOption :: Parser AddressPoolGap
@@ -1225,18 +1217,6 @@ withLogging configFile minSeverity action = bracket before after (action . snd)
     after (sb, (_, tr)) = do
         logDebug tr "Logging shutdown."
         shutdown sb
-
-{-------------------------------------------------------------------------------
-                            Unicode Terminal Helpers
--------------------------------------------------------------------------------}
-
--- | Override the system output encoding setting. This is needed because the CLI
--- prints UTF-8 characters regardless of the @LANG@ environment variable.
-setUtf8Encoding :: IO ()
-setUtf8Encoding = do
-    setLocaleEncoding utf8
-    hSetEncoding stdout utf8
-    hSetEncoding stderr utf8
 
 {-------------------------------------------------------------------------------
                             ANSI Terminal Helpers

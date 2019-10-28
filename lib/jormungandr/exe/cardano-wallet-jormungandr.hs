@@ -47,7 +47,6 @@ import Cardano.CLI
     , optionT
     , requireFilePath
     , runCli
-    , setUtf8Encoding
     , setupDirectory
     , stateDirOption
     , verbosityOption
@@ -55,7 +54,7 @@ import Cardano.CLI
     , withLogging
     )
 import Cardano.Launcher
-    ( StdStream (..) )
+    ( StdStream (..), setUtf8Encoding )
 import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..) )
 import Cardano.Wallet.Jormungandr

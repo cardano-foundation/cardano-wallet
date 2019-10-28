@@ -7,9 +7,8 @@
 -- Copyright: © 2018-2019 IOHK
 -- License: Apache-2.0
 --
--- This module contains a mechanism for launching external processes together,
--- and provides the functionality needed to kill them all if one goes down.
--- (would be achieved using @monitor@ and @kill@ in combination)
+-- This module contains a mechanism for launching external processes, ensuring
+-- that they are terminated on exceptions.
 
 module Cardano.Launcher
     ( Command (..)
@@ -17,7 +16,10 @@ module Cardano.Launcher
     , ProcessHasExited(..)
     , launch
     , withBackendProcess
+
+    -- * Program startup
     , installSignalHandlers
+    , setUtf8Encoding
 
     -- * Logging
     , LauncherLog(..)
@@ -65,6 +67,9 @@ import GHC.Generics
     ( Generic )
 import System.Exit
     ( ExitCode (..) )
+import System.IO
+    ( hSetEncoding, mkTextEncoding, stderr, stdin, stdout )
+
 import System.Process
     ( CreateProcess (..)
     , StdStream (..)
@@ -74,9 +79,11 @@ import System.Process
     , withCreateProcess
     )
 
-#ifdef mingw32_HOST_OS
+#ifdef WINDOWS
 import Cardano.Launcher.Windows
     ( installSignalHandlers )
+import System.Win32.Console
+    ( setConsoleCP, setConsoleOutputCP )
 #else
 import Cardano.Launcher.POSIX
     ( installSignalHandlers )
@@ -233,3 +240,28 @@ launcherLogText (MsgLauncherFinish (ProcessHasExited name code)) =
 launcherLogText (MsgLauncherFinish (ProcessDidNotStart name _e)) =
     "Could not start "+|name|+""
 launcherLogText MsgLauncherCleanup = "Terminating child process"
+
+{-------------------------------------------------------------------------------
+                            Unicode Terminal Helpers
+-------------------------------------------------------------------------------}
+
+-- | Force the locale text encoding to UTF-8. This is needed because the CLI
+-- prints UTF-8 characters regardless of the @LANG@ environment variable or any
+-- other settings.
+--
+-- On Windows the current console code page is changed to UTF-8.
+setUtf8Encoding :: IO ()
+#if WINDOWS
+setUtf8Encoding = do
+    let utf8CodePage = 65001
+    setConsoleCP utf8CodePage
+    setConsoleOutputCP utf8CodePage
+    setUtf8EncodingHandles
+#else
+setUtf8Encoding = setUtf8EncodingHandles
+#endif
+
+setUtf8EncodingHandles :: IO ()
+setUtf8EncodingHandles = do
+    utf8' <- mkTextEncoding "UTF-8//TRANSLIT"
+    mapM_ (`hSetEncoding` utf8') [stdin, stdout, stderr]
