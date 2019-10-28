@@ -406,9 +406,12 @@ coreApiServer ctx =
     :<|> network ctx
 
 stakePoolServer
-    :: forall t. DefineTx t
+    :: forall n k.
+        ( PaymentAddress n k
+        , k ~ ShelleyKey
+        )
     => StakePoolLayer IO
-    -> Server (StakePoolApi t)
+    -> Server (StakePoolApi n)
 stakePoolServer = pools
 
 {-------------------------------------------------------------------------------
@@ -749,9 +752,12 @@ postTransactionFee ctx (ApiT wid) body = do
 -------------------------------------------------------------------------------}
 
 pools
-    :: forall t. DefineTx t
+    :: forall n k.
+        ( PaymentAddress n k
+        , k ~ ShelleyKey
+        )
     => StakePoolLayer IO
-    -> Server (StakePoolApi t)
+    -> Server (StakePoolApi n)
 pools spl =
     listPools spl
     :<|> putStakeInPool
@@ -775,19 +781,25 @@ listPools spl = liftHandler (map mkApiStakePool <$> listStakePools spl)
             (StakePoolMetrics (Quantity $ fromIntegral stake) blocks)
 
 putStakeInPool
-    :: forall t. DefineTx t
+    :: forall n k.
+        ( PaymentAddress n k
+        , k ~ ShelleyKey
+        )
     => ApiT PoolId
     -> ApiT WalletId
     -> ApiWalletPassphrase
-    -> Handler (ApiTransaction t)
+    -> Handler (ApiTransaction n)
 putStakeInPool _ _ _ = throwError err501
 
 deleteStakeInPool
-    :: forall t. DefineTx t
+    :: forall n k.
+        ( PaymentAddress n k
+        , k ~ ShelleyKey
+        )
     => ApiT PoolId
     -> ApiT WalletId
     -> ApiWalletPassphrase
-    -> Handler (ApiTransaction t)
+    -> Handler (ApiTransaction n)
 deleteStakeInPool _ _ _ = throwError err501
 
 {-------------------------------------------------------------------------------
