@@ -876,9 +876,8 @@ instance (Arbitrary a, Ord a) => Arbitrary (NonSingletonRange a) where
         ranges <- infiniteList
         pure $ head $ catMaybes $
             makeNonSingletonRangeValid . NonSingletonRange <$> ranges
-    shrink (NonSingletonRange (Range x y)) = catMaybes $
-        makeNonSingletonRangeValid . NonSingletonRange . uncurry Range
-            <$> shrink (x, y)
+    shrink (NonSingletonRange r) = catMaybes $
+        makeNonSingletonRangeValid . NonSingletonRange <$> shrink r
 
 -- Ensures that a range is not a singleton range.
 makeNonSingletonRangeValid
