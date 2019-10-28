@@ -26,9 +26,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , XPrv
     , XPub
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Sequential
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ChangeChain (..)
-    , SeqKey (..)
+    , ShelleyKey (..)
     , deriveAddressPublicKey
     , unsafeGenerateKeyFromSeed
     )
@@ -332,7 +332,7 @@ prop_lookupDiscovered
 prop_lookupDiscovered (s0, addr) =
     let (ours, s) = isOurs addr s0 in ours ==> prop s
   where
-    key = unsafeGenerateKeyFromSeed (mempty, mempty) mempty :: SeqKey 'RootK XPrv
+    key = unsafeGenerateKeyFromSeed (mempty, mempty) mempty :: ShelleyKey 'RootK XPrv
     prop s = monadicIO $ liftIO $ do
         unless (isJust $ isOwned s (key, mempty) addr) $ do
             expectationFailure "couldn't find private key corresponding to addr"
@@ -414,7 +414,7 @@ prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) =
 -------------------------------------------------------------------------------}
 
 ourAccount
-    :: SeqKey 'AccountK XPub
+    :: ShelleyKey 'AccountK XPub
 ourAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, mempty) mempty
   where
     seed = Passphrase $ BA.convert $ BS.replicate 32 0
@@ -458,7 +458,7 @@ instance Arbitrary Address where
         notOurs = do
             bytes <- Passphrase . BA.convert . BS.pack . take 32 . getInfiniteList
                 <$> arbitrary
-            let xprv = unsafeGenerateKeyFromSeed (bytes, mempty) mempty :: SeqKey 'AddressK XPrv
+            let xprv = unsafeGenerateKeyFromSeed (bytes, mempty) mempty :: ShelleyKey 'AddressK XPrv
             return $ paymentAddress @'Testnet $ publicKey xprv
 
 instance Typeable chain => Arbitrary (AddressPool 'Testnet chain) where

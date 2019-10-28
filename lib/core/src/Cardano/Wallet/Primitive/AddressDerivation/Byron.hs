@@ -26,9 +26,9 @@
 -- see the "Cardano.Crypto.Wallet" module, and the implementation in
 -- <https://github.com/input-output-hk/cardano-crypto/blob/4590efa638397e952a51a8994b5543e4ea3c1ecd/cbits/encrypted_sign.c cardano-crypto>.
 
-module Cardano.Wallet.Primitive.AddressDerivation.Random
+module Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( -- * Types
-      RndKey(..)
+      ByronKey(..)
 
       -- * Generation
     , unsafeGenerateKeyFromSeed
@@ -102,7 +102,7 @@ import qualified Data.ByteString.Lazy as BL
 
 -- | Material for deriving HD random scheme keys, which can be used for making
 -- addresses.
-data RndKey (depth :: Depth) key = RndKey
+data ByronKey (depth :: Depth) key = ByronKey
     { getKey :: key
     -- ^ The raw private or public key.
     , derivationPath :: DerivationPath depth
@@ -111,9 +111,9 @@ data RndKey (depth :: Depth) key = RndKey
     -- ^ Used for encryption of payload containing address derivation path.
     } deriving stock (Generic)
 
-instance (NFData key, NFData (DerivationPath depth)) => NFData (RndKey depth key)
-deriving instance (Show key, Show (DerivationPath depth)) => Show (RndKey depth key)
-deriving instance (Eq key, Eq (DerivationPath depth)) => Eq (RndKey depth key)
+instance (NFData key, NFData (DerivationPath depth)) => NFData (ByronKey depth key)
+deriving instance (Show key, Show (DerivationPath depth)) => Show (ByronKey depth key)
+deriving instance (Eq key, Eq (DerivationPath depth)) => Eq (ByronKey depth key)
 
 -- | The hierarchical derivation indices for a given level/depth.
 type family DerivationPath (depth :: Depth) :: * where
@@ -127,7 +127,7 @@ type family DerivationPath (depth :: Depth) :: * where
     DerivationPath 'AddressK =
         (Index 'Hardened 'AccountK, Index 'Hardened 'AddressK)
 
-instance WalletKey RndKey where
+instance WalletKey ByronKey where
     changePassphrase = changePassphraseRnd
     -- Extract the public key part of a private key.
     publicKey = mapKey toXPub
@@ -137,7 +137,7 @@ instance WalletKey RndKey where
     dummyKey = dummyKeyRnd
     keyTypeDescriptor _ = "rnd"
 
-instance PaymentAddress 'Testnet RndKey where
+instance PaymentAddress 'Testnet ByronKey where
     paymentAddress k = Address
         $ CBOR.toStrictByteString
         $ CBOR.encodeAddress (getRawKey k)
@@ -149,7 +149,7 @@ instance PaymentAddress 'Testnet RndKey where
         (acctIx, addrIx) = derivationPath k
         pwd = payloadPassphrase k
 
-instance PaymentAddress 'Mainnet RndKey where
+instance PaymentAddress 'Mainnet ByronKey where
     paymentAddress k = Address
         $ CBOR.toStrictByteString
         $ CBOR.encodeAddress (getRawKey k)
@@ -191,7 +191,7 @@ minSeedLengthBytes = 16
 generateKeyFromSeed
     :: Passphrase "seed"
     -> Passphrase "encryption"
-    -> RndKey 'RootK XPrv
+    -> ByronKey 'RootK XPrv
 generateKeyFromSeed = unsafeGenerateKeyFromSeed ()
 
 -- | Generate a new key from seed. Note that the @depth@ is left open so that
@@ -202,8 +202,8 @@ unsafeGenerateKeyFromSeed
     :: DerivationPath depth
     -> Passphrase "seed"
     -> Passphrase "encryption"
-    -> RndKey depth XPrv
-unsafeGenerateKeyFromSeed derivationPath (Passphrase seed) (Passphrase pwd) = RndKey
+    -> ByronKey depth XPrv
+unsafeGenerateKeyFromSeed derivationPath (Passphrase seed) (Passphrase pwd) = ByronKey
     { getKey = masterKey
     , derivationPath
     , payloadPassphrase = hdPassphrase (toXPub masterKey)
@@ -249,8 +249,8 @@ hdPassphrase masterKey = Passphrase $
     (unXPub masterKey)
     ("address-hashing" :: ByteString)
 
-dummyKeyRnd :: RndKey 'AddressK XPub
-dummyKeyRnd = RndKey key (minBound, minBound) pwd
+dummyKeyRnd :: ByronKey 'AddressK XPub
+dummyKeyRnd = ByronKey key (minBound, minBound) pwd
   where
     Right key = xpub (B8.replicate 64 '\0')
     -- The 'hdPassphrase' result is 256 bits
@@ -270,9 +270,9 @@ dummyKeyRnd = RndKey key (minBound, minBound) pwd
 changePassphraseRnd
     :: Passphrase "encryption-old"
     -> Passphrase "encryption-new"
-    -> RndKey depth XPrv
-    -> RndKey depth XPrv
-changePassphraseRnd (Passphrase oldPwd) (Passphrase newPwd) key = RndKey
+    -> ByronKey depth XPrv
+    -> ByronKey depth XPrv
+changePassphraseRnd (Passphrase oldPwd) (Passphrase newPwd) key = ByronKey
     { getKey = masterKey
     , derivationPath = derivationPath key
     , payloadPassphrase = hdPassphrase (toXPub masterKey)
@@ -293,10 +293,10 @@ changePassphraseRnd (Passphrase oldPwd) (Passphrase newPwd) key = RndKey
 -- doesn't belong to the wallet.
 deriveAccountPrivateKey
     :: Passphrase "encryption"
-    -> RndKey 'RootK XPrv
+    -> ByronKey 'RootK XPrv
     -> Index 'Hardened 'AccountK
-    -> RndKey 'AccountK XPrv
-deriveAccountPrivateKey (Passphrase pwd) masterKey idx@(Index accIx) = RndKey
+    -> ByronKey 'AccountK XPrv
+deriveAccountPrivateKey (Passphrase pwd) masterKey idx@(Index accIx) = ByronKey
     { getKey = deriveXPrv DerivationScheme1 pwd (getKey masterKey) accIx
     , derivationPath = idx
     , payloadPassphrase = payloadPassphrase masterKey
@@ -311,10 +311,10 @@ deriveAccountPrivateKey (Passphrase pwd) masterKey idx@(Index accIx) = RndKey
 -- doesn't belong to the wallet.
 deriveAddressPrivateKey
     :: Passphrase "encryption"
-    -> RndKey 'AccountK XPrv
+    -> ByronKey 'AccountK XPrv
     -> Index 'Hardened 'AddressK
-    -> RndKey 'AddressK XPrv
-deriveAddressPrivateKey (Passphrase pwd) accountKey idx@(Index addrIx) = RndKey
+    -> ByronKey 'AddressK XPrv
+deriveAddressPrivateKey (Passphrase pwd) accountKey idx@(Index addrIx) = ByronKey
     { getKey = deriveXPrv DerivationScheme1 pwd (getKey accountKey) addrIx
     , derivationPath = (derivationPath accountKey, idx)
     , payloadPassphrase = payloadPassphrase accountKey
@@ -324,7 +324,7 @@ deriveAddressPrivateKey (Passphrase pwd) accountKey idx@(Index addrIx) = RndKey
                           Storing and retrieving keys
 -------------------------------------------------------------------------------}
 
-instance PersistKey RndKey where
+instance PersistKey ByronKey where
     serializeXPrv = serializeXPrvRnd
     deserializeXPrv = deserializeXPrvRnd
 
@@ -345,9 +345,9 @@ deserializeKey f b = case map (convertFromBase Base16) (B8.split ':' b) of
     _ -> Left "Key input must be two hex strings separated by :"
 
 serializeXPrvRnd
-    :: (RndKey 'RootK XPrv, Hash "encryption")
+    :: (ByronKey 'RootK XPrv, Hash "encryption")
     -> (ByteString, ByteString)
-serializeXPrvRnd (RndKey k _ p, h) =
+serializeXPrvRnd (ByronKey k _ p, h) =
     ( serializeKey (unXPrv k, p)
     , convertToBase Base16 . getHash $ h )
 
@@ -356,18 +356,18 @@ serializeXPrvRnd (RndKey k _ p, h) =
 deserializeXPrvRnd
     :: (ByteString, ByteString)
        -- ^ Hexadecimal encoded private key and password hash
-    -> Either String (RndKey 'RootK XPrv, Hash "encryption")
+    -> Either String (ByronKey 'RootK XPrv, Hash "encryption")
 deserializeXPrvRnd (k, h) = (,)
     <$> fmap mkKey (rootKeyFromText k)
     <*> fmap Hash (convertFromBase Base16 h)
   where
     rootKeyFromText = deserializeKey xprv
-    mkKey (key, pwd) = RndKey key () pwd
+    mkKey (key, pwd) = ByronKey key () pwd
 
 -- | A root key of all zeroes that is used when restoring 'RndState' from the
 -- database before a root key has been saved.
-nullKey :: RndKey 'RootK XPrv
-nullKey = RndKey k () pwd
+nullKey :: ByronKey 'RootK XPrv
+nullKey = ByronKey k () pwd
   where
     Right k = xprv $ B8.replicate 128 '\0'
     pwd = Passphrase (BA.convert $ B8.replicate 32 '\0')
@@ -377,5 +377,5 @@ nullKey = RndKey k () pwd
 -------------------------------------------------------------------------------}
 
 -- | Transform the wrapped key.
-mapKey :: (key -> key') -> RndKey depth key -> RndKey depth key'
+mapKey :: (key -> key') -> ByronKey depth key -> ByronKey depth key'
 mapKey f rnd = rnd { getKey = f (getKey rnd) }

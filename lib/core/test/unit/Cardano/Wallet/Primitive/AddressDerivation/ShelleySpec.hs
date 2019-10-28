@@ -5,7 +5,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.Primitive.AddressDerivation.SequentialSpec
+module Cardano.Wallet.Primitive.AddressDerivation.ShelleySpec
     ( spec
     ) where
 
@@ -23,9 +23,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , XPub (..)
     , paymentAddress
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Sequential
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ChangeChain (..)
-    , SeqKey (..)
+    , ShelleyKey (..)
     , deriveAccountPrivateKey
     , deriveAddressPrivateKey
     , deriveAddressPublicKey
@@ -78,12 +78,12 @@ spec = do
 
         it "throws when encoding XPub of invalid length (Mainnet)" $ do
             let msg = "length was 2, but expected to be 33"
-            evaluate (paymentAddress @'Mainnet (SeqKey $ XPub "\148" cc))
+            evaluate (paymentAddress @'Mainnet (ShelleyKey $ XPub "\148" cc))
                 `shouldThrow` userException msg
 
         it "throws when encoding XPub of invalid length (Testnet)" $ do
             let msg = "length was 2, but expected to be 33"
-            evaluate (paymentAddress @'Testnet (SeqKey $ XPub "\148" cc))
+            evaluate (paymentAddress @'Testnet (ShelleyKey $ XPub "\148" cc))
                 `shouldThrow` userException msg
 
 {-------------------------------------------------------------------------------
@@ -123,7 +123,7 @@ prop_publicChildKeyDerivation
 prop_publicChildKeyDerivation (seed, recPwd) encPwd cc ix =
     addrXPub1 === addrXPub2
   where
-    accXPrv = unsafeGenerateKeyFromSeed (seed, recPwd) encPwd :: SeqKey 'AccountK XPrv
+    accXPrv = unsafeGenerateKeyFromSeed (seed, recPwd) encPwd :: ShelleyKey 'AccountK XPrv
     -- N(CKDpriv((kpar, cpar), i))
     addrXPub1 = publicKey $ deriveAddressPrivateKey encPwd accXPrv cc ix
     -- CKDpub(N(kpar, cpar), i)
@@ -137,7 +137,7 @@ prop_accountKeyDerivation
 prop_accountKeyDerivation (seed, recPwd) encPwd ix =
     accXPub `seq` property () -- NOTE Making sure this doesn't throw
   where
-    rootXPrv = generateKeyFromSeed (seed, recPwd) encPwd :: SeqKey 'RootK XPrv
+    rootXPrv = generateKeyFromSeed (seed, recPwd) encPwd :: ShelleyKey 'RootK XPrv
     accXPub = deriveAccountPrivateKey encPwd rootXPrv ix
 
 {-------------------------------------------------------------------------------

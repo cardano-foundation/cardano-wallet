@@ -862,7 +862,7 @@ import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr, NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( PaymentAddress (..), Passphrase (..), publicKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Random
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( deriveAccountPrivateKey, deriveAddressPrivateKey, generateKeyFromSeed )
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToBytes

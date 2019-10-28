@@ -32,10 +32,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , networkDiscriminantVal
     , publicKey
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( RndKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( SeqKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
@@ -59,8 +59,8 @@ import Test.Hspec
 import Test.QuickCheck
     ( property )
 
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Random as Rnd
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Sequential as Seq
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Rnd
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map as Map
@@ -79,10 +79,10 @@ estimateMaxNumberOfInputsSpec :: Spec
 estimateMaxNumberOfInputsSpec = describe "estimateMaxNumberOfInputs" $ do
     it "Property for mainnet addresses" $
         property $ propMaxNumberOfInputsEstimation
-        (newTransactionLayer @'Mainnet (Hash "") :: TransactionLayer Jormungandr SeqKey)
+        (newTransactionLayer @'Mainnet (Hash "") :: TransactionLayer Jormungandr ShelleyKey)
     it "Property for testnet addresses" $
         property $ propMaxNumberOfInputsEstimation
-        (newTransactionLayer @'Testnet (Hash "") :: TransactionLayer Jormungandr SeqKey)
+        (newTransactionLayer @'Testnet (Hash "") :: TransactionLayer Jormungandr ShelleyKey)
 
 {-------------------------------------------------------------------------------
                                   mkStdTx
@@ -409,7 +409,7 @@ goldenTestStdTx tl keystore inps outs bytes' = it title $ do
 
 xprvSeqFromSeed
     :: ByteString
-    -> (SeqKey depth XPrv, Passphrase "encryption")
+    -> (ShelleyKey depth XPrv, Passphrase "encryption")
 xprvSeqFromSeed seed =
     ( Seq.unsafeGenerateKeyFromSeed (Passphrase (BA.convert seed), mempty) pwd
     , pwd
@@ -419,7 +419,7 @@ xprvSeqFromSeed seed =
 
 xprvRndFromSeed
     :: ByteString
-    -> (RndKey 'AddressK XPrv, Passphrase "encryption")
+    -> (ByronKey 'AddressK XPrv, Passphrase "encryption")
 xprvRndFromSeed seed =
     ( Rnd.unsafeGenerateKeyFromSeed derPath (Passphrase $ BA.convert seed) pwd
     , pwd
@@ -436,7 +436,7 @@ hex :: ByteString -> ByteString
 hex = convertToBase Base16
 
 unknownInputTest
-    :: forall n. (PaymentAddress n SeqKey, NetworkDiscriminantVal n)
+    :: forall n. (PaymentAddress n ShelleyKey, NetworkDiscriminantVal n)
     => Proxy n
     -> Hash "Genesis"
     -> SpecWith ()
@@ -445,7 +445,7 @@ unknownInputTest _ block0 = it title $ do
             xprvSeqFromSeed "address-number-0"
     let res = mkStdTx tl keyFrom inps outs
           where
-            tl = newTransactionLayer @n @SeqKey block0
+            tl = newTransactionLayer @n @ShelleyKey block0
             keyFrom = const Nothing
             inps =
                 [ ( TxIn (Hash "arbitrary") 0
@@ -460,7 +460,7 @@ unknownInputTest _ block0 = it title $ do
         <> ")"
 
 tooNumerousInpsTest
-    :: forall n. (PaymentAddress n SeqKey, NetworkDiscriminantVal n)
+    :: forall n. (PaymentAddress n ShelleyKey, NetworkDiscriminantVal n)
     => Proxy n
     -> Hash "Genesis"
     -> SpecWith ()
@@ -469,7 +469,7 @@ tooNumerousInpsTest _ block0 = it title $ do
             xprvSeqFromSeed "address-number-0"
     let res = validateSelection tl (CoinSelection inps outs chngs)
           where
-            tl = newTransactionLayer @n @SeqKey block0
+            tl = newTransactionLayer @n @ShelleyKey block0
             inps = replicate 256
                 ( TxIn (Hash "arbitrary") 0
                 , TxOut addr (Coin 1)
@@ -483,7 +483,7 @@ tooNumerousInpsTest _ block0 = it title $ do
         <> ")"
 
 tooNumerousOutsTest
-    :: forall n. (PaymentAddress n SeqKey, NetworkDiscriminantVal n)
+    :: forall n. (PaymentAddress n ShelleyKey, NetworkDiscriminantVal n)
     => Proxy n
     -> Hash "Genesis"
     -> SpecWith ()
@@ -492,7 +492,7 @@ tooNumerousOutsTest _ block0 = it title $ do
             xprvSeqFromSeed "address-number-0"
     let res = validateSelection tl (CoinSelection inps outs chngs)
           where
-            tl = newTransactionLayer @n @SeqKey block0
+            tl = newTransactionLayer @n @ShelleyKey block0
             inps = replicate 255
                 ( TxIn (Hash "arbitrary") 0
                 , TxOut addr (Coin 10)

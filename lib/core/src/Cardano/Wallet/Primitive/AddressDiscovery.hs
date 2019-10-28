@@ -36,9 +36,9 @@ import Cardano.Crypto.Wallet
     ( XPrv )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), NetworkDiscriminant (..), Passphrase (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Random
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( decodeLegacyAddress )
-import Cardano.Wallet.Primitive.AddressDerivation.Sequential
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( decodeShelleyAddress )
 import Cardano.Wallet.Primitive.Types
     ( Address (..) )

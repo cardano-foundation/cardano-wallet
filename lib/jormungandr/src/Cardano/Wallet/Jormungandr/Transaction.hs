@@ -34,10 +34,10 @@ import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (AddressK), PaymentAddress, Passphrase (..), WalletKey (..), XPrv )
-import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( RndKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( SeqKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
@@ -125,11 +125,11 @@ newTransactionLayer (Hash block0H) = TransactionLayer
 --
 -- We have tightly coupled the type of witness to the type of key for because:
 --
--- - RndKey can only be used with legacy / Byron wallets as they require a
+-- - ByronKey can only be used with legacy / Byron wallets as they require a
 --   special address structure (to embed the derivation path).
 --
--- - SeqKey could theorically be used with the legacy address structure (as
--- Yoroi does) however, our implementation only associate SeqKey to new
+-- - ShelleyKey could theorically be used with the legacy address structure (as
+-- Yoroi does) however, our implementation only associate ShelleyKey to new
 -- addresses.
 class MkTxWitness (k :: Depth -> * -> *) where
     mkTxWitness
@@ -137,10 +137,10 @@ class MkTxWitness (k :: Depth -> * -> *) where
         -> ByteString
         -> TxWitness
 
-instance MkTxWitness SeqKey where
+instance MkTxWitness ShelleyKey where
     mkTxWitness _ = utxoWitness
 
-instance MkTxWitness RndKey where
+instance MkTxWitness ByronKey where
     mkTxWitness xprv = legacyUtxoWitness xpub
       where
         xpub = getRawKey $ publicKey xprv

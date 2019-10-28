@@ -35,7 +35,7 @@ import Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..), Passphrase (..), fromMnemonic )
-import Cardano.Wallet.Primitive.AddressDerivation.Sequential
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( EncodeAddress (..), GenChange (..), IsOwned (..) )

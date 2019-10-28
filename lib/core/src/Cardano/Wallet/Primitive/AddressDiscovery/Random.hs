@@ -42,8 +42,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , XPrv
     , publicKey
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( RndKey (..), deriveAccountPrivateKey, deriveAddressPrivateKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey (..), deriveAccountPrivateKey, deriveAddressPrivateKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
@@ -75,7 +75,7 @@ import qualified Data.Set as Set
 
 -- | HD random address discovery state and key material for AD.
 data RndState (network :: NetworkDiscriminant) = RndState
-    { rndKey :: RndKey 'RootK XPrv
+    { rndKey :: ByronKey 'RootK XPrv
     -- ^ The wallet root key.
     , accountIndex :: Index 'Hardened 'AccountK
     -- ^ The account index used for address _generation_ in this wallet. Note
@@ -121,13 +121,13 @@ instance IsOurs (RndState n) where
       where
         path = addressToPath addr rndKey
 
-instance IsOwned (RndState n) RndKey where
+instance IsOwned (RndState n) ByronKey where
     isOwned (st@RndState{rndKey}) (_,pwd) addr =
         (, pwd) . deriveAddressKeyFromPath st pwd <$> addressToPath addr rndKey
 
 addressToPath
     :: Address
-    -> RndKey 'RootK XPrv
+    -> ByronKey 'RootK XPrv
     -> Maybe DerivationPath
 addressToPath (Address addr) key = do
     let pwd = payloadPassphrase key
@@ -136,7 +136,7 @@ addressToPath (Address addr) key = do
 
 -- | Initialize the HD random address discovery state from a root key and RNG
 -- seed.
-mkRndState :: RndKey 'RootK XPrv -> Int -> RndState n
+mkRndState :: ByronKey 'RootK XPrv -> Int -> RndState n
 mkRndState key seed = RndState
     { rndKey = key
     , accountIndex = minBound
@@ -154,7 +154,7 @@ addDiscoveredAddress addr path st =
     st { addresses = Map.insert path addr (addresses st)
        , pendingAddresses = Map.delete path (pendingAddresses st) }
 
-instance PaymentAddress n RndKey => GenChange (RndState n) where
+instance PaymentAddress n ByronKey => GenChange (RndState n) where
     type ArgGenChange (RndState n) = Passphrase "encryption"
     genChange pwd st = (address, st')
       where
@@ -203,7 +203,7 @@ deriveAddressKeyFromPath
     :: RndState n
     -> Passphrase "encryption"
     -> DerivationPath
-    -> RndKey 'AddressK XPrv
+    -> ByronKey 'AddressK XPrv
 deriveAddressKeyFromPath st passphrase (accIx, addrIx) = addrXPrv
   where
     accXPrv = deriveAccountPrivateKey passphrase (rndKey st) accIx
@@ -211,7 +211,7 @@ deriveAddressKeyFromPath st passphrase (accIx, addrIx) = addrXPrv
 
 -- | Use the key material in 'RndState' to derive a change address.
 deriveRndStateAddress
-    :: forall n. (PaymentAddress n RndKey)
+    :: forall n. (PaymentAddress n ByronKey)
     => RndState n
     -> Passphrase "encryption"
     -> DerivationPath

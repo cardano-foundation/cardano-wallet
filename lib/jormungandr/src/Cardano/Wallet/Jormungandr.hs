@@ -72,10 +72,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PersistKey
     , networkDiscriminantVal
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( RndKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( SeqKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( DecodeAddress, EncodeAddress, IsOurs )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
@@ -132,8 +132,8 @@ serveWallet
         , NetworkDiscriminantVal n
         , DecodeAddress n
         , EncodeAddress n
-        , PaymentAddress n RndKey
-        , PaymentAddress n SeqKey
+        , PaymentAddress n ByronKey
+        , PaymentAddress n ShelleyKey
         )
     => (CM.Configuration, Trace IO Text)
     -- ^ Logging config.
@@ -170,8 +170,8 @@ serveWallet (cfg, tr) databaseDir hostPref listen lj beforeMainLoop = do
         :: Trace IO Text
         -> Port "node"
         -> BlockchainParameters
-        -> ApiLayer (RndState n) t RndKey
-        -> ApiLayer (SeqState n) t SeqKey
+        -> ApiLayer (RndState n) t ByronKey
+        -> ApiLayer (SeqState n) t ShelleyKey
         -> StakePoolLayer IO
         -> IO ExitCode
     startServer tracer nPort bp rndWallet seqWallet spl = do
