@@ -305,11 +305,6 @@ spec = do
             let tx = (Tx (fragmentId [] outs []) [] outs, [])
             runExceptT (postTx nw tx) `shouldReturn` Right ()
 
-        it "throws when addresses and hashes have wrong length" $ \(nw, _) -> do
-            let out = TxOut (Address "<not an address>") (Coin 1227362560)
-            let tx = (Tx (fragmentId [] [out] []) [] [out], [])
-            runExceptT (postTx nw tx) `shouldThrow` anyException
-
         it "encoder throws an exception if tx is invalid (eg too many inputs)" $
             \(nw, _) -> do
             let inps = replicate 300 (head $ inputs txNonEmpty)
