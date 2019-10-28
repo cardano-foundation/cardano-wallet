@@ -64,7 +64,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationType (..)
     , Index (..)
     , KeyToAddress (..)
-    , Network (..)
+    , NetworkDiscriminant (..)
     , Passphrase (..)
     , PersistKey (..)
     , WalletKey (..)

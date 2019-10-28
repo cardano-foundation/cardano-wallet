@@ -15,7 +15,7 @@ import Cardano.CLI
 import Cardano.Wallet.Api.Types
     ( ApiTransaction, ApiUtxoStatistics, ApiWallet, getApiT )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Network (..) )
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( encodeAddress )
 import Cardano.Wallet.Primitive.Types

@@ -121,7 +121,12 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.Network
     ( ErrNetworkTip (..), ErrNetworkUnavailable (..), NetworkLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( KeyToAddress (..), Network, WalletKey (..), digest, publicKey )
+    ( KeyToAddress (..)
+    , NetworkDiscriminant
+    , WalletKey (..)
+    , digest
+    , publicKey
+    )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
     ( RndKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
@@ -288,7 +293,7 @@ data Listen
 
 -- | Start the application server, using the given settings and a bound socket.
 start
-    :: forall t (n :: Network).
+    :: forall t (n :: NetworkDiscriminant).
         ( Buildable (ErrValidateSelection t)
         , DefineTx t
         , DecodeAddress n

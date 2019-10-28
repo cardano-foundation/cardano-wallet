@@ -68,7 +68,7 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx (..), block0, genesisParameters )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
-    , Network (..)
+    , NetworkDiscriminant (..)
     , Passphrase (..)
     , PersistKey
     , encryptPassphrase

@@ -18,7 +18,7 @@ import Cardano.Wallet.DB.Properties
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, block0, genesisParameters )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Network (..) )
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential

@@ -859,7 +859,7 @@ rndMnemonics = unsafeMkMnemonic <$>
 {-# LANGUAGE TypeApplications #-}
 
 import Cardano.Wallet.Jormungandr.Compatibility
-    ( Jormungandr, Network (..) )
+    ( Jormungandr, NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress (..), Passphrase (..), publicKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Random

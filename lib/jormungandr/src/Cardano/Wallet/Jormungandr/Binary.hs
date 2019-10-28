@@ -79,7 +79,7 @@ import Cardano.Crypto.Wallet
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Network (..) )
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
@@ -410,7 +410,7 @@ data ConfigParam
     = Block0Date W.StartTime
     -- ^ The official start time of the blockchain, in seconds since the Unix
     -- epoch.
-    | Discrimination Network
+    | Discrimination NetworkDiscriminant
     -- ^ Address discrimination. Testnet / Mainnet.
     | Consensus ConsensusVersion
     -- ^ Consensus version. BFT / Genesis Praos.
@@ -453,7 +453,7 @@ getConfigParam = label "getConfigParam" $ do
     let tag = taglen `shift` (-6)
     let len = fromIntegral $ taglen .&. (63) -- 0b111111
     isolate len $ case tag of
-        1 -> Discrimination <$> getNetwork
+        1 -> Discrimination <$> getNetworkDiscriminant
         2 -> Block0Date . W.StartTime . posixSecondsToUTCTime . fromIntegral <$> getWord64be
         3 -> Consensus <$> getConsensusVersion
         4 -> SlotsPerEpoch . W.EpochLength . fromIntegral  <$> getWord32be
@@ -495,8 +495,8 @@ getConsensusVersion = label "getConsensusVersion" $ getWord16be >>= \case
     2 -> return GenesisPraos
     other -> fail $ "Unknown consensus version: " ++ show other
 
-getNetwork :: Get Network
-getNetwork = label "getNetwork" $ getWord8 >>= \case
+getNetworkDiscriminant :: Get NetworkDiscriminant
+getNetworkDiscriminant = label "getNetworkDiscriminant" $ getWord8 >>= \case
     1 -> return Mainnet
     2 -> return Testnet
     other -> fail $ "Invalid network/discrimination value: " ++ show other

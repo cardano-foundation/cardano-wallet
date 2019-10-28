@@ -14,7 +14,7 @@ import Prelude
 import Cardano.Wallet.Api.Types
     ( ApiAddress, ApiTransaction, ApiWallet )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Network (..) )
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types

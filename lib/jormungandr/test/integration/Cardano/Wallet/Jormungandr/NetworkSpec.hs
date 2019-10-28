@@ -53,7 +53,7 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Network.BlockHeaders
     ( emptyBlockHeaders )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Network (..) )
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( SeqKey )
 import Cardano.Wallet.Primitive.Types

@@ -37,7 +37,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationType (..)
     , Index (..)
     , KeyToAddress (..)
-    , Network
+    , NetworkDiscriminant
     , Passphrase (..)
     , XPrv
     , publicKey
@@ -74,7 +74,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 -- | HD random address discovery state and key material for AD.
-data RndState (network :: Network) = RndState
+data RndState (network :: NetworkDiscriminant) = RndState
     { rndKey :: RndKey 'RootK XPrv
     -- ^ The wallet root key.
     , accountIndex :: Index 'Hardened 'AccountK

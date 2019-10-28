@@ -69,7 +69,7 @@ import Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation
     ( FromMnemonic (..)
-    , Network (..)
+    , NetworkDiscriminant (..)
     , Passphrase (..)
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
@@ -172,7 +172,7 @@ import qualified Data.Text.Encoding as T
                                   API Types
 -------------------------------------------------------------------------------}
 
-data ApiAddress (n :: Network) = ApiAddress
+data ApiAddress (n :: NetworkDiscriminant) = ApiAddress
     { id :: !(ApiT Address, Proxy n)
     , state :: !(ApiT AddressState)
     } deriving (Eq, Generic, Show)
@@ -269,7 +269,7 @@ data ApiTxInput n = ApiTxInput
     , input :: !(ApiT TxIn)
     } deriving (Eq, Generic, Show)
 
-data AddressAmount (n :: Network) = AddressAmount
+data AddressAmount (n :: NetworkDiscriminant) = AddressAmount
     { address :: !(ApiT Address, Proxy n)
     , amount :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
