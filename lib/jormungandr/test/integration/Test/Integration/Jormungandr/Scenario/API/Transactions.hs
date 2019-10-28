@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
@@ -67,6 +68,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( ToText (..) )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -78,6 +81,7 @@ import Test.Integration.Framework.DSL
     , TxDescription (..)
     , balanceAvailable
     , balanceTotal
+    , emptyByronWallet
     , emptyWallet
     , expectErrorMessage
     , expectEventually
@@ -101,6 +105,7 @@ import Test.Integration.Framework.DSL
     , prepExternalTxViaJcli
     , request
     , verify
+    , walletId
     , walletName
     )
 import Test.Integration.Framework.Request
@@ -108,6 +113,7 @@ import Test.Integration.Framework.Request
 import Test.Integration.Framework.TestData
     ( errMsg400MalformedTxPayload
     , errMsg403TxTooBig
+    , errMsg404CannotFindTx
     , errMsg405
     , errMsg406
     , errMsg415OctetStream
@@ -119,6 +125,7 @@ import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
+import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 
@@ -209,6 +216,38 @@ spec = do
 
         expectEventually' ctx getWalletEp balanceAvailable amt w
         expectEventually' ctx getWalletEp balanceTotal amt w
+
+    describe "TRANS_DELETE_05 - Cannot forget external tx -> 404" $ do
+        let txDeleteTest05 res eWallet = it (show res) $ \ctx -> do
+                -- post external tx
+                wal <- emptyWallet ctx
+                addr:_ <- listAddresses ctx wal
+                let addrStr = encodeAddress (Proxy @t) (getApiT $ fst $ addr ^. #id)
+                let amt = 1234
+
+                txBlob <- prepExternalTxViaJcli (ctx ^. typed @(Port "node")) addrStr amt
+                let payload = (NonJson . BL.fromStrict . toRawBytes Base16) txBlob
+                let headers = Headers
+                                [ ("Content-Type", "application/octet-stream")
+                                , ("Accept", "application/json")]
+
+                r <- request @ApiTxId ctx postExternalTxEp headers payload
+                let txId = toText $ getApiT$ getFromResponse #id r
+
+                -- try to forget external tx using wallet or byron-wallet
+                w <- eWallet ctx
+                let ep = "v2/" <> T.pack res <> "/" <> w ^. walletId
+                        <> "/transactions/" <> txId
+                ra <- request @ApiTxId @IO ctx ("DELETE", ep) Default Empty
+                expectResponseCode @IO HTTP.status404 ra
+                expectErrorMessage (errMsg404CannotFindTx txId) ra
+
+                -- tx eventually gets into ledger (funds are on the target wallet)
+                expectEventually' ctx getWalletEp balanceAvailable amt wal
+                expectEventually' ctx getWalletEp balanceTotal amt wal
+
+        txDeleteTest05 "wallets" emptyWallet
+        txDeleteTest05 "byron-wallets" emptyByronWallet
 
     it "TRANS_EXTERNAL_CREATE_01 - proper single output transaction and \
        \proper binary format" $ \ctx -> do
@@ -310,7 +349,6 @@ spec = do
             verify r expectations
 
   where
-
     externalTxHeaders
         :: (Show a)
         => [( String

@@ -15,7 +15,14 @@ module Test.Integration.Scenario.API.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiFee, ApiT, ApiTransaction, ApiTxId (..), ApiWallet, insertedAt, time )
+    ( ApiFee
+    , ApiT (..)
+    , ApiTransaction
+    , ApiTxId (..)
+    , ApiWallet
+    , insertedAt
+    , time
+    )
 import Cardano.Wallet.Primitive.Types
     ( DecodeAddress (..)
     , Direction (..)
@@ -33,6 +40,8 @@ import Data.Generics.Product.Typed
     ( HasType )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( ToText (..) )
 import Data.Time.Clock
     ( UTCTime, addUTCTime )
 import Data.Time.Utils
@@ -110,6 +119,7 @@ import Test.Integration.Framework.TestData
     , errMsg406
     , errMsg415
     , falseWalletIds
+    , getHeaderCases
     , kanjiWalletName
     , polishWalletName
     , wildcardsWalletName
@@ -130,26 +140,12 @@ spec = do
 
     it "TRANS_CREATE_01 - Single Output Transaction" $ \ctx -> do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
-        addrs <- listAddresses ctx wb
-
-        let amt = 1
-        let destination = (addrs !! 1) ^. #id
-        let payload = Json [json|{
-                "payments": [{
-                    "address": #{destination},
-                    "amount": {
-                        "quantity": #{amt},
-                        "unit": "lovelace"
-                    }
-                }],
-                "passphrase": "cardano-wallet"
-            }|]
         let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
                 { nInputs = 1
                 , nOutputs = 1
                 }
-
-        r <- request @(ApiTransaction t) ctx (postTxEp wa) Default payload
+        let amt = (1 :: Natural)
+        r <- postTx ctx (wa, postTxEp) wb amt
         verify r
             [ expectSuccess
             , expectResponseCode HTTP.status202
@@ -1499,33 +1495,48 @@ spec = do
               txs2 <- listTransactions ctx w (Just te) (Just te) Nothing
               length <$> [txs1, txs2] `shouldSatisfy` all (== 0)
 
-    transactionDeleteTest01
-        "wallets" it fixtureWallet ("cardano-wallet" :: Text)
-        postTxEp listTxEp deleteTxEp getWalletEp
+    describe "TRANS_DELETE_01 - Single Output Transaction for " $ do
+        txDeleteForgetSingleOutputTxTest
+            "wallets" it fixtureWallet postTxEp listTxEp deleteTxEp getWalletEp
+        -- xit -> it when submitting byron tx is supported by Jormungadr
+        -- Then we need also to add impl of fixtureByronWallet in DSL
+        txDeleteForgetSingleOutputTxTest
+            "byron-wallets" xit fixtureByronWallet postByronTxEp listByronTxEp
+            deleteByronTxEp getByronWalletEp
 
-    -- xit -> it when submitting byron tx is supported by Jormungadr
-    -- Then we need also to add impl of fixtureByronWallet in DSL
-    transactionDeleteTest01
-        "byron-wallets" xit fixtureByronWallet ("Secure Passphrase" :: Text)
-        postByronTxEp listByronTxEp deleteByronTxEp getByronWalletEp
+    describe "TRANS_DELETE_02 - checking not pending anymore error for " $ do
+        txDeleteNoLongerPendingTest
+            "wallets" it fixtureWallet emptyWallet postTxEp listTxEp deleteTxEp
+        -- xit -> it when submitting byron tx is supported by Jormungadr
+        -- Then we need also to add impl of fixtureByronWallet in DSL
+        txDeleteNoLongerPendingTest
+            "byron-wallets" xit fixtureByronWallet emptyWallet postByronTxEp
+            listByronTxEp deleteByronTxEp
 
-    transactionDeleteTest02
-        "wallets" it fixtureWallet emptyWallet ("cardano-wallet" :: Text)
-        postTxEp listTxEp deleteTxEp
+    describe "TRANS_DELETE_03 - checking no transaction id error for " $ do
+        txDeleteNotExistsingTxIdTest emptyWallet "wallets"
+        txDeleteNotExistsingTxIdTest emptyByronWallet "byron-wallets"
 
-    -- xit -> it when submitting byron tx is supported by Jormungadr
-    -- Then we need also to add impl of fixtureByronWallet in DSL
-    transactionDeleteTest02
-        "byron-wallets" xit fixtureByronWallet emptyWallet ("Secure Passphrase" :: Text)
-        postByronTxEp listByronTxEp deleteByronTxEp
+    describe "TRANS_DELETE_04 - False wallet ids for " $ do
+        txDeleteFalseWalletIdsTest "wallets"
+        txDeleteFalseWalletIdsTest "byron-wallets"
 
-    transactionDeleteTest03 emptyWallet "wallets"
+    describe "TRANS_DELETE_07 - invalid tx id " $ do
+        txDeleteInvalidTxIdsTest emptyWallet "wallets"
+        txDeleteInvalidTxIdsTest emptyByronWallet "byron-wallets"
 
-    transactionDeleteTest03 emptyByronWallet "byron-wallets"
+    describe "TRANS_DELETE_08 - HTTP headers " $ do
+        txDeleteHTTPHeadersTest emptyWallet "wallets"
+        txDeleteHTTPHeadersTest emptyByronWallet "byron-wallets"
 
-    transactionDeleteTest04 "wallets"
+    describe "TRANS_DELETE_09 - HTTP methods not allowed " $ do
+        txDeleteHTTPMethodsTest "wallets"
+        txDeleteHTTPMethodsTest "byron-wallets"
 
-    transactionDeleteTest04 "byron-wallets"
+    describe "TRANS_DELETE_06 -\
+        \ Cannot forget tx that is performed from different wallet" $ do
+        txDeleteFromDifferentWalletTest emptyWallet "wallets"
+        txDeleteFromDifferentWalletTest emptyByronWallet "byron-wallets"
 
     it "BYRON_TRANS_DELETE -\
         \ Cannot delete tx on Byron wallet using shelley ep" $ \ctx -> do
@@ -1580,7 +1591,7 @@ spec = do
             expectResponseCode @IO HTTP.status404 r
             expectErrorMessage (errMsg404NoWallet wid) r
   where
-    transactionDeleteTest01
+    txDeleteForgetSingleOutputTxTest
        :: forall wal .
            ( Eq wal
            , FromJSON wal
@@ -1590,32 +1601,19 @@ spec = do
        => String
        -> (String -> (Context t -> IO ()) -> SpecWith (Context t) )
        -> (Context t -> IO wal)
-       -> Text
        -> (wal -> (Method, Text))
        -> (wal -> Text -> (Method, Text))
        -> (wal -> ApiTxId -> (Method, Text))
        -> (wal -> (Method, Text))
        -> SpecWith (Context t)
-    transactionDeleteTest01
-        str action fWallet passwd
+    txDeleteForgetSingleOutputTxTest
+        str action fWallet
         postTxEndp listTxEndpSrc deleteTxEndp getWalletEndp =
-        action ("TRANS_DELETE_01 - Single Output Transaction for " <> str) $ \ctx -> do
+        action str $ \ctx -> do
             (wSrc, wDest) <- (,) <$> fWallet ctx <*> emptyWallet ctx
-            -- post transaction
-            addrs <- listAddresses ctx wDest
-            let amt = 1 :: Int
-            let destination = (addrs !! 1) ^. #id
-            let payload = Json [json|{
-                    "payments": [{
-                        "address": #{destination},
-                        "amount": {
-                            "quantity": #{amt},
-                            "unit": "lovelace"
-                        }
-                    }],
-                    "passphrase": #{passwd}
-                }|]
-            rMkTx <- request @(ApiTransaction t) ctx (postTxEndp wSrc) Default payload
+            -- post tx
+            let amt = (1 :: Natural)
+            rMkTx <- postTx ctx (wSrc, postTxEndp) wDest amt
             let txId = getFromResponse #id rMkTx
             verify rMkTx
                 [ expectSuccess
@@ -1657,31 +1655,14 @@ spec = do
                     , expectListItemFieldEqual 0 status InLedger
                     ]
 
-    transactionDeleteTest02
-        str action fWallet eWallet passwd postTxEndp listTxEndp deleteTxEndp =
-        action ("TRANS_DELETE_02 - checking not pending anymore error for " <> str) $ \ctx -> do
+    txDeleteNoLongerPendingTest
+        str action fWallet eWallet postTxEndp listTxEndp deleteTxEndp =
+        action str $ \ctx -> do
             (wSrc, wDest) <- (,) <$> fWallet ctx <*> eWallet ctx
 
             -- post transaction
-            addrs <- listAddresses ctx wDest
-            let amt = 1 :: Int
-            let destination = (addrs !! 1) ^. #id
-            let payload = Json [json|{
-                    "payments": [{
-                        "address": #{destination},
-                        "amount": {
-                            "quantity": #{amt},
-                            "unit": "lovelace"
-                        }
-                    }],
-                    "passphrase": #{passwd}
-                }|]
-            rMkTx <- request @(ApiTransaction t) ctx (postTxEndp wSrc) Default payload
-            let txId = getFromResponse #id rMkTx
-            verify rMkTx
-                [ expectSuccess
-                , expectResponseCode HTTP.status202
-                ]
+            rTx <- postTx ctx (wSrc, postTxEndp) wDest (1 :: Int)
+            let txId = getFromResponse #id rTx
 
             -- Wait for the transaction to be accepted
             eventually $ do
@@ -1698,8 +1679,8 @@ spec = do
             let err = errMsg403NoPendingAnymore (toUrlPiece (ApiTxId txId))
             expectErrorMessage err rDel
 
-    transactionDeleteTest03 eWallet resource =
-        it ("TRANS_DELETE_03 - checking no transaction id error for " <> resource) $ \ctx -> do
+    txDeleteNotExistsingTxIdTest eWallet resource =
+        it resource $ \ctx -> do
             w <- eWallet ctx
             let walId = w ^. walletId
             let txId = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
@@ -1708,8 +1689,8 @@ spec = do
             expectResponseCode @IO HTTP.status404 ra
             expectErrorMessage (errMsg404CannotFindTx txId) ra
 
-    transactionDeleteTest04 resource =
-        describe ("TRANS_DELETE_04 - False wallet ids for " <> resource) $ do
+    txDeleteFalseWalletIdsTest resource =
+        describe resource $ do
             forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
                 let txId = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
                 let endpoint = "v2/" <> resource <> "/" <> walId <> "/transactions/" <> txId
@@ -1719,6 +1700,81 @@ spec = do
                     expectErrorMessage (errMsg404NoWallet $ T.pack walId) r
                 else
                     expectErrorMessage errMsg404NoEndpoint r
+
+    txDeleteInvalidTxIdsTest eWallet resource =
+        describe resource $ do
+            let txIds =
+                    [ replicate 63 '1'
+                    , replicate 65 '1'
+                    , replicate 64 'ś'
+                    ]
+            forM_ txIds $ \tid -> it (show tid) $ \ctx -> do
+                w <- eWallet ctx
+                let wid = w ^. walletId
+                let ep = "v2/" <> T.pack resource <> "/" <> wid
+                        <> "/transactions/" <> T.pack tid
+                r <- request @ApiTxId @IO ctx ("DELETE", ep) Default Empty
+                expectResponseCode @IO HTTP.status404 r
+                expectErrorMessage errMsg404NoEndpoint r
+
+    txDeleteFromDifferentWalletTest eWallet resource=
+        it resource $ \ctx -> do
+            -- post tx
+            (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+            rMkTx <- postTx ctx (wSrc, postTxEp) wDest (1 :: Natural)
+
+            -- try to forget from different wallet
+            wDifferent <- eWallet ctx
+            let txId = toText $ getApiT $ getFromResponse #id rMkTx
+            let endpoint = "v2/" <> T.pack resource <> "/"
+                     <> wDifferent ^. walletId
+                     <> "/transactions/"
+                     <> txId
+            ra <- request @ApiTxId @IO ctx ("DELETE", endpoint) Default Empty
+            expectResponseCode @IO HTTP.status404 ra
+            expectErrorMessage (errMsg404CannotFindTx txId) ra
+
+    txDeleteHTTPHeadersTest eWallet resource =
+        describe resource $ do
+            forM_ (getHeaderCases HTTP.status404)
+                $ \(title, headers, expectations) -> it title $ \ctx -> do
+                w <- eWallet ctx
+                let wid = w ^. walletId
+                let txId = T.pack $ replicate 64 '1'
+                let ep = "v2/" <> T.pack resource <> "/" <> wid
+                        <> "/transactions/" <> txId
+                r <- request @ApiTxId @IO ctx ("DELETE", ep) headers Empty
+                verify r expectations
+
+    txDeleteHTTPMethodsTest res =
+        describe ("v2/" <> res <> "/{wid}/transactions/{tid}") $ do
+                let matrix =
+                        ["POST", "CONNECT", "TRACE", "OPTIONS", "PUT", "GET"]
+                forM_ matrix $ \m -> it (show m) $ \ctx -> do
+                    let txId = T.pack $ replicate 64 '1'
+                    let wid = T.pack $ replicate 40 '1'
+                    let ep = "v2/" <> T.pack res <> "/" <> wid
+                            <> "/transactions/" <> txId
+                    r <- request @ApiTxId @IO ctx (m, ep) Default Empty
+                    expectResponseCode @IO HTTP.status405 r
+                    expectErrorMessage errMsg405 r
+
+    postTx ctx (wSrc, postTxEndp) wDest amt = do
+        addrs <- listAddresses ctx wDest
+        let destination = (addrs !! 1) ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": "cardano-wallet"
+            }|]
+        r <- request @(ApiTransaction t) ctx (postTxEndp wSrc) Default payload
+        expectResponseCode HTTP.status202 r
+        return r
 
     unsafeGetTransactionTime
         :: [ApiTransaction t]
