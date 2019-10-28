@@ -1533,20 +1533,10 @@ spec = do
         txDeleteHTTPMethodsTest "wallets"
         txDeleteHTTPMethodsTest "byron-wallets"
 
-    it "TRANS_DELETE_06 -\
-     \ Cannot forget tx that is performed from different wallet -> 404"
-     $ \ctx -> do
-         wDifferent <- emptyWallet ctx
-         (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
-         rMkTx <- postTx ctx (wSrc, postTxEp) wDest (1 :: Natural)
-         let txId = toText $ getApiT $ getFromResponse #id rMkTx
-         let endpoint = "v2/wallets/"
-                     <> wDifferent ^. walletId
-                     <> "/transactions/"
-                     <> txId
-         ra <- request @ApiTxId @IO ctx ("DELETE", endpoint) Default Empty
-         expectResponseCode @IO HTTP.status404 ra
-         expectErrorMessage (errMsg404CannotFindTx txId) ra
+    describe "TRANS_DELETE_06 -\
+        \ Cannot forget tx that is performed from different wallet" $ do
+        txDeleteFromDifferentWalletTest emptyWallet "wallets"
+        txDeleteFromDifferentWalletTest emptyByronWallet "byron-wallets"
 
     it "BYRON_TRANS_DELETE -\
         \ Cannot delete tx on Byron wallet using shelley ep" $ \ctx -> do
@@ -1726,6 +1716,23 @@ spec = do
                 r <- request @ApiTxId @IO ctx ("DELETE", ep) Default Empty
                 expectResponseCode @IO HTTP.status404 r
                 expectErrorMessage errMsg404NoEndpoint r
+
+    txDeleteFromDifferentWalletTest eWallet resource=
+        it resource $ \ctx -> do
+            -- post tx
+            (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+            rMkTx <- postTx ctx (wSrc, postTxEp) wDest (1 :: Natural)
+
+            -- try to forget from different wallet
+            wDifferent <- eWallet ctx
+            let txId = toText $ getApiT $ getFromResponse #id rMkTx
+            let endpoint = "v2/" <> T.pack resource <> "/"
+                     <> wDifferent ^. walletId
+                     <> "/transactions/"
+                     <> txId
+            ra <- request @ApiTxId @IO ctx ("DELETE", endpoint) Default Empty
+            expectResponseCode @IO HTTP.status404 ra
+            expectErrorMessage (errMsg404CannotFindTx txId) ra
 
     txDeleteHTTPHeadersTest eWallet resource =
         describe resource $ do
