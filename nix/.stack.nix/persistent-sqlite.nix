@@ -129,7 +129,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       };
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
-      url = "https://github.com/KtorZ/persistent";
+      url = "https://github.com/input-output-hk/persistent";
       rev = "79f2ece07eafae005a703c8eda1bd2420b5e07b5";
       sha256 = "081bhdg52wn7vgxsgl4aimy73ccai05j64r24hwkdnjj4kz96lia";
       });
