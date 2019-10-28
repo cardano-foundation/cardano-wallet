@@ -46,7 +46,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , networkDiscriminantVal
 
     -- * Backends Interoperability
-    , KeyToAddress(..)
+    , PaymentAddress(..)
     , DelegationAddress(..)
     , WalletKey(..)
     , PersistKey(..)
@@ -444,15 +444,13 @@ class WalletKey (key :: Depth -> * -> *) where
     dummyKey :: key 'AddressK XPub
 
 -- | Encoding of addresses for certain key types and backend targets.
---
--- TODO: Rename 'KeyToAddress' into 'PaymentAddress'
-class WalletKey key => KeyToAddress (network :: NetworkDiscriminant) (key :: Depth -> * -> *) where
+class WalletKey key => PaymentAddress (network :: NetworkDiscriminant) (key :: Depth -> * -> *) where
     -- | Convert a public key to a payment 'Address' valid for the given
     -- network discrimination.
     --
-    -- Note that 'keyToAddress' is ambiguous and requires therefore a type
+    -- Note that 'paymentAddress' is ambiguous and requires therefore a type
     -- application.
-    keyToAddress :: key 'AddressK XPub -> Address
+    paymentAddress :: key 'AddressK XPub -> Address
 
 class WalletKey key => DelegationAddress (network :: NetworkDiscriminant) (key :: Depth -> * -> *) where
     -- | Convert a public key and a staking key to a delegation 'Address' valid
@@ -472,10 +470,10 @@ class WalletKey key => DelegationAddress (network :: NetworkDiscriminant) (key :
 -- | Produce a fake address of representative size for the target and key
 -- type. This can be used in transaction size estimations.
 --
--- This function is ambiguous, like 'keyToAddress', and types need to be
+-- This function is ambiguous, like 'paymentAddress', and types need to be
 -- applied.
-dummyAddress :: forall network key. KeyToAddress network key => Address
-dummyAddress = keyToAddress @network @key dummyKey
+dummyAddress :: forall network key. PaymentAddress network key => Address
+dummyAddress = paymentAddress @network @key dummyKey
 
 -- | Operations for saving a 'WalletKey' into a database, and restoring it from
 -- a database. The keys should be encoded in hexadecimal strings.

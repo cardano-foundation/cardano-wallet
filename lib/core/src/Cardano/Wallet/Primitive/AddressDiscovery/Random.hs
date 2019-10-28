@@ -36,7 +36,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
     , Index (..)
-    , KeyToAddress (..)
+    , PaymentAddress (..)
     , NetworkDiscriminant
     , Passphrase (..)
     , XPrv
@@ -154,7 +154,7 @@ addDiscoveredAddress addr path st =
     st { addresses = Map.insert path addr (addresses st)
        , pendingAddresses = Map.delete path (pendingAddresses st) }
 
-instance KeyToAddress n RndKey => GenChange (RndState n) where
+instance PaymentAddress n RndKey => GenChange (RndState n) where
     type ArgGenChange (RndState n) = Passphrase "encryption"
     genChange pwd st = (address, st')
       where
@@ -211,13 +211,13 @@ deriveAddressKeyFromPath st passphrase (accIx, addrIx) = addrXPrv
 
 -- | Use the key material in 'RndState' to derive a change address.
 deriveRndStateAddress
-    :: forall n. (KeyToAddress n RndKey)
+    :: forall n. (PaymentAddress n RndKey)
     => RndState n
     -> Passphrase "encryption"
     -> DerivationPath
     -> Address
 deriveRndStateAddress st passphrase path =
-    keyToAddress @n $ publicKey $ deriveAddressKeyFromPath st passphrase path
+    paymentAddress @n $ publicKey $ deriveAddressKeyFromPath st passphrase path
 
 -- Unlike sequential derivation, we can't derive an order from the index only
 -- (they are randomly generated), nor anything else in the address itself.

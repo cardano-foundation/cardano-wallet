@@ -21,7 +21,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
     , Index (..)
-    , KeyToAddress (..)
+    , PaymentAddress (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , WalletKey (..)
@@ -243,7 +243,7 @@ prop_derivedKeysAreOurs
     (Rnd st@(RndState rk accIx _ _ _) pwd) (Rnd st' _) addrIx =
     fst (isOurs addr st) .&&. not (fst (isOurs addr st'))
   where
-    addr = keyToAddress @'Testnet addrKey
+    addr = paymentAddress @'Testnet addrKey
     accKey = deriveAccountPrivateKey pwd rk accIx
     addrKey = publicKey $ deriveAddressPrivateKey pwd accKey addrIx
 
@@ -260,7 +260,7 @@ prop_derivedKeysAreOwned
     .&&.
     isOwned st' (rk', pwd') addr === Nothing
   where
-    addr = keyToAddress @'Testnet (publicKey addrKeyPrv)
+    addr = paymentAddress @'Testnet (publicKey addrKeyPrv)
     accKey = deriveAccountPrivateKey pwd rk accIx
     addrKeyPrv = deriveAddressPrivateKey pwd accKey addrIx
 
@@ -293,7 +293,7 @@ prop_forbiddenAddreses (Rnd st@(RndState rk accIx _ _ _) pwd) addrIx = conjoin
 
     forbidden s = Set.fromList $ Map.elems $ addresses s <> pendingAddresses s
 
-    addr = keyToAddress @'Testnet (publicKey addrKeyPrv)
+    addr = paymentAddress @'Testnet (publicKey addrKeyPrv)
     accKey = deriveAccountPrivateKey pwd rk accIx
     addrKeyPrv = deriveAddressPrivateKey pwd accKey addrIx
 

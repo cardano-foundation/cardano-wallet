@@ -23,12 +23,12 @@ import Cardano.Wallet.Jormungandr.Transaction
     ( ErrExceededInpsOrOuts (..), newTransactionLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
-    , KeyToAddress (..)
+    , PaymentAddress (..)
     , NetworkDiscriminant (..)
     , NetworkDiscriminantVal
     , Passphrase (..)
     , XPrv
-    , keyToAddress
+    , paymentAddress
     , networkDiscriminantVal
     , publicKey
     )
@@ -121,12 +121,12 @@ mkStdTxSpec = do
 
     describe "mkStdTx 'Mainnet" $ do
         let tl = newTransactionLayer @'Mainnet block0
-        let keyToAddress' = keyToAddress @'Mainnet
-        let addr0 = keyToAddress' (publicKey xprv0)
+        let paymentAddress' = paymentAddress @'Mainnet
+        let addr0 = paymentAddress' (publicKey xprv0)
         -- ^ ca1qvk32hg8rppc0wn0lzpkq996pd3xkxqguel8tharwrpdch6czu2luh3truq
-        let addr1 = keyToAddress' (publicKey xprv1)
+        let addr1 = paymentAddress' (publicKey xprv1)
         -- ^ ca1qwedmnalvvgqqgt2dczppejvyrn2lydmk2pxya4dd076wal8v6eykzfapdx
-        let addr2 = keyToAddress' (publicKey xprv2)
+        let addr2 = paymentAddress' (publicKey xprv2)
         -- ^ ca1qvp2m296efkn4zy63y769x4g52g5vrt7e9dnvszt7z2vrfe0ya66vznknfn
 
         let keystore = mkKeystore
@@ -208,15 +208,15 @@ mkStdTxSpec = do
 
     describe "mkStdTx (legacy) 'Mainnet" $ do
         let tl = newTransactionLayer @'Mainnet block0
-        let addrRnd0 = keyToAddress @'Mainnet (publicKey xprvRnd0)
+        let addrRnd0 = paymentAddress @'Mainnet (publicKey xprvRnd0)
         -- ^ DdzFFzCqrhsyySN2fbNnZf4kh2gg9t4mZzcnCiiw1EFG4ynvCGi35qgdUPh1DJp5Z28SVQxsxfNn7CaRB6DbvvvXZzdtMJ4ML2RrXvrG
-        let addrRnd1 = keyToAddress @'Mainnet (publicKey xprvRnd1)
+        let addrRnd1 = paymentAddress @'Mainnet (publicKey xprvRnd1)
         -- ^ DdzFFzCqrhsrqGWaofA6TmXeChoV5YGk8GyvLE2DCyTib8YpQn4qxsomw4oagtcpa321iQynEtT2D31xG5XGLSWTLHe9CZz26CwZZBQf
-        let addr0 = keyToAddress @'Mainnet (publicKey xprv0)
+        let addr0 = paymentAddress @'Mainnet (publicKey xprv0)
         -- ^ ca1qvk32hg8rppc0wn0lzpkq996pd3xkxqguel8tharwrpdch6czu2luh3truq
-        let addr1 = keyToAddress @'Mainnet (publicKey xprv1)
+        let addr1 = paymentAddress @'Mainnet (publicKey xprv1)
         -- ^ ca1qwedmnalvvgqqgt2dczppejvyrn2lydmk2pxya4dd076wal8v6eykzfapdx
-        let addr2 = keyToAddress @'Mainnet (publicKey xprv2)
+        let addr2 = paymentAddress @'Mainnet (publicKey xprv2)
         -- ^ ca1qvp2m296efkn4zy63y769x4g52g5vrt7e9dnvszt7z2vrfe0ya66vznknfn
 
         let keystore = mkKeystore
@@ -266,13 +266,13 @@ mkStdTxSpec = do
 
     describe "mkStdTx 'Testnet" $ do
         let tl = newTransactionLayer @'Testnet block0
-        let keyToAddress' = keyToAddress @'Testnet
+        let paymentAddress' = paymentAddress @'Testnet
 
-        let addr0 = keyToAddress' (publicKey xprv0)
+        let addr0 = paymentAddress' (publicKey xprv0)
         -- ^ ta1svk32hg8rppc0wn0lzpkq996pd3xkxqguel8tharwrpdch6czu2luue5k36
-        let addr1 = keyToAddress' (publicKey xprv1)
+        let addr1 = paymentAddress' (publicKey xprv1)
         -- ^ ta1swedmnalvvgqqgt2dczppejvyrn2lydmk2pxya4dd076wal8v6eykfpz5qu
-        let addr2 = keyToAddress' (publicKey xprv2)
+        let addr2 = paymentAddress' (publicKey xprv2)
         -- ^ ta1svp2m296efkn4zy63y769x4g52g5vrt7e9dnvszt7z2vrfe0ya66vfmfxyf
 
         let keystore = mkKeystore
@@ -318,15 +318,15 @@ mkStdTxSpec = do
     describe "mkStdTx (legacy) 'Testnet" $ do
         let tl = newTransactionLayer @'Testnet block0
 
-        let addrRnd0 = keyToAddress @'Mainnet (publicKey xprvRnd0)
+        let addrRnd0 = paymentAddress @'Mainnet (publicKey xprvRnd0)
         -- ^ DdzFFzCqrhsyySN2fbNnZf4kh2gg9t4mZzcnCiiw1EFG4ynvCGi35qgdUPh1DJp5Z28SVQxsxfNn7CaRB6DbvvvXZzdtMJ4ML2RrXvrG
-        let addrRnd1 = keyToAddress @'Mainnet (publicKey xprvRnd1)
+        let addrRnd1 = paymentAddress @'Mainnet (publicKey xprvRnd1)
         -- ^ DdzFFzCqrhsrqGWaofA6TmXeChoV5YGk8GyvLE2DCyTib8YpQn4qxsomw4oagtcpa321iQynEtT2D31xG5XGLSWTLHe9CZz26CwZZBQf
-        let addr0 = keyToAddress @'Testnet (publicKey xprv0)
+        let addr0 = paymentAddress @'Testnet (publicKey xprv0)
         -- ^ ta1svk32hg8rppc0wn0lzpkq996pd3xkxqguel8tharwrpdch6czu2luue5k36
-        let addr1 = keyToAddress @'Testnet (publicKey xprv1)
+        let addr1 = paymentAddress @'Testnet (publicKey xprv1)
         -- ^ ta1swedmnalvvgqqgt2dczppejvyrn2lydmk2pxya4dd076wal8v6eykfpz5qu
-        let addr2 = keyToAddress @'Testnet (publicKey xprv2)
+        let addr2 = paymentAddress @'Testnet (publicKey xprv2)
         -- ^ ta1svp2m296efkn4zy63y769x4g52g5vrt7e9dnvszt7z2vrfe0ya66vfmfxyf
 
         let keystore = mkKeystore
@@ -436,12 +436,12 @@ hex :: ByteString -> ByteString
 hex = convertToBase Base16
 
 unknownInputTest
-    :: forall n. (KeyToAddress n SeqKey, NetworkDiscriminantVal n)
+    :: forall n. (PaymentAddress n SeqKey, NetworkDiscriminantVal n)
     => Proxy n
     -> Hash "Genesis"
     -> SpecWith ()
 unknownInputTest _ block0 = it title $ do
-    let addr = keyToAddress @n $ publicKey $ fst $
+    let addr = paymentAddress @n $ publicKey $ fst $
             xprvSeqFromSeed "address-number-0"
     let res = mkStdTx tl keyFrom inps outs
           where
@@ -460,12 +460,12 @@ unknownInputTest _ block0 = it title $ do
         <> ")"
 
 tooNumerousInpsTest
-    :: forall n. (KeyToAddress n SeqKey, NetworkDiscriminantVal n)
+    :: forall n. (PaymentAddress n SeqKey, NetworkDiscriminantVal n)
     => Proxy n
     -> Hash "Genesis"
     -> SpecWith ()
 tooNumerousInpsTest _ block0 = it title $ do
-    let addr = keyToAddress @n $ publicKey $ fst $
+    let addr = paymentAddress @n $ publicKey $ fst $
             xprvSeqFromSeed "address-number-0"
     let res = validateSelection tl (CoinSelection inps outs chngs)
           where
@@ -483,12 +483,12 @@ tooNumerousInpsTest _ block0 = it title $ do
         <> ")"
 
 tooNumerousOutsTest
-    :: forall n. (KeyToAddress n SeqKey, NetworkDiscriminantVal n)
+    :: forall n. (PaymentAddress n SeqKey, NetworkDiscriminantVal n)
     => Proxy n
     -> Hash "Genesis"
     -> SpecWith ()
 tooNumerousOutsTest _ block0 = it title $ do
-    let addr = keyToAddress @n $ publicKey $ fst $
+    let addr = paymentAddress @n $ publicKey $ fst $
             xprvSeqFromSeed "address-number-0"
     let res = validateSelection tl (CoinSelection inps outs chngs)
           where

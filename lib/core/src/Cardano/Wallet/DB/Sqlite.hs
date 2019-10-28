@@ -920,7 +920,7 @@ class DefineTx t => PersistTx t where
                           Sequential address discovery
 -------------------------------------------------------------------------------}
 
-instance W.KeyToAddress t Seq.SeqKey => PersistState (Seq.SeqState t) where
+instance W.PaymentAddress t Seq.SeqKey => PersistState (Seq.SeqState t) where
     insertState (wid, sl) st = do
         let (intPool, extPool) = (Seq.internalPool st, Seq.externalPool st)
         let (xpub, _) = W.invariant
@@ -960,7 +960,7 @@ insertAddressPool wid sl pool =
         ]
 
 selectAddressPool
-    :: forall t c. (W.KeyToAddress t Seq.SeqKey, Typeable c)
+    :: forall t c. (W.PaymentAddress t Seq.SeqKey, Typeable c)
     => W.WalletId
     -> W.SlotId
     -> Seq.AddressPoolGap

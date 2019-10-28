@@ -861,7 +861,7 @@ rndMnemonics = unsafeMkMnemonic <$>
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr, NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( KeyToAddress (..), Passphrase (..), publicKey )
+    ( PaymentAddress (..), Passphrase (..), publicKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
     ( deriveAccountPrivateKey, deriveAddressPrivateKey, generateKeyFromSeed )
 import Cardano.Wallet.Primitive.Mnemonic
@@ -916,7 +916,7 @@ addresses mw =
         addrXPrv =
             deriveAddressPrivateKey pwd accXPrv
     in
-        [ keyToAddress @(Jormungandr 'Mainnet) (publicKey $ addrXPrv ix)
+        [ paymentAddress @(Jormungandr 'Mainnet) (publicKey $ addrXPrv ix)
         | ix <- [minBound..maxBound]
         ]
 -}

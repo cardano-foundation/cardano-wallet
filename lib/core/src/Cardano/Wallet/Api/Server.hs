@@ -121,7 +121,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.Network
     ( ErrNetworkTip (..), ErrNetworkUnavailable (..), NetworkLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( KeyToAddress (..)
+    ( PaymentAddress (..)
     , NetworkDiscriminant
     , WalletKey (..)
     , digest
@@ -298,8 +298,8 @@ start
         , DefineTx t
         , DecodeAddress n
         , EncodeAddress n
-        , KeyToAddress n RndKey
-        , KeyToAddress n SeqKey
+        , PaymentAddress n RndKey
+        , PaymentAddress n SeqKey
         )
     => Warp.Settings
     -> Trace IO Text
@@ -389,7 +389,7 @@ ioToListenError hostPreference portOpt e
 coreApiServer
     :: forall ctx s t n k.
         ( DefineTx t
-        , KeyToAddress n k
+        , PaymentAddress n k
         , Buildable (ErrValidateSelection t)
         , k ~ SeqKey
         , s ~ SeqState n
@@ -415,7 +415,7 @@ stakePoolServer = pools
 wallets
     :: forall ctx s t n k.
         ( DefineTx t
-        , KeyToAddress n k
+        , PaymentAddress n k
         , k ~ SeqKey
         , s ~ SeqState n
         , ctx ~ ApiLayer s t k
@@ -478,7 +478,7 @@ listWallets ctx = do
 postWallet
     :: forall ctx s t n k.
         ( DefineTx t
-        , KeyToAddress n k
+        , PaymentAddress n k
         , s ~ SeqState n
         , k ~ SeqKey
         , ctx ~ ApiLayer s t k
@@ -568,7 +568,7 @@ getUTxOsStatistics ctx (ApiT wid) = do
 addresses
     :: forall ctx s t n k.
         ( DefineTx t
-        , KeyToAddress n k
+        , PaymentAddress n k
         , k ~ SeqKey
         , s ~ SeqState n
         , ctx ~ ApiLayer s t k
@@ -580,7 +580,7 @@ addresses = listAddresses
 listAddresses
     :: forall ctx s t n k.
         ( DefineTx t
-        , KeyToAddress n k
+        , PaymentAddress n k
         , k ~ SeqKey
         , s ~ SeqState n
         , ctx ~ ApiLayer s t k
@@ -607,7 +607,7 @@ listAddresses ctx (ApiT wid) stateFilter = do
 transactions
     :: forall ctx s t n k.
         ( DefineTx t
-        , KeyToAddress n k
+        , PaymentAddress n k
         , Buildable (ErrValidateSelection t)
         , s ~ SeqState n
         , k ~ SeqKey
@@ -626,7 +626,7 @@ postTransaction
     :: forall ctx s t n k.
         ( DefineTx t
         , Buildable (ErrValidateSelection t)
-        , KeyToAddress n k
+        , PaymentAddress n k
         , k ~ SeqKey
         , s ~ SeqState n
         , ctx ~ ApiLayer s t k
@@ -811,8 +811,8 @@ compatibilityApiServer
     :: forall t n.
         ( Buildable (ErrValidateSelection t)
         , DefineTx t
-        , KeyToAddress n RndKey
-        , KeyToAddress n SeqKey
+        , PaymentAddress n RndKey
+        , PaymentAddress n SeqKey
         )
     => ApiLayer (RndState n) t RndKey
     -> ApiLayer (SeqState n) t SeqKey
@@ -883,8 +883,8 @@ getByronWalletMigrationInfo ctx (ApiT wid) =
 migrateByronWallet
     :: forall t n.
        ( DefineTx t
-       , KeyToAddress n RndKey
-       , KeyToAddress n SeqKey
+       , PaymentAddress n RndKey
+       , PaymentAddress n SeqKey
        )
     => ApiLayer (RndState n) t RndKey
         -- ^ Source wallet context (Byron)
@@ -937,7 +937,7 @@ listByronWallets ctx = do
     re = ctx ^. workerRegistry @s @t @k
 
 postByronWallet
-    :: forall t n. (DefineTx t, KeyToAddress n RndKey)
+    :: forall t n. (DefineTx t, PaymentAddress n RndKey)
     => ApiLayer (RndState n) t RndKey
     -> ByronWalletPostData
     -> Handler ApiByronWallet
