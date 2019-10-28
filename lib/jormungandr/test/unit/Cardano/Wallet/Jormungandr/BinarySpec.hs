@@ -293,12 +293,6 @@ spec = do
             evaluate (singleAddressFromKey testnet (XPub "\148" cc))
                 `shouldThrow` userException msg
 
-        it "throws when encoding an address of invalid length" $ do
-            let msg = "Address has unexpected length 1: \
-                \Address {unAddress = \"0\"}"
-            evaluate (runPut $ putAddress $ Address "0")
-                `shouldThrow` userException msg
-
         it "decode (encode address) === address" $ property $
             \addr -> monadicIO $ liftIO $ do
                 let encode = runPut . putAddress

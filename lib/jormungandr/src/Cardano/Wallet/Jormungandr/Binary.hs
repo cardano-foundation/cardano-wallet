@@ -561,22 +561,7 @@ getAddress = do
     kindValue = (.&. 0b01111111)
 
 putAddress :: Address -> Put
-putAddress addr@(Address bs)
-    | hasCorrectLength = putByteString bs
-    | otherwise = fail
-        $ "Address has unexpected length "
-        ++ show len ++ ": " ++ show addr
-  where
-    hasCorrectLength = len == addrLenSingle || len == addrLenGrouped
-    len = fromIntegral $ BS.length bs
-
--- Serialized length in bytes of a bootstrap or account address (Single Address)
-addrLenSingle :: Int
-addrLenSingle = 33
-
--- Serialized length in bytes of a delegation address (Grouped Address)
-addrLenGrouped :: Int
-addrLenGrouped = 65
+putAddress (Address bs) = putByteString bs
 
 singleAddressFromKey :: forall n. KnownNetwork n => Proxy n -> XPub -> Address
 singleAddressFromKey _ xPub = Address $ BL.toStrict $ runPut $ do
