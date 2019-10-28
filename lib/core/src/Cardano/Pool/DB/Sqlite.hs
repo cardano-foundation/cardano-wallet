@@ -71,6 +71,8 @@ import Database.Persist.Sql
     )
 import Database.Persist.Sqlite
     ( SqlPersistT )
+import System.FilePath
+    ( (</>) )
 
 import Cardano.Pool.DB.Sqlite.TH
 
@@ -83,7 +85,7 @@ defaultFilePath
     :: FilePath
     -- ^ The directory in which the .sqlite file will be located.
     -> FilePath
-defaultFilePath = (<> "/stake-pools.sqlite")
+defaultFilePath = (</> "stake-pools.sqlite")
 
 -- | Runs an action with a connection to the SQLite database.
 --
