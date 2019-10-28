@@ -33,7 +33,7 @@ import Cardano.Wallet.Jormungandr.Compatibility
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (AddressK), PaymentAddress, Passphrase (..), WalletKey (..), XPrv )
+    ( Depth (AddressK), Passphrase (..), PaymentAddress, WalletKey (..), XPrv )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley

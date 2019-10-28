@@ -64,10 +64,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationType (..)
     , Index (..)
     , InspectAddress (..)
-    , PaymentAddress (..)
     , NetworkDiscriminant (..)
     , NetworkDiscriminantVal
     , Passphrase (..)
+    , PaymentAddress (..)
     , PersistKey (..)
     , WalletKey (..)
     , networkDiscriminantVal

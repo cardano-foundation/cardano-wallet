@@ -66,9 +66,9 @@ import Cardano.Wallet.Jormungandr.Transaction
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( PaymentAddress
-    , NetworkDiscriminant
+    ( NetworkDiscriminant
     , NetworkDiscriminantVal
+    , PaymentAddress
     , PersistKey
     , networkDiscriminantVal
     )

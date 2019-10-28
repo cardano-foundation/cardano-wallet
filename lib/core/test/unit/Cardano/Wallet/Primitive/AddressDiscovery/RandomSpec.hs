@@ -21,9 +21,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
     , Index (..)
-    , PaymentAddress (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
+    , PaymentAddress (..)
     , WalletKey (..)
     , fromMnemonic
     )

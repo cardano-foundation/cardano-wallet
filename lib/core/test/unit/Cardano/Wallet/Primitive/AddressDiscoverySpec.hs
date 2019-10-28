@@ -20,9 +20,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Depth (AccountK, AddressK, RootK)
     , DerivationType (Hardened)
     , Index
-    , PaymentAddress (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
+    , PaymentAddress (..)
     , networkDiscriminantVal
     , passphraseMaxLength
     , passphraseMinLength

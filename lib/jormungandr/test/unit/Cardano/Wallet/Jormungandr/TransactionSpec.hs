@@ -23,13 +23,13 @@ import Cardano.Wallet.Jormungandr.Transaction
     ( ErrExceededInpsOrOuts (..), newTransactionLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
-    , PaymentAddress (..)
     , NetworkDiscriminant (..)
     , NetworkDiscriminantVal
     , Passphrase (..)
+    , PaymentAddress (..)
     , XPrv
-    , paymentAddress
     , networkDiscriminantVal
+    , paymentAddress
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron

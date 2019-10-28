@@ -19,9 +19,9 @@ import Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
-    , PaymentAddress (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
+    , PaymentAddress (..)
     , WalletKey (..)
     , XPrv
     , XPub

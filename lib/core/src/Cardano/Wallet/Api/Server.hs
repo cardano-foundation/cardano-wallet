@@ -121,8 +121,8 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.Network
     ( ErrNetworkTip (..), ErrNetworkUnavailable (..), NetworkLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( PaymentAddress (..)
-    , NetworkDiscriminant
+    ( NetworkDiscriminant
+    , PaymentAddress (..)
     , WalletKey (..)
     , digest
     , publicKey
