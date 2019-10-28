@@ -1002,16 +1002,16 @@ data WalletClient t = WalletClient
         -> ClientM NoContent
     , listPools
         :: ClientM [ApiStakePool]
-    , putStakeInPool
+    , joinStakePool
         :: ApiT PoolId
         -> ApiT WalletId
         -> ApiWalletPassphrase
         -> ClientM (ApiTransaction t)
-    , deleteStakeInPool
+    , quitStakePool
         :: ApiT PoolId
         -> ApiT WalletId
         -> ApiWalletPassphrase
-        -> ClientM NoContent
+        -> ClientM (ApiTransaction t)
     , networkInformation
         :: ClientM ApiNetworkInformation
     }
@@ -1042,8 +1042,8 @@ walletClient =
             = transactions
 
         _listPools
-            :<|> _putStakeInPool
-            :<|> _deleteStakeInPool
+            :<|> _joinStakePool
+            :<|> _quitStakePool
             = pools
 
 
@@ -1064,8 +1064,8 @@ walletClient =
             , postTransactionFee = _postTransactionFee
             , getWalletUtxoStatistics = _getWalletUtxoStatistics
             , listPools = _listPools
-            , putStakeInPool = _putStakeInPool
-            , deleteStakeInPool = _deleteStakeInPool
+            , joinStakePool = _joinStakePool
+            , quitStakePool = _quitStakePool
             , networkInformation = _networkInformation
             }
 

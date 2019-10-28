@@ -783,10 +783,11 @@ putStakeInPool
 putStakeInPool _ _ _ = throwError err501
 
 deleteStakeInPool
-    :: ApiT PoolId
+    :: forall t. DefineTx t
+    => ApiT PoolId
     -> ApiT WalletId
     -> ApiWalletPassphrase
-    -> Handler NoContent
+    -> Handler (ApiTransaction t)
 deleteStakeInPool _ _ _ = throwError err501
 
 {-------------------------------------------------------------------------------

@@ -106,6 +106,7 @@ import Servant.API
     , (:>)
     , Accept (..)
     , Capture
+    , DeleteAccepted
     , DeleteNoContent
     , Get
     , JSON
@@ -128,8 +129,8 @@ type CoreApi t =
 
 type StakePoolApi t =
     ListStakePools
-    :<|> PutStakeInPool t
-    :<|> DeleteStakeInPool
+    :<|> JoinStakePool t
+    :<|> QuitStakePool t
 
 type CompatibilityApi n =
     DeleteByronWallet
@@ -266,7 +267,7 @@ type ListStakePools = "stake-pools"
     :> Get '[JSON] [ApiStakePool]
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/joinStakePool
-type PutStakeInPool t = "stake-pools"
+type JoinStakePool t = "stake-pools"
     :> Capture "stakePoolId" (ApiT PoolId)
     :> "wallets"
     :> Capture "walletId" (ApiT WalletId)
@@ -274,12 +275,12 @@ type PutStakeInPool t = "stake-pools"
     :> Put '[JSON] (ApiTransaction t)
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/quitStakePool
-type DeleteStakeInPool = "stake-pools"
+type QuitStakePool t = "stake-pools"
     :> Capture "stakePoolId" (ApiT PoolId)
     :> "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> ReqBody '[JSON] ApiWalletPassphrase
-    :> DeleteNoContent '[Any] NoContent
+    :> DeleteAccepted '[JSON] (ApiTransaction t)
 
 {-------------------------------------------------------------------------------
                                   Network
