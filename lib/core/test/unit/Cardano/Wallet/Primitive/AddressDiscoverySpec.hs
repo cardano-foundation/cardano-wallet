@@ -28,14 +28,14 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , passphraseMinLength
     , publicKey
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( RndKey
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey
     , generateKeyFromSeed
     , minSeedLengthBytes
     , unsafeGenerateKeyFromSeed
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( SeqKey (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( DecodeAddress (..), EncodeAddress (..), IsOurs (..), knownAddresses )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
@@ -184,12 +184,12 @@ spec = do
 -------------------------------------------------------------------------------}
 
 prop_derivedKeysAreOurs
-    :: forall (n :: NetworkDiscriminant). (PaymentAddress n RndKey)
+    :: forall (n :: NetworkDiscriminant). (PaymentAddress n ByronKey)
     => Passphrase "seed"
     -> Passphrase "encryption"
     -> Index 'Hardened 'AccountK
     -> Index 'Hardened 'AddressK
-    -> RndKey 'RootK XPrv
+    -> ByronKey 'RootK XPrv
     -> Property
 prop_derivedKeysAreOurs seed encPwd accIx addrIx rk' =
     resPos .&&. addr `elem` knownAddresses stPos' .&&.
@@ -214,7 +214,7 @@ negativeTest _proxy input msg = it ("decodeAddress failure: " <> msg) $
 -- | Generate addresses from the given keys and compare the result with an
 -- expected output obtained from jcli (see appendix below)
 goldenTestAddr
-    :: forall n. (PaymentAddress n SeqKey, DelegationAddress n SeqKey, EncodeAddress n)
+    :: forall n. (PaymentAddress n ShelleyKey, DelegationAddress n ShelleyKey, EncodeAddress n)
     => Proxy n
     -> [ByteString]
     -> Text
@@ -222,12 +222,12 @@ goldenTestAddr
 goldenTestAddr _proxy pubkeys expected = it ("golden test: " <> T.unpack expected) $ do
     case traverse (convertFromBase Base16) pubkeys of
         Right [spending] -> do
-            let xpub = SeqKey (XPub spending chainCode)
+            let xpub = ShelleyKey (XPub spending chainCode)
             let addr = encodeAddress @n (paymentAddress @n xpub)
             addr `shouldBe` expected
         Right [spending, delegation] -> do
-            let xpubSpending = SeqKey (XPub spending chainCode)
-            let xpubDeleg = SeqKey (XPub delegation chainCode)
+            let xpubSpending = ShelleyKey (XPub spending chainCode)
+            let xpubDeleg = ShelleyKey (XPub delegation chainCode)
             let addr = encodeAddress @n (delegationAddress @n xpubSpending xpubDeleg)
             addr `shouldBe` expected
         _ ->
@@ -247,11 +247,11 @@ instance Arbitrary (Index 'Hardened 'AddressK) where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
 
-instance Arbitrary (RndKey 'RootK XPrv) where
+instance Arbitrary (ByronKey 'RootK XPrv) where
     shrink _ = []
     arbitrary = genRootKeys
 
-genRootKeys :: Gen (RndKey 'RootK XPrv)
+genRootKeys :: Gen (ByronKey 'RootK XPrv)
 genRootKeys = do
     (s, e) <- (,)
         <$> genPassphrase @"seed" (16, 32)

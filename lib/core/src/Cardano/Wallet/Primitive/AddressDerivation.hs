@@ -26,8 +26,8 @@
 --
 -- The actual implementations are in the following modules:
 --
---  * "Cardano.Wallet.Primitive.AddressDerivation.Sequential"
---  * "Cardano.Wallet.Primitive.AddressDerivation.Random"
+--  * "Cardano.Wallet.Primitive.AddressDerivation.Shelley"
+--  * "Cardano.Wallet.Primitive.AddressDerivation.Byron"
 
 module Cardano.Wallet.Primitive.AddressDerivation
     (

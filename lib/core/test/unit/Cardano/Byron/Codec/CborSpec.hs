@@ -37,8 +37,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase (..)
     , fromMnemonic
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( RndKey (..), generateKeyFromSeed )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Block (..)

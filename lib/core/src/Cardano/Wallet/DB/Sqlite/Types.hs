@@ -24,8 +24,8 @@ import Cardano.Crypto.Wallet
     ( XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( ChangeChain, SeqKey, deserializeXPubSeq, serializeXPubSeq )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ChangeChain, ShelleyKey, deserializeXPubSeq, serializeXPubSeq )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..), getAddressPoolGap, mkAddressPoolGap )
 import Cardano.Wallet.Primitive.Types
@@ -362,7 +362,7 @@ instance PersistFieldSql AddressPoolGap where
 -- XPub for sequential address discovery
 
 newtype AddressPoolXPub = AddressPoolXPub
-    { getAddressPoolXPub :: SeqKey 'AccountK XPub }
+    { getAddressPoolXPub :: ShelleyKey 'AccountK XPub }
     deriving (Show, Eq, Generic)
 
 instance PersistField AddressPoolXPub where

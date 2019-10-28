@@ -19,8 +19,8 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), Passphrase (..), WalletKey (..), XPrv, digest, publicKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( SeqKey (..), generateKeyFromSeed )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , AddressState (..)
@@ -175,7 +175,7 @@ spec = do
     describe "Buildable" $ do
         it "WalletId" $ do
             let seed = Passphrase (BA.convert @ByteString "0000000000000000")
-            let xprv = generateKeyFromSeed (seed, mempty) mempty :: SeqKey 'RootK XPrv
+            let xprv = generateKeyFromSeed (seed, mempty) mempty :: ShelleyKey 'RootK XPrv
             let wid = WalletId $ digest $ publicKey xprv
             "336c96f1...b8cac9ce" === pretty @_ @Text wid
         it "TxMeta (1)" $ do

@@ -43,7 +43,7 @@ import Numeric.Natural
 import System.Random
     ( StdGen )
 
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Sequential as W
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as W
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.ByteString.Char8 as B8

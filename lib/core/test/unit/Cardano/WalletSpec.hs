@@ -42,9 +42,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , XPrv
     , publicKey
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Sequential
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ChangeChain (..)
-    , SeqKey (..)
+    , ShelleyKey (..)
     , deriveAccountPrivateKey
     , deriveAddressPrivateKey
     , generateKeyFromSeed
@@ -273,7 +273,7 @@ walletUpdateNameNoSuchWallet wallet@(wid', _, _) wid wName =
 walletUpdatePassphrase
     :: (WalletId, WalletName, DummyState)
     -> Passphrase "encryption-new"
-    -> Maybe (SeqKey 'RootK XPrv, Passphrase "encryption")
+    -> Maybe (ShelleyKey 'RootK XPrv, Passphrase "encryption")
     -> Property
 walletUpdatePassphrase wallet new mxprv = monadicIO $ liftIO $ do
     (WalletLayerFixture _ wl [wid] _) <- liftIO $ setupFixture wallet
@@ -293,7 +293,7 @@ walletUpdatePassphrase wallet new mxprv = monadicIO $ liftIO $ do
 
 walletUpdatePassphraseWrong
     :: (WalletId, WalletName, DummyState)
-    -> (SeqKey 'RootK XPrv, Passphrase "encryption")
+    -> (ShelleyKey 'RootK XPrv, Passphrase "encryption")
     -> (Passphrase "encryption-old", Passphrase "encryption-new")
     -> Property
 walletUpdatePassphraseWrong wallet (xprv, pwd) (old, new) =
@@ -320,7 +320,7 @@ walletUpdatePassphraseNoSuchWallet wallet@(wid', _, _) wid (old, new) =
 
 walletUpdatePassphraseDate
     :: (WalletId, WalletName, DummyState)
-    -> (SeqKey 'RootK XPrv, Passphrase "encryption")
+    -> (ShelleyKey 'RootK XPrv, Passphrase "encryption")
     -> Property
 walletUpdatePassphraseDate wallet (xprv, pwd) = monadicIO $ liftIO $ do
     (WalletLayerFixture _ wl [wid] _) <- liftIO $ setupFixture wallet
@@ -341,7 +341,7 @@ walletUpdatePassphraseDate wallet (xprv, pwd) = monadicIO $ liftIO $ do
 
 walletKeyIsReencrypted
     :: (WalletId, WalletName)
-    -> (SeqKey 'RootK XPrv, Passphrase "encryption")
+    -> (ShelleyKey 'RootK XPrv, Passphrase "encryption")
     -> Passphrase "encryption-new"
     -> Property
 walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
@@ -390,8 +390,8 @@ walletListTransactionsSorted wallet@(wid, _, _) _order (_mstart, _mend) history 
 -------------------------------------------------------------------------------}
 
 data WalletLayerFixture = WalletLayerFixture
-    { _fixtureDBLayer :: DBLayer IO DummyState DummyTarget SeqKey
-    , _fixtureWalletLayer :: WalletLayer DummyState DummyTarget SeqKey
+    { _fixtureDBLayer :: DBLayer IO DummyState DummyTarget ShelleyKey
+    , _fixtureWalletLayer :: WalletLayer DummyState DummyTarget ShelleyKey
     , _fixtureWallet :: [WalletId]
     , _fixtureSlotIdTime :: SlotId -> UTCTime
     }
@@ -416,7 +416,7 @@ setupFixture (wid, wname, wstate) = do
 
 -- | A dummy transaction layer to see the effect of a root private key. It
 -- implements a fake signer that still produces sort of witnesses
-dummyTransactionLayer :: TransactionLayer DummyTarget SeqKey
+dummyTransactionLayer :: TransactionLayer DummyTarget ShelleyKey
 dummyTransactionLayer = TransactionLayer
     { mkStdTx = \keyFrom inps outs -> do
         let tx = Tx (fmap fst inps) outs
@@ -458,7 +458,7 @@ instance Arbitrary DummyState where
 instance IsOurs DummyState where
     isOurs _ s = (True, s)
 
-instance IsOwned DummyState SeqKey where
+instance IsOwned DummyState ShelleyKey where
     isOwned (DummyState m) (rootK, pwd) addr = do
         ix <- Map.lookup addr m
         let accXPrv = deriveAccountPrivateKey pwd rootK minBound
@@ -493,7 +493,7 @@ instance Arbitrary (Passphrase purpose) where
     arbitrary =
         Passphrase . BA.convert . BS.pack <$> replicateM 16 arbitrary
 
-instance {-# OVERLAPS #-} Arbitrary (SeqKey 'RootK XPrv, Passphrase "encryption")
+instance {-# OVERLAPS #-} Arbitrary (ShelleyKey 'RootK XPrv, Passphrase "encryption")
   where
     shrink _ = []
     arbitrary = do

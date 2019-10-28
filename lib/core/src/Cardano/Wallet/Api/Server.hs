@@ -127,10 +127,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , digest
     , publicKey
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( RndKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( SeqKey (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( DecodeAddress (..), EncodeAddress (..), IsOurs )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
@@ -271,8 +271,8 @@ import System.Random
 
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Network as NW
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Random as Rnd
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Sequential as Seq
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Rnd
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Data.Aeson as Aeson
@@ -298,14 +298,14 @@ start
         , DefineTx t
         , DecodeAddress n
         , EncodeAddress n
-        , PaymentAddress n RndKey
-        , PaymentAddress n SeqKey
+        , PaymentAddress n ByronKey
+        , PaymentAddress n ShelleyKey
         )
     => Warp.Settings
     -> Trace IO Text
     -> Socket
-    -> ApiLayer (RndState n) t RndKey
-    -> ApiLayer (SeqState n) t SeqKey
+    -> ApiLayer (RndState n) t ByronKey
+    -> ApiLayer (SeqState n) t ShelleyKey
     -> StakePoolLayer IO
     -> IO ()
 start settings trace socket rndCtx seqCtx spl = do
@@ -391,7 +391,7 @@ coreApiServer
         ( DefineTx t
         , PaymentAddress n k
         , Buildable (ErrValidateSelection t)
-        , k ~ SeqKey
+        , k ~ ShelleyKey
         , s ~ SeqState n
         , ctx ~ ApiLayer s t k
         )
@@ -416,7 +416,7 @@ wallets
     :: forall ctx s t n k.
         ( DefineTx t
         , PaymentAddress n k
-        , k ~ SeqKey
+        , k ~ ShelleyKey
         , s ~ SeqState n
         , ctx ~ ApiLayer s t k
         )
@@ -480,7 +480,7 @@ postWallet
         ( DefineTx t
         , PaymentAddress n k
         , s ~ SeqState n
-        , k ~ SeqKey
+        , k ~ ShelleyKey
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -569,7 +569,7 @@ addresses
     :: forall ctx s t n k.
         ( DefineTx t
         , PaymentAddress n k
-        , k ~ SeqKey
+        , k ~ ShelleyKey
         , s ~ SeqState n
         , ctx ~ ApiLayer s t k
         )
@@ -581,7 +581,7 @@ listAddresses
     :: forall ctx s t n k.
         ( DefineTx t
         , PaymentAddress n k
-        , k ~ SeqKey
+        , k ~ ShelleyKey
         , s ~ SeqState n
         , ctx ~ ApiLayer s t k
         )
@@ -610,7 +610,7 @@ transactions
         , PaymentAddress n k
         , Buildable (ErrValidateSelection t)
         , s ~ SeqState n
-        , k ~ SeqKey
+        , k ~ ShelleyKey
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -627,7 +627,7 @@ postTransaction
         ( DefineTx t
         , Buildable (ErrValidateSelection t)
         , PaymentAddress n k
-        , k ~ SeqKey
+        , k ~ ShelleyKey
         , s ~ SeqState n
         , ctx ~ ApiLayer s t k
         )
@@ -811,11 +811,11 @@ compatibilityApiServer
     :: forall t n.
         ( Buildable (ErrValidateSelection t)
         , DefineTx t
-        , PaymentAddress n RndKey
-        , PaymentAddress n SeqKey
+        , PaymentAddress n ByronKey
+        , PaymentAddress n ShelleyKey
         )
-    => ApiLayer (RndState n) t RndKey
-    -> ApiLayer (SeqState n) t SeqKey
+    => ApiLayer (RndState n) t ByronKey
+    -> ApiLayer (SeqState n) t ShelleyKey
     -> Server (CompatibilityApi n)
 compatibilityApiServer rndCtx seqCtx =
     deleteByronWallet rndCtx
@@ -883,12 +883,12 @@ getByronWalletMigrationInfo ctx (ApiT wid) =
 migrateByronWallet
     :: forall t n.
        ( DefineTx t
-       , PaymentAddress n RndKey
-       , PaymentAddress n SeqKey
+       , PaymentAddress n ByronKey
+       , PaymentAddress n ShelleyKey
        )
-    => ApiLayer (RndState n) t RndKey
+    => ApiLayer (RndState n) t ByronKey
         -- ^ Source wallet context (Byron)
-    -> ApiLayer (SeqState n) t SeqKey
+    -> ApiLayer (SeqState n) t ShelleyKey
         -- ^ Target wallet context (Shelley)
     -> ApiT WalletId
         -- ^ Source wallet (Byron)
@@ -937,8 +937,8 @@ listByronWallets ctx = do
     re = ctx ^. workerRegistry @s @t @k
 
 postByronWallet
-    :: forall t n. (DefineTx t, PaymentAddress n RndKey)
-    => ApiLayer (RndState n) t RndKey
+    :: forall t n. (DefineTx t, PaymentAddress n ByronKey)
+    => ApiLayer (RndState n) t ByronKey
     -> ByronWalletPostData
     -> Handler ApiByronWallet
 postByronWallet ctx body = do
