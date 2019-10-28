@@ -1495,43 +1495,43 @@ spec = do
               txs2 <- listTransactions ctx w (Just te) (Just te) Nothing
               length <$> [txs1, txs2] `shouldSatisfy` all (== 0)
 
-    transactionDeleteTest01
-        "wallets" it fixtureWallet postTxEp listTxEp deleteTxEp getWalletEp
+    describe "TRANS_DELETE_01 - Single Output Transaction for " $ do
+        txDeleteForgetSingleOutputTxTest
+            "wallets" it fixtureWallet postTxEp listTxEp deleteTxEp getWalletEp
+        -- xit -> it when submitting byron tx is supported by Jormungadr
+        -- Then we need also to add impl of fixtureByronWallet in DSL
+        txDeleteForgetSingleOutputTxTest
+            "byron-wallets" xit fixtureByronWallet postByronTxEp listByronTxEp
+            deleteByronTxEp getByronWalletEp
 
-    -- xit -> it when submitting byron tx is supported by Jormungadr
-    -- Then we need also to add impl of fixtureByronWallet in DSL
-    transactionDeleteTest01
-        "byron-wallets" xit fixtureByronWallet postByronTxEp listByronTxEp
-        deleteByronTxEp getByronWalletEp
+    describe "TRANS_DELETE_02 - checking not pending anymore error for " $ do
+        txDeleteNoLongerPendingTest
+            "wallets" it fixtureWallet emptyWallet postTxEp listTxEp deleteTxEp
+        -- xit -> it when submitting byron tx is supported by Jormungadr
+        -- Then we need also to add impl of fixtureByronWallet in DSL
+        txDeleteNoLongerPendingTest
+            "byron-wallets" xit fixtureByronWallet emptyWallet postByronTxEp
+            listByronTxEp deleteByronTxEp
 
-    transactionDeleteTest02
-        "wallets" it fixtureWallet emptyWallet postTxEp listTxEp deleteTxEp
+    describe "TRANS_DELETE_03 - checking no transaction id error for " $ do
+        txDeleteNotExistsingTxIdTest emptyWallet "wallets"
+        txDeleteNotExistsingTxIdTest emptyByronWallet "byron-wallets"
 
-    -- xit -> it when submitting byron tx is supported by Jormungadr
-    -- Then we need also to add impl of fixtureByronWallet in DSL
-    transactionDeleteTest02
-        "byron-wallets" xit fixtureByronWallet emptyWallet postByronTxEp
-        listByronTxEp deleteByronTxEp
+    describe "TRANS_DELETE_04 - False wallet ids for " $ do
+        txDeleteFalseWalletIdsTest "wallets"
+        txDeleteFalseWalletIdsTest "byron-wallets"
 
-    transactionDeleteTest03 emptyWallet "wallets"
+    describe "TRANS_DELETE_07 - invalid tx id " $ do
+        txDeleteInvalidTxIdsTest emptyWallet "wallets"
+        txDeleteInvalidTxIdsTest emptyByronWallet "byron-wallets"
 
-    transactionDeleteTest03 emptyByronWallet "byron-wallets"
+    describe "TRANS_DELETE_08 - HTTP headers " $ do
+        txDeleteHTTPHeadersTest emptyWallet "wallets"
+        txDeleteHTTPHeadersTest emptyByronWallet "byron-wallets"
 
-    transactionDeleteTest04 "wallets"
-
-    transactionDeleteTest04 "byron-wallets"
-
-    transactionDeleteTest07 emptyWallet "wallets"
-
-    transactionDeleteTest07 emptyByronWallet "byron-wallets"
-
-    transactionDeleteTest08 emptyWallet "wallets"
-
-    transactionDeleteTest08 emptyByronWallet "byron-wallets"
-
-    transactionDeleteTest09 "wallets"
-
-    transactionDeleteTest09 "byron-wallets"
+    describe "TRANS_DELETE_09 - HTTP methods not allowed " $ do
+        txDeleteHTTPMethodsTest "wallets"
+        txDeleteHTTPMethodsTest "byron-wallets"
 
     it "TRANS_DELETE_06 -\
      \ Cannot forget tx that is performed from different wallet -> 404"
@@ -1601,7 +1601,7 @@ spec = do
             expectResponseCode @IO HTTP.status404 r
             expectErrorMessage (errMsg404NoWallet wid) r
   where
-    transactionDeleteTest01
+    txDeleteForgetSingleOutputTxTest
        :: forall wal .
            ( Eq wal
            , FromJSON wal
@@ -1616,10 +1616,10 @@ spec = do
        -> (wal -> ApiTxId -> (Method, Text))
        -> (wal -> (Method, Text))
        -> SpecWith (Context t)
-    transactionDeleteTest01
+    txDeleteForgetSingleOutputTxTest
         str action fWallet
         postTxEndp listTxEndpSrc deleteTxEndp getWalletEndp =
-        action ("TRANS_DELETE_01 - Single Output Transaction for " <> str) $ \ctx -> do
+        action str $ \ctx -> do
             (wSrc, wDest) <- (,) <$> fWallet ctx <*> emptyWallet ctx
             -- post tx
             let amt = (1 :: Natural)
@@ -1665,9 +1665,9 @@ spec = do
                     , expectListItemFieldEqual 0 status InLedger
                     ]
 
-    transactionDeleteTest02
+    txDeleteNoLongerPendingTest
         str action fWallet eWallet postTxEndp listTxEndp deleteTxEndp =
-        action ("TRANS_DELETE_02 - checking not pending anymore error for " <> str) $ \ctx -> do
+        action str $ \ctx -> do
             (wSrc, wDest) <- (,) <$> fWallet ctx <*> eWallet ctx
 
             -- post transaction
@@ -1689,8 +1689,8 @@ spec = do
             let err = errMsg403NoPendingAnymore (toUrlPiece (ApiTxId txId))
             expectErrorMessage err rDel
 
-    transactionDeleteTest03 eWallet resource =
-        it ("TRANS_DELETE_03 - checking no transaction id error for " <> resource) $ \ctx -> do
+    txDeleteNotExistsingTxIdTest eWallet resource =
+        it resource $ \ctx -> do
             w <- eWallet ctx
             let walId = w ^. walletId
             let txId = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
@@ -1699,8 +1699,8 @@ spec = do
             expectResponseCode @IO HTTP.status404 ra
             expectErrorMessage (errMsg404CannotFindTx txId) ra
 
-    transactionDeleteTest04 resource =
-        describe ("TRANS_DELETE_04 - False wallet ids for " <> resource) $ do
+    txDeleteFalseWalletIdsTest resource =
+        describe resource $ do
             forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
                 let txId = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
                 let endpoint = "v2/" <> resource <> "/" <> walId <> "/transactions/" <> txId
@@ -1711,8 +1711,8 @@ spec = do
                 else
                     expectErrorMessage errMsg404NoEndpoint r
 
-    transactionDeleteTest07 eWallet resource =
-        describe ("TRANS_DELETE_07 - invalid tx id " <> resource) $ do
+    txDeleteInvalidTxIdsTest eWallet resource =
+        describe resource $ do
             let txIds =
                     [ replicate 63 '1'
                     , replicate 65 '1'
@@ -1727,8 +1727,8 @@ spec = do
                 expectResponseCode @IO HTTP.status404 r
                 expectErrorMessage errMsg404NoEndpoint r
 
-    transactionDeleteTest08 eWallet resource =
-        describe ("TRANS_DELETE_08 - HTTP headers " <> resource) $ do
+    txDeleteHTTPHeadersTest eWallet resource =
+        describe resource $ do
             forM_ (getHeaderCases HTTP.status404)
                 $ \(title, headers, expectations) -> it title $ \ctx -> do
                 w <- eWallet ctx
@@ -1739,9 +1739,8 @@ spec = do
                 r <- request @ApiTxId @IO ctx ("DELETE", ep) headers Empty
                 verify r expectations
 
-    transactionDeleteTest09 res =
-        describe ("TRANS_DELETE_09 -\
-            \ v2/" <> res <> "/{id}/transactions/id - Methods Not Allowed") $ do
+    txDeleteHTTPMethodsTest res =
+        describe ("v2/" <> res <> "/{wid}/transactions/{tid}") $ do
                 let matrix =
                         ["POST", "CONNECT", "TRACE", "OPTIONS", "PUT", "GET"]
                 forM_ matrix $ \m -> it (show m) $ \ctx -> do
