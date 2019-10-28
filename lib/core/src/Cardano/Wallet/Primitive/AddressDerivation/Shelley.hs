@@ -439,16 +439,6 @@ decodeShelleyAddress bytes = do
         "This Address belongs to another network. Network is: "
         <> show (networkDiscriminantVal @n) <> "."
 
--- FIXME
--- 'ShelleyKey' (as well as 'ByronKey') was actually a wrong division for separating
--- HD derivations schemes.
--- Keys are actually the same entities, but the division operates at the address
--- level (Byron addresses have a different structure than Shelley ones).
--- This class here makes strong assumptions on the structure of the address and
--- addresses are the in the new Shelley format -- which is an okay-ish
--- assumption since we've been treating 'ShelleyKey' as key associated with Shelley
--- addresses so far. But this will change as soon as we decide to support Yoroi
--- legacy wallets.
 instance InspectAddress ShelleyKey where
     type SpendingKey ShelleyKey = ByteString
     getSpendingKey (Address bytes)
