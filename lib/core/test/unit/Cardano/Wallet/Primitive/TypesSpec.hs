@@ -100,7 +100,7 @@ import Data.Function
 import Data.Function.Utils
     ( applyN )
 import Data.Maybe
-    ( fromMaybe, isJust, isNothing )
+    ( catMaybes, fromMaybe, isJust, isNothing )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -132,6 +132,7 @@ import Test.QuickCheck
     , choose
     , counterexample
     , cover
+    , infiniteList
     , oneof
     , property
     , scale
@@ -216,6 +217,16 @@ spec = do
                 rangeIsValid r .&&.
                     all rangeIsValid (shrink r)
 
+        it "arbitrary non-singleton ranges are valid" $
+            withMaxSuccess 1000 $ property $ \(nsr :: NonSingletonRange Int) ->
+                let isValidNonSingleton (NonSingletonRange r) =
+                        rangeIsValid r && not (rangeIsSingleton r) in
+                checkCoverage $
+                cover 10 (rangeIsFinite (getNonSingletonRange nsr))
+                    "finite range" $
+                isValidNonSingleton nsr .&&.
+                    all isValidNonSingleton (shrink nsr)
+
         it "functions is{Before,Within,After}Range are mutually exclusive" $
             withMaxSuccess 1000 $ property $ \(a :: Integer) r ->
                 let options =
@@ -293,8 +304,8 @@ spec = do
                 r `isSubrangeOf` wholeRange
 
         it "Range (succ a) b `isSubrangeOf` Range a b" $
-            withMaxSuccess 1000 $ property $ \r@(Range a b :: Range Int) ->
-                not (rangeIsSingleton r) ==>
+            withMaxSuccess 1000 $ property $ \nsr ->
+                let r@(Range a b :: Range Int) = getNonSingletonRange nsr in
                 checkCoverage $
                 cover 10 (rangeHasLowerBound r) "has lower bound" $
                 cover 10 (rangeHasUpperBound r) "has upper bound" $
@@ -302,8 +313,8 @@ spec = do
                 Range (succ <$> a) b `isSubrangeOf` Range a b
 
         it "Range a (pred b) `isSubrangeOf` Range a b" $
-            withMaxSuccess 1000 $ property $ \r@(Range a b :: Range Int) ->
-                not (rangeIsSingleton r) ==>
+            withMaxSuccess 1000 $ property $ \nsr ->
+                let r@(Range a b :: Range Int) = getNonSingletonRange nsr in
                 checkCoverage $
                 cover 10 (rangeHasLowerBound r) "has lower bound" $
                 cover 10 (rangeHasUpperBound r) "has upper bound" $
@@ -840,21 +851,38 @@ instance Arbitrary Coin where
     arbitrary = Coin <$> choose (0, 3)
 
 instance (Arbitrary a, Ord a) => Arbitrary (Range a) where
-    arbitrary = fmap makeRangeValid $
-        Range
-            <$> arbitrary
-            <*> arbitrary
-    shrink (Range p q) = makeRangeValid <$>
-        [ Range u v
-        | u <- shrink p
-        , v <- shrink q
-        ]
+    arbitrary =
+        makeRangeValid . uncurry Range <$> arbitrary
+    shrink (Range p q) =
+        makeRangeValid . uncurry Range <$> shrink (p, q)
 
 -- Ensures that the start of a range is not greater than its end.
 makeRangeValid :: Ord a => Range a -> Range a
 makeRangeValid = \case
     Range (Just p) (Just q) -> Range (Just $ min p q) (Just $ max p q)
     r -> r
+
+-- A range that contains more than a single element.
+newtype NonSingletonRange a = NonSingletonRange
+    { getNonSingletonRange :: Range a
+    } deriving Show
+
+instance (Arbitrary a, Ord a) => Arbitrary (NonSingletonRange a) where
+    arbitrary = do
+        -- Iterate through the infinite list of arbitrary ranges and return
+        -- the first range that is not a singleton range:
+        ranges <- infiniteList
+        pure $ head $ catMaybes $
+            makeNonSingletonRangeValid . NonSingletonRange <$> ranges
+    shrink (NonSingletonRange r) = catMaybes $
+        makeNonSingletonRangeValid . NonSingletonRange <$> shrink r
+
+-- Ensures that a range is not a singleton range.
+makeNonSingletonRangeValid
+    :: Ord a => NonSingletonRange a -> Maybe (NonSingletonRange a)
+makeNonSingletonRangeValid (NonSingletonRange r)
+    | rangeIsSingleton r = Nothing
+    | otherwise = Just $ NonSingletonRange $ makeRangeValid r
 
 instance Arbitrary TxOut where
     -- No Shrinking
