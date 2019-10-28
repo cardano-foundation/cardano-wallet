@@ -219,15 +219,13 @@ spec = do
 
         it "arbitrary non-singleton ranges are valid" $
             withMaxSuccess 1000 $ property $ \(nsr :: NonSingletonRange Int) ->
-                let isValidNonSingleton r =
+                let isValidNonSingleton (NonSingletonRange r) =
                         rangeIsValid r && not (rangeIsSingleton r) in
                 checkCoverage $
                 cover 10 (rangeIsFinite (getNonSingletonRange nsr))
                     "finite range" $
-                isValidNonSingleton (getNonSingletonRange nsr) .&&.
-                    all
-                        (isValidNonSingleton . getNonSingletonRange)
-                        (shrink nsr)
+                isValidNonSingleton nsr .&&.
+                    all isValidNonSingleton (shrink nsr)
 
         it "functions is{Before,Within,After}Range are mutually exclusive" $
             withMaxSuccess 1000 $ property $ \(a :: Integer) r ->
