@@ -23,7 +23,7 @@ import Cardano.Wallet.Api.Types
     , time
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Network (..) )
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( encodeAddress )
 import Cardano.Wallet.Primitive.Types

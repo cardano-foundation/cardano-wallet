@@ -67,7 +67,7 @@ import Cardano.Wallet.Jormungandr.Network
     , JormungandrConnParams (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Network (..) )
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters )
 import Cardano.Wallet.Primitive.Types

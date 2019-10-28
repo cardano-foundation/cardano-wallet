@@ -16,7 +16,7 @@ import Prelude
 import Cardano.Wallet.Jormungandr.Binary
     ( signData )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Network (..) )
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
     ( Coin (..), Hash (..), TxIn (..), TxOut (..) )
 import Cardano.Wallet.Unsafe

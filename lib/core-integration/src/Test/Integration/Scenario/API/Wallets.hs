@@ -14,7 +14,7 @@ import Prelude
 import Cardano.Wallet.Api.Types
     ( ApiTransaction, ApiUtxoStatistics, ApiWallet )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Network (..) )
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types

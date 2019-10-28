@@ -13,7 +13,7 @@ import Prelude
 import Cardano.Wallet.Api.Types
     ( ApiAddress, getApiT )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Network (..) )
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( EncodeAddress (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential

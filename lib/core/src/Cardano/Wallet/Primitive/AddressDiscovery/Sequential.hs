@@ -63,7 +63,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationType (..)
     , Index
     , KeyToAddress (..)
-    , Network
+    , NetworkDiscriminant
     , Passphrase (..)
     , WalletKey (..)
     )
@@ -193,7 +193,7 @@ defaultAddressPoolGap =
 --
 -- >>> mkAddressPool xpub gap changeChain mempty
 -- AddressPool { }
-data AddressPool (network :: Network) (chain :: ChangeChain) = AddressPool
+data AddressPool (network :: NetworkDiscriminant) (chain :: ChangeChain) = AddressPool
     { accountPubKey
         :: !(SeqKey 'AccountK XPub)
         -- ^ Corresponding key for the pool (a pool is tied to only one account)

@@ -65,12 +65,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Index (..)
     , InspectAddress (..)
     , KeyToAddress (..)
-    , Network (..)
-    , NetworkVal
+    , NetworkDiscriminant (..)
+    , NetworkDiscriminantVal
     , Passphrase (..)
     , PersistKey (..)
     , WalletKey (..)
-    , networkVal
+    , networkDiscriminantVal
     )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), Hash (..), invariant )
@@ -366,7 +366,7 @@ instance DelegationAddress 'Testnet SeqKey where
         encodeShelleyAddress (grouped @'Testnet) [getKey xpub0, getKey xpub1]
 
 -- | Embed some constants into a network type.
-class KnownNetwork (n :: Network) where
+class KnownNetwork (n :: NetworkDiscriminant) where
     single :: Word8
         -- ^ Address discriminant byte for single addresses, this is the first byte of
         -- every addresses using the Shelley format carrying only a spending key.
@@ -404,7 +404,7 @@ encodeShelleyAddress discriminant keys =
 
 -- | Verify the structure of a payload decoded from a Bech32 text string
 decodeShelleyAddress
-    :: forall n. (KnownNetwork n, NetworkVal n)
+    :: forall n. (KnownNetwork n, NetworkDiscriminantVal n)
     => ByteString
     -> Either TextDecodingError Address
 decodeShelleyAddress bytes = do
@@ -437,7 +437,7 @@ decodeShelleyAddress bytes = do
         "Invalid Address first byte."
     invalidNetwork = TextDecodingError $
         "This Address belongs to another network. Network is: "
-        <> show (networkVal @n) <> "."
+        <> show (networkDiscriminantVal @n) <> "."
 
 -- FIXME
 -- 'SeqKey' (as well as 'RndKey') was actually a wrong division for separating

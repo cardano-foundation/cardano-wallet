@@ -41,9 +41,9 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , unXPub
 
     -- * Network Discrimination
-    , Network (..)
-    , NetworkVal
-    , networkVal
+    , NetworkDiscriminant (..)
+    , NetworkDiscriminantVal
+    , networkDiscriminantVal
 
     -- * Backends Interoperability
     , KeyToAddress(..)
@@ -384,24 +384,24 @@ instance MonadRandom ((->) (Passphrase "salt")) where
     getRandomBytes _ (Passphrase salt) = BA.convert salt
 
 {-------------------------------------------------------------------------------
-                          Network Discrimination
+                             Network Discrimination
 -------------------------------------------------------------------------------}
 
 -- | Available network options.
-data Network = Mainnet | Testnet
+data NetworkDiscriminant = Mainnet | Testnet
     deriving (Generic, Show, Eq, Bounded, Enum)
 
-instance FromText Network where
+instance FromText NetworkDiscriminant where
     fromText = fromTextToBoundedEnum SnakeLowerCase
 
-instance ToText Network where
+instance ToText NetworkDiscriminant where
     toText = toTextFromBoundedEnum SnakeLowerCase
 
-class NetworkVal (n :: Network) where
-    networkVal :: Network
+class NetworkDiscriminantVal (n :: NetworkDiscriminant) where
+    networkDiscriminantVal :: NetworkDiscriminant
 
-instance NetworkVal 'Mainnet where networkVal = Mainnet
-instance NetworkVal 'Testnet where networkVal = Testnet
+instance NetworkDiscriminantVal 'Mainnet where networkDiscriminantVal = Mainnet
+instance NetworkDiscriminantVal 'Testnet where networkDiscriminantVal = Testnet
 
 {-------------------------------------------------------------------------------
                      Interface over keys / address types
@@ -446,7 +446,7 @@ class WalletKey (key :: Depth -> * -> *) where
 -- | Encoding of addresses for certain key types and backend targets.
 --
 -- TODO: Rename 'KeyToAddress' into 'PaymentAddress'
-class WalletKey key => KeyToAddress (network :: Network) (key :: Depth -> * -> *) where
+class WalletKey key => KeyToAddress (network :: NetworkDiscriminant) (key :: Depth -> * -> *) where
     -- | Convert a public key to a payment 'Address' valid for the given
     -- network discrimination.
     --
@@ -454,7 +454,7 @@ class WalletKey key => KeyToAddress (network :: Network) (key :: Depth -> * -> *
     -- application.
     keyToAddress :: key 'AddressK XPub -> Address
 
-class WalletKey key => DelegationAddress (network :: Network) (key :: Depth -> * -> *) where
+class WalletKey key => DelegationAddress (network :: NetworkDiscriminant) (key :: Depth -> * -> *) where
     -- | Convert a public key and a staking key to a delegation 'Address' valid
     -- for the given network discrimination. Funds sent to this address will be
     -- delegated according to the delegation settings attached to the delegation

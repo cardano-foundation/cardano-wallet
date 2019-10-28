@@ -21,9 +21,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationType (Hardened)
     , Index
     , KeyToAddress (..)
-    , Network (..)
+    , NetworkDiscriminant (..)
     , Passphrase (..)
-    , networkVal
+    , networkDiscriminantVal
     , passphraseMaxLength
     , passphraseMinLength
     , publicKey
@@ -90,7 +90,7 @@ spec = do
                     === Right (ShowFmt a)
         negativeTest proxy "ta1sdaa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677ztw225s"
             ("This Address belongs to another network. Network is: "
-            <> show (networkVal @'Mainnet) <> ".")
+            <> show (networkDiscriminantVal @'Mainnet) <> ".")
         negativeTest proxy "EkxDbkPo"
             "Unable to decode Address: neither Bech32-encoded nor a valid Byron \
             \Address."
@@ -137,7 +137,7 @@ spec = do
                     === Right (ShowFmt a)
         negativeTest proxy "ca1qdaa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677zqx4le2"
             ("This Address belongs to another network. Network is: "
-            <> show (networkVal @'Testnet) <> ".")
+            <> show (networkDiscriminantVal @'Testnet) <> ".")
         negativeTest proxy "EkxDbkPo"
             "Unable to decode Address: neither Bech32-encoded nor a valid Byron \
             \Address."
@@ -184,7 +184,7 @@ spec = do
 -------------------------------------------------------------------------------}
 
 prop_derivedKeysAreOurs
-    :: forall (n :: Network). (KeyToAddress n RndKey)
+    :: forall (n :: NetworkDiscriminant). (KeyToAddress n RndKey)
     => Passphrase "seed"
     -> Passphrase "encryption"
     -> Index 'Hardened 'AccountK

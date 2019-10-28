@@ -24,12 +24,12 @@ import Cardano.Wallet.Jormungandr.Transaction
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , KeyToAddress (..)
-    , Network (..)
-    , NetworkVal
+    , NetworkDiscriminant (..)
+    , NetworkDiscriminantVal
     , Passphrase (..)
     , XPrv
     , keyToAddress
-    , networkVal
+    , networkDiscriminantVal
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
@@ -436,7 +436,7 @@ hex :: ByteString -> ByteString
 hex = convertToBase Base16
 
 unknownInputTest
-    :: forall n. (KeyToAddress n SeqKey, NetworkVal n)
+    :: forall n. (KeyToAddress n SeqKey, NetworkDiscriminantVal n)
     => Proxy n
     -> Hash "Genesis"
     -> SpecWith ()
@@ -456,11 +456,11 @@ unknownInputTest _ block0 = it title $ do
     res `shouldBe` Left (ErrKeyNotFoundForAddress addr)
   where
     title = "Unknown input address yields an error ("
-        <> T.unpack (toText (networkVal @n))
+        <> T.unpack (toText (networkDiscriminantVal @n))
         <> ")"
 
 tooNumerousInpsTest
-    :: forall n. (KeyToAddress n SeqKey, NetworkVal n)
+    :: forall n. (KeyToAddress n SeqKey, NetworkDiscriminantVal n)
     => Proxy n
     -> Hash "Genesis"
     -> SpecWith ()
@@ -479,11 +479,11 @@ tooNumerousInpsTest _ block0 = it title $ do
     res `shouldBe` Left ErrExceededInpsOrOuts
   where
     title = "Too numerous inputs yields an error ("
-        <> T.unpack (toText (networkVal @n))
+        <> T.unpack (toText (networkDiscriminantVal @n))
         <> ")"
 
 tooNumerousOutsTest
-    :: forall n. (KeyToAddress n SeqKey, NetworkVal n)
+    :: forall n. (KeyToAddress n SeqKey, NetworkDiscriminantVal n)
     => Proxy n
     -> Hash "Genesis"
     -> SpecWith ()
@@ -502,5 +502,5 @@ tooNumerousOutsTest _ block0 = it title $ do
     res `shouldBe` Left ErrExceededInpsOrOuts
   where
     title = "Too numerous outputs yields an error ("
-        <> T.unpack (toText (networkVal @n))
+        <> T.unpack (toText (networkDiscriminantVal @n))
         <> ")"

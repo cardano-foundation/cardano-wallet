@@ -16,7 +16,7 @@ import Prelude
 import Cardano.Wallet.Api.Types
     ( ApiByronWallet, ApiTransaction )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Network (..) )
+    ( NetworkDiscriminant (..) )
 import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens

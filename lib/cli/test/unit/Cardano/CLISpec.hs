@@ -25,7 +25,7 @@ import Cardano.CLI
     , hGetSensitiveLine
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Network (..) )
+    ( NetworkDiscriminant (..) )
 import Control.Concurrent
     ( forkFinally )
 import Control.Concurrent.MVar

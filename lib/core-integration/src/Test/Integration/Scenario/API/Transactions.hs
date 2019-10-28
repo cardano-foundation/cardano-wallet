@@ -24,7 +24,7 @@ import Cardano.Wallet.Api.Types
     , time
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Network (..) )
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
     ( Direction (..), TxStatus (..), WalletBalance, WalletId )
 import Control.Monad

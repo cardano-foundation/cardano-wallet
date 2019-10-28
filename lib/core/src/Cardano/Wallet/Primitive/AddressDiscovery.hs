@@ -35,7 +35,7 @@ import Prelude
 import Cardano.Crypto.Wallet
     ( XPrv )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), Network (..), Passphrase (..) )
+    ( Depth (..), NetworkDiscriminant (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
     ( decodeLegacyAddress )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
@@ -157,12 +157,12 @@ class KnownAddresses s where
 
 -- | An abstract class to allow encoding of addresses depending on the target
 -- backend used.
-class EncodeAddress (n :: Network) where
+class EncodeAddress (n :: NetworkDiscriminant) where
     encodeAddress :: Address -> Text
 
 -- | An abstract class to allow decoding of addresses depending on the target
 -- backend used.
-class DecodeAddress (n :: Network) where
+class DecodeAddress (n :: NetworkDiscriminant) where
     decodeAddress :: Text -> Either TextDecodingError Address
 
 {-------------------------------------------------------------------------------

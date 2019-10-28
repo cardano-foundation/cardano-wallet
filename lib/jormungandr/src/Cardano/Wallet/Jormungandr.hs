@@ -66,7 +66,12 @@ import Cardano.Wallet.Jormungandr.Transaction
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( KeyToAddress, Network, NetworkVal, PersistKey, networkVal )
+    ( KeyToAddress
+    , NetworkDiscriminant
+    , NetworkDiscriminantVal
+    , PersistKey
+    , networkDiscriminantVal
+    )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
     ( RndKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
@@ -122,9 +127,9 @@ import qualified Network.Wai.Handler.Warp as Warp
 -- which was passed from the CLI and environment and starts all components of
 -- the wallet.
 serveWallet
-    :: forall (n :: Network) t.
+    :: forall (n :: NetworkDiscriminant) t.
         ( t ~ Jormungandr
-        , NetworkVal n
+        , NetworkDiscriminantVal n
         , DecodeAddress n
         , EncodeAddress n
         , KeyToAddress n RndKey
@@ -146,7 +151,7 @@ serveWallet
 serveWallet (cfg, tr) databaseDir hostPref listen lj beforeMainLoop = do
     installSignalHandlers tr
     logInfo tr "Wallet backend server starting..."
-    logInfo tr $ "Node is Jörmungandr on " <> toText (networkVal @n)
+    logInfo tr $ "Node is Jörmungandr on " <> toText (networkDiscriminantVal @n)
     withNetworkLayer tr lj $ \case
         Right (cp, nl) -> do
             let nPort = Port $ baseUrlPort $ _restApi cp

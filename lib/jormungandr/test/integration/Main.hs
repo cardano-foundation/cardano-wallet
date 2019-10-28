@@ -33,7 +33,7 @@ import Cardano.Wallet.Jormungandr.Launch
 import Cardano.Wallet.Jormungandr.Network
     ( JormungandrBackend (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Network (..) )
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Model

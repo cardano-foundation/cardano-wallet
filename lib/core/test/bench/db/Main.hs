@@ -51,7 +51,7 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , KeyToAddress (..)
-    , Network (..)
+    , NetworkDiscriminant (..)
     , Passphrase (..)
     , WalletKey (..)
     , XPub
