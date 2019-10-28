@@ -840,15 +840,10 @@ instance Arbitrary Coin where
     arbitrary = Coin <$> choose (0, 3)
 
 instance (Arbitrary a, Ord a) => Arbitrary (Range a) where
-    arbitrary = fmap makeRangeValid $
-        Range
-            <$> arbitrary
-            <*> arbitrary
-    shrink (Range p q) = makeRangeValid <$>
-        [ Range u v
-        | u <- shrink p
-        , v <- shrink q
-        ]
+    arbitrary =
+        makeRangeValid . uncurry Range <$> arbitrary
+    shrink (Range p q) =
+        makeRangeValid . uncurry Range <$> shrink (p, q)
 
 -- Ensures that the start of a range is not greater than its end.
 makeRangeValid :: Ord a => Range a -> Range a
