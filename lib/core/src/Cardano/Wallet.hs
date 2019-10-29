@@ -581,9 +581,12 @@ restoreBlocks ctx wid blocks nodeTip = do
         DB.prune db (PrimaryKey wid)
         DB.putTxHistory db (PrimaryKey wid) txs
 
+
         liftIO $ do
+            progress <- walletSyncProgress (NE.last cps)
             logInfo tr $
                 pretty meta
+            logInfo tr $ "syncProgress: " <> pretty progress
             logInfo tr $ "discovered "
                 <> pretty (length txs) <> " new transaction(s)"
             logInfo tr $ "local tip: "
