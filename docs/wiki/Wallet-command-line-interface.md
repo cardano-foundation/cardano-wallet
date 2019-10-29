@@ -33,6 +33,7 @@ Available COMMANDS:
     <a href="#transaction-fees">fees</a>              Estimate fees for a transaction
     <a href="#transaction-list">list</a>              List the transactions associated with a wallet
     <a href="#transaction-submit">submit</a>            Submit an externally-signed transaction
+    <a href="#transaction-forget">forget</a>            Forget a pending transaction with specified id
   address
     <a href="#address-list">list</a>              List all known addresses of a wallet
   stake-pool
