@@ -321,12 +321,6 @@ x-transactionStatus: &transactionStatus
     Current transaction status.
 
       ```
-                                  *-------------*
-                                  |             |
-                  *---------------> INVALIDATED |
-                  |               |             |
-              (timeout)           *-------------*
-                  |
              *---------*
              |         |
       -------> PENDING <----------------*
@@ -343,7 +337,6 @@ x-transactionStatus: &transactionStatus
   enum:
     - pending
     - in_ledger
-    - invalidated
 
 x-stakePoolId: &stakePoolId
   <<: *addressId
@@ -916,12 +909,10 @@ x-responsesPutWalletPassphrase: &responsesPutWalletPassphrase
     description: No Content
 
 x-responsesDeleteTransaction: &responsesDeleteTransaction
-  <<: *responsesErr400
   <<: *responsesErr403
   <<: *responsesErr404
   <<: *responsesErr405
   <<: *responsesErr406
-  <<: *responsesErr415
   204:
     description: No Content
 
@@ -1188,7 +1179,7 @@ paths:
     delete:
       operationId: deleteTransaction
       tags: ["Transactions"]
-      summary: Delete
+      summary: Forget
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
@@ -1264,7 +1255,7 @@ paths:
       tags: ["Byron Wallets"]
       summary: List
       description: |
-        <p align="right">status: <strong>under testing</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
 
         Return a list of known Byron wallets, ordered from oldest to newest.
       responses: *responsesListByronWallets
@@ -1274,7 +1265,7 @@ paths:
       tags: ["Byron Wallets"]
       summary: Restore
       description: |
-        <p align="right">status: <strong>under testing</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
 
         Restore a Byron wallet from a mnemonic sentence.
       parameters:
@@ -1288,7 +1279,7 @@ paths:
       tags: ["Byron Wallets"]
       summary: Get
       description: |
-        <p align="right">status: <strong>under testing</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
 
         Return information about a Byron wallet.
       parameters:
@@ -1300,7 +1291,7 @@ paths:
       tags: ["Byron Wallets"]
       summary: Delete
       description: |
-        <p align="right">status: <strong>under testing</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
 
         Delete a Byron wallet.
       parameters:
@@ -1327,7 +1318,7 @@ paths:
     delete:
       operationId: deleteByronTransaction
       tags: ["Byron Transactions"]
-      summary: Delete
+      summary: Forget
       description: |
         <p align="right">status: <strong>under testing</strong></p>
 
