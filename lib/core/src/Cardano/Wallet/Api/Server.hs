@@ -158,6 +158,7 @@ import Cardano.Wallet.Primitive.Types
     , HistogramBar (..)
     , PoolId
     , SortOrder (..)
+    , SyncProgress (..)
     , TransactionInfo (TransactionInfo)
     , TxIn
     , TxOut (..)
@@ -1126,7 +1127,7 @@ natural = Quantity . fromIntegral . getQuantity
 
 getWalletWithCreationTime
     :: forall s t k w. DefineTx t
-    => (WalletId -> Wallet s t -> WalletMetadata -> Set (Tx t) -> w)
+    => (WalletId -> Wallet s t -> WalletMetadata -> SyncProgress -> Set (Tx t) -> w)
     -> ApiLayer s t k
     -> ApiT WalletId
     -> Handler (w, UTCTime)
@@ -1134,31 +1135,37 @@ getWalletWithCreationTime mk ctx (ApiT wid) = do
     (wallet, meta, pending) <-
         liftHandler $ withWorkerCtx ctx wid throwE $
             \wrk -> W.readWallet wrk wid
-    return (mk wid wallet meta pending, meta ^. #creationTime)
+    progress <- liftIO $ W.walletSyncProgress wallet
+    return (mk wid wallet meta progress pending, meta ^. #creationTime)
 
 mkApiWallet
     :: forall s t n. (DefineTx t, s ~ SeqState n)
-    => WalletId -> Wallet s t -> WalletMetadata -> Set (Tx t) -> ApiWallet
-mkApiWallet wid wallet meta pending = ApiWallet
+    => WalletId
+    -> Wallet s t
+    -> WalletMetadata
+    -> SyncProgress
+    -> Set (Tx t)
+    -> ApiWallet
+mkApiWallet wid wallet meta progress pending = ApiWallet
     { addressPoolGap = ApiT $ getState wallet ^. #externalPool . #gap
     , balance = getWalletBalance wallet pending
     , delegation = ApiT $ ApiT <$> meta ^. #delegation
     , id = ApiT wid
     , name = ApiT $ meta ^. #name
     , passphrase = ApiT <$> meta ^. #passphraseInfo
-    , state = ApiT $ meta ^. #status
+    , state = ApiT progress
     , tip = getWalletTip wallet
     }
 
 mkApiByronWallet
     :: forall s t n. (DefineTx t, s ~ RndState n)
-    => WalletId -> Wallet s t -> WalletMetadata -> Set (Tx t) -> ApiByronWallet
-mkApiByronWallet wid wallet meta pending = ApiByronWallet
+    => WalletId -> Wallet s t -> WalletMetadata -> SyncProgress -> Set (Tx t) -> ApiByronWallet
+mkApiByronWallet wid wallet meta progress pending = ApiByronWallet
     { balance = getWalletBalance wallet pending
     , id = ApiT wid
     , name = ApiT $ meta ^. #name
     , passphrase = ApiT <$> meta ^. #passphraseInfo
-    , state = ApiT $ meta ^. #status
+    , state = ApiT progress
     , tip = getWalletTip wallet
     }
 

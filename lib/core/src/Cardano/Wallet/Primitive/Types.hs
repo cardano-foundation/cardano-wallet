@@ -237,8 +237,6 @@ data WalletMetadata = WalletMetadata
         :: !UTCTime
     , passphraseInfo
         :: !(Maybe WalletPassphraseInfo)
-    , status
-        :: !SyncProgress
     , delegation
         :: !(WalletDelegation PoolId)
     } deriving (Eq, Show, Generic)
@@ -246,8 +244,8 @@ data WalletMetadata = WalletMetadata
 instance NFData WalletMetadata
 
 instance Buildable WalletMetadata where
-    build (WalletMetadata wName wTime _ wStatus wDelegation) = mempty
-        <> build wName <> " (" <> build wStatus <> "), "
+    build (WalletMetadata wName wTime _ wDelegation) = mempty
+        <> build wName <> ", "
         <> "created at " <> build wTime <> ", "
         <> build wDelegation
 
