@@ -343,7 +343,8 @@ legacyUtxoWitness xpub bytes = TxWitness $ BL.toStrict $ runPut $ do
 
 -- | Decode the contents of a delegated transaction @Transaction@-message.
 getDelegatedCertificateTransaction :: Int -> Get (Tx, [TxWitness])
-getDelegatedCertificateTransaction _n = undefined
+getDelegatedCertificateTransaction =
+    getGenericTransaction MsgTypeCertificate "getDelegatedCertificateTransaction"
 
 putStakeDelegationTx
     :: PoolId
@@ -352,11 +353,21 @@ putStakeDelegationTx
     -> [TxOut]
     -> [TxWitness]
     -> Put
-putStakeDelegationTx _poolId _account _inputs _outputs _witnesses = undefined
+putStakeDelegationTx (PoolId poolId) xpub inputs outputs witnesses = do
+    putSignedTx inputs outputs witnesses
+    putByteString poolId
+    putByteString (unXPub xpub)
 
 -- | Decode the contents of a @Transaction@-message.
 getTransaction :: Hash "Tx" -> Get (Tx, [TxWitness])
-getTransaction tid = label "getTransaction" $ do
+getTransaction = getGenericTransaction
+
+getGenericTransaction
+    :: MessageType
+    -> String
+    -> Hash "Tx"
+    -> Get (Tx, [TxWitness])
+getGenericTransaction msg name tid = label "getGenericTransaction" $ do
     (ins, outs) <- getTokenTransfer
     let witnessCount = length ins
     wits <- replicateM witnessCount getWitness
