@@ -79,7 +79,6 @@ import Cardano.Wallet.Api
     , HasDBFactory
     , HasWorkerRegistry
     , StakePoolApi
-    , StakePools
     , Transactions
     , Wallets
     , dbFactory
@@ -93,7 +92,6 @@ import Cardano.Wallet.Api.Types
     , ApiByronWalletMigrationInfo (..)
     , ApiErrorCode (..)
     , ApiFee (..)
-    , ApiMigrateByronWalletData (..)
     , ApiNetworkInformation (..)
     , ApiNetworkTip (..)
     , ApiStakePool (..)
@@ -104,6 +102,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxInput (..)
     , ApiUtxoStatistics (..)
     , ApiWallet (..)
+    , ApiWalletPassphrase (..)
     , ByronWalletPostData (..)
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
@@ -157,6 +156,7 @@ import Cardano.Wallet.Primitive.Types
     , DefineTx (..)
     , Hash (..)
     , HistogramBar (..)
+    , PoolId
     , SortOrder (..)
     , TransactionInfo (TransactionInfo)
     , TxIn
@@ -255,8 +255,10 @@ import Servant
     , err409
     , err410
     , err500
+    , err501
     , err503
     , serve
+    , throwError
     )
 import Servant.Server
     ( Handler (..), ServantErr (..) )
@@ -404,8 +406,12 @@ coreApiServer ctx =
     :<|> network ctx
 
 stakePoolServer
-    :: StakePoolLayer IO
-    -> Server StakePoolApi
+    :: forall n k.
+        ( PaymentAddress n k
+        , k ~ ShelleyKey
+        )
+    => StakePoolLayer IO
+    -> Server (StakePoolApi n)
 stakePoolServer = pools
 
 {-------------------------------------------------------------------------------
@@ -746,9 +752,16 @@ postTransactionFee ctx (ApiT wid) body = do
 -------------------------------------------------------------------------------}
 
 pools
-    :: StakePoolLayer IO
-    -> Server StakePools
-pools = listPools
+    :: forall n k.
+        ( PaymentAddress n k
+        , k ~ ShelleyKey
+        )
+    => StakePoolLayer IO
+    -> Server (StakePoolApi n)
+pools spl =
+    listPools spl
+    :<|> joinStakePool
+    :<|> quitStakePool
 
 listPools
     :: StakePoolLayer IO
@@ -766,6 +779,28 @@ listPools spl = liftHandler (map mkApiStakePool <$> listStakePools spl)
         ApiStakePool
             (ApiT pool)
             (StakePoolMetrics (Quantity $ fromIntegral stake) blocks)
+
+joinStakePool
+    :: forall n k.
+        ( PaymentAddress n k
+        , k ~ ShelleyKey
+        )
+    => ApiT PoolId
+    -> ApiT WalletId
+    -> ApiWalletPassphrase
+    -> Handler (ApiTransaction n)
+joinStakePool _ _ _ = throwError err501
+
+quitStakePool
+    :: forall n k.
+        ( PaymentAddress n k
+        , k ~ ShelleyKey
+        )
+    => ApiT PoolId
+    -> ApiT WalletId
+    -> ApiWalletPassphrase
+    -> Handler (ApiTransaction n)
+quitStakePool _ _ _ = throwError err501
 
 {-------------------------------------------------------------------------------
                                     Network
@@ -894,7 +929,7 @@ migrateByronWallet
         -- ^ Source wallet (Byron)
     -> ApiT WalletId
         -- ^ Target wallet (Shelley)
-    -> ApiMigrateByronWalletData
+    -> ApiWalletPassphrase
     -> Handler [ApiTransaction n]
 migrateByronWallet rndCtx seqCtx (ApiT rndWid) (ApiT seqWid) migrateData = do
 

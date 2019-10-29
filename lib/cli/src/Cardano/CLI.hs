@@ -105,6 +105,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxId (..)
     , ApiUtxoStatistics
     , ApiWallet
+    , ApiWalletPassphrase
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
     , PostTransactionData (..)
@@ -128,7 +129,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState, Hash, SortOrder, WalletId, WalletName )
+    ( AddressState, Hash, PoolId, SortOrder, WalletId, WalletName )
 import Cardano.Wallet.Version
     ( showVersion, version )
 import Control.Applicative
@@ -1001,6 +1002,16 @@ data WalletClient t = WalletClient
         -> ClientM NoContent
     , listPools
         :: ClientM [ApiStakePool]
+    , joinStakePool
+        :: ApiT PoolId
+        -> ApiT WalletId
+        -> ApiWalletPassphrase
+        -> ClientM (ApiTransaction t)
+    , quitStakePool
+        :: ApiT PoolId
+        -> ApiT WalletId
+        -> ApiWalletPassphrase
+        -> ClientM (ApiTransaction t)
     , networkInformation
         :: ClientM ApiNetworkInformation
     }
@@ -1009,7 +1020,7 @@ walletClient :: forall t. (DecodeAddress t, EncodeAddress t) => WalletClient t
 walletClient =
     let
         (addresses :<|> wallets :<|> transactions :<|> network) :<|> pools =
-            client (Proxy @("v2" :> (CoreApi t :<|> StakePoolApi)))
+            client (Proxy @("v2" :> (CoreApi t :<|> StakePoolApi t)))
 
         _listAddresses =
             addresses
@@ -1030,7 +1041,11 @@ walletClient =
             :<|> _deleteTransaction
             = transactions
 
-        _listPools = pools
+        _listPools
+            :<|> _joinStakePool
+            :<|> _quitStakePool
+            = pools
+
 
         _networkInformation = network
     in
@@ -1049,6 +1064,8 @@ walletClient =
             , postTransactionFee = _postTransactionFee
             , getWalletUtxoStatistics = _getWalletUtxoStatistics
             , listPools = _listPools
+            , joinStakePool = _joinStakePool
+            , quitStakePool = _quitStakePool
             , networkInformation = _networkInformation
             }
 

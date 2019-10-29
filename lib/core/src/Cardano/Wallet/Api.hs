@@ -23,7 +23,6 @@ module Cardano.Wallet.Api
 
       -- * Stake Pool API
     , StakePoolApi
-    , StakePools
 
       -- * Compatibility API
     , CompatibilityApi
@@ -51,7 +50,6 @@ import Cardano.Wallet.Api.Types
     , ApiByronWallet
     , ApiByronWalletMigrationInfo
     , ApiFee
-    , ApiMigrateByronWalletData
     , ApiNetworkInformation
     , ApiStakePool
     , ApiT
@@ -59,6 +57,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxId
     , ApiUtxoStatistics
     , ApiWallet
+    , ApiWalletPassphrase
     , ByronWalletPostData
     , Iso8601Time
     , PostExternalTransactionData
@@ -77,7 +76,13 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState, Block, DefineTx (..), SortOrder (..), WalletId (..) )
+    ( AddressState
+    , Block
+    , DefineTx (..)
+    , PoolId
+    , SortOrder (..)
+    , WalletId (..)
+    )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..), WorkerRegistry )
 import Cardano.Wallet.Transaction
@@ -101,6 +106,7 @@ import Servant.API
     , (:>)
     , Accept (..)
     , Capture
+    , DeleteAccepted
     , DeleteNoContent
     , Get
     , JSON
@@ -113,7 +119,7 @@ import Servant.API
     , ReqBody
     )
 
-type Api t = CoreApi t :<|> CompatibilityApi t :<|> StakePoolApi
+type Api t = CoreApi t :<|> CompatibilityApi t :<|> StakePoolApi t
 
 type CoreApi t =
     Addresses t
@@ -121,7 +127,10 @@ type CoreApi t =
     :<|> Transactions t
     :<|> Network
 
-type StakePoolApi = StakePools
+type StakePoolApi t =
+    ListStakePools
+    :<|> JoinStakePool t
+    :<|> QuitStakePool t
 
 type CompatibilityApi n =
     DeleteByronWallet
@@ -253,11 +262,25 @@ type DeleteTransaction = "wallets"
   See also: https://input-output-hk.github.io/cardano-wallet/api/edge/#tag/Stake-Pools
 -------------------------------------------------------------------------------}
 
-type StakePools = ListStakePools
-
 -- | https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listStakePools
 type ListStakePools = "stake-pools"
     :> Get '[JSON] [ApiStakePool]
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/joinStakePool
+type JoinStakePool t = "stake-pools"
+    :> Capture "stakePoolId" (ApiT PoolId)
+    :> "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> ReqBody '[JSON] ApiWalletPassphrase
+    :> Put '[JSON] (ApiTransaction t)
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/quitStakePool
+type QuitStakePool t = "stake-pools"
+    :> Capture "stakePoolId" (ApiT PoolId)
+    :> "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> ReqBody '[JSON] ApiWalletPassphrase
+    :> DeleteAccepted '[JSON] (ApiTransaction t)
 
 {-------------------------------------------------------------------------------
                                   Network
@@ -327,7 +350,7 @@ type MigrateByronWallet n = "byron-wallets"
     :> Capture "sourceWalletId" (ApiT WalletId)
     :> "migrations"
     :> Capture "targetWalletId" (ApiT WalletId)
-    :> ReqBody '[JSON] ApiMigrateByronWalletData
+    :> ReqBody '[JSON] ApiWalletPassphrase
     :> PostAccepted '[JSON] [ApiTransaction n]
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteByronTransaction
