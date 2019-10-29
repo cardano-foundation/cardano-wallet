@@ -349,7 +349,7 @@ getTransaction tid = label "getTransaction" $ do
         let len = txWitnessSize tag + txWitnessTagSize
         -- NOTE: Regardless of the type of witness, we decode it as a
         -- @TxWitness@.
-        TxWitness <$> isolate len (getByteString len)
+        TxWitness <$> getByteString len
 
     getTokenTransfer :: Get ([(TxIn, Coin)], [TxOut])
     getTokenTransfer = label "getTokenTransfer" $ do
