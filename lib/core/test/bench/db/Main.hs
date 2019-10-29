@@ -81,7 +81,6 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SlotNo (unSlotNo)
     , SortOrder (..)
-    , SyncProgress (..)
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
@@ -588,7 +587,6 @@ testMetadata :: WalletMetadata
 testMetadata = WalletMetadata
     { name = WalletName "test wallet"
     , passphraseInfo = Nothing
-    , status = Ready
     , delegation = NotDelegating
     , creationTime = systemToUTCTime (MkSystemTime 0 0)
     }
