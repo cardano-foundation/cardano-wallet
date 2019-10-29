@@ -278,13 +278,19 @@ getTxWitnessTag = getWord8 >>= \case
 getMessage :: Get Message
 getMessage = label "getMessage" $ do
     size <- fromIntegral <$> getWord16be
+
+    -- We lazily compute the hash of the message (needed for e.g transactions)
+    -- using lookAhead, before calling specific decoders.
+    msgHash <- Hash . blake2b256 . BL.toStrict
+        <$> lookAhead (getLazyByteString $ fromIntegral size)
+
     msgType <- fromIntegral <$> getWord8
     let remaining = size - 1
     let unimpl = skip remaining >> return (UnimplementedMessage msgType)
     isolate remaining $ case msgType of
         0 -> Initial <$> getInitial
         1 -> unimpl
-        2 -> Transaction <$> getTransaction remaining
+        2 -> Transaction <$> getTransaction msgHash
         3 -> unimpl
         4 -> unimpl
         5 -> unimpl
@@ -330,12 +336,8 @@ legacyUtxoWitness xpub bytes = TxWitness $ BL.toStrict $ runPut $ do
     putByteString bytes
 
 -- | Decode the contents of a @Transaction@-message.
-getTransaction :: Int -> Get (Tx, [TxWitness])
-getTransaction n = label "getTransaction" $ do
-    bytes <- lookAhead (getLazyByteString $ fromIntegral n)
-    let tag = runPut (putWord8 (messageTypeTag MsgTypeTransaction))
-    let tid = Hash . blake2b256 . BL.toStrict $ (tag <> bytes)
-
+getTransaction :: Hash "Tx" -> Get (Tx, [TxWitness])
+getTransaction tid = label "getTransaction" $ do
     (ins, outs) <- getTokenTransfer
     let witnessCount = length ins
     wits <- replicateM witnessCount getWitness
