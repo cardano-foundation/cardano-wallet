@@ -114,31 +114,21 @@ spec
     :: forall t n. (n ~ 'Testnet, KnownCommand t)
     => SpecWith (Context t)
 spec = do
+
     it "TRANS_CREATE_01 - Can create transaction via CLI" $ \ctx -> do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
-        addr:_ <- listAddresses ctx wDest
-        let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
-        let amt = 14
         let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
                 { nInputs = 1
                 , nOutputs = 1
                 }
-        let args = T.unpack <$>
-                [ wSrc ^. walletId
-                , "--payment", T.pack (show amt) <> "@" <> addrStr
-                ]
-
-        -- post transaction
-        (c, out, err) <- postTransactionViaCLI @t ctx "cardano-wallet" args
-        err `shouldBe` "Please enter your passphrase: **************\nOk.\n"
-        txJson <- expectValidJSON (Proxy @(ApiTransaction n)) out
+        let amt = 14
+        txJson <- postTxViaCLI ctx wSrc wDest amt
         verify txJson
             [ expectCliFieldBetween amount (feeMin + amt, feeMax + amt)
             , expectCliFieldEqual direction Outgoing
             , expectCliFieldEqual status Pending
             ]
-        c `shouldBe` ExitSuccess
 
         -- verify balance on src wallet
         Stdout gOutSrc <- getWalletViaCLI @t ctx (T.unpack (wSrc ^. walletId))
@@ -898,25 +888,17 @@ spec = do
 
     it "TRANS_DELETE_01 - Can forget pending transaction via CLI" $ \ctx -> do
         wSrc <- fixtureWallet ctx
-        let wSrcId = T.unpack (wSrc ^. walletId)
         wDest <- emptyWallet ctx
         let wDestId = T.unpack (wDest ^. walletId)
+        let wSrcId = T.unpack (wSrc ^. walletId)
 
         -- post transaction
-        addr:_ <- listAddresses ctx wDest
-        let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
-        (c, out, err) <- postTransactionViaCLI @t ctx "cardano-wallet"
-            [ wSrcId
-            , "--payment", "1@" <> T.unpack addrStr
-            ]
-        err `shouldBe` "Please enter your passphrase: **************\nOk.\n"
-        txJson <- expectValidJSON (Proxy @(ApiTransaction n)) out
-        let txId = T.unpack $ toUrlPiece $ ApiTxId (txJson ^. #id)
+        txJson <- postTxViaCLI ctx wSrc wDest 1
         verify txJson
             [ expectCliFieldEqual direction Outgoing
             , expectCliFieldEqual status Pending
             ]
-        c `shouldBe` ExitSuccess
+        let txId = getTxId txJson
 
         -- verify balance on src wallet
         (fromStdout <$> getWalletViaCLI @t ctx wSrcId)
@@ -952,28 +934,20 @@ spec = do
                     , expectCliListItemFieldEqual 0 status InLedger
                     ]
 
-    it "TRANS_DELETE_02 - Checking not pending anymore error via CLI" $ \ctx -> do
+    it "TRANS_DELETE_02 -\
+        \ Cannot forget tx that is already in ledger via CLI" $ \ctx -> do
         wSrc <- fixtureWallet ctx
-        let wSrcId = T.unpack (wSrc ^. walletId)
         wDest <- emptyWallet ctx
 
-        -- post transaction
-        addr:_ <- listAddresses ctx wDest
-        let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
-        (c, out, err) <- postTransactionViaCLI @t ctx "cardano-wallet"
-            [ wSrcId
-            , "--payment", "1@" <> T.unpack addrStr
-            ]
-        err `shouldBe` "Please enter your passphrase: **************\nOk.\n"
-        txJson <- expectValidJSON (Proxy @(ApiTransaction n)) out
-        let txId = T.unpack $ toUrlPiece $ ApiTxId (txJson ^. #id)
+        txJson <- postTxViaCLI ctx wSrc wDest 1
         verify txJson
             [ expectCliFieldEqual direction Outgoing
             , expectCliFieldEqual status Pending
             ]
-        c `shouldBe` ExitSuccess
+        let txId = getTxId txJson
 
         -- Wait for the transaction to be accepted
+        let wSrcId = T.unpack $ wSrc ^. walletId
         eventually $ do
             (fromStdout <$> listTransactionsViaCLI @t ctx [wSrcId])
                 >>= expectValidJSON (Proxy @([ApiTransaction n]))
@@ -989,11 +963,10 @@ spec = do
         out2 `shouldBe` ""
         c2 `shouldBe` ExitFailure 1
 
-    it "TRANS_DELETE_03 - Checking no transaction id error via CLI" $ \ctx -> do
-        wSrc <- fixtureWallet ctx
-        let wid = T.unpack $ wSrc ^. walletId
+    it "TRANS_DELETE_03 - Cannot forget tx that is not found via CLI" $ \ctx -> do
+        wid <- fixtureWallet' ctx
         let txId = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
-        -- forget transaction once again
+        -- forget transaction
         (Exit c, Stdout out, Stderr err) <-
             deleteTransactionViaCLI @t ctx wid (T.unpack txId)
         err `shouldContain` errMsg404CannotFindTx txId
@@ -1015,42 +988,96 @@ spec = do
                 err `shouldContain` "wallet id should be a \
                     \hex-encoded string of 40 characters"
 
-        it "BYRON_TX_LIST_03 -\
-            \ Shelley CLI does not list Byron wallet transactions" $ \ctx -> do
-            wid <- emptyByronWallet' ctx
-            (Exit c, Stdout o, Stderr e) <- listTransactionsViaCLI @t ctx [wid]
-            e `shouldContain` errMsg404NoWallet (T.pack wid)
-            o `shouldBe` mempty
+    it "TRANS_DELETE_06 -\
+        \ Cannot forget tx that is performed from different wallet via CLI"
+        $ \ctx -> do
+            -- post tx
+            wSrc <- fixtureWallet ctx
+            wDest <- emptyWallet ctx
+            txJson <- postTxViaCLI ctx wSrc wDest 1
+
+            -- try to forget from different wallet
+            widDiff <- emptyWallet' ctx
+            let txId = getTxId txJson
+            (Exit c, Stdout out, Stderr err) <-
+                deleteTransactionViaCLI @t ctx widDiff txId
+            err `shouldContain` errMsg404CannotFindTx (T.pack txId)
+            out `shouldBe` ""
             c `shouldBe` ExitFailure 1
 
-        it "BYRON_TRANS_DELETE -\
-            \ Cannot delete tx on Byron wallet using shelley CLI" $ \ctx -> do
-            wid <- emptyByronWallet' ctx
-            (Exit c, Stdout o, Stderr e)
-                <- deleteTransactionViaCLI @t ctx wid (replicate 64 '1')
-            e `shouldContain` errMsg404NoWallet (T.pack wid)
-            o `shouldBe` mempty
+    describe "TRANS_DELETE_07 - invalid tx id via CLI" $ do
+        let txIds =
+                [ replicate 63 '1'
+                , replicate 65 '1'
+                , replicate 64 'ś'
+                ]
+        forM_ txIds $ \tid -> it (show tid) $ \ctx -> do
+            wid <- emptyWallet' ctx
+            (Exit c, Stdout out, Stderr err) <-
+                deleteTransactionViaCLI @t ctx wid tid
+            err `shouldContain` "expected Base16 encoding"
+            out `shouldBe` ""
             c `shouldBe` ExitFailure 1
 
-        describe "BYRON_TRANS_CREATE / BYRON_TRANS_ESTIMATE -\
-            \ Cannot create/estimate tx on Byron wallet using shelley CLI" $ do
-            forM_ ["create", "fees"] $ \action -> it action $ \ctx -> do
-                wSrc <- emptyByronWallet ctx
-                wDest <- emptyWallet ctx
-                addrs:_ <- listAddresses ctx wDest
-                let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
-                let port = T.pack $ show $ ctx ^. typed @(Port "wallet")
-                let args = T.unpack <$>
-                        [ "transaction", T.pack action, "--port", port
-                        , wSrc ^. walletId, "--payment", "11@" <> addr
-                        ]
-                -- make sure CLI returns error before asking for passphrase
-                (Exit c, Stdout out, Stderr err) <- cardanoWalletCLI @t args
-                err `shouldContain` "I couldn't find a wallet with \
-                    \the given id: " ++ T.unpack ( wSrc ^. walletId )
-                out `shouldBe` ""
-                c `shouldBe` ExitFailure 1
+    it "BYRON_TX_LIST_03 -\
+        \ Shelley CLI does not list Byron wallet transactions" $ \ctx -> do
+        wid <- emptyByronWallet' ctx
+        (Exit c, Stdout o, Stderr e) <- listTransactionsViaCLI @t ctx [wid]
+        e `shouldContain` errMsg404NoWallet (T.pack wid)
+        o `shouldBe` mempty
+        c `shouldBe` ExitFailure 1
+
+    it "BYRON_TRANS_DELETE -\
+        \ Cannot delete tx on Byron wallet using shelley CLI" $ \ctx -> do
+        wid <- emptyByronWallet' ctx
+        (Exit c, Stdout o, Stderr e)
+            <- deleteTransactionViaCLI @t ctx wid (replicate 64 '1')
+        e `shouldContain` errMsg404NoWallet (T.pack wid)
+        o `shouldBe` mempty
+        c `shouldBe` ExitFailure 1
+
+    describe "BYRON_TRANS_CREATE / BYRON_TRANS_ESTIMATE -\
+        \ Cannot create/estimate tx on Byron wallet using shelley CLI" $ do
+        forM_ ["create", "fees"] $ \action -> it action $ \ctx -> do
+            wSrc <- emptyByronWallet ctx
+            wDest <- emptyWallet ctx
+            addrs:_ <- listAddresses ctx wDest
+            let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
+            let port = T.pack $ show $ ctx ^. typed @(Port "wallet")
+            let args = T.unpack <$>
+                    [ "transaction", T.pack action, "--port", port
+                    , wSrc ^. walletId, "--payment", "11@" <> addr
+                    ]
+            -- make sure CLI returns error before asking for passphrase
+            (Exit c, Stdout out, Stderr err) <- cardanoWalletCLI @t args
+            err `shouldContain` "I couldn't find a wallet with \
+                \the given id: " ++ T.unpack ( wSrc ^. walletId )
+            out `shouldBe` ""
+            c `shouldBe` ExitFailure 1
   where
+      getTxId :: (ApiTransaction n) -> String
+      getTxId tx = T.unpack $ toUrlPiece $ ApiTxId (tx ^. #id)
+
+      postTxViaCLI
+          :: Context t
+          -> ApiWallet
+          -> ApiWallet
+          -> Natural
+          -> IO (ApiTransaction n)
+      postTxViaCLI ctx wSrc wDest amt = do
+          addr:_ <- listAddresses ctx wDest
+          let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
+          let args = T.unpack <$>
+                  [ wSrc ^. walletId
+                  , "--payment", T.pack (show amt) <> "@" <> addrStr
+                  ]
+
+          -- post transaction
+          (c, out, err) <- postTransactionViaCLI @t ctx "cardano-wallet" args
+          err `shouldBe` "Please enter your passphrase: **************\nOk.\n"
+          c `shouldBe` ExitSuccess
+          expectValidJSON (Proxy @(ApiTransaction n)) out
+
       unsafeGetTransactionTime
           :: [ApiTransaction n]
           -> UTCTime
@@ -1058,6 +1085,9 @@ spec = do
           case fmap time . insertedAt <$> txs of
               (Just t):_ -> t
               _ -> error "Expected at least one transaction with a time."
+
+      fixtureWallet' :: Context t -> IO String
+      fixtureWallet' = fmap (T.unpack . view walletId) . fixtureWallet
 
       emptyWallet' :: Context t -> IO String
       emptyWallet' = fmap (T.unpack . view walletId) . emptyWallet
