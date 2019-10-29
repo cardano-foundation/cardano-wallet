@@ -321,12 +321,6 @@ x-transactionStatus: &transactionStatus
     Current transaction status.
 
       ```
-                                  *-------------*
-                                  |             |
-                  *---------------> INVALIDATED |
-                  |               |             |
-              (timeout)           *-------------*
-                  |
              *---------*
              |         |
       -------> PENDING <----------------*
@@ -343,7 +337,6 @@ x-transactionStatus: &transactionStatus
   enum:
     - pending
     - in_ledger
-    - invalidated
 
 x-stakePoolId: &stakePoolId
   <<: *addressId
