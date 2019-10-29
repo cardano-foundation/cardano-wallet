@@ -760,7 +760,7 @@ pools
     -> Server (StakePoolApi n)
 pools spl =
     listPools spl
-    :<|> putStakeInPool
+    :<|> joinStakePool
     :<|> deleteStakeInPool
 
 listPools
@@ -780,7 +780,7 @@ listPools spl = liftHandler (map mkApiStakePool <$> listStakePools spl)
             (ApiT pool)
             (StakePoolMetrics (Quantity $ fromIntegral stake) blocks)
 
-putStakeInPool
+joinStakePool
     :: forall n k.
         ( PaymentAddress n k
         , k ~ ShelleyKey
@@ -789,7 +789,7 @@ putStakeInPool
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
-putStakeInPool _ _ _ = throwError err501
+joinStakePool _ _ _ = throwError err501
 
 deleteStakeInPool
     :: forall n k.
