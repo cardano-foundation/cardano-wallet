@@ -256,6 +256,7 @@ data Message
 
 data MessageType
     = MsgTypeInitial
+    | MsgTypeLegacyUTxO
     | MsgTypeTransaction
     | MsgTypeDelegation
 
@@ -299,16 +300,18 @@ getMessage = label "getMessage" $ do
     let unimpl = skip remaining >> return (UnimplementedMessage msgType)
     isolate remaining $ case msgType of
         0 -> Initial <$> getInitial
-        1 -> unimpl
+        1 -> Transaction . (,[]) <$> getLegacyTransaction remaining
         2 -> Transaction <$> getTransaction fragId
-        3 -> unimpl
-        4 -> TransactionWithDelegation <$> getDelegatedCertificateTransaction fragId
-        5 -> unimpl
+        3 -> unimpl -- Certificate
+        4 -> TransactionWithDelegation <$>
+                getDelegatedCertificateTransaction fragId
+        5 -> unimpl -- UpdateVote
         other -> fail $ "Unexpected content type tag " ++ show other
 
 messageTypeTag :: MessageType -> Word8
 messageTypeTag = \case
     MsgTypeInitial -> 0
+    MsgTypeLegacyUTxO -> 1
     MsgTypeTransaction -> 2
     MsgTypeDelegation -> 4
 
@@ -317,7 +320,6 @@ getInitial :: Get [ConfigParam]
 getInitial = label "getInitial" $ do
     len <- fromIntegral <$> getWord16be
     replicateM len getConfigParam
-
 
 {-------------------------------------------------------------------------------
                                 Transactions
@@ -416,6 +418,28 @@ getGenericTransaction tid = label "getGenericTransaction" $ do
             addr <- getAddress
             value <- Coin <$> getWord64be
             return $ TxOut addr value
+
+--
+-- @
+-- FRAGMENT-ID = H(TYPE | CONTENT)
+-- CONTENT = #OUTPUTS (1 byte) | OUTPUT-1 | .. | OUTPUT-N
+-- OUTPUT = VALUE (8 bytes) | ADDR-SIZE (2 bytes) | ADDR (ADDR-SIZE bytes)
+-- TYPE = 1
+--
+-- H = blake2b_256
+-- @
+getLegacyTransaction :: Int -> Get Tx
+getLegacyTransaction size = do
+    bytes <- lookAhead (getLazyByteString $ fromIntegral size)
+    let tag = runPut (putWord8 (messageTypeTag MsgTypeLegacyUTxO))
+    let tid = Hash . blake2b256 . BL.toStrict $ (tag <> bytes)
+    n <- fromIntegral <$> getWord8
+    outs <- replicateM n $ do
+        coin <- Coin <$> getWord64be
+        addr <- getLegacyAddress
+        pure (TxOut addr coin)
+    let inps = pure (error "TODO: getLegacyTransaction inputs?")
+    pure (Tx tid inps outs)
 
 putSignedTx :: [(TxIn, Coin)] -> [TxOut] -> [TxWitness] -> Put
 putSignedTx inputs outputs witnesses = do
@@ -600,6 +624,11 @@ getAddress = do
   where
     kindValue :: Word8 -> Word8
     kindValue = (.&. 0b01111111)
+
+getLegacyAddress :: Get Address
+getLegacyAddress = do
+    size <- fromIntegral <$> getWord16be
+    Address <$> getByteString size
 
 putAddress :: Address -> Put
 putAddress (Address bs) = putByteString bs
