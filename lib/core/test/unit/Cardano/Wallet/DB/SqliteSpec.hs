@@ -94,7 +94,6 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , SlotId (..)
     , SortOrder (..)
-    , SyncProgress (..)
     , TxIn (..)
     , TxMeta (TxMeta)
     , TxOut (..)
@@ -606,7 +605,6 @@ testMetadata = WalletMetadata
     { name = WalletName "test wallet"
     , creationTime = unsafePerformIO getCurrentTime
     , passphraseInfo = Nothing
-    , status = Ready
     , delegation = NotDelegating
     }
 

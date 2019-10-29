@@ -80,7 +80,6 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , SlotParameters (..)
     , SortOrder (..)
-    , SyncProgress (..)
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
@@ -115,7 +114,7 @@ import Data.Generics.Labels
 import Data.List
     ( unfoldr )
 import Data.Quantity
-    ( Percentage, Quantity (..), mkPercentage )
+    ( Quantity (..) )
 import Data.Text.Class
     ( toText )
 import Data.Typeable
@@ -145,7 +144,6 @@ import Test.QuickCheck
     , oneof
     , scale
     , shrinkList
-    , suchThat
     , vectorOf
     )
 import Test.Utils.Time
@@ -292,13 +290,7 @@ instance Arbitrary WalletMetadata where
         <$> (WalletName <$> elements ["bulbazaur", "charmander", "squirtle"])
         <*> genUniformTime
         <*> (fmap WalletPassphraseInfo <$> liftArbitrary genUniformTime)
-        <*> oneof [pure Ready, Syncing . Quantity <$> genPercentage]
         <*> pure NotDelegating
-      where
-        genPercentage :: Gen Percentage
-        genPercentage = do
-            let (Right upperBound) = mkPercentage @Int 100
-            arbitraryBoundedEnum `suchThat` (/= upperBound)
 
 {-------------------------------------------------------------------------------
                                    Blocks
