@@ -85,6 +85,10 @@ spec = do
             (checkCoverageWith lowerConfidence prop_shuffleNotDeterministic)
         it "sort (shuffled xs) == sort xs"
             (checkCoverageWith lowerConfidence prop_shufflePreserveElements)
+        it "UTxO toList order deterministic" $
+            checkCoverageWith
+                lowerConfidence
+                prop_utxoToListOrderDeterministic
   where
     lowerConfidence :: Confidence
     lowerConfidence = Confidence (10^(6 :: Integer)) 0.75
@@ -114,6 +118,16 @@ prop_shufflePreserveElements
 prop_shufflePreserveElements xs = monadicIO $ liftIO $ do
     xs' <- shuffle xs
     return $ cover 90 (not $ null xs) "non-empty" (L.sort xs == L.sort xs')
+
+prop_utxoToListOrderDeterministic
+    :: UTxO
+    -> Property
+prop_utxoToListOrderDeterministic u = monadicIO $ liftIO $ do
+    let list0 = Map.toList $ getUTxO u
+    list1 <- shuffle list0
+    return $
+        cover 90 (list0 /= list1) "shuffled" $
+        list0 == Map.toList (Map.fromList list1)
 
 {-------------------------------------------------------------------------------
                          Coin Selection - Unit Tests
