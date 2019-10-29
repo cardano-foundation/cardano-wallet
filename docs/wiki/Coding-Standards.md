@@ -833,7 +833,7 @@ prefer pattern matching over equality testing for values of that type.
 ## See your property fail
 
 This is a general practice in TDD (**T**est **D**riven **D**evelopment) but
-even more important in property-based testing.  You want to see your _how_ your
+even more important in property-based testing.  You want to see _how_ your
 property fails and whether, as a developer, you have enough information to
 understand the reason of the failure and debug it. 
 
