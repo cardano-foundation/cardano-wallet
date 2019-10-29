@@ -38,6 +38,7 @@ module Cardano.Wallet.Jormungandr.Binary
     , getTransaction
     , putSignedTx
     , putTx
+    , putStakeDelegationTx
 
     -- * Transaction witnesses
     , signData
@@ -295,7 +296,7 @@ getMessage = label "getMessage" $ do
         0 -> Initial <$> getInitial
         1 -> unimpl
         2 -> Transaction <$> getTransaction fragId
-        3 -> unimpl
+        3 -> Transaction <$> getDelegatedCertificateTransaction fragId
         4 -> unimpl
         5 -> unimpl
         other -> fail $ "Unexpected content type tag " ++ show other
@@ -339,6 +340,19 @@ legacyUtxoWitness xpub bytes = TxWitness $ BL.toStrict $ runPut $ do
     putTxWitnessTag TxWitnessLegacyUTxO
     putByteString (unXPub xpub)
     putByteString bytes
+
+-- | Decode the contents of a delegated transaction @Transaction@-message.
+getDelegatedCertificateTransaction :: Int -> Get (Tx, [TxWitness])
+getDelegatedCertificateTransaction _n = undefined
+
+putStakeDelegationTx
+    :: PoolId
+    -> XPub
+    -> [(TxIn, Coin)]
+    -> [TxOut]
+    -> [TxWitness]
+    -> Put
+putStakeDelegationTx _poolId _account _inputs _outputs _witnesses = undefined
 
 -- | Decode the contents of a @Transaction@-message.
 getTransaction :: Hash "Tx" -> Get (Tx, [TxWitness])

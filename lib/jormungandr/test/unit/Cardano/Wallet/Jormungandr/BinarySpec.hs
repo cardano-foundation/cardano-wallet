@@ -27,6 +27,7 @@ import Cardano.Wallet.Jormungandr.Binary
     , getBlock
     , getMessage
     , putSignedTx
+    , putStakeDelegationTx
     , putTxWitnessTag
     , runGet
     , runPut
@@ -36,13 +37,14 @@ import Cardano.Wallet.Jormungandr.Binary
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..) )
+    ( NetworkDiscriminant (..), XPub (..) )
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
     , Hash (..)
+    , PoolId (..)
     , SlotId (..)
     , StartTime (..)
     , TxIn (..)
@@ -74,7 +76,15 @@ import GHC.Generics
 import System.Directory
     ( getDirectoryContents )
 import Test.Hspec
-    ( Spec, describe, expectationFailure, it, runIO, shouldBe, shouldSatisfy )
+    ( Spec
+    , describe
+    , expectationFailure
+    , it
+    , runIO
+    , shouldBe
+    , shouldSatisfy
+    , xit
+    )
 import Test.QuickCheck
     ( Arbitrary (..), Gen, choose, oneof, property, shrinkList, vectorOf )
 import Test.QuickCheck.Arbitrary.Generic
@@ -156,7 +166,7 @@ spec = do
                             ]
                         }, [])
                     , UnimplementedMessage 1
-                    , UnimplementedMessage 3
+                    , UnimplementedMessage 4
                     ]
             unsafeDecodeHex getBlock bytes `shouldBe` block
 
@@ -260,7 +270,7 @@ spec = do
                     return ()
 
     describe "Encoding" $ do
-        it "decode (encode tx) === tx" $ property $
+        it "decode (encode tx) === tx standard transaction" $ property $
             \(SignedTx signedTx) -> monadicIO $ liftIO $ do
                 let encode ((Tx _ inps outs), wits) = runPut
                         $ withHeader MsgTypeTransaction
@@ -269,6 +279,21 @@ spec = do
                         unMessage . runGet getMessage
                 tx' <- try' (decode $ encode signedTx)
                 if tx' == Right signedTx
+                then return ()
+                else expectationFailure $
+                    "tx /= decode (encode tx) == " ++ show tx'
+
+        xit "decode (encode tx) === tx stake delegation transaction" $ property $
+            \(StakeDelegationTx stakeDelTx) -> monadicIO $ liftIO $ do
+                let encode (poolId, pubKey, (Tx _ inps outs), wits) =
+                          runPut
+                        $ withHeader MsgTypeCertificate
+                        $ putStakeDelegationTx poolId pubKey inps outs wits
+                let decode =
+                        unMessage . runGet getMessage
+                tx' <- try' (decode $ encode stakeDelTx)
+                let (_, _, tx, wits) = stakeDelTx
+                if tx' == Right (tx, wits)
                 then return ()
                 else expectationFailure $
                     "tx /= decode (encode tx) == " ++ show tx'
@@ -324,6 +349,13 @@ instance Arbitrary TxIn where
 instance Arbitrary TxOut where
     arbitrary = genericArbitrary
     shrink = genericShrink
+
+newtype StakeDelegationTx =
+    StakeDelegationTx (PoolId, XPub, Tx, [TxWitness])
+    deriving (Eq, Show, Generic)
+
+instance Arbitrary StakeDelegationTx where
+    arbitrary = undefined
 
 newtype SignedTx = SignedTx (Tx, [TxWitness])
     deriving (Eq, Show, Generic)
