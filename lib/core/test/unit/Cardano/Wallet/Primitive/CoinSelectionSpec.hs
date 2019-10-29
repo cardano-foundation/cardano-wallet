@@ -39,8 +39,6 @@ import Cardano.Wallet.Primitive.Types
     , TxOut (..)
     , UTxO (..)
     )
-import Control.Monad.IO.Class
-    ( liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
 import Data.List.NonEmpty
@@ -75,6 +73,7 @@ import qualified Data.ByteString as BS
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
+import qualified Test.QuickCheck.Monadic as QC
 
 spec :: Spec
 spec = do
@@ -100,14 +99,14 @@ spec = do
 prop_shuffleCanShuffle
     :: NonEmptyList Int
     -> Property
-prop_shuffleCanShuffle (NonEmpty xs) = monadicIO $ liftIO $ do
+prop_shuffleCanShuffle (NonEmpty xs) = monadicIO $ QC.run $ do
     xs' <- shuffle xs
     return $ cover 90 (xs /= xs') "shuffled" ()
 
 prop_shuffleNotDeterministic
     :: NonEmptyList Int
     -> Property
-prop_shuffleNotDeterministic (NonEmpty xs) = monadicIO $ liftIO $ do
+prop_shuffleNotDeterministic (NonEmpty xs) = monadicIO $ QC.run $ do
     xs1 <- shuffle xs
     xs2 <- shuffle xs
     return $ cover 90 (xs1 /= xs2) "not deterministic" ()
@@ -115,14 +114,14 @@ prop_shuffleNotDeterministic (NonEmpty xs) = monadicIO $ liftIO $ do
 prop_shufflePreserveElements
     :: [Int]
     -> Property
-prop_shufflePreserveElements xs = monadicIO $ liftIO $ do
+prop_shufflePreserveElements xs = monadicIO $ QC.run $ do
     xs' <- shuffle xs
     return $ cover 90 (not $ null xs) "non-empty" (L.sort xs == L.sort xs')
 
 prop_utxoToListOrderDeterministic
     :: UTxO
     -> Property
-prop_utxoToListOrderDeterministic u = monadicIO $ liftIO $ do
+prop_utxoToListOrderDeterministic u = monadicIO $ QC.run $ do
     let list0 = Map.toList $ getUTxO u
     list1 <- shuffle list0
     return $
