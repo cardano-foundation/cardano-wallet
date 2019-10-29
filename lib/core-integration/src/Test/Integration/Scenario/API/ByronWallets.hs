@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -12,8 +13,7 @@ module Test.Integration.Scenario.API.ByronWallets
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( AddressAmount (amount)
-    , ApiByronWallet
+    ( ApiByronWallet
     , ApiByronWalletMigrationInfo (..)
     , ApiTransaction
     , ApiWallet
@@ -29,7 +29,7 @@ import Control.Monad
 import Data.Aeson.QQ
     ( aesonQQ )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( view, (^.) )
 import Data.Maybe
     ( mapMaybe )
 import Data.Quantity
@@ -48,6 +48,7 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
+    , amount
     , balanceAvailable
     , balanceTotal
     , calculateByronMigrationCostEp
@@ -61,9 +62,11 @@ import Test.Integration.Framework.DSL
     , expectEventually
     , expectFieldEqual
     , expectFieldNotEqual
+    , expectFieldSatisfy
     , expectListItemFieldEqual
     , expectListSizeEqual
     , expectResponseCode
+    , fixtureByronWallet
     , getByronWalletEp
     , getFromResponse
     , json
@@ -121,12 +124,12 @@ spec = do
           where
             inputBalance = fromIntegral
                 . sum
-                . fmap (getQuantity . amount)
+                . fmap (view amount)
                 . mapMaybe ApiTypes.source
                 . ApiTypes.inputs
             outputBalance = fromIntegral
                 . sum
-                . fmap (getQuantity . amount)
+                . fmap (view amount)
                 . ApiTypes.outputs
 
     it "BYRON_ESTIMATE_01 - \
@@ -156,33 +159,33 @@ spec = do
     it "BYRON_ESTIMATE_03 - \
         \actual fee for migration is the same as the predicted fee."
         $ \ctx -> do
-
             -- Restore a Byron wallet with funds.
-            let name = "byron-wallet-name"
-            let passphrase = "Secure Passphrase"
-            mnemonic <- genMnemonics
-            sourceWallet <-
-                -- TODO: Use a wallet with funds.
-                emptyByronWalletWith ctx (name, mnemonic, passphrase)
+            sourceWallet <- fixtureByronWallet ctx
+            let passphrase = "cardano-wallet" :: String
 
             -- Request a migration fee prediction.
-            r1@(_, Right feeInfo) <- request
-                ctx (calculateByronMigrationCostEp sourceWallet) Default Empty
-            let ApiByronWalletMigrationInfo (Quantity predictedFee) = feeInfo
-            expectResponseCode @IO HTTP.status200 r1
-            predictedFee `shouldBe` 0 -- TODO: change to non-zero check.
+            let ep0 = (calculateByronMigrationCostEp sourceWallet)
+            r0 <- request @ApiByronWalletMigrationInfo ctx ep0 Default Empty
+            verify r0
+                [ expectResponseCode @IO HTTP.status200
+                , expectFieldSatisfy amount (> 0)
+                ]
 
             -- Perform the migration.
             targetWallet <- emptyWallet ctx
             let payload = Json [aesonQQ|{"passphrase": #{passphrase}}|]
-            r2@(_, Right transactions) <- request @[ApiTransaction n] ctx
-                (migrateByronWalletEp sourceWallet targetWallet) Default payload
-            expectResponseCode @IO HTTP.status202 r2
-            transactions `shouldBe` [] -- TODO: change to non-empty check.
+            let ep1 = migrateByronWalletEp sourceWallet targetWallet
+            r1 <- request @[ApiTransaction n] ctx ep1 Default payload
+            verify r1
+                [ expectResponseCode @IO HTTP.status202
+                , expectFieldSatisfy id (not . null)
+                ]
 
             -- Verify that the fee prediction was correct.
-            let actualFee =
-                    fromIntegral $ sum $ apiTransactionFee <$> transactions
+            let actualFee = fromIntegral $ sum $ apiTransactionFee
+                    <$> getFromResponse id r1
+            let predictedFee =
+                    getFromResponse amount r0
             actualFee `shouldBe` predictedFee
 
     describe "BYRON_ESTIMATE_06 - non-existing wallets" $  do
