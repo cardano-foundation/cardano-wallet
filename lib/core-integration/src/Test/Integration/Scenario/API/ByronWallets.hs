@@ -12,7 +12,8 @@ module Test.Integration.Scenario.API.ByronWallets
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiByronWallet
+    ( AddressAmount (amount)
+    , ApiByronWallet
     , ApiByronWalletMigrationInfo (..)
     , ApiTransaction
     , ApiWallet
@@ -25,12 +26,18 @@ import Cardano.Wallet.Primitive.Types
     ( SyncProgress (..), walletNameMaxLength, walletNameMinLength )
 import Control.Monad
     ( forM_ )
+import Data.Aeson.QQ
+    ( aesonQQ )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
+import Data.Maybe
+    ( mapMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Word
+    ( Word64 )
 -- import Numeric.Natural
 --     ( Natural )
 import Test.Hspec
@@ -100,11 +107,27 @@ import Test.Integration.Framework.TestData
     , wildcardsWalletName
     )
 
+import qualified Cardano.Wallet.Api.Types as ApiTypes
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall t n. (n ~ 'Testnet) => SpecWith (Context t)
 spec = do
+
+    -- Compute the fee associated with an API transaction.
+    let apiTransactionFee :: ApiTransaction n -> Word64
+        apiTransactionFee t =
+            inputBalance t - outputBalance t
+          where
+            inputBalance = fromIntegral
+                . sum
+                . fmap (getQuantity . amount)
+                . mapMaybe ApiTypes.source
+                . ApiTypes.inputs
+            outputBalance = fromIntegral
+                . sum
+                . fmap (getQuantity . amount)
+                . ApiTypes.outputs
 
     it "BYRON_ESTIMATE_01 - \
         \migrating an empty wallet should generate a fee of zero."
@@ -119,16 +142,48 @@ spec = do
         \migrating an empty wallet should not generate transactions."
         $ \ctx -> do
             mnemonic <- genMnemonics
-            source <- emptyByronWalletWith
+            sourceWallet <- emptyByronWalletWith
                 ctx ("byron-wallet-name", mnemonic, "Secure Passphrase")
-            target <- emptyWallet ctx
+            targetWallet <- emptyWallet ctx
             let payload = Json [json| {
                     "passphrase": "Secure Passphrase"
                 }|]
-            r@(_, Right transactions) <- request @[ApiTransaction n]
-                ctx (migrateByronWalletEp source target) Default payload
+            r@(_, Right transactions) <- request @[ApiTransaction n] ctx
+                (migrateByronWalletEp sourceWallet targetWallet) Default payload
             expectResponseCode @IO HTTP.status202 r
             transactions `shouldBe` []
+
+    it "BYRON_ESTIMATE_03 - \
+        \actual fee for migration is the same as the predicted fee."
+        $ \ctx -> do
+
+            -- Restore a Byron wallet with funds.
+            let name = "byron-wallet-name"
+            let passphrase = "Secure Passphrase"
+            mnemonic <- genMnemonics
+            sourceWallet <-
+                -- TODO: Use a wallet with funds.
+                emptyByronWalletWith ctx (name, mnemonic, passphrase)
+
+            -- Request a migration fee prediction.
+            r1@(_, Right feeInfo) <- request
+                ctx (calculateByronMigrationCostEp sourceWallet) Default Empty
+            let ApiByronWalletMigrationInfo (Quantity predictedFee) = feeInfo
+            expectResponseCode @IO HTTP.status200 r1
+            predictedFee `shouldBe` 0 -- TODO: change to non-zero check.
+
+            -- Perform the migration.
+            targetWallet <- emptyWallet ctx
+            let payload = Json [aesonQQ|{"passphrase": #{passphrase}}|]
+            r2@(_, Right transactions) <- request @[ApiTransaction n] ctx
+                (migrateByronWalletEp sourceWallet targetWallet) Default payload
+            expectResponseCode @IO HTTP.status202 r2
+            transactions `shouldBe` [] -- TODO: change to non-empty check.
+
+            -- Verify that the fee prediction was correct.
+            let actualFee =
+                    fromIntegral $ sum $ apiTransactionFee <$> transactions
+            actualFee `shouldBe` predictedFee
 
     describe "BYRON_ESTIMATE_06 - non-existing wallets" $  do
         forM_ (take 1 falseWalletIds) $ \(desc, walId) -> it desc $ \ctx -> do
