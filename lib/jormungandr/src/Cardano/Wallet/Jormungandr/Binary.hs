@@ -346,6 +346,15 @@ getDelegatedCertificateTransaction :: Int -> Get (Tx, [TxWitness])
 getDelegatedCertificateTransaction =
     getGenericTransaction MsgTypeCertificate "getDelegatedCertificateTransaction"
 
+stakeCertificate
+    :: PoolId
+    -> XPub
+    -> Put
+stakeCertificate (PoolId poolId) xpub = do
+    -- we need to create stake delegation certificate here
+    putByteString poolId
+    putByteString (unXPub xpub)
+
 putStakeDelegationTx
     :: PoolId
     -> XPub
@@ -353,10 +362,9 @@ putStakeDelegationTx
     -> [TxOut]
     -> [TxWitness]
     -> Put
-putStakeDelegationTx (PoolId poolId) xpub inputs outputs witnesses = do
+putStakeDelegationTx poolId xpub inputs outputs witnesses = do
     putSignedTx inputs outputs witnesses
-    putByteString poolId
-    putByteString (unXPub xpub)
+    stakeCertificate poolId xpub
 
 -- | Decode the contents of a @Transaction@-message.
 getTransaction :: Hash "Tx" -> Get (Tx, [TxWitness])
