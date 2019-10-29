@@ -66,6 +66,7 @@ import Test.Integration.Framework.DSL
     ( Context (..), KnownCommand (..), TxDescription (..), tearDown )
 
 import qualified Cardano.BM.Configuration.Model as CM
+import qualified Cardano.Pool.MetricsSpec as MetricsSpec
 import qualified Cardano.Wallet.Jormungandr.NetworkSpec as NetworkLayer
 import qualified Data.Text as T
 import qualified Test.Integration.Jormungandr.Scenario.API.StakePools as StakePoolsApiJormungandr
@@ -101,6 +102,7 @@ main = withLogging Nothing Info $ \logging -> do
             describe "Mnemonics CLI tests" $ parallel (MnemonicsCLI.spec @t)
             describe "Miscellaneous CLI tests" $ parallel (MiscellaneousCLI.spec @t)
             describe "Launcher CLI tests" $ parallel (LauncherCLI.spec @t)
+            describe "Stake Pool Metrics" MetricsSpec.spec
 
         describe "API Specifications" $ specWithServer logging $ do
             Addresses.spec

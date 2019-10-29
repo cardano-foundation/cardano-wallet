@@ -175,6 +175,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."exceptions" or (buildDepError "exceptions"))
             (hsPkgs."extra" or (buildDepError "extra"))
             (hsPkgs."filepath" or (buildDepError "filepath"))
+            (hsPkgs."fmt" or (buildDepError "fmt"))
             (hsPkgs."generic-arbitrary" or (buildDepError "generic-arbitrary"))
             (hsPkgs."generic-lens" or (buildDepError "generic-lens"))
             (hsPkgs."hspec" or (buildDepError "hspec"))
