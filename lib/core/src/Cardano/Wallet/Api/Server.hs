@@ -120,7 +120,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.Network
     ( ErrNetworkTip (..), ErrNetworkUnavailable (..), NetworkLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant
+    ( NetworkDiscriminant (..)
     , PaymentAddress (..)
     , WalletKey (..)
     , digest
@@ -302,13 +302,12 @@ start
         , DefineTx t
         , DecodeAddress n
         , EncodeAddress n
-        , PaymentAddress n ByronKey
         , PaymentAddress n ShelleyKey
         )
     => Warp.Settings
     -> Trace IO Text
     -> Socket
-    -> ApiLayer (RndState n) t ByronKey
+    -> ApiLayer (RndState 'Mainnet) t ByronKey
     -> ApiLayer (SeqState n) t ShelleyKey
     -> StakePoolLayer IO
     -> IO ()
@@ -850,10 +849,9 @@ compatibilityApiServer
     :: forall t n.
         ( Buildable (ErrValidateSelection t)
         , DefineTx t
-        , PaymentAddress n ByronKey
         , PaymentAddress n ShelleyKey
         )
-    => ApiLayer (RndState n) t ByronKey
+    => ApiLayer (RndState 'Mainnet) t ByronKey
     -> ApiLayer (SeqState n) t ShelleyKey
     -> Server (CompatibilityApi n)
 compatibilityApiServer rndCtx seqCtx =
@@ -867,7 +865,7 @@ compatibilityApiServer rndCtx seqCtx =
     :<|> deleteByronTransaction rndCtx
 
 deleteByronWallet
-    :: forall s t n k. (s ~ RndState n)
+    :: forall s t k. (s ~ RndState 'Mainnet)
     => ApiLayer s t k
     -> ApiT WalletId
     -> Handler NoContent
@@ -882,17 +880,17 @@ deleteByronWallet ctx (ApiT wid) = do
     df = ctx ^. dbFactory @s @t @k
 
 getByronWallet
-    :: forall t n k. DefineTx t
-    => ApiLayer (RndState n) t k
+    :: forall t k. DefineTx t
+    => ApiLayer (RndState 'Mainnet) t k
     -> ApiT WalletId
     -> Handler ApiByronWallet
 getByronWallet ctx wid =
     fst <$> getWalletWithCreationTime mkApiByronWallet ctx wid
 
 getByronWalletMigrationInfo
-    :: forall ctx s t n k.
+    :: forall ctx s t k.
        ( DefineTx t
-       , s ~ RndState n
+       , s ~ RndState 'Mainnet
        , ctx ~ ApiLayer s t k )
     => ApiLayer s t k
         -- ^ Source wallet context (Byron)
@@ -922,10 +920,9 @@ getByronWalletMigrationInfo ctx (ApiT wid) =
 migrateByronWallet
     :: forall t n.
        ( DefineTx t
-       , PaymentAddress n ByronKey
        , PaymentAddress n ShelleyKey
        )
-    => ApiLayer (RndState n) t ByronKey
+    => ApiLayer (RndState 'Mainnet) t ByronKey
         -- ^ Source wallet context (Byron)
     -> ApiLayer (SeqState n) t ShelleyKey
         -- ^ Target wallet context (Shelley)
@@ -962,7 +959,7 @@ migrateByronWallet rndCtx seqCtx (ApiT rndWid) (ApiT seqWid) migrateData = do
     passphrase = getApiT $ migrateData ^. #passphrase
 
 listByronWallets
-    :: forall s t n k. (DefineTx t, s ~ RndState n)
+    :: forall s t k. (DefineTx t, s ~ RndState 'Mainnet)
     => ApiLayer s t k
     -> Handler [ApiByronWallet]
 listByronWallets ctx = do
@@ -973,8 +970,8 @@ listByronWallets ctx = do
     re = ctx ^. workerRegistry @s @t @k
 
 postByronWallet
-    :: forall t n. (DefineTx t, PaymentAddress n ByronKey)
-    => ApiLayer (RndState n) t ByronKey
+    :: forall t. (DefineTx t)
+    => ApiLayer (RndState 'Mainnet) t ByronKey
     -> ByronWalletPostData
     -> Handler ApiByronWallet
 postByronWallet ctx body = do
@@ -1008,8 +1005,8 @@ listByronTransactions =
     listTransactions
 
 deleteByronTransaction
-    :: forall ctx s t n k.
-        ( s ~ RndState n
+    :: forall ctx s t k.
+        ( s ~ RndState 'Mainnet
         , ctx ~ ApiLayer s t k
         , DefineTx t
         )
@@ -1158,8 +1155,13 @@ mkApiWallet wid wallet meta progress pending = ApiWallet
     }
 
 mkApiByronWallet
-    :: forall s t n. (DefineTx t, s ~ RndState n)
-    => WalletId -> Wallet s t -> WalletMetadata -> SyncProgress -> Set (Tx t) -> ApiByronWallet
+    :: forall s t. (DefineTx t, s ~ RndState 'Mainnet)
+    => WalletId
+    -> Wallet s t
+    -> WalletMetadata
+    -> SyncProgress
+    -> Set (Tx t)
+    -> ApiByronWallet
 mkApiByronWallet wid wallet meta progress pending = ApiByronWallet
     { balance = getWalletBalance wallet pending
     , id = ApiT wid

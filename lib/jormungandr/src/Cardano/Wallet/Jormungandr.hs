@@ -66,7 +66,7 @@ import Cardano.Wallet.Jormungandr.Transaction
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant
+    ( NetworkDiscriminant (..)
     , NetworkDiscriminantVal
     , PaymentAddress
     , PersistKey
@@ -132,7 +132,6 @@ serveWallet
         , NetworkDiscriminantVal n
         , DecodeAddress n
         , EncodeAddress n
-        , PaymentAddress n ByronKey
         , PaymentAddress n ShelleyKey
         )
     => (CM.Configuration, Trace IO Text)
@@ -156,7 +155,7 @@ serveWallet (cfg, tr) databaseDir hostPref listen lj beforeMainLoop = do
         Right (cp, nl) -> do
             let nPort = Port $ baseUrlPort $ _restApi cp
             let (_, bp) = staticBlockchainParameters nl
-            let rndTl = newTransactionLayer @n (getGenesisBlockHash bp)
+            let rndTl = newTransactionLayer @'Mainnet (getGenesisBlockHash bp)
             let seqTl = newTransactionLayer @n (getGenesisBlockHash bp)
             let poolDBPath = Pool.defaultFilePath <$> databaseDir
             Pool.withDBLayer cfg tr poolDBPath $ \db -> do
@@ -170,7 +169,7 @@ serveWallet (cfg, tr) databaseDir hostPref listen lj beforeMainLoop = do
         :: Trace IO Text
         -> Port "node"
         -> BlockchainParameters
-        -> ApiLayer (RndState n) t ByronKey
+        -> ApiLayer (RndState 'Mainnet) t ByronKey
         -> ApiLayer (SeqState n) t ShelleyKey
         -> StakePoolLayer IO
         -> IO ExitCode
