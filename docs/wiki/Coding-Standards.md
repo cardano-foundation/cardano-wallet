@@ -28,7 +28,7 @@ Each proposal should start with a section justifying the standard with rational 
     * [Define properties as separate functions](#define-properties-as-separate-functions)
     * [Provide readable counter-examples on failures](#provide-readable-counter-examples-on-failures)
     * [Tag interesting cases in complex properties](#tag-interesting-cases-in-complex-properties)
-    * [Write properties to assert the validity of complex generators](#write-properties-to-assert-the-validity-of-complex-generators)
+    * [Write properties to assert the validity of complex generators](#write-properties-to-assert-the-validity-of-complex-generators-and-shrinkers)
     * [Use `checkCoverage` to measure](#use-checkcoverage-to-measure)
     * [Avoid `liftIO` in monadic properties](avoid-liftio-in-monadic-properties)
 
