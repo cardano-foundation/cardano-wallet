@@ -278,13 +278,22 @@ getTxWitnessTag = getWord8 >>= \case
 getMessage :: Get Message
 getMessage = label "getMessage" $ do
     size <- fromIntegral <$> getWord16be
+
+    -- We lazily compute the fragment-id, using lookAHead, before calling the
+    -- specialized decoders.
+    --
+    -- The fragment-id is needed, for instance, to construct a @Tx@, where it
+    -- corresponds to the txId (a.k.a "tx hash").
+    fragId <- Hash . blake2b256 . BL.toStrict
+        <$> lookAhead (getLazyByteString $ fromIntegral size)
+
     msgType <- fromIntegral <$> getWord8
     let remaining = size - 1
     let unimpl = skip remaining >> return (UnimplementedMessage msgType)
     isolate remaining $ case msgType of
         0 -> Initial <$> getInitial
         1 -> unimpl
-        2 -> Transaction <$> getTransaction remaining
+        2 -> Transaction <$> getTransaction fragId
         3 -> unimpl
         4 -> unimpl
         5 -> unimpl
@@ -330,12 +339,8 @@ legacyUtxoWitness xpub bytes = TxWitness $ BL.toStrict $ runPut $ do
     putByteString bytes
 
 -- | Decode the contents of a @Transaction@-message.
-getTransaction :: Int -> Get (Tx, [TxWitness])
-getTransaction n = label "getTransaction" $ do
-    bytes <- lookAhead (getLazyByteString $ fromIntegral n)
-    let tag = runPut (putWord8 (messageTypeTag MsgTypeTransaction))
-    let tid = Hash . blake2b256 . BL.toStrict $ (tag <> bytes)
-
+getTransaction :: Hash "Tx" -> Get (Tx, [TxWitness])
+getTransaction tid = label "getTransaction" $ do
     (ins, outs) <- getTokenTransfer
     let witnessCount = length ins
     wits <- replicateM witnessCount getWitness
@@ -347,7 +352,7 @@ getTransaction n = label "getTransaction" $ do
         let len = txWitnessSize tag + txWitnessTagSize
         -- NOTE: Regardless of the type of witness, we decode it as a
         -- @TxWitness@.
-        TxWitness <$> isolate len (getByteString len)
+        TxWitness <$> getByteString len
 
     getTokenTransfer :: Get ([(TxIn, Coin)], [TxOut])
     getTokenTransfer = label "getTokenTransfer" $ do
