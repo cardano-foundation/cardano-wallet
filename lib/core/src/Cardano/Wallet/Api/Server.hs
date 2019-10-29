@@ -761,7 +761,7 @@ pools
 pools spl =
     listPools spl
     :<|> joinStakePool
-    :<|> deleteStakeInPool
+    :<|> quitStakePool
 
 listPools
     :: StakePoolLayer IO
@@ -791,7 +791,7 @@ joinStakePool
     -> Handler (ApiTransaction n)
 joinStakePool _ _ _ = throwError err501
 
-deleteStakeInPool
+quitStakePool
     :: forall n k.
         ( PaymentAddress n k
         , k ~ ShelleyKey
@@ -800,7 +800,7 @@ deleteStakeInPool
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
-deleteStakeInPool _ _ _ = throwError err501
+quitStakePool _ _ _ = throwError err501
 
 {-------------------------------------------------------------------------------
                                     Network
