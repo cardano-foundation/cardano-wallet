@@ -471,10 +471,24 @@ This lists all transactions between `2018-09-25T10:15:00Z` and `2019-11-21T10:15
 
 > `cardano-wallet transaction submit [--port INT] BINARY_BLOB`
 
-Submit transaction prepared and sigend outside of the wallet:
+Submit transaction prepared and signed outside of the wallet:
 
 ```
 $ cardano-wallet transaction submit 00bf02010200000...d21942304
+```
+
+Sends transaction identified by a hex-encoded BINARY_BLOB of externally-signed transaction.
+
+<p align=right><a href="#">top :arrow_heading_up:</a></p>
+
+## transaction forget
+
+> `cardano-wallet transaction forget [--port INT] WALLET_ID TRANSACTION_ID`
+
+Forget pending transaction for a given wallet:
+
+```
+$ cardano-wallet transaction forget 2512a00e9653fe49a44a5886202e24d77eeb998f 3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12
 ```
 
 Sends transaction identified by a hex-encoded BINARY_BLOB of externally-signed transaction.
