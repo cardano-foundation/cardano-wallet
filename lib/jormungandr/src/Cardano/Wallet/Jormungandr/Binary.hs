@@ -279,9 +279,12 @@ getMessage :: Get Message
 getMessage = label "getMessage" $ do
     size <- fromIntegral <$> getWord16be
 
-    -- We lazily compute the hash of the message (needed for e.g transactions)
-    -- using lookAhead, before calling specific decoders.
-    msgHash <- Hash . blake2b256 . BL.toStrict
+    -- We lazily compute the fragment-id, using lookAHead, before calling the
+    -- specialized decoders.
+    --
+    -- The fragment-id is needed, for instance, to construct a @Tx@, where it
+    -- corresponds to the txId (a.k.a "tx hash").
+    fragId <- Hash . blake2b256 . BL.toStrict
         <$> lookAhead (getLazyByteString $ fromIntegral size)
 
     msgType <- fromIntegral <$> getWord8
@@ -290,7 +293,7 @@ getMessage = label "getMessage" $ do
     isolate remaining $ case msgType of
         0 -> Initial <$> getInitial
         1 -> unimpl
-        2 -> Transaction <$> getTransaction msgHash
+        2 -> Transaction <$> getTransaction fragId
         3 -> unimpl
         4 -> unimpl
         5 -> unimpl
