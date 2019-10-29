@@ -29,7 +29,7 @@ Each proposal should start with a section justifying the standard with rational 
     * [Provide readable counter-examples on failures](#provide-readable-counter-examples-on-failures)
     * [Tag interesting cases in complex properties](#tag-interesting-cases-in-complex-properties)
     * [Write properties to assert the validity of complex generators](#write-properties-to-assert-the-validity-of-complex-generators-and-shrinkers)
-    * [Use `checkCoverage` to measure](#use-checkcoverage-to-measure)
+    * [Use `checkCoverage` to measure coverage requirements](#use-checkcoverage-to-measure-coverage-requirements)
     * [Avoid `liftIO` in monadic properties](avoid-liftio-in-monadic-properties)
 
 * [Testing](#testing)
@@ -1081,7 +1081,7 @@ prop_nonSingletonRangeGenerator = property $ \(nsr :: NonSingletonRange Int) ->
 ```
 </details>
 
-## Use `checkCoverage` to measure 
+## Use `checkCoverage` to measure coverage requirements
 
 Using [label](https://hackage.haskell.org/package/QuickCheck-2.13.2/docs/Test-QuickCheck.html#v:label) or [classify](https://hackage.haskell.org/package/QuickCheck-2.13.2/docs/Test-QuickCheck.html#v:classify)
 instruments QuickCheck to gather some metrics about a particular properties and print out results in the console. However, 
