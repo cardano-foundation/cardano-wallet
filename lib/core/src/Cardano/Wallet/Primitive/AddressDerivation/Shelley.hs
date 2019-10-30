@@ -22,23 +22,29 @@
 -- implemented by Yoroi/Icarus and cardano-cli.
 
 module Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( -- * ShelleyKey types
+    ( -- * Types
       ShelleyKey(..)
     , ChangeChain(..)
-    -- * ShelleyKey generation and derivation
+
+    -- * Constants
+    , minSeedLengthBytes
+    , publicKeySize
+    , addrSingleSize
+    , addrGroupedSize
+
+    -- * Generation and derivation
     , generateKeyFromSeed
     , unsafeGenerateKeyFromSeed
-    , minSeedLengthBytes
     , deriveAccountPrivateKey
     , deriveAddressPrivateKey
     , deriveAddressPublicKey
-    -- * Passphrase
-    , changePassphraseSeq
-    -- * Storing and retrieving keys
+
+    -- * Address
+    , decodeShelleyAddress
+
+    -- * Storage / Internal
     , deserializeXPubSeq
     , serializeXPubSeq
-    -- * Encoding / Decoding
-    , decodeShelleyAddress
     ) where
 
 import Prelude
@@ -440,21 +446,33 @@ decodeShelleyAddress bytes = do
         <> show (networkDiscriminantVal @n) <> "."
 
 instance InspectAddress ShelleyKey where
-    type SpendingKey ShelleyKey = ByteString
-    getSpendingKey (Address bytes)
-        | let l = BS.length bytes in l == addrSingleSize || l == addrGroupedSize =
+    type KeyFingerprint "payment" ShelleyKey = ByteString
+    paymentKeyFingerprint (Address bytes)
+        | len == addrSingleSize || len == addrGroupedSize =
             BS.take publicKeySize $ BS.drop 1 bytes
-        | otherwise =
-            error "InspectAddress: tried to inspect an incompatible address"
+        | otherwise = error $ unwords
+            [ "InspectAddress.getPaymentKey was given an invalid 'ShelleyKey'"
+            , " of "
+            , show len
+            , " bytes!"
+            ]
+      where
+        len = BS.length bytes
 
-    type DelegationKey ShelleyKey = ByteString
-    getDelegationKey (Address bytes)
-        | BS.length bytes == addrSingleSize =
+    type KeyFingerprint "delegation" ShelleyKey = ByteString
+    delegationKeyFingerprint (Address bytes)
+        | len == addrSingleSize =
             Nothing
-        | BS.length bytes == addrGroupedSize =
+        | len == addrGroupedSize =
             Just $ BS.drop addrSingleSize bytes
-        | otherwise =
-            error "InspectAddress: tried to inspect an incompatible address"
+        | otherwise = error $ unwords
+            [ "InspectAddress.getDelegationKey was given an invalid 'ShelleyKey'"
+            , " of "
+            , show len
+            , " bytes!"
+            ]
+      where
+        len = BS.length bytes
 
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys
