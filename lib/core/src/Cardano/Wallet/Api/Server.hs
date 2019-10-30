@@ -162,6 +162,7 @@ import Cardano.Wallet.Primitive.Types
     , TransactionInfo (TransactionInfo)
     , TxIn
     , TxOut (..)
+    , TxStatus (..)
     , UTxOStatistics (..)
     , WalletId (..)
     , WalletMetadata (..)
@@ -725,7 +726,10 @@ listTransactions ctx (ApiT wid) mStart mEnd mOrder = do
     mkApiTransactionFromInfo (TransactionInfo txid ins outs meta depth txtime) =
         apiTx { depth  }
       where
-        apiTx = mkApiTransaction txid ins outs (meta, txtime) #insertedAt
+        apiTx = mkApiTransaction txid ins outs (meta, txtime) $
+            case meta ^. #status of
+                Pending  -> #pendingSince
+                InLedger -> #insertedAt
 
 postTransactionFee
     :: forall ctx s t n k.
@@ -933,7 +937,6 @@ migrateByronWallet
     -> ApiWalletPassphrase
     -> Handler [ApiTransaction n]
 migrateByronWallet rndCtx seqCtx (ApiT rndWid) (ApiT seqWid) migrateData = do
-
     -- FIXME
     -- Better error handling here to inform users if they messed up with the
     -- wallet ids.
