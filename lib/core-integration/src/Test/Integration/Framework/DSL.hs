@@ -308,6 +308,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
 import qualified Network.HTTP.Types.Status as HTTP
+import qualified System.FilePath as F
 --
 -- API response expectations
 --
@@ -1553,12 +1554,11 @@ getJormungandrBlock0H = do
 prepExternalTxViaJcli :: Port "node" -> Text -> Natural -> IO Text
 prepExternalTxViaJcli port addrStr amt = do
     withTempDir $ \d -> do
-        let (<//>) dir name = T.unpack $ (T.pack dir) </> (name :: Text)
         let strip = T.unpack . T.strip . T.pack
-        let txFile = d <//> "trans.tx"
-        let witnessFile = d <//> "witness"
+        let txFile = d F.</> "trans.tx"
+        let witnessFile = d F.</> "witness"
 
-        let keyFile = d <//> "key.prv"
+        let keyFile = d F.</> "key.prv"
         TIO.writeFile keyFile
             "ed25519_sk1ga6n6fdsrruumg6nh0epdrqswrsdxhq4q7g5enun8v2jnk4u2gls08wfu3"
 

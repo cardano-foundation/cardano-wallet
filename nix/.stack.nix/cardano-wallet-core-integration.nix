@@ -73,6 +73,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."directory" or (buildDepError "directory"))
           (hsPkgs."exceptions" or (buildDepError "exceptions"))
           (hsPkgs."extra" or (buildDepError "extra"))
+          (hsPkgs."filepath" or (buildDepError "filepath"))
           (hsPkgs."generic-lens" or (buildDepError "generic-lens"))
           (hsPkgs."hspec" or (buildDepError "hspec"))
           (hsPkgs."hspec-expectations-lifted" or (buildDepError "hspec-expectations-lifted"))
