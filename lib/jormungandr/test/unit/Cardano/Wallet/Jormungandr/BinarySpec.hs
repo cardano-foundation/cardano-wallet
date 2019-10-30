@@ -293,10 +293,9 @@ spec = do
                         $ withHeader MsgTypeDelegation
                         $ putStakeDelegationTx poolId pubKey inps outs wits
                 let decode =
-                        unMessage . runGet getMessage
+                        getStakeDelegationTxMessage . runGet getMessage
                 tx' <- try' (decode $ encode stakeDelTx)
-                let (_, _, tx, wits) = stakeDelTx
-                if tx' == Right (tx, wits)
+                if tx' == Right stakeDelTx
                 then return ()
                 else expectationFailure $
                     "tx /= decode (encode tx) == " ++ show tx'
@@ -304,6 +303,11 @@ spec = do
     unMessage :: Message -> (Tx, [TxWitness])
     unMessage m = case m of
         Transaction stx -> stx
+        _ -> error "expected a Transaction message"
+
+    getStakeDelegationTxMessage :: Message -> (PoolId, ByteString, Tx, [TxWitness])
+    getStakeDelegationTxMessage m = case m of
+        TransactionWithDelegation stx -> stx
         _ -> error "expected a Transaction message"
 
     try' :: a -> IO (Either String a)
