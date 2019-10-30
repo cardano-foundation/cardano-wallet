@@ -575,13 +575,20 @@ class WalletKey key => PersistKey (key :: Depth -> * -> *) where
         -> Either String (key 'RootK XPrv, Hash "encryption")
 
 -- | Access constituants of an address.
-class InspectAddress (key :: Depth -> * -> *) where
+class
+    ( Ord (KeyFingerprint "payment" key)
+    , Ord (KeyFingerprint "delegation" key)
+    ) => InspectAddress (key :: Depth -> * -> *) where
     type KeyFingerprint (s :: Symbol) key :: *
         -- | Something that uniquely identifies a public key. Typically,
         -- a hash of that key or the key itself.
 
     paymentKeyFingerprint
         :: Address
+        -> KeyFingerprint "payment" key
+
+    paymentKeyFingerprint'
+        :: key 'AddressK XPub
         -> KeyFingerprint "payment" key
 
     delegationKeyFingerprint
