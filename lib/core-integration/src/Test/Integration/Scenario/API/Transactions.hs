@@ -99,6 +99,7 @@ import Test.Integration.Framework.DSL
     , request
     , status
     , toQueryString
+    , unsafeRequest
     , utcIso8601ToText
     , verify
     , walletId
@@ -141,31 +142,29 @@ spec :: forall t n. (n ~ 'Testnet) => SpecWith (Context t)
 spec = do
     it "Regression #935 -\
         \ Pending tx should have pendingSince in the list tx response" $ \ctx -> do
-        wSrc <-fixtureWalletWith ctx [5_000_000]
+        wSrc <- fixtureWalletWith ctx [5_000_000]
         wDest <- emptyWallet ctx
-        expectEventually' ctx getWalletEp balanceTotal 5_000_000 wSrc
 
-        let amt = (1 :: Natural)
-        -- post tx
-        r@(_, Right tx) <-
-                postTx ctx (wSrc, postTxEp ,"Secure Passphrase") wDest amt
-        expectFieldEqual status Pending r
-        insertedAt tx `shouldBe` Nothing
-        pendingSince tx `shouldSatisfy` isJust
+        eventually $ do
+            -- Post Tx
+            let amt = (1 :: Natural)
+            r <- postTx ctx (wSrc, postTxEp ,"Secure Passphrase") wDest amt
+            let tx = getFromResponse Prelude.id r
+            tx ^. status `shouldBe` Pending
+            insertedAt tx `shouldBe` Nothing
+            pendingSince tx `shouldSatisfy` isJust
 
-        -- list txs
-        let q = toQueryString [("order", "ascending")]
-        rTx@(_, Right txs) <-
-                request @([ApiTransaction n]) ctx (listTxEp wSrc q) Default Empty
-        -- there are two txs - first one is the one from the faucet (Incoming)
-        expectListSizeEqual 2 rTx
-        expectListItemFieldEqual 0 direction Incoming rTx
-        expectListItemFieldEqual 0 status InLedger rTx
-        -- we verify second tx (Outgoing) which is still pending
-        expectListItemFieldEqual 1 direction Outgoing rTx
-        expectListItemFieldEqual 1 status Pending rTx
-        insertedAt (txs !! 1) `shouldBe` Nothing
-        pendingSince (txs !! 1) `shouldBe` (pendingSince tx)
+            -- Verify Tx
+            let q = toQueryString [("order", "descending")]
+            (_, txs) <- unsafeRequest @([ApiTransaction n]) ctx (listTxEp wSrc q) Empty
+            case filter ((== Pending) . view status) txs of
+                [] ->
+                    fail "Tx no longer pending, need to retry scenario."
+                tx':_ -> do
+                    tx' ^. direction `shouldBe` Outgoing
+                    tx' ^. status `shouldBe` Pending
+                    insertedAt tx' `shouldBe` Nothing
+                    pendingSince tx' `shouldBe` pendingSince tx
 
     it "TRANS_CREATE_01 - Single Output Transaction" $ \ctx -> do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
