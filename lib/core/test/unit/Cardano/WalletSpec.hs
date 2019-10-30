@@ -350,9 +350,9 @@ walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
         let wallet = (wid, wname, DummyState state)
         (WalletLayerFixture _ wl _ _) <- liftIO $ setupFixture wallet
         unsafeRunExceptT $ W.attachPrivateKey wl wid (xprv, pwd)
-        (_,_,[witOld]) <- unsafeRunExceptT $ W.signTx wl wid () pwd selection
+        (_,_,_,[witOld]) <- unsafeRunExceptT $ W.signTx wl wid () pwd selection
         unsafeRunExceptT $ W.updateWalletPassphrase wl wid (coerce pwd, newPwd)
-        (_,_,[witNew]) <-
+        (_,_,_,[witNew]) <-
             unsafeRunExceptT $ W.signTx wl wid () (coerce newPwd) selection
         witOld `shouldBe` witNew
   where

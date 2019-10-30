@@ -840,7 +840,7 @@ signTx
     -> ArgGenChange s
     -> Passphrase "encryption"
     -> CoinSelection
-    -> ExceptT ErrSignTx IO (Tx t, TxMeta, [TxWitness])
+    -> ExceptT ErrSignTx IO (Tx t, TxMeta, UTCTime, [TxWitness])
 signTx ctx wid argGenChange pwd (CoinSelection ins outs chgs) =
     DB.withLock db $ do
         cp <- withExceptT ErrSignTxNoSuchWallet $
@@ -862,14 +862,20 @@ signTx ctx wid argGenChange pwd (CoinSelection ins outs chgs) =
                             sum (getCoin <$> chgs)
                     let amtInps = fromIntegral $
                             sum (getCoin . coin . snd <$> ins)
+                    let txSlot =
+                            (currentTip cp) ^. #slotId
                     let meta = TxMeta
                             { status = Pending
                             , direction = Outgoing
-                            , slotId = (currentTip cp) ^. #slotId
+                            , slotId = txSlot
                             , blockHeight = (currentTip cp) ^. #blockHeight
                             , amount = Quantity (amtInps - amtChng)
                             }
-                    return (tx, meta, wit)
+                    let time =
+                            slotStartTime
+                                (slotParams (blockchainParameters cp))
+                                txSlot
+                    return (tx, meta, time, wit)
                 Left e ->
                     throwE $ ErrSignTx e
   where
@@ -946,16 +952,10 @@ listTransactions ctx wid mStart mEnd order = do
     cp <- withExceptT ErrListTransactionsNoSuchWallet $
         readWalletCheckpoint @ctx @s @t @k ctx wid
     let tip = currentTip cp
-    let sp = fromBlockchainParameters (blockchainParameters cp)
+    let sp = slotParams (blockchainParameters cp)
     maybe (pure []) (listTransactionsWithinRange sp tip) =<< (getSlotRange sp)
   where
     db = ctx ^. dbLayer @s @t @k
-
-    fromBlockchainParameters :: BlockchainParameters -> SlotParameters
-    fromBlockchainParameters bp = SlotParameters
-        (bp ^. #getEpochLength)
-        (bp ^. #getSlotLength)
-        (bp ^. #getGenesisBlockDate)
 
     -- Transforms the user-specified time range into a slot range. If the
     -- user-specified range terminates before the start of the blockchain,
