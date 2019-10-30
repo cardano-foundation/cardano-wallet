@@ -484,7 +484,6 @@ mkWalletEntity wid meta = Wallet
     , walCreationTime = meta ^. #creationTime
     , walPassphraseLastUpdatedAt =
         W.lastUpdatedAt <$> meta ^. #passphraseInfo
-    , walStatus = meta ^. #status
     , walDelegation = delegationToPoolId $ meta ^. #delegation
     }
 
@@ -494,7 +493,6 @@ mkWalletMetadataUpdate meta =
     , WalCreationTime =. meta ^. #creationTime
     , WalPassphraseLastUpdatedAt =.
         W.lastUpdatedAt <$> meta ^. #passphraseInfo
-    , WalStatus =. meta ^. #status
     , WalDelegation =. delegationToPoolId (meta ^. #delegation)
     ]
 
@@ -512,7 +510,6 @@ metadataFromEntity wal = W.WalletMetadata
     , creationTime = walCreationTime wal
     , passphraseInfo = W.WalletPassphraseInfo <$>
         walPassphraseLastUpdatedAt wal
-    , status = walStatus wal
     , delegation = delegationFromPoolId (walDelegation wal)
     }
 

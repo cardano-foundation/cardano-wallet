@@ -70,6 +70,7 @@ module Cardano.Wallet
     , restoreWallet
     , updateWallet
     , updateWalletPassphrase
+    , walletSyncProgress
     , ErrWalletAlreadyExists (..)
     , ErrNoSuchWallet (..)
     , ErrListUTxOStatistics (..)
@@ -416,7 +417,6 @@ createWallet ctx wid wname s = do
             { name = wname
             , creationTime = now
             , passphraseInfo = Nothing
-            , status = Syncing minBound
             , delegation = NotDelegating
             }
     DB.createWallet db (PrimaryKey wid) cp meta hist $> wid
@@ -437,6 +437,12 @@ readWallet ctx wid = (,,)
    <$> readWalletCheckpoint @ctx @s @t @k ctx wid
    <*> readWalletMeta @ctx @s @t @k ctx wid
    <*> lift (pendingTxHistory @ctx @s @t @k ctx wid)
+
+walletSyncProgress :: Wallet s t -> IO SyncProgress
+walletSyncProgress w = do
+    let bp = blockchainParameters w
+    let h = currentTip w
+    syncProgressRelativeToTime (slotParams bp) h <$> getCurrentTime
 
 -- | Retrieve a wallet's most recent checkpoint
 readWalletCheckpoint
@@ -567,7 +573,6 @@ restoreBlocks ctx wid blocks nodeTip = do
         let k = bp ^. #getEpochStability
         let localTip = currentTip $ NE.last cps
 
-        meta' <- liftIO $ calculateMetadata bp localTip meta
         let unstable = sparseCheckpoints k (nodeTip ^. #blockHeight)
         forM_ (NE.init cps) $ \cp -> do
             let (Quantity h) = currentTip cp ^. #blockHeight
@@ -575,11 +580,13 @@ restoreBlocks ctx wid blocks nodeTip = do
         makeCheckpoint (NE.last cps)
         DB.prune db (PrimaryKey wid)
         DB.putTxHistory db (PrimaryKey wid) txs
-        DB.putWalletMeta db (PrimaryKey wid) meta'
+
 
         liftIO $ do
+            progress <- walletSyncProgress (NE.last cps)
             logInfo tr $
-                pretty meta'
+                pretty meta
+            logInfo tr $ "syncProgress: " <> pretty progress
             logInfo tr $ "discovered "
                 <> pretty (length txs) <> " new transaction(s)"
             logInfo tr $ "local tip: "
@@ -597,16 +604,6 @@ restoreBlocks ctx wid blocks nodeTip = do
         liftIO $ logInfo tr $
             "Creating checkpoint at " <> pretty (currentTip cp)
         DB.putCheckpoint db (PrimaryKey wid) cp
-
-    calculateMetadata
-        :: BlockchainParameters
-        -> BlockHeader
-        -> WalletMetadata
-        -> IO WalletMetadata
-    calculateMetadata bp h meta = do
-        p <- syncProgressRelativeToTime (slotParams bp) h <$> getCurrentTime
-        pure (meta { status = p } :: WalletMetadata)
-
 
 -- | Remove an existing wallet. Note that there's no particular work to
 -- be done regarding the restoration worker as it will simply terminate
