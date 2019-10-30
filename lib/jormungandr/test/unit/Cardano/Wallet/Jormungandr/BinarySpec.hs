@@ -101,6 +101,75 @@ import qualified Data.ByteString.Lazy as BL
 spec :: Spec
 spec = do
     describe "Decoding" $ do
+        it "should decode a genesis block (Testnet)" $ do
+            let bytes =
+                    "00520000000001950000000000000000000000006fb1140e69d3acdd82d\
+                    \682b1a4a52a2bb00e182c645b5af775a8115814779e7200000000000000\
+                    \00000000000000000000000000000000000000000000000000007f00000\
+                    \c0088000000005cc1c24900410200c200020398000000000000002a0000\
+                    \000000000000000000000000000001040000000301410104040000a8c00\
+                    \20800000000000003e8028800000000000000000244000000ff01840000\
+                    \000402e06555f34e4de7ef3b01e889dba07a399b3a3ea0c36f21184d014\
+                    \39af96c4442eb002c02000185877fbb2283ba1ed56d835fb8cd66694a84\
+                    \0360e69c690a04aeef39629cdd804f0000000000000001009f050000000\
+                    \000000000000000003c34eb12000000000000000000010001643b112bac\
+                    \cbfb2298cdd2e02dea6a04fb4c0791cfd62e26f7de3afa073c284700000\
+                    \00000000000000000000000000000000000000000010000000000000000\
+                    \4666e022f961efc82c507a7b8654b5727d6c5ea40bb44402004b9d17de0\
+                    \ea52ca41576922d5ca087c85df4f5d2de844282993df3534d45f0b9795d\
+                    \bdc3cde73d0000004304877fbb2283ba1ed56d835fb8cd66694a840360e\
+                    \69c690a04aeef39629cdd804fa09ae0da1e618eeb09e7b78d73e265af18\
+                    \f87d4d5320386ebf0235f54ecd03470000"
+            let block = Block
+                    BlockHeader
+                        { version = 0
+                        , contentSize = 405
+                        , slot = SlotId 0 0
+                        , chainLength = 0
+                        , contentHash = Hash $ unsafeFromHex
+                            "6fb1140e69d3acdd82d682b1a4a52a2bb0\
+                            \0e182c645b5af775a8115814779e72"
+                        , headerHash = Hash $ unsafeFromHex
+                            "3d7a861feff6d266e07c6fc2e0f41a842\
+                            \3fdf6e54db38de9b7c0a975c3b8cebe"
+                        , parentHeaderHash = Hash (BS.replicate 32 0)
+                        , producedBy = Nothing
+                        }
+                    [ Initial
+                        [ Block0Date (StartTime $ posixSecondsToUTCTime 1556202057)
+                        , Discrimination Testnet
+                        , Consensus GenesisPraos
+                        , ConfigLinearFee $ LinearFee (Quantity 42) (Quantity 0)
+                        , SlotsPerEpoch (W.EpochLength 3)
+                        , SlotDuration 1
+                        , KesUpdateSpeed (Quantity 43200)
+                        , ConsensusGenesisPraosParamF (Milli 1000)
+                        , BftSlotsRatio (Milli 0)
+                        , MaxNumberOfTransactionsPerBlock 255
+                        , EpochStabilityDepth (Quantity 4)
+                        , AddBftLeader $ LeaderId $ unsafeFromHex
+                            "6555f34e4de7ef3b01e889dba07a399b\
+                            \3a3ea0c36f21184d01439af96c4442eb"
+                        ]
+                    , Transaction (Tx
+                        { txid = Hash $ unsafeFromHex
+                            "30b99c425ca5aa64e24f23b5cef542\
+                            \170ac96ea32ea823904f9446cd49966013"
+                        , inputs = []
+                        , outputs =
+                            [ TxOut
+                                { address = Address $ unsafeFromHex
+                                    "85877fbb2283ba1ed56d835fb8cd66694a8\
+                                    \40360e69c690a04aeef39629cdd804f"
+                                , coin = Coin 1
+                                }
+                            ]
+                        }, [])
+                    , UnimplementedMessage 5
+                    , UnimplementedMessage 4
+                    ]
+            unsafeDecodeHex getBlock bytes `shouldBe` block
+
         it "should decode a genesis block (Mainnet)" $ do
             let bytes =
                     "00520000000000810000000000000000000000005df3b1c19c1400a992\
