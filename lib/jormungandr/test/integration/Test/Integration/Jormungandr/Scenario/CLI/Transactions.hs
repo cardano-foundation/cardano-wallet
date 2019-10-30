@@ -13,7 +13,7 @@ import Prelude
 import Cardano.CLI
     ( Port )
 import Cardano.Wallet.Api.Types
-    ( ApiWallet, getApiT )
+    ( ApiTxId (..), ApiWallet, getApiT )
 import Cardano.Wallet.Jormungandr.Binary
     ( MessageType (..) )
 import Cardano.Wallet.Jormungandr.Primitive.Types
@@ -47,6 +47,7 @@ import Test.Integration.Framework.DSL
     , KnownCommand
     , balanceAvailable
     , balanceTotal
+    , deleteTransactionViaCLI
     , emptyWallet
     , expectCliFieldEqual
     , expectEventually'
@@ -61,9 +62,14 @@ import Test.Integration.Framework.DSL
     , walletId
     )
 import Test.Integration.Framework.TestData
-    ( errMsg400MalformedTxPayload, errMsg400WronglyEncodedTxPayload )
+    ( errMsg400MalformedTxPayload
+    , errMsg400WronglyEncodedTxPayload
+    , errMsg404CannotFindTx
+    )
 import Test.Integration.Jormungandr.Scenario.API.Transactions
     ( ExternalTxFixture (..), encodeTx, fixtureExternalTx )
+import Web.HttpApiData
+    ( ToHttpApiData (..) )
 
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -150,3 +156,29 @@ spec = do
         err `shouldContain` errMsg400MalformedTxPayload
         out `shouldBe` ""
         code `shouldBe` ExitFailure 1
+
+    it "TRANS_DELETE_05 - Cannot forget external tx via CLI" $ \ctx -> do
+        w <- emptyWallet ctx
+        addr:_ <- listAddresses ctx w
+        let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
+        let amt = 11111
+
+        -- post external tx
+        txBlob <- prepExternalTxViaJcli (ctx ^. typed @(Port "node")) addrStr amt
+        (Exit code, Stdout out, Stderr err) <-
+            postExternalTransactionViaCLI @t ctx [T.unpack txBlob]
+        err `shouldBe` "Ok.\n"
+        txJson <- expectValidJSON (Proxy @ApiTxId) out
+        code `shouldBe` ExitSuccess
+        let txId = T.unpack $ toUrlPiece (txJson ^. #id)
+
+        -- Try to forget external tx
+        (Exit c2, Stdout out2, Stderr err2) <-
+            deleteTransactionViaCLI @t ctx (T.unpack $ w ^. walletId) txId
+        err2 `shouldContain` errMsg404CannotFindTx (T.pack txId)
+        out2 `shouldBe` ""
+        c2 `shouldBe` ExitFailure 1
+
+        -- funds eventually are on target wallet
+        expectEventually' ctx getWalletEp balanceAvailable amt w
+        expectEventually' ctx getWalletEp balanceTotal amt w
