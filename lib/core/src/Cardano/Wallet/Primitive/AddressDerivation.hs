@@ -492,9 +492,9 @@ class WalletKey key => PersistKey (key :: Depth -> * -> *) where
 
 -- | Access constituants of an address.
 class InspectAddress (key :: Depth -> * -> *) where
-    -- | Something that uniquely identifies a public key. Typically,
-    -- a hash of that key or the key itself.
     type KeyFingerprint (s :: Symbol) key :: *
+        -- | Something that uniquely identifies a public key. Typically,
+        -- a hash of that key or the key itself.
 
     paymentKeyFingerprint
         :: Address
