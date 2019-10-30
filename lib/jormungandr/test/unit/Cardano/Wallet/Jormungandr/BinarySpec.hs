@@ -37,7 +37,7 @@ import Cardano.Wallet.Jormungandr.Binary
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..), XPub (..) )
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
@@ -57,6 +57,8 @@ import Control.Exception
     ( SomeException, evaluate, try )
 import Control.Monad
     ( forM_ )
+import Control.Monad
+    ( replicateM )
 import Control.Monad.IO.Class
     ( liftIO )
 import Data.ByteString
@@ -76,17 +78,17 @@ import GHC.Generics
 import System.Directory
     ( getDirectoryContents )
 import Test.Hspec
-    ( Spec
-    , describe
-    , expectationFailure
-    , it
-    , runIO
-    , shouldBe
-    , shouldSatisfy
-    , xit
-    )
+    ( Spec, describe, expectationFailure, it, runIO, shouldBe, shouldSatisfy )
 import Test.QuickCheck
-    ( Arbitrary (..), Gen, choose, oneof, property, shrinkList, vectorOf )
+    ( Arbitrary (..)
+    , Gen
+    , InfiniteList (..)
+    , choose
+    , oneof
+    , property
+    , shrinkList
+    , vectorOf
+    )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Monadic
@@ -94,6 +96,7 @@ import Test.QuickCheck.Monadic
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 
 spec :: Spec
@@ -166,7 +169,7 @@ spec = do
                             ]
                         }, [])
                     , UnimplementedMessage 1
-                    , UnimplementedMessage 4
+                    , UnimplementedMessage 3
                     ]
             unsafeDecodeHex getBlock bytes `shouldBe` block
 
@@ -283,11 +286,11 @@ spec = do
                 else expectationFailure $
                     "tx /= decode (encode tx) == " ++ show tx'
 
-        xit "decode (encode tx) === tx stake delegation transaction" $ property $
+        it "decode (encode tx) === tx stake delegation transaction" $ property $
             \(StakeDelegationTx stakeDelTx) -> monadicIO $ liftIO $ do
                 let encode (poolId, pubKey, (Tx _ inps outs), wits) =
                           runPut
-                        $ withHeader MsgTypeCertificate
+                        $ withHeader MsgTypeDelegation
                         $ putStakeDelegationTx poolId pubKey inps outs wits
                 let decode =
                         unMessage . runGet getMessage
@@ -351,11 +354,20 @@ instance Arbitrary TxOut where
     shrink = genericShrink
 
 newtype StakeDelegationTx =
-    StakeDelegationTx (PoolId, XPub, Tx, [TxWitness])
+    StakeDelegationTx (PoolId, ByteString, Tx, [TxWitness])
     deriving (Eq, Show, Generic)
 
+instance Arbitrary PoolId where
+    arbitrary = do
+        InfiniteList bytes _ <- arbitrary
+        return $ PoolId $ BS.pack $ take 32 bytes
+
 instance Arbitrary StakeDelegationTx where
-    arbitrary = undefined
+    arbitrary = do
+        (SignedTx (tx, wits)) <- arbitrary
+        poolId <- arbitrary
+        xpub <- B8.pack <$> replicateM 64 arbitrary
+        return $ StakeDelegationTx (poolId, xpub, tx, wits)
 
 newtype SignedTx = SignedTx (Tx, [TxWitness])
     deriving (Eq, Show, Generic)

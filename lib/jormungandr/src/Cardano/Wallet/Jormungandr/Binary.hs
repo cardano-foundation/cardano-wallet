@@ -245,6 +245,8 @@ data Message
     -- ^ Found in the genesis block.
     | Transaction (Tx, [TxWitness])
     -- ^ A standard signed transaction
+    | TransactionWithDelegation (PoolId, ByteString, Tx, [TxWitness])
+    -- ^ A signed transaction with stake pool delegation
     | UnimplementedMessage Int
     -- Messages not yet supported go there.
     deriving (Eq, Show)
@@ -252,7 +254,7 @@ data Message
 data MessageType
     = MsgTypeInitial
     | MsgTypeTransaction
-    | MsgTypeCertificate
+    | MsgTypeDelegation
 
 data TxWitnessTag
     = TxWitnessLegacyUTxO
@@ -296,7 +298,7 @@ getMessage = label "getMessage" $ do
         0 -> Initial <$> getInitial
         1 -> unimpl
         2 -> Transaction <$> getTransaction fragId
-        3 -> Transaction <$> getDelegatedCertificateTransaction fragId
+        3 -> TransactionWithDelegation <$> getDelegatedCertificateTransaction fragId
         4 -> unimpl
         5 -> unimpl
         other -> fail $ "Unexpected content type tag " ++ show other
@@ -305,7 +307,7 @@ messageTypeTag :: MessageType -> Word8
 messageTypeTag = \case
     MsgTypeInitial -> 0
     MsgTypeTransaction -> 2
-    MsgTypeCertificate -> 3
+    MsgTypeDelegation -> 3
 
 -- | Decode the contents of a @Initial@-message.
 getInitial :: Get [ConfigParam]
@@ -342,22 +344,26 @@ legacyUtxoWitness xpub bytes = TxWitness $ BL.toStrict $ runPut $ do
     putByteString bytes
 
 -- | Decode the contents of a delegated transaction @Transaction@-message.
-getDelegatedCertificateTransaction :: Int -> Get (Tx, [TxWitness])
-getDelegatedCertificateTransaction =
-    getGenericTransaction MsgTypeCertificate "getDelegatedCertificateTransaction"
+getDelegatedCertificateTransaction
+    :: Hash "Tx"
+    -> Get (PoolId, ByteString, Tx, [TxWitness])
+getDelegatedCertificateTransaction tid = do
+    (tx, wits) <- getGenericTransaction tid
+    poolId <- getByteString 32
+    xpub <- getByteString 64
+    pure (PoolId poolId, xpub, tx, wits )
 
 stakeCertificate
     :: PoolId
-    -> XPub
+    -> ByteString
     -> Put
 stakeCertificate (PoolId poolId) xpub = do
-    -- we need to create stake delegation certificate here
     putByteString poolId
-    putByteString (unXPub xpub)
+    putByteString xpub
 
 putStakeDelegationTx
     :: PoolId
-    -> XPub
+    -> ByteString
     -> [(TxIn, Coin)]
     -> [TxOut]
     -> [TxWitness]
@@ -371,11 +377,9 @@ getTransaction :: Hash "Tx" -> Get (Tx, [TxWitness])
 getTransaction = getGenericTransaction
 
 getGenericTransaction
-    :: MessageType
-    -> String
-    -> Hash "Tx"
+    :: Hash "Tx"
     -> Get (Tx, [TxWitness])
-getGenericTransaction msg name tid = label "getGenericTransaction" $ do
+getGenericTransaction tid = label "getGenericTransaction" $ do
     (ins, outs) <- getTokenTransfer
     let witnessCount = length ins
     wits <- replicateM witnessCount getWitness
@@ -663,6 +667,7 @@ convertBlock (Block h msgs) =
     coerceMessages = msgs >>= \case
         Initial _ -> []
         Transaction (tx, _wits) -> return tx
+        TransactionWithDelegation (_poolId, _xpub, tx, _wits) -> return tx
         UnimplementedMessage _ -> []
 
 -- | Convert the Jörmungandr binary format header into a simpler Wallet header.
