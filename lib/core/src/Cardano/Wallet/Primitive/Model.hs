@@ -52,7 +52,6 @@ module Cardano.Wallet.Primitive.Model
 
     -- * Auxiliary
     , slotParams
-
     ) where
 
 import Prelude

@@ -21,6 +21,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxId (..)
     , ApiWallet
     , insertedAt
+    , pendingSince
     , time
     )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -35,6 +36,8 @@ import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Generics.Product.Typed
     ( HasType )
+import Data.Maybe
+    ( isJust )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -48,7 +51,9 @@ import Network.HTTP.Types.Method
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( SpecWith, describe, it, shouldSatisfy, xit )
+    ( SpecWith, describe, it, xit )
+import Test.Hspec.Expectations.Lifted
+    ( shouldBe, shouldSatisfy )
 import Test.Integration.Framework.DSL
     ( Context
     , Headers (..)
@@ -94,6 +99,7 @@ import Test.Integration.Framework.DSL
     , request
     , status
     , toQueryString
+    , unsafeRequest
     , utcIso8601ToText
     , verify
     , walletId
@@ -134,6 +140,32 @@ data TestCase a = TestCase
 
 spec :: forall t n. (n ~ 'Testnet) => SpecWith (Context t)
 spec = do
+    it "Regression #935 -\
+        \ Pending tx should have pendingSince in the list tx response" $ \ctx -> do
+        wSrc <- fixtureWalletWith ctx [5_000_000]
+        wDest <- emptyWallet ctx
+
+        eventually $ do
+            -- Post Tx
+            let amt = (1 :: Natural)
+            r <- postTx ctx (wSrc, postTxEp ,"Secure Passphrase") wDest amt
+            let tx = getFromResponse Prelude.id r
+            tx ^. status `shouldBe` Pending
+            insertedAt tx `shouldBe` Nothing
+            pendingSince tx `shouldSatisfy` isJust
+
+            -- Verify Tx
+            let q = toQueryString [("order", "descending")]
+            (_, txs) <- unsafeRequest @([ApiTransaction n]) ctx (listTxEp wSrc q) Empty
+            case filter ((== Pending) . view status) txs of
+                [] ->
+                    fail "Tx no longer pending, need to retry scenario."
+                tx':_ -> do
+                    tx' ^. direction `shouldBe` Outgoing
+                    tx' ^. status `shouldBe` Pending
+                    insertedAt tx' `shouldBe` Nothing
+                    pendingSince tx' `shouldBe` pendingSince tx
+
     it "TRANS_CREATE_01 - Single Output Transaction" $ \ctx -> do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
         let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
@@ -141,7 +173,7 @@ spec = do
                 , nOutputs = 1
                 }
         let amt = (1 :: Natural)
-        r <- postTx ctx (wa, postTxEp) wb amt
+        r <- postTx ctx (wa, postTxEp, "cardano-wallet") wb amt
         verify r
             [ expectSuccess
             , expectResponseCode HTTP.status202
@@ -1611,7 +1643,7 @@ spec = do
             (wSrc, wDest) <- (,) <$> fWallet ctx <*> emptyWallet ctx
             -- post tx
             let amt = (1 :: Natural)
-            rMkTx <- postTx ctx (wSrc, postTxEndp) wDest amt
+            rMkTx <- postTx ctx (wSrc, postTxEndp, "cardano-wallet") wDest amt
             let txId = getFromResponse #id rMkTx
             verify rMkTx
                 [ expectSuccess
@@ -1673,7 +1705,7 @@ spec = do
             (wSrc, wDest) <- (,) <$> fWallet ctx <*> emptyWallet ctx
 
             -- post transaction
-            rTx <- postTx ctx (wSrc, postTxEndp) wDest (1 :: Natural)
+            rTx <- postTx ctx (wSrc, postTxEndp, "cardano-wallet") wDest (1 :: Natural)
             let txId = getFromResponse #id rTx
 
             -- Wait for the transaction to be accepted
@@ -1738,7 +1770,7 @@ spec = do
         it resource $ \ctx -> do
             -- post tx
             (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
-            rMkTx <- postTx ctx (wSrc, postTxEp) wDest (1 :: Natural)
+            rMkTx <- postTx ctx (wSrc, postTxEp, "cardano-wallet") wDest (1 :: Natural)
 
             -- try to forget from different wallet
             wDifferent <- eWallet ctx
@@ -1778,11 +1810,11 @@ spec = do
 
     postTx
         :: Context t
-        -> (wal, wal -> (Method, Text))
+        -> (wal, wal -> (Method, Text), Text)
         -> ApiWallet
         -> Natural
         -> IO (HTTP.Status, Either RequestException (ApiTransaction n))
-    postTx ctx (wSrc, postTxEndp) wDest amt = do
+    postTx ctx (wSrc, postTxEndp, pass) wDest amt = do
         addrs <- listAddresses ctx wDest
         let destination = (addrs !! 1) ^. #id
         let payload = Json [json|{
@@ -1793,7 +1825,7 @@ spec = do
                         "unit": "lovelace"
                     }
                 }],
-                "passphrase": "cardano-wallet"
+                "passphrase": #{pass}
             }|]
         r <- request @(ApiTransaction n) ctx (postTxEndp wSrc) Default payload
         expectResponseCode HTTP.status202 r

@@ -162,6 +162,7 @@ import Cardano.Wallet.Primitive.Types
     , TransactionInfo (TransactionInfo)
     , TxIn
     , TxOut (..)
+    , TxStatus (..)
     , UTxOStatistics (..)
     , WalletId (..)
     , WalletMetadata (..)
@@ -649,18 +650,17 @@ postTransaction ctx (ApiT wid) body = do
     selection <- liftHandler $ withWorkerCtx ctx wid liftE1 $ \wrk ->
         W.createUnsignedTx wrk wid outs
 
-    (tx, meta, wit) <- liftHandler $ withWorkerCtx ctx wid liftE2 $ \wrk ->
+    (tx, meta, time, wit) <- liftHandler $ withWorkerCtx ctx wid liftE2 $ \wrk ->
         W.signTx wrk wid () pwd selection
 
     liftHandler $ withWorkerCtx ctx wid liftE3 $ \wrk ->
         W.submitTx wrk wid (tx, meta, wit)
 
-    now <- liftIO getCurrentTime
     pure $ mkApiTransaction
         (txId @t tx)
         (fmap Just <$> selection ^. #inputs)
         (selection ^. #outputs)
-        (meta, now)
+        (meta, time)
         #pendingSince
   where
     liftE1 = throwE . ErrCreateUnsignedTxNoSuchWallet
@@ -725,7 +725,10 @@ listTransactions ctx (ApiT wid) mStart mEnd mOrder = do
     mkApiTransactionFromInfo (TransactionInfo txid ins outs meta depth txtime) =
         apiTx { depth  }
       where
-        apiTx = mkApiTransaction txid ins outs (meta, txtime) #insertedAt
+        apiTx = mkApiTransaction txid ins outs (meta, txtime) $
+            case meta ^. #status of
+                Pending  -> #pendingSince
+                InLedger -> #insertedAt
 
 postTransactionFee
     :: forall ctx s t n k.
@@ -933,7 +936,6 @@ migrateByronWallet
     -> ApiWalletPassphrase
     -> Handler [ApiTransaction n]
 migrateByronWallet rndCtx seqCtx (ApiT rndWid) (ApiT seqWid) migrateData = do
-
     -- FIXME
     -- Better error handling here to inform users if they messed up with the
     -- wallet ids.
@@ -943,10 +945,8 @@ migrateByronWallet rndCtx seqCtx (ApiT rndWid) (ApiT seqWid) migrateData = do
             cs <- W.createMigrationSourceData rndWrk rndWid
             W.assignMigrationTargetAddresses seqWrk seqWid () cs
 
-    now <- liftIO getCurrentTime
-
     forM cs $ \selection -> do
-        (tx, meta, wit) <- liftHandler
+        (tx, meta, time, wit) <- liftHandler
             $ withWorkerCtx rndCtx rndWid (throwE . ErrSignTxNoSuchWallet)
             $ \wrk -> W.signTx wrk rndWid passphrase passphrase selection
         liftHandler
@@ -956,7 +956,7 @@ migrateByronWallet rndCtx seqCtx (ApiT rndWid) (ApiT seqWid) migrateData = do
             (txId @t tx)
             (fmap Just <$> selection ^. #inputs)
             (selection ^. #outputs)
-            (meta, now)
+            (meta, time)
             #pendingSince
   where
     passphrase = getApiT $ migrateData ^. #passphrase
