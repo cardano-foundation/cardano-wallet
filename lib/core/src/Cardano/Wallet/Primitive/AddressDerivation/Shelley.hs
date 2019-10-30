@@ -5,7 +5,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE InstanceSigs #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -24,7 +23,6 @@
 module Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( -- * Types
       ShelleyKey(..)
-    , ChangeChain(..)
 
     -- * Constants
     , minSeedLengthBytes
@@ -35,9 +33,6 @@ module Cardano.Wallet.Primitive.AddressDerivation.Shelley
     -- * Generation and derivation
     , generateKeyFromSeed
     , unsafeGenerateKeyFromSeed
-    , deriveAccountPrivateKey
-    , deriveAddressPrivateKey
-    , deriveAddressPublicKey
 
     -- * Address
     , decodeShelleyAddress
@@ -52,7 +47,7 @@ import Prelude
 import Cardano.Crypto.Wallet
     ( DerivationScheme (..)
     , XPrv
-    , XPub
+    , XPub (..)
     , deriveXPrv
     , deriveXPub
     , generateNew
@@ -62,12 +57,12 @@ import Cardano.Crypto.Wallet
     , xPrvChangePass
     , xprv
     , xpub
-    , xpubPublicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
     , Depth (..)
     , DerivationType (..)
+    , HardDerivation (..)
     , Index (..)
     , InspectAddress (..)
     , NetworkDiscriminant (..)
@@ -75,6 +70,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase (..)
     , PaymentAddress (..)
     , PersistKey (..)
+    , SoftDerivation (..)
     , WalletKey (..)
     , networkDiscriminantVal
     )
@@ -95,15 +91,7 @@ import Data.ByteString
 import Data.Maybe
     ( fromMaybe )
 import Data.Text.Class
-    ( CaseStyle (..)
-    , FromText (..)
-    , TextDecodingError (..)
-    , ToText (..)
-    , fromTextToBoundedEnum
-    , toTextFromBoundedEnum
-    )
-import Data.Typeable
-    ( Typeable )
+    ( TextDecodingError (..) )
 import Data.Word
     ( Word32, Word8 )
 import GHC.Generics
@@ -132,34 +120,6 @@ newtype ShelleyKey (depth :: Depth) key =
     deriving stock (Generic, Show, Eq)
 
 instance (NFData key) => NFData (ShelleyKey depth key)
-
--- | Marker for the change chain. In practice, change of a transaction goes onto
--- the addresses generated on the internal chain, whereas the external chain is
--- used for addresses that are part of the 'advertised' targets of a transaction
-data ChangeChain
-    = ExternalChain
-    | InternalChain
-    deriving (Generic, Typeable, Show, Eq, Ord, Bounded)
-
-instance NFData ChangeChain
-
--- Not deriving 'Enum' because this could have a dramatic impact if we were
--- to assign the wrong index to the corresponding constructor (by swapping
--- around the constructor above for instance).
-instance Enum ChangeChain where
-    toEnum = \case
-        0 -> ExternalChain
-        1 -> InternalChain
-        _ -> error "ChangeChain.toEnum: bad argument"
-    fromEnum = \case
-        ExternalChain -> 0
-        InternalChain -> 1
-
-instance ToText ChangeChain where
-    toText = toTextFromBoundedEnum SnakeLowerCase
-
-instance FromText ChangeChain where
-    fromText = fromTextToBoundedEnum SnakeLowerCase
 
 -- | Size, in bytes, of a public key (without chain code)
 publicKeySize :: Int
@@ -227,84 +187,49 @@ unsafeGenerateKeyFromSeed (Passphrase seed, Passphrase gen) (Passphrase pwd) =
             (\s -> BA.length s >= minSeedLengthBytes && BA.length s <= 255)
     in ShelleyKey $ generateNew seed' gen pwd
 
--- | Derives account private key from the given root private key, using
--- derivation scheme 2 (see <https://github.com/input-output-hk/cardano-crypto/ cardano-crypto>
--- package for more details).
---
--- NOTE: The caller is expected to provide the corresponding passphrase (and to
--- have checked that the passphrase is valid). Providing a wrong passphrase will
--- not make the function fail but will instead, yield an incorrect new key that
--- doesn't belong to the wallet.
-deriveAccountPrivateKey
-    :: Passphrase "encryption"
-    -> ShelleyKey 'RootK XPrv
-    -> Index 'Hardened 'AccountK
-    -> ShelleyKey 'AccountK XPrv
-deriveAccountPrivateKey (Passphrase pwd) (ShelleyKey rootXPrv) (Index accIx) =
-    let
-        purposeXPrv = -- lvl1 derivation; hardened derivation of purpose'
-            deriveXPrv DerivationScheme2 pwd rootXPrv purposeIndex
-        coinTypeXPrv = -- lvl2 derivation; hardened derivation of coin_type'
-            deriveXPrv DerivationScheme2 pwd purposeXPrv coinTypeIndex
-        acctXPrv = -- lvl3 derivation; hardened derivation of account' index
-            deriveXPrv DerivationScheme2 pwd coinTypeXPrv accIx
-    in
-        ShelleyKey acctXPrv
+instance HardDerivation ShelleyKey where
+    type AddressIndexDerivationType ShelleyKey = 'Soft
 
--- | Derives address private key from the given account private key, using
--- derivation scheme 2 (see <https://github.com/input-output-hk/cardano-crypto/ cardano-crypto>
--- package for more details).
---
--- It is preferred to use 'deriveAddressPublicKey' whenever possible to avoid
--- having to manipulate passphrases and private keys.
---
--- NOTE: The caller is expected to provide the corresponding passphrase (and to
--- have checked that the passphrase is valid). Providing a wrong passphrase will
--- not make the function fail but will instead, yield an incorrect new key that
--- doesn't belong to the wallet.
-deriveAddressPrivateKey
-    :: Passphrase "encryption"
-    -> ShelleyKey 'AccountK XPrv
-    -> ChangeChain
-    -> Index 'Soft 'AddressK
-    -> ShelleyKey 'AddressK XPrv
-deriveAddressPrivateKey
-        (Passphrase pwd) (ShelleyKey accXPrv) changeChain (Index addrIx) =
-    let
-        changeCode =
-            fromIntegral $ fromEnum changeChain
-        changeXPrv = -- lvl4 derivation; soft derivation of change chain
-            deriveXPrv DerivationScheme2 pwd accXPrv changeCode
-        addrXPrv = -- lvl5 derivation; soft derivation of address index
-            deriveXPrv DerivationScheme2 pwd changeXPrv addrIx
-    in
-        ShelleyKey addrXPrv
+    deriveAccountPrivateKey
+            (Passphrase pwd) (ShelleyKey rootXPrv) (Index accIx) =
+        let
+            purposeXPrv = -- lvl1 derivation; hardened derivation of purpose'
+                deriveXPrv DerivationScheme2 pwd rootXPrv purposeIndex
+            coinTypeXPrv = -- lvl2 derivation; hardened derivation of coin_type'
+                deriveXPrv DerivationScheme2 pwd purposeXPrv coinTypeIndex
+            acctXPrv = -- lvl3 derivation; hardened derivation of account' index
+                deriveXPrv DerivationScheme2 pwd coinTypeXPrv accIx
+        in
+            ShelleyKey acctXPrv
 
--- | Derives address public key from the given account public key, using
--- derivation scheme 2 (see <https://github.com/input-output-hk/cardano-crypto/ cardano-crypto>
--- package for more details).
---
--- This is the preferred way of deriving new sequential address public keys.
-deriveAddressPublicKey
-    :: ShelleyKey 'AccountK XPub
-    -> ChangeChain
-    -> Index 'Soft 'AddressK
-    -> ShelleyKey 'AddressK XPub
-deriveAddressPublicKey (ShelleyKey accXPub) changeChain (Index addrIx) =
-    fromMaybe errWrongIndex $ do
-        let changeCode = fromIntegral $ fromEnum changeChain
-        changeXPub <- -- lvl4 derivation in bip44 is derivation of change chain
-            deriveXPub DerivationScheme2 accXPub changeCode
-        addrXPub <- -- lvl5 derivation in bip44 is derivation of address chain
-            deriveXPub DerivationScheme2 changeXPub addrIx
-        return $ ShelleyKey addrXPub
-  where
-    errWrongIndex = error $
-        "Cardano.Wallet.Primitive.AddressDerivation.deriveAddressPublicKey \
-        \failed: was given an hardened (or too big) index for soft path \
-        \derivation ( " ++ show addrIx ++ "). This is either a programmer \
-        \error, or, we may have reached the maximum number of addresses for \
-        \a given wallet."
+    deriveAddressPrivateKey
+            (Passphrase pwd) (ShelleyKey accXPrv) changeChain (Index addrIx) =
+        let
+            changeCode =
+                fromIntegral $ fromEnum changeChain
+            changeXPrv = -- lvl4 derivation; soft derivation of change chain
+                deriveXPrv DerivationScheme2 pwd accXPrv changeCode
+            addrXPrv = -- lvl5 derivation; soft derivation of address index
+                deriveXPrv DerivationScheme2 pwd changeXPrv addrIx
+        in
+            ShelleyKey addrXPrv
+
+instance SoftDerivation ShelleyKey where
+    deriveAddressPublicKey (ShelleyKey accXPub) changeChain (Index addrIx) =
+        fromMaybe errWrongIndex $ do
+            let changeCode = fromIntegral $ fromEnum changeChain
+            changeXPub <- -- lvl4 derivation in bip44 is derivation of change chain
+                deriveXPub DerivationScheme2 accXPub changeCode
+            addrXPub <- -- lvl5 derivation in bip44 is derivation of address chain
+                deriveXPub DerivationScheme2 changeXPub addrIx
+            return $ ShelleyKey addrXPub
+      where
+        errWrongIndex = error $
+            "Cardano.Wallet.Primitive.AddressDerivation.deriveAddressPublicKey \
+            \failed: was given an hardened (or too big) index for soft path \
+            \derivation ( " ++ show addrIx ++ "). This is either a programmer \
+            \error, or, we may have reached the maximum number of addresses for \
+            \a given wallet."
 
 {-------------------------------------------------------------------------------
                             WalletKey implementation
