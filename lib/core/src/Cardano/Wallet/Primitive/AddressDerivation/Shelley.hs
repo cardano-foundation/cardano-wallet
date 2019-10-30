@@ -384,6 +384,9 @@ instance InspectAddress ShelleyKey where
       where
         len = BS.length bytes
 
+    paymentKeyFingerprint' (ShelleyKey (XPub bytes _chainCode)) =
+        bytes
+
     type KeyFingerprint "delegation" ShelleyKey = ByteString
     delegationKeyFingerprint (Address bytes)
         | len == addrSingleSize =
