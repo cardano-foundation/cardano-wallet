@@ -22,6 +22,7 @@ import Cardano.Wallet.Jormungandr.Binary
     , MessageType (..)
     , Milli (..)
     , TxWitnessTag (..)
+    , delegationFragmentId
     , fragmentId
     , getAddress
     , getBlock
@@ -52,13 +53,11 @@ import Cardano.Wallet.Primitive.Types
     , TxWitness (..)
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeDecodeAddress, unsafeDecodeHex, unsafeFromHex )
+    ( unsafeDecodeHex, unsafeFromHex )
 import Control.Exception
     ( SomeException, evaluate, try )
 import Control.Monad
-    ( forM_ )
-import Control.Monad
-    ( replicateM )
+    ( forM_, replicateM )
 import Control.Monad.IO.Class
     ( liftIO )
 import Data.ByteString
@@ -102,77 +101,6 @@ import qualified Data.ByteString.Lazy as BL
 spec :: Spec
 spec = do
     describe "Decoding" $ do
-        it "should decode a genesis block (Testnet)" $ do
-            let bytes =
-                    "00520000000001ca000000000000000000000000f7becdf807c706cef5\
-                    \4ec4832d2a747591c3f2141de3e4f2aef59a130d890c12000000000000\
-                    \0000000000000000000000000000000000000000000000000000007c00\
-                    \000c0088000000005cc1c24900410200c2000101040000087001410f01\
-                    \840000000a02e030a694b80dbba2d1b8a4b55652b03d96315c8414b054\
-                    \fa737445ac2d2a865c76020800000000000000dc0244000000ff028800\
-                    \000000000000dc03410103980000000000000000000000000000000000\
-                    \00000000000000002c020001833324c37869c122689a35917df53a4f22\
-                    \94a3a52f685e05f5f8e53b87e7ea452f000000000000000e0062010100\
-                    \0000000000007b005682d818584c83581c2ac3cc97bbec476496e84807\
-                    \f35df7349acfbaece200a24b7e26250ca20058208200581ca6d9aef475\
-                    \f3418967e87f7e93f20f99d8c7af406cba146affdb7191014645010203\
-                    \0405001a89a5937100b803000004000000000000000000000000000000\
-                    \d501d0fa7e180d33987d17f77cbf70e1463bce01d32d952ed6f9823f0d\
-                    \69eb37e35f931417c6075e0f3e5858198fe15831ba7fb51368fa2f0ac2\
-                    \7a799032729e08a624a4aafb7a4dde35e4742d258d04c5f3ec87e616b9\
-                    \bcb0cdc070b503fe634b46010040a856b8a6f8d18d588b5e1cfd3ea2e5\
-                    \6ae45b80126bb25feb8ccde27fe61ebc7fd64deb7667ab1a79ca2448f5\
-                    \6e60f3097c2fa657febdec19e7bd7abfb0ea4705"
-            let block = Block
-                    BlockHeader
-                        { version = 0
-                        , contentSize = 458
-                        , slot = SlotId 0 0
-                        , chainLength = 0
-                        , contentHash = Hash $ unsafeFromHex
-                            "f7becdf807c706cef54ec4832d2a7475\
-                            \91c3f2141de3e4f2aef59a130d890c12"
-                        , headerHash = Hash $ unsafeFromHex
-                            "e1abfad5b57907832d22b219d2615b62\
-                            \55437765cfd993cd0ba31b0248bad464"
-                        , parentHeaderHash = Hash (BS.replicate 32 0)
-                        , producedBy = Nothing
-                        }
-                    [ Initial
-                        [ Block0Date (StartTime $ posixSecondsToUTCTime 1556202057)
-                        , Discrimination Testnet
-                        , Consensus BFT
-                        , SlotsPerEpoch $ W.EpochLength 2160
-                        , SlotDuration 15
-                        , EpochStabilityDepth (Quantity 10)
-                        , AddBftLeader $ LeaderId $ unsafeFromHex
-                            "30a694b80dbba2d1b8a4b55652b03d96\
-                            \315c8414b054fa737445ac2d2a865c76"
-                        , ConsensusGenesisPraosParamF (Milli 220)
-                        , MaxNumberOfTransactionsPerBlock 255
-                        , BftSlotsRatio (Milli 220)
-                        , AllowAccountCreation True
-                        , ConfigLinearFee $ LinearFee (Quantity 0) (Quantity 0)
-                        ]
-                    , Transaction (Tx
-                        { txid = Hash $ unsafeFromHex
-                            "6f5e01c34590f5ead789c234a816ac25\
-                            \41baece53f6e51bf52222bd7feb5cd04"
-                        , inputs = []
-                        , outputs =
-                            [ TxOut
-                                { address = unsafeDecodeAddress @'Testnet
-                                    "ta1svejfsmcd8qjy6y6xkghmaf6fu3f\
-                                    \fga99a59up04lrjnhpl8afzj7w4yyxw"
-                                , coin = Coin 14
-                                }
-                            ]
-                        }, [])
-                    , UnimplementedMessage 1
-                    , UnimplementedMessage 3
-                    ]
-            unsafeDecodeHex getBlock bytes `shouldBe` block
-
         it "should decode a genesis block (Mainnet)" $ do
             let bytes =
                     "00520000000000810000000000000000000000005df3b1c19c1400a992\
@@ -368,10 +296,15 @@ instance Arbitrary PoolId where
 
 instance Arbitrary StakeDelegationTx where
     arbitrary = do
-        (SignedTx (tx, wits)) <- arbitrary
+        nIns <- fromIntegral <$> arbitrary @Word8
+        nOut <- fromIntegral <$> arbitrary @Word8
+        inps <- vectorOf nIns arbitrary
+        outs <- vectorOf nOut arbitrary
+        wits <- vectorOf nIns arbitrary
         poolId <- arbitrary
-        xpub <- B8.pack <$> replicateM 64 arbitrary
-        return $ StakeDelegationTx (poolId, xpub, tx, wits)
+        accId <- B8.pack <$> replicateM 32 arbitrary
+        let tid = delegationFragmentId poolId accId inps outs wits
+        return $ StakeDelegationTx (poolId, accId, Tx tid inps outs, wits)
 
 newtype SignedTx = SignedTx (Tx, [TxWitness])
     deriving (Eq, Show, Generic)

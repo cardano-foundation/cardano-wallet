@@ -61,6 +61,7 @@ module Cardano.Wallet.Jormungandr.Binary
     , blake2b256
     , estimateMaxNumberOfInputsParams
     , fragmentId
+    , delegationFragmentId
     , maxNumberOfInputs
     , maxNumberOfOutputs
     , withHeader
@@ -349,17 +350,17 @@ getDelegatedCertificateTransaction
     -> Get (PoolId, ByteString, Tx, [TxWitness])
 getDelegatedCertificateTransaction tid = do
     (tx, wits) <- getGenericTransaction tid
+    accId <- getByteString 32
     poolId <- getByteString 32
-    xpub <- getByteString 64
-    pure (PoolId poolId, xpub, tx, wits )
+    pure (PoolId poolId, accId, tx, wits )
 
-stakeCertificate
+putStakeCertificate
     :: PoolId
     -> ByteString
     -> Put
-stakeCertificate (PoolId poolId) xpub = do
+putStakeCertificate (PoolId poolId) accId = do
+    putByteString accId
     putByteString poolId
-    putByteString xpub
 
 putStakeDelegationTx
     :: PoolId
@@ -368,9 +369,9 @@ putStakeDelegationTx
     -> [TxOut]
     -> [TxWitness]
     -> Put
-putStakeDelegationTx poolId xpub inputs outputs witnesses = do
+putStakeDelegationTx poolId accId inputs outputs witnesses = do
     putSignedTx inputs outputs witnesses
-    stakeCertificate poolId xpub
+    putStakeCertificate poolId accId
 
 -- | Decode the contents of a @Transaction@-message.
 getTransaction :: Hash "Tx" -> Get (Tx, [TxWitness])
@@ -644,6 +645,18 @@ fragmentId inps outs wits =
     Hash $ blake2b256 $ BL.toStrict $ runPut $ do
         putWord8 (messageTypeTag MsgTypeTransaction)
         putSignedTx inps outs wits
+
+delegationFragmentId
+    :: PoolId
+    -> ByteString
+    -> [(TxIn, Coin)]
+    -> [TxOut]
+    -> [TxWitness]
+    -> Hash "Tx"
+delegationFragmentId poolId accId inps outs wits =
+    Hash $ blake2b256 $ BL.toStrict $ runPut $ do
+        putWord8 (messageTypeTag MsgTypeDelegation)
+        putStakeDelegationTx poolId accId inps outs wits
 
 -- | See 'fragmentId'. This computes the signing data required for producing
 -- transaction witnesses.
