@@ -14,6 +14,7 @@ import Prelude
 import Cardano.CLI
     ( MnemonicSize (..)
     , Port (..)
+    , TxId
     , cli
     , cmdAddress
     , cmdMnemonic
@@ -362,6 +363,17 @@ spec = do
     describe "Can perform roundtrip textual encoding & decoding" $ do
         textRoundtrip $ Proxy @(Port "test")
         textRoundtrip $ Proxy @MnemonicSize
+
+    describe "Transaction ID decoding from text" $ do
+
+        it "Should produce a user-friendly error message on failing to \
+            \decode a transaction ID." $ do
+
+            let err = TextDecodingError
+                    "A transaction ID should be a hex-encoded string of 64 \
+                    \characters."
+
+            fromText @TxId "not-a-transaction-id" `shouldBe` Left err
 
     describe "Port decoding from text" $ do
         let err = TextDecodingError

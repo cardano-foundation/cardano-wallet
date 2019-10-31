@@ -1015,7 +1015,8 @@ spec = do
             wid <- emptyWallet' ctx
             (Exit c, Stdout out, Stderr err) <-
                 deleteTransactionViaCLI @t ctx wid tid
-            err `shouldContain` "expected Base16 encoding"
+            err `shouldContain`
+                "should be a hex-encoded string of 64 characters"
             out `shouldBe` ""
             c `shouldBe` ExitFailure 1
 
