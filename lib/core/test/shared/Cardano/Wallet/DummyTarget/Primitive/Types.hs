@@ -97,7 +97,7 @@ genesisParameters  :: BlockchainParameters
 genesisParameters = BlockchainParameters
     { getGenesisBlockHash = Hash "genesis"
     , getGenesisBlockDate = StartTime $ posixSecondsToUTCTime 0
-    , getFeePolicy = LinearFee (Quantity 14) (Quantity 42)
+    , getFeePolicy = LinearFee (Quantity 14) (Quantity 42) (Quantity 5)
     , getSlotLength = SlotLength 1
     , getEpochLength = EpochLength 21600
     , getTxMaxSize = Quantity 8192
