@@ -211,15 +211,15 @@ Which hostname or IP address to bind the API server to.
 As an example, to bind to the IPv4 local host only, use
 `127.0.0.1`. This is the default listen address.
 
-+---------------+-----------------------------------------------+
+The `--listen-address` option recognizes the following special values:
+
 | Special Value | Meaning                                       |
-+---------------+-----------------------------------------------+
+|:--------------|:----------------------------------------------|
 | `*`           | any IPv4 or IPv6 hostname                     |
 | `*4`          | any IPv4 or IPv6 hostname, IPv4 preferred     |
 | `!4`          | any IPv4 hostname                             |
 | `*6`          | any IPv4 or IPv6 hostname, IPv6 preferred     |
 | `!6`          | any IPv6 hostname                             |
-+---------------+-----------------------------------------------+
 
 Note that the permissive `*` values allow binding to an IPv4 or an
 IPv6 hostname, which means you might be able to successfully bind to a
@@ -265,11 +265,6 @@ Then, start the wallet backend server:
 ```
 $ cardano-wallet serve --genesis-block-hash $(jcli genesis hash --input block0.bin)
 ```
-
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
-
-### via cardano-http-bridge
-
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
 
