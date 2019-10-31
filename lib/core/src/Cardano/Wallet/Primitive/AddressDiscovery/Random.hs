@@ -6,7 +6,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
@@ -103,9 +102,9 @@ instance Show (RndState network) where
         p x = "(" ++ show x ++ ")"
 
 instance Buildable (RndState network) where
-    build (RndState _ ix addrs pending gen) = "RndState:\n"
+    build (RndState _ ix addrs pending g) = "RndState:\n"
         <> indentF 4 ("Account ix:       " <> build ix)
-        <> indentF 4 ("Random Generator: " <> build (show gen))
+        <> indentF 4 ("Random Generator: " <> build (show g))
         <> indentF 4 ("Known addresses:  " <> blockMapF' tupleF build addrs)
         <> indentF 4 ("Change addresses: " <> blockMapF' tupleF build pending)
 
@@ -181,12 +180,12 @@ findUnusedPath
     -> Index 'Hardened 'AccountK
     -> Set DerivationPath
     -> (DerivationPath, StdGen)
-findUnusedPath gen accIx used
+findUnusedPath g accIx used
     | Set.notMember path used = (path, gen')
     | otherwise = findUnusedPath gen' accIx used
   where
     path = (accIx, addrIx)
-    (addrIx, gen') = randomIndex gen
+    (addrIx, gen') = randomIndex g
 
 randomIndex
     :: forall ix g. (RandomGen g, ix ~ Index 'Hardened 'AddressK)
