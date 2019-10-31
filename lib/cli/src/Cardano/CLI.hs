@@ -244,6 +244,7 @@ import qualified Cardano.BM.Data.BackendKind as CM
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
 import qualified Data.Aeson.Types as Aeson
+import qualified Data.Bifunctor as Bi
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.List.NonEmpty as NE
@@ -620,7 +621,7 @@ cmdTransactionSubmit = command "submit" $ info (helper <*> cmd) $ mempty
 data TransactionForgetArgs = TransactionForgetArgs
     { _port :: Port "Wallet"
     , _wid :: WalletId
-    , _txid :: Hash "Tx"
+    , _txid :: TxId
     }
 
 cmdTransactionForget
@@ -636,7 +637,7 @@ cmdTransactionForget = command "forget" $ info (helper <*> cmd) $ mempty
     exec (TransactionForgetArgs wPort wId txId) = do
         runClient wPort (const mempty) $ deleteTransaction (walletClient @t)
             (ApiT wId)
-            (ApiTxId $ ApiT txId)
+            (ApiTxId $ ApiT $ getTxId txId)
 
 {-------------------------------------------------------------------------------
                             Commands - 'address'
@@ -921,7 +922,7 @@ walletIdArgument = argumentT $ mempty
     <> metavar "WALLET_ID"
 
 -- | <transaction-id=TX_ID>
-transactionIdArgument :: Parser (Hash "Tx")
+transactionIdArgument :: Parser TxId
 transactionIdArgument = argumentT $ mempty
     <> metavar "TRANSACTION_ID"
 
@@ -1168,6 +1169,14 @@ instance ToText (Port tag) where
 
 -- | Wrapper type around 'Text' to make its semantic more explicit
 newtype Service = Service Text deriving newtype IsString
+
+newtype TxId = TxId { getTxId :: Hash "Tx" }
+
+instance FromText TxId where
+    fromText = Bi.first (const err) . fmap TxId . fromText
+      where
+        err = TextDecodingError
+            "A transaction ID should be a hex-encoded string of 64 characters."
 
 {-------------------------------------------------------------------------------
                                   Logging
