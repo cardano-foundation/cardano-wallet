@@ -159,22 +159,23 @@ spec = do
             rg <- request @ApiWallet ctx (getByronWalletEp w) headers Empty
             verify rg expec
 
-    it "BYRON_LIST_01 - Byron Wallets are listed from oldest to newest" $ \ctx -> do
-        m1 <- genMnemonics
-        m2 <- genMnemonics
-        m3 <- genMnemonics
-        _ <- emptyByronWalletWith ctx ("b1", m1, "Secure Passphrase")
-        _ <- emptyByronWalletWith ctx ("b2", m2, "Secure Passphrase")
-        _ <- emptyByronWalletWith ctx ("b3", m3, "Secure Passphrase")
+    it "BYRON_LIST_01 - Byron Wallets are listed from oldest to newest" $
+        \ctx -> do
+            m1 <- genMnemonics
+            m2 <- genMnemonics
+            m3 <- genMnemonics
+            _ <- emptyByronWalletWith ctx ("b1", m1, "Secure Passphrase")
+            _ <- emptyByronWalletWith ctx ("b2", m2, "Secure Passphrase")
+            _ <- emptyByronWalletWith ctx ("b3", m3, "Secure Passphrase")
 
-        rl <- request @[ApiByronWallet] ctx listByronWalletEp Default Empty
-        verify rl
-            [ expectResponseCode @IO HTTP.status200
-            , expectListSizeEqual 3
-            , expectListItemFieldEqual 0 walletName "b1"
-            , expectListItemFieldEqual 1 walletName "b2"
-            , expectListItemFieldEqual 2 walletName "b3"
-            ]
+            rl <- request @[ApiByronWallet] ctx listByronWalletEp Default Empty
+            verify rl
+                [ expectResponseCode @IO HTTP.status200
+                , expectListSizeEqual 3
+                , expectListItemFieldEqual 0 walletName "b1"
+                , expectListItemFieldEqual 1 walletName "b2"
+                , expectListItemFieldEqual 2 walletName "b3"
+                ]
 
     it "BYRON_LIST_02,03 -\
         \ Byron wallets listed only via Byron endpoints \\\
@@ -280,7 +281,8 @@ spec = do
         forM_ (getHeaderCases HTTP.status204)
             $ \(title, headers, expectations) -> it title $ \ctx -> do
             w <- emptyByronWallet ctx
-            rl <- request @ApiByronWallet ctx (deleteByronWalletEp w) headers Empty
+            rl <- request
+                @ApiByronWallet ctx (deleteByronWalletEp w) headers Empty
             verify rl expectations
 
     it "BYRON_RESTORE_01, GET_01, LIST_01 - Restore a wallet" $ \ctx -> do
@@ -315,13 +317,17 @@ spec = do
             , expectListItemFieldEqual 0 balanceTotal 0
             ]
 
-    it "BYRON_RESTORE_02 - One can restore previously deleted wallet" $ \ctx -> do
-        m <- genMnemonics
-        w <- emptyByronWalletWith ctx ("Byron Wallet", m, "Secure Passphrase")
-        rd <- request @ApiByronWallet ctx (deleteByronWalletEp w) Default Empty
-        expectResponseCode @IO HTTP.status204 rd
-        wr <- emptyByronWalletWith ctx ("Byron Wallet2", m, "Secure Pa33phrase")
-        w ^. walletId `shouldBe` wr ^. walletId
+    it "BYRON_RESTORE_02 - One can restore previously deleted wallet" $
+        \ctx -> do
+            m <- genMnemonics
+            w <- emptyByronWalletWith
+                ctx ("Byron Wallet", m, "Secure Passphrase")
+            rd <- request
+                @ApiByronWallet ctx (deleteByronWalletEp w) Default Empty
+            expectResponseCode @IO HTTP.status204 rd
+            wr <- emptyByronWalletWith
+                ctx ("Byron Wallet2", m, "Secure Pa33phrase")
+            w ^. walletId `shouldBe` wr ^. walletId
 
     it "BYRON_RESTORE_03 - Cannot restore wallet that exists" $ \ctx -> do
         mnemonic <- genMnemonics
@@ -446,13 +452,15 @@ spec = do
                     } |]
             r <- request @ApiByronWallet ctx postByronWalletEp Default payload
             expectResponseCode @IO HTTP.status400 r
-            expectErrorMessage "Invalid number of words: 12 words are expected" r
+            expectErrorMessage
+                "Invalid number of words: 12 words are expected" r
 
     describe "BYRON_RESTORE_05 - Faulty mnemonics" $ do
         let matrix =
              [ ( "[] as mnemonic_sentence -> fail", []
                , [ expectResponseCode @IO HTTP.status400
-                 , expectErrorMessage "Invalid number of words: 12 words are expected"
+                 , expectErrorMessage
+                    "Invalid number of words: 12 words are expected"
                  ]
                )
              , ( "specMnemonicSentence -> fail", specMnemonicByron
@@ -481,14 +489,16 @@ spec = do
 
              ]
 
-        forM_ matrix $ \(title, mnemonics, expectations) -> it title $ \ctx -> do
-            let payload = Json [json| {
-                    "name": "Byron Wallet bye bye",
-                    "mnemonic_sentence": #{mnemonics},
-                    "passphrase": "Secure Passphrase"
-                    } |]
-            r <- request @ApiByronWallet ctx postByronWalletEp Default payload
-            verify r expectations
+        forM_ matrix $ \(title, mnemonics, expectations) -> it title $
+            \ctx -> do
+                let payload = Json [json| {
+                        "name": "Byron Wallet bye bye",
+                        "mnemonic_sentence": #{mnemonics},
+                        "passphrase": "Secure Passphrase"
+                        } |]
+                r <- request
+                    @ApiByronWallet ctx postByronWalletEp Default payload
+                verify r expectations
 
     it "BYRON_RESTORE_05 - String as mnemonic_sentence -> fail" $ \ctx -> do
         let payload = Json [json| {
@@ -571,14 +581,16 @@ spec = do
                   , [ expectResponseCode @IO HTTP.status202 ]
                   )
                 ]
-        forM_ matrix $ \(title, passphrase, expectations) -> it title $ \ctx -> do
-            let payload = Json [json| {
-                    "name": "Secure Wallet",
-                    "mnemonic_sentence": #{mnemonics12},
-                    "passphrase": #{passphrase}
-                    } |]
-            r <- request @ApiByronWallet ctx postByronWalletEp Default payload
-            verify r expectations
+        forM_ matrix $ \(title, passphrase, expectations) -> it title $
+            \ctx -> do
+                let payload = Json [json| {
+                        "name": "Secure Wallet",
+                        "mnemonic_sentence": #{mnemonics12},
+                        "passphrase": #{passphrase}
+                        } |]
+                r <- request
+                    @ApiByronWallet ctx postByronWalletEp Default payload
+                verify r expectations
 
     it "BYRON_RESTORE_06 - [] as passphrase -> fail" $ \ctx -> do
         let payload = Json [json| {
@@ -675,7 +687,8 @@ spec = do
         \ v2/byron-wallets - Methods Not Allowed" $ do
         let matrix = ["PUT", "DELETE", "CONNECT", "TRACE", "OPTIONS"]
         forM_ matrix $ \method -> it (show method) $ \ctx -> do
-            r <- request @ApiByronWallet ctx (method, "v2/byron-wallets") Default Empty
+            r <- request
+                @ApiByronWallet ctx (method, "v2/byron-wallets") Default Empty
             expectResponseCode @IO HTTP.status405 r
             expectErrorMessage errMsg405 r
  where

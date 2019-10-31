@@ -913,8 +913,10 @@ fixtureByronWallet ctx = do
             } |]
     (_, w) <- unsafeRequest @ApiByronWallet ctx postByronWalletEp payload
     race (threadDelay sixtySeconds) (checkBalance w) >>= \case
-        Left _ -> fail "fixtureByronWallet: waited too long for initial transaction"
-        Right a -> return a
+        Left _ ->
+            fail "fixtureByronWallet: waited too long for initial transaction"
+        Right a ->
+            return a
   where
     sixtySeconds = 60*oneSecond
     checkBalance w = do
@@ -1148,7 +1150,8 @@ listByronTxEp w query =
 migrateByronWalletEp :: ApiByronWallet -> ApiWallet -> (Method, Text)
 migrateByronWalletEp wSrc wDest =
     ( "POST"
-    , "v2/byron-wallets/" <> wSrc ^. walletId <> "/migrations/" <> wDest ^. walletId
+    , "v2/byron-wallets/" <>
+        wSrc ^. walletId <> "/migrations/" <> wDest ^. walletId
     )
 
 calculateByronMigrationCostEp :: ApiByronWallet -> (Method, Text)
