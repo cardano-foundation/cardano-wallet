@@ -300,8 +300,8 @@ getMessage = label "getMessage" $ do
         0 -> Initial <$> getInitial
         1 -> unimpl
         2 -> Transaction <$> getTransaction fragId
-        3 -> TransactionWithDelegation <$> getDelegatedCertificateTransaction fragId
-        4 -> unimpl
+        3 -> unimpl
+        4 -> TransactionWithDelegation <$> getDelegatedCertificateTransaction fragId
         5 -> unimpl
         other -> fail $ "Unexpected content type tag " ++ show other
 
@@ -350,10 +350,11 @@ getDelegatedCertificateTransaction
     :: Hash "Tx"
     -> Get (PoolId, ChimericAccount, Tx, [TxWitness])
 getDelegatedCertificateTransaction tid = do
-    (tx, wits) <- getGenericTransaction tid
-    accId <- getByteString 32
-    poolId <- getByteString 32
-    pure (PoolId poolId, ChimericAccount accId, tx, wits )
+    label "getDelegatedCertificateTransaction" $ do
+        accId <- getByteString 32
+        poolId <- getByteString 32
+        (tx, wits) <- getGenericTransaction tid
+        pure (PoolId poolId, ChimericAccount accId, tx, wits )
 
 putStakeCertificate
     :: PoolId
@@ -376,7 +377,7 @@ putStakeDelegationTx poolId accId inputs outputs witnesses = do
 
 -- | Decode the contents of a @Transaction@-message.
 getTransaction :: Hash "Tx" -> Get (Tx, [TxWitness])
-getTransaction = getGenericTransaction
+getTransaction = label "getTransaction" getGenericTransaction
 
 getGenericTransaction
     :: Hash "Tx"
