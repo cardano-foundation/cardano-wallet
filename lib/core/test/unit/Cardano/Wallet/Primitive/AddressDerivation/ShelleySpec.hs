@@ -56,6 +56,7 @@ import Test.QuickCheck
     , elements
     , expectFailure
     , property
+    , suchThat
     , vectorOf
     , (===)
     , (==>)
@@ -216,5 +217,6 @@ instance Arbitrary GroupedAddress where
 newtype InvalidAddress = InvalidAddress Address deriving (Eq, Show)
 
 instance Arbitrary InvalidAddress where
-    arbitrary = InvalidAddress . Address . BS.pack
-        <$> vectorOf (addrSingleSize + addrGroupedSize) arbitrary
+    arbitrary = InvalidAddress . Address . BS.pack <$> do
+        n <- suchThat (choose (1, 100)) (`notElem` [addrSingleSize, addrGroupedSize])
+        vectorOf n arbitrary
