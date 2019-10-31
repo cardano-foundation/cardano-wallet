@@ -65,7 +65,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationType (..)
     , HardDerivation (..)
     , Index
-    , InspectAddress (..)
+    , KeyFingerprint (..)
+    , MkKeyFingerprint (..)
     , Passphrase (..)
     , PaymentAddress (..)
     , SoftDerivation (..)
@@ -186,13 +187,13 @@ data AddressPool (chain :: ChangeChain) (key :: Depth -> * -> *) = AddressPool
         :: !(Map (KeyFingerprint "payment" key) (Index 'Soft 'AddressK))
     } deriving (Generic)
 
-deriving instance (Show (key 'AccountK XPub), Show (KeyFingerprint "payment" key))
+deriving instance (Show (key 'AccountK XPub))
     => Show (AddressPool chain key)
 
-deriving instance (Eq (key 'AccountK XPub), Eq (KeyFingerprint "payment" key))
+deriving instance (Eq (key 'AccountK XPub))
     => Eq (AddressPool chain key)
 
-instance (NFData (key 'AccountK XPub), NFData (KeyFingerprint "payment" key))
+instance (NFData (key 'AccountK XPub))
     => NFData (AddressPool chain key)
 
 -- | Bring a 'ChangeChain' type back to the term-level. This requires a type
@@ -227,7 +228,12 @@ addresses = map fst . L.sortOn snd . Map.toList . indexedAddresses
 -- The pool will grow from the start if less than @g :: AddressPoolGap@ are
 -- given, such that, there are always @g@ undiscovered addresses in the pool.
 mkAddressPool
-    :: forall c k. (InspectAddress k, SoftDerivation k, Typeable c)
+    :: forall c k.
+        ( MkKeyFingerprint k Address
+        , MkKeyFingerprint k (k 'AddressK XPub)
+        , SoftDerivation k
+        , Typeable c
+        )
     => k 'AccountK XPub
     -> AddressPoolGap
     -> [Address]
@@ -253,7 +259,12 @@ mkAddressPool key g addrs = AddressPool
 -- possible that the pool is not amended at all - this happens in the case that
 -- an address is discovered 'far' from the edge.
 lookupAddress
-    :: forall c k. (InspectAddress k, SoftDerivation k, Typeable c)
+    :: forall c k.
+        ( MkKeyFingerprint k Address
+        , MkKeyFingerprint k (k 'AddressK XPub)
+        , SoftDerivation k
+        , Typeable c
+        )
     => Address
     -> AddressPool c k
     -> (Maybe (Index 'Soft 'AddressK), AddressPool c k)
@@ -267,7 +278,11 @@ lookupAddress !target !pool =
 -- | If an address is discovered near the edge, we extend the address sequence,
 -- otherwise we return the pool untouched.
 extendAddressPool
-    :: forall c k. (InspectAddress k, SoftDerivation k, Typeable c)
+    :: forall c k.
+        ( MkKeyFingerprint k (k 'AddressK XPub)
+        , SoftDerivation k
+        , Typeable c
+        )
     => Index 'Soft 'AddressK
     -> AddressPool c k
     -> AddressPool c k
@@ -285,7 +300,10 @@ extendAddressPool !ix !pool
 
 -- | Compute the pool extension from a starting index
 nextAddresses
-    :: forall k. (InspectAddress k, SoftDerivation k)
+    :: forall k.
+        ( MkKeyFingerprint k (k 'AddressK XPub)
+        , SoftDerivation k
+        )
     => k 'AccountK XPub
     -> AddressPoolGap
     -> ChangeChain
@@ -300,7 +318,7 @@ nextAddresses !key (AddressPoolGap !g) !cc !fromIx =
         "nextAddresses: toIx should be greater than fromIx"
         (toEnum $ fromEnum fromIx + fromEnum g - 1)
         (>= fromIx)
-    newAddress = paymentKeyFingerprint' @k . deriveAddressPublicKey key cc
+    newAddress = paymentKeyFingerprint @k . deriveAddressPublicKey key cc
 
 {-------------------------------------------------------------------------------
                             Pending Change Indexes
@@ -396,7 +414,12 @@ instance (NFData (k 'AccountK XPub), NFData (KeyFingerprint "payment" k))
 
 -- | Construct a Sequential state for a wallet.
 mkSeqState
-    :: (SoftDerivation k, InspectAddress k, WalletKey k)
+    :: forall k.
+        ( SoftDerivation k
+        , MkKeyFingerprint k Address
+        , MkKeyFingerprint k (k 'AddressK XPub)
+        , WalletKey k
+        )
     => (k 'RootK XPrv, Passphrase "encryption")
     -> AddressPoolGap
     -> SeqState k
@@ -416,7 +439,11 @@ mkSeqState (rootXPrv, pwd) g =
 -- account discovery algorithm is only specified for the external chain so
 -- in theory, there's nothing forcing a wallet to generate change
 -- addresses on the internal chain anywhere in the available range.
-instance (SoftDerivation k, InspectAddress k) => IsOurs (SeqState k) where
+instance
+    ( SoftDerivation k
+    , MkKeyFingerprint k Address
+    , MkKeyFingerprint k (k 'AddressK XPub)
+    ) => IsOurs (SeqState k) where
     isOurs addr (SeqState !s1 !s2 !ixs) =
         let
             (internal, !s1') = lookupAddress addr s1
@@ -428,7 +455,10 @@ instance (SoftDerivation k, InspectAddress k) => IsOurs (SeqState k) where
         in
             (ixs' `deepseq` ours `deepseq` ours, SeqState s1' s2' ixs')
 
-instance (SoftDerivation k, PaymentAddress n k) => GenChange (SeqState k) where
+instance
+    ( SoftDerivation k
+    , PaymentAddress n k
+    ) => GenChange (SeqState k) where
     -- | We pick indexes in sequence from the first known available index (i.e.
     -- @length addrs - gap@) but we do not generate _new change addresses_. As a
     -- result, we can't generate more than @gap@ _pending_ change addresses and
@@ -447,7 +477,8 @@ instance (SoftDerivation k, PaymentAddress n k) => GenChange (SeqState k) where
 
 instance
     ( SoftDerivation k
-    , InspectAddress k
+    , MkKeyFingerprint k Address
+    , MkKeyFingerprint k (k 'AddressK XPub)
     , AddressIndexDerivationType k ~ 'Soft
     )
     => IsOwned (SeqState k) k where
@@ -472,7 +503,11 @@ instance
             in
                 deriveAddressPrivateKey pwd accountPrv cc <$> addrIx
 
-instance (InspectAddress k, SoftDerivation k) => CompareDiscovery (SeqState k) where
+instance
+    ( MkKeyFingerprint k Address
+    , MkKeyFingerprint k (k 'AddressK XPub)
+    , SoftDerivation k
+    ) => CompareDiscovery (SeqState k) where
     compareDiscovery (SeqState !s1 !s2 _) a1 a2 =
         let
             ix a = fst . lookupAddress a

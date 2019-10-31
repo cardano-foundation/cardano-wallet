@@ -64,7 +64,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationType (..)
     , HardDerivation (..)
     , Index (..)
-    , InspectAddress (..)
+    , KeyFingerprint (..)
+    , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
     , NetworkDiscriminantVal
     , Passphrase (..)
@@ -370,11 +371,10 @@ decodeShelleyAddress bytes = do
         "This Address belongs to another network. Network is: "
         <> show (networkDiscriminantVal @n) <> "."
 
-instance InspectAddress ShelleyKey where
-    type KeyFingerprint "payment" ShelleyKey = ByteString
+instance MkKeyFingerprint ShelleyKey Address where
     paymentKeyFingerprint (Address bytes)
         | len == addrSingleSize || len == addrGroupedSize =
-            BS.take publicKeySize $ BS.drop 1 bytes
+            KeyFingerprint $ BS.take publicKeySize $ BS.drop 1 bytes
         | otherwise = error $ unwords
             [ "InspectAddress.getPaymentKey was given an invalid 'ShelleyKey'"
             , " of "
@@ -384,15 +384,11 @@ instance InspectAddress ShelleyKey where
       where
         len = BS.length bytes
 
-    paymentKeyFingerprint' (ShelleyKey (XPub bytes _chainCode)) =
-        bytes
-
-    type KeyFingerprint "delegation" ShelleyKey = ByteString
     delegationKeyFingerprint (Address bytes)
         | len == addrSingleSize =
             Nothing
         | len == addrGroupedSize =
-            Just $ BS.drop addrSingleSize bytes
+            Just $ KeyFingerprint $ BS.drop addrSingleSize bytes
         | otherwise = error $ unwords
             [ "InspectAddress.getDelegationKey was given an invalid 'ShelleyKey'"
             , " of "
@@ -401,6 +397,12 @@ instance InspectAddress ShelleyKey where
             ]
       where
         len = BS.length bytes
+
+instance MkKeyFingerprint ShelleyKey (ShelleyKey 'AddressK XPub) where
+    paymentKeyFingerprint (ShelleyKey (XPub bytes _chainCode)) =
+        KeyFingerprint bytes
+    delegationKeyFingerprint (ShelleyKey (XPub bytes _chainCode)) =
+        Just $ KeyFingerprint bytes
 
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys

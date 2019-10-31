@@ -25,7 +25,6 @@ module Cardano.Wallet.Primitive.AddressDiscovery
     , IsOwned(..)
     , GenChange(..)
     , CompareDiscovery(..)
-    , KnownAddresses(..)
     , EncodeAddress(..)
     , DecodeAddress(..)
     ) where

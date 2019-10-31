@@ -56,7 +56,8 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , DelegationAddress(..)
     , WalletKey(..)
     , PersistKey(..)
-    , InspectAddress(..)
+    , MkKeyFingerprint(..)
+    , KeyFingerprint(..)
     , dummyAddress
 
     -- * Passphrase
@@ -574,23 +575,19 @@ class WalletKey key => PersistKey (key :: Depth -> * -> *) where
         :: (ByteString, ByteString)
         -> Either String (key 'RootK XPrv, Hash "encryption")
 
--- | Access constituants of an address.
-class
-    ( Ord (KeyFingerprint "payment" key)
-    , Ord (KeyFingerprint "delegation" key)
-    ) => InspectAddress (key :: Depth -> * -> *) where
-    type KeyFingerprint (s :: Symbol) key :: *
-        -- | Something that uniquely identifies a public key. Typically,
-        -- a hash of that key or the key itself.
+-- | Something that uniquely identifies a public key. Typically,
+-- a hash of that key or the key itself.
+newtype KeyFingerprint (s :: Symbol) key = KeyFingerprint ByteString
+    deriving (Generic, Show, Eq, Ord)
 
+instance NFData (KeyFingerprint s key)
+
+-- | Produce 'KeyFingerprint' for existing types.
+class MkKeyFingerprint (key :: Depth -> * -> *) from where
     paymentKeyFingerprint
-        :: Address
-        -> KeyFingerprint "payment" key
-
-    paymentKeyFingerprint'
-        :: key 'AddressK XPub
+        :: from
         -> KeyFingerprint "payment" key
 
     delegationKeyFingerprint
-        :: Address
+        :: from
         -> Maybe (KeyFingerprint "delegation" key)
