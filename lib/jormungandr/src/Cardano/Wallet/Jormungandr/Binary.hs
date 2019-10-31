@@ -309,7 +309,7 @@ messageTypeTag :: MessageType -> Word8
 messageTypeTag = \case
     MsgTypeInitial -> 0
     MsgTypeTransaction -> 2
-    MsgTypeDelegation -> 3
+    MsgTypeDelegation -> 4
 
 -- | Decode the contents of a @Initial@-message.
 getInitial :: Get [ConfigParam]
@@ -372,12 +372,12 @@ putStakeDelegationTx
     -> [TxWitness]
     -> Put
 putStakeDelegationTx poolId accId inputs outputs witnesses = do
-    putSignedTx inputs outputs witnesses
     putStakeCertificate poolId accId
+    putSignedTx inputs outputs witnesses
 
 -- | Decode the contents of a @Transaction@-message.
 getTransaction :: Hash "Tx" -> Get (Tx, [TxWitness])
-getTransaction = label "getTransaction" getGenericTransaction
+getTransaction = label "getTransaction" . getGenericTransaction
 
 getGenericTransaction
     :: Hash "Tx"
