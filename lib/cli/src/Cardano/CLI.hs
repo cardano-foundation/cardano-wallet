@@ -48,6 +48,7 @@ module Cardano.CLI
 
     -- * Types
     , Service
+    , TxId
     , MnemonicSize (..)
     , Port (..)
 
@@ -1171,6 +1172,7 @@ instance ToText (Port tag) where
 newtype Service = Service Text deriving newtype IsString
 
 newtype TxId = TxId { getTxId :: Hash "Tx" }
+    deriving (Eq, Show)
 
 instance FromText TxId where
     fromText = Bi.first (const err) . fmap TxId . fromText
