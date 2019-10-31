@@ -13,7 +13,7 @@ module Cardano.Wallet.Primitive.ModelSpec
 import Prelude
 
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( DummyTarget, Tx (..), block0, genesisParameters )
+    ( block0, genesisParameters )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.Model
@@ -36,6 +36,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , ShowFmt (..)
     , SlotId (..)
+    , Tx (..)
     , TxIn (..)
     , TxMeta (direction)
     , TxOut (..)
@@ -134,7 +135,7 @@ prop_3_2 (ApplyBlock s utxo block) =
     new b = flip evalState s $ do
         let txs = Set.fromList $ transactions b
         utxo' <- (foldMap utxoFromTx txs `restrictedTo`) <$> state (txOutsOurs txs)
-        return $ utxo' `excluding` txIns @DummyTarget txs
+        return $ utxo' `excluding` txIns txs
     updateUTxO' b u = evalState (updateUTxO b u) s
 
 
@@ -150,7 +151,7 @@ prop_applyBlockBasic s =
     cond1 = not $ null $ (Set.fromList addresses) \\ (ourAddresses s)
     prop =
         let
-            (_, cp0) = initWallet @_ @DummyTarget block0 genesisParameters s
+            (_, cp0) = initWallet @_ block0 genesisParameters s
             wallet = foldl (\cp b -> snd $ applyBlock b cp) cp0 blockchain
             utxo = totalUTxO mempty wallet
             utxo' = evalState (foldM (flip updateUTxO) mempty blockchain) s
@@ -164,7 +165,7 @@ prop_applyBlockTxHistoryIncoming :: WalletState -> Property
 prop_applyBlockTxHistoryIncoming s =
     property (outs (filter isIncoming txs) `overlaps` ourAddresses s')
   where
-    (_, cp0) = initWallet @_ @DummyTarget block0 genesisParameters s
+    (_, cp0) = initWallet @_ block0 genesisParameters s
     bs = NE.fromList blockchain
     txs_cps = applyBlocks bs cp0
     txs = fold $ fst <$> txs_cps
@@ -180,7 +181,7 @@ prop_applyBlockCurrentTip :: ApplyBlock -> Property
 prop_applyBlockCurrentTip (ApplyBlock s _ b) =
     property $ currentTip wallet' > currentTip wallet
   where
-    (_, wallet) = initWallet @_ @DummyTarget block0 genesisParameters s
+    (_, wallet) = initWallet @_ block0 genesisParameters s
     wallet' = snd $ applyBlock b wallet
 
 -- | applyBlocks increases the block height.
@@ -190,7 +191,7 @@ prop_applyBlocksBlockHeight s (Positive n) =
     bh wallet' - bh wallet `shouldSatisfy` (> 0)
   where
     bs = NE.fromList (take n blockchain)
-    (_, wallet) = initWallet @_ @DummyTarget block0 genesisParameters s
+    (_, wallet) = initWallet block0 genesisParameters s
     wallet' = NE.last $ snd <$> applyBlocks bs wallet
     bh = unQuantity . blockHeight . currentTip
     unQuantity (Quantity a) = a
@@ -199,7 +200,7 @@ prop_initialBlockHeight :: WalletState -> Property
 prop_initialBlockHeight s =
     property $ blockHeight (currentTip wallet) === Quantity 0
   where
-    (_, wallet) = initWallet @_ @DummyTarget block0 genesisParameters s
+    (_, wallet) = initWallet block0 genesisParameters s
 
 {-------------------------------------------------------------------------------
                Basic Model - See Wallet Specification, section 3
@@ -216,13 +217,13 @@ prop_initialBlockHeight s =
 -- Update UTxO as described in the formal specification, Fig 3. The basic model
 updateUTxO
     :: IsOurs s
-    => Block Tx
+    => Block
     -> UTxO
     -> State s UTxO
 updateUTxO !b utxo = do
     let txs = Set.fromList $ transactions b
     utxo' <- (foldMap utxoFromTx txs `restrictedTo`) <$> state (txOutsOurs txs)
-    return $ (utxo <> utxo') `excluding` txIns @DummyTarget txs
+    return $ (utxo <> utxo') `excluding` txIns txs
 
 -- | Return all transaction outputs that are ours. This plays well within a
 -- 'State' monad.
@@ -252,8 +253,8 @@ txOutsOurs txs =
 -- the transaction outputs to be ordered correctly, since they become available
 -- inputs for the subsequent blocks.
 utxoFromTx :: Tx -> UTxO
-utxoFromTx tx@(Tx _ outs) =
-    UTxO $ Map.fromList $ zip (TxIn (txId @DummyTarget tx) <$> [0..]) outs
+utxoFromTx tx@(Tx _ _ outs) =
+    UTxO $ Map.fromList $ zip (TxIn (txId tx) <$> [0..]) outs
 
 
 {-------------------------------------------------------------------------------
@@ -308,7 +309,7 @@ instance Arbitrary (ShowFmt Address) where
 -- corresponding initial UTxO, instead, we take subset of our small valid
 -- blockchain and, reconstruct a valid initial UTxO by applying all the given
 -- blocks minus one. Then, we control the property when applying that very block
-data ApplyBlock = ApplyBlock WalletState UTxO (Block Tx)
+data ApplyBlock = ApplyBlock WalletState UTxO Block
     deriving Show
 
 instance Arbitrary ApplyBlock where
@@ -333,7 +334,7 @@ addresses = map address
 -- A excerpt of mainnet, epoch #14, first 20 blocks; plus a few previous blocks
 -- which contains transactions referred to in the former. This is useful to test
 -- correct resolution of the tx history.
-blockchain :: [Block Tx]
+blockchain :: [Block]
 blockchain =
     [ Block
         { header = BlockHeader
@@ -344,15 +345,16 @@ blockchain =
             }
         , transactions =
             [ Tx
-                { inputs =
-                    [ TxIn
+                { txId = Hash "97928516bb05fce234d26e99b22b2e68c81841730fb5bd1d835b67374f1de8d7"
+                , resolvedInputs =
+                    [ (TxIn
                         { inputId = Hash "\199D\198\229\227\196\204\231\178\166m\226\134\211\DC1}\243[\204\DC4\171\213\230\246\SOHy\229\t\167\184\235g"
                         , inputIx = 0
-                        }
-                    ,TxIn
+                        }, Coin 0)
+                    , (TxIn
                         { inputId = Hash "\a\241.\180(\a\148\201u$\229\251\147\224\f\166\159\EOT\166m\US\178dN\242\227\b\254\227G\169\RS"
                         , inputIx = 0
-                        }
+                        }, Coin 0)
                     ]
                 , outputs =
                     [ TxOut
@@ -376,11 +378,12 @@ blockchain =
             }
         , transactions =
             [ Tx
-                { inputs =
-                    [ TxIn
+                { txId = Hash "cd6f2081fdd619c623c71e5cd2a3b5f22289e598b727f325dbba9681ea723079"
+                , resolvedInputs =
+                    [ (TxIn
                         { inputId = Hash "+\253\232\DC3\132\"M\NULf\EM\228\bh)\STX\171W\215@#\198\a\228\229Z2]\156_fjg"
                         , inputIx = 0
-                        }
+                        }, Coin 0)
                     ]
                 , outputs =
                     [ TxOut
@@ -394,11 +397,12 @@ blockchain =
                     ]
                 }
             , Tx
-                { inputs =
-                    [ TxIn
+                { txId = Hash "b17ca3d2b8a991ea4680d1ebd9940a03449b1b6261fbe625d5cae6599726ea41"
+                , resolvedInputs =
+                    [ (TxIn
                         { inputId = Hash "\137\150\&8\141\164l\v\ACK\132\198\SI\GS7\201\&3Dd\177fM,\GS)\EM\DC4\242#\211'3\233\163"
                         , inputIx = 0
-                        }
+                        }, Coin 0)
                     ]
                 , outputs =
                      [ TxOut
@@ -422,11 +426,12 @@ blockchain =
             }
         , transactions =
             [ Tx
-                { inputs =
-                    [ TxIn
+                { txId = Hash "73a5d20740d511e01090247f8aca90e1e550564244173235a1a47589007b9e76"
+                , resolvedInputs =
+                    [ (TxIn
                         { inputId = Hash "(\EM#\f\165\236\169=\227\163>MY\225ts\192\SYN\137=\145\155~\212.\252\130l\166v0\SOH"
                         , inputIx = 0
-                        }
+                        }, Coin 0)
                     ]
                 , outputs =
                     [ TxOut
@@ -440,11 +445,12 @@ blockchain =
                     ]
                 }
             , Tx
-                { inputs =
-                    [ TxIn
+                { txId = Hash "6ed51b05821f0dc130a9411f0d63a241a624fbc8a9c8a2a13da8194ce3c463f4"
+                , resolvedInputs =
+                    [ ( TxIn
                         { inputId = Hash "\128\168muc\212\EMP\238\\\173w\203\159N\205T:\230V\134\164w\143>\192\134\153\SUB$cD"
                         , inputIx = 0
-                        }
+                        }, Coin 0)
                     ]
                 , outputs =
                     [ TxOut
@@ -468,11 +474,12 @@ blockchain =
             }
         , transactions =
             [ Tx
-                { inputs =
-                    [ TxIn
+                { txId = Hash "bbc7a1f0de24085ac48a52ee6f89d1815145845a8712547350a7e492385974ab"
+                , resolvedInputs =
+                    [ (TxIn
                         { inputId = Hash "\164\254\137\218h\f\DLE\245\141u\SYN\248~\253n;\202\144\150\v\229\177\218\195\238\157\230\158\241O\153\215"
                         , inputIx = 0
-                        }
+                        }, Coin 0)
                     ]
                 , outputs =
                     [ TxOut
@@ -505,11 +512,12 @@ blockchain =
             }
         , transactions =
             [ Tx
-                { inputs =
-                    [ TxIn
+                { txId = Hash "fd545d055c2241802d1518b7fd9f8842c217b54c73364e519ccada5cda07612a"
+                , resolvedInputs =
+                    [ (TxIn
                         { inputId = Hash "\187\199\161\240\222$\bZ\196\138R\238o\137\209\129QE\132Z\135\DC2TsP\167\228\146\&8Yt\171"
                         , inputIx = 0
-                        }
+                        }, Coin 0)
                     ]
                 , outputs =
                     [ TxOut
@@ -533,12 +541,12 @@ blockchain =
             }
         , transactions =
             [ Tx
-                { inputs =
-                    [ TxIn
+                { txId = Hash "dffbcd7ca494c4695cc2fd4ec525ffca0861bafb221ee185711f99ca49ae7c11"
+                , resolvedInputs =
+                    [ (TxIn
                         { inputId = Hash "s\165\210\a@\213\DC1\224\DLE\144$\DEL\138\202\144\225\229PVBD\ETB25\161\164u\137\NUL{\158v"
                         , inputIx = 0
-                        }
-                    ]
+                        }, Coin 0) ]
                 , outputs =
                     [ TxOut
                         { address = Address "\130\216\CANXB\131X\FS\255-+\179k\202\194\212\206\224\248\243\158\b\188 \212\141$\189\194&\252\162\166\162jq\161\SOHX\RSX\FS\202>U<\156c\197QM\140\ACKCk=\238\239\134^w\CAN$\253\FSqL\198\128\200\NUL\SUB\f\219\163/"
@@ -561,11 +569,12 @@ blockchain =
             }
         , transactions =
             [ Tx
-                { inputs =
-                    [ TxIn
+                { txId = Hash "c430d9ae438b9fe1c0898e9c131f3ca2c64c34ef75b202a834b6eabe248eac88"
+                , resolvedInputs =
+                    [ (TxIn
                         { inputId = Hash "\177|\163\210\184\169\145\234F\128\209\235\217\148\n\ETXD\155\ESCba\251\230%\213\202\230Y\151&\234A"
                         , inputIx = 0
-                        }
+                        }, Coin 0)
                     ]
                 , outputs =
                     [ TxOut
@@ -598,15 +607,16 @@ blockchain =
               }
         , transactions =
             [ Tx
-                { inputs =
-                    [ TxIn
+                { txId = Hash "b5af444a0d95ebd1a55185a0aee2b19835da1c86fc2b43f453f04c002bbc708e"
+                , resolvedInputs =
+                    [ ( TxIn
                         { inputId = Hash "\195\242\DEL-\232v(c\SI+\172\163\245\142\189\214aiB#4\139\172\166\237\167\ETB9\246\150\185\219"
                         , inputIx = 1
-                        }
-                    , TxIn
+                        }, Coin 0)
+                    , ( TxIn
                         { inputId = Hash "8O\137\193\224w\243\252s\198\250\201\&04\169\129E\155{\n\DC3H<\199\208\154\214\237\141\128<+"
                         , inputIx = 1
-                        }
+                        }, Coin 0)
                     ]
                 , outputs =
                     [ TxOut
@@ -666,11 +676,12 @@ blockchain =
             }
         , transactions =
             [ Tx
-                { inputs =
-                    [ TxIn
+                { txId = Hash "e65862828230aa340878c8d593f84d59397f10dfa0b183d2d15bea0a5db8ccaf"
+                , resolvedInputs =
+                    [ ( TxIn
                         { inputId = Hash "\ETXX\189\235\195q81{D\DC3\DLE\228\237(\251\184`l\226\229\184\FSG\132\217\224\202\222\249\246J"
                         , inputIx = 1
-                        }
+                        }, Coin 0)
                     ]
                 , outputs =
                     [ TxOut
@@ -684,11 +695,12 @@ blockchain =
                     ]
                 }
             , Tx
-                { inputs =
-                    [ TxIn
+                { txId = Hash "611ce641f0f9282a35b1678fcd996016833c0de9e83a04bfa1178c8f045196ea"
+                , resolvedInputs =
+                    [ ( TxIn
                         { inputId = Hash "\151\146\133\SYN\187\ENQ\252\226\&4\210n\153\178+.h\200\CANAs\SI\181\189\GS\131[g7O\GS\232\215"
                         , inputIx = 1
-                        }
+                        }, Coin 0)
                     ]
                 , outputs =
                     [ TxOut
@@ -712,11 +724,12 @@ blockchain =
             }
         , transactions =
             [ Tx
-                { inputs =
-                    [ TxIn
+                { txId = Hash "0a5232f1683aaba994fb3774a5e123e2ed4f2842457b67b5309b825550a5f55d"
+                , resolvedInputs =
+                    [ ( TxIn
                         { inputId = Hash "_>\240.\159\145\US\NUL1\158r\231\&8\214\241\134\&2\DC4\ETB\160\134\237z\143D\229d\DC4\245\208\DC3?"
                         , inputIx = 0
-                        }
+                        }, Coin 0)
                     ]
                 , outputs =
                     [ TxOut
@@ -730,11 +743,12 @@ blockchain =
                     ]
                 }
             , Tx
-                { inputs =
-                    [ TxIn
+                { txId = Hash "b8e9699ffff40c993d6778f586110b78cd30826feaa5314adf3a2e9894b9313a"
+                , resolvedInputs =
+                    [ ( TxIn
                         { inputId = Hash "\187\177J\189\132K\n\175\130\148\&3[\150\193zL\153\191Qjcl\n\162B\241G)>\151\DC4\225"
                         , inputIx = 0
-                        }
+                        }, Coin 0)
                     ]
                 , outputs =
                     [ TxOut
@@ -812,11 +826,12 @@ blockchain =
             }
         , transactions =
             [ Tx
-                { inputs =
-                    [ TxIn
+                { txId = Hash "387b98d4cde710b78ce19e9077b61d6b7a2dff52fd16dcb884b31cd576904c86"
+                , resolvedInputs =
+                    [ ( TxIn
                         { inputId = Hash "\150\225pI\SUB\251n\189W\159\213|v\198\132\242$6\248\204:\145#\151\221\177\201\197\ESC\134\251S"
                         , inputIx = 0
-                        }
+                        }, Coin 0)
                     ]
                 , outputs =
                     [ TxOut
@@ -830,11 +845,12 @@ blockchain =
                     ]
                 }
               , Tx
-                  { inputs =
-                      [ TxIn
+                  { txId = Hash "7726526b5cc003f71d9629c611397285004b5438eac9a118c2b20e2810e0783e"
+                  , resolvedInputs =
+                      [ ( TxIn
                           { inputId = Hash "\249\DC2\146\&0\GSK\177\182\224@\206\205\255@0\149\155I\201^}\174\bw\130\221U\139\235\182f\138"
                           , inputIx = 0
-                          }
+                          }, Coin 0)
                       ]
                   , outputs =
                       [ TxOut
@@ -858,11 +874,12 @@ blockchain =
             }
         , transactions =
             [ Tx
-                { inputs =
-                    [ TxIn
+                { txId = Hash "9c6fed8fef3b296d4dee6e62ca72b180bf0ed1c13eb5f0445099b2a146235e77"
+                , resolvedInputs =
+                    [ (TxIn
                         { inputId = Hash "\194\157>\160\221\163\&4\218\149\215\178\161]p\185\246\208\198\ENQ \188\216\242\160\190\236\137\151\DC3\134\"\DC4"
                         , inputIx = 0
-                        }
+                        }, Coin 0)
                     ]
                 , outputs =
                     [ TxOut

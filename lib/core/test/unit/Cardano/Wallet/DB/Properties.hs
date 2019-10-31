@@ -40,8 +40,6 @@ import Cardano.Wallet.DB.Arbitrary
     )
 import Cardano.Wallet.DB.Model
     ( filterTxHistory )
-import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( DummyTarget )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.Model
@@ -130,12 +128,12 @@ import qualified Data.Set as Set
 
 -- | Provide a DBLayer to a Spec that requires it. The database is initialised
 -- once, and cleared with 'cleanDB' before each test.
-withDB :: IO (DBLayer IO s t k) -> SpecWith (DBLayer IO s t k) -> Spec
+withDB :: IO (DBLayer IO s k) -> SpecWith (DBLayer IO s k) -> Spec
 withDB create = beforeAll create . beforeWith (\db -> cleanDB db $> db)
 
 properties
     :: (GenState s, Eq s)
-    => SpecWith (DBLayer IO s DummyTarget ShelleyKey)
+    => SpecWith (DBLayer IO s ShelleyKey)
 properties = do
     describe "Extra Properties about DB initialization" $ do
         it "createWallet . listWallets yields expected results"
@@ -258,7 +256,7 @@ properties = do
 -- | Wrap the result of 'readTxHistory' in an arbitrary identity Applicative
 readTxHistoryF
     :: Functor m
-    => DBLayer m s DummyTarget ShelleyKey
+    => DBLayer m s ShelleyKey
     -> PrimaryKey WalletId
     -> m (Identity GenTxHistory)
 readTxHistoryF db wid =
@@ -266,7 +264,7 @@ readTxHistoryF db wid =
         <$> readTxHistory db wid Descending wholeRange Nothing
 
 putTxHistoryF
-    :: DBLayer m s DummyTarget ShelleyKey
+    :: DBLayer m s ShelleyKey
     -> PrimaryKey WalletId
     -> GenTxHistory
     -> ExceptT ErrNoSuchWallet m ()
@@ -299,7 +297,7 @@ sortedUnions :: Ord k => [(k, GenTxHistory)] -> [Identity GenTxHistory]
 sortedUnions = map (Identity . sort' . runIdentity) . unions
   where
     sort' = GenTxHistory
-      . filterTxHistory @DummyTarget Descending wholeRange
+      . filterTxHistory Descending wholeRange
       . unGenTxHistory
 
 -- | Execute an action once per key @k@ present in the given list
@@ -319,13 +317,12 @@ once_ xs = void . once xs
 -- | Filter a transaction list according to the given predicate, returns their
 -- ids.
 filterTxs
-    :: forall t. (DefineTx t)
-    => (TxMeta -> Bool)
-    -> [(Tx t, TxMeta)]
+    :: (TxMeta -> Bool)
+    -> [(Tx, TxMeta)]
     -> [Hash "Tx"]
 filterTxs predicate = mapMaybe fn
   where
-    fn (tx, meta) = if predicate meta then Just (txId @t tx) else Nothing
+    fn (tx, meta) = if predicate meta then Just (txId tx) else Nothing
 
 -- | Pick an arbitrary element from a monadic property, and label it in the
 -- counterexample:
@@ -355,8 +352,8 @@ assertWith lbl condition = do
 
 -- | Can list created wallets
 prop_createListWallet
-    :: DBLayer IO s DummyTarget ShelleyKey
-    -> KeyValPairs (PrimaryKey WalletId) (Wallet s DummyTarget, WalletMetadata)
+    :: DBLayer IO s ShelleyKey
+    -> KeyValPairs (PrimaryKey WalletId) (Wallet s , WalletMetadata)
     -> Property
 prop_createListWallet db (KeyValPairs pairs) =
     monadicIO (setup >> prop)
@@ -369,9 +366,9 @@ prop_createListWallet db (KeyValPairs pairs) =
 
 -- | Trying to create a same wallet twice should yield an error
 prop_createWalletTwice
-    :: DBLayer IO s DummyTarget ShelleyKey
+    :: DBLayer IO s ShelleyKey
     -> ( PrimaryKey WalletId
-       , Wallet s DummyTarget
+       , Wallet s
        , WalletMetadata
        )
     -> Property
@@ -386,9 +383,9 @@ prop_createWalletTwice db (key@(PrimaryKey wid), cp, meta) =
 
 -- | Trying to remove a same wallet twice should yield an error
 prop_removeWalletTwice
-    :: DBLayer IO s DummyTarget ShelleyKey
+    :: DBLayer IO s ShelleyKey
     -> ( PrimaryKey WalletId
-       , Wallet s DummyTarget
+       , Wallet s
        , WalletMetadata
        )
     -> Property
@@ -406,16 +403,16 @@ prop_removeWalletTwice db (key@(PrimaryKey wid), cp, meta) =
 -- | Checks that a given resource can be read after having been inserted in DB.
 prop_readAfterPut
     :: ( Buildable (f a), Eq (f a), Applicative f, GenState s )
-    => (  DBLayer IO s DummyTarget ShelleyKey
+    => (  DBLayer IO s ShelleyKey
        -> PrimaryKey WalletId
        -> a
        -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
-    -> (  DBLayer IO s DummyTarget ShelleyKey
+    -> (  DBLayer IO s ShelleyKey
        -> PrimaryKey WalletId
        -> IO (f a)
        ) -- ^ Read Operation
-    -> DBLayer IO s DummyTarget ShelleyKey
+    -> DBLayer IO s ShelleyKey
     -> (ShowFmt (PrimaryKey WalletId), ShowFmt a)
         -- ^ Property arguments
     -> Property
@@ -437,18 +434,18 @@ prop_readAfterPut putOp readOp db (ShowFmt key, ShowFmt a) =
 -- | Can't put resource before a wallet has been initialized
 prop_putBeforeInit
     :: (Buildable (f a), Eq (f a))
-    => (  DBLayer IO s DummyTarget ShelleyKey
+    => (  DBLayer IO s ShelleyKey
        -> PrimaryKey WalletId
        -> a
        -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
-    -> (  DBLayer IO s DummyTarget ShelleyKey
+    -> (  DBLayer IO s ShelleyKey
        -> PrimaryKey WalletId
        -> IO (f a)
        ) -- ^ Read Operation
     -> f a
         -- ^ An 'empty' value for the 'Applicative' f
-    -> DBLayer IO s DummyTarget ShelleyKey
+    -> DBLayer IO s ShelleyKey
     -> (ShowFmt (PrimaryKey WalletId), ShowFmt a)
         -- ^ Property arguments
     -> Property
@@ -469,26 +466,26 @@ prop_isolation
     :: ( Buildable (f b), Eq (f b)
        , Buildable (g c), Eq (g c)
        , Buildable (h d), Eq (h d)
-       , Arbitrary (Wallet s DummyTarget)
+       , Arbitrary (Wallet s)
        )
-    => (  DBLayer IO s DummyTarget ShelleyKey
+    => (  DBLayer IO s ShelleyKey
        -> PrimaryKey WalletId
        -> a
        -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
-    -> (  DBLayer IO s DummyTarget ShelleyKey
+    -> (  DBLayer IO s ShelleyKey
        -> PrimaryKey WalletId
        -> IO (f b)
        ) -- ^ Read Operation for another resource
-    -> (  DBLayer IO s DummyTarget ShelleyKey
+    -> (  DBLayer IO s ShelleyKey
        -> PrimaryKey WalletId
        -> IO (g c)
        ) -- ^ Read Operation for another resource
-    -> (  DBLayer IO s DummyTarget ShelleyKey
+    -> (  DBLayer IO s ShelleyKey
        -> PrimaryKey WalletId
        -> IO (h d)
        ) -- ^ Read Operation for another resource
-    -> DBLayer IO s DummyTarget ShelleyKey
+    -> DBLayer IO s ShelleyKey
     -> (ShowFmt (PrimaryKey WalletId), ShowFmt a)
         -- ^ Properties arguments
     -> Property
@@ -515,13 +512,13 @@ prop_isolation putA readB readC readD db (ShowFmt key, ShowFmt a) =
 -- | Can't read back data after delete
 prop_readAfterDelete
     :: (Buildable (f a), Eq (f a), GenState s)
-    => (  DBLayer IO s DummyTarget ShelleyKey
+    => (  DBLayer IO s ShelleyKey
        -> PrimaryKey WalletId
        -> IO (f a)
        ) -- ^ Read Operation
     -> f a
         -- ^ An 'empty' value for the 'Applicative' f
-    -> DBLayer IO s DummyTarget ShelleyKey
+    -> DBLayer IO s ShelleyKey
     -> ShowFmt (PrimaryKey WalletId)
     -> Property
 prop_readAfterDelete readOp empty db (ShowFmt key) =
@@ -538,18 +535,18 @@ prop_readAfterDelete readOp empty db (ShowFmt key) =
 -- | Check that the DB supports multiple sequential puts for a given resource
 prop_sequentialPut
     :: (Buildable (f a), Eq (f a), GenState s)
-    => (  DBLayer IO s DummyTarget ShelleyKey
+    => (  DBLayer IO s ShelleyKey
        -> PrimaryKey WalletId
        -> a
        -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
-    -> (  DBLayer IO s DummyTarget ShelleyKey
+    -> (  DBLayer IO s ShelleyKey
        -> PrimaryKey WalletId
        -> IO (f a)
        ) -- ^ Read Operation
     -> (forall k. Ord k => [(k, a)] -> [f a])
         -- ^ How do we expect operations to resolve
-    -> DBLayer IO s DummyTarget ShelleyKey
+    -> DBLayer IO s ShelleyKey
     -> KeyValPairs (ShowFmt (PrimaryKey WalletId)) (ShowFmt a)
         -- ^ Property arguments
     -> Property
@@ -577,19 +574,19 @@ prop_sequentialPut putOp readOp resolve db kv =
 
 -- | Check that the DB supports multiple sequential puts for a given resource
 prop_parallelPut
-    :: (Arbitrary (Wallet s DummyTarget))
-    => (  DBLayer IO s DummyTarget ShelleyKey
+    :: (Arbitrary (Wallet s))
+    => (  DBLayer IO s ShelleyKey
        -> PrimaryKey WalletId
        -> a
        -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
-    -> (  DBLayer IO s DummyTarget ShelleyKey
+    -> (  DBLayer IO s ShelleyKey
        -> PrimaryKey WalletId
        -> IO (f a)
        ) -- ^ Read Operation
     -> (forall k. Ord k => [(k, a)] -> Int)
         -- ^ How many entries to we expect in the end
-    -> DBLayer IO s DummyTarget ShelleyKey
+    -> DBLayer IO s ShelleyKey
     -> KeyValPairs (PrimaryKey WalletId) a
         -- ^ Property arguments
     -> Property
@@ -614,9 +611,9 @@ prop_parallelPut putOp readOp resolve db (KeyValPairs pairs) =
 
 -- | Can rollback to any particular checkpoint previously stored
 prop_rollbackCheckpoint
-    :: forall s t k. (t ~ DummyTarget, GenState s, Eq s)
-    => DBLayer IO s t k
-    -> ShowFmt (Wallet s t)
+    :: forall s k. (GenState s, Eq s)
+    => DBLayer IO s k
+    -> ShowFmt (Wallet s)
     -> ShowFmt MockChain
     -> Property
 prop_rollbackCheckpoint db (ShowFmt cp0) (ShowFmt (MockChain chain)) = do
@@ -626,7 +623,7 @@ prop_rollbackCheckpoint db (ShowFmt cp0) (ShowFmt (MockChain chain)) = do
         ShowFmt point <- namedPick "Rollback target" (elements $ ShowFmt <$> cps)
         setup wid meta >> prop wid point
   where
-    cps :: [Wallet s t]
+    cps :: [Wallet s]
     cps = flip unfoldr (chain, cp0) $ \case
         ([], _) -> Nothing
         (b:q, cp) -> let cp' = snd $ applyBlock b cp in Just (cp', (q, cp'))
@@ -653,8 +650,8 @@ prop_rollbackCheckpoint db (ShowFmt cp0) (ShowFmt (MockChain chain)) = do
 -- - Any outgoing transaction after the PoR is back in pending, and have a slot
 --   equal to the PoR.
 prop_rollbackTxHistory
-    :: forall s t k. (t ~ DummyTarget)
-    => DBLayer IO s t k
+    :: forall s k. ()
+    => DBLayer IO s k
     -> ShowFmt (InitialCheckpoint s)
     -> ShowFmt GenTxHistory
     -> Property
@@ -679,9 +676,9 @@ prop_rollbackTxHistory db (ShowFmt (InitialCheckpoint cp0)) (ShowFmt (GenTxHisto
         monitor $ counterexample $ "\nTx history after rollback: \n" <> fmt txs
 
         assertWith "Outgoing txs are reschuled" $
-            L.sort (rescheduled point) == L.sort (filterTxs @t isPending txs)
+            L.sort (rescheduled point) == L.sort (filterTxs isPending txs)
         assertWith "All other txs are still known" $
-            L.sort (knownAfterRollback point) == L.sort (txId @t . fst <$> txs)
+            L.sort (knownAfterRollback point) == L.sort (txId . fst <$> txs)
         assertWith "All txs are now before the point of rollback" $
             all (isBefore point . snd) txs
       where
@@ -694,11 +691,11 @@ prop_rollbackTxHistory db (ShowFmt (InitialCheckpoint cp0)) (ShowFmt (GenTxHisto
     rescheduled :: SlotId -> [Hash "Tx"]
     rescheduled point =
         let addedAfter meta = direction meta == Outgoing && meta ^. #slotId > point
-        in filterTxs @t (\tx -> addedAfter tx || isPending tx) txs0
+        in filterTxs (\tx -> addedAfter tx || isPending tx) txs0
 
     knownAfterRollback :: SlotId -> [Hash "Tx"]
     knownAfterRollback point =
-        rescheduled point ++ filterTxs @t (isBefore point) txs0
+        rescheduled point ++ filterTxs (isBefore point) txs0
 
 -- | No matter what, the current tip is always a checkpoint.
 prop_sparseCheckpointTipAlwaysThere

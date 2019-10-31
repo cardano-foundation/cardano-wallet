@@ -47,7 +47,7 @@ import Cardano.Wallet.DB.Model
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), XPrv )
 import Cardano.Wallet.Primitive.Types
-    ( DefineTx, Hash, WalletId )
+    ( Hash, WalletId )
 import Control.Concurrent.MVar
     ( MVar, modifyMVar, newMVar, withMVar )
 import Control.DeepSeq
@@ -60,11 +60,11 @@ import Control.Monad.Trans.Except
 -- | Instantiate a new in-memory "database" layer that simply stores data in
 -- a local MVar. Data vanishes if the software is shut down.
 newDBLayer
-    :: forall s t k. (NFData (k 'RootK XPrv), DefineTx t)
-    => IO (DBLayer IO s t k)
+    :: forall s k. NFData (k 'RootK XPrv)
+    => IO (DBLayer IO s k)
 newDBLayer = do
     lock <- newMVar ()
-    db <- newMVar (emptyDatabase :: Database (PrimaryKey WalletId) s t (k 'RootK XPrv, Hash "encryption"))
+    db <- newMVar (emptyDatabase :: Database (PrimaryKey WalletId) s (k 'RootK XPrv, Hash "encryption"))
     return $ DBLayer
 
         {-----------------------------------------------------------------------
@@ -142,9 +142,9 @@ newDBLayer = do
 alterDB
     :: (Err (PrimaryKey WalletId) -> Maybe err)
     -- ^ Error type converter
-    -> MVar (Database (PrimaryKey WalletId) s t xprv)
+    -> MVar (Database (PrimaryKey WalletId) s xprv)
     -- ^ The database variable
-    -> ModelOp (PrimaryKey WalletId) s t xprv a
+    -> ModelOp (PrimaryKey WalletId) s xprv a
     -- ^ Operation to run on the database
     -> IO (Either err a)
 alterDB convertErr db op = modifyMVar db (bubble . op)
@@ -157,9 +157,9 @@ alterDB convertErr db op = modifyMVar db (bubble . op)
 -- | Run a query operation on the model database. Any error results are turned
 -- into a runtime exception.
 readDB
-    :: MVar (Database (PrimaryKey WalletId) s t xprv)
+    :: MVar (Database (PrimaryKey WalletId) s xprv)
     -- ^ The database variable
-    -> ModelOp (PrimaryKey WalletId) s t xprv a
+    -> ModelOp (PrimaryKey WalletId) s xprv a
     -- ^ Operation to run on the database
     -> IO a
 readDB db op = alterDB Just db op >>= either (throwIO . MVarDBError) pure

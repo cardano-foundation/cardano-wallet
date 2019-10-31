@@ -15,8 +15,6 @@ import Prelude
 
 import Cardano.Wallet.DB.Properties
     ( properties, withDB )
-import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( DummyTarget, block0, genesisParameters )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -25,8 +23,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..) )
-import Cardano.Wallet.Primitive.Model
-    ( Wallet, initWallet )
 import Control.DeepSeq
     ( NFData )
 import Test.Hspec
@@ -51,7 +47,3 @@ deriving instance NFData DummyStateMVar
 
 instance IsOurs DummyStateMVar where
     isOurs _ num = (True, num)
-
-instance Arbitrary (Wallet DummyStateMVar DummyTarget) where
-    shrink _ = []
-    arbitrary = snd . initWallet block0 genesisParameters <$> arbitrary

@@ -37,10 +37,8 @@ import Cardano.Wallet.Jormungandr.Binary
     , runPut
     , withHeader
     )
-import Cardano.Wallet.Jormungandr.Primitive.Types
-    ( Tx (..) )
 import Cardano.Wallet.Primitive.Types
-    ( EpochNo (..), Hash (..), PoolId (..), ShowFmt (..), TxWitness )
+    ( EpochNo (..), Hash (..), PoolId (..), ShowFmt (..), Tx (..), TxWitness )
 import Control.Applicative
     ( many )
 import Control.Arrow

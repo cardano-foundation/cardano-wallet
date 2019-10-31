@@ -43,7 +43,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Hash (..), Tx, TxIn (..), TxOut (..), TxWitness (..) )
+    ( Address (..), Hash (..), Tx (..), TxIn (..), TxOut (..), TxWitness (..) )
 import Data.ByteString
     ( ByteString )
 import Data.Quantity
@@ -60,7 +60,7 @@ data TransactionLayer t k = TransactionLayer
         :: (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
         -> [(TxIn, TxOut)]
         -> [TxOut]
-        -> Either ErrMkStdTx (Tx t, [TxWitness])
+        -> Either ErrMkStdTx (Tx, [TxWitness])
         -- ^ Construct a standard transaction
         --
         -- " Standard " here refers to the fact that we do not deal with redemption,
@@ -104,7 +104,7 @@ data TransactionLayer t k = TransactionLayer
       -- on its side doesn't support more than 255 inputs or outputs.
 
     , decodeSignedTx
-        :: ByteString -> Either ErrDecodeSignedTx (Tx t, [TxWitness])
+        :: ByteString -> Either ErrDecodeSignedTx (Tx, [TxWitness])
         -- ^ Decode an externally-signed transaction to the chain producer
     }
 

@@ -15,8 +15,6 @@ module Cardano.Wallet.Primitive.TypesSpec
 
 import Prelude
 
-import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), Passphrase (..), WalletKey (..), XPrv, digest, publicKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -43,6 +41,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , SlotParameters (..)
     , StartTime (..)
+    , Tx (..)
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
@@ -915,12 +914,20 @@ instance Arbitrary UTxO where
         return $ UTxO $ Map.fromList utxo
 
 instance Arbitrary Tx where
-    shrink (Tx ins outs) =
-        (flip Tx outs <$> shrink ins) <> (Tx ins <$> shrink outs)
+    shrink (Tx tid ins outs) =
+        (flip (Tx tid) outs <$> shrink ins) <> ((Tx tid) ins <$> shrink outs)
     arbitrary = do
         ins <- choose (1, 3) >>= flip vectorOf arbitrary
         outs <- choose (1, 3) >>= flip vectorOf arbitrary
-        return $ Tx ins outs
+        tid <- genHash
+        return $ Tx tid ins outs
+      where
+        genHash = oneof
+          [ pure $ Hash "Tx1"
+          , pure $ Hash "Tx2"
+          , pure $ Hash "Tx3"
+          ]
+
 
 instance Arbitrary BlockHeader where
     -- No Shrinking
@@ -944,7 +951,7 @@ instance Arbitrary SlotId where
         sl <- choose (0, 100)
         return (SlotId (EpochNo ep) (SlotNo sl))
 
-instance Arbitrary (Block Tx) where
+instance Arbitrary Block where
     shrink (Block h txs) = Block h <$> shrink txs
     arbitrary = do
         txs <- choose (0, 500) >>= flip vectorOf arbitrary

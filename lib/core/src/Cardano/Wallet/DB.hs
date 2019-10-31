@@ -33,11 +33,11 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader
-    , DefineTx (..)
     , Hash
     , Range (..)
     , SlotId (..)
     , SortOrder (..)
+    , Tx (..)
     , TxMeta
     , TxStatus
     , WalletId
@@ -55,8 +55,8 @@ import GHC.Generics
 import qualified Data.List as L
 
 -- | Instantiate database layers at will
-data DBFactory m s t k = DBFactory
-    { withDatabase :: WalletId -> (DBLayer m s t k -> IO ()) -> IO ()
+data DBFactory m s k = DBFactory
+    { withDatabase :: WalletId -> (DBLayer m s k -> IO ()) -> IO ()
         -- ^ Creates a new or use an existing database, maintaining an open
         -- connection so long as necessary
 
@@ -67,12 +67,12 @@ data DBFactory m s t k = DBFactory
 -- | A Database interface for storing various things in a DB. In practice,
 -- we'll need some extra contraints on the wallet state that allows us to
 -- serialize and unserialize it (e.g. @forall s. (Serialize s) => ...@)
-data DBLayer m s t k = DBLayer
+data DBLayer m s k = DBLayer
     { createWallet
         :: PrimaryKey WalletId
-        -> Wallet s t
+        -> Wallet s
         -> WalletMetadata
-        -> [(Tx t, TxMeta)]
+        -> [(Tx, TxMeta)]
         -> ExceptT ErrWalletAlreadyExists m ()
         -- ^ Initialize a database entry for a given wallet. 'putCheckpoint',
         -- 'putWalletMeta' or 'putTxHistory' will actually all fail if they are
@@ -90,7 +90,7 @@ data DBLayer m s t k = DBLayer
 
     , putCheckpoint
         :: PrimaryKey WalletId
-        -> Wallet s t
+        -> Wallet s
         -> ExceptT ErrNoSuchWallet m ()
         -- ^ Replace the current checkpoint for a given wallet. We do not handle
         -- rollbacks yet, and therefore only stores the latest available
@@ -100,7 +100,7 @@ data DBLayer m s t k = DBLayer
 
     , readCheckpoint
         :: PrimaryKey WalletId
-        -> m (Maybe (Wallet s t))
+        -> m (Maybe (Wallet s))
         -- ^ Fetch the most recent checkpoint of a given wallet.
         --
         -- Return 'Nothing' if there's no such wallet.
@@ -127,9 +127,8 @@ data DBLayer m s t k = DBLayer
         -- Return 'Nothing' if there's no such wallet.
 
     , putTxHistory
-        :: (DefineTx t)
-        => PrimaryKey WalletId
-        -> [(Tx t, TxMeta)]
+        :: PrimaryKey WalletId
+        -> [(Tx, TxMeta)]
         -> ExceptT ErrNoSuchWallet m ()
         -- ^ Augments the transaction history for a known wallet.
         --
@@ -143,7 +142,7 @@ data DBLayer m s t k = DBLayer
         -> SortOrder
         -> Range SlotId
         -> Maybe TxStatus
-        -> m [(Tx t, TxMeta)]
+        -> m [(Tx, TxMeta)]
         -- ^ Fetch the current transaction history of a known wallet, ordered by
         -- descending slot number.
         --
@@ -221,7 +220,7 @@ newtype PrimaryKey key = PrimaryKey key
     deriving (Show, Eq, Ord)
 
 -- | Clean a database by removing all wallets.
-cleanDB :: Monad m => DBLayer m s t k -> m ()
+cleanDB :: Monad m => DBLayer m s k -> m ()
 cleanDB db = listWallets db >>= mapM_ (runExceptT . removeWallet db)
 
 -- | Storing EVERY checkpoints in the database is quite expensive and useless.

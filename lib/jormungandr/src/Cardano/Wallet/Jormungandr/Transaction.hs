@@ -30,8 +30,6 @@ import Cardano.Wallet.Jormungandr.Binary
     )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
-import Cardano.Wallet.Jormungandr.Primitive.Types
-    ( Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (AddressK), Passphrase (..), PaymentAddress, WalletKey (..), XPrv )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -41,7 +39,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..), TxOut (..), TxWitness (..) )
+    ( Hash (..), Tx (..), TxOut (..), TxWitness (..) )
 import Cardano.Wallet.Transaction
     ( ErrDecodeSignedTx (..)
     , ErrMkStdTx (..)
@@ -91,8 +89,8 @@ newTransactionLayer (Hash block0H) = TransactionLayer
             let payload = block0H <> getHash (signData inps outs)
             pure $ mkTxWitness (fst xprv) (sign payload xprv)
         let tx = Tx
-                { txid = fragmentId inps outs wits
-                , inputs = inps
+                { txId = fragmentId inps outs wits
+                , resolvedInputs = inps
                 , outputs = outs
                 }
         return (tx, wits)

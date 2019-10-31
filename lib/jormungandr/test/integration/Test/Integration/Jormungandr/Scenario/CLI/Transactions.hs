@@ -16,14 +16,12 @@ import Cardano.Wallet.Api.Types
     ( ApiTxId (..), ApiWallet, getApiT )
 import Cardano.Wallet.Jormungandr.Binary
     ( MessageType (..) )
-import Cardano.Wallet.Jormungandr.Primitive.Types
-    ( Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( EncodeAddress (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..) )
+    ( Hash (..), Tx (..) )
 import Data.ByteArray.Encoding
     ( Base (Base16, Base64), convertToBase )
 import Data.Generics.Internal.VL.Lens
@@ -99,7 +97,7 @@ spec = do
     it "TRANS_EXTERNAL_CREATE_01 - proper single output transaction and \
        \proper binary format" $ \ctx -> do
         let toSend = 1 :: Natural
-        (ExternalTxFixture wSrc wDest fee txWits@((Tx txId _ _), _)) <-
+        (ExternalTxFixture wSrc wDest fee txWits@((Tx txid _ _), _)) <-
             fixtureExternalTx @t ctx toSend
         let baseOk = Base16
         let arg = T.unpack $ encodeTx txWits MsgTypeTransaction baseOk
@@ -107,7 +105,7 @@ spec = do
         -- post external transaction
         (Exit code, Stdout out, Stderr err) <-
             postExternalTransactionViaCLI @t ctx [arg]
-        let expectedTxId = T.decodeUtf8 . convertToBase Base16 . getHash $ txId
+        let expectedTxId = T.decodeUtf8 . convertToBase Base16 . getHash $ txid
         err `shouldBe` "Ok.\n"
         out `shouldBe` "{\n    \"id\": " ++ show expectedTxId ++ "\n}\n"
         code `shouldBe` ExitSuccess
@@ -170,12 +168,12 @@ spec = do
         err `shouldBe` "Ok.\n"
         txJson <- expectValidJSON (Proxy @ApiTxId) out
         code `shouldBe` ExitSuccess
-        let txId = T.unpack $ toUrlPiece (txJson ^. #id)
+        let txid = T.unpack $ toUrlPiece (txJson ^. #id)
 
         -- Try to forget external tx
         (Exit c2, Stdout out2, Stderr err2) <-
-            deleteTransactionViaCLI @t ctx (T.unpack $ w ^. walletId) txId
-        err2 `shouldContain` errMsg404CannotFindTx (T.pack txId)
+            deleteTransactionViaCLI @t ctx (T.unpack $ w ^. walletId) txid
+        err2 `shouldContain` errMsg404CannotFindTx (T.pack txid)
         out2 `shouldBe` ""
         c2 `shouldBe` ExitFailure 1
 

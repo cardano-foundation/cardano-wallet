@@ -59,8 +59,6 @@ import Cardano.Wallet.Jormungandr.Binary
     ( ConfigParam (..), Message (..), convertBlock )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( softTxMaxSize )
-import Cardano.Wallet.Jormungandr.Primitive.Types
-    ( Tx )
 import Cardano.Wallet.Network
     ( ErrGetBlock (..)
     , ErrNetworkTip (..)
@@ -74,6 +72,7 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader (..)
     , Hash (..)
     , SlotLength (..)
+    , Tx (..)
     , TxWitness (..)
     )
 import Control.Arrow

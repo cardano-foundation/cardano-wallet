@@ -96,8 +96,6 @@ import Cardano.Wallet.Jormungandr.Binary
     ( runGetOrFail )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr, localhostBaseUrl )
-import Cardano.Wallet.Jormungandr.Primitive.Types
-    ( Tx (..) )
 import Cardano.Wallet.Network
     ( Cursor
     , NetworkLayer (..)
@@ -242,7 +240,7 @@ newNetworkLayer tr baseUrl block0H = do
     (block0, bp) <- getInitialBlockchainParameters jor (coerce block0H)
     return (mkRawNetworkLayer (convert block0, bp) 1000 st jor)
   where
-    convert :: J.Block -> W.Block Tx
+    convert :: J.Block -> W.Block
     convert = J.convertBlock
 
 -- | Wrap a Jormungandr client into a 'NetworkLayer' common interface.
@@ -255,7 +253,7 @@ mkRawNetworkLayer
         , t ~ Jormungandr
         , block ~ J.Block
         )
-    => (W.Block Tx, BlockchainParameters)
+    => (W.Block, BlockchainParameters)
     -> Word
         -- ^ Batch size when fetching blocks from Jörmungandr
     -> MVar BlockHeaders

@@ -36,7 +36,7 @@ module Cardano.Wallet.Primitive.Types
     , BlockHeader(..)
 
     -- * Tx
-    , DefineTx(..)
+    , Tx (..)
     , TxIn(..)
     , TxOut(..)
     , TxMeta(..)
@@ -47,6 +47,7 @@ module Cardano.Wallet.Primitive.Types
     , FeePolicy (..)
     , txIns
     , isPending
+    , inputs
 
     -- * Address
     , Address (..)
@@ -227,9 +228,9 @@ import qualified Data.Text.Lazy.Builder as Builder
 -------------------------------------------------------------------------------}
 
 -- | Additional information about a wallet that can't simply be derived from
--- the blockchain like @Wallet s t@ is.
+-- the blockchain like @Wallet s@ is.
 --
--- Whereas @Wallet s t@ in 'Cardano.Wallet.Primitive' can be updated using
+-- Whereas @Wallet s@ in 'Cardano.Wallet.Primitive' can be updated using
 -- @applyBlock@, @WalletMetadata@ is not*.
 --
 -- *) Except for possibly 'status' and 'delegation'...
@@ -507,16 +508,16 @@ data StakeDistribution = StakeDistribution
                                     Block
 -------------------------------------------------------------------------------}
 
-data Block tx = Block
+data Block = Block
     { header
         :: !BlockHeader
     , transactions
-        :: ![tx]
+        :: ![Tx]
     } deriving (Show, Eq, Ord, Generic)
 
-instance NFData tx => NFData (Block tx)
+instance NFData Block
 
-instance Buildable tx => Buildable (Block tx) where
+instance Buildable (Block) where
     build (Block h txs) = mempty
         <> build h
         <> if null txs then " ∅" else "\n" <> indentF 4 (blockListF txs)
@@ -548,39 +549,44 @@ instance Buildable BlockHeader where
                                       Tx
 -------------------------------------------------------------------------------}
 
--- | An abstraction for computing transaction id. The 'target' is an open-type
--- that can be used to discriminate on. For instance:
+-- | Primitive @Tx@-type.
 --
--- @
--- instance DefineTx (HttpBridge network) where
---   txId _ = {- ... -}
---   ,,,
--- @
---
--- Note that `txId` is ambiguous and requires therefore a type application.
--- Likely, a corresponding target would be found in scope (requires however
--- ScopedTypeVariables).
---
--- For example, assuming there's a type 't' in scope, one can simply do:
---
--- @
--- txId @t tx
--- @
-class (NFData (Tx t), Show (Tx t), Ord (Tx t), Buildable (Tx t)) => DefineTx t
-  where
-    type Tx t :: *
-    txId :: Tx t -> Hash "Tx"
-    -- | Compute a transaction id; assumed to be effectively injective.
-    -- It returns an hex-encoded 64-byte hash.
-    --
-    -- NOTE: This is a rather expensive operation
-    inputs :: Tx t -> [TxIn]
-    -- | Get transaction's inputs, ordered
-    outputs :: Tx t -> [TxOut]
-    -- | Get transaction's outputs, ordered
+-- Currently tailored for jormungandr in that inputs are @(TxIn, Coin)@
+-- instead of @TxIn@. We might have to revisit this when supporting another
+-- node.
+data Tx = Tx
+    { txId
+        :: Hash "Tx"
+        -- ^ Jörmungandr computes transaction id by hashing the full content of
+        -- the transaction, which includes witnesses. Therefore, we need either
+        -- to keep track of the witnesses to be able to re-compute the tx id
+        -- every time, or, simply keep track of the id itself.
+    , resolvedInputs
+        :: ![(TxIn, Coin)]
+        -- ^ NOTE: Order of inputs matters in the transaction representation. The
+        -- transaction id is computed from the binary representation of a tx,
+        -- for which inputs are serialized in a specific order.
+    , outputs
+        :: ![TxOut]
+        -- ^ NOTE: Order of outputs matter in the transaction representations. Outputs
+        -- are used as inputs for next transactions which refer to them using
+        -- their indexes. It matters also for serialization.
+    } deriving (Show, Generic, Ord, Eq)
 
-txIns :: forall t. DefineTx t => Set (Tx t) -> Set TxIn
-txIns = foldMap (Set.fromList . inputs @t)
+
+instance NFData Tx
+
+instance Buildable Tx where
+    build (Tx tid ins outs) = mempty
+        <> build tid
+        <> blockListF' "~>" build (fst <$> ins)
+        <> blockListF' "<~" build outs
+
+txIns :: Set Tx -> Set TxIn
+txIns = foldMap (Set.fromList . inputs)
+
+inputs :: Tx -> [TxIn]
+inputs = map fst . resolvedInputs
 
 data TxIn = TxIn
     { inputId

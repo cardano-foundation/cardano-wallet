@@ -82,8 +82,6 @@ import Cardano.Wallet.DB.Model
     , mRemoveWallet
     , mRollbackTo
     )
-import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( DummyTarget, Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), PersistPrivateKey (..), XPrv )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -98,10 +96,12 @@ import Cardano.Wallet.Primitive.Types
     , Range (..)
     , SlotId (..)
     , SortOrder (..)
+    , Tx (..)
     , TxMeta (..)
     , TxStatus
     , WalletId (..)
     , WalletMetadata (..)
+    , inputs
     )
 import Control.Foldl
     ( Fold (..) )
@@ -192,10 +192,11 @@ import qualified Test.StateMachine.Types.Rank2 as Rank2
 
 -- | The mock state type uses the model database with mock wallet ID and key
 -- types.
-type Mock s = Database MWid s DummyTarget MPrivKey
+type Mock s = Database MWid s MPrivKey
 
 -- | Shortcut for wallet type.
-type MWallet s = Wallet s DummyTarget
+-- TODO: Shortcut is now potless. Remove.
+type MWallet s = Wallet s
 
 -- | Mock wallet ID -- simple and easy to read.
 newtype MWid = MWid String
@@ -255,7 +256,7 @@ data Cmd s wid
     | ListCheckpoints wid
     | PutWalletMeta wid WalletMetadata
     | ReadWalletMeta wid
-    | PutTxHistory wid (TxHistory DummyTarget)
+    | PutTxHistory wid TxHistory
     | ReadTxHistory wid SortOrder (Range SlotId) (Maybe TxStatus)
     | PutPrivateKey wid MPrivKey
     | ReadPrivateKey wid
@@ -269,7 +270,7 @@ data Success s wid
     | WalletIds [wid]
     | Checkpoint (Maybe (MWallet s))
     | Metadata (Maybe WalletMetadata)
-    | TxHistory (TxHistory DummyTarget)
+    | TxHistory TxHistory
     | PrivateKey (Maybe MPrivKey)
     | BlockHeaders [BlockHeader]
     deriving (Show, Eq, Functor, Foldable, Traversable)
@@ -331,7 +332,7 @@ runMock = \case
 
 -- | Type alias for the 'DBLayer', just to reduce noise in type signatures. This
 -- 'DBLayer' is specialized to a dummy node backend.
-type DBLayerTest s k = DBLayer IO s DummyTarget k
+type DBLayerTest s k = DBLayer IO s k
 
 runIO
     :: forall s k. (MockPrivKey (k 'RootK))
@@ -485,7 +486,7 @@ lockstep m@(Model _ ws) c (At resp) = Event
 
 {-# ANN generator ("HLint: ignore Use ++" :: String) #-}
 generator
-    :: forall s. (Arbitrary (Wallet s DummyTarget), GenState s)
+    :: forall s. (Arbitrary (Wallet s), GenState s)
     => Model s Symbolic
     -> Maybe (Gen (Cmd s :@ Symbolic))
 generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
@@ -545,7 +546,7 @@ generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
 isUnordered :: Ord x => [x] -> Bool
 isUnordered xs = xs /= L.sort xs
 
-shrinker :: Arbitrary (Wallet s DummyTarget) => Model s Symbolic -> Cmd s :@ Symbolic -> [Cmd s :@ Symbolic]
+shrinker :: Arbitrary (Wallet s) => Model s Symbolic -> Cmd s :@ Symbolic -> [Cmd s :@ Symbolic]
 shrinker (Model _ _) (At cmd) = case cmd of
     PutCheckpoint wid wal ->
         [ At $ PutCheckpoint wid wal'
@@ -592,7 +593,7 @@ type TestConstraints s k =
     ( MockPrivKey (k 'RootK)
     , Eq s
     , GenState s
-    , Arbitrary (Wallet s DummyTarget)
+    , Arbitrary (Wallet s)
     )
 
 sm
@@ -871,7 +872,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
             | otherwise = Nothing
 
     readTxHistory
-        :: (TxHistory DummyTarget -> Bool)
+        :: (TxHistory -> Bool)
         -> Tag
         -> Fold (Event s Symbolic) (Maybe Tag)
     readTxHistory check res = Fold update False (extractf res)

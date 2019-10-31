@@ -29,7 +29,6 @@ module Cardano.Wallet.DB.Sqlite
 
     -- * Interfaces
     , PersistState (..)
-    , PersistTx (..)
     ) where
 
 import Prelude
@@ -87,8 +86,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
-import Cardano.Wallet.Primitive.Types
-    ( DefineTx (..) )
 import Control.Arrow
     ( (***) )
 import Control.Concurrent.MVar
@@ -178,12 +175,11 @@ import qualified Data.Text as T
 -- If the given file path does not exist, it will be created by the sqlite
 -- library.
 withDBLayer
-    :: forall s t k a.
+    :: forall s k a.
         ( IsOurs s
         , NFData s
         , Show s
         , PersistState s
-        , PersistTx t
         , PersistPrivateKey (k 'RootK)
         )
     => CM.Configuration
@@ -192,7 +188,7 @@ withDBLayer
        -- ^ Logging object
     -> Maybe FilePath
        -- ^ Path to database directory, or Nothing for in-memory database
-    -> (DBLayer IO s t k -> IO a)
+    -> (DBLayer IO s k -> IO a)
        -- ^ Action to run.
     -> IO a
 withDBLayer logConfig trace mDatabaseDir action =
@@ -203,12 +199,11 @@ withDBLayer logConfig trace mDatabaseDir action =
 
 -- | Instantiate a 'DBFactory' from a given directory
 mkDBFactory
-    :: forall s t k.
+    :: forall s k.
         ( IsOurs s
         , NFData s
         , Show s
         , PersistState s
-        , PersistTx t
         , PersistPrivateKey (k 'RootK)
         , WalletKey k
         )
@@ -218,7 +213,7 @@ mkDBFactory
        -- ^ Logging object
     -> Maybe FilePath
        -- ^ Path to database directory, or Nothing for in-memory database
-    -> DBFactory IO s t k
+    -> DBFactory IO s k
 mkDBFactory cfg tr mDatabaseDir = case mDatabaseDir of
     Nothing -> DBFactory
         { withDatabase = \_ ->
@@ -284,12 +279,11 @@ findDatabases tr dir = do
 -- should be closed with 'destroyDBLayer'. If you use 'withDBLayer' then both of
 -- these things will be handled for you.
 newDBLayer
-    :: forall s t k.
+    :: forall s k.
         ( IsOurs s
         , NFData s
         , Show s
         , PersistState s
-        , PersistTx t
         , PersistPrivateKey (k 'RootK)
         )
     => CM.Configuration
@@ -298,7 +292,7 @@ newDBLayer
        -- ^ Logging object
     -> Maybe FilePath
        -- ^ Path to database file, or Nothing for in-memory database
-    -> IO (SqliteContext, DBLayer IO s t k)
+    -> IO (SqliteContext, DBLayer IO s k)
 newDBLayer logConfig trace mDatabaseFile = do
     lock <- newMVar ()
     let trace' = transformTrace trace
@@ -316,7 +310,7 @@ newDBLayer logConfig trace mDatabaseFile = do
                       insert_ (mkWalletEntity wid meta)
                   when (isRight res) $ do
                       insertCheckpoint wid cp
-                      let (metas, txins, txouts) = mkTxHistory @t wid txs
+                      let (metas, txins, txouts) = mkTxHistory wid txs
                       putTxMetas metas
                       putTxs txins txouts
                   pure res
@@ -348,7 +342,7 @@ newDBLayer logConfig trace mDatabaseFile = do
                   Just cp -> do
                       utxo <- selectUTxO cp
                       s <- selectState (checkpointId cp)
-                      pure (checkpointFromEntity @s @t cp utxo <$> s)
+                      pure (checkpointFromEntity @s cp utxo <$> s)
                   Nothing -> pure Nothing
 
         , listCheckpoints = \(PrimaryKey wid) -> runQuery $
@@ -410,14 +404,14 @@ newDBLayer logConfig trace mDatabaseFile = do
               ExceptT $ runQuery $
               selectWallet wid >>= \case
                   Just _ -> do
-                      let (metas, txins, txouts) = mkTxHistory @t wid txs
+                      let (metas, txins, txouts) = mkTxHistory wid txs
                       putTxMetas metas
                       putTxs txins txouts
                       pure $ Right ()
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
         , readTxHistory = \(PrimaryKey wid) order range status -> runQuery $
-              selectTxHistory @t wid order $ catMaybes
+              selectTxHistory wid order $ catMaybes
                 [ (TxMetaSlot >=.) <$> W.inclusiveLowerBound range
                 , (TxMetaSlot <=.) <$> W.inclusiveUpperBound range
                 , (TxMetaStatus ==.) <$> status
@@ -537,9 +531,8 @@ privateKeyFromEntity (PrivateKey _ k h) =
     unsafeDeserializeXPrv (k, h)
 
 mkCheckpointEntity
-    :: forall s t. ()
-    => W.WalletId
-    -> W.Wallet s t
+    :: W.WalletId
+    -> W.Wallet s
     -> (Checkpoint, [UTxO])
 mkCheckpointEntity wid wal =
     (cp, utxo)
@@ -574,11 +567,11 @@ mkCheckpointEntity wid wal =
 -- note: TxIn records must already be sorted by order
 -- and TxOut records must already by sorted by index.
 checkpointFromEntity
-    :: forall s t. (IsOurs s, NFData s, Show s, DefineTx t)
+    :: (IsOurs s, NFData s, Show s)
     => Checkpoint
     -> [UTxO]
     -> s
-    -> W.Wallet s t
+    -> W.Wallet s
 checkpointFromEntity cp utxo s =
     W.unsafeInitWallet utxo' header s bp
   where
@@ -612,14 +605,13 @@ checkpointFromEntity cp utxo s =
         }
 
 mkTxHistory
-    :: forall t. PersistTx t
-    => W.WalletId
-    -> [(W.Tx t, W.TxMeta)]
+    :: W.WalletId
+    -> [(W.Tx, W.TxMeta)]
     -> ([TxMeta], [TxIn], [TxOut])
 mkTxHistory wid txs = flatTxHistory
-    [ (mkTxMetaEntity wid txid meta, mkTxInputsOutputs @t (txid, tx))
+    [ (mkTxMetaEntity wid txid meta, mkTxInputsOutputs (txid, tx))
     | (tx, meta) <- txs
-    , let txid = txId @t tx
+    , let txid = W.txId tx
     ]
   where
     -- | Make flat lists of entities from the result of 'mkTxHistory'.
@@ -628,16 +620,15 @@ mkTxHistory wid txs = flatTxHistory
     flatTxHistory entities =
         ( map fst entities
         , concatMap (fst . snd) entities
-        , concatMap (snd. snd) entities
+        , concatMap (snd . snd) entities
         )
 
 mkTxInputsOutputs
-    :: forall t. PersistTx t
-    => (W.Hash "Tx", W.Tx t)
+    :: (W.Hash "Tx", W.Tx)
     -> ([TxIn], [TxOut])
 mkTxInputsOutputs tx =
-    ( (dist mkTxIn . ordered (resolvedInputs @t)) tx
-    , (dist mkTxOut . ordered (W.outputs @t)) tx )
+    ( (dist mkTxIn . ordered W.resolvedInputs) tx
+    , (dist mkTxOut . ordered W.outputs) tx )
   where
     mkTxIn tid (ix, (txIn, amt)) = TxIn
         { txInputTxId = TxId tid
@@ -673,15 +664,14 @@ mkTxMetaEntity wid txid meta = TxMeta
 -- note: TxIn records must already be sorted by order
 -- and TxOut records must already be sorted by index
 txHistoryFromEntity
-    :: forall t. PersistTx t
-    => [TxMeta]
+    :: [TxMeta]
     -> [TxIn]
     -> [TxOut]
-    -> [(W.Tx t, W.TxMeta)]
+    -> [(W.Tx, W.TxMeta)]
 txHistoryFromEntity metas ins outs = map mkItem metas
   where
     mkItem m = (mkTxWith (txMetaTxId m), mkTxMeta m)
-    mkTxWith txid = mkTx @t
+    mkTxWith txid = W.Tx
         (getTxId txid)
         (map mkTxIn $ filter ((== txid) . txInputTxId) ins)
         (map mkTxOut $ filter ((== txid) . txOutputTxId) outs)
@@ -713,9 +703,9 @@ selectWallet wid =
     fmap entityVal <$> selectFirst [WalId ==. wid] []
 
 insertCheckpoint
-    :: forall s t. (PersistState s)
+    :: forall s. (PersistState s)
     => W.WalletId
-    -> W.Wallet s t
+    -> W.Wallet s
     -> SqlPersistT IO ()
 insertCheckpoint wid wallet = do
     let (cp, utxo) = mkCheckpointEntity wid wallet
@@ -824,17 +814,16 @@ selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
     concatUnzip = (concat *** concat) . unzip
 
 selectTxHistory
-    :: forall t. PersistTx t
-    => W.WalletId
+    :: W.WalletId
     -> W.SortOrder
     -> [Filter TxMeta]
-    -> SqlPersistT IO [(W.Tx t, W.TxMeta)]
+    -> SqlPersistT IO [(W.Tx, W.TxMeta)]
 selectTxHistory wid order conditions = do
     metas <- fmap entityVal <$> selectList
         ((TxMetaWalletId ==. wid) : conditions) sortOpt
     let txids = map txMetaTxId metas
     (ins, outs) <- selectTxs txids
-    return $ txHistoryFromEntity @t metas ins outs
+    return $ txHistoryFromEntity metas ins outs
   where
     -- Note: there are sorted indices on these columns.
     -- The secondary sort by TxId is to make the ordering stable
@@ -902,21 +891,6 @@ class PersistState s where
     insertState :: (W.WalletId, W.SlotId) -> s -> SqlPersistT IO ()
     -- | Load the state for a checkpoint.
     selectState :: (W.WalletId, W.SlotId) -> SqlPersistT IO (Maybe s)
-
-class DefineTx t => PersistTx t where
-    resolvedInputs :: Tx t -> [(W.TxIn, Maybe W.Coin)]
-    -- | Extract transaction resolved inputs. This slightly breaks the
-    -- abstraction boundary of 'DefineTx' which doesn't really force any
-    -- structure on the resolved inputs.
-    -- However, here in the DB-Layer, supporting arbitrary shape for the inputs
-    -- be much more complex and require quite a lot of work. So, we kinda force
-    -- the format here and only here, and leave the rest of the code with an
-    -- opaque 'ResolvedTxIn' type.
-
-    mkTx :: W.Hash "Tx" -> [(W.TxIn, Maybe W.Coin)] -> [W.TxOut] -> Tx t
-    -- | Re-construct a transaction from a set resolved inputs and
-    -- some outputs. Returns 'Nothing' if the transaction couldn't be
-    -- constructed.
 
 {-------------------------------------------------------------------------------
                           Sequential address discovery

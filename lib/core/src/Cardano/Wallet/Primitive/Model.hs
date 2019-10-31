@@ -61,7 +61,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
-    , DefineTx (..)
     , Direction (..)
     , Dom (..)
     , EpochLength (..)
@@ -70,6 +69,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotLength (..)
     , SlotParameters (SlotParameters)
     , StartTime (..)
+    , Tx (..)
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
@@ -77,6 +77,7 @@ import Cardano.Wallet.Primitive.Types
     , UTxO (..)
     , balance
     , excluding
+    , inputs
     , restrictedBy
     , txIns
     )
@@ -96,8 +97,6 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
     ( catMaybes )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -153,25 +152,25 @@ import qualified Data.Text.Encoding as T
 -- Wallet SeqState Shelley
 -- Wallet SeqState Bitcoin
 -- @
-data Wallet s t where
-    Wallet :: (IsOurs s, NFData s, Show s, DefineTx t)
+data Wallet s where
+    Wallet :: (IsOurs s, NFData s, Show s)
         => UTxO -- Unspent tx outputs belonging to this wallet
         -> BlockHeader -- Header of the latest applied block (current tip)
         -> s -- Address discovery state
         -> BlockchainParameters
-        -> Wallet s t
+        -> Wallet s
 
-deriving instance Show (Wallet s t)
-deriving instance Eq s => Eq (Wallet s t)
-instance NFData (Wallet s t) where
+deriving instance Show (Wallet s)
+deriving instance Eq s => Eq (Wallet s)
+instance NFData (Wallet s) where
     rnf (Wallet u sl s bp) =
         deepseq (rnf u) $
         deepseq (rnf sl) $
         deepseq (rnf s) $
         deepseq (rnf bp) ()
 
-instance Buildable s => Buildable (Wallet s t) where
-    build (Wallet u tip s bp) = "Wallet s t\n"
+instance Buildable s => Buildable (Wallet s) where
+    build (Wallet u tip s bp) = "Wallet s\n"
         <> indentF 4 ("Tip: " <> build tip)
         <> indentF 4 ("Parameters:\n" <> indentF 4 (build bp))
         <> indentF 4 ("UTxO: " <> build u)
@@ -230,17 +229,17 @@ slotParams bp =
 --
 -- The wallet tip will be set to the header of the applied genesis block.
 initWallet
-    :: forall s t. (IsOurs s, NFData s, Show s, DefineTx t)
-    => Block (Tx t)
+    :: (IsOurs s, NFData s, Show s)
+    => Block
         -- ^ The genesis block
     -> BlockchainParameters
         -- ^ Initial blockchain parameters
     -> s
         -- ^ Initial address discovery state
-    -> ([(Tx t, TxMeta)], Wallet s t)
+    -> ([(Tx, TxMeta)], Wallet s)
 initWallet block bp s =
     let
-        ((txs, u), s') = prefilterBlock (Proxy @t) block mempty s
+        ((txs, u), s') = prefilterBlock block mempty s
     in
         (txs, Wallet u (header block) s' bp)
 
@@ -250,7 +249,7 @@ initWallet block bp s =
 -- wallet checkpoints from the database (where it is assumed a valid wallet was
 -- stored into the database).
 unsafeInitWallet
-    :: (IsOurs s, NFData s, Show s, DefineTx t)
+    :: (IsOurs s, NFData s, Show s)
     => UTxO
        -- ^ Unspent tx outputs belonging to this wallet
     -> BlockHeader
@@ -259,28 +258,27 @@ unsafeInitWallet
     -- ^ Address discovery state
     -> BlockchainParameters
     -- ^ Blockchain parameters
-    -> Wallet s t
+    -> Wallet s
 unsafeInitWallet = Wallet
 
 -- | Update the state of an existing Wallet model
 updateState
     :: (IsOurs s, NFData s, Show s)
     => s
-    -> Wallet s t
-    -> Wallet s t
+    -> Wallet s
+    -> Wallet s
 updateState s (Wallet u tip _ bp) = Wallet u tip s bp
 
 -- | Apply Block is the primary way of making the wallet evolve. It returns the
 -- updated wallet state, as well as a set of all transactions belonging to the
 -- wallet discovered while applying the block.
 applyBlock
-    :: forall s t. (DefineTx t)
-    => Block (Tx t)
-    -> Wallet s t
-    -> ([(Tx t, TxMeta)], Wallet s t)
+    :: Block
+    -> Wallet s
+    -> ([(Tx, TxMeta)], Wallet s)
 applyBlock !b (Wallet !u _ s bp) =
     let
-        ((txs, u'), s') = prefilterBlock (Proxy @t) b u s
+        ((txs, u'), s') = prefilterBlock b u s
     in
         ( txs
         , Wallet u' (b ^. #header) s' bp
@@ -310,10 +308,9 @@ applyBlock !b (Wallet !u _ s bp) =
 --   __@w@__.
 --
 applyBlocks
-    :: forall s t. (DefineTx t)
-    => NonEmpty (Block (Tx t))
-    -> Wallet s t
-    -> NonEmpty ([(Tx t, TxMeta)], Wallet s t)
+    :: NonEmpty (Block)
+    -> Wallet s
+    -> NonEmpty ([(Tx, TxMeta)], Wallet s)
 applyBlocks (block0 :| blocks) cp =
     NE.scanl (flip applyBlock . snd) (applyBlock block0 cp) blocks
 
@@ -322,50 +319,48 @@ applyBlocks (block0 :| blocks) cp =
 -------------------------------------------------------------------------------}
 
 -- | Get the wallet current tip
-currentTip :: Wallet s t -> BlockHeader
+currentTip :: Wallet s -> BlockHeader
 currentTip (Wallet _ tip _ _) = tip
 
 -- | Get the wallet current state
-getState :: Wallet s t -> s
+getState :: Wallet s -> s
 getState (Wallet _ _ s _) = s
 
 -- | Available balance = 'balance' . 'availableUTxO'
-availableBalance :: DefineTx t => Set (Tx t) -> Wallet s t -> Natural
+availableBalance :: Set Tx -> Wallet s -> Natural
 availableBalance pending =
     balance . availableUTxO pending
 
 -- | Total balance = 'balance' . 'totalUTxO'
-totalBalance :: DefineTx t => Set (Tx t) -> Wallet s t -> Natural
+totalBalance :: Set Tx -> Wallet s -> Natural
 totalBalance pending =
     balance . totalUTxO pending
 
 -- | Available UTxO = @pending ⋪ utxo@
 availableUTxO
-    :: forall s t. DefineTx t
-    => Set (Tx t)
-    -> Wallet s t
+    :: Set Tx
+    -> Wallet s
     -> UTxO
 availableUTxO pending (Wallet u _ _ _) =
-    u  `excluding` txIns @t pending
+    u  `excluding` txIns pending
 
 -- | Total UTxO = 'availableUTxO' @<>@ 'changeUTxO'
 totalUTxO
-    :: forall s t. DefineTx t
-    => Set (Tx t)
-    -> Wallet s t
+    :: Set Tx
+    -> Wallet s
     -> UTxO
 totalUTxO pending wallet@(Wallet _ _ s _) =
-    availableUTxO pending wallet <> changeUTxO (Proxy @t) pending s
+    availableUTxO pending wallet <> changeUTxO pending s
 
 -- | Actual utxo
-utxo :: Wallet s t -> UTxO
+utxo :: Wallet s -> UTxO
 utxo (Wallet u _ _ _) = u
 
 -- | Get the current chain parameters.
 --
 -- Parameters may change over time via protocol updates, so we keep track of
 -- them as part of the wallet checkpoints.
-blockchainParameters :: Wallet s t -> BlockchainParameters
+blockchainParameters :: Wallet s -> BlockchainParameters
 blockchainParameters (Wallet _ _ _ bp) = bp
 
 {-------------------------------------------------------------------------------
@@ -394,13 +389,12 @@ blockchainParameters (Wallet _ _ _ bp) = bp
 -- in order, starting from the known inputs that can be spent (from the previous
 -- UTxO) and, collect resolved tx outputs that are ours as we apply transactions.
 prefilterBlock
-    :: forall s t. (IsOurs s, DefineTx t)
-    => Proxy t
-    -> Block (Tx t)
+    :: (IsOurs s)
+    => Block
     -> UTxO
     -> s
-    -> (([(Tx t, TxMeta)], UTxO), s)
-prefilterBlock proxy b u0 = runState $ do
+    -> (([(Tx, TxMeta)], UTxO), s)
+prefilterBlock b u0 = runState $ do
     (ourTxs, ourU) <- foldM applyTx (mempty, u0) (transactions b)
     return (ourTxs, ourU)
   where
@@ -413,12 +407,13 @@ prefilterBlock proxy b u0 = runState $ do
         , amount = Quantity amt
         }
     applyTx
-        :: ([(Tx t, TxMeta)], UTxO)
-        -> Tx t
-        -> State s ([(Tx t, TxMeta)], UTxO)
+        :: IsOurs s
+        => ([(Tx, TxMeta)], UTxO)
+        ->Tx
+        -> State s ([(Tx, TxMeta)], UTxO)
     applyTx (!txs, !u) tx = do
-        ourU <- state $ utxoOurs proxy tx
-        let ourIns = Set.fromList (inputs @t tx) `Set.intersection` dom (u <> ourU)
+        ourU <- state $ utxoOurs tx
+        let ourIns = Set.fromList (inputs tx) `Set.intersection` dom (u <> ourU)
         let u' = (u <> ourU) `excluding` ourIns
         let received = fromIntegral @_ @Integer $ balance ourU
         let spent = fromIntegral @_ @Integer $ balance (u `restrictedBy` ourIns)
@@ -444,29 +439,27 @@ prefilterBlock proxy b u0 = runState $ do
 -- can only discover new addresses when applying blocks. The state is
 -- therefore use in a read-only mode here.
 changeUTxO
-    :: forall s t. (IsOurs s, DefineTx t)
-    => Proxy t
-    -> Set (Tx t)
+    :: IsOurs s
+    => Set Tx
     -> s
     -> UTxO
-changeUTxO proxy pending = evalState $
-    mconcat <$> mapM (state . utxoOurs proxy) (Set.toList pending)
+changeUTxO pending = evalState $
+    mconcat <$> mapM (state . utxoOurs) (Set.toList pending)
 
 -- | Construct our _next_ UTxO (possible empty) from a transaction by selecting
 -- outputs that are ours. It is important for the transaction outputs to be
 -- ordered correctly, since they become available inputs for the subsequent
 -- blocks.
 utxoOurs
-    :: forall s t. (IsOurs s, DefineTx t)
-    => Proxy t
-    -> (Tx t)
+    :: IsOurs s
+    => Tx
     -> s
     -> (UTxO, s)
-utxoOurs _ tx = runState $ toUtxo <$> forM (zip [0..] (outputs @t tx)) filterOut
+utxoOurs tx = runState $ toUtxo <$> forM (zip [0..] (outputs tx)) filterOut
   where
     toUtxo = UTxO . Map.fromList . catMaybes
     filterOut (ix, out) = do
         predicate <- state $ isOurs $ address out
         return $ if predicate
-            then Just (TxIn (txId @t tx) ix, out)
+            then Just (TxIn (txId tx) ix, out)
             else Nothing

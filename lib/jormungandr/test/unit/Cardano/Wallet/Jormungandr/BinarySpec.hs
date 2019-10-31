@@ -35,8 +35,6 @@ import Cardano.Wallet.Jormungandr.Binary
     , txWitnessSize
     , withHeader
     )
-import Cardano.Wallet.Jormungandr.Primitive.Types
-    ( Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Fee
@@ -49,6 +47,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolId (..)
     , SlotId (..)
     , StartTime (..)
+    , Tx (..)
     , TxIn (..)
     , TxOut (..)
     , TxWitness (..)
@@ -153,10 +152,10 @@ spec = do
                             \3a3ea0c36f21184d01439af96c4442eb"
                         ]
                     , Transaction (Tx
-                        { txid = Hash $ unsafeFromHex
+                        { txId = Hash $ unsafeFromHex
                             "30b99c425ca5aa64e24f23b5cef542\
                             \170ac96ea32ea823904f9446cd49966013"
-                        , inputs = []
+                        , resolvedInputs = []
                         , outputs =
                             [ TxOut
                                 { address = Address $ unsafeFromHex
@@ -175,10 +174,10 @@ spec = do
                             "877fbb2283ba1ed56d835fb8cd66694a840\
                             \360e69c690a04aeef39629cdd804f"
                         , Tx
-                            { txid = Hash $ unsafeFromHex
+                            { txId = Hash $ unsafeFromHex
                               "4ab1923eb7e84ab2ac73769ff863138cce3a7\
                               \1ba9f4d2533a007d36496aa58c9"
-                            , inputs = []
+                            , resolvedInputs = []
                             , outputs = []
                             }
                         , []

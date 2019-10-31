@@ -1,41 +1,36 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget
-    , Tx (..)
     , block0
     , genesisParameters
+    , mkTxId
+    , mkTx
     ) where
 
 import Prelude
 
-import Cardano.Wallet.DB.Sqlite
-    ( PersistTx (..) )
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
-    , DefineTx
+    , Coin (..)
     , EpochLength (..)
     , FeePolicy (..)
     , Hash (..)
     , SlotLength (..)
     , StartTime (..)
+    , Tx (..)
     , TxIn (..)
     , TxOut (..)
     , slotMinBound
     )
-import Control.DeepSeq
-    ( NFData )
 import Crypto.Hash
-    ( hash )
-import Crypto.Hash.Algorithms
-    ( Blake2b_256 )
+    ( Blake2b_256, hash )
 import Data.ByteString
     ( ByteString )
 import Data.Quantity
@@ -43,46 +38,17 @@ import Data.Quantity
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 import Fmt
-    ( Buildable (..), blockListF' )
-import GHC.Generics
-    ( Generic )
+    ( Buildable (..) )
 
-import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Char8 as B8
 
 data DummyTarget
 
-data Tx = Tx
-    { inputs :: ![TxIn]
-    , outputs :: ![TxOut]
-    } deriving (Show, Generic, Ord, Eq)
-
-instance NFData Tx
-
-instance PersistTx DummyTarget where
-    resolvedInputs = flip zip (repeat Nothing) . inputs
-    mkTx _ inps = Tx (fst <$> inps)
-
-instance DefineTx DummyTarget where
-    type Tx DummyTarget = Tx
-    txId = Hash . blake2b256 . B8.pack . show
-      where
-        blake2b256 :: ByteString -> ByteString
-        blake2b256 =
-            BA.convert . hash @_ @Blake2b_256
-    inputs = inputs
-    outputs = outputs
-
 instance Buildable DummyTarget where
     build _ = mempty
 
-instance Buildable Tx where
-    build (Tx ins outs) = mempty
-        <> blockListF' "~>" build ins
-        <> blockListF' "<~" build outs
-
-block0 :: Block Tx
+block0 :: Block
 block0 = Block
     { header = BlockHeader
         { slotId = slotMinBound
@@ -103,3 +69,16 @@ genesisParameters = BlockchainParameters
     , getTxMaxSize = Quantity 8192
     , getEpochStability = Quantity 2160
     }
+
+
+-- | Construct a @Tx@, computing its hash using the dummy @mkTxId@.
+mkTx :: [(TxIn, Coin)] -> [TxOut] -> Tx
+mkTx ins outs = Tx (mkTxId ins outs) ins outs
+
+-- | txId calculation for testing purposes.
+mkTxId :: [(TxIn, Coin)] -> [TxOut] -> Hash "Tx"
+mkTxId = curry $ Hash . blake2b256 . B8.pack . show
+   where
+     blake2b256 :: ByteString -> ByteString
+     blake2b256 =
+         BA.convert . hash @_ @Blake2b_256

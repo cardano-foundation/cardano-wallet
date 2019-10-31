@@ -77,7 +77,6 @@ library
       Cardano.Wallet.Jormungandr.Binary
       Cardano.Wallet.Jormungandr.Compatibility
       Cardano.Wallet.Jormungandr.Network
-      Cardano.Wallet.Jormungandr.Primitive.Types
       Cardano.Wallet.Jormungandr.Transaction
 
 executable cardano-wallet-jormungandr
