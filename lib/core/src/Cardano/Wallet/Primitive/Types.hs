@@ -1195,7 +1195,8 @@ newtype ProtocolMagic = ProtocolMagic Int32
 {-------------------------------------------------------------------------------
                                 Accounts
 -------------------------------------------------------------------------------}
-
+-- | Also known as a staking key, chimeric account is used in group-type address
+-- for staking purposes. It is a public key of the account address
 newtype ChimericAccount = ChimericAccount ByteString
     deriving (Show, Eq)
 
