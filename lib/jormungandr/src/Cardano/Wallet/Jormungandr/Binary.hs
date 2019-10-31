@@ -438,7 +438,7 @@ getLegacyTransaction size = do
         coin <- Coin <$> getWord64be
         addr <- getLegacyAddress
         pure (TxOut addr coin)
-    let inps = pure (error "TODO: getLegacyTransaction inputs?")
+    let inps = mempty
     pure (Tx tid inps outs)
 
 putSignedTx :: [(TxIn, Coin)] -> [TxOut] -> [TxWitness] -> Put
