@@ -575,12 +575,16 @@ spec = do
                 , "1+1x"
                 , "1 +1x"
                 , "1+ 1x"
+                , "1+ 1x + 1y"
+                , "1 +1x + 1y"
+                , "1 + 1x+ 1y"
+                , "1 + 1x +1y"
                 ]
         forM_ invalidFeePolicyTexts $ \policyText ->
             it ("fail fromText @FeePolicy " <> show policyText) $ do
                 let err =
                         "Unable to decode FeePolicy: \
-                        \Linear equation not in expected format: a + bx"
+                        \Linear equation not in expected format: a + bx + cy"
                 fromText @FeePolicy policyText === Left (TextDecodingError err)
 
     describe "Lemma 2.1 - Properties of UTxO operations" $ do
@@ -815,11 +819,12 @@ instance Arbitrary FeePolicy where
     arbitrary = do
         NonNegative a <- arbitrary
         NonNegative b <- arbitrary
-        return $ LinearFee (Quantity a) (Quantity b)
-    shrink (LinearFee (Quantity a) (Quantity b)) =
-        f <$> shrink (a, b)
+        NonNegative c <- arbitrary
+        return $ LinearFee (Quantity a) (Quantity b) (Quantity c)
+    shrink (LinearFee (Quantity a) (Quantity b) (Quantity c)) =
+        f <$> shrink (a, b, c)
       where
-        f (x, y) = LinearFee (Quantity x) (Quantity y)
+        f (x, y, z) = LinearFee (Quantity x) (Quantity y) (Quantity z)
 
 instance Arbitrary (Hash "Genesis") where
     arbitrary = Hash . BS.pack <$> arbitrary

@@ -558,8 +558,11 @@ getLinearFee :: Get FeePolicy
 getLinearFee = label "getFeePolicy" $ do
     a <- getWord64be
     b <- getWord64be
-    _perCert <- getWord64be
-    return $ LinearFee (Quantity $ double a) (Quantity $ double b)
+    c <- getWord64be
+    return $ LinearFee
+        (Quantity $ double a)
+        (Quantity $ double b)
+        (Quantity $ double c)
   where
     double = fromRational . toRational
 

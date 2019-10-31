@@ -774,7 +774,7 @@ createMigrationSourceData ctx wid = do
     (cp, _, pending) <- readWallet @ctx @s @t @k ctx wid
     let bp = blockchainParameters cp
     let utxo = availableUTxO @s @t pending cp
-    let feePolicy@(LinearFee (Quantity a) _) = bp ^. #getFeePolicy
+    let feePolicy@(LinearFee (Quantity a) _ _) = bp ^. #getFeePolicy
     let feeOptions = (feeOpts tl feePolicy)
             { dustThreshold = Coin $ ceiling a }
     let selOptions = coinSelOpts tl (bp ^. #getTxMaxSize)
