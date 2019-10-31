@@ -478,7 +478,7 @@ benchPutSeqState numCheckpoints numAddrs db =
 
 mkPool
     :: forall t c. (PaymentAddress t ShelleyKey, Typeable c)
-    => Int -> Int -> AddressPool t c
+    => Int -> Int -> AddressPool t c ShelleyKey
 mkPool numAddrs i = mkAddressPool ourAccount defaultAddressPoolGap addrs
   where
     addrs =
@@ -564,8 +564,8 @@ benchDiskSize action = bracket setupDB cleanupDB $ \(f, ctx, db) -> do
 ----------------------------------------------------------------------------
 -- Mock data to use for benchmarks
 
-type DBLayerBench = DBLayer IO (SeqState 'Testnet) DummyTarget ShelleyKey
-type WalletBench = Wallet (SeqState 'Testnet) DummyTarget
+type DBLayerBench = DBLayer IO (SeqState 'Testnet ShelleyKey) DummyTarget ShelleyKey
+type WalletBench = Wallet (SeqState 'Testnet ShelleyKey) DummyTarget
 
 instance NFData (DBLayer m s t k) where
     rnf _ = ()
@@ -576,7 +576,7 @@ instance NFData SqliteContext where
 testCp :: WalletBench
 testCp = snd $ initWallet block0 genesisParameters initDummyState
 
-initDummyState :: SeqState 'Testnet
+initDummyState :: SeqState 'Testnet ShelleyKey
 initDummyState =
     mkSeqState (xprv, mempty) defaultAddressPoolGap
   where

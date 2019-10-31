@@ -8,6 +8,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -59,21 +60,19 @@ import Prelude
 import Cardano.Crypto.Wallet
     ( XPrv, XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
+    ( ChangeChain (..)
+    , Depth (..)
     , DerivationType (..)
+    , HardDerivation (..)
     , Index
-    , NetworkDiscriminant
+    , KeyFingerprint (..)
+    , MkKeyFingerprint (..)
+    , NetworkDiscriminant (..)
     , Passphrase (..)
     , PaymentAddress (..)
+    , PersistPublicKey (..)
+    , SoftDerivation (..)
     , WalletKey (..)
-    )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ChangeChain (..)
-    , ShelleyKey (..)
-    , deriveAccountPrivateKey
-    , deriveAddressPrivateKey
-    , deriveAddressPublicKey
-    , serializeXPubSeq
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
@@ -109,14 +108,7 @@ import Data.Typeable
 import Data.Word
     ( Word8 )
 import Fmt
-    ( Buildable (..)
-    , blockListF'
-    , blockMapF'
-    , hexF
-    , indentF
-    , prefixF
-    , suffixF
-    )
+    ( Buildable (..), blockListF', hexF, indentF, prefixF, suffixF )
 import GHC.Generics
     ( Generic )
 
@@ -193,26 +185,36 @@ defaultAddressPoolGap =
 --
 -- >>> mkAddressPool xpub gap changeChain mempty
 -- AddressPool { }
-data AddressPool (network :: NetworkDiscriminant) (chain :: ChangeChain) = AddressPool
+data AddressPool
+    (network :: NetworkDiscriminant)
+    (chain :: ChangeChain)
+    (key :: Depth -> * -> *) = AddressPool
     { accountPubKey
-        :: !(ShelleyKey 'AccountK XPub)
+        :: !(key 'AccountK XPub)
         -- ^ Corresponding key for the pool (a pool is tied to only one account)
     , gap
         :: !AddressPoolGap
         -- ^ The actual gap for the pool. This can't change for a given pool.
-    , indexedAddresses
-        :: !(Map Address (Index 'Soft 'AddressK))
-    } deriving (Generic, Show, Eq)
+    , indexedKeys
+        :: !(Map (KeyFingerprint "payment" key) (Index 'Soft 'AddressK))
+    } deriving (Generic)
 
-instance NFData (AddressPool network chain)
+deriving instance (Show (key 'AccountK XPub))
+    => Show (AddressPool network chain key)
 
-instance Typeable chain => Buildable (AddressPool network chain) where
-    build (AddressPool acct (AddressPoolGap g) addrs) = mempty
+deriving instance (Eq (key 'AccountK XPub))
+    => Eq (AddressPool network chain key)
+
+instance (NFData (key 'AccountK XPub))
+    => NFData (AddressPool network chain key)
+
+instance ((PersistPublicKey (key 'AccountK)), Typeable chain)
+    => Buildable (AddressPool network chain key) where
+    build (AddressPool acct (AddressPoolGap g) _) = mempty
         <> ccF <> " " <> acctF <> " (gap=" <> build g <> ")\n"
-        <> indentF 4 (blockMapF' build build addrs)
       where
         ccF = build $ toText $ changeChain @chain
-        xpubF = hexF $ serializeXPubSeq acct
+        xpubF = hexF $ serializeXPub acct
         acctF = prefixF 8 xpubF <> "..." <> suffixF 8 xpubF
 
 -- | Bring a 'ChangeChain' type back to the term-level. This requires a type
@@ -238,8 +240,17 @@ changeChain =
 -- In practice, we always have:
 --
 -- > mkAddressPool key g cc (addresses pool) == pool
-addresses :: AddressPool n chain -> [Address]
-addresses = map fst . L.sortOn snd . Map.toList . indexedAddresses
+addresses
+    :: forall n c k.
+        ( PaymentAddress n k
+        )
+    => AddressPool n c k
+    -> [Address]
+addresses =
+    map (liftPaymentFingerprint @n @k . fst)
+    . L.sortOn snd
+    . Map.toList
+    . indexedKeys
 
 -- | Create a new Address pool from a list of addresses. Note that, the list is
 -- expected to be ordered in sequence (first indexes, first in the list).
@@ -247,23 +258,29 @@ addresses = map fst . L.sortOn snd . Map.toList . indexedAddresses
 -- The pool will grow from the start if less than @g :: AddressPoolGap@ are
 -- given, such that, there are always @g@ undiscovered addresses in the pool.
 mkAddressPool
-    :: forall n c. (PaymentAddress n ShelleyKey, Typeable c)
-    => ShelleyKey 'AccountK XPub
+    :: forall n c k.
+        ( PaymentAddress n k
+        , SoftDerivation k
+        , Typeable c
+        )
+    => k 'AccountK XPub
     -> AddressPoolGap
     -> [Address]
-    -> AddressPool n c
+    -> AddressPool n c k
 mkAddressPool key g addrs = AddressPool
     { accountPubKey = key
     , gap = g
-    , indexedAddresses =
-        nextAddresses
-            (Proxy @n)
+    , indexedKeys =
+        nextAddresses @n
             key
             g
             (changeChain @c)
             minBound
           <>
-            Map.fromList (zip addrs [minBound..maxBound])
+            Map.fromList (zip
+                (paymentKeyFingerprint @k <$> addrs)
+                [minBound..maxBound]
+            )
     }
 
 -- | Lookup an address in the pool. When we find an address in a pool, the pool
@@ -271,32 +288,39 @@ mkAddressPool key g addrs = AddressPool
 -- possible that the pool is not amended at all - this happens in the case that
 -- an address is discovered 'far' from the edge.
 lookupAddress
-    :: forall n c. (PaymentAddress n ShelleyKey, Typeable c)
+    :: forall n c k.
+        ( PaymentAddress n k
+        , SoftDerivation k
+        , Typeable c
+        )
     => Address
-    -> AddressPool n c
-    -> (Maybe (Index 'Soft 'AddressK), AddressPool n c)
+    -> AddressPool n c k
+    -> (Maybe (Index 'Soft 'AddressK), AddressPool n c k)
 lookupAddress !target !pool =
-    case Map.lookup target (indexedAddresses pool) of
+    case Map.lookup (paymentKeyFingerprint @k target) (indexedKeys pool) of
         Just ix ->
-            (Just ix, extendAddressPool ix pool)
+            (Just ix, extendAddressPool @n ix pool)
         Nothing ->
             (Nothing, pool)
 
 -- | If an address is discovered near the edge, we extend the address sequence,
 -- otherwise we return the pool untouched.
 extendAddressPool
-    :: forall n c. (PaymentAddress n ShelleyKey, Typeable c)
+    :: forall n c k.
+        ( PaymentAddress n k
+        , SoftDerivation k
+        , Typeable c
+        )
     => Index 'Soft 'AddressK
-    -> AddressPool n c
-    -> AddressPool n c
+    -> AddressPool n c k
+    -> AddressPool n c k
 extendAddressPool !ix !pool
-    | isOnEdge  = pool { indexedAddresses = indexedAddresses pool <> next }
+    | isOnEdge  = pool { indexedKeys = indexedKeys pool <> next }
     | otherwise = pool
   where
-    edge = Map.size (indexedAddresses pool)
+    edge = Map.size (indexedKeys pool)
     isOnEdge = edge - fromEnum ix <= fromEnum (gap pool)
-    next = if ix == maxBound then mempty else nextAddresses
-        (Proxy @n)
+    next = if ix == maxBound then mempty else nextAddresses @n
         (accountPubKey pool)
         (gap pool)
         (changeChain @c)
@@ -304,23 +328,26 @@ extendAddressPool !ix !pool
 
 -- | Compute the pool extension from a starting index
 nextAddresses
-    :: forall n. PaymentAddress n ShelleyKey
-    => Proxy n
-    -> ShelleyKey 'AccountK XPub
+    :: forall n k.
+        ( PaymentAddress n k
+        , SoftDerivation k
+        )
+    => k 'AccountK XPub
     -> AddressPoolGap
     -> ChangeChain
     -> Index 'Soft 'AddressK
-    -> Map Address (Index 'Soft 'AddressK)
-nextAddresses _ !key (AddressPoolGap !g) !cc !fromIx =
+    -> Map (KeyFingerprint "payment" k) (Index 'Soft 'AddressK)
+nextAddresses !key (AddressPoolGap !g) !cc !fromIx =
     [fromIx .. min maxBound toIx]
-        & map (\ix -> (newAddress ix, ix))
+        & map (\ix -> (newPaymentKey ix, ix))
         & Map.fromList
   where
     toIx = invariant
         "nextAddresses: toIx should be greater than fromIx"
         (toEnum $ fromEnum fromIx + fromEnum g - 1)
         (>= fromIx)
-    newAddress = paymentAddress @n . deriveAddressPublicKey key cc
+    newPaymentKey =
+        paymentKeyFingerprint . paymentAddress @n . deriveAddressPublicKey key cc
 
 {-------------------------------------------------------------------------------
                             Pending Change Indexes
@@ -330,6 +357,7 @@ nextAddresses _ !key (AddressPoolGap !g) !cc !fromIx =
 newtype PendingIxs = PendingIxs
     { pendingIxsToList :: [Index 'Soft 'AddressK] }
     deriving stock (Generic, Show, Eq)
+
 instance NFData PendingIxs
 
 -- | An empty pending set of change indexes.
@@ -365,12 +393,12 @@ pendingIxsFromList = PendingIxs . reverse . map head . L.group . L.sort
 -- exchanges who care less about privacy / not-reusing addresses than
 -- regular users.
 nextChangeIndex
-    :: AddressPool n 'InternalChain
+    :: AddressPool n c k
     -> PendingIxs
     -> (Index 'Soft 'AddressK, PendingIxs)
 nextChangeIndex pool (PendingIxs ixs) =
     let
-        poolLen = length (addresses pool)
+        poolLen = Map.size (indexedKeys pool)
         (firstUnused, lastUnused) =
             ( toEnum $ poolLen - fromEnum (gap pool)
             , toEnum $ poolLen - 1
@@ -394,23 +422,27 @@ nextChangeIndex pool (PendingIxs ixs) =
 -- [BIP-44](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki)
 --
 -- Internally, the state keeps track of a few things for us and is it is
--- parameterized by a type @t@ which represents a target backend. This enables
--- the state to be agnostic to the underlying address format.
-data SeqState n = SeqState
-    { internalPool :: !(AddressPool n 'InternalChain)
+-- parameterized by a type @n@ which captures a particular network discrimination.
+-- This enables the state to be agnostic to the underlying address format.
+data SeqState n k = SeqState
+    { internalPool :: !(AddressPool n 'InternalChain k)
         -- ^ Addresses living on the 'InternalChain'
-    , externalPool :: !(AddressPool n 'ExternalChain)
+    , externalPool :: !(AddressPool n 'ExternalChain k)
         -- ^ Addresses living on the 'ExternalChain'
     , pendingChangeIxs :: !PendingIxs
         -- ^ Indexes from the internal pool that have been used in pending
         -- transactions. The list is maintained sorted in descending order
         -- (cf: 'PendingIxs')
     }
-    deriving stock (Generic, Show)
+    deriving stock (Generic)
 
-instance NFData (SeqState n)
+deriving instance (Show (k 'AccountK XPub), Show (KeyFingerprint "payment" k))
+    => Show (SeqState n k)
 
-instance Buildable (SeqState n) where
+instance (NFData (k 'AccountK XPub), NFData (KeyFingerprint "payment" k))
+    => NFData (SeqState n k)
+
+instance PersistPublicKey (k 'AccountK) => Buildable (SeqState n k) where
     build (SeqState intP extP chgs) = "SeqState:\n"
         <> indentF 4 (build intP)
         <> indentF 4 (build extP)
@@ -420,10 +452,14 @@ instance Buildable (SeqState n) where
 
 -- | Construct a Sequential state for a wallet.
 mkSeqState
-    :: PaymentAddress n ShelleyKey
-    => (ShelleyKey 'RootK XPrv, Passphrase "encryption")
+    :: forall n k.
+        ( SoftDerivation k
+        , PaymentAddress n k
+        , WalletKey k
+        )
+    => (k 'RootK XPrv, Passphrase "encryption")
     -> AddressPoolGap
-    -> SeqState n
+    -> SeqState n k
 mkSeqState (rootXPrv, pwd) g =
     let
         accXPrv =
@@ -440,11 +476,14 @@ mkSeqState (rootXPrv, pwd) g =
 -- account discovery algorithm is only specified for the external chain so
 -- in theory, there's nothing forcing a wallet to generate change
 -- addresses on the internal chain anywhere in the available range.
-instance PaymentAddress n ShelleyKey => IsOurs (SeqState n) where
+instance
+    ( SoftDerivation k
+    , PaymentAddress n k
+    ) => IsOurs (SeqState n k) where
     isOurs addr (SeqState !s1 !s2 !ixs) =
         let
-            (internal, !s1') = lookupAddress addr s1
-            (external, !s2') = lookupAddress addr s2
+            (internal, !s1') = lookupAddress @n addr s1
+            (external, !s2') = lookupAddress @n addr s2
             !ixs' = case internal of
                 Nothing -> ixs
                 Just ix -> updatePendingIxs ix ixs
@@ -452,14 +491,17 @@ instance PaymentAddress n ShelleyKey => IsOurs (SeqState n) where
         in
             (ixs' `deepseq` ours `deepseq` ours, SeqState s1' s2' ixs')
 
-instance PaymentAddress n ShelleyKey => GenChange (SeqState n) where
+instance
+    ( SoftDerivation k
+    , PaymentAddress n k
+    ) => GenChange (SeqState n k) where
     -- | We pick indexes in sequence from the first known available index (i.e.
     -- @length addrs - gap@) but we do not generate _new change addresses_. As a
     -- result, we can't generate more than @gap@ _pending_ change addresses and
     -- therefore, rotate the change addresses when we need extra change outputs.
     --
     -- See also: 'nextChangeIndex'
-    type ArgGenChange (SeqState n) = ()
+    type ArgGenChange (SeqState n k) = ()
     genChange () (SeqState intPool extPool pending) =
         let
             (ix, pending') = nextChangeIndex intPool pending
@@ -469,7 +511,12 @@ instance PaymentAddress n ShelleyKey => GenChange (SeqState n) where
         in
             (addr, SeqState intPool extPool pending')
 
-instance PaymentAddress n ShelleyKey => IsOwned (SeqState n) ShelleyKey where
+instance
+    ( SoftDerivation k
+    , PaymentAddress n k
+    , AddressIndexDerivationType k ~ 'Soft
+    )
+    => IsOwned (SeqState n k) k where
     isOwned (SeqState !s1 !s2 _) (rootPrv, pwd) addr =
         let
             xPrv1 = lookupAndDeriveXPrv s1
@@ -480,18 +527,21 @@ instance PaymentAddress n ShelleyKey => IsOwned (SeqState n) ShelleyKey where
       where
         lookupAndDeriveXPrv
             :: forall c. (Typeable c)
-            => AddressPool n c
-            -> Maybe (ShelleyKey 'AddressK XPrv)
+            => AddressPool n c k
+            -> Maybe (k 'AddressK XPrv)
         lookupAndDeriveXPrv pool =
             let
                 -- We are assuming there is only one account
                 accountPrv = deriveAccountPrivateKey pwd rootPrv minBound
-                (addrIx, _) = lookupAddress addr pool
+                (addrIx, _) = lookupAddress @n addr pool
                 cc = changeChain @c
             in
                 deriveAddressPrivateKey pwd accountPrv cc <$> addrIx
 
-instance PaymentAddress n ShelleyKey => CompareDiscovery (SeqState n) where
+instance
+    ( PaymentAddress n k
+    , SoftDerivation k
+    ) => CompareDiscovery (SeqState n k) where
     compareDiscovery (SeqState !s1 !s2 _) a1 a2 =
         let
             ix a = fst . lookupAddress a
@@ -502,7 +552,9 @@ instance PaymentAddress n ShelleyKey => CompareDiscovery (SeqState n) where
                 (Just _, Nothing)  -> LT
                 (Just i1, Just i2) -> compare i1 i2
 
-instance KnownAddresses (SeqState n) where
+instance
+    ( PaymentAddress n k
+    ) => KnownAddresses (SeqState n k) where
     knownAddresses s =
         let
             (PendingIxs ixs) =
@@ -511,6 +563,7 @@ instance KnownAddresses (SeqState n) where
                 fromEnum . getAddressPoolGap . gap . internalPool $ s
             discardUndiscoveredChange xs =
                 take (length ixs) $ drop (length xs - internalGap) xs
+            changeAddresses =
+                discardUndiscoveredChange (addresses $ internalPool s)
         in
-            addresses (externalPool s)
-            <> discardUndiscoveredChange (addresses $ internalPool s)
+            addresses (externalPool s) <> changeAddresses

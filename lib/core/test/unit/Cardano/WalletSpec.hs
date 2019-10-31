@@ -33,9 +33,11 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx (..), block0, genesisParameters )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
+    ( ChangeChain (..)
+    , Depth (..)
     , DerivationType (..)
     , ErrWrongPassphrase (..)
+    , HardDerivation (..)
     , Index
     , Passphrase (..)
     , WalletKey (..)
@@ -43,12 +45,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ChangeChain (..)
-    , ShelleyKey (..)
-    , deriveAccountPrivateKey
-    , deriveAddressPrivateKey
-    , generateKeyFromSeed
-    )
+    ( ShelleyKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)

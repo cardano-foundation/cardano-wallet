@@ -33,7 +33,13 @@ module Cardano.Wallet.Transaction
 import Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), Passphrase, PaymentAddress (..), XPrv, dummyAddress )
+    ( Depth (..)
+    , Passphrase
+    , PaymentAddress (..)
+    , WalletKey
+    , XPrv
+    , dummyAddress
+    )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
@@ -141,7 +147,10 @@ data EstimateMaxNumberOfInputsParams t = EstimateMaxNumberOfInputsParams
 -- All the values used are the smaller ones. For example, the shortest adress
 -- type and shortest witness type are chosen to use for the estimate.
 estimateMaxNumberOfInputsBase
-    :: forall t n k. (PaymentAddress n k)
+    :: forall t n k.
+        ( PaymentAddress n k
+        , WalletKey k
+        )
     => EstimateMaxNumberOfInputsParams t
     -- ^ Backend-specific variables used in the estimation
     -> Quantity "byte" Word16

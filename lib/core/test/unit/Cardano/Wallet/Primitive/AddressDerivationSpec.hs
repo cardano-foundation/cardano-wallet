@@ -24,7 +24,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase (..)
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
-    , PersistKey (..)
+    , PersistPrivateKey (..)
+    , PersistPublicKey (..)
     , WalletKey (..)
     , XPrv
     , checkPassphrase
@@ -34,7 +35,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..), deserializeXPubSeq, serializeXPubSeq )
+    ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.Types
     ( Hash (..) )
 import Control.Monad
@@ -215,20 +216,19 @@ prop_roundtripEnumIndexSoft ix =
     (toEnum . fromEnum) ix === ix .&&. (toEnum . fromEnum . getIndex) ix === ix
 
 prop_roundtripXPrv
-    :: (PersistKey k, Eq (k 'RootK XPrv), Show (k 'RootK XPrv))
+    :: (PersistPrivateKey (k 'RootK), Eq (k 'RootK XPrv), Show (k 'RootK XPrv))
     => (k 'RootK XPrv, Hash "encryption")
     -> Property
 prop_roundtripXPrv xpriv = do
-    let xpriv' = (deserializeXPrv . serializeXPrv) xpriv
-    xpriv' === Right xpriv
+    let xpriv' = (unsafeDeserializeXPrv . serializeXPrv) xpriv
+    xpriv' === xpriv
 
 prop_roundtripXPub
-    :: ShelleyKey 'RootK XPrv
+    :: ShelleyKey 'AccountK XPub
     -> Property
-prop_roundtripXPub xpriv = do
-    let xpub = publicKey xpriv
-    let xpub' = (deserializeXPubSeq . serializeXPubSeq) xpub
-    xpub' === Right xpub
+prop_roundtripXPub xpub = do
+    let xpub' = (unsafeDeserializeXPub . serializeXPub) xpub
+    xpub' === xpub
 
 prop_passphraseRoundtrip
     :: Passphrase "encryption"
@@ -300,6 +300,10 @@ instance Arbitrary (ShelleyKey 'RootK XPrv) where
     shrink _ = []
     arbitrary = genRootKeysSeq
 
+instance Arbitrary (ShelleyKey 'AccountK XPub) where
+    shrink _ = []
+    arbitrary = publicKey <$> genRootKeysSeq
+
 instance Arbitrary (ShelleyKey 'RootK XPub) where
     shrink _ = []
     arbitrary = publicKey <$> arbitrary
@@ -312,13 +316,13 @@ instance Arbitrary NetworkDiscriminant where
     arbitrary = arbitraryBoundedEnum
     shrink = genericShrink
 
-genRootKeysSeq :: Gen (ShelleyKey 'RootK XPrv)
+genRootKeysSeq :: Gen (ShelleyKey depth XPrv)
 genRootKeysSeq = do
     (s, g, e) <- (,,)
         <$> genPassphrase @"seed" (16, 32)
         <*> genPassphrase @"generation" (0, 16)
         <*> genPassphrase @"encryption" (0, 16)
-    return $ Seq.generateKeyFromSeed (s, g) e
+    return $ Seq.unsafeGenerateKeyFromSeed (s, g) e
 
 genRootKeysRnd :: Gen (ByronKey 'RootK XPrv)
 genRootKeysRnd = Rnd.generateKeyFromSeed

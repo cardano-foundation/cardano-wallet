@@ -36,8 +36,6 @@ import Prelude
 
 import Cardano.BM.Trace
     ( Trace, appendName, logInfo, logNotice )
-import Cardano.Crypto.Wallet
-    ( XPrv )
 import Cardano.DB.Sqlite
     ( SqliteContext (..)
     , chunkSize
@@ -76,13 +74,17 @@ import Cardano.Wallet.DB.Sqlite.TH
     , unWalletKey
     )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( AddressPoolXPub (..), BlockId (..), TxId (..) )
+    ( BlockId (..), HDPassphrase (..), TxId (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), PersistKey (..), WalletKey (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
-    ( ByronKey, nullKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
+    ( Depth (..)
+    , PaymentAddress (..)
+    , PersistPrivateKey (..)
+    , PersistPublicKey (..)
+    , SoftDerivation (..)
+    , WalletKey (..)
+    , XPrv
+    , XPub
+    )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.Types
@@ -182,7 +184,7 @@ withDBLayer
         , Show s
         , PersistState s
         , PersistTx t
-        , PersistKey k
+        , PersistPrivateKey (k 'RootK)
         )
     => CM.Configuration
        -- ^ Logging configuration
@@ -207,7 +209,8 @@ mkDBFactory
         , Show s
         , PersistState s
         , PersistTx t
-        , PersistKey k
+        , PersistPrivateKey (k 'RootK)
+        , WalletKey k
         )
     => CM.Configuration
        -- ^ Logging configuration
@@ -246,7 +249,7 @@ mkDBFactory cfg tr mDatabaseDir = case mDatabaseDir of
 -- | Return all wallet databases that match the specified key type within the
 --   specified directory.
 findDatabases
-    :: forall k. PersistKey k
+    :: forall k. WalletKey k
     => Trace IO Text
     -> FilePath
     -> IO [W.WalletId]
@@ -287,7 +290,7 @@ newDBLayer
         , Show s
         , PersistState s
         , PersistTx t
-        , PersistKey k
+        , PersistPrivateKey (k 'RootK)
         )
     => CM.Configuration
        -- ^ Logging configuration
@@ -514,7 +517,7 @@ metadataFromEntity wal = W.WalletMetadata
     }
 
 mkPrivateKeyEntity
-    :: PersistKey k
+    :: PersistPrivateKey (k 'RootK)
     => W.WalletId
     -> (k 'RootK XPrv, W.Hash "encryption")
     -> PrivateKey
@@ -527,10 +530,11 @@ mkPrivateKeyEntity wid kh = PrivateKey
     (root, hash) = serializeXPrv kh
 
 privateKeyFromEntity
-    :: PersistKey k
+    :: PersistPrivateKey (k 'RootK)
     => PrivateKey
-    -> Either String (k 'RootK XPrv, W.Hash "encryption")
-privateKeyFromEntity (PrivateKey _ k h) = deserializeXPrv (k, h)
+    -> (k 'RootK XPrv, W.Hash "encryption")
+privateKeyFromEntity (PrivateKey _ k h) =
+    unsafeDeserializeXPrv (k, h)
 
 mkCheckpointEntity
     :: forall s t. ()
@@ -855,13 +859,12 @@ deletePendingTx wid tid = deleteWhere
     [TxMetaWalletId ==. wid, TxMetaTxId ==. tid, TxMetaStatus ==. W.Pending ]
 
 selectPrivateKey
-    :: (MonadIO m, PersistKey k)
+    :: (MonadIO m, PersistPrivateKey (k 'RootK))
     => W.WalletId
     -> SqlPersistT m (Maybe (k 'RootK XPrv, W.Hash "encryption"))
-selectPrivateKey wid =
-    let keys = selectFirst [PrivateKeyWalletId ==. wid] []
-        toMaybe = either (const Nothing) Just
-    in (>>= toMaybe . privateKeyFromEntity . entityVal) <$> keys
+selectPrivateKey wid = do
+    keys <- selectFirst [PrivateKeyWalletId ==. wid] []
+    pure $ (privateKeyFromEntity . entityVal) <$> keys
 
 -- | Find the nearest 'Checkpoint' that is either at the given point or before.
 findNearestPoint
@@ -919,7 +922,12 @@ class DefineTx t => PersistTx t where
                           Sequential address discovery
 -------------------------------------------------------------------------------}
 
-instance W.PaymentAddress t ShelleyKey => PersistState (Seq.SeqState t) where
+instance
+    ( Eq (k 'AccountK XPub)
+    , PersistPublicKey (k 'AccountK)
+    , PaymentAddress n k
+    , SoftDerivation k
+    ) => PersistState (Seq.SeqState n k) where
     insertState (wid, sl) st = do
         let (intPool, extPool) = (Seq.internalPool st, Seq.externalPool st)
         let (xpub, _) = W.invariant
@@ -928,9 +936,7 @@ instance W.PaymentAddress t ShelleyKey => PersistState (Seq.SeqState t) where
                 (uncurry (==))
         let eGap = Seq.gap extPool
         let iGap = Seq.gap intPool
-        repsert
-            (SeqStateKey wid)
-            (SeqState wid eGap iGap (AddressPoolXPub xpub))
+        repsert (SeqStateKey wid) (SeqState wid eGap iGap (serializeXPub xpub))
         insertAddressPool wid sl intPool
         insertAddressPool wid sl extPool
         deleteWhere [SeqStatePendingWalletId ==. wid]
@@ -940,17 +946,18 @@ instance W.PaymentAddress t ShelleyKey => PersistState (Seq.SeqState t) where
 
     selectState (wid, sl) = runMaybeT $ do
         st <- MaybeT $ selectFirst [SeqStateWalletId ==. wid] []
-        let SeqState _ eGap iGap xPub = entityVal st
-        intPool <- lift $ selectAddressPool wid sl iGap xPub
-        extPool <- lift $ selectAddressPool wid sl eGap xPub
+        let SeqState _ eGap iGap bytes = entityVal st
+        let xpub = unsafeDeserializeXPub bytes
+        intPool <- lift $ selectAddressPool wid sl iGap xpub
+        extPool <- lift $ selectAddressPool wid sl eGap xpub
         pendingChangeIxs <- lift $ selectSeqStatePendingIxs wid
         pure $ Seq.SeqState intPool extPool pendingChangeIxs
 
 insertAddressPool
-    :: forall t c. (Typeable c)
+    :: forall n k c. (PaymentAddress n k, Typeable c)
     => W.WalletId
     -> W.SlotId
-    -> Seq.AddressPool t c
+    -> Seq.AddressPool n c k
     -> SqlPersistT IO ()
 insertAddressPool wid sl pool =
     void $ dbChunked insertMany_
@@ -959,13 +966,17 @@ insertAddressPool wid sl pool =
         ]
 
 selectAddressPool
-    :: forall t c. (W.PaymentAddress t ShelleyKey, Typeable c)
+    :: forall n k c.
+        ( Typeable c
+        , PaymentAddress n k
+        , SoftDerivation k
+        )
     => W.WalletId
     -> W.SlotId
     -> Seq.AddressPoolGap
-    -> AddressPoolXPub
-    -> SqlPersistT IO (Seq.AddressPool t c)
-selectAddressPool wid sl gap (AddressPoolXPub xpub) = do
+    -> k 'AccountK XPub
+    -> SqlPersistT IO (Seq.AddressPool n c k)
+selectAddressPool wid sl gap xpub = do
     addrs <- fmap entityVal <$> selectList
         [ SeqStateAddressWalletId ==. wid
         , SeqStateAddressSlot ==. sl
@@ -975,9 +986,9 @@ selectAddressPool wid sl gap (AddressPoolXPub xpub) = do
   where
     addressPoolFromEntity
         :: [SeqStateAddress]
-        -> Seq.AddressPool t c
+        -> Seq.AddressPool n c k
     addressPoolFromEntity addrs =
-        Seq.mkAddressPool @t @c xpub gap (map seqStateAddressAddress addrs)
+        Seq.mkAddressPool @n @c @k xpub gap (map seqStateAddressAddress addrs)
 
 mkSeqStatePendingIxs :: W.WalletId -> Seq.PendingIxs -> [SeqStatePendingIx]
 mkSeqStatePendingIxs wid =
@@ -1008,7 +1019,8 @@ instance PersistState (Rnd.RndState t) where
     insertState (wid, sl) st = do
         let ix = W.getIndex (st ^. #accountIndex)
         let gen = st ^. #gen
-        repsert (RndStateKey wid) (RndState wid ix gen)
+        let pwd = st ^. #hdPassphrase
+        repsert (RndStateKey wid) (RndState wid ix gen (HDPassphrase pwd))
         insertRndStateAddresses wid sl (Rnd.addresses st)
         insertRndStatePending wid (Rnd.pendingAddresses st)
 
@@ -1016,12 +1028,11 @@ instance PersistState (Rnd.RndState t) where
         st <- MaybeT $ selectFirst
             [ RndStateWalletId ==. wid
             ] []
-        let (RndState _ ix gen) = entityVal st
+        let (RndState _ ix gen (HDPassphrase pwd)) = entityVal st
         addresses <- lift $ selectRndStateAddresses wid sl
         pendingAddresses <- lift $ selectRndStatePending wid
-        rndKey <- lift $ selectRndStateKey wid
         pure $ Rnd.RndState
-            { rndKey = rndKey
+            { hdPassphrase = pwd
             , accountIndex = W.Index ix
             , addresses = addresses
             , pendingAddresses = pendingAddresses
@@ -1075,8 +1086,3 @@ selectRndStatePending wid = do
   where
     assocFromEntity (RndStatePendingAddress _ accIx addrIx addr) =
         ((W.Index accIx, W.Index addrIx), addr)
-
--- | Gets the wallet root key to put in RndState. If there is none yet, just
--- return a placeholder.
-selectRndStateKey :: W.WalletId -> SqlPersistT IO (ByronKey 'RootK XPrv)
-selectRndStateKey wid = maybe nullKey fst <$> selectPrivateKey wid

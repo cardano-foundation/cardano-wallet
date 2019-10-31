@@ -51,7 +51,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..), unsafeGenerateKeyFromSeed )
+    ( ShelleyKey (..), addrSingleSize, unsafeGenerateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
@@ -141,7 +141,6 @@ import Test.QuickCheck
     , generate
     , genericShrink
     , liftArbitrary
-    , oneof
     , scale
     , shrinkList
     , vectorOf
@@ -379,18 +378,7 @@ instance Arbitrary UTxO where
 -------------------------------------------------------------------------------}
 
 instance Arbitrary Address where
-    arbitrary = oneof
-        [ pure $ Address "ADDR01"
-        , pure $ Address "ADDR02"
-        , pure $ Address "ADDR03"
-        , pure $ Address "ADDR04"
-        , pure $ Address "ADDR05"
-        , pure $ Address "ADDR06"
-        , pure $ Address "ADDR07"
-        , pure $ Address "ADDR08"
-        , pure $ Address "ADDR09"
-        , pure $ Address "ADDR10"
-        ]
+    arbitrary = Address . B8.pack <$> vectorOf addrSingleSize arbitrary
 
 instance Arbitrary (Index 'Soft 'AddressK) where
     shrink _ = []
@@ -408,7 +396,7 @@ instance Arbitrary (Index 'Hardened 'AddressK) where
                               Sequential State
 -------------------------------------------------------------------------------}
 
-instance Arbitrary (SeqState 'Testnet) where
+instance Arbitrary (SeqState 'Testnet ShelleyKey) where
     shrink (SeqState intPool extPool ixs) =
         (\(i, e, x) -> SeqState i e x) <$> shrink (intPool, extPool, ixs)
     arbitrary = do
@@ -439,7 +427,7 @@ instance Arbitrary (ShelleyKey 'RootK XPrv) where
 instance Arbitrary (Seq.PendingIxs) where
     arbitrary = pure Seq.emptyPendingIxs
 
-instance Typeable chain => Arbitrary (AddressPool 'Testnet chain) where
+instance Typeable chain => Arbitrary (AddressPool 'Testnet chain ShelleyKey) where
     arbitrary = pure $ mkAddressPool arbitrarySeqAccount minBound mempty
 
 -- Properties are quite heavy on the generation of values, although for
@@ -475,13 +463,11 @@ instance Arbitrary (RndState 'Testnet) where
         | (ix', addrs', pending') <- shrink (ix, addrs, pending)
         ]
     arbitrary = RndState
-        <$> pure (Rnd.generateKeyFromSeed seed mempty)
+        <$> pure (Passphrase "passphrase")
         <*> pure minBound
         <*> arbitrary
         <*> (pure mempty) -- FIXME: see comment on 'Arbitrary Seq.PendingIxs'
         <*> pure (mkStdGen 42)
-      where
-        seed = Passphrase $ BA.convert $ BS.replicate 32 0
 
 instance Arbitrary (ByronKey 'RootK XPrv) where
     shrink _ = []
@@ -508,7 +494,7 @@ rootKeysRnd = unsafePerformIO $ generate (vectorOf 10 genRootKeysRnd)
 
 deriving instance Arbitrary a => Arbitrary (ShowFmt a)
 
-deriving instance Eq (SeqState 'Testnet)
+deriving instance Eq (SeqState 'Testnet ShelleyKey)
 
 -- Necessary unsound Show instance for QuickCheck failure reporting
 instance Show XPrv where

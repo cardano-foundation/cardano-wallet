@@ -70,7 +70,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
-    , PersistKey
+    , PersistPrivateKey
     , encryptPassphrase
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -266,7 +266,7 @@ simpleSpec cp = do
 -------------------------------------------------------------------------------}
 
 loggingSpec :: Spec
-loggingSpec = withLoggingDB @(SeqState 'Testnet) @DummyTarget @ShelleyKey $ do
+loggingSpec = withLoggingDB @(SeqState 'Testnet ShelleyKey) @DummyTarget @ShelleyKey $ do
     describe "Sqlite query logging" $ do
         it "should log queries at DEBUG level" $ \(getLogs, db) -> do
             unsafeRunExceptT $ createWallet db testPk testCpSeq testMetadata mempty
@@ -293,12 +293,24 @@ loggingSpec = withLoggingDB @(SeqState 'Testnet) @DummyTarget @ShelleyKey $ do
 -- | Set up a DBLayer for testing, with the command context, and the logging
 -- variable.
 newMemoryDBLayer
-    :: (IsOurs s, NFData s, Show s, PersistState s, PersistTx t, PersistKey k)
+    :: ( IsOurs s
+       , NFData s
+       , Show s
+       , PersistState s
+       , PersistTx t
+       , PersistPrivateKey (k 'RootK)
+       )
     => IO (DBLayer IO s t k)
 newMemoryDBLayer = snd . snd <$> newMemoryDBLayer'
 
 newMemoryDBLayer'
-    :: (IsOurs s, NFData s, Show s, PersistState s, PersistTx t, PersistKey k)
+    :: ( IsOurs s
+       , NFData s
+       , Show s
+       , PersistState s
+       , PersistTx t
+       , PersistPrivateKey (k 'RootK)
+       )
     => IO (TVar [LogObject Text], (SqliteContext, DBLayer IO s t k))
 newMemoryDBLayer' = do
     logConfig <- testingLogConfig
@@ -339,7 +351,13 @@ testingLogConfig = do
     pure logConfig
 
 withLoggingDB
-    :: (IsOurs s, NFData s, Show s, PersistState s, PersistTx t, PersistKey k)
+    :: ( IsOurs s
+       , NFData s
+       , Show s
+       , PersistState s
+       , PersistTx t
+       , PersistPrivateKey (k 'RootK)
+       )
     => SpecWith (IO [LogObject Text], DBLayer IO s t k)
     -> Spec
 withLoggingDB = beforeAll newMemoryDBLayer' . beforeWith clean
@@ -372,7 +390,7 @@ shouldHaveLog msgs (sev, str) = unless (any match msgs) $
                                 File Mode Spec
 -------------------------------------------------------------------------------}
 
-type TestDBSeq = DBLayer IO (SeqState 'Testnet) DummyTarget ShelleyKey
+type TestDBSeq = DBLayer IO (SeqState 'Testnet ShelleyKey) DummyTarget ShelleyKey
 type TestDBRnd = DBLayer IO (RndState 'Testnet) DummyTarget ByronKey
 
 fileModeSpec :: Spec
@@ -381,7 +399,7 @@ fileModeSpec =  do
         it "Opening and closing of db works" $ do
             replicateM_ 25 $ do
                 db <- Just <$> temporaryDBFile
-                (ctx, _) <- newDBLayer' @(SeqState 'Testnet) @DummyTarget db
+                (ctx, _) <- newDBLayer' @(SeqState 'Testnet ShelleyKey) @DummyTarget db
                 destroyDBLayer ctx
 
     describe "Sqlite database file" $ do
@@ -455,7 +473,7 @@ fileModeSpec =  do
 
     describe "random operation chunks property" $ do
         it "realize a random batch of operations upon one db open"
-            (property $ prop_randomOpChunks @(SeqState 'Testnet) @DummyTarget)
+            (property $ prop_randomOpChunks @(SeqState 'Testnet ShelleyKey) @DummyTarget)
 
 -- This property checks that executing series of wallet operations in a single
 -- SQLite session has the same effect as executing the same operations over
@@ -511,7 +529,7 @@ prop_randomOpChunks (KeyValPairs pairs) =
 testOpeningCleaning
     :: (Show s, Eq s)
     => FilePath
-    -> (DBLayer IO (SeqState 'Testnet) DummyTarget ShelleyKey -> IO s)
+    -> (DBLayer IO (SeqState 'Testnet ShelleyKey) DummyTarget ShelleyKey -> IO s)
     -> s
     -> s
     -> Expectation
@@ -528,7 +546,7 @@ testOpeningCleaning filepath call expectedAfterOpen expectedAfterClean = do
 
 -- | Run a test action inside withDBLayer, then check assertions.
 withTestDBFile
-    :: (DBLayer IO (SeqState 'Testnet) DummyTarget ShelleyKey -> IO ())
+    :: (DBLayer IO (SeqState 'Testnet ShelleyKey) DummyTarget ShelleyKey -> IO ())
     -> (FilePath -> IO a)
     -> IO a
 withTestDBFile action expectations = do
@@ -591,10 +609,10 @@ cutRandomly = iter []
                                    Test data
 -------------------------------------------------------------------------------}
 
-testCp :: Wallet (SeqState 'Testnet) DummyTarget
+testCp :: Wallet (SeqState 'Testnet ShelleyKey) DummyTarget
 testCp = snd $ initWallet block0 genesisParameters initDummyState
   where
-    initDummyState :: SeqState 'Testnet
+    initDummyState :: SeqState 'Testnet ShelleyKey
     initDummyState = mkSeqState (xprv, mempty) defaultAddressPoolGap
       where
         bytes = entropyToBytes <$> unsafePerformIO $ genEntropy @(EntropySize 15)
@@ -640,10 +658,10 @@ class GenerateTestKey (key :: Depth -> * -> *) where
                            Test data - Sequential AD
 -------------------------------------------------------------------------------}
 
-testCpSeq :: Wallet (SeqState 'Testnet) DummyTarget
+testCpSeq :: Wallet (SeqState 'Testnet ShelleyKey) DummyTarget
 testCpSeq = snd $ initWallet block0 genesisParameters initDummyStateSeq
 
-initDummyStateSeq :: SeqState 'Testnet
+initDummyStateSeq :: SeqState 'Testnet ShelleyKey
 initDummyStateSeq = mkSeqState (xprv, mempty) defaultAddressPoolGap
   where
       bytes = entropyToBytes <$> unsafePerformIO $ genEntropy @(EntropySize 15)

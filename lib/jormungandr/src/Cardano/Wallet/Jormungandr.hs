@@ -66,10 +66,12 @@ import Cardano.Wallet.Jormungandr.Transaction
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant
+    ( Depth (..)
+    , NetworkDiscriminant
     , NetworkDiscriminantVal
     , PaymentAddress
-    , PersistKey
+    , PersistPrivateKey
+    , WalletKey
     , networkDiscriminantVal
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -171,7 +173,7 @@ serveWallet (cfg, tr) databaseDir hostPref listen lj beforeMainLoop = do
         -> Port "node"
         -> BlockchainParameters
         -> ApiLayer (RndState n) t ByronKey
-        -> ApiLayer (SeqState n) t ShelleyKey
+        -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
         -> StakePoolLayer IO
         -> IO ExitCode
     startServer tracer nPort bp rndWallet seqWallet spl = do
@@ -196,7 +198,8 @@ serveWallet (cfg, tr) databaseDir hostPref listen lj beforeMainLoop = do
             , NFData s
             , Show s
             , PersistState s
-            , PersistKey k
+            , PersistPrivateKey (k 'RootK)
+            , WalletKey k
             )
         => Trace IO Text
         -> TransactionLayer t k
@@ -223,12 +226,13 @@ serveWallet (cfg, tr) databaseDir hostPref listen lj beforeMainLoop = do
         onExit = defaultWorkerAfter tr'
 
     dbFactory
-        :: forall s k .
+        :: forall s k.
             ( IsOurs s
             , NFData s
             , Show s
             , PersistState s
-            , PersistKey k
+            , PersistPrivateKey (k 'RootK)
+            , WalletKey k
             )
         => DBFactory IO s t k
     dbFactory = Sqlite.mkDBFactory cfg tr databaseDir

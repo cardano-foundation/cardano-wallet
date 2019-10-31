@@ -20,12 +20,8 @@ module Cardano.Wallet.DB.Sqlite.Types where
 
 import Prelude
 
-import Cardano.Crypto.Wallet
-    ( XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ChangeChain, ShelleyKey, deserializeXPubSeq, serializeXPubSeq )
+    ( ChangeChain (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..), getAddressPoolGap, mkAddressPoolGap )
 import Cardano.Wallet.Primitive.Types
@@ -63,6 +59,10 @@ import Data.Aeson.Types
     ( Parser )
 import Data.Bifunctor
     ( bimap, first )
+import Data.ByteArray.Encoding
+    ( Base (..), convertFromBase, convertToBase )
+import Data.ByteString
+    ( ByteString )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -93,7 +93,6 @@ import Web.HttpApiData
 import Web.PathPieces
     ( PathPiece (..) )
 
-import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
 
 ----------------------------------------------------------------------------
@@ -359,23 +358,6 @@ instance PersistFieldSql AddressPoolGap where
     sqlType _ = sqlType (Proxy @Word8)
 
 ----------------------------------------------------------------------------
--- XPub for sequential address discovery
-
-newtype AddressPoolXPub = AddressPoolXPub
-    { getAddressPoolXPub :: ShelleyKey 'AccountK XPub }
-    deriving (Show, Eq, Generic)
-
-instance PersistField AddressPoolXPub where
-    toPersistValue = toPersistValue . serializeXPubSeq . getAddressPoolXPub
-    fromPersistValue pv = fromPersistValue >=> deserializeXPub' $ pv
-      where
-        deserializeXPub' = bimap msg AddressPoolXPub . deserializeXPubSeq
-        msg e = T.pack $ "not a valid XPub: " <> show pv <> ": " <> e
-
-instance PersistFieldSql AddressPoolXPub where
-    sqlType _ = sqlType (Proxy @B8.ByteString)
-
-----------------------------------------------------------------------------
 -- ChangeChain
 
 instance PersistField ChangeChain where
@@ -411,3 +393,23 @@ instance Read PoolId where
 instance PathPiece PoolId where
     fromPathPiece = fromTextMaybe
     toPathPiece = toText
+
+----------------------------------------------------------------------------
+-- HDPassphrase
+
+newtype HDPassphrase = HDPassphrase (Passphrase "addr-derivation-payload")
+    deriving (Generic, Show)
+
+instance PersistField HDPassphrase where
+    toPersistValue (HDPassphrase (Passphrase pwd)) =
+        toPersistValue (convertToBase @_ @ByteString Base16 pwd)
+    fromPersistValue = fromPersistValue >=>
+        fmap (HDPassphrase . Passphrase)
+        . left T.pack
+        . convertFromBase @ByteString Base16
+
+instance PersistFieldSql HDPassphrase where
+    sqlType _ = sqlType (Proxy @ByteString)
+
+instance Read HDPassphrase where
+    readsPrec _ = error "readsPrec stub needed for persistent"

@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE InstanceSigs #-}
@@ -31,14 +32,21 @@
 
 module Cardano.Wallet.Primitive.AddressDerivation
     (
-    -- * Polymorphic / General Purpose Types
+    -- * HD Derivation
       Depth (..)
     , Index (..)
+    , ChangeChain (..)
     , DerivationType (..)
+    , HardDerivation (..)
+    , SoftDerivation (..)
+
+    -- * Primitive Crypto Types
     , XPub (..)
     , ChainCode (..)
     , XPrv
     , unXPub
+    , hex
+    , fromHex
 
     -- * Network Discrimination
     , NetworkDiscriminant (..)
@@ -49,8 +57,10 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , PaymentAddress(..)
     , DelegationAddress(..)
     , WalletKey(..)
-    , PersistKey(..)
-    , InspectAddress(..)
+    , PersistPrivateKey(..)
+    , PersistPublicKey(..)
+    , MkKeyFingerprint(..)
+    , KeyFingerprint(..)
     , dummyAddress
 
     -- * Passphrase
@@ -97,7 +107,9 @@ import Crypto.Random.Types
 import Data.Bifunctor
     ( first )
 import Data.ByteArray
-    ( ScrubbedBytes )
+    ( ByteArray, ByteArrayAccess, ScrubbedBytes )
+import Data.ByteArray.Encoding
+    ( Base (..), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
 import Data.List
@@ -116,6 +128,8 @@ import Data.Text.Class
     , fromTextToBoundedEnum
     , toTextFromBoundedEnum
     )
+import Data.Typeable
+    ( Typeable )
 import Data.Word
     ( Word32 )
 import Fmt
@@ -125,7 +139,6 @@ import GHC.Generics
 import GHC.TypeLits
     ( KnownNat, Nat, Symbol, natVal )
 
-
 import qualified Basement.Compat.Base as B
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -133,7 +146,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
 {-------------------------------------------------------------------------------
-                        Polymorphic / General Purpose Types
+                                HD Hierarchy
 -------------------------------------------------------------------------------}
 
 -- | Key Depth in the derivation path, according to BIP-0039 / BIP-0044
@@ -143,6 +156,34 @@ import qualified Data.Text.Encoding as T
 -- We do not manipulate purpose, cointype and change paths directly, so they are
 -- left out of the sum type.
 data Depth = RootK | AccountK | AddressK
+
+-- | Marker for the change chain. In practice, change of a transaction goes onto
+-- the addresses generated on the internal chain, whereas the external chain is
+-- used for addresses that are part of the 'advertised' targets of a transaction
+data ChangeChain
+    = ExternalChain
+    | InternalChain
+    deriving (Generic, Typeable, Show, Eq, Ord, Bounded)
+
+instance NFData ChangeChain
+
+-- Not deriving 'Enum' because this could have a dramatic impact if we were
+-- to assign the wrong index to the corresponding constructor (by swapping
+-- around the constructor above for instance).
+instance Enum ChangeChain where
+    toEnum = \case
+        0 -> ExternalChain
+        1 -> InternalChain
+        _ -> error "ChangeChain.toEnum: bad argument"
+    fromEnum = \case
+        ExternalChain -> 0
+        InternalChain -> 1
+
+instance ToText ChangeChain where
+    toText = toTextFromBoundedEnum SnakeLowerCase
+
+instance FromText ChangeChain where
+    fromText = fromTextToBoundedEnum SnakeLowerCase
 
 -- | A derivation index, with phantom-types to disambiguate derivation type.
 --
@@ -185,6 +226,55 @@ instance Buildable (Index derivationType level) where
 
 -- | Type of derivation that should be used with the given indexes.
 data DerivationType = Hardened | Soft
+
+-- | An interface for doing hard derivations from the root private key
+class HardDerivation (key :: Depth -> * -> *) where
+    type AddressIndexDerivationType key :: DerivationType
+
+    -- | Derives account private key from the given root private key, using
+    -- derivation scheme 2 (see <https://github.com/input-output-hk/cardano-crypto/ cardano-crypto>
+    -- package for more details).
+    --
+    -- NOTE: The caller is expected to provide the corresponding passphrase (and
+    -- to have checked that the passphrase is valid). Providing a wrong passphrase
+    -- will not make the function fail but will instead, yield an incorrect new
+    -- key that doesn't belong to the wallet.
+    deriveAccountPrivateKey
+        :: Passphrase "encryption"
+        -> key 'RootK XPrv
+        -> Index 'Hardened 'AccountK
+        -> key 'AccountK XPrv
+
+    -- | Derives address private key from the given account private key, using
+    -- derivation scheme 2 (see <https://github.com/input-output-hk/cardano-crypto/ cardano-crypto>
+    -- package for more details).
+    --
+    -- It is preferred to use 'deriveAddressPublicKey' whenever possible to avoid
+    -- having to manipulate passphrases and private keys.
+    --
+    -- NOTE: The caller is expected to provide the corresponding passphrase (and
+    -- to have checked that the passphrase is valid). Providing a wrong passphrase
+    -- will not make the function fail but will instead, yield an incorrect new
+    -- key that doesn't belong to the wallet.
+    deriveAddressPrivateKey
+        :: Passphrase "encryption"
+        -> key 'AccountK XPrv
+        -> ChangeChain
+        -> Index (AddressIndexDerivationType key) 'AddressK
+        -> key 'AddressK XPrv
+
+-- | An interface for doing soft derivations from an account public key
+class HardDerivation key => SoftDerivation (key :: Depth -> * -> *) where
+    -- | Derives address public key from the given account public key, using
+    -- derivation scheme 2 (see <https://github.com/input-output-hk/cardano-crypto/ cardano-crypto>
+    -- package for more details).
+    --
+    -- This is the preferred way of deriving new sequential address public keys.
+    deriveAddressPublicKey
+        :: key 'AccountK XPub
+        -> ChangeChain
+        -> Index 'Soft 'AddressK
+        -> key 'AddressK XPub
 
 {-------------------------------------------------------------------------------
                                  Passphrases
@@ -444,15 +534,24 @@ class WalletKey (key :: Depth -> * -> *) where
     dummyKey :: key 'AddressK XPub
 
 -- | Encoding of addresses for certain key types and backend targets.
-class WalletKey key => PaymentAddress (network :: NetworkDiscriminant) (key :: Depth -> * -> *) where
+class MkKeyFingerprint key
+    => PaymentAddress (network :: NetworkDiscriminant) key where
     -- | Convert a public key to a payment 'Address' valid for the given
     -- network discrimination.
     --
     -- Note that 'paymentAddress' is ambiguous and requires therefore a type
     -- application.
-    paymentAddress :: key 'AddressK XPub -> Address
+    paymentAddress
+        :: key 'AddressK XPub
+        -> Address
 
-class WalletKey key => DelegationAddress (network :: NetworkDiscriminant) (key :: Depth -> * -> *) where
+    -- | Lift a payment fingerprint back into an address.
+    liftPaymentFingerprint
+        :: KeyFingerprint "payment" key
+        -> Address
+
+class PaymentAddress network key
+    => DelegationAddress (network :: NetworkDiscriminant) key where
     -- | Convert a public key and a staking key to a delegation 'Address' valid
     -- for the given network discrimination. Funds sent to this address will be
     -- delegated according to the delegation settings attached to the delegation
@@ -472,30 +571,68 @@ class WalletKey key => DelegationAddress (network :: NetworkDiscriminant) (key :
 --
 -- This function is ambiguous, like 'paymentAddress', and types need to be
 -- applied.
-dummyAddress :: forall network key. PaymentAddress network key => Address
-dummyAddress = paymentAddress @network @key dummyKey
+dummyAddress
+    :: forall network key.
+        ( PaymentAddress network key
+        , WalletKey key
+        )
+    => Address
+dummyAddress =
+    paymentAddress @network @key (dummyKey @key)
 
--- | Operations for saving a 'WalletKey' into a database, and restoring it from
+-- | Operations for saving a private key into a database, and restoring it from
 -- a database. The keys should be encoded in hexadecimal strings.
-class WalletKey key => PersistKey (key :: Depth -> * -> *) where
+class PersistPrivateKey (key :: * -> *) where
     -- | Convert a private key and its password hash into hexadecimal strings
     -- suitable for storing in a text file or database column.
     serializeXPrv
-        :: (key 'RootK XPrv, Hash "encryption")
+        :: (key XPrv, Hash "encryption")
         -> (ByteString, ByteString)
 
     -- | The reverse of 'serializeXPrv'. This may fail if the inputs are not
     -- valid hexadecimal strings, or if the key is of the wrong length.
-    deserializeXPrv
+    unsafeDeserializeXPrv
         :: (ByteString, ByteString)
-        -> Either String (key 'RootK XPrv, Hash "encryption")
+        -> (key XPrv, Hash "encryption")
 
--- | Access constituants of an address.
-class InspectAddress (key :: Depth -> * -> *) where
-    -- | Something that uniquely identifies a public key. Typically,
-    -- a hash of that key or the key itself.
-    type KeyFingerprint (s :: Symbol) key :: *
+-- | Operations for saving a public key into a database, and restoring it from
+-- a database. The keys should be encoded in hexadecimal strings.
+class PersistPublicKey (key :: * -> *) where
+    -- | Convert a private key and its password hash into hexadecimal strings
+    -- suitable for storing in a text file or database column.
+    serializeXPub
+        :: key XPub
+        -> ByteString
 
+    -- | Convert a public key into hexadecimal strings suitable for storing in
+    -- a text file or database column.
+    unsafeDeserializeXPub
+        :: ByteString
+        -> key XPub
+
+-- | Something that uniquely identifies a public key. Typically,
+-- a hash of that key or the key itself.
+newtype KeyFingerprint (s :: Symbol) key = KeyFingerprint ByteString
+    deriving (Generic, Show, Eq, Ord)
+
+instance NFData (KeyFingerprint s key)
+
+-- | Produce 'KeyFingerprint' for existing types. A fingerprint here uniquely
+-- identifies part of an address. It can refer to either the payment key or, if
+-- any, the delegation key of an address.
+--
+-- The fingerprint obeys the following rules:
+--
+-- - If two addresses are the same, then they have the same fingerprints
+-- - It is possible to lift the fingerprint back into an address
+--
+-- This second rule pretty much fixes what can be chosen as a fingerprint for
+-- various key types:
+--
+-- 1. For 'ByronKey', it can only be the address itself!
+-- 2. For 'ShelleyKey', then the "payment" fingerprint refers to the payment key
+--    within a single or grouped address.
+class MkKeyFingerprint (key :: Depth -> * -> *) where
     paymentKeyFingerprint
         :: Address
         -> KeyFingerprint "payment" key
@@ -503,3 +640,15 @@ class InspectAddress (key :: Depth -> * -> *) where
     delegationKeyFingerprint
         :: Address
         -> Maybe (KeyFingerprint "delegation" key)
+
+{-------------------------------------------------------------------------------
+                                Helpers
+-------------------------------------------------------------------------------}
+
+-- | Encode a 'ByteString' in base16
+hex :: ByteArrayAccess bin => bin -> ByteString
+hex = convertToBase Base16
+
+-- | Decode a 'ByteString' from base16
+fromHex :: ByteArray bout => ByteString -> Either String bout
+fromHex = convertFromBase Base16
