@@ -45,6 +45,8 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , ChainCode (..)
     , XPrv
     , unXPub
+    , hex
+    , fromHex
 
     -- * Network Discrimination
     , NetworkDiscriminant (..)
@@ -55,7 +57,8 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , PaymentAddress(..)
     , DelegationAddress(..)
     , WalletKey(..)
-    , PersistKey(..)
+    , PersistPrivateKey(..)
+    , PersistPublicKey(..)
     , MkKeyFingerprint(..)
     , KeyFingerprint(..)
     , dummyAddress
@@ -104,7 +107,9 @@ import Crypto.Random.Types
 import Data.Bifunctor
     ( first )
 import Data.ByteArray
-    ( ScrubbedBytes )
+    ( ByteArray, ByteArrayAccess, ScrubbedBytes )
+import Data.ByteArray.Encoding
+    ( Base (..), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
 import Data.List
@@ -529,15 +534,24 @@ class WalletKey (key :: Depth -> * -> *) where
     dummyKey :: key 'AddressK XPub
 
 -- | Encoding of addresses for certain key types and backend targets.
-class WalletKey key => PaymentAddress (network :: NetworkDiscriminant) (key :: Depth -> * -> *) where
+class MkKeyFingerprint key
+    => PaymentAddress (network :: NetworkDiscriminant) key where
     -- | Convert a public key to a payment 'Address' valid for the given
     -- network discrimination.
     --
     -- Note that 'paymentAddress' is ambiguous and requires therefore a type
     -- application.
-    paymentAddress :: key 'AddressK XPub -> Address
+    paymentAddress
+        :: key 'AddressK XPub
+        -> Address
 
-class WalletKey key => DelegationAddress (network :: NetworkDiscriminant) (key :: Depth -> * -> *) where
+    -- | Lift a payment fingerprint back into an address.
+    liftPaymentFingerprint
+        :: KeyFingerprint "payment" key
+        -> Address
+
+class PaymentAddress network key
+    => DelegationAddress (network :: NetworkDiscriminant) key where
     -- | Convert a public key and a staking key to a delegation 'Address' valid
     -- for the given network discrimination. Funds sent to this address will be
     -- delegated according to the delegation settings attached to the delegation
@@ -557,23 +571,44 @@ class WalletKey key => DelegationAddress (network :: NetworkDiscriminant) (key :
 --
 -- This function is ambiguous, like 'paymentAddress', and types need to be
 -- applied.
-dummyAddress :: forall network key. PaymentAddress network key => Address
-dummyAddress = paymentAddress @network @key dummyKey
+dummyAddress
+    :: forall network key.
+        ( PaymentAddress network key
+        , WalletKey key
+        )
+    => Address
+dummyAddress =
+    paymentAddress @network @key (dummyKey @key)
 
--- | Operations for saving a 'WalletKey' into a database, and restoring it from
+-- | Operations for saving a private key into a database, and restoring it from
 -- a database. The keys should be encoded in hexadecimal strings.
-class WalletKey key => PersistKey (key :: Depth -> * -> *) where
+class PersistPrivateKey (key :: * -> *) where
     -- | Convert a private key and its password hash into hexadecimal strings
     -- suitable for storing in a text file or database column.
     serializeXPrv
-        :: (key 'RootK XPrv, Hash "encryption")
+        :: (key XPrv, Hash "encryption")
         -> (ByteString, ByteString)
 
     -- | The reverse of 'serializeXPrv'. This may fail if the inputs are not
     -- valid hexadecimal strings, or if the key is of the wrong length.
-    deserializeXPrv
+    unsafeDeserializeXPrv
         :: (ByteString, ByteString)
-        -> Either String (key 'RootK XPrv, Hash "encryption")
+        -> (key XPrv, Hash "encryption")
+
+-- | Operations for saving a public key into a database, and restoring it from
+-- a database. The keys should be encoded in hexadecimal strings.
+class PersistPublicKey (key :: * -> *) where
+    -- | Convert a private key and its password hash into hexadecimal strings
+    -- suitable for storing in a text file or database column.
+    serializeXPub
+        :: key XPub
+        -> ByteString
+
+    -- | Convert a public key into hexadecimal strings suitable for storing in
+    -- a text file or database column.
+    unsafeDeserializeXPub
+        :: ByteString
+        -> key XPub
 
 -- | Something that uniquely identifies a public key. Typically,
 -- a hash of that key or the key itself.
@@ -583,11 +618,23 @@ newtype KeyFingerprint (s :: Symbol) key = KeyFingerprint ByteString
 instance NFData (KeyFingerprint s key)
 
 -- | Produce 'KeyFingerprint' for existing types.
-class MkKeyFingerprint (key :: Depth -> * -> *) from where
+class MkKeyFingerprint (key :: Depth -> * -> *) where
     paymentKeyFingerprint
-        :: from
+        :: Address
         -> KeyFingerprint "payment" key
 
     delegationKeyFingerprint
-        :: from
+        :: Address
         -> Maybe (KeyFingerprint "delegation" key)
+
+{-------------------------------------------------------------------------------
+                                Helpers
+-------------------------------------------------------------------------------}
+
+-- | Encode a 'ByteString' in base16
+hex :: ByteArrayAccess bin => bin -> ByteString
+hex = convertToBase Base16
+
+-- | Decode a 'ByteString' from base16
+fromHex :: ByteArray bout => ByteString -> Either String bout
+fromHex = convertFromBase Base16

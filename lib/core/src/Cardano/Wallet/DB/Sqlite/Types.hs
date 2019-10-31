@@ -20,12 +20,8 @@ module Cardano.Wallet.DB.Sqlite.Types where
 
 import Prelude
 
-import Cardano.Crypto.Wallet
-    ( XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ChangeChain, ShelleyKey, deserializeXPubSeq, serializeXPubSeq )
+    ( ChangeChain (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..), getAddressPoolGap, mkAddressPoolGap )
 import Cardano.Wallet.Primitive.Types
@@ -93,7 +89,6 @@ import Web.HttpApiData
 import Web.PathPieces
     ( PathPiece (..) )
 
-import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
 
 ----------------------------------------------------------------------------
@@ -357,23 +352,6 @@ instance PersistField AddressPoolGap where
 
 instance PersistFieldSql AddressPoolGap where
     sqlType _ = sqlType (Proxy @Word8)
-
-----------------------------------------------------------------------------
--- XPub for sequential address discovery
-
-newtype AddressPoolXPub = AddressPoolXPub
-    { getAddressPoolXPub :: ShelleyKey 'AccountK XPub }
-    deriving (Show, Eq, Generic)
-
-instance PersistField AddressPoolXPub where
-    toPersistValue = toPersistValue . serializeXPubSeq . getAddressPoolXPub
-    fromPersistValue pv = fromPersistValue >=> deserializeXPub' $ pv
-      where
-        deserializeXPub' = bimap msg AddressPoolXPub . deserializeXPubSeq
-        msg e = T.pack $ "not a valid XPub: " <> show pv <> ": " <> e
-
-instance PersistFieldSql AddressPoolXPub where
-    sqlType _ = sqlType (Proxy @B8.ByteString)
 
 ----------------------------------------------------------------------------
 -- ChangeChain

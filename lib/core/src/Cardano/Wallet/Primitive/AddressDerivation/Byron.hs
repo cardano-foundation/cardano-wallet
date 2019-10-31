@@ -34,7 +34,6 @@ module Cardano.Wallet.Primitive.AddressDerivation.Byron
     , unsafeGenerateKeyFromSeed
     , generateKeyFromSeed
     , minSeedLengthBytes
-    , nullKey
 
       -- * Derivation
     , deriveAccountPrivateKey
@@ -63,11 +62,15 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
     , Index (..)
+    , KeyFingerprint (..)
+    , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , PaymentAddress (..)
-    , PersistKey (..)
+    , PersistPrivateKey (..)
     , WalletKey (..)
+    , fromHex
+    , hex
     )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), Hash (..), ProtocolMagic (..), invariant )
@@ -79,8 +82,6 @@ import Crypto.Hash.Algorithms
     ( Blake2b_256, SHA512 (..) )
 import Data.ByteArray
     ( ScrubbedBytes )
-import Data.ByteArray.Encoding
-    ( Base (..), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
 import GHC.Generics
@@ -140,7 +141,7 @@ instance WalletKey ByronKey where
 instance PaymentAddress 'Testnet ByronKey where
     paymentAddress k = Address
         $ CBOR.toStrictByteString
-        $ CBOR.encodeAddress (getRawKey k)
+        $ CBOR.encodeAddress (getKey k)
             [ CBOR.encodeDerivationPathAttr pwd acctIx addrIx
             , CBOR.encodeProtocolMagicAttr protocolMagic
             ]
@@ -149,14 +150,24 @@ instance PaymentAddress 'Testnet ByronKey where
         (acctIx, addrIx) = derivationPath k
         pwd = payloadPassphrase k
 
+    liftPaymentFingerprint (KeyFingerprint bytes) =
+        Address bytes
+
 instance PaymentAddress 'Mainnet ByronKey where
     paymentAddress k = Address
         $ CBOR.toStrictByteString
-        $ CBOR.encodeAddress (getRawKey k)
+        $ CBOR.encodeAddress (getKey k)
             [ CBOR.encodeDerivationPathAttr pwd acctIx addrIx ]
       where
         (acctIx, addrIx) = derivationPath k
         pwd = payloadPassphrase k
+
+    liftPaymentFingerprint (KeyFingerprint bytes) =
+        Address bytes
+
+instance MkKeyFingerprint ByronKey where
+    paymentKeyFingerprint (Address bytes) = KeyFingerprint bytes
+    delegationKeyFingerprint _ = Nothing
 
 {-------------------------------------------------------------------------------
                             Encoding / Decoding
@@ -324,53 +335,31 @@ deriveAddressPrivateKey (Passphrase pwd) accountKey idx@(Index addrIx) = ByronKe
                           Storing and retrieving keys
 -------------------------------------------------------------------------------}
 
-instance PersistKey ByronKey where
-    serializeXPrv = serializeXPrvRnd
-    deserializeXPrv = deserializeXPrvRnd
+instance PersistPrivateKey (ByronKey 'RootK) where
+    serializeXPrv ((ByronKey k _ (Passphrase p)), h) =
+        ( hex (unXPrv k) <> ":" <> hex p
+        , hex . getHash $ h
+        )
 
--- | Serialize the key with its payload encryption passphrase.
-serializeKey :: (ByteString, Passphrase "addr-derivation-payload") -> ByteString
-serializeKey (k, Passphrase p) =
-    convertToBase Base16 k <> ":" <> convertToBase Base16 p
-
--- | Deserialize the key and its payload encryption passphrase.
-deserializeKey
-    :: (ByteString -> Either String key)
-    -> ByteString
-    -> Either String (key, Passphrase "addr-derivation-payload")
-deserializeKey f b = case map (convertFromBase Base16) (B8.split ':' b) of
-    [Right k, Right p] -> case f k of
-        Right k' -> Right (k', Passphrase (BA.convert p))
-        Left e -> Left e
-    _ -> Left "Key input must be two hex strings separated by :"
-
-serializeXPrvRnd
-    :: (ByronKey 'RootK XPrv, Hash "encryption")
-    -> (ByteString, ByteString)
-serializeXPrvRnd (ByronKey k _ p, h) =
-    ( serializeKey (unXPrv k, p)
-    , convertToBase Base16 . getHash $ h )
-
--- | The reverse of 'serializeXPrv'. This may fail if the inputs are not valid
--- hexadecimal strings, or if the key is of the wrong length.
-deserializeXPrvRnd
-    :: (ByteString, ByteString)
-       -- ^ Hexadecimal encoded private key and password hash
-    -> Either String (ByronKey 'RootK XPrv, Hash "encryption")
-deserializeXPrvRnd (k, h) = (,)
-    <$> fmap mkKey (rootKeyFromText k)
-    <*> fmap Hash (convertFromBase Base16 h)
-  where
-    rootKeyFromText = deserializeKey xprv
-    mkKey (key, pwd) = ByronKey key () pwd
-
--- | A root key of all zeroes that is used when restoring 'RndState' from the
--- database before a root key has been saved.
-nullKey :: ByronKey 'RootK XPrv
-nullKey = ByronKey k () pwd
-  where
-    Right k = xprv $ B8.replicate 128 '\0'
-    pwd = Passphrase (BA.convert $ B8.replicate 32 '\0')
+    unsafeDeserializeXPrv (k, h) = either err id $ (,)
+        <$> fmap mkKey (deserializeKey k)
+        <*> fmap Hash (fromHex h)
+      where
+        err _ = error "unsafeDeserializeXPrv: unable to deserialize ByronKey"
+        mkKey (key, pwd) = ByronKey key () pwd
+        deserializeKey
+            :: ByteString
+            -> Either String
+                ( XPrv
+                , Passphrase "addr-derivation-payload"
+                )
+        deserializeKey b = case map (fromHex @ByteString) (B8.split ':' b) of
+            [Right rawK, Right p] ->
+                case xprv rawK of
+                    Right k' -> Right (k', Passphrase (BA.convert p))
+                    Left e -> Left e
+            _ ->
+                Left "Key input must be two hex strings separated by :"
 
 {-------------------------------------------------------------------------------
                                      Utils

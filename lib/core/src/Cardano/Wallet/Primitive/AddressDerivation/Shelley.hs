@@ -36,10 +36,6 @@ module Cardano.Wallet.Primitive.AddressDerivation.Shelley
 
     -- * Address
     , decodeShelleyAddress
-
-    -- * Storage / Internal
-    , deserializeXPubSeq
-    , serializeXPubSeq
     ) where
 
 import Prelude
@@ -70,9 +66,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , NetworkDiscriminantVal
     , Passphrase (..)
     , PaymentAddress (..)
-    , PersistKey (..)
+    , PersistPrivateKey (..)
+    , PersistPublicKey (..)
     , SoftDerivation (..)
     , WalletKey (..)
+    , fromHex
+    , hex
     , networkDiscriminantVal
     )
 import Cardano.Wallet.Primitive.Types
@@ -85,8 +84,6 @@ import Crypto.Hash
     ( Digest, HashAlgorithm, hash )
 import Data.Binary.Put
     ( putByteString, putWord8, runPut )
-import Data.ByteArray.Encoding
-    ( Base (..), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
 import Data.Maybe
@@ -226,11 +223,10 @@ instance SoftDerivation ShelleyKey where
             return $ ShelleyKey addrXPub
       where
         errWrongIndex = error $
-            "Cardano.Wallet.Primitive.AddressDerivation.deriveAddressPublicKey \
-            \failed: was given an hardened (or too big) index for soft path \
-            \derivation ( " ++ show addrIx ++ "). This is either a programmer \
-            \error, or, we may have reached the maximum number of addresses for \
-            \a given wallet."
+            "deriveAddressPublicKey failed: was given an hardened (or too big) \
+            \index for soft path derivation ( " ++ show addrIx ++ "). This is \
+            \either a programmer error, or, we may have reached the maximum \
+            \number of addresses for a given wallet."
 
 {-------------------------------------------------------------------------------
                             WalletKey implementation
@@ -282,20 +278,24 @@ changePassphraseSeq (Passphrase oldPwd) (Passphrase newPwd) (ShelleyKey prv) =
 -------------------------------------------------------------------------------}
 
 instance PaymentAddress 'Mainnet ShelleyKey where
-    paymentAddress xpub0 =
-        encodeShelleyAddress (single @'Mainnet) [getKey xpub0]
+    paymentAddress (ShelleyKey k0) =
+        encodeShelleyAddress (single @'Mainnet) [xpubPublicKey k0]
+    liftPaymentFingerprint (KeyFingerprint k0) =
+        encodeShelleyAddress (single @'Mainnet) [k0]
 
 instance PaymentAddress 'Testnet ShelleyKey where
-    paymentAddress xpub0 =
-        encodeShelleyAddress (single @'Testnet) [getKey xpub0]
+    paymentAddress (ShelleyKey k0) =
+        encodeShelleyAddress (single @'Testnet) [xpubPublicKey k0]
+    liftPaymentFingerprint (KeyFingerprint k0) =
+        encodeShelleyAddress (single @'Testnet) [k0]
 
 instance DelegationAddress 'Mainnet ShelleyKey where
-    delegationAddress xpub0 xpub1 =
-        encodeShelleyAddress (grouped @'Mainnet) [getKey xpub0, getKey xpub1]
+    delegationAddress (ShelleyKey k0) (ShelleyKey k1) =
+        encodeShelleyAddress (grouped @'Mainnet) (xpubPublicKey <$> [k0, k1])
 
 instance DelegationAddress 'Testnet ShelleyKey where
-    delegationAddress xpub0 xpub1 =
-        encodeShelleyAddress (grouped @'Testnet) [getKey xpub0, getKey xpub1]
+    delegationAddress (ShelleyKey k0) (ShelleyKey k1) =
+        encodeShelleyAddress (grouped @'Testnet) (xpubPublicKey <$> [k0, k1])
 
 -- | Embed some constants into a network type.
 class KnownNetwork (n :: NetworkDiscriminant) where
@@ -315,13 +315,15 @@ instance KnownNetwork 'Testnet where
     single = 0x83
     grouped = 0x84
 
--- | We use this to define both instance separately to avoid having to carry a
+-- | Internal function to encode shelley addresses from key fingerprints.
+--
+-- We use this to define both instance separately to avoid having to carry a
 -- 'KnownNetwork' constraint around.
-encodeShelleyAddress :: Word8 -> [XPub] -> Address
+encodeShelleyAddress :: Word8 -> [ByteString] -> Address
 encodeShelleyAddress discriminant keys =
     Address $ invariantSize $ BL.toStrict $ runPut $ do
         putWord8 discriminant
-        mapM_ putByteString (xpubPublicKey <$> keys)
+        mapM_ putByteString keys
   where
     invariantSize :: HasCallStack => ByteString -> ByteString
     invariantSize bytes
@@ -371,7 +373,7 @@ decodeShelleyAddress bytes = do
         "This Address belongs to another network. Network is: "
         <> show (networkDiscriminantVal @n) <> "."
 
-instance MkKeyFingerprint ShelleyKey Address where
+instance MkKeyFingerprint ShelleyKey where
     paymentKeyFingerprint (Address bytes)
         | len == addrSingleSize || len == addrGroupedSize =
             KeyFingerprint $ BS.take publicKeySize $ BS.drop 1 bytes
@@ -398,57 +400,38 @@ instance MkKeyFingerprint ShelleyKey Address where
       where
         len = BS.length bytes
 
-instance MkKeyFingerprint ShelleyKey (ShelleyKey 'AddressK XPub) where
-    paymentKeyFingerprint (ShelleyKey (XPub bytes _chainCode)) =
-        KeyFingerprint bytes
-    delegationKeyFingerprint (ShelleyKey (XPub bytes _chainCode)) =
-        Just $ KeyFingerprint bytes
+-- instance MkKeyFingerprint ShelleyKey (ShelleyKey 'AddressK XPub) where
+--     paymentKeyFingerprint (ShelleyKey (XPub bytes _chainCode)) =
+--         KeyFingerprint bytes
+--     delegationKeyFingerprint (ShelleyKey (XPub bytes _chainCode)) =
+--         Just $ KeyFingerprint bytes
 
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys
 -------------------------------------------------------------------------------}
 
-instance PersistKey ShelleyKey where
-    serializeXPrv = serializeXPrvSeq
-    deserializeXPrv = deserializeXPrvSeq
+instance PersistPrivateKey (ShelleyKey 'RootK) where
+    serializeXPrv (k, h) =
+        ( hex . unXPrv . getKey $ k
+        , hex . getHash $ h
+        )
 
--- | Convert a private key and its password hash into hexadecimal strings
--- suitable for storing in a text file or database column.
-serializeXPrvSeq
-    :: (ShelleyKey 'RootK XPrv, Hash "encryption")
-    -> (ByteString, ByteString)
-serializeXPrvSeq (k, h) =
-    ( toHexText . unXPrv . getRawKey $ k
-    , toHexText . getHash $ h )
+    unsafeDeserializeXPrv (k, h) = either err id $ (,)
+        <$> fmap ShelleyKey (xprvFromText k)
+        <*> fmap Hash (fromHex h)
+      where
+        xprvFromText = xprv <=< fromHex @ByteString
+        err _ = error "unsafeDeserializeXPrv: unable to deserialize ShelleyKey"
 
--- | The reverse of 'serializeXPrvSeq'. This may fail if the inputs are not
--- valid hexadecimal strings, or if the key is of the wrong length.
-deserializeXPrvSeq
-    :: (ByteString, ByteString)
-       -- ^ Hexadecimal encoded private key and password hash
-    -> Either String (ShelleyKey purpose XPrv, Hash "encryption")
-deserializeXPrvSeq (k, h) = (,)
-    <$> fmap ShelleyKey (xprvFromText k)
-    <*> fmap Hash (fromHexText h)
-  where
-    xprvFromText = xprv <=< fromHexText
+instance PersistPublicKey (ShelleyKey 'AccountK) where
+    serializeXPub =
+        hex . unXPub . getKey
 
--- | Convert a public key into a hexadecimal string suitable for storing in a
--- text file or database column.
-serializeXPubSeq :: ShelleyKey purpose XPub -> ByteString
-serializeXPubSeq = toHexText . unXPub . getRawKey
-
--- | The reverse of 'serializeXPub'. This will fail if the input is not
--- hexadecimal string of the correct length.
-deserializeXPubSeq :: ByteString -> Either String (ShelleyKey purpose XPub)
-deserializeXPubSeq = fmap ShelleyKey . (xpub <=< fromHexText)
-
-toHexText :: ByteString -> ByteString
-toHexText = convertToBase Base16
-
-fromHexText :: ByteString -> Either String ByteString
-fromHexText = convertFromBase Base16
-
+    unsafeDeserializeXPub =
+        either err ShelleyKey . xpubFromText
+      where
+        xpubFromText = xpub <=< fromHex @ByteString
+        err _ = error "unsafeDeserializeXPub: unable to deserialize ShelleyKey"
 -- $use
 -- 'Key' and 'Index' allow for representing public keys, private keys, hardened
 -- indexes and soft (non-hardened) indexes for various level in a non-ambiguous

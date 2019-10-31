@@ -25,6 +25,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery
     , IsOwned(..)
     , GenChange(..)
     , CompareDiscovery(..)
+    , KnownAddresses(..)
     , EncodeAddress(..)
     , DecodeAddress(..)
     ) where
@@ -143,6 +144,16 @@ class CompareDiscovery s where
         -> Address
         -> Address
         -> Ordering
+
+-- | Extract the list of all known addresses.
+--
+-- NOTE: Change addresses aren't considered "known" until they've been used. The
+-- rationale is that, we don't want users or consumers of the wallet to be using
+-- change addresses prematurely.
+class KnownAddresses s where
+    knownAddresses
+        :: s
+        -> [Address]
 
 -- | An abstract class to allow encoding of addresses depending on the target
 -- backend used.

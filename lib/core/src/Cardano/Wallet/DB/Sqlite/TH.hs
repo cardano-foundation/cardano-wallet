@@ -25,7 +25,7 @@ module Cardano.Wallet.DB.Sqlite.TH where
 import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Types
-    ( AddressPoolXPub, BlockId, TxId, sqlSettings' )
+    ( BlockId, TxId, sqlSettings' )
 import Data.Text
     ( Text )
 import Data.Time.Clock
@@ -43,7 +43,7 @@ import Numeric.Natural
 import System.Random
     ( StdGen )
 
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as W
+import qualified Cardano.Wallet.Primitive.AddressDerivation as W
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.ByteString.Char8 as B8
@@ -170,7 +170,7 @@ SeqState
     seqStateWalletId        W.WalletId        sql=wallet_id
     seqStateExternalGap     W.AddressPoolGap  sql=external_gap
     seqStateInternalGap     W.AddressPoolGap  sql=internal_gap
-    seqStateAccountXPub     AddressPoolXPub   sql=account_xpub
+    seqStateAccountXPub     B8.ByteString     sql=account_xpub
 
     Primary seqStateWalletId
     Foreign Wallet seq_state seqStateWalletId ! ON DELETE CASCADE

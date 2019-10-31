@@ -226,3 +226,6 @@ deriveRndStateAddress st passphrase path =
 -- derivation scheme won't be ordered in any particular order.
 instance CompareDiscovery (RndState n) where
     compareDiscovery _ _ _ = EQ
+
+instance KnownAddresses (RndState n) where
+    knownAddresses s = Map.elems (addresses s)
