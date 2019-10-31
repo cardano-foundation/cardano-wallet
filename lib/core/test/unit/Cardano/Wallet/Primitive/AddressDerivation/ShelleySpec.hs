@@ -16,6 +16,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Depth (..)
     , DerivationType (..)
     , Index
+    , InspectAddress (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , WalletKey (..)
@@ -26,6 +27,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ChangeChain (..)
     , ShelleyKey (..)
+    , addrGroupedSize
+    , addrSingleSize
     , deriveAccountPrivateKey
     , deriveAddressPrivateKey
     , deriveAddressPublicKey
@@ -35,10 +38,16 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
     ()
+import Cardano.Wallet.Primitive.Types
+    ( Address (..) )
 import Control.Exception
-    ( SomeException, evaluate )
+    ( ErrorCall, SomeException, evaluate, try )
+import Data.Either
+    ( isLeft )
 import Data.List
     ( isSubsequenceOf )
+import Data.Maybe
+    ( isJust )
 import Test.Hspec
     ( Spec, describe, it, shouldThrow )
 import Test.QuickCheck
@@ -52,6 +61,8 @@ import Test.QuickCheck
     , (===)
     , (==>)
     )
+import Test.QuickCheck.Monadic
+    ( assert, monadicIO, run )
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -85,6 +96,14 @@ spec = do
             let msg = "length was 2, but expected to be 33"
             evaluate (paymentAddress @'Testnet (ShelleyKey $ XPub "\148" cc))
                 `shouldThrow` userException msg
+
+    describe "InspectAddress" $ do
+        it "Single addresses have a payment key but no delegation key"
+            (property prop_inspectSingleAddress)
+        it "Grouped addresses have a payment key and a delegation key"
+            (property prop_inspectGroupedAddress)
+        it "Inspecting Invalid addresses throws"
+            (property prop_inspectInvalidAddress)
 
 {-------------------------------------------------------------------------------
                                Properties
@@ -140,6 +159,34 @@ prop_accountKeyDerivation (seed, recPwd) encPwd ix =
     rootXPrv = generateKeyFromSeed (seed, recPwd) encPwd :: ShelleyKey 'RootK XPrv
     accXPub = deriveAccountPrivateKey encPwd rootXPrv ix
 
+-- | Single addresses have a payment key but no delegation key
+prop_inspectSingleAddress
+    :: SingleAddress
+    -> Property
+prop_inspectSingleAddress (SingleAddress addr) =
+    paymentKeyFingerprint @ShelleyKey addr
+        `seq` delegationKeyFingerprint @ShelleyKey addr === Nothing
+
+-- | Grouped addresses have a payment key and a delegation key
+prop_inspectGroupedAddress
+    :: GroupedAddress
+    -> Property
+prop_inspectGroupedAddress (GroupedAddress addr) =
+    paymentKeyFingerprint @ShelleyKey addr
+        `seq` property (isJust $ delegationKeyFingerprint @ShelleyKey addr)
+
+prop_inspectInvalidAddress
+    :: InvalidAddress
+    -> Property
+prop_inspectInvalidAddress (InvalidAddress addr) = monadicIO $ do
+    resPayment <- run $ try @ErrorCall $ evaluate $
+        paymentKeyFingerprint @ShelleyKey addr
+    assert (isLeft resPayment)
+
+    resDelegation <- run $ try @ErrorCall $ evaluate $
+        delegationKeyFingerprint @ShelleyKey addr
+    assert (isLeft resDelegation)
+
 {-------------------------------------------------------------------------------
                              Arbitrary Instances
 -------------------------------------------------------------------------------}
@@ -153,3 +200,21 @@ instance {-# OVERLAPS #-} Arbitrary (Passphrase "seed") where
         n <- choose (minSeedLengthBytes, 64)
         bytes <- BS.pack <$> vectorOf n arbitrary
         return $ Passphrase $ BA.convert bytes
+
+newtype SingleAddress = SingleAddress Address deriving (Eq, Show)
+
+instance Arbitrary SingleAddress where
+    arbitrary = SingleAddress . Address . BS.pack
+        <$> vectorOf addrSingleSize arbitrary
+
+newtype GroupedAddress = GroupedAddress Address deriving (Eq, Show)
+
+instance Arbitrary GroupedAddress where
+    arbitrary = GroupedAddress . Address . BS.pack
+        <$> vectorOf addrGroupedSize arbitrary
+
+newtype InvalidAddress = InvalidAddress Address deriving (Eq, Show)
+
+instance Arbitrary InvalidAddress where
+    arbitrary = InvalidAddress . Address . BS.pack
+        <$> vectorOf (addrSingleSize + addrGroupedSize) arbitrary
