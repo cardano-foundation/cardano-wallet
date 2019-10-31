@@ -91,7 +91,7 @@ computeFee
 computeFee policy (Quantity sz) =
     Fee $ ceiling (a + b*fromIntegral sz)
   where
-    LinearFee (Quantity a) (Quantity b) = policy
+    LinearFee (Quantity a) (Quantity b) (Quantity _c) = policy
 
 {-------------------------------------------------------------------------------
                                 Fee Adjustment
