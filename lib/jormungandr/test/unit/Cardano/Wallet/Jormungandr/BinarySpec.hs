@@ -22,11 +22,13 @@ import Cardano.Wallet.Jormungandr.Binary
     , MessageType (..)
     , Milli (..)
     , TxWitnessTag (..)
+    , delegationFragmentId
     , fragmentId
     , getAddress
     , getBlock
     , getMessage
     , putSignedTx
+    , putStakeDelegationTx
     , putTxWitnessTag
     , runGet
     , runPut
@@ -41,8 +43,10 @@ import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , ChimericAccount (..)
     , Coin (..)
     , Hash (..)
+    , PoolId (..)
     , SlotId (..)
     , StartTime (..)
     , TxIn (..)
@@ -50,11 +54,11 @@ import Cardano.Wallet.Primitive.Types
     , TxWitness (..)
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeDecodeAddress, unsafeDecodeHex, unsafeFromHex )
+    ( unsafeDecodeHex, unsafeFromHex )
 import Control.Exception
     ( SomeException, evaluate, try )
 import Control.Monad
-    ( forM_ )
+    ( forM_, replicateM )
 import Control.Monad.IO.Class
     ( liftIO )
 import Data.ByteString
@@ -76,7 +80,15 @@ import System.Directory
 import Test.Hspec
     ( Spec, describe, expectationFailure, it, runIO, shouldBe, shouldSatisfy )
 import Test.QuickCheck
-    ( Arbitrary (..), Gen, choose, oneof, property, shrinkList, vectorOf )
+    ( Arbitrary (..)
+    , Gen
+    , InfiniteList (..)
+    , choose
+    , oneof
+    , property
+    , shrinkList
+    , vectorOf
+    )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Monadic
@@ -84,6 +96,7 @@ import Test.QuickCheck.Monadic
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 
 spec :: Spec
@@ -91,72 +104,85 @@ spec = do
     describe "Decoding" $ do
         it "should decode a genesis block (Testnet)" $ do
             let bytes =
-                    "00520000000001ca000000000000000000000000f7becdf807c706cef5\
-                    \4ec4832d2a747591c3f2141de3e4f2aef59a130d890c12000000000000\
-                    \0000000000000000000000000000000000000000000000000000007c00\
-                    \000c0088000000005cc1c24900410200c2000101040000087001410f01\
-                    \840000000a02e030a694b80dbba2d1b8a4b55652b03d96315c8414b054\
-                    \fa737445ac2d2a865c76020800000000000000dc0244000000ff028800\
-                    \000000000000dc03410103980000000000000000000000000000000000\
-                    \00000000000000002c020001833324c37869c122689a35917df53a4f22\
-                    \94a3a52f685e05f5f8e53b87e7ea452f000000000000000e0062010100\
-                    \0000000000007b005682d818584c83581c2ac3cc97bbec476496e84807\
-                    \f35df7349acfbaece200a24b7e26250ca20058208200581ca6d9aef475\
-                    \f3418967e87f7e93f20f99d8c7af406cba146affdb7191014645010203\
-                    \0405001a89a5937100b803000004000000000000000000000000000000\
-                    \d501d0fa7e180d33987d17f77cbf70e1463bce01d32d952ed6f9823f0d\
-                    \69eb37e35f931417c6075e0f3e5858198fe15831ba7fb51368fa2f0ac2\
-                    \7a799032729e08a624a4aafb7a4dde35e4742d258d04c5f3ec87e616b9\
-                    \bcb0cdc070b503fe634b46010040a856b8a6f8d18d588b5e1cfd3ea2e5\
-                    \6ae45b80126bb25feb8ccde27fe61ebc7fd64deb7667ab1a79ca2448f5\
-                    \6e60f3097c2fa657febdec19e7bd7abfb0ea4705"
+                    "00520000000001950000000000000000000000006fb1140e69d3acdd82d\
+                    \682b1a4a52a2bb00e182c645b5af775a8115814779e7200000000000000\
+                    \00000000000000000000000000000000000000000000000000007f00000\
+                    \c0088000000005cc1c24900410200c200020398000000000000002a0000\
+                    \000000000000000000000000000001040000000301410104040000a8c00\
+                    \20800000000000003e8028800000000000000000244000000ff01840000\
+                    \000402e06555f34e4de7ef3b01e889dba07a399b3a3ea0c36f21184d014\
+                    \39af96c4442eb002c02000185877fbb2283ba1ed56d835fb8cd66694a84\
+                    \0360e69c690a04aeef39629cdd804f0000000000000001009f050000000\
+                    \000000000000000003c34eb12000000000000000000010001643b112bac\
+                    \cbfb2298cdd2e02dea6a04fb4c0791cfd62e26f7de3afa073c284700000\
+                    \00000000000000000000000000000000000000000010000000000000000\
+                    \4666e022f961efc82c507a7b8654b5727d6c5ea40bb44402004b9d17de0\
+                    \ea52ca41576922d5ca087c85df4f5d2de844282993df3534d45f0b9795d\
+                    \bdc3cde73d0000004304877fbb2283ba1ed56d835fb8cd66694a840360e\
+                    \69c690a04aeef39629cdd804fa09ae0da1e618eeb09e7b78d73e265af18\
+                    \f87d4d5320386ebf0235f54ecd03470000"
             let block = Block
                     BlockHeader
                         { version = 0
-                        , contentSize = 458
+                        , contentSize = 405
                         , slot = SlotId 0 0
                         , chainLength = 0
                         , contentHash = Hash $ unsafeFromHex
-                            "f7becdf807c706cef54ec4832d2a7475\
-                            \91c3f2141de3e4f2aef59a130d890c12"
+                            "6fb1140e69d3acdd82d682b1a4a52a2bb0\
+                            \0e182c645b5af775a8115814779e72"
                         , headerHash = Hash $ unsafeFromHex
-                            "e1abfad5b57907832d22b219d2615b62\
-                            \55437765cfd993cd0ba31b0248bad464"
+                            "3d7a861feff6d266e07c6fc2e0f41a842\
+                            \3fdf6e54db38de9b7c0a975c3b8cebe"
                         , parentHeaderHash = Hash (BS.replicate 32 0)
                         , producedBy = Nothing
                         }
                     [ Initial
                         [ Block0Date (StartTime $ posixSecondsToUTCTime 1556202057)
                         , Discrimination Testnet
-                        , Consensus BFT
-                        , SlotsPerEpoch $ W.EpochLength 2160
-                        , SlotDuration 15
-                        , EpochStabilityDepth (Quantity 10)
-                        , AddBftLeader $ LeaderId $ unsafeFromHex
-                            "30a694b80dbba2d1b8a4b55652b03d96\
-                            \315c8414b054fa737445ac2d2a865c76"
-                        , ConsensusGenesisPraosParamF (Milli 220)
+                        , Consensus GenesisPraos
+                        , ConfigLinearFee $ LinearFee (Quantity 42) (Quantity 0)
+                        , SlotsPerEpoch (W.EpochLength 3)
+                        , SlotDuration 1
+                        , KesUpdateSpeed (Quantity 43200)
+                        , ConsensusGenesisPraosParamF (Milli 1000)
+                        , BftSlotsRatio (Milli 0)
                         , MaxNumberOfTransactionsPerBlock 255
-                        , BftSlotsRatio (Milli 220)
-                        , AllowAccountCreation True
-                        , ConfigLinearFee $ LinearFee (Quantity 0) (Quantity 0)
+                        , EpochStabilityDepth (Quantity 4)
+                        , AddBftLeader $ LeaderId $ unsafeFromHex
+                            "6555f34e4de7ef3b01e889dba07a399b\
+                            \3a3ea0c36f21184d01439af96c4442eb"
                         ]
                     , Transaction (Tx
                         { txid = Hash $ unsafeFromHex
-                            "6f5e01c34590f5ead789c234a816ac25\
-                            \41baece53f6e51bf52222bd7feb5cd04"
+                            "30b99c425ca5aa64e24f23b5cef542\
+                            \170ac96ea32ea823904f9446cd49966013"
                         , inputs = []
                         , outputs =
                             [ TxOut
-                                { address = unsafeDecodeAddress @'Testnet
-                                    "ta1svejfsmcd8qjy6y6xkghmaf6fu3f\
-                                    \fga99a59up04lrjnhpl8afzj7w4yyxw"
-                                , coin = Coin 14
+                                { address = Address $ unsafeFromHex
+                                    "85877fbb2283ba1ed56d835fb8cd66694a8\
+                                    \40360e69c690a04aeef39629cdd804f"
+                                , coin = Coin 1
                                 }
                             ]
                         }, [])
-                    , UnimplementedMessage 1
-                    , UnimplementedMessage 3
+                    , UnimplementedMessage 5
+                    , TransactionWithDelegation (
+                            PoolId (unsafeFromHex
+                                    "a09ae0da1e618eeb09e7b78d73e265af18f8\
+                                    \7d4d5320386ebf0235f54ecd0347")
+                            , ChimericAccount (unsafeFromHex
+                                    "877fbb2283ba1ed56d835fb8cd66694a840\
+                                    \360e69c690a04aeef39629cdd804f")
+                            , Tx
+                              { txid = Hash $ unsafeFromHex
+                                  "4ab1923eb7e84ab2ac73769ff863138cce3a7\
+                                  \1ba9f4d2533a007d36496aa58c9"
+                              , inputs = []
+                              , outputs = []
+                              }
+                            , []
+                        )
                     ]
             unsafeDecodeHex getBlock bytes `shouldBe` block
 
@@ -260,7 +286,7 @@ spec = do
                     return ()
 
     describe "Encoding" $ do
-        it "decode (encode tx) === tx" $ property $
+        it "decode (encode tx) === tx standard transaction" $ property $
             \(SignedTx signedTx) -> monadicIO $ liftIO $ do
                 let encode ((Tx _ inps outs), wits) = runPut
                         $ withHeader MsgTypeTransaction
@@ -272,10 +298,29 @@ spec = do
                 then return ()
                 else expectationFailure $
                     "tx /= decode (encode tx) == " ++ show tx'
+
+        it "decode (encode tx) === tx stake delegation transaction" $ property $
+            \(StakeDelegationTx stakeDelTx) -> monadicIO $ liftIO $ do
+                let encode (poolId, pubKey, (Tx _ inps outs), wits) =
+                          runPut
+                        $ withHeader MsgTypeDelegation
+                        $ putStakeDelegationTx poolId pubKey inps outs wits
+                let decode =
+                        getStakeDelegationTxMessage . runGet getMessage
+                tx' <- try' (decode $ encode stakeDelTx)
+                if tx' == Right stakeDelTx
+                then return ()
+                else expectationFailure $
+                    "tx /= decode (encode tx) == " ++ show tx'
   where
     unMessage :: Message -> (Tx, [TxWitness])
     unMessage m = case m of
         Transaction stx -> stx
+        _ -> error "expected a Transaction message"
+
+    getStakeDelegationTxMessage :: Message -> (PoolId, ChimericAccount, Tx, [TxWitness])
+    getStakeDelegationTxMessage m = case m of
+        TransactionWithDelegation stx -> stx
         _ -> error "expected a Transaction message"
 
     try' :: a -> IO (Either String a)
@@ -324,6 +369,27 @@ instance Arbitrary TxIn where
 instance Arbitrary TxOut where
     arbitrary = genericArbitrary
     shrink = genericShrink
+
+newtype StakeDelegationTx =
+    StakeDelegationTx (PoolId, ChimericAccount, Tx, [TxWitness])
+    deriving (Eq, Show, Generic)
+
+instance Arbitrary PoolId where
+    arbitrary = do
+        InfiniteList bytes _ <- arbitrary
+        return $ PoolId $ BS.pack $ take 32 bytes
+
+instance Arbitrary StakeDelegationTx where
+    arbitrary = do
+        nIns <- fromIntegral <$> arbitrary @Word8
+        nOut <- fromIntegral <$> arbitrary @Word8
+        inps <- vectorOf nIns arbitrary
+        outs <- vectorOf nOut arbitrary
+        wits <- vectorOf nIns arbitrary
+        poolId <- arbitrary
+        accId <- ChimericAccount . B8.pack <$> replicateM 32 arbitrary
+        let tid = delegationFragmentId poolId accId inps outs wits
+        return $ StakeDelegationTx (poolId, accId, Tx tid inps outs, wits)
 
 newtype SignedTx = SignedTx (Tx, [TxWitness])
     deriving (Eq, Show, Generic)

@@ -38,6 +38,7 @@ module Cardano.Wallet.Jormungandr.Binary
     , getTransaction
     , putSignedTx
     , putTx
+    , putStakeDelegationTx
 
     -- * Transaction witnesses
     , signData
@@ -60,6 +61,7 @@ module Cardano.Wallet.Jormungandr.Binary
     , blake2b256
     , estimateMaxNumberOfInputsParams
     , fragmentId
+    , delegationFragmentId
     , maxNumberOfInputs
     , maxNumberOfOutputs
     , withHeader
@@ -84,6 +86,7 @@ import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , ChimericAccount (..)
     , Coin (..)
     , Hash (..)
     , PoolId (..)
@@ -244,6 +247,8 @@ data Message
     -- ^ Found in the genesis block.
     | Transaction (Tx, [TxWitness])
     -- ^ A standard signed transaction
+    | TransactionWithDelegation (PoolId, ChimericAccount, Tx, [TxWitness])
+    -- ^ A signed transaction with stake pool delegation
     | UnimplementedMessage Int
     -- Messages not yet supported go there.
     deriving (Eq, Show)
@@ -251,6 +256,7 @@ data Message
 data MessageType
     = MsgTypeInitial
     | MsgTypeTransaction
+    | MsgTypeDelegation
 
 data TxWitnessTag
     = TxWitnessLegacyUTxO
@@ -295,7 +301,7 @@ getMessage = label "getMessage" $ do
         1 -> unimpl
         2 -> Transaction <$> getTransaction fragId
         3 -> unimpl
-        4 -> unimpl
+        4 -> TransactionWithDelegation <$> getDelegatedCertificateTransaction fragId
         5 -> unimpl
         other -> fail $ "Unexpected content type tag " ++ show other
 
@@ -303,6 +309,7 @@ messageTypeTag :: MessageType -> Word8
 messageTypeTag = \case
     MsgTypeInitial -> 0
     MsgTypeTransaction -> 2
+    MsgTypeDelegation -> 4
 
 -- | Decode the contents of a @Initial@-message.
 getInitial :: Get [ConfigParam]
@@ -338,9 +345,44 @@ legacyUtxoWitness xpub bytes = TxWitness $ BL.toStrict $ runPut $ do
     putByteString (unXPub xpub)
     putByteString bytes
 
+-- | Decode the contents of a delegated transaction @Transaction@-message.
+getDelegatedCertificateTransaction
+    :: Hash "Tx"
+    -> Get (PoolId, ChimericAccount, Tx, [TxWitness])
+getDelegatedCertificateTransaction tid = do
+    label "getDelegatedCertificateTransaction" $ do
+        accId <- getByteString 32
+        poolId <- getByteString 32
+        (tx, wits) <- getGenericTransaction tid
+        pure (PoolId poolId, ChimericAccount accId, tx, wits )
+
+putStakeCertificate
+    :: PoolId
+    -> ChimericAccount
+    -> Put
+putStakeCertificate (PoolId poolId) (ChimericAccount accId) = do
+    putByteString accId
+    putByteString poolId
+
+putStakeDelegationTx
+    :: PoolId
+    -> ChimericAccount
+    -> [(TxIn, Coin)]
+    -> [TxOut]
+    -> [TxWitness]
+    -> Put
+putStakeDelegationTx poolId accId inputs outputs witnesses = do
+    putStakeCertificate poolId accId
+    putSignedTx inputs outputs witnesses
+
 -- | Decode the contents of a @Transaction@-message.
 getTransaction :: Hash "Tx" -> Get (Tx, [TxWitness])
-getTransaction tid = label "getTransaction" $ do
+getTransaction = label "getTransaction" . getGenericTransaction
+
+getGenericTransaction
+    :: Hash "Tx"
+    -> Get (Tx, [TxWitness])
+getGenericTransaction tid = label "getGenericTransaction" $ do
     (ins, outs) <- getTokenTransfer
     let witnessCount = length ins
     wits <- replicateM witnessCount getWitness
@@ -606,6 +648,18 @@ fragmentId inps outs wits =
         putWord8 (messageTypeTag MsgTypeTransaction)
         putSignedTx inps outs wits
 
+delegationFragmentId
+    :: PoolId
+    -> ChimericAccount
+    -> [(TxIn, Coin)]
+    -> [TxOut]
+    -> [TxWitness]
+    -> Hash "Tx"
+delegationFragmentId poolId accId inps outs wits =
+    Hash $ blake2b256 $ BL.toStrict $ runPut $ do
+        putWord8 (messageTypeTag MsgTypeDelegation)
+        putStakeDelegationTx poolId accId inps outs wits
+
 -- | See 'fragmentId'. This computes the signing data required for producing
 -- transaction witnesses.
 signData
@@ -628,6 +682,7 @@ convertBlock (Block h msgs) =
     coerceMessages = msgs >>= \case
         Initial _ -> []
         Transaction (tx, _wits) -> return tx
+        TransactionWithDelegation (_poolId, _xpub, tx, _wits) -> return tx
         UnimplementedMessage _ -> []
 
 -- | Convert the Jörmungandr binary format header into a simpler Wallet header.
