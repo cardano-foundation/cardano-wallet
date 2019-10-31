@@ -159,6 +159,22 @@ spec = do
             --
             -- but in practice, we only have INFO logs on start-up.
 
+        it "LOGGING - Serve shuts down logging correctly" $ \ctx -> do
+            let args =
+                    ["serve"
+                    , "--database"
+                    , "/does-not-exist"
+                    , "--node-port"
+                    , show (ctx ^. typed @(Port "node"))
+                    , "--random-port"
+                    , "--verbose"
+                    , "--genesis-block-hash"
+                    , block0H
+                    ]
+            let process = proc' (commandName @t) args
+            (out, _) <- collectStreams (2, 0) process
+            out `shouldContainT` "Logging shutdown."
+
         describe "LOGGING - Exits nicely on wrong genesis hash" $  do
             let hashes =
                     [ replicate 40 '1'
