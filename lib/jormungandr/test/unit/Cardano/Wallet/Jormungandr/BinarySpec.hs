@@ -140,7 +140,7 @@ spec = do
                         [ Block0Date (StartTime $ posixSecondsToUTCTime 1556202057)
                         , Discrimination Testnet
                         , Consensus GenesisPraos
-                        , ConfigLinearFee $ LinearFee (Quantity 42) (Quantity 0)
+                        , ConfigLinearFee $ LinearFee (Quantity 42) (Quantity 0) (Quantity 0)
                         , SlotsPerEpoch (W.EpochLength 3)
                         , SlotDuration 1
                         , KesUpdateSpeed (Quantity 43200)
@@ -224,7 +224,7 @@ spec = do
                         , ConsensusGenesisPraosParamF (Milli 220)
                         , MaxNumberOfTransactionsPerBlock 255
                         , BftSlotsRatio (Milli 220)
-                        , ConfigLinearFee $ LinearFee (Quantity 0) (Quantity 0)
+                        , ConfigLinearFee $ LinearFee (Quantity 0) (Quantity 0) (Quantity 0)
                         , KesUpdateSpeed (Quantity 16)
                         ]
                     ]

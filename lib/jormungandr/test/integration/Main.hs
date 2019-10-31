@@ -167,7 +167,7 @@ sockAddrPort addr = Port . fromIntegral $ case addr of
 mkFeeEstimator :: FeePolicy -> TxDescription -> (Natural, Natural)
 mkFeeEstimator policy (TxDescription nInps nOuts) =
     let
-        LinearFee (Quantity a) (Quantity b) = policy
+        LinearFee (Quantity a) (Quantity b) (Quantity _c) = policy
         nChanges = nOuts
         -- NOTE¹
         -- We safely round BEFORE the multiplication because we know that
