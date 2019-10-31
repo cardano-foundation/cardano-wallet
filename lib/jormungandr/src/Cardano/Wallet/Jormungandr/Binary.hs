@@ -191,9 +191,9 @@ getBlockHeader = label "getBlockHeader" $ do
         -- 2. BFT
         -- 3. Praos / Genesis
         --
-        -- We could make sure we get the right kind of proof, but we don't need to.
-        -- Just checking that the length is not totally wrong, is much simpler
-        -- and gives us sanity about the binary format being correct.
+        -- We could make sure we get the right kind of proof, but we don't need
+        -- to.  Just checking that the length is not totally wrong is much
+        -- simpler and gives us sanity about the binary format being correct.
         read' <- fromIntegral <$> bytesRead
         let remaining = size - read'
         producedBy <- case remaining of
@@ -206,7 +206,8 @@ getBlockHeader = label "getBlockHeader" $ do
             612 ->
                 -- Praos/Genesis
                 Just . PoolId <$> getByteString 32 <* skip (remaining - 32)
-            _ -> fail $ "BlockHeader proof has unexpected size " <> (show remaining)
+            _ -> fail $
+                "BlockHeader proof has unexpected size " <> (show remaining)
         return $ BlockHeader
             { version
             , contentSize
@@ -411,9 +412,13 @@ putSignedTx inputs outputs witnesses = do
 putTx :: [(TxIn, Coin)] -> [TxOut] -> Put
 putTx inputs outputs = do
     unless (length inputs <= fromIntegral (maxBound :: Word8)) $
-        fail ("number of inputs cannot be greater than " ++ show maxNumberOfInputs)
+        fail $
+            "number of inputs cannot be greater than " ++
+            show maxNumberOfInputs
     unless (length outputs <= fromIntegral (maxBound :: Word8)) $
-        fail ("number of outputs cannot be greater than " ++ show maxNumberOfOutputs)
+        fail $
+            "number of outputs cannot be greater than " ++
+            show maxNumberOfOutputs
     putWord8 $ toEnum $ length inputs
     putWord8 $ toEnum $ length outputs
     mapM_ putInput inputs
@@ -482,7 +487,8 @@ getConfigParam = label "getConfigParam" $ do
     let len = fromIntegral $ taglen .&. (63) -- 0b111111
     isolate len $ case tag of
         1 -> Discrimination <$> getNetworkDiscriminant
-        2 -> Block0Date . W.StartTime . posixSecondsToUTCTime . fromIntegral <$> getWord64be
+        2 -> Block0Date . W.StartTime . posixSecondsToUTCTime . fromIntegral
+            <$> getWord64be
         3 -> Consensus <$> getConsensusVersion
         4 -> SlotsPerEpoch . W.EpochLength . fromIntegral  <$> getWord32be
         5 -> SlotDuration . secondsToNominalDiffTime <$> getWord8
