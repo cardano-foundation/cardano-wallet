@@ -52,6 +52,9 @@ module Cardano.Wallet.Primitive.Types
     , Address (..)
     , AddressState (..)
 
+    -- * Accounts
+    , ChimericAccount (..)
+
     -- * Coin
     , Coin (..)
     , isValidCoin
@@ -1188,6 +1191,13 @@ instance NFData StartTime
 -- | Magic constant associated to a given network
 newtype ProtocolMagic = ProtocolMagic Int32
     deriving (Generic, Show)
+
+{-------------------------------------------------------------------------------
+                                Accounts
+-------------------------------------------------------------------------------}
+
+newtype ChimericAccount = ChimericAccount ByteString
+    deriving (Show, Eq)
 
 {-------------------------------------------------------------------------------
                                Polymorphic Types

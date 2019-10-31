@@ -43,6 +43,7 @@ import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , ChimericAccount (..)
     , Coin (..)
     , Hash (..)
     , PoolId (..)
@@ -302,7 +303,7 @@ spec = do
         Transaction stx -> stx
         _ -> error "expected a Transaction message"
 
-    getStakeDelegationTxMessage :: Message -> (PoolId, ByteString, Tx, [TxWitness])
+    getStakeDelegationTxMessage :: Message -> (PoolId, ChimericAccount, Tx, [TxWitness])
     getStakeDelegationTxMessage m = case m of
         TransactionWithDelegation stx -> stx
         _ -> error "expected a Transaction message"
@@ -355,7 +356,7 @@ instance Arbitrary TxOut where
     shrink = genericShrink
 
 newtype StakeDelegationTx =
-    StakeDelegationTx (PoolId, ByteString, Tx, [TxWitness])
+    StakeDelegationTx (PoolId, ChimericAccount, Tx, [TxWitness])
     deriving (Eq, Show, Generic)
 
 instance Arbitrary PoolId where
@@ -371,7 +372,7 @@ instance Arbitrary StakeDelegationTx where
         outs <- vectorOf nOut arbitrary
         wits <- vectorOf nIns arbitrary
         poolId <- arbitrary
-        accId <- B8.pack <$> replicateM 32 arbitrary
+        accId <- ChimericAccount . B8.pack <$> replicateM 32 arbitrary
         let tid = delegationFragmentId poolId accId inps outs wits
         return $ StakeDelegationTx (poolId, accId, Tx tid inps outs, wits)
 

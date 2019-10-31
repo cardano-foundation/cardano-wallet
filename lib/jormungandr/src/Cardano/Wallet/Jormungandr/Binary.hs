@@ -86,6 +86,7 @@ import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , ChimericAccount (..)
     , Coin (..)
     , Hash (..)
     , PoolId (..)
@@ -246,7 +247,7 @@ data Message
     -- ^ Found in the genesis block.
     | Transaction (Tx, [TxWitness])
     -- ^ A standard signed transaction
-    | TransactionWithDelegation (PoolId, ByteString, Tx, [TxWitness])
+    | TransactionWithDelegation (PoolId, ChimericAccount, Tx, [TxWitness])
     -- ^ A signed transaction with stake pool delegation
     | UnimplementedMessage Int
     -- Messages not yet supported go there.
@@ -347,24 +348,24 @@ legacyUtxoWitness xpub bytes = TxWitness $ BL.toStrict $ runPut $ do
 -- | Decode the contents of a delegated transaction @Transaction@-message.
 getDelegatedCertificateTransaction
     :: Hash "Tx"
-    -> Get (PoolId, ByteString, Tx, [TxWitness])
+    -> Get (PoolId, ChimericAccount, Tx, [TxWitness])
 getDelegatedCertificateTransaction tid = do
     (tx, wits) <- getGenericTransaction tid
     accId <- getByteString 32
     poolId <- getByteString 32
-    pure (PoolId poolId, accId, tx, wits )
+    pure (PoolId poolId, ChimericAccount accId, tx, wits )
 
 putStakeCertificate
     :: PoolId
-    -> ByteString
+    -> ChimericAccount
     -> Put
-putStakeCertificate (PoolId poolId) accId = do
+putStakeCertificate (PoolId poolId) (ChimericAccount accId) = do
     putByteString accId
     putByteString poolId
 
 putStakeDelegationTx
     :: PoolId
-    -> ByteString
+    -> ChimericAccount
     -> [(TxIn, Coin)]
     -> [TxOut]
     -> [TxWitness]
@@ -648,7 +649,7 @@ fragmentId inps outs wits =
 
 delegationFragmentId
     :: PoolId
-    -> ByteString
+    -> ChimericAccount
     -> [(TxIn, Coin)]
     -> [TxOut]
     -> [TxWitness]
