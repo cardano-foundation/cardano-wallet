@@ -25,7 +25,7 @@ module Cardano.Wallet.DB.Sqlite.TH where
 import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Types
-    ( BlockId, TxId, sqlSettings' )
+    ( BlockId, HDPassphrase, TxId, sqlSettings' )
 import Data.Text
     ( Text )
 import Data.Time.Clock
@@ -209,6 +209,7 @@ RndState
     rndStateWalletId        W.WalletId        sql=wallet_id
     rndStateAccountIndex    Word32            sql=account_ix
     rndStateGen             StdGen            sql=gen
+    rndStateHdPassphrase    HDPassphrase      sql=hd_passphrase
 
     Primary rndStateWalletId
     Foreign Wallet rnd_state rndStateWalletId ! ON DELETE CASCADE

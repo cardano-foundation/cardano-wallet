@@ -21,7 +21,7 @@ module Cardano.Wallet.DB.Sqlite.Types where
 import Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( ChangeChain (..) )
+    ( ChangeChain (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..), getAddressPoolGap, mkAddressPoolGap )
 import Cardano.Wallet.Primitive.Types
@@ -59,6 +59,10 @@ import Data.Aeson.Types
     ( Parser )
 import Data.Bifunctor
     ( bimap, first )
+import Data.ByteArray.Encoding
+    ( Base (..), convertFromBase, convertToBase )
+import Data.ByteString
+    ( ByteString )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -389,3 +393,23 @@ instance Read PoolId where
 instance PathPiece PoolId where
     fromPathPiece = fromTextMaybe
     toPathPiece = toText
+
+----------------------------------------------------------------------------
+-- HDPassphrase
+
+newtype HDPassphrase = HDPassphrase (Passphrase "addr-derivation-payload")
+    deriving (Generic, Show)
+
+instance PersistField HDPassphrase where
+    toPersistValue (HDPassphrase (Passphrase pwd)) =
+        toPersistValue (convertToBase @_ @ByteString Base16 pwd)
+    fromPersistValue = fromPersistValue >=>
+        fmap (HDPassphrase . Passphrase)
+        . left T.pack
+        . convertFromBase @ByteString Base16
+
+instance PersistFieldSql HDPassphrase where
+    sqlType _ = sqlType (Proxy @ByteString)
+
+instance Read HDPassphrase where
+    readsPrec _ = error "readsPrec stub needed for persistent"

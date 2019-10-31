@@ -74,7 +74,7 @@ import Cardano.Wallet.DB.Sqlite.TH
     , unWalletKey
     )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( BlockId (..), TxId (..) )
+    ( BlockId (..), HDPassphrase (..), TxId (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , PaymentAddress (..)
@@ -1019,7 +1019,8 @@ instance PersistState (Rnd.RndState t) where
     insertState (wid, sl) st = do
         let ix = W.getIndex (st ^. #accountIndex)
         let gen = st ^. #gen
-        repsert (RndStateKey wid) (RndState wid ix gen)
+        let pwd = st ^. #hdPassphrase
+        repsert (RndStateKey wid) (RndState wid ix gen (HDPassphrase pwd))
         insertRndStateAddresses wid sl (Rnd.addresses st)
         insertRndStatePending wid (Rnd.pendingAddresses st)
 
@@ -1027,20 +1028,11 @@ instance PersistState (Rnd.RndState t) where
         st <- MaybeT $ selectFirst
             [ RndStateWalletId ==. wid
             ] []
-        let (RndState _ ix gen) = entityVal st
+        let (RndState _ ix gen (HDPassphrase pwd)) = entityVal st
         addresses <- lift $ selectRndStateAddresses wid sl
         pendingAddresses <- lift $ selectRndStatePending wid
-        rndKey <- lift (selectPrivateKey wid >>= \case
-            Just (key, _passphrase) ->
-                pure key
-            Nothing -> fail
-                "selectState: attempted to read random state before the key \
-                \was stored in the database! This is unlikely to happen as it \
-                \requires a concurrent read request to be made while a wallet \
-                \is being created!?"
-            )
         pure $ Rnd.RndState
-            { rndKey = rndKey
+            { hdPassphrase = pwd
             , accountIndex = W.Index ix
             , addresses = addresses
             , pendingAddresses = pendingAddresses

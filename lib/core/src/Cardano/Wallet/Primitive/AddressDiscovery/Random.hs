@@ -75,8 +75,8 @@ import qualified Data.Set as Set
 
 -- | HD random address discovery state and key material for AD.
 data RndState (network :: NetworkDiscriminant) = RndState
-    { rndKey :: ByronKey 'RootK XPrv
-    -- ^ The wallet root key.
+    { hdPassphrase :: Passphrase "addr-derivation-payload"
+    -- ^ The HD derivation passphrase
     , accountIndex :: Index 'Hardened 'AccountK
     -- ^ The account index used for address _generation_ in this wallet. Note
     -- that addresses will be _discovered_ from any and all account indices,
@@ -116,21 +116,21 @@ type DerivationPath = (Index 'Hardened 'AccountK, Index 'Hardened 'AddressK)
 -- as a Byron HD random address, and where the wallet key can be used to decrypt
 -- the address derivation path.
 instance IsOurs (RndState n) where
-    isOurs addr st@(RndState{rndKey}) =
+    isOurs addr st =
         (isJust path, maybe id (addDiscoveredAddress addr) path st)
       where
-        path = addressToPath addr rndKey
+        path = addressToPath addr (hdPassphrase st)
 
 instance IsOwned (RndState n) ByronKey where
-    isOwned (st@RndState{rndKey}) (_,pwd) addr =
-        (, pwd) . deriveAddressKeyFromPath st pwd <$> addressToPath addr rndKey
+    isOwned st (key, pwd) addr =
+        (, pwd) . deriveAddressKeyFromPath key pwd
+            <$> addressToPath addr (hdPassphrase st)
 
 addressToPath
     :: Address
-    -> ByronKey 'RootK XPrv
+    -> Passphrase "addr-derivation-payload"
     -> Maybe DerivationPath
-addressToPath (Address addr) key = do
-    let pwd = payloadPassphrase key
+addressToPath (Address addr) pwd = do
     payload <- deserialiseCbor decodeAddressPayload addr
     join $ deserialiseCbor (decodeAddressDerivationPath pwd) payload
 
@@ -138,7 +138,7 @@ addressToPath (Address addr) key = do
 -- seed.
 mkRndState :: ByronKey 'RootK XPrv -> Int -> RndState n
 mkRndState key seed = RndState
-    { rndKey = key
+    { hdPassphrase = payloadPassphrase key
     , accountIndex = minBound
     , addresses = mempty
     , pendingAddresses = mempty
@@ -155,10 +155,10 @@ addDiscoveredAddress addr path st =
        , pendingAddresses = Map.delete path (pendingAddresses st) }
 
 instance PaymentAddress n ByronKey => GenChange (RndState n) where
-    type ArgGenChange (RndState n) = Passphrase "encryption"
-    genChange pwd st = (address, st')
+    type ArgGenChange (RndState n) = (ByronKey 'RootK XPrv, Passphrase "encryption")
+    genChange (rootXPrv, pwd) st = (address, st')
       where
-        address = deriveRndStateAddress @n st pwd path
+        address = deriveRndStateAddress @n rootXPrv pwd path
         (path, gen') = findUnusedPath (gen st) (accountIndex st)
             (unavailablePaths st)
         st' = st
@@ -200,24 +200,24 @@ randomIndex g = (Index ix, g')
 -- | Use the key material in 'RndState' to derive a change address for a given
 -- derivation path.
 deriveAddressKeyFromPath
-    :: RndState n
+    :: ByronKey 'RootK XPrv
     -> Passphrase "encryption"
     -> DerivationPath
     -> ByronKey 'AddressK XPrv
-deriveAddressKeyFromPath st passphrase (accIx, addrIx) = addrXPrv
+deriveAddressKeyFromPath rootXPrv passphrase (accIx, addrIx) = addrXPrv
   where
-    accXPrv = deriveAccountPrivateKey passphrase (rndKey st) accIx
+    accXPrv = deriveAccountPrivateKey passphrase rootXPrv accIx
     addrXPrv = deriveAddressPrivateKey passphrase accXPrv addrIx
 
 -- | Use the key material in 'RndState' to derive a change address.
 deriveRndStateAddress
     :: forall n. (PaymentAddress n ByronKey)
-    => RndState n
+    => ByronKey 'RootK XPrv
     -> Passphrase "encryption"
     -> DerivationPath
     -> Address
-deriveRndStateAddress st passphrase path =
-    paymentAddress @n $ publicKey $ deriveAddressKeyFromPath st passphrase path
+deriveRndStateAddress k passphrase path =
+    paymentAddress @n $ publicKey $ deriveAddressKeyFromPath k passphrase path
 
 -- Unlike sequential derivation, we can't derive an order from the index only
 -- (they are randomly generated), nor anything else in the address itself.

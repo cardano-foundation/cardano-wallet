@@ -106,6 +106,9 @@ module Cardano.Wallet
     , ErrListTransactions (..)
     , ErrNetworkUnavailable (..)
     , ErrStartTimeLaterThanEndTime (..)
+
+    -- ** Root Key
+    , withRootKey
     ) where
 
 import Prelude hiding

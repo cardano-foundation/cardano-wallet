@@ -463,13 +463,11 @@ instance Arbitrary (RndState 'Testnet) where
         | (ix', addrs', pending') <- shrink (ix, addrs, pending)
         ]
     arbitrary = RndState
-        <$> pure (Rnd.generateKeyFromSeed seed mempty)
+        <$> pure (Passphrase "passphrase")
         <*> pure minBound
         <*> arbitrary
         <*> (pure mempty) -- FIXME: see comment on 'Arbitrary Seq.PendingIxs'
         <*> pure (mkStdGen 42)
-      where
-        seed = Passphrase $ BA.convert $ BS.replicate 32 0
 
 instance Arbitrary (ByronKey 'RootK XPrv) where
     shrink _ = []

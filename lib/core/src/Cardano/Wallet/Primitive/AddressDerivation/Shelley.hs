@@ -379,9 +379,9 @@ instance MkKeyFingerprint ShelleyKey where
             KeyFingerprint $ BS.take publicKeySize $ BS.drop 1 bytes
         | otherwise = error $ unwords
             [ "InspectAddress.getPaymentKey was given an invalid 'ShelleyKey'"
-            , " of "
+            , "of"
             , show len
-            , " bytes!"
+            , "bytes!"
             ]
       where
         len = BS.length bytes
@@ -393,9 +393,9 @@ instance MkKeyFingerprint ShelleyKey where
             Just $ KeyFingerprint $ BS.drop addrSingleSize bytes
         | otherwise = error $ unwords
             [ "InspectAddress.getDelegationKey was given an invalid 'ShelleyKey'"
-            , " of "
+            , "of"
             , show len
-            , " bytes!"
+            , "bytes!"
             ]
       where
         len = BS.length bytes
