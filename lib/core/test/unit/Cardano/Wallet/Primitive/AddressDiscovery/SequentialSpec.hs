@@ -18,20 +18,18 @@ module Cardano.Wallet.Primitive.AddressDiscovery.SequentialSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
+    ( ChangeChain (..)
+    , Depth (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , PaymentAddress (..)
+    , SoftDerivation (..)
     , WalletKey (..)
     , XPrv
     , XPub
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ChangeChain (..)
-    , ShelleyKey (..)
-    , deriveAddressPublicKey
-    , unsafeGenerateKeyFromSeed
-    )
+    ( ShelleyKey (..), unsafeGenerateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
@@ -237,7 +235,7 @@ prop_roundtripEnumGap g =
 -- | After a lookup, a property should never grow more than its gap value.
 prop_poolGrowWithinGap
     :: (Typeable chain)
-    => (AddressPool 'Testnet chain, Address)
+    => (AddressPool 'Testnet chain ShelleyKey, Address)
     -> Property
 prop_poolGrowWithinGap (pool, addr) =
     cover 10 (isJust $ fst res) "pool hit" prop
@@ -255,7 +253,7 @@ prop_poolGrowWithinGap (pool, addr) =
 -- | A pool gives back its addresses in correct order and can be reconstructed
 prop_roundtripMkAddressPool
     :: (Typeable chain)
-    => AddressPool 'Testnet chain
+    => AddressPool 'Testnet chain ShelleyKey
     -> Property
 prop_roundtripMkAddressPool pool =
     ( mkAddressPool
@@ -266,7 +264,7 @@ prop_roundtripMkAddressPool pool =
 
 -- | A pool always contains a number of addresses at least equal to its gap
 prop_poolAtLeastGapAddresses
-    :: AddressPool 'Testnet chain
+    :: AddressPool 'Testnet chain ShelleyKey
     -> Property
 prop_poolAtLeastGapAddresses pool =
     property prop
@@ -305,7 +303,7 @@ prop_genChangeGap g =
         length (fst $ changeAddresses [] s0) === fromEnum g
 
 prop_changeAddressRotation
-    :: SeqState 'Testnet
+    :: SeqState 'Testnet ShelleyKey
     -> Property
 prop_changeAddressRotation s0 =
     property prop
@@ -315,7 +313,7 @@ prop_changeAddressRotation s0 =
         ShowFmt (fst $ changeAddresses [] s') === ShowFmt (reverse as)
 
 prop_changeNoLock
-    :: (SeqState 'Testnet, Int)
+    :: (SeqState 'Testnet ShelleyKey, Int)
     -> Property
 prop_changeNoLock (s0, ix) =
     ShowFmt xs =/= ShowFmt ys .&&. ShowFmt addr `notElem` (ShowFmt <$> ys)
@@ -327,7 +325,7 @@ prop_changeNoLock (s0, ix) =
     (ys, _) = changeAddresses [] s'
 
 prop_lookupDiscovered
-    :: (SeqState 'Testnet, Address)
+    :: (SeqState 'Testnet ShelleyKey, Address)
     -> Property
 prop_lookupDiscovered (s0, addr) =
     let (ours, s) = isOurs addr s0 in ours ==> prop s
@@ -343,7 +341,7 @@ prop_lookupDiscovered (s0, addr) =
 -------------------------------------------------------------------------------}
 
 prop_compareKnownUnknown
-    :: (SeqState 'Testnet, ShowFmt Address, ShowFmt Address)
+    :: (SeqState 'Testnet ShelleyKey, ShowFmt Address, ShowFmt Address)
     -> Property
 prop_compareKnownUnknown (s, ShowFmt known, ShowFmt addr) =
     case (fst $ isOurs known s, fst $ isOurs addr s) of
@@ -353,7 +351,7 @@ prop_compareKnownUnknown (s, ShowFmt known, ShowFmt addr) =
     prop ordering = compareDiscovery s known addr === ordering
 
 prop_compareAntiSymmetric
-    :: (SeqState 'Testnet, ShowFmt Address, ShowFmt Address)
+    :: (SeqState 'Testnet ShelleyKey, ShowFmt Address, ShowFmt Address)
     -> Property
 prop_compareAntiSymmetric (s, ShowFmt a1, ShowFmt a2) =
     cover 90 (a1 /= a2) "a1 /= a2" prop
@@ -369,7 +367,7 @@ prop_compareAntiSymmetric (s, ShowFmt a1, ShowFmt a2) =
 -------------------------------------------------------------------------------}
 
 prop_knownAddressesAreOurs
-    :: SeqState 'Testnet
+    :: SeqState 'Testnet ShelleyKey
     -> Property
 prop_knownAddressesAreOurs s =
     map (\x -> (ShowFmt x, fst (isOurs x s))) (knownAddresses s)
@@ -377,7 +375,7 @@ prop_knownAddressesAreOurs s =
     map (\x -> (ShowFmt x, True)) (knownAddresses s)
 
 prop_atLeastKnownAddresses
-    :: SeqState 'Testnet
+    :: SeqState 'Testnet ShelleyKey
     -> Property
 prop_atLeastKnownAddresses s =
     property $ length (knownAddresses s) >= g (externalPool s)
@@ -385,8 +383,8 @@ prop_atLeastKnownAddresses s =
     g = fromEnum . getAddressPoolGap . gap
 
 prop_changeIsOnlyKnownAfterGeneration
-    :: ( AddressPool 'Testnet 'InternalChain
-       , AddressPool 'Testnet 'ExternalChain
+    :: ( AddressPool 'Testnet 'InternalChain ShelleyKey
+       , AddressPool 'Testnet 'ExternalChain ShelleyKey
        )
     -> Property
 prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) =
@@ -428,8 +426,8 @@ ourAddresses cc =
 
 changeAddresses
     :: [Address]
-    -> SeqState 'Testnet
-    -> ([Address], SeqState 'Testnet)
+    -> SeqState 'Testnet ShelleyKey
+    -> ([Address], SeqState 'Testnet ShelleyKey)
 changeAddresses as s =
     let (a, s') = genChange mempty s
     in if a `elem` as then (as, s) else changeAddresses (a:as) s'
@@ -461,7 +459,7 @@ instance Arbitrary Address where
             let xprv = unsafeGenerateKeyFromSeed (bytes, mempty) mempty :: ShelleyKey 'AddressK XPrv
             return $ paymentAddress @'Testnet $ publicKey xprv
 
-instance Typeable chain => Arbitrary (AddressPool 'Testnet chain) where
+instance Typeable chain => Arbitrary (AddressPool 'Testnet chain ShelleyKey) where
     shrink pool =
         let
             key = accountPubKey pool
@@ -484,7 +482,7 @@ instance Typeable chain => Arbitrary (AddressPool 'Testnet chain) where
         let addrs = take n (ourAddresses (changeChain @chain))
         return $ mkAddressPool ourAccount g addrs
 
-instance Arbitrary (SeqState 'Testnet) where
+instance Arbitrary (SeqState 'Testnet ShelleyKey) where
     shrink (SeqState intPool extPool ixs) =
         (\(i, e) -> SeqState i e ixs) <$> shrink (intPool, extPool)
     arbitrary = do

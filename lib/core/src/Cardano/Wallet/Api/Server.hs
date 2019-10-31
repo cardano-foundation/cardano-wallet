@@ -309,7 +309,7 @@ start
     -> Trace IO Text
     -> Socket
     -> ApiLayer (RndState n) t ByronKey
-    -> ApiLayer (SeqState n) t ShelleyKey
+    -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
     -> StakePoolLayer IO
     -> IO ()
 start settings trace socket rndCtx seqCtx spl = do
@@ -391,12 +391,12 @@ ioToListenError hostPreference portOpt e
 -------------------------------------------------------------------------------}
 
 coreApiServer
-    :: forall ctx s t n k.
+    :: forall ctx s t k n.
         ( DefineTx t
         , PaymentAddress n k
         , Buildable (ErrValidateSelection t)
         , k ~ ShelleyKey
-        , s ~ SeqState n
+        , s ~ SeqState n k
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -421,11 +421,11 @@ stakePoolServer = pools
 -------------------------------------------------------------------------------}
 
 wallets
-    :: forall ctx s t n k.
+    :: forall ctx s t k n.
         ( DefineTx t
         , PaymentAddress n k
         , k ~ ShelleyKey
-        , s ~ SeqState n
+        , s ~ SeqState n k
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -440,8 +440,8 @@ wallets ctx =
     :<|> getUTxOsStatistics ctx
 
 deleteWallet
-    :: forall ctx s t n k.
-        ( s ~ SeqState n
+    :: forall ctx s t k n.
+        ( s ~ SeqState n k
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -457,9 +457,9 @@ deleteWallet ctx (ApiT wid) = do
     df = ctx ^. dbFactory @s @t @k
 
 getWallet
-    :: forall ctx s t n k.
+    :: forall ctx s t k n.
         ( DefineTx t
-        , s ~ SeqState n
+        , s ~ SeqState n k
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -469,9 +469,9 @@ getWallet ctx wid =
     fst <$> getWalletWithCreationTime mkApiWallet ctx wid
 
 listWallets
-    :: forall ctx s t n k.
+    :: forall ctx s t k n.
         ( DefineTx t
-        , s ~ SeqState n
+        , s ~ SeqState n k
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -484,10 +484,10 @@ listWallets ctx = do
     re = ctx ^. workerRegistry @s @t @k
 
 postWallet
-    :: forall ctx s t n k.
+    :: forall ctx s t k n.
         ( DefineTx t
         , PaymentAddress n k
-        , s ~ SeqState n
+        , s ~ SeqState n k
         , k ~ ShelleyKey
         , ctx ~ ApiLayer s t k
         )
@@ -510,9 +510,9 @@ postWallet ctx body = do
     getWallet ctx (ApiT wid)
 
 putWallet
-    :: forall ctx s t n k.
+    :: forall ctx s t k n.
         ( DefineTx t
-        , s ~ SeqState n
+        , s ~ SeqState n k
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -531,9 +531,9 @@ putWallet ctx (ApiT wid) body = do
     modify wName meta = meta { name = wName }
 
 putWalletPassphrase
-    :: forall ctx s t n k.
+    :: forall ctx s t k n.
         ( WalletKey k
-        , s ~ SeqState n
+        , s ~ SeqState n k
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -549,9 +549,9 @@ putWalletPassphrase ctx (ApiT wid) body = do
     liftE = throwE . ErrUpdatePassphraseNoSuchWallet
 
 getUTxOsStatistics
-    :: forall ctx s t n k.
+    :: forall ctx s t k n.
         ( DefineTx t
-        , s ~ SeqState n
+        , s ~ SeqState n k
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -574,11 +574,11 @@ getUTxOsStatistics ctx (ApiT wid) = do
 -------------------------------------------------------------------------------}
 
 addresses
-    :: forall ctx s t n k.
+    :: forall ctx s t k n.
         ( DefineTx t
         , PaymentAddress n k
         , k ~ ShelleyKey
-        , s ~ SeqState n
+        , s ~ SeqState n k
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -586,11 +586,11 @@ addresses
 addresses = listAddresses
 
 listAddresses
-    :: forall ctx s t n k.
+    :: forall ctx s t k n.
         ( DefineTx t
         , PaymentAddress n k
         , k ~ ShelleyKey
-        , s ~ SeqState n
+        , s ~ SeqState n k
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -613,11 +613,11 @@ listAddresses ctx (ApiT wid) stateFilter = do
 -------------------------------------------------------------------------------}
 
 transactions
-    :: forall ctx s t n k.
+    :: forall ctx s t k n.
         ( DefineTx t
         , PaymentAddress n k
         , Buildable (ErrValidateSelection t)
-        , s ~ SeqState n
+        , s ~ SeqState n k
         , k ~ ShelleyKey
         , ctx ~ ApiLayer s t k
         )
@@ -631,12 +631,12 @@ transactions ctx =
     :<|> deleteTransaction ctx
 
 postTransaction
-    :: forall ctx s t n k.
+    :: forall ctx s t k n.
         ( DefineTx t
         , Buildable (ErrValidateSelection t)
         , PaymentAddress n k
         , k ~ ShelleyKey
-        , s ~ SeqState n
+        , s ~ SeqState n k
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -668,8 +668,8 @@ postTransaction ctx (ApiT wid) body = do
     liftE3 = throwE . ErrSubmitTxNoSuchWallet
 
 postExternalTransaction
-    :: forall ctx s t n k.
-        ( s ~ SeqState n
+    :: forall ctx s t k n.
+        ( s ~ SeqState n k
         , ctx ~ ApiLayer s t k
         , DefineTx t
         )
@@ -697,7 +697,7 @@ deleteTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
     liftE = throwE . ErrRemovePendingTxNoSuchWallet
 
 listTransactions
-    :: forall ctx s t n k.
+    :: forall ctx s t k n.
         ( DefineTx t
         , ctx ~ ApiLayer s t k
         )
@@ -731,10 +731,10 @@ listTransactions ctx (ApiT wid) mStart mEnd mOrder = do
                 InLedger -> #insertedAt
 
 postTransactionFee
-    :: forall ctx s t n k.
+    :: forall ctx s t k n.
         ( DefineTx t
         , Buildable (ErrValidateSelection t)
-        , s ~ SeqState n
+        , s ~ SeqState n k
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -854,7 +854,7 @@ compatibilityApiServer
         , PaymentAddress n ShelleyKey
         )
     => ApiLayer (RndState n) t ByronKey
-    -> ApiLayer (SeqState n) t ShelleyKey
+    -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
     -> Server (CompatibilityApi n)
 compatibilityApiServer rndCtx seqCtx =
     deleteByronWallet rndCtx
@@ -867,7 +867,7 @@ compatibilityApiServer rndCtx seqCtx =
     :<|> deleteByronTransaction rndCtx
 
 deleteByronWallet
-    :: forall s t n k. (s ~ RndState n)
+    :: forall s t k n. (s ~ RndState n)
     => ApiLayer s t k
     -> ApiT WalletId
     -> Handler NoContent
@@ -890,7 +890,7 @@ getByronWallet ctx wid =
     fst <$> getWalletWithCreationTime mkApiByronWallet ctx wid
 
 getByronWalletMigrationInfo
-    :: forall ctx s t n k.
+    :: forall ctx s t k n.
        ( DefineTx t
        , s ~ RndState n
        , ctx ~ ApiLayer s t k )
@@ -927,7 +927,7 @@ migrateByronWallet
        )
     => ApiLayer (RndState n) t ByronKey
         -- ^ Source wallet context (Byron)
-    -> ApiLayer (SeqState n) t ShelleyKey
+    -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
         -- ^ Target wallet context (Shelley)
     -> ApiT WalletId
         -- ^ Source wallet (Byron)
@@ -962,7 +962,7 @@ migrateByronWallet rndCtx seqCtx (ApiT rndWid) (ApiT seqWid) migrateData = do
     passphrase = getApiT $ migrateData ^. #passphrase
 
 listByronWallets
-    :: forall s t n k. (DefineTx t, s ~ RndState n)
+    :: forall s t k n. (DefineTx t, s ~ RndState n)
     => ApiLayer s t k
     -> Handler [ApiByronWallet]
 listByronWallets ctx = do
@@ -994,7 +994,7 @@ postByronWallet ctx body = do
     wid = WalletId $ digest $ publicKey rootXPrv
 
 listByronTransactions
-    :: forall ctx s t n k.
+    :: forall ctx s t k n.
         ( DefineTx t
         , ctx ~ ApiLayer s t k
         )
@@ -1008,7 +1008,7 @@ listByronTransactions =
     listTransactions
 
 deleteByronTransaction
-    :: forall ctx s t n k.
+    :: forall ctx s t k n.
         ( s ~ RndState n
         , ctx ~ ApiLayer s t k
         , DefineTx t
@@ -1139,7 +1139,7 @@ getWalletWithCreationTime mk ctx (ApiT wid) = do
     return (mk wid wallet meta progress pending, meta ^. #creationTime)
 
 mkApiWallet
-    :: forall s t n. (DefineTx t, s ~ SeqState n)
+    :: forall s t k n. (DefineTx t, s ~ SeqState n k)
     => WalletId
     -> Wallet s t
     -> WalletMetadata

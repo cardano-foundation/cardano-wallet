@@ -13,25 +13,24 @@ import Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation
     ( ChainCode (..)
+    , ChangeChain (..)
     , Depth (..)
     , DerivationType (..)
+    , HardDerivation (..)
     , Index
-    , InspectAddress (..)
+    , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
+    , SoftDerivation (..)
     , WalletKey (..)
     , XPrv
     , XPub (..)
     , paymentAddress
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ChangeChain (..)
-    , ShelleyKey (..)
+    ( ShelleyKey (..)
     , addrGroupedSize
     , addrSingleSize
-    , deriveAccountPrivateKey
-    , deriveAddressPrivateKey
-    , deriveAddressPublicKey
     , generateKeyFromSeed
     , minSeedLengthBytes
     , unsafeGenerateKeyFromSeed
@@ -97,13 +96,13 @@ spec = do
             evaluate (paymentAddress @'Testnet (ShelleyKey $ XPub "\148" cc))
                 `shouldThrow` userException msg
 
-    describe "InspectAddress" $ do
+    describe "KeyFingerprint" $ do
         it "Single addresses have a payment key but no delegation key"
-            (property prop_inspectSingleAddress)
+            (property prop_fingerprintSingleAddress)
         it "Grouped addresses have a payment key and a delegation key"
-            (property prop_inspectGroupedAddress)
+            (property prop_fingerprintGroupedAddress)
         it "Inspecting Invalid addresses throws"
-            (property prop_inspectInvalidAddress)
+            (property prop_fingerprintInvalidAddress)
 
 {-------------------------------------------------------------------------------
                                Properties
@@ -160,25 +159,26 @@ prop_accountKeyDerivation (seed, recPwd) encPwd ix =
     accXPub = deriveAccountPrivateKey encPwd rootXPrv ix
 
 -- | Single addresses have a payment key but no delegation key
-prop_inspectSingleAddress
+prop_fingerprintSingleAddress
     :: SingleAddress
     -> Property
-prop_inspectSingleAddress (SingleAddress addr) =
+prop_fingerprintSingleAddress (SingleAddress addr) =
     paymentKeyFingerprint @ShelleyKey addr
         `seq` delegationKeyFingerprint @ShelleyKey addr === Nothing
 
 -- | Grouped addresses have a payment key and a delegation key
-prop_inspectGroupedAddress
+prop_fingerprintGroupedAddress
     :: GroupedAddress
     -> Property
-prop_inspectGroupedAddress (GroupedAddress addr) =
+prop_fingerprintGroupedAddress (GroupedAddress addr) =
     paymentKeyFingerprint @ShelleyKey addr
         `seq` property (isJust $ delegationKeyFingerprint @ShelleyKey addr)
 
-prop_inspectInvalidAddress
+-- | Inspecting Invalid addresses throws
+prop_fingerprintInvalidAddress
     :: InvalidAddress
     -> Property
-prop_inspectInvalidAddress (InvalidAddress addr) = monadicIO $ do
+prop_fingerprintInvalidAddress (InvalidAddress addr) = monadicIO $ do
     resPayment <- run $ try @ErrorCall $ evaluate $
         paymentKeyFingerprint @ShelleyKey addr
     assert (isLeft resPayment)

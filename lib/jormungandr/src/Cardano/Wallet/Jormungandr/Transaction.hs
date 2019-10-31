@@ -74,6 +74,7 @@ newTransactionLayer
         ( t ~ Jormungandr
         , PaymentAddress n k
         , MkTxWitness k
+        , WalletKey k
         )
     => Hash "Genesis"
     -> TransactionLayer t k

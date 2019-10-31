@@ -85,7 +85,11 @@ import Cardano.Wallet.DB.Model
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), PersistKey, XPrv, deserializeXPrv )
+    ( Depth (..), PersistPrivateKey (..), XPrv )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
@@ -99,8 +103,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletId (..)
     , WalletMetadata (..)
     )
-import Control.Applicative
-    ( (<|>) )
 import Control.Foldl
     ( Fold (..) )
 import Control.Monad.IO.Class
@@ -111,6 +113,8 @@ import Crypto.Hash
     ( Blake2b_160, Digest, digestFromByteString, hash )
 import Data.Bifunctor
     ( bimap, first )
+import Data.ByteString
+    ( ByteString )
 import Data.Foldable
     ( foldl', toList )
 import Data.Functor.Classes
@@ -213,21 +217,29 @@ unMockWid (MWid wid) = WalletId m
 -- | Represent (XPrv, Hash) as a string.
 type MPrivKey = String
 
--- | Stuff a mock private key into the type used by 'DBLayer'.
-fromMockPrivKey :: PersistKey k => MPrivKey -> (k 'RootK XPrv, Hash "encryption")
-fromMockPrivKey s = (k, Hash (B8.pack s))
-  where
-    -- Produce a key by deserializing zeroes in either ShelleyKey or ByronKey format.
-    Right (k, _) = deserializeXPrv (zeroes, mempty) <|>
-        deserializeXPrv (zeroes <> ":", mempty)
-    zeroes = B8.replicate 256 '0'
+class PersistPrivateKey k => MockPrivKey k where
+    -- | Stuff a mock private key into the type used by 'DBLayer'.
+    fromMockPrivKey
+        :: MPrivKey
+        -> (k XPrv, Hash "encryption")
 
--- | Unstuff the DBLayer private key into the mock type.
-toMockPrivKey
-    :: forall (k :: Depth -> * -> *) (purpose :: Depth).
-       (k purpose XPrv, Hash "encryption")
-    -> MPrivKey
-toMockPrivKey (_, Hash h) = B8.unpack h
+    -- | Unstuff the DBLayer private key into the mock type.
+    toMockPrivKey
+        :: (k XPrv, Hash "encryption")
+        -> MPrivKey
+    toMockPrivKey (_, Hash h) =
+        B8.unpack h
+
+zeroes :: ByteString
+zeroes = B8.replicate 256 '0'
+
+instance MockPrivKey (ShelleyKey 'RootK) where
+    fromMockPrivKey s = (k, Hash (B8.pack s))
+      where (k, _) = unsafeDeserializeXPrv (zeroes, mempty)
+
+instance MockPrivKey (ByronKey 'RootK) where
+    fromMockPrivKey s = (k, Hash (B8.pack s))
+      where (k, _) = unsafeDeserializeXPrv (zeroes <> ":", mempty)
 
 {-------------------------------------------------------------------------------
   Language
@@ -322,7 +334,7 @@ runMock = \case
 type DBLayerTest s k = DBLayer IO s DummyTarget k
 
 runIO
-    :: forall s k. (PersistKey k)
+    :: forall s k. (MockPrivKey (k 'RootK))
     => DBLayerTest s k
     -> Cmd s WalletId
     -> IO (Resp s WalletId)
@@ -561,7 +573,11 @@ postcondition m c r =
   where
     e = lockstep m c r
 
-semantics :: PersistKey k => DBLayerTest s k -> Cmd s :@ Concrete -> IO (Resp s :@ Concrete)
+semantics
+    :: MockPrivKey (k 'RootK)
+    => DBLayerTest s k
+    -> Cmd s :@ Concrete
+    -> IO (Resp s :@ Concrete)
 semantics db (At c) =
     (At . fmap QSM.reference) <$>
         runIO db (fmap QSM.concrete c)
@@ -573,7 +589,11 @@ symbolicResp m c =
     (resp, _mock') = step m c
 
 type TestConstraints s k =
-    (PersistKey k, Eq s, GenState s, Arbitrary (Wallet s DummyTarget))
+    ( MockPrivKey (k 'RootK)
+    , Eq s
+    , GenState s
+    , Arbitrary (Wallet s DummyTarget)
+    )
 
 sm
     :: TestConstraints s k
