@@ -378,8 +378,8 @@ instance MkKeyFingerprint ShelleyKey where
         | len == addrSingleSize || len == addrGroupedSize =
             KeyFingerprint $ BS.take publicKeySize $ BS.drop 1 bytes
         | otherwise = error $ unwords
-            [ "InspectAddress.getPaymentKey was given an invalid 'ShelleyKey'"
-            , "of"
+            [ "MkKeyFingerprint.paymentKeyFingerprint was given an invalid"
+            , "'ShelleyKey' of"
             , show len
             , "bytes!"
             ]
@@ -392,19 +392,13 @@ instance MkKeyFingerprint ShelleyKey where
         | len == addrGroupedSize =
             Just $ KeyFingerprint $ BS.drop addrSingleSize bytes
         | otherwise = error $ unwords
-            [ "InspectAddress.getDelegationKey was given an invalid 'ShelleyKey'"
-            , "of"
+            [ "MkKeyFingerprint.delegationKeyFingerprint was given an invalid"
+            , "'ShelleyKey' of"
             , show len
             , "bytes!"
             ]
       where
         len = BS.length bytes
-
--- instance MkKeyFingerprint ShelleyKey (ShelleyKey 'AddressK XPub) where
---     paymentKeyFingerprint (ShelleyKey (XPub bytes _chainCode)) =
---         KeyFingerprint bytes
---     delegationKeyFingerprint (ShelleyKey (XPub bytes _chainCode)) =
---         Just $ KeyFingerprint bytes
 
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys

@@ -617,7 +617,21 @@ newtype KeyFingerprint (s :: Symbol) key = KeyFingerprint ByteString
 
 instance NFData (KeyFingerprint s key)
 
--- | Produce 'KeyFingerprint' for existing types.
+-- | Produce 'KeyFingerprint' for existing types. A fingerprint here uniquely
+-- identifies part of an address. It can refer to either the payment key or, if
+-- any, the delegation key of an address.
+--
+-- The fingerprint obeys the following rules:
+--
+-- - If two addresses are the same, then they have the same fingerprints
+-- - It is possible to lift the fingerprint back into an address
+--
+-- This second rule pretty much fixes what can be chosen as a fingerprint for
+-- various key types:
+--
+-- 1. For 'ByronKey', it can only be the address itself!
+-- 2. For 'ShelleyKey', then the "payment" fingerprint refers to the payment key
+--    within a single or grouped address.
 class MkKeyFingerprint (key :: Depth -> * -> *) where
     paymentKeyFingerprint
         :: Address
