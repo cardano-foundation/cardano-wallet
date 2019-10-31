@@ -575,16 +575,16 @@ spec = do
                 , "1+1x"
                 , "1 +1x"
                 , "1+ 1x"
-                , "1+ 1x + 1"
-                , "1 +1x + 1"
-                , "1 + 1x+ 1"
-                , "1 + 1x +1"
+                , "1+ 1x + 1y"
+                , "1 +1x + 1y"
+                , "1 + 1x+ 1y"
+                , "1 + 1x +1y"
                 ]
         forM_ invalidFeePolicyTexts $ \policyText ->
             it ("fail fromText @FeePolicy " <> show policyText) $ do
                 let err =
                         "Unable to decode FeePolicy: \
-                        \Linear equation not in expected format: a + bx + c"
+                        \Linear equation not in expected format: a + bx + cy"
                 fromText @FeePolicy policyText === Left (TextDecodingError err)
 
     describe "Lemma 2.1 - Properties of UTxO operations" $ do

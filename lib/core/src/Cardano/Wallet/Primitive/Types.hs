@@ -702,26 +702,27 @@ data TransactionInfo = TransactionInfo
 -- @a@, @b@ and @c@ are constant coefficients.
 data FeePolicy = LinearFee
     (Quantity "lovelace" Double)
-    (Quantity "lovelace/x" Double)
-    (Quantity "lovelace" Double)
+    (Quantity "lovelace/byte" Double)
+    (Quantity "lovelace/certificate" Double)
     deriving (Eq, Show, Generic)
 
 instance NFData FeePolicy
 
 instance ToText FeePolicy where
     toText (LinearFee (Quantity a) (Quantity b) (Quantity c)) =
-        toText a <> " + " <> toText b <> "x + " <> toText c
+        toText a <> " + " <> toText b <> "x + " <> toText c <> "y"
 
 instance FromText FeePolicy where
     fromText txt = case T.splitOn " + " txt of
-        [a, b, c] | T.takeEnd 1 b == "x" -> LinearFee
-            <$> fmap Quantity (fromText a)
-            <*> fmap Quantity (fromText (T.dropEnd 1 b))
-            <*> fmap Quantity (fromText c)
+        [a, b, c] | T.takeEnd 1 b == "x" && T.takeEnd 1 c == "y"
+                    -> LinearFee
+                   <$> fmap Quantity (fromText a)
+                   <*> fmap Quantity (fromText (T.dropEnd 1 b))
+                   <*> fmap Quantity (fromText (T.dropEnd 1 c))
         _ ->
             Left $ TextDecodingError
                 "Unable to decode FeePolicy: \
-                \Linear equation not in expected format: a + bx + c"
+                \Linear equation not in expected format: a + bx + cy"
 
 {-------------------------------------------------------------------------------
                                     Address
