@@ -74,23 +74,28 @@ Available COMMANDS:
 Launches and manages two sub-processes:
 
 - A wallet server (using `cardano-wallet serve`)
-- A target chain producer (e.g. [cardano-http-bridge](https://github.com/input-output-hk/cardano-http-bridge), [Jörmungandr](https://github.com/input-output-hk/jormungandr))
+- A target chain producer ([Jörmungandr](https://github.com/input-output-hk/jormungandr))
 
 This is a shortcut command for those looking into an _out-of-the-box_ solution for running the software.
 
-### via Jörmungandr
+Many options supported by [`cardano-wallet serve`](#serve) are also supported by `launch`.
+
+### Invocation
 
 > ```
 > cardano-wallet launch 
->   ([--random-port] | [--port INT])
+>   [--listen-address HOST] ([--random-port] | [--port INT])
 >   [--node-port INT]
 >   [--state-dir DIR]
->   ([--quiet] | [--verbose])
+>   [--logging-config FILE.YAML] ([--quiet] | [--verbose])
 >   (--genesis-block-hash STRING | --genesis-block FILE) 
->    [-- ARGUMENTS...]
+>   [-- ARGUMENTS...]
 
-- :information_source: Please note that launch will generate a configuration for Jörmungandr in a folder specified by '--state-dir'.
-- :information_source: The wallet backend only works with Jörmungandr in Genesis/Paros mode with a test discrimination.
+##### --state-dir
+
+`cardano-wallet launch` will store the wallet databases and
+Jörmungandr chain data inside the folder specified by
+`--state-dir`. If it does not exist, it will be created.
 
 ##### --genesis-block | --genesis-block-hash
 
@@ -178,43 +183,66 @@ initial:
 $ cardano-wallet launch --genesis-block block0.bin -- --secret secret.yaml
 ```
 
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
+##### -- ARGUMENTS...
 
-### via cardano-http-bridge
-
-> ```
-> cardano-wallet launch 
->   ([--local-network] | [--network STRING])
->   ([--random-port] | [--port INT])
->   [--node-port INT] 
->   [--state-dir DIR] 
->   ([--quiet] | [--verbose])
-> ```
-
-##### example
-
-```
-$ cardano-wallet launch --network=testnet
-```
+All other arguments are passed to the `jormungandr` child process. Place `--` before the Jörmungandr arguments so that they are not interpreted as `cardano-wallet` arguments.
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 ## serve
 
-Serve API that listens for commands/actions. Before launching user should build `cardano-http-bridge` https://github.com/input-output-hk/cardano-http-bridge/ (see details on the provided link). To run `cardano-http-bridge` do:
+Serve API that listens for commands/actions. Before launching user should start [`jormungandr`](https://github.com/input-output-hk/jormungandr/) (see details on the provided link).
 
-### via Jörmungandr
+### Invocation
 
 > ```
 > cardano-wallet serve
->   ([--random-port] | [--port INT])
+>   [--listen-address HOST] ([--random-port] | [--port INT])
 >   [--node-port INT]
->   [--database FILEPATH]
->   ([--quiet] | [--verbose])
->   --genesis-hash STRING
+>   [--database DIR]
+>   [--logging-config FILE.YAML] ([--quiet] | [--verbose])
+>   --genesis-block-hash STRING
 > ```
 
-##### --genesis-hash
+##### --listen-address
+
+Which hostname or IP address to bind the API server to.
+
+As an example, to bind to the IPv4 local host only, use
+`127.0.0.1`. This is the default listen address.
+
++---------------+-----------------------------------------------+
+| Special Value | Meaning                                       |
++---------------+-----------------------------------------------+
+| `*`           | any IPv4 or IPv6 hostname                     |
+| `*4`          | any IPv4 or IPv6 hostname, IPv4 preferred     |
+| `!4`          | any IPv4 hostname                             |
+| `*6`          | any IPv4 or IPv6 hostname, IPv6 preferred     |
+| `!6`          | any IPv6 hostname                             |
++---------------+-----------------------------------------------+
+
+Note that the permissive `*` values allow binding to an IPv4 or an
+IPv6 hostname, which means you might be able to successfully bind to a
+port more times than you expect (e.g. once on the IPv4 localhost
+`127.0.0.1` and again on the IPv6 localhost `0:0:0:0:0:0:0:1`).
+
+If using the special syntax, remember to 'quote' or backslash-escape
+the value so that your shell does not interpret them as glob patterns.
+
+##### --database
+
+Wallet databases will be stored in this directory. If it does not
+exist it will be created. The database files are in
+[SQLite](https://www.sqlite.org) format, and there will be at least
+one database file per wallet.
+
+##### --logging-config
+
+Use a YAML configuration file for fine-grained control over logging.
+
+See [`iohk-monitoring-framework/iohk-monitoring/test/config.yaml`](https://github.com/input-output-hk/iohk-monitoring-framework/blob/bea0e079fc32ed316ce352d17d14199a680e3f6c/iohk-monitoring/test/config.yaml) for an example.
+
+##### --genesis-block-hash
 
 This is a hash of the the genesis block file which can obtained using Jörmungandr's tool command-line `jcli` as follows:
 
@@ -242,29 +270,6 @@ $ cardano-wallet serve --genesis-block-hash $(jcli genesis hash --input block0.b
 
 ### via cardano-http-bridge
 
-```
-cardano-wallet serve
-  [--network STRING]
-  ([--random-port] | [--port INT])
-  [--node-port INT]
-  [--database FILEPATH]
-  ([--quiet] | [--verbose])
-```
-
-##### example
-
-Start cardano-http-bridge:
-
-```
-$ cardano-http-bridge start --template testnet --port=8080
-```
-
-Then, start the wallet backen server:
-
-```
-$ cardano-wallet serve --network=testnet --node-port 8080
-
-```
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
 
