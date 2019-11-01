@@ -44,15 +44,29 @@ spec = do
         eventually $ do
             r <- request @[ApiStakePool] ctx listStakePoolsEp Default Empty
             expectResponseCode HTTP.status200 r
-            -- With the current genesis.yaml we have 1 pool with 1 lovelace, and
-            -- an epoch length of 3, meaning it will have produced either 1 or
-            -- 2 blocks in the current epoch.
+            -- With the current genesis.yaml we have 3 pools with 1 lovelace,
+            -- and an epoch length of 3.
+            --
+            -- For some reason, the first pool (the node we run), produces
+            -- blocks in 100% of the /slots/. This means it will have produced
+            -- either 1 or 2 blocks in the current epoch.
             verify r
-                [ expectListSizeEqual 1
+                [ expectListSizeEqual 3
+
                 , expectListItemFieldEqual 0
                     (metrics . stake) 1
                 , expectListItemFieldBetween 0
                     (metrics . blocks) (1, 2)
+
+                , expectListItemFieldEqual 1
+                    (metrics . stake) 1
+                , expectListItemFieldEqual 1
+                    (metrics . blocks) 0
+
+                , expectListItemFieldEqual 2
+                    (metrics . stake) 1
+                , expectListItemFieldEqual 2
+                    (metrics . blocks) 0
                 ]
 
     it "STAKE_POOLS_LIST_02 - May fail on epoch boundaries" $ \ctx -> do

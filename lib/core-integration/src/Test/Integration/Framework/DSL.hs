@@ -309,6 +309,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
 import qualified Network.HTTP.Types.Status as HTTP
+import qualified System.FilePath as F
 --
 -- API response expectations
 --
@@ -1572,9 +1573,13 @@ prepExternalTxViaJcli :: Port "node" -> Text -> Natural -> IO Text
 prepExternalTxViaJcli port addrStr amt = do
     withTempDir $ \d -> do
         let strip = T.unpack . T.strip . T.pack
-        let txFile = d <> "/trans.tx"
-        let witnessFile = d <> "/witness"
-        let keyFile = "./test/data/jormungandr/key.prv"
+        let txFile = d F.</> "trans.tx"
+        let witnessFile = d F.</> "witness"
+
+        let keyFile = d F.</> "key.prv"
+        TIO.writeFile keyFile
+            "ed25519_sk1ga6n6fdsrruumg6nh0epdrqswrsdxhq4q7g5enun8v2jnk4u2gls08wfu3"
+
         let faucetAddr =
                 "ca1swl53wlqt5dnl63e0gnf8vpazgt6g5mq384dmz72329eh4m8z7e5un8q6lg"
 

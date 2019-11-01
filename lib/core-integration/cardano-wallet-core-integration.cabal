@@ -42,6 +42,7 @@ library
     , directory
     , exceptions
     , extra
+    , filepath
     , generic-lens
     , hspec
     , hspec-expectations-lifted
