@@ -41,6 +41,7 @@ import Cardano.BM.Trace
 import Cardano.Pool.Metrics
     ( ErrListStakePools (..)
     , ErrMetricsInconsistency (..)
+    , StakePool (..)
     , StakePoolLayer (..)
     )
 import Cardano.Wallet
@@ -95,6 +96,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkInformation (..)
     , ApiNetworkTip (..)
     , ApiStakePool (..)
+    , ApiStakePoolMetrics (..)
     , ApiT (..)
     , ApiTimeReference (..)
     , ApiTransaction (..)
@@ -108,7 +110,6 @@ import Cardano.Wallet.Api.Types
     , PostExternalTransactionData (..)
     , PostTransactionData
     , PostTransactionFeeData
-    , StakePoolMetrics (..)
     , WalletBalance (..)
     , WalletPostData (..)
     , WalletPutData (..)
@@ -769,19 +770,19 @@ pools spl =
 listPools
     :: StakePoolLayer IO
     -> Handler [ApiStakePool]
-listPools spl = liftHandler (map mkApiStakePool <$> listStakePools spl)
+listPools spl =
+    liftHandler $ map mkApiStakePool <$> listStakePools spl
   where
     mkApiStakePool
-        :: ( W.PoolId,
-            (Quantity "lovelace" Word64, Quantity "block" Natural, Double)
-            )
+        :: StakePool
         -> ApiStakePool
-    mkApiStakePool (pool, ((Quantity stake), blocks, ap)) =
-        -- TODO: Make sure the stake-types match (Word64 vs Natural)
-        -- to avoid unwrapping Quantity.
+    mkApiStakePool StakePool{poolId,stake,production,apparentPerformance} =
         ApiStakePool
-            (ApiT pool)
-            (StakePoolMetrics (Quantity $ fromIntegral stake) blocks ap)
+            (ApiT poolId)
+            (ApiStakePoolMetrics
+                (Quantity $ fromIntegral $ getQuantity stake)
+                (Quantity $ fromIntegral $ getQuantity production))
+            (min 1 apparentPerformance)
 
 joinStakePool
     :: forall n k.
@@ -1555,15 +1556,12 @@ instance LiftHandler ErrListStakePools where
 
 instance LiftHandler ErrMetricsInconsistency where
     handler = \case
-        ErrProducerNotInDistribution producer blocks ->
+        ErrProducerNotInDistribution producer ->
             apiError err500 UnexpectedError $ mconcat
-                [ "Something is terribly wrong with the metrics I collected."
-                , "\n\nThe pool "
+                [ "Something is terribly wrong with the metrics I collected. "
+                , "I recorded that some blocks were produced by "
                 , toText producer
-                , " has produced "
-                , toText $ getQuantity blocks
-                , " blocks, but it doesn't exist (at all) in the"
-                , " stake-distribution."
+                , " but the node doesn't know about this stake pool!"
                 ]
 
 instance LiftHandler (Request, ServantErr) where

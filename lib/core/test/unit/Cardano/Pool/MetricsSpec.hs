@@ -11,7 +11,7 @@ module Cardano.Pool.MetricsSpec (spec) where
 import Prelude
 
 import Cardano.Pool.Metrics
-    ( Block (..), combineMetrics )
+    ( Block (..), calculatePerformance, combineMetrics )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , EpochLength (..)
@@ -21,6 +21,8 @@ import Cardano.Wallet.Primitive.Types
     , flatSlot
     , fromFlatSlot
     )
+import Data.Function
+    ( (&) )
 import Data.Map.Strict
     ( Map )
 import Data.Quantity
@@ -28,11 +30,13 @@ import Data.Quantity
 import Data.Word
     ( Word32, Word64 )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe )
+    ( Spec, describe, it )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
     , checkCoverage
+    , classify
+    , counterexample
     , cover
     , elements
     , property
@@ -48,19 +52,28 @@ import qualified Data.Map.Strict as Map
 spec :: Spec
 spec = do
     describe "combineMetrics" $ do
-        it "pools with no entry for productions are included" $
-            property $ \stakeDistr -> do
-                combineMetrics stakeDistr Map.empty Map.empty
-                `shouldBe`
-                (Right $ Map.map (, Quantity 0, 0) stakeDistr)
+        it "pools with no entry for productions are included"
+            $ property prop_combineDefaults
 
         it "it fails if a block-producer is not in the stake distr"
             $ checkCoverage
             $ property prop_combineIsLeftBiased
 
+    describe "calculatePerformances" $ do
+        it "performances are always between 0 and 1"
+            $ property prop_performancesPositive
+
 {-------------------------------------------------------------------------------
                                 Properties
 -------------------------------------------------------------------------------}
+
+prop_combineDefaults
+    :: Map PoolId (Quantity "lovelace" Word64)
+    -> Property
+prop_combineDefaults mStake = do
+    combineMetrics mStake Map.empty Map.empty
+    ===
+    (Right $ Map.map (, Quantity 0, 0) mStake)
 
 -- | it fails if a block-producer or performance is not in the stake distr
 prop_combineIsLeftBiased
@@ -75,8 +88,8 @@ prop_combineIsLeftBiased mStake mProd mPerf =
             , not . Map.null $ Map.difference mPerf mStake
             ]
     in
-    cover 20 shouldLeft "A pool without stake produced"
-    $ cover 1 (not shouldLeft) "Successfully combined the maps"
+    cover 10 shouldLeft "A pool without stake produced"
+    $ cover 50 (not shouldLeft) "Successfully combined the maps"
     $ case combineMetrics mStake mProd mPerf of
         Left _ ->
             shouldLeft === True
@@ -84,6 +97,18 @@ prop_combineIsLeftBiased mStake mProd mPerf =
             Map.map (\(a,_,_) -> a) x === mStake
 {-# HLINT ignore prop_combineIsLeftBiased "Use ||" #-}
 
+-- | Performances are always positive numbers
+prop_performancesPositive
+    :: Map PoolId (Quantity "lovelace" Word64)
+    -> Map PoolId (Quantity "block" Word64)
+    -> Property
+prop_performancesPositive mStake mProd =
+    all (>= 0) performances
+    & counterexample (show performances)
+    & classify (all (== 0) performances) "all null"
+  where
+    performances :: [Double]
+    performances = Map.elems $ calculatePerformance mStake mProd
 
 {-------------------------------------------------------------------------------
                                  Arbitrary
@@ -107,7 +132,8 @@ epochLength = EpochLength 50
 
 instance Arbitrary (Hash tag) where
     shrink _  = []
-    arbitrary = Hash . getPoolId <$> arbitrary
+    arbitrary = Hash . B8.pack
+        <$> vectorOf 8 (elements (['a'..'f'] ++ ['0'..'9']))
 
 instance Arbitrary Block where
      arbitrary = genericArbitrary
@@ -121,5 +147,5 @@ instance Arbitrary (Quantity any Word64) where
 
 instance Arbitrary PoolId where
     shrink _  = []
-    arbitrary =
-        PoolId . B8.pack <$> vectorOf 8 (elements (['a'..'f'] ++ ['0'..'9']))
+    arbitrary = PoolId . B8.pack
+        <$> elements [ "ares", "athena", "hades", "hestia", "nemesis" ]

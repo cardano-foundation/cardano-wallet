@@ -1,113 +1,103 @@
 {
-    "seed": 4849487064708393438,
+    "seed": 1620030036916395765,
     "samples": [
         {
             "controlled_stake": {
-                "quantity": 359335994684,
+                "quantity": 561139319328,
                 "unit": "lovelace"
             },
-            "apparent_performance": 0.452527951215304,
             "produced_blocks": {
-                "quantity": 7100279,
+                "quantity": 7584697,
                 "unit": "block"
             }
         },
         {
             "controlled_stake": {
-                "quantity": 216570837939,
+                "quantity": 340381540896,
                 "unit": "lovelace"
             },
-            "apparent_performance": 0.5226094128520163,
             "produced_blocks": {
-                "quantity": 16303051,
+                "quantity": 6801309,
                 "unit": "block"
             }
         },
         {
             "controlled_stake": {
-                "quantity": 455962172473,
+                "quantity": 990931856285,
                 "unit": "lovelace"
             },
-            "apparent_performance": 0.4595775259988556,
             "produced_blocks": {
-                "quantity": 22555827,
+                "quantity": 18967947,
                 "unit": "block"
             }
         },
         {
             "controlled_stake": {
-                "quantity": 40114890379,
+                "quantity": 658599885642,
                 "unit": "lovelace"
             },
-            "apparent_performance": 0.7229464283682278,
             "produced_blocks": {
-                "quantity": 21966815,
+                "quantity": 5500129,
                 "unit": "block"
             }
         },
         {
             "controlled_stake": {
-                "quantity": 237642954273,
+                "quantity": 559389776557,
                 "unit": "lovelace"
             },
-            "apparent_performance": 0.526824883761413,
             "produced_blocks": {
-                "quantity": 14778624,
+                "quantity": 20429736,
                 "unit": "block"
             }
         },
         {
             "controlled_stake": {
-                "quantity": 925217500025,
+                "quantity": 953665726307,
                 "unit": "lovelace"
             },
-            "apparent_performance": 0.9714318604921065,
             "produced_blocks": {
-                "quantity": 346059,
+                "quantity": 18333343,
                 "unit": "block"
             }
         },
         {
             "controlled_stake": {
-                "quantity": 415403391729,
+                "quantity": 666560627081,
                 "unit": "lovelace"
             },
-            "apparent_performance": 0.4012814130090073,
             "produced_blocks": {
-                "quantity": 6567049,
+                "quantity": 8077368,
                 "unit": "block"
             }
         },
         {
             "controlled_stake": {
-                "quantity": 985371058940,
+                "quantity": 404063002304,
                 "unit": "lovelace"
             },
-            "apparent_performance": 0.48432266733015816,
             "produced_blocks": {
-                "quantity": 18284836,
+                "quantity": 9241840,
                 "unit": "block"
             }
         },
         {
             "controlled_stake": {
-                "quantity": 467699164773,
+                "quantity": 474048439549,
                 "unit": "lovelace"
             },
-            "apparent_performance": 0.2156740496268824,
             "produced_blocks": {
-                "quantity": 20362939,
+                "quantity": 8911149,
                 "unit": "block"
             }
         },
         {
             "controlled_stake": {
-                "quantity": 996218232555,
+                "quantity": 829729528978,
                 "unit": "lovelace"
             },
-            "apparent_performance": 0.42846274159196995,
             "produced_blocks": {
-                "quantity": 6466191,
+                "quantity": 5591568,
                 "unit": "block"
             }
         }
