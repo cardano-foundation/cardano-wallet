@@ -68,6 +68,7 @@ module Test.Integration.Framework.DSL
     , syncProgress
     , walletId
     , walletName
+    , walletReward
 
     -- * Helpers
     , (</>)
@@ -723,6 +724,15 @@ walletName =
     _get = getWalletName . getApiT . view typed
     _set :: HasType (ApiT WalletName) s => (s, Text) -> s
     _set (s, v) = set typed (ApiT $ WalletName v) s
+
+walletReward :: HasType (Quantity "lovelace" Natural) s => Lens' s Natural
+walletReward =
+    lens _get _set
+  where
+    _get :: HasType (Quantity "lovelace" Natural) s => s -> Natural
+    _get = fromQuantity @"lovelace" @Natural . view typed
+    _set :: HasType (Quantity "lovelace" Natural) s => (s, Natural) -> s
+    _set (s, v) = set typed (Quantity @"lovelace" @Natural v) s
 
 walletId :: HasType (ApiT WalletId) s => Lens' s Text
 walletId =
