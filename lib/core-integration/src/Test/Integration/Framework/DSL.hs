@@ -10,6 +10,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 {-# OPTIONS_GHC -fno-warn-simplifiable-class-constraints #-}
 
@@ -669,18 +670,14 @@ balanceTotal =
             {available = Quantity v, Types.total = Quantity v}
 
 delegation
-    :: HasType (ApiT (WalletDelegation (ApiT PoolId))) s
+    :: forall s d. (d ~ WalletDelegation (ApiT PoolId), HasType (ApiT d) s)
     => Lens' s (WalletDelegation (ApiT PoolId))
 delegation =
     lens _get _set
   where
-    _get
-        :: HasType (ApiT (WalletDelegation (ApiT PoolId))) s
-        => s -> (WalletDelegation (ApiT PoolId))
+    _get :: s -> d
     _get = getApiT . view typed
-    _set
-        :: HasType (ApiT (WalletDelegation (ApiT PoolId))) s
-        => (s, (WalletDelegation (ApiT PoolId))) -> s
+    _set :: (s, d) -> s
     _set (s, v) = set typed (ApiT v ) s
 
 feeEstimator
@@ -692,18 +689,14 @@ feeEstimator =
     _set (ctx, v) = ctx { _feeEstimator = v }
 
 passphraseLastUpdate
-    :: HasType (Maybe (ApiT WalletPassphraseInfo)) s
+    :: forall s i. (i ~ WalletPassphraseInfo, HasType (Maybe (ApiT i)) s)
     => Lens' s (Maybe Text)
 passphraseLastUpdate =
     lens _get _set
   where
-    _get
-        :: HasType (Maybe (ApiT WalletPassphraseInfo)) s
-        => s -> Maybe Text
+    _get :: s -> Maybe Text
     _get = fmap (T.pack . show . lastUpdatedAt . getApiT) . view typed
-    _set
-        :: HasType (Maybe (ApiT WalletPassphraseInfo)) s
-        => (s, Maybe Text) -> s
+    _set :: (s, Maybe Text) -> s
     _set (s, v) =
         set typed (ApiT . WalletPassphraseInfo . read . T.unpack <$> v) s
 
@@ -725,13 +718,15 @@ walletName =
     _set :: HasType (ApiT WalletName) s => (s, Text) -> s
     _set (s, v) = set typed (ApiT $ WalletName v) s
 
-walletReward :: HasType (Quantity "lovelace" Natural) s => Lens' s Natural
+walletReward
+    :: forall s q. (q ~ Quantity "lovelace" Natural, HasType q s)
+    => Lens' s Natural
 walletReward =
     lens _get _set
   where
-    _get :: HasType (Quantity "lovelace" Natural) s => s -> Natural
+    _get :: s -> Natural
     _get = fromQuantity @"lovelace" @Natural . view typed
-    _set :: HasType (Quantity "lovelace" Natural) s => (s, Natural) -> s
+    _set :: (s, Natural) -> s
     _set (s, v) = set typed (Quantity @"lovelace" @Natural v) s
 
 walletId :: HasType (ApiT WalletId) s => Lens' s Text
@@ -770,17 +765,15 @@ inputs =
     _set :: HasType [ApiTxInput t] s => (s, [ApiTxInput t]) -> s
     _set (s, v) = set typed v s
 
-outputs :: HasType (NonEmpty (AddressAmount t)) s => Lens' s [AddressAmount t]
+outputs
+    :: forall s t a. (a ~ AddressAmount t, HasType (NonEmpty a) s)
+    => Lens' s [a]
 outputs =
     lens _get _set
   where
-    _get
-        :: HasType (NonEmpty (AddressAmount t)) s
-        => s -> [AddressAmount t]
+    _get :: s -> [a]
     _get = NE.toList . view typed
-    _set
-        :: HasType (NonEmpty (AddressAmount t)) s
-        => (s, [AddressAmount t]) -> s
+    _set :: (s, [a]) -> s
     _set (s, v) = set typed (NE.fromList v) s
 
 status :: HasType (ApiT TxStatus) s => Lens' s TxStatus
