@@ -66,6 +66,7 @@ import Test.Integration.Framework.DSL
     , verify
     , walletId
     , walletName
+    , walletReward
     , (</>)
     )
 import Test.Integration.Framework.TestData
@@ -130,6 +131,7 @@ spec = do
             , expectFieldEqual addressPoolGap 30
             , expectFieldEqual balanceAvailable 0
             , expectFieldEqual balanceTotal 0
+            , expectFieldEqual walletReward 0
             , expectEventually ctx getWalletEp state Ready
             , expectFieldEqual delegation (NotDelegating)
             , expectFieldEqual walletId
