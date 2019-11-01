@@ -52,6 +52,7 @@ module Test.Integration.Framework.DSL
     -- * Lens
     , addressPoolGap
     , amount
+    , apparentPerformance
     , balanceAvailable
     , balanceTotal
     , blocks
@@ -152,6 +153,7 @@ import Cardano.Wallet.Api.Types
     ( AddressAmount
     , ApiAddress
     , ApiByronWallet
+    , ApiStakePoolMetrics
     , ApiT (..)
     , ApiTransaction
     , ApiTxId
@@ -159,7 +161,6 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics (..)
     , ApiWallet
     , Iso8601Time (..)
-    , StakePoolMetrics
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
@@ -785,13 +786,13 @@ syncProgress =
     _set :: HasType (ApiT SyncProgress) s => (s, SyncProgress) -> s
     _set (s, v) = set typed (ApiT v) s
 
-metrics :: HasType StakePoolMetrics s => Lens' s StakePoolMetrics
+metrics :: HasType ApiStakePoolMetrics s => Lens' s ApiStakePoolMetrics
 metrics =
     lens _get _set
   where
-    _get :: HasType StakePoolMetrics s => s -> StakePoolMetrics
+    _get :: HasType ApiStakePoolMetrics s => s -> ApiStakePoolMetrics
     _get = view typed
-    _set :: HasType StakePoolMetrics s => (s, StakePoolMetrics) -> s
+    _set :: HasType ApiStakePoolMetrics s => (s, ApiStakePoolMetrics) -> s
     _set (s, v) = set typed v s
 
 stake
@@ -807,6 +808,15 @@ blocks
 blocks = lens
     (getQuantity . getField @"producedBlocks")
     (\(s, v) -> setField @"producedBlocks" (Quantity v) s)
+
+apparentPerformance :: HasType Double s => Lens' s Double
+apparentPerformance =
+    lens _get _set
+  where
+    _get :: HasType Double s => s -> Double
+    _get = view typed
+    _set :: HasType Double s => (s, Double) -> s
+    _set (s, v) = set typed v s
 
 --
 -- Helpers

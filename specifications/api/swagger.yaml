@@ -353,6 +353,17 @@ x-stakePoolMetrics: &stakePoolMetrics
       <<: *numberOfBlocks
       description: Number of blocks produced by a given stake pool
 
+x-stakePoolApparentPerformance: &stakePoolApparentPerformance
+  description: |
+    Apparent performance of the stake pool over past epochs. This indicator is computed
+    using data available to the server. In particular, the server can't reliably know the
+    stake distribution of past epochs without being during those epochs. The performance
+    are therefore an average measure that is more accurate for servers that are online
+    often.
+  type: number
+  minimum: 0
+  maximum: 1
+
 x-networkInformationSyncProgress: &networkInformationSyncProgress
   <<: *syncProgress
   description: |
@@ -449,16 +460,11 @@ definitions:
     required:
       - id
       - metrics
+      - apparent_performance
     properties:
       id: *stakePoolId
       metrics: *stakePoolMetrics
-
-  ApiStakePoolMetrics: &ApiStakePoolMetrics
-    type: object
-    required:
-      - metrics
-    properties:
-      metrics: *stakePoolMetrics
+      apparent_performance: *stakePoolApparentPerformance
 
   ApiFee: &ApiFee
     type: object
@@ -1219,7 +1225,7 @@ paths:
       tags: ["Stake Pools"]
       summary: List
       description: |
-        <p align="right">status: <strong>not implemented</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
       responses: *responsesListStakePools
 
   /stake-pools/{stakePoolId}/wallets/{walletId}:

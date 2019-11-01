@@ -34,6 +34,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkInformation (..)
     , ApiNetworkTip (..)
     , ApiStakePool (..)
+    , ApiStakePoolMetrics (..)
     , ApiT (..)
     , ApiTimeReference (..)
     , ApiTransaction (..)
@@ -47,7 +48,6 @@ import Cardano.Wallet.Api.Types
     , PostExternalTransactionData (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
-    , StakePoolMetrics (..)
     , WalletBalance (..)
     , WalletPostData (..)
     , WalletPutData (..)
@@ -233,7 +233,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiWalletPassphrase
             jsonRoundtripAndGolden $ Proxy @ApiUtxoStatistics
             jsonRoundtripAndGolden $ Proxy @ApiFee
-            jsonRoundtripAndGolden $ Proxy @StakePoolMetrics
+            jsonRoundtripAndGolden $ Proxy @ApiStakePoolMetrics
             jsonRoundtripAndGolden $ Proxy @ApiTxId
             jsonRoundtripAndGolden $ Proxy @(PostTransactionData 'Testnet)
             jsonRoundtripAndGolden $ Proxy @(PostTransactionFeeData 'Testnet)
@@ -754,14 +754,17 @@ instance Arbitrary PoolId where
         InfiniteList bytes _ <- arbitrary
         return $ PoolId $ BS.pack $ take 32 bytes
 
-instance Arbitrary StakePoolMetrics where
+instance Arbitrary ApiStakePoolMetrics where
     arbitrary = do
         stakes <- Quantity . fromIntegral <$> choose (1::Integer, 1000000000000)
         blocks <- Quantity . fromIntegral <$> choose (1::Integer, 1000*22600)
-        pure $ StakePoolMetrics stakes blocks
+        pure $ ApiStakePoolMetrics stakes blocks
 
 instance Arbitrary ApiStakePool where
-    arbitrary = ApiStakePool <$> arbitrary <*> arbitrary
+    arbitrary = ApiStakePool
+        <$> arbitrary
+        <*> arbitrary
+        <*> choose (0.0, 1.0)
 
 instance Arbitrary WalletId where
     arbitrary = do
@@ -1065,7 +1068,7 @@ instance ToSchema ApiWalletPassphrase where
 instance ToSchema ApiStakePool where
     declareNamedSchema _ = declareSchemaForDefinition "ApiStakePool"
 
-instance ToSchema StakePoolMetrics where
+instance ToSchema ApiStakePoolMetrics where
     declareNamedSchema _ = declareSchemaForDefinition "ApiStakePoolMetrics"
 
 instance ToSchema ApiFee where
