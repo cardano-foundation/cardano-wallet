@@ -248,7 +248,7 @@ data Message
     -- ^ Found in the genesis block.
     | Transaction (Tx, [TxWitness])
     -- ^ A standard signed transaction
-    | TransactionWithDelegation (PoolId, ChimericAccount, Tx, [TxWitness])
+    | StakeDelegation (PoolId, ChimericAccount, Tx, [TxWitness])
     -- ^ A signed transaction with stake pool delegation
     | UnimplementedMessage Int
     -- Messages not yet supported go there.
@@ -300,11 +300,10 @@ getMessage = label "getMessage" $ do
     let unimpl = skip remaining >> return (UnimplementedMessage msgType)
     isolate remaining $ case msgType of
         0 -> Initial <$> getInitial
-        1 -> Transaction . (,[]) <$> getLegacyTransaction remaining
+        1 -> Transaction <$> getLegacyTransaction fragId
         2 -> Transaction <$> getTransaction fragId
         3 -> unimpl -- Certificate
-        4 -> TransactionWithDelegation <$>
-                getDelegatedCertificateTransaction fragId
+        4 -> StakeDelegation <$> getStakeDelegation fragId
         5 -> unimpl -- UpdateVote
         other -> fail $ "Unexpected content type tag " ++ show other
 
@@ -348,12 +347,12 @@ legacyUtxoWitness xpub bytes = TxWitness $ BL.toStrict $ runPut $ do
     putByteString (unXPub xpub)
     putByteString bytes
 
--- | Decode the contents of a delegated transaction @Transaction@-message.
-getDelegatedCertificateTransaction
+-- | Decode the contents of a @Transaction@-message carrying a delegation cert.
+getStakeDelegation
     :: Hash "Tx"
     -> Get (PoolId, ChimericAccount, Tx, [TxWitness])
-getDelegatedCertificateTransaction tid = do
-    label "getDelegatedCertificateTransaction" $ do
+getStakeDelegation tid = do
+    label "getStakeDelegation" $ do
         accId <- getByteString 32
         poolId <- getByteString 32
         (tx, wits) <- getGenericTransaction tid
@@ -428,18 +427,19 @@ getGenericTransaction tid = label "getGenericTransaction" $ do
 --
 -- H = blake2b_256
 -- @
-getLegacyTransaction :: Int -> Get Tx
-getLegacyTransaction size = do
-    bytes <- lookAhead (getLazyByteString $ fromIntegral size)
-    let tag = runPut (putWord8 (messageTypeTag MsgTypeLegacyUTxO))
-    let tid = Hash . blake2b256 . BL.toStrict $ (tag <> bytes)
+getLegacyTransaction :: Hash "Tx" -> Get (Tx, [TxWitness])
+getLegacyTransaction tid = do
     n <- fromIntegral <$> getWord8
     outs <- replicateM n $ do
         coin <- Coin <$> getWord64be
         addr <- getLegacyAddress
         pure (TxOut addr coin)
+    -- NOTE
+    -- Legacy transactions only show up in the genesis block and are treated as
+    -- coinbase transactions with no inputs.
     let inps = mempty
-    pure (Tx tid inps outs)
+    let wits = mempty
+    pure (Tx tid inps outs, wits)
 
 putSignedTx :: [(TxIn, Coin)] -> [TxOut] -> [TxWitness] -> Put
 putSignedTx inputs outputs witnesses = do
@@ -720,7 +720,7 @@ convertBlock (Block h msgs) =
     coerceMessages = msgs >>= \case
         Initial _ -> []
         Transaction (tx, _wits) -> return tx
-        TransactionWithDelegation (_poolId, _xpub, tx, _wits) -> return tx
+        StakeDelegation (_poolId, _xpub, tx, _wits) -> return tx
         UnimplementedMessage _ -> []
 
 -- | Convert the Jörmungandr binary format header into a simpler Wallet header.
