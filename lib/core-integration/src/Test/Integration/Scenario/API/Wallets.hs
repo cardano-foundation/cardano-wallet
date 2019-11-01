@@ -812,7 +812,7 @@ spec = do
             expectResponseCode @IO HTTP.status405 r
             expectErrorMessage errMsg405 r
 
-    it "WALLETS_GET_01 - can get wallet detals" $ \ctx -> do
+    it "WALLETS_GET_01 - can get wallet details" $ \ctx -> do
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default simplePayload
         let walId = getFromResponse walletId r
 
