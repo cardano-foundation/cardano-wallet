@@ -782,7 +782,7 @@ listPools spl =
             (ApiStakePoolMetrics
                 (Quantity $ fromIntegral $ getQuantity stake)
                 (Quantity $ fromIntegral $ getQuantity production))
-            (min 1 apparentPerformance)
+            apparentPerformance
 
 joinStakePool
     :: forall n k.

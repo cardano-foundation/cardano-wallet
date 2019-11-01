@@ -282,14 +282,34 @@ readPoolsPerformances db (EpochNo epochNo) = do
         <$> liftIO (Map.fromList <$> readStakeDistribution db ep)
         <*> liftIO (count <$> readPoolProduction db ep)
   where
-    -- | We compute performances on a range of epochs, because we don't know
-    -- whether we have enough details
+    -- | Performances are computed over many epochs to cope with the fact that
+    -- our data is sparse (regarding stake distribution at least).
+    --
+    -- So the approach is the following:
+    --
+    -- 1. Compute performances, if available, for the last `n` epochs
+    -- 2. Compute the average performance for all epochs for which we had data
     avg :: [Map PoolId Double] -> Map PoolId Double
-    avg performances = Map.map (/ len) $ Map.unionsWith (+) performances
+    avg performances =
+        Map.map (/ len) . Map.unionsWith (+) $ performances
       where
-        len = fromIntegral (length performances)
+        len = fromIntegral $ length $ filter (not . Map.null) performances
 
--- | Calculate pool performance over the given data.
+-- | Calculate pool apparent performance over the given data. The performance
+-- is a 'Double' between 0 and 1 as:
+--
+-- @
+--     p = n / N * S / s
+--   where
+--     n = number of blocks produced in an epoch e
+--     N = number of slots in e
+--     s = stake owned by the pool in e
+--     S = total stake delegated to pools in e
+-- @
+--
+-- Note that, this apparent performance is clamped to [0,1] as it may in
+-- practice, be greater than 1 if a stake pool produces more than it is
+-- expected.
 calculatePerformance
     :: Map PoolId (Quantity "lovelace" Word64)
     -> Map PoolId (Quantity "block" Word64)
@@ -302,7 +322,7 @@ calculatePerformance mStake mProd =
             if (nTotal == 0 || s == Quantity 0) then
                 0
             else
-                (double n / nTotal) * (sTotal / double s)
+                min 1 ((double n / nTotal) * (sTotal / double s))
     in
         Map.merge
             stakeButNotProd

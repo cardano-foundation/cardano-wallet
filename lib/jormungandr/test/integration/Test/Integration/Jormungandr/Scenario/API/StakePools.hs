@@ -19,6 +19,7 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
+    , apparentPerformance
     , blocks
     , eventually
     , eventuallyUsingDelay
@@ -57,25 +58,31 @@ spec = do
                     (metrics . stake) 1
                 , expectListItemFieldBetween 0
                     (metrics . blocks) (1, 2)
+                , expectListItemFieldBetween 0
+                    apparentPerformance (0, 1)
 
                 , expectListItemFieldEqual 1
                     (metrics . stake) 1
                 , expectListItemFieldEqual 1
                     (metrics . blocks) 0
+                , expectListItemFieldBetween 1
+                    apparentPerformance (0, 1)
 
                 , expectListItemFieldEqual 2
                     (metrics . stake) 1
                 , expectListItemFieldEqual 2
                     (metrics . blocks) 0
+                , expectListItemFieldBetween 2
+                    apparentPerformance (0, 1)
                 ]
 
     it "STAKE_POOLS_LIST_02 - May fail on epoch boundaries" $ \ctx -> do
-    -- We should be able to catch the stake-pool data in an un-synced state
-    -- when we enter into a new epoch. The results should then be
-    -- unavailible.
-    --
-    -- This might take a few tries (epoch changes), so it is only feasible
-    -- to test with very short epochs.
+        -- We should be able to catch the stake-pool data in an un-synced state
+        -- when we enter into a new epoch. The results should then be
+        -- unavailible.
+        --
+        -- This might take a few tries (epoch changes), so it is only feasible
+        -- to test with very short epochs.
         let ms = 1000
         eventuallyUsingDelay (50*ms) $ do
             r <- request @[ApiStakePool] ctx listStakePoolsEp Default Empty

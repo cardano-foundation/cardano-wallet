@@ -61,7 +61,7 @@ spec = do
 
     describe "calculatePerformances" $ do
         it "performances are always between 0 and 1"
-            $ property prop_performancesPositive
+            $ property prop_performancesBounded01
 
 {-------------------------------------------------------------------------------
                                 Properties
@@ -98,17 +98,20 @@ prop_combineIsLeftBiased mStake mProd mPerf =
 {-# HLINT ignore prop_combineIsLeftBiased "Use ||" #-}
 
 -- | Performances are always positive numbers
-prop_performancesPositive
+prop_performancesBounded01
     :: Map PoolId (Quantity "lovelace" Word64)
     -> Map PoolId (Quantity "block" Word64)
     -> Property
-prop_performancesPositive mStake mProd =
-    all (>= 0) performances
+prop_performancesBounded01 mStake mProd =
+    all (between 0 1) performances
     & counterexample (show performances)
     & classify (all (== 0) performances) "all null"
   where
     performances :: [Double]
     performances = Map.elems $ calculatePerformance mStake mProd
+
+    between :: Ord a => a -> a -> a -> Bool
+    between inf sup x = x >= inf && x <= sup
 
 {-------------------------------------------------------------------------------
                                  Arbitrary
