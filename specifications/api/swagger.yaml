@@ -503,6 +503,7 @@ definitions:
       - balance
       - delegation
       - name
+      - reward
       - state
       - tip
     properties:
@@ -512,6 +513,9 @@ definitions:
       delegation: *walletDelegation
       name: *walletName
       passphrase: *walletPassphraseInfo
+      reward:
+        <<: *amount
+        description: The balance of the reward account for this wallet.
       state: *walletState
       tip: *blockReference
 

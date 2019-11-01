@@ -1151,6 +1151,7 @@ mkApiWallet wid wallet meta progress pending = ApiWallet
     , id = ApiT wid
     , name = ApiT $ meta ^. #name
     , passphrase = ApiT <$> meta ^. #passphraseInfo
+    , reward = Quantity 0
     , state = ApiT progress
     , tip = getWalletTip wallet
     }
