@@ -421,7 +421,7 @@ putStakeDelegationTx
     -> Put
 putStakeDelegationTx poolId accId (Hash accSig) inputs outputs witnesses = do
     putStakeCertificate poolId accId
-    putSignedTx inputs outputs witnesses
+    putSignedTx mempty inputs outputs witnesses
     putByteString accSig
 
 -- | Decode the contents of a @Transaction@-message.
@@ -488,8 +488,9 @@ getLegacyTransaction tid = do
     let wits = mempty
     pure (Tx tid inps outs, wits)
 
-putSignedTx :: [(TxIn, Coin)] -> [TxOut] -> [TxWitness] -> Put
-putSignedTx inputs outputs witnesses = do
+putSignedTx :: ByteString -> [(TxIn, Coin)] -> [TxOut] -> [TxWitness] -> Put
+putSignedTx payload inputs outputs witnesses = do
+    putByteString payload
     putTx inputs outputs
     unless (length inputs == length witnesses) $
         fail "number of witnesses must equal number of inputs"
@@ -707,7 +708,7 @@ estimateMaxNumberOfInputsParams
 estimateMaxNumberOfInputsParams = EstimateMaxNumberOfInputsParams
     { estMeasureTx = \ins outs wits -> fromIntegral $ BL.length $
         runPut $ withHeader MsgTypeTransaction $
-            putSignedTx (map (, Coin 0) ins) outs wits
+            putSignedTx mempty (map (, Coin 0) ins) outs wits
 
     -- Block IDs are always this long.
     , estBlockHashSize = 32
@@ -721,14 +722,16 @@ estimateMaxNumberOfInputsParams = EstimateMaxNumberOfInputsParams
 -- a signed transaction (inputs, outputs and witnesses). So, the
 -- witnesses are required to compute a `txid`.
 fragmentId
-    :: [(TxIn, Coin)]
+    :: MessageType
+    -> ByteString
+    -> [(TxIn, Coin)]
     -> [TxOut]
     -> [TxWitness]
     -> Hash "Tx"
-fragmentId inps outs wits =
+fragmentId msgType payload inps outs wits =
     Hash $ blake2b256 $ BL.toStrict $ runPut $ do
         putWord16le (messageTypeTag MsgTypeTransaction)
-        putSignedTx inps outs wits
+        putSignedTx payload inps outs wits
 
 delegationFragmentId
     :: PoolId
@@ -746,11 +749,13 @@ delegationFragmentId poolId accId accSig inps outs wits =
 -- | See 'fragmentId'. This computes the signing data required for producing
 -- transaction witnesses.
 signData
-    :: [(TxIn, Coin)]
+    :: ByteString
+    -> [(TxIn, Coin)]
     -> [TxOut]
     -> Hash "SignData"
-signData inps outs =
+signData payload inps outs =
     Hash $ blake2b256 $ BL.toStrict $ runPut $ do
+        putByteString payload
         putTx inps outs
 
 {-------------------------------------------------------------------------------

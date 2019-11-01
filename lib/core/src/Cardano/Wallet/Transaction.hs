@@ -43,7 +43,14 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Hash (..), Tx (..), TxIn (..), TxOut (..), TxWitness (..) )
+    ( Address (..)
+    , Hash (..)
+    , PoolId
+    , Tx (..)
+    , TxIn (..)
+    , TxOut (..)
+    , TxWitness (..)
+    )
 import Data.ByteString
     ( ByteString )
 import Data.Quantity
@@ -68,6 +75,19 @@ data TransactionLayer t k = TransactionLayer
         --
         -- This expects as a first argument a mean to compute or lookup private
         -- key corresponding to a particular address.
+
+    , mkCertificateTx
+        :: (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+        -> (PoolId, k 'AddressK XPrv)
+        -> [(TxIn, TxOut)]
+        -> [TxOut]
+        -> Either ErrMkStdTx (ByteString, (Tx, [TxWitness]))
+        -- ^ Construct a transaction for registering a stake pool with a certificate.
+        --
+        -- The certificate is a combination of the node public key ('PoolId'),
+        -- and the public key of the reward account. (Note that this is an
+        -- address key and HD account keys are something different)
+
 
     , estimateSize :: CoinSelection -> Quantity "byte" Int
         -- ^ Estimate the size of a 'CoinSelection', in bytes. This operation is

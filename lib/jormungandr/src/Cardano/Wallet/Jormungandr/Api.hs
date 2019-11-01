@@ -49,6 +49,8 @@ import Data.Binary.Get
     ( getByteString )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase, convertToBase )
+import Data.ByteString
+    ( ByteString )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -181,7 +183,13 @@ instance MimeUnrender JormungandrBinary Block where
 
 instance MimeRender JormungandrBinary (Tx, [TxWitness]) where
     mimeRender _ (Tx _ ins outs, wits) =
-        runPut $ withHeader MsgTypeTransaction $ putSignedTx ins outs wits
+        runPut $ withHeader MsgTypeTransaction $
+            putSignedTx mempty ins outs wits
+
+instance MimeRender JormungandrBinary (ByteString, (Tx, [TxWitness])) where
+    mimeRender _ (payload, (Tx _ ins outs, wits)) =
+        runPut $ withHeader MsgTypeDelegation $
+            putSignedTx payload ins outs wits
 
 data Hex
 

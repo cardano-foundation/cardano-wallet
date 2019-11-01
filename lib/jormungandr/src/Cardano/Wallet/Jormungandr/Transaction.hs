@@ -5,6 +5,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -19,6 +20,7 @@ import Prelude
 
 import Cardano.Wallet.Jormungandr.Binary
     ( Message (..)
+    , MessageType (..)
     , fragmentId
     , getMessage
     , legacyUtxoWitness
@@ -39,7 +41,14 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..), Tx (..), TxOut (..), TxWitness (..) )
+    ( Address
+    , Hash (..)
+    , PoolId (..)
+    , Tx (..)
+    , TxIn (..)
+    , TxOut (..)
+    , TxWitness (..)
+    )
 import Cardano.Wallet.Transaction
     ( ErrDecodeSignedTx (..)
     , ErrMkStdTx (..)
@@ -77,23 +86,12 @@ newTransactionLayer
     => Hash "Genesis"
     -> TransactionLayer t k
 newTransactionLayer (Hash block0H) = TransactionLayer
-    { mkStdTx = \keyFrom rnps outs -> do
-        -- NOTE
-        -- For signing, we need to embed a hash of the transaction data
-        -- without the witnesses (since we don't yet have them!). In this sense,
-        -- this is a transaction id as Byron nodes or the http-bridge
-        -- defines them.
-        let inps = fmap (second coin) rnps
-        wits <- forM rnps $ \(_, TxOut addr _) -> do
-            xprv <- maybeToRight (ErrKeyNotFoundForAddress addr) (keyFrom addr)
-            let payload = block0H <> getHash (signData inps outs)
-            pure $ mkTxWitness (fst xprv) (sign payload xprv)
-        let tx = Tx
-                { txId = fragmentId inps outs wits
-                , resolvedInputs = inps
-                , outputs = outs
-                }
-        return (tx, wits)
+    { mkStdTx = mkTokenTransfer MsgTypeTransaction mempty
+
+    , mkCertificateTx = \keyFrom (PoolId poolId, accountXPrv) rnps outs ->
+            let accountPublicKey = CC.unXPub . getRawKey . publicKey $ accountXPrv
+                payload = accountPublicKey <> poolId
+            in (payload,) <$> mkTokenTransfer MsgTypeDelegation payload keyFrom rnps outs
 
     , decodeSignedTx = \payload -> do
         let errInvalidPayload =
@@ -117,6 +115,31 @@ newTransactionLayer (Hash block0H) = TransactionLayer
         when (length inps > maxNumberOfInputs || length outs > maxNumberOfOutputs)
             $ Left ErrExceededInpsOrOuts
     }
+  where
+    mkTokenTransfer
+        :: MessageType
+        -> ByteString
+        -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+        -> [(TxIn, TxOut)]
+        -> [TxOut]
+        -> Either ErrMkStdTx (Tx, [TxWitness])
+    mkTokenTransfer msgType payload keyFrom rnps outs = do
+        -- NOTE
+        -- For signing, we need to embed a hash of the transaction data
+        -- without the witnesses (since we don't yet have them!). In this sense,
+        -- this is a transaction id as Byron nodes or the http-bridge
+        -- defines them.
+        let inps = fmap (second coin) rnps
+        wits <- forM rnps $ \(_, TxOut addr _) -> do
+            xprv <- maybeToRight (ErrKeyNotFoundForAddress addr) (keyFrom addr)
+            let body = block0H <> getHash (signData payload inps outs)
+            pure $ mkTxWitness (fst xprv) (sign body xprv)
+        let tx = Tx
+                { txId = fragmentId msgType payload inps outs wits
+                , resolvedInputs = inps
+                , outputs = outs
+                }
+        return (tx, wits)
 
 -- | Provide a transaction witness for a given private key. The type of witness
 -- is different between types of keys and, with backward-compatible support, we

@@ -432,6 +432,8 @@ dummyTransactionLayer = TransactionLayer
             return $ TxWitness
                 (CC.unXPub (getKey $ publicKey xprv) <> sig)
         return (tx, wit)
+    , mkCertificateTx =
+        error "dummyTransactionLayer: mkCertificateTx not implemented"
     , estimateSize =
         error "dummyTransactionLayer: estimateSize not implemented"
     , estimateMaxNumberOfInputs =

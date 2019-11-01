@@ -26,6 +26,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase (..)
     , PaymentAddress (..)
     , XPrv
+    , getRawKey
     , networkDiscriminantVal
     , paymentAddress
     , publicKey
@@ -37,7 +38,14 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Coin (..), Hash (..), Tx (..), TxIn (..), TxOut (..) )
+    ( Address (..)
+    , Coin (..)
+    , Hash (..)
+    , PoolId (..)
+    , Tx (..)
+    , TxIn (..)
+    , TxOut (..)
+    )
 import Cardano.Wallet.Transaction
     ( ErrMkStdTx (..), TransactionLayer (..) )
 import Cardano.Wallet.TransactionSpecShared
@@ -45,7 +53,7 @@ import Cardano.Wallet.TransactionSpecShared
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Data.ByteArray.Encoding
-    ( Base (Base16), convertToBase )
+    ( Base (Base16), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
 import Data.Proxy
@@ -210,6 +218,61 @@ mkStdTxSpec = do
             \3d8e5e65d110abd63d39460501d28ca6334756ddd335eaada4a7491373b4d72069\
             \78080f5ac10474c7f6decbbc35f1620817b15bf1594981c034b7f6a15d0a24ec74\
             \3d332f1774eb8733a5d40c"
+
+    describe "mkCertificateTx 'Mainnet" $ do
+        let tl = newTransactionLayer @'Mainnet block0
+        let paymentAddress' = paymentAddress @'Mainnet
+        let addr0 = paymentAddress' (publicKey xprv0)
+        -- ^ ca1qvk32hg8rppc0wn0lzpkq996pd3xkxqguel8tharwrpdch6czu2luh3truq
+        let addr1 = paymentAddress' (publicKey xprv1)
+        -- ^ ca1qwedmnalvvgqqgt2dczppejvyrn2lydmk2pxya4dd076wal8v6eykzfapdx
+        let addr2 = paymentAddress' (publicKey xprv2)
+        -- ^ ca1qvp2m296efkn4zy63y769x4g52g5vrt7e9dnvszt7z2vrfe0ya66vznknfn
+        let poolId = unhex "c7676b9c29cd3b97cc8cb297c44314f7bfee81d96661278765a82e9a91abf871"
+
+        let keystore = mkKeystore
+                [ (addr0, (xprv0, pwd0))
+                , (addr1, (xprv1, pwd1))
+                , (addr2, (xprv2, pwd2))
+                ]
+
+        -- FIXME: no workies yet
+        -- xprv1 will be the account key
+        --
+        -- jcli certificate new stake-delegation $poolId \
+        --   $(echo $XPRV1 | jcli key from-bytes --type ed25519Extended | jcli key to-public) \
+        --   > cert
+        --
+        -- cat cert \
+        --   | jcli certificate sign -k <(echo $XPRV1 | jcli key from-bytes --type ed25519Extended) \
+        --   > cert.signed
+        --
+        -- jcli transaction new \
+        --   | jcli transaction add-input $TXIN0 0 10000 \
+        --   | jcli transaction add-output $ADDR1 9958 \
+        --   | jcli transaction add-certificate $(cat cert.signed) \
+        --   | jcli transaction finalize \
+        --   > tx
+        --
+        -- echo $XPRV0 \
+        --   | jcli key from-bytes --type ed25519Extended \
+        --   | jcli transaction make-witness $(jcli transaction id --staging tx) \
+        --      --genesis-block-hash $BLOCK0 --type utxo \
+        --   > witness
+        --
+        -- cat tx \
+        --   | jcli transaction add-witness witness \
+        --   | jcli transaction seal \
+        --   | jcli transaction to-message \
+        --   | tee msg
+        --
+        goldenTestCertificateTx tl keystore
+            (PoolId poolId, xprv1)
+            [ (TxIn txin0 0, TxOut addr1 (Coin 10000))
+            ]
+            [ TxOut addr1 (Coin 9999)
+            ]
+            "00d604b2ddcfbf631000216a6e0410e64c20e6af91bbb2826276ad6bfda777e766b24bc7676b9c29cd3b97cc8cb297c44314f7bfee81d96661278765a82e9a91abf8710101000000000000002710666984dec4bc0ff1888be97bfe0694a96b35c58d025405ead51d5cc72a3019f403b2ddcfbf631000216a6e0410e64c20e6af91bbb2826276ad6bfda777e766b24b000000000000270f01ac2efe363b1c001497f04bc8bff72dacdc0f15bef295d2aae0dbb7b5e3371b95c5c571ec1f6ecf452d6ccc72fe0c4d8e2a1d155b9e02ebcedab530aa5b547f05"
 
     describe "mkStdTx (legacy) 'Mainnet" $ do
         let tl = newTransactionLayer @'Mainnet block0
@@ -440,11 +503,34 @@ goldenTestStdTx tl keystore inps outs bytes' = it title $ do
                 $ BL.toStrict
                 $ runPut
                 $ withHeader MsgTypeTransaction
-                $ putSignedTx i o w)
+                $ putSignedTx mempty i o w)
             tx
     bytes `shouldBe` Right bytes'
   where
     title = "golden test mkStdTx: " <> show inps <> show outs
+
+goldenTestCertificateTx
+    :: forall t k. (t ~ Jormungandr)
+    => TransactionLayer t k
+    -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+    -> (PoolId, k 'AddressK XPrv)
+    -> [(TxIn, TxOut)]
+    -> [TxOut]
+    -> ByteString
+    -> SpecWith ()
+goldenTestCertificateTx tl keystore pool inps outs bytes' = it title $ do
+    let tx = mkCertificateTx tl keystore pool inps outs
+    let bytes = fmap
+            (\(payload, (Tx _ i o, w)) -> hex
+                $ BL.toStrict
+                $ runPut
+                $ withHeader MsgTypeDelegation
+                $ putSignedTx payload i o w)
+            tx
+    bytes `shouldBe` Right bytes'
+  where
+    title = "golden test mkCertificateTx: " <> show (fst pool)
+        <> show inps <> show outs
 
 xprvSeqFromSeed
     :: ByteString
@@ -473,6 +559,12 @@ mkKeystore pairs k =
 
 hex :: ByteString -> ByteString
 hex = convertToBase Base16
+
+unhex :: ByteString -> ByteString
+unhex = fromRight . convertFromBase Base16
+  where
+    fromRight (Right a) = a
+    fromRight (Left e) = error ("unhex: " ++ e)
 
 unknownInputTest
     :: forall n. (PaymentAddress n ShelleyKey, NetworkDiscriminantVal n)
