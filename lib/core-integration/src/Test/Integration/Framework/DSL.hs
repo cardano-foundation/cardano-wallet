@@ -651,9 +651,9 @@ balanceAvailable =
     _get = fromQuantity @"lovelace" . available . getApiT . view typed
     _set :: HasType (ApiT WalletBalance) s => (s, Natural) -> s
     _set (s, v) = set typed initBal s
-        where
-            initBal =
-                (ApiT $ WalletBalance {available = Quantity v, Types.total = Quantity v })
+      where
+        initBal = ApiT $ WalletBalance
+            {available = Quantity v, Types.total = Quantity v}
 
 balanceTotal :: HasType (ApiT WalletBalance) s => Lens' s Natural
 balanceTotal =
@@ -663,9 +663,9 @@ balanceTotal =
     _get = fromQuantity @"lovelace" . Types.total . getApiT . view typed
     _set :: HasType (ApiT WalletBalance) s => (s, Natural) -> s
     _set (s, v) = set typed initBal s
-        where
-            initBal =
-                (ApiT $ WalletBalance {available = Quantity v, Types.total = Quantity v })
+      where
+        initBal = ApiT $ WalletBalance
+            {available = Quantity v, Types.total = Quantity v}
 
 delegation
     :: HasType (ApiT (WalletDelegation (ApiT PoolId))) s
@@ -675,13 +675,11 @@ delegation =
   where
     _get
         :: HasType (ApiT (WalletDelegation (ApiT PoolId))) s
-        => s
-        -> (WalletDelegation (ApiT PoolId))
+        => s -> (WalletDelegation (ApiT PoolId))
     _get = getApiT . view typed
     _set
         :: HasType (ApiT (WalletDelegation (ApiT PoolId))) s
-        => (s, (WalletDelegation (ApiT PoolId)))
-        -> s
+        => (s, (WalletDelegation (ApiT PoolId))) -> s
     _set (s, v) = set typed (ApiT v ) s
 
 feeEstimator
@@ -698,10 +696,15 @@ passphraseLastUpdate
 passphraseLastUpdate =
     lens _get _set
   where
-    _get :: HasType (Maybe (ApiT WalletPassphraseInfo)) s => s -> Maybe Text
+    _get
+        :: HasType (Maybe (ApiT WalletPassphraseInfo)) s
+        => s -> Maybe Text
     _get = fmap (T.pack . show . lastUpdatedAt . getApiT) . view typed
-    _set :: HasType (Maybe (ApiT WalletPassphraseInfo)) s => (s, Maybe Text) -> s
-    _set (s, v) = set typed (ApiT . WalletPassphraseInfo . read . T.unpack <$> v) s
+    _set
+        :: HasType (Maybe (ApiT WalletPassphraseInfo)) s
+        => (s, Maybe Text) -> s
+    _set (s, v) =
+        set typed (ApiT . WalletPassphraseInfo . read . T.unpack <$> v) s
 
 state :: HasField' "state" s (ApiT t) => Lens' s t
 state =
@@ -761,9 +764,13 @@ outputs :: HasType (NonEmpty (AddressAmount t)) s => Lens' s [AddressAmount t]
 outputs =
     lens _get _set
   where
-    _get :: HasType (NonEmpty (AddressAmount t)) s => s -> [AddressAmount t]
+    _get
+        :: HasType (NonEmpty (AddressAmount t)) s
+        => s -> [AddressAmount t]
     _get = NE.toList . view typed
-    _set :: HasType (NonEmpty (AddressAmount t)) s => (s, [AddressAmount t]) -> s
+    _set
+        :: HasType (NonEmpty (AddressAmount t)) s
+        => (s, [AddressAmount t]) -> s
     _set (s, v) = set typed (NE.fromList v) s
 
 status :: HasType (ApiT TxStatus) s => Lens' s TxStatus
