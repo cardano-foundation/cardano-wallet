@@ -893,6 +893,7 @@ spec = do
             , expectListItemFieldEqual 0 addressPoolGap 20
             , expectListItemFieldEqual 0 balanceAvailable 0
             , expectListItemFieldEqual 0 balanceTotal 0
+            , expectListItemFieldEqual 0 walletReward 0
             , expectListItemFieldEqual 0 delegation (NotDelegating)
             , expectListItemFieldEqual 0 walletId
                 "dfe87fcf0560fb57937a6468ea51e860672fad79"
