@@ -58,6 +58,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
     , Depth (..)
     , DerivationType (..)
+    , ErrMkKeyFingerprint (..)
     , HardDerivation (..)
     , Index (..)
     , KeyFingerprint (..)
@@ -88,6 +89,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Maybe
     ( fromMaybe )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Text.Class
     ( TextDecodingError (..) )
 import Data.Word
@@ -374,29 +377,21 @@ decodeShelleyAddress bytes = do
         <> show (networkDiscriminantVal @n) <> "."
 
 instance MkKeyFingerprint ShelleyKey where
-    paymentKeyFingerprint (Address bytes)
+    paymentKeyFingerprint addr@(Address bytes)
         | len == addrSingleSize || len == addrGroupedSize =
-            KeyFingerprint $ BS.take publicKeySize $ BS.drop 1 bytes
-        | otherwise = error $ unwords
-            [ "MkKeyFingerprint.paymentKeyFingerprint was given an invalid"
-            , "'ShelleyKey' of"
-            , show len
-            , "bytes!"
-            ]
+            Right $ KeyFingerprint $ BS.take publicKeySize $ BS.drop 1 bytes
+        | otherwise =
+            Left $ ErrInvalidAddress addr (Proxy @ShelleyKey)
       where
         len = BS.length bytes
 
-    delegationKeyFingerprint (Address bytes)
+    delegationKeyFingerprint addr@(Address bytes)
         | len == addrSingleSize =
-            Nothing
+            Right Nothing
         | len == addrGroupedSize =
-            Just $ KeyFingerprint $ BS.drop addrSingleSize bytes
-        | otherwise = error $ unwords
-            [ "MkKeyFingerprint.delegationKeyFingerprint was given an invalid"
-            , "'ShelleyKey' of"
-            , show len
-            , "bytes!"
-            ]
+            Right $ Just $ KeyFingerprint $ BS.drop addrSingleSize bytes
+        | otherwise =
+            Left $ ErrInvalidAddress addr (Proxy @ShelleyKey)
       where
         len = BS.length bytes
 

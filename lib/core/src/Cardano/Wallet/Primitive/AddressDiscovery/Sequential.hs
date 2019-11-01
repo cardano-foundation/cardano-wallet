@@ -111,6 +111,8 @@ import Fmt
     ( Buildable (..), blockListF', hexF, indentF, prefixF, suffixF )
 import GHC.Generics
     ( Generic )
+import GHC.Stack
+    ( HasCallStack )
 
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
@@ -257,6 +259,9 @@ addresses =
 --
 -- The pool will grow from the start if less than @g :: AddressPoolGap@ are
 -- given, such that, there are always @g@ undiscovered addresses in the pool.
+--
+-- FIXME:
+-- Don't construct from addresses but from fingerprints!
 mkAddressPool
     :: forall n c k.
         ( PaymentAddress n k
@@ -278,7 +283,7 @@ mkAddressPool key g addrs = AddressPool
             minBound
           <>
             Map.fromList (zip
-                (paymentKeyFingerprint @k <$> addrs)
+                (unsafePaymentKeyFingerprint @k <$> addrs)
                 [minBound..maxBound]
             )
     }
@@ -297,11 +302,13 @@ lookupAddress
     -> AddressPool n c k
     -> (Maybe (Index 'Soft 'AddressK), AddressPool n c k)
 lookupAddress !target !pool =
-    case Map.lookup (paymentKeyFingerprint @k target) (indexedKeys pool) of
-        Just ix ->
-            (Just ix, extendAddressPool @n ix pool)
-        Nothing ->
-            (Nothing, pool)
+    case paymentKeyFingerprint @k target of
+        Left _ -> (Nothing, pool)
+        Right fingerprint -> case Map.lookup fingerprint  (indexedKeys pool) of
+            Just ix ->
+                (Just ix, extendAddressPool @n ix pool)
+            Nothing ->
+                (Nothing, pool)
 
 -- | If an address is discovered near the edge, we extend the address sequence,
 -- otherwise we return the pool untouched.
@@ -346,8 +353,9 @@ nextAddresses !key (AddressPoolGap !g) !cc !fromIx =
         "nextAddresses: toIx should be greater than fromIx"
         (toEnum $ fromEnum fromIx + fromEnum g - 1)
         (>= fromIx)
-    newPaymentKey =
-        paymentKeyFingerprint . paymentAddress @n . deriveAddressPublicKey key cc
+    newPaymentKey = unsafePaymentKeyFingerprint @k
+        . paymentAddress @n
+        . deriveAddressPublicKey key cc
 
 {-------------------------------------------------------------------------------
                             Pending Change Indexes
@@ -413,6 +421,23 @@ nextChangeIndex pool (PendingIxs ixs) =
     in
         invariant "index is within first unused and last unused" (ix, ixs')
             (\(i,_) -> i >= firstUnused && i <= lastUnused)
+
+-- Extract the fingerprint from an 'Address', we expect the caller to
+-- provide addresses that are compatible with the key scheme being used.
+--
+-- Actually, addresses passed as asgument should have been "generated" by
+-- the address pool itself in the past, so they ought to be valid!
+unsafePaymentKeyFingerprint
+    :: forall k. (HasCallStack, MkKeyFingerprint k)
+    => Address
+    -> KeyFingerprint "payment" k
+unsafePaymentKeyFingerprint addr = case paymentKeyFingerprint @k addr of
+    Right a -> a
+    Left err -> error $ unwords
+        [ "unsafePaymentKeyFingerprint was given addresses invalid with its "
+        , "key type:"
+        , show err
+        ]
 
 {-------------------------------------------------------------------------------
                                  State
