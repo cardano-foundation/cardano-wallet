@@ -167,21 +167,21 @@ spec = do
                             ]
                         }, [])
                     , UnimplementedMessage 5
-                    , TransactionWithDelegation (
-                            PoolId (unsafeFromHex
-                                    "a09ae0da1e618eeb09e7b78d73e265af18f8\
-                                    \7d4d5320386ebf0235f54ecd0347")
-                            , ChimericAccount (unsafeFromHex
-                                    "877fbb2283ba1ed56d835fb8cd66694a840\
-                                    \360e69c690a04aeef39629cdd804f")
-                            , Tx
-                              { txid = Hash $ unsafeFromHex
-                                  "4ab1923eb7e84ab2ac73769ff863138cce3a7\
-                                  \1ba9f4d2533a007d36496aa58c9"
-                              , inputs = []
-                              , outputs = []
-                              }
-                            , []
+                    , StakeDelegation
+                        ( PoolId $ unsafeFromHex
+                            "a09ae0da1e618eeb09e7b78d73e265af18f8\
+                            \7d4d5320386ebf0235f54ecd0347"
+                        , ChimericAccount $ unsafeFromHex
+                            "877fbb2283ba1ed56d835fb8cd66694a840\
+                            \360e69c690a04aeef39629cdd804f"
+                        , Tx
+                            { txid = Hash $ unsafeFromHex
+                              "4ab1923eb7e84ab2ac73769ff863138cce3a7\
+                              \1ba9f4d2533a007d36496aa58c9"
+                            , inputs = []
+                            , outputs = []
+                            }
+                        , []
                         )
                     ]
             unsafeDecodeHex getBlock bytes `shouldBe` block
@@ -320,7 +320,7 @@ spec = do
 
     getStakeDelegationTxMessage :: Message -> (PoolId, ChimericAccount, Tx, [TxWitness])
     getStakeDelegationTxMessage m = case m of
-        TransactionWithDelegation stx -> stx
+        StakeDelegation stx -> stx
         _ -> error "expected a Transaction message"
 
     try' :: a -> IO (Either String a)

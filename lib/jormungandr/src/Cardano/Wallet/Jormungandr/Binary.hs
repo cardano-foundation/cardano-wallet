@@ -194,9 +194,9 @@ getBlockHeader = label "getBlockHeader" $ do
         -- 2. BFT
         -- 3. Praos / Genesis
         --
-        -- We could make sure we get the right kind of proof, but we don't need to.
-        -- Just checking that the length is not totally wrong, is much simpler
-        -- and gives us sanity about the binary format being correct.
+        -- We could make sure we get the right kind of proof, but we don't need
+        -- to.  Just checking that the length is not totally wrong is much
+        -- simpler and gives us sanity about the binary format being correct.
         read' <- fromIntegral <$> bytesRead
         let remaining = size - read'
         producedBy <- case remaining of
@@ -209,7 +209,8 @@ getBlockHeader = label "getBlockHeader" $ do
             612 ->
                 -- Praos/Genesis
                 Just . PoolId <$> getByteString 32 <* skip (remaining - 32)
-            _ -> fail $ "BlockHeader proof has unexpected size " <> (show remaining)
+            _ -> fail $
+                "BlockHeader proof has unexpected size " <> (show remaining)
         return $ BlockHeader
             { version
             , contentSize
@@ -247,7 +248,7 @@ data Message
     -- ^ Found in the genesis block.
     | Transaction (Tx, [TxWitness])
     -- ^ A standard signed transaction
-    | TransactionWithDelegation (PoolId, ChimericAccount, Tx, [TxWitness])
+    | StakeDelegation (PoolId, ChimericAccount, Tx, [TxWitness])
     -- ^ A signed transaction with stake pool delegation
     | UnimplementedMessage Int
     -- Messages not yet supported go there.
@@ -255,6 +256,7 @@ data Message
 
 data MessageType
     = MsgTypeInitial
+    | MsgTypeLegacyUTxO
     | MsgTypeTransaction
     | MsgTypeDelegation
 
@@ -298,16 +300,17 @@ getMessage = label "getMessage" $ do
     let unimpl = skip remaining >> return (UnimplementedMessage msgType)
     isolate remaining $ case msgType of
         0 -> Initial <$> getInitial
-        1 -> unimpl
+        1 -> Transaction <$> getLegacyTransaction fragId
         2 -> Transaction <$> getTransaction fragId
-        3 -> unimpl
-        4 -> TransactionWithDelegation <$> getDelegatedCertificateTransaction fragId
-        5 -> unimpl
+        3 -> unimpl -- Certificate
+        4 -> StakeDelegation <$> getStakeDelegation fragId
+        5 -> unimpl -- UpdateVote
         other -> fail $ "Unexpected content type tag " ++ show other
 
 messageTypeTag :: MessageType -> Word8
 messageTypeTag = \case
     MsgTypeInitial -> 0
+    MsgTypeLegacyUTxO -> 1
     MsgTypeTransaction -> 2
     MsgTypeDelegation -> 4
 
@@ -316,7 +319,6 @@ getInitial :: Get [ConfigParam]
 getInitial = label "getInitial" $ do
     len <- fromIntegral <$> getWord16be
     replicateM len getConfigParam
-
 
 {-------------------------------------------------------------------------------
                                 Transactions
@@ -345,12 +347,12 @@ legacyUtxoWitness xpub bytes = TxWitness $ BL.toStrict $ runPut $ do
     putByteString (unXPub xpub)
     putByteString bytes
 
--- | Decode the contents of a delegated transaction @Transaction@-message.
-getDelegatedCertificateTransaction
+-- | Decode the contents of a @Transaction@-message carrying a delegation cert.
+getStakeDelegation
     :: Hash "Tx"
     -> Get (PoolId, ChimericAccount, Tx, [TxWitness])
-getDelegatedCertificateTransaction tid = do
-    label "getDelegatedCertificateTransaction" $ do
+getStakeDelegation tid = do
+    label "getStakeDelegation" $ do
         accId <- getByteString 32
         poolId <- getByteString 32
         (tx, wits) <- getGenericTransaction tid
@@ -416,6 +418,29 @@ getGenericTransaction tid = label "getGenericTransaction" $ do
             value <- Coin <$> getWord64be
             return $ TxOut addr value
 
+--
+-- @
+-- FRAGMENT-ID = H(TYPE | CONTENT)
+-- CONTENT = #OUTPUTS (1 byte) | OUTPUT-1 | .. | OUTPUT-N
+-- OUTPUT = VALUE (8 bytes) | ADDR-SIZE (2 bytes) | ADDR (ADDR-SIZE bytes)
+-- TYPE = 1
+--
+-- H = blake2b_256
+-- @
+getLegacyTransaction :: Hash "Tx" -> Get (Tx, [TxWitness])
+getLegacyTransaction tid = do
+    n <- fromIntegral <$> getWord8
+    outs <- replicateM n $ do
+        coin <- Coin <$> getWord64be
+        addr <- getLegacyAddress
+        pure (TxOut addr coin)
+    -- NOTE
+    -- Legacy transactions only show up in the genesis block and are treated as
+    -- coinbase transactions with no inputs.
+    let inps = mempty
+    let wits = mempty
+    pure (Tx tid inps outs, wits)
+
 putSignedTx :: [(TxIn, Coin)] -> [TxOut] -> [TxWitness] -> Put
 putSignedTx inputs outputs witnesses = do
     putTx inputs outputs
@@ -430,9 +455,13 @@ putSignedTx inputs outputs witnesses = do
 putTx :: [(TxIn, Coin)] -> [TxOut] -> Put
 putTx inputs outputs = do
     unless (length inputs <= fromIntegral (maxBound :: Word8)) $
-        fail ("number of inputs cannot be greater than " ++ show maxNumberOfInputs)
+        fail $
+            "number of inputs cannot be greater than " ++
+            show maxNumberOfInputs
     unless (length outputs <= fromIntegral (maxBound :: Word8)) $
-        fail ("number of outputs cannot be greater than " ++ show maxNumberOfOutputs)
+        fail $
+            "number of outputs cannot be greater than " ++
+            show maxNumberOfOutputs
     putWord8 $ toEnum $ length inputs
     putWord8 $ toEnum $ length outputs
     mapM_ putInput inputs
@@ -501,7 +530,8 @@ getConfigParam = label "getConfigParam" $ do
     let len = fromIntegral $ taglen .&. (63) -- 0b111111
     isolate len $ case tag of
         1 -> Discrimination <$> getNetworkDiscriminant
-        2 -> Block0Date . W.StartTime . posixSecondsToUTCTime . fromIntegral <$> getWord64be
+        2 -> Block0Date . W.StartTime . posixSecondsToUTCTime . fromIntegral
+            <$> getWord64be
         3 -> Consensus <$> getConsensusVersion
         4 -> SlotsPerEpoch . W.EpochLength . fromIntegral  <$> getWord32be
         5 -> SlotDuration . secondsToNominalDiffTime <$> getWord8
@@ -595,6 +625,11 @@ getAddress = do
     kindValue :: Word8 -> Word8
     kindValue = (.&. 0b01111111)
 
+getLegacyAddress :: Get Address
+getLegacyAddress = do
+    size <- fromIntegral <$> getWord16be
+    Address <$> getByteString size
+
 putAddress :: Address -> Put
 putAddress (Address bs) = putByteString bs
 
@@ -685,7 +720,7 @@ convertBlock (Block h msgs) =
     coerceMessages = msgs >>= \case
         Initial _ -> []
         Transaction (tx, _wits) -> return tx
-        TransactionWithDelegation (_poolId, _xpub, tx, _wits) -> return tx
+        StakeDelegation (_poolId, _xpub, tx, _wits) -> return tx
         UnimplementedMessage _ -> []
 
 -- | Convert the Jörmungandr binary format header into a simpler Wallet header.

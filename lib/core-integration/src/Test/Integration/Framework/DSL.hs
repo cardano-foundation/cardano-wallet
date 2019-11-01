@@ -29,6 +29,7 @@ module Test.Integration.Framework.DSL
     , expectErrorMessage
     , expectFieldEqual
     , expectFieldNotEqual
+    , expectFieldSatisfy
     , expectFieldBetween
     , expectListItemFieldBetween
     , expectListItemFieldEqual
@@ -380,6 +381,20 @@ expectFieldBetween getter (aMin, aMax) (_, res) = case res of
                 "expected " <> show a <> " <= " <> show aMax
             _ ->
                 return ()
+
+expectFieldSatisfy
+    :: (MonadIO m, MonadFail m, Show a)
+    => Lens' s a
+    -> (a -> Bool)
+    -> (HTTP.Status, Either RequestException s)
+    -> m ()
+expectFieldSatisfy getter predicate (_, res) = case res of
+    Left e  -> wantedSuccessButError e
+    Right s ->
+        let a = view getter s in
+        if predicate a
+            then return ()
+            else fail $ "predicate failed for: " <> show a
 
 expectFieldNotEqual
     :: (MonadIO m, MonadFail m, Show a, Eq a)
@@ -913,8 +928,10 @@ fixtureByronWallet ctx = do
             } |]
     (_, w) <- unsafeRequest @ApiByronWallet ctx postByronWalletEp payload
     race (threadDelay sixtySeconds) (checkBalance w) >>= \case
-        Left _ -> fail "fixtureByronWallet: waited too long for initial transaction"
-        Right a -> return a
+        Left _ ->
+            fail "fixtureByronWallet: waited too long for initial transaction"
+        Right a ->
+            return a
   where
     sixtySeconds = 60*oneSecond
     checkBalance w = do
@@ -1148,7 +1165,8 @@ listByronTxEp w query =
 migrateByronWalletEp :: ApiByronWallet -> ApiWallet -> (Method, Text)
 migrateByronWalletEp wSrc wDest =
     ( "POST"
-    , "v2/byron-wallets/" <> wSrc ^. walletId <> "/migrations/" <> wDest ^. walletId
+    , "v2/byron-wallets/" <>
+        wSrc ^. walletId <> "/migrations/" <> wDest ^. walletId
     )
 
 calculateByronMigrationCostEp :: ApiByronWallet -> (Method, Text)

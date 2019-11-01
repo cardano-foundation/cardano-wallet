@@ -40,19 +40,20 @@ import Cardano.Wallet.Primitive.AddressDerivationSpec
 import Cardano.Wallet.Primitive.Types
     ( Address (..) )
 import Control.Exception
-    ( ErrorCall, SomeException, evaluate, try )
+    ( SomeException, evaluate )
 import Data.Either
-    ( isLeft )
+    ( isLeft, isRight )
 import Data.List
     ( isSubsequenceOf )
 import Data.Maybe
-    ( isJust )
+    ( isJust, isNothing )
 import Test.Hspec
     ( Spec, describe, it, shouldThrow )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
     , choose
+    , conjoin
     , elements
     , expectFailure
     , property
@@ -61,8 +62,6 @@ import Test.QuickCheck
     , (===)
     , (==>)
     )
-import Test.QuickCheck.Monadic
-    ( assert, monadicIO, run )
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -163,30 +162,28 @@ prop_accountKeyDerivation (seed, recPwd) encPwd ix =
 prop_fingerprintSingleAddress
     :: SingleAddress
     -> Property
-prop_fingerprintSingleAddress (SingleAddress addr) =
-    paymentKeyFingerprint @ShelleyKey addr
-        `seq` delegationKeyFingerprint @ShelleyKey addr === Nothing
+prop_fingerprintSingleAddress (SingleAddress addr) = conjoin $ property <$>
+    [ isRight (paymentKeyFingerprint @ShelleyKey addr)
+    , either (const False) isNothing (delegationKeyFingerprint @ShelleyKey addr)
+    ]
 
 -- | Grouped addresses have a payment key and a delegation key
 prop_fingerprintGroupedAddress
     :: GroupedAddress
     -> Property
-prop_fingerprintGroupedAddress (GroupedAddress addr) =
-    paymentKeyFingerprint @ShelleyKey addr
-        `seq` property (isJust $ delegationKeyFingerprint @ShelleyKey addr)
+prop_fingerprintGroupedAddress (GroupedAddress addr) = conjoin $ property <$>
+    [ isRight (paymentKeyFingerprint @ShelleyKey addr)
+    , either (const False) isJust (delegationKeyFingerprint @ShelleyKey addr)
+    ]
 
 -- | Inspecting Invalid addresses throws
 prop_fingerprintInvalidAddress
     :: InvalidAddress
     -> Property
-prop_fingerprintInvalidAddress (InvalidAddress addr) = monadicIO $ do
-    resPayment <- run $ try @ErrorCall $ evaluate $
-        paymentKeyFingerprint @ShelleyKey addr
-    assert (isLeft resPayment)
-
-    resDelegation <- run $ try @ErrorCall $ evaluate $
-        delegationKeyFingerprint @ShelleyKey addr
-    assert (isLeft resDelegation)
+prop_fingerprintInvalidAddress (InvalidAddress addr) = conjoin $ property <$>
+    [ isLeft (paymentKeyFingerprint @ShelleyKey addr)
+    , isLeft (delegationKeyFingerprint @ShelleyKey addr)
+    ]
 
 {-------------------------------------------------------------------------------
                              Arbitrary Instances

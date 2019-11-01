@@ -61,6 +61,7 @@ import Cardano.Crypto.Wallet
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
+    , ErrMkKeyFingerprint (..)
     , Index (..)
     , KeyFingerprint (..)
     , MkKeyFingerprint (..)
@@ -84,6 +85,8 @@ import Data.ByteArray
     ( ScrubbedBytes )
 import Data.ByteString
     ( ByteString )
+import Data.Proxy
+    ( Proxy (..) )
 import GHC.Generics
     ( Generic )
 
@@ -166,8 +169,14 @@ instance PaymentAddress 'Mainnet ByronKey where
         Address bytes
 
 instance MkKeyFingerprint ByronKey where
-    paymentKeyFingerprint (Address bytes) = KeyFingerprint bytes
-    delegationKeyFingerprint _ = Nothing
+    paymentKeyFingerprint addr@(Address bytes) =
+        case decodeLegacyAddress bytes of
+            Just _  -> Right $ KeyFingerprint bytes
+            Nothing -> Left $ ErrInvalidAddress addr (Proxy @ByronKey)
+    delegationKeyFingerprint addr@(Address bytes) =
+        case decodeLegacyAddress bytes of
+            Just _  -> Right Nothing
+            Nothing -> Left $ ErrInvalidAddress addr (Proxy @ByronKey)
 
 {-------------------------------------------------------------------------------
                             Encoding / Decoding

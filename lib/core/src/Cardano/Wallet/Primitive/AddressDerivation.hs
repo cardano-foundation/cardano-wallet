@@ -60,6 +60,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , PersistPrivateKey(..)
     , PersistPublicKey(..)
     , MkKeyFingerprint(..)
+    , ErrMkKeyFingerprint(..)
     , KeyFingerprint(..)
     , dummyAddress
 
@@ -635,11 +636,18 @@ instance NFData (KeyFingerprint s key)
 class MkKeyFingerprint (key :: Depth -> * -> *) where
     paymentKeyFingerprint
         :: Address
-        -> KeyFingerprint "payment" key
+        -> Either
+            (ErrMkKeyFingerprint key)
+            (KeyFingerprint "payment" key)
 
     delegationKeyFingerprint
         :: Address
-        -> Maybe (KeyFingerprint "delegation" key)
+        -> Either
+            (ErrMkKeyFingerprint key)
+            (Maybe (KeyFingerprint "delegation" key))
+
+data ErrMkKeyFingerprint key
+    = ErrInvalidAddress Address (Proxy key) deriving (Show, Eq)
 
 {-------------------------------------------------------------------------------
                                 Helpers
