@@ -66,6 +66,7 @@ import Test.Integration.Framework.DSL
     , verify
     , walletId
     , walletName
+    , walletReward
     , (</>)
     )
 import Test.Integration.Framework.TestData
@@ -130,9 +131,11 @@ spec = do
             , expectFieldEqual addressPoolGap 30
             , expectFieldEqual balanceAvailable 0
             , expectFieldEqual balanceTotal 0
+            , expectFieldEqual walletReward 0
             , expectEventually ctx getWalletEp state Ready
             , expectFieldEqual delegation (NotDelegating)
-            , expectFieldEqual walletId "2cf060fe53e4e0593f145f22b858dfc60676d4ab"
+            , expectFieldEqual walletId
+                "2cf060fe53e4e0593f145f22b858dfc60676d4ab"
             , expectFieldNotEqual passphraseLastUpdate Nothing
             ]
 
@@ -811,11 +814,12 @@ spec = do
             expectResponseCode @IO HTTP.status405 r
             expectErrorMessage errMsg405 r
 
-    it "WALLETS_GET_01 - can get wallet detals" $ \ctx -> do
+    it "WALLETS_GET_01 - can get wallet details" $ \ctx -> do
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default simplePayload
         let walId = getFromResponse walletId r
 
-        rg <- request @ApiWallet ctx ("GET", "v2/wallets" </> walId) Default Empty
+        rg <- request
+            @ApiWallet ctx ("GET", "v2/wallets" </> walId) Default Empty
         verify rg
             [ expectResponseCode @IO HTTP.status200
             , expectFieldEqual walletName "Secure Wallet"
@@ -889,8 +893,10 @@ spec = do
             , expectListItemFieldEqual 0 addressPoolGap 20
             , expectListItemFieldEqual 0 balanceAvailable 0
             , expectListItemFieldEqual 0 balanceTotal 0
+            , expectListItemFieldEqual 0 walletReward 0
             , expectListItemFieldEqual 0 delegation (NotDelegating)
-            , expectListItemFieldEqual 0 walletId "dfe87fcf0560fb57937a6468ea51e860672fad79"
+            , expectListItemFieldEqual 0 walletId
+                "dfe87fcf0560fb57937a6468ea51e860672fad79"
             ]
 
     it "WALLETS_LIST_01 - Wallets are listed from oldest to newest" $ \ctx -> do
