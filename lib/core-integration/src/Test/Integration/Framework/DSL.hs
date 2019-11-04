@@ -316,7 +316,7 @@ import qualified System.FilePath as F
 -- API response expectations
 --
 
--- | Expect an errored response, without any further assumptions
+-- | Expect an error response, without any further assumptions.
 expectError
     :: (MonadIO m, MonadFail m, Show a)
     => (s, Either RequestException a)
@@ -325,7 +325,7 @@ expectError (_, res) = case res of
     Left _  -> return ()
     Right a -> wantedErrorButSuccess a
 
--- | Expect an errored response, without any further assumptions
+-- | Expect an error response, without any further assumptions.
 expectErrorMessage
     :: (MonadIO m, MonadFail m, Show a)
     => String
@@ -340,7 +340,7 @@ expectErrorMessage want (_, res) = case res of
         fail "expectErrorMessage: asserting HttpException not supported yet"
     Right a -> wantedErrorButSuccess a
 
--- | Expect a successful response, without any further assumptions
+-- | Expect a successful response, without any further assumptions.
 expectSuccess
     :: (MonadIO m, MonadFail m)
     => (s, Either RequestException a)
@@ -349,7 +349,7 @@ expectSuccess (_, res) = case res of
     Left e  -> wantedSuccessButError e
     Right _ -> return ()
 
--- | Expect a given response code on the response
+-- | Expect a given response code on the response.
 expectResponseCode
     :: (MonadIO m)
     => HTTP.Status
@@ -410,7 +410,7 @@ expectFieldNotEqual getter a (_, res) = case res of
     Right s -> (view getter s) `shouldNotBe` a
 
 -- | Expects that returned data list's particular item field
---   matches the expected value
+--   matches the expected value.
 --   e.g.
 --   expectListItemFieldEqual 0 walletName "first" response
 --   expectListItemFieldEqual 1 walletName "second" response
@@ -456,7 +456,7 @@ expectListSizeEqual l (_, res) = case res of
     Right xs -> length (toList xs) `shouldBe` l
 
 -- | Expects wallet UTxO statistics from the request to be equal to
--- pre-calculated
+-- pre-calculated statistics.
 expectWalletUTxO
     :: (MonadIO m, MonadFail m)
     => [Word64]
@@ -478,7 +478,7 @@ expectWalletUTxO coins = \case
             `shouldBe` stats
 
 -- | Expects wallet from the request to eventually reach the given state or
--- beyond
+-- beyond.
 expectEventually
     :: forall ctx s a m. (MonadIO m, MonadCatch m, MonadFail m)
     => (Ord a, Show a, FromJSON s)
@@ -506,7 +506,7 @@ expectEventually ctx endpoint getter target (_, res) = case res of
         unless (target' >= target) $
             let ms = 1000 in threadDelay (500 * ms) *> loopUntilRestore s
 
--- | Like `expectEventually'` but the target is part of the response
+-- | Like 'expectEventually', but the target is part of the response.
 expectEventuallyL
     :: (MonadIO m, MonadCatch m, MonadFail m)
     => (Ord a, Show a)
@@ -531,8 +531,8 @@ expectEventuallyL ctx getter target s = liftIO $ do
         unless (getFromResponse getter r >= getFromResponse target r) $
             let ms = 1000 in threadDelay (500 * ms) *> loopUntilRestore wid
 
--- | Same as `expectEventually` but work directly on ApiWallet
--- , not response from the API
+-- | Same as 'expectEventually', but works directly on 'ApiWallet'
+-- rather than on a response from the API.
 expectEventually'
     :: forall ctx s a m. (MonadIO m, MonadCatch m, MonadFail m)
     => (Ord a, Show a, FromJSON s)
@@ -1564,11 +1564,11 @@ collectStreams (nOut0, nErr0) p = do
                 Left _  -> (mempty, n)
                 Right l -> (l, n-1)
 
--- | Like `shouldContain`, but with 'Text'
+-- | Like 'shouldContain', but with 'Text'.
 shouldContainT :: HasCallStack => Text -> Text -> IO ()
 shouldContainT a b = T.unpack a `shouldContain` T.unpack b
 
--- | Like `shouldNotContain`, but with 'Text'
+-- | Like 'shouldNotContain', but with 'Text'.
 shouldNotContainT :: HasCallStack => Text -> Text -> IO ()
 shouldNotContainT a b = T.unpack a `shouldNotContain` T.unpack b
 
