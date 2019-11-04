@@ -92,25 +92,32 @@ mkStdTxSpec :: Spec
 mkStdTxSpec = do
     let (xprv0, pwd0) =
             xprvSeqFromSeed "arbitrary-seed-0"
-        -- ^ 30c8422fd3cbaf54449df9f627a1f88cf85d4fee84083a91cdb6f0dbdb09c24d
-        --   ed29409c6a8275a643a2e79d280d97a898a3366706f3f677434b75c9d98680d0
+        -- ^ (Private key only, i.e. first 64 bytes)
+        -- 30c8422fd3cbaf54449df9f627a1f88cf85d4fee84083a91cdb6f0dbdb09c24d
+        -- ed29409c6a8275a643a2e79d280d97a898a3366706f3f677434b75c9d98680d0
     let (xprv1, pwd1) =
             xprvSeqFromSeed "arbitrary-seed-1"
-        -- ^ b81e217576bf2683f3359f50d0bf938ca3c61fdf7a2d0c1b2b35f7fb174dc042
-        --   6bb7377c9ea9cb481b4c3df601379fbf69033add18c1d272d7975c43682afc48
+        -- ^ (Private key only, i.e. first 64 bytes)
+        -- b81e217576bf2683f3359f50d0bf938ca3c61fdf7a2d0c1b2b35f7fb174dc042
+        -- 6bb7377c9ea9cb481b4c3df601379fbf69033add18c1d272d7975c43682afc48
     let (xprv2, pwd2) =
             xprvSeqFromSeed "arbitrary-seed-2"
-        -- ^ e01bfb39e3e595fce0b9b19e386a82816e0cef8aa823c75a32bc0f39bcf7c14e
-        --   8a03d255df0440b6d0fcf5d5199a582d1df7d858bd7556d4941ebf6223fa66d1
+        -- ^ (Private key only, i.e. first 64 bytes)
+        -- e01bfb39e3e595fce0b9b19e386a82816e0cef8aa823c75a32bc0f39bcf7c14e
+        -- 8a03d255df0440b6d0fcf5d5199a582d1df7d858bd7556d4941ebf6223fa66d1
 
     let (xprvRnd0, pwdRnd0) =
             xprvRndFromSeed "arbitrary-seed-0"
-        -- ^ 183b26b1127ea29c2f053ee8f9d8c0a90c5251235e0fd2bfda401da318045a4d
-        --   8fe398f1d0898ee4505e6b2546c1ac5c4b201e0833708312489e26142892a4ae
+        -- ^ (Extended private key, i.e. private key + chain code = 96 bytes)
+        -- xprv1rqajdvgj063fctc98m50nkxq4yx9y5frtc8a9076gqw6xxqytfxclcuc78g
+        -- gnrhy2p0xkf2xcxk9cjeqrcyrxuyrzfyfufs59zf2ftjn0qj2ae2jd02scmxryyf
+        -- ezx74j836xcqnyegnakyp288gm006fq3xyn72
     let (xprvRnd1, pwdRnd1) =
             xprvRndFromSeed "arbitrary-seed-1"
-        -- ^ 80330dc0e8382d72313a050add1fdaf8ad3f99f8a0bd56b4a27af497d43d0c53
-        --   acdbfa4f24a8e04aa2298ddc623ebbb4b61fd61f6076d269aa6a30ffb6bb7574
+        -- ^ (Extended private key, i.e. private key + chain code = 96 bytes)
+        -- xprv1sqesms8g8qkhyvf6q59d6876lzknlx0c5z74dd9z0t6f04pap3f6ekl6fuj
+        -- 23cz25g5cmhrz86amfdsl6c0kqakjdx4x5v8lk6ah2axjcglvf0uf0a8aydkxw6v
+        -- gkc58wfvlsx7e7zx5x4w4le4edndqd5k72xrz
 
     let txin0 = Hash $ unsafeFromHex
             "666984dec4bc0ff1888be97bfe0694a96b35c58d025405ead51d5cc72a3019f4"
