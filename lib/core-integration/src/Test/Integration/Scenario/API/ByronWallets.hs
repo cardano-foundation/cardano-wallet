@@ -70,7 +70,7 @@ import Test.Integration.Framework.DSL
     , getByronWalletEp
     , getFromResponse
     , json
-    , listByronWalletEp
+    , listByronWalletsEp
     , listWalletsEp
     , migrateByronWalletEp
     , passphraseLastUpdate
@@ -258,7 +258,7 @@ spec = do
             _ <- emptyByronWalletWith ctx ("b2", m2, "Secure Passphrase")
             _ <- emptyByronWalletWith ctx ("b3", m3, "Secure Passphrase")
 
-            rl <- request @[ApiByronWallet] ctx listByronWalletEp Default Empty
+            rl <- request @[ApiByronWallet] ctx listByronWalletsEp Default Empty
             verify rl
                 [ expectResponseCode @IO HTTP.status200
                 , expectListSizeEqual 3
@@ -282,7 +282,7 @@ spec = do
         _ <- emptyWalletWith ctx ("shelley3", "Secure Passphrase", 20)
 
         --list only byron
-        rl <- request @[ApiByronWallet] ctx listByronWalletEp Default Empty
+        rl <- request @[ApiByronWallet] ctx listByronWalletsEp Default Empty
         verify rl
             [ expectResponseCode @IO HTTP.status200
             , expectListSizeEqual 3
@@ -318,7 +318,7 @@ spec = do
         _ <- request @ApiWallet ctx (deleteWalletEp ws3) Default Empty
 
         --list only byron
-        rdl <- request @[ApiByronWallet] ctx listByronWalletEp Default Empty
+        rdl <- request @[ApiByronWallet] ctx listByronWalletsEp Default Empty
         verify rdl
             [ expectResponseCode @IO HTTP.status200
             , expectListSizeEqual 2
@@ -398,7 +398,7 @@ spec = do
         rg <- request @ApiByronWallet ctx (getByronWalletEp w) Default Empty
         verify rg $ (expectResponseCode @IO HTTP.status200) : expectations
         -- list
-        rl <- request @[ApiByronWallet] ctx listByronWalletEp Default Empty
+        rl <- request @[ApiByronWallet] ctx listByronWalletsEp Default Empty
         verify rl
             [ expectResponseCode @IO HTTP.status200
             , expectListSizeEqual 1
