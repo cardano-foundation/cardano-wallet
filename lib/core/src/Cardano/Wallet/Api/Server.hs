@@ -924,8 +924,12 @@ migrateByronWallet rndCtx seqCtx (ApiT rndWid) (ApiT seqWid) migrateData = do
     forM cs $ \selection -> do
         (tx, meta, time, wit) <- liftHandler
             $ withWorkerCtx rndCtx rndWid (throwE . ErrSignTxNoSuchWallet)
-            $ \wrk -> W.withRootKey wrk rndWid passphrase ErrSignTxWithRootKey
-            $ \xprv -> W.signTx @_ @_ @t wrk rndWid (xprv, passphrase) passphrase selection
+            $ \wrk ->
+                W.withRootKey
+                    wrk rndWid passphrase ErrSignTxWithRootKey
+            $ \xprv ->
+                W.signTx @_ @_ @t
+                    wrk rndWid (xprv, passphrase) passphrase selection
         liftHandler
             $ withWorkerCtx rndCtx rndWid (throwE . ErrSubmitTxNoSuchWallet)
             $ \wrk -> W.submitTx @_ @_ @t wrk rndWid (tx, meta, wit)
