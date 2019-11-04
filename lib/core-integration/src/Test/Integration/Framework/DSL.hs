@@ -87,6 +87,7 @@ module Test.Integration.Framework.DSL
     , listAllTransactions
     , tearDown
     , fixtureByronWallet
+    , fixtureByronWalletWith
     , fixtureWallet
     , fixtureWalletWith
     , faucetAmt
@@ -939,16 +940,29 @@ fixtureWallet ctx = do
             then return (getFromResponse id r)
             else threadDelay oneSecond *> checkBalance w
 
--- | Restore a Byron faucet and wait until funds are available.
+-- | Restore a Byron faucet wallet with a default name and passphrase.
 fixtureByronWallet
     :: Context t
     -> IO ApiByronWallet
-fixtureByronWallet ctx = do
+fixtureByronWallet =
+    fixtureByronWalletWith
+        "Faucet Byron Wallet"
+        "Secure Passphrase"
+
+-- | Restore a Byron faucet wallet with the specified name and passphrase.
+fixtureByronWalletWith
+    :: Text
+        -- ^ name
+    -> Text
+        -- ^ passphrase
+    -> Context t
+    -> IO ApiByronWallet
+fixtureByronWalletWith name passphrase ctx = do
     mnemonics <- mnemonicToText <$> nextWallet @"rnd" (_faucet ctx)
     let payload = Json [aesonQQ| {
-            "name": "Faucet Byron Wallet",
+            "name": #{name},
             "mnemonic_sentence": #{mnemonics},
-            "passphrase": "cardano-wallet"
+            "passphrase": #{passphrase}
             } |]
     (_, w) <- unsafeRequest @ApiByronWallet ctx postByronWalletEp payload
     race (threadDelay sixtySeconds) (checkBalance w) >>= \case
