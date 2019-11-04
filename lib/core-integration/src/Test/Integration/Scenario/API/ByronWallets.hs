@@ -189,6 +189,52 @@ spec = do
                     getFromResponse amount r0
             actualFee `shouldBe` predictedFee
 
+    it "BYRON_MIGRATE_04 - \
+        \a migration operation removes all funds from the source wallet."
+        $ \ctx -> do
+
+            -- Restore a Byron wallet with funds, to act as a source wallet:
+            let sourceWalletName = "source wallet"
+            let sourceWalletPass = "source wallet passphrase"
+            sourceWallet <-
+                fixtureByronWalletWith sourceWalletName sourceWalletPass ctx
+
+            -- Verify that the source wallet has funds available:
+            r0 <- request @ApiByronWallet ctx
+                (getByronWalletEp sourceWallet) Default Empty
+            verify r0
+                [ expectResponseCode @IO HTTP.status200
+                , expectFieldSatisfy balanceAvailable (> 0)
+                ]
+
+            -- Perform a migration from the source wallet to a target wallet:
+            targetWallet <- emptyWallet ctx
+            r1 <- request @[ApiTransaction n] ctx
+                (migrateByronWalletEp sourceWallet targetWallet )
+                Default
+                (Json [aesonQQ|{"passphrase": #{sourceWalletPass}}|])
+            verify r1
+                [ expectResponseCode @IO HTTP.status202
+                , expectFieldSatisfy id (not . null)
+                ]
+
+            -- Verify that the source wallet is still listable:
+            r2 <- request @[ApiByronWallet] ctx
+                listByronWalletsEp Default Empty
+            verify r2
+                [ expectResponseCode @IO HTTP.status200
+                , expectListSizeEqual 1
+                , expectListItemFieldEqual 0 walletName sourceWalletName
+                ]
+
+            -- Verify that the source wallet has no funds available:
+            r3 <- request @ApiByronWallet ctx
+                (getByronWalletEp sourceWallet) Default Empty
+            verify r3
+                [ expectResponseCode @IO HTTP.status200
+                , expectFieldSatisfy balanceAvailable (== 0)
+                ]
+
     describe "BYRON_MIGRATE_06 - non-existing wallets" $  do
         forM_ (take 1 falseWalletIds) $ \(desc, walId) -> it desc $ \ctx -> do
             let endpoint = "v2/byron-wallets/" <> T.pack walId <> "/migrations"
