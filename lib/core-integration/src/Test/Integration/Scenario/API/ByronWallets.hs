@@ -66,7 +66,7 @@ import Test.Integration.Framework.DSL
     , expectListItemFieldEqual
     , expectListSizeEqual
     , expectResponseCode
-    , fixtureByronWallet
+    , fixtureByronWalletWith
     , getByronWalletEp
     , getFromResponse
     , json
@@ -160,8 +160,9 @@ spec = do
         \actual fee for migration is the same as the predicted fee."
         $ \ctx -> do
             -- Restore a Byron wallet with funds.
-            sourceWallet <- fixtureByronWallet ctx
-            let passphrase = "cardano-wallet" :: String
+            let name = "test byron wallet"
+            let passphrase = "test passphrase"
+            sourceWallet <- fixtureByronWalletWith name passphrase ctx
 
             -- Request a migration fee prediction.
             let ep0 = (calculateByronMigrationCostEp sourceWallet)
