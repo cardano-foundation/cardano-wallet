@@ -33,7 +33,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx (..), block0, genesisParameters )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( ChangeChain (..)
+    ( AccountingStyle (..)
     , Depth (..)
     , DerivationType (..)
     , ErrWrongPassphrase (..)

@@ -21,7 +21,7 @@ module Cardano.Wallet.DB.Sqlite.Types where
 import Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( ChangeChain (..), Passphrase (..) )
+    ( AccountingStyle (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..), getAddressPoolGap, mkAddressPoolGap )
 import Cardano.Wallet.Primitive.Types
@@ -358,13 +358,13 @@ instance PersistFieldSql AddressPoolGap where
     sqlType _ = sqlType (Proxy @Word8)
 
 ----------------------------------------------------------------------------
--- ChangeChain
+-- AccountingStyle
 
-instance PersistField ChangeChain where
+instance PersistField AccountingStyle where
     toPersistValue = toPersistValue . toText
     fromPersistValue = fromPersistValueFromText
 
-instance PersistFieldSql ChangeChain where
+instance PersistFieldSql AccountingStyle where
     sqlType _ = sqlType (Proxy @Text)
 
 ----------------------------------------------------------------------------

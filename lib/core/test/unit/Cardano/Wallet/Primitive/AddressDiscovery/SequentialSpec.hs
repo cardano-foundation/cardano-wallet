@@ -18,7 +18,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.SequentialSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( ChangeChain (..)
+    ( AccountingStyle (..)
     , Depth (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
@@ -44,8 +44,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , MkAddressPoolGapError (..)
     , SeqState (..)
     , accountPubKey
+    , accountingStyle
     , addresses
-    , changeChain
     , defaultAddressPoolGap
     , emptyPendingIxs
     , gap
@@ -273,13 +273,13 @@ prop_poolAtLeastGapAddresses pool =
 
 -- | Our addresses are eventually discovered
 prop_poolEventuallyDiscoverOurs
-    :: forall (c :: ChangeChain). (Typeable c)
+    :: forall (c :: AccountingStyle). (Typeable c)
     => (AddressPoolGap, Address)
     -> Property
 prop_poolEventuallyDiscoverOurs (g, addr) =
     addr `elem` ours ==> withMaxSuccess 10 $ property prop
   where
-    ours = take 25 (ourAddresses (changeChain @c))
+    ours = take 25 (ourAddresses (accountingStyle @c))
     pool = flip execState (mkAddressPool @'Testnet @c ourAccount g mempty) $
         forM ours (state . lookupAddress)
     prop = (fromEnum <$> fst (lookupAddress addr pool)) === elemIndex addr ours
@@ -418,7 +418,7 @@ ourAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, mempty) mempty
     seed = Passphrase $ BA.convert $ BS.replicate 32 0
 
 ourAddresses
-    :: ChangeChain
+    :: AccountingStyle
     -> [Address]
 ourAddresses cc =
     paymentAddress @'Testnet . deriveAddressPublicKey ourAccount cc
@@ -438,7 +438,7 @@ instance Arbitrary AddressPoolGap where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
 
-instance Arbitrary ChangeChain where
+instance Arbitrary AccountingStyle where
     shrink _ = []
     arbitrary = elements [InternalChain, ExternalChain]
 
@@ -479,7 +479,7 @@ instance Typeable chain => Arbitrary (AddressPool 'Testnet chain ShelleyKey) whe
         g <- unsafeMkAddressPoolGap <$> choose
             (getAddressPoolGap minBound, 2 * getAddressPoolGap minBound)
         n <- choose (0, 2 * fromEnum g)
-        let addrs = take n (ourAddresses (changeChain @chain))
+        let addrs = take n (ourAddresses (accountingStyle @chain))
         return $ mkAddressPool ourAccount g addrs
 
 instance Arbitrary (SeqState 'Testnet ShelleyKey) where

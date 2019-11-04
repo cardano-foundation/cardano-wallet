@@ -39,7 +39,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , AddressPool
     , gap
     , addresses
-    , changeChain
+    , accountingStyle
     , accountPubKey
     , mkAddressPool
     , lookupAddress
@@ -60,7 +60,7 @@ import Prelude
 import Cardano.Crypto.Wallet
     ( XPrv, XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( ChangeChain (..)
+    ( AccountingStyle (..)
     , Depth (..)
     , DerivationType (..)
     , HardDerivation (..)
@@ -185,11 +185,11 @@ defaultAddressPoolGap =
 -- Account and change chain. See 'mkAddressPool' to create a new or existing
 -- pool:
 --
--- >>> mkAddressPool xpub gap changeChain mempty
+-- >>> mkAddressPool xpub gap accountingStyle mempty
 -- AddressPool { }
 data AddressPool
     (network :: NetworkDiscriminant)
-    (chain :: ChangeChain)
+    (chain :: AccountingStyle)
     (key :: Depth -> * -> *) = AddressPool
     { accountPubKey
         :: !(key 'AccountK XPub)
@@ -215,21 +215,21 @@ instance ((PersistPublicKey (key 'AccountK)), Typeable chain)
     build (AddressPool acct (AddressPoolGap g) _) = mempty
         <> ccF <> " " <> acctF <> " (gap=" <> build g <> ")\n"
       where
-        ccF = build $ toText $ changeChain @chain
+        ccF = build $ toText $ accountingStyle @chain
         xpubF = hexF $ serializeXPub acct
         acctF = prefixF 8 xpubF <> "..." <> suffixF 8 xpubF
 
--- | Bring a 'ChangeChain' type back to the term-level. This requires a type
+-- | Bring a 'AccountingStyle' type back to the term-level. This requires a type
 -- application and either a scoped type variable, or an explicit passing of a
--- 'ChangeChain'.
+-- 'AccountingStyle'.
 --
--- >>> changeChain @'ExternalChain
+-- >>> accountingStyle @'ExternalChain
 -- ExternalChain
 --
--- >>> changeChain @chain
+-- >>> accountingStyle @chain
 -- ...
-changeChain :: forall (c :: ChangeChain). Typeable c => ChangeChain
-changeChain =
+accountingStyle :: forall (c :: AccountingStyle). Typeable c => AccountingStyle
+accountingStyle =
     case typeRep (Proxy :: Proxy c) of
         t | t == typeRep (Proxy :: Proxy 'InternalChain) ->
             InternalChain
@@ -279,7 +279,7 @@ mkAddressPool key g addrs = AddressPool
         nextAddresses @n
             key
             g
-            (changeChain @c)
+            (accountingStyle @c)
             minBound
           <>
             Map.fromList (zip
@@ -330,7 +330,7 @@ extendAddressPool !ix !pool
     next = if ix == maxBound then mempty else nextAddresses @n
         (accountPubKey pool)
         (gap pool)
-        (changeChain @c)
+        (accountingStyle @c)
         (succ ix)
 
 -- | Compute the pool extension from a starting index
@@ -341,7 +341,7 @@ nextAddresses
         )
     => k 'AccountK XPub
     -> AddressPoolGap
-    -> ChangeChain
+    -> AccountingStyle
     -> Index 'Soft 'AddressK
     -> Map (KeyFingerprint "payment" k) (Index 'Soft 'AddressK)
 nextAddresses !key (AddressPoolGap !g) !cc !fromIx =
@@ -559,7 +559,7 @@ instance
                 -- We are assuming there is only one account
                 accountPrv = deriveAccountPrivateKey pwd rootPrv minBound
                 (addrIx, _) = lookupAddress @n addr pool
-                cc = changeChain @c
+                cc = accountingStyle @c
             in
                 deriveAddressPrivateKey pwd accountPrv cc <$> addrIx
 

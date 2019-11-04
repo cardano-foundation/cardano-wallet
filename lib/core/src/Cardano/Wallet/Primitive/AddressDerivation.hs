@@ -35,7 +35,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
     -- * HD Derivation
       Depth (..)
     , Index (..)
-    , ChangeChain (..)
+    , AccountingStyle (..)
     , DerivationType (..)
     , HardDerivation (..)
     , SoftDerivation (..)
@@ -161,29 +161,29 @@ data Depth = RootK | AccountK | AddressK
 -- | Marker for the change chain. In practice, change of a transaction goes onto
 -- the addresses generated on the internal chain, whereas the external chain is
 -- used for addresses that are part of the 'advertised' targets of a transaction
-data ChangeChain
+data AccountingStyle
     = ExternalChain
     | InternalChain
     deriving (Generic, Typeable, Show, Eq, Ord, Bounded)
 
-instance NFData ChangeChain
+instance NFData AccountingStyle
 
 -- Not deriving 'Enum' because this could have a dramatic impact if we were
 -- to assign the wrong index to the corresponding constructor (by swapping
 -- around the constructor above for instance).
-instance Enum ChangeChain where
+instance Enum AccountingStyle where
     toEnum = \case
         0 -> ExternalChain
         1 -> InternalChain
-        _ -> error "ChangeChain.toEnum: bad argument"
+        _ -> error "AccountingStyle.toEnum: bad argument"
     fromEnum = \case
         ExternalChain -> 0
         InternalChain -> 1
 
-instance ToText ChangeChain where
+instance ToText AccountingStyle where
     toText = toTextFromBoundedEnum SnakeLowerCase
 
-instance FromText ChangeChain where
+instance FromText AccountingStyle where
     fromText = fromTextToBoundedEnum SnakeLowerCase
 
 -- | A derivation index, with phantom-types to disambiguate derivation type.
@@ -260,7 +260,7 @@ class HardDerivation (key :: Depth -> * -> *) where
     deriveAddressPrivateKey
         :: Passphrase "encryption"
         -> key 'AccountK XPrv
-        -> ChangeChain
+        -> AccountingStyle
         -> Index (AddressIndexDerivationType key) 'AddressK
         -> key 'AddressK XPrv
 
@@ -273,7 +273,7 @@ class HardDerivation key => SoftDerivation (key :: Depth -> * -> *) where
     -- This is the preferred way of deriving new sequential address public keys.
     deriveAddressPublicKey
         :: key 'AccountK XPub
-        -> ChangeChain
+        -> AccountingStyle
         -> Index 'Soft 'AddressK
         -> key 'AddressK XPub
 
