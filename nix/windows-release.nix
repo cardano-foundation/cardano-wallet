@@ -8,8 +8,10 @@
 ############################################################################
 
 { pkgs
-, cardano-wallet-jormungandr
 , project
+, cardano-wallet-jormungandr
+, tests ? []
+, benchmarks ? []
 }:
 
 let
@@ -19,10 +21,15 @@ let
     jormungandr.exe --config config.yaml --genesis-block block0.bin --secret secret.yaml
   '';
   cw-bat = pkgs.writeText "cw.bat" ''
-    cardano-wallet-jormungandr.exe serve --node-port 8081 --genesis-hash HASH --database c:\\cardano-wallet-jormungandr\\wallet.db
+    cardano-wallet-jormungandr.exe serve --node-port 8080 --genesis-block-hash HASH --database c:\\cardano-wallet-jormungandr\\wallets
   '';
+  launch-bat = pkgs.writeText "launch.bat" ''
+    cardano-wallet-jormungandr.exe launch --genesis-block-hash HASH --state-dir c:\\cardano-wallet-jormungandr %*
+  '';
+
 in pkgs.runCommand name {
   nativeBuildInputs = [ pkgs.zip pkgs.jq pkgs.gnused project.jormungandr-cli ];
+  passthru = { inherit tests benchmarks; };
 } ''
   mkdir -pv jm $out/nix-support
   cd jm
@@ -32,8 +39,19 @@ in pkgs.runCommand name {
   cp -v ${jm-bat} jm.bat
   hash="$(jcli genesis hash --input block0.bin)"
   sed -e "s/HASH/$hash/" ${cw-bat} > cw.bat
-  sed -e 's/storage:.*/storage: "c:\\\\cardano-wallet-jormungandr\\\\storage"/' \
+  sed -e "s/HASH/$hash/" ${launch-bat} > launch.bat
+  sed -e 's/storage:.*/storage: "c:\\\\cardano-wallet-jormungandr\\\\chain"/' \
       ${testData}/config.yaml > config.yaml
+
+  ${pkgs.lib.concatMapStringsSep "\n" (test: ''
+    pkg=`ls -1 ${test}`
+    exe=`cd ${test}; ls -1 $pkg`
+    name=$pkg-test-$exe
+    cp ${test}/$pkg/$exe $name
+    echo $name >> tests.bat
+    echo "if %errorlevel% neq 0 exit /b %errorlevel%" >> tests.bat
+  '') tests}
+
   chmod -R +w .
 
   zip -r $out/${name}.zip .

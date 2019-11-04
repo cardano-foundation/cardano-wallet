@@ -3,23 +3,20 @@
 , config ? {}
 # Import IOHK common nix lib
 , iohkLib ? import ./nix/iohk-common.nix { inherit system crossSystem config; }
-# Use nixpkgs pin from iohkLib
-, pkgs ? iohkLib.pkgs
+# Use pinned Nixpkgs with Haskell.nix overlay
+, pkgs ? import ./nix/nixpkgs-haskell.nix  { inherit system crossSystem config; }
 }:
 
 with import ./nix/util.nix { inherit pkgs; };
 
 let
-  haskell = iohkLib.nix-tools.haskell { inherit pkgs; };
-  src = iohkLib.cleanSourceHaskell ./.;
+  src = pkgs.haskell-nix.cleanSourceHaskell ./.;
 
-  jmPkgs = import ./nix/jormungandr.nix { inherit iohkLib pkgs; };
+  jmPkgs = import ./nix/jormungandr.nix { inherit iohkLib; };
   inherit (jmPkgs) jormungandr jormungandr-cli;
 
   haskellPackages = import ./nix/default.nix {
-    inherit pkgs haskell src;
-    inherit jmPkgs;
-    inherit (iohkLib.nix-tools) iohk-extras iohk-module;
+    inherit pkgs src jmPkgs;
   };
 
   inherit (haskellPackages.cardano-wallet-core.identifier) version;
@@ -48,10 +45,9 @@ in {
       bech32
       text-class
     ];
-    buildInputs =
-      with pkgs.haskellPackages; [ stylish-haskell weeder ghcid ]
+    buildInputs = (with pkgs.haskellPackages; [ stylish-haskell weeder ghcid ])
+      ++ (with iohkLib; [ hlint openapi-spec-validator ])
       ++ [ jormungandr jormungandr-cli
-           pkgs.pkgconfig pkgs.sqlite-interactive
-           iohkLib.hlint iohkLib.openapi-spec-validator ];
+           pkgs.pkgconfig pkgs.sqlite-interactive ];
   };
 }

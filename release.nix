@@ -25,6 +25,12 @@ let
     "${mingwW64.config}" = mapTestOnCross mingwW64 (packagePlatformsCross project);
   }
   // {
+    ci-tools = {
+      inherit (import ./nix/iohk-common.nix {}) hlint;
+      inherit ((import ./nix/nixpkgs-haskell.nix {}).haskellPackages) stylish-haskell;
+    };
+    inherit ((import ./. {}).pkgs.haskell-nix) haskellNixRoots;
+
     # This aggregate job is what IOHK Hydra uses to update
     # the CI status in GitHub.
     required = mkRequiredJob (
@@ -39,6 +45,8 @@ let
     cardano-wallet-jormungandr-win64 = import ./nix/windows-release.nix {
       inherit pkgs project;
       cardano-wallet-jormungandr = jobs.x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-linux;
+      tests = collectTests jobs.x86_64-pc-mingw32.tests;
+      benchmarks = collectTests jobs.x86_64-pc-mingw32.benchmarks;
     };
 
     # These derivations are used for the Daedalus installer.

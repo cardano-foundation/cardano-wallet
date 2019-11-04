@@ -9,15 +9,16 @@
 { pkgs
 , version
 , cardano-wallet-jormungandr
-, jmPkgs ? import ./jormungandr.nix { inherit pkgs; }
-, jormungandr ? jmPkgs.jormungandr
-, jormungandr-win64 ? jmPkgs.jormungandr-win64
+, jmPkgs
 }:
 
 with pkgs.lib;
 
 let
   name = "cardano-wallet-jormungandr-${version}";
+
+  jormungandr = jmPkgs.jormungandr;
+  jormungandr-win64 = jmPkgs.jormungandr-win64;
 
   deps = {
     nix = ''
@@ -30,7 +31,7 @@ let
     '';
     windows = ''
       cp -v ${pkgs.libffi}/bin/libffi-6.dll $out/bin
-      cp ${jormungandr-win64}/* $out/bin
+      cp ${jormungandr-win64}/bin/* $out/bin
     '';
   };
   provideDeps = { nix, darwin ? "", windows ? "" }:
@@ -39,7 +40,7 @@ let
 
 in pkgs.runCommand name {
   inherit version;
-  nativeBuildInputs = [ pkgs.makeWrapper pkgs.binutils ];
+  nativeBuildInputs = [ pkgs.buildPackages.makeWrapper pkgs.buildPackages.binutils ];
 } ''
   cp -R ${cardano-wallet-jormungandr} $out
   chmod -R +w $out
