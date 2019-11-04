@@ -121,25 +121,25 @@ spec = do
         it "defaultAddressPoolGap is valid"
             (property prop_defaultValid)
 
-    describe "AddressPool ExternalChain" $ do
+    describe "AddressPool UTxOExternal" $ do
         it "'lookupAddressPool' extends the pool by a maximum of 'gap'"
-            (checkCoverage (prop_poolGrowWithinGap @'ExternalChain))
+            (checkCoverage (prop_poolGrowWithinGap @'UTxOExternal))
         it "'addresses' preserves the address order"
-            (checkCoverage (prop_roundtripMkAddressPool @'ExternalChain))
+            (checkCoverage (prop_roundtripMkAddressPool @'UTxOExternal))
         it "An AddressPool always contains at least 'gap pool' addresses"
-            (property (prop_poolAtLeastGapAddresses @'ExternalChain))
+            (property (prop_poolAtLeastGapAddresses @'UTxOExternal))
         it "Our addresses are eventually discovered"
-            (property (prop_poolEventuallyDiscoverOurs @'ExternalChain))
+            (property (prop_poolEventuallyDiscoverOurs @'UTxOExternal))
 
-    describe "AddressPool InternalChain" $ do
+    describe "AddressPool UTxOInternal" $ do
         it "'lookupAddressPool' extends the pool by a maximum of 'gap'"
-            (checkCoverage (prop_poolGrowWithinGap @'InternalChain))
+            (checkCoverage (prop_poolGrowWithinGap @'UTxOInternal))
         it "'addresses' preserves the address order"
-            (checkCoverage (prop_roundtripMkAddressPool @'InternalChain))
+            (checkCoverage (prop_roundtripMkAddressPool @'UTxOInternal))
         it "An AddressPool always contains at least 'gap pool' addresses"
-            (property (prop_poolAtLeastGapAddresses @'InternalChain))
+            (property (prop_poolAtLeastGapAddresses @'UTxOInternal))
         it "Our addresses are eventually discovered"
-            (property (prop_poolEventuallyDiscoverOurs @'InternalChain))
+            (property (prop_poolEventuallyDiscoverOurs @'UTxOInternal))
 
     describe "AddressPoolGap - Text Roundtrip" $ do
         textRoundtrip $ Proxy @AddressPoolGap
@@ -383,8 +383,8 @@ prop_atLeastKnownAddresses s =
     g = fromEnum . getAddressPoolGap . gap
 
 prop_changeIsOnlyKnownAfterGeneration
-    :: ( AddressPool 'Testnet 'InternalChain ShelleyKey
-       , AddressPool 'Testnet 'ExternalChain ShelleyKey
+    :: ( AddressPool 'Testnet 'UTxOInternal ShelleyKey
+       , AddressPool 'Testnet 'UTxOExternal ShelleyKey
        )
     -> Property
 prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) =
@@ -440,7 +440,7 @@ instance Arbitrary AddressPoolGap where
 
 instance Arbitrary AccountingStyle where
     shrink _ = []
-    arbitrary = elements [InternalChain, ExternalChain]
+    arbitrary = elements [UTxOInternal, UTxOExternal]
 
 -- | In this context, Arbitrary addresses are either some known addresses
 -- derived from "our account key", or they just are some arbitrary addresses
@@ -448,8 +448,8 @@ instance Arbitrary AccountingStyle where
 instance Arbitrary Address where
     shrink _ = []
     arbitrary = frequency
-        [ (8, elements $ take 25 (ourAddresses ExternalChain))
-        , (8, elements $ take 25 (ourAddresses InternalChain))
+        [ (8, elements $ take 25 (ourAddresses UTxOExternal))
+        , (8, elements $ take 25 (ourAddresses UTxOInternal))
         , (1, notOurs)
         ]
       where

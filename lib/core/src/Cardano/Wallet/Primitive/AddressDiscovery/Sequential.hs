@@ -223,18 +223,20 @@ instance ((PersistPublicKey (key 'AccountK)), Typeable chain)
 -- application and either a scoped type variable, or an explicit passing of a
 -- 'AccountingStyle'.
 --
--- >>> accountingStyle @'ExternalChain
--- ExternalChain
+-- >>> accountingStyle @'UTxOExternal
+-- UTxOExternal
 --
 -- >>> accountingStyle @chain
 -- ...
 accountingStyle :: forall (c :: AccountingStyle). Typeable c => AccountingStyle
 accountingStyle =
     case typeRep (Proxy :: Proxy c) of
-        t | t == typeRep (Proxy :: Proxy 'InternalChain) ->
-            InternalChain
+        t | t == typeRep (Proxy :: Proxy 'UTxOInternal) ->
+            UTxOInternal
+          | t == typeRep (Proxy :: Proxy 'UTxOExternal) ->
+            UTxOExternal
         _ ->
-            ExternalChain
+            MutableAccount
 
 -- | Get all addresses in the pool, sorted from the first address discovered,
 -- up until the next one.
@@ -450,10 +452,10 @@ unsafePaymentKeyFingerprint addr = case paymentKeyFingerprint @k addr of
 -- parameterized by a type @n@ which captures a particular network discrimination.
 -- This enables the state to be agnostic to the underlying address format.
 data SeqState n k = SeqState
-    { internalPool :: !(AddressPool n 'InternalChain k)
-        -- ^ Addresses living on the 'InternalChain'
-    , externalPool :: !(AddressPool n 'ExternalChain k)
-        -- ^ Addresses living on the 'ExternalChain'
+    { internalPool :: !(AddressPool n 'UTxOInternal k)
+        -- ^ Addresses living on the 'UTxOInternal'
+    , externalPool :: !(AddressPool n 'UTxOExternal k)
+        -- ^ Addresses living on the 'UTxOExternal'
     , pendingChangeIxs :: !PendingIxs
         -- ^ Indexes from the internal pool that have been used in pending
         -- transactions. The list is maintained sorted in descending order
@@ -531,7 +533,7 @@ instance
         let
             (ix, pending') = nextChangeIndex intPool pending
             accountXPub = accountPubKey intPool
-            addressXPub = deriveAddressPublicKey accountXPub InternalChain ix
+            addressXPub = deriveAddressPublicKey accountXPub UTxOInternal ix
             addr = paymentAddress @n addressXPub
         in
             (addr, SeqState intPool extPool pending')

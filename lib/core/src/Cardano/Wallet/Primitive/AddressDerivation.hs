@@ -162,8 +162,9 @@ data Depth = RootK | AccountK | AddressK
 -- the addresses generated on the internal chain, whereas the external chain is
 -- used for addresses that are part of the 'advertised' targets of a transaction
 data AccountingStyle
-    = ExternalChain
-    | InternalChain
+    = UTxOExternal
+    | UTxOInternal
+    | MutableAccount
     deriving (Generic, Typeable, Show, Eq, Ord, Bounded)
 
 instance NFData AccountingStyle
@@ -173,12 +174,14 @@ instance NFData AccountingStyle
 -- around the constructor above for instance).
 instance Enum AccountingStyle where
     toEnum = \case
-        0 -> ExternalChain
-        1 -> InternalChain
+        0 -> UTxOExternal
+        1 -> UTxOInternal
+        2 -> MutableAccount
         _ -> error "AccountingStyle.toEnum: bad argument"
     fromEnum = \case
-        ExternalChain -> 0
-        InternalChain -> 1
+        UTxOExternal -> 0
+        UTxOInternal -> 1
+        MutableAccount -> 2
 
 instance ToText AccountingStyle where
     toText = toTextFromBoundedEnum SnakeLowerCase

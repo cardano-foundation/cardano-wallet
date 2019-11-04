@@ -110,7 +110,7 @@ spec = do
 
 prop_toEnumAccountingStyle :: Int -> Property
 prop_toEnumAccountingStyle n =
-    n > fromEnum InternalChain ==> expectFailure $ property $
+    n > fromEnum UTxOInternal ==> expectFailure $ property $
         (toEnum n :: AccountingStyle) `seq` ()
 
 prop_roundtripEnumAccountingStyle :: AccountingStyle -> Property
@@ -191,7 +191,7 @@ prop_fingerprintInvalidAddress (InvalidAddress addr) = conjoin $ property <$>
 
 instance Arbitrary AccountingStyle where
     shrink _ = []
-    arbitrary = elements [InternalChain, ExternalChain]
+    arbitrary = elements [UTxOInternal, UTxOExternal]
 
 instance {-# OVERLAPS #-} Arbitrary (Passphrase "seed") where
     arbitrary = do
