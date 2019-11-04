@@ -132,7 +132,7 @@ spec = do
                 . fmap (view amount)
                 . ApiTypes.outputs
 
-    it "BYRON_ESTIMATE_01 - \
+    it "BYRON_MIGRATE_01 - \
         \migrating an empty wallet should generate a fee of zero."
         $ \ctx -> do
             w <- emptyByronWallet ctx
@@ -141,7 +141,7 @@ spec = do
             expectResponseCode @IO HTTP.status200 r
             fee `shouldBe` Quantity 0
 
-    it "BYRON_ESTIMATE_02 - \
+    it "BYRON_MIGRATE_02 - \
         \migrating an empty wallet should not generate transactions."
         $ \ctx -> do
             mnemonic <- genMnemonics
@@ -156,7 +156,7 @@ spec = do
             expectResponseCode @IO HTTP.status202 r
             transactions `shouldBe` []
 
-    it "BYRON_ESTIMATE_03 - \
+    it "BYRON_MIGRATE_03 - \
         \actual fee for migration is the same as the predicted fee."
         $ \ctx -> do
             -- Restore a Byron wallet with funds.
@@ -188,7 +188,7 @@ spec = do
                     getFromResponse amount r0
             actualFee `shouldBe` predictedFee
 
-    describe "BYRON_ESTIMATE_06 - non-existing wallets" $  do
+    describe "BYRON_MIGRATE_06 - non-existing wallets" $  do
         forM_ (take 1 falseWalletIds) $ \(desc, walId) -> it desc $ \ctx -> do
             let endpoint = "v2/byron-wallets/" <> T.pack walId <> "/migrations"
             rg <- request @ApiByronWallet ctx ("GET", endpoint) Default Empty
