@@ -439,7 +439,8 @@ expectListItemFieldBetween
 expectListItemFieldBetween i getter (aMin, aMax) (c, res) = case res of
     Left e -> wantedSuccessButError e
     Right xs
-        | length xs > i -> expectFieldBetween getter (aMin, aMax) (c, Right (xs !! i))
+        | length xs > i ->
+            expectFieldBetween getter (aMin, aMax) (c, Right (xs !! i))
         | otherwise -> fail $
             "expectListItemFieldBetween: trying to access the #" <> show i <>
             " element from a list but there's none! "
@@ -454,7 +455,8 @@ expectListSizeEqual l (_, res) = case res of
     Left e   -> wantedSuccessButError e
     Right xs -> length (toList xs) `shouldBe` l
 
--- | Expects wallet UTxO statistics from the request to be equal to pre-calculated
+-- | Expects wallet UTxO statistics from the request to be equal to
+-- pre-calculated
 expectWalletUTxO
     :: (MonadIO m, MonadFail m)
     => [Word64]
@@ -469,7 +471,8 @@ expectWalletUTxO coins = \case
                 , TxOut addr (Coin c)
                 )
         let utxo = UTxO $ Map.fromList $ zipWith constructUtxoEntry [0..] coins
-        let (UTxOStatistics hist stakes bType) = computeUtxoStatistics log10 utxo
+        let (UTxOStatistics hist stakes bType) =
+                computeUtxoStatistics log10 utxo
         let distr = Map.fromList $ map (\(HistogramBar k v)-> (k,v)) hist
         (ApiUtxoStatistics (Quantity (fromIntegral stakes)) (ApiT bType) distr)
             `shouldBe` stats
@@ -990,7 +993,8 @@ fixtureWalletWith ctx coins0 = do
         balance <- getFromResponse balanceAvailable
             <$> request @ApiWallet ctx (getWalletEp dest) Default Empty
         addrs <- fmap (view #id) . getFromResponse id
-            <$> request @[ApiAddress 'Testnet] ctx (getAddressesEp dest "") Default Empty
+            <$> request @[ApiAddress 'Testnet]
+                ctx (getAddressesEp dest "") Default Empty
         let payments = for (zip coins addrs) $ \(amt, addr) -> [aesonQQ|{
                 "address": #{addr},
                 "amount": {
@@ -1004,7 +1008,8 @@ fixtureWalletWith ctx coins0 = do
             }|]
         request @(ApiTransaction 'Testnet) ctx (postTxEp src) Default payload
             >>= expectResponseCode HTTP.status202
-        expectEventually' ctx getWalletEp balanceAvailable (sum (balance:coins)) dest
+        expectEventually'
+            ctx getWalletEp balanceAvailable (sum (balance:coins)) dest
         expectEventuallyL ctx balanceAvailable balanceTotal src
 
 -- | Total amount on each faucet wallet
@@ -1050,7 +1055,8 @@ listAddresses
     -> ApiWallet
     -> IO [ApiAddress 'Testnet]
 listAddresses ctx w = do
-    (_, addrs) <- unsafeRequest @[ApiAddress 'Testnet] ctx (getAddressesEp w "") Empty
+    (_, addrs) <- unsafeRequest
+        @[ApiAddress 'Testnet] ctx (getAddressesEp w "") Empty
     return addrs
 
 listAllTransactions
@@ -1210,7 +1216,8 @@ deleteByronWalletEp w =
 deleteByronTxEp :: ApiByronWallet -> ApiTxId -> (Method, Text)
 deleteByronTxEp w tid =
     ( "DELETE"
-    , "v2/byron-wallets/" <> w ^. walletId <> "/transactions/" <> (toUrlPiece tid)
+    , "v2/byron-wallets/" <> w ^. walletId <> "/transactions/" <>
+        (toUrlPiece tid)
     )
 
 listStakePoolsEp :: (Method, Text)
@@ -1333,17 +1340,18 @@ createWalletViaCLI ctx args mnemonics secondFactor passphrase = do
     let fullArgs =
             [ "wallet", "create" ] ++ portArgs ++ args
     let process = proc' (commandName @t) fullArgs
-    withCreateProcess process $ \(Just stdin) (Just stdout) (Just stderr) h -> do
-        hPutStr stdin mnemonics
-        hPutStr stdin secondFactor
-        hPutStr stdin (passphrase ++ "\n")
-        hPutStr stdin (passphrase ++ "\n")
-        hFlush stdin
-        hClose stdin
-        c <- waitForProcess h
-        out <- TIO.hGetContents stdout
-        err <- TIO.hGetContents stderr
-        return (c, T.unpack out, err)
+    withCreateProcess process $
+        \(Just stdin) (Just stdout) (Just stderr) h -> do
+            hPutStr stdin mnemonics
+            hPutStr stdin secondFactor
+            hPutStr stdin (passphrase ++ "\n")
+            hPutStr stdin (passphrase ++ "\n")
+            hFlush stdin
+            hClose stdin
+            c <- waitForProcess h
+            out <- TIO.hGetContents stdout
+            err <- TIO.hGetContents stderr
+            return (c, T.unpack out, err)
 
 deleteWalletViaCLI
     :: forall t r s. (CmdResult r, KnownCommand t, HasType (Port "wallet") s)
@@ -1374,8 +1382,8 @@ listAddressesViaCLI
     => s
     -> [String]
     -> IO r
-listAddressesViaCLI ctx args = cardanoWalletCLI @t
-    (["address", "list", "--port", show (ctx ^. typed @(Port "wallet"))] ++ args)
+listAddressesViaCLI ctx args = cardanoWalletCLI @t $
+    ["address", "list", "--port", show (ctx ^. typed @(Port "wallet"))] ++ args
 
 listStakePoolsViaCLI
     :: forall t r s. (CmdResult r, KnownCommand t, HasType (Port "wallet") s)
@@ -1443,14 +1451,15 @@ postTransactionViaCLI ctx passphrase args = do
     let fullArgs =
             ["transaction", "create"] ++ portArgs ++ args
     let process = proc' (commandName @t) fullArgs
-    withCreateProcess process $ \(Just stdin) (Just stdout) (Just stderr) h -> do
-        hPutStr stdin (passphrase ++ "\n")
-        hFlush stdin
-        hClose stdin
-        c <- waitForProcess h
-        out <- TIO.hGetContents stdout
-        err <- TIO.hGetContents stderr
-        return (c, T.unpack out, err)
+    withCreateProcess process $
+        \(Just stdin) (Just stdout) (Just stderr) h -> do
+            hPutStr stdin (passphrase ++ "\n")
+            hFlush stdin
+            hClose stdin
+            c <- waitForProcess h
+            out <- TIO.hGetContents stdout
+            err <- TIO.hGetContents stderr
+            return (c, T.unpack out, err)
 
 postTransactionFeeViaCLI
     :: forall t s. (HasType (Port "wallet") s, KnownCommand t)
@@ -1542,7 +1551,8 @@ collectStreams (nOut0, nErr0) p = do
             ((out, nOut'), (err, nErr')) <- concurrently
                 (getNextLine nOut stdout)
                 (getNextLine nErr stderr)
-            modifyMVar_ mvar (\(out0, err0) -> return (out0 <> out, err0 <> err))
+            modifyMVar_ mvar (\(out0, err0) ->
+                return (out0 <> out, err0 <> err))
             collect mvar ((stdout, nOut'), (stderr, nErr')) ph
 
     getNextLine :: Int -> Handle -> IO (Text, Int)
