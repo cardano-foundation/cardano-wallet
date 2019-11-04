@@ -158,9 +158,14 @@ import qualified Data.Text.Encoding as T
 -- left out of the sum type.
 data Depth = RootK | AccountK | AddressK
 
--- | Marker for the change chain. In practice, change of a transaction goes onto
--- the addresses generated on the internal chain, whereas the external chain is
--- used for addresses that are part of the 'advertised' targets of a transaction
+-- | Marker for addresses type engaged. We want to handle three cases here.
+-- The first two are pertinent to UTxO accounting
+-- and the last one handles rewards from participation in staking.
+-- (a) external chain is used for addresses that are part of the 'advertised'
+--     targets of a given transaction
+-- (b) internal change is for addresses used to handle the change of a
+--     the transaction within a given wallet
+-- (c) the addresses for a reward account
 data AccountingStyle
     = UTxOExternal
     | UTxOInternal
