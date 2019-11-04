@@ -1,4 +1,6 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE RankNTypes #-}
 
 -- |
@@ -19,6 +21,8 @@ import Prelude
 
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader, EpochNo (..), PoolId, SlotId (..) )
+import Control.Monad.Fail
+    ( MonadFail )
 import Control.Monad.Trans.Except
     ( ExceptT )
 import Data.Map.Strict
@@ -29,7 +33,17 @@ import Data.Word
     ( Word64 )
 
 -- | A Database interface for storing pool production in DB.
-data DBLayer m = DBLayer
+--
+-- To use it, you will need the NamedFieldPuns extension and wrap operations
+-- with @atomically@:
+--
+-- Example:
+-- >>> :set -XNamedFieldPuns
+-- >>> DBLayer{atomically,putPoolProduction} = db
+-- >>> atomically $ putPoolProduction blockHeader pool
+--
+-- This gives you the power to also run /multiple/ operations atomically.
+data DBLayer m2 = forall m. MonadFail m => DBLayer
     { putPoolProduction
         :: BlockHeader
         -> PoolId
@@ -70,6 +84,11 @@ data DBLayer m = DBLayer
     , cleanDB
         :: m ()
         -- ^ Clean a database
+    , atomically
+        :: forall a. m a -> m2 a
+        -- ^ Run an operation.
+        --
+        -- For a Sqlite DB, this would be "run a query inside a transaction".
     }
 
 -- | Forbidden operation was executed on an already existing slot

@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TupleSections #-}
 
 module Cardano.Pool.DB.Properties
@@ -78,7 +79,8 @@ import qualified Data.Text as T
 -- | Provide a DBLayer to a Spec that requires it. The database is initialised
 -- once, and cleared with 'cleanDB' before each test.
 withDB :: IO (DBLayer IO) -> SpecWith (DBLayer IO) -> Spec
-withDB create = beforeAll create . beforeWith (\db -> cleanDB db $> db)
+withDB create = beforeAll create . beforeWith
+    (\db@DBLayer{cleanDB, atomically}-> atomically $ cleanDB $> db)
 
 -- | Set up a DBLayer for testing, with the command context, and the logging
 -- variable.
@@ -136,37 +138,49 @@ prop_putReadPoolProduction
     :: DBLayer IO
     -> StakePoolsFixture
     -> Property
-prop_putReadPoolProduction db (StakePoolsFixture pairs _) =
+prop_putReadPoolProduction
+    DBLayer{atomically,putPoolProduction,readPoolProduction,cleanDB}
+    (StakePoolsFixture pairs _) =
     monadicIO (setup >>= prop)
   where
     setup = liftIO $ do
-        cleanDB db
-        db' <- MVar.newDBLayer
-        cleanDB db'
+        atomically cleanDB
+        db'@DBLayer{cleanDB=cleanDB',atomically=atomically'} <- MVar.newDBLayer
+        atomically' cleanDB'
         pure db'
-    prop db' = liftIO $ do
-        forM_ pairs $ \(pool, slot) ->
-            unsafeRunExceptT $ putPoolProduction db slot pool
-        forM_ pairs $ \(pool, slot) ->
-            unsafeRunExceptT $ putPoolProduction db' slot pool
-        forM_ (uniqueEpochs pairs) $ \epoch -> do
-            res' <- readPoolProduction db' epoch
-            readPoolProduction db epoch `shouldReturn` res'
+    prop
+        DBLayer
+            { atomically = atomically'
+            , putPoolProduction = putPoolProduction'
+            , readPoolProduction = readPoolProduction'
+            }
+        = do
+        run . atomically $ forM_ pairs $ \(pool, slot) ->
+            unsafeRunExceptT $ putPoolProduction slot pool
+        run . atomically' $ forM_ pairs $ \(pool, slot) ->
+            unsafeRunExceptT $ putPoolProduction' slot pool
+        monitor $ classify (length pairs > 100) "productions > 100"
+        monitor $ classify (length pairs > 1000) "productions > 1000"
+        run . forM_ (uniqueEpochs pairs) $ \epoch -> do
+            res' <- atomically' $ readPoolProduction' epoch
+            atomically (readPoolProduction epoch) `shouldReturn` res'
 
 -- | Cannot put pool production with already put slot
 prop_putSlotTwicePoolProduction
     :: DBLayer IO
     -> StakePoolsFixture
     -> Property
-prop_putSlotTwicePoolProduction db (StakePoolsFixture pairs _) =
+prop_putSlotTwicePoolProduction
+    DBLayer{atomically, putPoolProduction, cleanDB}
+    (StakePoolsFixture pairs _) =
     monadicIO (setup >> prop)
   where
-    setup = liftIO $ cleanDB db
+    setup = liftIO $ atomically cleanDB
     prop = liftIO $ do
         forM_ pairs $ \(pool, slot) -> do
             let err = ErrPointAlreadyExists slot
-            runExceptT (putPoolProduction db slot pool) `shouldReturn` Right ()
-            runExceptT (putPoolProduction db slot pool) `shouldReturn` Left err
+            atomically (runExceptT $ putPoolProduction slot pool) `shouldReturn` Right ()
+            atomically (runExceptT $ putPoolProduction slot pool) `shouldReturn` Left err
 
 -- | Rolling back wipes out pool production statistics after the rollback point.
 prop_rollbackPools
@@ -174,15 +188,17 @@ prop_rollbackPools
     -> StakePoolsFixture
     -> SlotId
     -> Property
-prop_rollbackPools db f@(StakePoolsFixture pairs _) sl =
+prop_rollbackPools
+    db@DBLayer{atomically, putPoolProduction, rollbackTo}
+    f@(StakePoolsFixture pairs _) sl =
     monadicIO prop
   where
     prop = do
         (beforeRollback, afterRollback) <- run $ do
-            forM_ pairs $ \(pool, point) ->
-                runExceptT $ putPoolProduction db point pool
+            atomically $ forM_ pairs $ \(pool, point) ->
+                runExceptT $ putPoolProduction point pool
             before <- map fst <$> allPoolProduction db f
-            rollbackTo db sl
+            atomically $ rollbackTo sl
             after <- map fst <$> allPoolProduction db f
             pure (before, after)
 
@@ -203,14 +219,16 @@ prop_readPoolProductionCursorTipIsLast
     :: DBLayer IO
     -> StakePoolsFixture
     -> Property
-prop_readPoolProductionCursorTipIsLast db (StakePoolsFixture pairs _) =
+prop_readPoolProductionCursorTipIsLast
+    DBLayer{atomically, cleanDB, putPoolProduction, readPoolProductionCursor}
+    (StakePoolsFixture pairs _) =
     monadicIO (setup >> prop)
   where
-    setup = liftIO $ cleanDB db
+    setup = liftIO $ atomically cleanDB
     prop = do
-        run $ forM_ pairs $ \(pool, slot) ->
-            unsafeRunExceptT $ putPoolProduction db slot pool
-        tip <- run $ last <$> readPoolProductionCursor db 2
+        run $ atomically $ forM_ pairs $ \(pool, slot) ->
+            unsafeRunExceptT $ putPoolProduction slot pool
+        tip <- run $ atomically $ last <$> readPoolProductionCursor 2
         assert $ tip == snd (head pairs)
 
 -- | Can read pool production only for a given epoch
@@ -218,20 +236,22 @@ prop_readPoolNoEpochLeaks
     :: DBLayer IO
     -> StakePoolsFixture
     -> Property
-prop_readPoolNoEpochLeaks db (StakePoolsFixture pairs _) =
+prop_readPoolNoEpochLeaks
+    DBLayer{atomically, cleanDB, putPoolProduction, readPoolProduction}
+    (StakePoolsFixture pairs _) =
     monadicIO (setup >> prop)
   where
     slotPartition = L.groupBy ((==) `on` epochNumber)
         $ L.sortOn epochNumber
         $ map (slotId . snd) pairs
     epochGroups = L.zip (uniqueEpochs pairs) slotPartition
-    setup = liftIO $ cleanDB db
-    prop = liftIO $ do
-        forM_ pairs $ \(pool, slot) ->
-            unsafeRunExceptT $ putPoolProduction db slot pool
+    setup = liftIO $ atomically cleanDB
+    prop = run $ do
+        atomically $ forM_ pairs $ \(pool, slot) ->
+            unsafeRunExceptT $ putPoolProduction slot pool
         forM_ epochGroups $ \(epoch, slots) -> do
             slots' <- (Set.fromList . map slotId . concat . Map.elems) <$>
-                readPoolProduction db epoch
+                atomically (readPoolProduction epoch)
             slots' `shouldBe` (Set.fromList slots)
 
 -- | Read pool production satisfies conditions after consecutive
@@ -241,18 +261,26 @@ prop_readPoolCondAfterDeterministicRollbacks
     -> DBLayer IO
     -> StakePoolsFixture
     -> Property
-prop_readPoolCondAfterDeterministicRollbacks cond db (StakePoolsFixture pairs _) =
+prop_readPoolCondAfterDeterministicRollbacks cond
+    DBLayer
+        { atomically
+        , cleanDB
+        , putPoolProduction
+        , rollbackTo
+        , readPoolProduction
+        }
+    (StakePoolsFixture pairs _) =
     monadicIO (setup >> prop)
   where
-    setup = liftIO $ cleanDB db
+    setup = liftIO $ atomically cleanDB
     slots = map (slotId . snd) pairs
-    prop = liftIO $ do
-        forM_ pairs $ \(pool, point) ->
-            unsafeRunExceptT $ putPoolProduction db point pool
+    prop = run $ do
+        atomically $ forM_ pairs $ \(pool, point) ->
+            unsafeRunExceptT $ putPoolProduction point pool
         forM_ slots $ \slot -> do
-            _ <- rollbackTo db slot
+            _ <- atomically $ rollbackTo slot
             forM_ (uniqueEpochs pairs) $ \epoch -> do
-                res <- readPoolProduction db epoch
+                res <- atomically $ readPoolProduction epoch
                 cond res
 
 -- | Read pool production satisfies conditions after consecutive
@@ -262,18 +290,25 @@ prop_readPoolCondAfterRandomRollbacks
     -> DBLayer IO
     -> StakePoolsFixture
     -> Property
-prop_readPoolCondAfterRandomRollbacks cond db
+prop_readPoolCondAfterRandomRollbacks cond
+    DBLayer
+        { atomically
+        , cleanDB
+        , putPoolProduction
+        , rollbackTo
+        , readPoolProduction
+        }
     (StakePoolsFixture pairs rSlots) =
     monadicIO (setup >> prop)
   where
-    setup = liftIO $ cleanDB db
+    setup = liftIO $ atomically cleanDB
     prop = do
-        run $ forM_ pairs $ \(pool, slot) ->
-            unsafeRunExceptT $ putPoolProduction db slot pool
+        run $ atomically $ forM_ pairs $ \(pool, slot) ->
+            unsafeRunExceptT $ putPoolProduction slot pool
         run $ forM_ rSlots $ \slot -> do
-            rollbackTo db slot
+            atomically $ rollbackTo slot
             forM_ (uniqueEpochs pairs) $ \epoch -> do
-                res <- readPoolProduction db epoch
+                res <- atomically $ readPoolProduction epoch
                 cond res
         monitor $ classify (length pairs <= 10) "number of slots <= 10"
         monitor $ classify (length pairs > 10) "number of slots > 10"
@@ -284,15 +319,22 @@ prop_readPoolCond
     -> DBLayer IO
     -> StakePoolsFixture
     -> Property
-prop_readPoolCond cond db (StakePoolsFixture pairs _) =
+prop_readPoolCond cond
+    DBLayer
+        { atomically
+        , cleanDB
+        , putPoolProduction
+        , readPoolProduction
+        }
+    (StakePoolsFixture pairs _) =
     monadicIO (setup >> prop)
   where
-    setup = liftIO $ cleanDB db
+    setup = liftIO $ atomically cleanDB
     prop = liftIO $ do
-        forM_ pairs $ \(pool, slot) ->
-            unsafeRunExceptT $ putPoolProduction db slot pool
+        atomically $ forM_ pairs $ \(pool, slot) ->
+            unsafeRunExceptT $ putPoolProduction slot pool
         forM_ (uniqueEpochs pairs) $ \epoch -> do
-            res <- readPoolProduction db epoch
+            res <- atomically $ readPoolProduction epoch
             cond res
 
 -- | read . put == pure
@@ -301,13 +343,20 @@ prop_putStakeReadStake
     -> EpochNo
     -> [(PoolId, Quantity "lovelace" Word64)]
     -> Property
-prop_putStakeReadStake db epoch distribution =
+prop_putStakeReadStake
+    DBLayer
+        { atomically
+        , cleanDB
+        , putStakeDistribution
+        , readStakeDistribution
+        }
+    epoch distribution =
     monadicIO (setup >> prop)
   where
-    setup = run (cleanDB db)
+    setup = run $ atomically cleanDB
     prop = do
-        run $ putStakeDistribution db epoch distribution
-        distribution' <- run $ readStakeDistribution db epoch
+        run $ atomically $ putStakeDistribution epoch distribution
+        distribution' <- run $ atomically $ readStakeDistribution epoch
         monitor $ counterexample $ unlines
             [ "Read from DB: " <> show distribution' ]
         monitor $ classify (null distribution) "Empty distributions"
@@ -320,14 +369,21 @@ prop_putStakePutStake
     -> [(PoolId, Quantity "lovelace" Word64)]
     -> [(PoolId, Quantity "lovelace" Word64)]
     -> Property
-prop_putStakePutStake db epoch a b =
+prop_putStakePutStake
+    DBLayer
+        { atomically
+        , cleanDB
+        , putStakeDistribution
+        , readStakeDistribution
+        }
+    epoch a b =
     monadicIO (setup >> prop)
   where
-    setup = run (cleanDB db)
+    setup = run $ atomically cleanDB
     prop = do
-        run $ putStakeDistribution db epoch a
-        run $ putStakeDistribution db epoch b
-        res <- run $ readStakeDistribution db epoch
+        run . atomically $ putStakeDistribution epoch a
+        run . atomically $ putStakeDistribution epoch b
+        res <- run . atomically $ readStakeDistribution epoch
         monitor $ counterexample $ unlines
             [ "Read from DB: " <> show res ]
         monitor $ classify (null a) "a is empty"
@@ -352,8 +408,10 @@ uniqueEpochs = nubOrd . map (epochNumber . slotId . snd)
 
 -- | Concatenate stake pool production for all epochs in the test fixture.
 allPoolProduction :: DBLayer IO -> StakePoolsFixture -> IO [(SlotId, PoolId)]
-allPoolProduction db (StakePoolsFixture pairs _) =
-    rearrange <$> mapM (readPoolProduction db) (uniqueEpochs pairs)
+allPoolProduction
+    DBLayer{atomically, readPoolProduction}
+    (StakePoolsFixture pairs _) = atomically $
+    rearrange <$> mapM readPoolProduction (uniqueEpochs pairs)
   where
     rearrange ms = concat
         [ [ (slotId h, p) | h <- hs ] | (p, hs) <- concatMap Map.assocs ms ]
