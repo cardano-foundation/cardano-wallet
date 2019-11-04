@@ -495,15 +495,16 @@ expectEventually ctx endpoint getter target (_, res) = case res of
         winner <- race (threadDelay $ 60 * oneSecond) (loopUntilRestore s)
         case winner of
             Left _ -> expectationFailure $
-                "waited more than 60s for value to exceed " <> show target
+                "waited more than 60s for value to reach or exceed "
+                    <> show target
             Right _ ->
                 return ()
   where
     loopUntilRestore :: s -> IO ()
     loopUntilRestore s = do
         r <- request @s ctx (endpoint s) Default Empty
-        let target' = getFromResponse getter r
-        unless (target' >= target) $
+        let current = getFromResponse getter r
+        unless (current >= target) $
             let ms = 1000 in threadDelay (500 * ms) *> loopUntilRestore s
 
 -- | Like 'expectEventually', but the target is part of the response.
@@ -521,7 +522,7 @@ expectEventuallyL ctx getter target s = liftIO $ do
     winner <- race (threadDelay $ 60 * oneSecond) (loopUntilRestore wid)
     case winner of
         Left _ -> expectationFailure
-            "waited more than 60s for value to exceed given target."
+            "waited more than 60s for value to reach or exceed given target."
         Right _ ->
             return ()
   where
