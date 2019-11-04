@@ -141,6 +141,16 @@ spec = do
         it "Our addresses are eventually discovered"
             (property (prop_poolEventuallyDiscoverOurs @'UTxOInternal))
 
+    describe "AddressPool MutableAccount" $ do
+        it "'lookupAddressPool' extends the pool by a maximum of 'gap'"
+            (checkCoverage (prop_poolGrowWithinGap @'MutableAccount))
+        it "'addresses' preserves the address order"
+            (checkCoverage (prop_roundtripMkAddressPool @'MutableAccount))
+        it "An AddressPool always contains at least 'gap pool' addresses"
+            (property (prop_poolAtLeastGapAddresses @'MutableAccount))
+        it "Our addresses are eventually discovered"
+            (property (prop_poolEventuallyDiscoverOurs @'MutableAccount))
+
     describe "AddressPoolGap - Text Roundtrip" $ do
         textRoundtrip $ Proxy @AddressPoolGap
         let err = "An address pool gap must be a natural number between 10 and 100."
@@ -440,7 +450,7 @@ instance Arbitrary AddressPoolGap where
 
 instance Arbitrary AccountingStyle where
     shrink _ = []
-    arbitrary = elements [UTxOInternal, UTxOExternal]
+    arbitrary = elements [UTxOInternal, UTxOExternal, MutableAccount]
 
 -- | In this context, Arbitrary addresses are either some known addresses
 -- derived from "our account key", or they just are some arbitrary addresses
@@ -450,6 +460,7 @@ instance Arbitrary Address where
     arbitrary = frequency
         [ (8, elements $ take 25 (ourAddresses UTxOExternal))
         , (8, elements $ take 25 (ourAddresses UTxOInternal))
+        , (8, elements $ take 25 (ourAddresses MutableAccount))
         , (1, notOurs)
         ]
       where
