@@ -87,7 +87,6 @@ module Test.Integration.Framework.DSL
     , listAllTransactions
     , tearDown
     , fixtureByronWallet
-    , fixtureByronWalletWith
     , fixtureWallet
     , fixtureWalletWith
     , faucetAmt
@@ -103,6 +102,7 @@ module Test.Integration.Framework.DSL
     , prepExternalTxViaJcli
     , eventually
     , eventuallyUsingDelay
+    , fixturePassphrase
 
     -- * Endpoints
     , postByronWalletEp
@@ -917,6 +917,12 @@ emptyWalletWith ctx (name, passphrase, addrPoolGap) = do
     expectResponseCode @IO HTTP.status202 r
     return (getFromResponse id r)
 
+-- | Default passphrase used for fixture wallets
+fixturePassphrase
+    :: Text
+fixturePassphrase =
+    "cardano-wallet"
+
 -- | Restore a faucet and wait until funds are available.
 fixtureWallet
     :: Context t
@@ -926,7 +932,7 @@ fixtureWallet ctx = do
     let payload = Json [aesonQQ| {
             "name": "Faucet Wallet",
             "mnemonic_sentence": #{mnemonics},
-            "passphrase": "cardano-wallet"
+            "passphrase": #{fixturePassphrase}
             } |]
     (_, w) <- unsafeRequest @ApiWallet ctx postWalletEp payload
     race (threadDelay sixtySeconds) (checkBalance w) >>= \case
@@ -940,29 +946,16 @@ fixtureWallet ctx = do
             then return (getFromResponse id r)
             else threadDelay oneSecond *> checkBalance w
 
--- | Restore a Byron faucet wallet with a default name and passphrase.
+-- | Restore a faucet Byron wallet and wait until funds are available
 fixtureByronWallet
     :: Context t
     -> IO ApiByronWallet
-fixtureByronWallet =
-    fixtureByronWalletWith
-        "Faucet Byron Wallet"
-        "Secure Passphrase"
-
--- | Restore a Byron faucet wallet with the specified name and passphrase.
-fixtureByronWalletWith
-    :: Text
-        -- ^ name
-    -> Text
-        -- ^ passphrase
-    -> Context t
-    -> IO ApiByronWallet
-fixtureByronWalletWith name passphrase ctx = do
+fixtureByronWallet ctx = do
     mnemonics <- mnemonicToText <$> nextWallet @"rnd" (_faucet ctx)
     let payload = Json [aesonQQ| {
-            "name": #{name},
+            "name": "Faucet Byron Wallet",
             "mnemonic_sentence": #{mnemonics},
-            "passphrase": #{passphrase}
+            "passphrase": #{fixturePassphrase}
             } |]
     (_, w) <- unsafeRequest @ApiByronWallet ctx postByronWalletEp payload
     race (threadDelay sixtySeconds) (checkBalance w) >>= \case
@@ -1019,7 +1012,7 @@ fixtureWalletWith ctx coins0 = do
             }|]
         let payload = Json [aesonQQ|{
                 "payments": #{payments :: [Value]},
-                "passphrase": "cardano-wallet"
+                "passphrase": #{fixturePassphrase}
             }|]
         request @(ApiTransaction 'Testnet) ctx (postTxEp src) Default payload
             >>= expectResponseCode HTTP.status202

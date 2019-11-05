@@ -32,8 +32,6 @@ import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Maybe
     ( mapMaybe )
-import Data.Quantity
-    ( Quantity (..) )
 import Data.Text
     ( Text )
 import Data.Word
@@ -67,7 +65,8 @@ import Test.Integration.Framework.DSL
     , expectListItemFieldEqual
     , expectListSizeEqual
     , expectResponseCode
-    , fixtureByronWalletWith
+    , fixtureByronWallet
+    , fixturePassphrase
     , getByronWalletEp
     , getFromResponse
     , getWalletEp
@@ -138,33 +137,31 @@ spec = do
         \migrating an empty wallet should generate a fee of zero."
         $ \ctx -> do
             w <- emptyByronWallet ctx
-            r@(_, Right (ApiByronWalletMigrationInfo fee)) <-
-                request ctx (calculateByronMigrationCostEp w) Default Empty
-            expectResponseCode @IO HTTP.status200 r
-            fee `shouldBe` Quantity 0
+            let ep = calculateByronMigrationCostEp w
+            r <- request @ApiByronWalletMigrationInfo ctx ep Default Empty
+            verify r
+                [ expectResponseCode @IO HTTP.status200
+                , expectFieldEqual amount 0
+                ]
 
     it "BYRON_MIGRATE_02 - \
         \migrating an empty wallet should not generate transactions."
         $ \ctx -> do
-            mnemonic <- genMnemonics
-            sourceWallet <- emptyByronWalletWith
-                ctx ("byron-wallet-name", mnemonic, "Secure Passphrase")
+            sourceWallet <- emptyByronWallet ctx
             targetWallet <- emptyWallet ctx
-            let payload = Json [json| {
-                    "passphrase": "Secure Passphrase"
-                }|]
-            r@(_, Right transactions) <- request @[ApiTransaction n] ctx
-                (migrateByronWalletEp sourceWallet targetWallet) Default payload
-            expectResponseCode @IO HTTP.status202 r
-            transactions `shouldBe` []
+            let payload = Json [json|{"passphrase": #{fixturePassphrase}}|]
+            let ep = migrateByronWalletEp sourceWallet targetWallet
+            r <- request @[ApiTransaction n] ctx ep Default payload
+            verify r
+                [ expectResponseCode @IO HTTP.status202
+                , expectFieldSatisfy id null
+                ]
 
     it "BYRON_MIGRATE_03 - \
         \actual fee for migration is the same as the predicted fee."
         $ \ctx -> do
             -- Restore a Byron wallet with funds.
-            let name = "test byron wallet"
-            let passphrase = "test passphrase"
-            sourceWallet <- fixtureByronWalletWith name passphrase ctx
+            sourceWallet <- fixtureByronWallet ctx
 
             -- Request a migration fee prediction.
             let ep0 = (calculateByronMigrationCostEp sourceWallet)
@@ -176,7 +173,7 @@ spec = do
 
             -- Perform the migration.
             targetWallet <- emptyWallet ctx
-            let payload = Json [aesonQQ|{"passphrase": #{passphrase}}|]
+            let payload = Json [json|{"passphrase": #{fixturePassphrase}}|]
             let ep1 = migrateByronWalletEp sourceWallet targetWallet
             r1 <- request @[ApiTransaction n] ctx ep1 Default payload
             verify r1
@@ -194,31 +191,18 @@ spec = do
     it "BYRON_MIGRATE_04 - \
         \a migration operation removes all funds from the source wallet."
         $ \ctx -> do
-
             -- Restore a Byron wallet with funds, to act as a source wallet:
-            let sourceWalletName = "source wallet"
-            let sourceWalletPass = "source wallet passphrase"
-            sourceWallet <-
-                fixtureByronWalletWith sourceWalletName sourceWalletPass ctx
+            sourceWallet <- fixtureByronWallet ctx
 
             -- Perform a migration from the source wallet to a target wallet:
             targetWallet <- emptyWallet ctx
             r1 <- request @[ApiTransaction n] ctx
                 (migrateByronWalletEp sourceWallet targetWallet )
                 Default
-                (Json [aesonQQ|{"passphrase": #{sourceWalletPass}}|])
+                (Json [json|{"passphrase": #{fixturePassphrase}}|])
             verify r1
                 [ expectResponseCode @IO HTTP.status202
                 , expectFieldSatisfy id (not . null)
-                ]
-
-            -- Verify that the source wallet is still listable:
-            r2 <- request @[ApiByronWallet] ctx
-                listByronWalletsEp Default Empty
-            verify r2
-                [ expectResponseCode @IO HTTP.status200
-                , expectListSizeEqual 1
-                , expectListItemFieldEqual 0 walletName sourceWalletName
                 ]
 
             -- Verify that the source wallet has no funds available:
@@ -233,24 +217,12 @@ spec = do
         \after a migration operation successfully completes, the correct \
         \amount eventually becomes available in the target wallet."
         $ \ctx -> do
-
             -- Restore a Byron wallet with funds, to act as a source wallet:
-            let sourceWalletName = "source wallet"
-            let sourceWalletPass = "source wallet passphrase"
-            sourceWallet <-
-                fixtureByronWalletWith sourceWalletName sourceWalletPass ctx
+            sourceWallet <- fixtureByronWallet ctx
             let originalBalance = view balanceAvailable sourceWallet
 
             -- Create an empty target wallet:
             targetWallet <- emptyWallet ctx
-
-            -- Verify that the target wallet has no funds available:
-            r1 <- request @ApiWallet ctx
-                (getWalletEp targetWallet) Default Empty
-            verify r1
-                [ expectResponseCode @IO HTTP.status200
-                , expectFieldSatisfy balanceAvailable (== 0)
-                ]
 
             -- Calculate the expected migration fee:
             r2 <- request @ApiByronWalletMigrationInfo ctx
@@ -265,7 +237,7 @@ spec = do
             r3 <- request @[ApiTransaction n] ctx
                 (migrateByronWalletEp sourceWallet targetWallet)
                 Default
-                (Json [aesonQQ|{"passphrase": #{sourceWalletPass}}|])
+                (Json [aesonQQ|{"passphrase": #{fixturePassphrase}}|])
             verify r3
                 [ expectResponseCode @IO HTTP.status202
                 , expectFieldSatisfy id (not . null)
