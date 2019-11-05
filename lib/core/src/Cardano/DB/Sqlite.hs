@@ -62,7 +62,7 @@ import Data.Maybe
 import Data.Text
     ( Text )
 import Database.Persist.Sql
-    ( LogFunc, Migration, close', runMigrationSilent, runSqlConn )
+    ( LogFunc, Migration, close', runMigrationQuiet, runSqlConn )
 import Database.Persist.Sqlite
     ( SqlBackend, SqlPersistT, mkSqliteConnectionInfo, wrapConnectionInfo )
 import Database.Sqlite
@@ -152,7 +152,7 @@ startSqliteBackend logConfig migrateAll trace fp = do
         observe = bracketObserveIO logConfig traceQuery Debug "query"
     let runQuery :: SqlPersistT IO a -> IO a
         runQuery cmd = withMVar lock $ const $ observe $ runSqlConn cmd backend
-    migrations <- runQuery $ runMigrationSilent migrateAll
+    migrations <- runQuery $ runMigrationQuiet migrateAll
     dbLog trace $ MsgMigrations (length migrations)
     pure $ SqliteContext backend runQuery fp trace
 

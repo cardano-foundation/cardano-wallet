@@ -39,28 +39,18 @@ let
       '';
 in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
   {
-    flags = {
-      systemlib = false;
-      use-pkgconfig = false;
-      build-sanity-exe = false;
-      full-text-search = true;
-      uri-filenames = true;
-      have-usleep = true;
-      json1 = true;
-      use-stat3 = false;
-      use-stat4 = true;
-      };
+    flags = {};
     package = {
       specVersion = "1.10";
-      identifier = { name = "persistent-sqlite"; version = "2.10.5"; };
+      identifier = { name = "persistent-template"; version = "2.7.2"; };
       license = "MIT";
       copyright = "";
-      maintainer = "Michael Snoyman <michael@snoyman.com>";
+      maintainer = "Michael Snoyman <michael@snoyman.com>, Greg Weber <greg@gregweber.info>";
       author = "Michael Snoyman <michael@snoyman.com>";
       homepage = "http://www.yesodweb.com/book/persistent";
       url = "";
-      synopsis = "Backend for the persistent library using sqlite3.";
-      description = "This package includes a thin sqlite3 wrapper based on the direct-sqlite package, as well as the entire C library, so there are no system dependencies.";
+      synopsis = "Type-safe, non-relational, multi-backend persistence.";
+      description = "Hackage documentation generation is not reliable. For up to date documentation, please see: <http://www.stackage.org/package/persistent-template>.";
       buildType = "Simple";
       isLocal = true;
       };
@@ -71,57 +61,45 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."persistent" or (buildDepError "persistent"))
           (hsPkgs."aeson" or (buildDepError "aeson"))
           (hsPkgs."bytestring" or (buildDepError "bytestring"))
-          (hsPkgs."conduit" or (buildDepError "conduit"))
           (hsPkgs."containers" or (buildDepError "containers"))
-          (hsPkgs."microlens-th" or (buildDepError "microlens-th"))
+          (hsPkgs."http-api-data" or (buildDepError "http-api-data"))
+          (hsPkgs."monad-control" or (buildDepError "monad-control"))
           (hsPkgs."monad-logger" or (buildDepError "monad-logger"))
-          (hsPkgs."resource-pool" or (buildDepError "resource-pool"))
-          (hsPkgs."resourcet" or (buildDepError "resourcet"))
+          (hsPkgs."path-pieces" or (buildDepError "path-pieces"))
+          (hsPkgs."template-haskell" or (buildDepError "template-haskell"))
           (hsPkgs."text" or (buildDepError "text"))
-          (hsPkgs."time" or (buildDepError "time"))
           (hsPkgs."transformers" or (buildDepError "transformers"))
-          (hsPkgs."unliftio-core" or (buildDepError "unliftio-core"))
           (hsPkgs."unordered-containers" or (buildDepError "unordered-containers"))
           ];
-        libs = (pkgs.lib).optionals (flags.systemlib) ((pkgs.lib).optional (!flags.use-pkgconfig) (pkgs."sqlite3" or (sysDepError "sqlite3"))) ++ (pkgs.lib).optional (!system.isWindows) (pkgs."pthread" or (sysDepError "pthread"));
-        pkgconfig = (pkgs.lib).optionals (flags.systemlib) ((pkgs.lib).optional (flags.use-pkgconfig) (pkgconfPkgs."sqlite3" or (pkgConfDepError "sqlite3")));
         buildable = true;
-        };
-      exes = {
-        "sanity" = {
-          depends = [
-            (hsPkgs."base" or (buildDepError "base"))
-            (hsPkgs."persistent-sqlite" or (buildDepError "persistent-sqlite"))
-            (hsPkgs."monad-logger" or (buildDepError "monad-logger"))
-            ];
-          buildable = if flags.build-sanity-exe then true else false;
-          };
         };
       tests = {
         "test" = {
           depends = [
             (hsPkgs."base" or (buildDepError "base"))
             (hsPkgs."persistent" or (buildDepError "persistent"))
-            (hsPkgs."persistent-sqlite" or (buildDepError "persistent-sqlite"))
             (hsPkgs."persistent-template" or (buildDepError "persistent-template"))
-            (hsPkgs."persistent-test" or (buildDepError "persistent-test"))
+            (hsPkgs."aeson" or (buildDepError "aeson"))
             (hsPkgs."bytestring" or (buildDepError "bytestring"))
-            (hsPkgs."containers" or (buildDepError "containers"))
-            (hsPkgs."exceptions" or (buildDepError "exceptions"))
-            (hsPkgs."fast-logger" or (buildDepError "fast-logger"))
             (hsPkgs."hspec" or (buildDepError "hspec"))
-            (hsPkgs."HUnit" or (buildDepError "HUnit"))
-            (hsPkgs."monad-logger" or (buildDepError "monad-logger"))
             (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
-            (hsPkgs."resourcet" or (buildDepError "resourcet"))
-            (hsPkgs."system-fileio" or (buildDepError "system-fileio"))
-            (hsPkgs."system-filepath" or (buildDepError "system-filepath"))
-            (hsPkgs."temporary" or (buildDepError "temporary"))
             (hsPkgs."text" or (buildDepError "text"))
-            (hsPkgs."time" or (buildDepError "time"))
-            (hsPkgs."transformers" or (buildDepError "transformers"))
-            (hsPkgs."time" or (buildDepError "time"))
-            (hsPkgs."unliftio-core" or (buildDepError "unliftio-core"))
+            ];
+          buildable = true;
+          };
+        };
+      benchmarks = {
+        "persistent-th-bench" = {
+          depends = [
+            (hsPkgs."base" or (buildDepError "base"))
+            (hsPkgs."persistent" or (buildDepError "persistent"))
+            (hsPkgs."persistent-template" or (buildDepError "persistent-template"))
+            (hsPkgs."criterion" or (buildDepError "criterion"))
+            (hsPkgs."deepseq" or (buildDepError "deepseq"))
+            (hsPkgs."deepseq-generics" or (buildDepError "deepseq-generics"))
+            (hsPkgs."file-embed" or (buildDepError "file-embed"))
+            (hsPkgs."text" or (buildDepError "text"))
+            (hsPkgs."template-haskell" or (buildDepError "template-haskell"))
             ];
           buildable = true;
           };
@@ -133,5 +111,5 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       rev = "107787ecc4c8a112375493cd66574f788f950fce";
       sha256 = "1livmfslqzadir5sc523r111wrd14s5k2nmvsxayk45hx3nnngfb";
       });
-    postUnpack = "sourceRoot+=/persistent-sqlite; echo source root reset to \$sourceRoot";
+    postUnpack = "sourceRoot+=/persistent-template; echo source root reset to \$sourceRoot";
     }
