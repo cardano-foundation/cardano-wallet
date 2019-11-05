@@ -105,7 +105,7 @@ TxIn
     txInputOrder          Int           sql=order
     txInputSourceTxId     TxId          sql=source_tx_id
     txInputSourceIndex    Word32        sql=source_index
-    txInputSourceAmount   W.Coin Maybe  sql=source_amount default=NULL
+    txInputSourceAmount   W.Coin        sql=source_amount
 
     Primary txInputTxId txInputSourceTxId txInputSourceIndex
     deriving Show Generic

@@ -40,8 +40,6 @@ import Cardano.Wallet.Jormungandr.Network
     , withJormungandr
     , withNetworkLayer
     )
-import Cardano.Wallet.Jormungandr.Primitive.Types
-    ( Tx (..) )
 import Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Network
@@ -62,6 +60,7 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Hash (..)
     , SlotId (..)
+    , Tx (..)
     , TxIn (..)
     , TxOut (..)
     , TxWitness (..)
@@ -309,7 +308,7 @@ spec = do
 
         it "encoder throws an exception if tx is invalid (eg too many inputs)" $
             \(nw, _) -> do
-            let inps = replicate 300 (head $ inputs txNonEmpty)
+            let inps = replicate 300 (head $ resolvedInputs txNonEmpty)
             let outs = replicate 3 (head $ outputs txNonEmpty)
             let tx = (Tx (fragmentId inps outs []) inps outs, [])
             runExceptT (postTx nw tx) `shouldThrow` anyException
@@ -357,8 +356,8 @@ spec = do
 
     txNonEmpty :: Tx
     txNonEmpty = Tx
-        { txid = Hash "unused"
-        , inputs =
+        { txId = Hash "unused"
+        , resolvedInputs =
             [ (TxIn
                 { inputId = Hash $ unsafeFromHex
                     "666984dec4bc0ff1888be97bfe0694a9\
@@ -384,8 +383,8 @@ spec = do
 
     unbalancedTx :: Tx
     unbalancedTx = Tx
-        { txid = Hash "unused"
-        , inputs =
+        { txId = Hash "unused"
+        , resolvedInputs =
             [ (TxIn
                 { inputId = Hash $ unsafeFromHex
                     "666984dec4bc0ff1888be97bfe0694a9\

@@ -33,10 +33,8 @@ import Cardano.Wallet.DB
     ( PrimaryKey (..) )
 import Cardano.Wallet.DB.Model
     ( TxHistory, filterTxHistory )
-import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( DummyTarget, genesisParameters )
 import Cardano.Wallet.DummyTarget.Primitive.Types as DummyTarget
-    ( Tx (..) )
+    ( genesisParameters, mkTx )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
@@ -80,6 +78,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , SlotParameters (..)
     , SortOrder (..)
+    , Tx (..)
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
@@ -166,17 +165,17 @@ type GenState s = (NFData s, Show s, IsOurs s, Arbitrary s, Buildable s)
 newtype KeyValPairs k v = KeyValPairs [(k, v)]
     deriving (Generic, Show, Eq)
 
-newtype GenTxHistory = GenTxHistory { unGenTxHistory :: TxHistory DummyTarget }
+newtype GenTxHistory = GenTxHistory { unGenTxHistory :: TxHistory }
     deriving stock (Show, Eq)
     deriving newtype (Semigroup, Monoid)
 
 newtype MockChain = MockChain
-    { getMockChain :: [Block DummyTarget.Tx] }
+    { getMockChain :: [Block] }
     deriving stock (Eq, Show)
 
 -- | Generate arbitrary checkpoints, but that always have their tip at 0 0.
 newtype InitialCheckpoint s =
-    InitialCheckpoint { getInitialCheckpoint :: Wallet s DummyTarget }
+    InitialCheckpoint { getInitialCheckpoint :: Wallet s }
     deriving newtype (Show, Eq, Buildable, NFData)
 
 instance (Arbitrary k, Ord k, Arbitrary v) => Arbitrary (KeyValPairs k v) where
@@ -187,7 +186,7 @@ instance (Arbitrary k, Ord k, Arbitrary v) => Arbitrary (KeyValPairs k v) where
 
 -- | For checkpoints, we make sure to generate them in order.
 instance {-# OVERLAPS #-} (Arbitrary k, Ord k, GenState s)
-    => Arbitrary (KeyValPairs k (ShowFmt (Wallet s DummyTarget))) where
+    => Arbitrary (KeyValPairs k (ShowFmt (Wallet s))) where
     shrink = genericShrink
     arbitrary = do
         pairs <- choose (1, 10) >>= flip vectorOf arbitrary
@@ -198,8 +197,8 @@ instance Arbitrary GenTxHistory where
     shrink (GenTxHistory h) = map GenTxHistory (shrinkList shrinkOneTx h)
       where
         shrinkOneTx
-            :: (DummyTarget.Tx, TxMeta)
-            -> [(DummyTarget.Tx, TxMeta)]
+            :: (Tx, TxMeta)
+            -> [(Tx, TxMeta)]
         shrinkOneTx (tx, meta) =
             [(tx', meta) | tx' <- shrink tx]
 
@@ -212,7 +211,7 @@ instance Arbitrary GenTxHistory where
         -- checkpoint's pending transactions of the same wallet.
         filter (not . isPending . snd) <$> arbitrary
       where
-        sortTxHistory = filterTxHistory @DummyTarget Descending wholeRange
+        sortTxHistory = filterTxHistory Descending wholeRange
 
 instance Arbitrary MockChain where
     shrink (MockChain chain) =
@@ -238,7 +237,7 @@ instance Arbitrary MockChain where
         mockHeaderHash :: SlotId -> Hash "BlockHeader"
         mockHeaderHash = Hash . convertToBase Base16 . B8.pack . show
 
-        genBlock :: SlotId -> Word32 -> Gen (Block DummyTarget.Tx)
+        genBlock :: SlotId -> Word32 -> Gen Block
         genBlock slot height = do
             let h = BlockHeader slot (Quantity height) (mockHeaderHash slot) (mockHeaderHash slot)
             Block h <$> (choose (1, 10) >>= \k -> vectorOf k arbitrary)
@@ -255,7 +254,7 @@ instance Arbitrary MockChain where
 instance GenState s => Arbitrary (InitialCheckpoint s) where
     shrink (InitialCheckpoint cp) = InitialCheckpoint <$> shrink cp
     arbitrary = do
-        cp <- arbitrary @(Wallet s DummyTarget)
+        cp <- arbitrary @(Wallet s)
         let tip0 = BlockHeader (SlotId 0 0) (Quantity 0) (Hash "block0") (Hash "genesis")
         pure $ InitialCheckpoint $ unsafeInitWallet
             (utxo cp)
@@ -267,7 +266,7 @@ instance GenState s => Arbitrary (InitialCheckpoint s) where
                                    Wallets
 -------------------------------------------------------------------------------}
 
-instance GenState s => Arbitrary (Wallet s DummyTarget) where
+instance GenState s => Arbitrary (Wallet s) where
     shrink w =
         [ unsafeInitWallet u (currentTip w) s (blockchainParameters w)
         | (u, s) <- shrink (utxo w, getState w) ]
@@ -327,17 +326,18 @@ arbitraryChainLength = 10
                                   Transactions
 -------------------------------------------------------------------------------}
 
-instance Arbitrary DummyTarget.Tx where
-    shrink (DummyTarget.Tx ins outs) =
-        [DummyTarget.Tx ins' outs | ins' <- shrinkList' ins ] ++
-        [DummyTarget.Tx ins outs' | outs' <- shrinkList' outs ]
+instance Arbitrary Tx where
+    shrink (Tx _tid ins outs) =
+        [mkTx ins' outs | ins' <- shrinkList' ins ] ++
+        [mkTx ins outs' | outs' <- shrinkList' outs ]
       where
         shrinkList' xs  = filter (not . null)
             [ take n xs | Positive n <- shrink (Positive $ length xs) ]
 
-    arbitrary = Tx
-        <$> fmap (L.nub . L.take 5 . getNonEmpty) arbitrary
-        <*> fmap (L.take 5 . getNonEmpty) arbitrary
+    arbitrary = do
+        ins <- fmap (L.nub . L.take 5 . getNonEmpty) arbitrary
+        outs <- fmap (L.take 5 . getNonEmpty) arbitrary
+        return $ mkTx ins outs
 
 instance Arbitrary TxIn where
     arbitrary = TxIn
@@ -506,8 +506,7 @@ instance Eq XPrv where
 
 instance Arbitrary (Hash purpose) where
     arbitrary = do
-        bytes <- BS.pack <$> vectorOf 32 arbitrary
-        return $ Hash $ BS.take 8 $ convertToBase Base16 bytes
+        Hash . convertToBase Base16 . BS.pack <$> vectorOf 32 arbitrary
 
 {-------------------------------------------------------------------------------
                                    Buildable

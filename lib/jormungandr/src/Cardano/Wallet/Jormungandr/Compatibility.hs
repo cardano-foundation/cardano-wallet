@@ -27,16 +27,6 @@ module Cardano.Wallet.Jormungandr.Compatibility
 
 import Prelude
 
-import Cardano.Wallet.DB.Sqlite
-    ( PersistTx (..) )
-import Cardano.Wallet.Jormungandr.Primitive.Types
-    ( Tx (..) )
-import Cardano.Wallet.Primitive.Types
-    ( DefineTx, invariant )
-import Control.Arrow
-    ( second )
-import Data.Maybe
-    ( fromJust, isJust )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
@@ -44,7 +34,6 @@ import Data.Word
 import Servant.Client.Core
     ( BaseUrl (..), Scheme (..), showBaseUrl )
 
-import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Text as T
 
 -- | A type representing the Jormungandr as a backend target. This has an
@@ -58,25 +47,6 @@ data Jormungandr
 -- in the end.
 softTxMaxSize :: Quantity "byte" Word16
 softTxMaxSize = Quantity 8192
-
-instance DefineTx Jormungandr where
-    type Tx Jormungandr = Tx
-    inputs = fmap fst . inputs
-    outputs = outputs
-    -- The corresponding rust implementation is:
-    -- https://github.com/input-output-hk/rust-cardano/blob/e5d974f7bedeb00c9c9d688ac66094a34bf8f40d/chain-impl-mockchain/src/transaction/transaction.rs#L115-L119
-    txId = txid
-
-instance PersistTx Jormungandr where
-    resolvedInputs = map (second Just) . inputs
-    mkTx tid inps = Tx tid ((second unsafeFromMaybe) <$> inps)
-      where
-        unsafeFromMaybe amt = fromJust $ invariant
-            ("PersistTx Jormungandr: invariant violation, tried to \
-            \reconstruct a 'Tx' from the database that has resolved inputs \
-            \without any amount: " <> show inps)
-            amt
-            isJust
 
 {-------------------------------------------------------------------------------
                                      Base URL

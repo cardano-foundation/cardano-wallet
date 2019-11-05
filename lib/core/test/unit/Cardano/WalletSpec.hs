@@ -31,7 +31,7 @@ import Cardano.Wallet
 import Cardano.Wallet.DB
     ( DBLayer, ErrNoSuchWallet (..), PrimaryKey (..), putTxHistory )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( DummyTarget, Tx (..), block0, genesisParameters )
+    ( DummyTarget, block0, genesisParameters, mkTxId )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( ChangeChain (..)
     , Depth (..)
@@ -68,6 +68,7 @@ import Cardano.Wallet.Primitive.Types
     , SortOrder (..)
     , TransactionInfo (txInfoMeta)
     , TransactionInfo (..)
+    , Tx (..)
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
@@ -83,6 +84,8 @@ import Cardano.Wallet.Transaction
     ( ErrMkStdTx (..), TransactionLayer (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
+import Control.Arrow
+    ( second )
 import Control.Concurrent
     ( threadDelay )
 import Control.DeepSeq
@@ -347,10 +350,10 @@ walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
         let wallet = (wid, wname, DummyState state)
         (WalletLayerFixture _ wl _ _) <- liftIO $ setupFixture wallet
         unsafeRunExceptT $ W.attachPrivateKey wl wid (xprv, pwd)
-        (_,_,_,[witOld]) <- unsafeRunExceptT $ W.signTx wl wid () pwd selection
+        (_,_,_,[witOld]) <- unsafeRunExceptT $ W.signTx @_ @_ @DummyTarget wl wid () pwd selection
         unsafeRunExceptT $ W.updateWalletPassphrase wl wid (coerce pwd, newPwd)
         (_,_,_,[witNew]) <-
-            unsafeRunExceptT $ W.signTx wl wid () (coerce newPwd) selection
+            unsafeRunExceptT $ W.signTx @_ @_ @DummyTarget wl wid () (coerce newPwd) selection
         witOld `shouldBe` witNew
   where
     selection = CoinSelection
@@ -379,7 +382,7 @@ walletListTransactionsSorted wallet@(wid, _, _) _order (_mstart, _mend) history 
         -- Check transaction time calculation
         let times = Map.fromList [(txInfoId i, txInfoTime i) | i <- txs]
         let expTimes = Map.fromList $
-                (\(tx, meta) -> (txId @DummyTarget tx, slotIdTime (meta ^. #slotId))) <$> history
+                (\(tx, meta) -> (txId tx, slotIdTime (meta ^. #slotId))) <$> history
         times `shouldBe` expTimes
 
 {-------------------------------------------------------------------------------
@@ -387,7 +390,7 @@ walletListTransactionsSorted wallet@(wid, _, _) _order (_mstart, _mend) history 
 -------------------------------------------------------------------------------}
 
 data WalletLayerFixture = WalletLayerFixture
-    { _fixtureDBLayer :: DBLayer IO DummyState DummyTarget ShelleyKey
+    { _fixtureDBLayer :: DBLayer IO DummyState ShelleyKey
     , _fixtureWalletLayer :: WalletLayer DummyState DummyTarget ShelleyKey
     , _fixtureWallet :: [WalletId]
     , _fixtureSlotIdTime :: SlotId -> UTCTime
@@ -416,11 +419,13 @@ setupFixture (wid, wname, wstate) = do
 dummyTransactionLayer :: TransactionLayer DummyTarget ShelleyKey
 dummyTransactionLayer = TransactionLayer
     { mkStdTx = \keyFrom inps outs -> do
-        let tx = Tx (fmap fst inps) outs
+        let inps' = map (second coin) inps
+        let tid = mkTxId inps' outs
+        let tx = Tx tid inps' outs
         wit <- forM inps $ \(_, TxOut addr _) -> do
             (xprv, Passphrase pwd) <- withEither
                 (ErrKeyNotFoundForAddress addr) $ keyFrom addr
-            let (Hash sigData) = txId @DummyTarget tx
+            let (Hash sigData) = txId tx
             let sig = CC.unXSignature $ CC.sign pwd (getKey xprv) sigData
             return $ TxWitness
                 (CC.unXPub (getKey $ publicKey xprv) <> sig)
@@ -523,15 +528,20 @@ instance Arbitrary (Hash "Tx") where
     arbitrary =
         Hash . BS.pack <$> replicateM 32 arbitrary
 
+instance Arbitrary Coin where
+    shrink _ = []
+    arbitrary = Coin <$> arbitrary
+
 instance Arbitrary Tx where
-    shrink (Tx ins outs) =
-        [Tx ins' outs | ins' <- shrinkList' ins ] ++
-        [Tx ins outs' | outs' <- shrinkList' outs ]
+    shrink (Tx tid ins outs) =
+        [Tx tid ins' outs | ins' <- shrinkList' ins ] ++
+        [Tx tid ins outs' | outs' <- shrinkList' outs ]
       where
         shrinkList' xs  = filter (not . null)
             [ take n xs | Positive n <- shrink (Positive $ length xs) ]
     arbitrary = Tx
-        <$> fmap (L.nub . L.take 5 . getNonEmpty) arbitrary
+        <$> arbitrary
+        <*> fmap (L.nub . L.take 5 . getNonEmpty) arbitrary
         <*> fmap (L.take 5 . getNonEmpty) arbitrary
 
 instance Arbitrary TxIn where

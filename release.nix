@@ -30,6 +30,7 @@ let
       inherit ((import ./nix/nixpkgs-haskell.nix {}).haskellPackages) stylish-haskell;
     };
     inherit ((import ./. {}).pkgs.haskell-nix) haskellNixRoots;
+    stackShell = import ./nix/stack-shell.nix {};
 
     # This aggregate job is what IOHK Hydra uses to update
     # the CI status in GitHub.

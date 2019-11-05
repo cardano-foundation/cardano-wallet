@@ -119,11 +119,11 @@ data NetworkLayer m target block = NetworkLayer
         -- ^ Get the current network tip from the chain producer
 
     , postTx
-        :: (Tx target, [TxWitness]) -> ExceptT ErrPostTx m ()
+        :: (Tx, [TxWitness]) -> ExceptT ErrPostTx m ()
         -- ^ Broadcast a transaction to the chain producer
 
     , staticBlockchainParameters
-        :: (Block (Tx target), BlockchainParameters)
+        :: (Block, BlockchainParameters)
         -- ^ Get the genesis block and blockchain parameters.
         --
         -- Note: The genesis block is a Wallet @Block@-type and not the

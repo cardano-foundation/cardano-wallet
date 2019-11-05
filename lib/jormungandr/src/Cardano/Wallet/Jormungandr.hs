@@ -59,8 +59,6 @@ import Cardano.Wallet.Jormungandr.Network
     , JormungandrConnParams (..)
     , withNetworkLayer
     )
-import Cardano.Wallet.Jormungandr.Primitive.Types
-    ( Tx )
 import Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Network
@@ -135,6 +133,7 @@ serveWallet
         , DecodeAddress n
         , EncodeAddress n
         , PaymentAddress n ShelleyKey
+        , PaymentAddress n ByronKey
         )
     => (CM.Configuration, Trace IO Text)
     -- ^ Logging config.
@@ -233,7 +232,7 @@ serveWallet (cfg, tr) databaseDir hostPref listen lj beforeMainLoop = do
             , PersistPrivateKey (k 'RootK)
             , WalletKey k
             )
-        => DBFactory IO s t k
+        => DBFactory IO s k
     dbFactory = Sqlite.mkDBFactory cfg tr databaseDir
 
     handleNetworkStartupError :: ErrStartup -> IO ExitCode
@@ -325,5 +324,5 @@ toSPBlock b = Pool.Block
          (J.headerHash h)
          (J.parentHeaderHash h)
 
-toWLBlock :: J.Block -> Block Tx
+toWLBlock :: J.Block -> Block
 toWLBlock = J.convertBlock

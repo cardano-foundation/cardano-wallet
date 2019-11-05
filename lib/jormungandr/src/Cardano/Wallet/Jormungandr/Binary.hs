@@ -78,8 +78,6 @@ import Prelude
 
 import Cardano.Crypto.Wallet
     ( XPub, unXPub )
-import Cardano.Wallet.Jormungandr.Primitive.Types
-    ( Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Fee
@@ -91,6 +89,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , PoolId (..)
     , SlotId (..)
+    , Tx (..)
     , TxIn (..)
     , TxOut (..)
     , TxWitness (..)
@@ -713,7 +712,7 @@ signData inps outs =
 -------------------------------------------------------------------------------}
 
 -- | Convert the Jörmungandr binary format block into a simpler Wallet block.
-convertBlock :: Block -> W.Block Tx
+convertBlock :: Block -> W.Block
 convertBlock (Block h msgs) =
     W.Block (convertBlockHeader h) coerceMessages
   where

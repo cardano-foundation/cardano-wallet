@@ -47,7 +47,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Sqlite
     ( newDBLayer )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( DummyTarget, Tx (..), block0, genesisParameters )
+    ( block0, genesisParameters, mkTxId )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , NetworkDiscriminant (..)
@@ -81,6 +81,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SlotNo (unSlotNo)
     , SortOrder (..)
+    , Tx (..)
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
@@ -389,7 +390,7 @@ benchReadTxHistory db sortOrder (inf, sup) mstatus =
 
 mkTxHistory :: Int -> Int -> Int -> [Word64] -> [(Tx, TxMeta)]
 mkTxHistory numTx numInputs numOutputs range =
-    [ ( force (Tx (mkInputs i numInputs) (mkOutputs i numOutputs))
+    [ ( force (Tx (mkTxId inps outs) inps outs)
       , force TxMeta
           { status = [InLedger, Pending] !! (i `mod` 2)
           , direction = Incoming
@@ -399,13 +400,19 @@ mkTxHistory numTx numInputs numOutputs range =
           }
       )
     | !i <- [1..numTx]
+    , let inps = (mkInputs i numInputs)
+    , let outs = (mkOutputs i numOutputs)
     ]
   where
     sl i = fromFlatSlot epochLength (range !! (i `mod` length range))
 
-mkInputs :: Int -> Int -> [TxIn]
+mkInputs :: Int -> Int -> [(TxIn, Coin)]
 mkInputs prefix n =
-    [force (TxIn (Hash (label lbl i)) (fromIntegral i)) | !i <- [1..n]]
+    [force
+        ( TxIn (Hash (label lbl i)) (fromIntegral i)
+        , Coin $ fromIntegral n
+        )
+    | !i <- [1..n]]
   where
     lbl = show prefix <> "in"
 
@@ -449,7 +456,7 @@ mkCheckpoints numCheckpoints utxoSize =
         initDummyState
         genesisParameters
 
-    utxo i = force (Map.fromList (zip (mkInputs i utxoSize) (mkOutputs i utxoSize)))
+    utxo i = force (Map.fromList (zip (map fst $ mkInputs i utxoSize) (mkOutputs i utxoSize)))
 
 benchReadUTxO :: DBLayerBench -> Benchmarkable
 benchReadUTxO db = whnfIO $ readCheckpoint db testPk
@@ -564,10 +571,10 @@ benchDiskSize action = bracket setupDB cleanupDB $ \(f, ctx, db) -> do
 ----------------------------------------------------------------------------
 -- Mock data to use for benchmarks
 
-type DBLayerBench = DBLayer IO (SeqState 'Testnet ShelleyKey) DummyTarget ShelleyKey
-type WalletBench = Wallet (SeqState 'Testnet ShelleyKey) DummyTarget
+type DBLayerBench = DBLayer IO (SeqState 'Testnet ShelleyKey) ShelleyKey
+type WalletBench = Wallet (SeqState 'Testnet ShelleyKey)
 
-instance NFData (DBLayer m s t k) where
+instance NFData (DBLayer m s k) where
     rnf _ = ()
 
 instance NFData SqliteContext where

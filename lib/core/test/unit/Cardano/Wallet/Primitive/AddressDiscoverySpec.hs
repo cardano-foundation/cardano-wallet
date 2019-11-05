@@ -214,7 +214,7 @@ negativeTest _proxy input msg = it ("decodeAddress failure: " <> msg) $
 -- | Generate addresses from the given keys and compare the result with an
 -- expected output obtained from jcli (see appendix below)
 goldenTestAddr
-    :: forall n. (PaymentAddress n ShelleyKey, DelegationAddress n ShelleyKey, EncodeAddress n)
+    :: forall n. (DelegationAddress n ShelleyKey, EncodeAddress n)
     => Proxy n
     -> [ByteString]
     -> Text

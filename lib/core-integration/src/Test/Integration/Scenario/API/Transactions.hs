@@ -1572,8 +1572,8 @@ spec = do
         \ Cannot delete tx on Byron wallet using shelley ep" $ \ctx -> do
             w <- emptyByronWallet ctx
             let wid = w ^. walletId
-            let txId = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
-            let endpoint = "v2/wallets/" <> wid <> "/transactions/" <> txId
+            let txid = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
+            let endpoint = "v2/wallets/" <> wid <> "/transactions/" <> txid
             r <- request @ApiTxId @IO ctx ("DELETE", endpoint) Default Empty
             expectResponseCode HTTP.status404 r
             expectErrorMessage (errMsg404NoWallet wid) r
@@ -1644,7 +1644,7 @@ spec = do
             -- post tx
             let amt = (1 :: Natural)
             rMkTx <- postTx ctx (wSrc, postTxEndp, "cardano-wallet") wDest amt
-            let txId = getFromResponse #id rMkTx
+            let txid = getFromResponse #id rMkTx
             verify rMkTx
                 [ expectSuccess
                 , expectResponseCode HTTP.status202
@@ -1659,7 +1659,7 @@ spec = do
                 ]
 
             -- forget transaction
-            request @ApiTxId ctx (deleteTxEndp wSrc (ApiTxId txId)) Default Empty
+            request @ApiTxId ctx (deleteTxEndp wSrc (ApiTxId txid)) Default Empty
                 >>= expectResponseCode @IO HTTP.status204
 
             -- verify again balance on src wallet
@@ -1706,7 +1706,7 @@ spec = do
 
             -- post transaction
             rTx <- postTx ctx (wSrc, postTxEndp, "cardano-wallet") wDest (1 :: Natural)
-            let txId = getFromResponse #id rTx
+            let txid = getFromResponse #id rTx
 
             -- Wait for the transaction to be accepted
             eventually $ do
@@ -1717,27 +1717,27 @@ spec = do
                     ]
 
             -- Try Forget transaction once it's no longer pending
-            let ep = deleteTxEndp wSrc (ApiTxId txId)
+            let ep = deleteTxEndp wSrc (ApiTxId txid)
             rDel <- request @ApiTxId ctx ep Default Empty
             expectResponseCode @IO HTTP.status403 rDel
-            let err = errMsg403NoPendingAnymore (toUrlPiece (ApiTxId txId))
+            let err = errMsg403NoPendingAnymore (toUrlPiece (ApiTxId txid))
             expectErrorMessage err rDel
 
     txDeleteNotExistsingTxIdTest eWallet resource =
         it resource $ \ctx -> do
             w <- eWallet ctx
             let walId = w ^. walletId
-            let txId = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
-            let endpoint = "v2/" <> T.pack resource <> "/" <> walId <> "/transactions/" <> txId
+            let txid = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
+            let endpoint = "v2/" <> T.pack resource <> "/" <> walId <> "/transactions/" <> txid
             ra <- request @ApiTxId @IO ctx ("DELETE", endpoint) Default Empty
             expectResponseCode @IO HTTP.status404 ra
-            expectErrorMessage (errMsg404CannotFindTx txId) ra
+            expectErrorMessage (errMsg404CannotFindTx txid) ra
 
     txDeleteFalseWalletIdsTest resource =
         describe resource $ do
             forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
-                let txId = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
-                let endpoint = "v2/" <> resource <> "/" <> walId <> "/transactions/" <> txId
+                let txid = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
+                let endpoint = "v2/" <> resource <> "/" <> walId <> "/transactions/" <> txid
                 r <- request @ApiTxId @IO ctx ("DELETE", T.pack endpoint) Default Empty
                 expectResponseCode HTTP.status404 r
                 if (title == "40 chars hex") then
@@ -1774,14 +1774,14 @@ spec = do
 
             -- try to forget from different wallet
             wDifferent <- eWallet ctx
-            let txId = toText $ getApiT $ getFromResponse #id rMkTx
+            let txid = toText $ getApiT $ getFromResponse #id rMkTx
             let endpoint = "v2/" <> T.pack resource <> "/"
                      <> wDifferent ^. walletId
                      <> "/transactions/"
-                     <> txId
+                     <> txid
             ra <- request @ApiTxId @IO ctx ("DELETE", endpoint) Default Empty
             expectResponseCode @IO HTTP.status404 ra
-            expectErrorMessage (errMsg404CannotFindTx txId) ra
+            expectErrorMessage (errMsg404CannotFindTx txid) ra
 
     txDeleteHTTPHeadersTest eWallet resource =
         describe resource $ do
@@ -1789,9 +1789,9 @@ spec = do
                 $ \(title, headers, expectations) -> it title $ \ctx -> do
                 w <- eWallet ctx
                 let wid = w ^. walletId
-                let txId = T.pack $ replicate 64 '1'
+                let txid = T.pack $ replicate 64 '1'
                 let ep = "v2/" <> T.pack resource <> "/" <> wid
-                        <> "/transactions/" <> txId
+                        <> "/transactions/" <> txid
                 r <- request @ApiTxId @IO ctx ("DELETE", ep) headers Empty
                 verify r expectations
 
@@ -1800,10 +1800,10 @@ spec = do
                 let matrix =
                         ["POST", "CONNECT", "TRACE", "OPTIONS", "PUT", "GET"]
                 forM_ matrix $ \m -> it (show m) $ \ctx -> do
-                    let txId = T.pack $ replicate 64 '1'
+                    let txid = T.pack $ replicate 64 '1'
                     let wid = T.pack $ replicate 40 '1'
                     let ep = "v2/" <> T.pack res <> "/" <> wid
-                            <> "/transactions/" <> txId
+                            <> "/transactions/" <> txid
                     r <- request @ApiTxId @IO ctx (m, ep) Default Empty
                     expectResponseCode @IO HTTP.status405 r
                     expectErrorMessage errMsg405 r

@@ -30,8 +30,6 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Jormungandr.Binary
     ( MessageType (..), putSignedTx, runPut, withHeader )
-import Cardano.Wallet.Jormungandr.Primitive.Types
-    ( Tx (..) )
 import Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -43,7 +41,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, mkSeqState )
 import Cardano.Wallet.Primitive.Types
-    ( Coin (..), TxIn (..), TxOut (..), TxWitness, WalletId )
+    ( Coin (..), Tx (..), TxIn (..), TxOut (..), TxWitness, WalletId )
 import Cardano.Wallet.Transaction
     ( TransactionLayer (..) )
 import Control.Monad
@@ -227,15 +225,15 @@ spec = do
                                 , ("Accept", "application/json")]
 
                 r <- request @ApiTxId ctx postExternalTxEp headers payload
-                let txId = toText $ getApiT$ getFromResponse #id r
+                let txid = toText $ getApiT$ getFromResponse #id r
 
                 -- try to forget external tx using wallet or byron-wallet
                 w <- eWallet ctx
                 let ep = "v2/" <> T.pack title <> "/" <> w ^. walletId
-                        <> "/transactions/" <> txId
+                        <> "/transactions/" <> txid
                 ra <- request @ApiTxId @IO ctx ("DELETE", ep) Default Empty
                 expectResponseCode @IO HTTP.status404 ra
-                expectErrorMessage (errMsg404CannotFindTx txId) ra
+                expectErrorMessage (errMsg404CannotFindTx txid) ra
 
                 -- tx eventually gets into ledger (funds are on the target wallet)
                 expectEventually' ctx getWalletEp balanceAvailable amt wal

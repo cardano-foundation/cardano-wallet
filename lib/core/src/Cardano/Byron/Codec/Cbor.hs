@@ -24,8 +24,7 @@
 module Cardano.Byron.Codec.Cbor
     (
     -- * Decoding
-      decodeBlock
-    , decodeAddressDerivationPath
+      decodeAddressDerivationPath
     , decodeAddressPayload
     , decodeAllAttributes
     , decodeBlockHeader
@@ -40,9 +39,7 @@ module Cardano.Byron.Codec.Cbor
     , encodeDerivationPathAttr
     , encodeProtocolMagicAttr
     , encodePublicKeyWitness
-    , encodeSignedTx
     , encodeTx
-    , encodeTxWitness
 
     -- * Helpers
     , deserialiseCbor
@@ -59,7 +56,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), DerivationType (..), Index (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
-    , Block (..)
     , BlockHeader (..)
     , Coin (..)
     , EpochNo (..)
@@ -266,37 +262,6 @@ decodeDerivationPath = do
         &&
         i <= getIndex (maxBound @(Index 'Hardened _))
 
-{-# HLINT ignore decodeBlock "Use <$>" #-}
-decodeBlock :: CBOR.Decoder s (Block ([TxIn], [TxOut]))
-decodeBlock = do
-    CBOR.decodeListLenCanonicalOf 2
-    t <- CBOR.decodeWordCanonical
-    case t of
-        0 -> do -- Genesis Block
-            _ <- CBOR.decodeListLenCanonicalOf 3
-            h <- decodeGenesisBlockHeader
-            -- NOTE
-            -- We don't decode the body of genesis block because we don't need
-            -- it. Genesis blocks occur at boundaries and contain various pieces
-            -- of information about protocol updates, slot leader elections and
-            -- delegation.
-            -- Yet, they don't contain any transactions and so we can get away
-            -- with a 'mempty' here.
-            -- In theory, we should also:
-            --
-            -- _ <- decodeGenesisBlockBody
-            return $ Block h mempty
-
-        1 -> do -- Main Block
-            _ <- CBOR.decodeListLenCanonicalOf 3
-            h <- decodeMainBlockHeader
-            txs <- decodeMainBlockBody
-            -- _ <- decodeMainExtraData
-            return $ Block h txs
-
-        _ -> do
-            fail $ "decodeBlock: unknown block constructor: " <> show t
-
 decodeBlockHeader :: CBOR.Decoder s BlockHeader
 decodeBlockHeader = do
     CBOR.decodeListLenCanonicalOf 2
@@ -392,16 +357,6 @@ decodeLightIndex = do
     _ <- CBOR.decodeWord64 -- Epoch Index #1
     _ <- CBOR.decodeWord64 -- Epoch Index #2
     return ()
-
-decodeMainBlockBody :: CBOR.Decoder s [([TxIn], [TxOut])]
-decodeMainBlockBody = do
-    _ <- CBOR.decodeListLenCanonicalOf 4
-    decodeTxPayload
-    -- NOTE:
-    -- Would remain after that:
-    --  - SscPayload
-    --  - DlsPayload
-    --  - UpdatePayload
 
 decodeMainBlockHeader :: CBOR.Decoder s BlockHeader
 decodeMainBlockHeader = do
@@ -538,9 +493,6 @@ decodeTx = do
     outs <- decodeListIndef decodeTxOut
     _ <- decodeEmptyAttributes
     return (ins, outs)
-
-decodeTxPayload :: CBOR.Decoder s [([TxIn], [TxOut])]
-decodeTxPayload = (map fst) <$> decodeListIndef decodeSignedTx
 
 {-# HLINT ignore decodeTxIn "Use <$>" #-}
 decodeTxIn :: CBOR.Decoder s TxIn
@@ -689,28 +641,6 @@ encodeDerivationPath (Index acctIx) (Index addrIx) = mempty
     <> CBOR.encodeWord32 addrIx
     <> CBOR.encodeBreak
 
-encodeSignedTx :: (([TxIn], [TxOut]), [TxWitness]) -> CBOR.Encoding
-encodeSignedTx (tx, witnesses) = mempty
-    <> CBOR.encodeListLen 2
-    <> encodeTx tx
-    <> encodeList encodeTxWitness witnesses
-
-encodeTxWitness :: TxWitness -> CBOR.Encoding
-encodeTxWitness (TxWitness bytes) = mempty
-    <> CBOR.encodeListLen 2
-    <> CBOR.encodeWord8 tag
-    <> CBOR.encodeTag 24
-    <> CBOR.encodeBytes bytes
-  where
-    -- NOTE
-    -- We only support 'PublicKey' witness types at the moment. However,
-    -- Byron nodes support more:
-    --
-    --   * 0 for Public Key
-    --   * 1 for Script
-    --   * 2 for Redeem
-    tag = 0
-
 encodePublicKeyWitness :: XPub -> Hash "signature" -> CBOR.Encoding
 encodePublicKeyWitness xpub (Hash signData) = mempty
     <> CBOR.encodeListLen 2
@@ -857,11 +787,6 @@ decodeListIndef :: forall s a. CBOR.Decoder s a -> CBOR.Decoder s [a]
 decodeListIndef decodeOne = do
     _ <- CBOR.decodeListLenIndef
     CBOR.decodeSequenceLenIndef (flip (:)) [] reverse decodeOne
-
-encodeList :: (a -> CBOR.Encoding) -> [a] -> CBOR.Encoding
-encodeList encodeOne list = mempty
-    <> CBOR.encodeListLen (fromIntegral $ length list)
-    <> mconcat (map encodeOne list)
 
 -- | Byron CBOR encodings often have CBOR nested in CBOR. This helps decoding
 -- a particular 'ByteString' that represents a CBOR object.

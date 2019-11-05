@@ -76,13 +76,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState
-    , Block
-    , DefineTx (..)
-    , PoolId
-    , SortOrder (..)
-    , WalletId (..)
-    )
+    ( AddressState, Block, PoolId, SortOrder (..), WalletId (..) )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..), WorkerRegistry )
 import Cardano.Wallet.Transaction
@@ -381,14 +375,14 @@ instance Accept Any where
 data ApiLayer s t (k :: Depth -> * -> *)
     = ApiLayer
         (Trace IO Text)
-        (Block (Tx t), BlockchainParameters)
-        (NetworkLayer IO t (Block (Tx t)))
+        (Block, BlockchainParameters)
+        (NetworkLayer IO t (Block))
         (TransactionLayer t k)
-        (DBFactory IO s t k)
-        (WorkerRegistry WalletId (DBLayer IO s t k))
+        (DBFactory IO s k)
+        (WorkerRegistry WalletId (DBLayer IO s k))
     deriving (Generic)
 
-instance HasWorkerCtx (DBLayer IO s t k) (ApiLayer s t k) where
+instance HasWorkerCtx (DBLayer IO s k) (ApiLayer s t k) where
     type WorkerCtx (ApiLayer s t k) = WalletLayer s t k
     hoistResource db (ApiLayer tr bp nw tl _ _) =
         WalletLayer tr bp nw tl db
@@ -397,21 +391,21 @@ instance HasWorkerCtx (DBLayer IO s t k) (ApiLayer s t k) where
                                Capabilities
 -------------------------------------------------------------------------------}
 
-type HasWorkerRegistry s t k ctx =
-    ( HasType (WorkerRegistry WalletId (DBLayer IO s t k)) ctx
-    , HasWorkerCtx (DBLayer IO s t k) ctx
+type HasWorkerRegistry s k ctx =
+    ( HasType (WorkerRegistry WalletId (DBLayer IO s k)) ctx
+    , HasWorkerCtx (DBLayer IO s k) ctx
     )
 
 workerRegistry
-    :: forall s t k ctx. (HasWorkerRegistry s t k ctx)
-    => Lens' ctx (WorkerRegistry WalletId (DBLayer IO s t k))
+    :: forall s k ctx. (HasWorkerRegistry s k ctx)
+    => Lens' ctx (WorkerRegistry WalletId (DBLayer IO s k))
 workerRegistry =
-    typed @(WorkerRegistry WalletId (DBLayer IO s t k))
+    typed @(WorkerRegistry WalletId (DBLayer IO s k))
 
-type HasDBFactory s t k = HasType (DBFactory IO s t k)
+type HasDBFactory s k = HasType (DBFactory IO s k)
 
 dbFactory
-    :: forall s t k ctx. (HasDBFactory s t k ctx)
-    => Lens' ctx (DBFactory IO s t k)
+    :: forall s k ctx. (HasDBFactory s k ctx)
+    => Lens' ctx (DBFactory IO s k)
 dbFactory =
-    typed @(DBFactory IO s t k)
+    typed @(DBFactory IO s k)
