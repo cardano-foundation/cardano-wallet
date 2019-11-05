@@ -18,7 +18,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.SequentialSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( ChangeChain (..)
+    ( AccountingStyle (..)
     , Depth (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
@@ -44,8 +44,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , MkAddressPoolGapError (..)
     , SeqState (..)
     , accountPubKey
+    , accountingStyle
     , addresses
-    , changeChain
     , defaultAddressPoolGap
     , emptyPendingIxs
     , gap
@@ -82,6 +82,7 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , InfiniteList (..)
     , Property
+    , arbitraryBoundedEnum
     , arbitraryBoundedEnum
     , checkCoverage
     , choose
@@ -121,25 +122,35 @@ spec = do
         it "defaultAddressPoolGap is valid"
             (property prop_defaultValid)
 
-    describe "AddressPool ExternalChain" $ do
+    describe "AddressPool UTxOExternal" $ do
         it "'lookupAddressPool' extends the pool by a maximum of 'gap'"
-            (checkCoverage (prop_poolGrowWithinGap @'ExternalChain))
+            (checkCoverage (prop_poolGrowWithinGap @'UTxOExternal))
         it "'addresses' preserves the address order"
-            (checkCoverage (prop_roundtripMkAddressPool @'ExternalChain))
+            (checkCoverage (prop_roundtripMkAddressPool @'UTxOExternal))
         it "An AddressPool always contains at least 'gap pool' addresses"
-            (property (prop_poolAtLeastGapAddresses @'ExternalChain))
+            (property (prop_poolAtLeastGapAddresses @'UTxOExternal))
         it "Our addresses are eventually discovered"
-            (property (prop_poolEventuallyDiscoverOurs @'ExternalChain))
+            (property (prop_poolEventuallyDiscoverOurs @'UTxOExternal))
 
-    describe "AddressPool InternalChain" $ do
+    describe "AddressPool UTxOInternal" $ do
         it "'lookupAddressPool' extends the pool by a maximum of 'gap'"
-            (checkCoverage (prop_poolGrowWithinGap @'InternalChain))
+            (checkCoverage (prop_poolGrowWithinGap @'UTxOInternal))
         it "'addresses' preserves the address order"
-            (checkCoverage (prop_roundtripMkAddressPool @'InternalChain))
+            (checkCoverage (prop_roundtripMkAddressPool @'UTxOInternal))
         it "An AddressPool always contains at least 'gap pool' addresses"
-            (property (prop_poolAtLeastGapAddresses @'InternalChain))
+            (property (prop_poolAtLeastGapAddresses @'UTxOInternal))
         it "Our addresses are eventually discovered"
-            (property (prop_poolEventuallyDiscoverOurs @'InternalChain))
+            (property (prop_poolEventuallyDiscoverOurs @'UTxOInternal))
+
+    describe "AddressPool MutableAccount" $ do
+        it "'lookupAddressPool' extends the pool by a maximum of 'gap'"
+            (checkCoverage (prop_poolGrowWithinGap @'MutableAccount))
+        it "'addresses' preserves the address order"
+            (checkCoverage (prop_roundtripMkAddressPool @'MutableAccount))
+        it "An AddressPool always contains at least 'gap pool' addresses"
+            (property (prop_poolAtLeastGapAddresses @'MutableAccount))
+        it "Our addresses are eventually discovered"
+            (property (prop_poolEventuallyDiscoverOurs @'MutableAccount))
 
     describe "AddressPoolGap - Text Roundtrip" $ do
         textRoundtrip $ Proxy @AddressPoolGap
@@ -273,13 +284,13 @@ prop_poolAtLeastGapAddresses pool =
 
 -- | Our addresses are eventually discovered
 prop_poolEventuallyDiscoverOurs
-    :: forall (c :: ChangeChain). (Typeable c)
+    :: forall (c :: AccountingStyle). (Typeable c)
     => (AddressPoolGap, Address)
     -> Property
 prop_poolEventuallyDiscoverOurs (g, addr) =
     addr `elem` ours ==> withMaxSuccess 10 $ property prop
   where
-    ours = take 25 (ourAddresses (changeChain @c))
+    ours = take 25 (ourAddresses (accountingStyle @c))
     pool = flip execState (mkAddressPool @'Testnet @c ourAccount g mempty) $
         forM ours (state . lookupAddress)
     prop = (fromEnum <$> fst (lookupAddress addr pool)) === elemIndex addr ours
@@ -383,8 +394,8 @@ prop_atLeastKnownAddresses s =
     g = fromEnum . getAddressPoolGap . gap
 
 prop_changeIsOnlyKnownAfterGeneration
-    :: ( AddressPool 'Testnet 'InternalChain ShelleyKey
-       , AddressPool 'Testnet 'ExternalChain ShelleyKey
+    :: ( AddressPool 'Testnet 'UTxOInternal ShelleyKey
+       , AddressPool 'Testnet 'UTxOExternal ShelleyKey
        )
     -> Property
 prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) =
@@ -418,7 +429,7 @@ ourAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, mempty) mempty
     seed = Passphrase $ BA.convert $ BS.replicate 32 0
 
 ourAddresses
-    :: ChangeChain
+    :: AccountingStyle
     -> [Address]
 ourAddresses cc =
     paymentAddress @'Testnet . deriveAddressPublicKey ourAccount cc
@@ -438,9 +449,9 @@ instance Arbitrary AddressPoolGap where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
 
-instance Arbitrary ChangeChain where
+instance Arbitrary AccountingStyle where
     shrink _ = []
-    arbitrary = elements [InternalChain, ExternalChain]
+    arbitrary = arbitraryBoundedEnum
 
 -- | In this context, Arbitrary addresses are either some known addresses
 -- derived from "our account key", or they just are some arbitrary addresses
@@ -448,8 +459,9 @@ instance Arbitrary ChangeChain where
 instance Arbitrary Address where
     shrink _ = []
     arbitrary = frequency
-        [ (8, elements $ take 25 (ourAddresses ExternalChain))
-        , (8, elements $ take 25 (ourAddresses InternalChain))
+        [ (8, elements $ take 25 (ourAddresses UTxOExternal))
+        , (8, elements $ take 25 (ourAddresses UTxOInternal))
+        , (8, elements $ take 25 (ourAddresses MutableAccount))
         , (1, notOurs)
         ]
       where
@@ -479,7 +491,7 @@ instance Typeable chain => Arbitrary (AddressPool 'Testnet chain ShelleyKey) whe
         g <- unsafeMkAddressPoolGap <$> choose
             (getAddressPoolGap minBound, 2 * getAddressPoolGap minBound)
         n <- choose (0, 2 * fromEnum g)
-        let addrs = take n (ourAddresses (changeChain @chain))
+        let addrs = take n (ourAddresses (accountingStyle @chain))
         return $ mkAddressPool ourAccount g addrs
 
 instance Arbitrary (SeqState 'Testnet ShelleyKey) where

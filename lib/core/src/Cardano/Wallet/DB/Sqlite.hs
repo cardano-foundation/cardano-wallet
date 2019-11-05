@@ -935,7 +935,7 @@ insertAddressPool
     -> SqlPersistT IO ()
 insertAddressPool wid sl pool =
     void $ dbChunked insertMany_
-        [ SeqStateAddress wid sl addr ix (Seq.changeChain @c)
+        [ SeqStateAddress wid sl addr ix (Seq.accountingStyle @c)
         | (ix, addr) <- zip [0..] (Seq.addresses pool)
         ]
 
@@ -954,7 +954,7 @@ selectAddressPool wid sl gap xpub = do
     addrs <- fmap entityVal <$> selectList
         [ SeqStateAddressWalletId ==. wid
         , SeqStateAddressSlot ==. sl
-        , SeqStateAddressChangeChain ==. Seq.changeChain @c
+        , SeqStateAddressAccountingStyle ==. Seq.accountingStyle @c
         ] [Asc SeqStateAddressIndex]
     pure $ addressPoolFromEntity addrs
   where

@@ -12,8 +12,8 @@ module Cardano.Wallet.Primitive.AddressDerivation.ShelleySpec
 import Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( ChainCode (..)
-    , ChangeChain (..)
+    ( AccountingStyle (..)
+    , ChainCode (..)
     , Depth (..)
     , DerivationType (..)
     , HardDerivation (..)
@@ -52,9 +52,9 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
+    , arbitraryBoundedEnum
     , choose
     , conjoin
-    , elements
     , expectFailure
     , property
     , suchThat
@@ -69,11 +69,11 @@ import qualified Data.ByteString as BS
 spec :: Spec
 spec = do
     describe "Bounded / Enum relationship" $ do
-        it "Calling toEnum for invalid value gives a runtime err (ChangeChain)"
-            (property prop_toEnumChangeChain)
+        it "Calling toEnum for invalid value gives a runtime err (AccountingStyle)"
+            (property prop_toEnumAccountingStyle)
 
     describe "Enum Roundtrip" $ do
-        it "ChangeChain" (property prop_roundtripEnumChangeChain)
+        it "AccountingStyle" (property prop_roundtripEnumAccountingStyle)
 
     describe "BIP-0044 Derivation Properties" $ do
         it "deriveAccountPrivateKey works for various indexes" $
@@ -108,13 +108,13 @@ spec = do
                                Properties
 -------------------------------------------------------------------------------}
 
-prop_toEnumChangeChain :: Int -> Property
-prop_toEnumChangeChain n =
-    n > fromEnum InternalChain ==> expectFailure $ property $
-        (toEnum n :: ChangeChain) `seq` ()
+prop_toEnumAccountingStyle :: Int -> Property
+prop_toEnumAccountingStyle n =
+    n > fromEnum UTxOInternal ==> expectFailure $ property $
+        (toEnum n :: AccountingStyle) `seq` ()
 
-prop_roundtripEnumChangeChain :: ChangeChain -> Property
-prop_roundtripEnumChangeChain ix =
+prop_roundtripEnumAccountingStyle :: AccountingStyle -> Property
+prop_roundtripEnumAccountingStyle ix =
     (toEnum . fromEnum) ix === ix
 
 -- | Deriving address public key should be equal to deriving address
@@ -135,7 +135,7 @@ prop_roundtripEnumChangeChain ix =
 prop_publicChildKeyDerivation
     :: (Passphrase "seed", Passphrase "generation")
     -> Passphrase "encryption"
-    -> ChangeChain
+    -> AccountingStyle
     -> Index 'Soft 'AddressK
     -> Property
 prop_publicChildKeyDerivation (seed, recPwd) encPwd cc ix =
@@ -189,9 +189,9 @@ prop_fingerprintInvalidAddress (InvalidAddress addr) = conjoin $ property <$>
                              Arbitrary Instances
 -------------------------------------------------------------------------------}
 
-instance Arbitrary ChangeChain where
+instance Arbitrary AccountingStyle where
     shrink _ = []
-    arbitrary = elements [InternalChain, ExternalChain]
+    arbitrary = arbitraryBoundedEnum
 
 instance {-# OVERLAPS #-} Arbitrary (Passphrase "seed") where
     arbitrary = do

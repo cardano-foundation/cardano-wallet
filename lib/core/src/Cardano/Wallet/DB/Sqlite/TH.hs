@@ -179,18 +179,18 @@ SeqState
 -- Mapping of pool addresses to indices, and the slot
 -- when they were discovered.
 SeqStateAddress
-    seqStateAddressWalletId     W.WalletId     sql=wallet_id
-    seqStateAddressSlot         W.SlotId       sql=slot
-    seqStateAddressAddress      W.Address      sql=address
-    seqStateAddressIndex        Word32         sql=address_ix
-    seqStateAddressChangeChain  W.ChangeChain  sql=change_chain
+    seqStateAddressWalletId         W.WalletId     sql=wallet_id
+    seqStateAddressSlot             W.SlotId       sql=slot
+    seqStateAddressAddress          W.Address      sql=address
+    seqStateAddressIndex            Word32         sql=address_ix
+    seqStateAddressAccountingStyle  W.AccountingStyle  sql=accounting_style
 
     Primary
         seqStateAddressWalletId
         seqStateAddressSlot
         seqStateAddressAddress
         seqStateAddressIndex
-        seqStateAddressChangeChain
+        seqStateAddressAccountingStyle
     Foreign Checkpoint seq_state_address seqStateAddressWalletId seqStateAddressSlot ! ON DELETE CASCADE
     deriving Show Generic
 

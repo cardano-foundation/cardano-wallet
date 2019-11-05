@@ -33,7 +33,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, block0, genesisParameters, mkTxId )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( ChangeChain (..)
+    ( AccountingStyle (..)
     , Depth (..)
     , DerivationType (..)
     , ErrWrongPassphrase (..)
@@ -464,7 +464,7 @@ instance IsOwned DummyState ShelleyKey where
     isOwned (DummyState m) (rootK, pwd) addr = do
         ix <- Map.lookup addr m
         let accXPrv = deriveAccountPrivateKey pwd rootK minBound
-        let addrXPrv = deriveAddressPrivateKey pwd accXPrv ExternalChain ix
+        let addrXPrv = deriveAddressPrivateKey pwd accXPrv UTxOExternal ix
         return (addrXPrv, pwd)
 
 instance GenChange DummyState where
