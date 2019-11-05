@@ -239,15 +239,7 @@ spec = do
             let sourceWalletPass = "source wallet passphrase"
             sourceWallet <-
                 fixtureByronWalletWith sourceWalletName sourceWalletPass ctx
-
-            -- Verify that the source wallet has funds available:
-            r0 <- request @ApiByronWallet ctx
-                (getByronWalletEp sourceWallet) Default Empty
-            verify r0
-                [ expectResponseCode @IO HTTP.status200
-                , expectFieldSatisfy balanceAvailable (> 0)
-                ]
-            let originalBalance = getFromResponse balanceAvailable r0
+            let originalBalance = view balanceAvailable sourceWallet
 
             -- Create an empty target wallet:
             targetWallet <- emptyWallet ctx
