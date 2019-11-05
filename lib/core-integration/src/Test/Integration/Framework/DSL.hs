@@ -1299,7 +1299,7 @@ stakePoolEp
     -> (Method, Text)
 stakePoolEp verb p w =
     ( verb
-    , "v2/stake-pools/" <> (toText $ getApiT $ p ^. #id) <> "/wallets/" <> w ^. walletId
+    , "v2/stake-pools/" <> toText (getApiT $ p ^. #id) <> "/wallets/" <> w ^. walletId
     )
 
 joinStakePoolEp
