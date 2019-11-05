@@ -18,8 +18,10 @@ import Fmt
     ( pretty )
 import System.Exit
     ( ExitCode (..) )
+import System.Info
+    ( os )
 import Test.Hspec
-    ( Spec, it, shouldBe, shouldReturn )
+    ( Spec, it, shouldBe, shouldContain, shouldReturn )
 
 {-# ANN spec ("HLint: ignore Use head" :: String) #-}
 spec :: Spec
@@ -40,7 +42,7 @@ spec = do
 
     it "1st process exits with 0, others are cancelled" $ do
         let commands =
-              [ mockCommand 0 (pure ())
+              [ mockCommand True (pure ())
               , foreverCommand
               ]
         (ProcessHasExited name code) <- launch nullTracer commands
@@ -50,35 +52,35 @@ spec = do
     it "2nd process exits with 0, others are cancelled" $ do
         let commands =
               [ foreverCommand
-              , mockCommand 0 (pure ())
+              , mockCommand True (pure ())
               ]
         (ProcessHasExited name code) <- launch nullTracer commands
         name `shouldBe` cmdName (commands !! 1)
         code `shouldBe` ExitSuccess
 
-    it "1st process exits with 14, others are cancelled" $ do
+    it "1st process exits with 3, others are cancelled" $ do
         let commands =
-              [ mockCommand 14 (pure ())
+              [ mockCommand False (pure ())
               , foreverCommand
               ]
         (ProcessHasExited name code) <- launch nullTracer commands
         name `shouldBe` cmdName (commands !! 0)
-        code `shouldBe` (ExitFailure 14)
+        code `shouldBe` (ExitFailure 3)
 
-    it "2nd process exits with 14, others are cancelled" $ do
+    it "2nd process exits with 3, others are cancelled" $ do
         let commands =
               [ foreverCommand
-              , mockCommand 14 (pure ())
+              , mockCommand False (pure ())
               ]
         (ProcessHasExited name code) <- launch nullTracer commands
         name `shouldBe` cmdName (commands !! 1)
-        code `shouldBe` (ExitFailure 14)
+        code `shouldBe` (ExitFailure 3)
 
     it "Process executes a command before they start" $ do
         mvar <- newEmptyMVar
         let before = putMVar mvar "executed"
         let commands =
-                [ mockCommand 0 before
+                [ mockCommand True before
                 ]
         (ProcessHasExited _ code) <- launch nullTracer commands
         code `shouldBe` ExitSuccess
@@ -91,11 +93,25 @@ spec = do
         ProcessDidNotStart name _exc <- launch nullTracer commands
         name `shouldBe` "foobar"
 
--- | A command that will run for a short time then exit with the given status.
-mockCommand :: Int -> IO () -> Command
-mockCommand exitStatus before =
-    Command "sh" ["-c", "sleep 1; exit " ++ show exitStatus] before Inherit
+    it "Sanity check System.Info.os" $
+        ["linux", "darwin", "mingw32"] `shouldContain` [os]
+
+-- | A command that will run for a short time.
+mockCommand :: Bool -> IO () -> Command
+mockCommand success before
+    | isWindows && success =
+        Command "TIMEOUT" ["1"] before Inherit
+    | isWindows && not success =
+        Command "CHOICE" ["/T", "1", "/C", "wat", "/D", "t"] before Inherit
+    | otherwise =
+        Command "sh" ["-c", "sleep 1; exit " ++ show exitStatus] before Inherit
+        where exitStatus = if success then 0 else 3 :: Int
 
 -- | A command that will run for longer than the other commands.
 foreverCommand :: Command
-foreverCommand = Command "sleep" ["30"] (pure ()) Inherit
+foreverCommand
+    | isWindows = Command "TIMEOUT" ["30"] (pure ()) Inherit
+    | otherwise = Command "sleep" ["30"] (pure ()) Inherit
+
+isWindows :: Bool
+isWindows = os == "mingw32"
