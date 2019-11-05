@@ -52,9 +52,9 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
+    , arbitraryBoundedEnum
     , choose
     , conjoin
-    , elements
     , expectFailure
     , property
     , suchThat
@@ -191,7 +191,7 @@ prop_fingerprintInvalidAddress (InvalidAddress addr) = conjoin $ property <$>
 
 instance Arbitrary AccountingStyle where
     shrink _ = []
-    arbitrary = elements [UTxOInternal, UTxOExternal]
+    arbitrary = arbitraryBoundedEnum
 
 instance {-# OVERLAPS #-} Arbitrary (Passphrase "seed") where
     arbitrary = do

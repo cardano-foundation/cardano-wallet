@@ -165,7 +165,7 @@ data Depth = RootK | AccountK | AddressK
 --     targets of a given transaction
 -- (b) internal change is for addresses used to handle the change of a
 --     the transaction within a given wallet
--- (c) the addresses for a reward account
+-- (c) the addresses for a reward (chimeric) account
 data AccountingStyle
     = UTxOExternal
     | UTxOInternal

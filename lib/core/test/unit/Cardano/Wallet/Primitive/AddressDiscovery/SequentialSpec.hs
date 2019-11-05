@@ -83,6 +83,7 @@ import Test.QuickCheck
     , InfiniteList (..)
     , Property
     , arbitraryBoundedEnum
+    , arbitraryBoundedEnum
     , checkCoverage
     , choose
     , conjoin
@@ -450,7 +451,7 @@ instance Arbitrary AddressPoolGap where
 
 instance Arbitrary AccountingStyle where
     shrink _ = []
-    arbitrary = elements [UTxOInternal, UTxOExternal, MutableAccount]
+    arbitrary = arbitraryBoundedEnum
 
 -- | In this context, Arbitrary addresses are either some known addresses
 -- derived from "our account key", or they just are some arbitrary addresses
