@@ -38,6 +38,7 @@ import Cardano.CLI
     , cmdVersion
     , cmdWallet
     , databaseOption
+    , enableWindowsANSI
     , getDataDir
     , hostPreferenceOption
     , listenOption
@@ -54,7 +55,7 @@ import Cardano.CLI
     , withLogging
     )
 import Cardano.Launcher
-    ( StdStream (..), setUtf8Encoding )
+    ( StdStream (..), withUtf8Encoding )
 import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..) )
 import Cardano.Wallet.Jormungandr
@@ -128,8 +129,8 @@ import qualified Options.Applicative.Help.Pretty as D
 -------------------------------------------------------------------------------}
 
 main :: IO ()
-main = do
-    setUtf8Encoding
+main = withUtf8Encoding $ do
+    enableWindowsANSI
     dataDir <- getDataDir "jormungandr"
     runCli $ cli $ mempty
         <> cmdLaunch dataDir

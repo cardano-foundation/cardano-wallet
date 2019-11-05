@@ -63,6 +63,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."base" or (buildDepError "base"))
           (hsPkgs."aeson" or (buildDepError "aeson"))
           (hsPkgs."async" or (buildDepError "async"))
+          (hsPkgs."code-page" or (buildDepError "code-page"))
           (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
           (hsPkgs."fmt" or (buildDepError "fmt"))
           (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
