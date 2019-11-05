@@ -82,6 +82,8 @@ module Test.Integration.Framework.DSL
     , getFromResponseList
     , getJormungandrBlock0H
     , json
+    , joinStakePool
+    , quitStakePool
     , listAddresses
     , listTransactions
     , listAllTransactions
@@ -103,6 +105,8 @@ module Test.Integration.Framework.DSL
     , eventually
     , eventuallyUsingDelay
     , fixturePassphrase
+    , eventually'
+    , eventuallyUsingDelay'
 
     -- * Endpoints
     , postByronWalletEp
@@ -119,6 +123,9 @@ module Test.Integration.Framework.DSL
     , getWalletUtxoEp
     , getAddressesEp
     , listStakePoolsEp
+    , joinStakePoolEp
+    , quitStakePoolEp
+    , stakePoolEp
     , postTxEp
     , postExternalTxEp
     , postTxFeeEp
@@ -155,6 +162,7 @@ import Cardano.Wallet.Api.Types
     ( AddressAmount
     , ApiAddress
     , ApiByronWallet
+    , ApiStakePool
     , ApiStakePoolMetrics
     , ApiT (..)
     , ApiTransaction
@@ -870,6 +878,31 @@ eventuallyUsingDelay delay io = do
         threadDelay delay
         trial
 
+-- similar as @eventually@ but returns IO a
+eventually'
+    :: IO a
+    -> IO a
+eventually' = eventuallyUsingDelay' (500 * ms)
+  where
+    ms = 1000
+
+-- similar as @eventuallyUsingDelay@ but returns IO a
+eventuallyUsingDelay'
+    :: Int
+    -> IO a
+    -> IO a
+eventuallyUsingDelay' delay io = do
+    winner <- race (threadDelay $ 60 * oneSecond) trial
+    case winner of
+        Left _ -> fail
+            "waited more than 60s for action to eventually resolve."
+        Right a ->
+            return a
+  where
+    trial = io `catch` \(_ :: SomeException) -> do
+        threadDelay delay
+        trial
+
 utcIso8601ToText :: UTCTime -> Text
 utcIso8601ToText = utcTimeToText iso8601ExtendedUtc
 
@@ -1058,6 +1091,30 @@ getFromResponseList i getter (_, res) = case res of
 json :: QuasiQuoter
 json = aesonQQ
 
+joinStakePool
+    :: forall t w. (HasType (ApiT WalletId) w)
+    => Context t
+    -> ApiStakePool
+    -> (w, Text)
+    -> IO (HTTP.Status, Either RequestException [ApiStakePool])
+joinStakePool ctx p (w, pass) = do
+    let payload = Json [aesonQQ| {
+            "passphrase": #{pass}
+            } |]
+    request @[ApiStakePool] ctx (joinStakePoolEp p w) Default payload
+
+quitStakePool
+    :: forall t w. (HasType (ApiT WalletId) w)
+    => Context t
+    -> ApiStakePool
+    -> (w, Text)
+    -> IO (HTTP.Status, Either RequestException [ApiStakePool])
+quitStakePool ctx p (w, pass) = do
+    let payload = Json [aesonQQ| {
+            "passphrase": #{pass}
+            } |]
+    request @[ApiStakePool] ctx (quitStakePoolEp p w) Default payload
+
 listAddresses
     :: Context t
     -> ApiWallet
@@ -1233,6 +1290,31 @@ listStakePoolsEp =
     ( "GET"
     , "v2/stake-pools"
     )
+
+stakePoolEp
+    :: forall w. (HasType (ApiT WalletId) w)
+    => Method
+    -> ApiStakePool
+    -> w
+    -> (Method, Text)
+stakePoolEp verb p w =
+    ( verb
+    , "v2/stake-pools/" <> (toText $ getApiT $ p ^. #id) <> "/wallets/" <> w ^. walletId
+    )
+
+joinStakePoolEp
+    :: forall w. (HasType (ApiT WalletId) w)
+    => ApiStakePool
+    -> w
+    -> (Method, Text)
+joinStakePoolEp = stakePoolEp "PUT"
+
+quitStakePoolEp
+    :: forall w. (HasType (ApiT WalletId) w)
+    => ApiStakePool
+    -> w
+    -> (Method, Text)
+quitStakePoolEp = stakePoolEp "DELETE"
 
 postWalletEp :: (Method, Text)
 postWalletEp =
