@@ -1261,7 +1261,7 @@ putErrLn = hPutErrLn stderr
 -- On Windows 10 and above it's possible to enable processing of these colour
 -- codes. The 'hSupportsANSIWithoutEmulation' function does this as a side
 -- effect. On older versions of Windows, special treatment is required (see:
--- "System.Console.ANSI"). In this case, this function will achieve nothing, and
+-- 'System.Console.ANSI'). In this case, this function will achieve nothing, and
 -- the ANSI control characters will be printed in grey (too bad).
 enableWindowsANSI :: IO ()
 enableWindowsANSI = do
