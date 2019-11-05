@@ -199,14 +199,6 @@ spec = do
             sourceWallet <-
                 fixtureByronWalletWith sourceWalletName sourceWalletPass ctx
 
-            -- Verify that the source wallet has funds available:
-            r0 <- request @ApiByronWallet ctx
-                (getByronWalletEp sourceWallet) Default Empty
-            verify r0
-                [ expectResponseCode @IO HTTP.status200
-                , expectFieldSatisfy balanceAvailable (> 0)
-                ]
-
             -- Perform a migration from the source wallet to a target wallet:
             targetWallet <- emptyWallet ctx
             r1 <- request @[ApiTransaction n] ctx
