@@ -58,9 +58,9 @@ import Test.Integration.Framework.DSL
     , emptyByronWalletWith
     , emptyWallet
     , emptyWalletWith
+    , eventually
     , expectErrorMessage
     , expectEventually
-    , expectEventually'
     , expectFieldEqual
     , expectFieldNotEqual
     , expectFieldSatisfy
@@ -281,8 +281,13 @@ spec = do
 
             -- Check that funds become available in the target wallet:
             let expectedBalance = originalBalance - expectedFee
-            expectEventually'
-                ctx getWalletEp balanceTotal expectedBalance targetWallet
+            eventually $ do
+                r4 <- request @ApiWallet ctx
+                    (getWalletEp targetWallet) Default Empty
+                verify r4
+                    [ expectFieldEqual balanceAvailable expectedBalance
+                    , expectFieldEqual balanceTotal     expectedBalance
+                    ]
 
     describe "BYRON_MIGRATE_06 - non-existing wallets" $  do
         forM_ (take 1 falseWalletIds) $ \(desc, walId) -> it desc $ \ctx -> do
