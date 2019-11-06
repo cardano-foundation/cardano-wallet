@@ -22,7 +22,7 @@ import Control.Monad
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Test.Hspec
-    ( SpecWith, describe, it, pendingWith )
+    ( SpecWith, describe, it )
 import Test.Integration.Framework.DSL
     ( Context
     , Headers (..)
@@ -33,6 +33,7 @@ import Test.Integration.Framework.DSL
     , expectErrorMessage
     , expectListSizeEqual
     , expectResponseCode
+    , fixtureByronWallet
     , listByronTxEp
     , request
     , toQueryString
@@ -70,14 +71,12 @@ spec = do
             ]
 
     it "BYRON_TX_LIST_01 - Can list transactions on Byron Wallet" $ \ctx -> do
-        pendingWith "Blocked by #849"
-        -- TODO make it fixtureByronWallet after #849 and adjust expectations
-        w <- emptyByronWallet ctx
+        w <- fixtureByronWallet ctx
         r <- request @([ApiTransaction n]) ctx (listByronTxEp w mempty)
             Default Empty
         verify r
             [ expectResponseCode @IO HTTP.status200
-            , expectListSizeEqual 0
+            , expectListSizeEqual 10
             ]
 
     describe "BYRON_TX_LIST_01 - Faulty start, end, order values" $ do

@@ -189,7 +189,7 @@ import Control.Exception
     , tryJust
     )
 import Control.Monad
-    ( forM, forM_, void )
+    ( forM, forM_, void, when )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
@@ -921,6 +921,8 @@ migrateByronWallet rndCtx seqCtx (ApiT rndWid) (ApiT seqWid) migrateData = do
             cs <- W.createMigrationSourceData @_ @_ @t rndWrk rndWid
             W.assignMigrationTargetAddresses seqWrk seqWid () cs
 
+    when (null cs) $ liftHandler $ throwE $ ErrMigratingEmptyWallet rndWid
+
     forM cs $ \selection -> do
         (tx, meta, time, wit) <- liftHandler
             $ withWorkerCtx rndCtx rndWid (throwE . ErrSignTxNoSuchWallet)
@@ -1270,9 +1272,24 @@ data ErrCreateWallet
         -- ^ Somehow, we couldn't create a worker or open a db connection
     deriving (Eq, Show)
 
+newtype ErrMigrateWallet
+    = ErrMigratingEmptyWallet WalletId
+        -- ^ User attempted to migrate an empty wallet
+    deriving (Eq, Show)
+
 -- | Small helper to easy show things to Text
 showT :: Show a => a -> Text
 showT = T.pack . show
+
+instance LiftHandler ErrMigrateWallet where
+    handler = \case
+        ErrMigratingEmptyWallet wid ->
+            apiError err403 NothingToMigrate $ mconcat
+                [ "I can't migrate the wallet with the given id: "
+                , toText wid
+                , ", because it's either empty or full of small coins "
+                , "which wouldn't be worth migrating."
+                ]
 
 instance LiftHandler ErrNoSuchWallet where
     handler = \case
