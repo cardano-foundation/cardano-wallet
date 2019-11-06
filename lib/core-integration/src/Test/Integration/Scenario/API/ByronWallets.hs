@@ -196,19 +196,19 @@ spec = do
 
             -- Perform a migration from the source wallet to a target wallet:
             targetWallet <- emptyWallet ctx
-            r1 <- request @[ApiTransaction n] ctx
+            r0 <- request @[ApiTransaction n] ctx
                 (migrateByronWalletEp sourceWallet targetWallet )
                 Default
                 (Json [json|{"passphrase": #{fixturePassphrase}}|])
-            verify r1
+            verify r0
                 [ expectResponseCode @IO HTTP.status202
                 , expectFieldSatisfy id (not . null)
                 ]
 
             -- Verify that the source wallet has no funds available:
-            r3 <- request @ApiByronWallet ctx
+            r1 <- request @ApiByronWallet ctx
                 (getByronWalletEp sourceWallet) Default Empty
-            verify r3
+            verify r1
                 [ expectResponseCode @IO HTTP.status200
                 , expectFieldSatisfy balanceAvailable (== 0)
                 ]
@@ -225,20 +225,20 @@ spec = do
             targetWallet <- emptyWallet ctx
 
             -- Calculate the expected migration fee:
-            r2 <- request @ApiByronWalletMigrationInfo ctx
+            r0 <- request @ApiByronWalletMigrationInfo ctx
                 (calculateByronMigrationCostEp sourceWallet) Default Empty
-            verify r2
+            verify r0
                 [ expectResponseCode @IO HTTP.status200
                 , expectFieldSatisfy amount (> 0)
                 ]
-            let expectedFee = getFromResponse amount r2
+            let expectedFee = getFromResponse amount r0
 
             -- Perform a migration from the source wallet to the target wallet:
-            r3 <- request @[ApiTransaction n] ctx
+            r1 <- request @[ApiTransaction n] ctx
                 (migrateByronWalletEp sourceWallet targetWallet)
                 Default
                 (Json [aesonQQ|{"passphrase": #{fixturePassphrase}}|])
-            verify r3
+            verify r1
                 [ expectResponseCode @IO HTTP.status202
                 , expectFieldSatisfy id (not . null)
                 ]
@@ -246,9 +246,9 @@ spec = do
             -- Check that funds become available in the target wallet:
             let expectedBalance = originalBalance - expectedFee
             eventually $ do
-                r4 <- request @ApiWallet ctx
+                r2 <- request @ApiWallet ctx
                     (getWalletEp targetWallet) Default Empty
-                verify r4
+                verify r2
                     [ expectFieldEqual balanceAvailable expectedBalance
                     , expectFieldEqual balanceTotal     expectedBalance
                     ]
