@@ -124,7 +124,9 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.Network
     ( ErrNetworkTip (..), ErrNetworkUnavailable (..), NetworkLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..)
+    ( DerivationType (..)
+    , HardDerivation (..)
+    , NetworkDiscriminant (..)
     , PaymentAddress (..)
     , WalletKey (..)
     , digest
@@ -330,7 +332,7 @@ start settings trace socket rndCtx seqCtx spl = do
     server :: Server (Api n)
     server = coreApiServer seqCtx
         :<|> compatibilityApiServer @t @n rndCtx seqCtx
-        :<|> stakePoolServer spl
+        :<|> stakePoolServer seqCtx spl
 
     application :: Application
     application = serve (Proxy @("v2" :> Api n)) server
@@ -427,11 +429,16 @@ coreApiServer ctx =
     :<|> network ctx
 
 stakePoolServer
-    :: forall n k.
+    :: forall ctx s t n k.
         ( PaymentAddress n k
+        , Buildable (ErrValidateSelection t)
         , k ~ ShelleyKey
+        , s ~ SeqState n k
+        , HardDerivation k
+        , ctx ~ ApiLayer s t k
         )
-    => StakePoolLayer IO
+    => ctx
+    -> StakePoolLayer IO
     -> Server (StakePoolApi n)
 stakePoolServer = pools
 
@@ -759,15 +766,20 @@ postTransactionFee ctx (ApiT wid) body = do
 -------------------------------------------------------------------------------}
 
 pools
-    :: forall n k.
+    :: forall ctx s t n k.
         ( PaymentAddress n k
+        , Buildable (ErrValidateSelection t)
         , k ~ ShelleyKey
+        , s ~ SeqState n k
+        , HardDerivation k
+        , ctx ~ ApiLayer s t k
         )
-    => StakePoolLayer IO
+    => ctx
+    -> StakePoolLayer IO
     -> Server (StakePoolApi n)
-pools spl =
+pools ctx spl =
     listPools spl
-    :<|> joinStakePool spl
+    :<|> joinStakePool ctx spl
     :<|> quitStakePool
 
 listPools
@@ -788,22 +800,32 @@ listPools spl =
             apparentPerformance
 
 joinStakePool
-    :: forall n k.
+    :: forall ctx s t n k.
         ( PaymentAddress n k
+        , Buildable (ErrValidateSelection t)
+        , s ~ SeqState n k
         , k ~ ShelleyKey
+        , HardDerivation k
+        , ctx ~ ApiLayer s t k
         )
-    => StakePoolLayer IO
+    => ctx
+    -> StakePoolLayer IO
     -> ApiT PoolId
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
-joinStakePool spl (ApiT poolId) _ _ = do
+joinStakePool ctx spl (ApiT poolId) (ApiT wid) passwd = do
     allPools <- listPools spl
     case L.find (\(ApiStakePool pId _ _) -> pId == ApiT poolId) allPools of
         Nothing ->
-            liftHandler $ throwE (ErrJoinStakePoolNoPoolId poolId)
-        Just _ ->
+            liftHandler $ throwE (ErrJoinStakePoolNoSuchPool poolId)
+        Just _ -> do
+            let (ApiWalletPassphrase (ApiT pwd)) = passwd
+            liftHandler $ withWorkerCtx ctx wid liftE $ \worker ->
+                W.createCertificateTx @_ @s @t @k worker wid () pwd poolId
             throwError err501
+  where
+    liftE = throwE . ErrJoinStakePoolNoSuchWallet
 
 quitStakePool
     :: forall n k.
@@ -1588,13 +1610,17 @@ instance LiftHandler ErrMetricsInconsistency where
                 , " but the node doesn't know about this stake pool!"
                 ]
 
-instance LiftHandler ErrJoinStakePool where
+instance Buildable e =>  LiftHandler (ErrJoinStakePool e) where
     handler = \case
-        ErrJoinStakePoolNoPoolId poolId ->
+        ErrJoinStakePoolNoSuchPool poolId ->
             apiError err404 NoSuchPool $ mconcat
                 [ "I couldn't find a stake pool with the given id: "
                 , toText poolId
                 ]
+        ErrJoinStakePoolNoSuchWallet e -> handler e
+        ErrJoinStakePoolWithRootKey e  -> handler e
+        ErrJoinStakePoolCoinSelection e -> handler e
+        ErrJoinStakePoolFee e -> handler e
 
 instance LiftHandler (Request, ServantErr) where
     handler (req, err@(ServantErr code _ body headers))

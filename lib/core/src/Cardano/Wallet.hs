@@ -112,6 +112,7 @@ module Cardano.Wallet
     , withRootKey
 
     -- ** Stake Pools
+    , createCertificateTx
     , ErrJoinStakePool (..)
     ) where
 
@@ -136,13 +137,17 @@ import Cardano.Wallet.Network
     , follow
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (RootK)
+    ( AccountingStyle (..)
+    , Depth (RootK)
+    , DerivationType (..)
     , ErrWrongPassphrase (..)
+    , HardDerivation (..)
     , Passphrase
     , WalletKey (..)
     , XPrv
     , checkPassphrase
     , encryptPassphrase
+    , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
@@ -973,6 +978,69 @@ listTransactions ctx wid mStart mEnd order = db & \DBLayer{..} -> do
         -- the start of a slot and its end could be a valid candidate.
         txTime = slotStartTime sp
 
+createCertificateTx
+    :: forall ctx s t k e.
+        ( HasTransactionLayer t k ctx
+        , HasDBLayer s k ctx
+        , e ~ ErrValidateSelection t
+        , HardDerivation k
+        , WalletKey k
+        , AddressIndexDerivationType k ~ 'Soft
+        , GenChange s
+        )
+    => ctx
+    -> WalletId
+    -> ArgGenChange s
+    -> Passphrase "encryption"
+    -> PoolId
+    -> ExceptT (ErrJoinStakePool e) IO ()
+createCertificateTx ctx wid argGenChange pwd _poolId = do
+    DB.withLock db $ do
+        --reading checkpoint needed for generating change address later
+        -- and checking if wallet exists
+        cp <- withExceptT ErrJoinStakePoolNoSuchWallet $
+            readWalletCheckpoint @ctx @s @k ctx wid
+
+        --deriving chimeric account
+        _accPub <- withRootKey @ctx @s @k ctx wid pwd ErrJoinStakePoolWithRootKey
+            $ \xprv -> do
+            let accPrv = deriveAccountPrivateKey pwd xprv minBound
+            pure $ publicKey
+                $ deriveAddressPrivateKey pwd accPrv MutableAccount minBound
+
+        -- needed for coin selection
+        (wal, _, pending) <- withExceptT ErrJoinStakePoolNoSuchWallet $
+            readWallet @ctx @s @k ctx wid
+
+        --constructing txout to cover, s' should be probably persisted
+        let bp = blockchainParameters wal
+        let LinearFee _ _ (Quantity flatFeePerCert) = bp ^. #getFeePolicy
+        let flatFee = ceiling flatFeePerCert
+        let (recipient, _s') = flip runState (getState cp) $ do
+                addr <- state (genChange argGenChange)
+                return [TxOut addr (Coin flatFee)]
+
+        -- do coin selection
+        let utxo = availableUTxO @s pending wal
+        (sel, utxo') <- withExceptT ErrJoinStakePoolCoinSelection $ do
+            let opts = coinSelOpts tl (bp ^. #getTxMaxSize)
+            CoinSelection.random opts (NE.fromList recipient) utxo
+
+        -- adjusting for fee
+        let feeCertOpts = FeeOptions
+                { estimateFee = const (Fee flatFee)
+                , dustThreshold = Coin 0
+                }
+        _sel' <- withExceptT ErrJoinStakePoolFee $
+            adjustForFee feeCertOpts utxo' sel
+
+        -- now we are ready to use accPub, sel' and poolId and call mkCertificateTx
+
+        return ()
+  where
+    tl = ctx ^. transactionLayer @t @k
+    db = ctx ^. dbLayer @s @k
+
 {-------------------------------------------------------------------------------
                                   Key Store
 -------------------------------------------------------------------------------}
@@ -1090,8 +1158,12 @@ data ErrStartTimeLaterThanEndTime = ErrStartTimeLaterThanEndTime
     } deriving (Show, Eq)
 
 -- | Errors that can occur when trying to join stake pool.
-newtype ErrJoinStakePool
-    = ErrJoinStakePoolNoPoolId PoolId
+data ErrJoinStakePool e
+    = ErrJoinStakePoolNoSuchPool PoolId
+    | ErrJoinStakePoolNoSuchWallet ErrNoSuchWallet
+    | ErrJoinStakePoolWithRootKey ErrWithRootKey
+    | ErrJoinStakePoolCoinSelection (ErrCoinSelection e)
+    | ErrJoinStakePoolFee ErrAdjustForFee
     deriving (Show, Eq)
 
 {-------------------------------------------------------------------------------
