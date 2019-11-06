@@ -882,9 +882,11 @@ x-responsesGetByronWalletMigrationInfo: &responsesGetByronWalletMigrationInfo
     schema: *ApiByronWalletMigrationInfo
 
 x-responsesMigrateByronWallet: &responsesMigrateByronWallet
+  <<: *responsesErr403
   <<: *responsesErr404
   <<: *responsesErr405
   <<: *responsesErr406
+  <<: *responsesErr415
   200:
     description: Ok
     schema:
@@ -1314,7 +1316,7 @@ paths:
       tags: ["Byron Transactions"]
       summary: List
       description: |
-        <p align="right">status: <strong>under testing</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
 
         List all incoming and outgoing transactions for the given wallet.
       parameters:
@@ -1330,7 +1332,7 @@ paths:
       tags: ["Byron Transactions"]
       summary: Forget
       description: |
-        <p align="right">status: <strong>under testing</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
 
         Forget pending Byron transaction. Importantly, a transaction, when sent,
         cannot be cancelled. One can only request forgetting about it
@@ -1348,7 +1350,7 @@ paths:
       tags: ["Byron Migrations"]
       summary: Calculate Cost
       description: |
-        <p align="right">status: <strong>not implemented</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
 
         Calculate the exact cost of migrating from a Byron wallet to a new
         wallet.
@@ -1362,7 +1364,7 @@ paths:
       tags: ["Byron Migrations"]
       summary: Migrate
       description: |
-        <p align="right">status: <strong>not implemented</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
 
         Migrate all funds from a Byron wallet to a new-style wallet.
       parameters:
