@@ -183,6 +183,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."fmt" or (buildDepError "fmt"))
             (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
             (hsPkgs."memory" or (buildDepError "memory"))
+            (hsPkgs."random" or (buildDepError "random"))
             (hsPkgs."split" or (buildDepError "split"))
             (hsPkgs."temporary" or (buildDepError "temporary"))
             (hsPkgs."text" or (buildDepError "text"))
