@@ -53,6 +53,7 @@ module Test.Integration.Framework.TestData
     , errMsg403UTxO
     , errMsg403WrongPass
     , errMsg403NoPendingAnymore
+    , errMsg403NothingToMigrate
     , errMsg404NoEndpoint
     , errMsg404CannotFindTx
     , errMsg404NoRootKey
@@ -340,6 +341,12 @@ errMsg403UTxO = "When creating new transactions, I'm not able to re-use the\
 errMsg403WrongPass :: String
 errMsg403WrongPass = "The given encryption passphrase doesn't match the one\
     \ I use to encrypt the root private key of the given wallet"
+
+errMsg403NothingToMigrate :: Text -> String
+errMsg403NothingToMigrate wid =
+    "I can't migrate the wallet with the given id: " ++ unpack wid ++
+    ", because it's either empty or full of small coins which wouldn't be \
+    \worth migrating."
 
 errMsg404NoEndpoint :: String
 errMsg404NoEndpoint = "I couldn't find the requested endpoint. If the endpoint\

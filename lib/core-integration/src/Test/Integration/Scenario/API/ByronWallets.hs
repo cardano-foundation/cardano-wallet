@@ -87,6 +87,7 @@ import Test.Integration.Framework.DSL
     )
 import Test.Integration.Framework.TestData
     ( arabicWalletName
+    , errMsg403NothingToMigrate
     , errMsg404NoEndpoint
     , errMsg404NoWallet
     , errMsg405
@@ -149,16 +150,17 @@ spec = do
                 ]
 
     it "BYRON_MIGRATE_02 - \
-        \migrating an empty wallet should not generate transactions."
+        \migrating an empty wallet should fail."
         $ \ctx -> do
             sourceWallet <- emptyByronWallet ctx
             targetWallet <- emptyWallet ctx
-            let payload = Json [json|{"passphrase": #{fixturePassphrase}}|]
+            let payload = Json [json|{"passphrase": "Secure Passphrase"}|]
             let ep = migrateByronWalletEp sourceWallet targetWallet
             r <- request @[ApiTransaction n] ctx ep Default payload
+            let srcId = sourceWallet ^. walletId
             verify r
-                [ expectResponseCode @IO HTTP.status202
-                , expectFieldSatisfy id null
+                [ expectResponseCode @IO HTTP.status403
+                , expectErrorMessage (errMsg403NothingToMigrate srcId)
                 ]
 
     it "BYRON_MIGRATE_03 - \
