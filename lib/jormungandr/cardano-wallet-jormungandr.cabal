@@ -135,6 +135,7 @@ test-suite unit
     , cardano-wallet-jormungandr
     , containers
     , directory
+    , filepath
     , fmt
     , generic-arbitrary
     , generic-lens

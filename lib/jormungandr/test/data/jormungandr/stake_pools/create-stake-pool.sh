@@ -16,17 +16,23 @@ set -euo pipefail
 # To create a stake pool in a folder "a":
 # .create-stake-pool.sh a
 #
+# To only regenerate the certificate only (using existing keys), run:
+# .create-stake-pool.sh a --update
 # For context, see also:
 # https://input-output-hk.github.io/jormungandr/stake_pool/registering_stake_pool.html
 
-echo "creating certificates for a new stake pool in the folder $1"
-mkdir $1
-cd $1
-
-jcli key generate --type=Curve25519_2HashDH > stake_pool_vrf.prv
-cat stake_pool_vrf.prv | jcli key to-public > stake_pool_vrf.pub
-jcli key generate --type=SumEd25519_12 > stake_pool_kes.prv
-cat stake_pool_kes.prv | jcli key to-public > stake_pool_kes.pub
+if [[ $* == *--update* ]]; then
+  echo "regenerating stake pool certificates the folder $1 using existing keys"
+  cd $1
+else
+  echo "creating certificates for a new stake pool in the folder $1"
+  mkdir $1
+  cd $1
+  jcli key generate --type=Curve25519_2HashDH > stake_pool_vrf.prv
+  cat stake_pool_vrf.prv | jcli key to-public > stake_pool_vrf.pub
+  jcli key generate --type=SumEd25519_12 > stake_pool_kes.prv
+  cat stake_pool_kes.prv | jcli key to-public > stake_pool_kes.pub
+fi
 
 jcli certificate new stake-pool-registration \
     --kes-key $(cat stake_pool_kes.pub) \
@@ -36,6 +42,6 @@ jcli certificate new stake-pool-registration \
     --owner $(cat ../owner.pub) \
     --management-threshold 1 > stake_pool.cert
 
-cat stake_pool.cert | jcli certificate sign ../owner.prv | tee stake_pool.cert > stake_pool_signed.cert
+cat stake_pool.cert | jcli certificate sign -k ../owner.prv | tee stake_pool.cert > stake_pool_signed.cert
 
 cat stake_pool.cert | jcli certificate get-stake-pool-id | tee stake_pool.id > pool_id

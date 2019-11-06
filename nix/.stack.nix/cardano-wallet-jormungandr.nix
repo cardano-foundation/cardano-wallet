@@ -133,6 +133,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."cardano-wallet-jormungandr" or (buildDepError "cardano-wallet-jormungandr"))
             (hsPkgs."containers" or (buildDepError "containers"))
             (hsPkgs."directory" or (buildDepError "directory"))
+            (hsPkgs."filepath" or (buildDepError "filepath"))
             (hsPkgs."fmt" or (buildDepError "fmt"))
             (hsPkgs."generic-arbitrary" or (buildDepError "generic-arbitrary"))
             (hsPkgs."generic-lens" or (buildDepError "generic-lens"))

@@ -102,6 +102,7 @@ module Test.Integration.Framework.DSL
     , prepExternalTxViaJcli
     , eventually
     , eventuallyUsingDelay
+    , fixturePassphrase
 
     -- * Endpoints
     , postByronWalletEp
@@ -109,7 +110,7 @@ module Test.Integration.Framework.DSL
     , migrateByronWalletEp
     , calculateByronMigrationCostEp
     , getByronWalletEp
-    , listByronWalletEp
+    , listByronWalletsEp
     , listByronTxEp
     , deleteByronWalletEp
     , deleteByronTxEp
@@ -316,7 +317,7 @@ import qualified System.FilePath as F
 -- API response expectations
 --
 
--- | Expect an errored response, without any further assumptions
+-- | Expect an error response, without any further assumptions.
 expectError
     :: (MonadIO m, MonadFail m, Show a)
     => (s, Either RequestException a)
@@ -325,7 +326,7 @@ expectError (_, res) = case res of
     Left _  -> return ()
     Right a -> wantedErrorButSuccess a
 
--- | Expect an errored response, without any further assumptions
+-- | Expect an error response, without any further assumptions.
 expectErrorMessage
     :: (MonadIO m, MonadFail m, Show a)
     => String
@@ -340,7 +341,7 @@ expectErrorMessage want (_, res) = case res of
         fail "expectErrorMessage: asserting HttpException not supported yet"
     Right a -> wantedErrorButSuccess a
 
--- | Expect a successful response, without any further assumptions
+-- | Expect a successful response, without any further assumptions.
 expectSuccess
     :: (MonadIO m, MonadFail m)
     => (s, Either RequestException a)
@@ -349,7 +350,7 @@ expectSuccess (_, res) = case res of
     Left e  -> wantedSuccessButError e
     Right _ -> return ()
 
--- | Expect a given response code on the response
+-- | Expect a given response code on the response.
 expectResponseCode
     :: (MonadIO m)
     => HTTP.Status
@@ -410,7 +411,7 @@ expectFieldNotEqual getter a (_, res) = case res of
     Right s -> (view getter s) `shouldNotBe` a
 
 -- | Expects that returned data list's particular item field
---   matches the expected value
+--   matches the expected value.
 --   e.g.
 --   expectListItemFieldEqual 0 walletName "first" response
 --   expectListItemFieldEqual 1 walletName "second" response
@@ -439,7 +440,8 @@ expectListItemFieldBetween
 expectListItemFieldBetween i getter (aMin, aMax) (c, res) = case res of
     Left e -> wantedSuccessButError e
     Right xs
-        | length xs > i -> expectFieldBetween getter (aMin, aMax) (c, Right (xs !! i))
+        | length xs > i ->
+            expectFieldBetween getter (aMin, aMax) (c, Right (xs !! i))
         | otherwise -> fail $
             "expectListItemFieldBetween: trying to access the #" <> show i <>
             " element from a list but there's none! "
@@ -454,7 +456,8 @@ expectListSizeEqual l (_, res) = case res of
     Left e   -> wantedSuccessButError e
     Right xs -> length (toList xs) `shouldBe` l
 
--- | Expects wallet UTxO statistics from the request to be equal to pre-calculated
+-- | Expects wallet UTxO statistics from the request to be equal to
+-- pre-calculated statistics.
 expectWalletUTxO
     :: (MonadIO m, MonadFail m)
     => [Word64]
@@ -469,13 +472,14 @@ expectWalletUTxO coins = \case
                 , TxOut addr (Coin c)
                 )
         let utxo = UTxO $ Map.fromList $ zipWith constructUtxoEntry [0..] coins
-        let (UTxOStatistics hist stakes bType) = computeUtxoStatistics log10 utxo
+        let (UTxOStatistics hist stakes bType) =
+                computeUtxoStatistics log10 utxo
         let distr = Map.fromList $ map (\(HistogramBar k v)-> (k,v)) hist
         (ApiUtxoStatistics (Quantity (fromIntegral stakes)) (ApiT bType) distr)
             `shouldBe` stats
 
 -- | Expects wallet from the request to eventually reach the given state or
--- beyond
+-- beyond.
 expectEventually
     :: forall ctx s a m. (MonadIO m, MonadCatch m, MonadFail m)
     => (Ord a, Show a, FromJSON s)
@@ -492,18 +496,19 @@ expectEventually ctx endpoint getter target (_, res) = case res of
         winner <- race (threadDelay $ 60 * oneSecond) (loopUntilRestore s)
         case winner of
             Left _ -> expectationFailure $
-                "waited more than 60s for value to exceed " <> show target
+                "waited more than 60s for value to reach or exceed "
+                    <> show target
             Right _ ->
                 return ()
   where
     loopUntilRestore :: s -> IO ()
     loopUntilRestore s = do
         r <- request @s ctx (endpoint s) Default Empty
-        let target' = getFromResponse getter r
-        unless (target' >= target) $
+        let current = getFromResponse getter r
+        unless (current >= target) $
             let ms = 1000 in threadDelay (500 * ms) *> loopUntilRestore s
 
--- | Like `expectEventually'` but the target is part of the response
+-- | Like 'expectEventually', but the target is part of the response.
 expectEventuallyL
     :: (MonadIO m, MonadCatch m, MonadFail m)
     => (Ord a, Show a)
@@ -518,7 +523,7 @@ expectEventuallyL ctx getter target s = liftIO $ do
     winner <- race (threadDelay $ 60 * oneSecond) (loopUntilRestore wid)
     case winner of
         Left _ -> expectationFailure
-            "waited more than 60s for value to exceed given target."
+            "waited more than 60s for value to reach or exceed given target."
         Right _ ->
             return ()
   where
@@ -528,8 +533,8 @@ expectEventuallyL ctx getter target s = liftIO $ do
         unless (getFromResponse getter r >= getFromResponse target r) $
             let ms = 1000 in threadDelay (500 * ms) *> loopUntilRestore wid
 
--- | Same as `expectEventually` but work directly on ApiWallet
--- , not response from the API
+-- | Same as 'expectEventually', but works directly on 'ApiWallet'
+-- rather than on a response from the API.
 expectEventually'
     :: forall ctx s a m. (MonadIO m, MonadCatch m, MonadFail m)
     => (Ord a, Show a, FromJSON s)
@@ -912,6 +917,12 @@ emptyWalletWith ctx (name, passphrase, addrPoolGap) = do
     expectResponseCode @IO HTTP.status202 r
     return (getFromResponse id r)
 
+-- | Default passphrase used for fixture wallets
+fixturePassphrase
+    :: Text
+fixturePassphrase =
+    "cardano-wallet"
+
 -- | Restore a faucet and wait until funds are available.
 fixtureWallet
     :: Context t
@@ -921,7 +932,7 @@ fixtureWallet ctx = do
     let payload = Json [aesonQQ| {
             "name": "Faucet Wallet",
             "mnemonic_sentence": #{mnemonics},
-            "passphrase": "cardano-wallet"
+            "passphrase": #{fixturePassphrase}
             } |]
     (_, w) <- unsafeRequest @ApiWallet ctx postWalletEp payload
     race (threadDelay sixtySeconds) (checkBalance w) >>= \case
@@ -935,7 +946,7 @@ fixtureWallet ctx = do
             then return (getFromResponse id r)
             else threadDelay oneSecond *> checkBalance w
 
--- | Restore a Byron faucet and wait until funds are available.
+-- | Restore a faucet Byron wallet and wait until funds are available.
 fixtureByronWallet
     :: Context t
     -> IO ApiByronWallet
@@ -944,7 +955,7 @@ fixtureByronWallet ctx = do
     let payload = Json [aesonQQ| {
             "name": "Faucet Byron Wallet",
             "mnemonic_sentence": #{mnemonics},
-            "passphrase": "cardano-wallet"
+            "passphrase": #{fixturePassphrase}
             } |]
     (_, w) <- unsafeRequest @ApiByronWallet ctx postByronWalletEp payload
     race (threadDelay sixtySeconds) (checkBalance w) >>= \case
@@ -990,7 +1001,8 @@ fixtureWalletWith ctx coins0 = do
         balance <- getFromResponse balanceAvailable
             <$> request @ApiWallet ctx (getWalletEp dest) Default Empty
         addrs <- fmap (view #id) . getFromResponse id
-            <$> request @[ApiAddress 'Testnet] ctx (getAddressesEp dest "") Default Empty
+            <$> request @[ApiAddress 'Testnet]
+                ctx (getAddressesEp dest "") Default Empty
         let payments = for (zip coins addrs) $ \(amt, addr) -> [aesonQQ|{
                 "address": #{addr},
                 "amount": {
@@ -1000,11 +1012,12 @@ fixtureWalletWith ctx coins0 = do
             }|]
         let payload = Json [aesonQQ|{
                 "payments": #{payments :: [Value]},
-                "passphrase": "cardano-wallet"
+                "passphrase": #{fixturePassphrase}
             }|]
         request @(ApiTransaction 'Testnet) ctx (postTxEp src) Default payload
             >>= expectResponseCode HTTP.status202
-        expectEventually' ctx getWalletEp balanceAvailable (sum (balance:coins)) dest
+        expectEventually'
+            ctx getWalletEp balanceAvailable (sum (balance:coins)) dest
         expectEventuallyL ctx balanceAvailable balanceTotal src
 
 -- | Total amount on each faucet wallet
@@ -1050,7 +1063,8 @@ listAddresses
     -> ApiWallet
     -> IO [ApiAddress 'Testnet]
 listAddresses ctx w = do
-    (_, addrs) <- unsafeRequest @[ApiAddress 'Testnet] ctx (getAddressesEp w "") Empty
+    (_, addrs) <- unsafeRequest
+        @[ApiAddress 'Testnet] ctx (getAddressesEp w "") Empty
     return addrs
 
 listAllTransactions
@@ -1164,8 +1178,8 @@ postByronWalletEp =
     , "v2/byron-wallets"
     )
 
-listByronWalletEp :: (Method, Text)
-listByronWalletEp =
+listByronWalletsEp :: (Method, Text)
+listByronWalletsEp =
     ( "GET"
     , "v2/byron-wallets"
     )
@@ -1210,7 +1224,8 @@ deleteByronWalletEp w =
 deleteByronTxEp :: ApiByronWallet -> ApiTxId -> (Method, Text)
 deleteByronTxEp w tid =
     ( "DELETE"
-    , "v2/byron-wallets/" <> w ^. walletId <> "/transactions/" <> (toUrlPiece tid)
+    , "v2/byron-wallets/" <> w ^. walletId <> "/transactions/" <>
+        (toUrlPiece tid)
     )
 
 listStakePoolsEp :: (Method, Text)
@@ -1333,17 +1348,18 @@ createWalletViaCLI ctx args mnemonics secondFactor passphrase = do
     let fullArgs =
             [ "wallet", "create" ] ++ portArgs ++ args
     let process = proc' (commandName @t) fullArgs
-    withCreateProcess process $ \(Just stdin) (Just stdout) (Just stderr) h -> do
-        hPutStr stdin mnemonics
-        hPutStr stdin secondFactor
-        hPutStr stdin (passphrase ++ "\n")
-        hPutStr stdin (passphrase ++ "\n")
-        hFlush stdin
-        hClose stdin
-        c <- waitForProcess h
-        out <- TIO.hGetContents stdout
-        err <- TIO.hGetContents stderr
-        return (c, T.unpack out, err)
+    withCreateProcess process $
+        \(Just stdin) (Just stdout) (Just stderr) h -> do
+            hPutStr stdin mnemonics
+            hPutStr stdin secondFactor
+            hPutStr stdin (passphrase ++ "\n")
+            hPutStr stdin (passphrase ++ "\n")
+            hFlush stdin
+            hClose stdin
+            c <- waitForProcess h
+            out <- TIO.hGetContents stdout
+            err <- TIO.hGetContents stderr
+            return (c, T.unpack out, err)
 
 deleteWalletViaCLI
     :: forall t r s. (CmdResult r, KnownCommand t, HasType (Port "wallet") s)
@@ -1374,8 +1390,8 @@ listAddressesViaCLI
     => s
     -> [String]
     -> IO r
-listAddressesViaCLI ctx args = cardanoWalletCLI @t
-    (["address", "list", "--port", show (ctx ^. typed @(Port "wallet"))] ++ args)
+listAddressesViaCLI ctx args = cardanoWalletCLI @t $
+    ["address", "list", "--port", show (ctx ^. typed @(Port "wallet"))] ++ args
 
 listStakePoolsViaCLI
     :: forall t r s. (CmdResult r, KnownCommand t, HasType (Port "wallet") s)
@@ -1443,14 +1459,15 @@ postTransactionViaCLI ctx passphrase args = do
     let fullArgs =
             ["transaction", "create"] ++ portArgs ++ args
     let process = proc' (commandName @t) fullArgs
-    withCreateProcess process $ \(Just stdin) (Just stdout) (Just stderr) h -> do
-        hPutStr stdin (passphrase ++ "\n")
-        hFlush stdin
-        hClose stdin
-        c <- waitForProcess h
-        out <- TIO.hGetContents stdout
-        err <- TIO.hGetContents stderr
-        return (c, T.unpack out, err)
+    withCreateProcess process $
+        \(Just stdin) (Just stdout) (Just stderr) h -> do
+            hPutStr stdin (passphrase ++ "\n")
+            hFlush stdin
+            hClose stdin
+            c <- waitForProcess h
+            out <- TIO.hGetContents stdout
+            err <- TIO.hGetContents stderr
+            return (c, T.unpack out, err)
 
 postTransactionFeeViaCLI
     :: forall t s. (HasType (Port "wallet") s, KnownCommand t)
@@ -1542,7 +1559,8 @@ collectStreams (nOut0, nErr0) p = do
             ((out, nOut'), (err, nErr')) <- concurrently
                 (getNextLine nOut stdout)
                 (getNextLine nErr stderr)
-            modifyMVar_ mvar (\(out0, err0) -> return (out0 <> out, err0 <> err))
+            modifyMVar_ mvar (\(out0, err0) ->
+                return (out0 <> out, err0 <> err))
             collect mvar ((stdout, nOut'), (stderr, nErr')) ph
 
     getNextLine :: Int -> Handle -> IO (Text, Int)
@@ -1554,11 +1572,11 @@ collectStreams (nOut0, nErr0) p = do
                 Left _  -> (mempty, n)
                 Right l -> (l, n-1)
 
--- | Like `shouldContain`, but with 'Text'
+-- | Like 'shouldContain', but with 'Text'.
 shouldContainT :: HasCallStack => Text -> Text -> IO ()
 shouldContainT a b = T.unpack a `shouldContain` T.unpack b
 
--- | Like `shouldNotContain`, but with 'Text'
+-- | Like 'shouldNotContain', but with 'Text'.
 shouldNotContainT :: HasCallStack => Text -> Text -> IO ()
 shouldNotContainT a b = T.unpack a `shouldNotContain` T.unpack b
 

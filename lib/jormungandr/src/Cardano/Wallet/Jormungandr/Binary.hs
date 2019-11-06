@@ -301,9 +301,13 @@ getMessage = label "getMessage" $ do
         0 -> Initial <$> getInitial
         1 -> Transaction <$> getLegacyTransaction fragId
         2 -> Transaction <$> getTransaction fragId
-        3 -> unimpl -- Certificate
+        3 -> unimpl -- OwnerStakeDelegation
         4 -> StakeDelegation <$> getStakeDelegation fragId
-        5 -> unimpl -- UpdateVote
+        5 -> unimpl -- PoolRegistration
+        6 -> unimpl -- PoolRetirement
+        7 -> unimpl -- PoolUpdate
+        8 -> unimpl -- UpdateProposal
+        9 -> unimpl -- UpdateVote
         other -> fail $ "Unexpected content type tag " ++ show other
 
 messageTypeTag :: MessageType -> Word8
@@ -355,6 +359,11 @@ getStakeDelegation tid = do
         accId <- getByteString 32
         poolId <- getByteString 32
         (tx, wits) <- getGenericTransaction tid
+        -- NOTE
+        -- Haven't quite figured what these 64 bytes are. We need some help or
+        -- documentation from Jörmungandr's team as this will be needed to fix
+        -- 'putStakeDelegationTx'.
+        _ <- getByteString 64
         pure (PoolId poolId, ChimericAccount accId, tx, wits )
 
 putStakeCertificate
@@ -375,6 +384,9 @@ putStakeDelegationTx
 putStakeDelegationTx poolId accId inputs outputs witnesses = do
     putStakeCertificate poolId accId
     putSignedTx inputs outputs witnesses
+    -- FIXME
+    -- Likely, some authentication payload is needed here but this is somewhat
+    -- hard to figure out with the current state of affairs in Jörmungandr...
 
 -- | Decode the contents of a @Transaction@-message.
 getTransaction :: Hash "Tx" -> Get (Tx, [TxWitness])
@@ -515,6 +527,7 @@ data ConfigParam
     | KesUpdateSpeed (Quantity "second/update" Word32)
     -- ^ Maximum number of seconds per update for KES keys known by the system
     -- after start time.
+    | UnimplementedConfigParam  Word16
     deriving (Eq, Show)
 
 getConfigParam :: Get ConfigParam
@@ -527,6 +540,7 @@ getConfigParam = label "getConfigParam" $ do
     taglen <- getWord16be
     let tag = taglen `shift` (-6)
     let len = fromIntegral $ taglen .&. (63) -- 0b111111
+    let unimpl = skip len >> return (UnimplementedConfigParam tag)
     isolate len $ case tag of
         1 -> Discrimination <$> getNetworkDiscriminant
         2 -> Block0Date . W.StartTime . posixSecondsToUTCTime . fromIntegral
@@ -544,6 +558,10 @@ getConfigParam = label "getConfigParam" $ do
         14 -> ConfigLinearFee <$> getLinearFee
         15 -> ProposalExpiration . Quantity <$> getWord32be
         16 -> KesUpdateSpeed . Quantity <$> getWord32be
+        17 -> unimpl -- treasury
+        18 -> unimpl -- treasury params
+        19 -> unimpl -- reward pot
+        20 -> unimpl -- reward params
         other -> fail $ "Invalid config param with tag " ++ show other
   where
     -- NOTE

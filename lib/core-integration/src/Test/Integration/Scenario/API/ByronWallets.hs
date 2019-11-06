@@ -32,8 +32,6 @@ import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Maybe
     ( mapMaybe )
-import Data.Quantity
-    ( Quantity (..) )
 import Data.Text
     ( Text )
 import Data.Word
@@ -58,6 +56,7 @@ import Test.Integration.Framework.DSL
     , emptyByronWalletWith
     , emptyWallet
     , emptyWalletWith
+    , eventually
     , expectErrorMessage
     , expectEventually
     , expectFieldEqual
@@ -67,10 +66,12 @@ import Test.Integration.Framework.DSL
     , expectListSizeEqual
     , expectResponseCode
     , fixtureByronWallet
+    , fixturePassphrase
     , getByronWalletEp
     , getFromResponse
+    , getWalletEp
     , json
-    , listByronWalletEp
+    , listByronWalletsEp
     , listWalletsEp
     , migrateByronWalletEp
     , passphraseLastUpdate
@@ -132,36 +133,35 @@ spec = do
                 . fmap (view amount)
                 . ApiTypes.outputs
 
-    it "BYRON_ESTIMATE_01 - \
+    it "BYRON_MIGRATE_01 - \
         \migrating an empty wallet should generate a fee of zero."
         $ \ctx -> do
             w <- emptyByronWallet ctx
-            r@(_, Right (ApiByronWalletMigrationInfo fee)) <-
-                request ctx (calculateByronMigrationCostEp w) Default Empty
-            expectResponseCode @IO HTTP.status200 r
-            fee `shouldBe` Quantity 0
+            let ep = calculateByronMigrationCostEp w
+            r <- request @ApiByronWalletMigrationInfo ctx ep Default Empty
+            verify r
+                [ expectResponseCode @IO HTTP.status200
+                , expectFieldEqual amount 0
+                ]
 
-    it "BYRON_ESTIMATE_02 - \
+    it "BYRON_MIGRATE_02 - \
         \migrating an empty wallet should not generate transactions."
         $ \ctx -> do
-            mnemonic <- genMnemonics
-            sourceWallet <- emptyByronWalletWith
-                ctx ("byron-wallet-name", mnemonic, "Secure Passphrase")
+            sourceWallet <- emptyByronWallet ctx
             targetWallet <- emptyWallet ctx
-            let payload = Json [json| {
-                    "passphrase": "Secure Passphrase"
-                }|]
-            r@(_, Right transactions) <- request @[ApiTransaction n] ctx
-                (migrateByronWalletEp sourceWallet targetWallet) Default payload
-            expectResponseCode @IO HTTP.status202 r
-            transactions `shouldBe` []
+            let payload = Json [json|{"passphrase": #{fixturePassphrase}}|]
+            let ep = migrateByronWalletEp sourceWallet targetWallet
+            r <- request @[ApiTransaction n] ctx ep Default payload
+            verify r
+                [ expectResponseCode @IO HTTP.status202
+                , expectFieldSatisfy id null
+                ]
 
-    it "BYRON_ESTIMATE_03 - \
+    it "BYRON_MIGRATE_03 - \
         \actual fee for migration is the same as the predicted fee."
         $ \ctx -> do
             -- Restore a Byron wallet with funds.
             sourceWallet <- fixtureByronWallet ctx
-            let passphrase = "cardano-wallet" :: String
 
             -- Request a migration fee prediction.
             let ep0 = (calculateByronMigrationCostEp sourceWallet)
@@ -173,7 +173,7 @@ spec = do
 
             -- Perform the migration.
             targetWallet <- emptyWallet ctx
-            let payload = Json [aesonQQ|{"passphrase": #{passphrase}}|]
+            let payload = Json [json|{"passphrase": #{fixturePassphrase}}|]
             let ep1 = migrateByronWalletEp sourceWallet targetWallet
             r1 <- request @[ApiTransaction n] ctx ep1 Default payload
             verify r1
@@ -188,7 +188,72 @@ spec = do
                     getFromResponse amount r0
             actualFee `shouldBe` predictedFee
 
-    describe "BYRON_ESTIMATE_06 - non-existing wallets" $  do
+    it "BYRON_MIGRATE_04 - \
+        \a migration operation removes all funds from the source wallet."
+        $ \ctx -> do
+            -- Restore a Byron wallet with funds, to act as a source wallet:
+            sourceWallet <- fixtureByronWallet ctx
+
+            -- Perform a migration from the source wallet to a target wallet:
+            targetWallet <- emptyWallet ctx
+            r0 <- request @[ApiTransaction n] ctx
+                (migrateByronWalletEp sourceWallet targetWallet )
+                Default
+                (Json [json|{"passphrase": #{fixturePassphrase}}|])
+            verify r0
+                [ expectResponseCode @IO HTTP.status202
+                , expectFieldSatisfy id (not . null)
+                ]
+
+            -- Verify that the source wallet has no funds available:
+            r1 <- request @ApiByronWallet ctx
+                (getByronWalletEp sourceWallet) Default Empty
+            verify r1
+                [ expectResponseCode @IO HTTP.status200
+                , expectFieldSatisfy balanceAvailable (== 0)
+                ]
+
+    it "BYRON_MIGRATE_05 - \
+        \after a migration operation successfully completes, the correct \
+        \amount eventually becomes available in the target wallet."
+        $ \ctx -> do
+            -- Restore a Byron wallet with funds, to act as a source wallet:
+            sourceWallet <- fixtureByronWallet ctx
+            let originalBalance = view balanceAvailable sourceWallet
+
+            -- Create an empty target wallet:
+            targetWallet <- emptyWallet ctx
+
+            -- Calculate the expected migration fee:
+            r0 <- request @ApiByronWalletMigrationInfo ctx
+                (calculateByronMigrationCostEp sourceWallet) Default Empty
+            verify r0
+                [ expectResponseCode @IO HTTP.status200
+                , expectFieldSatisfy amount (> 0)
+                ]
+            let expectedFee = getFromResponse amount r0
+
+            -- Perform a migration from the source wallet to the target wallet:
+            r1 <- request @[ApiTransaction n] ctx
+                (migrateByronWalletEp sourceWallet targetWallet)
+                Default
+                (Json [aesonQQ|{"passphrase": #{fixturePassphrase}}|])
+            verify r1
+                [ expectResponseCode @IO HTTP.status202
+                , expectFieldSatisfy id (not . null)
+                ]
+
+            -- Check that funds become available in the target wallet:
+            let expectedBalance = originalBalance - expectedFee
+            eventually $ do
+                r2 <- request @ApiWallet ctx
+                    (getWalletEp targetWallet) Default Empty
+                verify r2
+                    [ expectFieldEqual balanceAvailable expectedBalance
+                    , expectFieldEqual balanceTotal     expectedBalance
+                    ]
+
+    describe "BYRON_MIGRATE_06 - non-existing wallets" $  do
         forM_ (take 1 falseWalletIds) $ \(desc, walId) -> it desc $ \ctx -> do
             let endpoint = "v2/byron-wallets/" <> T.pack walId <> "/migrations"
             rg <- request @ApiByronWallet ctx ("GET", endpoint) Default Empty
@@ -258,7 +323,7 @@ spec = do
             _ <- emptyByronWalletWith ctx ("b2", m2, "Secure Passphrase")
             _ <- emptyByronWalletWith ctx ("b3", m3, "Secure Passphrase")
 
-            rl <- request @[ApiByronWallet] ctx listByronWalletEp Default Empty
+            rl <- request @[ApiByronWallet] ctx listByronWalletsEp Default Empty
             verify rl
                 [ expectResponseCode @IO HTTP.status200
                 , expectListSizeEqual 3
@@ -282,7 +347,7 @@ spec = do
         _ <- emptyWalletWith ctx ("shelley3", "Secure Passphrase", 20)
 
         --list only byron
-        rl <- request @[ApiByronWallet] ctx listByronWalletEp Default Empty
+        rl <- request @[ApiByronWallet] ctx listByronWalletsEp Default Empty
         verify rl
             [ expectResponseCode @IO HTTP.status200
             , expectListSizeEqual 3
@@ -318,7 +383,7 @@ spec = do
         _ <- request @ApiWallet ctx (deleteWalletEp ws3) Default Empty
 
         --list only byron
-        rdl <- request @[ApiByronWallet] ctx listByronWalletEp Default Empty
+        rdl <- request @[ApiByronWallet] ctx listByronWalletsEp Default Empty
         verify rdl
             [ expectResponseCode @IO HTTP.status200
             , expectListSizeEqual 2
@@ -398,7 +463,7 @@ spec = do
         rg <- request @ApiByronWallet ctx (getByronWalletEp w) Default Empty
         verify rg $ (expectResponseCode @IO HTTP.status200) : expectations
         -- list
-        rl <- request @[ApiByronWallet] ctx listByronWalletEp Default Empty
+        rl <- request @[ApiByronWallet] ctx listByronWalletsEp Default Empty
         verify rl
             [ expectResponseCode @IO HTTP.status200
             , expectListSizeEqual 1
