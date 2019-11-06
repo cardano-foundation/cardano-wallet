@@ -946,7 +946,7 @@ fixtureWallet ctx = do
             then return (getFromResponse id r)
             else threadDelay oneSecond *> checkBalance w
 
--- | Restore a faucet Byron wallet and wait until funds are available
+-- | Restore a faucet Byron wallet and wait until funds are available.
 fixtureByronWallet
     :: Context t
     -> IO ApiByronWallet
