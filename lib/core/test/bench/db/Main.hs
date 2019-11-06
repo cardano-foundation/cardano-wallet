@@ -57,7 +57,11 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , XPub
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..), generateKeyFromSeed, unsafeGenerateKeyFromSeed )
+    ( ShelleyKey (..)
+    , addrGroupedSize
+    , generateKeyFromSeed
+    , unsafeGenerateKeyFromSeed
+    )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , SeqState (..)
@@ -138,6 +142,8 @@ import System.IO.Temp
     ( emptySystemTempFile )
 import System.IO.Unsafe
     ( unsafePerformIO )
+import System.Random
+    ( mkStdGen, randoms )
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Data.ByteArray as BA
@@ -418,9 +424,7 @@ mkInputs prefix n =
 
 mkOutputs :: Int -> Int -> [TxOut]
 mkOutputs prefix n =
-    [force (TxOut (Address (label lbl i)) (Coin 1)) | !i <- [1..n]]
-  where
-    lbl = show prefix <> "in"
+    [force (TxOut (mkAddress prefix i) (Coin 1)) | !i <- [1..n]]
 
 withTxHistory :: DBLayerBench -> Int -> [Word64] -> Benchmark -> Benchmark
 withTxHistory db bSize range = env setup . const
@@ -488,9 +492,7 @@ mkPool
     => Int -> Int -> AddressPool t c ShelleyKey
 mkPool numAddrs i = mkAddressPool ourAccount defaultAddressPoolGap addrs
   where
-    addrs =
-        [ Address (label "addr-" (show i ++ "-" ++ show j))
-        | j <- [1..numAddrs] ]
+    addrs = [ mkAddress i j | j <- [1..numAddrs] ]
 
 ----------------------------------------------------------------------------
 -- Disk space usage tests
@@ -611,6 +613,14 @@ ourAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, mempty) mempty
 -- | Make a prefixed bytestring for use as a Hash or Address.
 label :: Show n => String -> n -> B8.ByteString
 label prefix n = B8.pack (prefix <> show n)
+
+mkAddress :: Int -> Int -> Address
+mkAddress i j =
+    Address $ B8.pack $ take addrGroupedSize $ randoms $ mkStdGen seed
+  where
+    -- Generate a seed using two prime numbers and a pair of index. This should
+    -- lead to a satisfactory entropy.
+    seed = 1459*i + 1153*j
 
 -- | Arbitrary epoch length for testing
 epochLength :: EpochLength

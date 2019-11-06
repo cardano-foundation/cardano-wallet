@@ -436,7 +436,7 @@ unsafePaymentKeyFingerprint
 unsafePaymentKeyFingerprint addr = case paymentKeyFingerprint @k addr of
     Right a -> a
     Left err -> error $ unwords
-        [ "unsafePaymentKeyFingerprint was given addresses invalid with its "
+        [ "unsafePaymentKeyFingerprint was given addresses invalid with its"
         , "key type:"
         , show err
         ]

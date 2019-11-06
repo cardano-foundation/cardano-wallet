@@ -272,6 +272,7 @@ benchmark db
     , fmt
     , iohk-monitoring
     , memory
+    , random
     , split
     , temporary
     , text
