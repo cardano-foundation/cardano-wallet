@@ -89,12 +89,15 @@ let
       echo "file binary-dist $out/${tarname}" > $out/nix-support/hydra-build-products
     '';
 
+    # Build and cache the build script used on Buildkite
+    buildkiteScript = import ./.buildkite/default.nix {
+      walletPackages = project;
+    };
   }
   # Build the shell derivation in Hydra so that all its dependencies
   # are cached.
   // mapTestOn (packagePlatforms {
-    inherit (project) shell;
-    stackShell = import ./nix/stack-shell.nix {};
+    inherit (project) shell stackShell;
   });
 
 in jobs

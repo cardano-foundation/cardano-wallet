@@ -21,36 +21,42 @@ let
     inherit pkgs src jmPkgs;
   };
 
-in {
-  inherit pkgs iohkLib src haskellPackages;
-  inherit jormungandr jormungandr-cli;
-  inherit (haskellPackages.cardano-wallet-core.identifier) version;
+  self = {
+    inherit pkgs iohkLib src haskellPackages;
+    inherit jormungandr jormungandr-cli;
+    inherit (haskellPackages.cardano-wallet-core.identifier) version;
 
-  cardano-wallet-jormungandr = import ./nix/package-jormungandr.nix {
-    inherit (haskellPackages.cardano-wallet-jormungandr.components.exes)
-      cardano-wallet-jormungandr;
-    inherit pkgs jmPkgs gitrev;
-    haskellBuildUtils = iohkLib.haskellBuildUtils.package;
+    cardano-wallet-jormungandr = import ./nix/package-jormungandr.nix {
+      inherit (haskellPackages.cardano-wallet-jormungandr.components.exes)
+        cardano-wallet-jormungandr;
+      inherit pkgs jmPkgs gitrev;
+      haskellBuildUtils = iohkLib.haskellBuildUtils.package;
+    };
+
+    tests = collectComponents "tests" isCardanoWallet haskellPackages;
+    benchmarks = collectComponents "benchmarks" isCardanoWallet haskellPackages;
+
+    shell = haskellPackages.shellFor {
+      name = "cardano-wallet-shell";
+      packages = ps: with ps; [
+        bech32
+        cardano-wallet-cli
+        cardano-wallet-core
+        cardano-wallet-core-integration
+        cardano-wallet-jormungandr
+        cardano-wallet-launcher
+        cardano-wallet-test-utils
+        text-class
+      ];
+      buildInputs = (with pkgs.haskellPackages; [ stylish-haskell weeder ghcid ])
+        ++ (with iohkLib; [ hlint openapi-spec-validator ])
+        ++ [ jormungandr jormungandr-cli
+             pkgs.pkgconfig pkgs.sqlite-interactive ];
+    };
+    stackShell = import ./nix/stack-shell.nix {
+      walletPackages = self;
+    };
   };
 
-  tests = collectComponents "tests" isCardanoWallet haskellPackages;
-  benchmarks = collectComponents "benchmarks" isCardanoWallet haskellPackages;
-
-  shell = haskellPackages.shellFor {
-    name = "cardano-wallet-shell";
-    packages = ps: with ps; [
-      bech32
-      cardano-wallet-cli
-      cardano-wallet-core
-      cardano-wallet-core-integration
-      cardano-wallet-jormungandr
-      cardano-wallet-launcher
-      cardano-wallet-test-utils
-      text-class
-    ];
-    buildInputs = (with pkgs.haskellPackages; [ stylish-haskell weeder ghcid ])
-      ++ (with iohkLib; [ hlint openapi-spec-validator ])
-      ++ [ jormungandr jormungandr-cli
-           pkgs.pkgconfig pkgs.sqlite-interactive ];
-  };
-}
+in
+  self
