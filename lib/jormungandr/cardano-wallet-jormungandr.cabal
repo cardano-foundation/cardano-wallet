@@ -56,6 +56,7 @@ library
     , iohk-monitoring
     , lifted-base
     , monad-control
+    , monad-loops
     , memory
     , network
     , safe
