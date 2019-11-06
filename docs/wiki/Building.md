@@ -28,7 +28,7 @@ to install Nix and set up the IOHK binary cache.
 To build the wallet for your current platform:
 
 ```
-nix-build -A cardano-wallet
+nix-build -A cardano-wallet-jormungandr
 ```
 
 If you have no local changes in your git repo, then this will download
@@ -37,14 +37,21 @@ the build from the Hydra cache rather than building locally.
 To build the wallet for Windows, from Linux:
 
 ```
-nix-build release.nix -A x86_64-pc-mingw32.cardano-wallet.x86_64-linux
+nix-build release.nix -A x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-linux
 ```
 
 To build another branch (replace `master` with the branch name or commit hash):
 
 ```
-nix-build https://github.com/input-output-hk/cardano-wallet/archive/master.tar.gz -A cardano-wallet
+nix-build https://github.com/input-output-hk/cardano-wallet/archive/master.tar.gz -A cardano-wallet-jormungandr
 ```
+
+The Hydra [Jobset page](https://hydra.iohk.io/jobset/Cardano/cardano-wallet#tabs-jobs)
+shows all jobs defined in `release.nix`. Some of the release jobs have a download link.
+
+- [Windows](https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-jormungandr-win64/latest)
+- [macOS](https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-jormungandr-macos64/latest)
+
 
 ### Code generation
 
@@ -93,9 +100,9 @@ for `cardano-wallet`. This will contain:
 - a GHC configured with a package database containing all Haskell package dependencies;
 - system library dependencies;
 - a Hoogle index and `hoogle` command for searching documentation;
-- development tools such as `hlint`, `stylish-haskell`, and `ghcid`;
+- development tools such as `hlint`, `stylish-haskell`, and `weeder`;
 - the `sqlite3` command; and
-- the cardano node backends `cardano-http-bridge`, `jormungandr`, and `cardano-sl-node`.
+- the node backend `jormungandr`, and `jcli`.
 
 Inside this shell you can use `cabal new-build` and `ghci` for development.
 
