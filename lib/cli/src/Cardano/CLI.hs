@@ -171,7 +171,11 @@ import GHC.Generics
 import GHC.TypeLits
     ( Symbol )
 import Network.HTTP.Client
-    ( defaultManagerSettings, newManager )
+    ( defaultManagerSettings
+    , managerResponseTimeout
+    , newManager
+    , responseTimeoutNone
+    )
 import Options.Applicative
     ( ArgumentFields
     , CommandFields
@@ -1090,7 +1094,8 @@ sendRequest
     -> ClientM a
     -> IO (Either ServantError a)
 sendRequest (Port p) cmd = do
-    manager <- newManager defaultManagerSettings
+    manager <- newManager $ defaultManagerSettings
+        { managerResponseTimeout = responseTimeoutNone }
     let env = mkClientEnv manager (BaseUrl Http "localhost" p "")
     runClientM cmd env
 
