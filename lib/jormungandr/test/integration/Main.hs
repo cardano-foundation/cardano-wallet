@@ -53,7 +53,11 @@ import Data.Text
 import GHC.IO.Encoding
     ( mkTextEncoding, setLocaleEncoding )
 import Network.HTTP.Client
-    ( defaultManagerSettings, newManager )
+    ( defaultManagerSettings
+    , managerResponseTimeout
+    , newManager
+    , responseTimeoutMicro
+    )
 import Network.Socket
     ( SockAddr (..) )
 import Numeric.Natural
@@ -135,7 +139,11 @@ specWithServer logCfg = aroundAll withContext . after tearDown
         ctx <- newEmptyMVar
         let setupContext wAddr nPort bp = do
                 let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
-                manager <- (baseUrl,) <$> newManager defaultManagerSettings
+                let sixtySeconds = 60*1000*1000 -- 60s in microseconds
+                manager <- (baseUrl,) <$> newManager (defaultManagerSettings
+                    { managerResponseTimeout =
+                        responseTimeoutMicro sixtySeconds
+                    })
                 faucet <- initFaucet
                 putMVar ctx $ Context
                     { _cleanup = pure ()
