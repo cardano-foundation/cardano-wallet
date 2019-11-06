@@ -214,7 +214,7 @@ readMessage :: Handle -> IO BL.ByteString
 readMessage = if isWindows then windowsReadMessage else posixReadMessage
 
 isWindows :: Bool
-isWindows = os == "windows"
+isWindows = os == "mingw32"
 
 windowsReadMessage :: Handle -> IO BL.ByteString
 windowsReadMessage handle = do
