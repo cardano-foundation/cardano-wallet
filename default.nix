@@ -48,8 +48,12 @@ let
         cardano-wallet-test-utils
         text-class
       ];
-      buildInputs = (with pkgs.haskellPackages; [ stylish-haskell weeder ghcid ])
-        ++ (with iohkLib; [ hlint openapi-spec-validator ])
+      buildInputs = (with pkgs.haskell-nix.haskellPackages; [
+          stylish-haskell.components.exes.stylish-haskell
+          weeder.components.exes.weeder
+          hlint.components.exes.hlint
+        ])
+        ++ (with iohkLib; [ openapi-spec-validator ])
         ++ [ jormungandr jormungandr-cli
              pkgs.pkgconfig pkgs.sqlite-interactive ];
     };
