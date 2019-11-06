@@ -25,13 +25,6 @@ let
     "${mingwW64.config}" = mapTestOnCross mingwW64 (packagePlatformsCross project);
   }
   // {
-    ci-tools = {
-      inherit (import ./nix/iohk-common.nix {}) hlint;
-      inherit ((import ./nix/nixpkgs-haskell.nix {}).haskellPackages) stylish-haskell;
-    };
-    inherit ((import ./. {}).pkgs.haskell-nix) haskellNixRoots;
-    stackShell = import ./nix/stack-shell.nix {};
-
     # This aggregate job is what IOHK Hydra uses to update
     # the CI status in GitHub.
     required = mkRequiredJob (
@@ -60,6 +53,9 @@ let
   }
   # Build the shell derivation in Hydra so that all its dependencies
   # are cached.
-  // mapTestOn (packagePlatforms { inherit (project) shell; });
+  // mapTestOn (packagePlatforms {
+    inherit (project) shell;
+    stackShell = import ./nix/stack-shell.nix {};
+  });
 
 in jobs

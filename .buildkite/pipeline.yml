@@ -21,12 +21,12 @@ steps:
       system: x86_64-linux
 
   - label: 'Check Stylish Haskell'
-    command: 'nix-shell -A ci-shell --run .buildkite/check-stylish.sh'
+    command: 'nix-shell --run .buildkite/check-stylish.sh'
     agents:
       system: x86_64-linux
 
   - label: 'HLint'
-    command: 'nix-shell -A ci-shell --run "hlint lib"'
+    command: 'nix-shell --run "hlint lib"'
     agents:
       system: x86_64-linux
 
