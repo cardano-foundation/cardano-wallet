@@ -88,6 +88,7 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( arabicWalletName
     , errMsg403NothingToMigrate
+    , errMsg403WrongPass
     , errMsg404NoEndpoint
     , errMsg404NoWallet
     , errMsg405
@@ -339,6 +340,21 @@ spec = do
             Default
             Empty >>= flip verify
             [ expectFieldSatisfy #distribution ((== (Just 400)). Map.lookup 10000000000)
+            ]
+
+    it "BYRON_MIGRATE_08 - fails with a wrong passphrase" $ \ctx -> do
+        -- Restore a Byron wallet with funds, to act as a source wallet:
+        sourceWallet <- fixtureByronWallet ctx
+
+        -- Perform a migration from the source wallet to a target wallet:
+        targetWallet <- emptyWallet ctx
+        r0 <- request @[ApiTransaction n] ctx
+            (migrateByronWalletEp sourceWallet targetWallet )
+            Default
+            (Json [json|{"passphrase": "not-the-right-passphrase"}|])
+        verify r0
+            [ expectResponseCode @IO HTTP.status403
+            , expectErrorMessage errMsg403WrongPass
             ]
 
     it "BYRON_GET_02 - Byron ep does not show Shelley wallet" $ \ctx -> do
