@@ -19,7 +19,7 @@ module Cardano.Launcher
 
     -- * Program startup
     , installSignalHandlers
-    , setUtf8Encoding
+    , withUtf8Encoding
 
     -- * Logging
     , LauncherLog(..)
@@ -69,7 +69,8 @@ import System.Exit
     ( ExitCode (..) )
 import System.IO
     ( hSetEncoding, mkTextEncoding, stderr, stdin, stdout )
-
+import System.IO.CodePage
+    ( withCP65001 )
 import System.Process
     ( CreateProcess (..)
     , StdStream (..)
@@ -82,8 +83,6 @@ import System.Process
 #ifdef WINDOWS
 import Cardano.Launcher.Windows
     ( installSignalHandlers )
-import System.Win32.Console
-    ( setConsoleCP, setConsoleOutputCP )
 #else
 import Cardano.Launcher.POSIX
     ( installSignalHandlers )
@@ -250,16 +249,8 @@ launcherLogText MsgLauncherCleanup = "Terminating child process"
 -- other settings.
 --
 -- On Windows the current console code page is changed to UTF-8.
-setUtf8Encoding :: IO ()
-#if WINDOWS
-setUtf8Encoding = do
-    let utf8CodePage = 65001
-    setConsoleCP utf8CodePage
-    setConsoleOutputCP utf8CodePage
-    setUtf8EncodingHandles
-#else
-setUtf8Encoding = setUtf8EncodingHandles
-#endif
+withUtf8Encoding :: IO a -> IO a
+withUtf8Encoding action = withCP65001 (setUtf8EncodingHandles >> action)
 
 setUtf8EncodingHandles :: IO ()
 setUtf8EncodingHandles = do
