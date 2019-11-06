@@ -110,6 +110,9 @@ module Cardano.Wallet
 
     -- ** Root Key
     , withRootKey
+
+    -- ** Stake Pools
+    , ErrJoinStakePool (..)
     ) where
 
 import Prelude hiding
@@ -184,6 +187,7 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , FeePolicy (LinearFee)
     , Hash (..)
+    , PoolId
     , Range (..)
     , SealedTx
     , SlotId (..)
@@ -1084,6 +1088,11 @@ data ErrStartTimeLaterThanEndTime = ErrStartTimeLaterThanEndTime
     { errStartTime :: UTCTime
     , errEndTime :: UTCTime
     } deriving (Show, Eq)
+
+-- | Errors that can occur when trying to join stake pool.
+newtype ErrJoinStakePool
+    = ErrJoinStakePoolNoPoolId PoolId
+    deriving (Show, Eq)
 
 {-------------------------------------------------------------------------------
                                    Utils

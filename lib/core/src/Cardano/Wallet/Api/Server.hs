@@ -50,6 +50,7 @@ import Cardano.Wallet
     , ErrCreateUnsignedTx (..)
     , ErrDecodeSignedTx (..)
     , ErrEstimateTxFee (..)
+    , ErrJoinStakePool (..)
     , ErrListTransactions (..)
     , ErrListUTxOStatistics (..)
     , ErrMkStdTx (..)
@@ -287,6 +288,7 @@ import qualified Cardano.Wallet.Registry as Registry
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
@@ -765,7 +767,7 @@ pools
     -> Server (StakePoolApi n)
 pools spl =
     listPools spl
-    :<|> joinStakePool
+    :<|> joinStakePool spl
     :<|> quitStakePool
 
 listPools
@@ -790,11 +792,18 @@ joinStakePool
         ( PaymentAddress n k
         , k ~ ShelleyKey
         )
-    => ApiT PoolId
+    => StakePoolLayer IO
+    -> ApiT PoolId
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
-joinStakePool _ _ _ = throwError err501
+joinStakePool spl (ApiT poolId) _ _ = do
+    allPools <- listPools spl
+    case L.find (\(ApiStakePool pId _ _) -> pId == ApiT poolId) allPools of
+        Nothing ->
+            liftHandler $ throwE (ErrJoinStakePoolNoPoolId poolId)
+        Just _ ->
+            throwError err501
 
 quitStakePool
     :: forall n k.
@@ -1577,6 +1586,14 @@ instance LiftHandler ErrMetricsInconsistency where
                 , "I recorded that some blocks were produced by "
                 , toText producer
                 , " but the node doesn't know about this stake pool!"
+                ]
+
+instance LiftHandler ErrJoinStakePool where
+    handler = \case
+        ErrJoinStakePoolNoPoolId poolId ->
+            apiError err404 NoSuchPool $ mconcat
+                [ "I couldn't find a stake pool with the given id: "
+                , toText poolId
                 ]
 
 instance LiftHandler (Request, ServantErr) where
