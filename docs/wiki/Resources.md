@@ -15,7 +15,7 @@ Jörmungandr
 - [REST API](https://redocly.github.io/redoc/?url=https://raw.githubusercontent.com/input-output-hk/jormungandr/master/doc/openapi.yaml)
 - [Protocol Buffer Specifications](https://github.com/input-output-hk/chain-libs/blob/master/network-grpc/proto/node.proto)
 - [Low-Level Specifications](https://github.com/input-output-hk/chain-libs/blob/master/chain-impl-mockchain/doc)
-  - [On-Chain Binary Formats](https://github.com/input-output-hk/chain-libs/blob/master/chain-impl-mockchain/doc/format.md)
+  - [On-Chain Binary Formats](https://github.com/input-output-hk/chain-libs/blob/master/chain-impl-mockchain/doc/format.abnf)
   - [Incentives](https://github.com/input-output-hk/chain-libs/blob/master/chain-impl-mockchain/doc/incentives.md)
   - [Address](https://github.com/input-output-hk/chain-libs/blob/master/chain-impl-mockchain/doc/address.md)
   - [Multisig](https://github.com/input-output-hk/chain-libs/blob/master/chain-impl-mockchain/doc/multisig.md)
