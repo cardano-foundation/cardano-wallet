@@ -57,7 +57,7 @@ import Test.Integration.Framework.DSL
     , emptyByronWalletWith
     , emptyWallet
     , emptyWalletWith
-    , eventually
+    , eventually_
     , expectErrorMessage
     , expectEventually
     , expectFieldEqual
@@ -252,7 +252,7 @@ spec = do
 
             -- Check that funds become available in the target wallet:
             let expectedBalance = originalBalance - expectedFee
-            eventually $ do
+            eventually_ $ do
                 r2 <- request @ApiWallet ctx
                     (getWalletEp targetWallet) Default Empty
                 verify r2
@@ -293,7 +293,7 @@ spec = do
                 } |]
         (_, wOld) <- unsafeRequest @ApiByronWallet ctx
             postByronWalletEp payloadRestore
-        eventually $ do
+        eventually_ $ do
             request @ApiByronWallet ctx
                 (getByronWalletEp wOld)
                 Default
@@ -326,7 +326,7 @@ spec = do
 
         -- Check that funds become available in the target wallet:
         let expectedBalance = originalBalance - expectedFee
-        eventually $ do
+        eventually_ $ do
             request @ApiWallet ctx
                 (getWalletEp wNew)
                 Default

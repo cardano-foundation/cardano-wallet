@@ -67,7 +67,7 @@ import Test.Integration.Framework.DSL
     , direction
     , emptyByronWallet
     , emptyWallet
-    , eventually
+    , eventually_
     , expectCliFieldBetween
     , expectCliFieldEqual
     , expectCliListItemFieldEqual
@@ -918,7 +918,7 @@ spec = do
                 [ expectCliFieldEqual balanceAvailable faucetAmt
                 ]
 
-        eventually $ do
+        eventually_ $ do
             (fromStdout <$> listTransactionsViaCLI @t ctx [wSrcId])
                 >>= expectValidJSON (Proxy @([ApiTransaction n]))
                 >>= flip verify
@@ -926,7 +926,7 @@ spec = do
                     , expectCliListItemFieldEqual 0 status InLedger
                     ]
 
-        eventually $ do
+        eventually_ $ do
             (fromStdout <$> listTransactionsViaCLI @t ctx [wDestId])
                 >>= expectValidJSON (Proxy @([ApiTransaction n]))
                 >>= flip verify
@@ -948,7 +948,7 @@ spec = do
 
         -- Wait for the transaction to be accepted
         let wSrcId = T.unpack $ wSrc ^. walletId
-        eventually $ do
+        eventually_ $ do
             (fromStdout <$> listTransactionsViaCLI @t ctx [wSrcId])
                 >>= expectValidJSON (Proxy @([ApiTransaction n]))
                 >>= flip verify

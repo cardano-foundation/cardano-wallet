@@ -68,7 +68,7 @@ import Test.Integration.Framework.DSL
     , direction
     , emptyByronWallet
     , emptyWallet
-    , eventually
+    , eventually_
     , expectErrorMessage
     , expectEventually
     , expectEventually'
@@ -145,7 +145,7 @@ spec = do
         wSrc <- fixtureWalletWith ctx [5_000_000]
         wDest <- emptyWallet ctx
 
-        eventually $ do
+        eventually_ $ do
             -- Post Tx
             let amt = (1 :: Natural)
             r <- postTx ctx (wSrc, postTxEp ,"Secure Passphrase") wDest amt
@@ -1670,7 +1670,7 @@ spec = do
                 ]
 
             -- transaction eventually is in source wallet
-            eventually $ do
+            eventually_ $ do
                 let ep = listTxEndpSrc wSrc mempty
                 request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
                     [ expectListItemFieldEqual 0 direction Outgoing
@@ -1678,7 +1678,7 @@ spec = do
                     ]
 
             -- transaction eventually is in target wallet
-            eventually $ do
+            eventually_ $ do
                 let ep = listTxEp wDest mempty
                 request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
                     [ expectListItemFieldEqual 0 direction Incoming
@@ -1709,7 +1709,7 @@ spec = do
             let txid = getFromResponse #id rTx
 
             -- Wait for the transaction to be accepted
-            eventually $ do
+            eventually_ $ do
                 let ep = listTxEndp wSrc mempty
                 request @([ApiTransaction n]) ctx ep Default Empty >>= flip verify
                     [ expectListItemFieldEqual 0 direction Outgoing

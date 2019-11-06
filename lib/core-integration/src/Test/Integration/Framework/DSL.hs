@@ -104,9 +104,9 @@ module Test.Integration.Framework.DSL
     , prepExternalTxViaJcli
     , eventually
     , eventuallyUsingDelay
+    , eventually_
+    , eventuallyUsingDelay_
     , fixturePassphrase
-    , eventually'
-    , eventuallyUsingDelay'
 
     -- * Endpoints
     , postByronWalletEp
@@ -844,15 +844,12 @@ apparentPerformance =
 -- Helpers
 --
 
-
 -- Retry the given action a couple of time until it doesn't throw, or until it
 -- has been retried enough.
 --
--- It is like @eventuallyUsingDelay@, but with the default delay of 500 ms
+-- It is like 'eventuallyUsingDelay', but with the default delay of 500 ms
 -- between retries.
-eventually
-    :: IO ()
-    -> IO ()
+eventually :: IO a -> IO a
 eventually = eventuallyUsingDelay (500 * ms)
   where
     ms = 1000
@@ -863,35 +860,9 @@ eventually = eventuallyUsingDelay (500 * ms)
 -- It sleeps for a specified delay between retries.
 eventuallyUsingDelay
     :: Int -- ^ Delay in microseconds
-    -> IO ()
-    -> IO ()
+    -> IO a
+    -> IO a
 eventuallyUsingDelay delay io = do
-    winner <- race (threadDelay $ 60 * oneSecond) trial
-    case winner of
-        Left _ -> expectationFailure
-            "waited more than 60s for action to eventually resolve."
-        Right _ ->
-            return ()
-  where
-    trial :: IO ()
-    trial = io `catch` \(_ :: SomeException) -> do
-        threadDelay delay
-        trial
-
--- similar as @eventually@ but returns IO a
-eventually'
-    :: IO a
-    -> IO a
-eventually' = eventuallyUsingDelay' (500 * ms)
-  where
-    ms = 1000
-
--- similar as @eventuallyUsingDelay@ but returns IO a
-eventuallyUsingDelay'
-    :: Int
-    -> IO a
-    -> IO a
-eventuallyUsingDelay' delay io = do
     winner <- race (threadDelay $ 60 * oneSecond) trial
     case winner of
         Left _ -> fail
@@ -902,6 +873,17 @@ eventuallyUsingDelay' delay io = do
     trial = io `catch` \(_ :: SomeException) -> do
         threadDelay delay
         trial
+
+eventually_ :: IO () -> IO ()
+eventually_ = eventuallyUsingDelay_ (500 * ms)
+  where
+    ms = 1000
+
+eventuallyUsingDelay_
+    :: Int -- ^ Delay in microseconds
+    -> IO ()
+    -> IO ()
+eventuallyUsingDelay_ = eventuallyUsingDelay
 
 utcIso8601ToText :: UTCTime -> Text
 utcIso8601ToText = utcTimeToText iso8601ExtendedUtc
@@ -1096,24 +1078,24 @@ joinStakePool
     => Context t
     -> ApiStakePool
     -> (w, Text)
-    -> IO (HTTP.Status, Either RequestException [ApiStakePool])
+    -> IO (HTTP.Status, Either RequestException (ApiTransaction 'Testnet))
 joinStakePool ctx p (w, pass) = do
     let payload = Json [aesonQQ| {
             "passphrase": #{pass}
             } |]
-    request @[ApiStakePool] ctx (joinStakePoolEp p w) Default payload
+    request @(ApiTransaction 'Testnet) ctx (joinStakePoolEp p w) Default payload
 
 quitStakePool
     :: forall t w. (HasType (ApiT WalletId) w)
     => Context t
     -> ApiStakePool
     -> (w, Text)
-    -> IO (HTTP.Status, Either RequestException [ApiStakePool])
+    -> IO (HTTP.Status, Either RequestException (ApiTransaction 'Testnet))
 quitStakePool ctx p (w, pass) = do
     let payload = Json [aesonQQ| {
             "passphrase": #{pass}
             } |]
-    request @[ApiStakePool] ctx (quitStakePoolEp p w) Default payload
+    request @(ApiTransaction 'Testnet) ctx (quitStakePoolEp p w) Default payload
 
 listAddresses
     :: Context t
@@ -1299,7 +1281,10 @@ stakePoolEp
     -> (Method, Text)
 stakePoolEp verb p w =
     ( verb
-    , "v2/stake-pools/" <> toText (getApiT $ p ^. #id) <> "/wallets/" <> w ^. walletId
+    , "v2/stake-pools/"
+        <> toText (getApiT $ p ^. #id)
+        <> "/wallets/"
+        <> w ^. walletId
     )
 
 joinStakePoolEp
