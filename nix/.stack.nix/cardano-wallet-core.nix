@@ -128,6 +128,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."deepseq" or (buildDepError "deepseq"))
             (hsPkgs."extra" or (buildDepError "extra"))
             (hsPkgs."file-embed" or (buildDepError "file-embed"))
+            (hsPkgs."filepath" or (buildDepError "filepath"))
             (hsPkgs."fmt" or (buildDepError "fmt"))
             (hsPkgs."foldl" or (buildDepError "foldl"))
             (hsPkgs."generic-arbitrary" or (buildDepError "generic-arbitrary"))
