@@ -339,7 +339,9 @@ spec = do
         request @ApiUtxoStatistics ctx (getWalletUtxoEp wNew)
             Default
             Empty >>= flip verify
-            [ expectFieldSatisfy #distribution ((== (Just 400)). Map.lookup 10000000000)
+            [ expectFieldSatisfy
+                #distribution
+                ((== (Just 400)) . Map.lookup 10000000000)
             ]
 
     it "BYRON_MIGRATE_08 - fails with a wrong passphrase" $ \ctx -> do
