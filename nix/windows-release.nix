@@ -56,6 +56,13 @@ in pkgs.runCommand name {
     echo "if %errorlevel% neq 0 exit /b %errorlevel%" >> tests.bat
   '') tests}
 
+  ${pkgs.lib.concatMapStringsSep "\n" (bench: ''
+    pkg=`ls -1 ${bench}`
+    exe=`cd ${bench}; ls -1 $pkg`
+    name=$pkg-bench-$exe
+    cp ${bench}/$pkg/$exe $name
+  '') benchmarks}
+
   chmod -R +w .
 
   zip -r $out/${name}.zip .
