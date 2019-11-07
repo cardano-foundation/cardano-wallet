@@ -42,6 +42,8 @@ import Cardano.BM.Data.Tracer
     ( nullTracer )
 import Cardano.DB.Sqlite
     ( SqliteContext, destroyDBLayer )
+import Cardano.Launcher
+    ( withUtf8Encoding )
 import Cardano.Wallet.DB
     ( DBLayer (..), PrimaryKey (..), cleanDB )
 import Cardano.Wallet.DB.Sqlite
@@ -152,7 +154,7 @@ import qualified Data.ByteString.Char8 as B8
 import qualified Data.Map.Strict as Map
 
 main :: IO ()
-main = do
+main = withUtf8Encoding $ do
     defaultMain
         [ withDB bgroupWriteUTxO
         , withDB bgroupReadUTxO

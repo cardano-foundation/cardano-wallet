@@ -174,6 +174,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."bytestring" or (buildDepError "bytestring"))
             (hsPkgs."cardano-crypto" or (buildDepError "cardano-crypto"))
             (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
+            (hsPkgs."cardano-wallet-launcher" or (buildDepError "cardano-wallet-launcher"))
             (hsPkgs."cborg" or (buildDepError "cborg"))
             (hsPkgs."containers" or (buildDepError "containers"))
             (hsPkgs."criterion" or (buildDepError "criterion"))
