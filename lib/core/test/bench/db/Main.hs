@@ -345,7 +345,9 @@ setupDB = do
     pure (f, ctx, db)
 
 cleanupDB :: (FilePath, SqliteContext, DBLayerBench) -> IO ()
-cleanupDB (db, _, _) = mapM_ remove [db, db <> "-shm", db <> "-wal"]
+cleanupDB (db, ctx, _) = do
+    destroyDBLayer ctx
+    mapM_ remove [db, db <> "-shm", db <> "-wal"]
   where
     remove f = doesFileExist f >>= \case
         True -> removeFile f
