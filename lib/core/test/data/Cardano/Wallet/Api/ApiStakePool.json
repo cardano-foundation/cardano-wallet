@@ -1,145 +1,145 @@
 {
-    "seed": -1283532018441767861,
+    "seed": 7655144229084365770,
     "samples": [
         {
             "metrics": {
                 "controlled_stake": {
-                    "quantity": 572574309519,
+                    "quantity": 292471772045,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 5757406,
+                    "quantity": 2851815,
                     "unit": "block"
                 }
             },
-            "apparent_performance": 4.2923337520696436e-2,
-            "id": "4ab4a033660264ff686be5c705c3c043b3d40ac7cee7c321ee66108031b123d8"
+            "apparent_performance": 0.5252679801914316,
+            "id": "f47d32ad92c9179336136058391b590cf93d1f8e86ce51cf056df3fa942d9724"
         },
         {
             "metrics": {
                 "controlled_stake": {
-                    "quantity": 833448430546,
+                    "quantity": 856725748672,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 12158642,
+                    "quantity": 17647697,
                     "unit": "block"
                 }
             },
-            "apparent_performance": 0.9304878826158856,
-            "id": "61e4bff30c9ba40580df0474afeb52cceaf3cc64ddcd8b206e43dba8b53a879a"
+            "apparent_performance": 0.28382665803851514,
+            "id": "2c6dddf25309e83e4b8241769f5f52733d6b92d851fa2171caa064a8c415c65e"
         },
         {
             "metrics": {
                 "controlled_stake": {
-                    "quantity": 870077392658,
+                    "quantity": 105580248701,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 10855261,
+                    "quantity": 8169588,
                     "unit": "block"
                 }
             },
-            "apparent_performance": 0.12555907227754148,
-            "id": "e4b8f46a345b829ba7560d5eea135212e8ca84ad9996819e89c956f8c5620b52"
+            "apparent_performance": 0.3332710776695794,
+            "id": "df565706441a74083f00858618bc5b90f6bbc9ffe6df7d7a8b92a248812f5ed4"
         },
         {
             "metrics": {
                 "controlled_stake": {
-                    "quantity": 249660340439,
+                    "quantity": 897716076699,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 1422104,
+                    "quantity": 17055659,
                     "unit": "block"
                 }
             },
-            "apparent_performance": 0.9633388696170493,
-            "id": "c5e44e77be2d365df91d3295837125ddb9a0949d788c066c259bd285bfe8eea5"
+            "apparent_performance": 0.9808603058854345,
+            "id": "3c5bee4764a18da16a2c9849be9675776e534620bfbd09f24593d3380f1c0a6f"
         },
         {
             "metrics": {
                 "controlled_stake": {
-                    "quantity": 754707285994,
+                    "quantity": 286680820348,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 16880110,
+                    "quantity": 21982462,
                     "unit": "block"
                 }
             },
-            "apparent_performance": 0.5374242957095939,
-            "id": "7075cbee01828b1a9a867f32f1bef986bc37ea70f0898e2e3aa58ba31f327d8b"
+            "apparent_performance": 0.26979319449308836,
+            "id": "ba6e69d5ef34d2091eda828537e5860191b0e99fa8d93a4261ea5354a41d56e2"
         },
         {
             "metrics": {
                 "controlled_stake": {
-                    "quantity": 849822237809,
+                    "quantity": 62265422931,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 15356184,
+                    "quantity": 2270187,
                     "unit": "block"
                 }
             },
-            "apparent_performance": 0.1911265509751916,
-            "id": "52b2aadf8502740299b61edb5697c9414e50077e864296dc50b964c864af0bea"
+            "apparent_performance": 0.2776638440219096,
+            "id": "4fa49ba895ce9fc32e120eb1b0229613ab7dd402c65fc795f9aa0bdc0b9d0519"
         },
         {
             "metrics": {
                 "controlled_stake": {
-                    "quantity": 876980134367,
+                    "quantity": 338161350170,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 2273447,
+                    "quantity": 7078414,
                     "unit": "block"
                 }
             },
-            "apparent_performance": 4.718327757031404e-2,
-            "id": "121471b08c1920487b0f755a51e1c85ae53bbb0ba25cb432e06f7586b1e861ef"
+            "apparent_performance": 0.7671244988225713,
+            "id": "6cca8cb9877be218bb410679195784eb1a8da25cb6bc1ce6a037078c02a97499"
         },
         {
             "metrics": {
                 "controlled_stake": {
-                    "quantity": 766133033370,
+                    "quantity": 166544230017,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 4264770,
+                    "quantity": 263362,
                     "unit": "block"
                 }
             },
-            "apparent_performance": 0.495671066708401,
-            "id": "b1566dd0fbf7aaeec60a649b33b0921a5fbd862bf734d86b948f7bb005933d9c"
+            "apparent_performance": 0.39211718263150197,
+            "id": "b0f23f1d99a62132804f44c1dde733a441cbd7ab386caca2d088dffb7a45cfe3"
         },
         {
             "metrics": {
                 "controlled_stake": {
-                    "quantity": 961261505317,
+                    "quantity": 837704562191,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 709548,
+                    "quantity": 18561833,
                     "unit": "block"
                 }
             },
-            "apparent_performance": 0.4307825375327031,
-            "id": "c4a095d9294b88c3041a5c890f1ab6bfc2e2099a1861c78358056684c0fadd6c"
+            "apparent_performance": 0.7203792847778941,
+            "id": "ddec14233e75e10c8fecc24fb7d5ca81d6544eed75a3de04bc0396bd8d60e744"
         },
         {
             "metrics": {
                 "controlled_stake": {
-                    "quantity": 428267328672,
+                    "quantity": 398862287182,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 11627349,
+                    "quantity": 7400630,
                     "unit": "block"
                 }
             },
-            "apparent_performance": 0.5000741464821863,
-            "id": "42e71eb8e1db7d53d009cca602fccc76a713ccb9fdf09bd4a97179bd10ed3b99"
+            "apparent_performance": 0.9424973559956416,
+            "id": "7846ad162eacaa9ab344c2e54d694c2ce38165e93dec1aa9039521065f5b1253"
         }
     ]
 }
