@@ -205,7 +205,7 @@ import Data.Generics.Internal.VL.Lens
 import Data.Generics.Labels
     ()
 import Data.List
-    ( isSubsequenceOf, sortOn )
+    ( isInfixOf, isSubsequenceOf, sortOn )
 import Data.Maybe
     ( fromMaybe, isJust )
 import Data.Proxy
@@ -270,6 +270,7 @@ import System.IO.Error
     , isAlreadyInUseError
     , isDoesNotExistError
     , isPermissionError
+    , isUserError
     )
 import System.Random
     ( getStdRandom, random )
@@ -371,8 +372,11 @@ ioToListenError hostPreference portOpt e
     -- Usually caused by trying to listen on a privileged port
     | isPermissionError e =
         Just ListenErrorOperationNotPermitted
-    -- Bad hostname
+    -- Bad hostname -- Linux and Darwin
     | isDoesNotExistError e =
+        Just (ListenErrorHostDoesNotExist hostPreference)
+    -- Bad hostname (bind: WSAEOPNOTSUPP) -- Windows
+    | isUserError e && hasDescription "10045" =
         Just (ListenErrorHostDoesNotExist hostPreference)
     -- Address is valid, but can't be used for listening -- Linux
     | show (ioeGetErrorType e) == "invalid argument" =
@@ -380,11 +384,20 @@ ioToListenError hostPreference portOpt e
     -- Address is valid, but can't be used for listening -- Darwin
     | show (ioeGetErrorType e) == "unsupported operation" =
         Just (ListenErrorInvalidAddress hostPreference)
+    -- Address is valid, but can't be used for listening -- Windows
+    | isOtherError e && hasDescription "WSAEINVAL" =
+        Just (ListenErrorInvalidAddress hostPreference)
+    -- Listening on an unavailable or privileged port -- Windows
+    | isOtherError e && hasDescription "WSAEACCESS" =
+        Just (ListenErrorAddressAlreadyInUse (listenPort portOpt))
     | otherwise =
         Nothing
   where
     listenPort (ListenOnPort port) = Just port
     listenPort ListenOnRandomPort = Nothing
+
+    isOtherError ex = show (ioeGetErrorType ex) == "failed"
+    hasDescription text = text `isInfixOf` show e
 
 {-------------------------------------------------------------------------------
                                    Core API

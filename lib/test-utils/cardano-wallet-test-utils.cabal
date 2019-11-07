@@ -30,6 +30,8 @@ library
       -Werror
   build-depends:
       base
+    , hspec-core
+    , hspec-expectations
     , network
     , QuickCheck
     , random-shuffle
@@ -40,3 +42,4 @@ library
   exposed-modules:
       Test.Utils.Ports
       Test.Utils.Time
+      Test.Utils.Windows
