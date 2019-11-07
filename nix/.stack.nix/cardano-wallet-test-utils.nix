@@ -61,6 +61,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       "library" = {
         depends = [
           (hsPkgs."base" or (buildDepError "base"))
+          (hsPkgs."hspec-core" or (buildDepError "hspec-core"))
+          (hsPkgs."hspec-expectations" or (buildDepError "hspec-expectations"))
           (hsPkgs."network" or (buildDepError "network"))
           (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
           (hsPkgs."random-shuffle" or (buildDepError "random-shuffle"))

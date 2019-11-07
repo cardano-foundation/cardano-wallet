@@ -140,6 +140,8 @@ import GHC.Conc
     ( TVar, atomically, newTVarIO, readTVarIO, writeTVar )
 import System.Directory
     ( doesFileExist, removeFile )
+import System.IO
+    ( hClose )
 import System.IO.Error
     ( isUserError )
 import System.IO.Temp
@@ -550,7 +552,8 @@ withTestDBFile
 withTestDBFile action expectations = do
     logConfig <- defaultConfigTesting
     trace <- setupTrace (Right logConfig) "connectionSpec"
-    withSystemTempFile "spec.db" $ \fp _handle -> do
+    withSystemTempFile "spec.db" $ \fp handle -> do
+        hClose handle
         removeFile fp
         withDBLayer logConfig trace (Just fp) action
         expectations fp

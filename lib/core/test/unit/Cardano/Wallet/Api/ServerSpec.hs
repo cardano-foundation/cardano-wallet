@@ -10,6 +10,8 @@ import Network.Socket
     ( SockAddr (..), getSocketName, tupleToHostAddress )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldReturn )
+import Test.Utils.Windows
+    ( skipOnWindows )
 
 spec :: Spec
 spec = describe "API Server" $ do
@@ -40,6 +42,7 @@ spec = describe "API Server" $ do
 
     -- assuming we are not running the tests as root
     it "handles privileged ports" $ do
+        skipOnWindows "Impossible to uniquely detect this error case"
         withListeningSocket "127.0.0.1" (ListenOnPort 23) $ \res ->
             res `shouldBe` Left ListenErrorOperationNotPermitted
 
