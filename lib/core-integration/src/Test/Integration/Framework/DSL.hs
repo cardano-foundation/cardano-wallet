@@ -110,7 +110,6 @@ module Test.Integration.Framework.DSL
 
     -- * Endpoints
     , postByronWalletEp
-    , postByronTxEp
     , migrateByronWalletEp
     , calculateByronMigrationCostEp
     , getByronWalletEp
@@ -1221,12 +1220,6 @@ listByronWalletsEp :: (Method, Text)
 listByronWalletsEp =
     ( "GET"
     , "v2/byron-wallets"
-    )
-
-postByronTxEp :: ApiByronWallet -> (Method, Text)
-postByronTxEp w =
-    ( "POST"
-    , "v2/byron-wallets/" <> w ^. walletId <> "/transactions"
     )
 
 listByronTxEp :: ApiByronWallet -> Text -> (Method, Text)
