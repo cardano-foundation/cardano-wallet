@@ -30,6 +30,8 @@ library
       -Werror
   build-depends:
       base
+    , async
+    , hspec
     , hspec-core
     , hspec-expectations
     , network
@@ -40,6 +42,7 @@ library
   hs-source-dirs:
       src
   exposed-modules:
+      Test.Hspec.Extra
       Test.Utils.Ports
       Test.Utils.Time
       Test.Utils.Windows
