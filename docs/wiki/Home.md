@@ -15,8 +15,3 @@
 - [Testing](https://github.com/input-output-hk/cardano-wallet/wiki/Testing)
 - [Api Documentation (edge)](https://input-output-hk.github.io/cardano-wallet/api/edge/)
 - [Command-Line Interface](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface)
-
-
-# About Cardano
-
-- [Resources](https://github.com/input-output-hk/cardano-wallet/wiki/Resources)
