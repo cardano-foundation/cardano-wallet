@@ -58,6 +58,7 @@ module Cardano.Wallet.Jormungandr.Binary
     , getAddress
 
       -- * Helpers
+    , whileM
     , blake2b256
     , estimateMaxNumberOfInputsParams
     , fragmentId
@@ -96,10 +97,10 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Transaction
     ( EstimateMaxNumberOfInputsParams (..) )
-import Control.Applicative
-    ( many )
 import Control.Monad
     ( replicateM, unless )
+import Control.Monad.Loops
+    ( whileM )
 import Crypto.Hash
     ( hash )
 import Crypto.Hash.Algorithms
@@ -113,6 +114,7 @@ import Data.Binary.Get
     , getWord32be
     , getWord64be
     , getWord8
+    , isEmpty
     , isolate
     , label
     , lookAhead
@@ -224,7 +226,8 @@ getBlockHeader = label "getBlockHeader" $ do
 getBlock :: Get Block
 getBlock = label "getBlock" $ do
     header <- getBlockHeader
-    messages <- isolate (fromIntegral $ contentSize header) (many getMessage)
+    messages <- isolate (fromIntegral $ contentSize header)
+        (whileM (not <$> isEmpty) getMessage)
     return $ Block{header,messages}
 
 -- | Extract a 'Block' id from a serialized 'Block'.
@@ -297,7 +300,9 @@ getMessage = label "getMessage" $ do
     msgType <- fromIntegral <$> getWord8
     let remaining = size - 1
     let unimpl = skip remaining >> return (UnimplementedMessage msgType)
-    isolate remaining $ case msgType of
+    let typeLabelStr = "fragmentType " ++ show msgType
+
+    label typeLabelStr $ isolate remaining $ case msgType of
         0 -> Initial <$> getInitial
         1 -> Transaction <$> getLegacyTransaction fragId
         2 -> Transaction <$> getTransaction fragId

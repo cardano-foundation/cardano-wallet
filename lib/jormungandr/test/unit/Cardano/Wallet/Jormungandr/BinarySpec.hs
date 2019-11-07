@@ -45,6 +45,10 @@ import Control.Monad
     ( forM_, replicateM )
 import Control.Monad.IO.Class
     ( liftIO )
+import Control.Monad.Loops
+    ( whileM )
+import Data.Binary.Get
+    ( getWord16be, isEmpty, isolate, label )
 import Data.ByteString
     ( ByteString )
 import Data.Either
@@ -60,7 +64,15 @@ import System.Directory
 import System.FilePath
     ( (</>) )
 import Test.Hspec
-    ( Spec, describe, expectationFailure, it, runIO, shouldSatisfy, xit )
+    ( Spec
+    , describe
+    , expectationFailure
+    , it
+    , runIO
+    , shouldContain
+    , shouldSatisfy
+    , xit
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -98,6 +110,23 @@ spec = do
                     res <- try' (runGet getBlock bs)
                     res `shouldSatisfy` isRight
                     return ()
+        describe "whileM (not <$> isEmpty)" $ do
+            it "should fail immediately when the decoder errors" $ do
+                -- Context: We use whileM not <$> isEmpty to decode multiple
+                -- block-fragments/messages. If a message-decoder is wrong, we
+                -- want to know that clearly.
+                let getMessage' = label "getMessage" $ isolate 3 getWord16be
+                let getBlock' = whileM (not <$> isEmpty) getMessage'
+                res <- try' (runGet getBlock' $ BL.pack [0,0,0])
+                case res of
+                    Right _ -> expectationFailure
+                        "Faulty decoder scenario should not succeed"
+                    Left e -> do
+                        e `shouldContain`
+                            "the decoder consumed 2 bytes which is less than \
+                            \the expected 3 bytes"
+                        e `shouldContain` "getMessage"
+
 
     describe "Encoding" $ do
         it "decode (encode tx) === tx standard transaction" $ property $
