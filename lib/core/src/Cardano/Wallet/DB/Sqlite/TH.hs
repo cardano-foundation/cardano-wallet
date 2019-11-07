@@ -57,11 +57,10 @@ share
 
 -- Wallet IDs, address discovery state, and metadata.
 Wallet
-    walId                 W.WalletId     sql=wallet_id
-    walCreationTime       UTCTime        sql=creation_time
-    walName               Text           sql=name
+    walId                       W.WalletId     sql=wallet_id
+    walCreationTime             UTCTime        sql=creation_time
+    walName                     Text           sql=name
     walPassphraseLastUpdatedAt  UTCTime Maybe  sql=passphrase_last_updated_at
-    walDelegation         W.PoolId Maybe sql=delegation
 
     Primary walId
     deriving Show Generic
@@ -141,6 +140,16 @@ Checkpoint
 
     Primary checkpointWalletId checkpointSlot
     Foreign Wallet checkpoint checkpointWalletId ! ON DELETE CASCADE
+    deriving Show Generic
+
+-- Store known delegation certificates for a particular wallet
+DelegationCertificate
+    certWalletId             W.WalletId   sql=wallet_id
+    certSlot                 W.SlotId     sql=slot
+    certPoolId               W.PoolId     sql=delegation
+
+    Primary certWalletId certSlot certPoolId
+    Foreign Wallet delegationCertificate certWalletId ! ON DELETE CASCADE
     deriving Show Generic
 
 -- The UTxO for a given wallet checkpoint is a one-to-one mapping from TxIn ->

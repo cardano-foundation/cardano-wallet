@@ -51,6 +51,7 @@ module Cardano.Wallet.DB.Model
     , mRollbackTo
     , mPutWalletMeta
     , mReadWalletMeta
+    , mPutDelegationCertificate
     , mPutTxHistory
     , mReadTxHistory
     , mPutPrivateKey
@@ -66,13 +67,15 @@ import Cardano.Wallet.Primitive.Types
     ( BlockHeader (slotId)
     , Direction (..)
     , Hash
+    , PoolId (..)
     , Range (..)
     , SlotId (..)
     , SortOrder (..)
     , Tx (..)
     , TxMeta (..)
     , TxStatus (..)
-    , WalletMetadata
+    , WalletDelegation (..)
+    , WalletMetadata (..)
     , isWithinRange
     )
 import Control.Monad
@@ -115,6 +118,7 @@ deriving instance (Eq wid, Eq xprv, Eq s) => Eq (Database wid s xprv)
 -- | Model database record for a single wallet.
 data WalletDatabase s xprv = WalletDatabase
     { checkpoints :: !(Map SlotId (Wallet s))
+    , certificates :: !(Map SlotId PoolId)
     , metadata :: !WalletMetadata
     , txHistory :: !(Map (Hash "Tx") TxMeta)
     , xprv :: !(Maybe xprv)
@@ -173,7 +177,13 @@ mCreateWallet wid cp meta txs0 db@Database{wallets,txs}
     | wid `Map.member` wallets = (Left (WalletAlreadyExists wid), db)
     | otherwise =
         let
-            wal = WalletDatabase (Map.singleton (tip cp) cp) meta history Nothing
+            wal = WalletDatabase
+                { checkpoints = Map.singleton (tip cp) cp
+                , certificates = mempty
+                , metadata = meta
+                , txHistory = history
+                , xprv = Nothing
+                }
             txs' = Map.fromList $ (\(tx, _) -> (txId tx, tx)) <$> txs0
             history = Map.fromList $ first txId <$> txs0
         in
@@ -235,6 +245,8 @@ mRollbackTo wid point db@(Database wallets txs) = case Map.lookup wid wallets of
                     wal' = wal
                         { checkpoints =
                             Map.filter ((<= point) . tip) (checkpoints wal)
+                        , certificates =
+                            Map.filterWithKey (\k _ -> k <= point) (certificates wal)
                         , txHistory =
                             Map.mapMaybe (rescheduleOrForget nearest) (txHistory wal)
                         }
@@ -271,7 +283,24 @@ mPutWalletMeta wid meta = alterModel wid $ \wal ->
 
 mReadWalletMeta :: Ord wid => wid -> ModelOp wid s xprv (Maybe WalletMetadata)
 mReadWalletMeta wid db@(Database wallets _) =
-    (Right (metadata <$> Map.lookup wid wallets), db)
+    (Right (mkMetadata <$> Map.lookup wid wallets), db)
+  where
+    mkMetadata :: WalletDatabase s xprv -> WalletMetadata
+    mkMetadata WalletDatabase{certificates,metadata} =
+        case Map.lookupMax certificates of
+            Nothing ->
+                metadata { delegation = NotDelegating }
+            Just (_, pool) ->
+                metadata { delegation = Delegating pool }
+
+mPutDelegationCertificate
+    :: Ord wid
+    => wid
+    -> PoolId
+    -> SlotId
+    -> ModelOp wid s xprv ()
+mPutDelegationCertificate wid pool slot = alterModel wid $ \wal ->
+    ((), wal { certificates = Map.insert slot pool (certificates wal) })
 
 mPutTxHistory
     :: forall wid s xprv. Ord wid

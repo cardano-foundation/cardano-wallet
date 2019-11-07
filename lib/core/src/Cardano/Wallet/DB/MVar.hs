@@ -33,6 +33,7 @@ import Cardano.Wallet.DB.Model
     , mListCheckpoints
     , mListWallets
     , mPutCheckpoint
+    , mPutDelegationCertificate
     , mPutPrivateKey
     , mPutTxHistory
     , mPutWalletMeta
@@ -103,6 +104,10 @@ newDBLayer = do
             meta `deepseq` alterDB errNoSuchWallet db (mPutWalletMeta pk meta)
 
         , readWalletMeta = readDB db . mReadWalletMeta
+
+        , putDelegationCertificate = \pk pid sl -> ExceptT $ do
+            pid `deepseq` sl `deepseq`
+                alterDB errNoSuchWallet db (mPutDelegationCertificate pk pid sl)
 
         {-----------------------------------------------------------------------
                                      Tx History

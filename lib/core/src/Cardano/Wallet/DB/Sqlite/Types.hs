@@ -394,6 +394,12 @@ instance PathPiece PoolId where
     fromPathPiece = fromTextMaybe
     toPathPiece = toText
 
+instance ToJSON PoolId where
+    toJSON = String . toText
+
+instance FromJSON PoolId where
+    parseJSON = aesonFromText "PoolId"
+
 ----------------------------------------------------------------------------
 -- HDPassphrase
 

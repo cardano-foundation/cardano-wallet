@@ -55,6 +55,7 @@ import Cardano.Wallet.DB
     )
 import Cardano.Wallet.DB.Sqlite.TH
     ( Checkpoint (..)
+    , DelegationCertificate (..)
     , EntityField (..)
     , Key (..)
     , PrivateKey (..)
@@ -359,6 +360,9 @@ newDBLayer logConfig trace mDatabaseFile = do
                     deleteCheckpoints wid
                         [ CheckpointSlot >. point
                         ]
+                    deleteDelegationCertificates wid
+                        [ CertSlot >. point
+                        ]
                     updateTxMetas wid
                         [ TxMetaDirection ==. W.Outgoing
                         , TxMetaSlot >. point
@@ -391,10 +395,18 @@ newDBLayer logConfig trace mDatabaseFile = do
                       pure $ Right ()
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
-        , readWalletMeta = \(PrimaryKey wid) ->
-              runQuery $
-              fmap (metadataFromEntity . entityVal) <$>
-              selectFirst [WalId ==. wid] []
+        , readWalletMeta = \(PrimaryKey wid) -> runQuery $ do
+            walDelegation <- delegationFromEntity . fmap entityVal
+                <$> selectFirst [CertWalletId ==. wid] [Desc CertSlot]
+
+            fmap (metadataFromEntity walDelegation . entityVal)
+                <$> selectFirst [WalId ==. wid] []
+
+        , putDelegationCertificate = \pk pool sl -> ExceptT $ runQuery $ do
+            let (PrimaryKey wid) = pk
+            selectWallet wid >>= \case
+                Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                Just _  -> pure <$> insert_ (DelegationCertificate wid sl pool)
 
         {-----------------------------------------------------------------------
                                      Tx History
@@ -466,13 +478,14 @@ newDBLayer logConfig trace mDatabaseFile = do
               ExceptT $ withMVar lock $ \() -> runExceptT action
         })
 
-delegationToPoolId :: W.WalletDelegation W.PoolId -> Maybe W.PoolId
-delegationToPoolId W.NotDelegating = Nothing
-delegationToPoolId (W.Delegating pool) = Just pool
-
-delegationFromPoolId :: Maybe W.PoolId -> W.WalletDelegation W.PoolId
-delegationFromPoolId Nothing = W.NotDelegating
-delegationFromPoolId (Just pool) = W.Delegating pool
+delegationFromEntity
+    :: Maybe DelegationCertificate
+    -> W.WalletDelegation W.PoolId
+delegationFromEntity = \case
+    Nothing ->
+        W.NotDelegating
+    Just (DelegationCertificate _ _ pool) ->
+        W.Delegating pool
 
 mkWalletEntity :: W.WalletId -> W.WalletMetadata -> Wallet
 mkWalletEntity wid meta = Wallet
@@ -481,7 +494,6 @@ mkWalletEntity wid meta = Wallet
     , walCreationTime = meta ^. #creationTime
     , walPassphraseLastUpdatedAt =
         W.lastUpdatedAt <$> meta ^. #passphraseInfo
-    , walDelegation = delegationToPoolId $ meta ^. #delegation
     }
 
 mkWalletMetadataUpdate :: W.WalletMetadata -> [Update Wallet]
@@ -490,7 +502,6 @@ mkWalletMetadataUpdate meta =
     , WalCreationTime =. meta ^. #creationTime
     , WalPassphraseLastUpdatedAt =.
         W.lastUpdatedAt <$> meta ^. #passphraseInfo
-    , WalDelegation =. delegationToPoolId (meta ^. #delegation)
     ]
 
 blockHeaderFromEntity :: Checkpoint -> W.BlockHeader
@@ -501,13 +512,13 @@ blockHeaderFromEntity cp = W.BlockHeader
     , parentHeaderHash = getBlockId (checkpointParentHash cp)
     }
 
-metadataFromEntity :: Wallet -> W.WalletMetadata
-metadataFromEntity wal = W.WalletMetadata
+metadataFromEntity :: W.WalletDelegation W.PoolId -> Wallet -> W.WalletMetadata
+metadataFromEntity walDelegation wal = W.WalletMetadata
     { name = W.WalletName (walName wal)
     , creationTime = walCreationTime wal
     , passphraseInfo = W.WalletPassphraseInfo <$>
         walPassphraseLastUpdatedAt wal
-    , delegation = delegationFromPoolId (walDelegation wal)
+    , delegation = walDelegation
     }
 
 mkPrivateKeyEntity
@@ -780,6 +791,14 @@ deleteLooseTransactions = do
             "SELECT "<> t <>".tx_id FROM "<> t <>" " <>
             "LEFT OUTER JOIN tx_meta ON tx_meta.tx_id = "<> t <>".tx_id " <>
             "WHERE (tx_meta.tx_id IS NULL))"
+
+-- | Delete all delegation certificates matching the given filter
+deleteDelegationCertificates
+    :: W.WalletId
+    -> [Filter DelegationCertificate]
+    -> SqlPersistT IO ()
+deleteDelegationCertificates wid filters = do
+    deleteCascadeWhere ((CertWalletId ==. wid) : filters)
 
 selectLatestCheckpoint
     :: W.WalletId
