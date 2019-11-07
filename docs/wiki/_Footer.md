@@ -1,0 +1,1 @@
+[About Cardano](https://github.com/input-output-hk/cardano-wallet/wiki/Resources)
