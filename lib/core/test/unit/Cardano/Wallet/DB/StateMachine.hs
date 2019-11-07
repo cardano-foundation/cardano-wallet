@@ -71,6 +71,7 @@ import Cardano.Wallet.DB.Model
     , mListCheckpoints
     , mListWallets
     , mPutCheckpoint
+    , mPutDelegationCertificate
     , mPutPrivateKey
     , mPutTxHistory
     , mPutWalletMeta
@@ -93,6 +94,7 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader
     , Hash (..)
+    , PoolId (..)
     , Range (..)
     , SlotId (..)
     , SortOrder (..)
@@ -262,6 +264,7 @@ data Cmd s wid
     | ReadPrivateKey wid
     | RollbackTo wid SlotId
     | RemovePendingTx wid (Hash "Tx")
+    | PutDelegationCertificate wid PoolId SlotId
     deriving (Show, Functor, Foldable, Traversable)
 
 data Success s wid
@@ -313,6 +316,8 @@ runMock = \case
         first (Resp . fmap Unit) . mPutWalletMeta wid meta
     ReadWalletMeta wid ->
         first (Resp . fmap Metadata) . mReadWalletMeta wid
+    PutDelegationCertificate wid pool sl ->
+        first (Resp . fmap Unit) . mPutDelegationCertificate wid pool sl
     PutTxHistory wid txs ->
         first (Resp . fmap Unit) . mPutTxHistory wid txs
     ReadTxHistory wid order range status ->
@@ -366,6 +371,9 @@ runIO db = fmap Resp . go
             catchNoSuchWallet Unit $ putWalletMeta db (PrimaryKey wid) meta
         ReadWalletMeta wid ->
             Right . Metadata <$> readWalletMeta db (PrimaryKey wid)
+        PutDelegationCertificate wid pool sl ->
+            catchNoSuchWallet Unit $
+                putDelegationCertificate db (PrimaryKey wid) pool sl
         PutTxHistory wid txs ->
             catchNoSuchWallet Unit $ putTxHistory db (PrimaryKey wid) txs
         ReadTxHistory wid order range status ->
@@ -511,12 +519,13 @@ generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
         , (5, ListCheckpoints <$> genId')
         , (5, PutWalletMeta <$> genId' <*> arbitrary)
         , (5, ReadWalletMeta <$> genId')
+        , (5, PutDelegationCertificate <$> genId' <*> arbitrary <*> arbitrary)
         , (5, PutTxHistory <$> genId' <*> fmap unGenTxHistory arbitrary)
         , (5, ReadTxHistory <$> genId' <*> genSortOrder <*> genRange <*> arbitrary)
+        , (4, RemovePendingTx <$> genId' <*> arbitrary)
         , (3, PutPrivateKey <$> genId' <*> genPrivKey)
         , (3, ReadPrivateKey <$> genId')
         , (1, RollbackTo <$> genId' <*> arbitrary)
-        , (4, RemovePendingTx <$> genId' <*> arbitrary)
         ]
 
     genId :: Gen MWid
@@ -627,6 +636,7 @@ instance CommandNames (At (Cmd s)) where
     cmdName (At ReadCheckpoint{}) = "ReadCheckpoint"
     cmdName (At PutWalletMeta{}) = "PutWalletMeta"
     cmdName (At ReadWalletMeta{}) = "ReadWalletMeta"
+    cmdName (At PutDelegationCertificate{}) = "PutDelegationCertificate"
     cmdName (At PutTxHistory{}) = "PutTxHistory"
     cmdName (At ReadTxHistory{}) = "ReadTxHistory"
     cmdName (At PutPrivateKey{}) = "PutPrivateKey"
@@ -637,10 +647,9 @@ instance CommandNames (At (Cmd s)) where
         [ "CleanDB"
         , "CreateWallet", "RemoveWallet", "ListWallets"
         , "PutCheckpoint", "ReadCheckpoint", "ListCheckpoints", "RollbackTo"
-        , "PutWalletMeta", "ReadWalletMeta"
-        , "PutTxHistory", "ReadTxHistory"
+        , "PutWalletMeta", "ReadWalletMeta", "PutDelegationCertificate"
+        , "PutTxHistory", "ReadTxHistory", "RemovePendingTx"
         , "PutPrivateKey", "ReadPrivateKey"
-        , "RemovePendingTx"
         ]
 
 instance Functor f => Rank2.Functor (At f) where
@@ -723,6 +732,8 @@ data Tag
       -- ^ We have rolled back at least once
     | RemovePendingTxTwice
       -- ^ The same pending tx is removed twice.
+    | ReadMetaAfterPutCert
+      -- ^ Reads wallet metadata after having inserted a delegation cert
     deriving (Bounded, Enum, Eq, Ord, Show)
 
 -- | The list of all possible 'Tag' values.
@@ -746,6 +757,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
     , countAction PutCheckpointTwice (>= 2) isPutCheckpointSuccess
     , countAction RolledBackOnce (>= 1) isRollbackSuccess
     , removePendingTxTwice
+    , readMetaAfterPutCert
     ]
   where
     isRollbackSuccess :: Event s Symbolic -> Maybe MWid
@@ -921,6 +933,35 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
                 -> Just (wids ! wid)
         _otherwise
             -> Nothing
+
+    readMetaAfterPutCert :: Fold (Event s Symbolic) (Maybe Tag)
+    readMetaAfterPutCert = Fold update mempty extract
+      where
+        update :: Map MWid Int -> Event s Symbolic -> Map MWid Int
+        update acc ev =
+            case (isReadWalletMetadata ev, cmd ev, mockResp ev, before ev) of
+                (Just wid, _, _, _) ->
+                    Map.alter (fmap (+1)) wid acc
+                ( Nothing
+                  , At (PutDelegationCertificate wid _ _)
+                  , Resp (Right _)
+                  , Model _ wids
+                  ) ->
+                    Map.insert (wids ! wid) 0 acc
+                _ ->
+                    acc
+
+        extract :: Map MWid Int -> Maybe Tag
+        extract created
+            | any (> 0) created = Just ReadMetaAfterPutCert
+            | otherwise = Nothing
+
+    isReadWalletMetadata :: Event s Symbolic -> Maybe MWid
+    isReadWalletMetadata ev = case (cmd ev, mockResp ev, before ev) of
+        (At (ReadWalletMeta wid), Resp Right{}, Model _ wids) ->
+            Just (wids ! wid)
+        _ ->
+            Nothing
 
     extractf :: a -> Bool -> Maybe a
     extractf a t = if t then Just a else Nothing

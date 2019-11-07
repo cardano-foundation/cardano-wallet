@@ -73,6 +73,7 @@ import Cardano.Wallet.Primitive.Types
     , EpochLength (..)
     , EpochNo (..)
     , Hash (..)
+    , PoolId (..)
     , ShowFmt (..)
     , SlotId (..)
     , SlotNo (..)
@@ -506,7 +507,11 @@ instance Eq XPrv where
 
 instance Arbitrary (Hash purpose) where
     arbitrary = do
-        Hash . convertToBase Base16 . BS.pack <$> vectorOf 32 arbitrary
+        Hash . convertToBase Base16 . BS.pack <$> vectorOf 16 arbitrary
+
+instance Arbitrary PoolId where
+    arbitrary = do
+        PoolId . convertToBase Base16 . BS.pack <$> vectorOf 16 arbitrary
 
 {-------------------------------------------------------------------------------
                                    Buildable
