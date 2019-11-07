@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 -- |
 -- Copyright: © 2018-2019 IOHK
 -- License: Apache-2.0
@@ -10,11 +12,16 @@ module Test.Utils.Windows
 
 import Prelude
 
-import Control.Exception (throwIO)
-import Test.Hspec.Core.Spec (ResultStatus(..))
-import Test.Hspec.Expectations (Expectation, HasCallStack)
-import System.Info (os)
-import Control.Monad (when)
+import Control.Exception
+    ( throwIO )
+import Control.Monad
+    ( when )
+import System.Info
+    ( os )
+import Test.Hspec.Core.Spec
+    ( ResultStatus (..) )
+import Test.Hspec.Expectations
+    ( Expectation, HasCallStack )
 
 skipOnWindows :: HasCallStack => String -> Expectation
 skipOnWindows _reason = when (os == "mingw32") $ throwIO Success
