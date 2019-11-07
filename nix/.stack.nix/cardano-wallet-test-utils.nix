@@ -61,6 +61,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       "library" = {
         depends = [
           (hsPkgs."base" or (buildDepError "base"))
+          (hsPkgs."async" or (buildDepError "async"))
+          (hsPkgs."hspec" or (buildDepError "hspec"))
           (hsPkgs."hspec-core" or (buildDepError "hspec-core"))
           (hsPkgs."hspec-expectations" or (buildDepError "hspec-expectations"))
           (hsPkgs."network" or (buildDepError "network"))

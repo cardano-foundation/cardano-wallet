@@ -61,7 +61,6 @@ library
   hs-source-dirs:
       src
   exposed-modules:
-      Test.Hspec.Extra
       Test.Integration.Faucet
       Test.Integration.Framework.DSL
       Test.Integration.Framework.Request
