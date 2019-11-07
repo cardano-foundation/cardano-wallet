@@ -107,6 +107,8 @@ import Network.HTTP.Client
     ( defaultManagerSettings, newManager )
 import Servant.Links
     ( safeLink )
+import System.FilePath
+    ( (</>) )
 import System.IO.Temp
     ( withSystemTempDirectory )
 import System.Process
@@ -135,6 +137,8 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Monadic
     ( monadicIO )
+import Test.Utils.Paths
+    ( testDirectory )
 import Test.Utils.Ports
     ( randomUnusedTCPPorts )
 
@@ -395,10 +399,12 @@ spec = do
     startNode cb = withSystemTempDirectory "jormungandr-state" $ \stateDir -> do
         let cfg = JormungandrConfig
                 stateDir
-                (Right "test/data/jormungandr/block0.bin")
+                (Right $ testDirectory
+                    </> "data" </> "jormungandr" </> "block0.bin")
                 Nothing
                 Inherit
-                ["--secret", "test/data/jormungandr/secret.yaml"]
+                ["--secret", testDirectory
+                    </> "data" </> "jormungandr" </> "secret.yaml"]
         let tr = nullTracer
         e <- withJormungandr tr cfg $
             \cp -> withNetworkLayer tr (UseRunning cp) $ \case

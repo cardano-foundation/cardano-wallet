@@ -18,8 +18,6 @@ import Cardano.Launcher
     ( Command (..), StdStream (..), withBackendProcess )
 import Cardano.Wallet.Api.Types
     ( ApiWallet )
-import Cardano.Wallet.Jormungandr.Launch
-    ( testDataDir )
 import Cardano.Wallet.Primitive.Types
     ( SyncProgress (..) )
 import Control.Exception
@@ -63,6 +61,8 @@ import Test.Integration.Framework.DSL
     , state
     , waitForServer
     )
+import Test.Utils.Paths
+    ( testDirectory )
 import Test.Utils.Ports
     ( findPort )
 
@@ -70,8 +70,8 @@ import qualified Data.Text.IO as TIO
 
 spec :: forall t. (KnownCommand t) => Spec
 spec = do
-    let block0 = testDataDir </> "block0.bin"
-    let secret = testDataDir </> "secret.yaml"
+    let block0 = testDirectory </> "data" </> "jormungandr" </> "block0.bin"
+    let secret = testDirectory </> "data" </> "jormungandr" </> "secret.yaml"
     describe "LAUNCH - cardano-wallet launch [SERIAL]" $ do
         it "LAUNCH - Stop when --state-dir is an existing file" $ withTempFile $ \f _ -> do
             let args =

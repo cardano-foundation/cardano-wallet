@@ -62,12 +62,14 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
         depends = [
           (hsPkgs."base" or (buildDepError "base"))
           (hsPkgs."async" or (buildDepError "async"))
+          (hsPkgs."file-embed" or (buildDepError "file-embed"))
           (hsPkgs."hspec" or (buildDepError "hspec"))
           (hsPkgs."hspec-core" or (buildDepError "hspec-core"))
           (hsPkgs."hspec-expectations" or (buildDepError "hspec-expectations"))
           (hsPkgs."network" or (buildDepError "network"))
           (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
           (hsPkgs."random-shuffle" or (buildDepError "random-shuffle"))
+          (hsPkgs."template-haskell" or (buildDepError "template-haskell"))
           (hsPkgs."time" or (buildDepError "time"))
           (hsPkgs."unliftio" or (buildDepError "unliftio"))
           ];

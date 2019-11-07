@@ -31,18 +31,21 @@ library
   build-depends:
       base
     , async
+    , file-embed
     , hspec
     , hspec-core
     , hspec-expectations
     , network
     , QuickCheck
     , random-shuffle
+    , template-haskell
     , time
     , unliftio
   hs-source-dirs:
       src
   exposed-modules:
       Test.Hspec.Extra
+      Test.Utils.Paths
       Test.Utils.Ports
       Test.Utils.Time
       Test.Utils.Windows

@@ -134,6 +134,7 @@ test-suite unit
     , cardano-wallet-core
     , cardano-wallet-core-integration
     , cardano-wallet-jormungandr
+    , cardano-wallet-test-utils
     , containers
     , deepseq
     , directory

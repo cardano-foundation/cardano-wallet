@@ -91,6 +91,8 @@ import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Monadic
     ( monadicIO )
+import Test.Utils.Paths
+    ( testDirectory )
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -100,12 +102,13 @@ spec :: Spec
 spec = do
     describe "Decoding" $ do
         it "should decode the block0.bin used for integration tests" $ do
-            bs <- BL.readFile $ "test" </> "data" </> "jormungandr" </> "block0.bin"
+            bs <- BL.readFile $
+                testDirectory </> "data" </> "jormungandr" </> "block0.bin"
             res <- try' (runGet getBlock bs)
             res `shouldSatisfy` isRight
 
         describe "golden block0s generated in jormungandr-lib" $ do
-            let dir = "test" </> "data" </> "block0s"
+            let dir = testDirectory </> "data" </> "block0s"
             files <- runIO $ filter (".bin" `isSuffixOf`)
                 <$> getDirectoryContents dir
             forM_ files $ \filename -> do
