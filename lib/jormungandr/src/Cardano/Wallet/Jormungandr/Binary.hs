@@ -40,6 +40,8 @@ module Cardano.Wallet.Jormungandr.Binary
     , putTx
     , putStakeDelegationTx
 
+    , putStakeCertificate
+
     -- * Transaction witnesses
     , signData
     , utxoWitness
@@ -407,22 +409,35 @@ putStakeCertificate
     -> ChimericAccount
     -> Put
 putStakeCertificate (PoolId poolId) (ChimericAccount accId) = do
+    assertLength "poolId" poolId 32
+    assertLength "account pubKey" accId 32
     putByteString accId
     putWord8 (stakeDelegationTypeTag DlgFull)
     putByteString poolId
+  where
+    assertLength desc x expected =
+        unless (BS.length x == expected) $
+            fail $ desc ++ " should be of length " ++ show expected
+                ++ " but has length " ++ show (BS.length x)
 
 putStakeDelegationTx
-    :: PoolId
-    -> ChimericAccount
-    -> Hash "AccountSignature"
+    :: Put -- ^ Payload
     -> [(TxIn, Coin)]
     -> [TxOut]
     -> [TxWitness]
+    -> (ByteString -> ByteString)
     -> Put
-putStakeDelegationTx poolId accId (Hash accSig) inputs outputs witnesses = do
-    putStakeCertificate poolId accId
-    putSignedTx mempty inputs outputs witnesses
-    putByteString accSig
+putStakeDelegationTx payload inputs outputs witnesses auth = do
+    withHeader MsgTypeDelegation $ do
+        withAppendedSignature auth $ do
+            putSignedTx payload inputs outputs witnesses
+
+withAppendedSignature :: (ByteString -> ByteString) -> Put -> Put
+withAppendedSignature sign putData = do
+    putByteString dat
+    putByteString $ sign dat
+  where
+    dat = BL.toStrict $ runPut putData
 
 -- | Decode the contents of a @Transaction@-message.
 getTransaction :: Hash "Tx" -> Get (Tx, [TxWitness])
@@ -488,10 +503,9 @@ getLegacyTransaction tid = do
     let wits = mempty
     pure (Tx tid inps outs, wits)
 
-putSignedTx :: ByteString -> [(TxIn, Coin)] -> [TxOut] -> [TxWitness] -> Put
+putSignedTx :: Put -> [(TxIn, Coin)] -> [TxOut] -> [TxWitness] -> Put
 putSignedTx payload inputs outputs witnesses = do
-    putByteString payload
-    putTx inputs outputs
+    putTx payload inputs outputs
     unless (length inputs == length witnesses) $
         fail "number of witnesses must equal number of inputs"
     mapM_ putWitness witnesses
@@ -500,8 +514,8 @@ putSignedTx payload inputs outputs witnesses = do
     putWitness :: TxWitness -> Put
     putWitness (TxWitness bytes) = putByteString bytes
 
-putTx :: [(TxIn, Coin)] -> [TxOut] -> Put
-putTx inputs outputs = do
+putTx :: Put -> [(TxIn, Coin)] -> [TxOut] -> Put
+putTx putPayload inputs outputs = do
     unless (length inputs <= fromIntegral (maxBound :: Word8)) $
         fail $
             "number of inputs cannot be greater than " ++
@@ -510,6 +524,7 @@ putTx inputs outputs = do
         fail $
             "number of outputs cannot be greater than " ++
             show maxNumberOfOutputs
+    putPayload
     putWord8 $ toEnum $ length inputs
     putWord8 $ toEnum $ length outputs
     mapM_ putInput inputs
@@ -723,14 +738,14 @@ estimateMaxNumberOfInputsParams = EstimateMaxNumberOfInputsParams
 -- witnesses are required to compute a `txid`.
 fragmentId
     :: MessageType
-    -> ByteString
+    -> Put
     -> [(TxIn, Coin)]
     -> [TxOut]
     -> [TxWitness]
     -> Hash "Tx"
 fragmentId msgType payload inps outs wits =
     Hash $ blake2b256 $ BL.toStrict $ runPut $ do
-        putWord16le (messageTypeTag MsgTypeTransaction)
+        putWord16le (messageTypeTag msgType)
         putSignedTx payload inps outs wits
 
 delegationFragmentId
@@ -741,22 +756,21 @@ delegationFragmentId
     -> [TxOut]
     -> [TxWitness]
     -> Hash "Tx"
-delegationFragmentId poolId accId accSig inps outs wits =
+delegationFragmentId _poolId _accId _sig _inps _outs _wits =
     Hash $ blake2b256 $ BL.toStrict $ runPut $ do
         putWord16le (messageTypeTag MsgTypeDelegation)
-        putStakeDelegationTx poolId accId accSig inps outs wits
+        --putStakeDelegationTx poolId accId inps outs wits
 
 -- | See 'fragmentId'. This computes the signing data required for producing
 -- transaction witnesses.
 signData
-    :: ByteString
+    :: Put
     -> [(TxIn, Coin)]
     -> [TxOut]
     -> Hash "SignData"
 signData payload inps outs =
     Hash $ blake2b256 $ BL.toStrict $ runPut $ do
-        putByteString payload
-        putTx inps outs
+        putTx payload inps outs
 
 {-------------------------------------------------------------------------------
                                 Conversions

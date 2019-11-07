@@ -32,7 +32,7 @@ import qualified Data.ByteString.Char8 as B8
 
 spec :: Spec
 spec = do
-    describe "signData @(Jormungandr 'Mainnet)" $ do
+    describe "signData mempty @(Jormungandr 'Mainnet)" $ do
         let fakeIn0 = Hash $ unsafeFromHex
                 "666984dec4bc0ff1888be97bfe0694a96b35c58d025405ead51d5cc72a3019f4"
         let fakeIn1 = Hash $ unsafeFromHex
@@ -78,7 +78,7 @@ spec = do
                 "115ba47ce89d8d92c5ed6b5c11be57ee5c757848f65a350eb49adff8f625b7a6"
             }
 
-    describe "signData @(Jormungandr 'Testnet)" $ do
+    describe "signData mempty @(Jormungandr 'Testnet)" $ do
         let fakeIn0 = Hash $ unsafeFromHex
                 "666984dec4bc0ff1888be97bfe0694a96b35c58d025405ead51d5cc72a3019f4"
         let fakeIn1 = Hash $ unsafeFromHex
@@ -140,7 +140,7 @@ goldenTestSignData
     -> SpecWith ()
 goldenTestSignData (GoldenTestSignData ins outs expected) =
     it ("golden test: " <> B8.unpack expected) $
-        hex (getHash $ signData ins outs) `shouldBe` expected
+        hex (getHash $ signData mempty ins outs) `shouldBe` expected
   where
     hex = convertToBase @ByteString @ByteString Base16
 

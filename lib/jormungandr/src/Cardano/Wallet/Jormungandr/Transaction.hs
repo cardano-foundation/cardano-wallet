@@ -5,7 +5,6 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -20,13 +19,15 @@ import Prelude
 
 import Cardano.Wallet.Jormungandr.Binary
     ( Message (..)
-    , MessageType (..)
-    , fragmentId
+    , Put
     , getMessage
     , legacyUtxoWitness
     , maxNumberOfInputs
     , maxNumberOfOutputs
+    , putStakeCertificate
+    , putStakeDelegationTx
     , runGetOrFail
+    , runPut
     , signData
     , utxoWitness
     )
@@ -42,10 +43,12 @@ import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address
+    , ChimericAccount (..)
     , Hash (..)
-    , PoolId (..)
+    , Hash (..)
     , Tx (..)
-    , TxIn (..)
+    , Tx (..)
+    , TxIn
     , TxOut (..)
     , TxWitness (..)
     )
@@ -73,6 +76,7 @@ import Fmt
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Jormungandr.Binary as Binary
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 
 -- | Construct a 'TransactionLayer' compatible with Shelley and 'Jörmungandr'
@@ -86,12 +90,24 @@ newTransactionLayer
     => Hash "Genesis"
     -> TransactionLayer t k
 newTransactionLayer (Hash block0H) = TransactionLayer
-    { mkStdTx = mkTokenTransfer MsgTypeTransaction mempty
+    { mkStdTx = mkTokenTransfer mempty
 
-    , mkCertificateTx = \keyFrom (PoolId poolId, accountXPrv) rnps outs ->
-            let accountPublicKey = CC.unXPub . getRawKey . publicKey $ accountXPrv
-                payload = accountPublicKey <> poolId
-            in (payload,) <$> mkTokenTransfer MsgTypeDelegation payload keyFrom rnps outs
+    , mkCertificateTx = \keyFrom (poolId, accountXPrv, pass) ins outs -> do
+            let accountPublicKey = BS.take 32 $ CC.unXPub . getRawKey . publicKey $ accountXPrv
+
+            let cert = putStakeCertificate poolId (ChimericAccount accountPublicKey)
+
+            (_, wits) <- mkTokenTransfer cert keyFrom ins outs
+            -- TODO: I think mkTokenTransfer should be re-thought and moved to
+            -- C.W.J.Binary
+            return $ BL.toStrict
+                $ runPut
+                $ putStakeDelegationTx
+                    cert
+                    (map (second coin) ins)
+                    outs
+                    wits
+                    (sign (accountXPrv, pass))
 
     , decodeSignedTx = \payload -> do
         let errInvalidPayload =
@@ -117,13 +133,12 @@ newTransactionLayer (Hash block0H) = TransactionLayer
     }
   where
     mkTokenTransfer
-        :: MessageType
-        -> ByteString
+        :: Put
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
         -> [(TxIn, TxOut)]
         -> [TxOut]
         -> Either ErrMkStdTx (Tx, [TxWitness])
-    mkTokenTransfer msgType payload keyFrom rnps outs = do
+    mkTokenTransfer payload keyFrom rnps outs = do
         -- NOTE
         -- For signing, we need to embed a hash of the transaction data
         -- without the witnesses (since we don't yet have them!). In this sense,
@@ -133,9 +148,11 @@ newTransactionLayer (Hash block0H) = TransactionLayer
         wits <- forM rnps $ \(_, TxOut addr _) -> do
             xprv <- maybeToRight (ErrKeyNotFoundForAddress addr) (keyFrom addr)
             let body = block0H <> getHash (signData payload inps outs)
-            pure $ mkTxWitness (fst xprv) (sign body xprv)
+            pure $ mkTxWitness (fst xprv) (sign xprv body)
         let tx = Tx
-                { txId = fragmentId msgType payload inps outs wits
+                { txId = error "we shouldn't try to calculate this yet"
+                    -- We need to have a finished fragment to calculate the
+                    -- fragmentId.
                 , resolvedInputs = inps
                 , outputs = outs
                 }
@@ -170,10 +187,10 @@ instance MkTxWitness ByronKey where
 -- | Sign some arbitrary binary data using a private key.
 sign
     :: WalletKey k
-    => ByteString
-    -> (k 'AddressK XPrv, Passphrase "encryption")
+    => (k 'AddressK XPrv, Passphrase "encryption")
     -> ByteString
-sign bytes (key, (Passphrase pwd)) =
+    -> ByteString
+sign  (key, (Passphrase pwd)) bytes =
     CC.unXSignature $ CC.sign pwd (getRawKey key) bytes
 
 -- | Transaction with improper number of inputs and outputs is tried

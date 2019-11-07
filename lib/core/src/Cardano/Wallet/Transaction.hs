@@ -78,15 +78,16 @@ data TransactionLayer t k = TransactionLayer
 
     , mkCertificateTx
         :: (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
-        -> (PoolId, k 'AddressK XPrv)
+        -> (PoolId, k 'AddressK XPrv, Passphrase "encryption")
         -> [(TxIn, TxOut)]
         -> [TxOut]
-        -> Either ErrMkStdTx (ByteString, (Tx, [TxWitness]))
-        -- ^ Construct a transaction for registering a stake pool with a certificate.
+        -> Either ErrMkStdTx ByteString
+        -- ^ Construct a transaction for submitting a stake-delegation
+        -- certificate.
         --
-        -- The certificate is a combination of the node public key ('PoolId'),
-        -- and the public key of the reward account. (Note that this is an
-        -- address key and HD account keys are something different)
+        -- The certificate is a combination of the 'PoolId', and the public key
+        -- of the reward account. (Note that this is an address key and HD
+        -- account keys are something different)
 
 
     , estimateSize :: CoinSelection -> Quantity "byte" Int
