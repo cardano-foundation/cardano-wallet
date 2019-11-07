@@ -82,6 +82,8 @@ module Test.Integration.Framework.DSL
     , getFromResponseList
     , getJormungandrBlock0H
     , json
+    , joinStakePool
+    , quitStakePool
     , listAddresses
     , listTransactions
     , listAllTransactions
@@ -102,6 +104,8 @@ module Test.Integration.Framework.DSL
     , prepExternalTxViaJcli
     , eventually
     , eventuallyUsingDelay
+    , eventually_
+    , eventuallyUsingDelay_
     , fixturePassphrase
 
     -- * Endpoints
@@ -119,6 +123,9 @@ module Test.Integration.Framework.DSL
     , getWalletUtxoEp
     , getAddressesEp
     , listStakePoolsEp
+    , joinStakePoolEp
+    , quitStakePoolEp
+    , stakePoolEp
     , postTxEp
     , postExternalTxEp
     , postTxFeeEp
@@ -155,6 +162,7 @@ import Cardano.Wallet.Api.Types
     ( AddressAmount
     , ApiAddress
     , ApiByronWallet
+    , ApiStakePool
     , ApiStakePoolMetrics
     , ApiT (..)
     , ApiTransaction
@@ -836,15 +844,12 @@ apparentPerformance =
 -- Helpers
 --
 
-
 -- Retry the given action a couple of time until it doesn't throw, or until it
 -- has been retried enough.
 --
--- It is like @eventuallyUsingDelay@, but with the default delay of 500 ms
+-- It is like 'eventuallyUsingDelay', but with the default delay of 500 ms
 -- between retries.
-eventually
-    :: IO ()
-    -> IO ()
+eventually :: IO a -> IO a
 eventually = eventuallyUsingDelay (500 * ms)
   where
     ms = 1000
@@ -855,20 +860,30 @@ eventually = eventuallyUsingDelay (500 * ms)
 -- It sleeps for a specified delay between retries.
 eventuallyUsingDelay
     :: Int -- ^ Delay in microseconds
-    -> IO ()
-    -> IO ()
+    -> IO a
+    -> IO a
 eventuallyUsingDelay delay io = do
     winner <- race (threadDelay $ 60 * oneSecond) trial
     case winner of
-        Left _ -> expectationFailure
+        Left _ -> fail
             "waited more than 60s for action to eventually resolve."
-        Right _ ->
-            return ()
+        Right a ->
+            return a
   where
-    trial :: IO ()
     trial = io `catch` \(_ :: SomeException) -> do
         threadDelay delay
         trial
+
+eventually_ :: IO () -> IO ()
+eventually_ = eventuallyUsingDelay_ (500 * ms)
+  where
+    ms = 1000
+
+eventuallyUsingDelay_
+    :: Int -- ^ Delay in microseconds
+    -> IO ()
+    -> IO ()
+eventuallyUsingDelay_ = eventuallyUsingDelay
 
 utcIso8601ToText :: UTCTime -> Text
 utcIso8601ToText = utcTimeToText iso8601ExtendedUtc
@@ -1058,6 +1073,30 @@ getFromResponseList i getter (_, res) = case res of
 json :: QuasiQuoter
 json = aesonQQ
 
+joinStakePool
+    :: forall t w. (HasType (ApiT WalletId) w)
+    => Context t
+    -> ApiStakePool
+    -> (w, Text)
+    -> IO (HTTP.Status, Either RequestException (ApiTransaction 'Testnet))
+joinStakePool ctx p (w, pass) = do
+    let payload = Json [aesonQQ| {
+            "passphrase": #{pass}
+            } |]
+    request @(ApiTransaction 'Testnet) ctx (joinStakePoolEp p w) Default payload
+
+quitStakePool
+    :: forall t w. (HasType (ApiT WalletId) w)
+    => Context t
+    -> ApiStakePool
+    -> (w, Text)
+    -> IO (HTTP.Status, Either RequestException (ApiTransaction 'Testnet))
+quitStakePool ctx p (w, pass) = do
+    let payload = Json [aesonQQ| {
+            "passphrase": #{pass}
+            } |]
+    request @(ApiTransaction 'Testnet) ctx (quitStakePoolEp p w) Default payload
+
 listAddresses
     :: Context t
     -> ApiWallet
@@ -1233,6 +1272,34 @@ listStakePoolsEp =
     ( "GET"
     , "v2/stake-pools"
     )
+
+stakePoolEp
+    :: forall w. (HasType (ApiT WalletId) w)
+    => Method
+    -> ApiStakePool
+    -> w
+    -> (Method, Text)
+stakePoolEp verb p w =
+    ( verb
+    , "v2/stake-pools/"
+        <> toText (getApiT $ p ^. #id)
+        <> "/wallets/"
+        <> w ^. walletId
+    )
+
+joinStakePoolEp
+    :: forall w. (HasType (ApiT WalletId) w)
+    => ApiStakePool
+    -> w
+    -> (Method, Text)
+joinStakePoolEp = stakePoolEp "PUT"
+
+quitStakePoolEp
+    :: forall w. (HasType (ApiT WalletId) w)
+    => ApiStakePool
+    -> w
+    -> (Method, Text)
+quitStakePoolEp = stakePoolEp "DELETE"
 
 postWalletEp :: (Method, Text)
 postWalletEp =

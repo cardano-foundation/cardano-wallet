@@ -23,7 +23,7 @@ import Test.Integration.Framework.DSL
     , Payload (..)
     , emptyByronWallet
     , emptyWallet
-    , eventually
+    , eventually_
     , expectErrorMessage
     , expectEventually'
     , expectFieldEqual
@@ -45,14 +45,14 @@ import qualified Network.HTTP.Types.Status as HTTP
 spec :: forall t. SpecWith (Context t)
 spec = do
     it "NETWORK - Can query network information" $ \ctx -> do
-        eventually $ do
+        eventually_ $ do
             r <- request @ApiNetworkInformation ctx networkInfoEp Default Empty
             verify r [ expectFieldEqual syncProgress Ready ]
 
     it "NETWORK_SHELLEY - Wallet has the same tip as network/information" $ \ctx -> do
         let getNetworkInfo = request @ApiNetworkInformation ctx networkInfoEp Default Empty
         w <- emptyWallet ctx
-        eventually $ do
+        eventually_ $ do
             sync <- getNetworkInfo
             verify sync [ expectFieldEqual syncProgress Ready ]
         r <- getNetworkInfo
@@ -68,7 +68,7 @@ spec = do
     it "NETWORK_BYRON - Byron wallet has the same tip as network/information" $ \ctx -> do
         let getNetworkInfo = request @ApiNetworkInformation ctx networkInfoEp Default Empty
         w <- emptyByronWallet ctx
-        eventually $ do
+        eventually_ $ do
             sync <- getNetworkInfo
             verify sync [ expectFieldEqual syncProgress Ready ]
         r <- getNetworkInfo
