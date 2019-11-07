@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -279,8 +280,8 @@ spec = do
         -- genesis file.
         --
         -- Out of these 500 coins, 100 of them are of 1 Lovelace and are
-        -- expected to be treated as dust. The rest are all worth: 10000000000
-        -- lovelace.
+        -- expected to be treated as dust. The rest are all worth:
+        -- 10,000,000,000 lovelace.
         let mnemonics =
                 ["collect", "fold", "file", "clown"
                 , "injury", "sun", "brass", "diet"
@@ -339,7 +340,9 @@ spec = do
         request @ApiUtxoStatistics ctx (getWalletUtxoEp wNew)
             Default
             Empty >>= flip verify
-            [ expectFieldSatisfy #distribution ((== (Just 400)). Map.lookup 10000000000)
+            [ expectFieldSatisfy
+                #distribution
+                ((== (Just 400)) . Map.lookup 10_000_000_000)
             ]
 
     it "BYRON_MIGRATE_08 - fails with a wrong passphrase" $ \ctx -> do
