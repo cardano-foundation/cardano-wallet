@@ -192,6 +192,7 @@ spec = describe "Logging Middleware"
                     , replicate (n - i) (get ctx "/get")
                     ]
             void $ mapConcurrently id reqs
+            threadDelay 1000000 -- let iohk-monitoring flush the logs
             entries <- readTVarIO (logs ctx)
             let index = Map.fromList
                     $ catMaybes [ (loName l,) <$> captureTime l | l <- entries ]
@@ -267,6 +268,8 @@ postIlled ctx path body = do
 
 expectLogs :: Context -> [(Severity, String)] -> IO ()
 expectLogs ctx expectations = do
+    threadDelay 1000000 -- let iohk-monitoring flush the logs
+
     entries <- reverse <$> readTVarIO (logs ctx)
 
     when (length entries /= length expectations) $
