@@ -1,7 +1,7 @@
 {
   "url": "https://github.com/input-output-hk/iohk-nix",
-  "rev": "15af9b3c944ee590d7e63a9ff79edf5b0443cca4",
-  "date": "2019-11-02T21:43:15+00:00",
-  "sha256": "1xdl2nrr1nbm5rq8fd3bpm6ngg9c39mmfqb07a5056gzg4b04kgy",
+  "rev": "5ece7ea7b0edcd7667229199b58e289c1e00a781",
+  "date": "2019-11-07T20:44:27-05:00",
+  "sha256": "06lb9m128r0nyv7a4im3ccp63rh1pf9khn2r3ga6vc9irjyqdkfl",
   "fetchSubmodules": false
 }
