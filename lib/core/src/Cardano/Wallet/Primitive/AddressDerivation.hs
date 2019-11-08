@@ -45,6 +45,8 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , ChainCode (..)
     , XPrv
     , unXPub
+    , unXPrv
+    , xprv
     , hex
     , fromHex
 
@@ -78,7 +80,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( ChainCode (..), XPrv, XPub (..), unXPub )
+    ( ChainCode (..), XPrv, XPub (..), unXPrv, unXPub, xprv )
 import Cardano.Wallet.Primitive.Mnemonic
     ( CheckSumBits
     , ConsistentEntropy

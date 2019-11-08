@@ -1,5 +1,7 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Cardano.Faucet
     ( initFaucet
@@ -14,37 +16,164 @@ import Cardano.Wallet.Jormungandr.Binary
 import Cardano.Wallet.Primitive.Mnemonic
     ( Mnemonic )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..) )
+    ( Address (..), Coin (..), Hash (..), TxIn (..) )
 import Cardano.Wallet.Unsafe
-    ( unsafeMkMnemonic )
+    ( unsafeFromHex, unsafeMkMnemonic )
 import Control.Concurrent.MVar
     ( newMVar )
 import Data.ByteArray.Encoding
     ( Base (..), convertToBase )
+import Data.ByteString
+    ( ByteString )
 import Data.Text
     ( Text )
+import System.Command
+    ( CmdResult, Stdout (..), command )
+import System.FilePath
+    ( FilePath, (</>) )
+import System.IO.Temp
+    ( withSystemTempDirectory )
 import Test.Integration.Faucet
     ( Faucet (..) )
 
+import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Data.Text.IO as TIO
+
 
 -- | Initialize a bunch of faucet wallets and make them available for the
 -- integration tests scenarios.
 initFaucet :: IO Faucet
-initFaucet =
-    Faucet <$> newMVar seqMnemonics <*> newMVar rndMnemonics
+initFaucet = Faucet
+    <$> newMVar seqMnemonics
+    <*> newMVar rndMnemonics
+    <*> newMVar (mkTxBuilder <$> externalAddresses)
 
 getBlock0H :: IO (Hash "Genesis")
 getBlock0H = extractId <$> BL.readFile block0
   where
-    block0 = "test/data/jormungandr/block0.bin"
+    block0 = "test" </> "data" </> "jormungandr" </> "block0.bin"
     extractId = Hash . getHash . runGet getBlockId
 
 getBlock0HText :: IO Text
 getBlock0HText = toHex <$> getBlock0H
+
+toHex :: Hash any -> Text
+toHex = T.decodeUtf8 . convertToBase Base16 . getHash
+
+-- | Prepare externally signed Tx for Jormungandr
+mkTxBuilder
+    :: (TxIn, String)
+    -> (Address, Coin)
+    -> IO ByteString
+mkTxBuilder (TxIn inpTx inpIx, key) (addr, Coin amt) =
+    withSystemTempDirectory "cardano-wallet-jormungandr" $ \d -> do
+        let txFile = d </> "trans.tx"
+        let witnessFile = d </> "witness"
+        let keyFile = d </> "key.prv"
+
+        TIO.writeFile keyFile (T.pack key)
+        prepareTx txFile
+        signTx txFile keyFile witnessFile
+        toMessage txFile
   where
-    toHex = T.decodeUtf8 . convertToBase Base16 . getHash
+    runJcli :: CmdResult r => [String] -> IO r
+    runJcli = command [] "jcli"
+
+    runJcli_ :: [String] -> IO ()
+    runJcli_ = runJcli
+
+    -- A sink address where all changes from external transaction are sent to.
+    sinkAddress :: String
+    sinkAddress =
+        "sink1sw76ufc5c58mg5cn2dmze70rrpcpy4vxch60lheuzaq5up83ccatse6wns7"
+
+    -- Amount associated with each input in the genesis file, in Lovelace
+    inputAmt :: Int
+    inputAmt =
+        100000000000
+
+    prepareTx :: FilePath -> IO ()
+    prepareTx txFile = do
+        let Right hrp = Bech32.humanReadablePartFromText "addr"
+        let dp = Bech32.dataPartFromBytes (unAddress addr)
+        runJcli_
+            [ "transaction"
+            , "new"
+            , "--staging"
+            , txFile
+            ]
+        runJcli_
+            [ "transaction"
+            , "add-input"
+            , T.unpack . toHex $ inpTx
+            , show inpIx
+            , show inputAmt
+            , "--staging"
+            , txFile
+            ]
+        runJcli_
+            [ "transaction"
+            , "add-output"
+            , T.unpack (Bech32.encodeLenient hrp dp)
+            , show amt
+            , "--staging"
+            , txFile
+            ]
+        runJcli_
+            [ "transaction"
+            , "finalize"
+            , sinkAddress
+            , "--fee-constant", "42"
+            , "--fee-coefficient", "0"
+            , "--staging"
+            , txFile
+            ]
+
+    signTx :: FilePath -> FilePath -> FilePath -> IO ()
+    signTx txFile keyFile witnessFile = do
+        Stdout txId <- runJcli
+            [ "transaction"
+            , "data-for-witness"
+            , "--staging"
+            , txFile
+            ]
+        block0H <- getBlock0HText
+        runJcli_
+            [ "transaction"
+            , "make-witness"
+            , T.unpack . T.strip . T.pack $ txId
+            , "--genesis-block-hash"
+            , T.unpack block0H
+            , "--type", "utxo"
+            , witnessFile
+            , keyFile
+            ]
+        runJcli_
+            [ "transaction"
+            , "add-witness"
+            , witnessFile
+            , "--staging"
+            , txFile
+            ]
+
+    toMessage :: FilePath -> IO ByteString
+    toMessage txFile = do
+        runJcli_
+            [ "transaction"
+            , "seal"
+            , "--staging"
+            , txFile
+            ]
+        Stdout bytes <- runJcli
+            [ "transaction"
+            , "to-message"
+            , "--staging"
+            , txFile
+            ]
+        return (unsafeFromHex $ T.encodeUtf8 $ T.strip $ T.pack bytes)
 
 seqMnemonics :: [Mnemonic 15]
 seqMnemonics = unsafeMkMnemonic <$>
@@ -854,6 +983,79 @@ rndMnemonics = unsafeMkMnemonic <$>
       ]
     ]
 
+externalAddresses :: [(TxIn, String)]
+externalAddresses =
+    [ -- external1s0c3kr37th47lcajtcdcmj6z954ylg537msupdcxxwsdrnmuclxfqr9cqau
+      ( TxIn (Hash . unsafeFromHex $
+            "34f1337ff63599b7858f9122f0ecc8c876152189f7618c269bfdca71261cc88e")
+            0
+      , "ed25519_sk1qmgkz5d4c0swl2uwfvaxuxyd7zmuq95s22xxwkel30sx9l9m6ffqa4hdxg"
+      )
+
+    , -- external1sdqse0sme69dfrrlwshhkwqwwqtrp9h6g4h7qzdgfe0ws27t746ludqrs69
+      ( TxIn (Hash . unsafeFromHex $
+            "229fba82a1f3f69cafbdc8f6a43de2e851ee7ee0744935e2ce191e1c0aed57d5")
+            0
+      , "ed25519_sk1j7gw3p942jh78ck87f0zknx5ts87cjmw7qrc3paa9wkwhznmajcsm72d5v"
+      )
+
+    , -- external1s0h6kelrx0kukrg80p66z63dkycr200taxa8vscgvt07r3heyet97jztehn
+      ( TxIn (Hash . unsafeFromHex $
+            "b451fa94f10b84a096bdd17997878abbd4911c909f4ce355dc4ac8b1945f7fda")
+            0
+      , "ed25519_sk1vtvxq5ya43zygslw46n05pjtqp686mph2kq6xlh74qcut7rk0jcsd4h40r"
+      )
+
+    , -- external1swe7gkjfh5us4ndh05qs4l5zzr9326gmx90n4wyyqhhcd9z6d2wu7r4altz
+      ( TxIn (Hash . unsafeFromHex $
+            "d62dbb90cd42ac2a13ea9429344d029c754b21d050b066342ed2c9ee6ef831b5")
+            0
+      , "ed25519_sk1zyqdl00vkkkjdnqcgcmkfqr3m5vr7fg4qm000zsv70kunzzzw5cqjmqhza"
+      )
+
+    , -- external1s0df8z9qrqc7mvv2v6uk0th930km5rgj00arzp8pmhm86z9srncd73dzqer
+      ( TxIn (Hash . unsafeFromHex $
+            "ed2fbae5e31732b4341652c16b2e221ffc03747fbc98e4a2fe3ee14c055a13e7")
+            0
+      , "ed25519_sk1lkv5g5anapcpaud3ny9wsl6d6smdrjj0v2jx70jnkmtzc07u2vksyyheqw"
+      )
+
+    , -- external1swch34gwdh8c5ly5u9872knkkjekvlhtvkxgg0uryr3qy3arxuhr76ks8ha
+      ( TxIn (Hash . unsafeFromHex $
+            "628dc209b91dbafa7172db99f30914ebb7557597b5af7c3489641fda4c6f1441")
+            0
+      , "ed25519_sk1lek3s5nzv67kn3dqp7tzz5xreh2954e6npa02pct94fpqg7s34rsccyah8"
+      )
+
+    , -- external1swnfgruhxu2y6986vaq8kmnz4q2aa2j82unc52mjtm9mha79axmrzwua468
+      ( TxIn (Hash . unsafeFromHex $
+            "67afdb95aa2bb4643fbee0f61361e0639e1ded5329e3f695f5a9f90d4ab9c7bb")
+            0
+      , "ed25519_sk1lq9ccgjz6cmkc203xu5efz0nyhvngea4uapzt0nqwxq6c349ky2qzvr7wf"
+      )
+
+    , -- external1sd3w9tlg6ln8vn8fc8peu8xtavsehdvpx38h44lw782m7lpap4xzjd9dwsc
+      ( TxIn (Hash . unsafeFromHex $
+            "1518c116b4056f0d6789af51abcac823c04a52be2a014a161a44d2fe61edd687")
+            0
+      , "ed25519_sk16yqxp28e4lsj00klyrutnf9eld879s7gww8h58chdnvhngvqgz4sf95z86"
+      )
+
+    , -- external1sdmtjwmdqsz2nl2pypgsdxypvf97f7y0dppw5ypg2vyyrhzfpazcckq7557
+      ( TxIn (Hash . unsafeFromHex $
+            "7a0c8a8ec19cd4ef99a22317b3f5c244f42872628461dffae07533d8c81b8420")
+            0
+      , "ed25519_sk1y8zzc7dh36p54jw8j6cc6awpymhrfs8flczf2xt2zg798zx2qhrscq7myx"
+      )
+
+    , -- external1s0vn7nhenkn8lfx2twydelw7wlzq5rxtkxqzhcu53anjgz2gjl4tkc438l5
+      ( TxIn (Hash . unsafeFromHex $
+            "8014aed7005c8d351c4a5163bc5bf4a9e3f1d58ddd8c43b1a1797742da6854f0")
+            0
+      , "ed25519_sk19aj3wm4ztwz6mjf33knq3u30am0exhntu76qees7zjryc4hzugpspmjz5w"
+      )
+    ]
+
 {-
 
 {-# LANGUAGE TypeApplications #-}
@@ -872,7 +1074,7 @@ import Cardano.Wallet.Primitive.Mnemonic
     , mnemonicToText
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), encodeAddress )
+    ( Address (..) )
 import Control.Monad
     ( forM_, replicateM )
 import Data.Proxy
