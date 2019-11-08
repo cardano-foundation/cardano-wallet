@@ -61,11 +61,37 @@ blockchain_configuration:
 # http-bridge, we want each wallet to have 10 UTxO available, hence the
 # repetition for each address.
 initial:
-  # A special address used for creating "external" transactions
+  # Special funds for creating "external" transactions
   - fund:
-    - address: external1swl53wlqt5dnl63e0gnf8vpazgt6g5mq384dmz72329eh4m8z7e5uvdz0tv
+    - address: external1s0c3kr37th47lcajtcdcmj6z954ylg537msupdcxxwsdrnmuclxfqr9cqau
       value: 100000000000
-
+  - fund:
+    - address: external1sdqse0sme69dfrrlwshhkwqwwqtrp9h6g4h7qzdgfe0ws27t746ludqrs69
+      value: 100000000000
+  - fund:
+    - address: external1s0h6kelrx0kukrg80p66z63dkycr200taxa8vscgvt07r3heyet97jztehn
+      value: 100000000000
+  - fund:
+    - address: external1swe7gkjfh5us4ndh05qs4l5zzr9326gmx90n4wyyqhhcd9z6d2wu7r4altz
+      value: 100000000000
+  - fund:
+    - address: external1s0df8z9qrqc7mvv2v6uk0th930km5rgj00arzp8pmhm86z9srncd73dzqer
+      value: 100000000000
+  - fund:
+    - address: external1swch34gwdh8c5ly5u9872knkkjekvlhtvkxgg0uryr3qy3arxuhr76ks8ha
+      value: 100000000000
+  - fund:
+    - address: external1swnfgruhxu2y6986vaq8kmnz4q2aa2j82unc52mjtm9mha79axmrzwua468
+      value: 100000000000
+  - fund:
+    - address: external1sd3w9tlg6ln8vn8fc8peu8xtavsehdvpx38h44lw782m7lpap4xzjd9dwsc
+      value: 100000000000
+  - fund:
+    - address: external1sdmtjwmdqsz2nl2pypgsdxypvf97f7y0dppw5ypg2vyyrhzfpazcckq7557
+      value: 100000000000
+  - fund:
+    - address: external1s0vn7nhenkn8lfx2twydelw7wlzq5rxtkxqzhcu53anjgz2gjl4tkc438l5
+      value: 100000000000
   # This is just to add some variation into integration tests by making sure two
   # cases are covered in genesis.yaml initial transactions:
   # 1. Single transaction (a block fragment in jormungandr) with N outputs,
