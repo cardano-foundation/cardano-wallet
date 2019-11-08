@@ -75,6 +75,7 @@ import Test.Integration.Framework.TestData
     , arabicWalletName
     , chineseMnemonics18
     , chineseMnemonics9
+    , errMsg400ParseError
     , errMsg403WrongPass
     , errMsg404NoEndpoint
     , errMsg404NoWallet
@@ -813,6 +814,22 @@ spec = do
             r <- request @ApiWallet ctx (method, "v2/wallets") Default Empty
             expectResponseCode @IO HTTP.status405 r
             expectErrorMessage errMsg405 r
+
+    it "WALLETS_CREATE_10 - Invalid JSON" $ \ctx -> do
+        -- This test case is designed to check that we can handle the case where
+        -- the payload of an API call triggers a JSON parsing error. We want to
+        -- check that we can produce an appropriate error message.
+        --
+        -- We could go to the trouble of testing with many kinds of broken JSON
+        -- across multiple different endpoints, but for now we simply test one
+        -- representative endpoint with one simple broken JSON string.
+        --
+        -- TODO: Later on, we can generalize this, if necessary.
+        --
+        let payloadBad = NonJson "}"
+        r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payloadBad
+        expectResponseCode @IO HTTP.status400 r
+        expectErrorMessage errMsg400ParseError r
 
     it "WALLETS_GET_01 - can get wallet details" $ \ctx -> do
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default simplePayload

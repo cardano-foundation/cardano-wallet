@@ -62,6 +62,7 @@ module Test.Integration.Framework.TestData
     , errMsg403TxTooBig
     , errMsg400MalformedTxPayload
     , errMsg400WronglyEncodedTxPayload
+    , errMsg400ParseError
     , errMsg403ZeroAmtOutput
     , errMsg405
     , errMsg406
@@ -322,6 +323,13 @@ errMsg400MalformedTxPayload =
 errMsg400WronglyEncodedTxPayload :: String
 errMsg400WronglyEncodedTxPayload =
     "Parse error. Expecting hex-encoded format."
+
+errMsg400ParseError :: String
+errMsg400ParseError = mconcat
+    [ "I couldn't understand the content of your message. If your "
+    , "message is intended to be in JSON format, please check that "
+    , "the JSON is valid."
+    ]
 
 errMsg403ZeroAmtOutput :: String
 errMsg403ZeroAmtOutput = "I can't validate coin selection because\
