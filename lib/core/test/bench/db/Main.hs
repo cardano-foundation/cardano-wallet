@@ -104,9 +104,7 @@ import Cardano.Wallet.Unsafe
 import Control.DeepSeq
     ( NFData (..), force )
 import Control.Exception
-    ( bracket )
-import Control.Exception
-    ( handle )
+    ( bracket, handle )
 import Control.Monad
     ( forM_ )
 import Criterion.Main
