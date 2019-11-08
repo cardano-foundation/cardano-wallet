@@ -16,8 +16,6 @@ module Test.Integration.Jormungandr.Scenario.API.Transactions
 
 import Prelude
 
-import Cardano.CLI
-    ( Port )
 import Cardano.Faucet
     ( getBlock0H )
 import Cardano.Wallet.Api.Types
@@ -37,7 +35,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( EncodeAddress (..), GenChange (..), IsOwned (..) )
+    ( GenChange (..), IsOwned (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, mkSeqState )
 import Cardano.Wallet.Primitive.Types
@@ -51,7 +49,7 @@ import Data.ByteArray.Encoding
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Generics.Product.Typed
-    ( HasType, typed )
+    ( HasType )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -79,6 +77,7 @@ import Test.Integration.Framework.DSL
     , expectSuccess
     , faucetAmt
     , feeEstimator
+    , fixtureRawTx
     , fixtureWallet
     , fixtureWalletWith
     , for
@@ -90,7 +89,6 @@ import Test.Integration.Framework.DSL
     , postExternalTxEp
     , postTxEp
     , postTxFeeEp
-    , prepExternalTxViaJcli
     , request
     , verify
     , walletId
@@ -187,20 +185,16 @@ spec = do
 
     it "TRANS_EXTERNAL_CREATE_01x - \
         \single output tx signed via jcli" $ \ctx -> do
-
         w <- emptyWallet ctx
         addr:_ <- listAddresses ctx w
-        let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
         let amt = 1234
-
-        txBlob <- prepExternalTxViaJcli (ctx ^. typed @(Port "node")) addrStr amt
-        let payload = (NonJson . BL.fromStrict . toRawBytes Base16) txBlob
+        payload <- fixtureRawTx ctx (getApiT $ fst $ addr ^. #id, amt)
         let headers = Headers
                         [ ("Content-Type", "application/octet-stream")
                         , ("Accept", "application/json")]
 
-        request @ApiTxId ctx postExternalTxEp headers payload
-         >>= expectResponseCode HTTP.status202
+        request @ApiTxId ctx postExternalTxEp headers (NonJson payload)
+            >>= expectResponseCode HTTP.status202
 
         expectEventually' ctx getWalletEp balanceAvailable amt w
         expectEventually' ctx getWalletEp balanceTotal amt w
@@ -215,16 +209,13 @@ spec = do
                 -- post external tx
                 wal <- emptyWallet ctx
                 addr:_ <- listAddresses ctx wal
-                let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
                 let amt = 1234
-
-                txBlob <- prepExternalTxViaJcli (ctx ^. typed @(Port "node")) addrStr amt
-                let payload = (NonJson . BL.fromStrict . toRawBytes Base16) txBlob
+                payload <- fixtureRawTx ctx (getApiT $ fst $ addr ^. #id, amt)
                 let headers = Headers
                                 [ ("Content-Type", "application/octet-stream")
                                 , ("Accept", "application/json")]
 
-                r <- request @ApiTxId ctx postExternalTxEp headers payload
+                r <- request @ApiTxId ctx postExternalTxEp headers (NonJson payload)
                 let txid = toText $ getApiT$ getFromResponse #id r
 
                 -- try to forget external tx using wallet or byron-wallet
@@ -313,33 +304,19 @@ spec = do
 
         let matrix = ["PUT", "DELETE", "CONNECT", "TRACE", "OPTIONS", "GET"]
         forM_ matrix $ \method -> it (show method) $ \ctx -> do
-            w <- emptyWallet ctx
-            addr:_ <- listAddresses ctx w
-            let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
-
-            txBlob <- prepExternalTxViaJcli (ctx ^. typed @(Port "node")) addrStr 1
-            let payload = (NonJson . BL.fromStrict . toRawBytes Base16) txBlob
+            let payload = NonJson mempty
             let headers = Headers [ ("Content-Type", "application/octet-stream") ]
-
             let endpoint = "v2/proxy/transactions"
             r <- request @ApiTxId ctx (method, endpoint) headers payload
             expectResponseCode @IO HTTP.status405 r
             expectErrorMessage errMsg405 r
 
     describe "TRANS_EXTERNAL_CREATE_04 - HTTP headers" $ do
-        forM_ (externalTxHeaders @ApiTxId)
-            $ \(title, headers, expectations)
-            -> it title $ \ctx -> do
-
-            w <- emptyWallet ctx
-            addr:_ <- listAddresses ctx w
-            let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
-
-            txBlob <- prepExternalTxViaJcli (ctx ^. typed @(Port "node")) addrStr 1
-            let payload = (NonJson . BL.fromStrict . toRawBytes Base16) txBlob
-
-            r <- request @ApiTxId ctx postExternalTxEp headers payload
-            verify r expectations
+        forM_ (externalTxHeaders @ApiTxId) $ \(title, headers, expectations) ->
+            it title $ \ctx -> do
+                let payload = NonJson mempty
+                r <- request @ApiTxId ctx postExternalTxEp headers payload
+                verify r expectations
 
   where
     externalTxHeaders
