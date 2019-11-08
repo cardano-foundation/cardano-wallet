@@ -100,11 +100,11 @@ spec = do
             "Invalid address length (14): expected either 33 or 65 bytes."
         negativeTest proxy
             "ca1dvqsyqcyq5rqwzqfpg9scrgwpugpzysnzs23v9ccrydpk8qarc0jqscdket"
-            ("Invalid address first byte.")
+            ("This type of address is not supported.")
         negativeTest proxy
             "ca1dvqsyqcyq5rqwzqfpg9scrgwpugpzysnzs23v9ccrydpk8qarc0jqqgzqvz\
             \q2ps8pqys5zcvp58q7yq3zgf3g9gkzuvpjxsmrsw3u8eqwxpnc0"
-            ("Invalid address first byte.")
+            ("This type of address is not supported.")
         -- NOTE:
         -- Data below have been generated with [jcli](https://github.com/input-output-hk/jormungandr/tree/master/doc/jcli)
         -- as described in the annex at the end of the file.
@@ -147,11 +147,11 @@ spec = do
             "Invalid address length (14): expected either 33 or 65 bytes."
         negativeTest proxy
             "ta1dvqsyqcyq5rqwzqfpg9scrgwpugpzysnzs23v9ccrydpk8qarc0jq8ygppa"
-            ("Invalid address first byte.")
+            ("This type of address is not supported.")
         negativeTest proxy
             "ta1dvqsyqcyq5rqwzqfpg9scrgwpugpzysnzs23v9ccrydpk8qarc0jqqgzqvz\
             \q2ps8pqys5zcvp58q7yq3zgf3g9gkzuvpjxsmrsw3u8eq9lcgc2"
-            ("Invalid address first byte.")
+            ("This type of address is not supported.")
         goldenTestAddr proxy
             [ "7bd5386c31ac31ba7076856500cf26f85d4695b80f183c7a53e3f28419d6bde1"
             ]

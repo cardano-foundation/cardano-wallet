@@ -352,14 +352,14 @@ decodeShelleyAddress bytes = do
                 if firstByte `elem`
                     (BS.pack <$> [[single @'Mainnet], [single @'Testnet]])
                     then Left invalidNetwork
-                    else Left invalidFirstByte
+                    else Left invalidAddressType
         n | n == addrGroupedSize -> do
             let firstByte = BS.take 1 bytes
             when (firstByte /= BS.pack [grouped @n]) $
                 if firstByte `elem`
                     (BS.pack <$> [[grouped @'Mainnet], [grouped @'Testnet]])
                     then Left invalidNetwork
-                    else Left invalidFirstByte
+                    else Left invalidAddressType
         n -> Left $ invalidAddressLength n
     return (Address bytes)
   where
@@ -371,8 +371,8 @@ decodeShelleyAddress bytes = do
         <> " or "
         <> show addrGroupedSize
         <> " bytes."
-    invalidFirstByte = TextDecodingError
-        "Invalid address first byte."
+    invalidAddressType = TextDecodingError
+        "This type of address is not supported."
     invalidNetwork = TextDecodingError $
         "This address belongs to another network. Network is: "
         <> show (networkDiscriminantVal @n) <> "."
