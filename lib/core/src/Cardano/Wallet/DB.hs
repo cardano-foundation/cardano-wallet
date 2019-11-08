@@ -34,6 +34,7 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader
     , Hash
+    , PoolId
     , Range (..)
     , SlotId (..)
     , SortOrder (..)
@@ -126,6 +127,21 @@ data DBLayer m s k = DBLayer
         --
         -- Return 'Nothing' if there's no such wallet.
 
+    , putDelegationCertificate
+        :: PrimaryKey WalletId
+        -> PoolId
+        -> SlotId
+        -> ExceptT ErrNoSuchWallet m ()
+        -- ^ Binds a stake pool id to a wallet. This will have an influence on
+        -- the wallet metadata: the last known certificate will indicate to
+        -- which pool a wallet is currently delegating to.
+        --
+        -- This is done separately from 'putWalletMeta' because certificate
+        -- declaration are:
+        --
+        -- 1. Stored on-chain
+        -- 2. Affected by rollbacks (or said differently, tight to a 'SlotId')
+
     , putTxHistory
         :: PrimaryKey WalletId
         -> [(Tx, TxMeta)]
@@ -147,6 +163,12 @@ data DBLayer m s k = DBLayer
         -- descending slot number.
         --
         -- Returns an empty list if the wallet isn't found.
+
+    , removePendingTx
+        :: PrimaryKey WalletId
+        -> Hash "Tx"
+        -> ExceptT ErrRemovePendingTx m ()
+        -- ^ Remove a pending transaction.
 
     , putPrivateKey
         :: PrimaryKey WalletId
@@ -173,12 +195,6 @@ data DBLayer m s k = DBLayer
         :: PrimaryKey WalletId
         -> ExceptT ErrNoSuchWallet m ()
         -- ^ Prune database entities and remove entities that can be discarded.
-
-    , removePendingTx
-        :: PrimaryKey WalletId
-        -> Hash "Tx"
-        -> ExceptT ErrRemovePendingTx m ()
-        -- ^ Remove a pending transaction.
 
     , withLock
         :: forall e a. ()

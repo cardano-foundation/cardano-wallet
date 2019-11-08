@@ -42,6 +42,8 @@ import Cardano.BM.Data.Tracer
     ( nullTracer )
 import Cardano.DB.Sqlite
     ( SqliteContext, destroyDBLayer )
+import Cardano.Launcher
+    ( withUtf8Encoding )
 import Cardano.Wallet.DB
     ( DBLayer (..), PrimaryKey (..), cleanDB )
 import Cardano.Wallet.DB.Sqlite
@@ -102,7 +104,7 @@ import Cardano.Wallet.Unsafe
 import Control.DeepSeq
     ( NFData (..), force )
 import Control.Exception
-    ( bracket )
+    ( bracket, handle )
 import Control.Monad
     ( forM_ )
 import Criterion.Main
@@ -132,6 +134,8 @@ import Data.Typeable
     ( Typeable )
 import Data.Word
     ( Word64 )
+import Database.Sqlite
+    ( SqliteException (..) )
 import Fmt
     ( build, padLeftF, padRightF, pretty, (+|), (|+) )
 import System.Directory
@@ -152,7 +156,7 @@ import qualified Data.ByteString.Char8 as B8
 import qualified Data.Map.Strict as Map
 
 main :: IO ()
-main = do
+main = withUtf8Encoding $ do
     defaultMain
         [ withDB bgroupWriteUTxO
         , withDB bgroupReadUTxO
@@ -345,7 +349,9 @@ setupDB = do
     pure (f, ctx, db)
 
 cleanupDB :: (FilePath, SqliteContext, DBLayerBench) -> IO ()
-cleanupDB (db, _, _) = mapM_ remove [db, db <> "-shm", db <> "-wal"]
+cleanupDB (db, ctx, _) = do
+    handle (\SqliteException{} -> pure ()) $ destroyDBLayer ctx
+    mapM_ remove [db, db <> "-shm", db <> "-wal"]
   where
     remove f = doesFileExist f >>= \case
         True -> removeFile f
