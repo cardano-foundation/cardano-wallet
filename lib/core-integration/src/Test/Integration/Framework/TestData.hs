@@ -44,6 +44,7 @@ module Test.Integration.Framework.TestData
     , updateNamePayload
     , updatePassPayload
     , getHeaderCases
+    , postHeaderCases
 
     -- * Error messages
     , errMsgWalletIdEncoding
@@ -87,6 +88,36 @@ import Test.Integration.Framework.DSL
     )
 
 import qualified Network.HTTP.Types.Status as HTTP
+
+-- useful for testing POST/PUT endpoints (ones with payload)
+postHeaderCases
+    :: (Show a)
+    => [( String
+        , Headers
+        , [(HTTP.Status, Either RequestException a) -> IO ()])
+       ]
+postHeaderCases =
+    [ ( "No HTTP headers -> 415", None
+      , [ expectResponseCode @IO HTTP.status415
+       , expectErrorMessage errMsg415 ]
+    )
+    , ( "Accept: text/plain -> 406"
+      , Headers [ ("Content-Type", "application/json")
+                , ("Accept", "text/plain") ]
+      , [ expectResponseCode @IO HTTP.status406
+        , expectErrorMessage errMsg406 ]
+    )
+    , ( "No Content-Type -> 415"
+      , Headers [ ("Accept", "application/json") ]
+      , [ expectResponseCode @IO HTTP.status415
+      , expectErrorMessage errMsg415 ]
+    )
+    , ( "Content-Type: text/plain -> 415"
+      , Headers [ ("Content-Type", "text/plain") ]
+      , [ expectResponseCode @IO HTTP.status415
+        , expectErrorMessage errMsg415 ]
+    )
+    ]
 
 -- useful for testing GET/DELETE endpoints (ones without payload)
 getHeaderCases
