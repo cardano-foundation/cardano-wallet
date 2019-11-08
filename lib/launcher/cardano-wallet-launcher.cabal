@@ -65,10 +65,13 @@ test-suite unit
       -Werror
   build-depends:
       base
+    , async
     , cardano-wallet-launcher
     , fmt
     , hspec
     , iohk-monitoring
+    , process
+    , retry
     , text
   build-tools:
       hspec-discover

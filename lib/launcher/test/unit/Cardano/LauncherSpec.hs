@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.LauncherSpec
@@ -7,11 +8,26 @@ module Cardano.LauncherSpec
 import Prelude
 
 import Cardano.BM.Trace
-    ( nullTracer )
+    ( Trace, nullTracer )
 import Cardano.Launcher
-    ( Command (..), ProcessHasExited (..), StdStream (..), launch )
+    ( Command (..)
+    , LauncherLog
+    , ProcessHasExited (..)
+    , StdStream (..)
+    , withBackendProcessHandle
+    )
+import Control.Concurrent
+    ( threadDelay )
+import Control.Concurrent.Async
+    ( async, waitAnyCancel )
 import Control.Concurrent.MVar
-    ( newEmptyMVar, putMVar, tryReadMVar )
+    ( modifyMVar_, newEmptyMVar, newMVar, putMVar, readMVar, tryReadMVar )
+import Control.Monad
+    ( forever )
+import Control.Retry
+    ( exponentialBackoff, limitRetriesByCumulativeDelay, recoverAll )
+import Data.Maybe
+    ( isJust )
 import Data.Text
     ( Text )
 import Fmt
@@ -20,8 +36,10 @@ import System.Exit
     ( ExitCode (..) )
 import System.Info
     ( os )
+import System.Process
+    ( ProcessHandle, getProcessExitCode )
 import Test.Hspec
-    ( Spec, it, shouldBe, shouldContain, shouldReturn )
+    ( Spec, it, shouldBe, shouldContain, shouldReturn, shouldSatisfy )
 
 {-# ANN spec ("HLint: ignore Use head" :: String) #-}
 spec :: Spec
@@ -45,36 +63,40 @@ spec = do
               [ mockCommand True (pure ())
               , foreverCommand
               ]
-        (ProcessHasExited name code) <- launch nullTracer commands
+        (phs, ProcessHasExited name code) <- launch nullTracer commands
         name `shouldBe` cmdName (commands !! 0)
         code `shouldBe` ExitSuccess
+        assertProcessesExited phs
 
     it "2nd process exits with 0, others are cancelled" $ do
         let commands =
               [ foreverCommand
               , mockCommand True (pure ())
               ]
-        (ProcessHasExited name code) <- launch nullTracer commands
+        (phs, ProcessHasExited name code) <- launch nullTracer commands
         name `shouldBe` cmdName (commands !! 1)
         code `shouldBe` ExitSuccess
+        assertProcessesExited phs
 
     it "1st process exits with 3, others are cancelled" $ do
         let commands =
               [ mockCommand False (pure ())
               , foreverCommand
               ]
-        (ProcessHasExited name code) <- launch nullTracer commands
+        (phs, ProcessHasExited name code) <- launch nullTracer commands
         name `shouldBe` cmdName (commands !! 0)
         code `shouldBe` (ExitFailure 3)
+        assertProcessesExited phs
 
     it "2nd process exits with 3, others are cancelled" $ do
         let commands =
               [ foreverCommand
               , mockCommand False (pure ())
               ]
-        (ProcessHasExited name code) <- launch nullTracer commands
+        (phs, ProcessHasExited name code) <- launch nullTracer commands
         name `shouldBe` cmdName (commands !! 1)
         code `shouldBe` (ExitFailure 3)
+        assertProcessesExited phs
 
     it "Process executes a command before they start" $ do
         mvar <- newEmptyMVar
@@ -82,16 +104,18 @@ spec = do
         let commands =
                 [ mockCommand True before
                 ]
-        (ProcessHasExited _ code) <- launch nullTracer commands
+        (phs, ProcessHasExited _ code) <- launch nullTracer commands
         code `shouldBe` ExitSuccess
         tryReadMVar mvar `shouldReturn` (Just @String "executed")
+        assertProcessesExited phs
 
     it "Handles command not found" $ do
         let commands =
                 [ Command "foobar" [] (pure ()) Inherit
                 ]
-        ProcessDidNotStart name _exc <- launch nullTracer commands
+        (phs, ProcessDidNotStart name _exc) <- launch nullTracer commands
         name `shouldBe` "foobar"
+        assertProcessesExited phs
 
     it "Sanity check System.Info.os" $
         ["linux", "darwin", "mingw32"] `shouldContain` [os]
@@ -115,3 +139,33 @@ foreverCommand
 
 isWindows :: Bool
 isWindows = os == "mingw32"
+
+-- | Run a bunch of command in separate processes. Note that, this operation is
+-- blocking and will throw when one of the given commands terminates.
+-- It records the PID of all processes which started (in undefined order).
+launch :: Trace IO LauncherLog -> [Command] -> IO ([ProcessHandle], ProcessHasExited)
+launch tr cmds = do
+    phsVar <- newMVar []
+    let
+        waitForOthers ph = do
+            modifyMVar_ phsVar (pure . (ph:))
+            forever $ threadDelay maxBound
+        start = async . flip (withBackendProcessHandle tr) waitForOthers
+
+    mapM start cmds >>= waitAnyCancel >>= \case
+        (_, Left e) -> do
+            phs <- readMVar phsVar
+            return (phs, e)
+        (_, Right _) -> error $
+                "Unreachable. Supervising threads should never finish. " <>
+                "They should stay running or throw @ProcessHasExited@."
+
+-- | Check that all processes eventually exit somehow. This will wait for up to
+-- 10 seconds for that to happen.
+assertProcessesExited :: [ProcessHandle] -> IO ()
+assertProcessesExited phs = recoverAll policy test
+  where
+    policy = limitRetriesByCumulativeDelay 10000 (exponentialBackoff 50)
+    test _ = do
+        statuses <- mapM getProcessExitCode phs
+        statuses `shouldSatisfy` all isJust

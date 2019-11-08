@@ -1,7 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE LambdaCase #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -14,8 +13,8 @@ module Cardano.Launcher
     ( Command (..)
     , StdStream(..)
     , ProcessHasExited(..)
-    , launch
     , withBackendProcess
+    , withBackendProcessHandle
 
     -- * Program startup
     , installSignalHandlers
@@ -34,14 +33,12 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Trace
     ( Trace, appendName, traceNamedItem )
-import Control.Concurrent
-    ( threadDelay )
 import Control.Concurrent.Async
-    ( async, race, waitAnyCancel )
+    ( race )
 import Control.Exception
     ( Exception, IOException, tryJust )
 import Control.Monad
-    ( forever, join )
+    ( join )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Tracer
@@ -73,6 +70,7 @@ import System.IO.CodePage
     ( withCP65001 )
 import System.Process
     ( CreateProcess (..)
+    , ProcessHandle
     , StdStream (..)
     , getPid
     , proc
@@ -142,19 +140,6 @@ data ProcessHasExited
 
 instance Exception ProcessHasExited
 
--- | Run a bunch of command in separate processes. Note that, this operation is
--- blocking and will throw when one of the given commands terminates. Commands
--- are therefore expected to be daemon or long-running services.
-launch :: Trace IO LauncherLog -> [Command] -> IO ProcessHasExited
-launch tr cmds = mapM start cmds >>= waitAnyCancel >>= \case
-    (_, Left e) -> return e
-    (_, Right _) -> error $
-            "Unreachable. Supervising threads should never finish. " <>
-            "They should stay running or throw @ProcessHasExited@."
-  where
-    sleep = forever $ threadDelay maxBound
-    start = async . flip (withBackendProcess tr) sleep
-
 -- | Starts a command in the background and then runs an action. If the action
 -- finishes (through an exception or otherwise) then the process is terminated
 -- (see 'withCreateProcess') for details. If the process exits, the action is
@@ -167,7 +152,19 @@ withBackendProcess
     -> IO a
     -- ^ Action to execute while process is running.
     -> IO (Either ProcessHasExited a)
-withBackendProcess tr cmd@(Command name args before output) action = do
+withBackendProcess tr cmd = withBackendProcessHandle tr cmd . const
+
+-- | A variant of 'withBackendProcess' which also provides the 'ProcessHandle' to the
+-- given action.
+withBackendProcessHandle
+    :: Trace IO LauncherLog
+    -- ^ Logging
+    -> Command
+    -- ^ 'Command' description
+    -> (ProcessHandle -> IO a)
+    -- ^ Action to execute while process is running.
+    -> IO (Either ProcessHasExited a)
+withBackendProcessHandle tr cmd@(Command name args before output) action = do
     before
     launcherLog tr $ MsgLauncherStart cmd
     let process = (proc name args) { std_out = output, std_err = output }
@@ -177,7 +174,7 @@ withBackendProcess tr cmd@(Command name args before output) action = do
             let tr' = appendName (T.pack name <> "." <> pid) tr
             launcherLog tr' $ MsgLauncherStarted name pid
             race (ProcessHasExited name <$> waitForProcess h)
-                (action <* launcherLog tr' MsgLauncherCleanup)
+                (action h <* launcherLog tr' MsgLauncherCleanup)
     either (launcherLog tr . MsgLauncherFinish) (const $ pure ()) res
     pure res
   where

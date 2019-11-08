@@ -75,10 +75,13 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
         "unit" = {
           depends = [
             (hsPkgs."base" or (buildDepError "base"))
+            (hsPkgs."async" or (buildDepError "async"))
             (hsPkgs."cardano-wallet-launcher" or (buildDepError "cardano-wallet-launcher"))
             (hsPkgs."fmt" or (buildDepError "fmt"))
             (hsPkgs."hspec" or (buildDepError "hspec"))
             (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
+            (hsPkgs."process" or (buildDepError "process"))
+            (hsPkgs."retry" or (buildDepError "retry"))
             (hsPkgs."text" or (buildDepError "text"))
             ];
           build-tools = [
