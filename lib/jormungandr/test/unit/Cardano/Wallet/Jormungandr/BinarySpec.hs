@@ -71,7 +71,6 @@ import Test.Hspec
     , runIO
     , shouldContain
     , shouldSatisfy
-    , xit
     )
 import Test.QuickCheck
     ( Arbitrary (..)
@@ -110,6 +109,7 @@ spec = do
                     res <- try' (runGet getBlock bs)
                     res `shouldSatisfy` isRight
                     return ()
+
         describe "whileM (not <$> isEmpty)" $ do
             it "should fail immediately when the decoder errors" $ do
                 -- Context: We use whileM not <$> isEmpty to decode multiple
@@ -127,7 +127,6 @@ spec = do
                             \the expected 3 bytes"
                         e `shouldContain` "getMessage"
 
-
     describe "Encoding" $ do
         it "decode (encode tx) === tx standard transaction" $ property $
             \(SignedTx signedTx) -> monadicIO $ liftIO $ do
@@ -142,16 +141,16 @@ spec = do
                 else expectationFailure $
                     "tx /= decode (encode tx) == " ++ show tx'
 
-        xit "decode (encode tx) === tx stake delegation transaction" $
-            property $ \(StakeDelegationTx stakeDelTx) -> monadicIO $ liftIO $ do
-                let encode (poolId, pubKey, (Tx _ inps outs), wits) =
-                          runPut
+        it "decode (encode tx) === tx stake delegation transaction" $
+            property $ \(StakeDelegationTx args) -> monadicIO $ liftIO $ do
+                let (poolId, accId, accSig, tx@(Tx _ inps outs), wits) = args
+                let encode = runPut
                         $ withHeader MsgTypeDelegation
-                        $ putStakeDelegationTx poolId pubKey inps outs wits
+                        $ putStakeDelegationTx poolId accId accSig inps outs wits
                 let decode =
                         getStakeDelegationTxMessage . runGet getMessage
-                tx' <- try' (decode $ encode stakeDelTx)
-                if tx' == Right stakeDelTx
+                tx' <- try' (decode encode)
+                if tx' == Right (poolId, accId, tx, wits)
                 then return ()
                 else expectationFailure $
                     "tx /= decode (encode tx) == " ++ show tx'
@@ -214,7 +213,13 @@ instance Arbitrary TxOut where
     shrink = genericShrink
 
 newtype StakeDelegationTx =
-    StakeDelegationTx (PoolId, ChimericAccount, Tx, [TxWitness])
+    StakeDelegationTx
+        ( PoolId
+        , ChimericAccount
+        , Hash "AccountSignature"
+        , Tx
+        , [TxWitness]
+        )
     deriving (Eq, Show, Generic)
 
 instance Arbitrary PoolId where
@@ -231,8 +236,9 @@ instance Arbitrary StakeDelegationTx where
         wits <- vectorOf nIns arbitrary
         poolId <- arbitrary
         accId <- ChimericAccount . B8.pack <$> replicateM 32 arbitrary
-        let tid = delegationFragmentId poolId accId inps outs wits
-        return $ StakeDelegationTx (poolId, accId, Tx tid inps outs, wits)
+        accSig <- Hash . B8.pack <$> replicateM 64 arbitrary
+        let tid = delegationFragmentId poolId accId accSig inps outs wits
+        pure $ StakeDelegationTx (poolId, accId, accSig, Tx tid inps outs, wits)
 
 newtype SignedTx = SignedTx (Tx, [TxWitness])
     deriving (Eq, Show, Generic)
