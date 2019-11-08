@@ -111,6 +111,7 @@ import Data.Binary.Get
     , getByteString
     , getLazyByteString
     , getWord16be
+    , getWord16le
     , getWord32be
     , getWord64be
     , getWord8
@@ -118,12 +119,20 @@ import Data.Binary.Get
     , isolate
     , label
     , lookAhead
+    , lookAheadM
     , runGet
     , runGetOrFail
     , skip
     )
 import Data.Binary.Put
-    ( Put, putByteString, putWord16be, putWord64be, putWord8, runPut )
+    ( Put
+    , putByteString
+    , putWord16be
+    , putWord16le
+    , putWord64be
+    , putWord8
+    , runPut
+    )
 import Data.Bits
     ( shift, (.&.) )
 import Data.ByteString
@@ -296,9 +305,8 @@ getMessage = label "getMessage" $ do
     -- corresponds to the txId (a.k.a "tx hash").
     fragId <- Hash . blake2b256 . BL.toStrict
         <$> lookAhead (getLazyByteString $ fromIntegral size)
-
-    msgType <- fromIntegral <$> getWord8
-    let remaining = size - 1
+    msgType <- fromIntegral <$> getWord16le
+    let remaining = size - 2
     let unimpl = skip remaining >> return (UnimplementedMessage msgType)
     let typeLabelStr = "fragmentType " ++ show msgType
 
@@ -307,7 +315,8 @@ getMessage = label "getMessage" $ do
         1 -> Transaction <$> getLegacyTransaction fragId
         2 -> Transaction <$> getTransaction fragId
         3 -> unimpl -- OwnerStakeDelegation
-        4 -> StakeDelegation <$> getStakeDelegation fragId
+        4 -> maybe (UnimplementedMessage msgType) StakeDelegation <$>
+            lookAheadM (getStakeDelegation fragId)
         5 -> unimpl -- PoolRegistration
         6 -> unimpl -- PoolRetirement
         7 -> unimpl -- PoolUpdate
@@ -315,7 +324,7 @@ getMessage = label "getMessage" $ do
         9 -> unimpl -- UpdateVote
         other -> fail $ "Unexpected content type tag " ++ show other
 
-messageTypeTag :: MessageType -> Word8
+messageTypeTag :: MessageType -> Word16
 messageTypeTag = \case
     MsgTypeInitial -> 0
     MsgTypeLegacyUTxO -> 1
@@ -355,21 +364,43 @@ legacyUtxoWitness xpub bytes = TxWitness $ BL.toStrict $ runPut $ do
     putByteString (unXPub xpub)
     putByteString bytes
 
+data StakeDelegationType
+    = DlgNone
+    | DlgFull
+    | DlgRatio
+
+stakeDelegationTypeTag :: StakeDelegationType -> Word8
+stakeDelegationTypeTag = \case
+    DlgNone -> 0
+    DlgFull -> 1
+    DlgRatio -> 2
+
 -- | Decode the contents of a @Transaction@-message carrying a delegation cert.
+--
+-- Returns 'Nothing' for unsupported stake delegation types: DLG-NONE & DLG-RATIO
 getStakeDelegation
     :: Hash "Tx"
-    -> Get (PoolId, ChimericAccount, Tx, [TxWitness])
+    -> Get (Maybe (PoolId, ChimericAccount, Tx, [TxWitness]))
 getStakeDelegation tid = do
     label "getStakeDelegation" $ do
         accId <- getByteString 32
+        delegationType <- getWord8
+        case delegationType of
+            0 -> getStakeDelegationNone
+            1 -> getStakeDelegationFull accId
+            _ -> getStakeDelegationRatio
+  where
+    getStakeDelegationNone =
+        pure Nothing
+
+    getStakeDelegationFull accId = Just <$> do
         poolId <- getByteString 32
         (tx, wits) <- getGenericTransaction tid
-        -- NOTE
-        -- Haven't quite figured what these 64 bytes are. We need some help or
-        -- documentation from Jörmungandr's team as this will be needed to fix
-        -- 'putStakeDelegationTx'.
-        _ <- getByteString 64
+        _accSignature <- getByteString 64
         pure (PoolId poolId, ChimericAccount accId, tx, wits )
+
+    getStakeDelegationRatio =
+        pure Nothing
 
 putStakeCertificate
     :: PoolId
@@ -377,21 +408,21 @@ putStakeCertificate
     -> Put
 putStakeCertificate (PoolId poolId) (ChimericAccount accId) = do
     putByteString accId
+    putWord8 (stakeDelegationTypeTag DlgFull)
     putByteString poolId
 
 putStakeDelegationTx
     :: PoolId
     -> ChimericAccount
+    -> Hash "AccountSignature"
     -> [(TxIn, Coin)]
     -> [TxOut]
     -> [TxWitness]
     -> Put
-putStakeDelegationTx poolId accId inputs outputs witnesses = do
+putStakeDelegationTx poolId accId (Hash accSig) inputs outputs witnesses = do
     putStakeCertificate poolId accId
     putSignedTx inputs outputs witnesses
-    -- FIXME
-    -- Likely, some authentication payload is needed here but this is somewhat
-    -- hard to figure out with the current state of affairs in Jörmungandr...
+    putByteString accSig
 
 -- | Decode the contents of a @Transaction@-message.
 getTransaction :: Hash "Tx" -> Get (Tx, [TxWitness])
@@ -559,7 +590,7 @@ getConfigParam = label "getConfigParam" $ do
         10 -> BftSlotsRatio <$> getMilli
         11 -> AddBftLeader <$> getLeaderId
         12 -> RemoveBftLeader <$> getLeaderId
-        13 -> AllowAccountCreation <$> getBool
+        13 -> fail $ "Obsolete config param with tag " ++ show tag
         14 -> ConfigLinearFee <$> getLinearFee
         15 -> ProposalExpiration . Quantity <$> getWord32be
         16 -> KesUpdateSpeed . Quantity <$> getWord32be
@@ -618,15 +649,6 @@ getLinearFee = label "getFeePolicy" $ do
   where
     double = fromRational . toRational
 
-getBool :: Get Bool
-getBool = getWord8 >>= \case
-    1 ->
-        return True
-    0 ->
-        return False
-    other ->
-        fail $ "Unexpected integer: " ++ show other ++ ". Expected a boolean."
-
 {-------------------------------------------------------------------------------
                             Addresses
 -------------------------------------------------------------------------------}
@@ -669,7 +691,7 @@ putAddress (Address bs) = putByteString bs
 --
 withHeader :: MessageType -> Put -> Put
 withHeader typ content = do
-    let bs = BL.toStrict $ runPut (putWord8 (messageTypeTag typ) *> content)
+    let bs = BL.toStrict $ runPut (putWord16le (messageTypeTag typ) *> content)
     putWord16be (toEnum $ BS.length bs)
     putByteString bs
 
@@ -705,20 +727,21 @@ fragmentId
     -> Hash "Tx"
 fragmentId inps outs wits =
     Hash $ blake2b256 $ BL.toStrict $ runPut $ do
-        putWord8 (messageTypeTag MsgTypeTransaction)
+        putWord16le (messageTypeTag MsgTypeTransaction)
         putSignedTx inps outs wits
 
 delegationFragmentId
     :: PoolId
     -> ChimericAccount
+    -> Hash "AccountSignature"
     -> [(TxIn, Coin)]
     -> [TxOut]
     -> [TxWitness]
     -> Hash "Tx"
-delegationFragmentId poolId accId inps outs wits =
+delegationFragmentId poolId accId accSig inps outs wits =
     Hash $ blake2b256 $ BL.toStrict $ runPut $ do
-        putWord8 (messageTypeTag MsgTypeDelegation)
-        putStakeDelegationTx poolId accId inps outs wits
+        putWord16le (messageTypeTag MsgTypeDelegation)
+        putStakeDelegationTx poolId accId accSig inps outs wits
 
 -- | See 'fragmentId'. This computes the signing data required for producing
 -- transaction witnesses.

@@ -80,7 +80,6 @@ module Test.Integration.Framework.DSL
     , emptyWalletWith
     , getFromResponse
     , getFromResponseList
-    , getJormungandrBlock0H
     , json
     , joinStakePool
     , quitStakePool
@@ -88,6 +87,7 @@ module Test.Integration.Framework.DSL
     , listTransactions
     , listAllTransactions
     , tearDown
+    , fixtureRawTx
     , fixtureByronWallet
     , fixtureWallet
     , fixtureWalletWith
@@ -101,7 +101,6 @@ module Test.Integration.Framework.DSL
     , for
     , toQueryString
     , utcIso8601ToText
-    , prepExternalTxViaJcli
     , eventually
     , eventuallyUsingDelay
     , eventually_
@@ -135,7 +134,6 @@ module Test.Integration.Framework.DSL
     , deleteTxEp
 
     -- * CLI
-    , runJcli
     , command
     , cardanoWalletCLI
     , generateMnemonicsViaCLI
@@ -238,7 +236,7 @@ import Data.Generics.Product.Fields
 import Data.Generics.Product.Typed
     ( HasType, typed )
 import Data.List
-    ( elemIndex, (!!) )
+    ( (!!) )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Maybe
@@ -279,8 +277,6 @@ import System.Exit
     ( ExitCode (..) )
 import System.IO
     ( BufferMode (..), Handle, hClose, hFlush, hPutStr, hSetBuffering )
-import System.IO.Temp
-    ( withSystemTempDirectory )
 import System.Process
     ( CreateProcess (..)
     , ProcessHandle
@@ -295,7 +291,7 @@ import Test.Hspec
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain, shouldNotBe, shouldNotContain )
 import Test.Integration.Faucet
-    ( nextWallet )
+    ( nextTxBuilder, nextWallet )
 import Test.Integration.Framework.Request
     ( Context (..)
     , Headers (..)
@@ -319,7 +315,6 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
 import qualified Network.HTTP.Types.Status as HTTP
-import qualified System.FilePath as F
 --
 -- API response expectations
 --
@@ -931,6 +926,14 @@ emptyWalletWith ctx (name, passphrase, addrPoolGap) = do
     expectResponseCode @IO HTTP.status202 r
     return (getFromResponse id r)
 
+fixtureRawTx
+    :: Context t
+    -> (Address, Natural)
+    -> IO BL.ByteString
+fixtureRawTx ctx (addr, amt) =
+    nextTxBuilder (_faucet ctx) >>= \build ->
+        BL.fromStrict <$> build (addr, Coin $ fromIntegral amt)
+
 -- | Default passphrase used for fixture wallets
 fixturePassphrase
     :: Text
@@ -1370,12 +1373,6 @@ updateWalletPassEp w =
 --- CLI
 ---
 
-runJcli
-    :: CmdResult r
-    => [String]
-    -> IO r
-runJcli = command [] "jcli"
-
 -- | A class to select the right command for a given 'Context t'
 class KnownCommand t where
     commandName :: String
@@ -1655,97 +1652,3 @@ groupsOf n xs = take n xs : groupsOf n (drop n xs)
 -- | 'map' flipped.
 for :: [a] -> (a -> b) -> [b]
 for = flip map
-
-withTempDir :: (FilePath -> IO a) -> IO a
-withTempDir = withSystemTempDirectory "external-tx"
-
-getJormungandrBlock0H :: IO String
-getJormungandrBlock0H = do
-    let block0File = "./test/data/jormungandr/block0.bin"
-    Stdout block0H <- runJcli ["genesis", "hash", "--input", block0File]
-    return (T.unpack . T.strip . T.pack $ block0H)
-
--- | Prepare externally signed Tx for Jormungandr
-prepExternalTxViaJcli :: Port "node" -> Text -> Natural -> IO Text
-prepExternalTxViaJcli port addrStr amt = do
-    withTempDir $ \d -> do
-        let strip = T.unpack . T.strip . T.pack
-        let txFile = d F.</> "trans.tx"
-        let witnessFile = d F.</> "witness"
-
-        let keyFile = d F.</> "key.prv"
-        TIO.writeFile keyFile
-            "ed25519_sk1ga6n6fdsrruumg6nh0epdrqswrsdxhq4q7g5enun8v2jnk4u2gls08wfu3"
-
-        let faucetAddr =
-                "ca1swl53wlqt5dnl63e0gnf8vpazgt6g5mq384dmz72329eh4m8z7e5un8q6lg"
-
-        -- get inputFunds, inputIndex and inputTxId associated with faucetAddr
-        -- from Jormungandr utxo
-        Stdout u <- runJcli
-            [ "rest", "v0", "utxo", "get"
-            , "-h", "http://127.0.0.1:" <> show port <> "/api"
-            ]
-
-        let utxo =
-                T.splitOn "\n" (T.pack u)
-        let (Just i) =
-                elemIndex ( "- address: " ++ faucetAddr ) (T.unpack <$> utxo)
-        let inputFunds =
-                T.replace "  associated_fund: " "" (utxo !! (i + 1))
-        let inputIndex =
-                T.replace "  index_in_transaction: " "" (utxo !! (i + 2))
-        let inputTxId =
-                T.replace "  transaction_id: " "" (utxo !! (i + 3))
-
-        -- prepare tx using `jcli`
-        runJcli ["transaction", "new", "--staging", txFile ]
-            >>= (`shouldBe` ExitSuccess)
-        runJcli
-            [ "transaction"
-            , "add-input"
-            , T.unpack inputTxId
-            , T.unpack inputIndex
-            , T.unpack inputFunds
-            , "--staging", txFile ]
-            >>= (`shouldBe` ExitSuccess)
-        runJcli
-            [ "transaction"
-            , "add-output"
-            , T.unpack addrStr
-            , show amt
-            , "--staging", txFile ]
-            >>= (`shouldBe` ExitSuccess)
-        runJcli
-            [ "transaction"
-            , "finalize"
-            , faucetAddr
-            , "--fee-constant", "42"
-            , "--fee-coefficient", "0"
-            , "--staging", txFile ]
-            >>= (`shouldBe` ExitSuccess)
-        Stdout txId <- runJcli ["transaction", "id", "--staging", txFile]
-        block0H <- getJormungandrBlock0H
-        runJcli
-            [ "transaction"
-            , "make-witness"
-            , strip txId
-            , "--genesis-block-hash", block0H
-            , "--type", "utxo"
-            , witnessFile
-            , keyFile ]
-            >>= (`shouldBe` ExitSuccess)
-        runJcli
-            [ "transaction"
-            , "add-witness"
-            , witnessFile
-            , "--staging", txFile ]
-            >>= (`shouldBe` ExitSuccess)
-        runJcli ["transaction", "seal", "--staging", txFile ]
-            >>= (`shouldBe` ExitSuccess)
-        Stdout txMess <- runJcli
-            [ "transaction"
-            , "to-message"
-            , "--staging", txFile
-            ]
-        return (T.strip . T.pack $ txMess)

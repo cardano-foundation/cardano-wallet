@@ -61,6 +61,37 @@ blockchain_configuration:
 # http-bridge, we want each wallet to have 10 UTxO available, hence the
 # repetition for each address.
 initial:
+  # Special funds for creating "external" transactions
+  - fund:
+    - address: external1s0c3kr37th47lcajtcdcmj6z954ylg537msupdcxxwsdrnmuclxfqr9cqau
+      value: 100000000000
+  - fund:
+    - address: external1sdqse0sme69dfrrlwshhkwqwwqtrp9h6g4h7qzdgfe0ws27t746ludqrs69
+      value: 100000000000
+  - fund:
+    - address: external1s0h6kelrx0kukrg80p66z63dkycr200taxa8vscgvt07r3heyet97jztehn
+      value: 100000000000
+  - fund:
+    - address: external1swe7gkjfh5us4ndh05qs4l5zzr9326gmx90n4wyyqhhcd9z6d2wu7r4altz
+      value: 100000000000
+  - fund:
+    - address: external1s0df8z9qrqc7mvv2v6uk0th930km5rgj00arzp8pmhm86z9srncd73dzqer
+      value: 100000000000
+  - fund:
+    - address: external1swch34gwdh8c5ly5u9872knkkjekvlhtvkxgg0uryr3qy3arxuhr76ks8ha
+      value: 100000000000
+  - fund:
+    - address: external1swnfgruhxu2y6986vaq8kmnz4q2aa2j82unc52mjtm9mha79axmrzwua468
+      value: 100000000000
+  - fund:
+    - address: external1sd3w9tlg6ln8vn8fc8peu8xtavsehdvpx38h44lw782m7lpap4xzjd9dwsc
+      value: 100000000000
+  - fund:
+    - address: external1sdmtjwmdqsz2nl2pypgsdxypvf97f7y0dppw5ypg2vyyrhzfpazcckq7557
+      value: 100000000000
+  - fund:
+    - address: external1s0vn7nhenkn8lfx2twydelw7wlzq5rxtkxqzhcu53anjgz2gjl4tkc438l5
+      value: 100000000000
   # This is just to add some variation into integration tests by making sure two
   # cases are covered in genesis.yaml initial transactions:
   # 1. Single transaction (a block fragment in jormungandr) with N outputs,
@@ -3057,9 +3088,6 @@ initial:
       value: 100000000000
   - fund:
     - address: ta1swaga8c5sjwsw86yprw5d3m44ktla3ymesn0rtwurer5pg9mmp24kznrwfg
-      value: 100000000000
-  - fund:
-    - address: ca1swl53wlqt5dnl63e0gnf8vpazgt6g5mq384dmz72329eh4m8z7e5un8q6lg
       value: 100000000000
 
   # Legacy Funds
@@ -6090,9 +6118,9 @@ initial:
 
   # Delegation certificates — delegating from the account addresses to the pools
   # $ cat funds/stake_delegation{1,2,3}.signedcert
-  - cert: signedcert1qxkalz75s4vtw2e9wsy2q9jvsu3qtz6d2vm3xj4e5q4ufejpjjfn5nh6xwyyppjw3u2fksnahv3dcmjyllmd89g9vcwcvjv3jntn8yrsw23q5zv7q8f2yjj68zre69c0eqgmzpsp8dwsgnul60nacr6qv926dmu6f4zlgk8pylcezuu98aemn4pgmus66rz8k60qm0eggklykrs8wxl2n
-  - cert: signedcert1q8qtmpgefmhlwrwlm48kxq43hpkxnvz8fey2jlmce5lea3mxnskfqk4vpz28p9pcx98vrj9sd9uzplpwl2kfz3mgk5l9f45tp08p02dgpddtc3kl7l78v2x58zq93ffdenrgu5ucvqmgsau9a7j4tjzfygs67c0t9rh97v66w0tanfh809rpxsnmruk7tfr0kg90ggg2637dwrq3kedmw
-  - cert: signedcert1qxzn99jx8a2rw80gp9uea47tmcndv7gm28vy9as6akevy32204aqwh8mklm7cqzsfx0m68re29fpd3ddvd4e05v5f00g5lde3e73y6qrjcu9yplavupdmka9y4aprfy3ewcwv0mr7n98r00l9a6h45k969tmwuhgle0hcd9ttywv0sne58s5zt5ftj47phgmc5yqetse6wlq7pswxlgzj
+  - cert: signedcert1qxkalz75s4vtw2e9wsy2q9jvsu3qtz6d2vm3xj4e5q4ufejpjjfn5q2wlgecssyxf683fx6z0kaj9hrwgnlld5u4q4npmpjfjx2dwvuswqsyfxf3ufe2me8jr3z70xcw930ewarlmz0ah67m6suzz9u524uucy2le5q26ukspl7k4gdlzyt3ldqzcv6gvcsmappmmpsx74639lgqg2a9kx
+  - cert: signedcert1q8qtmpgefmhlwrwlm48kxq43hpkxnvz8fey2jlmce5lea3mxnskfqq264syfguy58qc5aswgkp5hsg8u9ma2ey28dz6nu4xk3v9uu9af4rmltr2l3fcuvvcncxcd8pkujg55zdm9vvkpd7v68fsk700346rkd0cew62txal4zzm082gf22t652dqeyxvxr8gve9kt30fvpg5yjgpwe6ppl
+  - cert: signedcert1qxzn99jx8a2rw80gp9uea47tmcndv7gm28vy9as6akevy32204aqwq2ulwml0mqq2pyel0gu09g4y9k9443kh973j39aaznahx886yngqwgl2dse22c2n494hxlfzkw8v4rtxuj43unq04u7r848v28axlge63zlr4wpuwq080y3htyxxcx6dujzz84m7tupkhxrpcu0t9x67cq0x6dn8y
 
   # A special Byron Wallet coming from ["collect", "fold", "file", "clown", "injury", "sun", "brass", "diet", "exist", "spike", "behave", "clip"]
   #

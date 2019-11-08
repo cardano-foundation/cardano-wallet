@@ -10,24 +10,18 @@ module Test.Integration.Jormungandr.Scenario.CLI.Transactions
 
 import Prelude
 
-import Cardano.CLI
-    ( Port )
 import Cardano.Wallet.Api.Types
     ( ApiTxId (..), ApiWallet, getApiT )
 import Cardano.Wallet.Jormungandr.Binary
     ( MessageType (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery
-    ( EncodeAddress (..) )
+    ( NetworkDiscriminant (..), hex )
 import Cardano.Wallet.Primitive.Types
     ( Hash (..), Tx (..) )
 import Data.ByteArray.Encoding
     ( Base (Base16, Base64), convertToBase )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
-import Data.Generics.Product.Typed
-    ( typed )
 import Data.Proxy
     ( Proxy (..) )
 import Numeric.Natural
@@ -51,11 +45,11 @@ import Test.Integration.Framework.DSL
     , expectEventually'
     , expectValidJSON
     , faucetAmt
+    , fixtureRawTx
     , getWalletEp
     , getWalletViaCLI
     , listAddresses
     , postExternalTransactionViaCLI
-    , prepExternalTxViaJcli
     , verify
     , walletId
     )
@@ -69,6 +63,7 @@ import Test.Integration.Jormungandr.Scenario.API.Transactions
 import Web.HttpApiData
     ( ToHttpApiData (..) )
 
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
@@ -80,13 +75,12 @@ spec = do
         \single output tx signed via jcli" $ \ctx -> do
         w <- emptyWallet ctx
         addr:_ <- listAddresses ctx w
-        let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
         let amt = 4321
 
-        txBlob <- prepExternalTxViaJcli (ctx ^. typed @(Port "node")) addrStr amt
-
+        payload <- fixtureRawTx ctx (getApiT $ fst $ addr ^. #id, amt)
         (Exit code, Stdout out, Stderr err) <-
-            postExternalTransactionViaCLI @t ctx [T.unpack txBlob]
+            postExternalTransactionViaCLI @t ctx
+                [T.unpack $ T.decodeUtf8 $ hex $ BL.toStrict payload]
         err `shouldBe` "Ok.\n"
         out `shouldContain` "id"
         code `shouldBe` ExitSuccess
@@ -158,13 +152,13 @@ spec = do
     it "TRANS_DELETE_05 - Cannot forget external tx via CLI" $ \ctx -> do
         w <- emptyWallet ctx
         addr:_ <- listAddresses ctx w
-        let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
         let amt = 11111
 
         -- post external tx
-        txBlob <- prepExternalTxViaJcli (ctx ^. typed @(Port "node")) addrStr amt
+        payload <- fixtureRawTx ctx (getApiT $ fst $ addr ^. #id, amt)
         (Exit code, Stdout out, Stderr err) <-
-            postExternalTransactionViaCLI @t ctx [T.unpack txBlob]
+            postExternalTransactionViaCLI @t ctx
+                [T.unpack $ T.decodeUtf8 $ hex $ BL.toStrict payload]
         err `shouldBe` "Ok.\n"
         txJson <- expectValidJSON (Proxy @ApiTxId) out
         code `shouldBe` ExitSuccess

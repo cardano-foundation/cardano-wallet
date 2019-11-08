@@ -17,7 +17,7 @@ index c341a385..797ff044 100644
 +    fn write_arbitrary_block0s_to_disk() {
 +        use std::fs::File;
 +        use chain_core::property::{Serialize};
-+        for i in 1..10 {
++        for i in 1..100 {
 +            let file = File::create(format!("arbitrary-block0-{:?}.bin", i)).unwrap();
 +            let _ = arbitrary_block0().serialize(file);
 +        }

@@ -162,6 +162,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."aeson" or (buildDepError "aeson"))
             (hsPkgs."aeson-qq" or (buildDepError "aeson-qq"))
             (hsPkgs."async" or (buildDepError "async"))
+            (hsPkgs."bech32" or (buildDepError "bech32"))
             (hsPkgs."binary" or (buildDepError "binary"))
             (hsPkgs."bytestring" or (buildDepError "bytestring"))
             (hsPkgs."cardano-wallet-cli" or (buildDepError "cardano-wallet-cli"))
