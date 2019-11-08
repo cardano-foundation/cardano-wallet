@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -13,14 +14,16 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.CoinSelection.LargestFirst
     ( largestFirst )
 import Cardano.Wallet.Primitive.CoinSelection.Random
-    ( random )
+    ( random, randomWithoutTxOut )
 import Cardano.Wallet.Primitive.CoinSelectionSpec
     ( CoinSelProp (..)
     , CoinSelectionFixture (..)
     , CoinSelectionResult (..)
+    , CoinSelectionWithoutTxOutFixture (..)
     , ErrValidation (..)
     , alwaysFail
     , coinSelectionUnitTest
+    , coinSelectionWithoutTxOutUnitTest
     , noValidation
     )
 import Control.Monad.Trans.Except
@@ -223,6 +226,43 @@ spec = do
                 , validateSelection = alwaysFail
                 , utxoInputs = [1,1]
                 , txOutputs = 2 :| []
+                })
+
+    describe "Coin selection : randomWithoutTxOut algorithm unit tests" $ do
+        coinSelectionWithoutTxOutUnitTest randomWithoutTxOut ""
+            (Right $ CoinSelectionResult
+                { rsInputs = [1]
+                , rsChange = [1]
+                , rsOutputs = []
+                })
+            (CoinSelectionWithoutTxOutFixture
+                { maxNumOfInputs = 100
+                , validateSelection = noValidation
+                , utxoInputs = [1,1,1,1,1,1]
+                })
+
+        coinSelectionWithoutTxOutUnitTest randomWithoutTxOut ""
+            (Left ErrInputsDepleted)
+            (CoinSelectionWithoutTxOutFixture
+                { maxNumOfInputs = 100
+                , validateSelection = noValidation
+                , utxoInputs = []
+                })
+
+        coinSelectionWithoutTxOutUnitTest randomWithoutTxOut "custom validation"
+            (Left $ ErrInvalidSelection ErrValidation)
+            (CoinSelectionWithoutTxOutFixture
+                { maxNumOfInputs = 100
+                , validateSelection = alwaysFail
+                , utxoInputs = [1,1]
+                })
+
+        coinSelectionWithoutTxOutUnitTest randomWithoutTxOut ""
+            ((Left $ ErrMaximumInputsReached 0))
+            (CoinSelectionWithoutTxOutFixture
+                { maxNumOfInputs = 0
+                , validateSelection = noValidation
+                , utxoInputs = [1,1]
                 })
 
     before getSystemDRG $ describe "Coin selection properties : random algorithm" $ do

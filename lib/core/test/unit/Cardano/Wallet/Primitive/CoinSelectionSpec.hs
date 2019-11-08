@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -9,10 +10,12 @@ module Cardano.Wallet.Primitive.CoinSelectionSpec
 
     -- * Export used to test various coin selection implementations
     , CoinSelectionFixture(..)
+    , CoinSelectionWithoutTxOutFixture (..)
     , CoinSelectionResult(..)
     , CoinSelProp(..)
     , ErrValidation(..)
     , coinSelectionUnitTest
+    , coinSelectionWithoutTxOutUnitTest
     , noValidation
     , alwaysFail
     ) where
@@ -157,6 +160,16 @@ data CoinSelectionFixture = CoinSelectionFixture
         -- ^ Value (in Lovelace) & number of requested outputs
     }
 
+-- | A fixture for testing the coin selection
+data CoinSelectionWithoutTxOutFixture = CoinSelectionWithoutTxOutFixture
+    { maxNumOfInputs :: Word8
+        -- ^ Maximum number of inputs that can be selected
+    , validateSelection :: CoinSelection -> Either ErrValidation ()
+        -- ^ A extra validation function on the resulting selection
+    , utxoInputs :: [Word64]
+        -- ^ Value (in Lovelace) & number of available coins in the UTxO
+    }
+
 -- | A dummy error for testing extra validation
 data ErrValidation = ErrValidation deriving (Eq, Show)
 
@@ -213,6 +226,38 @@ coinSelectionUnitTest run lbl expected (CoinSelectionFixture n fn utxoF outsF) =
         utxo <- generate (genUTxO utxoF)
         outs <- generate (genTxOut $ NE.toList outsF)
         pure (utxo, NE.fromList outs)
+
+-- | Generate a 'UTxO' matching the given 'Fixture', and perform
+-- given coin selection on it.
+coinSelectionWithoutTxOutUnitTest
+    :: ( CoinSelectionOptions ErrValidation
+         -> UTxO
+         -> ExceptT (ErrCoinSelection ErrValidation) IO (CoinSelection, UTxO)
+       )
+    -> String
+    -> Either (ErrCoinSelection ErrValidation) CoinSelectionResult
+    -> CoinSelectionWithoutTxOutFixture
+    -> SpecWith ()
+coinSelectionWithoutTxOutUnitTest run lbl expected
+    (CoinSelectionWithoutTxOutFixture n fn utxoF) =
+    it title $ do
+        utxo <- generate (genUTxO utxoF)
+        result <- runExceptT $ do
+            (CoinSelection inps outs chngs, _) <-
+                run (CoinSelectionOptions (const n) fn) utxo
+            return $ CoinSelectionResult
+                { rsInputs = map (getCoin . coin . snd) inps
+                , rsChange = map getCoin chngs
+                , rsOutputs = map (getCoin . coin) outs
+                }
+        result `shouldBe` expected
+  where
+    title :: String
+    title = mempty
+        <> "max=" <> show n
+        <> ", UTxO=" <> show utxoF
+        <> " --> " <> show (rsInputs <$> expected)
+        <> if null lbl then "" else " (" <> lbl <> ")"
 
 {-------------------------------------------------------------------------------
                             Arbitrary Instances

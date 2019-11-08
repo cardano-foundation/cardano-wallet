@@ -140,11 +140,11 @@ randomWithoutTxOut opt utxo = do
     let nUtxo = L.length $ (Map.toList . getUTxO) utxo
     let maxN = fromIntegral $ maximumNumberOfInputs opt 0
 
-    when (maxN > nUtxo) $ throwE ErrInputsDepleted
+    when (nUtxo == 0) $ throwE ErrInputsDepleted
 
     randomMaybe <- lift $ runMaybeT $
         pickRandomT utxo >>= \(io, utxo') -> do
-            if (L.length io > (fromIntegral maxN)) then
+            if (L.length io > maxN) then
                 MaybeT $ return Nothing
             else do
                 let (_, TxOut _ c) = io
