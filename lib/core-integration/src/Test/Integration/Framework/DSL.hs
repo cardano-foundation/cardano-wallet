@@ -238,7 +238,7 @@ import Data.Generics.Product.Fields
 import Data.Generics.Product.Typed
     ( HasType, typed )
 import Data.List
-    ( elemIndex, (!!) )
+    ( (!!) )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Maybe
@@ -1667,36 +1667,16 @@ getJormungandrBlock0H = do
 
 -- | Prepare externally signed Tx for Jormungandr
 prepExternalTxViaJcli :: Port "node" -> Text -> Natural -> IO Text
-prepExternalTxViaJcli port addrStr amt = do
+prepExternalTxViaJcli _port outputAddr amt = do
     withTempDir $ \d -> do
         let strip = T.unpack . T.strip . T.pack
         let txFile = d F.</> "trans.tx"
         let witnessFile = d F.</> "witness"
-
         let keyFile = d F.</> "key.prv"
         TIO.writeFile keyFile
             "ed25519_sk1ga6n6fdsrruumg6nh0epdrqswrsdxhq4q7g5enun8v2jnk4u2gls08wfu3"
-
         let faucetAddr =
-                "ca1swl53wlqt5dnl63e0gnf8vpazgt6g5mq384dmz72329eh4m8z7e5un8q6lg"
-
-        -- get inputFunds, inputIndex and inputTxId associated with faucetAddr
-        -- from Jormungandr utxo
-        Stdout u <- runJcli
-            [ "rest", "v0", "utxo", "get"
-            , "-h", "http://127.0.0.1:" <> show port <> "/api"
-            ]
-
-        let utxo =
-                T.splitOn "\n" (T.pack u)
-        let (Just i) =
-                elemIndex ( "- address: " ++ faucetAddr ) (T.unpack <$> utxo)
-        let inputFunds =
-                T.replace "  associated_fund: " "" (utxo !! (i + 1))
-        let inputIndex =
-                T.replace "  index_in_transaction: " "" (utxo !! (i + 2))
-        let inputTxId =
-                T.replace "  transaction_id: " "" (utxo !! (i + 3))
+                "external1swl53wlqt5dnl63e0gnf8vpazgt6g5mq384dmz72329eh4m8z7e5uvdz0tv"
 
         -- prepare tx using `jcli`
         runJcli ["transaction", "new", "--staging", txFile ]
@@ -1704,15 +1684,15 @@ prepExternalTxViaJcli port addrStr amt = do
         runJcli
             [ "transaction"
             , "add-input"
-            , T.unpack inputTxId
-            , T.unpack inputIndex
-            , T.unpack inputFunds
+            , "eee758853b87403722cbf62405a2af445f307fd02bd6a3311b6c0688d7a47963"
+            , "0"
+            , "100000000000"
             , "--staging", txFile ]
             >>= (`shouldBe` ExitSuccess)
         runJcli
             [ "transaction"
             , "add-output"
-            , T.unpack addrStr
+            , T.unpack outputAddr
             , show amt
             , "--staging", txFile ]
             >>= (`shouldBe` ExitSuccess)
@@ -1724,7 +1704,7 @@ prepExternalTxViaJcli port addrStr amt = do
             , "--fee-coefficient", "0"
             , "--staging", txFile ]
             >>= (`shouldBe` ExitSuccess)
-        Stdout txId <- runJcli ["transaction", "id", "--staging", txFile]
+        Stdout txId <- runJcli ["transaction", "data-for-witness", "--staging", txFile]
         block0H <- getJormungandrBlock0H
         runJcli
             [ "transaction"

@@ -61,6 +61,11 @@ blockchain_configuration:
 # http-bridge, we want each wallet to have 10 UTxO available, hence the
 # repetition for each address.
 initial:
+  # A special address used for creating "external" transactions
+  - fund:
+    - address: external1swl53wlqt5dnl63e0gnf8vpazgt6g5mq384dmz72329eh4m8z7e5uvdz0tv
+      value: 100000000000
+
   # This is just to add some variation into integration tests by making sure two
   # cases are covered in genesis.yaml initial transactions:
   # 1. Single transaction (a block fragment in jormungandr) with N outputs,
@@ -3057,9 +3062,6 @@ initial:
       value: 100000000000
   - fund:
     - address: ta1swaga8c5sjwsw86yprw5d3m44ktla3ymesn0rtwurer5pg9mmp24kznrwfg
-      value: 100000000000
-  - fund:
-    - address: ca1swl53wlqt5dnl63e0gnf8vpazgt6g5mq384dmz72329eh4m8z7e5un8q6lg
       value: 100000000000
 
   # Legacy Funds
