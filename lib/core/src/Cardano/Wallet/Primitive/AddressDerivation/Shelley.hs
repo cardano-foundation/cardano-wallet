@@ -360,16 +360,17 @@ decodeShelleyAddress bytes = do
                     (BS.pack <$> [[grouped @'Mainnet], [grouped @'Testnet]])
                     then Left invalidNetwork
                     else Left invalidFirstByte
-        _ ->
-            Left $ TextDecodingError $
-                "Invalid Address length (" <> show (BS.length bytes)
-                <> "): expected either "
-                <> show addrSingleSize
-                <> " or "
-                <> show addrGroupedSize
-                <> " bytes."
+        n -> Left $ invalidAddressLength n
     return (Address bytes)
   where
+    invalidAddressLength actualLength = TextDecodingError $
+        "Invalid Address length ("
+        <> show actualLength
+        <> "): expected either "
+        <> show addrSingleSize
+        <> " or "
+        <> show addrGroupedSize
+        <> " bytes."
     invalidFirstByte = TextDecodingError
         "Invalid Address first byte."
     invalidNetwork = TextDecodingError $
