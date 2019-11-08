@@ -364,7 +364,7 @@ decodeShelleyAddress bytes = do
     return (Address bytes)
   where
     invalidAddressLength actualLength = TextDecodingError $
-        "Invalid Address length ("
+        "Invalid address length ("
         <> show actualLength
         <> "): expected either "
         <> show addrSingleSize
@@ -372,9 +372,9 @@ decodeShelleyAddress bytes = do
         <> show addrGroupedSize
         <> " bytes."
     invalidFirstByte = TextDecodingError
-        "Invalid Address first byte."
+        "Invalid address first byte."
     invalidNetwork = TextDecodingError $
-        "This Address belongs to another network. Network is: "
+        "This address belongs to another network. Network is: "
         <> show (networkDiscriminantVal @n) <> "."
 
 instance MkKeyFingerprint ShelleyKey where
