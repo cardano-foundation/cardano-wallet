@@ -19,13 +19,20 @@ import Cardano.Launcher
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
-    ( async, waitAnyCancel )
+    ( async, race_, waitAnyCancel )
 import Control.Concurrent.MVar
-    ( modifyMVar_, newEmptyMVar, newMVar, putMVar, readMVar, tryReadMVar )
+    ( modifyMVar_
+    , newEmptyMVar
+    , newMVar
+    , putMVar
+    , readMVar
+    , takeMVar
+    , tryReadMVar
+    )
 import Control.Monad
     ( forever )
 import Control.Retry
-    ( exponentialBackoff, limitRetriesByCumulativeDelay, recoverAll )
+    ( constantDelay, limitRetriesByCumulativeDelay, recoverAll )
 import Data.Maybe
     ( isJust )
 import Data.Text
@@ -117,6 +124,15 @@ spec = do
         name `shouldBe` "foobar"
         assertProcessesExited phs
 
+    it "Backend process is terminated when Async thread is cancelled" $ do
+        mvar <- newEmptyMVar
+        let backend =  withBackendProcessHandle nullTracer foreverCommand $ \ph -> do
+                putMVar mvar ph
+                forever $ threadDelay maxBound
+        race_ backend (threadDelay 1000000)
+        ph <- takeMVar mvar
+        assertProcessesExited [ph]
+
     it "Sanity check System.Info.os" $
         ["linux", "darwin", "mingw32"] `shouldContain` [os]
 
@@ -165,7 +181,7 @@ launch tr cmds = do
 assertProcessesExited :: [ProcessHandle] -> IO ()
 assertProcessesExited phs = recoverAll policy test
   where
-    policy = limitRetriesByCumulativeDelay 10000 (exponentialBackoff 50)
+    policy = limitRetriesByCumulativeDelay 10000 (constantDelay 100)
     test _ = do
         statuses <- mapM getProcessExitCode phs
         statuses `shouldSatisfy` all isJust
