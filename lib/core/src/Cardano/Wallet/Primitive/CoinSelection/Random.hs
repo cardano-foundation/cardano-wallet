@@ -12,6 +12,7 @@
 
 module Cardano.Wallet.Primitive.CoinSelection.Random
     ( random
+    , randomWithoutTxOut
     ) where
 
 import Prelude
@@ -33,11 +34,11 @@ import Cardano.Wallet.Primitive.Types
 import Control.Arrow
     ( left )
 import Control.Monad
-    ( foldM )
+    ( foldM, when )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), except )
+    ( ExceptT (..), except, throwE )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..), runMaybeT )
 import Crypto.Random.Types
@@ -53,7 +54,7 @@ import Data.Word
 
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
-
+import qualified Data.Map.Strict as Map
 
 -- | Target range for picking inputs
 data TargetRange = TargetRange
@@ -127,6 +128,33 @@ random opt outs utxo = do
             guard sel $> (sel, remUtxo)
         Nothing ->
             largestFirst opt outs utxo
+  where
+    guard = except . left ErrInvalidSelection . validate opt
+
+randomWithoutTxOut
+    :: forall m e. MonadRandom m
+    => CoinSelectionOptions e
+    -> UTxO
+    -> ExceptT (ErrCoinSelection e) m (CoinSelection, UTxO)
+randomWithoutTxOut opt utxo = do
+    let nUtxo = L.length $ (Map.toList . getUTxO) utxo
+    let maxN = fromIntegral $ maximumNumberOfInputs opt 0
+
+    when (maxN > nUtxo) $ throwE ErrInputsDepleted
+
+    randomMaybe <- lift $ runMaybeT $
+        pickRandomT utxo >>= \(io, utxo') -> do
+            if (L.length io > (fromIntegral maxN)) then
+                MaybeT $ return Nothing
+            else do
+                let (_, TxOut _ c) = io
+                MaybeT $ return $ Just (CoinSelection [io] [] [c], utxo')
+
+    case randomMaybe of
+        Just (sel, remUtxo) -> do
+            guard sel $> (sel, remUtxo)
+        Nothing ->
+            throwE $ ErrMaximumInputsReached (fromIntegral maxN)
   where
     guard = except . left ErrInvalidSelection . validate opt
 
