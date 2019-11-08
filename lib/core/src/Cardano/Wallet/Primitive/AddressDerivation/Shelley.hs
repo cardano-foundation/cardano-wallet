@@ -352,28 +352,29 @@ decodeShelleyAddress bytes = do
                 if firstByte `elem`
                     (BS.pack <$> [[single @'Mainnet], [single @'Testnet]])
                     then Left invalidNetwork
-                    else Left invalidFirstByte
+                    else Left invalidAddressType
         n | n == addrGroupedSize -> do
             let firstByte = BS.take 1 bytes
             when (firstByte /= BS.pack [grouped @n]) $
                 if firstByte `elem`
                     (BS.pack <$> [[grouped @'Mainnet], [grouped @'Testnet]])
                     then Left invalidNetwork
-                    else Left invalidFirstByte
-        _ ->
-            Left $ TextDecodingError $
-                "Invalid Address length (" <> show (BS.length bytes)
-                <> "): expected either "
-                <> show addrSingleSize
-                <> " or "
-                <> show addrGroupedSize
-                <> " bytes."
+                    else Left invalidAddressType
+        n -> Left $ invalidAddressLength n
     return (Address bytes)
   where
-    invalidFirstByte = TextDecodingError
-        "Invalid Address first byte."
+    invalidAddressLength actualLength = TextDecodingError $
+        "Invalid address length ("
+        <> show actualLength
+        <> "): expected either "
+        <> show addrSingleSize
+        <> " or "
+        <> show addrGroupedSize
+        <> " bytes."
+    invalidAddressType = TextDecodingError
+        "This type of address is not supported."
     invalidNetwork = TextDecodingError $
-        "This Address belongs to another network. Network is: "
+        "This address belongs to another network. Network is: "
         <> show (networkDiscriminantVal @n) <> "."
 
 instance MkKeyFingerprint ShelleyKey where

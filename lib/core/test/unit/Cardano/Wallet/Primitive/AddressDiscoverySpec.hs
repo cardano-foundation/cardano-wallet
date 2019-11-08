@@ -89,7 +89,7 @@ spec = do
                 (ShowFmt <$> decodeAddress @'Mainnet (encodeAddress @'Mainnet a))
                     === Right (ShowFmt a)
         negativeTest proxy "ta1sdaa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677ztw225s"
-            ("This Address belongs to another network. Network is: "
+            ("This address belongs to another network. Network is: "
             <> show (networkDiscriminantVal @'Mainnet) <> ".")
         negativeTest proxy "EkxDbkPo"
             "Unable to decode Address: neither Bech32-encoded nor a valid Byron \
@@ -97,14 +97,14 @@ spec = do
         negativeTest proxy ".%14'"
             ("Unable to decode Address: encoding is neither Bech32 nor Base58.")
         negativeTest proxy "ca1qvqsyqcyq5rqwzqfpg9scrgk66qs0"
-            "Invalid Address length (14): expected either 33 or 65 bytes."
+            "Invalid address length (14): expected either 33 or 65 bytes."
         negativeTest proxy
             "ca1dvqsyqcyq5rqwzqfpg9scrgwpugpzysnzs23v9ccrydpk8qarc0jqscdket"
-            ("Invalid Address first byte.")
+            ("This type of address is not supported.")
         negativeTest proxy
             "ca1dvqsyqcyq5rqwzqfpg9scrgwpugpzysnzs23v9ccrydpk8qarc0jqqgzqvz\
             \q2ps8pqys5zcvp58q7yq3zgf3g9gkzuvpjxsmrsw3u8eqwxpnc0"
-            ("Invalid Address first byte.")
+            ("This type of address is not supported.")
         -- NOTE:
         -- Data below have been generated with [jcli](https://github.com/input-output-hk/jormungandr/tree/master/doc/jcli)
         -- as described in the annex at the end of the file.
@@ -136,7 +136,7 @@ spec = do
                 (ShowFmt <$> decodeAddress @'Testnet (encodeAddress @'Testnet a))
                     === Right (ShowFmt a)
         negativeTest proxy "ca1qdaa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677zqx4le2"
-            ("This Address belongs to another network. Network is: "
+            ("This address belongs to another network. Network is: "
             <> show (networkDiscriminantVal @'Testnet) <> ".")
         negativeTest proxy "EkxDbkPo"
             "Unable to decode Address: neither Bech32-encoded nor a valid Byron \
@@ -144,14 +144,14 @@ spec = do
         negativeTest proxy ".%14'"
             ("Unable to decode Address: encoding is neither Bech32 nor Base58.")
         negativeTest proxy "ta1dvqsyqcyq5rqwzqfpg9scrg5v76st"
-            "Invalid Address length (14): expected either 33 or 65 bytes."
+            "Invalid address length (14): expected either 33 or 65 bytes."
         negativeTest proxy
             "ta1dvqsyqcyq5rqwzqfpg9scrgwpugpzysnzs23v9ccrydpk8qarc0jq8ygppa"
-            ("Invalid Address first byte.")
+            ("This type of address is not supported.")
         negativeTest proxy
             "ta1dvqsyqcyq5rqwzqfpg9scrgwpugpzysnzs23v9ccrydpk8qarc0jqqgzqvz\
             \q2ps8pqys5zcvp58q7yq3zgf3g9gkzuvpjxsmrsw3u8eq9lcgc2"
-            ("Invalid Address first byte.")
+            ("This type of address is not supported.")
         goldenTestAddr proxy
             [ "7bd5386c31ac31ba7076856500cf26f85d4695b80f183c7a53e3f28419d6bde1"
             ]
