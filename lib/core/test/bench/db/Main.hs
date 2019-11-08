@@ -105,6 +105,8 @@ import Control.DeepSeq
     ( NFData (..), force )
 import Control.Exception
     ( bracket )
+import Control.Exception
+    ( handle )
 import Control.Monad
     ( forM_ )
 import Criterion.Main
@@ -134,6 +136,8 @@ import Data.Typeable
     ( Typeable )
 import Data.Word
     ( Word64 )
+import Database.Sqlite
+    ( SqliteException (..) )
 import Fmt
     ( build, padLeftF, padRightF, pretty, (+|), (|+) )
 import System.Directory
@@ -348,7 +352,7 @@ setupDB = do
 
 cleanupDB :: (FilePath, SqliteContext, DBLayerBench) -> IO ()
 cleanupDB (db, ctx, _) = do
-    destroyDBLayer ctx
+    handle (\SqliteException{} -> pure ()) $ destroyDBLayer ctx
     mapM_ remove [db, db <> "-shm", db <> "-wal"]
   where
     remove f = doesFileExist f >>= \case

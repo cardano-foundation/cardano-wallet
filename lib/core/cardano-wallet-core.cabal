@@ -274,6 +274,7 @@ benchmark db
     , fmt
     , iohk-monitoring
     , memory
+    , persistent-sqlite
     , random
     , split
     , temporary
