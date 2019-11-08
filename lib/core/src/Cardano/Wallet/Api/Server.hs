@@ -282,6 +282,7 @@ import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Data.Aeson as Aeson
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
@@ -1575,6 +1576,12 @@ instance LiftHandler ErrMetricsInconsistency where
 instance LiftHandler (Request, ServantErr) where
     handler (req, err@(ServantErr code _ body headers))
       | not (isJSON body) = case code of
+        400 | "Failed reading" `BS.isInfixOf` BL.toStrict body ->
+            apiError err' BadRequest $ mconcat
+                [ "I couldn't understand the content of your message. If your "
+                , "message is intended to be in JSON format, please check that "
+                , "the JSON is valid."
+                ]
         400 -> apiError err' BadRequest (utf8 body)
         404 -> apiError err' NotFound $ mconcat
             [ "I couldn't find the requested endpoint. If the endpoint "
