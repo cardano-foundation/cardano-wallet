@@ -163,6 +163,7 @@ test-suite unit
     , deepseq
     , extra >= 1.6.17
     , file-embed
+    , filepath
     , fmt
     , foldl
     , generic-arbitrary

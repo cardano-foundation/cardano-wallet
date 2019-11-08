@@ -1,102 +1,39 @@
 {
-    "seed": 3178250319364790623,
+    "seed": -4994231229827699847,
     "samples": [
         {
             "network_tip": {
-                "epoch_number": 1126916,
-                "slot_number": 18661
+                "epoch_number": 9422698,
+                "slot_number": 6008
             },
             "node_tip": {
                 "height": {
-                    "quantity": 1090,
+                    "quantity": 12714,
                     "unit": "block"
                 },
-                "epoch_number": 4977539,
-                "slot_number": 722
+                "epoch_number": 16523145,
+                "slot_number": 7378
             },
             "sync_progress": {
                 "status": "syncing",
                 "progress": {
-                    "quantity": 52,
+                    "quantity": 85,
                     "unit": "percent"
                 }
             }
         },
         {
             "network_tip": {
-                "epoch_number": 1331150,
-                "slot_number": 23181
+                "epoch_number": 16289700,
+                "slot_number": 31372
             },
             "node_tip": {
                 "height": {
-                    "quantity": 28662,
+                    "quantity": 10776,
                     "unit": "block"
                 },
-                "epoch_number": 15883169,
-                "slot_number": 1258
-            },
-            "sync_progress": {
-                "status": "syncing",
-                "progress": {
-                    "quantity": 14,
-                    "unit": "percent"
-                }
-            }
-        },
-        {
-            "network_tip": {
-                "epoch_number": 2120973,
-                "slot_number": 12
-            },
-            "node_tip": {
-                "height": {
-                    "quantity": 15177,
-                    "unit": "block"
-                },
-                "epoch_number": 15768371,
-                "slot_number": 31134
-            },
-            "sync_progress": {
-                "status": "syncing",
-                "progress": {
-                    "quantity": 4,
-                    "unit": "percent"
-                }
-            }
-        },
-        {
-            "network_tip": {
-                "epoch_number": 5126558,
-                "slot_number": 2622
-            },
-            "node_tip": {
-                "height": {
-                    "quantity": 14888,
-                    "unit": "block"
-                },
-                "epoch_number": 8510121,
-                "slot_number": 10475
-            },
-            "sync_progress": {
-                "status": "syncing",
-                "progress": {
-                    "quantity": 86,
-                    "unit": "percent"
-                }
-            }
-        },
-        {
-            "network_tip": {
-                "epoch_number": 14215436,
-                "slot_number": 17108
-            },
-            "node_tip": {
-                "height": {
-                    "quantity": 7524,
-                    "unit": "block"
-                },
-                "epoch_number": 2266092,
-                "slot_number": 14141
+                "epoch_number": 7398920,
+                "slot_number": 13741
             },
             "sync_progress": {
                 "status": "ready"
@@ -104,58 +41,16 @@
         },
         {
             "network_tip": {
-                "epoch_number": 4266296,
-                "slot_number": 32098
+                "epoch_number": 10164666,
+                "slot_number": 17028
             },
             "node_tip": {
                 "height": {
-                    "quantity": 29320,
+                    "quantity": 28458,
                     "unit": "block"
                 },
-                "epoch_number": 3571801,
-                "slot_number": 17402
-            },
-            "sync_progress": {
-                "status": "syncing",
-                "progress": {
-                    "quantity": 34,
-                    "unit": "percent"
-                }
-            }
-        },
-        {
-            "network_tip": {
-                "epoch_number": 1644929,
-                "slot_number": 23805
-            },
-            "node_tip": {
-                "height": {
-                    "quantity": 10530,
-                    "unit": "block"
-                },
-                "epoch_number": 11906028,
-                "slot_number": 23472
-            },
-            "sync_progress": {
-                "status": "syncing",
-                "progress": {
-                    "quantity": 20,
-                    "unit": "percent"
-                }
-            }
-        },
-        {
-            "network_tip": {
-                "epoch_number": 6297728,
-                "slot_number": 25365
-            },
-            "node_tip": {
-                "height": {
-                    "quantity": 3669,
-                    "unit": "block"
-                },
-                "epoch_number": 8541846,
-                "slot_number": 29143
+                "epoch_number": 6732849,
+                "slot_number": 16895
             },
             "sync_progress": {
                 "status": "ready"
@@ -163,40 +58,137 @@
         },
         {
             "network_tip": {
-                "epoch_number": 14542849,
-                "slot_number": 16508
+                "epoch_number": 13841867,
+                "slot_number": 3056
             },
             "node_tip": {
                 "height": {
-                    "quantity": 6486,
+                    "quantity": 8851,
                     "unit": "block"
                 },
-                "epoch_number": 7863717,
-                "slot_number": 140
+                "epoch_number": 4737735,
+                "slot_number": 10716
+            },
+            "sync_progress": {
+                "status": "ready"
+            }
+        },
+        {
+            "network_tip": {
+                "epoch_number": 10849552,
+                "slot_number": 7658
+            },
+            "node_tip": {
+                "height": {
+                    "quantity": 16194,
+                    "unit": "block"
+                },
+                "epoch_number": 8668723,
+                "slot_number": 2570
             },
             "sync_progress": {
                 "status": "syncing",
                 "progress": {
-                    "quantity": 97,
+                    "quantity": 71,
                     "unit": "percent"
                 }
             }
         },
         {
             "network_tip": {
-                "epoch_number": 13078996,
-                "slot_number": 23603
+                "epoch_number": 392246,
+                "slot_number": 12652
             },
             "node_tip": {
                 "height": {
-                    "quantity": 4161,
+                    "quantity": 30387,
                     "unit": "block"
                 },
-                "epoch_number": 15116820,
-                "slot_number": 27377
+                "epoch_number": 1437253,
+                "slot_number": 13789
+            },
+            "sync_progress": {
+                "status": "syncing",
+                "progress": {
+                    "quantity": 43,
+                    "unit": "percent"
+                }
+            }
+        },
+        {
+            "network_tip": {
+                "epoch_number": 8731352,
+                "slot_number": 25884
+            },
+            "node_tip": {
+                "height": {
+                    "quantity": 28802,
+                    "unit": "block"
+                },
+                "epoch_number": 14940919,
+                "slot_number": 28790
+            },
+            "sync_progress": {
+                "status": "syncing",
+                "progress": {
+                    "quantity": 89,
+                    "unit": "percent"
+                }
+            }
+        },
+        {
+            "network_tip": {
+                "epoch_number": 5256271,
+                "slot_number": 10727
+            },
+            "node_tip": {
+                "height": {
+                    "quantity": 13753,
+                    "unit": "block"
+                },
+                "epoch_number": 2771000,
+                "slot_number": 12641
             },
             "sync_progress": {
                 "status": "ready"
+            }
+        },
+        {
+            "network_tip": {
+                "epoch_number": 12765005,
+                "slot_number": 31882
+            },
+            "node_tip": {
+                "height": {
+                    "quantity": 14970,
+                    "unit": "block"
+                },
+                "epoch_number": 2752074,
+                "slot_number": 20203
+            },
+            "sync_progress": {
+                "status": "ready"
+            }
+        },
+        {
+            "network_tip": {
+                "epoch_number": 8359058,
+                "slot_number": 14050
+            },
+            "node_tip": {
+                "height": {
+                    "quantity": 19661,
+                    "unit": "block"
+                },
+                "epoch_number": 2095135,
+                "slot_number": 1740
+            },
+            "sync_progress": {
+                "status": "syncing",
+                "progress": {
+                    "quantity": 6,
+                    "unit": "percent"
+                }
             }
         }
     ]

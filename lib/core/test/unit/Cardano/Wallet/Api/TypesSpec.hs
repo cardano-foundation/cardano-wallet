@@ -115,6 +115,8 @@ import Data.Aeson
     ( FromJSON (..), ToJSON (..) )
 import Data.Aeson.QQ
     ( aesonQQ )
+import Data.Char
+    ( isAlphaNum )
 import Data.FileEmbed
     ( embedFile, makeRelativeToProject )
 import Data.List.NonEmpty
@@ -169,18 +171,25 @@ import Servant.Swagger.Test
     ( validateEveryToJSON )
 import System.Environment
     ( lookupEnv )
+import System.FilePath
+    ( (</>) )
 import Test.Aeson.GenericSpecs
     ( GoldenDirectoryOption (CustomDirectoryName)
     , Proxy (Proxy)
     , Settings
     , defaultSettings
     , goldenDirectoryOption
-    , roundtripAndGoldenSpecsWithSettings
     , sampleSize
     , useModuleNameAsSubDirectory
     )
+import Test.Aeson.Internal.GoldenSpecs
+    ( goldenSpecsWithNotePlain )
+import Test.Aeson.Internal.RoundtripSpecs
+    ( roundtripSpecs )
+import Test.Aeson.Internal.Utils
+    ( TypeName (..), TypeNameInfo (..), mkTypeNameInfo )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe )
+    ( Spec, describe, it, runIO, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..)
     , InfiniteList (..)
@@ -611,12 +620,32 @@ jsonRoundtripAndGolden
     :: forall a. (Arbitrary a, ToJSON a, FromJSON a, Typeable a)
     => Proxy a
     -> Spec
-jsonRoundtripAndGolden = roundtripAndGoldenSpecsWithSettings settings
+jsonRoundtripAndGolden proxy = do
+    roundtripSpecs proxy
+    typeNameInfo <- runIO mkCompatibleTypeNameInfo
+    goldenSpecsWithNotePlain settings typeNameInfo Nothing
   where
+    -- NOTE
+    -- We use a custom 'TypeNameInfo' instead of the default one provided by
+    -- @hspec-golden-aeson@ because the defaults generates names that are
+    -- invalid for Windows file-system.
+    mkCompatibleTypeNameInfo :: IO (TypeNameInfo a)
+    mkCompatibleTypeNameInfo = do
+        typeNameInfo <- mkTypeNameInfo settings proxy
+        pure $ typeNameInfo
+            { typeNameTypeName =
+                mkValidForWindows (typeNameTypeName typeNameInfo)
+            }
+      where
+        mkValidForWindows :: TypeName -> TypeName
+        mkValidForWindows (TypeName typeName) =
+            TypeName (filter isAlphaNum typeName)
+
     settings :: Settings
     settings = defaultSettings
         { goldenDirectoryOption =
-            CustomDirectoryName "test/data/Cardano/Wallet/Api"
+            CustomDirectoryName $ foldr (</>) mempty
+                [ "test", "data", "Cardano", "Wallet", "Api" ]
         , useModuleNameAsSubDirectory =
             False
         , sampleSize = 10
