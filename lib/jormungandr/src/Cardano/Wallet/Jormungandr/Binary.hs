@@ -119,6 +119,7 @@ import Data.Binary.Get
     , isolate
     , label
     , lookAhead
+    , lookAheadM
     , runGet
     , runGetOrFail
     , skip
@@ -314,7 +315,8 @@ getMessage = label "getMessage" $ do
         1 -> Transaction <$> getLegacyTransaction fragId
         2 -> Transaction <$> getTransaction fragId
         3 -> unimpl -- OwnerStakeDelegation
-        4 -> StakeDelegation <$> getStakeDelegation fragId
+        4 -> maybe (UnimplementedMessage msgType) StakeDelegation <$>
+            lookAheadM (getStakeDelegation fragId)
         5 -> unimpl -- PoolRegistration
         6 -> unimpl -- PoolRetirement
         7 -> unimpl -- PoolUpdate
@@ -374,9 +376,11 @@ stakeDelegationTypeTag = \case
     DlgRatio -> 2
 
 -- | Decode the contents of a @Transaction@-message carrying a delegation cert.
+--
+-- Returns 'Nothing' for unsupported stake delegation types: DLG-NONE & DLG-RATIO
 getStakeDelegation
     :: Hash "Tx"
-    -> Get (PoolId, ChimericAccount, Tx, [TxWitness])
+    -> Get (Maybe (PoolId, ChimericAccount, Tx, [TxWitness]))
 getStakeDelegation tid = do
     label "getStakeDelegation" $ do
         accId <- getByteString 32
@@ -384,20 +388,19 @@ getStakeDelegation tid = do
         case delegationType of
             0 -> getStakeDelegationNone
             1 -> getStakeDelegationFull accId
-            2 -> getStakeDelegationRatio
-            _ -> fail $ "Unexpected delegation type tag: " ++ show delegationType
+            _ -> getStakeDelegationRatio
   where
     getStakeDelegationNone =
-        fail "FIXME: DLG-NONE not yet implemented"
+        pure Nothing
 
-    getStakeDelegationFull accId = do
+    getStakeDelegationFull accId = Just <$> do
         poolId <- getByteString 32
         (tx, wits) <- getGenericTransaction tid
         _accSignature <- getByteString 64
         pure (PoolId poolId, ChimericAccount accId, tx, wits )
 
     getStakeDelegationRatio =
-        fail "FIXME: DLG-TYPE=RATIO no yet unimplemented"
+        pure Nothing
 
 putStakeCertificate
     :: PoolId
