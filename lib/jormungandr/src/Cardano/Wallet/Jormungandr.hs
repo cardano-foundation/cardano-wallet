@@ -217,7 +217,7 @@ serveWallet (cfg, tr) databaseDir hostPref listen lj beforeMainLoop = do
         -> IO (StakePoolLayer IO)
     stakePoolLayer trRoot nl db = do
         void $ forkFinally (monitorStakePools tr' nl' db) onExit
-        newStakePoolLayer db nl trRoot
+        pure (newStakePoolLayer db nl trRoot)
       where
         tr' = appendName "stake-pools" trRoot
         nl' = toSPBlock <$> nl

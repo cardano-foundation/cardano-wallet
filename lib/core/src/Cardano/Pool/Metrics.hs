@@ -6,6 +6,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 -- | This module can fold over a blockchain to collect metrics about
@@ -116,11 +117,7 @@ monitorStakePools
     -> NetworkLayer IO t Block
     -> DBLayer IO
     -> IO ()
-monitorStakePools
-    tr
-    nl
-    DBLayer{atomically,readPoolProductionCursor,rollbackTo,
-    putStakeDistribution, putPoolProduction} = do
+monitorStakePools tr nl DBLayer{..} = do
     cursor <- initCursor
     logInfo tr $ mconcat
         [ "Start monitoring stake pools. Currently at "
@@ -156,7 +153,6 @@ monitorStakePools
         liftIO $ logInfo tr $ "Writing stake-distribution for epoch " <> pretty ep
         mapExceptT atomically $ do
             lift $ putStakeDistribution ep (Map.toList dist)
-            -- FIXME: Does this work for large lists?
             forM_ blocks $ \b -> withExceptT ErrMonitorStakePoolsPoolAlreadyExists $
                 putPoolProduction (header b) (producer b)
       where
@@ -203,40 +199,31 @@ newStakePoolLayer
      :: DBLayer IO
      -> NetworkLayer IO t block
      -> Trace IO Text
-     -> IO (StakePoolLayer IO)
-newStakePoolLayer
-    db@DBLayer
-        { readStakeDistribution
-        , readPoolProduction
-        , atomically
-        , readPoolProductionCursor
-        }
-    nl
-    tr = do
-     return $ StakePoolLayer
-        { listStakePools = do
-            nodeTip <- withExceptT ErrListStakePoolsErrNetworkTip
-                $ networkTip nl
-            let nodeEpoch = nodeTip ^. #slotId . #epochNumber
+     -> StakePoolLayer IO
+newStakePoolLayer db@DBLayer{..} nl tr = StakePoolLayer
+    { listStakePools = do
+        nodeTip <- withExceptT ErrListStakePoolsErrNetworkTip
+            $ networkTip nl
+        let nodeEpoch = nodeTip ^. #slotId . #epochNumber
 
-            (distr, prod) <- liftIO . atomically $ (,)
-                <$> (Map.fromList <$> readStakeDistribution nodeEpoch)
-                <*> (count <$> readPoolProduction nodeEpoch)
+        (distr, prod) <- liftIO . atomically $ (,)
+            <$> (Map.fromList <$> readStakeDistribution nodeEpoch)
+            <*> (count <$> readPoolProduction nodeEpoch)
 
-            when (Map.null distr || Map.null prod) $ do
-                computeProgress nodeTip >>= throwE . ErrMetricsIsUnsynced
+        when (Map.null distr || Map.null prod) $ do
+            computeProgress nodeTip >>= throwE . ErrMetricsIsUnsynced
 
-            perfs <- liftIO $
-                readPoolsPerformances db nodeEpoch
+        perfs <- liftIO $
+            readPoolsPerformances db nodeEpoch
 
-            case combineMetrics distr prod perfs of
-                Right x -> return
-                    $ sortOn (Down . apparentPerformance)
-                    $ map (uncurry mkStakePool)
-                    $ Map.toList x
-                Left e ->
-                    throwE $ ErrListStakePoolsMetricsInconsistency e
-        }
+        case combineMetrics distr prod perfs of
+            Right x -> return
+                $ sortOn (Down . apparentPerformance)
+                $ map (uncurry mkStakePool)
+                $ Map.toList x
+            Left e ->
+                throwE $ ErrListStakePoolsMetricsInconsistency e
+    }
   where
     poolProductionTip = atomically $ readPoolProductionCursor 1 >>= \case
         [x] -> return $ Just x
@@ -283,9 +270,7 @@ readPoolsPerformances
     :: DBLayer m
     -> EpochNo
     -> m (Map PoolId Double)
-readPoolsPerformances
-    DBLayer{readPoolProduction, atomically, readStakeDistribution}
-    (EpochNo epochNo) = do
+readPoolsPerformances DBLayer{..} (EpochNo epochNo) = do
     let range = [max 0 (fromIntegral epochNo - 14) .. fromIntegral epochNo]
     atomically $ fmap avg $ forM range $ \ep -> calculatePerformance
         <$> (Map.fromList <$> readStakeDistribution ep)

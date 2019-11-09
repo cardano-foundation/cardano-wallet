@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections #-}
 
 module Cardano.Pool.DB.Properties
@@ -138,9 +139,7 @@ prop_putReadPoolProduction
     :: DBLayer IO
     -> StakePoolsFixture
     -> Property
-prop_putReadPoolProduction
-    DBLayer{atomically,putPoolProduction,readPoolProduction,cleanDB}
-    (StakePoolsFixture pairs _) =
+prop_putReadPoolProduction DBLayer{..} (StakePoolsFixture pairs _) =
     monadicIO (setup >>= prop)
   where
     setup = liftIO $ do
@@ -170,9 +169,7 @@ prop_putSlotTwicePoolProduction
     :: DBLayer IO
     -> StakePoolsFixture
     -> Property
-prop_putSlotTwicePoolProduction
-    DBLayer{atomically, putPoolProduction, cleanDB}
-    (StakePoolsFixture pairs _) =
+prop_putSlotTwicePoolProduction DBLayer{..} (StakePoolsFixture pairs _) =
     monadicIO (setup >> prop)
   where
     setup = liftIO $ atomically cleanDB
@@ -188,9 +185,7 @@ prop_rollbackPools
     -> StakePoolsFixture
     -> SlotId
     -> Property
-prop_rollbackPools
-    db@DBLayer{atomically, putPoolProduction, rollbackTo}
-    f@(StakePoolsFixture pairs _) sl =
+prop_rollbackPools db@DBLayer{..} f@(StakePoolsFixture pairs _) sl =
     monadicIO prop
   where
     prop = do
@@ -219,9 +214,7 @@ prop_readPoolProductionCursorTipIsLast
     :: DBLayer IO
     -> StakePoolsFixture
     -> Property
-prop_readPoolProductionCursorTipIsLast
-    DBLayer{atomically, cleanDB, putPoolProduction, readPoolProductionCursor}
-    (StakePoolsFixture pairs _) =
+prop_readPoolProductionCursorTipIsLast DBLayer{..} (StakePoolsFixture pairs _) =
     monadicIO (setup >> prop)
   where
     setup = liftIO $ atomically cleanDB
@@ -236,9 +229,7 @@ prop_readPoolNoEpochLeaks
     :: DBLayer IO
     -> StakePoolsFixture
     -> Property
-prop_readPoolNoEpochLeaks
-    DBLayer{atomically, cleanDB, putPoolProduction, readPoolProduction}
-    (StakePoolsFixture pairs _) =
+prop_readPoolNoEpochLeaks DBLayer{..} (StakePoolsFixture pairs _) =
     monadicIO (setup >> prop)
   where
     slotPartition = L.groupBy ((==) `on` epochNumber)
@@ -261,15 +252,7 @@ prop_readPoolCondAfterDeterministicRollbacks
     -> DBLayer IO
     -> StakePoolsFixture
     -> Property
-prop_readPoolCondAfterDeterministicRollbacks cond
-    DBLayer
-        { atomically
-        , cleanDB
-        , putPoolProduction
-        , rollbackTo
-        , readPoolProduction
-        }
-    (StakePoolsFixture pairs _) =
+prop_readPoolCondAfterDeterministicRollbacks cond DBLayer{..} (StakePoolsFixture pairs _) =
     monadicIO (setup >> prop)
   where
     setup = liftIO $ atomically cleanDB
@@ -290,15 +273,7 @@ prop_readPoolCondAfterRandomRollbacks
     -> DBLayer IO
     -> StakePoolsFixture
     -> Property
-prop_readPoolCondAfterRandomRollbacks cond
-    DBLayer
-        { atomically
-        , cleanDB
-        , putPoolProduction
-        , rollbackTo
-        , readPoolProduction
-        }
-    (StakePoolsFixture pairs rSlots) =
+prop_readPoolCondAfterRandomRollbacks cond DBLayer{..} (StakePoolsFixture pairs rSlots) =
     monadicIO (setup >> prop)
   where
     setup = liftIO $ atomically cleanDB
@@ -319,14 +294,7 @@ prop_readPoolCond
     -> DBLayer IO
     -> StakePoolsFixture
     -> Property
-prop_readPoolCond cond
-    DBLayer
-        { atomically
-        , cleanDB
-        , putPoolProduction
-        , readPoolProduction
-        }
-    (StakePoolsFixture pairs _) =
+prop_readPoolCond cond DBLayer{..} (StakePoolsFixture pairs _) =
     monadicIO (setup >> prop)
   where
     setup = liftIO $ atomically cleanDB
@@ -343,14 +311,7 @@ prop_putStakeReadStake
     -> EpochNo
     -> [(PoolId, Quantity "lovelace" Word64)]
     -> Property
-prop_putStakeReadStake
-    DBLayer
-        { atomically
-        , cleanDB
-        , putStakeDistribution
-        , readStakeDistribution
-        }
-    epoch distribution =
+prop_putStakeReadStake DBLayer{..} epoch distribution =
     monadicIO (setup >> prop)
   where
     setup = run $ atomically cleanDB
@@ -369,14 +330,7 @@ prop_putStakePutStake
     -> [(PoolId, Quantity "lovelace" Word64)]
     -> [(PoolId, Quantity "lovelace" Word64)]
     -> Property
-prop_putStakePutStake
-    DBLayer
-        { atomically
-        , cleanDB
-        , putStakeDistribution
-        , readStakeDistribution
-        }
-    epoch a b =
+prop_putStakePutStake DBLayer {..} epoch a b =
     monadicIO (setup >> prop)
   where
     setup = run $ atomically cleanDB
@@ -408,9 +362,7 @@ uniqueEpochs = nubOrd . map (epochNumber . slotId . snd)
 
 -- | Concatenate stake pool production for all epochs in the test fixture.
 allPoolProduction :: DBLayer IO -> StakePoolsFixture -> IO [(SlotId, PoolId)]
-allPoolProduction
-    DBLayer{atomically, readPoolProduction}
-    (StakePoolsFixture pairs _) = atomically $
+allPoolProduction DBLayer{..} (StakePoolsFixture pairs _) = atomically $
     rearrange <$> mapM readPoolProduction (uniqueEpochs pairs)
   where
     rearrange ms = concat
