@@ -44,7 +44,6 @@ import Test.Integration.Framework.DSL
     , expectCliFieldEqual
     , expectEventually'
     , expectValidJSON
-    , faucetAmt
     , fixtureRawTx
     , getWalletEp
     , getWalletViaCLI
@@ -91,7 +90,7 @@ spec = do
     it "TRANS_EXTERNAL_CREATE_01 - proper single output transaction and \
        \proper binary format" $ \ctx -> do
         let toSend = 1 :: Natural
-        (ExternalTxFixture wSrc wDest fee txWits@((Tx txid _ _), _)) <-
+        (ExternalTxFixture _ wDest _ txWits@((Tx txid _ _), _)) <-
             fixtureExternalTx @t ctx toSend
         let baseOk = Base16
         let arg = T.unpack $ encodeTx txWits MsgTypeTransaction baseOk
@@ -103,13 +102,6 @@ spec = do
         err `shouldBe` "Ok.\n"
         out `shouldBe` "{\n    \"id\": " ++ show expectedTxId ++ "\n}\n"
         code `shouldBe` ExitSuccess
-
-        -- verify balance on src wallet
-        Stdout gOutSrc <- getWalletViaCLI @t ctx (T.unpack (wSrc ^. walletId))
-        gJson <- expectValidJSON (Proxy @ApiWallet) gOutSrc
-        verify gJson
-            [ expectCliFieldEqual balanceTotal (faucetAmt - fee - toSend)
-            ]
 
         expectEventually' ctx getWalletEp balanceAvailable toSend wDest
         expectEventually' ctx getWalletEp balanceTotal toSend wDest
