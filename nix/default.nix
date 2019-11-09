@@ -81,6 +81,9 @@ let
         # Katip has Win32 (>=2.3 && <2.6) constraint
         packages.katip.doExactConfig = true;
       }
+      {
+        reinstallableLibGhc = true;
+      }
     ];
     pkg-def-extras = [
       # Workaround for https://github.com/input-output-hk/haskell.nix/issues/214
