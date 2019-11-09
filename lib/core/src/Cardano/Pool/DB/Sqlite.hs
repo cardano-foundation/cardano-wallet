@@ -132,11 +132,11 @@ newDBLayer logConfig trace fp = do
     ctx@SqliteContext{runQuery} <-
         startSqliteBackend logConfig migrateAll trace' fp
     return (ctx, DBLayer
-        { putPoolProduction = \point pool -> ExceptT $ runQuery $
+        { putPoolProduction = \point pool -> ExceptT $
             handleConstraint (ErrPointAlreadyExists point) $
                 insert_ (mkPoolProduction pool point)
 
-        , readPoolProduction = \epoch -> runQuery $ do
+        , readPoolProduction = \epoch -> do
             production <- fmap fromPoolProduction <$> selectPoolProduction epoch
 
             let toMap :: Ord a => Map a [b] -> (a,b) -> Map a [b]
@@ -148,28 +148,29 @@ newDBLayer logConfig trace fp = do
 
             pure (foldl' toMap Map.empty production)
 
-        , putStakeDistribution = \epoch@(EpochNo ep) distribution -> runQuery $ do
+        , putStakeDistribution = \epoch@(EpochNo ep) distribution -> do
             deleteWhere [StakeDistributionEpoch ==. ep]
             insertMany_ (mkStakeDistribution epoch distribution)
 
-        , readStakeDistribution = \(EpochNo epoch) -> runQuery $ do
+        , readStakeDistribution = \(EpochNo epoch) -> do
             fmap (fromStakeDistribution . entityVal) <$> selectList
                 [ StakeDistributionEpoch ==. epoch ]
                 []
 
-        , rollbackTo = \point -> runQuery $ do
+        , rollbackTo = \point -> do
             let (EpochNo epoch) = epochNumber point
             deleteWhere [ PoolProductionSlot >. point ]
             deleteWhere [ StakeDistributionEpoch >. epoch ]
 
-
-        , readPoolProductionCursor = \k -> runQuery $ do
+        , readPoolProductionCursor = \k -> do
             reverse . map (snd . fromPoolProduction . entityVal) <$> selectList
                 []
                 [Desc PoolProductionSlot, LimitTo k]
 
-        , cleanDB = runQuery $
+        , cleanDB =
             deleteWhere ([] :: [Filter PoolProduction])
+
+        , atomically = runQuery
         })
 
 {-------------------------------------------------------------------------------

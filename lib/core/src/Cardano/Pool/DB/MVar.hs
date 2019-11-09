@@ -69,6 +69,7 @@ newDBLayer = do
 
         , cleanDB =
             void $ alterPoolDB (const Nothing) db mCleanPoolProduction
+        , atomically = id
         }
 
 alterPoolDB

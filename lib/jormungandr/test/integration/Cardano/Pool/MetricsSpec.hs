@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 module Cardano.Pool.MetricsSpec where
 
 import Prelude
@@ -8,6 +9,8 @@ import Cardano.BM.Configuration.Static
     ( defaultConfigStdout )
 import Cardano.BM.Trace
     ( nullTracer )
+import Cardano.Pool.DB
+    ( DBLayer (..) )
 import Cardano.Pool.Metrics
     ( monitorStakePools )
 import Cardano.Wallet.Jormungandr
@@ -37,7 +40,6 @@ import Test.Hspec
 import Test.Integration.Framework.DSL
     ( eventually )
 
-import qualified Cardano.Pool.DB as Pool
 import qualified Cardano.Pool.DB.Sqlite as Pool
 
 spec :: Spec
@@ -97,8 +99,9 @@ spec = around setup $ do
     -- | Intended as "read all pool productions from the db". Oldest first, the
     -- tip last. In practice only reads the 10000 latest, but in this module we
     -- expect the dbs to contain ~10 slots, so it doesn't matter.
-    readSlots :: Pool.DBLayer IO -> IO [SlotId]
-    readSlots x = map slotId <$> Pool.readPoolProductionCursor x 10000
+    readSlots :: DBLayer IO -> IO [SlotId]
+    readSlots DBLayer{atomically, readPoolProductionCursor} =
+        map slotId <$> atomically (readPoolProductionCursor 10000)
 
     withMonitorStakePoolsThread nl db action = do
         bracket

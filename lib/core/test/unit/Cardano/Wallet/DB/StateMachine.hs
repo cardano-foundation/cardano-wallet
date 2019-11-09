@@ -67,7 +67,7 @@ import Cardano.Wallet.DB.Model
     , TxHistory
     , emptyDatabase
     , mCleanDB
-    , mCreateWallet
+    , mInitializeWallet
     , mListCheckpoints
     , mListWallets
     , mPutCheckpoint
@@ -110,7 +110,7 @@ import Control.Foldl
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
-    ( runExceptT )
+    ( mapExceptT, runExceptT )
 import Crypto.Hash
     ( Blake2b_160, Digest, digestFromByteString, hash )
 import Data.Bifunctor
@@ -301,7 +301,7 @@ runMock = \case
     CleanDB ->
         first (Resp . fmap Unit) . mCleanDB
     CreateWallet wid wal meta ->
-        first (Resp . fmap (const (NewWallet wid))) . mCreateWallet wid wal meta mempty
+        first (Resp . fmap (const (NewWallet wid))) . mInitializeWallet wid wal meta mempty
     RemoveWallet wid ->
         first (Resp . fmap Unit) . mRemoveWallet wid
     ListWallets ->
@@ -344,7 +344,7 @@ runIO
     => DBLayerTest s k
     -> Cmd s WalletId
     -> IO (Resp s WalletId)
-runIO db = fmap Resp . go
+runIO db@DBLayer{..} = fmap Resp . go
   where
     go
         :: Cmd s WalletId
@@ -352,43 +352,37 @@ runIO db = fmap Resp . go
     go = \case
         CleanDB -> do
             Right . Unit <$> cleanDB db
-        CreateWallet wid wal meta ->
-            catchWalletAlreadyExists (const (NewWallet (unMockWid wid))) $
-                -- FIXME Create a wallet with already some tx history
-                createWallet db (widPK wid) wal meta mempty
-        RemoveWallet wid ->
-            catchNoSuchWallet Unit $
-                removeWallet db (PrimaryKey wid)
-        ListWallets ->
-            Right . WalletIds . fmap unPrimaryKey <$> listWallets db
-        PutCheckpoint wid wal ->
-            catchNoSuchWallet Unit $ putCheckpoint db (PrimaryKey wid) wal
-        ReadCheckpoint wid ->
-            Right . Checkpoint <$> readCheckpoint db (PrimaryKey wid)
-        ListCheckpoints wid ->
-            Right . BlockHeaders <$> listCheckpoints db (PrimaryKey wid)
-        PutWalletMeta wid meta ->
-            catchNoSuchWallet Unit $ putWalletMeta db (PrimaryKey wid) meta
-        ReadWalletMeta wid ->
-            Right . Metadata <$> readWalletMeta db (PrimaryKey wid)
-        PutDelegationCertificate wid pool sl ->
-            catchNoSuchWallet Unit $
-                putDelegationCertificate db (PrimaryKey wid) pool sl
-        PutTxHistory wid txs ->
-            catchNoSuchWallet Unit $ putTxHistory db (PrimaryKey wid) txs
-        ReadTxHistory wid order range status ->
-            Right . TxHistory <$> readTxHistory db (PrimaryKey wid) order range status
-        PutPrivateKey wid pk ->
-            catchNoSuchWallet Unit $
-                putPrivateKey db (PrimaryKey wid) (fromMockPrivKey pk)
-        ReadPrivateKey wid ->
-            Right . PrivateKey . fmap toMockPrivKey
-                <$> readPrivateKey db (PrimaryKey wid)
-        RollbackTo wid sl ->
-            catchNoSuchWallet Unit $ rollbackTo db (PrimaryKey wid) sl
-        RemovePendingTx wid tid ->
-            catchCannotRemovePendingTx Unit $
-                removePendingTx db (PrimaryKey wid) tid
+        -- FIXME Create a wallet with already some tx history
+        CreateWallet wid wal meta -> catchWalletAlreadyExists (const (NewWallet (unMockWid wid))) $
+            mapExceptT atomically $ initializeWallet (widPK wid) wal meta mempty
+        RemoveWallet wid -> catchNoSuchWallet Unit $
+            mapExceptT atomically $ removeWallet (PrimaryKey wid)
+        ListWallets -> Right . WalletIds . fmap unPrimaryKey <$>
+            atomically listWallets
+        PutCheckpoint wid wal -> catchNoSuchWallet Unit $
+            mapExceptT atomically $ putCheckpoint (PrimaryKey wid) wal
+        ReadCheckpoint wid -> Right . Checkpoint <$>
+            atomically (readCheckpoint $ PrimaryKey wid)
+        ListCheckpoints wid -> Right . BlockHeaders <$>
+            atomically (listCheckpoints $ PrimaryKey wid)
+        PutWalletMeta wid meta -> catchNoSuchWallet Unit $
+            mapExceptT atomically $ putWalletMeta (PrimaryKey wid) meta
+        ReadWalletMeta wid -> Right . Metadata <$>
+            atomically (readWalletMeta $ PrimaryKey wid)
+        PutDelegationCertificate wid pool sl -> catchNoSuchWallet Unit $
+            mapExceptT atomically $ putDelegationCertificate (PrimaryKey wid) pool sl
+        PutTxHistory wid txs -> catchNoSuchWallet Unit $
+            mapExceptT atomically $ putTxHistory (PrimaryKey wid) txs
+        ReadTxHistory wid order range status -> Right . TxHistory <$>
+            atomically (readTxHistory (PrimaryKey wid) order range status)
+        RemovePendingTx wid tid -> catchCannotRemovePendingTx Unit $
+            mapExceptT atomically $ removePendingTx (PrimaryKey wid) tid
+        PutPrivateKey wid pk -> catchNoSuchWallet Unit $
+            mapExceptT atomically $ putPrivateKey (PrimaryKey wid) (fromMockPrivKey pk)
+        ReadPrivateKey wid -> Right . PrivateKey . fmap toMockPrivKey <$>
+            atomically (readPrivateKey $ PrimaryKey wid)
+        RollbackTo wid sl -> catchNoSuchWallet Unit $
+            mapExceptT atomically $ rollbackTo (PrimaryKey wid) sl
 
     catchWalletAlreadyExists f =
         fmap (bimap errWalletAlreadyExists f) . runExceptT

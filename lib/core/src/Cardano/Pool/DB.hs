@@ -1,4 +1,6 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE RankNTypes #-}
 
 -- |
@@ -19,6 +21,8 @@ import Prelude
 
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader, EpochNo (..), PoolId, SlotId (..) )
+import Control.Monad.Fail
+    ( MonadFail )
 import Control.Monad.Trans.Except
     ( ExceptT )
 import Data.Map.Strict
@@ -29,24 +33,34 @@ import Data.Word
     ( Word64 )
 
 -- | A Database interface for storing pool production in DB.
-data DBLayer m = DBLayer
+--
+-- To use it, you will need the NamedFieldPuns extension and wrap operations
+-- with @atomically@:
+--
+-- Example:
+-- >>> :set -XNamedFieldPuns
+-- >>> DBLayer{atomically,putPoolProduction} = db
+-- >>> atomically $ putPoolProduction blockHeader pool
+--
+-- This gives you the power to also run /multiple/ operations atomically.
+data DBLayer m = forall stm. MonadFail stm => DBLayer
     { putPoolProduction
         :: BlockHeader
         -> PoolId
-        -> ExceptT ErrPointAlreadyExists m ()
+        -> ExceptT ErrPointAlreadyExists stm ()
         -- ^ Write for a given slot id the id of stake pool that produced a
         -- a corresponding block
 
     , readPoolProduction
         :: EpochNo
-        -> m (Map PoolId [BlockHeader])
+        -> stm (Map PoolId [BlockHeader])
         -- ^ Read the all stake pools together with corresponding slot ids
         -- for a given epoch.
 
     , putStakeDistribution
         :: EpochNo
         -> [(PoolId, Quantity "lovelace" Word64)]
-        -> m ()
+        -> stm ()
         -- ^ Replace an existing distribution for the given epoch by the one
         -- given as argument.
         --
@@ -54,22 +68,28 @@ data DBLayer m = DBLayer
 
     , readStakeDistribution
         :: EpochNo
-        -> m [(PoolId, Quantity "lovelace" Word64)]
+        -> stm [(PoolId, Quantity "lovelace" Word64)]
 
     , readPoolProductionCursor
-        :: Int -> m [BlockHeader]
+        :: Int -> stm [BlockHeader]
         -- ^ Read the latest @k@ blockheaders in ascending order. The tip will
         -- be the last element in the list.
         --
         -- This is useful for the @NetworkLayer@ to know how far we have synced.
 
     , rollbackTo
-        :: SlotId -> m ()
+        :: SlotId -> stm ()
         -- ^ Remove all entries of slot ids newer than the argument
 
     , cleanDB
-        :: m ()
+        :: stm ()
         -- ^ Clean a database
+
+    , atomically
+        :: forall a. stm a -> m a
+        -- ^ Run an operation.
+        --
+        -- For a Sqlite DB, this would be "run a query inside a transaction".
     }
 
 -- | Forbidden operation was executed on an already existing slot

@@ -1,10 +1,12 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 -- | This module can fold over a blockchain to collect metrics about
@@ -57,7 +59,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT, runExceptT, throwE, withExceptT )
+    ( ExceptT, mapExceptT, runExceptT, throwE, withExceptT )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.List
@@ -110,17 +112,12 @@ data StakePool = StakePool
 --
 -- The pool productions and stake distrubtions in the db can /never/ be from
 -- different forks such that it's safe for readers to access it.
---
--- FIXME: This last statement is only true if 'putStakeProduction' and
--- 'putPoolProduction' are running in the same db transaction, which would be
--- the case if we make 'SqlPersistT' the top-level monad for the 'DBLayer'
--- instead of 'IO'.
 monitorStakePools
     :: Trace IO Text
     -> NetworkLayer IO t Block
     -> DBLayer IO
     -> IO ()
-monitorStakePools tr nl db = do
+monitorStakePools tr nl DBLayer{..} = do
     cursor <- initCursor
     logInfo tr $ mconcat
         [ "Start monitoring stake pools. Currently at "
@@ -134,13 +131,13 @@ monitorStakePools tr nl db = do
     initCursor = do
         let (_, bp) = staticBlockchainParameters nl
         let k = fromIntegral . getQuantity . view #getEpochStability $ bp
-        readPoolProductionCursor db k
+        atomically $ readPoolProductionCursor k
 
     backward
         :: SlotId
         -> IO (FollowAction ErrMonitorStakePools)
     backward point = do
-        liftIO $ rollbackTo db point
+        liftIO . atomically $ rollbackTo point
         return Continue
 
     forward
@@ -153,11 +150,11 @@ monitorStakePools tr nl db = do
         currentTip <- withExceptT ErrMonitorStakePoolsNetworkTip $
             networkTip nl
         when (nodeTip /= currentTip) $ throwE ErrMonitorStakePoolsWrongTip
-        -- FIXME Do the next operation in a database transaction
         liftIO $ logInfo tr $ "Writing stake-distribution for epoch " <> pretty ep
-        lift $ putStakeDistribution db ep (Map.toList dist)
-        forM_ blocks $ \b -> withExceptT ErrMonitorStakePoolsPoolAlreadyExists $
-            putPoolProduction db (header b) (producer b)
+        mapExceptT atomically $ do
+            lift $ putStakeDistribution ep (Map.toList dist)
+            forM_ blocks $ \b -> withExceptT ErrMonitorStakePoolsPoolAlreadyExists $
+                putPoolProduction (header b) (producer b)
       where
         handler action = runExceptT action >>= \case
             Left ErrMonitorStakePoolsNetworkUnavailable{} -> do
@@ -202,36 +199,33 @@ newStakePoolLayer
      :: DBLayer IO
      -> NetworkLayer IO t block
      -> Trace IO Text
-     -> IO (StakePoolLayer IO)
-newStakePoolLayer db nl tr = do
-     return $ StakePoolLayer
-        { listStakePools = do
-            nodeTip <- withExceptT ErrListStakePoolsErrNetworkTip
-                $ networkTip nl
-            let nodeEpoch = nodeTip ^. #slotId . #epochNumber
+     -> StakePoolLayer IO
+newStakePoolLayer db@DBLayer{..} nl tr = StakePoolLayer
+    { listStakePools = do
+        nodeTip <- withExceptT ErrListStakePoolsErrNetworkTip
+            $ networkTip nl
+        let nodeEpoch = nodeTip ^. #slotId . #epochNumber
 
-            distr <- liftIO $ Map.fromList <$>
-                readStakeDistribution db nodeEpoch
+        (distr, prod) <- liftIO . atomically $ (,)
+            <$> (Map.fromList <$> readStakeDistribution nodeEpoch)
+            <*> (count <$> readPoolProduction nodeEpoch)
 
-            prod <- liftIO $ count <$>
-                readPoolProduction db nodeEpoch
+        when (Map.null distr || Map.null prod) $ do
+            computeProgress nodeTip >>= throwE . ErrMetricsIsUnsynced
 
-            when (Map.null distr || Map.null prod) $ do
-                computeProgress nodeTip >>= throwE . ErrMetricsIsUnsynced
+        perfs <- liftIO $
+            readPoolsPerformances db nodeEpoch
 
-            perfs <- liftIO $
-                readPoolsPerformances db nodeEpoch
-
-            case combineMetrics distr prod perfs of
-                Right x -> return
-                    $ sortOn (Down . apparentPerformance)
-                    $ map (uncurry mkStakePool)
-                    $ Map.toList x
-                Left e ->
-                    throwE $ ErrListStakePoolsMetricsInconsistency e
-        }
+        case combineMetrics distr prod perfs of
+            Right x -> return
+                $ sortOn (Down . apparentPerformance)
+                $ map (uncurry mkStakePool)
+                $ Map.toList x
+            Left e ->
+                throwE $ ErrListStakePoolsMetricsInconsistency e
+    }
   where
-    poolProductionTip = readPoolProductionCursor db 1 >>= \case
+    poolProductionTip = atomically $ readPoolProductionCursor 1 >>= \case
         [x] -> return $ Just x
         _ -> return Nothing
 
@@ -273,14 +267,14 @@ newStakePoolLayer db nl tr = do
         toD = fromIntegral
 
 readPoolsPerformances
-    :: DBLayer IO
+    :: DBLayer m
     -> EpochNo
-    -> IO (Map PoolId Double)
-readPoolsPerformances db (EpochNo epochNo) = do
+    -> m (Map PoolId Double)
+readPoolsPerformances DBLayer{..} (EpochNo epochNo) = do
     let range = [max 0 (fromIntegral epochNo - 14) .. fromIntegral epochNo]
-    fmap avg $ forM range $ \ep -> calculatePerformance
-        <$> liftIO (Map.fromList <$> readStakeDistribution db ep)
-        <*> liftIO (count <$> readPoolProduction db ep)
+    atomically $ fmap avg $ forM range $ \ep -> calculatePerformance
+        <$> (Map.fromList <$> readStakeDistribution ep)
+        <*> (count <$> readPoolProduction ep)
   where
     -- | Performances are computed over many epochs to cope with the fact that
     -- our data is sparse (regarding stake distribution at least).

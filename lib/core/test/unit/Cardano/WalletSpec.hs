@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -29,7 +30,7 @@ import Cardano.Wallet
     , WalletLayer (..)
     )
 import Cardano.Wallet.DB
-    ( DBLayer, ErrNoSuchWallet (..), PrimaryKey (..), putTxHistory )
+    ( DBLayer (..), ErrNoSuchWallet (..), PrimaryKey (..), putTxHistory )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, block0, genesisParameters, mkTxId )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -145,7 +146,6 @@ import Test.Utils.Time
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet as W
-import qualified Cardano.Wallet.DB as DB
 import qualified Cardano.Wallet.DB.MVar as MVar
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Data.ByteArray as BA
@@ -202,8 +202,8 @@ walletCreationProp
     :: (WalletId, WalletName, DummyState)
     -> Property
 walletCreationProp newWallet = monadicIO $ liftIO $ do
-    (WalletLayerFixture db _wl walletIds _) <- setupFixture newWallet
-    resFromDb <- DB.readCheckpoint db (PrimaryKey $ L.head walletIds)
+    (WalletLayerFixture DBLayer{..} _wl walletIds _) <- setupFixture newWallet
+    resFromDb <- atomically $ readCheckpoint (PrimaryKey $ L.head walletIds)
     resFromDb `shouldSatisfy` isJust
 
 walletDoubleCreationProp
@@ -372,8 +372,8 @@ walletListTransactionsSorted
     -> Property
 walletListTransactionsSorted wallet@(wid, _, _) _order (_mstart, _mend) history =
     monadicIO $ liftIO $ do
-        (WalletLayerFixture db wl _ slotIdTime) <- liftIO $ setupFixture wallet
-        unsafeRunExceptT $ putTxHistory db (PrimaryKey wid) history
+        (WalletLayerFixture DBLayer{..} wl _ slotIdTime) <- liftIO $ setupFixture wallet
+        atomically $ unsafeRunExceptT $ putTxHistory (PrimaryKey wid) history
         txs <- unsafeRunExceptT $
             W.listTransactions wl wid Nothing Nothing Descending
         length txs `shouldBe` L.length history

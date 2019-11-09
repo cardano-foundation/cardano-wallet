@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -107,6 +108,8 @@ import Control.Exception
     ( bracket, handle )
 import Control.Monad
     ( forM_ )
+import Control.Monad.Trans.Except
+    ( mapExceptT )
 import Criterion.Main
     ( Benchmark
     , Benchmarkable
@@ -368,9 +371,9 @@ withCleanDB
 withCleanDB db = perRunEnv (walletFixture db $> db)
 
 walletFixture :: DBLayerBench -> IO ()
-walletFixture db = do
+walletFixture db@DBLayer{..} = do
     cleanDB db
-    unsafeRunExceptT $ createWallet db testPk testCp testMetadata mempty
+    atomically $ unsafeRunExceptT $ initializeWallet testPk testCp testMetadata mempty
 
 ----------------------------------------------------------------------------
 -- TxHistory benchmarks
@@ -383,9 +386,10 @@ benchPutTxHistory
     -> [Word64]
     -> DBLayerBench
     -> IO ()
-benchPutTxHistory numBatches batchSize numInputs numOutputs range db = do
+benchPutTxHistory numBatches batchSize numInputs numOutputs range DBLayer{..} = do
     let batches = mkTxHistory (numBatches*batchSize) numInputs numOutputs range
-    unsafeRunExceptT $ forM_ (chunksOf batchSize batches) $ putTxHistory db testPk
+    unsafeRunExceptT $ forM_ (chunksOf batchSize batches) $
+        mapExceptT atomically . putTxHistory testPk
 
 benchReadTxHistory
     :: DBLayerBench
@@ -393,8 +397,8 @@ benchReadTxHistory
     -> (Maybe Word64, Maybe Word64)
     -> Maybe TxStatus
     -> Benchmarkable
-benchReadTxHistory db sortOrder (inf, sup) mstatus =
-    whnfIO $ readTxHistory db testPk sortOrder range mstatus
+benchReadTxHistory DBLayer{..} sortOrder (inf, sup) mstatus =
+    whnfIO $ atomically $ readTxHistory testPk sortOrder range mstatus
   where
     range = Range
         (fromFlatSlot epochLength <$> inf)
@@ -433,23 +437,23 @@ mkOutputs prefix n =
     [force (TxOut (mkAddress prefix i) (Coin 1)) | !i <- [1..n]]
 
 withTxHistory :: DBLayerBench -> Int -> [Word64] -> Benchmark -> Benchmark
-withTxHistory db bSize range = env setup . const
+withTxHistory db@DBLayer{..} bSize range = env setup . const
   where
     setup = do
         cleanDB db
-        unsafeRunExceptT $ createWallet db testPk testCp testMetadata mempty
+        atomically $ unsafeRunExceptT $ initializeWallet testPk testCp testMetadata mempty
         let (nInps, nOuts) = (20, 20)
         let txs = force (mkTxHistory bSize nInps nOuts range)
-        unsafeRunExceptT $ putTxHistory db testPk txs
+        atomically $ unsafeRunExceptT $ putTxHistory testPk txs
         pure db
 
 ----------------------------------------------------------------------------
 -- UTxO benchmarks
 
 benchPutUTxO :: Int -> Int -> DBLayerBench -> IO ()
-benchPutUTxO numCheckpoints utxoSize db = do
+benchPutUTxO numCheckpoints utxoSize DBLayer{..} = do
     let cps = mkCheckpoints numCheckpoints utxoSize
-    unsafeRunExceptT $ mapM_ (putCheckpoint db testPk) cps
+    unsafeRunExceptT $ mapM_ (mapExceptT atomically . putCheckpoint testPk) cps
 
 mkCheckpoints :: Int -> Int -> [WalletBench]
 mkCheckpoints numCheckpoints utxoSize =
@@ -469,25 +473,25 @@ mkCheckpoints numCheckpoints utxoSize =
     utxo i = force (Map.fromList (zip (map fst $ mkInputs i utxoSize) (mkOutputs i utxoSize)))
 
 benchReadUTxO :: DBLayerBench -> Benchmarkable
-benchReadUTxO db = whnfIO $ readCheckpoint db testPk
+benchReadUTxO DBLayer{..} = whnfIO $ atomically $ readCheckpoint testPk
 
 -- Set up a database with some UTxO in checkpoints.
 withUTxO :: DBLayerBench -> Int -> Int -> Benchmark -> Benchmark
-withUTxO db numCheckpoints utxoSize = env setup . const
+withUTxO db@DBLayer{..} numCheckpoints utxoSize = env setup . const
   where
     setup = do
         cleanDB db
-        unsafeRunExceptT $ createWallet db testPk testCp testMetadata mempty
+        atomically $ unsafeRunExceptT $ initializeWallet testPk testCp testMetadata mempty
         let cps = mkCheckpoints numCheckpoints utxoSize
-        unsafeRunExceptT $ mapM_ (putCheckpoint db testPk) cps
+        unsafeRunExceptT $ mapM_ (mapExceptT atomically . putCheckpoint testPk) cps
         pure db
 
 ----------------------------------------------------------------------------
 -- SeqState Address Discovery
 
 benchPutSeqState :: Int -> Int -> DBLayerBench -> IO ()
-benchPutSeqState numCheckpoints numAddrs db =
-    unsafeRunExceptT $ mapM_ (putCheckpoint db testPk)
+benchPutSeqState numCheckpoints numAddrs DBLayer{..} =
+    unsafeRunExceptT $ mapM_ (mapExceptT atomically . putCheckpoint testPk)
         [ snd $ initWallet block0 genesisParameters $
             SeqState (mkPool numAddrs i) (mkPool numAddrs i) emptyPendingIxs
         | i <- [1..numCheckpoints]

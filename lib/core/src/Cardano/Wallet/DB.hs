@@ -1,6 +1,9 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -44,6 +47,10 @@ import Cardano.Wallet.Primitive.Types
     , WalletId
     , WalletMetadata
     )
+import Control.Monad.Fail
+    ( MonadFail )
+import Control.Monad.IO.Class
+    ( MonadIO )
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
 import Data.Quantity
@@ -68,31 +75,61 @@ data DBFactory m s k = DBFactory
 -- | A Database interface for storing various things in a DB. In practice,
 -- we'll need some extra contraints on the wallet state that allows us to
 -- serialize and unserialize it (e.g. @forall s. (Serialize s) => ...@)
-data DBLayer m s k = DBLayer
-    { createWallet
+--
+-- NOTE:
+--
+-- We can't use record accessors on the DBLayer as it carries an existential
+-- within its constructor. We are forced to pattern-match on the `DBLayer`
+-- record type in order to be able to use its methods in any context. With
+-- NamedFieldPuns, or RecordWildCards, this can be quite easy:
+--
+-- @
+-- myFunction DBLayer{..} = do
+--     ...
+--
+-- myOtherFunction DBLayer{atomically,initializeWallet} = do
+--     ...
+-- @
+--
+-- Alternatively, in some other context where the database may not be a function
+-- argument but come from a different source, it is possible to simply rely on
+-- 'Data.Function.(&)' to easily pattern match on it:
+--
+-- @
+-- myFunction arg0 arg1 = db & \DBLayer{..} -> do
+--     ...
+--   where
+--     db = ...
+-- @
+--
+-- Note that it isn't possible to simply use a @where@ clause or a @let@ binding
+-- here as the semantic for those are slightly different: we really need a
+-- pattern match here!
+data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
+    { initializeWallet
         :: PrimaryKey WalletId
         -> Wallet s
         -> WalletMetadata
         -> [(Tx, TxMeta)]
-        -> ExceptT ErrWalletAlreadyExists m ()
+        -> ExceptT ErrWalletAlreadyExists stm ()
         -- ^ Initialize a database entry for a given wallet. 'putCheckpoint',
         -- 'putWalletMeta' or 'putTxHistory' will actually all fail if they are
         -- called _first_ on a wallet.
 
     , removeWallet
         :: PrimaryKey WalletId
-        -> ExceptT ErrNoSuchWallet m ()
+        -> ExceptT ErrNoSuchWallet stm ()
         -- ^ Remove a given wallet and all its associated data (checkpoints,
         -- metadata, tx history ...)
 
     , listWallets
-        :: m [PrimaryKey WalletId]
+        :: stm [PrimaryKey WalletId]
         -- ^ Get the list of all known wallets in the DB, possibly empty.
 
     , putCheckpoint
         :: PrimaryKey WalletId
         -> Wallet s
-        -> ExceptT ErrNoSuchWallet m ()
+        -> ExceptT ErrNoSuchWallet stm ()
         -- ^ Replace the current checkpoint for a given wallet. We do not handle
         -- rollbacks yet, and therefore only stores the latest available
         -- checkpoint.
@@ -101,28 +138,28 @@ data DBLayer m s k = DBLayer
 
     , readCheckpoint
         :: PrimaryKey WalletId
-        -> m (Maybe (Wallet s))
+        -> stm (Maybe (Wallet s))
         -- ^ Fetch the most recent checkpoint of a given wallet.
         --
         -- Return 'Nothing' if there's no such wallet.
 
     , listCheckpoints
         :: PrimaryKey WalletId
-        -> m [BlockHeader]
+        -> stm [BlockHeader]
         -- ^ List all known checkpoint tips, ordered by slot ids from the oldest
         -- to the newest.
 
     , putWalletMeta
         :: PrimaryKey WalletId
         -> WalletMetadata
-        -> ExceptT ErrNoSuchWallet m ()
+        -> ExceptT ErrNoSuchWallet stm ()
         -- ^ Replace an existing wallet metadata with the given one.
         --
         -- If the wallet doesn't exist, this operation returns an error
 
     , readWalletMeta
         :: PrimaryKey WalletId
-        -> m (Maybe WalletMetadata)
+        -> stm (Maybe WalletMetadata)
         -- ^ Fetch a wallet metadata, if they exist.
         --
         -- Return 'Nothing' if there's no such wallet.
@@ -131,7 +168,7 @@ data DBLayer m s k = DBLayer
         :: PrimaryKey WalletId
         -> PoolId
         -> SlotId
-        -> ExceptT ErrNoSuchWallet m ()
+        -> ExceptT ErrNoSuchWallet stm ()
         -- ^ Binds a stake pool id to a wallet. This will have an influence on
         -- the wallet metadata: the last known certificate will indicate to
         -- which pool a wallet is currently delegating to.
@@ -145,7 +182,7 @@ data DBLayer m s k = DBLayer
     , putTxHistory
         :: PrimaryKey WalletId
         -> [(Tx, TxMeta)]
-        -> ExceptT ErrNoSuchWallet m ()
+        -> ExceptT ErrNoSuchWallet stm ()
         -- ^ Augments the transaction history for a known wallet.
         --
         -- If an entry for a particular transaction already exists it is not
@@ -158,7 +195,7 @@ data DBLayer m s k = DBLayer
         -> SortOrder
         -> Range SlotId
         -> Maybe TxStatus
-        -> m [(Tx, TxMeta)]
+        -> stm [(Tx, TxMeta)]
         -- ^ Fetch the current transaction history of a known wallet, ordered by
         -- descending slot number.
         --
@@ -167,13 +204,13 @@ data DBLayer m s k = DBLayer
     , removePendingTx
         :: PrimaryKey WalletId
         -> Hash "Tx"
-        -> ExceptT ErrRemovePendingTx m ()
+        -> ExceptT ErrRemovePendingTx stm ()
         -- ^ Remove a pending transaction.
 
     , putPrivateKey
         :: PrimaryKey WalletId
         -> (k 'RootK XPrv, Hash "encryption")
-        -> ExceptT ErrNoSuchWallet m ()
+        -> ExceptT ErrNoSuchWallet stm ()
         -- ^ Store or replace a private key for a given wallet. Note that wallet
         -- _could_ be stored and manipulated without any private key associated
         -- to it. A private key is only seldomly required for very specific
@@ -181,25 +218,24 @@ data DBLayer m s k = DBLayer
 
     , readPrivateKey
         :: PrimaryKey WalletId
-        -> m (Maybe (k 'RootK XPrv, Hash "encryption"))
+        -> stm (Maybe (k 'RootK XPrv, Hash "encryption"))
         -- ^ Read a previously stored private key and its associated passphrase
         -- hash.
 
     , rollbackTo
         :: PrimaryKey WalletId
         -> SlotId
-        -> ExceptT ErrNoSuchWallet m ()
+        -> ExceptT ErrNoSuchWallet stm ()
         -- ^ Drops all checkpoints and transaction data after the given slot.
 
     , prune
         :: PrimaryKey WalletId
-        -> ExceptT ErrNoSuchWallet m ()
+        -> ExceptT ErrNoSuchWallet stm ()
         -- ^ Prune database entities and remove entities that can be discarded.
 
-    , withLock
-        :: forall e a. ()
-        => ExceptT e m a
-        -> ExceptT e m a
+    , atomically
+        :: forall a. stm a -> m a
+        -- ^ Execute operations of the database in isolation and atomically.
     }
 
 -- | Can't perform given operation because there's no wallet
@@ -236,8 +272,9 @@ newtype PrimaryKey key = PrimaryKey key
     deriving (Show, Eq, Ord)
 
 -- | Clean a database by removing all wallets.
-cleanDB :: Monad m => DBLayer m s k -> m ()
-cleanDB db = listWallets db >>= mapM_ (runExceptT . removeWallet db)
+cleanDB :: DBLayer m s k -> m ()
+cleanDB DBLayer{..} = atomically $
+    listWallets >>= mapM_ (runExceptT . removeWallet)
 
 -- | Storing EVERY checkpoints in the database is quite expensive and useless.
 -- We make the following assumptions:
