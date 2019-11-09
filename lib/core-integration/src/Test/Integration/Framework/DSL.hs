@@ -1231,14 +1231,21 @@ listByronTxEp w query =
     , "v2/byron-wallets/" <> w ^. walletId <> "/transactions" <> query
     )
 
-migrateByronWalletEp :: ApiByronWallet -> ApiWallet -> (Method, Text)
+migrateByronWalletEp
+    :: forall w n. (HasType (ApiT WalletId) w, HasType (ApiT WalletId) n)
+    => w
+    -> n
+    -> (Method, Text)
 migrateByronWalletEp wSrc wDest =
     ( "POST"
     , "v2/byron-wallets/" <>
         wSrc ^. walletId <> "/migrations/" <> wDest ^. walletId
     )
 
-calculateByronMigrationCostEp :: ApiByronWallet -> (Method, Text)
+calculateByronMigrationCostEp
+    :: forall w. (HasType (ApiT WalletId) w)
+    => w
+    -> (Method, Text)
 calculateByronMigrationCostEp w =
     ( "GET"
     , "v2/byron-wallets/" <> w ^. walletId <> "/migrations"
