@@ -43,24 +43,24 @@ import Data.Word
 -- >>> atomically $ putPoolProduction blockHeader pool
 --
 -- This gives you the power to also run /multiple/ operations atomically.
-data DBLayer m2 = forall m. MonadFail m => DBLayer
+data DBLayer m = forall stm. MonadFail stm => DBLayer
     { putPoolProduction
         :: BlockHeader
         -> PoolId
-        -> ExceptT ErrPointAlreadyExists m ()
+        -> ExceptT ErrPointAlreadyExists stm ()
         -- ^ Write for a given slot id the id of stake pool that produced a
         -- a corresponding block
 
     , readPoolProduction
         :: EpochNo
-        -> m (Map PoolId [BlockHeader])
+        -> stm (Map PoolId [BlockHeader])
         -- ^ Read the all stake pools together with corresponding slot ids
         -- for a given epoch.
 
     , putStakeDistribution
         :: EpochNo
         -> [(PoolId, Quantity "lovelace" Word64)]
-        -> m ()
+        -> stm ()
         -- ^ Replace an existing distribution for the given epoch by the one
         -- given as argument.
         --
@@ -68,24 +68,25 @@ data DBLayer m2 = forall m. MonadFail m => DBLayer
 
     , readStakeDistribution
         :: EpochNo
-        -> m [(PoolId, Quantity "lovelace" Word64)]
+        -> stm [(PoolId, Quantity "lovelace" Word64)]
 
     , readPoolProductionCursor
-        :: Int -> m [BlockHeader]
+        :: Int -> stm [BlockHeader]
         -- ^ Read the latest @k@ blockheaders in ascending order. The tip will
         -- be the last element in the list.
         --
         -- This is useful for the @NetworkLayer@ to know how far we have synced.
 
     , rollbackTo
-        :: SlotId -> m ()
+        :: SlotId -> stm ()
         -- ^ Remove all entries of slot ids newer than the argument
 
     , cleanDB
-        :: m ()
+        :: stm ()
         -- ^ Clean a database
+
     , atomically
-        :: forall a. m a -> m2 a
+        :: forall a. stm a -> m a
         -- ^ Run an operation.
         --
         -- For a Sqlite DB, this would be "run a query inside a transaction".
