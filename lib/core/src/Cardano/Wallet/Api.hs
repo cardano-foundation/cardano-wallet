@@ -76,7 +76,13 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState, Block, PoolId, SortOrder (..), WalletId (..) )
+    ( AddressState
+    , Block
+    , PoolId
+    , SortOrder (..)
+    , SyncTolerance
+    , WalletId (..)
+    )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..), WorkerRegistry )
 import Cardano.Wallet.Transaction
@@ -375,7 +381,7 @@ instance Accept Any where
 data ApiLayer s t (k :: Depth -> * -> *)
     = ApiLayer
         (Trace IO Text)
-        (Block, BlockchainParameters)
+        (Block, BlockchainParameters, SyncTolerance)
         (NetworkLayer IO t (Block))
         (TransactionLayer t k)
         (DBFactory IO s k)

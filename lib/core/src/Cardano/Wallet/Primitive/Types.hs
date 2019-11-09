@@ -78,6 +78,7 @@ module Cardano.Wallet.Primitive.Types
 
     -- * Slotting
     , SyncProgress(..)
+    , SyncTolerance(..)
     , SlotId (..)
     , SlotNo (..)
     , EpochNo (..)
@@ -147,6 +148,8 @@ module Cardano.Wallet.Primitive.Types
 
 import Prelude
 
+import Control.Applicative
+    ( (<|>) )
 import Control.DeepSeq
     ( NFData (..) )
 import Crypto.Hash
@@ -193,6 +196,8 @@ import Data.Text.Class
     )
 import Data.Time.Clock
     ( NominalDiffTime, UTCTime, addUTCTime, diffUTCTime )
+import Data.Time.Format
+    ( defaultTimeLocale, formatTime, parseTimeM )
 import Data.Word
     ( Word16, Word32, Word64 )
 import Fmt
@@ -1023,6 +1028,29 @@ instance Buildable SyncProgress where
         Syncing (Quantity p) ->
             "still restoring (" <> build (toText p) <> ")"
 
+newtype SyncTolerance = SyncTolerance NominalDiffTime
+    deriving stock (Generic, Eq, Show)
+
+instance ToText SyncTolerance where
+    toText (SyncTolerance t)
+        | t < oneMinute = format "%ss" t
+        | t < oneHour = format "%mm" t
+        | otherwise = format "%hh" t
+      where
+        format f = T.pack . formatTime defaultTimeLocale f
+        oneMinute = 60
+        oneHour = 60*oneMinute
+
+instance FromText SyncTolerance where
+    fromText t = case parse "%ss" t <|> parse "%mm" t <|> parse "%hh" t of
+        Just st -> Right $ SyncTolerance st
+        Nothing -> Left $ TextDecodingError $ unwords
+            [ "Cannot parse given time duration. Here are a few examples of"
+            , "valid text representing a sync tolerance: '3s', '14m', '42h'."
+            ]
+      where
+        parse f = parseTimeM True defaultTimeLocale f . T.unpack
+
 -- | Estimate restoration progress based on:
 --
 -- - The current local tip
@@ -1047,19 +1075,26 @@ instance Buildable SyncProgress where
 -- `h` becomes bigger and `X` becomes smaller making the progress estimation
 -- better and better. At some point, `X` is null, and we have `p = h / h`
 syncProgress
-    :: EpochLength
-        -- ^ Known epoch length
+    :: SyncTolerance
+        -- ^ A time tolerance inside which we consider ourselves synced
+    -> SlotParameters
+        -- ^ Parameters relative to slot arithmetics
     -> BlockHeader
         -- ^ Local tip
     -> SlotId
         -- ^ Last slot that could have been produced
     -> SyncProgress
-syncProgress epochLength tip slotNow =
+syncProgress (SyncTolerance timeTolerance) sp tip slotNow =
     let
         bhTip = fromIntegral . getQuantity $ tip ^. #blockHeight
+
+        epochLength = sp ^. #getEpochLength
+        (SlotLength slotLength)  = (sp ^. #getSlotLength)
+
         n0 = flatSlot epochLength (tip ^. #slotId)
         n1 = flatSlot epochLength slotNow
-        tolerance = 5
+
+        tolerance = floor (timeTolerance / slotLength)
     in if distance n1 n0 < tolerance || n0 >= n1 then
         Ready
     else
@@ -1069,16 +1104,19 @@ syncProgress epochLength tip slotNow =
 -- | Helper to compare the /local tip/ with the slot corresponding to a
 -- @UTCTime@, and calculate progress based on that.
 syncProgressRelativeToTime
-    :: SlotParameters
+    :: SyncTolerance
+        -- ^ A time tolerance inside which we consider ourselves synced
+    -> SlotParameters
+        -- ^ Parameters relative to slot arithmetics
     -> BlockHeader
     -- ^ Local tip
     -> UTCTime
     -- ^ Where we believe the network tip is (e.g. @getCurrentTime@).
     -> SyncProgress
-syncProgressRelativeToTime sp tip time =
+syncProgressRelativeToTime tolerance sp tip time =
     maybe
         (Syncing minBound)
-        (syncProgress (sp ^. #getEpochLength) tip)
+        (syncProgress tolerance sp tip)
         (slotAt sp time)
 
 -- | Convert a 'SlotId' to the number of slots since genesis.

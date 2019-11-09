@@ -45,6 +45,7 @@ module Cardano.CLI
     , stateDirOption
     , loggingConfigFileOption
     , verbosityOption
+    , syncToleranceOption
 
     -- * Types
     , Service
@@ -131,7 +132,14 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState, Hash, PoolId, SortOrder, WalletId, WalletName )
+    ( AddressState
+    , Hash
+    , PoolId
+    , SortOrder
+    , SyncTolerance (..)
+    , WalletId
+    , WalletName
+    )
 import Cardano.Wallet.Version
     ( showVersion, version )
 import Control.Applicative
@@ -875,6 +883,17 @@ stateDirOption backendDir = optional $ strOption $ mempty
         ])
   where
     defaultDir = backendDir </> "NETWORK"
+
+-- | --sync-tolerance=DURATION, default: 5m
+syncToleranceOption :: Parser SyncTolerance
+syncToleranceOption = optionT $ mempty
+    <> long "sync-tolerance"
+    <> metavar "DURATION"
+    <> help "time duration within which we consider being synced with the network."
+    <> value fiveMinutes
+    <> showDefaultWith showT
+  where
+    fiveMinutes = SyncTolerance (5*60)
 
 -- | [--start=TIME]
 timeRangeStartOption :: Parser Iso8601Time

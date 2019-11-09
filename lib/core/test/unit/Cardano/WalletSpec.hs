@@ -67,6 +67,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SlotNo (..)
     , SortOrder (..)
+    , SyncTolerance (..)
     , TransactionInfo (txInfoMeta)
     , TransactionInfo (..)
     , Tx (..)
@@ -403,7 +404,7 @@ setupFixture (wid, wname, wstate) = do
     let nl = error "NetworkLayer"
     let tl = dummyTransactionLayer
     db <- MVar.newDBLayer
-    let wl = WalletLayer nullTracer (block0, bp) nl tl db
+    let wl = WalletLayer nullTracer (block0, bp, st) nl tl db
     res <- runExceptT $ W.createWallet wl wid wname wstate
     let wal = case res of
             Left _ -> []
@@ -413,6 +414,7 @@ setupFixture (wid, wname, wstate) = do
     slotNo = flatSlot (getEpochLength bp)
     slotIdTime = posixSecondsToUTCTime . fromIntegral . slotNo
     bp = genesisParameters
+    st = SyncTolerance 10
 
 -- | A dummy transaction layer to see the effect of a root private key. It
 -- implements a fake signer that still produces sort of witnesses

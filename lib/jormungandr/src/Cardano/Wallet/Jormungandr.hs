@@ -85,7 +85,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Block, BlockHeader (..), Hash (..) )
+    ( Block, BlockHeader (..), Hash (..), SyncTolerance )
 import Cardano.Wallet.Transaction
     ( TransactionLayer )
 import Control.Concurrent
@@ -137,6 +137,8 @@ serveWallet
         )
     => (CM.Configuration, Trace IO Text)
     -- ^ Logging config.
+    -> SyncTolerance
+    -- ^ A time tolerance within we consider being synced
     -> Maybe FilePath
     -- ^ Database folder filepath
     -> HostPreference
@@ -148,7 +150,7 @@ serveWallet
     -> (SockAddr -> Port "node" -> BlockchainParameters -> IO ())
     -- ^ Callback to run before the main loop
     -> IO ExitCode
-serveWallet (cfg, tr) databaseDir hostPref listen lj beforeMainLoop = do
+serveWallet (cfg, tr) sTolerance databaseDir hostPref listen lj beforeMainLoop = do
     installSignalHandlers tr
     logInfo tr "Wallet backend server starting..."
     logInfo tr $ "Node is Jörmungandr on " <> toText (networkDiscriminantVal @n)
@@ -206,7 +208,7 @@ serveWallet (cfg, tr) databaseDir hostPref listen lj beforeMainLoop = do
     apiLayer tracer tl nl = do
         let (block0, bp) = staticBlockchainParameters nl
         wallets <- maybe (pure []) (Sqlite.findDatabases @k tr) databaseDir
-        Server.newApiLayer tracer (block0, bp) nl' tl dbFactory wallets
+        Server.newApiLayer tracer (block0, bp, sTolerance) nl' tl dbFactory wallets
       where
         nl' = toWLBlock <$> nl
 
