@@ -29,7 +29,7 @@ import Cardano.Wallet.DB.Model
     , ErrErasePendingTx (..)
     , ModelOp
     , emptyDatabase
-    , mCreateWallet
+    , mInitializeWallet
     , mListCheckpoints
     , mListWallets
     , mPutCheckpoint
@@ -56,7 +56,7 @@ import Control.DeepSeq
 import Control.Exception
     ( Exception, throwIO )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT )
+    ( ExceptT (..) )
 
 -- | Instantiate a new in-memory "database" layer that simply stores data in
 -- a local MVar. Data vanishes if the software is shut down.
@@ -72,9 +72,9 @@ newDBLayer = do
                                       Wallets
         -----------------------------------------------------------------------}
 
-        { createWallet = \pk cp meta txs -> ExceptT $ do
+        { initializeWallet = \pk cp meta txs -> ExceptT $ do
             cp `deepseq` meta `deepseq`
-                alterDB errWalletAlreadyExists db (mCreateWallet pk cp meta txs)
+                alterDB errWalletAlreadyExists db (mInitializeWallet pk cp meta txs)
 
         , removeWallet = ExceptT . alterDB errNoSuchWallet db . mRemoveWallet
 
@@ -136,11 +136,10 @@ newDBLayer = do
             alterDB errCannotRemovePendingTx db (mRemovePendingTx pk tid)
 
         {-----------------------------------------------------------------------
-                                       Lock
+                                      Execution
         -----------------------------------------------------------------------}
 
-        , withLock = \action ->
-            ExceptT $ withMVar lock $ \() -> runExceptT action
+        , atomically = \action -> withMVar lock $ \() -> action
         }
 
 -- | Apply an operation to the model database, then update the mutable variable.

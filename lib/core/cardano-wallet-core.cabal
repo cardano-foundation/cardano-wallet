@@ -281,6 +281,7 @@ benchmark db
     , text
     , text-class
     , time
+    , transformers
   type:
      exitcode-stdio-1.0
   hs-source-dirs:

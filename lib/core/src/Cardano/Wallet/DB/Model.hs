@@ -42,7 +42,7 @@ module Cardano.Wallet.DB.Model
     , ErrErasePendingTx (..)
     -- * Model database functions
     , mCleanDB
-    , mCreateWallet
+    , mInitializeWallet
     , mRemoveWallet
     , mListWallets
     , mPutCheckpoint
@@ -166,14 +166,14 @@ data ErrErasePendingTx wid
 mCleanDB :: Ord wid => ModelOp wid s xprv ()
 mCleanDB _ = (Right (), emptyDatabase)
 
-mCreateWallet
+mInitializeWallet
     :: forall wid s xprv. Ord wid
     => wid
     -> Wallet s
     -> WalletMetadata
     -> [(Tx, TxMeta)]
     -> ModelOp wid s xprv ()
-mCreateWallet wid cp meta txs0 db@Database{wallets,txs}
+mInitializeWallet wid cp meta txs0 db@Database{wallets,txs}
     | wid `Map.member` wallets = (Left (WalletAlreadyExists wid), db)
     | otherwise =
         let

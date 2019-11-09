@@ -10,6 +10,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -66,7 +67,7 @@ module Cardano.Wallet
     , attachPrivateKey
     , listUtxoStatistics
     , readWallet
-    , removeWallet
+    , deleteWallet
     , restoreWallet
     , updateWallet
     , updateWalletPassphrase
@@ -117,7 +118,7 @@ import Prelude hiding
 import Cardano.BM.Trace
     ( Trace, logDebug, logInfo )
 import Cardano.Wallet.DB
-    ( DBLayer
+    ( DBLayer (..)
     , ErrNoSuchWallet (..)
     , ErrRemovePendingTx (..)
     , ErrWalletAlreadyExists (..)
@@ -214,8 +215,6 @@ import Cardano.Wallet.Transaction
     , ErrValidateSelection
     , TransactionLayer (..)
     )
-import Cardano.Wallet.Unsafe
-    ( unsafeRunExceptT )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
@@ -225,7 +224,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), except, runExceptT, throwE, withExceptT )
+    ( ExceptT (..), except, mapExceptT, runExceptT, throwE, withExceptT )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..), maybeToExceptT )
 import Control.Monad.Trans.State
@@ -236,6 +235,8 @@ import Data.Coerce
     ( coerce )
 import Data.Foldable
     ( fold )
+import Data.Function
+    ( (&) )
 import Data.Functor
     ( ($>) )
 import Data.Generics.Internal.VL.Lens
@@ -263,7 +264,6 @@ import Fmt
 import GHC.Generics
     ( Generic )
 
-import qualified Cardano.Wallet.DB as DB
 import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.List as L
@@ -316,7 +316,7 @@ data WalletLayer s t (k :: Depth -> * -> *)
     = WalletLayer
         (Trace IO Text)
         (Block, BlockchainParameters)
-        (NetworkLayer IO t (Block))
+        (NetworkLayer IO t Block)
         (TransactionLayer t k)
         (DBLayer IO s k)
     deriving (Generic)
@@ -359,7 +359,7 @@ type HasLogger = HasType (Trace IO Text)
 
 -- | This module is only interested in one block-, and tx-type. This constraint
 -- hides that choice, for some ease of use.
-type HasNetworkLayer t = HasType (NetworkLayer IO t (Block))
+type HasNetworkLayer t = HasType (NetworkLayer IO t Block)
 
 type HasTransactionLayer t k = HasType (TransactionLayer t k)
 
@@ -383,9 +383,9 @@ logger =
 
 networkLayer
     :: forall t ctx. (HasNetworkLayer t ctx)
-    => Lens' ctx (NetworkLayer IO t (Block))
+    => Lens' ctx (NetworkLayer IO t Block)
 networkLayer =
-    typed @(NetworkLayer IO t (Block))
+    typed @(NetworkLayer IO t Block)
 
 transactionLayer
     :: forall t k ctx. (HasTransactionLayer t k ctx)
@@ -411,16 +411,17 @@ createWallet
     -> WalletName
     -> s
     -> ExceptT ErrWalletAlreadyExists IO WalletId
-createWallet ctx wid wname s = do
+createWallet ctx wid wname s = db & \DBLayer{..} -> do
     let (hist, cp) = initWallet block0 bp s
-    now <- liftIO getCurrentTime
+    now <- lift getCurrentTime
     let meta = WalletMetadata
             { name = wname
             , creationTime = now
             , passphraseInfo = Nothing
             , delegation = NotDelegating
             }
-    DB.createWallet db (PrimaryKey wid) cp meta hist $> wid
+    mapExceptT atomically $
+        initializeWallet (PrimaryKey wid) cp meta hist $> wid
   where
     db = ctx ^. dbLayer @s @k
     (block0, bp) = ctx ^. genesisData
@@ -431,42 +432,20 @@ readWallet
     => ctx
     -> WalletId
     -> ExceptT ErrNoSuchWallet IO (Wallet s, WalletMetadata, Set Tx)
-readWallet ctx wid = (,,)
-   <$> readWalletCheckpoint @ctx @s @k ctx wid
-   <*> readWalletMeta @ctx @s @k ctx wid
-   <*> lift (pendingTxHistory @ctx @s @k ctx wid)
+readWallet ctx wid = db & \DBLayer{..} -> mapExceptT atomically $ do
+    let pk = PrimaryKey wid
+    cp <- withNoSuchWallet wid $ readCheckpoint pk
+    meta <- withNoSuchWallet wid $ readWalletMeta pk
+    txs <- lift $ readTxHistory pk Descending wholeRange (Just Pending)
+    pure (cp, meta, Set.fromList (fst <$> txs))
+  where
+    db = ctx ^. dbLayer @s @k
 
 walletSyncProgress :: Wallet s -> IO SyncProgress
 walletSyncProgress w = do
     let bp = blockchainParameters w
     let h = currentTip w
     syncProgressRelativeToTime (slotParams bp) h <$> getCurrentTime
-
--- | Retrieve a wallet's most recent checkpoint
-readWalletCheckpoint
-    :: forall ctx s k. HasDBLayer s k ctx
-    => ctx
-    -> WalletId
-    -> ExceptT ErrNoSuchWallet IO (Wallet s)
-readWalletCheckpoint ctx wid =
-    maybeToExceptT (ErrNoSuchWallet wid) $ do
-        MaybeT $ DB.readCheckpoint db (PrimaryKey wid)
-  where
-    db = ctx ^. dbLayer @s @k
-
--- | Retrieve only metadata associated with a particular wallet
-readWalletMeta
-    :: forall ctx s k.
-        ( HasDBLayer s k ctx
-        )
-    => ctx
-    -> WalletId
-    -> ExceptT ErrNoSuchWallet IO WalletMetadata
-readWalletMeta ctx wid =
-    maybeToExceptT (ErrNoSuchWallet wid) $
-        MaybeT $ DB.readWalletMeta db (PrimaryKey wid)
-  where
-    db = ctx ^. dbLayer @s @k
 
 -- | Update a wallet's metadata with the given update function.
 updateWallet
@@ -477,10 +456,9 @@ updateWallet
     -> WalletId
     -> (WalletMetadata -> WalletMetadata)
     -> ExceptT ErrNoSuchWallet IO ()
-updateWallet ctx wid modify =
-    DB.withLock db $ do
-        meta <- readWalletMeta @ctx @s @k ctx wid
-        DB.putWalletMeta db (PrimaryKey wid) (modify meta)
+updateWallet ctx wid modify = db & \DBLayer{..} -> mapExceptT atomically $ do
+    meta <- withNoSuchWallet wid $ readWalletMeta (PrimaryKey wid)
+    putWalletMeta (PrimaryKey wid) (modify meta)
   where
     db = ctx ^. dbLayer @s @k
 
@@ -526,10 +504,10 @@ restoreWallet
     => ctx
     -> WalletId
     -> ExceptT ErrNoSuchWallet IO ()
-restoreWallet ctx wid = do
-    cps <- liftIO $ DB.listCheckpoints db (PrimaryKey wid)
+restoreWallet ctx wid = db & \DBLayer{..} -> do
+    cps <- liftIO $ atomically $ listCheckpoints (PrimaryKey wid)
     let forward bs h = run $ restoreBlocks @ctx @s @k ctx wid bs h
-    let backward sid = run $ DB.rollbackTo db (PrimaryKey wid) sid
+    let backward sid = run $ mapExceptT atomically $ rollbackTo (PrimaryKey wid) sid
     void $ liftIO $ follow nw tr cps forward backward (view #header)
   where
     db = ctx ^. dbLayer @s @k
@@ -548,69 +526,66 @@ restoreBlocks
         )
     => ctx
     -> WalletId
-    -> NonEmpty (Block)
+    -> NonEmpty Block
     -> BlockHeader
     -> ExceptT ErrNoSuchWallet IO ()
-restoreBlocks ctx wid blocks nodeTip = do
-    -- NOTE:
-    -- Not as good as a transaction, but, with the lock, nothing can make
-    -- the wallet disappear within these calls, so either the wallet is
-    -- there and they all succeed, or it's not and they all fail.
-    DB.withLock db $ do
-        (wallet, meta, _) <- readWallet @ctx @s @k ctx wid
-        let bp = blockchainParameters wallet
-        let (txs0, cps) = NE.unzip $ applyBlocks @s blocks wallet
-        let txs = fold txs0
-        let k = bp ^. #getEpochStability
-        let localTip = currentTip $ NE.last cps
+restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> do
+    (cp, meta) <- mapExceptT atomically $ (,)
+        <$> withNoSuchWallet wid (readCheckpoint $ PrimaryKey wid)
+        <*> withNoSuchWallet wid (readWalletMeta $ PrimaryKey wid)
+    let bp = blockchainParameters cp
+    let (txs0, cps) = NE.unzip $ applyBlocks @s blocks cp
+    let txs = fold txs0
+    let k = bp ^. #getEpochStability
+    let localTip = currentTip $ NE.last cps
 
-        let unstable = sparseCheckpoints k (nodeTip ^. #blockHeight)
-        forM_ (NE.init cps) $ \cp -> do
-            let (Quantity h) = currentTip cp ^. #blockHeight
-            when (fromIntegral h `elem` unstable) (makeCheckpoint cp)
-        makeCheckpoint (NE.last cps)
-        DB.prune db (PrimaryKey wid)
-        DB.putTxHistory db (PrimaryKey wid) txs
+    let unstable = sparseCheckpoints k (nodeTip ^. #blockHeight)
+    mapExceptT atomically $ forM_ (NE.init cps) $ \cp' -> do
+        let (Quantity h) = currentTip cp ^. #blockHeight
+        when (fromIntegral h `elem` unstable) $ do
+            liftIO $ logCheckpoint cp'
+            putCheckpoint (PrimaryKey wid) cp'
 
+    mapExceptT atomically $ do
+        liftIO $ logCheckpoint cp
+        putCheckpoint (PrimaryKey wid) (NE.last cps)
+        prune (PrimaryKey wid)
+        putTxHistory (PrimaryKey wid) txs
 
-        liftIO $ do
-            progress <- walletSyncProgress (NE.last cps)
-            logInfo tr $
-                pretty meta
-            logInfo tr $ "syncProgress: " <> pretty progress
-            logInfo tr $ "discovered "
-                <> pretty (length txs) <> " new transaction(s)"
-            logInfo tr $ "local tip: "
-                <> pretty localTip
-            logDebug tr $ "blocks: "
-                <> pretty (NE.toList blocks)
-            logDebug tr $ "transactions: "
-                <> pretty (blockListF (snd <$> txs))
+    liftIO $ do
+        progress <- walletSyncProgress (NE.last cps)
+        logInfo tr $
+            pretty meta
+        logInfo tr $ "syncProgress: " <> pretty progress
+        logInfo tr $ "discovered "
+            <> pretty (length txs) <> " new transaction(s)"
+        logInfo tr $ "local tip: "
+            <> pretty localTip
+        logDebug tr $ "blocks: "
+            <> pretty (NE.toList blocks)
+        logDebug tr $ "transactions: "
+            <> pretty (blockListF (snd <$> txs))
   where
     db = ctx ^. dbLayer @s @k
     tr = ctx ^. logger
-
-    makeCheckpoint :: Wallet s -> ExceptT ErrNoSuchWallet IO ()
-    makeCheckpoint cp = do
-        liftIO $ logInfo tr $
-            "Creating checkpoint at " <> pretty (currentTip cp)
-        DB.putCheckpoint db (PrimaryKey wid) cp
+    logCheckpoint :: Wallet s -> IO ()
+    logCheckpoint cp = logInfo tr $
+        "Creating checkpoint at " <> pretty (currentTip cp)
 
 -- | Remove an existing wallet. Note that there's no particular work to
 -- be done regarding the restoration worker as it will simply terminate
 -- on the next tick when noticing that the corresponding wallet is gone.
-removeWallet
+deleteWallet
     :: forall ctx s k.
         ( HasDBLayer s k ctx
         )
     => ctx
     -> WalletId
     -> ExceptT ErrNoSuchWallet IO ()
-removeWallet ctx wid = do
-    DB.withLock db . DB.removeWallet db . PrimaryKey $ wid
+deleteWallet ctx wid = db & \DBLayer{..} -> do
+    mapExceptT atomically $ removeWallet (PrimaryKey wid)
   where
     db = ctx ^. dbLayer @s @k
-
 
 {-------------------------------------------------------------------------------
                                     Address
@@ -628,10 +603,10 @@ listAddresses
     => ctx
     -> WalletId
     -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]
-listAddresses ctx wid = do
-    (s, txs) <- DB.withLock db $ (,)
-        <$> (getState <$> readWalletCheckpoint @ctx @s @k ctx wid)
-        <*> liftIO (DB.readTxHistory db (PrimaryKey wid) Descending wholeRange Nothing)
+listAddresses ctx wid = db & \DBLayer{..} -> do
+    (s, txs) <- mapExceptT atomically $ (,)
+        <$> (getState <$> withNoSuchWallet wid (readCheckpoint $ PrimaryKey wid))
+        <*> lift (readTxHistory (PrimaryKey wid) Descending wholeRange Nothing)
     let maybeIsOurs (TxOut a _) = if fst (isOurs a s)
             then Just a
             else Nothing
@@ -668,19 +643,6 @@ feeOpts tl feePolicy = FeeOptions
     { estimateFee = computeFee feePolicy . estimateSize tl
     , dustThreshold = minBound
     }
-
--- | Read the whole transaction history, filtering by the given status.
-pendingTxHistory
-    :: forall ctx s k. HasDBLayer s k ctx
-    => ctx
-    -> WalletId
-    -> IO (Set Tx)
-pendingTxHistory ctx wid = do
-    let pk = PrimaryKey wid
-    txs <- liftIO $ DB.readTxHistory db pk Descending wholeRange (Just Pending)
-    return $ Set.fromList (fst <$> txs)
-  where
-    db = ctx ^. dbLayer @s @k
 
 -- | Prepare a transaction and automatically select inputs from the
 -- wallet to cover the requested outputs. Note that this only runs
@@ -793,15 +755,16 @@ assignMigrationTargetAddresses
     -> [CoinSelection]
     -- ^ Migration data for the source wallet.
     -> ExceptT ErrNoSuchWallet IO [CoinSelection]
-assignMigrationTargetAddresses ctx wid argGenChange cs = do
-    cp <- readWalletCheckpoint @ctx @s @k ctx wid
-    let (cs', s') = flip runState (getState cp) $ do
-            forM cs $ \sel -> do
-                outs <- forM (change sel) $ \c -> do
-                    addr <- state (genChange argGenChange)
-                    pure (TxOut addr c)
-                pure (sel { change = [], outputs = outs })
-    DB.putCheckpoint db (PrimaryKey wid) (updateState s' cp) $> cs'
+assignMigrationTargetAddresses ctx wid argGenChange cs = db & \DBLayer{..} -> do
+    mapExceptT atomically $ do
+        cp <- withNoSuchWallet wid $ readCheckpoint (PrimaryKey wid)
+        let (cs', s') = flip runState (getState cp) $ do
+                forM cs $ \sel -> do
+                    outs <- forM (change sel) $ \c -> do
+                        addr <- state (genChange argGenChange)
+                        pure (TxOut addr c)
+                    pure (sel { change = [], outputs = outs })
+        putCheckpoint (PrimaryKey wid) (updateState s' cp) $> cs'
   where
     db = ctx ^. dbLayer @s @k
 
@@ -824,43 +787,40 @@ signTx
     -> Passphrase "encryption"
     -> CoinSelection
     -> ExceptT ErrSignTx IO (Tx, TxMeta, UTCTime, [TxWitness])
-signTx ctx wid argGenChange pwd (CoinSelection ins outs chgs) =
-    DB.withLock db $ do
-        cp <- withExceptT ErrSignTxNoSuchWallet $
-            readWalletCheckpoint @ctx @s @k ctx wid
-        let (changeOuts, s') = flip runState (getState cp) $
-                forM chgs $ \c -> do
-                    addr <- state (genChange argGenChange)
-                    return $ TxOut addr c
-        allShuffledOuts <- liftIO $ shuffle (outs ++ changeOuts)
-        withRootKey @_ @s ctx wid pwd ErrSignTxWithRootKey $ \xprv -> do
+signTx ctx wid argGenChange pwd (CoinSelection ins outs chgs) = db & \DBLayer{..} -> do
+    withRootKey @_ @s ctx wid pwd ErrSignTxWithRootKey $ \xprv -> do
+        mapExceptT atomically $ do
+            cp <- withExceptT ErrSignTxNoSuchWallet $ withNoSuchWallet wid $
+                readCheckpoint (PrimaryKey wid)
+            let (changeOuts, s') = flip runState (getState cp) $
+                    forM chgs $ \c -> do
+                        addr <- state (genChange argGenChange)
+                        return $ TxOut addr c
+            allShuffledOuts <- liftIO $ shuffle (outs ++ changeOuts)
             let keyFrom = isOwned (getState cp) (xprv, pwd)
-            case mkStdTx tl keyFrom ins allShuffledOuts of
-                Right (tx, wit) -> do
-                    -- Safe because we have a lock and we already fetched the
-                    -- wallet within this context.
-                    liftIO . unsafeRunExceptT $
-                        DB.putCheckpoint db (PrimaryKey wid) (updateState s' cp)
-                    let amtChng = fromIntegral $
-                            sum (getCoin <$> chgs)
-                    let amtInps = fromIntegral $
-                            sum (getCoin . coin . snd <$> ins)
-                    let txSlot =
-                            (currentTip cp) ^. #slotId
-                    let meta = TxMeta
-                            { status = Pending
-                            , direction = Outgoing
-                            , slotId = txSlot
-                            , blockHeight = (currentTip cp) ^. #blockHeight
-                            , amount = Quantity (amtInps - amtChng)
-                            }
-                    let time =
-                            slotStartTime
-                                (slotParams (blockchainParameters cp))
-                                txSlot
-                    return (tx, meta, time, wit)
-                Left e ->
-                    throwE $ ErrSignTx e
+            (tx, wit) <- either
+                (throwE . ErrSignTx)
+                pure
+                (mkStdTx tl keyFrom ins allShuffledOuts )
+            withExceptT ErrSignTxNoSuchWallet $
+                putCheckpoint (PrimaryKey wid) (updateState s' cp)
+            let amtChng = fromIntegral $
+                    sum (getCoin <$> chgs)
+            let amtInps = fromIntegral $
+                    sum (getCoin . coin . snd <$> ins)
+            let txSlot =
+                    (currentTip cp) ^. #slotId
+            let meta = TxMeta
+                    { status = Pending
+                    , direction = Outgoing
+                    , slotId = txSlot
+                    , blockHeight = (currentTip cp) ^. #blockHeight
+                    , amount = Quantity (amtInps - amtChng)
+                    }
+            let time = slotStartTime
+                    (slotParams (blockchainParameters cp))
+                    txSlot
+            return (tx, meta, time, wit)
   where
     db = ctx ^. dbLayer @s @k
     tl = ctx ^. transactionLayer @t @k
@@ -875,10 +835,10 @@ submitTx
     -> WalletId
     -> (Tx, TxMeta, [TxWitness])
     -> ExceptT ErrSubmitTx IO ()
-submitTx ctx wid (tx, meta, wit) = do
+submitTx ctx wid (tx, meta, wit) = db & \DBLayer{..} -> do
     withExceptT ErrSubmitTxNetwork $ postTx nw (tx, wit)
-    DB.withLock db $ withExceptT ErrSubmitTxNoSuchWallet $
-        DB.putTxHistory db (PrimaryKey wid) [(tx, meta)]
+    mapExceptT atomically $ withExceptT ErrSubmitTxNoSuchWallet $
+        putTxHistory (PrimaryKey wid) [(tx, meta)]
   where
     db = ctx ^. dbLayer @s @k
     nw = ctx ^. networkLayer @t
@@ -910,8 +870,8 @@ forgetPendingTx
     -> WalletId
     -> Hash "Tx"
     -> ExceptT ErrRemovePendingTx IO ()
-forgetPendingTx ctx wid tid =
-    DB.withLock db $ DB.removePendingTx db (PrimaryKey wid) tid
+forgetPendingTx ctx wid tid = db & \DBLayer{..} -> do
+    mapExceptT atomically $ removePendingTx (PrimaryKey wid) tid
   where
     db = ctx ^. dbLayer @s @k
 
@@ -926,12 +886,18 @@ listTransactions
         -- Inclusive maximum time bound.
     -> SortOrder
     -> ExceptT ErrListTransactions IO [TransactionInfo]
-listTransactions ctx wid mStart mEnd order = do
-    cp <- withExceptT ErrListTransactionsNoSuchWallet $
-        readWalletCheckpoint @ctx @s @k ctx wid
-    let tip = currentTip cp
-    let sp = slotParams (blockchainParameters cp)
-    maybe (pure []) (listTransactionsWithinRange sp tip) =<< (getSlotRange sp)
+listTransactions ctx wid mStart mEnd order = db & \DBLayer{..} -> do
+    let pk = PrimaryKey wid
+    mapExceptT atomically $ do
+        cp <- withExceptT ErrListTransactionsNoSuchWallet $
+            withNoSuchWallet wid $ readCheckpoint pk
+
+        let tip = currentTip cp
+        let sp = slotParams (blockchainParameters cp)
+
+        mapExceptT liftIO (getSlotRange sp) >>= maybe
+            (pure [])
+            (\r -> assemble sp tip <$> lift (readTxHistory pk order r Nothing))
   where
     db = ctx ^. dbLayer @s @k
 
@@ -947,15 +913,6 @@ listTransactions ctx wid mStart mEnd order = do
             throwE (ErrListTransactionsStartTimeLaterThanEndTime err)
         _ ->
             pure $ slotRangeFromTimeRange sp $ Range mStart mEnd
-
-    listTransactionsWithinRange
-        :: SlotParameters
-        -> BlockHeader
-        -> Range SlotId
-        -> ExceptT ErrListTransactions IO [TransactionInfo]
-    listTransactionsWithinRange sp tip sr = do
-        liftIO $ assemble sp tip
-            <$> DB.readTxHistory db (PrimaryKey wid) order sr Nothing
 
     -- This relies on DB.readTxHistory returning all necessary transactions
     -- to assemble coin selection information for outgoing payments.
@@ -1011,15 +968,14 @@ attachPrivateKey
     -> WalletId
     -> (k 'RootK XPrv, Passphrase "encryption")
     -> ExceptT ErrNoSuchWallet IO ()
-attachPrivateKey ctx wid (xprv, pwd) = do
-   hpwd <- liftIO $ encryptPassphrase pwd
-   DB.putPrivateKey db (PrimaryKey wid) (xprv, hpwd)
-   DB.withLock db $ do
-       meta <- readWalletMeta @ctx @s @k ctx wid
-       now <- liftIO getCurrentTime
-       let modify x =
-               x { passphraseInfo = Just (WalletPassphraseInfo now) }
-       DB.putWalletMeta db (PrimaryKey wid) (modify meta)
+attachPrivateKey ctx wid (xprv, pwd) = db & \DBLayer{..} -> do
+    hpwd <- liftIO $ encryptPassphrase pwd
+    now <- liftIO getCurrentTime
+    mapExceptT atomically $ do
+        putPrivateKey (PrimaryKey wid) (xprv, hpwd)
+        meta <- withNoSuchWallet wid $ readWalletMeta (PrimaryKey wid)
+        let modify x = x { passphraseInfo = Just (WalletPassphraseInfo now) }
+        putWalletMeta (PrimaryKey wid) (modify meta)
   where
     db = ctx ^. dbLayer @s @k
 
@@ -1032,9 +988,9 @@ withRootKey
     -> (ErrWithRootKey -> e)
     -> (k 'RootK XPrv -> ExceptT e IO a)
     -> ExceptT e IO a
-withRootKey ctx wid pwd embed action = do
-    xprv <- withExceptT embed $ do
-        lift (DB.readPrivateKey db (PrimaryKey wid)) >>= \case
+withRootKey ctx wid pwd embed action = db & \DBLayer{..} -> do
+    xprv <- withExceptT embed $ mapExceptT atomically $ do
+        lift (readPrivateKey (PrimaryKey wid)) >>= \case
             Nothing ->
                 throwE $ ErrWithRootKeyNoRootKey wid
             Just (xprv, hpwd) -> do
@@ -1120,3 +1076,11 @@ data ErrStartTimeLaterThanEndTime = ErrStartTimeLaterThanEndTime
 debug :: (Buildable a, MonadIO m) => Trace IO Text -> Text -> a -> m a
 debug t msg a =
     liftIO (logDebug t (msg <> pretty a)) $> a
+
+withNoSuchWallet
+    :: Monad m
+    => WalletId
+    -> m (Maybe a)
+    -> ExceptT ErrNoSuchWallet m a
+withNoSuchWallet wid =
+    maybeToExceptT (ErrNoSuchWallet wid) . MaybeT

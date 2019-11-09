@@ -89,8 +89,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Control.Arrow
     ( (***) )
-import Control.Concurrent.MVar
-    ( newMVar, withMVar )
 import Control.DeepSeq
     ( NFData )
 import Control.Exception
@@ -102,7 +100,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT )
+    ( ExceptT (..) )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..) )
 import Data.Coerce
@@ -295,7 +293,6 @@ newDBLayer
        -- ^ Path to database file, or Nothing for in-memory database
     -> IO (SqliteContext, DBLayer IO s k)
 newDBLayer logConfig trace mDatabaseFile = do
-    lock <- newMVar ()
     let trace' = transformTrace trace
     ctx@SqliteContext{runQuery} <-
         startSqliteBackend logConfig migrateAll trace' mDatabaseFile
@@ -305,53 +302,49 @@ newDBLayer logConfig trace mDatabaseFile = do
                                       Wallets
         -----------------------------------------------------------------------}
 
-        { createWallet = \(PrimaryKey wid) cp meta txs ->
-              ExceptT $ runQuery $ do
-                  res <- handleConstraint (ErrWalletAlreadyExists wid) $
-                      insert_ (mkWalletEntity wid meta)
-                  when (isRight res) $ do
-                      insertCheckpoint wid cp
-                      let (metas, txins, txouts) = mkTxHistory wid txs
-                      putTxMetas metas
-                      putTxs txins txouts
-                  pure res
+        { initializeWallet = \(PrimaryKey wid) cp meta txs -> ExceptT $ do
+            res <- handleConstraint (ErrWalletAlreadyExists wid) $
+                insert_ (mkWalletEntity wid meta)
+            when (isRight res) $ do
+                insertCheckpoint wid cp
+                let (metas, txins, txouts) = mkTxHistory wid txs
+                putTxMetas metas
+                putTxs txins txouts
+            pure res
 
-        , removeWallet = \(PrimaryKey wid) ->
-              ExceptT $ runQuery $
-              selectWallet wid >>= \case
-                  Just _ -> Right <$> do
-                      deleteCascadeWhere [WalId ==. wid]
-                      deleteLooseTransactions
-                  Nothing -> pure $ Left $ ErrNoSuchWallet wid
+        , removeWallet = \(PrimaryKey wid) -> ExceptT $ do
+            selectWallet wid >>= \case
+                Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                Just _  -> Right <$> do
+                    deleteCascadeWhere [WalId ==. wid]
+                    deleteLooseTransactions
 
-        , listWallets = runQuery $
-              map (PrimaryKey . unWalletKey) <$>
-              selectKeysList [] [Asc WalId]
+        , listWallets =
+            map (PrimaryKey . unWalletKey) <$> selectKeysList [] [Asc WalId]
 
         {-----------------------------------------------------------------------
                                     Checkpoints
         -----------------------------------------------------------------------}
 
-        , putCheckpoint = \(PrimaryKey wid) cp ->
-              ExceptT $ runQuery $ selectWallet wid >>= \case
-                  Just _ -> Right <$> do
-                      insertCheckpoint wid cp
-                  Nothing -> pure $ Left $ ErrNoSuchWallet wid
+        , putCheckpoint = \(PrimaryKey wid) cp -> ExceptT $ do
+            selectWallet wid >>= \case
+                Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                Just _  -> Right <$> insertCheckpoint wid cp
 
-        , readCheckpoint = \(PrimaryKey wid) -> runQuery $
-              selectLatestCheckpoint wid >>= \case
-                  Just cp -> do
-                      utxo <- selectUTxO cp
-                      s <- selectState (checkpointId cp)
-                      pure (checkpointFromEntity @s cp utxo <$> s)
-                  Nothing -> pure Nothing
+        , readCheckpoint = \(PrimaryKey wid) -> do
+            selectLatestCheckpoint wid >>= \case
+                Nothing -> pure Nothing
+                Just cp -> do
+                    utxo <- selectUTxO cp
+                    s <- selectState (checkpointId cp)
+                    pure (checkpointFromEntity @s cp utxo <$> s)
 
-        , listCheckpoints = \(PrimaryKey wid) -> runQuery $
+        , listCheckpoints = \(PrimaryKey wid) -> do
             map (blockHeaderFromEntity . entityVal) <$> selectList
                 [ CheckpointWalletId ==. wid ]
                 [ Asc CheckpointSlot ]
 
-        , rollbackTo = \(PrimaryKey wid) point -> ExceptT $ runQuery $ do
+        , rollbackTo = \(PrimaryKey wid) point -> ExceptT $ do
             findNearestPoint wid point >>= \case
                 Nothing -> selectLatestCheckpoint wid >>= \case
                     Nothing -> pure $ Left $ ErrNoSuchWallet wid
@@ -375,7 +368,7 @@ newDBLayer logConfig trace mDatabaseFile = do
                         , TxMetaSlot >. point
                         ]
 
-        , prune = \(PrimaryKey wid) -> ExceptT $ runQuery $
+        , prune = \(PrimaryKey wid) -> ExceptT $ do
             selectLatestCheckpoint wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just cp -> Right <$> do
@@ -386,24 +379,22 @@ newDBLayer logConfig trace mDatabaseFile = do
                                    Wallet Metadata
         -----------------------------------------------------------------------}
 
-        , putWalletMeta = \(PrimaryKey wid) meta ->
-              ExceptT $ runQuery $
-              selectWallet wid >>= \case
-                  Just _ -> do
-                      updateWhere [WalId ==. wid]
-                          (mkWalletMetadataUpdate meta)
-                      pure $ Right ()
-                  Nothing -> pure $ Left $ ErrNoSuchWallet wid
+        , putWalletMeta = \(PrimaryKey wid) meta -> ExceptT $ do
+            selectWallet wid >>= \case
+                Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                Just _ -> do
+                    updateWhere [WalId ==. wid]
+                        (mkWalletMetadataUpdate meta)
+                    pure $ Right ()
 
-        , readWalletMeta = \(PrimaryKey wid) -> runQuery $ do
+        , readWalletMeta = \(PrimaryKey wid) -> do
             walDelegation <- delegationFromEntity . fmap entityVal
                 <$> selectFirst [CertWalletId ==. wid] [Desc CertSlot]
 
             fmap (metadataFromEntity walDelegation . entityVal)
                 <$> selectFirst [WalId ==. wid] []
 
-        , putDelegationCertificate = \pk pool sl -> ExceptT $ runQuery $ do
-            let (PrimaryKey wid) = pk
+        , putDelegationCertificate = \(PrimaryKey wid) pool sl -> ExceptT $ do
             selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just _  -> pure <$> insert_ (DelegationCertificate wid sl pool)
@@ -412,70 +403,60 @@ newDBLayer logConfig trace mDatabaseFile = do
                                      Tx History
         -----------------------------------------------------------------------}
 
-        , putTxHistory = \(PrimaryKey wid) txs ->
-              ExceptT $ runQuery $
-              selectWallet wid >>= \case
-                  Just _ -> do
-                      let (metas, txins, txouts) = mkTxHistory wid txs
-                      putTxMetas metas
-                      putTxs txins txouts
-                      pure $ Right ()
-                  Nothing -> pure $ Left $ ErrNoSuchWallet wid
+        , putTxHistory = \(PrimaryKey wid) txs -> ExceptT $ do
+            selectWallet wid >>= \case
+                Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                Just _ -> do
+                    let (metas, txins, txouts) = mkTxHistory wid txs
+                    putTxMetas metas
+                    putTxs txins txouts
+                    pure $ Right ()
 
-        , readTxHistory = \(PrimaryKey wid) order range status -> runQuery $
-              selectTxHistory wid order $ catMaybes
+        , readTxHistory = \(PrimaryKey wid) order range status -> do
+            selectTxHistory wid order $ catMaybes
                 [ (TxMetaSlot >=.) <$> W.inclusiveLowerBound range
                 , (TxMetaSlot <=.) <$> W.inclusiveUpperBound range
                 , (TxMetaStatus ==.) <$> status
                 ]
 
+        , removePendingTx = \(PrimaryKey wid) tid -> ExceptT $ do
+            let errNoSuchWallet =
+                    Left $ ErrRemovePendingTxNoSuchWallet $ ErrNoSuchWallet wid
+            let errNoMorePending =
+                    Left $ ErrRemovePendingTxTransactionNoMorePending tid
+            let errNoSuchTransaction =
+                    Left $ ErrRemovePendingTxNoSuchTransaction tid
+            selectWallet wid >>= \case
+                Nothing -> pure errNoSuchWallet
+                Just _  -> do
+                    metas <- selectPendingTxs wid (TxId tid)
+                    let isPending (TxMeta _ _ st _ _ _ _) = st == W.Pending
+                    case metas of
+                        [] -> pure errNoSuchTransaction
+                        txs | any isPending txs -> do
+                            deletePendingTx wid (TxId tid)
+                            pure $ Right ()
+                        _ -> pure errNoMorePending
+
         {-----------------------------------------------------------------------
                                        Keystore
         -----------------------------------------------------------------------}
 
-        , putPrivateKey = \(PrimaryKey wid) key ->
-                ExceptT $ runQuery $
-                selectWallet wid >>= \case
-                    Just _ -> Right <$> do
-                        deleteWhere [PrivateKeyWalletId ==. wid]
-                        insert_ (mkPrivateKeyEntity wid key)
-                    Nothing -> pure $ Left $ ErrNoSuchWallet wid
+        , putPrivateKey = \(PrimaryKey wid) key -> ExceptT $ do
+            selectWallet wid >>= \case
+                Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                Just _ -> Right <$> do
+                    deleteWhere [PrivateKeyWalletId ==. wid]
+                    insert_ (mkPrivateKeyEntity wid key)
 
-        , readPrivateKey = \(PrimaryKey wid) ->
-              runQuery $ selectPrivateKey wid
+        , readPrivateKey = \(PrimaryKey wid) -> selectPrivateKey wid
 
         {-----------------------------------------------------------------------
-                                       Pending Tx
+                                     ACID Execution
         -----------------------------------------------------------------------}
 
-        , removePendingTx = \(PrimaryKey wid) tid ->
-              ExceptT $ runQuery $
-              selectWallet wid >>= \case
-                  Just _ -> do
-                      metas <- selectPendingTxs wid (TxId tid)
-                      let checkStatus = any
-                              (\(TxMeta _ _ st _ _ _ _) -> st == W.Pending)
-                      case metas of
-                          [] ->
-                              pure $ Left $
-                              ErrRemovePendingTxNoSuchTransaction tid
+        , atomically = runQuery
 
-                          txs | checkStatus txs -> do
-                                 deletePendingTx wid (TxId tid)
-                                 pure $ Right ()
-
-                          _ ->
-                              pure $ Left $
-                              ErrRemovePendingTxTransactionNoMorePending tid
-
-                  Nothing ->
-                      pure $ Left $ ErrRemovePendingTxNoSuchWallet (ErrNoSuchWallet wid)
-        {-----------------------------------------------------------------------
-                                       Lock
-        -----------------------------------------------------------------------}
-
-        , withLock = \action ->
-              ExceptT $ withMVar lock $ \() -> runExceptT action
         })
 
 delegationFromEntity
