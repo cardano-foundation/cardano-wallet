@@ -159,6 +159,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolId
     , SortOrder (..)
     , SyncProgress (..)
+    , SyncTolerance
     , TransactionInfo (TransactionInfo)
     , Tx (..)
     , TxIn
@@ -817,7 +818,7 @@ network ctx = do
     let ntrkTip = fromMaybe slotMinBound (slotAt sp now)
     pure $ ApiNetworkInformation
         { syncProgress =
-            ApiT $ syncProgressRelativeToTime sp nodeTip now
+            ApiT $ syncProgressRelativeToTime st sp nodeTip now
         , nodeTip =
             ApiBlockReference
                 { epochNumber = ApiT $ nodeTip ^. (#slotId . #epochNumber)
@@ -832,7 +833,7 @@ network ctx = do
         }
   where
     nl = ctx ^. networkLayer @t
-    (_, bp) = ctx ^. genesisData
+    (_, bp, st) = ctx ^. genesisData
     sp :: W.SlotParameters
     sp = W.SlotParameters
         (bp ^. #getEpochLength)
@@ -1127,7 +1128,7 @@ getWalletWithCreationTime mk ctx (ApiT wid) = do
     (wallet, meta, pending) <-
         liftHandler $ withWorkerCtx ctx wid throwE $
             \wrk -> W.readWallet wrk wid
-    progress <- liftIO $ W.walletSyncProgress wallet
+    progress <- liftIO $ W.walletSyncProgress ctx wallet
     return (mk wid wallet meta progress pending, meta ^. #creationTime)
 
 mkApiWallet
@@ -1188,7 +1189,7 @@ getWalletTip wallet = ApiBlockReference
 newApiLayer
     :: forall ctx s t k. ctx ~ ApiLayer s t k
     => Trace IO Text
-    -> (Block, BlockchainParameters)
+    -> (Block, BlockchainParameters, SyncTolerance)
     -> NetworkLayer IO t Block
     -> TransactionLayer t k
     -> DBFactory IO s k

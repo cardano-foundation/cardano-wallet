@@ -189,6 +189,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotParameters (..)
     , SortOrder (..)
     , SyncProgress (..)
+    , SyncTolerance
     , TransactionInfo (..)
     , Tx
     , TxIn (..)
@@ -315,7 +316,7 @@ import qualified Data.Set as Set
 data WalletLayer s t (k :: Depth -> * -> *)
     = WalletLayer
         (Trace IO Text)
-        (Block, BlockchainParameters)
+        (Block, BlockchainParameters, SyncTolerance)
         (NetworkLayer IO t Block)
         (TransactionLayer t k)
         (DBLayer IO s k)
@@ -353,7 +354,7 @@ data WalletLayer s t (k :: Depth -> * -> *)
 -- and their metadata does not require any networking layer.
 type HasDBLayer s k = HasType (DBLayer IO s k)
 
-type HasGenesisData = HasType (Block, BlockchainParameters)
+type HasGenesisData = HasType (Block, BlockchainParameters, SyncTolerance)
 
 type HasLogger = HasType (Trace IO Text)
 
@@ -371,9 +372,9 @@ dbLayer =
 
 genesisData
     :: forall ctx. HasGenesisData ctx
-    => Lens' ctx (Block, BlockchainParameters)
+    => Lens' ctx (Block, BlockchainParameters, SyncTolerance)
 genesisData =
-    typed @(Block, BlockchainParameters)
+    typed @(Block, BlockchainParameters, SyncTolerance)
 
 logger
     :: forall ctx. HasLogger ctx
@@ -424,7 +425,7 @@ createWallet ctx wid wname s = db & \DBLayer{..} -> do
         initializeWallet (PrimaryKey wid) cp meta hist $> wid
   where
     db = ctx ^. dbLayer @s @k
-    (block0, bp) = ctx ^. genesisData
+    (block0, bp, _) = ctx ^. genesisData
 
 -- | Retrieve the wallet state for the wallet with the given ID.
 readWallet
@@ -441,11 +442,19 @@ readWallet ctx wid = db & \DBLayer{..} -> mapExceptT atomically $ do
   where
     db = ctx ^. dbLayer @s @k
 
-walletSyncProgress :: Wallet s -> IO SyncProgress
-walletSyncProgress w = do
+walletSyncProgress
+    :: forall ctx s.
+        ( HasGenesisData ctx
+        )
+    => ctx
+    -> Wallet s
+    -> IO SyncProgress
+walletSyncProgress ctx w = do
     let bp = blockchainParameters w
     let h = currentTip w
-    syncProgressRelativeToTime (slotParams bp) h <$> getCurrentTime
+    syncProgressRelativeToTime st (slotParams bp) h <$> getCurrentTime
+  where
+    (_, _, st) = ctx ^. genesisData
 
 -- | Update a wallet's metadata with the given update function.
 updateWallet
@@ -500,6 +509,7 @@ restoreWallet
         ( HasLogger ctx
         , HasNetworkLayer t ctx
         , HasDBLayer s k ctx
+        , HasGenesisData ctx
         )
     => ctx
     -> WalletId
@@ -523,6 +533,7 @@ restoreBlocks
     :: forall ctx s k.
         ( HasLogger ctx
         , HasDBLayer s k ctx
+        , HasGenesisData ctx
         )
     => ctx
     -> WalletId
@@ -553,7 +564,7 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> do
         putTxHistory (PrimaryKey wid) txs
 
     liftIO $ do
-        progress <- walletSyncProgress (NE.last cps)
+        progress <- walletSyncProgress @ctx ctx (NE.last cps)
         logInfo tr $
             pretty meta
         logInfo tr $ "syncProgress: " <> pretty progress
@@ -568,6 +579,7 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @s @k
     tr = ctx ^. logger
+
     logCheckpoint :: Wallet s -> IO ()
     logCheckpoint cp = logInfo tr $
         "Creating checkpoint at " <> pretty (currentTip cp)

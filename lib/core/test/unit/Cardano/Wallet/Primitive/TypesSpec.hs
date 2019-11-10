@@ -41,6 +41,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , SlotParameters (..)
     , StartTime (..)
+    , SyncTolerance (..)
     , Tx (..)
     , TxIn (..)
     , TxMeta (..)
@@ -63,6 +64,7 @@ import Cardano.Wallet.Primitive.Types
     , isWithinRange
     , mapRangeLowerBound
     , mapRangeUpperBound
+    , mkSyncTolerance
     , rangeHasLowerBound
     , rangeHasUpperBound
     , rangeIsFinite
@@ -170,6 +172,7 @@ spec = do
         textRoundtrip $ Proxy @WalletId
         textRoundtrip $ Proxy @(Hash "Genesis")
         textRoundtrip $ Proxy @(Hash "Tx")
+        textRoundtrip $ Proxy @SyncTolerance
 
     describe "Buildable" $ do
         it "WalletId" $ do
@@ -196,11 +199,17 @@ spec = do
                     }
             "+13.371442 in ledger since 14.0#1" === pretty @_ @Text txMeta
 
-    let slotsPerEpoch = EpochLength 21600
+    let sp = SlotParameters
+            { getEpochLength = EpochLength 21600
+            , getSlotLength  = SlotLength 10
+            , getGenesisBlockDate = StartTime (read "2019-11-09 16:43:02 UTC")
+            }
+    let st = SyncTolerance 10
+    let slotsPerEpoch = getEpochLength sp
 
     describe "syncProgress" $ do
         it "works for any two slots" $ property $ \sl0 sl1 ->
-            syncProgress slotsPerEpoch sl0 sl1 `deepseq` ()
+            syncProgress st sp sl0 sl1 `deepseq` ()
     describe "flatSlot" $ do
         it "flatSlot . fromFlatSlot == id" $ property $ \sl ->
             fromFlatSlot slotsPerEpoch (flatSlot slotsPerEpoch sl) === sl
@@ -545,6 +554,11 @@ spec = do
                         (f =<< f r) === f r
 
     describe "Negative cases for types decoding" $ do
+        it "fail fromText @SyncTolerance \"patate\"" $ do
+            let err = "Cannot parse given time duration. Here are a few \
+                    \examples of valid text representing a sync tolerance: \
+                    \'3s', '3600s', '42s'."
+            fromText @SyncTolerance "patate" === Left (TextDecodingError err)
         it "fail fromText @AddressState \"unusedused\"" $ do
             let err = "Unable to decode the given value: \"unusedused\".\
                     \ Please specify one of the following values: used, unused."
@@ -928,7 +942,6 @@ instance Arbitrary Tx where
           , pure $ Hash "Tx3"
           ]
 
-
 instance Arbitrary BlockHeader where
     -- No Shrinking
     arbitrary = do
@@ -992,6 +1005,9 @@ instance Arbitrary EpochLength where
 instance Arbitrary SlotParameters where
     arbitrary = SlotParameters <$> arbitrary <*> arbitrary <*> arbitrary
     shrink = genericShrink
+
+instance Arbitrary SyncTolerance where
+    arbitrary = mkSyncTolerance <$> choose (1, 10000)
 
 instance {-# OVERLAPS #-} Arbitrary (SlotParameters, SlotId) where
     arbitrary = do

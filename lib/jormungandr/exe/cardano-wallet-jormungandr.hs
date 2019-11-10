@@ -50,6 +50,7 @@ import Cardano.CLI
     , runCli
     , setupDirectory
     , stateDirOption
+    , syncToleranceOption
     , verbosityOption
     , verbosityToMinSeverity
     , withLogging
@@ -72,7 +73,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..) )
+    ( Hash (..), SyncTolerance )
 import Cardano.Wallet.Version
     ( showVersion, version )
 import Control.Applicative
@@ -165,6 +166,7 @@ data LaunchArgs = LaunchArgs
     , _loggingConfigFile :: Maybe FilePath
     , _verbosity :: Verbosity
     , _jormungandrArgs :: JormungandrArgs
+    , _syncTolerance :: SyncTolerance
     }
 
 data JormungandrArgs = JormungandrArgs
@@ -208,7 +210,8 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
         <*> (JormungandrArgs
             <$> genesisBlockOption
             <*> extraArguments)
-    exec (LaunchArgs hostPreference listen nodePort mStateDir logCfg verbosity jArgs) = do
+        <*> syncToleranceOption
+    exec (LaunchArgs hostPreference listen nodePort mStateDir logCfg verbosity jArgs sTolerance) = do
         withLogging logCfg (verbosityToMinSeverity verbosity) $ \(cfg, tr) -> do
             case genesisBlock jArgs of
                 Right block0File -> requireFilePath block0File
@@ -227,6 +230,7 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
             logInfo tr $ "Running as v" <> T.pack (showVersion version)
             exitWith =<< serveWallet @'Testnet
                 (cfg, tr)
+                sTolerance
                 (Just databaseDir)
                 hostPreference
                 listen
@@ -246,6 +250,7 @@ data ServeArgs = ServeArgs
     , _loggingConfigFile :: Maybe FilePath
     , _verbosity :: Verbosity
     , _block0H :: Hash "Genesis"
+    , _syncTolerance :: SyncTolerance
     }
 
 cmdServe
@@ -261,10 +266,11 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
         <*> optional loggingConfigFileOption
         <*> verbosityOption
         <*> genesisHashOption
+        <*> syncToleranceOption
     exec
         :: ServeArgs
         -> IO ()
-    exec (ServeArgs hostPreference listen nodePort databaseDir logCfg verbosity block0H) = do
+    exec (ServeArgs hostPreference listen nodePort databaseDir logCfg verbosity block0H sTolerance) = do
         let minSeverity = verbosityToMinSeverity verbosity
         withLogging logCfg minSeverity $ \(cfg, tr) -> do
             let baseUrl = localhostBaseUrl $ getPort nodePort
@@ -273,6 +279,7 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
             logInfo tr $ "Running as v" <> T.pack (showVersion version)
             exitWith =<< serveWallet @'Testnet
                 (cfg, tr)
+                sTolerance
                 databaseDir
                 hostPreference
                 listen

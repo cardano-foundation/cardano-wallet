@@ -38,6 +38,8 @@ import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters (..) )
+import Cardano.Wallet.Primitive.Types
+    ( SyncTolerance (..) )
 import Control.Concurrent.Async
     ( race )
 import Control.Concurrent.MVar
@@ -158,7 +160,7 @@ specWithServer logCfg = aroundAll withContext . after tearDown
             either pure (throwIO . ProcessHasExited "integration")
 
     withServer setup = withConfig $ \jmCfg ->
-        serveWallet @'Testnet logCfg Nothing "127.0.0.1"
+        serveWallet @'Testnet logCfg (SyncTolerance 10) Nothing "127.0.0.1"
             ListenOnRandomPort (Launch jmCfg) setup
 
 -- | Set a utf8 text encoding that doesn't crash when non-utf8 bytes are
