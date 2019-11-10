@@ -28,6 +28,12 @@ let
         hasPrefix (toString origSrc + toString dir) path;
     } + dir;
 
+  cabalPatch = pkgs.fetchpatch {
+    url = "https://patch-diff.githubusercontent.com/raw/haskell/cabal/pull/6055.diff";
+    sha256 = "145g7s3z9q8d18pxgyngvixgsm6gmwh1rgkzkhacy4krqiq0qyvx";
+    stripLen = 1;
+  };
+
   pkgSet = haskell.mkStackPkgSet {
     inherit stack-pkgs;
     modules = [
@@ -82,6 +88,11 @@ let
         packages.katip.doExactConfig = true;
       }
       {
+        # need to apply this cabalPatch as
+        # we are using reinstallableLibGhc, and
+        # therfore can not rely on the patched
+        # lib:Cabal that comes with ghc anymore.
+        packages.Cabal.patches = [ cabalPatch ];
         reinstallableLibGhc = true;
       }
     ];
