@@ -93,7 +93,6 @@ let
         # therfore can not rely on the patched
         # lib:Cabal that comes with ghc anymore.
         packages.Cabal.patches = [ cabalPatch ];
-        reinstallableLibGhc = true;
       }
     ];
     pkg-def-extras = [
