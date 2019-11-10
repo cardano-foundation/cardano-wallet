@@ -884,12 +884,15 @@ stateDirOption backendDir = optional $ strOption $ mempty
   where
     defaultDir = backendDir </> "NETWORK"
 
--- | --sync-tolerance=DURATION, default: 5m
+-- | --sync-tolerance=DURATION, default: 300s
 syncToleranceOption :: Parser SyncTolerance
 syncToleranceOption = optionT $ mempty
     <> long "sync-tolerance"
     <> metavar "DURATION"
-    <> help "time duration within which we consider being synced with the network."
+    <> help (mconcat
+        [ "time duration within which we consider being synced with the "
+        , "network. Expressed in seconds with a trailing 's'."
+        ])
     <> value fiveMinutes
     <> showDefaultWith showT
   where

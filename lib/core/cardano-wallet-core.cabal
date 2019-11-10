@@ -67,6 +67,7 @@ library
     , persistent-template
     , random
     , retry
+    , safe
     , servant
     , servant-server
     , split

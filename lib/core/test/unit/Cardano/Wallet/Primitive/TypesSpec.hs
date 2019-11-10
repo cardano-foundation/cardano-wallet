@@ -64,6 +64,7 @@ import Cardano.Wallet.Primitive.Types
     , isWithinRange
     , mapRangeLowerBound
     , mapRangeUpperBound
+    , mkSyncTolerance
     , rangeHasLowerBound
     , rangeHasUpperBound
     , rangeIsFinite
@@ -556,7 +557,7 @@ spec = do
         it "fail fromText @SyncTolerance \"patate\"" $ do
             let err = "Cannot parse given time duration. Here are a few \
                     \examples of valid text representing a sync tolerance: \
-                    \'3s', '14m', '42h'."
+                    \'3s', '3600s', '42s'."
             fromText @SyncTolerance "patate" === Left (TextDecodingError err)
         it "fail fromText @AddressState \"unusedused\"" $ do
             let err = "Unable to decode the given value: \"unusedused\".\
@@ -1006,14 +1007,7 @@ instance Arbitrary SlotParameters where
     shrink = genericShrink
 
 instance Arbitrary SyncTolerance where
-    arbitrary = oneof
-        [ mkSyncTolerance <$> choose (1, 60)
-        , mkSyncTolerance . (* 60) <$> choose (1, 60)
-        , mkSyncTolerance . (* 3600) <$> choose (1, 5)
-        ]
-      where
-        pico = 1000*1000*1000*1000
-        mkSyncTolerance = SyncTolerance . toEnum . (* pico)
+    arbitrary = mkSyncTolerance <$> choose (1, 10000)
 
 instance {-# OVERLAPS #-} Arbitrary (SlotParameters, SlotId) where
     arbitrary = do

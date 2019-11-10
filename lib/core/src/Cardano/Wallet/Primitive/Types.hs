@@ -79,6 +79,7 @@ module Cardano.Wallet.Primitive.Types
     -- * Slotting
     , SyncProgress(..)
     , SyncTolerance(..)
+    , mkSyncTolerance
     , SlotId (..)
     , SlotNo (..)
     , EpochNo (..)
@@ -148,8 +149,6 @@ module Cardano.Wallet.Primitive.Types
 
 import Prelude
 
-import Control.Applicative
-    ( (<|>) )
 import Control.DeepSeq
     ( NFData (..) )
 import Crypto.Hash
@@ -196,8 +195,6 @@ import Data.Text.Class
     )
 import Data.Time.Clock
     ( NominalDiffTime, UTCTime, addUTCTime, diffUTCTime )
-import Data.Time.Format
-    ( defaultTimeLocale, formatTime, parseTimeM )
 import Data.Word
     ( Word16, Word32, Word64 )
 import Fmt
@@ -218,6 +215,8 @@ import GHC.TypeLits
     ( KnownSymbol, Symbol, symbolVal )
 import Numeric.Natural
     ( Natural )
+import Safe
+    ( readMay )
 
 import qualified Control.Foldl as F
 import qualified Data.ByteString as BS
@@ -1031,25 +1030,30 @@ instance Buildable SyncProgress where
 newtype SyncTolerance = SyncTolerance NominalDiffTime
     deriving stock (Generic, Eq, Show)
 
+-- | Construct a 'SyncTolerance' from a number of __seconds__
+mkSyncTolerance :: Int -> SyncTolerance
+mkSyncTolerance =
+    SyncTolerance . toEnum . (* pico)
+  where
+    pico = 1000*1000*1000*1000
+
 instance ToText SyncTolerance where
-    toText (SyncTolerance t)
-        | t < oneMinute = format "%ss" t
-        | t < oneHour = format "%mm" t
-        | otherwise = format "%hh" t
-      where
-        format f = T.pack . formatTime defaultTimeLocale f
-        oneMinute = 60
-        oneHour = 60*oneMinute
+    toText (SyncTolerance t) = T.pack (show t)
 
 instance FromText SyncTolerance where
-    fromText t = case parse "%ss" t <|> parse "%mm" t <|> parse "%hh" t of
-        Just st -> Right $ SyncTolerance st
-        Nothing -> Left $ TextDecodingError $ unwords
-            [ "Cannot parse given time duration. Here are a few examples of"
-            , "valid text representing a sync tolerance: '3s', '14m', '42h'."
-            ]
+    fromText t = case T.splitOn "s" t of
+        [v,""] ->
+            maybe
+                (Left errSyncTolerance)
+                (Right . mkSyncTolerance)
+                (readMay $ T.unpack v)
+        _ ->
+            Left errSyncTolerance
       where
-        parse f = parseTimeM True defaultTimeLocale f . T.unpack
+        errSyncTolerance = TextDecodingError $ unwords
+            [ "Cannot parse given time duration. Here are a few examples of"
+            , "valid text representing a sync tolerance: '3s', '3600s', '42s'."
+            ]
 
 -- | Estimate restoration progress based on:
 --
