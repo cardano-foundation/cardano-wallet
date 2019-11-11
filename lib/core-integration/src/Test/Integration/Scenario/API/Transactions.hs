@@ -140,6 +140,24 @@ data TestCase a = TestCase
 
 spec :: forall t n. (n ~ 'Testnet) => SpecWith (Context t)
 spec = do
+    it "Regression #1004 -\
+        \ Incorrect transaction amount reported on pending txs" $ \ctx -> do
+        wSrc <- fixtureWallet ctx
+        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
+                { nInputs = 1
+                , nOutputs = 1
+                }
+
+        let amt = 1000
+        r <- postTx ctx (wSrc, postTxEp, fixturePassphrase) wSrc amt
+        verify r
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            , expectFieldBetween amount (feeMin, feeMax)
+            , expectFieldEqual direction Outgoing
+            , expectFieldEqual status Pending
+            ]
+
     it "Regression #935 -\
         \ Pending tx should have pendingSince in the list tx response" $ \ctx -> do
         wSrc <- fixtureWalletWith ctx [5_000_000]
