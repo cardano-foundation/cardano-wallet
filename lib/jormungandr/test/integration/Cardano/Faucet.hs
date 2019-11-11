@@ -96,8 +96,8 @@ mkTxBuilder (TxIn inpTx inpIx, key) (addr, Coin amt) =
 
     prepareTx :: FilePath -> IO ()
     prepareTx txFile = do
-        let Right hrp = Bech32.humanReadablePartFromText "addr"
-        let dp = Bech32.dataPartFromBytes (unAddress addr)
+        let hrp = Bech32.unsafeHumanReadablePartFromText "addr"
+        let dp  = Bech32.dataPartFromBytes (unAddress addr)
         runJcli_
             [ "transaction"
             , "new"

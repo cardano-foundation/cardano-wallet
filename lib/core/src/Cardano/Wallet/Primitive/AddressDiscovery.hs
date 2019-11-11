@@ -46,7 +46,7 @@ import Codec.Binary.Bech32
     ( HumanReadablePart
     , dataPartFromBytes
     , dataPartToBytes
-    , humanReadablePartFromText
+    , unsafeHumanReadablePartFromText
     )
 import Data.ByteString
     ( ByteString )
@@ -60,8 +60,6 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( TextDecodingError (..) )
-import GHC.Stack
-    ( HasCallStack )
 
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.Text.Encoding as T
@@ -180,10 +178,10 @@ class DecodeAddress (n :: NetworkDiscriminant) where
 -- The right encoding is picked by looking at the raw 'Address' representation
 -- in order to figure out to which class the address belongs.
 instance EncodeAddress 'Mainnet where
-    encodeAddress = gEncodeAddress (unsafeHumanReadablePart "ca")
+    encodeAddress = gEncodeAddress (unsafeHumanReadablePartFromText "ca")
 
 instance EncodeAddress 'Testnet where
-    encodeAddress = gEncodeAddress (unsafeHumanReadablePart "ta")
+    encodeAddress = gEncodeAddress (unsafeHumanReadablePartFromText "ta")
 
 gEncodeAddress :: HumanReadablePart -> Address -> Text
 gEncodeAddress hrp (Address bytes) =
@@ -234,18 +232,3 @@ gDecodeAddress decodeShelley text =
     -- | Convert a 'Maybe' to a 'Either e' with the given error @e@
     maybeToEither :: e -> Maybe a -> Either e a
     maybeToEither e = maybe (Left e) Right
-
-{-------------------------------------------------------------------------------
-                                  Helpers
--------------------------------------------------------------------------------}
-
--- | Bech32 human readable part
-unsafeHumanReadablePart
-    :: HasCallStack
-    => Text
-    -> HumanReadablePart
-unsafeHumanReadablePart =
-    either errUnsafe id . humanReadablePartFromText
-  where
-    errUnsafe _ =
-        error "Programmers hard-coded an invalid bech32 human-readable part?"
