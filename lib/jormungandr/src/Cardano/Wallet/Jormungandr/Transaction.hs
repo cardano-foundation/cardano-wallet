@@ -19,14 +19,13 @@ import Prelude
 
 import Cardano.Wallet.Jormungandr.Binary
     ( Fragment (..)
-    , fragmentId
+    , constructLegacyUtxoWitness
+    , constructTransactionFragment
+    , constructUtxoWitness
     , getFragment
-    , legacyUtxoWitness
     , maxNumberOfInputs
     , maxNumberOfOutputs
     , runGetOrFail
-    , signedTransactionFragment
-    , utxoWitness
     )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
@@ -50,7 +49,7 @@ import Cardano.Wallet.Transaction
 import Control.Arrow
     ( second )
 import Control.Monad
-    ( forM, when )
+    ( when )
 import Data.ByteString
     ( ByteString )
 import Data.Either.Combinators
@@ -76,26 +75,18 @@ newTransactionLayer
         )
     => Hash "Genesis"
     -> TransactionLayer t k
-newTransactionLayer (Hash block0H) = TransactionLayer
+newTransactionLayer block0H = TransactionLayer
     { mkStdTx = \keyFrom rnps outs -> do
-        -- NOTE
-        -- For signing, we need to embed a hash of the transaction data
-        -- without the witnesses (since we don't yet have them!). In this sense,
-        -- this is a transaction id as Byron nodes or the http-bridge
-        -- defines them.
-        let inps = fmap (second coin) rnps
-        wits <- forM rnps $ \(_, TxOut addr _) -> do
-            xprv <- maybeToRight (ErrKeyNotFoundForAddress addr) (keyFrom addr)
-            let signData = error "unimplemented"
-            let payload = block0H <> getHash (signData inps outs)
-            pure $ mkTxWitness (fst xprv) (sign payload xprv)
-        let tx = Tx
-                { txId = fragmentId inps outs wits
-                , resolvedInputs = inps
-                , outputs = outs
-                }
-        let binary = signedTransactionFragment tx wits
-        return (tx, binary)
+        (fragId, frag) <- constructTransactionFragment
+            rnps
+            outs
+            (\addr -> do
+                key@(xprv, _pass)
+                    <- maybeToRight (ErrKeyNotFoundForAddress addr) (keyFrom addr)
+                return $ \txHash -> mkTxWitness xprv txHash block0H (`sign` key)
+            )
+        let tx = Tx fragId (map (second coin) rnps) outs
+        return (tx, frag)
 
     , decodeSignedTx = \payload -> do
         let errInvalidPayload =
@@ -135,14 +126,16 @@ newTransactionLayer (Hash block0H) = TransactionLayer
 class MkTxWitness (k :: Depth -> * -> *) where
     mkTxWitness
         :: k 'AddressK XPrv
-        -> ByteString
+        -> Hash "sigData"
+        -> Hash "Genesis"
+        -> (ByteString -> ByteString)
         -> TxWitness
 
 instance MkTxWitness ShelleyKey where
-    mkTxWitness _ = utxoWitness
+    mkTxWitness _ = constructUtxoWitness
 
 instance MkTxWitness ByronKey where
-    mkTxWitness xprv = legacyUtxoWitness xpub
+    mkTxWitness xprv = constructLegacyUtxoWitness xpub
       where
         xpub = getRawKey $ publicKey xprv
 

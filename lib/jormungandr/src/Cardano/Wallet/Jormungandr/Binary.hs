@@ -37,12 +37,14 @@ module Cardano.Wallet.Jormungandr.Binary
     , getBlockId
     , getFragment
     , getTransaction
-    , putSignedTx
-    , putTx
     , putStakeDelegationTx
 
-    -- * Fragment construction
-    , signedTransactionFragment
+    -- * Transaction construction
+    , constructGenericSignedTx
+    , constructTransactionFragment
+
+    , constructUtxoWitness
+    , constructLegacyUtxoWitness
 
     -- * Transaction witnesses
     , utxoWitness
@@ -51,6 +53,7 @@ module Cardano.Wallet.Jormungandr.Binary
     , putTxWitnessTag
     , getTxWitnessTag
     , txWitnessSize
+
 
     -- * Purification of chain block types
     , convertBlock
@@ -102,10 +105,12 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Transaction
     ( EstimateMaxNumberOfInputsParams (..) )
+import Control.Arrow
+    ( second )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( replicateM, unless )
+    ( forM_, replicateM, unless )
 import Control.Monad.Loops
     ( whileM )
 import Crypto.Hash
@@ -131,7 +136,7 @@ import Data.Binary.Get
     , skip
     )
 import Data.Binary.Put
-    ( Put, putByteString, putWord16be, putWord64be, putWord8, runPut )
+    ( Put, PutM, putByteString, putWord16be, putWord64be, putWord8, runPut )
 import Data.Bits
     ( shift, (.&.) )
 import Data.ByteString
@@ -352,19 +357,6 @@ getInitial = label "getInitial" $ do
                                 Transactions
 -------------------------------------------------------------------------------}
 
--- | Glues together a tx, witnesses into a full @SealedTx@.
---
--- NOTE: For constructing a tx from scratch this is a rather inconvenient
--- function. It relies on you already having the txId and the witnesses.
---
--- TODO: We should create a more convenient alternative taking only inputs,
--- outputs and key-lookup function.
-signedTransactionFragment :: Tx -> [TxWitness] -> SealedTx
-signedTransactionFragment (Tx _ ins outs) wits = SealedTx
-    $ BL.toStrict
-    $ runPut
-    $ withHeader FragmentTransaction (putSignedTx ins outs wits)
-
 data AccountType
     = SingleAccount
     | MultiAccount
@@ -378,6 +370,32 @@ txWitnessSize = \case
 
 txWitnessTagSize :: Int
 txWitnessTagSize = 1
+
+-- | Construct the pre-cursor to a @TxWitness@. For internal use only.
+constructGenericWitnessSignature
+    :: Hash "sigData"
+    -> Hash "Genesis"
+    -> (ByteString -> ByteString)
+    -> ByteString
+constructGenericWitnessSignature (Hash txHash) (Hash block0Hash) sign =
+        sign (block0Hash <> txHash)
+
+constructUtxoWitness
+    :: Hash "sigData"
+    -> Hash "Genesis"
+    -> (ByteString -> ByteString)
+    -> TxWitness
+constructUtxoWitness tx block0H =
+    utxoWitness . constructGenericWitnessSignature tx block0H
+
+constructLegacyUtxoWitness
+    :: XPub
+    -> Hash "sigData"
+    -> Hash "Genesis"
+    -> (ByteString -> ByteString)
+    -> TxWitness
+constructLegacyUtxoWitness pub tx block0H =
+    (legacyUtxoWitness pub) . constructGenericWitnessSignature tx block0H
 
 -- | Construct a UTxO witness from a signature
 utxoWitness :: ByteString -> TxWitness
@@ -528,19 +546,82 @@ getLegacyTransaction tid = do
     let inps = mempty
     pure $ Tx tid inps outs
 
+
+putWitness :: TxWitness -> Put
+putWitness (TxWitness bytes) = putByteString bytes
+
 putSignedTx :: [(TxIn, Coin)] -> [TxOut] -> [TxWitness] -> Put
 putSignedTx inputs outputs witnesses = do
-    putTx inputs outputs
+    putInputsOutputs inputs outputs
     unless (length inputs == length witnesses) $
         fail "number of witnesses must equal number of inputs"
     mapM_ putWitness witnesses
-  where
-    -- Assumes the `TxWitness` has been faithfully constructed
-    putWitness :: TxWitness -> Put
-    putWitness (TxWitness bytes) = putByteString bytes
 
-putTx :: [(TxIn, Coin)] -> [TxOut] -> Put
-putTx inputs outputs = do
+-- | Constructs a "normal" tx
+constructTransactionFragment
+    :: Monad m
+    => [(TxIn, TxOut)]
+    -> [TxOut]
+    -> (Address -> m (Hash "sigData" -> TxWitness))
+    -> m (Hash "Tx", SealedTx)
+constructTransactionFragment ins outs mkWit = do
+    constructGenericSignedTx FragmentTransaction
+        mempty
+        ins outs mkWit
+        (const mempty)
+
+-- | Constructs a generic transaction of the form
+--
+-- 1. Payload
+-- 2. Inputs / outputs
+-- 3. Witnesses (including signed hash of 1 and 2)
+-- 4. Payload authentication (calculated using 1,2,3 as input)
+constructGenericSignedTx
+    :: Monad m
+    => FragmentSpec
+    -- ^ The kind of transaction
+    -> Put
+    -- ^ Payload (empty for normal utxo transactions)
+    -> [(TxIn, TxOut)]
+    -> [TxOut]
+    -> (Address -> m (Hash "sigData" -> TxWitness))
+    -- ^ Function for producing witnesses for each address in the inputs.
+    -- E.g by looking up the private key and using it for signing with
+    -- @constructUtxoWitness@
+    -> (ByteString -> ByteString)
+    -- ^ Payload auth signing
+    -> m (Hash "Tx", SealedTx)
+constructGenericSignedTx spec putPayload ins outs lookupAddr auth = do
+    -- "Lookup the key" for each address, or fail.
+    mkWits <- mapM (\(_, TxOut addr _) -> lookupAddr addr) ins
+    return $ withHeader spec $
+        withAppendedSignature auth $ do
+            txH <- withHash $ do
+                putPayload
+                putInputsOutputs (map (second coin) ins) outs
+            forM_ mkWits $ \mkWit -> do
+                putWitness $ mkWit (Hash txH)
+  where
+    -- | Puts @x <> (sign x)@
+    withAppendedSignature
+        :: (ByteString -> ByteString)
+        -> PutM ()
+        -> PutM ()
+    withAppendedSignature sign x = do
+        sig <- sign <$> withBytes x
+        putByteString sig
+
+    withBytes :: PutM () -> PutM ByteString
+    withBytes putData = do
+        putData
+        let lookBehind = BL.toStrict $ runPut putData
+        return lookBehind
+
+    withHash :: PutM () -> PutM ByteString
+    withHash = fmap blake2b256 . withBytes
+
+putInputsOutputs :: [(TxIn, Coin)] -> [TxOut] -> Put
+putInputsOutputs inputs outputs = do
     unless (length inputs <= fromIntegral (maxBound :: Word8)) $
         fail $
             "number of inputs cannot be greater than " ++
@@ -743,11 +824,14 @@ putAddress (Address bs) = putByteString bs
 --                  / %x07 POOL-UPDATE
 --                  / %x08 UPDATE-PROPOSAL
 --                  / %x09 UPDATE-VOTE
-withHeader :: FragmentSpec -> Put -> Put
-withHeader spec content = do
-    let bs = BL.toStrict $ runPut (putFragmentSpec spec *> content)
-    putWord16be (toEnum $ BS.length bs)
-    putByteString bs
+withHeader :: FragmentSpec -> Put -> (Hash "Tx", SealedTx)
+withHeader spec content =
+    let
+        bs = BL.toStrict $ runPut (putFragmentSpec spec *> content)
+        full = BL.toStrict $ runPut $ do
+            putWord16be (toEnum $ BS.length bs)
+            putByteString bs
+    in (Hash $ blake2b256 bs, SealedTx full)
 
 -- | Compute a Blake2b_256 hash of a given 'ByteString'
 blake2b256 :: ByteString -> ByteString
@@ -759,8 +843,8 @@ blake2b256 =
 estimateMaxNumberOfInputsParams
     :: EstimateMaxNumberOfInputsParams t
 estimateMaxNumberOfInputsParams = EstimateMaxNumberOfInputsParams
-    { estMeasureTx = \ins outs wits -> fromIntegral $ BL.length $
-        runPut $ withHeader FragmentTransaction $
+    { estMeasureTx = \ins outs wits -> fromIntegral $ BS.length $
+        getSealedTx . snd $ withHeader FragmentTransaction $
             putSignedTx (map (, Coin 0) ins) outs wits
 
     -- Block IDs are always this long.

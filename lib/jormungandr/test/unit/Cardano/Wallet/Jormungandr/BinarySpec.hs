@@ -16,12 +16,11 @@ import Cardano.Wallet.Jormungandr.Binary
     ( Fragment (..)
     , FragmentSpec (..)
     , TxWitnessTag (..)
+    , constructTransactionFragment
     , delegationFragmentId
-    , fragmentId
     , getBlock
     , getBlockHeader
     , getFragment
-    , putSignedTx
     , putStakeDelegationTx
     , putTxWitnessTag
     , runGet
@@ -35,6 +34,7 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Hash (..)
     , PoolId (..)
+    , SealedTx (..)
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
@@ -42,6 +42,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
+import Control.Arrow
+    ( second )
 import Control.DeepSeq
     ( force )
 import Control.Exception
@@ -58,6 +60,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Either
     ( isRight )
+import Data.Functor.Identity
+    ( Identity (..) )
 import Data.List
     ( isSuffixOf )
 import Data.Word
@@ -145,15 +149,22 @@ spec = do
             force res `shouldSatisfy` isRight
 
     describe "Encoding" $ do
+        let pkWitness = TxWitness $ BS.pack $ [1] <> replicate 64 3
+        let mkDummyWit _addr = Identity $ const pkWitness
+        let mkTx ins outs = runIdentity $
+                constructTransactionFragment ins outs mkDummyWit
         it "decode (encode tx) === tx standard transaction" $ property $
-            \(SignedTx signedTx) -> monadicIO $ liftIO $ do
-                let encode ((Tx _ inps outs), wits) = runPut
-                        $ withHeader FragmentTransaction
-                        $ putSignedTx inps outs wits
-                let decode =
-                        unFragment . runGet getFragment
-                tx' <- try' (decode $ encode signedTx)
-                if tx' == Right (fst signedTx)
+            \(InputsOutputs ios) -> monadicIO $ liftIO $ do
+                let (hash, bin) = uncurry mkTx ios
+                let decode = unFragment
+                        . runGet getFragment
+                        . BL.fromStrict
+                let tx' = decode $ getSealedTx bin
+
+                let originalTx =
+                        let (ins, outs) = ios
+                        in Tx hash (map (second coin) ins) outs
+                if originalTx == tx'
                 then return ()
                 else expectationFailure $
                     "tx /= decode (encode tx) == " ++ show tx'
@@ -161,8 +172,8 @@ spec = do
         it "decode (encode tx) === tx stake delegation transaction" $
             property $ \(StakeDelegationTx args) -> monadicIO $ liftIO $ do
                 let (poolId, accId, accSig, tx@(Tx _ inps outs), wits) = args
-                let encode = runPut
-                        $ withHeader
+                let encode =
+                        BL.fromStrict $ getSealedTx $ snd $ withHeader
                             FragmentDelegation
                         $ putStakeDelegationTx
                             poolId accId accSig inps outs wits
@@ -260,25 +271,23 @@ instance Arbitrary StakeDelegationTx where
         let tid = delegationFragmentId poolId accId accSig inps outs wits
         pure $ StakeDelegationTx (poolId, accId, accSig, Tx tid inps outs, wits)
 
-newtype SignedTx = SignedTx (Tx, [TxWitness])
+newtype InputsOutputs = InputsOutputs ([(TxIn, TxOut)], [TxOut])
     deriving (Eq, Show, Generic)
 
-instance Arbitrary SignedTx where
+instance Arbitrary InputsOutputs where
     arbitrary = do
         nIns <- fromIntegral <$> arbitrary @Word8
         nOut <- fromIntegral <$> arbitrary @Word8
         inps <- vectorOf nIns arbitrary
         outs <- vectorOf nOut arbitrary
-        wits <- vectorOf nIns arbitrary
-        let tid = fragmentId inps outs wits
-        return $ SignedTx (Tx tid inps outs, wits)
+        return $ InputsOutputs (inps, outs)
 
-    shrink (SignedTx (Tx _ inps outs, wits)) =
-        [ SignedTx (Tx (fragmentId inps' outs wits') inps' outs, wits')
-        | (inps', wits') <- unzip <$> shrinkList' (zip inps wits)
+    shrink (InputsOutputs (inps, outs)) =
+        [ InputsOutputs (inps', outs)
+        | inps' <- shrinkList' inps
         ]
         ++
-        [ SignedTx (Tx (fragmentId inps outs' wits) inps outs', wits)
+        [ InputsOutputs (inps, outs')
         | outs' <- shrinkList' outs
         ]
 

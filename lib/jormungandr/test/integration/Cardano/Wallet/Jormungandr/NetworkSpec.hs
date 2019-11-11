@@ -21,15 +21,11 @@ import Cardano.Wallet.Jormungandr.Api.Client
 import Cardano.Wallet.Jormungandr.Api.Types
     ( AccountState (..) )
 import Cardano.Wallet.Jormungandr.Binary
-    ( FragmentSpec (..)
-    , TxWitnessTag (..)
-    , fragmentId
-    , putSignedTx
+    ( TxWitnessTag (..)
+    , constructTransactionFragment
     , putTxWitnessTag
     , runPut
-    , signedTransactionFragment
     , txWitnessSize
-    , withHeader
     )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
@@ -78,6 +74,8 @@ import Cardano.Wallet.Transaction
     ( ErrDecodeSignedTx (..), TransactionLayer (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeDecodeAddress, unsafeFromHex, unsafeFromText, unsafeRunExceptT )
+import Control.Arrow
+    ( second )
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.MVar
@@ -98,6 +96,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Either
     ( isRight )
+import Data.Functor.Identity
+    ( Identity (..) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -115,6 +115,7 @@ import Test.Hspec
     , around
     , describe
     , it
+    , runIO
     , shouldBe
     , shouldReturn
     , shouldSatisfy
@@ -168,7 +169,7 @@ spec = do
             height `shouldSatisfy` (>= Quantity 0)
 
         it "get some blocks from the genesis" $ \(nw, _) -> do
-            threadDelay (10 * second)
+            threadDelay (10 * sec)
             resp <- runExceptT $ nextBlocks nw (initCursor nw [])
             resp `shouldSatisfy` isRight
             resp `shouldSatisfy` (not . null)
@@ -302,45 +303,33 @@ spec = do
                     Left (ErrGetBlockNetworkUnreachable _) -> True
                     _ -> False
 
+
+    utxoWitness <- runIO $ generate arbitrary
+    let mkDummyWit _addr = Identity $ const utxoWitness
+    let mkTx' ins outs = runIdentity $
+            constructTransactionFragment ins outs mkDummyWit
+    let mkTx ins outs = snd $ mkTx' ins outs
+
     -- NOTE: 'Right ()' just means that the format wasn't obviously wrong.
     -- The tx may still be rejected.
     describe "Submitting signed transactions (that are not obviously wrong)"
         $ around startNode $ do
 
+
         it "empty tx succeeds" $ \(nw, _) -> do
             -- Would be rejected eventually.
-            let wits = []
-            let empty = Tx (fragmentId [] [] wits) [] []
-            let signedEmpty = signedTransactionFragment empty wits
+            let signedEmpty = mkTx [] []
             runExceptT (postTx nw signedEmpty) `shouldReturn` Right ()
 
         it "some tx succeeds" $ \(nw, _) -> do
-            let signed = signedTransactionFragment txNonEmpty [pkWitness]
+            let signed = uncurry mkTx txNonEmpty
             runExceptT (postTx nw signed) `shouldReturn` Right ()
 
         it "unbalanced tx (surplus) succeeds" $ \(nw, _) -> do
             -- Jormungandr will eventually reject txs that are not perfectly
             -- balanced though.
-            let signed = signedTransactionFragment unbalancedTx [pkWitness]
+            let signed = uncurry mkTx unbalancedTx
             runExceptT (postTx nw signed) `shouldReturn` Right ()
-
-        it "more inputs than witnesses - encoder throws" $ \(nw, _) -> do
-            let signed = signedTransactionFragment txNonEmpty []
-            runExceptT (postTx nw signed) `shouldThrow` anyException
-
-        it "more witnesses than inputs - fine apparently" $ \(nw, _) -> do
-            -- Because of how signed txs are encoded:
-            -- n                      :: Word8
-            -- m                      :: Word8
-            -- in_0 .. in_n           :: [TxIn]
-            -- out_0 .. out_m         :: [TxOut]
-            -- witness_0 .. witness_n :: [TxWitness]
-            --
-            -- this should in practice be like appending bytes to the end of
-            -- the message.
-            let wits = [pkWitness, pkWitness, pkWitness]
-            let signed = signedTransactionFragment txNonEmpty wits
-            runExceptT (postTx nw signed) `shouldThrow` anyException
 
         it "no input, one output" $ \(nw, _) -> do
             -- Would be rejected eventually.
@@ -350,44 +339,36 @@ spec = do
                         \le2k0uu5mrymylqz2ntgzs6vs386wxd")
                       (Coin 1227362560)
                     ]
-            let wits = []
-            let tx = Tx (fragmentId [] outs wits) [] outs
-            let signed = signedTransactionFragment tx wits
+            let signed = mkTx [] outs
             runExceptT (postTx nw signed) `shouldReturn` Right ()
 
         it "encoder throws an exception if tx is invalid (eg too many inputs)" $
             \(nw, _) -> do
-                let inps = replicate 300 (head $ resolvedInputs txNonEmpty)
-                let outs = replicate 3 (head $ outputs txNonEmpty)
-                let wits = []
-                let tx = Tx (fragmentId inps outs wits) inps outs
-                let signed = signedTransactionFragment tx wits
+                let inps = replicate 300 (head $ fst txNonEmpty)
+                let outs = replicate 3 (head $ snd txNonEmpty)
+                let signed = mkTx inps outs
                 runExceptT (postTx nw signed) `shouldThrow` anyException
 
     describe "Decode External Tx" $ do
         let tl = newTransactionLayer @'Testnet @ShelleyKey (Hash "genesis")
 
         it "decodeExternalTx works ok with properly constructed binary blob" $ do
-            property $ \(SignedTx signedTx@(tx, _)) -> monadicIO $ liftIO $ do
-                let encode ((Tx _ inps outs), wits) = runPut
-                        $ withHeader FragmentTransaction
-                        $ putSignedTx inps outs wits
-                let bin = BL.toStrict $ encode signedTx
-                decodeSignedTx tl bin `shouldBe` Right (tx, SealedTx bin)
+            property $ \(InputsOutputs (ins, outs)) -> monadicIO $ liftIO $ do
+                let (hash, sealed) = mkTx' ins outs
+                let tx = Tx hash (map (second coin) ins) outs
+                decodeSignedTx tl (getSealedTx sealed)
+                    `shouldBe` Right (tx, sealed)
 
         it "decodeExternalTx throws an exception when binary blob has non-\
             \transaction-type header or is wrongly constructed binary blob" $
-            property $ \(SignedTx signedTx) -> monadicIO $ liftIO $ do
-                let encodeWrongly ((Tx _ inps outs), wits) = runPut
-                        $ withHeader FragmentInitial
-                        $ putSignedTx inps outs wits
-                let encodedSignedTx = BL.toStrict $ encodeWrongly signedTx
-                decodeSignedTx tl encodedSignedTx `shouldBe` Left
+            monadicIO $ liftIO $ do
+                let malformedTx = "\NUL\NUL\NUL\NUL"
+                decodeSignedTx tl malformedTx `shouldBe` Left
                     (ErrDecodeSignedTxWrongPayload
                         "wrongly constructed binary blob")
   where
-    second :: Int
-    second = 1000000
+    sec :: Int
+    sec = 1000000
 
     startNode cb = withConfig $ \cfg -> do
         let tr = nullTracer
@@ -397,21 +378,16 @@ spec = do
                 Left e -> throwIO e
         either throwIO (\_ -> return ()) e
 
-    pkWitness :: TxWitness
-    pkWitness = TxWitness $ BS.pack $ [1] <> replicate 64 3
-
-    txNonEmpty :: Tx
-    txNonEmpty = Tx
-        { txId = Hash "unused"
-        , resolvedInputs =
+    txNonEmpty =
+        (
             [ (TxIn
                 { inputId = Hash $ unsafeFromHex
                     "666984dec4bc0ff1888be97bfe0694a9\
                     \6b35c58d025405ead51d5cc72a3019f4"
                 , inputIx = 0
-                }, Coin 934864225351)
+                }, TxOut (Address "") (Coin 934864225351))
             ]
-        , outputs =
+        ,
             [ TxOut
                 { address = unsafeDecodeAddress @'Mainnet
                     "ca1q0u7k6ltp3e52pch47rhdkld2gdv\
@@ -425,20 +401,18 @@ spec = do
                 , coin = Coin 1227362560
                 }
             ]
-        }
+        )
 
-    unbalancedTx :: Tx
-    unbalancedTx = Tx
-        { txId = Hash "unused"
-        , resolvedInputs =
+    unbalancedTx =
+        (
             [ (TxIn
                 { inputId = Hash $ unsafeFromHex
                     "666984dec4bc0ff1888be97bfe0694a9\
                     \6b35c58d025405ead51d5cc72a3019f4"
                 , inputIx = 0
-                }, Coin 100)
+                }, TxOut (Address "owner") (Coin 100))
             ]
-        , outputs =
+        ,
             [ TxOut
                 { address = unsafeDecodeAddress @'Mainnet
                     "ca1q0u7k6ltp3e52pch47rhdkld2gdv\
@@ -452,7 +426,7 @@ spec = do
                 , coin = Coin 5
                 }
             ]
-        }
+        )
 
 -- | Exercise a particular Jörmungandr API getter and expect a 404 Not Found.
 testNotFound
@@ -492,25 +466,23 @@ instance Show (NextBlocksResult t b) where
 instance Eq (NextBlocksResult t b) where
     a == b = show a == show b
 
-newtype SignedTx = SignedTx (Tx, [TxWitness])
+newtype InputsOutputs = InputsOutputs ([(TxIn, TxOut)], [TxOut])
     deriving (Eq, Show)
 
-instance Arbitrary SignedTx where
+instance Arbitrary InputsOutputs where
     arbitrary = do
         nIns <- fromIntegral <$> arbitrary @Word8
         nOut <- fromIntegral <$> arbitrary @Word8
         inps <- vectorOf nIns arbitrary
         outs <- vectorOf nOut arbitrary
-        wits <- vectorOf nIns arbitrary
-        let tid = fragmentId inps outs wits
-        return $ SignedTx (Tx tid inps outs, wits)
+        return $ InputsOutputs (inps, outs)
 
-    shrink (SignedTx (Tx _ inps outs, wits)) =
-        [ SignedTx (Tx (fragmentId inps' outs wits') inps' outs, wits')
-        | (inps', wits') <- unzip <$> shrinkList' (zip inps wits)
+    shrink (InputsOutputs (inps, outs)) =
+        [ InputsOutputs (inps', outs)
+        | inps' <- shrinkList' inps
         ]
         ++
-        [ SignedTx (Tx (fragmentId inps outs' wits) inps outs', wits)
+        [ InputsOutputs (inps, outs')
         | outs' <- shrinkList' outs
         ]
 
@@ -526,14 +498,14 @@ instance Arbitrary SignedTx where
             (\x' -> x':(map (const x') xs)) <$> f x
         shrinkHeadAndReplicate _f [] = []
 
+instance Arbitrary (Hash "Tx") where
+    arbitrary = Hash <$> genFixed 32
+    shrink (Hash bytes) = Hash <$> shrinkFixedBS bytes
+
 -- | Only generates single address witnesses
 instance Arbitrary TxWitness where
     arbitrary = taggedWitness TxWitnessUTxO . TxWitness
         <$> genFixed (txWitnessSize TxWitnessUTxO)
-
-instance Arbitrary (Hash "Tx") where
-    arbitrary = Hash <$> genFixed 32
-    shrink (Hash bytes) = Hash <$> shrinkFixedBS bytes
 
 instance Arbitrary Coin where
     arbitrary = do
