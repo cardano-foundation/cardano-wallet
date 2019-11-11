@@ -148,7 +148,7 @@ DelegationCertificate
     certSlot                 W.SlotId     sql=slot
     certPoolId               W.PoolId     sql=delegation
 
-    Primary certWalletId certSlot certPoolId
+    Primary certWalletId certSlot
     Foreign Wallet delegationCertificate certWalletId ! ON DELETE CASCADE
     deriving Show Generic
 
