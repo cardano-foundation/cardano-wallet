@@ -4,13 +4,26 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeApplications #-}
 
+-- |
+-- Copyright: © 2018-2019 IOHK
+-- License: Apache-2.0
+--
+-- Definitions of types used in the Jörmungandr REST API.
+--
 module Cardano.Wallet.Jormungandr.Api.Types
-    ( ApiStakeDistribution (..)
-    , ApiT (..)
+    (
+    -- * Polymorphic Types
+      ApiT (..)
+
+    -- * API types
+    , ApiStakeDistribution (..)
     , BlockId (..)
+    , StakeApiResponse (..)
+
+    -- * Content types
     , Hex
     , JormungandrBinary
-    , StakeApiResponse (..)
+
     ) where
 
 import Prelude
