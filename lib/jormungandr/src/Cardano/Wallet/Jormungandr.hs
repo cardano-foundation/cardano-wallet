@@ -43,6 +43,8 @@ import Cardano.Wallet.Api
     ( ApiLayer )
 import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..), ListenError (..), defaultWorkerAfter )
+import Cardano.Wallet.Api.Types
+    ( DecodeAddress, EncodeAddress )
 import Cardano.Wallet.DaedalusIPC
     ( daedalusIPC )
 import Cardano.Wallet.DB
@@ -77,7 +79,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( DecodeAddress, EncodeAddress, IsOurs )
+    ( IsOurs )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential

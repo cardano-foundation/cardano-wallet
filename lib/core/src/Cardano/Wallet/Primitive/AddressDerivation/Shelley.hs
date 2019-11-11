@@ -29,6 +29,7 @@ module Cardano.Wallet.Primitive.AddressDerivation.Shelley
     , publicKeySize
     , addrSingleSize
     , addrGroupedSize
+    , KnownNetwork (..)
 
     -- * Generation and derivation
     , generateKeyFromSeed

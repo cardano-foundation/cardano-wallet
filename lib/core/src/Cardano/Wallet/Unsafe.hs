@@ -20,7 +20,7 @@ import Prelude
 
 import Cardano.Crypto.Wallet
     ( XPrv )
-import Cardano.Wallet.Primitive.AddressDiscovery
+import Cardano.Wallet.Api.Types
     ( DecodeAddress (..) )
 import Cardano.Wallet.Primitive.Mnemonic
     ( ConsistentEntropy, EntropySize, Mnemonic, mkMnemonic )

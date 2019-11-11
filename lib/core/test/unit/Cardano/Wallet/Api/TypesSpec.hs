@@ -44,6 +44,8 @@ import Cardano.Wallet.Api.Types
     , ApiWallet (..)
     , ApiWalletPassphrase (..)
     , ByronWalletPostData (..)
+    , DecodeAddress (..)
+    , EncodeAddress (..)
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
     , PostTransactionData (..)
@@ -54,11 +56,20 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..)
+    ( ChainCode (..)
+    , DelegationAddress (..)
+    , NetworkDiscriminant (..)
     , Passphrase (..)
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
+    , PaymentAddress (..)
+    , XPub (..)
+    , networkDiscriminantVal
+    , passphraseMaxLength
+    , passphraseMinLength
     )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( KnownNetwork (..), ShelleyKey (..), publicKeySize )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Mnemonic
@@ -83,6 +94,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , HistogramBar (..)
     , PoolId (..)
+    , ShowFmt (..)
     , SlotId (..)
     , SlotNo (..)
     , SortOrder (..)
@@ -115,6 +127,10 @@ import Data.Aeson
     ( FromJSON (..), ToJSON (..) )
 import Data.Aeson.QQ
     ( aesonQQ )
+import Data.ByteArray.Encoding
+    ( Base (Base16), convertFromBase )
+import Data.ByteString
+    ( ByteString )
 import Data.Char
     ( isAlphaNum )
 import Data.FileEmbed
@@ -189,9 +205,10 @@ import Test.Aeson.Internal.RoundtripSpecs
 import Test.Aeson.Internal.Utils
     ( TypeName (..), TypeNameInfo (..), mkTypeNameInfo )
 import Test.Hspec
-    ( Spec, describe, it, runIO, shouldBe )
+    ( Spec, SpecWith, describe, expectationFailure, it, runIO, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Gen
     , InfiniteList (..)
     , arbitraryBoundedEnum
     , arbitraryPrintableChar
@@ -201,6 +218,7 @@ import Test.QuickCheck
     , property
     , scale
     , vectorOf
+    , withMaxSuccess
     , (.&&.)
     , (===)
     )
@@ -431,6 +449,97 @@ spec = do
                     \ Please specify one of the following values: used, unused."
             parseUrlPiece "patate"
                 `shouldBe` (Left @Text @(ApiT AddressState) msg)
+
+    describe "encodeAddress & decodeAddress (Mainnet)" $ do
+        let proxy = Proxy @'Mainnet
+        it "decodeAddress . encodeAddress = pure" $
+            withMaxSuccess 1000 $ property $ \(ShowFmt a, _ :: Proxy 'Mainnet) ->
+                (ShowFmt <$> decodeAddress @'Mainnet (encodeAddress @'Mainnet a))
+                    === Right (ShowFmt a)
+        negativeTest proxy "ta1sdaa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677ztw225s"
+            ("This address belongs to another network. Network is: "
+            <> show (networkDiscriminantVal @'Mainnet) <> ".")
+        negativeTest proxy "EkxDbkPo"
+            "Unable to decode Address: neither Bech32-encoded nor a valid Byron \
+            \Address."
+        negativeTest proxy ".%14'"
+            ("Unable to decode Address: encoding is neither Bech32 nor Base58.")
+        negativeTest proxy "ca1qvqsyqcyq5rqwzqfpg9scrgk66qs0"
+            "Invalid address length (14): expected either 33 or 65 bytes."
+        negativeTest proxy
+            "ca1dvqsyqcyq5rqwzqfpg9scrgwpugpzysnzs23v9ccrydpk8qarc0jqscdket"
+            ("This type of address is not supported.")
+        negativeTest proxy
+            "ca1dvqsyqcyq5rqwzqfpg9scrgwpugpzysnzs23v9ccrydpk8qarc0jqqgzqvz\
+            \q2ps8pqys5zcvp58q7yq3zgf3g9gkzuvpjxsmrsw3u8eqwxpnc0"
+            ("This type of address is not supported.")
+        -- NOTE:
+        -- Data below have been generated with [jcli](https://github.com/input-output-hk/jormungandr/tree/master/doc/jcli)
+        -- as described in the annex at the end of the file.
+        goldenTestAddr proxy
+            [ "7bd5386c31ac31ba7076856500cf26f85d4695b80f183c7a53e3f28419d6bde1"
+            ]
+            "addr1qdaa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677z5t3m7d"
+        goldenTestAddr proxy
+            [ "df9f08672a3a94778229b91daa981538883e1535d666dc10e63b438f44c63e3f"
+            ]
+            "addr1q00e7zr89gafgauz9xu3m25cz5ugs0s4xhtxdhqsuca58r6ycclr7n5fgsv"
+        goldenTestAddr proxy
+            [ "7bd5386c31ac31ba7076856500cf26f85d4695b80f183c7a53e3f28419d6bde1"
+            , "b24e70b0c2ceeb24cc9f28f386478c73aa71c05a95a0119bb91dd8e89c3592ae"
+            ]
+            "addr1q3aa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677\
+            \rvjwwzcv9nhtynxf728nserccua2w8q949dqzxdmj8wcazwrty4wvuat2l"
+        goldenTestAddr proxy
+            [ "df9f08672a3a94778229b91daa981538883e1535d666dc10e63b438f44c63e3f"
+            , "402abff6065c847115ad22ff6b0d3a85fd69a6fcc32ed76aa8cadb305b0c51a7"
+            ]
+            "addr1qn0e7zr89gafgauz9xu3m25cz5ugs0s4xhtxdhqsuca58r6ycclr\
+            \7sp2hlmqvhyywy266ghldvxn4p0adxn0esew6a423jkmxpdsc5d8n8hz07"
+
+    describe "encodeAddress & decodeAddress (Testnet)" $ do
+        let proxy = Proxy @'Testnet
+        it "decodeAddress . encodeAddress = pure" $
+            withMaxSuccess 1000 $ property $ \(ShowFmt a, _ :: Proxy 'Testnet) ->
+                (ShowFmt <$> decodeAddress @'Testnet (encodeAddress @'Testnet a))
+                    === Right (ShowFmt a)
+        negativeTest proxy "ca1qdaa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677zqx4le2"
+            ("This address belongs to another network. Network is: "
+            <> show (networkDiscriminantVal @'Testnet) <> ".")
+        negativeTest proxy "EkxDbkPo"
+            "Unable to decode Address: neither Bech32-encoded nor a valid Byron \
+            \Address."
+        negativeTest proxy ".%14'"
+            ("Unable to decode Address: encoding is neither Bech32 nor Base58.")
+        negativeTest proxy "ta1dvqsyqcyq5rqwzqfpg9scrg5v76st"
+            "Invalid address length (14): expected either 33 or 65 bytes."
+        negativeTest proxy
+            "ta1dvqsyqcyq5rqwzqfpg9scrgwpugpzysnzs23v9ccrydpk8qarc0jq8ygppa"
+            ("This type of address is not supported.")
+        negativeTest proxy
+            "ta1dvqsyqcyq5rqwzqfpg9scrgwpugpzysnzs23v9ccrydpk8qarc0jqqgzqvz\
+            \q2ps8pqys5zcvp58q7yq3zgf3g9gkzuvpjxsmrsw3u8eq9lcgc2"
+            ("This type of address is not supported.")
+        goldenTestAddr proxy
+            [ "7bd5386c31ac31ba7076856500cf26f85d4695b80f183c7a53e3f28419d6bde1"
+            ]
+            "addr1sdaa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677zgltetp"
+        goldenTestAddr proxy
+            [ "df9f08672a3a94778229b91daa981538883e1535d666dc10e63b438f44c63e3f"
+            ]
+            "addr1s00e7zr89gafgauz9xu3m25cz5ugs0s4xhtxdhqsuca58r6ycclr70qn29q"
+        goldenTestAddr proxy
+            [ "7bd5386c31ac31ba7076856500cf26f85d4695b80f183c7a53e3f28419d6bde1"
+            , "b24e70b0c2ceeb24cc9f28f386478c73aa71c05a95a0119bb91dd8e89c3592ae"
+            ]
+            "addr1s3aa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677\
+            \rvjwwzcv9nhtynxf728nserccua2w8q949dqzxdmj8wcazwrty4wkdnx06"
+        goldenTestAddr proxy
+            [ "df9f08672a3a94778229b91daa981538883e1535d666dc10e63b438f44c63e3f"
+            , "402abff6065c847115ad22ff6b0d3a85fd69a6fcc32ed76aa8cadb305b0c51a7"
+            ]
+            "addr1sn0e7zr89gafgauz9xu3m25cz5ugs0s4xhtxdhqsuca58r6ycclr\
+            \7sp2hlmqvhyywy266ghldvxn4p0adxn0esew6a423jkmxpdsc5d8fke02m"
 
     describe "pointless tests to trigger coverage for record accessors" $ do
         it "ApiAddress" $ property $ \x ->
@@ -679,6 +788,39 @@ httpApiDataRoundtrip proxy =
                 xs ->
                     "(" <> tyConName c <> " " <> unwords (cons <$> xs) <> ")"
 
+-- | Generate addresses from the given keys and compare the result with an
+-- expected output obtained from jcli (see appendix below)
+goldenTestAddr
+    :: forall n. (DelegationAddress n ShelleyKey, EncodeAddress n)
+    => Proxy n
+    -> [ByteString]
+    -> Text
+    -> SpecWith ()
+goldenTestAddr _proxy pubkeys expected = it ("golden test: " <> T.unpack expected) $ do
+    case traverse (convertFromBase Base16) pubkeys of
+        Right [spendingKey] -> do
+            let xpub = ShelleyKey (XPub spendingKey chainCode)
+            let addr = encodeAddress @n (paymentAddress @n xpub)
+            addr `shouldBe` expected
+        Right [spendingKey, delegationKey] -> do
+            let xpubSpending = ShelleyKey (XPub spendingKey chainCode)
+            let xpubDeleg = ShelleyKey (XPub delegationKey chainCode)
+            let addr = encodeAddress @n (delegationAddress @n xpubSpending xpubDeleg)
+            addr `shouldBe` expected
+        _ ->
+            expectationFailure "goldenTestAddr: provided invalid inputs public keys"
+  where
+    chainCode = ChainCode "<ChainCode is not used by singleAddressFromKey>"
+
+negativeTest
+    :: forall n. DecodeAddress n
+    => Proxy n
+    -> Text
+    -> String
+    -> SpecWith ()
+negativeTest _proxy bytes msg = it ("decodeAddress failure: " <> msg) $
+    decodeAddress @n bytes === Left (TextDecodingError msg)
+
 {-------------------------------------------------------------------------------
                               Arbitrary Instances
 -------------------------------------------------------------------------------}
@@ -698,20 +840,38 @@ instance Arbitrary AddressState where
     shrink = genericShrink
 
 instance Arbitrary Address where
-    arbitrary = Address <$> oneof
-        [ (\bytes -> BS.pack (0x83:bytes)) <$> vectorOf 32 arbitrary
-        , (\bytes -> BS.pack (0x84:bytes)) <$> vectorOf 64 arbitrary
-        , do
-            n <- choose (30, 60)
-            let prefix = BS.pack
-                    [ 130       -- Array(2)
-                    , 216, 24   -- Tag 24
-                    , 88, fromIntegral n -- Bytes(n), n > 23 && n < 256
-                    ]
-            addrPayload <- BS.pack <$> vectorOf n arbitrary
-            let crc = BS.pack [26,1,2,3,4]
-            return (prefix <> addrPayload <> crc)
-        ]
+    arbitrary = (unShowFmt . fst)
+        <$> arbitrary @(ShowFmt Address, Proxy 'Testnet)
+
+instance {-# OVERLAPS #-} KnownNetwork network
+    => Arbitrary (ShowFmt Address, Proxy (network :: NetworkDiscriminant)) where
+    arbitrary = do
+        let proxy = Proxy @network
+        addr <- ShowFmt <$> frequency
+            [ (10, genAddress (single @network) (grouped @network))
+            , (1, genLegacyAddress (30, 100))
+            ]
+        return (addr, proxy)
+
+genAddress :: Word8 -> Word8 -> Gen Address
+genAddress singleByte groupedByte = oneof
+    [ (\bytes -> Address (BS.pack (singleByte:bytes)))
+        <$> vectorOf publicKeySize arbitrary
+    , (\bytes -> Address (BS.pack (groupedByte:bytes)))
+        <$> vectorOf (2*publicKeySize) arbitrary
+    ]
+
+genLegacyAddress :: (Int, Int) -> Gen Address
+genLegacyAddress range = do
+    n <- choose range
+    let prefix = BS.pack
+            [ 130       -- Array(2)
+            , 216, 24   -- Tag 24
+            , 88, fromIntegral n -- Bytes(n), n > 23 && n < 256
+            ]
+    addrPayload <- BS.pack <$> vectorOf n arbitrary
+    let crc = BS.pack [26,1,2,3,4]
+    return $ Address (prefix <> addrPayload <> crc)
 
 instance Arbitrary (Quantity "lovelace" Natural) where
     shrink (Quantity 0) = []
@@ -1209,3 +1369,31 @@ atMethod = \case
     DELETE -> delete
     PATCH -> patch
     m -> error $ "atMethod: unsupported method: " <> show m
+
+{-------------------------------------------------------------------------------
+            Generating Golden Test Vectors For Address Encoding
+-------------------------------------------------------------------------------}
+
+-- SPENDINGKEY=$(jcli key generate --type Ed25519Extended | jcli key to-public)
+-- DELEGATIONKEY=$(jcli key generate --type Ed25519Extended | jcli key to-public)
+--
+-- SPENDINGKEYBYTES=$(echo $SPENDINGKEY | jcli key to-bytes)
+-- DELEGATIONKEYBYTES=$(echo $DELEGATIONKEY | jcli key to-bytes)
+--
+-- MAINNETSINGLE=$(jcli address single $SPENDINGKEY --prefix addr)
+-- TESTNETSINGLE=$(jcli address single $SPENDINGKEY --testing --prefix addr)
+--
+-- MAINNETGROUPED=$(jcli address single $SPENDINGKEY $DELEGATIONKEY --prefix addr)
+-- TESTNETGROUPED=$(jcli address single $SPENDINGKEY $DELEGATIONKEY --testing --prefix addr)
+--
+-- TESTVECTOR=test_vector_$(date +%s)
+-- touch $TESTVECTOR
+-- echo "spending key:        $SPENDINGKEYBYTES" >> $TESTVECTOR
+-- echo "\ndelegation key:    $DELEGATIONKEYBYTES" >> $TESTVECTOR
+-- echo "\nsingle (mainnet):  $MAINNETSINGLE" >> $TESTVECTOR
+-- echo "\ngrouped (mainnet): $MAINNETGROUPED" >> $TESTVECTOR
+-- echo "\nsingle (testnet):  $TESTNETSINGLE" >> $TESTVECTOR
+-- echo "\ngrouped (testnet): $TESTNETGROUPED" >> $TESTVECTOR
+--
+-- echo -e $(cat $TESTVECTOR)
+-- echo "Saved as $TESTVECTOR."

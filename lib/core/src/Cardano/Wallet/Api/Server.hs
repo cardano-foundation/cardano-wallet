@@ -106,6 +106,8 @@ import Cardano.Wallet.Api.Types
     , ApiWallet (..)
     , ApiWalletPassphrase (..)
     , ByronWalletPostData (..)
+    , DecodeAddress (..)
+    , EncodeAddress (..)
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
     , PostTransactionData
@@ -132,7 +134,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( DecodeAddress (..), EncodeAddress (..), IsOurs )
+    ( IsOurs )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState, mkRndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential

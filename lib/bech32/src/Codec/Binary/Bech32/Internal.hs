@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -50,6 +51,7 @@ module Codec.Binary.Bech32.Internal
     , HumanReadablePart
     , HumanReadablePartError (..)
     , humanReadablePartFromText
+    , unsafeHumanReadablePartFromText
     , humanReadablePartToText
     , humanReadablePartToWords
     , humanReadablePartMinLength
@@ -106,6 +108,8 @@ import Data.Text.Class
     ( splitAtLastOccurrence )
 import Data.Word
     ( Word8 )
+import GHC.Stack
+    ( HasCallStack )
 
 import qualified Data.Array as Arr
 import qualified Data.ByteString as BS
@@ -230,8 +234,15 @@ newtype HumanReadablePart = HumanReadablePart Text
     deriving newtype (Eq, Monoid, Semigroup)
     deriving stock Show
 
--- | Parses the human-readable part of a Bech32 string, as defined here:
---   https://git.io/fj8FS
+-- | Parses the human-readable part of a Bech32 string, which obeys the
+-- following definition:
+--
+-- "The human-readable part, which is intended to convey the type of data, or
+-- anything else that is relevant to the reader. This part MUST contain 1 to 83
+-- US-ASCII characters, with each character having a value in the range
+-- [33-126]. HRP validity may be further restricted by specific applications."
+--
+-- Source: https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#bech32
 humanReadablePartFromText
     :: Text -> Either HumanReadablePartError HumanReadablePart
 humanReadablePartFromText hrp
@@ -246,6 +257,23 @@ humanReadablePartFromText hrp
   where
     invalidCharPositions = CharPosition . fst <$> filter
         ((not . humanReadableCharIsValid) . snd) ([0 .. ] `zip` T.unpack hrp)
+
+-- | Like `humanReadablePartFromText`, but throws at runtime if given an invalid
+-- `hrp` as text. It is recommended to only make use of this function when using
+-- litterals. For example:
+--
+-- >>> unsafeHumanReadablePartFromText "addr"
+-- HumanReadablePart "addr"
+--
+unsafeHumanReadablePartFromText
+    :: HasCallStack
+    => Text
+    -> HumanReadablePart
+unsafeHumanReadablePartFromText =
+    either errUnsafe id . humanReadablePartFromText
+  where
+    errUnsafe e =
+        error $ "Whoops! Invalid bech32 human-readable part: " <> show e
 
 -- | Represents the set of error conditions that may occur while parsing the
 --   human-readable part of a Bech32 string.

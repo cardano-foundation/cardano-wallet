@@ -18,14 +18,13 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiTxId (..)
     , ApiWallet
+    , encodeAddress
     , getApiT
     , insertedAt
     , time
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery
-    ( encodeAddress )
 import Cardano.Wallet.Primitive.Types
     ( Direction (..), SortOrder (..), TxStatus (..) )
 import Control.Monad

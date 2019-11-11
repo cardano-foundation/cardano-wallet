@@ -109,6 +109,8 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , ApiWallet
     , ApiWalletPassphrase
+    , DecodeAddress
+    , EncodeAddress
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
     , PostTransactionData (..)
@@ -125,8 +127,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PassphraseMaxLength
     , PassphraseMinLength
     )
-import Cardano.Wallet.Primitive.AddressDiscovery
-    ( DecodeAddress, EncodeAddress )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, defaultAddressPoolGap )
 import Cardano.Wallet.Primitive.Mnemonic

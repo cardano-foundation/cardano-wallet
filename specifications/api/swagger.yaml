@@ -118,8 +118,8 @@ x-amount: &amount
 
 x-addressId: &addressId
   type: string
-  format: base58
-  example: 2cWKMJemoBam7gg1y5K2aFDhAm5L8fVc96NfxgcGhdLMFTsToNAU9t5HVdBBQKy4iDswL
+  format: base58|bech32
+  example: addr1sjck9mdmfyhzvjhydcjllgj9vjvl522w0573ncustrrr2rg7h9azg4cyqd36yyd48t5ut72hgld0fg2xfvz82xgwh7wal6g2xt8n996s3xvu5g
 
 x-addressState: &addressState
   type: string

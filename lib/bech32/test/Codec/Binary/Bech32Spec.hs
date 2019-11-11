@@ -25,11 +25,16 @@ import Codec.Binary.Bech32.Internal
     , humanReadableCharMaxBound
     , humanReadableCharMinBound
     , humanReadablePartFromText
+    , humanReadablePartMaxLength
+    , humanReadablePartMinLength
     , humanReadablePartToText
     , separatorChar
+    , unsafeHumanReadablePartFromText
     )
 import Control.DeepSeq
     ( deepseq )
+import Control.Exception
+    ( evaluate )
 import Control.Monad
     ( forM_, replicateM )
 import Data.Bits
@@ -57,7 +62,15 @@ import Data.Vector
 import Data.Word
     ( Word8 )
 import Test.Hspec
-    ( Spec, describe, expectationFailure, it, shouldBe, shouldSatisfy )
+    ( Spec
+    , anyErrorCall
+    , describe
+    , expectationFailure
+    , it
+    , shouldBe
+    , shouldSatisfy
+    , shouldThrow
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Positive (..)
@@ -402,6 +415,36 @@ spec = do
 
     describe "Pointless test to trigger coverage on derived instances" $ do
         it (show $ humanReadablePartFromText $ T.pack "ca") True
+
+    describe "unsafeHumanReadablePartFromText" $ do
+        forM_ validHRPPrefixes $ \hrp -> do
+            let title t = "Works as expected for valid HRP: " <> t
+            it (title $ T.unpack hrp) $ do
+                Right (unsafeHumanReadablePartFromText hrp)
+                    `shouldBe` humanReadablePartFromText hrp
+
+        forM_ invalidHRPPrefixes $ \hrp -> do
+            let base = "Throws when provided with an invalid HRP: "
+            it (base <> T.unpack hrp) $ do
+                evaluate (unsafeHumanReadablePartFromText hrp)
+                    `shouldThrow` anyErrorCall
+
+validHRPPrefixes :: [Text]
+validHRPPrefixes =
+    [ "testnet"
+    , "ca"
+    , "addr"
+    , "xprv_"
+    , "awesome!"
+    ]
+
+invalidHRPPrefixes :: [Text]
+invalidHRPPrefixes =
+    [ T.replicate (humanReadablePartMaxLength + 1) "_"
+    , T.replicate (humanReadablePartMinLength - 1) "_"
+    , T.pack [pred humanReadableCharMinBound]
+    , T.pack [succ humanReadableCharMaxBound]
+    ]
 
 -- Taken from the BIP 0173 specification: https://git.io/fjBIN
 validBech32Strings :: [Text]
