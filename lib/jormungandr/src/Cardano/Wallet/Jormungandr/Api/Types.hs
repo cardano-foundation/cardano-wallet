@@ -16,6 +16,8 @@ module Cardano.Wallet.Jormungandr.Api.Types
       ApiT (..)
 
     -- * API types
+    , ApiAccountState (..)
+    , ApiAccountDelegationInfo (..)
     , ApiStakeDistribution (..)
     , BlockId (..)
     , StakeApiResponse (..)
@@ -38,13 +40,20 @@ import Cardano.Wallet.Jormungandr.Binary
     , withHeader
     )
 import Cardano.Wallet.Primitive.Types
-    ( EpochNo (..), Hash (..), PoolId (..), ShowFmt (..), Tx (..), TxWitness )
+    ( ChimericAccount (..)
+    , EpochNo (..)
+    , Hash (..)
+    , PoolId (..)
+    , ShowFmt (..)
+    , Tx (..)
+    , TxWitness
+    )
 import Control.Applicative
     ( many )
 import Control.Arrow
     ( left )
 import Data.Aeson
-    ( FromJSON (..), defaultOptions, genericParseJSON )
+    ( FromJSON (..), defaultOptions, genericParseJSON, withObject, (.:) )
 import Data.Binary.Get
     ( getByteString )
 import Data.ByteArray.Encoding
@@ -75,6 +84,20 @@ data StakeApiResponse = StakeApiResponse
     , stake :: ApiStakeDistribution
     } deriving (Show, Eq, Generic)
 
+data ApiAccountState = ApiAccountState
+    { currentBalance
+        :: !(ApiT (Quantity "lovelace" Word64))
+    , delegationInfo
+        :: !ApiAccountDelegationInfo
+    , totalTransactionCount
+        :: !(ApiT (Quantity "transaction-count" Word64))
+    } deriving (Eq, Show, Generic)
+
+newtype ApiAccountDelegationInfo = ApiAccountDelegationInfo
+    { stakePools
+        :: [(ApiT PoolId, ApiT (Quantity "stake-pool-ratio" Word64))]
+    } deriving (Eq, Show, Generic)
+
 data ApiStakeDistribution = ApiStakeDistribution
     { dangling :: ApiT (Quantity "lovelace" Word64)
     , pools :: [(ApiT PoolId, ApiT (Quantity "lovelace" Word64))]
@@ -83,6 +106,10 @@ data ApiStakeDistribution = ApiStakeDistribution
 
 instance ToHttpApiData BlockId where
     toUrlPiece (BlockId (Hash bytes)) = decodeUtf8 $ convertToBase Base16 bytes
+
+instance ToHttpApiData (ApiT ChimericAccount) where
+    toUrlPiece (ApiT (ChimericAccount bytes)) =
+        decodeUtf8 $ convertToBase Base16 bytes
 
 instance MimeUnrender JormungandrBinary [BlockId] where
     mimeUnrender _ =
@@ -130,10 +157,28 @@ instance Accept Hex where
 instance FromJSON StakeApiResponse where
     parseJSON = genericParseJSON defaultOptions
 
+instance FromJSON ApiAccountState where
+    parseJSON = withObject "ApiAccountState" $ \v ->
+        ApiAccountState
+            <$> v .: "value"
+            <*> v .: "delegation"
+            <*> v .: "counter"
+
+instance FromJSON ApiAccountDelegationInfo where
+    parseJSON = withObject "ApiAccountDelegationInfo" $ \v ->
+        ApiAccountDelegationInfo
+            <$> v .: "pools"
+
 instance FromJSON (ApiStakeDistribution) where
     parseJSON = genericParseJSON defaultOptions
 
 instance FromJSON (ApiT (Quantity "lovelace" Word64)) where
+    parseJSON = fmap (ApiT . Quantity) . parseJSON
+
+instance FromJSON (ApiT (Quantity "stake-pool-ratio" Word64)) where
+    parseJSON = fmap (ApiT . Quantity) . parseJSON
+
+instance FromJSON (ApiT (Quantity "transaction-count" Word64)) where
     parseJSON = fmap (ApiT . Quantity) . parseJSON
 
 instance FromJSON (ApiT EpochNo) where
