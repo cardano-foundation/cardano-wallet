@@ -816,8 +816,12 @@ signTx ctx wid argGenChange pwd (CoinSelection ins outs chgs) = db & \DBLayer{..
                 (mkStdTx tl keyFrom ins allShuffledOuts )
             withExceptT ErrSignTxNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
-            let amtChng = fromIntegral $
-                    sum (getCoin <$> chgs)
+            let ourCoins (TxOut addr (Coin val)) =
+                    if fst (isOurs addr s')
+                        then Just (fromIntegral val)
+                        else Nothing
+            let amtOuts =
+                    sum (mapMaybe ourCoins allShuffledOuts)
             let amtInps = fromIntegral $
                     sum (getCoin . coin . snd <$> ins)
             let txSlot =
@@ -827,7 +831,7 @@ signTx ctx wid argGenChange pwd (CoinSelection ins outs chgs) = db & \DBLayer{..
                     , direction = Outgoing
                     , slotId = txSlot
                     , blockHeight = (currentTip cp) ^. #blockHeight
-                    , amount = Quantity (amtInps - amtChng)
+                    , amount = Quantity (amtInps - amtOuts)
                     }
             let time = slotStartTime
                     (slotParams (blockchainParameters cp))
