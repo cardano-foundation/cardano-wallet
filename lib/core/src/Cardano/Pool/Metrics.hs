@@ -51,7 +51,13 @@ import Cardano.Wallet.Network
     , staticBlockchainParameters
     )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), EpochNo (..), PoolId (..), SlotId (..) )
+    ( BlockHeader (..)
+    , EpochLength (..)
+    , EpochNo (..)
+    , PoolId (..)
+    , SlotId (..)
+    , SlotNo (unSlotNo)
+    )
 import Control.Monad
     ( forM, forM_, when )
 import Control.Monad.IO.Class
@@ -214,7 +220,7 @@ newStakePoolLayer db@DBLayer{..} nl tr = StakePoolLayer
             computeProgress nodeTip >>= throwE . ErrMetricsIsUnsynced
 
         perfs <- liftIO $
-            readPoolsPerformances db nodeEpoch
+            readPoolsPerformances db epochLength (nodeTip ^. #slotId)
 
         case combineMetrics distr prod perfs of
             Right x -> return
@@ -228,6 +234,10 @@ newStakePoolLayer db@DBLayer{..} nl tr = StakePoolLayer
     poolProductionTip = atomically $ readPoolProductionCursor 1 >>= \case
         [x] -> return $ Just x
         _ -> return Nothing
+
+
+    (_, bp) = staticBlockchainParameters nl
+    epochLength = bp ^. #getEpochLength
 
     mkStakePool
         :: PoolId
@@ -268,14 +278,24 @@ newStakePoolLayer db@DBLayer{..} nl tr = StakePoolLayer
 
 readPoolsPerformances
     :: DBLayer m
-    -> EpochNo
+    -> EpochLength
+    -> SlotId
     -> m (Map PoolId Double)
-readPoolsPerformances DBLayer{..} (EpochNo epochNo) = do
-    let range = [max 0 (fromIntegral epochNo - 14) .. fromIntegral epochNo]
+readPoolsPerformances DBLayer{..} (EpochLength el) tip = do
+    let range = [max 0 (currentEpoch - 14) .. currentEpoch]
     atomically $ fmap avg $ forM range $ \ep -> calculatePerformance
+        (slotsInEpoch ep)
         <$> (Map.fromList <$> readStakeDistribution ep)
         <*> (count <$> readPoolProduction ep)
   where
+    currentEpoch = tip ^. #epochNumber
+
+    slotsInEpoch :: EpochNo -> Int
+    slotsInEpoch e =
+        if e == currentEpoch
+        then fromIntegral $ unSlotNo $ tip ^. #slotNumber
+        else fromIntegral el
+
     -- | Performances are computed over many epochs to cope with the fact that
     -- our data is sparse (regarding stake distribution at least).
     --
@@ -305,23 +325,24 @@ readPoolsPerformances DBLayer{..} (EpochNo epochNo) = do
 -- practice, be greater than 1 if a stake pool produces more than it is
 -- expected.
 calculatePerformance
-    :: Map PoolId (Quantity "lovelace" Word64)
+    :: Int
+    -> Map PoolId (Quantity "lovelace" Word64)
     -> Map PoolId (Quantity "block" Word64)
     -> Map PoolId Double
-calculatePerformance mStake mProd =
+calculatePerformance nTotal mStake mProd =
     let
         stakeButNotProd = traverseMissing $ \_ _ -> 0
         prodButNoStake  = dropMissing
-        stakeAndProd sTotal nTotal = zipWithMatched $ \_ s n ->
+        stakeAndProd sTotal = zipWithMatched $ \_ s n ->
             if (nTotal == 0 || s == Quantity 0) then
                 0
             else
-                min 1 ((double n / nTotal) * (sTotal / double s))
+                min 1 ((double n / fromIntegral nTotal) * (sTotal / double s))
     in
         Map.merge
             stakeButNotProd
             prodButNoStake
-            (stakeAndProd (sumQ mStake) (sumQ mProd))
+            (stakeAndProd (sumQ mStake))
             mStake
             mProd
   where
