@@ -69,7 +69,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , passphraseMinLength
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..) )
+    ( KnownNetwork (..), ShelleyKey (..), publicKeySize )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Mnemonic
@@ -843,28 +843,22 @@ instance Arbitrary Address where
     arbitrary = (unShowFmt . fst)
         <$> arbitrary @(ShowFmt Address, Proxy 'Testnet)
 
-instance {-# OVERLAPS #-} Arbitrary (ShowFmt Address, Proxy 'Testnet) where
+instance {-# OVERLAPS #-} KnownNetwork network
+    => Arbitrary (ShowFmt Address, Proxy (network :: NetworkDiscriminant)) where
     arbitrary = do
-        let proxy = Proxy @'Testnet
+        let proxy = Proxy @network
         addr <- ShowFmt <$> frequency
-            [ (10, genAddress 0x83 0x84)
-            , (1, genLegacyAddress (30, 100))
-            ]
-        return (addr, proxy)
-
-instance {-# OVERLAPS #-} Arbitrary (ShowFmt Address, Proxy 'Mainnet) where
-    arbitrary = do
-        let proxy = Proxy @'Mainnet
-        addr <- ShowFmt <$> frequency
-            [ (10, genAddress 0x03 0x04)
+            [ (10, genAddress (single @network) (grouped @network))
             , (1, genLegacyAddress (30, 100))
             ]
         return (addr, proxy)
 
 genAddress :: Word8 -> Word8 -> Gen Address
-genAddress single grouped = oneof
-    [ (\bytes -> Address (BS.pack (single:bytes))) <$> vectorOf 32 arbitrary
-    , (\bytes -> Address (BS.pack (grouped:bytes))) <$> vectorOf 64 arbitrary
+genAddress singleByte groupedByte = oneof
+    [ (\bytes -> Address (BS.pack (singleByte:bytes)))
+        <$> vectorOf publicKeySize arbitrary
+    , (\bytes -> Address (BS.pack (groupedByte:bytes)))
+        <$> vectorOf (2*publicKeySize) arbitrary
     ]
 
 genLegacyAddress :: (Int, Int) -> Gen Address
