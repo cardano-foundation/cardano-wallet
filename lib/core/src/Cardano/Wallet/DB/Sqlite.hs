@@ -397,7 +397,9 @@ newDBLayer logConfig trace mDatabaseFile = do
         , putDelegationCertificate = \(PrimaryKey wid) pool sl -> ExceptT $ do
             selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just _  -> pure <$> insert_ (DelegationCertificate wid sl pool)
+                Just _  -> pure <$> repsert
+                    (DelegationCertificateKey wid sl)
+                    (DelegationCertificate wid sl pool)
 
         {-----------------------------------------------------------------------
                                      Tx History
