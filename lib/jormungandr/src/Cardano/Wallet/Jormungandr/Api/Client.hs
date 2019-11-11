@@ -158,7 +158,7 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
         let action = cGetAccountState (ApiT accountId)
         run action >>= \case
             Left (FailureResponse e) | responseStatusCode e == status404 ->
-                return . Left . ErrGetAccountStateAccountNotFound $ accountId
+                return $ Left $ ErrGetAccountStateAccountNotFound accountId
             x -> do
                 let ctx = safeLink api (Proxy @GetAccountState) (ApiT accountId)
                 left ErrGetAccountStateNetworkUnreachable
@@ -172,7 +172,7 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
         let action = cGetBlock (BlockId blockId)
         run action >>= \case
             Left (FailureResponse e) | responseStatusCode e == status400 ->
-                return . Left . ErrGetBlockNotFound $ blockId
+                return $ Left $ ErrGetBlockNotFound blockId
             x -> do
                 let ctx = safeLink api (Proxy @GetBlock) (BlockId blockId)
                 left ErrGetBlockNetworkUnreachable <$> defaultHandler ctx x
@@ -182,7 +182,7 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
                 cGetBlockDescendantIds (BlockId parentId) (Just count)
         run action >>= \case
             Left (FailureResponse e) | responseStatusCode e == status400 ->
-                return . Left $ ErrGetDescendantsParentNotFound parentId
+                return $ Left $ ErrGetDescendantsParentNotFound parentId
             x -> do
                 let ctx = safeLink
                         api
