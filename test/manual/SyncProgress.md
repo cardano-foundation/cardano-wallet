@@ -7,10 +7,10 @@
 $ jormungandr \
      --genesis-block lib/jormungandr/test/data/jormungandr/block0.bin \
      --rest-listen 127.0.0.1:8080 \
-     --secret lib/jormungandr/test/data/jormungandr/secret.yaml \
+     --secret lib/jormungandr/test/data/jormungandr/secret.yaml
 
 $ cardano-wallet-jormungandr serve --genesis-block-hash $(jcli genesis hash --input lib/jormungandr/test/data/jormungandr/block0.bin) --node-port 8080
-````
+```
 
 2. Create a wallet
 ```bash
