@@ -15,7 +15,7 @@ let
   jmPkgs = import ./nix/jormungandr.nix { inherit iohkLib; };
   inherit (jmPkgs) jormungandr jormungandr-cli;
 
-  haskellPackages = import ./nix/default.nix {
+  haskellPackages = import ./nix/pkgs.nix {
     inherit pkgs src jmPkgs;
   };
 
