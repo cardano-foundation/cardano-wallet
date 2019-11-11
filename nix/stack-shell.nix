@@ -16,4 +16,5 @@ haskell.lib.buildStackProject rec {
 
   phases = ["nobuildPhase"];
   nobuildPhase = "echo '${pkgs.lib.concatStringsSep "\n" ([ghc] ++ buildInputs)}' > $out";
+  meta.platforms = lib.platforms.unix;
 }
