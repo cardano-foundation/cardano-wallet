@@ -8,6 +8,7 @@
 -- A specification for the Jörmungandr REST API.
 module Cardano.Wallet.Jormungandr.Api
     ( Api
+    , GetAccountState
     , GetBlock
     , GetTipId
     , GetBlockDescendantIds
@@ -19,11 +20,17 @@ module Cardano.Wallet.Jormungandr.Api
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Api.Types
-    ( BlockId, Hex, JormungandrBinary, StakeApiResponse )
+    ( ApiAccountState
+    , ApiT
+    , BlockId
+    , Hex
+    , JormungandrBinary
+    , StakeApiResponse
+    )
 import Cardano.Wallet.Jormungandr.Binary
     ( Block )
 import Cardano.Wallet.Primitive.Types
-    ( Tx (..), TxWitness )
+    ( ChimericAccount, Tx (..), TxWitness )
 import Data.Proxy
     ( Proxy (..) )
 import Servant.API
@@ -33,11 +40,18 @@ api :: Proxy Api
 api = Proxy
 
 type Api =
-    GetTipId
+    GetAccountState
+    :<|> GetTipId
     :<|> GetBlock
     :<|> GetBlockDescendantIds
     :<|> PostMessage
     :<|> GetStakeDistribution
+
+type GetAccountState
+    = "api" :> "v0"
+    :> "account"
+    :> Capture "accountId" (ApiT ChimericAccount)
+    :> Get '[JSON] ApiAccountState
 
 -- | Retrieve a block by its id.
 type GetBlock

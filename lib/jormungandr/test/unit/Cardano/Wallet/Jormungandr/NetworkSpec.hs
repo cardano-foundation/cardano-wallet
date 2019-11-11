@@ -344,7 +344,9 @@ mockJormungandrClient
         -- ^ logger function
     -> JormungandrClient (StateT S m)
 mockJormungandrClient logLine = JormungandrClient
-    { getTipId = do
+    { getAccountState = \_ -> error "mock getAccountState"
+
+    , getTipId = do
         ch <- lift $ gets (nodeChainIds . node)
         let tip = fromMaybe genesisHash $ headMay ch
         lift . logLineP $ "getTipId" <> returns tip

@@ -28,6 +28,7 @@ module Cardano.Wallet.Jormungandr.Api.Client
 
     -- * Errors
     , LiftError(..)
+    , ErrGetAccountState (..)
     , ErrGetBlock (..)
     , ErrGetBlockchainParams (..)
     , ErrGetDescendants (..)
@@ -54,7 +55,7 @@ import Cardano.Wallet.Jormungandr.Api
     , api
     )
 import Cardano.Wallet.Jormungandr.Api.Types
-    ( BlockId (..), StakeApiResponse )
+    ( ApiAccountState, BlockId (..), StakeApiResponse )
 import Cardano.Wallet.Jormungandr.Binary
     ( ConfigParam (..), Fragment (..), convertBlock )
 import Cardano.Wallet.Jormungandr.Compatibility
@@ -125,7 +126,10 @@ import qualified Data.Text.Encoding as T
 
 -- | Endpoints of the jormungandr REST API.
 data JormungandrClient m = JormungandrClient
-    { getTipId
+    { getAccountState
+        :: ApiT ChimericAccount
+        -> ExceptT ErrGetAccountState m ApiAccountState
+    , getTipId
         :: ExceptT ErrNetworkUnavailable m (Hash "BlockHeader")
     , getBlock
         :: Hash "BlockHeader"
@@ -148,7 +152,9 @@ data JormungandrClient m = JormungandrClient
 mkJormungandrClient
     :: Manager -> BaseUrl -> JormungandrClient IO
 mkJormungandrClient mgr baseUrl = JormungandrClient
-    { getTipId = ExceptT $ do
+    { getAccountState = undefined
+
+    , getTipId = ExceptT $ do
         let ctx = safeLink api (Proxy @GetTipId)
         run (getBlockId <$> cGetTipId) >>= defaultHandler ctx
 
@@ -299,7 +305,8 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
         Left e -> do
             throwM (ErrUnexpectedNetworkFailure ctx e)
 
-    cGetTipId
+    _cGetAccountState
+        :<|> cGetTipId
         :<|> cGetBlock
         :<|> cGetBlockDescendantIds
         :<|> cPostMessage
@@ -341,6 +348,11 @@ data ErrUnexpectedNetworkFailure
     deriving (Show)
 
 instance Exception ErrUnexpectedNetworkFailure
+
+data ErrGetAccountState
+    = ErrGetAccountStateNetworkUnreachable ErrNetworkUnavailable
+    | ErrGetAccountStateAccountNotFound ChimericAccount
+    deriving (Eq, Show)
 
 data ErrGetDescendants
     = ErrGetDescendantsNetworkUnreachable ErrNetworkUnavailable
