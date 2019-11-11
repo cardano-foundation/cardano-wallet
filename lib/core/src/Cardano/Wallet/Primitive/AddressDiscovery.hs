@@ -52,6 +52,8 @@ import Data.ByteString
     ( ByteString )
 import Data.ByteString.Base58
     ( bitcoinAlphabet, decodeBase58, encodeBase58 )
+import Data.Either.Extra
+    ( maybeToEither )
 import Data.Function
     ( (&) )
 import Data.Maybe
@@ -228,7 +230,3 @@ gDecodeAddress decodeShelley text =
     tryBech32 = do
         (_, dp) <- either (const Nothing) Just (Bech32.decodeLenient text)
         dataPartToBytes dp
-
-    -- | Convert a 'Maybe' to a 'Either e' with the given error @e@
-    maybeToEither :: e -> Maybe a -> Either e a
-    maybeToEither e = maybe (Left e) Right
