@@ -87,14 +87,6 @@ let
         # Katip has Win32 (>=2.3 && <2.6) constraint
         packages.katip.doExactConfig = true;
       }
-      {
-        # need to apply this cabalPatch as
-        # we are using reinstallableLibGhc, and
-        # therfore can not rely on the patched
-        # lib:Cabal that comes with ghc anymore.
-        packages.Cabal.patches = [ cabalPatch ];
-        reinstallableLibGhc = true;
-      }
     ];
     pkg-def-extras = [
       # Workaround for https://github.com/input-output-hk/haskell.nix/issues/214

@@ -39,6 +39,7 @@ let
       collectTests jobs.native.benchmarks ++
       [ jobs.native.cardano-wallet-jormungandr.x86_64-linux
         jobs.native.cardano-wallet-jormungandr.x86_64-darwin
+        jobs.x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-linux
       ]
     );
 
