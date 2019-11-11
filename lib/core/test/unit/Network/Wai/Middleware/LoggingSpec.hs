@@ -97,6 +97,8 @@ import Test.QuickCheck
     ( Arbitrary (..), choose, property )
 import Test.QuickCheck.Monadic
     ( monadicIO )
+import Test.Utils.Windows
+    ( pendingOnWindows, whenWindows )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Map.Strict as Map
@@ -192,10 +194,10 @@ spec = describe "Logging Middleware"
                     , replicate (n - i) (get ctx "/get")
                     ]
             void $ mapConcurrently id reqs
-            threadDelay 1000000 -- let iohk-monitoring flush the logs
             entries <- readTVarIO (logs ctx)
             let index = Map.fromList
                     $ catMaybes [ (loName l,) <$> captureTime l | l <- entries ]
+            pendingOnWindows "Disabled on windows due to race with log flushing"
             Map.size (Map.filter (> (200*ms)) index) `shouldBe` 1
   where
     setup :: IO Context
@@ -268,7 +270,7 @@ postIlled ctx path body = do
 
 expectLogs :: Context -> [(Severity, String)] -> IO ()
 expectLogs ctx expectations = do
-    threadDelay 1000000 -- let iohk-monitoring flush the logs
+    whenWindows $ threadDelay 1000000 -- let iohk-monitoring flush the logs
 
     entries <- reverse <$> readTVarIO (logs ctx)
 

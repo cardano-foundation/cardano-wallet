@@ -8,6 +8,8 @@
 
 module Test.Utils.Windows
     ( skipOnWindows
+    , pendingOnWindows
+    , whenWindows
     ) where
 
 import Prelude
@@ -19,9 +21,15 @@ import Control.Monad
 import System.Info
     ( os )
 import Test.Hspec.Core.Spec
-    ( ResultStatus (..) )
+    ( ResultStatus (..), pendingWith )
 import Test.Hspec.Expectations
     ( Expectation, HasCallStack )
 
 skipOnWindows :: HasCallStack => String -> Expectation
-skipOnWindows _reason = when (os == "mingw32") $ throwIO Success
+skipOnWindows _reason = whenWindows $ throwIO Success
+
+pendingOnWindows :: HasCallStack => String -> Expectation
+pendingOnWindows reason = whenWindows $ pendingWith reason
+
+whenWindows :: IO () -> IO ()
+whenWindows = when (os == "mingw32")
