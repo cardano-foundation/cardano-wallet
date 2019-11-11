@@ -11,11 +11,9 @@ module Test.Integration.Scenario.CLI.Addresses
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddress, getApiT )
+    ( ApiAddress, EncodeAddress (..), getApiT )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery
-    ( EncodeAddress (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types

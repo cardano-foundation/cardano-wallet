@@ -13,11 +13,9 @@ import Prelude
 import Cardano.CLI
     ( Port )
 import Cardano.Wallet.Api.Types
-    ( ApiTransaction, ApiUtxoStatistics, ApiWallet, getApiT )
+    ( ApiTransaction, ApiUtxoStatistics, ApiWallet, encodeAddress, getApiT )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery
-    ( encodeAddress )
 import Cardano.Wallet.Primitive.Types
     ( SyncProgress (..)
     , WalletDelegation (..)
