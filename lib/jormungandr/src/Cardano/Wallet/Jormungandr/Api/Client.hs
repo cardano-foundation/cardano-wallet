@@ -47,7 +47,8 @@ module Cardano.Wallet.Jormungandr.Api.Client
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Api
-    ( GetBlock
+    ( GetAccountState
+    , GetBlock
     , GetBlockDescendantIds
     , GetStakeDistribution
     , GetTipId
@@ -55,7 +56,7 @@ import Cardano.Wallet.Jormungandr.Api
     , api
     )
 import Cardano.Wallet.Jormungandr.Api.Types
-    ( ApiAccountState, BlockId (..), StakeApiResponse )
+    ( ApiAccountState, ApiT (..), BlockId (..), StakeApiResponse )
 import Cardano.Wallet.Jormungandr.Binary
     ( ConfigParam (..), Fragment (..), convertBlock )
 import Cardano.Wallet.Jormungandr.Compatibility
@@ -71,6 +72,7 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
+    , ChimericAccount
     , Hash (..)
     , SlotLength (..)
     , Tx (..)
@@ -152,7 +154,15 @@ data JormungandrClient m = JormungandrClient
 mkJormungandrClient
     :: Manager -> BaseUrl -> JormungandrClient IO
 mkJormungandrClient mgr baseUrl = JormungandrClient
-    { getAccountState = undefined
+    { getAccountState = \(ApiT accountId) -> ExceptT $ do
+        let action = cGetAccountState (ApiT accountId)
+        run action >>= \case
+            Left (FailureResponse e) | responseStatusCode e == status404 ->
+                return . Left . ErrGetAccountStateAccountNotFound $ accountId
+            x -> do
+                let ctx = safeLink api (Proxy @GetAccountState) (ApiT accountId)
+                left ErrGetAccountStateNetworkUnreachable
+                    <$> defaultHandler ctx x
 
     , getTipId = ExceptT $ do
         let ctx = safeLink api (Proxy @GetTipId)
@@ -305,7 +315,7 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
         Left e -> do
             throwM (ErrUnexpectedNetworkFailure ctx e)
 
-    _cGetAccountState
+    cGetAccountState
         :<|> cGetTipId
         :<|> cGetBlock
         :<|> cGetBlockDescendantIds
