@@ -49,10 +49,10 @@ let
         text-class
       ];
       buildInputs = (with pkgs.haskell-nix.haskellPackages; [
-          stylish-haskell.components.exes.stylish-haskell
           weeder.components.exes.weeder
           hlint.components.exes.hlint
         ])
+        ++ [ pkgs.haskell-nix.snapshots."lts-13.26".stylish-haskell.components.exes.stylish-haskell ]
         ++ (with iohkLib; [ openapi-spec-validator ])
         ++ [ jormungandr jormungandr-cli
              pkgs.pkgconfig pkgs.sqlite-interactive ];
