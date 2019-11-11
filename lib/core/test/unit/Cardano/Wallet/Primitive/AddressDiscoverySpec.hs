@@ -111,25 +111,25 @@ spec = do
         goldenTestAddr proxy
             [ "7bd5386c31ac31ba7076856500cf26f85d4695b80f183c7a53e3f28419d6bde1"
             ]
-            "ca1qdaa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677zqx4le2"
+            "addr1qdaa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677z5t3m7d"
         goldenTestAddr proxy
             [ "df9f08672a3a94778229b91daa981538883e1535d666dc10e63b438f44c63e3f"
             ]
-            "ca1q00e7zr89gafgauz9xu3m25cz5ugs0s4xhtxdhqsuca58r6ycclr78edvht"
+            "addr1q00e7zr89gafgauz9xu3m25cz5ugs0s4xhtxdhqsuca58r6ycclr7n5fgsv"
         goldenTestAddr proxy
             [ "7bd5386c31ac31ba7076856500cf26f85d4695b80f183c7a53e3f28419d6bde1"
             , "b24e70b0c2ceeb24cc9f28f386478c73aa71c05a95a0119bb91dd8e89c3592ae"
             ]
-            "ca1q3aa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677r\
-            \vjwwzcv9nhtynxf728nserccua2w8q949dqzxdmj8wcazwrty4wga8haz"
+            "addr1q3aa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677\
+            \rvjwwzcv9nhtynxf728nserccua2w8q949dqzxdmj8wcazwrty4wvuat2l"
         goldenTestAddr proxy
             [ "df9f08672a3a94778229b91daa981538883e1535d666dc10e63b438f44c63e3f"
             , "402abff6065c847115ad22ff6b0d3a85fd69a6fcc32ed76aa8cadb305b0c51a7"
             ]
-            "ca1qn0e7zr89gafgauz9xu3m25cz5ugs0s4xhtxdhqsuca58r6ycclr7\
-            \sp2hlmqvhyywy266ghldvxn4p0adxn0esew6a423jkmxpdsc5d8hxd7cr"
+            "addr1qn0e7zr89gafgauz9xu3m25cz5ugs0s4xhtxdhqsuca58r6ycclr\
+            \7sp2hlmqvhyywy266ghldvxn4p0adxn0esew6a423jkmxpdsc5d8n8hz07"
 
-    describe "encode & decodeAddress (Testnet)" $ do
+    describe "encodeAddress & decodeAddress (Testnet)" $ do
         let proxy = Proxy @'Testnet
         it "decodeAddress . encodeAddress = pure" $
             withMaxSuccess 1000 $ property $ \(ShowFmt a, _ :: Proxy 'Testnet) ->
@@ -155,23 +155,23 @@ spec = do
         goldenTestAddr proxy
             [ "7bd5386c31ac31ba7076856500cf26f85d4695b80f183c7a53e3f28419d6bde1"
             ]
-            "ta1sdaa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677ztw225s"
+            "addr1sdaa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677zgltetp"
         goldenTestAddr proxy
             [ "df9f08672a3a94778229b91daa981538883e1535d666dc10e63b438f44c63e3f"
             ]
-            "ta1s00e7zr89gafgauz9xu3m25cz5ugs0s4xhtxdhqsuca58r6ycclr7v3je63"
+            "addr1s00e7zr89gafgauz9xu3m25cz5ugs0s4xhtxdhqsuca58r6ycclr70qn29q"
         goldenTestAddr proxy
             [ "7bd5386c31ac31ba7076856500cf26f85d4695b80f183c7a53e3f28419d6bde1"
             , "b24e70b0c2ceeb24cc9f28f386478c73aa71c05a95a0119bb91dd8e89c3592ae"
             ]
-            "ta1s3aa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677r\
-            \vjwwzcv9nhtynxf728nserccua2w8q949dqzxdmj8wcazwrty4we4spcz"
+            "addr1s3aa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677\
+            \rvjwwzcv9nhtynxf728nserccua2w8q949dqzxdmj8wcazwrty4wkdnx06"
         goldenTestAddr proxy
             [ "df9f08672a3a94778229b91daa981538883e1535d666dc10e63b438f44c63e3f"
             , "402abff6065c847115ad22ff6b0d3a85fd69a6fcc32ed76aa8cadb305b0c51a7"
             ]
-            "ta1sn0e7zr89gafgauz9xu3m25cz5ugs0s4xhtxdhqsuca58r6ycclr7\
-            \sp2hlmqvhyywy266ghldvxn4p0adxn0esew6a423jkmxpdsc5d8xw6gar"
+            "addr1sn0e7zr89gafgauz9xu3m25cz5ugs0s4xhtxdhqsuca58r6ycclr\
+            \7sp2hlmqvhyywy266ghldvxn4p0adxn0esew6a423jkmxpdsc5d8fke02m"
 
     describe "Random Address Discovery Properties" $ do
         it "isOurs works as expected during key derivation in testnet" $ do
@@ -326,11 +326,11 @@ genLegacyAddress range = do
 -- SPENDINGKEYBYTES=$(echo $SPENDINGKEY | jcli key to-bytes)
 -- DELEGATIONKEYBYTES=$(echo $DELEGATIONKEY | jcli key to-bytes)
 --
--- MAINNETSINGLE=$(jcli address single $SPENDINGKEY)
--- TESTNETSINGLE=$(jcli address single $SPENDINGKEY --testing)
+-- MAINNETSINGLE=$(jcli address single $SPENDINGKEY --prefix addr)
+-- TESTNETSINGLE=$(jcli address single $SPENDINGKEY --testing --prefix addr)
 --
--- MAINNETGROUPED=$(jcli address single $SPENDINGKEY $DELEGATIONKEY)
--- TESTNETGROUPED=$(jcli address single $SPENDINGKEY $DELEGATIONKEY --testing)
+-- MAINNETGROUPED=$(jcli address single $SPENDINGKEY $DELEGATIONKEY --prefix addr)
+-- TESTNETGROUPED=$(jcli address single $SPENDINGKEY $DELEGATIONKEY --testing --prefix addr)
 --
 -- TESTVECTOR=test_vector_$(date +%s)
 -- touch $TESTVECTOR

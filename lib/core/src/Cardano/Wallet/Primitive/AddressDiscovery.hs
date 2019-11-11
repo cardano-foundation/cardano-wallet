@@ -43,11 +43,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.Types
     ( Address (..) )
 import Codec.Binary.Bech32
-    ( HumanReadablePart
-    , dataPartFromBytes
-    , dataPartToBytes
-    , unsafeHumanReadablePartFromText
-    )
+    ( dataPartFromBytes, dataPartToBytes, unsafeHumanReadablePartFromText )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Base58
@@ -180,17 +176,18 @@ class DecodeAddress (n :: NetworkDiscriminant) where
 -- The right encoding is picked by looking at the raw 'Address' representation
 -- in order to figure out to which class the address belongs.
 instance EncodeAddress 'Mainnet where
-    encodeAddress = gEncodeAddress (unsafeHumanReadablePartFromText "ca")
+    encodeAddress = gEncodeAddress
 
 instance EncodeAddress 'Testnet where
-    encodeAddress = gEncodeAddress (unsafeHumanReadablePartFromText "ta")
+    encodeAddress = gEncodeAddress
 
-gEncodeAddress :: HumanReadablePart -> Address -> Text
-gEncodeAddress hrp (Address bytes) =
+gEncodeAddress :: Address -> Text
+gEncodeAddress (Address bytes) =
     if isJust (decodeLegacyAddress bytes) then base58 else bech32
   where
     base58 = T.decodeUtf8 $ encodeBase58 bitcoinAlphabet bytes
     bech32 = Bech32.encodeLenient hrp (dataPartFromBytes bytes)
+      where hrp = unsafeHumanReadablePartFromText "addr"
 
 -- | Decode text string into an 'Address'. Jörmungandr recognizes two kind of
 -- addresses:
