@@ -46,15 +46,15 @@ module Cardano.Wallet.Jormungandr.Api.Client
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Api
-    ( BlockId (..)
-    , GetBlock
+    ( GetBlock
     , GetBlockDescendantIds
     , GetStakeDistribution
     , GetTipId
     , PostMessage
-    , StakeApiResponse
     , api
     )
+import Cardano.Wallet.Jormungandr.Api.Types
+    ( BlockId (..), StakeApiResponse )
 import Cardano.Wallet.Jormungandr.Binary
     ( ConfigParam (..), Fragment (..), convertBlock )
 import Cardano.Wallet.Jormungandr.Compatibility

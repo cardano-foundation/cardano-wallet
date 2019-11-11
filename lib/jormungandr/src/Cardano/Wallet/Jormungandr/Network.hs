@@ -65,11 +65,6 @@ import Cardano.Launcher
     , transformLauncherTrace
     , withBackendProcess
     )
-import Cardano.Wallet.Jormungandr.Api
-    ( ApiStakeDistribution (pools)
-    , ApiT (..)
-    , StakeApiResponse (epoch, stake)
-    )
 import Cardano.Wallet.Jormungandr.Api.Client
     ( BaseUrl (..)
     , ErrGetBlock (..)
@@ -91,6 +86,11 @@ import Cardano.Wallet.Jormungandr.Api.Client
     , mkJormungandrClient
     , newManager
     , postMessage
+    )
+import Cardano.Wallet.Jormungandr.Api.Types
+    ( ApiStakeDistribution (pools)
+    , ApiT (..)
+    , StakeApiResponse (epoch, stake)
     )
 import Cardano.Wallet.Jormungandr.Binary
     ( runGetOrFail )

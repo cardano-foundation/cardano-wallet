@@ -10,7 +10,7 @@ module Cardano.Wallet.Jormungandr.ApiSpec
 
 import Prelude
 
-import Cardano.Wallet.Jormungandr.Api
+import Cardano.Wallet.Jormungandr.Api.Types
     ( ApiStakeDistribution (..), ApiT (..), StakeApiResponse (..) )
 import Cardano.Wallet.Primitive.Types
     ( PoolId (..) )
