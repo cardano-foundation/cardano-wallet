@@ -152,11 +152,40 @@ spec = do
                 ]
 
     it "BYRON_CALCULATE_02 - \
-        \for empty wallet calculated fee is zero."
+        \Cannot calculate fee for empty wallet."
         $ \ctx -> do
             w <- emptyByronWallet ctx
             let ep = calculateByronMigrationCostEp w
             r <- request @ApiByronWalletMigrationInfo ctx ep Default Empty
+            -- FIXME
+            -- should be fixed within #1007
+            verify r
+                [ expectResponseCode @IO HTTP.status200
+                , expectFieldEqual amount 0
+                ]
+
+    it "BYRON_CALCULATE_02 - \
+        \Cannot calculate fee for wallet with dust, that cannot be migrated."
+        $ \ctx -> do
+            -- NOTE
+            -- Special mnemonic for which wallet with dust
+            -- (1 utxo with 10 lovelace)
+            let mnemonics =
+                    [ "prison", "census", "discover", "give"
+                    , "sound", "behave", "hundred", "cave"
+                    , "someone", "orchard", "just", "wild"
+                    ] :: [Text]
+            let payloadRestore = Json [json| {
+                    "name": "Dust Byron Wallet",
+                    "mnemonic_sentence": #{mnemonics},
+                    "passphrase": #{fixturePassphrase}
+                    } |]
+            (_, w) <- unsafeRequest @ApiByronWallet ctx
+                postByronWalletEp payloadRestore
+            let ep = calculateByronMigrationCostEp w
+            r <- request @ApiByronWalletMigrationInfo ctx ep Default Empty
+            -- FIXME
+            -- should be fixed within #1007
             verify r
                 [ expectResponseCode @IO HTTP.status200
                 , expectFieldEqual amount 0
@@ -334,6 +363,42 @@ spec = do
         \migrating an empty wallet should fail."
         $ \ctx -> do
             sourceWallet <- emptyByronWallet ctx
+            targetWallet <- emptyWallet ctx
+            let payload = Json [json|{"passphrase": "Secure Passphrase"}|]
+            let ep = migrateByronWalletEp sourceWallet targetWallet
+            r <- request @[ApiTransaction n] ctx ep Default payload
+            let srcId = sourceWallet ^. walletId
+            verify r
+                [ expectResponseCode @IO HTTP.status403
+                , expectErrorMessage (errMsg403NothingToMigrate srcId)
+                ]
+
+    it "BYRON_MIGRATE_02 - \
+        \migrating wallet with dust should fail."
+        $ \ctx -> do
+            -- NOTE
+            -- Special mnemonic for which wallet with dust
+            -- (5 utxos with 60 lovelace in total)
+            let mnemonics =
+                    [ "suffer", "decorate", "head", "opera"
+                    , "yellow", "debate", "visa", "fire"
+                    , "salute", "hybrid", "stone", "smart"
+                    ] :: [Text]
+            let payloadRestore = Json [json| {
+                    "name": "Dust Byron Wallet",
+                    "mnemonic_sentence": #{mnemonics},
+                    "passphrase": #{fixturePassphrase}
+                    } |]
+            (_, sourceWallet) <- unsafeRequest @ApiByronWallet ctx
+                postByronWalletEp payloadRestore
+            eventually_ $ do
+                request @ApiByronWallet ctx
+                    (getByronWalletEp sourceWallet)
+                    Default
+                    Empty >>= flip verify
+                    [ expectFieldSatisfy balanceAvailable (> 0)
+                    ]
+
             targetWallet <- emptyWallet ctx
             let payload = Json [json|{"passphrase": "Secure Passphrase"}|]
             let ep = migrateByronWalletEp sourceWallet targetWallet
