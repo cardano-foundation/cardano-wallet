@@ -16,6 +16,14 @@ import Cardano.BM.Trace
     ( nullTracer )
 import Cardano.Wallet.Jormungandr.Api
     ( GetTipId, api )
+import Cardano.Wallet.Jormungandr.Api.Client
+    ( ErrGetAccountState (..) )
+import Cardano.Wallet.Jormungandr.Api.Types
+    ( ApiAccountDelegationInfo (..)
+    , ApiAccountId (..)
+    , ApiAccountState (..)
+    , ApiT (..)
+    )
 import Cardano.Wallet.Jormungandr.Binary
     ( FragmentSpec (..)
     , TxWitnessTag (..)
@@ -59,6 +67,7 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader (..)
     , Coin (..)
     , Hash (..)
+    , PoolId (..)
     , SlotId (..)
     , Tx (..)
     , TxIn (..)
@@ -94,6 +103,10 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text
+    ( Text )
+import Data.Text.Class
+    ( fromText )
 import Data.Word
     ( Word8 )
 import Network.HTTP.Client
@@ -131,6 +144,7 @@ import Test.Utils.Ports
     ( randomUnusedTCPPorts )
 
 import qualified Cardano.Wallet.Jormungandr.Api.Client as Jormungandr
+import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 
@@ -140,6 +154,23 @@ spec :: Spec
 spec = do
     let once = limitRetries 1
     describe "Happy Paths" $ around startNode $ do
+
+        it "get account state" $
+            \(_, url) -> do
+                manager <- newManager defaultManagerSettings
+                let client = Jormungandr.mkJormungandrClient manager url
+                res <- runExceptT $
+                    Jormungandr.getAccountState client testApiAccountId
+                res `shouldBe` Right ApiAccountState
+                    { currentBalance =
+                        ApiT (Quantity 1)
+                    , totalTransactionCount =
+                        ApiT (Quantity 0)
+                    , delegationInfo = ApiAccountDelegationInfo
+                        { stakePools = [ (testPoolId, ApiT $ Quantity 1) ]
+                        }
+                    }
+
         it "get network tip" $ \(nw, _) -> do
             resp <- runExceptT $ networkTip nw
             resp `shouldSatisfy` isRight
@@ -184,6 +215,7 @@ spec = do
                     `shouldBe` Right True
 
     describe "Error paths" $ do
+
         let newBrokenNetworkLayer
                 :: BaseUrl
                 -> IO (NetworkLayer IO Jormungandr ())
@@ -237,6 +269,17 @@ spec = do
 
     describe "White-box error path tests" $
         around startNode $ do
+
+        it "can't get account state for account that does not exist" $
+            \(_, url) -> do
+                manager <- newManager defaultManagerSettings
+                let client = Jormungandr.mkJormungandrClient manager url
+                let nonexistentAccountId = ApiAccountId $
+                        Bech32.dataPartFromBytes mempty
+                res <- runExceptT $
+                    Jormungandr.getAccountState client nonexistentAccountId
+                res `shouldBe` Left
+                    (ErrGetAccountStateAccountNotFound nonexistentAccountId)
 
         it "can't fetch a block that doesn't exist" $
             \(_, url) -> do
@@ -534,3 +577,25 @@ isRollBackwardTo
 isRollBackwardTo nl sl = \case
     RollBackward cursor -> cursorSlotId nl cursor == sl
     _ -> False
+
+{-------------------------------------------------------------------------------
+                                   Test Data
+-------------------------------------------------------------------------------}
+
+mkApiAccountId :: Text -> ApiAccountId
+mkApiAccountId = either err id . fromText
+  where
+    err = error "Unable to create test Jörmungandr account ID."
+
+mkApiPoolId :: Text -> ApiT PoolId
+mkApiPoolId = either err ApiT . fromText
+  where
+    err = error "Unable to create test Jörmungandr pool ID."
+
+testApiAccountId :: ApiAccountId
+testApiAccountId = mkApiAccountId
+    "ca1skkalz75s4vtw2e9wsy2q9jvsu3qtz6d2vm3xj4e5q4ufejpjjfn5lh35yr"
+
+testPoolId :: ApiT PoolId
+testPoolId = mkApiPoolId
+    "4f8d686a02c6e625b5a59cc9e234f32e5d72987012f9c25c9a6b60ddade197d1"
