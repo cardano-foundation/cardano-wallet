@@ -11,11 +11,11 @@ module Cardano.Faucet
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Binary
-    ( getBlockId, runGet )
+    ( fragmentId, getBlockId, runGet )
 import Cardano.Wallet.Primitive.Mnemonic
     ( Mnemonic )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Coin (..), Hash (..), TxIn (..) )
+    ( Address (..), Coin (..), Hash (..), TxIn (..), TxOut (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeMkMnemonic )
 import Control.Concurrent.MVar
@@ -984,76 +984,63 @@ rndMnemonics = unsafeMkMnemonic <$>
 
 externalAddresses :: [(TxIn, String)]
 externalAddresses =
-    [ -- external1s0c3kr37th47lcajtcdcmj6z954ylg537msupdcxxwsdrnmuclxfqr9cqau
-      ( TxIn (Hash . unsafeFromHex $
-            "34f1337ff63599b7858f9122f0ecc8c876152189f7618c269bfdca71261cc88e")
-            0
+    [ ( unsafeMkTxIn
+        "external1s0c3kr37th47lcajtcdcmj6z954ylg537msupdcxxwsdrnmuclxfqr9cqau"
       , "ed25519_sk1qmgkz5d4c0swl2uwfvaxuxyd7zmuq95s22xxwkel30sx9l9m6ffqa4hdxg"
       )
-
-    , -- external1sdqse0sme69dfrrlwshhkwqwwqtrp9h6g4h7qzdgfe0ws27t746ludqrs69
-      ( TxIn (Hash . unsafeFromHex $
-            "229fba82a1f3f69cafbdc8f6a43de2e851ee7ee0744935e2ce191e1c0aed57d5")
-            0
+    , ( unsafeMkTxIn
+        "external1sdqse0sme69dfrrlwshhkwqwwqtrp9h6g4h7qzdgfe0ws27t746ludqrs69"
       , "ed25519_sk1j7gw3p942jh78ck87f0zknx5ts87cjmw7qrc3paa9wkwhznmajcsm72d5v"
       )
 
-    , -- external1s0h6kelrx0kukrg80p66z63dkycr200taxa8vscgvt07r3heyet97jztehn
-      ( TxIn (Hash . unsafeFromHex $
-            "b451fa94f10b84a096bdd17997878abbd4911c909f4ce355dc4ac8b1945f7fda")
-            0
+    , ( unsafeMkTxIn
+        "external1s0h6kelrx0kukrg80p66z63dkycr200taxa8vscgvt07r3heyet97jztehn"
       , "ed25519_sk1vtvxq5ya43zygslw46n05pjtqp686mph2kq6xlh74qcut7rk0jcsd4h40r"
       )
 
-    , -- external1swe7gkjfh5us4ndh05qs4l5zzr9326gmx90n4wyyqhhcd9z6d2wu7r4altz
-      ( TxIn (Hash . unsafeFromHex $
-            "d62dbb90cd42ac2a13ea9429344d029c754b21d050b066342ed2c9ee6ef831b5")
-            0
+    , ( unsafeMkTxIn
+        "external1swe7gkjfh5us4ndh05qs4l5zzr9326gmx90n4wyyqhhcd9z6d2wu7r4altz"
       , "ed25519_sk1zyqdl00vkkkjdnqcgcmkfqr3m5vr7fg4qm000zsv70kunzzzw5cqjmqhza"
       )
 
-    , -- external1s0df8z9qrqc7mvv2v6uk0th930km5rgj00arzp8pmhm86z9srncd73dzqer
-      ( TxIn (Hash . unsafeFromHex $
-            "ed2fbae5e31732b4341652c16b2e221ffc03747fbc98e4a2fe3ee14c055a13e7")
-            0
+    , ( unsafeMkTxIn
+        "external1s0df8z9qrqc7mvv2v6uk0th930km5rgj00arzp8pmhm86z9srncd73dzqer"
       , "ed25519_sk1lkv5g5anapcpaud3ny9wsl6d6smdrjj0v2jx70jnkmtzc07u2vksyyheqw"
       )
 
-    , -- external1swch34gwdh8c5ly5u9872knkkjekvlhtvkxgg0uryr3qy3arxuhr76ks8ha
-      ( TxIn (Hash . unsafeFromHex $
-            "628dc209b91dbafa7172db99f30914ebb7557597b5af7c3489641fda4c6f1441")
-            0
+    , ( unsafeMkTxIn
+        "external1swch34gwdh8c5ly5u9872knkkjekvlhtvkxgg0uryr3qy3arxuhr76ks8ha"
       , "ed25519_sk1lek3s5nzv67kn3dqp7tzz5xreh2954e6npa02pct94fpqg7s34rsccyah8"
       )
 
-    , -- external1swnfgruhxu2y6986vaq8kmnz4q2aa2j82unc52mjtm9mha79axmrzwua468
-      ( TxIn (Hash . unsafeFromHex $
-            "67afdb95aa2bb4643fbee0f61361e0639e1ded5329e3f695f5a9f90d4ab9c7bb")
-            0
+    , ( unsafeMkTxIn
+        "external1swnfgruhxu2y6986vaq8kmnz4q2aa2j82unc52mjtm9mha79axmrzwua468"
       , "ed25519_sk1lq9ccgjz6cmkc203xu5efz0nyhvngea4uapzt0nqwxq6c349ky2qzvr7wf"
       )
 
-    , -- external1sd3w9tlg6ln8vn8fc8peu8xtavsehdvpx38h44lw782m7lpap4xzjd9dwsc
-      ( TxIn (Hash . unsafeFromHex $
-            "1518c116b4056f0d6789af51abcac823c04a52be2a014a161a44d2fe61edd687")
-            0
+    , ( unsafeMkTxIn
+        "external1sd3w9tlg6ln8vn8fc8peu8xtavsehdvpx38h44lw782m7lpap4xzjd9dwsc"
       , "ed25519_sk16yqxp28e4lsj00klyrutnf9eld879s7gww8h58chdnvhngvqgz4sf95z86"
       )
 
-    , -- external1sdmtjwmdqsz2nl2pypgsdxypvf97f7y0dppw5ypg2vyyrhzfpazcckq7557
-      ( TxIn (Hash . unsafeFromHex $
-            "7a0c8a8ec19cd4ef99a22317b3f5c244f42872628461dffae07533d8c81b8420")
-            0
+    , ( unsafeMkTxIn
+        "external1sdmtjwmdqsz2nl2pypgsdxypvf97f7y0dppw5ypg2vyyrhzfpazcckq7557"
       , "ed25519_sk1y8zzc7dh36p54jw8j6cc6awpymhrfs8flczf2xt2zg798zx2qhrscq7myx"
       )
 
-    , -- external1s0vn7nhenkn8lfx2twydelw7wlzq5rxtkxqzhcu53anjgz2gjl4tkc438l5
-      ( TxIn (Hash . unsafeFromHex $
-            "8014aed7005c8d351c4a5163bc5bf4a9e3f1d58ddd8c43b1a1797742da6854f0")
-            0
+    , ( unsafeMkTxIn
+        "external1s0vn7nhenkn8lfx2twydelw7wlzq5rxtkxqzhcu53anjgz2gjl4tkc438l5"
       , "ed25519_sk19aj3wm4ztwz6mjf33knq3u30am0exhntu76qees7zjryc4hzugpspmjz5w"
       )
     ]
+  where
+    unsafeMkTxIn out =
+        let
+            Right (_, dp) = Bech32.decodeLenient out
+            Just addr = Address <$> Bech32.dataPartToBytes dp
+            sourceId = fragmentId [] [TxOut addr (Coin 100000000000)] []
+        in
+            TxIn sourceId 0
 
 {-
 
