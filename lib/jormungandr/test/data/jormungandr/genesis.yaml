@@ -6122,6 +6122,32 @@ initial:
   - cert: signedcert1q8qtmpgefmhlwrwlm48kxq43hpkxnvz8fey2jlmce5lea3mxnskfqq264syfguy58qc5aswgkp5hsg8u9ma2ey28dz6nu4xk3v9uu9af4rmltr2l3fcuvvcncxcd8pkujg55zdm9vvkpd7v68fsk700346rkd0cew62txal4zzm082gf22t652dqeyxvxr8gve9kt30fvpg5yjgpwe6ppl
   - cert: signedcert1qxzn99jx8a2rw80gp9uea47tmcndv7gm28vy9as6akevy32204aqwq2ulwml0mqq2pyel0gu09g4y9k9443kh973j39aaznahx886yngqwgl2dse22c2n494hxlfzkw8v4rtxuj43unq04u7r848v28axlge63zlr4wpuwq080y3htyxxcx6dujzz84m7tupkhxrpcu0t9x67cq0x6dn8y
 
+  # A special Byron Wallet comming from ["suffer", "decorate", "head", "opera", "yellow", "debate", "visa", "fire", "salute", "hybrid", "stone", "smart"]
+  #
+  # with with only dust
+  - legacy_fund:
+    - address: DdzFFzCqrhsz56VqWWAQpRMcSFYE1WKeuFcVzV9UpovnJghF4YmV7TkMLNh1GCHftUBNEZQ2h3fCKsb25syBYrd1Qob2XkyeS6vgDzQ8
+      value: 10
+  - legacy_fund:
+    - address: DdzFFzCqrhsfE8zNNyc84uMJrR6Ma3ToNYfwwZ4oQVGt8QrG9ZQtKngy3Qe4tzioZSdnwpD9n8RwFC22n61ytMs7NkXhVHrZwPoDjUju
+      value: 11
+  - legacy_fund:
+    - address: DdzFFzCqrht6QNVjDuTwuwzYbubxxEHkRLR717NWYsUeqimhr9WwQQMJS8r4cfoW6Fkdefm53ea5vX5drr55vrTsGcPDKjFgENcXtDC8
+      value: 12
+  - legacy_fund:
+    - address: DdzFFzCqrhspYWP9aDtu4t3LQWyt4h7zWSYgmRbfdvHindyJoSozKq81ZDEAVhzQy7PFCMFBDFyzrszZXvHQCwTwyPLpqgFwadJqn6rN
+      value: 13
+  - legacy_fund:
+    - address: DdzFFzCqrhsktZddiMaLXEBdfpcZaJvUQpaM3KUQgaj4Tg3v2EeVU8HXimv6Ci7C46rYeQJ16sgwxU7t71eEbVpAknSsZDgCrk1ZbLk6
+      value: 14
+
+  # A special Byron Wallet comming from ["prison", "census", "discover", "give", "sound", "behave", "hundred", "cave", "someone", "orchard", "just", "wild"]
+  #
+  # with with only dust
+  - legacy_fund:
+    - address: DdzFFzCqrhseC4ds1oxM2HDhuBZSJQQdkTqbBRJhsgt544jMChLCcxjqbqqjNKQSXCye8CVGQVcaSTpKZ62Gn8LG47cfErV9oyruvkLx
+      value: 10
+
   # A special Byron Wallet coming from ["collect", "fold", "file", "clown", "injury", "sun", "brass", "diet", "exist", "spike", "behave", "clip"]
   #
   # with 500 UTxOs where 100 of them are dust
