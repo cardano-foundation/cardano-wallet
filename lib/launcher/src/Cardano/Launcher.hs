@@ -33,12 +33,16 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Trace
     ( Trace, appendName, traceNamedItem )
+import Control.Concurrent
+    ( forkIO )
 import Control.Concurrent.Async
     ( race )
+import Control.Concurrent.MVar
+    ( newEmptyMVar, putMVar, takeMVar )
 import Control.Exception
-    ( Exception, IOException, tryJust )
+    ( Exception, IOException, onException, tryJust )
 import Control.Monad
-    ( join )
+    ( join, void )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Tracer
@@ -173,8 +177,14 @@ withBackendProcessHandle tr cmd@(Command name args before output) action = do
             pid <- maybe "-" (T.pack . show) <$> getPid h
             let tr' = appendName (T.pack name <> "." <> pid) tr
             launcherLog tr' $ MsgLauncherStarted name pid
-            race (ProcessHasExited name <$> waitForProcess h)
-                (action h <* launcherLog tr' MsgLauncherCleanup)
+
+            let waitForExit =
+                    ProcessHasExited name <$> interruptibleWaitForProcess tr' h
+            let runAction = do
+                    launcherLog tr' MsgLauncherAction
+                    action h <* launcherLog tr' MsgLauncherCleanup
+
+            race waitForExit runAction
     either (launcherLog tr . MsgLauncherFinish) (const $ pure ()) res
     pure res
   where
@@ -187,6 +197,27 @@ withBackendProcessHandle tr cmd@(Command name args before output) action = do
         | name `isPrefixOf` show e = Just (ProcessDidNotStart name e)
         | otherwise = Nothing
 
+    -- Wraps 'waitForProcess' in another thread. This works around the unwanted
+    -- behaviour of the process library on Windows where 'waitForProcess' seems
+    -- to block all concurrent async actions in the thread.
+    interruptibleWaitForProcess
+        :: Trace IO LauncherLog
+        -> ProcessHandle
+        -> IO ExitCode
+    interruptibleWaitForProcess tr' ph = do
+        status <- newEmptyMVar
+        void $ forkIO $ waitThread status `onException` continue status
+        takeMVar status
+      where
+        waitThread var = do
+            launcherLog tr' MsgLauncherWaitBefore
+            status <- waitForProcess ph
+            launcherLog tr' (MsgLauncherWaitAfter $ exitStatus status)
+            putMVar var status
+        continue var = do
+            launcherLog tr' MsgLauncherCancel
+            putMVar var (ExitFailure 256)
+
 {-------------------------------------------------------------------------------
                                     Logging
 -------------------------------------------------------------------------------}
@@ -194,7 +225,11 @@ withBackendProcessHandle tr cmd@(Command name args before output) action = do
 data LauncherLog
     = MsgLauncherStart Command
     | MsgLauncherStarted String Text
+    | MsgLauncherWaitBefore
+    | MsgLauncherWaitAfter Int
+    | MsgLauncherCancel
     | MsgLauncherFinish ProcessHasExited
+    | MsgLauncherAction
     | MsgLauncherCleanup
     deriving (Generic, ToJSON)
 
@@ -220,10 +255,14 @@ launcherLog logTrace msg = traceNamedItem logTrace Public (launcherLogLevel msg)
 launcherLogLevel :: LauncherLog -> Severity
 launcherLogLevel (MsgLauncherStart _) = Notice
 launcherLogLevel (MsgLauncherStarted _ _) = Info
+launcherLogLevel MsgLauncherWaitBefore = Debug
+launcherLogLevel (MsgLauncherWaitAfter _) = Debug
+launcherLogLevel MsgLauncherCancel = Debug
 launcherLogLevel (MsgLauncherFinish (ProcessHasExited _ st)) = case st of
     ExitSuccess -> Notice
     ExitFailure _ -> Error
 launcherLogLevel (MsgLauncherFinish (ProcessDidNotStart _ _)) = Error
+launcherLogLevel MsgLauncherAction = Debug
 launcherLogLevel MsgLauncherCleanup = Notice
 
 launcherLogText :: LauncherLog -> Builder
@@ -231,10 +270,14 @@ launcherLogText (MsgLauncherStart cmd) =
     "Starting process "+|cmd|+""
 launcherLogText (MsgLauncherStarted name pid) =
     "Process "+|name|+" started with pid "+|pid|+""
+launcherLogText MsgLauncherWaitBefore = "About to waitForProcess"
+launcherLogText (MsgLauncherWaitAfter status) = "waitForProcess returned "+||status||+""
+launcherLogText MsgLauncherCancel = "There was an exception waiting for the process"
 launcherLogText (MsgLauncherFinish (ProcessHasExited name code)) =
     "Child process "+|name|+" exited with status "+||exitStatus code||+""
 launcherLogText (MsgLauncherFinish (ProcessDidNotStart name _e)) =
     "Could not start "+|name|+""
+launcherLogText MsgLauncherAction = "Running withBackend action"
 launcherLogText MsgLauncherCleanup = "Terminating child process"
 
 {-------------------------------------------------------------------------------

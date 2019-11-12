@@ -76,13 +76,16 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           depends = [
             (hsPkgs."base" or (buildDepError "base"))
             (hsPkgs."async" or (buildDepError "async"))
+            (hsPkgs."cardano-wallet-cli" or (buildDepError "cardano-wallet-cli"))
             (hsPkgs."cardano-wallet-launcher" or (buildDepError "cardano-wallet-launcher"))
+            (hsPkgs."cardano-wallet-test-utils" or (buildDepError "cardano-wallet-test-utils"))
             (hsPkgs."fmt" or (buildDepError "fmt"))
             (hsPkgs."hspec" or (buildDepError "hspec"))
             (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
             (hsPkgs."process" or (buildDepError "process"))
             (hsPkgs."retry" or (buildDepError "retry"))
             (hsPkgs."text" or (buildDepError "text"))
+            (hsPkgs."time" or (buildDepError "time"))
             ];
           build-tools = [
             (hsPkgs.buildPackages.hspec-discover or (pkgs.buildPackages.hspec-discover or (buildToolDepError "hspec-discover")))

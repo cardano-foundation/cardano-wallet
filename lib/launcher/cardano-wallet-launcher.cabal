@@ -57,7 +57,8 @@ test-suite unit
       NoImplicitPrelude
       OverloadedStrings
   ghc-options:
-      -threaded -rtsopts
+      -threaded
+      -rtsopts
       -Wall
       -O2
   if (!flag(development))
@@ -67,12 +68,14 @@ test-suite unit
       base
     , async
     , cardano-wallet-launcher
+    , cardano-wallet-test-utils
     , fmt
     , hspec
     , iohk-monitoring
     , process
     , retry
     , text
+    , time
   build-tools:
       hspec-discover
   type:
