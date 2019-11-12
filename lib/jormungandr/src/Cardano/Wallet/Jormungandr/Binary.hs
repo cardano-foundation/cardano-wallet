@@ -13,11 +13,11 @@
 -- License: Apache-2.0
 --
 -- The format is for the Shelley era as implemented by the Jörmungandr node.
--- It is described [here](https://github.com/input-output-hk/chain-libs/blob/master/chain-impl-mockchain/doc/format.md)
+-- It is described [here](https://github.com/input-output-hk/chain-libs/blob/master/chain-impl-mockchain/doc/format.abnf)
 --
 -- The module to some extent defines its own Jörmungandr-specific types,
 -- different from "Cardano.Wallet.Primitive.Types". Here, transactions are just
--- one of many possible 'Message's that can be included in a block.
+-- one of many possible 'Fragment' that can be included in a block.
 --
 -- In some cases it also leads us to /throw exceptions/ when integers would
 -- otherwise overflow (look for uses of 'toEnum').
@@ -28,13 +28,13 @@ module Cardano.Wallet.Jormungandr.Binary
     , ConfigParam (..)
     , ConsensusVersion (..)
     , LeaderId (..)
-    , Message (..)
-    , MessageType (..)
+    , Fragment (..)
+    , FragmentSpec (..)
     , Milli (..)
     , getBlock
     , getBlockHeader
     , getBlockId
-    , getMessage
+    , getFragment
     , getTransaction
     , putSignedTx
     , putTx
@@ -181,7 +181,7 @@ data BlockHeader = BlockHeader
 
 data Block = Block
     { header :: BlockHeader
-    , messages :: [Message]
+    , fragments :: [Fragment]
     } deriving (Eq, Show)
 
 getBlockHeader :: Get BlockHeader
@@ -235,9 +235,9 @@ getBlockHeader = label "getBlockHeader" $ do
 getBlock :: Get Block
 getBlock = label "getBlock" $ do
     header <- getBlockHeader
-    messages <- isolate (fromIntegral $ contentSize header)
-        (whileM (not <$> isEmpty) getMessage)
-    return $ Block{header,messages}
+    fragments <- isolate (fromIntegral $ contentSize header)
+        (whileM (not <$> isEmpty) getFragment)
+    return $ Block{header,fragments}
 
 -- | Extract a 'Block' id from a serialized 'Block'.
 getBlockId :: Get (Hash "BlockHeader")
@@ -247,29 +247,26 @@ getBlockId = lookAhead getBlock *> label "getBlockId" (do
     return $ Hash $ blake2b256 bytes)
 
 {-------------------------------------------------------------------------------
-                           Messages
+                           Fragments
 -------------------------------------------------------------------------------}
 
--- | The block-body consists of messages. There are several types of messages.
---
---  Following, as closely as possible:
--- https://github.com/input-output-hk/rust-cardano/blob/e0616f13bebd6b908320bddb1c1502dea0d3305a/chain-impl-mockchain/src/message/mod.rs#L22-L29
-data Message
+-- | The block-body consists of fragments. There are several types of fragments.
+data Fragment
     = Initial [ConfigParam]
     -- ^ Found in the genesis block.
     | Transaction (Tx, [TxWitness])
     -- ^ A standard signed transaction
     | StakeDelegation (PoolId, ChimericAccount, Tx, [TxWitness])
     -- ^ A signed transaction with stake pool delegation
-    | UnimplementedMessage Int
-    -- Messages not yet supported go there.
+    | UnimplementedFragment Int
+    -- Fragments not yet supported go there.
     deriving (Eq, Show)
 
-data MessageType
-    = MsgTypeInitial
-    | MsgTypeLegacyUTxO
-    | MsgTypeTransaction
-    | MsgTypeDelegation
+data FragmentSpec
+    = FragmentInitial
+    | FragmentLegacyUTxO
+    | FragmentTransaction
+    | FragmentDelegation
 
 data TxWitnessTag
     = TxWitnessLegacyUTxO
@@ -293,9 +290,9 @@ getTxWitnessTag = getWord8 >>= \case
     3 -> pure TxWitnessMultisig
     other -> fail $ "Invalid witness type: " ++ show other
 
--- | Decode a message (header + contents).
-getMessage :: Get Message
-getMessage = label "getMessage" $ do
+-- | Decode a fragment (header + contents).
+getFragment :: Get Fragment
+getFragment = label "getFragment" $ do
     size <- fromIntegral <$> getWord16be
 
     -- We lazily compute the fragment-id, using lookAHead, before calling the
@@ -305,17 +302,18 @@ getMessage = label "getMessage" $ do
     -- corresponds to the txId (a.k.a "tx hash").
     fragId <- Hash . blake2b256 . BL.toStrict
         <$> lookAhead (getLazyByteString $ fromIntegral size)
-    msgType <- fromIntegral <$> getWord16le
-    let remaining = size - 2
-    let unimpl = skip remaining >> return (UnimplementedMessage msgType)
-    let typeLabelStr = "fragmentType " ++ show msgType
 
-    label typeLabelStr $ isolate remaining $ case msgType of
+    fragSpec <- fromIntegral <$> getWord16le
+    let remaining = size - 2
+    let unimpl = skip remaining >> return (UnimplementedFragment fragSpec)
+    let typeLabelStr = "fragmentType " ++ show fragSpec
+
+    label typeLabelStr $ isolate remaining $ case fragSpec of
         0 -> Initial <$> getInitial
         1 -> Transaction <$> getLegacyTransaction fragId
         2 -> Transaction <$> getTransaction fragId
         3 -> unimpl -- OwnerStakeDelegation
-        4 -> maybe (UnimplementedMessage msgType) StakeDelegation <$>
+        4 -> maybe (UnimplementedFragment fragSpec) StakeDelegation <$>
             lookAheadM (getStakeDelegation fragId)
         5 -> unimpl -- PoolRegistration
         6 -> unimpl -- PoolRetirement
@@ -324,14 +322,14 @@ getMessage = label "getMessage" $ do
         9 -> unimpl -- UpdateVote
         other -> fail $ "Unexpected content type tag " ++ show other
 
-messageTypeTag :: MessageType -> Word16
-messageTypeTag = \case
-    MsgTypeInitial -> 0
-    MsgTypeLegacyUTxO -> 1
-    MsgTypeTransaction -> 2
-    MsgTypeDelegation -> 4
+fragmentTypeTag :: FragmentSpec -> Word16
+fragmentTypeTag = \case
+    FragmentInitial -> 0
+    FragmentLegacyUTxO -> 1
+    FragmentTransaction -> 2
+    FragmentDelegation -> 4
 
--- | Decode the contents of a @Initial@-message.
+-- | Decode the contents of a @Initial@-fragment.
 getInitial :: Get [ConfigParam]
 getInitial = label "getInitial" $ do
     len <- fromIntegral <$> getWord16be
@@ -375,7 +373,7 @@ stakeDelegationTypeTag = \case
     DlgFull -> 1
     DlgRatio -> 2
 
--- | Decode the contents of a @Transaction@-message carrying a delegation cert.
+-- | Decode the contents of a @Transaction@-fragment carrying a delegation cert.
 --
 -- Returns 'Nothing' for unsupported stake delegation types: DLG-NONE & DLG-RATIO
 getStakeDelegation
@@ -424,7 +422,7 @@ putStakeDelegationTx poolId accId (Hash accSig) inputs outputs witnesses = do
     putSignedTx inputs outputs witnesses
     putByteString accSig
 
--- | Decode the contents of a @Transaction@-message.
+-- | Decode the contents of a @Transaction@-fragment.
 getTransaction :: Hash "Tx" -> Get (Tx, [TxWitness])
 getTransaction = label "getTransaction" . getGenericTransaction
 
@@ -681,17 +679,23 @@ putAddress (Address bs) = putByteString bs
                               Helpers
 -------------------------------------------------------------------------------}
 
--- | Add a corresponding header to a message. Every message is encoded as:
+-- | Add a corresponding header to a fragment. Every fragment is encoded as:
 --
---     HEADER(MESSAGE) | MESSAGE
---
--- where `HEADER` is:
---
---     SIZE (2 bytes) | TYPE (1 byte)
---
-withHeader :: MessageType -> Put -> Put
+-- FRAGMENT         = FRAGMENT-SIZE %x00 FRAGMENT-SPEC
+-- FRAGMENT-SIZE    = SIZE-BYTES-16BIT
+-- FRAGMENT-SPEC    = %x00 INITIAL
+--                  / %x01 OLD-UTXO-DECL
+--                  / %x02 SIMPLE-TRANSACTION
+--                  / %x03 OWNER-STAKE-DELEGATION
+--                  / %x04 STAKE-DELEGATION
+--                  / %x05 POOL-REGISTRATION
+--                  / %x06 POOL-RETIREMENT
+--                  / %x07 POOL-UPDATE
+--                  / %x08 UPDATE-PROPOSAL
+--                  / %x09 UPDATE-VOTE
+withHeader :: FragmentSpec -> Put -> Put
 withHeader typ content = do
-    let bs = BL.toStrict $ runPut (putWord16le (messageTypeTag typ) *> content)
+    let bs = BL.toStrict $ runPut (putWord16le (fragmentTypeTag typ) *> content)
     putWord16be (toEnum $ BS.length bs)
     putByteString bs
 
@@ -706,7 +710,7 @@ estimateMaxNumberOfInputsParams
     :: EstimateMaxNumberOfInputsParams t
 estimateMaxNumberOfInputsParams = EstimateMaxNumberOfInputsParams
     { estMeasureTx = \ins outs wits -> fromIntegral $ BL.length $
-        runPut $ withHeader MsgTypeTransaction $
+        runPut $ withHeader FragmentTransaction $
             putSignedTx (map (, Coin 0) ins) outs wits
 
     -- Block IDs are always this long.
@@ -727,7 +731,7 @@ fragmentId
     -> Hash "Tx"
 fragmentId inps outs wits =
     Hash $ blake2b256 $ BL.toStrict $ runPut $ do
-        putWord16le (messageTypeTag MsgTypeTransaction)
+        putWord16le (fragmentTypeTag FragmentTransaction)
         putSignedTx inps outs wits
 
 delegationFragmentId
@@ -740,7 +744,7 @@ delegationFragmentId
     -> Hash "Tx"
 delegationFragmentId poolId accId accSig inps outs wits =
     Hash $ blake2b256 $ BL.toStrict $ runPut $ do
-        putWord16le (messageTypeTag MsgTypeDelegation)
+        putWord16le (fragmentTypeTag FragmentDelegation)
         putStakeDelegationTx poolId accId accSig inps outs wits
 
 -- | See 'fragmentId'. This computes the signing data required for producing
@@ -760,13 +764,13 @@ signData inps outs =
 -- | Convert the Jörmungandr binary format block into a simpler Wallet block.
 convertBlock :: Block -> W.Block
 convertBlock (Block h msgs) =
-    W.Block (convertBlockHeader h) coerceMessages
+    W.Block (convertBlockHeader h) coerceFragments
   where
-    coerceMessages = msgs >>= \case
+    coerceFragments = msgs >>= \case
         Initial _ -> []
         Transaction (tx, _wits) -> return tx
         StakeDelegation (_poolId, _xpub, tx, _wits) -> return tx
-        UnimplementedMessage _ -> []
+        UnimplementedFragment _ -> []
 
 -- | Convert the Jörmungandr binary format header into a simpler Wallet header.
 convertBlockHeader :: BlockHeader -> W.BlockHeader

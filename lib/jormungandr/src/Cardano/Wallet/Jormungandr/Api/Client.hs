@@ -56,7 +56,7 @@ import Cardano.Wallet.Jormungandr.Api
     , api
     )
 import Cardano.Wallet.Jormungandr.Binary
-    ( ConfigParam (..), Message (..), convertBlock )
+    ( ConfigParam (..), Fragment (..), convertBlock )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( softTxMaxSize )
 import Cardano.Wallet.Network

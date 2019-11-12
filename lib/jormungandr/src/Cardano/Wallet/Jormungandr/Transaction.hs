@@ -18,9 +18,9 @@ module Cardano.Wallet.Jormungandr.Transaction
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Binary
-    ( Message (..)
+    ( Fragment (..)
     , fragmentId
-    , getMessage
+    , getFragment
     , legacyUtxoWitness
     , maxNumberOfInputs
     , maxNumberOfOutputs
@@ -98,7 +98,7 @@ newTransactionLayer (Hash block0H) = TransactionLayer
     , decodeSignedTx = \payload -> do
         let errInvalidPayload =
                 ErrDecodeSignedTxWrongPayload "wrongly constructed binary blob"
-        case runGetOrFail getMessage (BL.fromStrict payload) of
+        case runGetOrFail getFragment (BL.fromStrict payload) of
             Left _ -> Left errInvalidPayload
             Right (_,_,msg) -> case msg of
                 Transaction stx -> pure stx
