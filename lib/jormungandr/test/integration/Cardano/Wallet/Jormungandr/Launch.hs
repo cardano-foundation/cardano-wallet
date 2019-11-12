@@ -11,6 +11,7 @@
 module Cardano.Wallet.Jormungandr.Launch
     ( withConfig
     , withBackendOnly
+    , testDataDir
     , spec
     ) where
 
@@ -49,6 +50,9 @@ import qualified Data.Aeson as Aeson
 import qualified Data.Text as T
 import qualified Data.Yaml as Yaml
 
+testDataDir :: FilePath
+testDataDir = "test" </> "data" </> "jormungandr"
+
 -- | Starts jormungandr on a random port using the integration tests config.
 -- The data directory will be stored in a unique location under the system
 -- temporary directory.
@@ -57,16 +61,15 @@ withConfig = bracket setupConfig teardownConfig
 
 setupConfig :: IO JormungandrConfig
 setupConfig = do
-    let dir = "test/data/jormungandr"
     tmp <- getCanonicalTemporaryDirectory
     configDir <- createTempDirectory tmp "cardano-wallet-jormungandr"
     logFile <- openFile (configDir </> "jormungandr.log") WriteMode
     let cfg = JormungandrConfig
             configDir
-            (Right $ dir </> "block0.bin")
+            (Right $ testDataDir </> "block0.bin")
             Nothing
             (UseHandle logFile)
-            ["--secret", dir </> "secret.yaml"]
+            ["--secret", testDataDir </> "secret.yaml"]
     genConfigYaml cfg
     pure cfg
 

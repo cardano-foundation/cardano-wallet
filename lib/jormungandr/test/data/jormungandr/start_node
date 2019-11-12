@@ -1,1 +1,1 @@
-cardano-wallet-jormungandr launch --genesis-block block0.bin --node-port 8080 -- --secret secret.yaml --config config.yaml
+cardano-wallet-jormungandr launch --genesis-block block0.bin --node-port 8080 --state-dir ./data -- --secret secret.yaml --config config.yaml

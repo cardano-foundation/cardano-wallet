@@ -74,6 +74,7 @@ import Test.Integration.Framework.DSL
     , expectEventually'
     , expectFieldBetween
     , expectFieldEqual
+    , expectListItemFieldBetween
     , expectListItemFieldEqual
     , expectListSizeEqual
     , expectResponseCode
@@ -141,7 +142,8 @@ data TestCase a = TestCase
 spec :: forall t n. (n ~ 'Testnet) => SpecWith (Context t)
 spec = do
     it "Regression #1004 -\
-        \ Incorrect transaction amount reported on pending txs" $ \ctx -> do
+        \ Transaction to self shows only fees as a tx amount\
+        \ while both, pending and in_ledger" $ \ctx -> do
         wSrc <- fixtureWallet ctx
         let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
                 { nInputs = 1
@@ -153,10 +155,27 @@ spec = do
         verify r
             [ expectSuccess
             , expectResponseCode HTTP.status202
+            -- tx amount includes only fees because it is tx to self address
+            -- when tx is pending
             , expectFieldBetween amount (feeMin, feeMax)
             , expectFieldEqual direction Outgoing
             , expectFieldEqual status Pending
             ]
+
+        eventually_ $ do
+            rt <- request @([ApiTransaction n]) ctx
+                (listTxEp wSrc mempty)
+                Default
+                Empty
+            verify rt
+                [ expectSuccess
+                , expectResponseCode HTTP.status200
+                -- tx amount includes only fees because it is tx to self address
+                -- also when tx is already in ledger
+                , expectListItemFieldBetween 0 amount (feeMin, feeMax)
+                , expectListItemFieldEqual 0 direction Outgoing
+                , expectListItemFieldEqual 0 status InLedger
+                ]
 
     it "Regression #935 -\
         \ Pending tx should have pendingSince in the list tx response" $ \ctx -> do
