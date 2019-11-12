@@ -111,7 +111,6 @@ import Data.Binary.Get
     , getByteString
     , getLazyByteString
     , getWord16be
-    , getWord16le
     , getWord32be
     , getWord64be
     , getWord8
@@ -125,14 +124,7 @@ import Data.Binary.Get
     , skip
     )
 import Data.Binary.Put
-    ( Put
-    , putByteString
-    , putWord16be
-    , putWord16le
-    , putWord64be
-    , putWord8
-    , runPut
-    )
+    ( Put, putByteString, putWord16be, putWord64be, putWord8, runPut )
 import Data.Bits
     ( shift, (.&.) )
 import Data.ByteString
@@ -195,7 +187,7 @@ getBlockHeader = label "getBlockHeader" $ do
         slotEpoch <- fromIntegral <$> getWord32be
         slotId <- toEnum . fromEnum <$> getWord32be
         chainLength <- getWord32be
-        contentHash <- Hash <$> getByteString 32 -- or 256 bits
+        contentHash <- Hash <$> getByteString 32
         parentHeaderHash <- Hash <$> getByteString 32
         let headerHash = Hash $ blake2b256 bytes
         -- Proof.
@@ -207,8 +199,7 @@ getBlockHeader = label "getBlockHeader" $ do
         -- We could make sure we get the right kind of proof, but we don't need
         -- to.  Just checking that the length is not totally wrong is much
         -- simpler and gives us sanity about the binary format being correct.
-        read' <- fromIntegral <$> bytesRead
-        let remaining = size - read'
+        remaining <- (size -) . fromIntegral <$> bytesRead
         producedBy <- case remaining of
             0 ->
                 -- no proof
@@ -258,7 +249,7 @@ data Fragment
     -- ^ A standard signed transaction
     | StakeDelegation (PoolId, ChimericAccount, Tx, [TxWitness])
     -- ^ A signed transaction with stake pool delegation
-    | UnimplementedFragment Int
+    | UnimplementedFragment Word8
     -- Fragments not yet supported go there.
     deriving (Eq, Show)
 
@@ -267,6 +258,18 @@ data FragmentSpec
     | FragmentLegacyUTxO
     | FragmentTransaction
     | FragmentDelegation
+
+putFragmentSpec :: FragmentSpec -> Put
+putFragmentSpec spec = do
+    putWord8 0x00
+    putWord8 (fragmentSpec spec)
+  where
+    fragmentSpec :: FragmentSpec -> Word8
+    fragmentSpec = \case
+        FragmentInitial -> 0
+        FragmentLegacyUTxO -> 1
+        FragmentTransaction -> 2
+        FragmentDelegation -> 4
 
 data TxWitnessTag
     = TxWitnessLegacyUTxO
@@ -303,7 +306,9 @@ getFragment = label "getFragment" $ do
     fragId <- Hash . blake2b256 . BL.toStrict
         <$> lookAhead (getLazyByteString $ fromIntegral size)
 
-    fragSpec <- fromIntegral <$> getWord16le
+    -- A null byte for later extension
+    _nullByte <- getWord8
+    fragSpec <- getWord8
     let remaining = size - 2
     let unimpl = skip remaining >> return (UnimplementedFragment fragSpec)
     let typeLabelStr = "fragmentType " ++ show fragSpec
@@ -313,21 +318,14 @@ getFragment = label "getFragment" $ do
         1 -> Transaction <$> getLegacyTransaction fragId
         2 -> Transaction <$> getTransaction fragId
         3 -> unimpl -- OwnerStakeDelegation
-        4 -> maybe (UnimplementedFragment fragSpec) StakeDelegation <$>
-            lookAheadM (getStakeDelegation fragId)
+        4 -> maybe (UnimplementedFragment fragSpec) StakeDelegation
+            <$> lookAheadM (getStakeDelegation fragId)
         5 -> unimpl -- PoolRegistration
         6 -> unimpl -- PoolRetirement
         7 -> unimpl -- PoolUpdate
         8 -> unimpl -- UpdateProposal
         9 -> unimpl -- UpdateVote
         other -> fail $ "Unexpected content type tag " ++ show other
-
-fragmentTypeTag :: FragmentSpec -> Word16
-fragmentTypeTag = \case
-    FragmentInitial -> 0
-    FragmentLegacyUTxO -> 1
-    FragmentTransaction -> 2
-    FragmentDelegation -> 4
 
 -- | Decode the contents of a @Initial@-fragment.
 getInitial :: Get [ConfigParam]
@@ -338,6 +336,10 @@ getInitial = label "getInitial" $ do
 {-------------------------------------------------------------------------------
                                 Transactions
 -------------------------------------------------------------------------------}
+
+data AccountType
+    = SingleAccount
+    | MultiAccount
 
 txWitnessSize :: TxWitnessTag -> Int
 txWitnessSize = \case
@@ -394,7 +396,7 @@ getStakeDelegation tid = do
     getStakeDelegationFull accId = Just <$> do
         poolId <- getByteString 32
         (tx, wits) <- getGenericTransaction tid
-        _accSignature <- getByteString 64
+        _accSignature <- getByteString 65
         pure (PoolId poolId, ChimericAccount accId, tx, wits )
 
     getStakeDelegationRatio =
@@ -417,10 +419,23 @@ putStakeDelegationTx
     -> [TxOut]
     -> [TxWitness]
     -> Put
-putStakeDelegationTx poolId accId (Hash accSig) inputs outputs witnesses = do
+putStakeDelegationTx poolId accId accSig inputs outputs witnesses = do
     putStakeCertificate poolId accId
     putSignedTx inputs outputs witnesses
+    putAccountSignature SingleAccount accSig
+
+putAccountSignature
+    :: AccountType
+    -> Hash "AccountSignature"
+    -> Put
+putAccountSignature tag (Hash accSig) = do
+    putWord8 (accountType tag)
     putByteString accSig
+  where
+    accountType :: AccountType -> Word8
+    accountType = \case
+        SingleAccount -> 0x01
+        MultiAccount  -> 0x02
 
 -- | Decode the contents of a @Transaction@-fragment.
 getTransaction :: Hash "Tx" -> Get (Tx, [TxWitness])
@@ -694,8 +709,8 @@ putAddress (Address bs) = putByteString bs
 --                  / %x08 UPDATE-PROPOSAL
 --                  / %x09 UPDATE-VOTE
 withHeader :: FragmentSpec -> Put -> Put
-withHeader typ content = do
-    let bs = BL.toStrict $ runPut (putWord16le (fragmentTypeTag typ) *> content)
+withHeader spec content = do
+    let bs = BL.toStrict $ runPut (putFragmentSpec spec *> content)
     putWord16be (toEnum $ BS.length bs)
     putByteString bs
 
@@ -731,7 +746,7 @@ fragmentId
     -> Hash "Tx"
 fragmentId inps outs wits =
     Hash $ blake2b256 $ BL.toStrict $ runPut $ do
-        putWord16le (fragmentTypeTag FragmentTransaction)
+        putFragmentSpec FragmentTransaction
         putSignedTx inps outs wits
 
 delegationFragmentId
@@ -744,7 +759,7 @@ delegationFragmentId
     -> Hash "Tx"
 delegationFragmentId poolId accId accSig inps outs wits =
     Hash $ blake2b256 $ BL.toStrict $ runPut $ do
-        putWord16le (fragmentTypeTag FragmentDelegation)
+        putFragmentSpec FragmentDelegation
         putStakeDelegationTx poolId accId accSig inps outs wits
 
 -- | See 'fragmentId'. This computes the signing data required for producing
