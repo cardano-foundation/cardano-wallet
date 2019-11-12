@@ -76,7 +76,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           depends = [
             (hsPkgs."base" or (buildDepError "base"))
             (hsPkgs."async" or (buildDepError "async"))
-            (hsPkgs."cardano-wallet-cli" or (buildDepError "cardano-wallet-cli"))
             (hsPkgs."cardano-wallet-launcher" or (buildDepError "cardano-wallet-launcher"))
             (hsPkgs."cardano-wallet-test-utils" or (buildDepError "cardano-wallet-test-utils"))
             (hsPkgs."fmt" or (buildDepError "fmt"))
