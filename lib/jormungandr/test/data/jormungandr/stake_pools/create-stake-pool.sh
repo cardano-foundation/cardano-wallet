@@ -42,6 +42,6 @@ jcli certificate new stake-pool-registration \
     --owner $(cat ../owner.pub) \
     --management-threshold 1 > stake_pool.cert
 
-cat stake_pool.cert | jcli certificate sign -k ../owner.prv | tee stake_pool.cert > stake_pool_signed.cert
+cat stake_pool.cert | jcli certificate sign -k ../owner.prv > stake_pool.cert.signed
 
-cat stake_pool.cert | jcli certificate get-stake-pool-id | tee stake_pool.id > pool_id
+cat stake_pool.cert | jcli certificate get-stake-pool-id > stake_pool.id
