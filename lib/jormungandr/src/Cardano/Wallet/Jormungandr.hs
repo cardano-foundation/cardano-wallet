@@ -93,7 +93,7 @@ import Cardano.Wallet.Transaction
 import Control.Concurrent
     ( forkFinally )
 import Control.Concurrent.Async
-    ( race_ )
+    ( Async, async, waitEither_ )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
@@ -109,7 +109,7 @@ import Data.Text
 import Data.Text.Class
     ( ToText (..), showT )
 import Network.Socket
-    ( SockAddr, getSocketName )
+    ( SockAddr, Socket, getSocketName )
 import Network.Wai.Handler.Warp
     ( setBeforeMainLoop )
 import System.Exit
@@ -156,43 +156,43 @@ serveWallet (cfg, tr) sTolerance databaseDir hostPref listen lj beforeMainLoop =
     installSignalHandlers tr
     logInfo tr "Wallet backend server starting..."
     logInfo tr $ "Node is Jörmungandr on " <> toText (networkDiscriminantVal @n)
-    withNetworkLayer tr lj $ \case
-        Right (cp, nl) -> do
-            let nPort = Port $ baseUrlPort $ _restApi cp
-            let (_, bp) = staticBlockchainParameters nl
-            let rndTl = newTransactionLayer @'Mainnet (getGenesisBlockHash bp)
-            let seqTl = newTransactionLayer @n (getGenesisBlockHash bp)
-            let poolDBPath = Pool.defaultFilePath <$> databaseDir
-            Pool.withDBLayer cfg tr poolDBPath $ \db -> do
-                spl <- stakePoolLayer tr nl db
-                rndApi <- apiLayer tr rndTl nl
-                seqApi <- apiLayer tr seqTl nl
-                startServer tr nPort bp rndApi seqApi spl
-        Left e -> handleNetworkStartupError e
+    Server.withListeningSocket hostPref listen $ \case
+        Left e -> handleApiServerStartupError e
+        Right (wPort, socket) -> do
+            let tracerIPC = appendName "daedalus-ipc" tr
+            ipcServer <- async $ daedalusIPC tracerIPC wPort
+            withNetworkLayer tr lj $ \case
+                Left e -> handleNetworkStartupError e
+                Right (cp, nl) -> do
+                    let nPort = Port $ baseUrlPort $ _restApi cp
+                    let (_, bp) = staticBlockchainParameters nl
+                    let rndTl = newTransactionLayer @'Mainnet (getGenesisBlockHash bp)
+                    let seqTl = newTransactionLayer @n (getGenesisBlockHash bp)
+                    let poolDBPath = Pool.defaultFilePath <$> databaseDir
+                    Pool.withDBLayer cfg tr poolDBPath $ \db -> do
+                        poolApi <- stakePoolLayer tr nl db
+                        rndApi  <- apiLayer tr rndTl nl
+                        seqApi  <- apiLayer tr seqTl nl
+                        apiServer <- startServer
+                            tr socket nPort bp rndApi seqApi poolApi
+                        waitEither_ ipcServer apiServer
+                        pure ExitSuccess
   where
     startServer
         :: Trace IO Text
+        -> Socket
         -> Port "node"
         -> BlockchainParameters
         -> ApiLayer (RndState 'Mainnet) t ByronKey
         -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
         -> StakePoolLayer IO
-        -> IO ExitCode
-    startServer tracer nPort bp rndWallet seqWallet spl = do
-        Server.withListeningSocket hostPref listen $ \case
-            Right (wPort, socket) -> do
-                sockAddr <- getSocketName socket
-                let tracerIPC = appendName "daedalus-ipc" tracer
-                let tracerApi = appendName "api" tracer
-                let settings = Warp.defaultSettings
-                        & setBeforeMainLoop (beforeMainLoop sockAddr nPort bp)
-                let ipcServer = daedalusIPC tracerIPC wPort
-                let apiServer =
-                        Server.start
-                            settings tracerApi socket rndWallet seqWallet spl
-                race_ ipcServer apiServer
-                pure ExitSuccess
-            Left e -> handleApiServerStartupError e
+        -> IO (Async ())
+    startServer tracer socket nPort bp rndApi seqApi poolApi = do
+        sockAddr <- getSocketName socket
+        let tracerApi = appendName "api" tracer
+        let settings = Warp.defaultSettings
+                & setBeforeMainLoop (beforeMainLoop sockAddr nPort bp)
+        async $ Server.start settings tracerApi socket rndApi seqApi poolApi
 
     apiLayer
         :: forall s k.
