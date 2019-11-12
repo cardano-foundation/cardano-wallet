@@ -1,9 +1,7 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -38,7 +36,6 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , NonNegative (..)
     , Property
-    , Small (..)
     , checkCoverage
     , choose
     , classify
@@ -173,15 +170,23 @@ instance Arbitrary (Hash tag) where
         <$> vectorOf 8 (elements (['a'..'f'] ++ ['0'..'9']))
 
 instance Arbitrary Block where
-     arbitrary = genericArbitrary
-     shrink = genericShrink
+   arbitrary = genericArbitrary
+   shrink = genericShrink
 
-deriving via Word32 instance (Arbitrary (Quantity "block" Word32))
-deriving via (Small (Word64)) instance (Arbitrary (Quantity "block" Word64))
-deriving via Lovelace instance (Arbitrary (Quantity "lovelace" Word64))
+instance Arbitrary (Quantity "block" Word32) where
+    arbitrary = Quantity . fromIntegral <$> (arbitrary @Word32)
+    shrink (Quantity x) = map Quantity $ shrink x
+
+instance Arbitrary (Quantity "block" Word64) where
+    arbitrary = Quantity . fromIntegral <$> (arbitrary @Word32)
+    shrink (Quantity x) = map Quantity $ shrink x
+
+instance Arbitrary (Quantity "lovelace" Word64) where
+    arbitrary = Quantity . fromIntegral . unLovelace <$> (arbitrary @Lovelace)
+    shrink (Quantity x) = map Quantity $ shrink x
 
 -- TODO: Move to a shared location for Arbitrary newtypes
-newtype Lovelace = Lovelace Word64
+newtype Lovelace = Lovelace { unLovelace :: Word64 }
 instance Arbitrary Lovelace where
     shrink (Lovelace x) = map Lovelace $ shrink x
     arbitrary = do
