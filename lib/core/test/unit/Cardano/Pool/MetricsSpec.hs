@@ -31,7 +31,7 @@ import Data.Quantity
 import Data.Word
     ( Word32, Word64 )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe )
+    ( Spec, describe, it )
 import Test.QuickCheck
     ( Arbitrary (..)
     , NonNegative (..)
@@ -46,6 +46,7 @@ import Test.QuickCheck
     , property
     , vectorOf
     , (===)
+    , (==>)
     )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
@@ -66,28 +67,8 @@ spec = do
     describe "calculatePerformances" $ do
         it "performances are always between 0 and 1"
             $ property prop_performancesBounded01
-        it "50% stake, producing 4/8 blocks => performance=1" $ do
-           let p = calculatePerformance 8 stake (productions 4)
-           Map.lookup pool p `shouldBe` (Just 1)
-        it "50% stake, producing 2/8 blocks => performance=0.5" $ do
-           let p = calculatePerformance 8 stake (productions 2)
-           Map.lookup pool p `shouldBe` (Just 0.5)
-        it "50% stake, producing 0/8 blocks => performance=0" $ do
-           let p = calculatePerformance 8 stake (productions 0)
-           Map.lookup pool p `shouldBe` (Just 0)
-  where
-    pool = PoolId "athena"
-    nemesis = PoolId "nemesis"
-    stake :: Map PoolId (Quantity "lovelace" Word64)
-    stake = Map.map Quantity $ Map.fromList
-        [ (pool, 1)
-        , (nemesis, 1)
-        ]
-    productions :: Word64 -> Map PoolId (Quantity "block" Word64)
-    productions i = Map.map Quantity $ Map.fromList
-        [ (pool, i)
-        , (nemesis, 0)
-        ]
+        it "performance a single pool with 50% stake is as expected"
+            $ property prop_performanceOfALonelyPool
 
 {-------------------------------------------------------------------------------
                                 Properties
@@ -143,6 +124,39 @@ prop_performancesBounded01 mStake mProd (NonNegative emptySlots) =
 
     between :: Ord a => a -> a -> a -> Bool
     between inf sup x = x >= inf && x <= sup
+
+prop_performanceOfALonelyPool
+    :: NonNegative Int
+    -> NonNegative Int
+    -> Property
+prop_performanceOfALonelyPool (NonNegative prod) (NonNegative totalSlots) =
+    prod < totalSlots ==>
+        let
+            stake = mkStake
+                [ (poolA, 1)
+                , (poolB, 1)
+                ]
+            production = mkProduction
+                [ (poolA, prod)
+                , (poolB, 0)
+                ]
+            performances = calculatePerformance totalSlots stake production
+
+            expected = Just $ min 1 $ (fromIntegral prod * 2) / (fromIntegral totalSlots)
+            actual = (Map.lookup poolA performances)
+        in
+            counterexample debugMsg $
+            counterexample "poolA has 50% stake" $
+            --counterexample ("should have performance="++show ) $
+            actual === expected
+
+  where
+    poolA = PoolId "athena"
+    poolB = PoolId "nemesis"
+    mkStake = Map.map Quantity . Map.fromList
+    mkProduction = Map.map (Quantity . fromIntegral) . Map.fromList
+    debugMsg =
+        "poolA produced " ++ show prod ++ "/" ++ show totalSlots ++ " blocks"
 
 {-------------------------------------------------------------------------------
                                  Arbitrary
