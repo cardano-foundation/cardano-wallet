@@ -128,7 +128,13 @@ prop_performancesBounded01 mStake mProd (NonNegative emptySlots) =
 
 performanceGoldens :: Spec
 performanceGoldens = do
-    it "50% stake, producing 4/8 blocks => performance=1" $ do
+    it "50% stake, producing 8/8 blocks => performance=1.0" $ do
+        let stake      = mkStake      [ (poolA, 1), (poolB, 1) ]
+        let production = mkProduction [ (poolA, 8), (poolB, 0) ]
+        let performances = calculatePerformance 8 stake production
+        Map.lookup poolA performances `shouldBe` (Just 1)
+
+    it "50% stake, producing 4/8 blocks => performance=1.0" $ do
         let stake      = mkStake      [ (poolA, 1), (poolB, 1) ]
         let production = mkProduction [ (poolA, 4), (poolB, 0) ]
         let performances = calculatePerformance 8 stake production
@@ -140,7 +146,7 @@ performanceGoldens = do
         let performances = calculatePerformance 8 stake production
         Map.lookup poolA performances `shouldBe` (Just 0.5)
 
-    it "50% stake, producing 0/8 blocks => performance=0" $ do
+    it "50% stake, producing 0/8 blocks => performance=0.0" $ do
         let stake      = mkStake      [ (poolA, 1), (poolB, 1) ]
         let production = mkProduction [ (poolA, 0), (poolB, 0) ]
         let performances = calculatePerformance 8 stake production
@@ -199,9 +205,8 @@ instance Arbitrary Lovelace where
     arbitrary = do
         n <- choose (0, 100)
         Lovelace <$> frequency
-            [ (50, return n)
-            , (25, return $ minLovelace - n)
-            , (25, choose (minLovelace, maxLovelace))
+            [ (8, return n)
+            , (2, choose (minLovelace, maxLovelace))
             ]
       where
         minLovelace = fromIntegral . getCoin $ minBound @Coin
