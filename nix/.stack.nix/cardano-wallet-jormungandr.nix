@@ -126,6 +126,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."base" or (buildDepError "base"))
             (hsPkgs."aeson" or (buildDepError "aeson"))
             (hsPkgs."aeson-qq" or (buildDepError "aeson-qq"))
+            (hsPkgs."bech32" or (buildDepError "bech32"))
             (hsPkgs."binary" or (buildDepError "binary"))
             (hsPkgs."bytestring" or (buildDepError "bytestring"))
             (hsPkgs."cardano-crypto" or (buildDepError "cardano-crypto"))

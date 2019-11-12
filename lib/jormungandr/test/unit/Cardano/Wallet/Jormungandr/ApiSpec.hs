@@ -3,6 +3,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.Jormungandr.ApiSpec
@@ -13,6 +14,7 @@ import Prelude
 
 import Cardano.Wallet.Jormungandr.Api.Types
     ( ApiAccountDelegationInfo (..)
+    , ApiAccountId (..)
     , ApiAccountState (..)
     , ApiStakeDistribution (..)
     , ApiT (..)
@@ -20,25 +22,57 @@ import Cardano.Wallet.Jormungandr.Api.Types
     )
 import Cardano.Wallet.Primitive.Types
     ( PoolId (..) )
+import Control.Monad
+    ( forM_, replicateM )
 import Data.Aeson
     ( eitherDecode )
 import Data.Aeson.QQ
     ( aesonQQ )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( FromText (..), ToText (..) )
+    ( FromText (..), TextDecodingError (..), ToText (..) )
 import Test.Hspec
     ( Spec, describe, it, shouldBe )
+import Test.QuickCheck
+    ( Arbitrary (..), choose )
+import Test.Text.Roundtrip
+    ( textRoundtrip )
 
+import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.Aeson as Aeson
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 
 spec :: Spec
 spec = do
     describe "Jormungandr Api" $ do
+
+        describe "Textual roundtrip tests for API types" $ do
+
+            textRoundtrip $ Proxy @ApiAccountId
+
+        it "Valid account IDs are properly decoded from text" $ do
+
+            forM_ testAccountIdTexts $ \text ->
+                toText <$> fromText @ApiAccountId text
+                    `shouldBe` Right text
+
+        it "Invalid account IDs cannot be decoded from text" $ do
+
+            let invalidAccountIdTexts =
+                    [ ""
+                    , "not-an-account-id"
+                    , "skkalz75s4vtw2e9w"
+                    ]
+            forM_ invalidAccountIdTexts $ \text ->
+                toText <$> fromText @ApiAccountId text
+                    `shouldBe` Left
+                        (TextDecodingError "Invalid Jormungandr account ID.")
 
         describe "Example account state objects are properly decoded" $ do
 
@@ -199,8 +233,38 @@ spec = do
     decodeJSON = eitherDecode :: BL.ByteString -> Either String StakeApiResponse
 
 {-------------------------------------------------------------------------------
+                             Arbitrary Instances
+-------------------------------------------------------------------------------}
+
+instance Arbitrary ApiAccountId where
+    arbitrary = do
+        count <- choose (0, 64)
+        ApiAccountId . Bech32.dataPartFromBytes . BS.pack
+            <$> replicateM count arbitrary
+    shrink _ = []
+
+{-------------------------------------------------------------------------------
                                   Test data
 -------------------------------------------------------------------------------}
+
+testAccountIdTexts :: [Text]
+testAccountIdTexts =
+    [ testAccountIdText1
+    , testAccountIdText2
+    , testAccountIdText3
+    ]
+
+testAccountIdText1 :: Text
+testAccountIdText1 =
+    "ca1skkalz75s4vtw2e9wsy2q9jvsu3qtz6d2vm3xj4e5q4ufejpjjfn5lh35yr"
+
+testAccountIdText2 :: Text
+testAccountIdText2 =
+    "ca1shqtmpgefmhlwrwlm48kxq43hpkxnvz8fey2jlmce5lea3mxnskfqr99fz4"
+
+testAccountIdText3 :: Text
+testAccountIdText3 =
+    "ca1skzn99jx8a2rw80gp9uea47tmcndv7gm28vy9as6akevy32204aqwzpsctx"
 
 testPoolId1 :: PoolId
 testPoolId1 = mkTestPoolId

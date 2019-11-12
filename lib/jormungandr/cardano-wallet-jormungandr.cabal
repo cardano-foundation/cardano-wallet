@@ -129,6 +129,7 @@ test-suite unit
       base
     , aeson
     , aeson-qq
+    , bech32
     , binary
     , bytestring
     , cardano-crypto
