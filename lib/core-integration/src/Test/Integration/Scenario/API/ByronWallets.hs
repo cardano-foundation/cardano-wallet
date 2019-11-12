@@ -157,11 +157,9 @@ spec = do
             w <- emptyByronWallet ctx
             let ep = calculateByronMigrationCostEp w
             r <- request @ApiByronWalletMigrationInfo ctx ep Default Empty
-            -- FIXME
-            -- should be fixed within #1007
             verify r
-                [ expectResponseCode @IO HTTP.status200
-                , expectFieldEqual amount 0
+                [ expectResponseCode @IO HTTP.status403
+                , expectErrorMessage (errMsg403NothingToMigrate $ w ^. walletId)
                 ]
 
     it "BYRON_CALCULATE_02 - \
@@ -184,11 +182,9 @@ spec = do
                 postByronWalletEp payloadRestore
             let ep = calculateByronMigrationCostEp w
             r <- request @ApiByronWalletMigrationInfo ctx ep Default Empty
-            -- FIXME
-            -- should be fixed within #1007
             verify r
-                [ expectResponseCode @IO HTTP.status200
-                , expectFieldEqual amount 0
+                [ expectResponseCode @IO HTTP.status403
+                , expectErrorMessage (errMsg403NothingToMigrate $ w ^. walletId)
                 ]
 
     it "BYRON_CALCULATE_03 - \

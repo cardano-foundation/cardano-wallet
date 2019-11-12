@@ -896,8 +896,10 @@ getByronWalletMigrationInfo
     -> ApiT WalletId
         -- ^ Source wallet (Byron)
     -> Handler ApiByronWalletMigrationInfo
-getByronWalletMigrationInfo ctx (ApiT wid) =
-    infoFromSelections <$> getSelections
+getByronWalletMigrationInfo ctx (ApiT wid) = do
+    sels <- getSelections
+    when (null sels) $ liftHandler $ throwE $ ErrMigratingEmptyWallet wid
+    return $ infoFromSelections sels
   where
     infoFromSelections :: [CoinSelection] -> ApiByronWalletMigrationInfo
     infoFromSelections =
