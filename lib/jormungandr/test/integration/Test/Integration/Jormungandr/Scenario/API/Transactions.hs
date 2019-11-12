@@ -27,7 +27,7 @@ import Cardano.Wallet.Api.Types
     , ApiWallet
     )
 import Cardano.Wallet.Jormungandr.Binary
-    ( MessageType (..), putSignedTx, runPut, withHeader )
+    ( FragmentSpec (..), putSignedTx, runPut, withHeader )
 import Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -239,7 +239,7 @@ spec = do
         (ExternalTxFixture wSrc wDest fee txWits) <-
                 fixtureExternalTx ctx toSend
         let baseOk = Base64
-        let encodedSignedTx = encodeTx txWits MsgTypeTransaction baseOk
+        let encodedSignedTx = encodeTx txWits FragmentTransaction baseOk
         let payload = NonJson . BL.fromStrict . toRawBytes baseOk
         let headers = Headers [ ("Content-Type", "application/octet-stream") ]
         r <- request
@@ -265,7 +265,7 @@ spec = do
         (ExternalTxFixture _ _ _ txWits) <-
                 fixtureExternalTx ctx toSend
         let baseWrong = Base16
-        let wronglyEncodedTx = encodeTx txWits MsgTypeTransaction baseWrong
+        let wronglyEncodedTx = encodeTx txWits FragmentTransaction baseWrong
         let headers = Headers [ ("Content-Type", "application/octet-stream") ]
         let payloadWrong = NonJson . BL.fromStrict . T.encodeUtf8
         r1 <- request
@@ -280,7 +280,7 @@ spec = do
         let toSend = 1 :: Natural
         (ExternalTxFixture _ _ _ txWits) <- fixtureExternalTx ctx toSend
         let baseOk = Base16
-        let wronglyEncodedSignedTx = encodeTx txWits MsgTypeInitial baseOk
+        let wronglyEncodedSignedTx = encodeTx txWits FragmentInitial baseOk
         let payload = NonJson $ BL.fromStrict $
                 (toRawBytes baseOk) wronglyEncodedSignedTx
         let headers = Headers [ ("Content-Type", "application/octet-stream") ]
@@ -494,7 +494,7 @@ fixtureExternalTx ctx toSend = do
              , mkSeqState @n (rootXPrv, pwd) defaultAddressPoolGap
              )
 
-encodeTx :: (Tx, [TxWitness]) -> MessageType -> Base -> Text
+encodeTx :: (Tx, [TxWitness]) -> FragmentSpec -> Base -> Text
 encodeTx (tx, wits) msgType base =
     T.decodeUtf8 $ convertToBase base $ BL.toStrict $ encode (tx, wits) msgType
   where

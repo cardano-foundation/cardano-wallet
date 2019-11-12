@@ -14,7 +14,7 @@ module Cardano.Wallet.Jormungandr.TransactionSpec
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Binary
-    ( MessageType (..), putSignedTx, runPut, withHeader )
+    ( FragmentSpec (..), putSignedTx, runPut, withHeader )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
 import Cardano.Wallet.Jormungandr.Transaction
@@ -439,7 +439,7 @@ goldenTestStdTx tl keystore inps outs bytes' = it title $ do
             (\(Tx _ i o, w) -> hex
                 $ BL.toStrict
                 $ runPut
-                $ withHeader MsgTypeTransaction
+                $ withHeader FragmentTransaction
                 $ putSignedTx i o w)
             tx
     bytes `shouldBe` Right bytes'

@@ -30,7 +30,7 @@ import Prelude
 
 import Cardano.Wallet.Jormungandr.Binary
     ( Block
-    , MessageType (..)
+    , FragmentSpec (..)
     , getBlock
     , putSignedTx
     , runGet
@@ -181,7 +181,7 @@ instance MimeUnrender JormungandrBinary Block where
 
 instance MimeRender JormungandrBinary (Tx, [TxWitness]) where
     mimeRender _ (Tx _ ins outs, wits) =
-        runPut $ withHeader MsgTypeTransaction $ putSignedTx ins outs wits
+        runPut $ withHeader FragmentTransaction $ putSignedTx ins outs wits
 
 data Hex
 

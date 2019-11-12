@@ -13,14 +13,14 @@ module Cardano.Wallet.Jormungandr.BinarySpec
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Binary
-    ( Message (..)
-    , MessageType (..)
+    ( Fragment (..)
+    , FragmentSpec (..)
     , TxWitnessTag (..)
     , delegationFragmentId
     , fragmentId
     , getBlock
     , getBlockHeader
-    , getMessage
+    , getFragment
     , putSignedTx
     , putStakeDelegationTx
     , putTxWitnessTag
@@ -119,8 +119,8 @@ spec = do
                 -- Context: We use whileM not <$> isEmpty to decode multiple
                 -- block-fragments/messages. If a message-decoder is wrong, we
                 -- want to know that clearly.
-                let getMessage' = label "getMessage" $ isolate 3 getWord16be
-                let getBlock' = whileM (not <$> isEmpty) getMessage'
+                let getFragment' = label "getFragment" $ isolate 3 getWord16be
+                let getBlock' = whileM (not <$> isEmpty) getFragment'
                 res <- try' (runGet getBlock' $ BL.pack [0,0,0])
                 case res of
                     Right _ -> expectationFailure
@@ -129,7 +129,7 @@ spec = do
                         e `shouldContain`
                             "the decoder consumed 2 bytes which is less than \
                             \the expected 3 bytes"
-                        e `shouldContain` "getMessage"
+                        e `shouldContain` "getFragment"
 
         it "Regression #1025" $ do
             -- Blockheader taken from current `block0.bin` in out integration
@@ -146,10 +146,10 @@ spec = do
         it "decode (encode tx) === tx standard transaction" $ property $
             \(SignedTx signedTx) -> monadicIO $ liftIO $ do
                 let encode ((Tx _ inps outs), wits) = runPut
-                        $ withHeader MsgTypeTransaction
+                        $ withHeader FragmentTransaction
                         $ putSignedTx inps outs wits
                 let decode =
-                        unMessage . runGet getMessage
+                        unFragment . runGet getFragment
                 tx' <- try' (decode $ encode signedTx)
                 if tx' == Right signedTx
                 then return ()
@@ -160,23 +160,23 @@ spec = do
             property $ \(StakeDelegationTx args) -> monadicIO $ liftIO $ do
                 let (poolId, accId, accSig, tx@(Tx _ inps outs), wits) = args
                 let encode = runPut
-                        $ withHeader MsgTypeDelegation
+                        $ withHeader FragmentDelegation
                         $ putStakeDelegationTx poolId accId accSig inps outs wits
                 let decode =
-                        getStakeDelegationTxMessage . runGet getMessage
+                        getStakeDelegationTxFragment . runGet getFragment
                 tx' <- try' (decode encode)
                 if tx' == Right (poolId, accId, tx, wits)
                 then return ()
                 else expectationFailure $
                     "tx /= decode (encode tx) == " ++ show tx'
   where
-    unMessage :: Message -> (Tx, [TxWitness])
-    unMessage m = case m of
+    unFragment :: Fragment -> (Tx, [TxWitness])
+    unFragment m = case m of
         Transaction stx -> stx
         _ -> error "expected a Transaction message"
 
-    getStakeDelegationTxMessage :: Message -> (PoolId, ChimericAccount, Tx, [TxWitness])
-    getStakeDelegationTxMessage m = case m of
+    getStakeDelegationTxFragment :: Fragment -> (PoolId, ChimericAccount, Tx, [TxWitness])
+    getStakeDelegationTxFragment m = case m of
         StakeDelegation stx -> stx
         _ -> error "expected a Transaction message"
 
