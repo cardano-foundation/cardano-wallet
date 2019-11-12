@@ -31,7 +31,7 @@ import Data.Quantity
 import Data.Word
     ( Word32, Word64 )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec, describe, it, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..)
     , NonNegative (..)
@@ -46,7 +46,6 @@ import Test.QuickCheck
     , property
     , vectorOf
     , (===)
-    , (==>)
     )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
@@ -67,8 +66,9 @@ spec = do
     describe "calculatePerformances" $ do
         it "performances are always between 0 and 1"
             $ property prop_performancesBounded01
-        it "performance a single pool with 50% stake is as expected"
-            $ property prop_performanceOfALonelyPool
+
+        describe "golden test cases" $ do
+            performanceGoldens
 
 {-------------------------------------------------------------------------------
                                 Properties
@@ -125,38 +125,55 @@ prop_performancesBounded01 mStake mProd (NonNegative emptySlots) =
     between :: Ord a => a -> a -> a -> Bool
     between inf sup x = x >= inf && x <= sup
 
-prop_performanceOfALonelyPool
-    :: NonNegative Int
-    -> NonNegative Int
-    -> Property
-prop_performanceOfALonelyPool (NonNegative prod) (NonNegative totalSlots) =
-    prod < totalSlots ==>
+
+performanceGoldens :: Spec
+performanceGoldens = do
+    it "50% stake, producing 4/8 blocks => performance=1" $
         let
             stake = mkStake
                 [ (poolA, 1)
                 , (poolB, 1)
                 ]
             production = mkProduction
-                [ (poolA, prod)
+                [ (poolA, 4)
                 , (poolB, 0)
                 ]
-            performances = calculatePerformance totalSlots stake production
-
-            expected = Just $ min 1 $ (fromIntegral prod * 2) / (fromIntegral totalSlots)
-            actual = (Map.lookup poolA performances)
+            performances = calculatePerformance 8 stake production
         in
-            counterexample debugMsg $
-            counterexample "poolA has 50% stake" $
-            --counterexample ("should have performance="++show ) $
-            actual === expected
+            Map.lookup poolA performances `shouldBe` (Just 1)
 
+    it "50% stake, producing 2/8 blocks => performance=0.5" $
+        let
+            stake = mkStake
+                [ (poolA, 1)
+                , (poolB, 1)
+                ]
+            production = mkProduction
+                [ (poolA, 4)
+                , (poolB, 0)
+                ]
+            performances = calculatePerformance 8 stake production
+        in
+            Map.lookup poolA performances `shouldBe` (Just 0.5)
+
+    it "50% stake, producing 0/8 blocks => performance=0" $
+        let
+            stake = mkStake
+                [ (poolA, 1)
+                , (poolB, 1)
+                ]
+            production = mkProduction
+                [ (poolA, 4)
+                , (poolB, 0)
+                ]
+            performances = calculatePerformance 8 stake production
+        in
+            Map.lookup poolA performances `shouldBe` (Just 1)
   where
     poolA = PoolId "athena"
     poolB = PoolId "nemesis"
     mkStake = Map.map Quantity . Map.fromList
-    mkProduction = Map.map (Quantity . fromIntegral) . Map.fromList
-    debugMsg =
-        "poolA produced " ++ show prod ++ "/" ++ show totalSlots ++ " blocks"
+    mkProduction = Map.map Quantity . Map.fromList
 
 {-------------------------------------------------------------------------------
                                  Arbitrary
