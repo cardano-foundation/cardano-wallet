@@ -56,7 +56,7 @@ import Cardano.Wallet.Jormungandr.Api
     , api
     )
 import Cardano.Wallet.Jormungandr.Api.Types
-    ( ApiAccountState, ApiT (..), BlockId (..), StakeApiResponse )
+    ( ApiAccountId, ApiAccountState, BlockId (..), StakeApiResponse )
 import Cardano.Wallet.Jormungandr.Binary
     ( ConfigParam (..), Fragment (..), convertBlock )
 import Cardano.Wallet.Jormungandr.Compatibility
@@ -72,7 +72,6 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
-    , ChimericAccount
     , Hash (..)
     , SlotLength (..)
     , Tx (..)
@@ -129,7 +128,7 @@ import qualified Data.Text.Encoding as T
 -- | Endpoints of the jormungandr REST API.
 data JormungandrClient m = JormungandrClient
     { getAccountState
-        :: ApiT ChimericAccount
+        :: ApiAccountId
         -> ExceptT ErrGetAccountState m ApiAccountState
     , getTipId
         :: ExceptT ErrNetworkUnavailable m (Hash "BlockHeader")
@@ -154,13 +153,13 @@ data JormungandrClient m = JormungandrClient
 mkJormungandrClient
     :: Manager -> BaseUrl -> JormungandrClient IO
 mkJormungandrClient mgr baseUrl = JormungandrClient
-    { getAccountState = \(ApiT accountId) -> ExceptT $ do
-        let action = cGetAccountState (ApiT accountId)
+    { getAccountState = \accountId -> ExceptT $ do
+        let action = cGetAccountState accountId
         run action >>= \case
             Left (FailureResponse e) | responseStatusCode e == status404 ->
                 return $ Left $ ErrGetAccountStateAccountNotFound accountId
             x -> do
-                let ctx = safeLink api (Proxy @GetAccountState) (ApiT accountId)
+                let ctx = safeLink api (Proxy @GetAccountState) accountId
                 left ErrGetAccountStateNetworkUnreachable
                     <$> defaultHandler ctx x
 
@@ -361,7 +360,7 @@ instance Exception ErrUnexpectedNetworkFailure
 
 data ErrGetAccountState
     = ErrGetAccountStateNetworkUnreachable ErrNetworkUnavailable
-    | ErrGetAccountStateAccountNotFound ChimericAccount
+    | ErrGetAccountStateAccountNotFound ApiAccountId
     deriving (Eq, Show)
 
 data ErrGetDescendants

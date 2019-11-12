@@ -20,8 +20,8 @@ module Cardano.Wallet.Jormungandr.Api
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Api.Types
-    ( ApiAccountState
-    , ApiT
+    ( ApiAccountId
+    , ApiAccountState
     , BlockId
     , Hex
     , JormungandrBinary
@@ -30,7 +30,7 @@ import Cardano.Wallet.Jormungandr.Api.Types
 import Cardano.Wallet.Jormungandr.Binary
     ( Block )
 import Cardano.Wallet.Primitive.Types
-    ( ChimericAccount, Tx (..), TxWitness )
+    ( Tx (..), TxWitness )
 import Data.Proxy
     ( Proxy (..) )
 import Servant.API
@@ -50,7 +50,7 @@ type Api =
 type GetAccountState
     = "api" :> "v0"
     :> "account"
-    :> Capture "accountId" (ApiT ChimericAccount)
+    :> Capture "accountId" ApiAccountId
     :> Get '[JSON] ApiAccountState
 
 -- | Retrieve a block by its id.

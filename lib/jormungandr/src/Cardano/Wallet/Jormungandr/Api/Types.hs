@@ -16,6 +16,7 @@ module Cardano.Wallet.Jormungandr.Api.Types
       ApiT (..)
 
     -- * API types
+    , ApiAccountId (..)
     , ApiAccountState (..)
     , ApiAccountDelegationInfo (..)
     , ApiStakeDistribution (..)
@@ -40,14 +41,7 @@ import Cardano.Wallet.Jormungandr.Binary
     , withHeader
     )
 import Cardano.Wallet.Primitive.Types
-    ( ChimericAccount (..)
-    , EpochNo (..)
-    , Hash (..)
-    , PoolId (..)
-    , ShowFmt (..)
-    , Tx (..)
-    , TxWitness
-    )
+    ( EpochNo (..), Hash (..), PoolId (..), ShowFmt (..), Tx (..), TxWitness )
 import Control.Applicative
     ( many )
 import Control.Arrow
@@ -63,7 +57,7 @@ import Data.Proxy
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
-    ( FromText (..) )
+    ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Text.Encoding
     ( decodeUtf8 )
 import Data.Word
@@ -73,9 +67,13 @@ import GHC.Generics
 import Servant.API
     ( Accept (..), MimeRender (..), MimeUnrender (..), ToHttpApiData (..) )
 
+import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString.Lazy as BL
 import qualified Servant.API.ContentTypes as Servant
+
+newtype ApiAccountId = ApiAccountId { getApiAccountId :: Bech32.DataPart }
+    deriving (Eq, Show)
 
 newtype BlockId = BlockId { getBlockId :: Hash "BlockHeader" }
 
@@ -107,9 +105,22 @@ data ApiStakeDistribution = ApiStakeDistribution
 instance ToHttpApiData BlockId where
     toUrlPiece (BlockId (Hash bytes)) = decodeUtf8 $ convertToBase Base16 bytes
 
-instance ToHttpApiData (ApiT ChimericAccount) where
-    toUrlPiece (ApiT (ChimericAccount bytes)) =
-        decodeUtf8 $ convertToBase Base16 bytes
+instance ToHttpApiData ApiAccountId where
+    toUrlPiece = toText
+
+instance FromText ApiAccountId where
+    fromText text = case Bech32.decodeLenient text of
+        Right (h, d) | h == accountIdHumanReadablePart ->
+            Right $ ApiAccountId d
+        _ ->
+            Left $ TextDecodingError "Invalid Jormungandr account ID."
+
+instance ToText ApiAccountId where
+    toText = Bech32.encodeLenient accountIdHumanReadablePart . getApiAccountId
+
+accountIdHumanReadablePart :: Bech32.HumanReadablePart
+accountIdHumanReadablePart =
+    Bech32.unsafeHumanReadablePartFromText "ca"
 
 instance MimeUnrender JormungandrBinary [BlockId] where
     mimeUnrender _ =
