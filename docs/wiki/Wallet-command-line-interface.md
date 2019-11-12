@@ -84,10 +84,13 @@ Many options supported by [`cardano-wallet serve`](#serve) are also supported by
 
 > ```
 > cardano-wallet launch 
->   [--listen-address HOST] ([--random-port] | [--port INT])
+>   [--listen-address HOST] 
+>   ([--random-port] | [--port INT])
 >   [--node-port INT]
 >   [--state-dir DIR]
->   [--logging-config FILE.YAML] ([--quiet] | [--verbose])
+>   [--logging-config FILE.YAML] 
+>   [--sync-tolerance DURATION]
+>   ([--quiet] | [--verbose])
 >   (--genesis-block-hash STRING | --genesis-block FILE) 
 >   [-- ARGUMENTS...]
 
@@ -197,10 +200,13 @@ Serve API that listens for commands/actions. Before launching user should start 
 
 > ```
 > cardano-wallet serve
->   [--listen-address HOST] ([--random-port] | [--port INT])
+>   [--listen-address HOST]
+>   ([--random-port] | [--port INT])
 >   [--node-port INT]
 >   [--database DIR]
->   [--logging-config FILE.YAML] ([--quiet] | [--verbose])
+>   [--logging-config FILE.YAML] 
+>   [--sync-tolerance DURATION]
+>   ([--quiet] | [--verbose])
 >   --genesis-block-hash STRING
 > ```
 
