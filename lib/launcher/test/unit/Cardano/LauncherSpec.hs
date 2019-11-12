@@ -158,6 +158,8 @@ spec = beforeAll setupMockCommands $ do
         after <- getCurrentTime
         ph <- takeMVar mvar
         assertProcessesExited [ph]
+        -- the total time taken should be about 1 second (the delay), definitely
+        -- never more that 2 seconds.
         diffUTCTime after before `shouldSatisfy` (< 2)
 
     it "Sanity check System.Info.os" $ \_ ->
