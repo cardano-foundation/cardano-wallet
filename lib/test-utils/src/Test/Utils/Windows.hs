@@ -10,6 +10,7 @@ module Test.Utils.Windows
     ( skipOnWindows
     , pendingOnWindows
     , whenWindows
+    , isWindows
     ) where
 
 import Prelude
@@ -32,4 +33,7 @@ pendingOnWindows :: HasCallStack => String -> Expectation
 pendingOnWindows reason = whenWindows $ pendingWith reason
 
 whenWindows :: IO () -> IO ()
-whenWindows = when (os == "mingw32")
+whenWindows = when isWindows
+
+isWindows :: Bool
+isWindows = os == "mingw32"

@@ -1,7 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE LambdaCase #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -14,8 +13,8 @@ module Cardano.Launcher
     ( Command (..)
     , StdStream(..)
     , ProcessHasExited(..)
-    , launch
     , withBackendProcess
+    , withBackendProcessHandle
 
     -- * Program startup
     , installSignalHandlers
@@ -35,13 +34,15 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Trace
     ( Trace, appendName, traceNamedItem )
 import Control.Concurrent
-    ( threadDelay )
+    ( forkIO )
 import Control.Concurrent.Async
-    ( async, race, waitAnyCancel )
+    ( race )
+import Control.Concurrent.MVar
+    ( newEmptyMVar, putMVar, takeMVar )
 import Control.Exception
-    ( Exception, IOException, tryJust )
+    ( Exception, IOException, onException, tryJust )
 import Control.Monad
-    ( forever, join )
+    ( join, void )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Tracer
@@ -73,6 +74,7 @@ import System.IO.CodePage
     ( withCP65001 )
 import System.Process
     ( CreateProcess (..)
+    , ProcessHandle
     , StdStream (..)
     , getPid
     , proc
@@ -142,19 +144,6 @@ data ProcessHasExited
 
 instance Exception ProcessHasExited
 
--- | Run a bunch of command in separate processes. Note that, this operation is
--- blocking and will throw when one of the given commands terminates. Commands
--- are therefore expected to be daemon or long-running services.
-launch :: Trace IO LauncherLog -> [Command] -> IO ProcessHasExited
-launch tr cmds = mapM start cmds >>= waitAnyCancel >>= \case
-    (_, Left e) -> return e
-    (_, Right _) -> error $
-            "Unreachable. Supervising threads should never finish. " <>
-            "They should stay running or throw @ProcessHasExited@."
-  where
-    sleep = forever $ threadDelay maxBound
-    start = async . flip (withBackendProcess tr) sleep
-
 -- | Starts a command in the background and then runs an action. If the action
 -- finishes (through an exception or otherwise) then the process is terminated
 -- (see 'withCreateProcess') for details. If the process exits, the action is
@@ -167,7 +156,19 @@ withBackendProcess
     -> IO a
     -- ^ Action to execute while process is running.
     -> IO (Either ProcessHasExited a)
-withBackendProcess tr cmd@(Command name args before output) action = do
+withBackendProcess tr cmd = withBackendProcessHandle tr cmd . const
+
+-- | A variant of 'withBackendProcess' which also provides the 'ProcessHandle' to the
+-- given action.
+withBackendProcessHandle
+    :: Trace IO LauncherLog
+    -- ^ Logging
+    -> Command
+    -- ^ 'Command' description
+    -> (ProcessHandle -> IO a)
+    -- ^ Action to execute while process is running.
+    -> IO (Either ProcessHasExited a)
+withBackendProcessHandle tr cmd@(Command name args before output) action = do
     before
     launcherLog tr $ MsgLauncherStart cmd
     let process = (proc name args) { std_out = output, std_err = output }
@@ -176,8 +177,14 @@ withBackendProcess tr cmd@(Command name args before output) action = do
             pid <- maybe "-" (T.pack . show) <$> getPid h
             let tr' = appendName (T.pack name <> "." <> pid) tr
             launcherLog tr' $ MsgLauncherStarted name pid
-            race (ProcessHasExited name <$> waitForProcess h)
-                (action <* launcherLog tr' MsgLauncherCleanup)
+
+            let waitForExit =
+                    ProcessHasExited name <$> interruptibleWaitForProcess tr' h
+            let runAction = do
+                    launcherLog tr' MsgLauncherAction
+                    action h <* launcherLog tr' MsgLauncherCleanup
+
+            race waitForExit runAction
     either (launcherLog tr . MsgLauncherFinish) (const $ pure ()) res
     pure res
   where
@@ -190,6 +197,27 @@ withBackendProcess tr cmd@(Command name args before output) action = do
         | name `isPrefixOf` show e = Just (ProcessDidNotStart name e)
         | otherwise = Nothing
 
+    -- Wraps 'waitForProcess' in another thread. This works around the unwanted
+    -- behaviour of the process library on Windows where 'waitForProcess' seems
+    -- to block all concurrent async actions in the thread.
+    interruptibleWaitForProcess
+        :: Trace IO LauncherLog
+        -> ProcessHandle
+        -> IO ExitCode
+    interruptibleWaitForProcess tr' ph = do
+        status <- newEmptyMVar
+        void $ forkIO $ waitThread status `onException` continue status
+        takeMVar status
+      where
+        waitThread var = do
+            launcherLog tr' MsgLauncherWaitBefore
+            status <- waitForProcess ph
+            launcherLog tr' (MsgLauncherWaitAfter $ exitStatus status)
+            putMVar var status
+        continue var = do
+            launcherLog tr' MsgLauncherCancel
+            putMVar var (ExitFailure 256)
+
 {-------------------------------------------------------------------------------
                                     Logging
 -------------------------------------------------------------------------------}
@@ -197,7 +225,11 @@ withBackendProcess tr cmd@(Command name args before output) action = do
 data LauncherLog
     = MsgLauncherStart Command
     | MsgLauncherStarted String Text
+    | MsgLauncherWaitBefore
+    | MsgLauncherWaitAfter Int
+    | MsgLauncherCancel
     | MsgLauncherFinish ProcessHasExited
+    | MsgLauncherAction
     | MsgLauncherCleanup
     deriving (Generic, ToJSON)
 
@@ -223,10 +255,14 @@ launcherLog logTrace msg = traceNamedItem logTrace Public (launcherLogLevel msg)
 launcherLogLevel :: LauncherLog -> Severity
 launcherLogLevel (MsgLauncherStart _) = Notice
 launcherLogLevel (MsgLauncherStarted _ _) = Info
+launcherLogLevel MsgLauncherWaitBefore = Debug
+launcherLogLevel (MsgLauncherWaitAfter _) = Debug
+launcherLogLevel MsgLauncherCancel = Debug
 launcherLogLevel (MsgLauncherFinish (ProcessHasExited _ st)) = case st of
     ExitSuccess -> Notice
     ExitFailure _ -> Error
 launcherLogLevel (MsgLauncherFinish (ProcessDidNotStart _ _)) = Error
+launcherLogLevel MsgLauncherAction = Debug
 launcherLogLevel MsgLauncherCleanup = Notice
 
 launcherLogText :: LauncherLog -> Builder
@@ -234,10 +270,14 @@ launcherLogText (MsgLauncherStart cmd) =
     "Starting process "+|cmd|+""
 launcherLogText (MsgLauncherStarted name pid) =
     "Process "+|name|+" started with pid "+|pid|+""
+launcherLogText MsgLauncherWaitBefore = "About to waitForProcess"
+launcherLogText (MsgLauncherWaitAfter status) = "waitForProcess returned "+||status||+""
+launcherLogText MsgLauncherCancel = "There was an exception waiting for the process"
 launcherLogText (MsgLauncherFinish (ProcessHasExited name code)) =
     "Child process "+|name|+" exited with status "+||exitStatus code||+""
 launcherLogText (MsgLauncherFinish (ProcessDidNotStart name _e)) =
     "Could not start "+|name|+""
+launcherLogText MsgLauncherAction = "Running withBackend action"
 launcherLogText MsgLauncherCleanup = "Terminating child process"
 
 {-------------------------------------------------------------------------------
