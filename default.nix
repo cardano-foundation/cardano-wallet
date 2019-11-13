@@ -52,7 +52,7 @@ let
           weeder.components.exes.weeder
           hlint.components.exes.hlint
         ])
-        ++ [ pkgs.haskell-nix.snapshots."lts-13.26".stylish-haskell.components.exes.stylish-haskell ]
+        ++ [(pkgs.callPackage ./nix/stylish-haskell.nix {})]
         ++ (with iohkLib; [ openapi-spec-validator ])
         ++ [ jormungandr jormungandr-cli
              pkgs.pkgconfig pkgs.sqlite-interactive ];

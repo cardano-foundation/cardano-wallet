@@ -47,6 +47,7 @@ spec = describe "API Server" $ do
             res `shouldBe` Left ListenErrorOperationNotPermitted
 
     it "handles port in use" $ do
+        skipOnWindows "Windows permits listening on same port multiple times"
         withListeningSocket "127.0.0.1" ListenOnRandomPort $ \case
             Right (port, _) ->
                 withListeningSocket "127.0.0.1" (ListenOnPort port) $ \res ->
