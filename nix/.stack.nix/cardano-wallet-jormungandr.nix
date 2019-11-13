@@ -141,6 +141,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."generic-arbitrary" or (buildDepError "generic-arbitrary"))
             (hsPkgs."generic-lens" or (buildDepError "generic-lens"))
             (hsPkgs."hspec" or (buildDepError "hspec"))
+            (hsPkgs."hspec-golden-aeson" or (buildDepError "hspec-golden-aeson"))
             (hsPkgs."lifted-base" or (buildDepError "lifted-base"))
             (hsPkgs."memory" or (buildDepError "memory"))
             (hsPkgs."monad-control" or (buildDepError "monad-control"))

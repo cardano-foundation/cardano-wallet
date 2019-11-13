@@ -144,6 +144,7 @@ test-suite unit
     , generic-arbitrary
     , generic-lens
     , hspec
+    , hspec-golden-aeson
     , lifted-base
     , memory
     , monad-control

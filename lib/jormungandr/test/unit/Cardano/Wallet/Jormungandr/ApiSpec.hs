@@ -35,6 +35,10 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
+import Data.Word
+    ( Word64 )
+import Test.Aeson.Internal.RoundtripSpecs
+    ( roundtripSpecs )
 import Test.Hspec
     ( Spec, describe, it, shouldBe )
 import Test.QuickCheck
@@ -54,6 +58,10 @@ spec = do
         describe "Textual roundtrip tests for API types" $ do
 
             textRoundtrip $ Proxy @ApiAccountId
+
+        describe "JSON roundtrip tests for API types" $ do
+
+            roundtripSpecs $ Proxy @AccountState
 
         it "Valid account IDs are properly decoded from text" $ do
 
@@ -225,6 +233,28 @@ instance Arbitrary ApiAccountId where
         ApiAccountId . Bech32.dataPartFromBytes . BS.pack
             <$> replicateM count arbitrary
     shrink _ = []
+
+instance Arbitrary AccountState where
+    arbitrary = AccountState
+        <$> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+
+instance Arbitrary PoolId where
+    arbitrary = PoolId . BS.pack
+        <$> replicateM 32 arbitrary
+
+instance Arbitrary (Quantity "lovelace" Word64) where
+    arbitrary = Quantity <$> arbitrary
+    shrink (Quantity q) = Quantity <$> shrink q
+
+instance Arbitrary (Quantity "stake-pool-ratio" Word64) where
+    arbitrary = Quantity <$> arbitrary
+    shrink (Quantity q) = Quantity <$> shrink q
+
+instance Arbitrary (Quantity "transaction-count" Word64) where
+    arbitrary = Quantity <$> arbitrary
+    shrink (Quantity q) = Quantity <$> shrink q
 
 {-------------------------------------------------------------------------------
                                   Test data
