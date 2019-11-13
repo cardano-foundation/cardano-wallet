@@ -45,10 +45,15 @@ import Cardano.Wallet.Primitive.Types
     ( EpochNo (..), Hash (..), PoolId (..), ShowFmt (..), Tx (..), TxWitness )
 import Control.Applicative
     ( many )
-import Control.Arrow
-    ( left )
+import Control.Monad
+    ( (>=>) )
 import Data.Aeson
-    ( FromJSON (..), defaultOptions, genericParseJSON )
+    ( FromJSON (..)
+    , ToJSON (..)
+    , defaultOptions
+    , genericParseJSON
+    , genericToJSON
+    )
 import Data.Bifunctor
     ( bimap )
 import Data.Binary.Get
@@ -168,6 +173,8 @@ instance FromJSON StakeApiResponse where
 
 instance FromJSON AccountState where
     parseJSON = fmap fromApiAccountState . parseJSON
+instance ToJSON AccountState where
+    toJSON = toJSON . toApiAccountState
 
 data ApiAccountState = ApiAccountState
     { counter
@@ -185,9 +192,13 @@ newtype ApiDelegationState = ApiDelegationState
 
 instance FromJSON ApiAccountState where
     parseJSON = genericParseJSON defaultOptions
+instance ToJSON ApiAccountState where
+    toJSON = genericToJSON defaultOptions
 
 instance FromJSON ApiDelegationState where
     parseJSON = genericParseJSON defaultOptions
+instance ToJSON ApiDelegationState where
+    toJSON = genericToJSON defaultOptions
 
 fromApiAccountState :: ApiAccountState -> AccountState
 fromApiAccountState a = AccountState
@@ -199,26 +210,41 @@ fromApiAccountState a = AccountState
         = getApiT $ counter a
     }
 
+toApiAccountState :: AccountState -> ApiAccountState
+toApiAccountState a = ApiAccountState
+    { value
+        = ApiT $ currentBalance a
+    , delegation
+        = ApiDelegationState $ bimap ApiT ApiT <$> stakePools a
+    , counter
+        = ApiT $ totalTransactionCount a
+    }
+
 instance FromJSON (ApiStakeDistribution) where
     parseJSON = genericParseJSON defaultOptions
 
 instance FromJSON (ApiT (Quantity "lovelace" Word64)) where
     parseJSON = fmap (ApiT . Quantity) . parseJSON
+instance ToJSON (ApiT (Quantity "lovelace" Word64)) where
+    toJSON (ApiT (Quantity q)) = toJSON q
 
 instance FromJSON (ApiT (Quantity "stake-pool-ratio" Word64)) where
     parseJSON = fmap (ApiT . Quantity) . parseJSON
+instance ToJSON (ApiT (Quantity "stake-pool-ratio" Word64)) where
+    toJSON (ApiT (Quantity q)) = toJSON q
 
 instance FromJSON (ApiT (Quantity "transaction-count" Word64)) where
     parseJSON = fmap (ApiT . Quantity) . parseJSON
+instance ToJSON (ApiT (Quantity "transaction-count" Word64)) where
+    toJSON (ApiT (Quantity q)) = toJSON q
 
 instance FromJSON (ApiT EpochNo) where
     parseJSON = fmap (ApiT . EpochNo) . parseJSON
 
 instance FromJSON (ApiT PoolId) where
-    parseJSON val = do
-        txt <- parseJSON val
-        m <- eitherToParser $ left ShowFmt $ fromText txt
-        return $ ApiT m
+    parseJSON = parseJSON >=> eitherToParser . bimap ShowFmt ApiT . fromText
+instance ToJSON (ApiT PoolId) where
+    toJSON = toJSON . toText . getApiT
 
 eitherToParser :: Show s => Either s a -> Aeson.Parser a
 eitherToParser = either (fail . show) pure
