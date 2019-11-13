@@ -165,6 +165,7 @@ import Cardano.Wallet.Primitive.Fee
     , Fee (..)
     , FeeOptions (..)
     , adjustForFee
+    , computeCertFee
     , computeFee
     )
 import Cardano.Wallet.Primitive.Model
@@ -654,10 +655,11 @@ coinSelOpts tl txMaxSize = CoinSelectionOptions
 
 feeOpts
     :: TransactionLayer t k
+    -> ( FeePolicy -> Quantity "byte" Int -> Fee )
     -> FeePolicy
     -> FeeOptions
-feeOpts tl feePolicy = FeeOptions
-    { estimateFee = computeFee feePolicy . estimateSize tl
+feeOpts tl feeCompute feePolicy = FeeOptions
+    { estimateFee = feeCompute feePolicy . estimateSize tl
     , dustThreshold = minBound
     }
 
@@ -687,7 +689,7 @@ createUnsignedTx ctx wid recipients = do
     liftIO . logInfo tr $ "Coins selected for transaction: \n" <> pretty sel
     withExceptT ErrCreateUnsignedTxFee $ do
         debug tr "Coins after fee adjustment"
-            =<< adjustForFee (feeOpts tl (bp ^. #getFeePolicy)) utxo' sel
+            =<< adjustForFee (feeOpts tl computeFee (bp ^. #getFeePolicy)) utxo' sel
   where
     tl = ctx ^. transactionLayer @t @k
     tr = ctx ^. logger
@@ -738,7 +740,7 @@ createMigrationSourceData ctx wid = do
     let bp = blockchainParameters cp
     let utxo = availableUTxO @s pending cp
     let feePolicy@(LinearFee (Quantity a) _ _) = bp ^. #getFeePolicy
-    let feeOptions = (feeOpts tl feePolicy)
+    let feeOptions = (feeOpts tl computeFee feePolicy)
             { dustThreshold = Coin $ ceiling a }
     let selOptions = coinSelOpts tl (bp ^. #getTxMaxSize)
     pure $ selectCoinsForMigration feeOptions (idealBatchSize selOptions) utxo
@@ -991,7 +993,7 @@ createCert ctx wid = do
     let sel = CoinSelection [] [] []
     withExceptT ErrJoinStakePoolFee $ do
         debug tr "Coins selected for delegation certificate after fee adjustment"
-            =<< adjustForFee (feeOpts tl (bp ^. #getFeePolicy)) utxo sel
+            =<< adjustForFee (feeOpts tl computeCertFee (bp ^. #getFeePolicy)) utxo sel
   where
     tl = ctx ^. transactionLayer @t @k
     tr = ctx ^. logger

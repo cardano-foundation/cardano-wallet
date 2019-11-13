@@ -22,6 +22,7 @@ module Cardano.Wallet.Primitive.Fee
 
       -- * Fee Calculation
     , computeFee
+    , computeCertFee
     , divvyFee
 
       -- * Fee Adjustment
@@ -92,6 +93,24 @@ computeFee policy (Quantity sz) =
     Fee $ ceiling (a + b*fromIntegral sz)
   where
     LinearFee (Quantity a) (Quantity b) (Quantity _c) = policy
+
+-- | Compute fee for a delegation certificate. One need to take into
+-- consideration that "regular tx" fee calculation still holds. There
+-- is additional flat fee inscribed on top of that:
+--
+-- @
+--     f = a + size * b + c
+-- @
+--
+-- where @a@ & @b@ are values fixed by the protocol.
+computeCertFee
+    :: FeePolicy
+    -> Quantity "byte" Int
+    -> Fee
+computeCertFee policy (Quantity sz) =
+    Fee $ ceiling (a + b*fromIntegral sz + c)
+  where
+    LinearFee (Quantity a) (Quantity b) (Quantity c) = policy
 
 {-------------------------------------------------------------------------------
                                 Fee Adjustment
