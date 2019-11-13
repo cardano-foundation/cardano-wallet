@@ -194,7 +194,6 @@ bgroupWriteUTxO db = bgroup "UTxO (Write)"
     , bUTxO         1000         100
     , bUTxO           10        1000
     , bUTxO          100        1000
-    , bUTxO         1000        1000
     , bUTxO            1       10000
     ]
   where
@@ -296,7 +295,6 @@ bgroupWriteTxHistory db = bgroup "TxHistory (Write)"
     , bTxHistory          1          50       50      100     [1..100]
     , bTxHistory          1         100       50      100     [1..100]
     , bTxHistory          1        1000       50      100     [1..100]
-    , bTxHistory          1       10000       50      100     [1..100]
     ]
   where
     bTxHistory n s i o r =
