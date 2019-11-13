@@ -116,10 +116,8 @@ import Criterion.Main
     , bench
     , bgroup
     , defaultMain
-    , env
     , envWithCleanup
     , perRunEnv
-    , whnfIO
     )
 import Crypto.Hash
     ( hash )
@@ -196,7 +194,6 @@ bgroupWriteUTxO db = bgroup "UTxO (Write)"
     , bUTxO         1000         100
     , bUTxO           10        1000
     , bUTxO          100        1000
-    , bUTxO         1000        1000
     , bUTxO            1       10000
     ]
   where
@@ -217,7 +214,7 @@ bgroupReadUTxO db = bgroup "UTxO (Read)"
     , bUTxO         1000       10000
     ]
   where
-    bUTxO n s = withUTxO db n s $ bench lbl $ benchReadUTxO db
+    bUTxO n s = bench lbl $ withUTxO db n s benchReadUTxO
         where lbl = n|+" CP x "+|s|+" UTxO"
 
 ----------------------------------------------------------------------------
@@ -298,7 +295,6 @@ bgroupWriteTxHistory db = bgroup "TxHistory (Write)"
     , bTxHistory          1          50       50      100     [1..100]
     , bTxHistory          1         100       50      100     [1..100]
     , bTxHistory          1        1000       50      100     [1..100]
-    , bTxHistory          1       10000       50      100     [1..100]
     ]
   where
     bTxHistory n s i o r =
@@ -324,7 +320,7 @@ bgroupReadTxHistory db = bgroup "TxHistory (Read)"
     wholeRange = (Nothing, Nothing)
     pending = Just Pending
     bTxHistory n r o st s =
-        withTxHistory db n r $ bench lbl $ benchReadTxHistory db o s st
+        bench lbl $ withTxHistory db n r $ benchReadTxHistory o s st
       where
         lbl = unwords [show n, range, ord, mstatus, search]
         range = let inf = head r in let sup = last r in "["+|inf|+".."+|sup|+"]"
@@ -392,13 +388,13 @@ benchPutTxHistory numBatches batchSize numInputs numOutputs range DBLayer{..} = 
         mapExceptT atomically . putTxHistory testPk
 
 benchReadTxHistory
-    :: DBLayerBench
-    -> SortOrder
+    :: SortOrder
     -> (Maybe Word64, Maybe Word64)
     -> Maybe TxStatus
-    -> Benchmarkable
-benchReadTxHistory DBLayer{..} sortOrder (inf, sup) mstatus =
-    whnfIO $ atomically $ readTxHistory testPk sortOrder range mstatus
+    -> DBLayerBench
+    -> IO [(Tx, TxMeta)]
+benchReadTxHistory sortOrder (inf, sup) mstatus DBLayer{..} =
+    atomically $ readTxHistory testPk sortOrder range mstatus
   where
     range = Range
         (fromFlatSlot epochLength <$> inf)
@@ -436,16 +432,25 @@ mkOutputs :: Int -> Int -> [TxOut]
 mkOutputs prefix n =
     [force (TxOut (mkAddress prefix i) (Coin 1)) | !i <- [1..n]]
 
-withTxHistory :: DBLayerBench -> Int -> [Word64] -> Benchmark -> Benchmark
-withTxHistory db@DBLayer{..} bSize range = env setup . const
-  where
-    setup = do
-        cleanDB db
-        atomically $ unsafeRunExceptT $ initializeWallet testPk testCp testMetadata mempty
-        let (nInps, nOuts) = (20, 20)
-        let txs = force (mkTxHistory bSize nInps nOuts range)
-        atomically $ unsafeRunExceptT $ putTxHistory testPk txs
-        pure db
+withTxHistory
+    :: NFData b
+    => DBLayerBench
+    -> Int
+    -> [Word64]
+    -> (DBLayerBench -> IO b)
+    -> Benchmarkable
+withTxHistory db s r = perRunEnv (txHistoryFixture db s r $> db)
+
+txHistoryFixture
+    :: DBLayerBench
+    -> Int
+    -> [Word64]
+    -> IO ()
+txHistoryFixture db@DBLayer{..} bSize range = do
+    walletFixture db
+    let (nInps, nOuts) = (20, 20)
+    let txs = force (mkTxHistory bSize nInps nOuts range)
+    atomically $ unsafeRunExceptT $ putTxHistory testPk txs
 
 ----------------------------------------------------------------------------
 -- UTxO benchmarks
@@ -472,19 +477,24 @@ mkCheckpoints numCheckpoints utxoSize =
 
     utxo i = force (Map.fromList (zip (map fst $ mkInputs i utxoSize) (mkOutputs i utxoSize)))
 
-benchReadUTxO :: DBLayerBench -> Benchmarkable
-benchReadUTxO DBLayer{..} = whnfIO $ atomically $ readCheckpoint testPk
+benchReadUTxO :: DBLayerBench -> IO (Maybe WalletBench)
+benchReadUTxO DBLayer{..} = atomically $ readCheckpoint testPk
 
 -- Set up a database with some UTxO in checkpoints.
-withUTxO :: DBLayerBench -> Int -> Int -> Benchmark -> Benchmark
-withUTxO db@DBLayer{..} numCheckpoints utxoSize = env setup . const
-  where
-    setup = do
-        cleanDB db
-        atomically $ unsafeRunExceptT $ initializeWallet testPk testCp testMetadata mempty
-        let cps = mkCheckpoints numCheckpoints utxoSize
-        unsafeRunExceptT $ mapM_ (mapExceptT atomically . putCheckpoint testPk) cps
-        pure db
+withUTxO
+    :: NFData b
+    => DBLayerBench
+    -> Int
+    -> Int
+    -> (DBLayerBench -> IO b)
+    -> Benchmarkable
+withUTxO db n s = perRunEnv (utxoFixture db n s $> db)
+
+utxoFixture :: DBLayerBench -> Int -> Int -> IO ()
+utxoFixture db@DBLayer{..} numCheckpoints utxoSize = do
+    walletFixture db
+    let cps = mkCheckpoints numCheckpoints utxoSize
+    unsafeRunExceptT $ mapM_ (mapExceptT atomically . putCheckpoint testPk) cps
 
 ----------------------------------------------------------------------------
 -- SeqState Address Discovery
@@ -578,7 +588,6 @@ benchDiskSize action = bracket setupDB cleanupDB $ \(f, ctx, db) -> do
         kb = 1024
         mb = 1024*kb
         gb = 1024*mb
-
 
 ----------------------------------------------------------------------------
 -- Mock data to use for benchmarks
