@@ -152,12 +152,7 @@ adjustForFee
 adjustForFee unsafeOpt utxo coinSel = do
     let opt = invariant
             "adjustForFee: fee must be non-null" unsafeOpt (not . nullFee)
-    CoinSelection inps' outs' chgs' <- senderPaysFee opt utxo coinSel
-    let neInps = invariant
-            "adjustForFee: empty list of inputs" inps' (not . null)
-    let neOuts = invariant
-            "adjustForFee: empty list of outputs" outs' (not .  null)
-    return $ CoinSelection neInps neOuts chgs'
+    senderPaysFee opt utxo coinSel
   where
     nullFee opt = estimateFee opt coinSel == Fee 0
 
