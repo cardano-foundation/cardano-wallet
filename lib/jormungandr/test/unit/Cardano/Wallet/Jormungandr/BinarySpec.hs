@@ -296,19 +296,20 @@ instance Arbitrary SignedTx where
         inps <- vectorOf nIns arbitrary
         outs <- vectorOf nOut arbitrary
         wits <- vectorOf nIns arbitrary
-        let tid = fragmentId inps outs wits
+        let tid = fragmentId MsgTypeTransaction (return ()) inps outs wits
         return $ SignedTx (Tx tid inps outs, wits)
 
     shrink (SignedTx (Tx _ inps outs, wits)) =
-        [ SignedTx (Tx (fragmentId inps' outs wits') inps' outs, wits')
+        [ SignedTx (Tx (txid inps' outs wits') inps' outs, wits')
         | (inps', wits') <- unzip <$> shrinkList' (zip inps wits)
         ]
         ++
-        [ SignedTx (Tx (fragmentId inps outs' wits) inps outs', wits)
+        [ SignedTx (Tx (txid inps outs' wits) inps outs', wits)
         | outs' <- shrinkList' outs
         ]
 
       where
+        txid = fragmentId MsgTypeTransaction (return ())
         shrinkList' xs  =
             (shrinkHeadAndReplicate shrink xs) ++
             (shrinkList shrink xs)

@@ -52,7 +52,7 @@ import Cardano.Wallet.TransactionSpecShared
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Data.ByteArray.Encoding
-    ( Base (Base16), convertFromBase, convertToBase )
+    ( Base (Base16), convertToBase )
 import Data.ByteString
     ( ByteString )
 import Data.Proxy
@@ -552,12 +552,6 @@ mkKeystore pairs k =
 
 hex :: ByteString -> ByteString
 hex = convertToBase Base16
-
-unhex :: ByteString -> ByteString
-unhex = fromRight . convertFromBase Base16
-  where
-    fromRight (Right a) = a
-    fromRight (Left e) = error ("unhex: " ++ e)
 
 unknownInputTest
     :: forall n. (PaymentAddress n ShelleyKey, NetworkDiscriminantVal n)
