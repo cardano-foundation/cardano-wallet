@@ -31,6 +31,8 @@ import Control.Monad.IO.Class
     ( liftIO )
 import Control.Retry
     ( RetryPolicyM, retrying )
+import Data.List
+    ( isSubsequenceOf )
 import Data.Streaming.Network
     ( bindRandomPortTCP )
 import Data.Word
@@ -51,7 +53,6 @@ import Network.Socket
     )
 import UnliftIO.Exception
     ( bracket, throwIO, try )
-
 
 -- | Wait until a TCP port is open to connections according to a given retry
 -- policy. Throws an exception if the time out is reached.
@@ -89,10 +90,19 @@ isPortOpen sockAddr = do
     res <- try $ connect sock sockAddr
     case res of
       Right () -> return True
-      Left e ->
-        if (Errno <$> ioe_errno e) == Just eCONNREFUSED
-          then return False
-          else throwIO e
+      Left e
+        | (Errno <$> ioe_errno e) == Just eCONNREFUSED -> pure False
+        | any (`isSubsequenceOf` show e) windowsNetworkError -> pure False
+        | otherwise -> throwIO e
+  where
+    windowsNetworkError :: [String]
+    windowsNetworkError =
+        [ "WSAECONNREFUSED"  -- Connection refused
+        , "WSAEADDRNOTAVAIL" -- Cannot assign requested address
+        , "WSAETIMEDOUT"     -- Connection timed out
+        , "WSAEHOSTUNREACH"  -- Host is unreachable
+        , "WSAEHOSTDOWN"     -- Host is down
+        ]
 
 -- | Creates a `SockAttr` from host IP and port number.
 --
