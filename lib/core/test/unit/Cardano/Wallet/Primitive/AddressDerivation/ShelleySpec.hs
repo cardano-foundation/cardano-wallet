@@ -1,5 +1,8 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -21,6 +24,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
+    , PaymentAddress (..)
     , SoftDerivation (..)
     , WalletKey (..)
     , XPrv
@@ -28,11 +32,13 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , paymentAddress
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..)
+    ( KnownNetwork (..)
+    , ShelleyKey (..)
     , addrGroupedSize
     , addrSingleSize
     , generateKeyFromSeed
     , minSeedLengthBytes
+    , publicKeySize
     , unsafeGenerateKeyFromSeed
     )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
@@ -103,6 +109,10 @@ spec = do
             (property prop_fingerprintGroupedAddress)
         it "Inspecting Invalid addresses throws"
             (property prop_fingerprintInvalidAddress)
+        it "Roundtrips paymentKeyFingerprint . liftPaymentFingerprint (Testnet)"
+            (property (prop_fingerprintRoundtrip @'Testnet))
+        it "Roundtrips paymentKeyFingerprint . liftPaymentFingerprint (Mainnet)"
+            (property (prop_fingerprintRoundtrip @'Mainnet))
 
 {-------------------------------------------------------------------------------
                                Properties
@@ -160,7 +170,7 @@ prop_accountKeyDerivation (seed, recPwd) encPwd ix =
 
 -- | Single addresses have a payment key but no delegation key
 prop_fingerprintSingleAddress
-    :: SingleAddress
+    :: SingleAddress 'Testnet
     -> Property
 prop_fingerprintSingleAddress (SingleAddress addr) = conjoin $ property <$>
     [ isRight (paymentKeyFingerprint @ShelleyKey addr)
@@ -169,7 +179,7 @@ prop_fingerprintSingleAddress (SingleAddress addr) = conjoin $ property <$>
 
 -- | Grouped addresses have a payment key and a delegation key
 prop_fingerprintGroupedAddress
-    :: GroupedAddress
+    :: GroupedAddress 'Testnet
     -> Property
 prop_fingerprintGroupedAddress (GroupedAddress addr) = conjoin $ property <$>
     [ isRight (paymentKeyFingerprint @ShelleyKey addr)
@@ -185,6 +195,17 @@ prop_fingerprintInvalidAddress (InvalidAddress addr) = conjoin $ property <$>
     , isLeft (delegationKeyFingerprint @ShelleyKey addr)
     ]
 
+-- | liftPaymentKeyFingerprint <$> paymentKeyFingerprint addr = Right addr
+prop_fingerprintRoundtrip
+    :: forall (n :: NetworkDiscriminant).
+        ( PaymentAddress n ShelleyKey
+        )
+    => SingleAddress n
+    -> Property
+prop_fingerprintRoundtrip (SingleAddress addr) =
+    (liftPaymentFingerprint @n <$> paymentKeyFingerprint @ShelleyKey addr)
+        === Right addr
+
 {-------------------------------------------------------------------------------
                              Arbitrary Instances
 -------------------------------------------------------------------------------}
@@ -199,17 +220,21 @@ instance {-# OVERLAPS #-} Arbitrary (Passphrase "seed") where
         bytes <- BS.pack <$> vectorOf n arbitrary
         return $ Passphrase $ BA.convert bytes
 
-newtype SingleAddress = SingleAddress Address deriving (Eq, Show)
+newtype SingleAddress (n :: NetworkDiscriminant)
+    = SingleAddress Address
+    deriving (Eq, Show)
 
-instance Arbitrary SingleAddress where
+instance KnownNetwork n => Arbitrary (SingleAddress n) where
     arbitrary = SingleAddress . Address . BS.pack
-        <$> vectorOf addrSingleSize arbitrary
+        <$> fmap ([single @n] <>) (vectorOf publicKeySize arbitrary)
 
-newtype GroupedAddress = GroupedAddress Address deriving (Eq, Show)
+newtype GroupedAddress (n :: NetworkDiscriminant)
+    = GroupedAddress Address
+    deriving (Eq, Show)
 
-instance Arbitrary GroupedAddress where
+instance KnownNetwork n => Arbitrary (GroupedAddress n) where
     arbitrary = GroupedAddress . Address . BS.pack
-        <$> vectorOf addrGroupedSize arbitrary
+        <$> fmap ([grouped @n] <>) (vectorOf (2*publicKeySize) arbitrary)
 
 newtype InvalidAddress = InvalidAddress Address deriving (Eq, Show)
 
