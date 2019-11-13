@@ -51,14 +51,21 @@ let
       windows = x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-linux;
     };
 
-    # This is used for testing the build on windows.
+    # Windows release ZIP archive
     cardano-wallet-jormungandr-win64 = import ./nix/windows-release.nix {
+      inherit pkgs project;
+      cardano-wallet-jormungandr = jobs.x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-linux;
+    };
+
+    # This is used for testing the build on windows.
+    cardano-wallet-jormungandr-tests-win64 = import ./nix/windows-testing-bundle.nix {
       inherit pkgs project;
       cardano-wallet-jormungandr = jobs.x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-linux;
       tests = collectTests jobs.x86_64-pc-mingw32.tests;
       benchmarks = collectTests jobs.x86_64-pc-mingw32.benchmarks;
     };
 
+    # Fully-static linux binary (placeholder - does not build)
     cardano-wallet-jormungandr-linux64 = let
       name = "cardano-wallet-jormungandr-${project.version}";
       tarname = "${name}-linux64.tar.gz";
