@@ -67,7 +67,7 @@ import Data.Quantity
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Text.Encoding
-    ( decodeUtf8 )
+    ( decodeUtf8, encodeUtf8 )
 import Data.Word
     ( Word64 )
 import GHC.Generics
@@ -75,12 +75,12 @@ import GHC.Generics
 import Servant.API
     ( Accept (..), MimeRender (..), MimeUnrender (..), ToHttpApiData (..) )
 
-import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.Aeson.Types as Aeson
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Servant.API.ContentTypes as Servant
 
-newtype AccountId = AccountId { getAccountId :: Bech32.DataPart }
+newtype AccountId = AccountId { getAccountId :: BS.ByteString }
     deriving (Eq, Show)
 
 data AccountState = AccountState
@@ -112,18 +112,18 @@ instance ToHttpApiData AccountId where
     toUrlPiece = toText
 
 instance FromText AccountId where
-    fromText text = case Bech32.decodeLenient text of
-        Right (h, d) | h == accountIdHumanReadablePart ->
-            Right $ AccountId d
+    fromText text = case decoded of
+        Right bytes | BS.length bytes == 32 ->
+            Right $ AccountId bytes
         _ ->
-            Left $ TextDecodingError "Invalid Jormungandr account ID."
+            Left $ TextDecodingError
+                "Invalid Jörmungandr account ID: \
+                \expecting a hex-encoded value that is 32 bytes in length."
+      where
+        decoded = convertFromBase Base16 $ encodeUtf8 text
 
 instance ToText AccountId where
-    toText = Bech32.encodeLenient accountIdHumanReadablePart . getAccountId
-
-accountIdHumanReadablePart :: Bech32.HumanReadablePart
-accountIdHumanReadablePart =
-    Bech32.unsafeHumanReadablePartFromText "ca"
+    toText = decodeUtf8 . convertToBase Base16 . getAccountId
 
 instance MimeUnrender JormungandrBinary [BlockId] where
     mimeUnrender _ =

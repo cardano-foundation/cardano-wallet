@@ -35,7 +35,6 @@ library
     , aeson
     , async
     , base58-bytestring
-    , bech32
     , binary
     , bytestring
     , cardano-crypto
@@ -129,7 +128,6 @@ test-suite unit
       base
     , aeson
     , aeson-qq
-    , bech32
     , binary
     , bytestring
     , cardano-crypto

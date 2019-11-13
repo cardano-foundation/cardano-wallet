@@ -44,11 +44,10 @@ import Test.Aeson.Internal.RoundtripSpecs
 import Test.Hspec
     ( Spec, describe, it, shouldBe )
 import Test.QuickCheck
-    ( Arbitrary (..), choose )
+    ( Arbitrary (..) )
 import Test.Text.Roundtrip
     ( textRoundtrip )
 
-import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
@@ -75,13 +74,15 @@ spec = do
 
             let invalidAccountIdTexts =
                     [ ""
-                    , "not-an-account-id"
-                    , "skkalz75s4vtw2e9w"
+                    , "a"
+                    , "0123456789abcdef"
                     ]
+            let expectedErrorMessage =
+                    "Invalid Jörmungandr account ID: \
+                    \expecting a hex-encoded value that is 32 bytes in length."
             forM_ invalidAccountIdTexts $ \text ->
                 toText <$> fromText @AccountId text
-                    `shouldBe` Left
-                        (TextDecodingError "Invalid Jormungandr account ID.")
+                    `shouldBe` Left (TextDecodingError expectedErrorMessage)
 
         describe "Example account state objects are properly decoded" $ do
 
@@ -230,10 +231,7 @@ spec = do
 -------------------------------------------------------------------------------}
 
 instance Arbitrary AccountId where
-    arbitrary = do
-        count <- choose (0, 64)
-        AccountId . Bech32.dataPartFromBytes . BS.pack
-            <$> replicateM count arbitrary
+    arbitrary = AccountId . BS.pack <$> replicateM 32 arbitrary
     shrink _ = []
 
 instance Arbitrary AccountState where
@@ -271,15 +269,15 @@ testAccountIdTexts =
 
 testAccountIdText1 :: Text
 testAccountIdText1 =
-    "ca1skkalz75s4vtw2e9wsy2q9jvsu3qtz6d2vm3xj4e5q4ufejpjjfn5lh35yr"
+    "addf8bd48558b72b257408a0164c8722058b4d5337134ab9a02bc4e64194933a"
 
 testAccountIdText2 :: Text
 testAccountIdText2 =
-    "ca1shqtmpgefmhlwrwlm48kxq43hpkxnvz8fey2jlmce5lea3mxnskfqr99fz4"
+    "c0bd85194eeff70ddfdd4f6302b1b86c69b0474e48a97f78cd3f9ec7669c2c90"
 
 testAccountIdText3 :: Text
 testAccountIdText3 =
-    "ca1skzn99jx8a2rw80gp9uea47tmcndv7gm28vy9as6akevy32204aqwzpsctx"
+    "853296463f54371de809799ed7cbde26d6791b51d842f61aedb2c2454a7d7a07"
 
 testPoolId1 :: PoolId
 testPoolId1 = unsafePoolId

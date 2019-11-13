@@ -140,7 +140,6 @@ import Test.Utils.Ports
     ( randomUnusedTCPPorts )
 
 import qualified Cardano.Wallet.Jormungandr.Api.Client as Jormungandr
-import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 
@@ -266,8 +265,6 @@ spec = do
             \(_, url) -> do
                 manager <- newManager defaultManagerSettings
                 let client = Jormungandr.mkJormungandrClient manager url
-                let nonexistentAccountId = AccountId $
-                        Bech32.dataPartFromBytes mempty
                 res <- runExceptT $
                     Jormungandr.getAccountState client nonexistentAccountId
                 res `shouldBe` Left
@@ -581,7 +578,11 @@ mkAccountId = either err id . fromText
 
 testAccountId :: AccountId
 testAccountId = mkAccountId
-    "ca1skkalz75s4vtw2e9wsy2q9jvsu3qtz6d2vm3xj4e5q4ufejpjjfn5lh35yr"
+    "addf8bd48558b72b257408a0164c8722058b4d5337134ab9a02bc4e64194933a"
+
+nonexistentAccountId :: AccountId
+nonexistentAccountId = mkAccountId
+    "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
 
 testPoolId :: PoolId
 testPoolId = unsafePoolId
