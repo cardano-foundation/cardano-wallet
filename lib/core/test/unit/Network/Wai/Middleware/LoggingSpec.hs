@@ -183,6 +183,7 @@ spec = describe "Logging Middleware"
             void $ mapConcurrently (const (get ctx "/get")) (replicate n ())
             entries <- readTVarIO (logs ctx)
             let index = Map.fromList [ (loName l, l) | l <- entries ]
+            pendingOnWindows "Disabled on windows due to race with log flushing"
             Map.size index `shouldBe` n
 
     it "correct time measures" $ \ctx -> property $ \(nReq, ix) ->
