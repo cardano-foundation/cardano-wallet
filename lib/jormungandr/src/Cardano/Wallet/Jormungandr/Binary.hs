@@ -45,7 +45,6 @@ module Cardano.Wallet.Jormungandr.Binary
     , signedTransactionFragment
 
     -- * Transaction witnesses
-    , signData
     , utxoWitness
     , legacyUtxoWitness
     , TxWitnessTag (..)
@@ -797,16 +796,6 @@ delegationFragmentId poolId accId accSig inps outs wits =
     Hash $ blake2b256 $ BL.toStrict $ runPut $ do
         putFragmentSpec FragmentDelegation
         putStakeDelegationTx poolId accId accSig inps outs wits
-
--- | See 'fragmentId'. This computes the signing data required for producing
--- transaction witnesses.
-signData
-    :: [(TxIn, Coin)]
-    -> [TxOut]
-    -> Hash "SignData"
-signData inps outs =
-    Hash $ blake2b256 $ BL.toStrict $ runPut $ do
-        putTx inps outs
 
 {-------------------------------------------------------------------------------
                                 Conversions

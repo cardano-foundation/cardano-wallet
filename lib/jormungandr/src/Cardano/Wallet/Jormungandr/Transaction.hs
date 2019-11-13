@@ -25,7 +25,6 @@ import Cardano.Wallet.Jormungandr.Binary
     , maxNumberOfInputs
     , maxNumberOfOutputs
     , runGetOrFail
-    , signData
     , signedTransactionFragment
     , utxoWitness
     )
@@ -87,6 +86,7 @@ newTransactionLayer (Hash block0H) = TransactionLayer
         let inps = fmap (second coin) rnps
         wits <- forM rnps $ \(_, TxOut addr _) -> do
             xprv <- maybeToRight (ErrKeyNotFoundForAddress addr) (keyFrom addr)
+            let signData = error "unimplemented"
             let payload = block0H <> getHash (signData inps outs)
             pure $ mkTxWitness (fst xprv) (sign payload xprv)
         let tx = Tx
