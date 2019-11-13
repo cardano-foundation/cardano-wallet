@@ -284,6 +284,45 @@ spec = do
             , csChngs = [c `div` 2 - 1, c `div` 2]
             })
 
+        feeUnitTest (FeeFixture
+            { fInps = []
+            , fOuts = []
+            , fChngs = []
+            , fUtxo = [3]
+            , fFee = 3
+            , fDust = 0
+            }) (Right $ FeeOutput
+            { csInps = [3]
+            , csOuts = []
+            , csChngs = []
+            })
+
+        feeUnitTest (FeeFixture
+            { fInps = []
+            , fOuts = []
+            , fChngs = []
+            , fUtxo = [2,2]
+            , fFee = 3
+            , fDust = 0
+            }) (Right $ FeeOutput
+            { csInps = [2,2]
+            , csOuts = []
+            , csChngs = [1]
+            })
+
+        feeUnitTest (FeeFixture
+            { fInps = []
+            , fOuts = []
+            , fChngs = []
+            , fUtxo = [2,2]
+            , fFee = 3
+            , fDust = 1
+            }) (Right $ FeeOutput
+            { csInps = [2,2]
+            , csOuts = []
+            , csChngs = []
+            })
+
     describe "Fee Calculation: Generators" $ do
         it "Arbitrary CoinSelection" $ property $ \(ShowFmt cs) ->
             property $ isValidSelection cs
