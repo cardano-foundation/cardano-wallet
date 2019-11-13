@@ -47,16 +47,17 @@ import Cardano.Pool.Metrics
 import Cardano.Wallet
     ( ErrAdjustForFee (..)
     , ErrCoinSelection (..)
+    , ErrCreateCert (..)
     , ErrCreateUnsignedTx (..)
     , ErrDecodeSignedTx (..)
     , ErrEstimateTxFee (..)
-    , ErrJoinStakePool (..)
     , ErrListTransactions (..)
     , ErrListUTxOStatistics (..)
     , ErrMkStdTx (..)
     , ErrNoSuchWallet (..)
     , ErrPostTx (..)
     , ErrRemovePendingTx (..)
+    , ErrSignCert (..)
     , ErrSignTx (..)
     , ErrStartTimeLaterThanEndTime (..)
     , ErrSubmitExternalTx (..)
@@ -817,16 +818,29 @@ joinStakePool ctx spl (ApiT poolId) (ApiT wid) passwd = do
     allPools <- listPools spl
     case L.find (\(ApiStakePool pId _ _) -> pId == ApiT poolId) allPools of
         Nothing ->
-            liftHandler $ throwE (ErrJoinStakePoolNoSuchPool poolId)
+            liftHandler $ throwE (ErrCreateCertNoSuchPool poolId)
         Just _ -> do
-            let (ApiWalletPassphrase (ApiT _pwd)) = passwd
+            let (ApiWalletPassphrase (ApiT pwd)) = passwd
 
-            _selection <- liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
+            selection <- liftHandler $ withWorkerCtx ctx wid liftE1 $ \wrk ->
                 W.createCert @_ @s @t wrk wid
 
-            throwError err501
+            (tx, meta, time, wit) <- liftHandler $ withWorkerCtx ctx wid liftE2 $ \wrk ->
+                W.signCert @_ @s @t @k wrk wid () pwd selection poolId
+
+            liftHandler $ withWorkerCtx ctx wid liftE3 $ \wrk ->
+                W.submitTx @_ @s @t @k wrk wid (tx, meta, wit)
+
+            pure $ mkApiTransaction
+                (txId tx)
+                (fmap Just <$> selection ^. #inputs)
+                (selection ^. #outputs)
+                (meta, time)
+                #pendingSince
   where
-    liftE = throwE . ErrJoinStakePoolNoSuchWallet
+    liftE1 = throwE . ErrCreateCertNoSuchWallet
+    liftE2 = throwE . ErrSignCertNoSuchWallet
+    liftE3 = throwE . ErrSubmitTxNoSuchWallet
 
 quitStakePool
     :: forall n k.
@@ -1611,16 +1625,27 @@ instance LiftHandler ErrMetricsInconsistency where
                 , " but the node doesn't know about this stake pool!"
                 ]
 
-instance LiftHandler ErrJoinStakePool where
+instance LiftHandler ErrCreateCert where
     handler = \case
-        ErrJoinStakePoolNoSuchPool poolId ->
+        ErrCreateCertNoSuchPool poolId ->
             apiError err404 NoSuchPool $ mconcat
                 [ "I couldn't find a stake pool with the given id: "
                 , toText poolId
                 ]
-        ErrJoinStakePoolNoSuchWallet e -> handler e
-        ErrJoinStakePoolWithRootKey e  -> handler e
-        ErrJoinStakePoolFee e -> handler e
+        ErrCreateCertNoSuchWallet e -> handler e
+        ErrCreateCertFee e -> handler e
+
+instance LiftHandler ErrSignCert where
+    handler = \case
+        ErrSignCertNoSuchWallet e -> (handler e)
+            { errHTTPCode = 410
+            , errReasonPhrase = errReasonPhrase err410
+            }
+        ErrSignCertWithRootKey e@ErrWithRootKeyNoRootKey{} -> (handler e)
+            { errHTTPCode = 410
+            , errReasonPhrase = errReasonPhrase err410
+            }
+        ErrSignCertWithRootKey e@ErrWithRootKeyWrongPassphrase{} -> handler e
 
 instance LiftHandler (Request, ServantErr) where
     handler (req, err@(ServantErr code _ body headers))
