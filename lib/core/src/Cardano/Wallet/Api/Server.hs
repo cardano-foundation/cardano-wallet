@@ -380,7 +380,7 @@ ioToListenError hostPreference portOpt e
     | isDoesNotExistError e =
         Just (ListenErrorHostDoesNotExist hostPreference)
     -- Bad hostname (bind: WSAEOPNOTSUPP) -- Windows
-    | isUserError e && hasDescription "10045" =
+    | isUserError e && (hasDescription "11001" || hasDescription "10045") =
         Just (ListenErrorHostDoesNotExist hostPreference)
     -- Address is valid, but can't be used for listening -- Linux
     | show (ioeGetErrorType e) == "invalid argument" =
@@ -389,7 +389,8 @@ ioToListenError hostPreference portOpt e
     | show (ioeGetErrorType e) == "unsupported operation" =
         Just (ListenErrorInvalidAddress hostPreference)
     -- Address is valid, but can't be used for listening -- Windows
-    | isOtherError e && hasDescription "WSAEINVAL" =
+    | isOtherError e &&
+      (hasDescription "WSAEINVAL" || hasDescription "WSAEADDRNOTAVAIL") =
         Just (ListenErrorInvalidAddress hostPreference)
     -- Listening on an unavailable or privileged port -- Windows
     | isOtherError e && hasDescription "WSAEACCESS" =
