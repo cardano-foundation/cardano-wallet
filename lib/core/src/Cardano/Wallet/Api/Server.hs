@@ -124,8 +124,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.Network
     ( ErrNetworkTip (..), ErrNetworkUnavailable (..), NetworkLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationType (..)
-    , HardDerivation (..)
+    ( HardDerivation (..)
     , NetworkDiscriminant (..)
     , PaymentAddress (..)
     , WalletKey (..)
@@ -820,9 +819,11 @@ joinStakePool ctx spl (ApiT poolId) (ApiT wid) passwd = do
         Nothing ->
             liftHandler $ throwE (ErrJoinStakePoolNoSuchPool poolId)
         Just _ -> do
-            let (ApiWalletPassphrase (ApiT pwd)) = passwd
-            liftHandler $ withWorkerCtx ctx wid liftE $ \worker ->
-                W.createCertificateTx @_ @s @t @k worker wid () pwd poolId
+            let (ApiWalletPassphrase (ApiT _pwd)) = passwd
+
+            _selection <- liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
+                W.createCert @_ @s @t wrk wid
+
             throwError err501
   where
     liftE = throwE . ErrJoinStakePoolNoSuchWallet
@@ -1610,7 +1611,7 @@ instance LiftHandler ErrMetricsInconsistency where
                 , " but the node doesn't know about this stake pool!"
                 ]
 
-instance Buildable e =>  LiftHandler (ErrJoinStakePool e) where
+instance LiftHandler ErrJoinStakePool where
     handler = \case
         ErrJoinStakePoolNoSuchPool poolId ->
             apiError err404 NoSuchPool $ mconcat
@@ -1619,7 +1620,6 @@ instance Buildable e =>  LiftHandler (ErrJoinStakePool e) where
                 ]
         ErrJoinStakePoolNoSuchWallet e -> handler e
         ErrJoinStakePoolWithRootKey e  -> handler e
-        ErrJoinStakePoolCoinSelection e -> handler e
         ErrJoinStakePoolFee e -> handler e
 
 instance LiftHandler (Request, ServantErr) where

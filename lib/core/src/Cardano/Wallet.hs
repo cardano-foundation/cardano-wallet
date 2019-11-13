@@ -112,7 +112,7 @@ module Cardano.Wallet
     , withRootKey
 
     -- ** Stake Pools
-    , createCertificateTx
+    , createCert
     , ErrJoinStakePool (..)
     ) where
 
@@ -137,17 +137,13 @@ import Cardano.Wallet.Network
     , follow
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( AccountingStyle (..)
-    , Depth (RootK)
-    , DerivationType (..)
+    ( Depth (RootK)
     , ErrWrongPassphrase (..)
-    , HardDerivation (..)
     , Passphrase
     , WalletKey (..)
     , XPrv
     , checkPassphrase
     , encryptPassphrase
-    , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
@@ -978,11 +974,33 @@ listTransactions ctx wid mStart mEnd order = db & \DBLayer{..} -> do
         -- the start of a slot and its end could be a valid candidate.
         txTime = slotStartTime sp
 
-createCertificateTx
+createCert
+    :: forall ctx s t k.
+        ( HasTransactionLayer t k ctx
+        , HasLogger ctx
+        , HasDBLayer s k ctx
+        )
+    => ctx
+    -> WalletId
+    -> ExceptT ErrJoinStakePool IO CoinSelection
+createCert ctx wid = do
+    (wal, _, pending) <- withExceptT ErrJoinStakePoolNoSuchWallet $
+        readWallet @ctx @s @k ctx wid
+    let bp = blockchainParameters wal
+    let utxo = availableUTxO @s pending wal
+    let sel = CoinSelection [] [] []
+    withExceptT ErrJoinStakePoolFee $ do
+        debug tr "Coins selected for delegation certificate after fee adjustment"
+            =<< adjustForFee (feeOpts tl (bp ^. #getFeePolicy)) utxo sel
+  where
+    tl = ctx ^. transactionLayer @t @k
+    tr = ctx ^. logger
+
+{--
+signCert
     :: forall ctx s t k e.
         ( HasTransactionLayer t k ctx
         , HasDBLayer s k ctx
-        , e ~ ErrValidateSelection t
         , HardDerivation k
         , WalletKey k
         , AddressIndexDerivationType k ~ 'Soft
@@ -993,16 +1011,16 @@ createCertificateTx
     -> ArgGenChange s
     -> Passphrase "encryption"
     -> PoolId
-    -> ExceptT (ErrJoinStakePool e) IO ()
-createCertificateTx ctx wid argGenChange pwd _poolId = do
-    DB.withLock db $ do
+    -> ExceptT ErrJoinStakePool IO ()
+signCert ctx wid argGenChange pwd _poolId = db & \DBLayer{..} -> do
         --reading checkpoint needed for generating change address later
         -- and checking if wallet exists
-        cp <- withExceptT ErrJoinStakePoolNoSuchWallet $
-            readWalletCheckpoint @ctx @s @k ctx wid
+    mapExceptT atomically $ do
+        cp <- withExceptT ErrJoinStakePoolNoSuchWallet $ withNoSuchWallet wid $
+                readCheckpoint (PrimaryKey wid)
 
         --deriving chimeric account
-        _accPub <- withRootKey @ctx @s @k ctx wid pwd ErrJoinStakePoolWithRootKey
+        _accPub <- withRootKey @_ @s @k ctx wid pwd ErrJoinStakePoolWithRootKey
             $ \xprv -> do
             let accPrv = deriveAccountPrivateKey pwd xprv minBound
             pure $ publicKey
@@ -1022,9 +1040,7 @@ createCertificateTx ctx wid argGenChange pwd _poolId = do
 
         -- do coin selection
         let utxo = availableUTxO @s pending wal
-        (sel, utxo') <- withExceptT ErrJoinStakePoolCoinSelection $ do
-            let opts = coinSelOpts tl (bp ^. #getTxMaxSize)
-            CoinSelection.random opts (NE.fromList recipient) utxo
+        let sel = CoinSelection [] [] []
 
         -- adjusting for fee
         let feeCertOpts = FeeOptions
@@ -1032,7 +1048,7 @@ createCertificateTx ctx wid argGenChange pwd _poolId = do
                 , dustThreshold = Coin 0
                 }
         _sel' <- withExceptT ErrJoinStakePoolFee $
-            adjustForFee feeCertOpts utxo' sel
+            adjustForFee feeCertOpts utxo sel
 
         -- now we are ready to use accPub, sel' and poolId and call mkCertificateTx
 
@@ -1040,7 +1056,7 @@ createCertificateTx ctx wid argGenChange pwd _poolId = do
   where
     tl = ctx ^. transactionLayer @t @k
     db = ctx ^. dbLayer @s @k
-
+--}
 {-------------------------------------------------------------------------------
                                   Key Store
 -------------------------------------------------------------------------------}
@@ -1158,11 +1174,10 @@ data ErrStartTimeLaterThanEndTime = ErrStartTimeLaterThanEndTime
     } deriving (Show, Eq)
 
 -- | Errors that can occur when trying to join stake pool.
-data ErrJoinStakePool e
+data ErrJoinStakePool
     = ErrJoinStakePoolNoSuchPool PoolId
     | ErrJoinStakePoolNoSuchWallet ErrNoSuchWallet
     | ErrJoinStakePoolWithRootKey ErrWithRootKey
-    | ErrJoinStakePoolCoinSelection (ErrCoinSelection e)
     | ErrJoinStakePoolFee ErrAdjustForFee
     deriving (Show, Eq)
 
