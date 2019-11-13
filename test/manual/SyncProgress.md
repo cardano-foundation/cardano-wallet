@@ -1,6 +1,10 @@
-# Tests for Cardano.Wallet syncProgress 
+# Tests for Cardano.Wallet syncProgress
 
-## state is Ready 
+## OS
+
+Windows, MacOS, Linux
+
+## state is Ready
 
 1. Launch wallet and jormungandr in separate terminals
 ```bash
@@ -42,7 +46,7 @@ The progress should eventually drop, and continue dropping. E.g:
         },
 ```
 
-## sync progress / state can reach Ready again 
+## sync progress / state can reach Ready again
 
 1. Re-launch jormungandr (cf. beginning of this document)
 2. The state field should eventually reach Ready again when polling
