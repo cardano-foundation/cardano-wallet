@@ -1,7 +1,9 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
@@ -17,8 +19,7 @@ module Cardano.Wallet.Jormungandr.Api.Types
 
     -- * API types
     , ApiAccountId (..)
-    , ApiAccountState (..)
-    , ApiAccountDelegationInfo (..)
+    , AccountState (..)
     , ApiStakeDistribution (..)
     , BlockId (..)
     , StakeApiResponse (..)
@@ -47,7 +48,9 @@ import Control.Applicative
 import Control.Arrow
     ( left )
 import Data.Aeson
-    ( FromJSON (..), defaultOptions, genericParseJSON, withObject, (.:) )
+    ( FromJSON (..), defaultOptions, genericParseJSON )
+import Data.Bifunctor
+    ( bimap )
 import Data.Binary.Get
     ( getByteString )
 import Data.ByteArray.Encoding
@@ -75,26 +78,21 @@ import qualified Servant.API.ContentTypes as Servant
 newtype ApiAccountId = ApiAccountId { getApiAccountId :: Bech32.DataPart }
     deriving (Eq, Show)
 
+data AccountState = AccountState
+    { currentBalance
+        :: !(Quantity "lovelace" Word64)
+    , stakePools
+        :: [(PoolId, Quantity "stake-pool-ratio" Word64)]
+    , totalTransactionCount
+        :: !(Quantity "transaction-count" Word64)
+    } deriving (Eq, Show)
+
 newtype BlockId = BlockId { getBlockId :: Hash "BlockHeader" }
 
 data StakeApiResponse = StakeApiResponse
     { epoch :: ApiT EpochNo
     , stake :: ApiStakeDistribution
     } deriving (Show, Eq, Generic)
-
-data ApiAccountState = ApiAccountState
-    { currentBalance
-        :: !(ApiT (Quantity "lovelace" Word64))
-    , delegationInfo
-        :: !ApiAccountDelegationInfo
-    , totalTransactionCount
-        :: !(ApiT (Quantity "transaction-count" Word64))
-    } deriving (Eq, Show, Generic)
-
-newtype ApiAccountDelegationInfo = ApiAccountDelegationInfo
-    { stakePools
-        :: [(ApiT PoolId, ApiT (Quantity "stake-pool-ratio" Word64))]
-    } deriving (Eq, Show, Generic)
 
 data ApiStakeDistribution = ApiStakeDistribution
     { dangling :: ApiT (Quantity "lovelace" Word64)
@@ -168,17 +166,38 @@ instance Accept Hex where
 instance FromJSON StakeApiResponse where
     parseJSON = genericParseJSON defaultOptions
 
-instance FromJSON ApiAccountState where
-    parseJSON = withObject "ApiAccountState" $ \v ->
-        ApiAccountState
-            <$> v .: "value"
-            <*> v .: "delegation"
-            <*> v .: "counter"
+instance FromJSON AccountState where
+    parseJSON = fmap fromApiAccountState . parseJSON
 
-instance FromJSON ApiAccountDelegationInfo where
-    parseJSON = withObject "ApiAccountDelegationInfo" $ \v ->
-        ApiAccountDelegationInfo
-            <$> v .: "pools"
+data ApiAccountState = ApiAccountState
+    { counter
+        :: !(ApiT (Quantity "transaction-count" Word64))
+    , delegation
+        :: !ApiDelegationState
+    , value
+        :: !(ApiT (Quantity "lovelace" Word64))
+    } deriving (Eq, Show, Generic)
+
+newtype ApiDelegationState = ApiDelegationState
+    { pools
+        :: [(ApiT PoolId, ApiT (Quantity "stake-pool-ratio" Word64))]
+    } deriving (Eq, Show, Generic)
+
+instance FromJSON ApiAccountState where
+    parseJSON = genericParseJSON defaultOptions
+
+instance FromJSON ApiDelegationState where
+    parseJSON = genericParseJSON defaultOptions
+
+fromApiAccountState :: ApiAccountState -> AccountState
+fromApiAccountState a = AccountState
+    { currentBalance
+        = getApiT $ value a
+    , stakePools
+        = bimap getApiT getApiT <$> pools (delegation a :: ApiDelegationState)
+    , totalTransactionCount
+        = getApiT $ counter a
+    }
 
 instance FromJSON (ApiStakeDistribution) where
     parseJSON = genericParseJSON defaultOptions

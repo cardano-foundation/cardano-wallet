@@ -20,8 +20,8 @@ module Cardano.Wallet.Jormungandr.Api
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Api.Types
-    ( ApiAccountId
-    , ApiAccountState
+    ( AccountState
+    , ApiAccountId
     , BlockId
     , Hex
     , JormungandrBinary
@@ -51,7 +51,7 @@ type GetAccountState
     = "api" :> "v0"
     :> "account"
     :> Capture "accountId" ApiAccountId
-    :> Get '[JSON] ApiAccountState
+    :> Get '[JSON] AccountState
 
 -- | Retrieve a block by its id.
 type GetBlock

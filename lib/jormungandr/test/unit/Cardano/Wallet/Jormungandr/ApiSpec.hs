@@ -13,9 +13,8 @@ module Cardano.Wallet.Jormungandr.ApiSpec
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Api.Types
-    ( ApiAccountDelegationInfo (..)
+    ( AccountState (..)
     , ApiAccountId (..)
-    , ApiAccountState (..)
     , ApiStakeDistribution (..)
     , ApiT (..)
     , StakeApiResponse (..)
@@ -88,13 +87,10 @@ spec = do
                         , "counter": #{testTransactionCount}
                         , "delegation": {"pools": []}
                         }|]
-                eitherDecode testAccountState `shouldBe` Right ApiAccountState
-                    { currentBalance =
-                        ApiT (Quantity testBalance)
-                    , totalTransactionCount =
-                        ApiT (Quantity testTransactionCount)
-                    , delegationInfo = ApiAccountDelegationInfo
-                        { stakePools = [] }
+                eitherDecode testAccountState `shouldBe` Right AccountState
+                    { currentBalance = Quantity testBalance
+                    , totalTransactionCount = Quantity testTransactionCount
+                    , stakePools = []
                     }
 
             it "With 1 stake pool" $ do
@@ -104,20 +100,13 @@ spec = do
                         , "counter": #{testTransactionCount}
                         , "delegation":
                             { "pools":
-                                [ [#{toText testPoolId1}, #{testPoolRatio1}] ]
+                                [[#{toText testPoolId1}, #{testPoolRatio1}]]
                             }
                         }|]
-                eitherDecode testAccountState `shouldBe` Right ApiAccountState
-                    { currentBalance =
-                        ApiT (Quantity testBalance)
-                    , totalTransactionCount =
-                        ApiT (Quantity testTransactionCount)
-                    , delegationInfo = ApiAccountDelegationInfo
-                        { stakePools =
-                            [ ( ApiT testPoolId1
-                              , ApiT (Quantity testPoolRatio1))
-                            ]
-                        }
+                eitherDecode testAccountState `shouldBe` Right AccountState
+                    { currentBalance = Quantity testBalance
+                    , totalTransactionCount = Quantity testTransactionCount
+                    , stakePools = [(testPoolId1, Quantity testPoolRatio1)]
                     }
 
             it "With n stake pools" $ do
@@ -132,19 +121,13 @@ spec = do
                                 ]
                             }
                         }|]
-                eitherDecode testAccountState `shouldBe` Right ApiAccountState
-                    { currentBalance =
-                        ApiT (Quantity testBalance)
-                    , totalTransactionCount =
-                        ApiT (Quantity testTransactionCount)
-                    , delegationInfo = ApiAccountDelegationInfo
-                        { stakePools =
-                            [ ( ApiT testPoolId1
-                              , ApiT (Quantity testPoolRatio1))
-                            , ( ApiT testPoolId2
-                              , ApiT (Quantity testPoolRatio2))
-                            ]
-                        }
+                eitherDecode testAccountState `shouldBe` Right AccountState
+                    { currentBalance = Quantity testBalance
+                    , totalTransactionCount = Quantity testTransactionCount
+                    , stakePools =
+                        [ (testPoolId1, Quantity testPoolRatio1)
+                        , (testPoolId2, Quantity testPoolRatio2)
+                        ]
                     }
 
         it "example stake endpoint response is properly decoded" $ do
