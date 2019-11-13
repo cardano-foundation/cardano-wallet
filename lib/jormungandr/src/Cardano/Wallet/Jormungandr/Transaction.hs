@@ -26,6 +26,7 @@ import Cardano.Wallet.Jormungandr.Binary
     , maxNumberOfOutputs
     , runGetOrFail
     , signData
+    , signedTransactionFragment
     , utxoWitness
     )
 import Cardano.Wallet.Jormungandr.Compatibility
@@ -39,7 +40,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..), Tx (..), TxOut (..), TxWitness (..) )
+    ( Hash (..), SignedTxBinary (..), Tx (..), TxOut (..), TxWitness (..) )
 import Cardano.Wallet.Transaction
     ( ErrDecodeSignedTx (..)
     , ErrMkStdTx (..)
@@ -93,7 +94,8 @@ newTransactionLayer (Hash block0H) = TransactionLayer
                 , resolvedInputs = inps
                 , outputs = outs
                 }
-        return (tx, wits)
+        let binary = signedTransactionFragment tx wits
+        return (tx, binary)
 
     , decodeSignedTx = \payload -> do
         let errInvalidPayload =
@@ -101,7 +103,7 @@ newTransactionLayer (Hash block0H) = TransactionLayer
         case runGetOrFail getFragment (BL.fromStrict payload) of
             Left _ -> Left errInvalidPayload
             Right (_,_,msg) -> case msg of
-                Transaction stx -> pure stx
+                Transaction (tx, _) -> return (tx, SignedTxBinary payload)
                 _ -> Left errInvalidPayload
 
     -- NOTE

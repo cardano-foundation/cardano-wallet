@@ -11,7 +11,7 @@ module Test.Integration.Jormungandr.Scenario.API.Transactions
     ( spec
     , fixtureExternalTx
     , ExternalTxFixture (..)
-    , encodeTx
+    , txToBase
     ) where
 
 import Prelude
@@ -26,8 +26,6 @@ import Cardano.Wallet.Api.Types
     , ApiTxId (..)
     , ApiWallet
     )
-import Cardano.Wallet.Jormungandr.Binary
-    ( FragmentSpec (..), putSignedTx, runPut, withHeader )
 import Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -39,7 +37,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, mkSeqState )
 import Cardano.Wallet.Primitive.Types
-    ( Coin (..), Tx (..), TxIn (..), TxOut (..), TxWitness, WalletId )
+    ( Coin (..), SignedTxBinary (..), TxIn (..), TxOut (..), WalletId )
 import Cardano.Wallet.Transaction
     ( TransactionLayer (..) )
 import Control.Monad
@@ -236,10 +234,10 @@ spec = do
     it "TRANS_EXTERNAL_CREATE_01 - proper single output transaction and \
        \proper binary format" $ \ctx -> do
         let toSend = 1 :: Natural
-        (ExternalTxFixture wSrc wDest fee txWits) <-
+        (ExternalTxFixture wSrc wDest fee tx) <-
                 fixtureExternalTx ctx toSend
         let baseOk = Base64
-        let encodedSignedTx = encodeTx txWits FragmentTransaction baseOk
+        let encodedSignedTx = txToBase tx baseOk
         let payload = NonJson . BL.fromStrict . toRawBytes baseOk
         let headers = Headers [ ("Content-Type", "application/octet-stream") ]
         r <- request
@@ -262,10 +260,10 @@ spec = do
     it "TRANS_EXTERNAL_CREATE_02 - proper single output transaction and \
        \improper binary format" $ \ctx -> do
         let toSend = 1 :: Natural
-        (ExternalTxFixture _ _ _ txWits) <-
+        (ExternalTxFixture _ _ _ tx) <-
                 fixtureExternalTx ctx toSend
         let baseWrong = Base16
-        let wronglyEncodedTx = encodeTx txWits FragmentTransaction baseWrong
+        let wronglyEncodedTx = txToBase tx baseWrong
         let headers = Headers [ ("Content-Type", "application/octet-stream") ]
         let payloadWrong = NonJson . BL.fromStrict . T.encodeUtf8
         r1 <- request
@@ -278,9 +276,9 @@ spec = do
     it "TRANS_EXTERNAL_CREATE_03 - proper single output transaction and \
        \wrong binary format" $ \ctx -> do
         let toSend = 1 :: Natural
-        (ExternalTxFixture _ _ _ txWits) <- fixtureExternalTx ctx toSend
+        (ExternalTxFixture _ _ _ tx) <- fixtureExternalTx ctx toSend
         let baseOk = Base16
-        let wronglyEncodedSignedTx = encodeTx txWits FragmentInitial baseOk
+        let wronglyEncodedSignedTx = txToBase tx baseOk
         let payload = NonJson $ BL.fromStrict $
                 (toRawBytes baseOk) wronglyEncodedSignedTx
         let headers = Headers [ ("Content-Type", "application/octet-stream") ]
@@ -395,7 +393,7 @@ data ExternalTxFixture = ExternalTxFixture
     { srcWallet :: ApiWallet
     , dstWallet :: ApiWallet
     , feeMin :: Natural
-    , txWithWits :: (Tx, [TxWitness])
+    , txBinary :: SignedTxBinary
     }
 
 fixtureExternalTx
@@ -476,13 +474,13 @@ fixtureExternalTx ctx toSend = do
             , TxOut addrChng (Coin (fromIntegral $ amt - toSend - fee))
             ]
     tl <- newTransactionLayer @'Testnet <$> getBlock0H
-    let (Right txWits) = mkStdTx tl keystore theInps theOuts
+    let (Right (_, tx)) = mkStdTx tl keystore theInps theOuts
 
     return ExternalTxFixture
         { srcWallet = wSrc
         , dstWallet = wDest
         , feeMin = fee
-        , txWithWits = txWits
+        , txBinary = tx
         }
   where
       getSeqState mnemonic password =
@@ -494,10 +492,6 @@ fixtureExternalTx ctx toSend = do
              , mkSeqState @n (rootXPrv, pwd) defaultAddressPoolGap
              )
 
-encodeTx :: (Tx, [TxWitness]) -> FragmentSpec -> Base -> Text
-encodeTx (tx, wits) msgType base =
-    T.decodeUtf8 $ convertToBase base $ BL.toStrict $ encode (tx, wits) msgType
-  where
-    encode ((Tx _ inps' outs'), wits') msgType' = runPut
-        $ withHeader msgType'
-        $ putSignedTx inps' outs' wits'
+txToBase :: SignedTxBinary -> Base -> Text
+txToBase (SignedTxBinary bin) base =
+    T.decodeUtf8 $ convertToBase base bin

@@ -185,6 +185,7 @@ import Cardano.Wallet.Primitive.Types
     , FeePolicy (LinearFee)
     , Hash (..)
     , Range (..)
+    , SignedTxBinary
     , SlotId (..)
     , SlotParameters (..)
     , SortOrder (..)
@@ -196,7 +197,6 @@ import Cardano.Wallet.Primitive.Types
     , TxMeta (..)
     , TxOut (..)
     , TxStatus (..)
-    , TxWitness
     , UTxOStatistics
     , WalletDelegation (..)
     , WalletId (..)
@@ -798,7 +798,7 @@ signTx
     -> ArgGenChange s
     -> Passphrase "encryption"
     -> CoinSelection
-    -> ExceptT ErrSignTx IO (Tx, TxMeta, UTCTime, [TxWitness])
+    -> ExceptT ErrSignTx IO (Tx, TxMeta, UTCTime, SignedTxBinary)
 signTx ctx wid argGenChange pwd (CoinSelection ins outs chgs) = db & \DBLayer{..} -> do
     withRootKey @_ @s ctx wid pwd ErrSignTxWithRootKey $ \xprv -> do
         mapExceptT atomically $ do
@@ -849,10 +849,10 @@ submitTx
         )
     => ctx
     -> WalletId
-    -> (Tx, TxMeta, [TxWitness])
+    -> (Tx, TxMeta, SignedTxBinary)
     -> ExceptT ErrSubmitTx IO ()
-submitTx ctx wid (tx, meta, wit) = db & \DBLayer{..} -> do
-    withExceptT ErrSubmitTxNetwork $ postTx nw (tx, wit)
+submitTx ctx wid (tx, meta, binary) = db & \DBLayer{..} -> do
+    withExceptT ErrSubmitTxNetwork $ postTx nw binary
     mapExceptT atomically $ withExceptT ErrSubmitTxNoSuchWallet $
         putTxHistory (PrimaryKey wid) [(tx, meta)]
   where
@@ -869,9 +869,9 @@ submitExternalTx
     -> ByteString
     -> ExceptT ErrSubmitExternalTx IO Tx
 submitExternalTx ctx bytes = do
-    txWithWit@(tx,_) <- withExceptT ErrSubmitExternalTxDecode $ except $
+    (tx,binary) <- withExceptT ErrSubmitExternalTxDecode $ except $
         decodeSignedTx tl bytes
-    withExceptT ErrSubmitExternalTxNetwork $ postTx nw txWithWit
+    withExceptT ErrSubmitExternalTxNetwork $ postTx nw binary
     return tx
   where
     nw = ctx ^. networkLayer @t

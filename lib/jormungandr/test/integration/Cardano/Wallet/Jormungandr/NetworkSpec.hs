@@ -27,6 +27,7 @@ import Cardano.Wallet.Jormungandr.Binary
     , putSignedTx
     , putTxWitnessTag
     , runPut
+    , signedTransactionFragment
     , txWitnessSize
     , withHeader
     )
@@ -64,6 +65,7 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Hash (..)
     , PoolId (..)
+    , SignedTxBinary (..)
     , SlotId (..)
     , Tx (..)
     , TxIn (..)
@@ -306,21 +308,23 @@ spec = do
 
         it "empty tx succeeds" $ \(nw, _) -> do
             -- Would be rejected eventually.
-            let signedEmpty = (Tx (fragmentId [] [] []) [] [], [])
+            let wits = []
+            let empty = Tx (fragmentId [] [] wits) [] []
+            let signedEmpty = signedTransactionFragment empty wits
             runExceptT (postTx nw signedEmpty) `shouldReturn` Right ()
 
         it "some tx succeeds" $ \(nw, _) -> do
-            let signed = (txNonEmpty, [pkWitness])
+            let signed = signedTransactionFragment txNonEmpty [pkWitness]
             runExceptT (postTx nw signed) `shouldReturn` Right ()
 
         it "unbalanced tx (surplus) succeeds" $ \(nw, _) -> do
             -- Jormungandr will eventually reject txs that are not perfectly
             -- balanced though.
-            let signed = (unbalancedTx, [pkWitness])
+            let signed = signedTransactionFragment unbalancedTx [pkWitness]
             runExceptT (postTx nw signed) `shouldReturn` Right ()
 
         it "more inputs than witnesses - encoder throws" $ \(nw, _) -> do
-            let signed = (txNonEmpty, [])
+            let signed = signedTransactionFragment txNonEmpty []
             runExceptT (postTx nw signed) `shouldThrow` anyException
 
         it "more witnesses than inputs - fine apparently" $ \(nw, _) -> do
@@ -333,7 +337,8 @@ spec = do
             --
             -- this should in practice be like appending bytes to the end of
             -- the message.
-            let signed = (txNonEmpty, [pkWitness, pkWitness, pkWitness])
+            let wits = [pkWitness, pkWitness, pkWitness]
+            let signed = signedTransactionFragment txNonEmpty wits
             runExceptT (postTx nw signed) `shouldThrow` anyException
 
         it "no input, one output" $ \(nw, _) -> do
@@ -344,26 +349,30 @@ spec = do
                         \le2k0uu5mrymylqz2ntgzs6vs386wxd")
                       (Coin 1227362560)
                     ]
-            let tx = (Tx (fragmentId [] outs []) [] outs, [])
-            runExceptT (postTx nw tx) `shouldReturn` Right ()
+            let wits = []
+            let tx = Tx (fragmentId [] outs wits) [] outs
+            let signed = signedTransactionFragment tx wits
+            runExceptT (postTx nw signed) `shouldReturn` Right ()
 
         it "encoder throws an exception if tx is invalid (eg too many inputs)" $
             \(nw, _) -> do
                 let inps = replicate 300 (head $ resolvedInputs txNonEmpty)
                 let outs = replicate 3 (head $ outputs txNonEmpty)
-                let tx = (Tx (fragmentId inps outs []) inps outs, [])
-                runExceptT (postTx nw tx) `shouldThrow` anyException
+                let wits = []
+                let tx = Tx (fragmentId inps outs wits) inps outs
+                let signed = signedTransactionFragment tx wits
+                runExceptT (postTx nw signed) `shouldThrow` anyException
 
     describe "Decode External Tx" $ do
         let tl = newTransactionLayer @'Testnet @ShelleyKey (Hash "genesis")
 
-        it "decodeExternalTx works ok with properly constructed binary blob" $
-            property $ \(SignedTx signedTx) -> monadicIO $ liftIO $ do
+        it "decodeExternalTx works ok with properly constructed binary blob" $ do
+            property $ \(SignedTx signedTx@(tx, _)) -> monadicIO $ liftIO $ do
                 let encode ((Tx _ inps outs), wits) = runPut
                         $ withHeader FragmentTransaction
                         $ putSignedTx inps outs wits
-                let encodedSignedTx = BL.toStrict $ encode signedTx
-                decodeSignedTx tl encodedSignedTx `shouldBe` Right signedTx
+                let bin = BL.toStrict $ encode signedTx
+                decodeSignedTx tl bin `shouldBe` Right (tx, SignedTxBinary bin)
 
         it "decodeExternalTx throws an exception when binary blob has non-\
             \transaction-type header or is wrongly constructed binary blob" $

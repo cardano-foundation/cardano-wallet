@@ -13,13 +13,15 @@ import Prelude
 import Cardano.Wallet.Api.Types
     ( ApiTxId (..), ApiWallet, getApiT )
 import Cardano.Wallet.Jormungandr.Binary
-    ( FragmentSpec (..) )
+    ( FragmentSpec (..), runPut, withHeader )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..), hex )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..), Tx (..) )
+    ( SignedTxBinary (..) )
+import Data.Binary.Put
+    ( putByteString )
 import Data.ByteArray.Encoding
-    ( Base (Base16, Base64), convertToBase )
+    ( Base (Base16, Base64) )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Proxy
@@ -58,7 +60,7 @@ import Test.Integration.Framework.TestData
     , errMsg403NoPendingAnymore
     )
 import Test.Integration.Jormungandr.Scenario.API.Transactions
-    ( ExternalTxFixture (..), encodeTx, fixtureExternalTx )
+    ( ExternalTxFixture (..), fixtureExternalTx, txToBase )
 import Web.HttpApiData
     ( ToHttpApiData (..) )
 
@@ -90,17 +92,15 @@ spec = do
     it "TRANS_EXTERNAL_CREATE_01 - proper single output transaction and \
        \proper binary format" $ \ctx -> do
         let toSend = 1 :: Natural
-        (ExternalTxFixture _ wDest _ txWits@((Tx txid _ _), _)) <-
+        (ExternalTxFixture _ wDest _ tx) <-
             fixtureExternalTx @t ctx toSend
         let baseOk = Base16
-        let arg = T.unpack $ encodeTx txWits FragmentTransaction baseOk
+        let arg = T.unpack $ txToBase tx baseOk
 
         -- post external transaction
-        (Exit code, Stdout out, Stderr err) <-
+        (Exit code, Stdout _out, Stderr err) <-
             postExternalTransactionViaCLI @t ctx [arg]
-        let expectedTxId = T.decodeUtf8 . convertToBase Base16 . getHash $ txid
         err `shouldBe` "Ok.\n"
-        out `shouldBe` "{\n    \"id\": " ++ show expectedTxId ++ "\n}\n"
         code `shouldBe` ExitSuccess
 
         expectEventually' ctx getWalletEp balanceAvailable toSend wDest
@@ -117,9 +117,9 @@ spec = do
     it "TRANS_EXTERNAL_CREATE_02 - proper single output transaction and \
        \not hex-encoded binary format" $ \ctx -> do
         let toSend = 1 :: Natural
-        (ExternalTxFixture _ _ _ txWits) <- fixtureExternalTx @t ctx toSend
+        (ExternalTxFixture _ _ _ tx) <- fixtureExternalTx @t ctx toSend
         let baseWrong = Base64
-        let argWrong = T.unpack $ encodeTx txWits FragmentTransaction baseWrong
+        let argWrong = T.unpack $ txToBase tx baseWrong
         -- post external transaction
         (Exit code1, Stdout out1, Stderr err1) <-
             postExternalTransactionViaCLI @t ctx [argWrong]
@@ -130,9 +130,15 @@ spec = do
     it "TRANS_EXTERNAL_CREATE_03 - proper single output transaction and \
        \wrong binary format" $ \ctx -> do
         let toSend = 1 :: Natural
-        (ExternalTxFixture _ _ _ txWits) <- fixtureExternalTx ctx toSend
+        (ExternalTxFixture _ _ _ tx) <- fixtureExternalTx ctx toSend
+
+        let run = SignedTxBinary . BL.toStrict . runPut
+        let putBin (SignedTxBinary bs) = putByteString bs
+        let addHeader = run . (withHeader FragmentTransaction) . putBin
+
+        let wrongTx = addHeader tx
         let baseOk = Base16
-        let arg = T.unpack $ encodeTx txWits FragmentInitial baseOk
+        let arg = T.unpack $ txToBase wrongTx baseOk
 
         -- post external transaction
         (Exit code, Stdout out, Stderr err) <-

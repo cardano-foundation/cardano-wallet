@@ -33,16 +33,9 @@ module Cardano.Wallet.Jormungandr.Api.Types
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Binary
-    ( Block
-    , FragmentSpec (..)
-    , getBlock
-    , putSignedTx
-    , runGet
-    , runPut
-    , withHeader
-    )
+    ( Block, getBlock, runGet )
 import Cardano.Wallet.Primitive.Types
-    ( EpochNo (..), Hash (..), PoolId (..), ShowFmt (..), Tx (..), TxWitness )
+    ( EpochNo (..), Hash (..), PoolId (..), ShowFmt (..), SignedTxBinary (..) )
 import Control.Applicative
     ( many )
 import Control.Monad
@@ -154,9 +147,8 @@ instance Accept JormungandrBinary where
 instance MimeUnrender JormungandrBinary Block where
     mimeUnrender _ = pure . runGet getBlock
 
-instance MimeRender JormungandrBinary (Tx, [TxWitness]) where
-    mimeRender _ (Tx _ ins outs, wits) =
-        runPut $ withHeader FragmentTransaction $ putSignedTx ins outs wits
+instance MimeRender JormungandrBinary SignedTxBinary where
+    mimeRender _ (SignedTxBinary bytes) = BL.fromStrict bytes
 
 data Hex
 

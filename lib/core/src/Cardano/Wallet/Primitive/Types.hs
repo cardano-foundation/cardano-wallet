@@ -43,6 +43,7 @@ module Cardano.Wallet.Primitive.Types
     , Direction(..)
     , TxStatus(..)
     , TxWitness(..)
+    , SignedTxBinary (..)
     , TransactionInfo (..)
     , FeePolicy (..)
     , txIns
@@ -678,6 +679,11 @@ instance FromText Direction where
 
 instance ToText Direction where
     toText = toTextFromBoundedEnum SnakeLowerCase
+
+-- | @SignedTxBinary@ is a serialised transaction that is ready to be submited
+-- to the node.
+newtype SignedTxBinary = SignedTxBinary { getSignedTxBinary :: ByteString }
+    deriving (Show, Eq, Generic)
 
 -- | @TxWitness@ is proof that transaction inputs are allowed to be spent
 newtype TxWitness = TxWitness { unWitness :: ByteString }
