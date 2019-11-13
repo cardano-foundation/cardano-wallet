@@ -19,7 +19,7 @@ import Cardano.Wallet.Jormungandr.Api
 import Cardano.Wallet.Jormungandr.Api.Client
     ( ErrGetAccountState (..) )
 import Cardano.Wallet.Jormungandr.Api.Types
-    ( AccountState (..), ApiAccountId (..) )
+    ( AccountId (..), AccountState (..) )
 import Cardano.Wallet.Jormungandr.Binary
     ( FragmentSpec (..)
     , TxWitnessTag (..)
@@ -156,7 +156,7 @@ spec = do
                 manager <- newManager defaultManagerSettings
                 let client = Jormungandr.mkJormungandrClient manager url
                 res <- runExceptT $
-                    Jormungandr.getAccountState client testApiAccountId
+                    Jormungandr.getAccountState client testAccountId
                 res `shouldBe` Right AccountState
                     { currentBalance = Quantity 1
                     , totalTransactionCount = Quantity 0
@@ -266,7 +266,7 @@ spec = do
             \(_, url) -> do
                 manager <- newManager defaultManagerSettings
                 let client = Jormungandr.mkJormungandrClient manager url
-                let nonexistentAccountId = ApiAccountId $
+                let nonexistentAccountId = AccountId $
                         Bech32.dataPartFromBytes mempty
                 res <- runExceptT $
                     Jormungandr.getAccountState client nonexistentAccountId
@@ -574,13 +574,13 @@ isRollBackwardTo nl sl = \case
                                    Test Data
 -------------------------------------------------------------------------------}
 
-mkApiAccountId :: Text -> ApiAccountId
-mkApiAccountId = either err id . fromText
+mkAccountId :: Text -> AccountId
+mkAccountId = either err id . fromText
   where
     err = error "Unable to create test Jörmungandr account ID."
 
-testApiAccountId :: ApiAccountId
-testApiAccountId = mkApiAccountId
+testAccountId :: AccountId
+testAccountId = mkAccountId
     "ca1skkalz75s4vtw2e9wsy2q9jvsu3qtz6d2vm3xj4e5q4ufejpjjfn5lh35yr"
 
 testPoolId :: PoolId

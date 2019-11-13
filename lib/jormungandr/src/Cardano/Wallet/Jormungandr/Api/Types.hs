@@ -18,7 +18,7 @@ module Cardano.Wallet.Jormungandr.Api.Types
       ApiT (..)
 
     -- * API types
-    , ApiAccountId (..)
+    , AccountId (..)
     , AccountState (..)
     , ApiStakeDistribution (..)
     , BlockId (..)
@@ -80,7 +80,7 @@ import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString.Lazy as BL
 import qualified Servant.API.ContentTypes as Servant
 
-newtype ApiAccountId = ApiAccountId { getApiAccountId :: Bech32.DataPart }
+newtype AccountId = AccountId { getAccountId :: Bech32.DataPart }
     deriving (Eq, Show)
 
 data AccountState = AccountState
@@ -108,18 +108,18 @@ data ApiStakeDistribution = ApiStakeDistribution
 instance ToHttpApiData BlockId where
     toUrlPiece (BlockId (Hash bytes)) = decodeUtf8 $ convertToBase Base16 bytes
 
-instance ToHttpApiData ApiAccountId where
+instance ToHttpApiData AccountId where
     toUrlPiece = toText
 
-instance FromText ApiAccountId where
+instance FromText AccountId where
     fromText text = case Bech32.decodeLenient text of
         Right (h, d) | h == accountIdHumanReadablePart ->
-            Right $ ApiAccountId d
+            Right $ AccountId d
         _ ->
             Left $ TextDecodingError "Invalid Jormungandr account ID."
 
-instance ToText ApiAccountId where
-    toText = Bech32.encodeLenient accountIdHumanReadablePart . getApiAccountId
+instance ToText AccountId where
+    toText = Bech32.encodeLenient accountIdHumanReadablePart . getAccountId
 
 accountIdHumanReadablePart :: Bech32.HumanReadablePart
 accountIdHumanReadablePart =

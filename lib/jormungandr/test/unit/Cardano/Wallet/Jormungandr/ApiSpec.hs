@@ -13,8 +13,8 @@ module Cardano.Wallet.Jormungandr.ApiSpec
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Api.Types
-    ( AccountState (..)
-    , ApiAccountId (..)
+    ( AccountId (..)
+    , AccountState (..)
     , ApiStakeDistribution (..)
     , ApiT (..)
     , StakeApiResponse (..)
@@ -59,7 +59,7 @@ spec = do
 
         describe "Textual roundtrip tests for API types" $ do
 
-            textRoundtrip $ Proxy @ApiAccountId
+            textRoundtrip $ Proxy @AccountId
 
         describe "JSON roundtrip tests for API types" $ do
 
@@ -68,7 +68,7 @@ spec = do
         it "Valid account IDs are properly decoded from text" $ do
 
             forM_ testAccountIdTexts $ \text ->
-                toText <$> fromText @ApiAccountId text
+                toText <$> fromText @AccountId text
                     `shouldBe` Right text
 
         it "Invalid account IDs cannot be decoded from text" $ do
@@ -79,7 +79,7 @@ spec = do
                     , "skkalz75s4vtw2e9w"
                     ]
             forM_ invalidAccountIdTexts $ \text ->
-                toText <$> fromText @ApiAccountId text
+                toText <$> fromText @AccountId text
                     `shouldBe` Left
                         (TextDecodingError "Invalid Jormungandr account ID.")
 
@@ -229,10 +229,10 @@ spec = do
                              Arbitrary Instances
 -------------------------------------------------------------------------------}
 
-instance Arbitrary ApiAccountId where
+instance Arbitrary AccountId where
     arbitrary = do
         count <- choose (0, 64)
-        ApiAccountId . Bech32.dataPartFromBytes . BS.pack
+        AccountId . Bech32.dataPartFromBytes . BS.pack
             <$> replicateM count arbitrary
     shrink _ = []
 

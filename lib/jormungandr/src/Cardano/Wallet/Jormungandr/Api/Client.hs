@@ -56,7 +56,7 @@ import Cardano.Wallet.Jormungandr.Api
     , api
     )
 import Cardano.Wallet.Jormungandr.Api.Types
-    ( AccountState, ApiAccountId, BlockId (..), StakeApiResponse )
+    ( AccountId, AccountState, BlockId (..), StakeApiResponse )
 import Cardano.Wallet.Jormungandr.Binary
     ( ConfigParam (..), Fragment (..), convertBlock )
 import Cardano.Wallet.Jormungandr.Compatibility
@@ -128,7 +128,7 @@ import qualified Data.Text.Encoding as T
 -- | Endpoints of the jormungandr REST API.
 data JormungandrClient m = JormungandrClient
     { getAccountState
-        :: ApiAccountId
+        :: AccountId
         -> ExceptT ErrGetAccountState m AccountState
     , getTipId
         :: ExceptT ErrNetworkUnavailable m (Hash "BlockHeader")
@@ -360,7 +360,7 @@ instance Exception ErrUnexpectedNetworkFailure
 
 data ErrGetAccountState
     = ErrGetAccountStateNetworkUnreachable ErrNetworkUnavailable
-    | ErrGetAccountStateAccountNotFound ApiAccountId
+    | ErrGetAccountStateAccountNotFound AccountId
     deriving (Eq, Show)
 
 data ErrGetDescendants
