@@ -1,5 +1,9 @@
 # Cardano.Launcher.POSIX
 
+## OS
+
+Windows, MacOS, Linux
+
 ## Goal
 
 By default, the Haskell runtime and the `process` library we use to spawn new
@@ -10,7 +14,7 @@ will endure.
 What follows are steps which explains how to test that `SIGINT` and `SIGTERM`
 signals are correctly handled on a unix system.
 
-## Preliminaries 
+## Preliminaries
 ### Start the wallet
 
 ```
@@ -31,7 +35,7 @@ ps -ef | grep " jormungandr "; ps -ef | grep " cardano-wallet-jormungandr "
   501 73923   623   0  6:14PM ttys006    0:00.67 cardano-wallet-jormungandr launch --genesis-block lib/jormungandr/test/data/jormungandr/block0.bin -- --secret lib/jormungandr/test/data/jormungandr/secret.yaml
 ```
 
-In the example both are running. The wallet with a pid of 73923, and 
+In the example both are running. The wallet with a pid of 73923, and
 jormungandr with a pid of 73924.
 
 ## Steps
@@ -75,7 +79,7 @@ jormungandr with a pid of 73924.
 >
 > Please note that steps below are therefore currently invalid!
 
-- Start the wallet in background 
+- Start the wallet in background
 - Check that both processes are running (the wallet and jormungandr)
   and note the pid of the wallet.
 - Send a `SIGKILL` signal to the pid of the wallet using `kill -9 <pid>`

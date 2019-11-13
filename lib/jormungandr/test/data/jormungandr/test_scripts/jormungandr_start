@@ -1,0 +1,1 @@
+jormungandr --genesis-block ../block0.bin --secret ../secret.yaml --config ../config.yaml

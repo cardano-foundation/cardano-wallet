@@ -1,5 +1,9 @@
 # Tests for `--sync-tolerance` on cardano-wallet
 
+## OS
+
+Windows, MacOS, Linux
+
 1. Launch wallet and jormungandr in separate terminals
 
 ```bash
