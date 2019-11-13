@@ -21,6 +21,8 @@ import Cardano.Wallet.Jormungandr.Api.Types
     )
 import Cardano.Wallet.Primitive.Types
     ( PoolId (..) )
+import Cardano.Wallet.Unsafe
+    ( unsafePoolId )
 import Control.Monad
     ( forM_, replicateM )
 import Data.Aeson
@@ -280,14 +282,9 @@ testAccountIdText3 =
     "ca1skzn99jx8a2rw80gp9uea47tmcndv7gm28vy9as6akevy32204aqwzpsctx"
 
 testPoolId1 :: PoolId
-testPoolId1 = mkTestPoolId
+testPoolId1 = unsafePoolId
     "c780f14f9782770014d8bcd514b1bc664653d15f73a7158254730c6e1aa9f356"
 
 testPoolId2 :: PoolId
-testPoolId2 = mkTestPoolId
+testPoolId2 = unsafePoolId
     "653f9aa1e6c0374528517a37f51d356466cb1b415dcb8d4100772879f41f087c"
-
-mkTestPoolId :: Text -> PoolId
-mkTestPoolId = either (error textError) id . fromText
-  where
-    textError = "Unable to construct stake pool ID."

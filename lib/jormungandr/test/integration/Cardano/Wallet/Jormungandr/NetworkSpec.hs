@@ -74,7 +74,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Transaction
     ( ErrDecodeSignedTx (..), TransactionLayer (..) )
 import Cardano.Wallet.Unsafe
-    ( unsafeDecodeAddress, unsafeFromHex, unsafeRunExceptT )
+    ( unsafeDecodeAddress, unsafeFromHex, unsafePoolId, unsafeRunExceptT )
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.MVar
@@ -579,15 +579,10 @@ mkApiAccountId = either err id . fromText
   where
     err = error "Unable to create test Jörmungandr account ID."
 
-mkPoolId :: Text -> PoolId
-mkPoolId = either err id . fromText
-  where
-    err = error "Unable to create test Jörmungandr pool ID."
-
 testApiAccountId :: ApiAccountId
 testApiAccountId = mkApiAccountId
     "ca1skkalz75s4vtw2e9wsy2q9jvsu3qtz6d2vm3xj4e5q4ufejpjjfn5lh35yr"
 
 testPoolId :: PoolId
-testPoolId = mkPoolId
+testPoolId = unsafePoolId
     "4f8d686a02c6e625b5a59cc9e234f32e5d72987012f9c25c9a6b60ddade197d1"
