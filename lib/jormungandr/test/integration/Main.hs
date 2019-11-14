@@ -21,7 +21,7 @@ import Cardano.CLI
 import Cardano.Faucet
     ( initFaucet )
 import Cardano.Launcher
-    ( ProcessHasExited (..) )
+    ( ProcessHasExited (..), withUtf8Encoding )
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.Jormungandr
@@ -52,8 +52,6 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
-import GHC.IO.Encoding
-    ( mkTextEncoding, setLocaleEncoding )
 import Network.HTTP.Client
     ( defaultManagerSettings
     , managerResponseTimeout
@@ -100,8 +98,7 @@ instance KnownCommand Jormungandr where
     commandName = "cardano-wallet-jormungandr"
 
 main :: forall t. (t ~ Jormungandr) => IO ()
-main = withLogging Nothing Info $ \logging -> do
-    setUtf8LenientCodecs
+main = withUtf8Encoding $ withLogging Nothing Info $ \logging ->
     hspec $ do
         describe "No backend required" $ do
             describe "Cardano.Wallet.NetworkSpec" $ parallel NetworkLayer.spec
@@ -162,11 +159,6 @@ specWithServer logCfg = aroundAll withContext . after tearDown
     withServer setup = withConfig $ \jmCfg ->
         serveWallet @'Testnet logCfg (SyncTolerance 10) Nothing "127.0.0.1"
             ListenOnRandomPort (Launch jmCfg) setup
-
--- | Set a utf8 text encoding that doesn't crash when non-utf8 bytes are
--- encountered.
-setUtf8LenientCodecs :: IO ()
-setUtf8LenientCodecs = mkTextEncoding "UTF-8//IGNORE" >>= setLocaleEncoding
 
 sockAddrPort :: SockAddr -> Port a
 sockAddrPort addr = Port . fromIntegral $ case addr of

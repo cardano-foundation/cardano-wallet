@@ -6,7 +6,7 @@
 # Use pinned Nixpkgs with Haskell.nix overlay
 , pkgs ? import ./nix/nixpkgs-haskell.nix  { inherit system crossSystem config; }
 # Use this git revision for stamping executables
-, gitrev ? iohkLib.commitIdFromGitRepo ./.
+, gitrev ? iohkLib.commitIdFromGitRepo ./.git
 }:
 
 with import ./nix/util.nix { inherit pkgs; };

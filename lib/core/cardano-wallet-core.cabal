@@ -195,6 +195,7 @@ test-suite unit
     , tree-diff
     , unordered-containers
     , yaml
+    , wai
     , warp
   build-tools:
       hspec-discover
@@ -221,6 +222,7 @@ test-suite unit
       Cardano.Wallet.DB.StateMachine
       Cardano.Wallet.DummyTarget.Primitive.Types
       Cardano.Wallet.Network.BlockHeadersSpec
+      Cardano.Wallet.Network.PortsSpec
       Cardano.Wallet.NetworkSpec
       Cardano.Wallet.Primitive.AddressDerivation.ByronSpec
       Cardano.Wallet.Primitive.AddressDerivation.ShelleySpec
