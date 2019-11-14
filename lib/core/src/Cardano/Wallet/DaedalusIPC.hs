@@ -26,11 +26,11 @@ import Control.Concurrent
 import Control.Concurrent.Async
     ( concurrently_, race )
 import Control.Concurrent.MVar
-    ( MVar, newEmptyMVar, putMVar, takeMVar )
+    ( MVar, isEmptyMVar, newEmptyMVar, putMVar, takeMVar, tryPutMVar )
 import Control.Exception
     ( IOException, catch, tryJust )
 import Control.Monad
-    ( forever )
+    ( forever, void )
 import Data.Aeson
     ( FromJSON (..)
     , ToJSON (..)
@@ -107,28 +107,41 @@ daedalusIPC
     -> Int
     -- ^ Port number to send to Daedalus
     -> IO ()
-daedalusIPC trace port = withNodeChannel (pure . msg) action >>= \case
-    Right runServer -> do
-        logInfo trace "Daedalus IPC server starting"
-        runServer >>= \case
-            Left (NodeChannelFinished err) ->
-                logNotice trace $ fmt $
-                "Daedalus IPC finished for this reason: "+||err||+""
-            Right () -> logError trace "Unreachable code"
-    Left NodeChannelDisabled -> do
-        logInfo trace "Daedalus IPC is not enabled."
-        sleep
-    Left (NodeChannelBadFD err) ->
-        logError trace $ fmt $ "Problem starting Daedalus IPC: "+||err||+""
+daedalusIPC trace port = do
+    started <- newEmptyMVar
+    withNodeChannel (onMsg started) (action started) >>= \case
+        Right runServer -> do
+            logInfo trace "Daedalus IPC server starting"
+            runServer >>= \case
+                Left (NodeChannelFinished err) ->
+                    logNotice trace $ fmt $
+                    "Daedalus IPC finished for this reason: "+||err||+""
+                Right () -> logError trace "Unreachable code"
+        Left NodeChannelDisabled -> do
+            logInfo trace "Daedalus IPC is not enabled."
+            sleep
+        Left (NodeChannelBadFD err) ->
+            logError trace $ fmt $ "Problem starting Daedalus IPC: "+||err||+""
   where
-    -- How to respond to an incoming message, or when there is an incoming
-    -- message that couldn't be parsed.
-    msg (Right QueryPort) = Just (ReplyPort port)
-    msg (Left e) = Just (ParseError e)
+    onMsg :: MVar Bool -> Either Text MsgIn -> IO (Maybe MsgOut)
+    onMsg started msg = do
+        -- A sign of life detected from Daedalus, means we can stop sending
+        -- "Started" every second.
+        void $ tryPutMVar started True
+        -- How to respond to an incoming message, or when there is an incoming
+        -- message that couldn't be parsed.
+        pure $ case msg of
+            Right QueryPort -> Just (ReplyPort port)
+            Left e -> Just (ParseError e)
 
     -- What to do in context of withNodeChannel
-    action :: (MsgOut -> IO ()) -> IO ()
-    action send = send Started >> sleep
+    action :: MVar Bool -> (MsgOut -> IO ()) -> IO ()
+    action started send = isEmptyMVar started >>= \case
+        False -> sleep
+        True  -> do
+            send Started
+            threadDelay (1000*1000) -- One second
+            action started send
 
     sleep = threadDelay maxBound
 
