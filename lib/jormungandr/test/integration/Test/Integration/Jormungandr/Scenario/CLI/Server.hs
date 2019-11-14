@@ -66,6 +66,7 @@ spec = do
     block0H <- runIO $ T.unpack <$> getBlock0HText
     describe "SERVER - cardano-wallet serve [SERIAL]" $ do
         it "SERVER - Can start cardano-wallet serve --database" $ \_ -> do
+            pendingWith "Seems to cause some sort of race condition with --coverage"
             withTempDir $ \d -> do
                 let db = d </> "db-file"
                 let args =
