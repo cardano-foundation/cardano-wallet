@@ -55,7 +55,7 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( errMsg400MalformedTxPayload
     , errMsg400WronglyEncodedTxPayload
-    , errMsg404CannotFindTx
+    , errMsg403NoPendingAnymore
     )
 import Test.Integration.Jormungandr.Scenario.API.Transactions
     ( ExternalTxFixture (..), encodeTx, fixtureExternalTx )
@@ -156,13 +156,13 @@ spec = do
         code `shouldBe` ExitSuccess
         let txid = T.unpack $ toUrlPiece (txJson ^. #id)
 
-        -- Try to forget external tx
-        (Exit c2, Stdout out2, Stderr err2) <-
-            deleteTransactionViaCLI @t ctx (T.unpack $ w ^. walletId) txid
-        err2 `shouldContain` errMsg404CannotFindTx (T.pack txid)
-        out2 `shouldBe` ""
-        c2 `shouldBe` ExitFailure 1
-
         -- funds eventually are on target wallet
         expectEventually' ctx getWalletEp balanceAvailable amt w
         expectEventually' ctx getWalletEp balanceTotal amt w
+
+        -- Try to forget external tx
+        (Exit c2, Stdout out2, Stderr err2) <-
+            deleteTransactionViaCLI @t ctx (T.unpack $ w ^. walletId) txid
+        err2 `shouldContain` errMsg403NoPendingAnymore (T.pack txid)
+        out2 `shouldBe` ""
+        c2 `shouldBe` ExitFailure 1
