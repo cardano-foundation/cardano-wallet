@@ -93,7 +93,7 @@ import Cardano.Wallet.Transaction
 import Control.Concurrent
     ( forkFinally )
 import Control.Concurrent.Async
-    ( Async, async, waitEither_ )
+    ( race )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
@@ -158,25 +158,24 @@ serveWallet (cfg, tr) sTolerance databaseDir hostPref listen lj beforeMainLoop =
     logInfo tr $ "Node is Jörmungandr on " <> toText (networkDiscriminantVal @n)
     Server.withListeningSocket hostPref listen $ \case
         Left e -> handleApiServerStartupError e
-        Right (wPort, socket) -> do
+        Right (wPort, socket) -> either (const ExitSuccess) id <$> do
             let tracerIPC = appendName "daedalus-ipc" tr
-            ipcServer <- async $ daedalusIPC tracerIPC wPort
-            withNetworkLayer tr lj $ \case
-                Left e -> handleNetworkStartupError e
-                Right (cp, nl) -> do
-                    let nPort = Port $ baseUrlPort $ _restApi cp
-                    let (_, bp) = staticBlockchainParameters nl
-                    let rndTl = newTransactionLayer @'Mainnet (getGenesisBlockHash bp)
-                    let seqTl = newTransactionLayer @n (getGenesisBlockHash bp)
-                    let poolDBPath = Pool.defaultFilePath <$> databaseDir
-                    Pool.withDBLayer cfg tr poolDBPath $ \db -> do
-                        poolApi <- stakePoolLayer tr nl db
-                        rndApi  <- apiLayer tr rndTl nl
-                        seqApi  <- apiLayer tr seqTl nl
-                        apiServer <- startServer
-                            tr socket nPort bp rndApi seqApi poolApi
-                        waitEither_ ipcServer apiServer
-                        pure ExitSuccess
+            race (daedalusIPC tracerIPC wPort) $ do
+                withNetworkLayer tr lj $ \case
+                    Left e -> handleNetworkStartupError e
+                    Right (cp, nl) -> do
+                        let nPort = Port $ baseUrlPort $ _restApi cp
+                        let (_, bp) = staticBlockchainParameters nl
+                        let rndTl = newTransactionLayer @'Mainnet (getGenesisBlockHash bp)
+                        let seqTl = newTransactionLayer @n (getGenesisBlockHash bp)
+                        let poolDBPath = Pool.defaultFilePath <$> databaseDir
+                        Pool.withDBLayer cfg tr poolDBPath $ \db -> do
+                            poolApi <- stakePoolLayer tr nl db
+                            rndApi  <- apiLayer tr rndTl nl
+                            seqApi  <- apiLayer tr seqTl nl
+                            startServer tr socket nPort bp rndApi seqApi poolApi
+                            pure ExitSuccess
+
   where
     startServer
         :: Trace IO Text
@@ -186,13 +185,13 @@ serveWallet (cfg, tr) sTolerance databaseDir hostPref listen lj beforeMainLoop =
         -> ApiLayer (RndState 'Mainnet) t ByronKey
         -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
         -> StakePoolLayer IO
-        -> IO (Async ())
+        -> IO ()
     startServer tracer socket nPort bp rndApi seqApi poolApi = do
         sockAddr <- getSocketName socket
         let tracerApi = appendName "api" tracer
         let settings = Warp.defaultSettings
                 & setBeforeMainLoop (beforeMainLoop sockAddr nPort bp)
-        async $ Server.start settings tracerApi socket rndApi seqApi poolApi
+        Server.start settings tracerApi socket rndApi seqApi poolApi
 
     apiLayer
         :: forall s k.
