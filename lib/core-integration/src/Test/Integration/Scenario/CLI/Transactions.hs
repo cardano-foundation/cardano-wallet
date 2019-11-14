@@ -918,35 +918,6 @@ spec = do
         out2 `shouldBe` ""
         c2 `shouldBe` ExitFailure 1
 
-    it "TRANS_DELETE_02 -\
-        \ Cannot forget tx that is already in ledger via CLI" $ \ctx -> do
-        wSrc <- fixtureWallet ctx
-        wDest <- emptyWallet ctx
-
-        txJson <- postTxViaCLI ctx wSrc wDest 1
-        verify txJson
-            [ expectCliFieldEqual direction Outgoing
-            , expectCliFieldEqual status Pending
-            ]
-        let txId = getTxId txJson
-
-        -- Wait for the transaction to be accepted
-        let wSrcId = T.unpack $ wSrc ^. walletId
-        eventually_ $ do
-            (fromStdout <$> listTransactionsViaCLI @t ctx [wSrcId])
-                >>= expectValidJSON (Proxy @([ApiTransaction n]))
-                >>= flip verify
-                    [ expectCliListItemFieldEqual 0 direction Outgoing
-                    , expectCliListItemFieldEqual 0 status InLedger
-                    ]
-
-        -- Try Forget transaction once it's no longer pending
-        (Exit c2, Stdout out2, Stderr err2) <-
-            deleteTransactionViaCLI @t ctx wSrcId txId
-        err2 `shouldContain` errMsg403NoPendingAnymore (T.pack txId)
-        out2 `shouldBe` ""
-        c2 `shouldBe` ExitFailure 1
-
     it "TRANS_DELETE_03 - Cannot forget tx that is not found via CLI" $ \ctx -> do
         wid <- fixtureWallet' ctx
         let txId = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
