@@ -305,17 +305,15 @@ instance Arbitrary BlockHeader where
 instance Arbitrary SlotId where
     shrink (SlotId (EpochNo ep) (SlotNo sl)) =
         uncurry SlotId <$> shrink (EpochNo ep, SlotNo sl)
-    arbitrary = SlotId
-        <$> (EpochNo <$> choose (0, fromIntegral arbitraryEpochLength))
-        <*> (SlotNo <$> choose (0, fromIntegral arbitraryChainLength))
+    arbitrary = SlotId <$> arbitrary <*> arbitrary
 
 instance Arbitrary SlotNo where
     shrink (SlotNo x) = SlotNo <$> shrink x
-    arbitrary = SlotNo <$> arbitrary
+    arbitrary = SlotNo <$> choose (0, fromIntegral arbitraryChainLength)
 
 instance Arbitrary EpochNo where
     shrink (EpochNo x) = EpochNo <$> shrink x
-    arbitrary = EpochNo <$> arbitrary
+    arbitrary = EpochNo <$> choose (0, fromIntegral arbitraryEpochLength)
 
 arbitraryEpochLength :: Word32
 arbitraryEpochLength = 100
