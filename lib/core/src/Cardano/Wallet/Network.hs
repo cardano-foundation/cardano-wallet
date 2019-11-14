@@ -58,11 +58,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
 import Control.Retry
-    ( RetryPolicyM
-    , exponentialBackoff
-    , limitRetriesByCumulativeDelay
-    , retrying
-    )
+    ( RetryPolicyM, constantDelay, limitRetriesByCumulativeDelay, retrying )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map
@@ -207,7 +203,7 @@ waitForNetwork getStatus policy = do
 -- for no longer than a minute.
 defaultRetryPolicy :: Monad m => RetryPolicyM m
 defaultRetryPolicy =
-    limitRetriesByCumulativeDelay (3600 * second) (exponentialBackoff 10000)
+    limitRetriesByCumulativeDelay (3600 * second) (constantDelay second)
   where
     second = 1000*1000
 
@@ -279,11 +275,11 @@ follow nl tr cps yield rollback header =
     sleep 0 (initCursor nl cps)
   where
     delay0 :: Int
-    delay0 = 1000*1000 -- 1 second
+    delay0 = 500*1000 -- 500ms
 
     retryDelay :: Int -> Int
     retryDelay 0 = delay0
-    retryDelay delay = min (2*delay) (60 * delay0)
+    retryDelay delay = min (2*delay) (10 * delay0)
 
     -- | Wait a short delay before querying for blocks again. We also take this
     -- opportunity to refresh the chain tip as it has probably increased in

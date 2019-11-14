@@ -73,7 +73,7 @@ followSpec =
                 (follow mockNetworkLayer tr [] advance rollback getHeader)
             errors <- mapMaybe (unMsg . loContent) <$> readTVarIO tvar
             case length errors of
-                x | x == 4 -> return ()
+                x | x == 5 -> return ()
                   | otherwise -> expectationFailure
                         $ "we expected 4 errors to be logged, not " ++ show x
   where
