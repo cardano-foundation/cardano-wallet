@@ -21,9 +21,7 @@ import Cardano.CLI
 import Cardano.Faucet
     ( initFaucet )
 import Cardano.Launcher
-    ( ProcessHasExited (..) )
-import Cardano.Launcher
-    ( withUtf8Encoding )
+    ( ProcessHasExited (..), withUtf8Encoding )
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.Jormungandr

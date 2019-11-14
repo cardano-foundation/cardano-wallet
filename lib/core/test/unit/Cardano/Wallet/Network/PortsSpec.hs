@@ -22,10 +22,10 @@ spec = describe "Cardano.Wallet.Network.Ports" $ do
         isPortOpen (localhost port) `shouldReturn` False
 
     it "isPortOpen detects a port in use" $ do
-        let app = \_req respond -> respond $ responseLBS status200 [] ""
+        let app _req respond = respond $ responseLBS status200 [] ""
         withApplication (pure app) $ \port ->
             isPortOpen (localhost (fromIntegral port)) `shouldReturn` True
-            
+
   where
     localhost = simpleSockAddr (127,0,0,1)
-     
+
