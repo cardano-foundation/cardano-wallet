@@ -1,5 +1,6 @@
 {-# LANGUAGE BinaryLiterals #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -97,6 +98,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Transaction
     ( EstimateMaxNumberOfInputsParams (..) )
+import Control.DeepSeq
+    ( NFData )
 import Control.Monad
     ( replicateM, unless )
 import Control.Monad.Loops
@@ -145,6 +148,8 @@ import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 import Data.Word
     ( Word16, Word32, Word64, Word8 )
+import GHC.Generics
+    ( Generic )
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.ByteArray as BA
@@ -177,12 +182,16 @@ data BlockHeader = BlockHeader
     , producedBy :: Maybe PoolId
         -- ^ Will contain the VRFPubKey of the stake pool for non-genesis
         -- Genesis/Praos blocks.
-    } deriving (Show, Eq)
+    } deriving (Show, Eq, Generic)
+
+instance NFData BlockHeader
 
 data Block = Block
     { header :: BlockHeader
     , messages :: [Message]
-    } deriving (Eq, Show)
+    } deriving (Show, Eq, Generic)
+
+instance NFData Block
 
 getBlockHeader :: Get BlockHeader
 getBlockHeader = label "getBlockHeader" $ do
@@ -263,7 +272,9 @@ data Message
     -- ^ A signed transaction with stake pool delegation
     | UnimplementedMessage Int
     -- Messages not yet supported go there.
-    deriving (Eq, Show)
+    deriving (Generic, Eq, Show)
+
+instance NFData Message
 
 data MessageType
     = MsgTypeInitial
@@ -564,7 +575,9 @@ data ConfigParam
     -- ^ Maximum number of seconds per update for KES keys known by the system
     -- after start time.
     | UnimplementedConfigParam  Word16
-    deriving (Eq, Show)
+    deriving (Generic, Eq, Show)
+
+instance NFData ConfigParam
 
 getConfigParam :: Get ConfigParam
 getConfigParam = label "getConfigParam" $ do
@@ -611,13 +624,19 @@ getConfigParam = label "getConfigParam" $ do
 -- | Used to represent (>= 0) rational numbers as (>= 0) integers, by just
 -- multiplying by 1000. For instance: '3.141592' is represented as 'Milli 3142'.
 newtype Milli = Milli Word64
-    deriving (Eq, Show)
+    deriving (Generic, Eq, Show)
+
+instance NFData Milli
 
 newtype LeaderId = LeaderId ByteString
-    deriving (Eq, Show)
+    deriving (Generic, Eq, Show)
+
+instance NFData LeaderId
 
 data ConsensusVersion = BFT | GenesisPraos
-    deriving (Eq, Show)
+    deriving (Generic, Eq, Show)
+
+instance NFData ConsensusVersion
 
 getConsensusVersion :: Get ConsensusVersion
 getConsensusVersion = label "getConsensusVersion" $ getWord16be >>= \case

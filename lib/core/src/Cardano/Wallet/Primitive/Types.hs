@@ -681,7 +681,9 @@ instance ToText Direction where
 
 -- | @TxWitness@ is proof that transaction inputs are allowed to be spent
 newtype TxWitness = TxWitness { unWitness :: ByteString }
-    deriving (Show, Eq, Ord)
+    deriving (Generic, Show, Eq, Ord)
+
+instance NFData TxWitness
 
 -- | True if the given tuple refers to a pending transaction
 isPending :: TxMeta -> Bool
@@ -1250,7 +1252,9 @@ newtype ProtocolMagic = ProtocolMagic Int32
 -- | Also known as a staking key, chimeric account is used in group-type address
 -- for staking purposes. It is a public key of the account address
 newtype ChimericAccount = ChimericAccount ByteString
-    deriving (Show, Eq)
+    deriving (Generic, Show, Eq)
+
+instance NFData ChimericAccount
 
 {-------------------------------------------------------------------------------
                                Polymorphic Types
