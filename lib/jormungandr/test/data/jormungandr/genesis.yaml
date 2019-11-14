@@ -24,7 +24,7 @@ blockchain_configuration:
 
   # The slot duration, in seconds, is the time between the creation
   # of 2 blocks
-  slot_duration: 1
+  slot_duration: 2
 
   # The number of blocks (*10) per epoch
   epoch_stability_depth: 4
