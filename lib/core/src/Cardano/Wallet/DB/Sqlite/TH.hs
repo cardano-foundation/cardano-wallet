@@ -134,7 +134,7 @@ Checkpoint
     checkpointGenesisStart   UTCTime      sql=genesis_start
     checkpointFeePolicy      W.FeePolicy  sql=fee_policy
     checkpointSlotLength     Word64       sql=slot_length
-    checkpointEpochLength    Word16       sql=epoch_length
+    checkpointEpochLength    Word32       sql=epoch_length
     checkpointTxMaxSize      Word16       sql=tx_max_size
     checkpointEpochStability Word32       sql=epoch_stability
 

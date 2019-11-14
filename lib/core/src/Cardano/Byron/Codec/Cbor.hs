@@ -86,7 +86,7 @@ import Data.Either.Extra
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
-    ( Word16, Word64, Word8 )
+    ( Word32, Word64, Word8 )
 import Debug.Trace
     ( traceShow )
 
@@ -374,7 +374,7 @@ decodeMainBlockHeader = do
         , parentHeaderHash = previous
         }
 
-decodeMainConsensusData :: CBOR.Decoder s ((Word64, Word16), Word64)
+decodeMainConsensusData :: CBOR.Decoder s ((Word64, Word32), Word64)
 decodeMainConsensusData = do
     _ <- CBOR.decodeListLenCanonicalOf 4
     slot <- decodeSlotId
@@ -472,11 +472,11 @@ decodeSharesProof = do
     _ <- CBOR.decodeBytes -- Vss Certificates Hash
     return ()
 
-decodeSlotId :: CBOR.Decoder s (Word64, Word16)
+decodeSlotId :: CBOR.Decoder s (Word64, Word32)
 decodeSlotId = do
     _ <- CBOR.decodeListLenCanonicalOf 2
     epoch <- CBOR.decodeWord64
-    slot <- CBOR.decodeWord16
+    slot <- fromIntegral <$> CBOR.decodeWord16
     return (epoch, slot)
 
 decodeSoftwareVersion :: CBOR.Decoder s ()

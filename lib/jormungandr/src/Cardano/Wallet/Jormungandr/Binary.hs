@@ -91,6 +91,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , PoolId (..)
     , SlotId (..)
+    , SlotNo (..)
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
@@ -202,7 +203,7 @@ getBlockHeader = label "getBlockHeader" $ do
         version <- getWord16be
         contentSize <- getWord32be
         slotEpoch <- fromIntegral <$> getWord32be
-        slotId <- toEnum . fromEnum <$> getWord32be
+        slotNo <- SlotNo <$> getWord32be
         chainLength <- getWord32be
         contentHash <- Hash <$> getByteString 32 -- or 256 bits
         parentHeaderHash <- Hash <$> getByteString 32
@@ -233,7 +234,7 @@ getBlockHeader = label "getBlockHeader" $ do
         return $ BlockHeader
             { version
             , contentSize
-            , slot = SlotId { epochNumber = slotEpoch, slotNumber = slotId }
+            , slot = SlotId { epochNumber = slotEpoch, slotNumber = slotNo }
             , chainLength
             , contentHash
             , parentHeaderHash
@@ -595,7 +596,7 @@ getConfigParam = label "getConfigParam" $ do
         2 -> Block0Date . W.StartTime . posixSecondsToUTCTime . fromIntegral
             <$> getWord64be
         3 -> Consensus <$> getConsensusVersion
-        4 -> SlotsPerEpoch . W.EpochLength . fromIntegral  <$> getWord32be
+        4 -> SlotsPerEpoch . W.EpochLength <$> getWord32be
         5 -> SlotDuration . secondsToNominalDiffTime <$> getWord8
         6 -> EpochStabilityDepth . Quantity <$> getWord32be
         8 -> ConsensusGenesisPraosParamF <$> getMilli

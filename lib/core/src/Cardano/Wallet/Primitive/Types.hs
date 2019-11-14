@@ -196,7 +196,7 @@ import Data.Text.Class
 import Data.Time.Clock
     ( NominalDiffTime, UTCTime, addUTCTime, diffUTCTime )
 import Data.Word
-    ( Word16, Word32, Word64 )
+    ( Word32, Word64 )
 import Fmt
     ( Buildable (..)
     , blockListF
@@ -985,7 +985,7 @@ data SlotId = SlotId
   , slotNumber :: !SlotNo
   } deriving stock (Show, Read, Eq, Ord, Generic)
 
-newtype SlotNo = SlotNo { unSlotNo :: Word16 }
+newtype SlotNo = SlotNo { unSlotNo :: Word32 }
     deriving stock (Show, Read, Eq, Ord, Generic)
     deriving newtype (Num, Buildable, NFData, Enum)
 
@@ -1227,7 +1227,7 @@ newtype SlotLength = SlotLength NominalDiffTime
 instance NFData SlotLength
 
 -- | Number of slots in a single epoch
-newtype EpochLength = EpochLength Word16
+newtype EpochLength = EpochLength Word32
     deriving (Show, Eq, Generic)
 
 instance NFData EpochLength
