@@ -49,7 +49,7 @@ in pkgs.runCommand name {
 
   ${pkgs.lib.concatMapStringsSep "\n" (test: ''
     pkg=`ls -1 ${test}`
-    exe=`cd ${test}; ls -1 $pkg`
+    exe=`cd ${test}/$pkg; ls -1 *.exe`
     name=$pkg-test-$exe
     cp ${test}/$pkg/$exe $name
     echo $name >> tests.bat
@@ -58,7 +58,7 @@ in pkgs.runCommand name {
 
   ${pkgs.lib.concatMapStringsSep "\n" (bench: ''
     pkg=`ls -1 ${bench}`
-    exe=`cd ${bench}; ls -1 $pkg`
+    exe=`cd ${bench}/$pkg; ls -1 *.exe`
     name=$pkg-bench-$exe
     cp ${bench}/$pkg/$exe $name
   '') benchmarks}
