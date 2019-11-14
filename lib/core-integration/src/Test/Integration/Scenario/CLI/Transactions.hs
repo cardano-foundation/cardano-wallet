@@ -888,23 +888,24 @@ spec = do
         let wSrcId = T.unpack (wSrc ^. walletId)
 
         -- post transaction
-        txJson <- postTxViaCLI ctx wSrc wDest 1
-        verify txJson
-            [ expectCliFieldEqual direction Outgoing
-            , expectCliFieldEqual status Pending
-            ]
-        let txId = getTxId txJson
-
-        -- forget transaction
-        fromExit <$> deleteTransactionViaCLI @t ctx wSrcId txId
-            `shouldReturn` ExitSuccess
-
-        -- verify again balance on src wallet
-        (fromStdout <$> getWalletViaCLI @t ctx wSrcId)
-            >>= expectValidJSON (Proxy @ApiWallet)
-            >>= flip verify
-                [ expectCliFieldEqual balanceAvailable faucetAmt
+        eventually_ $ do
+            txJson <- postTxViaCLI ctx wSrc wDest 1
+            verify txJson
+                [ expectCliFieldEqual direction Outgoing
+                , expectCliFieldEqual status Pending
                 ]
+            let txId = getTxId txJson
+
+            -- forget transaction
+            fromExit <$> deleteTransactionViaCLI @t ctx wSrcId txId
+                `shouldReturn` ExitSuccess
+
+            -- verify again balance on src wallet
+            (fromStdout <$> getWalletViaCLI @t ctx wSrcId)
+                >>= expectValidJSON (Proxy @ApiWallet)
+                >>= flip verify
+                    [ expectCliFieldEqual balanceAvailable faucetAmt
+                    ]
 
         eventually_ $ do
             (fromStdout <$> listTransactionsViaCLI @t ctx [wSrcId])
