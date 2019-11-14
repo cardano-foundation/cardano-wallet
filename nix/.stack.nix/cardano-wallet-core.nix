@@ -160,6 +160,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."tree-diff" or (buildDepError "tree-diff"))
             (hsPkgs."unordered-containers" or (buildDepError "unordered-containers"))
             (hsPkgs."yaml" or (buildDepError "yaml"))
+            (hsPkgs."wai" or (buildDepError "wai"))
             (hsPkgs."warp" or (buildDepError "warp"))
             ];
           build-tools = [
