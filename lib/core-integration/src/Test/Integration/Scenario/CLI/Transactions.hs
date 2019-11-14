@@ -881,10 +881,9 @@ spec = do
               oJson2 <- expectValidJSON (Proxy @([ApiTransaction n])) o2
               length <$> [oJson1, oJson2] `shouldSatisfy` all (== 0)
 
-    it "TRANS_DELETE_01 - Can forget pending transaction via CLI" $ \ctx -> do
+    it "TRANS_DELETE_01 - Cannot forget pending transaction when not pending anymorevia CLI" $ \ctx -> do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
-        let wDestId = T.unpack (wDest ^. walletId)
         let wSrcId = T.unpack (wSrc ^. walletId)
 
         -- post transaction
@@ -900,14 +899,6 @@ spec = do
                 >>= expectValidJSON (Proxy @([ApiTransaction n]))
                 >>= flip verify
                     [ expectCliListItemFieldEqual 0 direction Outgoing
-                    , expectCliListItemFieldEqual 0 status InLedger
-                    ]
-
-        eventually_ $ do
-            (fromStdout <$> listTransactionsViaCLI @t ctx [wDestId])
-                >>= expectValidJSON (Proxy @([ApiTransaction n]))
-                >>= flip verify
-                    [ expectCliListItemFieldEqual 0 direction Incoming
                     , expectCliListItemFieldEqual 0 status InLedger
                     ]
 
