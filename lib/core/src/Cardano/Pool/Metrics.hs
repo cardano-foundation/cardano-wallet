@@ -282,13 +282,19 @@ readPoolsPerformances
     -> SlotId
     -> m (Map PoolId Double)
 readPoolsPerformances DBLayer{..} (EpochLength el) tip = do
-    let range = [max 0 (currentEpoch - 14) .. currentEpoch]
-    atomically $ fmap avg $ forM range $ \ep -> calculatePerformance
+    atomically $ fmap avg $ forM historicalEpochs $ \ep -> calculatePerformance
         (slotsInEpoch ep)
         <$> (Map.fromList <$> readStakeDistribution ep)
         <*> (count <$> readPoolProduction ep)
   where
     currentEpoch = tip ^. #epochNumber
+
+    historicalEpochs :: [EpochNo]
+    historicalEpochs
+        | currentEpoch > window = [currentEpoch - window .. currentEpoch]
+        | otherwise             = [0..currentEpoch]
+      where
+        window = 14
 
     slotsInEpoch :: EpochNo -> Int
     slotsInEpoch e =
