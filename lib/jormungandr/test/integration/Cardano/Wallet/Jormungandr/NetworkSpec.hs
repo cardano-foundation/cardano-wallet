@@ -17,7 +17,7 @@ import Cardano.BM.Trace
 import Cardano.Wallet.Jormungandr.Api
     ( GetTipId, api )
 import Cardano.Wallet.Jormungandr.Binary
-    ( MessageType (..)
+    ( FragmentSpec (..)
     , TxWitnessTag (..)
     , fragmentId
     , putSignedTx
@@ -319,7 +319,7 @@ spec = do
         it "decodeExternalTx works ok with properly constructed binary blob" $ do
             property $ \(SignedTx signedTx) -> monadicIO $ liftIO $ do
                 let encode ((Tx _ inps outs), wits) = runPut
-                        $ withHeader MsgTypeTransaction
+                        $ withHeader FragmentTransaction
                         $ putSignedTx inps outs wits
                 let encodedSignedTx = BL.toStrict $ encode signedTx
                 decodeSignedTx tl encodedSignedTx `shouldBe` Right signedTx
@@ -328,7 +328,7 @@ spec = do
             \transaction-type header or is wrongly constructed binary blob" $ do
             property $ \(SignedTx signedTx) -> monadicIO $ liftIO $ do
                 let encodeWrongly ((Tx _ inps outs), wits) = runPut
-                        $ withHeader MsgTypeInitial
+                        $ withHeader FragmentInitial
                         $ putSignedTx inps outs wits
                 let encodedSignedTx = BL.toStrict $ encodeWrongly signedTx
                 decodeSignedTx tl encodedSignedTx `shouldBe` Left

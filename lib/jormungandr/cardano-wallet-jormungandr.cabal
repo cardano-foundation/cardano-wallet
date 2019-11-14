@@ -135,6 +135,7 @@ test-suite unit
     , cardano-wallet-core-integration
     , cardano-wallet-jormungandr
     , containers
+    , deepseq
     , directory
     , filepath
     , fmt

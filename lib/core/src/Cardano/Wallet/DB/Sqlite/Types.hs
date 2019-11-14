@@ -77,7 +77,7 @@ import Data.Text.Class
     , getTextDecodingError
     )
 import Data.Word
-    ( Word16, Word64, Word8 )
+    ( Word64, Word8 )
 import Database.Persist.Sqlite
     ( PersistField (..), PersistFieldSql (..), PersistValue )
 import Database.Persist.TH
@@ -258,9 +258,9 @@ instance PersistFieldSql SlotId where
 -- | As a short-to-medium term solution of persisting 'SlotId', we use
 -- 'flatSlot' with an artificial epochLength. I.e. /not the same epochLength as
 -- the blockchain/. This is just for the sake of storing the 64 bit epoch and
--- the 16 bit slot inside a single 64-bit field.
+-- the 32-bit slot inside a single 64-bit field.
 artificialEpochLength :: EpochLength
-artificialEpochLength = EpochLength $ fromIntegral (maxBound :: Word16)
+artificialEpochLength = EpochLength maxBound
 
 instance PersistField SlotId where
     toPersistValue = toPersistValue . flatSlot artificialEpochLength

@@ -6098,29 +6098,29 @@ initial:
   # (The faucet-addresses above don't delegate.)
   - fund:
       # account1
-      # $ jcli address account (cat funds/account1.pub) --testing
-      - address: ca1skkalz75s4vtw2e9wsy2q9jvsu3qtz6d2vm3xj4e5q4ufejpjjfn5lh35yr
+      # $ jcli address account $(cat funds/account1.pub) --testing --prefix "account"
+      - address: account1skkalz75s4vtw2e9wsy2q9jvsu3qtz6d2vm3xj4e5q4ufejpjjfn5wlnrsk
         value: 1
       # account2
-      # $ jcli address account (cat funds/account2.pub) --testing
-      - address: ca1shqtmpgefmhlwrwlm48kxq43hpkxnvz8fey2jlmce5lea3mxnskfqr99fz4
+      # $ jcli address account $(cat funds/account2.pub) --testing --prefix "account"
+      - address: account1shqtmpgefmhlwrwlm48kxq43hpkxnvz8fey2jlmce5lea3mxnskfqjd87kq
         value: 1
       # account3
-      # $ jcli address account (cat funds/account3.pub) --testing
-      - address: ca1skzn99jx8a2rw80gp9uea47tmcndv7gm28vy9as6akevy32204aqwzpsctx
+      # $ jcli address account $(cat funds/account3.pub) --testing --prefix "account"
+      - address: account1skzn99jx8a2rw80gp9uea47tmcndv7gm28vy9as6akevy32204aqwnfj0ln
         value: 1
 
   # Stake pool registration certificates
-  # $ cat stake_pools/{a,b,c}/stake_pool_signed.cert
-  - cert: signedcert1qvqqqqqqqqqqqqqqqqqqq0p5avfqqqqqqqqqqqqqqqqsqqf2kafzla95d8k2h7kk3870r5hlq76tmp539a02esh9x6jsxk7fhuqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpqqqqqqqqqqqqqu3ed0wgwnzwff5hzmy3jtalnzhtnp8z4ee8ps6p8tafarwky06ln5djzklrfj288ngcah69frvqg9kz5wpjyx6qg08zvs0xce4vja8qqqgqqz070rdj0uf7gumvu9jkgz35e9rjejl9ktfrwrvut9tyhcfqpdfg53tmp9y95xw0fp5ejkjac3hyawr9mkpv0hk62nzt33wfh6d5u5s9qayyg7
-  - cert: signedcert1qvqqqqqqqqqqqqqqqqqqq0p5avfqqqqqqqqqqqqqqqqsqqf2kafzla95d8k2h7kk3870r5hlq76tmp539a02esh9x6jsxk7fhuqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpqqqqqqqqqqqqpkpuhrghy89ppkeyvgvf6u2kn6wp2dmvwpa6tnddtdv0fy9hfme39ayqhwr76399cec9vmfqu4jpmlk52lt5xakhp8r9trauzwuzg2uqqqgqqpf7kwyfrqtzxwx06nnd2yd5m7g5pzuy98f3zqxvahcefx5kcm9a9fdp356vdttsz35nnfjanryagtyx2y06nr0snrznpqw2f60aaxcgmqmxek
-  - cert: signedcert1qvqqqqqqqqqqqqqqqqqqq0p5avfqqqqqqqqqqqqqqqqsqqf2kafzla95d8k2h7kk3870r5hlq76tmp539a02esh9x6jsxk7fhuqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpqqqqqqqqqqqqp4rqy9u7fs5e8u77q42a0uuju962jans7ad7y5qn8k2cq9p6ay63gp0lxeydu3pmfw62lacxfn0qdyaam297qgeze03ues7elm7ju5xsqqgqqrz0xqrjl9cp3uqvl8a3s7jfsfkq623zfnc88wlsyz7yw8z53j4fe8nu6q97fw5znt36rjdr7fwj9nvcgt8sdqnvddwtz7zqu9z503s00q5umg
+  # $ cat stake_pools/{a,b,c}/stake_pool.cert.signed
+  - cert: signedcert1qvqqqqqqqqqqqqqqqqqqq0p5avfqqqqqqqqqqqqqqqqqqqqqqqqqruyewhyw63znm6sqjp97v9v0lzxwrcpn5clpqjku9tvx7gm26cgu6dch9gvcaf2qtkjwk4dxnl9dwtx0drc3df7c6qf4ud0ntl65dl0sz24h2ghlfdrfaj4l445flnca9lc8kj7cdyf0t6kv9efk55p4hjdlqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpqqqqqqqqqqqqqqqpqruenu0stnzsfs5eaxkfp5ycuj7mzwvh0drhuknhu00x2g5r0wwqh29a5pelyg6ftnzrpd6ss9z3s3mukcuss3tf75vnn7gjm2609jqdtvrgeh
+  - cert: signedcert1qvqqqqqqqqqqqqqqqqqqq0p5avfqqqqqqqqqqqqqqqqqqqqqqqqqzqhrrx0rsyuc7uzd0fgzq7rlfkxl46uqa34vpsvlvkfhwcd9g8pmgqkmrlqp2pz3d6k3x3ffcvev968mwlxeuzgawla627j22t28fxhqz24h2ghlfdrfaj4l445flnca9lc8kj7cdyf0t6kv9efk55p4hjdlqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpqqqqqqqqqqqqqqqpqq29drqd7vfcejvnst4luycy7xuegxwgj3hstkjz8jrj9egr73d0m9gjepjxa5kdewpczvxn9pvtvadar6f2dqw9x467qslv8a5l3nq2quec6p
+  - cert: signedcert1qvqqqqqqqqqqqqqqqqqqq0p5avfqqqqqqqqqqqqqqqqqqqqqqqqqr9hzg7q7clf0wz0t8x6qjyjcnug3qy9ls7lptrfmjlp026cl9mqk066q5pwhpyst4vawatz2s8cxpv664kaw8tcd8zamfua009rndlksz24h2ghlfdrfaj4l445flnca9lc8kj7cdyf0t6kv9efk55p4hjdlqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpqqqqqqqqqqqqqqqpqzsmgc3fj8f49j9r8xdnkdwjp8j7djnyw56ltu758pe3j42ahd64c6ckzfumuhpqhp9pcsnyxk2jmlvgvhjve338ssmh8dkpde8mvcqx64l5t6
 
   # Delegation certificates — delegating from the account addresses to the pools
   # $ cat funds/stake_delegation{1,2,3}.signedcert
-  - cert: signedcert1qxkalz75s4vtw2e9wsy2q9jvsu3qtz6d2vm3xj4e5q4ufejpjjfn5q2wlgecssyxf683fx6z0kaj9hrwgnlld5u4q4npmpjfjx2dwvuswqsyfxf3ufe2me8jr3z70xcw930ewarlmz0ah67m6suzz9u524uucy2le5q26ukspl7k4gdlzyt3ldqzcv6gvcsmappmmpsx74639lgqg2a9kx
-  - cert: signedcert1q8qtmpgefmhlwrwlm48kxq43hpkxnvz8fey2jlmce5lea3mxnskfqq264syfguy58qc5aswgkp5hsg8u9ma2ey28dz6nu4xk3v9uu9af4rmltr2l3fcuvvcncxcd8pkujg55zdm9vvkpd7v68fsk700346rkd0cew62txal4zzm082gf22t652dqeyxvxr8gve9kt30fvpg5yjgpwe6ppl
-  - cert: signedcert1qxzn99jx8a2rw80gp9uea47tmcndv7gm28vy9as6akevy32204aqwq2ulwml0mqq2pyel0gu09g4y9k9443kh973j39aaznahx886yngqwgl2dse22c2n494hxlfzkw8v4rtxuj43unq04u7r848v28axlge63zlr4wpuwq080y3htyxxcx6dujzz84m7tupkhxrpcu0t9x67cq0x6dn8y
+  - cert: signedcert1qxkalz75s4vtw2e9wsy2q9jvsu3qtz6d2vm3xj4e5q4ufejpjjfn5q20345x5qkxucjmtfvue83rfuewt4efsuqjl8p9exntvrw6mcvh6yqatymz6yv900jggz8f87j2rg7pdue9y7erxpehsy9v0yaz4mrfga4ezyhkqhtp02ju727e2cuhyuwknjps0hpc9py0ggdyy2shwfldquxhncdr
+  - cert: signedcert1q8qtmpgefmhlwrwlm48kxq43hpkxnvz8fey2jlmce5lea3mxnskfqqtne4rxffevd6wq9xczegz26egezseafg44zs8m7gluwh4thp8a4cq3ljlvewvpyqkg3u3hvrrrkqekatwenwgh0d52x7d333gc4str9pnr5fn7yjegcj87dkzpe7nunnucgknyc87e73d64lmh47azmzqhpvknapz9
+  - cert: signedcert1qxzn99jx8a2rw80gp9uea47tmcndv7gm28vy9as6akevy32204aqwq2hdzqhcr3fhra2twme69s3l6hw7d43dlf2qa36sc7f9v6jzc5yguqhp6p79m5xjp0u9j35dlpfutvvrcsv03tgfnzcqhsmgjwhqxkmd0ggmw84qjsctxu2pzg5fh55n492ue5mrsec7vmk04vyf0ly367dqgzj6m3e
 
   # A special Byron Wallet comming from ["suffer", "decorate", "head", "opera", "yellow", "debate", "visa", "fire", "salute", "hybrid", "stone", "smart"]
   #

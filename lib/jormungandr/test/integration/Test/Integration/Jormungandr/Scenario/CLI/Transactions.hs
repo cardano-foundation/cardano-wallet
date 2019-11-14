@@ -13,7 +13,7 @@ import Prelude
 import Cardano.Wallet.Api.Types
     ( ApiTxId (..), ApiWallet, getApiT )
 import Cardano.Wallet.Jormungandr.Binary
-    ( MessageType (..) )
+    ( FragmentSpec (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..), hex )
 import Cardano.Wallet.Primitive.Types
@@ -93,7 +93,7 @@ spec = do
         (ExternalTxFixture _ wDest _ txWits@((Tx txid _ _), _)) <-
             fixtureExternalTx @t ctx toSend
         let baseOk = Base16
-        let arg = T.unpack $ encodeTx txWits MsgTypeTransaction baseOk
+        let arg = T.unpack $ encodeTx txWits FragmentTransaction baseOk
 
         -- post external transaction
         (Exit code, Stdout out, Stderr err) <-
@@ -119,7 +119,7 @@ spec = do
         let toSend = 1 :: Natural
         (ExternalTxFixture _ _ _ txWits) <- fixtureExternalTx @t ctx toSend
         let baseWrong = Base64
-        let argWrong = T.unpack $ encodeTx txWits MsgTypeTransaction baseWrong
+        let argWrong = T.unpack $ encodeTx txWits FragmentTransaction baseWrong
         -- post external transaction
         (Exit code1, Stdout out1, Stderr err1) <-
             postExternalTransactionViaCLI @t ctx [argWrong]
@@ -132,7 +132,7 @@ spec = do
         let toSend = 1 :: Natural
         (ExternalTxFixture _ _ _ txWits) <- fixtureExternalTx ctx toSend
         let baseOk = Base16
-        let arg = T.unpack $ encodeTx txWits MsgTypeInitial baseOk
+        let arg = T.unpack $ encodeTx txWits FragmentInitial baseOk
 
         -- post external transaction
         (Exit code, Stdout out, Stderr err) <-

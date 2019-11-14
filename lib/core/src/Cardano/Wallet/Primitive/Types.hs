@@ -196,7 +196,7 @@ import Data.Text.Class
 import Data.Time.Clock
     ( NominalDiffTime, UTCTime, addUTCTime, diffUTCTime )
 import Data.Word
-    ( Word16, Word32, Word64 )
+    ( Word32, Word64 )
 import Fmt
     ( Buildable (..)
     , blockListF
@@ -681,7 +681,9 @@ instance ToText Direction where
 
 -- | @TxWitness@ is proof that transaction inputs are allowed to be spent
 newtype TxWitness = TxWitness { unWitness :: ByteString }
-    deriving (Show, Eq, Ord)
+    deriving (Generic, Show, Eq, Ord)
+
+instance NFData TxWitness
 
 -- | True if the given tuple refers to a pending transaction
 isPending :: TxMeta -> Bool
@@ -983,7 +985,7 @@ data SlotId = SlotId
   , slotNumber :: !SlotNo
   } deriving stock (Show, Read, Eq, Ord, Generic)
 
-newtype SlotNo = SlotNo { unSlotNo :: Word16 }
+newtype SlotNo = SlotNo { unSlotNo :: Word32 }
     deriving stock (Show, Read, Eq, Ord, Generic)
     deriving newtype (Num, Buildable, NFData, Enum)
 
@@ -1225,7 +1227,7 @@ newtype SlotLength = SlotLength NominalDiffTime
 instance NFData SlotLength
 
 -- | Number of slots in a single epoch
-newtype EpochLength = EpochLength Word16
+newtype EpochLength = EpochLength Word32
     deriving (Show, Eq, Generic)
 
 instance NFData EpochLength
@@ -1250,7 +1252,9 @@ newtype ProtocolMagic = ProtocolMagic Int32
 -- | Also known as a staking key, chimeric account is used in group-type address
 -- for staking purposes. It is a public key of the account address
 newtype ChimericAccount = ChimericAccount ByteString
-    deriving (Show, Eq)
+    deriving (Generic, Show, Eq)
+
+instance NFData ChimericAccount
 
 {-------------------------------------------------------------------------------
                                Polymorphic Types

@@ -1,5 +1,6 @@
 {-# LANGUAGE BinaryLiterals #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -13,11 +14,11 @@
 -- License: Apache-2.0
 --
 -- The format is for the Shelley era as implemented by the Jörmungandr node.
--- It is described [here](https://github.com/input-output-hk/chain-libs/blob/master/chain-impl-mockchain/doc/format.md)
+-- It is described [here](https://github.com/input-output-hk/chain-libs/blob/master/chain-impl-mockchain/doc/format.abnf)
 --
 -- The module to some extent defines its own Jörmungandr-specific types,
 -- different from "Cardano.Wallet.Primitive.Types". Here, transactions are just
--- one of many possible 'Message's that can be included in a block.
+-- one of many possible 'Fragment' that can be included in a block.
 --
 -- In some cases it also leads us to /throw exceptions/ when integers would
 -- otherwise overflow (look for uses of 'toEnum').
@@ -28,13 +29,13 @@ module Cardano.Wallet.Jormungandr.Binary
     , ConfigParam (..)
     , ConsensusVersion (..)
     , LeaderId (..)
-    , Message (..)
-    , MessageType (..)
+    , Fragment (..)
+    , FragmentSpec (..)
     , Milli (..)
     , getBlock
     , getBlockHeader
     , getBlockId
-    , getMessage
+    , getFragment
     , getTransaction
     , putSignedTx
     , putTx
@@ -90,6 +91,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , PoolId (..)
     , SlotId (..)
+    , SlotNo (..)
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
@@ -97,6 +99,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Transaction
     ( EstimateMaxNumberOfInputsParams (..) )
+import Control.DeepSeq
+    ( NFData )
 import Control.Monad
     ( replicateM, unless )
 import Control.Monad.Loops
@@ -111,7 +115,6 @@ import Data.Binary.Get
     , getByteString
     , getLazyByteString
     , getWord16be
-    , getWord16le
     , getWord32be
     , getWord64be
     , getWord8
@@ -125,14 +128,7 @@ import Data.Binary.Get
     , skip
     )
 import Data.Binary.Put
-    ( Put
-    , putByteString
-    , putWord16be
-    , putWord16le
-    , putWord64be
-    , putWord8
-    , runPut
-    )
+    ( Put, putByteString, putWord16be, putWord64be, putWord8, runPut )
 import Data.Bits
     ( shift, (.&.) )
 import Data.ByteString
@@ -145,6 +141,8 @@ import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 import Data.Word
     ( Word16, Word32, Word64, Word8 )
+import GHC.Generics
+    ( Generic )
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.ByteArray as BA
@@ -177,12 +175,16 @@ data BlockHeader = BlockHeader
     , producedBy :: Maybe PoolId
         -- ^ Will contain the VRFPubKey of the stake pool for non-genesis
         -- Genesis/Praos blocks.
-    } deriving (Show, Eq)
+    } deriving (Show, Eq, Generic)
+
+instance NFData BlockHeader
 
 data Block = Block
     { header :: BlockHeader
-    , messages :: [Message]
-    } deriving (Eq, Show)
+    , fragments :: [Fragment]
+    } deriving (Show, Eq, Generic)
+
+instance NFData Block
 
 getBlockHeader :: Get BlockHeader
 getBlockHeader = label "getBlockHeader" $ do
@@ -193,9 +195,9 @@ getBlockHeader = label "getBlockHeader" $ do
         version <- getWord16be
         contentSize <- getWord32be
         slotEpoch <- fromIntegral <$> getWord32be
-        slotId <- toEnum . fromEnum <$> getWord32be
+        slotNo <- SlotNo <$> getWord32be
         chainLength <- getWord32be
-        contentHash <- Hash <$> getByteString 32 -- or 256 bits
+        contentHash <- Hash <$> getByteString 32
         parentHeaderHash <- Hash <$> getByteString 32
         let headerHash = Hash $ blake2b256 bytes
         -- Proof.
@@ -207,8 +209,7 @@ getBlockHeader = label "getBlockHeader" $ do
         -- We could make sure we get the right kind of proof, but we don't need
         -- to.  Just checking that the length is not totally wrong is much
         -- simpler and gives us sanity about the binary format being correct.
-        read' <- fromIntegral <$> bytesRead
-        let remaining = size - read'
+        remaining <- (size -) . fromIntegral <$> bytesRead
         producedBy <- case remaining of
             0 ->
                 -- no proof
@@ -224,7 +225,7 @@ getBlockHeader = label "getBlockHeader" $ do
         return $ BlockHeader
             { version
             , contentSize
-            , slot = SlotId { epochNumber = slotEpoch, slotNumber = slotId }
+            , slot = SlotId { epochNumber = slotEpoch, slotNumber = slotNo }
             , chainLength
             , contentHash
             , parentHeaderHash
@@ -235,9 +236,9 @@ getBlockHeader = label "getBlockHeader" $ do
 getBlock :: Get Block
 getBlock = label "getBlock" $ do
     header <- getBlockHeader
-    messages <- isolate (fromIntegral $ contentSize header)
-        (whileM (not <$> isEmpty) getMessage)
-    return $ Block{header,messages}
+    fragments <- isolate (fromIntegral $ contentSize header)
+        (whileM (not <$> isEmpty) getFragment)
+    return $ Block{header,fragments}
 
 -- | Extract a 'Block' id from a serialized 'Block'.
 getBlockId :: Get (Hash "BlockHeader")
@@ -247,29 +248,40 @@ getBlockId = lookAhead getBlock *> label "getBlockId" (do
     return $ Hash $ blake2b256 bytes)
 
 {-------------------------------------------------------------------------------
-                           Messages
+                           Fragments
 -------------------------------------------------------------------------------}
 
--- | The block-body consists of messages. There are several types of messages.
---
---  Following, as closely as possible:
--- https://github.com/input-output-hk/rust-cardano/blob/e0616f13bebd6b908320bddb1c1502dea0d3305a/chain-impl-mockchain/src/message/mod.rs#L22-L29
-data Message
+-- | The block-body consists of fragments. There are several types of fragments.
+data Fragment
     = Initial [ConfigParam]
     -- ^ Found in the genesis block.
     | Transaction (Tx, [TxWitness])
     -- ^ A standard signed transaction
     | StakeDelegation (PoolId, ChimericAccount, Tx, [TxWitness])
     -- ^ A signed transaction with stake pool delegation
-    | UnimplementedMessage Int
-    -- Messages not yet supported go there.
-    deriving (Eq, Show)
+    | UnimplementedFragment Word8
+    -- Fragments not yet supported go there.
+    deriving (Generic, Eq, Show)
 
-data MessageType
-    = MsgTypeInitial
-    | MsgTypeLegacyUTxO
-    | MsgTypeTransaction
-    | MsgTypeDelegation
+instance NFData Fragment
+
+data FragmentSpec
+    = FragmentInitial
+    | FragmentLegacyUTxO
+    | FragmentTransaction
+    | FragmentDelegation
+
+putFragmentSpec :: FragmentSpec -> Put
+putFragmentSpec spec = do
+    putWord8 0x00
+    putWord8 (fragmentSpec spec)
+  where
+    fragmentSpec :: FragmentSpec -> Word8
+    fragmentSpec = \case
+        FragmentInitial -> 0
+        FragmentLegacyUTxO -> 1
+        FragmentTransaction -> 2
+        FragmentDelegation -> 4
 
 data TxWitnessTag
     = TxWitnessLegacyUTxO
@@ -293,9 +305,9 @@ getTxWitnessTag = getWord8 >>= \case
     3 -> pure TxWitnessMultisig
     other -> fail $ "Invalid witness type: " ++ show other
 
--- | Decode a message (header + contents).
-getMessage :: Get Message
-getMessage = label "getMessage" $ do
+-- | Decode a fragment (header + contents).
+getFragment :: Get Fragment
+getFragment = label "getFragment" $ do
     size <- fromIntegral <$> getWord16be
 
     -- We lazily compute the fragment-id, using lookAHead, before calling the
@@ -305,18 +317,21 @@ getMessage = label "getMessage" $ do
     -- corresponds to the txId (a.k.a "tx hash").
     fragId <- Hash . blake2b256 . BL.toStrict
         <$> lookAhead (getLazyByteString $ fromIntegral size)
-    msgType <- fromIntegral <$> getWord16le
-    let remaining = size - 2
-    let unimpl = skip remaining >> return (UnimplementedMessage msgType)
-    let typeLabelStr = "fragmentType " ++ show msgType
 
-    label typeLabelStr $ isolate remaining $ case msgType of
+    -- A null byte for later extension
+    _nullByte <- getWord8
+    fragSpec <- getWord8
+    let remaining = size - 2
+    let unimpl = skip remaining >> return (UnimplementedFragment fragSpec)
+    let typeLabelStr = "fragmentType " ++ show fragSpec
+
+    label typeLabelStr $ isolate remaining $ case fragSpec of
         0 -> Initial <$> getInitial
         1 -> Transaction <$> getLegacyTransaction fragId
         2 -> Transaction <$> getTransaction fragId
         3 -> unimpl -- OwnerStakeDelegation
-        4 -> maybe (UnimplementedMessage msgType) StakeDelegation <$>
-            lookAheadM (getStakeDelegation fragId)
+        4 -> maybe (UnimplementedFragment fragSpec) StakeDelegation
+            <$> lookAheadM (getStakeDelegation fragId)
         5 -> unimpl -- PoolRegistration
         6 -> unimpl -- PoolRetirement
         7 -> unimpl -- PoolUpdate
@@ -324,14 +339,7 @@ getMessage = label "getMessage" $ do
         9 -> unimpl -- UpdateVote
         other -> fail $ "Unexpected content type tag " ++ show other
 
-messageTypeTag :: MessageType -> Word16
-messageTypeTag = \case
-    MsgTypeInitial -> 0
-    MsgTypeLegacyUTxO -> 1
-    MsgTypeTransaction -> 2
-    MsgTypeDelegation -> 4
-
--- | Decode the contents of a @Initial@-message.
+-- | Decode the contents of a @Initial@-fragment.
 getInitial :: Get [ConfigParam]
 getInitial = label "getInitial" $ do
     len <- fromIntegral <$> getWord16be
@@ -340,6 +348,10 @@ getInitial = label "getInitial" $ do
 {-------------------------------------------------------------------------------
                                 Transactions
 -------------------------------------------------------------------------------}
+
+data AccountType
+    = SingleAccount
+    | MultiAccount
 
 txWitnessSize :: TxWitnessTag -> Int
 txWitnessSize = \case
@@ -375,7 +387,7 @@ stakeDelegationTypeTag = \case
     DlgFull -> 1
     DlgRatio -> 2
 
--- | Decode the contents of a @Transaction@-message carrying a delegation cert.
+-- | Decode the contents of a @Transaction@-fragment carrying a delegation cert.
 --
 -- Returns 'Nothing' for unsupported stake delegation types: DLG-NONE & DLG-RATIO
 getStakeDelegation
@@ -396,7 +408,7 @@ getStakeDelegation tid = do
     getStakeDelegationFull accId = Just <$> do
         poolId <- getByteString 32
         (tx, wits) <- getGenericTransaction tid
-        _accSignature <- getByteString 64
+        _accSignature <- getByteString 65
         pure (PoolId poolId, ChimericAccount accId, tx, wits )
 
     getStakeDelegationRatio =
@@ -419,12 +431,25 @@ putStakeDelegationTx
     -> [TxOut]
     -> [TxWitness]
     -> Put
-putStakeDelegationTx poolId accId (Hash accSig) inputs outputs witnesses = do
+putStakeDelegationTx poolId accId accSig inputs outputs witnesses = do
     putStakeCertificate poolId accId
     putSignedTx inputs outputs witnesses
-    putByteString accSig
+    putAccountSignature SingleAccount accSig
 
--- | Decode the contents of a @Transaction@-message.
+putAccountSignature
+    :: AccountType
+    -> Hash "AccountSignature"
+    -> Put
+putAccountSignature tag (Hash accSig) = do
+    putWord8 (accountType tag)
+    putByteString accSig
+  where
+    accountType :: AccountType -> Word8
+    accountType = \case
+        SingleAccount -> 0x01
+        MultiAccount  -> 0x02
+
+-- | Decode the contents of a @Transaction@-fragment.
 getTransaction :: Hash "Tx" -> Get (Tx, [TxWitness])
 getTransaction = label "getTransaction" . getGenericTransaction
 
@@ -564,7 +589,9 @@ data ConfigParam
     -- ^ Maximum number of seconds per update for KES keys known by the system
     -- after start time.
     | UnimplementedConfigParam  Word16
-    deriving (Eq, Show)
+    deriving (Generic, Eq, Show)
+
+instance NFData ConfigParam
 
 getConfigParam :: Get ConfigParam
 getConfigParam = label "getConfigParam" $ do
@@ -582,7 +609,7 @@ getConfigParam = label "getConfigParam" $ do
         2 -> Block0Date . W.StartTime . posixSecondsToUTCTime . fromIntegral
             <$> getWord64be
         3 -> Consensus <$> getConsensusVersion
-        4 -> SlotsPerEpoch . W.EpochLength . fromIntegral  <$> getWord32be
+        4 -> SlotsPerEpoch . W.EpochLength <$> getWord32be
         5 -> SlotDuration . secondsToNominalDiffTime <$> getWord8
         6 -> EpochStabilityDepth . Quantity <$> getWord32be
         8 -> ConsensusGenesisPraosParamF <$> getMilli
@@ -611,13 +638,19 @@ getConfigParam = label "getConfigParam" $ do
 -- | Used to represent (>= 0) rational numbers as (>= 0) integers, by just
 -- multiplying by 1000. For instance: '3.141592' is represented as 'Milli 3142'.
 newtype Milli = Milli Word64
-    deriving (Eq, Show)
+    deriving (Generic, Eq, Show)
+
+instance NFData Milli
 
 newtype LeaderId = LeaderId ByteString
-    deriving (Eq, Show)
+    deriving (Generic, Eq, Show)
+
+instance NFData LeaderId
 
 data ConsensusVersion = BFT | GenesisPraos
-    deriving (Eq, Show)
+    deriving (Generic, Eq, Show)
+
+instance NFData ConsensusVersion
 
 getConsensusVersion :: Get ConsensusVersion
 getConsensusVersion = label "getConsensusVersion" $ getWord16be >>= \case
@@ -681,17 +714,23 @@ putAddress (Address bs) = putByteString bs
                               Helpers
 -------------------------------------------------------------------------------}
 
--- | Add a corresponding header to a message. Every message is encoded as:
+-- | Add a corresponding header to a fragment. Every fragment is encoded as:
 --
---     HEADER(MESSAGE) | MESSAGE
---
--- where `HEADER` is:
---
---     SIZE (2 bytes) | TYPE (1 byte)
---
-withHeader :: MessageType -> Put -> Put
-withHeader typ content = do
-    let bs = BL.toStrict $ runPut (putWord16le (messageTypeTag typ) *> content)
+-- FRAGMENT         = FRAGMENT-SIZE %x00 FRAGMENT-SPEC
+-- FRAGMENT-SIZE    = SIZE-BYTES-16BIT
+-- FRAGMENT-SPEC    = %x00 INITIAL
+--                  / %x01 OLD-UTXO-DECL
+--                  / %x02 SIMPLE-TRANSACTION
+--                  / %x03 OWNER-STAKE-DELEGATION
+--                  / %x04 STAKE-DELEGATION
+--                  / %x05 POOL-REGISTRATION
+--                  / %x06 POOL-RETIREMENT
+--                  / %x07 POOL-UPDATE
+--                  / %x08 UPDATE-PROPOSAL
+--                  / %x09 UPDATE-VOTE
+withHeader :: FragmentSpec -> Put -> Put
+withHeader spec content = do
+    let bs = BL.toStrict $ runPut (putFragmentSpec spec *> content)
     putWord16be (toEnum $ BS.length bs)
     putByteString bs
 
@@ -706,7 +745,7 @@ estimateMaxNumberOfInputsParams
     :: EstimateMaxNumberOfInputsParams t
 estimateMaxNumberOfInputsParams = EstimateMaxNumberOfInputsParams
     { estMeasureTx = \ins outs wits -> fromIntegral $ BL.length $
-        runPut $ withHeader MsgTypeTransaction $
+        runPut $ withHeader FragmentTransaction $
             putSignedTx (map (, Coin 0) ins) outs wits
 
     -- Block IDs are always this long.
@@ -727,7 +766,7 @@ fragmentId
     -> Hash "Tx"
 fragmentId inps outs wits =
     Hash $ blake2b256 $ BL.toStrict $ runPut $ do
-        putWord16le (messageTypeTag MsgTypeTransaction)
+        putFragmentSpec FragmentTransaction
         putSignedTx inps outs wits
 
 delegationFragmentId
@@ -740,7 +779,7 @@ delegationFragmentId
     -> Hash "Tx"
 delegationFragmentId poolId accId accSig inps outs wits =
     Hash $ blake2b256 $ BL.toStrict $ runPut $ do
-        putWord16le (messageTypeTag MsgTypeDelegation)
+        putFragmentSpec FragmentDelegation
         putStakeDelegationTx poolId accId accSig inps outs wits
 
 -- | See 'fragmentId'. This computes the signing data required for producing
@@ -760,13 +799,13 @@ signData inps outs =
 -- | Convert the Jörmungandr binary format block into a simpler Wallet block.
 convertBlock :: Block -> W.Block
 convertBlock (Block h msgs) =
-    W.Block (convertBlockHeader h) coerceMessages
+    W.Block (convertBlockHeader h) coerceFragments
   where
-    coerceMessages = msgs >>= \case
+    coerceFragments = msgs >>= \case
         Initial _ -> []
         Transaction (tx, _wits) -> return tx
         StakeDelegation (_poolId, _xpub, tx, _wits) -> return tx
-        UnimplementedMessage _ -> []
+        UnimplementedFragment _ -> []
 
 -- | Convert the Jörmungandr binary format header into a simpler Wallet header.
 convertBlockHeader :: BlockHeader -> W.BlockHeader

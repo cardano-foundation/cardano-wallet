@@ -492,6 +492,8 @@ instance MonadRandom ((->) (Passphrase "salt")) where
 data NetworkDiscriminant = Mainnet | Testnet
     deriving (Generic, Show, Eq, Bounded, Enum)
 
+instance NFData NetworkDiscriminant
+
 instance FromText NetworkDiscriminant where
     fromText = fromTextToBoundedEnum SnakeLowerCase
 
