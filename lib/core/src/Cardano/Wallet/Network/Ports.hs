@@ -32,7 +32,7 @@ import Control.Monad.IO.Class
 import Control.Retry
     ( RetryPolicyM, retrying )
 import Data.List
-    ( isSubsequenceOf )
+    ( isInfixOf )
 import Data.Streaming.Network
     ( bindRandomPortTCP )
 import Data.Word
@@ -92,17 +92,8 @@ isPortOpen sockAddr = do
       Right () -> return True
       Left e
         | (Errno <$> ioe_errno e) == Just eCONNREFUSED -> pure False
-        | any (`isSubsequenceOf` show e) windowsNetworkError -> pure False
+        | "WSAECONNREFUSED" `isInfixOf` show e -> pure False
         | otherwise -> throwIO e
-  where
-    windowsNetworkError :: [String]
-    windowsNetworkError =
-        [ "WSAECONNREFUSED"  -- Connection refused
-        , "WSAEADDRNOTAVAIL" -- Cannot assign requested address
-        , "WSAETIMEDOUT"     -- Connection timed out
-        , "WSAEHOSTUNREACH"  -- Host is unreachable
-        , "WSAEHOSTDOWN"     -- Host is down
-        ]
 
 -- | Creates a `SockAttr` from host IP and port number.
 --
