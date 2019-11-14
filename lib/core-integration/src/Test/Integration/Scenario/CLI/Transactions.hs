@@ -52,7 +52,7 @@ import System.Exit
 import Test.Hspec
     ( SpecWith, describe, it )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldContain, shouldReturn, shouldSatisfy )
+    ( shouldBe, shouldContain, shouldSatisfy )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , KnownCommand
@@ -881,62 +881,19 @@ spec = do
               oJson2 <- expectValidJSON (Proxy @([ApiTransaction n])) o2
               length <$> [oJson1, oJson2] `shouldSatisfy` all (== 0)
 
-    it "TRANS_DELETE_01 - Can forget pending transaction via CLI" $ \ctx -> do
+    it "TRANS_DELETE_01 - Cannot forget pending transaction when not pending anymorevia CLI" $ \ctx -> do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
-        let wDestId = T.unpack (wDest ^. walletId)
         let wSrcId = T.unpack (wSrc ^. walletId)
 
         -- post transaction
-        eventually_ $ do
-            txJson <- postTxViaCLI ctx wSrc wDest 1
-            verify txJson
-                [ expectCliFieldEqual direction Outgoing
-                , expectCliFieldEqual status Pending
-                ]
-            let txId = getTxId txJson
-
-            -- forget transaction
-            fromExit <$> deleteTransactionViaCLI @t ctx wSrcId txId
-                `shouldReturn` ExitSuccess
-
-            -- verify again balance on src wallet
-            (fromStdout <$> getWalletViaCLI @t ctx wSrcId)
-                >>= expectValidJSON (Proxy @ApiWallet)
-                >>= flip verify
-                    [ expectCliFieldEqual balanceAvailable faucetAmt
-                    ]
-
-        eventually_ $ do
-            (fromStdout <$> listTransactionsViaCLI @t ctx [wSrcId])
-                >>= expectValidJSON (Proxy @([ApiTransaction n]))
-                >>= flip verify
-                    [ expectCliListItemFieldEqual 0 direction Outgoing
-                    , expectCliListItemFieldEqual 0 status InLedger
-                    ]
-
-        eventually_ $ do
-            (fromStdout <$> listTransactionsViaCLI @t ctx [wDestId])
-                >>= expectValidJSON (Proxy @([ApiTransaction n]))
-                >>= flip verify
-                    [ expectCliListItemFieldEqual 0 direction Incoming
-                    , expectCliListItemFieldEqual 0 status InLedger
-                    ]
-
-    it "TRANS_DELETE_02 -\
-        \ Cannot forget tx that is already in ledger via CLI" $ \ctx -> do
-        wSrc <- fixtureWallet ctx
-        wDest <- emptyWallet ctx
-
         txJson <- postTxViaCLI ctx wSrc wDest 1
         verify txJson
             [ expectCliFieldEqual direction Outgoing
             , expectCliFieldEqual status Pending
             ]
-        let txId = getTxId txJson
+        let txId =  getTxId txJson
 
-        -- Wait for the transaction to be accepted
-        let wSrcId = T.unpack $ wSrc ^. walletId
         eventually_ $ do
             (fromStdout <$> listTransactionsViaCLI @t ctx [wSrcId])
                 >>= expectValidJSON (Proxy @([ApiTransaction n]))
@@ -945,7 +902,7 @@ spec = do
                     , expectCliListItemFieldEqual 0 status InLedger
                     ]
 
-        -- Try Forget transaction once it's no longer pending
+     -- Try Forget transaction once it's no longer pending
         (Exit c2, Stdout out2, Stderr err2) <-
             deleteTransactionViaCLI @t ctx wSrcId txId
         err2 `shouldContain` errMsg403NoPendingAnymore (T.pack txId)

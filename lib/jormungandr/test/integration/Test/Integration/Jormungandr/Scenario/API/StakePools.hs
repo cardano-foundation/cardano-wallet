@@ -79,21 +79,21 @@ spec = do
                 , expectListItemFieldBetween 0
                     (metrics . blocks) (1, 2)
                 , expectListItemFieldBetween 0
-                    apparentPerformance (0, 1)
+                    apparentPerformance (0.8, 1)
 
                 , expectListItemFieldEqual 1
                     (metrics . stake) 1
                 , expectListItemFieldEqual 1
                     (metrics . blocks) 0
-                , expectListItemFieldBetween 1
-                    apparentPerformance (0, 1)
+                , expectListItemFieldEqual 2
+                    apparentPerformance 0
 
                 , expectListItemFieldEqual 2
                     (metrics . stake) 1
                 , expectListItemFieldEqual 2
                     (metrics . blocks) 0
-                , expectListItemFieldBetween 2
-                    apparentPerformance (0, 1)
+                , expectListItemFieldEqual 2
+                    apparentPerformance 0
                 ]
 
     it "STAKE_POOLS_LIST_02 - May fail on epoch boundaries" $ \ctx -> do

@@ -110,6 +110,7 @@ spec = do
 
     describe "LOGGING - cardano-wallet serve logging [SERIAL]" $ do
         it "LOGGING - Serve --quiet logs Error only" $ \ctx -> do
+            pendingWith "Seems to cause some sort of race condition with --coverage"
             withTempFile $ \logs hLogs -> do
                 let cmd = Command
                         (commandName @t)
@@ -127,6 +128,7 @@ spec = do
                 TIO.readFile logs `shouldReturn` mempty
 
         it "LOGGING - Serve default logs Info" $ \ctx -> do
+            pendingWith "seems to cause some sort of race condition with --coverage"
             withTempFile $ \logs hLogs -> do
                 let cmd = Command
                         (commandName @t)
@@ -145,6 +147,7 @@ spec = do
                 logged `shouldNotContain` "DEBUG"
 
         it "LOGGING - Serve shuts down logging correctly" $ \ctx -> do
+            pendingWith "seems to cause some sort of race condition with --coverage"
             withTempFile $ \logs hLogs -> do
                 let cmd = Command
                         (commandName @t)
@@ -161,6 +164,7 @@ spec = do
                     threadDelay (10 * oneSecond)
                 hClose hLogs
                 logged <- T.unpack <$> TIO.readFile logs
+                putStrLn logged
                 logged `shouldContain` "Logging shutdown"
 
         describe "LOGGING - Exits nicely on wrong genesis hash" $  do
@@ -170,6 +174,7 @@ spec = do
                     , replicate 42 '1'
                     ]
             forM_ hashes $ \hash -> it hash $ \ctx -> do
+                pendingWith "seems to cause some sort of race condition with --coverage"
                 let args =
                         ["serve"
                         , "--node-port"
@@ -187,6 +192,7 @@ spec = do
                     \ (i.e. " ++ hash ++ ")"
 
         it "LOGGING - Non hex-encoded genesis hash shows error" $ \_ -> do
+            pendingWith "seems to cause some sort of race condition with --coverage"
             let args =
                     ["serve"
                     , "--genesis-block-hash"
