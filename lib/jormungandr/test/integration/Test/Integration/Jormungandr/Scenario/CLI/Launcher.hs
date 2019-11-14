@@ -10,16 +10,22 @@ module Test.Integration.Jormungandr.Scenario.CLI.Launcher
 
 import Prelude
 
+import Cardano.BM.Data.Tracer
+    ( nullTracer )
 import Cardano.CLI
     ( Port (..) )
+import Cardano.Launcher
+    ( Command (..), StdStream (..), withBackendProcess )
 import Cardano.Wallet.Api.Types
     ( ApiWallet )
+import Cardano.Wallet.Jormungandr.Launch
+    ( testDataDir )
 import Cardano.Wallet.Primitive.Types
     ( SyncProgress (..) )
 import Control.Exception
     ( finally )
 import Control.Monad
-    ( forM_ )
+    ( forM_, void )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Class
@@ -32,6 +38,8 @@ import System.Directory
     ( removeDirectory )
 import System.Exit
     ( ExitCode (..) )
+import System.FilePath
+    ( (</>) )
 import System.IO
     ( Handle )
 import System.IO.Temp
@@ -62,8 +70,8 @@ import qualified Data.Text.IO as TIO
 
 spec :: forall t. (KnownCommand t) => Spec
 spec = do
-    let block0 = "test/data/jormungandr/block0.bin"
-    let secret = "test/data/jormungandr/secret.yaml"
+    let block0 = testDataDir </> "block0.bin"
+    let secret = testDataDir </> "secret.yaml"
     describe "LAUNCH - cardano-wallet launch [SERIAL]" $ do
         it "LAUNCH - Stop when --state-dir is an existing file" $ withTempFile $ \f _ -> do
             let args =
@@ -85,7 +93,8 @@ spec = do
                     ]
             forM_ tests $ \(title, before) -> it title $ withTempDir $ \d -> do
                 before d
-                let args =
+                let cmd = Command
+                        (commandName @t)
                         [ "launch"
                         , "--random-port"
                         , "--state-dir", d
@@ -93,19 +102,17 @@ spec = do
                         , "--"
                         , "--secret", secret
                         ]
-                let process = proc' (commandName @t) args
-                withCreateProcess process $ \_ (Just o) (Just e) ph -> do
+                        (pure ())
+                        Inherit
+                void $ withBackendProcess nullTracer cmd $ do
                     expectPathEventuallyExist d
-                    expectPathEventuallyExist (d <> "/chain")
-                    expectPathEventuallyExist (d <> "/wallets")
-                  `finally` do
-                    terminateProcess ph
-                    TIO.hGetContents o >>= TIO.putStrLn
-                    TIO.hGetContents e >>= TIO.putStrLn
+                    expectPathEventuallyExist (d </> "chain")
+                    expectPathEventuallyExist (d </> "wallets")
 
         it "LAUNCH - Can start launcher with --state-dir (nested dir)" $ withTempDir $ \d -> do
-            let dir = d ++ "/a/b/c/d/e/f/g"
-            let args =
+            let dir = d </> "a" </> "b" </> "c"
+            let cmd = Command
+                    (commandName @t)
                     [ "launch"
                     , "--random-port"
                     , "--state-dir", dir
@@ -113,15 +120,12 @@ spec = do
                     , "--"
                     , "--secret", secret
                     ]
-            let process = proc' (commandName @t) args
-            withCreateProcess process $ \_ (Just o) (Just e) ph -> do
+                    (pure ())
+                    Inherit
+            void $ withBackendProcess nullTracer cmd $ do
                 expectPathEventuallyExist dir
-                expectPathEventuallyExist (dir <> "/chain")
-                expectPathEventuallyExist (dir <> "/wallets")
-              `finally` do
-                terminateProcess ph
-                TIO.hGetContents o >>= TIO.putStrLn
-                TIO.hGetContents e >>= TIO.putStrLn
+                expectPathEventuallyExist (dir </> "chain")
+                expectPathEventuallyExist (dir </> "wallets")
 
         it "LAUNCH - Non-Existing files for --genesis-block" $ do
             let block0' = block0 <> ".doesnexist"
