@@ -201,4 +201,4 @@ passphrase :: String
 passphrase = "cardano-wallet"
 
 errConnectionRefused :: String
-errConnectionRefused = "does not exist (Connection refused)"
+errConnectionRefused = "Connection refused"
