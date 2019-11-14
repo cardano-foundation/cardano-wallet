@@ -91,7 +91,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Transaction
     ( TransactionLayer )
 import Control.Concurrent
-    ( forkFinally )
+    ( forkFinally, threadDelay )
 import Control.Concurrent.Async
     ( race )
 import Control.DeepSeq
@@ -160,7 +160,14 @@ serveWallet (cfg, tr) sTolerance databaseDir hostPref listen lj beforeMainLoop =
         Left e -> handleApiServerStartupError e
         Right (wPort, socket) -> either (const ExitSuccess) id <$> do
             let tracerIPC = appendName "daedalus-ipc" tr
-            race (daedalusIPC tracerIPC wPort) $ do
+            -- FIXME
+            -- There's an ugly pause of 1s here for lack of a better fix. There
+            -- seem to be a race-condition on Daedalus' side which isn't able to
+            -- pick up the 'Started' message if we send it too quickly...
+            -- There shouldn't be any issue for us to resend the 'Started'
+            -- message multiple time if we haven't received 'QueryPort' after a
+            -- while and that would be a better way to fix this!
+            race (threadDelay oneSecond *> daedalusIPC tracerIPC wPort) $ do
                 withNetworkLayer tr lj $ \case
                     Left e -> handleNetworkStartupError e
                     Right (cp, nl) -> do
@@ -312,6 +319,10 @@ serveWallet (cfg, tr) sTolerance databaseDir hostPref listen lj beforeMainLoop =
 --------------------------------------------------------------------------------
 -- Exported Utilities
 --------------------------------------------------------------------------------
+
+-- | One second in micro seconds
+oneSecond :: Int
+oneSecond = 1000 * 1000
 
 -- | Covert a raw block to one that the "Cardano.Pool.Metrics" module accepts.
 toSPBlock :: J.Block -> Pool.Block

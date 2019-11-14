@@ -221,7 +221,6 @@ windowsReadMessage handle = do
     _int1 <- readInt32 handle
     _int2 <- readInt32 handle
     size <- readInt64 handle
-    -- logInfo $ "int is: " <> (show [_int1, _int2]) <> " and blob is: " <> (show blob)
     BL.hGet handle $ fromIntegral size
   where
     readInt64 :: Handle -> IO Word64
