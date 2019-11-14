@@ -282,6 +282,7 @@ follow nl tr cps yield rollback header =
     delay0 = 1000*1000 -- 1 second
 
     retryDelay :: Int -> Int
+    retryDelay 0 = delay0
     retryDelay delay = min (2*delay) (60 * delay0)
 
     -- | Wait a short delay before querying for blocks again. We also take this
