@@ -73,7 +73,6 @@ import Test.Integration.Framework.DSL
     , expectEventually'
     , expectValidJSON
     , faucetAmt
-    , faucetUtxoAmt
     , feeEstimator
     , fixtureWallet
     , fixtureWalletWith
@@ -137,7 +136,6 @@ spec = do
                 ( faucetAmt - feeMax - amt
                 , faucetAmt - feeMin - amt
                 )
-            , expectCliFieldEqual balanceAvailable (faucetAmt - faucetUtxoAmt)
             ]
 
         expectEventually' ctx getWalletEp balanceAvailable amt wDest
@@ -187,7 +185,6 @@ spec = do
                 ( faucetAmt - feeMax - (2*amt)
                 , faucetAmt - feeMin - (2*amt)
                 )
-            , expectCliFieldEqual balanceAvailable (faucetAmt - 2*faucetUtxoAmt)
             ]
 
         expectEventually' ctx getWalletEp balanceAvailable (2*amt) wDest
@@ -239,7 +236,6 @@ spec = do
                 ( faucetAmt - feeMax - (2*amt)
                 , faucetAmt - feeMin - (2*amt)
                 )
-            , expectCliFieldEqual balanceAvailable (faucetAmt - 2*faucetUtxoAmt)
             ]
 
         forM_ [wDest1, wDest2] $ \wDest -> do
@@ -892,30 +888,24 @@ spec = do
         let wSrcId = T.unpack (wSrc ^. walletId)
 
         -- post transaction
-        txJson <- postTxViaCLI ctx wSrc wDest 1
-        verify txJson
-            [ expectCliFieldEqual direction Outgoing
-            , expectCliFieldEqual status Pending
-            ]
-        let txId = getTxId txJson
-
-        -- verify balance on src wallet
-        (fromStdout <$> getWalletViaCLI @t ctx wSrcId)
-            >>= expectValidJSON (Proxy @ApiWallet)
-            >>= flip verify
-                [ expectCliFieldEqual balanceAvailable (faucetAmt - faucetUtxoAmt)
+        eventually_ $ do
+            txJson <- postTxViaCLI ctx wSrc wDest 1
+            verify txJson
+                [ expectCliFieldEqual direction Outgoing
+                , expectCliFieldEqual status Pending
                 ]
+            let txId = getTxId txJson
 
-        -- forget transaction
-        fromExit <$> deleteTransactionViaCLI @t ctx wSrcId txId
-            `shouldReturn` ExitSuccess
+            -- forget transaction
+            fromExit <$> deleteTransactionViaCLI @t ctx wSrcId txId
+                `shouldReturn` ExitSuccess
 
-        -- verify again balance on src wallet
-        (fromStdout <$> getWalletViaCLI @t ctx wSrcId)
-            >>= expectValidJSON (Proxy @ApiWallet)
-            >>= flip verify
-                [ expectCliFieldEqual balanceAvailable faucetAmt
-                ]
+            -- verify again balance on src wallet
+            (fromStdout <$> getWalletViaCLI @t ctx wSrcId)
+                >>= expectValidJSON (Proxy @ApiWallet)
+                >>= flip verify
+                    [ expectCliFieldEqual balanceAvailable faucetAmt
+                    ]
 
         eventually_ $ do
             (fromStdout <$> listTransactionsViaCLI @t ctx [wSrcId])

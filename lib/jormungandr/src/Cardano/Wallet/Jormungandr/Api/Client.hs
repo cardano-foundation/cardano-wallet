@@ -78,7 +78,7 @@ import Cardano.Wallet.Primitive.Types
 import Control.Arrow
     ( left )
 import Control.Exception
-    ( Exception )
+    ( Exception, SomeException, handle, throwIO )
 import Control.Monad
     ( void )
 import Control.Monad.Catch
@@ -87,6 +87,8 @@ import Control.Monad.Trans.Except
     ( ExceptT (..), throwE, withExceptT )
 import Data.Coerce
     ( coerce )
+import Data.List
+    ( isSubsequenceOf )
 import Data.Maybe
     ( mapMaybe )
 import Data.Proxy
@@ -252,7 +254,15 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
     }
   where
     run :: ClientM a -> IO (Either ServantError a)
-    run query = runClientM query (mkClientEnv mgr baseUrl)
+    run query = handle windowsNetworkException $
+        runClientM query (mkClientEnv mgr baseUrl)
+      where
+        windowsNetworkException :: SomeException -> IO (Either ServantError a)
+        windowsNetworkException e
+            | "WSAECONNREFUSED" `isSubsequenceOf` show e =
+                pure $ Left $ ConnectionError $ T.pack $ show e
+            | otherwise =
+                throwIO e
 
     defaultHandler
         :: Link

@@ -95,9 +95,6 @@ module Test.Integration.Framework.DSL
     , faucetUtxoAmt
     , proc'
     , waitForServer
-    , collectStreams
-    , shouldContainT
-    , shouldNotContainT
     , for
     , toQueryString
     , utcIso8601ToText
@@ -200,13 +197,11 @@ import Cardano.Wallet.Primitive.Types
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
-    ( async, concurrently, race, wait )
-import Control.Concurrent.MVar
-    ( MVar, modifyMVar_, newMVar, takeMVar )
+    ( async, race, wait )
 import Control.Exception
-    ( SomeException (..), catch, finally, try )
+    ( SomeException (..), catch )
 import Control.Monad
-    ( forM_, join, unless, void, (>=>) )
+    ( forM_, join, unless, void )
 import Control.Monad.Catch
     ( MonadCatch )
 import Control.Monad.Fail
@@ -225,8 +220,6 @@ import Data.Foldable
     ( toList )
 import Data.Function
     ( (&) )
-import Data.Functor
-    ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( Lens', lens, set, view, (^.) )
 import Data.Generics.Labels
@@ -255,8 +248,6 @@ import Data.Time.Text
     ( iso8601ExtendedUtc, utcTimeToText )
 import Data.Word
     ( Word64 )
-import GHC.Stack
-    ( HasCallStack )
 import GHC.TypeLits
     ( Symbol )
 import Language.Haskell.TH.Quote
@@ -276,20 +267,18 @@ import System.Directory
 import System.Exit
     ( ExitCode (..) )
 import System.IO
-    ( BufferMode (..), Handle, hClose, hFlush, hPutStr, hSetBuffering )
+    ( hClose, hFlush, hPutStr )
 import System.Process
     ( CreateProcess (..)
-    , ProcessHandle
     , StdStream (..)
     , proc
-    , terminateProcess
     , waitForProcess
     , withCreateProcess
     )
 import Test.Hspec
     ( expectationFailure )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldContain, shouldNotBe, shouldNotContain )
+    ( shouldBe, shouldContain, shouldNotBe )
 import Test.Integration.Faucet
     ( nextTxBuilder, nextWallet )
 import Test.Integration.Framework.Request
@@ -1586,63 +1575,6 @@ deleteTransactionViaCLI ctx wid tid = cardanoWalletCLI @t $ join
 proc' :: FilePath -> [String] -> CreateProcess
 proc' cmd args = (proc cmd args)
     { std_in = CreatePipe, std_out = CreatePipe, std_err = CreatePipe }
-
--- | Collect lines from standard output and error streams for 65 seconds, or,
--- until a given limit is for both streams.
-collectStreams :: (Int, Int) -> CreateProcess -> IO (Text, Text)
-collectStreams (nOut0, nErr0) p = do
-    let safeP = p { std_out = CreatePipe, std_err = CreatePipe }
-    mvar <- newMVar (mempty, mempty)
-    withCreateProcess safeP $ \_ (Just o) (Just e) ph -> do
-        hSetBuffering o LineBuffering
-        hSetBuffering e LineBuffering
-        let io = race
-                (threadDelay (65 * oneSecond))
-                (collect mvar ((o, nOut0), (e, nErr0)) ph)
-        void $ io `finally` do
-            -- NOTE
-            -- Somehow, calling 'terminateProcess' isn't sufficient. We also
-            -- need to close the handles otherwise, the function resolves but
-            -- the processes remains hanging there for a while...
-            terminateProcess ph
-            flush o
-            flush e
-    takeMVar mvar
-  where
-    flush :: Handle -> IO ()
-    flush = try @SomeException . TIO.hGetContents >=> print
-
-    collect
-        :: MVar (Text, Text)
-        -> ((Handle, Int), (Handle, Int))
-        -> ProcessHandle
-        -> IO ()
-    collect mvar ((stdout, nOut), (stderr, nErr)) ph
-        | nOut <= 0 && nErr <= 0 = return ()
-        | otherwise = do
-            ((out, nOut'), (err, nErr')) <- concurrently
-                (getNextLine nOut stdout)
-                (getNextLine nErr stderr)
-            modifyMVar_ mvar (\(out0, err0) ->
-                return (out0 <> out, err0 <> err))
-            collect mvar ((stdout, nOut'), (stderr, nErr')) ph
-
-    getNextLine :: Int -> Handle -> IO (Text, Int)
-    getNextLine n h
-        | n <= 0 = return (mempty, n)
-        | otherwise = do
-            threadDelay (10 * oneMillisecond)
-            try @SomeException (TIO.hGetLine h) <&> \case
-                Left _  -> (mempty, n)
-                Right l -> (l, n-1)
-
--- | Like 'shouldContain', but with 'Text'.
-shouldContainT :: HasCallStack => Text -> Text -> IO ()
-shouldContainT a b = T.unpack a `shouldContain` T.unpack b
-
--- | Like 'shouldNotContain', but with 'Text'.
-shouldNotContainT :: HasCallStack => Text -> Text -> IO ()
-shouldNotContainT a b = T.unpack a `shouldNotContain` T.unpack b
 
 oneSecond :: Int
 oneSecond = 1_000 * oneMillisecond
