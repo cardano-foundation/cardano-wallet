@@ -45,7 +45,7 @@ import System.Process
     , withCreateProcess
     )
 import Test.Hspec
-    ( SpecWith, describe, it, runIO )
+    ( SpecWith, describe, it, pendingWith, runIO )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain, shouldNotContain, shouldReturn )
 import Test.Integration.Framework.DSL
@@ -93,12 +93,14 @@ spec = do
         let filepath = "test" </> "integration" </> "js" </> "mock-daedalus.js"
 
         it "Should reply with the port --random" $ \ctx -> do
+            pendingWith "Seems to cause some sort of race condition with --coverage"
             let scriptArgs = defaultArgs (ctx ^. typed @(Port "node"))
                     ++ ["--random-port"]
             (_, _, _, ph) <- createProcess (proc filepath scriptArgs)
             waitForProcess ph `shouldReturn` ExitSuccess
 
         it "Should reply with the port --random" $ \ctx -> do
+            pendingWith "Seems to cause some sort of race condition with --coverage"
             walletPort <- findPort
             let scriptArgs = defaultArgs (ctx ^. typed @(Port "node"))
                     ++ ["--port", show walletPort]
