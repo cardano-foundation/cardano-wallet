@@ -52,7 +52,7 @@ import System.Exit
 import Test.Hspec
     ( SpecWith, describe, it )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldContain, shouldReturn, shouldSatisfy )
+    ( shouldBe, shouldContain, shouldSatisfy )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , KnownCommand
@@ -888,24 +888,12 @@ spec = do
         let wSrcId = T.unpack (wSrc ^. walletId)
 
         -- post transaction
-        eventually_ $ do
-            txJson <- postTxViaCLI ctx wSrc wDest 1
-            verify txJson
-                [ expectCliFieldEqual direction Outgoing
-                , expectCliFieldEqual status Pending
-                ]
-            let txId = getTxId txJson
-
-            -- forget transaction
-            fromExit <$> deleteTransactionViaCLI @t ctx wSrcId txId
-                `shouldReturn` ExitSuccess
-
-            -- verify again balance on src wallet
-            (fromStdout <$> getWalletViaCLI @t ctx wSrcId)
-                >>= expectValidJSON (Proxy @ApiWallet)
-                >>= flip verify
-                    [ expectCliFieldEqual balanceAvailable faucetAmt
-                    ]
+        txJson <- postTxViaCLI ctx wSrc wDest 1
+        verify txJson
+            [ expectCliFieldEqual direction Outgoing
+            , expectCliFieldEqual status Pending
+            ]
+        let txId =  getTxId txJson
 
         eventually_ $ do
             (fromStdout <$> listTransactionsViaCLI @t ctx [wSrcId])
@@ -922,6 +910,13 @@ spec = do
                     [ expectCliListItemFieldEqual 0 direction Incoming
                     , expectCliListItemFieldEqual 0 status InLedger
                     ]
+
+     -- Try Forget transaction once it's no longer pending
+        (Exit c2, Stdout out2, Stderr err2) <-
+            deleteTransactionViaCLI @t ctx wSrcId txId
+        err2 `shouldContain` errMsg403NoPendingAnymore (T.pack txId)
+        out2 `shouldBe` ""
+        c2 `shouldBe` ExitFailure 1
 
     it "TRANS_DELETE_02 -\
         \ Cannot forget tx that is already in ledger via CLI" $ \ctx -> do
