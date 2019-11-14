@@ -19,6 +19,7 @@ import Cardano.Wallet.Jormungandr.Binary
     , delegationFragmentId
     , fragmentId
     , getBlock
+    , getBlockHeader
     , getMessage
     , putSignedTx
     , putStakeDelegationTx
@@ -39,6 +40,10 @@ import Cardano.Wallet.Primitive.Types
     , TxOut (..)
     , TxWitness (..)
     )
+import Cardano.Wallet.Unsafe
+    ( unsafeFromHex )
+import Control.DeepSeq
+    ( force )
 import Control.Exception
     ( SomeException, evaluate, try )
 import Control.Monad
@@ -107,8 +112,7 @@ spec = do
                 it ("should decode " ++ filename) $ do
                     bs <- BL.readFile (dir </> filename)
                     res <- try' (runGet getBlock bs)
-                    res `shouldSatisfy` isRight
-                    return ()
+                    force res `shouldSatisfy` isRight
 
         describe "whileM (not <$> isEmpty)" $ do
             it "should fail immediately when the decoder errors" $ do
@@ -126,6 +130,17 @@ spec = do
                             "the decoder consumed 2 bytes which is less than \
                             \the expected 3 bytes"
                         e `shouldContain` "getMessage"
+
+        it "Regression #1025" $ do
+            -- Blockheader taken from current `block0.bin` in out integration
+            -- test data, with a modified slot number `ffffffff` making sure it
+            -- overflows way beyond Word16
+            let bytes = BL.fromStrict $ unsafeFromHex
+                    "005200000002d5d800000000ffffffff000000003a2954d0068a79b7fa\
+                    \44d9b75d81a78e0c527b3060e923b28d6c981e9024ca28000000000000\
+                    \0000000000000000000000000000000000000000000000000000"
+            res <- try' (runGet getBlockHeader bytes)
+            force res `shouldSatisfy` isRight
 
     describe "Encoding" $ do
         it "decode (encode tx) === tx standard transaction" $ property $
