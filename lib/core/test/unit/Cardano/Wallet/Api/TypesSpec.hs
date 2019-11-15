@@ -507,7 +507,7 @@ spec = do
             "addr1qn0e7zr89gafgauz9xu3m25cz5ugs0s4xhtxdhqsuca58r6ycclr\
             \7sp2hlmqvhyywy266ghldvxn4p0adxn0esew6a423jkmxpdsc5d8n8hz07"
 
-    describe "balance-check - decodeAddress (Testnet)" $ do
+    describe "balance-check - decodeAddress (Mainnet)" $ do
         let addrs =
                 [ "DdzFFzCqrhsh8jZMJXCtCF9mihxDLFzZNzAHYMq1U2xK9QHSqTLskNTysn2X8jgiavMSedregoQNEy9cSGwiqTc5JyXuxsSRnyweXt81"
                 , "DdzFFzCqrhsjmWi2azAPFVKAo1ifnxF5ZxE8btf6459BidBNLSmNMf43mxXdfe5W6egtFVEta23zAk4HGMUnZv5tX42HsMwNgauWn1yC"
@@ -529,7 +529,7 @@ spec = do
                 , "DdzFFzCqrht8DfNtzu1zF8LfXXSkqv6m59pNt7LNaBi3MDV2Dz8S2YAa4ppXgSgQby1MbiFGJ4N2H9cAd4QysjPg9bWW1ejSDWYgrRf8"
                 ]
         forM_ addrs $ \addr -> it (show addr) $ do
-            decodeAddress @'Testnet addr `shouldSatisfy` isRight
+            decodeAddress @'Mainnet addr `shouldSatisfy` isRight
 
     describe "encodeAddress & decodeAddress (Testnet)" $ do
         let proxy = Proxy @'Testnet
