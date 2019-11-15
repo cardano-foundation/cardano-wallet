@@ -12,6 +12,13 @@
 --
 -- See <https://nodejs.org/api/child_process.html#child_process_child_process_spawn_command_args_options>
 -- for more information about the message protocol.
+--
+-- There are two separate message formats and IO mechanisms, depending on
+-- whether the OS is Windows or not. On Windows, a duplex named pipe is used for
+-- communication with the parent process. If modifying this code, do not add
+-- concurrent sending and receiving of messages. It will get stuck, because
+-- asynchronous reading and writing to named pipes is not possible.
+--
 
 module Cardano.Wallet.DaedalusIPC
     ( daedalusIPC
@@ -20,17 +27,13 @@ module Cardano.Wallet.DaedalusIPC
 import Prelude
 
 import Cardano.BM.Trace
-    ( Trace, logError, logInfo, logNotice )
+    ( Trace, logDebug, logError, logInfo, logNotice )
 import Control.Concurrent
     ( threadDelay )
-import Control.Concurrent.Async
-    ( concurrently_, race )
-import Control.Concurrent.MVar
-    ( MVar, isEmptyMVar, newEmptyMVar, putMVar, takeMVar, tryPutMVar )
 import Control.Exception
     ( IOException, catch, tryJust )
 import Control.Monad
-    ( forever, void )
+    ( forever )
 import Data.Aeson
     ( FromJSON (..)
     , ToJSON (..)
@@ -48,8 +51,6 @@ import Data.Binary.Get
     ( getWord32le, getWord64le, runGet )
 import Data.Binary.Put
     ( putLazyByteString, putWord32le, putWord64le, runPut )
-import Data.Functor
-    ( ($>) )
 import Data.Maybe
     ( fromMaybe )
 import Data.Text
@@ -107,43 +108,31 @@ daedalusIPC
     -> Int
     -- ^ Port number to send to Daedalus
     -> IO ()
-daedalusIPC trace port = do
-    started <- newEmptyMVar
-    withNodeChannel (onMsg started) (action started) >>= \case
-        Right runServer -> do
-            logInfo trace "Daedalus IPC server starting"
-            runServer >>= \case
-                Left (NodeChannelFinished err) ->
-                    logNotice trace $ fmt $
-                    "Daedalus IPC finished for this reason: "+||err||+""
-                Right () -> logError trace "Unreachable code"
-        Left NodeChannelDisabled -> do
-            logInfo trace "Daedalus IPC is not enabled."
-            sleep
-        Left (NodeChannelBadFD err) ->
-            logError trace $ fmt $ "Problem starting Daedalus IPC: "+||err||+""
+daedalusIPC trace port = runNodeChannel hello msg >>= \case
+    Right runServer -> do
+        logInfo trace "Daedalus IPC server starting"
+        NodeChannelFinished err <- runServer
+        logNotice trace $ fmt $
+            "Daedalus IPC finished for this reason: "+||err||+""
+    Left NodeChannelDisabled -> do
+        logInfo trace "Daedalus IPC is not enabled."
+        threadDelay maxBound
+    Left (NodeChannelBadFD err) ->
+        logError trace $ fmt $ "Problem starting Daedalus IPC: "+||err||+""
   where
-    onMsg :: MVar Bool -> Either Text MsgIn -> IO (Maybe MsgOut)
-    onMsg started msg = do
-        -- A sign of life detected from Daedalus, means we can stop sending
-        -- "Started" every second.
-        void $ tryPutMVar started True
-        -- How to respond to an incoming message, or when there is an incoming
-        -- message that couldn't be parsed.
-        pure $ case msg of
-            Right QueryPort -> Just (ReplyPort port)
-            Left e -> Just (ParseError e)
+    -- Introductory message
+    hello = do
+        logDebug trace "Sending Started"
+        pure (Just Started)
 
-    -- What to do in context of withNodeChannel
-    action :: MVar Bool -> (MsgOut -> IO ()) -> IO ()
-    action started send = isEmptyMVar started >>= \case
-        False -> sleep
-        True  -> do
-            send Started
-            threadDelay (1000*1000) -- One second
-            action started send
-
-    sleep = threadDelay maxBound
+    -- How to respond to an incoming message, or when there is an incoming
+    -- message that couldn't be parsed.
+    msg (Right QueryPort) = do
+        logDebug trace "Received QueryPort"
+        pure $ Just (ReplyPort port)
+    msg (Left e) = do
+        logDebug trace "Received unknown message"
+        pure $ Just (ParseError e)
 
 ----------------------------------------------------------------------------
 -- NodeJS child_process IPC protocol
@@ -167,23 +156,18 @@ newtype NodeChannelFinished = NodeChannelFinished IOError
 --
 -- If the channel could be set up, then it returns a function for communicating
 -- with the parent process.
-withNodeChannel
+runNodeChannel
     :: (FromJSON msgin, ToJSON msgout)
-    => (Either Text msgin -> IO (Maybe msgout))
+    => IO (Maybe msgout)
+       -- ^ Action to get the "Hello" message sent from child process.
+    -> (Either Text msgin -> IO (Maybe msgout))
        -- ^ Handler for messages coming from the parent process. Left values are
        -- for JSON parse errors. The handler can optionally return a reply
        -- message.
-    -> ((msgout -> IO ()) -> IO a)
-       -- ^ Action to run with the channel. It is passed a function for sending
-       -- messages to the parent process.
-    -> IO (Either NodeChannelError (IO (Either NodeChannelFinished a)))
-withNodeChannel onMsg handleMsg = fmap setup <$> lookupNodeChannel
+    -> IO (Either NodeChannelError (IO NodeChannelFinished))
+runNodeChannel hello onMsg = fmap setup <$> lookupNodeChannel
   where
-    setup handle = do
-        chan <- newEmptyMVar
-        let ipc = ipcListener handle onMsg chan
-            action' = handleMsg (putMVar chan)
-        race ipc action'
+    setup handle = ipcListener handle hello onMsg
 
 -- | Parse the NODE_CHANNEL_FD variable, if it's set, and convert to a
 -- 'System.IO.Handle'.
@@ -201,16 +185,16 @@ lookupNodeChannel = (fromMaybe "" <$> lookupEnv "NODE_CHANNEL_FD") >>= \case
 ipcListener
     :: forall msgin msgout. (FromJSON msgin, ToJSON msgout)
     => Handle
+    -> IO (Maybe msgout)
     -> (Either Text msgin -> IO (Maybe msgout))
-    -> MVar msgout
     -> IO NodeChannelFinished
-ipcListener handle onMsg chan = NodeChannelFinished <$> do
+ipcListener handle hello onMsg = do
     hSetNewlineMode handle noNewlineTranslation
-    (concurrently_ replyLoop sendLoop $> unexpected) `catch` pure
+    hello >>= maybeSend
+    replyLoop `catch` (pure . NodeChannelFinished)
   where
-    sendLoop, replyLoop :: IO ()
+    replyLoop :: IO a
     replyLoop = forever (recvMsg >>= onMsg >>= maybeSend)
-    sendLoop = forever (takeMVar chan >>= sendMsg)
 
     recvMsg :: IO (Either Text msgin)
     recvMsg = first T.pack . eitherDecode <$> readMessage handle
@@ -219,9 +203,7 @@ ipcListener handle onMsg chan = NodeChannelFinished <$> do
     sendMsg = sendMessage handle . encode
 
     maybeSend :: Maybe msgout -> IO ()
-    maybeSend = maybe (pure ()) (putMVar chan)
-
-    unexpected = userError "ipcListener: unreachable code"
+    maybeSend = maybe (pure ()) sendMsg
 
 readMessage :: Handle -> IO BL.ByteString
 readMessage = if isWindows then windowsReadMessage else posixReadMessage
