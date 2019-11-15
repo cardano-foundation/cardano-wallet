@@ -118,7 +118,7 @@ import Cardano.Wallet.Primitive.Types
 import Control.Lens
     ( Lens', at, (^.) )
 import Control.Monad
-    ( replicateM )
+    ( forM_, replicateM )
 import Control.Monad.IO.Class
     ( liftIO )
 import Crypto.Hash
@@ -133,6 +133,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Char
     ( isAlphaNum )
+import Data.Either
+    ( isRight )
 import Data.FileEmbed
     ( embedFile, makeRelativeToProject )
 import Data.List.NonEmpty
@@ -205,7 +207,15 @@ import Test.Aeson.Internal.RoundtripSpecs
 import Test.Aeson.Internal.Utils
     ( TypeName (..), TypeNameInfo (..), mkTypeNameInfo )
 import Test.Hspec
-    ( Spec, SpecWith, describe, expectationFailure, it, runIO, shouldBe )
+    ( Spec
+    , SpecWith
+    , describe
+    , expectationFailure
+    , it
+    , runIO
+    , shouldBe
+    , shouldSatisfy
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -496,6 +506,30 @@ spec = do
             ]
             "addr1qn0e7zr89gafgauz9xu3m25cz5ugs0s4xhtxdhqsuca58r6ycclr\
             \7sp2hlmqvhyywy266ghldvxn4p0adxn0esew6a423jkmxpdsc5d8n8hz07"
+
+    describe "balance-check - decodeAddress (Testnet)" $ do
+        let addrs =
+                [ "DdzFFzCqrhsh8jZMJXCtCF9mihxDLFzZNzAHYMq1U2xK9QHSqTLskNTysn2X8jgiavMSedregoQNEy9cSGwiqTc5JyXuxsSRnyweXt81"
+                , "DdzFFzCqrhsjmWi2azAPFVKAo1ifnxF5ZxE8btf6459BidBNLSmNMf43mxXdfe5W6egtFVEta23zAk4HGMUnZv5tX42HsMwNgauWn1yC"
+                , "DdzFFzCqrhsk6erDuTLsQvnRs2rwcCCDoexSHKYM2wXbpJ9Megj2QX7L7fhVFL7FeBEhPPyHP4WcThW82FBaQLyQHFh9QLp8PMBzgNKa"
+                , "DdzFFzCqrhsp99qGU1iRUTCUkFY2ftuePpXxVYSJPv2LEWZdVABujqAE8UdHaShdvXpDVhbxnZKon8DZvFDUgppFDWMKL8RgJxGTsUX1"
+                , "DdzFFzCqrhsqbscWBi1sBCNU3MpTuRCN693etZQuwEDbmRdXkbdPdPZagpW1SKs5vL3AQDgPF4DqegjxPBRqMarW12h4E5GjB8Uhq8t5"
+                , "DdzFFzCqrhssubhp3zw7ttuUrTSwmizZwt3EgbcSWHJvCCT22hnbHyor9S4R8XBABxBnmo7p93QWumBUxoLbSCpSQMxiNUCnY6kXyUxL"
+                , "DdzFFzCqrhsuvrWexrNB3cpBA2VuAFRnq7XWw6xrypk2dNdH9q8KUNVf6af4iZBjTyAADsAkdcgACKsCUaUvDss5rWv1B3vN1TERzxp2"
+                , "DdzFFzCqrhsxmdiCWWpkC3PuAr2w3WpQzRxHvUJpygvZxqL4ksYusSiC321EyD896iWHo9vBh65ADe4cY1GSZyh5jr5yQvXbX3C9gsUP"
+                , "DdzFFzCqrhszN5PcGnbUsbbi4gVPzHzmbVDNoQVLvgmDXsFo9TsYaY7GtfpZKnGy9EgjRNcLogyPd9EjnwNcYJXhZLprz4zobz8PyjwG"
+                , "DdzFFzCqrhszsMF5W2mCRirNX1ZdwE4UtdWeFdvt9F8DTum9bvnNswwhvVgXjNtihsV8TJLkX78U23BWdwc8Q2L47K5LLxKZG86DYfns"
+                , "DdzFFzCqrht2u75sMbuiBKxqUt9sbiS9aaoS39tyDgQNLtcMsS7vmpKpKYbAWVRwyWJcr8XQPckS7gZ9UYYcveySCUn6aUUxx6ejg9LT"
+                , "DdzFFzCqrht2vq14VoKFzyZS4kKoFaPh6PTzjWoaMPvENDuc87wG2qZWFhiuEPBChRWnJjUpxPcn199BpBCk51gBSS27fv9uCZNs9hhU"
+                , "DdzFFzCqrht3obxWBrfX7CB7nYnPcQgJuwp5jnpWb46jQ6HGpbo48mHFgarRaiYqVecS9VLNujeB4Xa1Ppm3XKoYjzGmrZkkicm5rRdx"
+                , "DdzFFzCqrht4hsxVpJ5sDVfWfyQBwB7LSVrvn1qbwGA6xF4LogCsj2dmreh1PjLD7D4MJAKRRVqpJyxjKaHtMNhYgkBJLTcuWf2i6SZk"
+                , "DdzFFzCqrht4PRDBs1j7vk7M7YLMWcwt9pPfDTuEAuBae16gCV1RWb22NjSsQHGsxaJAUDY7nYY8frVPfb6qZx1ru6Bh56GNVcb6PMsp"
+                , "DdzFFzCqrht6kPg8Z9FG5YApsXxFd32UKTiSGNvjbEp8NQiyTDVr5WbPWrM1iLtwZcCeVC6c5CXBLwvtFoRoXa2kVvet8vwqRcdvamVB"
+                , "DdzFFzCqrht7FHQQb7GLzqR2JzENiQHBT8UEiL3HCA8CDwR4ZFBYWJKHqML3jg737c8cYwv52YyB2NdYGiQSBW68ERdk1px2ZzjKWLWY"
+                , "DdzFFzCqrht8DfNtzu1zF8LfXXSkqv6m59pNt7LNaBi3MDV2Dz8S2YAa4ppXgSgQby1MbiFGJ4N2H9cAd4QysjPg9bWW1ejSDWYgrRf8"
+                ]
+        forM_ addrs $ \addr -> it (show addr) $ do
+            decodeAddress @'Testnet addr `shouldSatisfy` isRight
 
     describe "encodeAddress & decodeAddress (Testnet)" $ do
         let proxy = Proxy @'Testnet
