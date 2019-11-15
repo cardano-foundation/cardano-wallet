@@ -1037,6 +1037,7 @@ createWallet
         , HasNetworkLayer t (WorkerCtx ctx)
         , HasLogger (WorkerCtx ctx)
         , Show s
+        , Buildable s
         , NFData s
         , IsOurs s
         )

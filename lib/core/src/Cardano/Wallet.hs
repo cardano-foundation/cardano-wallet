@@ -116,7 +116,7 @@ import Prelude hiding
     ( log )
 
 import Cardano.BM.Trace
-    ( Trace, logDebug, logInfo )
+    ( Trace, logDebug, logInfo, logNotice )
 import Cardano.Wallet.DB
     ( DBLayer (..)
     , ErrNoSuchWallet (..)
@@ -406,6 +406,8 @@ createWallet
         , Show s
         , NFData s
         , IsOurs s
+        , Buildable s
+        , HasLogger ctx
         )
     => ctx
     -> WalletId
@@ -414,6 +416,14 @@ createWallet
     -> ExceptT ErrWalletAlreadyExists IO WalletId
 createWallet ctx wid wname s = db & \DBLayer{..} -> do
     let (hist, cp) = initWallet block0 bp s
+    liftIO $ do
+        let tr = ctx ^. logger
+        logNotice tr $ "genesis block checkpoint"
+        logNotice tr $ pretty cp
+        logNotice tr $ "genesis block history"
+        forM_ hist $ \(tx, meta) -> do
+            logNotice tr $ pretty tx
+            logNotice tr $ pretty meta
     now <- lift getCurrentTime
     let meta = WalletMetadata
             { name = wname
