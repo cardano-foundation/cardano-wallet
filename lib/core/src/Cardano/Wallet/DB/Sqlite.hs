@@ -985,7 +985,7 @@ selectSeqStatePendingIxs wid =
 -- | Type alias for the index -> address map so that lines do not exceed 80
 -- characters in width.
 type RndStateAddresses = Map
-    (W.Index 'W.Hardened 'W.AccountK, W.Index 'W.Hardened 'W.AddressK)
+    (W.Index 'W.WholeDomain 'W.AccountK, W.Index 'W.WholeDomain 'W.AddressK)
     W.Address
 
 -- Persisting 'RndState' requires that the wallet root key has already been

@@ -174,8 +174,8 @@ decodeDerivationPathTest DecodeDerivationPath{..} =
 prop_derivationPathRoundTrip
     :: Passphrase "addr-derivation-payload"
     -> Passphrase "addr-derivation-payload"
-    -> Index 'Hardened 'AccountK
-    -> Index 'Hardened 'AddressK
+    -> Index 'WholeDomain 'AccountK
+    -> Index 'WholeDomain 'AddressK
     -> Property
 prop_derivationPathRoundTrip pwd pwd' acctIx addrIx =
     let
@@ -199,11 +199,11 @@ instance {-# OVERLAPS #-} Arbitrary (Passphrase "addr-derivation-payload") where
         bytes <- BS.pack <$> vectorOf 32 arbitrary
         return $ Passphrase $ BA.convert bytes
 
-instance Arbitrary (Index 'Hardened 'AddressK) where
+instance Arbitrary (Index 'WholeDomain 'AddressK) where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
 
-instance Arbitrary (Index 'Hardened 'AccountK) where
+instance Arbitrary (Index 'WholeDomain 'AccountK) where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
 

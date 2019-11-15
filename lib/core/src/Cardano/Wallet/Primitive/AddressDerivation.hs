@@ -216,6 +216,10 @@ instance Bounded (Index 'Soft level) where
     minBound = Index minBound
     maxBound = let (Index ix) = minBound @(Index 'Hardened _) in Index (ix - 1)
 
+instance Bounded (Index 'WholeDomain level) where
+    minBound = Index minBound
+    maxBound = Index maxBound
+
 instance Enum (Index 'Hardened level) where
     fromEnum (Index ix) = fromIntegral ix
     toEnum ix
@@ -232,11 +236,25 @@ instance Enum (Index 'Soft level) where
         | otherwise =
             Index (fromIntegral ix)
 
+instance Enum (Index 'WholeDomain level) where
+    fromEnum (Index ix) = fromIntegral ix
+    toEnum ix
+        | Index (fromIntegral ix) > maxBound @(Index 'WholeDomain _) =
+            error "Index@WholeDomain.toEnum: bad argument"
+        | otherwise =
+            Index (fromIntegral ix)
+
 instance Buildable (Index derivationType level) where
     build (Index ix) = fromString (show ix)
 
 -- | Type of derivation that should be used with the given indexes.
-data DerivationType = Hardened | Soft
+--
+-- In theory, we should only consider two derivation types: soft and hard.
+--
+-- However, historically, addresses in Cardano used to be generated across the
+-- both soft and hard domain. We therefore introduce a 'WholeDomain' derivation
+-- type that is the exact union of `Hardened` and `Soft`.
+data DerivationType = Hardened | Soft | WholeDomain
 
 -- | An interface for doing hard derivations from the root private key
 class HardDerivation (key :: Depth -> * -> *) where

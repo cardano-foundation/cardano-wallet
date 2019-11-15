@@ -149,7 +149,6 @@ buildStep dryRun bk =
             , [ "--haddock" ]
             , [ "--haddock-internal" ]
             , [ "--no-haddock-deps" ]
-            , [ "--coverage" ]
             , fast opt
             , args
             ]
@@ -158,7 +157,6 @@ buildStep dryRun bk =
         run dryRun "stack" $ concat
             [ color "always"
             , [ "test" ]
-            , [ "--coverage" ]
             , fast opt
             , case qaLevel bk of
                 QuickTest -> skip "integration"
@@ -247,7 +245,9 @@ qaLevel = maybe QuickTest level
 
 -- | Whether to upload test coverage information to coveralls.io.
 shouldUploadCoverage :: Maybe BuildkiteEnv -> Bool
-shouldUploadCoverage bk = qaLevel bk == FullTest
+shouldUploadCoverage _ = False
+    -- FIXME: Coverage is messing up with the execution of tests...
+    -- qaLevel bk == FullTest
 
 ----------------------------------------------------------------------------
 -- Weeder - uses contents of .stack-work to determine unused dependencies

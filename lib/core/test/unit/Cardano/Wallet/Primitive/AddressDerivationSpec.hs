@@ -207,7 +207,7 @@ prop_predMinBoundSoftIx :: Property
 prop_predMinBoundSoftIx = expectFailure $
     property $ pred (minBound @(Index 'Soft _)) `seq` ()
 
-prop_roundtripEnumIndexHard :: Index 'Hardened 'AccountK -> Property
+prop_roundtripEnumIndexHard :: Index 'WholeDomain 'AccountK -> Property
 prop_roundtripEnumIndexHard ix =
     (toEnum . fromEnum) ix === ix .&&. (toEnum . fromEnum . getIndex) ix === ix
 
@@ -259,11 +259,15 @@ instance Arbitrary (Index 'Soft 'AddressK) where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
 
-instance Arbitrary (Index 'Hardened 'AddressK) where
+instance Arbitrary (Index 'Hardened 'AccountK) where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
 
-instance Arbitrary (Index 'Hardened 'AccountK) where
+instance Arbitrary (Index 'WholeDomain 'AddressK) where
+    shrink _ = []
+    arbitrary = arbitraryBoundedEnum
+
+instance Arbitrary (Index 'WholeDomain 'AccountK) where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
 

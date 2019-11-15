@@ -76,7 +76,7 @@ import qualified Data.Set as Set
 data RndState (network :: NetworkDiscriminant) = RndState
     { hdPassphrase :: Passphrase "addr-derivation-payload"
     -- ^ The HD derivation passphrase
-    , accountIndex :: Index 'Hardened 'AccountK
+    , accountIndex :: Index 'WholeDomain 'AccountK
     -- ^ The account index used for address _generation_ in this wallet. Note
     -- that addresses will be _discovered_ from any and all account indices,
     -- regardless of this value.
@@ -109,7 +109,7 @@ instance Buildable (RndState network) where
         <> indentF 4 ("Change addresses: " <> blockMapF' tupleF build pending)
 
 -- | Shortcut type alias for HD random address derivation path.
-type DerivationPath = (Index 'Hardened 'AccountK, Index 'Hardened 'AddressK)
+type DerivationPath = (Index 'WholeDomain 'AccountK, Index 'WholeDomain 'AddressK)
 
 -- An address is considered to belong to the 'RndState' wallet if it can be decoded
 -- as a Byron HD random address, and where the wallet key can be used to decrypt
@@ -177,7 +177,7 @@ unavailablePaths st = Map.keysSet $ addresses st <> pendingAddresses st
 -- account's address space is used up. We may have to improve it later.
 findUnusedPath
     :: StdGen
-    -> Index 'Hardened 'AccountK
+    -> Index 'WholeDomain 'AccountK
     -> Set DerivationPath
     -> (DerivationPath, StdGen)
 findUnusedPath g accIx used
@@ -188,7 +188,7 @@ findUnusedPath g accIx used
     (addrIx, gen') = randomIndex g
 
 randomIndex
-    :: forall ix g. (RandomGen g, ix ~ Index 'Hardened 'AddressK)
+    :: forall ix g. (RandomGen g, ix ~ Index 'WholeDomain 'AddressK)
     => g
     -> (ix, g)
 randomIndex g = (Index ix, g')

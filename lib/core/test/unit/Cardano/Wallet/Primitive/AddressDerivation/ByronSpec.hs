@@ -64,8 +64,8 @@ spec = do
 prop_keyDerivation
     :: Passphrase "seed"
     -> Passphrase "encryption"
-    -> Index 'Hardened 'AccountK
-    -> Index 'Hardened 'AddressK
+    -> Index 'WholeDomain 'AccountK
+    -> Index 'WholeDomain 'AddressK
     -> Property
 prop_keyDerivation seed encPwd accIx addrIx =
     rndKey `seq` property () -- NOTE Making sure this doesn't throw
