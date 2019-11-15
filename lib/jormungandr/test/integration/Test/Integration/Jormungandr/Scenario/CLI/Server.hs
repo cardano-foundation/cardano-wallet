@@ -45,7 +45,7 @@ import System.Process
     , withCreateProcess
     )
 import Test.Hspec
-    ( SpecWith, describe, it, pendingWith, runIO )
+    ( SpecWith, describe, it, runIO )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain, shouldNotContain, shouldReturn )
 import Test.Integration.Framework.DSL
@@ -66,7 +66,6 @@ spec = do
     block0H <- runIO $ T.unpack <$> getBlock0HText
     describe "SERVER - cardano-wallet serve [SERIAL]" $ do
         it "SERVER - Can start cardano-wallet serve --database" $ \_ -> do
-            pendingWith "Seems to cause some sort of race condition with --coverage"
             withTempDir $ \d -> do
                 let db = d </> "db-file"
                 let args =
@@ -94,14 +93,12 @@ spec = do
         let filepath = "test" </> "integration" </> "js" </> "mock-daedalus.js"
 
         it "Should reply with the port --random" $ \ctx -> do
-            pendingWith "Seems to cause some sort of race condition with --coverage"
             let scriptArgs = defaultArgs (ctx ^. typed @(Port "node"))
                     ++ ["--random-port"]
             (_, _, _, ph) <- createProcess (proc filepath scriptArgs)
             waitForProcess ph `shouldReturn` ExitSuccess
 
         it "Should reply with the port --random" $ \ctx -> do
-            pendingWith "Seems to cause some sort of race condition with --coverage"
             walletPort <- findPort
             let scriptArgs = defaultArgs (ctx ^. typed @(Port "node"))
                     ++ ["--port", show walletPort]
@@ -110,7 +107,6 @@ spec = do
 
     describe "LOGGING - cardano-wallet serve logging [SERIAL]" $ do
         it "LOGGING - Serve --quiet logs Error only" $ \ctx -> do
-            pendingWith "Seems to cause some sort of race condition with --coverage"
             withTempFile $ \logs hLogs -> do
                 let cmd = Command
                         (commandName @t)
@@ -128,7 +124,6 @@ spec = do
                 TIO.readFile logs `shouldReturn` mempty
 
         it "LOGGING - Serve default logs Info" $ \ctx -> do
-            pendingWith "seems to cause some sort of race condition with --coverage"
             withTempFile $ \logs hLogs -> do
                 let cmd = Command
                         (commandName @t)
@@ -147,7 +142,6 @@ spec = do
                 logged `shouldNotContain` "DEBUG"
 
         it "LOGGING - Serve shuts down logging correctly" $ \ctx -> do
-            pendingWith "seems to cause some sort of race condition with --coverage"
             withTempFile $ \logs hLogs -> do
                 let cmd = Command
                         (commandName @t)
@@ -174,7 +168,6 @@ spec = do
                     , replicate 42 '1'
                     ]
             forM_ hashes $ \hash -> it hash $ \ctx -> do
-                pendingWith "seems to cause some sort of race condition with --coverage"
                 let args =
                         ["serve"
                         , "--node-port"
@@ -192,7 +185,6 @@ spec = do
                     \ (i.e. " ++ hash ++ ")"
 
         it "LOGGING - Non hex-encoded genesis hash shows error" $ \_ -> do
-            pendingWith "seems to cause some sort of race condition with --coverage"
             let args =
                     ["serve"
                     , "--genesis-block-hash"
