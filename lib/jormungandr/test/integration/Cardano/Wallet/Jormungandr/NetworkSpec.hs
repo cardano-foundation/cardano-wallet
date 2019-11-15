@@ -168,21 +168,25 @@ spec = do
             -- fmap getRollForward resp `shouldBe` Right Nothing
             resp `shouldBe` Right AwaitReply
 
-        it "initiates recovery when the intersection is unknown" $ \(nw, _) -> do
-            -- NOTE There's a very little chance of hash clash here. But,
-            -- for what it's worth, I didn't bother retrying.
-            bytes <- BS.pack <$> generate (vectorOf 32 arbitrary)
-            let block = BlockHeader
-                    { slotId = SlotId 42 14 -- Anything
-                    , blockHeight = Quantity 0 -- Anything
-                    , headerHash = Hash bytes
-                    , parentHeaderHash = Hash bytes
-                    }
-            resp <- runExceptT $ nextBlocks nw (initCursor nw [block])
-            fmap (isRollBackwardTo nw (SlotId 0 0)) resp `shouldBe` Right True
+        it "initiates recovery when the intersection is unknown" $
+            \(nw, _) -> do
+                -- NOTE There's a very little chance of hash clash here. But,
+                -- for what it's worth, I didn't bother retrying.
+                bytes <- BS.pack <$> generate (vectorOf 32 arbitrary)
+                let block = BlockHeader
+                        { slotId = SlotId 42 14 -- Anything
+                        , blockHeight = Quantity 0 -- Anything
+                        , headerHash = Hash bytes
+                        , parentHeaderHash = Hash bytes
+                        }
+                resp <- runExceptT $ nextBlocks nw (initCursor nw [block])
+                fmap (isRollBackwardTo nw (SlotId 0 0)) resp
+                    `shouldBe` Right True
 
     describe "Error paths" $ do
-        let newBrokenNetworkLayer :: BaseUrl -> IO (NetworkLayer IO Jormungandr ())
+        let newBrokenNetworkLayer
+                :: BaseUrl
+                -> IO (NetworkLayer IO Jormungandr ())
             newBrokenNetworkLayer baseUrl = do
                 mgr <- newManager defaultManagerSettings
                 st <- newMVar emptyBlockHeaders
@@ -234,29 +238,34 @@ spec = do
     describe "White-box error path tests" $
         around startNode $ do
 
-        it "can't fetch a block that doesn't exist" $ \(_, url) -> do
-            mgr <- newManager defaultManagerSettings
-            let jml = Jormungandr.mkJormungandrClient mgr url
-            let nonexistent = Hash "kitten"
-            res <- runExceptT (Jormungandr.getBlock jml nonexistent)
-            res `shouldBe` Left (ErrGetBlockNotFound nonexistent)
+        it "can't fetch a block that doesn't exist" $
+            \(_, url) -> do
+                mgr <- newManager defaultManagerSettings
+                let jml = Jormungandr.mkJormungandrClient mgr url
+                let nonexistent = Hash "kitten"
+                res <- runExceptT (Jormungandr.getBlock jml nonexistent)
+                res `shouldBe` Left (ErrGetBlockNotFound nonexistent)
 
-        it "can't fetch a blocks from a parent that doesn't exist" $ \(_, url) -> do
-            mgr <- newManager defaultManagerSettings
-            let jml = Jormungandr.mkJormungandrClient mgr url
-            let nonexistent = Hash "cat"
-            res <- runExceptT (Jormungandr.getDescendantIds jml nonexistent 42)
-            res `shouldBe` Left (ErrGetDescendantsParentNotFound nonexistent)
+        it "can't fetch a blocks from a parent that doesn't exist" $
+            \(_, url) -> do
+                mgr <- newManager defaultManagerSettings
+                let jml = Jormungandr.mkJormungandrClient mgr url
+                let nonexistent = Hash "cat"
+                res <- runExceptT $
+                    Jormungandr.getDescendantIds jml nonexistent 42
+                res `shouldBe` Left
+                    (ErrGetDescendantsParentNotFound nonexistent)
 
-        it "returns correct error when backend is not started" $ \(_, url) -> do
-            mgr <- newManager defaultManagerSettings
-            -- connect with a base URL for which the backend is not started on
-            let url' = url { baseUrlPort = baseUrlPort url + 5 }
-            let jml = Jormungandr.mkJormungandrClient mgr url'
-            res <- runExceptT (Jormungandr.getBlock jml (Hash "xyzzy"))
-            res `shouldSatisfy` \case
-                Left (ErrGetBlockNetworkUnreachable _) -> True
-                _ -> False
+        it "returns correct error when backend is not started" $
+            \(_, url) -> do
+                mgr <- newManager defaultManagerSettings
+                -- connect with a base URL on which the backend is not started:
+                let url' = url { baseUrlPort = baseUrlPort url + 5 }
+                let jml = Jormungandr.mkJormungandrClient mgr url'
+                res <- runExceptT (Jormungandr.getBlock jml (Hash "xyzzy"))
+                res `shouldSatisfy` \case
+                    Left (ErrGetBlockNetworkUnreachable _) -> True
+                    _ -> False
 
     -- NOTE: 'Right ()' just means that the format wasn't obviously wrong.
     -- The tx may still be rejected.
@@ -308,15 +317,15 @@ spec = do
 
         it "encoder throws an exception if tx is invalid (eg too many inputs)" $
             \(nw, _) -> do
-            let inps = replicate 300 (head $ resolvedInputs txNonEmpty)
-            let outs = replicate 3 (head $ outputs txNonEmpty)
-            let tx = (Tx (fragmentId inps outs []) inps outs, [])
-            runExceptT (postTx nw tx) `shouldThrow` anyException
+                let inps = replicate 300 (head $ resolvedInputs txNonEmpty)
+                let outs = replicate 3 (head $ outputs txNonEmpty)
+                let tx = (Tx (fragmentId inps outs []) inps outs, [])
+                runExceptT (postTx nw tx) `shouldThrow` anyException
 
     describe "Decode External Tx" $ do
         let tl = newTransactionLayer @'Testnet @ShelleyKey (Hash "genesis")
 
-        it "decodeExternalTx works ok with properly constructed binary blob" $ do
+        it "decodeExternalTx works ok with properly constructed binary blob" $
             property $ \(SignedTx signedTx) -> monadicIO $ liftIO $ do
                 let encode ((Tx _ inps outs), wits) = runPut
                         $ withHeader FragmentTransaction
@@ -325,7 +334,7 @@ spec = do
                 decodeSignedTx tl encodedSignedTx `shouldBe` Right signedTx
 
         it "decodeExternalTx throws an exception when binary blob has non-\
-            \transaction-type header or is wrongly constructed binary blob" $ do
+            \transaction-type header or is wrongly constructed binary blob" $
             property $ \(SignedTx signedTx) -> monadicIO $ liftIO $ do
                 let encodeWrongly ((Tx _ inps outs), wits) = runPut
                         $ withHeader FragmentInitial
@@ -346,9 +355,10 @@ spec = do
                 Inherit
                 ["--secret", "test/data/jormungandr/secret.yaml"]
         let tr = nullTracer
-        e <- withJormungandr tr cfg $ \cp -> withNetworkLayer tr (UseRunning cp) $ \case
-            Right (_, nw) -> cb (nw, _restApi cp)
-            Left e -> throwIO e
+        e <- withJormungandr tr cfg $
+            \cp -> withNetworkLayer tr (UseRunning cp) $ \case
+                Right (_, nw) -> cb (nw, _restApi cp)
+                Left e -> throwIO e
         either throwIO (\_ -> return ()) e
 
     pkWitness :: TxWitness

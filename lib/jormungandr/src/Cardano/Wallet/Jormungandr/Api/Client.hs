@@ -153,7 +153,8 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
         run (getBlockId <$> cGetTipId) >>= defaultHandler ctx
 
     , getBlock = \blockId -> ExceptT $ do
-        run (cGetBlock (BlockId blockId)) >>= \case
+        let action = cGetBlock (BlockId blockId)
+        run action >>= \case
             Left (FailureResponse e) | responseStatusCode e == status400 ->
                 return . Left . ErrGetBlockNotFound $ blockId
             x -> do
@@ -161,7 +162,9 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
                 left ErrGetBlockNetworkUnreachable <$> defaultHandler ctx x
 
     , getDescendantIds = \parentId count -> ExceptT $ do
-        run (map getBlockId <$> cGetBlockDescendantIds (BlockId parentId) (Just count))  >>= \case
+        let action = map getBlockId <$>
+                cGetBlockDescendantIds (BlockId parentId) (Just count)
+        run action >>= \case
             Left (FailureResponse e) | responseStatusCode e == status400 ->
                 return . Left $ ErrGetDescendantsParentNotFound parentId
             x -> do
@@ -170,7 +173,8 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
                         (Proxy @GetBlockDescendantIds)
                         (BlockId parentId)
                         (Just count)
-                left ErrGetDescendantsNetworkUnreachable <$> defaultHandler ctx x
+                left ErrGetDescendantsNetworkUnreachable <$>
+                    defaultHandler ctx x
 
     -- Never returns 'Left ErrPostTxProtocolFailure'. Will currently return
     -- 'Right ()' when submitting correctly formatted, but invalid transactions.
@@ -187,12 +191,20 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
                 left ErrPostTxNetworkUnreachable <$> defaultHandler ctx x
 
     , getInitialBlockchainParameters = \block0 -> do
-        jblock@(J.Block _ msgs) <- ExceptT $ run (cGetBlock (BlockId $ coerce block0)) >>= \case
-            Left (FailureResponse e) | responseStatusCode e `elem` [status400, status404] ->
-                return . Left . ErrGetBlockchainParamsGenesisNotFound $ block0
+        let action = cGetBlock $ BlockId $ coerce block0
+        jblock@(J.Block _ msgs) <- ExceptT $ run action >>= \case
+            Left (FailureResponse e)
+                | responseStatusCode e `elem` [status400, status404] ->
+                    return
+                        $ Left
+                        $ ErrGetBlockchainParamsGenesisNotFound block0
             x -> do
-                let ctx = safeLink api (Proxy @GetBlock) (BlockId $ coerce block0)
-                let networkUnreachable = ErrGetBlockchainParamsNetworkUnreachable
+                let ctx = safeLink
+                        api
+                        (Proxy @GetBlock)
+                        (BlockId $ coerce block0)
+                let networkUnreachable =
+                        ErrGetBlockchainParamsNetworkUnreachable
                 left networkUnreachable <$> defaultHandler ctx x
 
         let params = mconcat $ mapMaybe getConfigParameters msgs
