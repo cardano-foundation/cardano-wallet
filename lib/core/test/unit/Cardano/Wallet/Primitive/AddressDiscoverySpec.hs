@@ -15,7 +15,7 @@ import Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (AccountK, AddressK, RootK)
-    , DerivationType (Hardened)
+    , DerivationType (..)
     , Index
     , NetworkDiscriminant (..)
     , Passphrase (..)
@@ -76,8 +76,8 @@ prop_derivedKeysAreOurs
     :: forall (n :: NetworkDiscriminant). (PaymentAddress n ByronKey)
     => Passphrase "seed"
     -> Passphrase "encryption"
-    -> Index 'Hardened 'AccountK
-    -> Index 'Hardened 'AddressK
+    -> Index 'WholeDomain 'AccountK
+    -> Index 'WholeDomain 'AddressK
     -> ByronKey 'RootK XPrv
     -> Property
 prop_derivedKeysAreOurs seed encPwd accIx addrIx rk' =
@@ -94,11 +94,11 @@ prop_derivedKeysAreOurs seed encPwd accIx addrIx rk' =
                              Arbitrary Instances
 -------------------------------------------------------------------------------}
 
-instance Arbitrary (Index 'Hardened 'AccountK) where
+instance Arbitrary (Index 'WholeDomain 'AccountK) where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
 
-instance Arbitrary (Index 'Hardened 'AddressK) where
+instance Arbitrary (Index 'WholeDomain 'AddressK) where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
 

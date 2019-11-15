@@ -126,10 +126,10 @@ type family DerivationPath (depth :: Depth) :: * where
         ()
     -- The account key is generated from the root key and account index.
     DerivationPath 'AccountK =
-        Index 'Hardened 'AccountK
+        Index 'WholeDomain 'AccountK
     -- The address key is generated from the account key and address index.
     DerivationPath 'AddressK =
-        (Index 'Hardened 'AccountK, Index 'Hardened 'AddressK)
+        (Index 'WholeDomain 'AccountK, Index 'WholeDomain 'AddressK)
 
 instance WalletKey ByronKey where
     changePassphrase = changePassphraseRnd
@@ -314,7 +314,7 @@ changePassphraseRnd (Passphrase oldPwd) (Passphrase newPwd) key = ByronKey
 deriveAccountPrivateKey
     :: Passphrase "encryption"
     -> ByronKey 'RootK XPrv
-    -> Index 'Hardened 'AccountK
+    -> Index 'WholeDomain 'AccountK
     -> ByronKey 'AccountK XPrv
 deriveAccountPrivateKey (Passphrase pwd) masterKey idx@(Index accIx) = ByronKey
     { getKey = deriveXPrv DerivationScheme1 pwd (getKey masterKey) accIx
@@ -332,7 +332,7 @@ deriveAccountPrivateKey (Passphrase pwd) masterKey idx@(Index accIx) = ByronKey
 deriveAddressPrivateKey
     :: Passphrase "encryption"
     -> ByronKey 'AccountK XPrv
-    -> Index 'Hardened 'AddressK
+    -> Index 'WholeDomain 'AddressK
     -> ByronKey 'AddressK XPrv
 deriveAddressPrivateKey (Passphrase pwd) accountKey idx@(Index addrIx) = ByronKey
     { getKey = deriveXPrv DerivationScheme1 pwd (getKey accountKey) addrIx

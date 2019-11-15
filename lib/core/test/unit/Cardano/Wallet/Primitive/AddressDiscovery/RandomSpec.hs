@@ -241,7 +241,7 @@ data Rnd = Rnd
 prop_derivedKeysAreOurs
     :: Rnd
     -> Rnd
-    -> Index 'Hardened 'AddressK
+    -> Index 'WholeDomain 'AddressK
     -> Property
 prop_derivedKeysAreOurs
     (Rnd st@(RndState _ accIx _ _ _) rk pwd) (Rnd st' _ _) addrIx =
@@ -254,7 +254,7 @@ prop_derivedKeysAreOurs
 prop_derivedKeysAreOwned
     :: Rnd
     -> Rnd
-    -> Index 'Hardened 'AddressK
+    -> Index 'WholeDomain 'AddressK
     -> Property
 prop_derivedKeysAreOwned
     (Rnd st@(RndState _ accIx _ _ _) rk pwd)
@@ -281,7 +281,7 @@ prop_changeAddressesBelongToUs
 
 prop_forbiddenAddreses
     :: Rnd
-    -> Index 'Hardened 'AddressK
+    -> Index 'WholeDomain 'AddressK
     -> Property
 prop_forbiddenAddreses (Rnd st@(RndState _ accIx _ _ _) rk pwd) addrIx = conjoin
     [ (Set.notMember addr (forbidden st))

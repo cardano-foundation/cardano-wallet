@@ -175,8 +175,8 @@ decodeAddressPayload = do
 decodeAddressDerivationPath
     :: Passphrase "addr-derivation-payload"
     -> CBOR.Decoder s (Maybe
-        ( Index 'Hardened 'AccountK
-        , Index 'Hardened 'AddressK
+        ( Index 'WholeDomain 'AccountK
+        , Index 'WholeDomain 'AddressK
         ))
 decodeAddressDerivationPath pwd = do
     _ <- CBOR.decodeListLenCanonicalOf 3
@@ -209,8 +209,8 @@ decodeDerivationPathAttr
     :: Passphrase "addr-derivation-payload"
     -> [(Word8, ByteString)]
     -> CBOR.Decoder s (Maybe
-        ( Index 'Hardened 'AccountK
-        , Index 'Hardened 'AddressK
+        ( Index 'WholeDomain 'AccountK
+        , Index 'WholeDomain 'AddressK
         ))
 decodeDerivationPathAttr pwd attrs = do
     case lookup derPathTag attrs of
@@ -223,8 +223,8 @@ decodeDerivationPathAttr pwd attrs = do
   where
     derPathTag = 1
     decoder :: CBOR.Decoder s (Maybe
-        ( Index 'Hardened 'AccountK
-        , Index 'Hardened 'AddressK
+        ( Index 'WholeDomain 'AccountK
+        , Index 'WholeDomain 'AddressK
         ))
     decoder = do
         bytes <- CBOR.decodeBytes
@@ -237,30 +237,20 @@ decodeDerivationPathAttr pwd attrs = do
 -- Opposite of 'encodeDerivationPath'.
 decodeDerivationPath
     :: CBOR.Decoder s
-        ( Index 'Hardened 'AccountK
-        , Index 'Hardened 'AddressK
+        ( Index 'WholeDomain 'AccountK
+        , Index 'WholeDomain 'AddressK
         )
 decodeDerivationPath = do
     ixs <- decodeListIndef CBOR.decodeWord32
     case ixs of
-        [acctIx, addrIx] | isValidIx acctIx && isValidIx addrIx ->
+        [acctIx, addrIx] ->
             pure (toEnum $ fromIntegral acctIx, toEnum $ fromIntegral addrIx)
-        [_, _] ->
-            fail $ mconcat
-                [ "decodeDerivationPath: indexes out of ranges: "
-                , show ixs
-                ]
         _ ->
             fail $ mconcat
                 [ "decodeDerivationPath: invalid derivation path payload: "
                 , "expected two indexes but got: "
                 , show ixs
                 ]
-  where
-    isValidIx i =
-        i >= getIndex (minBound @(Index 'Hardened _))
-        &&
-        i <= getIndex (maxBound @(Index 'Hardened _))
 
 decodeBlockHeader :: CBOR.Decoder s BlockHeader
 decodeBlockHeader = do
@@ -622,8 +612,8 @@ encodeProtocolMagicAttr pm = mempty
 -- NOTE: The caller must ensure that the passphrase length is 32 bytes.
 encodeDerivationPathAttr
     :: Passphrase "addr-derivation-payload"
-    -> Index 'Hardened 'AccountK
-    -> Index 'Hardened 'AddressK
+    -> Index 'WholeDomain 'AccountK
+    -> Index 'WholeDomain 'AddressK
     -> CBOR.Encoding
 encodeDerivationPathAttr pwd acctIx addrIx = mempty
     <> CBOR.encodeWord8 1 -- Tag for 'DerivationPath' attribute
@@ -632,8 +622,8 @@ encodeDerivationPathAttr pwd acctIx addrIx = mempty
     path = encodeDerivationPath acctIx addrIx
 
 encodeDerivationPath
-    :: Index 'Hardened 'AccountK
-    -> Index 'Hardened 'AddressK
+    :: Index 'WholeDomain 'AccountK
+    -> Index 'WholeDomain 'AddressK
     -> CBOR.Encoding
 encodeDerivationPath (Index acctIx) (Index addrIx) = mempty
     <> CBOR.encodeListLenIndef
