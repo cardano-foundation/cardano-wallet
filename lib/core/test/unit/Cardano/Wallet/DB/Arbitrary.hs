@@ -231,18 +231,23 @@ instance Arbitrary MockChain where
         n0 <- choose (1, 10)
         slot0 <- arbitrary
         height0 <- fromIntegral <$> choose (0, flatSlot epochLength slot0)
-        blocks <- sequence $ flip unfoldr (slot0, height0, n0) $ \(slot, height, n) ->
-            if n <= (0 :: Int)
-                then Nothing
-                else Just
-                    ( genBlock slot height
-                    , (slotSucc sp slot, height + 1, n - 1)
-                    )
+        blocks <- sequence $ flip unfoldr (slot0, height0, n0) $
+            \(slot, height, n) ->
+                if n <= (0 :: Int)
+                    then Nothing
+                    else Just
+                        ( genBlock slot height
+                        , (slotSucc sp slot, height + 1, n - 1)
+                        )
         return (MockChain blocks)
       where
         genBlock :: SlotId -> Word32 -> Gen Block
         genBlock slot height = do
-            let h = BlockHeader slot (Quantity height) (mockHash slot) (mockHash slot)
+            let h = BlockHeader
+                    slot
+                    (Quantity height)
+                    (mockHash slot)
+                    (mockHash slot)
             Block h <$> (choose (1, 10) >>= \k -> vectorOf k arbitrary)
 
         epochLength :: EpochLength
