@@ -64,6 +64,7 @@ block0 = Block
         , parentHeaderHash = coerce genesisHash
         }
     , transactions = []
+    , delegations = []
     }
 
 genesisParameters  :: BlockchainParameters

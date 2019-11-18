@@ -226,7 +226,8 @@ instance Arbitrary MockChain where
         , not (null chain')
         ]
       where
-        shrinkBlock (Block h txs) = Block h <$> shrinkList shrink txs
+        shrinkBlock (Block h txs _) =
+            Block h <$> shrinkList shrink txs <*> pure []
     arbitrary = do
         n0 <- choose (1, 10)
         slot0 <- arbitrary
@@ -248,7 +249,9 @@ instance Arbitrary MockChain where
                     (Quantity height)
                     (mockHash slot)
                     (mockHash slot)
-            Block h <$> (choose (1, 10) >>= \k -> vectorOf k arbitrary)
+            Block h
+                <$> (choose (1, 10) >>= \k -> vectorOf k arbitrary)
+                <*> pure []
 
         epochLength :: EpochLength
         epochLength = genesisParameters ^. #getEpochLength

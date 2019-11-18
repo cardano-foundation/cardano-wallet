@@ -527,12 +527,14 @@ data Block = Block
         :: !BlockHeader
     , transactions
         :: ![Tx]
+    , delegations
+        :: ![(ChimericAccount, PoolId)]
     } deriving (Show, Eq, Ord, Generic)
 
 instance NFData Block
 
 instance Buildable (Block) where
-    build (Block h txs) = mempty
+    build (Block h txs _) = mempty
         <> build h
         <> if null txs then " ∅" else "\n" <> indentF 4 (blockListF txs)
 
