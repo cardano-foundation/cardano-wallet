@@ -823,12 +823,13 @@ signData inps outs =
 -- | Convert the Jörmungandr binary format block into a simpler Wallet block.
 convertBlock :: Block -> W.Block
 convertBlock (Block h msgs) =
-    W.Block (convertBlockHeader h) coerceFragments []
+    W.Block (convertBlockHeader h) transactions []
   where
-    coerceFragments = msgs >>= \case
+    transactions :: [Tx]
+    transactions = msgs >>= \case
         Initial _ -> []
         Transaction tx -> return tx
-        StakeDelegation (_poolId, _xpub, tx) -> return tx
+        StakeDelegation (_poolId, _accountId, tx) -> return tx
         UnimplementedFragment _ -> []
 
 -- | Convert the Jörmungandr binary format header into a simpler Wallet header.
