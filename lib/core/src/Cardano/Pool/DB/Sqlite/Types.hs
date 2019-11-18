@@ -51,7 +51,7 @@ import Data.Text.Class
     , getTextDecodingError
     )
 import Data.Word
-    ( Word16, Word64 )
+    ( Word32, Word64 )
 import Database.Persist.Sqlite
     ( PersistField (..), PersistFieldSql (..), PersistValue )
 import Database.Persist.TH
@@ -134,7 +134,7 @@ instance Read BlockId where
 -- the blockchain/. This is just for the sake of storing the 64 bit epoch and
 -- the 16 bit slot inside a single 64-bit field.
 artificialEpochLength :: EpochLength
-artificialEpochLength = EpochLength $ fromIntegral (maxBound :: Word16)
+artificialEpochLength = EpochLength $ fromIntegral (maxBound :: Word32)
 
 instance PersistFieldSql SlotId where
     sqlType _ = sqlType (Proxy @Word64)
