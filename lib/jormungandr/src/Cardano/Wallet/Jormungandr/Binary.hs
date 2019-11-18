@@ -64,7 +64,6 @@ module Cardano.Wallet.Jormungandr.Binary
     , blake2b256
     , estimateMaxNumberOfInputsParams
     , fragmentId
-    , delegationFragmentId
     , maxNumberOfInputs
     , maxNumberOfOutputs
     , withHeader
@@ -738,7 +737,7 @@ estimateMaxNumberOfInputsParams = EstimateMaxNumberOfInputsParams
 -- witnesses are required to compute a `txid`.
 fragmentId
     :: MessageType
-    -> Put
+    -> ByteString
     -> [(TxIn, Coin)]
     -> [TxOut]
     -> [TxWitness]
@@ -746,31 +745,18 @@ fragmentId
 fragmentId msgType payload inps outs wits =
     Hash $ blake2b256 $ BL.toStrict $ runPut $ do
         putWord16le (messageTypeTag msgType)
-        putSignedTx payload inps outs wits
-
-delegationFragmentId
-    :: PoolId
-    -> ChimericAccount
-    -> Hash "AccountSignature"
-    -> [(TxIn, Coin)]
-    -> [TxOut]
-    -> [TxWitness]
-    -> Hash "Tx"
-delegationFragmentId _poolId _accId _sig _inps _outs _wits =
-    Hash $ blake2b256 $ BL.toStrict $ runPut $ do
-        putWord16le (messageTypeTag MsgTypeDelegation)
-        --putStakeDelegationTx poolId accId inps outs wits
+        putSignedTx (putByteString payload) inps outs wits
 
 -- | See 'fragmentId'. This computes the signing data required for producing
 -- transaction witnesses.
 signData
-    :: Put
+    :: ByteString
     -> [(TxIn, Coin)]
     -> [TxOut]
     -> Hash "SignData"
 signData payload inps outs =
     Hash $ blake2b256 $ BL.toStrict $ runPut $ do
-        putTx payload inps outs
+        putTx (putByteString payload) inps outs
 
 {-------------------------------------------------------------------------------
                                 Conversions

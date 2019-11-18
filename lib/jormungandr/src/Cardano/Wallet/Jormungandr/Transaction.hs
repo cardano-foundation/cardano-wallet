@@ -19,7 +19,8 @@ import Prelude
 
 import Cardano.Wallet.Jormungandr.Binary
     ( Message (..)
-    , Put
+    , MessageType (..)
+    , fragmentId
     , getMessage
     , legacyUtxoWitness
     , maxNumberOfInputs
@@ -63,6 +64,8 @@ import Control.Arrow
     ( second )
 import Control.Monad
     ( forM, when )
+import Data.Binary.Put
+    ( putByteString )
 import Data.ByteString
     ( ByteString )
 import Data.Either.Combinators
@@ -90,24 +93,25 @@ newTransactionLayer
     => Hash "Genesis"
     -> TransactionLayer t k
 newTransactionLayer (Hash block0H) = TransactionLayer
-    { mkStdTx = mkTokenTransfer mempty
+    { mkStdTx = mkTokenTransfer MsgTypeTransaction mempty
 
     , mkCertificateTx = \keyFrom (poolId, accountXPrv, pass) ins outs -> do
             let accountPublicKey = BS.take 32 $ CC.unXPub . getRawKey . publicKey $ accountXPrv
 
-            let cert = putStakeCertificate poolId (ChimericAccount accountPublicKey)
+            let cert = BL.toStrict . runPut $
+                    putStakeCertificate poolId (ChimericAccount accountPublicKey)
 
-            (_, wits) <- mkTokenTransfer cert keyFrom ins outs
+            (_, wits) <- mkTokenTransfer MsgTypeDelegation cert keyFrom ins outs
             -- TODO: I think mkTokenTransfer should be re-thought and moved to
             -- C.W.J.Binary
             return $ BL.toStrict
                 $ runPut
                 $ putStakeDelegationTx
-                    cert
+                    (putByteString cert)
                     (map (second coin) ins)
                     outs
                     wits
-                    (sign (accountXPrv, pass))
+                    (`sign` (accountXPrv, pass))
 
     , decodeSignedTx = \payload -> do
         let errInvalidPayload =
@@ -133,12 +137,13 @@ newTransactionLayer (Hash block0H) = TransactionLayer
     }
   where
     mkTokenTransfer
-        :: Put
+        :: MessageType
+        -> ByteString
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
         -> [(TxIn, TxOut)]
         -> [TxOut]
         -> Either ErrMkStdTx (Tx, [TxWitness])
-    mkTokenTransfer payload keyFrom rnps outs = do
+    mkTokenTransfer msgType payload keyFrom rnps outs = do
         -- NOTE
         -- For signing, we need to embed a hash of the transaction data
         -- without the witnesses (since we don't yet have them!). In this sense,
@@ -148,11 +153,9 @@ newTransactionLayer (Hash block0H) = TransactionLayer
         wits <- forM rnps $ \(_, TxOut addr _) -> do
             xprv <- maybeToRight (ErrKeyNotFoundForAddress addr) (keyFrom addr)
             let body = block0H <> getHash (signData payload inps outs)
-            pure $ mkTxWitness (fst xprv) (sign xprv body)
+            pure $ mkTxWitness (fst xprv) (sign body xprv)
         let tx = Tx
-                { txId = error "we shouldn't try to calculate this yet"
-                    -- We need to have a finished fragment to calculate the
-                    -- fragmentId.
+                { txId = fragmentId msgType payload inps outs wits
                 , resolvedInputs = inps
                 , outputs = outs
                 }
@@ -187,10 +190,10 @@ instance MkTxWitness ByronKey where
 -- | Sign some arbitrary binary data using a private key.
 sign
     :: WalletKey k
-    => (k 'AddressK XPrv, Passphrase "encryption")
+    => ByteString
+    -> (k 'AddressK XPrv, Passphrase "encryption")
     -> ByteString
-    -> ByteString
-sign  (key, (Passphrase pwd)) bytes =
+sign bytes (key, (Passphrase pwd)) =
     CC.unXSignature $ CC.sign pwd (getRawKey key) bytes
 
 -- | Transaction with improper number of inputs and outputs is tried
