@@ -12,7 +12,10 @@
 with import ./nix/util.nix { inherit pkgs; };
 
 let
-  src = pkgs.haskell-nix.cleanSourceHaskell ./.;
+  src = pkgs.haskell-nix.cleanSourceHaskell {
+    src = ./.;
+    name = "cardano-wallet-src";
+  };
 
   jmPkgs = import ./nix/jormungandr.nix { inherit iohkLib; };
   inherit (jmPkgs) jormungandr jormungandr-cli;
