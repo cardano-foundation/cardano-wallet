@@ -81,28 +81,35 @@ spec = do
             threadDelay oneSecond
 
     describe "DaedalusIPC [SERIAL]" $ do
-        let defaultArgs nodePort =
-                [ commandName @t
+        let scriptPath = "test" </> "integration" </> "js" </> "mock-daedalus.js"
+        let mockProc testCase nodePort extra = proc "node" $
+                [ scriptPath
+                , testCase
+                , commandName @t
                 , "serve"
                 , "--node-port"
                 , show nodePort
                 , "--genesis-block-hash"
                 , block0H
-                ]
-
-        let filepath = "test" </> "integration" </> "js" </> "mock-daedalus.js"
+                ] ++ extra
 
         it "Should reply with the port --random" $ \ctx -> do
-            let scriptArgs = defaultArgs (ctx ^. typed @(Port "node"))
-                    ++ ["--random-port"]
-            (_, _, _, ph) <- createProcess (proc filepath scriptArgs)
+            let script = mockProc "test1" (ctx ^. typed @(Port "node"))
+                    ["--random-port"]
+            (_, _, _, ph) <- createProcess script
             waitForProcess ph `shouldReturn` ExitSuccess
 
-        it "Should reply with the port --random" $ \ctx -> do
+        it "Should reply with the port --port" $ \ctx -> do
             walletPort <- findPort
-            let scriptArgs = defaultArgs (ctx ^. typed @(Port "node"))
-                    ++ ["--port", show walletPort]
-            (_, _, _, ph) <- createProcess (proc filepath scriptArgs)
+            let script = mockProc "test1" (ctx ^. typed @(Port "node"))
+                    ["--port", show walletPort]
+            (_, _, _, ph) <- createProcess script
+            waitForProcess ph `shouldReturn` ExitSuccess
+
+        it "Regression test for #1036" $ \ctx -> do
+            let script = mockProc "test2" (ctx ^. typed @(Port "node"))
+                    ["--random-port"]
+            (_, _, _, ph) <- createProcess script
             waitForProcess ph `shouldReturn` ExitSuccess
 
     describe "LOGGING - cardano-wallet serve logging [SERIAL]" $ do

@@ -31,6 +31,11 @@ let
     cardano-wallet-jormungandr.exe launch --genesis-block test\data\jormungandr\block0.bin --state-dir c:\cardano-wallet-jormungandr -- --config test\data\jormungandr\config.yaml --secret test\data\jormungandr\secret.yaml
   '';
 
+  nodejs = pkgs.fetchzip {
+    url = https://nodejs.org/dist/v12.13.0/node-v12.13.0-win-x64.zip;
+    sha256 = "1jd41idj1l0sa7pifsdhw0i0a0xll7qm8jif98zxl2ablrhninys";
+  };
+
 in pkgs.runCommand name {
   nativeBuildInputs = [ pkgs.zip pkgs.gnused project.jormungandr-cli ];
   passthru = { inherit tests benchmarks; };
@@ -39,6 +44,7 @@ in pkgs.runCommand name {
   cd jm
 
   cp -v ${cardano-wallet-jormungandr}/bin/* .
+  cp -v ${nodejs}/node.exe .
   cp -Rv --no-preserve=mode ${testData.core}/* ${testData.jormungandr}/* test/data
   cp -v ${jm-bat} jm.bat
   hash="$(jcli genesis hash --input test/data/jormungandr/block0.bin)"
