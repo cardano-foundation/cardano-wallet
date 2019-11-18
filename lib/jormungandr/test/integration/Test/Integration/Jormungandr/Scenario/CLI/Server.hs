@@ -81,8 +81,10 @@ spec = do
             threadDelay oneSecond
 
     describe "DaedalusIPC [SERIAL]" $ do
+        let scriptPath = "test" </> "integration" </> "js" </> "mock-daedalus.js"
         let defaultArgs nodePort =
-                [ commandName @t
+                [ scriptPath
+                , commandName @t
                 , "serve"
                 , "--node-port"
                 , show nodePort
@@ -90,19 +92,17 @@ spec = do
                 , block0H
                 ]
 
-        let filepath = "test" </> "integration" </> "js" </> "mock-daedalus.js"
-
         it "Should reply with the port --random" $ \ctx -> do
             let scriptArgs = defaultArgs (ctx ^. typed @(Port "node"))
                     ++ ["--random-port"]
-            (_, _, _, ph) <- createProcess (proc filepath scriptArgs)
+            (_, _, _, ph) <- createProcess (proc "node" scriptArgs)
             waitForProcess ph `shouldReturn` ExitSuccess
 
         it "Should reply with the port --random" $ \ctx -> do
             walletPort <- findPort
             let scriptArgs = defaultArgs (ctx ^. typed @(Port "node"))
                     ++ ["--port", show walletPort]
-            (_, _, _, ph) <- createProcess (proc filepath scriptArgs)
+            (_, _, _, ph) <- createProcess (proc "node" scriptArgs)
             waitForProcess ph `shouldReturn` ExitSuccess
 
     describe "LOGGING - cardano-wallet serve logging [SERIAL]" $ do
