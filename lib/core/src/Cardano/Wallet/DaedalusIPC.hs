@@ -123,7 +123,7 @@ daedalusIPC trace port = runNodeChannel hello msg >>= \case
     -- Introductory message
     hello = do
         logDebug trace "Sending Started"
-        pure (Just Started)
+        pure Started
 
     -- How to respond to an incoming message, or when there is an incoming
     -- message that couldn't be parsed.
@@ -158,7 +158,7 @@ newtype NodeChannelFinished = NodeChannelFinished IOError
 -- with the parent process.
 runNodeChannel
     :: (FromJSON msgin, ToJSON msgout)
-    => IO (Maybe msgout)
+    => IO msgout
        -- ^ Action to get the "Hello" message sent from child process.
     -> (Either Text msgin -> IO (Maybe msgout))
        -- ^ Handler for messages coming from the parent process. Left values are
@@ -185,12 +185,12 @@ lookupNodeChannel = (fromMaybe "" <$> lookupEnv "NODE_CHANNEL_FD") >>= \case
 ipcListener
     :: forall msgin msgout. (FromJSON msgin, ToJSON msgout)
     => Handle
-    -> IO (Maybe msgout)
+    -> IO msgout
     -> (Either Text msgin -> IO (Maybe msgout))
     -> IO NodeChannelFinished
 ipcListener handle hello onMsg = do
     hSetNewlineMode handle noNewlineTranslation
-    hello >>= maybeSend
+    hello >>= sendMsg
     replyLoop `catch` (pure . NodeChannelFinished)
   where
     replyLoop :: IO a
