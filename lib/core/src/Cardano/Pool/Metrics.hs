@@ -239,6 +239,7 @@ newStakePoolLayer db@DBLayer{..} nl tr = StakePoolLayer
             <$> (Map.fromList <$> readStakeDistribution nodeEpoch)
             <*> (count <$> readPoolProduction nodeEpoch)
 
+
         when (Map.null distr || Map.null prod) $ do
             computeProgress nodeTip >>= throwE . ErrMetricsIsUnsynced
 

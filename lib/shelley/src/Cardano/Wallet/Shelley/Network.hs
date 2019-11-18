@@ -4,6 +4,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+--{-# OPTIONS_GHC -fno-warn-unused-imports -fno-warn-redundant-constraints
+--   -fno-warn-unused-matches -fno-warn-unused-local-binds #-}
 
 {-
 Good to read before / additional resources:
@@ -14,9 +16,12 @@ Good to read before / additional resources:
 -}
 
 module Cardano.Wallet.Shelley.Network
-    (
+    ( main
+    , genesisTip
+    , setup
+    , prettyResponse
       -- * Top-Level Interface
-      NetworkLayer (..)
+    , NetworkLayer (..)
     , ErrNextBlocks (..)
     , ChainParameters (..)
 
@@ -55,7 +60,7 @@ import Network.TypedProtocol.Codec.Cbor
 import Network.TypedProtocol.Driver
     ( TraceSendRecv, runPeer )
 import Ouroboros.Consensus.Ledger.Byron
-    ( ByronBlockOrEBB (..)
+    ( ByronBlock (..)
     , GenTx
     , decodeByronBlock
     , decodeByronGenTx
@@ -64,19 +69,22 @@ import Ouroboros.Consensus.Ledger.Byron
     , encodeByronGenTx
     , encodeByronHeaderHash
     )
-import Ouroboros.Consensus.Ledger.Byron.Config
-    ( ByronConfig )
 import Ouroboros.Consensus.NodeId
     ( CoreNodeId (..) )
 import Ouroboros.Network.Block
-    ( decodePoint, encodePoint )
+    ( Point, Tip (..) )
+import Ouroboros.Network.Magic
+    ( NetworkMagic (..) )
 import Ouroboros.Network.Mux
     ( OuroborosApplication (..) )
 import Ouroboros.Network.NodeToClient
-    ( NodeToClientProtocols (..)
+    ( ConnectionId (..)
+    , NetworkConnectTracers (..)
+    , NodeToClientProtocols (..)
     , NodeToClientVersion (..)
     , NodeToClientVersionData (..)
     , connectTo
+    , localTxSubmissionClientNull
     , nodeToClientCodecCBORTerm
     )
 import Ouroboros.Network.Protocol.ChainSync.Client
@@ -117,9 +125,9 @@ import Control.Monad.Class.MonadSTM
 import Control.Monad.Class.MonadThrow
     ( MonadThrow )
 import Control.Monad.Class.MonadTimer
-    ( MonadTimer, threadDelay )
+    ( MonadTimer )
 import Control.Monad.Trans.Except
-    ( ExceptT (..) )
+    ( ExceptT (..), runExceptT )
 import Control.Tracer
     ( Tracer, contramap )
 import Data.ByteString.Lazy
@@ -134,6 +142,59 @@ import Network.Socket
 import qualified Codec.Serialise as CBOR
 import qualified Network.Socket as Socket
 import qualified Ouroboros.Network.Block as Abstract
+
+
+-- ----------------
+-- Development
+
+import Cardano.BM.Trace
+    ( nullTracer )
+import Control.Concurrent
+    ( forkIO )
+import Control.Monad
+    ( forM_, void )
+
+
+setup :: IO (NetworkLayer IO)
+setup = do
+    -- I have cardano-node running from ../cardano-node
+    let nodeId = CoreNodeId 0
+    let path = "../cardano-node/socket/" <> (localSocketFilePath nodeId)
+    let addr =  localSocketAddrInfo path
+    print addr
+
+    let params = ChainParameters
+         { epochSlots = EpochSlots 21600
+         , protocolMagic = ProtocolMagicId 764824073
+         }
+    (client, network) <- newNetworkClient nullTracer params
+
+    -- Launch the stateful connection in a separate thread
+    void $ forkIO $ connectClient client dummyNodeToClientVersion addr
+    return network
+
+prettyResponse :: [ByronBlock] -> IO ()
+prettyResponse response = do
+    forM_ response $ \b -> do
+        print $ Abstract.unSlotNo $ byronBlockSlotNo b
+
+
+genesisTip :: Tip ByronBlock
+genesisTip = Tip Abstract.genesisPoint Abstract.genesisBlockNo
+
+-- How to run the node:
+--
+-- $ git clone https://github.com/input-output-hk/cardano-node
+-- $ cd cardano-node
+-- $ ./scripts/mainnet.sh
+--
+-- Then run main:
+main :: IO ()
+main = do
+    network <- setup
+    -- Use the network layer to send requests to the node
+    Right response <- runExceptT $ nextBlocks network genesisTip
+    prettyResponse response
 
 --------------------------------------------------------------------------------
 --
@@ -164,14 +225,14 @@ import qualified Ouroboros.Network.Block as Abstract
 --     response' <- runExceptT $ nextBlocks network point
 --
 data NetworkLayer m = NetworkLayer
-    { nextBlocks :: Point -> ExceptT ErrNextBlocks m [Block]
-    , networkTip :: m Point
+    { nextBlocks :: (Tip ByronBlock) -> ExceptT ErrNextBlocks m [ByronBlock]
+    , networkTip :: m (Tip ByronBlock)
     }
 
 -- | This translates the 'NetworkLayer' interface from the wallet backend.
 data ChainSyncRequest m
-    = ReqNextBlocks Point (Either ErrNextBlocks [Block] -> m ())
-    | ReqNetworkTip (Point -> m ())
+    = ReqNextBlocks (Tip ByronBlock) (Either ErrNextBlocks [ByronBlock] -> m ())
+    | ReqNetworkTip ((Tip ByronBlock) -> m ())
 
 -- | What is considered errors in the 'NetworkLayer'
 data ErrNextBlocks
@@ -184,11 +245,7 @@ data ErrNextBlocks
 --
 -- Concrete Types
 
-type Block = ByronBlockOrEBB ByronConfig
-
-type Point = Abstract.Point Block
-
-type Tx = GenTx Block
+type Tx = GenTx ByronBlock
 
 data ChainParameters = ChainParameters
     { epochSlots :: EpochSlots
@@ -202,7 +259,7 @@ data ChainParameters = ChainParameters
 type NetworkClient m = OuroborosApplication
     'InitiatorApp
         -- ^ Initiator ~ Client (as opposed to Responder / Server)
-    (SockAddr, SockAddr)
+    ConnectionId
         -- ^ An identifier for the peer: here, a local and remote socket.
     NodeToClientProtocols
         -- ^ Specifies which mini-protocols our client is talking.
@@ -238,7 +295,9 @@ connectClient
 connectClient client (vData, vCodec) addr = do
     let vDict = DictVersion vCodec
     let versions = simpleSingletonVersions NodeToClientV_1 vData vDict client
-    connectTo (,) versions Nothing addr `catch` handleMuxError
+    let connectTo' = connectTo $ NetworkConnectTracers nullTracer nullTracer
+    -- TODO(anviking): what are these traces?
+    connectTo' versions Nothing addr `catch` handleMuxError
   where
     -- `connectTo` might rise an exception: we are the client and the protocols
     -- specify that only  client can lawfuly close a connection, but the other
@@ -253,7 +312,7 @@ connectClient client (vData, vCodec) addr = do
 dummyNodeToClientVersion
     :: (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
 dummyNodeToClientVersion =
-    ( NodeToClientVersionData { networkMagic = 0 }
+    ( NodeToClientVersionData { networkMagic = NetworkMagic 764824073 }
     , nodeToClientCodecCBORTerm
     )
 
@@ -293,9 +352,8 @@ newNetworkClient t params = do
 -- A corresponding 'Channel' can be obtained using a `MuxInitiatorApplication`
 -- constructor.
 chainSyncWithBlocks
-    :: forall m protocol peerId. ()
+    :: forall m protocol peerId. (protocol ~ ChainSync ByronBlock (Tip ByronBlock))
     => (MonadThrow m, MonadST m, MonadSTM m, Show peerId)
-    => (protocol ~ ChainSync Block Point)
     => peerId
         -- ^ An abstract peer identifier for 'runPeer'
     -> Tracer m String
@@ -319,10 +377,12 @@ chainSyncWithBlocks pid t params queue channel =
 
     codec :: Codec protocol DeserialiseFailure m ByteString
     codec = codecChainSync
-        (encodeByronBlock (protocolMagic params) (epochSlots params))
-        (decodeByronBlock (protocolMagic params) (epochSlots params))
-        (encodePoint encodeByronHeaderHash)
-        (decodePoint decodeByronHeaderHash)
+        encodeByronBlock
+        (decodeByronBlock (epochSlots params))
+        (Abstract.encodePoint encodeByronHeaderHash)
+        (Abstract.decodePoint decodeByronHeaderHash)
+        (Abstract.encodeTip encodeByronHeaderHash)
+        (Abstract.decodeTip decodeByronHeaderHash)
 
     {-| A peer has agency if it is expected to send the next message.
 
@@ -348,16 +408,18 @@ chainSyncWithBlocks pid t params queue channel =
       *------*
 
     -}
-    client :: ChainSyncClient Block Point m Void
+
+    client :: ChainSyncClient ByronBlock (Tip ByronBlock) m Void
     client = ChainSyncClient clientStIdle
       where
         -- Client in the state 'Idle'. We wait for requests / commands on an
         -- 'TQueue'. Commands start a chain of messages and state transitions
         -- before finally returning to 'Idle', waiting for the next command.
-        clientStIdle :: m (ClientStIdle Block Point m Void)
+        clientStIdle :: m (ClientStIdle ByronBlock (Tip ByronBlock) m Void)
         clientStIdle = atomically (readTQueue queue) >>= \case
-            ReqNextBlocks point respond -> do
+            ReqNextBlocks tip respond -> do
                 let n = 1000 -- Arbitrary size of the batch to fetch
+                let point = tipPoint tip
 
                 -- Start by setting the intersection to a new point.
                 --
@@ -369,14 +431,14 @@ chainSyncWithBlocks pid t params queue channel =
                 -- rather anecdotal).
                 pure $ SendMsgFindIntersect [point] $ ClientStIntersect
                     -- Node's internal cursor is now correctly set to 'point'
-                    { recvMsgIntersectImproved = \_intersection _tip ->
+                    { recvMsgIntersectFound = \_intersection _tip ->
                         ChainSyncClient $
                             clientStFetchingBlocks n point [] respond
 
                     -- Couldn't find an intersection, point is not on the chain.
                     -- This can happen if the node has rolled back and the point
                     -- we knew of is no longer on the chain.
-                    , recvMsgIntersectUnchanged = \_tip ->
+                    , recvMsgIntersectNotFound = \_tip ->
                         ChainSyncClient $ do
                             respond (Left ErrNextBlocksNoIntersection)
                             clientStIdle
@@ -387,11 +449,12 @@ chainSyncWithBlocks pid t params queue channel =
                 -- also returns a tip and is probably less expensive on the
                 -- node's end.
                 pure $ SendMsgFindIntersect [] $ ClientStIntersect
-                    { recvMsgIntersectImproved = \_intersection tip ->
+                    { recvMsgIntersectFound = \_intersection tip ->
                         ChainSyncClient $ respond tip *> clientStIdle
-                    , recvMsgIntersectUnchanged = \tip ->
+                    , recvMsgIntersectNotFound = \tip ->
                         ChainSyncClient $ respond tip *> clientStIdle
                     }
+
 
         -- 'Next' state coming from a 'ReqNextBlocks' request. We stay in that
         -- state for a couple of messages, accumulating blocks as we go and
@@ -404,13 +467,13 @@ chainSyncWithBlocks pid t params queue channel =
         clientStFetchingBlocks
             :: Int
                 -- ^ Number of messages to fetch
-            -> Point
+            -> Point ByronBlock
                 -- ^ Starting point
-            -> [Block]
-                -- ^ Block accumulator
-            -> (Either ErrNextBlocks [Block] -> m ())
+            -> [ByronBlock]
+                -- ^ ByronBlock accumulator
+            -> (Either ErrNextBlocks [ByronBlock] -> m ())
                 -- ^ Success or Error callback
-            -> m (ClientStIdle Block Point m Void)
+            -> m (ClientStIdle ByronBlock (Tip ByronBlock) m Void)
         clientStFetchingBlocks 0 _ blocks respond = do
             respond (Right blocks)
             clientStIdle
@@ -500,8 +563,8 @@ localTxSubmission pid t channel =
                                              *---------*
 
     -}
-    client :: m (LocalTxSubmissionClient Tx String m Void)
-    client = threadDelay 9999 *> client -- FIXME: Just chilling for now.
+    client :: LocalTxSubmissionClient Tx String m Void
+    client = localTxSubmissionClientNull
 
 
 --------------------------------------------------------------------------------
