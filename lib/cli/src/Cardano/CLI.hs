@@ -141,7 +141,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletName
     )
 import Cardano.Wallet.Version
-    ( showVersion, version )
+    ( gitRev, showVersion, version )
 import Control.Applicative
     ( optional, some, (<|>) )
 import Control.Arrow
@@ -700,8 +700,10 @@ cmdVersion = command "version" $ info cmd $ mempty
   where
     cmd = pure exec
     exec = do
-        putStrLn (showVersion version)
+        putStr $ showVersion version
+        putStrLn $ " (git revision " ++ T.unpack gitRev ++ ")"
         exitSuccess
+
 {-------------------------------------------------------------------------------
                             Commands - 'stake-pool'
 -------------------------------------------------------------------------------}

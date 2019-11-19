@@ -50,6 +50,7 @@ library
     , exceptions
     , extra
     , fast-logger
+    , file-embed
     , filepath
     , fmt
     , foldl
@@ -65,6 +66,7 @@ library
     , persistent
     , persistent-sqlite
     , persistent-template
+    , process
     , random
     , retry
     , safe
@@ -72,6 +74,7 @@ library
     , servant-server
     , split
     , streaming-commons
+    , template-haskell
     , text
     , text-class
     , time
@@ -124,6 +127,7 @@ library
       Cardano.Wallet.Transaction
       Cardano.Wallet.Unsafe
       Cardano.Wallet.Version
+      Cardano.Wallet.Version.TH
       Data.Function.Utils
       Data.Time.Text
       Data.Time.Utils
