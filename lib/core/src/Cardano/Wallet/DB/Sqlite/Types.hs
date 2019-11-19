@@ -262,9 +262,15 @@ instance PersistFieldSql SlotId where
 artificialEpochLength :: EpochLength
 artificialEpochLength = EpochLength maxBound
 
+persistSlotId :: SlotId -> PersistValue
+persistSlotId = toPersistValue . flatSlot artificialEpochLength
+
+unPersistSlotId :: PersistValue -> Either Text SlotId
+unPersistSlotId = fmap (fromFlatSlot artificialEpochLength) . fromPersistValue
+
 instance PersistField SlotId where
-    toPersistValue = toPersistValue . flatSlot artificialEpochLength
-    fromPersistValue = fmap (fromFlatSlot artificialEpochLength) . fromPersistValue
+    toPersistValue = persistSlotId
+    fromPersistValue = unPersistSlotId
 
 instance ToJSON SlotId where
     toJSON = genericToJSON defaultOptions
@@ -283,6 +289,15 @@ instance ToJSON EpochNo where
 
 instance FromJSON EpochNo where
     parseJSON = fmap EpochNo . parseJSON
+
+instance ToHttpApiData SlotId where
+    toUrlPiece = error "toUrlPiece stub needed for persistent"
+instance FromHttpApiData SlotId where
+    parseUrlPiece = error "parseUrlPiece stub needed for persistent"
+instance PathPiece SlotId where
+    toPathPiece = error "toPathPiece stub needed for persistent"
+    fromPathPiece = error "fromPathPiece stub needed for persistent"
+
 
 ----------------------------------------------------------------------------
 -- SyncProgress

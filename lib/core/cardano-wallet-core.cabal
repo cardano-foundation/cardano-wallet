@@ -91,7 +91,6 @@ library
       Cardano.Pool.DB.Model
       Cardano.Pool.DB.Sqlite
       Cardano.Pool.DB.Sqlite.TH
-      Cardano.Pool.DB.Sqlite.Types
       Cardano.Pool.Metrics
       Cardano.Wallet
       Cardano.Wallet.Api
