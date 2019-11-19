@@ -60,6 +60,7 @@ import Cardano.Wallet
     , ErrSignCert (..)
     , ErrSignTx (..)
     , ErrStartTimeLaterThanEndTime (..)
+    , ErrSubmitCert (..)
     , ErrSubmitExternalTx (..)
     , ErrSubmitTx (..)
     , ErrUpdatePassphrase (..)
@@ -829,7 +830,7 @@ joinStakePool ctx spl (ApiT poolId) (ApiT wid) passwd = do
                 W.signCert @_ @s @t @k wrk wid () pwd selection poolId
 
             liftHandler $ withWorkerCtx ctx wid liftE3 $ \wrk ->
-                W.submitTx @_ @s @t @k wrk wid (tx, meta, wit)
+                W.submitCert @_ @s @t @k wrk wid poolId (tx, meta, wit)
 
             pure $ mkApiTransaction
                 (txId tx)
@@ -840,7 +841,7 @@ joinStakePool ctx spl (ApiT poolId) (ApiT wid) passwd = do
   where
     liftE1 = throwE . ErrCreateCertNoSuchWallet
     liftE2 = throwE . ErrSignCertNoSuchWallet
-    liftE3 = throwE . ErrSubmitTxNoSuchWallet
+    liftE3 = throwE . ErrSubmitCertNoSuchWallet
 
 quitStakePool
     :: forall n k.
@@ -1646,6 +1647,33 @@ instance LiftHandler ErrSignCert where
             , errReasonPhrase = errReasonPhrase err410
             }
         ErrSignCertWithRootKey e@ErrWithRootKeyWrongPassphrase{} -> handler e
+
+instance LiftHandler ErrSubmitCert where
+    handler = \case
+        ErrSubmitCertNetwork e -> case e of
+            ErrPostTxNetworkUnreachable e' ->
+                handler e'
+            ErrPostTxBadRequest err ->
+                apiError err500 CreatedInvalidTransaction $ mconcat
+                    [ "That's embarrassing. It looks like I've created an "
+                    , "invalid transaction that could not be parsed by the "
+                    , "node. Here's an error message that may help with "
+                    , "debugging: ", pretty err
+                    ]
+            ErrPostTxProtocolFailure err ->
+                apiError err500 RejectedByCoreNode $ mconcat
+                    [ "I successfully submitted a transaction, but "
+                    , "unfortunately it was rejected by a relay. This could be "
+                    , "because the fee was not large enough, or because the "
+                    , "transaction conflicts with another transaction that "
+                    , "uses one or more of the same inputs, or it may be due "
+                    , "to some other reason. Here's an error message that may "
+                    , "help with debugging: ", pretty err
+                    ]
+        ErrSubmitCertNoSuchWallet e@ErrNoSuchWallet{} -> (handler e)
+            { errHTTPCode = 410
+            , errReasonPhrase = errReasonPhrase err410
+            }
 
 instance LiftHandler (Request, ServantErr) where
     handler (req, err@(ServantErr code _ body headers))

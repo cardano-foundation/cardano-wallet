@@ -114,8 +114,10 @@ module Cardano.Wallet
     -- ** Stake Pools
     , createCert
     , signCert
+    , submitCert
     , ErrCreateCert (..)
     , ErrSignCert (..)
+    , ErrSubmitCert (..)
     ) where
 
 import Prelude hiding
@@ -1074,6 +1076,28 @@ signCert ctx wid argGenChange pwd
     db = ctx ^. dbLayer @s @k
     _tl = ctx ^. transactionLayer @t @k
 
+-- | Broadcast a (signed) transaction with certificate delegation to the network.
+submitCert
+    :: forall ctx s t k.
+        ( HasNetworkLayer t ctx
+        , HasDBLayer s k ctx
+        )
+    => ctx
+    -> WalletId
+    -> PoolId
+    -> (Tx, TxMeta, [TxWitness])
+    -> ExceptT ErrSubmitCert IO ()
+submitCert ctx wid poolId (tx, meta, wit) = db & \DBLayer{..} -> do
+    withExceptT ErrSubmitCertNetwork $ postTx nw (tx, wit)
+    mapExceptT atomically $ withExceptT ErrSubmitCertNoSuchWallet $ do
+        putTxHistory (PrimaryKey wid) [(tx, meta)]
+        let (TxMeta _ _ sl _ _) = meta
+        putDelegationCertificate (PrimaryKey wid) poolId sl
+  where
+    db = ctx ^. dbLayer @s @k
+    nw = ctx ^. networkLayer @t
+
+
 {-------------------------------------------------------------------------------
                                   Key Store
 -------------------------------------------------------------------------------}
@@ -1203,6 +1227,13 @@ data ErrSignCert
     = ErrSignCertNoSuchWallet ErrNoSuchWallet
     | ErrSignCertWithRootKey ErrWithRootKey
     -- | ErrSignCert ErrMkCertificateTx
+    deriving (Show, Eq)
+
+-- | Errors that can occur when submitting a signed transaction with
+-- a delegation certificate to the network.
+data ErrSubmitCert
+    = ErrSubmitCertNetwork ErrPostTx
+    | ErrSubmitCertNoSuchWallet ErrNoSuchWallet
     deriving (Show, Eq)
 
 {-------------------------------------------------------------------------------
