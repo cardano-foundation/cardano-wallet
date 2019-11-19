@@ -20,7 +20,7 @@ module Cardano.Pool.DB.Sqlite.TH where
 
 import Prelude
 
-import Cardano.Pool.DB.Sqlite.Types
+import Cardano.Wallet.DB.Sqlite.Types
     ( sqlSettings' )
 import Data.Word
     ( Word32, Word64 )
@@ -31,7 +31,7 @@ import Database.Persist.TH
 import GHC.Generics
     ( Generic (..) )
 
-import qualified Cardano.Pool.DB.Sqlite.Types as W
+import qualified Cardano.Wallet.DB.Sqlite.Types as W
 import qualified Cardano.Wallet.Primitive.Types as W
 
 share

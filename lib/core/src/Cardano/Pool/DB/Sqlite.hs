@@ -38,7 +38,7 @@ import Cardano.DB.Sqlite
     )
 import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists (..) )
-import Cardano.Pool.DB.Sqlite.Types
+import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..) )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..), EpochNo (..), PoolId, SlotId (..) )
