@@ -70,12 +70,7 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..)
-    , BlockHeader (..)
-    , Hash (..)
-    , SignedTxBinary
-    , SlotLength (..)
-    )
+    ( Block (..), BlockHeader (..), Hash (..), SealedTx, SlotLength (..) )
 import Control.Arrow
     ( left )
 import Control.Exception
@@ -139,7 +134,7 @@ data JormungandrClient m = JormungandrClient
         -> Word
         -> ExceptT ErrGetDescendants m [Hash "BlockHeader"]
     , postMessage
-        :: SignedTxBinary
+        :: SealedTx
         -> ExceptT ErrPostTx m ()
     , getInitialBlockchainParameters
         :: Hash "Genesis"

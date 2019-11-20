@@ -38,7 +38,7 @@ import Cardano.Wallet.Primitive.Types
     , EpochNo
     , Hash (..)
     , PoolId (..)
-    , SignedTxBinary
+    , SealedTx
     , SlotId
     )
 import Control.Concurrent
@@ -114,7 +114,7 @@ data NetworkLayer m target block = NetworkLayer
         -- ^ Get the current network tip from the chain producer
 
     , postTx
-        :: SignedTxBinary -> ExceptT ErrPostTx m ()
+        :: SealedTx -> ExceptT ErrPostTx m ()
         -- ^ Broadcast a transaction to the chain producer
 
     , staticBlockchainParameters

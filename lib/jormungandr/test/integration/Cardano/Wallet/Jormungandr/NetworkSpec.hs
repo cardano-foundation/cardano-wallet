@@ -65,7 +65,7 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Hash (..)
     , PoolId (..)
-    , SignedTxBinary (..)
+    , SealedTx (..)
     , SlotId (..)
     , Tx (..)
     , TxIn (..)
@@ -372,7 +372,7 @@ spec = do
                         $ withHeader FragmentTransaction
                         $ putSignedTx inps outs wits
                 let bin = BL.toStrict $ encode signedTx
-                decodeSignedTx tl bin `shouldBe` Right (tx, SignedTxBinary bin)
+                decodeSignedTx tl bin `shouldBe` Right (tx, SealedTx bin)
 
         it "decodeExternalTx throws an exception when binary blob has non-\
             \transaction-type header or is wrongly constructed binary blob" $

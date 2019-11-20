@@ -40,7 +40,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..), SignedTxBinary (..), Tx (..), TxOut (..), TxWitness (..) )
+    ( Hash (..), SealedTx (..), Tx (..), TxOut (..), TxWitness (..) )
 import Cardano.Wallet.Transaction
     ( ErrDecodeSignedTx (..)
     , ErrMkStdTx (..)
@@ -103,7 +103,7 @@ newTransactionLayer (Hash block0H) = TransactionLayer
         case runGetOrFail getFragment (BL.fromStrict payload) of
             Left _ -> Left errInvalidPayload
             Right (_,_,msg) -> case msg of
-                Transaction tx -> return (tx, SignedTxBinary payload)
+                Transaction tx -> return (tx, SealedTx payload)
                 _ -> Left errInvalidPayload
 
     -- NOTE

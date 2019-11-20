@@ -38,7 +38,7 @@ import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
     , Hash (..)
-    , SignedTxBinary (..)
+    , SealedTx (..)
     , TxIn (..)
     , TxOut (..)
     )
@@ -437,7 +437,7 @@ goldenTestStdTx
     -> SpecWith ()
 goldenTestStdTx tl keystore inps outs bytes' = it title $ do
     let tx = mkStdTx tl keystore inps outs
-    let bytes = hex . getSignedTxBinary . snd <$> tx
+    let bytes = hex . getSealedTx . snd <$> tx
     bytes `shouldBe` Right bytes'
   where
     title = "golden test mkStdTx: " <> show inps <> show outs

@@ -185,7 +185,7 @@ import Cardano.Wallet.Primitive.Types
     , FeePolicy (LinearFee)
     , Hash (..)
     , Range (..)
-    , SignedTxBinary
+    , SealedTx
     , SlotId (..)
     , SlotParameters (..)
     , SortOrder (..)
@@ -798,7 +798,7 @@ signTx
     -> ArgGenChange s
     -> Passphrase "encryption"
     -> CoinSelection
-    -> ExceptT ErrSignTx IO (Tx, TxMeta, UTCTime, SignedTxBinary)
+    -> ExceptT ErrSignTx IO (Tx, TxMeta, UTCTime, SealedTx)
 signTx ctx wid argGenChange pwd (CoinSelection ins outs chgs) = db & \DBLayer{..} -> do
     withRootKey @_ @s ctx wid pwd ErrSignTxWithRootKey $ \xprv -> do
         mapExceptT atomically $ do
@@ -849,7 +849,7 @@ submitTx
         )
     => ctx
     -> WalletId
-    -> (Tx, TxMeta, SignedTxBinary)
+    -> (Tx, TxMeta, SealedTx)
     -> ExceptT ErrSubmitTx IO ()
 submitTx ctx wid (tx, meta, binary) = db & \DBLayer{..} -> do
     withExceptT ErrSubmitTxNetwork $ postTx nw binary

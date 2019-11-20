@@ -37,13 +37,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, mkSeqState )
 import Cardano.Wallet.Primitive.Types
-    ( Coin (..)
-    , SignedTxBinary (..)
-    , Tx (..)
-    , TxIn (..)
-    , TxOut (..)
-    , WalletId
-    )
+    ( Coin (..), SealedTx (..), Tx (..), TxIn (..), TxOut (..), WalletId )
 import Cardano.Wallet.Transaction
     ( TransactionLayer (..) )
 import Control.Monad
@@ -399,7 +393,7 @@ data ExternalTxFixture = ExternalTxFixture
     { srcWallet :: ApiWallet
     , dstWallet :: ApiWallet
     , feeMin :: Natural
-    , txBinary :: SignedTxBinary
+    , txBinary :: SealedTx
     , txTx :: Tx
     }
 

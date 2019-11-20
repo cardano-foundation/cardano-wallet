@@ -93,7 +93,7 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Hash (..)
     , PoolId (..)
-    , SignedTxBinary (..)
+    , SealedTx (..)
     , SlotId (..)
     , SlotNo (..)
     , Tx (..)
@@ -353,15 +353,15 @@ getInitial = label "getInitial" $ do
                                 Transactions
 -------------------------------------------------------------------------------}
 
--- | Glues together a tx, witnesses into a full @SignedTxBinary@.
+-- | Glues together a tx, witnesses into a full @SealedTx@.
 --
 -- NOTE: For constructing a tx from scratch this is a rather inconvenient
 -- function. It relies on you already having the txId and the witnesses.
 --
 -- TODO: We should create a more convenient alternative taking only inputs,
 -- outputs and key-lookup function.
-signedTransactionFragment :: Tx -> [TxWitness] -> SignedTxBinary
-signedTransactionFragment (Tx _ ins outs) wits = SignedTxBinary
+signedTransactionFragment :: Tx -> [TxWitness] -> SealedTx
+signedTransactionFragment (Tx _ ins outs) wits = SealedTx
     $ BL.toStrict
     $ runPut
     $ withHeader FragmentTransaction (putSignedTx ins outs wits)

@@ -35,7 +35,7 @@ import Prelude
 import Cardano.Wallet.Jormungandr.Binary
     ( Block, getBlock, runGet )
 import Cardano.Wallet.Primitive.Types
-    ( EpochNo (..), Hash (..), PoolId (..), ShowFmt (..), SignedTxBinary (..) )
+    ( EpochNo (..), Hash (..), PoolId (..), SealedTx (..), ShowFmt (..) )
 import Control.Applicative
     ( many )
 import Control.Monad
@@ -147,8 +147,8 @@ instance Accept JormungandrBinary where
 instance MimeUnrender JormungandrBinary Block where
     mimeUnrender _ = pure . runGet getBlock
 
-instance MimeRender JormungandrBinary SignedTxBinary where
-    mimeRender _ (SignedTxBinary bytes) = BL.fromStrict bytes
+instance MimeRender JormungandrBinary SealedTx where
+    mimeRender _ (SealedTx bytes) = BL.fromStrict bytes
 
 data Hex
 

@@ -63,7 +63,7 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , EpochNo (..)
     , Hash (..)
-    , SignedTxBinary (..)
+    , SealedTx (..)
     , SlotId (..)
     , SlotNo (..)
     , SortOrder (..)
@@ -433,7 +433,7 @@ dummyTransactionLayer = TransactionLayer
                 (CC.unXPub (getKey $ publicKey xprv) <> sig)
 
         -- (tx1, wit1) == (tx2, wit2) <==> fakebinary1 == fakebinary2
-        let fakeBinary = SignedTxBinary . B8.pack $ show (tx, wit)
+        let fakeBinary = SealedTx . B8.pack $ show (tx, wit)
         return (tx, fakeBinary)
     , estimateSize =
         error "dummyTransactionLayer: estimateSize not implemented"
