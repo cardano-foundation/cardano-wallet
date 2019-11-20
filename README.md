@@ -58,6 +58,14 @@ See [Wiki - Testing](https://github.com/input-output-hk/cardano-wallet/wiki/Test
 | [Wiki](https://github.com/input-output-hk/cardano-wallet/wiki)                                     | Anyone interested in the project and our development process |
 | [CLI Manual](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface) | Users of the Cardano Wallet API                              |
 
+## Compatibility Matrix
+
+| cardano-wallet                                                                            | Jörmungandr                                                                          |
+| ---                                                                                       | ---                                                                                  |
+| [v2019-11-18](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2019-11-18) | [v0.7.0](https://github.com/input-output-hk/jormungandr/releases/tag/v0.7.0)         |
+| [v2019-11-14](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2019-11-14) | [v0.7.0](https://github.com/input-output-hk/jormungandr/releases/tag/v0.7.0)         |
+| [v2019-11-07](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2019-11-07) | [v0.7.0-rc7](https://github.com/input-output-hk/jormungandr/releases/tag/v0.7.0-rc7) |
+
 <hr/>
 
 <p align="center">

@@ -36,38 +36,19 @@ e.g.
 
 ---
 
-# Development Plan
+# Development 
 
 <!-- WHEN IN PROGRESS 
 In the form of a TODO list, explain how the ticket is going to be tackled and how
-you intend to proceed. 
+you intend to proceed. Attach a PR to each point in the list to track progress.
 
 e.g.
 
 - [ ] I intend to extend the existing handlers and use the wallet layer to implement 
-  the necessary steps.
+  the necessary steps ==> #123
 
-- [ ] I plan on testing the endpoint by adding a few integration scenarios
+- [ ] I plan on testing the endpoint by adding a few integration scenarios ==> #456
 -->
-
-
-# PR
-
-<!-- WHEN IN PROGRESS
-List of all PRs related to this ticket.
-
-e.g.
-
-| Number | Base            |
-| ---    | ---             |
-| #14    | `master`        |
-| #42    | `release/2.0.0` |
--->
-
-| Number   | Base      |
-| ---      | ---       |
-| #?       | `master`  |
-
 
 # QA 
 
