@@ -386,8 +386,8 @@ spec = do
             |] `shouldBe` (Left @String @(ApiT AddressPoolGap) msg)
 
         it "ApiT (Hash \"Tx\")" $ do
-            let msg = "Error in $: Unable to decode (Hash \"Tx\"): \
-                    \expected Base16 encoding"
+            let msg = "Error in $: Invalid tx hash: \
+                    \expecting a hex-encoded value that is 32 bytes in length."
             Aeson.parseEither parseJSON [aesonQQ|
                 "-----"
             |] `shouldBe` (Left @String @(ApiT (Hash "Tx")) msg)

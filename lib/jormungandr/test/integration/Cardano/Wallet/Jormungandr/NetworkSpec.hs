@@ -19,7 +19,7 @@ import Cardano.Wallet.Jormungandr.Api
 import Cardano.Wallet.Jormungandr.Api.Client
     ( ErrGetAccountState (..), JormungandrClient )
 import Cardano.Wallet.Jormungandr.Api.Types
-    ( AccountId (..), AccountState (..) )
+    ( AccountState (..) )
 import Cardano.Wallet.Jormungandr.Binary
     ( FragmentSpec (..)
     , TxWitnessTag (..)
@@ -262,13 +262,13 @@ spec = do
         testNotFound
             "getAccountState"
             Jormungandr.getAccountState
-            (AccountId $ B8.replicate 32 '0')
+            (Hash $ B8.replicate 32 '0')
             ErrGetAccountStateAccountNotFound
 
         testGetInvalid
             "getAccountState"
             Jormungandr.getAccountState
-            (AccountId "patate")
+            (Hash "patate")
 
         testNotFound
             "getBlock"
@@ -605,8 +605,8 @@ isRollBackwardTo nl sl = \case
                                    Test Data
 -------------------------------------------------------------------------------}
 
-testAccountId :: AccountId
-testAccountId = unsafeFromText
+testAccountId :: Hash "Account"
+testAccountId = Hash $ unsafeFromHex
     "addf8bd48558b72b257408a0164c8722058b4d5337134ab9a02bc4e64194933a"
 
 testPoolId :: PoolId

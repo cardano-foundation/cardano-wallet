@@ -34,7 +34,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Model
     ( TxHistory, filterTxHistory )
 import Cardano.Wallet.DummyTarget.Primitive.Types as DummyTarget
-    ( genesisParameters, mkTx )
+    ( block0, genesisParameters, mkTx, mockHash )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
@@ -235,12 +235,9 @@ instance Arbitrary MockChain where
                     )
         return (MockChain blocks)
       where
-        mockHeaderHash :: SlotId -> Hash "BlockHeader"
-        mockHeaderHash = Hash . convertToBase Base16 . B8.pack . show
-
         genBlock :: SlotId -> Word32 -> Gen Block
         genBlock slot height = do
-            let h = BlockHeader slot (Quantity height) (mockHeaderHash slot) (mockHeaderHash slot)
+            let h = BlockHeader slot (Quantity height) (mockHash slot) (mockHash slot)
             Block h <$> (choose (1, 10) >>= \k -> vectorOf k arbitrary)
 
         epochLength :: EpochLength
@@ -256,10 +253,9 @@ instance GenState s => Arbitrary (InitialCheckpoint s) where
     shrink (InitialCheckpoint cp) = InitialCheckpoint <$> shrink cp
     arbitrary = do
         cp <- arbitrary @(Wallet s)
-        let tip0 = BlockHeader (SlotId 0 0) (Quantity 0) (Hash "block0") (Hash "genesis")
         pure $ InitialCheckpoint $ unsafeInitWallet
             (utxo cp)
-            tip0
+            (block0 ^. #header)
             (getState cp)
             (blockchainParameters cp)
 
@@ -299,8 +295,8 @@ instance Arbitrary BlockHeader where
     arbitrary = do
         sid@(SlotId (EpochNo ep) (SlotNo sl)) <- arbitrary
         let h = fromIntegral sl + fromIntegral ep * arbitraryEpochLength
-        bytes <- B8.pack <$> vectorOf 8 (elements ['a'..'f'])
-        pure $ BlockHeader sid (Quantity h) (Hash bytes) (Hash bytes)
+        blockH <- arbitrary
+        pure $ BlockHeader sid (Quantity h) blockH (coerce blockH)
 
 instance Arbitrary SlotId where
     shrink (SlotId (EpochNo ep) (SlotNo sl)) =

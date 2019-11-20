@@ -60,7 +60,7 @@ import Cardano.Wallet.DB.Sqlite
 import Cardano.Wallet.DB.StateMachine
     ( prop_parallel, prop_sequential )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( block0, genesisParameters )
+    ( block0, genesisParameters, mockHash )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , NetworkDiscriminant (..)
@@ -618,8 +618,8 @@ testPk = PrimaryKey testWid
 
 testTxs :: [(Tx, TxMeta)]
 testTxs =
-    [ ( Tx (Hash "tx2")
-        [ (TxIn (Hash "tx1") 0, Coin 1)]
+    [ ( Tx (mockHash @String "tx2")
+        [ (TxIn (mockHash @String "tx1") 0, Coin 1)]
         [ TxOut (Address "addr") (Coin 1) ]
       , TxMeta InLedger Incoming (SlotId 14 0) (Quantity 0) (Quantity 1337144)
       )

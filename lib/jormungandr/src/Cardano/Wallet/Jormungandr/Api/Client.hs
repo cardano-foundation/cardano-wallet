@@ -56,7 +56,7 @@ import Cardano.Wallet.Jormungandr.Api
     , api
     )
 import Cardano.Wallet.Jormungandr.Api.Types
-    ( AccountId, AccountState, BlockId (..), StakeApiResponse )
+    ( AccountId (..), AccountState, BlockId (..), StakeApiResponse )
 import Cardano.Wallet.Jormungandr.Binary
     ( ConfigParam (..), Fragment (..), convertBlock )
 import Cardano.Wallet.Jormungandr.Compatibility
@@ -128,7 +128,7 @@ import qualified Data.Text.Encoding as T
 -- | Endpoints of the jormungandr REST API.
 data JormungandrClient m = JormungandrClient
     { getAccountState
-        :: AccountId
+        :: Hash "Account"
         -> ExceptT ErrGetAccountState m AccountState
     , getTipId
         :: ExceptT ErrNetworkUnavailable m (Hash "BlockHeader")
@@ -154,12 +154,15 @@ mkJormungandrClient
     :: Manager -> BaseUrl -> JormungandrClient IO
 mkJormungandrClient mgr baseUrl = JormungandrClient
     { getAccountState = \accountId -> ExceptT $ do
-        let action = cGetAccountState accountId
+        let action = cGetAccountState (AccountId accountId)
         run action >>= \case
             Left (FailureResponse e) | responseStatusCode e == status404 ->
                 return $ Left $ ErrGetAccountStateAccountNotFound accountId
             x -> do
-                let ctx = safeLink api (Proxy @GetAccountState) accountId
+                let ctx = safeLink
+                        api
+                        (Proxy @GetAccountState)
+                        (AccountId accountId)
                 left ErrGetAccountStateNetworkUnreachable
                     <$> defaultHandler ctx x
 
@@ -173,7 +176,10 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
             Left (FailureResponse e) | responseStatusCode e == status404 ->
                 return $ Left $ ErrGetBlockNotFound blockId
             x -> do
-                let ctx = safeLink api (Proxy @GetBlock) (BlockId blockId)
+                let ctx = safeLink
+                        api
+                        (Proxy @GetBlock)
+                        (BlockId blockId)
                 left ErrGetBlockNetworkUnreachable <$> defaultHandler ctx x
 
     , getDescendantIds = \parentId count -> ExceptT $ do
@@ -358,7 +364,7 @@ instance Exception ErrUnexpectedNetworkFailure
 
 data ErrGetAccountState
     = ErrGetAccountStateNetworkUnreachable ErrNetworkUnavailable
-    | ErrGetAccountStateAccountNotFound AccountId
+    | ErrGetAccountStateAccountNotFound (Hash "Account")
     deriving (Eq, Show)
 
 data ErrGetDescendants

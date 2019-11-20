@@ -59,15 +59,13 @@ import Data.Bifunctor
 import Data.Binary.Get
     ( getByteString )
 import Data.ByteArray.Encoding
-    ( Base (Base16), convertFromBase, convertToBase )
+    ( Base (Base16), convertFromBase )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
-import Data.Text.Encoding
-    ( decodeUtf8, encodeUtf8 )
+    ( FromText (..), ToText (..) )
 import Data.Word
     ( Word64 )
 import GHC.Generics
@@ -76,11 +74,10 @@ import Servant.API
     ( Accept (..), MimeRender (..), MimeUnrender (..), ToHttpApiData (..) )
 
 import qualified Data.Aeson.Types as Aeson
-import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Servant.API.ContentTypes as Servant
 
-newtype AccountId = AccountId { getAccountId :: BS.ByteString }
+newtype AccountId = AccountId { getAccountId :: Hash "Account" }
     deriving (Eq, Show)
 
 data AccountState = AccountState
@@ -106,24 +103,10 @@ data ApiStakeDistribution = ApiStakeDistribution
     } deriving (Eq, Show, Generic)
 
 instance ToHttpApiData BlockId where
-    toUrlPiece (BlockId (Hash bytes)) = decodeUtf8 $ convertToBase Base16 bytes
+    toUrlPiece = toText . getBlockId
 
 instance ToHttpApiData AccountId where
-    toUrlPiece = toText
-
-instance FromText AccountId where
-    fromText text = case decoded of
-        Right bytes | BS.length bytes == 32 ->
-            Right $ AccountId bytes
-        _ ->
-            Left $ TextDecodingError
-                "Invalid Jörmungandr account ID: \
-                \expecting a hex-encoded value that is 32 bytes in length."
-      where
-        decoded = convertFromBase Base16 $ encodeUtf8 text
-
-instance ToText AccountId where
-    toText = decodeUtf8 . convertToBase Base16 . getAccountId
+    toUrlPiece = toText . getAccountId
 
 instance MimeUnrender JormungandrBinary [BlockId] where
     mimeUnrender _ =
