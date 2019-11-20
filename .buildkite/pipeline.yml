@@ -34,3 +34,10 @@ steps:
     command: 'nix-shell --run "openapi-spec-validator --schema 2.0 specifications/api/swagger.yaml"'
     agents:
       system: x86_64-linux
+
+  - label: 'Docker Image'
+    command:
+      - "nix-build .buildkite/docker-build-push.nix --argstr dockerHubRepoName inputoutput/cardano-wallet -o docker-build-push"
+      - "./docker-build-push"
+    agents:
+      system: x86_64-linux

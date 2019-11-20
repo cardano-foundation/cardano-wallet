@@ -45,7 +45,6 @@ let
       chmod -R +w $out
       ${setGitRev}
       strip $out/bin/cardano-wallet-jormungandr
-      cp ${jormungandr}/bin/* $out/bin
     '';
 
     darwin = buildCommand [] ''
