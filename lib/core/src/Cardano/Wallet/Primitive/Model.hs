@@ -277,9 +277,9 @@ updateState
     -> Wallet s
 updateState s (Wallet u tip _ bp) = Wallet u tip s bp
 
--- | Apply Block is the primary way of making the wallet evolve. It returns the
--- updated wallet state, as well as a set of all transactions belonging to the
--- wallet discovered while applying the block.
+-- | Apply a single block to the wallet. This is the primary way of making a
+-- wallet evolve. It returns the updated wallet state, as well as a set of all
+-- transactions belonging to the wallet discovered while applying the block.
 applyBlock
     :: Block
     -> Wallet s
@@ -386,16 +386,16 @@ blockchainParameters (Wallet _ _ _ bp) = bp
 -- linked to the wallet by their inputs.
 --
 -- In order to identify transactions that are ours, we do therefore look for
--- known inputs and known outputs. However, we can't naievely look at the domain
+-- known inputs and known outputs. However, we can't naively look at the domain
 -- of the utxo constructed from all outputs that are ours (as the specification
 -- would suggest) because some transactions may use outputs of a previous
--- transaction within the same block as an input. Therefore, Looking solely at
+-- transaction within the same block as an input. Therefore, looking solely at
 -- the final 'dom (UTxO ⊳ oursOuts)', we would be missing all intermediate txs
 -- that happen from _within_ the block itself.
 --
--- As a consequence, we do have to traverse the block, and look at transaction
+-- As a consequence, we do have to traverse the block, and look at transactions
 -- in order, starting from the known inputs that can be spent (from the previous
--- UTxO) and, collect resolved tx outputs that are ours as we apply transactions.
+-- UTxO) and collect resolved tx outputs that are ours as we apply transactions.
 prefilterBlock
     :: (IsOurs s Address)
     => Block

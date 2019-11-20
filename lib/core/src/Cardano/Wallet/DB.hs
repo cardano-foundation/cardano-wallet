@@ -171,13 +171,13 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -> ExceptT ErrNoSuchWallet stm ()
         -- ^ Binds a stake pool id to a wallet. This will have an influence on
         -- the wallet metadata: the last known certificate will indicate to
-        -- which pool a wallet is currently delegating to.
+        -- which pool a wallet is currently delegating.
         --
         -- This is done separately from 'putWalletMeta' because certificate
-        -- declaration are:
+        -- declarations are:
         --
-        -- 1. Stored on-chain
-        -- 2. Affected by rollbacks (or said differently, tight to a 'SlotId')
+        -- 1. Stored on-chain.
+        -- 2. Affected by rollbacks (or said differently, tied to a 'SlotId').
 
     , putTxHistory
         :: PrimaryKey WalletId
