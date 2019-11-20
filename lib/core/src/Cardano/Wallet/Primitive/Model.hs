@@ -37,6 +37,7 @@ module Cardano.Wallet.Primitive.Model
     -- * Construction & Modification
     , initWallet
     , updateState
+    , FilteredBlock (..)
     , applyBlock
     , applyBlocks
     , unsafeInitWallet
@@ -277,15 +278,27 @@ updateState
     -> Wallet s
 updateState s (Wallet u tip _ bp) = Wallet u tip s bp
 
--- | Apply a single block to the wallet. This is the primary way of making a
--- wallet evolve. It returns the updated wallet state, as well as a set of all
--- transactions belonging to the wallet discovered while applying the block.
+-- | Represents the subset of data from a single block that are relevant to a
+--   particular wallet, discovered when applying a block to that wallet.
+newtype FilteredBlock = FilteredBlock
+    { transactions :: [(Tx, TxMeta)]
+        -- ^ The set of transactions that affect the wallet.
+    } deriving (Generic, Show, Eq)
+
+-- | Apply a single block to a wallet.
+--
+-- This is the primary way of making a wallet evolve.
+--
+-- Returns an updated wallet, as well as the set of data relevant to the wallet
+-- that were discovered while applying the block.
+--
 applyBlock
     :: Block
     -> Wallet s
-    -> ([(Tx, TxMeta)], Wallet s)
+    -> (FilteredBlock, Wallet s)
 applyBlock !b (Wallet !u _ s bp) =
-    ( txs
+    ( FilteredBlock
+        { transactions = txs }
     , Wallet u' (b ^. #header) s' bp
     )
   where
@@ -317,7 +330,7 @@ applyBlock !b (Wallet !u _ s bp) =
 applyBlocks
     :: NonEmpty (Block)
     -> Wallet s
-    -> NonEmpty ([(Tx, TxMeta)], Wallet s)
+    -> NonEmpty (FilteredBlock, Wallet s)
 applyBlocks (block0 :| blocks) cp =
     NE.scanl (flip applyBlock . snd) (applyBlock block0 cp) blocks
 
@@ -402,7 +415,7 @@ prefilterBlock
     -> s
     -> (([(Tx, TxMeta)], UTxO), s)
 prefilterBlock b u0 = runState $ do
-    (ourTxs, ourU) <- foldM applyTx (mempty, u0) (transactions b)
+    (ourTxs, ourU) <- foldM applyTx (mempty, u0) (b ^. #transactions)
     return (ourTxs, ourU)
   where
     mkTxMeta :: Natural -> Direction -> TxMeta

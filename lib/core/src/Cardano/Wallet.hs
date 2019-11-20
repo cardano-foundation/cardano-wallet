@@ -571,8 +571,8 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> do
         <$> withNoSuchWallet wid (readCheckpoint $ PrimaryKey wid)
         <*> withNoSuchWallet wid (readWalletMeta $ PrimaryKey wid)
     let bp = blockchainParameters cp
-    let (txs0, cps) = NE.unzip $ applyBlocks @s blocks cp
-    let txs = fold txs0
+    let (filteredBlocks, cps) = NE.unzip $ applyBlocks @s blocks cp
+    let txs = fold $ view #transactions <$> filteredBlocks
     let k = bp ^. #getEpochStability
     let localTip = currentTip $ NE.last cps
 
