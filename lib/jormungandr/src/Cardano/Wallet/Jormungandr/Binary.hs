@@ -322,7 +322,7 @@ getFragment :: Get Fragment
 getFragment = label "getFragment" $ do
     size <- fromIntegral <$> getWord16be
 
-    -- We lazily compute the fragment-id, using lookAHead, before calling the
+    -- We lazily compute the fragment-id, using look-ahead, before calling the
     -- specialized decoders.
     --
     -- The fragment-id is needed, for instance, to construct a @Tx@, where it
