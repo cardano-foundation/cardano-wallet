@@ -493,5 +493,5 @@ fixtureExternalTx ctx toSend = do
              )
 
 txToBase :: SignedTxBinary -> Base -> Text
-txToBase (SignedTxBinary bin) base =
-    T.decodeUtf8 $ convertToBase base bin
+txToBase tx base =
+    T.decodeUtf8 $ convertToBase base tx

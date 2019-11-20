@@ -160,6 +160,8 @@ import Crypto.Random.Types
     ( MonadRandom )
 import Data.Bifunctor
     ( bimap )
+import Data.ByteArray
+    ( ByteArrayAccess )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase, convertToBase )
 import Data.ByteString
@@ -683,7 +685,8 @@ instance ToText Direction where
 -- | @SignedTxBinary@ is a serialised transaction that is ready to be submited
 -- to the node.
 newtype SignedTxBinary = SignedTxBinary { getSignedTxBinary :: ByteString }
-    deriving (Show, Eq, Generic)
+    deriving stock (Show, Eq, Generic)
+    deriving newtype (ByteArrayAccess)
 
 -- | @TxWitness@ is proof that transaction inputs are allowed to be spent
 newtype TxWitness = TxWitness { unWitness :: ByteString }
