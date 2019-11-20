@@ -103,7 +103,7 @@ newTransactionLayer (Hash block0H) = TransactionLayer
         case runGetOrFail getFragment (BL.fromStrict payload) of
             Left _ -> Left errInvalidPayload
             Right (_,_,msg) -> case msg of
-                Transaction (tx, _) -> return (tx, SignedTxBinary payload)
+                Transaction tx -> return (tx, SignedTxBinary payload)
                 _ -> Left errInvalidPayload
 
     -- NOTE
