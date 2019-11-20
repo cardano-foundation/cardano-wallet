@@ -75,7 +75,7 @@ module Test.Integration.Framework.TestData
 import Prelude
 
 import Cardano.Wallet.Version
-    ( showVersion, version )
+    ( gitRevision, showFullVersion, version )
 import Data.Text
     ( Text, pack, unpack )
 import Test.Integration.Framework.DSL
@@ -305,11 +305,12 @@ updatePassPayload oldPass newPass = Json [json| {
       } |]
 
 versionLine :: Text
-versionLine = "Running as v" <> pack (showVersion version)
+versionLine = "Running as v" <> pack (showFullVersion version gitRevision)
 
-  ---
-  --- Error messages
-  ---
+---
+--- Error messages
+---
+
 errMsgWalletIdEncoding :: String
 errMsgWalletIdEncoding = "wallet id should be a hex-encoded string of 40 characters"
 

@@ -11,7 +11,7 @@ module Test.Integration.Scenario.CLI.Miscellaneous
 import Prelude
 
 import Cardano.Wallet.Version
-    ( showVersion, version )
+    ( gitRevision, showFullVersion, version )
 import Control.Monad
     ( forM_ )
 import System.Command
@@ -32,7 +32,7 @@ spec = do
     it "CLI_VERSION - cardano-wallet shows version" $  do
         (Exit c, Stdout out) <- cardanoWalletCLI @t ["version"]
         let v = L.dropWhileEnd (== '\n') out
-        v `shouldBe` (showVersion version)
+        v `shouldBe` (showFullVersion version gitRevision)
         c `shouldBe` ExitSuccess
 
     describe "CLI_HELP - cardano-wallet shows help on bad arg or param" $ do

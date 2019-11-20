@@ -19,9 +19,13 @@
 -- revision will be updated.
 
 module Cardano.Wallet.Version
-    ( version
+    ( -- * Values computed at compile-time
+      version
+    , gitRevision
+
+      -- * Displaying Versions
     , showVersion
-    , gitRev
+    , showFullVersion
     ) where
 
 import Prelude
@@ -37,22 +41,29 @@ import Data.Text
 import Data.Text.Encoding
     ( decodeLatin1 )
 import Data.Version
-    ( showVersion )
+    ( Version, showVersion )
 import Paths_cardano_wallet_core
     ( version )
 
 import qualified Data.Text as T
+
+newtype GitRevision = GitRevision Text
+
+-- | Like 'showVersion', but also show the git revision.
+showFullVersion :: Version -> GitRevision -> String
+showFullVersion v (GitRevision r) =
+    showVersion v <> " (git revision: " <> T.unpack r <> ")"
 
 -- | The Git revision ID (40 character hex string) of this build.
 --
 -- This requires @git@ do be available when building. Alternatively, the git
 -- revision of the @cardano-wallet@ binary can be updated post-build using
 -- "Data.FileEmbed.injectWith".
-gitRev :: Text
-gitRev
-    | gitRevEmbed /= zeroRev = gitRevEmbed
-    | T.null fromGit         = zeroRev
-    | otherwise              = fromGit
+gitRevision :: GitRevision
+gitRevision
+    | gitRevEmbed /= zeroRev = GitRevision gitRevEmbed
+    | T.null fromGit         = GitRevision zeroRev
+    | otherwise              = GitRevision fromGit
   where
     -- Git revision embedded after compilation using
     -- Data.FileEmbed.injectWith. If nothing has been injected,
