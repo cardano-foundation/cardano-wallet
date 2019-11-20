@@ -11,7 +11,7 @@ module Test.Integration.Jormungandr.Scenario.API.Transactions
     ( spec
     , fixtureExternalTx
     , ExternalTxFixture (..)
-    , txToBase
+    , convertToBase
     ) where
 
 import Prelude
@@ -240,10 +240,10 @@ spec = do
     it "TRANS_EXTERNAL_CREATE_01 - proper single output transaction and \
        \proper binary format" $ \ctx -> do
         let toSend = 1 :: Natural
-        (ExternalTxFixture wSrc wDest fee tx _) <-
+        (ExternalTxFixture wSrc wDest fee bin _) <-
                 fixtureExternalTx ctx toSend
         let baseOk = Base64
-        let encodedSignedTx = txToBase tx baseOk
+        let encodedSignedTx = T.decodeUtf8 $ convertToBase baseOk bin
         let payload = NonJson . BL.fromStrict . toRawBytes baseOk
         let headers = Headers [ ("Content-Type", "application/octet-stream") ]
         r <- request
@@ -266,10 +266,10 @@ spec = do
     it "TRANS_EXTERNAL_CREATE_02 - proper single output transaction and \
        \improper binary format" $ \ctx -> do
         let toSend = 1 :: Natural
-        (ExternalTxFixture _ _ _ tx _) <-
+        (ExternalTxFixture _ _ _ bin _) <-
                 fixtureExternalTx ctx toSend
         let baseWrong = Base16
-        let wronglyEncodedTx = txToBase tx baseWrong
+        let wronglyEncodedTx = T.decodeUtf8 $ convertToBase baseWrong bin
         let headers = Headers [ ("Content-Type", "application/octet-stream") ]
         let payloadWrong = NonJson . BL.fromStrict . T.encodeUtf8
         r1 <- request
@@ -282,9 +282,9 @@ spec = do
     it "TRANS_EXTERNAL_CREATE_03 - proper single output transaction and \
        \wrong binary format" $ \ctx -> do
         let toSend = 1 :: Natural
-        (ExternalTxFixture _ _ _ tx _) <- fixtureExternalTx ctx toSend
+        (ExternalTxFixture _ _ _ bin _) <- fixtureExternalTx ctx toSend
         let baseOk = Base16
-        let wronglyEncodedSignedTx = txToBase tx baseOk
+        let wronglyEncodedSignedTx = T.decodeUtf8 $ convertToBase baseOk bin
         let payload = NonJson $ BL.fromStrict $
                 (toRawBytes baseOk) wronglyEncodedSignedTx
         let headers = Headers [ ("Content-Type", "application/octet-stream") ]
@@ -499,7 +499,3 @@ fixtureExternalTx ctx toSend = do
              , pwd
              , mkSeqState @n (rootXPrv, pwd) defaultAddressPoolGap
              )
-
-txToBase :: SignedTxBinary -> Base -> Text
-txToBase tx base =
-    T.decodeUtf8 $ convertToBase base tx

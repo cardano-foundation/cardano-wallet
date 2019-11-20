@@ -21,7 +21,7 @@ import Cardano.Wallet.Primitive.Types
 import Data.Binary.Put
     ( putByteString )
 import Data.ByteArray.Encoding
-    ( Base (Base16, Base64) )
+    ( Base (Base16, Base64), convertToBase )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Proxy
@@ -60,10 +60,11 @@ import Test.Integration.Framework.TestData
     , errMsg403NoPendingAnymore
     )
 import Test.Integration.Jormungandr.Scenario.API.Transactions
-    ( ExternalTxFixture (..), fixtureExternalTx, txToBase )
+    ( ExternalTxFixture (..), fixtureExternalTx )
 import Web.HttpApiData
     ( ToHttpApiData (..) )
 
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -95,7 +96,7 @@ spec = do
         (ExternalTxFixture _ wDest _ bin tx) <-
             fixtureExternalTx @t ctx toSend
         let baseOk = Base16
-        let arg = T.unpack $ txToBase bin baseOk
+        let arg = B8.unpack $ convertToBase baseOk bin
         let expectedTxId = T.decodeUtf8 $ hex . getHash $ txId tx
 
         -- post external transaction
@@ -121,7 +122,7 @@ spec = do
         let toSend = 1 :: Natural
         (ExternalTxFixture _ _ _ bin _) <- fixtureExternalTx @t ctx toSend
         let baseWrong = Base64
-        let argWrong = T.unpack $ txToBase bin baseWrong
+        let argWrong = B8.unpack $ convertToBase baseWrong bin
         -- post external transaction
         (Exit code1, Stdout out1, Stderr err1) <-
             postExternalTransactionViaCLI @t ctx [argWrong]
@@ -140,7 +141,7 @@ spec = do
 
         let wrongTx = addHeader bin
         let baseOk = Base16
-        let arg = T.unpack $ txToBase wrongTx baseOk
+        let arg = B8.unpack $ convertToBase baseOk wrongTx
 
         -- post external transaction
         (Exit code, Stdout out, Stderr err) <-
