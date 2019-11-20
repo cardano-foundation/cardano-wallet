@@ -52,7 +52,6 @@ import Cardano.CLI
     , stateDirOption
     , syncToleranceOption
     , verbosityOption
-    , verbosityToMinSeverity
     , withLogging
     )
 import Cardano.Launcher
@@ -165,7 +164,7 @@ data LaunchArgs = LaunchArgs
     , _stateDir :: Maybe FilePath
     , _loggingConfigFile :: Maybe FilePath
     , _syncTolerance :: SyncTolerance
-    , _verbosity :: Verbosity
+    , _verbosity :: [(Text, Verbosity)]
     , _jormungandrArgs :: JormungandrArgs
     }
 
@@ -212,7 +211,7 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
             <$> genesisBlockOption
             <*> extraArguments)
     exec (LaunchArgs hostPreference listen nodePort mStateDir logCfg sTolerance verbosity jArgs) = do
-        withLogging logCfg (verbosityToMinSeverity verbosity) $ \(cfg, tr) -> do
+        withLogging logCfg verbosity $ \(cfg, tr) -> do
             case genesisBlock jArgs of
                 Right block0File -> requireFilePath block0File
                 Left _ -> pure ()
@@ -250,7 +249,7 @@ data ServeArgs = ServeArgs
     , _database :: Maybe FilePath
     , _loggingConfigFile :: Maybe FilePath
     , _syncTolerance :: SyncTolerance
-    , _verbosity :: Verbosity
+    , _verbosity :: [(Text, Verbosity)]
     , _block0H :: Hash "Genesis"
     }
 
@@ -272,8 +271,7 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
         :: ServeArgs
         -> IO ()
     exec (ServeArgs hostPreference listen nodePort databaseDir logCfg sTolerance verbosity block0H) = do
-        let minSeverity = verbosityToMinSeverity verbosity
-        withLogging logCfg minSeverity $ \(cfg, tr) -> do
+        withLogging logCfg verbosity $ \(cfg, tr) -> do
             let baseUrl = localhostBaseUrl $ getPort nodePort
             let cp = JormungandrConnParams block0H baseUrl
             whenJust databaseDir $ setupDirectory (logInfo tr)

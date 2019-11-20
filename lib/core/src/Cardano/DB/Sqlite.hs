@@ -29,6 +29,9 @@ module Cardano.DB.Sqlite
     , startSqliteBackend
     , transformTrace
     , unsafeRunQuery
+
+      -- * Logging
+    , DBLog (..)
     ) where
 
 import Prelude
@@ -61,6 +64,8 @@ import Data.Maybe
     ( fromMaybe )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( ToText (..) )
 import Database.Persist.Sql
     ( LogFunc, Migration, close', runMigrationQuiet, runSqlConn )
 import Database.Persist.Sqlite
@@ -73,7 +78,6 @@ import GHC.Generics
     ( Generic )
 import System.Log.FastLogger
     ( fromLogStr )
-
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Data.ByteString.Char8 as B8
@@ -182,7 +186,7 @@ data DBLog
     deriving (Generic, Show, Eq, ToJSON)
 
 transformTrace :: Trace IO Text -> Trace IO DBLog
-transformTrace = contramap (fmap dbLogText)
+transformTrace = contramap (fmap toText)
 
 dbLog :: MonadIO m => Trace m DBLog -> DBLog -> m ()
 dbLog logTrace msg = traceNamedItem logTrace Public (dbLogLevel msg) msg
@@ -194,12 +198,12 @@ dbLogLevel (MsgQuery _ sev) = sev
 dbLogLevel (MsgConnStr _) = Debug
 dbLogLevel (MsgClosing _) = Debug
 
-dbLogText :: DBLog -> Text
-dbLogText (MsgMigrations 0) = "No database migrations were necessary."
-dbLogText (MsgMigrations n) = fmt $ ""+||n||+" migrations were applied to the database."
-dbLogText (MsgQuery stmt _) = stmt
-dbLogText (MsgConnStr connStr) = "Using connection string: " <> connStr
-dbLogText (MsgClosing fp) = "Closing database ("+|fromMaybe "in-memory" fp|+")"
+instance ToText DBLog where
+    toText (MsgMigrations 0) = "No database migrations were necessary."
+    toText (MsgMigrations n) = fmt $ ""+||n||+" migrations were applied to the database."
+    toText (MsgQuery stmt _) = stmt
+    toText (MsgConnStr connStr) = "Using connection string: " <> connStr
+    toText (MsgClosing fp) = "Closing database ("+|fromMaybe "in-memory" fp|+")"
 
 {-------------------------------------------------------------------------------
                                Extra DB Helpers

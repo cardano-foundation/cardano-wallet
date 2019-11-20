@@ -12,8 +12,6 @@ module Main where
 
 import Prelude
 
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
 import Cardano.BM.Trace
     ( Trace )
 import Cardano.CLI
@@ -98,7 +96,7 @@ instance KnownCommand Jormungandr where
     commandName = "cardano-wallet-jormungandr"
 
 main :: forall t. (t ~ Jormungandr) => IO ()
-main = withUtf8Encoding $ withLogging Nothing Info $ \logging ->
+main = withUtf8Encoding $ withLogging Nothing [] $ \logging ->
     hspec $ do
         describe "No backend required" $ do
             describe "Cardano.Wallet.NetworkSpec" $ parallel NetworkLayer.spec

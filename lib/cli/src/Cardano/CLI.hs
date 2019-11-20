@@ -10,6 +10,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -56,8 +57,6 @@ module Cardano.CLI
     -- * Logging
     , Verbosity (..)
     , withLogging
-    , verbosityToArgs
-    , verbosityToMinSeverity
 
     -- * ANSI Terminal Helpers
     , putErrLn
@@ -143,13 +142,13 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Version
     ( gitRevision, showFullVersion, version )
 import Control.Applicative
-    ( optional, some, (<|>) )
+    ( many, optional, some, (<|>) )
 import Control.Arrow
     ( first, left, second )
 import Control.Exception
     ( bracket, catch )
 import Control.Monad
-    ( join, unless, void, when )
+    ( forM_, join, unless, void, when )
 import Data.Aeson
     ( (.:) )
 import Data.Bifunctor
@@ -212,6 +211,8 @@ import Options.Applicative
     , subparser
     , value
     )
+import Options.Applicative.Types
+    ( ReadM, readerAsk )
 import Servant
     ( (:<|>) (..), (:>), NoContent )
 import Servant.Client
@@ -936,16 +937,26 @@ loggingConfigFileOption = optionT $ mempty
     <> metavar "FILE.YAML"
     <> help "File to configure the iohk-monitoring framework."
 
--- | [(--quiet|--verbose)]
-verbosityOption :: Parser Verbosity
-verbosityOption = (Quiet <$ quiet) <|> (Verbose <$ verbose) <|> (pure Default)
+-- | [(--quiet=TRACER|--verbose=TRACER)]
+verbosityOption :: Parser [(Text, Verbosity)]
+verbosityOption = many arg
   where
-    quiet = flag' False $ mempty
+    arg = ((, Quiet) <$> quiet) <|> ((, Verbose) <$> verbose)
+    quiet = option tracerName $ mempty
         <> long "quiet"
+        <> metavar "TRACER"
         <> help "suppress all log output apart from errors"
-    verbose = flag' False $ mempty
+    verbose = option tracerName $ mempty
         <> long "verbose"
+        <> metavar "TRACER"
         <> help "display debugging information in the log output"
+    tracerName :: ReadM Text
+    tracerName = do
+        val <- T.pack <$> readerAsk
+        if val `elem` allTracers
+            then pure val
+            else fail . T.unpack $
+                "tracer name should be one of:\n" <> T.unlines allTracers
 
 -- | <wallet-id=WALLET_ID>
 walletIdArgument :: Parser WalletId
@@ -1217,42 +1228,50 @@ instance FromText TxId where
 
 -- | Controls how much information to include in log output.
 data Verbosity
-    = Default
-        -- ^ The default level of verbosity.
-    | Quiet
+    = Quiet
         -- ^ Include less information in the log output.
     | Verbose
         -- ^ Include more information in the log output.
     deriving (Eq, Show)
 
--- | Convert a given 'Verbosity' level into a list of command line arguments
---   that can be passed through to a sub-process.
-verbosityToArgs :: Verbosity -> [String]
-verbosityToArgs = \case
-    Default -> []
-    Quiet   -> ["--quiet"]
-    Verbose -> ["--verbose"]
-
 -- | Map a given 'Verbosity' level onto a 'Severity' level.
 verbosityToMinSeverity :: Verbosity -> Severity
 verbosityToMinSeverity = \case
-    Default -> Info
-    Quiet   -> Error
     Verbose -> Debug
+    Quiet -> Error
+
+allTracers :: [Text]
+allTracers = map ("cardano-wallet" <>)
+    [ ".api"
+    , ".daedalus-ipc"
+    , ".database"
+    , ".database.query"
+    , ".stake-pools"
+    , ".worker"
+    , "" ]
 
 -- | Initialize logging at the specified minimum 'Severity' level.
 initTracer
     :: Maybe FilePath
-    -> Severity
+    -> [(Text, Verbosity)]
     -> IO (Switchboard Text, (CM.Configuration, Trace IO Text))
-initTracer configFile minSeverity = do
+initTracer configFile severities = do
+    let baseName = "cardano-wallet"
     let defaultConfig = do
             c <- defaultConfigStdout
-            CM.setMinSeverity c minSeverity
+            CM.setMinSeverity c Debug
             CM.setSetupBackends c [CM.KatipBK, CM.AggregationBK]
             pure c
     cfg <- maybe defaultConfig CM.setup configFile
-    (tr, sb) <- setupTrace_ cfg "cardano-wallet"
+    (tr, sb) <- setupTrace_ cfg baseName
+    -- initialise all tracers to info level
+    forM_ allTracers $ \trName ->
+        CM.setSeverity cfg trName (Just Info)
+    -- set any severities which are provided on the command line
+    forM_ severities $ \(trName, v) -> do
+        logInfo tr $ "Setting minimum log severity for " <> trName <>
+            " to " <> (T.pack . show . verbosityToMinSeverity $ v)
+        CM.setSeverity cfg trName (Just $ verbosityToMinSeverity v)
     pure (sb, (cfg, tr))
 
 -- | Run an action with logging available and configured. When the action is
@@ -1260,14 +1279,14 @@ initTracer configFile minSeverity = do
 withLogging
     :: Maybe FilePath
     -- ^ Configuration file - uses default otherwise.
-    -> Severity
+    -> [(Text, Verbosity)]
     -- ^ Minimum severity level to log
     -> ((CM.Configuration, Trace IO Text) -> IO a)
     -- ^ The action to run with logging configured.
     -> IO a
-withLogging configFile minSeverity action = bracket before after (action . snd)
+withLogging configFile severities action = bracket before after (action . snd)
   where
-    before = initTracer configFile minSeverity
+    before = initTracer configFile severities
     after (sb, (_, tr)) = do
         logDebug tr "Logging shutdown."
         shutdown sb
