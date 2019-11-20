@@ -41,6 +41,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState (..), mkRndState )
 import Cardano.Wallet.Primitive.Types
     ( Address (..) )
+import Control.Monad
+    ( forM_ )
 import Data.ByteArray.Encoding
     ( Base (..), convertFromBase )
 import Data.ByteString
@@ -135,7 +137,7 @@ goldenSpecMainnet =
 goldenSpecTestnet :: Spec
 goldenSpecTestnet =
     describe "Golden tests forByron Addresses w/ random scheme (Testnet)" $ do
-    let goldenInitial = GoldenTest
+    let golden01 = GoldenTest
             { mnem =
                     arbitraryMnemonic
             , addr =
@@ -148,7 +150,8 @@ goldenSpecTestnet =
                     2147483648
             , expected = True
             }
-    let goldenAnother = GoldenTest
+
+    let golden02 = GoldenTest
             { mnem =
                     arbitraryMnemonic
             , addr =
@@ -161,15 +164,24 @@ goldenSpecTestnet =
                     3234874775
             , expected = True
             }
-    it "check isOurs - initial account" $
-        checkIsOurs goldenInitial
-    it "check isOurs - another account" $
-        checkIsOurs goldenAnother
-    it "check isOwned - initial account" $
-        checkIsOwned goldenInitial
-    it "check isOwned - another account" $
-        checkIsOwned goldenAnother
 
+    let golden03 = GoldenTest
+            { mnem =
+                    arbitraryMnemonic
+            , addr =
+                    "82d818584083581cf26d102b29332fd6c244a9915b6cad7890f5b54ac3\
+                    \4dcd62975b525aa201565522f6c70e9b236c753e50a3758e18e8bbf7c3\
+                    \f9e34e02451a2d964a09001a3993f9ea"
+            , accIndex =
+                    14
+            , addrIndex =
+                    42
+            , expected = True
+            }
+
+    forM_ [golden01, golden02, golden03] $ \test -> do
+        it "isOurs Golden"  (checkIsOurs test)
+        it "isOwned Golden" (checkIsOwned test)
 
 {-------------------------------------------------------------------------------
                     Golden tests for Address derivation path
