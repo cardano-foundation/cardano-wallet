@@ -6,13 +6,16 @@
 # Use pinned Nixpkgs with Haskell.nix overlay
 , pkgs ? import ./nix/nixpkgs-haskell.nix  { inherit system crossSystem config; }
 # Use this git revision for stamping executables
-, gitrev ? iohkLib.commitIdFromGitRepo ./.git
+, gitrev ? iohkLib.commitIdFromGitRepoOrZero ./.git
 }:
 
 with import ./nix/util.nix { inherit pkgs; };
 
 let
-  src = pkgs.haskell-nix.cleanSourceHaskell ./.;
+  src = pkgs.haskell-nix.cleanSourceHaskell {
+    src = ./.;
+    name = "cardano-wallet-src";
+  };
 
   jmPkgs = import ./nix/jormungandr.nix { inherit iohkLib; };
   inherit (jmPkgs) jormungandr jormungandr-cli;

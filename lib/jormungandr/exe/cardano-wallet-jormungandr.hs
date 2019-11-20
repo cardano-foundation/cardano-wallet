@@ -75,7 +75,7 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.Types
     ( Hash (..), SyncTolerance )
 import Cardano.Wallet.Version
-    ( showVersion, version )
+    ( gitRevision, showFullVersion, version )
 import Control.Applicative
     ( optional, (<|>) )
 import Data.List
@@ -227,7 +227,8 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
                     }
             setupDirectory (logInfo tr) stateDir
             setupDirectory (logInfo tr) databaseDir
-            logInfo tr $ "Running as v" <> T.pack (showVersion version)
+            logInfo tr $
+                "Running as v" <> T.pack (showFullVersion version gitRevision)
             exitWith =<< serveWallet @'Testnet
                 (cfg, tr)
                 sTolerance
@@ -276,7 +277,8 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
             let baseUrl = localhostBaseUrl $ getPort nodePort
             let cp = JormungandrConnParams block0H baseUrl
             whenJust databaseDir $ setupDirectory (logInfo tr)
-            logInfo tr $ "Running as v" <> T.pack (showVersion version)
+            logInfo tr $
+                "Running as v" <> T.pack (showFullVersion version gitRevision)
             exitWith =<< serveWallet @'Testnet
                 (cfg, tr)
                 sTolerance
