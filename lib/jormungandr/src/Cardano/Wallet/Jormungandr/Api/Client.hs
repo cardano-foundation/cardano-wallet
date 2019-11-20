@@ -28,6 +28,7 @@ module Cardano.Wallet.Jormungandr.Api.Client
 
     -- * Errors
     , LiftError(..)
+    , ErrGetAccountState (..)
     , ErrGetBlock (..)
     , ErrGetBlockchainParams (..)
     , ErrGetDescendants (..)
@@ -46,15 +47,16 @@ module Cardano.Wallet.Jormungandr.Api.Client
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Api
-    ( BlockId (..)
+    ( GetAccountState
     , GetBlock
     , GetBlockDescendantIds
     , GetStakeDistribution
     , GetTipId
     , PostMessage
-    , StakeApiResponse
     , api
     )
+import Cardano.Wallet.Jormungandr.Api.Types
+    ( AccountId, AccountState, BlockId (..), StakeApiResponse )
 import Cardano.Wallet.Jormungandr.Binary
     ( ConfigParam (..), Fragment (..), convertBlock )
 import Cardano.Wallet.Jormungandr.Compatibility
@@ -125,7 +127,10 @@ import qualified Data.Text.Encoding as T
 
 -- | Endpoints of the jormungandr REST API.
 data JormungandrClient m = JormungandrClient
-    { getTipId
+    { getAccountState
+        :: AccountId
+        -> ExceptT ErrGetAccountState m AccountState
+    , getTipId
         :: ExceptT ErrNetworkUnavailable m (Hash "BlockHeader")
     , getBlock
         :: Hash "BlockHeader"
@@ -148,29 +153,43 @@ data JormungandrClient m = JormungandrClient
 mkJormungandrClient
     :: Manager -> BaseUrl -> JormungandrClient IO
 mkJormungandrClient mgr baseUrl = JormungandrClient
-    { getTipId = ExceptT $ do
+    { getAccountState = \accountId -> ExceptT $ do
+        let action = cGetAccountState accountId
+        run action >>= \case
+            Left (FailureResponse e) | responseStatusCode e == status404 ->
+                return $ Left $ ErrGetAccountStateAccountNotFound accountId
+            x -> do
+                let ctx = safeLink api (Proxy @GetAccountState) accountId
+                left ErrGetAccountStateNetworkUnreachable
+                    <$> defaultHandler ctx x
+
+    , getTipId = ExceptT $ do
         let ctx = safeLink api (Proxy @GetTipId)
         run (getBlockId <$> cGetTipId) >>= defaultHandler ctx
 
     , getBlock = \blockId -> ExceptT $ do
-        run (cGetBlock (BlockId blockId)) >>= \case
+        let action = cGetBlock (BlockId blockId)
+        run action >>= \case
             Left (FailureResponse e) | responseStatusCode e == status400 ->
-                return . Left . ErrGetBlockNotFound $ blockId
+                return $ Left $ ErrGetBlockNotFound blockId
             x -> do
                 let ctx = safeLink api (Proxy @GetBlock) (BlockId blockId)
                 left ErrGetBlockNetworkUnreachable <$> defaultHandler ctx x
 
     , getDescendantIds = \parentId count -> ExceptT $ do
-        run (map getBlockId <$> cGetBlockDescendantIds (BlockId parentId) (Just count))  >>= \case
+        let action = map getBlockId <$>
+                cGetBlockDescendantIds (BlockId parentId) (Just count)
+        run action >>= \case
             Left (FailureResponse e) | responseStatusCode e == status400 ->
-                return . Left $ ErrGetDescendantsParentNotFound parentId
+                return $ Left $ ErrGetDescendantsParentNotFound parentId
             x -> do
                 let ctx = safeLink
                         api
                         (Proxy @GetBlockDescendantIds)
                         (BlockId parentId)
                         (Just count)
-                left ErrGetDescendantsNetworkUnreachable <$> defaultHandler ctx x
+                left ErrGetDescendantsNetworkUnreachable <$>
+                    defaultHandler ctx x
 
     -- Never returns 'Left ErrPostTxProtocolFailure'. Will currently return
     -- 'Right ()' when submitting correctly formatted, but invalid transactions.
@@ -187,12 +206,20 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
                 left ErrPostTxNetworkUnreachable <$> defaultHandler ctx x
 
     , getInitialBlockchainParameters = \block0 -> do
-        jblock@(J.Block _ msgs) <- ExceptT $ run (cGetBlock (BlockId $ coerce block0)) >>= \case
-            Left (FailureResponse e) | responseStatusCode e `elem` [status400, status404] ->
-                return . Left . ErrGetBlockchainParamsGenesisNotFound $ block0
+        let action = cGetBlock $ BlockId $ coerce block0
+        jblock@(J.Block _ msgs) <- ExceptT $ run action >>= \case
+            Left (FailureResponse e)
+                | responseStatusCode e `elem` [status400, status404] ->
+                    return
+                        $ Left
+                        $ ErrGetBlockchainParamsGenesisNotFound block0
             x -> do
-                let ctx = safeLink api (Proxy @GetBlock) (BlockId $ coerce block0)
-                let networkUnreachable = ErrGetBlockchainParamsNetworkUnreachable
+                let ctx = safeLink
+                        api
+                        (Proxy @GetBlock)
+                        (BlockId $ coerce block0)
+                let networkUnreachable =
+                        ErrGetBlockchainParamsNetworkUnreachable
                 left networkUnreachable <$> defaultHandler ctx x
 
         let params = mconcat $ mapMaybe getConfigParameters msgs
@@ -287,7 +314,8 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
         Left e -> do
             throwM (ErrUnexpectedNetworkFailure ctx e)
 
-    cGetTipId
+    cGetAccountState
+        :<|> cGetTipId
         :<|> cGetBlock
         :<|> cGetBlockDescendantIds
         :<|> cPostMessage
@@ -329,6 +357,11 @@ data ErrUnexpectedNetworkFailure
     deriving (Show)
 
 instance Exception ErrUnexpectedNetworkFailure
+
+data ErrGetAccountState
+    = ErrGetAccountStateNetworkUnreachable ErrNetworkUnavailable
+    | ErrGetAccountStateAccountNotFound AccountId
+    deriving (Eq, Show)
 
 data ErrGetDescendants
     = ErrGetDescendantsNetworkUnreachable ErrNetworkUnavailable

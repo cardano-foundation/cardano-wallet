@@ -160,8 +160,10 @@ spec = do
             property $ \(StakeDelegationTx args) -> monadicIO $ liftIO $ do
                 let (poolId, accId, accSig, tx@(Tx _ inps outs), wits) = args
                 let encode = runPut
-                        $ withHeader FragmentDelegation
-                        $ putStakeDelegationTx poolId accId accSig inps outs wits
+                        $ withHeader
+                            FragmentDelegation
+                        $ putStakeDelegationTx
+                            poolId accId accSig inps outs wits
                 let decode =
                         getStakeDelegationTxFragment . runGet getFragment
                 tx' <- try' (decode encode)
@@ -175,7 +177,8 @@ spec = do
         Transaction stx -> stx
         _ -> error "expected a Transaction message"
 
-    getStakeDelegationTxFragment :: Fragment -> (PoolId, ChimericAccount, Tx, [TxWitness])
+    getStakeDelegationTxFragment
+        :: Fragment -> (PoolId, ChimericAccount, Tx, [TxWitness])
     getStakeDelegationTxFragment m = case m of
         StakeDelegation stx -> stx
         _ -> error "expected a Transaction message"

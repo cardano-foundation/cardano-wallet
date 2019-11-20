@@ -426,8 +426,7 @@ mkStdTxSpec = do
         tooNumerousOutsTest (Proxy @'Testnet) block0
 
 goldenTestStdTx
-    :: forall t k. (t ~ Jormungandr)
-    => TransactionLayer t k
+    :: TransactionLayer t k
     -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
     -> [(TxIn, TxOut)]
     -> [TxOut]

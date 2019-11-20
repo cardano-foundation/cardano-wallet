@@ -35,7 +35,6 @@ library
     , aeson
     , async
     , base58-bytestring
-    , bech32
     , binary
     , bytestring
     , cardano-crypto
@@ -75,6 +74,7 @@ library
       Cardano.Wallet.Jormungandr
       Cardano.Wallet.Jormungandr.Api
       Cardano.Wallet.Jormungandr.Api.Client
+      Cardano.Wallet.Jormungandr.Api.Types
       Cardano.Wallet.Jormungandr.Binary
       Cardano.Wallet.Jormungandr.Compatibility
       Cardano.Wallet.Jormungandr.Network
@@ -142,6 +142,7 @@ test-suite unit
     , generic-arbitrary
     , generic-lens
     , hspec
+    , hspec-golden-aeson
     , lifted-base
     , memory
     , monad-control

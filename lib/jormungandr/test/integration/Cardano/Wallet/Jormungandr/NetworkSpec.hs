@@ -16,6 +16,10 @@ import Cardano.BM.Trace
     ( nullTracer )
 import Cardano.Wallet.Jormungandr.Api
     ( GetTipId, api )
+import Cardano.Wallet.Jormungandr.Api.Client
+    ( ErrGetAccountState (..) )
+import Cardano.Wallet.Jormungandr.Api.Types
+    ( AccountId (..), AccountState (..) )
 import Cardano.Wallet.Jormungandr.Binary
     ( FragmentSpec (..)
     , TxWitnessTag (..)
@@ -59,6 +63,7 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader (..)
     , Coin (..)
     , Hash (..)
+    , PoolId (..)
     , SlotId (..)
     , Tx (..)
     , TxIn (..)
@@ -69,7 +74,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Transaction
     ( ErrDecodeSignedTx (..), TransactionLayer (..) )
 import Cardano.Wallet.Unsafe
-    ( unsafeDecodeAddress, unsafeFromHex, unsafeRunExceptT )
+    ( unsafeDecodeAddress, unsafeFromHex, unsafePoolId, unsafeRunExceptT )
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.MVar
@@ -94,6 +99,10 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text
+    ( Text )
+import Data.Text.Class
+    ( fromText )
 import Data.Word
     ( Word8 )
 import Network.HTTP.Client
@@ -140,6 +149,19 @@ spec :: Spec
 spec = do
     let once = limitRetries 1
     describe "Happy Paths" $ around startNode $ do
+
+        it "get account state" $
+            \(_, url) -> do
+                manager <- newManager defaultManagerSettings
+                let client = Jormungandr.mkJormungandrClient manager url
+                res <- runExceptT $
+                    Jormungandr.getAccountState client testAccountId
+                res `shouldBe` Right AccountState
+                    { currentBalance = Quantity 1
+                    , totalTransactionCount = Quantity 0
+                    , stakePools = [(testPoolId, Quantity 1)]
+                    }
+
         it "get network tip" $ \(nw, _) -> do
             resp <- runExceptT $ networkTip nw
             resp `shouldSatisfy` isRight
@@ -168,21 +190,26 @@ spec = do
             -- fmap getRollForward resp `shouldBe` Right Nothing
             resp `shouldBe` Right AwaitReply
 
-        it "initiates recovery when the intersection is unknown" $ \(nw, _) -> do
-            -- NOTE There's a very little chance of hash clash here. But,
-            -- for what it's worth, I didn't bother retrying.
-            bytes <- BS.pack <$> generate (vectorOf 32 arbitrary)
-            let block = BlockHeader
-                    { slotId = SlotId 42 14 -- Anything
-                    , blockHeight = Quantity 0 -- Anything
-                    , headerHash = Hash bytes
-                    , parentHeaderHash = Hash bytes
-                    }
-            resp <- runExceptT $ nextBlocks nw (initCursor nw [block])
-            fmap (isRollBackwardTo nw (SlotId 0 0)) resp `shouldBe` Right True
+        it "initiates recovery when the intersection is unknown" $
+            \(nw, _) -> do
+                -- NOTE There's a very little chance of hash clash here. But,
+                -- for what it's worth, I didn't bother retrying.
+                bytes <- BS.pack <$> generate (vectorOf 32 arbitrary)
+                let block = BlockHeader
+                        { slotId = SlotId 42 14 -- Anything
+                        , blockHeight = Quantity 0 -- Anything
+                        , headerHash = Hash bytes
+                        , parentHeaderHash = Hash bytes
+                        }
+                resp <- runExceptT $ nextBlocks nw (initCursor nw [block])
+                fmap (isRollBackwardTo nw (SlotId 0 0)) resp
+                    `shouldBe` Right True
 
     describe "Error paths" $ do
-        let newBrokenNetworkLayer :: BaseUrl -> IO (NetworkLayer IO Jormungandr ())
+
+        let newBrokenNetworkLayer
+                :: BaseUrl
+                -> IO (NetworkLayer IO Jormungandr ())
             newBrokenNetworkLayer baseUrl = do
                 mgr <- newManager defaultManagerSettings
                 st <- newMVar emptyBlockHeaders
@@ -234,29 +261,43 @@ spec = do
     describe "White-box error path tests" $
         around startNode $ do
 
-        it "can't fetch a block that doesn't exist" $ \(_, url) -> do
-            mgr <- newManager defaultManagerSettings
-            let jml = Jormungandr.mkJormungandrClient mgr url
-            let nonexistent = Hash "kitten"
-            res <- runExceptT (Jormungandr.getBlock jml nonexistent)
-            res `shouldBe` Left (ErrGetBlockNotFound nonexistent)
+        it "can't get account state for account that does not exist" $
+            \(_, url) -> do
+                manager <- newManager defaultManagerSettings
+                let client = Jormungandr.mkJormungandrClient manager url
+                res <- runExceptT $
+                    Jormungandr.getAccountState client nonexistentAccountId
+                res `shouldBe` Left
+                    (ErrGetAccountStateAccountNotFound nonexistentAccountId)
 
-        it "can't fetch a blocks from a parent that doesn't exist" $ \(_, url) -> do
-            mgr <- newManager defaultManagerSettings
-            let jml = Jormungandr.mkJormungandrClient mgr url
-            let nonexistent = Hash "cat"
-            res <- runExceptT (Jormungandr.getDescendantIds jml nonexistent 42)
-            res `shouldBe` Left (ErrGetDescendantsParentNotFound nonexistent)
+        it "can't fetch a block that doesn't exist" $
+            \(_, url) -> do
+                mgr <- newManager defaultManagerSettings
+                let jml = Jormungandr.mkJormungandrClient mgr url
+                let nonexistent = Hash "kitten"
+                res <- runExceptT (Jormungandr.getBlock jml nonexistent)
+                res `shouldBe` Left (ErrGetBlockNotFound nonexistent)
 
-        it "returns correct error when backend is not started" $ \(_, url) -> do
-            mgr <- newManager defaultManagerSettings
-            -- connect with a base URL for which the backend is not started on
-            let url' = url { baseUrlPort = baseUrlPort url + 5 }
-            let jml = Jormungandr.mkJormungandrClient mgr url'
-            res <- runExceptT (Jormungandr.getBlock jml (Hash "xyzzy"))
-            res `shouldSatisfy` \case
-                Left (ErrGetBlockNetworkUnreachable _) -> True
-                _ -> False
+        it "can't fetch a blocks from a parent that doesn't exist" $
+            \(_, url) -> do
+                mgr <- newManager defaultManagerSettings
+                let jml = Jormungandr.mkJormungandrClient mgr url
+                let nonexistent = Hash "cat"
+                res <- runExceptT $
+                    Jormungandr.getDescendantIds jml nonexistent 42
+                res `shouldBe` Left
+                    (ErrGetDescendantsParentNotFound nonexistent)
+
+        it "returns correct error when backend is not started" $
+            \(_, url) -> do
+                mgr <- newManager defaultManagerSettings
+                -- connect with a base URL on which the backend is not started:
+                let url' = url { baseUrlPort = baseUrlPort url + 5 }
+                let jml = Jormungandr.mkJormungandrClient mgr url'
+                res <- runExceptT (Jormungandr.getBlock jml (Hash "xyzzy"))
+                res `shouldSatisfy` \case
+                    Left (ErrGetBlockNetworkUnreachable _) -> True
+                    _ -> False
 
     -- NOTE: 'Right ()' just means that the format wasn't obviously wrong.
     -- The tx may still be rejected.
@@ -308,15 +349,15 @@ spec = do
 
         it "encoder throws an exception if tx is invalid (eg too many inputs)" $
             \(nw, _) -> do
-            let inps = replicate 300 (head $ resolvedInputs txNonEmpty)
-            let outs = replicate 3 (head $ outputs txNonEmpty)
-            let tx = (Tx (fragmentId inps outs []) inps outs, [])
-            runExceptT (postTx nw tx) `shouldThrow` anyException
+                let inps = replicate 300 (head $ resolvedInputs txNonEmpty)
+                let outs = replicate 3 (head $ outputs txNonEmpty)
+                let tx = (Tx (fragmentId inps outs []) inps outs, [])
+                runExceptT (postTx nw tx) `shouldThrow` anyException
 
     describe "Decode External Tx" $ do
         let tl = newTransactionLayer @'Testnet @ShelleyKey (Hash "genesis")
 
-        it "decodeExternalTx works ok with properly constructed binary blob" $ do
+        it "decodeExternalTx works ok with properly constructed binary blob" $
             property $ \(SignedTx signedTx) -> monadicIO $ liftIO $ do
                 let encode ((Tx _ inps outs), wits) = runPut
                         $ withHeader FragmentTransaction
@@ -325,7 +366,7 @@ spec = do
                 decodeSignedTx tl encodedSignedTx `shouldBe` Right signedTx
 
         it "decodeExternalTx throws an exception when binary blob has non-\
-            \transaction-type header or is wrongly constructed binary blob" $ do
+            \transaction-type header or is wrongly constructed binary blob" $
             property $ \(SignedTx signedTx) -> monadicIO $ liftIO $ do
                 let encodeWrongly ((Tx _ inps outs), wits) = runPut
                         $ withHeader FragmentInitial
@@ -346,9 +387,10 @@ spec = do
                 Inherit
                 ["--secret", "test/data/jormungandr/secret.yaml"]
         let tr = nullTracer
-        e <- withJormungandr tr cfg $ \cp -> withNetworkLayer tr (UseRunning cp) $ \case
-            Right (_, nw) -> cb (nw, _restApi cp)
-            Left e -> throwIO e
+        e <- withJormungandr tr cfg $
+            \cp -> withNetworkLayer tr (UseRunning cp) $ \case
+                Right (_, nw) -> cb (nw, _restApi cp)
+                Left e -> throwIO e
         either throwIO (\_ -> return ()) e
 
     pkWitness :: TxWitness
@@ -524,3 +566,24 @@ isRollBackwardTo
 isRollBackwardTo nl sl = \case
     RollBackward cursor -> cursorSlotId nl cursor == sl
     _ -> False
+
+{-------------------------------------------------------------------------------
+                                   Test Data
+-------------------------------------------------------------------------------}
+
+mkAccountId :: Text -> AccountId
+mkAccountId = either err id . fromText
+  where
+    err = error "Unable to create test Jörmungandr account ID."
+
+testAccountId :: AccountId
+testAccountId = mkAccountId
+    "addf8bd48558b72b257408a0164c8722058b4d5337134ab9a02bc4e64194933a"
+
+nonexistentAccountId :: AccountId
+nonexistentAccountId = mkAccountId
+    "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+
+testPoolId :: PoolId
+testPoolId = unsafePoolId
+    "4f8d686a02c6e625b5a59cc9e234f32e5d72987012f9c25c9a6b60ddade197d1"

@@ -344,7 +344,9 @@ mockJormungandrClient
         -- ^ logger function
     -> JormungandrClient (StateT S m)
 mockJormungandrClient logLine = JormungandrClient
-    { getTipId = do
+    { getAccountState = \_ -> error "mock getAccountState"
+
+    , getTipId = do
         ch <- lift $ gets (nodeChainIds . node)
         let tip = fromMaybe genesisHash $ headMay ch
         lift . logLineP $ "getTipId" <> returns tip
@@ -364,13 +366,17 @@ mockJormungandrClient logLine = JormungandrClient
 
     , getDescendantIds = \parentId count -> do
         ch <- lift $ gets (nodeChainIds . node)
-        let res = fmap (take $ fromIntegral count) $ if parentId == headerHash block0H
+        let res = fmap (take $ fromIntegral count) $
+                if parentId == headerHash block0H
                 then pure (drop 1 $ reverse ch)
                 else if parentId `elem` ch then
                     pure $ reverse (takeWhile (/= parentId) ch)
                 else
                     Left $ ErrGetDescendantsParentNotFound parentId
-        lift . logLineP $ "getDescendentIds " <> show parentId <> " " <> show count
+        lift . logLineP $ "getDescendentIds "
+            <> show parentId
+            <> " "
+            <> show count
             <> returns (show res)
         lift applyOps
         except res
