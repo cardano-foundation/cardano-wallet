@@ -10,7 +10,7 @@ module Cardano.Wallet.Unsafe
     ( unsafeFromHex
     , unsafeDecodeAddress
     , unsafeDecodeHex
-    , unsafePoolId
+    , unsafeFromText
     , unsafeRunExceptT
     , unsafeXPrv
     , unsafeMkMnemonic
@@ -26,7 +26,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.Mnemonic
     ( ConsistentEntropy, EntropySize, Mnemonic, mkMnemonic )
 import Cardano.Wallet.Primitive.Types
-    ( Address, PoolId )
+    ( Address )
 import Control.Monad
     ( (>=>) )
 import Control.Monad.Fail
@@ -42,7 +42,7 @@ import Data.ByteString
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( fromText )
+    ( FromText (..) )
 import GHC.Stack
     ( HasCallStack )
 
@@ -69,11 +69,9 @@ unsafeDecodeAddress =
 unsafeDecodeHex :: HasCallStack => Get a -> ByteString -> a
 unsafeDecodeHex get = runGet get . BL.fromStrict . unsafeFromHex
 
--- | Decode the given 'PoolId' from 'Text', or fail.
-unsafePoolId :: Text -> PoolId
-unsafePoolId = either (error textError) id . fromText
-  where
-    textError = "Unable to construct stake pool ID."
+-- | Decode the given data-type from a textual representation, or fail.
+unsafeFromText :: (FromText a, HasCallStack) => Text -> a
+unsafeFromText = either (error . show) id . fromText
 
 -- | Build a 'XPrv' from an hex-encoded bytestring
 unsafeXPrv :: HasCallStack => ByteString -> XPrv
