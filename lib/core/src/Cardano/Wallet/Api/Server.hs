@@ -832,6 +832,9 @@ joinStakePool ctx spl (ApiT poolId) (ApiT wid) passwd = do
             liftHandler $ withWorkerCtx ctx wid liftE3 $ \wrk ->
                 W.submitCert @_ @s @t @k wrk wid poolId (tx, meta, wit)
 
+            liftHandler $ withWorkerCtx ctx wid throwE $ \wrk ->
+                W.updateWallet wrk wid (modify poolId)
+
             pure $ mkApiTransaction
                 (txId tx)
                 (fmap Just <$> selection ^. #inputs)
@@ -842,6 +845,8 @@ joinStakePool ctx spl (ApiT poolId) (ApiT wid) passwd = do
     liftE1 = throwE . ErrCreateCertNoSuchWallet
     liftE2 = throwE . ErrSignCertNoSuchWallet
     liftE3 = throwE . ErrSubmitCertNoSuchWallet
+    modify :: PoolId -> WalletMetadata -> WalletMetadata
+    modify pool meta = meta { delegation = W.Delegating pool }
 
 quitStakePool
     :: forall n k.
