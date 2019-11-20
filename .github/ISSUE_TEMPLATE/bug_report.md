@@ -4,11 +4,6 @@ about: Create a bug report
 
 ---
 
-| Release | Operating System       | Cause |
-| ---     | ---                    | ---   |
-| next    | Windows & OSX & Linux) | Code  v Configuration v Environment v Human v Unknown |
-
-
 # Context
  
 <!-- WHEN CREATED
@@ -17,10 +12,18 @@ it evolves in. References to documentation and or other tickets are
 welcome.
 --> 
 
+
+| Information  | -                                                     |
+| ---          | ---                                                   |
+| Version      | <!-- Use the output from `cardano-wallet version` --> |
+| Platform     | <!-- Windows, Mac OS, Linux, Docker, All -->          |
+| Installation | <!-- From Source? From Github Release? -->            |
+
+
 # Steps to Reproduce
 
 <!-- WHEN CREATED
-Steps to reproduce the behavior
+Steps to reproduce the behavior.
 -->
 
 1. ...
@@ -33,40 +36,26 @@ A clear and concise description of what you expected to happen.
 
 ## Actual behavior
  
-<A clear and concise description of what you observe instead. If applicable add screenshots to help explain your problem.>
-
-
-
+<!-- WHEN CREATED
+A clear and concise description of what you observe instead. If applicable add
+screenshots to help explain your problem.
+-->
 
 
 ---
 
-# Resolution Plan
+# Resolution 
 
 <!-- WHEN IN PROGRESS
 What is happening? How is this going to be fixed? Detail the approach and give,
-in the form of a TODO list steps toward the resolution of the bug. This may be
-refined as the investigation progresses.
+in the form of a TODO list steps toward the resolution of the bug. Attach a PR to
+each item in the list.
+
+This may be refined as the investigation progresses.
 -->
 
 
-# PR
-
-<!-- WHEN IN PROGRESS
-List of all PRs related to this ticket.
-
-e.g.
-
-| Number | Base            |
-| ---    | ---             |
-| #14    | `develop`       |
-| #42    | `release/2.0.0` |
--->
-
-| Number   | Base      |
-| ---      | ---       |
-| #?       | `develop` |
-
+---
 
 # QA 
 

@@ -21,5 +21,6 @@ Don't forget to:
  ✓ Assign yourself to the PR
  ✓ Assign one or several reviewer(s)
  ✓ Once created, link this PR to its corresponding ticket
+ ✓ Assign the PR to a corresponding milestone
  ✓ Acknowledge any changes required to the Wiki
 -->
