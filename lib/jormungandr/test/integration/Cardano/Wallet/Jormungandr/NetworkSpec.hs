@@ -17,7 +17,7 @@ import Cardano.BM.Trace
 import Cardano.Wallet.Jormungandr.Api
     ( GetTipId, api )
 import Cardano.Wallet.Jormungandr.Api.Client
-    ( ErrGetAccountState (..) )
+    ( ErrGetAccountState (..), JormungandrClient )
 import Cardano.Wallet.Jormungandr.Api.Types
     ( AccountId (..), AccountState (..) )
 import Cardano.Wallet.Jormungandr.Binary
@@ -74,7 +74,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Transaction
     ( ErrDecodeSignedTx (..), TransactionLayer (..) )
 import Cardano.Wallet.Unsafe
-    ( unsafeDecodeAddress, unsafeFromHex, unsafePoolId, unsafeRunExceptT )
+    ( unsafeDecodeAddress, unsafeFromHex, unsafeFromText, unsafeRunExceptT )
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.MVar
@@ -88,7 +88,7 @@ import Control.Monad
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
-    ( runExceptT )
+    ( ExceptT, runExceptT )
 import Control.Retry
     ( limitRetries, retrying )
 import Data.ByteString
@@ -99,10 +99,6 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( fromText )
 import Data.Word
     ( Word8 )
 import Network.HTTP.Client
@@ -115,6 +111,7 @@ import System.Process
     ( StdStream (..) )
 import Test.Hspec
     ( Spec
+    , SpecWith
     , anyException
     , around
     , describe
@@ -141,6 +138,7 @@ import Test.Utils.Ports
 
 import qualified Cardano.Wallet.Jormungandr.Api.Client as Jormungandr
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 
 {-# ANN spec ("HLint: ignore Use head" :: String) #-}
@@ -261,32 +259,38 @@ spec = do
     describe "White-box error path tests" $
         around startNode $ do
 
-        it "can't get account state for account that does not exist" $
-            \(_, url) -> do
-                manager <- newManager defaultManagerSettings
-                let client = Jormungandr.mkJormungandrClient manager url
-                res <- runExceptT $
-                    Jormungandr.getAccountState client nonexistentAccountId
-                res `shouldBe` Left
-                    (ErrGetAccountStateAccountNotFound nonexistentAccountId)
+        testNotFound
+            "getAccountState"
+            Jormungandr.getAccountState
+            (AccountId $ B8.replicate 32 '0')
+            ErrGetAccountStateAccountNotFound
 
-        it "can't fetch a block that is invalid" $
-            \(_, url) -> do
-                mgr <- newManager defaultManagerSettings
-                let jml = Jormungandr.mkJormungandrClient mgr url
-                let nonexistent = Hash "kitten"
-                let io = runExceptT $
-                        Jormungandr.getBlock jml nonexistent
-                io `shouldThrow` isUnexpectedNetworkFailure
+        testGetInvalid
+            "getAccountState"
+            Jormungandr.getAccountState
+            (AccountId "patate")
 
-        it "can't fetch a blocks from a parent that is invalid" $
-            \(_, url) -> do
-                mgr <- newManager defaultManagerSettings
-                let jml = Jormungandr.mkJormungandrClient mgr url
-                let nonexistent = Hash "cat"
-                let io = runExceptT $
-                        Jormungandr.getDescendantIds jml nonexistent 42
-                io `shouldThrow` isUnexpectedNetworkFailure
+        testNotFound
+            "getBlock"
+            Jormungandr.getBlock
+            (Hash $ B8.replicate 32 '0')
+            ErrGetBlockNotFound
+
+        testGetInvalid
+            "getBlock"
+            Jormungandr.getBlock
+            (Hash "patate")
+
+        testNotFound
+            "getDescendantIds"
+            (\client rid -> Jormungandr.getDescendantIds client rid 10)
+            (Hash $ B8.replicate 32 '0')
+            ErrGetDescendantsParentNotFound
+
+        testGetInvalid
+            "getBlockDescendantIds"
+            (\client rid -> Jormungandr.getDescendantIds client rid 10)
+            (Hash "patate")
 
         it "returns correct error when backend is not started" $
             \(_, url) -> do
@@ -450,6 +454,36 @@ spec = do
             ]
         }
 
+-- | Exercise a particular Jörmungandr API getter and expect a 404 Not Found.
+testNotFound
+    :: (Show err, Eq err, Show result, Eq result)
+    => String
+    -> (forall m. JormungandrClient m -> resourceId -> ExceptT err m result)
+    -> resourceId
+    -> (resourceId -> err)
+    -> SpecWith (whatever, BaseUrl)
+testNotFound fn endpoint resourceId err =
+    it (fn <> ": not found") $ \(_, url) -> do
+        manager <- newManager defaultManagerSettings
+        let client = Jormungandr.mkJormungandrClient manager url
+        res <- runExceptT $ endpoint client resourceId
+        res `shouldBe` Left (err resourceId)
+
+testGetInvalid
+    :: String
+    -> (forall m. JormungandrClient m -> resourceId -> ExceptT err m result)
+    -> resourceId
+    -> SpecWith (whatever, BaseUrl)
+testGetInvalid fn endpoint resourceId =
+    it (fn <> ": invalid") $ \(_, url) -> do
+        manager <- newManager defaultManagerSettings
+        let client = Jormungandr.mkJormungandrClient manager url
+        let io = runExceptT $ endpoint client resourceId
+        io `shouldThrow` isUnexpectedNetworkFailure
+  where
+    isUnexpectedNetworkFailure :: ErrUnexpectedNetworkFailure -> Bool
+    isUnexpectedNetworkFailure ErrUnexpectedNetworkFailure{} = True
+
 instance Show (NextBlocksResult t b) where
     show AwaitReply = "AwaitReply"
     show (RollForward _ _ bs) = "RollForward " ++ show (length bs) ++ " blocks"
@@ -567,26 +601,14 @@ isRollBackwardTo nl sl = \case
     RollBackward cursor -> cursorSlotId nl cursor == sl
     _ -> False
 
-isUnexpectedNetworkFailure :: ErrUnexpectedNetworkFailure -> Bool
-isUnexpectedNetworkFailure ErrUnexpectedNetworkFailure{} = True
-
 {-------------------------------------------------------------------------------
                                    Test Data
 -------------------------------------------------------------------------------}
 
-mkAccountId :: Text -> AccountId
-mkAccountId = either err id . fromText
-  where
-    err = error "Unable to create test Jörmungandr account ID."
-
 testAccountId :: AccountId
-testAccountId = mkAccountId
+testAccountId = unsafeFromText
     "addf8bd48558b72b257408a0164c8722058b4d5337134ab9a02bc4e64194933a"
 
-nonexistentAccountId :: AccountId
-nonexistentAccountId = mkAccountId
-    "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
-
 testPoolId :: PoolId
-testPoolId = unsafePoolId
+testPoolId = unsafeFromText
     "4f8d686a02c6e625b5a59cc9e234f32e5d72987012f9c25c9a6b60ddade197d1"
