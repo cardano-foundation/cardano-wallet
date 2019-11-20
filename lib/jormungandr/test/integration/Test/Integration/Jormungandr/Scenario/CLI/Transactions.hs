@@ -12,14 +12,10 @@ import Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiTxId (..), ApiWallet, getApiT )
-import Cardano.Wallet.Jormungandr.Binary
-    ( FragmentSpec (..), runPut, withHeader )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..), hex )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..), SignedTxBinary (..), Tx (..) )
-import Data.Binary.Put
-    ( putByteString )
+    ( Hash (..), Tx (..) )
 import Data.ByteArray.Encoding
     ( Base (Base16, Base64), convertToBase )
 import Data.Generics.Internal.VL.Lens
@@ -132,22 +128,11 @@ spec = do
 
     it "TRANS_EXTERNAL_CREATE_03 - proper single output transaction and \
        \wrong binary format" $ \ctx -> do
-        let toSend = 1 :: Natural
-        (ExternalTxFixture _ _ _ bin _) <- fixtureExternalTx ctx toSend
-
-        let run = SignedTxBinary . BL.toStrict . runPut
-        let putBin (SignedTxBinary bs) = putByteString bs
-        let addHeader = run . (withHeader FragmentTransaction) . putBin
-
-        let wrongTx = addHeader bin
-        let baseOk = Base16
-        let arg = B8.unpack $ convertToBase baseOk wrongTx
-
-        -- post external transaction
-        (Exit code, Stdout out, Stderr err) <-
-            postExternalTransactionViaCLI @t ctx [arg]
+        let invalidArg = "0000"
+        (Exit code, Stdout out, Stderr err)
+            <- postExternalTransactionViaCLI @t ctx [invalidArg]
         err `shouldContain` errMsg400MalformedTxPayload
-        out `shouldBe` ""
+        out `shouldBe` mempty
         code `shouldBe` ExitFailure 1
 
     it "TRANS_DELETE_05 - Cannot forget external tx via CLI" $ \ctx -> do
