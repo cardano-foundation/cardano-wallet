@@ -80,7 +80,7 @@ prop_combineDefaults
 prop_combineDefaults mStake = do
     combineMetrics mStake Map.empty Map.empty
     ===
-    (Right $ Map.map (, Quantity 0, 0) mStake)
+    Right (Map.map (, Quantity 0, 0) mStake)
 
 -- | it fails if a block-producer or performance is not in the stake distr
 prop_combineIsLeftBiased
