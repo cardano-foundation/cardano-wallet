@@ -37,7 +37,13 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, mkSeqState )
 import Cardano.Wallet.Primitive.Types
-    ( Coin (..), SignedTxBinary (..), TxIn (..), TxOut (..), WalletId )
+    ( Coin (..)
+    , SignedTxBinary (..)
+    , Tx (..)
+    , TxIn (..)
+    , TxOut (..)
+    , WalletId
+    )
 import Cardano.Wallet.Transaction
     ( TransactionLayer (..) )
 import Control.Monad
@@ -234,7 +240,7 @@ spec = do
     it "TRANS_EXTERNAL_CREATE_01 - proper single output transaction and \
        \proper binary format" $ \ctx -> do
         let toSend = 1 :: Natural
-        (ExternalTxFixture wSrc wDest fee tx) <-
+        (ExternalTxFixture wSrc wDest fee tx _) <-
                 fixtureExternalTx ctx toSend
         let baseOk = Base64
         let encodedSignedTx = txToBase tx baseOk
@@ -260,7 +266,7 @@ spec = do
     it "TRANS_EXTERNAL_CREATE_02 - proper single output transaction and \
        \improper binary format" $ \ctx -> do
         let toSend = 1 :: Natural
-        (ExternalTxFixture _ _ _ tx) <-
+        (ExternalTxFixture _ _ _ tx _) <-
                 fixtureExternalTx ctx toSend
         let baseWrong = Base16
         let wronglyEncodedTx = txToBase tx baseWrong
@@ -276,7 +282,7 @@ spec = do
     it "TRANS_EXTERNAL_CREATE_03 - proper single output transaction and \
        \wrong binary format" $ \ctx -> do
         let toSend = 1 :: Natural
-        (ExternalTxFixture _ _ _ tx) <- fixtureExternalTx ctx toSend
+        (ExternalTxFixture _ _ _ tx _) <- fixtureExternalTx ctx toSend
         let baseOk = Base16
         let wronglyEncodedSignedTx = txToBase tx baseOk
         let payload = NonJson $ BL.fromStrict $
@@ -394,6 +400,7 @@ data ExternalTxFixture = ExternalTxFixture
     , dstWallet :: ApiWallet
     , feeMin :: Natural
     , txBinary :: SignedTxBinary
+    , txTx :: Tx
     }
 
 fixtureExternalTx
@@ -474,13 +481,14 @@ fixtureExternalTx ctx toSend = do
             , TxOut addrChng (Coin (fromIntegral $ amt - toSend - fee))
             ]
     tl <- newTransactionLayer @'Testnet <$> getBlock0H
-    let (Right (_, tx)) = mkStdTx tl keystore theInps theOuts
+    let (Right (tx, bin)) = mkStdTx tl keystore theInps theOuts
 
     return ExternalTxFixture
         { srcWallet = wSrc
         , dstWallet = wDest
         , feeMin = fee
-        , txBinary = tx
+        , txBinary = bin
+        , txTx = tx
         }
   where
       getSeqState mnemonic password =
