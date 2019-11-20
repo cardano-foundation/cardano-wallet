@@ -414,6 +414,8 @@ stakeDelegationTypeTag = \case
 
 -- | Decode the contents of a @Transaction@-fragment carrying a delegation cert.
 --
+-- Corresponds to STAKE-DELEGATION in the specification.
+--
 -- Returns 'Nothing' for unsupported stake delegation types: DLG-NONE & DLG-RATIO
 getStakeDelegation
     :: Hash "Tx"
