@@ -70,6 +70,7 @@ import Cardano.Wallet.Primitive.Types
     , EpochLength (..)
     , FeePolicy (..)
     , Hash (..)
+    , PoolId (..)
     , SlotLength (..)
     , SlotParameters (SlotParameters)
     , StartTime (..)
@@ -280,8 +281,12 @@ updateState s (Wallet u tip _ bp) = Wallet u tip s bp
 
 -- | Represents the subset of data from a single block that are relevant to a
 --   particular wallet, discovered when applying a block to that wallet.
-newtype FilteredBlock = FilteredBlock
-    { transactions :: [(Tx, TxMeta)]
+data FilteredBlock = FilteredBlock
+    { delegations :: ![PoolId]
+        -- ^ Stake delegations made on behalf of the wallet, listed in order of
+        -- discovery. If the list contains more than element, those that appear
+        -- later in the list supercede those that appear earlier on.
+    , transactions :: ![(Tx, TxMeta)]
         -- ^ The set of transactions that affect the wallet.
     } deriving (Generic, Show, Eq)
 
@@ -298,7 +303,9 @@ applyBlock
     -> (FilteredBlock, Wallet s)
 applyBlock !b (Wallet !u _ s bp) =
     ( FilteredBlock
-        { transactions = txs }
+        { delegations = []
+        , transactions = txs
+        }
     , Wallet u' (b ^. #header) s' bp
     )
   where
