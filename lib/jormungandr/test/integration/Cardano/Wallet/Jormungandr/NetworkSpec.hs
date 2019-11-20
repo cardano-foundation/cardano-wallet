@@ -270,23 +270,23 @@ spec = do
                 res `shouldBe` Left
                     (ErrGetAccountStateAccountNotFound nonexistentAccountId)
 
-        it "can't fetch a block that doesn't exist" $
+        it "can't fetch a block that is invalid" $
             \(_, url) -> do
                 mgr <- newManager defaultManagerSettings
                 let jml = Jormungandr.mkJormungandrClient mgr url
                 let nonexistent = Hash "kitten"
-                res <- runExceptT (Jormungandr.getBlock jml nonexistent)
-                res `shouldBe` Left (ErrGetBlockNotFound nonexistent)
+                let io = runExceptT $
+                        Jormungandr.getBlock jml nonexistent
+                io `shouldThrow` isUnexpectedNetworkFailure
 
-        it "can't fetch a blocks from a parent that doesn't exist" $
+        it "can't fetch a blocks from a parent that is invalid" $
             \(_, url) -> do
                 mgr <- newManager defaultManagerSettings
                 let jml = Jormungandr.mkJormungandrClient mgr url
                 let nonexistent = Hash "cat"
-                res <- runExceptT $
-                    Jormungandr.getDescendantIds jml nonexistent 42
-                res `shouldBe` Left
-                    (ErrGetDescendantsParentNotFound nonexistent)
+                let io = runExceptT $
+                        Jormungandr.getDescendantIds jml nonexistent 42
+                io `shouldThrow` isUnexpectedNetworkFailure
 
         it "returns correct error when backend is not started" $
             \(_, url) -> do
@@ -566,6 +566,9 @@ isRollBackwardTo
 isRollBackwardTo nl sl = \case
     RollBackward cursor -> cursorSlotId nl cursor == sl
     _ -> False
+
+isUnexpectedNetworkFailure :: ErrUnexpectedNetworkFailure -> Bool
+isUnexpectedNetworkFailure ErrUnexpectedNetworkFailure{} = True
 
 {-------------------------------------------------------------------------------
                                    Test Data
