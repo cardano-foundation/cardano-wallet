@@ -56,7 +56,7 @@ import Cardano.Wallet.Jormungandr.Api
     , api
     )
 import Cardano.Wallet.Jormungandr.Api.Types
-    ( AccountId, AccountState, BlockId (..), StakeApiResponse )
+    ( AccountId (..), AccountState, BlockId (..), StakeApiResponse )
 import Cardano.Wallet.Jormungandr.Binary
     ( ConfigParam (..), Fragment (..), convertBlock )
 import Cardano.Wallet.Jormungandr.Compatibility
@@ -128,7 +128,7 @@ import qualified Data.Text.Encoding as T
 -- | Endpoints of the jormungandr REST API.
 data JormungandrClient m = JormungandrClient
     { getAccountState
-        :: AccountId
+        :: Hash "Account"
         -> ExceptT ErrGetAccountState m AccountState
     , getTipId
         :: ExceptT ErrNetworkUnavailable m (Hash "BlockHeader")
@@ -154,12 +154,15 @@ mkJormungandrClient
     :: Manager -> BaseUrl -> JormungandrClient IO
 mkJormungandrClient mgr baseUrl = JormungandrClient
     { getAccountState = \accountId -> ExceptT $ do
-        let action = cGetAccountState accountId
+        let action = cGetAccountState (AccountId accountId)
         run action >>= \case
             Left (FailureResponse e) | responseStatusCode e == status404 ->
                 return $ Left $ ErrGetAccountStateAccountNotFound accountId
             x -> do
-                let ctx = safeLink api (Proxy @GetAccountState) accountId
+                let ctx = safeLink
+                        api
+                        (Proxy @GetAccountState)
+                        (AccountId accountId)
                 left ErrGetAccountStateNetworkUnreachable
                     <$> defaultHandler ctx x
 
@@ -170,17 +173,20 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
     , getBlock = \blockId -> ExceptT $ do
         let action = cGetBlock (BlockId blockId)
         run action >>= \case
-            Left (FailureResponse e) | responseStatusCode e == status400 ->
+            Left (FailureResponse e) | responseStatusCode e == status404 ->
                 return $ Left $ ErrGetBlockNotFound blockId
             x -> do
-                let ctx = safeLink api (Proxy @GetBlock) (BlockId blockId)
+                let ctx = safeLink
+                        api
+                        (Proxy @GetBlock)
+                        (BlockId blockId)
                 left ErrGetBlockNetworkUnreachable <$> defaultHandler ctx x
 
     , getDescendantIds = \parentId count -> ExceptT $ do
         let action = map getBlockId <$>
                 cGetBlockDescendantIds (BlockId parentId) (Just count)
         run action >>= \case
-            Left (FailureResponse e) | responseStatusCode e == status400 ->
+            Left (FailureResponse e) | responseStatusCode e == status404 ->
                 return $ Left $ ErrGetDescendantsParentNotFound parentId
             x -> do
                 let ctx = safeLink
@@ -197,10 +203,9 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
     -- https://github.com/input-output-hk/jormungandr/blob/fe638a36d4be64e0c4b360ba1c041e8fa10ea024/jormungandr/src/rest/v0/message/post.rs#L25-L39
     , postMessage = \tx -> void $ ExceptT $ do
         run (cPostMessage tx) >>= \case
-            Left (FailureResponse e)
-                | responseStatusCode e == status400 -> do
-                    let msg = T.decodeUtf8 $ BL.toStrict $ responseBody e
-                    return $ Left $ ErrPostTxBadRequest msg
+            Left (FailureResponse e) | responseStatusCode e == status400 -> do
+                let msg = T.decodeUtf8 $ BL.toStrict $ responseBody e
+                return $ Left $ ErrPostTxBadRequest msg
             x -> do
                 let ctx = safeLink api (Proxy @PostMessage)
                 left ErrPostTxNetworkUnreachable <$> defaultHandler ctx x
@@ -208,11 +213,10 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
     , getInitialBlockchainParameters = \block0 -> do
         let action = cGetBlock $ BlockId $ coerce block0
         jblock@(J.Block _ msgs) <- ExceptT $ run action >>= \case
-            Left (FailureResponse e)
-                | responseStatusCode e `elem` [status400, status404] ->
-                    return
-                        $ Left
-                        $ ErrGetBlockchainParamsGenesisNotFound block0
+            Left (FailureResponse e) | responseStatusCode e == status404 ->
+                return
+                    $ Left
+                    $ ErrGetBlockchainParamsGenesisNotFound block0
             x -> do
                 let ctx = safeLink
                         api
@@ -360,7 +364,7 @@ instance Exception ErrUnexpectedNetworkFailure
 
 data ErrGetAccountState
     = ErrGetAccountStateNetworkUnreachable ErrNetworkUnavailable
-    | ErrGetAccountStateAccountNotFound AccountId
+    | ErrGetAccountStateAccountNotFound (Hash "Account")
     deriving (Eq, Show)
 
 data ErrGetDescendants

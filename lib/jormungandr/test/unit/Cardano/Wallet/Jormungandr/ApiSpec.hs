@@ -13,8 +13,7 @@ module Cardano.Wallet.Jormungandr.ApiSpec
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Api.Types
-    ( AccountId (..)
-    , AccountState (..)
+    ( AccountState (..)
     , ApiStakeDistribution (..)
     , ApiT (..)
     , StakeApiResponse (..)
@@ -22,9 +21,9 @@ import Cardano.Wallet.Jormungandr.Api.Types
 import Cardano.Wallet.Primitive.Types
     ( PoolId (..) )
 import Cardano.Wallet.Unsafe
-    ( unsafePoolId )
+    ( unsafeFromText )
 import Control.Monad
-    ( forM_, replicateM )
+    ( replicateM )
 import Data.Aeson
     ( eitherDecode )
 import Data.Aeson.QQ
@@ -33,10 +32,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text
-    ( Text )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( ToText (..) )
 import Data.Word
     ( Word64 )
 import Test.Aeson.Internal.RoundtripSpecs
@@ -45,8 +42,6 @@ import Test.Hspec
     ( Spec, describe, it, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..) )
-import Test.Text.Roundtrip
-    ( textRoundtrip )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
@@ -55,34 +50,8 @@ import qualified Data.ByteString.Lazy as BL
 spec :: Spec
 spec = do
     describe "Jormungandr Api" $ do
-
-        describe "Textual roundtrip tests for API types" $ do
-
-            textRoundtrip $ Proxy @AccountId
-
         describe "JSON roundtrip tests for API types" $ do
-
             roundtripSpecs $ Proxy @AccountState
-
-        it "Valid account IDs are properly decoded from text" $ do
-
-            forM_ testAccountIdTexts $ \text ->
-                toText <$> fromText @AccountId text
-                    `shouldBe` Right text
-
-        it "Invalid account IDs cannot be decoded from text" $ do
-
-            let invalidAccountIdTexts =
-                    [ ""
-                    , "a"
-                    , "0123456789abcdef"
-                    ]
-            let expectedErrorMessage =
-                    "Invalid Jörmungandr account ID: \
-                    \expecting a hex-encoded value that is 32 bytes in length."
-            forM_ invalidAccountIdTexts $ \text ->
-                toText <$> fromText @AccountId text
-                    `shouldBe` Left (TextDecodingError expectedErrorMessage)
 
         describe "Example account state objects are properly decoded" $ do
 
@@ -230,10 +199,6 @@ spec = do
                              Arbitrary Instances
 -------------------------------------------------------------------------------}
 
-instance Arbitrary AccountId where
-    arbitrary = AccountId . BS.pack <$> replicateM 32 arbitrary
-    shrink _ = []
-
 instance Arbitrary AccountState where
     arbitrary = AccountState
         <$> arbitrary
@@ -260,29 +225,10 @@ instance Arbitrary (Quantity "transaction-count" Word64) where
                                   Test data
 -------------------------------------------------------------------------------}
 
-testAccountIdTexts :: [Text]
-testAccountIdTexts =
-    [ testAccountIdText1
-    , testAccountIdText2
-    , testAccountIdText3
-    ]
-
-testAccountIdText1 :: Text
-testAccountIdText1 =
-    "addf8bd48558b72b257408a0164c8722058b4d5337134ab9a02bc4e64194933a"
-
-testAccountIdText2 :: Text
-testAccountIdText2 =
-    "c0bd85194eeff70ddfdd4f6302b1b86c69b0474e48a97f78cd3f9ec7669c2c90"
-
-testAccountIdText3 :: Text
-testAccountIdText3 =
-    "853296463f54371de809799ed7cbde26d6791b51d842f61aedb2c2454a7d7a07"
-
 testPoolId1 :: PoolId
-testPoolId1 = unsafePoolId
+testPoolId1 = unsafeFromText
     "c780f14f9782770014d8bcd514b1bc664653d15f73a7158254730c6e1aa9f356"
 
 testPoolId2 :: PoolId
-testPoolId2 = unsafePoolId
+testPoolId2 = unsafeFromText
     "653f9aa1e6c0374528517a37f51d356466cb1b415dcb8d4100772879f41f087c"

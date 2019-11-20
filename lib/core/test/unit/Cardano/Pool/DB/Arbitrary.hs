@@ -100,8 +100,8 @@ instance Arbitrary StakePoolsFixture where
         mkBlockHeader s = BlockHeader
             { slotId = s
             , blockHeight = Quantity 0
-            , headerHash = Hash "headerHash"
-            , parentHeaderHash = Hash "parentHeaderHash"
+            , headerHash = Hash "00000000000000000000000000000001"
+            , parentHeaderHash = Hash "00000000000000000000000000000000"
             }
 
         epochLength :: EpochLength

@@ -31,8 +31,8 @@ import Test.Integration.Framework.DSL
     , eventuallyUsingDelay_
     , eventually_
     , expectErrorMessage
-    , expectListItemFieldBetween
     , expectListItemFieldEqual
+    , expectListItemFieldSatisfy
     , expectListSizeEqual
     , expectResponseCode
     , joinStakePool
@@ -76,10 +76,10 @@ spec = do
 
                 , expectListItemFieldEqual 0
                     (metrics . stake) 1
-                , expectListItemFieldBetween 0
-                    (metrics . blocks) (1, 2)
-                , expectListItemFieldBetween 0
-                    apparentPerformance (0.8, 1)
+                , expectListItemFieldSatisfy 0
+                    (metrics . blocks) (> 1)
+                , expectListItemFieldSatisfy 0
+                    apparentPerformance (> 0)
 
                 , expectListItemFieldEqual 1
                     (metrics . stake) 1

@@ -88,6 +88,8 @@ import Cardano.Wallet.Primitive.Types
     , walletNameMinLength
     , wholeRange
     )
+import Cardano.Wallet.Unsafe
+    ( unsafeFromHex )
 import Control.DeepSeq
     ( deepseq )
 import Control.Monad
@@ -111,7 +113,7 @@ import Data.Set
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( TextDecodingError (..), fromText )
+    ( TextDecodingError (..), fromText, toText )
 import Data.Time
     ( UTCTime )
 import Data.Time.Utils
@@ -121,7 +123,7 @@ import Data.Word
 import Fmt
     ( pretty )
 import Test.Hspec
-    ( Spec, describe, it, shouldNotSatisfy, shouldSatisfy )
+    ( Spec, describe, it, shouldBe, shouldNotSatisfy, shouldSatisfy )
 import Test.QuickCheck
     ( Arbitrary (..)
     , NonNegative (..)
@@ -172,7 +174,16 @@ spec = do
         textRoundtrip $ Proxy @WalletId
         textRoundtrip $ Proxy @(Hash "Genesis")
         textRoundtrip $ Proxy @(Hash "Tx")
+        textRoundtrip $ Proxy @(Hash "Account")
+        textRoundtrip $ Proxy @(Hash "Block")
+        textRoundtrip $ Proxy @(Hash "BlockHeader")
         textRoundtrip $ Proxy @SyncTolerance
+
+        -- Extra hand-crafted tests
+        it "Valid account IDs are properly decoded from text" $ do
+            forM_ testAccountIdTexts $ \text ->
+                toText <$> fromText @(Hash "Account") text
+                    `shouldBe` Right text
 
     describe "Buildable" $ do
         it "WalletId" $ do
@@ -576,10 +587,31 @@ spec = do
             let err = "wallet id should be a hex-encoded string \
                       \of 40 characters"
             fromText @WalletId "101" === Left (TextDecodingError err)
+        it "fail fromText (@Hash \"Tx\")" $ do
+            let err =
+                    "Invalid tx hash: \
+                    \expecting a hex-encoded value that is 32 bytes in length."
+            fromText @(Hash "Tx") "----" === Left (TextDecodingError err)
         it "fail fromText (@Hash \"Genesis\")" $ do
-            let err = "Unable to decode (Hash \"Genesis\"): \
-                      \expected Base16 encoding"
+            let err = "Invalid genesis hash: \
+                    \expecting a hex-encoded value that is 32 bytes in length."
             fromText @(Hash "Genesis") "----" === Left (TextDecodingError err)
+        it "fail fromText (@Hash \"Block\")" $ do
+            let err = "Invalid block hash: \
+                    \expecting a hex-encoded value that is 32 bytes in length."
+            fromText @(Hash "Block") "----" === Left (TextDecodingError err)
+        it "fail fromText (@Hash \"BlockHeader\")" $ do
+            let err = "Invalid blockHeader hash: \
+                    \expecting a hex-encoded value that is 32 bytes in length."
+            fromText @(Hash "BlockHeader") "----" === Left (TextDecodingError err)
+        it "Invalid account IDs cannot be decoded from text" $ do
+            let expectedErrorMessage =
+                    "Invalid account hash: \
+                    \expecting a hex-encoded value that is 32 bytes in length."
+            forM_ invalidAccountIdTexts $ \text ->
+                toText <$> fromText @(Hash "Account") text
+                    `shouldBe` Left (TextDecodingError expectedErrorMessage)
+
         let invalidFeePolicyTexts =
                 [ "1"
                 , "1x"
@@ -840,15 +872,26 @@ instance Arbitrary FeePolicy where
         f (x, y, z) = LinearFee (Quantity x) (Quantity y) (Quantity z)
 
 instance Arbitrary (Hash "Genesis") where
-    arbitrary = Hash . BS.pack <$> arbitrary
-    shrink (Hash v) = Hash . BS.pack <$> shrink (BS.unpack v)
+    arbitrary = Hash . BS.pack <$> vectorOf 32 arbitrary
+
+instance Arbitrary (Hash "Block") where
+    arbitrary = Hash . BS.pack <$> vectorOf 32 arbitrary
+
+instance Arbitrary (Hash "Account") where
+    arbitrary = Hash . BS.pack <$> vectorOf 32 arbitrary
+
+instance Arbitrary (Hash "BlockHeader") where
+    arbitrary = Hash . BS.pack <$> vectorOf 32 arbitrary
 
 instance Arbitrary (Hash "Tx") where
     -- No Shrinking
     arbitrary = oneof
-        [ pure $ Hash "TXID01"
-        , pure $ Hash "TXID02"
-        , pure $ Hash "TXID03"
+        [ pure $ Hash $ unsafeFromHex
+            "0000000000000000000000000000000000000000000000000000000000000001"
+        , pure $ Hash $ unsafeFromHex
+            "0000000000000000000000000000000000000000000000000000000000000002"
+        , pure $ Hash $ unsafeFromHex
+            "0000000000000000000000000000000000000000000000000000000000000003"
         ]
 
 -- Same for addresses
@@ -1033,3 +1076,34 @@ instance {-# OVERLAPS #-} Arbitrary (EpochLength, SlotId) where
         ep <- EpochNo <$> choose (0, 1000)
         sl <- SlotNo <$> choose (0, fromIntegral epochLength - 1)
         return (EpochLength epochLength, SlotId ep sl)
+
+
+{-------------------------------------------------------------------------------
+                                  Test data
+-------------------------------------------------------------------------------}
+
+testAccountIdTexts :: [Text]
+testAccountIdTexts =
+    [ testAccountIdText1
+    , testAccountIdText2
+    , testAccountIdText3
+    ]
+
+invalidAccountIdTexts :: [Text]
+invalidAccountIdTexts =
+    [ ""
+    , "a"
+    , "0123456789abcdef"
+    ]
+
+testAccountIdText1 :: Text
+testAccountIdText1 =
+    "addf8bd48558b72b257408a0164c8722058b4d5337134ab9a02bc4e64194933a"
+
+testAccountIdText2 :: Text
+testAccountIdText2 =
+    "c0bd85194eeff70ddfdd4f6302b1b86c69b0474e48a97f78cd3f9ec7669c2c90"
+
+testAccountIdText3 :: Text
+testAccountIdText3 =
+    "853296463f54371de809799ed7cbde26d6791b51d842f61aedb2c2454a7d7a07"

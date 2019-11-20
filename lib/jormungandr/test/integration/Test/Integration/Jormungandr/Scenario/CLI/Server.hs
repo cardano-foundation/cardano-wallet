@@ -185,11 +185,10 @@ spec = do
                         ]
                 (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t args
                 c `shouldBe` ExitFailure 1
-                e `shouldBe` mempty
-                o `shouldContain` "Failed to retrieve the genesis block.\
-                    \ The block doesn't exist! Hint: double-check the\
-                    \ genesis hash you've just gave me via '--genesis-block-hash'\
-                    \ (i.e. " ++ hash ++ ")"
+                o `shouldBe` mempty
+                e `shouldContain`
+                    "Invalid genesis hash: expecting a hex-encoded \
+                    \value that is 32 bytes in length"
 
         it "LOGGING - Non hex-encoded genesis hash shows error" $ \_ -> do
             let args =
@@ -200,8 +199,9 @@ spec = do
             (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t args
             c `shouldBe` ExitFailure 1
             o `shouldBe` mempty
-            e `shouldContain` "option --genesis-block-hash: Unable to decode\
-                \ (Hash \"Genesis\"): expected Base16 encoding"
+            e `shouldContain`
+                "Invalid genesis hash: expecting a hex-encoded \
+                \value that is 32 bytes in length"
 
 oneSecond :: Int
 oneSecond = 1000000

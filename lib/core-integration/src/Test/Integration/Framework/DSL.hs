@@ -33,6 +33,7 @@ module Test.Integration.Framework.DSL
     , expectFieldBetween
     , expectListItemFieldBetween
     , expectListItemFieldEqual
+    , expectListItemFieldSatisfy
     , expectListSizeEqual
     , expectResponseCode
     , expectEventually
@@ -419,6 +420,22 @@ expectListItemFieldEqual i getter a (c, res) = case res of
         | length xs > i -> expectFieldEqual getter a (c, Right (xs !! i))
         | otherwise -> fail $
             "expectListItemFieldEqual: trying to access the #" <> show i <>
+            " element from a list but there's none! "
+
+expectListItemFieldSatisfy
+    :: (MonadIO m, MonadFail m, Show a)
+    => Int
+    -> Lens' s a
+    -> (a -> Bool)
+    -> (HTTP.Status, Either RequestException [s])
+    -> m ()
+expectListItemFieldSatisfy i getter predicate (c, res) = case res of
+    Left e -> wantedSuccessButError e
+    Right xs
+        | length xs > i ->
+            expectFieldSatisfy getter predicate (c, Right (xs !! i))
+        | otherwise -> fail $
+            "expectListItemFieldSatisfy: trying to access the #" <> show i <>
             " element from a list but there's none! "
 
 expectListItemFieldBetween
@@ -846,10 +863,10 @@ eventuallyUsingDelay
     -> IO a
     -> IO a
 eventuallyUsingDelay delay io = do
-    winner <- race (threadDelay $ 60 * oneSecond) trial
+    winner <- race (threadDelay $ 600 * oneSecond) trial
     case winner of
         Left _ -> fail
-            "waited more than 60s for action to eventually resolve."
+            "waited more than 5min for action to eventually resolve."
         Right a ->
             return a
   where
