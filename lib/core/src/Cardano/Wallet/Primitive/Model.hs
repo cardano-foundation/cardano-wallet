@@ -285,12 +285,11 @@ applyBlock
     -> Wallet s
     -> ([(Tx, TxMeta)], Wallet s)
 applyBlock !b (Wallet !u _ s bp) =
-    let
-        ((txs, u'), s') = prefilterBlock b u s
-    in
-        ( txs
-        , Wallet u' (b ^. #header) s' bp
-        )
+    ( txs
+    , Wallet u' (b ^. #header) s' bp
+    )
+  where
+    ((txs, u'), s') = prefilterBlock b u s
 
 -- | Apply multiple blocks in sequence to an existing wallet, returning a list
 --   of intermediate wallet states.
