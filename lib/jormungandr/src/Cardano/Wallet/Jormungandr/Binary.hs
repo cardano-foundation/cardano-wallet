@@ -318,6 +318,9 @@ getTxWitnessTag = getWord8 >>= \case
     other -> fail $ "Invalid witness type: " ++ show other
 
 -- | Decode a fragment (header + contents).
+--
+-- Corresponds to FRAGMENT in the specification.
+--
 getFragment :: Get Fragment
 getFragment = label "getFragment" $ do
     size <- fromIntegral <$> getWord16be
