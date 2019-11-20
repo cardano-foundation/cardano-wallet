@@ -1278,9 +1278,9 @@ class Dom a where
     type DomElem a :: *
     dom :: a -> Set (DomElem a)
 
-newtype Hash (tag :: Symbol) = Hash
-    { getHash :: ByteString
-    } deriving (Show, Generic, Eq, Ord)
+newtype Hash (tag :: Symbol) = Hash { getHash :: ByteString }
+    deriving stock (Show, Generic, Eq, Ord)
+    deriving newtype (ByteArrayAccess)
 
 instance NFData (Hash tag)
 
