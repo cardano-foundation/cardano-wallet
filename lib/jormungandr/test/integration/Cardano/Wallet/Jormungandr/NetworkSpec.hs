@@ -114,6 +114,7 @@ import Test.Hspec
     , anyException
     , around
     , describe
+    , expectationFailure
     , it
     , runIO
     , shouldBe
@@ -312,9 +313,8 @@ spec = do
 
     -- NOTE: 'Right ()' just means that the format wasn't obviously wrong.
     -- The tx may still be rejected.
-    describe "Submitting signed transactions (that are not obviously wrong)"
+    describe "Submitting signed transactions"
         $ around startNode $ do
-
 
         it "empty tx succeeds" $ \(nw, _) -> do
             -- Would be rejected eventually.
@@ -331,7 +331,7 @@ spec = do
             let signed = uncurry mkTx unbalancedTx
             runExceptT (postTx nw signed) `shouldReturn` Right ()
 
-        it "no input, one output" $ \(nw, _) -> do
+        it "no input, one output succeeds (for now)" $ \(nw, _) -> do
             -- Would be rejected eventually.
             let outs =
                     [ (TxOut $ unsafeDecodeAddress @'Mainnet
@@ -342,10 +342,19 @@ spec = do
             let signed = mkTx [] outs
             runExceptT (postTx nw signed) `shouldReturn` Right ()
 
+        it "invalid binary should fail early" $ \(nw, _) -> do
+            let signed = SealedTx $ unsafeFromHex "0000"
+            r <- runExceptT (postTx nw signed)
+            case r of
+                Right _ -> expectationFailure "invalid tx should fail"
+                Left _ -> return ()
+
         it "encoder throws an exception if tx is invalid (eg too many inputs)" $
             \(nw, _) -> do
                 let inps = replicate 300 (head $ fst txNonEmpty)
                 let outs = replicate 3 (head $ snd txNonEmpty)
+                -- Previously it was postTx that could throw. Now it is mkTx.
+                -- But because of laziness this test still works!
                 let signed = mkTx inps outs
                 runExceptT (postTx nw signed) `shouldThrow` anyException
 
