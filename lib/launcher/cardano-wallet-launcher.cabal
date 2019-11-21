@@ -38,6 +38,7 @@ library
     , iohk-monitoring
     , process
     , text
+    , text-class
   hs-source-dirs:
       src
   exposed-modules:

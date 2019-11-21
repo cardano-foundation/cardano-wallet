@@ -31,6 +31,8 @@ import Cardano.BM.Data.LogItem
     ( PrivacyAnnotation (..) )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
+import Cardano.BM.Data.Tracer
+    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
 import Cardano.BM.Trace
     ( Trace, appendName, traceNamedItem )
 import Control.Concurrent
@@ -53,6 +55,8 @@ import Data.List
     ( isPrefixOf )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( ToText (..) )
 import Fmt
     ( Buildable (..)
     , Builder
@@ -247,23 +251,28 @@ exitStatus ExitSuccess = 0
 exitStatus (ExitFailure n) = n
 
 transformLauncherTrace :: Trace IO Text -> Trace IO LauncherLog
-transformLauncherTrace = contramap (fmap (fmt . launcherLogText))
+transformLauncherTrace = contramap (fmap toText)
 
 launcherLog :: MonadIO m => Trace m LauncherLog -> LauncherLog -> m ()
-launcherLog logTrace msg = traceNamedItem logTrace Public (launcherLogLevel msg) msg
+launcherLog logTrace msg = traceNamedItem logTrace Public (defineSeverity msg) msg
 
-launcherLogLevel :: LauncherLog -> Severity
-launcherLogLevel (MsgLauncherStart _) = Notice
-launcherLogLevel (MsgLauncherStarted _ _) = Info
-launcherLogLevel MsgLauncherWaitBefore = Debug
-launcherLogLevel (MsgLauncherWaitAfter _) = Debug
-launcherLogLevel MsgLauncherCancel = Debug
-launcherLogLevel (MsgLauncherFinish (ProcessHasExited _ st)) = case st of
-    ExitSuccess -> Notice
-    ExitFailure _ -> Error
-launcherLogLevel (MsgLauncherFinish (ProcessDidNotStart _ _)) = Error
-launcherLogLevel MsgLauncherAction = Debug
-launcherLogLevel MsgLauncherCleanup = Notice
+instance DefinePrivacyAnnotation LauncherLog
+instance DefineSeverity LauncherLog where
+    defineSeverity ev = case ev of
+        MsgLauncherStart _ -> Notice
+        MsgLauncherStarted _ _ -> Info
+        MsgLauncherWaitBefore -> Debug
+        MsgLauncherWaitAfter _ -> Debug
+        MsgLauncherCancel -> Debug
+        MsgLauncherFinish (ProcessHasExited _ st) -> case st of
+            ExitSuccess -> Notice
+            ExitFailure _ -> Error
+        MsgLauncherFinish (ProcessDidNotStart _ _) -> Error
+        MsgLauncherAction -> Debug
+        MsgLauncherCleanup -> Notice
+
+instance ToText LauncherLog where
+    toText = fmt . launcherLogText
 
 launcherLogText :: LauncherLog -> Builder
 launcherLogText (MsgLauncherStart cmd) =
