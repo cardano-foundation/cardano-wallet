@@ -39,17 +39,17 @@ let
       '';
 in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
   {
-    flags = { disable-observables = false; performance-test-queue = false; };
+    flags = {};
     package = {
-      specVersion = "1.10";
-      identifier = { name = "iohk-monitoring"; version = "0.1.10.1"; };
+      specVersion = "2.0";
+      identifier = { name = "lobemo-backend-monitoring"; version = "0.1.0.0"; };
       license = "Apache-2.0";
-      copyright = "2018 IOHK";
-      maintainer = "";
-      author = "Alexander Diemand, Andreas Triantafyllos";
-      homepage = "";
+      copyright = "2019 IOHK";
+      maintainer = "operations@iohk.io";
+      author = "Alexander Diemand";
+      homepage = "https://github.com/input-output-hk/iohk-monitoring-framework";
       url = "";
-      synopsis = "logging, benchmarking and monitoring framework";
+      synopsis = "provides a backend implementation for monitoring";
       description = "";
       buildType = "Simple";
       isLocal = true;
@@ -58,36 +58,14 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       "library" = {
         depends = [
           (hsPkgs."base" or (buildDepError "base"))
-          (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
+          (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
           (hsPkgs."aeson" or (buildDepError "aeson"))
-          (hsPkgs."array" or (buildDepError "array"))
           (hsPkgs."async" or (buildDepError "async"))
-          (hsPkgs."async-timer" or (buildDepError "async-timer"))
-          (hsPkgs."attoparsec" or (buildDepError "attoparsec"))
-          (hsPkgs."auto-update" or (buildDepError "auto-update"))
-          (hsPkgs."base64-bytestring" or (buildDepError "base64-bytestring"))
-          (hsPkgs."bytestring" or (buildDepError "bytestring"))
-          (hsPkgs."clock" or (buildDepError "clock"))
-          (hsPkgs."containers" or (buildDepError "containers"))
-          (hsPkgs."contravariant" or (buildDepError "contravariant"))
-          (hsPkgs."directory" or (buildDepError "directory"))
-          (hsPkgs."filepath" or (buildDepError "filepath"))
-          (hsPkgs."katip" or (buildDepError "katip"))
-          (hsPkgs."lens" or (buildDepError "lens"))
-          (hsPkgs."mtl" or (buildDepError "mtl"))
-          (hsPkgs."safe" or (buildDepError "safe"))
           (hsPkgs."safe-exceptions" or (buildDepError "safe-exceptions"))
-          (hsPkgs."scientific" or (buildDepError "scientific"))
           (hsPkgs."stm" or (buildDepError "stm"))
-          (hsPkgs."template-haskell" or (buildDepError "template-haskell"))
           (hsPkgs."text" or (buildDepError "text"))
           (hsPkgs."time" or (buildDepError "time"))
-          (hsPkgs."time-units" or (buildDepError "time-units"))
-          (hsPkgs."transformers" or (buildDepError "transformers"))
           (hsPkgs."unordered-containers" or (buildDepError "unordered-containers"))
-          (hsPkgs."vector" or (buildDepError "vector"))
-          (hsPkgs."yaml" or (buildDepError "yaml"))
-          (hsPkgs."libyaml" or (buildDepError "libyaml"))
           ] ++ (if system.isWindows
           then [ (hsPkgs."Win32" or (buildDepError "Win32")) ]
           else [ (hsPkgs."unix" or (buildDepError "unix")) ]);
@@ -99,6 +77,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."base" or (buildDepError "base"))
             (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
             (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
+            (hsPkgs."lobemo-backend-monitoring" or (buildDepError "lobemo-backend-monitoring"))
             (hsPkgs."aeson" or (buildDepError "aeson"))
             (hsPkgs."array" or (buildDepError "array"))
             (hsPkgs."async" or (buildDepError "async"))
@@ -138,5 +117,5 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       rev = "4956b32f039579a0e7e4fd10793f65b4c77d9044";
       sha256 = "03lyb2m4i6p7rpjqarnhsx21nx48fwk6rzsrx15k6274a4bv0pix";
       });
-    postUnpack = "sourceRoot+=/iohk-monitoring; echo source root reset to \$sourceRoot";
+    postUnpack = "sourceRoot+=/plugins/backend-monitoring; echo source root reset to \$sourceRoot";
     }

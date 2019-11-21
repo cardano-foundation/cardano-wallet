@@ -114,9 +114,9 @@ withApiLogger t0 settings app req0 sendResponse = do
             _ -> logInfo t payload
         unless (BS.null body) $ logDebug t (T.decodeUtf8 body)
 
-    withRequestId :: RequestId -> LoggerName -> LoggerName
-    withRequestId (RequestId rid) name = mconcat
-        [ name, "request-", T.pack $ show rid ]
+    withRequestId :: RequestId -> [LoggerName] -> [LoggerName]
+    withRequestId (RequestId rid) name = name <>
+        [ "request-" <> T.pack (show rid) ]
 
     -- | Removes sensitive details from valid request payloads and completely
     -- obfuscate invalid payloads.

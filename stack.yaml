@@ -33,22 +33,22 @@ extra-deps:
 
 # iohk-monitoring-framework
 - git: https://github.com/input-output-hk/iohk-monitoring-framework
-  commit: bd31cd2f3922010ddb76bb869f29c4e63bb8001b
+  commit: 4956b32f039579a0e7e4fd10793f65b4c77d9044
   subdirs:
     - contra-tracer
     - iohk-monitoring
+    - plugins/backend-aggregation
+    - plugins/backend-monitoring
+    # - plugins/backend-editor
+    # - plugins/backend-ekg
+    # - plugins/scribe-systemd
+# dependencies of iohk-monitoring-framework
+- git: https://github.com/CodiePP/ekg-prometheus-adapter
+  commit: 1a258b6df7d9807d4c4ff3e99722223d31a2c320
+- prometheus-2.1.2
 - time-units-1.0.0
 - libsystemd-journal-1.4.4
-
-flags:
-  # Bring in less dependencies from iohk-monitoring
-  iohk-monitoring:
-    disable-ekg: true
-    disable-examples: true
-    disable-graylog: true
-    disable-gui: true
-    disable-prometheus: true
-    disable-systemd: true
+- katip-0.8.3.0
 
 nix:
   shell-file: nix/stack-shell.nix
