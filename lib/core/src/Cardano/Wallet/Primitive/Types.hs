@@ -43,6 +43,7 @@ module Cardano.Wallet.Primitive.Types
     , Direction(..)
     , TxStatus(..)
     , TxWitness(..)
+    , SealedTx (..)
     , TransactionInfo (..)
     , FeePolicy (..)
     , txIns
@@ -159,6 +160,8 @@ import Crypto.Random.Types
     ( MonadRandom )
 import Data.Bifunctor
     ( bimap )
+import Data.ByteArray
+    ( ByteArrayAccess )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase, convertToBase )
 import Data.ByteString
@@ -679,6 +682,12 @@ instance FromText Direction where
 
 instance ToText Direction where
     toText = toTextFromBoundedEnum SnakeLowerCase
+
+-- | @SealedTx@ is a serialised transaction that is ready to be submited
+-- to the node.
+newtype SealedTx = SealedTx { getSealedTx :: ByteString }
+    deriving stock (Show, Eq, Generic)
+    deriving newtype (ByteArrayAccess)
 
 -- | @TxWitness@ is proof that transaction inputs are allowed to be spent
 newtype TxWitness = TxWitness { unWitness :: ByteString }
@@ -1270,9 +1279,9 @@ class Dom a where
     type DomElem a :: *
     dom :: a -> Set (DomElem a)
 
-newtype Hash (tag :: Symbol) = Hash
-    { getHash :: ByteString
-    } deriving (Show, Generic, Eq, Ord)
+newtype Hash (tag :: Symbol) = Hash { getHash :: ByteString }
+    deriving stock (Show, Generic, Eq, Ord)
+    deriving newtype (ByteArrayAccess)
 
 instance NFData (Hash tag)
 

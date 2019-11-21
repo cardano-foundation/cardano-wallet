@@ -13,8 +13,6 @@ module Cardano.Wallet.Jormungandr.TransactionSpec
 
 import Prelude
 
-import Cardano.Wallet.Jormungandr.Binary
-    ( FragmentSpec (..), putSignedTx, runPut, withHeader )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
 import Cardano.Wallet.Jormungandr.Transaction
@@ -37,7 +35,13 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Coin (..), Hash (..), Tx (..), TxIn (..), TxOut (..) )
+    ( Address (..)
+    , Coin (..)
+    , Hash (..)
+    , SealedTx (..)
+    , TxIn (..)
+    , TxOut (..)
+    )
 import Cardano.Wallet.Transaction
     ( ErrMkStdTx (..), TransactionLayer (..) )
 import Cardano.Wallet.TransactionSpecShared
@@ -60,7 +64,6 @@ import Test.QuickCheck
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
 import qualified Data.ByteArray as BA
-import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map as Map
 import qualified Data.Text as T
 
@@ -434,13 +437,7 @@ goldenTestStdTx
     -> SpecWith ()
 goldenTestStdTx tl keystore inps outs bytes' = it title $ do
     let tx = mkStdTx tl keystore inps outs
-    let bytes = fmap
-            (\(Tx _ i o, w) -> hex
-                $ BL.toStrict
-                $ runPut
-                $ withHeader FragmentTransaction
-                $ putSignedTx i o w)
-            tx
+    let bytes = hex . getSealedTx . snd <$> tx
     bytes `shouldBe` Right bytes'
   where
     title = "golden test mkStdTx: " <> show inps <> show outs

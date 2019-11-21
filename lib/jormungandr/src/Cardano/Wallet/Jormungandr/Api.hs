@@ -30,7 +30,7 @@ import Cardano.Wallet.Jormungandr.Api.Types
 import Cardano.Wallet.Jormungandr.Binary
     ( Block )
 import Cardano.Wallet.Primitive.Types
-    ( Tx (..), TxWitness )
+    ( SealedTx (..) )
 import Data.Proxy
     ( Proxy (..) )
 import Servant.API
@@ -87,7 +87,7 @@ type GetTipId
 type PostMessage
     = "api" :> "v0"
     :> "message"
-    :> ReqBody '[JormungandrBinary] (Tx, [TxWitness])
+    :> ReqBody '[JormungandrBinary] SealedTx
     :> Post '[NoContent] NoContent
 
 -- | Retrieve stake distribution

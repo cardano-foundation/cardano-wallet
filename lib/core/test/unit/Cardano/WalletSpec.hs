@@ -41,7 +41,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , HardDerivation (..)
     , Index
     , Passphrase (..)
-    , WalletKey (..)
     , XPrv
     , publicKey
     )
@@ -64,6 +63,7 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , EpochNo (..)
     , Hash (..)
+    , SealedTx (..)
     , SlotId (..)
     , SlotNo (..)
     , SortOrder (..)
@@ -351,11 +351,11 @@ walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
         let wallet = (wid, wname, DummyState state)
         (WalletLayerFixture _ wl _ _) <- liftIO $ setupFixture wallet
         unsafeRunExceptT $ W.attachPrivateKey wl wid (xprv, pwd)
-        (_,_,_,[witOld]) <- unsafeRunExceptT $ W.signTx @_ @_ @DummyTarget wl wid () pwd selection
+        (_,_,_,txOld) <- unsafeRunExceptT $ W.signTx @_ @_ @DummyTarget wl wid () pwd selection
         unsafeRunExceptT $ W.updateWalletPassphrase wl wid (coerce pwd, newPwd)
-        (_,_,_,[witNew]) <-
+        (_,_,_,txNew) <-
             unsafeRunExceptT $ W.signTx @_ @_ @DummyTarget wl wid () (coerce newPwd) selection
-        witOld `shouldBe` witNew
+        txOld `shouldBe` txNew
   where
     selection = CoinSelection
         [ ( TxIn (Hash "eb4ab6028bd0ac971809d514c92db1") 1
@@ -431,7 +431,10 @@ dummyTransactionLayer = TransactionLayer
             let sig = CC.unXSignature $ CC.sign pwd (getKey xprv) sigData
             return $ TxWitness
                 (CC.unXPub (getKey $ publicKey xprv) <> sig)
-        return (tx, wit)
+
+        -- (tx1, wit1) == (tx2, wit2) <==> fakebinary1 == fakebinary2
+        let fakeBinary = SealedTx . B8.pack $ show (tx, wit)
+        return (tx, fakeBinary)
     , estimateSize =
         error "dummyTransactionLayer: estimateSize not implemented"
     , estimateMaxNumberOfInputs =

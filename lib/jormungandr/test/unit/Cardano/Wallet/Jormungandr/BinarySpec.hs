@@ -151,7 +151,7 @@ spec = do
                 let decode =
                         unFragment . runGet getFragment
                 tx' <- try' (decode $ encode signedTx)
-                if tx' == Right signedTx
+                if tx' == Right (fst signedTx)
                 then return ()
                 else expectationFailure $
                     "tx /= decode (encode tx) == " ++ show tx'
@@ -167,18 +167,18 @@ spec = do
                 let decode =
                         getStakeDelegationTxFragment . runGet getFragment
                 tx' <- try' (decode encode)
-                if tx' == Right (poolId, accId, tx, wits)
+                if tx' == Right (poolId, accId, tx)
                 then return ()
                 else expectationFailure $
                     "tx /= decode (encode tx) == " ++ show tx'
   where
-    unFragment :: Fragment -> (Tx, [TxWitness])
+    unFragment :: Fragment -> Tx
     unFragment m = case m of
         Transaction stx -> stx
         _ -> error "expected a Transaction message"
 
     getStakeDelegationTxFragment
-        :: Fragment -> (PoolId, ChimericAccount, Tx, [TxWitness])
+        :: Fragment -> (PoolId, ChimericAccount, Tx)
     getStakeDelegationTxFragment m = case m of
         StakeDelegation stx -> stx
         _ -> error "expected a Transaction message"

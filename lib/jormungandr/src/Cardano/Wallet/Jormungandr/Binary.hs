@@ -41,6 +41,9 @@ module Cardano.Wallet.Jormungandr.Binary
     , putTx
     , putStakeDelegationTx
 
+    -- * Fragment construction
+    , signedTransactionFragment
+
     -- * Transaction witnesses
     , signData
     , utxoWitness
@@ -90,6 +93,7 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Hash (..)
     , PoolId (..)
+    , SealedTx (..)
     , SlotId (..)
     , SlotNo (..)
     , Tx (..)
@@ -255,9 +259,9 @@ getBlockId = lookAhead getBlock *> label "getBlockId" (do
 data Fragment
     = Initial [ConfigParam]
     -- ^ Found in the genesis block.
-    | Transaction (Tx, [TxWitness])
+    | Transaction Tx
     -- ^ A standard signed transaction
-    | StakeDelegation (PoolId, ChimericAccount, Tx, [TxWitness])
+    | StakeDelegation (PoolId, ChimericAccount, Tx)
     -- ^ A signed transaction with stake pool delegation
     | UnimplementedFragment Word8
     -- Fragments not yet supported go there.
@@ -349,6 +353,19 @@ getInitial = label "getInitial" $ do
                                 Transactions
 -------------------------------------------------------------------------------}
 
+-- | Glues together a tx, witnesses into a full @SealedTx@.
+--
+-- NOTE: For constructing a tx from scratch this is a rather inconvenient
+-- function. It relies on you already having the txId and the witnesses.
+--
+-- TODO: We should create a more convenient alternative taking only inputs,
+-- outputs and key-lookup function.
+signedTransactionFragment :: Tx -> [TxWitness] -> SealedTx
+signedTransactionFragment (Tx _ ins outs) wits = SealedTx
+    $ BL.toStrict
+    $ runPut
+    $ withHeader FragmentTransaction (putSignedTx ins outs wits)
+
 data AccountType
     = SingleAccount
     | MultiAccount
@@ -392,7 +409,7 @@ stakeDelegationTypeTag = \case
 -- Returns 'Nothing' for unsupported stake delegation types: DLG-NONE & DLG-RATIO
 getStakeDelegation
     :: Hash "Tx"
-    -> Get (Maybe (PoolId, ChimericAccount, Tx, [TxWitness]))
+    -> Get (Maybe (PoolId, ChimericAccount, Tx))
 getStakeDelegation tid = do
     label "getStakeDelegation" $ do
         accId <- getByteString 32
@@ -407,9 +424,9 @@ getStakeDelegation tid = do
 
     getStakeDelegationFull accId = Just <$> do
         poolId <- getByteString 32
-        (tx, wits) <- getGenericTransaction tid
+        tx <- getGenericTransaction tid
         _accSignature <- getByteString 65
-        pure (PoolId poolId, ChimericAccount accId, tx, wits )
+        pure (PoolId poolId, ChimericAccount accId, tx)
 
     getStakeDelegationRatio =
         pure Nothing
@@ -450,17 +467,17 @@ putAccountSignature tag (Hash accSig) = do
         MultiAccount  -> 0x02
 
 -- | Decode the contents of a @Transaction@-fragment.
-getTransaction :: Hash "Tx" -> Get (Tx, [TxWitness])
+getTransaction :: Hash "Tx" -> Get Tx
 getTransaction = label "getTransaction" . getGenericTransaction
 
 getGenericTransaction
     :: Hash "Tx"
-    -> Get (Tx, [TxWitness])
+    -> Get Tx
 getGenericTransaction tid = label "getGenericTransaction" $ do
     (ins, outs) <- getTokenTransfer
     let witnessCount = length ins
-    wits <- replicateM witnessCount getWitness
-    return (Tx tid ins outs, wits)
+    _wits <- replicateM witnessCount getWitness
+    return $ Tx tid ins outs
   where
     getWitness :: Get TxWitness
     getWitness = do
@@ -499,7 +516,7 @@ getGenericTransaction tid = label "getGenericTransaction" $ do
 --
 -- H = blake2b_256
 -- @
-getLegacyTransaction :: Hash "Tx" -> Get (Tx, [TxWitness])
+getLegacyTransaction :: Hash "Tx" -> Get Tx
 getLegacyTransaction tid = do
     n <- fromIntegral <$> getWord8
     outs <- replicateM n $ do
@@ -510,8 +527,7 @@ getLegacyTransaction tid = do
     -- Legacy transactions only show up in the genesis block and are treated as
     -- coinbase transactions with no inputs.
     let inps = mempty
-    let wits = mempty
-    pure (Tx tid inps outs, wits)
+    pure $ Tx tid inps outs
 
 putSignedTx :: [(TxIn, Coin)] -> [TxOut] -> [TxWitness] -> Put
 putSignedTx inputs outputs witnesses = do
@@ -803,8 +819,8 @@ convertBlock (Block h msgs) =
   where
     coerceFragments = msgs >>= \case
         Initial _ -> []
-        Transaction (tx, _wits) -> return tx
-        StakeDelegation (_poolId, _xpub, tx, _wits) -> return tx
+        Transaction tx -> return tx
+        StakeDelegation (_poolId, _xpub, tx) -> return tx
         UnimplementedFragment _ -> []
 
 -- | Convert the Jörmungandr binary format header into a simpler Wallet header.
