@@ -47,8 +47,6 @@ module Cardano.Wallet.Jormungandr.Binary
     , constructLegacyUtxoWitness
 
     -- * Transaction witnesses
-    , utxoWitness
-    , legacyUtxoWitness
     , TxWitnessTag (..)
     , putTxWitnessTag
     , getTxWitnessTag
@@ -370,22 +368,15 @@ txWitnessSize = \case
 txWitnessTagSize :: Int
 txWitnessTagSize = 1
 
--- | Construct the pre-cursor to a @TxWitness@. For internal use only.
-constructGenericWitnessSignature
-    :: Hash "sigData"
-    -> Hash "Genesis"
-    -> (ByteString -> ByteString)
-    -> ByteString
-constructGenericWitnessSignature (Hash txHash) (Hash block0Hash) sign =
-        sign (block0Hash <> txHash)
-
 constructUtxoWitness
     :: Hash "sigData"
     -> Hash "Genesis"
     -> (ByteString -> ByteString)
     -> TxWitness
-constructUtxoWitness tx block0H =
-    utxoWitness . constructGenericWitnessSignature tx block0H
+constructUtxoWitness (Hash txHash) (Hash block0Hash) sign =
+    TxWitness . BL.toStrict . runPut $ do
+        putTxWitnessTag TxWitnessUTxO
+        putByteString $ sign (block0Hash <> txHash)
 
 constructLegacyUtxoWitness
     :: XPub
@@ -393,21 +384,11 @@ constructLegacyUtxoWitness
     -> Hash "Genesis"
     -> (ByteString -> ByteString)
     -> TxWitness
-constructLegacyUtxoWitness pub tx block0H =
-    (legacyUtxoWitness pub) . constructGenericWitnessSignature tx block0H
-
--- | Construct a UTxO witness from a signature
-utxoWitness :: ByteString -> TxWitness
-utxoWitness bytes = TxWitness $ BL.toStrict $ runPut $ do
-    putTxWitnessTag TxWitnessUTxO
-    putByteString bytes
-
--- | Construct a legacy UTxO witness from a public key and a signature
-legacyUtxoWitness :: XPub -> ByteString -> TxWitness
-legacyUtxoWitness xpub bytes = TxWitness $ BL.toStrict $ runPut $ do
-    putTxWitnessTag TxWitnessLegacyUTxO
-    putByteString (unXPub xpub)
-    putByteString bytes
+constructLegacyUtxoWitness pub (Hash txHash) (Hash block0Hash) sign =
+    TxWitness . BL.toStrict . runPut $ do
+        putTxWitnessTag TxWitnessLegacyUTxO
+        putByteString (unXPub pub)
+        putByteString $ sign (block0Hash <> txHash)
 
 data StakeDelegationType
     = DlgNone
