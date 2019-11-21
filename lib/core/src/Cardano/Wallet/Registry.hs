@@ -24,6 +24,9 @@ module Cardano.Wallet.Registry
 
       -- * Context
     , HasWorkerCtx (..)
+
+      -- * Logging
+    , WithWorkerKey (..)
     ) where
 
 import Prelude hiding
@@ -195,5 +198,12 @@ newWorker ctx k (MkWorker before main after acquire) = do
             }
   where
     tr = ctx ^. logger
-    tr' = appendName ("worker." <> T.take 8 (toText k)) tr
+    tr' = contramap (fmap (toText . WithWorkerKey k)) $ appendName "worker" tr
     cleanup mvar e = tryPutMVar mvar Nothing *> after tr' e
+
+-- | A worker log event includes the key (i.e. wallet ID) as context.
+data WithWorkerKey key = WithWorkerKey key Text
+    deriving (Eq, Show)
+
+instance ToText key => ToText (WithWorkerKey key) where
+    toText (WithWorkerKey k msg) = T.take 8 (toText k) <> ": " <> msg
