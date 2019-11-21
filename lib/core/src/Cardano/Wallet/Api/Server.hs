@@ -832,9 +832,6 @@ joinStakePool ctx spl (ApiT poolId) (ApiT wid) passwd = do
             liftHandler $ withWorkerCtx ctx wid liftE3 $ \wrk ->
                 W.submitCert @_ @s @t @k wrk wid poolId (tx, meta, wit)
 
-            liftHandler $ withWorkerCtx ctx wid throwE $ \wrk ->
-                W.updateWallet wrk wid (modify poolId)
-
             pure $ mkApiTransaction
                 (txId tx)
                 (fmap Just <$> selection ^. #inputs)
@@ -845,8 +842,6 @@ joinStakePool ctx spl (ApiT poolId) (ApiT wid) passwd = do
     liftE1 = throwE . ErrCreateCertNoSuchWallet
     liftE2 = throwE . ErrSignCertNoSuchWallet
     liftE3 = throwE . ErrSubmitCertNoSuchWallet
-    modify :: PoolId -> WalletMetadata -> WalletMetadata
-    modify pool meta = meta { delegation = W.Delegating pool }
 
 quitStakePool
     :: forall n k.
@@ -1542,28 +1537,31 @@ instance LiftHandler ErrRemovePendingTx where
                   " cannot be forgotten as it is not pending anymore."
                 ]
 
+handleErrPostTx :: ErrPostTx -> ServantErr
+handleErrPostTx = \case
+    ErrPostTxNetworkUnreachable e' ->
+        handler e'
+    ErrPostTxBadRequest err ->
+        apiError err500 CreatedInvalidTransaction $ mconcat
+        [ "That's embarrassing. It looks like I've created an "
+        , "invalid transaction that could not be parsed by the "
+        , "node. Here's an error message that may help with "
+        , "debugging: ", pretty err
+        ]
+    ErrPostTxProtocolFailure err ->
+        apiError err500 RejectedByCoreNode $ mconcat
+        [ "I successfully submitted a transaction, but "
+        , "unfortunately it was rejected by a relay. This could be "
+        , "because the fee was not large enough, or because the "
+        , "transaction conflicts with another transaction that "
+        , "uses one or more of the same inputs, or it may be due "
+        , "to some other reason. Here's an error message that may "
+        , "help with debugging: ", pretty err
+        ]
+
 instance LiftHandler ErrSubmitTx where
     handler = \case
-        ErrSubmitTxNetwork e -> case e of
-            ErrPostTxNetworkUnreachable e' ->
-                handler e'
-            ErrPostTxBadRequest err ->
-                apiError err500 CreatedInvalidTransaction $ mconcat
-                    [ "That's embarrassing. It looks like I've created an "
-                    , "invalid transaction that could not be parsed by the "
-                    , "node. Here's an error message that may help with "
-                    , "debugging: ", pretty err
-                    ]
-            ErrPostTxProtocolFailure err ->
-                apiError err500 RejectedByCoreNode $ mconcat
-                    [ "I successfully submitted a transaction, but "
-                    , "unfortunately it was rejected by a relay. This could be "
-                    , "because the fee was not large enough, or because the "
-                    , "transaction conflicts with another transaction that "
-                    , "uses one or more of the same inputs, or it may be due "
-                    , "to some other reason. Here's an error message that may "
-                    , "help with debugging: ", pretty err
-                    ]
+        ErrSubmitTxNetwork e -> handleErrPostTx e
         ErrSubmitTxNoSuchWallet e@ErrNoSuchWallet{} -> (handler e)
             { errHTTPCode = 410
             , errReasonPhrase = errReasonPhrase err410
@@ -1655,26 +1653,7 @@ instance LiftHandler ErrSignCert where
 
 instance LiftHandler ErrSubmitCert where
     handler = \case
-        ErrSubmitCertNetwork e -> case e of
-            ErrPostTxNetworkUnreachable e' ->
-                handler e'
-            ErrPostTxBadRequest err ->
-                apiError err500 CreatedInvalidTransaction $ mconcat
-                    [ "That's embarrassing. It looks like I've created an "
-                    , "invalid transaction that could not be parsed by the "
-                    , "node. Here's an error message that may help with "
-                    , "debugging: ", pretty err
-                    ]
-            ErrPostTxProtocolFailure err ->
-                apiError err500 RejectedByCoreNode $ mconcat
-                    [ "I successfully submitted a transaction, but "
-                    , "unfortunately it was rejected by a relay. This could be "
-                    , "because the fee was not large enough, or because the "
-                    , "transaction conflicts with another transaction that "
-                    , "uses one or more of the same inputs, or it may be due "
-                    , "to some other reason. Here's an error message that may "
-                    , "help with debugging: ", pretty err
-                    ]
+        ErrSubmitCertNetwork e -> handleErrPostTx e
         ErrSubmitCertNoSuchWallet e@ErrNoSuchWallet{} -> (handler e)
             { errHTTPCode = 410
             , errReasonPhrase = errReasonPhrase err410

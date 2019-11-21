@@ -104,11 +104,12 @@ computeFee policy (Quantity sz) =
 --
 -- where @a@ & @b@ are values fixed by the protocol.
 computeCertFee
-    :: FeePolicy
+    :: Word64
+    -> FeePolicy
     -> Quantity "byte" Int
     -> Fee
-computeCertFee policy (Quantity sz) =
-    Fee $ ceiling (a + b*fromIntegral sz + c)
+computeCertFee certNum policy (Quantity sz) =
+    Fee $ ceiling (a + b*fromIntegral sz + c*fromIntegral certNum)
   where
     LinearFee (Quantity a) (Quantity b) (Quantity c) = policy
 

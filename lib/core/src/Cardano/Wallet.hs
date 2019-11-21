@@ -1002,7 +1002,7 @@ createCert ctx wid = do
     let sel = CoinSelection [] [] []
     withExceptT ErrCreateCertFee $ do
         debug tr "Coins selected for delegation certificate after fee adjustment"
-            =<< adjustForFee (feeOpts tl computeCertFee (bp ^. #getFeePolicy)) utxo sel
+            =<< adjustForFee (feeOpts tl (computeCertFee 1) (bp ^. #getFeePolicy)) utxo sel
   where
     tl = ctx ^. transactionLayer @t @k
     tr = ctx ^. logger
@@ -1025,8 +1025,8 @@ signCert
     -> CoinSelection
     -> PoolId
     -> ExceptT ErrSignCert IO (Tx, TxMeta, UTCTime, [TxWitness])
-signCert ctx wid argGenChange pwd
-    (CoinSelection ins outs chgs) _poolId = db & \DBLayer{..} -> do
+signCert ctx wid argGenChange pwd coinSel _poolId = db & \DBLayer{..} -> do
+    let (CoinSelection ins outs chgs) = coinSel
     withRootKey @_ @s ctx wid pwd ErrSignCertWithRootKey $ \xprv -> do
         mapExceptT atomically $ do
             cp <- withExceptT ErrSignCertNoSuchWallet $ withNoSuchWallet wid $
@@ -1035,7 +1035,7 @@ signCert ctx wid argGenChange pwd
                     forM chgs $ \c -> do
                         addr <- state (genChange argGenChange)
                         return $ TxOut addr c
-            allShuffledOuts <- liftIO $ shuffle (outs ++ changeOuts)
+            let allOuts = outs ++ changeOuts
 
             --deriving chimeric account
             let accPrv = deriveAccountPrivateKey @k pwd xprv minBound
@@ -1047,16 +1047,16 @@ signCert ctx wid argGenChange pwd
             (tx, wit) <- either
                 (throwE . ErrSignCert)
                 pure
-                (mkCertificateTx tl keyFrom (poolId, addrPrv, pwd) ins allShuffledOuts)
+                (mkCertificateTx tl keyFrom (poolId, addrPrv, pwd) ins allOuts)
             --}
+
             withExceptT ErrSignCertNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
             let ourCoins (TxOut addr (Coin val)) =
                     if fst (isOurs addr s')
                         then Just (fromIntegral val)
                         else Nothing
-            let amtOuts =
-                    sum (mapMaybe ourCoins allShuffledOuts)
+            let amtOuts = sum (mapMaybe ourCoins allOuts)
             let amtInps = fromIntegral $
                     sum (getCoin . coin . snd <$> ins)
             let txSlot =
@@ -1091,8 +1091,7 @@ submitCert ctx wid poolId (tx, meta, wit) = db & \DBLayer{..} -> do
     withExceptT ErrSubmitCertNetwork $ postTx nw (tx, wit)
     mapExceptT atomically $ withExceptT ErrSubmitCertNoSuchWallet $ do
         putTxHistory (PrimaryKey wid) [(tx, meta)]
-        let (TxMeta _ _ sl _ _) = meta
-        putDelegationCertificate (PrimaryKey wid) poolId sl
+        putDelegationCertificate (PrimaryKey wid) poolId (meta ^. #slotId)
   where
     db = ctx ^. dbLayer @s @k
     nw = ctx ^. networkLayer @t

@@ -21,8 +21,6 @@ import Control.Monad
     ( forM_ )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text
-    ( Text )
 import Test.Hspec
     ( SpecWith, describe, it )
 import Test.Integration.Framework.DSL
@@ -65,6 +63,7 @@ import Test.Integration.Framework.TestData
 
 import qualified Cardano.Wallet.Api.Types as Types
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall t n. (n ~ 'Testnet) => SpecWith (Context t)
@@ -161,19 +160,17 @@ spec = do
         r2 <- joinStakePool ctx p2 (w, "Secure Passprase")
         expectResponseCode HTTP.status501 r2
 
-    it "STAKE_POOLS_JOIN_01 - Cannot join non-existant stakepool" $ \ctx -> do
+    it "STAKE_POOLS_JOIN_100 - Cannot join non-existant stakepool" $ \ctx -> do
         let pId =
-                "4f8d686a02c6e625b5a59cc9e234f32e5d72987012f9c25c9a6b60ddade197d9" :: Text
-        let pIdAbsent =
-                "4f8d686a02c6e625b5a59cc9e234f32e5d72987012f9c25c9a6b60ddade197d9"
-        let (Right addr) = fromHex pIdAbsent
+                "0000000000000000000000000000000000000000000000000000000000000000"
+        let (Right addr) = fromHex pId
         let poolIdAbsent = ApiT $ PoolId addr
         let poolMetrics = Types.ApiStakePoolMetrics (Quantity 0) (Quantity 0)
         let pool = Types.ApiStakePool poolIdAbsent poolMetrics 0
         w <- emptyWallet ctx
         r <- joinStakePool ctx pool (w, "Secure Passphrase")
         expectResponseCode HTTP.status404 r
-        expectErrorMessage (errMsg403NoSuchPool pId) r
+        expectErrorMessage (errMsg403NoSuchPool (T.decodeUtf8 pId)) r
 
     it "STAKE_POOLS_JOIN_02 - Passphrase must be correct to join" $ \ctx -> do
         (_, p:_) <- eventually $
