@@ -67,7 +67,6 @@ module Cardano.Wallet.Jormungandr.Binary
     , whileM
     , blake2b256
     , estimateMaxNumberOfInputsParams
-    , fragmentId
     , delegationFragmentId
     , maxNumberOfInputs
     , maxNumberOfOutputs
@@ -854,20 +853,7 @@ estimateMaxNumberOfInputsParams = EstimateMaxNumberOfInputsParams
     , estTxWitnessSize = txWitnessSize TxWitnessUTxO + txWitnessTagSize
     }
 
--- | Jörmungandr distinguish 'fragment id' (what we commonly call 'txId')
--- from 'transaction sign data'. A transaction fragment corresponds to
--- a signed transaction (inputs, outputs and witnesses). So, the
--- witnesses are required to compute a `txid`.
-fragmentId
-    :: [(TxIn, Coin)]
-    -> [TxOut]
-    -> [TxWitness]
-    -> Hash "Tx"
-fragmentId inps outs wits =
-    Hash $ blake2b256 $ BL.toStrict $ runPut $ do
-        putFragmentSpec FragmentTransaction
-        putSignedTx inps outs wits
-
+-- FIXME: Remove favour of @withHeader@.
 delegationFragmentId
     :: PoolId
     -> ChimericAccount

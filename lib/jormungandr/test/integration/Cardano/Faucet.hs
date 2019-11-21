@@ -11,7 +11,7 @@ module Cardano.Faucet
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Binary
-    ( fragmentId, getBlockId, runGet )
+    ( constructTransactionFragment, getBlockId, runGet )
 import Cardano.Wallet.Primitive.Mnemonic
     ( Mnemonic )
 import Cardano.Wallet.Primitive.Types
@@ -24,6 +24,8 @@ import Data.ByteArray.Encoding
     ( Base (..), convertToBase )
 import Data.ByteString
     ( ByteString )
+import Data.Functor.Identity
+    ( Identity (..) )
 import Data.Text
     ( Text )
 import Paths_cardano_wallet_jormungandr
@@ -1041,7 +1043,11 @@ externalAddresses =
         let
             Right (_, dp) = Bech32.decodeLenient out
             Just addr = Address <$> Bech32.dataPartToBytes dp
-            sourceId = fragmentId [] [TxOut addr (Coin 100000000000)] []
+            f _addr = Identity $ const $ error "no input should require no wit"
+            fragmentId outs = fst
+                . runIdentity
+                $ constructTransactionFragment [] outs f
+            sourceId = fragmentId [TxOut addr (Coin 100000000000)]
         in
             TxIn sourceId 0
 
