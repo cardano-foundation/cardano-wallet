@@ -816,6 +816,11 @@ joinStakePool
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
 joinStakePool ctx spl (ApiT poolId) (ApiT wid) passwd = do
+    (_, walMeta, _) <- liftHandler $ withWorkerCtx ctx wid throwE $
+        \wrk -> W.readWallet wrk wid
+    when (walMeta ^. #delegation == W.Delegating poolId) $
+        liftHandler $ throwE (ErrCreateCertPoolAlreadyJoined poolId)
+
     allPools <- listPools spl
     case L.find (\(ApiStakePool pId _ _) -> pId == ApiT poolId) allPools of
         Nothing ->
@@ -826,6 +831,7 @@ joinStakePool ctx spl (ApiT poolId) (ApiT wid) passwd = do
             selection <- liftHandler $ withWorkerCtx ctx wid liftE1 $ \wrk ->
                 W.createCert @_ @s @t wrk wid
 
+            _ <- throwError err501
             (tx, meta, time, wit) <- liftHandler $ withWorkerCtx ctx wid liftE2 $ \wrk ->
                 W.signCert @_ @s @t @k wrk wid () pwd selection poolId
 
@@ -1632,9 +1638,16 @@ instance LiftHandler ErrMetricsInconsistency where
 instance LiftHandler ErrCreateCert where
     handler = \case
         ErrCreateCertNoSuchPool poolId ->
-            apiError err404 NoSuchPool $ mconcat
+            apiError err404 PoolAlreadyJoined $ mconcat
                 [ "I couldn't find a stake pool with the given id: "
                 , toText poolId
+                ]
+        ErrCreateCertPoolAlreadyJoined poolId ->
+            apiError err404 PoolAlreadyJoined $ mconcat
+                [ "I couldn't join a stake pool with the given id: "
+                , toText poolId
+                , "I am already joined, joining once again would only incur "
+                , "unneeded fees!"
                 ]
         ErrCreateCertNoSuchWallet e -> handler e
         ErrCreateCertFee e -> handler e

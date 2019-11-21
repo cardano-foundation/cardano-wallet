@@ -141,8 +141,7 @@ import Cardano.Wallet.Network
     , follow
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( AccountingStyle (..)
-    , Depth (RootK)
+    ( Depth (RootK)
     , DerivationType (..)
     , ErrWrongPassphrase (..)
     , HardDerivation (..)
@@ -150,8 +149,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , WalletKey (..)
     , XPrv
     , checkPassphrase
-    , deriveAccountPrivateKey
-    , deriveAddressPrivateKey
     , encryptPassphrase
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -1024,57 +1021,9 @@ signCert
     -> Passphrase "encryption"
     -> CoinSelection
     -> PoolId
-    -> ExceptT ErrSignCert IO (Tx, TxMeta, UTCTime, [TxWitness])
-signCert ctx wid argGenChange pwd coinSel _poolId = db & \DBLayer{..} -> do
-    let (CoinSelection ins outs chgs) = coinSel
-    withRootKey @_ @s ctx wid pwd ErrSignCertWithRootKey $ \xprv -> do
-        mapExceptT atomically $ do
-            cp <- withExceptT ErrSignCertNoSuchWallet $ withNoSuchWallet wid $
-                readCheckpoint (PrimaryKey wid)
-            let (changeOuts, s') = flip runState (getState cp) $
-                    forM chgs $ \c -> do
-                        addr <- state (genChange argGenChange)
-                        return $ TxOut addr c
-            let allOuts = outs ++ changeOuts
-
-            --deriving chimeric account
-            let accPrv = deriveAccountPrivateKey @k pwd xprv minBound
-            let _addrPrv =
-                    deriveAddressPrivateKey pwd accPrv MutableAccount minBound
-
-            {--
-            let keyFrom = isOwned (getState cp) (xprv, pwd)
-            (tx, wit) <- either
-                (throwE . ErrSignCert)
-                pure
-                (mkCertificateTx tl keyFrom (poolId, addrPrv, pwd) ins allOuts)
-            --}
-
-            withExceptT ErrSignCertNoSuchWallet $
-                putCheckpoint (PrimaryKey wid) (updateState s' cp)
-            let ourCoins (TxOut addr (Coin val)) =
-                    if fst (isOurs addr s')
-                        then Just (fromIntegral val)
-                        else Nothing
-            let amtOuts = sum (mapMaybe ourCoins allOuts)
-            let amtInps = fromIntegral $
-                    sum (getCoin . coin . snd <$> ins)
-            let txSlot =
-                    (currentTip cp) ^. #slotId
-            let meta = TxMeta
-                    { status = Pending
-                    , direction = Outgoing
-                    , slotId = txSlot
-                    , blockHeight = (currentTip cp) ^. #blockHeight
-                    , amount = Quantity (amtInps - amtOuts)
-                    }
-            let time = slotStartTime
-                    (slotParams (blockchainParameters cp))
-                    txSlot
-            return (undefined, meta, time, undefined)
-  where
-    db = ctx ^. dbLayer @s @k
-    _tl = ctx ^. transactionLayer @t @k
+    -> ExceptT ErrSignCert IO (Tx, TxMeta, UTCTime, SealedTx)
+signCert _ctx _wid _argGenChange _pwd _coinSel _poolId =
+    error "signCert : unimplemented"
 
 -- | Broadcast a (signed) transaction with certificate delegation to the network.
 submitCert
@@ -1085,10 +1034,10 @@ submitCert
     => ctx
     -> WalletId
     -> PoolId
-    -> (Tx, TxMeta, [TxWitness])
+    -> (Tx, TxMeta, SealedTx)
     -> ExceptT ErrSubmitCert IO ()
-submitCert ctx wid poolId (tx, meta, wit) = db & \DBLayer{..} -> do
-    withExceptT ErrSubmitCertNetwork $ postTx nw (tx, wit)
+submitCert ctx wid poolId (tx, meta, binary) = db & \DBLayer{..} -> do
+    withExceptT ErrSubmitCertNetwork $ postTx nw binary
     mapExceptT atomically $ withExceptT ErrSubmitCertNoSuchWallet $ do
         putTxHistory (PrimaryKey wid) [(tx, meta)]
         putDelegationCertificate (PrimaryKey wid) poolId (meta ^. #slotId)
@@ -1217,6 +1166,7 @@ data ErrStartTimeLaterThanEndTime = ErrStartTimeLaterThanEndTime
 -- transaction.
 data ErrCreateCert
     = ErrCreateCertNoSuchPool PoolId
+    | ErrCreateCertPoolAlreadyJoined PoolId
     | ErrCreateCertNoSuchWallet ErrNoSuchWallet
     | ErrCreateCertFee ErrAdjustForFee
     deriving (Show, Eq)
