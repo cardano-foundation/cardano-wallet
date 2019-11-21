@@ -35,7 +35,13 @@ import Prelude
 import Cardano.Wallet.Jormungandr.Binary
     ( Block, getBlock, runGet )
 import Cardano.Wallet.Primitive.Types
-    ( EpochNo (..), Hash (..), PoolId (..), SealedTx (..), ShowFmt (..) )
+    ( EpochNo (..)
+    , Hash (..)
+    , PoolId (..)
+    , SealedTx (..)
+    , ShowFmt (..)
+    , unsafeEpochNo
+    )
 import Control.Applicative
     ( many )
 import Control.Monad
@@ -214,7 +220,7 @@ instance ToJSON (ApiT (Quantity "transaction-count" Word64)) where
     toJSON (ApiT (Quantity q)) = toJSON q
 
 instance FromJSON (ApiT EpochNo) where
-    parseJSON = fmap (ApiT . EpochNo) . parseJSON
+    parseJSON = fmap (ApiT . unsafeEpochNo) . parseJSON
 
 instance FromJSON (ApiT PoolId) where
     parseJSON = parseJSON >=> eitherToParser . bimap ShowFmt ApiT . fromText

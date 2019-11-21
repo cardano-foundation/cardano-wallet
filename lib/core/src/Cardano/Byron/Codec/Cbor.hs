@@ -2,6 +2,7 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeApplications #-}
@@ -66,6 +67,7 @@ import Cardano.Wallet.Primitive.Types
     , TxIn (..)
     , TxOut (..)
     , TxWitness (..)
+    , unsafeEpochNo
     )
 import Control.Monad
     ( replicateM, void, when )
@@ -89,6 +91,8 @@ import Data.Word
     ( Word32, Word64, Word8 )
 import Debug.Trace
     ( traceShow )
+import GHC.Stack
+    ( HasCallStack )
 
 import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Encoding as CBOR
@@ -292,6 +296,13 @@ decodeDifficulty = do
     _ <- CBOR.decodeListLenCanonicalOf 1
     CBOR.decodeWord64
 
+decodeEpochNo :: HasCallStack => CBOR.Decoder s EpochNo
+decodeEpochNo =
+    unsafeEpochNo . fromIntegral @Word64 @Word32 <$> CBOR.decodeWord64
+
+decodeSlotNo :: CBOR.Decoder s SlotNo
+decodeSlotNo = SlotNo . fromIntegral <$> CBOR.decodeWord16
+
 decodeGenesisBlockHeader :: CBOR.Decoder s BlockHeader
 decodeGenesisBlockHeader = do
     _ <- CBOR.decodeListLenCanonicalOf 5
@@ -307,16 +318,16 @@ decodeGenesisBlockHeader = do
     -- the genesis block entirely and we won't bother about modelling this
     -- extra complexity at the type-level. That's a bit dodgy though.
     return $ BlockHeader
-        { slotId = SlotId (EpochNo epoch) 0
+        { slotId = SlotId epoch 0
         , blockHeight = Quantity $ fromIntegral difficulty
         , headerHash = Hash "http-bridge"
         , parentHeaderHash = previous
         }
 
-decodeGenesisConsensusData :: CBOR.Decoder s (Word64, Word64)
+decodeGenesisConsensusData :: CBOR.Decoder s (EpochNo, Word64)
 decodeGenesisConsensusData = do
     _ <- CBOR.decodeListLenCanonicalOf 2
-    epoch <- CBOR.decodeWord64
+    epoch <- decodeEpochNo
     height <- decodeDifficulty
     return (epoch, height)
 
@@ -354,17 +365,17 @@ decodeMainBlockHeader = do
     _ <- decodeProtocolMagic
     previous <- decodePreviousBlockHeader
     _ <- decodeMainProof
-    ((epoch, slot), difficulty) <- decodeMainConsensusData
+    (slot, difficulty) <- decodeMainConsensusData
     _ <- decodeMainExtraData
     let bh = Quantity $ fromIntegral difficulty
     return $ BlockHeader
-        { slotId = SlotId (EpochNo epoch) (SlotNo slot)
+        { slotId = slot
         , blockHeight = bh
         , headerHash = Hash "http-bridge"
         , parentHeaderHash = previous
         }
 
-decodeMainConsensusData :: CBOR.Decoder s ((Word64, Word32), Word64)
+decodeMainConsensusData :: CBOR.Decoder s (SlotId, Word64)
 decodeMainConsensusData = do
     _ <- CBOR.decodeListLenCanonicalOf 4
     slot <- decodeSlotId
@@ -462,12 +473,11 @@ decodeSharesProof = do
     _ <- CBOR.decodeBytes -- Vss Certificates Hash
     return ()
 
-decodeSlotId :: CBOR.Decoder s (Word64, Word32)
+decodeSlotId :: CBOR.Decoder s SlotId
 decodeSlotId = do
     _ <- CBOR.decodeListLenCanonicalOf 2
-    epoch <- CBOR.decodeWord64
-    slot <- fromIntegral <$> CBOR.decodeWord16
-    return (epoch, slot)
+    epoch <- decodeEpochNo
+    SlotId epoch <$> decodeSlotNo
 
 decodeSoftwareVersion :: CBOR.Decoder s ()
 decodeSoftwareVersion = do

@@ -1,6 +1,7 @@
 {-# LANGUAGE BinaryLiterals #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -91,6 +92,7 @@ import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , ChimericAccount (..)
     , Coin (..)
+    , EpochNo (..)
     , Hash (..)
     , PoolId (..)
     , SealedTx (..)
@@ -100,6 +102,7 @@ import Cardano.Wallet.Primitive.Types
     , TxIn (..)
     , TxOut (..)
     , TxWitness (..)
+    , unsafeEpochNo
     )
 import Cardano.Wallet.Transaction
     ( EstimateMaxNumberOfInputsParams (..) )
@@ -147,6 +150,8 @@ import Data.Word
     ( Word16, Word32, Word64, Word8 )
 import GHC.Generics
     ( Generic )
+import GHC.Stack
+    ( HasCallStack )
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.ByteArray as BA
@@ -198,7 +203,7 @@ getBlockHeader = label "getBlockHeader" $ do
         -- Common structure.
         version <- getWord16be
         contentSize <- getWord32be
-        slotEpoch <- fromIntegral <$> getWord32be
+        slotEpoch <- getEpochNo
         slotNo <- SlotNo <$> getWord32be
         chainLength <- getWord32be
         contentHash <- Hash <$> getByteString 32
@@ -250,6 +255,9 @@ getBlockId = lookAhead getBlock *> label "getBlockId" (do
     size <- getWord16be
     bytes <- getByteString (fromEnum size)
     return $ Hash $ blake2b256 bytes)
+
+getEpochNo :: HasCallStack => Get EpochNo
+getEpochNo = unsafeEpochNo <$> getWord32be
 
 {-------------------------------------------------------------------------------
                            Fragments

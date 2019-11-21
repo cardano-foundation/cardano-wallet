@@ -41,6 +41,7 @@ import Cardano.Wallet.Primitive.Types
     , flatSlot
     , fromFlatSlot
     , isValidCoin
+    , unsafeEpochNo
     )
 import Control.Arrow
     ( left )
@@ -77,7 +78,9 @@ import Data.Text.Class
     , getTextDecodingError
     )
 import Data.Word
-    ( Word64, Word8 )
+    ( Word32, Word64, Word8 )
+import Data.Word.Odd
+    ( Word31 )
 import Database.Persist.Sqlite
     ( PersistField (..), PersistFieldSql (..), PersistValue )
 import Database.Persist.TH
@@ -257,8 +260,8 @@ instance PersistFieldSql SlotId where
 
 -- | As a short-to-medium term solution of persisting 'SlotId', we use
 -- 'flatSlot' with an artificial epochLength. I.e. /not the same epochLength as
--- the blockchain/. This is just for the sake of storing the 64 bit epoch and
--- the 32-bit slot inside a single 64-bit field.
+-- the blockchain/. This is just for the sake of storing the epoch number and
+-- slot number inside a single 64-bit field.
 artificialEpochLength :: EpochLength
 artificialEpochLength = EpochLength maxBound
 
@@ -285,10 +288,10 @@ instance FromJSON SlotNo where
     parseJSON = fmap SlotNo . parseJSON
 
 instance ToJSON EpochNo where
-    toJSON (EpochNo n) = toJSON n
+    toJSON (EpochNo n) = toJSON (fromIntegral @Word31 @Word32 n)
 
 instance FromJSON EpochNo where
-    parseJSON = fmap EpochNo . parseJSON
+    parseJSON = fmap unsafeEpochNo . parseJSON
 
 instance ToHttpApiData SlotId where
     toUrlPiece = error "toUrlPiece stub needed for persistent"

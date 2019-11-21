@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
@@ -84,6 +85,7 @@ module Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SlotNo (..)
     , EpochNo (..)
+    , unsafeEpochNo
     , SlotParameters (..)
     , SlotLength (..)
     , EpochLength (..)
@@ -200,6 +202,8 @@ import Data.Time.Clock
     ( NominalDiffTime, UTCTime, addUTCTime, diffUTCTime )
 import Data.Word
     ( Word32, Word64 )
+import Data.Word.Odd
+    ( Word31 )
 import Fmt
     ( Buildable (..)
     , blockListF
@@ -214,6 +218,8 @@ import Fmt
     )
 import GHC.Generics
     ( Generic )
+import GHC.Stack
+    ( HasCallStack )
 import GHC.TypeLits
     ( KnownSymbol, Symbol, symbolVal )
 import Numeric.Natural
@@ -999,9 +1005,35 @@ newtype SlotNo = SlotNo { unSlotNo :: Word32 }
     deriving stock (Show, Read, Eq, Ord, Generic)
     deriving newtype (Num, Buildable, NFData, Enum)
 
-newtype EpochNo = EpochNo { unEpochNo :: Word64 }
+newtype EpochNo = EpochNo { unEpochNo :: Word31 }
     deriving stock (Show, Read, Eq, Ord, Generic)
-    deriving newtype (Num, Buildable, NFData, Enum)
+    deriving newtype (Num, Bounded, Enum)
+
+instance Buildable EpochNo where
+    build (EpochNo e) = build $ fromIntegral @Word31 @Word32 e
+
+instance NFData EpochNo where
+    rnf (EpochNo !_) = ()
+
+-- | Convert the specified value into an 'EpochNo', or fail if the value is
+--   too large.
+unsafeEpochNo :: HasCallStack => Word32 -> EpochNo
+unsafeEpochNo epochNo
+    | epochNo > maxEpochNo =
+        error $ mconcat
+            [ "unsafeEpochNo: epoch number ("
+            , show epochNo
+            , ") out of bounds ("
+            , show (minBound @Word31)
+            , ", "
+            , show (maxBound @Word31)
+            , ")."
+            ]
+    | otherwise =
+        EpochNo $ fromIntegral epochNo
+  where
+    maxEpochNo :: Word32
+    maxEpochNo = fromIntegral @Word31 $ unEpochNo maxBound
 
 instance NFData SlotId
 
@@ -1138,12 +1170,12 @@ syncProgressRelativeToTime tolerance sp tip time =
 -- | Convert a 'SlotId' to the number of slots since genesis.
 flatSlot :: EpochLength -> SlotId -> Word64
 flatSlot (EpochLength epochLength) (SlotId (EpochNo e) (SlotNo s)) =
-    fromIntegral epochLength * e + fromIntegral s
+    fromIntegral epochLength * fromIntegral e + fromIntegral s
 
 -- | Convert a 'flatSlot' index to 'SlotId'.
 fromFlatSlot :: EpochLength -> Word64 -> SlotId
 fromFlatSlot (EpochLength epochLength) n =
-    SlotId (EpochNo e) (fromIntegral s)
+    SlotId (EpochNo $ fromIntegral e) (fromIntegral s)
   where
     e = n `div` fromIntegral epochLength
     s = n `mod` fromIntegral epochLength
@@ -1237,7 +1269,7 @@ newtype SlotLength = SlotLength NominalDiffTime
 instance NFData SlotLength
 
 -- | Number of slots in a single epoch
-newtype EpochLength = EpochLength Word32
+newtype EpochLength = EpochLength { unEpochLength :: Word32 }
     deriving (Show, Eq, Generic)
 
 instance NFData EpochLength
