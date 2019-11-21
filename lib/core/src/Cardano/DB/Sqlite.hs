@@ -40,6 +40,8 @@ import Cardano.BM.Data.LogItem
     ( PrivacyAnnotation (..) )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
+import Cardano.BM.Data.Tracer
+    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
 import Cardano.BM.Observer.Monadic
     ( bracketObserveIO )
 import Cardano.BM.Trace
@@ -189,14 +191,16 @@ transformTrace :: Trace IO Text -> Trace IO DBLog
 transformTrace = contramap (fmap toText)
 
 dbLog :: MonadIO m => Trace m DBLog -> DBLog -> m ()
-dbLog logTrace msg = traceNamedItem logTrace Public (dbLogLevel msg) msg
+dbLog logTrace msg = traceNamedItem logTrace Public (defineSeverity msg) msg
 
-dbLogLevel :: DBLog -> Severity
-dbLogLevel (MsgMigrations 0) = Debug
-dbLogLevel (MsgMigrations _) = Notice
-dbLogLevel (MsgQuery _ sev) = sev
-dbLogLevel (MsgConnStr _) = Debug
-dbLogLevel (MsgClosing _) = Debug
+instance DefinePrivacyAnnotation DBLog
+instance DefineSeverity DBLog where
+    defineSeverity ev = case ev of
+        MsgMigrations 0 -> Debug
+        MsgMigrations _ -> Notice
+        MsgQuery _ sev -> sev
+        MsgConnStr _ -> Debug
+        MsgClosing _ -> Debug
 
 instance ToText DBLog where
     toText (MsgMigrations 0) = "No database migrations were necessary."
