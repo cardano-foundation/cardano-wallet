@@ -843,6 +843,7 @@ spec = do
             , expectFieldEqual addressPoolGap 20
             , expectFieldEqual balanceAvailable 0
             , expectFieldEqual balanceTotal 0
+            , expectFieldEqual walletReward 0
             , expectEventually ctx getWalletEp state Ready
             , expectFieldEqual delegation (NotDelegating)
             , expectFieldEqual walletId walId
