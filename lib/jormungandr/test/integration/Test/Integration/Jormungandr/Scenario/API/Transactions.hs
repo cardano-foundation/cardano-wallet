@@ -277,10 +277,7 @@ spec = do
        \wrong binary format" $ \ctx -> do
         let toSend = 1 :: Natural
         (ExternalTxFixture _ _ _ bin _) <- fixtureExternalTx ctx toSend
-        let baseOk = Base16
-        let wronglyEncodedSignedTx = T.decodeUtf8 $ convertToBase baseOk bin
-        let payload = NonJson $ BL.fromStrict $
-                (toRawBytes baseOk) wronglyEncodedSignedTx
+        let payload = NonJson $ BL.fromStrict $ ("\NUL\NUL"<>) $ getSealedTx bin
         let headers = Headers [ ("Content-Type", "application/octet-stream") ]
         r <- request @ApiTxId ctx postExternalTxEp headers payload
         verify r
