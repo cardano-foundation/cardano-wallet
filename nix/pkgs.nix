@@ -28,12 +28,6 @@ let
         hasPrefix (toString origSrc + toString dir) path;
     } + dir;
 
-  cabalPatch = pkgs.fetchpatch {
-    url = "https://patch-diff.githubusercontent.com/raw/haskell/cabal/pull/6055.diff";
-    sha256 = "145g7s3z9q8d18pxgyngvixgsm6gmwh1rgkzkhacy4krqiq0qyvx";
-    stripLen = 1;
-  };
-
   pkgSet = haskell.mkStackPkgSet {
     inherit stack-pkgs;
     modules = [
