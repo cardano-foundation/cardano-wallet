@@ -72,22 +72,6 @@ let
         packages.cardano-wallet-jormungandr.components.all.preBuild = pkgs.lib.mkForce "";
       }
 
-      # Misc. build fixes for dependencies
-      {
-        # Cut down iohk-monitoring deps
-        packages.iohk-monitoring.flags = {
-          disable-ekg = true;
-          disable-examples = true;
-          disable-graylog = true;
-          disable-gui = true;
-          disable-prometheus = true;
-          disable-systemd = true;
-        };
-
-        # Katip has Win32 (>=2.3 && <2.6) constraint
-        packages.katip.doExactConfig = true;
-      }
-
       # Musl libc fully static build
       (with pkgs.stdenv; let
         gplWallet = true; # fixme

@@ -41,15 +41,18 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
   {
     flags = {};
     package = {
-      specVersion = "1.10";
-      identifier = { name = "contra-tracer"; version = "0.1.0.0"; };
+      specVersion = "2.0";
+      identifier = {
+        name = "lobemo-backend-aggregation";
+        version = "0.1.0.0";
+        };
       license = "Apache-2.0";
       copyright = "2019 IOHK";
       maintainer = "operations@iohk.io";
-      author = "Neil Davies, Alexander Diemand, Andreas Triantafyllos";
-      homepage = "";
+      author = "Alexander Diemand";
+      homepage = "https://github.com/input-output-hk/iohk-monitoring-framework";
       url = "";
-      synopsis = "A simple interface for logging, tracing or monitoring.";
+      synopsis = "provides a backend implementation to aggregate traced values";
       description = "";
       buildType = "Simple";
       isLocal = true;
@@ -58,7 +61,17 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       "library" = {
         depends = [
           (hsPkgs."base" or (buildDepError "base"))
-          ] ++ (pkgs.lib).optional (compiler.isGhc && (compiler.version).lt "8.5") (hsPkgs."contravariant" or (buildDepError "contravariant"));
+          (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
+          (hsPkgs."aeson" or (buildDepError "aeson"))
+          (hsPkgs."async" or (buildDepError "async"))
+          (hsPkgs."text" or (buildDepError "text"))
+          (hsPkgs."time" or (buildDepError "time"))
+          (hsPkgs."safe-exceptions" or (buildDepError "safe-exceptions"))
+          (hsPkgs."stm" or (buildDepError "stm"))
+          (hsPkgs."unordered-containers" or (buildDepError "unordered-containers"))
+          ] ++ (if system.isWindows
+          then [ (hsPkgs."Win32" or (buildDepError "Win32")) ]
+          else [ (hsPkgs."unix" or (buildDepError "unix")) ]);
         buildable = true;
         };
       };
@@ -68,5 +81,5 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       rev = "4956b32f039579a0e7e4fd10793f65b4c77d9044";
       sha256 = "03lyb2m4i6p7rpjqarnhsx21nx48fwk6rzsrx15k6274a4bv0pix";
       });
-    postUnpack = "sourceRoot+=/contra-tracer; echo source root reset to \$sourceRoot";
+    postUnpack = "sourceRoot+=/plugins/backend-aggregation; echo source root reset to \$sourceRoot";
     }

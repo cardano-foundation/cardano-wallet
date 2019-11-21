@@ -42,15 +42,15 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     flags = {};
     package = {
       specVersion = "1.10";
-      identifier = { name = "contra-tracer"; version = "0.1.0.0"; };
-      license = "Apache-2.0";
-      copyright = "2019 IOHK";
-      maintainer = "operations@iohk.io";
-      author = "Neil Davies, Alexander Diemand, Andreas Triantafyllos";
-      homepage = "";
+      identifier = { name = "ekg-prometheus-adapter"; version = "0.2.0.1"; };
+      license = "MIT";
+      copyright = "2016 Alfredo Di Napoli";
+      maintainer = "alfredo.dinapoli@gmail.com";
+      author = "Alfredo Di Napoli";
+      homepage = "https://github.com/CodiePP/ekg-prometheus-adapter";
       url = "";
-      synopsis = "A simple interface for logging, tracing or monitoring.";
-      description = "";
+      synopsis = "Easily expose your EKG metrics to Prometheus";
+      description = "Forked from original implementation by Alfredo Di Napoli on https://github.com/adinapoli/ekg-prometheus-adapter";
       buildType = "Simple";
       isLocal = true;
       };
@@ -58,15 +58,30 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       "library" = {
         depends = [
           (hsPkgs."base" or (buildDepError "base"))
-          ] ++ (pkgs.lib).optional (compiler.isGhc && (compiler.version).lt "8.5") (hsPkgs."contravariant" or (buildDepError "contravariant"));
+          (hsPkgs."prometheus" or (buildDepError "prometheus"))
+          (hsPkgs."ekg-core" or (buildDepError "ekg-core"))
+          (hsPkgs."unordered-containers" or (buildDepError "unordered-containers"))
+          (hsPkgs."containers" or (buildDepError "containers"))
+          (hsPkgs."text" or (buildDepError "text"))
+          (hsPkgs."transformers" or (buildDepError "transformers"))
+          (hsPkgs."microlens-th" or (buildDepError "microlens-th"))
+          ];
         buildable = true;
+        };
+      tests = {
+        "tests" = {
+          depends = [
+            (hsPkgs."base" or (buildDepError "base"))
+            (hsPkgs."ekg-prometheus-adapter" or (buildDepError "ekg-prometheus-adapter"))
+            ];
+          buildable = true;
+          };
         };
       };
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
-      url = "https://github.com/input-output-hk/iohk-monitoring-framework";
-      rev = "4956b32f039579a0e7e4fd10793f65b4c77d9044";
-      sha256 = "03lyb2m4i6p7rpjqarnhsx21nx48fwk6rzsrx15k6274a4bv0pix";
+      url = "https://github.com/CodiePP/ekg-prometheus-adapter";
+      rev = "1a258b6df7d9807d4c4ff3e99722223d31a2c320";
+      sha256 = "0jzr1afb4vanhcc2gzlybzr0jnh66cap8kh00fkd4c22882jqkh8";
       });
-    postUnpack = "sourceRoot+=/contra-tracer; echo source root reset to \$sourceRoot";
     }
