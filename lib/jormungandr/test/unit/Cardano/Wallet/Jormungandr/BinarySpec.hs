@@ -80,6 +80,7 @@ import Test.Hspec
     , expectationFailure
     , it
     , runIO
+    , shouldBe
     , shouldContain
     , shouldSatisfy
     )
@@ -168,6 +169,11 @@ spec = do
                 then return ()
                 else expectationFailure $
                     "tx /= decode (encode tx) == " ++ show tx'
+
+        it "empty tx has correct binary and fragmentId" $ do
+            let (hash, sealed) = mkTx [] []
+            (getSealedTx sealed) `shouldBe` (unsafeFromHex "000400020000")
+            hash `shouldBe` (Hash $ unsafeFromHex "cab5e2102001bf73faca4a23ce1b8541cfe37fafe30d85ef41db1d8da15ec26c")
 
         it "decode (encode tx) === tx stake delegation transaction" $
             property $ \(StakeDelegationTx args) -> monadicIO $ liftIO $ do
