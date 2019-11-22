@@ -123,6 +123,8 @@ import Data.Time.Utils
     ( utcTimePred, utcTimeSucc )
 import Data.Word
     ( Word32 )
+import Data.Word.Odd
+    ( Word31 )
 import Fmt
     ( pretty )
 import Test.Hspec
@@ -142,6 +144,7 @@ import Test.QuickCheck
     , Property
     , arbitraryBoundedEnum
     , arbitraryPrintableChar
+    , arbitrarySizedBoundedIntegral
     , checkCoverage
     , choose
     , counterexample
@@ -150,6 +153,7 @@ import Test.QuickCheck
     , oneof
     , property
     , scale
+    , shrinkIntegral
     , vectorOf
     , withMaxSuccess
     , (.&&.)
@@ -159,6 +163,8 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
+import Test.QuickCheck.Monadic
+    ( monadicIO, run )
 import Test.Text.Roundtrip
     ( textRoundtrip )
 import Test.Utils.Time
@@ -665,6 +671,12 @@ spec = do
                         \Linear equation not in expected format: a + bx + cy"
                 fromText @FeePolicy policyText === Left (TextDecodingError err)
 
+    describe "unsafeEpochNo" $ do
+        it "returns a successful result for any Word31" $
+            property prop_unsafeEpochNoValid
+        it "throws an exception for any value bigger than a Word31" $
+            property prop_unsafeEpochNoThrows
+
     describe "Lemma 2.1 - Properties of UTxO operations" $ do
         it "2.1.1) ins⊲ u ⊆ u"
             (checkCoverage prop_2_1_1)
@@ -877,6 +889,26 @@ propUtxoWeightsEqualSize bType (ShowFmt utxo) =
   where
     UTxOStatistics bars _ _ = computeUtxoStatistics bType utxo
     histElems = fmap $ \(HistogramBar _ v) -> v
+
+{-------------------------------------------------------------------------------
+                            unsafeEpochNo Properties
+-------------------------------------------------------------------------------}
+
+prop_unsafeEpochNoValid :: Word31 -> Property
+prop_unsafeEpochNoValid ep =
+    unsafeEpochNo (fromIntegral ep) === EpochNo ep
+
+prop_unsafeEpochNoThrows :: Word32 -> Property
+prop_unsafeEpochNoThrows ep
+    | ep > maxEpochNo = prop ep
+    | otherwise = prop (ep + maxEpochNo + 1)
+  where
+    maxEpochNo :: Word32
+    maxEpochNo = fromIntegral $ unEpochNo maxBound
+
+    prop :: Word32 -> Property
+    prop ep' = monadicIO $ run $
+        evaluate (unsafeEpochNo ep') `shouldThrow` anyErrorCall
 
 {-------------------------------------------------------------------------------
                             Arbitrary Instances
@@ -1110,6 +1142,9 @@ instance {-# OVERLAPS #-} Arbitrary (EpochLength, SlotId) where
         sl <- SlotNo <$> choose (0, fromIntegral epochLength - 1)
         return (EpochLength epochLength, SlotId ep sl)
 
+instance Arbitrary Word31 where
+    arbitrary = arbitrarySizedBoundedIntegral
+    shrink = shrinkIntegral
 
 {-------------------------------------------------------------------------------
                                   Test data
