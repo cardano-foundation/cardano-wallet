@@ -9,8 +9,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-{-# OPTIONS_GHC -fno-warn-unused-imports #-}
-
 module Cardano.Wallet.Jormungandr.BinarySpec
     ( spec
     ) where
@@ -31,19 +29,25 @@ import Cardano.Wallet.Jormungandr.Binary
     , runGet
     , runPut
     )
+import Cardano.Wallet.Jormungandr.Transaction
+    ( newTransactionLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Passphrase, XPrv, unXPrv )
+    ( Passphrase, XPrv, hex, unXPrv )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , ChimericAccount (..)
     , Coin (..)
     , Hash (..)
     , PoolId (..)
+    , SealedTx (..)
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
-    , TxWitness (..)
     )
+import Cardano.Wallet.Transaction
+    ( TransactionLayer (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeXPrv )
 import Control.DeepSeq
@@ -83,7 +87,6 @@ import Test.Hspec
     )
 import Test.QuickCheck as QC
     ( Arbitrary (..)
-    , InfiniteList (..)
     , choose
     , counterexample
     , elements
@@ -183,6 +186,39 @@ spec = do
 
                 _ -> run $ expectationFailure
                     "unexpected fragment after serializing a transaction?"
+
+    describe "Decode External Tx" $ do
+        let tl = newTransactionLayer @ShelleyKey (Hash "genesis")
+
+        it "decodeExternalTx works ok with properly constructed binary blob" $
+            property $ \test -> monadicIO $ do
+                let bytes = BL.toStrict $ runPut $ putFragment
+                        (fragmentGenesis test)
+                        (zip (fragmentInputs test) (fragmentCredentials test))
+                        (fragmentOutputs test)
+                        (fragmentTag test)
+
+                monitor (counterexample $ show $ hex bytes)
+
+                case fragmentTag test of
+                    MkFragmentSimpleTransaction{} -> do
+                        monitor (QC.label "Simple Transaction")
+                        case decodeSignedTx tl bytes of
+                            Left err ->
+                                run $ expectationFailure $ show err
+                            Right (tx@(Tx _ inps outs), SealedTx bytes') -> do
+                                monitor (counterexample $ show tx)
+                                assert (inps == fragmentInputs test)
+                                assert (outs == fragmentOutputs test)
+                                assert (hex bytes == hex bytes')
+
+                    MkFragmentStakeDelegation{} -> do
+                        monitor (QC.label "Not Simple Transaction")
+                        case decodeSignedTx tl bytes of
+                            Left _ -> pure ()
+                            Right (tx, _) -> do
+                                monitor (counterexample $ show tx)
+                                run $ expectationFailure "expected failure"
   where
     try' :: a -> IO (Either String a)
     try' = fmap (either (Left . show) Right)

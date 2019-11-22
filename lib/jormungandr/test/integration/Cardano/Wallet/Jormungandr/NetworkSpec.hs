@@ -22,14 +22,11 @@ import Cardano.Wallet.Jormungandr.Api.Types
     ( AccountState (..) )
 import Cardano.Wallet.Jormungandr.Binary
     ( FragmentSpec (..)
+    , MkFragment (..)
     , TxWitnessTag (..)
-    , fragmentId
-    , putSignedTx
-    , putTxWitnessTag
+    , putFragment
     , runPut
-    , signedTransactionFragment
-    , txWitnessSize
-    , withHeader
+    , sealFragment
     )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
@@ -120,18 +117,6 @@ import Test.Hspec
     , shouldSatisfy
     , shouldThrow
     )
-import Test.QuickCheck
-    ( Arbitrary (..)
-    , Gen
-    , choose
-    , generate
-    , oneof
-    , property
-    , shrinkList
-    , vectorOf
-    )
-import Test.QuickCheck.Monadic
-    ( monadicIO )
 import Test.Utils.Ports
     ( randomUnusedTCPPorts )
 
@@ -307,10 +292,12 @@ spec = do
     describe "Submitting signed transactions (that are not obviously wrong)"
         $ around startNode $ do
 
+        let mockTxId = Hash (replicate 32 '0')
+
         it "empty tx succeeds" $ \(nw, _) -> do
             -- Would be rejected eventually.
             let wits = []
-            let empty = Tx (fragmentId [] [] wits) [] []
+            let empty = Tx mockTxId [] []
             let signedEmpty = signedTransactionFragment empty wits
             runExceptT (postTx nw signedEmpty) `shouldReturn` Right ()
 
@@ -351,7 +338,7 @@ spec = do
                       (Coin 1227362560)
                     ]
             let wits = []
-            let tx = Tx (fragmentId [] outs wits) [] outs
+            let tx = Tx mockTxId [] outs
             let signed = signedTransactionFragment tx wits
             runExceptT (postTx nw signed) `shouldReturn` Right ()
 
@@ -363,28 +350,6 @@ spec = do
                 let tx = Tx (fragmentId inps outs wits) inps outs
                 let signed = signedTransactionFragment tx wits
                 runExceptT (postTx nw signed) `shouldThrow` anyException
-
-    describe "Decode External Tx" $ do
-        let tl = newTransactionLayer @'Testnet @ShelleyKey (Hash "genesis")
-
-        it "decodeExternalTx works ok with properly constructed binary blob" $ do
-            property $ \(SignedTx signedTx@(tx, _)) -> monadicIO $ liftIO $ do
-                let encode ((Tx _ inps outs), wits) = runPut
-                        $ withHeader FragmentTransaction
-                        $ putSignedTx inps outs wits
-                let bin = BL.toStrict $ encode signedTx
-                decodeSignedTx tl bin `shouldBe` Right (tx, SealedTx bin)
-
-        it "decodeExternalTx throws an exception when binary blob has non-\
-            \transaction-type header or is wrongly constructed binary blob" $
-            property $ \(SignedTx signedTx) -> monadicIO $ liftIO $ do
-                let encodeWrongly ((Tx _ inps outs), wits) = runPut
-                        $ withHeader FragmentInitial
-                        $ putSignedTx inps outs wits
-                let encodedSignedTx = BL.toStrict $ encodeWrongly signedTx
-                decodeSignedTx tl encodedSignedTx `shouldBe` Left
-                    (ErrDecodeSignedTxWrongPayload
-                        "wrongly constructed binary blob")
   where
     second :: Int
     second = 1000000
@@ -491,98 +456,6 @@ instance Show (NextBlocksResult t b) where
 
 instance Eq (NextBlocksResult t b) where
     a == b = show a == show b
-
-newtype SignedTx = SignedTx (Tx, [TxWitness])
-    deriving (Eq, Show)
-
-instance Arbitrary SignedTx where
-    arbitrary = do
-        nIns <- fromIntegral <$> arbitrary @Word8
-        nOut <- fromIntegral <$> arbitrary @Word8
-        inps <- vectorOf nIns arbitrary
-        outs <- vectorOf nOut arbitrary
-        wits <- vectorOf nIns arbitrary
-        let tid = fragmentId inps outs wits
-        return $ SignedTx (Tx tid inps outs, wits)
-
-    shrink (SignedTx (Tx _ inps outs, wits)) =
-        [ SignedTx (Tx (fragmentId inps' outs wits') inps' outs, wits')
-        | (inps', wits') <- unzip <$> shrinkList' (zip inps wits)
-        ]
-        ++
-        [ SignedTx (Tx (fragmentId inps outs' wits) inps outs', wits)
-        | outs' <- shrinkList' outs
-        ]
-
-      where
-        shrinkList' xs  =
-            (shrinkHeadAndReplicate shrink xs) ++
-            (shrinkList shrink xs)
-
-        -- Try shrinking the 'head' of the list and replace the elements in
-        -- the 'tail' with the exact same element. If the failure is related
-        -- to the size of the list, this makes the shrinking much faster.
-        shrinkHeadAndReplicate f (x:xs) =
-            (\x' -> x':(map (const x') xs)) <$> f x
-        shrinkHeadAndReplicate _f [] = []
-
--- | Only generates single address witnesses
-instance Arbitrary TxWitness where
-    arbitrary = taggedWitness TxWitnessUTxO . TxWitness
-        <$> genFixed (txWitnessSize TxWitnessUTxO)
-
-instance Arbitrary (Hash "Tx") where
-    arbitrary = Hash <$> genFixed 32
-    shrink (Hash bytes) = Hash <$> shrinkFixedBS bytes
-
-instance Arbitrary Coin where
-    arbitrary = do
-        n <- choose (0, 100)
-        oneof [
-            return $ Coin n
-            , return $ Coin (getCoin (maxBound :: Coin) - n)
-            , Coin <$> choose (0, getCoin (maxBound :: Coin))
-            ]
-    shrink (Coin c) = map Coin (shrink c)
-
-instance Arbitrary TxIn where
-    arbitrary = TxIn
-        <$> arbitrary
-        <*> (fromIntegral <$> arbitrary @Word8)
-    shrink (TxIn h ix) = TxIn h <$> shrink ix
-
-instance Arbitrary TxOut where
-    arbitrary = TxOut
-        <$> arbitrary
-        <*> arbitrary
-    shrink (TxOut a c) = [TxOut a' c' | (a',c') <- shrink (a,c)]
-
--- Only generating single addresses!
-instance Arbitrary Address where
-    arbitrary = do
-        let singleAddressHeader = 3
-        let singleAddressLenWithoutHeader = 32
-        Address . prependTag singleAddressHeader <$>
-            genFixed singleAddressLenWithoutHeader
-    shrink (Address addr) = Address . prependTag 3
-        <$> shrinkFixedBS (BS.tail addr)
-
-genFixed :: Int -> Gen ByteString
-genFixed n = BS.pack <$> (vectorOf n arbitrary)
-
-shrinkFixedBS :: ByteString -> [ByteString]
-shrinkFixedBS bs = [zeros | bs /= zeros]
-      where
-        len = BS.length bs
-        zeros = BS.pack (replicate len 0)
-
-prependTag :: Int -> ByteString -> ByteString
-prependTag tag bs = BS.pack [fromIntegral tag] <> bs
-
-taggedWitness :: TxWitnessTag -> TxWitness -> TxWitness
-taggedWitness tag (TxWitness bytes) = TxWitness (prefix <> bytes)
-  where
-    prefix = BL.toStrict $ runPut $ putTxWitnessTag tag
 
 getRollForward :: NextBlocksResult target block -> Maybe [block]
 getRollForward AwaitReply = Nothing
