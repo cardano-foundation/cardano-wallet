@@ -21,11 +21,10 @@ import Cardano.Wallet.Jormungandr.Api.Client
 import Cardano.Wallet.Jormungandr.Api.Types
     ( AccountState (..) )
 import Cardano.Wallet.Jormungandr.Binary
-    ( FragmentSpec (..)
-    , MkFragment (..)
+    ( MkFragment (..)
     , TxWitnessTag (..)
+    , maxNumberOfInputs
     , putFragment
-    , runPut
     , sealFragment
     )
 import Cardano.Wallet.Jormungandr.Compatibility
@@ -43,8 +42,6 @@ import Cardano.Wallet.Jormungandr.Network
     , withJormungandr
     , withNetworkLayer
     )
-import Cardano.Wallet.Jormungandr.Transaction
-    ( newTransactionLayer )
 import Cardano.Wallet.Network
     ( ErrGetBlock (..)
     , ErrNetworkTip (..)
@@ -54,27 +51,24 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Network.BlockHeaders
     ( emptyBlockHeaders )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
+    ( NetworkDiscriminant (..), Passphrase (..), XPrv )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
-    , BlockHeader (..)
+    ( BlockHeader (..)
     , Coin (..)
     , Hash (..)
     , PoolId (..)
-    , SealedTx (..)
     , SlotId (..)
-    , Tx (..)
     , TxIn (..)
     , TxOut (..)
-    , TxWitness (..)
     , slotMinBound
     )
-import Cardano.Wallet.Transaction
-    ( ErrDecodeSignedTx (..), TransactionLayer (..) )
 import Cardano.Wallet.Unsafe
-    ( unsafeDecodeAddress, unsafeFromHex, unsafeFromText, unsafeRunExceptT )
+    ( unsafeDecodeAddress
+    , unsafeFromHex
+    , unsafeFromText
+    , unsafeRunExceptT
+    , unsafeXPrv
+    )
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.MVar
@@ -85,22 +79,16 @@ import Control.Exception
     ( throwIO )
 import Control.Monad
     ( void )
-import Control.Monad.IO.Class
-    ( liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
 import Control.Retry
     ( limitRetries, retrying )
-import Data.ByteString
-    ( ByteString )
 import Data.Either
     ( isRight )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Word
-    ( Word8 )
 import Network.HTTP.Client
     ( defaultManagerSettings, newManager )
 import Servant.Links
@@ -117,13 +105,14 @@ import Test.Hspec
     , shouldSatisfy
     , shouldThrow
     )
+import Test.QuickCheck
+    ( arbitrary, generate, vectorOf )
 import Test.Utils.Ports
     ( randomUnusedTCPPorts )
 
 import qualified Cardano.Wallet.Jormungandr.Api.Client as Jormungandr
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
-import qualified Data.ByteString.Lazy as BL
 
 {-# ANN spec ("HLint: ignore Use head" :: String) #-}
 
@@ -292,64 +281,84 @@ spec = do
     describe "Submitting signed transactions (that are not obviously wrong)"
         $ around startNode $ do
 
-        let mockTxId = Hash (replicate 32 '0')
+        let block0H :: Hash "Genesis"
+            block0H = Hash (B8.replicate 32 '0')
+
+        let input0 :: TxIn
+            input0 = TxIn
+                { inputId = Hash $ unsafeFromHex
+                    "666984dec4bc0ff1888be97bfe0694a9\
+                    \6b35c58d025405ead51d5cc72a3019f4"
+                , inputIx = 0
+                }
+
+        let inputValue0 :: Coin
+            inputValue0 = Coin 934864225351
+
+        let credentials0 :: (XPrv, Passphrase "encryption")
+            credentials0 = (unsafeXPrv (B8.replicate 128 '0'), mempty)
+
+        let output0 :: TxOut
+            output0 = TxOut
+                { address = unsafeDecodeAddress @'Mainnet
+                    "ca1q0u7k6ltp3e52pch47rhdkld2gdv\
+                    \gu26rwyqh02csu3ah3384f2nvhlk7a6"
+                , coin = Coin 933636862791
+                }
+
+        let output1 :: TxOut
+            output1 = TxOut
+                { address = unsafeDecodeAddress @'Mainnet
+                    "ca1qwunuat6snw60g99ul6qvte98fja\
+                    \le2k0uu5mrymylqz2ntgzs6vs386wxd"
+                , coin = Coin 1227362560
+                }
 
         it "empty tx succeeds" $ \(nw, _) -> do
             -- Would be rejected eventually.
-            let wits = []
-            let empty = Tx mockTxId [] []
-            let signedEmpty = signedTransactionFragment empty wits
-            runExceptT (postTx nw signedEmpty) `shouldReturn` Right ()
+            let (_, sealed) = sealFragment $ putFragment
+                    block0H
+                    mempty
+                    mempty
+                    (MkFragmentSimpleTransaction TxWitnessUTxO)
+            runExceptT (postTx nw sealed) `shouldReturn` Right ()
 
         it "some tx succeeds" $ \(nw, _) -> do
-            let signed = signedTransactionFragment txNonEmpty [pkWitness]
-            runExceptT (postTx nw signed) `shouldReturn` Right ()
+            let (_, sealed) = sealFragment $ putFragment
+                    block0H
+                    [((input0, inputValue0), credentials0)]
+                    [output0, output1]
+                    (MkFragmentSimpleTransaction TxWitnessUTxO)
+            runExceptT (postTx nw sealed) `shouldReturn` Right ()
 
         it "unbalanced tx (surplus) succeeds" $ \(nw, _) -> do
             -- Jormungandr will eventually reject txs that are not perfectly
             -- balanced though.
-            let signed = signedTransactionFragment unbalancedTx [pkWitness]
-            runExceptT (postTx nw signed) `shouldReturn` Right ()
-
-        it "more inputs than witnesses - encoder throws" $ \(nw, _) -> do
-            let signed = signedTransactionFragment txNonEmpty []
-            runExceptT (postTx nw signed) `shouldThrow` anyException
-
-        it "more witnesses than inputs - fine apparently" $ \(nw, _) -> do
-            -- Because of how signed txs are encoded:
-            -- n                      :: Word8
-            -- m                      :: Word8
-            -- in_0 .. in_n           :: [TxIn]
-            -- out_0 .. out_m         :: [TxOut]
-            -- witness_0 .. witness_n :: [TxWitness]
-            --
-            -- this should in practice be like appending bytes to the end of
-            -- the message.
-            let wits = [pkWitness, pkWitness, pkWitness]
-            let signed = signedTransactionFragment txNonEmpty wits
-            runExceptT (postTx nw signed) `shouldThrow` anyException
+            let Coin c = inputValue0
+            let (_, sealed) = sealFragment $ putFragment
+                    block0H
+                    [((input0, Coin (c `div` 2)), credentials0)]
+                    [output0, output1]
+                    (MkFragmentSimpleTransaction TxWitnessUTxO)
+            runExceptT (postTx nw sealed) `shouldReturn` Right ()
 
         it "no input, one output" $ \(nw, _) -> do
             -- Would be rejected eventually.
-            let outs =
-                    [ (TxOut $ unsafeDecodeAddress @'Mainnet
-                        "ca1qwunuat6snw60g99ul6qvte98fja\
-                        \le2k0uu5mrymylqz2ntgzs6vs386wxd")
-                      (Coin 1227362560)
-                    ]
-            let wits = []
-            let tx = Tx mockTxId [] outs
-            let signed = signedTransactionFragment tx wits
-            runExceptT (postTx nw signed) `shouldReturn` Right ()
+            let (_, sealed) = sealFragment $ putFragment
+                    block0H
+                    []
+                    [output0]
+                    (MkFragmentSimpleTransaction TxWitnessUTxO)
+            runExceptT (postTx nw sealed) `shouldReturn` Right ()
 
-        it "encoder throws an exception if tx is invalid (eg too many inputs)" $
-            \(nw, _) -> do
-                let inps = replicate 300 (head $ resolvedInputs txNonEmpty)
-                let outs = replicate 3 (head $ outputs txNonEmpty)
-                let wits = []
-                let tx = Tx (fragmentId inps outs wits) inps outs
-                let signed = signedTransactionFragment tx wits
-                runExceptT (postTx nw signed) `shouldThrow` anyException
+        it "throws on too many inputs" $ \(nw, _) -> do
+            let input = ((input0, inputValue0), credentials0)
+            let (_, sealed) = sealFragment $ putFragment
+                    block0H
+                    (replicate (maxNumberOfInputs + 1) input)
+                    [output0, output1]
+                    (MkFragmentSimpleTransaction TxWitnessUTxO)
+            runExceptT (postTx nw sealed) `shouldThrow` anyException
   where
     second :: Int
     second = 1000000
@@ -361,63 +370,6 @@ spec = do
                 Right (_, nw) -> cb (nw, _restApi cp)
                 Left e -> throwIO e
         either throwIO (\_ -> return ()) e
-
-    pkWitness :: TxWitness
-    pkWitness = TxWitness $ BS.pack $ [1] <> replicate 64 3
-
-    txNonEmpty :: Tx
-    txNonEmpty = Tx
-        { txId = Hash "unused"
-        , resolvedInputs =
-            [ (TxIn
-                { inputId = Hash $ unsafeFromHex
-                    "666984dec4bc0ff1888be97bfe0694a9\
-                    \6b35c58d025405ead51d5cc72a3019f4"
-                , inputIx = 0
-                }, Coin 934864225351)
-            ]
-        , outputs =
-            [ TxOut
-                { address = unsafeDecodeAddress @'Mainnet
-                    "ca1q0u7k6ltp3e52pch47rhdkld2gdv\
-                    \gu26rwyqh02csu3ah3384f2nvhlk7a6"
-                , coin = Coin 933636862791
-                }
-            , TxOut
-                { address = unsafeDecodeAddress @'Mainnet
-                    "ca1qwunuat6snw60g99ul6qvte98fja\
-                    \le2k0uu5mrymylqz2ntgzs6vs386wxd"
-                , coin = Coin 1227362560
-                }
-            ]
-        }
-
-    unbalancedTx :: Tx
-    unbalancedTx = Tx
-        { txId = Hash "unused"
-        , resolvedInputs =
-            [ (TxIn
-                { inputId = Hash $ unsafeFromHex
-                    "666984dec4bc0ff1888be97bfe0694a9\
-                    \6b35c58d025405ead51d5cc72a3019f4"
-                , inputIx = 0
-                }, Coin 100)
-            ]
-        , outputs =
-            [ TxOut
-                { address = unsafeDecodeAddress @'Mainnet
-                    "ca1q0u7k6ltp3e52pch47rhdkld2gdv\
-                    \gu26rwyqh02csu3ah3384f2nvhlk7a6"
-                , coin = Coin 5
-                }
-            , TxOut
-                { address = unsafeDecodeAddress @'Mainnet
-                    "ca1qwunuat6snw60g99ul6qvte98fja\
-                    \le2k0uu5mrymylqz2ntgzs6vs386wxd"
-                , coin = Coin 5
-                }
-            ]
-        }
 
 -- | Exercise a particular Jörmungandr API getter and expect a 404 Not Found.
 testNotFound

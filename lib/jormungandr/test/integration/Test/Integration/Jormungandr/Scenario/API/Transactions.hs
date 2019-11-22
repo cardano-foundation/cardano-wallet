@@ -471,7 +471,7 @@ fixtureExternalTx ctx toSend = do
             [ TxOut addrDest' (Coin (fromIntegral toSend))
             , TxOut addrChng (Coin (fromIntegral $ amt - toSend - fee))
             ]
-    tl <- newTransactionLayer @'Testnet <$> getBlock0H
+    tl <- newTransactionLayer <$> getBlock0H
     let (Right (tx, bin)) = mkStdTx tl keystore theInps theOuts
 
     return ExternalTxFixture

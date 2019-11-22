@@ -11,7 +11,13 @@ module Cardano.Faucet
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Binary
-    ( fragmentId, getBlockId, runGet )
+    ( MkFragment (..)
+    , TxWitnessTag (..)
+    , getBlockId
+    , putFragment
+    , runGet
+    , sealFragment
+    )
 import Cardano.Wallet.Primitive.Mnemonic
     ( Mnemonic )
 import Cardano.Wallet.Primitive.Types
@@ -38,6 +44,7 @@ import Test.Integration.Faucet
     ( Faucet (..) )
 
 import qualified Codec.Binary.Bech32 as Bech32
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -1041,7 +1048,11 @@ externalAddresses =
         let
             Right (_, dp) = Bech32.decodeLenient out
             Just addr = Address <$> Bech32.dataPartToBytes dp
-            sourceId = fragmentId [] [TxOut addr (Coin 100000000000)] []
+            (sourceId, _) = sealFragment $ putFragment
+                (Hash $ BS.replicate 32 0)
+                []
+                [TxOut addr (Coin 100000000000)]
+                (MkFragmentSimpleTransaction TxWitnessUTxO)
         in
             TxIn sourceId 0
 
