@@ -84,6 +84,7 @@ import Cardano.Wallet.Primitive.Types
     , slotStartTime
     , slotSucc
     , syncProgress
+    , unsafeEpochNo
     , walletNameMaxLength
     , walletNameMinLength
     , wholeRange
@@ -92,6 +93,8 @@ import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Control.DeepSeq
     ( deepseq )
+import Control.Exception
+    ( evaluate )
 import Control.Monad
     ( forM_, replicateM )
 import Crypto.Hash
@@ -120,10 +123,20 @@ import Data.Time.Utils
     ( utcTimePred, utcTimeSucc )
 import Data.Word
     ( Word32 )
+import Data.Word.Odd
+    ( Word31 )
 import Fmt
     ( pretty )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe, shouldNotSatisfy, shouldSatisfy )
+    ( Spec
+    , anyErrorCall
+    , describe
+    , it
+    , shouldBe
+    , shouldNotSatisfy
+    , shouldSatisfy
+    , shouldThrow
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , NonNegative (..)
@@ -131,6 +144,7 @@ import Test.QuickCheck
     , Property
     , arbitraryBoundedEnum
     , arbitraryPrintableChar
+    , arbitrarySizedBoundedIntegral
     , checkCoverage
     , choose
     , counterexample
@@ -139,6 +153,7 @@ import Test.QuickCheck
     , oneof
     , property
     , scale
+    , shrinkIntegral
     , vectorOf
     , withMaxSuccess
     , (.&&.)
@@ -148,6 +163,8 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
+import Test.QuickCheck.Monadic
+    ( monadicIO, run )
 import Test.Text.Roundtrip
     ( textRoundtrip )
 import Test.Utils.Time
@@ -221,11 +238,33 @@ spec = do
     describe "syncProgress" $ do
         it "works for any two slots" $ property $ \sl0 sl1 ->
             syncProgress st sp sl0 sl1 `deepseq` ()
+
     describe "flatSlot" $ do
-        it "flatSlot . fromFlatSlot == id" $ property $ \sl ->
+
+        it "fromFlatSlot . flatSlot == id" $ property $ \sl ->
             fromFlatSlot slotsPerEpoch (flatSlot slotsPerEpoch sl) === sl
-        it "fromFlatSlot . flatSlot == id" $ property $ \n ->
-            flatSlot slotsPerEpoch (fromFlatSlot slotsPerEpoch n) === n
+
+        it "flatSlot . fromFlatSlot == id" $ property $ \n -> do
+            -- The value of 'fromFlatSlot' is undefined when applied to a value
+            -- that is higher than the maximum value of 'flatSlot' for that
+            -- epoch length.
+            --
+            -- Therefore, the roundtrip property only holds when the flat slot
+            -- value is less than or equal to this maximum.
+            --
+            -- For flat slot values that are higher than this maximum, we expect
+            -- the 'fromFlatSlot' function to fail with an error.
+            let maxSlotNo = SlotNo $ unEpochLength slotsPerEpoch - 1
+            let maxSlotId = SlotId (EpochNo maxBound) maxSlotNo
+            let maxFlatSlot = flatSlot slotsPerEpoch maxSlotId
+            let result = flatSlot slotsPerEpoch $ fromFlatSlot slotsPerEpoch n
+            checkCoverage $
+                cover 20 (n <= maxFlatSlot) "<= maxFlatSlot" $
+                cover 20 (n >  maxFlatSlot) ">  maxFlatSlot" $
+                if n <= maxFlatSlot then
+                    result `shouldBe` n
+                else
+                    evaluate result `shouldThrow` anyErrorCall
 
     describe "Ranges" $ do
 
@@ -632,6 +671,12 @@ spec = do
                         \Linear equation not in expected format: a + bx + cy"
                 fromText @FeePolicy policyText === Left (TextDecodingError err)
 
+    describe "unsafeEpochNo" $ do
+        it "returns a successful result for any Word31" $
+            property prop_unsafeEpochNoValid
+        it "throws an exception for any value bigger than a Word31" $
+            property prop_unsafeEpochNoThrows
+
     describe "Lemma 2.1 - Properties of UTxO operations" $ do
         it "2.1.1) ins⊲ u ⊆ u"
             (checkCoverage prop_2_1_1)
@@ -846,6 +891,26 @@ propUtxoWeightsEqualSize bType (ShowFmt utxo) =
     histElems = fmap $ \(HistogramBar _ v) -> v
 
 {-------------------------------------------------------------------------------
+                            unsafeEpochNo Properties
+-------------------------------------------------------------------------------}
+
+prop_unsafeEpochNoValid :: Word31 -> Property
+prop_unsafeEpochNoValid ep =
+    unsafeEpochNo (fromIntegral ep) === EpochNo ep
+
+prop_unsafeEpochNoThrows :: Word32 -> Property
+prop_unsafeEpochNoThrows ep
+    | ep > maxEpochNo = prop ep
+    | otherwise = prop (ep + maxEpochNo + 1)
+  where
+    maxEpochNo :: Word32
+    maxEpochNo = fromIntegral $ unEpochNo maxBound
+
+    prop :: Word32 -> Property
+    prop ep' = monadicIO $ run $
+        evaluate (unsafeEpochNo ep') `shouldThrow` anyErrorCall
+
+{-------------------------------------------------------------------------------
                             Arbitrary Instances
 
     Arbitrary instances define here aren't necessarily reflecting on real-life
@@ -1005,7 +1070,7 @@ instance Arbitrary SlotId where
     arbitrary = do
         ep <- choose (0, 10)
         sl <- choose (0, 100)
-        return (SlotId (EpochNo ep) (SlotNo sl))
+        return (SlotId (unsafeEpochNo ep) (SlotNo sl))
 
 instance Arbitrary Block where
     shrink (Block h txs) = Block h <$> shrink txs
@@ -1073,10 +1138,13 @@ instance {-# OVERLAPS #-} Arbitrary (EpochLength, SlotId) where
 
     arbitrary = do
         (EpochLength epochLength) <- arbitrary
-        ep <- EpochNo <$> choose (0, 1000)
+        ep <- unsafeEpochNo <$> choose (0, 1000)
         sl <- SlotNo <$> choose (0, fromIntegral epochLength - 1)
         return (EpochLength epochLength, SlotId ep sl)
 
+instance Arbitrary Word31 where
+    arbitrary = arbitrarySizedBoundedIntegral
+    shrink = shrinkIntegral
 
 {-------------------------------------------------------------------------------
                                   Test data

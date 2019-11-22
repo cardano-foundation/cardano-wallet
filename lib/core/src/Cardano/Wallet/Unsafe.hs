@@ -51,7 +51,6 @@ import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Read as CBOR
 import qualified Data.ByteString.Lazy as BL
 
-
 -- | Decode an hex-encoded 'ByteString' into raw bytes, or fail.
 unsafeFromHex :: HasCallStack => ByteString -> ByteString
 unsafeFromHex =

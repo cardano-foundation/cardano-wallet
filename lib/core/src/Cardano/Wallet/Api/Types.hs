@@ -105,6 +105,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , WalletPassphraseInfo (..)
     , isValidCoin
+    , unsafeEpochNo
     )
 import Codec.Binary.Bech32
     ( dataPartFromBytes, dataPartToBytes, unsafeHumanReadablePartFromText )
@@ -163,7 +164,9 @@ import Data.Time
 import Data.Time.Text
     ( iso8601, iso8601ExtendedUtc, utcTimeFromText, utcTimeToText )
 import Data.Word
-    ( Word64 )
+    ( Word32, Word64 )
+import Data.Word.Odd
+    ( Word31 )
 import Fmt
     ( pretty )
 import GHC.Generics
@@ -596,9 +599,9 @@ instance ToJSON ApiBlockReference where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON (ApiT EpochNo) where
-    parseJSON = fmap (ApiT . EpochNo) . parseJSON
+    parseJSON = fmap (ApiT . unsafeEpochNo) . parseJSON
 instance ToJSON (ApiT EpochNo) where
-    toJSON (ApiT (EpochNo en))= toJSON en
+    toJSON (ApiT (EpochNo en)) = toJSON $ fromIntegral @Word31 @Word32 en
 
 instance FromJSON (ApiT SlotNo) where
     parseJSON = fmap (ApiT . SlotNo) . parseJSON

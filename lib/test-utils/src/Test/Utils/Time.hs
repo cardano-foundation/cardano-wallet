@@ -47,14 +47,14 @@ genUniformTime = oneof
     genWith :: (Integer -> NominalDiffTime) -> Integer -> Gen UTCTime
     genWith unitsToNominalDiffTime unitsInOneDay = do
         numberOfDays <- ModifiedJulianDay
-            <$> choose (0, daysInOneThousandYears)
+            <$> choose (0, daysInFiftyYears)
         timeSinceMidnight <- unitsToNominalDiffTime
             <$> choose (0, unitsInOneDay)
         pure $ addUTCTime timeSinceMidnight (UTCTime numberOfDays 0)
 
--- | The approximate number of days in one thousand years.
-daysInOneThousandYears :: Integral a => a
-daysInOneThousandYears = 365 * 1000
+-- | The approximate number of days in fifty years.
+daysInFiftyYears :: Integral a => a
+daysInFiftyYears = 365 * 50
 
 -- | The number of hours in a day.
 hoursInOneDay :: Integral a => a

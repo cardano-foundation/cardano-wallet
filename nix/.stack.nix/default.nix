@@ -3,6 +3,7 @@
     {
       packages = {
         "base58-bytestring" = (((hackage.base58-bytestring)."0.1.0").revisions).default;
+        "OddWord" = (((hackage.OddWord)."1.0.2.0").revisions).default;
         "quickcheck-state-machine" = (((hackage.quickcheck-state-machine)."0.6.0").revisions).default;
         "command" = (((hackage.command)."0.1.1").revisions).default;
         "time-units" = (((hackage.time-units)."1.0.0").revisions).default;

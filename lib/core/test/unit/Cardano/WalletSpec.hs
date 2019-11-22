@@ -81,6 +81,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , flatSlot
     , txId
+    , unsafeEpochNo
     )
 import Cardano.Wallet.Transaction
     ( ErrMkStdTx (..), TransactionLayer (..) )
@@ -122,6 +123,8 @@ import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 import Data.Word
     ( Word32 )
+import Data.Word.Odd
+    ( Word31 )
 import GHC.Generics
     ( Generic )
 import Test.Hspec
@@ -132,10 +135,12 @@ import Test.QuickCheck
     , Positive (..)
     , Property
     , arbitraryBoundedEnum
+    , arbitrarySizedBoundedIntegral
     , choose
     , elements
     , property
     , scale
+    , shrinkIntegral
     , vectorOf
     , withMaxSuccess
     , (==>)
@@ -521,6 +526,10 @@ instance Arbitrary EpochNo where
     shrink (EpochNo x) = EpochNo <$> shrink x
     arbitrary = EpochNo <$> arbitrary
 
+instance Arbitrary Word31 where
+    arbitrary = arbitrarySizedBoundedIntegral
+    shrink = shrinkIntegral
+
 instance Arbitrary SortOrder where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
@@ -565,7 +574,7 @@ instance Arbitrary TxMeta where
         <$> elements [Pending, InLedger]
         <*> elements [Incoming, Outgoing]
         <*> (SlotId
-            <$> (EpochNo <$> choose (0, 1000))
+            <$> (unsafeEpochNo <$> choose (0, 1000))
             <*> (SlotNo <$> choose (0, 21599)))
         <*> fmap Quantity arbitrary
         <*> fmap (Quantity . fromIntegral) (arbitrary @Word32)

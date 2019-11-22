@@ -23,6 +23,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , SlotParameters (..)
     , slotSucc
+    , unsafeEpochNo
     )
 import Control.Arrow
     ( second )
@@ -36,8 +37,18 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Word
     ( Word32, Word64 )
+import Data.Word.Odd
+    ( Word31 )
 import Test.QuickCheck
-    ( Arbitrary (..), Gen, choose, elements, shuffle, vectorOf )
+    ( Arbitrary (..)
+    , Gen
+    , arbitrarySizedBoundedIntegral
+    , choose
+    , elements
+    , shrinkIntegral
+    , shuffle
+    , vectorOf
+    )
 
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
@@ -66,7 +77,11 @@ instance Arbitrary SlotNo where
 
 instance Arbitrary EpochNo where
     shrink (EpochNo x) = EpochNo <$> shrink x
-    arbitrary = EpochNo <$> choose (0, fromIntegral arbitraryEpochLength)
+    arbitrary = unsafeEpochNo <$> choose (0, arbitraryEpochLength)
+
+instance Arbitrary Word31 where
+    arbitrary = arbitrarySizedBoundedIntegral
+    shrink = shrinkIntegral
 
 instance Arbitrary (Quantity "lovelace" Word64) where
     shrink (Quantity q) = [ Quantity q' | q' <- shrink q ]

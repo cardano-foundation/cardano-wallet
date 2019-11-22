@@ -149,18 +149,18 @@ newDBLayer logConfig trace fp = do
             pure (foldl' toMap Map.empty production)
 
         , putStakeDistribution = \epoch@(EpochNo ep) distribution -> do
-            deleteWhere [StakeDistributionEpoch ==. ep]
+            deleteWhere [StakeDistributionEpoch ==. fromIntegral ep]
             insertMany_ (mkStakeDistribution epoch distribution)
 
         , readStakeDistribution = \(EpochNo epoch) -> do
             fmap (fromStakeDistribution . entityVal) <$> selectList
-                [ StakeDistributionEpoch ==. epoch ]
+                [ StakeDistributionEpoch ==. fromIntegral epoch ]
                 []
 
         , rollbackTo = \point -> do
             let (EpochNo epoch) = epochNumber point
             deleteWhere [ PoolProductionSlot >. point ]
-            deleteWhere [ StakeDistributionEpoch >. epoch ]
+            deleteWhere [ StakeDistributionEpoch >. fromIntegral epoch ]
 
         , readPoolProductionCursor = \k -> do
             reverse . map (snd . fromPoolProduction . entityVal) <$> selectList
@@ -221,7 +221,7 @@ mkStakeDistribution
 mkStakeDistribution (EpochNo epoch) = map $ \(pool, (Quantity stake)) ->
     StakeDistribution
         { stakeDistributionPoolId = pool
-        , stakeDistributionEpoch = epoch
+        , stakeDistributionEpoch = fromIntegral epoch
         , stakeDistributionStake = stake
         }
 

@@ -93,6 +93,7 @@ import Cardano.Wallet.Primitive.Types
     , flatSlot
     , isPending
     , slotSucc
+    , unsafeEpochNo
     , wholeRange
     )
 import Control.Arrow
@@ -121,6 +122,8 @@ import Data.Typeable
     ( Typeable )
 import Data.Word
     ( Word32 )
+import Data.Word.Odd
+    ( Word31 )
 import Fmt
     ( Buildable (..), Builder, blockListF', prefixF, suffixF, tupleF )
 import GHC.Generics
@@ -136,12 +139,14 @@ import Test.QuickCheck
     , NonEmptyList (..)
     , Positive (..)
     , arbitraryBoundedEnum
+    , arbitrarySizedBoundedIntegral
     , choose
     , elements
     , generate
     , genericShrink
     , liftArbitrary
     , scale
+    , shrinkIntegral
     , shrinkList
     , vectorOf
     )
@@ -309,7 +314,7 @@ instance Arbitrary SlotNo where
 
 instance Arbitrary EpochNo where
     shrink (EpochNo x) = EpochNo <$> shrink x
-    arbitrary = EpochNo <$> choose (0, fromIntegral arbitraryEpochLength)
+    arbitrary = unsafeEpochNo <$> choose (0, arbitraryEpochLength)
 
 arbitraryEpochLength :: Word32
 arbitraryEpochLength = 100
@@ -506,6 +511,10 @@ instance Arbitrary (Hash purpose) where
 instance Arbitrary PoolId where
     arbitrary = do
         PoolId . convertToBase Base16 . BS.pack <$> vectorOf 16 arbitrary
+
+instance Arbitrary Word31 where
+    arbitrary = arbitrarySizedBoundedIntegral
+    shrink = shrinkIntegral
 
 {-------------------------------------------------------------------------------
                                    Buildable

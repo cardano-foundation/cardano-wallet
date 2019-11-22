@@ -169,6 +169,8 @@ import Data.Typeable
     ( Typeable, splitTyConApp, tyConName, typeRep )
 import Data.Word
     ( Word32, Word8 )
+import Data.Word.Odd
+    ( Word31 )
 import GHC.TypeLits
     ( KnownSymbol, natVal, symbolVal )
 import Numeric.Natural
@@ -212,11 +214,13 @@ import Test.QuickCheck
     , InfiniteList (..)
     , arbitraryBoundedEnum
     , arbitraryPrintableChar
+    , arbitrarySizedBoundedIntegral
     , choose
     , frequency
     , oneof
     , property
     , scale
+    , shrinkIntegral
     , vectorOf
     , withMaxSuccess
     , (.&&.)
@@ -1081,6 +1085,10 @@ instance Arbitrary SlotNo where
 instance Arbitrary EpochNo where
     shrink (EpochNo x) = EpochNo <$> shrink x
     arbitrary = EpochNo <$> arbitrary
+
+instance Arbitrary Word31 where
+    arbitrary = arbitrarySizedBoundedIntegral
+    shrink = shrinkIntegral
 
 instance Arbitrary (AddressAmount t) where
     arbitrary = AddressAmount
