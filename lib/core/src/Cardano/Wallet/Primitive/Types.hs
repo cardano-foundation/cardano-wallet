@@ -1173,12 +1173,29 @@ flatSlot (EpochLength epochLength) (SlotId (EpochNo e) (SlotNo s)) =
     fromIntegral epochLength * fromIntegral e + fromIntegral s
 
 -- | Convert a 'flatSlot' index to 'SlotId'.
+--
+-- This function will fail if applied to a value that is higher than the maximum
+-- value of 'flatSlot' for the specified 'EpochLength'.
+--
 fromFlatSlot :: EpochLength -> Word64 -> SlotId
-fromFlatSlot (EpochLength epochLength) n =
-    SlotId (EpochNo $ fromIntegral e) (fromIntegral s)
+fromFlatSlot el@(EpochLength epochLength) n
+    | n <= maxFlatSlot =
+        SlotId (EpochNo $ fromIntegral e) (fromIntegral s)
+    | otherwise =
+        error $ mconcat
+            [ "fromFlatSlot: The specified flat slot number ("
+            , show n
+            , ") is higher than the maximum flat slot number ("
+            , show maxFlatSlot
+            , ") for the specified epoch length ("
+            , show epochLength
+            , ")."
+            ]
   where
     e = n `div` fromIntegral epochLength
     s = n `mod` fromIntegral epochLength
+    maxFlatSlot =
+        flatSlot el (SlotId (EpochNo maxBound) (SlotNo $ epochLength - 1))
 
 -- | @slotDifference a b@ is how many slots @a@ is after @b@. The result is
 -- non-negative, and if @b > a@ then this function returns zero.

@@ -29,6 +29,7 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , Dom (..)
     , EpochLength (..)
+    , EpochNo (..)
     , FeePolicy (..)
     , Hash (..)
     , HistogramBar (..)
@@ -92,6 +93,8 @@ import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Control.DeepSeq
     ( deepseq )
+import Control.Exception
+    ( evaluate )
 import Control.Monad
     ( forM_, replicateM )
 import Crypto.Hash
@@ -123,7 +126,15 @@ import Data.Word
 import Fmt
     ( pretty )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe, shouldNotSatisfy, shouldSatisfy )
+    ( Spec
+    , anyErrorCall
+    , describe
+    , it
+    , shouldBe
+    , shouldNotSatisfy
+    , shouldSatisfy
+    , shouldThrow
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , NonNegative (..)
@@ -221,11 +232,33 @@ spec = do
     describe "syncProgress" $ do
         it "works for any two slots" $ property $ \sl0 sl1 ->
             syncProgress st sp sl0 sl1 `deepseq` ()
+
     describe "flatSlot" $ do
-        it "flatSlot . fromFlatSlot == id" $ property $ \sl ->
+
+        it "fromFlatSlot . flatSlot == id" $ property $ \sl ->
             fromFlatSlot slotsPerEpoch (flatSlot slotsPerEpoch sl) === sl
-        it "fromFlatSlot . flatSlot == id" $ property $ \n ->
-            flatSlot slotsPerEpoch (fromFlatSlot slotsPerEpoch n) === n
+
+        it "flatSlot . fromFlatSlot == id" $ property $ \n -> do
+            -- The value of 'fromFlatSlot' is undefined when applied to a value
+            -- that is higher than the maximum value of 'flatSlot' for that
+            -- epoch length.
+            --
+            -- Therefore, the roundtrip property only holds when the flat slot
+            -- value is less than or equal to this maximum.
+            --
+            -- For flat slot values that are higher than this maximum, we expect
+            -- the 'fromFlatSlot' function to fail with an error.
+            let maxSlotNo = SlotNo $ unEpochLength slotsPerEpoch - 1
+            let maxSlotId = SlotId (EpochNo maxBound) maxSlotNo
+            let maxFlatSlot = flatSlot slotsPerEpoch maxSlotId
+            let result = flatSlot slotsPerEpoch $ fromFlatSlot slotsPerEpoch n
+            checkCoverage $
+                cover 20 (n <= maxFlatSlot) "<= maxFlatSlot" $
+                cover 20 (n >  maxFlatSlot) ">  maxFlatSlot" $
+                if n <= maxFlatSlot then
+                    result `shouldBe` n
+                else
+                    evaluate result `shouldThrow` anyErrorCall
 
     describe "Ranges" $ do
 
