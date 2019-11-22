@@ -7,7 +7,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
@@ -33,22 +32,17 @@ module Cardano.Wallet.Jormungandr.Binary
     , Fragment (..)
     , FragmentSpec (..)
     , Milli (..)
+    , MkFragment (..)
+    , StakeDelegationType (..)
     , getBlock
     , getBlockHeader
     , getBlockId
     , getFragment
     , getTransaction
-    , putSignedTx
-    , putTx
-    , putStakeDelegationTx
-
-    -- * Fragment construction
-    , signedTransactionFragment
+    , putFragment
+    , sealFragment
 
     -- * Transaction witnesses
-    , signData
-    , utxoWitness
-    , legacyUtxoWitness
     , TxWitnessTag (..)
     , putTxWitnessTag
     , getTxWitnessTag
@@ -65,12 +59,8 @@ module Cardano.Wallet.Jormungandr.Binary
       -- * Helpers
     , whileM
     , blake2b256
-    , estimateMaxNumberOfInputsParams
-    , fragmentId
-    , delegationFragmentId
     , maxNumberOfInputs
     , maxNumberOfOutputs
-    , withHeader
 
       -- * Re-export
     , Get
@@ -83,9 +73,9 @@ module Cardano.Wallet.Jormungandr.Binary
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( XPub, unXPub )
+    ( XPrv, sign, toXPub, unXPub, unXSignature )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..) )
+    ( NetworkDiscriminant (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
@@ -104,8 +94,6 @@ import Cardano.Wallet.Primitive.Types
     , TxWitness (..)
     , unsafeEpochNo
     )
-import Cardano.Wallet.Transaction
-    ( EstimateMaxNumberOfInputsParams (..) )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
@@ -135,11 +123,13 @@ import Data.Binary.Get
     , skip
     )
 import Data.Binary.Put
-    ( Put, putByteString, putWord16be, putWord64be, putWord8, runPut )
+    ( Put, PutM, putByteString, putWord16be, putWord64be, putWord8, runPut )
 import Data.Bits
     ( shift, (.&.) )
 import Data.ByteString
     ( ByteString )
+import Data.Functor
+    ( ($>) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Time.Clock
@@ -342,8 +332,8 @@ getFragment = label "getFragment" $ do
         1 -> Transaction <$> getLegacyTransaction fragId
         2 -> Transaction <$> getTransaction fragId
         3 -> unimpl -- OwnerStakeDelegation
-        4 -> maybe (UnimplementedFragment fragSpec) StakeDelegation
-            <$> lookAheadM (getStakeDelegation fragId)
+        4 -> lookAheadM (getStakeDelegation fragId)
+            >>= maybe unimpl (pure . StakeDelegation)
         5 -> unimpl -- PoolRegistration
         6 -> unimpl -- PoolRetirement
         7 -> unimpl -- PoolUpdate
@@ -361,23 +351,6 @@ getInitial = label "getInitial" $ do
                                 Transactions
 -------------------------------------------------------------------------------}
 
--- | Glues together a tx, witnesses into a full @SealedTx@.
---
--- NOTE: For constructing a tx from scratch this is a rather inconvenient
--- function. It relies on you already having the txId and the witnesses.
---
--- TODO: We should create a more convenient alternative taking only inputs,
--- outputs and key-lookup function.
-signedTransactionFragment :: Tx -> [TxWitness] -> SealedTx
-signedTransactionFragment (Tx _ ins outs) wits = SealedTx
-    $ BL.toStrict
-    $ runPut
-    $ withHeader FragmentTransaction (putSignedTx ins outs wits)
-
-data AccountType
-    = SingleAccount
-    | MultiAccount
-
 txWitnessSize :: TxWitnessTag -> Int
 txWitnessSize = \case
     TxWitnessLegacyUTxO -> 128
@@ -388,29 +361,17 @@ txWitnessSize = \case
 txWitnessTagSize :: Int
 txWitnessTagSize = 1
 
--- | Construct a UTxO witness from a signature
-utxoWitness :: ByteString -> TxWitness
-utxoWitness bytes = TxWitness $ BL.toStrict $ runPut $ do
-    putTxWitnessTag TxWitnessUTxO
-    putByteString bytes
-
--- | Construct a legacy UTxO witness from a public key and a signature
-legacyUtxoWitness :: XPub -> ByteString -> TxWitness
-legacyUtxoWitness xpub bytes = TxWitness $ BL.toStrict $ runPut $ do
-    putTxWitnessTag TxWitnessLegacyUTxO
-    putByteString (unXPub xpub)
-    putByteString bytes
-
 data StakeDelegationType
     = DlgNone
-    | DlgFull
+    | DlgFull PoolId
     | DlgRatio
+    deriving (Show, Eq)
 
 stakeDelegationTypeTag :: StakeDelegationType -> Word8
 stakeDelegationTypeTag = \case
-    DlgNone -> 0
-    DlgFull -> 1
-    DlgRatio -> 2
+    DlgNone{}  -> 0
+    DlgFull{}  -> 1
+    DlgRatio{} -> 2
 
 -- | Decode the contents of a @Transaction@-fragment carrying a delegation cert.
 --
@@ -438,41 +399,6 @@ getStakeDelegation tid = do
 
     getStakeDelegationRatio =
         pure Nothing
-
-putStakeCertificate
-    :: PoolId
-    -> ChimericAccount
-    -> Put
-putStakeCertificate (PoolId poolId) (ChimericAccount accId) = do
-    putByteString accId
-    putWord8 (stakeDelegationTypeTag DlgFull)
-    putByteString poolId
-
-putStakeDelegationTx
-    :: PoolId
-    -> ChimericAccount
-    -> Hash "AccountSignature"
-    -> [(TxIn, Coin)]
-    -> [TxOut]
-    -> [TxWitness]
-    -> Put
-putStakeDelegationTx poolId accId accSig inputs outputs witnesses = do
-    putStakeCertificate poolId accId
-    putSignedTx inputs outputs witnesses
-    putAccountSignature SingleAccount accSig
-
-putAccountSignature
-    :: AccountType
-    -> Hash "AccountSignature"
-    -> Put
-putAccountSignature tag (Hash accSig) = do
-    putWord8 (accountType tag)
-    putByteString accSig
-  where
-    accountType :: AccountType -> Word8
-    accountType = \case
-        SingleAccount -> 0x01
-        MultiAccount  -> 0x02
 
 -- | Decode the contents of a @Transaction@-fragment.
 getTransaction :: Hash "Tx" -> Get Tx
@@ -537,42 +463,126 @@ getLegacyTransaction tid = do
     let inps = mempty
     pure $ Tx tid inps outs
 
-putSignedTx :: [(TxIn, Coin)] -> [TxOut] -> [TxWitness] -> Put
-putSignedTx inputs outputs witnesses = do
-    putTx inputs outputs
-    unless (length inputs == length witnesses) $
-        fail "number of witnesses must equal number of inputs"
-    mapM_ putWitness witnesses
-  where
-    -- Assumes the `TxWitness` has been faithfully constructed
-    putWitness :: TxWitness -> Put
-    putWitness (TxWitness bytes) = putByteString bytes
+data MkFragment
+    = MkFragmentSimpleTransaction
+        TxWitnessTag
+    | MkFragmentStakeDelegation
+        TxWitnessTag
+        StakeDelegationType
+        ChimericAccount
+        (XPrv, Passphrase "encryption")
 
-putTx :: [(TxIn, Coin)] -> [TxOut] -> Put
-putTx inputs outputs = do
-    unless (length inputs <= fromIntegral (maxBound :: Word8)) $
-        fail $
-            "number of inputs cannot be greater than " ++
-            show maxNumberOfInputs
-    unless (length outputs <= fromIntegral (maxBound :: Word8)) $
-        fail $
-            "number of outputs cannot be greater than " ++
-            show maxNumberOfOutputs
-    putWord8 $ toEnum $ length inputs
-    putWord8 $ toEnum $ length outputs
-    mapM_ putInput inputs
-    mapM_ putOutput outputs
+putFragment
+    :: Hash "Genesis"
+    -> [((TxIn, Coin), (XPrv, Passphrase "encryption"))]
+    -> [TxOut]
+    -> MkFragment
+    -> Put
+putFragment (Hash block0Hash) inputs outputs = \case
+    -- SIMPLE-TRANSACTION = TRANSACTION
+    MkFragmentSimpleTransaction witTag ->
+        withHeader FragmentTransaction $ do
+            putTransaction (mempty :: Put) witTag
+
+    -- STAKE-DELEGATION = DLG-CERT TRANSACTION STAKE-AUTH
+    MkFragmentStakeDelegation witTag dlgTag account credentials ->
+        withHeader FragmentDelegation $ do
+            putPayload  <- returnPut $ putDelegationCertificate account dlgTag
+            putAuthData <- returnPut $ putTransaction putPayload witTag
+            putStakeAuthentication (putPayload >> putAuthData) credentials
   where
-    putInput (TxIn inputId inputIx, coin) = do
-        -- NOTE: special value 0xff indicates account spending
-        -- only old utxo/address scheme supported for now
+    -- TRANSACTION =
+    --     SIZE-ELEMENT-8BIT ; number of inputs
+    --     SIZE-ELEMENT-8BIT ; number of outputs
+    --     *INPUT            ; as many as indicated in the number of inputs
+    --     *OUTPUT           ; sa many as indicated in the number of outputs
+    --     *WITNESS          ; as many as indicated in the number of inputs
+    putTransaction putPayload witTag = do
+        putInputsOutputs
+        mapM_ (flip (putWitness putPayload) witTag) (snd <$> inputs)
+
+    putInputsOutputs = do
+        guardLength (<= maxNumberOfInputs) inputs
+        guardLength (<= maxNumberOfOutputs) outputs
+        putWord8 $ toEnum $ length inputs
+        putWord8 $ toEnum $ length outputs
+        mapM_ putInput (fst <$> inputs)
+        mapM_ putOutput outputs
+
+    -- INPUT             = INPUT-UTXO / INPUT_ACCOUNT
+    -- INPUT-UTXO        = IDX VALUE FRAGMENT-ID
+    -- INPUT-ACCOUNT     = %xff VALUE UNTAG-ACCOUNT-ID
+    -- IDX               = %x00-fe
+    putInput (TxIn inputId inputIx, inputValue) = do
+        -- TODO invariant about inputIx /= 0xff
         putWord8 . toEnum . fromEnum $ inputIx
-        putWord64be $ getCoin coin
+        putWord64be $ getCoin inputValue
         putByteString $ getHash inputId
 
-    putOutput (TxOut address coin) = do
-        putAddress address
-        putWord64be $ getCoin coin
+    -- OUTPUT            = ADDRESS VALUE
+    putOutput (TxOut outputAddr outputValue) = do
+        putAddress outputAddr
+        putWord64be $ getCoin outputValue
+
+    -- WITNESS           = WITNESS-OLDUTXO / WITNESS-UTXO / WITNESS-ACCOUNT / WITNESS-MULTISIG
+    -- WITNESS-OLDUTXO   = %x00 LEGACY-XPUB LEGACY-SIGNATURE
+    -- WITNESS-UTXO      = %x01 ED25519-SIGNATURE
+    -- WITNESS-ACCOUNT   = %x02 SINGLE-ACNT-SIG
+    -- WITNESS-MULTISIG  = %x03 MULTI-ACNT-SIG
+    putWitness (putPayload :: Put) (xprv, Passphrase pwd) = \case
+        tag@TxWitnessUTxO -> do
+            putTxWitnessTag tag
+            putByteString $ unXSignature $ sign pwd xprv msg
+        tag@TxWitnessLegacyUTxO -> do
+            putTxWitnessTag tag
+            putByteString $ unXPub $ toXPub xprv
+            putByteString $ unXSignature $ sign pwd xprv msg
+        TxWitnessAccount ->
+            error "putWitness: TxWitnessAccount: not implemented"
+        TxWitnessMultisig ->
+            error "putWitness: TxWitnessMultisig: not implemented"
+      where
+        msg = mconcat
+            [ block0Hash
+            , blake2b256 $ BL.toStrict $ runPut $ do
+                putPayload
+                putInputsOutputs
+            ]
+
+    -- DLG-CERT         = UNTAG-ACCOUNT-ID DLG-TYPE
+    -- DLG-TYPE         = DLG-NONE / DLG-FULL / DLG-RATIO
+    -- DLG-NONE         = %x00
+    -- DLG-FULL         = %x01 POOL-ID
+    -- DLG-RATIO        = %x02-FF %x02-08 2*8DLG-RATIO-POOL
+    -- DLG-RATIO-POOL   = %x01-FF POOL-ID
+    -- POOL-ID          = 32OCTET
+    putDelegationCertificate (ChimericAccount accountId) = \case
+        tag@DlgNone -> do
+            putByteString accountId
+            putWord8 (stakeDelegationTypeTag tag)
+        tag@(DlgFull (PoolId poolId)) -> do
+            putByteString accountId
+            putWord8 (stakeDelegationTypeTag tag)
+            putByteString poolId
+        DlgRatio ->
+            error "putDelegationCertificate: DlgCertRatio: not implemented"
+
+    -- STAKE-AUTH       = ACCOUNT-SIG
+    -- ACCOUNT-SIG      = %x01 SINGLE-ACNT-SIG
+    -- SINGLE-ACNT-SIG  = ED25519-SIGNATURE
+    putStakeAuthentication putAuthData (xprv, Passphrase pwd) = do
+        putWord8 1
+        putByteString $ unXSignature $ sign pwd xprv msg
+      where
+        msg = BL.toStrict $ runPut putAuthData
+
+sealFragment :: Put -> (Hash "Tx", SealedTx)
+sealFragment put =
+    -- NOTE:
+    -- The fragment id is a hash of the fragment, minus the size (first 2 bytes)
+    (Hash (blake2b256 $ BS.drop 2 bytes), SealedTx bytes)
+  where
+    bytes = BL.toStrict $ runPut put
 
 {-------------------------------------------------------------------------------
                             Config Parameters
@@ -738,6 +748,15 @@ putAddress (Address bs) = putByteString bs
                               Helpers
 -------------------------------------------------------------------------------}
 
+guardLength :: (Int -> Bool) -> [a] -> Put
+guardLength predicate xs = do
+    unless (predicate len) $ fail $ error $ unwords
+        [ "Invariant violation. Invalid list length:"
+        , show len
+        ]
+  where
+    len = length xs
+
 -- | Add a corresponding header to a fragment. Every fragment is encoded as:
 --
 -- FRAGMENT         = FRAGMENT-SIZE %x00 FRAGMENT-SPEC
@@ -758,63 +777,14 @@ withHeader spec content = do
     putWord16be (toEnum $ BS.length bs)
     putByteString bs
 
+-- | Write given serializer and returns it.
+returnPut :: Put -> PutM Put
+returnPut putData = putData $> putData
+
 -- | Compute a Blake2b_256 hash of a given 'ByteString'
 blake2b256 :: ByteString -> ByteString
 blake2b256 =
     BA.convert . hash @_ @Blake2b_256
-
--- | This provides network encoding specific variables to be used by the
--- 'estimateMaxNumberOfInputs' function.
-estimateMaxNumberOfInputsParams
-    :: EstimateMaxNumberOfInputsParams t
-estimateMaxNumberOfInputsParams = EstimateMaxNumberOfInputsParams
-    { estMeasureTx = \ins outs wits -> fromIntegral $ BL.length $
-        runPut $ withHeader FragmentTransaction $
-            putSignedTx (map (, Coin 0) ins) outs wits
-
-    -- Block IDs are always this long.
-    , estBlockHashSize = 32
-
-    -- The length of the smallest type of witness.
-    , estTxWitnessSize = txWitnessSize TxWitnessUTxO + txWitnessTagSize
-    }
-
--- | Jörmungandr distinguish 'fragment id' (what we commonly call 'txId')
--- from 'transaction sign data'. A transaction fragment corresponds to
--- a signed transaction (inputs, outputs and witnesses). So, the
--- witnesses are required to compute a `txid`.
-fragmentId
-    :: [(TxIn, Coin)]
-    -> [TxOut]
-    -> [TxWitness]
-    -> Hash "Tx"
-fragmentId inps outs wits =
-    Hash $ blake2b256 $ BL.toStrict $ runPut $ do
-        putFragmentSpec FragmentTransaction
-        putSignedTx inps outs wits
-
-delegationFragmentId
-    :: PoolId
-    -> ChimericAccount
-    -> Hash "AccountSignature"
-    -> [(TxIn, Coin)]
-    -> [TxOut]
-    -> [TxWitness]
-    -> Hash "Tx"
-delegationFragmentId poolId accId accSig inps outs wits =
-    Hash $ blake2b256 $ BL.toStrict $ runPut $ do
-        putFragmentSpec FragmentDelegation
-        putStakeDelegationTx poolId accId accSig inps outs wits
-
--- | See 'fragmentId'. This computes the signing data required for producing
--- transaction witnesses.
-signData
-    :: [(TxIn, Coin)]
-    -> [TxOut]
-    -> Hash "SignData"
-signData inps outs =
-    Hash $ blake2b256 $ BL.toStrict $ runPut $ do
-        putTx inps outs
 
 {-------------------------------------------------------------------------------
                                 Conversions
