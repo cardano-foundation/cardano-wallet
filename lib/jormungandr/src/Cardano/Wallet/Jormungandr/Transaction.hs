@@ -10,8 +10,6 @@
 
 module Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer
-    , sign
-    , mkTxWitness
     , ErrExceededInpsOrOuts (..)
     ) where
 
@@ -19,20 +17,19 @@ import Prelude
 
 import Cardano.Wallet.Jormungandr.Binary
     ( Fragment (..)
-    , fragmentId
+    , MkFragment (..)
+    , TxWitnessTag (..)
     , getFragment
-    , legacyUtxoWitness
     , maxNumberOfInputs
     , maxNumberOfOutputs
+    , putFragment
     , runGetOrFail
-    , signData
-    , signedTransactionFragment
-    , utxoWitness
+    , sealFragment
     )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (AddressK), Passphrase (..), PaymentAddress, WalletKey (..), XPrv )
+    ( Depth, WalletKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -40,20 +37,17 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..), SealedTx (..), Tx (..), TxOut (..), TxWitness (..) )
+    ( Hash (..), SealedTx (..), Tx (..), TxOut (..) )
 import Cardano.Wallet.Transaction
     ( ErrDecodeSignedTx (..)
     , ErrMkStdTx (..)
     , ErrValidateSelection
     , TransactionLayer (..)
-    , estimateMaxNumberOfInputsBase
     )
 import Control.Arrow
-    ( second )
+    ( first, second )
 import Control.Monad
     ( forM, when )
-import Data.ByteString
-    ( ByteString )
 import Data.Either.Combinators
     ( maybeToRight )
 import Data.Quantity
@@ -63,39 +57,35 @@ import Data.Text.Class
 import Fmt
     ( Buildable (..) )
 
-import qualified Cardano.Crypto.Wallet as CC
-import qualified Cardano.Wallet.Jormungandr.Binary as Binary
 import qualified Data.ByteString.Lazy as BL
 
 -- | Construct a 'TransactionLayer' compatible with Shelley and 'Jörmungandr'
 newTransactionLayer
-    :: forall n k t.
+    :: forall k t.
         ( t ~ Jormungandr
-        , PaymentAddress n k
-        , MkTxWitness k
+        , TxWitnessTagFor k
         , WalletKey k
         )
     => Hash "Genesis"
     -> TransactionLayer t k
-newTransactionLayer (Hash block0H) = TransactionLayer
+newTransactionLayer block0H = TransactionLayer
     { mkStdTx = \keyFrom rnps outs -> do
-        -- NOTE
-        -- For signing, we need to embed a hash of the transaction data
-        -- without the witnesses (since we don't yet have them!). In this sense,
-        -- this is a transaction id as Byron nodes or the http-bridge
-        -- defines them.
+        credentials <- forM rnps $ \(_, TxOut addr _) -> first getRawKey <$>
+            maybeToRight (ErrKeyNotFoundForAddress addr) (keyFrom addr)
         let inps = fmap (second coin) rnps
-        wits <- forM rnps $ \(_, TxOut addr _) -> do
-            xprv <- maybeToRight (ErrKeyNotFoundForAddress addr) (keyFrom addr)
-            let payload = block0H <> getHash (signData inps outs)
-            pure $ mkTxWitness (fst xprv) (sign payload xprv)
-        let tx = Tx
-                { txId = fragmentId inps outs wits
+        let (txid, sealedTx) = sealFragment $ putFragment
+                block0H
+                (zip inps credentials)
+                outs
+                (MkFragmentSimpleTransaction (txWitnessTagFor @k))
+        return
+            ( Tx
+                { txId = txid
                 , resolvedInputs = inps
                 , outputs = outs
                 }
-        let binary = signedTransactionFragment tx wits
-        return (tx, binary)
+            , sealedTx
+            )
 
     , decodeSignedTx = \payload -> do
         let errInvalidPayload =
@@ -112,8 +102,7 @@ newTransactionLayer (Hash block0H) = TransactionLayer
     , estimateSize = \(CoinSelection inps outs chgs) ->
         Quantity $ length inps + length outs + length chgs
 
-    , estimateMaxNumberOfInputs =
-        estimateMaxNumberOfInputsBase @t @n @k Binary.estimateMaxNumberOfInputsParams
+    , estimateMaxNumberOfInputs = \_ _ -> fromIntegral maxNumberOfInputs
 
     , validateSelection = \(CoinSelection inps outs _) -> do
         when (length inps > maxNumberOfInputs || length outs > maxNumberOfOutputs)
@@ -132,28 +121,11 @@ newTransactionLayer (Hash block0H) = TransactionLayer
 -- - ShelleyKey could theorically be used with the legacy address structure (as
 -- Yoroi does) however, our implementation only associate ShelleyKey to new
 -- addresses.
-class MkTxWitness (k :: Depth -> * -> *) where
-    mkTxWitness
-        :: k 'AddressK XPrv
-        -> ByteString
-        -> TxWitness
+class TxWitnessTagFor (k :: Depth -> * -> *) where
+    txWitnessTagFor :: TxWitnessTag
 
-instance MkTxWitness ShelleyKey where
-    mkTxWitness _ = utxoWitness
-
-instance MkTxWitness ByronKey where
-    mkTxWitness xprv = legacyUtxoWitness xpub
-      where
-        xpub = getRawKey $ publicKey xprv
-
--- | Sign some arbitrary binary data using a private key.
-sign
-    :: WalletKey k
-    => ByteString
-    -> (k 'AddressK XPrv, Passphrase "encryption")
-    -> ByteString
-sign bytes (key, (Passphrase pwd)) =
-    CC.unXSignature $ CC.sign pwd (getRawKey key) bytes
+instance TxWitnessTagFor ShelleyKey where txWitnessTagFor = TxWitnessUTxO
+instance TxWitnessTagFor ByronKey   where txWitnessTagFor = TxWitnessLegacyUTxO
 
 -- | Transaction with improper number of inputs and outputs is tried
 data ErrExceededInpsOrOuts = ErrExceededInpsOrOuts
