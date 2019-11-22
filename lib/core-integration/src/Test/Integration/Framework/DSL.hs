@@ -157,7 +157,6 @@ import Cardano.Wallet.Api.Types
     ( AddressAmount
     , ApiAddress
     , ApiByronWallet
-    , ApiStakePool
     , ApiStakePoolMetrics
     , ApiT (..)
     , ApiTransaction
@@ -1084,7 +1083,7 @@ json = aesonQQ
 joinStakePool
     :: forall t w. (HasType (ApiT WalletId) w)
     => Context t
-    -> ApiStakePool
+    -> ApiT PoolId
     -> (w, Text)
     -> IO (HTTP.Status, Either RequestException (ApiTransaction 'Testnet))
 joinStakePool ctx p (w, pass) = do
@@ -1096,7 +1095,7 @@ joinStakePool ctx p (w, pass) = do
 quitStakePool
     :: forall t w. (HasType (ApiT WalletId) w)
     => Context t
-    -> ApiStakePool
+    -> ApiT PoolId
     -> (w, Text)
     -> IO (HTTP.Status, Either RequestException (ApiTransaction 'Testnet))
 quitStakePool ctx p (w, pass) = do
@@ -1285,27 +1284,27 @@ listStakePoolsEp =
 stakePoolEp
     :: forall w. (HasType (ApiT WalletId) w)
     => Method
-    -> ApiStakePool
+    -> ApiT PoolId
     -> w
     -> (Method, Text)
-stakePoolEp verb p w =
+stakePoolEp verb poolId w =
     ( verb
     , "v2/stake-pools/"
-        <> toText (getApiT $ p ^. #id)
+        <> toText (getApiT poolId)
         <> "/wallets/"
         <> w ^. walletId
     )
 
 joinStakePoolEp
     :: forall w. (HasType (ApiT WalletId) w)
-    => ApiStakePool
+    => ApiT PoolId
     -> w
     -> (Method, Text)
 joinStakePoolEp = stakePoolEp "PUT"
 
 quitStakePoolEp
     :: forall w. (HasType (ApiT WalletId) w)
-    => ApiStakePool
+    => ApiT PoolId
     -> w
     -> (Method, Text)
 quitStakePoolEp = stakePoolEp "DELETE"

@@ -19,8 +19,8 @@ import Cardano.Wallet.Primitive.Types
     ( PoolId (..) )
 import Control.Monad
     ( forM_ )
-import Data.Quantity
-    ( Quantity (..) )
+import Data.Generics.Internal.VL.Lens
+    ( (^.) )
 import Test.Hspec
     ( SpecWith, describe, it )
 import Test.Integration.Framework.DSL
@@ -61,7 +61,6 @@ import Test.Integration.Framework.TestData
     , passphraseMinLength
     )
 
-import qualified Cardano.Wallet.Api.Types as Types
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
@@ -132,7 +131,7 @@ spec = do
         (_, p:_) <- eventually $
             unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
         w <- emptyWallet ctx
-        r <- joinStakePool ctx p (w, "Secure Passphrase")
+        r <- joinStakePool ctx (p ^. #id) (w, "Secure Passphrase")
         expectResponseCode HTTP.status403 r
 
     it "STAKE_POOLS_JOIN_01 - I cannot join another until I quit\
@@ -140,10 +139,10 @@ spec = do
         (_, p1:p2:_) <- eventually $
             unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
         w <- emptyWallet ctx
-        r1 <- joinStakePool ctx p1 (w, "Secure Passprase")
+        r1 <- joinStakePool ctx (p1 ^. #id) (w, "Secure Passprase")
         expectResponseCode HTTP.status403 r1
 
-        r2 <- joinStakePool ctx p2 (w, "Secure Passprase")
+        r2 <- joinStakePool ctx (p2 ^. #id) (w, "Secure Passprase")
         expectResponseCode HTTP.status403 r2
 
     it "STAKE_POOLS_JOIN_01 - \
@@ -151,24 +150,21 @@ spec = do
         (_, p1:p2:_) <- eventually $
             unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
         w <- emptyWallet ctx
-        r1 <- joinStakePool ctx p1 (w, "Secure Passprase")
+        r1 <- joinStakePool ctx (p1 ^. #id) (w, "Secure Passprase")
         expectResponseCode HTTP.status403 r1
 
-        r1q <- quitStakePool ctx p1 (w, "Secure Passprase")
+        r1q <- quitStakePool ctx (p1 ^. #id) (w, "Secure Passprase")
         expectResponseCode HTTP.status501 r1q
 
-        r2 <- joinStakePool ctx p2 (w, "Secure Passprase")
+        r2 <- joinStakePool ctx (p2 ^. #id) (w, "Secure Passprase")
         expectResponseCode HTTP.status403 r2
 
     it "STAKE_POOLS_JOIN_01 - Cannot join non-existant stakepool" $ \ctx -> do
-        let pId =
-                "0000000000000000000000000000000000000000000000000000000000000000"
+        let pId = "0000000000000000000000000000000000000000000000000000000000000000"
         let (Right addr) = fromHex pId
         let poolIdAbsent = ApiT $ PoolId addr
-        let poolMetrics = Types.ApiStakePoolMetrics (Quantity 0) (Quantity 0)
-        let pool = Types.ApiStakePool poolIdAbsent poolMetrics 0
         w <- emptyWallet ctx
-        r <- joinStakePool ctx pool (w, "Secure Passphrase")
+        r <- joinStakePool ctx poolIdAbsent (w, "Secure Passphrase")
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoSuchPool (T.decodeUtf8 pId)) r
 
@@ -176,7 +172,7 @@ spec = do
         (_, p:_) <- eventually $
             unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
         w <- emptyWallet ctx
-        r <- joinStakePool ctx p (w, "Incorrect Passphrase")
+        r <- joinStakePool ctx (p ^. #id) (w, "Incorrect Passphrase")
         expectResponseCode HTTP.status403 r
 
     describe "STAKE_POOLS_JOIN/QUIT_02 -\
@@ -196,7 +192,7 @@ spec = do
                 (_, p:_) <- eventually $ do
                     unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
                 w <- emptyWallet ctx
-                r <- doStakePool ctx p (w, T.pack pass)
+                r <- doStakePool ctx (p ^. #id) (w, T.pack pass)
                 expectResponseCode HTTP.status400 r
                 expectErrorMessage expec r
 
@@ -215,7 +211,7 @@ spec = do
                 let payload = Json [json| {
                         "passphrase": 123
                         } |]
-                r <- request @(ApiTransaction n) ctx (sPoolEndp p w)
+                r <- request @(ApiTransaction n) ctx (sPoolEndp (p ^. #id) w)
                         Default payload
                 expectResponseCode HTTP.status400 r
                 expectErrorMessage "expected Text, encountered Number" r
@@ -228,7 +224,7 @@ spec = do
         (_, p:_) <- eventually $
             unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
         w <- emptyByronWallet ctx
-        r <- joinStakePool ctx p (w, "Secure Passprase")
+        r <- joinStakePool ctx (p ^. #id) (w, "Secure Passprase")
         expectResponseCode HTTP.status404 r
 
     describe "STAKE_POOLS_JOIN/QUIT_05 - Bad request" $ do
@@ -237,7 +233,7 @@ spec = do
                     unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
                 w <- emptyWallet ctx
                 let payload = NonJson  "{ passphrase: Secure Passphrase }"
-                r <- request @(ApiTransaction n) ctx (sPoolEndp p w)
+                r <- request @(ApiTransaction n) ctx (sPoolEndp (p ^. #id) w)
                         Default payload
                 expectResponseCode HTTP.status400 r
 
@@ -255,7 +251,7 @@ spec = do
             let payload = Json [json| {
                     "passphrase": "Secure Passphrase"
                     } |]
-            r <- request @(ApiTransaction n) ctx (stakePoolEp method p w)
+            r <- request @(ApiTransaction n) ctx (stakePoolEp method (p ^. #id) w)
                     Default payload
             expectResponseCode HTTP.status405 r
             expectErrorMessage errMsg405 r
@@ -268,7 +264,7 @@ spec = do
                 let payload = Json [json| {
                         "passphrase": "Secure Passphrase"
                         } |]
-                r <- request @(ApiTransaction n) ctx (sPoolEndp p w)
+                r <- request @(ApiTransaction n) ctx (sPoolEndp (p ^. #id) w)
                         headers payload
                 verify r expec
 
@@ -318,10 +314,10 @@ spec = do
         (_, p:_) <- eventually $
             unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
         w <- emptyWallet ctx
-        r <- joinStakePool ctx p (w, "Secure Passprase")
+        r <- joinStakePool ctx (p ^. #id) (w, "Secure Passprase")
         expectResponseCode HTTP.status403 r
 
-        rq <- quitStakePool ctx p (w, "Secure Passprase")
+        rq <- quitStakePool ctx (p ^. #id) (w, "Secure Passprase")
         expectResponseCode HTTP.status501 rq
 
     it "STAKE_POOLS_QUIT_01 - Quiting before even joining" $ \ctx -> do
@@ -329,15 +325,15 @@ spec = do
             unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
         w <- emptyWallet ctx
 
-        rq <- quitStakePool ctx p (w, "Secure Passprase")
+        rq <- quitStakePool ctx (p ^. #id) (w, "Secure Passprase")
         expectResponseCode HTTP.status501 rq
 
     it "STAKE_POOLS_QUIT_02 - Passphrase must be correct to quit" $ \ctx -> do
         (_, p:_) <- eventually $
             unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
         w <- emptyWallet ctx
-        joinStakePool ctx p (w, "Secure Passprase")
+        joinStakePool ctx (p ^. #id) (w, "Secure Passprase")
             >>= (expectResponseCode HTTP.status403)
 
-        r <- quitStakePool ctx p (w, "Incorrect Passphrase")
+        r <- quitStakePool ctx (p ^. #id) (w, "Incorrect Passphrase")
         expectResponseCode HTTP.status501 r
