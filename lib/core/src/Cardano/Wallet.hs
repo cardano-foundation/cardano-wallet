@@ -1033,14 +1033,12 @@ submitCert
         )
     => ctx
     -> WalletId
-    -> PoolId
     -> (Tx, TxMeta, SealedTx)
     -> ExceptT ErrSubmitCert IO ()
-submitCert ctx wid poolId (tx, meta, binary) = db & \DBLayer{..} -> do
+submitCert ctx wid (tx, meta, binary) = db & \DBLayer{..} -> do
     withExceptT ErrSubmitCertNetwork $ postTx nw binary
     mapExceptT atomically $ withExceptT ErrSubmitCertNoSuchWallet $ do
         putTxHistory (PrimaryKey wid) [(tx, meta)]
-        putDelegationCertificate (PrimaryKey wid) poolId (meta ^. #slotId)
   where
     db = ctx ^. dbLayer @s @k
     nw = ctx ^. networkLayer @t
@@ -1175,7 +1173,6 @@ data ErrCreateCert
 data ErrSignCert
     = ErrSignCertNoSuchWallet ErrNoSuchWallet
     | ErrSignCertWithRootKey ErrWithRootKey
-    -- | ErrSignCert ErrMkCertificateTx
     deriving (Show, Eq)
 
 -- | Errors that can occur when submitting a signed transaction with

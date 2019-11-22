@@ -53,7 +53,7 @@ import Test.Integration.Framework.DSL
     , verify
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403NoSuchPool
+    ( errMsg404NoSuchPool
     , errMsg405
     , errMsg406
     , errMsg415
@@ -170,7 +170,7 @@ spec = do
         w <- emptyWallet ctx
         r <- joinStakePool ctx pool (w, "Secure Passphrase")
         expectResponseCode HTTP.status404 r
-        expectErrorMessage (errMsg403NoSuchPool (T.decodeUtf8 pId)) r
+        expectErrorMessage (errMsg404NoSuchPool (T.decodeUtf8 pId)) r
 
     it "STAKE_POOLS_JOIN_02 - Passphrase must be correct to join" $ \ctx -> do
         (_, p:_) <- eventually $

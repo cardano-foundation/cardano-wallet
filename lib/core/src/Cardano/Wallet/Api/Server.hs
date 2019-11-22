@@ -214,7 +214,7 @@ import Data.Generics.Labels
 import Data.List
     ( isInfixOf, isSubsequenceOf, sortOn )
 import Data.Maybe
-    ( fromMaybe, isJust )
+    ( fromMaybe, isJust, isNothing )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -822,32 +822,32 @@ joinStakePool ctx spl (ApiT poolId) (ApiT wid) passwd = do
         liftHandler $ throwE (ErrCreateCertPoolAlreadyJoined poolId)
 
     allPools <- listPools spl
-    case L.find (\(ApiStakePool pId _ _) -> pId == ApiT poolId) allPools of
-        Nothing ->
-            liftHandler $ throwE (ErrCreateCertNoSuchPool poolId)
-        Just _ -> do
-            let (ApiWalletPassphrase (ApiT pwd)) = passwd
+    when (poolIsUnknown allPools) $
+        liftHandler $ throwE (ErrCreateCertNoSuchPool poolId)
 
-            selection <- liftHandler $ withWorkerCtx ctx wid liftE1 $ \wrk ->
-                W.createCert @_ @s @t wrk wid
+    let (ApiWalletPassphrase (ApiT pwd)) = passwd
 
-            _ <- throwError err501
-            (tx, meta, time, wit) <- liftHandler $ withWorkerCtx ctx wid liftE2 $ \wrk ->
-                W.signCert @_ @s @t @k wrk wid () pwd selection poolId
+    selection <- liftHandler $ withWorkerCtx ctx wid liftE1 $ \wrk ->
+        W.createCert @_ @s @t wrk wid
 
-            liftHandler $ withWorkerCtx ctx wid liftE3 $ \wrk ->
-                W.submitCert @_ @s @t @k wrk wid poolId (tx, meta, wit)
+    (tx, meta, time, wit) <- liftHandler $ withWorkerCtx ctx wid liftE2 $ \wrk ->
+        W.signCert @_ @s @t @k wrk wid () pwd selection poolId
 
-            pure $ mkApiTransaction
-                (txId tx)
-                (fmap Just <$> selection ^. #inputs)
-                (selection ^. #outputs)
-                (meta, time)
-                #pendingSince
+    liftHandler $ withWorkerCtx ctx wid liftE3 $ \wrk ->
+        W.submitCert @_ @s @t @k wrk wid (tx, meta, wit)
+
+    pure $ mkApiTransaction
+        (txId tx)
+        (fmap Just <$> selection ^. #inputs)
+        (selection ^. #outputs)
+        (meta, time)
+        #pendingSince
   where
     liftE1 = throwE . ErrCreateCertNoSuchWallet
     liftE2 = throwE . ErrSignCertNoSuchWallet
     liftE3 = throwE . ErrSubmitCertNoSuchWallet
+    poolIsUnknown =
+        isNothing . L.find (\(ApiStakePool pId _ _) -> pId == ApiT poolId)
 
 quitStakePool
     :: forall n k.
@@ -1638,12 +1638,12 @@ instance LiftHandler ErrMetricsInconsistency where
 instance LiftHandler ErrCreateCert where
     handler = \case
         ErrCreateCertNoSuchPool poolId ->
-            apiError err404 PoolAlreadyJoined $ mconcat
+            apiError err404 NoSuchPool $ mconcat
                 [ "I couldn't find a stake pool with the given id: "
                 , toText poolId
                 ]
         ErrCreateCertPoolAlreadyJoined poolId ->
-            apiError err404 PoolAlreadyJoined $ mconcat
+            apiError err403 PoolAlreadyJoined $ mconcat
                 [ "I couldn't join a stake pool with the given id: "
                 , toText poolId
                 , "I am already joined, joining once again would only incur "

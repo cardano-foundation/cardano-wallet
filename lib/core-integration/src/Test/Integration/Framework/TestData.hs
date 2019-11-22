@@ -54,7 +54,7 @@ module Test.Integration.Framework.TestData
     , errMsg403UTxO
     , errMsg403WrongPass
     , errMsg403NoPendingAnymore
-    , errMsg403NoSuchPool
+    , errMsg404NoSuchPool
     , errMsg403NothingToMigrate
     , errMsg404NoEndpoint
     , errMsg404CannotFindTx
@@ -398,8 +398,8 @@ errMsg403NoPendingAnymore :: Text -> String
 errMsg403NoPendingAnymore tid = "The transaction with id: " ++ unpack tid ++
     " cannot be forgotten as it is not pending anymore."
 
-errMsg403NoSuchPool :: Text -> String
-errMsg403NoSuchPool pid = "I couldn't find a stake pool with the given id: "
+errMsg404NoSuchPool :: Text -> String
+errMsg404NoSuchPool pid = "I couldn't find a stake pool with the given id: "
     ++ unpack pid
 
 errMsg404CannotFindTx :: Text -> String
