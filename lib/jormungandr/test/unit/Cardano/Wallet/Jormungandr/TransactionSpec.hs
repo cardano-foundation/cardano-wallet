@@ -13,8 +13,6 @@ module Cardano.Wallet.Jormungandr.TransactionSpec
 
 import Prelude
 
-import Cardano.Wallet.Jormungandr.Compatibility
-    ( Jormungandr )
 import Cardano.Wallet.Jormungandr.Transaction
     ( ErrExceededInpsOrOuts (..), newTransactionLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -44,8 +42,6 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Transaction
     ( ErrMkStdTx (..), TransactionLayer (..) )
-import Cardano.Wallet.TransactionSpecShared
-    ( propMaxNumberOfInputsEstimation )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Data.ByteArray.Encoding
@@ -58,8 +54,6 @@ import Data.Text.Class
     ( toText )
 import Test.Hspec
     ( Spec, SpecWith, describe, it, shouldBe )
-import Test.QuickCheck
-    ( property )
 
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
@@ -69,21 +63,7 @@ import qualified Data.Text as T
 
 spec :: Spec
 spec = do
-    estimateMaxNumberOfInputsSpec
     mkStdTxSpec
-
-{-------------------------------------------------------------------------------
-                             Max inputs estimation
--------------------------------------------------------------------------------}
-
-estimateMaxNumberOfInputsSpec :: Spec
-estimateMaxNumberOfInputsSpec = describe "estimateMaxNumberOfInputs" $ do
-    it "Property for mainnet addresses" $
-        property $ propMaxNumberOfInputsEstimation
-        (newTransactionLayer @'Mainnet (Hash "") :: TransactionLayer Jormungandr ShelleyKey)
-    it "Property for testnet addresses" $
-        property $ propMaxNumberOfInputsEstimation
-        (newTransactionLayer @'Testnet (Hash "") :: TransactionLayer Jormungandr ShelleyKey)
 
 {-------------------------------------------------------------------------------
                                   mkStdTx
@@ -128,7 +108,7 @@ mkStdTxSpec = do
             "13c3d835c53a198f7c8513b04d99eeb23c745c0a73364c2f0e802fa38eec9dba"
 
     describe "mkStdTx 'Mainnet" $ do
-        let tl = newTransactionLayer @'Mainnet block0
+        let tl = newTransactionLayer block0
         let paymentAddress' = paymentAddress @'Mainnet
         let addr0 = paymentAddress' (publicKey xprv0)
         -- ^ ca1qvk32hg8rppc0wn0lzpkq996pd3xkxqguel8tharwrpdch6czu2luh3truq
@@ -215,7 +195,7 @@ mkStdTxSpec = do
             \3d332f1774eb8733a5d40c"
 
     describe "mkStdTx (legacy) 'Mainnet" $ do
-        let tl = newTransactionLayer @'Mainnet block0
+        let tl = newTransactionLayer block0
         let addrRnd0 = paymentAddress @'Mainnet (publicKey xprvRnd0)
         -- ^ DdzFFzCqrhsyySN2fbNnZf4kh2gg9t4mZzcnCiiw1EFG4ynvCGi35qgdUPh1DJp5Z28SVQxsxfNn7CaRB6DbvvvXZzdtMJ4ML2RrXvrG
         let addrRnd1 = paymentAddress @'Mainnet (publicKey xprvRnd1)
@@ -307,7 +287,7 @@ mkStdTxSpec = do
             \035353e609e400"
 
     describe "mkStdTx 'Testnet" $ do
-        let tl = newTransactionLayer @'Testnet block0
+        let tl = newTransactionLayer block0
         let paymentAddress' = paymentAddress @'Testnet
 
         let addr0 = paymentAddress' (publicKey xprv0)
@@ -358,7 +338,7 @@ mkStdTxSpec = do
             \3da6b26d3da9f466b78200"
 
     describe "mkStdTx (legacy) 'Testnet" $ do
-        let tl = newTransactionLayer @'Testnet block0
+        let tl = newTransactionLayer block0
 
         let addrRnd0 = paymentAddress @'Mainnet (publicKey xprvRnd0)
         -- ^ DdzFFzCqrhsyySN2fbNnZf4kh2gg9t4mZzcnCiiw1EFG4ynvCGi35qgdUPh1DJp5Z28SVQxsxfNn7CaRB6DbvvvXZzdtMJ4ML2RrXvrG
@@ -480,7 +460,7 @@ unknownInputTest _ block0 = it title $ do
             xprvSeqFromSeed "address-number-0"
     let res = mkStdTx tl keyFrom inps outs
           where
-            tl = newTransactionLayer @n @ShelleyKey block0
+            tl = newTransactionLayer @ShelleyKey block0
             keyFrom = const Nothing
             inps =
                 [ ( TxIn (Hash "arbitrary") 0
@@ -504,7 +484,7 @@ tooNumerousInpsTest _ block0 = it title $ do
             xprvSeqFromSeed "address-number-0"
     let res = validateSelection tl (CoinSelection inps outs chngs)
           where
-            tl = newTransactionLayer @n @ShelleyKey block0
+            tl = newTransactionLayer @ShelleyKey block0
             inps = replicate 256
                 ( TxIn (Hash "arbitrary") 0
                 , TxOut addr (Coin 1)
@@ -527,7 +507,7 @@ tooNumerousOutsTest _ block0 = it title $ do
             xprvSeqFromSeed "address-number-0"
     let res = validateSelection tl (CoinSelection inps outs chngs)
           where
-            tl = newTransactionLayer @n @ShelleyKey block0
+            tl = newTransactionLayer @ShelleyKey block0
             inps = replicate 255
                 ( TxIn (Hash "arbitrary") 0
                 , TxOut addr (Coin 10)
