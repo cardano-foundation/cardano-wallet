@@ -30,6 +30,8 @@ import Data.Text.Class
     ( toText )
 import Network.HTTP.Client
     ( defaultManagerSettings, newManager )
+import Paths_cardano_wallet_jormungandr
+    ( getDataFileName )
 import System.Command
     ( Exit (..), Stderr (..), Stdout (..) )
 import System.Directory
@@ -45,7 +47,7 @@ import System.IO.Temp
 import System.Process
     ( terminateProcess, withCreateProcess )
 import Test.Hspec
-    ( Spec, describe, it, pendingWith )
+    ( Spec, describe, it, pendingWith, runIO )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain )
 import Test.Integration.Framework.DSL
@@ -61,8 +63,6 @@ import Test.Integration.Framework.DSL
     , state
     , waitForServer
     )
-import Test.Utils.Paths
-    ( testDirectory )
 import Test.Utils.Ports
     ( findPort )
 
@@ -70,8 +70,8 @@ import qualified Data.Text.IO as TIO
 
 spec :: forall t. (KnownCommand t) => Spec
 spec = do
-    let block0 = testDirectory </> "data" </> "jormungandr" </> "block0.bin"
-    let secret = testDirectory </> "data" </> "jormungandr" </> "secret.yaml"
+    block0 <- runIO $ getDataFileName "jormungandr/block0.bin"
+    secret <- runIO $ getDataFileName "jormungandr/secret.yaml"
     describe "LAUNCH - cardano-wallet launch [SERIAL]" $ do
         it "LAUNCH - Stop when --state-dir is an existing file" $ withTempFile $ \f _ -> do
             let args =

@@ -22,6 +22,8 @@ import Cardano.Wallet.Jormungandr.Network
     ( JormungandrConfig (..), JormungandrConnParams, withJormungandr )
 import Control.Exception
     ( bracket, throwIO )
+import Paths_cardano_wallet_jormungandr
+    ( getDataFileName )
 import System.Directory
     ( doesDirectoryExist, removeDirectoryRecursive )
 import System.Environment
@@ -32,8 +34,6 @@ import System.IO
     ( IOMode (..), hClose, openFile )
 import System.IO.Temp
     ( createTempDirectory, getCanonicalTemporaryDirectory )
-import Test.Utils.Jormungandr.Paths
-    ( testDirectory )
 
 -- | Starts jormungandr on a random port using the integration tests config.
 -- The data directory will be stored in a unique location under the system
@@ -43,17 +43,19 @@ withConfig = bracket setupConfig teardownConfig
 
 setupConfig :: IO JormungandrConfig
 setupConfig = do
-    let dir = testDirectory </> "data" </> "jormungandr"
+    block0 <- getDataFileName "jormungandr/block0.bin"
+    secret <- getDataFileName "jormungandr/secret.yaml"
+    config <- getDataFileName "jormungandr/config.yaml"
     tmp <- getCanonicalTemporaryDirectory
-    configDir <- createTempDirectory tmp "cardano-wallet-jormungandr"
-    logFile <- openFile (configDir </> "jormungandr.log") WriteMode
+    stateDir <- createTempDirectory tmp "cardano-wallet-jormungandr"
+    logFile <- openFile (stateDir </> "jormungandr.log") WriteMode
     let cfg = JormungandrConfig
-            configDir
-            (Right $ dir </> "block0.bin")
+            stateDir
+            (Right block0)
             Nothing
             (UseHandle logFile)
-            [ "--secret", dir </> "secret.yaml"
-            , "--config" , dir </> "config.yaml"
+            [ "--secret", secret
+            , "--config" , config
             ]
     pure cfg
 

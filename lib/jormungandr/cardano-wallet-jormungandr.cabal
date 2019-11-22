@@ -12,6 +12,13 @@ build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
 
+data-dir: test/data
+data-files:
+  block0s/*.bin
+  jormungandr/block0.bin
+  jormungandr/config.yaml
+  jormungandr/secret.yaml
+
 flag development
     description: Disable `-Werror`
     default: False
@@ -168,6 +175,7 @@ test-suite unit
       Cardano.Wallet.Jormungandr.CompatibilitySpec
       Cardano.Wallet.Jormungandr.NetworkSpec
       Cardano.Wallet.Jormungandr.TransactionSpec
+      Paths_cardano_wallet_jormungandr
 
 test-suite integration
   default-language:
@@ -251,3 +259,4 @@ test-suite integration
       Test.Integration.Jormungandr.Scenario.CLI.Server
       Test.Integration.Jormungandr.Scenario.CLI.StakePools
       Test.Integration.Jormungandr.Scenario.CLI.Transactions
+      Paths_cardano_wallet_jormungandr
