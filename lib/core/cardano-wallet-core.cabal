@@ -182,6 +182,7 @@ test-suite unit
     , lens
     , memory
     , network
+    , persistent
     , OddWord
     , QuickCheck
     , quickcheck-state-machine >= 0.6.0
@@ -224,6 +225,7 @@ test-suite unit
       Cardano.Wallet.DB.MVarSpec
       Cardano.Wallet.DB.Properties
       Cardano.Wallet.DB.SqliteSpec
+      Cardano.Wallet.DB.Sqlite.TypesSpec
       Cardano.Wallet.DB.StateMachine
       Cardano.Wallet.DummyTarget.Primitive.Types
       Cardano.Wallet.Network.BlockHeadersSpec

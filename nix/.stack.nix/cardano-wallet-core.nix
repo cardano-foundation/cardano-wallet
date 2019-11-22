@@ -147,6 +147,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."lens" or (buildDepError "lens"))
             (hsPkgs."memory" or (buildDepError "memory"))
             (hsPkgs."network" or (buildDepError "network"))
+            (hsPkgs."persistent-sqlite" or (buildDepError "persistent-sqlite"))
             (hsPkgs."OddWord" or (buildDepError "OddWord"))
             (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
             (hsPkgs."quickcheck-state-machine" or (buildDepError "quickcheck-state-machine"))
