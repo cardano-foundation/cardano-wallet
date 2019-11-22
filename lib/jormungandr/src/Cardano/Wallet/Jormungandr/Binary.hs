@@ -40,7 +40,6 @@ module Cardano.Wallet.Jormungandr.Binary
     , putStakeDelegationTx
 
     -- * Transaction construction
-    , constructGenericSignedTx
     , constructTransactionFragment
 
     , constructUtxoWitness
