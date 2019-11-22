@@ -47,6 +47,7 @@ import Cardano.Pool.Metrics
 import Cardano.Wallet
     ( ErrAdjustForFee (..)
     , ErrCoinSelection (..)
+    , ErrCreateCert (..)
     , ErrCreateUnsignedTx (..)
     , ErrDecodeSignedTx (..)
     , ErrEstimateTxFee (..)
@@ -56,8 +57,10 @@ import Cardano.Wallet
     , ErrNoSuchWallet (..)
     , ErrPostTx (..)
     , ErrRemovePendingTx (..)
+    , ErrSignCert (..)
     , ErrSignTx (..)
     , ErrStartTimeLaterThanEndTime (..)
+    , ErrSubmitCert (..)
     , ErrSubmitExternalTx (..)
     , ErrSubmitTx (..)
     , ErrUpdatePassphrase (..)
@@ -123,7 +126,8 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.Network
     ( ErrNetworkTip (..), ErrNetworkUnavailable (..), NetworkLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..)
+    ( HardDerivation (..)
+    , NetworkDiscriminant (..)
     , PaymentAddress (..)
     , WalletKey (..)
     , digest
@@ -210,7 +214,7 @@ import Data.Generics.Labels
 import Data.List
     ( isInfixOf, isSubsequenceOf, sortOn )
 import Data.Maybe
-    ( fromMaybe, isJust )
+    ( fromMaybe, isJust, isNothing )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -287,6 +291,7 @@ import qualified Cardano.Wallet.Registry as Registry
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
@@ -328,7 +333,7 @@ start settings trace socket rndCtx seqCtx spl = do
     server :: Server (Api n)
     server = coreApiServer seqCtx
         :<|> compatibilityApiServer @t @n rndCtx seqCtx
-        :<|> stakePoolServer spl
+        :<|> stakePoolServer seqCtx spl
 
     application :: Application
     application = serve (Proxy @("v2" :> Api n)) server
@@ -425,11 +430,16 @@ coreApiServer ctx =
     :<|> network ctx
 
 stakePoolServer
-    :: forall n k.
+    :: forall ctx s t n k.
         ( PaymentAddress n k
+        , Buildable (ErrValidateSelection t)
         , k ~ ShelleyKey
+        , s ~ SeqState n k
+        , HardDerivation k
+        , ctx ~ ApiLayer s t k
         )
-    => StakePoolLayer IO
+    => ctx
+    -> StakePoolLayer IO
     -> Server (StakePoolApi n)
 stakePoolServer = pools
 
@@ -757,15 +767,20 @@ postTransactionFee ctx (ApiT wid) body = do
 -------------------------------------------------------------------------------}
 
 pools
-    :: forall n k.
+    :: forall ctx s t n k.
         ( PaymentAddress n k
+        , Buildable (ErrValidateSelection t)
         , k ~ ShelleyKey
+        , s ~ SeqState n k
+        , HardDerivation k
+        , ctx ~ ApiLayer s t k
         )
-    => StakePoolLayer IO
+    => ctx
+    -> StakePoolLayer IO
     -> Server (StakePoolApi n)
-pools spl =
+pools ctx spl =
     listPools spl
-    :<|> joinStakePool
+    :<|> joinStakePool ctx spl
     :<|> quitStakePool
 
 listPools
@@ -786,15 +801,53 @@ listPools spl =
             apparentPerformance
 
 joinStakePool
-    :: forall n k.
+    :: forall ctx s t n k.
         ( PaymentAddress n k
+        , Buildable (ErrValidateSelection t)
+        , s ~ SeqState n k
         , k ~ ShelleyKey
+        , HardDerivation k
+        , ctx ~ ApiLayer s t k
         )
-    => ApiT PoolId
+    => ctx
+    -> StakePoolLayer IO
+    -> ApiT PoolId
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
-joinStakePool _ _ _ = throwError err501
+joinStakePool ctx spl (ApiT poolId) (ApiT wid) passwd = do
+    (_, walMeta, _) <- liftHandler $ withWorkerCtx ctx wid throwE $
+        \wrk -> W.readWallet wrk wid
+    when (walMeta ^. #delegation == W.Delegating poolId) $
+        liftHandler $ throwE (ErrCreateCertPoolAlreadyJoined poolId)
+
+    allPools <- listPools spl
+    when (poolIsUnknown allPools) $
+        liftHandler $ throwE (ErrCreateCertNoSuchPool poolId)
+
+    let (ApiWalletPassphrase (ApiT pwd)) = passwd
+
+    selection <- liftHandler $ withWorkerCtx ctx wid liftE1 $ \wrk ->
+        W.createCert @_ @s @t wrk wid
+
+    (tx, meta, time, wit) <- liftHandler $ withWorkerCtx ctx wid liftE2 $ \wrk ->
+        W.signCert @_ @s @t @k wrk wid () pwd selection poolId
+
+    liftHandler $ withWorkerCtx ctx wid liftE3 $ \wrk ->
+        W.submitCert @_ @s @t @k wrk wid (tx, meta, wit)
+
+    pure $ mkApiTransaction
+        (txId tx)
+        (fmap Just <$> selection ^. #inputs)
+        (selection ^. #outputs)
+        (meta, time)
+        #pendingSince
+  where
+    liftE1 = throwE . ErrCreateCertNoSuchWallet
+    liftE2 = throwE . ErrSignCertNoSuchWallet
+    liftE3 = throwE . ErrSubmitCertNoSuchWallet
+    poolIsUnknown =
+        isNothing . L.find (\(ApiStakePool pId _ _) -> pId == ApiT poolId)
 
 quitStakePool
     :: forall n k.
@@ -1490,28 +1543,31 @@ instance LiftHandler ErrRemovePendingTx where
                   " cannot be forgotten as it is not pending anymore."
                 ]
 
+handleErrPostTx :: ErrPostTx -> ServantErr
+handleErrPostTx = \case
+    ErrPostTxNetworkUnreachable e' ->
+        handler e'
+    ErrPostTxBadRequest err ->
+        apiError err500 CreatedInvalidTransaction $ mconcat
+        [ "That's embarrassing. It looks like I've created an "
+        , "invalid transaction that could not be parsed by the "
+        , "node. Here's an error message that may help with "
+        , "debugging: ", pretty err
+        ]
+    ErrPostTxProtocolFailure err ->
+        apiError err500 RejectedByCoreNode $ mconcat
+        [ "I successfully submitted a transaction, but "
+        , "unfortunately it was rejected by a relay. This could be "
+        , "because the fee was not large enough, or because the "
+        , "transaction conflicts with another transaction that "
+        , "uses one or more of the same inputs, or it may be due "
+        , "to some other reason. Here's an error message that may "
+        , "help with debugging: ", pretty err
+        ]
+
 instance LiftHandler ErrSubmitTx where
     handler = \case
-        ErrSubmitTxNetwork e -> case e of
-            ErrPostTxNetworkUnreachable e' ->
-                handler e'
-            ErrPostTxBadRequest err ->
-                apiError err500 CreatedInvalidTransaction $ mconcat
-                    [ "That's embarrassing. It looks like I've created an "
-                    , "invalid transaction that could not be parsed by the "
-                    , "node. Here's an error message that may help with "
-                    , "debugging: ", pretty err
-                    ]
-            ErrPostTxProtocolFailure err ->
-                apiError err500 RejectedByCoreNode $ mconcat
-                    [ "I successfully submitted a transaction, but "
-                    , "unfortunately it was rejected by a relay. This could be "
-                    , "because the fee was not large enough, or because the "
-                    , "transaction conflicts with another transaction that "
-                    , "uses one or more of the same inputs, or it may be due "
-                    , "to some other reason. Here's an error message that may "
-                    , "help with debugging: ", pretty err
-                    ]
+        ErrSubmitTxNetwork e -> handleErrPostTx e
         ErrSubmitTxNoSuchWallet e@ErrNoSuchWallet{} -> (handler e)
             { errHTTPCode = 410
             , errReasonPhrase = errReasonPhrase err410
@@ -1578,6 +1634,43 @@ instance LiftHandler ErrMetricsInconsistency where
                 , toText producer
                 , " but the node doesn't know about this stake pool!"
                 ]
+
+instance LiftHandler ErrCreateCert where
+    handler = \case
+        ErrCreateCertNoSuchPool poolId ->
+            apiError err404 NoSuchPool $ mconcat
+                [ "I couldn't find a stake pool with the given id: "
+                , toText poolId
+                ]
+        ErrCreateCertPoolAlreadyJoined poolId ->
+            apiError err403 PoolAlreadyJoined $ mconcat
+                [ "I couldn't join a stake pool with the given id: "
+                , toText poolId
+                , "I am already joined, joining once again would only incur "
+                , "unneeded fees!"
+                ]
+        ErrCreateCertNoSuchWallet e -> handler e
+        ErrCreateCertFee e -> handler e
+
+instance LiftHandler ErrSignCert where
+    handler = \case
+        ErrSignCertNoSuchWallet e -> (handler e)
+            { errHTTPCode = 410
+            , errReasonPhrase = errReasonPhrase err410
+            }
+        ErrSignCertWithRootKey e@ErrWithRootKeyNoRootKey{} -> (handler e)
+            { errHTTPCode = 410
+            , errReasonPhrase = errReasonPhrase err410
+            }
+        ErrSignCertWithRootKey e@ErrWithRootKeyWrongPassphrase{} -> handler e
+
+instance LiftHandler ErrSubmitCert where
+    handler = \case
+        ErrSubmitCertNetwork e -> handleErrPostTx e
+        ErrSubmitCertNoSuchWallet e@ErrNoSuchWallet{} -> (handler e)
+            { errHTTPCode = 410
+            , errReasonPhrase = errReasonPhrase err410
+            }
 
 instance LiftHandler (Request, ServantErr) where
     handler (req, err@(ServantErr code _ body headers))

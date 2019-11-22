@@ -110,6 +110,14 @@ module Cardano.Wallet
 
     -- ** Root Key
     , withRootKey
+
+    -- ** Stake Pools
+    , createCert
+    , signCert
+    , submitCert
+    , ErrCreateCert (..)
+    , ErrSignCert (..)
+    , ErrSubmitCert (..)
     ) where
 
 import Prelude hiding
@@ -134,7 +142,9 @@ import Cardano.Wallet.Network
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (RootK)
+    , DerivationType (..)
     , ErrWrongPassphrase (..)
+    , HardDerivation (..)
     , Passphrase
     , WalletKey (..)
     , XPrv
@@ -161,6 +171,7 @@ import Cardano.Wallet.Primitive.Fee
     , Fee (..)
     , FeeOptions (..)
     , adjustForFee
+    , computeCertFee
     , computeFee
     )
 import Cardano.Wallet.Primitive.Model
@@ -184,6 +195,7 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , FeePolicy (LinearFee)
     , Hash (..)
+    , PoolId
     , Range (..)
     , SealedTx
     , SlotId (..)
@@ -649,10 +661,11 @@ coinSelOpts tl txMaxSize = CoinSelectionOptions
 
 feeOpts
     :: TransactionLayer t k
+    -> ( FeePolicy -> Quantity "byte" Int -> Fee )
     -> FeePolicy
     -> FeeOptions
-feeOpts tl feePolicy = FeeOptions
-    { estimateFee = computeFee feePolicy . estimateSize tl
+feeOpts tl feeCompute feePolicy = FeeOptions
+    { estimateFee = feeCompute feePolicy . estimateSize tl
     , dustThreshold = minBound
     }
 
@@ -682,7 +695,7 @@ createUnsignedTx ctx wid recipients = do
     liftIO . logInfo tr $ "Coins selected for transaction: \n" <> pretty sel
     withExceptT ErrCreateUnsignedTxFee $ do
         debug tr "Coins after fee adjustment"
-            =<< adjustForFee (feeOpts tl (bp ^. #getFeePolicy)) utxo' sel
+            =<< adjustForFee (feeOpts tl computeFee (bp ^. #getFeePolicy)) utxo' sel
   where
     tl = ctx ^. transactionLayer @t @k
     tr = ctx ^. logger
@@ -733,7 +746,7 @@ createMigrationSourceData ctx wid = do
     let bp = blockchainParameters cp
     let utxo = availableUTxO @s pending cp
     let feePolicy@(LinearFee (Quantity a) _ _) = bp ^. #getFeePolicy
-    let feeOptions = (feeOpts tl feePolicy)
+    let feeOptions = (feeOpts tl computeFee feePolicy)
             { dustThreshold = Coin $ ceiling a }
     let selOptions = coinSelOpts tl (bp ^. #getTxMaxSize)
     pure $ selectCoinsForMigration feeOptions (idealBatchSize selOptions) utxo
@@ -969,6 +982,68 @@ listTransactions ctx wid mStart mEnd order = db & \DBLayer{..} -> do
         -- the start of a slot and its end could be a valid candidate.
         txTime = slotStartTime sp
 
+createCert
+    :: forall ctx s t k.
+        ( HasTransactionLayer t k ctx
+        , HasLogger ctx
+        , HasDBLayer s k ctx
+        )
+    => ctx
+    -> WalletId
+    -> ExceptT ErrCreateCert IO CoinSelection
+createCert ctx wid = do
+    (wal, _, pending) <- withExceptT ErrCreateCertNoSuchWallet $
+        readWallet @ctx @s @k ctx wid
+    let bp = blockchainParameters wal
+    let utxo = availableUTxO @s pending wal
+    let sel = CoinSelection [] [] []
+    withExceptT ErrCreateCertFee $ do
+        debug tr "Coins selected for delegation certificate after fee adjustment"
+            =<< adjustForFee (feeOpts tl (computeCertFee 1) (bp ^. #getFeePolicy)) utxo sel
+  where
+    tl = ctx ^. transactionLayer @t @k
+    tr = ctx ^. logger
+
+signCert
+    :: forall ctx s t k.
+        ( HasTransactionLayer t k ctx
+        , HasDBLayer s k ctx
+        , Show s
+        , NFData s
+        , IsOwned s k
+        , GenChange s
+        , HardDerivation k
+        , AddressIndexDerivationType k ~ 'Soft
+        )
+    => ctx
+    -> WalletId
+    -> ArgGenChange s
+    -> Passphrase "encryption"
+    -> CoinSelection
+    -> PoolId
+    -> ExceptT ErrSignCert IO (Tx, TxMeta, UTCTime, SealedTx)
+signCert _ctx _wid _argGenChange _pwd _coinSel _poolId =
+    error "signCert : unimplemented"
+
+-- | Broadcast a (signed) transaction with certificate delegation to the network.
+submitCert
+    :: forall ctx s t k.
+        ( HasNetworkLayer t ctx
+        , HasDBLayer s k ctx
+        )
+    => ctx
+    -> WalletId
+    -> (Tx, TxMeta, SealedTx)
+    -> ExceptT ErrSubmitCert IO ()
+submitCert ctx wid (tx, meta, binary) = db & \DBLayer{..} -> do
+    withExceptT ErrSubmitCertNetwork $ postTx nw binary
+    mapExceptT atomically $ withExceptT ErrSubmitCertNoSuchWallet $ do
+        putTxHistory (PrimaryKey wid) [(tx, meta)]
+  where
+    db = ctx ^. dbLayer @s @k
+    nw = ctx ^. networkLayer @t
+
+
 {-------------------------------------------------------------------------------
                                   Key Store
 -------------------------------------------------------------------------------}
@@ -1084,6 +1159,28 @@ data ErrStartTimeLaterThanEndTime = ErrStartTimeLaterThanEndTime
     { errStartTime :: UTCTime
     , errEndTime :: UTCTime
     } deriving (Show, Eq)
+
+-- | Errors that can occur when creating unsigned delegation certificate
+-- transaction.
+data ErrCreateCert
+    = ErrCreateCertNoSuchPool PoolId
+    | ErrCreateCertPoolAlreadyJoined PoolId
+    | ErrCreateCertNoSuchWallet ErrNoSuchWallet
+    | ErrCreateCertFee ErrAdjustForFee
+    deriving (Show, Eq)
+
+-- | Errors that can occur when signing a delegation certificate.
+data ErrSignCert
+    = ErrSignCertNoSuchWallet ErrNoSuchWallet
+    | ErrSignCertWithRootKey ErrWithRootKey
+    deriving (Show, Eq)
+
+-- | Errors that can occur when submitting a signed transaction with
+-- a delegation certificate to the network.
+data ErrSubmitCert
+    = ErrSubmitCertNetwork ErrPostTx
+    | ErrSubmitCertNoSuchWallet ErrNoSuchWallet
+    deriving (Show, Eq)
 
 {-------------------------------------------------------------------------------
                                    Utils
