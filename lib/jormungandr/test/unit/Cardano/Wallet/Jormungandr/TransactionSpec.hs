@@ -13,6 +13,13 @@ module Cardano.Wallet.Jormungandr.TransactionSpec
 
 import Prelude
 
+import Cardano.Wallet.Jormungandr.Binary
+    ( MkFragment (..)
+    , StakeDelegationType (..)
+    , TxWitnessTag (..)
+    , putFragment
+    , sealFragment
+    )
 import Cardano.Wallet.Jormungandr.Transaction
     ( ErrExceededInpsOrOuts (..), newTransactionLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -21,10 +28,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , NetworkDiscriminantVal
     , Passphrase (..)
     , PaymentAddress (..)
+    , WalletKey (..)
     , XPrv
     , networkDiscriminantVal
     , paymentAddress
     , publicKey
+    , xpubPublicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
@@ -34,8 +43,10 @@ import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , ChimericAccount (..)
     , Coin (..)
     , Hash (..)
+    , PoolId (..)
     , SealedTx (..)
     , TxIn (..)
     , TxOut (..)
@@ -193,6 +204,51 @@ mkStdTxSpec = do
             \3d8e5e65d110abd63d39460501d28ca6334756ddd335eaada4a7491373b4d72069\
             \78080f5ac10474c7f6decbbc35f1620817b15bf1594981c034b7f6a15d0a24ec74\
             \3d332f1774eb8733a5d40c"
+
+        -- Delegation tx (without fees)
+        --
+        -- jcli certificate new \
+        --     stake-delegation "5aac0894709438314ec1c8b0697820fc2efaac914768b53e54d68b0bce17a9a8" \
+        --     (echo $XPRV0 | jcli key to-public) > deleg.cert
+        --
+        -- echo $XPRV0 > key.prv
+        --
+        -- jcli certificate sign -c deleg.cert -k key.prv -o deleg.signedcert
+        --
+        -- cat cert \
+        --   | jcli certificate sign -k <(echo $XPRV1 | jcli key from-bytes --type ed25519Extended) \
+        --   > cert.signed
+        --
+        -- jcli transaction new \
+        --     | jcli transaction add-certificate (jcli utils bech32-convert (cat stake_delegation3.signedcert) cert) \
+        --     | jcli transaction finalize \
+        --     | jcli transaction seal \
+        --     | jcli transaction auth -k key.prv \
+        --     | jcli transaction to-message
+        it "Provisional Quick'n'Dirty Test For checking delegation serializers" $ do
+            let poolId = PoolId $ unsafeFromHex
+                    "5aac0894709438314ec1c8b0697820fc\
+                    \2efaac914768b53e54d68b0bce17a9a8"
+            let accountId = ChimericAccount $
+                    xpubPublicKey $ getRawKey $ publicKey xprv0
+
+            let (_, SealedTx sealed) = sealFragment $ putFragment
+                    block0
+                    []
+                    []
+                    (MkFragmentStakeDelegation
+                        TxWitnessUTxO
+                        (DlgFull poolId)
+                        accountId
+                        (getRawKey xprv0, pwd0)
+                    )
+
+            hex sealed `shouldBe`
+                "008600042d155d07184387ba6ff8836014ba0b626b1808e67e75dfa370c2dc\
+                \5f581715fe015aac0894709438314ec1c8b0697820fc2efaac914768b53e54\
+                \d68b0bce17a9a800000105458a17be5c072b8981f43a272b1d8136f880ff91\
+                \ff87d1b34aef3e860300df40997b2130b7db70796b30684ea99d5dd7de1767\
+                \bd6602da7138864e30a3d202"
 
     describe "mkStdTx (legacy) 'Mainnet" $ do
         let tl = newTransactionLayer block0
