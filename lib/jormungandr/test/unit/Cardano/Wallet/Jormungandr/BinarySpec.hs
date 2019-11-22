@@ -64,6 +64,8 @@ import Data.Word
     ( Word8 )
 import GHC.Generics
     ( Generic )
+import Paths_cardano_wallet_jormungandr
+    ( getDataDir, getDataFileName )
 import System.Directory
     ( getDirectoryContents )
 import System.FilePath
@@ -100,12 +102,12 @@ spec :: Spec
 spec = do
     describe "Decoding" $ do
         it "should decode the block0.bin used for integration tests" $ do
-            bs <- BL.readFile $ "test" </> "data" </> "jormungandr" </> "block0.bin"
+            bs <- BL.readFile =<< getDataFileName "jormungandr/block0.bin"
             res <- try' (runGet getBlock bs)
             res `shouldSatisfy` isRight
 
         describe "golden block0s generated in jormungandr-lib" $ do
-            let dir = "test" </> "data" </> "block0s"
+            dir <- (</> "block0s") <$> runIO getDataDir
             files <- runIO $ filter (".bin" `isSuffixOf`)
                 <$> getDirectoryContents dir
             forM_ files $ \filename -> do

@@ -33,12 +33,13 @@ import Cardano.Wallet.Jormungandr.Binary
     )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
+import Cardano.Wallet.Jormungandr.Launch
+    ( withConfig )
 import Cardano.Wallet.Jormungandr.Network
     ( BaseUrl (..)
     , ErrGetDescendants (..)
     , ErrUnexpectedNetworkFailure (..)
     , JormungandrBackend (..)
-    , JormungandrConfig (..)
     , JormungandrConnParams (..)
     , Scheme (..)
     , mkRawNetworkLayer
@@ -107,10 +108,6 @@ import Network.HTTP.Client
     ( defaultManagerSettings, newManager )
 import Servant.Links
     ( safeLink )
-import System.IO.Temp
-    ( withSystemTempDirectory )
-import System.Process
-    ( StdStream (..) )
 import Test.Hspec
     ( Spec
     , SpecWith
@@ -392,13 +389,7 @@ spec = do
     second :: Int
     second = 1000000
 
-    startNode cb = withSystemTempDirectory "jormungandr-state" $ \stateDir -> do
-        let cfg = JormungandrConfig
-                stateDir
-                (Right "test/data/jormungandr/block0.bin")
-                Nothing
-                Inherit
-                ["--secret", "test/data/jormungandr/secret.yaml"]
+    startNode cb = withConfig $ \cfg -> do
         let tr = nullTracer
         e <- withJormungandr tr cfg $
             \cp -> withNetworkLayer tr (UseRunning cp) $ \case

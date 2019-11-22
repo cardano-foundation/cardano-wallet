@@ -26,6 +26,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Text
     ( Text )
+import Paths_cardano_wallet_jormungandr
+    ( getDataFileName )
 import System.Command
     ( CmdResult, Stdout (..), command )
 import System.FilePath
@@ -51,9 +53,10 @@ initFaucet = Faucet
     <*> newMVar (mkTxBuilder <$> externalAddresses)
 
 getBlock0H :: IO (Hash "Genesis")
-getBlock0H = extractId <$> BL.readFile block0
+getBlock0H = do
+    block0 <- getDataFileName "jormungandr/block0.bin"
+    extractId <$> BL.readFile block0
   where
-    block0 = "test" </> "data" </> "jormungandr" </> "block0.bin"
     extractId = Hash . getHash . runGet getBlockId
 
 getBlock0HText :: IO Text

@@ -131,6 +131,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
             (hsPkgs."cardano-wallet-core-integration" or (buildDepError "cardano-wallet-core-integration"))
             (hsPkgs."cardano-wallet-jormungandr" or (buildDepError "cardano-wallet-jormungandr"))
+            (hsPkgs."cardano-wallet-test-utils" or (buildDepError "cardano-wallet-test-utils"))
             (hsPkgs."containers" or (buildDepError "containers"))
             (hsPkgs."deepseq" or (buildDepError "deepseq"))
             (hsPkgs."directory" or (buildDepError "directory"))
