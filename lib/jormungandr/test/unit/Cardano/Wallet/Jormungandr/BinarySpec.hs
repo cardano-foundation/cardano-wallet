@@ -55,7 +55,7 @@ import Control.DeepSeq
 import Control.Exception
     ( SomeException, evaluate, try )
 import Control.Monad
-    ( forM_ )
+    ( forM_, void )
 import Control.Monad.Loops
     ( whileM )
 import Data.Binary.Get as Get
@@ -154,7 +154,7 @@ spec = do
     describe "Fragment Encoding/Decoding" $ do
         it "decode (encode fragment) == fragment" $
           withMaxSuccess 1000 $ property $ \test -> monadicIO $ do
-            let fragment = putFragment
+            let fragment = void $ putFragment
                     (fragmentGenesis test)
                     (zip (fragmentInputs test) (fragmentCredentials test))
                     (fragmentOutputs test)
@@ -192,7 +192,7 @@ spec = do
 
         it "decodeExternalTx works ok with properly constructed binary blob" $
             property $ \test -> monadicIO $ do
-                let bytes = BL.toStrict $ runPut $ putFragment
+                let bytes = BL.toStrict $ runPut $ void $ putFragment
                         (fragmentGenesis test)
                         (zip (fragmentInputs test) (fragmentCredentials test))
                         (fragmentOutputs test)

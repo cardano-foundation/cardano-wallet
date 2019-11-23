@@ -13,10 +13,10 @@ import Prelude
 import Cardano.Wallet.Jormungandr.Binary
     ( MkFragment (..)
     , TxWitnessTag (..)
+    , fragmentId
     , getBlockId
     , putFragment
     , runGet
-    , sealFragment
     )
 import Cardano.Wallet.Primitive.Mnemonic
     ( Mnemonic )
@@ -1048,7 +1048,7 @@ externalAddresses =
         let
             Right (_, dp) = Bech32.decodeLenient out
             Just addr = Address <$> Bech32.dataPartToBytes dp
-            (sourceId, _) = sealFragment $ putFragment
+            sourceId = fragmentId $ putFragment
                 (Hash $ BS.replicate 32 0)
                 []
                 [TxOut addr (Coin 100000000000)]

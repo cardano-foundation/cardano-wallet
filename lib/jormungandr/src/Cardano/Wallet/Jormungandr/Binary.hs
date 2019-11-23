@@ -32,15 +32,18 @@ module Cardano.Wallet.Jormungandr.Binary
     , Fragment (..)
     , FragmentSpec (..)
     , Milli (..)
-    , MkFragment (..)
-    , StakeDelegationType (..)
     , getBlock
     , getBlockHeader
     , getBlockId
     , getFragment
     , getTransaction
+
+    -- * Constructing Fragment
+    , MkFragment (..)
+    , StakeDelegationType (..)
     , putFragment
-    , sealFragment
+    , finalizeFragment
+    , fragmentId
 
     -- * Transaction witnesses
     , TxWitnessTag (..)
@@ -97,7 +100,7 @@ import Cardano.Wallet.Primitive.Types
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( replicateM, unless )
+    ( replicateM, unless, void )
 import Control.Monad.Loops
     ( whileM )
 import Crypto.Hash
@@ -130,6 +133,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Functor
     ( ($>) )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Time.Clock
@@ -477,7 +482,7 @@ putFragment
     -> [((TxIn, Coin), (XPrv, Passphrase "encryption"))]
     -> [TxOut]
     -> MkFragment
-    -> Put
+    -> PutM (Proxy "Fragment")
 putFragment (Hash block0Hash) inputs outputs = \case
     -- SIMPLE-TRANSACTION = TRANSACTION
     MkFragmentSimpleTransaction witTag ->
@@ -576,13 +581,15 @@ putFragment (Hash block0Hash) inputs outputs = \case
       where
         msg = BL.toStrict $ runPut putAuthData
 
-sealFragment :: Put -> (Hash "Tx", SealedTx)
-sealFragment put =
+finalizeFragment :: PutM (Proxy "Fragment") -> SealedTx
+finalizeFragment = SealedTx . BL.toStrict . runPut . void
+
+fragmentId :: PutM (Proxy "Fragment") -> Hash "Tx"
+fragmentId put =
     -- NOTE:
     -- The fragment id is a hash of the fragment, minus the size (first 2 bytes)
-    (Hash (blake2b256 $ BS.drop 2 bytes), SealedTx bytes)
-  where
-    bytes = BL.toStrict $ runPut put
+    Hash $ blake2b256 $ BS.drop 2 bytes
+  where bytes = BL.toStrict $ runPut $ void put
 
 {-------------------------------------------------------------------------------
                             Config Parameters
@@ -771,11 +778,12 @@ guardLength predicate xs = do
 --                  / %x07 POOL-UPDATE
 --                  / %x08 UPDATE-PROPOSAL
 --                  / %x09 UPDATE-VOTE
-withHeader :: FragmentSpec -> Put -> Put
+withHeader :: FragmentSpec -> Put -> PutM (Proxy "Fragment")
 withHeader spec content = do
     let bs = BL.toStrict $ runPut (putFragmentSpec spec *> content)
     putWord16be (toEnum $ BS.length bs)
     putByteString bs
+    pure Proxy
 
 -- | Write given serializer and returns it.
 returnPut :: Put -> PutM Put

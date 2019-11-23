@@ -17,8 +17,8 @@ import Cardano.Wallet.Jormungandr.Binary
     ( MkFragment (..)
     , StakeDelegationType (..)
     , TxWitnessTag (..)
+    , finalizeFragment
     , putFragment
-    , sealFragment
     )
 import Cardano.Wallet.Jormungandr.Transaction
     ( ErrExceededInpsOrOuts (..), newTransactionLayer )
@@ -232,7 +232,7 @@ mkStdTxSpec = do
             let accountId = ChimericAccount $
                     xpubPublicKey $ getRawKey $ publicKey xprv0
 
-            let (_, SealedTx sealed) = sealFragment $ putFragment
+            let SealedTx sealed = finalizeFragment $ putFragment
                     block0
                     []
                     []

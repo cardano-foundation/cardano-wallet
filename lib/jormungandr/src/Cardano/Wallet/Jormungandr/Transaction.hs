@@ -19,12 +19,13 @@ import Cardano.Wallet.Jormungandr.Binary
     ( Fragment (..)
     , MkFragment (..)
     , TxWitnessTag (..)
+    , finalizeFragment
+    , fragmentId
     , getFragment
     , maxNumberOfInputs
     , maxNumberOfOutputs
     , putFragment
     , runGetOrFail
-    , sealFragment
     )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
@@ -73,18 +74,18 @@ newTransactionLayer block0H = TransactionLayer
         credentials <- forM rnps $ \(_, TxOut addr _) -> first getRawKey <$>
             maybeToRight (ErrKeyNotFoundForAddress addr) (keyFrom addr)
         let inps = fmap (second coin) rnps
-        let (txid, sealedTx) = sealFragment $ putFragment
+        let fragment = putFragment
                 block0H
                 (zip inps credentials)
                 outs
                 (MkFragmentSimpleTransaction (txWitnessTagFor @k))
         return
             ( Tx
-                { txId = txid
+                { txId = fragmentId fragment
                 , resolvedInputs = inps
                 , outputs = outs
                 }
-            , sealedTx
+            , finalizeFragment fragment
             )
 
     , decodeSignedTx = \payload -> do

@@ -23,9 +23,9 @@ import Cardano.Wallet.Jormungandr.Api.Types
 import Cardano.Wallet.Jormungandr.Binary
     ( MkFragment (..)
     , TxWitnessTag (..)
+    , finalizeFragment
     , maxNumberOfInputs
     , putFragment
-    , sealFragment
     )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
@@ -316,7 +316,7 @@ spec = do
 
         it "empty tx succeeds" $ \(nw, _) -> do
             -- Would be rejected eventually.
-            let (_, sealed) = sealFragment $ putFragment
+            let sealed = finalizeFragment $ putFragment
                     block0H
                     mempty
                     mempty
@@ -324,7 +324,7 @@ spec = do
             runExceptT (postTx nw sealed) `shouldReturn` Right ()
 
         it "some tx succeeds" $ \(nw, _) -> do
-            let (_, sealed) = sealFragment $ putFragment
+            let sealed = finalizeFragment $ putFragment
                     block0H
                     [((input0, inputValue0), credentials0)]
                     [output0, output1]
@@ -335,7 +335,7 @@ spec = do
             -- Jormungandr will eventually reject txs that are not perfectly
             -- balanced though.
             let Coin c = inputValue0
-            let (_, sealed) = sealFragment $ putFragment
+            let sealed = finalizeFragment $ putFragment
                     block0H
                     [((input0, Coin (c `div` 2)), credentials0)]
                     [output0, output1]
@@ -344,7 +344,7 @@ spec = do
 
         it "no input, one output" $ \(nw, _) -> do
             -- Would be rejected eventually.
-            let (_, sealed) = sealFragment $ putFragment
+            let sealed = finalizeFragment $ putFragment
                     block0H
                     []
                     [output0]
@@ -353,7 +353,7 @@ spec = do
 
         it "throws on too many inputs" $ \(nw, _) -> do
             let input = ((input0, inputValue0), credentials0)
-            let (_, sealed) = sealFragment $ putFragment
+            let sealed = finalizeFragment $ putFragment
                     block0H
                     (replicate (maxNumberOfInputs + 1) input)
                     [output0, output1]
