@@ -17,8 +17,8 @@
 -- Copyright: © 2018-2019 IOHK
 -- License: Apache-2.0
 --
--- Implementation of address derivation for the sequential schemes, as
--- implemented by Yoroi/Icarus and cardano-cli.
+-- Implementation of address derivation for 'Shelley' Keys. Shelley really means
+-- Jörmungandr here.
 
 module Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( -- * Types
@@ -283,41 +283,77 @@ changePassphraseSeq (Passphrase oldPwd) (Passphrase newPwd) (ShelleyKey prv) =
 
 instance PaymentAddress 'Mainnet ShelleyKey where
     paymentAddress (ShelleyKey k0) =
-        encodeShelleyAddress (single @'Mainnet) [xpubPublicKey k0]
+        encodeShelleyAddress (addrSingle @'Mainnet) [xpubPublicKey k0]
     liftPaymentFingerprint (KeyFingerprint k0) =
-        encodeShelleyAddress (single @'Mainnet) [k0]
+        encodeShelleyAddress (addrSingle @'Mainnet) [k0]
 
 instance PaymentAddress 'Testnet ShelleyKey where
     paymentAddress (ShelleyKey k0) =
-        encodeShelleyAddress (single @'Testnet) [xpubPublicKey k0]
+        encodeShelleyAddress (addrSingle @'Testnet) [xpubPublicKey k0]
     liftPaymentFingerprint (KeyFingerprint k0) =
-        encodeShelleyAddress (single @'Testnet) [k0]
+        encodeShelleyAddress (addrSingle @'Testnet) [k0]
 
 instance DelegationAddress 'Mainnet ShelleyKey where
     delegationAddress (ShelleyKey k0) (ShelleyKey k1) =
-        encodeShelleyAddress (grouped @'Mainnet) (xpubPublicKey <$> [k0, k1])
+        encodeShelleyAddress (addrGrouped @'Mainnet) (xpubPublicKey <$> [k0, k1])
 
 instance DelegationAddress 'Testnet ShelleyKey where
     delegationAddress (ShelleyKey k0) (ShelleyKey k1) =
-        encodeShelleyAddress (grouped @'Testnet) (xpubPublicKey <$> [k0, k1])
+        encodeShelleyAddress (addrGrouped @'Testnet) (xpubPublicKey <$> [k0, k1])
 
 -- | Embed some constants into a network type.
 class KnownNetwork (n :: NetworkDiscriminant) where
-    single :: Word8
-        -- ^ Address discriminant byte for single addresses, this is the first byte of
-        -- every addresses using the Shelley format carrying only a spending key.
-    grouped :: Word8
-        -- ^ Address discriminant byte for grouped addresses, this is the first byte of
-        -- every addresses using the Shelley format carrying both a spending and a
-        -- delegation key.
+    addrSingle :: Word8
+        -- ^ Address discriminant byte for single addresses, this is the first
+        -- byte of every addresses using the Shelley format carrying only a
+        -- spending key.
+
+    addrGrouped :: Word8
+        -- ^ Address discriminant byte for grouped addresses, this is the first
+        -- byte of every addresses using the Shelley format carrying both a
+        -- spending and an account key.
+
+    addrAccount :: Word8
+        -- ^ Address discriminant byte for account addresses, this is the first
+        -- byte of every addresses using the Shelley format carrying only an
+        -- account key.
+
+    addrMultisig :: Word8
+        -- ^ Address dismininant byte for multisig addresses, this is the first
+        -- byte of every addresses using the Shelley format carrying a multisig
+        -- account key.
+
+    knownDiscriminants :: [Word8]
+    knownDiscriminants =
+        [ addrSingle @n
+        , addrGrouped @n
+        , addrAccount @n
+        , addrMultisig @n
+        ]
 
 instance KnownNetwork 'Mainnet where
-    single = 0x03
-    grouped = 0x04
+    addrSingle = 0x03
+    addrGrouped = 0x04
+    addrAccount = 0x05
+    addrMultisig = 0x06
 
 instance KnownNetwork 'Testnet where
-    single = 0x83
-    grouped = 0x84
+    addrSingle = 0x83
+    addrGrouped = 0x84
+    addrAccount = 0x85
+    addrMultisig = 0x86
+
+isAddrSingle :: Address -> Bool
+isAddrSingle (Address bytes) =
+    firstByte `elem` [[addrSingle @'Testnet], [addrSingle @'Mainnet]]
+  where
+    firstByte = BS.unpack (BS.take 1 bytes)
+
+isAddrGrouped :: Address -> Bool
+isAddrGrouped (Address bytes) =
+    firstByte `elem` [[addrGrouped @'Testnet], [addrGrouped @'Mainnet]]
+  where
+    firstByte = BS.unpack (BS.take 1 bytes)
 
 -- | Internal function to encode shelley addresses from key fingerprints.
 --
@@ -346,22 +382,20 @@ decodeShelleyAddress
     => ByteString
     -> Either TextDecodingError Address
 decodeShelleyAddress bytes = do
+    let firstByte = BS.unpack $ BS.take 1 bytes
+
+    let knownBytes = pure <$>
+            knownDiscriminants @'Testnet ++ knownDiscriminants @'Mainnet
+    when (firstByte `notElem` knownBytes) $ Left (invalidAddressType firstByte)
+
+    let allowedBytes = pure <$> knownDiscriminants @n
+    when (firstByte `notElem` allowedBytes) $ Left invalidNetwork
+
     case BS.length bytes of
-        n | n == addrSingleSize -> do
-            let firstByte = BS.take 1 bytes
-            when (firstByte /= BS.pack [single @n]) $
-                if firstByte `elem`
-                    (BS.pack <$> [[single @'Mainnet], [single @'Testnet]])
-                    then Left invalidNetwork
-                    else Left invalidAddressType
-        n | n == addrGroupedSize -> do
-            let firstByte = BS.take 1 bytes
-            when (firstByte /= BS.pack [grouped @n]) $
-                if firstByte `elem`
-                    (BS.pack <$> [[grouped @'Mainnet], [grouped @'Testnet]])
-                    then Left invalidNetwork
-                    else Left invalidAddressType
+        n | n == addrSingleSize  && firstByte /= [addrGrouped @n] -> pure ()
+        n | n == addrGroupedSize && firstByte == [addrGrouped @n] -> pure ()
         n -> Left $ invalidAddressLength n
+
     return (Address bytes)
   where
     invalidAddressLength actualLength = TextDecodingError $
@@ -372,30 +406,28 @@ decodeShelleyAddress bytes = do
         <> " or "
         <> show addrGroupedSize
         <> " bytes."
-    invalidAddressType = TextDecodingError
-        "This type of address is not supported."
+    invalidAddressType byte = TextDecodingError $
+        "This type of address is not supported: "
+        <> show byte
+        <> "."
     invalidNetwork = TextDecodingError $
         "This address belongs to another network. Network is: "
         <> show (networkDiscriminantVal @n) <> "."
 
 instance MkKeyFingerprint ShelleyKey where
     paymentKeyFingerprint addr@(Address bytes)
-        | len == addrSingleSize || len == addrGroupedSize =
+        | isAddrSingle addr || isAddrGrouped addr =
             Right $ KeyFingerprint $ BS.take publicKeySize $ BS.drop 1 bytes
         | otherwise =
             Left $ ErrInvalidAddress addr (Proxy @ShelleyKey)
-      where
-        len = BS.length bytes
 
     delegationKeyFingerprint addr@(Address bytes)
-        | len == addrSingleSize =
+        | isAddrSingle addr =
             Right Nothing
-        | len == addrGroupedSize =
+        | isAddrGrouped addr =
             Right $ Just $ KeyFingerprint $ BS.drop addrSingleSize bytes
         | otherwise =
             Left $ ErrInvalidAddress addr (Proxy @ShelleyKey)
-      where
-        len = BS.length bytes
 
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys
