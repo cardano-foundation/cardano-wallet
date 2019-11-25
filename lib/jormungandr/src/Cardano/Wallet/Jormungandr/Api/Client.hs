@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -89,6 +90,8 @@ import Data.Maybe
     ( mapMaybe )
 import Data.Proxy
     ( Proxy (..) )
+import GHC.Generics
+    ( Generic )
 import Network.HTTP.Client
     ( Manager, defaultManagerSettings, newManager )
 import Network.HTTP.Types.Status
@@ -352,25 +355,25 @@ getBlockHeader j t =
 
 data ErrUnexpectedNetworkFailure
     = ErrUnexpectedNetworkFailure Link ServantError
-    deriving (Show)
+    deriving (Generic, Show)
 
 instance Exception ErrUnexpectedNetworkFailure
 
 data ErrGetAccountState
     = ErrGetAccountStateNetworkUnreachable ErrNetworkUnavailable
     | ErrGetAccountStateAccountNotFound (Hash "Account")
-    deriving (Eq, Show)
+    deriving (Generic, Eq, Show)
 
 data ErrGetDescendants
     = ErrGetDescendantsNetworkUnreachable ErrNetworkUnavailable
     | ErrGetDescendantsParentNotFound (Hash "BlockHeader")
-    deriving (Show, Eq)
+    deriving (Generic, Show, Eq)
 
 data ErrGetBlockchainParams
     = ErrGetBlockchainParamsNetworkUnreachable ErrNetworkUnavailable
     | ErrGetBlockchainParamsGenesisNotFound (Hash "Genesis")
     | ErrGetBlockchainParamsIncompleteParams [ConfigParam]
-    deriving (Show, Eq)
+    deriving (Generic, Show, Eq)
 
 -- | Safely lift error into a bigger type.
 class LiftError lift where
