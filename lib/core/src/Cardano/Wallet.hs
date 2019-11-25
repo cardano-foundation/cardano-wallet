@@ -141,7 +141,8 @@ import Cardano.Wallet.Network
     , follow
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress (..)
+    ( AccountingStyle (..)
+    , DelegationAddress (..)
     , Depth (..)
     , DerivationType (..)
     , ErrWrongPassphrase (..)
@@ -152,6 +153,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , XPrv
     , XPub
     , checkPassphrase
+    , deriveAccountPrivateKey
+    , deriveAddressPrivateKey
     , encryptPassphrase
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -1044,8 +1047,56 @@ signDelegationCert
     -> CoinSelection
     -> PoolId
     -> ExceptT ErrSignDelegationCert IO (Tx, TxMeta, UTCTime, SealedTx)
-signDelegationCert _ctx _wid _argGenChange _pwd _coinSel _poolId =
-    error "signDelegationCert : unimplemented"
+signDelegationCert ctx wid argGenChange pwd coinSel _poolId = db & \DBLayer{..} -> do
+    let (CoinSelection ins outs chgs) = coinSel
+    withRootKey @_ @s ctx wid pwd ErrSignDelegationCertWithRootKey $ \xprv -> do
+        mapExceptT atomically $ do
+            cp <- withExceptT ErrSignDelegationCertNoSuchWallet $ withNoSuchWallet wid $
+                readCheckpoint (PrimaryKey wid)
+            let (changeOuts, s') = flip runState (getState cp) $
+                    forM chgs $ \c -> do
+                        addr <- state (genChange argGenChange)
+                        return $ TxOut addr c
+            let allOuts = outs ++ changeOuts
+
+            --deriving chimeric account
+            let accPrv = deriveAccountPrivateKey @k pwd xprv minBound
+            let _addrPrv =
+                    deriveAddressPrivateKey pwd accPrv MutableAccount minBound
+
+            {--
+            let keyFrom = isOwned (getState cp) (xprv, pwd)
+            (tx, wit) <- either
+                (throwE . ErrSignDelegationCert)
+                pure
+                (mkDelegationCertTx tl poolId (addrPrv, pwd) keyFrom ins allOuts)
+            --}
+
+            withExceptT ErrSignDelegationCertNoSuchWallet $
+                putCheckpoint (PrimaryKey wid) (updateState s' cp)
+            let ourCoins (TxOut addr (Coin val)) =
+                    if fst (isOurs addr s')
+                        then Just (fromIntegral val)
+                        else Nothing
+            let amtOuts = sum (mapMaybe ourCoins allOuts)
+            let amtInps = fromIntegral $
+                    sum (getCoin . coin . snd <$> ins)
+            let txSlot =
+                    (currentTip cp) ^. #slotId
+            let meta = TxMeta
+                    { status = Pending
+                    , direction = Outgoing
+                    , slotId = txSlot
+                    , blockHeight = (currentTip cp) ^. #blockHeight
+                    , amount = Quantity (amtInps - amtOuts)
+                    }
+            let time = slotStartTime
+                    (slotParams (blockchainParameters cp))
+                    txSlot
+            return (undefined, meta, time, undefined)
+  where
+    db = ctx ^. dbLayer @s @k
+    _tl = ctx ^. transactionLayer @t @k
 
 -- | Broadcast a (signed) transaction with certificate delegation to the network.
 submitDelegationCert
@@ -1195,6 +1246,7 @@ data ErrCreateDelegationCert
 data ErrSignDelegationCert
     = ErrSignDelegationCertNoSuchWallet ErrNoSuchWallet
     | ErrSignDelegationCertWithRootKey ErrWithRootKey
+ --   | ErrSignDelegationCert ErrMkDelegationCertTx
     deriving (Show, Eq)
 
 -- | Errors that can occur when submitting a signed transaction with
