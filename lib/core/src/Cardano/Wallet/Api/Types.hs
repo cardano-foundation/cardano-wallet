@@ -72,6 +72,8 @@ module Cardano.Wallet.Api.Types
 
 import Prelude
 
+import Cardano.Pool.Metrics
+    ( StakePoolMetadata )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( FromMnemonic (..)
     , NetworkDiscriminant (..)
@@ -96,8 +98,6 @@ import Cardano.Wallet.Primitive.Types
     , PoolId (..)
     , ShowFmt (..)
     , SlotNo (..)
-    , StakePoolMetadata (..)
-    , StakePoolTicker (..)
     , SyncProgress (..)
     , TxIn (..)
     , TxStatus (..)
@@ -218,6 +218,7 @@ data ApiStakePool = ApiStakePool
     { id :: !(ApiT PoolId)
     , metrics :: !ApiStakePoolMetrics
     , apparentPerformance :: !Double
+    , metadata :: !(Maybe StakePoolMetadata)
     } deriving (Eq, Generic, Show)
 
 data ApiStakePoolMetrics = ApiStakePoolMetrics
@@ -556,16 +557,6 @@ instance FromJSON ApiStakePoolMetrics where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiStakePoolMetrics where
     toJSON = genericToJSON defaultRecordTypeOptions
-
-instance FromJSON (ApiT StakePoolMetadata) where
-    parseJSON = fmap ApiT . genericParseJSON defaultRecordTypeOptions
-instance ToJSON (ApiT StakePoolMetadata) where
-    toJSON = genericToJSON defaultRecordTypeOptions . getApiT
-
-instance FromJSON StakePoolTicker where
-    parseJSON = parseJSON >=> eitherToParser . left ShowFmt . fromText
-instance ToJSON StakePoolTicker where
-    toJSON = toJSON . toText
 
 instance FromJSON (ApiT WalletName) where
     parseJSON = parseJSON >=> eitherToParser . bimap ShowFmt ApiT . fromText

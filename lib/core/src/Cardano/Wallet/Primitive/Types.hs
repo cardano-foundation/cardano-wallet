@@ -117,8 +117,6 @@ module Cardano.Wallet.Primitive.Types
     -- * Stake Pools
     , PoolId(..)
     , StakeDistribution (..)
-    , StakePoolTicker
-    , StakePoolMetadata(..)
     , poolIdBytesLength
 
     -- * Querying
@@ -519,30 +517,6 @@ data StakeDistribution = StakeDistribution
     , pools :: [(PoolId, Quantity "lovelace" Word64)]
     , unassigned :: Quantity "lovelace" Word64
     } deriving (Eq, Show, Generic)
-
--- | Information about a stake pool. This information is not used directly by
--- cardano-wallet. It is sourced from the stake pool registry and passed
--- straight through to API consumers.
-data StakePoolMetadata = StakePoolMetadata
-    { ticker :: StakePoolTicker
-    -- ^ Short human-readable ID for the stake pool.
-    , homepage :: Text
-    -- ^ Absolute URL for the stake pool's homepage link.
-    , pledgeAddress :: Text
-    -- ^ Bech32-encoded address.
-    } deriving (Eq, Show, Generic)
-
--- | Very short name for a stake pool.
-newtype StakePoolTicker = StakePoolTicker { unStakePoolTicker :: Text }
-    deriving (Show, Eq, NFData, ToText)
-
-instance FromText StakePoolTicker where
-    fromText t
-        | T.length t == 3 || T.length t == 4
-            = Right $ StakePoolTicker t
-        | otherwise
-            = Left . TextDecodingError $
-                "stake pool ticker length must be 3-4 characters"
 
 {-------------------------------------------------------------------------------
                                     Block
