@@ -163,7 +163,7 @@ instance Exception ErrNetworkTip
 data ErrGetBlock
     = ErrGetBlockNetworkUnreachable ErrNetworkUnavailable
     | ErrGetBlockNotFound (Hash "BlockHeader")
-    deriving (Show, Eq)
+    deriving (Generic, Show, Eq)
 
 -- | Error while trying to send a transaction
 data ErrPostTx

@@ -60,6 +60,7 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Hash (..)
     , PoolId (..)
+    , SealedTx (..)
     , SlotId (..)
     , TxIn (..)
     , TxOut (..)
@@ -72,6 +73,8 @@ import Cardano.Wallet.Unsafe
     , unsafeRunExceptT
     , unsafeXPrv
     )
+import Control.Arrow
+    ( left )
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.MVar
@@ -79,7 +82,7 @@ import Control.Concurrent.MVar
 import Control.DeepSeq
     ( deepseq )
 import Control.Exception
-    ( throwIO )
+    ( throwIO, try )
 import Control.Monad
     ( void )
 import Control.Monad.Trans.Except
@@ -88,6 +91,10 @@ import Control.Retry
     ( limitRetries, retrying )
 import Data.Either
     ( isRight )
+import Data.Generics.Internal.VL.Prism
+    ( (^?) )
+import Data.Generics.Sum.Constructors
+    ( _Ctor )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -102,6 +109,7 @@ import Test.Hspec
     , anyException
     , around
     , describe
+    , expectationFailure
     , it
     , shouldBe
     , shouldReturn
@@ -109,7 +117,7 @@ import Test.Hspec
     , shouldThrow
     )
 import Test.QuickCheck
-    ( arbitrary, generate, vectorOf )
+    ( Arbitrary (..), generate, vectorOf )
 import Test.Utils.Ports
     ( randomUnusedTCPPorts )
 
@@ -151,7 +159,7 @@ spec = do
             resp `shouldSatisfy` (not . null)
 
         it "no blocks after the tip" $ \(nw, _) -> do
-            let try = do
+            let attempt = do
                     tip <- unsafeRunExceptT $ networkTip nw
                     runExceptT $ nextBlocks nw (initCursor nw [tip])
             -- NOTE Retrying twice since between the moment we fetch the
@@ -160,7 +168,7 @@ spec = do
             -- Nevertheless, this can't happen twice within a slot time.
             resp <- retrying once
                 (\_ x -> return $ fmap isRollForward x == Right True)
-                (const try)
+                (const attempt)
             -- fmap getRollForward resp `shouldBe` Right Nothing
             resp `shouldBe` Right AwaitReply
 
@@ -235,171 +243,64 @@ spec = do
     describe "White-box error path tests" $
         around startNode $ do
 
-        testNotFound
-            "getAccountState"
-            Jormungandr.getAccountState
-            (Hash $ B8.replicate 32 '0')
-            ErrGetAccountStateAccountNotFound
+        describe "getAccountState" $ do
+            let ep = Jormungandr.getAccountState
+            testNotFound ep ErrGetAccountStateAccountNotFound
+            testInvalidUrlPath ep ErrGetAccountStateAccountNotFound
+            testGetInvalidResourceId ep (Hash "patate")
+            testGetNetworkUnreachable ep
+                (^? (_Ctor @"ErrGetAccountStateNetworkUnreachable"))
 
-        testGetInvalid
-            "getAccountState"
-            Jormungandr.getAccountState
-            (Hash "patate")
+        describe "getBlock" $ do
+            let ep = Jormungandr.getBlock
+            testNotFound ep ErrGetBlockNotFound
+            testInvalidUrlPath ep ErrGetBlockNotFound
+            testGetInvalidResourceId ep (Hash "patate")
+            testGetNetworkUnreachable ep
+                (^? (_Ctor @"ErrGetBlockNetworkUnreachable"))
 
-        testNotFound
-            "getBlock"
-            Jormungandr.getBlock
-            (Hash $ B8.replicate 32 '0')
-            ErrGetBlockNotFound
+        describe "getDescendantIds" $ do
+            let ep client rid = Jormungandr.getDescendantIds client rid 10
+            testNotFound ep ErrGetDescendantsParentNotFound
+            testInvalidUrlPath ep ErrGetDescendantsParentNotFound
+            testGetInvalidResourceId ep (Hash "patate")
+            testGetNetworkUnreachable ep
+                (^? (_Ctor @"ErrGetDescendantsNetworkUnreachable"))
 
-        testGetInvalid
-            "getBlock"
-            Jormungandr.getBlock
-            (Hash "patate")
+        describe "getStakeDistribution" $ do
+            let ep client () = Jormungandr.getStakeDistribution client
+            testInvalidUrlPath ep (error "should throw")
+            testGetNetworkUnreachable ep pure
 
-        testNotFound
-            "getDescendantIds"
-            (\client rid -> Jormungandr.getDescendantIds client rid 10)
-            (Hash $ B8.replicate 32 '0')
-            ErrGetDescendantsParentNotFound
+        describe "getTipId" $ do
+            let ep client () = Jormungandr.getTipId client
+            testInvalidUrlPath ep (error "should throw")
+            testGetNetworkUnreachable ep pure
 
-        testGetInvalid
-            "getBlockDescendantIds"
-            (\client rid -> Jormungandr.getDescendantIds client rid 10)
-            (Hash "patate")
+        describe "getInitialBlockchainParameters" $ do
+            let ep = Jormungandr.getInitialBlockchainParameters
+            testInvalidUrlPath ep ErrGetBlockchainParamsGenesisNotFound
+            testGetNetworkUnreachable ep
+                (^? (_Ctor @"ErrGetBlockchainParamsNetworkUnreachable"))
 
-        describe "Network unreachable" $ do
-            it "getAccountState: network unreachable" $ \(_, url) -> do
-                let url' = url { baseUrlPort = baseUrlPort url + 5 }
-                res <- requestEndpoint
-                          url'
-                          Jormungandr.getAccountState
-                          (Hash $ B8.replicate 32 '0')
-                res `shouldSatisfy` \case
-                    Left (ErrGetAccountStateNetworkUnreachable _) -> True
-                    _ -> False
-
-            it "getStakeDistribution: network unreachable" $ \(_, url) -> do
-                let url' = url { baseUrlPort = baseUrlPort url + 5 }
-                manager <- newManager defaultManagerSettings
-                let client = Jormungandr.mkJormungandrClient manager url'
-                res <- runExceptT $ Jormungandr.getStakeDistribution client
-                res `shouldSatisfy` \case
-                    Left (ErrNetworkUnreachable _) -> True
-                    _ -> False
-
-            it "getTipId: network unreachable" $ \(_, url) -> do
-                let url' = url { baseUrlPort = baseUrlPort url + 5 }
-                manager <- newManager defaultManagerSettings
-                let client = Jormungandr.mkJormungandrClient manager url'
-                res <- runExceptT $ Jormungandr.getTipId client
-                res `shouldSatisfy` \case
-                    Left (ErrNetworkUnreachable _) -> True
-                    _ -> False
-
-            it "getBlock: network unreachable" $ \(_, url) -> do
-                let url' = url { baseUrlPort = baseUrlPort url + 5 }
-                res <- requestEndpoint
-                          url'
-                          Jormungandr.getBlock
-                          (Hash "xyzzy")
-                res `shouldSatisfy` \case
-                    Left (ErrGetBlockNetworkUnreachable _) -> True
-                    _ -> False
-
-            it "getBlockDescendantIds: network unreachable" $ \(_, url) -> do
-                let url' = url { baseUrlPort = baseUrlPort url + 5 }
-                res <- requestEndpoint
-                          url'
-                          (\client rid ->
-                                Jormungandr.getDescendantIds client rid 10)
-                          (Hash $ B8.replicate 32 '0')
-                res `shouldSatisfy` \case
-                    Left (ErrGetDescendantsNetworkUnreachable _) -> True
-                    _ -> False
-
-            it "getInitialBlockchainParameters: network unreachable"
-                $ \(_, url) -> do
-                let url' = url { baseUrlPort = baseUrlPort url + 5 }
-                res <- requestEndpoint
-                          url'
-                          Jormungandr.getInitialBlockchainParameters
-                          (Hash $ B8.replicate 32 '0')
-                res `shouldSatisfy` \case
-                    Left (ErrGetBlockchainParamsNetworkUnreachable _) -> True
-                    _ -> False
-
-            it "postMessage: network unreachable"
-                $ \(_, url) -> do
+        describe "postMessage" $ do
+            it "network unreachable" $ \(_, url) -> do
                 let url' = url { baseUrlPort = baseUrlPort url + 5 }
                 res <- requestEndpoint
                         url'
                         Jormungandr.postMessage
-                        (signedTransactionFragment txNonEmpty [pkWitness])
+                        (SealedTx mempty)
                 res `shouldSatisfy` \case
                     Left (ErrPostTxNetworkUnreachable _) -> True
                     _ -> False
 
-        describe "Invalid url path" $ do
-            it "getAccountState: Invalid url path" $ \(_, url) -> do
-                let url' = url { baseUrlPath = "/not-valid-prefix" }
-                res <- requestEndpoint
-                          url'
-                          Jormungandr.getAccountState
-                          testAccountId
-                res `shouldBe` Left
-                    (ErrGetAccountStateAccountNotFound testAccountId)
-
-            it "getStakeDistribution: Invalid url path" $ \(_, url) -> do
-                let url' = url { baseUrlPath = "/not-valid-prefix" }
-                manager <- newManager defaultManagerSettings
-                let client = Jormungandr.mkJormungandrClient manager url'
-                let io = runExceptT $ Jormungandr.getStakeDistribution client
-                io `shouldThrow` isUnexpectedNetworkFailure
-
-            it "getTipId: Invalid url path" $ \(_, url) -> do
-                let url' = url { baseUrlPath = "/not-valid-prefix" }
-                manager <- newManager defaultManagerSettings
-                let client = Jormungandr.mkJormungandrClient manager url'
-                let io = runExceptT $ Jormungandr.getTipId client
-                io `shouldThrow` isUnexpectedNetworkFailure
-
-            it "getBlock: Invalid url path" $ \(_, url) -> do
-                let url' = url { baseUrlPath = "/not-valid-prefix" }
-                res <- requestEndpoint
-                        url'
-                        Jormungandr.getBlock
-                        (Hash "xyzzy")
-                res `shouldBe` Left (ErrGetBlockNotFound (Hash "xyzzy"))
-
-            it "getBlockDescendantIds: Invalid url path" $ \(_, url) -> do
-                let url' = url { baseUrlPath = "/not-valid-prefix" }
-                res <- requestEndpoint
-                        url'
-                        (\client rid -> Jormungandr.getDescendantIds client rid 10)
-                        (Hash $ B8.replicate 32 '0')
-                res `shouldBe` Left
-                    (ErrGetDescendantsParentNotFound (Hash $ B8.replicate 32 '0'))
-
-            it "getInitialBlockchainParameters: Invalid url path"
-                $ \(_, url) -> do
-                let url' = url { baseUrlPath = "/not-valid-prefix" }
-                res <- requestEndpoint
-                        url'
-                        Jormungandr.getInitialBlockchainParameters
-                        (Hash $ B8.replicate 32 '0')
-                res `shouldBe` Left
-                    (ErrGetBlockchainParamsGenesisNotFound (Hash $ B8.replicate 32 '0'))
-
-            it "postMessage: Invalid url path"
-                $ \(_, url) -> do
+            it "invalid url path" $ \(_, url) -> do
                 let url' = url { baseUrlPath = "/not-valid-prefix" }
                 let io = requestEndpoint
                         url'
                         Jormungandr.postMessage
-                        (signedTransactionFragment txNonEmpty [pkWitness])
+                        (SealedTx mempty)
                 io `shouldThrow` isUnexpectedNetworkFailure
-
 
     -- NOTE: 'Right ()' just means that the format wasn't obviously wrong.
     -- The tx may still be rejected.
@@ -496,6 +397,67 @@ spec = do
                 Left e -> throwIO e
         either throwIO (\_ -> return ()) e
 
+-- | Exercise a particular Jörmungandr API getter and expect a 404 Not Found.
+testNotFound
+    :: (Arbitrary resourceId, Show err, Eq err, Show result, Eq result)
+    => (forall m. JormungandrClient m -> resourceId -> ExceptT err m result)
+    -> (resourceId -> err)
+    -> SpecWith (whatever, BaseUrl)
+testNotFound endpoint err =
+    it "resource not found" $ \(_, url) -> do
+        resourceId <- generate arbitrary
+        res <- requestEndpoint url endpoint resourceId
+        res `shouldBe` Left (err resourceId)
+
+testInvalidUrlPath
+    :: (Arbitrary resourceId, Eq err, Show err, Eq result, Show result)
+    => (forall m. JormungandrClient m -> resourceId -> ExceptT err m result)
+    -> (resourceId -> err)
+    -> SpecWith (whatever, BaseUrl)
+testInvalidUrlPath endpoint err = do
+    it "invalid url path" $ \(_, url) -> do
+        let url' = url { baseUrlPath = "/not-valid-prefix" }
+        resourceId <- generate arbitrary
+        try (requestEndpoint url' endpoint resourceId) >>= \case
+            Left (_ :: ErrUnexpectedNetworkFailure) ->
+                pure ()
+            Right res ->
+                res `shouldBe` Left (err resourceId)
+
+testGetInvalidResourceId
+    :: (Show err, Eq err, Show result, Eq result)
+    => (forall m. JormungandrClient m -> resourceId -> ExceptT err m result)
+    -> resourceId
+    -> SpecWith (whatever, BaseUrl)
+testGetInvalidResourceId endpoint resourceId =
+    it "invalid resource id" $ \(_, url) -> do
+        let io = requestEndpoint url endpoint resourceId
+        io `shouldThrow` isUnexpectedNetworkFailure
+
+testGetNetworkUnreachable
+    :: (Arbitrary resourceId, Eq err, Show err, Eq result, Show result)
+    => (forall m. JormungandrClient m -> resourceId -> ExceptT err m result)
+    -> (err -> Maybe ErrNetworkUnavailable)
+    -> SpecWith (whatever, BaseUrl)
+testGetNetworkUnreachable endpoint getError = do
+    it "network unreachable" $ \(_, url) -> do
+        let url' = url { baseUrlPort = baseUrlPort url + 5 }
+        resourceId <- generate arbitrary
+        res <- requestEndpoint url' endpoint resourceId
+        case left getError res of
+            Right _ ->
+                expectationFailure "expected an error!"
+            Left Nothing ->
+                expectationFailure $ unwords
+                    [ "got something else than a ErrNetworkUnavailable:"
+                    , show res
+                    ]
+            Left Just{} ->
+                return ()
+
+isUnexpectedNetworkFailure :: ErrUnexpectedNetworkFailure -> Bool
+isUnexpectedNetworkFailure ErrUnexpectedNetworkFailure{} = True
+
 -- | Generic method to request endpoint against url and its resource
 requestEndpoint
     :: (Show err, Eq err, Show result, Eq result)
@@ -508,33 +470,6 @@ requestEndpoint url endpoint resourceId = do
     let client = Jormungandr.mkJormungandrClient manager url
     runExceptT $ endpoint client resourceId
 
--- | Exercise a particular Jörmungandr API getter and expect a 404 Not Found.
-testNotFound
-    :: (Show err, Eq err, Show result, Eq result)
-    => String
-    -> (forall m. JormungandrClient m -> resourceId -> ExceptT err m result)
-    -> resourceId
-    -> (resourceId -> err)
-    -> SpecWith (whatever, BaseUrl)
-testNotFound fn endpoint resourceId err =
-    it (fn <> ": not found") $ \(_, url) -> do
-        res <- requestEndpoint url endpoint resourceId
-        res `shouldBe` Left (err resourceId)
-
-testGetInvalid
-    :: (Show err, Eq err, Show result, Eq result)
-    => String
-    -> (forall m. JormungandrClient m -> resourceId -> ExceptT err m result)
-    -> resourceId
-    -> SpecWith (whatever, BaseUrl)
-testGetInvalid fn endpoint resourceId =
-    it (fn <> ": invalid") $ \(_, url) -> do
-        let io = requestEndpoint url endpoint resourceId
-        io `shouldThrow` isUnexpectedNetworkFailure
-
-isUnexpectedNetworkFailure :: ErrUnexpectedNetworkFailure -> Bool
-isUnexpectedNetworkFailure ErrUnexpectedNetworkFailure{} = True
-
 instance Show (NextBlocksResult t b) where
     show AwaitReply = "AwaitReply"
     show (RollForward _ _ bs) = "RollForward " ++ show (length bs) ++ " blocks"
@@ -542,6 +477,9 @@ instance Show (NextBlocksResult t b) where
 
 instance Eq (NextBlocksResult t b) where
     a == b = show a == show b
+
+instance Arbitrary (Hash any) where
+    arbitrary = Hash . BS.pack <$> vectorOf 32 arbitrary
 
 getRollForward :: NextBlocksResult target block -> Maybe [block]
 getRollForward AwaitReply = Nothing
