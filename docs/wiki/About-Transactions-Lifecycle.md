@@ -10,8 +10,8 @@
 ```hs
 stateDiagram
   [*] --> pending: request
-  [*] --> in_ledger: discover incoming
-  pending --> in_ledger: discover outgoing
+  [*] --> in_ledger: discover
+  pending --> in_ledger: discover
   pending --> [*]: forget
   in_ledger --> pending: rollback
 
