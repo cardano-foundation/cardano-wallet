@@ -1,6 +1,7 @@
 ## Transaction states
 
 <p align="center">
+  <img src="AboutTransactionsLifecycle/state_diagram.svg" />
 </p>
 <details>
   <summary>see diagram source</summary>
@@ -37,7 +38,7 @@ may be discovered directly in blocks.
 ## Submitting a transaction
 
 <p align="center">
-
+  <img src="AboutTransactionsLifecycle/sequence_diagram.svg" />
 </p>
 
 <details>
