@@ -650,8 +650,8 @@ listAddresses
     -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]
 listAddresses ctx wid = db & \DBLayer{..} -> do
     (s, txs) <- mapExceptT atomically $ (,)
-        <$> (getState <$> withNoSuchWallet wid (readCheckpoint $ PrimaryKey wid))
-        <*> lift (readTxHistory (PrimaryKey wid) Descending wholeRange Nothing)
+        <$> (getState <$> withNoSuchWallet wid (readCheckpoint primaryKey))
+        <*> lift (readTxHistory primaryKey Descending wholeRange Nothing)
     let maybeIsOurs (TxOut a _) = if fst (isOurs a s)
             then normalize (rewardAccountKey s)  a
             else Nothing
@@ -674,6 +674,7 @@ listAddresses ctx wid = db & \DBLayer{..} -> do
     normalize rewardAccount addr = do
         fingerprint <- eitherToMaybe (paymentKeyFingerprint addr)
         pure $ liftDelegationAddress @n fingerprint rewardAccount
+    primaryKey = PrimaryKey wid
 
 {-------------------------------------------------------------------------------
                                   Transaction

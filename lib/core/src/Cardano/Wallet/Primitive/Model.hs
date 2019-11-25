@@ -417,7 +417,7 @@ prefilterBlock b u0 = runState $ do
     applyTx
         :: IsOurs s Address
         => ([(Tx, TxMeta)], UTxO)
-        ->Tx
+        -> Tx
         -> State s ([(Tx, TxMeta)], UTxO)
     applyTx (!txs, !u) tx = do
         ourU <- state $ utxoOurs tx
