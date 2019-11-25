@@ -63,8 +63,8 @@ encryption passphrase. That passphrase prevents "free" key manipulation.
 
 BIP-0044 Multi-Account Hierarchy for Deterministic Wallets is a Bitcoin
 standard defining a structure and algorithm to build a hierarchy tree of keys
-from a single root private key. Note that this is also the derivation scheme
-used by Icarus / Yoroi.
+from a single root private key. Note that this is the derivation scheme
+used by Icarus / Yoroi. 
 
 It is built upon [BIP-0032](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki) and is a direct application of
 [BIP-0043](https://github.com/bitcoin/bips/blob/master/bip-0043.mediawiki).
@@ -73,6 +73,8 @@ It defines a common representation of addresses as a multi-level tree of derivat
 ```
 m / purpose' / coin_type' / account_ix' / change_chain / address_ix
 ```
+
+Cardano uses an extension / variation of BIP-44 described in [the following document](https://github.com/input-output-hk/implementation-decisions/blob/e2d1bed5e617f0907bc5e12cf1c3f3302a4a7c42/text/1852-hd-chimeric.md).
 
 ```
 +--------------------------------------------------------------------------------+
@@ -88,7 +90,7 @@ m / purpose' / coin_type' / account_ix' / change_chain / address_ix
 |    Wallet Private Key    |--->|   Wallet Public Key   |    
 +--------------------------+    +-----------------------+
        |                                           
-       | purpose (e.g. 44')
+       | purpose (e.g. 1852')
        | 
        v                                           
 +--------------------------+
@@ -131,7 +133,7 @@ interesting properties:
 1. The derivation of addresses can be done sequentially / deterministically. 
 1. If an account private key is compromised, it doesn't compromise other accounts. 
 
-This allows for external keystores and off-loading of key derivation to some
+This allows for external key-stores and off-loading of key derivation to some
 external source such that a wallet could be tracking a set of accounts without
 the need for knowing private keys. This approach is discussed more in details
 below. 
@@ -149,6 +151,8 @@ In BIP-44, new derivation paths are obtained by computing points on an elliptic
 curve where curve parameters are defined by secp256k1. Cardano's implementation
 relies on ed25519 for it provides better properties in terms of security and 
 performances. 
+
+Also, we use `purpose = 1852'` to clearly distinguish these formats from the original BIP-44 specification. Note however that Yoroi/Icarus in the Byron era are using `purpose = 44'`. 
 
 ## Differences between *HD Random* and *HD Sequential* Wallets
 
