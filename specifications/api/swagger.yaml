@@ -364,6 +364,28 @@ x-stakePoolApparentPerformance: &stakePoolApparentPerformance
   minimum: 0
   maximum: 1
 
+x-stakePoolMetadata: &stakePoolMetadata
+  description: |
+    Information about the stake pool.
+  type: object
+  required:
+    - ticker
+    - homepage
+    - pledge_address
+  additionalProperties: false
+  properties:
+    ticker:
+      type: string
+      minLength: 3
+      maxLength: 4
+    homepage:
+      type: string
+      format: uri
+    pledge_address:
+      type: string
+      format: bech32
+      example: addr1sjck9mdmfyhzvjhydcjllgj9vjvl522w0573ncustrrr2rg7h9azg4cyqd36yyd48t5ut72hgld0fg2xfvz82xgwh7wal6g2xt8n996s3xvu5g
+
 x-networkInformationSyncProgress: &networkInformationSyncProgress
   <<: *syncProgress
   description: |
@@ -465,6 +487,7 @@ definitions:
       id: *stakePoolId
       metrics: *stakePoolMetrics
       apparent_performance: *stakePoolApparentPerformance
+      metadata: *stakePoolMetadata
 
   ApiFee: &ApiFee
     type: object
