@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -20,6 +21,8 @@ module Cardano.Pool.Metrics
     ( -- * Types
       Block (..)
     , StakePool (..)
+    , StakePoolTicker
+    , StakePoolMetadata(..)
 
     -- * Listing stake-pools from the DB
     , StakePoolLayer (..)
@@ -55,17 +58,27 @@ import Cardano.Wallet.Primitive.Types
     , EpochLength (..)
     , EpochNo (..)
     , PoolId (..)
+    , ShowFmt (..)
     , SlotId (..)
     , SlotNo (unSlotNo)
     )
 import Control.Monad
-    ( forM, forM_, when )
+    ( forM, forM_, when, (>=>) )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT, mapExceptT, runExceptT, throwE, withExceptT )
+import Data.Aeson
+    ( FromJSON (..)
+    , ToJSON (..)
+    , camelTo2
+    , fieldLabelModifier
+    , genericParseJSON
+    , genericToJSON
+    , omitNothingFields
+    )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.List
@@ -82,6 +95,8 @@ import Data.Quantity
     ( Percentage, Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Word
     ( Word64 )
 import Fmt
@@ -89,8 +104,10 @@ import Fmt
 import GHC.Generics
     ( Generic )
 
+import qualified Data.Aeson as Aeson
 import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
+import qualified Data.Text as T
 
 --------------------------------------------------------------------------------
 -- Types
@@ -107,6 +124,54 @@ data StakePool = StakePool
     , production :: Quantity "block" Word64
     , apparentPerformance :: Double
     } deriving (Generic)
+
+-- | Information about a stake pool. This information is not used directly by
+-- cardano-wallet. It is sourced from the stake pool registry and passed
+-- straight through to API consumers.
+data StakePoolMetadata = StakePoolMetadata
+    { ticker :: StakePoolTicker
+    -- ^ Short human-readable ID for the stake pool.
+    , homepage :: Text
+    -- ^ Absolute URL for the stake pool's homepage link.
+    , pledgeAddress :: Text
+    -- ^ Bech32-encoded address.
+    } deriving (Eq, Show, Generic)
+
+-- | Very short name for a stake pool.
+newtype StakePoolTicker = StakePoolTicker { unStakePoolTicker :: Text }
+    deriving stock (Generic, Show, Eq)
+    deriving newtype (ToText)
+
+instance FromText StakePoolTicker where
+    fromText t
+        | T.length t == 3 || T.length t == 4
+            = Right $ StakePoolTicker t
+        | otherwise
+            = Left . TextDecodingError $
+                "stake pool ticker length must be 3-4 characters"
+
+-- NOTE
+-- JSON instances for 'StakePoolMetadata' and 'StakePoolTicker' matching the
+-- format described by the registry. The server API may then use different
+-- formats if needed.
+
+instance FromJSON StakePoolMetadata where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+
+instance ToJSON StakePoolMetadata where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON StakePoolTicker where
+    parseJSON = parseJSON >=> either (fail . show . ShowFmt) pure . fromText
+
+instance ToJSON StakePoolTicker where
+    toJSON = toJSON . toText
+
+defaultRecordTypeOptions :: Aeson.Options
+defaultRecordTypeOptions = Aeson.defaultOptions
+    { fieldLabelModifier = camelTo2 '_' . dropWhile (== '_')
+    , omitNothingFields = True
+    }
 
 --------------------------------------------------------------------------------
 -- Stake Pool Monitoring

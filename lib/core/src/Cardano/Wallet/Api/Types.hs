@@ -72,6 +72,8 @@ module Cardano.Wallet.Api.Types
 
 import Prelude
 
+import Cardano.Pool.Metrics
+    ( StakePoolMetadata )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( FromMnemonic (..)
     , NetworkDiscriminant (..)
@@ -216,6 +218,7 @@ data ApiStakePool = ApiStakePool
     { id :: !(ApiT PoolId)
     , metrics :: !ApiStakePoolMetrics
     , apparentPerformance :: !Double
+    , metadata :: !(Maybe StakePoolMetadata)
     } deriving (Eq, Generic, Show)
 
 data ApiStakePoolMetrics = ApiStakePoolMetrics

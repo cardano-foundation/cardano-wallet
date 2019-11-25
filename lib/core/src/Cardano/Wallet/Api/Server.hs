@@ -799,6 +799,7 @@ listPools spl =
                 (Quantity $ fromIntegral $ getQuantity stake)
                 (Quantity $ fromIntegral $ getQuantity production))
             apparentPerformance
+            Nothing -- TODO: wire-up real metadata here when available.
 
 joinStakePool
     :: forall ctx s t n k.
@@ -847,7 +848,7 @@ joinStakePool ctx spl (ApiT poolId) (ApiT wid) passwd = do
     liftE2 = throwE . ErrSignCertNoSuchWallet
     liftE3 = throwE . ErrSubmitCertNoSuchWallet
     poolIsUnknown =
-        isNothing . L.find (\(ApiStakePool pId _ _) -> pId == ApiT poolId)
+        isNothing . L.find (\(ApiStakePool pId _ _ _) -> pId == ApiT poolId)
 
 quitStakePool
     :: forall n k.
