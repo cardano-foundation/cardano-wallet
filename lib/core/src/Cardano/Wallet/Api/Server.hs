@@ -47,7 +47,7 @@ import Cardano.Pool.Metrics
 import Cardano.Wallet
     ( ErrAdjustForFee (..)
     , ErrCoinSelection (..)
-    , ErrCreateCert (..)
+    , ErrCreateDelegationCert (..)
     , ErrCreateUnsignedTx (..)
     , ErrDecodeSignedTx (..)
     , ErrEstimateTxFee (..)
@@ -57,10 +57,10 @@ import Cardano.Wallet
     , ErrNoSuchWallet (..)
     , ErrPostTx (..)
     , ErrRemovePendingTx (..)
-    , ErrSignCert (..)
+    , ErrSignDelegationCert (..)
     , ErrSignTx (..)
     , ErrStartTimeLaterThanEndTime (..)
-    , ErrSubmitCert (..)
+    , ErrSubmitDelegationCert (..)
     , ErrSubmitExternalTx (..)
     , ErrSubmitTx (..)
     , ErrUpdatePassphrase (..)
@@ -821,22 +821,22 @@ joinStakePool ctx spl (ApiT poolId) (ApiT wid) passwd = do
     (_, walMeta, _) <- liftHandler $ withWorkerCtx ctx wid throwE $
         \wrk -> W.readWallet wrk wid
     when (walMeta ^. #delegation == W.Delegating poolId) $
-        liftHandler $ throwE (ErrCreateCertPoolAlreadyJoined poolId)
+        liftHandler $ throwE (ErrCreateDelegationCertPoolAlreadyJoined poolId)
 
     allPools <- listPools spl
     when (poolIsUnknown allPools) $
-        liftHandler $ throwE (ErrCreateCertNoSuchPool poolId)
+        liftHandler $ throwE (ErrCreateDelegationCertNoSuchPool poolId)
 
     let (ApiWalletPassphrase (ApiT pwd)) = passwd
 
     selection <- liftHandler $ withWorkerCtx ctx wid liftE1 $ \wrk ->
-        W.createCert @_ @s @t wrk wid
+        W.createDelegationCert @_ @s @t wrk wid
 
     (tx, meta, time, wit) <- liftHandler $ withWorkerCtx ctx wid liftE2 $ \wrk ->
-        W.signCert @_ @s @t @k wrk wid () pwd selection poolId
+        W.signDelegationCert @_ @s @t @k wrk wid () pwd selection poolId
 
     liftHandler $ withWorkerCtx ctx wid liftE3 $ \wrk ->
-        W.submitCert @_ @s @t @k wrk wid (tx, meta, wit)
+        W.submitDelegationCert @_ @s @t @k wrk wid (tx, meta, wit)
 
     pure $ mkApiTransaction
         (txId tx)
@@ -845,9 +845,9 @@ joinStakePool ctx spl (ApiT poolId) (ApiT wid) passwd = do
         (meta, time)
         #pendingSince
   where
-    liftE1 = throwE . ErrCreateCertNoSuchWallet
-    liftE2 = throwE . ErrSignCertNoSuchWallet
-    liftE3 = throwE . ErrSubmitCertNoSuchWallet
+    liftE1 = throwE . ErrCreateDelegationCertNoSuchWallet
+    liftE2 = throwE . ErrSignDelegationCertNoSuchWallet
+    liftE3 = throwE . ErrSubmitDelegationCertNoSuchWallet
     poolIsUnknown =
         isNothing . L.find (\(ApiStakePool pId _ _ _) -> pId == ApiT poolId)
 
@@ -1637,39 +1637,39 @@ instance LiftHandler ErrMetricsInconsistency where
                 , " but the node doesn't know about this stake pool!"
                 ]
 
-instance LiftHandler ErrCreateCert where
+instance LiftHandler ErrCreateDelegationCert where
     handler = \case
-        ErrCreateCertNoSuchPool poolId ->
+        ErrCreateDelegationCertNoSuchPool poolId ->
             apiError err404 NoSuchPool $ mconcat
                 [ "I couldn't find a stake pool with the given id: "
                 , toText poolId
                 ]
-        ErrCreateCertPoolAlreadyJoined poolId ->
+        ErrCreateDelegationCertPoolAlreadyJoined poolId ->
             apiError err403 PoolAlreadyJoined $ mconcat
                 [ "I couldn't join a stake pool with the given id: "
                 , toText poolId
                 , "I am already joined, joining once again would only incur "
                 , "unneeded fees!"
                 ]
-        ErrCreateCertNoSuchWallet e -> handler e
-        ErrCreateCertFee e -> handler e
+        ErrCreateDelegationCertNoSuchWallet e -> handler e
+        ErrCreateDelegationCertFee e -> handler e
 
-instance LiftHandler ErrSignCert where
+instance LiftHandler ErrSignDelegationCert where
     handler = \case
-        ErrSignCertNoSuchWallet e -> (handler e)
+        ErrSignDelegationCertNoSuchWallet e -> (handler e)
             { errHTTPCode = 410
             , errReasonPhrase = errReasonPhrase err410
             }
-        ErrSignCertWithRootKey e@ErrWithRootKeyNoRootKey{} -> (handler e)
+        ErrSignDelegationCertWithRootKey e@ErrWithRootKeyNoRootKey{} -> (handler e)
             { errHTTPCode = 410
             , errReasonPhrase = errReasonPhrase err410
             }
-        ErrSignCertWithRootKey e@ErrWithRootKeyWrongPassphrase{} -> handler e
+        ErrSignDelegationCertWithRootKey e@ErrWithRootKeyWrongPassphrase{} -> handler e
 
-instance LiftHandler ErrSubmitCert where
+instance LiftHandler ErrSubmitDelegationCert where
     handler = \case
-        ErrSubmitCertNetwork e -> handleErrPostTx e
-        ErrSubmitCertNoSuchWallet e@ErrNoSuchWallet{} -> (handler e)
+        ErrSubmitDelegationCertNetwork e -> handleErrPostTx e
+        ErrSubmitDelegationCertNoSuchWallet e@ErrNoSuchWallet{} -> (handler e)
             { errHTTPCode = 410
             , errReasonPhrase = errReasonPhrase err410
             }

@@ -112,12 +112,12 @@ module Cardano.Wallet
     , withRootKey
 
     -- ** Stake Pools
-    , createCert
-    , signCert
-    , submitCert
-    , ErrCreateCert (..)
-    , ErrSignCert (..)
-    , ErrSubmitCert (..)
+    , createDelegationCert
+    , signDelegationCert
+    , submitDelegationCert
+    , ErrCreateDelegationCert (..)
+    , ErrSignDelegationCert (..)
+    , ErrSubmitDelegationCert (..)
     ) where
 
 import Prelude hiding
@@ -1004,7 +1004,7 @@ listTransactions ctx wid mStart mEnd order = db & \DBLayer{..} -> do
         -- the start of a slot and its end could be a valid candidate.
         txTime = slotStartTime sp
 
-createCert
+createDelegationCert
     :: forall ctx s t k.
         ( HasTransactionLayer t k ctx
         , HasLogger ctx
@@ -1012,21 +1012,21 @@ createCert
         )
     => ctx
     -> WalletId
-    -> ExceptT ErrCreateCert IO CoinSelection
-createCert ctx wid = do
-    (wal, _, pending) <- withExceptT ErrCreateCertNoSuchWallet $
+    -> ExceptT ErrCreateDelegationCert IO CoinSelection
+createDelegationCert ctx wid = do
+    (wal, _, pending) <- withExceptT ErrCreateDelegationCertNoSuchWallet $
         readWallet @ctx @s @k ctx wid
     let bp = blockchainParameters wal
     let utxo = availableUTxO @s pending wal
     let sel = CoinSelection [] [] []
-    withExceptT ErrCreateCertFee $ do
+    withExceptT ErrCreateDelegationCertFee $ do
         debug tr "Coins selected for delegation certificate after fee adjustment"
             =<< adjustForFee (feeOpts tl (computeCertFee 1) (bp ^. #getFeePolicy)) utxo sel
   where
     tl = ctx ^. transactionLayer @t @k
     tr = ctx ^. logger
 
-signCert
+signDelegationCert
     :: forall ctx s t k.
         ( HasTransactionLayer t k ctx
         , HasDBLayer s k ctx
@@ -1043,12 +1043,12 @@ signCert
     -> Passphrase "encryption"
     -> CoinSelection
     -> PoolId
-    -> ExceptT ErrSignCert IO (Tx, TxMeta, UTCTime, SealedTx)
-signCert _ctx _wid _argGenChange _pwd _coinSel _poolId =
-    error "signCert : unimplemented"
+    -> ExceptT ErrSignDelegationCert IO (Tx, TxMeta, UTCTime, SealedTx)
+signDelegationCert _ctx _wid _argGenChange _pwd _coinSel _poolId =
+    error "signDelegationCert : unimplemented"
 
 -- | Broadcast a (signed) transaction with certificate delegation to the network.
-submitCert
+submitDelegationCert
     :: forall ctx s t k.
         ( HasNetworkLayer t ctx
         , HasDBLayer s k ctx
@@ -1056,10 +1056,10 @@ submitCert
     => ctx
     -> WalletId
     -> (Tx, TxMeta, SealedTx)
-    -> ExceptT ErrSubmitCert IO ()
-submitCert ctx wid (tx, meta, binary) = db & \DBLayer{..} -> do
-    withExceptT ErrSubmitCertNetwork $ postTx nw binary
-    mapExceptT atomically $ withExceptT ErrSubmitCertNoSuchWallet $ do
+    -> ExceptT ErrSubmitDelegationCert IO ()
+submitDelegationCert ctx wid (tx, meta, binary) = db & \DBLayer{..} -> do
+    withExceptT ErrSubmitDelegationCertNetwork $ postTx nw binary
+    mapExceptT atomically $ withExceptT ErrSubmitDelegationCertNoSuchWallet $ do
         putTxHistory (PrimaryKey wid) [(tx, meta)]
   where
     db = ctx ^. dbLayer @s @k
@@ -1184,24 +1184,24 @@ data ErrStartTimeLaterThanEndTime = ErrStartTimeLaterThanEndTime
 
 -- | Errors that can occur when creating unsigned delegation certificate
 -- transaction.
-data ErrCreateCert
-    = ErrCreateCertNoSuchPool PoolId
-    | ErrCreateCertPoolAlreadyJoined PoolId
-    | ErrCreateCertNoSuchWallet ErrNoSuchWallet
-    | ErrCreateCertFee ErrAdjustForFee
+data ErrCreateDelegationCert
+    = ErrCreateDelegationCertNoSuchPool PoolId
+    | ErrCreateDelegationCertPoolAlreadyJoined PoolId
+    | ErrCreateDelegationCertNoSuchWallet ErrNoSuchWallet
+    | ErrCreateDelegationCertFee ErrAdjustForFee
     deriving (Show, Eq)
 
 -- | Errors that can occur when signing a delegation certificate.
-data ErrSignCert
-    = ErrSignCertNoSuchWallet ErrNoSuchWallet
-    | ErrSignCertWithRootKey ErrWithRootKey
+data ErrSignDelegationCert
+    = ErrSignDelegationCertNoSuchWallet ErrNoSuchWallet
+    | ErrSignDelegationCertWithRootKey ErrWithRootKey
     deriving (Show, Eq)
 
 -- | Errors that can occur when submitting a signed transaction with
 -- a delegation certificate to the network.
-data ErrSubmitCert
-    = ErrSubmitCertNetwork ErrPostTx
-    | ErrSubmitCertNoSuchWallet ErrNoSuchWallet
+data ErrSubmitDelegationCert
+    = ErrSubmitDelegationCertNetwork ErrPostTx
+    | ErrSubmitDelegationCertNoSuchWallet ErrNoSuchWallet
     deriving (Show, Eq)
 
 {-------------------------------------------------------------------------------
