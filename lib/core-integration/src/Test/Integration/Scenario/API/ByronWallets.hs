@@ -307,7 +307,7 @@ spec = do
             Default
             payloadMigrate >>= flip verify
             [ expectResponseCode @IO HTTP.status202
-            , expectFieldSatisfy id ((== 12). length)
+            , expectFieldSatisfy id ((== 2). length)
             ]
 
         -- Check that funds become available in the target wallet:
@@ -327,7 +327,10 @@ spec = do
             Empty >>= flip verify
             [ expectFieldSatisfy
                 #distribution
-                ((== (Just 400)) . Map.lookup 10_000_000_000)
+                ((== (Just 398)) . Map.lookup 10_000_000_000)
+            , expectFieldSatisfy
+                #distribution
+                ((== (Just 2)) . Map.lookup 100_000_000_000)
             ]
 
     it "BYRON_MIGRATE_01 - \

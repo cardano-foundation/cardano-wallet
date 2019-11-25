@@ -72,10 +72,10 @@ unsafeDecodeHex get = runGet get . BL.fromStrict . unsafeFromHex
 unsafeFromText :: (FromText a, HasCallStack) => Text -> a
 unsafeFromText = either (error . show) id . fromText
 
--- | Build a 'XPrv' from an hex-encoded bytestring
+-- | Build a 'XPrv' from a bytestring
 unsafeXPrv :: HasCallStack => ByteString -> XPrv
-unsafeXPrv hex =
-    case convertFromBase @_ @ByteString Base16 hex >>= CC.xprv of
+unsafeXPrv bytes =
+    case CC.xprv bytes of
         Left e -> error $ "unsafeXPrv: " <> e
         Right a -> a
 

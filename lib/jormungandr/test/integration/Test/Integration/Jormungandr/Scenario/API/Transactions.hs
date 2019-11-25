@@ -45,7 +45,7 @@ import Control.Monad
 import Data.ByteArray.Encoding
     ( Base (Base16, Base64), convertFromBase, convertToBase )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( (^.) )
 import Data.Generics.Product.Typed
     ( HasType )
 import Data.Quantity
@@ -77,8 +77,6 @@ import Test.Integration.Framework.DSL
     , feeEstimator
     , fixtureRawTx
     , fixtureWallet
-    , fixtureWalletWith
-    , for
     , getFromResponse
     , getWalletEp
     , json
@@ -96,7 +94,6 @@ import Test.Integration.Framework.Request
     ( RequestException )
 import Test.Integration.Framework.TestData
     ( errMsg400MalformedTxPayload
-    , errMsg403TxTooBig
     , errMsg404CannotFindTx
     , errMsg405
     , errMsg406
@@ -142,44 +139,6 @@ spec = do
         txs <- fixtureWallet ctx >>= listAllTransactions ctx
         length txs `shouldBe` 10
         txs `shouldSatisfy` all (null . API.inputs)
-
-    describe "TRANS_CREATE_10, TRANS_ESTIMATE_10 - \
-        \Cannot post tx/fee when max tx size reached" $ do
-        let matrix =
-                [ ( "single output"
-                  , (1, 76_000_001 :: Natural)
-                  , 76
-                  )
-                , ( "multi output"
-                  , (77, 1)
-                  , 47
-                  )
-                ]
-        forM_ matrix $ \(title, (nInps, amt), errInps) -> it title $ \ctx -> do
-            wSrc <- fixtureWalletWith ctx (replicate 77 1_000_000)
-            wDest <- emptyWallet ctx
-            addr <- (view #id . head) <$> listAddresses ctx wDest
-            let payments = for (replicate nInps addr) $ \a -> [json|{
-                    "address": #{a},
-                    "amount": {
-                        "quantity": #{amt},
-                        "unit": "lovelace"
-                    }
-                }|]
-            let payload = Json [json|{
-                    "payments": #{payments},
-                    "passphrase": "Secure Passphrase"
-                }|]
-            fee <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
-            tx <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
-            verify fee
-             [ expectResponseCode HTTP.status403
-             , expectErrorMessage (errMsg403TxTooBig errInps)
-             ]
-            verify tx
-             [ expectResponseCode HTTP.status403
-             , expectErrorMessage (errMsg403TxTooBig errInps)
-             ]
 
     it "TRANS_EXTERNAL_CREATE_01x - \
         \single output tx signed via jcli" $ \ctx -> do
@@ -471,7 +430,7 @@ fixtureExternalTx ctx toSend = do
             [ TxOut addrDest' (Coin (fromIntegral toSend))
             , TxOut addrChng (Coin (fromIntegral $ amt - toSend - fee))
             ]
-    tl <- newTransactionLayer @'Testnet <$> getBlock0H
+    tl <- newTransactionLayer <$> getBlock0H
     let (Right (tx, bin)) = mkStdTx tl keystore theInps theOuts
 
     return ExternalTxFixture

@@ -1,8 +1,11 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -14,52 +17,55 @@ import Prelude
 
 import Cardano.Wallet.Jormungandr.Binary
     ( Fragment (..)
-    , FragmentSpec (..)
+    , MkFragment (..)
+    , StakeDelegationType (..)
     , TxWitnessTag (..)
-    , delegationFragmentId
-    , fragmentId
     , getBlock
     , getBlockHeader
     , getFragment
-    , putSignedTx
-    , putStakeDelegationTx
-    , putTxWitnessTag
+    , maxNumberOfInputs
+    , maxNumberOfOutputs
+    , putFragment
     , runGet
     , runPut
-    , txWitnessSize
-    , withHeader
     )
+import Cardano.Wallet.Jormungandr.Transaction
+    ( newTransactionLayer )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( Passphrase, XPrv, hex, unXPrv )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , ChimericAccount (..)
     , Coin (..)
     , Hash (..)
     , PoolId (..)
+    , SealedTx (..)
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
-    , TxWitness (..)
     )
+import Cardano.Wallet.Transaction
+    ( TransactionLayer (..) )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
+    ( unsafeFromHex, unsafeXPrv )
 import Control.DeepSeq
     ( force )
 import Control.Exception
     ( SomeException, evaluate, try )
 import Control.Monad
-    ( forM_, replicateM )
-import Control.Monad.IO.Class
-    ( liftIO )
+    ( forM_, void )
 import Control.Monad.Loops
     ( whileM )
-import Data.Binary.Get
+import Data.Binary.Get as Get
     ( getWord16be, isEmpty, isolate, label )
-import Data.ByteString
-    ( ByteString )
 import Data.Either
     ( isRight )
 import Data.List
     ( isSuffixOf )
+import Data.Maybe
+    ( isJust, isNothing )
 import Data.Word
     ( Word8 )
 import GHC.Generics
@@ -79,20 +85,21 @@ import Test.Hspec
     , shouldContain
     , shouldSatisfy
     )
-import Test.QuickCheck
+import Test.QuickCheck as QC
     ( Arbitrary (..)
-    , Gen
-    , InfiniteList (..)
     , choose
+    , counterexample
+    , elements
+    , label
     , oneof
     , property
-    , shrinkList
     , vectorOf
+    , withMaxSuccess
     )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Monadic
-    ( monadicIO )
+    ( assert, monadicIO, monitor, run )
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -121,7 +128,7 @@ spec = do
                 -- Context: We use whileM not <$> isEmpty to decode multiple
                 -- block-fragments/messages. If a message-decoder is wrong, we
                 -- want to know that clearly.
-                let getFragment' = label "getFragment" $ isolate 3 getWord16be
+                let getFragment' = Get.label "getFragment" $ isolate 3 getWord16be
                 let getBlock' = whileM (not <$> isEmpty) getFragment'
                 res <- try' (runGet getBlock' $ BL.pack [0,0,0])
                 case res of
@@ -144,73 +151,168 @@ spec = do
             res <- try' (runGet getBlockHeader bytes)
             force res `shouldSatisfy` isRight
 
-    describe "Encoding" $ do
-        it "decode (encode tx) === tx standard transaction" $ property $
-            \(SignedTx signedTx) -> monadicIO $ liftIO $ do
-                let encode ((Tx _ inps outs), wits) = runPut
-                        $ withHeader FragmentTransaction
-                        $ putSignedTx inps outs wits
-                let decode =
-                        unFragment . runGet getFragment
-                tx' <- try' (decode $ encode signedTx)
-                if tx' == Right (fst signedTx)
-                then return ()
-                else expectationFailure $
-                    "tx /= decode (encode tx) == " ++ show tx'
+    describe "Fragment Encoding/Decoding" $ do
+        it "decode (encode fragment) == fragment" $
+          withMaxSuccess 1000 $ property $ \test -> monadicIO $ do
+            let fragment = void $ putFragment
+                    (fragmentGenesis test)
+                    (zip (fragmentInputs test) (fragmentCredentials test))
+                    (fragmentOutputs test)
+                    (fragmentTag test)
 
-        it "decode (encode tx) === tx stake delegation transaction" $
-            property $ \(StakeDelegationTx args) -> monadicIO $ liftIO $ do
-                let (poolId, accId, accSig, tx@(Tx _ inps outs), wits) = args
-                let encode = runPut
-                        $ withHeader
-                            FragmentDelegation
-                        $ putStakeDelegationTx
-                            poolId accId accSig inps outs wits
-                let decode =
-                        getStakeDelegationTxFragment . runGet getFragment
-                tx' <- try' (decode encode)
-                if tx' == Right (poolId, accId, tx)
-                then return ()
-                else expectationFailure $
-                    "tx /= decode (encode tx) == " ++ show tx'
+            let fragment' = runGet getFragment (runPut fragment)
+
+            monitor (counterexample $ show fragment')
+
+            case fragment' of
+                Transaction (Tx _ inps outs) -> do
+                    monitor (QC.label "Transaction")
+                    assert (inps == fragmentInputs test)
+                    assert (outs == fragmentOutputs test)
+
+                StakeDelegation (poolId, accountId, (Tx _ inps outs)) -> do
+                    monitor (QC.label "StakeDelegation (Full)")
+                    assert (inps == fragmentInputs test)
+                    assert (outs == fragmentOutputs test)
+                    assert (Just accountId == fragmentAccountId test)
+                    assert (Just poolId == fragmentPoolId test)
+
+                UnimplementedFragment{} -> do
+                    -- FIXME
+                    -- Review this when introducing support for DlgNone
+                    monitor (QC.label "StakeDelegation (None)")
+                    assert (isJust $ fragmentAccountId test)
+                    assert (isNothing $ fragmentPoolId test)
+
+                _ -> run $ expectationFailure
+                    "unexpected fragment after serializing a transaction?"
+
+    describe "Decode External Tx" $ do
+        let tl = newTransactionLayer @ShelleyKey (Hash "genesis")
+
+        it "decodeExternalTx works ok with properly constructed binary blob" $
+            property $ \test -> monadicIO $ do
+                let bytes = BL.toStrict $ runPut $ void $ putFragment
+                        (fragmentGenesis test)
+                        (zip (fragmentInputs test) (fragmentCredentials test))
+                        (fragmentOutputs test)
+                        (fragmentTag test)
+
+                monitor (counterexample $ show $ hex bytes)
+
+                case fragmentTag test of
+                    MkFragmentSimpleTransaction{} -> do
+                        monitor (QC.label "Simple Transaction")
+                        case decodeSignedTx tl bytes of
+                            Left err ->
+                                run $ expectationFailure $ show err
+                            Right (tx@(Tx _ inps outs), SealedTx bytes') -> do
+                                monitor (counterexample $ show tx)
+                                assert (inps == fragmentInputs test)
+                                assert (outs == fragmentOutputs test)
+                                assert (hex bytes == hex bytes')
+
+                    MkFragmentStakeDelegation{} -> do
+                        monitor (QC.label "Not Simple Transaction")
+                        case decodeSignedTx tl bytes of
+                            Left _ -> pure ()
+                            Right (tx, _) -> do
+                                monitor (counterexample $ show tx)
+                                run $ expectationFailure "expected failure"
   where
-    unFragment :: Fragment -> Tx
-    unFragment m = case m of
-        Transaction stx -> stx
-        _ -> error "expected a Transaction message"
-
-    getStakeDelegationTxFragment
-        :: Fragment -> (PoolId, ChimericAccount, Tx)
-    getStakeDelegationTxFragment m = case m of
-        StakeDelegation stx -> stx
-        _ -> error "expected a Transaction message"
-
     try' :: a -> IO (Either String a)
     try' = fmap (either (Left . show) Right)
         . (try @SomeException) . evaluate
 
--- Only generating single addresses!
-instance Arbitrary Address where
-    arbitrary = Address . prependTag 3 <$> genFixed 32
-    shrink (Address addr) = Address . prependTag 3
-        <$> shrinkFixedBS (BS.tail addr)
+data TestFragment = TestFragment
+    { fragmentGenesis :: Hash "Genesis"
+    , fragmentInputs :: [(TxIn, Coin)]
+    , fragmentCredentials  :: [(XPrv, Passphrase "encryption")]
+    , fragmentOutputs :: [TxOut]
+    , fragmentTag :: MkFragment
+    } deriving (Eq, Show, Generic)
 
--- Observation:
--- genFixed and shrinkFixed would be nice candidates for DerivingVia.
--- e.g.
--- deriving instance Arbitrary Address via (ByteStringOfLength @33)
-genFixed :: Int -> Gen BS.ByteString
-genFixed n = BS.pack <$> (vectorOf n arbitrary)
+fragmentAccountId :: TestFragment -> Maybe ChimericAccount
+fragmentAccountId test = case fragmentTag test of
+    MkFragmentStakeDelegation _ _ accountId _ -> Just accountId
+    _ -> Nothing
 
-shrinkFixedBS :: ByteString -> [ByteString]
-shrinkFixedBS bs = [zeros | bs /= zeros]
+fragmentPoolId :: TestFragment -> Maybe PoolId
+fragmentPoolId test = case fragmentTag test of
+    MkFragmentStakeDelegation _ dlgTag _ _ -> case dlgTag of
+        DlgFull poolId -> Just poolId
+        _ -> Nothing
+    _ -> Nothing
+
+instance Arbitrary TestFragment where
+    shrink test
+        | length (fragmentInputs test) <= 1
+            || length (fragmentOutputs test) <= 1 = []
+        | otherwise =
+            [ TestFragment genesis inps' (take nInps creds) outs' tag
+            | let (TestFragment genesis inps creds outs tag) = test
+            , inps' <- shrinkHard inps
+            , let nInps = length inps', nInps > 0
+            , outs' <- shrinkHard outs
+            , let nOuts = length outs', nOuts > 0
+            ]
       where
-        len = BS.length bs
-        zeros = BS.pack (replicate len 0)
+        shrinkHard :: Arbitrary a => [a] -> [[a]]
+        shrinkHard xs
+            | null xs = []
+            | length xs <= 3 = shrink xs
+            | otherwise = [take 3 xs]
+
+    arbitrary = oneof
+        [ genSimpleTransactionFragment
+        , genStakeDelegationFragment
+        ]
+      where
+        block0H = Hash $ B8.replicate 32 '0'
+
+        genSimpleTransactionFragment = do
+            inps <- choose (1, maxNumberOfInputs) >>= flip vectorOf arbitrary
+            creds <- map (,mempty) <$> vectorOf (length inps) arbitrary
+            outs <- choose (1, maxNumberOfOutputs) >>= flip vectorOf arbitrary
+            witTag <- elements [TxWitnessUTxO, TxWitnessLegacyUTxO]
+            pure $ TestFragment
+                { fragmentGenesis = block0H
+                , fragmentInputs = inps
+                , fragmentCredentials = creds
+                , fragmentOutputs = outs
+                , fragmentTag = MkFragmentSimpleTransaction witTag
+                }
+
+        genStakeDelegationFragment = do
+            fragment <- genSimpleTransactionFragment
+            witTag <- elements [TxWitnessUTxO, TxWitnessLegacyUTxO]
+            dlgTag <- oneof [pure DlgNone, DlgFull <$> arbitrary]
+            account <- arbitrary
+            creds <- (,mempty) <$> arbitrary
+            pure $ fragment
+                { fragmentTag = MkFragmentStakeDelegation
+                    witTag
+                    dlgTag
+                    account
+                    creds
+                }
+
+instance Arbitrary ChimericAccount where
+    arbitrary = ChimericAccount . BS.pack <$> vectorOf 32 arbitrary
+
+instance Arbitrary XPrv where
+    arbitrary = unsafeXPrv . BS.pack <$> vectorOf 128 arbitrary
+
+instance Arbitrary Address where
+    arbitrary = Address <$> oneof
+        [ BS.pack . ([3] <>) <$> vectorOf 32 arbitrary
+        , BS.pack . ([4] <>) <$> vectorOf 64 arbitrary
+        , BS.pack . ([5] <>) <$> vectorOf 32 arbitrary
+        , BS.pack . ([6] <>) <$> vectorOf 32 arbitrary
+        ]
 
 instance Arbitrary (Hash "Tx") where
-    arbitrary = Hash <$> genFixed 32
-    shrink (Hash bytes) = Hash <$> shrinkFixedBS bytes
+    arbitrary = Hash . B8.pack <$> vectorOf 32 arbitrary
 
 instance Arbitrary Coin where
     arbitrary = do
@@ -232,77 +334,14 @@ instance Arbitrary TxOut where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-newtype StakeDelegationTx =
-    StakeDelegationTx
-        ( PoolId
-        , ChimericAccount
-        , Hash "AccountSignature"
-        , Tx
-        , [TxWitness]
-        )
-    deriving (Eq, Show, Generic)
-
 instance Arbitrary PoolId where
-    arbitrary = do
-        InfiniteList bytes _ <- arbitrary
-        return $ PoolId $ BS.pack $ take 32 bytes
+    arbitrary = PoolId . B8.pack <$> vectorOf 32 arbitrary
 
-instance Arbitrary StakeDelegationTx where
-    arbitrary = do
-        nIns <- fromIntegral <$> arbitrary @Word8
-        nOut <- fromIntegral <$> arbitrary @Word8
-        inps <- vectorOf nIns arbitrary
-        outs <- vectorOf nOut arbitrary
-        wits <- vectorOf nIns arbitrary
-        poolId <- arbitrary
-        accId <- ChimericAccount . B8.pack <$> replicateM 32 arbitrary
-        accSig <- Hash . B8.pack <$> replicateM 64 arbitrary
-        let tid = delegationFragmentId poolId accId accSig inps outs wits
-        pure $ StakeDelegationTx (poolId, accId, accSig, Tx tid inps outs, wits)
+-- Necessary unsound 'Show' and 'Eq' instances for QuickCheck failure reporting
+instance Show XPrv where
+    show = const "XPrv"
+instance Eq XPrv where
+    a == b = unXPrv a == unXPrv b
 
-newtype SignedTx = SignedTx (Tx, [TxWitness])
-    deriving (Eq, Show, Generic)
-
-instance Arbitrary SignedTx where
-    arbitrary = do
-        nIns <- fromIntegral <$> arbitrary @Word8
-        nOut <- fromIntegral <$> arbitrary @Word8
-        inps <- vectorOf nIns arbitrary
-        outs <- vectorOf nOut arbitrary
-        wits <- vectorOf nIns arbitrary
-        let tid = fragmentId inps outs wits
-        return $ SignedTx (Tx tid inps outs, wits)
-
-    shrink (SignedTx (Tx _ inps outs, wits)) =
-        [ SignedTx (Tx (fragmentId inps' outs wits') inps' outs, wits')
-        | (inps', wits') <- unzip <$> shrinkList' (zip inps wits)
-        ]
-        ++
-        [ SignedTx (Tx (fragmentId inps outs' wits) inps outs', wits)
-        | outs' <- shrinkList' outs
-        ]
-
-      where
-        shrinkList' xs  =
-            (shrinkHeadAndReplicate shrink xs) ++
-            (shrinkList shrink xs)
-
-        -- Try shrinking the 'head' of the list and replace the elements in
-        -- the 'tail' with the exact same element. If the failure is related
-        -- to the size of the list, this makes the shrinking much faster.
-        shrinkHeadAndReplicate f (x:xs) =
-            (\x' -> x':(map (const x') xs)) <$> f x
-        shrinkHeadAndReplicate _f [] = []
-
--- | Only generates single address witnesses
-instance Arbitrary TxWitness where
-    arbitrary = taggedWitness TxWitnessUTxO . TxWitness
-        <$> genFixed (txWitnessSize TxWitnessUTxO)
-
-prependTag :: Int -> ByteString -> ByteString
-prependTag tag bs = BS.pack [fromIntegral tag] <> bs
-
-taggedWitness :: TxWitnessTag -> TxWitness -> TxWitness
-taggedWitness tag (TxWitness bytes) = TxWitness (prefix <> bytes)
-  where
-    prefix = BL.toStrict $ runPut $ putTxWitnessTag tag
+deriving instance Show MkFragment
+deriving instance Eq MkFragment

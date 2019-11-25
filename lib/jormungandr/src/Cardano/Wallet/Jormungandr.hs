@@ -166,8 +166,8 @@ serveWallet (cfg, tr) sTolerance databaseDir hostPref listen lj beforeMainLoop =
                     Right (cp, nl) -> do
                         let nPort = Port $ baseUrlPort $ _restApi cp
                         let (_, bp) = staticBlockchainParameters nl
-                        let rndTl = newTransactionLayer @'Mainnet (getGenesisBlockHash bp)
-                        let seqTl = newTransactionLayer @n (getGenesisBlockHash bp)
+                        let rndTl = newTransactionLayer (getGenesisBlockHash bp)
+                        let seqTl = newTransactionLayer (getGenesisBlockHash bp)
                         let poolDBPath = Pool.defaultFilePath <$> databaseDir
                         Pool.withDBLayer cfg tr poolDBPath $ \db -> do
                             poolApi <- stakePoolLayer tr nl db
