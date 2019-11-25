@@ -447,7 +447,7 @@ spec = do
             |] `shouldBe` (Left @String @(ApiT PoolId) msg)
 
         it "ApiT StakePoolMetadata" $ do
-            let msg = "Error in $: stake pool ticker length must be 3-4 characters"
+            let msg = "Error in $.ticker: stake pool ticker length must be 3-4 characters"
             Aeson.parseEither parseJSON [aesonQQ|
                 {
                     "homepage": "https://12345",
