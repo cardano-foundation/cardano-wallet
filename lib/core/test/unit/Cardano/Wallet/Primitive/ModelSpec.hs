@@ -368,6 +368,7 @@ blockchain =
                     ]
                 }
             ]
+        , delegations = []
         }
     , Block
         { header = BlockHeader
@@ -416,6 +417,7 @@ blockchain =
                     ]
                 }
             ]
+        , delegations = []
         }
     , Block
         { header = BlockHeader
@@ -464,6 +466,7 @@ blockchain =
                     ]
                 }
             ]
+        , delegations = []
         }
     , Block
         { header = BlockHeader
@@ -493,6 +496,7 @@ blockchain =
                     ]
                 }
             ]
+        , delegations = []
         }
     , Block
         { header = BlockHeader
@@ -502,6 +506,7 @@ blockchain =
             , parentHeaderHash = Hash "39d89a1e837e968ba35370be47cdfcbfd193cd992fdeed557b77c49b77ee59cf"
             }
         , transactions = []
+        , delegations = []
         }
     , Block
         { header = BlockHeader
@@ -531,6 +536,7 @@ blockchain =
                     ]
                 }
             ]
+        , delegations = []
         }
     , Block
         { header = BlockHeader
@@ -559,6 +565,7 @@ blockchain =
                     ]
                 }
             ]
+        , delegations = []
         }
     , Block
         { header = BlockHeader
@@ -588,6 +595,7 @@ blockchain =
                     ]
                 }
             ]
+        , delegations = []
         }
     , Block
         { header = BlockHeader
@@ -596,7 +604,8 @@ blockchain =
               , headerHash = Hash "unused"
               , parentHeaderHash = Hash "cb96ff923728a67e52dfad54df01fc5a20c7aaf386226a0564a1185af9798cb1"
               }
-        , transactions =  []
+        , transactions = []
+        , delegations = []
         }
     , Block
         { header = BlockHeader
@@ -630,6 +639,7 @@ blockchain =
                     ]
                 }
             ]
+        , delegations = []
         }
     , Block
         { header = BlockHeader
@@ -638,7 +648,8 @@ blockchain =
             , headerHash = Hash "unused"
             , parentHeaderHash = Hash "1a32e01995225c7cd514e0fe5087f19a6fd597a6071ad4ad1fbf5b20de39670b"
             }
-        , transactions =  []
+        , transactions = []
+        , delegations = []
         }
     , Block
         { header = BlockHeader
@@ -647,7 +658,8 @@ blockchain =
             , headerHash = Hash "unused"
             , parentHeaderHash = Hash "7855c0f101b6761b234058e7e9fd19fbed9fee90a202cca899da1f6cbf29518d"
             }
-        , transactions =  []
+        , transactions = []
+        , delegations = []
         }
     , Block
         { header = BlockHeader
@@ -656,7 +668,8 @@ blockchain =
             , headerHash = Hash "unused"
             , parentHeaderHash = Hash "9007e0513b9fea848034a7203b380cdbbba685073bcfb7d8bb795130d92e7be8"
             }
-        , transactions =  []
+        , transactions = []
+        , delegations = []
         }
     , Block
         { header = BlockHeader
@@ -665,7 +678,8 @@ blockchain =
             , headerHash = Hash "unused"
             , parentHeaderHash = Hash "0af8082504f59eb1b7114981b7dee9009064638420382211118730b45ad385ae"
             }
-        , transactions =  []
+        , transactions = []
+        , delegations = []
         }
     , Block
         { header = BlockHeader
@@ -714,6 +728,7 @@ blockchain =
                     ]
                 }
             ]
+        , delegations = []
         }
     , Block
         { header = BlockHeader
@@ -762,6 +777,7 @@ blockchain =
                     ]
                 }
             ]
+        , delegations = []
         }
     , Block
         { header = BlockHeader
@@ -770,7 +786,8 @@ blockchain =
             , headerHash = Hash "unused"
             , parentHeaderHash = Hash "96a31a7cdb410aeb5756ddb43ee2ddb4c682f6308db38310ab54bf38b89d6b0d"
             }
-        , transactions =  []
+        , transactions = []
+        , delegations = []
         }
     , Block
         { header = BlockHeader
@@ -779,7 +796,8 @@ blockchain =
             , headerHash = Hash "unused"
             , parentHeaderHash = Hash "47c08c0a11f66aeab915e5cd19362e8da50dc2523e629b230b73ec7b6cdbeef8"
             }
-        , transactions =  []
+        , delegations = []
+        , transactions = []
         }
     , Block
         { header = BlockHeader
@@ -788,7 +806,8 @@ blockchain =
             , headerHash = Hash "unused"
             , parentHeaderHash = Hash "d6d7e79e2a25f53e6fb771eebd1be05274861004dc62c03bf94df03ff7b87198"
             }
-        , transactions =  []
+        , delegations = []
+        , transactions = []
         }
     , Block
         { header = BlockHeader
@@ -797,7 +816,8 @@ blockchain =
             , headerHash = Hash "unused"
             , parentHeaderHash = Hash "647e62b29ebcb0ecfa0b4deb4152913d1a669611d646072d2f5898835b88d938"
             }
-        , transactions =  []
+        , delegations = []
+        , transactions = []
         }
     , Block
         { header = BlockHeader
@@ -806,7 +826,8 @@ blockchain =
             , headerHash = Hash "unused"
             , parentHeaderHash = Hash "02f38ce50c9499f2526dd9c5f9e8899e65c0c40344e14ff01dc6c31137978efb"
             }
-        , transactions =  []
+        , delegations = []
+        , transactions = []
         }
     , Block
         { header = BlockHeader
@@ -815,7 +836,8 @@ blockchain =
             , headerHash = Hash "unused"
             , parentHeaderHash = Hash "528492ded729ca77a72b1d85654742db85dfd3b68e6c4117ce3c253e3e86616d"
             }
-        , transactions =  []
+        , delegations = []
+        , transactions = []
         }
     , Block
         { header = BlockHeader
@@ -864,6 +886,7 @@ blockchain =
                       ]
                 }
             ]
+        , delegations = []
         }
     , Block
         { header = BlockHeader
@@ -893,5 +916,6 @@ blockchain =
                     ]
                 }
             ]
+        , delegations = []
         }
     ]

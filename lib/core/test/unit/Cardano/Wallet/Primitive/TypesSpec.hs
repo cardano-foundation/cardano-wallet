@@ -1073,10 +1073,10 @@ instance Arbitrary SlotId where
         return (SlotId (unsafeEpochNo ep) (SlotNo sl))
 
 instance Arbitrary Block where
-    shrink (Block h txs) = Block h <$> shrink txs
+    shrink (Block h txs _) = Block h <$> shrink txs <*> pure []
     arbitrary = do
         txs <- choose (0, 500) >>= flip vectorOf arbitrary
-        Block <$> arbitrary <*> pure txs
+        Block <$> arbitrary <*> pure txs <*> pure []
 
 instance Arbitrary WalletId where
     shrink _ = []

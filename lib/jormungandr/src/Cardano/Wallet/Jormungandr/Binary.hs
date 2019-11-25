@@ -318,11 +318,14 @@ getTxWitnessTag = getWord8 >>= \case
     other -> fail $ "Invalid witness type: " ++ show other
 
 -- | Decode a fragment (header + contents).
+--
+-- Corresponds to FRAGMENT in the specification.
+--
 getFragment :: Get Fragment
 getFragment = label "getFragment" $ do
     size <- fromIntegral <$> getWord16be
 
-    -- We lazily compute the fragment-id, using lookAHead, before calling the
+    -- We lazily compute the fragment-id, using look-ahead, before calling the
     -- specialized decoders.
     --
     -- The fragment-id is needed, for instance, to construct a @Tx@, where it
@@ -413,6 +416,8 @@ stakeDelegationTypeTag = \case
     DlgRatio -> 2
 
 -- | Decode the contents of a @Transaction@-fragment carrying a delegation cert.
+--
+-- Corresponds to STAKE-DELEGATION in the specification.
 --
 -- Returns 'Nothing' for unsupported stake delegation types: DLG-NONE & DLG-RATIO
 getStakeDelegation
@@ -823,12 +828,20 @@ signData inps outs =
 -- | Convert the Jörmungandr binary format block into a simpler Wallet block.
 convertBlock :: Block -> W.Block
 convertBlock (Block h msgs) =
-    W.Block (convertBlockHeader h) coerceFragments
+    W.Block (convertBlockHeader h) transactions delegations
   where
-    coerceFragments = msgs >>= \case
+    delegations :: [(ChimericAccount, PoolId)]
+    delegations = msgs >>= \case
+        Initial _ -> []
+        Transaction _ -> []
+        StakeDelegation (poolId, accountId, _tx) ->
+            return (accountId, poolId)
+        UnimplementedFragment _ -> []
+    transactions :: [Tx]
+    transactions = msgs >>= \case
         Initial _ -> []
         Transaction tx -> return tx
-        StakeDelegation (_poolId, _xpub, tx) -> return tx
+        StakeDelegation (_poolId, _accountId, tx) -> return tx
         UnimplementedFragment _ -> []
 
 -- | Convert the Jörmungandr binary format header into a simpler Wallet header.
