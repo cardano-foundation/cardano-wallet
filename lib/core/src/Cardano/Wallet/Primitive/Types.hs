@@ -152,6 +152,8 @@ module Cardano.Wallet.Primitive.Types
 
 import Prelude
 
+import Control.Arrow
+    ( left )
 import Control.DeepSeq
     ( NFData (..) )
 import Crypto.Hash
@@ -744,15 +746,19 @@ instance ToText FeePolicy where
 
 instance FromText FeePolicy where
     fromText txt = case T.splitOn " + " txt of
-        [a, b, c] | T.takeEnd 1 b == "x" && T.takeEnd 1 c == "y"
-                    -> LinearFee
-                   <$> fmap Quantity (fromText a)
-                   <*> fmap Quantity (fromText (T.dropEnd 1 b))
-                   <*> fmap Quantity (fromText (T.dropEnd 1 c))
+        [a, b, c] | T.takeEnd 1 b == "x" && T.takeEnd 1 c == "y" ->
+            left (const err) $ LinearFee
+                <$> fmap Quantity (fromText a)
+                <*> fmap Quantity (fromText (T.dropEnd 1 b))
+                <*> fmap Quantity (fromText (T.dropEnd 1 c))
         _ ->
-            Left $ TextDecodingError
-                "Unable to decode FeePolicy: \
-                \Linear equation not in expected format: a + bx + cy"
+            Left err
+      where
+        err = TextDecodingError
+            "Unable to decode FeePolicy: \
+            \Linear equation not in expected format: a + bx + cy \
+            \where 'a', 'b', and 'c' are numbers"
+
 
 {-------------------------------------------------------------------------------
                                     Address
