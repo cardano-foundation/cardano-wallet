@@ -57,6 +57,7 @@ module Cardano.Wallet.Primitive.Types
 
     -- * Accounts
     , ChimericAccount (..)
+    , chimericAccountFromXPub
 
     -- * Coin
     , Coin (..)
@@ -229,6 +230,7 @@ import Numeric.Natural
 import Safe
     ( readMay )
 
+import qualified Cardano.Crypto.Wallet as CC
 import qualified Control.Foldl as F
 import qualified Data.ByteString as BS
 import qualified Data.Char as C
@@ -239,6 +241,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Lazy.Builder as Builder
+
 {-------------------------------------------------------------------------------
                              Wallet Metadata
 -------------------------------------------------------------------------------}
@@ -475,9 +478,7 @@ isSubrangeOf r1 r2 =
                                   Stake Pools
 -------------------------------------------------------------------------------}
 
--- | Represent stake pool identifier.
---   VRF PubKey: 32 bytes (ristretto25519) which translates to 64 hex character string
---   see https://github.com/input-output-hk/chain-libs/blob/master/chain-impl-mockchain/doc/format.md
+-- | Represents a stake pool.
 newtype PoolId = PoolId { getPoolId :: ByteString }
     deriving (Generic, Eq, Show, Ord)
 
@@ -1318,8 +1319,13 @@ newtype ProtocolMagic = ProtocolMagic Int32
 -------------------------------------------------------------------------------}
 -- | Also known as a staking key, chimeric account is used in group-type address
 -- for staking purposes. It is a public key of the account address
-newtype ChimericAccount = ChimericAccount ByteString
+newtype ChimericAccount = ChimericAccount { unChimericAccount :: ByteString }
     deriving (Generic, Show, Eq, Ord)
+
+-- | Construct a 'ChimericAccount' by extracting the public key from the
+-- extended public key.
+chimericAccountFromXPub :: CC.XPub -> ChimericAccount
+chimericAccountFromXPub = ChimericAccount . BS.take 32 . CC.unXPub
 
 instance NFData ChimericAccount
 

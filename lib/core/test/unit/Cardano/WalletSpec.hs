@@ -440,6 +440,8 @@ dummyTransactionLayer = TransactionLayer
         -- (tx1, wit1) == (tx2, wit2) <==> fakebinary1 == fakebinary2
         let fakeBinary = SealedTx . B8.pack $ show (tx, wit)
         return (tx, fakeBinary)
+    , mkDelegationCertTx =
+        error "dummyTransactionLayer: mkDelegationCertTx not implemented"
     , estimateSize =
         error "dummyTransactionLayer: estimateSize not implemented"
     , estimateMaxNumberOfInputs =
