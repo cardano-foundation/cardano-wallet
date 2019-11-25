@@ -8,6 +8,8 @@
   $ find . -name "*.cabal" ! -path "*.stack-work*" | xargs sed -i "s/<old-version>/<new-version>/"
   ```
 
+- [ ] Update the "Compatibility Matrix" in the README.md (keep info about last 3 versions of the wallet backend)
+
 - [ ] Tag and sign the release commit with a proper tag
 
   ```
