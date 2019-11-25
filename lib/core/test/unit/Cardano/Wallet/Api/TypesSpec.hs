@@ -98,6 +98,8 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SlotNo (..)
     , SortOrder (..)
+    , StakePoolMetadata (..)
+    , StakePoolTicker
     , SyncProgress (..)
     , TxIn (..)
     , TxIn (..)
@@ -115,6 +117,8 @@ import Cardano.Wallet.Primitive.Types
     , walletNameMaxLength
     , walletNameMinLength
     )
+import Cardano.Wallet.Unsafe
+    ( unsafeFromText )
 import Control.Lens
     ( Lens', at, (^.) )
 import Control.Monad
@@ -278,6 +282,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiT Address, Proxy 'Testnet)
             jsonRoundtripAndGolden $ Proxy @(ApiT AddressPoolGap)
             jsonRoundtripAndGolden $ Proxy @(ApiT Direction)
+            jsonRoundtripAndGolden $ Proxy @(ApiT StakePoolMetadata)
             jsonRoundtripAndGolden $ Proxy @(ApiT TxStatus)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletBalance)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletId)
@@ -441,6 +446,15 @@ spec = do
                 "4c43d68b21921034519c36d2475f5adba989bb4465ec"
             |] `shouldBe` (Left @String @(ApiT PoolId) msg)
 
+        it "ApiT StakePoolMetadata" $ do
+            let msg = "Error in $: stake pool ticker length must be 3-4 characters"
+            Aeson.parseEither parseJSON [aesonQQ|
+                {
+                    "homepage": "https://12345",
+                    "ticker": "too long",
+                    "pledge_address": "ed25519_pk15vz9yc5c3upgze8tg5kd7kkzxqgqfxk5a3kudp22hdg0l2za00sq2ufkk7"
+                }
+            |] `shouldBe` (Left @String @(ApiT StakePoolMetadata) msg)
 
     describe "verify HttpApiData parsing failures too" $ do
         it "ApiT WalletId" $ do
@@ -959,6 +973,17 @@ instance Arbitrary ApiStakePool where
         <$> arbitrary
         <*> arbitrary
         <*> choose (0.0, 1.0)
+
+instance Arbitrary StakePoolMetadata where
+    arbitrary = StakePoolMetadata
+        <$> arbitrary <*> arbitraryText <*> arbitraryText
+      where
+        arbitraryText = T.pack <$> arbitrary
+
+instance Arbitrary StakePoolTicker where
+    arbitrary = unsafeFromText . T.pack <$> do
+        len <- choose (3, 4)
+        replicateM len arbitrary
 
 instance Arbitrary WalletId where
     arbitrary = do

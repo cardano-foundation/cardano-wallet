@@ -96,6 +96,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolId (..)
     , ShowFmt (..)
     , SlotNo (..)
+    , StakePoolMetadata (..)
     , SyncProgress (..)
     , TxIn (..)
     , TxStatus (..)
@@ -554,6 +555,22 @@ instance FromJSON ApiStakePoolMetrics where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiStakePoolMetrics where
     toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON (ApiT StakePoolMetadata) where
+    parseJSON = withObject "StakePoolMetadata" $ \v -> ApiT <$>
+        (StakePoolMetadata
+            <$> (v .: "ticker" >>= parseTicker)
+            <*> (v .: "homepage")
+            <*> (v .: "pledge_address"))
+      where
+        parseTicker = eitherToParser . left ShowFmt . fromText
+
+instance ToJSON (ApiT StakePoolMetadata) where
+    toJSON (ApiT (StakePoolMetadata t h pa)) = object
+        [ "ticker" .= toText t
+        , "homepage" .= h
+        , "pledge_address" .= pa
+        ]
 
 instance FromJSON (ApiT WalletName) where
     parseJSON = parseJSON >=> eitherToParser . bimap ShowFmt ApiT . fromText
