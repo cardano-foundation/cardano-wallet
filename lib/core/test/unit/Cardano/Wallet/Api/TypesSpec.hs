@@ -868,8 +868,6 @@ genAddress = oneof
         <$> vectorOf (2*publicKeySize) arbitrary
     , (\bytes -> Address (BS.pack (addrAccount @network:bytes)))
         <$> vectorOf publicKeySize arbitrary
-    , (\bytes -> Address (BS.pack (addrMultisig @network:bytes)))
-        <$> vectorOf publicKeySize arbitrary
     ]
 
 genLegacyAddress :: (Int, Int) -> Gen Address

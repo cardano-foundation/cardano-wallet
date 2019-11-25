@@ -318,30 +318,22 @@ class KnownNetwork (n :: NetworkDiscriminant) where
         -- byte of every addresses using the Shelley format carrying only an
         -- account key.
 
-    addrMultisig :: Word8
-        -- ^ Address dismininant byte for multisig addresses, this is the first
-        -- byte of every addresses using the Shelley format carrying a multisig
-        -- account key.
-
     knownDiscriminants :: [Word8]
     knownDiscriminants =
         [ addrSingle @n
         , addrGrouped @n
         , addrAccount @n
-        , addrMultisig @n
         ]
 
 instance KnownNetwork 'Mainnet where
     addrSingle = 0x03
     addrGrouped = 0x04
     addrAccount = 0x05
-    addrMultisig = 0x06
 
 instance KnownNetwork 'Testnet where
     addrSingle = 0x83
     addrGrouped = 0x84
     addrAccount = 0x85
-    addrMultisig = 0x86
 
 isAddrSingle :: Address -> Bool
 isAddrSingle (Address bytes) =
