@@ -143,8 +143,7 @@ import Cardano.Wallet.Network
     , follow
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( AccountingStyle (..)
-    , DelegationAddress (..)
+    ( DelegationAddress (..)
     , Depth (..)
     , DerivationType (..)
     , ErrWrongPassphrase (..)
@@ -155,8 +154,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , XPrv
     , XPub
     , checkPassphrase
-    , deriveAccountPrivateKey
-    , deriveAddressPrivateKey
+    , deriveRewardAccount
     , encryptPassphrase
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -926,10 +924,9 @@ signDelegation ctx wid argGenChange pwd coinSel _poolId = db & \DBLayer{..} -> d
                         return $ TxOut addr c
             let allOuts = outs ++ changeOuts
 
-            --deriving chimeric account
-            let accPrv = deriveAccountPrivateKey @k pwd xprv minBound
-            let _addrPrv =
-                    deriveAddressPrivateKey pwd accPrv MutableAccount minBound
+            -- TODO
+            -- Pre-compute this and store it with the wallet static metadata.
+            let _rewardAccount = deriveRewardAccount @k xprv
 
             {--
             let keyFrom = isOwned (getState cp) (xprv, pwd)
