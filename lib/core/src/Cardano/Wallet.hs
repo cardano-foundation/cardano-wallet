@@ -896,16 +896,15 @@ signPayment ctx wid argGenChange pwd (CoinSelection ins outs chgs) = db & \DBLay
                 readCheckpoint (PrimaryKey wid)
             (allOuts, s') <-
                 assignChangeAddresses argGenChange outs chgs (getState cp)
-
-            let keyFrom = isOwned (getState cp) (xprv, pwd)
-            (tx, sealedTx) <- withExceptT ErrSignPayment $ ExceptT $ pure $
-                mkStdTx tl keyFrom ins allOuts
             withExceptT ErrSignPaymentNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
 
+            let keyFrom = isOwned (getState cp) (xprv, pwd)
+            (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
+                mkStdTx tl keyFrom ins allOuts
+
             let bp = blockchainParameters cp
             let (time, meta) = mkTxMeta bp (currentTip cp) s' ins allOuts
-
             return (tx, meta, time, sealedTx)
   where
     db = ctx ^. dbLayer @s @k
@@ -929,7 +928,7 @@ signDelegation
     -> CoinSelection
     -> PoolId
     -> ExceptT ErrSignDelegation IO (Tx, TxMeta, UTCTime, SealedTx)
-signDelegation ctx wid argGenChange pwd coinSel _poolId = db & \DBLayer{..} -> do
+signDelegation ctx wid argGenChange pwd coinSel poolId = db & \DBLayer{..} -> do
     let (CoinSelection ins outs chgs) = coinSel
     withRootKey @_ @s ctx wid pwd ErrSignDelegationWithRootKey $ \xprv -> do
         mapExceptT atomically $ do
@@ -937,29 +936,22 @@ signDelegation ctx wid argGenChange pwd coinSel _poolId = db & \DBLayer{..} -> d
                 readCheckpoint (PrimaryKey wid)
             (allOuts, s') <-
                 assignChangeAddresses argGenChange outs chgs (getState cp)
+            withExceptT ErrSignDelegationNoSuchWallet $
+                putCheckpoint (PrimaryKey wid) (updateState s' cp)
 
             -- TODO
             -- Pre-compute this and store it with the wallet static metadata.
-            let _rewardAccount = deriveRewardAccount @k xprv
-
-            {--
+            let rewardAccount = deriveRewardAccount @k pwd xprv
             let keyFrom = isOwned (getState cp) (xprv, pwd)
-            (tx, wit) <- either
-                (throwE . ErrSignDelegation)
-                pure
-                (mkDelegationCertTx tl poolId (addrPrv, pwd) keyFrom ins allOuts)
-            --}
-            --
+            (tx, sealedTx) <- withExceptT ErrSignDelegationMkTx $ ExceptT $ pure $
+                mkDelegationCertTx tl poolId (rewardAccount, pwd) keyFrom ins allOuts
 
             let bp = blockchainParameters cp
             let (time, meta) = mkTxMeta bp (currentTip cp) s' ins allOuts
-
-            withExceptT ErrSignDelegationNoSuchWallet $
-                putCheckpoint (PrimaryKey wid) (updateState s' cp)
-            return (undefined, meta, time, undefined)
+            return (tx, meta, time, sealedTx)
   where
     db = ctx ^. dbLayer @s @k
-    _tl = ctx ^. transactionLayer @t @k
+    tl = ctx ^. transactionLayer @t @k
 
 -- | Construct transaction metadata from a current block header and a list
 -- of input and output.
@@ -1195,7 +1187,7 @@ newtype ErrListUTxOStatistics
 
 -- | Errors that can occur when signing a transaction.
 data ErrSignPayment
-    = ErrSignPayment ErrMkTx
+    = ErrSignPaymentMkTx ErrMkTx
     | ErrSignPaymentNoSuchWallet ErrNoSuchWallet
     | ErrSignPaymentWithRootKey ErrWithRootKey
     deriving (Show, Eq)
@@ -1252,7 +1244,7 @@ data ErrSelectForDelegation
 data ErrSignDelegation
     = ErrSignDelegationNoSuchWallet ErrNoSuchWallet
     | ErrSignDelegationWithRootKey ErrWithRootKey
- --   | ErrSignDelegation ErrMkDelegationCertTx
+    | ErrSignDelegationMkTx ErrMkTx
     deriving (Show, Eq)
 
 {-------------------------------------------------------------------------------
