@@ -32,7 +32,7 @@
 -- that a wallet is not "fragmented enough").
 
 module Cardano.Wallet.Primitive.CoinSelection.Migration
-    ( selectCoinsForMigration
+    ( depleteUTxO
     , idealBatchSize
     ) where
 
@@ -71,7 +71,7 @@ import qualified Data.Map.Strict as Map
 --
 -- The fee options are used to balance the coin selections and fix a threshold
 -- for dust that is removed from the selections.
-selectCoinsForMigration
+depleteUTxO
     :: FeeOptions
         -- ^ Fee computation and threshold definition
     -> Word8
@@ -79,7 +79,7 @@ selectCoinsForMigration
     -> UTxO
         -- ^ UTxO to deplete
     -> [CoinSelection]
-selectCoinsForMigration feeOpts batchSize utxo =
+depleteUTxO feeOpts batchSize utxo =
     evalState migrate (Map.toList (getUTxO utxo))
   where
     migrate :: State [(TxIn, TxOut)] [CoinSelection]

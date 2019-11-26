@@ -11,7 +11,7 @@ import Prelude
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..), changeBalance, inputBalance )
 import Cardano.Wallet.Primitive.CoinSelection.Migration
-    ( idealBatchSize, selectCoinsForMigration )
+    ( depleteUTxO, idealBatchSize )
 import Cardano.Wallet.Primitive.CoinSelectionSpec
     ()
 import Cardano.Wallet.Primitive.Fee
@@ -66,14 +66,14 @@ spec = do
                 let batchSize = idealBatchSize coinselOpts
                 label (show batchSize) True
 
-    describe "accuracy of selectCoinsForMigration" $ do
+    describe "accuracy of depleteUTxO" $ do
         let testAccuracy :: Double -> SpecWith ()
             testAccuracy r = it title $ withMaxSuccess 1000 $ monadicIO $ do
                 let dust = Coin 100
                 utxo <- pick (genUTxO r dust)
                 batchSize <- pick genBatchSize
                 feeOpts <- pick (genFeeOptions dust)
-                let selections = selectCoinsForMigration feeOpts batchSize utxo
+                let selections = depleteUTxO feeOpts batchSize utxo
                 monitor $ label $ accuracy dust
                     (balance utxo)
                     (fromIntegral $ sum $ inputBalance <$> selections)
@@ -95,7 +95,7 @@ spec = do
 
         mapM_ testAccuracy [ 0.01 , 0.05 , 0.10 , 0.25 , 0.50 ]
 
-    describe "selectCoinsForMigration properties" $ do
+    describe "depleteUTxO properties" $ do
         it "No coin selection has outputs" $
             property $ withMaxSuccess 1000 prop_onlyChangeOutputs
 
@@ -114,7 +114,7 @@ spec = do
         it "Every coin selection is well-balanced" $
             property $ withMaxSuccess 1000 prop_wellBalanced
 
-    describe "selectCoinsForMigration regressions" $ do
+    describe "depleteUTxO regressions" $ do
         it "regression #1" $ do
             let feeOpts = FeeOptions
                     { dustThreshold = Coin 9
@@ -148,7 +148,7 @@ prop_onlyChangeOutputs
     -> Property
 prop_onlyChangeOutputs feeOpts batchSize utxo = do
     let allOutputs = outputs =<<
-            selectCoinsForMigration feeOpts batchSize utxo
+            depleteUTxO feeOpts batchSize utxo
     property (allOutputs `shouldSatisfy` null)
 
 -- | Every coin in the selection change >= minimum threshold coin
@@ -159,7 +159,7 @@ prop_noLessThanThreshold
     -> Property
 prop_noLessThanThreshold feeOpts batchSize utxo = do
     let allChange = change
-            =<< selectCoinsForMigration feeOpts batchSize utxo
+            =<< depleteUTxO feeOpts batchSize utxo
     let undersizedCoins =
             filter (< (dustThreshold feeOpts)) allChange
     property (undersizedCoins `shouldSatisfy` null)
@@ -171,7 +171,7 @@ prop_inputsGreaterThanOutputs
     -> UTxO
     -> Property
 prop_inputsGreaterThanOutputs feeOpts batchSize utxo = do
-    let selections  = selectCoinsForMigration feeOpts batchSize utxo
+    let selections  = depleteUTxO feeOpts batchSize utxo
     let totalChange = sum (changeBalance <$> selections)
     let balanceUTxO = balance utxo
     property (balanceUTxO >= fromIntegral totalChange)
@@ -187,7 +187,7 @@ prop_inputsAreUnique
     -> Property
 prop_inputsAreUnique feeOpts batchSize utxo = do
     let selectionInputList = inputs =<<
-            selectCoinsForMigration feeOpts batchSize utxo
+            depleteUTxO feeOpts batchSize utxo
     let selectionInputSet =
             Set.fromList selectionInputList
     Set.size selectionInputSet === length selectionInputSet
@@ -201,7 +201,7 @@ prop_inputsStillInUTxO
 prop_inputsStillInUTxO feeOpts batchSize utxo = do
     let selectionInputSet =
             Set.fromList $ inputs =<<
-                selectCoinsForMigration feeOpts batchSize utxo
+                depleteUTxO feeOpts batchSize utxo
     let utxoSet =
             Set.fromList $ Map.toList $ getUTxO utxo
     property (selectionInputSet `Set.isSubsetOf` utxoSet)
@@ -214,7 +214,7 @@ prop_wellBalanced
     -> UTxO
     -> Property
 prop_wellBalanced feeOpts batchSize utxo = do
-    let selections = selectCoinsForMigration feeOpts batchSize utxo
+    let selections = depleteUTxO feeOpts batchSize utxo
     conjoin
         [ counterexample example (actualFee === expectedFee)
         | s <- selections
