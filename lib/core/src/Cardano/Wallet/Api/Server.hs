@@ -678,7 +678,7 @@ postTransaction ctx (ApiT wid) body = do
     pure $ mkApiTransaction
         (txId tx)
         (fmap Just <$> selection ^. #inputs)
-        (selection ^. #outputs)
+        (tx ^. #outputs)
         (meta, time)
         #pendingSince
   where
@@ -840,7 +840,7 @@ joinStakePool ctx spl (ApiT poolId) (ApiT wid) passwd = do
     pure $ mkApiTransaction
         (txId tx)
         (fmap Just <$> selection ^. #inputs)
-        (selection ^. #outputs)
+        (tx ^. #outputs)
         (meta, time)
         #pendingSince
   where
