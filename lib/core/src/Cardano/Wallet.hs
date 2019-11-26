@@ -572,6 +572,13 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> do
         <*> withNoSuchWallet wid (readWalletMeta $ PrimaryKey wid)
     let bp = blockchainParameters cp
     let (filteredBlocks, cps) = NE.unzip $ applyBlocks @s blocks cp
+    let slotPoolDelegations =
+            [ (slotId, poolId)
+            | let slots = view #slotId . view #header <$> blocks
+            , let delegations = view #delegations <$> filteredBlocks
+            , (slotId, poolIds) <- NE.toList $ NE.zip slots delegations
+            , poolId <- poolIds
+            ]
     let txs = fold $ view #transactions <$> filteredBlocks
     let k = bp ^. #getEpochStability
     let localTip = currentTip $ NE.last cps
@@ -582,6 +589,11 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> do
         when (fromIntegral h `elem` unstable) $ do
             liftIO $ logCheckpoint cp'
             putCheckpoint (PrimaryKey wid) cp'
+
+    mapExceptT atomically $
+        forM_ slotPoolDelegations $ \delegation@(slotId, poolId) -> do
+            liftIO $ logDelegation delegation
+            putDelegationCertificate (PrimaryKey wid) poolId slotId
 
     mapExceptT atomically $ do
         liftIO $ logCheckpoint cp
@@ -609,6 +621,14 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> do
     logCheckpoint :: Wallet s -> IO ()
     logCheckpoint cp = logInfo tr $
         "Creating checkpoint at " <> pretty (currentTip cp)
+
+    logDelegation :: (SlotId, PoolId) -> IO ()
+    logDelegation (slotId, poolId) = logInfo tr $ mconcat
+        [ "Discovered delegation to pool "
+        , pretty poolId
+        , " within slot "
+        , pretty slotId
+        ]
 
 -- | Remove an existing wallet. Note that there's no particular work to
 -- be done regarding the restoration worker as it will simply terminate
