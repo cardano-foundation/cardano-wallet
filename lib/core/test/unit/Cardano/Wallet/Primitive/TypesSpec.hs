@@ -101,6 +101,8 @@ import Crypto.Hash
     ( hash )
 import Data.ByteString
     ( ByteString )
+import Data.Either
+    ( isRight )
 import Data.Function
     ( (&) )
 import Data.Function.Utils
@@ -652,7 +654,9 @@ spec = do
                     `shouldBe` Left (TextDecodingError expectedErrorMessage)
 
         let invalidFeePolicyTexts =
-                [ "1"
+                [ ""
+                , " "
+                , "1"
                 , "1x"
                 , "1 + 1"
                 , "1x + 1"
@@ -663,13 +667,30 @@ spec = do
                 , "1 +1x + 1y"
                 , "1 + 1x+ 1y"
                 , "1 + 1x +1y"
+                , "xxxx"
+                , "1 + 6667y + 12x"
+                , "a + bx + cy"
+                , "dasd + asdax + dadsy"
                 ]
         forM_ invalidFeePolicyTexts $ \policyText ->
             it ("fail fromText @FeePolicy " <> show policyText) $ do
                 let err =
                         "Unable to decode FeePolicy: \
-                        \Linear equation not in expected format: a + bx + cy"
+                        \Linear equation not in expected format: a + bx + cy \
+                        \where 'a', 'b', and 'c' are numbers"
                 fromText @FeePolicy policyText === Left (TextDecodingError err)
+
+        let correctPolicyTexts =
+                [ "1 + 6667x + 12y"
+                , "1.12 + 1.4324x + 3.14159265359y"
+                , "1 + 0x + 0y"
+                , "-13 + 3.14159265359x + 1y"
+                , "-3.14159265359 + -  1 x + - 1 y"
+                , "1     +      11    x +  1  y"
+                ]
+        forM_ correctPolicyTexts $ \policyText ->
+            it ("correct fromText @FeePolicy " <> show policyText) $ do
+                fromText @FeePolicy policyText `shouldSatisfy` isRight
 
     describe "unsafeEpochNo" $ do
         it "returns a successful result for any Word31" $
