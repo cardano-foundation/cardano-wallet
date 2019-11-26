@@ -114,10 +114,8 @@ module Cardano.Wallet
     -- ** Stake Pools
     , createDelegationCert
     , signDelegationCert
-    , submitDelegationCert
     , ErrCreateDelegationCert (..)
     , ErrSignDelegationCert (..)
-    , ErrSubmitDelegationCert (..)
     ) where
 
 import Prelude hiding
@@ -725,6 +723,28 @@ createUnsignedTx ctx wid recipients = do
     tl = ctx ^. transactionLayer @t @k
     tr = ctx ^. logger
 
+createDelegationCert
+    :: forall ctx s t k.
+        ( HasTransactionLayer t k ctx
+        , HasLogger ctx
+        , HasDBLayer s k ctx
+        )
+    => ctx
+    -> WalletId
+    -> ExceptT ErrCreateDelegationCert IO CoinSelection
+createDelegationCert ctx wid = do
+    (wal, _, pending) <- withExceptT ErrCreateDelegationCertNoSuchWallet $
+        readWallet @ctx @s @k ctx wid
+    let bp = blockchainParameters wal
+    let utxo = availableUTxO @s pending wal
+    let sel = CoinSelection [] [] []
+    withExceptT ErrCreateDelegationCertFee $ do
+        debug tr "Coins selected for delegation certificate after fee adjustment"
+            =<< adjustForFee (feeOpts tl (computeCertFee 1) (bp ^. #getFeePolicy)) utxo sel
+  where
+    tl = ctx ^. transactionLayer @t @k
+    tr = ctx ^. logger
+
 -- | Estimate a transaction fee by automatically selecting inputs from
 -- the wallet to cover the requested outputs.
 estimateTxFee
@@ -879,6 +899,75 @@ signTx ctx wid argGenChange pwd (CoinSelection ins outs chgs) = db & \DBLayer{..
     db = ctx ^. dbLayer @s @k
     tl = ctx ^. transactionLayer @t @k
 
+signDelegationCert
+    :: forall ctx s t k.
+        ( HasTransactionLayer t k ctx
+        , HasDBLayer s k ctx
+        , Show s
+        , NFData s
+        , IsOwned s k
+        , GenChange s
+        , HardDerivation k
+        , AddressIndexDerivationType k ~ 'Soft
+        )
+    => ctx
+    -> WalletId
+    -> ArgGenChange s
+    -> Passphrase "encryption"
+    -> CoinSelection
+    -> PoolId
+    -> ExceptT ErrSignDelegationCert IO (Tx, TxMeta, UTCTime, SealedTx)
+signDelegationCert ctx wid argGenChange pwd coinSel _poolId = db & \DBLayer{..} -> do
+    let (CoinSelection ins outs chgs) = coinSel
+    withRootKey @_ @s ctx wid pwd ErrSignDelegationCertWithRootKey $ \xprv -> do
+        mapExceptT atomically $ do
+            cp <- withExceptT ErrSignDelegationCertNoSuchWallet $ withNoSuchWallet wid $
+                readCheckpoint (PrimaryKey wid)
+            let (changeOuts, s') = flip runState (getState cp) $
+                    forM chgs $ \c -> do
+                        addr <- state (genChange argGenChange)
+                        return $ TxOut addr c
+            let allOuts = outs ++ changeOuts
+
+            --deriving chimeric account
+            let accPrv = deriveAccountPrivateKey @k pwd xprv minBound
+            let _addrPrv =
+                    deriveAddressPrivateKey pwd accPrv MutableAccount minBound
+
+            {--
+            let keyFrom = isOwned (getState cp) (xprv, pwd)
+            (tx, wit) <- either
+                (throwE . ErrSignDelegationCert)
+                pure
+                (mkDelegationCertTx tl poolId (addrPrv, pwd) keyFrom ins allOuts)
+            --}
+
+            withExceptT ErrSignDelegationCertNoSuchWallet $
+                putCheckpoint (PrimaryKey wid) (updateState s' cp)
+            let ourCoins (TxOut addr (Coin val)) =
+                    if fst (isOurs addr s')
+                        then Just (fromIntegral val)
+                        else Nothing
+            let amtOuts = sum (mapMaybe ourCoins allOuts)
+            let amtInps = fromIntegral $
+                    sum (getCoin . coin . snd <$> ins)
+            let txSlot =
+                    (currentTip cp) ^. #slotId
+            let meta = TxMeta
+                    { status = Pending
+                    , direction = Outgoing
+                    , slotId = txSlot
+                    , blockHeight = (currentTip cp) ^. #blockHeight
+                    , amount = Quantity (amtInps - amtOuts)
+                    }
+            let time = slotStartTime
+                    (slotParams (blockchainParameters cp))
+                    txSlot
+            return (undefined, meta, time, undefined)
+  where
+    db = ctx ^. dbLayer @s @k
+    _tl = ctx ^. transactionLayer @t @k
+
 -- | Broadcast a (signed) transaction to the network.
 submitTx
     :: forall ctx s t k.
@@ -1006,116 +1095,6 @@ listTransactions ctx wid mStart mEnd order = db & \DBLayer{..} -> do
         -- slot. This is purely arbitrary and in practice, any time between
         -- the start of a slot and its end could be a valid candidate.
         txTime = slotStartTime sp
-
-createDelegationCert
-    :: forall ctx s t k.
-        ( HasTransactionLayer t k ctx
-        , HasLogger ctx
-        , HasDBLayer s k ctx
-        )
-    => ctx
-    -> WalletId
-    -> ExceptT ErrCreateDelegationCert IO CoinSelection
-createDelegationCert ctx wid = do
-    (wal, _, pending) <- withExceptT ErrCreateDelegationCertNoSuchWallet $
-        readWallet @ctx @s @k ctx wid
-    let bp = blockchainParameters wal
-    let utxo = availableUTxO @s pending wal
-    let sel = CoinSelection [] [] []
-    withExceptT ErrCreateDelegationCertFee $ do
-        debug tr "Coins selected for delegation certificate after fee adjustment"
-            =<< adjustForFee (feeOpts tl (computeCertFee 1) (bp ^. #getFeePolicy)) utxo sel
-  where
-    tl = ctx ^. transactionLayer @t @k
-    tr = ctx ^. logger
-
-signDelegationCert
-    :: forall ctx s t k.
-        ( HasTransactionLayer t k ctx
-        , HasDBLayer s k ctx
-        , Show s
-        , NFData s
-        , IsOwned s k
-        , GenChange s
-        , HardDerivation k
-        , AddressIndexDerivationType k ~ 'Soft
-        )
-    => ctx
-    -> WalletId
-    -> ArgGenChange s
-    -> Passphrase "encryption"
-    -> CoinSelection
-    -> PoolId
-    -> ExceptT ErrSignDelegationCert IO (Tx, TxMeta, UTCTime, SealedTx)
-signDelegationCert ctx wid argGenChange pwd coinSel _poolId = db & \DBLayer{..} -> do
-    let (CoinSelection ins outs chgs) = coinSel
-    withRootKey @_ @s ctx wid pwd ErrSignDelegationCertWithRootKey $ \xprv -> do
-        mapExceptT atomically $ do
-            cp <- withExceptT ErrSignDelegationCertNoSuchWallet $ withNoSuchWallet wid $
-                readCheckpoint (PrimaryKey wid)
-            let (changeOuts, s') = flip runState (getState cp) $
-                    forM chgs $ \c -> do
-                        addr <- state (genChange argGenChange)
-                        return $ TxOut addr c
-            let allOuts = outs ++ changeOuts
-
-            --deriving chimeric account
-            let accPrv = deriveAccountPrivateKey @k pwd xprv minBound
-            let _addrPrv =
-                    deriveAddressPrivateKey pwd accPrv MutableAccount minBound
-
-            {--
-            let keyFrom = isOwned (getState cp) (xprv, pwd)
-            (tx, wit) <- either
-                (throwE . ErrSignDelegationCert)
-                pure
-                (mkDelegationCertTx tl poolId (addrPrv, pwd) keyFrom ins allOuts)
-            --}
-
-            withExceptT ErrSignDelegationCertNoSuchWallet $
-                putCheckpoint (PrimaryKey wid) (updateState s' cp)
-            let ourCoins (TxOut addr (Coin val)) =
-                    if fst (isOurs addr s')
-                        then Just (fromIntegral val)
-                        else Nothing
-            let amtOuts = sum (mapMaybe ourCoins allOuts)
-            let amtInps = fromIntegral $
-                    sum (getCoin . coin . snd <$> ins)
-            let txSlot =
-                    (currentTip cp) ^. #slotId
-            let meta = TxMeta
-                    { status = Pending
-                    , direction = Outgoing
-                    , slotId = txSlot
-                    , blockHeight = (currentTip cp) ^. #blockHeight
-                    , amount = Quantity (amtInps - amtOuts)
-                    }
-            let time = slotStartTime
-                    (slotParams (blockchainParameters cp))
-                    txSlot
-            return (undefined, meta, time, undefined)
-  where
-    db = ctx ^. dbLayer @s @k
-    _tl = ctx ^. transactionLayer @t @k
-
--- | Broadcast a (signed) transaction with certificate delegation to the network.
-submitDelegationCert
-    :: forall ctx s t k.
-        ( HasNetworkLayer t ctx
-        , HasDBLayer s k ctx
-        )
-    => ctx
-    -> WalletId
-    -> (Tx, TxMeta, SealedTx)
-    -> ExceptT ErrSubmitDelegationCert IO ()
-submitDelegationCert ctx wid (tx, meta, binary) = db & \DBLayer{..} -> do
-    withExceptT ErrSubmitDelegationCertNetwork $ postTx nw binary
-    mapExceptT atomically $ withExceptT ErrSubmitDelegationCertNoSuchWallet $ do
-        putTxHistory (PrimaryKey wid) [(tx, meta)]
-  where
-    db = ctx ^. dbLayer @s @k
-    nw = ctx ^. networkLayer @t
-
 
 {-------------------------------------------------------------------------------
                                   Key Store
@@ -1247,13 +1226,6 @@ data ErrSignDelegationCert
     = ErrSignDelegationCertNoSuchWallet ErrNoSuchWallet
     | ErrSignDelegationCertWithRootKey ErrWithRootKey
  --   | ErrSignDelegationCert ErrMkDelegationCertTx
-    deriving (Show, Eq)
-
--- | Errors that can occur when submitting a signed transaction with
--- a delegation certificate to the network.
-data ErrSubmitDelegationCert
-    = ErrSubmitDelegationCertNetwork ErrPostTx
-    | ErrSubmitDelegationCertNoSuchWallet ErrNoSuchWallet
     deriving (Show, Eq)
 
 {-------------------------------------------------------------------------------

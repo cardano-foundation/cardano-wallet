@@ -836,7 +836,7 @@ joinStakePool ctx spl (ApiT poolId) (ApiT wid) passwd = do
         W.signDelegationCert @_ @s @t @k wrk wid () pwd selection poolId
 
     liftHandler $ withWorkerCtx ctx wid liftE3 $ \wrk ->
-        W.submitDelegationCert @_ @s @t @k wrk wid (tx, meta, wit)
+        W.submitTx @_ @s @t @k wrk wid (tx, meta, wit)
 
     pure $ mkApiTransaction
         (txId tx)
@@ -847,7 +847,7 @@ joinStakePool ctx spl (ApiT poolId) (ApiT wid) passwd = do
   where
     liftE1 = throwE . ErrCreateDelegationCertNoSuchWallet
     liftE2 = throwE . ErrSignDelegationCertNoSuchWallet
-    liftE3 = throwE . ErrSubmitDelegationCertNoSuchWallet
+    liftE3 = throwE . ErrSubmitTxNoSuchWallet
     poolIsUnknown =
         isNothing . L.find (\(ApiStakePool pId _ _ _) -> pId == ApiT poolId)
 
