@@ -288,6 +288,8 @@ import Fmt
     ( blockListF, pretty )
 import GHC.Generics
     ( Generic )
+import Numeric.Natural
+    ( Natural )
 
 import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -881,32 +883,14 @@ signPayment ctx wid argGenChange pwd (CoinSelection ins outs chgs) = db & \DBLay
                         return $ TxOut addr c
             allShuffledOuts <- liftIO $ shuffle (outs ++ changeOuts)
             let keyFrom = isOwned (getState cp) (xprv, pwd)
-            (tx, wit) <- either
-                (throwE . ErrSignPayment)
-                pure
-                (mkStdTx tl keyFrom ins allShuffledOuts )
+            (tx, wit) <- withExceptT ErrSignPayment $ ExceptT $ pure $
+                mkStdTx tl keyFrom ins allShuffledOuts
             withExceptT ErrSignPaymentNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
-            let ourCoins (TxOut addr (Coin val)) =
-                    if fst (isOurs addr s')
-                        then Just (fromIntegral val)
-                        else Nothing
-            let amtOuts =
-                    sum (mapMaybe ourCoins allShuffledOuts)
-            let amtInps = fromIntegral $
-                    sum (getCoin . coin . snd <$> ins)
-            let txSlot =
-                    (currentTip cp) ^. #slotId
-            let meta = TxMeta
-                    { status = Pending
-                    , direction = Outgoing
-                    , slotId = txSlot
-                    , blockHeight = (currentTip cp) ^. #blockHeight
-                    , amount = Quantity (amtInps - amtOuts)
-                    }
-            let time = slotStartTime
-                    (slotParams (blockchainParameters cp))
-                    txSlot
+
+            let bp = blockchainParameters cp
+            let (time, meta) = mkTxMeta bp (currentTip cp) s' ins allShuffledOuts
+
             return (tx, meta, time, wit)
   where
     db = ctx ^. dbLayer @s @k
@@ -954,32 +938,51 @@ signDelegation ctx wid argGenChange pwd coinSel _poolId = db & \DBLayer{..} -> d
                 pure
                 (mkDelegationCertTx tl poolId (addrPrv, pwd) keyFrom ins allOuts)
             --}
+            --
+
+            let bp = blockchainParameters cp
+            let (time, meta) = mkTxMeta bp (currentTip cp) s' ins allOuts
 
             withExceptT ErrSignDelegationNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
-            let ourCoins (TxOut addr (Coin val)) =
-                    if fst (isOurs addr s')
-                        then Just (fromIntegral val)
-                        else Nothing
-            let amtOuts = sum (mapMaybe ourCoins allOuts)
-            let amtInps = fromIntegral $
-                    sum (getCoin . coin . snd <$> ins)
-            let txSlot =
-                    (currentTip cp) ^. #slotId
-            let meta = TxMeta
-                    { status = Pending
-                    , direction = Outgoing
-                    , slotId = txSlot
-                    , blockHeight = (currentTip cp) ^. #blockHeight
-                    , amount = Quantity (amtInps - amtOuts)
-                    }
-            let time = slotStartTime
-                    (slotParams (blockchainParameters cp))
-                    txSlot
             return (undefined, meta, time, undefined)
   where
     db = ctx ^. dbLayer @s @k
     _tl = ctx ^. transactionLayer @t @k
+
+-- | Construct transaction metadata from a current block header and a list
+-- of input and output.
+mkTxMeta
+    :: IsOurs s
+    => BlockchainParameters
+    -> BlockHeader
+    -> s
+    -> [(TxIn, TxOut)]
+    -> [TxOut]
+    -> (UTCTime, TxMeta)
+mkTxMeta bp blockHeader wState ins outs =
+    let
+        amtOuts =
+            sum (mapMaybe ourCoins outs)
+
+        amtInps = fromIntegral $
+            sum (getCoin . coin . snd <$> ins)
+    in
+        ( slotStartTime (slotParams bp) (blockHeader ^. #slotId)
+        , TxMeta
+            { status = Pending
+            , direction = Outgoing
+            , slotId = blockHeader ^. #slotId
+            , blockHeight = blockHeader ^. #blockHeight
+            , amount = Quantity (amtInps - amtOuts)
+            }
+        )
+  where
+    ourCoins :: TxOut -> Maybe Natural
+    ourCoins (TxOut addr (Coin val)) =
+        if fst (isOurs addr wState)
+        then Just (fromIntegral val)
+        else Nothing
 
 -- | Broadcast a (signed) transaction to the network.
 submitTx
