@@ -53,7 +53,7 @@ import Cardano.Wallet
     , ErrEstimateTxFee (..)
     , ErrListTransactions (..)
     , ErrListUTxOStatistics (..)
-    , ErrMkStdTx (..)
+    , ErrMkTx (..)
     , ErrNoSuchWallet (..)
     , ErrPostTx (..)
     , ErrRemovePendingTx (..)

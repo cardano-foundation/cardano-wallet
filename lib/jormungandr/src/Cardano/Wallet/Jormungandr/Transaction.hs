@@ -18,6 +18,7 @@ import Prelude
 import Cardano.Wallet.Jormungandr.Binary
     ( Fragment (..)
     , MkFragment (..)
+    , StakeDelegationType (..)
     , TxWitnessTag (..)
     , finalizeFragment
     , fragmentId
@@ -38,10 +39,10 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..), SealedTx (..), Tx (..), TxOut (..) )
+    ( Hash (..), SealedTx (..), Tx (..), TxOut (..), chimericAccountFromXPub )
 import Cardano.Wallet.Transaction
     ( ErrDecodeSignedTx (..)
-    , ErrMkStdTx (..)
+    , ErrMkTx (..)
     , ErrValidateSelection
     , TransactionLayer (..)
     )
@@ -70,23 +71,16 @@ newTransactionLayer
     => Hash "Genesis"
     -> TransactionLayer t k
 newTransactionLayer block0H = TransactionLayer
-    { mkStdTx = \keyFrom rnps outs -> do
-        credentials <- forM rnps $ \(_, TxOut addr _) -> first getRawKey <$>
-            maybeToRight (ErrKeyNotFoundForAddress addr) (keyFrom addr)
-        let inps = fmap (second coin) rnps
-        let fragment = putFragment
-                block0H
-                (zip inps credentials)
-                outs
-                (MkFragmentSimpleTransaction (txWitnessTagFor @k))
-        return
-            ( Tx
-                { txId = fragmentId fragment
-                , resolvedInputs = inps
-                , outputs = outs
-                }
-            , finalizeFragment fragment
-            )
+    { mkStdTx = mkFragment $ MkFragmentSimpleTransaction (txWitnessTagFor @k)
+
+    , mkDelegationCertTx = \pool accXPrv ->
+        let
+            acc = chimericAccountFromXPub . getRawKey . publicKey . fst $ accXPrv
+        in mkFragment $ MkFragmentStakeDelegation
+                    (txWitnessTagFor @k)
+                    (DlgFull pool)
+                    acc
+                    (first getRawKey accXPrv)
 
     , decodeSignedTx = \payload -> do
         let errInvalidPayload =
@@ -109,6 +103,24 @@ newTransactionLayer block0H = TransactionLayer
         when (length inps > maxNumberOfInputs || length outs > maxNumberOfOutputs)
             $ Left ErrExceededInpsOrOuts
     }
+  where
+    mkFragment details keyFrom rnps outs = do
+        credentials <- forM rnps $ \(_, TxOut addr _) -> first getRawKey <$>
+            maybeToRight (ErrKeyNotFoundForAddress addr) (keyFrom addr)
+        let inps = fmap (second coin) rnps
+        let fragment = putFragment
+                block0H
+                (zip inps credentials)
+                outs
+                details
+        return
+            ( Tx
+                { txId = fragmentId fragment
+                , resolvedInputs = inps
+                , outputs = outs
+                }
+            , finalizeFragment fragment
+            )
 
 -- | Provide a transaction witness for a given private key. The type of witness
 -- is different between types of keys and, with backward-compatible support, we

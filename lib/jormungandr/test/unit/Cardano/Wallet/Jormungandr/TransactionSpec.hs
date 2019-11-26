@@ -13,13 +13,8 @@ module Cardano.Wallet.Jormungandr.TransactionSpec
 
 import Prelude
 
-import Cardano.Wallet.Jormungandr.Binary
-    ( MkFragment (..)
-    , StakeDelegationType (..)
-    , TxWitnessTag (..)
-    , finalizeFragment
-    , putFragment
-    )
+import Cardano.Wallet.Jormungandr.Compatibility
+    ( Jormungandr )
 import Cardano.Wallet.Jormungandr.Transaction
     ( ErrExceededInpsOrOuts (..), newTransactionLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -28,12 +23,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , NetworkDiscriminantVal
     , Passphrase (..)
     , PaymentAddress (..)
-    , WalletKey (..)
     , XPrv
     , networkDiscriminantVal
     , paymentAddress
     , publicKey
-    , xpubPublicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
@@ -43,7 +36,6 @@ import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
-    , ChimericAccount (..)
     , Coin (..)
     , Hash (..)
     , PoolId (..)
@@ -52,23 +44,28 @@ import Cardano.Wallet.Primitive.Types
     , TxOut (..)
     )
 import Cardano.Wallet.Transaction
-    ( ErrMkStdTx (..), TransactionLayer (..) )
+    ( ErrMkTx (..), TransactionLayer (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertToBase )
 import Data.ByteString
     ( ByteString )
+import Data.Function
+    ( (&) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Class
     ( toText )
 import Test.Hspec
-    ( Spec, SpecWith, describe, it, shouldBe )
+    ( HasCallStack, Spec, SpecWith, describe, it, shouldBe )
+import Test.QuickCheck
+    ( counterexample )
 
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
 import qualified Data.ByteArray as BA
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.Map as Map
 import qualified Data.Text as T
 
@@ -117,6 +114,18 @@ mkStdTxSpec = do
             "1323856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1"
     let block0 = Hash $ unsafeFromHex
             "13c3d835c53a198f7c8513b04d99eeb23c745c0a73364c2f0e802fa38eec9dba"
+
+    -- Bash equivalent of above:
+    -- XPRV0HEX=30c8422fd3cbaf54449df9f627a1f88cf85d4fee84083a91cdb6f0dbdb09c24ded29409c6a8275a643a2e79d280d97a898a3366706f3f677434b75c9d98680d0
+    -- XPRV1HEX=b81e217576bf2683f3359f50d0bf938ca3c61fdf7a2d0c1b2b35f7fb174dc0426bb7377c9ea9cb481b4c3df601379fbf69033add18c1d272d7975c43682afc48
+    -- XPRV2HEX=e01bfb39e3e595fce0b9b19e386a82816e0cef8aa823c75a32bc0f39bcf7c14e8a03d255df0440b6d0fcf5d5199a582d1df7d858bd7556d4941ebf6223fa66d1
+    -- XPRV0=$(echo $XPRV0HEX | jcli key from-bytes --type ed25519Extended)
+    -- XPRV1=$(echo $XPRV1HEX | jcli key from-bytes --type ed25519Extended)
+    -- XPRV2=$(echo $XPRV2HEX | jcli key from-bytes --type ed25519Extended)
+    --
+    -- TXIN0=666984dec4bc0ff1888be97bfe0694a96b35c58d025405ead51d5cc72a3019f4
+    -- TXIN1=1323856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1
+    -- BLOCK0=13c3d835c53a198f7c8513b04d99eeb23c745c0a73364c2f0e802fa38eec9dba
 
     describe "mkStdTx 'Mainnet" $ do
         let tl = newTransactionLayer block0
@@ -207,48 +216,69 @@ mkStdTxSpec = do
 
         -- Delegation tx (without fees)
         --
-        -- jcli certificate new \
-        --     stake-delegation "5aac0894709438314ec1c8b0697820fc2efaac914768b53e54d68b0bce17a9a8" \
-        --     (echo $XPRV0 | jcli key to-public) > deleg.cert
+        -- POOLID=5aac0894709438314ec1c8b0697820fc2efaac914768b53e54d68b0bce17a9a8
         --
-        -- echo $XPRV0 > key.prv
+        -- jcli certificate new stake-delegation \
+        --   $(echo $XPRV0 | jcli key to-public) \
+        --   $POOLID > deleg.cert
         --
-        -- jcli certificate sign -c deleg.cert -k key.prv -o deleg.signedcert
+        -- echo $XPRV0 > xprv0.prv
         --
-        -- cat cert \
-        --   | jcli certificate sign -k <(echo $XPRV1 | jcli key from-bytes --type ed25519Extended) \
-        --   > cert.signed
+        -- jcli certificate sign -c deleg.cert -k xprv0.prv -o deleg.signedcert
         --
+        --
+        -- echo "Delegation tx without fees:"
         -- jcli transaction new \
-        --     | jcli transaction add-certificate (jcli utils bech32-convert (cat stake_delegation3.signedcert) cert) \
+        --     | jcli transaction add-certificate $(jcli utils bech32-convert $(cat deleg.signedcert) cert) \
         --     | jcli transaction finalize \
         --     | jcli transaction seal \
-        --     | jcli transaction auth -k key.prv \
+        --     | jcli transaction auth -k xprv0.prv \
         --     | jcli transaction to-message
-        it "Provisional Quick'n'Dirty Test For checking delegation serializers" $ do
-            let poolId = PoolId $ unsafeFromHex
-                    "5aac0894709438314ec1c8b0697820fc\
-                    \2efaac914768b53e54d68b0bce17a9a8"
-            let accountId = ChimericAccount $
-                    xpubPublicKey $ getRawKey $ publicKey xprv0
 
-            let SealedTx sealed = finalizeFragment $ putFragment
-                    block0
-                    []
-                    []
-                    (MkFragmentStakeDelegation
-                        TxWitnessUTxO
-                        (DlgFull poolId)
-                        accountId
-                        (getRawKey xprv0, pwd0)
-                    )
+        let poolId = PoolId $ unsafeFromHex
+                "5aac0894709438314ec1c8b0697820fc\
+                \2efaac914768b53e54d68b0bce17a9a8"
+        goldenTestDelegationCertTx tl keystore
+            poolId
+            (xprv0, pwd0)
+            [] -- no inputs; we assume 0 fees here for simplicity
+            [] -- no outputs; no change
+            "008600042d155d07184387ba6ff8836014ba0b626b1808e67e75dfa370c2dc5f58\
+            \1715fe015aac0894709438314ec1c8b0697820fc2efaac914768b53e54d68b0bce\
+            \17a9a800000105458a17be5c072b8981f43a272b1d8136f880ff91ff87d1b34aef\
+            \3e860300df40997b2130b7db70796b30684ea99d5dd7de1767bd6602da7138864e\
+            \30a3d202"
 
-            hex sealed `shouldBe`
-                "008600042d155d07184387ba6ff8836014ba0b626b1808e67e75dfa370c2dc\
-                \5f581715fe015aac0894709438314ec1c8b0697820fc2efaac914768b53e54\
-                \d68b0bce17a9a800000105458a17be5c072b8981f43a272b1d8136f880ff91\
-                \ff87d1b34aef3e860300df40997b2130b7db70796b30684ea99d5dd7de1767\
-                \bd6602da7138864e30a3d202"
+        -- Delegation certificate tx /with/ fees:
+        --
+        -- jcli transaction new \
+        --     | jcli transaction add-certificate $(jcli utils bech32-convert $(cat deleg.signedcert) cert) \
+        --     | jcli transaction add-input $TXIN0 0 42 \
+        --     | jcli transaction finalize > tx
+        --
+        -- echo $XPRV0 \
+        --     | jcli transaction make-witness $(jcli transaction data-for-witness --staging tx) \
+        --     --genesis-block-hash $BLOCK0 --type utxo > wit0.bin
+        --
+        -- cat tx \
+        --     | jcli transaction add-witness wit0.bin \
+        --     | jcli transaction seal \
+        --     | jcli transaction auth -k xprv0.prv \
+        --     | jcli transaction to-message
+
+        goldenTestDelegationCertTx tl keystore
+            poolId
+            (xprv0, pwd0)
+            [(TxIn txin0 0, TxOut addr0 (Coin 42))]
+            [] -- no outputs; no change
+            "00f000042d155d07184387ba6ff8836014ba0b626b1808e67e75dfa370c2dc5f58\
+            \1715fe015aac0894709438314ec1c8b0697820fc2efaac914768b53e54d68b0bce\
+            \17a9a8010000000000000000002a666984dec4bc0ff1888be97bfe0694a96b35c5\
+            \8d025405ead51d5cc72a3019f40179e6b8dc3885f26bea38de7e48adeb985e1d70\
+            \b79aa1f6e150c2b61795dbb8d2e2fb76ae59ca862f28431ab318ef622999c25a4e\
+            \d4947f299b5020a74317e70e0162aee0d27ff232fa09b588483ba861fc374df790\
+            \0836e07eb80bd2fc88684eb32d9b500db025cd0c3f8b83a86c6ac61d9426e61e99\
+            \99a80e7ea19df8fe49c701"
 
     describe "mkStdTx (legacy) 'Mainnet" $ do
         let tl = newTransactionLayer block0
@@ -477,6 +507,26 @@ goldenTestStdTx tl keystore inps outs bytes' = it title $ do
     bytes `shouldBe` Right bytes'
   where
     title = "golden test mkStdTx: " <> show inps <> show outs
+
+goldenTestDelegationCertTx
+    :: forall t k. (t ~ Jormungandr, HasCallStack)
+    => TransactionLayer t k
+    -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+    -> PoolId
+    -> (k 'AddressK XPrv, Passphrase "encryption")
+    -> [(TxIn, TxOut)]
+    -> [TxOut]
+    -> ByteString
+    -> SpecWith ()
+goldenTestDelegationCertTx tl keystore pool (accountXPrv, pass) inps outs bytes' = it title $ do
+    let res = mkDelegationCertTx tl pool (accountXPrv, pass) keystore inps outs
+    let sealed = getSealedTx . snd <$> res
+    sealed `shouldBe` (Right $ unsafeFromHex bytes')
+    & counterexample ("poolId = " <> showHex (getPoolId pool))
+  where
+    title = "golden test mkCertificateTx: " <> show pool
+        <> show inps <> show outs
+    showHex = B8.unpack . hex
 
 xprvSeqFromSeed
     :: ByteString

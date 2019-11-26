@@ -21,7 +21,7 @@ module Cardano.Wallet.Transaction
       TransactionLayer(..)
 
     -- * Errors
-    , ErrMkStdTx (..)
+    , ErrMkTx (..)
     , ErrValidateSelection
     , ErrDecodeSignedTx (..)
 
@@ -45,6 +45,7 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Hash (..)
+    , PoolId
     , SealedTx (..)
     , Tx (..)
     , TxIn (..)
@@ -67,7 +68,7 @@ data TransactionLayer t k = TransactionLayer
         :: (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
         -> [(TxIn, TxOut)]
         -> [TxOut]
-        -> Either ErrMkStdTx (Tx, SealedTx)
+        -> Either ErrMkTx (Tx, SealedTx)
         -- ^ Construct a standard transaction
         --
         -- " Standard " here refers to the fact that we do not deal with redemption,
@@ -75,6 +76,20 @@ data TransactionLayer t k = TransactionLayer
         --
         -- This expects as a first argument a mean to compute or lookup private
         -- key corresponding to a particular address.
+
+    , mkDelegationCertTx
+        :: PoolId
+        -> (k 'AddressK XPrv, Passphrase "encryption") -- reward account
+        -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+        -> [(TxIn, TxOut)]
+        -> [TxOut]
+        -> Either ErrMkTx (Tx, SealedTx)
+        -- ^ Construct a transaction containing a certificate for delegating to
+        -- a stake pool.
+        --
+        -- The certificate is a combination of the 'PoolId' and the public key
+        -- of the reward account. (Note that this is an address key and
+        -- HD account keys are something different)
 
     , estimateSize :: CoinSelection -> Quantity "byte" Int
         -- ^ Estimate the size of a 'CoinSelection', in bytes. This operation is
@@ -129,7 +144,7 @@ data ErrDecodeSignedTx
     deriving (Show, Eq)
 
 -- | Possible signing error
-newtype ErrMkStdTx
+newtype ErrMkTx
     = ErrKeyNotFoundForAddress Address
     -- ^ We tried to sign a transaction with inputs that are unknown to us?
     deriving (Eq, Show)
