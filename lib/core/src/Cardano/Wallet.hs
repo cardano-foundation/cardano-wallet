@@ -241,15 +241,15 @@ import Control.DeepSeq
 import Control.Monad
     ( forM, forM_, void, when )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( MonadIO, liftIO )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT (..), except, mapExceptT, runExceptT, throwE, withExceptT )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..), maybeToExceptT )
-import Control.Monad.Trans.State
-    ( runState, state )
+import Control.Monad.Trans.State.Strict
+    ( runState, runStateT, state )
 import Data.ByteString
     ( ByteString )
 import Data.Coerce
@@ -811,6 +811,25 @@ estimatePaymentFee ctx wid recipients = do
   where
     tl = ctx ^. transactionLayer @t @k
 
+-- | Augments the given outputs with new outputs. These new outputs corresponds
+-- to change outputs to which new addresses are being assigned to. This updates
+-- the wallet state as it needs to keep track of new pending change addresses.
+assignChangeAddresses
+    :: forall s m.
+        ( GenChange s
+        , MonadIO m
+        )
+    => ArgGenChange s
+    -> [TxOut]
+    -> [Coin]
+    -> s
+    -> m ([TxOut], s)
+assignChangeAddresses argGenChange outs chgs = runStateT $ do
+    chgsOuts <- forM chgs $ \c -> do
+        addr <- state (genChange argGenChange)
+        pure $ TxOut addr c
+    liftIO $ shuffle (outs ++ chgsOuts)
+
 -- | Transform the given set of migration coin selections (for a source wallet)
 --   into a set of coin selections that will migrate funds to the specified
 --   target wallet.
@@ -875,21 +894,19 @@ signPayment ctx wid argGenChange pwd (CoinSelection ins outs chgs) = db & \DBLay
         mapExceptT atomically $ do
             cp <- withExceptT ErrSignPaymentNoSuchWallet $ withNoSuchWallet wid $
                 readCheckpoint (PrimaryKey wid)
-            let (changeOuts, s') = flip runState (getState cp) $
-                    forM chgs $ \c -> do
-                        addr <- state (genChange argGenChange)
-                        return $ TxOut addr c
-            allShuffledOuts <- liftIO $ shuffle (outs ++ changeOuts)
+            (allOuts, s') <-
+                assignChangeAddresses argGenChange outs chgs (getState cp)
+
             let keyFrom = isOwned (getState cp) (xprv, pwd)
-            (tx, wit) <- withExceptT ErrSignPayment $ ExceptT $ pure $
-                mkStdTx tl keyFrom ins allShuffledOuts
+            (tx, sealedTx) <- withExceptT ErrSignPayment $ ExceptT $ pure $
+                mkStdTx tl keyFrom ins allOuts
             withExceptT ErrSignPaymentNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
 
             let bp = blockchainParameters cp
-            let (time, meta) = mkTxMeta bp (currentTip cp) s' ins allShuffledOuts
+            let (time, meta) = mkTxMeta bp (currentTip cp) s' ins allOuts
 
-            return (tx, meta, time, wit)
+            return (tx, meta, time, sealedTx)
   where
     db = ctx ^. dbLayer @s @k
     tl = ctx ^. transactionLayer @t @k
@@ -918,11 +935,8 @@ signDelegation ctx wid argGenChange pwd coinSel _poolId = db & \DBLayer{..} -> d
         mapExceptT atomically $ do
             cp <- withExceptT ErrSignDelegationNoSuchWallet $ withNoSuchWallet wid $
                 readCheckpoint (PrimaryKey wid)
-            let (changeOuts, s') = flip runState (getState cp) $
-                    forM chgs $ \c -> do
-                        addr <- state (genChange argGenChange)
-                        return $ TxOut addr c
-            let allOuts = outs ++ changeOuts
+            (allOuts, s') <-
+                assignChangeAddresses argGenChange outs chgs (getState cp)
 
             -- TODO
             -- Pre-compute this and store it with the wallet static metadata.
