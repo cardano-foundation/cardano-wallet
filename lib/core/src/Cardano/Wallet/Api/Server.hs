@@ -1470,15 +1470,19 @@ instance LiftHandler ErrListUTxOStatistics where
     handler = \case
         ErrListUTxOStatisticsNoSuchWallet e -> handler e
 
+instance LiftHandler ErrMkTx where
+    handler = \case
+        ErrKeyNotFoundForAddress addr ->
+            apiError err500 KeyNotFoundForAddress $ mconcat
+                [ "That's embarassing. I couldn't sign the given transaction: "
+                , "I haven't found the corresponding private key for a known "
+                , "input address I should keep track of: ", showT addr, ". "
+                , "Retrying may work, but something really went wrong..."
+                ]
+
 instance LiftHandler ErrSignPayment where
     handler = \case
-        ErrSignPayment (ErrKeyNotFoundForAddress addr) ->
-            apiError err403 KeyNotFoundForAddress $ mconcat
-                [ "I couldn't sign the given transaction: I haven't found the "
-                , "corresponding private key for the following output address: "
-                , pretty addr, ". Are you sure this address belongs to a known "
-                , "wallet?"
-                ]
+        ErrSignPaymentMkTx e -> handler e
         ErrSignPaymentNoSuchWallet e -> (handler e)
             { errHTTPCode = 410
             , errReasonPhrase = errReasonPhrase err410
@@ -1655,6 +1659,7 @@ instance LiftHandler ErrSelectForDelegation where
 
 instance LiftHandler ErrSignDelegation where
     handler = \case
+        ErrSignDelegationMkTx e -> handler e
         ErrSignDelegationNoSuchWallet e -> (handler e)
             { errHTTPCode = 410
             , errReasonPhrase = errReasonPhrase err410
