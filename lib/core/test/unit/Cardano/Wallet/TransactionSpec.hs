@@ -7,7 +7,7 @@ import Prelude
 import Cardano.Wallet.Primitive.Types
     ( Address (..) )
 import Cardano.Wallet.Transaction
-    ( ErrMkStdTx (..) )
+    ( ErrMkTx (..) )
 import Test.Hspec
     ( Spec, describe, it )
 

@@ -84,7 +84,7 @@ import Cardano.Wallet.Primitive.Types
     , unsafeEpochNo
     )
 import Cardano.Wallet.Transaction
-    ( ErrMkStdTx (..), TransactionLayer (..) )
+    ( ErrMkTx (..), TransactionLayer (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Arrow

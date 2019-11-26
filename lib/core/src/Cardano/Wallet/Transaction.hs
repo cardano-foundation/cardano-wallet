@@ -21,7 +21,7 @@ module Cardano.Wallet.Transaction
       TransactionLayer(..)
 
     -- * Errors
-    , ErrMkStdTx (..)
+    , ErrMkTx (..)
     , ErrValidateSelection
     , ErrDecodeSignedTx (..)
 
@@ -68,7 +68,7 @@ data TransactionLayer t k = TransactionLayer
         :: (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
         -> [(TxIn, TxOut)]
         -> [TxOut]
-        -> Either ErrMkStdTx (Tx, SealedTx)
+        -> Either ErrMkTx (Tx, SealedTx)
         -- ^ Construct a standard transaction
         --
         -- " Standard " here refers to the fact that we do not deal with redemption,
@@ -83,7 +83,7 @@ data TransactionLayer t k = TransactionLayer
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
         -> [(TxIn, TxOut)]
         -> [TxOut]
-        -> Either ErrMkStdTx (Tx, SealedTx)
+        -> Either ErrMkTx (Tx, SealedTx)
         -- ^ Construct a transaction containing a certificate for delegating to
         -- a stake pool.
         --
@@ -144,7 +144,7 @@ data ErrDecodeSignedTx
     deriving (Show, Eq)
 
 -- | Possible signing error
-newtype ErrMkStdTx
+newtype ErrMkTx
     = ErrKeyNotFoundForAddress Address
     -- ^ We tried to sign a transaction with inputs that are unknown to us?
     deriving (Eq, Show)

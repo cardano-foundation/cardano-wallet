@@ -44,7 +44,7 @@ import Cardano.Wallet.Primitive.Types
     , TxOut (..)
     )
 import Cardano.Wallet.Transaction
-    ( ErrMkStdTx (..), TransactionLayer (..) )
+    ( ErrMkTx (..), TransactionLayer (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Data.ByteArray.Encoding

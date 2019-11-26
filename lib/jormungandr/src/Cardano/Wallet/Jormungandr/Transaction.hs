@@ -42,7 +42,7 @@ import Cardano.Wallet.Primitive.Types
     ( Hash (..), SealedTx (..), Tx (..), TxOut (..), chimericAccountFromXPub )
 import Cardano.Wallet.Transaction
     ( ErrDecodeSignedTx (..)
-    , ErrMkStdTx (..)
+    , ErrMkTx (..)
     , ErrValidateSelection
     , TransactionLayer (..)
     )

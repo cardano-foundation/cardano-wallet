@@ -93,7 +93,7 @@ module Cardano.Wallet
     , ErrCreateUnsignedTx (..)
     , ErrEstimateTxFee (..)
     , ErrSignTx (..)
-    , ErrMkStdTx (..)
+    , ErrMkTx (..)
     , ErrAdjustForFee (..)
     , ErrCoinSelection (..)
     , ErrSubmitTx (..)
@@ -224,7 +224,7 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Transaction
     ( ErrDecodeSignedTx (..)
-    , ErrMkStdTx (..)
+    , ErrMkTx (..)
     , ErrValidateSelection
     , TransactionLayer (..)
     )
@@ -1116,7 +1116,7 @@ newtype ErrListUTxOStatistics
 
 -- | Errors that can occur when signing a transaction.
 data ErrSignTx
-    = ErrSignTx ErrMkStdTx
+    = ErrSignTx ErrMkTx
     | ErrSignTxNoSuchWallet ErrNoSuchWallet
     | ErrSignTxWithRootKey ErrWithRootKey
     deriving (Show, Eq)
