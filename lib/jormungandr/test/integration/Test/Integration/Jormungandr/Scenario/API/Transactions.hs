@@ -31,13 +31,21 @@ import Cardano.Wallet.Jormungandr.Transaction
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..), Passphrase (..), fromMnemonic )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( generateKeyFromSeed )
+    ( KnownNetwork (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( GenChange (..), IsOwned (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, mkSeqState )
 import Cardano.Wallet.Primitive.Types
-    ( Coin (..), SealedTx (..), Tx (..), TxIn (..), TxOut (..), WalletId )
+    ( Coin (..)
+    , Direction (..)
+    , SealedTx (..)
+    , Tx (..)
+    , TxIn (..)
+    , TxOut (..)
+    , TxStatus (..)
+    , WalletId
+    )
 import Cardano.Wallet.Transaction
     ( TransactionLayer (..) )
 import Control.Monad
@@ -58,23 +66,28 @@ import Numeric.Natural
     ( Natural )
 import Test.Hspec
     ( SpecWith, describe, it, shouldBe, shouldSatisfy )
-import Test.Integration.Framework.DSL
+import Test.Integration.Framework.DSL as DSL
     ( Context
     , Headers (..)
     , Payload (..)
     , TxDescription (..)
+    , amount
     , balanceAvailable
     , balanceTotal
+    , direction
     , emptyByronWallet
     , emptyWallet
+    , eventually_
     , expectErrorMessage
     , expectEventually
     , expectEventually'
     , expectFieldEqual
+    , expectListItemFieldEqual
     , expectResponseCode
     , expectSuccess
     , faucetAmt
     , feeEstimator
+    , fixturePassphrase
     , fixtureRawTx
     , fixtureWallet
     , getFromResponse
@@ -82,10 +95,12 @@ import Test.Integration.Framework.DSL
     , json
     , listAddresses
     , listAllTransactions
+    , listTxEp
     , postExternalTxEp
     , postTxEp
     , postTxFeeEp
     , request
+    , status
     , verify
     , walletId
     , walletName
@@ -100,9 +115,13 @@ import Test.Integration.Framework.TestData
     , errMsg415OctetStream
     , mnemonics15
     )
+import Test.QuickCheck
+    ( arbitrary, generate, vectorOf )
 
 import qualified Cardano.Wallet.Api.Types as API
+import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.ByteArray as BA
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
@@ -122,6 +141,69 @@ spec = do
         (wSrc, payload) <- fixtureZeroAmtMulti ctx
         r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
         expectResponseCode HTTP.status202 r
+
+    it "TRANS_CREATE_10 - 'account' outputs" $ \ctx -> do
+        (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+        addrs <- listAddresses ctx wDest
+
+        let hrp = Bech32.unsafeHumanReadablePartFromText "addr"
+        bytes <- generate (vectorOf 32 arbitrary)
+        let (utxoAmt, utxoAddr) =
+                ( 14 :: Natural
+                , (addrs !! 1) ^. #id
+                )
+        let (accountAmt, accountAddr) =
+                ( 42 :: Natural
+                , Bech32.encodeLenient hrp
+                $ Bech32.dataPartFromBytes
+                $ BS.pack ([addrAccount @n] <> bytes)
+                )
+
+        let payload = Json [json|{
+                "payments": [
+                    { "address": #{utxoAddr}
+                    , "amount": {"quantity":#{utxoAmt},"unit":"lovelace"}
+                    },
+                    { "address": #{accountAddr}
+                    , "amount": {"quantity":#{accountAmt},"unit":"lovelace"}
+                    }
+                ],
+                "passphrase": #{fixturePassphrase}
+            }|]
+
+        r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
+        verify r
+            [ expectResponseCode HTTP.status202
+            , expectFieldEqual DSL.direction Outgoing
+            , expectFieldEqual DSL.status Pending
+            ]
+
+        eventually_ $ do
+            request @([ApiTransaction n]) ctx
+                (listTxEp wSrc mempty)
+                Default
+                Empty
+                >>= flip verify
+                [ expectListItemFieldEqual 0 DSL.direction Outgoing
+                , expectListItemFieldEqual 0 DSL.status InLedger
+                ]
+            request @([ApiTransaction n]) ctx
+                (listTxEp wDest mempty)
+                Default
+                Empty
+                >>= flip verify
+                [ expectListItemFieldEqual 0 DSL.direction Incoming
+                , expectListItemFieldEqual 0 DSL.status InLedger
+                , expectListItemFieldEqual 0 DSL.amount utxoAmt
+                ]
+            request @ApiWallet ctx
+                (getWalletEp wDest)
+                Default
+                Empty
+                >>= flip verify
+                [ expectFieldEqual balanceAvailable utxoAmt
+                , expectFieldEqual balanceTotal utxoAmt
+                ]
 
     it "TRANS_ESTIMATE_09 - \
         \a fee can be estimated for a tx with an output of amount 0 (single)" $ \ctx -> do

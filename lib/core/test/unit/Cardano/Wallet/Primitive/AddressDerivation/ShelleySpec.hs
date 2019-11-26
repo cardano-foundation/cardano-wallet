@@ -34,8 +34,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( KnownNetwork (..)
     , ShelleyKey (..)
-    , addrGroupedSize
-    , addrSingleSize
     , generateKeyFromSeed
     , minSeedLengthBytes
     , publicKeySize
@@ -61,6 +59,7 @@ import Test.QuickCheck
     , arbitraryBoundedEnum
     , choose
     , conjoin
+    , elements
     , expectFailure
     , property
     , suchThat
@@ -226,7 +225,7 @@ newtype SingleAddress (n :: NetworkDiscriminant)
 
 instance KnownNetwork n => Arbitrary (SingleAddress n) where
     arbitrary = SingleAddress . Address . BS.pack
-        <$> fmap ([single @n] <>) (vectorOf publicKeySize arbitrary)
+        <$> fmap ([addrSingle @n] <>) (vectorOf publicKeySize arbitrary)
 
 newtype GroupedAddress (n :: NetworkDiscriminant)
     = GroupedAddress Address
@@ -234,11 +233,20 @@ newtype GroupedAddress (n :: NetworkDiscriminant)
 
 instance KnownNetwork n => Arbitrary (GroupedAddress n) where
     arbitrary = GroupedAddress . Address . BS.pack
-        <$> fmap ([grouped @n] <>) (vectorOf (2*publicKeySize) arbitrary)
+        <$> fmap ([addrGrouped @n] <>) (vectorOf (2*publicKeySize) arbitrary)
 
 newtype InvalidAddress = InvalidAddress Address deriving (Eq, Show)
 
 instance Arbitrary InvalidAddress where
     arbitrary = InvalidAddress . Address . BS.pack <$> do
-        n <- suchThat (choose (1, 100)) (`notElem` [addrSingleSize, addrGroupedSize])
-        vectorOf n arbitrary
+        firstByte <- suchThat arbitrary (`notElem` validFirstBytes)
+        len <- elements validSizes
+        ([firstByte]<>) <$> vectorOf len arbitrary
+      where
+        validSizes = [publicKeySize, 2*publicKeySize]
+        validFirstBytes =
+            [ addrSingle @'Testnet
+            , addrSingle @'Mainnet
+            , addrGrouped @'Testnet
+            , addrGrouped @'Mainnet
+            ]

@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
@@ -482,15 +483,15 @@ spec = do
             \Address."
         negativeTest proxy ".%14'"
             ("Unable to decode Address: encoding is neither Bech32 nor Base58.")
-        negativeTest proxy "ca1qvqsyqcyq5rqwzqfpg9scrgk66qs0"
+        negativeTest proxy "ca1qv8qurswpc8qurswpc8qurs7xnyen"
             "Invalid address length (14): expected either 33 or 65 bytes."
         negativeTest proxy
             "ca1dvqsyqcyq5rqwzqfpg9scrgwpugpzysnzs23v9ccrydpk8qarc0jqscdket"
-            ("This type of address is not supported.")
+            ("This type of address is not supported: [107].")
         negativeTest proxy
             "ca1dvqsyqcyq5rqwzqfpg9scrgwpugpzysnzs23v9ccrydpk8qarc0jqqgzqvz\
             \q2ps8pqys5zcvp58q7yq3zgf3g9gkzuvpjxsmrsw3u8eqwxpnc0"
-            ("This type of address is not supported.")
+            ("This type of address is not supported: [107].")
         -- NOTE:
         -- Data below have been generated with [jcli](https://github.com/input-output-hk/jormungandr/tree/master/doc/jcli)
         -- as described in the annex at the end of the file.
@@ -529,15 +530,15 @@ spec = do
             \Address."
         negativeTest proxy ".%14'"
             ("Unable to decode Address: encoding is neither Bech32 nor Base58.")
-        negativeTest proxy "ta1dvqsyqcyq5rqwzqfpg9scrg5v76st"
+        negativeTest proxy "ta1sv8qurswpc8qurswpc8qurs2l0ech"
             "Invalid address length (14): expected either 33 or 65 bytes."
         negativeTest proxy
             "ta1dvqsyqcyq5rqwzqfpg9scrgwpugpzysnzs23v9ccrydpk8qarc0jq8ygppa"
-            ("This type of address is not supported.")
+            ("This type of address is not supported: [107].")
         negativeTest proxy
             "ta1dvqsyqcyq5rqwzqfpg9scrgwpugpzysnzs23v9ccrydpk8qarc0jqqgzqvz\
             \q2ps8pqys5zcvp58q7yq3zgf3g9gkzuvpjxsmrsw3u8eq9lcgc2"
-            ("This type of address is not supported.")
+            ("This type of address is not supported: [107].")
         goldenTestAddr proxy
             [ "7bd5386c31ac31ba7076856500cf26f85d4695b80f183c7a53e3f28419d6bde1"
             ]
@@ -866,17 +867,21 @@ instance {-# OVERLAPS #-} KnownNetwork network
     arbitrary = do
         let proxy = Proxy @network
         addr <- ShowFmt <$> frequency
-            [ (10, genAddress (single @network) (grouped @network))
+            [ (10, genAddress @network)
             , (1, genLegacyAddress (30, 100))
             ]
         return (addr, proxy)
 
-genAddress :: Word8 -> Word8 -> Gen Address
-genAddress singleByte groupedByte = oneof
-    [ (\bytes -> Address (BS.pack (singleByte:bytes)))
+genAddress
+    :: forall (network :: NetworkDiscriminant). (KnownNetwork network)
+    => Gen Address
+genAddress = oneof
+    [ (\bytes -> Address (BS.pack (addrSingle @network:bytes)))
         <$> vectorOf publicKeySize arbitrary
-    , (\bytes -> Address (BS.pack (groupedByte:bytes)))
+    , (\bytes -> Address (BS.pack (addrGrouped @network:bytes)))
         <$> vectorOf (2*publicKeySize) arbitrary
+    , (\bytes -> Address (BS.pack (addrAccount @network:bytes)))
+        <$> vectorOf publicKeySize arbitrary
     ]
 
 genLegacyAddress :: (Int, Int) -> Gen Address
