@@ -123,7 +123,7 @@ import Cardano.Wallet.Unsafe
 import Control.Lens
     ( Lens', at, (^.) )
 import Control.Monad
-    ( replicateM )
+    ( forM_, replicateM )
 import Control.Monad.IO.Class
     ( liftIO )
 import Crypto.Hash
@@ -447,15 +447,22 @@ spec = do
                 "4c43d68b21921034519c36d2475f5adba989bb4465ec"
             |] `shouldBe` (Left @String @(ApiT PoolId) msg)
 
-        it "StakePoolMetadata" $ do
-            let msg = "Error in $.ticker: stake pool ticker length must be 3-4 characters"
-            Aeson.parseEither parseJSON [aesonQQ|
-                {
-                    "homepage": "https://12345",
-                    "ticker": "too long",
-                    "pledge_address": "ed25519_pk15vz9yc5c3upgze8tg5kd7kkzxqgqfxk5a3kudp22hdg0l2za00sq2ufkk7"
-                }
-            |] `shouldBe` (Left @String @StakePoolMetadata msg)
+        describe "StakePoolMetadata" $ do
+            let msg = "Error in $.ticker: stake pool ticker length must be \
+                      \3-4 characters"
+
+            let testInvalidTicker :: Text -> SpecWith ()
+                testInvalidTicker txt =
+                    it ("Invalid ticker length: " ++ show (T.length txt)) $ do
+                        Aeson.parseEither parseJSON [aesonQQ|
+                            {
+                                "homepage": "https://12345",
+                                "ticker": #{txt},
+                                "pledge_address": "ed25519_pk15vz9yc5c3upgze8tg5kd7kkzxqgqfxk5a3kudp22hdg0l2za00sq2ufkk7"
+                            }
+                        |] `shouldBe` (Left @String @StakePoolMetadata msg)
+
+            forM_ ["too long", "sh", ""] testInvalidTicker
 
     describe "verify HttpApiData parsing failures too" $ do
         it "ApiT WalletId" $ do
