@@ -40,6 +40,9 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , HardDerivation (..)
     , SoftDerivation (..)
 
+    -- * Delegation
+    , deriveRewardAccount
+
     -- * Primitive Crypto Types
     , XPub (..)
     , ChainCode (..)
@@ -304,6 +307,20 @@ class HardDerivation key => SoftDerivation (key :: Depth -> * -> *) where
         -> AccountingStyle
         -> Index 'Soft 'AddressK
         -> key 'AddressK XPub
+
+-- | Derive a reward account from a root private key. It is agreed by standard
+-- that every HD wallet will use only a single reward account. This account is
+-- located into a special derivation path and uses the first index of that path.
+deriveRewardAccount
+    :: ( HardDerivation k
+       , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+       )
+    => Passphrase "encryption"
+    -> k 'RootK XPrv
+    -> k 'AddressK XPrv
+deriveRewardAccount pwd rootPrv =
+    let accPrv = deriveAccountPrivateKey pwd rootPrv minBound
+    in deriveAddressPrivateKey pwd accPrv MutableAccount minBound
 
 {-------------------------------------------------------------------------------
                                  Passphrases
