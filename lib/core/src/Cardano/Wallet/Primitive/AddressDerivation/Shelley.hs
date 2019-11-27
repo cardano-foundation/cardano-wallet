@@ -284,21 +284,25 @@ changePassphraseSeq (Passphrase oldPwd) (Passphrase newPwd) (ShelleyKey prv) =
 instance PaymentAddress 'Mainnet ShelleyKey where
     paymentAddress (ShelleyKey k0) =
         encodeShelleyAddress (addrSingle @'Mainnet) [xpubPublicKey k0]
+    liftPaymentAddress (KeyFingerprint k0) =
+        encodeShelleyAddress (addrSingle @'Mainnet) [k0]
 
 instance PaymentAddress 'Testnet ShelleyKey where
     paymentAddress (ShelleyKey k0) =
         encodeShelleyAddress (addrSingle @'Testnet) [xpubPublicKey k0]
+    liftPaymentAddress (KeyFingerprint k0) =
+        encodeShelleyAddress (addrSingle @'Testnet) [k0]
 
 instance DelegationAddress 'Mainnet ShelleyKey where
     delegationAddress (ShelleyKey k0) (ShelleyKey k1) =
         encodeShelleyAddress (addrGrouped @'Mainnet) (xpubPublicKey <$> [k0, k1])
-    liftPaymentFingerprint (KeyFingerprint k0) (ShelleyKey k1) =
+    liftDelegationAddress (KeyFingerprint k0) (ShelleyKey k1) =
         encodeShelleyAddress (addrGrouped @'Mainnet) ([k0, xpubPublicKey k1])
 
 instance DelegationAddress 'Testnet ShelleyKey where
     delegationAddress (ShelleyKey k0) (ShelleyKey k1) =
         encodeShelleyAddress (addrGrouped @'Testnet) (xpubPublicKey <$> [k0, k1])
-    liftPaymentFingerprint (KeyFingerprint k0) (ShelleyKey k1) =
+    liftDelegationAddress (KeyFingerprint k0) (ShelleyKey k1) =
         encodeShelleyAddress (addrGrouped @'Testnet) ([k0, xpubPublicKey k1])
 
 -- | Embed some constants into a network type.

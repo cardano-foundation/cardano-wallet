@@ -593,6 +593,12 @@ class MkKeyFingerprint key Address
         :: key 'AddressK XPub
         -> Address
 
+    -- | Lift a payment fingerprint back into a payment address.
+    liftPaymentAddress
+        :: KeyFingerprint "payment" key
+            -- ^ Payment fingerprint
+        -> Address
+
 class PaymentAddress network key
     => DelegationAddress (network :: NetworkDiscriminant) key where
     -- | Convert a public key and a staking key to a delegation 'Address' valid
@@ -609,8 +615,8 @@ class PaymentAddress network key
             -- ^ Staking key / Reward account
         -> Address
 
-    -- | Lift a payment fingerprint back into an address.
-    liftPaymentFingerprint
+    -- | Lift a payment fingerprint back into a delegation address.
+    liftDelegationAddress
         :: KeyFingerprint "payment" key
             -- ^ Payment fingerprint
         -> key 'AddressK XPub

@@ -152,6 +152,8 @@ instance PaymentAddress 'Testnet ByronKey where
         protocolMagic = ProtocolMagic 764824073
         (acctIx, addrIx) = derivationPath k
         pwd = payloadPassphrase k
+    liftPaymentAddress (KeyFingerprint bytes) =
+        Address bytes
 
 instance PaymentAddress 'Mainnet ByronKey where
     paymentAddress k = Address
@@ -161,6 +163,8 @@ instance PaymentAddress 'Mainnet ByronKey where
       where
         (acctIx, addrIx) = derivationPath k
         pwd = payloadPassphrase k
+    liftPaymentAddress (KeyFingerprint bytes) =
+        Address bytes
 
 instance MkKeyFingerprint ByronKey Address where
     paymentKeyFingerprint addr@(Address bytes) =

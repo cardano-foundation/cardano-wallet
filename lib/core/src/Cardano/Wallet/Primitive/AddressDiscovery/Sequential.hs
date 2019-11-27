@@ -245,21 +245,15 @@ accountingStyle =
 --
 -- > mkAddressPool key g cc (addresses pool) == pool
 addresses
-    :: forall n c k.
-        ( DelegationAddress n k
-        )
-    => k 'AddressK XPub
+    :: forall c k. ()
+    => (KeyFingerprint "payment" k -> Address)
     -> AddressPool c k
     -> [Address]
-addresses rewardAccount =
-    map mkAddress
+addresses mkAddress =
+    map (mkAddress . fst)
     . L.sortOn snd
     . Map.toList
     . indexedKeys
-  where
-    mkAddress (fingerprint, _) = liftPaymentFingerprint @n @k
-        fingerprint
-        rewardAccount
 
 -- | Create a new Address pool from a list of addresses. Note that, the list is
 -- expected to be ordered in sequence (first indexes, first in the list).
@@ -613,11 +607,14 @@ instance
             discardUndiscoveredChange xs =
                 take (length ixs) $ drop (length xs - internalGap) xs
             changeAddresses =
-                discardUndiscoveredChange $ addresses @n
-                    (rewardAccountKey s)
-                    (internalPool s)
-            nonChangeAddresses = addresses @n
-                (rewardAccountKey s)
-                (externalPool s)
+                discardUndiscoveredChange $
+                    addresses mkAddress (internalPool s)
+            nonChangeAddresses =
+                addresses mkAddress (externalPool s)
         in
             nonChangeAddresses <> changeAddresses
+
+        where
+          mkAddress fingerprint = liftDelegationAddress @n @k
+              fingerprint
+              (rewardAccountKey s)
