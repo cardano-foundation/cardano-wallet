@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -249,7 +250,7 @@ initWallet
     -> ([(Tx, TxMeta)], Wallet s)
 initWallet block bp s =
     let
-        ((txs, u), s') = prefilterBlock block mempty s
+        ((FilteredBlock _ txs, u), s') = prefilterBlock block mempty s
     in
         (txs, Wallet u (header block) s' bp)
 
@@ -302,14 +303,9 @@ applyBlock
     -> Wallet s
     -> (FilteredBlock, Wallet s)
 applyBlock !b (Wallet !u _ s bp) =
-    ( FilteredBlock
-        { delegations = []
-        , transactions = txs
-        }
-    , Wallet u' (b ^. #header) s' bp
-    )
+    (filteredBlock, Wallet u' (b ^. #header) s' bp)
   where
-    ((txs, u'), s') = prefilterBlock b u s
+    ((filteredBlock, u'), s') = prefilterBlock b u s
 
 -- | Apply multiple blocks in sequence to an existing wallet, returning a list
 --   of intermediate wallet states.
@@ -420,11 +416,13 @@ prefilterBlock
     => Block
     -> UTxO
     -> s
-    -> (([(Tx, TxMeta)], UTxO), s)
+    -> ((FilteredBlock, UTxO), s)
 prefilterBlock b u0 = runState $ do
-    (ourTxs, ourU) <- foldM applyTx (mempty, u0) (b ^. #transactions)
-    return (ourTxs, ourU)
+    (transactions, ourU) <- foldM applyTx (mempty, u0) (b ^. #transactions)
+    return (FilteredBlock {delegations, transactions}, ourU)
   where
+    delegations :: [PoolId]
+    delegations = []
     mkTxMeta :: Natural -> Direction -> TxMeta
     mkTxMeta amt dir = TxMeta
         { status = InLedger
