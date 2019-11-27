@@ -40,6 +40,9 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , HardDerivation (..)
     , SoftDerivation (..)
 
+    -- * Delegation
+    , deriveRewardAccount
+
     -- * Primitive Crypto Types
     , XPub (..)
     , ChainCode (..)
@@ -47,6 +50,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , unXPub
     , unXPrv
     , xprv
+    , xpub
     , hex
     , fromHex
 
@@ -80,7 +84,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( ChainCode (..), XPrv, XPub (..), unXPrv, unXPub, xprv )
+    ( ChainCode (..), XPrv, XPub (..), unXPrv, unXPub, xprv, xpub )
 import Cardano.Wallet.Primitive.Mnemonic
     ( CheckSumBits
     , ConsistentEntropy
@@ -304,6 +308,20 @@ class HardDerivation key => SoftDerivation (key :: Depth -> * -> *) where
         -> AccountingStyle
         -> Index 'Soft 'AddressK
         -> key 'AddressK XPub
+
+-- | Derive a reward account from a root private key. It is agreed by standard
+-- that every HD wallet will use only a single reward account. This account is
+-- located into a special derivation path and uses the first index of that path.
+deriveRewardAccount
+    :: ( HardDerivation k
+       , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+       )
+    => Passphrase "encryption"
+    -> k 'RootK XPrv
+    -> k 'AddressK XPrv
+deriveRewardAccount pwd rootPrv =
+    let accPrv = deriveAccountPrivateKey pwd rootPrv minBound
+    in deriveAddressPrivateKey pwd accPrv MutableAccount minBound
 
 {-------------------------------------------------------------------------------
                                  Passphrases
@@ -565,7 +583,7 @@ class WalletKey (key :: Depth -> * -> *) where
     dummyKey :: key 'AddressK XPub
 
 -- | Encoding of addresses for certain key types and backend targets.
-class MkKeyFingerprint key
+class MkKeyFingerprint key Address
     => PaymentAddress (network :: NetworkDiscriminant) key where
     -- | Convert a public key to a payment 'Address' valid for the given
     -- network discrimination.
@@ -576,9 +594,10 @@ class MkKeyFingerprint key
         :: key 'AddressK XPub
         -> Address
 
-    -- | Lift a payment fingerprint back into an address.
-    liftPaymentFingerprint
+    -- | Lift a payment fingerprint back into a payment address.
+    liftPaymentAddress
         :: KeyFingerprint "payment" key
+            -- ^ Payment fingerprint
         -> Address
 
 class PaymentAddress network key
@@ -594,7 +613,15 @@ class PaymentAddress network key
         :: key 'AddressK XPub
             -- ^ Payment key
         -> key 'AddressK XPub
-            -- ^ Staking key
+            -- ^ Staking key / Reward account
+        -> Address
+
+    -- | Lift a payment fingerprint back into a delegation address.
+    liftDelegationAddress
+        :: KeyFingerprint "payment" key
+            -- ^ Payment fingerprint
+        -> key 'AddressK XPub
+            -- ^ Staking key / Reward account
         -> Address
 
 -- | Produce a fake address of representative size for the target and key
@@ -663,21 +690,15 @@ instance NFData (KeyFingerprint s key)
 -- 1. For 'ByronKey', it can only be the address itself!
 -- 2. For 'ShelleyKey', then the "payment" fingerprint refers to the payment key
 --    within a single or grouped address.
-class MkKeyFingerprint (key :: Depth -> * -> *) where
+class Show from => MkKeyFingerprint (key :: Depth -> * -> *) from where
     paymentKeyFingerprint
-        :: Address
+        :: from
         -> Either
-            (ErrMkKeyFingerprint key)
+            (ErrMkKeyFingerprint key from)
             (KeyFingerprint "payment" key)
 
-    delegationKeyFingerprint
-        :: Address
-        -> Either
-            (ErrMkKeyFingerprint key)
-            (Maybe (KeyFingerprint "delegation" key))
-
-data ErrMkKeyFingerprint key
-    = ErrInvalidAddress Address (Proxy key) deriving (Show, Eq)
+data ErrMkKeyFingerprint key from
+    = ErrInvalidAddress from (Proxy key) deriving (Show, Eq)
 
 {-------------------------------------------------------------------------------
                                 Helpers

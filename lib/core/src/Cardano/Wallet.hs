@@ -141,13 +141,16 @@ import Cardano.Wallet.Network
     , follow
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (RootK)
+    ( DelegationAddress (..)
+    , Depth (..)
     , DerivationType (..)
     , ErrWrongPassphrase (..)
     , HardDerivation (..)
+    , MkKeyFingerprint (..)
     , Passphrase
     , WalletKey (..)
     , XPrv
+    , XPub
     , checkPassphrase
     , encryptPassphrase
     )
@@ -158,6 +161,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , IsOwned (..)
     , KnownAddresses (..)
     )
+import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+    ( SeqState (..) )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..)
     , CoinSelectionOptions (..)
@@ -246,6 +251,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Coerce
     ( coerce )
+import Data.Either.Extra
+    ( eitherToMaybe )
 import Data.Foldable
     ( fold )
 import Data.Function
@@ -618,11 +625,18 @@ deleteWallet ctx wid = db & \DBLayer{..} -> do
 -- | List all addresses of a wallet with their metadata. Addresses
 -- are ordered from the most-recently-discovered to the oldest known.
 listAddresses
-    :: forall ctx s k.
+    :: forall ctx s k n.
         ( HasDBLayer s k ctx
         , IsOurs s
         , CompareDiscovery s
         , KnownAddresses s
+        , MkKeyFingerprint k Address
+        , DelegationAddress n k
+        , s ~ SeqState n k
+            -- FIXME
+            -- Perhaps rely on a proper abstraction for normalizing addresses.
+            -- This is _acceptable_ for now as only sequential addresses can be
+            -- listed, but it's not quite elegant nor extensible.
         )
     => ctx
     -> WalletId
@@ -632,7 +646,7 @@ listAddresses ctx wid = db & \DBLayer{..} -> do
         <$> (getState <$> withNoSuchWallet wid (readCheckpoint $ PrimaryKey wid))
         <*> lift (readTxHistory (PrimaryKey wid) Descending wholeRange Nothing)
     let maybeIsOurs (TxOut a _) = if fst (isOurs a s)
-            then Just a
+            then normalize (rewardAccountKey s)  a
             else Nothing
     let usedAddrs = Set.fromList $
             concatMap (mapMaybe maybeIsOurs . outputs') txs
@@ -645,6 +659,14 @@ listAddresses ctx wid = db & \DBLayer{..} -> do
     return $ withAddressState <$> knownAddrs
   where
     db = ctx ^. dbLayer @s @k
+    -- NOTE
+    -- Addresses coming from the transaction history might be payment or
+    -- delegation addresses. So we normalize them all to be delegation addresses
+    -- to make sure that we compare them correctly.
+    normalize :: k 'AddressK XPub -> Address -> Maybe Address
+    normalize rewardAccount addr = do
+        fingerprint <- eitherToMaybe (paymentKeyFingerprint addr)
+        pure $ liftDelegationAddress @n fingerprint rewardAccount
 
 {-------------------------------------------------------------------------------
                                   Transaction

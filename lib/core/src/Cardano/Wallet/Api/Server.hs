@@ -126,7 +126,8 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.Network
     ( ErrNetworkTip (..), ErrNetworkUnavailable (..), NetworkLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( HardDerivation (..)
+    ( DelegationAddress (..)
+    , HardDerivation (..)
     , NetworkDiscriminant (..)
     , PaymentAddress (..)
     , WalletKey (..)
@@ -312,7 +313,7 @@ start
         ( Buildable (ErrValidateSelection t)
         , DecodeAddress n
         , EncodeAddress n
-        , PaymentAddress n ShelleyKey
+        , DelegationAddress n ShelleyKey
         , PaymentAddress n ByronKey
         )
     => Warp.Settings
@@ -415,7 +416,7 @@ ioToListenError hostPreference portOpt e
 
 coreApiServer
     :: forall ctx s t k n.
-        ( PaymentAddress n k
+        ( DelegationAddress n k
         , Buildable (ErrValidateSelection t)
         , k ~ ShelleyKey
         , s ~ SeqState n k
@@ -431,7 +432,7 @@ coreApiServer ctx =
 
 stakePoolServer
     :: forall ctx s t n k.
-        ( PaymentAddress n k
+        ( DelegationAddress n k
         , Buildable (ErrValidateSelection t)
         , k ~ ShelleyKey
         , s ~ SeqState n k
@@ -449,7 +450,7 @@ stakePoolServer = pools
 
 wallets
     :: forall ctx s t k n.
-        ( PaymentAddress n k
+        ( DelegationAddress n k
         , k ~ ShelleyKey
         , s ~ SeqState n k
         , ctx ~ ApiLayer s t k
@@ -509,7 +510,7 @@ listWallets ctx = do
 
 postWallet
     :: forall ctx s t k n.
-        ( PaymentAddress n k
+        ( DelegationAddress n k
         , s ~ SeqState n k
         , k ~ ShelleyKey
         , ctx ~ ApiLayer s t k
@@ -598,7 +599,7 @@ getUTxOsStatistics ctx (ApiT wid) = do
 
 addresses
     :: forall ctx s t k n.
-        ( PaymentAddress n k
+        ( DelegationAddress n k
         , k ~ ShelleyKey
         , s ~ SeqState n k
         , ctx ~ ApiLayer s t k
@@ -609,7 +610,7 @@ addresses = listAddresses
 
 listAddresses
     :: forall ctx s t k n.
-        ( PaymentAddress n k
+        ( DelegationAddress n k
         , k ~ ShelleyKey
         , s ~ SeqState n k
         , ctx ~ ApiLayer s t k
@@ -635,7 +636,7 @@ listAddresses ctx (ApiT wid) stateFilter = do
 
 transactions
     :: forall ctx s t k n.
-        ( PaymentAddress n k
+        ( DelegationAddress n k
         , Buildable (ErrValidateSelection t)
         , s ~ SeqState n k
         , k ~ ShelleyKey
@@ -653,7 +654,7 @@ transactions ctx =
 postTransaction
     :: forall ctx s t k n.
         ( Buildable (ErrValidateSelection t)
-        , PaymentAddress n k
+        , DelegationAddress n k
         , k ~ ShelleyKey
         , s ~ SeqState n k
         , ctx ~ ApiLayer s t k
@@ -768,7 +769,7 @@ postTransactionFee ctx (ApiT wid) body = do
 
 pools
     :: forall ctx s t n k.
-        ( PaymentAddress n k
+        ( DelegationAddress n k
         , Buildable (ErrValidateSelection t)
         , k ~ ShelleyKey
         , s ~ SeqState n k
@@ -803,7 +804,7 @@ listPools spl =
 
 joinStakePool
     :: forall ctx s t n k.
-        ( PaymentAddress n k
+        ( DelegationAddress n k
         , Buildable (ErrValidateSelection t)
         , s ~ SeqState n k
         , k ~ ShelleyKey
@@ -852,7 +853,7 @@ joinStakePool ctx spl (ApiT poolId) (ApiT wid) passwd = do
 
 quitStakePool
     :: forall n k.
-        ( PaymentAddress n k
+        ( DelegationAddress n k
         , k ~ ShelleyKey
         )
     => ApiT PoolId
@@ -904,7 +905,7 @@ network ctx = do
 compatibilityApiServer
     :: forall t n.
         ( Buildable (ErrValidateSelection t)
-        , PaymentAddress n ShelleyKey
+        , DelegationAddress n ShelleyKey
         )
     => ApiLayer (RndState 'Mainnet) t ByronKey
     -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
@@ -974,7 +975,7 @@ getByronWalletMigrationInfo ctx (ApiT wid) = do
             $ flip (W.createMigrationSourceData @_ @s @t @k) wid
 
 migrateByronWallet
-    :: forall t n. PaymentAddress n ShelleyKey
+    :: forall t n. DelegationAddress n ShelleyKey
     => ApiLayer (RndState 'Mainnet) t ByronKey
         -- ^ Source wallet context (Byron)
     -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey

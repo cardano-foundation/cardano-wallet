@@ -284,22 +284,26 @@ changePassphraseSeq (Passphrase oldPwd) (Passphrase newPwd) (ShelleyKey prv) =
 instance PaymentAddress 'Mainnet ShelleyKey where
     paymentAddress (ShelleyKey k0) =
         encodeShelleyAddress (addrSingle @'Mainnet) [xpubPublicKey k0]
-    liftPaymentFingerprint (KeyFingerprint k0) =
+    liftPaymentAddress (KeyFingerprint k0) =
         encodeShelleyAddress (addrSingle @'Mainnet) [k0]
 
 instance PaymentAddress 'Testnet ShelleyKey where
     paymentAddress (ShelleyKey k0) =
         encodeShelleyAddress (addrSingle @'Testnet) [xpubPublicKey k0]
-    liftPaymentFingerprint (KeyFingerprint k0) =
+    liftPaymentAddress (KeyFingerprint k0) =
         encodeShelleyAddress (addrSingle @'Testnet) [k0]
 
 instance DelegationAddress 'Mainnet ShelleyKey where
     delegationAddress (ShelleyKey k0) (ShelleyKey k1) =
         encodeShelleyAddress (addrGrouped @'Mainnet) (xpubPublicKey <$> [k0, k1])
+    liftDelegationAddress (KeyFingerprint k0) (ShelleyKey k1) =
+        encodeShelleyAddress (addrGrouped @'Mainnet) ([k0, xpubPublicKey k1])
 
 instance DelegationAddress 'Testnet ShelleyKey where
     delegationAddress (ShelleyKey k0) (ShelleyKey k1) =
         encodeShelleyAddress (addrGrouped @'Testnet) (xpubPublicKey <$> [k0, k1])
+    liftDelegationAddress (KeyFingerprint k0) (ShelleyKey k1) =
+        encodeShelleyAddress (addrGrouped @'Testnet) ([k0, xpubPublicKey k1])
 
 -- | Embed some constants into a network type.
 class KnownNetwork (n :: NetworkDiscriminant) where
@@ -406,20 +410,16 @@ decodeShelleyAddress bytes = do
         "This address belongs to another network. Network is: "
         <> show (networkDiscriminantVal @n) <> "."
 
-instance MkKeyFingerprint ShelleyKey where
+instance MkKeyFingerprint ShelleyKey Address where
     paymentKeyFingerprint addr@(Address bytes)
         | isAddrSingle addr || isAddrGrouped addr =
             Right $ KeyFingerprint $ BS.take publicKeySize $ BS.drop 1 bytes
         | otherwise =
             Left $ ErrInvalidAddress addr (Proxy @ShelleyKey)
 
-    delegationKeyFingerprint addr@(Address bytes)
-        | isAddrSingle addr =
-            Right Nothing
-        | isAddrGrouped addr =
-            Right $ Just $ KeyFingerprint $ BS.drop addrSingleSize bytes
-        | otherwise =
-            Left $ ErrInvalidAddress addr (Proxy @ShelleyKey)
+instance MkKeyFingerprint ShelleyKey (ShelleyKey 'AddressK XPub) where
+    paymentKeyFingerprint =
+        Right . KeyFingerprint . xpubPublicKey . getRawKey
 
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys
@@ -438,7 +438,7 @@ instance PersistPrivateKey (ShelleyKey 'RootK) where
         xprvFromText = xprv <=< fromHex @ByteString
         err _ = error "unsafeDeserializeXPrv: unable to deserialize ShelleyKey"
 
-instance PersistPublicKey (ShelleyKey 'AccountK) where
+instance PersistPublicKey (ShelleyKey depth) where
     serializeXPub =
         hex . unXPub . getKey
 

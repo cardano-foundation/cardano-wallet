@@ -77,6 +77,7 @@ import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..), HDPassphrase (..), TxId (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
+    , MkKeyFingerprint (..)
     , PaymentAddress (..)
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
@@ -901,20 +902,28 @@ class PersistState s where
 instance
     ( Eq (k 'AccountK XPub)
     , PersistPublicKey (k 'AccountK)
+    , PersistPublicKey (k 'AddressK)
+    , MkKeyFingerprint k (k 'AddressK XPub)
     , PaymentAddress n k
     , SoftDerivation k
     ) => PersistState (Seq.SeqState n k) where
     insertState (wid, sl) st = do
         let (intPool, extPool) = (Seq.internalPool st, Seq.externalPool st)
-        let (xpub, _) = W.invariant
+        let (accountXPub, _) = W.invariant
                 "Internal & External pool use different account public keys!"
                 (Seq.accountPubKey intPool, Seq.accountPubKey extPool)
                 (uncurry (==))
         let eGap = Seq.gap extPool
         let iGap = Seq.gap intPool
-        repsert (SeqStateKey wid) (SeqState wid eGap iGap (serializeXPub xpub))
-        insertAddressPool wid sl intPool
-        insertAddressPool wid sl extPool
+        repsert (SeqStateKey wid) $ SeqState
+            { seqStateWalletId = wid
+            , seqStateExternalGap = eGap
+            , seqStateInternalGap = iGap
+            , seqStateAccountXPub = serializeXPub accountXPub
+            , seqStateRewardXPub = serializeXPub (Seq.rewardAccountKey st)
+            }
+        insertAddressPool @n wid sl intPool
+        insertAddressPool @n wid sl extPool
         deleteWhere [SeqStatePendingWalletId ==. wid]
         dbChunked
             insertMany_
@@ -922,36 +931,38 @@ instance
 
     selectState (wid, sl) = runMaybeT $ do
         st <- MaybeT $ selectFirst [SeqStateWalletId ==. wid] []
-        let SeqState _ eGap iGap bytes = entityVal st
-        let xpub = unsafeDeserializeXPub bytes
-        intPool <- lift $ selectAddressPool wid sl iGap xpub
-        extPool <- lift $ selectAddressPool wid sl eGap xpub
+        let SeqState _ eGap iGap accountBytes rewardBytes = entityVal st
+        let accountXPub = unsafeDeserializeXPub accountBytes
+        let rewardXPub = unsafeDeserializeXPub rewardBytes
+        intPool <- lift $ selectAddressPool wid sl iGap accountXPub
+        extPool <- lift $ selectAddressPool wid sl eGap accountXPub
         pendingChangeIxs <- lift $ selectSeqStatePendingIxs wid
-        pure $ Seq.SeqState intPool extPool pendingChangeIxs
+        pure $ Seq.SeqState intPool extPool pendingChangeIxs rewardXPub
 
 insertAddressPool
     :: forall n k c. (PaymentAddress n k, Typeable c)
     => W.WalletId
     -> W.SlotId
-    -> Seq.AddressPool n c k
+    -> Seq.AddressPool c k
     -> SqlPersistT IO ()
 insertAddressPool wid sl pool =
     void $ dbChunked insertMany_
         [ SeqStateAddress wid sl addr ix (Seq.accountingStyle @c)
-        | (ix, addr) <- zip [0..] (Seq.addresses pool)
+        | (ix, addr) <- zip [0..] (Seq.addresses (liftPaymentAddress @n) pool)
         ]
 
 selectAddressPool
-    :: forall n k c.
+    :: forall k c.
         ( Typeable c
-        , PaymentAddress n k
         , SoftDerivation k
+        , MkKeyFingerprint k (k 'AddressK XPub)
+        , MkKeyFingerprint k W.Address
         )
     => W.WalletId
     -> W.SlotId
     -> Seq.AddressPoolGap
     -> k 'AccountK XPub
-    -> SqlPersistT IO (Seq.AddressPool n c k)
+    -> SqlPersistT IO (Seq.AddressPool c k)
 selectAddressPool wid sl gap xpub = do
     addrs <- fmap entityVal <$> selectList
         [ SeqStateAddressWalletId ==. wid
@@ -962,9 +973,9 @@ selectAddressPool wid sl gap xpub = do
   where
     addressPoolFromEntity
         :: [SeqStateAddress]
-        -> Seq.AddressPool n c k
+        -> Seq.AddressPool c k
     addressPoolFromEntity addrs =
-        Seq.mkAddressPool @n @c @k xpub gap (map seqStateAddressAddress addrs)
+        Seq.mkAddressPool @c @k xpub gap (map seqStateAddressAddress addrs)
 
 mkSeqStatePendingIxs :: W.WalletId -> Seq.PendingIxs -> [SeqStatePendingIx]
 mkSeqStatePendingIxs wid =

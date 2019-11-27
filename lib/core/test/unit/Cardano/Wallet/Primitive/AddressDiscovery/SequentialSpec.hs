@@ -19,10 +19,11 @@ import Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle (..)
+    , DelegationAddress (..)
     , Depth (..)
+    , KeyFingerprint
     , NetworkDiscriminant (..)
     , Passphrase (..)
-    , PaymentAddress (..)
     , SoftDerivation (..)
     , WalletKey (..)
     , XPrv
@@ -246,7 +247,7 @@ prop_roundtripEnumGap g =
 -- | After a lookup, a property should never grow more than its gap value.
 prop_poolGrowWithinGap
     :: (Typeable chain)
-    => (AddressPool 'Testnet chain ShelleyKey, Address)
+    => (AddressPool chain ShelleyKey, Address)
     -> Property
 prop_poolGrowWithinGap (pool, addr) =
     cover 10 (isJust $ fst res) "pool hit" prop
@@ -255,7 +256,7 @@ prop_poolGrowWithinGap (pool, addr) =
     prop = case res of
         (Nothing, pool') -> pool === pool'
         (Just _, pool') ->
-            let k = length $ addresses pool' \\ addresses pool
+            let k = length $ addresses liftAddr pool' \\ addresses liftAddr pool
             in conjoin
                 [ gap pool === gap pool'
                 , property (k >= 0 && k <= fromEnum (gap pool))
@@ -264,23 +265,23 @@ prop_poolGrowWithinGap (pool, addr) =
 -- | A pool gives back its addresses in correct order and can be reconstructed
 prop_roundtripMkAddressPool
     :: (Typeable chain)
-    => AddressPool 'Testnet chain ShelleyKey
+    => AddressPool chain ShelleyKey
     -> Property
 prop_roundtripMkAddressPool pool =
     ( mkAddressPool
         (accountPubKey pool)
         (gap pool)
-        (addresses pool)
+        (addresses liftAddr pool)
     ) === pool
 
 -- | A pool always contains a number of addresses at least equal to its gap
 prop_poolAtLeastGapAddresses
-    :: AddressPool 'Testnet chain ShelleyKey
+    :: AddressPool chain ShelleyKey
     -> Property
 prop_poolAtLeastGapAddresses pool =
     property prop
   where
-    prop = length (addresses pool) >= fromEnum (gap pool)
+    prop = length (addresses liftAddr pool) >= fromEnum (gap pool)
 
 -- | Our addresses are eventually discovered
 prop_poolEventuallyDiscoverOurs
@@ -291,7 +292,7 @@ prop_poolEventuallyDiscoverOurs (g, addr) =
     addr `elem` ours ==> withMaxSuccess 10 $ property prop
   where
     ours = take 25 (ourAddresses (accountingStyle @c))
-    pool = flip execState (mkAddressPool @'Testnet @c ourAccount g mempty) $
+    pool = flip execState (mkAddressPool @c ourAccount g mempty) $
         forM ours (state . lookupAddress)
     prop = (fromEnum <$> fst (lookupAddress addr pool)) === elemIndex addr ours
 
@@ -394,13 +395,14 @@ prop_atLeastKnownAddresses s =
     g = fromEnum . getAddressPoolGap . gap
 
 prop_changeIsOnlyKnownAfterGeneration
-    :: ( AddressPool 'Testnet 'UTxOInternal ShelleyKey
-       , AddressPool 'Testnet 'UTxOExternal ShelleyKey
+    :: ( AddressPool 'UTxOInternal ShelleyKey
+       , AddressPool 'UTxOExternal ShelleyKey
        )
     -> Property
 prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) =
     let
-        s0 = SeqState intPool extPool emptyPendingIxs
+        s0 :: SeqState 'Testnet ShelleyKey
+        s0 = SeqState intPool extPool emptyPendingIxs rewardAccount
         addrs0 = knownAddresses s0
         (change, s1) = genChange mempty s0
         addrs1 = knownAddresses s1
@@ -432,8 +434,22 @@ ourAddresses
     :: AccountingStyle
     -> [Address]
 ourAddresses cc =
-    paymentAddress @'Testnet . deriveAddressPublicKey ourAccount cc
-        <$> [minBound..maxBound]
+    mkAddress . deriveAddressPublicKey ourAccount cc <$> [minBound..maxBound]
+  where
+    mkAddress key = delegationAddress @'Testnet key rewardAccount
+
+rewardAccount
+    :: ShelleyKey 'AddressK XPub
+rewardAccount =
+    publicKey $ unsafeGenerateKeyFromSeed (seed, mempty) mempty
+  where
+    seed = Passphrase $ BA.convert $ BS.replicate 16 0
+
+liftAddr
+    :: KeyFingerprint "payment" ShelleyKey
+    -> Address
+liftAddr fingerprint =
+    liftDelegationAddress @'Testnet fingerprint rewardAccount
 
 changeAddresses
     :: [Address]
@@ -469,14 +485,14 @@ instance Arbitrary Address where
             bytes <- Passphrase . BA.convert . BS.pack . take 32 . getInfiniteList
                 <$> arbitrary
             let xprv = unsafeGenerateKeyFromSeed (bytes, mempty) mempty :: ShelleyKey 'AddressK XPrv
-            return $ paymentAddress @'Testnet $ publicKey xprv
+            return $ delegationAddress @'Testnet (publicKey xprv) rewardAccount
 
-instance Typeable chain => Arbitrary (AddressPool 'Testnet chain ShelleyKey) where
+instance Typeable chain => Arbitrary (AddressPool chain ShelleyKey) where
     shrink pool =
         let
             key = accountPubKey pool
             g = gap pool
-            addrs = addresses pool
+            addrs = addresses liftAddr pool
         in case length addrs of
             k | k == fromEnum g && g == minBound ->
                 []
@@ -495,12 +511,12 @@ instance Typeable chain => Arbitrary (AddressPool 'Testnet chain ShelleyKey) whe
         return $ mkAddressPool ourAccount g addrs
 
 instance Arbitrary (SeqState 'Testnet ShelleyKey) where
-    shrink (SeqState intPool extPool ixs) =
-        (\(i, e) -> SeqState i e ixs) <$> shrink (intPool, extPool)
+    shrink (SeqState intPool extPool ixs rwd) =
+        (\(i, e) -> SeqState i e ixs rwd) <$> shrink (intPool, extPool)
     arbitrary = do
         intPool <- arbitrary
         extPool <- arbitrary
-        return $ SeqState intPool extPool emptyPendingIxs
+        return $ SeqState intPool extPool emptyPendingIxs rewardAccount
 
 unsafeMkAddressPoolGap :: (Integral a, Show a) => a -> AddressPoolGap
 unsafeMkAddressPoolGap g = case (mkAddressPoolGap $ fromIntegral g) of

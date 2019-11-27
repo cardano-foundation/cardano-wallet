@@ -55,7 +55,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
-    , PaymentAddress (..)
     , WalletKey (..)
     , XPub
     )
@@ -503,13 +502,17 @@ benchPutSeqState :: Int -> Int -> DBLayerBench -> IO ()
 benchPutSeqState numCheckpoints numAddrs DBLayer{..} =
     unsafeRunExceptT $ mapM_ (mapExceptT atomically . putCheckpoint testPk)
         [ snd $ initWallet block0 genesisParameters $
-            SeqState (mkPool numAddrs i) (mkPool numAddrs i) emptyPendingIxs
+            SeqState
+                (mkPool numAddrs i)
+                (mkPool numAddrs i)
+                emptyPendingIxs
+                rewardAccount
         | i <- [1..numCheckpoints]
         ]
 
 mkPool
-    :: forall t c. (PaymentAddress t ShelleyKey, Typeable c)
-    => Int -> Int -> AddressPool t c ShelleyKey
+    :: forall c. (Typeable c)
+    => Int -> Int -> AddressPool c ShelleyKey
 mkPool numAddrs i = mkAddressPool ourAccount defaultAddressPoolGap addrs
   where
     addrs = [ mkAddress i j | j <- [1..numAddrs] ]
@@ -627,6 +630,10 @@ testPk = PrimaryKey testWid
 
 ourAccount :: ShelleyKey 'AccountK XPub
 ourAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, mempty) mempty
+  where seed = Passphrase $ BA.convert $ BS.replicate 32 0
+
+rewardAccount :: ShelleyKey 'AddressK XPub
+rewardAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, mempty) mempty
   where seed = Passphrase $ BA.convert $ BS.replicate 32 0
 
 -- | Make a prefixed bytestring for use as a Hash or Address.

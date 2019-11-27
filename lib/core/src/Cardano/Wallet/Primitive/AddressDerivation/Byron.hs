@@ -152,8 +152,7 @@ instance PaymentAddress 'Testnet ByronKey where
         protocolMagic = ProtocolMagic 764824073
         (acctIx, addrIx) = derivationPath k
         pwd = payloadPassphrase k
-
-    liftPaymentFingerprint (KeyFingerprint bytes) =
+    liftPaymentAddress (KeyFingerprint bytes) =
         Address bytes
 
 instance PaymentAddress 'Mainnet ByronKey where
@@ -164,18 +163,13 @@ instance PaymentAddress 'Mainnet ByronKey where
       where
         (acctIx, addrIx) = derivationPath k
         pwd = payloadPassphrase k
-
-    liftPaymentFingerprint (KeyFingerprint bytes) =
+    liftPaymentAddress (KeyFingerprint bytes) =
         Address bytes
 
-instance MkKeyFingerprint ByronKey where
+instance MkKeyFingerprint ByronKey Address where
     paymentKeyFingerprint addr@(Address bytes) =
         case decodeLegacyAddress bytes of
             Just _  -> Right $ KeyFingerprint bytes
-            Nothing -> Left $ ErrInvalidAddress addr (Proxy @ByronKey)
-    delegationKeyFingerprint addr@(Address bytes) =
-        case decodeLegacyAddress bytes of
-            Just _  -> Right Nothing
             Nothing -> Left $ ErrInvalidAddress addr (Proxy @ByronKey)
 
 {-------------------------------------------------------------------------------
