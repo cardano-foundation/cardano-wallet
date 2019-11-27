@@ -167,10 +167,6 @@ instance MkKeyFingerprint ByronKey where
         case decodeLegacyAddress bytes of
             Just _  -> Right $ KeyFingerprint bytes
             Nothing -> Left $ ErrInvalidAddress addr (Proxy @ByronKey)
-    delegationKeyFingerprint addr@(Address bytes) =
-        case decodeLegacyAddress bytes of
-            Just _  -> Right Nothing
-            Nothing -> Left $ ErrInvalidAddress addr (Proxy @ByronKey)
 
 {-------------------------------------------------------------------------------
                             Encoding / Decoding

@@ -413,14 +413,6 @@ instance MkKeyFingerprint ShelleyKey where
         | otherwise =
             Left $ ErrInvalidAddress addr (Proxy @ShelleyKey)
 
-    delegationKeyFingerprint addr@(Address bytes)
-        | isAddrSingle addr =
-            Right Nothing
-        | isAddrGrouped addr =
-            Right $ Just $ KeyFingerprint $ BS.drop addrSingleSize bytes
-        | otherwise =
-            Left $ ErrInvalidAddress addr (Proxy @ShelleyKey)
-
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys
 -------------------------------------------------------------------------------}

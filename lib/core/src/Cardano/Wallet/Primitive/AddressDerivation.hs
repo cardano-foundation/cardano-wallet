@@ -690,12 +690,6 @@ class MkKeyFingerprint (key :: Depth -> * -> *) where
             (ErrMkKeyFingerprint key)
             (KeyFingerprint "payment" key)
 
-    delegationKeyFingerprint
-        :: Address
-        -> Either
-            (ErrMkKeyFingerprint key)
-            (Maybe (KeyFingerprint "delegation" key))
-
 data ErrMkKeyFingerprint key
     = ErrInvalidAddress Address (Proxy key) deriving (Show, Eq)
 

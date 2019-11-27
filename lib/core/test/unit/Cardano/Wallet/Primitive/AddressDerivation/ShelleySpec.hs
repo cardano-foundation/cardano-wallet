@@ -49,8 +49,6 @@ import Data.Either
     ( isLeft, isRight )
 import Data.List
     ( isSubsequenceOf )
-import Data.Maybe
-    ( isJust, isNothing )
 import Test.Hspec
     ( Spec, describe, it, shouldThrow )
 import Test.QuickCheck
@@ -58,7 +56,6 @@ import Test.QuickCheck
     , Property
     , arbitraryBoundedEnum
     , choose
-    , conjoin
     , elements
     , expectFailure
     , property
@@ -171,28 +168,22 @@ prop_accountKeyDerivation (seed, recPwd) encPwd ix =
 prop_fingerprintSingleAddress
     :: SingleAddress 'Testnet
     -> Property
-prop_fingerprintSingleAddress (SingleAddress addr) = conjoin $ property <$>
-    [ isRight (paymentKeyFingerprint @ShelleyKey addr)
-    , either (const False) isNothing (delegationKeyFingerprint @ShelleyKey addr)
-    ]
+prop_fingerprintSingleAddress (SingleAddress addr) = property $
+    isRight (paymentKeyFingerprint @ShelleyKey addr)
 
 -- | Grouped addresses have a payment key and a delegation key
 prop_fingerprintGroupedAddress
     :: GroupedAddress 'Testnet
     -> Property
-prop_fingerprintGroupedAddress (GroupedAddress addr) = conjoin $ property <$>
-    [ isRight (paymentKeyFingerprint @ShelleyKey addr)
-    , either (const False) isJust (delegationKeyFingerprint @ShelleyKey addr)
-    ]
+prop_fingerprintGroupedAddress (GroupedAddress addr) = property $
+    isRight (paymentKeyFingerprint @ShelleyKey addr)
 
 -- | Inspecting Invalid addresses throws
 prop_fingerprintInvalidAddress
     :: InvalidAddress
     -> Property
-prop_fingerprintInvalidAddress (InvalidAddress addr) = conjoin $ property <$>
-    [ isLeft (paymentKeyFingerprint @ShelleyKey addr)
-    , isLeft (delegationKeyFingerprint @ShelleyKey addr)
-    ]
+prop_fingerprintInvalidAddress (InvalidAddress addr) = property $
+    isLeft (paymentKeyFingerprint @ShelleyKey addr)
 
 -- | liftPaymentKeyFingerprint <$> paymentKeyFingerprint addr = Right addr
 prop_fingerprintRoundtrip
