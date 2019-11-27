@@ -162,7 +162,7 @@ instance PaymentAddress 'Mainnet ByronKey where
         (acctIx, addrIx) = derivationPath k
         pwd = payloadPassphrase k
 
-instance MkKeyFingerprint ByronKey where
+instance MkKeyFingerprint ByronKey Address where
     paymentKeyFingerprint addr@(Address bytes) =
         case decodeLegacyAddress bytes of
             Just _  -> Right $ KeyFingerprint bytes

@@ -582,7 +582,7 @@ class WalletKey (key :: Depth -> * -> *) where
     dummyKey :: key 'AddressK XPub
 
 -- | Encoding of addresses for certain key types and backend targets.
-class MkKeyFingerprint key
+class MkKeyFingerprint key Address
     => PaymentAddress (network :: NetworkDiscriminant) key where
     -- | Convert a public key to a payment 'Address' valid for the given
     -- network discrimination.
@@ -683,15 +683,15 @@ instance NFData (KeyFingerprint s key)
 -- 1. For 'ByronKey', it can only be the address itself!
 -- 2. For 'ShelleyKey', then the "payment" fingerprint refers to the payment key
 --    within a single or grouped address.
-class MkKeyFingerprint (key :: Depth -> * -> *) where
+class Show from => MkKeyFingerprint (key :: Depth -> * -> *) from where
     paymentKeyFingerprint
-        :: Address
+        :: from
         -> Either
-            (ErrMkKeyFingerprint key)
+            (ErrMkKeyFingerprint key from)
             (KeyFingerprint "payment" key)
 
-data ErrMkKeyFingerprint key
-    = ErrInvalidAddress Address (Proxy key) deriving (Show, Eq)
+data ErrMkKeyFingerprint key from
+    = ErrInvalidAddress from (Proxy key) deriving (Show, Eq)
 
 {-------------------------------------------------------------------------------
                                 Helpers

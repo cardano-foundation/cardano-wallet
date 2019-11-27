@@ -406,12 +406,16 @@ decodeShelleyAddress bytes = do
         "This address belongs to another network. Network is: "
         <> show (networkDiscriminantVal @n) <> "."
 
-instance MkKeyFingerprint ShelleyKey where
+instance MkKeyFingerprint ShelleyKey Address where
     paymentKeyFingerprint addr@(Address bytes)
         | isAddrSingle addr || isAddrGrouped addr =
             Right $ KeyFingerprint $ BS.take publicKeySize $ BS.drop 1 bytes
         | otherwise =
             Left $ ErrInvalidAddress addr (Proxy @ShelleyKey)
+
+instance MkKeyFingerprint ShelleyKey (ShelleyKey 'AddressK XPub) where
+    paymentKeyFingerprint =
+        Right . KeyFingerprint . xpubPublicKey . getRawKey
 
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys
