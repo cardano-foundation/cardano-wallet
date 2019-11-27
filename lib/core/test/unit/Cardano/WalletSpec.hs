@@ -21,8 +21,8 @@ import Prelude
 import Cardano.BM.Trace
     ( nullTracer )
 import Cardano.Wallet
-    ( ErrCreateUnsignedTx (..)
-    , ErrSignTx (..)
+    ( ErrSelectForPayment (..)
+    , ErrSignPayment (..)
     , ErrSubmitTx (..)
     , ErrUpdatePassphrase (..)
     , ErrWithRootKey (..)
@@ -164,8 +164,8 @@ spec :: Spec
 spec = do
     describe "Pointless tests to cover 'Show' instances for errors" $ do
         let wid = WalletId (hash @ByteString "arbitrary")
-        it (show $ ErrCreateUnsignedTxNoSuchWallet @() (ErrNoSuchWallet wid)) True
-        it (show $ ErrSignTxNoSuchWallet (ErrNoSuchWallet wid)) True
+        it (show $ ErrSelectForPaymentNoSuchWallet @() (ErrNoSuchWallet wid)) True
+        it (show $ ErrSignPaymentNoSuchWallet (ErrNoSuchWallet wid)) True
         it (show $ ErrSubmitTxNoSuchWallet (ErrNoSuchWallet wid)) True
         it (show $ ErrUpdatePassphraseNoSuchWallet (ErrNoSuchWallet wid)) True
         it (show $ ErrWithRootKeyWrongPassphrase wid ErrWrongPassphrase) True
@@ -356,10 +356,10 @@ walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
         let wallet = (wid, wname, DummyState state)
         (WalletLayerFixture _ wl _ _) <- liftIO $ setupFixture wallet
         unsafeRunExceptT $ W.attachPrivateKey wl wid (xprv, pwd)
-        (_,_,_,txOld) <- unsafeRunExceptT $ W.signTx @_ @_ @DummyTarget wl wid () pwd selection
+        (_,_,_,txOld) <- unsafeRunExceptT $ W.signPayment @_ @_ @DummyTarget wl wid () pwd selection
         unsafeRunExceptT $ W.updateWalletPassphrase wl wid (coerce pwd, newPwd)
         (_,_,_,txNew) <-
-            unsafeRunExceptT $ W.signTx @_ @_ @DummyTarget wl wid () (coerce newPwd) selection
+            unsafeRunExceptT $ W.signPayment @_ @_ @DummyTarget wl wid () (coerce newPwd) selection
         txOld `shouldBe` txNew
   where
     selection = CoinSelection

@@ -47,20 +47,19 @@ import Cardano.Pool.Metrics
 import Cardano.Wallet
     ( ErrAdjustForFee (..)
     , ErrCoinSelection (..)
-    , ErrCreateCert (..)
-    , ErrCreateUnsignedTx (..)
     , ErrDecodeSignedTx (..)
-    , ErrEstimateTxFee (..)
+    , ErrEstimatePaymentFee (..)
     , ErrListTransactions (..)
     , ErrListUTxOStatistics (..)
     , ErrMkTx (..)
     , ErrNoSuchWallet (..)
     , ErrPostTx (..)
     , ErrRemovePendingTx (..)
-    , ErrSignCert (..)
-    , ErrSignTx (..)
+    , ErrSelectForDelegation (..)
+    , ErrSelectForPayment (..)
+    , ErrSignDelegation (..)
+    , ErrSignPayment (..)
     , ErrStartTimeLaterThanEndTime (..)
-    , ErrSubmitCert (..)
     , ErrSubmitExternalTx (..)
     , ErrSubmitTx (..)
     , ErrUpdatePassphrase (..)
@@ -668,10 +667,10 @@ postTransaction ctx (ApiT wid) body = do
     let pwd = getApiT $ body ^. #passphrase
 
     selection <- liftHandler $ withWorkerCtx ctx wid liftE1 $ \wrk ->
-        W.createUnsignedTx @_ @s @t wrk wid outs
+        W.selectCoinsForPayment @_ @s @t wrk wid outs
 
     (tx, meta, time, wit) <- liftHandler $ withWorkerCtx ctx wid liftE2 $ \wrk ->
-        W.signTx @_ @s @t @k wrk wid () pwd selection
+        W.signPayment @_ @s @t @k wrk wid () pwd selection
 
     liftHandler $ withWorkerCtx ctx wid liftE3 $ \wrk ->
         W.submitTx @_ @s @t @k wrk wid (tx, meta, wit)
@@ -679,12 +678,12 @@ postTransaction ctx (ApiT wid) body = do
     pure $ mkApiTransaction
         (txId tx)
         (fmap Just <$> selection ^. #inputs)
-        (selection ^. #outputs)
+        (tx ^. #outputs)
         (meta, time)
         #pendingSince
   where
-    liftE1 = throwE . ErrCreateUnsignedTxNoSuchWallet
-    liftE2 = throwE . ErrSignTxNoSuchWallet
+    liftE1 = throwE . ErrSelectForPaymentNoSuchWallet
+    liftE2 = throwE . ErrSignPaymentNoSuchWallet
     liftE3 = throwE . ErrSubmitTxNoSuchWallet
 
 postExternalTransaction
@@ -756,12 +755,12 @@ postTransactionFee
 postTransactionFee ctx (ApiT wid) body = do
     let outs = coerceCoin <$> (body ^. #payments)
     (Fee fee) <- liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
-        W.estimateTxFee @_ @s @t wrk wid outs
+        W.estimatePaymentFee @_ @s @t wrk wid outs
     return ApiFee
         { amount = Quantity (fromIntegral fee)
         }
   where
-    liftE = throwE . ErrEstimateTxFeeNoSuchWallet
+    liftE = throwE . ErrEstimatePaymentFeeNoSuchWallet
 
 {-------------------------------------------------------------------------------
                                     Stake Pools
@@ -821,33 +820,33 @@ joinStakePool ctx spl (ApiT poolId) (ApiT wid) passwd = do
     (_, walMeta, _) <- liftHandler $ withWorkerCtx ctx wid throwE $
         \wrk -> W.readWallet wrk wid
     when (walMeta ^. #delegation == W.Delegating poolId) $
-        liftHandler $ throwE (ErrCreateCertPoolAlreadyJoined poolId)
+        liftHandler $ throwE (ErrSelectForDelegationPoolAlreadyJoined poolId)
 
     allPools <- listPools spl
     when (poolIsUnknown allPools) $
-        liftHandler $ throwE (ErrCreateCertNoSuchPool poolId)
+        liftHandler $ throwE (ErrSelectForDelegationNoSuchPool poolId)
 
     let (ApiWalletPassphrase (ApiT pwd)) = passwd
 
     selection <- liftHandler $ withWorkerCtx ctx wid liftE1 $ \wrk ->
-        W.createCert @_ @s @t wrk wid
+        W.selectCoinsForDelegation @_ @s @t wrk wid
 
     (tx, meta, time, wit) <- liftHandler $ withWorkerCtx ctx wid liftE2 $ \wrk ->
-        W.signCert @_ @s @t @k wrk wid () pwd selection poolId
+        W.signDelegation @_ @s @t @k wrk wid () pwd selection poolId
 
     liftHandler $ withWorkerCtx ctx wid liftE3 $ \wrk ->
-        W.submitCert @_ @s @t @k wrk wid (tx, meta, wit)
+        W.submitTx @_ @s @t @k wrk wid (tx, meta, wit)
 
     pure $ mkApiTransaction
         (txId tx)
         (fmap Just <$> selection ^. #inputs)
-        (selection ^. #outputs)
+        (tx ^. #outputs)
         (meta, time)
         #pendingSince
   where
-    liftE1 = throwE . ErrCreateCertNoSuchWallet
-    liftE2 = throwE . ErrSignCertNoSuchWallet
-    liftE3 = throwE . ErrSubmitCertNoSuchWallet
+    liftE1 = throwE . ErrSelectForDelegationNoSuchWallet
+    liftE2 = throwE . ErrSignDelegationNoSuchWallet
+    liftE3 = throwE . ErrSubmitTxNoSuchWallet
     poolIsUnknown =
         isNothing . L.find (\(ApiStakePool pId _ _ _) -> pId == ApiT poolId)
 
@@ -972,7 +971,7 @@ getByronWalletMigrationInfo ctx (ApiT wid) = do
     getSelections =
         liftHandler
             $ withWorkerCtx ctx wid throwE
-            $ flip (W.createMigrationSourceData @_ @s @t @k) wid
+            $ flip (W.selectCoinsForMigration @_ @s @t @k) wid
 
 migrateByronWallet
     :: forall t n. DelegationAddress n ShelleyKey
@@ -993,19 +992,19 @@ migrateByronWallet rndCtx seqCtx (ApiT rndWid) (ApiT seqWid) migrateData = do
     cs <- liftHandler $
         withWorkerCtx rndCtx rndWid throwE $ \rndWrk ->
         withWorkerCtx seqCtx seqWid throwE $ \seqWrk -> do
-            cs <- W.createMigrationSourceData @_ @_ @t rndWrk rndWid
+            cs <- W.selectCoinsForMigration @_ @_ @t rndWrk rndWid
             W.assignMigrationTargetAddresses seqWrk seqWid () cs
 
     when (null cs) $ liftHandler $ throwE $ ErrMigratingEmptyWallet rndWid
 
     forM cs $ \selection -> do
         (tx, meta, time, wit) <- liftHandler
-            $ withWorkerCtx rndCtx rndWid (throwE . ErrSignTxNoSuchWallet)
+            $ withWorkerCtx rndCtx rndWid (throwE . ErrSignPaymentNoSuchWallet)
             $ \wrk ->
                 W.withRootKey
-                    wrk rndWid passphrase ErrSignTxWithRootKey
+                    wrk rndWid passphrase ErrSignPaymentWithRootKey
             $ \xprv ->
-                W.signTx @_ @_ @t
+                W.signPayment @_ @_ @t
                     wrk rndWid (xprv, passphrase) passphrase selection
         liftHandler
             $ withWorkerCtx rndCtx rndWid (throwE . ErrSubmitTxNoSuchWallet)
@@ -1456,39 +1455,43 @@ instance LiftHandler ErrAdjustForFee where
                 , showT missing, " Lovelace."
                 ]
 
-instance Buildable e => LiftHandler (ErrCreateUnsignedTx e) where
+instance Buildable e => LiftHandler (ErrSelectForPayment e) where
     handler = \case
-        ErrCreateUnsignedTxNoSuchWallet e -> handler e
-        ErrCreateUnsignedTxCoinSelection e -> handler e
-        ErrCreateUnsignedTxFee e -> handler e
+        ErrSelectForPaymentNoSuchWallet e -> handler e
+        ErrSelectForPaymentCoinSelection e -> handler e
+        ErrSelectForPaymentFee e -> handler e
 
-instance Buildable e => LiftHandler (ErrEstimateTxFee e) where
+instance Buildable e => LiftHandler (ErrEstimatePaymentFee e) where
     handler = \case
-        ErrEstimateTxFeeNoSuchWallet e -> handler e
-        ErrEstimateTxFeeCoinSelection e -> handler e
+        ErrEstimatePaymentFeeNoSuchWallet e -> handler e
+        ErrEstimatePaymentFeeCoinSelection e -> handler e
 
 instance LiftHandler ErrListUTxOStatistics where
     handler = \case
         ErrListUTxOStatisticsNoSuchWallet e -> handler e
 
-instance LiftHandler ErrSignTx where
+instance LiftHandler ErrMkTx where
     handler = \case
-        ErrSignTx (ErrKeyNotFoundForAddress addr) ->
-            apiError err403 KeyNotFoundForAddress $ mconcat
-                [ "I couldn't sign the given transaction: I haven't found the "
-                , "corresponding private key for the following output address: "
-                , pretty addr, ". Are you sure this address belongs to a known "
-                , "wallet?"
+        ErrKeyNotFoundForAddress addr ->
+            apiError err500 KeyNotFoundForAddress $ mconcat
+                [ "That's embarassing. I couldn't sign the given transaction: "
+                , "I haven't found the corresponding private key for a known "
+                , "input address I should keep track of: ", showT addr, ". "
+                , "Retrying may work, but something really went wrong..."
                 ]
-        ErrSignTxNoSuchWallet e -> (handler e)
+
+instance LiftHandler ErrSignPayment where
+    handler = \case
+        ErrSignPaymentMkTx e -> handler e
+        ErrSignPaymentNoSuchWallet e -> (handler e)
             { errHTTPCode = 410
             , errReasonPhrase = errReasonPhrase err410
             }
-        ErrSignTxWithRootKey e@ErrWithRootKeyNoRootKey{} -> (handler e)
+        ErrSignPaymentWithRootKey e@ErrWithRootKeyNoRootKey{} -> (handler e)
             { errHTTPCode = 410
             , errReasonPhrase = errReasonPhrase err410
             }
-        ErrSignTxWithRootKey e@ErrWithRootKeyWrongPassphrase{} -> handler e
+        ErrSignPaymentWithRootKey e@ErrWithRootKeyWrongPassphrase{} -> handler e
 
 instance LiftHandler ErrDecodeSignedTx where
     handler = \case
@@ -1637,42 +1640,35 @@ instance LiftHandler ErrMetricsInconsistency where
                 , " but the node doesn't know about this stake pool!"
                 ]
 
-instance LiftHandler ErrCreateCert where
+instance LiftHandler ErrSelectForDelegation where
     handler = \case
-        ErrCreateCertNoSuchPool poolId ->
+        ErrSelectForDelegationNoSuchPool poolId ->
             apiError err404 NoSuchPool $ mconcat
                 [ "I couldn't find a stake pool with the given id: "
                 , toText poolId
                 ]
-        ErrCreateCertPoolAlreadyJoined poolId ->
+        ErrSelectForDelegationPoolAlreadyJoined poolId ->
             apiError err403 PoolAlreadyJoined $ mconcat
                 [ "I couldn't join a stake pool with the given id: "
                 , toText poolId
-                , "I am already joined, joining once again would only incur "
+                , ". I am already joined, joining once again would only incur "
                 , "unneeded fees!"
                 ]
-        ErrCreateCertNoSuchWallet e -> handler e
-        ErrCreateCertFee e -> handler e
+        ErrSelectForDelegationNoSuchWallet e -> handler e
+        ErrSelectForDelegationFee e -> handler e
 
-instance LiftHandler ErrSignCert where
+instance LiftHandler ErrSignDelegation where
     handler = \case
-        ErrSignCertNoSuchWallet e -> (handler e)
+        ErrSignDelegationMkTx e -> handler e
+        ErrSignDelegationNoSuchWallet e -> (handler e)
             { errHTTPCode = 410
             , errReasonPhrase = errReasonPhrase err410
             }
-        ErrSignCertWithRootKey e@ErrWithRootKeyNoRootKey{} -> (handler e)
+        ErrSignDelegationWithRootKey e@ErrWithRootKeyNoRootKey{} -> (handler e)
             { errHTTPCode = 410
             , errReasonPhrase = errReasonPhrase err410
             }
-        ErrSignCertWithRootKey e@ErrWithRootKeyWrongPassphrase{} -> handler e
-
-instance LiftHandler ErrSubmitCert where
-    handler = \case
-        ErrSubmitCertNetwork e -> handleErrPostTx e
-        ErrSubmitCertNoSuchWallet e@ErrNoSuchWallet{} -> (handler e)
-            { errHTTPCode = 410
-            , errReasonPhrase = errReasonPhrase err410
-            }
+        ErrSignDelegationWithRootKey e@ErrWithRootKeyWrongPassphrase{} -> handler e
 
 instance LiftHandler (Request, ServantErr) where
     handler (req, err@(ServantErr code _ body headers))

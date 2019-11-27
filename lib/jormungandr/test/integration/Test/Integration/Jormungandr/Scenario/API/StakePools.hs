@@ -16,44 +16,51 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..), fromHex )
 import Cardano.Wallet.Primitive.Types
-    ( PoolId (..) )
+    ( Direction (..), PoolId (..), TxStatus (..) )
 import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Test.Hspec
-    ( SpecWith, describe, it )
+    ( SpecWith, describe, it, xit )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
     , apparentPerformance
     , blocks
+    , direction
     , emptyByronWallet
     , emptyWallet
     , eventually
     , eventuallyUsingDelay_
     , eventually_
     , expectErrorMessage
+    , expectFieldEqual
     , expectListItemFieldEqual
     , expectListItemFieldSatisfy
     , expectListSizeEqual
     , expectResponseCode
+    , fixturePassphrase
+    , fixtureWallet
     , joinStakePool
     , joinStakePoolEp
     , json
     , listStakePoolsEp
+    , listTxEp
     , metrics
     , quitStakePool
     , quitStakePoolEp
     , request
     , stake
     , stakePoolEp
+    , status
     , unsafeRequest
     , verify
     )
 import Test.Integration.Framework.TestData
-    ( errMsg404NoSuchPool
+    ( errMsg403PoolAlreadyJoined
+    , errMsg404NoSuchPool
     , errMsg405
     , errMsg406
     , errMsg415
@@ -61,6 +68,7 @@ import Test.Integration.Framework.TestData
     , passphraseMinLength
     )
 
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
@@ -128,39 +136,121 @@ spec = do
             expectErrorMessage errMsg405 r
 
     it "STAKE_POOLS_JOIN_01 - Can join a stakepool" $ \ctx -> do
+        w <- fixtureWallet ctx
+
+        -- Join a pool
         (_, p:_) <- eventually $
             unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
-        w <- emptyWallet ctx
-        r <- joinStakePool ctx (p ^. #id) (w, "Secure Passphrase")
-        expectResponseCode HTTP.status403 r
+        joinStakePool ctx (p ^. #id) (w, fixturePassphrase) >>= flip verify
+            [ expectResponseCode HTTP.status200
+            , expectFieldEqual status Pending
+            , expectFieldEqual direction Outgoing
+            ]
 
-    it "STAKE_POOLS_JOIN_01 - I cannot join another until I quit\
-        \ or maybe I will just re-join another?" $ \ctx -> do
+        -- Wait for the certificate to be inserted
+        eventually $ do
+            let ep = listTxEp w mempty
+            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+                [ expectListItemFieldEqual 0 direction Outgoing
+                , expectListItemFieldEqual 0 status InLedger
+                ]
+            -- TODO: verify the wallet delegation status after #899
+
+    it "STAKE_POOLS_JOIN_01 - I can join another stake-pool after previously \
+        \ joining another one" $ \ctx -> do
         (_, p1:p2:_) <- eventually $
             unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
-        w <- emptyWallet ctx
-        r1 <- joinStakePool ctx (p1 ^. #id) (w, "Secure Passprase")
-        expectResponseCode HTTP.status403 r1
+        w <- fixtureWallet ctx
 
-        r2 <- joinStakePool ctx (p2 ^. #id) (w, "Secure Passprase")
-        expectResponseCode HTTP.status403 r2
+        joinStakePool ctx (p1 ^. #id) (w, fixturePassphrase) >>= flip verify
+            [ expectResponseCode HTTP.status200
+            , expectFieldEqual status Pending
+            , expectFieldEqual direction Outgoing
+            ]
+        -- Wait for the certificate to be inserted
+        eventually $ do
+            let ep = listTxEp w mempty
+            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+                [ expectListItemFieldEqual 0 direction Outgoing
+                , expectListItemFieldEqual 0 status InLedger
+                ]
+
+        joinStakePool ctx (p2 ^. #id) (w, fixturePassphrase) >>= flip verify
+            [ expectResponseCode HTTP.status200
+            , expectFieldEqual status Pending
+            , expectFieldEqual direction Outgoing
+            ]
+        -- Wait for the certificate to be inserted
+        eventually $ do
+            let ep = listTxEp w mempty
+            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+                [ expectListItemFieldEqual 0 direction Outgoing
+                , expectListItemFieldEqual 0 status InLedger
+                ]
+
+    xit "STAKE_POOLS_JOIN_100 - I cannot rejoin the same stake-pool" $ \ctx -> do
+        -- TODO: enable after #899
+        (_, p:_) <- eventually $
+            unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
+        let pId = p ^. #id
+        w <- fixtureWallet ctx
+
+        joinStakePool ctx pId (w, fixturePassphrase) >>= flip verify
+            [ expectResponseCode HTTP.status200
+            , expectFieldEqual status Pending
+            , expectFieldEqual direction Outgoing
+            ]
+        -- Wait for the certificate to be inserted
+        eventually $ do
+            let ep = listTxEp w mempty
+            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+                [ expectListItemFieldEqual 0 direction Outgoing
+                , expectListItemFieldEqual 0 status InLedger
+                ]
+
+        r <- joinStakePool ctx pId (w, fixturePassphrase)
+        expectResponseCode HTTP.status403 r
+        let (ApiT (PoolId bs)) = pId
+        expectErrorMessage (errMsg403PoolAlreadyJoined (T.decodeUtf8 bs)) r
 
     it "STAKE_POOLS_JOIN_01 - \
         \I definitely can quit and join another" $ \ctx -> do
         (_, p1:p2:_) <- eventually $
             unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
-        w <- emptyWallet ctx
-        r1 <- joinStakePool ctx (p1 ^. #id) (w, "Secure Passprase")
-        expectResponseCode HTTP.status403 r1
+
+        w <- fixtureWallet ctx
+
+        joinStakePool ctx (p1 ^. #id) (w, fixturePassphrase) >>= flip verify
+            [ expectResponseCode HTTP.status200
+            , expectFieldEqual status Pending
+            , expectFieldEqual direction Outgoing
+            ]
+        -- Wait for the certificate to be inserted
+        eventually $ do
+            let ep = listTxEp w mempty
+            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+                [ expectListItemFieldEqual 0 direction Outgoing
+                , expectListItemFieldEqual 0 status InLedger
+                ]
 
         r1q <- quitStakePool ctx (p1 ^. #id) (w, "Secure Passprase")
         expectResponseCode HTTP.status501 r1q
 
-        r2 <- joinStakePool ctx (p2 ^. #id) (w, "Secure Passprase")
-        expectResponseCode HTTP.status403 r2
+        joinStakePool ctx (p2 ^. #id) (w, fixturePassphrase) >>= flip verify
+            [ expectResponseCode HTTP.status200
+            , expectFieldEqual status Pending
+            , expectFieldEqual direction Outgoing
+            ]
+        -- Wait for the certificate to be inserted
+        eventually $ do
+            let ep = listTxEp w mempty
+            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+                [ expectListItemFieldEqual 0 direction Outgoing
+                , expectListItemFieldEqual 0 status InLedger
+                ]
 
     it "STAKE_POOLS_JOIN_01 - Cannot join non-existant stakepool" $ \ctx -> do
-        let pId = "0000000000000000000000000000000000000000000000000000000000000000"
+        let pId = B8.replicate 64 '0'
         let (Right addr) = fromHex pId
         let poolIdAbsent = ApiT $ PoolId addr
         w <- emptyWallet ctx
