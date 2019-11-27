@@ -111,10 +111,10 @@ instance Buildable (RndState network) where
 -- | Shortcut type alias for HD random address derivation path.
 type DerivationPath = (Index 'WholeDomain 'AccountK, Index 'WholeDomain 'AddressK)
 
--- An address is considered to belong to the 'RndState' wallet if it can be decoded
--- as a Byron HD random address, and where the wallet key can be used to decrypt
--- the address derivation path.
-instance IsOurs (RndState n) where
+-- An address is considered to belong to the 'RndState' wallet if it can be
+-- decoded as a Byron HD random address, and where the wallet key can be used
+-- to decrypt the address derivation path.
+instance IsOurs (RndState n) Address where
     isOurs addr st =
         (isJust path, maybe id (addDiscoveredAddress addr) path st)
       where

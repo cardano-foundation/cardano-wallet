@@ -36,7 +36,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Types
     ( Address (..) )
 
--- | This abstraction exists to give us the ability to keep the wallet business
+-- | Checks whether or not a given entity belongs to us.
+--
+-- This abstraction exists to give us the ability to keep the wallet business
 -- logic agnostic to the address derivation and discovery mechanisms.
 --
 -- This is needed because two different address schemes lives on Cardano:
@@ -52,12 +54,12 @@ import Cardano.Wallet.Primitive.Types
 -- In practice, we will need a wallet that can support both, even if not at the
 -- same time, and this little abstraction can buy us this without introducing
 -- too much overhead.
-class IsOurs s where
+class IsOurs s entity where
     isOurs
-        :: Address
+        :: entity
         -> s
         -> (Bool, s)
-        -- ^ Checks whether an address is ours or not.
+        -- ^ Checks whether an entity is ours or not.
 
 -- | More powerful than 'isOurs', this abstractions offer the underlying state
 -- the ability to find / compute the address private key corresponding to a
@@ -67,7 +69,7 @@ class IsOurs s where
 -- the root private key of a particular wallet. This isn't true for externally
 -- owned wallet which would delegate its key management to a third party (like
 -- a hardware Ledger or Trezor).
-class IsOurs s => IsOwned s key where
+class IsOurs s Address => IsOwned s key where
     isOwned
         :: s
         -> (key 'RootK XPrv, Passphrase "encryption")

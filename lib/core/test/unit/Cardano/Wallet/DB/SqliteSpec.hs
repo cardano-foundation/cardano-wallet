@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -232,7 +233,7 @@ loggingSpec = withLoggingDB @(SeqState 'Testnet ShelleyKey) @ShelleyKey $ do
 -- | Set up a DBLayer for testing, with the command context, and the logging
 -- variable.
 newMemoryDBLayer
-    ::  ( IsOurs s
+    ::  ( IsOurs s Address
         , NFData s
         , Show s
         , PersistState s
@@ -242,7 +243,7 @@ newMemoryDBLayer
 newMemoryDBLayer = snd . snd <$> newMemoryDBLayer'
 
 newMemoryDBLayer'
-    ::  ( IsOurs s
+    ::  ( IsOurs s Address
         , NFData s
         , Show s
         , PersistState s
@@ -288,7 +289,7 @@ testingLogConfig = do
     pure logConfig
 
 withLoggingDB
-    ::  ( IsOurs s
+    ::  ( IsOurs s Address
         , NFData s
         , Show s
         , PersistState s
@@ -422,7 +423,7 @@ fileModeSpec =  do
 -- SQLite session has the same effect as executing the same operations over
 -- multiple sessions.
 prop_randomOpChunks
-    :: (Eq s, IsOurs s, NFData s, Show s, PersistState s)
+    :: (Eq s, IsOurs s Address, NFData s, Show s, PersistState s)
     => KeyValPairs (PrimaryKey WalletId) (Wallet s, WalletMetadata)
     -> Property
 prop_randomOpChunks (KeyValPairs pairs) =
@@ -505,7 +506,7 @@ withTestDBFile action expectations = do
         expectations fp
 
 inMemoryDBLayer
-    :: (IsOurs s, NFData s, Show s, PersistState s)
+    :: (IsOurs s Address, NFData s, Show s, PersistState s)
     => IO (SqliteContext, DBLayer IO s ShelleyKey)
 inMemoryDBLayer = newDBLayer' Nothing
 
@@ -513,7 +514,7 @@ temporaryDBFile :: IO FilePath
 temporaryDBFile = emptySystemTempFile "cardano-wallet-SqliteFileMode"
 
 newDBLayer'
-    :: (IsOurs s, NFData s, Show s, PersistState s)
+    :: (IsOurs s Address, NFData s, Show s, PersistState s)
     => Maybe FilePath
     -> IO (SqliteContext, DBLayer IO s ShelleyKey)
 newDBLayer' fp = do

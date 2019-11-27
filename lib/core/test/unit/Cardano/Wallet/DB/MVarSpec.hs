@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
@@ -23,6 +24,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..) )
+import Cardano.Wallet.Primitive.Types
+    ( Address )
 import Control.DeepSeq
     ( NFData )
 import Test.Hspec
@@ -45,5 +48,5 @@ instance Arbitrary DummyStateMVar where
 
 deriving instance NFData DummyStateMVar
 
-instance IsOurs DummyStateMVar where
+instance IsOurs DummyStateMVar Address where
     isOurs _ num = (True, num)

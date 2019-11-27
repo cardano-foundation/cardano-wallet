@@ -469,7 +469,7 @@ instance Arbitrary DummyState where
     shrink _ = []
     arbitrary = return (DummyState mempty)
 
-instance IsOurs DummyState where
+instance IsOurs DummyState Address where
     isOurs _ s = (True, s)
 
 instance IsOwned DummyState ShelleyKey where

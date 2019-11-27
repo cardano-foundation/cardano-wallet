@@ -1092,7 +1092,7 @@ createWallet
         , HasLogger (WorkerCtx ctx)
         , Show s
         , NFData s
-        , IsOurs s
+        , IsOurs s Address
         )
     => ctx
     -> WalletId

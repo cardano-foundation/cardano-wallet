@@ -520,7 +520,7 @@ instance
     ( SoftDerivation k
     , MkKeyFingerprint k (k 'AddressK XPub)
     , MkKeyFingerprint k Address
-    ) => IsOurs (SeqState n k) where
+    ) => IsOurs (SeqState n k) Address where
     isOurs addr (SeqState !s1 !s2 !ixs !rpk) =
         let
             (internal, !s1') = lookupAddress addr s1
