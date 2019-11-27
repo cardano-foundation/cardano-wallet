@@ -153,9 +153,6 @@ instance PaymentAddress 'Testnet ByronKey where
         (acctIx, addrIx) = derivationPath k
         pwd = payloadPassphrase k
 
-    liftPaymentFingerprint (KeyFingerprint bytes) =
-        Address bytes
-
 instance PaymentAddress 'Mainnet ByronKey where
     paymentAddress k = Address
         $ CBOR.toStrictByteString
@@ -164,9 +161,6 @@ instance PaymentAddress 'Mainnet ByronKey where
       where
         (acctIx, addrIx) = derivationPath k
         pwd = payloadPassphrase k
-
-    liftPaymentFingerprint (KeyFingerprint bytes) =
-        Address bytes
 
 instance MkKeyFingerprint ByronKey where
     paymentKeyFingerprint addr@(Address bytes) =
