@@ -175,9 +175,9 @@ prop_applyBlockTxHistoryIncoming s =
   where
     (_, cp0) = initWallet @_ block0 genesisParameters s
     bs = NE.fromList blockchain
-    filteredBlocks_cps = applyBlocks bs cp0
-    txs = fold $ (view #transactions . fst) <$> filteredBlocks_cps
-    s' = getState $ NE.last $ snd <$> filteredBlocks_cps
+    (filteredBlocks, cps) = NE.unzip $ applyBlocks bs cp0
+    txs = fold $ (view #transactions) <$> filteredBlocks
+    s' = getState $ NE.last cps
     isIncoming (_, m) = direction m == Incoming
     outs = Set.fromList . concatMap (map address . outputs . fst)
     overlaps a b
