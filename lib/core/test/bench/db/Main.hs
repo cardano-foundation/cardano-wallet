@@ -55,9 +55,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
-    , PaymentAddress (..)
     , WalletKey (..)
     , XPub
+    , xpub
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..)
@@ -503,16 +503,27 @@ benchPutSeqState :: Int -> Int -> DBLayerBench -> IO ()
 benchPutSeqState numCheckpoints numAddrs DBLayer{..} =
     unsafeRunExceptT $ mapM_ (mapExceptT atomically . putCheckpoint testPk)
         [ snd $ initWallet block0 genesisParameters $
-            SeqState (mkPool numAddrs i) (mkPool numAddrs i) emptyPendingIxs
+            SeqState
+                (mkPool numAddrs i)
+                (mkPool numAddrs i)
+                emptyPendingIxs
+                rewardAccount
         | i <- [1..numCheckpoints]
         ]
 
 mkPool
-    :: forall t c. (PaymentAddress t ShelleyKey, Typeable c)
-    => Int -> Int -> AddressPool t c ShelleyKey
+    :: forall c. (Typeable c)
+    => Int -> Int -> AddressPool c ShelleyKey
 mkPool numAddrs i = mkAddressPool ourAccount defaultAddressPoolGap addrs
   where
     addrs = [ mkAddress i j | j <- [1..numAddrs] ]
+
+rewardAccount
+    :: ShelleyKey 'AddressK XPub
+rewardAccount =
+    ShelleyKey $ unsafeFromRight $ xpub $ BS.replicate 64 0
+  where
+    unsafeFromRight = either (error "unsafeFromRight: invalid xpub?") id
 
 ----------------------------------------------------------------------------
 -- Disk space usage tests

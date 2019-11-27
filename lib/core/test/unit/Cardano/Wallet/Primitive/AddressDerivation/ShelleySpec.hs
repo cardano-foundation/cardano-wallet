@@ -193,7 +193,7 @@ prop_fingerprintRoundtrip
     => SingleAddress n
     -> Property
 prop_fingerprintRoundtrip (SingleAddress addr) =
-    (liftPaymentFingerprint @n <$> paymentKeyFingerprint @ShelleyKey addr)
+    (liftPaymentAddress @n <$> paymentKeyFingerprint @ShelleyKey addr)
         === Right addr
 
 {-------------------------------------------------------------------------------

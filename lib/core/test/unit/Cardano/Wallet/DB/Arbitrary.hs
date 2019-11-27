@@ -405,10 +405,13 @@ instance Arbitrary (Index 'WholeDomain 'AddressK) where
 -------------------------------------------------------------------------------}
 
 instance Arbitrary (SeqState 'Testnet ShelleyKey) where
-    shrink (SeqState intPool extPool ixs) =
-        (\(i, e, x) -> SeqState i e x) <$> shrink (intPool, extPool, ixs)
-    arbitrary = do
-        SeqState <$> arbitrary <*> arbitrary <*> arbitrary
+    shrink (SeqState intPool extPool ixs rwd) =
+        (\(i, e, x) -> SeqState i e x rwd) <$> shrink (intPool, extPool, ixs)
+    arbitrary = SeqState
+        <$> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> pure arbitraryRewardAccount
 
 instance Arbitrary (ShelleyKey 'RootK XPrv) where
     shrink _ = []
@@ -435,7 +438,7 @@ instance Arbitrary (ShelleyKey 'RootK XPrv) where
 instance Arbitrary (Seq.PendingIxs) where
     arbitrary = pure Seq.emptyPendingIxs
 
-instance Typeable chain => Arbitrary (AddressPool 'Testnet chain ShelleyKey) where
+instance Typeable chain => Arbitrary (AddressPool chain ShelleyKey) where
     arbitrary = pure $ mkAddressPool arbitrarySeqAccount minBound mempty
 
 -- Properties are quite heavy on the generation of values, although for
@@ -457,6 +460,13 @@ rootKeysSeq = unsafePerformIO $ generate (vectorOf 10 genRootKeysSeq)
 arbitrarySeqAccount
     :: ShelleyKey 'AccountK XPub
 arbitrarySeqAccount =
+    publicKey $ unsafeGenerateKeyFromSeed (seed, mempty) mempty
+  where
+    seed = Passphrase $ BA.convert $ BS.replicate 32 0
+
+arbitraryRewardAccount
+    :: ShelleyKey 'AddressK XPub
+arbitraryRewardAccount =
     publicKey $ unsafeGenerateKeyFromSeed (seed, mempty) mempty
   where
     seed = Passphrase $ BA.convert $ BS.replicate 32 0
