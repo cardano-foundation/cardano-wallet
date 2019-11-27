@@ -22,7 +22,7 @@ import Control.Monad
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Test.Hspec
-    ( SpecWith, describe, it )
+    ( SpecWith, describe, it, xit )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
@@ -59,7 +59,8 @@ import Test.Integration.Framework.DSL
     , verify
     )
 import Test.Integration.Framework.TestData
-    ( errMsg404NoSuchPool
+    ( errMsg403PoolAlreadyJoined
+    , errMsg404NoSuchPool
     , errMsg405
     , errMsg406
     , errMsg415
@@ -156,7 +157,7 @@ spec = do
             -- TODO: verify the wallet delegation status after #899
 
     it "STAKE_POOLS_JOIN_01 - I can join another stake-pool after previously \
-        \ joining another" $ \ctx -> do
+        \ joining another one" $ \ctx -> do
         (_, p1:p2:_) <- eventually $
             unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
         w <- fixtureWallet ctx
@@ -186,6 +187,31 @@ spec = do
                 [ expectListItemFieldEqual 0 direction Outgoing
                 , expectListItemFieldEqual 0 status InLedger
                 ]
+
+    xit "STAKE_POOLS_JOIN_100 - I cannot rejoin the same stake-pool" $ \ctx -> do
+        -- TODO: enable after #899
+        (_, p:_) <- eventually $
+            unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
+        let pId = p ^. #id
+        w <- fixtureWallet ctx
+
+        joinStakePool ctx pId (w, fixturePassphrase) >>= flip verify
+            [ expectResponseCode HTTP.status200
+            , expectFieldEqual status Pending
+            , expectFieldEqual direction Outgoing
+            ]
+        -- Wait for the certificate to be inserted
+        eventually $ do
+            let ep = listTxEp w mempty
+            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+                [ expectListItemFieldEqual 0 direction Outgoing
+                , expectListItemFieldEqual 0 status InLedger
+                ]
+
+        r <- joinStakePool ctx pId (w, fixturePassphrase)
+        expectResponseCode HTTP.status403 r
+        let (ApiT (PoolId bs)) = pId
+        expectErrorMessage (errMsg403PoolAlreadyJoined (T.decodeUtf8 bs)) r
 
     it "STAKE_POOLS_JOIN_01 - \
         \I definitely can quit and join another" $ \ctx -> do

@@ -1651,7 +1651,7 @@ instance LiftHandler ErrSelectForDelegation where
             apiError err403 PoolAlreadyJoined $ mconcat
                 [ "I couldn't join a stake pool with the given id: "
                 , toText poolId
-                , "I am already joined, joining once again would only incur "
+                , ". I am already joined, joining once again would only incur "
                 , "unneeded fees!"
                 ]
         ErrSelectForDelegationNoSuchWallet e -> handler e
