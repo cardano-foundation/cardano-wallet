@@ -28,7 +28,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , WalletKey (..)
     , XPrv
     , XPub
-    , xpub
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..), unsafeGenerateKeyFromSeed )
@@ -442,9 +441,9 @@ ourAddresses cc =
 rewardAccount
     :: ShelleyKey 'AddressK XPub
 rewardAccount =
-    ShelleyKey $ unsafeFromRight $ xpub $ BS.replicate 64 0
+    publicKey $ unsafeGenerateKeyFromSeed (seed, mempty) mempty
   where
-    unsafeFromRight = either (error "unsafeFromRight: invalid xpub?") id
+    seed = Passphrase $ BA.convert $ BS.replicate 16 0
 
 liftAddr
     :: KeyFingerprint "payment" ShelleyKey

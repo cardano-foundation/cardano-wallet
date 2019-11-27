@@ -57,7 +57,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase (..)
     , WalletKey (..)
     , XPub
-    , xpub
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..)
@@ -518,13 +517,6 @@ mkPool numAddrs i = mkAddressPool ourAccount defaultAddressPoolGap addrs
   where
     addrs = [ mkAddress i j | j <- [1..numAddrs] ]
 
-rewardAccount
-    :: ShelleyKey 'AddressK XPub
-rewardAccount =
-    ShelleyKey $ unsafeFromRight $ xpub $ BS.replicate 64 0
-  where
-    unsafeFromRight = either (error "unsafeFromRight: invalid xpub?") id
-
 ----------------------------------------------------------------------------
 -- Disk space usage tests
 --
@@ -638,6 +630,10 @@ testPk = PrimaryKey testWid
 
 ourAccount :: ShelleyKey 'AccountK XPub
 ourAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, mempty) mempty
+  where seed = Passphrase $ BA.convert $ BS.replicate 32 0
+
+rewardAccount :: ShelleyKey 'AddressK XPub
+rewardAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, mempty) mempty
   where seed = Passphrase $ BA.convert $ BS.replicate 32 0
 
 -- | Make a prefixed bytestring for use as a Hash or Address.
