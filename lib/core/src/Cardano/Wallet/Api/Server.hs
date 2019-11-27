@@ -1191,7 +1191,7 @@ getWalletWithCreationTime mk ctx (ApiT wid) = do
     return (mk wid wallet meta progress pending, meta ^. #creationTime)
 
 mkApiWallet
-    :: forall s k n. (s ~ SeqState n k)
+    :: forall s k. (s ~ SeqState k)
     => WalletId
     -> Wallet s
     -> WalletMetadata

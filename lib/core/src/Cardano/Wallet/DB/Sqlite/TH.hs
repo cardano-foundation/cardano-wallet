@@ -180,6 +180,7 @@ SeqState
     seqStateExternalGap     W.AddressPoolGap  sql=external_gap
     seqStateInternalGap     W.AddressPoolGap  sql=internal_gap
     seqStateAccountXPub     B8.ByteString     sql=account_xpub
+    seqStateRewardXPub      B8.ByteString     sql=reward_xpub
 
     Primary seqStateWalletId
     Foreign Wallet seq_state seqStateWalletId ! ON DELETE CASCADE

@@ -438,7 +438,7 @@ instance PersistPrivateKey (ShelleyKey 'RootK) where
         xprvFromText = xprv <=< fromHex @ByteString
         err _ = error "unsafeDeserializeXPrv: unable to deserialize ShelleyKey"
 
-instance PersistPublicKey (ShelleyKey 'AccountK) where
+instance PersistPublicKey (ShelleyKey depth) where
     serializeXPub =
         hex . unXPub . getKey
 
