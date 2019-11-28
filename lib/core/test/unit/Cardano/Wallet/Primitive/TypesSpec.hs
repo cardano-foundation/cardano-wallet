@@ -33,6 +33,7 @@ import Cardano.Wallet.Primitive.Types
     , FeePolicy (..)
     , Hash (..)
     , HistogramBar (..)
+    , PoolOwner (..)
     , Range (..)
     , RangeBound (..)
     , ShowFmt (..)
@@ -197,6 +198,7 @@ spec = do
         textRoundtrip $ Proxy @(Hash "Block")
         textRoundtrip $ Proxy @(Hash "BlockHeader")
         textRoundtrip $ Proxy @SyncTolerance
+        textRoundtrip $ Proxy @PoolOwner
 
         -- Extra hand-crafted tests
         it "Valid account IDs are properly decoded from text" $ do
@@ -692,6 +694,21 @@ spec = do
             it ("correct fromText @FeePolicy " <> show policyText) $ do
                 fromText @FeePolicy policyText `shouldSatisfy` isRight
 
+        let poolOwnerTests =
+                [ ( "Invalid bech32"
+                  , "hello"
+                  , "Stake pool owner is not a valid bech32 string: "
+                    <> "StringToDecodeTooShort" )
+                , ( "Wrong HRP"
+                  , "split1checkupstagehandshakeupstreamerranterredcaperred2y9e3w"
+                  , "Stake pool owner has wrong prefix: expected ed25519_pk "
+                    <> "but got HumanReadablePart \"split\"" )
+                ]
+
+        forM_ poolOwnerTests $ \(title, str, msg) ->
+            it ("fail fromText @PoolOwner " ++ title) $
+                fromText @PoolOwner str `shouldBe` (Left $ TextDecodingError msg)
+
     describe "unsafeEpochNo" $ do
         it "returns a successful result for any Word31" $
             property prop_unsafeEpochNoValid
@@ -1166,6 +1183,9 @@ instance {-# OVERLAPS #-} Arbitrary (EpochLength, SlotId) where
 instance Arbitrary Word31 where
     arbitrary = arbitrarySizedBoundedIntegral
     shrink = shrinkIntegral
+
+instance Arbitrary PoolOwner where
+    arbitrary = PoolOwner . BS.pack <$> vectorOf 32 arbitrary
 
 {-------------------------------------------------------------------------------
                                   Test data
