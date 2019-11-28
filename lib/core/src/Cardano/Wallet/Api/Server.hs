@@ -266,10 +266,8 @@ import Servant
     , err409
     , err410
     , err500
-    , err501
     , err503
     , serve
-    , throwError
     )
 import Servant.Server
     ( Handler (..), ServantErr (..) )
@@ -781,7 +779,7 @@ pools
     -> Server (StakePoolApi n)
 pools ctx spl =
     listPools spl
-    :<|> joinStakePool ctx spl
+    :<|> joinStakePool ctx spl Join
     :<|> quitStakePool ctx spl
 
 listPools
@@ -813,11 +811,12 @@ joinStakePool
         )
     => ctx
     -> StakePoolLayer IO
+    -> DelegationAction
     -> ApiT PoolId
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
-joinStakePool ctx spl (ApiT poolId) (ApiT wid) passwd = do
+joinStakePool ctx spl action (ApiT poolId) (ApiT wid) passwd = do
     (_, walMeta, _) <- liftHandler $ withWorkerCtx ctx wid throwE $
         \wrk -> W.readWallet wrk wid
     when (walMeta ^. #delegation == W.Delegating poolId) $
@@ -833,7 +832,7 @@ joinStakePool ctx spl (ApiT poolId) (ApiT wid) passwd = do
         W.selectCoinsForDelegation @_ @s @t wrk wid
 
     (tx, meta, time, wit) <- liftHandler $ withWorkerCtx ctx wid liftE2 $ \wrk ->
-        W.signDelegation @_ @s @t @k wrk wid () pwd selection poolId Join
+        W.signDelegation @_ @s @t @k wrk wid () pwd selection poolId action
 
     liftHandler $ withWorkerCtx ctx wid liftE3 $ \wrk ->
         W.submitTx @_ @s @t @k wrk wid (tx, meta, wit)
@@ -868,23 +867,12 @@ quitStakePool
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
-quitStakePool ctx spl (ApiT poolId) (ApiT wid) _ = do
+quitStakePool ctx spl (ApiT poolId) (ApiT wid) pwd = do
     (_, walMeta, _) <- liftHandler $ withWorkerCtx ctx wid throwE $
         \wrk -> W.readWallet wrk wid
-
     when (walMeta ^. #delegation == W.NotDelegating) $
         liftHandler $ throwE ErrSelectForDelegationNotDelegating
-
-    allPools <- listPools spl
-    when (poolIsUnknown poolId allPools) $
-        liftHandler $ throwE (ErrSelectForDelegationNoSuchPool poolId)
-
-    _selection <- liftHandler $ withWorkerCtx ctx wid liftE1 $ \wrk ->
-        W.selectCoinsForDelegation @_ @s @t wrk wid
-
-    throwError err501
-  where
-    liftE1 = throwE . ErrSelectForDelegationNoSuchWallet
+    joinStakePool ctx spl Quit (ApiT poolId) (ApiT wid) pwd
 
 {-------------------------------------------------------------------------------
                                     Network
