@@ -67,12 +67,12 @@ import Cardano.Wallet.Primitive.Types
     , Block (..)
     , BlockHeader (..)
     , ChimericAccount (..)
+    , DelegationCertificate (..)
     , Direction (..)
     , Dom (..)
     , EpochLength (..)
     , FeePolicy (..)
     , Hash (..)
-    , PoolId (..)
     , SlotLength (..)
     , SlotParameters (SlotParameters)
     , StartTime (..)
@@ -83,6 +83,7 @@ import Cardano.Wallet.Primitive.Types
     , TxStatus (..)
     , UTxO (..)
     , balance
+    , dlgCertAccount
     , excluding
     , inputs
     , restrictedBy
@@ -288,7 +289,7 @@ updateState s (Wallet u tip _ bp) = Wallet u tip s bp
 -- | Represents the subset of data from a single block that are relevant to a
 --   particular wallet, discovered when applying a block to that wallet.
 data FilteredBlock = FilteredBlock
-    { delegations :: ![PoolId]
+    { delegations :: ![DelegationCertificate]
         -- ^ Stake delegations made on behalf of the wallet, listed in order of
         -- discovery. If the list contains more than element, those that appear
         -- later in the list supercede those that appear earlier on.
@@ -429,12 +430,12 @@ prefilterBlock b u0 = runState $ do
   where
     ourDelegation
         :: IsOurs s ChimericAccount
-        => (ChimericAccount, PoolId)
-        -> State s (Maybe PoolId)
-    ourDelegation (account, poolId) =
-        state (isOurs account) <&> \case
+        => DelegationCertificate
+        -> State s (Maybe DelegationCertificate)
+    ourDelegation cert =
+        state (isOurs $ dlgCertAccount cert) <&> \case
             False -> Nothing
-            True -> Just poolId
+            True -> Just cert
     mkTxMeta :: Natural -> Direction -> TxMeta
     mkTxMeta amt dir = TxMeta
         { status = InLedger

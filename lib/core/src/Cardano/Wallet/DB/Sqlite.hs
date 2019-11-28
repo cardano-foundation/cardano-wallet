@@ -398,12 +398,12 @@ newDBLayer logConfig trace mDatabaseFile = do
             fmap (metadataFromEntity walDelegation . entityVal)
                 <$> selectFirst [WalId ==. wid] []
 
-        , putDelegationCertificate = \(PrimaryKey wid) pool sl -> ExceptT $ do
+        , putDelegationCertificate = \(PrimaryKey wid) cert sl -> ExceptT $ do
             selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just _  -> pure <$> repsert
                     (DelegationCertificateKey wid sl)
-                    (DelegationCertificate wid sl pool)
+                    (DelegationCertificate wid sl (W.dlgCertPoolId cert))
 
         {-----------------------------------------------------------------------
                                      Tx History
@@ -471,7 +471,9 @@ delegationFromEntity
 delegationFromEntity = \case
     Nothing ->
         W.NotDelegating
-    Just (DelegationCertificate _ _ pool) ->
+    Just (DelegationCertificate _ _ Nothing) ->
+        W.NotDelegating
+    Just (DelegationCertificate _ _ (Just pool)) ->
         W.Delegating pool
 
 mkWalletEntity :: W.WalletId -> W.WalletMetadata -> Wallet

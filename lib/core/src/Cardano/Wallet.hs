@@ -201,6 +201,7 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader (..)
     , ChimericAccount (..)
     , Coin (..)
+    , DelegationCertificate
     , Direction (..)
     , FeePolicy (LinearFee)
     , Hash (..)
@@ -225,6 +226,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , WalletPassphraseInfo (..)
     , computeUtxoStatistics
+    , dlgCertPoolId
     , log10
     , slotRangeFromTimeRange
     , slotStartTime
@@ -573,11 +575,11 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> do
     let bp = blockchainParameters cp
     let (filteredBlocks, cps) = NE.unzip $ applyBlocks @s blocks cp
     let slotPoolDelegations =
-            [ (slotId, poolId)
+            [ (slotId, cert)
             | let slots = view #slotId . view #header <$> blocks
             , let delegations = view #delegations <$> filteredBlocks
-            , (slotId, poolIds) <- NE.toList $ NE.zip slots delegations
-            , poolId <- poolIds
+            , (slotId, certs) <- NE.toList $ NE.zip slots delegations
+            , cert <- certs
             ]
     let txs = fold $ view #transactions <$> filteredBlocks
     let k = bp ^. #getEpochStability
@@ -591,9 +593,9 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> do
             putCheckpoint (PrimaryKey wid) cp'
 
     mapExceptT atomically $
-        forM_ slotPoolDelegations $ \delegation@(slotId, poolId) -> do
+        forM_ slotPoolDelegations $ \delegation@(slotId, cert) -> do
             liftIO $ logDelegation delegation
-            putDelegationCertificate (PrimaryKey wid) poolId slotId
+            putDelegationCertificate (PrimaryKey wid) cert slotId
 
     mapExceptT atomically $ do
         liftIO $ logCheckpoint cp
@@ -622,10 +624,10 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> do
     logCheckpoint cp = logInfo tr $
         "Creating checkpoint at " <> pretty (currentTip cp)
 
-    logDelegation :: (SlotId, PoolId) -> IO ()
-    logDelegation (slotId, poolId) = logInfo tr $ mconcat
+    logDelegation :: (SlotId, DelegationCertificate) -> IO ()
+    logDelegation (slotId, cert) = logInfo tr $ mconcat
         [ "Discovered delegation to pool "
-        , pretty poolId
+        , pretty (dlgCertPoolId cert)
         , " within slot "
         , pretty slotId
         ]

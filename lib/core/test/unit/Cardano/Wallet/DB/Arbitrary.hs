@@ -71,6 +71,7 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader (..)
     , ChimericAccount (..)
     , Coin (..)
+    , DelegationCertificate (..)
     , Direction (..)
     , EpochLength (..)
     , EpochNo (..)
@@ -147,6 +148,7 @@ import Test.QuickCheck
     , generate
     , genericShrink
     , liftArbitrary
+    , oneof
     , scale
     , shrinkIntegral
     , shrinkList
@@ -538,6 +540,14 @@ instance Arbitrary (Hash purpose) where
 instance Arbitrary PoolId where
     arbitrary = do
         PoolId . convertToBase Base16 . BS.pack <$> vectorOf 16 arbitrary
+
+instance Arbitrary DelegationCertificate where
+    arbitrary = oneof
+        [ CertDelegateNone <$> arbitraryChimericAccount
+        , CertDelegateFull <$> arbitraryChimericAccount <*> arbitrary
+        ]
+      where
+        arbitraryChimericAccount = pure $ ChimericAccount $ BS.replicate 32 0
 
 instance Arbitrary Word31 where
     arbitrary = arbitrarySizedBoundedIntegral
