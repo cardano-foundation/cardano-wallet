@@ -45,7 +45,8 @@ import Cardano.Pool.Metrics
     , StakePoolLayer (..)
     )
 import Cardano.Wallet
-    ( ErrAdjustForFee (..)
+    ( DelegationAction (..)
+    , ErrAdjustForFee (..)
     , ErrCoinSelection (..)
     , ErrDecodeSignedTx (..)
     , ErrEstimatePaymentFee (..)
@@ -183,7 +184,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..), MkWorker (..), newWorker, workerResource )
 import Cardano.Wallet.Transaction
-    ( DelegationAction (..), TransactionLayer )
+    ( TransactionLayer )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.DeepSeq
@@ -779,7 +780,7 @@ pools
     -> Server (StakePoolApi n)
 pools ctx spl =
     listPools spl
-    :<|> joinStakePool ctx spl Join
+    :<|> actionStakePool ctx spl Join
     :<|> quitStakePool ctx spl
 
 listPools
@@ -800,7 +801,7 @@ listPools spl =
             apparentPerformance
             Nothing -- TODO: wire-up real metadata here when available.
 
-joinStakePool
+actionStakePool
     :: forall ctx s t n k.
         ( DelegationAddress n k
         , Buildable (ErrValidateSelection t)
@@ -816,7 +817,7 @@ joinStakePool
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
-joinStakePool ctx spl action (ApiT poolId) (ApiT wid) passwd = do
+actionStakePool ctx spl action (ApiT poolId) (ApiT wid) passwd = do
     (_, walMeta, _) <- liftHandler $ withWorkerCtx ctx wid throwE $
         \wrk -> W.readWallet wrk wid
     when (walMeta ^. #delegation == W.Delegating poolId) $
@@ -872,7 +873,7 @@ quitStakePool ctx spl (ApiT poolId) (ApiT wid) pwd = do
         \wrk -> W.readWallet wrk wid
     when (walMeta ^. #delegation == W.NotDelegating) $
         liftHandler $ throwE ErrSelectForDelegationNotDelegating
-    joinStakePool ctx spl Quit (ApiT poolId) (ApiT wid) pwd
+    actionStakePool ctx spl Quit (ApiT poolId) (ApiT wid) pwd
 
 {-------------------------------------------------------------------------------
                                     Network

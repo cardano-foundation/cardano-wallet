@@ -19,7 +19,6 @@ module Cardano.Wallet.Transaction
     (
     -- * Interface
       TransactionLayer (..)
-    , DelegationAction (..)
 
     -- * Errors
     , ErrMkTx (..)
@@ -78,10 +77,9 @@ data TransactionLayer t k = TransactionLayer
         -- This expects as a first argument a mean to compute or lookup private
         -- key corresponding to a particular address.
 
-    , mkDelegationCertTx
+    , mkDelegationJoinTx
         :: PoolId
         -> (k 'AddressK XPrv, Passphrase "encryption") -- reward account
-        -> DelegationAction
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
         -> [(TxIn, TxOut)]
         -> [TxOut]
@@ -92,6 +90,17 @@ data TransactionLayer t k = TransactionLayer
         -- The certificate is a combination of the 'PoolId' and the public key
         -- of the reward account. (Note that this is an address key and
         -- HD account keys are something different)
+
+    , mkDelegationQuitTx
+        :: (k 'AddressK XPrv, Passphrase "encryption") -- reward account
+        -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+        -> [(TxIn, TxOut)]
+        -> [TxOut]
+        -> Either ErrMkTx (Tx, SealedTx)
+        -- ^ Construct a transaction containing a certificate for quiting from
+        -- a stake pool.
+        --
+        -- The certificate is the public key of the reward account.
 
     , estimateSize :: CoinSelection -> Quantity "byte" Int
         -- ^ Estimate the size of a 'CoinSelection', in bytes. This operation is
@@ -131,8 +140,6 @@ data TransactionLayer t k = TransactionLayer
         :: ByteString -> Either ErrDecodeSignedTx (Tx, SealedTx)
         -- ^ Decode an externally-signed transaction to the chain producer
     }
-
-data DelegationAction = Join | Quit deriving (Show, Eq)
 
 -- | A type family for validations that are specific to a particular backend
 -- type. This demands an instantiation of the family for a particular backend:

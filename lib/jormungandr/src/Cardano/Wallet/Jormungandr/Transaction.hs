@@ -41,8 +41,7 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.Types
     ( Hash (..), SealedTx (..), Tx (..), TxOut (..) )
 import Cardano.Wallet.Transaction
-    ( DelegationAction (..)
-    , ErrDecodeSignedTx (..)
+    ( ErrDecodeSignedTx (..)
     , ErrMkTx (..)
     , ErrValidateSelection
     , TransactionLayer (..)
@@ -74,11 +73,20 @@ newTransactionLayer
 newTransactionLayer block0H = TransactionLayer
     { mkStdTx = mkFragment $ MkFragmentSimpleTransaction (txWitnessTagFor @k)
 
-    , mkDelegationCertTx = \pool accXPrv ->
+    , mkDelegationJoinTx = \pool accXPrv ->
         let acc = toChimericAccount . publicKey . fst $ accXPrv
         in mkFragment $ MkFragmentStakeDelegation
                     (txWitnessTagFor @k)
-                    dlgTag
+                    (DlgFull pool)
+                    acc
+                    (first getRawKey accXPrv)
+
+    , mkDelegationQuitTx = \accXPrv ->
+        let
+            acc = chimericAccountFromXPub . getRawKey . publicKey . fst $ accXPrv
+        in mkFragment $ MkFragmentStakeDelegation
+                    (txWitnessTagFor @k)
+                    DlgNone
                     acc
                     (first getRawKey accXPrv)
 

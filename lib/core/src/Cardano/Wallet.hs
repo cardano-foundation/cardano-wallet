@@ -100,6 +100,7 @@ module Cardano.Wallet
     , signDelegation
     , ErrSelectForDelegation (..)
     , ErrSignDelegation (..)
+    , DelegationAction (..)
 
     -- ** Transaction
     , forgetPendingTx
@@ -234,8 +235,7 @@ import Cardano.Wallet.Primitive.Types
     , wholeRange
     )
 import Cardano.Wallet.Transaction
-    ( DelegationAction
-    , ErrDecodeSignedTx (..)
+    ( ErrDecodeSignedTx (..)
     , ErrMkTx (..)
     , ErrValidateSelection
     , TransactionLayer (..)
@@ -943,6 +943,8 @@ signPayment ctx wid argGenChange pwd (CoinSelection ins outs chgs) = db & \DBLay
     db = ctx ^. dbLayer @s @k
     tl = ctx ^. transactionLayer @t @k
 
+data DelegationAction = Join | Quit deriving (Show, Eq)
+
 signDelegation
     :: forall ctx s t k.
         ( HasTransactionLayer t k ctx
@@ -976,7 +978,11 @@ signDelegation ctx wid argGenChange pwd coinSel poolId action = db & \DBLayer{..
             let rewardAccount = deriveRewardAccount @k pwd xprv
             let keyFrom = isOwned (getState cp) (xprv, pwd)
             (tx, sealedTx) <- withExceptT ErrSignDelegationMkTx $ ExceptT $ pure $
-                mkDelegationCertTx tl poolId (rewardAccount, pwd) action keyFrom ins allOuts
+                case action of
+                    Join ->
+                        mkDelegationJoinTx tl poolId (rewardAccount, pwd) keyFrom ins allOuts
+                    Quit ->
+                        mkDelegationQuitTx tl (rewardAccount, pwd) keyFrom ins allOuts
 
             let bp = blockchainParameters cp
             let (time, meta) = mkTxMeta bp (currentTip cp) s' ins allOuts
