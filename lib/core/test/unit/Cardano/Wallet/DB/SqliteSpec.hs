@@ -232,22 +232,22 @@ loggingSpec = withLoggingDB @(SeqState 'Testnet ShelleyKey) @ShelleyKey $ do
 -- | Set up a DBLayer for testing, with the command context, and the logging
 -- variable.
 newMemoryDBLayer
-    :: ( IsOurs s
-       , NFData s
-       , Show s
-       , PersistState s
-       , PersistPrivateKey (k 'RootK)
-       )
+    ::  ( IsOurs s
+        , NFData s
+        , Show s
+        , PersistState s
+        , PersistPrivateKey (k 'RootK)
+        )
     => IO (DBLayer IO s k)
 newMemoryDBLayer = snd . snd <$> newMemoryDBLayer'
 
 newMemoryDBLayer'
-    :: ( IsOurs s
-       , NFData s
-       , Show s
-       , PersistState s
-       , PersistPrivateKey (k 'RootK)
-       )
+    ::  ( IsOurs s
+        , NFData s
+        , Show s
+        , PersistState s
+        , PersistPrivateKey (k 'RootK)
+        )
     => IO (TVar [LogObject Text], (SqliteContext, DBLayer IO s k))
 newMemoryDBLayer' = do
     logConfig <- testingLogConfig
@@ -288,12 +288,12 @@ testingLogConfig = do
     pure logConfig
 
 withLoggingDB
-    :: ( IsOurs s
-       , NFData s
-       , Show s
-       , PersistState s
-       , PersistPrivateKey (k 'RootK)
-       )
+    ::  ( IsOurs s
+        , NFData s
+        , Show s
+        , PersistState s
+        , PersistPrivateKey (k 'RootK)
+        )
     => SpecWith (IO [LogObject Text], DBLayer IO s k)
     -> Spec
 withLoggingDB = beforeAll newMemoryDBLayer' . beforeWith clean
