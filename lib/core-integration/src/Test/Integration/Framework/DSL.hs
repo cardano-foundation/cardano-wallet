@@ -667,6 +667,7 @@ balanceAvailable =
     _set :: HasType (ApiT WalletBalance) s => (s, Natural) -> s
     _set (s, v) = set typed initBal s
       where
+        -- TODO: Fix this setter: it sets all fields to the same value.
         initBal = ApiT $ WalletBalance
             { Types.available = Quantity v
             , Types.total = Quantity v
@@ -682,6 +683,7 @@ balanceTotal =
     _set :: HasType (ApiT WalletBalance) s => (s, Natural) -> s
     _set (s, v) = set typed initBal s
       where
+        -- TODO: Fix this setter: it sets all fields to the same value.
         initBal = ApiT $ WalletBalance
             { Types.available = Quantity v
             , Types.total = Quantity v
@@ -697,6 +699,7 @@ balanceReward =
     _set :: HasType (ApiT WalletBalance) s => (s, Natural) -> s
     _set (s, v) = set typed initBal s
       where
+        -- TODO: Fix this setter: it sets all fields to the same value.
         initBal = ApiT $ WalletBalance
             { Types.available = Quantity v
             , Types.total = Quantity v
