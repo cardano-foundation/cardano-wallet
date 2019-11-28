@@ -824,7 +824,7 @@ joinStakePool ctx spl (ApiT poolId) (ApiT wid) passwd = do
         liftHandler $ throwE (ErrSelectForDelegationPoolAlreadyJoined poolId)
 
     allPools <- listPools spl
-    when (poolIsUnknown allPools) $
+    when (poolIsUnknown poolId allPools) $
         liftHandler $ throwE (ErrSelectForDelegationNoSuchPool poolId)
 
     let (ApiWalletPassphrase (ApiT pwd)) = passwd
@@ -848,8 +848,10 @@ joinStakePool ctx spl (ApiT poolId) (ApiT wid) passwd = do
     liftE1 = throwE . ErrSelectForDelegationNoSuchWallet
     liftE2 = throwE . ErrSignDelegationNoSuchWallet
     liftE3 = throwE . ErrSubmitTxNoSuchWallet
-    poolIsUnknown =
-        isNothing . L.find (\(ApiStakePool pId _ _ _) -> pId == ApiT poolId)
+
+poolIsUnknown :: PoolId -> [ApiStakePool] -> Bool
+poolIsUnknown poolId =
+    isNothing . L.find (\(ApiStakePool pId _ _ _) -> pId == ApiT poolId)
 
 quitStakePool
     :: forall ctx s t n k.
@@ -866,12 +868,16 @@ quitStakePool
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
-quitStakePool ctx _ _ (ApiT wid) _ = do
+quitStakePool ctx spl (ApiT poolId) (ApiT wid) _ = do
     (_, walMeta, _) <- liftHandler $ withWorkerCtx ctx wid throwE $
         \wrk -> W.readWallet wrk wid
 
     when (walMeta ^. #delegation == W.NotDelegating) $
         liftHandler $ throwE ErrSelectForDelegationNotDelegating
+
+    allPools <- listPools spl
+    when (poolIsUnknown poolId allPools) $
+        liftHandler $ throwE (ErrSelectForDelegationNoSuchPool poolId)
 
     throwError err501
 
