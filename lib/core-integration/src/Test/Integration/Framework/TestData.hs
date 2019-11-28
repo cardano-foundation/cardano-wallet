@@ -45,6 +45,7 @@ module Test.Integration.Framework.TestData
     , updatePassPayload
     , getHeaderCases
     , postHeaderCases
+    , stakeDelegationFee
 
     -- * Error messages
     , errMsgWalletIdEncoding
@@ -82,6 +83,8 @@ import Cardano.Wallet.Version
     ( gitRevision, showFullVersion, version )
 import Data.Text
     ( Text, pack, unpack )
+import Numeric.Natural
+    ( Natural )
 import Test.Integration.Framework.DSL
     ( Headers (..)
     , Payload (..)
@@ -92,6 +95,9 @@ import Test.Integration.Framework.DSL
     )
 
 import qualified Network.HTTP.Types.Status as HTTP
+
+stakeDelegationFee :: Natural
+stakeDelegationFee = 43
 
 -- useful for testing POST/PUT endpoints (ones with payload)
 postHeaderCases
