@@ -31,7 +31,7 @@ import Cardano.Wallet.Jormungandr.Binary
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth, WalletKey (..) )
+    ( Depth, WalletKey (..), toChimericAccount )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -39,7 +39,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..), SealedTx (..), Tx (..), TxOut (..), chimericAccountFromXPub )
+    ( Hash (..), SealedTx (..), Tx (..), TxOut (..) )
 import Cardano.Wallet.Transaction
     ( ErrDecodeSignedTx (..)
     , ErrMkTx (..)
@@ -74,8 +74,7 @@ newTransactionLayer block0H = TransactionLayer
     { mkStdTx = mkFragment $ MkFragmentSimpleTransaction (txWitnessTagFor @k)
 
     , mkDelegationCertTx = \pool accXPrv ->
-        let
-            acc = chimericAccountFromXPub . getRawKey . publicKey . fst $ accXPrv
+        let acc = toChimericAccount . publicKey . fst $ accXPrv
         in mkFragment $ MkFragmentStakeDelegation
                     (txWitnessTagFor @k)
                     (DlgFull pool)

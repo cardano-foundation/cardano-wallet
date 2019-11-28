@@ -55,9 +55,8 @@ module Cardano.Wallet.Primitive.Types
     , Address (..)
     , AddressState (..)
 
-    -- * Accounts
+    -- * Delegation
     , ChimericAccount (..)
-    , chimericAccountFromXPub
 
     -- * Coin
     , Coin (..)
@@ -230,7 +229,6 @@ import Numeric.Natural
 import Safe
     ( readMay )
 
-import qualified Cardano.Crypto.Wallet as CC
 import qualified Control.Foldl as F
 import qualified Data.ByteString as BS
 import qualified Data.Char as C
@@ -1318,15 +1316,11 @@ newtype ProtocolMagic = ProtocolMagic Int32
 {-------------------------------------------------------------------------------
                                 Accounts
 -------------------------------------------------------------------------------}
+
 -- | Also known as a staking key, chimeric account is used in group-type address
 -- for staking purposes. It is a public key of the account address
 newtype ChimericAccount = ChimericAccount { unChimericAccount :: ByteString }
     deriving (Generic, Show, Eq, Ord)
-
--- | Construct a 'ChimericAccount' by extracting the public key from the
--- extended public key.
-chimericAccountFromXPub :: CC.XPub -> ChimericAccount
-chimericAccountFromXPub = ChimericAccount . BS.take 32 . CC.unXPub
 
 instance NFData ChimericAccount
 

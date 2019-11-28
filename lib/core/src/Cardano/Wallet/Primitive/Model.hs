@@ -5,6 +5,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -37,6 +39,7 @@ module Cardano.Wallet.Primitive.Model
     -- * Construction & Modification
     , initWallet
     , updateState
+    , FilteredBlock (..)
     , applyBlock
     , applyBlocks
     , unsafeInitWallet
@@ -69,6 +72,7 @@ import Cardano.Wallet.Primitive.Types
     , EpochLength (..)
     , FeePolicy (..)
     , Hash (..)
+    , PoolId (..)
     , SlotLength (..)
     , SlotParameters (SlotParameters)
     , StartTime (..)
@@ -88,10 +92,14 @@ import Control.DeepSeq
     ( NFData (..), deepseq )
 import Control.Monad
     ( foldM, forM )
+import Control.Monad.Extra
+    ( mapMaybeM )
 import Control.Monad.Trans.State.Strict
     ( State, evalState, runState, state )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertToBase )
+import Data.Functor
+    ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Labels
@@ -247,7 +255,7 @@ initWallet
     -> ([(Tx, TxMeta)], Wallet s)
 initWallet block bp s =
     let
-        ((txs, u), s') = prefilterBlock block mempty s
+        ((FilteredBlock _ txs, u), s') = prefilterBlock block mempty s
     in
         (txs, Wallet u (header block) s' bp)
 
@@ -277,20 +285,32 @@ updateState
     -> Wallet s
 updateState s (Wallet u tip _ bp) = Wallet u tip s bp
 
--- | Apply Block is the primary way of making the wallet evolve. It returns the
--- updated wallet state, as well as a set of all transactions belonging to the
--- wallet discovered while applying the block.
+-- | Represents the subset of data from a single block that are relevant to a
+--   particular wallet, discovered when applying a block to that wallet.
+data FilteredBlock = FilteredBlock
+    { delegations :: ![PoolId]
+        -- ^ Stake delegations made on behalf of the wallet, listed in order of
+        -- discovery. If the list contains more than element, those that appear
+        -- later in the list supercede those that appear earlier on.
+    , transactions :: ![(Tx, TxMeta)]
+        -- ^ The set of transactions that affect the wallet.
+    } deriving (Generic, Show, Eq)
+
+-- | Apply a single block to a wallet.
+--
+-- This is the primary way of making a wallet evolve.
+--
+-- Returns an updated wallet, as well as the set of data relevant to the wallet
+-- that were discovered while applying the block.
+--
 applyBlock
     :: Block
     -> Wallet s
-    -> ([(Tx, TxMeta)], Wallet s)
+    -> (FilteredBlock, Wallet s)
 applyBlock !b (Wallet !u _ s bp) =
-    let
-        ((txs, u'), s') = prefilterBlock b u s
-    in
-        ( txs
-        , Wallet u' (b ^. #header) s' bp
-        )
+    (filteredBlock, Wallet u' (b ^. #header) s' bp)
+  where
+    ((filteredBlock, u'), s') = prefilterBlock b u s
 
 -- | Apply multiple blocks in sequence to an existing wallet, returning a list
 --   of intermediate wallet states.
@@ -318,7 +338,7 @@ applyBlock !b (Wallet !u _ s bp) =
 applyBlocks
     :: NonEmpty (Block)
     -> Wallet s
-    -> NonEmpty ([(Tx, TxMeta)], Wallet s)
+    -> NonEmpty (FilteredBlock, Wallet s)
 applyBlocks (block0 :| blocks) cp =
     NE.scanl (flip applyBlock . snd) (applyBlock block0 cp) blocks
 
@@ -386,26 +406,35 @@ blockchainParameters (Wallet _ _ _ bp) = bp
 -- linked to the wallet by their inputs.
 --
 -- In order to identify transactions that are ours, we do therefore look for
--- known inputs and known outputs. However, we can't naievely look at the domain
+-- known inputs and known outputs. However, we can't naively look at the domain
 -- of the utxo constructed from all outputs that are ours (as the specification
 -- would suggest) because some transactions may use outputs of a previous
--- transaction within the same block as an input. Therefore, Looking solely at
+-- transaction within the same block as an input. Therefore, looking solely at
 -- the final 'dom (UTxO ⊳ oursOuts)', we would be missing all intermediate txs
 -- that happen from _within_ the block itself.
 --
--- As a consequence, we do have to traverse the block, and look at transaction
+-- As a consequence, we do have to traverse the block, and look at transactions
 -- in order, starting from the known inputs that can be spent (from the previous
--- UTxO) and, collect resolved tx outputs that are ours as we apply transactions.
+-- UTxO) and collect resolved tx outputs that are ours as we apply transactions.
 prefilterBlock
-    :: (IsOurs s Address)
+    :: (IsOurs s Address, IsOurs s ChimericAccount)
     => Block
     -> UTxO
     -> s
-    -> (([(Tx, TxMeta)], UTxO), s)
+    -> ((FilteredBlock, UTxO), s)
 prefilterBlock b u0 = runState $ do
-    (ourTxs, ourU) <- foldM applyTx (mempty, u0) (transactions b)
-    return (ourTxs, ourU)
+    delegations <- mapMaybeM ourDelegation (b ^. #delegations)
+    (transactions, ourU) <- foldM applyTx (mempty, u0) (b ^. #transactions)
+    return (FilteredBlock {delegations, transactions}, ourU)
   where
+    ourDelegation
+        :: IsOurs s ChimericAccount
+        => (ChimericAccount, PoolId)
+        -> State s (Maybe PoolId)
+    ourDelegation (account, poolId) =
+        state (isOurs account) <&> \case
+            False -> Nothing
+            True -> Just poolId
     mkTxMeta :: Natural -> Direction -> TxMeta
     mkTxMeta amt dir = TxMeta
         { status = InLedger
@@ -417,7 +446,7 @@ prefilterBlock b u0 = runState $ do
     applyTx
         :: IsOurs s Address
         => ([(Tx, TxMeta)], UTxO)
-        ->Tx
+        -> Tx
         -> State s ([(Tx, TxMeta)], UTxO)
     applyTx (!txs, !u) tx = do
         ourU <- state $ utxoOurs tx

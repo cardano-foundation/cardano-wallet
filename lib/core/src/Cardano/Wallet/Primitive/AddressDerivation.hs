@@ -41,7 +41,9 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , SoftDerivation (..)
 
     -- * Delegation
+    , ChimericAccount (..)
     , deriveRewardAccount
+    , toChimericAccount
 
     -- * Primitive Crypto Types
     , XPub (..)
@@ -98,7 +100,7 @@ import Cardano.Wallet.Primitive.Mnemonic
     , mnemonicToEntropy
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Hash (..) )
+    ( Address (..), ChimericAccount (..), Hash (..) )
 import Control.Arrow
     ( left )
 import Control.DeepSeq
@@ -322,6 +324,15 @@ deriveRewardAccount
 deriveRewardAccount pwd rootPrv =
     let accPrv = deriveAccountPrivateKey pwd rootPrv minBound
     in deriveAddressPrivateKey pwd accPrv MutableAccount minBound
+
+-- | Construct a 'ChimericAccount' by extracting the public key from the
+-- extended public key.
+toChimericAccount
+    :: WalletKey k
+    => k 'AddressK XPub
+    -> ChimericAccount
+toChimericAccount =
+    ChimericAccount . BS.take 32 . unXPub . getRawKey
 
 {-------------------------------------------------------------------------------
                                  Passphrases

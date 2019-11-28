@@ -571,8 +571,15 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> do
         <$> withNoSuchWallet wid (readCheckpoint $ PrimaryKey wid)
         <*> withNoSuchWallet wid (readWalletMeta $ PrimaryKey wid)
     let bp = blockchainParameters cp
-    let (txs0, cps) = NE.unzip $ applyBlocks @s blocks cp
-    let txs = fold txs0
+    let (filteredBlocks, cps) = NE.unzip $ applyBlocks @s blocks cp
+    let slotPoolDelegations =
+            [ (slotId, poolId)
+            | let slots = view #slotId . view #header <$> blocks
+            , let delegations = view #delegations <$> filteredBlocks
+            , (slotId, poolIds) <- NE.toList $ NE.zip slots delegations
+            , poolId <- poolIds
+            ]
+    let txs = fold $ view #transactions <$> filteredBlocks
     let k = bp ^. #getEpochStability
     let localTip = currentTip $ NE.last cps
 
@@ -582,6 +589,11 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> do
         when (fromIntegral h `elem` unstable) $ do
             liftIO $ logCheckpoint cp'
             putCheckpoint (PrimaryKey wid) cp'
+
+    mapExceptT atomically $
+        forM_ slotPoolDelegations $ \delegation@(slotId, poolId) -> do
+            liftIO $ logDelegation delegation
+            putDelegationCertificate (PrimaryKey wid) poolId slotId
 
     mapExceptT atomically $ do
         liftIO $ logCheckpoint cp
@@ -609,6 +621,14 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> do
     logCheckpoint :: Wallet s -> IO ()
     logCheckpoint cp = logInfo tr $
         "Creating checkpoint at " <> pretty (currentTip cp)
+
+    logDelegation :: (SlotId, PoolId) -> IO ()
+    logDelegation (slotId, poolId) = logInfo tr $ mconcat
+        [ "Discovered delegation to pool "
+        , pretty poolId
+        , " within slot "
+        , pretty slotId
+        ]
 
 -- | Remove an existing wallet. Note that there's no particular work to
 -- be done regarding the restoration worker as it will simply terminate
@@ -650,8 +670,8 @@ listAddresses
     -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]
 listAddresses ctx wid = db & \DBLayer{..} -> do
     (s, txs) <- mapExceptT atomically $ (,)
-        <$> (getState <$> withNoSuchWallet wid (readCheckpoint $ PrimaryKey wid))
-        <*> lift (readTxHistory (PrimaryKey wid) Descending wholeRange Nothing)
+        <$> (getState <$> withNoSuchWallet wid (readCheckpoint primaryKey))
+        <*> lift (readTxHistory primaryKey Descending wholeRange Nothing)
     let maybeIsOurs (TxOut a _) = if fst (isOurs a s)
             then normalize (rewardAccountKey s)  a
             else Nothing
@@ -674,6 +694,7 @@ listAddresses ctx wid = db & \DBLayer{..} -> do
     normalize rewardAccount addr = do
         fingerprint <- eitherToMaybe (paymentKeyFingerprint addr)
         pure $ liftDelegationAddress @n fingerprint rewardAccount
+    primaryKey = PrimaryKey wid
 
 {-------------------------------------------------------------------------------
                                   Transaction
@@ -941,8 +962,6 @@ signDelegation ctx wid argGenChange pwd coinSel poolId = db & \DBLayer{..} -> do
             withExceptT ErrSignDelegationNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
 
-            -- TODO
-            -- Pre-compute this and store it with the wallet static metadata.
             let rewardAccount = deriveRewardAccount @k pwd xprv
             let keyFrom = isOwned (getState cp) (xprv, pwd)
             (tx, sealedTx) <- withExceptT ErrSignDelegationMkTx $ ExceptT $ pure $
