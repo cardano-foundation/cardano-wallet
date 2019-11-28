@@ -3,7 +3,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Pool.RegistrySpec (spec) where
+module Cardano.Pool.MetadataSpec (spec) where
 
 import Prelude
 
@@ -15,12 +15,12 @@ import Cardano.BM.Setup
     ( setupTrace_ )
 import Cardano.BM.Trace
     ( Trace, traceInTVarIO )
-import Cardano.Pool.Metrics
-    ( StakePoolMetadata (..), StakePoolTicker )
-import Cardano.Pool.Registry
+import Cardano.Pool.Metadata
     ( FetchError (..)
     , RegistryLog (..)
     , RegistryLogMsg (..)
+    , StakePoolMetadata (..)
+    , StakePoolTicker
     , getStakePoolMetadata
     , transformTrace
     )
@@ -86,7 +86,7 @@ spec = do
             tr <- setupLogging
             res <- getStakePoolMetadata tr (testUrl port) (absentPid:presentPids)
             res `shouldBe` Right (Nothing:map Just presentMetas)
-            
+
         it "Fails with an unavailable HTTP server" $ \_port -> do
             tr <- setupLogging
             let badUrl = "http://localhost:99/master.zip"
@@ -95,11 +95,11 @@ spec = do
                 Left (FetchErrorDownload msg) ->
                     head (words msg) `shouldBe` "HttpExceptionRequest"
                 _ -> error "expected fetch error but got none"
-                
+
     describe "Cardano.Pool.Registry.getStakePoolMetadata" $
         it "Arbitrary zip files" $
             property prop_getStakePoolMetadata
-   
+
 {-------------------------------------------------------------------------------
                                  Test fixtures
 -------------------------------------------------------------------------------}
@@ -131,7 +131,7 @@ presentMetas =
     , StakePoolMetadata (unsafeFromText "TICK") "https://12345"
         "ed25519_pk15vz9yc5c3upgze8tg5kd7kkzxqgqfxk5a3kudp22hdg0l2za00sq2ufkk7"
     ]
-    
+
 absentPid :: PoolId
 absentPid = PoolId "pk192m4ytl5k357e2l666yleuwjlurmf0vxjyh4atxzu5m22q6mexlsp88k7x"
 
@@ -141,8 +141,11 @@ absentPid = PoolId "pk192m4ytl5k357e2l666yleuwjlurmf0vxjyh4atxzu5m22q6mexlsp88k7
 
 data TestCase = TestCase
     { stakePools :: [(PoolId, StakePoolEntry)]
+    -- ^ Stake pool metadata in the zip file.
     , poolIds :: [PoolId]
+    -- ^ Stake pools to look up for the test.
     , topDir :: FilePath
+    -- ^ The name of the top-level directory in the zip file.
     } deriving (Show, Eq)
 
 data StakePoolEntry
@@ -150,28 +153,34 @@ data StakePoolEntry
     | Meta StakePoolMetadata
     deriving (Show, Eq)
 
+-- | Tests looking up stake pools ids in a randomish zip file. Some metadata is
+-- missing, some fails to parse. The property asserts that all metadata which
+-- exists is looked up correctly, and that any parse errors are logged.
 prop_getStakePoolMetadata :: TestCase -> Property
 prop_getStakePoolMetadata tc = monadicIO $ do
-  (res, msgs) <- run $ withTestCaseZip tc $ \zipFile ->
-      testServer (takeDirectory zipFile) $ \port -> do
-          let url = "http://localhost:" <> show port <> "/" <> topDir tc <> ".zip"
-          captureLogging $ \tr ->
-              getStakePoolMetadata tr url (poolIds tc)
-  let expected =
-          [ stakePoolEntryMeta =<< lookup p (stakePools tc)
-          | p <- poolIds tc ]
-  let numDecodeErrors = length (filter isDecodeError msgs)
-  let junkEntry (pid, entry) = isJunk entry && pid `elem` poolIds tc
-  let numJunkEntries = length (filter junkEntry (stakePools tc))
-  monitor $ counterexample $ unlines
-      [ "expected = " ++ show expected
-      , "actual =   " ++ show res
-      , "logs =\n" ++ unlines (map show msgs)
-      , "#junk entries =  " ++ show numJunkEntries
-      , "#decode errors = " ++ show numDecodeErrors
-      ]
-  assert $ res == Right expected 
-  assert $ numJunkEntries == numDecodeErrors
+    -- Generate a zip file for the test case and serve on a local file server.
+    -- Run getStakePoolMeta and take the actual result, and the log messages.
+    (res, msgs) <- run $ withTestCaseZip tc $ \zipFile ->
+        testServer (takeDirectory zipFile) $ \port -> do
+            let url = testCaseUrl tc port
+            captureLogging $ \tr -> getStakePoolMetadata tr url (poolIds tc)
+    let numDecodeErrors = count isDecodeErrorMsg msgs
+
+    -- Expected results
+    let expected =
+            [ stakePoolEntryMeta =<< lookup p (stakePools tc) | p <- poolIds tc ]
+    let numJunkEntries =
+            count (\(p, e) -> isJunk e && p `elem` poolIds tc) (stakePools tc)
+
+    monitor $ counterexample $ unlines $
+        [ "expected        = " ++ show expected
+        , "actual          = " ++ show res
+        , "# junk entries  = " ++ show numJunkEntries
+        , "# decode errors = " ++ show numDecodeErrors
+        , "logs ="
+        ] ++ map show msgs
+
+    assert $ res == Right expected && numJunkEntries == numDecodeErrors
 
 withTestCaseZip :: TestCase -> (FilePath -> IO a) -> IO a
 withTestCaseZip tc action = withSystemTempDirectory "registry-spec" $ \dir -> do
@@ -180,16 +189,21 @@ withTestCaseZip tc action = withSystemTempDirectory "registry-spec" $ \dir -> do
         sel <- mkEntrySelector (registryFile (topDir tc) poolId)
         addEntry Deflate (encodeStakePoolEntry contents) sel
     action zipFile
-    
+
 registryFile :: FilePath -> PoolId -> FilePath
-registryFile top (PoolId poolId) = top </> "registry" </> B8.unpack poolId <.> "json"
+registryFile top (PoolId poolId) =
+    top </> "registry" </> B8.unpack poolId <.> "json"
+
+testCaseUrl :: TestCase -> Port -> String
+testCaseUrl tc port =
+    "http://localhost:" <> show port <> "/" <> topDir tc <> ".zip"
 
 {-------------------------------------------------------------------------------
                                Test case helpers
 -------------------------------------------------------------------------------}
 
-isDecodeError :: RegistryLog -> Bool
-isDecodeError rl = case registryLogMsg rl of
+isDecodeErrorMsg :: RegistryLog -> Bool
+isDecodeErrorMsg rl = case registryLogMsg rl of
     MsgExtractFileResult (Just (Left _)) -> True
     _ -> False
 
@@ -204,6 +218,9 @@ encodeStakePoolEntry (Meta m) = BL.toStrict $ encode m
 isJunk :: StakePoolEntry -> Bool
 isJunk Junk = True
 isJunk _ = False
+
+count :: (a -> Bool) -> [a] -> Int
+count p = length . filter p
 
 {-------------------------------------------------------------------------------
                               Test case generation
@@ -266,7 +283,7 @@ withLogging action = do
     let unMsg lo = case lo of
             LogMessage msg -> Just msg
             _ -> Nothing
-    let getMsgs = mapMaybe (unMsg . loContent) <$> readTVarIO tvar    
+    let getMsgs = mapMaybe (unMsg . loContent) <$> readTVarIO tvar
     action (tr, getMsgs)
 
 captureLogging :: (Trace IO RegistryLog -> IO a) -> IO (a, [RegistryLog])
@@ -274,4 +291,3 @@ captureLogging action = withLogging $ \(tr, getMsgs) -> do
     res <- action tr
     msgs <- getMsgs
     pure (res, msgs)
-    

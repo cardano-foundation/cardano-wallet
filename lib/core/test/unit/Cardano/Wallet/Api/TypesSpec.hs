@@ -22,7 +22,7 @@ module Cardano.Wallet.Api.TypesSpec (spec) where
 import Prelude hiding
     ( id )
 
-import Cardano.Pool.Metrics
+import Cardano.Pool.Metadata
     ( StakePoolMetadata (..), StakePoolTicker )
 import Cardano.Wallet.Api
     ( Api )

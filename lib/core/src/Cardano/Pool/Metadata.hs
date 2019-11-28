@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -9,14 +10,19 @@
 -- License: Apache-2.0
 --
 -- This module contains a function for downloading stake pool metadata from an
--- external repository.
+-- external registry.
 
-module Cardano.Pool.Registry
-    ( getStakePoolMetadata
+module Cardano.Pool.Metadata
+    ( -- * Types
+      StakePoolMetadata (..)
+    , StakePoolTicker
+
+      -- * Fetching metadata
+    , getStakePoolMetadata
     , cardanoFoundationRegistryZip
-    , FetchError(..)
+    , FetchError (..)
 
-    -- * Logging
+      -- * Logging
     , transformTrace
     , RegistryLog (..)
     , RegistryLogMsg (..)
@@ -31,27 +37,33 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Trace
     ( Trace, traceNamedItem )
-import Cardano.Pool.Metrics
-    ( StakePoolMetadata )
 import Cardano.Wallet.Primitive.Types
-    ( PoolId (..) )
+    ( PoolId (..), ShowFmt (..) )
 import Codec.Archive.Zip
 import Control.Exception
     ( IOException, displayException, tryJust )
 import Control.Monad
-    ( join )
+    ( join, (>=>) )
 import Control.Monad.IO.Class
     ( MonadIO (..), liftIO )
 import Control.Tracer
     ( contramap )
 import Data.Aeson
-    ( ToJSON (..), eitherDecodeStrict )
+    ( FromJSON (..)
+    , ToJSON (..)
+    , camelTo2
+    , eitherDecodeStrict
+    , fieldLabelModifier
+    , genericParseJSON
+    , genericToJSON
+    , omitNothingFields
+    )
 import Data.List
     ( find )
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( ToText (..) )
+    ( FromText (..), TextDecodingError (..), ToText (..) )
 import Fmt
     ( fmt, (+|), (|+) )
 import GHC.Generics
@@ -67,10 +79,68 @@ import System.IO
 import System.IO.Temp
     ( withSystemTempFile )
 
+import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Conduit.Combinators as Conduit
 import qualified Data.Map.Strict as Map
+import qualified Data.Text as T
+
+{-------------------------------------------------------------------------------
+                                     Types
+-------------------------------------------------------------------------------}
+
+-- | Information about a stake pool. This information is not used directly by
+-- cardano-wallet. It is sourced from the stake pool registry and passed
+-- straight through to API consumers.
+data StakePoolMetadata = StakePoolMetadata
+    { ticker :: StakePoolTicker
+    -- ^ Short human-readable ID for the stake pool.
+    , homepage :: Text
+    -- ^ Absolute URL for the stake pool's homepage link.
+    , pledgeAddress :: Text
+    -- ^ Bech32-encoded address.
+    } deriving (Eq, Show, Generic)
+
+-- | Very short name for a stake pool.
+newtype StakePoolTicker = StakePoolTicker { unStakePoolTicker :: Text }
+    deriving stock (Generic, Show, Eq)
+    deriving newtype (ToText)
+
+instance FromText StakePoolTicker where
+    fromText t
+        | T.length t == 3 || T.length t == 4
+            = Right $ StakePoolTicker t
+        | otherwise
+            = Left . TextDecodingError $
+                "stake pool ticker length must be 3-4 characters"
+
+-- NOTE
+-- JSON instances for 'StakePoolMetadata' and 'StakePoolTicker' matching the
+-- format described by the registry. The server API may then use different
+-- formats if needed.
+
+instance FromJSON StakePoolMetadata where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+
+instance ToJSON StakePoolMetadata where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON StakePoolTicker where
+    parseJSON = parseJSON >=> either (fail . show . ShowFmt) pure . fromText
+
+instance ToJSON StakePoolTicker where
+    toJSON = toJSON . toText
+
+defaultRecordTypeOptions :: Aeson.Options
+defaultRecordTypeOptions = Aeson.defaultOptions
+    { fieldLabelModifier = camelTo2 '_' . dropWhile (== '_')
+    , omitNothingFields = True
+    }
+
+{-------------------------------------------------------------------------------
+                       Fetching metadata from a registry
+-------------------------------------------------------------------------------}
 
 -- | Associate a list of stake pool IDs with their
 -- metadata (if present), which is downloaded from the given URL.
@@ -117,7 +187,7 @@ getStakePoolMetadata tr url poolIds = fmap join $ tryJust fileExceptionHandler $
             Left e -> pure $ Left e
   where
     fileExceptionHandler = Just . FetchErrorFile . displayException @IOException
-    
+
 -- | Fetch a URL, streaming to the given file handle.
 fetchStakePoolMetaZip :: String -> Handle -> IO (Either FetchError Integer)
 fetchStakePoolMetaZip url zipFile = tryJust handler $ do
@@ -134,15 +204,15 @@ getMetadataFromZip
     -> FilePath -- ^ Zip file path.
     -> [PoolId] -- ^ Stake pools to extract.
     -> IO [Maybe StakePoolMetadata]
-getMetadataFromZip tr zipFileName = 
+getMetadataFromZip tr zipFileName =
     withArchive zipFileName . mapM (findStakePoolMeta tr . registryFile)
-        
+
 -- | Try to read and parse a metadata JSON file within a 'ZipArchive', if it is
 -- present.
 --
 -- Any validation/parse error is unexpected because the data should already be
 -- validated. We shall simply log this occurrence and return 'Nothing'.
--- 
+--
 -- This may throw "Codec.Archive.Zip.EntrySelectorException" if there is an
 -- internal error and the pool id results in an invalid filename.
 findStakePoolMeta
@@ -175,7 +245,7 @@ findArchiveFile repoPath = find isRepoFile . Map.keys <$> getEntries
   where
     isRepoFile entry = dropTopLevel (unEntrySelector entry) == repoPath
     dropTopLevel = drop 1 . dropWhile (not . isPathSeparator)
-    
+
 -- | The path within the registry repo of metadata for a stake pool.
 registryFile :: PoolId -> FilePath
 registryFile (PoolId poolId) = "registry" </> B8.unpack poolId <.> "json"
