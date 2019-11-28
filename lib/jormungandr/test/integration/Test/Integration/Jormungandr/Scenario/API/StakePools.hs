@@ -450,15 +450,30 @@ spec = do
             it ("Quit: " ++ title) $ \ctx ->
                 verifyIt ctx quitStakePoolEp headers expectations
 
-    xit "STAKE_POOLS_QUIT_01 - Can quit stake pool" $ \ctx -> do
+    it "STAKE_POOLS_QUIT_01 - Can quit stake pool" $ \ctx -> do
         (_, p:_) <- eventually $
             unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
         w <- emptyWallet ctx
-        r <- joinStakePool ctx (p ^. #id) (w, "Secure Passprase")
-        expectResponseCode HTTP.status403 r
+        joinStakePool ctx (p ^. #id) (w, "Secure Passprase") >>= flip verify
+            [ expectResponseCode HTTP.status200
+            , expectFieldEqual status Pending
+            , expectFieldEqual direction Outgoing
+            ]
 
-        rq <- quitStakePool ctx (p ^. #id) (w, "Secure Passprase")
-        expectResponseCode HTTP.status501 rq
+        -- Wait for the certificate to be inserted
+        eventually $ do
+            let ep = listTxEp w mempty
+            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+                [ expectListItemFieldEqual 0 direction Outgoing
+                , expectListItemFieldEqual 0 status InLedger
+                ]
+
+        request @ApiWallet ctx (getWalletEp w) Default Empty >>= flip verify
+            [ expectFieldEqual delegation (Delegating (p ^. #id))
+            ]
+
+        r <- quitStakePool ctx (p ^. #id) (w, "Secure Passprase")
+        expectResponseCode HTTP.status200 r
 
     it "STAKE_POOLS_QUIT_01 - Quiting before even joining" $ \ctx -> do
         (_, p:_) <- eventually $
@@ -479,7 +494,7 @@ spec = do
         r <- quitStakePool ctx (p ^. #id) (w, "Incorrect Passphrase")
         expectResponseCode HTTP.status403 r
 
-    xit "STAKE_POOLS_QUIT_02 - Cannot quit non-existant stake pool" $ \ctx -> do
+    it "STAKE_POOLS_QUIT_02 - Cannot quit non-existant stake pool" $ \ctx -> do
         -- enable when delegation in WalletDelegation is updated
         w <- fixtureWallet ctx
 

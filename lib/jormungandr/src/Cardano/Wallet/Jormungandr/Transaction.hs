@@ -82,8 +82,7 @@ newTransactionLayer block0H = TransactionLayer
                     (first getRawKey accXPrv)
 
     , mkDelegationQuitTx = \accXPrv ->
-        let
-            acc = chimericAccountFromXPub . getRawKey . publicKey . fst $ accXPrv
+        let acc = toChimericAccount . publicKey . fst $ accXPrv
         in mkFragment $ MkFragmentStakeDelegation
                     (txWitnessTagFor @k)
                     DlgNone
