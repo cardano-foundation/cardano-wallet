@@ -135,13 +135,17 @@ addrSingleSize = 1 + publicKeySize
 addrGroupedSize :: Int
 addrGroupedSize = addrSingleSize + publicKeySize
 
--- | Purpose is a constant set to 44' (or 0x8000002C) following the BIP-44
--- recommendation. It indicates that the subtree of this node is used
--- according to this specification.
+-- | Purpose is a constant set to 1852' (or 0x8000073c) following the BIP-44
+-- extension for Cardano:
+--
+-- https://github.com/input-output-hk/implementation-decisions/blob/e2d1bed5e617f0907bc5e12cf1c3f3302a4a7c42/text/1852-hd-chimeric.md
+--
+-- It indicates that the subtree of this node is used according to this
+-- specification.
 --
 -- Hardened derivation is used at this level.
 purposeIndex :: Word32
-purposeIndex = 0x8000002C
+purposeIndex = 0x8000073c
 
 -- | One master node (seed) can be used for unlimited number of independent
 -- cryptocoins such as Bitcoin, Litecoin or Namecoin. However, sharing the

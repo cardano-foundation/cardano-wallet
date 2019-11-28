@@ -36,6 +36,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     ( GenChange (..), IsOwned (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, mkSeqState )
+import Cardano.Wallet.Primitive.Mnemonic
+    ( mnemonicToText )
 import Cardano.Wallet.Primitive.Types
     ( Coin (..)
     , Direction (..)
@@ -66,8 +68,10 @@ import Numeric.Natural
     ( Natural )
 import Test.Hspec
     ( SpecWith, describe, it, shouldBe, shouldSatisfy )
+import Test.Integration.Faucet
+    ( nextWallet )
 import Test.Integration.Framework.DSL as DSL
-    ( Context
+    ( Context (..)
     , Headers (..)
     , Payload (..)
     , TxDescription (..)
@@ -435,6 +439,13 @@ data ExternalTxFixture = ExternalTxFixture
     , txTx :: Tx
     }
 
+-- FIXME
+-- Revise this function to be less cryptic and use less partial pattern
+-- matching. Many functions used below are not the right functions to use in
+-- this context (like getSeqState or isOwned).
+--
+-- Most of this could be replaced with simple calls of the derivation primitives
+-- in AddressDerivation.
 fixtureExternalTx
     :: forall t n. (n ~ 'Testnet)
     => (Context t)
@@ -443,11 +454,7 @@ fixtureExternalTx
 fixtureExternalTx ctx toSend = do
     -- we use faucet wallet as wSrc
     let password = "cardano-wallet" :: Text
-    let mnemonicFaucet =
-            [ "vibrant", "orphan", "put", "metal", "wreck"
-            , "yellow", "final", "bacon", "matter", "spring"
-            , "stage", "enhance", "unaware", "skill", "fiber"
-            ] :: [Text]
+    mnemonicFaucet <- mnemonicToText <$> nextWallet @"seq" (_faucet ctx)
     let restoreFaucetWallet = Json [json| {
             "name": "Faucet Wallet",
             "mnemonic_sentence": #{mnemonicFaucet},
