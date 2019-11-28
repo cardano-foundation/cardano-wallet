@@ -205,7 +205,6 @@ data ApiWallet = ApiWallet
     , delegation :: !(ApiT (WalletDelegation (ApiT PoolId)))
     , name :: !(ApiT WalletName)
     , passphrase :: !(Maybe (ApiT WalletPassphraseInfo))
-    , reward :: !(Quantity "lovelace" Natural)
     , state :: !(ApiT SyncProgress)
     , tip :: !ApiBlockReference
     } deriving (Eq, Generic, Show)

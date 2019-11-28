@@ -3,13 +3,21 @@
     "samples": [
         {
             "passphrase": {
-                "last_updated_at": "2440-04-08T04:06:00Z"
+                "last_updated_at": "1889-02-02T04:06:00Z"
             },
             "address_pool_gap": 89,
             "state": {
-                "status": "ready"
+                "status": "syncing",
+                "progress": {
+                    "quantity": 44,
+                    "unit": "percent"
+                }
             },
             "balance": {
+                "reward": {
+                    "quantity": 7,
+                    "unit": "lovelace"
+                },
                 "total": {
                     "quantity": 116,
                     "unit": "lovelace"
@@ -20,10 +28,6 @@
                 }
             },
             "name": "gDp!4,f$Wi[!ZwQ/YOGN;vGjAB!𦧶3UX#T)HUzcZA$RvIccm/iAUZ梖Ejw)8L,.{~T1:{TxS/<B𦐺r5i<O6mw_vS5zxh芀VM?I'^@\\vdﵭn>[,fxU{+0oC5o{5(p@#tY3~CT,6bq-0lJ8BG<=AUP!)eY`^.A3I! 8K*R%l쉪𡓷Me:tNu5~l7.@yUẤ{5G2LZA(t6.?( %M'`z#C|3LtNGx5F5YS$ImYaHr(f",
-            "reward": {
-                "quantity": 219,
-                "unit": "lovelace"
-            },
             "delegation": {
                 "status": "delegating",
                 "target": "55d5ad01a7c2c2d2d494a15a85304a446c10461d41f4087623fd4f5053a67895"
@@ -31,19 +35,27 @@
             "id": "4319d8f8b29cf89b045270455c924a1ee813df68",
             "tip": {
                 "height": {
-                    "quantity": 23124,
+                    "quantity": 16166,
                     "unit": "block"
                 },
-                "epoch_number": 469255,
-                "slot_number": 16166
+                "epoch_number": 20521,
+                "slot_number": 29630
             }
         },
         {
             "address_pool_gap": 44,
             "state": {
-                "status": "ready"
+                "status": "syncing",
+                "progress": {
+                    "quantity": 50,
+                    "unit": "percent"
+                }
             },
             "balance": {
+                "reward": {
+                    "quantity": 46,
+                    "unit": "lovelace"
+                },
                 "total": {
                     "quantity": 99,
                     "unit": "lovelace"
@@ -54,32 +66,32 @@
                 }
             },
             "name": "bkXc8tM9𤌤\\N<_i]KCXvP.r*nq`jq/k𝘴yu\"509NP3lFYSl0e🜓𨑲VL}'3Q3k(]`qc𩮍Fj)x=_nHdm]d6<gRl\\)&%X4$]IJV~kiVQ}J#Y營N<`dz.WEyV8w/體RY[vAK<~al4rI,(a~U毿",
-            "reward": {
-                "quantity": 167,
-                "unit": "lovelace"
-            },
             "delegation": {
                 "status": "not_delegating"
             },
             "id": "ab106569a34395ceaa30d2b78b15646b9fa5ac4e",
             "tip": {
                 "height": {
-                    "quantity": 22168,
+                    "quantity": 19697,
                     "unit": "block"
                 },
-                "epoch_number": 1217225,
-                "slot_number": 19697
+                "epoch_number": 2114,
+                "slot_number": 17887
             }
         },
         {
             "passphrase": {
-                "last_updated_at": "2417-02-15T13:28:08.946429690579Z"
+                "last_updated_at": "1902-02-26T13:28:08.946429690579Z"
             },
             "address_pool_gap": 92,
             "state": {
                 "status": "ready"
             },
             "balance": {
+                "reward": {
+                    "quantity": 164,
+                    "unit": "lovelace"
+                },
                 "total": {
                     "quantity": 2,
                     "unit": "lovelace"
@@ -90,10 +102,6 @@
                 }
             },
             "name": "h7csb+wM4}_Y?G!&c{mr@>.SEra_4E828_NEir,R6c5h6V>484ou𝚕@:C1$2O/-ah𧧳:\"CA$]-9qRKHI.>g* Cli6y%M+~0[P19H6&9_6q@QFxZJjsdwxp\"WJR띳?$",
-            "reward": {
-                "quantity": 248,
-                "unit": "lovelace"
-            },
             "delegation": {
                 "status": "delegating",
                 "target": "ecd70b56727e6741f786fb9b6bd3812e0f6b604b9c5d18c10c9491dc8a335fb2"
@@ -101,22 +109,26 @@
             "id": "df4080f543bff672fbf565e6d9b8fe9194a68da2",
             "tip": {
                 "height": {
-                    "quantity": 26665,
+                    "quantity": 18956,
                     "unit": "block"
                 },
-                "epoch_number": 678716,
-                "slot_number": 18956
+                "epoch_number": 11847,
+                "slot_number": 1059
             }
         },
         {
             "passphrase": {
-                "last_updated_at": "1966-10-05T00:38:55Z"
+                "last_updated_at": "1902-10-11T00:38:55Z"
             },
             "address_pool_gap": 42,
             "state": {
                 "status": "ready"
             },
             "balance": {
+                "reward": {
+                    "quantity": 171,
+                    "unit": "lovelace"
+                },
                 "total": {
                     "quantity": 101,
                     "unit": "lovelace"
@@ -127,10 +139,6 @@
                 }
             },
             "name": "b L''Tc%S~Q0q.N{t$gv0bI}{a0x 𓏼y\"\\[+-Ewy,ylP/.F+x",
-            "reward": {
-                "quantity": 194,
-                "unit": "lovelace"
-            },
             "delegation": {
                 "status": "delegating",
                 "target": "58e6f734af678509f833d58662c18cfd67d19cca33258e3e3085a7019328b81d"
@@ -138,26 +146,26 @@
             "id": "2c6409dc6521889a78d195c73ff34d41f7b3203a",
             "tip": {
                 "height": {
-                    "quantity": 27256,
+                    "quantity": 1873,
                     "unit": "block"
                 },
-                "epoch_number": 713289,
-                "slot_number": 1873
+                "epoch_number": 4740,
+                "slot_number": 26860
             }
         },
         {
             "passphrase": {
-                "last_updated_at": "2612-08-04T16:57:16.809181130383Z"
+                "last_updated_at": "1869-02-16T16:57:16.809181130383Z"
             },
             "address_pool_gap": 55,
             "state": {
-                "status": "syncing",
-                "progress": {
-                    "quantity": 19,
-                    "unit": "percent"
-                }
+                "status": "ready"
             },
             "balance": {
+                "reward": {
+                    "quantity": 123,
+                    "unit": "lovelace"
+                },
                 "total": {
                     "quantity": 48,
                     "unit": "lovelace"
@@ -168,32 +176,32 @@
                 }
             },
             "name": ")9ظ2Hz)ha':2kGcfeJk.",
-            "reward": {
-                "quantity": 254,
-                "unit": "lovelace"
-            },
             "delegation": {
                 "status": "not_delegating"
             },
             "id": "6ece3c639eecc2f4830d26e7c6f42d95dc8606b5",
             "tip": {
                 "height": {
-                    "quantity": 6066,
+                    "quantity": 2695,
                     "unit": "block"
                 },
-                "epoch_number": 14762267,
-                "slot_number": 2695
+                "epoch_number": 8302,
+                "slot_number": 12842
             }
         },
         {
             "passphrase": {
-                "last_updated_at": "1945-02-22T22:00:00Z"
+                "last_updated_at": "1871-09-10T22:00:00Z"
             },
             "address_pool_gap": 75,
             "state": {
                 "status": "ready"
             },
             "balance": {
+                "reward": {
+                    "quantity": 146,
+                    "unit": "lovelace"
+                },
                 "total": {
                     "quantity": 184,
                     "unit": "lovelace"
@@ -204,36 +212,36 @@
                 }
             },
             "name": "H\"\\;4B^~i4tl:v[A,ucu}럖H렮NTK@1yx`( w#6bj.gyxW!\\z$4c,n럮+^ RN4:a8||\\ww&\"TX]vB$b'1Z@X^y*+;q'H`cu7cXtI'+7E6)Qk968nPV#m)ng#C\"w;44;滋#vy(<mm}/Kg",
-            "reward": {
-                "quantity": 34,
-                "unit": "lovelace"
-            },
             "delegation": {
                 "status": "not_delegating"
             },
             "id": "181bcdd4ceee7b6657363b526ed5d3139db6cfc6",
             "tip": {
                 "height": {
-                    "quantity": 12582,
+                    "quantity": 9081,
                     "unit": "block"
                 },
-                "epoch_number": 9166986,
-                "slot_number": 9081
+                "epoch_number": 8404,
+                "slot_number": 1199
             }
         },
         {
             "passphrase": {
-                "last_updated_at": "1901-03-07T00:03:44.940354124726Z"
+                "last_updated_at": "1903-04-01T00:03:44.940354124726Z"
             },
             "address_pool_gap": 79,
             "state": {
                 "status": "syncing",
                 "progress": {
-                    "quantity": 76,
+                    "quantity": 19,
                     "unit": "percent"
                 }
             },
             "balance": {
+                "reward": {
+                    "quantity": 205,
+                    "unit": "lovelace"
+                },
                 "total": {
                     "quantity": 129,
                     "unit": "lovelace"
@@ -244,32 +252,32 @@
                 }
             },
             "name": "8?]XVgt0Km𤋠b!K5I,f|aRj2X𨏉w//WC$0VMuy'@ QZR:UX 's뷇j@Z(=R[l%KH%BvZ*2S\"!Fsz':z|n|$+碝(GG0G,2'k=I\"J60D뤓b\"x.e[ l!w9lq\\B!kgSXKi=:E5}n_\"I@_0&h!x!Siz%i0$@~<YDM-e`DQc9!V,TVVcX1Y5@rcW@(No4/_Wn}-QEY,c)~{",
-            "reward": {
-                "quantity": 157,
-                "unit": "lovelace"
-            },
             "delegation": {
                 "status": "not_delegating"
             },
             "id": "85bd9f659bbdc98cfc5c389657eba12bdb0ebf70",
             "tip": {
                 "height": {
-                    "quantity": 20335,
+                    "quantity": 4655,
                     "unit": "block"
                 },
-                "epoch_number": 6821460,
-                "slot_number": 4655
+                "epoch_number": 19379,
+                "slot_number": 7364
             }
         },
         {
             "passphrase": {
-                "last_updated_at": "2471-12-22T12:31:31.111981813247Z"
+                "last_updated_at": "1906-11-11T12:31:31.111981813247Z"
             },
             "address_pool_gap": 98,
             "state": {
                 "status": "ready"
             },
             "balance": {
+                "reward": {
+                    "quantity": 192,
+                    "unit": "lovelace"
+                },
                 "total": {
                     "quantity": 142,
                     "unit": "lovelace"
@@ -280,32 +288,32 @@
                 }
             },
             "name": "9<hCBNASf^b:$",
-            "reward": {
-                "quantity": 80,
-                "unit": "lovelace"
-            },
             "delegation": {
                 "status": "not_delegating"
             },
             "id": "7b35f01704d6b9a3e6bb5551099699c5c7c1f640",
             "tip": {
                 "height": {
-                    "quantity": 25360,
+                    "quantity": 28993,
                     "unit": "block"
                 },
-                "epoch_number": 172865,
-                "slot_number": 28993
+                "epoch_number": 14174,
+                "slot_number": 22477
             }
         },
         {
             "passphrase": {
-                "last_updated_at": "1975-10-05T20:55:41Z"
+                "last_updated_at": "1874-03-23T20:55:41Z"
             },
             "address_pool_gap": 92,
             "state": {
                 "status": "ready"
             },
             "balance": {
+                "reward": {
+                    "quantity": 254,
+                    "unit": "lovelace"
+                },
                 "total": {
                     "quantity": 129,
                     "unit": "lovelace"
@@ -316,10 +324,6 @@
                 }
             },
             "name": "i#[佷LrdJDQokFyh&ᩩ]a|6\\l\"e|N:Nr{_J7\\V1;d8{5d>~IM^9y𣔆M=Wo)U.c7r'(.?ATwz\\c=H{Sq\\ai..gd/?o(<}Vd|beI>rc^jhOQtYsuvO|G^\\|[s#J{bDrwIF.yjp0`k0,}(imyI|XI_\"Y/YKR#*{b#Px)0U(:V;GX~NPfD_d",
-            "reward": {
-                "quantity": 214,
-                "unit": "lovelace"
-            },
             "delegation": {
                 "status": "delegating",
                 "target": "845e79a2370709342eb743642ca50ae3956db4fbb252aed35240405375b559c4"
@@ -327,22 +331,30 @@
             "id": "134fed54f25f825af56d12ea644d65f92ef9c979",
             "tip": {
                 "height": {
-                    "quantity": 15041,
+                    "quantity": 14682,
                     "unit": "block"
                 },
-                "epoch_number": 4660400,
-                "slot_number": 14682
+                "epoch_number": 29558,
+                "slot_number": 4438
             }
         },
         {
             "passphrase": {
-                "last_updated_at": "2003-10-11T05:10:06.485585623788Z"
+                "last_updated_at": "1897-08-16T05:10:06.485585623788Z"
             },
             "address_pool_gap": 46,
             "state": {
-                "status": "ready"
+                "status": "syncing",
+                "progress": {
+                    "quantity": 38,
+                    "unit": "percent"
+                }
             },
             "balance": {
+                "reward": {
+                    "quantity": 86,
+                    "unit": "lovelace"
+                },
                 "total": {
                     "quantity": 239,
                     "unit": "lovelace"
@@ -353,21 +365,17 @@
                 }
             },
             "name": "㟕,.MY;`Zw[$gc?S)$9cJX X",
-            "reward": {
-                "quantity": 203,
-                "unit": "lovelace"
-            },
             "delegation": {
                 "status": "not_delegating"
             },
             "id": "e09a9c17e441c0650ed863fcd3f9a758dfb5e5b0",
             "tip": {
                 "height": {
-                    "quantity": 23706,
+                    "quantity": 20594,
                     "unit": "block"
                 },
-                "epoch_number": 7104974,
-                "slot_number": 20594
+                "epoch_number": 29687,
+                "slot_number": 21864
             }
         }
     ]
