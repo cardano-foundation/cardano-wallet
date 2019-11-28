@@ -11,7 +11,7 @@ haskell.lib.buildStackProject rec {
 
   buildInputs =
     (with walletPackages; [ jormungandr jormungandr-cli ]) ++
-    [ zlib gmp ncurses lzma openssl git systemd.dev nodejs ] ++
+    [ zlib bzip2.dev gmp ncurses lzma openssl git systemd.dev nodejs ] ++
     (lib.optionals stdenv.isDarwin (with darwin.apple_sdk.frameworks; [ Cocoa CoreServices libcxx libiconv ]));
 
   phases = ["nobuildPhase"];

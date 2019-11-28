@@ -72,7 +72,7 @@ module Cardano.Wallet.Api.Types
 
 import Prelude
 
-import Cardano.Pool.Metrics
+import Cardano.Pool.Metadata
     ( StakePoolMetadata )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( FromMnemonic (..)

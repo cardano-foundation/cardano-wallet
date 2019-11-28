@@ -67,6 +67,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."bytestring" or (buildDepError "bytestring"))
           (hsPkgs."cardano-crypto" or (buildDepError "cardano-crypto"))
           (hsPkgs."cborg" or (buildDepError "cborg"))
+          (hsPkgs."conduit" or (buildDepError "conduit"))
           (hsPkgs."containers" or (buildDepError "containers"))
           (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
           (hsPkgs."cryptonite" or (buildDepError "cryptonite"))
@@ -82,6 +83,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."foldl" or (buildDepError "foldl"))
           (hsPkgs."generic-lens" or (buildDepError "generic-lens"))
           (hsPkgs."http-api-data" or (buildDepError "http-api-data"))
+          (hsPkgs."http-client" or (buildDepError "http-client"))
+          (hsPkgs."http-conduit" or (buildDepError "http-conduit"))
           (hsPkgs."http-media" or (buildDepError "http-media"))
           (hsPkgs."http-types" or (buildDepError "http-types"))
           (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
@@ -102,6 +105,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."split" or (buildDepError "split"))
           (hsPkgs."streaming-commons" or (buildDepError "streaming-commons"))
           (hsPkgs."template-haskell" or (buildDepError "template-haskell"))
+          (hsPkgs."temporary" or (buildDepError "temporary"))
           (hsPkgs."text" or (buildDepError "text"))
           (hsPkgs."text-class" or (buildDepError "text-class"))
           (hsPkgs."time" or (buildDepError "time"))
@@ -111,6 +115,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."vector" or (buildDepError "vector"))
           (hsPkgs."wai" or (buildDepError "wai"))
           (hsPkgs."warp" or (buildDepError "warp"))
+          (hsPkgs."zip" or (buildDepError "zip"))
           ];
         buildable = true;
         };
@@ -158,6 +163,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."servant-swagger" or (buildDepError "servant-swagger"))
             (hsPkgs."stm" or (buildDepError "stm"))
             (hsPkgs."swagger2" or (buildDepError "swagger2"))
+            (hsPkgs."template-haskell" or (buildDepError "template-haskell"))
             (hsPkgs."temporary" or (buildDepError "temporary"))
             (hsPkgs."text" or (buildDepError "text"))
             (hsPkgs."text-class" or (buildDepError "text-class"))
@@ -167,7 +173,9 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."unordered-containers" or (buildDepError "unordered-containers"))
             (hsPkgs."yaml" or (buildDepError "yaml"))
             (hsPkgs."wai" or (buildDepError "wai"))
+            (hsPkgs."wai-app-static" or (buildDepError "wai-app-static"))
             (hsPkgs."warp" or (buildDepError "warp"))
+            (hsPkgs."zip" or (buildDepError "zip"))
             ];
           build-tools = [
             (hsPkgs.buildPackages.hspec-discover or (pkgs.buildPackages.hspec-discover or (buildToolDepError "hspec-discover")))

@@ -41,6 +41,7 @@ library
     , bytestring
     , cardano-crypto
     , cborg
+    , conduit
     , containers
     , contra-tracer
     , cryptonite
@@ -56,6 +57,8 @@ library
     , foldl
     , generic-lens
     , http-api-data
+    , http-client
+    , http-conduit
     , http-media
     , http-types
     , iohk-monitoring
@@ -76,6 +79,7 @@ library
     , split
     , streaming-commons
     , template-haskell
+    , temporary
     , text
     , text-class
     , time
@@ -85,6 +89,7 @@ library
     , vector
     , wai
     , warp
+    , zip
   hs-source-dirs:
       src
   exposed-modules:
@@ -96,6 +101,7 @@ library
       Cardano.Pool.DB.Sqlite
       Cardano.Pool.DB.Sqlite.TH
       Cardano.Pool.Metrics
+      Cardano.Pool.Metadata
       Cardano.Wallet
       Cardano.Wallet.Api
       Cardano.Wallet.Api.Server
@@ -193,6 +199,7 @@ test-suite unit
     , servant-swagger
     , stm
     , swagger2
+    , template-haskell
     , temporary
     , text
     , text-class
@@ -202,7 +209,9 @@ test-suite unit
     , unordered-containers
     , yaml
     , wai
+    , wai-app-static
     , warp
+    , zip
   build-tools:
       hspec-discover
   type:
@@ -218,6 +227,7 @@ test-suite unit
       Cardano.Pool.DB.Properties
       Cardano.Pool.DB.SqliteSpec
       Cardano.Pool.MetricsSpec
+      Cardano.Pool.MetadataSpec
       Cardano.Wallet.Api.ServerSpec
       Cardano.Wallet.Api.TypesSpec
       Cardano.Wallet.ApiSpec
