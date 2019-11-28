@@ -64,7 +64,8 @@ import Test.Integration.Framework.DSL
     , verify
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403PoolAlreadyJoined
+    ( errMsg403NotDelegating
+    , errMsg403PoolAlreadyJoined
     , errMsg404NoSuchPool
     , errMsg405
     , errMsg406
@@ -476,3 +477,12 @@ spec = do
 
         r <- quitStakePool ctx (p ^. #id) (w, "Incorrect Passphrase")
         expectResponseCode HTTP.status501 r
+
+    it "STAKE_POOLS_QUIT_100 - Cannot quit stake pool before joining" $ \ctx -> do
+        (_, p:_) <- eventually $
+            unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
+        w <- emptyWallet ctx
+
+        r <- quitStakePool ctx (p ^. #id) (w, "Secure Passprase")
+        expectResponseCode HTTP.status403 r
+        expectErrorMessage errMsg403NotDelegating  r

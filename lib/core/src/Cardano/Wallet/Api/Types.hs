@@ -361,6 +361,7 @@ data ApiErrorCode
     | NothingToMigrate
     | NoSuchPool
     | PoolAlreadyJoined
+    | NotDelegating
     deriving (Eq, Generic, Show)
 
 -- | Defines a point in time that can be formatted as and parsed from an

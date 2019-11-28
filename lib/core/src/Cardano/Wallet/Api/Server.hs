@@ -782,7 +782,7 @@ pools
 pools ctx spl =
     listPools spl
     :<|> joinStakePool ctx spl
-    :<|> quitStakePool
+    :<|> quitStakePool ctx spl
 
 listPools
     :: StakePoolLayer IO
@@ -852,15 +852,28 @@ joinStakePool ctx spl (ApiT poolId) (ApiT wid) passwd = do
         isNothing . L.find (\(ApiStakePool pId _ _ _) -> pId == ApiT poolId)
 
 quitStakePool
-    :: forall n k.
+    :: forall ctx s t n k.
         ( DelegationAddress n k
+        , Buildable (ErrValidateSelection t)
+        , s ~ SeqState n k
         , k ~ ShelleyKey
+        , HardDerivation k
+        , ctx ~ ApiLayer s t k
         )
-    => ApiT PoolId
+    => ctx
+    -> StakePoolLayer IO
+    -> ApiT PoolId
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
-quitStakePool _ _ _ = throwError err501
+quitStakePool ctx _ _ (ApiT wid) _ = do
+    (_, walMeta, _) <- liftHandler $ withWorkerCtx ctx wid throwE $
+        \wrk -> W.readWallet wrk wid
+
+    when (walMeta ^. #delegation == W.NotDelegating) $
+        liftHandler $ throwE ErrSelectForDelegationNotDelegating
+
+    throwError err501
 
 {-------------------------------------------------------------------------------
                                     Network
@@ -1658,6 +1671,9 @@ instance LiftHandler ErrSelectForDelegation where
                 ]
         ErrSelectForDelegationNoSuchWallet e -> handler e
         ErrSelectForDelegationFee e -> handler e
+        ErrSelectForDelegationNotDelegating ->
+            apiError err403 NotDelegating
+                "I couldn't quit a stake pool before joining one!"
 
 instance LiftHandler ErrSignDelegation where
     handler = \case
