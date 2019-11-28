@@ -44,7 +44,7 @@ import Cardano.Wallet.Primitive.Types
     , TxOut (..)
     )
 import Cardano.Wallet.Transaction
-    ( ErrMkTx (..), TransactionLayer (..) )
+    ( DelegationAction (..), ErrMkTx (..), TransactionLayer (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Data.ByteArray.Encoding
@@ -519,7 +519,7 @@ goldenTestDelegationCertTx
     -> ByteString
     -> SpecWith ()
 goldenTestDelegationCertTx tl keystore pool (accountXPrv, pass) inps outs bytes' = it title $ do
-    let res = mkDelegationCertTx tl pool (accountXPrv, pass) keystore inps outs
+    let res = mkDelegationCertTx tl pool (accountXPrv, pass) Join keystore inps outs
     let sealed = getSealedTx . snd <$> res
     sealed `shouldBe` (Right $ unsafeFromHex bytes')
     & counterexample ("poolId = " <> showHex (getPoolId pool))

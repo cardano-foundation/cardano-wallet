@@ -234,7 +234,8 @@ import Cardano.Wallet.Primitive.Types
     , wholeRange
     )
 import Cardano.Wallet.Transaction
-    ( ErrDecodeSignedTx (..)
+    ( DelegationAction
+    , ErrDecodeSignedTx (..)
     , ErrMkTx (..)
     , ErrValidateSelection
     , TransactionLayer (..)
@@ -959,8 +960,9 @@ signDelegation
     -> Passphrase "encryption"
     -> CoinSelection
     -> PoolId
+    -> DelegationAction
     -> ExceptT ErrSignDelegation IO (Tx, TxMeta, UTCTime, SealedTx)
-signDelegation ctx wid argGenChange pwd coinSel poolId = db & \DBLayer{..} -> do
+signDelegation ctx wid argGenChange pwd coinSel poolId action = db & \DBLayer{..} -> do
     let (CoinSelection ins outs chgs) = coinSel
     withRootKey @_ @s ctx wid pwd ErrSignDelegationWithRootKey $ \xprv -> do
         mapExceptT atomically $ do
@@ -974,7 +976,7 @@ signDelegation ctx wid argGenChange pwd coinSel poolId = db & \DBLayer{..} -> do
             let rewardAccount = deriveRewardAccount @k pwd xprv
             let keyFrom = isOwned (getState cp) (xprv, pwd)
             (tx, sealedTx) <- withExceptT ErrSignDelegationMkTx $ ExceptT $ pure $
-                mkDelegationCertTx tl poolId (rewardAccount, pwd) keyFrom ins allOuts
+                mkDelegationCertTx tl poolId (rewardAccount, pwd) action keyFrom ins allOuts
 
             let bp = blockchainParameters cp
             let (time, meta) = mkTxMeta bp (currentTip cp) s' ins allOuts

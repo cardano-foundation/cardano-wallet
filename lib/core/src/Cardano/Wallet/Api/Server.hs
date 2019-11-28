@@ -183,7 +183,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..), MkWorker (..), newWorker, workerResource )
 import Cardano.Wallet.Transaction
-    ( TransactionLayer )
+    ( DelegationAction (..), TransactionLayer )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.DeepSeq
@@ -833,7 +833,7 @@ joinStakePool ctx spl (ApiT poolId) (ApiT wid) passwd = do
         W.selectCoinsForDelegation @_ @s @t wrk wid
 
     (tx, meta, time, wit) <- liftHandler $ withWorkerCtx ctx wid liftE2 $ \wrk ->
-        W.signDelegation @_ @s @t @k wrk wid () pwd selection poolId
+        W.signDelegation @_ @s @t @k wrk wid () pwd selection poolId Join
 
     liftHandler $ withWorkerCtx ctx wid liftE3 $ \wrk ->
         W.submitTx @_ @s @t @k wrk wid (tx, meta, wit)
@@ -879,7 +879,12 @@ quitStakePool ctx spl (ApiT poolId) (ApiT wid) _ = do
     when (poolIsUnknown poolId allPools) $
         liftHandler $ throwE (ErrSelectForDelegationNoSuchPool poolId)
 
+    _selection <- liftHandler $ withWorkerCtx ctx wid liftE1 $ \wrk ->
+        W.selectCoinsForDelegation @_ @s @t wrk wid
+
     throwError err501
+  where
+    liftE1 = throwE . ErrSelectForDelegationNoSuchWallet
 
 {-------------------------------------------------------------------------------
                                     Network

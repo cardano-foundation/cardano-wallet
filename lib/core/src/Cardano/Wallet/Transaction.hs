@@ -18,7 +18,8 @@
 module Cardano.Wallet.Transaction
     (
     -- * Interface
-      TransactionLayer(..)
+      TransactionLayer (..)
+    , DelegationAction (..)
 
     -- * Errors
     , ErrMkTx (..)
@@ -80,6 +81,7 @@ data TransactionLayer t k = TransactionLayer
     , mkDelegationCertTx
         :: PoolId
         -> (k 'AddressK XPrv, Passphrase "encryption") -- reward account
+        -> DelegationAction
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
         -> [(TxIn, TxOut)]
         -> [TxOut]
@@ -129,6 +131,8 @@ data TransactionLayer t k = TransactionLayer
         :: ByteString -> Either ErrDecodeSignedTx (Tx, SealedTx)
         -- ^ Decode an externally-signed transaction to the chain producer
     }
+
+data DelegationAction = Join | Quit deriving (Show, Eq)
 
 -- | A type family for validations that are specific to a particular backend
 -- type. This demands an instantiation of the family for a particular backend:
