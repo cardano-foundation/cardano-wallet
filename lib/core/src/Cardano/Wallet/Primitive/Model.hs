@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -59,8 +60,10 @@ import Prelude
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..)
+    ( Address (..)
+    , Block (..)
     , BlockHeader (..)
+    , ChimericAccount (..)
     , Direction (..)
     , Dom (..)
     , EpochLength (..)
@@ -153,7 +156,12 @@ import qualified Data.Text.Encoding as T
 -- Wallet SeqState Bitcoin
 -- @
 data Wallet s where
-    Wallet :: (IsOurs s, NFData s, Show s)
+    Wallet ::
+        ( IsOurs s Address
+        , IsOurs s ChimericAccount
+        , NFData s
+        , Show s
+        )
         => UTxO -- Unspent tx outputs belonging to this wallet
         -> BlockHeader -- Header of the latest applied block (current tip)
         -> s -- Address discovery state
@@ -229,7 +237,7 @@ slotParams bp =
 --
 -- The wallet tip will be set to the header of the applied genesis block.
 initWallet
-    :: (IsOurs s, NFData s, Show s)
+    :: (IsOurs s Address, IsOurs s ChimericAccount, NFData s, Show s)
     => Block
         -- ^ The genesis block
     -> BlockchainParameters
@@ -249,7 +257,7 @@ initWallet block bp s =
 -- wallet checkpoints from the database (where it is assumed a valid wallet was
 -- stored into the database).
 unsafeInitWallet
-    :: (IsOurs s, NFData s, Show s)
+    :: (IsOurs s Address, IsOurs s ChimericAccount, NFData s, Show s)
     => UTxO
        -- ^ Unspent tx outputs belonging to this wallet
     -> BlockHeader
@@ -263,7 +271,7 @@ unsafeInitWallet = Wallet
 
 -- | Update the state of an existing Wallet model
 updateState
-    :: (IsOurs s, NFData s, Show s)
+    :: (IsOurs s Address, NFData s, Show s)
     => s
     -> Wallet s
     -> Wallet s
@@ -389,7 +397,7 @@ blockchainParameters (Wallet _ _ _ bp) = bp
 -- in order, starting from the known inputs that can be spent (from the previous
 -- UTxO) and, collect resolved tx outputs that are ours as we apply transactions.
 prefilterBlock
-    :: (IsOurs s)
+    :: (IsOurs s Address)
     => Block
     -> UTxO
     -> s
@@ -407,7 +415,7 @@ prefilterBlock b u0 = runState $ do
         , amount = Quantity amt
         }
     applyTx
-        :: IsOurs s
+        :: IsOurs s Address
         => ([(Tx, TxMeta)], UTxO)
         ->Tx
         -> State s ([(Tx, TxMeta)], UTxO)
@@ -439,7 +447,7 @@ prefilterBlock b u0 = runState $ do
 -- can only discover new addresses when applying blocks. The state is
 -- therefore use in a read-only mode here.
 changeUTxO
-    :: IsOurs s
+    :: IsOurs s Address
     => Set Tx
     -> s
     -> UTxO
@@ -451,7 +459,7 @@ changeUTxO pending = evalState $
 -- ordered correctly, since they become available inputs for the subsequent
 -- blocks.
 utxoOurs
-    :: IsOurs s
+    :: IsOurs s Address
     => Tx
     -> s
     -> (UTxO, s)

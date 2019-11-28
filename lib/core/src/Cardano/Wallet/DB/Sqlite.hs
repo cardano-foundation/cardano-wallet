@@ -176,7 +176,8 @@ import qualified Data.Text as T
 -- library.
 withDBLayer
     :: forall s k a.
-        ( IsOurs s
+        ( IsOurs s W.Address
+        , IsOurs s W.ChimericAccount
         , NFData s
         , Show s
         , PersistState s
@@ -200,7 +201,8 @@ withDBLayer logConfig trace mDatabaseDir action =
 -- | Instantiate a 'DBFactory' from a given directory
 mkDBFactory
     :: forall s k.
-        ( IsOurs s
+        ( IsOurs s W.Address
+        , IsOurs s W.ChimericAccount
         , NFData s
         , Show s
         , PersistState s
@@ -280,7 +282,8 @@ findDatabases tr dir = do
 -- these things will be handled for you.
 newDBLayer
     :: forall s k.
-        ( IsOurs s
+        ( IsOurs s W.Address
+        , IsOurs s W.ChimericAccount
         , NFData s
         , Show s
         , PersistState s
@@ -562,7 +565,7 @@ mkCheckpointEntity wid wal =
 -- note: TxIn records must already be sorted by order
 -- and TxOut records must already by sorted by index.
 checkpointFromEntity
-    :: (IsOurs s, NFData s, Show s)
+    :: (IsOurs s W.Address, IsOurs s W.ChimericAccount, NFData s, Show s)
     => Checkpoint
     -> [UTxO]
     -> s

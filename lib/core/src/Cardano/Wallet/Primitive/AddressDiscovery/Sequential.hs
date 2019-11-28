@@ -83,7 +83,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , KnownAddresses (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address, invariant )
+    ( Address, ChimericAccount, invariant )
 import Control.Applicative
     ( (<|>) )
 import Control.DeepSeq
@@ -520,7 +520,7 @@ instance
     ( SoftDerivation k
     , MkKeyFingerprint k (k 'AddressK XPub)
     , MkKeyFingerprint k Address
-    ) => IsOurs (SeqState n k) where
+    ) => IsOurs (SeqState n k) Address where
     isOurs addr (SeqState !s1 !s2 !ixs !rpk) =
         let
             (internal, !s1') = lookupAddress addr s1
@@ -531,6 +531,10 @@ instance
             ours = isJust (internal <|> external)
         in
             (ixs' `deepseq` ours `deepseq` ours, SeqState s1' s2' ixs' rpk)
+
+instance IsOurs (SeqState n k) ChimericAccount where
+    -- TODO: Add support for identifying a 'ChimericAccount' here.
+    isOurs _account state = (False, state)
 
 instance
     ( SoftDerivation k

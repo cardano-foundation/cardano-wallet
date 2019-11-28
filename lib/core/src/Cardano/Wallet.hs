@@ -199,6 +199,7 @@ import Cardano.Wallet.Primitive.Types
     , AddressState (..)
     , Block (..)
     , BlockHeader (..)
+    , ChimericAccount (..)
     , Coin (..)
     , Direction (..)
     , FeePolicy (LinearFee)
@@ -429,7 +430,8 @@ createWallet
         , HasDBLayer s k ctx
         , Show s
         , NFData s
-        , IsOurs s
+        , IsOurs s Address
+        , IsOurs s ChimericAccount
         )
     => ctx
     -> WalletId
@@ -632,7 +634,7 @@ deleteWallet ctx wid = db & \DBLayer{..} -> do
 listAddresses
     :: forall ctx s k n.
         ( HasDBLayer s k ctx
-        , IsOurs s
+        , IsOurs s Address
         , CompareDiscovery s
         , KnownAddresses s
         , MkKeyFingerprint k Address
@@ -845,7 +847,7 @@ assignMigrationTargetAddresses
     :: forall ctx s k.
         ( HasDBLayer s k ctx
         , GenChange s
-        , IsOurs s
+        , IsOurs s Address
         , NFData s
         , Show s
         )
@@ -956,7 +958,7 @@ signDelegation ctx wid argGenChange pwd coinSel poolId = db & \DBLayer{..} -> do
 -- | Construct transaction metadata from a current block header and a list
 -- of input and output.
 mkTxMeta
-    :: IsOurs s
+    :: IsOurs s Address
     => BlockchainParameters
     -> BlockHeader
     -> s

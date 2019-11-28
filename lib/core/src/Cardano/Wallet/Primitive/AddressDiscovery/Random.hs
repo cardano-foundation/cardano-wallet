@@ -51,7 +51,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , KnownAddresses (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..) )
+    ( Address (..), ChimericAccount )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
@@ -111,14 +111,18 @@ instance Buildable (RndState network) where
 -- | Shortcut type alias for HD random address derivation path.
 type DerivationPath = (Index 'WholeDomain 'AccountK, Index 'WholeDomain 'AddressK)
 
--- An address is considered to belong to the 'RndState' wallet if it can be decoded
--- as a Byron HD random address, and where the wallet key can be used to decrypt
--- the address derivation path.
-instance IsOurs (RndState n) where
+-- An address is considered to belong to the 'RndState' wallet if it can be
+-- decoded as a Byron HD random address, and where the wallet key can be used
+-- to decrypt the address derivation path.
+instance IsOurs (RndState n) Address where
     isOurs addr st =
         (isJust path, maybe id (addDiscoveredAddress addr) path st)
       where
         path = addressToPath addr (hdPassphrase st)
+
+instance IsOurs (RndState n) ChimericAccount where
+    -- Chimeric accounts are not supported, so always return 'False'.
+    isOurs _account state = (False, state)
 
 instance IsOwned (RndState n) ByronKey where
     isOwned st (key, pwd) addr =

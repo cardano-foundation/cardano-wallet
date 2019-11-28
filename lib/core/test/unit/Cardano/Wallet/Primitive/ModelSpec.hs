@@ -1,6 +1,9 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -30,6 +33,7 @@ import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Block (..)
     , BlockHeader (..)
+    , ChimericAccount (..)
     , Coin (..)
     , Direction (..)
     , Dom (..)
@@ -216,7 +220,7 @@ prop_initialBlockHeight s =
 
 -- Update UTxO as described in the formal specification, Fig 3. The basic model
 updateUTxO
-    :: IsOurs s
+    :: IsOurs s Address
     => Block
     -> UTxO
     -> State s UTxO
@@ -235,7 +239,7 @@ updateUTxO !b utxo = do
 --    return $ someComputation ours
 -- @
 txOutsOurs
-    :: forall s. (IsOurs s)
+    :: forall s. (IsOurs s Address)
     => Set Tx
     -> s
     -> (Set TxOut, s)
@@ -288,12 +292,15 @@ instance Semigroup WalletState where
             (WalletState ours (a <> b))
             (\_ -> ours == ours')
 
-instance IsOurs WalletState where
+instance IsOurs WalletState Address where
     isOurs addr s@(WalletState ours discovered) =
         if (ShowFmt addr) `elem` ours then
             (True, WalletState ours (Set.insert (ShowFmt addr) discovered))
         else
             (False, s)
+
+instance IsOurs WalletState ChimericAccount where
+    isOurs _account s = (False, s)
 
 instance Arbitrary WalletState where
     shrink = genericShrink

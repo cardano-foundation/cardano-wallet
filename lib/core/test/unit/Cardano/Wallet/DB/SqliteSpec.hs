@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -84,6 +85,7 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , ChimericAccount (..)
     , Coin (..)
     , Direction (..)
     , Hash (..)
@@ -232,22 +234,24 @@ loggingSpec = withLoggingDB @(SeqState 'Testnet ShelleyKey) @ShelleyKey $ do
 -- | Set up a DBLayer for testing, with the command context, and the logging
 -- variable.
 newMemoryDBLayer
-    :: ( IsOurs s
-       , NFData s
-       , Show s
-       , PersistState s
-       , PersistPrivateKey (k 'RootK)
-       )
+    ::  ( IsOurs s Address
+        , IsOurs s ChimericAccount
+        , NFData s
+        , Show s
+        , PersistState s
+        , PersistPrivateKey (k 'RootK)
+        )
     => IO (DBLayer IO s k)
 newMemoryDBLayer = snd . snd <$> newMemoryDBLayer'
 
 newMemoryDBLayer'
-    :: ( IsOurs s
-       , NFData s
-       , Show s
-       , PersistState s
-       , PersistPrivateKey (k 'RootK)
-       )
+    ::  ( IsOurs s Address
+        , IsOurs s ChimericAccount
+        , NFData s
+        , Show s
+        , PersistState s
+        , PersistPrivateKey (k 'RootK)
+        )
     => IO (TVar [LogObject Text], (SqliteContext, DBLayer IO s k))
 newMemoryDBLayer' = do
     logConfig <- testingLogConfig
@@ -288,12 +292,13 @@ testingLogConfig = do
     pure logConfig
 
 withLoggingDB
-    :: ( IsOurs s
-       , NFData s
-       , Show s
-       , PersistState s
-       , PersistPrivateKey (k 'RootK)
-       )
+    ::  ( IsOurs s Address
+        , IsOurs s ChimericAccount
+        , NFData s
+        , Show s
+        , PersistState s
+        , PersistPrivateKey (k 'RootK)
+        )
     => SpecWith (IO [LogObject Text], DBLayer IO s k)
     -> Spec
 withLoggingDB = beforeAll newMemoryDBLayer' . beforeWith clean
@@ -422,7 +427,12 @@ fileModeSpec =  do
 -- SQLite session has the same effect as executing the same operations over
 -- multiple sessions.
 prop_randomOpChunks
-    :: (Eq s, IsOurs s, NFData s, Show s, PersistState s)
+    ::  ( Eq s
+        , IsOurs s Address
+        , IsOurs s ChimericAccount
+        , NFData s
+        , Show s
+        , PersistState s)
     => KeyValPairs (PrimaryKey WalletId) (Wallet s, WalletMetadata)
     -> Property
 prop_randomOpChunks (KeyValPairs pairs) =
@@ -505,7 +515,11 @@ withTestDBFile action expectations = do
         expectations fp
 
 inMemoryDBLayer
-    :: (IsOurs s, NFData s, Show s, PersistState s)
+    ::  ( IsOurs s Address
+        , IsOurs s ChimericAccount
+        , NFData s
+        , Show s
+        , PersistState s)
     => IO (SqliteContext, DBLayer IO s ShelleyKey)
 inMemoryDBLayer = newDBLayer' Nothing
 
@@ -513,7 +527,12 @@ temporaryDBFile :: IO FilePath
 temporaryDBFile = emptySystemTempFile "cardano-wallet-SqliteFileMode"
 
 newDBLayer'
-    :: (IsOurs s, NFData s, Show s, PersistState s)
+    ::  ( IsOurs s Address
+        , IsOurs s ChimericAccount
+        , NFData s
+        , Show s
+        , PersistState s
+        )
     => Maybe FilePath
     -> IO (SqliteContext, DBLayer IO s ShelleyKey)
 newDBLayer' fp = do
