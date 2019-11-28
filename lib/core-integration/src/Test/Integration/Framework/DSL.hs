@@ -56,6 +56,7 @@ module Test.Integration.Framework.DSL
     , apparentPerformance
     , balanceAvailable
     , balanceTotal
+    , balanceReward
     , blocks
     , delegation
     , direction
@@ -70,7 +71,6 @@ module Test.Integration.Framework.DSL
     , syncProgress
     , walletId
     , walletName
-    , walletReward
 
     -- * Helpers
     , (</>)
@@ -667,8 +667,12 @@ balanceAvailable =
     _set :: HasType (ApiT WalletBalance) s => (s, Natural) -> s
     _set (s, v) = set typed initBal s
       where
+        -- TODO: Fix this setter: it sets all fields to the same value.
         initBal = ApiT $ WalletBalance
-            {available = Quantity v, Types.total = Quantity v}
+            { Types.available = Quantity v
+            , Types.total = Quantity v
+            , Types.reward = Quantity v
+            }
 
 balanceTotal :: HasType (ApiT WalletBalance) s => Lens' s Natural
 balanceTotal =
@@ -679,8 +683,28 @@ balanceTotal =
     _set :: HasType (ApiT WalletBalance) s => (s, Natural) -> s
     _set (s, v) = set typed initBal s
       where
+        -- TODO: Fix this setter: it sets all fields to the same value.
         initBal = ApiT $ WalletBalance
-            {available = Quantity v, Types.total = Quantity v}
+            { Types.available = Quantity v
+            , Types.total = Quantity v
+            , Types.reward = Quantity v
+            }
+
+balanceReward :: HasType (ApiT WalletBalance) s => Lens' s Natural
+balanceReward =
+    lens _get _set
+  where
+    _get :: HasType (ApiT WalletBalance) s => s -> Natural
+    _get = fromQuantity @"lovelace" . Types.reward . getApiT . view typed
+    _set :: HasType (ApiT WalletBalance) s => (s, Natural) -> s
+    _set (s, v) = set typed initBal s
+      where
+        -- TODO: Fix this setter: it sets all fields to the same value.
+        initBal = ApiT $ WalletBalance
+            { Types.available = Quantity v
+            , Types.total = Quantity v
+            , Types.reward = Quantity v
+            }
 
 delegation
     :: forall s d. (d ~ WalletDelegation (ApiT PoolId), HasType (ApiT d) s)
@@ -730,17 +754,6 @@ walletName =
     _get = getWalletName . getApiT . view typed
     _set :: HasType (ApiT WalletName) s => (s, Text) -> s
     _set (s, v) = set typed (ApiT $ WalletName v) s
-
-walletReward
-    :: forall s q. (q ~ Quantity "lovelace" Natural, HasType q s)
-    => Lens' s Natural
-walletReward =
-    lens _get _set
-  where
-    _get :: s -> Natural
-    _get = fromQuantity @"lovelace" @Natural . view typed
-    _set :: (s, Natural) -> s
-    _set (s, v) = set typed (Quantity @"lovelace" @Natural v) s
 
 walletId :: HasType (ApiT WalletId) s => Lens' s Text
 walletId =

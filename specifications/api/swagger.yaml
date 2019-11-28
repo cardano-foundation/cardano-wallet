@@ -197,11 +197,15 @@ x-walletBalance: &walletBalance
   type: object
   required:
     - available
+    - reward
     - total
   properties:
     available:
       <<: *amount
       description: Available balance (funds that can be spent)
+    reward:
+      <<: *amount
+      description: The balance of the reward account for this wallet.
     total:
       <<: *amount
       description: Total balance (available balance plus pending change)
@@ -532,7 +536,6 @@ definitions:
       - balance
       - delegation
       - name
-      - reward
       - state
       - tip
     properties:
@@ -542,9 +545,6 @@ definitions:
       delegation: *walletDelegation
       name: *walletName
       passphrase: *walletPassphraseInfo
-      reward:
-        <<: *amount
-        description: The balance of the reward account for this wallet.
       state: *walletState
       tip: *blockReference
 

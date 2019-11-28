@@ -585,7 +585,6 @@ spec = do
                     , delegation = delegation (x :: ApiWallet)
                     , name = name (x :: ApiWallet)
                     , passphrase = passphrase (x :: ApiWallet)
-                    , reward = reward (x :: ApiWallet)
                     , state = state (x :: ApiWallet)
                     , tip = tip (x :: ApiWallet)
                     }

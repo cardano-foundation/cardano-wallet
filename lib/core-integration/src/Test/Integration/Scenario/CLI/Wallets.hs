@@ -45,6 +45,7 @@ import Test.Integration.Framework.DSL
     , KnownCommand
     , addressPoolGap
     , balanceAvailable
+    , balanceReward
     , balanceTotal
     , cardanoWalletCLI
     , createWalletViaCLI
@@ -74,7 +75,6 @@ import Test.Integration.Framework.DSL
     , verify
     , walletId
     , walletName
-    , walletReward
     )
 import Test.Integration.Framework.TestData
     ( addressPoolGapMax
@@ -164,7 +164,7 @@ spec = do
             , expectCliFieldEqual addressPoolGap 20
             , expectCliFieldEqual balanceAvailable 0
             , expectCliFieldEqual balanceTotal 0
-            , expectCliFieldEqual walletReward 0
+            , expectCliFieldEqual balanceReward 0
             , expectEventually' ctx getWalletEp state Ready
             , expectCliFieldEqual delegation (NotDelegating)
             , expectCliFieldNotEqual passphraseLastUpdate Nothing
@@ -401,7 +401,7 @@ spec = do
             , expectCliFieldEqual addressPoolGap 20
             , expectCliFieldEqual balanceAvailable 0
             , expectCliFieldEqual balanceTotal 0
-            , expectCliFieldEqual walletReward 0
+            , expectCliFieldEqual balanceReward 0
             , expectEventually' ctx getWalletEp state Ready
             , expectCliFieldEqual delegation (NotDelegating)
             , expectCliFieldNotEqual passphraseLastUpdate Nothing
@@ -431,7 +431,7 @@ spec = do
             , expectCliListItemFieldEqual 0 addressPoolGap 21
             , expectCliListItemFieldEqual 0 balanceAvailable 0
             , expectCliListItemFieldEqual 0 balanceTotal 0
-            , expectCliListItemFieldEqual 0 walletReward 0
+            , expectCliListItemFieldEqual 0 balanceReward 0
             , expectCliListItemFieldEqual 0 delegation (NotDelegating)
             , expectCliListItemFieldEqual 0 walletId (T.pack w1)
             ]

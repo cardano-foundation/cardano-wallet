@@ -3,12 +3,16 @@
     "samples": [
         {
             "passphrase": {
-                "last_updated_at": "2105-03-02T12:52:19.652881236802Z"
+                "last_updated_at": "1876-09-15T12:52:19.652881236802Z"
             },
             "state": {
                 "status": "ready"
             },
             "balance": {
+                "reward": {
+                    "quantity": 18,
+                    "unit": "lovelace"
+                },
                 "total": {
                     "quantity": 25,
                     "unit": "lovelace"
@@ -25,7 +29,7 @@
                     "quantity": 27818,
                     "unit": "block"
                 },
-                "epoch_number": 11168666,
+                "epoch_number": 155,
                 "slot_number": 23430
             }
         },
@@ -34,6 +38,10 @@
                 "status": "ready"
             },
             "balance": {
+                "reward": {
+                    "quantity": 62,
+                    "unit": "lovelace"
+                },
                 "total": {
                     "quantity": 92,
                     "unit": "lovelace"
@@ -50,18 +58,22 @@
                     "quantity": 19141,
                     "unit": "block"
                 },
-                "epoch_number": 15697811,
+                "epoch_number": 1089,
                 "slot_number": 22046
             }
         },
         {
             "passphrase": {
-                "last_updated_at": "1904-08-29T19:48:44Z"
+                "last_updated_at": "1880-01-31T19:48:44Z"
             },
             "state": {
                 "status": "ready"
             },
             "balance": {
+                "reward": {
+                    "quantity": 24,
+                    "unit": "lovelace"
+                },
                 "total": {
                     "quantity": 199,
                     "unit": "lovelace"
@@ -78,18 +90,22 @@
                     "quantity": 23349,
                     "unit": "block"
                 },
-                "epoch_number": 1657133,
+                "epoch_number": 8307,
                 "slot_number": 9493
             }
         },
         {
             "passphrase": {
-                "last_updated_at": "2010-10-28T17:08:01Z"
+                "last_updated_at": "1905-11-20T17:08:01Z"
             },
             "state": {
                 "status": "ready"
             },
             "balance": {
+                "reward": {
+                    "quantity": 196,
+                    "unit": "lovelace"
+                },
                 "total": {
                     "quantity": 125,
                     "unit": "lovelace"
@@ -106,13 +122,13 @@
                     "quantity": 25360,
                     "unit": "block"
                 },
-                "epoch_number": 8853596,
+                "epoch_number": 18023,
                 "slot_number": 17522
             }
         },
         {
             "passphrase": {
-                "last_updated_at": "2675-10-01T10:53:25.961056772585Z"
+                "last_updated_at": "1889-07-05T10:53:25.961056772585Z"
             },
             "state": {
                 "status": "syncing",
@@ -122,6 +138,10 @@
                 }
             },
             "balance": {
+                "reward": {
+                    "quantity": 189,
+                    "unit": "lovelace"
+                },
                 "total": {
                     "quantity": 247,
                     "unit": "lovelace"
@@ -138,7 +158,7 @@
                     "quantity": 28406,
                     "unit": "block"
                 },
-                "epoch_number": 2022309,
+                "epoch_number": 32217,
                 "slot_number": 9342
             }
         },
@@ -151,6 +171,10 @@
                 }
             },
             "balance": {
+                "reward": {
+                    "quantity": 181,
+                    "unit": "lovelace"
+                },
                 "total": {
                     "quantity": 209,
                     "unit": "lovelace"
@@ -167,13 +191,13 @@
                     "quantity": 17224,
                     "unit": "block"
                 },
-                "epoch_number": 10122891,
+                "epoch_number": 27688,
                 "slot_number": 21514
             }
         },
         {
             "passphrase": {
-                "last_updated_at": "2219-03-16T22:27:56.771225333564Z"
+                "last_updated_at": "1864-11-11T22:27:56.771225333564Z"
             },
             "state": {
                 "status": "syncing",
@@ -183,6 +207,10 @@
                 }
             },
             "balance": {
+                "reward": {
+                    "quantity": 226,
+                    "unit": "lovelace"
+                },
                 "total": {
                     "quantity": 69,
                     "unit": "lovelace"
@@ -199,18 +227,22 @@
                     "quantity": 9900,
                     "unit": "block"
                 },
-                "epoch_number": 1605098,
+                "epoch_number": 4839,
                 "slot_number": 2930
             }
         },
         {
             "passphrase": {
-                "last_updated_at": "2856-08-29T20:59:56Z"
+                "last_updated_at": "1874-07-12T20:59:56Z"
             },
             "state": {
                 "status": "ready"
             },
             "balance": {
+                "reward": {
+                    "quantity": 105,
+                    "unit": "lovelace"
+                },
                 "total": {
                     "quantity": 124,
                     "unit": "lovelace"
@@ -227,18 +259,22 @@
                     "quantity": 27756,
                     "unit": "block"
                 },
-                "epoch_number": 2078424,
+                "epoch_number": 22614,
                 "slot_number": 21333
             }
         },
         {
             "passphrase": {
-                "last_updated_at": "2065-05-21T07:00:00Z"
+                "last_updated_at": "1906-12-19T07:00:00Z"
             },
             "state": {
                 "status": "ready"
             },
             "balance": {
+                "reward": {
+                    "quantity": 180,
+                    "unit": "lovelace"
+                },
                 "total": {
                     "quantity": 67,
                     "unit": "lovelace"
@@ -255,18 +291,22 @@
                     "quantity": 27925,
                     "unit": "block"
                 },
-                "epoch_number": 5239024,
+                "epoch_number": 27503,
                 "slot_number": 17426
             }
         },
         {
             "passphrase": {
-                "last_updated_at": "2393-09-29T00:35:46.253581656278Z"
+                "last_updated_at": "1872-07-25T00:35:46.253581656278Z"
             },
             "state": {
                 "status": "ready"
             },
             "balance": {
+                "reward": {
+                    "quantity": 190,
+                    "unit": "lovelace"
+                },
                 "total": {
                     "quantity": 237,
                     "unit": "lovelace"
@@ -283,7 +323,7 @@
                     "quantity": 1465,
                     "unit": "block"
                 },
-                "epoch_number": 4349662,
+                "epoch_number": 11594,
                 "slot_number": 19766
             }
         }

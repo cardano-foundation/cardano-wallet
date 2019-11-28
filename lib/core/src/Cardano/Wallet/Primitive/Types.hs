@@ -351,6 +351,7 @@ instance NFData WalletPassphraseInfo
 data WalletBalance = WalletBalance
     { available :: !(Quantity "lovelace" Natural)
     , total :: !(Quantity "lovelace" Natural)
+    , reward :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
 
 {-------------------------------------------------------------------------------

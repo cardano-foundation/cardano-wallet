@@ -39,6 +39,7 @@ import Test.Integration.Framework.DSL
     , Payload (..)
     , addressPoolGap
     , balanceAvailable
+    , balanceReward
     , balanceTotal
     , delegation
     , deleteWalletEp
@@ -66,7 +67,6 @@ import Test.Integration.Framework.DSL
     , verify
     , walletId
     , walletName
-    , walletReward
     , (</>)
     )
 import Test.Integration.Framework.TestData
@@ -132,7 +132,7 @@ spec = do
             , expectFieldEqual addressPoolGap 30
             , expectFieldEqual balanceAvailable 0
             , expectFieldEqual balanceTotal 0
-            , expectFieldEqual walletReward 0
+            , expectFieldEqual balanceReward 0
             , expectEventually ctx getWalletEp state Ready
             , expectFieldEqual delegation (NotDelegating)
             , expectFieldEqual walletId
@@ -843,7 +843,7 @@ spec = do
             , expectFieldEqual addressPoolGap 20
             , expectFieldEqual balanceAvailable 0
             , expectFieldEqual balanceTotal 0
-            , expectFieldEqual walletReward 0
+            , expectFieldEqual balanceReward 0
             , expectEventually ctx getWalletEp state Ready
             , expectFieldEqual delegation (NotDelegating)
             , expectFieldEqual walletId walId
@@ -911,7 +911,7 @@ spec = do
             , expectListItemFieldEqual 0 addressPoolGap 20
             , expectListItemFieldEqual 0 balanceAvailable 0
             , expectListItemFieldEqual 0 balanceTotal 0
-            , expectListItemFieldEqual 0 walletReward 0
+            , expectListItemFieldEqual 0 balanceReward 0
             , expectListItemFieldEqual 0 delegation (NotDelegating)
             , expectListItemFieldEqual 0 walletId
                 "dfe87fcf0560fb57937a6468ea51e860672fad79"
