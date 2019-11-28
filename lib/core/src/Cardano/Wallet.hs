@@ -199,6 +199,7 @@ import Cardano.Wallet.Primitive.Types
     , AddressState (..)
     , Block (..)
     , BlockHeader (..)
+    , ChimericAccount (..)
     , Coin (..)
     , Direction (..)
     , FeePolicy (LinearFee)
@@ -430,6 +431,7 @@ createWallet
         , Show s
         , NFData s
         , IsOurs s Address
+        , IsOurs s ChimericAccount
         )
     => ctx
     -> WalletId

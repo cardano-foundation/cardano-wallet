@@ -69,6 +69,7 @@ import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Block (..)
     , BlockHeader (..)
+    , ChimericAccount (..)
     , Coin (..)
     , Direction (..)
     , EpochLength (..)
@@ -167,7 +168,14 @@ import qualified Data.Map.Strict as Map
                                  Modifiers
 -------------------------------------------------------------------------------}
 
-type GenState s = (NFData s, Show s, IsOurs s Address, Arbitrary s, Buildable s)
+type GenState s =
+    ( Arbitrary s
+    , Buildable s
+    , IsOurs s Address
+    , IsOurs s ChimericAccount
+    , NFData s
+    , Show s
+    )
 
 newtype KeyValPairs k v = KeyValPairs [(k, v)]
     deriving (Generic, Show, Eq)

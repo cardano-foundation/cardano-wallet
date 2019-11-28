@@ -85,6 +85,7 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , ChimericAccount (..)
     , Coin (..)
     , Direction (..)
     , Hash (..)
@@ -234,6 +235,7 @@ loggingSpec = withLoggingDB @(SeqState 'Testnet ShelleyKey) @ShelleyKey $ do
 -- variable.
 newMemoryDBLayer
     ::  ( IsOurs s Address
+        , IsOurs s ChimericAccount
         , NFData s
         , Show s
         , PersistState s
@@ -244,6 +246,7 @@ newMemoryDBLayer = snd . snd <$> newMemoryDBLayer'
 
 newMemoryDBLayer'
     ::  ( IsOurs s Address
+        , IsOurs s ChimericAccount
         , NFData s
         , Show s
         , PersistState s
@@ -290,6 +293,7 @@ testingLogConfig = do
 
 withLoggingDB
     ::  ( IsOurs s Address
+        , IsOurs s ChimericAccount
         , NFData s
         , Show s
         , PersistState s
@@ -423,7 +427,12 @@ fileModeSpec =  do
 -- SQLite session has the same effect as executing the same operations over
 -- multiple sessions.
 prop_randomOpChunks
-    :: (Eq s, IsOurs s Address, NFData s, Show s, PersistState s)
+    ::  ( Eq s
+        , IsOurs s Address
+        , IsOurs s ChimericAccount
+        , NFData s
+        , Show s
+        , PersistState s)
     => KeyValPairs (PrimaryKey WalletId) (Wallet s, WalletMetadata)
     -> Property
 prop_randomOpChunks (KeyValPairs pairs) =
@@ -506,7 +515,11 @@ withTestDBFile action expectations = do
         expectations fp
 
 inMemoryDBLayer
-    :: (IsOurs s Address, NFData s, Show s, PersistState s)
+    ::  ( IsOurs s Address
+        , IsOurs s ChimericAccount
+        , NFData s
+        , Show s
+        , PersistState s)
     => IO (SqliteContext, DBLayer IO s ShelleyKey)
 inMemoryDBLayer = newDBLayer' Nothing
 
@@ -514,7 +527,12 @@ temporaryDBFile :: IO FilePath
 temporaryDBFile = emptySystemTempFile "cardano-wallet-SqliteFileMode"
 
 newDBLayer'
-    :: (IsOurs s Address, NFData s, Show s, PersistState s)
+    ::  ( IsOurs s Address
+        , IsOurs s ChimericAccount
+        , NFData s
+        , Show s
+        , PersistState s
+        )
     => Maybe FilePath
     -> IO (SqliteContext, DBLayer IO s ShelleyKey)
 newDBLayer' fp = do

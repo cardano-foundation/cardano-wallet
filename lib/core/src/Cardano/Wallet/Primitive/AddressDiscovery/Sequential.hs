@@ -83,7 +83,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , KnownAddresses (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address, invariant )
+    ( Address, ChimericAccount, invariant )
 import Control.Applicative
     ( (<|>) )
 import Control.DeepSeq
@@ -531,6 +531,10 @@ instance
             ours = isJust (internal <|> external)
         in
             (ixs' `deepseq` ours `deepseq` ours, SeqState s1' s2' ixs' rpk)
+
+instance IsOurs (SeqState n k) ChimericAccount where
+    -- TODO: Add support for identifying a 'ChimericAccount' here.
+    isOurs _account state = (False, state)
 
 instance
     ( SoftDerivation k

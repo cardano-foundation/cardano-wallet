@@ -59,6 +59,7 @@ import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , ChimericAccount (..)
     , Coin (..)
     , Direction (..)
     , EpochNo (..)
@@ -471,6 +472,9 @@ instance Arbitrary DummyState where
 
 instance IsOurs DummyState Address where
     isOurs _ s = (True, s)
+
+instance IsOurs DummyState ChimericAccount where
+    isOurs _ s = (False, s)
 
 instance IsOwned DummyState ShelleyKey where
     isOwned (DummyState m) (rootK, pwd) addr = do

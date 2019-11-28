@@ -63,6 +63,7 @@ import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Block (..)
     , BlockHeader (..)
+    , ChimericAccount (..)
     , Direction (..)
     , Dom (..)
     , EpochLength (..)
@@ -155,7 +156,12 @@ import qualified Data.Text.Encoding as T
 -- Wallet SeqState Bitcoin
 -- @
 data Wallet s where
-    Wallet :: (IsOurs s Address, NFData s, Show s)
+    Wallet ::
+        ( IsOurs s Address
+        , IsOurs s ChimericAccount
+        , NFData s
+        , Show s
+        )
         => UTxO -- Unspent tx outputs belonging to this wallet
         -> BlockHeader -- Header of the latest applied block (current tip)
         -> s -- Address discovery state
@@ -231,7 +237,7 @@ slotParams bp =
 --
 -- The wallet tip will be set to the header of the applied genesis block.
 initWallet
-    :: (IsOurs s Address, NFData s, Show s)
+    :: (IsOurs s Address, IsOurs s ChimericAccount, NFData s, Show s)
     => Block
         -- ^ The genesis block
     -> BlockchainParameters
@@ -251,7 +257,7 @@ initWallet block bp s =
 -- wallet checkpoints from the database (where it is assumed a valid wallet was
 -- stored into the database).
 unsafeInitWallet
-    :: (IsOurs s Address, NFData s, Show s)
+    :: (IsOurs s Address, IsOurs s ChimericAccount, NFData s, Show s)
     => UTxO
        -- ^ Unspent tx outputs belonging to this wallet
     -> BlockHeader

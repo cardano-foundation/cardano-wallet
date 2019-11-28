@@ -33,6 +33,7 @@ import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Block (..)
     , BlockHeader (..)
+    , ChimericAccount (..)
     , Coin (..)
     , Direction (..)
     , Dom (..)
@@ -297,6 +298,9 @@ instance IsOurs WalletState Address where
             (True, WalletState ours (Set.insert (ShowFmt addr) discovered))
         else
             (False, s)
+
+instance IsOurs WalletState ChimericAccount where
+    isOurs _account s = (False, s)
 
 instance Arbitrary WalletState where
     shrink = genericShrink

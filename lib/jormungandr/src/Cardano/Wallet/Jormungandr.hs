@@ -88,7 +88,13 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address, Block, BlockHeader (..), Hash (..), SyncTolerance )
+    ( Address
+    , Block
+    , BlockHeader (..)
+    , ChimericAccount
+    , Hash (..)
+    , SyncTolerance
+    )
 import Cardano.Wallet.Transaction
     ( TransactionLayer )
 import Control.Concurrent
@@ -197,6 +203,7 @@ serveWallet (cfg, tr) sTolerance databaseDir hostPref listen lj beforeMainLoop =
     apiLayer
         :: forall s k.
             ( IsOurs s Address
+            , IsOurs s ChimericAccount
             , NFData s
             , Show s
             , PersistState s
@@ -230,6 +237,7 @@ serveWallet (cfg, tr) sTolerance databaseDir hostPref listen lj beforeMainLoop =
     dbFactory
         :: forall s k.
             ( IsOurs s Address
+            , IsOurs s ChimericAccount
             , NFData s
             , Show s
             , PersistState s
