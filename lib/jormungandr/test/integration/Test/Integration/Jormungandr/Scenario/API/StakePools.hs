@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -194,9 +195,13 @@ spec = do
             ]
         eventually $ do
             let ep = listTxEp w mempty
-            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListItemFieldEqual 0 direction Outgoing
-                , expectListItemFieldEqual 0 status InLedger
+            (code, txs) <- request @[ApiTransaction n] ctx ep Default Empty
+            let onlyPending = \case
+                    e@Left{} -> e
+                    Right xs -> Right $
+                        filter (\t -> t ^. #status == ApiT Pending) xs
+            verify (code, (onlyPending txs))
+                [ expectListSizeEqual 0
                 ]
         request @ApiWallet ctx (getWalletEp w) Default Empty >>= flip verify
             [ expectFieldEqual delegation (Delegating (p2 ^. #id))
