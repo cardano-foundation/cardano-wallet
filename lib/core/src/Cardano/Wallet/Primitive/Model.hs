@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
@@ -91,10 +92,14 @@ import Control.DeepSeq
     ( NFData (..), deepseq )
 import Control.Monad
     ( foldM, forM )
+import Control.Monad.Extra
+    ( mapMaybeM )
 import Control.Monad.Trans.State.Strict
     ( State, evalState, runState, state )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertToBase )
+import Data.Functor
+    ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Labels
@@ -412,17 +417,24 @@ blockchainParameters (Wallet _ _ _ bp) = bp
 -- in order, starting from the known inputs that can be spent (from the previous
 -- UTxO) and collect resolved tx outputs that are ours as we apply transactions.
 prefilterBlock
-    :: (IsOurs s Address)
+    :: (IsOurs s Address, IsOurs s ChimericAccount)
     => Block
     -> UTxO
     -> s
     -> ((FilteredBlock, UTxO), s)
 prefilterBlock b u0 = runState $ do
+    delegations <- mapMaybeM ourDelegation (b ^. #delegations)
     (transactions, ourU) <- foldM applyTx (mempty, u0) (b ^. #transactions)
     return (FilteredBlock {delegations, transactions}, ourU)
   where
-    delegations :: [PoolId]
-    delegations = []
+    ourDelegation
+        :: IsOurs s ChimericAccount
+        => (ChimericAccount, PoolId)
+        -> State s (Maybe PoolId)
+    ourDelegation (account, poolId) =
+        state (isOurs account) <&> \case
+            False -> Nothing
+            True -> Just poolId
     mkTxMeta :: Natural -> Direction -> TxMeta
     mkTxMeta amt dir = TxMeta
         { status = InLedger
