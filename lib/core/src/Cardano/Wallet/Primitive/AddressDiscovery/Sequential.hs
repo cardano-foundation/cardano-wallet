@@ -61,6 +61,7 @@ import Cardano.Crypto.Wallet
     ( XPrv, XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle (..)
+    , ChimericAccount (..)
     , DelegationAddress (..)
     , Depth (..)
     , DerivationType (..)
@@ -74,7 +75,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , SoftDerivation (..)
     , WalletKey (..)
     , deriveRewardAccount
-    , xpubPublicKey
+    , toChimericAccount
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
@@ -84,7 +85,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , KnownAddresses (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address, ChimericAccount (..), invariant )
+    ( Address, invariant )
 import Control.Applicative
     ( (<|>) )
 import Control.DeepSeq
@@ -534,10 +535,10 @@ instance
             (ixs' `deepseq` ours `deepseq` ours, SeqState s1' s2' ixs' rpk)
 
 instance WalletKey k => IsOurs (SeqState n k) ChimericAccount where
-    isOurs (ChimericAccount account) state =
+    isOurs account state =
         (account == ourAccount, state)
       where
-        ourAccount = xpubPublicKey $ getRawKey $ rewardAccountKey state
+        ourAccount = toChimericAccount $ rewardAccountKey state
 
 instance
     ( SoftDerivation k
