@@ -16,6 +16,7 @@
         text-class = ./text-class.nix;
         cardano-wallet-test-utils = ./cardano-wallet-test-utils.nix;
         cardano-wallet-jormungandr = ./cardano-wallet-jormungandr.nix;
+        zip = ./zip.nix;
         persistent = ./persistent.nix;
         persistent-sqlite = ./persistent-sqlite.nix;
         persistent-template = ./persistent-template.nix;
@@ -41,6 +42,7 @@
               "disable-graylog" = lib.mkOverride 900 true;
               };
             };
+          "zip" = { flags = { "disable-bzip2" = lib.mkOverride 900 true; }; };
           };
         })
     { packages = {}; }
