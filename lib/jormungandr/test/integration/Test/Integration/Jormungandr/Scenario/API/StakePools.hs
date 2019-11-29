@@ -15,13 +15,11 @@ import Prelude
 import Cardano.Wallet.Api.Types
     ( ApiStakePool, ApiT (..), ApiTransaction, ApiWallet )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..), fromHex )
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
     ( Direction (..), PoolId (..), TxStatus (..), WalletDelegation (..) )
 import Control.Monad
     ( forM_ )
-import Data.ByteArray.Encoding
-    ( Base (Base16), convertToBase )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Text.Class
@@ -77,9 +75,8 @@ import Test.Integration.Framework.TestData
     , passphraseMinLength
     )
 
-import qualified Data.ByteString.Char8 as B8
+import qualified Data.ByteString as BS
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall t n. (n ~ 'Testnet) => SpecWith (Context t)
@@ -272,13 +269,11 @@ spec = do
                 ]
 
     it "STAKE_POOLS_JOIN_01 - Cannot join non-existant stakepool" $ \ctx -> do
-        let pId = B8.replicate 64 '0'
-        let (Right addr) = fromHex pId
-        let poolIdAbsent = ApiT $ PoolId addr
+        let poolIdAbsent = PoolId $ BS.pack $ replicate 32 0
         w <- emptyWallet ctx
-        r <- joinStakePool ctx poolIdAbsent (w, "Secure Passphrase")
+        r <- joinStakePool ctx (ApiT poolIdAbsent) (w, "Secure Passphrase")
         expectResponseCode HTTP.status404 r
-        expectErrorMessage (errMsg404NoSuchPool (T.decodeUtf8 pId)) r
+        expectErrorMessage (errMsg404NoSuchPool (toText poolIdAbsent)) r
 
     it "STAKE_POOLS_JOIN_01 - \
         \ If a wallet joins a stake pool, others are not affected" $ \ctx -> do
@@ -532,12 +527,10 @@ spec = do
                 , expectListItemFieldEqual 0 status InLedger
                 ]
 
-        let pId = B8.replicate 64 '0'
-        let (Right addr) = fromHex pId
-        let poolIdAbsent = ApiT $ PoolId addr
-        r <- quitStakePool ctx poolIdAbsent (w, "Secure Passphrase")
+        let poolIdAbsent = PoolId $ BS.pack $ replicate 32 0
+        r <- quitStakePool ctx (ApiT poolIdAbsent) (w, "Secure Passphrase")
         expectResponseCode HTTP.status404 r
-        expectErrorMessage (errMsg404NoSuchPool (T.decodeUtf8 pId)) r
+        expectErrorMessage (errMsg404NoSuchPool (toText poolIdAbsent)) r
 
     it "STAKE_POOLS_QUIT_02 - Cannot quit existant stake pool \
        \I have not joined" $ \ctx -> do
@@ -563,8 +556,7 @@ spec = do
             ]
 
         let pId = p2 ^. #id
-        let (ApiT (PoolId bs)) = pId
-        let wrongPoolId = T.decodeUtf8 $ convertToBase Base16 bs
+        let wrongPoolId = toText $ getApiT pId
         r <- quitStakePool ctx pId (w, fixturePassphrase)
         expectResponseCode HTTP.status403 r
         expectErrorMessage (errMsg403WrongPool wrongPoolId) r
