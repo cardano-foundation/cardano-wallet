@@ -69,8 +69,7 @@ import Test.Integration.Framework.DSL
     , verify
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403Fee
-    , errMsg403NotDelegating
+    ( errMsg403DelegationFee
     , errMsg403PoolAlreadyJoined
     , errMsg403WrongPass
     , errMsg403WrongPool
@@ -217,36 +216,16 @@ spec = do
             ]
 
     describe "STAKE_POOLS_JOIN_01x - Fee boundary values" $ do
-
         it "STAKE_POOLS_JOIN_01x - \
-            \I can join if I have anything to delegate" $ \(ctx) -> do
+            \I can join if I have just the right amount" $ \(ctx) -> do
             (_, p:_) <- eventually $
                 unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
-            w <- fixtureWalletWith ctx [stakeDelegationFee + 1]
+            w <- fixtureWalletWith ctx [stakeDelegationFee]
             joinStakePool ctx (p ^. #id) (w, "Secure Passphrase")>>= flip verify
                 [ expectResponseCode HTTP.status200
                 , expectFieldEqual status Pending
                 , expectFieldEqual direction Outgoing
                 ]
-
-        it "STAKE_POOLS_JOIN_01x - \
-            \I cannot join when I have enough fee but 0 balance to delegate" $ \ctx -> do
-            (_, p:_) <- eventually $
-                unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
-            w <- fixtureWalletWith ctx [stakeDelegationFee]
-            r <- joinStakePool ctx (p ^. #id) (w, "Secure Passphrase")
-            expectResponseCode HTTP.status403 r
-            expectErrorMessage errMsg403Fee r
-            -- the error msg here is a bit misleading:
-            -- I'm unable to adjust the given transaction to cover the associated fee!
-            -- In order to do so, I'd have to select one or more additional inputs,
-            -- but I can't do that without increasing the size of the transaction
-            -- beyond the acceptable limit. Note that I am only missing 42 Lovelace.
-
-            -- IMO should be changed to smth like:
-            -- "Cannot join stake-pool!
-            -- I have enough ada to cover fee in order to delegate
-            -- but 0 ada to delegate after fee is deducted"
 
         it "STAKE_POOLS_JOIN_01x - \
             \I cannot join if I have not enough fee to cover" $ \ctx -> do
@@ -256,9 +235,7 @@ spec = do
             r <- joinStakePool ctx (p ^. #id) (w, "Secure Passphrase")
             print r
             expectResponseCode HTTP.status403 r
-            expectErrorMessage errMsg403Fee r
-            -- the message might be adjusted something more informative:
-            -- "I cannot join stake-pool! I don't have enough funds to cover fee."
+            expectErrorMessage (errMsg403DelegationFee 1) r
 
         it "STAKE_POOLS_JOIN_01x - I cannot join stake-pool with 0 balance" $ \ctx -> do
             (_, p:_) <- eventually $
@@ -266,17 +243,13 @@ spec = do
             w <- emptyWallet ctx
             r <- joinStakePool ctx (p ^. #id) (w, "Secure Passphrase")
             expectResponseCode HTTP.status403 r
-            expectErrorMessage errMsg403Fee r
-            -- the message might be adjusted something more informative:
-            -- "I cannot join stake-pool! I don't have enough funds to cover fee."
+            expectErrorMessage (errMsg403DelegationFee stakeDelegationFee) r
 
     describe "STAKE_POOLS_QUIT_01x - Fee boundary values" $ do
-
         it "STAKE_POOLS_QUIT_01x - \
             \I can quit if I have enough to cover fee" $ \(ctx) -> do
             let initBalance = [2*stakeDelegationFee + 1]
             (w, p) <- joinStakePoolWithWalletBalance ctx initBalance
-
             rq <- quitStakePool ctx (p ^. #id) (w, "Secure Passphrase")
             expectResponseCode HTTP.status202 rq
             eventually $ do
@@ -289,14 +262,13 @@ spec = do
 
         it "STAKE_POOLS_QUIT_01x - \
             \I cannot quit if I have not enough fee to cover" $ \ctx -> do
-            let initBalance = [stakeDelegationFee + 1]
+            let initBalance = [stakeDelegationFee]
             (w, p) <- joinStakePoolWithWalletBalance ctx initBalance
-
             rq <- quitStakePool ctx (p ^. #id) (w, "Secure Passphrase")
-            expectResponseCode HTTP.status403 rq
-            expectErrorMessage errMsg403Fee rq
-            -- the message might be adjusted something more informative:
-            -- "I cannot quit stake-pool! I don't have enough funds to cover fee."
+            verify rq
+                [ expectResponseCode HTTP.status403
+                , expectErrorMessage (errMsg403DelegationFee stakeDelegationFee)
+                ]
 
     it "STAKE_POOLS_JOIN_01 - I cannot rejoin the same stake-pool" $ \ctx -> do
         (w, p) <- joinStakePoolWithWalletBalance ctx [1000]
@@ -542,7 +514,7 @@ spec = do
 
         r <- quitStakePool ctx (p ^. #id) (w, "Secure Passprase")
         expectResponseCode HTTP.status403 r
-        expectErrorMessage errMsg403NotDelegating r
+        expectErrorMessage (errMsg403WrongPool $ toText $ getApiT $ p ^. #id) r
 
     it "STAKE_POOLS_QUIT_02 - Passphrase must be correct to quit" $ \ctx -> do
         (w, p) <- joinStakePoolWithFixtureWallet ctx
@@ -550,14 +522,6 @@ spec = do
         r <- quitStakePool ctx (p ^. #id) (w, "Incorrect Passphrase")
         expectResponseCode HTTP.status403 r
         expectErrorMessage errMsg403WrongPass r
-
-    it "STAKE_POOLS_QUIT_02 - Cannot quit non-existant stake pool" $ \ctx -> do
-        (w, _) <- joinStakePoolWithFixtureWallet ctx
-
-        let poolIdAbsent = PoolId $ BS.pack $ replicate 32 0
-        r <- quitStakePool ctx (ApiT poolIdAbsent) (w, "Secure Passphrase")
-        expectResponseCode HTTP.status404 r
-        expectErrorMessage (errMsg404NoSuchPool (toText poolIdAbsent)) r
 
     it "STAKE_POOLS_QUIT_02 - Cannot quit existant stake pool \
        \I have not joined" $ \ctx -> do

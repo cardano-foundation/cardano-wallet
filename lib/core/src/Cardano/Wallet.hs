@@ -1362,12 +1362,8 @@ data ErrStartTimeLaterThanEndTime = ErrStartTimeLaterThanEndTime
 -- | Errors that can occur when creating unsigned delegation certificate
 -- transaction.
 data ErrSelectForDelegation
-    = ErrSelectForDelegationNoSuchPool PoolId
-    | ErrSelectForDelegationPoolAlreadyJoined PoolId
-    | ErrSelectForDelegationNoSuchWallet ErrNoSuchWallet
+    = ErrSelectForDelegationNoSuchWallet ErrNoSuchWallet
     | ErrSelectForDelegationFee ErrAdjustForFee
-    | ErrSelectForDelegationNotDelegating
-    | ErrSelectForDelegationWrongPoolId PoolId
     deriving (Show, Eq)
 
 -- | Errors that can occur when signing a delegation certificate.

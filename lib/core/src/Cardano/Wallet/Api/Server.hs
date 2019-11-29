@@ -324,11 +324,11 @@ start
     -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
     -> StakePoolLayer IO
     -> IO ()
-start settings trace socket rndCtx seqCtx spl = do
+start settings tr socket rndCtx seqCtx spl = do
     logSettings <- newApiLoggerSettings <&> obfuscateKeys (const sensitive)
     Warp.runSettingsSocket settings socket
         $ handleRawError (curry handler)
-        $ withApiLogger trace logSettings
+        $ withApiLogger tr logSettings
         application
   where
     -- | A Servant server for our wallet API
@@ -1548,31 +1548,30 @@ instance LiftHandler ErrRemovePendingTx where
                   " cannot be forgotten as it is not pending anymore."
                 ]
 
-handleErrPostTx :: ErrPostTx -> ServantErr
-handleErrPostTx = \case
-    ErrPostTxNetworkUnreachable e' ->
-        handler e'
-    ErrPostTxBadRequest err ->
-        apiError err500 CreatedInvalidTransaction $ mconcat
-        [ "That's embarrassing. It looks like I've created an "
-        , "invalid transaction that could not be parsed by the "
-        , "node. Here's an error message that may help with "
-        , "debugging: ", pretty err
-        ]
-    ErrPostTxProtocolFailure err ->
-        apiError err500 RejectedByCoreNode $ mconcat
-        [ "I successfully submitted a transaction, but "
-        , "unfortunately it was rejected by a relay. This could be "
-        , "because the fee was not large enough, or because the "
-        , "transaction conflicts with another transaction that "
-        , "uses one or more of the same inputs, or it may be due "
-        , "to some other reason. Here's an error message that may "
-        , "help with debugging: ", pretty err
-        ]
+instance LiftHandler ErrPostTx where
+    handler = \case
+        ErrPostTxNetworkUnreachable e -> handler e
+        ErrPostTxBadRequest err ->
+            apiError err500 CreatedInvalidTransaction $ mconcat
+            [ "That's embarrassing. It looks like I've created an "
+            , "invalid transaction that could not be parsed by the "
+            , "node. Here's an error message that may help with "
+            , "debugging: ", pretty err
+            ]
+        ErrPostTxProtocolFailure err ->
+            apiError err500 RejectedByCoreNode $ mconcat
+            [ "I successfully submitted a transaction, but "
+            , "unfortunately it was rejected by a relay. This could be "
+            , "because the fee was not large enough, or because the "
+            , "transaction conflicts with another transaction that "
+            , "uses one or more of the same inputs, or it may be due "
+            , "to some other reason. Here's an error message that may "
+            , "help with debugging: ", pretty err
+            ]
 
 instance LiftHandler ErrSubmitTx where
     handler = \case
-        ErrSubmitTxNetwork e -> handleErrPostTx e
+        ErrSubmitTxNetwork e -> handler e
         ErrSubmitTxNoSuchWallet e@ErrNoSuchWallet{} -> (handler e)
             { errHTTPCode = 410
             , errReasonPhrase = errReasonPhrase err410
@@ -1642,30 +1641,11 @@ instance LiftHandler ErrMetricsInconsistency where
 
 instance LiftHandler ErrSelectForDelegation where
     handler = \case
-        ErrSelectForDelegationNoSuchPool poolId ->
-            apiError err404 NoSuchPool $ mconcat
-                [ "I couldn't find a stake pool with the given id: "
-                , toText poolId
-                ]
-        ErrSelectForDelegationPoolAlreadyJoined poolId ->
-            apiError err403 PoolAlreadyJoined $ mconcat
-                [ "I couldn't join a stake pool with the given id: "
-                , toText poolId
-                , ". I have already joined this pool; joining again would incur"
-                , " an unnecessary fee!"
-                ]
         ErrSelectForDelegationNoSuchWallet e -> handler e
-        ErrSelectForDelegationFee e -> handler e
-        ErrSelectForDelegationNotDelegating ->
-            apiError err403 NotDelegating
-                "I couldn't quit a stake pool before joining one!"
-        ErrSelectForDelegationWrongPoolId poolId ->
-            apiError err403 WrongPool $ mconcat
-                [ "I couldn't quit a stake pool with the given id: "
-                , toText poolId
-                , ", because I'm not a member of this stake pool."
-                , " Please check if you are using correct stake pool id"
-                , " in your request."
+        ErrSelectForDelegationFee (ErrCannotCoverFee cost) ->
+            apiError err403 CannotCoverFee $ mconcat
+                [ "I'm unable to select enough coins to pay for a "
+                , "delegation certificate. I need: ", showT cost, " Lovelace."
                 ]
 
 instance LiftHandler ErrSignDelegation where
@@ -1681,11 +1661,39 @@ instance LiftHandler ErrSignDelegation where
             }
         ErrSignDelegationWithRootKey e@ErrWithRootKeyWrongPassphrase{} -> handler e
 
-instance LiftHandler ErrQuitStakePool where
-    handler = error "TODO: error handler"
-
 instance LiftHandler ErrJoinStakePool where
-    handler = error "TODO: error handler"
+    handler = \case
+        ErrJoinStakePoolNoSuchWallet e -> handler e
+        ErrJoinStakePoolSubmitTx e -> handler e
+        ErrJoinStakePoolSignDelegation e -> handler e
+        ErrJoinStakePoolSelectCoin e -> handler e
+        ErrJoinStakePoolAlreadyDelegating pid ->
+            apiError err403 PoolAlreadyJoined $ mconcat
+                [ "I couldn't join a stake pool with the given id: "
+                , toText pid
+                , ". I have already joined this pool; joining again would incur"
+                , " an unnecessary fee!"
+                ]
+        ErrJoinStakePoolNoSuchPool pid ->
+            apiError err404 NoSuchPool $ mconcat
+                [ "I couldn't find any stake pool with the given id: "
+                , toText pid
+                ]
+
+instance LiftHandler ErrQuitStakePool where
+    handler = \case
+        ErrQuitStakePoolNoSuchWallet e -> handler e
+        ErrQuitStakePoolSelectCoin e -> handler e
+        ErrQuitStakePoolSignDelegation e -> handler e
+        ErrQuitStakePoolSubmitTx e -> handler e
+        ErrQuitStakePoolNotDelegatingTo pid ->
+            apiError err403 NotDelegatingTo $ mconcat
+                [ "I couldn't quit a stake pool with the given id: "
+                , toText pid
+                , ", because I'm not a member of this stake pool."
+                , " Please check if you are using correct stake pool id"
+                , " in your request."
+                ]
 
 instance LiftHandler (Request, ServantErr) where
     handler (req, err@(ServantErr code _ body headers))
