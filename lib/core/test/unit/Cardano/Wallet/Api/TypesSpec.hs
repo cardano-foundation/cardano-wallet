@@ -32,6 +32,7 @@ import Cardano.Wallet.Api.Types
     , ApiBlockReference (..)
     , ApiByronWallet (..)
     , ApiByronWalletMigrationInfo (..)
+    , ApiEpochInfo (..)
     , ApiFee (..)
     , ApiMnemonicT (..)
     , ApiNetworkInformation (..)
@@ -256,6 +257,7 @@ spec = do
         "can perform roundtrip JSON serialization & deserialization, \
         \and match existing golden files" $ do
             jsonRoundtripAndGolden $ Proxy @(ApiAddress 'Testnet)
+            jsonRoundtripAndGolden $ Proxy @ApiEpochInfo
             jsonRoundtripAndGolden $ Proxy @ApiTimeReference
             jsonRoundtripAndGolden $ Proxy @ApiNetworkTip
             jsonRoundtripAndGolden $ Proxy @ApiBlockReference
@@ -576,6 +578,14 @@ spec = do
                     }
             in
                 x' === x .&&. show x' === show x
+        it "ApiEpochInfo" $ property $ \x ->
+            let
+                x' = ApiEpochInfo
+                    { epochNumber = epochNumber (x :: ApiEpochInfo)
+                    , epochStartTime = epochStartTime (x :: ApiEpochInfo)
+                    }
+            in
+                x' === x .&&. show x' === show x
         it "ApiWallet" $ property $ \x ->
             let
                 x' = ApiWallet
@@ -859,6 +869,10 @@ instance Arbitrary (ApiAddress t) where
     arbitrary = ApiAddress
         <$> fmap (, Proxy @t) arbitrary
         <*> arbitrary
+
+instance Arbitrary ApiEpochInfo where
+    arbitrary = ApiEpochInfo <$> arbitrary <*> genUniformTime
+    shrink _ = []
 
 instance Arbitrary AddressState where
     arbitrary = genericArbitrary
