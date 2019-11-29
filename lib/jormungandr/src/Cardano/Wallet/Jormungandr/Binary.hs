@@ -32,6 +32,7 @@ module Cardano.Wallet.Jormungandr.Binary
     , Fragment (..)
     , FragmentSpec (..)
     , Milli (..)
+    , PerCertificateFee (..)
     , getBlock
     , getBlockHeader
     , getBlockId
@@ -644,6 +645,8 @@ data ConfigParam
     | KesUpdateSpeed (Quantity "second/update" Word32)
     -- ^ Maximum number of seconds per update for KES keys known by the system
     -- after start time.
+    | ConfigPerCertificate PerCertificateFee
+    -- ^ Per certificate fees, override the 'certificate' fee of the linear fee
     | UnimplementedConfigParam  Word16
     deriving (Generic, Eq, Show)
 
@@ -681,6 +684,7 @@ getConfigParam = label "getConfigParam" $ do
         18 -> unimpl -- treasury params
         19 -> unimpl -- reward pot
         20 -> unimpl -- reward params
+        21 -> ConfigPerCertificate <$> getPerCertificateFee
         other -> fail $ "Invalid config param with tag " ++ show other
   where
     -- NOTE
@@ -707,6 +711,14 @@ data ConsensusVersion = BFT | GenesisPraos
     deriving (Generic, Eq, Show)
 
 instance NFData ConsensusVersion
+
+data PerCertificateFee = PerCertificateFee
+    { feePoolRegistration :: Word64
+    , feeStakeDelegation :: Word64
+    , feeOwnerStakeDelegation :: Word64
+    } deriving (Generic, Eq, Show)
+
+instance NFData PerCertificateFee
 
 getConsensusVersion :: Get ConsensusVersion
 getConsensusVersion = label "getConsensusVersion" $ getWord16be >>= \case
@@ -737,6 +749,17 @@ getLinearFee = label "getFeePolicy" $ do
         (Quantity $ double c)
   where
     double = fromRational . toRational
+
+getPerCertificateFee :: Get PerCertificateFee
+getPerCertificateFee = label "getPerCertificateFee" $ do
+    feePoolRegistration <- getWord64be
+    feeStakeDelegation <- getWord64be
+    feeOwnerStakeDelegation <- getWord64be
+    pure $ PerCertificateFee
+        { feePoolRegistration
+        , feeStakeDelegation
+        , feeOwnerStakeDelegation
+        }
 
 {-------------------------------------------------------------------------------
                             Addresses
