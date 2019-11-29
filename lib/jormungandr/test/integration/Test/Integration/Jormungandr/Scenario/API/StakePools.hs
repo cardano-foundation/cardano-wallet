@@ -478,8 +478,6 @@ spec = do
         r <- quitStakePool ctx (p ^. #id) (w, fixturePassphrase)
         expectResponseCode HTTP.status202 r
 
-        -- TO DO after #1083 is merged - check
- {--
         -- Wait for the certificate to be inserted
         eventually $ do
             let ep = listTxEp w mempty
@@ -491,10 +489,9 @@ spec = do
                 ]
 
         request @ApiWallet ctx (getWalletEp w) Default Empty >>= flip verify
-            [ expectFieldEqual delegation NotDelegating)
+            [ expectFieldEqual delegation NotDelegating
             ]
 
---}
     it "STAKE_POOLS_QUIT_01 - Quiting before even joining" $ \ctx -> do
         (_, p:_) <- eventually $
             unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
