@@ -294,7 +294,6 @@ import qualified Cardano.Wallet.Registry as Registry
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
-import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -1152,7 +1151,7 @@ mkApiTransaction txid ins outs (meta, timestamp) setTimeReference =
         , depth = Quantity 0
         , direction = ApiT (meta ^. #direction)
         , inputs = [ApiTxInput (fmap toAddressAmount o) (ApiT i) | (i, o) <- ins]
-        , outputs = NE.fromList (toAddressAmount <$> outs)
+        , outputs = toAddressAmount <$> outs
         , status = ApiT (meta ^. #status)
         }
 
