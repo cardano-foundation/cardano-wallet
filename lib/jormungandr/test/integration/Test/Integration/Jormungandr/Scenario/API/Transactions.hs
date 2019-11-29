@@ -127,7 +127,6 @@ import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
-import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -470,7 +469,7 @@ fixtureExternalTx ctx toSend = do
     -- we take input by lookking at transactions of the faucet wallet
     txsSrc <- listAllTransactions ctx wSrc
     let (ApiTransaction (ApiT theTxId) _ _ _ _ _ _ outs _):_ = reverse txsSrc
-    let (AddressAmount ((ApiT addrSrc),_) (Quantity amt)):_ = NE.toList outs
+    let (AddressAmount ((ApiT addrSrc),_) (Quantity amt)):_ = outs
     let (rootXPrv, pwd, st) = getSeqState mnemonicFaucet password
     -- we create change address
     let (addrChng, st') = genChange () st

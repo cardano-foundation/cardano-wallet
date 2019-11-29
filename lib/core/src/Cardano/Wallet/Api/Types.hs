@@ -293,7 +293,7 @@ data ApiTransaction n = ApiTransaction
     , depth :: !(Quantity "block" Natural)
     , direction :: !(ApiT Direction)
     , inputs :: ![ApiTxInput n]
-    , outputs :: !(NonEmpty (AddressAmount n))
+    , outputs :: ![AddressAmount n]
     , status :: !(ApiT TxStatus)
     } deriving (Eq, Generic, Show)
 
@@ -361,8 +361,7 @@ data ApiErrorCode
     | NothingToMigrate
     | NoSuchPool
     | PoolAlreadyJoined
-    | WrongPool
-    | NotDelegating
+    | NotDelegatingTo
     deriving (Eq, Generic, Show)
 
 -- | Defines a point in time that can be formatted as and parsed from an

@@ -49,7 +49,7 @@ blockchain_configuration:
   linear_fees:
     constant: 42
     coefficient: 0
-    certificate: 0
+    certificate: 1
 
   # The speed to update the KES Key in seconds
   kes_update_speed: 43200 # 12hours

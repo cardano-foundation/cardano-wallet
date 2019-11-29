@@ -45,11 +45,13 @@ module Test.Integration.Framework.TestData
     , updatePassPayload
     , getHeaderCases
     , postHeaderCases
+    , stakeDelegationFee
 
     -- * Error messages
     , errMsgWalletIdEncoding
     , errMsg400StartTimeLaterThanEndTime
     , errMsg403Fee
+    , errMsg403DelegationFee
     , errMsg403NotEnoughMoney
     , errMsg403UTxO
     , errMsg403WrongPass
@@ -57,7 +59,6 @@ module Test.Integration.Framework.TestData
     , errMsg404NoSuchPool
     , errMsg403PoolAlreadyJoined
     , errMsg403WrongPool
-    , errMsg403NotDelegating
     , errMsg403NothingToMigrate
     , errMsg404NoEndpoint
     , errMsg404CannotFindTx
@@ -82,6 +83,8 @@ import Cardano.Wallet.Version
     ( gitRevision, showFullVersion, version )
 import Data.Text
     ( Text, pack, unpack )
+import Numeric.Natural
+    ( Natural )
 import Test.Integration.Framework.DSL
     ( Headers (..)
     , Payload (..)
@@ -92,6 +95,9 @@ import Test.Integration.Framework.DSL
     )
 
 import qualified Network.HTTP.Types.Status as HTTP
+
+stakeDelegationFee :: Natural
+stakeDelegationFee = 43
 
 -- useful for testing POST/PUT endpoints (ones with payload)
 postHeaderCases
@@ -333,6 +339,11 @@ errMsg403Fee = "I'm unable to adjust the given transaction to cover the\
     \ more additional inputs, but I can't do that without increasing\
     \ the size of the transaction beyond the acceptable limit."
 
+errMsg403DelegationFee :: Natural -> String
+errMsg403DelegationFee n =
+    "I'm unable to select enough coins to pay for a delegation certificate. \
+    \I need: " ++ show n ++ " Lovelace."
+
 errMsg403NotEnoughMoney :: Int -> Int -> String
 errMsg403NotEnoughMoney has needs = "I can't process this payment because there's\
     \ not enough UTxO available in the wallet. The total UTxO sums up to\
@@ -402,7 +413,7 @@ errMsg403NoPendingAnymore tid = "The transaction with id: " ++ unpack tid ++
     " cannot be forgotten as it is not pending anymore."
 
 errMsg404NoSuchPool :: Text -> String
-errMsg404NoSuchPool pid = "I couldn't find a stake pool with the given id: "
+errMsg404NoSuchPool pid = "I couldn't find any stake pool with the given id: "
     ++ unpack pid
 
 errMsg403PoolAlreadyJoined :: Text -> String
@@ -410,12 +421,10 @@ errMsg403PoolAlreadyJoined pid = "I couldn't join a stake pool with the given id
     ++ unpack pid ++ ". I have already joined this pool; joining again would "
     ++ "incur an unnecessary fee!"
 
-errMsg403NotDelegating :: String
-errMsg403NotDelegating = "I couldn't quit a stake pool before joining one!"
-
 errMsg403WrongPool :: Text -> String
 errMsg403WrongPool pid = "I couldn't quit a stake pool with the given id: "
-    ++ unpack pid ++ ". I have joined another pool!"
+    ++ unpack pid ++ ", because I'm not a member of this stake pool.\
+    \ Please check if you are using correct stake pool id in your request."
 
 errMsg404CannotFindTx :: Text -> String
 errMsg404CannotFindTx tid = "I couldn't find a transaction with the given id: "
