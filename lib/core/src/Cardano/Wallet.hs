@@ -72,10 +72,12 @@ module Cardano.Wallet
     , updateWallet
     , updateWalletPassphrase
     , walletSyncProgress
+    , fetchRewardBalance
     , ErrWalletAlreadyExists (..)
     , ErrNoSuchWallet (..)
     , ErrListUTxOStatistics (..)
     , ErrUpdatePassphrase (..)
+    , ErrFetchRewards (..)
 
     -- ** Address
     , listAddresses
@@ -140,7 +142,8 @@ import Cardano.Wallet.DB
     , sparseCheckpoints
     )
 import Cardano.Wallet.Network
-    ( ErrNetworkUnavailable (..)
+    ( ErrGetAccountBalance (..)
+    , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
     , FollowAction (..)
     , NetworkLayer (..)
@@ -159,6 +162,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , checkPassphrase
     , deriveRewardAccount
     , encryptPassphrase
+    , toChimericAccount
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
@@ -284,7 +288,7 @@ import Data.Time.Clock
 import Data.Vector.Shuffle
     ( shuffle )
 import Data.Word
-    ( Word16 )
+    ( Word16, Word64 )
 import Fmt
     ( blockListF, pretty )
 import GHC.Generics
@@ -653,6 +657,41 @@ deleteWallet ctx wid = db & \DBLayer{..} -> do
     mapExceptT atomically $ removeWallet (PrimaryKey wid)
   where
     db = ctx ^. dbLayer @s @k
+
+-- | Fetch the reward balance of a given wallet.
+--
+-- Rather than force all callers of 'readWallet' to wait for fetching the
+-- account balance (via the 'NetworkLayer'), we expose this function for it.
+fetchRewardBalance
+    :: forall ctx s k t.
+        ( HasDBLayer s k ctx
+        , HasNetworkLayer t ctx
+        , HasRewardAccount s k
+        , WalletKey k
+        )
+    => ctx
+    -> WalletId
+    -> ExceptT ErrFetchRewards IO (Quantity "lovelace" Word64)
+fetchRewardBalance ctx wid = db & \DBLayer{..} -> do
+    let pk = PrimaryKey wid
+    cp <- withExceptT ErrFetchRewardsNoSuchWallet
+        . mapExceptT atomically
+        . withNoSuchWallet wid
+        $ readCheckpoint pk
+    mapExceptT (fmap handleErr)
+        . getAccountBalance nw
+        . toChimericAccount
+        . rewardAccount
+        $ getState cp
+  where
+    db = ctx ^. dbLayer @s @k
+    nw = ctx ^. networkLayer @t
+    handleErr = \case
+        Right x -> Right x
+        Left (ErrGetAccountBalanceAccountNotFound _) ->
+            Right $ Quantity 0
+        Left (ErrGetAccountBalanceNetworkUnreachable e) ->
+            Left $ ErrFetchRewardsNetworkUnreachable e
 
 {-------------------------------------------------------------------------------
                                     Address
@@ -1381,6 +1420,11 @@ data ErrQuitStakePool
     | ErrQuitStakePoolSignDelegation ErrSignDelegation
     | ErrQuitStakePoolSubmitTx ErrSubmitTx
     deriving (Generic, Eq, Show)
+
+-- | Errors that can occur when fetching the reward balance of a wallet
+data ErrFetchRewards
+    = ErrFetchRewardsNetworkUnreachable ErrNetworkUnavailable
+    | ErrFetchRewardsNoSuchWallet ErrNoSuchWallet
 
 {-------------------------------------------------------------------------------
                                    Utils
