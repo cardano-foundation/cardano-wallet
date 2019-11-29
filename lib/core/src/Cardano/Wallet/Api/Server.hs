@@ -94,6 +94,7 @@ import Cardano.Wallet.Api.Types
     , ApiAddress (..)
     , ApiBlockReference (..)
     , ApiByronWallet (..)
+    , ApiByronWalletBalance (..)
     , ApiByronWalletMigrationInfo (..)
     , ApiErrorCode (..)
     , ApiFee (..)
@@ -1217,7 +1218,7 @@ mkApiByronWallet
     -> Set Tx
     -> ApiByronWallet
 mkApiByronWallet wid wallet meta progress pending = ApiByronWallet
-    { balance = getWalletBalance wallet pending
+    { balance = getByronWalletBalance wallet pending
     , id = ApiT wid
     , name = ApiT $ meta ^. #name
     , passphrase = ApiT <$> meta ^. #passphraseInfo
@@ -1230,6 +1231,12 @@ getWalletBalance wallet pending = ApiT $ WalletBalance
     { available = Quantity $ availableBalance pending wallet
     , total = Quantity $ totalBalance pending wallet
     , reward = Quantity 0
+    }
+
+getByronWalletBalance :: Wallet s -> Set Tx -> ApiByronWalletBalance
+getByronWalletBalance wallet pending = ApiByronWalletBalance
+    { available = Quantity $ availableBalance pending wallet
+    , total = Quantity $ totalBalance pending wallet
     }
 
 getWalletTip :: Wallet s -> ApiBlockReference

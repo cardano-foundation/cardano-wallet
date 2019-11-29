@@ -31,6 +31,7 @@ import Cardano.Wallet.Api.Types
     , ApiAddress (..)
     , ApiBlockReference (..)
     , ApiByronWallet (..)
+    , ApiByronWalletBalance (..)
     , ApiByronWalletMigrationInfo (..)
     , ApiEpochInfo (..)
     , ApiFee (..)
@@ -271,6 +272,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiTransaction 'Testnet)
             jsonRoundtripAndGolden $ Proxy @ApiWallet
             jsonRoundtripAndGolden $ Proxy @ApiByronWallet
+            jsonRoundtripAndGolden $ Proxy @ApiByronWalletBalance
             jsonRoundtripAndGolden $ Proxy @ApiByronWalletMigrationInfo
             jsonRoundtripAndGolden $ Proxy @ApiWalletPassphrase
             jsonRoundtripAndGolden $ Proxy @ApiUtxoStatistics
@@ -934,6 +936,10 @@ instance Arbitrary ApiWallet where
     shrink = genericShrink
 
 instance Arbitrary ApiByronWallet where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiByronWalletBalance where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
