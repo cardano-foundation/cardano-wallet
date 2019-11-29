@@ -1263,7 +1263,7 @@ paths:
       tags: ["Stake Pools"]
       summary: Join
       description: |
-        <p align="right">status: <strong>not implemented</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
       parameters:
         - *parametersStakePoolId
         - *parametersWalletId
@@ -1276,7 +1276,7 @@ paths:
       tags: ["Stake Pools"]
       summary: Quit
       description: |
-        <p align="right">status: <strong>not implemented</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
       parameters:
         - *parametersStakePoolId
         - *parametersWalletId
