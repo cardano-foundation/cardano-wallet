@@ -201,7 +201,7 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader (..)
     , ChimericAccount (..)
     , Coin (..)
-    , DelegationCertificate
+    , DelegationCertificate (..)
     , Direction (..)
     , FeePolicy (LinearFee)
     , Hash (..)
@@ -625,12 +625,19 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> do
         "Creating checkpoint at " <> pretty (currentTip cp)
 
     logDelegation :: (SlotId, DelegationCertificate) -> IO ()
-    logDelegation (slotId, cert) = logInfo tr $ mconcat
-        [ "Discovered delegation to pool "
-        , pretty (dlgCertPoolId cert)
-        , " within slot "
-        , pretty slotId
-        ]
+    logDelegation (slotId, cert) = case cert of
+        CertDelegateNone{} ->
+            logInfo tr $ mconcat
+                [ "Discovered end of delegation within slot "
+                , pretty slotId
+                ]
+        CertDelegateFull{} ->
+            logInfo tr $ mconcat
+                [ "Discovered delegation to pool "
+                , pretty (dlgCertPoolId cert)
+                , " within slot "
+                , pretty slotId
+                ]
 
 -- | Remove an existing wallet. Note that there's no particular work to
 -- be done regarding the restoration worker as it will simply terminate
