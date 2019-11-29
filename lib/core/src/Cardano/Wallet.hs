@@ -100,6 +100,7 @@ module Cardano.Wallet
     , signDelegation
     , ErrSelectForDelegation (..)
     , ErrSignDelegation (..)
+    , DelegationAction (..)
 
     -- ** Transaction
     , forgetPendingTx
@@ -942,6 +943,8 @@ signPayment ctx wid argGenChange pwd (CoinSelection ins outs chgs) = db & \DBLay
     db = ctx ^. dbLayer @s @k
     tl = ctx ^. transactionLayer @t @k
 
+data DelegationAction = Join | Quit deriving (Show, Eq)
+
 signDelegation
     :: forall ctx s t k.
         ( HasTransactionLayer t k ctx
@@ -959,8 +962,9 @@ signDelegation
     -> Passphrase "encryption"
     -> CoinSelection
     -> PoolId
+    -> DelegationAction
     -> ExceptT ErrSignDelegation IO (Tx, TxMeta, UTCTime, SealedTx)
-signDelegation ctx wid argGenChange pwd coinSel poolId = db & \DBLayer{..} -> do
+signDelegation ctx wid argGenChange pwd coinSel poolId action = db & \DBLayer{..} -> do
     let (CoinSelection ins outs chgs) = coinSel
     withRootKey @_ @s ctx wid pwd ErrSignDelegationWithRootKey $ \xprv -> do
         mapExceptT atomically $ do
@@ -974,7 +978,11 @@ signDelegation ctx wid argGenChange pwd coinSel poolId = db & \DBLayer{..} -> do
             let rewardAccount = deriveRewardAccount @k pwd xprv
             let keyFrom = isOwned (getState cp) (xprv, pwd)
             (tx, sealedTx) <- withExceptT ErrSignDelegationMkTx $ ExceptT $ pure $
-                mkDelegationCertTx tl poolId (rewardAccount, pwd) keyFrom ins allOuts
+                case action of
+                    Join ->
+                        mkDelegationJoinTx tl poolId (rewardAccount, pwd) keyFrom ins allOuts
+                    Quit ->
+                        mkDelegationQuitTx tl (rewardAccount, pwd) keyFrom ins allOuts
 
             let bp = blockchainParameters cp
             let (time, meta) = mkTxMeta bp (currentTip cp) s' ins allOuts
@@ -1268,6 +1276,8 @@ data ErrSelectForDelegation
     | ErrSelectForDelegationPoolAlreadyJoined PoolId
     | ErrSelectForDelegationNoSuchWallet ErrNoSuchWallet
     | ErrSelectForDelegationFee ErrAdjustForFee
+    | ErrSelectForDelegationNotDelegating
+    | ErrSelectForDelegationWrongPoolId PoolId
     deriving (Show, Eq)
 
 -- | Errors that can occur when signing a delegation certificate.
