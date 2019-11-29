@@ -38,6 +38,7 @@ module Cardano.Wallet.Jormungandr.Binary
     , getBlockId
     , getFragment
     , getTransaction
+    , overrideFeePolicy
 
     -- * Constructing Fragment
     , MkFragment (..)
@@ -873,3 +874,13 @@ convertBlockHeader h = (W.BlockHeader (slot h) (bh h) (Hash "") (Hash ""))
     }
   where
     bh = Quantity . fromIntegral . chainLength
+
+
+-- | Take an existing fee policy and override the 'certificate' using the a
+-- given per certificate policy.
+--
+-- This relies on the assumption that the certificate in the 'FeePolicy' is
+-- only interpret as a 'stake delegation' certificate.
+overrideFeePolicy :: FeePolicy -> PerCertificateFee -> FeePolicy
+overrideFeePolicy (LinearFee a b _) PerCertificateFee{feeStakeDelegation} =
+    LinearFee a b (Quantity $ fromIntegral feeStakeDelegation)
