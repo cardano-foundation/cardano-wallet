@@ -578,6 +578,14 @@ spec = do
                     }
             in
                 x' === x .&&. show x' === show x
+        it "ApiEpochInfo" $ property $ \x ->
+            let
+                x' = ApiEpochInfo
+                    { epochNumber = epochNumber (x :: ApiEpochInfo)
+                    , epochStartTime = epochStartTime (x :: ApiEpochInfo)
+                    }
+            in
+                x' === x .&&. show x' === show x
         it "ApiWallet" $ property $ \x ->
             let
                 x' = ApiWallet
