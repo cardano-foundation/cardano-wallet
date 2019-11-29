@@ -3,7 +3,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -25,12 +25,13 @@ module Cardano.Wallet.Primitive.AddressDiscovery
     , GenChange(..)
     , CompareDiscovery(..)
     , KnownAddresses(..)
+    , HasRewardAccount(..)
     ) where
 
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( XPrv )
+    ( XPrv, XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.Types
@@ -126,3 +127,6 @@ class KnownAddresses s where
     knownAddresses
         :: s
         -> [Address]
+
+class HasRewardAccount s k | s -> k where
+    rewardAccount :: s -> k 'AddressK XPub

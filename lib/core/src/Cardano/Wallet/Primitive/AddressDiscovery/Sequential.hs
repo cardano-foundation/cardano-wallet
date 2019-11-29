@@ -80,6 +80,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
+    , HasRewardAccount (..)
     , IsOurs (..)
     , IsOwned (..)
     , KnownAddresses (..)
@@ -626,3 +627,6 @@ instance
           mkAddress fingerprint = liftDelegationAddress @n @k
               fingerprint
               (rewardAccountKey s)
+
+instance HasRewardAccount (SeqState n k) k where
+    rewardAccount = rewardAccountKey

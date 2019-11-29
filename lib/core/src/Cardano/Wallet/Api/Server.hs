@@ -621,7 +621,7 @@ listAddresses
     -> Handler [ApiAddress n]
 listAddresses ctx (ApiT wid) stateFilter = do
     addrs <- liftHandler $ withWorkerCtx ctx wid throwE $ \wrk ->
-        W.listAddresses wrk wid
+        W.listAddresses @_ @s @k @n wrk wid
     return $ coerceAddress <$> filter filterCondition addrs
   where
     filterCondition :: (Address, AddressState) -> Bool
