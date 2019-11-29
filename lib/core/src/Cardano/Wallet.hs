@@ -97,12 +97,13 @@ module Cardano.Wallet
 
     -- ** Delegation
     , joinStakePool
+    , quitStakePool
     , selectCoinsForDelegation
     , signDelegation
     , ErrJoinStakePool (..)
+    , ErrQuitStakePool (..)
     , ErrSelectForDelegation (..)
     , ErrSignDelegation (..)
-    , DelegationAction (..)
 
     -- ** Transaction
     , forgetPendingTx
@@ -945,8 +946,6 @@ signPayment ctx wid argGenChange pwd (CoinSelection ins outs chgs) = db & \DBLay
     db = ctx ^. dbLayer @s @k
     tl = ctx ^. transactionLayer @t @k
 
-data DelegationAction = Join | Quit deriving (Show, Eq)
-
 signDelegation
     :: forall ctx s t k.
         ( HasTransactionLayer t k ctx
@@ -1159,6 +1158,8 @@ listTransactions ctx wid mStart mEnd order = db & \DBLayer{..} -> do
                                   Delegation
 -------------------------------------------------------------------------------}
 
+data DelegationAction = Join | Quit
+
 -- | Helper function to factor necessary logic for joining a stake pool.
 joinStakePool
     :: forall ctx s t k.
@@ -1193,9 +1194,49 @@ joinStakePool ctx wid (pid, pools) argGenChange pwd = db & \DBLayer{..} -> do
         selectCoinsForDelegation @ctx @s @t @k ctx wid
 
     (tx, txMeta, txTime, sealedTx) <- withExceptT ErrJoinStakePoolSignDelegation $
-        signDelegation @ctx @s @t @k ctx wid argGenChange pwd selection pid
+        signDelegation @ctx @s @t @k ctx wid argGenChange pwd selection pid Join
 
     withExceptT ErrJoinStakePoolSubmitTx $
+        submitTx @ctx @s @t @k ctx wid (tx, txMeta, sealedTx)
+
+    pure (tx, txMeta, txTime)
+  where
+    db = ctx ^. dbLayer @s @k
+
+-- | Helper function to factor necessary logic for quitting a stake pool.
+quitStakePool
+    :: forall ctx s t k.
+        ( HasDBLayer s k ctx
+        , HasLogger ctx
+        , HasNetworkLayer t ctx
+        , HasTransactionLayer t k ctx
+        , Show s
+        , NFData s
+        , IsOwned s k
+        , GenChange s
+        , HardDerivation k
+        , AddressIndexDerivationType k ~ 'Soft
+        )
+    => ctx
+    -> WalletId
+    -> PoolId
+    -> ArgGenChange s
+    -> Passphrase "encryption"
+    -> ExceptT ErrQuitStakePool IO (Tx, TxMeta, UTCTime)
+quitStakePool ctx wid pid argGenChange pwd = db & \DBLayer{..} -> do
+    walMeta <- mapExceptT atomically $ withExceptT ErrQuitStakePoolNoSuchWallet $
+        withNoSuchWallet wid $ readWalletMeta (PrimaryKey wid)
+
+    when (walMeta ^. #delegation /= Delegating pid) $
+        throwE (ErrQuitStakePoolNotDelegatingTo pid)
+
+    selection <- withExceptT ErrQuitStakePoolSelectCoin $
+        selectCoinsForDelegation @ctx @s @t @k ctx wid
+
+    (tx, txMeta, txTime, sealedTx) <- withExceptT ErrQuitStakePoolSignDelegation $
+        signDelegation @ctx @s @t @k ctx wid argGenChange pwd selection pid Quit
+
+    withExceptT ErrQuitStakePoolSubmitTx $
         submitTx @ctx @s @t @k ctx wid (tx, txMeta, sealedTx)
 
     pure (tx, txMeta, txTime)
@@ -1343,6 +1384,14 @@ data ErrJoinStakePool
     | ErrJoinStakePoolSelectCoin ErrSelectForDelegation
     | ErrJoinStakePoolSignDelegation ErrSignDelegation
     | ErrJoinStakePoolSubmitTx ErrSubmitTx
+    deriving (Generic, Eq, Show)
+
+data ErrQuitStakePool
+    = ErrQuitStakePoolNoSuchWallet ErrNoSuchWallet
+    | ErrQuitStakePoolNotDelegatingTo PoolId
+    | ErrQuitStakePoolSelectCoin ErrSelectForDelegation
+    | ErrQuitStakePoolSignDelegation ErrSignDelegation
+    | ErrQuitStakePoolSubmitTx ErrSubmitTx
     deriving (Generic, Eq, Show)
 
 {-------------------------------------------------------------------------------
