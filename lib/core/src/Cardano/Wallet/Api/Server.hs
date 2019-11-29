@@ -198,7 +198,7 @@ import Control.Exception
     , tryJust
     )
 import Control.Monad
-    ( forM, forM_, void, when )
+    ( forM, forM_, unless, void, when )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
@@ -780,7 +780,7 @@ pools
     -> Server (StakePoolApi n)
 pools ctx spl =
     listPools spl
-    :<|> actionStakePool ctx spl Join
+    :<|> joinStakePool ctx spl
     :<|> quitStakePool ctx spl
 
 listPools
@@ -801,7 +801,7 @@ listPools spl =
             apparentPerformance
             Nothing -- TODO: wire-up real metadata here when available.
 
-actionStakePool
+joinStakePool
     :: forall ctx s t n k.
         ( DelegationAddress n k
         , Buildable (ErrValidateSelection t)
@@ -812,12 +812,11 @@ actionStakePool
         )
     => ctx
     -> StakePoolLayer IO
-    -> DelegationAction
     -> ApiT PoolId
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
-actionStakePool ctx spl action (ApiT poolId) (ApiT wid) passwd = do
+joinStakePool ctx spl (ApiT poolId) (ApiT wid) passwd = do
     (_, walMeta, _) <- liftHandler $ withWorkerCtx ctx wid throwE $
         \wrk -> W.readWallet wrk wid
     when (walMeta ^. #delegation == W.Delegating poolId) $
@@ -833,7 +832,7 @@ actionStakePool ctx spl action (ApiT poolId) (ApiT wid) passwd = do
         W.selectCoinsForDelegation @_ @s @t wrk wid
 
     (tx, meta, time, wit) <- liftHandler $ withWorkerCtx ctx wid liftE2 $ \wrk ->
-        W.signDelegation @_ @s @t @k wrk wid () pwd selection poolId action
+        W.signDelegation @_ @s @t @k wrk wid () pwd selection poolId Join
 
     liftHandler $ withWorkerCtx ctx wid liftE3 $ \wrk ->
         W.submitTx @_ @s @t @k wrk wid (tx, meta, wit)
@@ -868,12 +867,40 @@ quitStakePool
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
-quitStakePool ctx spl (ApiT poolId) (ApiT wid) pwd = do
+quitStakePool ctx spl (ApiT poolId) (ApiT wid) passwd = do
     (_, walMeta, _) <- liftHandler $ withWorkerCtx ctx wid throwE $
         \wrk -> W.readWallet wrk wid
     when (walMeta ^. #delegation == W.NotDelegating) $
         liftHandler $ throwE ErrSelectForDelegationNotDelegating
-    actionStakePool ctx spl Quit (ApiT poolId) (ApiT wid) pwd
+
+    allPools <- listPools spl
+    when (poolIsUnknown poolId allPools) $
+        liftHandler $ throwE (ErrSelectForDelegationNoSuchPool poolId)
+
+    unless (walMeta ^. #delegation == W.Delegating poolId) $
+        liftHandler $ throwE (ErrSelectForDelegationWrongPoolId poolId)
+
+    let (ApiWalletPassphrase (ApiT pwd)) = passwd
+
+    selection <- liftHandler $ withWorkerCtx ctx wid liftE1 $ \wrk ->
+        W.selectCoinsForDelegation @_ @s @t wrk wid
+
+    (tx, meta, time, wit) <- liftHandler $ withWorkerCtx ctx wid liftE2 $ \wrk ->
+        W.signDelegation @_ @s @t @k wrk wid () pwd selection poolId Quit
+
+    liftHandler $ withWorkerCtx ctx wid liftE3 $ \wrk ->
+        W.submitTx @_ @s @t @k wrk wid (tx, meta, wit)
+
+    pure $ mkApiTransaction
+        (txId tx)
+        (fmap Just <$> selection ^. #inputs)
+        (tx ^. #outputs)
+        (meta, time)
+        #pendingSince
+  where
+    liftE1 = throwE . ErrSelectForDelegationNoSuchWallet
+    liftE2 = throwE . ErrSignDelegationNoSuchWallet
+    liftE3 = throwE . ErrSubmitTxNoSuchWallet
 
 {-------------------------------------------------------------------------------
                                     Network
@@ -1674,6 +1701,12 @@ instance LiftHandler ErrSelectForDelegation where
         ErrSelectForDelegationNotDelegating ->
             apiError err403 NotDelegating
                 "I couldn't quit a stake pool before joining one!"
+        ErrSelectForDelegationWrongPoolId poolId ->
+            apiError err403 WrongPool $ mconcat
+                [ "I couldn't quit a stake pool with the given id: "
+                , toText poolId
+                , ". I am already joined to another pool!"
+                ]
 
 instance LiftHandler ErrSignDelegation where
     handler = \case

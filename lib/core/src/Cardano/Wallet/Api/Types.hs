@@ -361,6 +361,7 @@ data ApiErrorCode
     | NothingToMigrate
     | NoSuchPool
     | PoolAlreadyJoined
+    | WrongPool
     | NotDelegating
     deriving (Eq, Generic, Show)
 

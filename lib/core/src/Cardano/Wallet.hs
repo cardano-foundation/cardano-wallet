@@ -1277,6 +1277,7 @@ data ErrSelectForDelegation
     | ErrSelectForDelegationNoSuchWallet ErrNoSuchWallet
     | ErrSelectForDelegationFee ErrAdjustForFee
     | ErrSelectForDelegationNotDelegating
+    | ErrSelectForDelegationWrongPoolId PoolId
     deriving (Show, Eq)
 
 -- | Errors that can occur when signing a delegation certificate.
