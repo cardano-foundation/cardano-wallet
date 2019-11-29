@@ -31,6 +31,7 @@ module Cardano.Wallet.Api.Types
     (
     -- * API Types
       ApiAddress (..)
+    , ApiEpochInfo (..)
     , ApiStakePool (..)
     , ApiStakePoolMetrics (..)
     , ApiWallet (..)
@@ -196,6 +197,11 @@ import qualified Data.Text.Encoding as T
 data ApiAddress (n :: NetworkDiscriminant) = ApiAddress
     { id :: !(ApiT Address, Proxy n)
     , state :: !(ApiT AddressState)
+    } deriving (Eq, Generic, Show)
+
+data ApiEpochInfo = ApiEpochInfo
+    { epochNumber :: !(ApiT EpochNo)
+    , epochStartTime :: !UTCTime
     } deriving (Eq, Generic, Show)
 
 data ApiWallet = ApiWallet
@@ -446,6 +452,11 @@ getApiMnemonicT (ApiMnemonicT (pw, _)) = pw
 instance DecodeAddress n => FromJSON (ApiAddress n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance EncodeAddress n => ToJSON (ApiAddress n) where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiEpochInfo where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiEpochInfo where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance {-# OVERLAPS #-} DecodeAddress n => FromJSON (ApiT Address, Proxy n)
