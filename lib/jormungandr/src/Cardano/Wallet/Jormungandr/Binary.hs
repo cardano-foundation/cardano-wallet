@@ -882,5 +882,16 @@ convertBlockHeader h = (W.BlockHeader (slot h) (bh h) (Hash "") (Hash ""))
 -- This relies on the assumption that the certificate in the 'FeePolicy' is
 -- only interpret as a 'stake delegation' certificate.
 overrideFeePolicy :: FeePolicy -> PerCertificateFee -> FeePolicy
-overrideFeePolicy (LinearFee a b _) PerCertificateFee{feeStakeDelegation} =
-    LinearFee a b (Quantity $ fromIntegral feeStakeDelegation)
+overrideFeePolicy linearFee@(LinearFee a b _) override =
+    -- FIXME
+    -- If the configuration option is not set, Jörmungandr still yields an extra
+    -- configuration fragment where all fees are set to 0.
+    -- This is true in 0.8.0-rc1, might no longer be true for subsequent
+    -- releases.
+    if all (== 0) [feeDlg, feeReg, feeOwn]
+    then linearFee
+    else LinearFee a b (Quantity $ fromIntegral feeDlg)
+  where
+    feeDlg = feeStakeDelegation override
+    feeReg = feePoolRegistration override
+    feeOwn = feeOwnerStakeDelegation override
