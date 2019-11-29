@@ -22,6 +22,8 @@ import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text.Class
     ( toText )
 import Numeric.Natural
@@ -49,6 +51,7 @@ import Test.Integration.Framework.DSL
     , expectListItemFieldSatisfy
     , expectListSizeEqual
     , expectResponseCode
+    , faucetUtxoAmt
     , fixturePassphrase
     , fixtureWallet
     , fixtureWalletWith
@@ -168,10 +171,57 @@ spec = do
                 , expectListItemFieldEqual 0 status InLedger
                 ]
 
-        -- Verify the wallet is now delegating
-        request @ApiWallet ctx (getWalletEp w) Default Empty >>= flip verify
-            [ expectFieldEqual delegation (Delegating (p ^. #id))
+    it "STAKE_POOLS_JOIN_01 - Controlled stake increases when joining" $ \ctx -> do
+        w <- fixtureWallet ctx
+        (_, p:_) <- eventually $
+            unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
+
+        -- Join a pool
+        joinStakePool ctx (p ^. #id) (w, fixturePassphrase) >>= flip verify
+            [ expectResponseCode HTTP.status200
+            , expectFieldEqual status Pending
+            , expectFieldEqual direction Outgoing
             ]
+
+        -- Wait for the certificate to be inserted
+        eventually $ do
+            let ep = listTxEp w mempty
+            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+                [ expectListItemFieldEqual 0 direction Outgoing
+                , expectListItemFieldEqual 0 status InLedger
+                ]
+
+        let existingPoolStake = getQuantity $ p ^. #metrics . #controlledStake
+        let contributedStake = faucetUtxoAmt - stakeDelegationFee
+        eventually $ do
+            print contributedStake
+            print existingPoolStake
+            request @[ApiStakePool] ctx listStakePoolsEp Default Empty >>= flip verify
+                [ expectListItemFieldSatisfy 0 (metrics . stake)
+                    (> (existingPoolStake + contributedStake))
+                    -- No exact equality since the delegation from previous
+                    -- tests may take effect.
+                ]
+
+-- Probably pending on jormungandr 0.8.0
+--
+--    xit "STAKE_POOLS_JOIN_04 - Rewards accumulate" $ \ctx -> do
+--
+--        w <- fixtureWallet ctx
+--        (_, p:_) <- eventually $
+--            unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
+--
+--        -- Join a pool
+--        joinStakePool ctx (p ^. #id) (w, fixturePassphrase) >>= flip verify
+--            [ expectResponseCode HTTP.status200
+--            , expectFieldEqual status Pending
+--            , expectFieldEqual direction Outgoing
+--            ]
+--
+--        eventually $ do
+--            request @ApiWallet ctx (getWalletEp w) Default Empty >>= flip verify
+--                [ expectFieldSatisfy balanceReward (>0)
+--                ]
 
     it "STAKE_POOLS_JOIN_01 - I can join another stake-pool after previously \
         \ joining another one" $ \ctx -> do
