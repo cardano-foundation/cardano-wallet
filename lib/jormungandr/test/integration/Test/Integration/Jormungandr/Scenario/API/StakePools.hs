@@ -20,6 +20,8 @@ import Cardano.Wallet.Primitive.Types
     ( Direction (..), PoolId (..), TxStatus (..), WalletDelegation (..) )
 import Control.Monad
     ( forM_ )
+import Data.ByteArray.Encoding
+    ( Base (Base16), convertToBase )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Text.Class
@@ -66,6 +68,7 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( errMsg403NotDelegating
     , errMsg403PoolAlreadyJoined
+    , errMsg403WrongPool
     , errMsg404NoSuchPool
     , errMsg405
     , errMsg406
@@ -453,8 +456,8 @@ spec = do
     it "STAKE_POOLS_QUIT_01 - Can quit stake pool" $ \ctx -> do
         (_, p:_) <- eventually $
             unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
-        w <- emptyWallet ctx
-        joinStakePool ctx (p ^. #id) (w, "Secure Passprase") >>= flip verify
+        w <- fixtureWallet ctx
+        joinStakePool ctx (p ^. #id) (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status200
             , expectFieldEqual status Pending
             , expectFieldEqual direction Outgoing
@@ -472,9 +475,26 @@ spec = do
             [ expectFieldEqual delegation (Delegating (p ^. #id))
             ]
 
-        r <- quitStakePool ctx (p ^. #id) (w, "Secure Passprase")
-        expectResponseCode HTTP.status200 r
+        r <- quitStakePool ctx (p ^. #id) (w, fixturePassphrase)
+        expectResponseCode HTTP.status202 r
 
+        -- TO DO after #1083 is merged - check
+ {--
+        -- Wait for the certificate to be inserted
+        eventually $ do
+            let ep = listTxEp w mempty
+            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+                [ expectListItemFieldEqual 0 direction Outgoing
+                , expectListItemFieldEqual 0 status InLedger
+                , expectListItemFieldEqual 1 direction Outgoing
+                , expectListItemFieldEqual 1 status InLedger
+                ]
+
+        request @ApiWallet ctx (getWalletEp w) Default Empty >>= flip verify
+            [ expectFieldEqual delegation NotDelegating)
+            ]
+
+--}
     it "STAKE_POOLS_QUIT_01 - Quiting before even joining" $ \ctx -> do
         (_, p:_) <- eventually $
             unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
@@ -482,7 +502,7 @@ spec = do
 
         r <- quitStakePool ctx (p ^. #id) (w, "Secure Passprase")
         expectResponseCode HTTP.status403 r
-        expectErrorMessage errMsg403NotDelegating  r
+        expectErrorMessage errMsg403NotDelegating r
 
     it "STAKE_POOLS_QUIT_02 - Passphrase must be correct to quit" $ \ctx -> do
         (_, p:_) <- eventually $
@@ -521,3 +541,33 @@ spec = do
         r <- quitStakePool ctx poolIdAbsent (w, "Secure Passphrase")
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoSuchPool (T.decodeUtf8 pId)) r
+
+    it "STAKE_POOLS_QUIT_02 - Cannot quit existant stake pool \
+       \I have not joined" $ \ctx -> do
+        (_, p1:p2:_) <- eventually $
+            unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
+        w <- fixtureWallet ctx
+        joinStakePool ctx (p1 ^. #id) (w, fixturePassphrase) >>= flip verify
+            [ expectResponseCode HTTP.status200
+            , expectFieldEqual status Pending
+            , expectFieldEqual direction Outgoing
+            ]
+
+        -- Wait for the certificate to be inserted
+        eventually $ do
+            let ep = listTxEp w mempty
+            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+                [ expectListItemFieldEqual 0 direction Outgoing
+                , expectListItemFieldEqual 0 status InLedger
+                ]
+
+        request @ApiWallet ctx (getWalletEp w) Default Empty >>= flip verify
+            [ expectFieldEqual delegation (Delegating (p1 ^. #id))
+            ]
+
+        let pId = p2 ^. #id
+        let (ApiT (PoolId bs)) = pId
+        let wrongPoolId = T.decodeUtf8 $ convertToBase Base16 bs
+        r <- quitStakePool ctx pId (w, fixturePassphrase)
+        expectResponseCode HTTP.status403 r
+        expectErrorMessage (errMsg403WrongPool wrongPoolId) r

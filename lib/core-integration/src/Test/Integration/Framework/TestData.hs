@@ -56,6 +56,7 @@ module Test.Integration.Framework.TestData
     , errMsg403NoPendingAnymore
     , errMsg404NoSuchPool
     , errMsg403PoolAlreadyJoined
+    , errMsg403WrongPool
     , errMsg403NotDelegating
     , errMsg403NothingToMigrate
     , errMsg404NoEndpoint
@@ -406,11 +407,15 @@ errMsg404NoSuchPool pid = "I couldn't find a stake pool with the given id: "
 
 errMsg403PoolAlreadyJoined :: Text -> String
 errMsg403PoolAlreadyJoined pid = "I couldn't join a stake pool with the given id: "
-    ++ unpack pid ++ ". I am already joined, joining once again would only incur "
-    ++ "unneeded fees!"
+    ++ unpack pid ++ ". I have already joined this pool; joining again would "
+    ++ "incur an unnecessary fee!"
 
 errMsg403NotDelegating :: String
 errMsg403NotDelegating = "I couldn't quit a stake pool before joining one!"
+
+errMsg403WrongPool :: Text -> String
+errMsg403WrongPool pid = "I couldn't quit a stake pool with the given id: "
+    ++ unpack pid ++ ". I have joined another pool!"
 
 errMsg404CannotFindTx :: Text -> String
 errMsg404CannotFindTx tid = "I couldn't find a transaction with the given id: "
