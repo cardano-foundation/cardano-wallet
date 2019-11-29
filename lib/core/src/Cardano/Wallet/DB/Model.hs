@@ -65,9 +65,10 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (slotId)
+    , DelegationCertificate (..)
     , Direction (..)
     , Hash
-    , PoolId (..)
+    , PoolId
     , Range (..)
     , SlotId (..)
     , SortOrder (..)
@@ -76,6 +77,7 @@ import Cardano.Wallet.Primitive.Types
     , TxStatus (..)
     , WalletDelegation (..)
     , WalletMetadata (..)
+    , dlgCertPoolId
     , isWithinRange
     )
 import Control.Monad
@@ -118,7 +120,7 @@ deriving instance (Eq wid, Eq xprv, Eq s) => Eq (Database wid s xprv)
 -- | Model database record for a single wallet.
 data WalletDatabase s xprv = WalletDatabase
     { checkpoints :: !(Map SlotId (Wallet s))
-    , certificates :: !(Map SlotId PoolId)
+    , certificates :: !(Map SlotId (Maybe PoolId))
     , metadata :: !WalletMetadata
     , txHistory :: !(Map (Hash "Tx") TxMeta)
     , xprv :: !(Maybe xprv)
@@ -290,17 +292,23 @@ mReadWalletMeta wid db@(Database wallets _) =
         case Map.lookupMax certificates of
             Nothing ->
                 metadata { delegation = NotDelegating }
-            Just (_, pool) ->
+            Just (_, Nothing) ->
+                metadata { delegation = NotDelegating }
+            Just (_, Just pool) ->
                 metadata { delegation = Delegating pool }
 
 mPutDelegationCertificate
     :: Ord wid
     => wid
-    -> PoolId
+    -> DelegationCertificate
     -> SlotId
     -> ModelOp wid s xprv ()
-mPutDelegationCertificate wid pool slot = alterModel wid $ \wal ->
-    ((), wal { certificates = Map.insert slot pool (certificates wal) })
+mPutDelegationCertificate wid cert slot = alterModel wid $ \wal ->
+    ( ()
+    , wal
+        { certificates = Map.insert slot (dlgCertPoolId cert) (certificates wal)
+        }
+    )
 
 mPutTxHistory
     :: forall wid s xprv. Ord wid

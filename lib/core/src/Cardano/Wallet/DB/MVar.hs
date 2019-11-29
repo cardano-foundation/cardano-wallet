@@ -105,9 +105,9 @@ newDBLayer = do
 
         , readWalletMeta = readDB db . mReadWalletMeta
 
-        , putDelegationCertificate = \pk pid sl -> ExceptT $ do
-            pid `deepseq` sl `deepseq`
-                alterDB errNoSuchWallet db (mPutDelegationCertificate pk pid sl)
+        , putDelegationCertificate = \pk cert sl -> ExceptT $ do
+            cert `deepseq` sl `deepseq`
+                alterDB errNoSuchWallet db (mPutDelegationCertificate pk cert sl)
 
         {-----------------------------------------------------------------------
                                      Tx History

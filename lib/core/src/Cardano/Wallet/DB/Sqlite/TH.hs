@@ -144,9 +144,9 @@ Checkpoint
 
 -- Store known delegation certificates for a particular wallet
 DelegationCertificate
-    certWalletId             W.WalletId   sql=wallet_id
-    certSlot                 W.SlotId     sql=slot
-    certPoolId               W.PoolId     sql=delegation
+    certWalletId             W.WalletId     sql=wallet_id
+    certSlot                 W.SlotId       sql=slot
+    certPoolId               W.PoolId Maybe sql=delegation
 
     Primary certWalletId certSlot
     Foreign Wallet delegationCertificate certWalletId ! ON DELETE CASCADE

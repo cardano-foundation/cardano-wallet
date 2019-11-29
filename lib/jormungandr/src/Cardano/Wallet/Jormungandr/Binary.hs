@@ -103,6 +103,10 @@ import Control.Monad
     ( replicateM, unless, void )
 import Control.Monad.Loops
     ( whileM )
+import Control.Monad.Trans.Class
+    ( lift )
+import Control.Monad.Trans.Maybe
+    ( MaybeT (..) )
 import Crypto.Hash
     ( hash )
 import Crypto.Hash.Algorithms
@@ -133,6 +137,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Functor
     ( ($>) )
+import Data.Maybe
+    ( catMaybes )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -264,7 +270,7 @@ data Fragment
     -- ^ Found in the genesis block.
     | Transaction Tx
     -- ^ A standard signed transaction
-    | StakeDelegation (PoolId, ChimericAccount, Tx)
+    | StakeDelegation (StakeDelegationType, ChimericAccount, Tx)
     -- ^ A signed transaction with stake pool delegation
     | UnimplementedFragment Word8
     -- Fragments not yet supported go there.
@@ -373,7 +379,9 @@ data StakeDelegationType
     = DlgNone
     | DlgFull PoolId
     | DlgRatio
-    deriving (Show, Eq)
+    deriving (Generic, Show, Eq)
+
+instance NFData StakeDelegationType
 
 stakeDelegationTypeTag :: StakeDelegationType -> Word8
 stakeDelegationTypeTag = \case
@@ -385,30 +393,32 @@ stakeDelegationTypeTag = \case
 --
 -- Corresponds to STAKE-DELEGATION in the specification.
 --
--- Returns 'Nothing' for unsupported stake delegation types: DLG-NONE & DLG-RATIO
+-- Returns 'Nothing' for unsupported stake delegation types: DLG-RATIO
 getStakeDelegation
     :: Hash "Tx"
-    -> Get (Maybe (PoolId, ChimericAccount, Tx))
+    -> Get (Maybe (StakeDelegationType, ChimericAccount, Tx))
 getStakeDelegation tid = do
-    label "getStakeDelegation" $ do
-        accId <- getByteString 32
-        delegationType <- getWord8
-        case delegationType of
+    label "getStakeDelegation" $ runMaybeT $ do
+        accId <- lift $ getByteString 32
+        dlgType <- lift getWord8 >>= \case
             0 -> getStakeDelegationNone
-            1 -> getStakeDelegationFull accId
+            1 -> getStakeDelegationFull
             _ -> getStakeDelegationRatio
+        tx <- lift $ getGenericTransaction tid
+        _accSignature <- lift $ getByteString 65
+        pure
+            ( dlgType
+            , ChimericAccount accId
+            , tx
+            )
   where
-    getStakeDelegationNone =
-        pure Nothing
-
-    getStakeDelegationFull accId = Just <$> do
+    getStakeDelegationNone = MaybeT $ do
+        pure $ Just DlgNone
+    getStakeDelegationFull = MaybeT $ do
         poolId <- getByteString 32
-        tx <- getGenericTransaction tid
-        _accSignature <- getByteString 65
-        pure (PoolId poolId, ChimericAccount accId, tx)
-
+        pure $ Just $ DlgFull $ PoolId poolId
     getStakeDelegationRatio =
-        pure Nothing
+        MaybeT (pure Nothing)
 
 -- | Decode the contents of a @Transaction@-fragment.
 getTransaction :: Hash "Tx" -> Get Tx
@@ -808,12 +818,12 @@ convertBlock :: Block -> W.Block
 convertBlock (Block h msgs) =
     W.Block (convertBlockHeader h) transactions delegations
   where
-    delegations :: [(ChimericAccount, PoolId)]
-    delegations = msgs >>= \case
+    delegations :: [W.DelegationCertificate]
+    delegations = catMaybes $ msgs >>= \case
         Initial _ -> []
         Transaction _ -> []
-        StakeDelegation (poolId, accountId, _tx) ->
-            return (accountId, poolId)
+        StakeDelegation (dlgType, accountId, _tx) ->
+            [convertDlgType accountId dlgType]
         UnimplementedFragment _ -> []
     transactions :: [Tx]
     transactions = msgs >>= \case
@@ -821,6 +831,16 @@ convertBlock (Block h msgs) =
         Transaction tx -> return tx
         StakeDelegation (_poolId, _accountId, tx) -> return tx
         UnimplementedFragment _ -> []
+
+-- | Convert the Jörmungandr binary format to a simpler form
+convertDlgType
+    :: ChimericAccount
+    -> StakeDelegationType
+    -> Maybe W.DelegationCertificate
+convertDlgType accountId = \case
+    DlgNone -> Just $ W.CertDelegateNone accountId
+    DlgFull poolId -> Just $ W.CertDelegateFull accountId poolId
+    _ -> Nothing
 
 -- | Convert the Jörmungandr binary format header into a simpler Wallet header.
 convertBlockHeader :: BlockHeader -> W.BlockHeader

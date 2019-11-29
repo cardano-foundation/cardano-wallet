@@ -36,8 +36,8 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader
+    , DelegationCertificate
     , Hash
-    , PoolId
     , Range (..)
     , SlotId (..)
     , SortOrder (..)
@@ -166,7 +166,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
 
     , putDelegationCertificate
         :: PrimaryKey WalletId
-        -> PoolId
+        -> DelegationCertificate
         -> SlotId
         -> ExceptT ErrNoSuchWallet stm ()
         -- ^ Binds a stake pool id to a wallet. This will have an influence on

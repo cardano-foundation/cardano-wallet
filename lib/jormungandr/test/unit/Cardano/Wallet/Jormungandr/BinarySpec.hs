@@ -65,7 +65,7 @@ import Data.Either
 import Data.List
     ( isSuffixOf )
 import Data.Maybe
-    ( isJust, isNothing )
+    ( isNothing )
 import Data.Word
     ( Word8 )
 import GHC.Generics
@@ -170,18 +170,18 @@ spec = do
                     assert (inps == fragmentInputs test)
                     assert (outs == fragmentOutputs test)
 
-                StakeDelegation (poolId, accountId, (Tx _ inps outs)) -> do
+                StakeDelegation (DlgFull poolId, accountId, (Tx _ inps outs)) -> do
                     monitor (QC.label "StakeDelegation (Full)")
                     assert (inps == fragmentInputs test)
                     assert (outs == fragmentOutputs test)
                     assert (Just accountId == fragmentAccountId test)
                     assert (Just poolId == fragmentPoolId test)
 
-                UnimplementedFragment{} -> do
-                    -- FIXME
-                    -- Review this when introducing support for DlgNone
+                StakeDelegation (DlgNone, accountId, (Tx _ inps outs)) -> do
                     monitor (QC.label "StakeDelegation (None)")
-                    assert (isJust $ fragmentAccountId test)
+                    assert (inps == fragmentInputs test)
+                    assert (outs == fragmentOutputs test)
+                    assert (Just accountId == fragmentAccountId test)
                     assert (isNothing $ fragmentPoolId test)
 
                 _ -> run $ expectationFailure

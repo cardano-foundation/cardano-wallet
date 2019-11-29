@@ -57,6 +57,9 @@ module Cardano.Wallet.Primitive.Types
 
     -- * Delegation
     , ChimericAccount (..)
+    , DelegationCertificate (..)
+    , dlgCertAccount
+    , dlgCertPoolId
 
     -- * Coin
     , Coin (..)
@@ -530,7 +533,7 @@ data Block = Block
     , transactions
         :: ![Tx]
     , delegations
-        :: ![(ChimericAccount, PoolId)]
+        :: ![DelegationCertificate]
     } deriving (Show, Eq, Ord, Generic)
 
 instance NFData Block
@@ -1314,7 +1317,7 @@ newtype ProtocolMagic = ProtocolMagic Int32
     deriving (Generic, Show)
 
 {-------------------------------------------------------------------------------
-                                Accounts
+                            Delegation Certificates
 -------------------------------------------------------------------------------}
 
 -- | Also known as a staking key, chimeric account is used in group-type address
@@ -1323,6 +1326,24 @@ newtype ChimericAccount = ChimericAccount { unChimericAccount :: ByteString }
     deriving (Generic, Show, Eq, Ord)
 
 instance NFData ChimericAccount
+
+-- | Represent a delegation certificate.
+data DelegationCertificate
+    = CertDelegateNone ChimericAccount
+    | CertDelegateFull ChimericAccount PoolId
+    deriving (Generic, Show, Eq, Ord)
+
+instance NFData DelegationCertificate
+
+dlgCertAccount :: DelegationCertificate -> ChimericAccount
+dlgCertAccount = \case
+    CertDelegateNone acc -> acc
+    CertDelegateFull acc _ -> acc
+
+dlgCertPoolId :: DelegationCertificate -> Maybe PoolId
+dlgCertPoolId = \case
+    CertDelegateNone{} -> Nothing
+    CertDelegateFull _ poolId -> Just poolId
 
 {-------------------------------------------------------------------------------
                                Polymorphic Types

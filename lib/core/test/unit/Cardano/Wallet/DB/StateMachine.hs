@@ -93,8 +93,8 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader
+    , DelegationCertificate
     , Hash (..)
-    , PoolId (..)
     , Range (..)
     , SlotId (..)
     , SortOrder (..)
@@ -262,7 +262,7 @@ data Cmd s wid
     | ReadPrivateKey wid
     | RollbackTo wid SlotId
     | RemovePendingTx wid (Hash "Tx")
-    | PutDelegationCertificate wid PoolId SlotId
+    | PutDelegationCertificate wid DelegationCertificate SlotId
     deriving (Show, Functor, Foldable, Traversable)
 
 data Success s wid
@@ -314,8 +314,8 @@ runMock = \case
         first (Resp . fmap Unit) . mPutWalletMeta wid meta
     ReadWalletMeta wid ->
         first (Resp . fmap Metadata) . mReadWalletMeta wid
-    PutDelegationCertificate wid pool sl ->
-        first (Resp . fmap Unit) . mPutDelegationCertificate wid pool sl
+    PutDelegationCertificate wid cert sl ->
+        first (Resp . fmap Unit) . mPutDelegationCertificate wid cert sl
     PutTxHistory wid txs ->
         first (Resp . fmap Unit) . mPutTxHistory wid txs
     ReadTxHistory wid order range status ->
