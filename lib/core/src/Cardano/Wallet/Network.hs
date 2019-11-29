@@ -20,6 +20,7 @@ module Cardano.Wallet.Network
     , ErrNetworkTip (..)
     , ErrGetBlock (..)
     , ErrPostTx (..)
+    , ErrGetAccountBalance (..)
 
     -- * Initialization
     , defaultRetryPolicy
@@ -35,6 +36,7 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.Types
     ( Block
     , BlockHeader (..)
+    , ChimericAccount (..)
     , EpochNo
     , Hash (..)
     , PoolId (..)
@@ -132,6 +134,9 @@ data NetworkLayer m target block = NetworkLayer
             ( EpochNo
             , Map PoolId (Quantity "lovelace" Word64)
             )
+    , getAccountBalance
+        :: ChimericAccount
+        -> ExceptT ErrGetAccountBalance m (Quantity "lovelace" Word64)
     }
 
 instance Functor m => Functor (NetworkLayer m target) where
@@ -173,6 +178,11 @@ data ErrPostTx
     deriving (Generic, Show, Eq)
 
 instance Exception ErrPostTx
+
+data ErrGetAccountBalance
+    = ErrGetAccountBalanceNetworkUnreachable ErrNetworkUnavailable
+    | ErrGetAccountBalanceAccountNotFound ChimericAccount
+    deriving (Generic, Eq, Show)
 
 {-------------------------------------------------------------------------------
                               Initialization
