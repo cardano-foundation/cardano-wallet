@@ -96,8 +96,10 @@ module Cardano.Wallet
     , assignMigrationTargetAddresses
 
     -- ** Delegation
+    , joinStakePool
     , selectCoinsForDelegation
     , signDelegation
+    , ErrJoinStakePool (..)
     , ErrSelectForDelegation (..)
     , ErrSignDelegation (..)
     , DelegationAction (..)
@@ -1154,6 +1156,53 @@ listTransactions ctx wid mStart mEnd order = db & \DBLayer{..} -> do
         txTime = slotStartTime sp
 
 {-------------------------------------------------------------------------------
+                                  Delegation
+-------------------------------------------------------------------------------}
+
+-- | Helper function to factor necessary logic for joining a stake pool.
+joinStakePool
+    :: forall ctx s t k.
+        ( HasDBLayer s k ctx
+        , HasLogger ctx
+        , HasNetworkLayer t ctx
+        , HasTransactionLayer t k ctx
+        , Show s
+        , NFData s
+        , IsOwned s k
+        , GenChange s
+        , HardDerivation k
+        , AddressIndexDerivationType k ~ 'Soft
+        )
+    => ctx
+    -> WalletId
+    -> (PoolId, [PoolId])
+    -> ArgGenChange s
+    -> Passphrase "encryption"
+    -> ExceptT ErrJoinStakePool IO (Tx, TxMeta, UTCTime)
+joinStakePool ctx wid (pid, pools) argGenChange pwd = db & \DBLayer{..} -> do
+    walMeta <- mapExceptT atomically $ withExceptT ErrJoinStakePoolNoSuchWallet $
+        withNoSuchWallet wid $ readWalletMeta (PrimaryKey wid)
+
+    when (walMeta ^. #delegation == Delegating pid) $
+        throwE (ErrJoinStakePoolAlreadyDelegating pid)
+
+    when (pid `notElem` pools) $
+        throwE (ErrJoinStakePoolNoSuchPool pid)
+
+    selection <- withExceptT ErrJoinStakePoolSelectCoin $
+        selectCoinsForDelegation @ctx @s @t @k ctx wid
+
+    (tx, txMeta, txTime, sealedTx) <- withExceptT ErrJoinStakePoolSignDelegation $
+        signDelegation @ctx @s @t @k ctx wid argGenChange pwd selection pid
+
+    withExceptT ErrJoinStakePoolSubmitTx $
+        submitTx @ctx @s @t @k ctx wid (tx, txMeta, sealedTx)
+
+    pure (tx, txMeta, txTime)
+  where
+    db = ctx ^. dbLayer @s @k
+
+{-------------------------------------------------------------------------------
                                   Key Store
 -------------------------------------------------------------------------------}
 
@@ -1286,6 +1335,15 @@ data ErrSignDelegation
     | ErrSignDelegationWithRootKey ErrWithRootKey
     | ErrSignDelegationMkTx ErrMkTx
     deriving (Show, Eq)
+
+data ErrJoinStakePool
+    = ErrJoinStakePoolNoSuchWallet ErrNoSuchWallet
+    | ErrJoinStakePoolAlreadyDelegating PoolId
+    | ErrJoinStakePoolNoSuchPool PoolId
+    | ErrJoinStakePoolSelectCoin ErrSelectForDelegation
+    | ErrJoinStakePoolSignDelegation ErrSignDelegation
+    | ErrJoinStakePoolSubmitTx ErrSubmitTx
+    deriving (Generic, Eq, Show)
 
 {-------------------------------------------------------------------------------
                                    Utils
