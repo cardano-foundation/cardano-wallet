@@ -421,7 +421,8 @@ errMsg403NotDelegating = "I couldn't quit a stake pool before joining one!"
 
 errMsg403WrongPool :: Text -> String
 errMsg403WrongPool pid = "I couldn't quit a stake pool with the given id: "
-    ++ unpack pid ++ ". I have joined another pool!"
+    ++ unpack pid ++ ", because I'm not a member of this stake pool.\
+    \ Please check if you are using correct stake pool id in your request."
 
 errMsg404CannotFindTx :: Text -> String
 errMsg404CannotFindTx tid = "I couldn't find a transaction with the given id: "

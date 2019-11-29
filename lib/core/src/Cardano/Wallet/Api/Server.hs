@@ -1694,7 +1694,7 @@ instance LiftHandler ErrSelectForDelegation where
                 [ "I couldn't join a stake pool with the given id: "
                 , toText poolId
                 , ". I have already joined this pool; joining again would incur"
-                ," an unnecessary fee!"
+                , " an unnecessary fee!"
                 ]
         ErrSelectForDelegationNoSuchWallet e -> handler e
         ErrSelectForDelegationFee e -> handler e
@@ -1705,7 +1705,9 @@ instance LiftHandler ErrSelectForDelegation where
             apiError err403 WrongPool $ mconcat
                 [ "I couldn't quit a stake pool with the given id: "
                 , toText poolId
-                , ". I have joined another pool!"
+                , ", because I'm not a member of this stake pool."
+                , " Please check if you are using correct stake pool id"
+                , " in your request."
                 ]
 
 instance LiftHandler ErrSignDelegation where
