@@ -32,11 +32,13 @@ module Cardano.Wallet.Jormungandr.Binary
     , Fragment (..)
     , FragmentSpec (..)
     , Milli (..)
+    , PerCertificateFee (..)
     , getBlock
     , getBlockHeader
     , getBlockId
     , getFragment
     , getTransaction
+    , overrideFeePolicy
 
     -- * Constructing Fragment
     , MkFragment (..)
@@ -644,6 +646,8 @@ data ConfigParam
     | KesUpdateSpeed (Quantity "second/update" Word32)
     -- ^ Maximum number of seconds per update for KES keys known by the system
     -- after start time.
+    | ConfigPerCertificate PerCertificateFee
+    -- ^ Per certificate fees, override the 'certificate' fee of the linear fee
     | UnimplementedConfigParam  Word16
     deriving (Generic, Eq, Show)
 
@@ -681,6 +685,7 @@ getConfigParam = label "getConfigParam" $ do
         18 -> unimpl -- treasury params
         19 -> unimpl -- reward pot
         20 -> unimpl -- reward params
+        21 -> ConfigPerCertificate <$> getPerCertificateFee
         other -> fail $ "Invalid config param with tag " ++ show other
   where
     -- NOTE
@@ -707,6 +712,14 @@ data ConsensusVersion = BFT | GenesisPraos
     deriving (Generic, Eq, Show)
 
 instance NFData ConsensusVersion
+
+data PerCertificateFee = PerCertificateFee
+    { feePoolRegistration :: Word64
+    , feeStakeDelegation :: Word64
+    , feeOwnerStakeDelegation :: Word64
+    } deriving (Generic, Eq, Show)
+
+instance NFData PerCertificateFee
 
 getConsensusVersion :: Get ConsensusVersion
 getConsensusVersion = label "getConsensusVersion" $ getWord16be >>= \case
@@ -737,6 +750,17 @@ getLinearFee = label "getFeePolicy" $ do
         (Quantity $ double c)
   where
     double = fromRational . toRational
+
+getPerCertificateFee :: Get PerCertificateFee
+getPerCertificateFee = label "getPerCertificateFee" $ do
+    feePoolRegistration <- getWord64be
+    feeStakeDelegation <- getWord64be
+    feeOwnerStakeDelegation <- getWord64be
+    pure $ PerCertificateFee
+        { feePoolRegistration
+        , feeStakeDelegation
+        , feeOwnerStakeDelegation
+        }
 
 {-------------------------------------------------------------------------------
                             Addresses
@@ -850,3 +874,24 @@ convertBlockHeader h = (W.BlockHeader (slot h) (bh h) (Hash "") (Hash ""))
     }
   where
     bh = Quantity . fromIntegral . chainLength
+
+
+-- | Take an existing fee policy and override the 'certificate' using the a
+-- given per certificate policy.
+--
+-- This relies on the assumption that the certificate in the 'FeePolicy' is
+-- only interpret as a 'stake delegation' certificate.
+overrideFeePolicy :: FeePolicy -> PerCertificateFee -> FeePolicy
+overrideFeePolicy linearFee@(LinearFee a b _) override =
+    -- FIXME
+    -- If the configuration option is not set, Jörmungandr still yields an extra
+    -- configuration fragment where all fees are set to 0.
+    -- This is true in 0.8.0-rc1, might no longer be true for subsequent
+    -- releases.
+    if all (== 0) [feeDlg, feeReg, feeOwn]
+    then linearFee
+    else LinearFee a b (Quantity $ fromIntegral feeDlg)
+  where
+    feeDlg = feeStakeDelegation override
+    feeReg = feePoolRegistration override
+    feeOwn = feeOwnerStakeDelegation override

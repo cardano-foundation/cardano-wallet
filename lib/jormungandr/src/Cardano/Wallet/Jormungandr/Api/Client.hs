@@ -59,7 +59,7 @@ import Cardano.Wallet.Jormungandr.Api
 import Cardano.Wallet.Jormungandr.Api.Types
     ( AccountId (..), AccountState, BlockId (..), StakeApiResponse )
 import Cardano.Wallet.Jormungandr.Binary
-    ( ConfigParam (..), Fragment (..), convertBlock )
+    ( ConfigParam (..), Fragment (..), convertBlock, overrideFeePolicy )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( softTxMaxSize )
 import Cardano.Wallet.Network
@@ -235,6 +235,12 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
                     ConfigLinearFee x -> Just x
                     _ -> Nothing
 
+        let mperCertFee = mapMaybe getPerCertFee params
+              where
+                getPerCertFee = \case
+                    ConfigPerCertificate x -> Just x
+                    _ -> Nothing
+
         let mduration = mapMaybe getSlotDuration params
               where
                 getSlotDuration = \case
@@ -266,7 +272,9 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
                     , BlockchainParameters
                         { getGenesisBlockHash = block0
                         , getGenesisBlockDate = block0Date
-                        , getFeePolicy = policy
+                        , getFeePolicy = case mperCertFee of
+                            [override] -> overrideFeePolicy policy override
+                            _ -> policy
                         , getEpochLength = epochLength
                         , getSlotLength = SlotLength duration
                         , getTxMaxSize = softTxMaxSize
