@@ -2,33 +2,50 @@
     <img alt="IOHK" src="iohk-signature.gif" />
 </p>
 
-The team follows a methodology known as [extreme programming][xp] which can be summarized as follows:
+The team's process is derived from [extreme programming][xp] and adapted for remote, distributed teams. It can be summarized as follows:
 
 ## Roadmap
 
-- Our Roadmap is specified [in our wiki](https://github.com/input-output-hk/cardano-wallet/wiki/Roadmap)
-- Items on the Roadmap are prioritized
-- The Roadmap reflects user-stories (and not technical details)
-- The Roadmap is reviewed and discussed with the product team
+- Our roadmap is a product backlog, owned by a _Product Owner_. 
+- Each item is described in terms of:
+    - A user story (U/S) following a Role-Feature-Reason template
+    - Acceptance Criteria (A/C) written in [Gherkin](http://docs.behat.org/en/v2.5/guides/1.gherkin.html) 
+    - Possible extra information or documents 
+- Items in the backlog are sorted by priority. 
+- When picked, U/S are estimated in terms of number of _sprints_. A story estimated to more than 3 sprints should be broken down into smaller stories. 
 
-## Planning
+<details>
+    <summary>example</summary>
 
-- The project is divided into iterations of 2 weeks
-- Releases are small and occur often (every 4 weeks at most)
-- Technical discussions and proposals happen in a dedicated repository:
-    - [cardano-wallet-adr](https://github.com/input-output-hk/cardano-wallet-adr)
-- User stories are assigned to and owned by a member of the team. User story's owners are expected to:
-    - Clarify product requirements as needed with the product referent
-    - Break the U/S into tasks (small, sizeable, chunks of work)
-    - Make sure that all tasks are estimated and clear
-    - Make sure that a story can fit in an iteration (2 weeks), or, reduce its scope as needed
-    - Make decisions regarding implementation and technical solutions for that U/S
-- An iteration planning starts each iteration:
-    - U/S are discussed and reviewed by the whole team
-    - Proposed technical solutions in relation with U/S are reviewed 
-    - New technical problems arise and are discussed in [cardano-wallet-adr](https://github.com/input-output-hk/cardano-wallet-adr) 
-- Project velocity is measured for each iteration and help estimating how big can be a single iteration
-- Tasks and PR have a dedicated GitHub template:
+**U/S**  
+As a stake pool operator  
+I want the pool ordering to be fair and not favor any particular pools especially during the bootstrapping era  
+So that every pool has the same chance to be selected by users in the early stages.
+
+**A/C**  
+Given that stake pools can be listed via https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listStakePools  
+And they are ordered by "apparent performance"  
+When I query stake pools during the first epoch (when little information about them is available)  
+Then pools are ordered arbitrarily  
+And the order is not necessarily the same between different wallets  
+And the order is consistent between successive calls within the same wallet.
+</details>
+
+
+## Iterations
+
+- The project is divided into weekly iterations called _sprints_.
+- Releases happen at the beginning of every sprints, Monday or Tuesday.
+- Every 3 sprints, the team does 1 week of recovery time (see below):
+- User stories are assigned to and owned by a single member of the team (a.k.a the pilot). Pilots are seconded by a Co-pilot as follows:
+    - The pilot should clarify product requirements as needed with the product owner(s).
+    - The pilot should break U/S into tasks (small, sizeable, chunks of work).
+    - The pilot should estimate U/S.
+    - The pilot should then implement each task of a U/S.
+    - The co-pilot should challenge the pilot's task division and review it.
+    - The co-pilot is the primary reviewer of the pilot's tasks. He may call for assistance from peers when needed.
+    - The co-pilot should challenge the pilot's implementation decisions and technical choices. 
+- Tasks and Pull Requests have a dedicated GitHub template:
     - [Task Template](https://github.com/input-output-hk/cardano-wallet/blob/master/.github/ISSUE_TEMPLATE/task.md)
     - [PR Template](https://github.com/input-output-hk/cardano-wallet/blob/master/.github/PULL_REQUEST_TEMPLATE.md)
 - Tasks move across the following board (see Task template for transitions)
@@ -42,6 +59,17 @@ The team follows a methodology known as [extreme programming][xp] which can be s
 |_____________|  |_____________|  |_____________|  |_____________|
 ```
 
+## Recovery Week
+
+- Sprinters can't run all the time. During sprints, we often accumulate technical debts (e.g. `TODO` or `FIXME`).
+- During recovery weeks, the team has a dedicated moment to tackle some of the technical debts. This includes:
+    - Reviewing and extending code documentation
+    - Refactoring some potentially entangled parts of the code
+    - Re-organizing modules and folder achitecture
+    - Fix small `TODOs` or `FIXMEs`, or, turn them into U/S 
+    - Identify areas of the source code which needs improvement
+
+
 ## Coding
 
 - The code is collectively owned, everyone is knowledgeable about every part of the code
@@ -53,14 +81,17 @@ The team follows a methodology known as [extreme programming][xp] which can be s
 - We favor simple unbloated code and use refactoring techniques to add features 
 - We test chunks of codes as we submit and integrate them, maintaining a high code coverage at all time
 
+
 ## QA 
 
-- All code should be covered by tests (either unit, integration or manual) 
+- All code should be covered by tests (either unit, integration or manual). 
+- We favor automated tests over manual testing.
 - Issues are closed by QA, once convinced by developers that the added code works and is covered
     - Developers are expected to point relevant automated or manual test procedures to QA
     - Developers may also point to documentation or, code details that ensure reliability of the code
-- When a bug is found, tests are created to illustrate the failure, prior to fixing it
+- When a bug is found, regression tests are created to illustrate the failure, prior to fixing it
 - Tests are ran daily in a integration environment
+
 
 ## Bugs
 
@@ -74,9 +105,12 @@ The team follows a methodology known as [extreme programming][xp] which can be s
 ## Communication
 
 - We have daily written, asynchronous, stand-up on Slack on a separate channel
-- A [blackboard page][blackboard] on our Wiki is dedicated to keep track of ideas and thoughts
-- We have a bi-monthly meeting every other Wednesday to plan the next iteration
-- Discussions happen on Slack, decisions are documented on GitHub as comments on issues
+- Each Wednesday, an iteration meeting is done:
+    - 1h max
+    - To do a restrospective on past U/S and estimations. 
+    - To assign new U/S to team members
+    - To discuss important matters or change in the process 
+- Discussions happen on Slack in clear threads, decisions are documented on GitHub as comments on issues
 - Our GitHub wiki can be extended at any time with insights and details about the software
 - Reports and metrics about the project are available to anyone
 - Every week, we produce a technical & non-technical report (see [weekly-reports](https://github.com/input-output-hk/cardano-wallet/tree/weekly-reports)) containing:
@@ -103,5 +137,4 @@ The team follows a methodology known as [extreme programming][xp] which can be s
 
 
 [styleguide]: https://github.com/input-output-hk/cardano-wallet/wiki/Coding-Standards
-[blackboard]: https://github.com/input-output-hk/cardano-wallet/wiki/Blackboard
 [xp]: http://www.extremeprogramming.org
