@@ -90,8 +90,9 @@ And the order is consistent between successive calls within the same wallet.
     - Developers are expected to point relevant automated or manual test procedures to QA
     - Developers may also point to documentation or, code details that ensure reliability of the code
 - When a bug is found, regression tests are created to illustrate the failure, prior to fixing it
-- Tests are ran daily in a integration environment
-
+- Tests are ran daily in a integration environment.
+- Critical parts of the code have benchmarks to identify potential bottlenecks.  
+- Code and more importantly public interfaces are well-documented and digestible.
 
 ## Bugs
 
