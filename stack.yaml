@@ -19,8 +19,8 @@ extra-deps:
 - command-0.1.1
 
 # 'zip' with an extra flag to disable bzlib2 library
-- git: https://github.com/input-output-hk/zip
-  commit: a44d339dfb454cf7cfaf1f018c47834460bd676a
+- git: https://github.com/mrkkrp/zip
+  commit: 5a39029cebc9ad5b16ed6a5f2f495714b34b02f8
 
 # persistent-2.10.2 with CASCADE DELETE support for SQLite.
 #

@@ -114,8 +114,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       };
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
-      url = "https://github.com/input-output-hk/zip";
-      rev = "a44d339dfb454cf7cfaf1f018c47834460bd676a";
+      url = "https://github.com/mrkkrp/zip";
+      rev = "5a39029cebc9ad5b16ed6a5f2f495714b34b02f8";
       sha256 = "1h5cl5vr6ipmc719sjkhnw6jdzkidwra3jilvlz5g6wm8jri1fdm";
       });
     }
