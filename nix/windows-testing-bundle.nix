@@ -54,7 +54,7 @@ in pkgs.runCommand name {
       ${testData.jormungandr}/jormungandr/config.yaml > config.yaml
 
   ${pkgs.lib.concatMapStringsSep "\n" (test: ''
-    pkg=`ls -1 ${test}`
+    pkg=`ls -1 ${test} | head -1`
     exe=`cd ${test}/$pkg; ls -1 *.exe`
     name=$pkg-test-$exe
     cp ${test}/$pkg/$exe $name
@@ -63,7 +63,7 @@ in pkgs.runCommand name {
   '') tests}
 
   ${pkgs.lib.concatMapStringsSep "\n" (bench: ''
-    pkg=`ls -1 ${bench}`
+    pkg=`ls -1 ${bench} | head -1`
     exe=`cd ${bench}/$pkg; ls -1 *.exe`
     name=$pkg-bench-$exe
     cp ${bench}/$pkg/$exe $name
