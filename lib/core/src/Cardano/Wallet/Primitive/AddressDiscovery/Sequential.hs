@@ -628,5 +628,6 @@ instance
               fingerprint
               (rewardAccountKey s)
 
-instance HasRewardAccount (SeqState n k) k where
+instance forall n k. HasRewardAccount (SeqState n k) where
+    type RewardAccountKey (SeqState n k) = k
     rewardAccount = rewardAccountKey

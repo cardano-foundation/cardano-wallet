@@ -3,7 +3,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -128,5 +128,6 @@ class KnownAddresses s where
         :: s
         -> [Address]
 
-class HasRewardAccount s k | s -> k where
-    rewardAccount :: s -> k 'AddressK XPub
+class HasRewardAccount s where
+    type RewardAccountKey s :: Depth -> * -> *
+    rewardAccount :: s -> (RewardAccountKey s) 'AddressK XPub

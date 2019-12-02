@@ -666,7 +666,8 @@ fetchRewardBalance
     :: forall ctx s k t.
         ( HasDBLayer s k ctx
         , HasNetworkLayer t ctx
-        , HasRewardAccount s k
+        , HasRewardAccount s
+        , k ~ RewardAccountKey s
         , WalletKey k
         )
     => ctx
@@ -707,7 +708,8 @@ listAddresses
         , KnownAddresses s
         , MkKeyFingerprint k Address
         , DelegationAddress n k
-        , HasRewardAccount s k
+        , HasRewardAccount s
+        , k ~ RewardAccountKey s
         )
     => ctx
     -> WalletId
