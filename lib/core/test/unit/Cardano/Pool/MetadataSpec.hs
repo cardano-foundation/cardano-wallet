@@ -38,8 +38,6 @@ import Data.Aeson
     ( encode )
 import Data.ByteString
     ( ByteString )
-import Data.FileEmbed
-    ( makeRelativeToProject )
 import Data.Maybe
     ( mapMaybe )
 import Network.Wai.Application.Static
@@ -67,11 +65,12 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor, run )
+import Test.Utils.Paths
+    ( getTestData )
 
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
-import qualified Language.Haskell.TH.Syntax as TH
 
 spec :: Spec
 spec = do
@@ -110,8 +109,7 @@ testServer root = withApplication (pure app)
     where app = staticApp $ defaultWebAppSettings root
 
 dataDir :: FilePath
-dataDir = $( TH.LitE . TH.StringL <$>
-    makeRelativeToProject "test/data/stake-pool-registry" )
+dataDir = $(getTestData) </> "stake-pool-registry"
 
 -- | Make a file server URL for the test data file.
 -- This file was downloaded from <https://github.com/input-output-hk/testnet-stake-pool-registry/archive/master.zip>

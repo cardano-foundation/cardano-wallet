@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Faucet
@@ -57,8 +58,6 @@ import Data.ByteString
     ( ByteString )
 import Data.Text
     ( Text )
-import Paths_cardano_wallet_jormungandr
-    ( getDataFileName )
 import System.Command
     ( CmdResult, Stdout (..), command )
 import System.FilePath
@@ -67,6 +66,8 @@ import System.IO.Temp
     ( withSystemTempDirectory )
 import Test.Integration.Faucet
     ( Faucet (..) )
+import Test.Utils.Paths
+    ( getTestData )
 
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.ByteString as BS
@@ -84,10 +85,9 @@ initFaucet = Faucet
     <*> newMVar (mkTxBuilder <$> externalAddresses)
 
 getBlock0H :: IO (Hash "Genesis")
-getBlock0H = do
-    block0 <- getDataFileName "jormungandr/block0.bin"
-    extractId <$> BL.readFile block0
+getBlock0H = extractId <$> BL.readFile block0
   where
+    block0 = $(getTestData) </> "jormungandr" </> "block0.bin"
     extractId = Hash . getHash . runGet getBlockId
 
 getBlock0HText :: IO Text

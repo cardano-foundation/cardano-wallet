@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -30,8 +31,6 @@ import Data.Text.Class
     ( toText )
 import Network.HTTP.Client
     ( defaultManagerSettings, newManager )
-import Paths_cardano_wallet_jormungandr
-    ( getDataFileName )
 import System.Command
     ( Exit (..), Stderr (..), Stdout (..) )
 import System.Directory
@@ -47,7 +46,7 @@ import System.IO.Temp
 import System.Process
     ( terminateProcess, withCreateProcess )
 import Test.Hspec
-    ( Spec, describe, it, pendingWith, runIO )
+    ( Spec, describe, it, pendingWith )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain )
 import Test.Integration.Framework.DSL
@@ -63,6 +62,8 @@ import Test.Integration.Framework.DSL
     , state
     , waitForServer
     )
+import Test.Utils.Paths
+    ( getTestData )
 import Test.Utils.Ports
     ( findPort )
 
@@ -70,8 +71,9 @@ import qualified Data.Text.IO as TIO
 
 spec :: forall t. (KnownCommand t) => Spec
 spec = do
-    block0 <- runIO $ getDataFileName "jormungandr/block0.bin"
-    secret <- runIO $ getDataFileName "jormungandr/secret.yaml"
+    let testData = $(getTestData) </> "jormungandr"
+    let block0 = testData </> "block0.bin"
+    let secret = testData </> "secret.yaml"
     describe "LAUNCH - cardano-wallet launch [SERIAL]" $ do
         it "LAUNCH - Stop when --state-dir is an existing file" $ withTempFile $ \f _ -> do
             let args =
