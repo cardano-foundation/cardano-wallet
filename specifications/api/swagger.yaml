@@ -210,6 +210,20 @@ x-walletBalance: &walletBalance
       <<: *amount
       description: Total balance (available balance plus pending change)
 
+x-byronWalletBalance: &byronWalletBalance
+  description: Byron wallet's current balance(s)
+  type: object
+  required:
+    - available
+    - total
+  properties:
+    available:
+      <<: *amount
+      description: Available balance (funds that can be spent)
+    total:
+      <<: *amount
+      description: Total balance (available balance plus pending change)
+
 x-walletDelegation: &walletDelegation
   description: Delegation settings
   type: object
@@ -571,7 +585,7 @@ definitions:
       - tip
     properties:
       id: *walletId
-      balance: *walletBalance
+      balance: *byronWalletBalance
       name: *walletName
       passphrase: *walletPassphraseInfo
       state: *walletState
