@@ -875,10 +875,10 @@ eventuallyUsingDelay
     -> IO a
     -> IO a
 eventuallyUsingDelay delay io = do
-    winner <- race (threadDelay $ 600 * oneSecond) trial
+    winner <- race (threadDelay $ 180 * oneSecond) trial
     case winner of
         Left _ -> fail
-            "waited more than 5min for action to eventually resolve."
+            "waited more than 3min for action to eventually resolve."
         Right a ->
             return a
   where

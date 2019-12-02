@@ -521,7 +521,7 @@ putFragment (Hash block0Hash) inputs outputs = \case
     --     *WITNESS          ; as many as indicated in the number of inputs
     putTransaction putPayload witTag = do
         putInputsOutputs
-        mapM_ (flip (putWitness putPayload) witTag) (snd <$> inputs)
+        mapM_ (putWitness putPayload witTag) (snd <$> inputs)
 
     putInputsOutputs = do
         guardLength (<= maxNumberOfInputs) inputs
@@ -551,11 +551,11 @@ putFragment (Hash block0Hash) inputs outputs = \case
     -- WITNESS-UTXO      = %x01 ED25519-SIGNATURE
     -- WITNESS-ACCOUNT   = %x02 SINGLE-ACNT-SIG
     -- WITNESS-MULTISIG  = %x03 MULTI-ACNT-SIG
-    putWitness (putPayload :: Put) (xprv, Passphrase pwd) = \case
-        tag@TxWitnessUTxO -> do
+    putWitness (putPayload :: Put) tag (xprv, Passphrase pwd) = case tag of
+        TxWitnessUTxO -> do
             putTxWitnessTag tag
             putByteString $ unXSignature $ sign pwd xprv msg
-        tag@TxWitnessLegacyUTxO -> do
+        TxWitnessLegacyUTxO -> do
             putTxWitnessTag tag
             putByteString $ unXPub $ toXPub xprv
             putByteString $ unXSignature $ sign pwd xprv msg
@@ -565,7 +565,8 @@ putFragment (Hash block0Hash) inputs outputs = \case
             error "putWitness: TxWitnessMultisig: not implemented"
       where
         msg = mconcat
-            [ block0Hash
+            [ BL.toStrict $ runPut (putTxWitnessTag tag)
+            , block0Hash
             , blake2b256 $ BL.toStrict $ runPut $ do
                 putPayload
                 putInputsOutputs
