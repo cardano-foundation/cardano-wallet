@@ -169,7 +169,6 @@ import Cardano.Wallet.Primitive.Types
     , HistogramBar (..)
     , PoolId
     , SortOrder (..)
-    , SyncProgress (..)
     , SyncTolerance
     , TransactionInfo (TransactionInfo)
     , Tx (..)
@@ -494,10 +493,8 @@ getWallet
     => ctx
     -> ApiT WalletId
     -> Handler ApiWallet
-getWallet ctx (ApiT wid) = do
-    reward <- liftHandler $ withWorkerCtx ctx wid (throwE . ErrFetchRewardsNoSuchWallet) $
-            \wrk -> W.fetchRewardBalance @_ @s @k @t wrk wid
-    fst <$> getWalletWithCreationTime (mkApiWallet reward) ctx (ApiT wid)
+getWallet ctx (ApiT wid) =
+    fst <$> getWalletWithCreationTime ctx wid
 
 listWallets
     :: forall ctx s t k n.
@@ -510,13 +507,9 @@ listWallets
 listWallets ctx = do
     wids <- liftIO $ Registry.keys re
     fmap fst . sortOn snd <$>
-        mapM mkWallet wids
+        mapM (getWalletWithCreationTime ctx) wids
   where
     re = ctx ^. workerRegistry @s @k
-    mkWallet wid = do
-        reward <- liftHandler $ withWorkerCtx ctx wid (throwE . ErrFetchRewardsNoSuchWallet) $
-                \wrk -> W.fetchRewardBalance @_ @s @k @t wrk wid
-        getWalletWithCreationTime (mkApiWallet reward) ctx (ApiT wid)
 
 postWallet
     :: forall ctx s t k n.
@@ -948,8 +941,8 @@ getByronWallet
     => ApiLayer (RndState 'Mainnet) t k
     -> ApiT WalletId
     -> Handler ApiByronWallet
-getByronWallet ctx wid =
-    fst <$> getWalletWithCreationTime mkApiByronWallet ctx wid
+getByronWallet ctx (ApiT wid) =
+    fst <$> getByronWalletWithCreationTime ctx wid
 
 getByronWalletMigrationInfo
     :: forall ctx s t k.
@@ -1034,7 +1027,7 @@ listByronWallets
 listByronWallets ctx = do
     wids <- liftIO $ Registry.keys re
     fmap fst . sortOn snd <$>
-        mapM (getWalletWithCreationTime mkApiByronWallet ctx) (ApiT <$> wids)
+        mapM (getByronWalletWithCreationTime ctx) wids
   where
     re = ctx ^. workerRegistry @s @k
 
@@ -1188,54 +1181,51 @@ natural :: Quantity q Word32 -> Quantity q Natural
 natural = Quantity . fromIntegral . getQuantity
 
 getWalletWithCreationTime
-    :: forall s t k w. ()
-    => (WalletId -> Wallet s -> WalletMetadata -> SyncProgress -> Set Tx -> w)
-    -> ApiLayer s t k
-    -> ApiT WalletId
-    -> Handler (w, UTCTime)
-getWalletWithCreationTime mk ctx (ApiT wid) = do
+    :: forall s t k n. (s ~ SeqState n k, WalletKey k)
+    => ApiLayer s t k
+    -> WalletId
+    -> Handler (ApiWallet, UTCTime)
+getWalletWithCreationTime ctx wid = do
+    (wallet, meta, pending) <-
+        liftHandler $ withWorkerCtx ctx wid throwE $
+            \wrk -> W.readWallet wrk wid
+    reward <- liftHandler $ withWorkerCtx ctx wid (throwE . ErrFetchRewardsNoSuchWallet) $
+            \wrk -> W.fetchRewardBalance @_ @s @k @t wrk wid
+    progress <- liftIO $ W.walletSyncProgress ctx wallet
+
+    let apiWallet = ApiWallet
+            { addressPoolGap = ApiT $ getState wallet ^. #externalPool . #gap
+            , balance = getWalletBalance wallet pending reward
+            , delegation = ApiT $ ApiT <$> meta ^. #delegation
+            , id = ApiT wid
+            , name = ApiT $ meta ^. #name
+            , passphrase = ApiT <$> meta ^. #passphraseInfo
+            , state = ApiT progress
+            , tip = getWalletTip wallet
+            }
+    return (apiWallet, meta ^. #creationTime)
+
+
+getByronWalletWithCreationTime
+    :: forall s t k. (s ~ RndState 'Mainnet)
+    => ApiLayer s t k
+    -> WalletId
+    -> Handler (ApiByronWallet, UTCTime)
+getByronWalletWithCreationTime ctx wid = do
     (wallet, meta, pending) <-
         liftHandler $ withWorkerCtx ctx wid throwE $
             \wrk -> W.readWallet wrk wid
     progress <- liftIO $ W.walletSyncProgress ctx wallet
-    return (mk wid wallet meta progress pending, meta ^. #creationTime)
 
-mkApiWallet
-    :: forall s k n. (s ~ SeqState n k)
-    => Quantity "lovelace" Word64
-    -> WalletId
-    -> Wallet s
-    -> WalletMetadata
-    -> SyncProgress
-    -> Set Tx
-    -> ApiWallet
-mkApiWallet reward wid wallet meta progress pending = ApiWallet
-    { addressPoolGap = ApiT $ getState wallet ^. #externalPool . #gap
-    , balance = getWalletBalance wallet pending reward
-    , delegation = ApiT $ ApiT <$> meta ^. #delegation
-    , id = ApiT wid
-    , name = ApiT $ meta ^. #name
-    , passphrase = ApiT <$> meta ^. #passphraseInfo
-    , state = ApiT progress
-    , tip = getWalletTip wallet
-    }
-
-mkApiByronWallet
-    :: forall s. (s ~ RndState 'Mainnet)
-    => WalletId
-    -> Wallet s
-    -> WalletMetadata
-    -> SyncProgress
-    -> Set Tx
-    -> ApiByronWallet
-mkApiByronWallet wid wallet meta progress pending = ApiByronWallet
-    { balance = getByronWalletBalance wallet pending
-    , id = ApiT wid
-    , name = ApiT $ meta ^. #name
-    , passphrase = ApiT <$> meta ^. #passphraseInfo
-    , state = ApiT progress
-    , tip = getWalletTip wallet
-    }
+    let apiByronWallet = ApiByronWallet
+            { balance = getByronWalletBalance wallet pending
+            , id = ApiT wid
+            , name = ApiT $ meta ^. #name
+            , passphrase = ApiT <$> meta ^. #passphraseInfo
+            , state = ApiT progress
+            , tip = getWalletTip wallet
+            }
+    return (apiByronWallet, meta ^. #creationTime)
 
 getWalletBalance
     :: Wallet s
