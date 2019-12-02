@@ -166,9 +166,9 @@ mkStdTxSpec = do
             "00c000020102000000000000002710666984dec4bc0ff1888be97bfe0694a96b35\
             \c58d025405ead51d5cc72a3019f403b2ddcfbf631000216a6e0410e64c20e6af91\
             \bbb2826276ad6bfda777e766b24b000000000000000e0302ada8baca6d3a889a89\
-            \3da29aa8a291460d7ec95b36404bf094c1a72f2775a60000000000002702012c36\
-            \bb92280d2f627e85bf4ce363214f3a20f35944867ea74f38559ac6f34906fdbc9c\
-            \3384cb86e49ea8c2aacb066d75db18171deaed7323665aef25505e5701"
+            \3da29aa8a291460d7ec95b36404bf094c1a72f2775a60000000000002702010d05\
+            \360e86f1cdd145f03275b1703e7eb34112c00b6dfc81cdbf4eb1d936fa0d016191\
+            \3c818a33bb1b91835736fd142dd6d88e77ce2aff5a9437703325747e0c"
 
         -- jcli transaction new \
         --   | jcli transaction add-input $TXIN0 0 10000 \
@@ -208,21 +208,21 @@ mkStdTxSpec = do
             \836014ba0b626b1808e67e75dfa370c2dc5f581715fe000000000001869f03b2dd\
             \cfbf631000216a6e0410e64c20e6af91bbb2826276ad6bfda777e766b24b000000\
             \000000002a0302ada8baca6d3a889a893da29aa8a291460d7ec95b36404bf094c1\
-            \a72f2775a6000000000000053901815cc9a2ad72e0bc5dc76f6152c38761fc2943\
-            \2529c55b48973b540c63eb8e5597d8b59de5adc25c2e4e33212ef326e044e6266c\
-            \3d8e5e65d110abd63d39460501d28ca6334756ddd335eaada4a7491373b4d72069\
-            \78080f5ac10474c7f6decbbc35f1620817b15bf1594981c034b7f6a15d0a24ec74\
-            \3d332f1774eb8733a5d40c"
+            \a72f2775a600000000000005390168f81e53613b36e6aeae7ed33c57648d2fa5fa\
+            \8bf2b5a8c15f80e6171e4e2779718a5fd267dc239770c242a7aab186e804e5290a\
+            \b5dded082f7a2a309b18aa0201a0bb8e90c086e59680faa9c414236deff83f9cda\
+            \268e2fae6cdf6fad382f2d00ae20857916797f4a4687daaa544bde5cd9f0ffaa6a\
+            \ba33ca696125f5a2e06a07"
 
         -- Delegation tx (without fees)
         --
         -- POOLID=5aac0894709438314ec1c8b0697820fc2efaac914768b53e54d68b0bce17a9a8
         --
         -- jcli certificate new stake-delegation \
-        --   $(echo $XPRV0 | jcli key to-public) \
+        --   $(echo $XPRV0 | jcli key from-bytes --type ed25519extended | jcli key to-public) \
         --   $POOLID > deleg.cert
         --
-        -- echo $XPRV0 > xprv0.prv
+        -- echo $XPRV0 | jcli key from-bytes --type ed25519extended > xprv0.prv
         --
         -- jcli certificate sign -c deleg.cert -k xprv0.prv -o deleg.signedcert
         --
@@ -274,11 +274,11 @@ mkStdTxSpec = do
             "00f000042d155d07184387ba6ff8836014ba0b626b1808e67e75dfa370c2dc5f58\
             \1715fe015aac0894709438314ec1c8b0697820fc2efaac914768b53e54d68b0bce\
             \17a9a8010000000000000000002a666984dec4bc0ff1888be97bfe0694a96b35c5\
-            \8d025405ead51d5cc72a3019f40179e6b8dc3885f26bea38de7e48adeb985e1d70\
-            \b79aa1f6e150c2b61795dbb8d2e2fb76ae59ca862f28431ab318ef622999c25a4e\
-            \d4947f299b5020a74317e70e0162aee0d27ff232fa09b588483ba861fc374df790\
-            \0836e07eb80bd2fc88684eb32d9b500db025cd0c3f8b83a86c6ac61d9426e61e99\
-            \99a80e7ea19df8fe49c701"
+            \8d025405ead51d5cc72a3019f40188fdf7b9d26be460d9b90a3af4b8f3d1c13504\
+            \2f5b3134504061df289f017fae296a47e899ca2746ec79eca7d270694872e6bdec\
+            \d63fb7dc7bb7f1256ac7e909014fb2d07451991b6b5a1dcae8dabecaaaa920b5b1\
+            \7b2402291d22019571e180ccf88d906eb53ba71d897362542014ef21ae0e463310\
+            \1e196c98c25bf5937a1c06"
 
     describe "mkStdTx (legacy) 'Mainnet" $ do
         let tl = newTransactionLayer block0
@@ -322,9 +322,9 @@ mkStdTxSpec = do
             \bbb2826276ad6bfda777e766b24b000000000000000e0302ada8baca6d3a889a89\
             \3da29aa8a291460d7ec95b36404bf094c1a72f2775a6000000000000270200260e\
             \3f0867d341caf86f9b7bd9689f1b21f04dad05711ea3594cc441f159a723537824\
-            \aee5526bd50c6cc32113911bd591e3a3601326513ed88151ce8dbdfa488754e00a\
-            \b7e4f1e8d7534cd654b82b3eab841bb387113e46f9902519a94f9296b83a5fb997\
-            \934c1cba5ccefc42e55b59c70752b356a77307f1a32e686a42970c"
+            \aee5526bd50c6cc32113911bd591e3a3601326513ed88151ce8dbdfa48d1a5bc78\
+            \8fd6186fc9924146d32ce687a80ea67c95e03fac6389dfe008cdba37f062174ddb\
+            \01e30555c2c5aa07ecb618d15be4a96a4837d2296cdf51dd310808"
 
         -- jcli transaction new \
         --   | jcli transaction add-input $TXIN0 0 10000 \
@@ -364,13 +364,13 @@ mkStdTxSpec = do
             \000000002a0302ada8baca6d3a889a893da29aa8a291460d7ec95b36404bf094c1\
             \a72f2775a6000000000000053900260e3f0867d341caf86f9b7bd9689f1b21f04d\
             \ad05711ea3594cc441f159a723537824aee5526bd50c6cc32113911bd591e3a360\
-            \1326513ed88151ce8dbdfa4817c80704772729b5c0b2583abe0a3e675e2227879a\
-            \7452882ba9733baa03bfb9ec2ff75e086fdf8f8fd89c2c3ef9b9c4052e7096dd9f\
-            \c12fc22541394a0b3d0d000205b66108c02e4d6dbc4c70adaa27d22ea2adeffe0d\
+            \1326513ed88151ce8dbdfa4801136baa5ec7f8e4cc0ca35b2f0c71aa8b0f3fb91f\
+            \0117f07e644f31347baa198585aa7f5c86e707586a4c8faaa0c27bd024f95ada08\
+            \ea32cd2ac1a8e9942807000205b66108c02e4d6dbc4c70adaa27d22ea2adeffe0d\
             \e009c099ac230b520917d2c23ec4bf897f4fd236c676988b62877259f81bd9f08d\
-            \4355d5fe6b96cda06db052067dafcc5b525efe2bd9d03d21c356aa1b82887126a2\
-            \185231c749a117d70641583fe739d6b59fab049028ad68cbe935910251eb4aacb8\
-            \035353e609e400"
+            \4355d5fe6b96cda06d2b5c3c589a20d24586a63c56373b21e8cc900b606dd88851\
+            \93e2a68a1d9f3fd685a492f66b33f72f5194d7ff8bb2e2c020ba4ed287ee9b296d\
+            \db65a57699fe09"
 
     describe "mkStdTx 'Testnet" $ do
         let tl = newTransactionLayer block0
@@ -398,9 +398,9 @@ mkStdTxSpec = do
             "00c000020102000000000000002710666984dec4bc0ff1888be97bfe0694a96b35\
             \c58d025405ead51d5cc72a3019f483b2ddcfbf631000216a6e0410e64c20e6af91\
             \bbb2826276ad6bfda777e766b24b000000000000000e8302ada8baca6d3a889a89\
-            \3da29aa8a291460d7ec95b36404bf094c1a72f2775a6000000000000270201c2c5\
-            \64f812120d6c6efdaeb1781b5db14d0f109d749db39083a65d28c123eb1fc7b776\
-            \2add66f34c185212b4a4133b9fdc857487cc4497fc356ed01e91726c0d"
+            \3da29aa8a291460d7ec95b36404bf094c1a72f2775a600000000000027020135f1\
+            \2dab4dcc757f9f6aceac7c0a9913dc2523aeb09e8657f7978556046dd352e1e2c2\
+            \ba899d5f2ad209c05aadd2e3c4306add4a6fcec9a3491804f667a0b708"
 
         -- See 'Mainnet description
         goldenTestStdTx tl keystore
@@ -417,11 +417,11 @@ mkStdTxSpec = do
             \836014ba0b626b1808e67e75dfa370c2dc5f581715fe000000000001869f83b2dd\
             \cfbf631000216a6e0410e64c20e6af91bbb2826276ad6bfda777e766b24b000000\
             \000000002a8302ada8baca6d3a889a893da29aa8a291460d7ec95b36404bf094c1\
-            \a72f2775a60000000000000539015e70794cd622240a1482f7aae5cd2abd4054e1\
-            \06f0d590e37f0a4555a58ebcedbae7ba8de6bf952d480311c7f325e99f84b1b312\
-            \b0255545d62c97b00a4b16040137bd006254850d77ac2fcb273d6b9b6076133a36\
-            \60d6bd5c813d6f3f454f4935b009eabbac1ffd768a07e37773e5b568e8c76c57e5\
-            \3da6b26d3da9f466b78200"
+            \a72f2775a6000000000000053901d1399f9728cb4b14a10afba14bd18a80a536ad\
+            \3eba863c4b0557b2965c15c3945f9505e282a2d7281485fb65cfca4ab266ab9509\
+            \4122ed3d5d62669ed0eb4e060113cb632d99a59f7b8c5fb5d819bbde8f75991078\
+            \388269acb895cd9595b9fed743b77c545efc9627d06181b229d33485b3475349c2\
+            \9bba975d1d26e3dc1bba05"
 
     describe "mkStdTx (legacy) 'Testnet" $ do
         let tl = newTransactionLayer block0
@@ -453,9 +453,9 @@ mkStdTxSpec = do
             \bbb2826276ad6bfda777e766b24b000000000000000e8302ada8baca6d3a889a89\
             \3da29aa8a291460d7ec95b36404bf094c1a72f2775a6000000000000270200260e\
             \3f0867d341caf86f9b7bd9689f1b21f04dad05711ea3594cc441f159a723537824\
-            \aee5526bd50c6cc32113911bd591e3a3601326513ed88151ce8dbdfa486fb2c7b4\
-            \bf45910e1a07f26209654a00541d918a49f0339bb820da724f165df1c647ccfc6e\
-            \5cde86dd31e154b7cc6beef06d561359a2d102f8b3de15b5990007"
+            \aee5526bd50c6cc32113911bd591e3a3601326513ed88151ce8dbdfa4866949112\
+            \0c811864e854f8d773bc7cda8ed18919a598e443814abbd0a463873668a47322be\
+            \62f343985002343ea3f7b0b8b11afc57def4d3820198f666b17306"
 
         -- See 'Mainnet description
         goldenTestStdTx tl keystore
@@ -474,13 +474,13 @@ mkStdTxSpec = do
             \000000002a8302ada8baca6d3a889a893da29aa8a291460d7ec95b36404bf094c1\
             \a72f2775a6000000000000053900260e3f0867d341caf86f9b7bd9689f1b21f04d\
             \ad05711ea3594cc441f159a723537824aee5526bd50c6cc32113911bd591e3a360\
-            \1326513ed88151ce8dbdfa48b1c5041340c009641039e1dcdf436ecc2e7f219d3d\
-            \d3aa93b5841662b45e04e8232050f3c42cb64ca45219deb841ecef026488fbf0d6\
-            \532589c4e50fd7a11d00000205b66108c02e4d6dbc4c70adaa27d22ea2adeffe0d\
+            \1326513ed88151ce8dbdfa481da1640d1d25733ee2935877bfba2b109ac34bba1c\
+            \2b109a2303e8a76267ee0b890ae01e7cb8e0128b85469f4c279017657a49b72daf\
+            \e9c6930cd040dc675008000205b66108c02e4d6dbc4c70adaa27d22ea2adeffe0d\
             \e009c099ac230b520917d2c23ec4bf897f4fd236c676988b62877259f81bd9f08d\
-            \4355d5fe6b96cda06db22f7d78f0ff0ec3a7c7fbc3da777a6aea6aeddd8ffef0be\
-            \b80afd3ba2dd9972585ae74b5876cca3301cee381daf5f9e10b5f8da2f2b9eabba\
-            \26bc5c0f01b803"
+            \4355d5fe6b96cda06dbb3810284f7d1924149ac69a1e097532225aaec68ce5245c\
+            \1cc0ceba2ed3d8ecb45280e8d7130ffaebee86fe3db7b03acbeaacebd444557709\
+            \652ae7b5566604"
 
     describe "mkStdTx unknown input" $ do
         unknownInputTest (Proxy @'Mainnet) block0
