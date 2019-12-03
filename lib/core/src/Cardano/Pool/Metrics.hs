@@ -82,6 +82,8 @@ import Data.Quantity
     ( Percentage, Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Vector.Shuffle
+    ( mkSeed, shuffleWith )
 import Data.Word
     ( Word64 )
 import Fmt
@@ -211,6 +213,8 @@ newStakePoolLayer db@DBLayer{..} nl tr = StakePoolLayer
         nodeTip <- withExceptT ErrListStakePoolsErrNetworkTip
             $ networkTip nl
         let nodeEpoch = nodeTip ^. #slotId . #epochNumber
+        let genesisEpoch = block0 ^. #header . #slotId . #epochNumber
+        let isFirstEpoch = nodeEpoch == genesisEpoch
 
         (distr, prod) <- liftIO . atomically $ (,)
             <$> (Map.fromList <$> readStakeDistribution nodeEpoch)
@@ -219,25 +223,37 @@ newStakePoolLayer db@DBLayer{..} nl tr = StakePoolLayer
         when (Map.null distr || Map.null prod) $ do
             computeProgress nodeTip >>= throwE . ErrMetricsIsUnsynced
 
-        perfs <- liftIO $
-            readPoolsPerformances db epochLength (nodeTip ^. #slotId)
+        perfs <-
+            if isFirstEpoch then
+            pure mempty
+            else
+            liftIO $ readPoolsPerformances db epochLength (nodeTip ^. #slotId)
 
         case combineMetrics distr prod perfs of
-            Right x -> return
-                $ sortOn (Down . apparentPerformance)
+            Right x ->
+                ( if isFirstEpoch
+                    then lift . sortArbitrarily
+                    else pure . sortByPerformance
+                )
                 $ map (uncurry mkStakePool)
                 $ Map.toList x
             Left e ->
                 throwE $ ErrListStakePoolsMetricsInconsistency e
     }
   where
-    (_, bp) = staticBlockchainParameters nl
+    (block0, bp) = staticBlockchainParameters nl
     epochLength = bp ^. #getEpochLength
 
     poolProductionTip :: IO (Maybe BlockHeader)
     poolProductionTip = atomically $ readPoolProductionCursor 1 >>= \case
         [x] -> return $ Just x
         _ -> return Nothing
+
+    sortByPerformance :: [StakePool] -> [StakePool]
+    sortByPerformance = sortOn (Down . apparentPerformance)
+
+    sortArbitrarily :: [StakePool] -> IO [StakePool]
+    sortArbitrarily = shuffleWith (mkSeed "TODO: arbitrary seed")
 
     mkStakePool
         :: PoolId
