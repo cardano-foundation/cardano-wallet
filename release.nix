@@ -41,6 +41,7 @@ let
         jobs.native.shell.x86_64-darwin
         jobs.cardano-wallet-jormungandr-win64
         jobs.cardano-wallet-jormungandr-macos64
+        jobs.cardano-wallet-jormungandr-tests-win64
       ]
     );
 

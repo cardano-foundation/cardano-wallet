@@ -18,6 +18,10 @@ extra-deps:
 - quickcheck-state-machine-0.6.0
 - command-0.1.1
 
+# 'zip' with an extra flag to disable bzlib2 library
+- git: https://github.com/mrkkrp/zip
+  commit: 5a39029cebc9ad5b16ed6a5f2f495714b34b02f8
+
 # persistent-2.10.2 with CASCADE DELETE support for SQLite.
 #
 # See: https://github.com/input-output-hk/persistent/tree/cardano-wallet
@@ -50,6 +54,10 @@ flags:
     disable-gui: true
     disable-prometheus: true
     disable-systemd: true
+
+  # Avoid a system library which causes difficulty with cross-compilation
+  zip:
+    disable-bzip2: true
 
 nix:
   shell-file: nix/stack-shell.nix
