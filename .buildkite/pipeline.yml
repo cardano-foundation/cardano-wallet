@@ -41,3 +41,5 @@ steps:
       - "./docker-build-push"
     agents:
       system: x86_64-linux
+    soft_fail:
+      - exit_status: '*'
