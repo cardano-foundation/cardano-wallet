@@ -139,6 +139,7 @@ library
       Data.Time.Text
       Data.Time.Utils
       Data.Quantity
+      Data.Vector.Shuffle
       Network.Wai.Middleware.ServantError
       Network.Wai.Middleware.Logging
   other-modules:
@@ -262,6 +263,7 @@ test-suite unit
       Data.QuantitySpec
       Data.Time.TextSpec
       Data.Time.UtilsSpec
+      Data.Vector.ShuffleSpec
       Network.Wai.Middleware.LoggingSpec
       Spec
 

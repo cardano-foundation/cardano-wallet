@@ -171,11 +171,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..) )
 import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (..)
-    , CoinSelectionOptions (..)
-    , ErrCoinSelection (..)
-    , shuffle
-    )
+    ( CoinSelection (..), CoinSelectionOptions (..), ErrCoinSelection (..) )
 import Cardano.Wallet.Primitive.CoinSelection.Migration
     ( depleteUTxO, idealBatchSize )
 import Cardano.Wallet.Primitive.Fee
@@ -287,6 +283,8 @@ import Data.Text
     ( Text )
 import Data.Time.Clock
     ( UTCTime, getCurrentTime )
+import Data.Vector.Shuffle
+    ( shuffle )
 import Data.Word
     ( Word16 )
 import Fmt
