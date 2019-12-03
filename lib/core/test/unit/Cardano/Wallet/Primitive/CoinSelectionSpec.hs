@@ -25,11 +25,7 @@ module Cardano.Wallet.Primitive.CoinSelectionSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (..)
-    , CoinSelectionOptions (..)
-    , ErrCoinSelection (..)
-    , shuffle
-    )
+    ( CoinSelection (..), CoinSelectionOptions (..), ErrCoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
@@ -45,6 +41,8 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
     ( catMaybes )
+import Data.Vector.Shuffle
+    ( shuffle )
 import Data.Word
     ( Word64, Word8 )
 import Fmt
@@ -55,7 +53,6 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Confidence (..)
     , Gen
-    , NonEmptyList (..)
     , Property
     , checkCoverageWith
     , choose
@@ -70,20 +67,13 @@ import Test.QuickCheck.Monadic
     ( monadicIO )
 
 import qualified Data.ByteString as BS
-import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Test.QuickCheck.Monadic as QC
 
 spec :: Spec
 spec = do
-    describe "Coin selection properties : shuffle" $ do
-        it "every non-empty list can be shuffled, ultimately"
-            (checkCoverageWith lowerConfidence prop_shuffleCanShuffle)
-        it "shuffle is non-deterministic"
-            (checkCoverageWith lowerConfidence prop_shuffleNotDeterministic)
-        it "sort (shuffled xs) == sort xs"
-            (checkCoverageWith lowerConfidence prop_shufflePreserveElements)
+    describe "Coin selection properties" $ do
         it "UTxO toList order deterministic" $
             checkCoverageWith
                 lowerConfidence
@@ -95,28 +85,6 @@ spec = do
 {-------------------------------------------------------------------------------
                                  Properties
 -------------------------------------------------------------------------------}
-
-prop_shuffleCanShuffle
-    :: NonEmptyList Int
-    -> Property
-prop_shuffleCanShuffle (NonEmpty xs) = monadicIO $ QC.run $ do
-    xs' <- shuffle xs
-    return $ cover 90 (xs /= xs') "shuffled" ()
-
-prop_shuffleNotDeterministic
-    :: NonEmptyList Int
-    -> Property
-prop_shuffleNotDeterministic (NonEmpty xs) = monadicIO $ QC.run $ do
-    xs1 <- shuffle xs
-    xs2 <- shuffle xs
-    return $ cover 90 (xs1 /= xs2) "not deterministic" ()
-
-prop_shufflePreserveElements
-    :: [Int]
-    -> Property
-prop_shufflePreserveElements xs = monadicIO $ QC.run $ do
-    xs' <- shuffle xs
-    return $ cover 90 (not $ null xs) "non-empty" (L.sort xs == L.sort xs')
 
 prop_utxoToListOrderDeterministic
     :: UTxO
