@@ -638,7 +638,7 @@ rewardAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, mempty) mempty
 
 -- | Make a prefixed bytestring for use as a Hash or Address.
 label :: Show n => String -> n -> B8.ByteString
-label prefix n = B8.pack (prefix <> show n)
+label prefix n = B8.take 32 $ B8.pack (prefix <> show n) <> B8.replicate 32 '0'
 
 mkAddress :: Int -> Int -> Address
 mkAddress i j =
