@@ -30,7 +30,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Monad
-    ( forM_ )
+    ( forM_, replicateM )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -67,7 +67,7 @@ import Test.Hspec
     , shouldReturn
     )
 import Test.QuickCheck
-    ( Property, classify, counterexample, property )
+    ( Positive (..), Property, classify, counterexample, property )
 import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor, run )
 
@@ -129,6 +129,8 @@ properties = do
             (property . prop_putStakeReadStake)
         it "readStake . putStake a1 . putStake s0 == pure a1"
             (property . prop_putStakePutStake)
+        it "readSystemSeed is idempotent"
+            (property . prop_readSystemSeedIdempotent)
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -344,6 +346,22 @@ prop_putStakePutStake DBLayer {..} epoch a b =
         monitor $ classify (null b) "b is empty"
         monitor $ classify (null a && null b) "a & b are empty"
         assert (L.sort res == L.sort b)
+
+-- | successive readSystemSeed yield the exact same value
+prop_readSystemSeedIdempotent
+    :: DBLayer IO
+    -> Positive Int
+    -> Property
+prop_readSystemSeedIdempotent DBLayer{..} (Positive n) =
+    monadicIO (setup >> prop)
+  where
+    setup = run $ atomically cleanDB
+    prop = do
+        seeds <- map show <$> replicateM n (run $ atomically readSystemSeed)
+        let firstS = head seeds
+        monitor $ counterexample $ show seeds
+        monitor $ counterexample $ show $ filter (/= firstS) seeds
+        assert (all (== firstS) seeds)
 
 descSlotsPerPool :: Map PoolId [BlockHeader] -> Expectation
 descSlotsPerPool pools = do
