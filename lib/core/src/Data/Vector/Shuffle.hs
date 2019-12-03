@@ -8,10 +8,14 @@ import Prelude
 
 import Control.Monad
     ( forM_ )
+import Control.Monad.Trans.Class
+    ( lift )
+import Control.Monad.Trans.State.Strict
+    ( evalStateT, state )
 import Data.Vector.Mutable
     ( IOVector )
 import System.Random
-    ( randomRIO )
+    ( RandomGen, newStdGen, randomR )
 
 import qualified Data.Vector as V
 import qualified Data.Vector.Mutable as MV
@@ -21,11 +25,16 @@ import qualified Data.Vector.Mutable as MV
 -- >>> shuffle (outputs coinSel)
 -- [...]
 shuffle :: [a] -> IO [a]
-shuffle = modifyInPlace $ \v -> do
+shuffle xs = newStdGen >>= flip shuffleWith xs
+
+-- | Like 'shuffle', but from a given seed. 'shuffle' will use a randomly
+-- generate seed using 'newStdGen' from @System.Random@.
+shuffleWith :: RandomGen g => g -> [a] -> IO [a]
+shuffleWith seed = modifyInPlace $ \v -> flip evalStateT seed $ do
     let (lo, hi) = (0, MV.length v - 1)
     forM_ [lo .. hi] $ \i -> do
-      j <- fromInteger <$> randomRIO (fromIntegral lo, fromIntegral hi)
-      swapElems v i j
+      j <- fromInteger <$> state (randomR (fromIntegral lo, fromIntegral hi))
+      lift $ swapElems v i j
   where
     swapElems :: IOVector a -> Int -> Int -> IO ()
     swapElems v i j = do
