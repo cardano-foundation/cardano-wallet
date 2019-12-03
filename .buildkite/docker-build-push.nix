@@ -44,7 +44,7 @@ in
   '' + concatMapStringsSep "\n" (image: ''
     branch="''${BUILDKITE_BRANCH:-}"
     tag="''${BUILDKITE_TAG:-}"
-    if [[ -n "$tag" ]] || [[ "$branch" = "rvl/923/docker" ]]; then
+    if [[ -n "$tag" ]]; then
       tag="${image.imageTag}"
     elif [[ "$branch" = master ]]; then
       tag="$(echo ${image.imageTag} | sed -e s/${image.version}/''${BUILDKITE_COMMIT:-dev}/)"
@@ -58,5 +58,6 @@ in
     if [ "$tagged" != "${image.imageName}:${image.imageTag}" ]; then
       docker tag "${image.imageName}:${image.imageTag}" "$tagged"
     fi
+    echo "Pushing $tagged"
     docker push "$tagged"
   '') images)

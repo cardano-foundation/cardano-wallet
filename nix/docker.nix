@@ -22,10 +22,17 @@
 
 let
   defaultPort = "8090";
+  dataDir = "/data";
 
   startScript = writeScriptBin "start-cardano-wallet-jormungandr" ''
     #!${runtimeShell}
     set -euo pipefail
+
+    # set up data volume
+    export XDG_DATA_HOME=/
+    mkdir -p ${dataDir}
+    ln -s ${dataDir} /cardano-wallet
+
     export LOCALE_ARCHIVE="${glibcLocales}/lib/locale/locale-archive"
     exec ${cardano-wallet-jormungandr}/bin/cardano-wallet-jormungandr "$@"
   '';
@@ -47,9 +54,9 @@ in
     ];
     config = {
       EntryPoint = [ "start-cardano-wallet-jormungandr" ];
-      # Cmd = [ "--port" defaultPort ];
       ExposedPorts = {
         "${defaultPort}/tcp" = {}; # wallet api
       };
+      Volume = [ dataDir ];
     };
   } // { inherit (cardano-wallet-jormungandr) version; }
