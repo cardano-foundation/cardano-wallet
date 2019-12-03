@@ -231,13 +231,13 @@ newStakePoolLayer db@DBLayer{..} nl tr = StakePoolLayer
                 throwE $ ErrListStakePoolsMetricsInconsistency e
     }
   where
+    (_, bp) = staticBlockchainParameters nl
+    epochLength = bp ^. #getEpochLength
+
+    poolProductionTip :: IO (Maybe BlockHeader)
     poolProductionTip = atomically $ readPoolProductionCursor 1 >>= \case
         [x] -> return $ Just x
         _ -> return Nothing
-
-
-    (_, bp) = staticBlockchainParameters nl
-    epochLength = bp ^. #getEpochLength
 
     mkStakePool
         :: PoolId
