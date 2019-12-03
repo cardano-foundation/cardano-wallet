@@ -1,14 +1,35 @@
-{ supportedSystems ? [ "x86_64-linux" "x86_64-darwin" ]
-, supportedCrossSystems ? [ "x86_64-linux" ]
-, scrubJobs ? true
-, cardano-wallet ? { outPath = ./.; rev = "abcdef"; }
+############################################################################
+#
+# Hydra release jobset.
+#
+# The purpose of this file is to select jobs defined in default.nix and map
+# them to all supported build platforms.
+#
+############################################################################
+
+# The project sources
+{ cardano-wallet ? { outPath = ./.; rev = "abcdef"; }
+
+# Function arguments to pass to the project
 , projectArgs ? {
     config = { allowUnfree = false; inHydra = true; };
     gitrev = cardano-wallet.rev;
   }
+
+# The systems that the jobset will be built for.
+, supportedSystems ? [ "x86_64-linux" "x86_64-darwin" ]
+
+# The systems used for cross-compiling
+, supportedCrossSystems ? [ "x86_64-linux" ]
+
+# A Hydra option
+, scrubJobs ? true
+
+# Import IOHK common nix lib
+, iohkLib ? import ./nix/iohk-common.nix {}
 }:
 
-with (import ./nix/release-lib.nix) {
+with (import iohkLib.release-lib) {
   inherit (import ./nix/iohk-common.nix {}) pkgs;
   inherit supportedSystems supportedCrossSystems scrubJobs projectArgs;
   packageSet = import cardano-wallet;
