@@ -8,10 +8,10 @@ import Prelude
 
 import Control.Monad
     ( forM_ )
-import Crypto.Number.Generate
-    ( generateBetween )
 import Data.Vector.Mutable
     ( IOVector )
+import System.Random
+    ( randomRIO )
 
 import qualified Data.Vector as V
 import qualified Data.Vector.Mutable as MV
@@ -24,7 +24,7 @@ shuffle :: [a] -> IO [a]
 shuffle = modifyInPlace $ \v -> do
     let (lo, hi) = (0, MV.length v - 1)
     forM_ [lo .. hi] $ \i -> do
-      j <- fromInteger <$> generateBetween (fromIntegral lo) (fromIntegral hi)
+      j <- fromInteger <$> randomRIO (fromIntegral lo, fromIntegral hi)
       swapElems v i j
   where
     swapElems :: IOVector a -> Int -> Int -> IO ()
