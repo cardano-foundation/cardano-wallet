@@ -236,6 +236,8 @@ import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.Text.Roundtrip
     ( textRoundtrip )
+import Test.Utils.Paths
+    ( getTestData )
 import Test.Utils.Time
     ( genUniformTime )
 import Web.HttpApiData
@@ -788,8 +790,7 @@ jsonRoundtripAndGolden proxy = do
     settings :: Settings
     settings = defaultSettings
         { goldenDirectoryOption =
-            CustomDirectoryName $ foldr (</>) mempty
-                [ "test", "data", "Cardano", "Wallet", "Api" ]
+            CustomDirectoryName ($(getTestData) </> "Cardano" </> "Wallet" </> "Api")
         , useModuleNameAsSubDirectory =
             False
         , sampleSize = 10
