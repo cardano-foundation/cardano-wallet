@@ -54,6 +54,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , balance
     , computeUtxoStatistics
+    , epochStartTime
     , excluding
     , flatSlot
     , fromFlatSlot
@@ -121,7 +122,7 @@ import Data.Text
 import Data.Text.Class
     ( TextDecodingError (..), fromText, toText )
 import Data.Time
-    ( UTCTime )
+    ( Day (ModifiedJulianDay), UTCTime, toModifiedJulianDay, utctDay )
 import Data.Time.Utils
     ( utcTimePred, utcTimeSucc )
 import Data.Word
@@ -171,7 +172,7 @@ import Test.QuickCheck.Monadic
 import Test.Text.Roundtrip
     ( textRoundtrip )
 import Test.Utils.Time
-    ( genUniformTime, getUniformTime )
+    ( genUniformTime, genUniformTimeWithinRange, getUniformTime )
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -1164,6 +1165,36 @@ instance {-# OVERLAPS #-} Arbitrary (SlotParameters, SlotId) where
     shrink (SlotParameters el sl st, slot) = do
         (el', slot') <- shrink (el, slot)
         pure (SlotParameters el' sl st, slot')
+
+-- | Combines a 'SlotParameters' object and a single point in time.
+--
+-- The point in time falls into one of the following categories:
+--
+-- 1. occurs during the lifetime of the blockchain;
+-- 2. occurs before the earliest representable slot;
+-- 3. occurs after the latest representable slot.
+--
+data SlotParametersAndTimePoint = SlotParametersAndTimePoint
+    { getSlotParameters :: SlotParameters
+    , getTimePoint :: UTCTime
+    } deriving (Eq, Show)
+
+instance Arbitrary SlotParametersAndTimePoint where
+    arbitrary = do
+        sps <- arbitrary
+        let timeA = 0
+        let timeB = toModifiedJulianDay $ utctDay $ epochStartTime sps minBound
+        let timeC = toModifiedJulianDay $ utctDay $ epochStartTime sps maxBound
+        let timeD = timeC * 2
+        (lowerBound, upperBound) <- oneof $ fmap pure
+            [ (timeA, timeB)
+            , (timeB, timeC)
+            , (timeC, timeD)
+            ]
+        time <- genUniformTimeWithinRange
+            (ModifiedJulianDay lowerBound)
+            (ModifiedJulianDay upperBound)
+        pure $ SlotParametersAndTimePoint sps time
 
 -- | Note, for functions which works with both an epoch length and a slot id,
 -- we need to make sure that the 'slotNumber' doesn't exceed the epoch length,
