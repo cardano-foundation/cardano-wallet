@@ -252,3 +252,78 @@ test-suite integration
       Test.Integration.Jormungandr.Scenario.CLI.StakePools
       Test.Integration.Jormungandr.Scenario.CLI.Transactions
       Test.Integration.Jormungandr.Scenario.CLI.Mnemonics
+
+benchmark latency
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -threaded -rtsopts
+      -Wall
+      -O2
+  if (!flag(development))
+    ghc-options:
+      -Werror
+  build-depends:
+      base
+    , QuickCheck
+    , aeson
+    , aeson-qq
+    , async
+    , bech32
+    , binary
+    , bytestring
+    , cardano-wallet-cli
+    , cardano-wallet-core
+    , cardano-wallet-core-integration
+    , cardano-wallet-jormungandr
+    , cardano-wallet-launcher
+    , cardano-wallet-test-utils
+    , command
+    , containers
+    , cryptonite
+    , deepseq
+    , directory
+    , exceptions
+    , extra
+    , filepath
+    , fmt
+    , generic-arbitrary
+    , generic-lens
+    , hspec
+    , hspec-expectations-lifted
+    , http-api-data
+    , http-client
+    , http-types
+    , iohk-monitoring
+    , lifted-base
+    , memory
+    , monad-control
+    , network
+    , persistent
+    , process
+    , retry
+    , safe
+    , servant
+    , template-haskell
+    , temporary
+    , text
+    , text-class
+    , time
+    , transformers
+    , warp
+    , yaml
+  build-tools:
+      cardano-wallet-jormungandr
+  type:
+     exitcode-stdio-1.0
+  hs-source-dirs:
+      test/bench
+      test/integration
+  main-is:
+      Latency.hs
+  other-modules:
+      Cardano.Faucet
+      Cardano.Wallet.Jormungandr.Launch
