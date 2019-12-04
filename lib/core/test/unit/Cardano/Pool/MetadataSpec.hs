@@ -25,7 +25,7 @@ import Cardano.Pool.Metadata
     , transformTrace
     )
 import Cardano.Wallet.Primitive.Types
-    ( PoolId (..) )
+    ( PoolOwner (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText )
 import Codec.Archive.Zip
@@ -40,6 +40,10 @@ import Data.ByteString
     ( ByteString )
 import Data.Maybe
     ( mapMaybe )
+import Data.Text
+    ( Text )
+import Data.Text.Class
+    ( toText )
 import Network.Wai.Application.Static
     ( defaultWebAppSettings, staticApp )
 import Network.Wai.Handler.Warp
@@ -53,15 +57,17 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
+    , arbitraryPrintableChar
     , choose
     , counterexample
     , elements
     , frequency
-    , infiniteListOf
+    , listOf
     , listOf1
     , property
     , shuffle
     , sublistOf
+    , vectorOf
     )
 import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor, run )
@@ -78,18 +84,18 @@ spec = do
         around (testServer dataDir) $ do
         it "Loads the example zip" $ \port -> do
             tr <- setupLogging
-            res <- getStakePoolMetadata tr (testUrl port) presentPids
+            res <- getStakePoolMetadata tr (testUrl port) presentOwners
             res `shouldBe` Right (map Just presentMetas)
 
         it "Handles a missing pool" $ \port -> do
             tr <- setupLogging
-            res <- getStakePoolMetadata tr (testUrl port) (absentPid:presentPids)
+            res <- getStakePoolMetadata tr (testUrl port) (absentOwner:presentOwners)
             res `shouldBe` Right (Nothing:map Just presentMetas)
 
         it "Fails with an unavailable HTTP server" $ \_port -> do
             tr <- setupLogging
             let badUrl = "http://localhost:99/master.zip"
-            res <- getStakePoolMetadata tr badUrl presentPids
+            res <- getStakePoolMetadata tr badUrl presentOwners
             case res of
                 Left (FetchErrorDownload msg) ->
                     head (words msg) `shouldBe` "HttpExceptionRequest"
@@ -116,31 +122,43 @@ dataDir = $(getTestData) </> "stake-pool-registry"
 testUrl :: Port -> String
 testUrl p = "http://localhost:" <> show p <> "/testnet-stake-pool-registry-master.zip"
 
-presentPids :: [PoolId]
-presentPids = map PoolId
-    [ "pk1afhcpw2tg7nr2m3wr4x8jaa4dv7d09gnv27kwfxpjyvukwxs8qdqwg85xp"
-    , "pk1z4vh8gva25w07x8574uujuveu8gz43fu6qfln3t4prcavrvcphjsk0pdqs"
+presentOwners :: [PoolOwner]
+presentOwners = map unsafeFromText
+    [ "ed25519_pk1afhcpw2tg7nr2m3wr4x8jaa4dv7d09gnv27kwfxpjyvukwxs8qdqwg85xp"
+    , "ed25519_pk1z4vh8gva25w07x8574uujuveu8gz43fu6qfln3t4prcavrvcphjsk0pdqs"
     ]
 
 presentMetas :: [StakePoolMetadata]
 presentMetas =
-    [ StakePoolMetadata (unsafeFromText "FST") "https://12345"
-        "ed25519_pk15vz9yc5c3upgze8tg5kd7kkzxqgqfxk5a3kudp22hdg0l2za00sq2ufkk7"
-    , StakePoolMetadata (unsafeFromText "TICK") "https://12345"
-        "ed25519_pk15vz9yc5c3upgze8tg5kd7kkzxqgqfxk5a3kudp22hdg0l2za00sq2ufkk7"
+    [ StakePoolMetadata
+        { ticker = unsafeFromText "FST"
+        , homepage = "https://12345"
+        , owner = unsafeFromText "ed25519_pk1afhcpw2tg7nr2m3wr4x8jaa4dv7d09gnv27kwfxpjyvukwxs8qdqwg85xp"
+        , name = "First stake pool"
+        , description = Just "It's better than SND"
+        , pledgeAddress = "addr15vz9yc5c3upgze8tg5kd7kkzxqgqfxk5a3kudp22hdg0l2za00sq2ufkk7"
+        }
+    , StakePoolMetadata
+        { ticker = unsafeFromText "TICK"
+        , homepage = "https://12345"
+        , owner = unsafeFromText "ed25519_pk1z4vh8gva25w07x8574uujuveu8gz43fu6qfln3t4prcavrvcphjsk0pdqs"
+        , name = "Pooley Mc-Poolface"
+        , description = Nothing
+        , pledgeAddress = "addr15vz9yc5c3upgze8tg5kd7kkzxqgqfxk5a3kudp22hdg0l2za00sq2ufkk7"
+        }
     ]
 
-absentPid :: PoolId
-absentPid = PoolId "pk192m4ytl5k357e2l666yleuwjlurmf0vxjyh4atxzu5m22q6mexlsp88k7x"
+absentOwner :: PoolOwner
+absentOwner = PoolOwner "pk192m4ytl5k357e2l666yleuwjlurmf0vxjyh4atxzu5m22q6mexlsp88k7x"
 
 {-------------------------------------------------------------------------------
                                     Property
 -------------------------------------------------------------------------------}
 
 data TestCase = TestCase
-    { stakePools :: [(PoolId, StakePoolEntry)]
+    { stakePools :: [(PoolOwner, StakePoolEntry)]
     -- ^ Stake pool metadata in the zip file.
-    , poolIds :: [PoolId]
+    , poolOwners :: [PoolOwner]
     -- ^ Stake pools to look up for the test.
     , topDir :: FilePath
     -- ^ The name of the top-level directory in the zip file.
@@ -161,14 +179,14 @@ prop_getStakePoolMetadata tc = monadicIO $ do
     (res, msgs) <- run $ withTestCaseZip tc $ \zipFile ->
         testServer (takeDirectory zipFile) $ \port -> do
             let url = testCaseUrl tc port
-            captureLogging $ \tr -> getStakePoolMetadata tr url (poolIds tc)
+            captureLogging $ \tr -> getStakePoolMetadata tr url (poolOwners tc)
     let numDecodeErrors = count isDecodeErrorMsg msgs
 
     -- Expected results
     let expected =
-            [ stakePoolEntryMeta =<< lookup p (stakePools tc) | p <- poolIds tc ]
+            [ stakePoolEntryMeta =<< lookup p (stakePools tc) | p <- poolOwners tc ]
     let numJunkEntries =
-            count (\(p, e) -> isJunk e && p `elem` poolIds tc) (stakePools tc)
+            count (\(p, e) -> isJunk e && p `elem` poolOwners tc) (stakePools tc)
 
     monitor $ counterexample $ unlines $
         [ "expected        = " ++ show expected
@@ -176,21 +194,21 @@ prop_getStakePoolMetadata tc = monadicIO $ do
         , "# junk entries  = " ++ show numJunkEntries
         , "# decode errors = " ++ show numDecodeErrors
         , "logs ="
-        ] ++ map show msgs
+        ] ++ map (T.unpack . toText) msgs
 
     assert $ res == Right expected && numJunkEntries == numDecodeErrors
 
 withTestCaseZip :: TestCase -> (FilePath -> IO a) -> IO a
 withTestCaseZip tc action = withSystemTempDirectory "registry-spec" $ \dir -> do
     let zipFile = dir </> topDir tc <.> "zip"
-    createArchive zipFile $ forM_ (stakePools tc) $ \(poolId, contents) -> do
-        sel <- mkEntrySelector (registryFile (topDir tc) poolId)
+    createArchive zipFile $ forM_ (stakePools tc) $ \(owner, contents) -> do
+        sel <- mkEntrySelector (registryFile (topDir tc) owner)
         addEntry Deflate (encodeStakePoolEntry contents) sel
     action zipFile
 
-registryFile :: FilePath -> PoolId -> FilePath
-registryFile top (PoolId poolId) =
-    top </> "registry" </> B8.unpack poolId <.> "json"
+registryFile :: FilePath -> PoolOwner -> FilePath
+registryFile top owner =
+    top </> "registry" </> T.unpack (toText owner) <.> "json"
 
 testCaseUrl :: TestCase -> Port -> String
 testCaseUrl tc port =
@@ -229,9 +247,9 @@ instance Arbitrary TestCase where
         stakePools <- arbitrary
         presentPoolIds <- sublistOf (map fst stakePools)
         absentPoolIds <- arbitrary
-        poolIds <- shuffle (presentPoolIds ++ absentPoolIds)
+        poolOwners <- shuffle (presentPoolIds ++ absentPoolIds)
         PathElement topDir <- arbitrary
-        pure $ TestCase {stakePools, poolIds, topDir}
+        pure $ TestCase {stakePools, poolOwners, topDir}
     shrink (TestCase sps pids td)
         = [ TestCase sps' pids' td'
           | (sps', pids', td') <- shrink (sps, pids, td)
@@ -246,19 +264,30 @@ instance Arbitrary StakePoolEntry where
 
 instance Arbitrary StakePoolMetadata where
     arbitrary = StakePoolMetadata
-        <$> arbitrary <*> arbitraryText <*> arbitraryText
+        <$> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+
+instance Arbitrary Text where
+    arbitrary = T.pack <$> listOf c
       where
-        arbitraryText = T.pack <$> arbitrary
+        c = frequency
+            [ (6, arbitraryPrintableChar)
+            , (1, arbitrary)
+            , (1, elements ['☃', 'ż', '好'])
+            ]
 
 instance Arbitrary StakePoolTicker where
     arbitrary = unsafeFromText . T.pack <$> do
-        len <- choose (3, 4)
+        len <- choose (3, 5)
         replicateM len arbitrary
 
-instance Arbitrary PoolId where
-    arbitrary = do
-        bytes <- infiniteListOf $ elements ['a'..'z']
-        return $ PoolId $ B8.pack $ take 32 bytes
+instance Arbitrary PoolOwner where
+    arbitrary = PoolOwner . B8.pack <$> vectorOf 32 c
+        where c = elements ['a'..'z']
 
 newtype PathElement = PathElement FilePath deriving (Show, Eq)
 
@@ -277,12 +306,11 @@ setupLogging = do
 withLogging :: ((Trace IO RegistryLog, IO [RegistryLog]) -> IO a) -> IO a
 withLogging action = do
     tvar <- newTVarIO []
-    let tr = traceInTVarIO tvar
     let unMsg lo = case lo of
             LogMessage msg -> Just msg
             _ -> Nothing
-    let getMsgs = mapMaybe (unMsg . loContent) <$> readTVarIO tvar
-    action (tr, getMsgs)
+    let getMsgs = reverse . mapMaybe (unMsg . loContent) <$> readTVarIO tvar
+    action (traceInTVarIO tvar, getMsgs)
 
 captureLogging :: (Trace IO RegistryLog -> IO a) -> IO (a, [RegistryLog])
 captureLogging action = withLogging $ \(tr, getMsgs) -> do

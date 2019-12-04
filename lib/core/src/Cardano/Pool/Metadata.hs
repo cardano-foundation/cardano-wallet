@@ -38,7 +38,7 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Trace
     ( Trace, traceNamedItem )
 import Cardano.Wallet.Primitive.Types
-    ( PoolId (..), ShowFmt (..) )
+    ( PoolOwner (..), ShowFmt (..) )
 import Codec.Archive.Zip
 import Control.Exception
     ( IOException, displayException, tryJust )
@@ -81,7 +81,6 @@ import System.IO.Temp
 
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as B8
 import qualified Data.Conduit.Combinators as Conduit
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
@@ -90,12 +89,23 @@ import qualified Data.Text as T
                                      Types
 -------------------------------------------------------------------------------}
 
--- | Information about a stake pool. This information is not used directly by
--- cardano-wallet. It is sourced from the stake pool registry and passed
--- straight through to API consumers.
+-- | Information about a stake pool, published by a stake pool owner in the
+-- stake pool registry.
+--
+-- The wallet searches for registrations involving the owner, to find metadata
+-- for a given PoolID.
+--
+-- The metadata information is not used directly by cardano-wallet, but rather
+-- passed straight through to API consumers.
 data StakePoolMetadata = StakePoolMetadata
-    { ticker :: StakePoolTicker
-    -- ^ Short human-readable ID for the stake pool.
+    { owner :: PoolOwner
+    -- ^ Bech32-encoded ed25519 public key.
+    , ticker :: StakePoolTicker
+    -- ^ Very short human-readable ID for the stake pool.
+    , name :: Text
+    -- ^ Name of the stake pool.
+    , description :: Maybe Text
+    -- ^ Short description of the stake pool.
     , homepage :: Text
     -- ^ Absolute URL for the stake pool's homepage link.
     , pledgeAddress :: Text
@@ -109,11 +119,11 @@ newtype StakePoolTicker = StakePoolTicker { unStakePoolTicker :: Text }
 
 instance FromText StakePoolTicker where
     fromText t
-        | T.length t == 3 || T.length t == 4
+        | T.length t >= 3 && T.length t <= 5
             = Right $ StakePoolTicker t
         | otherwise
             = Left . TextDecodingError $
-                "stake pool ticker length must be 3-4 characters"
+                "stake pool ticker length must be 3-5 characters"
 
 -- NOTE
 -- JSON instances for 'StakePoolMetadata' and 'StakePoolTicker' matching the
@@ -157,25 +167,25 @@ defaultRecordTypeOptions = Aeson.defaultOptions
 --
 -- * The name of the top-level directory can be anything.
 -- * Other files in the archive are ignored by 'getStakePoolMetadata'.
--- * The JSON file names are 'PoolId's.
+-- * The JSON file names are 'PoolOwner's.
 -- * The required JSON structure is given by the "Data.Aeson.FromJSON"
 --   instance of 'StakePoolMetadata'.
 --
 -- The URL which should be used for incentived testnet is
 -- 'cardanoFoundationRegistryZip'.
 --
--- The returned list will have the same length as the given list of 'PoolId'. If
--- an metadata entry does not exist or could not be parsed, it will be
--- 'Nothing'.
+-- The returned list will have the same length as the given list of
+-- 'PoolOwner'. If an metadata entry does not exist or could not be parsed, it
+-- will be 'Nothing'.
 getStakePoolMetadata
     :: Trace IO RegistryLog
     -- ^ Logging object - use 'transformTrace' to convert to 'Text'.
     -> String
     -- ^ URL of a zip archive to fetch and extract.
-    -> [PoolId]
+    -> [PoolOwner]
     -- ^ List of stake pools to get metadata for.
     -> IO (Either FetchError [Maybe StakePoolMetadata])
-getStakePoolMetadata tr url poolIds = fmap join $ tryJust fileExceptionHandler $
+getStakePoolMetadata tr url poolOwners = fmap join $ tryJust fileExceptionHandler $
     withSystemTempFile "stake-pool-metadata.zip" $ \zipFileName zipFile -> do
         let tr' = contramap (fmap (RegistryLog url zipFileName)) tr
         registryLog tr' MsgDownloadStarted
@@ -183,7 +193,7 @@ getStakePoolMetadata tr url poolIds = fmap join $ tryJust fileExceptionHandler $
             Right size -> do
                 registryLog tr' $ MsgDownloadComplete size
                 hClose zipFile
-                Right <$> getMetadataFromZip tr' zipFileName poolIds
+                Right <$> getMetadataFromZip tr' zipFileName poolOwners
             Left e -> pure $ Left e
   where
     fileExceptionHandler = Just . FetchErrorFile . displayException @IOException
@@ -202,7 +212,7 @@ fetchStakePoolMetaZip url zipFile = tryJust handler $ do
 getMetadataFromZip
     :: Trace IO RegistryLogMsg
     -> FilePath -- ^ Zip file path.
-    -> [PoolId] -- ^ Stake pools to extract.
+    -> [PoolOwner] -- ^ Stake pools to extract.
     -> IO [Maybe StakePoolMetadata]
 getMetadataFromZip tr zipFileName =
     withArchive zipFileName . mapM (findStakePoolMeta tr . registryFile)
@@ -247,15 +257,15 @@ findArchiveFile repoPath = find isRepoFile . Map.keys <$> getEntries
     dropTopLevel = drop 1 . dropWhile (not . isPathSeparator)
 
 -- | The path within the registry repo of metadata for a stake pool.
-registryFile :: PoolId -> FilePath
-registryFile (PoolId poolId) = "registry" </> B8.unpack poolId <.> "json"
+registryFile :: PoolOwner -> FilePath
+registryFile owner_ = "registry" </> T.unpack (toText owner_) <.> "json"
 
 -- | The stake pool registry zipfile download URL for CF.
 cardanoFoundationRegistryZip :: String
 cardanoFoundationRegistryZip =
-    "https://github.com/" <> owner <> "/" <> repo <> "/archive/" <> archive
+    "https://github.com/" <> owner_ <> "/" <> repo <> "/archive/" <> archive
   where
-    owner = "cardano-foundation"
+    owner_ = "cardano-foundation"
     repo = "incentivized-testnet-stakepool-registry"
     archive = ref <> ".zip"
     ref = "master"

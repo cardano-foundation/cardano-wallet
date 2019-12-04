@@ -98,6 +98,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , HistogramBar (..)
     , PoolId (..)
+    , PoolOwner (..)
     , ShowFmt (..)
     , SlotId (..)
     , SlotNo (..)
@@ -227,6 +228,7 @@ import Test.QuickCheck
     , property
     , scale
     , shrinkIntegral
+    , vectorOf
     , vectorOf
     , withMaxSuccess
     , (.&&.)
@@ -453,16 +455,18 @@ spec = do
 
         describe "StakePoolMetadata" $ do
             let msg = "Error in $.ticker: stake pool ticker length must be \
-                      \3-4 characters"
+                      \3-5 characters"
 
             let testInvalidTicker :: Text -> SpecWith ()
                 testInvalidTicker txt =
                     it ("Invalid ticker length: " ++ show (T.length txt)) $ do
                         Aeson.parseEither parseJSON [aesonQQ|
                             {
+                                "owner": "ed25519_pk1afhcpw2tg7nr2m3wr4x8jaa4dv7d09gnv27kwfxpjyvukwxs8qdqwg85xp",
                                 "homepage": "https://12345",
                                 "ticker": #{txt},
-                                "pledge_address": "ed25519_pk15vz9yc5c3upgze8tg5kd7kkzxqgqfxk5a3kudp22hdg0l2za00sq2ufkk7"
+                                "pledge_address": "ed25519_pk15vz9yc5c3upgze8tg5kd7kkzxqgqfxk5a3kudp22hdg0l2za00sq2ufkk7",
+                                "name": "invalid"
                             }
                         |] `shouldBe` (Left @String @StakePoolMetadata msg)
 
@@ -1003,14 +1007,27 @@ instance Arbitrary ApiStakePool where
 
 instance Arbitrary StakePoolMetadata where
     arbitrary = StakePoolMetadata
-        <$> arbitrary <*> arbitraryText <*> arbitraryText
+        <$> arbitrary
+        <*> arbitrary
+        <*> arbitraryText 50
+        <*> arbitraryMaybeText 255
+        <*> arbitraryText 100
+        <*> arbitraryText 50
       where
-        arbitraryText = T.pack <$> arbitrary
+        arbitraryText maxLen = do
+            len <- choose (1, maxLen)
+            T.pack <$> vectorOf len arbitrary
+        arbitraryMaybeText maxLen = frequency
+            [ (9, Just <$> arbitraryText maxLen)
+            , (1, pure Nothing) ]
 
 instance Arbitrary StakePoolTicker where
     arbitrary = unsafeFromText . T.pack <$> do
-        len <- choose (3, 4)
+        len <- choose (3, 5)
         replicateM len arbitrary
+
+instance Arbitrary PoolOwner where
+    arbitrary = PoolOwner . BS.pack <$> vectorOf 32 arbitrary
 
 instance Arbitrary WalletId where
     arbitrary = do

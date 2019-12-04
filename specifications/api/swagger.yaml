@@ -373,15 +373,28 @@ x-stakePoolMetadata: &stakePoolMetadata
     Information about the stake pool.
   type: object
   required:
+    - owner
     - ticker
+    - name
     - homepage
     - pledge_address
   additionalProperties: false
   properties:
+    owner:
+      type: string
+      format: bech32
+      example: ed25519_pk1lrspg0h4afh3l2kaneqlktdv9kaq4zskcvehqwhc4lmx36f5dweqjtaga8
     ticker:
       type: string
       minLength: 3
-      maxLength: 4
+      maxLength: 5
+    name:
+      type: string
+      minLength: 1
+      maxLength: 50
+    description:
+      type: string
+      maxLength: 255
     homepage:
       type: string
       format: uri
