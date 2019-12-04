@@ -8,10 +8,33 @@
   }
 }:
 
-with (import ./nix/release-lib.nix) {
+let
+  # `release-lib.nix` calls `packageSet` many times. This
+  # results in lots of repeated work, both during eval stage
+  # and when the jobs are run.
+  # By memoizing the calls here we get a very significant
+  # speedup of the eval time on hydra.
+  packageSet' = import cardano-wallet;
+  packageSetMemo = json:
+    { inherit json; packageSet = packageSet' (builtins.fromJSON json); };
+  packageSets =
+    [
+    # TODO : find a better way to populate this list
+    (packageSetMemo (''{"config":{"allowUnfree":false,"allowUnsupportedSystem":true,"inHydra":true},"gitrev":"'' + projectArgs.gitrev + ''","system":"x86_64-linux"}''))
+    (packageSetMemo (''{"config":{"allowUnfree":false,"inHydra":true},"crossSystem":{"config":"x86_64-pc-mingw32","libc":"msvcrt","platform":{}},"gitrev":"'' + projectArgs.gitrev + ''","system":"x86_64-linux"}''))
+    (packageSetMemo (''{"config":{"allowUnfree":false,"inHydra":true},"gitrev":"'' + projectArgs.gitrev + ''","system":"x86_64-darwin"}''))
+    (packageSetMemo (''{"config":{"allowUnfree":false,"inHydra":true},"gitrev":"'' + projectArgs.gitrev + ''","system":"x86_64-linux"}''))
+    (packageSetMemo (''{"config":{"allowUnfree":false,"inHydra":true},"crossSystem":{"config":"x86_64-unknown-linux-musl"},"gitrev":"'' + projectArgs.gitrev + ''","system":"x86_64-linux"}''))
+    ];
+in
+
+with (import ./nix/release-lib.nix) rec {
   inherit (import ./nix/iohk-common.nix {}) pkgs;
   inherit supportedSystems supportedCrossSystems scrubJobs projectArgs;
-  packageSet = import cardano-wallet;
+  packageSet = args:
+    (pkgs.lib.findFirst (x: x.json == builtins.toJSON args)
+      (builtins.trace ("Warning no memoization for " + builtins.toJSON args) { packageSet = packageSet' args; })
+        packageSets).packageSet;
   gitrev = cardano-wallet.rev;
 };
 
