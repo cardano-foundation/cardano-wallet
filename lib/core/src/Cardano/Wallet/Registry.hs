@@ -52,6 +52,8 @@ import Control.Exception
     ( SomeException, finally )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
+import Control.Tracer
+    ( contramap )
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens

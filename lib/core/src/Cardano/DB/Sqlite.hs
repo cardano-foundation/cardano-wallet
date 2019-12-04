@@ -27,14 +27,11 @@ module Cardano.DB.Sqlite
     , destroyDBLayer
     , handleConstraint
     , startSqliteBackend
-    , transformTrace
     , unsafeRunQuery
     ) where
 
 import Prelude
 
-import Cardano.BM.Data.LogItem
-    ( PrivacyAnnotation (..) )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
@@ -42,19 +39,17 @@ import Cardano.BM.Data.Tracer
 import Cardano.BM.Observer.Monadic
     ( bracketObserveIO )
 import Cardano.BM.Trace
-    ( Trace, appendName, logDebug, traceNamedItem )
+    ( Trace, appendName, logDebug )
+import Cardano.Wallet.Logging
+    ( logTrace )
 import Control.Concurrent.MVar
     ( newMVar, withMVar )
 import Control.Monad
     ( mapM_ )
 import Control.Monad.Catch
     ( MonadCatch (..), handleJust )
-import Control.Monad.IO.Class
-    ( MonadIO (..) )
 import Control.Monad.Logger
     ( LogLevel (..) )
-import Control.Tracer
-    ( contramap )
 import Data.Aeson
     ( ToJSON )
 import Data.List.Split
@@ -63,6 +58,8 @@ import Data.Maybe
     ( fromMaybe )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( ToText (..) )
 import Database.Persist.Sql
     ( LogFunc, Migration, close', runMigrationQuiet, runSqlConn )
 import Database.Persist.Sqlite
@@ -106,7 +103,7 @@ unsafeRunQuery :: SqliteContext -> SqlPersistT IO a -> IO a
 unsafeRunQuery = runQuery
 
 queryLogFunc :: Trace IO DBLog -> LogFunc
-queryLogFunc trace _loc _source level str = dbLog trace (MsgQuery msg sev)
+queryLogFunc tr _loc _source level str = logTrace tr (MsgQuery msg sev)
   where
     -- Filter out parameters which appear after the statement semicolon.
     -- They will contain sensitive material that we don't want in the log.
@@ -155,7 +152,7 @@ startSqliteBackend logConfig migrateAll trace fp = do
     let runQuery :: SqlPersistT IO a -> IO a
         runQuery cmd = withMVar lock $ const $ observe $ runSqlConn cmd backend
     migrations <- runQuery $ runMigrationQuiet migrateAll
-    dbLog trace $ MsgMigrations (length migrations)
+    logTrace trace $ MsgMigrations (length migrations)
     pure $ SqliteContext backend runQuery fp trace
 
 createSqliteBackend
@@ -165,7 +162,7 @@ createSqliteBackend
     -> IO SqlBackend
 createSqliteBackend trace fp logFunc = do
     let connStr = sqliteConnStr fp
-    dbLog trace $ MsgConnStr connStr
+    logTrace trace $ MsgConnStr connStr
     conn <- Sqlite.open connStr
     wrapConnectionInfo (mkSqliteConnectionInfo connStr) conn logFunc
 
@@ -183,12 +180,6 @@ data DBLog
     | MsgClosing (Maybe FilePath)
     deriving (Generic, Show, Eq, ToJSON)
 
-transformTrace :: Trace IO Text -> Trace IO DBLog
-transformTrace = contramap (fmap dbLogText)
-
-dbLog :: MonadIO m => Trace m DBLog -> DBLog -> m ()
-dbLog logTrace msg = traceNamedItem logTrace Public (defineSeverity msg) msg
-
 instance DefinePrivacyAnnotation DBLog
 instance DefineSeverity DBLog where
     defineSeverity ev = case ev of
@@ -198,12 +189,13 @@ instance DefineSeverity DBLog where
         MsgConnStr _ -> Debug
         MsgClosing _ -> Debug
 
-dbLogText :: DBLog -> Text
-dbLogText (MsgMigrations 0) = "No database migrations were necessary."
-dbLogText (MsgMigrations n) = fmt $ ""+||n||+" migrations were applied to the database."
-dbLogText (MsgQuery stmt _) = stmt
-dbLogText (MsgConnStr connStr) = "Using connection string: " <> connStr
-dbLogText (MsgClosing fp) = "Closing database ("+|fromMaybe "in-memory" fp|+")"
+instance ToText DBLog where
+    toText msg = case msg of
+        MsgMigrations 0 -> "No database migrations were necessary."
+        MsgMigrations n -> fmt $ ""+||n||+" migrations were applied to the database."
+        MsgQuery stmt _ -> stmt
+        MsgConnStr connStr -> "Using connection string: " <> connStr
+        MsgClosing fp -> "Closing database ("+|fromMaybe "in-memory" fp|+")"
 
 {-------------------------------------------------------------------------------
                                Extra DB Helpers

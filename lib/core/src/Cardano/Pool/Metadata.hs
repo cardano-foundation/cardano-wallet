@@ -23,7 +23,6 @@ module Cardano.Pool.Metadata
     , FetchError (..)
 
       -- * Logging
-    , transformTrace
     , RegistryLog (..)
     , RegistryLogMsg (..)
     )
@@ -31,12 +30,14 @@ module Cardano.Pool.Metadata
 
 import Prelude
 
-import Cardano.BM.Data.LogItem
-    ( PrivacyAnnotation (..) )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
+import Cardano.BM.Data.Tracer
+    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
 import Cardano.BM.Trace
-    ( Trace, traceNamedItem )
+    ( Trace )
+import Cardano.Wallet.Logging
+    ( logTrace )
 import Cardano.Wallet.Primitive.Types
     ( PoolOwner (..), ShowFmt (..) )
 import Codec.Archive.Zip
@@ -188,10 +189,10 @@ getStakePoolMetadata
 getStakePoolMetadata tr url poolOwners = fmap join $ tryJust fileExceptionHandler $
     withSystemTempFile "stake-pool-metadata.zip" $ \zipFileName zipFile -> do
         let tr' = contramap (fmap (RegistryLog url zipFileName)) tr
-        registryLog tr' MsgDownloadStarted
+        logTrace tr' MsgDownloadStarted
         fetchStakePoolMetaZip url zipFile >>= \case
             Right size -> do
-                registryLog tr' $ MsgDownloadComplete size
+                logTrace tr' $ MsgDownloadComplete size
                 hClose zipFile
                 Right <$> getMetadataFromZip tr' zipFileName poolOwners
             Left e -> pure $ Left e
@@ -245,7 +246,7 @@ findStakePoolMeta tr entry = do
             trace $ MsgExtractFileResult Nothing
             pure Nothing
   where
-    trace = liftIO . registryLog tr
+    trace = liftIO . logTrace tr
 
 -- | A GitHub repo zip file archive contains the files beneath a top level
 -- directory (which has a variable name). This function searches the archive
@@ -316,22 +317,15 @@ data RegistryLogMsg
     | MsgExtractFileResult (Maybe (Either String StakePoolMetadata))
     deriving (Generic, Show, Eq, ToJSON)
 
--- | Converts a text tracer into a stake pool registry tracer.
-transformTrace :: Trace IO Text -> Trace IO RegistryLog
-transformTrace = contramap (fmap toText)
-
-registryLog :: MonadIO m => Trace m RegistryLogMsg -> RegistryLogMsg -> m ()
-registryLog logTrace msg = traceNamedItem logTrace Public sev msg
-  where
-    sev = registryLogLevel msg
-
-registryLogLevel :: RegistryLogMsg -> Severity
-registryLogLevel MsgDownloadStarted = Info
-registryLogLevel (MsgDownloadComplete _) = Info
-registryLogLevel (MsgDownloadError _) = Error
-registryLogLevel (MsgExtractFile _) = Debug
-registryLogLevel (MsgExtractFileResult (Just (Left _))) = Warning
-registryLogLevel (MsgExtractFileResult _) = Debug
+instance DefinePrivacyAnnotation RegistryLogMsg
+instance DefineSeverity RegistryLogMsg where
+    defineSeverity ev = case ev of
+        MsgDownloadStarted -> Info
+        MsgDownloadComplete _ -> Info
+        MsgDownloadError _ -> Error
+        MsgExtractFile _ -> Debug
+        MsgExtractFileResult (Just (Left _)) -> Warning
+        MsgExtractFileResult _ -> Debug
 
 instance ToText RegistryLog where
     toText (RegistryLog url zipFile msg) =

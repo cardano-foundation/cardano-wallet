@@ -113,6 +113,7 @@ library
       Cardano.Wallet.DB.Sqlite.TH
       Cardano.Wallet.DB.Sqlite.Types
       Cardano.Wallet.DaedalusIPC
+      Cardano.Wallet.Logging
       Cardano.Wallet.Network
       Cardano.Wallet.Network.BlockHeaders
       Cardano.Wallet.Network.Ports

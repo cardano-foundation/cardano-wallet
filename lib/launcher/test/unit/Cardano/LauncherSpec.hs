@@ -24,7 +24,7 @@ import Cardano.Launcher
     , LauncherLog
     , ProcessHasExited (..)
     , StdStream (..)
-    , transformLauncherTrace
+    , transformTextTrace
     , withBackendProcessHandle
     )
 import Control.Concurrent
@@ -234,7 +234,7 @@ assertProcessesExited phs = recoverAll policy test
 
 withTestLogging :: (Trace IO LauncherLog -> IO a) -> IO a
 withTestLogging action =
-    bracket before after (action . transformLauncherTrace . fst)
+    bracket before after (action . transformTextTrace . fst)
   where
     before = do
         cfg <- defaultConfigStdout

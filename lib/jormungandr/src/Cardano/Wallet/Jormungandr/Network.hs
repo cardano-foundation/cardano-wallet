@@ -59,12 +59,7 @@ import Cardano.BM.Trace
 import Cardano.CLI
     ( Port (..), waitForService )
 import Cardano.Launcher
-    ( Command (..)
-    , ProcessHasExited
-    , StdStream (..)
-    , transformLauncherTrace
-    , withBackendProcess
-    )
+    ( Command (..), ProcessHasExited, StdStream (..), withBackendProcess )
 import Cardano.Wallet.Jormungandr.Api.Client
     ( BaseUrl (..)
     , ErrGetBlock (..)
@@ -96,6 +91,8 @@ import Cardano.Wallet.Jormungandr.Binary
     ( runGetOrFail )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr, localhostBaseUrl )
+import Cardano.Wallet.Logging
+    ( transformTextTrace )
 import Cardano.Wallet.Network
     ( Cursor
     , NetworkLayer (..)
@@ -495,7 +492,7 @@ withJormungandr tr (JormungandrConfig stateDir block0 mPort output extraArgs) cb
                     , "--storage", stateDir </> "chain"
                     ] ++ extraArgs
             let cmd = Command "jormungandr" args (return ()) output
-            let tr' = transformLauncherTrace tr
+            let tr' = transformTextTrace tr
             res <- withBackendProcess tr' cmd $ do
                 waitForPort defaultRetryPolicy apiPort >>= \case
                     True -> Right <$> cb (JormungandrConnParams block0H baseUrl)
