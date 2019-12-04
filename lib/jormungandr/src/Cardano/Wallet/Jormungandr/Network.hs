@@ -62,6 +62,7 @@ import Cardano.Launcher
     ( Command (..), ProcessHasExited, StdStream (..), withBackendProcess )
 import Cardano.Wallet.Jormungandr.Api.Client
     ( BaseUrl (..)
+    , ErrGetAccountState (..)
     , ErrGetBlock (..)
     , ErrGetBlockchainParams (..)
     , ErrGetDescendants (..)
@@ -73,6 +74,7 @@ import Cardano.Wallet.Jormungandr.Api.Client
     , LiftError (..)
     , Scheme (..)
     , defaultManagerSettings
+    , getAccountState
     , getBlockHeader
     , getBlocks
     , getInitialBlockchainParameters
@@ -83,7 +85,8 @@ import Cardano.Wallet.Jormungandr.Api.Client
     , postMessage
     )
 import Cardano.Wallet.Jormungandr.Api.Types
-    ( ApiStakeDistribution (pools)
+    ( AccountState (currentBalance)
+    , ApiStakeDistribution (pools)
     , ApiT (..)
     , StakeApiResponse (epoch, stake)
     )
@@ -95,6 +98,7 @@ import Cardano.Wallet.Logging
     ( transformTextTrace )
 import Cardano.Wallet.Network
     ( Cursor
+    , ErrGetAccountBalance (..)
     , NetworkLayer (..)
     , NextBlocksResult (..)
     , defaultRetryPolicy
@@ -116,7 +120,13 @@ import Cardano.Wallet.Network.Ports
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), EpochNo, Hash (..), PoolId, SlotId (..) )
+    ( BlockHeader (..)
+    , ChimericAccount (..)
+    , EpochNo
+    , Hash (..)
+    , PoolId
+    , SlotId (..)
+    )
 import Control.Concurrent.MVar.Lifted
     ( MVar, modifyMVar, newMVar, readMVar )
 import Control.Exception
@@ -280,6 +290,8 @@ mkRawNetworkLayer (block0, bp) batchSize st j = NetworkLayer
 
     , stakeDistribution =
         _stakeDistribution
+    , getAccountBalance =
+        _getAccountBalance
     }
   where
     -- security parameter, the maximum number of unstable blocks
@@ -320,6 +332,17 @@ mkRawNetworkLayer (block0, bp) batchSize st j = NetworkLayer
         let epochNo = getApiT . epoch $ r
         let distr = map (\(ApiT a, ApiT b) -> (a,b)) . pools . stake $ r
         return (epochNo, Map.fromList distr)
+
+    _getAccountBalance (ChimericAccount acc) =
+        liftE1
+        . fmap currentBalance
+        $ getAccountState j (Hash acc)
+      where
+        liftE1 = withExceptT $ \case
+            ErrGetAccountStateNetworkUnreachable err ->
+                ErrGetAccountBalanceNetworkUnreachable err
+            ErrGetAccountStateAccountNotFound (Hash acc') ->
+                ErrGetAccountBalanceAccountNotFound (ChimericAccount acc')
 
     _nextBlocks
         :: Cursor t

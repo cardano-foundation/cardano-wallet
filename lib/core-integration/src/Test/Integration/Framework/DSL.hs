@@ -54,7 +54,9 @@ module Test.Integration.Framework.DSL
     , addressPoolGap
     , amount
     , apparentPerformance
+    , byronBalanceAvailable
     , balanceAvailable
+    , byronBalanceTotal
     , balanceTotal
     , balanceReward
     , blocks
@@ -157,6 +159,7 @@ import Cardano.Wallet.Api.Types
     ( AddressAmount
     , ApiAddress
     , ApiByronWallet
+    , ApiByronWalletBalance
     , ApiStakePoolMetrics
     , ApiT (..)
     , ApiTransaction
@@ -674,6 +677,17 @@ balanceAvailable =
             , Types.reward = Quantity v
             }
 
+byronBalanceAvailable :: HasType (ApiByronWalletBalance) s => Lens' s Natural
+byronBalanceAvailable =
+    lens _get _set
+  where
+    _get :: HasType (ApiByronWalletBalance) s => s -> Natural
+    _get = fromQuantity @"lovelace" . available' . view typed
+    _set :: HasType (ApiByronWalletBalance) s => (s, Natural) -> s
+    _set (_s, _v) = error "byronBalanceAvailable setter unimplemented"
+    available' :: ApiByronWalletBalance -> Quantity "lovelace" Natural
+    available' = getField @"available"
+
 balanceTotal :: HasType (ApiT WalletBalance) s => Lens' s Natural
 balanceTotal =
     lens _get _set
@@ -689,6 +703,18 @@ balanceTotal =
             , Types.total = Quantity v
             , Types.reward = Quantity v
             }
+
+byronBalanceTotal :: HasType (ApiByronWalletBalance) s => Lens' s Natural
+byronBalanceTotal =
+    lens _get _set
+  where
+    _get :: HasType (ApiByronWalletBalance) s => s -> Natural
+    _get = fromQuantity @"lovelace" . total' . view typed
+    _set :: HasType (ApiByronWalletBalance) s => (s, Natural) -> s
+    _set (_s, _v) = error "byronBalanceTotal setter unimplemented"
+    total' :: ApiByronWalletBalance -> Quantity "lovelace" Natural
+    total' = getField @"total"
+
 
 balanceReward :: HasType (ApiT WalletBalance) s => Lens' s Natural
 balanceReward =
@@ -1002,7 +1028,7 @@ fixtureByronWallet ctx = do
     sixtySeconds = 60*oneSecond
     checkBalance w = do
         r <- request @ApiByronWallet ctx (getByronWalletEp w) Default Empty
-        if getFromResponse balanceAvailable r > 0
+        if getFromResponse byronBalanceAvailable r > 0
             then return (getFromResponse id r)
             else threadDelay oneSecond *> checkBalance w
 

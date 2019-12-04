@@ -25,12 +25,13 @@ module Cardano.Wallet.Primitive.AddressDiscovery
     , GenChange(..)
     , CompareDiscovery(..)
     , KnownAddresses(..)
+    , HasRewardAccount(..)
     ) where
 
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( XPrv )
+    ( XPrv, XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.Types
@@ -126,3 +127,7 @@ class KnownAddresses s where
     knownAddresses
         :: s
         -> [Address]
+
+class HasRewardAccount s where
+    type RewardAccountKey s :: Depth -> * -> *
+    rewardAccount :: s -> (RewardAccountKey s) 'AddressK XPub

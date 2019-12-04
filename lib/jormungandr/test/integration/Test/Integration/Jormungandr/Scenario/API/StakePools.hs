@@ -13,17 +13,24 @@ module Test.Integration.Jormungandr.Scenario.API.StakePools
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiStakePool, ApiT (..), ApiTransaction, ApiWallet )
+    ( ApiNetworkInformation
+    , ApiStakePool
+    , ApiT (..)
+    , ApiTransaction
+    , ApiWallet
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
     ( Direction (..), PoolId (..), TxStatus (..), WalletDelegation (..) )
 import Control.Monad
-    ( forM_ )
+    ( forM_, unless )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text.Class
-    ( toText )
+    ( fromText, toText )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -34,6 +41,7 @@ import Test.Integration.Framework.DSL
     , Payload (..)
     , apparentPerformance
     , balanceAvailable
+    , balanceReward
     , balanceTotal
     , blocks
     , delegation
@@ -45,13 +53,16 @@ import Test.Integration.Framework.DSL
     , eventually_
     , expectErrorMessage
     , expectFieldEqual
+    , expectFieldSatisfy
     , expectListItemFieldEqual
     , expectListItemFieldSatisfy
     , expectListSizeEqual
     , expectResponseCode
+    , faucetUtxoAmt
     , fixturePassphrase
     , fixtureWallet
     , fixtureWalletWith
+    , getFromResponse
     , getWalletEp
     , joinStakePool
     , joinStakePoolEp
@@ -59,6 +70,7 @@ import Test.Integration.Framework.DSL
     , listStakePoolsEp
     , listTxEp
     , metrics
+    , networkInfoEp
     , quitStakePool
     , quitStakePoolEp
     , request
@@ -168,9 +180,87 @@ spec = do
                 , expectListItemFieldEqual 0 status InLedger
                 ]
 
-        -- Verify the wallet is now delegating
+    it "STAKE_POOLS_JOIN_01 - Controlled stake increases when joining" $ \ctx -> do
+        w <- fixtureWallet ctx
+        (_, p:_) <- eventually $
+            unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
+
+        -- Join a pool
+        joinStakePool ctx (p ^. #id) (w, fixturePassphrase) >>= flip verify
+            [ expectResponseCode HTTP.status200
+            , expectFieldEqual status Pending
+            , expectFieldEqual direction Outgoing
+            ]
+
+        -- Wait for the certificate to be inserted
+        eventually $ do
+            let ep = listTxEp w mempty
+            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+                [ expectListItemFieldEqual 0 direction Outgoing
+                , expectListItemFieldEqual 0 status InLedger
+                ]
+
+        let existingPoolStake = getQuantity $ p ^. #metrics . #controlledStake
+        let contributedStake = faucetUtxoAmt - stakeDelegationFee
+        eventually $ do
+            request @[ApiStakePool] ctx listStakePoolsEp Default Empty >>= flip verify
+                [ expectListItemFieldSatisfy 0 (metrics . stake)
+                    (> (existingPoolStake + contributedStake))
+                    -- No exact equality since the delegation from previous
+                    -- tests may take effect.
+                ]
+
+    it "STAKE_POOLS_JOIN_04 - Rewards accumulate and stop" $ \ctx -> do
+        w <- fixtureWallet ctx
+        (_, p:_) <- eventually $
+            unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
+
+        -- Join a pool
+        joinStakePool ctx (p ^. #id) (w, fixturePassphrase) >>= flip verify
+            [ expectResponseCode HTTP.status200
+            , expectFieldEqual status Pending
+            , expectFieldEqual direction Outgoing
+            ]
+        eventually $ do
+            let ep = listTxEp w mempty
+            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+                [ expectListItemFieldEqual 0 direction Outgoing
+                , expectListItemFieldEqual 0 status InLedger
+                ]
+
+        -- Wait for money to flow
+        eventually $ do
+            request @ApiWallet ctx (getWalletEp w) Default Empty >>= flip verify
+                [ expectFieldSatisfy balanceReward (> 0)
+                ]
+
+        -- Quit a pool
+        quitStakePool ctx (p ^. #id) (w, fixturePassphrase) >>= flip verify
+            [ expectResponseCode HTTP.status202
+            , expectFieldEqual status Pending
+            , expectFieldEqual direction Outgoing
+            ]
+        eventually $ do
+            let ep = listTxEp w mempty
+            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+                [ expectListItemFieldEqual 0 direction Outgoing
+                , expectListItemFieldEqual 0 status InLedger
+                , expectListItemFieldEqual 1 direction Outgoing
+                , expectListItemFieldEqual 1 status InLedger
+                ]
+
+        reward <- getFromResponse balanceReward <$>
+            request @ApiWallet ctx (getWalletEp w) Default Empty
+
+        -- Wait an epoch and make sure the reward doesn't increase
+        epoch <- getFromResponse (#networkTip . #epochNumber) <$>
+            request @ApiNetworkInformation ctx networkInfoEp Default Empty
+        eventually $ do
+            epoch' <- getFromResponse (#networkTip . #epochNumber) <$>
+                request @ApiNetworkInformation ctx networkInfoEp Default Empty
+            unless (getApiT epoch' > getApiT epoch) $ fail "not yet"
         request @ApiWallet ctx (getWalletEp w) Default Empty >>= flip verify
-            [ expectFieldEqual delegation (Delegating (p ^. #id))
+            [ expectFieldSatisfy balanceReward (== reward)
             ]
 
     it "STAKE_POOLS_JOIN_01 - I can join another stake-pool after previously \
@@ -233,7 +323,6 @@ spec = do
                 unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
             w <- fixtureWalletWith ctx [stakeDelegationFee - 1]
             r <- joinStakePool ctx (p ^. #id) (w, "Secure Passphrase")
-            print r
             expectResponseCode HTTP.status403 r
             expectErrorMessage (errMsg403DelegationFee 1) r
 
@@ -406,12 +495,10 @@ spec = do
 
     describe "STAKE_POOLS_JOIN/QUIT_05 - Bad request" $ do
         let verifyIt ctx sPoolEndp = do
-                (_, p:_) <- eventually $
-                    unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
                 w <- emptyWallet ctx
                 let payload = NonJson  "{ passphrase: Secure Passphrase }"
-                r <- request @(ApiTransaction n) ctx (sPoolEndp (p ^. #id) w)
-                        Default payload
+                r <- request @(ApiTransaction n) ctx
+                    (sPoolEndp arbitraryPoolId w) Default payload
                 expectResponseCode HTTP.status400 r
 
         it "Join" $ \ctx -> do
@@ -422,27 +509,23 @@ spec = do
     describe "STAKE_POOLS_JOIN/QUIT_05 -  Methods Not Allowed" $ do
         let methods = ["POST", "CONNECT", "TRACE", "OPTIONS"]
         forM_ methods $ \method -> it ("Join: " ++ show method) $ \ctx -> do
-            (_, p:_) <- eventually $
-                unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
             w <- emptyWallet ctx
             let payload = Json [json| {
                     "passphrase": "Secure Passphrase"
                     } |]
-            r <- request @(ApiTransaction n) ctx (stakePoolEp method (p ^. #id) w)
-                    Default payload
+            r <- request @(ApiTransaction n) ctx
+                    (stakePoolEp method arbitraryPoolId w) Default payload
             expectResponseCode HTTP.status405 r
             expectErrorMessage errMsg405 r
 
     describe "STAKE_POOLS_JOIN/QUIT_05 - HTTP headers" $ do
         let verifyIt ctx sPoolEndp headers expec = do
-                (_, p:_) <- eventually $ do
-                    unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
                 w <- emptyWallet ctx
                 let payload = Json [json| {
                         "passphrase": "Secure Passphrase"
                         } |]
-                r <- request @(ApiTransaction n) ctx (sPoolEndp (p ^. #id) w)
-                        headers payload
+                r <- request @(ApiTransaction n) ctx
+                        (sPoolEndp arbitraryPoolId w) headers payload
                 verify r expec
 
         let payloadHeaderCases =
@@ -468,22 +551,10 @@ spec = do
                          , expectErrorMessage errMsg415 ]
                        )
                      ]
-        let payloadHeaderCasesJoin = payloadHeaderCases ++
-                [ ( "No Accept -> 202"
-                  , Headers [ ("Content-Type", "application/json") ]
-                  , [ expectResponseCode @IO HTTP.status403 ]
-                  )
-                ]
-        let payloadHeaderCasesQuit = payloadHeaderCases ++
-                [ ( "No Accept -> 202"
-                  , Headers [ ("Content-Type", "application/json") ]
-                  , [ expectResponseCode @IO HTTP.status403 ]
-                  )
-                ]
-        forM_ payloadHeaderCasesJoin $ \(title, headers, expectations) -> do
+        forM_ payloadHeaderCases $ \(title, headers, expectations) -> do
             it ("Join: " ++ title) $ \ctx ->
                 verifyIt ctx joinStakePoolEp headers expectations
-        forM_ payloadHeaderCasesQuit $ \(title, headers, expectations) -> do
+        forM_ payloadHeaderCases $ \(title, headers, expectations) -> do
             it ("Quit: " ++ title) $ \ctx ->
                 verifyIt ctx quitStakePoolEp headers expectations
 
@@ -540,6 +611,12 @@ spec = do
         rq <- quitStakePool ctx pId (w, fixturePassphrase)
         expectResponseCode HTTP.status403 rq
         expectErrorMessage (errMsg403WrongPool wrongPoolId) rq
+
+-- | An arbitrary but valid pool id, to avoid having to list pools for testing
+-- bad requests and headers.
+arbitraryPoolId :: ApiT PoolId
+arbitraryPoolId = either (error . show) ApiT $ fromText
+    "a659052d84ddb6a04189bee523d59c0a3385c921f43db5dc5de17a4f3f11dc4c"
 
 joinStakePoolWithWalletBalance
     :: (Context t)

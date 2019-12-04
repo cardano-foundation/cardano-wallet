@@ -72,10 +72,12 @@ module Cardano.Wallet
     , updateWallet
     , updateWalletPassphrase
     , walletSyncProgress
+    , fetchRewardBalance
     , ErrWalletAlreadyExists (..)
     , ErrNoSuchWallet (..)
     , ErrListUTxOStatistics (..)
     , ErrUpdatePassphrase (..)
+    , ErrFetchRewards (..)
 
     -- ** Address
     , listAddresses
@@ -140,7 +142,8 @@ import Cardano.Wallet.DB
     , sparseCheckpoints
     )
 import Cardano.Wallet.Network
-    ( ErrNetworkUnavailable (..)
+    ( ErrGetAccountBalance (..)
+    , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
     , FollowAction (..)
     , NetworkLayer (..)
@@ -156,20 +159,19 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase
     , WalletKey (..)
     , XPrv
-    , XPub
     , checkPassphrase
     , deriveRewardAccount
     , encryptPassphrase
+    , toChimericAccount
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
+    , HasRewardAccount (..)
     , IsOurs (..)
     , IsOwned (..)
     , KnownAddresses (..)
     )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState (..) )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..), CoinSelectionOptions (..), ErrCoinSelection (..) )
 import Cardano.Wallet.Primitive.CoinSelection.Migration
@@ -286,7 +288,7 @@ import Data.Time.Clock
 import Data.Vector.Shuffle
     ( shuffle )
 import Data.Word
-    ( Word16 )
+    ( Word16, Word64 )
 import Fmt
     ( blockListF, pretty )
 import GHC.Generics
@@ -656,6 +658,42 @@ deleteWallet ctx wid = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @s @k
 
+-- | Fetch the reward balance of a given wallet.
+--
+-- Rather than force all callers of 'readWallet' to wait for fetching the
+-- account balance (via the 'NetworkLayer'), we expose this function for it.
+fetchRewardBalance
+    :: forall ctx s k t.
+        ( HasDBLayer s k ctx
+        , HasNetworkLayer t ctx
+        , HasRewardAccount s
+        , k ~ RewardAccountKey s
+        , WalletKey k
+        )
+    => ctx
+    -> WalletId
+    -> ExceptT ErrFetchRewards IO (Quantity "lovelace" Word64)
+fetchRewardBalance ctx wid = db & \DBLayer{..} -> do
+    let pk = PrimaryKey wid
+    cp <- withExceptT ErrFetchRewardsNoSuchWallet
+        . mapExceptT atomically
+        . withNoSuchWallet wid
+        $ readCheckpoint pk
+    mapExceptT (fmap handleErr)
+        . getAccountBalance nw
+        . toChimericAccount
+        . rewardAccount
+        $ getState cp
+  where
+    db = ctx ^. dbLayer @s @k
+    nw = ctx ^. networkLayer @t
+    handleErr = \case
+        Right x -> Right x
+        Left (ErrGetAccountBalanceAccountNotFound _) ->
+            Right $ Quantity 0
+        Left (ErrGetAccountBalanceNetworkUnreachable e) ->
+            Left $ ErrFetchRewardsNetworkUnreachable e
+
 {-------------------------------------------------------------------------------
                                     Address
 -------------------------------------------------------------------------------}
@@ -670,11 +708,8 @@ listAddresses
         , KnownAddresses s
         , MkKeyFingerprint k Address
         , DelegationAddress n k
-        , s ~ SeqState n k
-            -- FIXME
-            -- Perhaps rely on a proper abstraction for normalizing addresses.
-            -- This is _acceptable_ for now as only sequential addresses can be
-            -- listed, but it's not quite elegant nor extensible.
+        , HasRewardAccount s
+        , k ~ RewardAccountKey s
         )
     => ctx
     -> WalletId
@@ -684,7 +719,7 @@ listAddresses ctx wid = db & \DBLayer{..} -> do
         <$> (getState <$> withNoSuchWallet wid (readCheckpoint primaryKey))
         <*> lift (readTxHistory primaryKey Descending wholeRange Nothing)
     let maybeIsOurs (TxOut a _) = if fst (isOurs a s)
-            then normalize (rewardAccountKey s)  a
+            then normalize s a
             else Nothing
     let usedAddrs = Set.fromList $
             concatMap (mapMaybe maybeIsOurs . outputs') txs
@@ -701,10 +736,10 @@ listAddresses ctx wid = db & \DBLayer{..} -> do
     -- Addresses coming from the transaction history might be payment or
     -- delegation addresses. So we normalize them all to be delegation addresses
     -- to make sure that we compare them correctly.
-    normalize :: k 'AddressK XPub -> Address -> Maybe Address
-    normalize rewardAccount addr = do
+    normalize :: s -> Address -> Maybe Address
+    normalize s addr = do
         fingerprint <- eitherToMaybe (paymentKeyFingerprint addr)
-        pure $ liftDelegationAddress @n fingerprint rewardAccount
+        pure $ liftDelegationAddress @n fingerprint (rewardAccount s)
     primaryKey = PrimaryKey wid
 
 {-------------------------------------------------------------------------------
@@ -974,14 +1009,14 @@ signDelegation ctx wid argGenChange pwd coinSel poolId action = db & \DBLayer{..
             withExceptT ErrSignDelegationNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
 
-            let rewardAccount = deriveRewardAccount @k pwd xprv
+            let rewardAcc = deriveRewardAccount @k pwd xprv
             let keyFrom = isOwned (getState cp) (xprv, pwd)
             (tx, sealedTx) <- withExceptT ErrSignDelegationMkTx $ ExceptT $ pure $
                 case action of
                     Join ->
-                        mkDelegationJoinTx tl poolId (rewardAccount, pwd) keyFrom ins allOuts
+                        mkDelegationJoinTx tl poolId (rewardAcc, pwd) keyFrom ins allOuts
                     Quit ->
-                        mkDelegationQuitTx tl (rewardAccount, pwd) keyFrom ins allOuts
+                        mkDelegationQuitTx tl (rewardAcc, pwd) keyFrom ins allOuts
 
             let bp = blockchainParameters cp
             let (time, meta) = mkTxMeta bp (currentTip cp) s' ins allOuts
@@ -1387,6 +1422,11 @@ data ErrQuitStakePool
     | ErrQuitStakePoolSignDelegation ErrSignDelegation
     | ErrQuitStakePoolSubmitTx ErrSubmitTx
     deriving (Generic, Eq, Show)
+
+-- | Errors that can occur when fetching the reward balance of a wallet
+data ErrFetchRewards
+    = ErrFetchRewardsNetworkUnreachable ErrNetworkUnavailable
+    | ErrFetchRewardsNoSuchWallet ErrNoSuchWallet
 
 {-------------------------------------------------------------------------------
                                    Utils

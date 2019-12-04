@@ -15,7 +15,7 @@ import Prelude
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Trace
-    ( Trace )
+    ( Trace, logInfo )
 import Cardano.CLI
     ( Port (..), withLogging )
 import Cardano.Faucet
@@ -131,13 +131,14 @@ specWithServer
     :: (CM.Configuration, Trace IO Text)
     -> SpecWith (Context Jormungandr)
     -> Spec
-specWithServer logCfg = aroundAll withContext . after tearDown
+specWithServer logCfg@(_, trace) = aroundAll withContext . after tearDown
   where
     withContext :: (Context Jormungandr -> IO ()) -> IO ()
     withContext action = do
         ctx <- newEmptyMVar
         let setupContext wAddr nPort bp = do
                 let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
+                logInfo trace baseUrl
                 let sixtySeconds = 60*1000*1000 -- 60s in microseconds
                 manager <- (baseUrl,) <$> newManager (defaultManagerSettings
                     { managerResponseTimeout =

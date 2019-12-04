@@ -58,6 +58,7 @@ module Cardano.Wallet.Api.Types
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
+    , ApiByronWalletBalance (..)
     , ApiByronWalletMigrationInfo (..)
     , ByronWalletPostData (..)
 
@@ -396,7 +397,7 @@ instance ToHttpApiData Iso8601Time where
 
 data ApiByronWallet = ApiByronWallet
     { id :: !(ApiT WalletId)
-    , balance :: !(ApiT WalletBalance)
+    , balance :: !(ApiByronWalletBalance)
     , name :: !(ApiT WalletName)
     , passphrase :: !(Maybe (ApiT WalletPassphraseInfo))
     , state :: !(ApiT SyncProgress)
@@ -548,6 +549,16 @@ instance FromJSON (ApiT WalletBalance) where
     parseJSON = fmap ApiT . genericParseJSON defaultRecordTypeOptions
 instance ToJSON (ApiT WalletBalance) where
     toJSON = genericToJSON defaultRecordTypeOptions . getApiT
+
+data ApiByronWalletBalance = ApiByronWalletBalance
+    { available :: !(Quantity "lovelace" Natural)
+    , total :: !(Quantity "lovelace" Natural)
+    } deriving (Eq, Generic, Show)
+
+instance FromJSON ApiByronWalletBalance where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiByronWalletBalance where
+    toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON (ApiT PoolId) where
     parseJSON = parseJSON >=> eitherToParser . bimap ShowFmt ApiT . fromText

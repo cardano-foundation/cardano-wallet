@@ -95,6 +95,7 @@ mockNetworkLayer = NetworkLayer
     , postTx = \_ -> error "the tx is not a thing that can be posted"
     , staticBlockchainParameters = error "static blockchain params don't exist"
     , stakeDistribution = error "stake? no."
+    , getAccountBalance = error "it is empty"
     }
 
 testShow :: Show a => a -> Spec

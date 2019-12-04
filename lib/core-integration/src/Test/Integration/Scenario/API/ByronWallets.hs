@@ -50,6 +50,8 @@ import Test.Integration.Framework.DSL
     , amount
     , balanceAvailable
     , balanceTotal
+    , byronBalanceAvailable
+    , byronBalanceTotal
     , calculateByronMigrationCostEp
     , deleteByronWalletEp
     , deleteWalletEp
@@ -224,7 +226,7 @@ spec = do
         $ \ctx -> do
             -- Restore a Byron wallet with funds, to act as a source wallet:
             sourceWallet <- fixtureByronWallet ctx
-            let originalBalance = view balanceAvailable sourceWallet
+            let originalBalance = view byronBalanceAvailable sourceWallet
 
             -- Create an empty target wallet:
             targetWallet <- emptyWallet ctx
@@ -284,9 +286,9 @@ spec = do
                 (getByronWalletEp wOld)
                 Default
                 Empty >>= flip verify
-                [ expectFieldSatisfy balanceAvailable (> 0)
+                [ expectFieldSatisfy byronBalanceAvailable (> 0)
                 ]
-        let originalBalance = view balanceAvailable wOld
+        let originalBalance = view byronBalanceAvailable wOld
 
         -- Calculate the expected migration fee:
         rFee <- request @ApiByronWalletMigrationInfo ctx
@@ -355,7 +357,7 @@ spec = do
                 (getByronWalletEp sourceWallet) Default Empty
             verify r1
                 [ expectResponseCode @IO HTTP.status200
-                , expectFieldSatisfy balanceAvailable (== 0)
+                , expectFieldSatisfy byronBalanceAvailable (== 0)
                 ]
 
     it "BYRON_MIGRATE_02 - \
@@ -395,7 +397,7 @@ spec = do
                     (getByronWalletEp sourceWallet)
                     Default
                     Empty >>= flip verify
-                    [ expectFieldSatisfy balanceAvailable (> 0)
+                    [ expectFieldSatisfy byronBalanceAvailable (> 0)
                     ]
 
             targetWallet <- emptyWallet ctx
@@ -752,8 +754,8 @@ spec = do
             }|]
         let expectations =
                     [ expectFieldEqual walletName name
-                    , expectFieldEqual balanceAvailable 0
-                    , expectFieldEqual balanceTotal 0
+                    , expectFieldEqual byronBalanceAvailable 0
+                    , expectFieldEqual byronBalanceTotal 0
                     , expectEventually ctx getByronWalletEp state Ready
                     , expectFieldNotEqual passphraseLastUpdate Nothing
                     ]
@@ -770,8 +772,8 @@ spec = do
             [ expectResponseCode @IO HTTP.status200
             , expectListSizeEqual 1
             , expectListItemFieldEqual 0 walletName name
-            , expectListItemFieldEqual 0 balanceAvailable 0
-            , expectListItemFieldEqual 0 balanceTotal 0
+            , expectListItemFieldEqual 0 byronBalanceAvailable 0
+            , expectListItemFieldEqual 0 byronBalanceTotal 0
             ]
 
     it "BYRON_RESTORE_02 - One can restore previously deleted wallet" $
