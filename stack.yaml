@@ -38,7 +38,7 @@ extra-deps:
 
 # iohk-monitoring-framework
 - git: https://github.com/input-output-hk/iohk-monitoring-framework
-  commit: 4956b32f039579a0e7e4fd10793f65b4c77d9044
+  commit: b4643defabb23b3d78f4b690a01bb6a41a3cd203
   subdirs:
     - contra-tracer
     - iohk-monitoring
