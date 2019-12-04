@@ -1144,6 +1144,10 @@ instance Arbitrary BlockHeader where
             , pure $ Hash "BLOCK03"
             ]
 
+instance Arbitrary EpochNo where
+    arbitrary = EpochNo <$> arbitrary
+    shrink = genericShrink
+
 instance Arbitrary SlotId where
     shrink _ = []
     arbitrary = do
