@@ -13,8 +13,6 @@ module Cardano.Wallet.Jormungandr.TransactionSpec
 
 import Prelude
 
-import Cardano.Wallet.Jormungandr.Compatibility
-    ( Jormungandr )
 import Cardano.Wallet.Jormungandr.Transaction
     ( ErrExceededInpsOrOuts (..), newTransactionLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -509,7 +507,7 @@ goldenTestStdTx tl keystore inps outs bytes' = it title $ do
     title = "golden test mkStdTx: " <> show inps <> show outs
 
 goldenTestDelegationCertTx
-    :: forall t k. (t ~ Jormungandr, HasCallStack)
+    :: forall t k. (HasCallStack)
     => TransactionLayer t k
     -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
     -> PoolId
