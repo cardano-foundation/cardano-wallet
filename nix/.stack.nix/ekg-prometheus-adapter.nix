@@ -39,21 +39,18 @@ let
       '';
 in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
   {
-    flags = { development = false; };
+    flags = {};
     package = {
       specVersion = "1.10";
-      identifier = {
-        name = "cardano-wallet-launcher";
-        version = "2019.11.18";
-        };
-      license = "Apache-2.0";
-      copyright = "2019 IOHK";
-      maintainer = "operations@iohk.io";
-      author = "IOHK Engineering Team";
-      homepage = "https://github.com/input-output-hk/cardano-wallet";
+      identifier = { name = "ekg-prometheus-adapter"; version = "0.2.0.1"; };
+      license = "MIT";
+      copyright = "2016 Alfredo Di Napoli";
+      maintainer = "alfredo.dinapoli@gmail.com";
+      author = "Alfredo Di Napoli";
+      homepage = "https://github.com/CodiePP/ekg-prometheus-adapter";
       url = "";
-      synopsis = "Utilities for a building commands launcher";
-      description = "";
+      synopsis = "Easily expose your EKG metrics to Prometheus";
+      description = "Forked from original implementation by Alfredo Di Napoli on https://github.com/adinapoli/ekg-prometheus-adapter";
       buildType = "Simple";
       isLocal = true;
       };
@@ -61,40 +58,30 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       "library" = {
         depends = [
           (hsPkgs."base" or (buildDepError "base"))
-          (hsPkgs."aeson" or (buildDepError "aeson"))
-          (hsPkgs."async" or (buildDepError "async"))
-          (hsPkgs."code-page" or (buildDepError "code-page"))
-          (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
-          (hsPkgs."fmt" or (buildDepError "fmt"))
-          (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
-          (hsPkgs."process" or (buildDepError "process"))
+          (hsPkgs."prometheus" or (buildDepError "prometheus"))
+          (hsPkgs."ekg-core" or (buildDepError "ekg-core"))
+          (hsPkgs."unordered-containers" or (buildDepError "unordered-containers"))
+          (hsPkgs."containers" or (buildDepError "containers"))
           (hsPkgs."text" or (buildDepError "text"))
-          (hsPkgs."text-class" or (buildDepError "text-class"))
-          ] ++ (if system.isWindows
-          then [ (hsPkgs."Win32" or (buildDepError "Win32")) ]
-          else [ (hsPkgs."unix" or (buildDepError "unix")) ]);
+          (hsPkgs."transformers" or (buildDepError "transformers"))
+          (hsPkgs."microlens-th" or (buildDepError "microlens-th"))
+          ];
         buildable = true;
         };
       tests = {
-        "unit" = {
+        "tests" = {
           depends = [
             (hsPkgs."base" or (buildDepError "base"))
-            (hsPkgs."async" or (buildDepError "async"))
-            (hsPkgs."cardano-wallet-launcher" or (buildDepError "cardano-wallet-launcher"))
-            (hsPkgs."cardano-wallet-test-utils" or (buildDepError "cardano-wallet-test-utils"))
-            (hsPkgs."fmt" or (buildDepError "fmt"))
-            (hsPkgs."hspec" or (buildDepError "hspec"))
-            (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
-            (hsPkgs."process" or (buildDepError "process"))
-            (hsPkgs."retry" or (buildDepError "retry"))
-            (hsPkgs."text" or (buildDepError "text"))
-            (hsPkgs."time" or (buildDepError "time"))
-            ];
-          build-tools = [
-            (hsPkgs.buildPackages.hspec-discover or (pkgs.buildPackages.hspec-discover or (buildToolDepError "hspec-discover")))
+            (hsPkgs."ekg-prometheus-adapter" or (buildDepError "ekg-prometheus-adapter"))
             ];
           buildable = true;
           };
         };
       };
-    } // rec { src = (pkgs.lib).mkDefault ../.././lib/launcher; }
+    } // {
+    src = (pkgs.lib).mkDefault (pkgs.fetchgit {
+      url = "https://github.com/CodiePP/ekg-prometheus-adapter";
+      rev = "1a258b6df7d9807d4c4ff3e99722223d31a2c320";
+      sha256 = "0jzr1afb4vanhcc2gzlybzr0jnh66cap8kh00fkd4c22882jqkh8";
+      });
+    }

@@ -22,8 +22,9 @@ import Cardano.Pool.Metadata
     , StakePoolMetadata (..)
     , StakePoolTicker
     , getStakePoolMetadata
-    , transformTrace
     )
+import Cardano.Wallet.Logging
+    ( transformTextTrace )
 import Cardano.Wallet.Primitive.Types
     ( PoolOwner (..) )
 import Cardano.Wallet.Unsafe
@@ -301,7 +302,7 @@ instance Arbitrary PathElement where
 setupLogging :: IO (Trace IO RegistryLog)
 setupLogging = do
     cfg <- defaultConfigStdout
-    transformTrace . fst <$> setupTrace_ cfg "RegistrySpec"
+    transformTextTrace . fst <$> setupTrace_ cfg "RegistrySpec"
 
 withLogging :: ((Trace IO RegistryLog, IO [RegistryLog]) -> IO a) -> IO a
 withLogging action = do

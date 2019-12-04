@@ -22,15 +22,15 @@ module Cardano.Launcher
 
     -- * Logging
     , LauncherLog(..)
-    , transformLauncherTrace
+    , transformTextTrace
     ) where
 
 import Prelude
 
-import Cardano.BM.Data.LogItem
-    ( PrivacyAnnotation (..) )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
+import Cardano.BM.Data.Tracer
+    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
 import Cardano.BM.Trace
     ( Trace, appendName, traceNamedItem )
 import Control.Concurrent
@@ -43,8 +43,6 @@ import Control.Exception
     ( Exception, IOException, onException, tryJust )
 import Control.Monad
     ( join, void )
-import Control.Monad.IO.Class
-    ( MonadIO (..) )
 import Control.Tracer
     ( contramap )
 import Data.Aeson
@@ -53,6 +51,8 @@ import Data.List
     ( isPrefixOf )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( ToText (..) )
 import Fmt
     ( Buildable (..)
     , Builder
@@ -170,22 +170,22 @@ withBackendProcessHandle
     -> IO (Either ProcessHasExited a)
 withBackendProcessHandle tr cmd@(Command name args before output) action = do
     before
-    launcherLog tr $ MsgLauncherStart cmd
+    logTrace tr $ MsgLauncherStart cmd
     let process = (proc name args) { std_out = output, std_err = output }
     res <- fmap join $ tryJust spawnPredicate $
         withCreateProcess process $ \_ _ _ h -> do
             pid <- maybe "-" (T.pack . show) <$> getPid h
             let tr' = appendName (T.pack name <> "." <> pid) tr
-            launcherLog tr' $ MsgLauncherStarted name pid
+            logTrace tr' $ MsgLauncherStarted name pid
 
             let waitForExit =
                     ProcessHasExited name <$> interruptibleWaitForProcess tr' h
             let runAction = do
-                    launcherLog tr' MsgLauncherAction
-                    action h <* launcherLog tr' MsgLauncherCleanup
+                    logTrace tr' MsgLauncherAction
+                    action h <* logTrace tr' MsgLauncherCleanup
 
             race waitForExit runAction
-    either (launcherLog tr . MsgLauncherFinish) (const $ pure ()) res
+    either (logTrace tr . MsgLauncherFinish) (const $ pure ()) res
     pure res
   where
     -- Exceptions resulting from the @exec@ call for this command. The most
@@ -210,12 +210,12 @@ withBackendProcessHandle tr cmd@(Command name args before output) action = do
         takeMVar status
       where
         waitThread var = do
-            launcherLog tr' MsgLauncherWaitBefore
+            logTrace tr' MsgLauncherWaitBefore
             status <- waitForProcess ph
-            launcherLog tr' (MsgLauncherWaitAfter $ exitStatus status)
+            logTrace tr' (MsgLauncherWaitAfter $ exitStatus status)
             putMVar var status
         continue var = do
-            launcherLog tr' MsgLauncherCancel
+            logTrace tr' MsgLauncherCancel
             putMVar var (ExitFailure 256)
 
 {-------------------------------------------------------------------------------
@@ -246,24 +246,32 @@ exitStatus :: ExitCode -> Int
 exitStatus ExitSuccess = 0
 exitStatus (ExitFailure n) = n
 
-transformLauncherTrace :: Trace IO Text -> Trace IO LauncherLog
-transformLauncherTrace = contramap (fmap (fmt . launcherLogText))
+transformTextTrace :: ToText a => Trace IO Text -> Trace IO a
+transformTextTrace = contramap (fmap toText)
 
-launcherLog :: MonadIO m => Trace m LauncherLog -> LauncherLog -> m ()
-launcherLog logTrace msg = traceNamedItem logTrace Public (launcherLogLevel msg) msg
+logTrace :: Trace IO LauncherLog -> LauncherLog -> IO ()
+logTrace tr msg = traceNamedItem tr priv sev msg
+  where
+    priv = definePrivacyAnnotation msg
+    sev = defineSeverity msg
 
-launcherLogLevel :: LauncherLog -> Severity
-launcherLogLevel (MsgLauncherStart _) = Notice
-launcherLogLevel (MsgLauncherStarted _ _) = Info
-launcherLogLevel MsgLauncherWaitBefore = Debug
-launcherLogLevel (MsgLauncherWaitAfter _) = Debug
-launcherLogLevel MsgLauncherCancel = Debug
-launcherLogLevel (MsgLauncherFinish (ProcessHasExited _ st)) = case st of
-    ExitSuccess -> Notice
-    ExitFailure _ -> Error
-launcherLogLevel (MsgLauncherFinish (ProcessDidNotStart _ _)) = Error
-launcherLogLevel MsgLauncherAction = Debug
-launcherLogLevel MsgLauncherCleanup = Notice
+instance DefinePrivacyAnnotation LauncherLog
+instance DefineSeverity LauncherLog where
+    defineSeverity ev = case ev of
+        MsgLauncherStart _ -> Notice
+        MsgLauncherStarted _ _ -> Info
+        MsgLauncherWaitBefore -> Debug
+        MsgLauncherWaitAfter _ -> Debug
+        MsgLauncherCancel -> Debug
+        MsgLauncherFinish (ProcessHasExited _ st) -> case st of
+            ExitSuccess -> Notice
+            ExitFailure _ -> Error
+        MsgLauncherFinish (ProcessDidNotStart _ _) -> Error
+        MsgLauncherAction -> Debug
+        MsgLauncherCleanup -> Notice
+
+instance ToText LauncherLog where
+    toText = fmt . launcherLogText
 
 launcherLogText :: LauncherLog -> Builder
 launcherLogText (MsgLauncherStart cmd) =

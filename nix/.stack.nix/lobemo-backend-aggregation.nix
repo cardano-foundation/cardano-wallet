@@ -39,20 +39,20 @@ let
       '';
 in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
   {
-    flags = { development = false; };
+    flags = {};
     package = {
-      specVersion = "1.10";
+      specVersion = "2.0";
       identifier = {
-        name = "cardano-wallet-launcher";
-        version = "2019.11.18";
+        name = "lobemo-backend-aggregation";
+        version = "0.1.0.0";
         };
       license = "Apache-2.0";
       copyright = "2019 IOHK";
       maintainer = "operations@iohk.io";
-      author = "IOHK Engineering Team";
-      homepage = "https://github.com/input-output-hk/cardano-wallet";
+      author = "Alexander Diemand";
+      homepage = "https://github.com/input-output-hk/iohk-monitoring-framework";
       url = "";
-      synopsis = "Utilities for a building commands launcher";
+      synopsis = "provides a backend implementation to aggregate traced values";
       description = "";
       buildType = "Simple";
       isLocal = true;
@@ -61,40 +61,25 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       "library" = {
         depends = [
           (hsPkgs."base" or (buildDepError "base"))
+          (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
           (hsPkgs."aeson" or (buildDepError "aeson"))
           (hsPkgs."async" or (buildDepError "async"))
-          (hsPkgs."code-page" or (buildDepError "code-page"))
-          (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
-          (hsPkgs."fmt" or (buildDepError "fmt"))
-          (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
-          (hsPkgs."process" or (buildDepError "process"))
           (hsPkgs."text" or (buildDepError "text"))
-          (hsPkgs."text-class" or (buildDepError "text-class"))
+          (hsPkgs."time" or (buildDepError "time"))
+          (hsPkgs."safe-exceptions" or (buildDepError "safe-exceptions"))
+          (hsPkgs."stm" or (buildDepError "stm"))
+          (hsPkgs."unordered-containers" or (buildDepError "unordered-containers"))
           ] ++ (if system.isWindows
           then [ (hsPkgs."Win32" or (buildDepError "Win32")) ]
           else [ (hsPkgs."unix" or (buildDepError "unix")) ]);
         buildable = true;
         };
-      tests = {
-        "unit" = {
-          depends = [
-            (hsPkgs."base" or (buildDepError "base"))
-            (hsPkgs."async" or (buildDepError "async"))
-            (hsPkgs."cardano-wallet-launcher" or (buildDepError "cardano-wallet-launcher"))
-            (hsPkgs."cardano-wallet-test-utils" or (buildDepError "cardano-wallet-test-utils"))
-            (hsPkgs."fmt" or (buildDepError "fmt"))
-            (hsPkgs."hspec" or (buildDepError "hspec"))
-            (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
-            (hsPkgs."process" or (buildDepError "process"))
-            (hsPkgs."retry" or (buildDepError "retry"))
-            (hsPkgs."text" or (buildDepError "text"))
-            (hsPkgs."time" or (buildDepError "time"))
-            ];
-          build-tools = [
-            (hsPkgs.buildPackages.hspec-discover or (pkgs.buildPackages.hspec-discover or (buildToolDepError "hspec-discover")))
-            ];
-          buildable = true;
-          };
-        };
       };
-    } // rec { src = (pkgs.lib).mkDefault ../.././lib/launcher; }
+    } // {
+    src = (pkgs.lib).mkDefault (pkgs.fetchgit {
+      url = "https://github.com/input-output-hk/iohk-monitoring-framework";
+      rev = "b4643defabb23b3d78f4b690a01bb6a41a3cd203";
+      sha256 = "10h64sxgddxx4ia9pyzrrdqf66gnh52gzjj6nin991lbw6dav45c";
+      });
+    postUnpack = "sourceRoot+=/plugins/backend-aggregation; echo source root reset to \$sourceRoot";
+    }

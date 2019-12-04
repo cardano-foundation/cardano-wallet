@@ -43,7 +43,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     package = {
       specVersion = "1.10";
       identifier = { name = "contra-tracer"; version = "0.1.0.0"; };
-      license = "MIT";
+      license = "Apache-2.0";
       copyright = "2019 IOHK";
       maintainer = "operations@iohk.io";
       author = "Neil Davies, Alexander Diemand, Andreas Triantafyllos";
@@ -65,8 +65,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/iohk-monitoring-framework";
-      rev = "bd31cd2f3922010ddb76bb869f29c4e63bb8001b";
-      sha256 = "1dfk505qbpk6p3gcpxa31wmg98qvx9hlrxlf0khaj7hizf3b8b60";
+      rev = "b4643defabb23b3d78f4b690a01bb6a41a3cd203";
+      sha256 = "10h64sxgddxx4ia9pyzrrdqf66gnh52gzjj6nin991lbw6dav45c";
       });
     postUnpack = "sourceRoot+=/contra-tracer; echo source root reset to \$sourceRoot";
     }

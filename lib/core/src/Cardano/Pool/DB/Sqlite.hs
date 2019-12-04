@@ -34,12 +34,13 @@ import Cardano.DB.Sqlite
     , destroyDBLayer
     , handleConstraint
     , startSqliteBackend
-    , transformTrace
     )
 import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists (..) )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..) )
+import Cardano.Wallet.Logging
+    ( transformTextTrace )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..), EpochNo (..), PoolId, SlotId (..) )
 import Control.Exception
@@ -128,7 +129,7 @@ newDBLayer
        -- ^ Database file location, or Nothing for in-memory database
     -> IO (SqliteContext, DBLayer IO)
 newDBLayer logConfig trace fp = do
-    let trace' = transformTrace trace
+    let trace' = transformTextTrace trace
     ctx@SqliteContext{runQuery} <-
         startSqliteBackend logConfig migrateAll trace' fp
     return (ctx, DBLayer

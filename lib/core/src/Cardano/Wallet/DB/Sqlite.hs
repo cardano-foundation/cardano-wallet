@@ -42,7 +42,6 @@ import Cardano.DB.Sqlite
     , destroyDBLayer
     , handleConstraint
     , startSqliteBackend
-    , transformTrace
     )
 import Cardano.Wallet.DB
     ( DBFactory (..)
@@ -75,6 +74,8 @@ import Cardano.Wallet.DB.Sqlite.TH
     )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..), HDPassphrase (..), TxId (..) )
+import Cardano.Wallet.Logging
+    ( transformTextTrace )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , MkKeyFingerprint (..)
@@ -297,7 +298,7 @@ newDBLayer
        -- ^ Path to database file, or Nothing for in-memory database
     -> IO (SqliteContext, DBLayer IO s k)
 newDBLayer logConfig trace mDatabaseFile = do
-    let trace' = transformTrace trace
+    let trace' = transformTextTrace trace
     ctx@SqliteContext{runQuery} <-
         startSqliteBackend logConfig migrateAll trace' mDatabaseFile
     return (ctx, DBLayer
