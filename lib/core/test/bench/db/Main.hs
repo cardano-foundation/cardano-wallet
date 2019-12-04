@@ -52,18 +52,16 @@ import Cardano.Wallet.DB.Sqlite
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0, genesisParameters, mkTxId )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
+    ( DelegationAddress (..)
+    , Depth (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , WalletKey (..)
     , XPub
+    , xpub
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..)
-    , addrGroupedSize
-    , generateKeyFromSeed
-    , unsafeGenerateKeyFromSeed
-    )
+    ( ShelleyKey (..), generateKeyFromSeed, unsafeGenerateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , SeqState (..)
@@ -515,7 +513,7 @@ mkPool
     => Int -> Int -> AddressPool c ShelleyKey
 mkPool numAddrs i = mkAddressPool ourAccount defaultAddressPoolGap addrs
   where
-    addrs = [ mkAddress i j | j <- [1..numAddrs] ]
+    addrs = [ force (mkAddress i j) | j <- [1..numAddrs] ]
 
 ----------------------------------------------------------------------------
 -- Disk space usage tests
@@ -642,11 +640,14 @@ label prefix n = B8.take 32 $ B8.pack (prefix <> show n) <> B8.replicate 32 '0'
 
 mkAddress :: Int -> Int -> Address
 mkAddress i j =
-    Address $ B8.pack $ take addrGroupedSize $ randoms $ mkStdGen seed
+    delegationAddress @'Testnet
+        (ShelleyKey $ unsafeXPub $ B8.pack $ take 64 $ randoms $ mkStdGen seed)
+        rewardAccount
   where
     -- Generate a seed using two prime numbers and a pair of index. This should
     -- lead to a satisfactory entropy.
     seed = 1459*i + 1153*j
+    unsafeXPub = either (error . show) id . xpub
 
 -- | Arbitrary epoch length for testing
 epochLength :: EpochLength
