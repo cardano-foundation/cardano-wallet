@@ -30,7 +30,7 @@ import Data.Generics.Internal.VL.Lens
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
-    ( toText )
+    ( fromText, toText )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -498,12 +498,10 @@ spec = do
 
     describe "STAKE_POOLS_JOIN/QUIT_05 - Bad request" $ do
         let verifyIt ctx sPoolEndp = do
-                (_, p:_) <- eventually $
-                    unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
                 w <- emptyWallet ctx
                 let payload = NonJson  "{ passphrase: Secure Passphrase }"
-                r <- request @(ApiTransaction n) ctx (sPoolEndp (p ^. #id) w)
-                        Default payload
+                r <- request @(ApiTransaction n) ctx
+                    (sPoolEndp arbitraryPoolId w) Default payload
                 expectResponseCode HTTP.status400 r
 
         it "Join" $ \ctx -> do
@@ -514,27 +512,23 @@ spec = do
     describe "STAKE_POOLS_JOIN/QUIT_05 -  Methods Not Allowed" $ do
         let methods = ["POST", "CONNECT", "TRACE", "OPTIONS"]
         forM_ methods $ \method -> it ("Join: " ++ show method) $ \ctx -> do
-            (_, p:_) <- eventually $
-                unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
             w <- emptyWallet ctx
             let payload = Json [json| {
                     "passphrase": "Secure Passphrase"
                     } |]
-            r <- request @(ApiTransaction n) ctx (stakePoolEp method (p ^. #id) w)
-                    Default payload
+            r <- request @(ApiTransaction n) ctx
+                    (stakePoolEp method arbitraryPoolId w) Default payload
             expectResponseCode HTTP.status405 r
             expectErrorMessage errMsg405 r
 
     describe "STAKE_POOLS_JOIN/QUIT_05 - HTTP headers" $ do
         let verifyIt ctx sPoolEndp headers expec = do
-                (_, p:_) <- eventually $ do
-                    unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
                 w <- emptyWallet ctx
                 let payload = Json [json| {
                         "passphrase": "Secure Passphrase"
                         } |]
-                r <- request @(ApiTransaction n) ctx (sPoolEndp (p ^. #id) w)
-                        headers payload
+                r <- request @(ApiTransaction n) ctx
+                        (sPoolEndp arbitraryPoolId w) headers payload
                 verify r expec
 
         let payloadHeaderCases =
@@ -560,22 +554,10 @@ spec = do
                          , expectErrorMessage errMsg415 ]
                        )
                      ]
-        let payloadHeaderCasesJoin = payloadHeaderCases ++
-                [ ( "No Accept -> 202"
-                  , Headers [ ("Content-Type", "application/json") ]
-                  , [ expectResponseCode @IO HTTP.status403 ]
-                  )
-                ]
-        let payloadHeaderCasesQuit = payloadHeaderCases ++
-                [ ( "No Accept -> 202"
-                  , Headers [ ("Content-Type", "application/json") ]
-                  , [ expectResponseCode @IO HTTP.status403 ]
-                  )
-                ]
-        forM_ payloadHeaderCasesJoin $ \(title, headers, expectations) -> do
+        forM_ payloadHeaderCases $ \(title, headers, expectations) -> do
             it ("Join: " ++ title) $ \ctx ->
                 verifyIt ctx joinStakePoolEp headers expectations
-        forM_ payloadHeaderCasesQuit $ \(title, headers, expectations) -> do
+        forM_ payloadHeaderCases $ \(title, headers, expectations) -> do
             it ("Quit: " ++ title) $ \ctx ->
                 verifyIt ctx quitStakePoolEp headers expectations
 
@@ -632,6 +614,12 @@ spec = do
         rq <- quitStakePool ctx pId (w, fixturePassphrase)
         expectResponseCode HTTP.status403 rq
         expectErrorMessage (errMsg403WrongPool wrongPoolId) rq
+
+-- | An arbitrary but valid pool id, to avoid having to list pools for testing
+-- bad requests and headers.
+arbitraryPoolId :: ApiT PoolId
+arbitraryPoolId = either (error . show) ApiT $ fromText
+    "a659052d84ddb6a04189bee523d59c0a3385c921f43db5dc5de17a4f3f11dc4c"
 
 joinStakePoolWithWalletBalance
     :: (Context t)
