@@ -167,7 +167,7 @@ spec = do
 
         -- Join a pool
         joinStakePool ctx (p ^. #id) (w, fixturePassphrase) >>= flip verify
-            [ expectResponseCode HTTP.status200
+            [ expectResponseCode HTTP.status202
             , expectFieldEqual status Pending
             , expectFieldEqual direction Outgoing
             ]
@@ -271,7 +271,7 @@ spec = do
 
         -- Join pool p1
         joinStakePool ctx (p1 ^. #id) (w, fixturePassphrase) >>= flip verify
-            [ expectResponseCode HTTP.status200
+            [ expectResponseCode HTTP.status202
             , expectFieldEqual status Pending
             , expectFieldEqual direction Outgoing
             ]
@@ -287,7 +287,7 @@ spec = do
 
         -- Join pool p2
         joinStakePool ctx (p2 ^. #id) (w, fixturePassphrase) >>= flip verify
-            [ expectResponseCode HTTP.status200
+            [ expectResponseCode HTTP.status202
             , expectFieldEqual status Pending
             , expectFieldEqual direction Outgoing
             ]
@@ -312,7 +312,7 @@ spec = do
                 unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
             w <- fixtureWalletWith ctx [stakeDelegationFee]
             joinStakePool ctx (p ^. #id) (w, "Secure Passphrase")>>= flip verify
-                [ expectResponseCode HTTP.status200
+                [ expectResponseCode HTTP.status202
                 , expectFieldEqual status Pending
                 , expectFieldEqual direction Outgoing
                 ]
@@ -375,7 +375,7 @@ spec = do
         w <- fixtureWallet ctx
 
         r <- joinStakePool ctx (p1 ^. #id) (w, fixturePassphrase)
-        expectResponseCode HTTP.status200 r
+        expectResponseCode HTTP.status202 r
         eventually $ do
             request @ApiWallet ctx (getWalletEp w) Default Empty >>= flip verify
                 [ expectFieldEqual delegation (Delegating (p1 ^. #id))
@@ -389,7 +389,7 @@ spec = do
                 ]
 
         r2 <- joinStakePool ctx (p2 ^. #id) (w, fixturePassphrase)
-        expectResponseCode HTTP.status200 r2
+        expectResponseCode HTTP.status202 r2
         eventually $ do
             request @ApiWallet ctx (getWalletEp w) Default Empty >>= flip verify
                 [ expectFieldEqual delegation (Delegating (p2 ^. #id))
@@ -410,7 +410,7 @@ spec = do
 
         -- Join a pool
         joinStakePool ctx (p ^. #id) (wA, fixturePassphrase) >>= flip verify
-            [ expectResponseCode HTTP.status200
+            [ expectResponseCode HTTP.status202
             , expectFieldEqual status Pending
             , expectFieldEqual direction Outgoing
             ]
@@ -600,7 +600,7 @@ spec = do
             unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
         w <- fixtureWallet ctx
         r <- joinStakePool ctx (p1 ^. #id) (w, fixturePassphrase)
-        expectResponseCode HTTP.status200 r
+        expectResponseCode HTTP.status202 r
         eventually $ do
             request @ApiWallet ctx (getWalletEp w) Default Empty >>= flip verify
                 [ expectFieldEqual delegation (Delegating (p1 ^. #id))
@@ -627,7 +627,7 @@ joinStakePoolWithWalletBalance ctx balance = do
     (_, p:_) <- eventually $
         unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
     r <- joinStakePool ctx (p ^. #id) (w, "Secure Passphrase")
-    expectResponseCode HTTP.status200 r
+    expectResponseCode HTTP.status202 r
     -- Verify the wallet is now delegating
     eventually $ do
         request @ApiWallet ctx (getWalletEp w) Default Empty >>= flip verify
@@ -643,7 +643,7 @@ joinStakePoolWithFixtureWallet ctx = do
     (_, p:_) <- eventually $
         unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
     r <- joinStakePool ctx (p ^. #id) (w, fixturePassphrase)
-    expectResponseCode HTTP.status200 r
+    expectResponseCode HTTP.status202 r
     -- Verify the wallet is now delegating
     eventually $ do
         request @ApiWallet ctx (getWalletEp w) Default Empty >>= flip verify
