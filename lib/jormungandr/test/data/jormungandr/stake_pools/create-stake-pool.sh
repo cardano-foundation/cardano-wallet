@@ -37,9 +37,10 @@ fi
 jcli certificate new stake-pool-registration \
     --kes-key $(cat stake_pool_kes.pub) \
     --vrf-key $(cat stake_pool_vrf.pub) \
-    --serial 1010101010 \
     --start-validity 0 \
     --owner $(cat ../owner.pub) \
+    --tax-ratio "0/1" \
+    --tax-fixed 0 \
     --management-threshold 1 > stake_pool.cert
 
 cat stake_pool.cert | jcli certificate sign -k ../owner.prv > stake_pool.cert.signed
