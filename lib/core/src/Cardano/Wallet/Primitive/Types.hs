@@ -89,6 +89,7 @@ module Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , EpochNo (..)
     , unsafeEpochNo
+    , epochStartTime
     , SlotParameters (..)
     , SlotLength (..)
     , EpochLength (..)
@@ -1094,6 +1095,10 @@ unsafeEpochNo epochNo
   where
     maxEpochNo :: Word32
     maxEpochNo = fromIntegral @Word31 $ unEpochNo maxBound
+
+-- | Calculate the time at which an epoch begins.
+epochStartTime :: SlotParameters -> EpochNo -> UTCTime
+epochStartTime sps e = slotStartTime sps $ SlotId e 0
 
 instance NFData SlotId
 
