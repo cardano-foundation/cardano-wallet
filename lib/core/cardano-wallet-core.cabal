@@ -77,6 +77,7 @@ library
     , servant
     , servant-server
     , split
+    , stm
     , streaming-commons
     , template-haskell
     , temporary

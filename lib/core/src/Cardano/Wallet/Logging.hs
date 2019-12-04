@@ -15,32 +15,48 @@ module Cardano.Wallet.Logging
       -- * Latency logging
     , LatencyLog (..)
     , LatencyLogMsg (..)
+    , measureLatency
+    , setupLatencyLogging
+    , captureLatencyLogging
     ) where
 
 import Prelude
 
+import Cardano.BM.Configuration.Static
+    ( defaultConfigStdout )
+import Cardano.BM.Data.LogItem
+    ( LOMeta (..), LogObject (..) )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
+import Cardano.BM.Setup
+    ( setupTrace_ )
 import Cardano.BM.Trace
-    ( Trace, traceNamedItem )
+    ( Trace, traceInTVarIO, traceNamedItem )
+import Control.Concurrent.STM.TVar
+    ( newTVarIO, readTVarIO )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Tracer
     ( contramap )
 import Data.Aeson
     ( ToJSON (..) )
+import Data.Maybe
+    ( mapMaybe )
 import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
 import Data.Time
     ( UTCTime )
+import Data.Time.Clock
+    ( NominalDiffTime, diffUTCTime )
 import Fmt
     ( fmt, (+|), (|+) )
 import GHC.Generics
     ( Generic )
+
 
 -- | Converts a 'Text' trace into any other type of trace that has a 'ToText'
 -- instance.
@@ -71,16 +87,16 @@ data LatencyLog = LatencyLog
 
 -- | Log messages about latency measurement.
 data LatencyLogMsg
-    = MsgStartMeasurement UTCTime
-    | MsgStopMeasurement UTCTime
+    = MsgStartMeasurement
+    | MsgStopMeasurement
     deriving (Generic, Show, Eq, ToJSON)
 
 instance DefinePrivacyAnnotation LatencyLogMsg
 
 instance DefineSeverity LatencyLogMsg where
     defineSeverity ev = case ev of
-        MsgStartMeasurement _ -> Info
-        MsgStopMeasurement _ -> Info
+        MsgStartMeasurement -> Info
+        MsgStopMeasurement -> Info
 
 instance ToText LatencyLog where
     toText (LatencyLog name msg) =
@@ -88,7 +104,39 @@ instance ToText LatencyLog where
 
 instance ToText LatencyLogMsg where
     toText = \case
-        MsgStartMeasurement t0 ->
-            fmt $ "Started at "+|t0|+""
-        MsgStopMeasurement t1 ->
-            fmt $ "Finished at "+|t1|+""
+        MsgStartMeasurement -> "Starting point"
+        MsgStopMeasurement -> "Ending point"
+
+-- | Measuring latency of IO action
+measureLatency
+    :: MonadIO m
+    => Trace IO LatencyLog
+    -> String
+    -> m b
+    -> m b
+measureLatency tr name action = do
+    trace MsgStartMeasurement
+    res <- action
+    trace MsgStopMeasurement
+    pure res
+  where
+    tr' = contramap (fmap (LatencyLog name)) tr
+    trace = liftIO . logTrace tr'
+
+setupLatencyLogging :: IO (Trace IO LatencyLog)
+setupLatencyLogging = do
+    cfg <- defaultConfigStdout
+    transformTextTrace . fst <$> setupTrace_ cfg "LatencyLogging"
+
+withLatencyLogging :: ((Trace IO LatencyLog, IO [UTCTime]) -> IO a) -> IO a
+withLatencyLogging action = do
+    tvar <- newTVarIO []
+    let getTimes = reverse . mapMaybe (Just . tstamp . loMeta) <$> readTVarIO tvar
+    action (traceInTVarIO tvar, getTimes)
+
+captureLatencyLogging :: (Trace IO LatencyLog -> IO a) -> IO (a, NominalDiffTime)
+captureLatencyLogging action = withLatencyLogging $ \(tr, getMsgs) -> do
+    res <- action tr
+    [startT, endT] <- getMsgs
+    let timeDiff = diffUTCTime endT startT
+    pure (res, timeDiff)
