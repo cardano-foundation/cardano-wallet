@@ -13,13 +13,18 @@ module Test.Integration.Jormungandr.Scenario.API.StakePools
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiStakePool, ApiT (..), ApiTransaction, ApiWallet )
+    ( ApiNetworkInformation
+    , ApiStakePool
+    , ApiT (..)
+    , ApiTransaction
+    , ApiWallet
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
     ( Direction (..), PoolId (..), TxStatus (..), WalletDelegation (..) )
 import Control.Monad
-    ( forM_ )
+    ( forM_, unless )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Quantity
@@ -36,6 +41,7 @@ import Test.Integration.Framework.DSL
     , Payload (..)
     , apparentPerformance
     , balanceAvailable
+    , balanceReward
     , balanceTotal
     , blocks
     , delegation
@@ -47,6 +53,7 @@ import Test.Integration.Framework.DSL
     , eventually_
     , expectErrorMessage
     , expectFieldEqual
+    , expectFieldSatisfy
     , expectListItemFieldEqual
     , expectListItemFieldSatisfy
     , expectListSizeEqual
@@ -55,6 +62,7 @@ import Test.Integration.Framework.DSL
     , fixturePassphrase
     , fixtureWallet
     , fixtureWalletWith
+    , getFromResponse
     , getWalletEp
     , joinStakePool
     , joinStakePoolEp
@@ -62,6 +70,7 @@ import Test.Integration.Framework.DSL
     , listStakePoolsEp
     , listTxEp
     , metrics
+    , networkInfoEp
     , quitStakePool
     , quitStakePoolEp
     , request
@@ -203,25 +212,58 @@ spec = do
                     -- tests may take effect.
                 ]
 
--- Probably pending on jormungandr 0.8.0
---
---    xit "STAKE_POOLS_JOIN_04 - Rewards accumulate" $ \ctx -> do
---
---        w <- fixtureWallet ctx
---        (_, p:_) <- eventually $
---            unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
---
---        -- Join a pool
---        joinStakePool ctx (p ^. #id) (w, fixturePassphrase) >>= flip verify
---            [ expectResponseCode HTTP.status200
---            , expectFieldEqual status Pending
---            , expectFieldEqual direction Outgoing
---            ]
---
---        eventually $ do
---            request @ApiWallet ctx (getWalletEp w) Default Empty >>= flip verify
---                [ expectFieldSatisfy balanceReward (>0)
---                ]
+    it "STAKE_POOLS_JOIN_04 - Rewards accumulate and stop" $ \ctx -> do
+        w <- fixtureWallet ctx
+        (_, p:_) <- eventually $
+            unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
+
+        -- Join a pool
+        joinStakePool ctx (p ^. #id) (w, fixturePassphrase) >>= flip verify
+            [ expectResponseCode HTTP.status200
+            , expectFieldEqual status Pending
+            , expectFieldEqual direction Outgoing
+            ]
+        eventually $ do
+            let ep = listTxEp w mempty
+            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+                [ expectListItemFieldEqual 0 direction Outgoing
+                , expectListItemFieldEqual 0 status InLedger
+                ]
+
+        -- Wait for money to flow
+        eventually $ do
+            request @ApiWallet ctx (getWalletEp w) Default Empty >>= flip verify
+                [ expectFieldSatisfy balanceReward (> 0)
+                ]
+
+        -- Quit a pool
+        quitStakePool ctx (p ^. #id) (w, fixturePassphrase) >>= flip verify
+            [ expectResponseCode HTTP.status202
+            , expectFieldEqual status Pending
+            , expectFieldEqual direction Outgoing
+            ]
+        eventually $ do
+            let ep = listTxEp w mempty
+            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+                [ expectListItemFieldEqual 0 direction Outgoing
+                , expectListItemFieldEqual 0 status InLedger
+                , expectListItemFieldEqual 1 direction Outgoing
+                , expectListItemFieldEqual 1 status InLedger
+                ]
+
+        reward <- getFromResponse balanceReward <$>
+            request @ApiWallet ctx (getWalletEp w) Default Empty
+
+        -- Wait an epoch and make sure the reward doesn't increase
+        epoch <- getFromResponse (#networkTip . #epochNumber) <$>
+            request @ApiNetworkInformation ctx networkInfoEp Default Empty
+        eventually $ do
+            epoch' <- getFromResponse (#networkTip . #epochNumber) <$>
+                request @ApiNetworkInformation ctx networkInfoEp Default Empty
+            unless (getApiT epoch' > getApiT epoch) $ fail "not yet"
+        request @ApiWallet ctx (getWalletEp w) Default Empty >>= flip verify
+            [ expectFieldSatisfy balanceReward (== reward)
+            ]
 
     it "STAKE_POOLS_JOIN_01 - I can join another stake-pool after previously \
         \ joining another one" $ \ctx -> do
