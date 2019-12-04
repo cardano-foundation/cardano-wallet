@@ -32,6 +32,10 @@ module Test.Integration.Framework.TestData
     , russianWalletName
     , wildcardsWalletName
 
+    -- * Stake pool ids
+    , nonExistingStakePool1
+    , invalidPoolIds
+
     -- * Helpers
     , addressPoolGapMax
     , addressPoolGapMin
@@ -265,6 +269,23 @@ arabicWalletName = "ثم نفس سقطت وبالتحديد،, جزيرتي با
 wildcardsWalletName :: Text
 wildcardsWalletName = "`~`!@#$%^&*()_+-=<>,./?;':\"\"'{}[]\\|❤️ 💔 💌 💕 💞 \
 \💓 💗 💖 💘 💝 💟 💜 💛 💚 💙0️⃣ 1️⃣ 2️⃣ 3️⃣ 4️⃣ 5️⃣ 6️⃣ 7️⃣ 8️⃣ 9️⃣ 🔟🇺🇸🇷🇺🇸 🇦🇫🇦🇲🇸"
+
+
+--
+-- Stake Pools
+--
+
+nonExistingStakePool1 :: Text
+nonExistingStakePool1 = "008d686a02c6e625b5a59cc9e234f32e5d72987012f9c25c9a6b60ddade197d1"
+
+invalidPoolIds :: [(String, String)]
+invalidPoolIds =
+        [ ("64 chars non-hex", replicate 64 'ś')
+        , ("63 chars hex", replicate 63 '1')
+        , ("65 chars hex", replicate 65 '1')
+        , ("64 chars hex", replicate 64 '1')
+        , ("empty", "")
+        ]
 
 ---
 --- Helpers

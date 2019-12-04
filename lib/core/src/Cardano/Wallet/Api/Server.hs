@@ -149,7 +149,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..), defaultAddressPoolGap, mkSeqState )
 import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection, changeBalance, inputBalance )
+    ( CoinSelection, changeBalance, feeBalance, inputBalance )
 import Cardano.Wallet.Primitive.Fee
     ( Fee (..) )
 import Cardano.Wallet.Primitive.Model
@@ -787,6 +787,7 @@ stakePools
 stakePools ctx spl =
     listPools spl
     :<|> joinStakePool ctx spl
+    :<|> joinStakePoolFee ctx spl
     :<|> quitStakePool ctx
 
 listPools
@@ -836,6 +837,27 @@ joinStakePool ctx spl (ApiT pid) (ApiT wid) (ApiWalletPassphrase (ApiT pwd)) = d
         #pendingSince
   where
     liftE = throwE . ErrJoinStakePoolNoSuchWallet
+
+joinStakePoolFee
+    :: forall ctx s t n k.
+        ( DelegationAddress n k
+        , Buildable (ErrValidateSelection t)
+        , s ~ SeqState n k
+        , k ~ ShelleyKey
+        , HardDerivation k
+        , ctx ~ ApiLayer s t k
+        )
+    => ctx
+    -> StakePoolLayer IO
+    -> ApiT PoolId
+    -> ApiT WalletId
+    -> Handler ApiFee
+joinStakePoolFee ctx _spl (ApiT _pid) (ApiT wid) = do
+    liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
+         apiFee <$> W.selectCoinsForDelegation @_ @s @t @k wrk wid
+  where
+    apiFee = ApiFee . Quantity . fromIntegral . feeBalance
+    liftE = throwE . ErrSelectForDelegationNoSuchWallet
 
 quitStakePool
     :: forall ctx s t n k.

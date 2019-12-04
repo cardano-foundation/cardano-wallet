@@ -138,6 +138,7 @@ type CoreApi t =
 type StakePoolApi t =
     ListStakePools
     :<|> JoinStakePool t
+    :<|> JoinStakePoolFee
     :<|> QuitStakePool t
 
 type CompatibilityApi n =
@@ -281,6 +282,15 @@ type JoinStakePool t = "stake-pools"
     :> Capture "walletId" (ApiT WalletId)
     :> ReqBody '[JSON] ApiWalletPassphrase
     :> PutAcccepted '[JSON] (ApiTransaction t)
+
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/joinStakePool
+type JoinStakePoolFee = "stake-pools"
+    :> Capture "stakePoolId" (ApiT PoolId)
+    :> "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "fee"
+    :> Get '[JSON] ApiFee
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/quitStakePool
 type QuitStakePool t = "stake-pools"

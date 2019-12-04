@@ -19,6 +19,7 @@ module Cardano.Wallet.Primitive.CoinSelection
     , inputBalance
     , outputBalance
     , changeBalance
+    , feeBalance
     , ErrCoinSelection (..)
     , CoinSelectionOptions (..)
     ) where

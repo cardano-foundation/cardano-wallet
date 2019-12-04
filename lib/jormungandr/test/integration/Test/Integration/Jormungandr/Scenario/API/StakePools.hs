@@ -13,7 +13,8 @@ module Test.Integration.Jormungandr.Scenario.API.StakePools
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiNetworkInformation
+    ( ApiFee
+    , ApiNetworkInformation
     , ApiStakePool
     , ApiT (..)
     , ApiTransaction
@@ -40,6 +41,7 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , TxDescription (..)
+    , amount
     , apparentPerformance
     , balanceAvailable
     , balanceReward
@@ -61,6 +63,7 @@ import Test.Integration.Framework.DSL
     , expectResponseCode
     , faucetUtxoAmt
     , feeEstimator
+    , fixtureByronWallet
     , fixturePassphrase
     , fixtureWallet
     , fixtureWalletWith
@@ -68,6 +71,8 @@ import Test.Integration.Framework.DSL
     , getWalletEp
     , joinStakePool
     , joinStakePoolEp
+    , joinStakePoolFee
+    , joinStakePoolFeeEp
     , json
     , listStakePoolsEp
     , listTxEp
@@ -81,16 +86,21 @@ import Test.Integration.Framework.DSL
     , status
     , unsafeRequest
     , verify
+    , walletId
     )
 import Test.Integration.Framework.TestData
     ( errMsg403DelegationFee
     , errMsg403PoolAlreadyJoined
     , errMsg403WrongPass
     , errMsg403WrongPool
+    , errMsg404NoEndpoint
     , errMsg404NoSuchPool
+    , errMsg404NoWallet
     , errMsg405
     , errMsg406
     , errMsg415
+    , falseWalletIds
+    , invalidPoolIds
     , passphraseMaxLength
     , passphraseMinLength
     )
@@ -502,6 +512,52 @@ spec = do
         w <- emptyByronWallet ctx
         r <- joinStakePool ctx (p ^. #id) (w, "Secure Passprase")
         expectResponseCode HTTP.status404 r
+
+    it "STAKE_POOLS_ESTIMATE_FEE_01 - fee matches eventual cost" $ \ctx -> do
+        (_, p:_) <- eventually $
+            unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
+        w <- fixtureWallet ctx
+        fee <- getFromResponse amount <$> joinStakePoolFee ctx (p ^. #id) w
+        r <- joinStakePool ctx (p ^. #id) (w, fixturePassphrase)
+        verify r
+            [ expectFieldEqual amount fee
+            ]
+
+    it "STAKE_POOLS_ESTIMATE_FEE_02 - \
+        \empty wallet cannot estimate fee" $ \ctx -> do
+        (_, p:_) <- eventually $
+            unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
+        w <- emptyWallet ctx
+        joinStakePoolFee ctx (p ^. #id) w >>= flip verify
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage $ errMsg403DelegationFee stakeDelegationFee
+            ]
+
+    it "STAKE_POOLS_ESTIMATE_FEE_03 - can't use byron wallets" $ \ctx -> do
+        (_, p:_) <- eventually $
+            unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
+        w <- fixtureByronWallet ctx
+        let ep = joinStakePoolFeeEp (p ^. #id) w
+        r <- request @(ApiTransaction 'Mainnet) ctx ep Default Empty
+        verify r
+            [ expectResponseCode HTTP.status404 -- should fail
+            , expectErrorMessage $ errMsg404NoWallet (w ^. walletId)
+            ]
+
+    describe "STAKE_POOLS_ESTIMATE_FEE_04 - invalid pool and wallet ids" $ do
+        forM_ invalidPoolIds $ \(pDesc, poolId) ->
+            forM_ falseWalletIds $ \(wDesc, walId) -> do
+            let path = poolId <> "/wallets/" <> walId
+            it ("pool:" ++ pDesc ++ ", wallet:" ++ wDesc) $ \ctx -> do
+                let endpoint = "v2/stake-pools/"
+                                <> T.pack path
+                                <> "/fee"
+                rg <- request @ApiFee ctx ("GET", endpoint)
+                    Default Empty
+                expectResponseCode @IO HTTP.status404 rg
+                if pDesc == "64 chars hex" && wDesc == "40 chars hex"
+                then expectErrorMessage (errMsg404NoWallet $ T.pack walId) rg
+                else expectErrorMessage errMsg404NoEndpoint rg
 
     describe "STAKE_POOLS_JOIN/QUIT_05 - Bad request" $ do
         let verifyIt ctx sPoolEndp = do

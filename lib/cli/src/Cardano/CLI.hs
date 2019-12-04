@@ -1120,6 +1120,7 @@ walletClient =
 
         _listPools
             :<|> _joinStakePool
+            :<|> _joinStakePoolFee
             :<|> _quitStakePool
             = pools
 
