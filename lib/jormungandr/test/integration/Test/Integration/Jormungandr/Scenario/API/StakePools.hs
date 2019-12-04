@@ -203,8 +203,6 @@ spec = do
         let existingPoolStake = getQuantity $ p ^. #metrics . #controlledStake
         let contributedStake = faucetUtxoAmt - stakeDelegationFee
         eventually $ do
-            print contributedStake
-            print existingPoolStake
             request @[ApiStakePool] ctx listStakePoolsEp Default Empty >>= flip verify
                 [ expectListItemFieldSatisfy 0 (metrics . stake)
                     (> (existingPoolStake + contributedStake))
@@ -325,7 +323,6 @@ spec = do
                 unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
             w <- fixtureWalletWith ctx [stakeDelegationFee - 1]
             r <- joinStakePool ctx (p ^. #id) (w, "Secure Passphrase")
-            print r
             expectResponseCode HTTP.status403 r
             expectErrorMessage (errMsg403DelegationFee 1) r
 
