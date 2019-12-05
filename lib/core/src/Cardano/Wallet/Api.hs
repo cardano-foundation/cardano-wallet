@@ -106,18 +106,25 @@ import Servant.API
     , (:>)
     , Accept (..)
     , Capture
-    , DeleteAccepted
-    , DeleteNoContent
-    , Get
     , JSON
     , NoContent
     , OctetStream
-    , PostAccepted
-    , Put
-    , PutNoContent
     , QueryParam
     , ReqBody
     )
+import Servant.API.Verbs
+    ( DeleteAccepted
+    , DeleteNoContent
+    , Get
+    , PostAccepted
+    , Put
+    , PutNoContent
+    , StdMethod (..)
+    , Verb
+    )
+
+-- NOTE Somehow not exported in servant-0.15, despite the doc saying differently
+type PutAcccepted = Verb 'PUT 202
 
 type Api t = CoreApi t :<|> CompatibilityApi t :<|> StakePoolApi t
 
@@ -272,7 +279,7 @@ type JoinStakePool t = "stake-pools"
     :> "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> ReqBody '[JSON] ApiWalletPassphrase
-    :> Put '[JSON] (ApiTransaction t)
+    :> PutAcccepted '[JSON] (ApiTransaction t)
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/quitStakePool
 type QuitStakePool t = "stake-pools"
