@@ -335,7 +335,7 @@ cmdMnemonicRewardCredentials :: Mod CommandFields (IO ())
 cmdMnemonicRewardCredentials =
     command "reward-credentials" $ info (helper <*> cmd) $ mempty
         <> progDesc "Derive reward account private key from a given mnemonic."
-        <> footer "/!\\ Only for the Incentivized Testnet /!\\"
+        <> footer "!!! Only for the Incentivized Testnet !!!"
   where
     cmd = pure exec
     exec = do
