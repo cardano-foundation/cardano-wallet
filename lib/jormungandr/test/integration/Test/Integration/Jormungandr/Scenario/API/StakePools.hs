@@ -187,7 +187,7 @@ spec = do
 
         -- Join a pool
         joinStakePool ctx (p ^. #id) (w, fixturePassphrase) >>= flip verify
-            [ expectResponseCode HTTP.status200
+            [ expectResponseCode HTTP.status202
             , expectFieldEqual status Pending
             , expectFieldEqual direction Outgoing
             ]
@@ -217,7 +217,7 @@ spec = do
 
         -- Join a pool
         joinStakePool ctx (p ^. #id) (w, fixturePassphrase) >>= flip verify
-            [ expectResponseCode HTTP.status200
+            [ expectResponseCode HTTP.status202
             , expectFieldEqual status Pending
             , expectFieldEqual direction Outgoing
             ]
