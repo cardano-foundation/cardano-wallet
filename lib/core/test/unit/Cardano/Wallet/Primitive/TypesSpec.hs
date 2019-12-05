@@ -152,6 +152,7 @@ import Test.QuickCheck
     , Property
     , Small (..)
     , arbitraryBoundedEnum
+    , arbitraryBoundedIntegral
     , arbitraryPrintableChar
     , arbitrarySizedBoundedIntegral
     , checkCoverage
@@ -418,6 +419,23 @@ spec = do
         it "compare (InclusiveBound a) (InclusiveBound b) = compare a b" $
             property $ \(a :: Int) (b :: Int) ->
                 compare (InclusiveBound a) (InclusiveBound b) === compare a b
+
+    describe "Epoch arithmetic: epoch generation" $ do
+
+        it "Epoch number generation covers interesting cases" $
+            withMaxSuccess 10000 $ property $ \(epoch :: EpochNo) ->
+                checkCoverage
+                    $ cover 10 (epoch == minBound)
+                        "minBound"
+                    $ cover 10 (epoch == maxBound)
+                        "maxBound"
+                    $ cover 10 (epoch == minBound + 1)
+                        "minBound + 1"
+                    $ cover 10 (epoch == maxBound - 1)
+                        "maxBound - 1"
+                    $ cover 10 (epoch > minBound && epoch < maxBound)
+                        "intermediate value"
+                True
 
     describe "Epoch arithmetic: predecessors and successors" $ do
 
@@ -1291,7 +1309,18 @@ instance Arbitrary BlockHeader where
             ]
 
 instance Arbitrary EpochNo where
-    arbitrary = EpochNo <$> arbitrary
+    arbitrary = EpochNo <$> oneof
+        [ pure minBound
+        , pure maxBound
+        , pure $ succ minBound
+        , pure $ pred maxBound
+        , closeToMinBound
+        , closeToMaxBound
+        , arbitraryBoundedIntegral
+        ]
+      where
+        closeToMinBound =                getSmall <$> arbitrary
+        closeToMaxBound = (maxBound -) . getSmall <$> arbitrary
     shrink = genericShrink
 
 instance Arbitrary SlotId where
