@@ -41,7 +41,7 @@ repository.
 
 ## How to install
 
-See **Installation Instructions** for each available [releases](https://github.com/input-output-hk/cardano-wallet/releases).
+See **Installation Instructions** for each available [release](https://github.com/input-output-hk/cardano-wallet/releases).
 
 > ### Latest releases
 > 
