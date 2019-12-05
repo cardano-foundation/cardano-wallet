@@ -82,12 +82,16 @@ import Data.Quantity
     ( Percentage, Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Vector.Shuffle
+    ( shuffleWith )
 import Data.Word
     ( Word64 )
 import Fmt
     ( pretty )
 import GHC.Generics
     ( Generic )
+import System.Random
+    ( StdGen )
 
 import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
@@ -211,6 +215,7 @@ newStakePoolLayer db@DBLayer{..} nl tr = StakePoolLayer
         nodeTip <- withExceptT ErrListStakePoolsErrNetworkTip
             $ networkTip nl
         let nodeEpoch = nodeTip ^. #slotId . #epochNumber
+        let genesisEpoch = block0 ^. #header . #slotId . #epochNumber
 
         (distr, prod) <- liftIO . atomically $ (,)
             <$> (Map.fromList <$> readStakeDistribution nodeEpoch)
@@ -219,25 +224,45 @@ newStakePoolLayer db@DBLayer{..} nl tr = StakePoolLayer
         when (Map.null distr || Map.null prod) $ do
             computeProgress nodeTip >>= throwE . ErrMetricsIsUnsynced
 
-        perfs <- liftIO $
-            readPoolsPerformances db epochLength (nodeTip ^. #slotId)
+        if nodeEpoch == genesisEpoch
+        then do
+            seed <- liftIO $ atomically readSystemSeed
+            combineWith (sortArbitrarily seed) distr prod mempty
 
+        else do
+            let tip = nodeTip ^. #slotId
+            perfs <- liftIO $ readPoolsPerformances db epochLength tip
+            combineWith (pure . sortByPerformance) distr prod perfs
+    }
+  where
+    (block0, bp) = staticBlockchainParameters nl
+    epochLength = bp ^. #getEpochLength
+
+    combineWith
+        :: ([StakePool] -> IO [StakePool])
+        -> Map PoolId (Quantity "lovelace" Word64)
+        -> Map PoolId (Quantity "block" Word64)
+        -> Map PoolId Double
+        -> ExceptT ErrListStakePools IO [StakePool]
+    combineWith sortResults distr prod perfs =
         case combineMetrics distr prod perfs of
-            Right x -> return
-                $ sortOn (Down . apparentPerformance)
+            Right x -> lift
+                $ sortResults
                 $ map (uncurry mkStakePool)
                 $ Map.toList x
             Left e ->
                 throwE $ ErrListStakePoolsMetricsInconsistency e
-    }
-  where
+
+    poolProductionTip :: IO (Maybe BlockHeader)
     poolProductionTip = atomically $ readPoolProductionCursor 1 >>= \case
         [x] -> return $ Just x
         _ -> return Nothing
 
+    sortByPerformance :: [StakePool] -> [StakePool]
+    sortByPerformance = sortOn (Down . apparentPerformance)
 
-    (_, bp) = staticBlockchainParameters nl
-    epochLength = bp ^. #getEpochLength
+    sortArbitrarily :: StdGen -> [StakePool] -> IO [StakePool]
+    sortArbitrarily = shuffleWith
 
     mkStakePool
         :: PoolId

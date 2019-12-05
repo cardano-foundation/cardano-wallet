@@ -37,6 +37,7 @@ module Cardano.Pool.DB.Model
     , mReadPoolProduction
     , mPutStakeDistribution
     , mReadStakeDistribution
+    , mReadSystemSeed
     , mRollbackTo
     , mReadCursor
     ) where
@@ -57,6 +58,8 @@ import Data.Word
     ( Word64 )
 import GHC.Generics
     ( Generic )
+import System.Random
+    ( StdGen, newStdGen )
 
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
@@ -71,11 +74,25 @@ data PoolDatabase = PoolDatabase
 
     , distributions :: !(Map EpochNo [(PoolId, Quantity "lovelace" Word64)])
     -- ^ Store known stake distributions for epochs
+
+    , seed :: !SystemSeed
+    -- ^ Store an arbitrary random generator seed
     } deriving (Generic, Show, Eq)
+
+data SystemSeed
+    = SystemSeed StdGen
+    | NotSeededYet
+    deriving (Generic, Show)
+
+-- | Shallow / weak equality on seeds.
+instance Eq SystemSeed where
+    (SystemSeed _) == (SystemSeed _) = True
+    NotSeededYet == NotSeededYet = True
+    _ == _ = False
 
 -- | Produces an empty model pool production database.
 emptyPoolDatabase :: PoolDatabase
-emptyPoolDatabase = PoolDatabase mempty mempty
+emptyPoolDatabase = PoolDatabase mempty mempty NotSeededYet
 
 {-------------------------------------------------------------------------------
                                   Model Operation Types
@@ -129,6 +146,17 @@ mReadStakeDistribution epoch db@PoolDatabase{distributions} =
     , db
     )
 
+mReadSystemSeed
+    :: PoolDatabase
+    -> IO (StdGen, PoolDatabase)
+mReadSystemSeed db@PoolDatabase{seed} =
+    case seed of
+        NotSeededYet -> do
+            seed' <- newStdGen
+            return ( seed', db { seed = SystemSeed seed' })
+        SystemSeed s ->
+            return ( s, db )
+
 mReadCursor :: Int -> ModelPoolOp [BlockHeader]
 mReadCursor k db@PoolDatabase{pools} =
     let allHeaders = foldMap snd $ Map.toList pools
@@ -137,7 +165,7 @@ mReadCursor k db@PoolDatabase{pools} =
     in (Right $ reverse $ limit $ sortDesc allHeaders, db)
 
 mRollbackTo :: SlotId -> ModelPoolOp ()
-mRollbackTo point PoolDatabase{pools, distributions} =
+mRollbackTo point PoolDatabase{pools, distributions, seed} =
     let
         updateSlots = Map.map (filter ((<= point) . slotId))
         updatePools = Map.filter (not . L.null)
@@ -149,5 +177,6 @@ mRollbackTo point PoolDatabase{pools, distributions} =
         , PoolDatabase
             { pools = updatePools $ updateSlots pools
             , distributions = Map.mapMaybeWithKey discardEpoch distributions
+            , seed
             }
         )

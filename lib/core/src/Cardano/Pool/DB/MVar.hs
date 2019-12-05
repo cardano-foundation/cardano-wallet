@@ -29,6 +29,7 @@ import Cardano.Pool.DB.Model
     , mReadCursor
     , mReadPoolProduction
     , mReadStakeDistribution
+    , mReadSystemSeed
     , mRollbackTo
     )
 import Control.Concurrent.MVar
@@ -41,6 +42,8 @@ import Control.Monad
     ( void )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
+import Data.Tuple
+    ( swap )
 
 -- | Instantiate a new in-memory "database" layer that simply stores data in
 -- a local MVar. Data vanishes if the software is shut down.
@@ -62,13 +65,18 @@ newDBLayer = do
         , readStakeDistribution =
             readPoolDB db . mReadStakeDistribution
 
-        , readPoolProductionCursor = readPoolDB db . mReadCursor
+        , readPoolProductionCursor =
+            readPoolDB db . mReadCursor
+
+        , readSystemSeed =
+            modifyMVar db (fmap swap . mReadSystemSeed)
 
         , rollbackTo =
             void . alterPoolDB (const Nothing) db . mRollbackTo
 
         , cleanDB =
             void $ alterPoolDB (const Nothing) db mCleanPoolProduction
+
         , atomically = id
         }
 

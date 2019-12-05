@@ -30,6 +30,8 @@ import Database.Persist.TH
     ( mkDeleteCascade, mkMigrate, mkPersist, persistLowerCase, share )
 import GHC.Generics
     ( Generic (..) )
+import System.Random
+    ( StdGen )
 
 import qualified Cardano.Wallet.DB.Sqlite.Types as W
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -40,6 +42,12 @@ share
     , mkMigrate "migrateAll"
     ]
     [persistLowerCase|
+
+-- A unique, but arbitrary, value for this particular device
+ArbitrarySeed sql=arbitrary_seed
+    seedSeed                    StdGen       sql=seed
+
+    deriving Show Generic
 
 -- The set of stake pools that produced a given block
 PoolProduction sql=pool_production

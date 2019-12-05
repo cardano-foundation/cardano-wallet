@@ -45,6 +45,8 @@ import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..), EpochNo (..), PoolId, SlotId (..) )
 import Control.Exception
     ( bracket )
+import Control.Monad.IO.Class
+    ( liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Data.List
@@ -64,6 +66,7 @@ import Database.Persist.Sql
     , deleteWhere
     , insertMany_
     , insert_
+    , selectFirst
     , selectList
     , (<.)
     , (==.)
@@ -74,6 +77,8 @@ import Database.Persist.Sqlite
     ( SqlPersistT )
 import System.FilePath
     ( (</>) )
+import System.Random
+    ( newStdGen )
 
 import Cardano.Pool.DB.Sqlite.TH
 
@@ -167,6 +172,16 @@ newDBLayer logConfig trace fp = do
             reverse . map (snd . fromPoolProduction . entityVal) <$> selectList
                 []
                 [Desc PoolProductionSlot, LimitTo k]
+
+        , readSystemSeed = do
+            mseed <- selectFirst [] []
+            case mseed of
+                Nothing -> do
+                    seed <- liftIO newStdGen
+                    insert_ (ArbitrarySeed seed)
+                    return seed
+                Just seed ->
+                    return $ seedSeed $ entityVal seed
 
         , cleanDB =
             deleteWhere ([] :: [Filter PoolProduction])

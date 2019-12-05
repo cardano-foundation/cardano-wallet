@@ -31,6 +31,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Word
     ( Word64 )
+import System.Random
+    ( StdGen )
 
 -- | A Database interface for storing pool production in DB.
 --
@@ -76,6 +78,13 @@ data DBLayer m = forall stm. MonadFail stm => DBLayer
         -- be the last element in the list.
         --
         -- This is useful for the @NetworkLayer@ to know how far we have synced.
+
+    , readSystemSeed
+        :: stm StdGen
+        -- ^ Read the seed assigned to this particular database. The seed is
+        -- created with the database and is "unique" for each database. This
+        -- however allow to have a seed that can be used to produce consistent
+        -- results across requests.
 
     , rollbackTo
         :: SlotId -> stm ()
