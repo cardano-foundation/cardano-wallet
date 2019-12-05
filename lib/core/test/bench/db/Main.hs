@@ -103,8 +103,6 @@ import Control.DeepSeq
     ( NFData (..), force )
 import Control.Exception
     ( bracket, handle )
-import Control.Monad
-    ( forM_ )
 import Control.Monad.Trans.Except
     ( mapExceptT )
 import Criterion.Main
@@ -122,8 +120,6 @@ import Data.ByteString
     ( ByteString )
 import Data.Functor
     ( ($>) )
-import Data.List.Split
-    ( chunksOf )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Time.Clock.System
@@ -455,7 +451,7 @@ txHistoryFixture db@DBLayer{..} bSize range = do
 benchPutUTxO :: Int -> Int -> DBLayerBench -> IO ()
 benchPutUTxO numCheckpoints utxoSize DBLayer{..} = do
     let cps = mkCheckpoints numCheckpoints utxoSize
-    unsafeRunExceptT $ mapM_ (mapExceptT atomically . putCheckpoint testPk) cps
+    unsafeRunExceptT $ mapExceptT atomically $ mapM_ (putCheckpoint testPk) cps
 
 mkCheckpoints :: Int -> Int -> [WalletBench]
 mkCheckpoints numCheckpoints utxoSize =
@@ -498,7 +494,7 @@ utxoFixture db@DBLayer{..} numCheckpoints utxoSize = do
 
 benchPutSeqState :: Int -> Int -> DBLayerBench -> IO ()
 benchPutSeqState numCheckpoints numAddrs DBLayer{..} =
-    unsafeRunExceptT $ mapM_ (mapExceptT atomically . putCheckpoint testPk)
+    unsafeRunExceptT $ mapExceptT atomically $ mapM_ (putCheckpoint testPk)
         [ snd $ initWallet block0 genesisParameters $
             SeqState
                 (mkPool numAddrs i)
