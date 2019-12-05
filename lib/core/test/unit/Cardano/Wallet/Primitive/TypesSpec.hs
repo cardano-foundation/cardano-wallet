@@ -493,57 +493,37 @@ spec = do
 
         it "epochStartTime (epochCeiling t) >= t" $
             withMaxSuccess 1000 $ property $
-                \(SlotParametersAndTimePoint sps time) -> do
-                    let timeMaximum = epochStartTime sps maxBound
-                    let withinBounds = time <= timeMaximum
-                    checkCoverage $
-                        cover 10      withinBounds  "within bounds" $
-                        cover 10 (not withinBounds) "out of bounds" $
-                        case epochCeiling sps time of
-                            Nothing -> not withinBounds
-                            Just en -> time <= epochStartTime sps en
+                \(SlotParametersAndTimePoint sps time) ->
+                    case epochCeiling sps time of
+                        Nothing -> time  > epochStartTime sps maxBound
+                        Just en -> time <= epochStartTime sps en
 
         it "epochStartTime (epochPred (epochCeiling t)) < t" $
             withMaxSuccess 1000 $ property $
-                \(SlotParametersAndTimePoint sps time) -> do
-                    let timeMaximum = epochStartTime sps maxBound
-                    let withinBounds = time <= timeMaximum
-                    checkCoverage $
-                        cover 10      withinBounds  "within bounds" $
-                        cover 10 (not withinBounds) "out of bounds" $
-                        case epochCeiling sps time of
-                            Nothing -> not withinBounds
-                            Just e1 -> case epochPred e1 of
-                                Nothing -> e1 == minBound
-                                Just e2 -> time > epochStartTime sps e2
+                \(SlotParametersAndTimePoint sps time) ->
+                    case epochCeiling sps time of
+                        Nothing -> time > epochStartTime sps maxBound
+                        Just e1 -> case epochPred e1 of
+                            Nothing -> e1 == minBound
+                            Just e2 -> time > epochStartTime sps e2
 
     describe "Epoch arithmetic: epochFloor: core properties" $ do
 
         it "epochStartTime (epochFloor t) <= t" $
             withMaxSuccess 1000 $ property $
-                \(SlotParametersAndTimePoint sps time) -> do
-                    let timeMinimum = epochStartTime sps minBound
-                    let withinBounds = time >= timeMinimum
-                    checkCoverage $
-                        cover 10      withinBounds  "within bounds" $
-                        cover 10 (not withinBounds) "out of bounds" $
-                        case epochFloor sps time of
-                            Nothing -> not withinBounds
-                            Just en -> time >= epochStartTime sps en
+                \(SlotParametersAndTimePoint sps time) ->
+                    case epochFloor sps time of
+                        Nothing -> time <  epochStartTime sps minBound
+                        Just en -> time >= epochStartTime sps en
 
         it "epochStartTime (epochSucc (epochFloor t)) > t" $
             withMaxSuccess 1000 $ property $
-                \(SlotParametersAndTimePoint sps time) -> do
-                    let timeMinimum = epochStartTime sps minBound
-                    let withinBounds = time >= timeMinimum
-                    checkCoverage $
-                        cover 10      withinBounds  "within bounds" $
-                        cover 10 (not withinBounds) "out of bounds" $
-                        case epochFloor sps time of
-                            Nothing -> not withinBounds
-                            Just e1 -> case epochSucc e1 of
-                                Nothing -> e1 == maxBound
-                                Just e2 -> time < epochStartTime sps e2
+                \(SlotParametersAndTimePoint sps time) ->
+                    case epochFloor sps time of
+                        Nothing -> time < epochStartTime sps minBound
+                        Just e1 -> case epochSucc e1 of
+                            Nothing -> e1 == maxBound
+                            Just e2 -> time < epochStartTime sps e2
 
     describe "Epoch arithmetic: epochCeiling: boundary conditions" $ do
 
