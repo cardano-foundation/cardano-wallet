@@ -89,6 +89,11 @@ module Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , EpochNo (..)
     , unsafeEpochNo
+    , epochStartTime
+    , epochPred
+    , epochSucc
+    , epochCeiling
+    , epochFloor
     , SlotParameters (..)
     , SlotLength (..)
     , EpochLength (..)
@@ -1094,6 +1099,54 @@ unsafeEpochNo epochNo
   where
     maxEpochNo :: Word32
     maxEpochNo = fromIntegral @Word31 $ unEpochNo maxBound
+
+-- | Calculate the time at which an epoch begins.
+epochStartTime :: SlotParameters -> EpochNo -> UTCTime
+epochStartTime sps e = slotStartTime sps $ SlotId e 0
+
+-- | Return the epoch immediately before the given epoch, or 'Nothing' if there
+--   is no representable epoch before the given epoch.
+epochPred :: EpochNo -> Maybe EpochNo
+epochPred (EpochNo e)
+    | e == minBound = Nothing
+    | otherwise = Just $ EpochNo $ pred e
+
+-- | Return the epoch immediately after the given epoch, or 'Nothing' if there
+--   is no representable epoch after the given epoch.
+epochSucc :: EpochNo -> Maybe EpochNo
+epochSucc (EpochNo e)
+    | e == maxBound = Nothing
+    | otherwise = Just $ EpochNo $ succ e
+
+-- | For the given time 't', calculate the number of the earliest epoch with
+--   start time 's' such that 't ≤ s'.
+--
+-- Returns 'Nothing' if the calculation would result in an epoch number that is
+-- not representable.
+epochCeiling :: SlotParameters -> UTCTime -> Maybe EpochNo
+epochCeiling sps t
+    | t < timeMin = Just minBound
+    | t > timeMax = Nothing
+    | otherwise = case slotCeiling sps t of
+        SlotId epoch 0 -> Just epoch
+        SlotId epoch _ -> epochSucc epoch
+  where
+    timeMin = epochStartTime sps minBound
+    timeMax = epochStartTime sps maxBound
+
+-- | For the given time 't', calculate the number of the latest epoch with
+--   start time 's' such that 's ≤ t'.
+--
+-- Returns 'Nothing' if the calculation would result in an epoch number that is
+-- not representable.
+epochFloor :: SlotParameters -> UTCTime -> Maybe EpochNo
+epochFloor sps t
+    | t < timeMin = Nothing
+    | t > timeMax = Just maxBound
+    | otherwise = epochNumber <$> slotFloor sps t
+  where
+    timeMin = epochStartTime sps minBound
+    timeMax = epochStartTime sps maxBound
 
 instance NFData SlotId
 

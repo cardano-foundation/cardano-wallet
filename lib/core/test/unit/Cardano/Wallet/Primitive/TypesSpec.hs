@@ -54,6 +54,11 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , balance
     , computeUtxoStatistics
+    , epochCeiling
+    , epochFloor
+    , epochPred
+    , epochStartTime
+    , epochSucc
     , excluding
     , flatSlot
     , fromFlatSlot
@@ -121,7 +126,7 @@ import Data.Text
 import Data.Text.Class
     ( TextDecodingError (..), fromText, toText )
 import Data.Time
-    ( UTCTime )
+    ( Day (ModifiedJulianDay), UTCTime, toModifiedJulianDay, utctDay )
 import Data.Time.Utils
     ( utcTimePred, utcTimeSucc )
 import Data.Word
@@ -145,6 +150,7 @@ import Test.QuickCheck
     , NonNegative (..)
     , NonZero (..)
     , Property
+    , Small (..)
     , arbitraryBoundedEnum
     , arbitraryPrintableChar
     , arbitrarySizedBoundedIntegral
@@ -171,7 +177,7 @@ import Test.QuickCheck.Monadic
 import Test.Text.Roundtrip
     ( textRoundtrip )
 import Test.Utils.Time
-    ( genUniformTime, getUniformTime )
+    ( genUniformTime, genUniformTimeWithinRange, getUniformTime )
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -412,6 +418,187 @@ spec = do
         it "compare (InclusiveBound a) (InclusiveBound b) = compare a b" $
             property $ \(a :: Int) (b :: Int) ->
                 compare (InclusiveBound a) (InclusiveBound b) === compare a b
+
+    describe "Epoch arithmetic: predecessors and successors" $ do
+
+        let succN n = applyN n (epochSucc =<<)
+        let predN n = applyN n (epochPred =<<)
+
+        it "epochPred minBound == Nothing" $
+            epochPred minBound === Nothing
+
+        it "epochSucc maxBound == Nothing" $
+            epochSucc maxBound === Nothing
+
+        it "(applyN n epochSucc) . (applyN n epochPred) == id" $
+            withMaxSuccess 1000 $ property $
+                \(Small epochWord) (Small n) ->
+                    let epoch = EpochNo epochWord
+                        withinBounds = minBound + n <= unEpochNo epoch
+                        expectedResult =
+                            if withinBounds then Just epoch else Nothing
+                    in
+                    checkCoverage $
+                    cover 10      withinBounds  "within bounds" $
+                    cover 10 (not withinBounds) "out of bounds" $
+                    expectedResult === succN n (predN n $ Just epoch)
+
+        it "(applyN n epochPred) . (applyN n epochSucc) == id" $
+            withMaxSuccess 1000 $ property $
+                \(Small epochWord) (Small n) ->
+                    let epoch = EpochNo $ maxBound - epochWord
+                        withinBounds = maxBound - n >= unEpochNo epoch
+                        expectedResult =
+                            if withinBounds then Just epoch else Nothing
+                    in
+                    checkCoverage $
+                    cover 10      withinBounds  "within bounds" $
+                    cover 10 (not withinBounds) "out of bounds" $
+                    expectedResult === predN n (succN n $ Just epoch)
+
+    describe "Epoch arithmetic: epochCeiling: core properties" $ do
+
+        it "epochStartTime (epochCeiling t) >= t" $
+            withMaxSuccess 1000 $ property $
+                \(SlotParametersAndTimePoint sps time) -> do
+                    let timeMaximum = epochStartTime sps maxBound
+                    let withinBounds = time <= timeMaximum
+                    checkCoverage $
+                        cover 10      withinBounds  "within bounds" $
+                        cover 10 (not withinBounds) "out of bounds" $
+                        case epochCeiling sps time of
+                            Nothing -> not withinBounds
+                            Just en -> time <= epochStartTime sps en
+
+        it "epochStartTime (epochPred (epochCeiling t)) < t" $
+            withMaxSuccess 1000 $ property $
+                \(SlotParametersAndTimePoint sps time) -> do
+                    let timeMaximum = epochStartTime sps maxBound
+                    let withinBounds = time <= timeMaximum
+                    checkCoverage $
+                        cover 10      withinBounds  "within bounds" $
+                        cover 10 (not withinBounds) "out of bounds" $
+                        case epochCeiling sps time of
+                            Nothing -> not withinBounds
+                            Just e1 -> case epochPred e1 of
+                                Nothing -> e1 == minBound
+                                Just e2 -> time > epochStartTime sps e2
+
+    describe "Epoch arithmetic: epochFloor: core properties" $ do
+
+        it "epochStartTime (epochFloor t) <= t" $
+            withMaxSuccess 1000 $ property $
+                \(SlotParametersAndTimePoint sps time) -> do
+                    let timeMinimum = epochStartTime sps minBound
+                    let withinBounds = time >= timeMinimum
+                    checkCoverage $
+                        cover 10      withinBounds  "within bounds" $
+                        cover 10 (not withinBounds) "out of bounds" $
+                        case epochFloor sps time of
+                            Nothing -> not withinBounds
+                            Just en -> time >= epochStartTime sps en
+
+        it "epochStartTime (epochSucc (epochFloor t)) > t" $
+            withMaxSuccess 1000 $ property $
+                \(SlotParametersAndTimePoint sps time) -> do
+                    let timeMinimum = epochStartTime sps minBound
+                    let withinBounds = time >= timeMinimum
+                    checkCoverage $
+                        cover 10      withinBounds  "within bounds" $
+                        cover 10 (not withinBounds) "out of bounds" $
+                        case epochFloor sps time of
+                            Nothing -> not withinBounds
+                            Just e1 -> case epochSucc e1 of
+                                Nothing -> e1 == maxBound
+                                Just e2 -> time < epochStartTime sps e2
+
+    describe "Epoch arithmetic: epochCeiling: boundary conditions" $ do
+
+        it "epochCeiling . epochStartTime == id" $
+            withMaxSuccess 1000 $ property $ \(sps, epoch) ->
+                epochCeiling sps (epochStartTime sps epoch)
+                    === Just epoch
+
+        it "epochCeiling . utcTimePred . epochStartTime == id" $
+            withMaxSuccess 1000 $ property $ \(sps, epoch) ->
+                epoch > minBound ==> do
+                    let fun = epochCeiling sps
+                            . utcTimePred
+                            . epochStartTime sps
+                    Just epoch === fun epoch
+
+        it "epochPred . epochCeiling . utcTimeSucc . epochStartTime == id" $
+            withMaxSuccess 1000 $ property $ \(sps, epoch) ->
+                epoch < maxBound ==> do
+                    let fun = (epochPred =<<)
+                            . epochCeiling sps
+                            . utcTimeSucc
+                            . epochStartTime sps
+                    Just epoch === fun epoch
+
+        it "epochCeiling (epochStartTime minBound) == minBound" $
+            withMaxSuccess 1000 $ property $ \sps ->
+                epochCeiling sps (epochStartTime sps minBound)
+                    === Just minBound
+
+        it "epochCeiling (utcTimePred (epochStartTime minBound)) == minBound" $
+            withMaxSuccess 1000 $ property $ \sps ->
+                epochCeiling sps (utcTimePred (epochStartTime sps minBound))
+                    === Just minBound
+
+        it "epochCeiling (epochStartTime maxBound) == maxBound" $
+            withMaxSuccess 1000 $ property $ \sps ->
+                epochCeiling sps (epochStartTime sps maxBound)
+                    === Just maxBound
+
+        it "epochCeiling (utcTimeSucc (epochStartTime maxBound)) == Nothing" $
+            withMaxSuccess 1000 $ property $ \sps ->
+                epochCeiling sps (utcTimeSucc (epochStartTime sps maxBound))
+                    === Nothing
+
+    describe "Epoch arithmetic: epochFloor: boundary conditions" $ do
+
+        it "epochFloor . epochStartTime == id" $
+            withMaxSuccess 1000 $ property $ \(sps, epoch) ->
+                epochFloor sps (epochStartTime sps epoch)
+                    === Just epoch
+
+        it "epochFloor . utcTimeSucc . epochStartTime == id" $
+            withMaxSuccess 1000 $ property $ \(sps, epoch) ->
+                epoch < maxBound ==> do
+                    let fun = epochFloor sps
+                            . utcTimeSucc
+                            . epochStartTime sps
+                    Just epoch === fun epoch
+
+        it "epochSucc . epochFloor . utcTimePred . epochStartTime == id" $
+            withMaxSuccess 1000 $ property $ \(sps, epoch) ->
+                epoch > minBound ==> do
+                    let fun = (epochSucc =<<)
+                            . epochFloor sps
+                            . utcTimePred
+                            . epochStartTime sps
+                    Just epoch === fun epoch
+
+        it "epochFloor (epochStartTime minBound) == minBound" $
+            withMaxSuccess 1000 $ property $ \sps ->
+                epochFloor sps (epochStartTime sps minBound)
+                    === Just minBound
+
+        it "epochFloor (utcTimePred (epochStartTime minBound)) == Nothing" $
+            withMaxSuccess 1000 $ property $ \sps ->
+                epochFloor sps (utcTimePred (epochStartTime sps minBound))
+                    === Nothing
+
+        it "epochFloor (epochStartTime maxBound) == maxBound" $
+            withMaxSuccess 1000 $ property $ \sps ->
+                epochFloor sps (epochStartTime sps maxBound)
+                    === Just maxBound
+
+        it "epochFloor (utcTimeSucc (epochStartTime maxBound)) == maxBound" $
+            withMaxSuccess 1000 $ property $ \sps ->
+                epochFloor sps (utcTimeSucc (epochStartTime sps maxBound))
+                    === Just maxBound
 
     describe "Slot arithmetic" $ do
 
@@ -1103,6 +1290,10 @@ instance Arbitrary BlockHeader where
             , pure $ Hash "BLOCK03"
             ]
 
+instance Arbitrary EpochNo where
+    arbitrary = EpochNo <$> arbitrary
+    shrink = genericShrink
+
 instance Arbitrary SlotId where
     shrink _ = []
     arbitrary = do
@@ -1164,6 +1355,36 @@ instance {-# OVERLAPS #-} Arbitrary (SlotParameters, SlotId) where
     shrink (SlotParameters el sl st, slot) = do
         (el', slot') <- shrink (el, slot)
         pure (SlotParameters el' sl st, slot')
+
+-- | Combines a 'SlotParameters' object and a single point in time.
+--
+-- The point in time falls into one of the following categories:
+--
+-- 1. occurs during the lifetime of the blockchain;
+-- 2. occurs before the earliest representable slot;
+-- 3. occurs after the latest representable slot.
+--
+data SlotParametersAndTimePoint = SlotParametersAndTimePoint
+    { getSlotParameters :: SlotParameters
+    , getTimePoint :: UTCTime
+    } deriving (Eq, Show)
+
+instance Arbitrary SlotParametersAndTimePoint where
+    arbitrary = do
+        sps <- arbitrary
+        let timeA = 0
+        let timeB = toModifiedJulianDay $ utctDay $ epochStartTime sps minBound
+        let timeC = toModifiedJulianDay $ utctDay $ epochStartTime sps maxBound
+        let timeD = timeC * 2
+        (lowerBound, upperBound) <- oneof $ fmap pure
+            [ (timeA, timeB)
+            , (timeB, timeC)
+            , (timeC, timeD)
+            ]
+        time <- genUniformTimeWithinRange
+            (ModifiedJulianDay lowerBound)
+            (ModifiedJulianDay upperBound)
+        pure $ SlotParametersAndTimePoint sps time
 
 -- | Note, for functions which works with both an epoch length and a slot id,
 -- we need to make sure that the 'slotNumber' doesn't exceed the epoch length,
