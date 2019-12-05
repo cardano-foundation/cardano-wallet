@@ -554,20 +554,10 @@ spec = do
                             . epochStartTime sps
                     Just epoch === fun epoch
 
-        it "epochCeiling (epochStartTime minBound) == minBound" $
-            withMaxSuccess 1000 $ property $ \sps ->
-                epochCeiling sps (epochStartTime sps minBound)
-                    === Just minBound
-
         it "epochCeiling (utcTimePred (epochStartTime minBound)) == minBound" $
             withMaxSuccess 1000 $ property $ \sps ->
                 epochCeiling sps (utcTimePred (epochStartTime sps minBound))
                     === Just minBound
-
-        it "epochCeiling (epochStartTime maxBound) == maxBound" $
-            withMaxSuccess 1000 $ property $ \sps ->
-                epochCeiling sps (epochStartTime sps maxBound)
-                    === Just maxBound
 
         it "epochCeiling (utcTimeSucc (epochStartTime maxBound)) == Nothing" $
             withMaxSuccess 1000 $ property $ \sps ->
@@ -598,20 +588,10 @@ spec = do
                             . epochStartTime sps
                     Just epoch === fun epoch
 
-        it "epochFloor (epochStartTime minBound) == minBound" $
-            withMaxSuccess 1000 $ property $ \sps ->
-                epochFloor sps (epochStartTime sps minBound)
-                    === Just minBound
-
         it "epochFloor (utcTimePred (epochStartTime minBound)) == Nothing" $
             withMaxSuccess 1000 $ property $ \sps ->
                 epochFloor sps (utcTimePred (epochStartTime sps minBound))
                     === Nothing
-
-        it "epochFloor (epochStartTime maxBound) == maxBound" $
-            withMaxSuccess 1000 $ property $ \sps ->
-                epochFloor sps (epochStartTime sps maxBound)
-                    === Just maxBound
 
         it "epochFloor (utcTimeSucc (epochStartTime maxBound)) == maxBound" $
             withMaxSuccess 1000 $ property $ \sps ->
