@@ -1044,6 +1044,15 @@ x-responsesPostTransactionFee: &responsesPostTransactionFee
     schema:
       <<: *ApiFee
 
+x-responsesGetJoinStakePoolFee: &responsesGetJoinStakePoolFee
+  <<: *responsesErr404
+  <<: *responsesErr405
+  <<: *responsesErr406
+  200:
+    description: Ok
+    schema:
+        <<: *ApiFee
+
 x-responsesListAddresses: &responsesListAddresses
   <<: *responsesErr400
   <<: *responsesErr404
@@ -1335,6 +1344,20 @@ paths:
         - <<: *parametersBody
           schema: *parametersQuitStakePool
       responses: *responsesQuitStakePool
+
+  /stake-pools/{stakePoolId}/wallets/{walletId}/fee:
+    get:
+      operationId: joinStakePoolFee
+      tags: ["Stake Pools"]
+      summary: Estimate
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Estimate fee for joining a stake pool.
+      parameters:
+        - *parametersStakePoolId
+        - *parametersWalletId
+      responses: *responsesGetJoinStakePoolFee
 
   /byron-wallets:
     get:
