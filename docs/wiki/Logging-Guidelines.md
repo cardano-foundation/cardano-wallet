@@ -248,3 +248,93 @@ levels at runtime on a component by component basis.
 
 However it's probably OK for now to change log levels by restarting
 cardano-wallet with different command-line options.
+
+## Structured logging tutorial
+
+Rather than logging unstructured text, define a type for log messages
+of a module.
+
+```haskell
+data FooMsg
+    = LogFooInit
+    | LogFooError FooError
+    | LogFooIncomingEvent Int
+    deriving (Show, Eq)
+```
+
+Then for human-readable logs use our `ToText` class.
+
+```haskell
+import Data.Text.Class
+    ( ToText (..) )
+
+instance ToText FooMsg where
+    toText msg = case msg of
+        LogFooInit -> "The foo has started"
+        LogFooError e -> "foo error: " <> T.pack (show e)
+        LogFooIncomingEvent -> "Incoming foo event " <>  T.pack (show e)
+```
+
+Finally, define the metadata which the switchboard needs to route
+these traces.
+
+```haskell
+import Cardano.BM.Data.LogItem
+    ( LoggerName, PrivacyAnnotation (..) )
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
+import Cardano.BM.Data.Tracer
+    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
+
+-- Everything is public by default
+instance DefinePrivacyAnnotation FooMsg
+
+instance DefineSeverity FooMsg
+    defineSeverity msg = case msg of
+        LogFooInit -> Debug
+        LogFooError _ -> Error
+        LogFooIncomingEvent -> Info
+```
+
+To use the logging in the `doFoo` function:
+
+```haskell
+import Cardano.BM.Trace
+    ( Trace )
+import Cardano.Wallet.Logging
+    ( logTrace )
+
+doFoo :: Trace IO FooMsg -> IO ()
+doFoo tr = do
+    logTrace tr LogFooInit
+    onFooEvent $ \ev -> case ev of
+       Right n -> logTrace tr $ LogFooIncomingEvent n
+       Left e -> logTrace tr $ LogFooError e
+```
+
+To convert to `Trace m FooMsg` to `Trace m Text` (well actually - the
+other way around), use `Cardano.Wallet.Logging.transformTextTrace`,
+like so:
+
+```haskell
+import Control.Tracer
+    ( contramap )
+import Cardano.Wallet.Logging
+    ( transformTextTrace )
+import Foo (doFoo)
+
+mainApp :: Trace IO Text -> IO ()
+mainApp tr = doFoo (transformTextTrace tr)
+```
+
+To convert a `Trace m FooMsg` to anything else, use `contramap`.
+
+```haskell
+data AppMsg
+    = FooMsg FooMsg
+    | BarMsg BarMsg
+    | TextMsg Text
+
+mainApp :: Trace IO AppMsg -> IO ()
+mainApp tr = doFoo (contramap (fmap FooMsg) tr)
+```
