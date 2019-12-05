@@ -10,6 +10,7 @@
 module Test.Integration.Jormungandr.Scenario.API.Transactions
     ( spec
     , fixtureExternalTx
+    , getWalletBalance
     , ExternalTxFixture (..)
     , convertToBase
     ) where
@@ -42,6 +43,7 @@ import Cardano.Wallet.Primitive.Types
     ( Coin (..)
     , Direction (..)
     , SealedTx (..)
+    , SyncProgress (..)
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
@@ -104,6 +106,7 @@ import Test.Integration.Framework.DSL as DSL
     , postTxEp
     , postTxFeeEp
     , request
+    , state
     , status
     , verify
     , walletId
@@ -272,10 +275,11 @@ spec = do
                 expectEventually' ctx getWalletEp balanceAvailable amt wal
                 expectEventually' ctx getWalletEp balanceTotal amt wal
 
+
         txDeleteTest05 "wallets" emptyWallet
         txDeleteTest05 "byron-wallets" emptyByronWallet
 
-    it "TRANS_EXTERNAL_CREATE_01 - proper single output transaction and \
+    it "TRANS_EXTERNAL_CREATE_01api - proper single output transaction and \
        \proper binary format" $ \ctx -> do
         let toSend = 1 :: Natural
         (ExternalTxFixture wSrc wDest fee bin _) <-
@@ -284,6 +288,8 @@ spec = do
         let encodedSignedTx = T.decodeUtf8 $ convertToBase baseOk bin
         let payload = NonJson . BL.fromStrict . toRawBytes baseOk
         let headers = Headers [ ("Content-Type", "application/octet-stream") ]
+        (initTotal, initAvailable) <- getWalletBalance ctx wDest
+
         r <- request
             @ApiTxId ctx postExternalTxEp headers (payload encodedSignedTx)
         verify r
@@ -294,7 +300,8 @@ spec = do
         rb <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
         verify rb
             [ expectSuccess
-            , expectEventually ctx getWalletEp balanceAvailable toSend
+            , expectEventually ctx getWalletEp balanceTotal (initTotal + toSend)
+            , expectEventually ctx getWalletEp balanceAvailable (initAvailable + toSend)
             ]
         ra <- request @ApiWallet ctx (getWalletEp wSrc) Default Empty
         verify ra
@@ -487,8 +494,7 @@ fixtureExternalTx ctx toSend = do
     r1 <- request @ApiWallet ctx ("POST", "v2/wallets") Default createWallet
     verify r1
         [ expectFieldEqual walletName "Destination Wallet"
-        , expectFieldEqual balanceAvailable 0
-        , expectFieldEqual balanceTotal 0
+        , expectEventually ctx getWalletEp state Ready
         ]
     let wDest = getFromResponse Prelude.id r1
     addrsDest <- listAddresses ctx wDest
@@ -536,3 +542,10 @@ fixtureExternalTx ctx toSend = do
              , pwd
              , mkSeqState @n (rootXPrv, pwd) defaultAddressPoolGap
              )
+
+getWalletBalance :: Context t -> ApiWallet -> IO (Natural, Natural)
+getWalletBalance ctx w = do
+    r <- request @ApiWallet ctx (getWalletEp w) Default Empty
+    let total = getFromResponse balanceTotal r
+    let available = getFromResponse balanceAvailable r
+    return (total, available)
