@@ -1042,11 +1042,7 @@ x-responsesPostTransactionFee: &responsesPostTransactionFee
   200:
     description: Ok
     schema:
-      type: object
-      required:
-        - amount
-      properties:
-        amount: *ApiFee
+      <<: *ApiFee
 
 x-responsesListAddresses: &responsesListAddresses
   <<: *responsesErr400
