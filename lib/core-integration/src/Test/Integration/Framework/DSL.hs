@@ -940,7 +940,7 @@ emptyByronWalletWith ctx (name, mnemonic, pass) = do
             "passphrase": #{pass}
         }|]
     r <- request @ApiByronWallet ctx postByronWalletEp Default payload
-    expectResponseCode @IO HTTP.status202 r
+    expectResponseCode @IO HTTP.status201 r
     return (getFromResponse id r)
 
 -- | Create an empty wallet
@@ -953,7 +953,7 @@ emptyWallet ctx = do
             "passphrase": "Secure Passphrase"
         }|]
     r <- request @ApiWallet ctx postWalletEp Default payload
-    expectResponseCode @IO HTTP.status202 r
+    expectResponseCode @IO HTTP.status201 r
     return (getFromResponse id r)
 
 -- | Create an empty wallet
@@ -967,7 +967,7 @@ emptyWalletWith ctx (name, passphrase, addrPoolGap) = do
             "address_pool_gap" : #{addrPoolGap}
         }|]
     r <- request @ApiWallet ctx postWalletEp Default payload
-    expectResponseCode @IO HTTP.status202 r
+    expectResponseCode @IO HTTP.status201 r
     return (getFromResponse id r)
 
 fixtureRawTx

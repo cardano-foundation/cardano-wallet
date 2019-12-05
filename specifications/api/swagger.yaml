@@ -893,8 +893,8 @@ x-responsesPostWallet: &responsesPostWallet
   <<: *responsesErr406
   <<: *responsesErr409
   <<: *responsesErr415
-  202:
-    description: Accepted
+  201:
+    description: Created
     schema: *ApiWallet
 
 x-responsesPostByronWallet: &responsesPostByronWallet
@@ -903,8 +903,8 @@ x-responsesPostByronWallet: &responsesPostByronWallet
   <<: *responsesErr406
   <<: *responsesErr409
   <<: *responsesErr415
-  202:
-    description: Accepted
+  201:
+    description: Created
     schema: *ApiByronWallet
 
 x-responsesGetWallet: &responsesGetWallet

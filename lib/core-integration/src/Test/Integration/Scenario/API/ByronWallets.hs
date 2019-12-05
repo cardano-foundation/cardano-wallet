@@ -761,7 +761,7 @@ spec = do
                     ]
         -- create
         r <- request @ApiByronWallet ctx postByronWalletEp Default payload
-        verify r $ (expectResponseCode @IO HTTP.status202) : expectations
+        verify r expectations
         let w = getFromResponse id r
         -- get
         rg <- request @ApiByronWallet ctx (getByronWalletEp w) Default Empty
@@ -796,7 +796,7 @@ spec = do
                 "passphrase": "Secure Passphrase"
                 } |]
         r1 <- request @ApiByronWallet ctx postByronWalletEp Default payload
-        expectResponseCode @IO HTTP.status202 r1
+        expectResponseCode @IO HTTP.status201 r1
 
         r2 <- request @ApiByronWallet ctx postByronWalletEp Default payload
         verify r2
@@ -810,12 +810,12 @@ spec = do
         let walNameMax = T.pack (replicate walletNameMaxLength 'ą')
         let matrix =
                 [ ( show walletNameMinLength ++ " char long", "1"
-                  , [ expectResponseCode @IO HTTP.status202
+                  , [ expectResponseCode @IO HTTP.status201
                     , expectFieldEqual walletName "1"
                     ]
                   )
                 , ( show walletNameMaxLength ++ " char long", walNameMax
-                  , [ expectResponseCode @IO HTTP.status202
+                  , [ expectResponseCode @IO HTTP.status201
                     , expectFieldEqual walletName walNameMax
                     ]
                   )
@@ -833,27 +833,27 @@ spec = do
                      ]
                   )
                 , ( "Russian name", russianWalletName
-                  , [ expectResponseCode @IO HTTP.status202
+                  , [ expectResponseCode @IO HTTP.status201
                     , expectFieldEqual walletName russianWalletName
                     ]
                   )
                 , ( "Polish name", polishWalletName
-                  , [ expectResponseCode @IO HTTP.status202
+                  , [ expectResponseCode @IO HTTP.status201
                     , expectFieldEqual walletName polishWalletName
                     ]
                   )
                 , ( "Kanji name", kanjiWalletName
-                  , [ expectResponseCode @IO HTTP.status202
+                  , [ expectResponseCode @IO HTTP.status201
                     , expectFieldEqual walletName kanjiWalletName
                     ]
                   )
                 , ( "Arabic name", arabicWalletName
-                  , [ expectResponseCode @IO HTTP.status202
+                  , [ expectResponseCode @IO HTTP.status201
                     , expectFieldEqual walletName arabicWalletName
                     ]
                   )
                 , ( "Wildcards name", wildcardsWalletName
-                  , [ expectResponseCode @IO HTTP.status202
+                  , [ expectResponseCode @IO HTTP.status201
                     , expectFieldEqual walletName wildcardsWalletName
                     ]
                   )
@@ -999,7 +999,7 @@ spec = do
         let matrix =
                 [ ( show passphraseMinLength ++ " char long"
                   , T.pack (replicate passphraseMinLength 'ź')
-                  , [ expectResponseCode @IO HTTP.status202 ]
+                  , [ expectResponseCode @IO HTTP.status201 ]
                   )
                 , ( show (passphraseMinLength - 1) ++ " char long"
                   , T.pack (replicate (passphraseMinLength - 1) 'ż')
@@ -1009,7 +1009,7 @@ spec = do
                     ]
                   )
                 , ( show passphraseMaxLength ++ " char long", passphraseMax
-                  , [ expectResponseCode @IO HTTP.status202 ]
+                  , [ expectResponseCode @IO HTTP.status201 ]
                   )
                 , ( show (passphraseMaxLength + 1) ++ " char long"
                   , T.pack (replicate (passphraseMaxLength + 1) 'ę')
@@ -1025,19 +1025,19 @@ spec = do
                      ]
                   )
                 , ( "Russian passphrase", russianWalletName
-                  , [ expectResponseCode @IO HTTP.status202 ]
+                  , [ expectResponseCode @IO HTTP.status201 ]
                   )
                 , ( "Polish passphrase", polishWalletName
-                  , [ expectResponseCode @IO HTTP.status202 ]
+                  , [ expectResponseCode @IO HTTP.status201 ]
                   )
                 , ( "Kanji passphrase", kanjiWalletName
-                  , [ expectResponseCode @IO HTTP.status202 ]
+                  , [ expectResponseCode @IO HTTP.status201 ]
                   )
                 , ( "Arabic passphrase", arabicWalletName
-                  , [ expectResponseCode @IO HTTP.status202 ]
+                  , [ expectResponseCode @IO HTTP.status201 ]
                   )
                 , ( "Wildcards passphrase", wildcardsWalletName
-                  , [ expectResponseCode @IO HTTP.status202 ]
+                  , [ expectResponseCode @IO HTTP.status201 ]
                   )
                 ]
         forM_ matrix $ \(title, passphrase, expectations) -> it title $

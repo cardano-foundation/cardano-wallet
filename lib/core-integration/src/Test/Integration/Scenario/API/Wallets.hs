@@ -127,7 +127,7 @@ spec = do
                 } |]
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
         verify r
-            [ expectResponseCode @IO HTTP.status202
+            [ expectResponseCode @IO HTTP.status201
             , expectFieldEqual walletName "1st Wallet"
             , expectFieldEqual addressPoolGap 30
             , expectFieldEqual balanceAvailable 0
@@ -147,7 +147,7 @@ spec = do
         let payldCrt = payloadWith "!st created" mnemonics
         rInit <- request @ApiWallet ctx ("POST", "v2/wallets") Default payldCrt
         verify rInit
-            [ expectResponseCode @IO HTTP.status202
+            [ expectResponseCode @IO HTTP.status201
             , expectFieldEqual balanceAvailable 0
             , expectFieldEqual balanceTotal 0
             ]
@@ -183,7 +183,7 @@ spec = do
         -- restore and make sure funds are there
         rRestore <- request @ApiWallet ctx ("POST", "v2/wallets") Default payldCrt
         verify rRestore
-            [ expectResponseCode @IO HTTP.status202
+            [ expectResponseCode @IO HTTP.status201
             , expectEventually ctx getWalletEp balanceAvailable 1
             , expectEventually ctx getWalletEp balanceTotal 1
             ]
@@ -195,7 +195,7 @@ spec = do
                 "passphrase": "Secure Passphrase"
                 } |]
         r1 <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
-        expectResponseCode @IO HTTP.status202 r1
+        expectResponseCode @IO HTTP.status201 r1
 
         r2 <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
         verify r2
@@ -209,12 +209,12 @@ spec = do
         let walNameMax = T.pack (replicate walletNameMaxLength 'ą')
         let matrix =
                 [ ( show walletNameMinLength ++ " char long", "1"
-                  , [ expectResponseCode @IO HTTP.status202
+                  , [ expectResponseCode @IO HTTP.status201
                     , expectFieldEqual walletName "1"
                     ]
                   )
                 , ( show walletNameMaxLength ++ " char long", walNameMax
-                  , [ expectResponseCode @IO HTTP.status202
+                  , [ expectResponseCode @IO HTTP.status201
                     , expectFieldEqual walletName walNameMax
                     ]
                   )
@@ -232,27 +232,27 @@ spec = do
                      ]
                   )
                 , ( "Russian name", russianWalletName
-                  , [ expectResponseCode @IO HTTP.status202
+                  , [ expectResponseCode @IO HTTP.status201
                     , expectFieldEqual walletName russianWalletName
                     ]
                   )
                 , ( "Polish name", polishWalletName
-                  , [ expectResponseCode @IO HTTP.status202
+                  , [ expectResponseCode @IO HTTP.status201
                     , expectFieldEqual walletName polishWalletName
                     ]
                   )
                 , ( "Kanji name", kanjiWalletName
-                  , [ expectResponseCode @IO HTTP.status202
+                  , [ expectResponseCode @IO HTTP.status201
                     , expectFieldEqual walletName kanjiWalletName
                     ]
                   )
                 , ( "Arabic name", arabicWalletName
-                  , [ expectResponseCode @IO HTTP.status202
+                  , [ expectResponseCode @IO HTTP.status201
                     , expectFieldEqual walletName arabicWalletName
                     ]
                   )
                 , ( "Wildcards name", wildcardsWalletName
-                  , [ expectResponseCode @IO HTTP.status202
+                  , [ expectResponseCode @IO HTTP.status201
                     , expectFieldEqual walletName wildcardsWalletName
                     ]
                   )
@@ -362,22 +362,22 @@ spec = do
                  ]
                )
              , ( "15 mnemonic words", mnemonics15
-               , [ expectResponseCode @IO HTTP.status202
+               , [ expectResponseCode @IO HTTP.status201
                  , expectFieldEqual walletId "b062e8ccf3685549b6c489a4e94966bc4695b75b"
                  ]
                )
              , ( "18 mnemonic words", mnemonics18
-               , [ expectResponseCode @IO HTTP.status202
+               , [ expectResponseCode @IO HTTP.status201
                  , expectFieldEqual walletId "f52ee0daaefd75a0212d70c9fbe15ee8ada9fc11"
                  ]
                )
              , ( "21 mnemonic words" , mnemonics21
-               , [ expectResponseCode @IO HTTP.status202
+               , [ expectResponseCode @IO HTTP.status201
                  , expectFieldEqual walletId "7e8c1af5ff2218f388a313f9c70f0ff0550277e4"
                  ]
                )
              , ( "24 mnemonic words", mnemonics24
-               , [ expectResponseCode @IO HTTP.status202
+               , [ expectResponseCode @IO HTTP.status201
                  , expectFieldEqual walletId "a6b6625cd2bfc51a296b0933f77020991cc80374"
                  ]
                )
@@ -475,12 +475,12 @@ spec = do
                      ]
                    )
                  , ( "9 mnemonic words", mnemonics9
-                   , [ expectResponseCode @IO HTTP.status202
+                   , [ expectResponseCode @IO HTTP.status201
                      , expectFieldEqual walletId "4b1a865e39d1006efb99f538b05ea2343b567108"
                      ]
                    )
                  , ( "12 mnemonic words", mnemonics12
-                   , [ expectResponseCode @IO HTTP.status202
+                   , [ expectResponseCode @IO HTTP.status201
                      , expectFieldEqual walletId "2cf060fe53e4e0593f145f22b858dfc60676d4ab"
                      ]
                    )
@@ -530,7 +530,7 @@ spec = do
         let matrix =
                 [ ( show passphraseMinLength ++ " char long"
                   , T.pack (replicate passphraseMinLength 'ź')
-                  , [ expectResponseCode @IO HTTP.status202
+                  , [ expectResponseCode @IO HTTP.status201
                     ]
                   )
                 , ( show (passphraseMinLength - 1) ++ " char long"
@@ -541,7 +541,7 @@ spec = do
                     ]
                   )
                 , ( show passphraseMaxLength ++ " char long", passphraseMax
-                  , [ expectResponseCode @IO HTTP.status202 ]
+                  , [ expectResponseCode @IO HTTP.status201 ]
                   )
                 , ( show (passphraseMaxLength + 1) ++ " char long"
                   , T.pack (replicate (passphraseMaxLength + 1) 'ę')
@@ -557,19 +557,19 @@ spec = do
                      ]
                   )
                 , ( "Russian passphrase", russianWalletName
-                  , [ expectResponseCode @IO HTTP.status202 ]
+                  , [ expectResponseCode @IO HTTP.status201 ]
                   )
                 , ( "Polish passphrase", polishWalletName
-                  , [ expectResponseCode @IO HTTP.status202 ]
+                  , [ expectResponseCode @IO HTTP.status201 ]
                   )
                 , ( "Kanji passphrase", kanjiWalletName
-                  , [ expectResponseCode @IO HTTP.status202 ]
+                  , [ expectResponseCode @IO HTTP.status201 ]
                   )
                 , ( "Arabic passphrase", arabicWalletName
-                  , [ expectResponseCode @IO HTTP.status202 ]
+                  , [ expectResponseCode @IO HTTP.status201 ]
                   )
                 , ( "Wildcards passphrase", wildcardsWalletName
-                  , [ expectResponseCode @IO HTTP.status202 ]
+                  , [ expectResponseCode @IO HTTP.status201 ]
                   )
                 ]
         forM_ matrix $ \(title, passphrase, expectations) -> it title $ \ctx -> do
@@ -619,7 +619,7 @@ spec = do
     describe "WALLETS_CREATE_08 - address_pool_gap" $ do
         let matrix =
                 [ ( show addressPoolGapMin, addressPoolGapMin
-                  , [ expectResponseCode @IO HTTP.status202
+                  , [ expectResponseCode @IO HTTP.status201
                     , expectFieldEqual addressPoolGap addressPoolGapMin
                     ]
                   )
@@ -631,7 +631,7 @@ spec = do
                     ]
                   )
                 , ( show addressPoolGapMax, addressPoolGapMax
-                  , [ expectResponseCode @IO HTTP.status202 ]
+                  , [ expectResponseCode @IO HTTP.status201 ]
                   )
                 , ( show (addressPoolGapMax + 1) ++ " -> fail"
                   , addressPoolGapMax + 1
@@ -748,7 +748,7 @@ spec = do
                 } |]
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
         verify r
-            [ expectResponseCode @IO HTTP.status202
+            [ expectResponseCode @IO HTTP.status201
             , expectFieldEqual addressPoolGap 20
             ]
 
@@ -765,9 +765,9 @@ spec = do
                    , [ expectResponseCode @IO HTTP.status406
                      , expectErrorMessage errMsg406 ]
                    )
-                 , ( "No Accept -> 202"
+                 , ( "No Accept -> 201"
                    , Headers [ ("Content-Type", "application/json") ]
-                   , [ expectResponseCode @IO HTTP.status202 ]
+                   , [ expectResponseCode @IO HTTP.status201 ]
                    )
                  , ( "No Content-Type -> 415"
                    , Headers [ ("Accept", "application/json") ]

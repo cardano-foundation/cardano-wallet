@@ -462,7 +462,7 @@ fixtureExternalTx ctx toSend = do
     r0 <- request
         @ApiWallet ctx ("POST", "v2/wallets") Default restoreFaucetWallet
     verify r0
-        [ expectResponseCode @IO HTTP.status202
+        [ expectResponseCode @IO HTTP.status201
         , expectFieldEqual walletName "Faucet Wallet"
         ]
     let wSrc = getFromResponse Prelude.id r0
@@ -486,8 +486,7 @@ fixtureExternalTx ctx toSend = do
             } |]
     r1 <- request @ApiWallet ctx ("POST", "v2/wallets") Default createWallet
     verify r1
-        [ expectResponseCode @IO HTTP.status202
-        , expectFieldEqual walletName "Destination Wallet"
+        [ expectFieldEqual walletName "Destination Wallet"
         , expectFieldEqual balanceAvailable 0
         , expectFieldEqual balanceTotal 0
         ]

@@ -117,6 +117,7 @@ import Servant.API.Verbs
     , DeleteNoContent
     , Get
     , PostAccepted
+    , PostCreated
     , Put
     , PutNoContent
     , StdMethod (..)
@@ -197,7 +198,7 @@ type ListWallets = "wallets"
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postWallet
 type PostWallet = "wallets"
     :> ReqBody '[JSON] WalletPostData
-    :> PostAccepted '[JSON] ApiWallet
+    :> PostCreated '[JSON] ApiWallet
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/putWallet
 type PutWallet = "wallets"
@@ -321,7 +322,7 @@ type PostExternalTransaction = "proxy"
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postByronWallet
 type PostByronWallet = "byron-wallets"
     :> ReqBody '[JSON] ByronWalletPostData
-    :> PostAccepted '[JSON] ApiByronWallet
+    :> PostCreated '[JSON] ApiByronWallet
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteByronWallet
 type DeleteByronWallet = "byron-wallets"
