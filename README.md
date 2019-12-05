@@ -11,7 +11,9 @@
   <a href="https://buildkite.com/input-output-hk/cardano-wallet"><img src="https://img.shields.io/buildkite/7ea3dac7a16f066d8dfc8f426a9a9f7a2131e899cd96c444cf/master?label=BUILD&style=for-the-badge"/></a>
   <a href="https://buildkite.com/input-output-hk/cardano-wallet-nightly"><img src="https://img.shields.io/buildkite/59ea9363b8526e867005ca8839db47715bc5f661f36e490143/master?label=BENCHMARK&style=for-the-badge" /></a>
   <a href="https://travis-ci.org/input-output-hk/cardano-wallet"><img src="https://img.shields.io/travis/input-output-hk/cardano-wallet.svg?label=DOCS&style=for-the-badge" /></a>
+  <!-- 
   <a href="https://coveralls.io/github/input-output-hk/cardano-wallet?branch=HEAD"><img src="https://img.shields.io/coveralls/github/input-output-hk/cardano-wallet/HEAD?style=for-the-badge" /></a>
+  -->
 </p>
 
 <hr/>
@@ -37,13 +39,21 @@ The Byron version of Cardano Wallet is in the
 [cardano-sl](https://github.com/input-output-hk/cardano-sl)
 repository.
 
+## How to install
+
+See **Installation Instructions** for each available [release](https://github.com/input-output-hk/cardano-wallet/releases).
+
+> ### Latest releases
+> 
+> | cardano-wallet                                                                            | Jörmungandr                                                                          |
+> | ---                                                                                       | ---                                                                                  |
+> | [v2019-11-18](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2019-11-18) | [v0.7.0](https://github.com/input-output-hk/jormungandr/releases/tag/v0.7.0)         |
+> | [v2019-11-14](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2019-11-14) | [v0.7.0](https://github.com/input-output-hk/jormungandr/releases/tag/v0.7.0)         |
+> | [v2019-11-07](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2019-11-07) | [v0.7.0-rc7](https://github.com/input-output-hk/jormungandr/releases/tag/v0.7.0-rc7) |
+
 ## How to build
 
-Use [Haskell Stack](https://haskellstack.org/) to build this project:
-
-```
-$ stack build --test --no-run-tests
-```
+See [Wiki - Building](https://github.com/input-output-hk/cardano-wallet/wiki/Building)
 
 ## How to test
 
@@ -57,14 +67,6 @@ See [Wiki - Testing](https://github.com/input-output-hk/cardano-wallet/wiki/Test
 | [Haddock Documentation](https://input-output-hk.github.io/cardano-wallet/haddock/edge)             | Haskell Developers using the `cardano-wallet` as a library   |
 | [Wiki](https://github.com/input-output-hk/cardano-wallet/wiki)                                     | Anyone interested in the project and our development process |
 | [CLI Manual](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface) | Users of the Cardano Wallet API                              |
-
-## Compatibility Matrix
-
-| cardano-wallet                                                                            | Jörmungandr                                                                          |
-| ---                                                                                       | ---                                                                                  |
-| [v2019-11-18](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2019-11-18) | [v0.7.0](https://github.com/input-output-hk/jormungandr/releases/tag/v0.7.0)         |
-| [v2019-11-14](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2019-11-14) | [v0.7.0](https://github.com/input-output-hk/jormungandr/releases/tag/v0.7.0)         |
-| [v2019-11-07](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2019-11-07) | [v0.7.0-rc7](https://github.com/input-output-hk/jormungandr/releases/tag/v0.7.0-rc7) |
 
 <hr/>
 
