@@ -10,11 +10,15 @@ module Test.Integration.Scenario.API.Network
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiNetworkInformation )
+    ( ApiEpochInfo (..), ApiNetworkInformation )
 import Cardano.Wallet.Primitive.Types
     ( SyncProgress (..) )
 import Control.Monad
     ( forM_ )
+import Control.Monad.IO.Class
+    ( liftIO )
+import Data.Time.Clock
+    ( getCurrentTime )
 import Test.Hspec
     ( SpecWith, describe, it )
 import Test.Integration.Framework.DSL
@@ -27,11 +31,13 @@ import Test.Integration.Framework.DSL
     , expectErrorMessage
     , expectEventually'
     , expectFieldEqual
+    , expectFieldSatisfy
     , expectResponseCode
     , getByronWalletEp
     , getFromResponse
     , getWalletEp
     , networkInfoEp
+    , nextEpoch
     , request
     , state
     , syncProgress
@@ -46,8 +52,13 @@ spec :: forall t. SpecWith (Context t)
 spec = do
     it "NETWORK - Can query network information" $ \ctx -> do
         eventually_ $ do
+            now <- liftIO getCurrentTime
             r <- request @ApiNetworkInformation ctx networkInfoEp Default Empty
-            verify r [ expectFieldEqual syncProgress Ready ]
+            expectResponseCode @IO HTTP.status200 r
+            verify r
+                [ expectFieldSatisfy nextEpoch ((> now) . epochStartTime)
+                , expectFieldEqual syncProgress Ready
+                ]
 
     it "NETWORK_SHELLEY - Wallet has the same tip as network/information" $
         \ctx -> do
