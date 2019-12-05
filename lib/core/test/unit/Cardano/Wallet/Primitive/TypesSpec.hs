@@ -420,9 +420,9 @@ spec = do
             property $ \(a :: Int) (b :: Int) ->
                 compare (InclusiveBound a) (InclusiveBound b) === compare a b
 
-    describe "Epoch arithmetic: epoch generation" $ do
+    describe "Epoch arithmetic: arbitrary value generation" $ do
 
-        it "Epoch number generation covers interesting cases" $
+        it "EpochNo generation covers interesting cases" $
             withMaxSuccess 10000 $ property $ \(epoch :: EpochNo) ->
                 checkCoverage
                     $ cover 10 (epoch == minBound)
@@ -436,6 +436,21 @@ spec = do
                     $ cover 10 (epoch > minBound && epoch < maxBound)
                         "intermediate value"
                 True
+
+        it "SlotParametersAndTimePoint generation covers interesting cases" $
+            withMaxSuccess 10000 $ property $
+                \(SlotParametersAndTimePoint sps t) ->
+                    let belowMin = t < epochStartTime sps minBound
+                        aboveMax = t > epochStartTime sps maxBound
+                    in
+                    checkCoverage
+                        $ cover 10 belowMin
+                            "time point before the earliest representable slot"
+                        $ cover 10 aboveMax
+                            "time point after the latest representable slot"
+                        $ cover 10 (not belowMin && not aboveMax)
+                            "time point during the lifetime of the blockchain"
+                    True
 
     describe "Epoch arithmetic: predecessors and successors" $ do
 
