@@ -97,6 +97,7 @@ import Cardano.Wallet.Api.Types
     , ApiByronWallet (..)
     , ApiByronWalletBalance (..)
     , ApiByronWalletMigrationInfo (..)
+    , ApiEpochInfo (..)
     , ApiErrorCode (..)
     , ApiFee (..)
     , ApiNetworkInformation (..)
@@ -898,6 +899,17 @@ network ctx = do
         (bp ^. #getEpochLength)
         (bp ^. #getSlotLength)
         (bp ^. #getGenesisBlockDate)
+
+newtype ErrNextEpoch = ErrNextEpochCannotBeCalculated Iso8601Time
+
+calculateNextEpoch
+    :: W.SlotParameters -> UTCTime -> Either ErrNextEpoch ApiEpochInfo
+calculateNextEpoch sps time = case W.epochCeiling sps time of
+    Nothing -> Left $ ErrNextEpochCannotBeCalculated $ Iso8601Time time
+    Just en -> Right $ ApiEpochInfo
+        { epochNumber = ApiT en
+        , epochStartTime = W.epochStartTime sps en
+        }
 
 {-------------------------------------------------------------------------------
                                Compatibility API
