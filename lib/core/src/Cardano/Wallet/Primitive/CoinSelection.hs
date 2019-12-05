@@ -92,6 +92,9 @@ outputBalance = foldl' addTxOut 0 . outputs
 changeBalance :: CoinSelection -> Word64
 changeBalance = foldl' addCoin 0 . change
 
+feeBalance :: CoinSelection -> Word64
+feeBalance sel = inputBalance sel - outputBalance sel - changeBalance sel
+
 addTxOut :: Integral a => a -> TxOut -> a
 addTxOut total = addCoin total . coin
 
