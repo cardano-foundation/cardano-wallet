@@ -391,15 +391,16 @@ benchReadTxHistory sortOrder (inf, sup) mstatus DBLayer{..} =
 
 mkTxHistory :: Int -> Int -> Int -> [Word64] -> [(Tx, TxMeta)]
 mkTxHistory numTx numInputs numOutputs range =
-    [ ( force (Tx (mkTxId inps outs) inps outs)
-      , force TxMeta
-          { status = [InLedger, Pending] !! (i `mod` 2)
-          , direction = Incoming
-          , slotId = sl i
-          , blockHeight = Quantity $ fromIntegral $ unSlotNo $ slotNumber $ sl i
-          , amount = Quantity (fromIntegral numOutputs)
-          }
-      )
+    [ force
+        ( (Tx (mkTxId inps outs) inps outs)
+        , TxMeta
+            { status = [InLedger, Pending] !! (i `mod` 2)
+            , direction = Incoming
+            , slotId = sl i
+            , blockHeight = Quantity $ fromIntegral $ unSlotNo $ slotNumber $ sl i
+            , amount = Quantity (fromIntegral numOutputs)
+            }
+        )
     | !i <- [1..numTx]
     , let inps = (mkInputs i numInputs)
     , let outs = (mkOutputs i numOutputs)
@@ -409,7 +410,7 @@ mkTxHistory numTx numInputs numOutputs range =
 
 mkInputs :: Int -> Int -> [(TxIn, Coin)]
 mkInputs prefix n =
-    [force
+    [ force
         ( TxIn (Hash (label lbl i)) (fromIntegral i)
         , Coin $ fromIntegral n
         )
@@ -419,7 +420,10 @@ mkInputs prefix n =
 
 mkOutputs :: Int -> Int -> [TxOut]
 mkOutputs prefix n =
-    [force (TxOut (mkAddress prefix i) (Coin 1)) | !i <- [1..n]]
+    [ force
+        (TxOut (mkAddress prefix i) (Coin 1))
+    | !i <- [1..n]
+    ]
 
 withTxHistory
     :: NFData b
@@ -464,7 +468,9 @@ mkCheckpoints numCheckpoints utxoSize =
         initDummyState
         genesisParameters
 
-    utxo i = force (Map.fromList (zip (map fst $ mkInputs i utxoSize) (mkOutputs i utxoSize)))
+    utxo i = Map.fromList $ zip
+        (map fst $ mkInputs i utxoSize)
+        (mkOutputs i utxoSize)
 
 benchReadUTxO :: DBLayerBench -> IO (Maybe WalletBench)
 benchReadUTxO DBLayer{..} = atomically $ readCheckpoint testPk
