@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 
 -- The following is justified by the usage of the 'requestBody' field
@@ -20,9 +21,15 @@ module Network.Wai.Middleware.Logging
 import Prelude
 
 import Cardano.BM.Data.LogItem
-    ( LoggerName )
+    ( LoggerName, PrivacyAnnotation (..) )
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
+import Cardano.BM.Data.Tracer
+    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
 import Cardano.BM.Trace
     ( Trace, logDebug, logError, logInfo, logWarning, modifyName )
+import Cardano.Wallet.Logging
+    ( logTrace )
 import Control.Applicative
     ( (<|>) )
 import Control.Arrow
@@ -31,6 +38,8 @@ import Control.Concurrent.MVar
     ( MVar, modifyMVar, newMVar )
 import Control.Monad
     ( unless )
+import Control.Tracer
+    ( contramap )
 import Data.Aeson
     ( Value (..) )
 import Data.ByteString
@@ -43,6 +52,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( toText )
+import Data.Text.Class
+    ( ToText (..) )
 import Data.Time.Clock
     ( NominalDiffTime, diffUTCTime, getCurrentTime )
 import Network.HTTP.Types.Status
@@ -65,15 +76,17 @@ import qualified Data.Text.Encoding as T
 -- The logger logs requests' and responses' bodies along with a few other
 -- useful piece of information.
 withApiLogger
-    :: Trace IO Text
+    :: Trace IO (WithRequestId ApiLog)
     -> ApiLoggerSettings
     -> Middleware
 withApiLogger t0 settings app req0 sendResponse = do
+    rid <- nextRequestId settings
+    let t = contramap (fmap (WithRequestId rid)) t0
+    logTrace t LogRequestStart
     start <- getCurrentTime
     (req, reqBody) <- getRequestBody req0
-    rid <- nextRequestId settings
-    let t = modifyName (withRequestId rid) t0
-    logRequest t req reqBody
+    logTrace t (LogRequest req)
+    logTrace t (LogRequestBody (_obfuscateKeys settings req) reqBody)
     app req $ \res -> do
         builderIO <- newIORef (Nothing, mempty)
         rcvd <- recordChunks builderIO res >>= sendResponse
@@ -81,57 +94,18 @@ withApiLogger t0 settings app req0 sendResponse = do
         readIORef builderIO >>=
             let fromBuilder = second (BL.toStrict . B.toLazyByteString)
             in uncurry (logResponse t time) . fromBuilder
+        logTrace t LogRequestFinish
         return rcvd
   where
-    logRequest
-        :: Trace IO Text
-        -> Request
-        -> ByteString
-        -> IO ()
-    logRequest t req body = do
-        let method = T.decodeUtf8 $ requestMethod req
-        let path = T.decodeUtf8 $ rawPathInfo req
-        let query = T.decodeUtf8 $ rawQueryString req
-        let keys = _obfuscateKeys settings req
-        let safeBody = T.decodeUtf8 $ sanitize keys body
-        logInfo t $ mconcat [ "[", method, "] ", path, query ]
-        unless (BS.null body) $ logDebug t safeBody
-
     logResponse
-        :: Trace IO Text
+        :: Trace IO ApiLog
         -> NominalDiffTime
         -> Maybe Status
         -> ByteString
         -> IO ()
     logResponse t time status body = do
-        let code = maybe "???" (toText . statusCode) status
-        let text = maybe "Status Unknown" (T.decodeUtf8 . statusMessage) status
-        let tsec = T.pack $ show time
-        let payload = mconcat [ code, " ", text, " in ", tsec ]
-        case statusCode <$> status of
-            Just s | s == 503 -> logWarning t payload
-            Just s | s >= 500 -> logError t payload
-            _ -> logInfo t payload
-        unless (BS.null body) $ logDebug t (T.decodeUtf8 body)
-
-    withRequestId :: RequestId -> [LoggerName] -> [LoggerName]
-    withRequestId (RequestId rid) name = name <>
-        [ "request-" <> T.pack (show rid) ]
-
-    -- | Removes sensitive details from valid request payloads and completely
-    -- obfuscate invalid payloads.
-    sanitize :: [Text] -> ByteString -> ByteString
-    sanitize keys bytes = encode' $ case decode' bytes of
-        Just (Object o) ->
-            Object (foldr (HM.adjust obfuscate) o keys)
-        Just v ->
-            v
-        Nothing ->
-            String "Invalid payload: not JSON"
-      where
-        encode' = BL.toStrict . Aeson.encode
-        decode' = Aeson.decode . BL.fromStrict
-        obfuscate _ = String "*****"
+        logTrace t (LogResponse time status)
+        logTrace t (LogResponseBody body)
 
 -- | API logger settings
 data ApiLoggerSettings = ApiLoggerSettings
@@ -145,6 +119,7 @@ data ApiLoggerSettings = ApiLoggerSettings
 
 -- | Just a wrapper for readability
 newtype RequestId = RequestId Integer
+    deriving (Show, Eq)
 
 -- | Create a new opaque 'ApiLoggerSettings'
 newApiLoggerSettings :: IO ApiLoggerSettings
@@ -232,3 +207,88 @@ recordChunks i = \case
         in modifyIORef i capture >> return (ResponseBuilder s h b)
     r ->
         return r
+
+{-------------------------------------------------------------------------------
+                                    Logging
+-------------------------------------------------------------------------------}
+
+data ApiLog
+    = LogRequestStart
+    | LogRequest Request
+    | LogRequestBody [Text] ByteString
+    | LogResponse NominalDiffTime (Maybe Status)
+    | LogResponseBody ByteString
+    | LogRequestFinish
+    deriving (Show)
+
+instance ToText a => ToText (WithRequestId a) where
+    toText (WithRequestId rid msg) =
+        "[" <> T.pack (show rid) <> "] "
+        <> toText msg
+
+instance ToText ApiLog where
+    toText msg = case msg of
+        LogRequestStart -> "Received API request"
+        LogRequest req -> mconcat [ "[", method, "] ", path, query ]
+          where
+            method = T.decodeUtf8 $ requestMethod req
+            path = T.decodeUtf8 $ rawPathInfo req
+            query = T.decodeUtf8 $ rawQueryString req
+        LogRequestBody ks body ->
+            T.decodeUtf8 $ sanitize ks body
+            -- fixme: this will explode if the request body isn't utf-8
+        LogResponse time status -> mconcat [ code, " ", text, " in ", tsec ]
+          where
+            code = maybe "???" (toText . statusCode) status
+            text = maybe "Status Unknown" (T.decodeUtf8 . statusMessage) status
+            tsec = T.pack $ show time
+        LogResponseBody body -> T.decodeUtf8 body
+        LogRequestFinish -> "Completed response to API request"
+      where
+        -- | Removes sensitive details from valid request payloads and completely
+        -- obfuscate invalid payloads.
+        sanitize :: [Text] -> ByteString -> ByteString
+        sanitize keys bytes = encode' $ case decode' bytes of
+            Just (Object o) ->
+                Object (foldr (HM.adjust obfuscate) o keys)
+            Just v ->
+                v
+            Nothing ->
+                String "Invalid payload: not JSON"
+          where
+            encode' = BL.toStrict . Aeson.encode
+            decode' = Aeson.decode . BL.fromStrict
+            obfuscate _ = String "*****"
+
+instance DefinePrivacyAnnotation ApiLog where
+    definePrivacyAnnotation msg = case msg of
+        LogRequestStart -> Public
+        LogRequest _ -> Public
+        LogRequestBody _ _ -> Confidential
+        LogResponse _ _ -> Public
+        LogResponseBody _ -> Confidential
+        LogRequestFinish -> Public
+
+instance DefineSeverity ApiLog where
+    defineSeverity msg = case msg of
+        LogRequestStart -> Debug
+        LogRequest _ -> Info
+        LogRequestBody _ _ -> Debug
+        LogResponse _ status ->
+            case statusCode <$> status of
+                Just s | s == 503 -> Warning
+                Just s | s >= 500 -> Error
+                _ -> Info
+        LogResponseBody _ -> Debug
+        LogRequestFinish -> Debug
+
+data WithRequestId a = WithRequestId
+    { requestId :: RequestId
+    , logMsg :: a
+    } deriving (Show, Eq)
+
+instance DefinePrivacyAnnotation a => DefinePrivacyAnnotation (WithRequestId a) where
+    definePrivacyAnnotation (WithRequestId _ msg) = definePrivacyAnnotation msg
+
+instance DefineSeverity a => DefineSeverity (WithRequestId a) where
+    defineSeverity (WithRequestId _ msg) = defineSeverity msg

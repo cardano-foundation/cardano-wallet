@@ -127,6 +127,8 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.DB
     ( DBFactory )
+import Cardano.Wallet.Logging
+    ( transformTextTrace )
 import Cardano.Wallet.Network
     ( ErrNetworkTip (..), ErrNetworkUnavailable (..), NetworkLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -329,7 +331,7 @@ start settings tr socket rndCtx seqCtx spl = do
     logSettings <- newApiLoggerSettings <&> obfuscateKeys (const sensitive)
     Warp.runSettingsSocket settings socket
         $ handleRawError (curry handler)
-        $ withApiLogger tr logSettings
+        $ withApiLogger (transformTextTrace tr) logSettings
         application
   where
     -- | A Servant server for our wallet API
