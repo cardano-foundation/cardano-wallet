@@ -277,23 +277,25 @@ bgroupSeqState db = bgroup "SeqState"
 -- - 100 outputs
 bgroupWriteTxHistory :: DBLayerBench -> Benchmark
 bgroupWriteTxHistory db = bgroup "TxHistory (Write)"
-    --              #NBatch  #BatchSize #NInputs #NOutputs  #SlotRange
-    [ bTxHistory          1         100        1        1     [1..100]
-    , bTxHistory          1        1000        1        1     [1..100]
-    , bTxHistory         10          10        1        1     [1..100]
-    , bTxHistory        100          10        1        1     [1..100]
-    , bTxHistory          1         100       10       10     [1..100]
-    , bTxHistory          1        1000       10       10    [1..1000]
-    , bTxHistory          1       10000       10       10   [1..10000]
-    , bTxHistory          1          50       50      100     [1..100]
-    , bTxHistory          1         100       50      100     [1..100]
-    , bTxHistory          1        1000       50      100     [1..100]
+    --                   #NTxs #NInputs #NOutputs  #SlotRange
+    [ bTxHistory             1        1        1      [1..10]
+    , bTxHistory            10        1        1      [1..10]
+    , bTxHistory            10       10       10      [1..10]
+    , bTxHistory            10       50      100      [1..10]
+    , bTxHistory            10      255      255     [1..100]
+    , bTxHistory           100       10       10     [1..100]
+    , bTxHistory           100       50      100     [1..100]
+    , bTxHistory           100      255      255     [1..100]
+    , bTxHistory          1000       10       10    [1..1000]
+    , bTxHistory          1000       50      100    [1..1000]
+    , bTxHistory          1000      255      255    [1..1000]
+    , bTxHistory         10000       10       10   [1..10000]
     ]
   where
-    bTxHistory n s i o r =
-        bench lbl $ withCleanDB db $ benchPutTxHistory n s i o r
+    bTxHistory n i o r =
+        bench lbl $ withCleanDB db $ benchPutTxHistory n i o r
       where
-        lbl = n|+" x "+|s|+" w/ "+|i|+"i + "+|o|+"o ["+|inf|+".."+|sup|+"]"
+        lbl = n|+" w/ "+|i|+"i + "+|o|+"o ["+|inf|+".."+|sup|+"]"
         inf = head r
         sup = last r
 
@@ -371,14 +373,12 @@ benchPutTxHistory
     :: Int
     -> Int
     -> Int
-    -> Int
     -> [Word64]
     -> DBLayerBench
     -> IO ()
-benchPutTxHistory numBatches batchSize numInputs numOutputs range DBLayer{..} = do
-    let batches = mkTxHistory (numBatches*batchSize) numInputs numOutputs range
-    unsafeRunExceptT $ forM_ (chunksOf batchSize batches) $
-        mapExceptT atomically . putTxHistory testPk
+benchPutTxHistory numTxs numInputs numOutputs range DBLayer{..} = do
+    let txs = mkTxHistory numTxs numInputs numOutputs range
+    unsafeRunExceptT $ mapExceptT atomically $ putTxHistory testPk txs
 
 benchReadTxHistory
     :: SortOrder
@@ -442,7 +442,7 @@ txHistoryFixture
 txHistoryFixture db@DBLayer{..} bSize range = do
     walletFixture db
     let (nInps, nOuts) = (20, 20)
-    let txs = force (mkTxHistory bSize nInps nOuts range)
+    let txs = mkTxHistory bSize nInps nOuts range
     atomically $ unsafeRunExceptT $ putTxHistory testPk txs
 
 ----------------------------------------------------------------------------
@@ -558,7 +558,7 @@ txHistoryDiskSpaceTests = do
     bTxs n i o = benchDiskSize $ \db -> do
         putStrLn ("File size /"+|n|+" w/ "+|i|+"i + "+|o|+"o")
         walletFixture db
-        benchPutTxHistory 1 n i o [1..100] db
+        benchPutTxHistory n i o [1..100] db
 
 benchDiskSize :: (DBLayerBench -> IO ()) -> IO ()
 benchDiskSize action = bracket setupDB cleanupDB $ \(f, ctx, db) -> do
