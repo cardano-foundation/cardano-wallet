@@ -21,6 +21,8 @@ set -euo pipefail
 # For context, see also:
 # https://input-output-hk.github.io/jormungandr/stake_pool/registering_stake_pool.html
 
+echo "Using $(jcli --version)"
+
 if [[ $* == *--update* ]]; then
   echo "regenerating stake pool certificates the folder $1 using existing keys"
   cd $1
@@ -46,3 +48,19 @@ jcli certificate new stake-pool-registration \
 cat stake_pool.cert | jcli certificate sign -k ../owner.prv > stake_pool.cert.signed
 
 cat stake_pool.cert | jcli certificate get-stake-pool-id > stake_pool.id
+
+# Transaction to register (without fees)
+jcli transaction new \
+    | jcli transaction add-certificate $(cat stake_pool.cert) \
+    | jcli transaction finalize \
+    | jcli transaction seal \
+    | jcli transaction auth -k ../owner.prv \
+    > registration_no_fees.tx
+
+jcli transaction fragment-id < registration_no_fees.tx > registration_no_fees.txid
+
+jcli transaction to-message < registration_no_fees.tx > registration_no_fees.msg
+
+echo "Pool ID: $(cat stake_pool.id)"
+echo "This is the registration certificate:"
+jcli certificate print stake_pool.cert.signed
