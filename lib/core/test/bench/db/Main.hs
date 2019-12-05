@@ -177,17 +177,15 @@ bgroupWriteUTxO db = bgroup "UTxO (Write)"
     --
     --      #Checkpoints   UTxO Size
     [ bUTxO            1           0
-    , bUTxO          100           0
-    , bUTxO         1000           0
     , bUTxO           10          10
-    , bUTxO          100          10
-    , bUTxO         1000          10
     , bUTxO           10         100
-    , bUTxO          100         100
-    , bUTxO         1000         100
     , bUTxO           10        1000
+    , bUTxO           10       10000
+    , bUTxO          100           0
+    , bUTxO          100          10
+    , bUTxO          100         100
     , bUTxO          100        1000
-    , bUTxO            1       10000
+    , bUTxO          100       10000
     ]
   where
     bUTxO n s = bench lbl $ withCleanDB db $ benchPutUTxO n s
@@ -196,15 +194,12 @@ bgroupWriteUTxO db = bgroup "UTxO (Write)"
 bgroupReadUTxO :: DBLayerBench -> Benchmark
 bgroupReadUTxO db = bgroup "UTxO (Read)"
     --      #Checkpoints   UTxO Size
-    [ bUTxO           10         100
-    , bUTxO          100         100
-    , bUTxO         1000         100
-    , bUTxO           10        1000
-    , bUTxO          100        1000
-    , bUTxO         1000        1000
-    , bUTxO           10       10000
-    , bUTxO          100       10000
-    , bUTxO         1000       10000
+    [ bUTxO            1           0
+    , bUTxO            1          10
+    , bUTxO            1         100
+    , bUTxO            1        1000
+    , bUTxO            1       10000
+    , bUTxO            1      100000
     ]
   where
     bUTxO n s = bench lbl $ withUTxO db n s benchReadUTxO
@@ -213,16 +208,17 @@ bgroupReadUTxO db = bgroup "UTxO (Read)"
 ----------------------------------------------------------------------------
 -- Wallet State (Sequential Scheme) Benchmarks
 --
--- Currently the DBLayer will only store a single checkpoint (no rollback), so
--- the #Checkpoints axis is a bit meaningless.
 bgroupSeqState :: DBLayerBench -> Benchmark
 bgroupSeqState db = bgroup "SeqState"
     --      #Checkpoints  #Addresses
-    [ bSeqState      100          10
+    [ bSeqState       10          10
+    , bSeqState       10         100
+    , bSeqState       10        1000
+    , bSeqState       10       10000
+    , bSeqState      100          10
     , bSeqState      100         100
     , bSeqState      100        1000
-    , bSeqState     1000          10
-    , bSeqState     1000         100
+    , bSeqState      100       10000
     ]
   where
     bSeqState n a = bench lbl $ withCleanDB db $ benchPutSeqState n a
