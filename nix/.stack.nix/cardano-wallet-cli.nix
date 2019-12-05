@@ -61,6 +61,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."aeson-pretty" or (buildDepError "aeson-pretty"))
           (hsPkgs."ansi-terminal" or (buildDepError "ansi-terminal"))
           (hsPkgs."base" or (buildDepError "base"))
+          (hsPkgs."bech32" or (buildDepError "bech32"))
           (hsPkgs."bytestring" or (buildDepError "bytestring"))
           (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
           (hsPkgs."directory" or (buildDepError "directory"))
