@@ -16,18 +16,19 @@ module Network.Wai.Middleware.Logging
     , newApiLoggerSettings
     , ApiLoggerSettings
     , obfuscateKeys
+    , ApiLog (..)
     ) where
 
 import Prelude
 
 import Cardano.BM.Data.LogItem
-    ( LoggerName, PrivacyAnnotation (..) )
+    ( PrivacyAnnotation (..) )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
 import Cardano.BM.Trace
-    ( Trace, logDebug, logError, logInfo, logWarning, modifyName )
+    ( Trace )
 import Cardano.Wallet.Logging
     ( logTrace )
 import Control.Applicative
@@ -36,8 +37,6 @@ import Control.Arrow
     ( second )
 import Control.Concurrent.MVar
     ( MVar, modifyMVar, newMVar )
-import Control.Monad
-    ( unless )
 import Control.Tracer
     ( contramap )
 import Data.Aeson
@@ -50,8 +49,6 @@ import Data.IORef
     ( IORef, atomicModifyIORef, modifyIORef, newIORef, readIORef )
 import Data.Text
     ( Text )
-import Data.Text.Class
-    ( toText )
 import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock
