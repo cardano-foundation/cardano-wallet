@@ -123,6 +123,8 @@ spec = do
             , "Available commands:"
             , "  generate                 Generate English BIP-0039 compatible"
             , "                           mnemonic words."
+            , "  reward-credentials       Derive reward account private key from"
+            , "                           a given mnemonic."
             ]
 
         ["mnemonic", "generate", "--help"] `shouldShowUsage`
@@ -133,6 +135,16 @@ spec = do
             , "  -h,--help                Show this help text"
             , "  --size INT               number of mnemonic words to"
             , "                           generate. (default: 15)"
+            ]
+
+        ["mnemonic", "reward-credentials", "--help"] `shouldShowUsage`
+            [ "Usage:  mnemonic reward-credentials "
+            , "  Derive reward account private key from a given mnemonic."
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , ""
+            , "!!! Only for the Incentivized Testnet !!!"
             ]
 
         ["wallet", "--help"] `shouldShowUsage`

@@ -76,6 +76,7 @@ import qualified Data.Text as T
 import qualified Test.Integration.Jormungandr.Scenario.API.StakePools as StakePoolsApiJormungandr
 import qualified Test.Integration.Jormungandr.Scenario.API.Transactions as TransactionsApiJormungandr
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Launcher as LauncherCLI
+import qualified Test.Integration.Jormungandr.Scenario.CLI.Mnemonics as MnemonicsJormungandr
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Server as ServerCLI
 import qualified Test.Integration.Jormungandr.Scenario.CLI.StakePools as StakePoolsCliJormungandr
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Transactions as TransactionsCliJormungandr
@@ -103,6 +104,7 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \logging ->
         describe "No backend required" $ do
             describe "Cardano.Wallet.NetworkSpec" $ parallel NetworkLayer.spec
             describe "Mnemonics CLI tests" $ parallel (MnemonicsCLI.spec @t)
+            describe "Mnemonics CLI tests (Jormungandr)" $ parallel (MnemonicsJormungandr.spec @t)
             describe "Miscellaneous CLI tests" $ parallel (MiscellaneousCLI.spec @t)
             describe "Launcher CLI tests" $ parallel (LauncherCLI.spec @t)
             describe "Stake Pool Metrics" MetricsSpec.spec

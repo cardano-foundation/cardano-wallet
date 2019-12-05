@@ -33,6 +33,7 @@ library
     , aeson-pretty
     , ansi-terminal
     , base
+    , bech32
     , bytestring
     , cardano-wallet-core
     , directory

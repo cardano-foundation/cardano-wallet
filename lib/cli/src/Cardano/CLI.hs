@@ -126,6 +126,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase (..)
     , PassphraseMaxLength
     , PassphraseMinLength
+    , WalletKey (..)
+    , deriveRewardAccount
+    , unXPrv
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, defaultAddressPoolGap )
@@ -196,6 +199,7 @@ import Options.Applicative
     , customExecParser
     , eitherReader
     , flag'
+    , footer
     , header
     , help
     , helper
@@ -257,10 +261,13 @@ import System.IO
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
+import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.Bifunctor as Bi
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.List.NonEmpty as NE
@@ -302,6 +309,7 @@ cmdMnemonic = command "mnemonic" $ info (helper <*> cmds) $ mempty
   where
     cmds = subparser $ mempty
         <> cmdMnemonicGenerate
+        <> cmdMnemonicRewardCredentials
 
 -- | Arguments for 'mnemonic generate' command
 newtype MnemonicGenerateArgs = MnemonicGenerateArgs
@@ -322,6 +330,43 @@ cmdMnemonicGenerate = command "generate" $ info (helper <*> cmd) $ mempty
             MS_21 -> mnemonicToText @21 . entropyToMnemonic <$> genEntropy
             MS_24 -> mnemonicToText @24 . entropyToMnemonic <$> genEntropy
         TIO.putStrLn $ T.unwords m
+
+cmdMnemonicRewardCredentials :: Mod CommandFields (IO ())
+cmdMnemonicRewardCredentials =
+    command "reward-credentials" $ info (helper <*> cmd) $ mempty
+        <> progDesc "Derive reward account private key from a given mnemonic."
+        <> footer "!!! Only for the Incentivized Testnet !!!"
+  where
+    cmd = pure exec
+    exec = do
+        wSeed <- fst <$> do
+            let prompt = "Please enter your 15-word mnemonic sentence: "
+            let parser = fromMnemonic @'[15] @"seed" . T.words
+            getLine prompt parser
+        wSndFactor <- maybe mempty fst <$> do
+            let prompt =
+                    "(Enter a blank line if you didn't use a second factor.)\n"
+                    <> "Please enter your 9–12 word mnemonic second factor: "
+            let parser =
+                    optionalE (fromMnemonic @'[9,12] @"generation") . T.words
+            getLine prompt parser <&> \case
+                (Nothing, _) -> Nothing
+                (Just a, t) -> Just (a, t)
+
+        let rootXPrv = Shelley.generateKeyFromSeed (wSeed, wSndFactor) mempty
+        let rewardAccountXPrv = deriveRewardAccount mempty rootXPrv
+
+        let hrp = Bech32.unsafeHumanReadablePartFromText "ed25519e_sk"
+        let dp = Bech32.dataPartFromBytes
+                $ BS.take 64
+                $ unXPrv
+                $ getRawKey
+                rewardAccountXPrv
+        TIO.putStrLn $ mconcat
+            [ "\nHere's your reward account private key:\n\n"
+            , "    ", Bech32.encodeLenient hrp dp
+            , "\n\nKeep it safe!"
+            ]
 
 {-------------------------------------------------------------------------------
                             Commands - 'wallet'
