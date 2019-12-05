@@ -207,7 +207,7 @@ import Control.Monad
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT, throwE, withExceptT )
+    ( ExceptT, except, throwE, withExceptT )
 import Data.Aeson
     ( (.=) )
 import Data.Function
@@ -874,11 +874,13 @@ network
     -> Handler ApiNetworkInformation
 network ctx = do
     now <- liftIO getCurrentTime
+    nextEpoch <- liftHandler $ except $ calculateNextEpoch sp now
     nodeTip <- liftHandler (NW.networkTip nl)
     let ntrkTip = fromMaybe slotMinBound (slotAt sp now)
     pure $ ApiNetworkInformation
         { syncProgress =
             ApiT $ syncProgressRelativeToTime st sp nodeTip now
+        , nextEpoch = nextEpoch
         , nodeTip =
             ApiBlockReference
                 { epochNumber = ApiT $ nodeTip ^. (#slotId . #epochNumber)
@@ -1386,6 +1388,16 @@ instance LiftHandler ErrMigrateWallet where
                 , toText wid
                 , ", because it's either empty or full of small coins "
                 , "which wouldn't be worth migrating."
+                ]
+
+instance LiftHandler ErrNextEpoch where
+    handler = \case
+        ErrNextEpochCannotBeCalculated time ->
+            apiError err500 UnexpectedError $ mconcat
+                [ "I'm unable to calculate the next epoch that starts after "
+                , "time: "
+                , toText time
+                , ". This is unexpected, and unlikely to be your fault."
                 ]
 
 instance LiftHandler ErrNoSuchWallet where

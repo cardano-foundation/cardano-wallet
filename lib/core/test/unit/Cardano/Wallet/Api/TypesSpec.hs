@@ -750,6 +750,7 @@ spec = do
             let
                 x' = ApiNetworkInformation
                     { syncProgress = syncProgress (x :: ApiNetworkInformation)
+                    , nextEpoch = nextEpoch (x :: ApiNetworkInformation)
                     , nodeTip = nodeTip (x :: ApiNetworkInformation)
                     , networkTip = networkTip (x :: ApiNetworkInformation)
                     }

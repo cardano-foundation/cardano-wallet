@@ -497,16 +497,27 @@ definitions:
       id: *addressId
       state: *addressState
 
+  ApiEpochInfo: &ApiEpochInfo
+    type: object
+    required:
+      - epoch_number
+      - epoch_start_time
+    properties:
+      epoch_number: *epochNumber
+      epoch_start_time: *date
+
   ApiNetworkInformation: &ApiNetworkInformation
     type: object
     required:
       - sync_progress
       - node_tip
       - network_tip
+      - next_epoch
     properties:
       sync_progress: *networkInformationSyncProgress
       node_tip: *networkInformationNodeTip
       network_tip: *networkInformationNetworkTip
+      next_epoch: *ApiEpochInfo
 
   ApiStakePool: &ApiStakePool
     type: object
