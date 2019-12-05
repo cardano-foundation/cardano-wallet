@@ -65,6 +65,7 @@ module Test.Integration.Framework.DSL
     , feeEstimator
     , inputs
     , metrics
+    , nextEpoch
     , outputs
     , passphraseLastUpdate
     , stake
@@ -160,6 +161,7 @@ import Cardano.Wallet.Api.Types
     , ApiAddress
     , ApiByronWallet
     , ApiByronWalletBalance
+    , ApiEpochInfo
     , ApiStakePoolMetrics
     , ApiT (..)
     , ApiTransaction
@@ -853,6 +855,15 @@ metrics =
     _get :: HasType ApiStakePoolMetrics s => s -> ApiStakePoolMetrics
     _get = view typed
     _set :: HasType ApiStakePoolMetrics s => (s, ApiStakePoolMetrics) -> s
+    _set (s, v) = set typed v s
+
+nextEpoch :: HasType ApiEpochInfo s => Lens' s ApiEpochInfo
+nextEpoch =
+    lens _get _set
+  where
+    _get :: HasType ApiEpochInfo s => s -> ApiEpochInfo
+    _get = view typed
+    _set :: HasType ApiEpochInfo s => (s, ApiEpochInfo) -> s
     _set (s, v) = set typed v s
 
 stake
