@@ -275,9 +275,18 @@ spec = do
             [ expectResponseCode HTTP.status202
             ]
 
+        reward <- eventually $ do
+            r <- request @ApiWallet ctx (getWalletEp w) Default Empty
+            verify r
+                [ expectFieldSatisfy balanceReward (> 0)
+                ]
+            pure $ getFromResponse balanceReward r
+
+        waitForNextEpoch ctx
+
         eventually $ do
             request @ApiWallet ctx (getWalletEp w) Default Empty >>= flip verify
-                [ expectFieldSatisfy balanceReward (> 0)
+                [ expectFieldSatisfy balanceReward (== reward)
                 ]
 
     it "STAKE_POOLS_JOIN_01 - I can join another stake-pool after previously \
