@@ -326,6 +326,7 @@ data ApiNetworkTip = ApiNetworkTip
 
 data ApiNetworkInformation = ApiNetworkInformation
     { syncProgress :: !(ApiT SyncProgress)
+    , nextEpoch :: !ApiEpochInfo
     , nodeTip :: !ApiBlockReference
     , networkTip :: !ApiNetworkTip
     } deriving (Eq, Generic, Show)

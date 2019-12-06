@@ -10,11 +10,15 @@ module Test.Integration.Scenario.API.Network
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiNetworkInformation )
+    ( ApiEpochInfo (..), ApiNetworkInformation )
 import Cardano.Wallet.Primitive.Types
     ( SyncProgress (..) )
 import Control.Monad
     ( forM_ )
+import Control.Monad.IO.Class
+    ( liftIO )
+import Data.Time.Clock
+    ( getCurrentTime )
 import Test.Hspec
     ( SpecWith, describe, it )
 import Test.Integration.Framework.DSL
@@ -27,11 +31,13 @@ import Test.Integration.Framework.DSL
     , expectErrorMessage
     , expectEventually'
     , expectFieldEqual
+    , expectFieldSatisfy
     , expectResponseCode
     , getByronWalletEp
     , getFromResponse
     , getWalletEp
     , networkInfoEp
+    , nextEpoch
     , request
     , state
     , syncProgress
@@ -46,40 +52,65 @@ spec :: forall t. SpecWith (Context t)
 spec = do
     it "NETWORK - Can query network information" $ \ctx -> do
         eventually_ $ do
+            now <- liftIO getCurrentTime
             r <- request @ApiNetworkInformation ctx networkInfoEp Default Empty
-            verify r [ expectFieldEqual syncProgress Ready ]
+            expectResponseCode @IO HTTP.status200 r
+            verify r
+                [ expectFieldSatisfy nextEpoch ((> now) . epochStartTime)
+                , expectFieldEqual syncProgress Ready
+                ]
 
-    it "NETWORK_SHELLEY - Wallet has the same tip as network/information" $ \ctx -> do
-        let getNetworkInfo = request @ApiNetworkInformation ctx networkInfoEp Default Empty
-        w <- emptyWallet ctx
-        eventually_ $ do
-            sync <- getNetworkInfo
-            verify sync [ expectFieldEqual syncProgress Ready ]
-        r <- getNetworkInfo
-        let epochNum = getFromResponse (#nodeTip . #epochNumber . #getApiT) r
-        let slotNum = getFromResponse (#nodeTip . #slotNumber . #getApiT) r
-        let blockHeight = getFromResponse (#nodeTip . #height) r
+    it "NETWORK_SHELLEY - Wallet has the same tip as network/information" $
+        \ctx -> do
+            let getNetworkInfo = request @ApiNetworkInformation
+                    ctx networkInfoEp Default Empty
+            w <- emptyWallet ctx
+            eventually_ $ do
+                sync <- getNetworkInfo
+                verify sync [ expectFieldEqual syncProgress Ready ]
+            r <- getNetworkInfo
 
-        expectEventually' ctx getWalletEp state Ready w
-        expectEventually' ctx getWalletEp (#tip . #epochNumber . #getApiT) epochNum w
-        expectEventually' ctx getWalletEp (#tip . #slotNumber . #getApiT) slotNum  w
-        expectEventually' ctx getWalletEp (#tip . #height) blockHeight w
+            let epochNum =
+                    getFromResponse (#nodeTip . #epochNumber . #getApiT) r
+            let slotNum =
+                    getFromResponse (#nodeTip . #slotNumber . #getApiT) r
+            let blockHeight =
+                    getFromResponse (#nodeTip . #height) r
 
-    it "NETWORK_BYRON - Byron wallet has the same tip as network/information" $ \ctx -> do
-        let getNetworkInfo = request @ApiNetworkInformation ctx networkInfoEp Default Empty
-        w <- emptyByronWallet ctx
-        eventually_ $ do
-            sync <- getNetworkInfo
-            verify sync [ expectFieldEqual syncProgress Ready ]
-        r <- getNetworkInfo
-        let epochNum = getFromResponse (#nodeTip . #epochNumber . #getApiT) r
-        let slotNum = getFromResponse (#nodeTip . #slotNumber . #getApiT) r
-        let blockHeight = getFromResponse (#nodeTip . #height) r
+            expectEventually' ctx getWalletEp
+                state Ready w
+            expectEventually' ctx getWalletEp
+                (#tip . #epochNumber . #getApiT) epochNum w
+            expectEventually' ctx getWalletEp
+                (#tip . #slotNumber . #getApiT) slotNum  w
+            expectEventually' ctx getWalletEp
+                (#tip . #height) blockHeight w
 
-        expectEventually' ctx getByronWalletEp state Ready w
-        expectEventually' ctx getByronWalletEp (#tip . #epochNumber . #getApiT) epochNum w
-        expectEventually' ctx getByronWalletEp (#tip . #slotNumber . #getApiT) slotNum  w
-        expectEventually' ctx getByronWalletEp (#tip . #height) blockHeight w
+    it "NETWORK_BYRON - Byron wallet has the same tip as network/information" $
+        \ctx -> do
+            let getNetworkInfo = request @ApiNetworkInformation
+                    ctx networkInfoEp Default Empty
+            w <- emptyByronWallet ctx
+            eventually_ $ do
+                sync <- getNetworkInfo
+                verify sync [ expectFieldEqual syncProgress Ready ]
+            r <- getNetworkInfo
+
+            let epochNum =
+                    getFromResponse (#nodeTip . #epochNumber . #getApiT) r
+            let slotNum =
+                    getFromResponse (#nodeTip . #slotNumber . #getApiT) r
+            let blockHeight =
+                    getFromResponse (#nodeTip . #height) r
+
+            expectEventually' ctx getByronWalletEp
+                state Ready w
+            expectEventually' ctx getByronWalletEp
+                (#tip . #epochNumber . #getApiT) epochNum w
+            expectEventually' ctx getByronWalletEp
+                (#tip . #slotNumber . #getApiT) slotNum w
+            expectEventually' ctx getByronWalletEp
+                (#tip . #height) blockHeight w
 
     describe "NETWORK - v2/network/information - Methods Not Allowed" $ do
         let matrix = ["POST", "CONNECT", "TRACE", "OPTIONS"]
@@ -92,5 +123,6 @@ spec = do
     describe "NETWORK - HTTP headers" $ do
         forM_ (getHeaderCases HTTP.status200)
             $ \(title, headers, expectations) -> it title $ \ctx -> do
-                r <- request @ApiNetworkInformation ctx networkInfoEp headers Empty
+                r <- request @ApiNetworkInformation
+                    ctx networkInfoEp headers Empty
                 verify r expectations
