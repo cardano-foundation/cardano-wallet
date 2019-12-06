@@ -42,6 +42,7 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Hash (..)
     , PoolId (..)
+    , PoolOwner (..)
     , SealedTx (..)
     , Tx (..)
     , TxIn (..)
@@ -50,7 +51,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Transaction
     ( TransactionLayer (..) )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex, unsafeXPrv )
+    ( unsafeFromHex, unsafeFromHexFile, unsafeXPrv )
 import Control.DeepSeq
     ( force )
 import Control.Exception
@@ -81,6 +82,7 @@ import Test.Hspec
     , expectationFailure
     , it
     , runIO
+    , shouldBe
     , shouldContain
     , shouldSatisfy
     )
@@ -187,6 +189,25 @@ spec = do
 
                 _ -> run $ expectationFailure
                     "unexpected fragment after serializing a transaction?"
+
+    describe "Stake Pool Registration golden tests" $ do
+        let dataDir = $(getTestData) </> "jormungandr/stake_pools"
+        -- this is "jcli key to-bytes < owner.pub"
+        let owner = PoolOwner $ unsafeFromHex
+                "2ab7522ff4b469ecabfad689fcf1d2ff07b4bd86912f5eacc2e536a5035bc9\
+                \bf"
+
+        forM_ ["a", "b", "c"] $ \p -> it ("Message fragment " ++ p) $ do
+            let poolDir = dataDir </> p
+            tx <- unsafeFromHexFile (poolDir </> "registration_no_fees.msg")
+            poolId' <- PoolId <$> unsafeFromHexFile
+                (poolDir </> "stake_pool.id")
+            txId' <- Hash <$> unsafeFromHexFile
+                (poolDir </> "registration_no_fees.txid")
+
+            runGet getFragment (BL.fromStrict tx)
+                `shouldBe`
+                PoolRegistration (poolId', [owner], Tx txId' [] [])
 
     describe "Decode External Tx" $ do
         let tl = newTransactionLayer @ShelleyKey (Hash "genesis")

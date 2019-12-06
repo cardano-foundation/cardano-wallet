@@ -8,6 +8,7 @@
 
 module Cardano.Wallet.Unsafe
     ( unsafeFromHex
+    , unsafeFromHexFile
     , unsafeDecodeAddress
     , unsafeDecodeHex
     , unsafeFromText
@@ -15,6 +16,8 @@ module Cardano.Wallet.Unsafe
     , unsafeXPrv
     , unsafeMkMnemonic
     , unsafeDeserialiseCbor
+    , unsafeBech32DecodeFile
+    , unsafeBech32Decode
     ) where
 
 import Prelude
@@ -39,6 +42,8 @@ import Data.ByteArray.Encoding
     ( Base (..), convertFromBase )
 import Data.ByteString
     ( ByteString )
+import Data.Char
+    ( isHexDigit )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -47,14 +52,22 @@ import GHC.Stack
     ( HasCallStack )
 
 import qualified Cardano.Crypto.Wallet as CC
+import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Read as CBOR
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 
 -- | Decode an hex-encoded 'ByteString' into raw bytes, or fail.
 unsafeFromHex :: HasCallStack => ByteString -> ByteString
 unsafeFromHex =
     either (error . show) id . convertFromBase @ByteString @ByteString Base16
+
+-- | Load a hex string from file. Any non-hexadecimal characters are ignored.
+unsafeFromHexFile :: HasCallStack => FilePath -> IO ByteString
+unsafeFromHexFile = fmap (unsafeFromHex . B8.filter isHexDigit) . B8.readFile
 
 -- | Decode a bech32-encoded 'Text' into an 'Address', or fail.
 unsafeDecodeAddress
@@ -110,3 +123,20 @@ unsafeDeserialiseCbor decoder bytes = either
     (\e -> error $ "unsafeSerializeCbor: " <> show e)
     snd
     (CBOR.deserialiseFromBytes decoder bytes)
+
+-- | Load the data part of a bech32-encoded string from file. These files often
+-- come from @jcli@. Only the first line of the file is read.
+unsafeBech32DecodeFile :: HasCallStack => FilePath -> IO BL.ByteString
+unsafeBech32DecodeFile = fmap (unsafeBech32Decode . firstLine) . TIO.readFile
+  where
+    firstLine = T.takeWhile (/= '\n')
+
+-- | Get the data part of a bech32-encoded string, ignoring the human-readable part.
+unsafeBech32Decode :: HasCallStack => Text -> BL.ByteString
+unsafeBech32Decode txt = case Bech32.decodeLenient txt of
+    Right (_hrp, dp) -> maybe (bomb "missing data part")
+        BL.fromStrict (Bech32.dataPartToBytes dp)
+    Left e -> bomb (show e)
+  where
+    bomb msg = error $ "Could not decode bech32 string " ++ show txt
+        ++ " because " ++ msg

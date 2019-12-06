@@ -89,7 +89,8 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , EpochNo (..)
     , Hash (..)
-    , PoolId (..)
+    , PoolId (PoolId)
+    , PoolOwner (..)
     , SealedTx (..)
     , SlotId (..)
     , SlotNo (..)
@@ -274,6 +275,8 @@ data Fragment
     -- ^ A standard signed transaction
     | StakeDelegation (StakeDelegationType, ChimericAccount, Tx)
     -- ^ A signed transaction with stake pool delegation
+    | PoolRegistration (PoolId, [PoolOwner], Tx)
+    -- ^ A signed transaction with a stake pool registration.
     | UnimplementedFragment Word8
     -- Fragments not yet supported go there.
     deriving (Generic, Eq, Show)
@@ -350,7 +353,7 @@ getFragment = label "getFragment" $ do
         3 -> unimpl -- OwnerStakeDelegation
         4 -> lookAheadM (getStakeDelegation fragId)
             >>= maybe unimpl (pure . StakeDelegation)
-        5 -> unimpl -- PoolRegistration
+        5 -> PoolRegistration <$> getPoolRegistration fragId
         6 -> unimpl -- PoolRetirement
         7 -> unimpl -- PoolUpdate
         8 -> unimpl -- UpdateProposal
@@ -417,10 +420,14 @@ getStakeDelegation tid = do
     getStakeDelegationNone = MaybeT $ do
         pure $ Just DlgNone
     getStakeDelegationFull = MaybeT $ do
-        poolId <- getByteString 32
-        pure $ Just $ DlgFull $ PoolId poolId
+        poolId <- getPoolId
+        pure $ Just $ DlgFull poolId
     getStakeDelegationRatio =
         MaybeT (pure Nothing)
+
+-- | Corresponds to @POOL-ID@ in the specification.
+getPoolId :: Get PoolId
+getPoolId = PoolId <$> getByteString 32
 
 -- | Decode the contents of a @Transaction@-fragment.
 getTransaction :: Hash "Tx" -> Get Tx
@@ -493,6 +500,85 @@ data MkFragment
         StakeDelegationType
         ChimericAccount
         (XPrv, Passphrase "encryption")
+
+getPoolRegistration :: Hash "Tx" -> Get (PoolId, [PoolOwner], Tx)
+getPoolRegistration tid = label "POOL-REGISTRATION" $ do
+    (poolId, ownerAccIds) <- getPoolRegistrationCert
+    tx <- getGenericTransaction tid
+    _sig <- getPoolSig
+    pure (poolId, ownerAccIds, tx)
+
+getPoolRegistrationCert :: Get (PoolId, [PoolOwner])
+getPoolRegistrationCert = do
+    (certBytes, (ownerAccIds, _startTime, _rewardAcc)) <- withRaw getCert
+    -- A PoolId is the blake2b-256 hash of the encoded registration certificate.
+    let poolId = PoolId $ blake2b256 certBytes
+    pure (poolId, ownerAccIds)
+
+  where
+    getCert :: Get ([PoolOwner], Word64, Maybe ChimericAccount)
+    getCert = label "REGISTRATION-CERT" $ do
+        -- A random value, for user purpose similar to a UUID.  it may not be
+        -- unique over a blockchain, so shouldn't be used a unique identifier
+        _serial <- label "POOL-SERIAL" $ skip 16
+        -- Beginning of validity for this pool. A time in seconds since genesis.
+        -- This is used to keep track of the period of the expected key and the
+        -- expiry
+        startTime <- label "TIME-SINCE-EPOCH0" getWord64be
+        -- Permission system for this pool.
+        label "POOL-PERMISSIONS" $ skip 8
+        -- POOL-KEYS = VRF-PUBLICKEY (32 bytes) KES-PUBLICKEY (32 bytes)
+        label "POOL-KEYS" $ do
+            label "VRF-PUBLICKEY" $ skip 32
+            label "KES-PUBLICKEY" $ skip 32
+        -- Owners of this pool, between 1 and 31 of them.
+        ownerAccIds <- label "POOL-OWNERS" $ do
+            numOwners <- fromIntegral <$> getWord8
+            label (show numOwners ++ " owner(s)") $
+                replicateM numOwners getSingleAccountId
+        -- Operators of this pool, between 0 and 3 of them.
+        _operatorAccIds <- label "POOL-OPERATORS" $ do
+            numOperators <- fromIntegral <$> getWord8
+            label (show numOperators ++ " operator(s)") $
+                replicateM numOperators getSingleAccountId
+        -- Reward tax type -- fixed, ratio numerator, denominator, and optional
+        -- limit value
+        label "POOL-REWARD-SCHM" $ skip (4 * 8)
+        rewardAcc <- label "POOL-REWARD-ACNT" getAccountIdMaybe
+        pure ( PoolOwner <$> ownerAccIds
+             , startTime
+             , ChimericAccount <$> rewardAcc)
+
+    -- | Corresponds to @POOL-REWARD-ACNT = %x00 / ACCOUNT-ID@
+    getAccountIdMaybe :: Get (Maybe ByteString)
+    getAccountIdMaybe = do
+        tag <- lookAhead getWord8
+        if tag == 0 then (skip 1 $> Nothing) else Just <$> getAccountId
+
+    -- | Corresponds to @ACCOUNT-ID@
+    getAccountId :: Get ByteString
+    getAccountId = label "ACCOUNT-ID" $ getWord8 >>= \case
+        1 -> getSingleAccountId
+        2 -> getMultiAccountId
+        tag -> fail $ "Invalid tag " ++ show tag
+
+    -- @SINGLE-ACNT-ID@ is a ed25519 public key (32 bytes)
+    getSingleAccountId = getByteString 32
+    -- @MULTI-ACNT-ID@ is 32 octets of "todo"
+    getMultiAccountId = getByteString 32
+
+-- | Get a pool signature, which is either a single signature from a pool
+-- operator, or signatures from the pool owners (referenced by their index in
+-- the registration certificate). Corresponds to
+-- @POOL-SIG = OWNERS-SIG / OP-SIGNATURE@ in the specification.
+getPoolSig :: Get (Either [(Word8, ByteString)] ByteString)
+getPoolSig = label "getPoolSig" $ getWord8 >>= \case
+    0 -> Right <$> getSingleAcntSig -- pool operator signature
+    numSigs -> Left <$> replicateM (fromIntegral numSigs) getOwnersSig
+  where
+    getOwnersSig = (,) <$> getWord8 <*> getSingleAcntSig
+    -- @SINGLE-ACNT-SIG@ is an ed25519 signature
+    getSingleAcntSig = getByteString 64
 
 putFragment
     :: Hash "Genesis"
@@ -834,6 +920,19 @@ blake2b256 :: ByteString -> ByteString
 blake2b256 =
     BA.convert . hash @_ @Blake2b_256
 
+-- | Run a decoder and return its result, along with the raw bytes that encoded
+-- this result.
+withRaw :: Get a -> Get (ByteString, a)
+withRaw get = do
+    start <- fromIntegral <$> bytesRead
+    (end, a) <- lookAhead $ do
+        a <- get
+        end <- fromIntegral <$> bytesRead
+        pure (end, a)
+    -- After decoding once, go back and get the raw bytes.
+    raw <- getByteString (end - start)
+    pure (raw, a)
+
 {-------------------------------------------------------------------------------
                                 Conversions
 -------------------------------------------------------------------------------}
@@ -849,12 +948,14 @@ convertBlock (Block h msgs) =
         Transaction _ -> []
         StakeDelegation (dlgType, accountId, _tx) ->
             [convertDlgType accountId dlgType]
+        PoolRegistration _ -> []
         UnimplementedFragment _ -> []
     transactions :: [Tx]
     transactions = msgs >>= \case
         Initial _ -> []
         Transaction tx -> return tx
         StakeDelegation (_poolId, _accountId, tx) -> return tx
+        PoolRegistration (_poolId, _owners, tx) -> return tx
         UnimplementedFragment _ -> []
 
 -- | Convert the Jörmungandr binary format to a simpler form

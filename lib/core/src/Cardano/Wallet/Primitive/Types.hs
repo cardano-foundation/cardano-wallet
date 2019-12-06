@@ -491,7 +491,9 @@ isSubrangeOf r1 r2 =
                                   Stake Pools
 -------------------------------------------------------------------------------}
 
--- | Represents a stake pool.
+-- | Identifies a stake pool.
+-- For Jörmungandr a 'PoolId' is the blake2b-256 hash of the stake pool
+-- registration certificate.
 newtype PoolId = PoolId { getPoolId :: ByteString }
     deriving (Generic, Eq, Show, Ord)
 
