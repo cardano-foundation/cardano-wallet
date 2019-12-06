@@ -590,22 +590,28 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> do
     let localTip = currentTip $ NE.last cps
 
     let unstable = sparseCheckpoints k (nodeTip ^. #blockHeight)
-    mapExceptT atomically $ forM_ (NE.init cps) $ \cp' -> do
-        let (Quantity h) = currentTip cp ^. #blockHeight
-        when (fromIntegral h `elem` unstable) $ do
-            liftIO $ logCheckpoint cp'
-            putCheckpoint (PrimaryKey wid) cp'
+    mapExceptT atomically $ do
+        putTxHistory (PrimaryKey wid) txs
 
-    mapExceptT atomically $
         forM_ slotPoolDelegations $ \delegation@(slotId, cert) -> do
             liftIO $ logDelegation delegation
             putDelegationCertificate (PrimaryKey wid) cert slotId
 
-    mapExceptT atomically $ do
+        forM_ (NE.init cps) $ \cp' -> do
+            let (Quantity h) = currentTip cp ^. #blockHeight
+            when (fromIntegral h `elem` unstable) $ do
+                liftIO $ logCheckpoint cp'
+                putCheckpoint (PrimaryKey wid) cp'
+
         liftIO $ logCheckpoint cp
         putCheckpoint (PrimaryKey wid) (NE.last cps)
-        prune (PrimaryKey wid)
-        putTxHistory (PrimaryKey wid) txs
+
+    -- NOTE
+    -- We prune the database in a separate db transaction since this is not
+    -- strictly required to maintain integrity of the data. It's quite a heavy
+    -- operation, so we may still want to unlock the database to allow some
+    -- other operations to flow in the meantime.
+    mapExceptT atomically $ prune (PrimaryKey wid)
 
     liftIO $ do
         progress <- walletSyncProgress @ctx ctx (NE.last cps)
