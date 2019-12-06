@@ -20,7 +20,7 @@ module Cardano.Pool.DB
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader, EpochNo (..), PoolId, SlotId (..) )
+    ( BlockHeader, EpochNo (..), PoolId, PoolOwner (..), SlotId (..) )
 import Control.Monad.Fail
     ( MonadFail )
 import Control.Monad.Trans.Except
@@ -78,6 +78,18 @@ data DBLayer m = forall stm. MonadFail stm => DBLayer
         -- be the last element in the list.
         --
         -- This is useful for the @NetworkLayer@ to know how far we have synced.
+
+    , putStakePoolOwner
+        :: PoolId
+        -> PoolOwner
+        -> stm ()
+        -- ^ Add a mapping between stake pools and owners. If the mapping
+        -- already exists, this will be a no-op.
+
+    , readStakePoolOwners
+        :: PoolId
+        -> stm [PoolOwner]
+        -- ^ List the owners of a given stake pool.
 
     , readSystemSeed
         :: stm StdGen

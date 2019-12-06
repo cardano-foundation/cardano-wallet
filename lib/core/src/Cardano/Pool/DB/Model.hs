@@ -37,6 +37,8 @@ module Cardano.Pool.DB.Model
     , mReadPoolProduction
     , mPutStakeDistribution
     , mReadStakeDistribution
+    , mPutStakePoolOwner
+    , mReadStakePoolOwners
     , mReadSystemSeed
     , mRollbackTo
     , mReadCursor
@@ -45,7 +47,7 @@ module Cardano.Pool.DB.Model
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), EpochNo (..), PoolId, SlotId (..) )
+    ( BlockHeader (..), EpochNo (..), PoolId, PoolOwner (..), SlotId (..) )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -54,6 +56,10 @@ import Data.Ord
     ( Down (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Set
+    ( Set )
+import Data.Text.Class
+    ( toText )
 import Data.Word
     ( Word64 )
 import GHC.Generics
@@ -63,6 +69,7 @@ import System.Random
 
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 
 {-------------------------------------------------------------------------------
                             Model Database Types
@@ -74,6 +81,9 @@ data PoolDatabase = PoolDatabase
 
     , distributions :: !(Map EpochNo [(PoolId, Quantity "lovelace" Word64)])
     -- ^ Store known stake distributions for epochs
+
+    , owners :: !(Set (PoolId, PoolOwner))
+    -- ^ Mapping between pool ids and owners
 
     , seed :: !SystemSeed
     -- ^ Store an arbitrary random generator seed
@@ -92,7 +102,7 @@ instance Eq SystemSeed where
 
 -- | Produces an empty model pool production database.
 emptyPoolDatabase :: PoolDatabase
-emptyPoolDatabase = PoolDatabase mempty mempty NotSeededYet
+emptyPoolDatabase = PoolDatabase mempty mempty mempty NotSeededYet
 
 {-------------------------------------------------------------------------------
                                   Model Operation Types
@@ -146,6 +156,21 @@ mReadStakeDistribution epoch db@PoolDatabase{distributions} =
     , db
     )
 
+mPutStakePoolOwner :: PoolId -> PoolOwner -> ModelPoolOp ()
+mPutStakePoolOwner poolId poolOwner db@PoolDatabase{owners} =
+    ( Right ()
+    , db { owners = Set.insert entry owners }
+    )
+  where
+    entry = (poolId, poolOwner)
+
+mReadStakePoolOwners :: PoolId -> ModelPoolOp [PoolOwner]
+mReadStakePoolOwners poolId db@PoolDatabase{owners} =
+    ( Right $ L.sortOn toText
+      [ owner | (p, owner) <- Set.toList owners, p == poolId ]
+    , db
+    )
+
 mReadSystemSeed
     :: PoolDatabase
     -> IO (StdGen, PoolDatabase)
@@ -165,7 +190,7 @@ mReadCursor k db@PoolDatabase{pools} =
     in (Right $ reverse $ limit $ sortDesc allHeaders, db)
 
 mRollbackTo :: SlotId -> ModelPoolOp ()
-mRollbackTo point PoolDatabase{pools, distributions, seed} =
+mRollbackTo point PoolDatabase{pools, distributions, owners, seed} =
     let
         updateSlots = Map.map (filter ((<= point) . slotId))
         updatePools = Map.filter (not . L.null)
@@ -177,6 +202,7 @@ mRollbackTo point PoolDatabase{pools, distributions, seed} =
         , PoolDatabase
             { pools = updatePools $ updateSlots pools
             , distributions = Map.mapMaybeWithKey discardEpoch distributions
+            , owners
             , seed
             }
         )

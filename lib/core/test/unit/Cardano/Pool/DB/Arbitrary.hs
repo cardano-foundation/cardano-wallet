@@ -7,6 +7,7 @@
 
 module Cardano.Pool.DB.Arbitrary
     ( StakePoolsFixture (..)
+    , StakePoolOwnersFixture (..)
     ) where
 
 import Prelude
@@ -19,6 +20,7 @@ import Cardano.Wallet.Primitive.Types
     , EpochNo (..)
     , Hash (..)
     , PoolId (..)
+    , PoolOwner (..)
     , SlotId (..)
     , SlotNo (..)
     , SlotParameters (..)
@@ -45,7 +47,9 @@ import Test.QuickCheck
     , arbitrarySizedBoundedIntegral
     , choose
     , elements
+    , listOf
     , shrinkIntegral
+    , shrinkList
     , shuffle
     , vectorOf
     )
@@ -60,6 +64,11 @@ import qualified Data.List as L
 data StakePoolsFixture = StakePoolsFixture
     { poolSlots :: [(PoolId, BlockHeader)]
     , rollbackSlots :: [SlotId] }
+    deriving stock (Eq, Show)
+
+data StakePoolOwnersFixture = StakePoolOwnersFixture
+    { fixturePoolId :: PoolId
+    , fixturePoolOwners :: [(PoolId, PoolOwner)] }
     deriving stock (Eq, Show)
 
 {-------------------------------------------------------------------------------
@@ -97,6 +106,14 @@ instance Arbitrary PoolId where
     arbitrary = do
         bytes <- vectorOf 32 (elements ['a'..'z'])
         return $ PoolId $ B8.pack bytes
+
+instance Arbitrary StakePoolOwnersFixture where
+    arbitrary = StakePoolOwnersFixture <$> fmap PoolId genBytes <*> listOf entry
+      where
+        entry = (,) <$> fmap PoolId genBytes <*> fmap PoolOwner genBytes
+        genBytes = B8.replicate 32 <$> elements ['a'..'e']
+    shrink (StakePoolOwnersFixture p xs) =
+        StakePoolOwnersFixture p <$> shrinkList (const []) xs
 
 instance Arbitrary StakePoolsFixture where
     arbitrary = do
