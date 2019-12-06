@@ -16,11 +16,15 @@
   $ VERSION=<new-version> git tag -s -m $VERSION $VERSION
   ```
 
-- [ ] Trigger a release build on CI and wait for the build artifacts to be published on github
+> :warning: We use a slightly different notation between `.cabal` and git tags! Git tags follows the following format: `vYYYY-MM-DD` (notice the `v` and hyphens) whereas cabal version are written as: `YYYY.MM.DD`.
+
+- [ ] Trigger a release build on CI (Travis) and wait for the build artifacts to be published on github
 
   ```
   $ git push origin --tags
   ```
+
+> :warning: The Travis jobs publishing the documentation and the artifacts are known to be in a race. The first one to publish will make the other one fail. Hence one of the two last jobs has to be restarted manually every time until we fix it :man_shrugging:  ...
 
 ## Create the release notes
 
