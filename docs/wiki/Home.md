@@ -7,6 +7,7 @@
 
 - [Coding Standards](https://github.com/input-output-hk/cardano-wallet/wiki/Coding-Standards)
 - [Logging Guidelines](https://github.com/input-output-hk/cardano-wallet/wiki/Logging-Guidelines)
+- [Review Guidelines](https://github.com/input-output-hk/cardano-wallet/wiki/Code-Review-Guidelines)
 - [Release Checklist](https://github.com/input-output-hk/cardano-wallet/wiki/Release-Checklist)
 
 # Product
