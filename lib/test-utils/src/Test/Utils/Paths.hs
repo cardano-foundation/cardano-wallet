@@ -33,8 +33,14 @@ getTestData :: Q Exp
 getTestData = do
     let relPath = "test" </> "data"
     absPath <- makeRelativeToProject relPath
+    useRel <- liftIO inNixBuild
+    liftData (if useRel then relPath else absPath)
 
-    -- This environment variable indicates we are building under nix.
-    nixBuildDir <- liftIO $ lookupEnv "NIX_BUILD_TOP"
-
-    liftData $ maybe absPath (const relPath) nixBuildDir
+-- | Infer from environment variables whether we are running within a Nix build
+-- (and not just a nix-shell).
+inNixBuild :: IO Bool
+inNixBuild = do
+    let testEnv = fmap (maybe False (not . null)) . lookupEnv
+    haveNixBuildDir <- testEnv "NIX_BUILD_TOP"
+    inNixShell <- testEnv "IN_NIX_SHELL"
+    pure (haveNixBuildDir && not inNixShell)
