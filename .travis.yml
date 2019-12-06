@@ -20,8 +20,6 @@ notifications:
 env:
   global:
     - WALLET_CLI_JORMUNGANDR=$HOME/.local/bin/cardano-wallet-jormungandr
-    - WALLET_CLI_JORMUNGANDR_CHECKSUM=$HOME/.local/bin/cardano-wallet-jormungandr.sha256
-    - WALLET_CLI_JORMUNGANDR_TARGZ=$HOME/.local/bin/cardano-wallet-jormungandr.tar.gz
     - STACK_WORK_CACHE=$HOME/.stack/stack-work.tar.gz
     - PATH=$PATH:$HOME/.local/bin
     - LOCAL_MIX_DIR=.stack-work/dist/x86_64-linux/Cabal-2.4.0.1/hpc/
@@ -32,7 +30,7 @@ language: generic
 # Deactivate builds on branches but `master` and the bors branches.
 # CI is still triggered by PRs).
 # We do also CI to kick in when pushing a tag `git push --tags` for releases.
-if: "(branch = master) OR (tag =~ ^v)"
+if: "(branch = master) OR (tag =~ /^v(2019|2020|2021)-(0[1-9]|1[0-2])-(0[1-9]|1[0-9]|2[0-9]|3[0-1])$/)"
 
 # Caching so the next build will be fast too:
 cache:
@@ -64,6 +62,7 @@ addons:
 stages:
 - cache 💾
 - build project 🔨
+- documentation 📚
 - deploy 🚀
 
 jobs:
@@ -84,7 +83,7 @@ jobs:
     - stack --no-terminal build --haddock --no-haddock-deps --skip cardano-wallet-core-integration
     - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work
 
-  - stage: deploy 🚀
+  - stage: documentation 📚
     if: type != pull_request AND (branch = master OR tag =~ ^v)
     name: "Haddock"
     script:
@@ -101,15 +100,27 @@ jobs:
     if: type != pull_request AND tag =~ ^v
     name: "Executables"
     script:
+    - CABAL_TAG=$(echo $TRAVIS_TAG | sed "s/-/./g" | cut -c2-)
+
     # Create optimized binaries and checksums
     - stack --no-terminal install
 
-    # Bundle cardano-wallet-jormungandr
+    # Bundle cardano-wallet-jormungandr-linux
     - cp $WALLET_CLI_JORMUNGANDR cardano-wallet
-    - tar czf $WALLET_CLI_JORMUNGANDR_TARGZ cardano-wallet
-    - sha256sum $WALLET_CLI_JORMUNGANDR | head -c 64 > $WALLET_CLI_JORMUNGANDR_CHECKSUM
-    - ls $WALLET_CLI_JORMUNGANDR_TARGZ
-    - ls $WALLET_CLI_JORMUNGANDR_CHECKSUM
+    - tar czf cardano-wallet-jormungandr-linux64.tar.gz cardano-wallet
+
+    # Fetch the MacOS archive
+    - travis_retry curl -L https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-jormungandr-macos64/latest/download/1 | tar xz
+    - mv cardano-wallet-jormungandr-$CABAL_TAG/cardano-wallet-jormungandr cardano-wallet-jormungandr-$CABAL_TAG/cardano-wallet
+    - tar czf cardano-wallet-jormungandr-macos64.tar.gz cardano-wallet-jormungandr-$CABAL_TAG
+    - rm -r cardano-wallet-jormungandr-$CABAL_TAG
+
+    # Fetch the Windows archive
+    - travis_retry curl -L https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-jormungandr-win64/latest/download/1 --output cardano-wallet-jormungandr-$CABAL_TAG.zip
+    - unzip -d cardano-wallet-jormungandr-$CABAL_TAG cardano-wallet-jormungandr-$CABAL_TAG.zip
+    - mv cardano-wallet-jormungandr-$CABAL_TAG/cardano-wallet-jormungandr.exe cardano-wallet-jormungandr-$CABAL_TAG/cardano-wallet.exe
+    - zip -r cardano-wallet-jormungandr-win64 cardano-wallet-jormungandr-$CABAL_TAG
+    - rm -r cardano-wallet-jormungandr-$CABAL_TAG
 
     # Deploy documentation snapshot
     - mkdir -p haddock/$TRAVIS_TAG api/$TRAVIS_TAG
@@ -126,8 +137,9 @@ jobs:
       draft: true # Allow editing the release before publishing it officially on GitHub
       skip_cleanup: true # Make sure that files from the previous stages aren't cleaned up
       file:
-        - $WALLET_CLI_JORMUNGANDR_TARGZ
-        - $WALLET_CLI_JORMUNGANDR_CHECKSUM
+        - cardano-wallet-jormungandr-linux64.tar.gz
+        - cardano-wallet-jormungandr-macos64.tar.gz
+        - cardano-wallet-jormungandr-win64.zip
       on:
         repo: input-output-hk/cardano-wallet
         branch: master
