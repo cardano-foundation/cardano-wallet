@@ -17,6 +17,7 @@ module Network.Wai.Middleware.Logging
     , ApiLoggerSettings
     , obfuscateKeys
     , ApiLog (..)
+    , WithRequestId (..)
     ) where
 
 import Prelude

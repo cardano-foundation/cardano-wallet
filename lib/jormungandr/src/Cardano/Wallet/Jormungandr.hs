@@ -63,6 +63,8 @@ import Cardano.Wallet.Jormungandr.Network
     )
 import Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer )
+import Cardano.Wallet.Logging
+    ( transformTextTrace )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -199,7 +201,7 @@ serveWallet
         let tracerApi = appendName "api" tracer
         let settings = Warp.defaultSettings
                 & setBeforeMainLoop (beforeMainLoop sockAddr nPort bp)
-        Server.start settings tracerApi socket rndApi seqApi poolApi
+        Server.start settings (transformTextTrace tracerApi) socket rndApi seqApi poolApi
 
     apiLayer
         :: forall s k.

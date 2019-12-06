@@ -268,12 +268,8 @@ benchmark latency
       -Werror
   build-depends:
       base
-    , QuickCheck
-    , aeson
-    , aeson-qq
     , async
     , bech32
-    , binary
     , bytestring
     , cardano-wallet-cli
     , cardano-wallet-core
@@ -283,32 +279,20 @@ benchmark latency
     , cardano-wallet-test-utils
     , command
     , containers
-    , cryptonite
-    , deepseq
     , directory
     , exceptions
     , extra
     , filepath
-    , fmt
-    , generic-arbitrary
-    , generic-lens
-    , hspec
-    , hspec-expectations-lifted
-    , http-api-data
     , http-client
-    , http-types
     , iohk-monitoring
     , lifted-base
     , memory
     , monad-control
     , network
-    , persistent
     , process
-    , retry
     , safe
     , servant
     , stm
-    , template-haskell
     , temporary
     , text
     , text-class

@@ -105,6 +105,12 @@ main = do
         (_res, t) <- captureLatencyLogging $ \_ ->
             request @[ApiWallet] ctx listWalletsEp Default Empty
         print ("!!!!!!!!!!!! : "<> show t)
+
+        print ("##########################" <> show wal1)
+        (_res1, t1) <- captureLatencyLogging $ \_ ->
+            request @[ApiWallet] ctx listWalletsEp Default Empty
+        print ("!!!!!!!!!!!! : "<> show t1)
+
         pure ()
   where
     twoFixtureWallet ctx =
