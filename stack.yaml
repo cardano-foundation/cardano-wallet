@@ -17,6 +17,7 @@ extra-deps:
 - OddWord-1.0.2.0
 - quickcheck-state-machine-0.6.0
 - command-0.1.1
+- clock-0.8
 
 # 'zip' with an extra flag to disable bzlib2 library
 - git: https://github.com/mrkkrp/zip
