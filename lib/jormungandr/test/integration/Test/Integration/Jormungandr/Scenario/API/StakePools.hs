@@ -254,16 +254,31 @@ spec = do
         reward <- getFromResponse balanceReward <$>
             request @ApiWallet ctx (getWalletEp w) Default Empty
 
-        -- Wait an epoch and make sure the reward doesn't increase
-        epoch <- getFromResponse (#networkTip . #epochNumber) <$>
-            request @ApiNetworkInformation ctx networkInfoEp Default Empty
-        eventually $ do
-            epoch' <- getFromResponse (#networkTip . #epochNumber) <$>
-                request @ApiNetworkInformation ctx networkInfoEp Default Empty
-            unless (getApiT epoch' > getApiT epoch) $ fail "not yet"
+        waitForNextEpoch ctx
         request @ApiWallet ctx (getWalletEp w) Default Empty >>= flip verify
             [ expectFieldSatisfy balanceReward (== reward)
             ]
+
+    it "STAKE_POOLS_JOIN_04 -\
+        \Delegate, stop in the next epoch, and still earn rewards" $ \ctx -> do
+        w <- fixtureWallet ctx
+        (_, p1:_) <- eventually $
+            unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
+
+        joinStakePool ctx (p1 ^. #id) (w, fixturePassphrase) >>= flip verify
+            [ expectResponseCode HTTP.status202
+            ]
+
+        waitForNextEpoch ctx
+
+        quitStakePool ctx (p1 ^. #id) (w, fixturePassphrase) >>= flip verify
+            [ expectResponseCode HTTP.status202
+            ]
+
+        eventually $ do
+            request @ApiWallet ctx (getWalletEp w) Default Empty >>= flip verify
+                [ expectFieldSatisfy balanceReward (> 0)
+                ]
 
     it "STAKE_POOLS_JOIN_01 - I can join another stake-pool after previously \
         \ joining another one" $ \ctx -> do
@@ -627,6 +642,17 @@ spec = do
 arbitraryPoolId :: ApiT PoolId
 arbitraryPoolId = either (error . show) ApiT $ fromText
     "a659052d84ddb6a04189bee523d59c0a3385c921f43db5dc5de17a4f3f11dc4c"
+
+waitForNextEpoch
+    :: Context t
+    -> IO ()
+waitForNextEpoch ctx = do
+    epoch <- getFromResponse (#nodeTip . #epochNumber) <$>
+        request @ApiNetworkInformation ctx networkInfoEp Default Empty
+    eventually $ do
+        epoch' <- getFromResponse (#nodeTip . #epochNumber) <$>
+            request @ApiNetworkInformation ctx networkInfoEp Default Empty
+        unless (getApiT epoch' > getApiT epoch) $ fail "not yet"
 
 joinStakePoolWithWalletBalance
     :: (Context t)
