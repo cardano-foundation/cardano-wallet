@@ -131,14 +131,16 @@ parseOpts = execParser opts
 
 buildStep :: DryRun -> Maybe BuildkiteEnv -> IO ExitCode
 buildStep dryRun bk =
-    echo "--- Build LTS Snapshot"
-        *> build Standard ["--only-snapshot"]  .&&.
-    echo "--- Build dependencies"
-        *> build Standard ["--only-dependencies"] .&&.
-    echo "+++ Build"
-        *> build Fast ["--test", "--no-run-tests"] .&&.
-    echo "+++ Test"
-        *> timeout 30 (test Fast Serial .&&. test Fast Parallel)
+    titled "Build LTS Snapshot"
+        (build Standard ["--only-snapshot"]) .&&.
+    titled "Build dependencies"
+        (build Standard ["--only-dependencies"]) .&&.
+    titled "Build"
+        (build Fast ["--test", "--no-run-tests"]) .&&.
+    titled "Test"
+        (timeout 30 (test Fast Serial .&&. test Fast Parallel)) .&&.
+    titled "Checking golden test files"
+        (checkUnclean dryRun "lib/core/test/data")
   where
     build opt args =
         run dryRun "stack" $ concat
@@ -194,6 +196,18 @@ setupBuildDirectory dryRun buildDir = do
 cleanBuildDirectory :: FilePath -> IO ()
 cleanBuildDirectory buildDir = findTix buildDir >>= mapM_ rm
 
+-- | Check for the presence of new or modified test data files which someone
+-- forgot to check in.
+checkUnclean :: DryRun -> FilePath -> IO ExitCode
+checkUnclean dryRun dir = do
+    void $ run dryRun "git" ["add", format fp dir]
+    res <- run dryRun "git"
+        ["diff-index", "--exit-code", "--stat", "HEAD", format fp dir]
+    when (res /= ExitSuccess) $ do
+        printf ("There are uncommitted changes in "%fp%".\n") dir
+        printf "This build step will fail.\n"
+    pure res
+
 ----------------------------------------------------------------------------
 -- Buildkite
 -- https://buildkite.com/docs/pipelines/environment-variables
@@ -248,6 +262,15 @@ shouldUploadCoverage :: Maybe BuildkiteEnv -> Bool
 shouldUploadCoverage _ = False
     -- FIXME: Coverage is messing up with the execution of tests...
     -- qaLevel bk == FullTest
+
+-- | Add a Buildkite expandable section for the given command.
+-- It will be collapsed initially, but expanded if the command failed.
+titled :: Text -> IO ExitCode -> IO ExitCode
+titled heading action = do
+    printf ("--- "%s%"\n") heading
+    res <- action
+    when (res /= ExitSuccess) $ printf "^^^ +++\n"
+    pure res
 
 ----------------------------------------------------------------------------
 -- Weeder - uses contents of .stack-work to determine unused dependencies
