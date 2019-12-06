@@ -56,7 +56,7 @@ import Test.Integration.Framework.TestData
     , errMsg403NoPendingAnymore
     )
 import Test.Integration.Jormungandr.Scenario.API.Transactions
-    ( ExternalTxFixture (..), fixtureExternalTx )
+    ( ExternalTxFixture (..), fixtureExternalTx, getWalletBalance )
 import Web.HttpApiData
     ( ToHttpApiData (..) )
 
@@ -86,7 +86,7 @@ spec = do
         expectEventually' ctx getWalletEp balanceAvailable amt w
         expectEventually' ctx getWalletEp balanceTotal amt w
 
-    it "TRANS_EXTERNAL_CREATE_01 - proper single output transaction and \
+    it "TRANS_EXTERNAL_CREATE_01cli - proper single output transaction and \
        \proper binary format" $ \ctx -> do
         let toSend = 1 :: Natural
         (ExternalTxFixture _ wDest _ bin tx) <-
@@ -94,6 +94,7 @@ spec = do
         let baseOk = Base16
         let arg = B8.unpack $ convertToBase baseOk bin
         let expectedTxId = T.decodeUtf8 $ hex . getHash $ txId tx
+        (initTotal, initAvailable) <- getWalletBalance ctx wDest
 
         -- post external transaction
         (Exit code, Stdout out, Stderr err) <-
@@ -102,15 +103,15 @@ spec = do
         out `shouldBe` "{\n    \"id\": " ++ show expectedTxId ++ "\n}\n"
         code `shouldBe` ExitSuccess
 
-        expectEventually' ctx getWalletEp balanceAvailable toSend wDest
-        expectEventually' ctx getWalletEp balanceTotal toSend wDest
+        expectEventually' ctx getWalletEp balanceTotal (initTotal + toSend) wDest
+        expectEventually' ctx getWalletEp balanceAvailable (initAvailable + toSend) wDest
 
         -- verify balance on dest wallet
         Stdout gOutDest <- getWalletViaCLI @t ctx (T.unpack (wDest ^. walletId))
         destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
         verify destJson
-            [ expectCliFieldEqual balanceAvailable toSend
-            , expectCliFieldEqual balanceTotal toSend
+            [ expectCliFieldEqual balanceAvailable (initAvailable + toSend)
+            , expectCliFieldEqual balanceTotal (initTotal + toSend)
             ]
 
     it "TRANS_EXTERNAL_CREATE_02 - proper single output transaction and \
