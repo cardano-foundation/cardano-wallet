@@ -6,6 +6,7 @@
         "OddWord" = (((hackage.OddWord)."1.0.2.0").revisions).default;
         "quickcheck-state-machine" = (((hackage.quickcheck-state-machine)."0.6.0").revisions).default;
         "command" = (((hackage.command)."0.1.1").revisions).default;
+        "clock" = (((hackage.clock)."0.8").revisions).default;
         "prometheus" = (((hackage.prometheus)."2.1.2").revisions).default;
         "time-units" = (((hackage.time-units)."1.0.0").revisions).default;
         "libsystemd-journal" = (((hackage.libsystemd-journal)."1.4.4").revisions).default;
