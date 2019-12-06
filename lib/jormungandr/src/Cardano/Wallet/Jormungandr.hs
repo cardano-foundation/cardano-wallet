@@ -31,6 +31,7 @@ module Cardano.Wallet.Jormungandr
 
 import Prelude
 
+
 import Cardano.BM.Trace
     ( Trace, appendName, logInfo )
 import Cardano.CLI
@@ -63,8 +64,6 @@ import Cardano.Wallet.Jormungandr.Network
     )
 import Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer )
-import Cardano.Wallet.Logging
-    ( transformTextTrace )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -107,6 +106,8 @@ import Control.DeepSeq
     ( NFData )
 import Control.Monad
     ( void )
+import Control.Tracer
+    ( contramap )
 import Data.Function
     ( (&) )
 import Data.Maybe
@@ -121,6 +122,8 @@ import Network.Socket
     ( SockAddr, Socket, getSocketName )
 import Network.Wai.Handler.Warp
     ( setBeforeMainLoop )
+import Network.Wai.Middleware.Logging
+    ( ApiLog, ServerLog (..), WithRequestId )
 import System.Exit
     ( ExitCode (..) )
 
@@ -146,7 +149,7 @@ serveWallet
         , DelegationAddress n ShelleyKey
         , PaymentAddress n ByronKey
         )
-    => (CM.Configuration, Trace IO Text)
+    => (CM.Configuration, Trace IO ServerLog)
     -- ^ Logging config.
     -> SyncTolerance
     -- ^ A time tolerance within we consider being synced
@@ -163,15 +166,15 @@ serveWallet
     -> IO ExitCode
 serveWallet
         (cfg, tr) sTolerance databaseDir hostPref listen lj beforeMainLoop = do
-    installSignalHandlers tr
-    logInfo tr "Wallet backend server starting..."
-    logInfo tr $ "Node is Jörmungandr on " <> toText (networkDiscriminantVal @n)
+    installSignalHandlers trText
+    logInfo trText "Wallet backend server starting..."
+    logInfo trText $ "Node is Jörmungandr on " <> toText (networkDiscriminantVal @n)
     Server.withListeningSocket hostPref listen $ \case
         Left e -> handleApiServerStartupError e
         Right (wPort, socket) -> either (const ExitSuccess) id <$> do
-            let tracerIPC = appendName "daedalus-ipc" tr
+            let tracerIPC = appendName "daedalus-ipc" trText
             race (daedalusIPC tracerIPC wPort) $ do
-                withNetworkLayer tr lj $ \case
+                withNetworkLayer trText lj $ \case
                     Left e -> handleNetworkStartupError e
                     Right (cp, nl) -> do
                         let nPort = Port $ baseUrlPort $ _restApi cp
@@ -179,16 +182,18 @@ serveWallet
                         let rndTl = newTransactionLayer (getGenesisBlockHash bp)
                         let seqTl = newTransactionLayer (getGenesisBlockHash bp)
                         let poolDBPath = Pool.defaultFilePath <$> databaseDir
-                        Pool.withDBLayer cfg tr poolDBPath $ \db -> do
-                            poolApi <- stakePoolLayer tr nl db
-                            rndApi  <- apiLayer tr rndTl nl
-                            seqApi  <- apiLayer tr seqTl nl
-                            startServer tr socket nPort bp rndApi seqApi poolApi
+                        Pool.withDBLayer cfg trText poolDBPath $ \db -> do
+                            poolApi <- stakePoolLayer trText nl db
+                            rndApi  <- apiLayer trText rndTl nl
+                            seqApi  <- apiLayer trText seqTl nl
+                            startServer (contramap (fmap LogApiMsg) tr) socket nPort bp rndApi seqApi poolApi
                             pure ExitSuccess
 
   where
+    trText = contramap (fmap LogText) tr
+
     startServer
-        :: Trace IO Text
+        :: Trace IO (WithRequestId ApiLog)
         -> Socket
         -> Port "node"
         -> BlockchainParameters
@@ -201,7 +206,7 @@ serveWallet
         let tracerApi = appendName "api" tracer
         let settings = Warp.defaultSettings
                 & setBeforeMainLoop (beforeMainLoop sockAddr nPort bp)
-        Server.start settings (transformTextTrace tracerApi) socket rndApi seqApi poolApi
+        Server.start settings tracerApi socket rndApi seqApi poolApi
 
     apiLayer
         :: forall s k.
@@ -219,7 +224,7 @@ serveWallet
         -> IO (ApiLayer s t k)
     apiLayer tracer tl nl = do
         let (block0, bp) = staticBlockchainParameters nl
-        wallets <- maybe (pure []) (Sqlite.findDatabases @k tr) databaseDir
+        wallets <- maybe (pure []) (Sqlite.findDatabases @k trText) databaseDir
         Server.newApiLayer
             tracer (block0, bp, sTolerance) nl' tl dbFactory wallets
       where
@@ -249,7 +254,7 @@ serveWallet
             , WalletKey k
             )
         => DBFactory IO s k
-    dbFactory = Sqlite.mkDBFactory cfg tr databaseDir
+    dbFactory = Sqlite.mkDBFactory cfg trText databaseDir
 
     handleNetworkStartupError :: ErrStartup -> IO ExitCode
     handleNetworkStartupError = \case
@@ -261,28 +266,28 @@ serveWallet
             ErrGetBlockchainParamsIncompleteParams _ ->
                 handleNoInitialPolicy
         ErrStartupInvalidGenesisBlock file ->
-            failWith tr $ mempty
+            failWith trText $ mempty
                 <> "As far as I can tell, this isn't a valid block file: "
                 <> T.pack file
         ErrStartupInvalidGenesisHash h ->
-            failWith tr $ mempty
+            failWith trText $ mempty
                 <> "As far as I can tell, this isn't a valid block hash: "
                 <> T.pack h
         ErrStartupCommandExited pe -> case pe of
             ProcessDidNotStart _cmd exc ->
-                failWith tr $
+                failWith trText $
                     "Could not start the node backend. " <> T.pack (show exc)
             ProcessHasExited _cmd st ->
-                failWith tr $
+                failWith trText $
                     "The node exited with status " <> T.pack (show st)
         ErrStartupNodeNotListening -> do
-            failWith tr $ mempty
+            failWith trText $ mempty
                 <> "Waited too long for Jörmungandr to become available. "
                 <> "Giving up!"
 
     handleGenesisNotFound :: Hash "Genesis" -> IO ExitCode
     handleGenesisNotFound block0H = do
-        failWith tr $ T.pack $ mconcat
+        failWith trText $ T.pack $ mconcat
             [ "Failed to retrieve the genesis block. The block doesn't exist! "
             , "Hint: double-check the genesis hash you've just gave "
             , "me via '--genesis-block-hash' (i.e. " <> showT block0H <> ")."
@@ -290,35 +295,35 @@ serveWallet
 
     handleNetworkUnreachable :: IO ExitCode
     handleNetworkUnreachable = do
-        failWith tr
+        failWith trText
             "It looks like Jörmungandr is down? Hint: double-check Jörmungandr\
             \ server's port."
 
     handleNoInitialPolicy :: IO ExitCode
     handleNoInitialPolicy = do
-        failWith tr $ mempty
+        failWith trText $ mempty
             <> "I successfully retrieved the genesis block from Jörmungandr, "
             <> "but there's no initial fee policy defined?"
 
     handleApiServerStartupError :: ListenError -> IO ExitCode
     handleApiServerStartupError = \case
         ListenErrorHostDoesNotExist host ->
-            failWith tr $ mempty
+            failWith trText $ mempty
                 <> "Can't listen on "
                 <> T.pack (show host)
                 <> ". It does not exist."
         ListenErrorInvalidAddress host ->
-            failWith tr $ mempty
+            failWith trText $ mempty
                 <> "Can't listen on "
                 <> T.pack (show host)
                 <> ". Invalid address."
         ListenErrorAddressAlreadyInUse mPort ->
-            failWith tr $ mempty
+            failWith trText $ mempty
                 <> "The API server listen port "
                 <> maybe "(unknown)" (T.pack . show) mPort
                 <> " is already in use."
         ListenErrorOperationNotPermitted ->
-            failWith tr $ mempty
+            failWith trText $ mempty
                 <> "Cannot listen on the given port. "
                 <> "The operation is not permitted."
 

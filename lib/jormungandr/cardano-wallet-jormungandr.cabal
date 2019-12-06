@@ -42,6 +42,7 @@ library
     , cardano-wallet-cli
     , cardano-wallet-launcher
     , containers
+    , contra-tracer
     , cryptonite
     , deepseq
     , directory

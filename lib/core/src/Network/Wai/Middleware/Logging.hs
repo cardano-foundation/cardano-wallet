@@ -16,6 +16,7 @@ module Network.Wai.Middleware.Logging
     , newApiLoggerSettings
     , ApiLoggerSettings
     , obfuscateKeys
+    , ServerLog (..)
     , ApiLog (..)
     , WithRequestId (..)
     ) where
@@ -209,6 +210,16 @@ recordChunks i = \case
 {-------------------------------------------------------------------------------
                                     Logging
 -------------------------------------------------------------------------------}
+
+data ServerLog
+    = LogApiMsg (WithRequestId ApiLog)
+    | LogText Text
+    deriving (Show)
+
+instance ToText ServerLog where
+    toText msg = case msg of
+        LogApiMsg load -> toText load
+        LogText txt -> txt
 
 data ApiLog
     = LogRequestStart
