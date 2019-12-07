@@ -22,10 +22,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Trace
     ( Trace, traceInTVarIO )
-import Cardano.CLI
-    ( Port (..) )
 import Cardano.Faucet
-    ( initFaucet )
+    ( initFaucet, mkFeeEstimator, sockAddrPort )
 import Cardano.Launcher
     ( ProcessHasExited (..), withUtf8Encoding )
 import Cardano.Wallet.Api.Server
@@ -49,8 +47,6 @@ import Cardano.Wallet.Jormungandr.Network
     ( JormungandrBackend (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
-import Cardano.Wallet.Primitive.Fee
-    ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
@@ -71,8 +67,6 @@ import Data.Maybe
     ( mapMaybe )
 import Data.Proxy
     ( Proxy (..) )
-import Data.Quantity
-    ( Quantity (..) )
 import Data.Time
     ( UTCTime )
 import Data.Time.Clock
@@ -85,8 +79,6 @@ import Network.HTTP.Client
     , newManager
     , responseTimeoutMicro
     )
-import Network.Socket
-    ( SockAddr (..) )
 import Network.Wai.Middleware.Logging
     ( ApiLog (..), ServerLog (..), WithRequestId (..) )
 import Numeric.Natural
@@ -95,7 +87,6 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
-    , TxDescription (..)
     , fixtureWallet
     , getAddressesEp
     , getWalletEp
@@ -201,34 +192,6 @@ setupLatencyLogging tvar = do
         CM.setMinSeverity cfg' Debug
         pure cfg'
     pure (cfg, traceInTVarIO tvar)
-
-sockAddrPort :: SockAddr -> Port a
-sockAddrPort addr = Port . fromIntegral $ case addr of
-    SockAddrInet p _ -> p
-    SockAddrInet6 p _ _ _ -> p
-    _ -> 0
-
-mkFeeEstimator :: FeePolicy -> TxDescription -> (Natural, Natural)
-mkFeeEstimator policy (TxDescription nInps nOuts) =
-    let
-        LinearFee (Quantity a) (Quantity b) (Quantity _c) = policy
-        nChanges = nOuts
-        -- NOTE¹
-        -- We safely round BEFORE the multiplication because we know that
-        -- Jormungandr' fee are necessarily naturals constants. We carry doubles
-        -- here because of the legacy with Byron. In the end, it matters not
-        -- because in the spectrum of numbers we're going to deal with, naturals
-        -- can be represented without any rounding issue using 'Double' (or,
-        -- transactions have suddenly become overly expensive o_O)
-        fee = fromIntegral $ (round a) + (nInps + nOuts + nChanges) * (round b)
-    in
-        -- NOTE²
-        -- We use a range (min, max) and call it an "estimator" because for the
-        -- bridge (and probably cardano-node on Shelley), it's not possible to
-        -- compute the fee precisely by only knowing the number of inputs and
-        -- ouputs since the exact fee cost depends on the values of the
-        -- outputs and the values of the input indexes.
-        (fee, fee)
 
 benchWithServer
     :: (CM.Configuration, Trace IO ServerLog)

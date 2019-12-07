@@ -11,11 +11,15 @@ module Cardano.Faucet
 
     -- * Internal
     , genFaucets
+    , sockAddrPort
+    , mkFeeEstimator
     ) where
 
 import Prelude hiding
     ( appendFile )
 
+import Cardano.CLI
+    ( Port (..) )
 import Cardano.Wallet.Api.Types
     ( encodeAddress )
 import Cardano.Wallet.Jormungandr.Binary
@@ -36,6 +40,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( generateKeyFromSeed )
+import Cardano.Wallet.Primitive.Fee
+    ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Mnemonic
     ( Mnemonic
     , entropyToBytes
@@ -56,8 +62,14 @@ import Data.ByteArray.Encoding
     ( Base (..), convertToBase )
 import Data.ByteString
     ( ByteString )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text
     ( Text )
+import Network.Socket
+    ( SockAddr (..) )
+import Numeric.Natural
+    ( Natural )
 import System.Command
     ( CmdResult, Stdout (..), command )
 import System.FilePath
@@ -66,6 +78,8 @@ import System.IO.Temp
     ( withSystemTempDirectory )
 import Test.Integration.Faucet
     ( Faucet (..) )
+import Test.Integration.Framework.DSL
+    ( TxDescription (..) )
 import Test.Utils.Paths
     ( getTestData )
 
@@ -1112,3 +1126,31 @@ genFaucets file n = do
             [ paymentAddress @'Testnet (publicKey $ addrXPrv ix)
             | ix <- [minBound..maxBound]
             ]
+
+sockAddrPort :: SockAddr -> Port a
+sockAddrPort addr = Port . fromIntegral $ case addr of
+    SockAddrInet p _ -> p
+    SockAddrInet6 p _ _ _ -> p
+    _ -> 0
+
+mkFeeEstimator :: FeePolicy -> TxDescription -> (Natural, Natural)
+mkFeeEstimator policy (TxDescription nInps nOuts) =
+    let
+        LinearFee (Quantity a) (Quantity b) (Quantity _c) = policy
+        nChanges = nOuts
+        -- NOTE¹
+        -- We safely round BEFORE the multiplication because we know that
+        -- Jormungandr' fee are necessarily naturals constants. We carry doubles
+        -- here because of the legacy with Byron. In the end, it matters not
+        -- because in the spectrum of numbers we're going to deal with, naturals
+        -- can be represented without any rounding issue using 'Double' (or,
+        -- transactions have suddenly become overly expensive o_O)
+        fee = fromIntegral $ (round a) + (nInps + nOuts + nChanges) * (round b)
+    in
+        -- NOTE²
+        -- We use a range (min, max) and call it an "estimator" because for the
+        -- bridge (and probably cardano-node on Shelley), it's not possible to
+        -- compute the fee precisely by only knowing the number of inputs and
+        -- ouputs since the exact fee cost depends on the values of the
+        -- outputs and the values of the input indexes.
+        (fee, fee)

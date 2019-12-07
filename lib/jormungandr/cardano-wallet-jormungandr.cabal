@@ -200,6 +200,7 @@ test-suite integration
     , cardano-wallet-test-utils
     , command
     , containers
+    , contra-tracer
     , cryptonite
     , deepseq
     , directory
