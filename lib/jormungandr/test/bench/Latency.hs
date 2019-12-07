@@ -18,8 +18,6 @@ import Cardano.BM.Data.LogItem
     ( LOContent (..), LOMeta (..), LogObject (..) )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
-import Cardano.BM.Setup
-    ( setupTrace_ )
 import Cardano.BM.Trace
     ( Trace, traceInTVarIO )
 import Cardano.CLI
@@ -40,8 +38,6 @@ import Cardano.Wallet.Jormungandr.Launch
     ( withConfig )
 import Cardano.Wallet.Jormungandr.Network
     ( JormungandrBackend (..) )
-import Cardano.Wallet.Logging
-    ( transformTextTrace )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Fee
@@ -55,19 +51,23 @@ import Control.Concurrent.Async
 import Control.Concurrent.MVar
     ( newEmptyMVar, putMVar, takeMVar )
 import Control.Concurrent.STM.TVar
-    ( newTVarIO, readTVarIO )
+    ( TVar, newTVarIO, readTVarIO, writeTVar )
 import Control.Exception
     ( throwIO )
+import Control.Monad.STM
+    ( atomically )
 import Data.Maybe
     ( mapMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text
-    ( Text )
 import Data.Time
     ( UTCTime )
+import Data.Time.Clock
+    ( diffUTCTime )
+import Fmt
+    ( build, fixedF, fmtLn, (+|) )
 import Network.HTTP.Client
     ( defaultManagerSettings
     , managerResponseTimeout
@@ -77,7 +77,7 @@ import Network.HTTP.Client
 import Network.Socket
     ( SockAddr (..) )
 import Network.Wai.Middleware.Logging
-    ( ApiLog (..) )
+    ( ApiLog (..), ServerLog (..), WithRequestId (..) )
 import Numeric.Natural
     ( Natural )
 import Test.Integration.Framework.DSL
@@ -95,52 +95,51 @@ import qualified Data.Text as T
 
 main :: forall t. (t ~ Jormungandr) => IO ()
 main = do
-    logging <- setupLatencyLogging
+    tvar <- newTVarIO []
+    logging <- setupLatencyLogging tvar
+    let toMilliseconds :: UTCTime -> UTCTime -> Double
+        toMilliseconds t t' =
+            (1000 * ) $ realToFrac $ diffUTCTime t t'
     withUtf8Encoding $ benchWithServer logging $ \ctx -> do
-        (wal1, _wal2) <- twoFixtureWallet ctx
+        (_wal1, _wal2) <- twoFixtureWallet ctx
 
-        let _tr = transformTextTrace $ snd logging :: Trace IO ApiLog
+        (_res1, [t1,t1']) <- measureLatency tvar
+            (request @[ApiWallet] ctx listWalletsEp Default Empty)
 
-        print ("##########################" <> show wal1)
-        (_res, t) <- captureLatencyLogging $ \_ ->
-            request @[ApiWallet] ctx listWalletsEp Default Empty
-        print ("!!!!!!!!!!!! : "<> show t)
-
-        print ("##########################" <> show wal1)
-        (_res1, t1) <- captureLatencyLogging $ \_ ->
-            request @[ApiWallet] ctx listWalletsEp Default Empty
-        print ("!!!!!!!!!!!! : "<> show t1)
+        fmtLn "Latencies for two fixture wallets scenario"
+        fmtLn ("    listWallets - "+|(build $ fixedF 1 $ toMilliseconds t1 t1')+|" ms")
 
         pure ()
   where
     twoFixtureWallet ctx =
         (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
 
-withLatencyLogging :: ((Trace IO ApiLog, IO [UTCTime]) -> IO a) -> IO a
-withLatencyLogging action = do
-    tvar <- newTVarIO []
+measureLatency
+    :: TVar [LogObject ServerLog]
+    -> IO a
+    -> IO (a, [UTCTime])
+measureLatency tvar action = do
+    atomically $ writeTVar tvar []
+    res <- action
     let getTimestamp = tstamp . loMeta
     let filterMsg logObj = case loContent logObj of
-            LogMessage LogRequestStart -> Just $ getTimestamp logObj
-            LogMessage LogRequestFinish -> Just $ getTimestamp logObj
+            LogMessage (LogApiMsg (WithRequestId _ LogRequestStart)) ->
+                Just $ getTimestamp logObj
+            LogMessage (LogApiMsg (WithRequestId _ LogRequestFinish)) ->
+                Just $ getTimestamp logObj
             _ -> Nothing
-    let getTimes = reverse . mapMaybe filterMsg <$> readTVarIO tvar
-    action (traceInTVarIO tvar, getTimes)
+    getTimes <- mapMaybe filterMsg <$> readTVarIO tvar
+    pure (res, getTimes)
 
-captureLatencyLogging :: (Trace IO ApiLog -> IO a) -> IO (a, [UTCTime])
-captureLatencyLogging action = withLatencyLogging $ \(tr, getMsgs) -> do
-    res <- action tr
-    times <- getMsgs
-    pure (res, times)
-
-setupLatencyLogging :: IO (CM.Configuration, Trace IO Text)
-setupLatencyLogging = do
+setupLatencyLogging
+    :: TVar [LogObject ServerLog]
+    -> IO (CM.Configuration, Trace IO ServerLog)
+setupLatencyLogging tvar = do
     cfg <- do
         cfg' <-defaultConfigStdout
         CM.setMinSeverity cfg' Debug
         pure cfg'
-    tr <- fst <$> setupTrace_ cfg "LatencyLogging"
-    pure (cfg, tr)
+    pure (cfg, traceInTVarIO tvar)
 
 sockAddrPort :: SockAddr -> Port a
 sockAddrPort addr = Port . fromIntegral $ case addr of
@@ -171,11 +170,10 @@ mkFeeEstimator policy (TxDescription nInps nOuts) =
         (fee, fee)
 
 benchWithServer
-    :: (CM.Configuration, Trace IO Text)
+    :: (CM.Configuration, Trace IO ServerLog)
     -> (Context Jormungandr -> IO ())
     -> IO ()
 benchWithServer logCfg = withContext
--- fixme - tear me down in the end
   where
     withContext :: (Context Jormungandr -> IO ()) -> IO ()
     withContext action = do

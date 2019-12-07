@@ -279,28 +279,17 @@ benchmark latency
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
     , command
-    , containers
     , directory
-    , exceptions
-    , extra
     , filepath
+    , fmt
     , http-client
     , iohk-monitoring
-    , lifted-base
     , memory
-    , monad-control
     , network
-    , process
-    , safe
-    , servant
     , stm
     , temporary
     , text
-    , text-class
     , time
-    , transformers
-    , warp
-    , yaml
   build-tools:
       cardano-wallet-jormungandr
   type:
