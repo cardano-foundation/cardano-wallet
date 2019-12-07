@@ -35,7 +35,7 @@ let
       cp -R ${cardano-wallet-jormungandr} $out
       chmod -R +w $out
       ${setGitRev}
-      strip $out/bin/cardano-wallet-jormungandr
+      $STRIP $out/bin/cardano-wallet-jormungandr
       wrapProgram $out/bin/cardano-wallet-jormungandr \
         --prefix PATH : ${jormungandr}/bin
     '';
@@ -44,7 +44,7 @@ let
       cp -R ${cardano-wallet-jormungandr} $out
       chmod -R +w $out
       ${setGitRev}
-      strip $out/bin/cardano-wallet-jormungandr
+      $STRIP $out/bin/cardano-wallet-jormungandr
     '';
 
     darwin = buildCommand [] ''
