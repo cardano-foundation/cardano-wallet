@@ -103,7 +103,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."servant" or (buildDepError "servant"))
           (hsPkgs."servant-server" or (buildDepError "servant-server"))
           (hsPkgs."split" or (buildDepError "split"))
-          (hsPkgs."stm" or (buildDepError "stm"))
           (hsPkgs."streaming-commons" or (buildDepError "streaming-commons"))
           (hsPkgs."template-haskell" or (buildDepError "template-haskell"))
           (hsPkgs."temporary" or (buildDepError "temporary"))
