@@ -2,7 +2,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -36,6 +35,8 @@ import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.STM
     ( atomically )
+import Control.Tracer
+    ( contramap )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..) )
 import Data.ByteString
@@ -45,7 +46,7 @@ import Data.Function
 import Data.Functor
     ( ($>), (<&>) )
 import Data.Maybe
-    ( catMaybes )
+    ( mapMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -65,12 +66,22 @@ import Network.HTTP.Client
     )
 import Network.HTTP.Types.Header
     ( hContentType )
+import Network.HTTP.Types.Status
+    ( Status (..) )
 import Network.Socket
     ( Socket )
 import Network.Wai.Handler.Warp
     ( runSettingsSocket, setBeforeMainLoop )
 import Network.Wai.Middleware.Logging
-    ( ApiLoggerSettings, newApiLoggerSettings, obfuscateKeys, withApiLogger )
+    ( ApiLog (..)
+    , ApiLoggerSettings
+    , RequestId (..)
+    , ServerLog (..)
+    , WithRequestId (..)
+    , newApiLoggerSettings
+    , obfuscateKeys
+    , withApiLogger
+    )
 import Servant
     ( (:<|>) (..)
     , (:>)
@@ -101,8 +112,10 @@ import Test.Utils.Windows
     ( pendingOnWindows, whenWindows )
 
 import qualified Data.Aeson as Aeson
-import qualified Data.Map.Strict as Map
+import qualified Data.List as L
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
+import qualified Network.Wai as Wai
 import qualified Network.Wai.Handler.Warp as Warp
 
 spec :: Spec
@@ -111,80 +124,114 @@ spec = describe "Logging Middleware"
     it "GET, 200, no query" $ \ctx -> do
         get ctx "/get"
         expectLogs ctx
-            [ (Info, "[GET] /get")
+            [ (Debug, "LogRequestStart")
+            , (Info, "GET /get")
+            , (Debug, "")
             , (Info, "200 OK")
             , (Debug, "14")
+            , (Debug, "LogRequestFinish")
             ]
 
     it "GET, 200, with query" $ \ctx -> do
         get ctx "/get?query=patate"
         expectLogs ctx
-            [ (Info, "[GET] /get?query=patate")
+            [ (Debug, "LogRequestStart")
+            , (Info, "GET /get?query=patate")
+            , (Debug, "")
             , (Info, "200 OK")
             , (Debug, "14")
+            , (Debug, "LogRequestFinish")
             ]
 
     it "GET, 200, not json" $ \ctx -> do
         get ctx "/not-json"
         expectLogs ctx
-            [ (Info, "[GET] /not-json")
+            [ (Debug, "LogRequestStart")
+            , (Info, "GET /not-json")
+            , (Debug, "")
             , (Info, "200 OK")
             , (Debug, "\NUL\NUL\NUL")
+            , (Debug, "LogRequestFinish")
             ]
 
     it "POST, 201, with sensitive fields" $ \ctx -> do
         post ctx "/post" (MkJson { field = "patate", sensitive = 14 })
         expectLogs ctx
-            [ (Info, "[POST] /post")
-            , (Debug, "{\"sensitive\":\"*****\",\"field\":\"patate\"}")
+            [ (Debug, "LogRequestStart")
+            , (Info, "POST /post")
+            , (Debug, "{\"sensitive\":14,\"field\":\"patate\"}")
             , (Info, "201 Created")
             , (Debug, "{\"status\":\"ok\",\"whatever\":42}")
+            , (Debug, "LogRequestFinish")
             ]
 
     it "POST, 400, invalid payload (not json)" $ \ctx -> do
         postIlled ctx "/post" "\NUL\NUL\NUL"
         expectLogs ctx
-            [ (Info, "[POST] /post")
-            , (Debug, "Invalid payload: not JSON")
+            [ (Debug, "LogRequestStart")
+            , (Info, "POST /post")
+            , (Debug, "\NUL\NUL\NUL")
             , (Info, "400 Bad Request")
             , (Debug, "Failed reading: not a valid json value")
+            , (Debug, "LogRequestFinish")
             ]
 
     it "DELETE, 202, no query" $ \ctx -> do
         delete ctx "/delete"
         expectLogs ctx
-            [ (Info, "[DELETE] /delete")
+            [ (Debug, "LogRequestStart")
+            , (Info, "DELETE /delete")
+            , (Debug, "")
             , (Info, "204 No Content")
+            , (Debug, "")
+            , (Debug, "LogRequestFinish")
             ]
 
     it "GET, 400" $ \ctx -> do
         get ctx "/error400"
         expectLogs ctx
-            [ (Info, "[GET] /error400")
+            [ (Debug, "LogRequestStart")
+            , (Info, "GET /error400")
+            , (Debug, "")
             , (Info, "400 Bad Request")
+            , (Debug, "")
+            , (Debug, "LogRequestFinish")
             ]
 
     it "GET, 500" $ \ctx -> do
         get ctx "/error500"
         expectLogs ctx
-            [ (Info, "[GET] /error500")
+            [ (Debug, "LogRequestStart")
+            , (Info, "GET /error500")
+            , (Debug, "")
             , (Error, "500 Internal Server Error")
+            , (Debug, "")
+            , (Debug, "LogRequestFinish")
             ]
 
     it "GET, 503" $ \ctx -> do
         get ctx "/error503"
         expectLogs ctx
-            [ (Info, "[GET] /error503")
+            [ (Debug, "LogRequestStart")
+            , (Info, "GET /error503")
+            , (Debug, "")
             , (Warning, "503 Service Unavailable")
+            , (Debug, "")
+            , (Debug, "LogRequestFinish")
             ]
 
     it "different request ids" $ \ctx -> property $ \(NumberOfRequests n) ->
         monadicIO $ liftIO $ do
             void $ mapConcurrently (const (get ctx "/get")) (replicate n ())
             entries <- readTVarIO (logs ctx)
-            let index = Map.fromList [ (loName l, l) | l <- entries ]
+            let getReqId l = case loContent l of
+                    LogMessage (LogApiMsg (WithRequestId (RequestId rid) _)) ->
+                        Just rid
+                    _ ->
+                        Nothing
+            let uniqueReqIds = L.nubBy (\l1 l2 -> getReqId l1 == getReqId l2)
             pendingOnWindows "Disabled on windows due to race with log flushing"
-            Map.size index `shouldBe` n
+            length (uniqueReqIds entries) `shouldBe` n
 
     it "correct time measures" $ \ctx -> property $ \(nReq, ix) ->
         monadicIO $ liftIO $ do
@@ -196,10 +243,9 @@ spec = describe "Logging Middleware"
                     ]
             void $ mapConcurrently id reqs
             entries <- readTVarIO (logs ctx)
-            let index = Map.fromList
-                    $ catMaybes [ (loName l,) <$> captureTime l | l <- entries ]
+            let index = mapMaybe captureTime entries
             pendingOnWindows "Disabled on windows due to race with log flushing"
-            Map.size (Map.filter (> (200*ms)) index) `shouldBe` 1
+            length (filter (> (200*ms)) index) `shouldBe` 1
   where
     setup :: IO Context
     setup = do
@@ -230,7 +276,7 @@ spec = describe "Logging Middleware"
     tearDown = cancel . server
 
 data Context = Context
-    { logs :: TVar [LogObject Text]
+    { logs :: TVar [LogObject ServerLog]
     , manager :: Manager
     , port :: Int
     , server :: Async ()
@@ -290,20 +336,35 @@ expectLogs ctx expectations = do
 
 -- | Extract the message from a 'LogObject'. Returns 'Nothing' if it's not
 -- a log message.
-logMessage :: LogObject Text -> Maybe Text
+logMessage :: LogObject ServerLog -> Maybe Text
 logMessage l = case loContent l of
-    LogMessage txt ->
-        Just txt
+    LogMessage (LogApiMsg (WithRequestId _ theMsg)) -> case theMsg of
+        LogRequestStart ->
+            Just "LogRequestStart"
+        LogRequest req ->
+            Just $ T.decodeUtf8 (Wai.requestMethod req) <> " "
+               <> T.decodeUtf8 (Wai.rawPathInfo req)
+               <> T.decodeUtf8 (Wai.rawQueryString req)
+        LogRequestBody _ res ->
+            Just $ T.decodeUtf8 res
+        LogResponse _ (Just (Status code msg)) ->
+            Just $ T.pack (show code) <> " " <> T.decodeUtf8 msg
+        LogResponse _ Nothing ->
+            Nothing
+        LogResponseBody resp ->
+            Just $ T.decodeUtf8 resp
+        LogRequestFinish ->
+            Just "LogRequestFinish"
     _ ->
         Nothing
 
 -- | Extract the execution time, in microseconds, from a log request.
 -- Returns 'Nothing' if the log line doesn't contain any time indication.
-captureTime :: LogObject Text -> Maybe Int
+captureTime :: LogObject ServerLog -> Maybe Int
 captureTime l = case loContent l of
-    LogMessage txt -> let str = T.unpack txt in case words str of
-        ["200", "OK", "in", time] ->
-            Just $ round $ toMicro $ read @Double $ init time
+    LogMessage (LogApiMsg (WithRequestId _ theMsg)) -> case theMsg of
+        LogResponse time _ ->
+            Just $ round $ toMicro $ realToFrac @_ @Double time
         _ ->
             Nothing
     _ ->
@@ -367,12 +428,12 @@ instance FromJSON ResponseJson
 start
     :: ApiLoggerSettings
     -> Warp.Settings
-    -> Trace IO Text
+    -> Trace IO ServerLog
     -> Socket
     -> IO ()
 start logSettings warpSettings trace socket = do
     runSettingsSocket warpSettings socket
-        $ withApiLogger trace logSettings
+        $ withApiLogger (contramap (fmap LogApiMsg) trace) logSettings
         application
   where
     application :: Application

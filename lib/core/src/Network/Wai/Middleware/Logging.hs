@@ -19,6 +19,7 @@ module Network.Wai.Middleware.Logging
     , ServerLog (..)
     , ApiLog (..)
     , WithRequestId (..)
+    , RequestId (..)
     ) where
 
 import Prelude

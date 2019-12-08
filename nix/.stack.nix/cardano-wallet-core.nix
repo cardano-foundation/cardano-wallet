@@ -133,6 +133,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."cardano-wallet-test-utils" or (buildDepError "cardano-wallet-test-utils"))
             (hsPkgs."cborg" or (buildDepError "cborg"))
             (hsPkgs."containers" or (buildDepError "containers"))
+            (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
             (hsPkgs."cryptonite" or (buildDepError "cryptonite"))
             (hsPkgs."directory" or (buildDepError "directory"))
             (hsPkgs."deepseq" or (buildDepError "deepseq"))

@@ -171,6 +171,7 @@ test-suite unit
     , cardano-wallet-test-utils
     , cborg
     , containers
+    , contra-tracer
     , cryptonite
     , directory
     , deepseq
