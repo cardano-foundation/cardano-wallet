@@ -251,6 +251,8 @@ spec = do
                 , expectListItemFieldEqual 1 status InLedger
                 ]
 
+        waitForNextEpoch ctx
+        waitForNextEpoch ctx
         reward <- getFromResponse balanceReward <$>
             request @ApiWallet ctx (getWalletEp w) Default Empty
 
