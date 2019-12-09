@@ -357,8 +357,10 @@ x-transactionStatus: &transactionStatus
     - in_ledger
 
 x-stakePoolId: &stakePoolId
-  <<: *addressId
-  description: A unique identifier (i.e. its public key)
+  type: string
+  format: hex
+  example: 42bf330e9653fef8a47a5aab2f2e74db8a5b947e
+  description: A unique identifier for the pool.
 
 x-stakePoolMetrics: &stakePoolMetrics
   type: object
@@ -378,9 +380,15 @@ x-stakePoolApparentPerformance: &stakePoolApparentPerformance
     stake distribution of past epochs without being during those epochs. The performance
     are therefore an average measure that is more accurate for servers that are online
     often.
+
+    The performance is a float with double-precision between `0` and `1`:
+
+      - `0` means that a pool is not performing well.
+      - `1` means that a pool is performing _as expected_ (or better).
   type: number
   minimum: 0
   maximum: 1
+  example: 0.5053763440860215
 
 x-stakePoolMetadata: &stakePoolMetadata
   description: |
@@ -752,7 +760,9 @@ x-parametersStakePoolId: &parametersStakePoolId
   name: stakePoolId
   required: true
   type: string
-  format: base58
+  format: hex
+  maxLength: 64
+  minLength: 64
 
 x-parametersJoinStakePool: &parametersJoinStakePool
   type: object
@@ -1293,6 +1303,10 @@ paths:
       summary: List
       description: |
         <p align="right">status: <strong>stable</strong></p>
+
+        List all known stake pools ordered by descending `apparent_performance`.
+        Some pools _may_ also have metadata attached to them if they have been registered
+        to the metadata registry.
       responses: *responsesListStakePools
 
   /stake-pools/{stakePoolId}/wallets/{walletId}:
@@ -1302,6 +1316,8 @@ paths:
       summary: Join
       description: |
         <p align="right">status: <strong>stable</strong></p>
+
+        Delegate all (current and future) addresses from the given wallet to the given stake pool.
       parameters:
         - *parametersStakePoolId
         - *parametersWalletId
@@ -1315,6 +1331,8 @@ paths:
       summary: Quit
       description: |
         <p align="right">status: <strong>stable</strong></p>
+
+        Stop delegating completely. The wallet's stake will become inactive.
       parameters:
         - *parametersStakePoolId
         - *parametersWalletId
