@@ -97,30 +97,29 @@ jobs:
     - git push -f -q https://WilliamKingNoel-Bot:$GITHUB_ACCESS_TOKEN@github.com/input-output-hk/cardano-wallet gh-pages &>/dev/null
 
   - stage: deploy 🚀
-    if: type != pull_request AND tag =~ ^v
+    if: type != pull_request AND (tag =~ ^v OR commit_message =~ "TRAVIS_TRIGGER_RELEASE")
     name: "Executables"
     script:
-    - CABAL_TAG=$(echo $TRAVIS_TAG | sed "s/-/./g" | cut -c2-)
-
     # Create optimized binaries and checksums
     - stack --no-terminal install
 
     # Bundle cardano-wallet-jormungandr-linux
     - cp $WALLET_CLI_JORMUNGANDR cardano-wallet
-    - tar czf cardano-wallet-jormungandr-linux64.tar.gz cardano-wallet
+    - tar czf cardano-wallet-jormungandr-linux64-$TRAVIS_TAG.tar.gz cardano-wallet
 
     # Fetch the MacOS archive
     - travis_retry curl -L https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-jormungandr-macos64/latest/download/1 | tar xz
-    - mv cardano-wallet-jormungandr-$CABAL_TAG/cardano-wallet-jormungandr cardano-wallet-jormungandr-$CABAL_TAG/cardano-wallet
-    - tar czf cardano-wallet-jormungandr-macos64.tar.gz cardano-wallet-jormungandr-$CABAL_TAG
-    - rm -r cardano-wallet-jormungandr-$CABAL_TAG
+    - mv cardano-wallet-jormungandr-* cardano-wallet-jormungandr-macos64
+    - mv cardano-wallet-jormungandr-macos64/cardano-wallet-jormungandr cardano-wallet-jormungandr-macos64/cardano-wallet
+    - tar czf cardano-wallet-jormungandr-macos64-$TRAVIS_TAG.tar.gz cardano-wallet-jormungandr-macos64
+    - rm -r cardano-wallet-jormungandr-macos64
 
     # Fetch the Windows archive
-    - travis_retry curl -L https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-jormungandr-win64/latest/download/1 --output cardano-wallet-jormungandr-$CABAL_TAG.zip
-    - unzip -d cardano-wallet-jormungandr-$CABAL_TAG cardano-wallet-jormungandr-$CABAL_TAG.zip
-    - mv cardano-wallet-jormungandr-$CABAL_TAG/cardano-wallet-jormungandr.exe cardano-wallet-jormungandr-$CABAL_TAG/cardano-wallet.exe
-    - zip -r cardano-wallet-jormungandr-win64 cardano-wallet-jormungandr-$CABAL_TAG
-    - rm -r cardano-wallet-jormungandr-$CABAL_TAG
+    - travis_retry curl -L https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-jormungandr-win64/latest/download/1 --output cardano-wallet-jormungandr-win64.zip
+    - unzip -d cardano-wallet-jormungandr-win64 cardano-wallet-jormungandr-win64.zip
+    - mv cardano-wallet-jormungandr-win64/cardano-wallet-jormungandr.exe cardano-wallet-jormungandr-win64/cardano-wallet.exe
+    - zip -r cardano-wallet-jormungandr-win64-$TRAVIS_TAG.zip cardano-wallet-jormungandr-win64
+    - rm -r cardano-wallet-jormungandr-win64
 
     # Deploy documentation snapshot
     - mkdir -p haddock/$TRAVIS_TAG api/$TRAVIS_TAG
