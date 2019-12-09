@@ -312,9 +312,7 @@ spec = do
             \I can join if I have just the right amount" $ \(ctx) -> do
             (_, p:_) <- eventually $
                 unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
-            -- FIXME
-            -- Shouldn't need any output for the minimum fee
-            let (fee, _) = ctx ^. feeEstimator $ DelegDescription 1 1 1
+            let (fee, _) = ctx ^. feeEstimator $ DelegDescription 1 0 1
             w <- fixtureWalletWith ctx [fee]
             joinStakePool ctx (p ^. #id) (w, "Secure Passphrase")>>= flip verify
                 [ expectResponseCode HTTP.status202
@@ -326,7 +324,7 @@ spec = do
             \I cannot join if I have not enough fee to cover" $ \ctx -> do
             (_, p:_) <- eventually $
                 unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
-            let (fee, _) = ctx ^. feeEstimator $ DelegDescription 1 1 1
+            let (fee, _) = ctx ^. feeEstimator $ DelegDescription 1 0 1
             w <- fixtureWalletWith ctx [fee - 1]
             r <- joinStakePool ctx (p ^. #id) (w, "Secure Passphrase")
             expectResponseCode HTTP.status403 r
@@ -344,29 +342,22 @@ spec = do
     describe "STAKE_POOLS_QUIT_01x - Fee boundary values" $ do
         it "STAKE_POOLS_QUIT_01x - \
             \I can quit if I have enough to cover fee" $ \(ctx) -> do
-            -- FIXME
-            -- The second call should really need only one input and one cert.
-            -- We should split that into
-            --
-            -- let (feeJoin, _) = ctx ^. feeEstimator $ DelegDescription 1 1 1
-            -- let (feeQuit, _) = ctx ^. feeEstimator $ DelegDescription 1 0 1
-            let (fee, _) = ctx ^. feeEstimator $ DelegDescription 1 1 1
-            let initBalance = [2*fee + 1]
+            let (feeJoin, _) = ctx ^. feeEstimator $ DelegDescription 1 1 1
+            let (feeQuit, _) = ctx ^. feeEstimator $ DelegDescription 1 0 1
+            let initBalance = [feeJoin + feeQuit]
             (w, p) <- joinStakePoolWithWalletBalance ctx initBalance
             rq <- quitStakePool ctx (p ^. #id) (w, "Secure Passphrase")
             expectResponseCode HTTP.status202 rq
             eventually $ do
                 request @ApiWallet ctx (getWalletEp w) Default Empty >>= flip verify
                     [ expectFieldEqual delegation (NotDelegating)
-                    -- balance is 1 because the rest was used for fees
-                    , expectFieldEqual balanceTotal 1
-                    , expectFieldEqual balanceAvailable 1
+                    -- balance is 0 because the rest was used for fees
+                    , expectFieldEqual balanceTotal 0
+                    , expectFieldEqual balanceAvailable 0
                     ]
 
         it "STAKE_POOLS_QUIT_01x - \
             \I cannot quit if I have not enough fee to cover" $ \ctx -> do
-            -- FIXME
-            -- fee join shouldn't require any change output
             let (feeJoin, _) = ctx ^. feeEstimator $ DelegDescription 1 1 1
             let (feeQuit, _) = ctx ^. feeEstimator $ DelegDescription 0 0 1
             let initBalance = [feeJoin+1]
