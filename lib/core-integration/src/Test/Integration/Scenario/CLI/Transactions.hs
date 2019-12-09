@@ -272,7 +272,7 @@ spec = do
         c `shouldBe` ExitFailure 1
 
     it "TRANS_CREATE_03 - 0 balance after transaction" $ \ctx -> do
-        let (feeMin, _) = ctx ^. feeEstimator $ PaymentDescription 1 1 1
+        let (feeMin, _) = ctx ^. feeEstimator $ PaymentDescription 1 1 0
         let amt = 1
         wSrc <- fixtureWalletWith ctx [feeMin+amt]
         wDest <- emptyWallet ctx
@@ -495,7 +495,7 @@ spec = do
         addr <- listAddresses ctx wDest
         let addr1 = encodeAddress @n (getApiT $ fst $ addr !! 1 ^. #id)
         let addr2 = encodeAddress @n (getApiT $ fst $ addr !! 2 ^. #id)
-        let amt = 14
+        let amt = 14 :: Natural
         let (feeMin, feeMax) = ctx ^. feeEstimator $ PaymentDescription
                 { nInputs = 2
                 , nOutputs = 2
@@ -510,7 +510,7 @@ spec = do
         err `shouldBe` "Ok.\n"
         txJson <- expectValidJSON (Proxy @ApiFee) out
         verify txJson
-            [ expectCliFieldBetween amount (feeMin - (2*amt), feeMax + (2*amt))
+            [ expectCliFieldBetween amount (feeMin, feeMax)
             ]
         c `shouldBe` ExitSuccess
 
@@ -523,7 +523,7 @@ spec = do
         addr2:_ <- listAddresses ctx wDest2
         let addr1' = encodeAddress @n (getApiT $ fst $ addr1 ^. #id)
         let addr2' = encodeAddress @n (getApiT $ fst $ addr2 ^. #id)
-        let amt = 14
+        let amt = 14 :: Natural
         let (feeMin, feeMax) = ctx ^. feeEstimator $ PaymentDescription
                 { nInputs = 2
                 , nOutputs = 2
@@ -538,7 +538,7 @@ spec = do
         err `shouldBe` "Ok.\n"
         txJson <- expectValidJSON (Proxy @ApiFee) out
         verify txJson
-            [ expectCliFieldBetween amount (feeMin - (2*amt), feeMax + (2*amt))
+            [ expectCliFieldBetween amount (feeMin, feeMax)
             ]
         c `shouldBe` ExitSuccess
 

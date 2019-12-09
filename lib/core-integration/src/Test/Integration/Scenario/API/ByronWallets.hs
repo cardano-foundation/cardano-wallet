@@ -329,10 +329,7 @@ spec = do
             Empty >>= flip verify
             [ expectFieldSatisfy
                 #distribution
-                ((== (Just 398)) . Map.lookup 10_000_000_000)
-            , expectFieldSatisfy
-                #distribution
-                ((== (Just 2)) . Map.lookup 100_000_000_000)
+                ((== (Just 400)) . Map.lookup 10_000_000_000)
             ]
 
     it "BYRON_MIGRATE_01 - \
@@ -401,7 +398,7 @@ spec = do
                     ]
 
             targetWallet <- emptyWallet ctx
-            let payload = Json [json|{"passphrase": "Secure Passphrase"}|]
+            let payload = Json [json|{"passphrase": #{fixturePassphrase}}|]
             let ep = migrateByronWalletEp sourceWallet targetWallet
             r <- request @[ApiTransaction n] ctx ep Default payload
             let srcId = sourceWallet ^. walletId
