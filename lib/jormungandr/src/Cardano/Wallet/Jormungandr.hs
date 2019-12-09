@@ -27,6 +27,9 @@ module Cardano.Wallet.Jormungandr
 
       -- * Utilities
     , toSPBlock
+
+      -- * Tracing
+    , ServerLog (..)
     ) where
 
 import Prelude
@@ -123,7 +126,7 @@ import Network.Socket
 import Network.Wai.Handler.Warp
     ( setBeforeMainLoop )
 import Network.Wai.Middleware.Logging
-    ( ApiLog, ServerLog (..), WithRequestId )
+    ( ApiLog )
 import System.Exit
     ( ExitCode (..) )
 
@@ -186,14 +189,15 @@ serveWallet
                             poolApi <- stakePoolLayer trText nl db
                             rndApi  <- apiLayer trText rndTl nl
                             seqApi  <- apiLayer trText seqTl nl
-                            startServer (contramap (fmap LogApiMsg) tr) socket nPort bp rndApi seqApi poolApi
+                            let tr' = contramap (fmap LogApiServerMsg) tr
+                            startServer tr' socket nPort bp rndApi seqApi poolApi
                             pure ExitSuccess
 
   where
     trText = contramap (fmap LogText) tr
 
     startServer
-        :: Trace IO (WithRequestId ApiLog)
+        :: Trace IO ApiLog
         -> Socket
         -> Port "node"
         -> BlockchainParameters
@@ -347,3 +351,18 @@ toSPBlock b = Pool.Block
 
 toWLBlock :: J.Block -> Block
 toWLBlock = J.convertBlock
+
+{-------------------------------------------------------------------------------
+                                    Logging
+-------------------------------------------------------------------------------}
+
+-- | The type of trace events produced by the Jörmungandr API server.
+data ServerLog
+    = LogApiServerMsg ApiLog
+    | LogText Text
+    deriving (Show)
+
+instance ToText ServerLog where
+    toText msg = case msg of
+        LogApiServerMsg load -> toText load
+        LogText txt -> txt

@@ -16,9 +16,8 @@ module Network.Wai.Middleware.Logging
     , newApiLoggerSettings
     , ApiLoggerSettings
     , obfuscateKeys
-    , ServerLog (..)
+    , HandlerLog (..)
     , ApiLog (..)
-    , WithRequestId (..)
     , RequestId (..)
     ) where
 
@@ -76,12 +75,12 @@ import qualified Data.Text.Encoding as T
 -- The logger logs requests' and responses' bodies along with a few other
 -- useful piece of information.
 withApiLogger
-    :: Trace IO (WithRequestId ApiLog)
+    :: Trace IO ApiLog
     -> ApiLoggerSettings
     -> Middleware
 withApiLogger t0 settings app req0 sendResponse = do
     rid <- nextRequestId settings
-    let t = contramap (fmap (WithRequestId rid)) t0
+    let t = contramap (fmap (ApiLog rid)) t0
     logTrace t LogRequestStart
     start <- getCurrentTime
     (req, reqBody) <- getRequestBody req0
@@ -98,7 +97,7 @@ withApiLogger t0 settings app req0 sendResponse = do
         return rcvd
   where
     logResponse
-        :: Trace IO ApiLog
+        :: Trace IO HandlerLog
         -> NominalDiffTime
         -> Maybe Status
         -> ByteString
@@ -212,17 +211,27 @@ recordChunks i = \case
                                     Logging
 -------------------------------------------------------------------------------}
 
-data ServerLog
-    = LogApiMsg (WithRequestId ApiLog)
-    | LogText Text
-    deriving (Show)
+-- | API handler trace events are associated with a unique request ID.
+data ApiLog = ApiLog
+    { requestId :: RequestId
+    -- ^ Unique integer associated with the request, for the purpose of tracing.
+    , logMsg :: HandlerLog
+    -- ^ Event trace for the handler.
+    } deriving (Show)
 
-instance ToText ServerLog where
-    toText msg = case msg of
-        LogApiMsg load -> toText load
-        LogText txt -> txt
+instance DefinePrivacyAnnotation ApiLog where
+    definePrivacyAnnotation (ApiLog _ msg) = definePrivacyAnnotation msg
 
-data ApiLog
+instance DefineSeverity ApiLog where
+    defineSeverity (ApiLog _ msg) = defineSeverity msg
+
+instance ToText ApiLog where
+    toText (ApiLog rid msg) =
+        "[" <> T.pack (show rid) <> "] "
+        <> toText msg
+
+-- | Trace events related to the handling of a single request.
+data HandlerLog
     = LogRequestStart
     | LogRequest Request
     | LogRequestBody [Text] ByteString
@@ -231,12 +240,7 @@ data ApiLog
     | LogRequestFinish
     deriving (Show)
 
-instance ToText a => ToText (WithRequestId a) where
-    toText (WithRequestId rid msg) =
-        "[" <> T.pack (show rid) <> "] "
-        <> toText msg
-
-instance ToText ApiLog where
+instance ToText HandlerLog where
     toText msg = case msg of
         LogRequestStart -> "Received API request"
         LogRequest req -> mconcat [ "[", method, "] ", path, query ]
@@ -254,23 +258,23 @@ instance ToText ApiLog where
             tsec = T.pack $ show time
         LogResponseBody body -> T.decodeUtf8 body
         LogRequestFinish -> "Completed response to API request"
-      where
-        -- | Removes sensitive details from valid request payloads and completely
-        -- obfuscate invalid payloads.
-        sanitize :: [Text] -> ByteString -> ByteString
-        sanitize keys bytes = encode' $ case decode' bytes of
-            Just (Object o) ->
-                Object (foldr (HM.adjust obfuscate) o keys)
-            Just v ->
-                v
-            Nothing ->
-                String "Invalid payload: not JSON"
-          where
-            encode' = BL.toStrict . Aeson.encode
-            decode' = Aeson.decode . BL.fromStrict
-            obfuscate _ = String "*****"
 
-instance DefinePrivacyAnnotation ApiLog where
+-- | Removes sensitive details from valid request payloads and completely
+-- obfuscate invalid payloads.
+sanitize :: [Text] -> ByteString -> ByteString
+sanitize keys bytes = encode' $ case decode' bytes of
+    Just (Object o) ->
+        Object (foldr (HM.adjust obfuscate) o keys)
+    Just v ->
+        v
+    Nothing ->
+        String "Invalid payload: not JSON"
+  where
+    encode' = BL.toStrict . Aeson.encode
+    decode' = Aeson.decode . BL.fromStrict
+    obfuscate _ = String "*****"
+
+instance DefinePrivacyAnnotation HandlerLog where
     definePrivacyAnnotation msg = case msg of
         LogRequestStart -> Public
         LogRequest _ -> Public
@@ -279,7 +283,7 @@ instance DefinePrivacyAnnotation ApiLog where
         LogResponseBody _ -> Confidential
         LogRequestFinish -> Public
 
-instance DefineSeverity ApiLog where
+instance DefineSeverity HandlerLog where
     defineSeverity msg = case msg of
         LogRequestStart -> Debug
         LogRequest _ -> Info
@@ -291,14 +295,3 @@ instance DefineSeverity ApiLog where
                 _ -> Info
         LogResponseBody _ -> Debug
         LogRequestFinish -> Debug
-
-data WithRequestId a = WithRequestId
-    { requestId :: RequestId
-    , logMsg :: a
-    } deriving (Show, Eq)
-
-instance DefinePrivacyAnnotation a => DefinePrivacyAnnotation (WithRequestId a) where
-    definePrivacyAnnotation (WithRequestId _ msg) = definePrivacyAnnotation msg
-
-instance DefineSeverity a => DefineSeverity (WithRequestId a) where
-    defineSeverity (WithRequestId _ msg) = defineSeverity msg

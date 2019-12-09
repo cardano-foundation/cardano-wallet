@@ -253,12 +253,7 @@ import Network.Wai
 import Network.Wai.Handler.Warp
     ( Port )
 import Network.Wai.Middleware.Logging
-    ( ApiLog (..)
-    , WithRequestId (..)
-    , newApiLoggerSettings
-    , obfuscateKeys
-    , withApiLogger
-    )
+    ( ApiLog (..), newApiLoggerSettings, obfuscateKeys, withApiLogger )
 import Network.Wai.Middleware.ServantError
     ( handleRawError )
 import Numeric.Natural
@@ -324,7 +319,7 @@ start
         , PaymentAddress n ByronKey
         )
     => Warp.Settings
-    -> Trace IO (WithRequestId ApiLog)
+    -> Trace IO ApiLog
     -> Socket
     -> ApiLayer (RndState 'Mainnet) t ByronKey
     -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey

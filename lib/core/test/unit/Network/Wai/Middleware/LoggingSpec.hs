@@ -35,8 +35,6 @@ import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.STM
     ( atomically )
-import Control.Tracer
-    ( contramap )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..) )
 import Data.ByteString
@@ -75,9 +73,8 @@ import Network.Wai.Handler.Warp
 import Network.Wai.Middleware.Logging
     ( ApiLog (..)
     , ApiLoggerSettings
+    , HandlerLog (..)
     , RequestId (..)
-    , ServerLog (..)
-    , WithRequestId (..)
     , newApiLoggerSettings
     , obfuscateKeys
     , withApiLogger
@@ -225,7 +222,7 @@ spec = describe "Logging Middleware"
             void $ mapConcurrently (const (get ctx "/get")) (replicate n ())
             entries <- readTVarIO (logs ctx)
             let getReqId l = case loContent l of
-                    LogMessage (LogApiMsg (WithRequestId (RequestId rid) _)) ->
+                    LogMessage (ApiLog (RequestId rid) _) ->
                         Just rid
                     _ ->
                         Nothing
@@ -276,7 +273,7 @@ spec = describe "Logging Middleware"
     tearDown = cancel . server
 
 data Context = Context
-    { logs :: TVar [LogObject ServerLog]
+    { logs :: TVar [LogObject ApiLog]
     , manager :: Manager
     , port :: Int
     , server :: Async ()
@@ -336,9 +333,9 @@ expectLogs ctx expectations = do
 
 -- | Extract the message from a 'LogObject'. Returns 'Nothing' if it's not
 -- a log message.
-logMessage :: LogObject ServerLog -> Maybe Text
+logMessage :: LogObject ApiLog -> Maybe Text
 logMessage l = case loContent l of
-    LogMessage (LogApiMsg (WithRequestId _ theMsg)) -> case theMsg of
+    LogMessage (ApiLog _ theMsg) -> case theMsg of
         LogRequestStart ->
             Just "LogRequestStart"
         LogRequest req ->
@@ -360,9 +357,9 @@ logMessage l = case loContent l of
 
 -- | Extract the execution time, in microseconds, from a log request.
 -- Returns 'Nothing' if the log line doesn't contain any time indication.
-captureTime :: LogObject ServerLog -> Maybe Int
+captureTime :: LogObject ApiLog -> Maybe Int
 captureTime l = case loContent l of
-    LogMessage (LogApiMsg (WithRequestId _ theMsg)) -> case theMsg of
+    LogMessage (ApiLog _ theMsg) -> case theMsg of
         LogResponse time _ ->
             Just $ round $ toMicro $ realToFrac @_ @Double time
         _ ->
@@ -428,12 +425,12 @@ instance FromJSON ResponseJson
 start
     :: ApiLoggerSettings
     -> Warp.Settings
-    -> Trace IO ServerLog
+    -> Trace IO ApiLog
     -> Socket
     -> IO ()
 start logSettings warpSettings trace socket = do
     runSettingsSocket warpSettings socket
-        $ withApiLogger (contramap (fmap LogApiMsg) trace) logSettings
+        $ withApiLogger trace logSettings
         application
   where
     application :: Application
