@@ -35,19 +35,19 @@
 
 let
   release = rec {
-    version = "0.8.0-rc8";
+    version = "0.8.0-rc10";
     # Git revision of input-output-hk/jormungandr repo.
     rev = "v${version}";
     # Hash of git repo and all of its submodules.
-    sha256 = "1qjxk367k22hdznfi0g3z5lxh8wqj8728jqcz7by58bjgkyfkbkv";
+    sha256 = "0r8990fqwi8jihjdzvknyif3k7mmg21rs6jbaqmn12r21irlv2zw";
     # Hash of all Cargo dependencies.
-    cargoSha256 = "14n96hyb75wycqpzv1sv1qlxqykligr3zyvaa4a804hhk3grpjn7";
+    cargoSha256 = "0vkn8a84f2dnr7p3jlif4lmrnz4w8y1dy0908kxvacvmdi72vfd5";
   };
 
   windows = rec {
     # URL and hash of windows binary release
     url = "https://github.com/input-output-hk/jormungandr/releases/download/v${release.version}/jormungandr-v${release.version}-x86_64-pc-windows-msvc.zip";
-    sha256 = "0m7hk3swmr9rf2gmqkca9xyh60qf1ks5gv3fwrvd3cv1hs33wagb";
+    sha256 = "0fp032vk2drbdr1h87cgcxpr76ymsn0w698fprnmq6b88d15il3k";
   };
 
   jormungandr-win64 = pkgs.runCommand "jormungandr-win64-${release.version}" {
