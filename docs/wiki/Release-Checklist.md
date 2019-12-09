@@ -24,8 +24,6 @@
   $ git push origin --tags
   ```
 
-> :warning: The Travis jobs publishing the documentation and the artifacts are known to be in a race. The first one to publish will make the other one fail. Hence one of the two last jobs has to be restarted manually every time until we fix it :man_shrugging:  ...
-
 ## Create the release notes
 
 - [ ] Verify all PRs since the last release have a corresponding milestone (hint: we can filter PR by merge date on github using `merged:>yyyy-mm-dd` filter).
