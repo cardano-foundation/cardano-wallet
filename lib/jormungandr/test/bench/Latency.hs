@@ -49,6 +49,8 @@ import Cardano.Wallet.Jormungandr.Network
     ( JormungandrBackend (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
+import Cardano.Wallet.Primitive.Model
+    ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
     ( SyncTolerance (..) )
 import Control.Concurrent.Async
@@ -273,21 +275,21 @@ benchWithServer logCfg = withContext
     withContext :: (Context Jormungandr -> IO ()) -> IO ()
     withContext action = do
         ctx <- newEmptyMVar
-        let setupContext wAddr nPort _bp = do
+        let setupContext wAddr nPort bp = do
                 let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
                 let sixtySeconds = 60*1000*1000 -- 60s in microseconds
                 manager <- (baseUrl,) <$> newManager (defaultManagerSettings
                     { managerResponseTimeout =
                         responseTimeoutMicro sixtySeconds
                     })
-                faucet <- initFaucet
+                faucet <- initFaucet (getFeePolicy bp)
                 putMVar ctx $ Context
                     { _cleanup = pure ()
                     , _manager = manager
                     , _nodePort = nPort
                     , _walletPort = sockAddrPort wAddr
                     , _faucet = faucet
-                    , _feeEstimator = const (1, 1)
+                    , _feeEstimator = \_ -> error "feeEstimator not available"
                     , _target = Proxy
                     }
         race (takeMVar ctx >>= action) (withServer setupContext) >>=
