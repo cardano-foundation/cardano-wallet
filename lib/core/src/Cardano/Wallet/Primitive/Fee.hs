@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeApplications #-}
@@ -34,7 +35,7 @@ module Cardano.Wallet.Primitive.Fee
 import Prelude
 
 import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (..) )
+    ( CoinSelection (..), changeBalance, inputBalance, outputBalance )
 import Cardano.Wallet.Primitive.Types
     ( Coin (..)
     , FeePolicy (..)
@@ -46,6 +47,8 @@ import Cardano.Wallet.Primitive.Types
     , isValidCoin
     , pickRandom
     )
+import Control.Monad
+    ( unless )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
@@ -54,14 +57,16 @@ import Control.Monad.Trans.State
     ( StateT (..), evalStateT )
 import Crypto.Random.Types
     ( MonadRandom )
-import Data.Bifunctor
-    ( bimap )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
     ( Word64 )
+import Fmt
+    ( pretty )
 import GHC.Generics
     ( Generic )
+import GHC.Stack
+    ( HasCallStack )
 
 import qualified Data.List as L
 
@@ -196,15 +201,20 @@ senderPaysFee opt utxo sel = evalStateT (go sel) utxo where
         let upperBound = estimateFee opt coinSel
         -- 2/
         -- Substract fee from change outputs, proportionally to their value.
-        let (Fee remainingFee, chgs') = reduceChangeOutputs opt upperBound chgs
+        let coinSel' = CoinSelection
+                { inputs = inps
+                , outputs = outs
+                , change = rebalanceChangeOutputs opt upperBound chgs
+                }
+        remFee <- lift $ remainingFee opt coinSel'
         -- 3.1/
         -- Should the change cover the fee, we're (almost) good. By removing
         -- change outputs, we make them smaller and may reduce the size of the
         -- transaction, and the fee. Thus, we end up paying slightly more than
         -- the upper bound. We could do some binary search and try to
         -- re-distribute excess across changes until fee becomes bigger.
-        if remainingFee == 0
-        then pure $ CoinSelection inps outs chgs'
+        if remFee == Fee 0
+        then pure coinSel'
         else do
             -- 3.2/
             -- Otherwise, we need an extra entries from the available utxo to
@@ -218,7 +228,7 @@ senderPaysFee opt utxo sel = evalStateT (go sel) utxo where
             -- re-run the algorithm with this new elements and using the initial
             -- change plus the extra change brought up by this entry and see if
             -- we can now correctly cover fee.
-            inps' <- coverRemainingFee (Fee remainingFee)
+            inps' <- coverRemainingFee remFee
             let extraChange = splitChange (Coin $ balance' inps') chgs
             go $ CoinSelection (inps <> inps') outs extraChange
 
@@ -245,23 +255,22 @@ coverRemainingFee (Fee fee) = go [] where
 --
 -- We divvy up the fee over all change outputs proportionally, to try and keep
 -- any output:change ratio as unchanged as possible
-reduceChangeOutputs :: FeeOptions -> Fee -> [Coin] -> (Fee, [Coin])
-reduceChangeOutputs opt totalFee chgs =
+rebalanceChangeOutputs :: FeeOptions -> Fee -> [Coin] -> [Coin]
+rebalanceChangeOutputs opt totalFee chgs =
     case removeDust (Coin 0) chgs of
-        [] ->
-            (totalFee, [])
-        xs -> bimap (Fee . sum . map getFee) (removeDust $ dustThreshold opt)
-            $ L.unzip
+        [] -> []
+        xs -> removeDust (dustThreshold opt)
             $ map reduceSingleChange
             $ divvyFee totalFee xs
 
--- | Reduce single change output, returning remaining fee
-reduceSingleChange :: (Fee, Coin) -> (Fee, Coin)
+-- | Reduce single change output by a given fee amount. If fees are too big for
+-- a single coin, returns a `Coin 0`.
+reduceSingleChange :: (Fee, Coin) -> Coin
 reduceSingleChange (Fee fee, Coin chng)
     | chng >= fee =
-          (Fee 0, Coin $ chng - fee)
+          Coin (chng - fee)
     | otherwise =
-          (Fee $ fee - chng, Coin 0)
+          Coin 0
 
 -- | Proportionally divide the fee over each output.
 --
@@ -287,10 +296,50 @@ divvyFee (Fee f0) outs = go f0 [] outs
         in
             go (f - fOut) ((Fee fOut, Coin out):xs) q
 
--- | Remove coins that are below a given threshold
+-- | Remove coins that are below a given threshold. Note that we can't simply
+-- "remove" coins from the list because this could create an unbalanced
+-- transaction. Therefore, we want `removeDust` to have the following property:
+--
+--     ∀δ≥0. sum coins == sum (removeDust δcoins)
+--
 removeDust :: Coin -> [Coin] -> [Coin]
-removeDust threshold =
-    L.filter (> threshold)
+removeDust threshold coins =
+    let
+        filtered = L.filter (> threshold) coins
+        diff = balance coins - balance filtered
+            where balance = L.foldl' (\total (Coin c) -> c + total) 0
+    in
+        splitChange (Coin diff) filtered
+
+-- | Computes how much is left to pay given a particular selection
+remainingFee
+    :: (HasCallStack, Monad m)
+    => FeeOptions
+    -> CoinSelection
+    -> ExceptT ErrAdjustForFee m Fee
+remainingFee opts s = do
+    if fee >= diff
+    then pure $ Fee (fee - diff)
+    else do
+        -- NOTE
+        -- The only case where we may end up with an unbalanced transaction is
+        -- when we have a dangling change output (i.e. adding it costs too much
+        -- and we can't afford it, but not having it result in too many coins
+        -- left for fees) in which case.
+        let Fee feeDangling = estimateFee opts $ s { change = [Coin (diff - fee)] }
+        unless (feeDangling >= diff) $ do
+            error $ unwords
+                [ "Generated an unbalanced tx! Too much left for fees"
+                , ": fee (raw) =", show fee
+                , ": fee (dangling) =", show feeDangling
+                , ", diff =", show diff
+                , "\nselection =", pretty s
+                ]
+        throwE $ ErrCannotCoverFee $ feeDangling - fee
+  where
+    Fee fee = estimateFee opts s
+    diff = inputBalance s - (outputBalance s + changeBalance s)
+
 
 -- Equally split the extra change obtained when picking new inputs across all
 -- other change. Note that, it may create an extra change output if:

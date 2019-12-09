@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
@@ -147,7 +148,7 @@ specWithServer (logCfg, tr) = aroundAll withContext . after tearDown
                     { managerResponseTimeout =
                         responseTimeoutMicro sixtySeconds
                     })
-                faucet <- initFaucet
+                faucet <- initFaucet (getFeePolicy bp)
                 putMVar ctx $ Context
                     { _cleanup = pure ()
                     , _manager = manager
@@ -166,24 +167,27 @@ specWithServer (logCfg, tr) = aroundAll withContext . after tearDown
 
     logging = (logCfg, transformTextTrace tr)
 
+-- NOTE²
+-- We use a range (min, max) and call it an "estimator" because for the
+-- bridge (and probably cardano-node on Shelley), it's not possible to
+-- compute the fee precisely by only knowing the number of inputs and
+-- ouputs since the exact fee cost depends on the values of the
+-- outputs and the values of the input indexes.
 mkFeeEstimator :: FeePolicy -> TxDescription -> (Natural, Natural)
-mkFeeEstimator policy (TxDescription nInps nOuts) =
-    let
-        LinearFee (Quantity a) (Quantity b) (Quantity _c) = policy
-        nChanges = nOuts
-        -- NOTE¹
-        -- We safely round BEFORE the multiplication because we know that
-        -- Jormungandr' fee are necessarily naturals constants. We carry doubles
-        -- here because of the legacy with Byron. In the end, it matters not
-        -- because in the spectrum of numbers we're going to deal with, naturals
-        -- can be represented without any rounding issue using 'Double' (or,
-        -- transactions have suddenly become overly expensive o_O)
-        fee = fromIntegral $ (round a) + (nInps + nOuts + nChanges) * (round b)
-    in
-        -- NOTE²
-        -- We use a range (min, max) and call it an "estimator" because for the
-        -- bridge (and probably cardano-node on Shelley), it's not possible to
-        -- compute the fee precisely by only knowing the number of inputs and
-        -- ouputs since the exact fee cost depends on the values of the
-        -- outputs and the values of the input indexes.
-        (fee, fee)
+mkFeeEstimator policy = \case
+    PaymentDescription nInps nOuts nChgs ->
+        let fee = linear (nInps + nOuts + nChgs) 0
+        in (fee, fee)
+    DelegDescription nInps nOuts nCerts ->
+        let fee = linear (nInps + nOuts) nCerts
+        in (fee, fee)
+  where
+    LinearFee (Quantity a) (Quantity b) (Quantity c) = policy
+    -- NOTE¹
+    -- We safely round BEFORE the multiplication because we know that
+    -- Jormungandr' fee are necessarily naturals constants. We carry doubles
+    -- here because of the legacy with Byron. In the end, it matters not
+    -- because in the spectrum of numbers we're going to deal with, naturals
+    -- can be represented without any rounding issue using 'Double' (or,
+    -- transactions have suddenly become overly expensive o_O)
+    linear nb nc = fromIntegral $ round a + nb * round b + nc * round c

@@ -513,9 +513,10 @@ fixtureExternalTx ctx toSend = do
             , (addrChng, keysAddrChng)
             , (addrDest', keysAddrDest)
             ]
-    let (fee, _) = ctx ^. feeEstimator $ TxDescription
+    let (fee, _) = ctx ^. feeEstimator $ PaymentDescription
             { nInputs = 1
             , nOutputs = 1
+            , nChanges = 1
             }
     let theInps =
             [ (TxIn theTxId 0, TxOut addrSrc (Coin (fromIntegral amt))) ]

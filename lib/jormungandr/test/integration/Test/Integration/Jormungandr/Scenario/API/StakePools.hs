@@ -39,6 +39,7 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
+    , TxDescription (..)
     , apparentPerformance
     , balanceAvailable
     , balanceReward
@@ -59,6 +60,7 @@ import Test.Integration.Framework.DSL
     , expectListSizeEqual
     , expectResponseCode
     , faucetUtxoAmt
+    , feeEstimator
     , fixturePassphrase
     , fixtureWallet
     , fixtureWalletWith
@@ -91,7 +93,6 @@ import Test.Integration.Framework.TestData
     , errMsg415
     , passphraseMaxLength
     , passphraseMinLength
-    , stakeDelegationFee
     )
 
 import qualified Data.ByteString as BS
@@ -200,8 +201,9 @@ spec = do
                 , expectListItemFieldEqual 0 status InLedger
                 ]
 
+        let (fee, _) = ctx ^. feeEstimator $ DelegDescription 1 1 1
         let existingPoolStake = getQuantity $ p ^. #metrics . #controlledStake
-        let contributedStake = faucetUtxoAmt - stakeDelegationFee
+        let contributedStake = faucetUtxoAmt - fee
         eventually $ do
             request @[ApiStakePool] ctx listStakePoolsEp Default Empty >>= flip verify
                 [ expectListItemFieldSatisfy 0 (metrics . stake)
@@ -310,7 +312,8 @@ spec = do
             \I can join if I have just the right amount" $ \(ctx) -> do
             (_, p:_) <- eventually $
                 unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
-            w <- fixtureWalletWith ctx [stakeDelegationFee]
+            let (fee, _) = ctx ^. feeEstimator $ DelegDescription 1 0 1
+            w <- fixtureWalletWith ctx [fee]
             joinStakePool ctx (p ^. #id) (w, "Secure Passphrase")>>= flip verify
                 [ expectResponseCode HTTP.status202
                 , expectFieldEqual status Pending
@@ -321,7 +324,8 @@ spec = do
             \I cannot join if I have not enough fee to cover" $ \ctx -> do
             (_, p:_) <- eventually $
                 unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
-            w <- fixtureWalletWith ctx [stakeDelegationFee - 1]
+            let (fee, _) = ctx ^. feeEstimator $ DelegDescription 1 0 1
+            w <- fixtureWalletWith ctx [fee - 1]
             r <- joinStakePool ctx (p ^. #id) (w, "Secure Passphrase")
             expectResponseCode HTTP.status403 r
             expectErrorMessage (errMsg403DelegationFee 1) r
@@ -330,37 +334,43 @@ spec = do
             (_, p:_) <- eventually $
                 unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
             w <- emptyWallet ctx
+            let (fee, _) = ctx ^. feeEstimator $ DelegDescription 0 0 1
             r <- joinStakePool ctx (p ^. #id) (w, "Secure Passphrase")
             expectResponseCode HTTP.status403 r
-            expectErrorMessage (errMsg403DelegationFee stakeDelegationFee) r
+            expectErrorMessage (errMsg403DelegationFee fee) r
 
     describe "STAKE_POOLS_QUIT_01x - Fee boundary values" $ do
         it "STAKE_POOLS_QUIT_01x - \
             \I can quit if I have enough to cover fee" $ \(ctx) -> do
-            let initBalance = [2*stakeDelegationFee + 1]
+            let (feeJoin, _) = ctx ^. feeEstimator $ DelegDescription 1 1 1
+            let (feeQuit, _) = ctx ^. feeEstimator $ DelegDescription 1 0 1
+            let initBalance = [feeJoin + feeQuit]
             (w, p) <- joinStakePoolWithWalletBalance ctx initBalance
             rq <- quitStakePool ctx (p ^. #id) (w, "Secure Passphrase")
             expectResponseCode HTTP.status202 rq
             eventually $ do
                 request @ApiWallet ctx (getWalletEp w) Default Empty >>= flip verify
                     [ expectFieldEqual delegation (NotDelegating)
-                    -- balance is 1 because the rest was used for fees
-                    , expectFieldEqual balanceTotal 1
-                    , expectFieldEqual balanceAvailable 1
+                    -- balance is 0 because the rest was used for fees
+                    , expectFieldEqual balanceTotal 0
+                    , expectFieldEqual balanceAvailable 0
                     ]
 
         it "STAKE_POOLS_QUIT_01x - \
             \I cannot quit if I have not enough fee to cover" $ \ctx -> do
-            let initBalance = [stakeDelegationFee]
+            let (feeJoin, _) = ctx ^. feeEstimator $ DelegDescription 1 1 1
+            let (feeQuit, _) = ctx ^. feeEstimator $ DelegDescription 0 0 1
+            let initBalance = [feeJoin+1]
             (w, p) <- joinStakePoolWithWalletBalance ctx initBalance
             rq <- quitStakePool ctx (p ^. #id) (w, "Secure Passphrase")
             verify rq
                 [ expectResponseCode HTTP.status403
-                , expectErrorMessage (errMsg403DelegationFee stakeDelegationFee)
+                , expectErrorMessage (errMsg403DelegationFee (feeQuit - 1))
                 ]
 
     it "STAKE_POOLS_JOIN_01 - I cannot rejoin the same stake-pool" $ \ctx -> do
-        (w, p) <- joinStakePoolWithWalletBalance ctx [1000]
+        let (fee, _) = ctx ^. feeEstimator $ DelegDescription 1 1 1
+        (w, p) <- joinStakePoolWithWalletBalance ctx [10*fee]
 
         -- Join again
         r <- joinStakePool ctx (p ^. #id) (w, fixturePassphrase)

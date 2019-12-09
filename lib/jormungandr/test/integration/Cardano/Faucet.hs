@@ -39,6 +39,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( generateKeyFromSeed )
+import Cardano.Wallet.Primitive.Fee
+    ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Mnemonic
     ( Mnemonic
     , entropyToBytes
@@ -59,6 +61,8 @@ import Data.ByteArray.Encoding
     ( Base (..), convertToBase )
 import Data.ByteString
     ( ByteString )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text
     ( Text )
 import Network.Socket
@@ -83,11 +87,11 @@ import qualified Data.Text.IO as TIO
 
 -- | Initialize a bunch of faucet wallets and make them available for the
 -- integration tests scenarios.
-initFaucet :: IO Faucet
-initFaucet = Faucet
+initFaucet :: FeePolicy -> IO Faucet
+initFaucet policy = Faucet
     <$> newMVar seqMnemonics
     <*> newMVar rndMnemonics
-    <*> newMVar (mkTxBuilder <$> externalAddresses)
+    <*> newMVar (mkTxBuilder policy <$> externalAddresses)
 
 getBlock0H :: IO (Hash "Genesis")
 getBlock0H = extractId <$> BL.readFile block0
@@ -103,10 +107,11 @@ toHex = T.decodeUtf8 . convertToBase Base16 . getHash
 
 -- | Prepare externally signed Tx for Jormungandr
 mkTxBuilder
-    :: (TxIn, String)
+    :: FeePolicy
+    -> (TxIn, String)
     -> (Address, Coin)
     -> IO ByteString
-mkTxBuilder (TxIn inpTx inpIx, key) (addr, Coin amt) =
+mkTxBuilder (LinearFee cst coeff _) (TxIn inpTx inpIx, key) (addr, Coin amt) =
     withSystemTempDirectory "cardano-wallet-jormungandr" $ \d -> do
         let txFile = d </> "trans.tx"
         let witnessFile = d </> "witness"
@@ -122,6 +127,9 @@ mkTxBuilder (TxIn inpTx inpIx, key) (addr, Coin amt) =
 
     runJcli_ :: [String] -> IO ()
     runJcli_ = runJcli
+
+    int :: Quantity any Double -> Int
+    int (Quantity a) = round a
 
     -- A sink address where all changes from external transaction are sent to.
     sinkAddress :: String
@@ -164,8 +172,8 @@ mkTxBuilder (TxIn inpTx inpIx, key) (addr, Coin amt) =
             [ "transaction"
             , "finalize"
             , sinkAddress
-            , "--fee-constant", "42"
-            , "--fee-coefficient", "0"
+            , "--fee-constant", show (int cst)
+            , "--fee-coefficient", show (int coeff)
             , "--staging"
             , txFile
             ]
