@@ -49,6 +49,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( toText )
 import GHC.Generics
     ( Generic )
 import Network.HTTP.Client
@@ -64,8 +66,6 @@ import Network.HTTP.Client
     )
 import Network.HTTP.Types.Header
     ( hContentType )
-import Network.HTTP.Types.Status
-    ( Status (..) )
 import Network.Socket
     ( Socket )
 import Network.Wai.Handler.Warp
@@ -111,8 +111,6 @@ import Test.Utils.Windows
 import qualified Data.Aeson as Aeson
 import qualified Data.List as L
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
-import qualified Network.Wai as Wai
 import qualified Network.Wai.Handler.Warp as Warp
 
 spec :: Spec
@@ -122,7 +120,7 @@ spec = describe "Logging Middleware"
         get ctx "/get"
         expectLogs ctx
             [ (Debug, "LogRequestStart")
-            , (Info, "GET /get")
+            , (Info, "[GET] /get")
             , (Debug, "")
             , (Info, "200 OK")
             , (Debug, "14")
@@ -133,7 +131,7 @@ spec = describe "Logging Middleware"
         get ctx "/get?query=patate"
         expectLogs ctx
             [ (Debug, "LogRequestStart")
-            , (Info, "GET /get?query=patate")
+            , (Info, "[GET] /get?query=patate")
             , (Debug, "")
             , (Info, "200 OK")
             , (Debug, "14")
@@ -144,7 +142,7 @@ spec = describe "Logging Middleware"
         get ctx "/not-json"
         expectLogs ctx
             [ (Debug, "LogRequestStart")
-            , (Info, "GET /not-json")
+            , (Info, "[GET] /not-json")
             , (Debug, "")
             , (Info, "200 OK")
             , (Debug, "\NUL\NUL\NUL")
@@ -155,8 +153,8 @@ spec = describe "Logging Middleware"
         post ctx "/post" (MkJson { field = "patate", sensitive = 14 })
         expectLogs ctx
             [ (Debug, "LogRequestStart")
-            , (Info, "POST /post")
-            , (Debug, "{\"sensitive\":14,\"field\":\"patate\"}")
+            , (Info, "[POST] /post")
+            , (Debug, "{\"sensitive\":\"*****\",\"field\":\"patate\"}")
             , (Info, "201 Created")
             , (Debug, "{\"status\":\"ok\",\"whatever\":42}")
             , (Debug, "LogRequestFinish")
@@ -166,8 +164,8 @@ spec = describe "Logging Middleware"
         postIlled ctx "/post" "\NUL\NUL\NUL"
         expectLogs ctx
             [ (Debug, "LogRequestStart")
-            , (Info, "POST /post")
-            , (Debug, "\NUL\NUL\NUL")
+            , (Info, "[POST] /post")
+            , (Debug, "Invalid payload: not JSON")
             , (Info, "400 Bad Request")
             , (Debug, "Failed reading: not a valid json value")
             , (Debug, "LogRequestFinish")
@@ -177,7 +175,7 @@ spec = describe "Logging Middleware"
         delete ctx "/delete"
         expectLogs ctx
             [ (Debug, "LogRequestStart")
-            , (Info, "DELETE /delete")
+            , (Info, "[DELETE] /delete")
             , (Debug, "")
             , (Info, "204 No Content")
             , (Debug, "")
@@ -188,7 +186,7 @@ spec = describe "Logging Middleware"
         get ctx "/error400"
         expectLogs ctx
             [ (Debug, "LogRequestStart")
-            , (Info, "GET /error400")
+            , (Info, "[GET] /error400")
             , (Debug, "")
             , (Info, "400 Bad Request")
             , (Debug, "")
@@ -199,7 +197,7 @@ spec = describe "Logging Middleware"
         get ctx "/error500"
         expectLogs ctx
             [ (Debug, "LogRequestStart")
-            , (Info, "GET /error500")
+            , (Info, "[GET] /error500")
             , (Debug, "")
             , (Error, "500 Internal Server Error")
             , (Debug, "")
@@ -210,7 +208,7 @@ spec = describe "Logging Middleware"
         get ctx "/error503"
         expectLogs ctx
             [ (Debug, "LogRequestStart")
-            , (Info, "GET /error503")
+            , (Info, "[GET] /error503")
             , (Debug, "")
             , (Warning, "503 Service Unavailable")
             , (Debug, "")
@@ -336,22 +334,10 @@ expectLogs ctx expectations = do
 logMessage :: LogObject ApiLog -> Maybe Text
 logMessage l = case loContent l of
     LogMessage (ApiLog _ theMsg) -> case theMsg of
-        LogRequestStart ->
-            Just "LogRequestStart"
-        LogRequest req ->
-            Just $ T.decodeUtf8 (Wai.requestMethod req) <> " "
-               <> T.decodeUtf8 (Wai.rawPathInfo req)
-               <> T.decodeUtf8 (Wai.rawQueryString req)
-        LogRequestBody _ res ->
-            Just $ T.decodeUtf8 res
-        LogResponse _ (Just (Status code msg)) ->
-            Just $ T.pack (show code) <> " " <> T.decodeUtf8 msg
-        LogResponse _ Nothing ->
-            Nothing
-        LogResponseBody resp ->
-            Just $ T.decodeUtf8 resp
-        LogRequestFinish ->
-            Just "LogRequestFinish"
+        LogRequestStart -> Just "LogRequestStart"
+        LogRequestFinish -> Just "LogRequestFinish"
+        LogResponse _ Nothing -> Nothing
+        _ -> Just (toText theMsg)
     _ ->
         Nothing
 
