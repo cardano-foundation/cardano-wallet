@@ -19,7 +19,7 @@ Available COMMANDS:
   <a href="#serve">serve</a>                 Serve an HTTP API that listens for commands/actions.
   mnemonic                            
     <a href="#mnemonic-generate">generate</a>            Generate BIP-39 mnemonic words
-    <a href="#mnemonic-reward-credentials">reward-credentials</a>  Generate BIP-39 mnemonic words
+    <a href="#mnemonic-reward-credentials">reward-credentials</a>  Derive reward account private key from mnemonic.
   wallet
     <a href="#wallet-list">list</a>                List all known wallets
     <a href="#wallet-create">create</a>              Create & restore a wallet from a BIP-39 mnemonic sentence
