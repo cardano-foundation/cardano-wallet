@@ -326,7 +326,7 @@ spec = do
             \I cannot join if I have not enough fee to cover" $ \ctx -> do
             (_, p:_) <- eventually $
                 unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
-            let (fee, _) = ctx ^. feeEstimator $ DelegDescription 1 0 1
+            let (fee, _) = ctx ^. feeEstimator $ DelegDescription 1 1 1
             w <- fixtureWalletWith ctx [fee - 1]
             r <- joinStakePool ctx (p ^. #id) (w, "Secure Passphrase")
             expectResponseCode HTTP.status403 r
@@ -336,7 +336,7 @@ spec = do
             (_, p:_) <- eventually $
                 unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
             w <- emptyWallet ctx
-            let (fee, _) = ctx ^. feeEstimator $ DelegDescription 1 0 1
+            let (fee, _) = ctx ^. feeEstimator $ DelegDescription 0 0 1
             r <- joinStakePool ctx (p ^. #id) (w, "Secure Passphrase")
             expectResponseCode HTTP.status403 r
             expectErrorMessage (errMsg403DelegationFee fee) r
@@ -368,13 +368,13 @@ spec = do
             -- FIXME
             -- fee join shouldn't require any change output
             let (feeJoin, _) = ctx ^. feeEstimator $ DelegDescription 1 1 1
-            let (feeQuit, _) = ctx ^. feeEstimator $ DelegDescription 1 0 1
-            let initBalance = [feeJoin]
+            let (feeQuit, _) = ctx ^. feeEstimator $ DelegDescription 0 0 1
+            let initBalance = [feeJoin+1]
             (w, p) <- joinStakePoolWithWalletBalance ctx initBalance
             rq <- quitStakePool ctx (p ^. #id) (w, "Secure Passphrase")
             verify rq
                 [ expectResponseCode HTTP.status403
-                , expectErrorMessage (errMsg403DelegationFee feeQuit)
+                , expectErrorMessage (errMsg403DelegationFee (feeQuit - 1))
                 ]
 
     it "STAKE_POOLS_JOIN_01 - I cannot rejoin the same stake-pool" $ \ctx -> do
