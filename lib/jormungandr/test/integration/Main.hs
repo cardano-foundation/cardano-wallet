@@ -19,7 +19,7 @@ import Cardano.BM.Trace
 import Cardano.CLI
     ( withLogging )
 import Cardano.Faucet
-    ( initFaucet, mkFeeEstimator, sockAddrPort )
+    ( initFaucet, sockAddrPort )
 import Cardano.Launcher
     ( ProcessHasExited (..), withUtf8Encoding )
 import Cardano.Wallet.Api.Server
@@ -36,6 +36,8 @@ import Cardano.Wallet.Logging
     ( transformTextTrace )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
+import Cardano.Wallet.Primitive.Fee
+    ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
@@ -48,6 +50,8 @@ import Control.Exception
     ( throwIO )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text
     ( Text )
 import Network.HTTP.Client
@@ -56,12 +60,14 @@ import Network.HTTP.Client
     , newManager
     , responseTimeoutMicro
     )
+import Numeric.Natural
+    ( Natural )
 import Test.Hspec
     ( Spec, SpecWith, after, describe, hspec, parallel )
 import Test.Hspec.Extra
     ( aroundAll )
 import Test.Integration.Framework.DSL
-    ( Context (..), KnownCommand (..), tearDown )
+    ( Context (..), KnownCommand (..), TxDescription (..), tearDown )
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.Pool.MetricsSpec as MetricsSpec
@@ -159,3 +165,25 @@ specWithServer (logCfg, tr) = aroundAll withContext . after tearDown
             ListenOnRandomPort (Launch jmCfg) setup
 
     logging = (logCfg, transformTextTrace tr)
+
+mkFeeEstimator :: FeePolicy -> TxDescription -> (Natural, Natural)
+mkFeeEstimator policy (TxDescription nInps nOuts) =
+    let
+        LinearFee (Quantity a) (Quantity b) (Quantity _c) = policy
+        nChanges = nOuts
+        -- NOTE¹
+        -- We safely round BEFORE the multiplication because we know that
+        -- Jormungandr' fee are necessarily naturals constants. We carry doubles
+        -- here because of the legacy with Byron. In the end, it matters not
+        -- because in the spectrum of numbers we're going to deal with, naturals
+        -- can be represented without any rounding issue using 'Double' (or,
+        -- transactions have suddenly become overly expensive o_O)
+        fee = fromIntegral $ (round a) + (nInps + nOuts + nChanges) * (round b)
+    in
+        -- NOTE²
+        -- We use a range (min, max) and call it an "estimator" because for the
+        -- bridge (and probably cardano-node on Shelley), it's not possible to
+        -- compute the fee precisely by only knowing the number of inputs and
+        -- ouputs since the exact fee cost depends on the values of the
+        -- outputs and the values of the input indexes.
+        (fee, fee)
