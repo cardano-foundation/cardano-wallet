@@ -148,7 +148,7 @@ specWithServer (logCfg, tr) = aroundAll withContext . after tearDown
                     { managerResponseTimeout =
                         responseTimeoutMicro sixtySeconds
                     })
-                faucet <- initFaucet
+                faucet <- initFaucet (getFeePolicy bp)
                 putMVar ctx $ Context
                     { _cleanup = pure ()
                     , _manager = manager
