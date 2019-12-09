@@ -1121,8 +1121,8 @@ walletClient =
         _listPools
             :<|> _joinStakePool
             :<|> _quitStakePool
+            :<|> _delegationFee
             = pools
-
 
         _networkInformation = network
     in

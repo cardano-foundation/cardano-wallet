@@ -86,6 +86,7 @@ module Test.Integration.Framework.DSL
     , getFromResponseList
     , json
     , joinStakePool
+    , delegationFee
     , quitStakePool
     , listAddresses
     , listTransactions
@@ -123,6 +124,7 @@ module Test.Integration.Framework.DSL
     , getAddressesEp
     , listStakePoolsEp
     , joinStakePoolEp
+    , delegationFeeEp
     , quitStakePoolEp
     , stakePoolEp
     , postTxEp
@@ -162,6 +164,7 @@ import Cardano.Wallet.Api.Types
     , ApiByronWallet
     , ApiByronWalletBalance
     , ApiEpochInfo
+    , ApiFee
     , ApiStakePoolMetrics
     , ApiT (..)
     , ApiTransaction
@@ -1154,6 +1157,14 @@ quitStakePool ctx p (w, pass) = do
             } |]
     request @(ApiTransaction 'Testnet) ctx (quitStakePoolEp p w) Default payload
 
+delegationFee
+    :: forall t w. (HasType (ApiT WalletId) w)
+    => Context t
+    -> w
+    -> IO (HTTP.Status, Either RequestException ApiFee)
+delegationFee ctx w = do
+    request @ApiFee ctx (delegationFeeEp w) Default Empty
+
 listAddresses
     :: Context t
     -> ApiWallet
@@ -1351,6 +1362,16 @@ joinStakePoolEp
     -> w
     -> (Method, Text)
 joinStakePoolEp = stakePoolEp "PUT"
+
+delegationFeeEp
+    :: forall w. (HasType (ApiT WalletId) w)
+    => w
+    -> (Method, Text)
+delegationFeeEp w =
+    ( "GET"
+    , "v2/wallets/" <> w ^. walletId <> "/delegations/fees"
+    )
+
 
 quitStakePoolEp
     :: forall w. (HasType (ApiT WalletId) w)

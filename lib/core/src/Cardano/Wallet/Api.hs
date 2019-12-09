@@ -139,6 +139,7 @@ type StakePoolApi t =
     ListStakePools
     :<|> JoinStakePool t
     :<|> QuitStakePool t
+    :<|> DelegationFee
 
 type CompatibilityApi n =
     DeleteByronWallet
@@ -281,6 +282,14 @@ type JoinStakePool t = "stake-pools"
     :> Capture "walletId" (ApiT WalletId)
     :> ReqBody '[JSON] ApiWalletPassphrase
     :> PutAcccepted '[JSON] (ApiTransaction t)
+
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getDelegationFee
+type DelegationFee = "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "delegations"
+    :> "fees"
+    :> Get '[JSON] ApiFee
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/quitStakePool
 type QuitStakePool t = "stake-pools"
