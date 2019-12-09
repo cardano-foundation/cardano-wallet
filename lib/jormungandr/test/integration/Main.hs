@@ -17,9 +17,9 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Trace
     ( Trace, logInfo )
 import Cardano.CLI
-    ( Port (..), withLogging )
+    ( withLogging )
 import Cardano.Faucet
-    ( initFaucet )
+    ( initFaucet, sockAddrPort )
 import Cardano.Launcher
     ( ProcessHasExited (..), withUtf8Encoding )
 import Cardano.Wallet.Api.Server
@@ -32,6 +32,8 @@ import Cardano.Wallet.Jormungandr.Launch
     ( withConfig )
 import Cardano.Wallet.Jormungandr.Network
     ( JormungandrBackend (..) )
+import Cardano.Wallet.Logging
+    ( transformTextTrace )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Fee
@@ -58,8 +60,6 @@ import Network.HTTP.Client
     , newManager
     , responseTimeoutMicro
     )
-import Network.Socket
-    ( SockAddr (..) )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -99,7 +99,8 @@ instance KnownCommand Jormungandr where
     commandName = "cardano-wallet-jormungandr"
 
 main :: forall t. (t ~ Jormungandr) => IO ()
-main = withUtf8Encoding $ withLogging Nothing Info $ \logging ->
+main = withUtf8Encoding $ withLogging Nothing Info $ \(conf,tr) -> do
+    let logging = (conf, transformTextTrace tr)
     hspec $ do
         describe "No backend required" $ do
             describe "Cardano.Wallet.NetworkSpec" $ parallel NetworkLayer.spec
@@ -133,14 +134,14 @@ specWithServer
     :: (CM.Configuration, Trace IO Text)
     -> SpecWith (Context Jormungandr)
     -> Spec
-specWithServer logCfg@(_, trace) = aroundAll withContext . after tearDown
+specWithServer (logCfg, tr) = aroundAll withContext . after tearDown
   where
     withContext :: (Context Jormungandr -> IO ()) -> IO ()
     withContext action = do
         ctx <- newEmptyMVar
         let setupContext wAddr nPort bp = do
                 let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
-                logInfo trace baseUrl
+                logInfo tr baseUrl
                 let sixtySeconds = 60*1000*1000 -- 60s in microseconds
                 manager <- (baseUrl,) <$> newManager (defaultManagerSettings
                     { managerResponseTimeout =
@@ -160,14 +161,10 @@ specWithServer logCfg@(_, trace) = aroundAll withContext . after tearDown
             either pure (throwIO . ProcessHasExited "integration")
 
     withServer setup = withConfig $ \jmCfg ->
-        serveWallet @'Testnet logCfg (SyncTolerance 10) Nothing "127.0.0.1"
+        serveWallet @'Testnet logging (SyncTolerance 10) Nothing "127.0.0.1"
             ListenOnRandomPort (Launch jmCfg) setup
 
-sockAddrPort :: SockAddr -> Port a
-sockAddrPort addr = Port . fromIntegral $ case addr of
-    SockAddrInet p _ -> p
-    SockAddrInet6 p _ _ _ -> p
-    _ -> 0
+    logging = (logCfg, transformTextTrace tr)
 
 mkFeeEstimator :: FeePolicy -> TxDescription -> (Natural, Natural)
 mkFeeEstimator policy (TxDescription nInps nOuts) =

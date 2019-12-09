@@ -71,6 +71,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."cardano-wallet-cli" or (buildDepError "cardano-wallet-cli"))
           (hsPkgs."cardano-wallet-launcher" or (buildDepError "cardano-wallet-launcher"))
           (hsPkgs."containers" or (buildDepError "containers"))
+          (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
           (hsPkgs."cryptonite" or (buildDepError "cryptonite"))
           (hsPkgs."deepseq" or (buildDepError "deepseq"))
           (hsPkgs."directory" or (buildDepError "directory"))
@@ -210,6 +211,39 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             ];
           build-tools = [
             (hsPkgs.buildPackages.nodejs or (pkgs.buildPackages.nodejs or (buildToolDepError "nodejs")))
+            (hsPkgs.buildPackages.cardano-wallet-jormungandr or (pkgs.buildPackages.cardano-wallet-jormungandr or (buildToolDepError "cardano-wallet-jormungandr")))
+            ];
+          buildable = true;
+          };
+        };
+      benchmarks = {
+        "latency" = {
+          depends = [
+            (hsPkgs."base" or (buildDepError "base"))
+            (hsPkgs."async" or (buildDepError "async"))
+            (hsPkgs."bech32" or (buildDepError "bech32"))
+            (hsPkgs."bytestring" or (buildDepError "bytestring"))
+            (hsPkgs."cardano-wallet-cli" or (buildDepError "cardano-wallet-cli"))
+            (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
+            (hsPkgs."cardano-wallet-core-integration" or (buildDepError "cardano-wallet-core-integration"))
+            (hsPkgs."cardano-wallet-jormungandr" or (buildDepError "cardano-wallet-jormungandr"))
+            (hsPkgs."cardano-wallet-launcher" or (buildDepError "cardano-wallet-launcher"))
+            (hsPkgs."cardano-wallet-test-utils" or (buildDepError "cardano-wallet-test-utils"))
+            (hsPkgs."command" or (buildDepError "command"))
+            (hsPkgs."directory" or (buildDepError "directory"))
+            (hsPkgs."filepath" or (buildDepError "filepath"))
+            (hsPkgs."fmt" or (buildDepError "fmt"))
+            (hsPkgs."generic-lens" or (buildDepError "generic-lens"))
+            (hsPkgs."http-client" or (buildDepError "http-client"))
+            (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
+            (hsPkgs."memory" or (buildDepError "memory"))
+            (hsPkgs."network" or (buildDepError "network"))
+            (hsPkgs."stm" or (buildDepError "stm"))
+            (hsPkgs."temporary" or (buildDepError "temporary"))
+            (hsPkgs."text" or (buildDepError "text"))
+            (hsPkgs."time" or (buildDepError "time"))
+            ];
+          build-tools = [
             (hsPkgs.buildPackages.cardano-wallet-jormungandr or (pkgs.buildPackages.cardano-wallet-jormungandr or (buildToolDepError "cardano-wallet-jormungandr")))
             ];
           buildable = true;

@@ -11,11 +11,14 @@ module Cardano.Faucet
 
     -- * Internal
     , genFaucets
+    , sockAddrPort
     ) where
 
 import Prelude hiding
     ( appendFile )
 
+import Cardano.CLI
+    ( Port (..) )
 import Cardano.Wallet.Api.Types
     ( encodeAddress )
 import Cardano.Wallet.Jormungandr.Binary
@@ -58,6 +61,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Text
     ( Text )
+import Network.Socket
+    ( SockAddr (..) )
 import System.Command
     ( CmdResult, Stdout (..), command )
 import System.FilePath
@@ -1112,3 +1117,9 @@ genFaucets file n = do
             [ paymentAddress @'Testnet (publicKey $ addrXPrv ix)
             | ix <- [minBound..maxBound]
             ]
+
+sockAddrPort :: SockAddr -> Port a
+sockAddrPort addr = Port . fromIntegral $ case addr of
+    SockAddrInet p _ -> p
+    SockAddrInet6 p _ _ _ -> p
+    _ -> 0

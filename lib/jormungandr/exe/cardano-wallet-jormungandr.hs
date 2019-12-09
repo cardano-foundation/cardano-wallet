@@ -68,6 +68,8 @@ import Cardano.Wallet.Jormungandr.Network
     , JormungandrConfig (..)
     , JormungandrConnParams (..)
     )
+import Cardano.Wallet.Logging
+    ( transformTextTrace )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Model
@@ -230,7 +232,7 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
             logInfo tr $
                 "Running as v" <> T.pack (showFullVersion version gitRevision)
             exitWith =<< serveWallet @'Testnet
-                (cfg, tr)
+                (cfg, transformTextTrace tr)
                 sTolerance
                 (Just databaseDir)
                 hostPreference
@@ -280,7 +282,7 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
             logInfo tr $
                 "Running as v" <> T.pack (showFullVersion version gitRevision)
             exitWith =<< serveWallet @'Testnet
-                (cfg, tr)
+                (cfg, transformTextTrace tr)
                 sTolerance
                 databaseDir
                 hostPreference

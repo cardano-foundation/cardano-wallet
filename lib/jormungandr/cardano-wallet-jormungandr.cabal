@@ -42,6 +42,7 @@ library
     , cardano-wallet-cli
     , cardano-wallet-launcher
     , containers
+    , contra-tracer
     , cryptonite
     , deepseq
     , directory
@@ -252,3 +253,53 @@ test-suite integration
       Test.Integration.Jormungandr.Scenario.CLI.StakePools
       Test.Integration.Jormungandr.Scenario.CLI.Transactions
       Test.Integration.Jormungandr.Scenario.CLI.Mnemonics
+
+benchmark latency
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -threaded -rtsopts
+      -Wall
+      -O2
+  if (!flag(development))
+    ghc-options:
+      -Werror
+  build-depends:
+      base
+    , async
+    , bech32
+    , bytestring
+    , cardano-wallet-cli
+    , cardano-wallet-core
+    , cardano-wallet-core-integration
+    , cardano-wallet-jormungandr
+    , cardano-wallet-launcher
+    , cardano-wallet-test-utils
+    , command
+    , directory
+    , filepath
+    , fmt
+    , generic-lens
+    , http-client
+    , iohk-monitoring
+    , memory
+    , network
+    , stm
+    , temporary
+    , text
+    , time
+  build-tools:
+      cardano-wallet-jormungandr
+  type:
+     exitcode-stdio-1.0
+  hs-source-dirs:
+      test/bench
+      test/integration
+  main-is:
+      Latency.hs
+  other-modules:
+      Cardano.Faucet
+      Cardano.Wallet.Jormungandr.Launch
