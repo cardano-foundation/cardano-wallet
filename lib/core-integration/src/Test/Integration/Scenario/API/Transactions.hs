@@ -145,7 +145,7 @@ spec = do
         \ Transaction to self shows only fees as a tx amount\
         \ while both, pending and in_ledger" $ \ctx -> do
         wSrc <- fixtureWallet ctx
-        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
+        let (feeMin, feeMax) = ctx ^. feeEstimator $ PaymentDescription
                 { nInputs = 1
                 , nOutputs = 1
                 }
@@ -205,7 +205,7 @@ spec = do
 
     it "TRANS_CREATE_01 - Single Output Transaction" $ \ctx -> do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
-        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
+        let (feeMin, feeMax) = ctx ^. feeEstimator $ PaymentDescription
                 { nInputs = 1
                 , nOutputs = 1
                 }
@@ -264,7 +264,7 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
+        let (feeMin, feeMax) = ctx ^. feeEstimator $ PaymentDescription
                 { nInputs = 2
                 , nOutputs = 2
                 }
@@ -319,7 +319,7 @@ spec = do
                 ],
                 "passphrase": "cardano-wallet"
             }|]
-        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
+        let (feeMin, feeMax) = ctx ^. feeEstimator $ PaymentDescription
                 { nInputs = 2
                 , nOutputs = 2
                 }
@@ -381,7 +381,7 @@ spec = do
             ]
 
     it "TRANS_CREATE_03 - 0 balance after transaction" $ \ctx -> do
-        let (feeMin, _) = ctx ^. feeEstimator $ TxDescription 1 1
+        let (feeMin, _) = ctx ^. feeEstimator $ PaymentDescription 1 1
         let amt = 1
         wSrc <- fixtureWalletWith ctx [feeMin+amt]
         wDest <- emptyWallet ctx
@@ -433,7 +433,7 @@ spec = do
             ]
 
     it "TRANS_CREATE_04 - Can't cover fee" $ \ctx -> do
-        let (feeMin, _) = ctx ^. feeEstimator $ TxDescription 1 1
+        let (feeMin, _) = ctx ^. feeEstimator $ PaymentDescription 1 1
         wSrc <- fixtureWalletWith ctx [feeMin `div` 2]
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses ctx wDest
@@ -456,7 +456,7 @@ spec = do
             ]
 
     it "TRANS_CREATE_04 - Not enough money" $ \ctx -> do
-        let (feeMin, _) = ctx ^. feeEstimator $ TxDescription 1 1
+        let (feeMin, _) = ctx ^. feeEstimator $ PaymentDescription 1 1
         wSrc <- fixtureWalletWith ctx [feeMin]
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses ctx wDest
@@ -805,7 +805,7 @@ spec = do
                     }
                 }]
             }|]
-        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
+        let (feeMin, feeMax) = ctx ^. feeEstimator $ PaymentDescription
                 { nInputs = 1
                 , nOutputs = 1
                 }
@@ -841,7 +841,7 @@ spec = do
                     }
                 }]
             }|]
-        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
+        let (feeMin, feeMax) = ctx ^. feeEstimator $ PaymentDescription
                 { nInputs = 2
                 , nOutputs = 2
                 }
@@ -880,7 +880,7 @@ spec = do
                     }
                 ]
             }|]
-        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
+        let (feeMin, feeMax) = ctx ^. feeEstimator $ PaymentDescription
                 { nInputs = 2
                 , nOutputs = 2
                 }
@@ -924,7 +924,7 @@ spec = do
             ]
 
     it "TRANS_ESTIMATE_03 - we see result when we can't cover fee" $ \ctx -> do
-        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription 1 1
+        let (feeMin, feeMax) = ctx ^. feeEstimator $ PaymentDescription 1 1
         wSrc <- fixtureWalletWith ctx [feeMin `div` 2]
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses ctx wDest
@@ -947,7 +947,7 @@ spec = do
             ]
 
     it "TRANS_ESTIMATE_04 - Not enough money" $ \ctx -> do
-        let (feeMin, _) = ctx ^. feeEstimator $ TxDescription 1 1
+        let (feeMin, _) = ctx ^. feeEstimator $ PaymentDescription 1 1
         wSrc <- fixtureWalletWith ctx [feeMin]
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses ctx wDest

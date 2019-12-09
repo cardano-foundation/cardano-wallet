@@ -96,10 +96,17 @@ data Context t = Context
     } deriving Generic
 
 -- | Describe a transaction in terms of its inputs and outputs
-data TxDescription = TxDescription
-    { nInputs :: Int
-    , nOutputs :: Int
-    } deriving (Show)
+data TxDescription
+    = DelegDescription
+        { nInputs :: Int
+        , nOutputs :: Int
+        , nCertificates :: Int
+        }
+    | PaymentDescription
+        { nInputs :: Int
+        , nOutputs :: Int
+        }
+    deriving (Show)
 
 -- | The result when 'request' fails.
 data RequestException

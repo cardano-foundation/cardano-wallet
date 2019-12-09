@@ -116,7 +116,7 @@ spec = do
     it "TRANS_CREATE_01 - Can create transaction via CLI" $ \ctx -> do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
-        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
+        let (feeMin, feeMax) = ctx ^. feeEstimator $ PaymentDescription
                 { nInputs = 1
                 , nOutputs = 1
                 }
@@ -156,7 +156,7 @@ spec = do
         let addr1 = encodeAddress @n (getApiT $ fst $ addr !! 1 ^. #id)
         let addr2 = encodeAddress @n (getApiT $ fst $ addr !! 2 ^. #id)
         let amt = 14
-        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
+        let (feeMin, feeMax) = ctx ^. feeEstimator $ PaymentDescription
                 { nInputs = 2
                 , nOutputs = 2
                 }
@@ -207,7 +207,7 @@ spec = do
         let addr1' = encodeAddress @n (getApiT $ fst $ addr1 ^. #id)
         let addr2' = encodeAddress @n (getApiT $ fst $ addr2 ^. #id)
         let amt = 14
-        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
+        let (feeMin, feeMax) = ctx ^. feeEstimator $ PaymentDescription
                 { nInputs = 2
                 , nOutputs = 2
                 }
@@ -269,7 +269,7 @@ spec = do
         c `shouldBe` ExitFailure 1
 
     it "TRANS_CREATE_03 - 0 balance after transaction" $ \ctx -> do
-        let (feeMin, _) = ctx ^. feeEstimator $ TxDescription 1 1
+        let (feeMin, _) = ctx ^. feeEstimator $ PaymentDescription 1 1
         let amt = 1
         wSrc <- fixtureWalletWith ctx [feeMin+amt]
         wDest <- emptyWallet ctx
@@ -329,7 +329,7 @@ spec = do
         c `shouldBe` ExitFailure 1
 
     it "TRANS_CREATE_04 - Can't cover fee" $ \ctx -> do
-        let (feeMin, _) = ctx ^. feeEstimator $ TxDescription 1 1
+        let (feeMin, _) = ctx ^. feeEstimator $ PaymentDescription 1 1
         wSrc <- fixtureWalletWith ctx [feeMin `div` 2]
         wDest <- emptyWallet ctx
         addrs:_ <- listAddresses ctx wDest
@@ -345,7 +345,7 @@ spec = do
         c `shouldBe` ExitFailure 1
 
     it "TRANS_CREATE_04 - Not enough money" $ \ctx -> do
-        let (feeMin, _) = ctx ^. feeEstimator $ TxDescription 1 1
+        let (feeMin, _) = ctx ^. feeEstimator $ PaymentDescription 1 1
         wSrc <- fixtureWalletWith ctx [feeMin]
         wDest <- emptyWallet ctx
         addrs:_ <- listAddresses ctx wDest
@@ -469,7 +469,7 @@ spec = do
         addr:_ <- listAddresses ctx wDest
         let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
         let amt = 14
-        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
+        let (feeMin, feeMax) = ctx ^. feeEstimator $ PaymentDescription
                 { nInputs = 1
                 , nOutputs = 1
                 }
@@ -492,7 +492,7 @@ spec = do
         let addr1 = encodeAddress @n (getApiT $ fst $ addr !! 1 ^. #id)
         let addr2 = encodeAddress @n (getApiT $ fst $ addr !! 2 ^. #id)
         let amt = 14
-        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
+        let (feeMin, feeMax) = ctx ^. feeEstimator $ PaymentDescription
                 { nInputs = 2
                 , nOutputs = 2
                 }
@@ -519,7 +519,7 @@ spec = do
         let addr1' = encodeAddress @n (getApiT $ fst $ addr1 ^. #id)
         let addr2' = encodeAddress @n (getApiT $ fst $ addr2 ^. #id)
         let amt = 14
-        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
+        let (feeMin, feeMax) = ctx ^. feeEstimator $ PaymentDescription
                 { nInputs = 2
                 , nOutputs = 2
                 }
@@ -575,7 +575,7 @@ spec = do
         c `shouldBe` ExitFailure 1
 
     it "TRANS_ESTIMATE_06 - we give fee estimation when we can't cover fee" $ \ctx -> do
-        let (feeMin, _) = ctx ^. feeEstimator $ TxDescription 1 1
+        let (feeMin, _) = ctx ^. feeEstimator $ PaymentDescription 1 1
         wSrc <- fixtureWalletWith ctx [feeMin `div` 2]
         wDest <- emptyWallet ctx
         addrs:_ <- listAddresses ctx wDest
@@ -590,7 +590,7 @@ spec = do
         c `shouldBe` ExitSuccess
 
     it "TRANS_ESTIMATE_07 - Not enough money" $ \ctx -> do
-        let (feeMin, _) = ctx ^. feeEstimator $ TxDescription 1 1
+        let (feeMin, _) = ctx ^. feeEstimator $ PaymentDescription 1 1
         wSrc <- fixtureWalletWith ctx [feeMin]
         wDest <- emptyWallet ctx
         addrs:_ <- listAddresses ctx wDest
