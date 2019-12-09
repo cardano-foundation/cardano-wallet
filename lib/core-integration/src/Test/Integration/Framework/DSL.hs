@@ -86,7 +86,7 @@ module Test.Integration.Framework.DSL
     , getFromResponseList
     , json
     , joinStakePool
-    , joinStakePoolFee
+    , delegationFee
     , quitStakePool
     , listAddresses
     , listTransactions
@@ -124,7 +124,7 @@ module Test.Integration.Framework.DSL
     , getAddressesEp
     , listStakePoolsEp
     , joinStakePoolEp
-    , joinStakePoolFeeEp
+    , delegationFeeEp
     , quitStakePoolEp
     , stakePoolEp
     , postTxEp
@@ -1157,14 +1157,13 @@ quitStakePool ctx p (w, pass) = do
             } |]
     request @(ApiTransaction 'Testnet) ctx (quitStakePoolEp p w) Default payload
 
-joinStakePoolFee
+delegationFee
     :: forall t w. (HasType (ApiT WalletId) w)
     => Context t
-    -> ApiT PoolId
     -> w
     -> IO (HTTP.Status, Either RequestException ApiFee)
-joinStakePoolFee ctx p w = do
-    request @ApiFee ctx (joinStakePoolFeeEp p w) Default Empty
+delegationFee ctx w = do
+    request @ApiFee ctx (delegationFeeEp w) Default Empty
 
 listAddresses
     :: Context t
@@ -1364,14 +1363,15 @@ joinStakePoolEp
     -> (Method, Text)
 joinStakePoolEp = stakePoolEp "PUT"
 
-joinStakePoolFeeEp
+delegationFeeEp
     :: forall w. (HasType (ApiT WalletId) w)
-    => ApiT PoolId
-    -> w
+    => w
     -> (Method, Text)
-joinStakePoolFeeEp pid w = (verb, path <> "/fee")
-    where
-       (verb, path) = stakePoolEp "GET" pid w
+delegationFeeEp w =
+    ( "GET"
+    , "v2/wallets/" <> w ^. walletId <> "/delegations/fees"
+    )
+
 
 quitStakePoolEp
     :: forall w. (HasType (ApiT WalletId) w)

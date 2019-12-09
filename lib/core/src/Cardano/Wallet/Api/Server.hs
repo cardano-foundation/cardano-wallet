@@ -787,8 +787,8 @@ stakePools
 stakePools ctx spl =
     listPools spl
     :<|> joinStakePool ctx spl
-    :<|> joinStakePoolFee ctx spl
     :<|> quitStakePool ctx
+    :<|> delegationFee ctx
 
 listPools
     :: StakePoolLayer IO
@@ -838,7 +838,7 @@ joinStakePool ctx spl (ApiT pid) (ApiT wid) (ApiWalletPassphrase (ApiT pwd)) = d
   where
     liftE = throwE . ErrJoinStakePoolNoSuchWallet
 
-joinStakePoolFee
+delegationFee
     :: forall ctx s t n k.
         ( DelegationAddress n k
         , Buildable (ErrValidateSelection t)
@@ -848,11 +848,9 @@ joinStakePoolFee
         , ctx ~ ApiLayer s t k
         )
     => ctx
-    -> StakePoolLayer IO
-    -> ApiT PoolId
     -> ApiT WalletId
     -> Handler ApiFee
-joinStakePoolFee ctx _spl (ApiT _pid) (ApiT wid) = do
+delegationFee ctx (ApiT wid) = do
     liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
          apiFee <$> W.selectCoinsForDelegation @_ @s @t @k wrk wid
   where

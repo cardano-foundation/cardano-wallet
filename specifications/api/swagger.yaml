@@ -1035,6 +1035,7 @@ x-responsesPostExternalTransaction: &responsesPostExternalTransaction
 
 x-responsesPostTransactionFee: &responsesPostTransactionFee
   <<: *responsesErr400
+  <<: *responsesErr403
   <<: *responsesErr404
   <<: *responsesErr405
   <<: *responsesErr406
@@ -1044,7 +1045,8 @@ x-responsesPostTransactionFee: &responsesPostTransactionFee
     schema:
       <<: *ApiFee
 
-x-responsesGetJoinStakePoolFee: &responsesGetJoinStakePoolFee
+x-responsesGetDelegationFee: &responsesGetDelegationFee
+  <<: *responsesErr403
   <<: *responsesErr404
   <<: *responsesErr405
   <<: *responsesErr406
@@ -1252,7 +1254,7 @@ paths:
     post:
       operationId: postTransactionFee
       tags: ["Transactions"]
-      summary: Estimate
+      summary: Estimate Fee
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
@@ -1345,19 +1347,21 @@ paths:
           schema: *parametersQuitStakePool
       responses: *responsesQuitStakePool
 
-  /stake-pools/{stakePoolId}/wallets/{walletId}/fee:
+  /wallets/{walletId}/delegations/fees:
     get:
-      operationId: joinStakePoolFee
+      operationId: getDelegationFee
       tags: ["Stake Pools"]
-      summary: Estimate
+      summary: Estimate Fee
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
-        Estimate fee for joining a stake pool.
+        Estimate fee for joining or leaving a stake pool. Note that it is an
+        estimation because a delegation induces a transaction for which coins
+        have to be selected randomly within the wallet. Because of this randomness,
+        fees can only be estimated.
       parameters:
-        - *parametersStakePoolId
         - *parametersWalletId
-      responses: *responsesGetJoinStakePoolFee
+      responses: *responsesGetDelegationFee
 
   /byron-wallets:
     get:
