@@ -46,18 +46,16 @@ import Control.Concurrent.MVar
     ( newEmptyMVar, putMVar, takeMVar )
 import Control.Exception
     ( throwIO )
-import Control.Tracer
-    ( contramap )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Text
+    ( Text )
 import Network.HTTP.Client
     ( defaultManagerSettings
     , managerResponseTimeout
     , newManager
     , responseTimeoutMicro
     )
-import Network.Wai.Middleware.Logging
-    ( ServerLog (..) )
 import Test.Hspec
     ( Spec, SpecWith, after, describe, hspec, parallel )
 import Test.Hspec.Extra
@@ -127,18 +125,17 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(conf,tr) -> do
             NetworkCLI.spec @t
 
 specWithServer
-    :: (CM.Configuration, Trace IO ServerLog)
+    :: (CM.Configuration, Trace IO Text)
     -> SpecWith (Context Jormungandr)
     -> Spec
-specWithServer logCfg@(_, trace) = aroundAll withContext . after tearDown
+specWithServer (logCfg, tr) = aroundAll withContext . after tearDown
   where
     withContext :: (Context Jormungandr -> IO ()) -> IO ()
     withContext action = do
         ctx <- newEmptyMVar
         let setupContext wAddr nPort bp = do
                 let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
-                let trText = contramap (fmap LogText) trace
-                logInfo trText baseUrl
+                logInfo tr baseUrl
                 let sixtySeconds = 60*1000*1000 -- 60s in microseconds
                 manager <- (baseUrl,) <$> newManager (defaultManagerSettings
                     { managerResponseTimeout =
@@ -158,5 +155,7 @@ specWithServer logCfg@(_, trace) = aroundAll withContext . after tearDown
             either pure (throwIO . ProcessHasExited "integration")
 
     withServer setup = withConfig $ \jmCfg ->
-        serveWallet @'Testnet logCfg (SyncTolerance 10) Nothing "127.0.0.1"
+        serveWallet @'Testnet logging (SyncTolerance 10) Nothing "127.0.0.1"
             ListenOnRandomPort (Launch jmCfg) setup
+
+    logging = (logCfg, transformTextTrace tr)
