@@ -172,11 +172,11 @@ specWithServer (logCfg, tr) = aroundAll withContext . after tearDown
 -- bridge (and probably cardano-node on Shelley), it's not possible to
 -- compute the fee precisely by only knowing the number of inputs and
 -- ouputs since the exact fee cost depends on the values of the
-        -- outputs and the values of the input indexes.
+-- outputs and the values of the input indexes.
 mkFeeEstimator :: FeePolicy -> TxDescription -> (Natural, Natural)
 mkFeeEstimator policy = \case
-    PaymentDescription nInps nOuts ->
-        let fee = linear (nInps + nOuts + nChanges nOuts) 0
+    PaymentDescription nInps nOuts nChgs ->
+        let fee = linear (nInps + nOuts + nChgs) 0
         in (fee, fee)
     DelegDescription nInps nOuts nCerts ->
         let fee = linear (nInps + nOuts) nCerts
@@ -191,4 +191,3 @@ mkFeeEstimator policy = \case
     -- can be represented without any rounding issue using 'Double' (or,
     -- transactions have suddenly become overly expensive o_O)
     linear nb nc = fromIntegral $ round a + nb * round b + nc * round c
-    nChanges = id

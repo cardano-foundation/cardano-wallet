@@ -105,6 +105,7 @@ data TxDescription
     | PaymentDescription
         { nInputs :: Int
         , nOutputs :: Int
+        , nChanges :: Int
         }
     deriving (Show)
 

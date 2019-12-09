@@ -119,6 +119,7 @@ spec = do
         let (feeMin, feeMax) = ctx ^. feeEstimator $ PaymentDescription
                 { nInputs = 1
                 , nOutputs = 1
+                , nChanges = 1
                 }
         let amt = 14
         txJson <- postTxViaCLI ctx wSrc wDest amt
@@ -159,6 +160,7 @@ spec = do
         let (feeMin, feeMax) = ctx ^. feeEstimator $ PaymentDescription
                 { nInputs = 2
                 , nOutputs = 2
+                , nChanges = 2
                 }
         let args = T.unpack <$>
                 [ wSrc ^. walletId
@@ -210,6 +212,7 @@ spec = do
         let (feeMin, feeMax) = ctx ^. feeEstimator $ PaymentDescription
                 { nInputs = 2
                 , nOutputs = 2
+                , nChanges = 2
                 }
         let args = T.unpack <$>
                 [ wSrc ^. walletId
@@ -269,7 +272,7 @@ spec = do
         c `shouldBe` ExitFailure 1
 
     it "TRANS_CREATE_03 - 0 balance after transaction" $ \ctx -> do
-        let (feeMin, _) = ctx ^. feeEstimator $ PaymentDescription 1 1
+        let (feeMin, _) = ctx ^. feeEstimator $ PaymentDescription 1 1 1
         let amt = 1
         wSrc <- fixtureWalletWith ctx [feeMin+amt]
         wDest <- emptyWallet ctx
@@ -329,7 +332,7 @@ spec = do
         c `shouldBe` ExitFailure 1
 
     it "TRANS_CREATE_04 - Can't cover fee" $ \ctx -> do
-        let (feeMin, _) = ctx ^. feeEstimator $ PaymentDescription 1 1
+        let (feeMin, _) = ctx ^. feeEstimator $ PaymentDescription 1 1 1
         wSrc <- fixtureWalletWith ctx [feeMin `div` 2]
         wDest <- emptyWallet ctx
         addrs:_ <- listAddresses ctx wDest
@@ -345,7 +348,7 @@ spec = do
         c `shouldBe` ExitFailure 1
 
     it "TRANS_CREATE_04 - Not enough money" $ \ctx -> do
-        let (feeMin, _) = ctx ^. feeEstimator $ PaymentDescription 1 1
+        let (feeMin, _) = ctx ^. feeEstimator $ PaymentDescription 1 1 1
         wSrc <- fixtureWalletWith ctx [feeMin]
         wDest <- emptyWallet ctx
         addrs:_ <- listAddresses ctx wDest
@@ -472,6 +475,7 @@ spec = do
         let (feeMin, feeMax) = ctx ^. feeEstimator $ PaymentDescription
                 { nInputs = 1
                 , nOutputs = 1
+                , nChanges = 1
                 }
         let args = T.unpack <$>
                 [ wSrc ^. walletId
@@ -495,6 +499,7 @@ spec = do
         let (feeMin, feeMax) = ctx ^. feeEstimator $ PaymentDescription
                 { nInputs = 2
                 , nOutputs = 2
+                , nChanges = 2
                 }
         let args = T.unpack <$>
                 [ wSrc ^. walletId
@@ -522,6 +527,7 @@ spec = do
         let (feeMin, feeMax) = ctx ^. feeEstimator $ PaymentDescription
                 { nInputs = 2
                 , nOutputs = 2
+                , nChanges = 2
                 }
         let args = T.unpack <$>
                 [ wSrc ^. walletId
@@ -575,7 +581,7 @@ spec = do
         c `shouldBe` ExitFailure 1
 
     it "TRANS_ESTIMATE_06 - we give fee estimation when we can't cover fee" $ \ctx -> do
-        let (feeMin, _) = ctx ^. feeEstimator $ PaymentDescription 1 1
+        let (feeMin, _) = ctx ^. feeEstimator $ PaymentDescription 1 1 1
         wSrc <- fixtureWalletWith ctx [feeMin `div` 2]
         wDest <- emptyWallet ctx
         addrs:_ <- listAddresses ctx wDest
@@ -590,7 +596,7 @@ spec = do
         c `shouldBe` ExitSuccess
 
     it "TRANS_ESTIMATE_07 - Not enough money" $ \ctx -> do
-        let (feeMin, _) = ctx ^. feeEstimator $ PaymentDescription 1 1
+        let (feeMin, _) = ctx ^. feeEstimator $ PaymentDescription 1 1 1
         wSrc <- fixtureWalletWith ctx [feeMin]
         wDest <- emptyWallet ctx
         addrs:_ <- listAddresses ctx wDest
