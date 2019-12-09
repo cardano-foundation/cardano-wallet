@@ -45,7 +45,6 @@ module Test.Integration.Framework.TestData
     , updatePassPayload
     , getHeaderCases
     , postHeaderCases
-    , stakeDelegationFee
 
     -- * Error messages
     , errMsgWalletIdEncoding
@@ -95,9 +94,6 @@ import Test.Integration.Framework.DSL
     )
 
 import qualified Network.HTTP.Types.Status as HTTP
-
-stakeDelegationFee :: Natural
-stakeDelegationFee = 43
 
 -- useful for testing POST/PUT endpoints (ones with payload)
 postHeaderCases
