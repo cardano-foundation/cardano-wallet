@@ -161,7 +161,7 @@ spec = do
             }) (Right $ FeeOutput
             { csInps = [20,20,20]
             , csOuts = [14,18,19]
-            , csChngs = [4]
+            , csChngs = [6]
             })
 
         -- Cannot cover fee, no extra inputs
@@ -320,7 +320,7 @@ spec = do
             }) (Right $ FeeOutput
             { csInps = [2,2]
             , csOuts = []
-            , csChngs = []
+            , csChngs = [1]
             })
 
     describe "Fee Calculation: Generators" $ do
