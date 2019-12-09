@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -15,6 +16,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , FromMnemonic (..)
     , NetworkDiscriminant (..)
+    , Passphrase
     , WalletKey (..)
     , XPrv
     , XPub (..)
@@ -22,8 +24,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( KnownNetwork (..), ShelleyKey (..), generateKeyFromSeed )
+import Control.Monad
+    ( forM_ )
 import Data.Text
     ( Text )
+import GHC.TypeLits
+    ( Nat )
 import System.Command
     ( Stdout (..) )
 import System.Exit
@@ -33,7 +39,7 @@ import System.IO
 import System.Process
     ( waitForProcess, withCreateProcess )
 import Test.Hspec
-    ( SpecWith, it )
+    ( SpecWith, describe, it )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain )
 import Test.Integration.Framework.DSL
@@ -54,42 +60,48 @@ import qualified Data.Text.IO as TIO
 
 spec :: forall t. KnownCommand t => SpecWith ()
 spec = do
-    it "CLI_MNEMONICS_REWARD_CREDENTIALS - \
+    describe "CLI_MNEMONICS_REWARD_CREDENTIALS - \
         \address obtained with credentials matches JCLI" $ do
-        Stdout m <- generateMnemonicsViaCLI @t []
-        let mnemonics = T.words (T.pack m)
-        addr  <- mnemonicsToAccountAddress mnemonics
-        (c, out, err)  <- getRewardCredentialsViaCli @t (T.pack m) mempty
-        c `shouldBe` ExitSuccess
-        T.unpack err `shouldContain` "mnemonic"
-        xprv <- getXprv out
-        xpub  <- jcliKeyToPublic xprv
-        addr' <- jcliAddressAccount xpub
-        addr `shouldBe` addr'
+        let seedSizes = Nothing : (Just <$> [15,18,21,24 :: Int])
+        let sndSizes = Nothing : (Just <$> [9,12 :: Int])
+        let sizes = [ (s1, s2) | s1 <- seedSizes, s2 <- sndSizes ]
 
-    it "CLI_MNEMONICS_REWARD_CREDENTIALS - \
-        \can use two mnemonic sentences" $ do
-        Stdout m1 <- generateMnemonicsViaCLI @t []
-        Stdout m2 <- generateMnemonicsViaCLI @t ["--size", "12"]
-        (c, out, err)  <- getRewardCredentialsViaCli @t (T.pack m1) (T.pack m2)
-        c `shouldBe` ExitSuccess
-        T.unpack err `shouldContain` "mnemonic"
-        T.unpack out `shouldContain` "ed25519e_sk"
+        let title seedSize sndSize = mconcat
+                [ "--size=", maybe "default" show seedSize, " (seed), "
+                , "--size=", maybe "default" show sndSize, " (snd factor)"
+                ]
 
-    it "CLI_MNEMONICS_REWARD_CREDENTIALS - \
-        \cannot use 1st mnemonic > 15" $ do
-        Stdout m1 <- generateMnemonicsViaCLI @t ["--size", "18"]
-        (c, out, err)  <- getRewardCredentialsViaCli @t (T.pack m1) mempty
-        c `shouldBe` ExitFailure 1
-        T.unpack err `shouldContain` "Invalid number of words: 15 words are expected."
-        T.unpack out `shouldContain` mempty
+        forM_ sizes $ \(seedSize, sndSize) -> do
+            it (title seedSize sndSize) $ do
+                mseed <- do
+                    let args = maybe [] ((["--size"]<>) . pure . show) seedSize
+                    Stdout mSeed <- generateMnemonicsViaCLI @t args
+                    pure (T.pack mSeed)
+
+                msnd <- do
+                    case sndSize of
+                        Nothing -> pure "\n"
+                        Just size -> do
+                            let args = ["--size", show size]
+                            Stdout msnd <- generateMnemonicsViaCLI @t args
+                            pure (T.pack msnd)
+
+                addr  <- mnemonicsToAccountAddress mseed msnd
+                (c, out, err)  <- getRewardCredentialsViaCli @t mseed msnd
+                c `shouldBe` ExitSuccess
+                T.unpack err `shouldContain` "mnemonic"
+                xprv <- getXPrv out
+                xpub  <- jcliKeyToPublic xprv
+                addr' <- jcliAddressAccount xpub
+                addr `shouldBe` addr'
 
     it "CLI_MNEMONICS_REWARD_CREDENTIALS - \
         \cannot use 1st mnemonic < 15" $ do
         Stdout m1 <- generateMnemonicsViaCLI @t ["--size", "12"]
         (c, out, err)  <- getRewardCredentialsViaCli @t (T.pack m1) mempty
         c `shouldBe` ExitFailure 1
-        T.unpack err `shouldContain` "Invalid number of words: 15 words are expected."
+        T.unpack err `shouldContain`
+            "Invalid number of words: 15, 18, 21 or 24 words are expected."
         T.unpack out `shouldContain` mempty
 
     it "CLI_MNEMONICS_REWARD_CREDENTIALS - \
@@ -97,8 +109,9 @@ spec = do
         Stdout m1 <- generateMnemonicsViaCLI @t []
         (c, out, err)  <- getRewardCredentialsViaCli @t (T.pack m1) (T.unwords mnemonics6)
         c `shouldBe` ExitFailure 1
-        T.unpack err `shouldContain` "Invalid number of words: 9 or 12 words are expected."
         T.unpack out `shouldContain` mempty
+        T.unpack err `shouldContain`
+            "Invalid number of words: 9 or 12 words are expected."
 
     it "CLI_MNEMONICS_REWARD_CREDENTIALS - \
         \cannot use 2nd mnemonic > 12" $ do
@@ -106,37 +119,42 @@ spec = do
         Stdout m2 <- generateMnemonicsViaCLI @t ["--size", "18"]
         (c, out, err)  <- getRewardCredentialsViaCli @t (T.pack m1) (T.pack m2)
         c `shouldBe` ExitFailure 1
-        T.unpack err `shouldContain` "Invalid number of words: 9 or 12 words are expected."
         T.unpack out `shouldContain` mempty
+        T.unpack err `shouldContain`
+            "Invalid number of words: 9 or 12 words are expected."
 
     it "CLI_MNEMONICS_REWARD_CREDENTIALS - \
         \non-english mnemonics show appropriate error" $ do
         (c, out, err)  <- getRewardCredentialsViaCli @t (T.unwords japaneseMnemonics15) mempty
         c `shouldBe` ExitFailure 1
-        T.unpack err `shouldContain` "Found invalid (non-English) word"
         T.unpack out `shouldContain` mempty
+        T.unpack err `shouldContain` "Found invalid (non-English) word"
 
     it "CLI_MNEMONICS_REWARD_CREDENTIALS - \
         \invalid mnemonics show appropriate error" $ do
         (c, out, err)  <- getRewardCredentialsViaCli @t (T.unwords invalidMnemonics15) mempty
         c `shouldBe` ExitFailure 1
-        T.unpack err `shouldContain` "Invalid entropy checksum: please \
-            \double-check the last word of your mnemonic sentence."
         T.unpack out `shouldContain` mempty
+        T.unpack err `shouldContain`
+            "Invalid entropy checksum: please double-check \
+            \the last word of your mnemonic sentence."
 
     it "CLI_MNEMONICS_REWARD_CREDENTIALS - \
         \adding just text shows appropriate error" $ do
         (c, out, err)  <- getRewardCredentialsViaCli @t (russianWalletName) mempty
         c `shouldBe` ExitFailure 1
-        T.unpack err `shouldContain` "Invalid number of words: 15 words are expected."
         T.unpack out `shouldContain` mempty
+        T.unpack err `shouldContain`
+            "Invalid number of words: 15, 18, 21 or 24 words are expected."
 
     it "CLI_MNEMONICS_REWARD_CREDENTIALS - \
         \adding just wildcards shows appropriate error" $ do
         (c, out, err)  <- getRewardCredentialsViaCli @t (wildcardsWalletName) mempty
         c `shouldBe` ExitFailure 1
-        T.unpack err `shouldContain` "Invalid number of words: 15 words are expected."
         T.unpack out `shouldContain` mempty
+        T.unpack err `shouldContain`
+            "Invalid number of words: 15, 18, 21 or 24 words are expected."
+
 {-------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------}
@@ -147,14 +165,23 @@ hGetTrimmedContents =
     fmap (T.filter (`notElem` ['\n', ' '])) . TIO.hGetContents
 
 mnemonicsToAccountAddress
-    :: [Text]
-        -- ^ A list of mnemonics
+    :: Text
+        -- ^ A mnemonic sentence for the seed
+    -> Text
+        -- ^ A mnemonic sentence as a second factor
     -> IO Text
         -- ^ An encoded address
-mnemonicsToAccountAddress mnemonics = do
-    seed <- either (fail . show) pure $ fromMnemonic @'[15] mnemonics
-    pure $ mkAccountAddress $ generateKeyFromSeed (seed, mempty) mempty
+mnemonicsToAccountAddress m1 m2 = do
+    seed <- unsafeFromMnemonic  @'[15,18,21,24] m1
+    sndFactor <- if m2 == "\n" then mempty else (unsafeFromMnemonic @'[9,12]) m2
+    pure $ mkAccountAddress $ generateKeyFromSeed (seed, sndFactor) mempty
   where
+    unsafeFromMnemonic
+        :: forall (mz :: [Nat]) any. (FromMnemonic mz any)
+        => Text
+        -> IO (Passphrase any)
+    unsafeFromMnemonic = either (fail . show) pure . fromMnemonic @mz . T.words
+
     -- Derive an account address corresponding to a reward account, from a root key
     mkAccountAddress
         :: ShelleyKey 'RootK XPrv
@@ -173,17 +200,17 @@ mnemonicsToAccountAddress mnemonics = do
 getRewardCredentialsViaCli
     :: forall t. KnownCommand t
     => Text
-        -- ^ A list of mnemonics 1
+        -- ^ A mnemonic sentence for the seed
     -> Text
-        -- ^ A list of mnemonics 2
+        -- ^ A mnemonic sentence as a second factor
     -> IO (ExitCode, Text, Text)
         -- ^ exit code, stdout and stderr of the command
-getRewardCredentialsViaCli m1 m2 = do
+getRewardCredentialsViaCli mseed msnd = do
     withCreateProcess
         (proc' (commandName @t)  ["mnemonic", "reward-credentials"])
         $ \(Just stdin) (Just stdout) (Just stderr) h -> do
-            hPutStr stdin $ T.unpack m1 ++ "\n"
-            hPutStr stdin $ T.unpack m2 ++ "\n"
+            hPutStr stdin $ T.unpack mseed
+            hPutStr stdin $ T.unpack msnd
             hFlush stdin
             hClose stdin
             c <- waitForProcess h
@@ -191,8 +218,8 @@ getRewardCredentialsViaCli m1 m2 = do
             err <- TIO.hGetContents stderr
             return (c, out, err)
 
-getXprv :: Text -> IO Text
-getXprv t = do
+getXPrv :: Text -> IO Text
+getXPrv t = do
     let lines = T.lines t
     let errNoKey = unwords
             [ "expected an encoded extended secret key in the output"

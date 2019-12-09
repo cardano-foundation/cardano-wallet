@@ -340,8 +340,8 @@ cmdMnemonicRewardCredentials =
     cmd = pure exec
     exec = do
         wSeed <- fst <$> do
-            let prompt = "Please enter your 15-word mnemonic sentence: "
-            let parser = fromMnemonic @'[15] @"seed" . T.words
+            let prompt = "Please enter your 15–24 word mnemonic sentence: "
+            let parser = fromMnemonic @'[15,18,21,24] @"seed" . T.words
             getLine prompt parser
         wSndFactor <- maybe mempty fst <$> do
             let prompt =
