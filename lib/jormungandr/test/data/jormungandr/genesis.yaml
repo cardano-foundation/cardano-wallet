@@ -6,6 +6,8 @@ blockchain_configuration:
   # expected value in seconds since UNIX_EPOCH
   block0_date: 1556202057
 
+  block_content_max_size: 1024000
+
   # This is the type of dicrimination of the blockchain
   # of this blockchain is meant for production then
   # use 'production' instead.
@@ -33,15 +35,10 @@ blockchain_configuration:
   # BFT leaders encoded as bech32. The order in the list matters.
   consensus_leader_ids:
     - ed25519_pk192m4ytl5k357e2l666yleuwjlurmf0vxjyh4atxzu5m22q6mexlsp88k7x
-  # Genesis praos parameter D
-  bft_slots_ratio: 0
 
   # Genesis praos active slot coefficient
   # Determines minimum stake required to try becoming slot leader, must be in range (0,1]
   consensus_genesis_praos_active_slot_coeff: 1
-
-  # This is the max number of messages allowed in a given Block
-  max_number_of_transactions_per_block: 255
 
   # The fee calculations settings
   #
