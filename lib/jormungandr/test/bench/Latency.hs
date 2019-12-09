@@ -61,6 +61,8 @@ import Control.Concurrent.STM.TVar
     ( TVar, newTVarIO, readTVarIO, writeTVar )
 import Control.Exception
     ( throwIO )
+import Control.Monad
+    ( replicateM )
 import Control.Monad.STM
     ( atomically )
 import Data.Generics.Internal.VL.Lens
@@ -113,18 +115,28 @@ main = do
     tvar <- newTVarIO []
     logging <- setupLatencyLogging tvar
 
-    let meanAvg :: [NominalDiffTime] -> Double
-        meanAvg ts = sum (map realToFrac ts) * 1000 / fromIntegral (length ts)
-    let buildResult :: [NominalDiffTime] -> Builder
-        buildResult [] = "ERR"
-        buildResult ts = build $ fixedF 1 $ meanAvg ts
-    let fmtResult :: String -> [NominalDiffTime] -> IO ()
-        fmtResult title ts = fmtLn ("    "+|title|+" - "+|buildResult ts|+" ms")
-
     fmtLn "Latencies for two fixture wallets scenario"
+    runScenario logging tvar (nFixtureWallet 2)
 
-    withUtf8Encoding $ benchWithServer logging $ \ctx -> do
-        (wal1, wal2) <- twoFixtureWallet ctx
+    fmtLn "Latencies for ten fixture wallets scenario"
+    runScenario logging tvar (nFixtureWallet 10)
+
+    fmtLn "Latencies for hundred fixture wallets scenario"
+    runScenario logging tvar (nFixtureWallet 100)
+  where
+    nFixtureWallet n ctx = do
+        wal1 : wal2 : _ <- replicateM n (fixtureWallet ctx)
+        pure (wal1, wal2)
+    meanAvg :: [NominalDiffTime] -> Double
+    meanAvg ts = sum (map realToFrac ts) * 1000 / fromIntegral (length ts)
+    buildResult :: [NominalDiffTime] -> Builder
+    buildResult [] = "ERR"
+    buildResult ts = build $ fixedF 1 $ meanAvg ts
+    fmtResult :: String -> [NominalDiffTime] -> IO ()
+    fmtResult title ts = fmtLn ("    "+|title|+" - "+|buildResult ts|+" ms")
+    runScenario logging tvar scenario =
+        withUtf8Encoding $ benchWithServer logging $ \ctx -> do
+        (wal1, wal2) <- scenario ctx
 
         t1 <- measureApiLogs tvar
             (request @[ApiWallet] ctx listWalletsEp Default Empty)
@@ -179,9 +191,6 @@ main = do
         fmtResult "getNetworkInfo     " t8
 
         pure ()
-  where
-    twoFixtureWallet ctx =
-        (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
 
 isLogRequestStart :: ServerLog -> Bool
 isLogRequestStart = \case
