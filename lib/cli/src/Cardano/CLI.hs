@@ -1109,6 +1109,7 @@ walletClient =
             :<|> _putWallet
             :<|> _putWalletPassphrase
             :<|> _getWalletUtxoStatistics
+            :<|> _selectCoins
             = wallets
 
         _postTransaction

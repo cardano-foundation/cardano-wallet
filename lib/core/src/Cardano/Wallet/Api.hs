@@ -49,8 +49,10 @@ import Cardano.Wallet.Api.Types
     ( ApiAddress
     , ApiByronWallet
     , ApiByronWalletMigrationInfo
+    , ApiCoinSelection
     , ApiFee
     , ApiNetworkInformation
+    , ApiSelectCoinsData
     , ApiStakePool
     , ApiT
     , ApiTransaction
@@ -131,7 +133,7 @@ type Api t = CoreApi t :<|> CompatibilityApi t :<|> StakePoolApi t
 
 type CoreApi t =
     Addresses t
-    :<|> Wallets
+    :<|> Wallets t
     :<|> Transactions t
     :<|> Network
 
@@ -173,7 +175,7 @@ type ListAddresses t = "wallets"
   See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/Wallets
 -------------------------------------------------------------------------------}
 
-type Wallets =
+type Wallets n =
     DeleteWallet
     :<|> GetWallet
     :<|> ListWallets
@@ -181,6 +183,7 @@ type Wallets =
     :<|> PutWallet
     :<|> PutWalletPassphrase
     :<|> GetUTxOsStatistics
+    :<|> SelectCoins n
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteWallet
 type DeleteWallet = "wallets"
@@ -220,6 +223,14 @@ type GetUTxOsStatistics = "wallets"
     :> "statistics"
     :> "utxos"
     :> Get '[JSON] ApiUtxoStatistics
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/selectCoins
+type SelectCoins n = "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "coin-selections"
+    :> "random"
+    :> ReqBody '[JSON] (ApiSelectCoinsData n)
+    :> PostAccepted '[JSON] (ApiCoinSelection n)
 
 {-------------------------------------------------------------------------------
                                   Transactions

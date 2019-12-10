@@ -1026,6 +1026,17 @@ x-responsesPutWalletPassphrase: &responsesPutWalletPassphrase
   204:
     description: No Content
 
+x-responsesSelectCoins: &responsesSelectCoins
+  <<: *responsesErr400
+  <<: *responsesErr403
+  <<: *responsesErr404
+  <<: *responsesErr405
+  <<: *responsesErr406
+  <<: *responsesErr415
+  200:
+    description: OK
+    schema: *ApiCoinSelection
+
 x-responsesDeleteTransaction: &responsesDeleteTransaction
   <<: *responsesErr403
   <<: *responsesErr404
@@ -1213,6 +1224,21 @@ paths:
         - <<: *parametersBody
           schema: *ApiWalletPutData
       responses: *responsesPutWallet
+
+  /wallets/{walletId}/coin-selections/random:
+    post:
+      operationId: selectCoins
+      tags: ["Coin Selections"]
+      summary: Random
+      description: |
+        <p align="right">status: <strong>not implemented</strong></p>
+
+        Select coins to cover the given set of payments.
+      parameters:
+        - *parametersWalletId
+        - <<: *parametersBody
+          schema: *ApiSelectCoinsData
+      responses: *responsesSelectCoins
 
   /wallets/{walletId}/statistics/utxos:
     get:
