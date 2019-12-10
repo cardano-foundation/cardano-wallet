@@ -3,20 +3,35 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
 module Cardano.Pool.MetricsSpec (spec) where
 
 import Prelude
 
+import Cardano.BM.Trace
+    ( nullTracer )
+import Cardano.Pool.DB
+    ( DBLayer (..) )
+import Cardano.Pool.DB.MVar
+    ( newDBLayer )
 import Cardano.Pool.Metrics
-    ( Block (..), calculatePerformance, combineMetrics )
+    ( Block (..), calculatePerformance, combineMetrics, monitorStakePools )
+import Cardano.Wallet.Network
+    ( ErrGetBlock (..)
+    , ErrNetworkUnavailable (..)
+    , NetworkLayer (..)
+    , NextBlocksResult (..)
+    )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , Coin (..)
     , EpochLength (..)
+    , EpochNo (..)
     , Hash (..)
     , PoolId (..)
     , PoolOwner (..)
@@ -25,6 +40,12 @@ import Cardano.Wallet.Primitive.Types
     , flatSlot
     , fromFlatSlot
     )
+import Control.Concurrent.MVar
+    ( modifyMVar, newMVar )
+import Control.Exception
+    ( handle )
+import Control.Monad.Trans.Except
+    ( ExceptT (..) )
 import Data.Function
     ( (&) )
 import Data.Map.Strict
@@ -52,6 +73,8 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
+import Test.QuickCheck.Monadic
+    ( assert, monadicIO, monitor, run )
 
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Map.Strict as Map
@@ -166,6 +189,7 @@ performanceGoldens = do
 
 -- | A list of chunks of blocks to be served up by the mock network layer.
 newtype RegistrationsTest = RegistrationsTest [[Block]]
+    deriving (Show, Eq)
 
 -- TODO: this is a sketch of the test
 --
@@ -178,43 +202,59 @@ newtype RegistrationsTest = RegistrationsTest [[Block]]
 -- the blocks of the test case.
 prop_trackRegistrations :: RegistrationsTest -> Property
 prop_trackRegistrations testCase = monadicIO $ do
-    let tr = nullTracer -- fixme: also check logs
+    let tr = nullTracer -- FIXME: also check logs
 
     ownership <- run $ do
         nl <- makeNetworkLayer testCase
-        withDBLayer Nothing $ \db -> do
-            handle (\ErrNetworkInvalid -> pure ()) $ monitorStakePools tr nl db
-            let pids = poolIds testCase
-            owners <- mapM (readStakePoolOwners db) pids
-            pure $ zip owners pids
+        db@DBLayer{..} <- newDBLayer
+        handle (\ErrNetworkInvalid{} -> pure ()) $ monitorStakePools tr nl db
+        let pids = poolIds testCase
+        owners <- atomically $ mapM readStakePoolOwners pids
+        pure $ zip pids owners
 
     monitor $ counterexample $ "Actual pool owners:   " <> show ownership
     monitor $ counterexample $ "Expected pool owners: " <> show expected
 
     assert (ownership == expected)
   where
+    expected :: [(PoolId, [PoolOwner])]
+    expected = error "TODO: expected"
+
+    poolIds :: RegistrationsTest -> [PoolId]
+    poolIds = error "todo"
+
     makeNetworkLayer :: RegistrationsTest -> IO (NetworkLayer IO t Block)
     makeNetworkLayer (RegistrationsTest blocks) = do
         blockVar <- newMVar blocks
-        let getChunk = modifyMVar blockVar $ \case
-                [] -> ([], Nothing)
-                (b:bs) -> (bs, Just b)
+        let popChunk = modifyMVar blockVar $ \case
+                [] -> pure ([], Nothing)
+                (b:bs) -> pure (bs, Just b)
         pure $ NetworkLayer
-            { nextBlocks = \c -> exceptT $ getChunk >>= \case
-                    Just bs -> pure $ Right $ RollForward c bs
-                    Nothing -> pure $ Left $ ErrGetBlockNetworkUnreachable $ ErrNetworkInvalid "the test case has finished"
-            , findIntersection = \_ -> pure Nothing
-            , initCursor = \_ -> error "mock cursor"
-            , cursorSlotId = \_ -> SlotId 0 0
-            , networkTip = error "mock networkTip"
-            , postTx = error "mock postTx"
-            , staticBlockchainParameters = (error "mock genesis", error "mock BlockChainParameters")
-            , stakeDistribution = pure $ pure (EpochNo 0, mempty)
-            , getAccountBalance = error "mock getAccountBalance"
+            { nextBlocks = \c -> ExceptT (popChunk >>= \case
+                    Just bs -> pure
+                        $ Right
+                        $ RollForward c (error "header") bs
+                    Nothing -> pure
+                        $ Left
+                        $ ErrGetBlockNetworkUnreachable
+                        $ ErrNetworkInvalid "the test case has finished")
+            , findIntersection =
+                \_ -> pure Nothing
+            , initCursor =
+                \_ -> error "mock cursor"
+            , cursorSlotId =
+                \_ -> SlotId 0 0
+            , networkTip =
+                error "mock networkTip"
+            , postTx =
+                error "mock postTx"
+            , staticBlockchainParameters =
+                (error "mock genesis", error "mock BlockChainParameters")
+            , stakeDistribution =
+                pure (EpochNo 0, mempty)
+            , getAccountBalance =
+                error "mock getAccountBalance"
             }
-
-    poolIds :: RegistrationsTest -> [(PoolId, [PoolOwner])]
-    poolIds = error "todo"
 
 {-------------------------------------------------------------------------------
                                  Arbitrary
@@ -284,3 +324,6 @@ instance Arbitrary PoolRegistrationCertificate where
     arbitrary = PoolRegistrationCertificate <$> arbitrary <*> arbitrary
     shrink (PoolRegistrationCertificate p o) =
         uncurry PoolRegistrationCertificate <$> shrink (p, o)
+
+instance Arbitrary RegistrationsTest where
+    arbitrary = error "TODO"
