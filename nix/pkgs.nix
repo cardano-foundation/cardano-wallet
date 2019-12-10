@@ -13,9 +13,6 @@ let
   # our packages
   stack-pkgs = import ./.stack.nix/default.nix;
 
-  # Grab the compiler name from stack-to-nix output.
-  compiler = (stack-pkgs.extras {}).compiler.nix-name;
-
   # Chop out a subdirectory of the source, so that the package is only
   # rebuilt when something in the subdirectory changes.
   filterSubDir = dir:  with pkgs.lib; let
@@ -68,8 +65,7 @@ let
 
       # Musl libc fully static build
       (with pkgs.stdenv; let
-        gplWallet = true; # fixme
-        staticLibs = [ zlib openssl libffi ] ++ lib.optional gplWallet gmp6;
+        staticLibs = [ zlib openssl libffi gmp6 ];
         gmp6 = pkgs.gmp6.override { withStatic = true; };
         zlib = pkgs.zlib.static;
         openssl = (pkgs.openssl.override { static = true; }).out;
@@ -81,10 +77,6 @@ let
           ];
         });
       in {
-        # Use a non-GMP compiler, for software licensing reasons.
-        ghc.package = lib.mkIf (hostPlatform.isMusl && !gplWallet)
-            pkgs.buildPackages.haskell.compiler.integer-simple.${compiler};
-
         # Add GHC flags and libraries for fully static build
         packages.cardano-wallet-jormungandr.components.exes.cardano-wallet-jormungandr = {
           configureFlags =
