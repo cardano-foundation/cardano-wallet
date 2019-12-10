@@ -29,9 +29,11 @@ import Turtle hiding
 import Control.Concurrent.Async
     ( race )
 import Control.Exception
-    ( IOException, catch )
+    ( IOException )
 import Control.Monad
     ( filterM, forM_ )
+import Control.Monad.Catch
+    ( catch )
 import Control.Monad.Extra
     ( whenM )
 import Control.Monad.Trans.Class
@@ -406,15 +408,17 @@ stackWorkCache :: FilePath
 stackWorkCache = "stack-work.tar.lz4"
 
 restoreStackRoot :: CICacheConfig -> IO ()
-restoreStackRoot cfg@CICacheConfig{..} =
+restoreStackRoot cfg@CICacheConfig{..} = do
     restoreZippedCache stackRootCache cfg $ \tar -> do
         whenM (testpath ccStackRoot) $ rmtree ccStackRoot
         mktree ccStackRoot
         TB.procs "tar" ["-C", "/", "-x"] tar
+    makeCacheLive ccStackRoot
 
 restoreStackWork :: CICacheConfig -> IO ()
-restoreStackWork cfg =
+restoreStackWork cfg = do
     restoreZippedCache stackWorkCache cfg (TB.procs "tar" ["-x"])
+    sh (find (ends ".stack-work") "." >>= makeCacheLive)
 
 restoreZippedCache
     :: FilePath
@@ -507,6 +511,38 @@ getBranches =
     remote = "origin"
     git = inproc "git" ["ls-remote", "--heads", remote] empty
     branchPat = plus alphaNum *> spaces1 *> "refs/heads/" *> plus anyChar
+
+-- | The cache may be referring to Nix store paths which have been garbage
+-- collected.
+--
+-- This procedure searches a directory for Nix store path references, and then
+-- uses @nix-store --realise@ to bring back any required paths that do not
+-- exist. It also sets down GC roots, so that these dependencies can't be
+-- deleted while the build is running.
+makeCacheLive :: MonadIO io => FilePath -> io ()
+makeCacheLive dir = do
+    printf ("Realising Nix store paths in "%fp%" ...\n") dir
+    gcroots <- (</> "gcroots") <$> realpath dir
+    mktree gcroots
+    sh $ do
+        (num, storePath) <- grepStorePaths & nub & nl
+        guard (storePath /= mempty)
+        printf ("  "%l%"\n") storePath
+        let storePath' = fromText (lineToText storePath)
+        let gcroot = gcroots </> fromText (format ("cache-"%d) num)
+        exists <- testpath storePath'
+        unless exists $ realiseStorePath gcroot storePath'
+  where
+    grepStorePaths = inproc "grep"
+        [ "--recursive", "--binary-files=text"
+        , "--no-filename", "--only-matching"
+        , "--extended-regexp"
+        , "/nix/store/[0-9a-df-np-sv-z]{32}-[+_?=a-zA-Z0-9-][+_?=.a-zA-Z0-9-]*"
+        , format fp dir ] mempty `catch` (\(ExitFailure 1) -> pure mempty)
+
+    realiseStorePath root storePath = void $ procStrict "nix-store"
+        [ "--add-root", format fp root, "--indirect"
+        , "--realise", format fp storePath ] mempty
 
 ----------------------------------------------------------------------------
 -- Utils
