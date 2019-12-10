@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TupleSections #-}
@@ -71,6 +72,10 @@ spec = do
 
         describe "golden test cases" $ do
             performanceGoldens
+
+    describe "monitorStakePools" $ do
+        it "records all stake pool registrations in the database"
+            $ property prop_trackRegistrations
 
 {-------------------------------------------------------------------------------
                                 Properties
@@ -158,6 +163,58 @@ performanceGoldens = do
     poolB = PoolId "nemesis"
     mkStake = Map.map Quantity . Map.fromList
     mkProduction = Map.map Quantity . Map.fromList
+
+-- | A list of chunks of blocks to be served up by the mock network layer.
+newtype RegistrationsTest = RegistrationsTest [[Block]]
+
+-- TODO: this is a sketch of the test
+--
+-- The idea is to run monitorStakePools with an in-memory database and mock network layer.
+--
+-- The mock network layer serves up chunks of blocks from the testcase, which
+-- contain registration certificates
+--
+-- It then asserts that the registration info in the database matches that of
+-- the blocks of the test case.
+prop_trackRegistrations :: RegistrationsTest -> Property
+prop_trackRegistrations testCase = monadicIO $ do
+    let tr = nullTracer -- fixme: also check logs
+
+    ownership <- run $ do
+        nl <- makeNetworkLayer testCase
+        withDBLayer Nothing $ \db -> do
+            handle (\ErrNetworkInvalid -> pure ()) $ monitorStakePools tr nl db
+            let pids = poolIds testCase
+            owners <- mapM (readStakePoolOwners db) pids
+            pure $ zip owners pids
+
+    monitor $ counterexample $ "Actual pool owners:   " <> show ownership
+    monitor $ counterexample $ "Expected pool owners: " <> show expected
+
+    assert (ownership == expected)
+  where
+    makeNetworkLayer :: RegistrationsTest -> IO (NetworkLayer IO t Block)
+    makeNetworkLayer (RegistrationsTest blocks) = do
+        blockVar <- newMVar blocks
+        let getChunk = modifyMVar blockVar $ \case
+                [] -> ([], Nothing)
+                (b:bs) -> (bs, Just b)
+        pure $ NetworkLayer
+            { nextBlocks = \c -> exceptT $ getChunk >>= \case
+                    Just bs -> pure $ Right $ RollForward c bs
+                    Nothing -> pure $ Left $ ErrGetBlockNetworkUnreachable $ ErrNetworkInvalid "the test case has finished"
+            , findIntersection = \_ -> pure Nothing
+            , initCursor = \_ -> error "mock cursor"
+            , cursorSlotId = \_ -> SlotId 0 0
+            , networkTip = error "mock networkTip"
+            , postTx = error "mock postTx"
+            , staticBlockchainParameters = (error "mock genesis", error "mock BlockChainParameters")
+            , stakeDistribution = pure $ pure (EpochNo 0, mempty)
+            , getAccountBalance = error "mock getAccountBalance"
+            }
+
+    poolIds :: RegistrationsTest -> [(PoolId, [PoolOwner])]
+    poolIds = error "todo"
 
 {-------------------------------------------------------------------------------
                                  Arbitrary
