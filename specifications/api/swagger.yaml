@@ -527,6 +527,13 @@ definitions:
       network_tip: *networkInformationNetworkTip
       next_epoch: *ApiEpochInfo
 
+  ApiSelectCoinsData: &ApiSelectCoinsData
+    type: object
+    required:
+      - payments
+    properties:
+      payments: *transactionOutputs
+
   ApiStakePool: &ApiStakePool
     type: object
     required:

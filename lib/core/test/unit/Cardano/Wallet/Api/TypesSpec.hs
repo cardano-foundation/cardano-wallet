@@ -38,6 +38,7 @@ import Cardano.Wallet.Api.Types
     , ApiMnemonicT (..)
     , ApiNetworkInformation (..)
     , ApiNetworkTip (..)
+    , ApiSelectCoinsData (..)
     , ApiStakePool (..)
     , ApiStakePoolMetrics (..)
     , ApiT (..)
@@ -263,6 +264,7 @@ spec = do
         \and match existing golden files" $ do
             jsonRoundtripAndGolden $ Proxy @(ApiAddress 'Testnet)
             jsonRoundtripAndGolden $ Proxy @ApiEpochInfo
+            jsonRoundtripAndGolden $ Proxy @(ApiSelectCoinsData 'Testnet)
             jsonRoundtripAndGolden $ Proxy @ApiTimeReference
             jsonRoundtripAndGolden $ Proxy @ApiNetworkTip
             jsonRoundtripAndGolden $ Proxy @ApiBlockReference
@@ -594,6 +596,13 @@ spec = do
                     }
             in
                 x' === x .&&. show x' === show x
+        it "ApiSelectCoinsData" $ property $ \x ->
+            let
+                x' = ApiSelectCoinsData
+                    { payments = payments (x :: ApiSelectCoinsData 'Testnet)
+                    }
+            in
+                x' === x .&&. show x' === show x
         it "ApiWallet" $ property $ \x ->
             let
                 x' = ApiWallet
@@ -881,6 +890,10 @@ instance Arbitrary (ApiAddress t) where
 instance Arbitrary ApiEpochInfo where
     arbitrary = ApiEpochInfo <$> arbitrary <*> genUniformTime
     shrink _ = []
+
+instance Arbitrary (ApiSelectCoinsData n) where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
 
 instance Arbitrary AddressState where
     arbitrary = genericArbitrary
@@ -1324,6 +1337,9 @@ specification =
 
 instance ToSchema (ApiAddress t) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiAddress"
+
+instance ToSchema (ApiSelectCoinsData n) where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiSelectCoinsData"
 
 instance ToSchema ApiWallet where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWallet"
