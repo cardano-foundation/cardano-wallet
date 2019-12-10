@@ -13,6 +13,7 @@
 
 module Cardano.Pool.MetricsSpec
     ( spec
+    , arbitraryChunks
     , RegistrationsTest
     ) where
 
@@ -436,4 +437,8 @@ instance Arbitrary RegistrationsTest where
             sp = slotParams genesisParameters
 
 arbitraryChunks :: [a] -> Gen [[a]]
-arbitraryChunks = pure . pure
+arbitraryChunks [] = pure []
+arbitraryChunks xs = do
+    n <- choose (1, length xs)
+    rest <- arbitraryChunks (drop n xs)
+    pure $ take n xs : rest
