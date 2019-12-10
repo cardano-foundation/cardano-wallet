@@ -18,6 +18,8 @@ import Cardano.Wallet.Primitive.Types
     , EpochLength (..)
     , Hash (..)
     , PoolId (..)
+    , PoolOwner (..)
+    , PoolRegistrationCertificate (..)
     , SlotId (..)
     , flatSlot
     , fromFlatSlot
@@ -216,3 +218,12 @@ instance Arbitrary PoolId where
     shrink _  = []
     arbitrary = PoolId . B8.pack
         <$> elements [ "ares", "athena", "hades", "hestia", "nemesis" ]
+
+instance Arbitrary PoolOwner where
+    shrink _  = []
+    arbitrary = PoolOwner . B8.singleton <$> elements ['a'..'e']
+
+instance Arbitrary PoolRegistrationCertificate where
+    arbitrary = PoolRegistrationCertificate <$> arbitrary <*> arbitrary
+    shrink (PoolRegistrationCertificate p o) =
+        uncurry PoolRegistrationCertificate <$> shrink (p, o)

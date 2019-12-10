@@ -56,6 +56,7 @@ module Cardano.Wallet.Jormungandr.Binary
     -- * Purification of chain block types
     , convertBlock
     , convertBlockHeader
+    , poolRegistrationsFromBlock
 
     -- * Addresses
     , putAddress
@@ -997,3 +998,10 @@ overrideFeePolicy linearFee@(LinearFee a b _) override =
     feeDlg = feeStakeDelegation override
     feeReg = feePoolRegistration override
     feeOwn = feeOwnerStakeDelegation override
+
+-- | Extracts ownership information from all stake pool registration
+-- certificates in the Jörmungandr block.
+poolRegistrationsFromBlock :: Block -> [W.PoolRegistrationCertificate]
+poolRegistrationsFromBlock (Block _hdr fragments) =
+    [ W.PoolRegistrationCertificate poolId owners
+    | PoolRegistration (poolId, owners, _tx) <- fragments ]
