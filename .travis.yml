@@ -109,7 +109,7 @@ jobs:
 
     # Fetch the MacOS archive
     - travis_retry curl -L https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-jormungandr-macos64/latest/download/1 | tar xz
-    - mv cardano-wallet-jormungandr-* cardano-wallet-jormungandr-macos64
+    - find . -maxdepth 1 -type d -name "cardano-wallet-jormungandr-*" -exec mv \{} cardano-wallet-jormungandr-macos64 \;
     - mv cardano-wallet-jormungandr-macos64/cardano-wallet-jormungandr cardano-wallet-jormungandr-macos64/cardano-wallet
     - tar czf cardano-wallet-jormungandr-macos64-$TRAVIS_TAG.tar.gz cardano-wallet-jormungandr-macos64
     - rm -r cardano-wallet-jormungandr-macos64
@@ -136,9 +136,9 @@ jobs:
       draft: true # Allow editing the release before publishing it officially on GitHub
       skip_cleanup: true # Make sure that files from the previous stages aren't cleaned up
       file:
-        - cardano-wallet-jormungandr-linux64.tar.gz
-        - cardano-wallet-jormungandr-macos64.tar.gz
-        - cardano-wallet-jormungandr-win64.zip
+        - cardano-wallet-jormungandr-linux64-$TRAVIS_TAG.tar.gz
+        - cardano-wallet-jormungandr-macos64-$TRAVIS_TAG.tar.gz
+        - cardano-wallet-jormungandr-win64-$TRAVIS_TAG.zip
       on:
         repo: input-output-hk/cardano-wallet
         branch: master
