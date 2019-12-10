@@ -33,6 +33,7 @@ import Cardano.Wallet.Api.Types
     , ApiByronWallet (..)
     , ApiByronWalletBalance (..)
     , ApiByronWalletMigrationInfo (..)
+    , ApiCoinSelection (..)
     , ApiCoinSelectionInput (..)
     , ApiEpochInfo (..)
     , ApiFee (..)
@@ -266,6 +267,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiAddress 'Testnet)
             jsonRoundtripAndGolden $ Proxy @ApiEpochInfo
             jsonRoundtripAndGolden $ Proxy @(ApiSelectCoinsData 'Testnet)
+            jsonRoundtripAndGolden $ Proxy @(ApiCoinSelection 'Testnet)
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionInput 'Testnet)
             jsonRoundtripAndGolden $ Proxy @ApiTimeReference
             jsonRoundtripAndGolden $ Proxy @ApiNetworkTip
@@ -605,6 +607,14 @@ spec = do
                     }
             in
                 x' === x .&&. show x' === show x
+        it "ApiCoinSelection" $ property $ \x ->
+            let
+                x' = ApiCoinSelection
+                    { inputs = inputs (x :: ApiCoinSelection 'Testnet)
+                    , outputs = outputs (x :: ApiCoinSelection 'Testnet)
+                    }
+            in
+                x' === x .&&. show x' === show x
         it "ApiCoinSelectionInput" $ property $ \x ->
             let
                 x' = ApiCoinSelectionInput
@@ -905,6 +915,12 @@ instance Arbitrary ApiEpochInfo where
 
 instance Arbitrary (ApiSelectCoinsData n) where
     arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary (ApiCoinSelection n) where
+    arbitrary = ApiCoinSelection
+        <$> arbitrary
+        <*> arbitrary
     shrink = genericShrink
 
 instance Arbitrary (ApiCoinSelectionInput n) where
@@ -1360,6 +1376,9 @@ instance ToSchema (ApiAddress t) where
 
 instance ToSchema (ApiSelectCoinsData n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiSelectCoinsData"
+
+instance ToSchema (ApiCoinSelection n) where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiCoinSelection"
 
 instance ToSchema ApiWallet where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWallet"

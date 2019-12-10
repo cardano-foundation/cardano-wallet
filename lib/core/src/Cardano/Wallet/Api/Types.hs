@@ -33,6 +33,7 @@ module Cardano.Wallet.Api.Types
       ApiAddress (..)
     , ApiEpochInfo (..)
     , ApiSelectCoinsData (..)
+    , ApiCoinSelection (..)
     , ApiCoinSelectionInput (..)
     , ApiStakePool (..)
     , ApiStakePoolMetrics (..)
@@ -209,6 +210,11 @@ data ApiEpochInfo = ApiEpochInfo
 
 newtype ApiSelectCoinsData (n :: NetworkDiscriminant) = ApiSelectCoinsData
     { payments :: NonEmpty (AddressAmount n)
+    } deriving (Eq, Generic, Show)
+
+data ApiCoinSelection (n :: NetworkDiscriminant) = ApiCoinSelection
+    { inputs :: !(NonEmpty (ApiCoinSelectionInput n))
+    , outputs :: !(NonEmpty (AddressAmount n))
     } deriving (Eq, Generic, Show)
 
 data ApiCoinSelectionInput (n :: NetworkDiscriminant) = ApiCoinSelectionInput
@@ -478,6 +484,11 @@ instance ToJSON ApiEpochInfo where
 instance DecodeAddress n => FromJSON (ApiSelectCoinsData n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance EncodeAddress n => ToJSON (ApiSelectCoinsData n) where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance DecodeAddress n => FromJSON (ApiCoinSelection n) where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance EncodeAddress n => ToJSON (ApiCoinSelection n) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance DecodeAddress n => FromJSON (ApiCoinSelectionInput n) where
