@@ -136,11 +136,11 @@ spec = do
                 . sum
                 . fmap (view amount)
                 . mapMaybe ApiTypes.source
-                . ApiTypes.inputs
+                . view #inputs
             outputBalance = fromIntegral
                 . sum
                 . fmap (view amount)
-                . ApiTypes.outputs
+                . view #outputs
 
     it "BYRON_CALCULATE_01 - \
         \for non-empty wallet calculated fee is > zero."
