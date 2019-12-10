@@ -60,7 +60,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (unSlotNo)
     )
 import Control.Monad
-    ( forM, forM_, when )
+    ( forM, forM_, unless, when )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Class
@@ -165,11 +165,24 @@ monitorStakePools tr nl DBLayer{..} = do
         currentTip <- withExceptT ErrMonitorStakePoolsNetworkTip $
             networkTip nl
         when (nodeTip /= currentTip) $ throwE ErrMonitorStakePoolsWrongTip
+
         liftIO $ logInfo tr $ "Writing stake-distribution for epoch " <> pretty ep
+
+        let registrations = concatMap poolRegistrations blocks
+        unless (null registrations) $
+            liftIO $ logInfo tr $ "Discovered stake pool registrations: "
+                <> pretty registrations
+
         mapExceptT atomically $ do
             lift $ putStakeDistribution ep (Map.toList dist)
-            forM_ blocks $ \b -> withExceptT ErrMonitorStakePoolsPoolAlreadyExists $
-                putPoolProduction (header b) (producer b)
+            forM_ blocks $ \b ->
+                withExceptT ErrMonitorStakePoolsPoolAlreadyExists $
+                    putPoolProduction (header b) (producer b)
+
+            lift $ mapM_ (uncurry putStakePoolOwner) $ concat
+                [ [ (reg ^. #poolId, owner) | owner <- reg ^. #poolOwners ]
+                | reg <- registrations ]
+
       where
         handler action = runExceptT action >>= \case
             Left ErrMonitorStakePoolsNetworkUnavailable{} -> do
