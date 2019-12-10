@@ -230,7 +230,7 @@ serveWallet
         let (block0, bp) = staticBlockchainParameters nl
         wallets <- maybe (pure []) (Sqlite.findDatabases @k trText) databaseDir
         Server.newApiLayer
-            tracer (block0, bp, sTolerance) nl' tl dbFactory wallets
+            tracer (toWLBlock block0, bp, sTolerance) nl' tl dbFactory wallets
       where
         nl' = toWLBlock <$> nl
 
@@ -241,7 +241,7 @@ serveWallet
         -> IO (StakePoolLayer IO)
     stakePoolLayer trRoot nl db = do
         void $ forkFinally (monitorStakePools tr' nl' db) onExit
-        pure (newStakePoolLayer db nl trRoot)
+        pure (newStakePoolLayer db nl' trRoot)
       where
         tr' = appendName "stake-pools" trRoot
         nl' = toSPBlock <$> nl
@@ -339,6 +339,9 @@ serveWallet
 toSPBlock :: J.Block -> Pool.Block
 toSPBlock b = Pool.Block
      (convertHeader header)
+     -- FIXME
+     -- Allow defining different types for block vs genesis block in the network
+     -- layer so that staticBlockchainParameter isn't partial.
      (fromMaybe (error "block has no producer") $ J.producedBy header)
      (J.poolRegistrationsFromBlock b)
    where

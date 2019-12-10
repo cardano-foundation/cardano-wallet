@@ -225,7 +225,7 @@ data ErrListStakePools
 
 newStakePoolLayer
      :: DBLayer IO
-     -> NetworkLayer IO t block
+     -> NetworkLayer IO t Block
      -> Trace IO Text
      -> StakePoolLayer IO
 newStakePoolLayer db@DBLayer{..} nl tr = StakePoolLayer
