@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -12,7 +13,7 @@ module Test.Integration.Scenario.API.Wallets
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiTransaction, ApiUtxoStatistics, ApiWallet )
+    ( AddressAmount (..), ApiTransaction, ApiUtxoStatistics, ApiWallet )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Mnemonic
@@ -26,7 +27,11 @@ import Cardano.Wallet.Primitive.Types
 import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( view, (^.) )
+import Data.List.NonEmpty
+    ( NonEmpty ((:|)) )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text
     ( Text )
 import Numeric.Natural
@@ -62,6 +67,7 @@ import Test.Integration.Framework.DSL
     , passphraseLastUpdate
     , postTxEp
     , request
+    , selectCoins
     , state
     , updateWalletPassEp
     , verify
@@ -1469,6 +1475,15 @@ spec = do
             r <- request @ApiWallet ctx (method, endpoint) Default Empty
             expectResponseCode @IO HTTP.status405 r
             expectErrorMessage errMsg405 r
+
+    it "WALLETS_COIN_SELECTION_01" $ \ctx -> do
+        wSource <- fixtureWallet ctx
+        wTarget <- emptyWallet ctx
+        address : _ <- fmap (view #id) <$> listAddresses ctx wTarget
+        let amount = Quantity 1
+        let payment = AddressAmount {address, amount}
+        selectCoins ctx wSource (payment :| []) >>= flip verify
+            [ expectResponseCode HTTP.status501 ]
 
     it "WALLETS_UTXO_01 - Wallet's inactivity is reflected in utxo" $ \ctx -> do
         w <- emptyWallet ctx
