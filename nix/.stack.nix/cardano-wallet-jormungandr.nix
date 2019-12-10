@@ -235,6 +235,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."fmt" or (buildDepError "fmt"))
             (hsPkgs."generic-lens" or (buildDepError "generic-lens"))
             (hsPkgs."http-client" or (buildDepError "http-client"))
+            (hsPkgs."http-types" or (buildDepError "http-types"))
             (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
             (hsPkgs."memory" or (buildDepError "memory"))
             (hsPkgs."network" or (buildDepError "network"))
