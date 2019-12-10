@@ -33,6 +33,7 @@ import Cardano.Wallet.Primitive.Types
     , FeePolicy
     , Hash (..)
     , PoolId
+    , PoolOwner (..)
     , SlotId (..)
     , SlotNo (..)
     , SyncProgress (..)
@@ -417,6 +418,19 @@ instance ToJSON PoolId where
 
 instance FromJSON PoolId where
     parseJSON = aesonFromText "PoolId"
+
+----------------------------------------------------------------------------
+-- PoolOwner
+
+instance PersistField PoolOwner where
+    toPersistValue = toPersistValue . toText
+    fromPersistValue = fromPersistValueFromText
+
+instance PersistFieldSql PoolOwner where
+    sqlType _ = sqlType (Proxy @Text)
+
+instance Read PoolOwner where
+    readsPrec _ = error "readsPrec stub needed for persistent"
 
 ----------------------------------------------------------------------------
 -- HDPassphrase

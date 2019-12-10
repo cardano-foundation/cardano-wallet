@@ -68,4 +68,12 @@ StakeDistribution sql=stake_distribution
 
     Primary stakeDistributionPoolId stakeDistributionEpoch
     deriving Show Generic
+
+-- Mapping from pool id to owner
+PoolOwner sql=pool_owner
+    poolOwnerPoolId     W.PoolId     sql=pool_id
+    poolOwnerOwner      W.PoolOwner  sql=pool_owner
+
+    Primary poolOwnerPoolId poolOwnerOwner
+    deriving Show Generic
 |]

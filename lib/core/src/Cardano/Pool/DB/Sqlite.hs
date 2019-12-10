@@ -66,6 +66,7 @@ import Database.Persist.Sql
     , deleteWhere
     , insertMany_
     , insert_
+    , repsert
     , selectFirst
     , selectList
     , (<.)
@@ -163,6 +164,16 @@ newDBLayer logConfig trace fp = do
                 [ StakeDistributionEpoch ==. fromIntegral epoch ]
                 []
 
+        , putStakePoolOwner = \poolId poolOwner ->
+            repsert
+                (PoolOwnerKey poolId poolOwner)
+                (PoolOwner poolId poolOwner)
+
+        , readStakePoolOwners = \poolId ->
+            fmap (poolOwnerOwner . entityVal) <$> selectList
+                [ PoolOwnerPoolId ==. poolId ]
+                [ Asc PoolOwnerOwner ]
+
         , rollbackTo = \point -> do
             let (EpochNo epoch) = epochNumber point
             deleteWhere [ PoolProductionSlot >. point ]
@@ -183,8 +194,9 @@ newDBLayer logConfig trace fp = do
                 Just seed ->
                     return $ seedSeed $ entityVal seed
 
-        , cleanDB =
+        , cleanDB = do
             deleteWhere ([] :: [Filter PoolProduction])
+            deleteWhere ([] :: [Filter PoolOwner])
 
         , atomically = runQuery
         })
