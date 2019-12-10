@@ -46,6 +46,8 @@ import Control.Arrow
     ( first )
 import Control.Concurrent
     ( threadDelay )
+import Control.Concurrent.Async
+    ( AsyncCancelled (..) )
 import Control.Exception
     ( AsyncException (..)
     , Exception (..)
@@ -301,7 +303,9 @@ follow nl tr cps yield rollback header =
                 return ()
             Just UserInterrupt ->
                 return ()
-            Just _ ->
+            Nothing | fromException e == Just AsyncCancelled -> do
+                return ()
+            Just _ -> do
                 logError tr $ "Non-recoverable error following the chain: " <> eT
             _ -> do
                 logError tr $ "Recoverable error following the chain: " <> eT
