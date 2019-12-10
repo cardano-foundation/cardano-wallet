@@ -235,6 +235,7 @@ data HandlerLog
     = LogRequestStart
     | LogRequest Request
     | LogRequestBody [Text] ByteString
+    -- ^ Request content, with list of sensitive json keys.
     | LogResponse NominalDiffTime (Maybe Status)
     | LogResponseBody ByteString
     | LogRequestFinish
@@ -248,9 +249,7 @@ instance ToText HandlerLog where
             method = T.decodeUtf8 $ requestMethod req
             path = T.decodeUtf8 $ rawPathInfo req
             query = T.decodeUtf8 $ rawQueryString req
-        LogRequestBody ks body ->
-            T.decodeUtf8 $ sanitize ks body
-            -- fixme: this will explode if the request body isn't utf-8
+        LogRequestBody ks body -> sanitize ks body
         LogResponse time status -> mconcat [ code, " ", text, " in ", tsec ]
           where
             code = maybe "???" (toText . statusCode) status
@@ -261,7 +260,7 @@ instance ToText HandlerLog where
 
 -- | Removes sensitive details from valid request payloads and completely
 -- obfuscate invalid payloads.
-sanitize :: [Text] -> ByteString -> ByteString
+sanitize :: [Text] -> ByteString -> Text
 sanitize keys bytes = encode' $ case decode' bytes of
     Just (Object o) ->
         Object (foldr (HM.adjust obfuscate) o keys)
@@ -270,7 +269,7 @@ sanitize keys bytes = encode' $ case decode' bytes of
     Nothing ->
         String "Invalid payload: not JSON"
   where
-    encode' = BL.toStrict . Aeson.encode
+    encode' = T.decodeUtf8 . BL.toStrict . Aeson.encode
     decode' = Aeson.decode . BL.fromStrict
     obfuscate _ = String "*****"
 
