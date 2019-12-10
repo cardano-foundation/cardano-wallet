@@ -340,6 +340,7 @@ toSPBlock :: J.Block -> Pool.Block
 toSPBlock b = Pool.Block
      (convertHeader header)
      (fromMaybe (error "block has no producer") $ J.producedBy header)
+     (J.poolRegistrationsFromBlock b)
    where
      header = J.header b
      convertHeader :: J.BlockHeader -> BlockHeader

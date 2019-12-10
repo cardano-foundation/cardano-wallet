@@ -55,6 +55,7 @@ import Cardano.Wallet.Primitive.Types
     , EpochLength (..)
     , EpochNo (..)
     , PoolId (..)
+    , PoolRegistrationCertificate (..)
     , SlotId (..)
     , SlotNo (unSlotNo)
     )
@@ -100,9 +101,13 @@ import qualified Data.Map.Strict as Map
 -- Types
 --------------------------------------------------------------------------------
 
+-- | Information from a block relevant to monitoring stake pools.
 data Block = Block
     { header :: BlockHeader
     , producer :: PoolId
+    -- ^ The stake pool that minted this block.
+    , poolRegistrations :: ![PoolRegistrationCertificate]
+    -- ^ Any stake pools that were registered in this block.
     } deriving (Eq, Show, Generic)
 
 data StakePool = StakePool

@@ -55,11 +55,12 @@ module Cardano.Wallet.Primitive.Types
     , Address (..)
     , AddressState (..)
 
-    -- * Delegation
+    -- * Delegation and stake pools
     , ChimericAccount (..)
     , DelegationCertificate (..)
     , dlgCertAccount
     , dlgCertPoolId
+    , PoolRegistrationCertificate (..)
 
     -- * Coin
     , Coin (..)
@@ -1421,7 +1422,7 @@ newtype ProtocolMagic = ProtocolMagic Int32
     deriving (Generic, Show)
 
 {-------------------------------------------------------------------------------
-                            Delegation Certificates
+              Stake Pool Delegation and Registration Certificates
 -------------------------------------------------------------------------------}
 
 -- | Also known as a staking key, chimeric account is used in group-type address
@@ -1448,6 +1449,21 @@ dlgCertPoolId :: DelegationCertificate -> Maybe PoolId
 dlgCertPoolId = \case
     CertDelegateNone{} -> Nothing
     CertDelegateFull _ poolId -> Just poolId
+
+-- | Pool ownership data from the stake pool registration certificate.
+data PoolRegistrationCertificate = PoolRegistrationCertificate
+    { poolId :: !PoolId
+    , poolOwners :: ![PoolOwner]
+    } deriving (Generic, Show, Eq, Ord)
+
+instance NFData PoolRegistrationCertificate
+
+instance Buildable PoolRegistrationCertificate where
+    build (PoolRegistrationCertificate p o) = mempty
+        <> "Registration of "
+        <> build p
+        <> " owned by "
+        <> build o
 
 {-------------------------------------------------------------------------------
                                Polymorphic Types
