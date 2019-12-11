@@ -320,6 +320,12 @@ data RegistryLog = RegistryLog
     , registryLogMsg :: RegistryLogMsg
     } deriving (Generic, Show, Eq, ToJSON)
 
+instance DefinePrivacyAnnotation RegistryLog where
+    definePrivacyAnnotation = definePrivacyAnnotation . registryLogMsg
+
+instance DefineSeverity RegistryLog where
+    defineSeverity = defineSeverity . registryLogMsg
+
 -- | Log messages about processing a specific archive.
 data RegistryLogMsg
     = MsgDownloadStarted

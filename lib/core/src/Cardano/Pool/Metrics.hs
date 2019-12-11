@@ -33,11 +33,18 @@ module Cardano.Pool.Metrics
     , ErrMetricsInconsistency (..)
     , combineMetrics
     , calculatePerformance
+
+      -- * Logging
+    , StakePoolLayerMsg (..)
     )
     where
 
 import Prelude
 
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
+import Cardano.BM.Data.Tracer
+    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
 import Cardano.BM.Trace
     ( Trace, logDebug, logInfo, logNotice )
 import Cardano.Pool.DB
@@ -83,6 +90,8 @@ import Data.Quantity
     ( Percentage, Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( ToText (..) )
 import Data.Vector.Shuffle
     ( shuffleWith )
 import Data.Word
@@ -224,10 +233,10 @@ data ErrListStakePools
      | ErrListStakePoolsErrNetworkTip ErrNetworkTip
 
 newStakePoolLayer
-     :: DBLayer IO
-     -> NetworkLayer IO t Block
-     -> Trace IO Text
-     -> StakePoolLayer IO
+    :: DBLayer IO
+    -> NetworkLayer IO t Block
+    -> Trace IO StakePoolLayerMsg
+    -> StakePoolLayer IO
 newStakePoolLayer db@DBLayer{..} nl tr = StakePoolLayer
     { listStakePools = do
         nodeTip <- withExceptT ErrListStakePoolsErrNetworkTip
@@ -297,17 +306,8 @@ newStakePoolLayer db@DBLayer{..} nl tr = StakePoolLayer
         -> ExceptT e IO (Quantity "percent" Percentage)
     computeProgress nodeTip = liftIO $ do
         mDbTip <- poolProductionTip
-        Quantity <$> case mDbTip of
-            Nothing -> return minBound
-            Just dbTip -> do
-                liftIO $ logDebug tr $ mconcat
-                    [ "The node tip is:\n"
-                    , pretty nodeTip
-                    , ",\nbut the last pool production stored in the db"
-                    , " is from:\n"
-                    , pretty dbTip
-                    ]
-                return $ progress dbTip nodeTip
+        logTrace tr $ MsgComputedProgress mDbTip nodeTip
+        pure $ Quantity $ maybe minBound (`progress` nodeTip) mDbTip
 
     progress :: BlockHeader -> BlockHeader -> Percentage
     progress tip target =
@@ -488,3 +488,49 @@ zipWithRightDefault combine onMissing rZero =
 -- | Count elements inside a 'Map'
 count :: Map k [a] -> Map k (Quantity any Word64)
 count = Map.map (Quantity . fromIntegral . length)
+
+{-------------------------------------------------------------------------------
+                                    Logging
+-------------------------------------------------------------------------------}
+
+data StakePoolLayerMsg
+    = MsgRegistry RegistryLog
+    | MsgListStakePoolsBegin
+    | MsgMetadataUnavailable
+    | MsgMetadataUsing PoolId PoolOwner StakePoolMetadata
+    | MsgMetadataMissing PoolId
+    | MsgMetadataMultiple PoolId [(PoolOwner, StakePoolMetadata)]
+    | MsgComputedProgress (Maybe BlockHeader) BlockHeader
+    deriving (Show, Eq)
+
+instance DefinePrivacyAnnotation StakePoolLayerMsg
+instance DefineSeverity StakePoolLayerMsg where
+    defineSeverity ev = case ev of
+        MsgRegistry msg -> defineSeverity msg
+        MsgListStakePoolsBegin -> Debug
+        MsgMetadataUnavailable -> Warning
+        MsgComputedProgress _ _ -> Debug
+        MsgMetadataUsing _ _ _ -> Debug
+        MsgMetadataMissing _ -> Debug
+        MsgMetadataMultiple _ _ -> Debug
+
+instance ToText StakePoolLayerMsg where
+    toText = \case
+        MsgRegistry msg -> toText msg
+        MsgListStakePoolsBegin -> "Listing stake pools"
+        MsgMetadataUnavailable -> "Stake pool metadata is unavailable"
+        MsgComputedProgress (Just dbTip) nodeTip -> mconcat
+            [ "The node tip is:\n"
+            , pretty nodeTip
+            , ",\nbut the last pool production stored in the db"
+            , " is from:\n"
+            , pretty dbTip
+            ]
+        MsgComputedProgress Nothing _nodeTip -> ""
+        MsgMetadataUsing pid owner _ ->
+            "Using stake pool metadata from " <>
+            toText owner <> " for " <> toText pid
+        MsgMetadataMissing pid ->
+            "No stake pool metadata for " <> toText pid
+        MsgMetadataMultiple pid _ ->
+            "Multiple different metadata registered for " <> toText pid
