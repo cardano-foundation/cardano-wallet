@@ -161,14 +161,16 @@ specWithServer (logCfg, tr) = aroundAll withContext . after tearDown
                     { managerResponseTimeout =
                         responseTimeoutMicro sixtySeconds
                     })
-                faucet <- initFaucet (getFeePolicy bp)
+                let feePolicy = getFeePolicy bp
+                faucet <- initFaucet feePolicy
                 putMVar ctx $ Context
                     { _cleanup = pure ()
                     , _manager = manager
                     , _nodePort = nPort
                     , _walletPort = sockAddrPort wAddr
                     , _faucet = faucet
-                    , _feeEstimator = mkFeeEstimator (getFeePolicy bp)
+                    , _feeEstimator = mkFeeEstimator feePolicy
+                    , _feePolicy = feePolicy
                     , _target = Proxy
                     }
         race (takeMVar ctx >>= action) (withServer setupContext) >>=

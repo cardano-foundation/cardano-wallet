@@ -13,8 +13,6 @@ import Cardano.BM.Trace
     ( nullTracer )
 import Cardano.CLI
     ( Port (..) )
-import Cardano.Faucet
-    ( getBlock0HText )
 import Cardano.Launcher
     ( Command (..), StdStream (..), withBackendProcess )
 import Control.Concurrent
@@ -55,6 +53,8 @@ import Test.Integration.Framework.DSL
     , expectPathEventuallyExist
     , proc'
     )
+import Test.Integration.Jcli
+    ( argHex, getBlock0H )
 import Test.Utils.Ports
     ( findPort )
 
@@ -63,7 +63,7 @@ import qualified Data.Text.IO as TIO
 
 spec :: forall t. KnownCommand t => SpecWith (Context t)
 spec = do
-    block0H <- runIO $ T.unpack <$> getBlock0HText
+    block0H <- runIO $ argHex <$> getBlock0H
     describe "SERVER - cardano-wallet serve [SERIAL]" $ do
         it "SERVER - Can start cardano-wallet serve --database" $ \_ -> do
             withTempDir $ \d -> do

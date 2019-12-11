@@ -17,8 +17,6 @@ module Test.Integration.Jormungandr.Scenario.API.Transactions
 
 import Prelude
 
-import Cardano.Faucet
-    ( getBlock0H )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiFee
@@ -122,6 +120,8 @@ import Test.Integration.Framework.TestData
     , errMsg415OctetStream
     , mnemonics15
     )
+import Test.Integration.Jcli
+    ( getBlock0H )
 import Test.QuickCheck
     ( arbitrary, generate, vectorOf )
 

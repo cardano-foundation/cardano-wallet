@@ -390,6 +390,7 @@ benchWithServer logCfg = withContext
                     , _nodePort = nPort
                     , _walletPort = sockAddrPort wAddr
                     , _faucet = faucet
+                    , _feePolicy = getFeePolicy bp
                     , _feeEstimator = \_ -> error "feeEstimator not available"
                     , _target = Proxy
                     }
