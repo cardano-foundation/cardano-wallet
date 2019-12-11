@@ -18,6 +18,7 @@ module Cardano.Pool.Metadata
     , StakePoolTicker
 
       -- * Fetching metadata
+    , envVarMetadataRegistry
     , getStakePoolMetadata
     , getRegistryZipUrl
     , cardanoFoundationRegistryZip
@@ -269,9 +270,13 @@ registryFile owner_ = "registry" </> T.unpack (toText owner_) <.> "json"
 -- | Returns the Cardano Foundation stake pool registry zipfile URL, or the
 -- @CARDANO_WALLET_STAKE_POOL_REGISTRY_URL@ environment variable if it is set.
 getRegistryZipUrl :: IO String
-getRegistryZipUrl = fromMaybe cardanoFoundationRegistryZip <$> lookupEnv var
-  where
-    var = "CARDANO_WALLET_STAKE_POOL_REGISTRY_URL"
+getRegistryZipUrl =
+    fromMaybe cardanoFoundationRegistryZip <$> lookupEnv envVarMetadataRegistry
+
+-- | Name of the environment variable to set for tweaking the registry URL.
+-- Mostly use for testing.
+envVarMetadataRegistry :: String
+envVarMetadataRegistry = "CARDANO_WALLET_STAKE_POOL_REGISTRY_URL"
 
 -- | The stake pool registry zipfile download URL for CF.
 cardanoFoundationRegistryZip :: String
