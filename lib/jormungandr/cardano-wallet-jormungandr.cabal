@@ -230,6 +230,7 @@ test-suite integration
     , text-class
     , time
     , transformers
+    , wai-app-static
     , warp
     , yaml
   build-tools:

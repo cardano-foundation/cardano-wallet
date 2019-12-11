@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -23,6 +24,8 @@ import Cardano.Faucet
     ( initFaucet, sockAddrPort )
 import Cardano.Launcher
     ( ProcessHasExited (..), withUtf8Encoding )
+import Cardano.Pool.Metadata
+    ( envVarMetadataRegistry )
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.Jormungandr
@@ -61,14 +64,24 @@ import Network.HTTP.Client
     , newManager
     , responseTimeoutMicro
     )
+import Network.Wai.Application.Static
+    ( defaultWebAppSettings, staticApp )
+import Network.Wai.Handler.Warp
+    ( Port, withApplication )
 import Numeric.Natural
     ( Natural )
+import System.Environment
+    ( setEnv )
+import System.FilePath
+    ( (</>) )
 import Test.Hspec
     ( Spec, SpecWith, after, describe, hspec, parallel )
 import Test.Hspec.Extra
     ( aroundAll )
 import Test.Integration.Framework.DSL
     ( Context (..), KnownCommand (..), TxDescription (..), tearDown )
+import Test.Utils.Paths
+    ( getTestData )
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.Pool.MetricsSpec as MetricsSpec
@@ -161,11 +174,31 @@ specWithServer (logCfg, tr) = aroundAll withContext . after tearDown
         race (takeMVar ctx >>= action) (withServer setupContext) >>=
             either pure (throwIO . ProcessHasExited "integration")
 
-    withServer setup = withConfig $ \jmCfg ->
-        serveWallet @'Testnet logging (SyncTolerance 10) Nothing "127.0.0.1"
-            ListenOnRandomPort (Launch jmCfg) setup
+    withServer setup =
+        withConfig $ \jmCfg ->
+        withMetadataRegistry registryRoot $ \registryPort -> do
+            let registryUrl = mconcat
+                    [ "http://localhost:"
+                    , show registryPort
+                    , "/test-integration-registry.zip"
+                    ]
+            setEnv envVarMetadataRegistry registryUrl
+            serveWallet @'Testnet logging (SyncTolerance 10) Nothing "127.0.0.1"
+                ListenOnRandomPort (Launch jmCfg) setup
+      where
+        registryRoot = $(getTestData) </> "jormungandr" </> "stake_pools" </> "registry"
 
     logging = (logCfg, transformTextTrace tr)
+
+-- | Run a HTTP file server on any free port
+withMetadataRegistry
+    :: FilePath
+    -> (Port -> IO a)
+    -> IO a
+withMetadataRegistry root =
+    withApplication (pure app)
+  where
+    app = staticApp $ defaultWebAppSettings root
 
 -- NOTE²
 -- We use a range (min, max) and call it an "estimator" because for the
