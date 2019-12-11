@@ -20,13 +20,14 @@ import Control.Monad.IO.Class
 import Data.Time.Clock
     ( getCurrentTime )
 import Test.Hspec
-    ( SpecWith, describe, it )
+    ( SpecWith, describe, it, shouldBe )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
     , emptyByronWallet
     , emptyWallet
+    , eventually
     , eventually_
     , expectErrorMessage
     , expectEventually'
@@ -51,7 +52,7 @@ import qualified Network.HTTP.Types.Status as HTTP
 spec :: forall t. SpecWith (Context t)
 spec = do
     it "NETWORK - Can query network information" $ \ctx -> do
-        eventually_ $ do
+        r <- eventually $ do
             now <- liftIO getCurrentTime
             r <- request @ApiNetworkInformation ctx networkInfoEp Default Empty
             expectResponseCode @IO HTTP.status200 r
@@ -59,6 +60,13 @@ spec = do
                 [ expectFieldSatisfy nextEpoch ((> now) . epochStartTime)
                 , expectFieldEqual syncProgress Ready
                 ]
+            return r
+
+        let currentEpochNum =
+                getFromResponse (#networkTip . #epochNumber . #getApiT) r
+        let nextEpochNum =
+                getFromResponse (#nextEpoch . #epochNumber . #getApiT) r
+        nextEpochNum `shouldBe` (currentEpochNum + 1)
 
     it "NETWORK_SHELLEY - Wallet has the same tip as network/information" $
         \ctx -> do
