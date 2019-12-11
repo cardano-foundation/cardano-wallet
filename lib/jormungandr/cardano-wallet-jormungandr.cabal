@@ -272,6 +272,8 @@ benchmark latency
       -Werror
   build-depends:
       base
+    , aeson
+    , aeson-qq
     , async
     , bech32
     , bytestring

@@ -63,6 +63,10 @@ import Control.Monad
     ( mapM_, replicateM, replicateM_ )
 import Control.Monad.STM
     ( atomically )
+import Data.Aeson
+    ( Value )
+import Data.Aeson.QQ
+    ( aesonQQ )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Maybe
@@ -100,6 +104,7 @@ import Test.Integration.Framework.DSL
     , expectSuccess
     , faucetAmt
     , fixtureWallet
+    , fixtureWalletWith
     , getAddressesEp
     , getWalletEp
     , getWalletUtxoEp
@@ -150,6 +155,24 @@ main = withUtf8Encoding $ do
 
     fmtLn "Latencies for 10 fixture wallets with 100 txs scenario"
     runScenario logging tvar (nFixtureWalletWithTxs 10 100)
+
+    fmtLn "Latencies for 2 fixture wallets with 100 utxos scenario"
+    runScenario logging tvar (nFixtureWalletWithUTxOs 2 1)
+
+    fmtLn "Latencies for 2 fixture wallets with 200 utxos scenario"
+    runScenario logging tvar (nFixtureWalletWithUTxOs 2 2)
+
+    fmtLn "Latencies for 2 fixture wallets with 500 utxos scenario"
+    runScenario logging tvar (nFixtureWalletWithUTxOs 2 5)
+
+    fmtLn "Latencies for 2 fixture wallets with 1000 utxos scenario"
+    runScenario logging tvar (nFixtureWalletWithUTxOs 2 10)
+
+    fmtLn "Latencies for 2 fixture wallets with 2000 utxos scenario"
+    runScenario logging tvar (nFixtureWalletWithUTxOs 2 20)
+
+    fmtLn "Latencies for 2 fixture wallets with 5000 utxos scenario"
+    runScenario logging tvar (nFixtureWalletWithUTxOs 2 50)
   where
     -- Creates n fixture wallets and return two of them
     nFixtureWallet n ctx = do
@@ -177,6 +200,27 @@ main = withUtf8Encoding $ do
         mapM_ (repeatPostTx ctx wal1 amt batchSize . amtExp) expInflows
 
         pure (wal1, wal2)
+
+    -- Creates n fixture wallets and send 10-output transactions
+    -- to one of them (10*m times). The money is sent in batches (see batchSize
+    -- below) from additionally created source fixture wallet. So m=1 means the
+    -- recipient wallet should assume 100 additional utxos. Then we wait for
+    -- the money to be accommodated in recipient wallet. After that the
+    -- source fixture wallet is removed.
+    nFixtureWalletWithUTxOs n m ctx = do
+        (wal1, wal2) <- nFixtureWallet n ctx
+
+        let amt = (1 :: Natural)
+        let batchSize = 10
+        let fixtureUtxos = replicate 10 10000000000
+        let expAddedUtxos = [replicate (100*x) (1::Natural) | x <- [1..m]]
+        let expUtxos = map (++ fixtureUtxos) expAddedUtxos
+        let expInflows = [100*x | x <- [1..m]]
+        let expPair = zip expInflows  expUtxos
+        mapM_ (repeatPostMultiTx ctx wal1 amt batchSize) expPair
+
+        pure (wal1, wal2)
+
 
     repeatPostTx ctx wDest amtToSend batchSize amtExp = do
         wSrc <- fixtureWallet ctx
@@ -209,6 +253,50 @@ main = withUtf8Encoding $ do
                 "passphrase": #{pass}
             }|]
         r <- request @(ApiTransaction n) ctx (postTxEndp wSrc) Default payload
+        expectResponseCode HTTP.status202 r
+        return r
+
+    repeatPostMultiTx ctx wDest amtToSend batchSize (amtExp, _utxoExp) = do
+        wSrc <- fixtureWalletWith ctx (replicate 100 1000)
+        let pass = "Secure Passphrase" :: Text
+
+        replicateM_ batchSize (postMultiTx ctx (wSrc, postTxEp, pass) wDest amtToSend)
+
+        rWal1 <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
+        verify rWal1
+            [ expectSuccess
+            , expectEventually ctx getWalletEp balanceAvailable (fromIntegral amtExp)
+            ]
+
+{--
+        rStat <- request @ApiUtxoStatistics ctx (getWalletUtxoEp wDest) Default Empty
+        expectResponseCode @IO HTTP.status200 rStat
+        expectWalletUTxO utxoExp (snd rStat)
+--}
+        rDel <- request @ApiWallet ctx (deleteWalletEp wSrc) Default Empty
+        expectResponseCode @IO HTTP.status204 rDel
+
+        pure ()
+
+
+    postMultiTx ctx (wSrc, postTxEndp, pass) wDest amt = do
+        addrs <- listAddresses ctx wDest
+        let destinations = replicate 10 $ (addrs !! 1) ^. #id
+        let amounts = take 10 [amt, amt .. ]
+        let payments = flip map (zip amounts destinations) $ \(coin, addr) ->
+                [aesonQQ|{
+                        "address": #{addr},
+                        "amount": {
+                            "quantity": #{coin},
+                            "unit": "lovelace"
+                        }
+                        }|]
+        let payload = Json [aesonQQ|{
+                "payments": #{payments :: [Value]},
+                "passphrase": #{pass}
+            }|]
+        r <- request @(ApiTransaction n) ctx (postTxEndp wSrc) Default payload
+
         expectResponseCode HTTP.status202 r
         return r
 
