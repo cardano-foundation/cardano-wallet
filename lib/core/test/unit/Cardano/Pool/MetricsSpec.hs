@@ -23,8 +23,16 @@ import Cardano.Pool.DB
     ( DBLayer (..) )
 import Cardano.Pool.DB.MVar
     ( newDBLayer )
+import Cardano.Pool.Metadata
+    ( StakePoolMetadata (..), sameStakePoolMetadata )
 import Cardano.Pool.Metrics
-    ( Block (..), calculatePerformance, combineMetrics, monitorStakePools )
+    ( Block (..)
+    , StakePoolLayerMsg (..)
+    , associateMetadata
+    , calculatePerformance
+    , combineMetrics
+    , monitorStakePools
+    )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( genesisParameters )
 import Cardano.Wallet.Network
@@ -50,6 +58,8 @@ import Cardano.Wallet.Primitive.Types
     , fromFlatSlot
     , slotSucc
     )
+import Cardano.Wallet.Unsafe
+    ( unsafeFromText )
 import Control.Concurrent.Async
     ( race_ )
 import Control.Concurrent.MVar
@@ -79,7 +89,7 @@ import Data.Text.Class
 import Data.Word
     ( Word32, Word64 )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe )
+    ( Spec, describe, it, shouldBe, shouldContain, shouldSatisfy )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -132,6 +142,8 @@ spec = do
     describe "monitorStakePools" $ do
         it "records all stake pool registrations in the database"
             $ property prop_trackRegistrations
+
+    associateMetadataSpec
 
 {-------------------------------------------------------------------------------
                                 Properties
@@ -485,3 +497,69 @@ arbitraryChunks xs = do
     n <- choose (1, length xs)
     rest <- arbitraryChunks (drop n xs)
     pure $ take n xs : rest
+
+{-------------------------------------------------------------------------------
+                                   Unit tests
+-------------------------------------------------------------------------------}
+
+associateMetadataSpec :: Spec
+associateMetadataSpec = describe "associateMetadata" $ do
+    let mkMetadata owner@(PoolOwner bs) tckr = StakePoolMetadata
+            { owner = owner
+            , ticker = unsafeFromText tckr
+            , name = tckr
+            , description = Just tckr
+            , homepage = tckr
+            , pledgeAddress = tckr
+            }
+
+    it "works in sunny day case" $ do
+        let owner = PoolOwner "a"
+        let md = mkMetadata owner "AAAA"
+        let pid = PoolId "1"
+
+        let res = associateMetadata
+                (Map.fromList [(pid, [owner])])
+                [(owner, Just md)]
+
+        res `shouldBe` [(MsgMetadataUsing pid owner md, Just md)]
+
+    it "missing metadata" $ do
+        let res = associateMetadata
+                (Map.fromList [(PoolId "1", [PoolOwner "a"])])
+                [(PoolOwner "a", Nothing)]
+
+        res `shouldBe` [(MsgMetadataMissing (PoolId "1"), Nothing)]
+
+    it "duplicate metadata" $ do
+        let mda = mkMetadata (PoolOwner "a") "AAAA"
+        let mdb = mkMetadata (PoolOwner "b") "AAAA"
+        let [(msg, res)] = associateMetadata
+                (Map.fromList [(PoolId "1", [PoolOwner "a", PoolOwner "b"])])
+                [ (PoolOwner "a", Just mda)
+                , (PoolOwner "b", Just mdb)
+                ]
+
+        case msg of
+            MsgMetadataUsing pid owner md -> do
+                pid `shouldBe` PoolId "1"
+                [PoolOwner "a", PoolOwner "b"] `shouldContain` [owner]
+                md `shouldSatisfy` sameStakePoolMetadata mda
+                md `shouldSatisfy` sameStakePoolMetadata mdb
+            _ -> fail $ "wrong log message " ++ show msg
+
+        fmap (sameStakePoolMetadata mda) res `shouldBe` Just True
+
+    it "inconsistent metadata" $ do
+        let mda = mkMetadata (PoolOwner "a") "AAAA"
+        let mdb = mkMetadata (PoolOwner "b") "BBBB"
+
+        let res = associateMetadata
+                (Map.fromList [(PoolId "1", [PoolOwner "a", PoolOwner "b"])])
+                [ (PoolOwner "a", Just mda)
+                , (PoolOwner "b", Just mdb)
+                ]
+
+        res `shouldBe`
+            [( MsgMetadataMultiple (PoolId "1")
+                [(PoolOwner "a", mda), (PoolOwner "b", mdb)], Nothing)]

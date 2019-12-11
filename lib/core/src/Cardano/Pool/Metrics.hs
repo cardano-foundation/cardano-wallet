@@ -34,6 +34,9 @@ module Cardano.Pool.Metrics
     , combineMetrics
     , calculatePerformance
 
+      -- * Associating metadata
+    , associateMetadata
+
       -- * Logging
     , StakePoolLayerMsg (..)
     )
@@ -54,6 +57,7 @@ import Cardano.Pool.Metadata
     , StakePoolMetadata (..)
     , getRegistryZipUrl
     , getStakePoolMetadata
+    , sameStakePoolMetadata
     )
 import Cardano.Wallet.Logging
     ( logTrace )
@@ -298,7 +302,7 @@ newStakePoolLayer db@DBLayer{..} nl tr = StakePoolLayer
                         (Map.fromList $ zip poolIds owners)
                         (zip owners' metas)
                 mapM_ (logTrace tr . fst) res
-                pure (map snd res)
+                pure $ map snd res
 
     (block0, bp) = staticBlockchainParameters nl
     epochLength = bp ^. #getEpochLength
@@ -561,7 +565,7 @@ associateMetadata poolOwners ownerMeta =
         [] -> (MsgMetadataMissing pid, Nothing)
         metas' -> (MsgMetadataMultiple pid metas', Nothing)
 
-    sameMeta (_, a) (_, b) = a == b
+    sameMeta (_, a) (_, b) = sameStakePoolMetadata a b
 
 {-------------------------------------------------------------------------------
                                     Logging

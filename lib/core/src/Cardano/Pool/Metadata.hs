@@ -15,6 +15,7 @@
 module Cardano.Pool.Metadata
     ( -- * Types
       StakePoolMetadata (..)
+    , sameStakePoolMetadata
     , StakePoolTicker
 
       -- * Fetching metadata
@@ -118,6 +119,12 @@ data StakePoolMetadata = StakePoolMetadata
     , pledgeAddress :: Text
     -- ^ Bech32-encoded address.
     } deriving (Eq, Show, Generic)
+
+-- | Returns 'True' iff metadata is exactly equal, modulo 'PoolOwner'.
+sameStakePoolMetadata :: StakePoolMetadata -> StakePoolMetadata -> Bool
+sameStakePoolMetadata a b = a { owner = same } == b { owner = same }
+  where
+    same = PoolOwner mempty
 
 -- | Very short name for a stake pool.
 newtype StakePoolTicker = StakePoolTicker { unStakePoolTicker :: Text }
