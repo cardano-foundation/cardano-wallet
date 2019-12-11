@@ -548,9 +548,12 @@ spec = do
         (_, p:_) <- eventually $
             unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
         w <- fixtureWallet ctx
-        fee <- getFromResponse amount <$> delegationFee ctx w
-        r <- joinStakePool ctx (p ^. #id) (w, fixturePassphrase)
+        r <- delegationFee ctx w
         verify r
+            [ expectResponseCode HTTP.status200
+            ]
+        let fee = getFromResponse amount r
+        joinStakePool ctx (p ^. #id) (w, fixturePassphrase) >>= flip verify
             [ expectFieldEqual amount fee
             ]
 
@@ -572,7 +575,7 @@ spec = do
             , expectErrorMessage $ errMsg404NoWallet (w ^. walletId)
             ]
 
-    describe "STAKE_POOLS_ESTIMATE_FEE_04 - wallet ids" $ do
+    describe "STAKE_POOLS_ESTIMATE_FEE_04 - false wallet ids" $ do
         forM_ falseWalletIds $ \(wDesc, walId) -> do
             let path = "wallets/" <> walId
             it ("wallet:" ++ wDesc) $ \ctx -> do
