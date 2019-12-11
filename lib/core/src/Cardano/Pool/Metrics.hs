@@ -60,7 +60,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (unSlotNo)
     )
 import Control.Monad
-    ( forM, forM_, unless, when )
+    ( forM, forM_, when )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Class
@@ -169,9 +169,9 @@ monitorStakePools tr nl DBLayer{..} = do
         liftIO $ logInfo tr $ "Writing stake-distribution for epoch " <> pretty ep
 
         let registrations = concatMap poolRegistrations blocks
-        unless (null registrations) $
-            liftIO $ logInfo tr $ "Discovered stake pool registrations: "
-                <> pretty registrations
+        liftIO $ forM_ registrations $ \registration ->
+            logInfo tr $ "Discovered stake pool registration: "
+                <> pretty registration
 
         mapExceptT atomically $ do
             lift $ putStakeDistribution ep (Map.toList dist)
