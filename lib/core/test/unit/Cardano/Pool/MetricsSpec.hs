@@ -19,8 +19,6 @@ module Cardano.Pool.MetricsSpec
 
 import Prelude
 
-import Cardano.BM.Trace
-    ( nullTracer )
 import Cardano.Pool.DB
     ( DBLayer (..) )
 import Cardano.Pool.DB.MVar
@@ -74,6 +72,10 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Set
     ( Set )
+import Data.Text
+    ( Text )
+import Data.Text.Class
+    ( toText )
 import Data.Word
     ( Word32, Word64 )
 import Test.Hspec
@@ -101,11 +103,14 @@ import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor, run )
+import Test.Utils.Trace
+    ( captureLogging )
 
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import qualified Data.Text as T
 
 spec :: Spec
 spec = do
@@ -220,7 +225,11 @@ newtype RegistrationsTest = RegistrationsTest
     { getRegistrationsTest :: [[Block]] }
     deriving (Show, Eq)
 
--- The idea is to run monitorStakePools with an in-memory database and mock network layer.
+-- | Assert that 'monitorStakePools' records all stake pool registrations in the
+-- database.
+--
+-- The idea is to run 'monitorStakePools' with an in-memory database and mock
+-- network layer.
 --
 -- The mock network layer serves up chunks of blocks from the testcase, which
 -- contain registration certificates
@@ -229,24 +238,30 @@ newtype RegistrationsTest = RegistrationsTest
 -- the blocks of the test case.
 prop_trackRegistrations :: RegistrationsTest -> Property
 prop_trackRegistrations test = monadicIO $ do
-    let tr = nullTracer -- FIXME: also check logs
-
     let expected = getExpected test
+    let numRegistrations = getNumRegistrations test
 
-    ownership <- run $ do
-        lock <- newEmptyMVar
-        nl <- newMockNetworkLayer lock test
+    (logs, ownership) <- run $ captureLogging $ \tr -> do
+        done <- newEmptyMVar
+        nl <- newMockNetworkLayer done test
         db@DBLayer{..} <- newDBLayer
-        race_ (takeMVar lock) (monitorStakePools tr nl db)
+        race_ (takeMVar done) (monitorStakePools tr nl db)
 
         let pids = Map.keys expected
         owners <- atomically $ mapM readStakePoolOwners pids
         pure $ Map.fromList $ zip pids (L.sort <$> owners)
 
+    let numDiscoveryLogs = length (filter isDiscoveryMsg logs)
+
     monitor $ counterexample $ "Actual pool owners:   " <> show ownership
     monitor $ counterexample $ "Expected pool owners: " <> show expected
+    monitor $ counterexample $ "# Discovery log msgs: " <> show numDiscoveryLogs
+    monitor $ counterexample $ "# Registration certs: " <> show numRegistrations
+    monitor $ counterexample $ "Logs:\n" <>
+        unlines (map (("  " ++) . T.unpack . toText) logs)
 
     assert (ownership == expected)
+    assert (numDiscoveryLogs == numRegistrations)
   where
     getExpected :: RegistrationsTest -> Map PoolId [PoolOwner]
     getExpected =
@@ -264,11 +279,20 @@ prop_trackRegistrations test = monadicIO $ do
             fromCert (PoolRegistrationCertificate pid owners) =
                 Map.singleton pid (Set.fromList owners)
 
+    isDiscoveryMsg :: Text -> Bool
+    isDiscoveryMsg = T.isInfixOf "Discovered stake pool registration"
+
+    getNumRegistrations :: RegistrationsTest -> Int
+    getNumRegistrations =
+        sum
+        . map (sum . map (length . poolRegistrations))
+        . getRegistrationsTest
+
     newMockNetworkLayer
         :: MVar ()
         -> RegistrationsTest
         -> IO (NetworkLayer IO RegistrationsTest Block)
-    newMockNetworkLayer lock (RegistrationsTest blocks) = do
+    newMockNetworkLayer done (RegistrationsTest blocks) = do
         blockVar <- newMVar blocks
         let popChunk = modifyMVar blockVar $ \case
                 [] -> pure ([], Nothing)
@@ -279,7 +303,7 @@ prop_trackRegistrations test = monadicIO $ do
                         $ Right
                         $ RollForward cursor blkH bs
                     Nothing -> do
-                        tryPutMVar lock () $> (Left
+                        tryPutMVar done () $> (Left
                             $ ErrGetBlockNetworkUnreachable
                             $ ErrNetworkInvalid "The test case has finished")
             , initCursor =
@@ -288,6 +312,10 @@ prop_trackRegistrations test = monadicIO $ do
                 pure (0, mempty)
             , networkTip =
                 pure header0
+            -- These params are basically unused and completely arbitrary.
+            , staticBlockchainParameters =
+                (block0, mockBlockchainParameters
+                    { getEpochStability = Quantity 2 })
             }
 
 data instance Cursor RegistrationsTest = Cursor BlockHeader
@@ -313,11 +341,23 @@ mockNetworkLayer = NetworkLayer
     , postTx =
         \_ -> error "mockNetworkLayer: postTx"
     , staticBlockchainParameters =
-        error "mockNetworkLayer: staticBlockchainParameters"
+        ( error "mockNetworkLayer: genesis block"
+        , mockBlockchainParameters )
     , stakeDistribution =
         error "mockNetworkLayer: stakeDistribution"
     , getAccountBalance =
         \_ -> error "mockNetworkLayer: getAccountBalance"
+    }
+
+mockBlockchainParameters :: BlockchainParameters
+mockBlockchainParameters = BlockchainParameters
+    { getGenesisBlockHash = error "mockBlockchainParameters: getGenesisBlockHash"
+    , getGenesisBlockDate = error "mockBlockchainParameters: getGenesisBlockDate"
+    , getFeePolicy = error "mockBlockchainParameters: getFeePolicy"
+    , getSlotLength = error "mockBlockchainParameters: getSlotLength"
+    , getEpochLength = error "mockBlockchainParameters: getEpochLength"
+    , getTxMaxSize = error "mockBlockchainParameters: getTxMaxSize"
+    , getEpochStability = error "mockBlockchainParameters: getEpochStability"
     }
 
 header0 :: BlockHeader
@@ -326,6 +366,9 @@ header0 = BlockHeader
     (Quantity 0)
     (Hash $ B8.replicate 32 '0')
     (Hash $ B8.replicate 32 '0')
+
+block0 :: Block
+block0 = Block header0 (PoolId "") []
 
 {-------------------------------------------------------------------------------
                                  Arbitrary
