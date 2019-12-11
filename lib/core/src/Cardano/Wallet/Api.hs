@@ -18,6 +18,7 @@ module Cardano.Wallet.Api
       -- * Core API
     , CoreApi
     , Addresses
+    , CoinSelections
     , Wallets
     , Transactions
 
@@ -133,7 +134,8 @@ type Api t = CoreApi t :<|> CompatibilityApi t :<|> StakePoolApi t
 
 type CoreApi t =
     Addresses t
-    :<|> Wallets t
+    :<|> Wallets
+    :<|> CoinSelections t
     :<|> Transactions t
     :<|> Network
 
@@ -175,7 +177,7 @@ type ListAddresses t = "wallets"
   See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/Wallets
 -------------------------------------------------------------------------------}
 
-type Wallets n =
+type Wallets =
     DeleteWallet
     :<|> GetWallet
     :<|> ListWallets
@@ -183,7 +185,6 @@ type Wallets n =
     :<|> PutWallet
     :<|> PutWalletPassphrase
     :<|> GetUTxOsStatistics
-    :<|> SelectCoins n
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteWallet
 type DeleteWallet = "wallets"
@@ -223,6 +224,16 @@ type GetUTxOsStatistics = "wallets"
     :> "statistics"
     :> "utxos"
     :> Get '[JSON] ApiUtxoStatistics
+
+{-------------------------------------------------------------------------------
+                               Coin Selections
+
+  See also:
+  https://input-output-hk.github.io/cardano-wallet/api/#tag/Coin-Selections
+-------------------------------------------------------------------------------}
+
+type CoinSelections n =
+    SelectCoins n
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/selectCoins
 type SelectCoins n = "wallets"

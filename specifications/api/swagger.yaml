@@ -1225,21 +1225,6 @@ paths:
           schema: *ApiWalletPutData
       responses: *responsesPutWallet
 
-  /wallets/{walletId}/coin-selections/random:
-    post:
-      operationId: selectCoins
-      tags: ["Coin Selections"]
-      summary: Random
-      description: |
-        <p align="right">status: <strong>not implemented</strong></p>
-
-        Select coins to cover the given set of payments.
-      parameters:
-        - *parametersWalletId
-        - <<: *parametersBody
-          schema: *ApiSelectCoinsData
-      responses: *responsesSelectCoins
-
   /wallets/{walletId}/statistics/utxos:
     get:
       operationId: getUTxOsStatistics
@@ -1423,6 +1408,21 @@ paths:
       parameters:
         - *parametersWalletId
       responses: *responsesGetDelegationFee
+
+  /wallets/{walletId}/coin-selections/random:
+    post:
+      operationId: selectCoins
+      tags: ["Coin Selections"]
+      summary: Random
+      description: |
+        <p align="right">status: <strong>not implemented</strong></p>
+
+        Select coins to cover the given set of payments.
+      parameters:
+        - *parametersWalletId
+        - <<: *parametersBody
+          schema: *ApiSelectCoinsData
+      responses: *responsesSelectCoins
 
   /byron-wallets:
     get:

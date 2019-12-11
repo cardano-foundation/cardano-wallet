@@ -80,6 +80,7 @@ import Cardano.Wallet.Api
     ( Addresses
     , Api
     , ApiLayer (..)
+    , CoinSelections
     , CompatibilityApi
     , CoreApi
     , HasDBFactory
@@ -433,6 +434,7 @@ coreApiServer
 coreApiServer ctx =
     addresses ctx
     :<|> wallets ctx
+    :<|> coinSelections ctx
     :<|> transactions ctx
     :<|> network ctx
 
@@ -462,7 +464,7 @@ wallets
         , ctx ~ ApiLayer s t k
         )
     => ctx
-    -> Server (Wallets n)
+    -> Server Wallets
 wallets ctx =
     deleteWallet ctx
     :<|> getWallet ctx
@@ -471,7 +473,6 @@ wallets ctx =
     :<|> putWallet ctx
     :<|> putWalletPassphrase ctx
     :<|> getUTxOsStatistics ctx
-    :<|> selectCoins ctx
 
 deleteWallet
     :: forall ctx s t k n.
@@ -602,6 +603,20 @@ getUTxOsStatistics ctx (ApiT wid) = do
         }
   where
     liftE = throwE . ErrListUTxOStatisticsNoSuchWallet
+
+{-------------------------------------------------------------------------------
+                                  Coin Selections
+-------------------------------------------------------------------------------}
+
+coinSelections
+    :: forall ctx s t k n.
+        ( s ~ SeqState n k
+        , ctx ~ ApiLayer s t k
+        )
+    => ctx
+    -> Server (CoinSelections n)
+coinSelections =
+    selectCoins
 
 selectCoins
     :: forall ctx s t k n.
