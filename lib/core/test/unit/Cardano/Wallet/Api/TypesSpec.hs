@@ -33,11 +33,14 @@ import Cardano.Wallet.Api.Types
     , ApiByronWallet (..)
     , ApiByronWalletBalance (..)
     , ApiByronWalletMigrationInfo (..)
+    , ApiCoinSelection (..)
+    , ApiCoinSelectionInput (..)
     , ApiEpochInfo (..)
     , ApiFee (..)
     , ApiMnemonicT (..)
     , ApiNetworkInformation (..)
     , ApiNetworkTip (..)
+    , ApiSelectCoinsData (..)
     , ApiStakePool (..)
     , ApiStakePoolMetrics (..)
     , ApiT (..)
@@ -263,6 +266,9 @@ spec = do
         \and match existing golden files" $ do
             jsonRoundtripAndGolden $ Proxy @(ApiAddress 'Testnet)
             jsonRoundtripAndGolden $ Proxy @ApiEpochInfo
+            jsonRoundtripAndGolden $ Proxy @(ApiSelectCoinsData 'Testnet)
+            jsonRoundtripAndGolden $ Proxy @(ApiCoinSelection 'Testnet)
+            jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionInput 'Testnet)
             jsonRoundtripAndGolden $ Proxy @ApiTimeReference
             jsonRoundtripAndGolden $ Proxy @ApiNetworkTip
             jsonRoundtripAndGolden $ Proxy @ApiBlockReference
@@ -594,6 +600,31 @@ spec = do
                     }
             in
                 x' === x .&&. show x' === show x
+        it "ApiSelectCoinsData" $ property $ \x ->
+            let
+                x' = ApiSelectCoinsData
+                    { payments = payments (x :: ApiSelectCoinsData 'Testnet)
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "ApiCoinSelection" $ property $ \x ->
+            let
+                x' = ApiCoinSelection
+                    { inputs = inputs (x :: ApiCoinSelection 'Testnet)
+                    , outputs = outputs (x :: ApiCoinSelection 'Testnet)
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "ApiCoinSelectionInput" $ property $ \x ->
+            let
+                x' = ApiCoinSelectionInput
+                    { id = id (x :: ApiCoinSelectionInput 'Testnet)
+                    , index = index (x :: ApiCoinSelectionInput 'Testnet)
+                    , address = address (x :: ApiCoinSelectionInput 'Testnet)
+                    , amount = amount (x :: ApiCoinSelectionInput 'Testnet)
+                    }
+            in
+                x' === x .&&. show x' === show x
         it "ApiWallet" $ property $ \x ->
             let
                 x' = ApiWallet
@@ -880,6 +911,24 @@ instance Arbitrary (ApiAddress t) where
 
 instance Arbitrary ApiEpochInfo where
     arbitrary = ApiEpochInfo <$> arbitrary <*> genUniformTime
+    shrink _ = []
+
+instance Arbitrary (ApiSelectCoinsData n) where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary (ApiCoinSelection n) where
+    arbitrary = ApiCoinSelection
+        <$> arbitrary
+        <*> arbitrary
+    shrink = genericShrink
+
+instance Arbitrary (ApiCoinSelectionInput n) where
+    arbitrary = ApiCoinSelectionInput
+        <$> arbitrary
+        <*> arbitrary
+        <*> fmap (, Proxy @n) arbitrary
+        <*> arbitrary
     shrink _ = []
 
 instance Arbitrary AddressState where
@@ -1324,6 +1373,12 @@ specification =
 
 instance ToSchema (ApiAddress t) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiAddress"
+
+instance ToSchema (ApiSelectCoinsData n) where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiSelectCoinsData"
+
+instance ToSchema (ApiCoinSelection n) where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiCoinSelection"
 
 instance ToSchema ApiWallet where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWallet"

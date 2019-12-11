@@ -1,0 +1,95 @@
+{
+    "seed": 5250614109591911229,
+    "samples": [
+        {
+            "amount": {
+                "quantity": 81,
+                "unit": "lovelace"
+            },
+            "address": "bNo8yLdDngt1n3nmmVKF5g1F9M9WQqXrTTpK9oRs1cwdfm87gEof7y3HQARM9d8g4bMhTb6wnjVft3VjF8o9cP",
+            "id": "09a670026312417f4a27576863656e276a147172737350992675e01937790bd6",
+            "index": 17711
+        },
+        {
+            "amount": {
+                "quantity": 198,
+                "unit": "lovelace"
+            },
+            "address": "addr1s0vrqtvlzgqkpv68a90z6c0p8ql9kahwvahgt4r749h47hkw4fx6j6470f4",
+            "id": "5a0487430374cb6db75c49141d0338372577785a8f17734e342d2433553f3c60",
+            "index": 32727
+        },
+        {
+            "amount": {
+                "quantity": 17,
+                "unit": "lovelace"
+            },
+            "address": "addr1s5dpal6karlhjexptrjt33qhnnchpyvzle4xhkdd85tsrvqwp46vjmke4at",
+            "id": "352c603a32125d4a1937574f2d1128ee0b6c1f174d240b3f64cd00764e6260c2",
+            "index": 17727
+        },
+        {
+            "amount": {
+                "quantity": 139,
+                "unit": "lovelace"
+            },
+            "address": "addr1sk0a650ly53rdjdas3j9gl85rdwavyzhcmzqcc0wt0nf3sf3kd0gshugmf8",
+            "id": "4409bd2d2b0907581725430c43070f61de16ee774b261efbd50c7f4b050a4fa1",
+            "index": 9866
+        },
+        {
+            "amount": {
+                "quantity": 245,
+                "unit": "lovelace"
+            },
+            "address": "addr1snqegqta608d0u86vvsgx00qx34s20n9z9u8gjydqm6dacfl8wa9z7k66zvpds6gj8hvktm0lea9gcqr5zcfy0ff7lcs76c8p7l2u2pt872l8e",
+            "id": "de28022de038de10520b0a2b6040314d4c11402d04536a03fc79ce5d4b58771f",
+            "index": 4153
+        },
+        {
+            "amount": {
+                "quantity": 243,
+                "unit": "lovelace"
+            },
+            "address": "addr1skuh7hpj50m27e5u3a00y3ydlvj0sq0326sfmxnxjlez7pjxradnclr68wf",
+            "id": "3ae76155823147b7e81f2f131a4a3b7d08471d51307956620b07100169596e7c",
+            "index": 21432
+        },
+        {
+            "amount": {
+                "quantity": 4,
+                "unit": "lovelace"
+            },
+            "address": "addr1svy6ytmwfzc4nufejpkamhrlcjta4twyru2qvfxql7yafgypwrlr63ezekk",
+            "id": "066327af20ff686d57127373b068091d79625d4337cd6aed7571273f081c6c74",
+            "index": 20241
+        },
+        {
+            "amount": {
+                "quantity": 5,
+                "unit": "lovelace"
+            },
+            "address": "addr1sddpafjvzan40h7lc87k0sj8sgsmkl73pc7hysqr4x4fl7vmynf064674f2",
+            "id": "037e5c192e5bed6f392f1c0f3b2a0dbc0d4c50d67453006537615e0f4b332ca0",
+            "index": 28284
+        },
+        {
+            "amount": {
+                "quantity": 224,
+                "unit": "lovelace"
+            },
+            "address": "addr1skhpv4fyeslpsr8fr52sk8hunml8zue08pweqe7dxdq2dqkk859f6fnzteg",
+            "id": "06214f2d377106d53e4c6f3c3f2b2d2d49ea2d59715e0f1439477e1a3d210459",
+            "index": 25049
+        },
+        {
+            "amount": {
+                "quantity": 160,
+                "unit": "lovelace"
+            },
+            "address": "addr1s4snfl54u6f4fuqarzknqm4tv7k9zuz2jejcryetsalmr7j328zzv2kdgt4",
+            "id": "771a587f7e681659165c666ac0040927145d7a174e4528136836390b30266a7d",
+            "index": 5512
+        }
+    ]
+}

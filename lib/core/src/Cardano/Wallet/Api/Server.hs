@@ -80,6 +80,7 @@ import Cardano.Wallet.Api
     ( Addresses
     , Api
     , ApiLayer (..)
+    , CoinSelections
     , CompatibilityApi
     , CoreApi
     , HasDBFactory
@@ -97,11 +98,13 @@ import Cardano.Wallet.Api.Types
     , ApiByronWallet (..)
     , ApiByronWalletBalance (..)
     , ApiByronWalletMigrationInfo (..)
+    , ApiCoinSelection (..)
     , ApiEpochInfo (..)
     , ApiErrorCode (..)
     , ApiFee (..)
     , ApiNetworkInformation (..)
     , ApiNetworkTip (..)
+    , ApiSelectCoinsData (..)
     , ApiStakePool (..)
     , ApiStakePoolMetrics (..)
     , ApiT (..)
@@ -272,8 +275,10 @@ import Servant
     , err409
     , err410
     , err500
+    , err501
     , err503
     , serve
+    , throwError
     )
 import Servant.Server
     ( Handler (..), ServantErr (..) )
@@ -429,6 +434,7 @@ coreApiServer
 coreApiServer ctx =
     addresses ctx
     :<|> wallets ctx
+    :<|> coinSelections ctx
     :<|> transactions ctx
     :<|> network ctx
 
@@ -597,6 +603,31 @@ getUTxOsStatistics ctx (ApiT wid) = do
         }
   where
     liftE = throwE . ErrListUTxOStatisticsNoSuchWallet
+
+{-------------------------------------------------------------------------------
+                                  Coin Selections
+-------------------------------------------------------------------------------}
+
+coinSelections
+    :: forall ctx s t k n.
+        ( s ~ SeqState n k
+        , ctx ~ ApiLayer s t k
+        )
+    => ctx
+    -> Server (CoinSelections n)
+coinSelections =
+    selectCoins
+
+selectCoins
+    :: forall ctx s t k n.
+        ( s ~ SeqState n k
+        , ctx ~ ApiLayer s t k
+        )
+    => ctx
+    -> ApiT WalletId
+    -> ApiSelectCoinsData n
+    -> Handler (ApiCoinSelection n)
+selectCoins _ctx (ApiT _wid) _selectCoinsData = throwError err501
 
 {-------------------------------------------------------------------------------
                                     Addresses

@@ -57,7 +57,7 @@ import Control.Monad
 import Data.ByteArray.Encoding
     ( Base (Base16, Base64), convertFromBase, convertToBase )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( view, (^.) )
 import Data.Generics.Product.Typed
     ( HasType )
 import Data.Quantity
@@ -125,7 +125,6 @@ import Test.Integration.Framework.TestData
 import Test.QuickCheck
     ( arbitrary, generate, vectorOf )
 
-import qualified Cardano.Wallet.Api.Types as API
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -226,7 +225,7 @@ spec = do
     it "TRANS_LIST_?? - List transactions of a fixture wallet" $ \ctx -> do
         txs <- fixtureWallet ctx >>= listAllTransactions ctx
         length txs `shouldBe` 10
-        txs `shouldSatisfy` all (null . API.inputs)
+        txs `shouldSatisfy` all (null . view #inputs)
 
     it "TRANS_EXTERNAL_CREATE_01x - \
         \single output tx signed via jcli" $ \ctx -> do

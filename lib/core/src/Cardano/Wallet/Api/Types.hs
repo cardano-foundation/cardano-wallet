@@ -32,6 +32,9 @@ module Cardano.Wallet.Api.Types
     -- * API Types
       ApiAddress (..)
     , ApiEpochInfo (..)
+    , ApiSelectCoinsData (..)
+    , ApiCoinSelection (..)
+    , ApiCoinSelectionInput (..)
     , ApiStakePool (..)
     , ApiStakePoolMetrics (..)
     , ApiWallet (..)
@@ -203,6 +206,22 @@ data ApiAddress (n :: NetworkDiscriminant) = ApiAddress
 data ApiEpochInfo = ApiEpochInfo
     { epochNumber :: !(ApiT EpochNo)
     , epochStartTime :: !UTCTime
+    } deriving (Eq, Generic, Show)
+
+newtype ApiSelectCoinsData (n :: NetworkDiscriminant) = ApiSelectCoinsData
+    { payments :: NonEmpty (AddressAmount n)
+    } deriving (Eq, Generic, Show)
+
+data ApiCoinSelection (n :: NetworkDiscriminant) = ApiCoinSelection
+    { inputs :: !(NonEmpty (ApiCoinSelectionInput n))
+    , outputs :: !(NonEmpty (AddressAmount n))
+    } deriving (Eq, Generic, Show)
+
+data ApiCoinSelectionInput (n :: NetworkDiscriminant) = ApiCoinSelectionInput
+    { id :: !(ApiT (Hash "Tx"))
+    , index :: !Word32
+    , address :: !(ApiT Address, Proxy n)
+    , amount :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
 
 data ApiWallet = ApiWallet
@@ -460,6 +479,21 @@ instance EncodeAddress n => ToJSON (ApiAddress n) where
 instance FromJSON ApiEpochInfo where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiEpochInfo where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance DecodeAddress n => FromJSON (ApiSelectCoinsData n) where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance EncodeAddress n => ToJSON (ApiSelectCoinsData n) where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance DecodeAddress n => FromJSON (ApiCoinSelection n) where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance EncodeAddress n => ToJSON (ApiCoinSelection n) where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance DecodeAddress n => FromJSON (ApiCoinSelectionInput n) where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance EncodeAddress n => ToJSON (ApiCoinSelectionInput n) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance {-# OVERLAPS #-} DecodeAddress n => FromJSON (ApiT Address, Proxy n)

@@ -1096,7 +1096,12 @@ data WalletClient t = WalletClient
 walletClient :: forall t. (DecodeAddress t, EncodeAddress t) => WalletClient t
 walletClient =
     let
-        (addresses :<|> wallets :<|> transactions :<|> network) :<|> pools =
+        (addresses
+            :<|> wallets
+            :<|> coinSelections
+            :<|> transactions
+            :<|> network)
+            :<|> pools =
             client (Proxy @("v2" :> (CoreApi t :<|> StakePoolApi t)))
 
         _listAddresses =
@@ -1110,6 +1115,9 @@ walletClient =
             :<|> _putWalletPassphrase
             :<|> _getWalletUtxoStatistics
             = wallets
+
+        _selectCoins
+            = coinSelections
 
         _postTransaction
             :<|> _listTransactions
