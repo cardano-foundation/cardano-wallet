@@ -19,6 +19,7 @@ module Cardano.Pool.Metadata
 
       -- * Fetching metadata
     , getStakePoolMetadata
+    , getRegistryZipUrl
     , cardanoFoundationRegistryZip
     , FetchError (..)
 
@@ -61,6 +62,8 @@ import Data.Aeson
     )
 import Data.List
     ( find )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -73,6 +76,8 @@ import Network.HTTP.Client
     ( HttpException, parseUrlThrow )
 import Network.HTTP.Simple
     ( httpSink )
+import System.Environment
+    ( lookupEnv )
 import System.FilePath
     ( isPathSeparator, (<.>), (</>) )
 import System.IO
@@ -260,6 +265,13 @@ findArchiveFile repoPath = find isRepoFile . Map.keys <$> getEntries
 -- | The path within the registry repo of metadata for a stake pool.
 registryFile :: PoolOwner -> FilePath
 registryFile owner_ = "registry" </> T.unpack (toText owner_) <.> "json"
+
+-- | Returns the Cardano Foundation stake pool registry zipfile URL, or the
+-- @CARDANO_WALLET_STAKE_POOL_REGISTRY_URL@ environment variable if it is set.
+getRegistryZipUrl :: IO String
+getRegistryZipUrl = fromMaybe cardanoFoundationRegistryZip <$> lookupEnv var
+  where
+    var = "CARDANO_WALLET_STAKE_POOL_REGISTRY_URL"
 
 -- | The stake pool registry zipfile download URL for CF.
 cardanoFoundationRegistryZip :: String
