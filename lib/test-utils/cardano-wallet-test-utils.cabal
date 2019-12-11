@@ -36,9 +36,11 @@ library
     , hspec
     , hspec-core
     , hspec-expectations
+    , iohk-monitoring
     , network
     , QuickCheck
     , random-shuffle
+    , stm
     , template-haskell
     , time
     , unliftio
@@ -49,4 +51,5 @@ library
       Test.Utils.Paths
       Test.Utils.Ports
       Test.Utils.Time
+      Test.Utils.Trace
       Test.Utils.Windows
