@@ -80,7 +80,7 @@ import Data.Time.Clock
 import Data.Time.Clock.System
     ( SystemTime (..), getSystemTime )
 import Fmt
-    ( Builder, build, fixedF, fmtLn, (+|), (|+) )
+    ( Builder, build, fixedF, fmtLn, padLeftF, (+|), (|+) )
 import Network.HTTP.Client
     ( defaultManagerSettings
     , managerResponseTimeout
@@ -122,7 +122,7 @@ import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
 main :: forall t n. (t ~ Jormungandr, n ~ 'Testnet) => IO ()
-main = do
+main = withUtf8Encoding $ do
     tvar <- newTVarIO []
     logging <- setupLatencyLogging tvar
 
@@ -153,10 +153,16 @@ main = do
     fmtLn "Latencies for 10 fixture wallets with 100 txs scenario"
     runScenario logging tvar (nFixtureWalletWithTxs 10 100)
   where
+    -- Creates n fixture wallets and return two of them
     nFixtureWallet n ctx = do
         wal1 : wal2 : _ <- replicateM n (fixtureWallet ctx)
         pure (wal1, wal2)
 
+    -- Creates n fixture wallets and send 1-lovelace transactions to one of them
+    -- (m times). The money is sent in batches (see batchSize below) from
+    -- additionally created source fixture wallet. Then we wait for the money
+    -- to be accommodated in recipient wallet. After that the source fixture
+    -- wallet is removed.
     nFixtureWalletWithTxs n m ctx = do
         (wal1, wal2) <- nFixtureWallet n ctx
 
@@ -208,8 +214,7 @@ main = do
         expectResponseCode HTTP.status202 r
         return r
 
-    runScenario logging tvar scenario =
-        withUtf8Encoding $ benchWithServer logging $ \ctx -> do
+    runScenario logging tvar scenario = benchWithServer logging $ \ctx -> do
         (wal1, wal2) <- scenario ctx
 
         t1 <- measureApiLogs tvar
@@ -274,7 +279,10 @@ buildResult [] = "ERR"
 buildResult ts = build $ fixedF 1 $ meanAvg ts
 
 fmtResult :: String -> [NominalDiffTime] -> IO ()
-fmtResult title ts = fmtLn ("    "+|title|+" - "+|buildResult ts|+" ms")
+fmtResult title ts =
+    let titleExt = title|+" - " :: String
+        titleF = padLeftF 25 ' ' titleExt
+    in fmtLn (titleF+|buildResult ts|+" ms")
 
 isLogRequestStart :: ServerLog -> Bool
 isLogRequestStart = \case
