@@ -27,7 +27,7 @@ import Cardano.Wallet.Primitive.Types
 import Control.Monad
     ( forM_, unless )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( view, (^.) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
@@ -122,6 +122,13 @@ spec = do
             -- either 1 or 2 blocks in the current epoch.
             verify r
                 [ expectListSizeEqual 3
+
+                , expectListItemFieldSatisfy 0
+                    #metadata ((== Just "Cardano Wallet") . fmap (view #name))
+                , expectListItemFieldSatisfy 1
+                    #metadata ((== Just "Cardano Wallet") . fmap (view #name))
+                , expectListItemFieldSatisfy 2
+                    #metadata ((== Just "Cardano Wallet") . fmap (view #name))
 
                 , expectListItemFieldEqual 0
                     (metrics . stake) 1

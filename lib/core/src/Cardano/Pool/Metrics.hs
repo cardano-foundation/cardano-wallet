@@ -168,9 +168,14 @@ monitorStakePools tr nl DBLayer{..} = do
   where
     initCursor :: IO [BlockHeader]
     initCursor = do
-        let (_, bp) = staticBlockchainParameters nl
+        let (block0, bp) = staticBlockchainParameters nl
         let k = fromIntegral . getQuantity . view #getEpochStability $ bp
-        atomically $ readPoolProductionCursor k
+        atomically $ do
+            mapM_ (uncurry putStakePoolOwner) $ concat
+                [ [ (reg ^. #poolId, owner) | owner <- reg ^. #poolOwners ]
+                | reg <- poolRegistrations block0
+                ]
+            readPoolProductionCursor k
 
     backward
         :: SlotId
