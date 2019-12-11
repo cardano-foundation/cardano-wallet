@@ -34,8 +34,7 @@ import Cardano.BM.Trace
 import Cardano.Wallet.Primitive.Model
     ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Block
-    , BlockHeader (..)
+    ( BlockHeader (..)
     , ChimericAccount (..)
     , EpochNo
     , Hash (..)
@@ -43,8 +42,12 @@ import Cardano.Wallet.Primitive.Types
     , SealedTx
     , SlotId
     )
+import Control.Arrow
+    ( first )
 import Control.Concurrent
     ( threadDelay )
+import Control.Concurrent.Async
+    ( AsyncCancelled (..) )
 import Control.Exception
     ( AsyncException (..)
     , Exception (..)
@@ -120,14 +123,8 @@ data NetworkLayer m target block = NetworkLayer
         -- ^ Broadcast a transaction to the chain producer
 
     , staticBlockchainParameters
-        :: (Block, BlockchainParameters)
+        :: (block, BlockchainParameters)
         -- ^ Get the genesis block and blockchain parameters.
-        --
-        -- Note: The genesis block is a Wallet @Block@-type and not the
-        -- @block@ type-parameter used in @nextBlocks@. This is due to:
-        -- 1. "Cardano.Pool.Metrics" wanting to use a @block@-type specific to
-        -- non-genesis blocks.
-        -- 2. The genesis block only being needed in the Wallet (currently).
 
     , stakeDistribution
         :: ExceptT ErrNetworkUnavailable m
@@ -140,7 +137,10 @@ data NetworkLayer m target block = NetworkLayer
     }
 
 instance Functor m => Functor (NetworkLayer m target) where
-    fmap f nl = nl { nextBlocks = fmap (fmap f) . nextBlocks nl }
+    fmap f nl = nl
+        { nextBlocks = fmap (fmap f) . nextBlocks nl
+        , staticBlockchainParameters = first f $ staticBlockchainParameters nl
+        }
 
 {-------------------------------------------------------------------------------
                                   Errors
@@ -303,7 +303,9 @@ follow nl tr cps yield rollback header =
                 return ()
             Just UserInterrupt ->
                 return ()
-            Just _ ->
+            Nothing | fromException e == Just AsyncCancelled -> do
+                return ()
+            Just _ -> do
                 logError tr $ "Non-recoverable error following the chain: " <> eT
             _ -> do
                 logError tr $ "Recoverable error following the chain: " <> eT

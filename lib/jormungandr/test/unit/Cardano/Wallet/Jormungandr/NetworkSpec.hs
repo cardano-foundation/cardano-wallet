@@ -333,8 +333,7 @@ mockNetworkLayer logLine = do
     Quantity k <- gets mockNodeK
     st <- newMVar emptyBlockHeaders
     Right (b0,bp) <- runExceptT $ getInitialBlockchainParameters jm genesisHash
-    let b0' = J.convertBlock b0
-    pure $ fromJBlock <$> mkRawNetworkLayer (b0', bp) (fromIntegral k) st jm
+    pure $ fromJBlock <$> mkRawNetworkLayer (b0, bp) (fromIntegral k) st jm
 
 -- | A network layer which returns mock blocks and mutates its state according
 -- to the generated operations.

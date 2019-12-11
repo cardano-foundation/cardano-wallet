@@ -9,12 +9,10 @@ import Prelude
 
 import Cardano.BM.Configuration.Static
     ( defaultConfigStdout )
-import Cardano.BM.Data.LogItem
-    ( LOContent (..), LogObject (..) )
 import Cardano.BM.Setup
     ( setupTrace_ )
 import Cardano.BM.Trace
-    ( Trace, traceInTVarIO )
+    ( Trace )
 import Cardano.Pool.Metadata
     ( FetchError (..)
     , RegistryLog (..)
@@ -31,20 +29,16 @@ import Cardano.Wallet.Unsafe
     ( unsafeFromText )
 import Codec.Archive.Zip
     ( CompressionMethod (..), addEntry, createArchive, mkEntrySelector )
-import Control.Concurrent.STM.TVar
-    ( newTVarIO, readTVarIO )
 import Control.Monad
     ( forM_, replicateM )
 import Data.Aeson
     ( encode )
 import Data.ByteString
     ( ByteString )
-import Data.Maybe
-    ( mapMaybe )
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( toText )
+    ( ToText (..) )
 import Network.Wai.Application.Static
     ( defaultWebAppSettings, staticApp )
 import Network.Wai.Handler.Warp
@@ -74,6 +68,8 @@ import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor, run )
 import Test.Utils.Paths
     ( getTestData )
+import Test.Utils.Trace
+    ( captureLogging )
 
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
@@ -177,7 +173,7 @@ prop_getStakePoolMetadata :: TestCase -> Property
 prop_getStakePoolMetadata tc = monadicIO $ do
     -- Generate a zip file for the test case and serve on a local file server.
     -- Run getStakePoolMeta and take the actual result, and the log messages.
-    (res, msgs) <- run $ withTestCaseZip tc $ \zipFile ->
+    (msgs, res) <- run $ withTestCaseZip tc $ \zipFile ->
         testServer (takeDirectory zipFile) $ \port -> do
             let url = testCaseUrl tc port
             captureLogging $ \tr -> getStakePoolMetadata tr url (poolOwners tc)
@@ -302,19 +298,4 @@ instance Arbitrary PathElement where
 setupLogging :: IO (Trace IO RegistryLog)
 setupLogging = do
     cfg <- defaultConfigStdout
-    transformTextTrace . fst <$> setupTrace_ cfg "RegistrySpec"
-
-withLogging :: ((Trace IO RegistryLog, IO [RegistryLog]) -> IO a) -> IO a
-withLogging action = do
-    tvar <- newTVarIO []
-    let unMsg lo = case lo of
-            LogMessage msg -> Just msg
-            _ -> Nothing
-    let getMsgs = reverse . mapMaybe (unMsg . loContent) <$> readTVarIO tvar
-    action (traceInTVarIO tvar, getMsgs)
-
-captureLogging :: (Trace IO RegistryLog -> IO a) -> IO (a, [RegistryLog])
-captureLogging action = withLogging $ \(tr, getMsgs) -> do
-    res <- action tr
-    msgs <- getMsgs
-    pure (res, msgs)
+    transformTextTrace . fst <$> setupTrace_ cfg "tests"

@@ -1,17 +1,41 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-module Cardano.Pool.MetricsSpec (spec) where
+
+module Cardano.Pool.MetricsSpec
+    ( spec
+    , arbitraryChunks
+    , RegistrationsTest
+    ) where
 
 import Prelude
 
+import Cardano.Pool.DB
+    ( DBLayer (..) )
+import Cardano.Pool.DB.MVar
+    ( newDBLayer )
 import Cardano.Pool.Metrics
-    ( Block (..), calculatePerformance, combineMetrics )
+    ( Block (..), calculatePerformance, combineMetrics, monitorStakePools )
+import Cardano.Wallet.DummyTarget.Primitive.Types
+    ( genesisParameters )
+import Cardano.Wallet.Network
+    ( Cursor
+    , ErrGetBlock (..)
+    , ErrNetworkUnavailable (..)
+    , NetworkLayer (..)
+    , NextBlocksResult (..)
+    )
+import Cardano.Wallet.Primitive.Model
+    ( BlockchainParameters (..), slotParams )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , Coin (..)
@@ -22,21 +46,46 @@ import Cardano.Wallet.Primitive.Types
     , PoolRegistrationCertificate (..)
     , SlotId (..)
     , flatSlot
+    , flatSlot
     , fromFlatSlot
+    , slotSucc
     )
+import Control.Concurrent.Async
+    ( race_ )
+import Control.Concurrent.MVar
+    ( MVar, modifyMVar, newEmptyMVar, newMVar, takeMVar, tryPutMVar )
+import Control.Monad
+    ( replicateM )
+import Control.Monad.Trans.Class
+    ( lift )
+import Control.Monad.Trans.Except
+    ( ExceptT (..) )
+import Control.Monad.Trans.State.Strict
+    ( StateT, evalStateT, get, modify' )
 import Data.Function
     ( (&) )
+import Data.Functor
+    ( ($>) )
 import Data.Map.Strict
     ( Map )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Set
+    ( Set )
+import Data.Text
+    ( Text )
+import Data.Text.Class
+    ( toText )
 import Data.Word
     ( Word32, Word64 )
 import Test.Hspec
     ( Spec, describe, it, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Gen
+    , NonEmptyList (..)
     , NonNegative (..)
+    , Positive (..)
     , Property
     , checkCoverage
     , choose
@@ -46,14 +95,22 @@ import Test.QuickCheck
     , elements
     , frequency
     , property
+    , scale
     , vectorOf
     , (===)
     )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
+import Test.QuickCheck.Monadic
+    ( assert, monadicIO, monitor, run )
+import Test.Utils.Trace
+    ( captureLogging )
 
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.List as L
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
+import qualified Data.Text as T
 
 spec :: Spec
 spec = do
@@ -71,6 +128,10 @@ spec = do
 
         describe "golden test cases" $ do
             performanceGoldens
+
+    describe "monitorStakePools" $ do
+        it "records all stake pool registrations in the database"
+            $ property prop_trackRegistrations
 
 {-------------------------------------------------------------------------------
                                 Properties
@@ -159,6 +220,156 @@ performanceGoldens = do
     mkStake = Map.map Quantity . Map.fromList
     mkProduction = Map.map Quantity . Map.fromList
 
+-- | A list of chunks of blocks to be served up by the mock network layer.
+newtype RegistrationsTest = RegistrationsTest
+    { getRegistrationsTest :: [[Block]] }
+    deriving (Show, Eq)
+
+-- | Assert that 'monitorStakePools' records all stake pool registrations in the
+-- database.
+--
+-- The idea is to run 'monitorStakePools' with an in-memory database and mock
+-- network layer.
+--
+-- The mock network layer serves up chunks of blocks from the testcase, which
+-- contain registration certificates
+--
+-- It then asserts that the registration info in the database matches that of
+-- the blocks of the test case.
+prop_trackRegistrations :: RegistrationsTest -> Property
+prop_trackRegistrations test = monadicIO $ do
+    let expected = getExpected test
+    let numRegistrations = getNumRegistrations test
+
+    (logs, ownership) <- run $ captureLogging $ \tr -> do
+        done <- newEmptyMVar
+        nl <- newMockNetworkLayer done test
+        db@DBLayer{..} <- newDBLayer
+        race_ (takeMVar done) (monitorStakePools tr nl db)
+
+        let pids = Map.keys expected
+        owners <- atomically $ mapM readStakePoolOwners pids
+        pure $ Map.fromList $ zip pids (L.sort <$> owners)
+
+    let numDiscoveryLogs = length (filter isDiscoveryMsg logs)
+
+    monitor $ counterexample $ "Actual pool owners:   " <> show ownership
+    monitor $ counterexample $ "Expected pool owners: " <> show expected
+    monitor $ counterexample $ "# Discovery log msgs: " <> show numDiscoveryLogs
+    monitor $ counterexample $ "# Registration certs: " <> show numRegistrations
+    monitor $ counterexample $ "Logs:\n" <>
+        unlines (map (("  " ++) . T.unpack . toText) logs)
+
+    assert (ownership == expected)
+    assert (numDiscoveryLogs == numRegistrations)
+  where
+    getExpected :: RegistrationsTest -> Map PoolId [PoolOwner]
+    getExpected =
+        Map.map (L.sort . Set.toList)
+        . L.foldl' merge mempty
+        . mconcat
+        . getRegistrationsTest
+      where
+        merge
+            :: Map PoolId (Set PoolOwner)
+            -> Block
+            -> Map PoolId (Set PoolOwner)
+        merge m blk = Map.unionsWith (<>) $ m : (fromCert <$> poolRegistrations blk)
+          where
+            fromCert (PoolRegistrationCertificate pid owners) =
+                Map.singleton pid (Set.fromList owners)
+
+    isDiscoveryMsg :: Text -> Bool
+    isDiscoveryMsg = T.isInfixOf "Discovered stake pool registration"
+
+    getNumRegistrations :: RegistrationsTest -> Int
+    getNumRegistrations =
+        sum
+        . map (sum . map (length . poolRegistrations))
+        . getRegistrationsTest
+
+    newMockNetworkLayer
+        :: MVar ()
+        -> RegistrationsTest
+        -> IO (NetworkLayer IO RegistrationsTest Block)
+    newMockNetworkLayer done (RegistrationsTest blocks) = do
+        blockVar <- newMVar blocks
+        let popChunk = modifyMVar blockVar $ \case
+                [] -> pure ([], Nothing)
+                (b:bs) -> pure (bs, Just b)
+        pure $ mockNetworkLayer
+            { nextBlocks = \cursor@(Cursor blkH) -> ExceptT $ popChunk >>= \case
+                    Just bs -> pure
+                        $ Right
+                        $ RollForward cursor blkH bs
+                    Nothing -> do
+                        tryPutMVar done () $> (Left
+                            $ ErrGetBlockNetworkUnreachable
+                            $ ErrNetworkInvalid "The test case has finished")
+            , initCursor =
+                const $ Cursor header0
+            , stakeDistribution =
+                pure (0, mempty)
+            , networkTip =
+                pure header0
+            -- These params are basically unused and completely arbitrary.
+            , staticBlockchainParameters =
+                (block0, mockBlockchainParameters
+                    { getEpochStability = Quantity 2 })
+            }
+
+data instance Cursor RegistrationsTest = Cursor BlockHeader
+
+{-------------------------------------------------------------------------------
+                                 Mock Data
+-------------------------------------------------------------------------------}
+
+-- A mock network layer placeholder that can be re-used across tests. Functions
+-- required by a particular test can be stubbed out or mocked as necessary.
+mockNetworkLayer :: NetworkLayer m t b
+mockNetworkLayer = NetworkLayer
+    { nextBlocks =
+        \_ -> error "mockNetworkLayer: nextBlocks"
+    , findIntersection =
+        \_ -> error "mockNetworkLayer: findIntersection"
+    , initCursor =
+        \_ -> error "mockNetworkLayer: initCursor"
+    , cursorSlotId =
+        \_ -> error "mockNetworkLayer: cursorSlotId"
+    , networkTip =
+        error "mockNetworkLayer: networkTip"
+    , postTx =
+        \_ -> error "mockNetworkLayer: postTx"
+    , staticBlockchainParameters =
+        ( error "mockNetworkLayer: genesis block"
+        , mockBlockchainParameters )
+    , stakeDistribution =
+        error "mockNetworkLayer: stakeDistribution"
+    , getAccountBalance =
+        \_ -> error "mockNetworkLayer: getAccountBalance"
+    }
+
+mockBlockchainParameters :: BlockchainParameters
+mockBlockchainParameters = BlockchainParameters
+    { getGenesisBlockHash = error "mockBlockchainParameters: getGenesisBlockHash"
+    , getGenesisBlockDate = error "mockBlockchainParameters: getGenesisBlockDate"
+    , getFeePolicy = error "mockBlockchainParameters: getFeePolicy"
+    , getSlotLength = error "mockBlockchainParameters: getSlotLength"
+    , getEpochLength = error "mockBlockchainParameters: getEpochLength"
+    , getTxMaxSize = error "mockBlockchainParameters: getTxMaxSize"
+    , getEpochStability = error "mockBlockchainParameters: getEpochStability"
+    }
+
+header0 :: BlockHeader
+header0 = BlockHeader
+    (SlotId 0 0)
+    (Quantity 0)
+    (Hash $ B8.replicate 32 '0')
+    (Hash $ B8.replicate 32 '0')
+
+block0 :: Block
+block0 = Block header0 (PoolId "") []
+
 {-------------------------------------------------------------------------------
                                  Arbitrary
 -------------------------------------------------------------------------------}
@@ -182,7 +393,7 @@ epochLength = EpochLength 50
 instance Arbitrary (Hash tag) where
     shrink _  = []
     arbitrary = Hash . B8.pack
-        <$> vectorOf 8 (elements (['a'..'f'] ++ ['0'..'9']))
+        <$> vectorOf 32 (elements (['a'..'f'] ++ ['0'..'9']))
 
 instance Arbitrary Block where
    arbitrary = genericArbitrary
@@ -224,6 +435,53 @@ instance Arbitrary PoolOwner where
     arbitrary = PoolOwner . B8.singleton <$> elements ['a'..'e']
 
 instance Arbitrary PoolRegistrationCertificate where
-    arbitrary = PoolRegistrationCertificate <$> arbitrary <*> arbitrary
     shrink (PoolRegistrationCertificate p o) =
-        uncurry PoolRegistrationCertificate <$> shrink (p, o)
+        (\(p', NonEmpty o') -> PoolRegistrationCertificate p' o')
+        <$> shrink (p, NonEmpty o)
+    arbitrary = PoolRegistrationCertificate
+        <$> arbitrary
+        <*> fmap getNonEmpty (scale (`mod` 3) arbitrary)
+
+instance Arbitrary RegistrationsTest where
+    shrink (RegistrationsTest xs) = RegistrationsTest <$> shrink xs
+    arbitrary = do
+        Positive n <- arbitrary
+        chunks <- arbitraryChunks =<< evalStateT (replicateM n genBlock) state0
+        pure $ RegistrationsTest chunks
+      where
+        state0 :: (Hash "BlockHeader", SlotId)
+        state0 = (headerHash header0, slotId header0)
+
+        genBlock :: StateT (Hash "BlockHeader", SlotId) Gen Block
+        genBlock = Block
+            <$> genBlockHeader
+            <*> lift arbitrary
+            <*> lift arbitrary
+
+        genBlockHeader :: StateT (Hash "BlockHeader", SlotId) Gen BlockHeader
+        genBlockHeader = do
+            (parentHeaderHash, _) <- get
+            (headerHash, slotId) <- nextState
+            let blockHeight = Quantity $ fromIntegral $ flatSlot ep slotId
+            pure BlockHeader
+                { slotId
+                , blockHeight
+                , headerHash
+                , parentHeaderHash
+                }
+          where
+            ep = getEpochLength genesisParameters
+
+        nextState :: (s ~ (Hash "BlockHeader", SlotId)) => StateT s Gen s
+        nextState = do
+            nextHeaderHash <- lift arbitrary
+            modify' (\(_, sl) -> (nextHeaderHash, slotSucc sp sl)) >> get
+          where
+            sp = slotParams genesisParameters
+
+arbitraryChunks :: [a] -> Gen [[a]]
+arbitraryChunks [] = pure []
+arbitraryChunks xs = do
+    n <- choose (1, length xs)
+    rest <- arbitraryChunks (drop n xs)
+    pure $ take n xs : rest

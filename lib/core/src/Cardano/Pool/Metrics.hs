@@ -165,11 +165,24 @@ monitorStakePools tr nl DBLayer{..} = do
         currentTip <- withExceptT ErrMonitorStakePoolsNetworkTip $
             networkTip nl
         when (nodeTip /= currentTip) $ throwE ErrMonitorStakePoolsWrongTip
+
         liftIO $ logInfo tr $ "Writing stake-distribution for epoch " <> pretty ep
+
+        let registrations = concatMap poolRegistrations blocks
+        liftIO $ forM_ registrations $ \registration ->
+            logInfo tr $ "Discovered stake pool registration: "
+                <> pretty registration
+
         mapExceptT atomically $ do
             lift $ putStakeDistribution ep (Map.toList dist)
-            forM_ blocks $ \b -> withExceptT ErrMonitorStakePoolsPoolAlreadyExists $
-                putPoolProduction (header b) (producer b)
+            forM_ blocks $ \b ->
+                withExceptT ErrMonitorStakePoolsPoolAlreadyExists $
+                    putPoolProduction (header b) (producer b)
+
+            lift $ mapM_ (uncurry putStakePoolOwner) $ concat
+                [ [ (reg ^. #poolId, owner) | owner <- reg ^. #poolOwners ]
+                | reg <- registrations ]
+
       where
         handler action = runExceptT action >>= \case
             Left ErrMonitorStakePoolsNetworkUnavailable{} -> do
@@ -212,7 +225,7 @@ data ErrListStakePools
 
 newStakePoolLayer
      :: DBLayer IO
-     -> NetworkLayer IO t block
+     -> NetworkLayer IO t Block
      -> Trace IO Text
      -> StakePoolLayer IO
 newStakePoolLayer db@DBLayer{..} nl tr = StakePoolLayer

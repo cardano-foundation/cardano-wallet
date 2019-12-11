@@ -157,7 +157,6 @@ import System.FilePath
     ( (</>) )
 
 import qualified Cardano.Wallet.Jormungandr.Binary as J
-import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map as Map
@@ -245,10 +244,7 @@ newNetworkLayer tr baseUrl block0H = do
     liftIO $ waitForService "Jörmungandr" tr (Port $ baseUrlPort baseUrl) $
         waitForNetwork (void $ getTipId jor) defaultRetryPolicy
     (block0, bp) <- getInitialBlockchainParameters jor (coerce block0H)
-    return (mkRawNetworkLayer (convert block0, bp) 1000 st jor)
-  where
-    convert :: J.Block -> W.Block
-    convert = J.convertBlock
+    return (mkRawNetworkLayer (block0, bp) 1000 st jor)
 
 -- | Wrap a Jormungandr client into a 'NetworkLayer' common interface.
 --
@@ -260,7 +256,7 @@ mkRawNetworkLayer
         , t ~ Jormungandr
         , block ~ J.Block
         )
-    => (W.Block, BlockchainParameters)
+    => (block, BlockchainParameters)
     -> Word
         -- ^ Batch size when fetching blocks from Jörmungandr
     -> MVar BlockHeaders
