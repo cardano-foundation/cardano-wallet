@@ -43,6 +43,7 @@ import Test.Integration.Framework.DSL
     , state
     , syncProgress
     , verify
+    , waitForNextEpoch
     )
 import Test.Integration.Framework.TestData
     ( errMsg405, getHeaderCases )
@@ -66,7 +67,20 @@ spec = do
                 getFromResponse (#networkTip . #epochNumber . #getApiT) r
         let nextEpochNum =
                 getFromResponse (#nextEpoch . #epochNumber . #getApiT) r
-        nextEpochNum `shouldBe` (currentEpochNum + 1)
+        nextEpochNum `shouldBe` currentEpochNum + 1
+
+    it "NETWORK - Calculated next epoch is the next epoch" $ \ctx -> do
+        r1 <- request @ApiNetworkInformation ctx networkInfoEp Default Empty
+        let calculatedNextEpoch = getFromResponse (#nextEpoch . #epochNumber) r1
+        let nextEpochStartTime = getFromResponse (#nextEpoch . #epochStartTime) r1
+
+        waitForNextEpoch ctx
+        now <- liftIO getCurrentTime
+        nextEpochStartTime <= now `shouldBe` True
+
+        r2 <- request @ApiNetworkInformation ctx networkInfoEp Default Empty
+        let currentEpoch = getFromResponse (#networkTip . #epochNumber) r2
+        currentEpoch `shouldBe` calculatedNextEpoch
 
     it "NETWORK_SHELLEY - Wallet has the same tip as network/information" $
         \ctx -> do

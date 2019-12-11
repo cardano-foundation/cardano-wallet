@@ -109,6 +109,7 @@ module Test.Integration.Framework.DSL
     , eventually_
     , eventuallyUsingDelay_
     , fixturePassphrase
+    , waitForNextEpoch
 
     -- * Endpoints
     , postByronWalletEp
@@ -168,6 +169,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelection
     , ApiEpochInfo
     , ApiFee
+    , ApiNetworkInformation
     , ApiStakePoolMetrics
     , ApiT (..)
     , ApiTransaction
@@ -898,6 +900,17 @@ apparentPerformance =
 --
 -- Helpers
 --
+
+waitForNextEpoch
+    :: Context t
+    -> IO ()
+waitForNextEpoch ctx = do
+    epoch <- getFromResponse (#nodeTip . #epochNumber) <$>
+        request @ApiNetworkInformation ctx networkInfoEp Default Empty
+    eventually $ do
+        epoch' <- getFromResponse (#nodeTip . #epochNumber) <$>
+            request @ApiNetworkInformation ctx networkInfoEp Default Empty
+        unless (getApiT epoch' > getApiT epoch) $ fail "not yet"
 
 -- Retry the given action a couple of time until it doesn't throw, or until it
 -- has been retried enough.
