@@ -251,13 +251,13 @@ newStakePoolLayer
 newStakePoolLayer db@DBLayer{..} nl tr = StakePoolLayer
     { listStakePools = do
         lift $ logTrace tr MsgListStakePoolsBegin
-        stakePools <- rankKnownPools
+        stakePools <- sortKnownPools
         meta <- lift $ findMetadata (map (^. #poolId) stakePools)
         pure $ zip stakePools meta
     }
   where
-    rankKnownPools :: ExceptT ErrListStakePools IO [StakePool]
-    rankKnownPools = do
+    sortKnownPools :: ExceptT ErrListStakePools IO [StakePool]
+    sortKnownPools = do
         nodeTip <- withExceptT ErrListStakePoolsErrNetworkTip
             $ networkTip nl
         let nodeEpoch = nodeTip ^. #slotId . #epochNumber
@@ -280,6 +280,8 @@ newStakePoolLayer db@DBLayer{..} nl tr = StakePoolLayer
             perfs <- liftIO $ readPoolsPerformances db epochLength tip
             combineWith (pure . sortByPerformance) distr prod perfs
 
+    -- For each pool, look up its metadata. If metadata could not be found for a
+    -- pool, the result will be 'Nothing'.
     findMetadata :: [PoolId] -> IO [Maybe StakePoolMetadata]
     findMetadata poolIds = do
         owners <- atomically $ mapM readStakePoolOwners poolIds
@@ -292,31 +294,11 @@ newStakePoolLayer db@DBLayer{..} nl tr = StakePoolLayer
                 logTrace tr MsgMetadataUnavailable
                 pure $ replicate (length poolIds) Nothing
             Right metas -> do
-                let ownerMeta = zip owners' metas
-                let poolOwners = zip poolIds owners
-                forM (associateMetadata poolOwners ownerMeta) $ \(pid, metas') ->
-                    case metas' of
-                        [(owner, meta)] -> do
-                            logTrace tr (MsgMetadataUsing pid owner meta)
-                            pure (Just meta)
-                        [] -> do
-                            logTrace tr (MsgMetadataMissing pid)
-                            pure Nothing
-                        metas'' -> do
-                            logTrace tr (MsgMetadataMultiple pid metas'')
-                            pure Nothing
-
-    associateMetadata
-        :: [(PoolId, [PoolOwner])]
-        -> [(PoolOwner, Maybe StakePoolMetadata)]
-        -> [(PoolId, [(PoolOwner, StakePoolMetadata)])]
-    associateMetadata poolOwners ownerMeta = map associate poolOwners
-      where
-        associate :: (PoolId, [PoolOwner]) -> (PoolId, [(PoolOwner, StakePoolMetadata)])
-        associate (pid, owners) = (pid, associate' owners)
-        associate' owners =
-            nubBy sameMeta [(a, b) | (a, Just b) <- ownerMeta, a `elem` owners]
-        sameMeta (_, a) (_, b) = a == b
+                let res = associateMetadata
+                        (Map.fromList $ zip poolIds owners)
+                        (zip owners' metas)
+                mapM_ (logTrace tr . fst) res
+                pure (map snd res)
 
     (block0, bp) = staticBlockchainParameters nl
     epochLength = bp ^. #getEpochLength
@@ -545,6 +527,42 @@ zipWithRightDefault combine onMissing rZero =
 count :: Map k [a] -> Map k (Quantity any Word64)
 count = Map.map (Quantity . fromIntegral . length)
 
+-- | Given a mapping from 'PoolId' -> 'PoolOwner' and a mapping between
+-- 'PoolOwner' <-> 'StakePoolMetadata', return a matching 'StakePoolMeta' entry
+-- for every 'PoolId'.
+--
+-- If there is no metadata for a pool, it returns Nothing for that 'PoolId'.
+-- If there is different metadata submitted by multiple owners of a pool, it returns Nothing.
+-- If there is one unique metadata for a pool, it returns 'Just' the metadata for that 'PoolId'.
+--
+-- It also provides a log message for each association.
+associateMetadata
+    :: Map PoolId [PoolOwner]
+    -- ^ Ordered mapping from pool to owner(s).
+    -> [(PoolOwner, Maybe StakePoolMetadata)]
+    -- ^ Association between owner and metadata
+    -> [(StakePoolLayerMsg, Maybe StakePoolMetadata)]
+associateMetadata poolOwners ownerMeta =
+    map (uncurry getResult . fmap associate) $ Map.toList poolOwners
+  where
+    -- Filter the metadata to just the entries which were submitted by the given
+    -- owners.
+    associate :: [PoolOwner] -> [(PoolOwner, StakePoolMetadata)]
+    associate owners = [(a, b) | (a, Just b) <- ownerMeta, a `elem` owners]
+
+    -- Ensure that there is exactly one unique metadata per pool.
+    -- Produces a log message and validated result.
+    getResult
+        :: PoolId
+        -> [(PoolOwner, StakePoolMetadata)]
+        -> (StakePoolLayerMsg, Maybe StakePoolMetadata)
+    getResult pid metas = case nubBy sameMeta metas of
+        [(owner, meta)] -> (MsgMetadataUsing pid owner meta, Just meta)
+        [] -> (MsgMetadataMissing pid, Nothing)
+        metas' -> (MsgMetadataMultiple pid metas', Nothing)
+
+    sameMeta (_, a) (_, b) = a == b
+
 {-------------------------------------------------------------------------------
                                     Logging
 -------------------------------------------------------------------------------}
@@ -564,11 +582,11 @@ instance DefineSeverity StakePoolLayerMsg where
     defineSeverity ev = case ev of
         MsgRegistry msg -> defineSeverity msg
         MsgListStakePoolsBegin -> Debug
-        MsgMetadataUnavailable -> Warning
-        MsgComputedProgress _ _ -> Debug
-        MsgMetadataUsing _ _ _ -> Debug
-        MsgMetadataMissing _ -> Debug
-        MsgMetadataMultiple _ _ -> Debug
+        MsgMetadataUnavailable -> Notice
+        MsgComputedProgress{} -> Debug
+        MsgMetadataUsing{} -> Debug
+        MsgMetadataMissing{} -> Debug
+        MsgMetadataMultiple{} -> Debug
 
 instance ToText StakePoolLayerMsg where
     toText = \case
