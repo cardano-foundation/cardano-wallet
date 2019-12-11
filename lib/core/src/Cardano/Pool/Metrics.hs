@@ -49,6 +49,14 @@ import Cardano.BM.Trace
     ( Trace, logDebug, logInfo, logNotice )
 import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists )
+import Cardano.Pool.Metadata
+    ( RegistryLog
+    , StakePoolMetadata (..)
+    , getRegistryZipUrl
+    , getStakePoolMetadata
+    )
+import Cardano.Wallet.Logging
+    ( logTrace )
 import Cardano.Wallet.Network
     ( ErrNetworkTip
     , ErrNetworkUnavailable
@@ -62,6 +70,7 @@ import Cardano.Wallet.Primitive.Types
     , EpochLength (..)
     , EpochNo (..)
     , PoolId (..)
+    , PoolOwner (..)
     , PoolRegistrationCertificate (..)
     , SlotId (..)
     , SlotNo (unSlotNo)
@@ -73,11 +82,13 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT, mapExceptT, runExceptT, throwE, withExceptT )
+    ( ExceptT (..), mapExceptT, runExceptT, throwE, withExceptT )
+import Control.Tracer
+    ( contramap )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.List
-    ( foldl', sortOn )
+    ( foldl', nub, nubBy, sortOn )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Map.Merge.Strict
@@ -224,7 +235,7 @@ data ErrMonitorStakePools
 -- can easily be passed to the API-server, where it can be used in a simple way.
 newtype StakePoolLayer m = StakePoolLayer
       { listStakePools
-          :: ExceptT ErrListStakePools m [StakePool]
+          :: ExceptT ErrListStakePools m [(StakePool, Maybe StakePoolMetadata)]
       }
 
 data ErrListStakePools
@@ -239,6 +250,14 @@ newStakePoolLayer
     -> StakePoolLayer IO
 newStakePoolLayer db@DBLayer{..} nl tr = StakePoolLayer
     { listStakePools = do
+        lift $ logTrace tr MsgListStakePoolsBegin
+        stakePools <- rankKnownPools
+        meta <- lift $ findMetadata (map (^. #poolId) stakePools)
+        pure $ zip stakePools meta
+    }
+  where
+    rankKnownPools :: ExceptT ErrListStakePools IO [StakePool]
+    rankKnownPools = do
         nodeTip <- withExceptT ErrListStakePoolsErrNetworkTip
             $ networkTip nl
         let nodeEpoch = nodeTip ^. #slotId . #epochNumber
@@ -260,8 +279,45 @@ newStakePoolLayer db@DBLayer{..} nl tr = StakePoolLayer
             let tip = nodeTip ^. #slotId
             perfs <- liftIO $ readPoolsPerformances db epochLength tip
             combineWith (pure . sortByPerformance) distr prod perfs
-    }
-  where
+
+    findMetadata :: [PoolId] -> IO [Maybe StakePoolMetadata]
+    findMetadata poolIds = do
+        owners <- atomically $ mapM readStakePoolOwners poolIds
+        -- note: this will become simpler once we cache metadata in the database
+        let owners' = nub $ concat owners
+        url <- getRegistryZipUrl
+        let tr' = contramap (fmap MsgRegistry) tr
+        getStakePoolMetadata tr' url owners' >>= \case
+            Left _ -> do
+                logTrace tr MsgMetadataUnavailable
+                pure $ replicate (length poolIds) Nothing
+            Right metas -> do
+                let ownerMeta = zip owners' metas
+                let poolOwners = zip poolIds owners
+                forM (associateMetadata poolOwners ownerMeta) $ \(pid, metas') ->
+                    case metas' of
+                        [(owner, meta)] -> do
+                            logTrace tr (MsgMetadataUsing pid owner meta)
+                            pure (Just meta)
+                        [] -> do
+                            logTrace tr (MsgMetadataMissing pid)
+                            pure Nothing
+                        metas'' -> do
+                            logTrace tr (MsgMetadataMultiple pid metas'')
+                            pure Nothing
+
+    associateMetadata
+        :: [(PoolId, [PoolOwner])]
+        -> [(PoolOwner, Maybe StakePoolMetadata)]
+        -> [(PoolId, [(PoolOwner, StakePoolMetadata)])]
+    associateMetadata poolOwners ownerMeta = map associate poolOwners
+      where
+        associate :: (PoolId, [PoolOwner]) -> (PoolId, [(PoolOwner, StakePoolMetadata)])
+        associate (pid, owners) = (pid, associate' owners)
+        associate' owners =
+            nubBy sameMeta [(a, b) | (a, Just b) <- ownerMeta, a `elem` owners]
+        sameMeta (_, a) (_, b) = a == b
+
     (block0, bp) = staticBlockchainParameters nl
     epochLength = bp ^. #getEpochLength
 
