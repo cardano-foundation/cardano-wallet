@@ -206,6 +206,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."text-class" or (buildDepError "text-class"))
             (hsPkgs."time" or (buildDepError "time"))
             (hsPkgs."transformers" or (buildDepError "transformers"))
+            (hsPkgs."wai-app-static" or (buildDepError "wai-app-static"))
             (hsPkgs."warp" or (buildDepError "warp"))
             (hsPkgs."yaml" or (buildDepError "yaml"))
             ];

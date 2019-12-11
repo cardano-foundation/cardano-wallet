@@ -305,5 +305,6 @@ benchmark latency
   main-is:
       Latency.hs
   other-modules:
+      Test.Integration.Jcli
       Cardano.Faucet
       Cardano.Wallet.Jormungandr.Launch
