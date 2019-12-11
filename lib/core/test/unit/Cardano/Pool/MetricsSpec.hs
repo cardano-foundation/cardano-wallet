@@ -504,7 +504,7 @@ arbitraryChunks xs = do
 
 associateMetadataSpec :: Spec
 associateMetadataSpec = describe "associateMetadata" $ do
-    let mkMetadata owner@(PoolOwner bs) tckr = StakePoolMetadata
+    let mkMetadata owner tckr = StakePoolMetadata
             { owner = owner
             , ticker = unsafeFromText tckr
             , name = tckr
@@ -519,14 +519,14 @@ associateMetadataSpec = describe "associateMetadata" $ do
         let pid = PoolId "1"
 
         let res = associateMetadata
-                (Map.fromList [(pid, [owner])])
+                [(pid, [owner])]
                 [(owner, Just md)]
 
         res `shouldBe` [(MsgMetadataUsing pid owner md, Just md)]
 
     it "missing metadata" $ do
         let res = associateMetadata
-                (Map.fromList [(PoolId "1", [PoolOwner "a"])])
+                [(PoolId "1", [PoolOwner "a"])]
                 [(PoolOwner "a", Nothing)]
 
         res `shouldBe` [(MsgMetadataMissing (PoolId "1"), Nothing)]
@@ -535,7 +535,7 @@ associateMetadataSpec = describe "associateMetadata" $ do
         let mda = mkMetadata (PoolOwner "a") "AAAA"
         let mdb = mkMetadata (PoolOwner "b") "AAAA"
         let [(msg, res)] = associateMetadata
-                (Map.fromList [(PoolId "1", [PoolOwner "a", PoolOwner "b"])])
+                [(PoolId "1", [PoolOwner "a", PoolOwner "b"])]
                 [ (PoolOwner "a", Just mda)
                 , (PoolOwner "b", Just mdb)
                 ]
@@ -555,7 +555,7 @@ associateMetadataSpec = describe "associateMetadata" $ do
         let mdb = mkMetadata (PoolOwner "b") "BBBB"
 
         let res = associateMetadata
-                (Map.fromList [(PoolId "1", [PoolOwner "a", PoolOwner "b"])])
+                [(PoolId "1", [PoolOwner "a", PoolOwner "b"])]
                 [ (PoolOwner "a", Just mda)
                 , (PoolOwner "b", Just mdb)
                 ]

@@ -304,7 +304,7 @@ newStakePoolLayer db@DBLayer{..} nl tr = StakePoolLayer
                 pure $ replicate (length poolIds) Nothing
             Right metas -> do
                 let res = associateMetadata
-                        (Map.fromList $ zip poolIds owners)
+                        (zip poolIds owners)
                         (zip owners' metas)
                 mapM_ (logTrace tr . fst) res
                 pure $ map snd res
@@ -546,13 +546,13 @@ count = Map.map (Quantity . fromIntegral . length)
 --
 -- It also provides a log message for each association.
 associateMetadata
-    :: Map PoolId [PoolOwner]
+    :: [(PoolId, [PoolOwner])]
     -- ^ Ordered mapping from pool to owner(s).
     -> [(PoolOwner, Maybe StakePoolMetadata)]
     -- ^ Association between owner and metadata
     -> [(StakePoolLayerMsg, Maybe StakePoolMetadata)]
 associateMetadata poolOwners ownerMeta =
-    map (uncurry getResult . fmap associate) $ Map.toList poolOwners
+    map (uncurry getResult . fmap associate) poolOwners
   where
     -- Filter the metadata to just the entries which were submitted by the given
     -- owners.
