@@ -119,6 +119,7 @@ import Servant.API.Verbs
     ( DeleteAccepted
     , DeleteNoContent
     , Get
+    , Post
     , PostAccepted
     , PostCreated
     , Put
@@ -241,7 +242,7 @@ type SelectCoins n = "wallets"
     :> "coin-selections"
     :> "random"
     :> ReqBody '[JSON] (ApiSelectCoinsData n)
-    :> PostAccepted '[JSON] (ApiCoinSelection n)
+    :> Post '[JSON] (ApiCoinSelection n)
 
 {-------------------------------------------------------------------------------
                                   Transactions
