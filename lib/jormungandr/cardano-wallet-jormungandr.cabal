@@ -284,6 +284,7 @@ benchmark latency
     , fmt
     , generic-lens
     , http-client
+    , http-types
     , iohk-monitoring
     , memory
     , network

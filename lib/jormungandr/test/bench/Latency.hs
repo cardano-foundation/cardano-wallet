@@ -61,6 +61,8 @@ import Control.Concurrent.STM.TVar
     ( TVar, newTVarIO, readTVarIO, writeTVar )
 import Control.Exception
     ( throwIO )
+import Control.Monad
+    ( mapM_, replicateM, replicateM_ )
 import Control.Monad.STM
     ( atomically )
 import Data.Generics.Internal.VL.Lens
@@ -69,6 +71,8 @@ import Data.Maybe
     ( mapMaybe )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Text
+    ( Text )
 import Data.Time
     ( NominalDiffTime )
 import Data.Time.Clock
@@ -76,7 +80,7 @@ import Data.Time.Clock
 import Data.Time.Clock.System
     ( SystemTime (..), getSystemTime )
 import Fmt
-    ( Builder, build, fixedF, fmtLn, (+|), (|+) )
+    ( Builder, build, fixedF, fmtLn, padLeftF, (+|), (|+) )
 import Network.HTTP.Client
     ( defaultManagerSettings
     , managerResponseTimeout
@@ -91,6 +95,12 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
+    , balanceAvailable
+    , deleteWalletEp
+    , expectEventually
+    , expectResponseCode
+    , expectSuccess
+    , faucetAmt
     , fixtureWallet
     , getAddressesEp
     , getWalletEp
@@ -101,30 +111,111 @@ import Test.Integration.Framework.DSL
     , listTxEp
     , listWalletsEp
     , networkInfoEp
+    , postTxEp
     , postTxFeeEp
     , request
+    , verify
     )
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Data.Text as T
+import qualified Network.HTTP.Types.Status as HTTP
 
 main :: forall t n. (t ~ Jormungandr, n ~ 'Testnet) => IO ()
-main = do
+main = withUtf8Encoding $ do
     tvar <- newTVarIO []
     logging <- setupLatencyLogging tvar
 
-    let meanAvg :: [NominalDiffTime] -> Double
-        meanAvg ts = sum (map realToFrac ts) * 1000 / fromIntegral (length ts)
-    let buildResult :: [NominalDiffTime] -> Builder
-        buildResult [] = "ERR"
-        buildResult ts = build $ fixedF 1 $ meanAvg ts
-    let fmtResult :: String -> [NominalDiffTime] -> IO ()
-        fmtResult title ts = fmtLn ("    "+|title|+" - "+|buildResult ts|+" ms")
+    fmtLn "Latencies for 2 fixture wallets scenario"
+    runScenario logging tvar (nFixtureWallet 2)
 
-    fmtLn "Latencies for two fixture wallets scenario"
+    fmtLn "Latencies for 10 fixture wallets scenario"
+    runScenario logging tvar (nFixtureWallet 10)
 
-    withUtf8Encoding $ benchWithServer logging $ \ctx -> do
-        (wal1, wal2) <- twoFixtureWallet ctx
+    fmtLn "Latencies for 100 fixture wallets scenario"
+    runScenario logging tvar (nFixtureWallet 100)
+
+    fmtLn "Latencies for 2 fixture wallets with 10 txs scenario"
+    runScenario logging tvar (nFixtureWalletWithTxs 2 10)
+
+    fmtLn "Latencies for 2 fixture wallets with 20 txs scenario"
+    runScenario logging tvar (nFixtureWalletWithTxs 2 20)
+
+    fmtLn "Latencies for 2 fixture wallets with 100 txs scenario"
+    runScenario logging tvar (nFixtureWalletWithTxs 2 100)
+
+    fmtLn "Latencies for 10 fixture wallets with 10 txs scenario"
+    runScenario logging tvar (nFixtureWalletWithTxs 10 10)
+
+    fmtLn "Latencies for 10 fixture wallets with 20 txs scenario"
+    runScenario logging tvar (nFixtureWalletWithTxs 10 20)
+
+    fmtLn "Latencies for 10 fixture wallets with 100 txs scenario"
+    runScenario logging tvar (nFixtureWalletWithTxs 10 100)
+  where
+    -- Creates n fixture wallets and return two of them
+    nFixtureWallet n ctx = do
+        wal1 : wal2 : _ <- replicateM n (fixtureWallet ctx)
+        pure (wal1, wal2)
+
+    -- Creates n fixture wallets and send 1-lovelace transactions to one of them
+    -- (m times). The money is sent in batches (see batchSize below) from
+    -- additionally created source fixture wallet. Then we wait for the money
+    -- to be accommodated in recipient wallet. After that the source fixture
+    -- wallet is removed.
+    nFixtureWalletWithTxs n m ctx = do
+        (wal1, wal2) <- nFixtureWallet n ctx
+
+        let amt = (1 :: Natural)
+        let batchSize = 10
+        let whole10Rounds = div m batchSize
+        let lastBit = mod m batchSize
+        let amtExp val = fromIntegral ((fromIntegral val) + faucetAmt) :: Natural
+        let expInflows =
+                if whole10Rounds > 0 then
+                    [x*batchSize | x<-[1..whole10Rounds]] ++ [lastBit]
+                else
+                    [lastBit]
+        mapM_ (repeatPostTx ctx wal1 amt batchSize . amtExp) expInflows
+
+        pure (wal1, wal2)
+
+    repeatPostTx ctx wDest amtToSend batchSize amtExp = do
+        wSrc <- fixtureWallet ctx
+        let pass = "cardano-wallet" :: Text
+
+        replicateM_ batchSize (postTx ctx (wSrc, postTxEp, pass) wDest amtToSend)
+
+        rWal1 <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
+        verify rWal1
+            [ expectSuccess
+            , expectEventually ctx getWalletEp balanceAvailable amtExp
+            ]
+
+        rDel <- request @ApiWallet ctx (deleteWalletEp wSrc) Default Empty
+        expectResponseCode @IO HTTP.status204 rDel
+
+        pure ()
+
+    postTx ctx (wSrc, postTxEndp, pass) wDest amt = do
+        addrs <- listAddresses ctx wDest
+        let destination = (addrs !! 1) ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": #{pass}
+            }|]
+        r <- request @(ApiTransaction n) ctx (postTxEndp wSrc) Default payload
+        expectResponseCode HTTP.status202 r
+        return r
+
+    runScenario logging tvar scenario = benchWithServer logging $ \ctx -> do
+        (wal1, wal2) <- scenario ctx
 
         t1 <- measureApiLogs tvar
             (request @[ApiWallet] ctx listWalletsEp Default Empty)
@@ -179,9 +270,19 @@ main = do
         fmtResult "getNetworkInfo     " t8
 
         pure ()
-  where
-    twoFixtureWallet ctx =
-        (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
+
+meanAvg :: [NominalDiffTime] -> Double
+meanAvg ts = sum (map realToFrac ts) * 1000 / fromIntegral (length ts)
+
+buildResult :: [NominalDiffTime] -> Builder
+buildResult [] = "ERR"
+buildResult ts = build $ fixedF 1 $ meanAvg ts
+
+fmtResult :: String -> [NominalDiffTime] -> IO ()
+fmtResult title ts =
+    let titleExt = title|+" - " :: String
+        titleF = padLeftF 25 ' ' titleExt
+    in fmtLn (titleF+|buildResult ts|+" ms")
 
 isLogRequestStart :: ServerLog -> Bool
 isLogRequestStart = \case
