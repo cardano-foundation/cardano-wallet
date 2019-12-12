@@ -20,7 +20,12 @@ module Cardano.Pool.DB
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader, EpochNo (..), PoolId, PoolOwner (..), SlotId (..) )
+    ( BlockHeader
+    , EpochNo (..)
+    , PoolId
+    , PoolRegistrationCertificate
+    , SlotId (..)
+    )
 import Control.Monad.Fail
     ( MonadFail )
 import Control.Monad.Trans.Except
@@ -73,23 +78,23 @@ data DBLayer m = forall stm. MonadFail stm => DBLayer
         -> stm [(PoolId, Quantity "lovelace" Word64)]
 
     , readPoolProductionCursor
-        :: Int -> stm [BlockHeader]
+        :: Int
+        -> stm [BlockHeader]
         -- ^ Read the latest @k@ blockheaders in ascending order. The tip will
         -- be the last element in the list.
         --
         -- This is useful for the @NetworkLayer@ to know how far we have synced.
 
-    , putStakePoolOwner
-        :: PoolId
-        -> PoolOwner
+    , putPoolRegistration
+        :: PoolRegistrationCertificate
         -> stm ()
-        -- ^ Add a mapping between stake pools and owners. If the mapping
-        -- already exists, this will be a no-op.
+        -- ^ Add a mapping between stake pools and their certificate. If the
+        -- mapping already exists, this will be a no-op.
 
-    , readStakePoolOwners
+    , readPoolRegistration
         :: PoolId
-        -> stm [PoolOwner]
-        -- ^ List the owners of a given stake pool.
+        -> stm (Maybe PoolRegistrationCertificate)
+        -- ^ Find a registration certificate associated to a given pool
 
     , readSystemSeed
         :: stm StdGen
@@ -99,7 +104,8 @@ data DBLayer m = forall stm. MonadFail stm => DBLayer
         -- results across requests.
 
     , rollbackTo
-        :: SlotId -> stm ()
+        :: SlotId
+        -> stm ()
         -- ^ Remove all entries of slot ids newer than the argument
 
     , cleanDB

@@ -22,11 +22,16 @@ import Cardano.DB.Sqlite
 import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists (..) )
 import Cardano.Pool.DB.Arbitrary
-    ( StakePoolOwnersFixture (..), StakePoolsFixture (..) )
+    ( StakePoolsFixture (..) )
 import Cardano.Pool.DB.Sqlite
     ( newDBLayer )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), EpochNo, PoolId, SlotId (..) )
+    ( BlockHeader (..)
+    , EpochNo
+    , PoolId
+    , PoolRegistrationCertificate (..)
+    , SlotId (..)
+    )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Monad
@@ -43,6 +48,8 @@ import Data.List.Extra
     ( nubOrd )
 import Data.Map.Strict
     ( Map )
+import Data.Maybe
+    ( catMaybes )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
@@ -129,8 +136,8 @@ properties = do
             (property . (prop_readPoolCondAfterRandomRollbacks descSlotsPerPool))
         it "readStakeDistribution . putStakeDistribution == pure"
             (property . prop_putStakeReadStake)
-        it "putStakePoolOwner then readStakePoolOwners yields expected result"
-            (property . prop_stakePoolOwner)
+        it "putPoolRegistration then readPoolRegistration yields expected result"
+            (property . prop_poolRegistration)
         it "readStake . putStake a1 . putStake s0 == pure a1"
             (property . prop_putStakePutStake)
         it "readSystemSeed is idempotent"
@@ -351,31 +358,28 @@ prop_putStakePutStake DBLayer {..} epoch a b =
         monitor $ classify (null a && null b) "a & b are empty"
         assert (L.sort res == L.sort b)
 
-prop_stakePoolOwner
+-- | Heavily relies on the fact that PoolId have a entropy that is sufficient
+prop_poolRegistration
     :: DBLayer IO
-    -> StakePoolOwnersFixture
+    -> [PoolRegistrationCertificate]
     -> Property
-prop_stakePoolOwner DBLayer {..} (StakePoolOwnersFixture poolId entries) =
+prop_poolRegistration DBLayer {..} entries =
     monadicIO (setup >> prop)
   where
     setup = run $ atomically cleanDB
+    expected = L.sort (sortOwners <$> entries)
+    sortOwners registration = registration
+        { poolOwners = L.sortOn toText (poolOwners registration) }
+
     prop = do
-        run . atomically $ mapM_ (uncurry putStakePoolOwner) entries
-        res <- run $ atomically (readStakePoolOwners poolId)
-        monitor $ classify dups "duplicate entries"
-        monitor $ classify (haveMany snd) "multiple owners per pool"
-        monitor $ classify (haveMany fst) "multiple pools per owner"
+        run . atomically $ mapM_ putPoolRegistration entries
+        res <- run . atomically $ L.sort . catMaybes
+            <$> mapM (readPoolRegistration . poolId) entries
         monitor $ counterexample $ unlines
             [ "Read from DB: " <> show res
-            , "Expected:     " <> show expected ]
+            , "Expected    : " <> show expected
+            ]
         assert (res == expected)
-    expected = L.sortOn toText $ map snd $
-        filter ((== poolId) . fst) uniqEntries
-    uniqEntries = L.nub entries
-    dups = length entries /= length uniqEntries
-    haveMany s =
-        let xs = map s entries
-        in length xs == length (L.nub xs)
 
 -- | successive readSystemSeed yield the exact same value
 prop_readSystemSeedIdempotent

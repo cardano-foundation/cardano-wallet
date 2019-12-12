@@ -25,12 +25,12 @@ import Cardano.Pool.DB.Model
     , emptyPoolDatabase
     , mCleanPoolProduction
     , mPutPoolProduction
+    , mPutPoolRegistration
     , mPutStakeDistribution
-    , mPutStakePoolOwner
     , mReadCursor
     , mReadPoolProduction
+    , mReadPoolRegistration
     , mReadStakeDistribution
-    , mReadStakePoolOwners
     , mReadSystemSeed
     , mRollbackTo
     )
@@ -70,11 +70,11 @@ newDBLayer = do
         , readPoolProductionCursor =
             readPoolDB db . mReadCursor
 
-        , putStakePoolOwner = \a0 a1 ->
-            void $ alterPoolDB (const Nothing) db (mPutStakePoolOwner a0 a1)
+        , putPoolRegistration =
+            void . alterPoolDB (const Nothing) db . mPutPoolRegistration
 
-        , readStakePoolOwners =
-            readPoolDB db . mReadStakePoolOwners
+        , readPoolRegistration =
+            readPoolDB db . mReadPoolRegistration
 
         , readSystemSeed =
             modifyMVar db (fmap swap . mReadSystemSeed)

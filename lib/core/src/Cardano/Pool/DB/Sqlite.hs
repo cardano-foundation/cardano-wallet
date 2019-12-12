@@ -42,9 +42,16 @@ import Cardano.Wallet.DB.Sqlite.Types
 import Cardano.Wallet.Logging
     ( transformTextTrace )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), EpochNo (..), PoolId, SlotId (..) )
+    ( BlockHeader (..)
+    , EpochNo (..)
+    , PoolId
+    , PoolRegistrationCertificate (..)
+    , SlotId (..)
+    )
 import Control.Exception
     ( bracket )
+import Control.Monad
+    ( forM_ )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -164,15 +171,33 @@ newDBLayer logConfig trace fp = do
                 [ StakeDistributionEpoch ==. fromIntegral epoch ]
                 []
 
-        , putStakePoolOwner = \poolId poolOwner ->
+        , putPoolRegistration = \PoolRegistrationCertificate
+            { poolId
+            , poolOwners
+            , poolMargin
+            , poolCost
+            } -> do
+            let poolMargin_ = fromIntegral $ fromEnum poolMargin
+            let poolCost_ = getQuantity poolCost
             repsert
+                (PoolMetadataKey poolId)
+                (PoolMetadata poolId poolMargin_ poolCost_)
+            forM_ poolOwners $ \poolOwner -> repsert
                 (PoolOwnerKey poolId poolOwner)
                 (PoolOwner poolId poolOwner)
 
-        , readStakePoolOwners = \poolId ->
-            fmap (poolOwnerOwner . entityVal) <$> selectList
-                [ PoolOwnerPoolId ==. poolId ]
-                [ Asc PoolOwnerOwner ]
+        , readPoolRegistration = \poolId -> do
+            selectFirst [ PoolMetadataPoolId ==. poolId ] [] >>= \case
+                Nothing -> pure Nothing
+                Just meta -> do
+                    let (PoolMetadata _ poolMargin_ poolCost_) = entityVal meta
+                    let poolMargin = toEnum $ fromIntegral poolMargin_
+                    let poolCost = Quantity poolCost_
+                    poolOwners <- fmap (poolOwnerOwner . entityVal) <$> selectList
+                        [ PoolOwnerPoolId ==. poolId ]
+                        [ Asc PoolOwnerOwner ]
+                    pure $ Just $ PoolRegistrationCertificate
+                        { poolId, poolOwners, poolMargin, poolCost }
 
         , rollbackTo = \point -> do
             let (EpochNo epoch) = epochNumber point

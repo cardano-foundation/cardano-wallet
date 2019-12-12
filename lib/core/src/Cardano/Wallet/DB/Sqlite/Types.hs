@@ -419,6 +419,12 @@ instance ToJSON PoolId where
 instance FromJSON PoolId where
     parseJSON = aesonFromText "PoolId"
 
+instance ToHttpApiData PoolId where
+    toUrlPiece = error "toUrlPiece stub needed for persistent"
+
+instance FromHttpApiData PoolId where
+    parseUrlPiece = error "parseUrlPiece stub needed for persistent"
+
 ----------------------------------------------------------------------------
 -- PoolOwner
 

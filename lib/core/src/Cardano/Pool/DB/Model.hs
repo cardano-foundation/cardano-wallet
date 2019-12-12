@@ -10,6 +10,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -37,8 +38,8 @@ module Cardano.Pool.DB.Model
     , mReadPoolProduction
     , mPutStakeDistribution
     , mReadStakeDistribution
-    , mPutStakePoolOwner
-    , mReadStakePoolOwners
+    , mPutPoolRegistration
+    , mReadPoolRegistration
     , mReadSystemSeed
     , mRollbackTo
     , mReadCursor
@@ -47,7 +48,13 @@ module Cardano.Pool.DB.Model
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), EpochNo (..), PoolId, PoolOwner (..), SlotId (..) )
+    ( BlockHeader (..)
+    , EpochNo (..)
+    , PoolId
+    , PoolOwner (..)
+    , PoolRegistrationCertificate (..)
+    , SlotId (..)
+    )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -55,7 +62,7 @@ import Data.Maybe
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Percentage, Quantity (..) )
 import Data.Set
     ( Set )
 import Data.Text.Class
@@ -85,6 +92,9 @@ data PoolDatabase = PoolDatabase
     , owners :: !(Set (PoolId, PoolOwner))
     -- ^ Mapping between pool ids and owners
 
+    , metadata :: !(Map PoolId (Percentage, Quantity "lovelace" Word64))
+    -- ^ On-chain metadata associated with pools
+
     , seed :: !SystemSeed
     -- ^ Store an arbitrary random generator seed
     } deriving (Generic, Show, Eq)
@@ -102,7 +112,7 @@ instance Eq SystemSeed where
 
 -- | Produces an empty model pool production database.
 emptyPoolDatabase :: PoolDatabase
-emptyPoolDatabase = PoolDatabase mempty mempty mempty NotSeededYet
+emptyPoolDatabase = PoolDatabase mempty mempty mempty mempty NotSeededYet
 
 {-------------------------------------------------------------------------------
                                   Model Operation Types
@@ -156,18 +166,35 @@ mReadStakeDistribution epoch db@PoolDatabase{distributions} =
     , db
     )
 
-mPutStakePoolOwner :: PoolId -> PoolOwner -> ModelPoolOp ()
-mPutStakePoolOwner poolId poolOwner db@PoolDatabase{owners} =
+mPutPoolRegistration :: PoolRegistrationCertificate -> ModelPoolOp ()
+mPutPoolRegistration registration db@PoolDatabase{owners,metadata} =
     ( Right ()
-    , db { owners = Set.insert entry owners }
+    , db { owners = Set.union entries owners
+         , metadata = Map.insert poolId (poolMargin, poolCost) metadata
+         }
     )
   where
-    entry = (poolId, poolOwner)
+    entries = Set.map (poolId,) $ Set.fromList poolOwners
+    PoolRegistrationCertificate
+        { poolId
+        , poolOwners
+        , poolCost
+        , poolMargin
+        } = registration
 
-mReadStakePoolOwners :: PoolId -> ModelPoolOp [PoolOwner]
-mReadStakePoolOwners poolId db@PoolDatabase{owners} =
-    ( Right $ L.sortOn toText
-      [ owner | (p, owner) <- Set.toList owners, p == poolId ]
+mReadPoolRegistration :: PoolId -> ModelPoolOp (Maybe PoolRegistrationCertificate)
+mReadPoolRegistration poolId db@PoolDatabase{owners, metadata} =
+    ( Right $ case Map.lookup poolId metadata of
+        Nothing -> Nothing
+        Just (poolMargin, poolCost) ->
+            let poolOwners = L.sortOn toText
+                    [ owner | (p, owner) <- Set.toList owners, p == poolId ]
+            in Just PoolRegistrationCertificate
+                { poolId
+                , poolOwners
+                , poolMargin
+                , poolCost
+                }
     , db
     )
 
@@ -190,7 +217,7 @@ mReadCursor k db@PoolDatabase{pools} =
     in (Right $ reverse $ limit $ sortDesc allHeaders, db)
 
 mRollbackTo :: SlotId -> ModelPoolOp ()
-mRollbackTo point PoolDatabase{pools, distributions, owners, seed} =
+mRollbackTo point PoolDatabase{pools, distributions, owners, metadata, seed} =
     let
         updateSlots = Map.map (filter ((<= point) . slotId))
         updatePools = Map.filter (not . L.null)
@@ -203,6 +230,7 @@ mRollbackTo point PoolDatabase{pools, distributions, owners, seed} =
             { pools = updatePools $ updateSlots pools
             , distributions = Map.mapMaybeWithKey discardEpoch distributions
             , owners
+            , metadata
             , seed
             }
         )

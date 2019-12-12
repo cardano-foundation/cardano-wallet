@@ -7,7 +7,6 @@
 
 module Cardano.Pool.DB.Arbitrary
     ( StakePoolsFixture (..)
-    , StakePoolOwnersFixture (..)
     ) where
 
 import Prelude
@@ -21,6 +20,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , PoolId (..)
     , PoolOwner (..)
+    , PoolRegistrationCertificate (..)
     , SlotId (..)
     , SlotNo (..)
     , SlotParameters (..)
@@ -31,6 +31,8 @@ import Control.Arrow
     ( second )
 import Control.Monad
     ( foldM )
+import Data.ByteString
+    ( ByteString )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Ord
@@ -48,6 +50,7 @@ import Test.QuickCheck
     , choose
     , elements
     , listOf
+    , scale
     , shrinkIntegral
     , shrinkList
     , shuffle
@@ -64,11 +67,6 @@ import qualified Data.List as L
 data StakePoolsFixture = StakePoolsFixture
     { poolSlots :: [(PoolId, BlockHeader)]
     , rollbackSlots :: [SlotId] }
-    deriving stock (Eq, Show)
-
-data StakePoolOwnersFixture = StakePoolOwnersFixture
-    { fixturePoolId :: PoolId
-    , fixturePoolOwners :: [(PoolId, PoolOwner)] }
     deriving stock (Eq, Show)
 
 {-------------------------------------------------------------------------------
@@ -107,13 +105,18 @@ instance Arbitrary PoolId where
         bytes <- vectorOf 32 (elements ['a'..'z'])
         return $ PoolId $ B8.pack bytes
 
-instance Arbitrary StakePoolOwnersFixture where
-    arbitrary = StakePoolOwnersFixture <$> fmap PoolId genBytes <*> listOf entry
-      where
-        entry = (,) <$> fmap PoolId genBytes <*> fmap PoolOwner genBytes
-        genBytes = B8.replicate 32 <$> elements ['a'..'e']
-    shrink (StakePoolOwnersFixture p xs) =
-        StakePoolOwnersFixture p <$> shrinkList (const []) xs
+genBytes :: Int -> Gen ByteString
+genBytes n = B8.pack <$> vectorOf n (elements ['a'..'z'])
+
+instance Arbitrary PoolRegistrationCertificate where
+    shrink (PoolRegistrationCertificate p xs m c) =
+        (\xs' -> PoolRegistrationCertificate p xs' m c)
+            <$> shrinkList (const []) xs
+    arbitrary = PoolRegistrationCertificate
+        <$> fmap PoolId (genBytes 32)
+        <*> scale (`mod` 8) (listOf (PoolOwner <$> genBytes 32))
+        <*> fmap toEnum (choose (0, 100))
+        <*> fmap Quantity arbitrary
 
 instance Arbitrary StakePoolsFixture where
     arbitrary = do

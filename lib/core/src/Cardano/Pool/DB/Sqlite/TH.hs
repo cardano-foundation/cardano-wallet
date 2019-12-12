@@ -23,7 +23,7 @@ import Prelude
 import Cardano.Wallet.DB.Sqlite.Types
     ( sqlSettings' )
 import Data.Word
-    ( Word32, Word64 )
+    ( Word32, Word64, Word8 )
 import Database.Persist.Class
     ( AtLeastOneUniqueKey (..), OnlyOneUniqueKey (..) )
 import Database.Persist.TH
@@ -75,5 +75,14 @@ PoolOwner sql=pool_owner
     poolOwnerOwner      W.PoolOwner  sql=pool_owner
 
     Primary poolOwnerPoolId poolOwnerOwner
+    deriving Show Generic
+
+-- Mapping of metadata to pool
+PoolMetadata sql=pool_metadata
+    poolMetadataPoolId  W.PoolId     sql=pool_id
+    poolMetadataMargin  Word8        sql=margin
+    poolMetadataCost    Word64       sql=cost
+
+    Primary poolMetadataPoolId
     deriving Show Generic
 |]
