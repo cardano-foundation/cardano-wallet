@@ -299,7 +299,7 @@ prop_trackRegistrations test = monadicIO $ do
             -> Map PoolId (Set PoolOwner)
         merge m blk = Map.unionsWith (<>) $ m : (fromCert <$> poolRegistrations blk)
           where
-            fromCert (PoolRegistrationCertificate pid owners) =
+            fromCert (PoolRegistrationCertificate pid owners _ _) =
                 Map.singleton pid (Set.fromList owners)
 
     isDiscoveryMsg :: Text -> Bool
@@ -506,12 +506,14 @@ instance Arbitrary PoolOwner where
     arbitrary = PoolOwner . B8.singleton <$> elements ['a'..'e']
 
 instance Arbitrary PoolRegistrationCertificate where
-    shrink (PoolRegistrationCertificate p o) =
-        (\(p', NonEmpty o') -> PoolRegistrationCertificate p' o')
+    shrink (PoolRegistrationCertificate p o m c) =
+        (\(p', NonEmpty o') -> PoolRegistrationCertificate p' o' m c)
         <$> shrink (p, NonEmpty o)
     arbitrary = PoolRegistrationCertificate
         <$> arbitrary
         <*> fmap getNonEmpty (scale (`mod` 3) arbitrary)
+        <*> fmap toEnum (choose (0, 100))
+        <*> fmap Quantity arbitrary
 
 instance Arbitrary RegistrationsTest where
     shrink (RegistrationsTest xs) = RegistrationsTest <$> shrink xs

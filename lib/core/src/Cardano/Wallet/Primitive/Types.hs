@@ -1467,12 +1467,14 @@ dlgCertPoolId = \case
 data PoolRegistrationCertificate = PoolRegistrationCertificate
     { poolId :: !PoolId
     , poolOwners :: ![PoolOwner]
+    , poolMargin :: Percentage
+    , poolCost :: Quantity "lovelace" Word64
     } deriving (Generic, Show, Eq, Ord)
 
 instance NFData PoolRegistrationCertificate
 
 instance Buildable PoolRegistrationCertificate where
-    build (PoolRegistrationCertificate p o) = mempty
+    build (PoolRegistrationCertificate p o _ _) = mempty
         <> "Registration of "
         <> build p
         <> " owned by "

@@ -20,6 +20,7 @@ import Cardano.Wallet.Jormungandr.Binary
     ( Fragment (..)
     , MkFragment (..)
     , StakeDelegationType (..)
+    , TaxParameters (..)
     , TxWitnessTag (..)
     , getBlock
     , getBlockHeader
@@ -205,9 +206,11 @@ spec = do
             txId' <- Hash <$> unsafeFromHexFile
                 (poolDir </> "registration_no_fees.txid")
 
+            let taxes = TaxParameters 0 0 1 Nothing
+
             runGet getFragment (BL.fromStrict tx)
                 `shouldBe`
-                PoolRegistration (poolId', [owner], Tx txId' [] [])
+                PoolRegistration (poolId', [owner], taxes, Tx txId' [] [])
 
     describe "Decode External Tx" $ do
         let tl = newTransactionLayer @ShelleyKey (Hash "genesis")

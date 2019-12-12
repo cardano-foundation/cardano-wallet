@@ -33,6 +33,7 @@ module Cardano.Wallet.Jormungandr.Binary
     , FragmentSpec (..)
     , Milli (..)
     , PerCertificateFee (..)
+    , TaxParameters (..)
     , getBlock
     , getBlockHeader
     , getBlockId
@@ -139,14 +140,16 @@ import Data.Bits
     ( shift, (.&.) )
 import Data.ByteString
     ( ByteString )
+import Data.Either
+    ( fromRight )
 import Data.Functor
-    ( ($>) )
+    ( ($>), (<&>) )
 import Data.Maybe
     ( catMaybes )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..), mkPercentage )
 import Data.Time.Clock
     ( NominalDiffTime, secondsToDiffTime )
 import Data.Time.Clock.POSIX
@@ -276,7 +279,7 @@ data Fragment
     -- ^ A standard signed transaction
     | StakeDelegation (StakeDelegationType, ChimericAccount, Tx)
     -- ^ A signed transaction with stake pool delegation
-    | PoolRegistration (PoolId, [PoolOwner], Tx)
+    | PoolRegistration (PoolId, [PoolOwner], TaxParameters, Tx)
     -- ^ A signed transaction with a stake pool registration.
     | UnimplementedFragment Word8
     -- Fragments not yet supported go there.
@@ -502,22 +505,38 @@ data MkFragment
         ChimericAccount
         (XPrv, Passphrase "encryption")
 
-getPoolRegistration :: Hash "Tx" -> Get (PoolId, [PoolOwner], Tx)
+getPoolRegistration :: Hash "Tx" -> Get (PoolId, [PoolOwner], TaxParameters, Tx)
 getPoolRegistration tid = label "POOL-REGISTRATION" $ do
-    (poolId, ownerAccIds) <- getPoolRegistrationCert
+    (poolId, ownerAccIds, taxes) <- getPoolRegistrationCert
     tx <- getGenericTransaction tid
     _sig <- getPoolSig
-    pure (poolId, ownerAccIds, tx)
+    pure (poolId, ownerAccIds, taxes, tx)
 
-getPoolRegistrationCert :: Get (PoolId, [PoolOwner])
+data TaxParameters = TaxParameters
+    { taxFixed :: Word64
+        -- ^ fixed cut the stake pool will take from the total reward due
+        -- to the stake pool
+    , taxRatioNumerator :: Word64
+        -- ^ With 'taxRatioDenominator' forms a ratio "n/d" which is the
+        -- percentage of the remaining value that will be taken from the
+        -- total due.
+    , taxRatioDenominator :: Word64
+        -- ^ See 'taxRatioNumerator'
+    , taxLimit :: Maybe Word64
+        -- ^ A value that can be set to limit the pool's Tax.
+    } deriving (Generic, Eq, Show)
+
+instance NFData TaxParameters
+
+getPoolRegistrationCert :: Get (PoolId, [PoolOwner], TaxParameters)
 getPoolRegistrationCert = do
-    (certBytes, (ownerAccIds, _startTime, _rewardAcc)) <- withRaw getCert
+    (certBytes, (ownerAccIds, taxes)) <- withRaw getCert
     -- A PoolId is the blake2b-256 hash of the encoded registration certificate.
     let poolId = PoolId $ blake2b256 certBytes
-    pure (poolId, ownerAccIds)
+    pure (poolId, ownerAccIds, taxes)
 
   where
-    getCert :: Get ([PoolOwner], Word64, Maybe ChimericAccount)
+    getCert :: Get ([PoolOwner], TaxParameters)
     getCert = label "REGISTRATION-CERT" $ do
         -- A random value, for user purpose similar to a UUID.  it may not be
         -- unique over a blockchain, so shouldn't be used a unique identifier
@@ -525,7 +544,7 @@ getPoolRegistrationCert = do
         -- Beginning of validity for this pool. A time in seconds since genesis.
         -- This is used to keep track of the period of the expected key and the
         -- expiry
-        startTime <- label "TIME-SINCE-EPOCH0" getWord64be
+        _startTime <- label "TIME-SINCE-EPOCH0" getWord64be
         -- Permission system for this pool.
         label "POOL-PERMISSIONS" $ skip 8
         -- POOL-KEYS = VRF-PUBLICKEY (32 bytes) KES-PUBLICKEY (32 bytes)
@@ -544,11 +563,23 @@ getPoolRegistrationCert = do
                 replicateM numOperators getSingleAccountId
         -- Reward tax type -- fixed, ratio numerator, denominator, and optional
         -- limit value
-        label "POOL-REWARD-SCHM" $ skip (4 * 8)
-        rewardAcc <- label "POOL-REWARD-ACNT" getAccountIdMaybe
+        taxes <- label "POOL-REWARD-SCHM" $ do
+            taxFixed <- getWord64be
+            taxRatioNumerator <- getWord64be
+            taxRatioDenominator <- getWord64be
+            taxLimit <- getWord64be <&> \case
+                0 -> Nothing
+                n -> Just n
+            pure $ TaxParameters
+                { taxFixed
+                , taxRatioNumerator
+                , taxRatioDenominator
+                , taxLimit
+                }
+        _rewardAcc <- label "POOL-REWARD-ACNT" getAccountIdMaybe
         pure ( PoolOwner <$> ownerAccIds
-             , startTime
-             , ChimericAccount <$> rewardAcc)
+             , taxes
+             )
 
     -- | Corresponds to @POOL-REWARD-ACNT = %x00 / ACCOUNT-ID@
     getAccountIdMaybe :: Get (Maybe ByteString)
@@ -960,7 +991,7 @@ convertBlock (Block h msgs) =
         Initial _ -> []
         Transaction tx -> return tx
         StakeDelegation (_poolId, _accountId, tx) -> return tx
-        PoolRegistration (_poolId, _owners, tx) -> return tx
+        PoolRegistration (_poolId, _owners, _taxes, tx) -> return tx
         UnimplementedFragment _ -> []
 
 -- | Convert the Jörmungandr binary format to a simpler form
@@ -1006,6 +1037,14 @@ overrideFeePolicy linearFee@(LinearFee a b _) override =
 -- | Extracts ownership information from all stake pool registration
 -- certificates in the Jörmungandr block.
 poolRegistrationsFromBlock :: Block -> [W.PoolRegistrationCertificate]
-poolRegistrationsFromBlock (Block _hdr fragments) =
-    [ W.PoolRegistrationCertificate poolId owners
-    | PoolRegistration (poolId, owners, _tx) <- fragments ]
+poolRegistrationsFromBlock (Block _hdr fragments) = do
+    PoolRegistration (poolId, owners, taxes, _tx) <- fragments
+    let margin = fromRight maxBound $ mkPercentage @Int $ round $ 100 *
+               ( double (taxRatioNumerator taxes)
+               / double (taxRatioDenominator taxes)
+               )
+    let cost = Quantity (taxFixed taxes)
+    pure $ W.PoolRegistrationCertificate poolId owners margin cost
+  where
+    double :: Integral i => i -> Double
+    double = fromIntegral
