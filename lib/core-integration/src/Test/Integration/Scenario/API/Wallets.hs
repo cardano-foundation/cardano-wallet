@@ -121,6 +121,7 @@ import Test.Integration.Framework.TestData
     , wildcardsWalletName
     )
 
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
@@ -1492,6 +1493,28 @@ spec = do
                 , expectFieldSatisfy coinSelectionInputs (not . null)
                 , expectFieldSatisfy coinSelectionOutputs ((> 1) . length)
                 , expectFieldSatisfy coinSelectionOutputs (payment `elem`)
+                ]
+
+    it "WALLETS_COIN_SELECTION_02 - \
+        \Multiple payments are all included in the coin selection output." $
+        \ctx -> do
+            let paymentCount = 10
+            source <- fixtureWallet ctx
+            target <- emptyWallet ctx
+            targetAddresses <- fmap (view #id) <$> listAddresses ctx target
+            let amounts = Quantity <$> [1 ..]
+            let payments = NE.fromList
+                    $ take paymentCount
+                    $ zipWith AddressAmount targetAddresses amounts
+            selectCoins ctx source payments >>= flip verify
+                [ expectResponseCode
+                    HTTP.status200
+                , expectFieldSatisfy
+                    coinSelectionInputs (not . null)
+                , expectFieldSatisfy
+                    coinSelectionOutputs ((> paymentCount) . length)
+                , expectFieldSatisfy
+                    coinSelectionOutputs (flip all payments . flip elem)
                 ]
 
     it "WALLETS_UTXO_01 - Wallet's inactivity is reflected in utxo" $ \ctx -> do
