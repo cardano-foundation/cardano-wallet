@@ -89,10 +89,12 @@ import Control.Monad.Trans.Except
     ( ExceptT (..), mapExceptT, runExceptT, throwE, withExceptT )
 import Control.Tracer
     ( contramap )
+import Data.Function
+    ( on )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.List
-    ( foldl', nub, nubBy, sortOn )
+    ( foldl', maximumBy, nub, nubBy, sortOn )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Map.Merge.Strict
@@ -277,20 +279,22 @@ newStakePoolLayer tr db@DBLayer{..} nl metadataDir = StakePoolLayer
 
         (distr, prod) <- liftIO . atomically $ (,)
             <$> (Map.fromList <$> readStakeDistribution nodeEpoch)
-            <*> (count <$> readPoolProduction nodeEpoch)
+            <*> readPoolProduction nodeEpoch
+
+        let tip = maximumBy (compare `on` view #slotId)
+                $ mconcat (Map.elems prod)
 
         when (Map.null distr || Map.null prod) $ do
-            computeProgress nodeTip >>= throwE . ErrMetricsIsUnsynced
+            computeProgress tip >>= throwE . ErrMetricsIsUnsynced
 
         if nodeEpoch == genesisEpoch
         then do
             seed <- liftIO $ atomically readSystemSeed
-            combineWith (sortArbitrarily seed) distr prod mempty
+            combineWith (sortArbitrarily seed) distr (count prod) mempty
 
         else do
-            let tip = nodeTip ^. #slotId
-            perfs <- liftIO $ readPoolsPerformances db epochLength tip
-            combineWith (pure . sortByPerformance) distr prod perfs
+            perfs <- liftIO $ readPoolsPerformances db epochLength (tip ^. #slotId)
+            combineWith (pure . sortByPerformance) distr (count prod) perfs
 
     -- For each pool, look up its metadata. If metadata could not be found for a
     -- pool, the result will be 'Nothing'.
@@ -352,22 +356,22 @@ newStakePoolLayer tr db@DBLayer{..} nl metadataDir = StakePoolLayer
         StakePool{poolId,stake,production,apparentPerformance}
 
     computeProgress
-        :: BlockHeader -- ^ The node tip, which respresents 100%.
+        :: BlockHeader -- ^ Current tip which respresents 100%.
         -> ExceptT e IO (Quantity "percent" Percentage)
-    computeProgress nodeTip = liftIO $ do
+    computeProgress tip = liftIO $ do
         mDbTip <- poolProductionTip
-        logTrace tr $ MsgComputedProgress mDbTip nodeTip
-        pure $ Quantity $ maybe minBound (`progress` nodeTip) mDbTip
-
-    progress :: BlockHeader -> BlockHeader -> Percentage
-    progress tip target =
-        let
-            s0 = getQuantity $ tip ^. #blockHeight
-            s1 = getQuantity $ target ^. #blockHeight
-        in toEnum $ round $ 100 * (toD s0) / (toD s1)
+        logTrace tr $ MsgComputedProgress mDbTip tip
+        pure $ Quantity $ maybe minBound progress mDbTip
       where
-        toD :: Integral i => i -> Double
-        toD = fromIntegral
+        progress :: BlockHeader -> Percentage
+        progress target =
+            let
+                s0 = getQuantity $ tip ^. #blockHeight
+                s1 = getQuantity $ target ^. #blockHeight
+            in toEnum $ round $ 100 * (toD s0) / (toD s1)
+          where
+            toD :: Integral i => i -> Double
+            toD = fromIntegral
 
 readPoolsPerformances
     :: DBLayer m
