@@ -64,10 +64,6 @@ import Network.HTTP.Client
     , newManager
     , responseTimeoutMicro
     )
-import Network.Wai.Application.Static
-    ( defaultWebAppSettings, staticApp )
-import Network.Wai.Handler.Warp
-    ( Port, withApplication )
 import Numeric.Natural
     ( Natural )
 import System.Environment
@@ -82,6 +78,8 @@ import Test.Integration.Framework.DSL
     ( Context (..), KnownCommand (..), TxDescription (..), tearDown )
 import Test.Utils.Paths
     ( getTestData )
+import Test.Utils.StaticServer
+    ( withStaticServer )
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.Pool.MetricsSpec as MetricsSpec
@@ -178,29 +176,21 @@ specWithServer (logCfg, tr) = aroundAll withContext . after tearDown
 
     withServer setup =
         withConfig $ \jmCfg ->
-        withMetadataRegistry registryRoot $ \registryPort -> do
-            let registryUrl = mconcat
-                    [ "http://localhost:"
-                    , show registryPort
-                    , "/test-integration-registry.zip"
-                    ]
-            setEnv envVarMetadataRegistry registryUrl
+        withMetadataRegistry $
             serveWallet @'Testnet logging (SyncTolerance 10) Nothing "127.0.0.1"
                 ListenOnRandomPort (Launch jmCfg) setup
-      where
-        registryRoot = $(getTestData) </> "jormungandr" </> "stake_pools" </> "registry"
 
     logging = (logCfg, transformTextTrace tr)
 
--- | Run a HTTP file server on any free port
-withMetadataRegistry
-    :: FilePath
-    -> (Port -> IO a)
-    -> IO a
-withMetadataRegistry root =
-    withApplication (pure app)
+-- | Run a HTTP file server on any free port, serving up the integration tests
+-- stake pool metadata registry.
+withMetadataRegistry :: IO a -> IO a
+withMetadataRegistry action = withStaticServer root $ \baseUrl -> do
+    let registryUrl = baseUrl <> "test-integration-registry.zip"
+    setEnv envVarMetadataRegistry registryUrl
+    action
   where
-    app = staticApp $ defaultWebAppSettings root
+    root = $(getTestData) </> "jormungandr" </> "stake_pools" </> "registry"
 
 -- NOTE²
 -- We use a range (min, max) and call it an "estimator" because for the

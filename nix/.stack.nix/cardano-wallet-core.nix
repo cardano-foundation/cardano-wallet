@@ -173,7 +173,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."unordered-containers" or (buildDepError "unordered-containers"))
             (hsPkgs."yaml" or (buildDepError "yaml"))
             (hsPkgs."wai" or (buildDepError "wai"))
-            (hsPkgs."wai-app-static" or (buildDepError "wai-app-static"))
             (hsPkgs."warp" or (buildDepError "warp"))
             (hsPkgs."zip" or (buildDepError "zip"))
             ];

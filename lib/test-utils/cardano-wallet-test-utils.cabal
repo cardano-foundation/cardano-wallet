@@ -44,12 +44,15 @@ library
     , template-haskell
     , time
     , unliftio
+    , wai-app-static
+    , warp
   hs-source-dirs:
       src
   exposed-modules:
       Test.Hspec.Extra
       Test.Utils.Paths
       Test.Utils.Ports
+      Test.Utils.StaticServer
       Test.Utils.Time
       Test.Utils.Trace
       Test.Utils.Windows
