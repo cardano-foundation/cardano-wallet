@@ -104,6 +104,7 @@ import Test.Integration.Framework.TestData
     , errMsg406
     , errMsg415
     , falseWalletIds
+    , getHeaderCases
     , passphraseMaxLength
     , passphraseMinLength
     )
@@ -626,6 +627,24 @@ spec = do
                 if wDesc == "40 chars hex"
                 then expectErrorMessage (errMsg404NoWallet $ T.pack walId) rg
                 else expectErrorMessage errMsg404NoEndpoint rg
+
+    describe "STAKE_POOLS_ESTIMATE_FEE_05 -\
+        \ v2/wallets/{wid}/delegations/fees - Methods Not Allowed" $ do
+        let methods = ["POST", "PUT", "DELETE", "CONNECT", "TRACE", "OPTIONS"]
+        forM_ methods $ \method -> it (show method) $ \ctx -> do
+            w <- emptyWallet ctx
+            let ep = "v2/wallets/"<> w ^. walletId <> "/delegations/fees"
+            r <- request @ApiFee ctx (method, ep) Default Empty
+            expectResponseCode @IO HTTP.status405 r
+            expectErrorMessage errMsg405 r
+
+    describe "STAKE_POOLS_ESTIMATE_FEE_06 - HTTP headers" $ do
+        forM_ (getHeaderCases HTTP.status200)
+            $ \(title, headers, exps) -> it title $ \ctx -> do
+                w <- fixtureWallet ctx
+                let ep = delegationFeeEp w
+                r <- request @ApiFee ctx ep headers Empty
+                verify r exps
 
     describe "STAKE_POOLS_JOIN/QUIT_05 - Bad request" $ do
         let verifyIt ctx sPoolEndp = do
