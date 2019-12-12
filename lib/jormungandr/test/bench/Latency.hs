@@ -102,6 +102,7 @@ import Test.Integration.Framework.DSL
     , expectEventually
     , expectResponseCode
     , expectSuccess
+    , expectWalletUTxO
     , faucetAmt
     , fixtureWallet
     , fixtureWalletWith
@@ -167,12 +168,6 @@ main = withUtf8Encoding $ do
 
     fmtLn "Latencies for 2 fixture wallets with 1000 utxos scenario"
     runScenario logging tvar (nFixtureWalletWithUTxOs 2 10)
-
-    fmtLn "Latencies for 2 fixture wallets with 2000 utxos scenario"
-    runScenario logging tvar (nFixtureWalletWithUTxOs 2 20)
-
-    fmtLn "Latencies for 2 fixture wallets with 5000 utxos scenario"
-    runScenario logging tvar (nFixtureWalletWithUTxOs 2 50)
   where
     -- Creates n fixture wallets and return two of them
     nFixtureWallet n ctx = do
@@ -211,16 +206,16 @@ main = withUtf8Encoding $ do
         (wal1, wal2) <- nFixtureWallet n ctx
 
         let amt = (1 :: Natural)
-        let batchSize = 10
-        let fixtureUtxos = replicate 10 10000000000
-        let expAddedUtxos = [replicate (100*x) (1::Natural) | x <- [1..m]]
+        let batchSize = 100
+        let fixtureUtxos = replicate 10 100000000000
+        let expAddedUtxos = [replicate (batchSize*x) 1 | x <- [1..m]]
         let expUtxos = map (++ fixtureUtxos) expAddedUtxos
-        let expInflows = [100*x | x <- [1..m]]
-        let expPair = zip expInflows  expUtxos
+        let expInflows = [(fromIntegral faucetAmt) + batchSize*x | x <- [1..m]]
+        let expPair = zip expInflows expUtxos
+
         mapM_ (repeatPostMultiTx ctx wal1 amt batchSize) expPair
 
         pure (wal1, wal2)
-
 
     repeatPostTx ctx wDest amtToSend batchSize amtExp = do
         wSrc <- fixtureWallet ctx
@@ -256,11 +251,11 @@ main = withUtf8Encoding $ do
         expectResponseCode HTTP.status202 r
         return r
 
-    repeatPostMultiTx ctx wDest amtToSend batchSize (amtExp, _utxoExp) = do
-        wSrc <- fixtureWalletWith ctx (replicate 100 1000)
+    repeatPostMultiTx ctx wDest amtToSend batchSize (amtExp, utxoExp) = do
+        wSrc <- fixtureWalletWith ctx (replicate batchSize 1000)
         let pass = "Secure Passphrase" :: Text
 
-        replicateM_ batchSize (postMultiTx ctx (wSrc, postTxEp, pass) wDest amtToSend)
+        postMultiTx ctx (wSrc, postTxEp, pass) wDest amtToSend batchSize
 
         rWal1 <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
         verify rWal1
@@ -268,21 +263,19 @@ main = withUtf8Encoding $ do
             , expectEventually ctx getWalletEp balanceAvailable (fromIntegral amtExp)
             ]
 
-{--
         rStat <- request @ApiUtxoStatistics ctx (getWalletUtxoEp wDest) Default Empty
         expectResponseCode @IO HTTP.status200 rStat
         expectWalletUTxO utxoExp (snd rStat)
---}
+
         rDel <- request @ApiWallet ctx (deleteWalletEp wSrc) Default Empty
         expectResponseCode @IO HTTP.status204 rDel
 
         pure ()
 
-
-    postMultiTx ctx (wSrc, postTxEndp, pass) wDest amt = do
+    postMultiTx ctx (wSrc, postTxEndp, pass) wDest amt nOuts = do
         addrs <- listAddresses ctx wDest
-        let destinations = replicate 10 $ (addrs !! 1) ^. #id
-        let amounts = take 10 [amt, amt .. ]
+        let destinations = replicate nOuts $ (addrs !! 1) ^. #id
+        let amounts = take nOuts [amt, amt .. ]
         let payments = flip map (zip amounts destinations) $ \(coin, addr) ->
                 [aesonQQ|{
                         "address": #{addr},
@@ -298,7 +291,7 @@ main = withUtf8Encoding $ do
         r <- request @(ApiTransaction n) ctx (postTxEndp wSrc) Default payload
 
         expectResponseCode HTTP.status202 r
-        return r
+        return ()
 
     runScenario logging tvar scenario = benchWithServer logging $ \ctx -> do
         (wal1, wal2) <- scenario ctx
