@@ -42,7 +42,7 @@ import Cardano.CLI
 import Cardano.Launcher
     ( ProcessHasExited (..), installSignalHandlers )
 import Cardano.Pool.Metrics
-    ( StakePoolLayer, monitorStakePools, newStakePoolLayer )
+    ( StakePoolLayer, StakePoolLayerMsg, monitorStakePools, newStakePoolLayer )
 import Cardano.Wallet.Api
     ( ApiLayer )
 import Cardano.Wallet.Api.Server
@@ -186,7 +186,7 @@ serveWallet
                         let seqTl = newTransactionLayer (getGenesisBlockHash bp)
                         let poolDBPath = Pool.defaultFilePath <$> databaseDir
                         Pool.withDBLayer cfg trText poolDBPath $ \db -> do
-                            poolApi <- stakePoolLayer trText nl db
+                            poolApi <- stakePoolLayer tr nl db
                             rndApi  <- apiLayer trText rndTl nl
                             seqApi  <- apiLayer trText seqTl nl
                             let tr' = contramap (fmap LogApiServerMsg) tr
@@ -235,17 +235,18 @@ serveWallet
         nl' = toWLBlock <$> nl
 
     stakePoolLayer
-        :: Trace IO Text
+        :: Trace IO ServerLog
         -> NetworkLayer IO t J.Block
         -> Pool.DBLayer IO
         -> IO (StakePoolLayer IO)
     stakePoolLayer trRoot nl db = do
         void $ forkFinally (monitorStakePools tr' nl' db) onExit
-        pure (newStakePoolLayer db nl' trRoot)
+        pure $ newStakePoolLayer db nl' trStakePool
       where
-        tr' = appendName "stake-pools" trRoot
+        tr' = appendName "stake-pools" (contramap (fmap LogText) trRoot)
         nl' = toSPBlock <$> nl
         onExit = defaultWorkerAfter tr'
+        trStakePool = contramap (fmap LogStakePoolLayerMsg) trRoot
 
     dbFactory
         :: forall s k.
@@ -363,10 +364,12 @@ toWLBlock = J.convertBlock
 -- | The type of trace events produced by the Jörmungandr API server.
 data ServerLog
     = LogApiServerMsg ApiLog
+    | LogStakePoolLayerMsg StakePoolLayerMsg
     | LogText Text
     deriving (Show)
 
 instance ToText ServerLog where
     toText msg = case msg of
         LogApiServerMsg load -> toText load
+        LogStakePoolLayerMsg load -> toText load
         LogText txt -> txt

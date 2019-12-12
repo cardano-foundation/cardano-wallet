@@ -39,10 +39,6 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
-import Network.Wai.Application.Static
-    ( defaultWebAppSettings, staticApp )
-import Network.Wai.Handler.Warp
-    ( Port, withApplication )
 import System.FilePath
     ( takeDirectory, (<.>), (</>) )
 import System.IO.Temp
@@ -68,6 +64,8 @@ import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor, run )
 import Test.Utils.Paths
     ( getTestData )
+import Test.Utils.StaticServer
+    ( withStaticServer )
 import Test.Utils.Trace
     ( captureLogging )
 
@@ -78,15 +76,15 @@ import qualified Data.Text as T
 spec :: Spec
 spec = do
     describe "Cardano.Pool.Registry.getStakePoolMetadata specs" $
-        around (testServer dataDir) $ do
-        it "Loads the example zip" $ \port -> do
+        around (withStaticServer dataDir) $ do
+        it "Loads the example zip" $ \baseUrl -> do
             tr <- setupLogging
-            res <- getStakePoolMetadata tr (testUrl port) presentOwners
+            res <- getStakePoolMetadata tr (testUrl baseUrl) presentOwners
             res `shouldBe` Right (map Just presentMetas)
 
-        it "Handles a missing pool" $ \port -> do
+        it "Handles a missing pool" $ \baseUrl -> do
             tr <- setupLogging
-            res <- getStakePoolMetadata tr (testUrl port) (absentOwner:presentOwners)
+            res <- getStakePoolMetadata tr (testUrl baseUrl) (absentOwner:presentOwners)
             res `shouldBe` Right (Nothing:map Just presentMetas)
 
         it "Fails with an unavailable HTTP server" $ \_port -> do
@@ -106,23 +104,19 @@ spec = do
                                  Test fixtures
 -------------------------------------------------------------------------------}
 
--- | Run a HTTP file server on any free port
-testServer :: FilePath -> (Port -> IO a) -> IO a
-testServer root = withApplication (pure app)
-    where app = staticApp $ defaultWebAppSettings root
-
 dataDir :: FilePath
 dataDir = $(getTestData) </> "stake-pool-registry"
 
 -- | Make a file server URL for the test data file.
 -- This file was downloaded from <https://github.com/input-output-hk/testnet-stake-pool-registry/archive/master.zip>
-testUrl :: Port -> String
-testUrl p = "http://localhost:" <> show p <> "/testnet-stake-pool-registry-master.zip"
+testUrl :: String -> String
+testUrl baseUrl = baseUrl ++ "testnet-stake-pool-registry-master.zip"
 
 presentOwners :: [PoolOwner]
 presentOwners = map unsafeFromText
-    [ "ed25519_pk1afhcpw2tg7nr2m3wr4x8jaa4dv7d09gnv27kwfxpjyvukwxs8qdqwg85xp"
-    , "ed25519_pk1z4vh8gva25w07x8574uujuveu8gz43fu6qfln3t4prcavrvcphjsk0pdqs"
+    [ "ed25519_pk1a6mv6x2r0f3y62ddavxvf5lkdsj8ttc8mk3yngdy895j8tn6jqyqesvuk2"
+    , "ed25519_pk1fh2ajuu7rqquuxqrkh6ldfvdktlthkl4wlfhymrath85wzhy7slsr37f87"
+    , "ed25519_pk1wc84pj9h3qw5kknawj2d0mqwr43gxhtsnq5pmuzxg7ssrcpt84ds9sce69"
     ]
 
 presentMetas :: [StakePoolMetadata]
@@ -130,18 +124,26 @@ presentMetas =
     [ StakePoolMetadata
         { ticker = unsafeFromText "FST"
         , homepage = "https://12345"
-        , owner = unsafeFromText "ed25519_pk1afhcpw2tg7nr2m3wr4x8jaa4dv7d09gnv27kwfxpjyvukwxs8qdqwg85xp"
-        , name = "First stake pool"
-        , description = Just "It's better than SND"
-        , pledgeAddress = "addr15vz9yc5c3upgze8tg5kd7kkzxqgqfxk5a3kudp22hdg0l2za00sq2ufkk7"
+        , owner = unsafeFromText "ed25519_pk1a6mv6x2r0f3y62ddavxvf5lkdsj8ttc8mk3yngdy895j8tn6jqyqesvuk2"
+        , name = "Ada Lovelace"
+        , description = Nothing
+        , pledgeAddress = "addr1svklmf8yl78x9cw30ystvprhxtm790k4380xlsjrjqn2p8nekup8uvzfezl"
+        }
+    , StakePoolMetadata
+        { ticker = unsafeFromText "IOHK1"
+        , homepage = "https://iohk.io"
+        , owner = unsafeFromText "ed25519_pk1fh2ajuu7rqquuxqrkh6ldfvdktlthkl4wlfhymrath85wzhy7slsr37f87"
+        , name = "IOHK Pool - 1"
+        , description = Nothing
+        , pledgeAddress = "addr1s4xatktnncvqrnscqw6lta493ke0aw7m74maxunv04wu73c2un6r7vm0k7z"
         }
     , StakePoolMetadata
         { ticker = unsafeFromText "TICK"
         , homepage = "https://12345"
-        , owner = unsafeFromText "ed25519_pk1z4vh8gva25w07x8574uujuveu8gz43fu6qfln3t4prcavrvcphjsk0pdqs"
-        , name = "Pooley Mc-Poolface"
+        , owner = unsafeFromText "ed25519_pk1wc84pj9h3qw5kknawj2d0mqwr43gxhtsnq5pmuzxg7ssrcpt84ds9sce69"
+        , name = "Ada Lovelace"
         , description = Nothing
-        , pledgeAddress = "addr15vz9yc5c3upgze8tg5kd7kkzxqgqfxk5a3kudp22hdg0l2za00sq2ufkk7"
+        , pledgeAddress = "addr1svklmf8yl78x9cw30ystvprhxtm790k4380xlsjrjqn2p8nekup8uvzfezl"
         }
     ]
 
@@ -174,8 +176,8 @@ prop_getStakePoolMetadata tc = monadicIO $ do
     -- Generate a zip file for the test case and serve on a local file server.
     -- Run getStakePoolMeta and take the actual result, and the log messages.
     (msgs, res) <- run $ withTestCaseZip tc $ \zipFile ->
-        testServer (takeDirectory zipFile) $ \port -> do
-            let url = testCaseUrl tc port
+        withStaticServer (takeDirectory zipFile) $ \baseUrl -> do
+            let url = testCaseUrl tc baseUrl
             captureLogging $ \tr -> getStakePoolMetadata tr url (poolOwners tc)
     let numDecodeErrors = count isDecodeErrorMsg msgs
 
@@ -207,9 +209,8 @@ registryFile :: FilePath -> PoolOwner -> FilePath
 registryFile top owner =
     top </> "registry" </> T.unpack (toText owner) <.> "json"
 
-testCaseUrl :: TestCase -> Port -> String
-testCaseUrl tc port =
-    "http://localhost:" <> show port <> "/" <> topDir tc <> ".zip"
+testCaseUrl :: TestCase -> String -> String
+testCaseUrl tc baseUrl = baseUrl ++ topDir tc ++ ".zip"
 
 {-------------------------------------------------------------------------------
                                Test case helpers

@@ -15,10 +15,13 @@
 module Cardano.Pool.Metadata
     ( -- * Types
       StakePoolMetadata (..)
+    , sameStakePoolMetadata
     , StakePoolTicker
 
       -- * Fetching metadata
+    , envVarMetadataRegistry
     , getStakePoolMetadata
+    , getRegistryZipUrl
     , cardanoFoundationRegistryZip
     , FetchError (..)
 
@@ -61,6 +64,8 @@ import Data.Aeson
     )
 import Data.List
     ( find )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -73,6 +78,8 @@ import Network.HTTP.Client
     ( HttpException, parseUrlThrow )
 import Network.HTTP.Simple
     ( httpSink )
+import System.Environment
+    ( lookupEnv )
 import System.FilePath
     ( isPathSeparator, (<.>), (</>) )
 import System.IO
@@ -112,6 +119,12 @@ data StakePoolMetadata = StakePoolMetadata
     , pledgeAddress :: Text
     -- ^ Bech32-encoded address.
     } deriving (Eq, Show, Generic)
+
+-- | Returns 'True' iff metadata is exactly equal, modulo 'PoolOwner'.
+sameStakePoolMetadata :: StakePoolMetadata -> StakePoolMetadata -> Bool
+sameStakePoolMetadata a b = a { owner = same } == b { owner = same }
+  where
+    same = PoolOwner mempty
 
 -- | Very short name for a stake pool.
 newtype StakePoolTicker = StakePoolTicker { unStakePoolTicker :: Text }
@@ -261,6 +274,17 @@ findArchiveFile repoPath = find isRepoFile . Map.keys <$> getEntries
 registryFile :: PoolOwner -> FilePath
 registryFile owner_ = "registry" </> T.unpack (toText owner_) <.> "json"
 
+-- | Returns the Cardano Foundation stake pool registry zipfile URL, or the
+-- @CARDANO_WALLET_STAKE_POOL_REGISTRY_URL@ environment variable if it is set.
+getRegistryZipUrl :: IO String
+getRegistryZipUrl =
+    fromMaybe cardanoFoundationRegistryZip <$> lookupEnv envVarMetadataRegistry
+
+-- | Name of the environment variable to set for tweaking the registry URL.
+-- Mostly use for testing.
+envVarMetadataRegistry :: String
+envVarMetadataRegistry = "CARDANO_WALLET_STAKE_POOL_REGISTRY_URL"
+
 -- | The stake pool registry zipfile download URL for CF.
 cardanoFoundationRegistryZip :: String
 cardanoFoundationRegistryZip =
@@ -307,6 +331,12 @@ data RegistryLog = RegistryLog
     , registryLogZipFile :: FilePath
     , registryLogMsg :: RegistryLogMsg
     } deriving (Generic, Show, Eq, ToJSON)
+
+instance DefinePrivacyAnnotation RegistryLog where
+    definePrivacyAnnotation = definePrivacyAnnotation . registryLogMsg
+
+instance DefineSeverity RegistryLog where
+    defineSeverity = defineSeverity . registryLogMsg
 
 -- | Log messages about processing a specific archive.
 data RegistryLogMsg

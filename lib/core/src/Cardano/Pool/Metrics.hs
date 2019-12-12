@@ -33,15 +33,34 @@ module Cardano.Pool.Metrics
     , ErrMetricsInconsistency (..)
     , combineMetrics
     , calculatePerformance
+
+      -- * Associating metadata
+    , associateMetadata
+
+      -- * Logging
+    , StakePoolLayerMsg (..)
     )
     where
 
 import Prelude
 
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
+import Cardano.BM.Data.Tracer
+    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
 import Cardano.BM.Trace
     ( Trace, logDebug, logInfo, logNotice )
 import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists )
+import Cardano.Pool.Metadata
+    ( RegistryLog
+    , StakePoolMetadata (..)
+    , getRegistryZipUrl
+    , getStakePoolMetadata
+    , sameStakePoolMetadata
+    )
+import Cardano.Wallet.Logging
+    ( logTrace )
 import Cardano.Wallet.Network
     ( ErrNetworkTip
     , ErrNetworkUnavailable
@@ -55,6 +74,7 @@ import Cardano.Wallet.Primitive.Types
     , EpochLength (..)
     , EpochNo (..)
     , PoolId (..)
+    , PoolOwner (..)
     , PoolRegistrationCertificate (..)
     , SlotId (..)
     , SlotNo (unSlotNo)
@@ -66,11 +86,13 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT, mapExceptT, runExceptT, throwE, withExceptT )
+    ( ExceptT (..), mapExceptT, runExceptT, throwE, withExceptT )
+import Control.Tracer
+    ( contramap )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.List
-    ( foldl', sortOn )
+    ( foldl', nub, nubBy, sortOn )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Map.Merge.Strict
@@ -83,6 +105,8 @@ import Data.Quantity
     ( Percentage, Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( ToText (..) )
 import Data.Vector.Shuffle
     ( shuffleWith )
 import Data.Word
@@ -144,9 +168,14 @@ monitorStakePools tr nl DBLayer{..} = do
   where
     initCursor :: IO [BlockHeader]
     initCursor = do
-        let (_, bp) = staticBlockchainParameters nl
+        let (block0, bp) = staticBlockchainParameters nl
         let k = fromIntegral . getQuantity . view #getEpochStability $ bp
-        atomically $ readPoolProductionCursor k
+        atomically $ do
+            mapM_ (uncurry putStakePoolOwner) $ concat
+                [ [ (reg ^. #poolId, owner) | owner <- reg ^. #poolOwners ]
+                | reg <- poolRegistrations block0
+                ]
+            readPoolProductionCursor k
 
     backward
         :: SlotId
@@ -215,7 +244,7 @@ data ErrMonitorStakePools
 -- can easily be passed to the API-server, where it can be used in a simple way.
 newtype StakePoolLayer m = StakePoolLayer
       { listStakePools
-          :: ExceptT ErrListStakePools m [StakePool]
+          :: ExceptT ErrListStakePools m [(StakePool, Maybe StakePoolMetadata)]
       }
 
 data ErrListStakePools
@@ -224,12 +253,20 @@ data ErrListStakePools
      | ErrListStakePoolsErrNetworkTip ErrNetworkTip
 
 newStakePoolLayer
-     :: DBLayer IO
-     -> NetworkLayer IO t Block
-     -> Trace IO Text
-     -> StakePoolLayer IO
+    :: DBLayer IO
+    -> NetworkLayer IO t Block
+    -> Trace IO StakePoolLayerMsg
+    -> StakePoolLayer IO
 newStakePoolLayer db@DBLayer{..} nl tr = StakePoolLayer
     { listStakePools = do
+        lift $ logTrace tr MsgListStakePoolsBegin
+        stakePools <- sortKnownPools
+        meta <- lift $ findMetadata (map (^. #poolId) stakePools)
+        pure $ zip stakePools meta
+    }
+  where
+    sortKnownPools :: ExceptT ErrListStakePools IO [StakePool]
+    sortKnownPools = do
         nodeTip <- withExceptT ErrListStakePoolsErrNetworkTip
             $ networkTip nl
         let nodeEpoch = nodeTip ^. #slotId . #epochNumber
@@ -251,8 +288,27 @@ newStakePoolLayer db@DBLayer{..} nl tr = StakePoolLayer
             let tip = nodeTip ^. #slotId
             perfs <- liftIO $ readPoolsPerformances db epochLength tip
             combineWith (pure . sortByPerformance) distr prod perfs
-    }
-  where
+
+    -- For each pool, look up its metadata. If metadata could not be found for a
+    -- pool, the result will be 'Nothing'.
+    findMetadata :: [PoolId] -> IO [Maybe StakePoolMetadata]
+    findMetadata poolIds = do
+        owners <- atomically $ mapM readStakePoolOwners poolIds
+        -- note: this will become simpler once we cache metadata in the database
+        let owners' = nub $ concat owners
+        url <- getRegistryZipUrl
+        let tr' = contramap (fmap MsgRegistry) tr
+        getStakePoolMetadata tr' url owners' >>= \case
+            Left _ -> do
+                logTrace tr MsgMetadataUnavailable
+                pure $ replicate (length poolIds) Nothing
+            Right metas -> do
+                let res = associateMetadata
+                        (zip poolIds owners)
+                        (zip owners' metas)
+                mapM_ (logTrace tr . fst) res
+                pure $ map snd res
+
     (block0, bp) = staticBlockchainParameters nl
     epochLength = bp ^. #getEpochLength
 
@@ -297,17 +353,8 @@ newStakePoolLayer db@DBLayer{..} nl tr = StakePoolLayer
         -> ExceptT e IO (Quantity "percent" Percentage)
     computeProgress nodeTip = liftIO $ do
         mDbTip <- poolProductionTip
-        Quantity <$> case mDbTip of
-            Nothing -> return minBound
-            Just dbTip -> do
-                liftIO $ logDebug tr $ mconcat
-                    [ "The node tip is:\n"
-                    , pretty nodeTip
-                    , ",\nbut the last pool production stored in the db"
-                    , " is from:\n"
-                    , pretty dbTip
-                    ]
-                return $ progress dbTip nodeTip
+        logTrace tr $ MsgComputedProgress mDbTip nodeTip
+        pure $ Quantity $ maybe minBound (`progress` nodeTip) mDbTip
 
     progress :: BlockHeader -> BlockHeader -> Percentage
     progress tip target =
@@ -488,3 +535,85 @@ zipWithRightDefault combine onMissing rZero =
 -- | Count elements inside a 'Map'
 count :: Map k [a] -> Map k (Quantity any Word64)
 count = Map.map (Quantity . fromIntegral . length)
+
+-- | Given a mapping from 'PoolId' -> 'PoolOwner' and a mapping between
+-- 'PoolOwner' <-> 'StakePoolMetadata', return a matching 'StakePoolMeta' entry
+-- for every 'PoolId'.
+--
+-- If there is no metadata for a pool, it returns Nothing for that 'PoolId'.
+-- If there is different metadata submitted by multiple owners of a pool, it returns Nothing.
+-- If there is one unique metadata for a pool, it returns 'Just' the metadata for that 'PoolId'.
+--
+-- It also provides a log message for each association.
+associateMetadata
+    :: [(PoolId, [PoolOwner])]
+    -- ^ Ordered mapping from pool to owner(s).
+    -> [(PoolOwner, Maybe StakePoolMetadata)]
+    -- ^ Association between owner and metadata
+    -> [(StakePoolLayerMsg, Maybe StakePoolMetadata)]
+associateMetadata poolOwners ownerMeta =
+    map (uncurry getResult . fmap associate) poolOwners
+  where
+    -- Filter the metadata to just the entries which were submitted by the given
+    -- owners.
+    associate :: [PoolOwner] -> [(PoolOwner, StakePoolMetadata)]
+    associate owners = [(a, b) | (a, Just b) <- ownerMeta, a `elem` owners]
+
+    -- Ensure that there is exactly one unique metadata per pool.
+    -- Produces a log message and validated result.
+    getResult
+        :: PoolId
+        -> [(PoolOwner, StakePoolMetadata)]
+        -> (StakePoolLayerMsg, Maybe StakePoolMetadata)
+    getResult pid metas = case nubBy sameMeta metas of
+        [(owner, meta)] -> (MsgMetadataUsing pid owner meta, Just meta)
+        [] -> (MsgMetadataMissing pid, Nothing)
+        metas' -> (MsgMetadataMultiple pid metas', Nothing)
+
+    sameMeta (_, a) (_, b) = sameStakePoolMetadata a b
+
+{-------------------------------------------------------------------------------
+                                    Logging
+-------------------------------------------------------------------------------}
+
+data StakePoolLayerMsg
+    = MsgRegistry RegistryLog
+    | MsgListStakePoolsBegin
+    | MsgMetadataUnavailable
+    | MsgMetadataUsing PoolId PoolOwner StakePoolMetadata
+    | MsgMetadataMissing PoolId
+    | MsgMetadataMultiple PoolId [(PoolOwner, StakePoolMetadata)]
+    | MsgComputedProgress (Maybe BlockHeader) BlockHeader
+    deriving (Show, Eq)
+
+instance DefinePrivacyAnnotation StakePoolLayerMsg
+instance DefineSeverity StakePoolLayerMsg where
+    defineSeverity ev = case ev of
+        MsgRegistry msg -> defineSeverity msg
+        MsgListStakePoolsBegin -> Debug
+        MsgMetadataUnavailable -> Notice
+        MsgComputedProgress{} -> Debug
+        MsgMetadataUsing{} -> Debug
+        MsgMetadataMissing{} -> Debug
+        MsgMetadataMultiple{} -> Debug
+
+instance ToText StakePoolLayerMsg where
+    toText = \case
+        MsgRegistry msg -> toText msg
+        MsgListStakePoolsBegin -> "Listing stake pools"
+        MsgMetadataUnavailable -> "Stake pool metadata is unavailable"
+        MsgComputedProgress (Just dbTip) nodeTip -> mconcat
+            [ "The node tip is:\n"
+            , pretty nodeTip
+            , ",\nbut the last pool production stored in the db"
+            , " is from:\n"
+            , pretty dbTip
+            ]
+        MsgComputedProgress Nothing _nodeTip -> ""
+        MsgMetadataUsing pid owner _ ->
+            "Using stake pool metadata from " <>
+            toText owner <> " for " <> toText pid
+        MsgMetadataMissing pid ->
+            "No stake pool metadata for " <> toText pid
+        MsgMetadataMultiple pid _ ->
+            "Multiple different metadata registered for " <> toText pid

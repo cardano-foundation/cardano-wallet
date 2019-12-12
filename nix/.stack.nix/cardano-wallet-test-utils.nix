@@ -75,6 +75,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."template-haskell" or (buildDepError "template-haskell"))
           (hsPkgs."time" or (buildDepError "time"))
           (hsPkgs."unliftio" or (buildDepError "unliftio"))
+          (hsPkgs."wai-app-static" or (buildDepError "wai-app-static"))
+          (hsPkgs."warp" or (buildDepError "warp"))
           ];
         buildable = true;
         };

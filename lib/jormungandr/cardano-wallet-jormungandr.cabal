@@ -246,6 +246,8 @@ test-suite integration
       Cardano.Wallet.Jormungandr.Launch
       Cardano.Wallet.Jormungandr.NetworkSpec
       Cardano.Pool.MetricsSpec
+      Test.Integration.Jcli
+      Test.Integration.Jormungandr.Fixture
       Test.Integration.Jormungandr.Scenario.API.StakePools
       Test.Integration.Jormungandr.Scenario.API.Transactions
       Test.Integration.Jormungandr.Scenario.CLI.Launcher
@@ -302,5 +304,6 @@ benchmark latency
   main-is:
       Latency.hs
   other-modules:
+      Test.Integration.Jcli
       Cardano.Faucet
       Cardano.Wallet.Jormungandr.Launch

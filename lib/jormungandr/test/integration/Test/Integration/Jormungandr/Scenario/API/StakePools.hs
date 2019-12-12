@@ -27,7 +27,11 @@ import Cardano.Wallet.Primitive.Types
 import Control.Monad
     ( forM_, unless )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( view, (^.) )
+import Data.List
+    ( find )
+import Data.Maybe
+    ( isJust, isNothing )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
@@ -35,7 +39,7 @@ import Data.Text.Class
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( SpecWith, describe, it )
+    ( SpecWith, describe, it, shouldBe )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
@@ -103,6 +107,8 @@ import Test.Integration.Framework.TestData
     , passphraseMaxLength
     , passphraseMinLength
     )
+import Test.Integration.Jormungandr.Fixture
+    ( OwnerIdentity (..), registerStakePool )
 
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
@@ -122,6 +128,13 @@ spec = do
             -- either 1 or 2 blocks in the current epoch.
             verify r
                 [ expectListSizeEqual 3
+
+                , expectListItemFieldSatisfy 0
+                    #metadata ((== Just "Genesis Pool") . fmap (view #name))
+                , expectListItemFieldSatisfy 1
+                    #metadata ((== Just "Genesis Pool") . fmap (view #name))
+                , expectListItemFieldSatisfy 2
+                    #metadata ((== Just "Genesis Pool") . fmap (view #name))
 
                 , expectListItemFieldEqual 0
                     (metrics . stake) 1
@@ -169,6 +182,30 @@ spec = do
                     (method, "v2/stake-pools") Default Empty
             expectResponseCode @IO HTTP.status405 r
             expectErrorMessage errMsg405 r
+
+    it "STAKE_POOLS_LIST_04 - Discovers new pools when they are registered" $ \ctx -> do
+        let nWithMetadata = length . filter (isJust . view #metadata)
+        let nWithoutMetadata = length . filter (isNothing . view #metadata)
+
+        (_, pools) <- eventually $
+            unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
+
+        (poolIdA, poolAOwner)  <- registerStakePool ctx WithMetadata
+        (poolIdB, _poolBOwner) <- registerStakePool ctx WithoutMetadata
+
+        waitForNextEpoch ctx
+        waitForNextEpoch ctx
+        (_, pools') <- eventually $
+            unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
+
+        nWithoutMetadata pools' `shouldBe` nWithoutMetadata pools + 1
+        nWithMetadata pools' `shouldBe` nWithMetadata pools + 1
+
+        let (Just poolA) = find ((== ApiT poolIdA) . view #id) pools'
+        fmap (view #owner) (poolA ^. #metadata) `shouldBe` Just poolAOwner
+
+        let (Just poolB) = find ((== ApiT poolIdB) . view #id) pools'
+        (poolB ^. #metadata) `shouldBe` Nothing
 
     it "STAKE_POOLS_JOIN_01 - Can join a stakepool" $ \ctx -> do
         w <- fixtureWallet ctx

@@ -38,6 +38,8 @@ import Prelude
 
 import Cardano.BM.Trace
     ( Trace, logError, logNotice )
+import Cardano.Pool.Metadata
+    ( StakePoolMetadata )
 import Cardano.Pool.Metrics
     ( ErrListStakePools (..)
     , ErrMetricsInconsistency (..)
@@ -825,10 +827,11 @@ listPools
     :: StakePoolLayer IO
     -> Handler [ApiStakePool]
 listPools spl =
-    liftHandler $ map mkApiStakePool <$> listStakePools spl
+    liftHandler $ map (uncurry mkApiStakePool) <$> listStakePools spl
   where
     mkApiStakePool
         :: StakePool
+        -> Maybe StakePoolMetadata
         -> ApiStakePool
     mkApiStakePool StakePool{poolId,stake,production,apparentPerformance} =
         ApiStakePool
@@ -837,7 +840,6 @@ listPools spl =
                 (Quantity $ fromIntegral $ getQuantity stake)
                 (Quantity $ fromIntegral $ getQuantity production))
             apparentPerformance
-            Nothing -- TODO: wire-up real metadata here when available.
 
 joinStakePool
     :: forall ctx s t n k.

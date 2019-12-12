@@ -1,13 +1,10 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Faucet
     ( initFaucet
-    , getBlock0H
-    , getBlock0HText
 
     -- * Internal
     , genFaucets
@@ -22,13 +19,7 @@ import Cardano.CLI
 import Cardano.Wallet.Api.Types
     ( encodeAddress )
 import Cardano.Wallet.Jormungandr.Binary
-    ( MkFragment (..)
-    , TxWitnessTag (..)
-    , fragmentId
-    , getBlockId
-    , putFragment
-    , runGet
-    )
+    ( MkFragment (..), TxWitnessTag (..), fragmentId, putFragment )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle (..)
     , HardDerivation (..)
@@ -57,30 +48,23 @@ import Control.Concurrent.MVar
     ( newMVar )
 import Control.Monad
     ( forM_, replicateM )
-import Data.ByteArray.Encoding
-    ( Base (..), convertToBase )
 import Data.ByteString
     ( ByteString )
-import Data.Quantity
-    ( Quantity (..) )
 import Data.Text
     ( Text )
 import Network.Socket
     ( SockAddr (..) )
-import System.Command
-    ( CmdResult, Stdout (..), command )
 import System.FilePath
     ( FilePath, (</>) )
 import System.IO.Temp
     ( withSystemTempDirectory )
 import Test.Integration.Faucet
     ( Faucet (..) )
-import Test.Utils.Paths
-    ( getTestData )
+import Test.Integration.Jcli
+    ( argHex, argInt, getBlock0H, jcli, jcli_, sinkAddress )
 
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
@@ -92,18 +76,6 @@ initFaucet policy = Faucet
     <$> newMVar seqMnemonics
     <*> newMVar rndMnemonics
     <*> newMVar (mkTxBuilder policy <$> externalAddresses)
-
-getBlock0H :: IO (Hash "Genesis")
-getBlock0H = extractId <$> BL.readFile block0
-  where
-    block0 = $(getTestData) </> "jormungandr" </> "block0.bin"
-    extractId = Hash . getHash . runGet getBlockId
-
-getBlock0HText :: IO Text
-getBlock0HText = toHex <$> getBlock0H
-
-toHex :: Hash any -> Text
-toHex = T.decodeUtf8 . convertToBase Base16 . getHash
 
 -- | Prepare externally signed Tx for Jormungandr
 mkTxBuilder
@@ -122,20 +94,6 @@ mkTxBuilder (LinearFee cst coeff _) (TxIn inpTx inpIx, key) (addr, Coin amt) =
         signTx txFile keyFile witnessFile
         toMessage txFile
   where
-    runJcli :: CmdResult r => [String] -> IO r
-    runJcli = command [] "jcli"
-
-    runJcli_ :: [String] -> IO ()
-    runJcli_ = runJcli
-
-    int :: Quantity any Double -> Int
-    int (Quantity a) = round a
-
-    -- A sink address where all changes from external transaction are sent to.
-    sinkAddress :: String
-    sinkAddress =
-        "sink1sw76ufc5c58mg5cn2dmze70rrpcpy4vxch60lheuzaq5up83ccatse6wns7"
-
     -- Amount associated with each input in the genesis file, in Lovelace
     inputAmt :: Int
     inputAmt =
@@ -145,22 +103,22 @@ mkTxBuilder (LinearFee cst coeff _) (TxIn inpTx inpIx, key) (addr, Coin amt) =
     prepareTx txFile = do
         let hrp = Bech32.unsafeHumanReadablePartFromText "addr"
         let dp  = Bech32.dataPartFromBytes (unAddress addr)
-        runJcli_
+        jcli_
             [ "transaction"
             , "new"
             , "--staging"
             , txFile
             ]
-        runJcli_
+        jcli_
             [ "transaction"
             , "add-input"
-            , T.unpack . toHex $ inpTx
+            , argHex inpTx
             , show inpIx
             , show inputAmt
             , "--staging"
             , txFile
             ]
-        runJcli_
+        jcli_
             [ "transaction"
             , "add-output"
             , T.unpack (Bech32.encodeLenient hrp dp)
@@ -168,36 +126,36 @@ mkTxBuilder (LinearFee cst coeff _) (TxIn inpTx inpIx, key) (addr, Coin amt) =
             , "--staging"
             , txFile
             ]
-        runJcli_
+        jcli_
             [ "transaction"
             , "finalize"
             , sinkAddress
-            , "--fee-constant", show (int cst)
-            , "--fee-coefficient", show (int coeff)
+            , "--fee-constant", argInt cst
+            , "--fee-coefficient", argInt coeff
             , "--staging"
             , txFile
             ]
 
     signTx :: FilePath -> FilePath -> FilePath -> IO ()
     signTx txFile keyFile witnessFile = do
-        Stdout txId <- runJcli
+        txId <- jcli
             [ "transaction"
             , "data-for-witness"
             , "--staging"
             , txFile
             ]
-        block0H <- getBlock0HText
-        runJcli_
+        block0H <- argHex <$> getBlock0H
+        jcli_
             [ "transaction"
             , "make-witness"
             , T.unpack . T.strip . T.pack $ txId
             , "--genesis-block-hash"
-            , T.unpack block0H
+            , block0H
             , "--type", "utxo"
             , witnessFile
             , keyFile
             ]
-        runJcli_
+        jcli_
             [ "transaction"
             , "add-witness"
             , witnessFile
@@ -207,13 +165,13 @@ mkTxBuilder (LinearFee cst coeff _) (TxIn inpTx inpIx, key) (addr, Coin amt) =
 
     toMessage :: FilePath -> IO ByteString
     toMessage txFile = do
-        runJcli_
+        jcli_
             [ "transaction"
             , "seal"
             , "--staging"
             , txFile
             ]
-        Stdout bytes <- runJcli
+        bytes <- jcli
             [ "transaction"
             , "to-message"
             , "--staging"

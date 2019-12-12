@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -23,6 +24,8 @@ import Cardano.Faucet
     ( initFaucet, sockAddrPort )
 import Cardano.Launcher
     ( ProcessHasExited (..), withUtf8Encoding )
+import Cardano.Pool.Metadata
+    ( envVarMetadataRegistry )
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.Jormungandr
@@ -63,12 +66,20 @@ import Network.HTTP.Client
     )
 import Numeric.Natural
     ( Natural )
+import System.Environment
+    ( setEnv )
+import System.FilePath
+    ( (</>) )
 import Test.Hspec
     ( Spec, SpecWith, after, describe, hspec, parallel )
 import Test.Hspec.Extra
     ( aroundAll )
 import Test.Integration.Framework.DSL
     ( Context (..), KnownCommand (..), TxDescription (..), tearDown )
+import Test.Utils.Paths
+    ( getTestData )
+import Test.Utils.StaticServer
+    ( withStaticServer )
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.Pool.MetricsSpec as MetricsSpec
@@ -148,24 +159,38 @@ specWithServer (logCfg, tr) = aroundAll withContext . after tearDown
                     { managerResponseTimeout =
                         responseTimeoutMicro sixtySeconds
                     })
-                faucet <- initFaucet (getFeePolicy bp)
+                let feePolicy = getFeePolicy bp
+                faucet <- initFaucet feePolicy
                 putMVar ctx $ Context
                     { _cleanup = pure ()
                     , _manager = manager
                     , _nodePort = nPort
                     , _walletPort = sockAddrPort wAddr
                     , _faucet = faucet
-                    , _feeEstimator = mkFeeEstimator (getFeePolicy bp)
+                    , _feeEstimator = mkFeeEstimator feePolicy
+                    , _feePolicy = feePolicy
                     , _target = Proxy
                     }
         race (takeMVar ctx >>= action) (withServer setupContext) >>=
             either pure (throwIO . ProcessHasExited "integration")
 
-    withServer setup = withConfig $ \jmCfg ->
-        serveWallet @'Testnet logging (SyncTolerance 10) Nothing "127.0.0.1"
-            ListenOnRandomPort (Launch jmCfg) setup
+    withServer setup =
+        withConfig $ \jmCfg ->
+        withMetadataRegistry $
+            serveWallet @'Testnet logging (SyncTolerance 10) Nothing "127.0.0.1"
+                ListenOnRandomPort (Launch jmCfg) setup
 
     logging = (logCfg, transformTextTrace tr)
+
+-- | Run a HTTP file server on any free port, serving up the integration tests
+-- stake pool metadata registry.
+withMetadataRegistry :: IO a -> IO a
+withMetadataRegistry action = withStaticServer root $ \baseUrl -> do
+    let registryUrl = baseUrl <> "test-integration-registry.zip"
+    setEnv envVarMetadataRegistry registryUrl
+    action
+  where
+    root = $(getTestData) </> "jormungandr" </> "stake_pools" </> "registry"
 
 -- NOTE²
 -- We use a range (min, max) and call it an "estimator" because for the
