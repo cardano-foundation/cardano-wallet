@@ -29,6 +29,7 @@ library
       -fwarn-redundant-constraints
   if (!flag(development))
     ghc-options:
+      -O2
       -Werror
   build-depends:
       base
@@ -91,9 +92,9 @@ executable cardano-wallet-jormungandr
   ghc-options:
       -threaded -rtsopts
       -Wall
-      -O2
   if (!flag(development))
     ghc-options:
+      -O2
       -Werror
   build-depends:
       base
@@ -122,9 +123,9 @@ test-suite unit
   ghc-options:
       -threaded -rtsopts
       -Wall
-      -O2
   if (!flag(development))
     ghc-options:
+      -O2
       -Werror
   build-depends:
       base
@@ -180,9 +181,9 @@ test-suite integration
   ghc-options:
       -threaded -rtsopts
       -Wall
-      -O2
   if (!flag(development))
     ghc-options:
+      -O2
       -Werror
   build-depends:
       base
@@ -266,9 +267,9 @@ benchmark latency
   ghc-options:
       -threaded -rtsopts
       -Wall
-      -O2
   if (!flag(development))
     ghc-options:
+      -O2
       -Werror
   build-depends:
       base
