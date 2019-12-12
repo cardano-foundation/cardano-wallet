@@ -34,11 +34,14 @@ library
     , bytestring
     , cardano-ledger
     , cardano-crypto-wrapper
+    , cardano-wallet-core
     , contra-tracer
     , io-sim-classes
     , iohk-monitoring
     , network
     , network-mux
+    , memory
+    , cardano-binary
     , optparse-applicative
     , ouroboros-consensus
     , ouroboros-network

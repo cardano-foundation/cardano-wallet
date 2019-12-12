@@ -1,8 +1,7 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 --{-# OPTIONS_GHC -fno-warn-unused-imports -fno-warn-redundant-constraints
 --   -fno-warn-unused-matches -fno-warn-unused-local-binds #-}
@@ -13,16 +12,39 @@ Good to read before / additional resources:
 - Module's documentation in `ouroboros-network/typed-protocols/src/Network/TypedProtocols.hs`
 - Data Diffusion and Peer Networking in Shelley (see: https://raw.githubusercontent.com/wiki/input-output-hk/cardano-wallet/data_diffusion_and_peer_networking_in_shelley.pdf)
     - In particular sections 4.1, 4.2, 4.6 and 4.8
+
+
+    {-| A peer has agency if it is expected to send the next message.
+
+                                    Agency
+     ---------------------------------------------------------------------------
+     Client has agency                 | Idle
+     Server has agency                 | Intersect, Next
+
+      *-----------*
+      | Intersect |◀══════════════════════════════╗
+      *-----------*         FindIntersect         ║
+            │                                     ║
+            │                                *---------*                *------*
+            │ Intersect.{Unchanged,Improved} |         |═══════════════▶| Done |
+            └───────────────────────────────╼|         |     MsgDone    *------*
+                                             |   Idle  |
+         ╔═══════════════════════════════════|         |
+         ║            RequestNext            |         |⇦ START
+         ║                                   *---------*
+         ▼                                        ╿
+      *------*       Roll.{Backward,Forward}      │
+      | Next |────────────────────────────────────┘
+      *------*
+
+    -}
 -}
 
 module Cardano.Wallet.Shelley.Network
     ( main
-    , genesisTip
-    , setup
-    , prettyResponse
+    , convertBlockHeader
+    , convertTx
       -- * Top-Level Interface
-    , NetworkLayer (..)
-    , ErrNextBlocks (..)
     , ChainParameters (..)
 
     -- * Re-Export
@@ -30,7 +52,6 @@ module Cardano.Wallet.Shelley.Network
     , ProtocolMagicId (..)
 
       -- * Constructors
-    , newNetworkClient
     , connectClient
     , dummyNodeToClientVersion
 
@@ -61,6 +82,7 @@ import Network.TypedProtocol.Driver
     ( TraceSendRecv, runPeer )
 import Ouroboros.Consensus.Ledger.Byron
     ( ByronBlock (..)
+    , ByronHash (..)
     , GenTx
     , decodeByronBlock
     , decodeByronGenTx
@@ -111,27 +133,16 @@ import Control.Exception
     ( catch, throwIO )
 import Control.Monad.Class.MonadST
     ( MonadST )
-import Control.Monad.Class.MonadSTM
-    ( MonadSTM
-    , TQueue (..)
-    , atomically
-    , newEmptyTMVarM
-    , newTQueue
-    , putTMVar
-    , readTQueue
-    , takeTMVar
-    , writeTQueue
-    )
 import Control.Monad.Class.MonadThrow
     ( MonadThrow )
 import Control.Monad.Class.MonadTimer
     ( MonadTimer )
-import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT )
 import Control.Tracer
     ( Tracer, contramap )
 import Data.ByteString.Lazy
     ( ByteString )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text
     ( Text )
 import Data.Void
@@ -139,48 +150,108 @@ import Data.Void
 import Network.Socket
     ( AddrInfo (..), Family (..), SockAddr (..), SocketType (..) )
 
+import qualified Cardano.Chain.Block as CC
+import qualified Cardano.Chain.Common as CC
+import qualified Cardano.Chain.UTxO as CC
+import qualified Cardano.Crypto as CC
+import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.Serialise as CBOR
+import qualified Data.ByteArray as BA
+import qualified Data.List.NonEmpty as NE
 import qualified Network.Socket as Socket
+import qualified Ouroboros.Consensus.Ledger.Byron as Abstract
 import qualified Ouroboros.Network.Block as Abstract
-
+import qualified Ouroboros.Network.Point as Point
 
 -- ----------------
 -- Development
 
 import Cardano.BM.Trace
     ( nullTracer )
-import Control.Concurrent
-    ( forkIO )
 import Control.Monad
-    ( forM_, void )
+    ( (>=>) )
+
+convertTx :: CC.Tx -> W.Tx
+convertTx tx = W.Tx
+    { W.txId = convertHash $ CC.hash tx
+    , W.resolvedInputs = map convertTxIn $ NE.toList $ CC.txInputs tx
+    , W.outputs = map convertTxOut $ NE.toList $ CC.txOutputs tx
+    }
+  where
+    convertHash = W.Hash . BA.convert
+
+    convertTxIn (CC.TxInUtxo txH idx) = (W.TxIn (convertHash txH) idx, coin)
+       where
+          coin = error "1. We can't get the coin of Byron inputs!"
+
+    convertTxOut o = W.TxOut
+        (convertAddr $ CC.txOutAddress o)
+        (convertCoin $ CC.txOutValue o)
+      where
+        convertAddr = error "todo use toBinary"
+        -- Byron addresses should be no problem. I'm not sure how Shelley
+        -- addresses will look.
+        convertCoin = W.Coin . CC.unsafeGetLovelace
+
+convertBlockHeader :: ByronBlock -> W.BlockHeader
+convertBlockHeader b = W.BlockHeader
+    { W.slotId =
+        error "2. can't easily get the SlotId"
+            -- The cardano-ledger equivalent is EpochAndSlotCount, i.e epoch
+            -- number and the slot counted from the start of the epoch.
+            --
+            -- But block headers only contain the slot number (SlotNo), counted
+            -- from genesis.
+    , W.blockHeight = convertBlockNo $ Abstract.blockNo b
+            -- Not in block headers.
+    , W.headerHash = convertHash $ Abstract.blockHash b
+    , W.parentHeaderHash = convertChainHash $ Abstract.blockPrevHash b
+    }
+  where
+    convertHash = W.Hash . BA.convert . Abstract.unByronHash
+
+    convertChainHash x = case x of
+        Abstract.BlockHash h ->
+            convertHash h
+        Abstract.GenesisHash ->
+            error "how do we represent the genesis hash?"
+            -- Seems like a minor problem.
+    convertBlockNo = Quantity . fromIntegral . Abstract.unBlockNo
+
+-- Goal: see what info we can extract from blocks!
+rollForward :: ByronBlock -> IO ()
+rollForward b = do
+    let slot = show (Abstract.unSlotNo . byronBlockSlotNo $ b)
+    let hash = show $ byronBlockHash b
+    putStrLn "\n\n"
+    putStrLn $ "=== SlotNo " ++ slot
+    putStrLn $ "=== " ++ hash
+    putStrLn "\n"
+    case byronBlockRaw b  of
+        CC.ABOBBlock cb -> do
+            let body = CC.blockBody cb
+            let txPay = CC.bodyTxPayload body
+            let txAuxs = CC.aUnTxPayload txPay
+            let txs = map CC.taTx txAuxs
+            print $ map convertTx txs
+        CC.ABOBBoundary _ ->
+            putStrLn "Our friend the Epoch Boundary Block!"
+
+rollBackward :: Point ByronBlock -> IO ()
+rollBackward p = do
+    putStrLn $ "rollback to: " ++ show p
 
 
-setup :: IO (NetworkLayer IO)
-setup = do
-    -- I have cardano-node running from ../cardano-node
-    let nodeId = CoreNodeId 0
-    let path = "../cardano-node/socket/" <> (localSocketFilePath nodeId)
-    let addr =  localSocketAddrInfo path
-    print addr
+-- A point where there is high activity on the mainnet
+point1 :: Point ByronBlock
+point1 =
+    let
+        Right h = CC.decodeAbstractHash "8a7505ec268a934c9c532fcf21185baf849c0de04a6d12cdf80b0fc45fe6ecb3"
+        slot = 21600*19+6540
 
-    let params = ChainParameters
-         { epochSlots = EpochSlots 21600
-         , protocolMagic = ProtocolMagicId 764824073
-         }
-    (client, network) <- newNetworkClient nullTracer params
-
-    -- Launch the stateful connection in a separate thread
-    void $ forkIO $ connectClient client dummyNodeToClientVersion addr
-    return network
-
-prettyResponse :: [ByronBlock] -> IO ()
-prettyResponse response = do
-    forM_ response $ \b -> do
-        print $ Abstract.unSlotNo $ byronBlockSlotNo b
-
-
-genesisTip :: Tip ByronBlock
-genesisTip = Tip Abstract.genesisPoint Abstract.genesisBlockNo
+    in Abstract.Point $ Point.block
+        (Abstract.SlotNo slot)
+        (ByronHash h)
 
 -- How to run the node:
 --
@@ -191,55 +262,23 @@ genesisTip = Tip Abstract.genesisPoint Abstract.genesisBlockNo
 -- Then run main:
 main :: IO ()
 main = do
-    network <- setup
-    -- Use the network layer to send requests to the node
-    Right response <- runExceptT $ nextBlocks network genesisTip
-    prettyResponse response
+    -- I have cardano-node running from ../cardano-node
+    let nodeId = CoreNodeId 0
+    let path = "../cardano-node/socket/" <> (localSocketFilePath nodeId)
+    let addr =  localSocketAddrInfo path
 
---------------------------------------------------------------------------------
---
--- Stateless Interface
---
--- This is a first attempt at using the ChainSync mini protocol in a stateless
--- manner. Note that this is a bit unfortunate as the
+    let params = ChainParameters
+         { epochSlots = EpochSlots 21600
+         , protocolMagic = ProtocolMagicId 764824073
+         }
 
--- | A stateless interface for dealing with the Haskell 'NetworkClient'
---
--- See 'newNetworkClient' and 'connectClient' methods to construct a
--- 'NetworkLayer':
---
---     let nodeId = CoreNodeId 0
---     let addr = localSocketAddrInfo (localSocketFilePath nodeId)
---     let params = ChainParameters
---          { epochSlots = EpochSlots 21600
---          , protocolMagic = ProtocolMagicId 1097911063
---          }
---     (client, network) <- newNetworkClient nullTracer params
---
---     -- Launch the stateful connection in a separate thread
---     void $ forkIO $ connectClient client dummyNodeToClientVersion addr
---
---     -- Use the network layer to send requests to the node
---     response <- runExceptT $ nextBlocks network genesisPoint
---     point <- networkTip network
---     response' <- runExceptT $ nextBlocks network point
---
-data NetworkLayer m = NetworkLayer
-    { nextBlocks :: (Tip ByronBlock) -> ExceptT ErrNextBlocks m [ByronBlock]
-    , networkTip :: m (Tip ByronBlock)
-    }
-
--- | This translates the 'NetworkLayer' interface from the wallet backend.
-data ChainSyncRequest m
-    = ReqNextBlocks (Tip ByronBlock) (Either ErrNextBlocks [ByronBlock] -> m ())
-    | ReqNetworkTip ((Tip ByronBlock) -> m ())
-
--- | What is considered errors in the 'NetworkLayer'
-data ErrNextBlocks
-    = ErrNextBlocksNoIntersection
-    | ErrNextBlocksRollBack
-    deriving (Show)
-
+    let t = nullTracer
+    let client = OuroborosInitiatorApplication $ \pid -> \case
+            ChainSyncWithBlocksPtcl ->
+                chainSyncWithBlocks pid t params rollForward rollBackward
+            LocalTxSubmissionPtcl ->
+                (localTxSubmission pid t) >=> const (return ())
+    connectClient client dummyNodeToClientVersion addr
 
 --------------------------------------------------------------------------------
 --
@@ -270,7 +309,7 @@ type NetworkClient m = OuroborosApplication
         -- ^ Underlying monad we run in
     ByteString
         -- ^ Concrete representation for bytes string
-    Void
+    ()
         -- ^ -- Return type of a network client. Void indicates that the client
         -- never exits.
     Void
@@ -316,36 +355,6 @@ dummyNodeToClientVersion =
     , nodeToClientCodecCBORTerm
     )
 
--- | Construct a new network client handling 'ChainSync' and 'LocalTxSubmission'
--- mini-protocols.
-newNetworkClient
-    :: forall m. (MonadThrow m, MonadST m, MonadTimer m)
-    => Tracer m String
-    -> ChainParameters
-    -> m (NetworkClient m, NetworkLayer m)
-newNetworkClient t params = do
-    chainSyncQueue <- atomically newTQueue
-
-    let client = OuroborosInitiatorApplication $ \pid -> \case
-            ChainSyncWithBlocksPtcl ->
-                chainSyncWithBlocks @m pid t params chainSyncQueue
-            LocalTxSubmissionPtcl ->
-                localTxSubmission @m pid t
-
-    let interface = NetworkLayer
-            { nextBlocks = \p -> ExceptT $ do
-                tvar <- newEmptyTMVarM
-                let request = ReqNextBlocks p (atomically . putTMVar tvar)
-                atomically $ writeTQueue chainSyncQueue request
-                atomically $ takeTMVar tvar
-            , networkTip = do
-                tvar <- newEmptyTMVarM
-                let request = ReqNetworkTip (atomically . putTMVar tvar)
-                atomically $ writeTQueue chainSyncQueue request
-                atomically $ takeTMVar tvar
-            }
-
-    return (client, interface)
 
 -- | Client for the 'Chain Sync' mini-protocol.
 --
@@ -353,23 +362,23 @@ newNetworkClient t params = do
 -- constructor.
 chainSyncWithBlocks
     :: forall m protocol peerId. (protocol ~ ChainSync ByronBlock (Tip ByronBlock))
-    => (MonadThrow m, MonadST m, MonadSTM m, Show peerId)
+    => (MonadThrow m, Show peerId, MonadST m)
     => peerId
         -- ^ An abstract peer identifier for 'runPeer'
     -> Tracer m String
         -- ^ Base tracer for the mini-protocols
     -> ChainParameters
         -- ^ Some chain parameters necessary to encode/decode Byron 'Block'
-    -> TQueue m (ChainSyncRequest m)
-        -- ^ We use a 'TQueue' as a communication channel between the stateless
-        -- interface and the stateful connection. Requests are pushed to the queue
-        -- which handles them one-by-one.
+    -> (ByronBlock -> m ())
+        -- ^ Action to take when receiving a block
+    -> (Point ByronBlock -> m ())
+        -- ^ Action to take when receiving a block
     -> Channel m ByteString
         -- ^ A 'Channel' is a abstract communication instrument which
         -- transports serialized messages between peers (e.g. a unix
         -- socket).
-    -> m Void
-chainSyncWithBlocks pid t params queue channel =
+    -> m ()
+chainSyncWithBlocks pid t params forward backward channel =
     runPeer trace codec pid channel (chainSyncClientPeer client)
   where
     trace :: Tracer m (TraceSendRecv protocol peerId DeserialiseFailure)
@@ -384,115 +393,40 @@ chainSyncWithBlocks pid t params queue channel =
         (Abstract.encodeTip encodeByronHeaderHash)
         (Abstract.decodeTip decodeByronHeaderHash)
 
-    {-| A peer has agency if it is expected to send the next message.
-
-                                    Agency
-     ---------------------------------------------------------------------------
-     Client has agency                 | Idle
-     Server has agency                 | Intersect, Next
-
-      *-----------*
-      | Intersect |◀══════════════════════════════╗
-      *-----------*         FindIntersect         ║
-            │                                     ║
-            │                                *---------*                *------*
-            │ Intersect.{Unchanged,Improved} |         |═══════════════▶| Done |
-            └───────────────────────────────╼|         |     MsgDone    *------*
-                                             |   Idle  |
-         ╔═══════════════════════════════════|         |
-         ║            RequestNext            |         |⇦ START
-         ║                                   *---------*
-         ▼                                        ╿
-      *------*       Roll.{Backward,Forward}      │
-      | Next |────────────────────────────────────┘
-      *------*
-
-    -}
-
-    client :: ChainSyncClient ByronBlock (Tip ByronBlock) m Void
+    client :: ChainSyncClient ByronBlock (Tip ByronBlock) m ()
     client = ChainSyncClient clientStIdle
       where
-        -- Client in the state 'Idle'. We wait for requests / commands on an
-        -- 'TQueue'. Commands start a chain of messages and state transitions
-        -- before finally returning to 'Idle', waiting for the next command.
-        clientStIdle :: m (ClientStIdle ByronBlock (Tip ByronBlock) m Void)
-        clientStIdle = atomically (readTQueue queue) >>= \case
-            ReqNextBlocks tip respond -> do
-                let n = 1000 -- Arbitrary size of the batch to fetch
-                let point = tipPoint tip
 
-                -- Start by setting the intersection to a new point.
-                --
-                -- This is a "naive" approach. A better implementation would
-                -- actually keep track of the latest tip, and check whether we
-                -- need to re-define the intersection or, can simply continue
-                -- with the one that was previously established (in practice, we
-                -- do process blocks in sequence so, the `point` argument is
-                -- rather anecdotal).
+        -- Find intersection between wallet and node chains.
+        clientStIdle :: m (ClientStIdle ByronBlock (Tip ByronBlock) m ())
+        clientStIdle = do
+                let n = 100 -- Arbitrary size of the batch to fetch
+                let point = point1
                 pure $ SendMsgFindIntersect [point] $ ClientStIntersect
-                    -- Node's internal cursor is now correctly set to 'point'
                     { recvMsgIntersectFound = \_intersection _tip ->
                         ChainSyncClient $
-                            clientStFetchingBlocks n point [] respond
-
-                    -- Couldn't find an intersection, point is not on the chain.
-                    -- This can happen if the node has rolled back and the point
-                    -- we knew of is no longer on the chain.
+                            clientStFetchingBlocks n point
                     , recvMsgIntersectNotFound = \_tip ->
                         ChainSyncClient $ do
-                            respond (Left ErrNextBlocksNoIntersection)
                             clientStIdle
                     }
 
-            ReqNetworkTip respond -> do
-                -- Alternatively, we could simply 'SendMsgRequestNext' which
-                -- also returns a tip and is probably less expensive on the
-                -- node's end.
-                pure $ SendMsgFindIntersect [] $ ClientStIntersect
-                    { recvMsgIntersectFound = \_intersection tip ->
-                        ChainSyncClient $ respond tip *> clientStIdle
-                    , recvMsgIntersectNotFound = \tip ->
-                        ChainSyncClient $ respond tip *> clientStIdle
-                    }
-
-
-        -- 'Next' state coming from a 'ReqNextBlocks' request. We stay in that
-        -- state for a couple of messages, accumulating blocks as we go and
-        -- returning after a certain number has been fetched.
-        --
-        -- Note that the process is interrupted prematurely if there's no more
-        -- block to fetched (caught up with the tip). Also, we consider
-        -- rollbacks as an error since the wallet engine can't handle them at
-        -- the moment.
         clientStFetchingBlocks
             :: Int
                 -- ^ Number of messages to fetch
             -> Point ByronBlock
                 -- ^ Starting point
-            -> [ByronBlock]
-                -- ^ ByronBlock accumulator
-            -> (Either ErrNextBlocks [ByronBlock] -> m ())
-                -- ^ Success or Error callback
-            -> m (ClientStIdle ByronBlock (Tip ByronBlock) m Void)
-        clientStFetchingBlocks 0 _ blocks respond = do
-            respond (Right blocks)
-            clientStIdle
-        clientStFetchingBlocks n start blocks respond = pure $ SendMsgRequestNext
+            -> m (ClientStIdle ByronBlock (Tip ByronBlock) m ())
+        clientStFetchingBlocks 0 _ = do
+            pure $ SendMsgDone ()
+        clientStFetchingBlocks n start = pure $ SendMsgRequestNext
             (ClientStNext
-                { recvMsgRollForward = \block _tip -> ChainSyncClient $
-                    clientStFetchingBlocks (n-1) start (block:blocks) respond
-
-                , recvMsgRollBackward = \point _tip -> ChainSyncClient $
-                    -- NOTE
-                    -- The server always start by asking the client to rollback
-                    -- to the intersection point. Other form of rollbacks aren't
-                    -- _yet_ expected but will eventually have to be handled.
-                    -- For now, we consider this to be an error.
-                    if point == start
-                        then clientStFetchingBlocks n start [] respond
-                        else do
-                            respond (Left ErrNextBlocksRollBack)
-                            clientStIdle
+                { recvMsgRollForward = \block _tip -> ChainSyncClient $ do
+                    forward block
+                    clientStFetchingBlocks (n-1) start
+                , recvMsgRollBackward = \point _tip -> ChainSyncClient $ do
+                    backward point
+                    clientStFetchingBlocks n start
                 }
             )
             (do
@@ -504,7 +438,6 @@ chainSyncWithBlocks pid t params queue channel =
                 -- our interface immediately and, discard whatever messages we
                 -- eventually get back from the node once the block becomes
                 -- available.
-                respond (Right [])
                 pure $ ClientStNext
                     { recvMsgRollForward = \_block _tip ->
                         ChainSyncClient clientStIdle
