@@ -141,7 +141,7 @@ data StakePool = StakePool
     , stake :: Quantity "lovelace" Word64
     , production :: Quantity "block" Word64
     , apparentPerformance :: Double
-    } deriving (Generic)
+    } deriving (Show, Generic)
 
 --------------------------------------------------------------------------------
 -- Stake Pool Monitoring
@@ -253,6 +253,7 @@ data ErrListStakePools
      = ErrMetricsIsUnsynced (Quantity "percent" Percentage)
      | ErrListStakePoolsMetricsInconsistency ErrMetricsInconsistency
      | ErrListStakePoolsErrNetworkTip ErrNetworkTip
+     deriving (Show)
 
 newStakePoolLayer
     :: Trace IO StakePoolLayerMsg
