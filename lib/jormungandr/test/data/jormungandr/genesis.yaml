@@ -86,7 +86,8 @@ blockchain_configuration:
 
       # the rate at which the contribution is tweaked related to epoch.
       epoch_rate: 1
-
+  # set some reward constraints and limits
+  #
   # initial value the treasury will start with, if not set the treasury
   # starts at 0
   treasury: 0
@@ -108,6 +109,31 @@ blockchain_configuration:
     # to 10000. Uncomment the following line to apply a max limit:
     # max_limit: 10000
 
+  # this value is optional, the default is no constraints at all
+  reward_constraints:
+    # limit the epoch total reward drawing limit to a portion of the total
+    # active stake of the system.
+    #
+    # for example, if set to 10%, the reward drawn will be bounded by the
+    # 10% of the total active stake.
+    #
+    # this value is optional, the default is no reward drawing limit
+    reward_drawing_limit_max: "10/100"
+
+    # settings to incentivize the numbers of stake pool to be registered
+    # on the blockchain.
+    #
+    # These settings does not prevent more stake pool to be added. For example
+    # if there is already 1000 stake pools, someone can still register a new
+    # stake pool and affect the rewards of everyone else too.
+    #
+    # if the threshold is reached, the pool doesn't really have incentive to
+    # create more blocks than 1 / set-value-of-pools % of stake.
+    #
+    # this value is optional, the default is no pool participation capping
+    pool_participation_capping:
+      min: 1
+      max: 10
 # The initial deposits present in the blockchain.
 #
 # The last 10 addresses come from 10 different wallets. For the integration
