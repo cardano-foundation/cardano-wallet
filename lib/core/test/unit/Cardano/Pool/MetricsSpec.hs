@@ -348,7 +348,8 @@ test_emptyDatabaseNotSynced :: IO ()
 test_emptyDatabaseNotSynced = do
     setEnv envVarMetadataRegistry "-"
     db@DBLayer{..} <- newDBLayer
-    let spl = newStakePoolLayer db nl nullTracer
+    -- NOTE The directory below isn't use, the test should fail much before
+    let spl = newStakePoolLayer nullTracer db nl "/dev/null"
     res <- runExceptT $ listStakePools spl
     case res of
         Left (ErrMetricsIsUnsynced (Quantity p)) -> p `shouldBe` toEnum 0
@@ -370,7 +371,8 @@ test_notSyncedProgress = do
     db@DBLayer{..} <- newDBLayer
     atomically $ unsafeRunExceptT $
         putPoolProduction prodTip (PoolId "Pool & The Gang")
-    let spl = newStakePoolLayer db nl nullTracer
+    -- NOTE The directory below isn't use, the test should fail much before
+    let spl = newStakePoolLayer nullTracer db nl "/dev/null"
     res <- runExceptT $ listStakePools spl
     case res of
         Left (ErrMetricsIsUnsynced (Quantity p)) -> p `shouldBe` toEnum 33
