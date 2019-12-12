@@ -11,11 +11,12 @@ import Cardano.BM.Trace
     ( Trace )
 import Cardano.Pool.Metadata
     ( FetchError (..)
+    , MetadataConfig (..)
     , RegistryLog (..)
     , RegistryLogMsg (..)
     , StakePoolMetadata (..)
     , StakePoolTicker
-    , cacheTTL
+    , getMetadataConfig
     , getStakePoolMetadata
     )
 import Cardano.Wallet.Primitive.Types
@@ -25,7 +26,7 @@ import Cardano.Wallet.Unsafe
 import Codec.Archive.Zip
     ( CompressionMethod (..), addEntry, createArchive, mkEntrySelector )
 import Control.Monad
-    ( forM_, mapM_, replicateM, void )
+    ( forM_, replicateM, void )
 import Data.Aeson
     ( encode )
 import Data.ByteString
@@ -35,9 +36,9 @@ import Data.Text
 import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock
-    ( UTCTime, addUTCTime, getCurrentTime )
+    ( addUTCTime, getCurrentTime )
 import System.Directory
-    ( listDirectory, setModificationTime )
+    ( setModificationTime )
 import System.FilePath
     ( takeDirectory, (<.>), (</>) )
 import System.IO.Temp
@@ -77,39 +78,38 @@ spec = do
     describe "Cardano.Pool.Registry.getStakePoolMetadata specs" $
         around withFixtures $ do
 
-        it "Loads the example zip" $ \(baseUrl, metadataDir, tr, _) -> do
-            res <- getStakePoolMetadata tr metadataDir (testUrl baseUrl) presentOwners
+        it "Loads the example zip" $ \(cfg, tr, _) -> do
+            res <- getStakePoolMetadata tr cfg presentOwners
             res `shouldBe` Right (map Just presentMetas)
 
-        it "Handles a missing pool" $ \(baseUrl, metadataDir, tr, _) -> do
-            res <- getStakePoolMetadata tr metadataDir (testUrl baseUrl) (absentOwner:presentOwners)
+        it "Handles a missing pool" $ \(cfg, tr, _) -> do
+            res <- getStakePoolMetadata tr cfg (absentOwner:presentOwners)
             res `shouldBe` Right (Nothing:map Just presentMetas)
 
-        it "Fails with an unavailable HTTP server" $ \(_, metadataDir, tr, _) -> do
-            let badUrl = "http://localhost:99/master.zip"
-            res <- getStakePoolMetadata tr metadataDir badUrl presentOwners
+        it "Fails with an unavailable HTTP server" $ \(cfg, tr, _) -> do
+            let badCfg = cfg { registryURL = "http://localhost:99/master.zip" }
+            res <- getStakePoolMetadata tr badCfg presentOwners
             case res of
                 Left (FetchErrorDownload msg) ->
                     head (words msg) `shouldBe` "HttpExceptionRequest"
                 _ -> error "expected fetch error but got none"
 
-        it "Caches the zip" $ \(baseUrl, metadataDir, tr, getMsgs) -> do
-            void $ getStakePoolMetadata tr metadataDir (testUrl baseUrl) presentOwners
+        it "Caches the zip" $ \(cfg, tr, getMsgs) -> do
+            void $ getStakePoolMetadata tr cfg presentOwners
 
-            res <- getStakePoolMetadata tr metadataDir (testUrl baseUrl) presentOwners
+            res <- getStakePoolMetadata tr cfg presentOwners
             res `shouldBe` Right (map Just presentMetas)
 
             msgs <- map registryLogMsg <$> getMsgs
             length (filter isMsgDownloadStarted msgs) `shouldBe` 1
             length (filter isMsgUsingCached msgs) `shouldBe` 1
 
-        it "Refreshes expired cache" $ \(baseUrl, metadataDir, tr, getMsgs) -> do
-            void $ getStakePoolMetadata tr metadataDir (testUrl baseUrl) presentOwners
+        it "Refreshes expired cache" $ \(cfg, tr, getMsgs) -> do
+            void $ getStakePoolMetadata tr cfg presentOwners
 
-            old <- makeExpired <$> getCurrentTime
-            forFilesIn metadataDir $ \f -> setModificationTime f old
+            makeCacheExpired cfg
 
-            res <- getStakePoolMetadata tr metadataDir (testUrl baseUrl) presentOwners
+            res <- getStakePoolMetadata tr cfg presentOwners
             res `shouldBe` Right (map Just presentMetas)
 
             msgs <- map registryLogMsg <$> getMsgs
@@ -124,12 +124,14 @@ spec = do
                                  Test fixtures
 -------------------------------------------------------------------------------}
 
-withFixtures :: ((String, FilePath, Trace IO RegistryLog, IO [RegistryLog]) -> IO a) -> IO a
+withFixtures :: ((MetadataConfig, Trace IO RegistryLog, IO [RegistryLog]) -> IO a) -> IO a
 withFixtures action =
     withStaticServer dataDir $ \baseUrl ->
     withSystemTempDirectory "stake-pool-metadata" $ \metadataDir ->
-    withLogging $ \(tr, getMsgs) ->
-    action (baseUrl, metadataDir, tr, getMsgs)
+    withLogging $ \(tr, getMsgs) -> do
+        cfg <- getMetadataConfig metadataDir
+        let cfg' = cfg { registryURL = testUrl baseUrl }
+        action (cfg', tr, getMsgs)
 
 dataDir :: FilePath
 dataDir = $(getTestData) </> "stake-pool-registry"
@@ -204,10 +206,11 @@ prop_getStakePoolMetadata tc = monadicIO $ do
     -- Run getStakePoolMeta and take the actual result, and the log messages.
     (msgs, res) <- run $ withTestCaseZip tc $ \zipFile ->
         withStaticServer (takeDirectory zipFile) $ \baseUrl -> do
-            let url = testCaseUrl tc baseUrl
             withSystemTempDirectory "stake-pool-metadata" $ \metadataDir ->
-                captureLogging $ \tr ->
-                    getStakePoolMetadata tr metadataDir url (poolOwners tc)
+                captureLogging $ \tr -> do
+                    baseCfg <- getMetadataConfig metadataDir
+                    let cfg = baseCfg { registryURL = testCaseUrl tc baseUrl }
+                    getStakePoolMetadata tr cfg (poolOwners tc)
     let numDecodeErrors = count isDecodeErrorMsg msgs
 
     -- Expected results
@@ -325,13 +328,11 @@ instance Arbitrary PathElement where
                                      Utils
 -------------------------------------------------------------------------------}
 
--- | Subtract the cache TTL plus one second for good measure.
-makeExpired :: UTCTime -> UTCTime
-makeExpired = addUTCTime ((-1) - cacheTTL)
-
--- | Run an action on each file in a directory
-forFilesIn :: FilePath -> (FilePath -> IO ()) -> IO ()
-forFilesIn dir action = listDirectory dir >>= mapM_ (action . (dir </>))
+makeCacheExpired :: MetadataConfig -> IO ()
+makeCacheExpired cfg = do
+    -- Subtract the cache TTL plus one second for good measure.
+    old <- addUTCTime ((-1) - cacheTTL cfg) <$> getCurrentTime
+    setModificationTime (cacheArchive cfg) old
 
 {-------------------------------------------------------------------------------
                                     Logging
