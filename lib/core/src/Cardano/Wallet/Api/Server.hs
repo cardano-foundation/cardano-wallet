@@ -101,6 +101,7 @@ import Cardano.Wallet.Api.Types
     , ApiByronWalletBalance (..)
     , ApiByronWalletMigrationInfo (..)
     , ApiCoinSelection (..)
+    , ApiCoinSelectionInput (..)
     , ApiEpochInfo (..)
     , ApiErrorCode (..)
     , ApiFee (..)
@@ -154,7 +155,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..), defaultAddressPoolGap, mkSeqState )
 import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection, changeBalance, feeBalance, inputBalance )
+    ( CoinSelection (..), changeBalance, feeBalance, inputBalance )
 import Cardano.Wallet.Primitive.Fee
     ( Fee (..) )
 import Cardano.Wallet.Primitive.Model
@@ -178,7 +179,7 @@ import Cardano.Wallet.Primitive.Types
     , SyncTolerance
     , TransactionInfo (TransactionInfo)
     , Tx (..)
-    , TxIn
+    , TxIn (..)
     , TxOut (..)
     , TxStatus (..)
     , UTxOStatistics (..)
@@ -303,6 +304,7 @@ import qualified Cardano.Wallet.Registry as Registry
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -1201,6 +1203,30 @@ createWallet ctx wid a0 a1 =
         }
     re = ctx ^. workerRegistry @s @k
     df = ctx ^. dbFactory @s @k
+
+-- | Makes an 'ApiCoinSelection' from the given sets of inputs and outputs.
+mkApiCoinSelection
+    :: forall n.
+       NE.NonEmpty (TxIn, TxOut)
+    -> NE.NonEmpty TxOut
+    -> ApiCoinSelection n
+mkApiCoinSelection inputs outputs =
+    ApiCoinSelection
+        (mkApiCoinSelectionInput <$> inputs)
+        (mkAddressAmount <$> outputs)
+  where
+    mkAddressAmount :: TxOut -> AddressAmount n
+    mkAddressAmount (TxOut addr (Coin c)) =
+        AddressAmount (ApiT addr, Proxy @n) (Quantity $ fromIntegral c)
+
+    mkApiCoinSelectionInput :: (TxIn, TxOut) -> ApiCoinSelectionInput n
+    mkApiCoinSelectionInput (TxIn txid index, TxOut addr (Coin c)) =
+        ApiCoinSelectionInput
+            { id = ApiT txid
+            , index = index
+            , address = (ApiT addr, Proxy @n)
+            , amount = Quantity $ fromIntegral c
+            }
 
 mkApiTransaction
     :: forall n.
