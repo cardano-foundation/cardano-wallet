@@ -130,11 +130,11 @@ spec = do
                 [ expectListSizeEqual 3
 
                 , expectListItemFieldSatisfy 0
-                    #metadata ((== Just "Cardano Wallet") . fmap (view #name))
+                    #metadata ((== Just "Genesis Pool") . fmap (view #name))
                 , expectListItemFieldSatisfy 1
-                    #metadata ((== Just "Cardano Wallet") . fmap (view #name))
+                    #metadata ((== Just "Genesis Pool") . fmap (view #name))
                 , expectListItemFieldSatisfy 2
-                    #metadata ((== Just "Cardano Wallet") . fmap (view #name))
+                    #metadata ((== Just "Genesis Pool") . fmap (view #name))
 
                 , expectListItemFieldEqual 0
                     (metrics . stake) 1
