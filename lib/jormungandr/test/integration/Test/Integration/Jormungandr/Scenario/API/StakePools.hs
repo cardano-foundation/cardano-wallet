@@ -192,6 +192,7 @@ spec = do
 
         (poolIdA, poolAOwner)  <- registerStakePool ctx WithMetadata
         (poolIdB, _poolBOwner) <- registerStakePool ctx WithoutMetadata
+        (poolIdC, poolCOwner)  <- registerStakePool ctx WithMetadata
 
         waitForNextEpoch ctx
         waitForNextEpoch ctx
@@ -199,13 +200,16 @@ spec = do
             unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
 
         nWithoutMetadata pools' `shouldBe` nWithoutMetadata pools + 1
-        nWithMetadata pools' `shouldBe` nWithMetadata pools + 1
+        nWithMetadata pools' `shouldBe` nWithMetadata pools + 2
 
         let (Just poolA) = find ((== ApiT poolIdA) . view #id) pools'
         fmap (view #owner) (poolA ^. #metadata) `shouldBe` Just poolAOwner
 
         let (Just poolB) = find ((== ApiT poolIdB) . view #id) pools'
         (poolB ^. #metadata) `shouldBe` Nothing
+
+        let (Just poolC) = find ((== ApiT poolIdC) . view #id) pools'
+        fmap (view #owner) (poolC ^. #metadata) `shouldBe` Just poolCOwner
 
     it "STAKE_POOLS_JOIN_01 - Can join a stakepool" $ \ctx -> do
         w <- fixtureWallet ctx
