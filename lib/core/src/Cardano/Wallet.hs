@@ -80,6 +80,7 @@ module Cardano.Wallet
     , ErrFetchRewards (..)
 
     -- ** Address
+    , assignChangeAddressesAndCheckpoint
     , listAddresses
 
     -- ** Payment
@@ -984,6 +985,43 @@ signPayment ctx wid argGenChange pwd (CoinSelection ins outs chgs) = db & \DBLay
   where
     db = ctx ^. dbLayer @s @k
     tl = ctx ^. transactionLayer @t @k
+
+-- | Augments the given set of outputs with additional outputs for each of the
+--   given change outputs.
+--
+-- This function associates each change value with a target address belonging
+-- to the given wallet, updates the wallet state to keep track of pending
+-- change addresses, and writes a database checkpoint to record the updated
+-- state.
+--
+-- See 'assignChangeAddresses'.
+--
+assignChangeAddressesAndCheckpoint
+    :: forall ctx s k.
+        ( GenChange s
+        , HasDBLayer s k ctx
+        , IsOwned s k
+        , NFData s
+        , Show s
+        )
+    => ctx
+    -> WalletId
+    -> ArgGenChange s
+    -> [TxOut]
+    -> [Coin]
+    -> ExceptT ErrNoSuchWallet IO [TxOut]
+assignChangeAddressesAndCheckpoint ctx wid argGenChange outputs change =
+    db & \DBLayer{..} ->
+        mapExceptT atomically $ do
+            cp <- withNoSuchWallet wid
+                $ readCheckpoint
+                $ PrimaryKey wid
+            (allOuts, s') <- assignChangeAddresses
+                argGenChange outputs change (getState cp)
+            putCheckpoint (PrimaryKey wid) (updateState s' cp)
+            pure allOuts
+  where
+    db = ctx ^. dbLayer @s @k
 
 signDelegation
     :: forall ctx s t k.
