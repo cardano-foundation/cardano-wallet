@@ -92,6 +92,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."servant" or (buildDepError "servant"))
           (hsPkgs."servant-client" or (buildDepError "servant-client"))
           (hsPkgs."servant-client-core" or (buildDepError "servant-client-core"))
+          (hsPkgs."temporary" or (buildDepError "temporary"))
           (hsPkgs."text" or (buildDepError "text"))
           (hsPkgs."text-class" or (buildDepError "text-class"))
           (hsPkgs."time" or (buildDepError "time"))
