@@ -114,8 +114,9 @@ testUrl baseUrl = baseUrl ++ "testnet-stake-pool-registry-master.zip"
 
 presentOwners :: [PoolOwner]
 presentOwners = map unsafeFromText
-    [ "ed25519_pk1afhcpw2tg7nr2m3wr4x8jaa4dv7d09gnv27kwfxpjyvukwxs8qdqwg85xp"
-    , "ed25519_pk1z4vh8gva25w07x8574uujuveu8gz43fu6qfln3t4prcavrvcphjsk0pdqs"
+    [ "ed25519_pk1a6mv6x2r0f3y62ddavxvf5lkdsj8ttc8mk3yngdy895j8tn6jqyqesvuk2"
+    , "ed25519_pk1fh2ajuu7rqquuxqrkh6ldfvdktlthkl4wlfhymrath85wzhy7slsr37f87"
+    , "ed25519_pk1wc84pj9h3qw5kknawj2d0mqwr43gxhtsnq5pmuzxg7ssrcpt84ds9sce69"
     ]
 
 presentMetas :: [StakePoolMetadata]
@@ -123,18 +124,26 @@ presentMetas =
     [ StakePoolMetadata
         { ticker = unsafeFromText "FST"
         , homepage = "https://12345"
-        , owner = unsafeFromText "ed25519_pk1afhcpw2tg7nr2m3wr4x8jaa4dv7d09gnv27kwfxpjyvukwxs8qdqwg85xp"
-        , name = "First stake pool"
-        , description = Just "It's better than SND"
-        , pledgeAddress = "addr15vz9yc5c3upgze8tg5kd7kkzxqgqfxk5a3kudp22hdg0l2za00sq2ufkk7"
+        , owner = unsafeFromText "ed25519_pk1a6mv6x2r0f3y62ddavxvf5lkdsj8ttc8mk3yngdy895j8tn6jqyqesvuk2"
+        , name = "Ada Lovelace"
+        , description = Nothing
+        , pledgeAddress = "addr1svklmf8yl78x9cw30ystvprhxtm790k4380xlsjrjqn2p8nekup8uvzfezl"
+        }
+    , StakePoolMetadata
+        { ticker = unsafeFromText "IOHK1"
+        , homepage = "https://iohk.io"
+        , owner = unsafeFromText "ed25519_pk1fh2ajuu7rqquuxqrkh6ldfvdktlthkl4wlfhymrath85wzhy7slsr37f87"
+        , name = "IOHK Pool - 1"
+        , description = Nothing
+        , pledgeAddress = "addr1s4xatktnncvqrnscqw6lta493ke0aw7m74maxunv04wu73c2un6r7vm0k7z"
         }
     , StakePoolMetadata
         { ticker = unsafeFromText "TICK"
         , homepage = "https://12345"
-        , owner = unsafeFromText "ed25519_pk1z4vh8gva25w07x8574uujuveu8gz43fu6qfln3t4prcavrvcphjsk0pdqs"
-        , name = "Pooley Mc-Poolface"
+        , owner = unsafeFromText "ed25519_pk1wc84pj9h3qw5kknawj2d0mqwr43gxhtsnq5pmuzxg7ssrcpt84ds9sce69"
+        , name = "Ada Lovelace"
         , description = Nothing
-        , pledgeAddress = "addr15vz9yc5c3upgze8tg5kd7kkzxqgqfxk5a3kudp22hdg0l2za00sq2ufkk7"
+        , pledgeAddress = "addr1svklmf8yl78x9cw30ystvprhxtm790k4380xlsjrjqn2p8nekup8uvzfezl"
         }
     ]
 
