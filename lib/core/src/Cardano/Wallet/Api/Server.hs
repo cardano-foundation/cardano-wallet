@@ -278,10 +278,8 @@ import Servant
     , err409
     , err410
     , err500
-    , err501
     , err503
     , serve
-    , throwError
     )
 import Servant.Server
     ( Handler (..), ServantErr (..) )
@@ -614,7 +612,10 @@ getUTxOsStatistics ctx (ApiT wid) = do
 
 coinSelections
     :: forall ctx s t k n.
-        ( s ~ SeqState n k
+        ( Buildable (ErrValidateSelection t)
+        , DelegationAddress n k
+        , k ~ ShelleyKey
+        , s ~ SeqState n k
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -624,14 +625,43 @@ coinSelections =
 
 selectCoins
     :: forall ctx s t k n.
-        ( s ~ SeqState n k
+        ( Buildable (ErrValidateSelection t)
+        , DelegationAddress n k
+        , k ~ ShelleyKey
+        , s ~ SeqState n k
         , ctx ~ ApiLayer s t k
         )
     => ctx
     -> ApiT WalletId
     -> ApiSelectCoinsData n
     -> Handler (ApiCoinSelection n)
-selectCoins _ctx (ApiT _wid) _selectCoinsData = throwError err501
+selectCoins ctx (ApiT wid) body = do
+    CoinSelection mInputs mOutputs mChange <-
+        liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
+            W.selectCoinsForPayment @_ @s @t wrk wid $
+                coerceCoin <$> (body ^. #payments)
+    mkApiCoinSelection
+        <$> (ensureNonEmptyInputs mInputs)
+        <*> (ensureNonEmptyOutputs =<<
+                liftHandler (withWorkerCtx ctx wid throwE $ \wrk ->
+                    W.assignChangeAddressesAndCheckpoint
+                        @_ @s @k wrk wid () mOutputs mChange))
+  where
+    liftE = throwE . ErrSelectForPaymentNoSuchWallet
+    ensureNonEmptyInputs =
+        ensureNonEmpty ErrSelectCoinsUnableToAssignInputs
+    ensureNonEmptyOutputs =
+        ensureNonEmpty ErrSelectCoinsUnableToAssignOutputs
+    ensureNonEmpty :: forall a.
+        (WalletId -> ErrSelectCoins) -> [a] -> Handler (NE.NonEmpty a)
+    ensureNonEmpty err mxs =
+        liftHandler $ case NE.nonEmpty mxs of
+            Nothing -> throwE $ err wid
+            Just xs -> pure xs
+
+data ErrSelectCoins
+    = ErrSelectCoinsUnableToAssignInputs WalletId
+    | ErrSelectCoinsUnableToAssignOutputs WalletId
 
 {-------------------------------------------------------------------------------
                                     Addresses
@@ -1520,6 +1550,21 @@ instance LiftHandler ErrWithRootKey where
             apiError err403 WrongEncryptionPassphrase $ mconcat
                 [ "The given encryption passphrase doesn't match the one I use "
                 , "to encrypt the root private key of the given wallet: "
+                , toText wid
+                ]
+
+instance LiftHandler ErrSelectCoins where
+    handler = \case
+        ErrSelectCoinsUnableToAssignInputs wid ->
+            apiError err500 UnexpectedError $ mconcat
+                [ "I was unable to assign inputs while generating a coin "
+                , "selection for the specified wallet: "
+                , toText wid
+                ]
+        ErrSelectCoinsUnableToAssignOutputs wid ->
+            apiError err500 UnexpectedError $ mconcat
+                [ "I was unable to assign outputs while generating a coin "
+                , "selection for the specified wallet: "
                 , toText wid
                 ]
 

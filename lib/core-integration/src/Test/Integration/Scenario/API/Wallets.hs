@@ -1483,7 +1483,7 @@ spec = do
         let amount = Quantity 1
         let payment = AddressAmount {address, amount}
         selectCoins ctx wSource (payment :| []) >>= flip verify
-            [ expectResponseCode HTTP.status501 ]
+            [ expectResponseCode HTTP.status200 ]
 
     it "WALLETS_UTXO_01 - Wallet's inactivity is reflected in utxo" $ \ctx -> do
         w <- emptyWallet ctx
