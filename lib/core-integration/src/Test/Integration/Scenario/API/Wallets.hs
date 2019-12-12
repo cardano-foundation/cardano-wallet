@@ -46,6 +46,8 @@ import Test.Integration.Framework.DSL
     , balanceAvailable
     , balanceReward
     , balanceTotal
+    , coinSelectionInputs
+    , coinSelectionOutputs
     , delegation
     , deleteWalletEp
     , emptyByronWallet
@@ -54,6 +56,7 @@ import Test.Integration.Framework.DSL
     , expectEventually
     , expectFieldEqual
     , expectFieldNotEqual
+    , expectFieldSatisfy
     , expectListItemFieldEqual
     , expectListSizeEqual
     , expectResponseCode
@@ -1476,14 +1479,20 @@ spec = do
             expectResponseCode @IO HTTP.status405 r
             expectErrorMessage errMsg405 r
 
-    it "WALLETS_COIN_SELECTION_01" $ \ctx -> do
-        wSource <- fixtureWallet ctx
-        wTarget <- emptyWallet ctx
-        address : _ <- fmap (view #id) <$> listAddresses ctx wTarget
-        let amount = Quantity 1
-        let payment = AddressAmount {address, amount}
-        selectCoins ctx wSource (payment :| []) >>= flip verify
-            [ expectResponseCode HTTP.status200 ]
+    it "WALLETS_COIN_SELECTION_01 - \
+        \A singleton payment is included in the coin selection output." $
+        \ctx -> do
+            source <- fixtureWallet ctx
+            target <- emptyWallet ctx
+            targetAddress : _ <- fmap (view #id) <$> listAddresses ctx target
+            let amount = Quantity 1
+            let payment = AddressAmount targetAddress amount
+            selectCoins ctx source (payment :| []) >>= flip verify
+                [ expectResponseCode HTTP.status200
+                , expectFieldSatisfy coinSelectionInputs (not . null)
+                , expectFieldSatisfy coinSelectionOutputs ((> 1) . length)
+                , expectFieldSatisfy coinSelectionOutputs (payment `elem`)
+                ]
 
     it "WALLETS_UTXO_01 - Wallet's inactivity is reflected in utxo" $ \ctx -> do
         w <- emptyWallet ctx
