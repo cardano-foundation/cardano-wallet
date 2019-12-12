@@ -774,6 +774,10 @@ getConfigParam = label "getConfigParam" $ do
         19 -> unimpl -- reward pot
         20 -> unimpl -- reward params
         21 -> ConfigPerCertificate <$> getPerCertificateFee
+        22 -> unimpl -- fees in treasury
+        23 -> unimpl -- reward limit none
+        24 -> unimpl -- reward limit by absolute stake
+        25 -> unimpl -- pool reward participation capping
         other -> fail $ "Invalid config param with tag " ++ show other
   where
     -- NOTE
