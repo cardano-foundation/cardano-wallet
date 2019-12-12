@@ -88,6 +88,9 @@ newtype Quantity (unit :: Symbol) a = Quantity { getQuantity :: a }
     deriving stock (Generic, Show, Eq, Ord)
     deriving newtype (Bounded, Enum)
 
+instance Functor (Quantity any) where
+    fmap f (Quantity a) = Quantity (f a)
+
 instance NFData a => NFData (Quantity unit a)
 
 instance (KnownSymbol unit, ToJSON a) => ToJSON (Quantity unit a) where

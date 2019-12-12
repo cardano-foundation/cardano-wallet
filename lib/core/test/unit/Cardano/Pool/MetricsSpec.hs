@@ -83,6 +83,8 @@ import Data.Functor
     ( ($>) )
 import Data.Map.Strict
     ( Map )
+import Data.Maybe
+    ( catMaybes )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -271,7 +273,8 @@ prop_trackRegistrations test = monadicIO $ do
         race_ (takeMVar done) (monitorStakePools tr nl db)
 
         let pids = Map.keys expected
-        owners <- atomically $ mapM readStakePoolOwners pids
+        registrations <- atomically $ mapM readPoolRegistration pids
+        let owners = catMaybes $ fmap poolOwners <$> registrations
         pure $ Map.fromList $ zip pids (L.sort <$> owners)
 
     let numDiscoveryLogs = length (filter isDiscoveryMsg logs)

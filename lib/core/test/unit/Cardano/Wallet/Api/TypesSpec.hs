@@ -1060,6 +1060,8 @@ instance Arbitrary ApiStakePool where
         <*> arbitrary
         <*> choose (0.0, 1.0)
         <*> arbitrary
+        <*> arbitrary
+        <*> arbitrary
 
 instance Arbitrary StakePoolMetadata where
     arbitrary = StakePoolMetadata
