@@ -3,6 +3,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
@@ -19,9 +20,10 @@ module Cardano.Pool.Metadata
     , StakePoolTicker
 
       -- * Fetching metadata
-    , envVarMetadataRegistry
+    , MetadataConfig (..)
+    , getMetadataConfig
     , getStakePoolMetadata
-    , getRegistryZipUrl
+    , envVarMetadataRegistry
     , cardanoFoundationRegistryZip
     , FetchError (..)
 
@@ -45,7 +47,7 @@ import Cardano.Wallet.Primitive.Types
     ( PoolOwner (..), ShowFmt (..) )
 import Codec.Archive.Zip
 import Control.Exception
-    ( IOException, displayException, tryJust )
+    ( IOException, displayException, try, tryJust )
 import Control.Monad
     ( join, (>=>) )
 import Control.Monad.IO.Class
@@ -70,6 +72,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
+import Data.Time.Clock
+    ( NominalDiffTime, UTCTime, diffUTCTime, getCurrentTime )
 import Fmt
     ( fmt, (+|), (|+) )
 import GHC.Generics
@@ -78,14 +82,14 @@ import Network.HTTP.Client
     ( HttpException, parseUrlThrow )
 import Network.HTTP.Simple
     ( httpSink )
+import System.Directory
+    ( getModificationTime )
 import System.Environment
     ( lookupEnv )
 import System.FilePath
     ( isPathSeparator, (<.>), (</>) )
 import System.IO
-    ( Handle, hClose, hTell )
-import System.IO.Temp
-    ( withSystemTempFile )
+    ( IOMode (WriteMode), hTell, withFile )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
@@ -166,6 +170,17 @@ defaultRecordTypeOptions = Aeson.defaultOptions
                        Fetching metadata from a registry
 -------------------------------------------------------------------------------}
 
+-- | Configuration parameters used by 'getStakePoolMetadata'.
+data MetadataConfig = MetadataConfig
+    { cacheArchive :: FilePath
+    -- ^ Filename of zip archive.
+    , cacheTTL :: NominalDiffTime
+    -- ^ A constant for the maximum age of cached registry file before it's
+    -- considered to be stale.
+    , registryURL :: String
+    -- ^ URL to use to download registry
+    } deriving (Show, Eq)
+
 -- | Associate a list of stake pool IDs with their
 -- metadata (if present), which is downloaded from the given URL.
 --
@@ -194,31 +209,54 @@ defaultRecordTypeOptions = Aeson.defaultOptions
 getStakePoolMetadata
     :: Trace IO RegistryLog
     -- ^ Logging object - use 'transformTrace' to convert to 'Text'.
-    -> String
-    -- ^ URL of a zip archive to fetch and extract.
+    -> MetadataConfig
     -> [PoolOwner]
     -- ^ List of stake pools to get metadata for.
     -> IO (Either FetchError [Maybe StakePoolMetadata])
-getStakePoolMetadata tr url poolOwners = fmap join $ tryJust fileExceptionHandler $
-    withSystemTempFile "stake-pool-metadata.zip" $ \zipFileName zipFile -> do
-        let tr' = contramap (fmap (RegistryLog url zipFileName)) tr
-        logTrace tr' MsgDownloadStarted
-        fetchStakePoolMetaZip url zipFile >>= \case
-            Right size -> do
-                logTrace tr' $ MsgDownloadComplete size
-                hClose zipFile
-                Right <$> getMetadataFromZip tr' zipFileName poolOwners
-            Left e -> pure $ Left e
+getStakePoolMetadata tr cfg poolOwners = do
+    let msg = RegistryLog (registryURL cfg) (cacheArchive cfg)
+    let tr' = contramap (fmap msg) tr
+    fetchStakePoolMetaZipCached tr' cfg >>= \case
+        Right f -> Right <$> getMetadataFromZip tr' f poolOwners
+        Left e -> pure $ Left e
+
+fetchStakePoolMetaZipCached
+    :: Trace IO RegistryLogMsg
+    -> MetadataConfig
+    -> IO (Either FetchError FilePath)
+fetchStakePoolMetaZipCached tr cfg = checkCached >>= \case
+    Just mtime -> do
+        logTrace tr (MsgUsingCached (cacheArchive cfg) mtime)
+        pure $ Right (cacheArchive cfg)
+    Nothing ->
+       fetchStakePoolMetaZip tr (registryURL cfg) (cacheArchive cfg)
+  where
+    checkCached = try (getModificationTime (cacheArchive cfg)) >>= \case
+        Right mtime -> do
+            now <- getCurrentTime
+            pure $ if (diffUTCTime now mtime < cacheTTL cfg)
+                then Just mtime
+                else Nothing
+        Left (_ :: IOException) ->
+            pure Nothing -- most likely the file doesn't exist
+
+-- | Fetch a URL, streaming to the given filename.
+fetchStakePoolMetaZip
+    :: Trace IO RegistryLogMsg
+    -> String -- ^ URL
+    -> FilePath -- ^ Zip file name
+    -> IO (Either FetchError FilePath)
+fetchStakePoolMetaZip tr url zipFileName = do
+    logTrace tr MsgDownloadStarted
+    fmap join $ tryJust fileExceptionHandler $
+        withFile zipFileName WriteMode $ \zipFile -> tryJust handler $ do
+            req <- parseUrlThrow url
+            httpSink req $ \_response -> Conduit.mapM_ (BS.hPut zipFile)
+            size <- hTell zipFile
+            logTrace tr $ MsgDownloadComplete size
+            pure zipFileName
   where
     fileExceptionHandler = Just . FetchErrorFile . displayException @IOException
-
--- | Fetch a URL, streaming to the given file handle.
-fetchStakePoolMetaZip :: String -> Handle -> IO (Either FetchError Integer)
-fetchStakePoolMetaZip url zipFile = tryJust handler $ do
-    req <- parseUrlThrow url
-    httpSink req $ \_response -> Conduit.mapM_ (BS.hPut zipFile)
-    hTell zipFile
-  where
     handler = Just . FetchErrorDownload . displayException @HttpException
 
 -- | With the given zip file, extract and parse metadata for the given stake
@@ -274,11 +312,23 @@ findArchiveFile repoPath = find isRepoFile . Map.keys <$> getEntries
 registryFile :: PoolOwner -> FilePath
 registryFile owner_ = "registry" </> T.unpack (toText owner_) <.> "json"
 
--- | Returns the Cardano Foundation stake pool registry zipfile URL, or the
--- @CARDANO_WALLET_STAKE_POOL_REGISTRY_URL@ environment variable if it is set.
-getRegistryZipUrl :: IO String
-getRegistryZipUrl =
-    fromMaybe cardanoFoundationRegistryZip <$> lookupEnv envVarMetadataRegistry
+-- | Returns the configuration for fetching metadata.
+--
+-- 'registryURL' will be the Cardano Foundation stake pool registry zipfile URL,
+-- or the @CARDANO_WALLET_STAKE_POOL_REGISTRY_URL@ environment variable if it is
+-- set.
+--
+-- The default 'cacheTTL' is one hour.
+getMetadataConfig
+    :: FilePath  -- ^ Directory to cache the metadata registry.
+    -> IO MetadataConfig
+getMetadataConfig metadataDir = do
+    env <- lookupEnv envVarMetadataRegistry
+    pure $ MetadataConfig
+        { cacheArchive = metadataDir </> "registry.zip"
+        , cacheTTL = 3600 -- seconds, per the Num instance
+        , registryURL = fromMaybe cardanoFoundationRegistryZip env
+        }
 
 -- | Name of the environment variable to set for tweaking the registry URL.
 -- Mostly use for testing.
@@ -345,6 +395,7 @@ data RegistryLogMsg
     | MsgDownloadError FetchError
     | MsgExtractFile FilePath
     | MsgExtractFileResult (Maybe (Either String StakePoolMetadata))
+    | MsgUsingCached FilePath UTCTime
     deriving (Generic, Show, Eq, ToJSON)
 
 instance DefinePrivacyAnnotation RegistryLogMsg
@@ -356,6 +407,7 @@ instance DefineSeverity RegistryLogMsg where
         MsgExtractFile _ -> Debug
         MsgExtractFileResult (Just (Left _)) -> Warning
         MsgExtractFileResult _ -> Debug
+        MsgUsingCached _ _ -> Info
 
 instance ToText RegistryLog where
     toText (RegistryLog url zipFile msg) =
@@ -377,3 +429,5 @@ instance ToText RegistryLogMsg where
             fmt $ "Could not parse metadata: "+|e|+""
         MsgExtractFileResult (Just (Right _)) ->
             "Successfully parsed metadata"
+        MsgUsingCached _ mtime ->
+            "Using cached file last modified at " <> T.pack (show mtime)

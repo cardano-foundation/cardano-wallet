@@ -63,6 +63,7 @@ library
     , servant
     , servant-client
     , servant-client-core
+    , temporary
     , text
     , text-class
     , time

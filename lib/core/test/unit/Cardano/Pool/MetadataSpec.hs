@@ -7,22 +7,18 @@ module Cardano.Pool.MetadataSpec (spec) where
 
 import Prelude
 
-import Cardano.BM.Configuration.Static
-    ( defaultConfigStdout )
-import Cardano.BM.Setup
-    ( setupTrace_ )
 import Cardano.BM.Trace
     ( Trace )
 import Cardano.Pool.Metadata
     ( FetchError (..)
+    , MetadataConfig (..)
     , RegistryLog (..)
     , RegistryLogMsg (..)
     , StakePoolMetadata (..)
     , StakePoolTicker
+    , getMetadataConfig
     , getStakePoolMetadata
     )
-import Cardano.Wallet.Logging
-    ( transformTextTrace )
 import Cardano.Wallet.Primitive.Types
     ( PoolOwner (..) )
 import Cardano.Wallet.Unsafe
@@ -30,7 +26,7 @@ import Cardano.Wallet.Unsafe
 import Codec.Archive.Zip
     ( CompressionMethod (..), addEntry, createArchive, mkEntrySelector )
 import Control.Monad
-    ( forM_, replicateM )
+    ( forM_, replicateM, void )
 import Data.Aeson
     ( encode )
 import Data.ByteString
@@ -39,6 +35,10 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import Data.Time.Clock
+    ( addUTCTime, getCurrentTime )
+import System.Directory
+    ( setModificationTime )
 import System.FilePath
     ( takeDirectory, (<.>), (</>) )
 import System.IO.Temp
@@ -67,7 +67,7 @@ import Test.Utils.Paths
 import Test.Utils.StaticServer
     ( withStaticServer )
 import Test.Utils.Trace
-    ( captureLogging )
+    ( captureLogging, withLogging )
 
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
@@ -76,25 +76,45 @@ import qualified Data.Text as T
 spec :: Spec
 spec = do
     describe "Cardano.Pool.Registry.getStakePoolMetadata specs" $
-        around (withStaticServer dataDir) $ do
-        it "Loads the example zip" $ \baseUrl -> do
-            tr <- setupLogging
-            res <- getStakePoolMetadata tr (testUrl baseUrl) presentOwners
+        around withFixtures $ do
+
+        it "Loads the example zip" $ \(cfg, tr, _) -> do
+            res <- getStakePoolMetadata tr cfg presentOwners
             res `shouldBe` Right (map Just presentMetas)
 
-        it "Handles a missing pool" $ \baseUrl -> do
-            tr <- setupLogging
-            res <- getStakePoolMetadata tr (testUrl baseUrl) (absentOwner:presentOwners)
+        it "Handles a missing pool" $ \(cfg, tr, _) -> do
+            res <- getStakePoolMetadata tr cfg (absentOwner:presentOwners)
             res `shouldBe` Right (Nothing:map Just presentMetas)
 
-        it "Fails with an unavailable HTTP server" $ \_port -> do
-            tr <- setupLogging
-            let badUrl = "http://localhost:99/master.zip"
-            res <- getStakePoolMetadata tr badUrl presentOwners
+        it "Fails with an unavailable HTTP server" $ \(cfg, tr, _) -> do
+            let badCfg = cfg { registryURL = "http://localhost:99/master.zip" }
+            res <- getStakePoolMetadata tr badCfg presentOwners
             case res of
                 Left (FetchErrorDownload msg) ->
                     head (words msg) `shouldBe` "HttpExceptionRequest"
                 _ -> error "expected fetch error but got none"
+
+        it "Caches the zip" $ \(cfg, tr, getMsgs) -> do
+            void $ getStakePoolMetadata tr cfg presentOwners
+
+            res <- getStakePoolMetadata tr cfg presentOwners
+            res `shouldBe` Right (map Just presentMetas)
+
+            msgs <- map registryLogMsg <$> getMsgs
+            length (filter isMsgDownloadStarted msgs) `shouldBe` 1
+            length (filter isMsgUsingCached msgs) `shouldBe` 1
+
+        it "Refreshes expired cache" $ \(cfg, tr, getMsgs) -> do
+            void $ getStakePoolMetadata tr cfg presentOwners
+
+            makeCacheExpired cfg
+
+            res <- getStakePoolMetadata tr cfg presentOwners
+            res `shouldBe` Right (map Just presentMetas)
+
+            msgs <- map registryLogMsg <$> getMsgs
+            length (filter isMsgUsingCached msgs) `shouldBe` 0
+            length (filter isMsgDownloadStarted msgs) `shouldBe` 2
 
     describe "Cardano.Pool.Registry.getStakePoolMetadata" $
         it "Arbitrary zip files" $
@@ -103,6 +123,15 @@ spec = do
 {-------------------------------------------------------------------------------
                                  Test fixtures
 -------------------------------------------------------------------------------}
+
+withFixtures :: ((MetadataConfig, Trace IO RegistryLog, IO [RegistryLog]) -> IO a) -> IO a
+withFixtures action =
+    withStaticServer dataDir $ \baseUrl ->
+    withSystemTempDirectory "stake-pool-metadata" $ \metadataDir ->
+    withLogging $ \(tr, getMsgs) -> do
+        cfg <- getMetadataConfig metadataDir
+        let cfg' = cfg { registryURL = testUrl baseUrl }
+        action (cfg', tr, getMsgs)
 
 dataDir :: FilePath
 dataDir = $(getTestData) </> "stake-pool-registry"
@@ -177,8 +206,11 @@ prop_getStakePoolMetadata tc = monadicIO $ do
     -- Run getStakePoolMeta and take the actual result, and the log messages.
     (msgs, res) <- run $ withTestCaseZip tc $ \zipFile ->
         withStaticServer (takeDirectory zipFile) $ \baseUrl -> do
-            let url = testCaseUrl tc baseUrl
-            captureLogging $ \tr -> getStakePoolMetadata tr url (poolOwners tc)
+            withSystemTempDirectory "stake-pool-metadata" $ \metadataDir ->
+                captureLogging $ \tr -> do
+                    baseCfg <- getMetadataConfig metadataDir
+                    let cfg = baseCfg { registryURL = testCaseUrl tc baseUrl }
+                    getStakePoolMetadata tr cfg (poolOwners tc)
     let numDecodeErrors = count isDecodeErrorMsg msgs
 
     -- Expected results
@@ -293,10 +325,23 @@ instance Arbitrary PathElement where
     arbitrary = PathElement <$> listOf1 (elements ['a'..'z'])
 
 {-------------------------------------------------------------------------------
+                                     Utils
+-------------------------------------------------------------------------------}
+
+makeCacheExpired :: MetadataConfig -> IO ()
+makeCacheExpired cfg = do
+    -- Subtract the cache TTL plus one second for good measure.
+    old <- addUTCTime ((-1) - cacheTTL cfg) <$> getCurrentTime
+    setModificationTime (cacheArchive cfg) old
+
+{-------------------------------------------------------------------------------
                                     Logging
 -------------------------------------------------------------------------------}
 
-setupLogging :: IO (Trace IO RegistryLog)
-setupLogging = do
-    cfg <- defaultConfigStdout
-    transformTextTrace . fst <$> setupTrace_ cfg "tests"
+isMsgDownloadStarted :: RegistryLogMsg -> Bool
+isMsgDownloadStarted MsgDownloadStarted{} = True
+isMsgDownloadStarted _ = False
+
+isMsgUsingCached :: RegistryLogMsg -> Bool
+isMsgUsingCached MsgUsingCached{} = True
+isMsgUsingCached _ = False

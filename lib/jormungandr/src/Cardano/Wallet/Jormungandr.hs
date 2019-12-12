@@ -113,6 +113,8 @@ import Control.Tracer
     ( contramap )
 import Data.Function
     ( (&) )
+import Data.Functor
+    ( ($>) )
 import Data.Maybe
     ( fromMaybe )
 import Data.Quantity
@@ -129,6 +131,8 @@ import Network.Wai.Middleware.Logging
     ( ApiLog )
 import System.Exit
     ( ExitCode (..) )
+import System.IO.Temp
+    ( withSystemTempDirectory )
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.Pool.DB as Pool
@@ -174,27 +178,31 @@ serveWallet
     logInfo trText $ "Node is Jörmungandr on " <> toText (networkDiscriminantVal @n)
     Server.withListeningSocket hostPref listen $ \case
         Left e -> handleApiServerStartupError e
-        Right (wPort, socket) -> either (const ExitSuccess) id <$> do
+        Right (wPort, socket) -> do
             let tracerIPC = appendName "daedalus-ipc" trText
-            race (daedalusIPC tracerIPC wPort) $ do
-                withNetworkLayer trText lj $ \case
-                    Left e -> handleNetworkStartupError e
-                    Right (cp, nl) -> do
-                        let nPort = Port $ baseUrlPort $ _restApi cp
-                        let (_, bp) = staticBlockchainParameters nl
-                        let rndTl = newTransactionLayer (getGenesisBlockHash bp)
-                        let seqTl = newTransactionLayer (getGenesisBlockHash bp)
-                        let poolDBPath = Pool.defaultFilePath <$> databaseDir
-                        Pool.withDBLayer cfg trText poolDBPath $ \db -> do
-                            poolApi <- stakePoolLayer tr nl db
-                            rndApi  <- apiLayer trText rndTl nl
-                            seqApi  <- apiLayer trText seqTl nl
-                            let tr' = contramap (fmap LogApiServerMsg) tr
-                            startServer tr' socket nPort bp rndApi seqApi poolApi
-                            pure ExitSuccess
+            either id id <$> race
+                (daedalusIPC tracerIPC wPort $> ExitSuccess)
+                (serveApp socket)
 
   where
     trText = contramap (fmap LogText) tr
+
+    serveApp socket = withNetworkLayer trText lj $ \case
+        Left e -> handleNetworkStartupError e
+        Right (cp, nl) -> do
+            let nPort = Port $ baseUrlPort $ _restApi cp
+            let (_, bp) = staticBlockchainParameters nl
+            let rndTl = newTransactionLayer (getGenesisBlockHash bp)
+            let seqTl = newTransactionLayer (getGenesisBlockHash bp)
+            let poolDBPath = Pool.defaultFilePath <$> databaseDir
+            Pool.withDBLayer cfg trText poolDBPath $ \db ->
+                withSystemTempDirectory "stake-pool-metadata" $ \md -> do
+                    poolApi <- stakePoolLayer tr nl db md
+                    rndApi  <- apiLayer trText rndTl nl
+                    seqApi  <- apiLayer trText seqTl nl
+                    let tr' = contramap (fmap LogApiServerMsg) tr
+                    startServer tr' socket nPort bp rndApi seqApi poolApi
+                    pure ExitSuccess
 
     startServer
         :: Trace IO ApiLog
@@ -238,10 +246,11 @@ serveWallet
         :: Trace IO ServerLog
         -> NetworkLayer IO t J.Block
         -> Pool.DBLayer IO
+        -> FilePath
         -> IO (StakePoolLayer IO)
-    stakePoolLayer trRoot nl db = do
+    stakePoolLayer trRoot nl db metadataDir = do
         void $ forkFinally (monitorStakePools tr' nl' db) onExit
-        pure $ newStakePoolLayer db nl' trStakePool
+        pure $ newStakePoolLayer trStakePool db nl' metadataDir
       where
         tr' = appendName "stake-pools" (contramap (fmap LogText) trRoot)
         nl' = toSPBlock <$> nl

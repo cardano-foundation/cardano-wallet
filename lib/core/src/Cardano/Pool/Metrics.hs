@@ -55,7 +55,7 @@ import Cardano.Pool.DB
 import Cardano.Pool.Metadata
     ( RegistryLog
     , StakePoolMetadata (..)
-    , getRegistryZipUrl
+    , getMetadataConfig
     , getStakePoolMetadata
     , sameStakePoolMetadata
     )
@@ -253,11 +253,14 @@ data ErrListStakePools
      | ErrListStakePoolsErrNetworkTip ErrNetworkTip
 
 newStakePoolLayer
-    :: DBLayer IO
+    :: Trace IO StakePoolLayerMsg
+    -> DBLayer IO
     -> NetworkLayer IO t Block
-    -> Trace IO StakePoolLayerMsg
+    -> FilePath
+    -- ^ A directory to cache downloaded stake pool metadata. Will be created if
+    -- it does not exist.
     -> StakePoolLayer IO
-newStakePoolLayer db@DBLayer{..} nl tr = StakePoolLayer
+newStakePoolLayer tr db@DBLayer{..} nl metadataDir = StakePoolLayer
     { listStakePools = do
         lift $ logTrace tr MsgListStakePoolsBegin
         stakePools <- sortKnownPools
@@ -296,9 +299,9 @@ newStakePoolLayer db@DBLayer{..} nl tr = StakePoolLayer
         owners <- atomically $ mapM readStakePoolOwners poolIds
         -- note: this will become simpler once we cache metadata in the database
         let owners' = nub $ concat owners
-        url <- getRegistryZipUrl
+        cfg <- getMetadataConfig metadataDir
         let tr' = contramap (fmap MsgRegistry) tr
-        getStakePoolMetadata tr' url owners' >>= \case
+        getStakePoolMetadata tr' cfg owners' >>= \case
             Left _ -> do
                 logTrace tr MsgMetadataUnavailable
                 pure $ replicate (length poolIds) Nothing
