@@ -89,12 +89,12 @@ import Control.Monad.Trans.Except
     ( ExceptT (..), mapExceptT, runExceptT, throwE, withExceptT )
 import Control.Tracer
     ( contramap )
-import Data.Function
-    ( on )
+import Data.Functor
+    ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.List
-    ( foldl', maximumBy, nub, nubBy, sortOn )
+    ( foldl', nub, nubBy, sortOn )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Map.Merge.Strict
@@ -278,12 +278,10 @@ newStakePoolLayer tr db@DBLayer{..} nl metadataDir = StakePoolLayer
         let nodeEpoch = nodeTip ^. #slotId . #epochNumber
         let genesisEpoch = block0 ^. #header . #slotId . #epochNumber
 
-        (distr, prod) <- liftIO . atomically $ (,)
+        (distr, prod, prodTip) <- liftIO . atomically $ (,,)
             <$> (Map.fromList <$> readStakeDistribution nodeEpoch)
             <*> readPoolProduction nodeEpoch
-
-        let prodTip = maximumBy (compare `on` view #slotId)
-                $ mconcat (Map.elems prod)
+            <*> readPoolProductionTip
 
         when (Map.null distr || Map.null prod) $ do
             liftIO $ logTrace tr $ MsgComputedProgress prodTip nodeTip
@@ -298,6 +296,10 @@ newStakePoolLayer tr db@DBLayer{..} nl metadataDir = StakePoolLayer
             let sl = prodTip ^. #slotId
             perfs <- liftIO $ readPoolsPerformances db epochLength sl
             combineWith (pure . sortByPerformance) distr (count prod) perfs
+
+    readPoolProductionTip = readPoolProductionCursor 1 <&> \case
+        []  -> header block0
+        h:_ -> h
 
     -- For each pool, look up its metadata. If metadata could not be found for a
     -- pool, the result will be 'Nothing'.
