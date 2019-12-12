@@ -156,13 +156,17 @@ nextFaucet owner = liftIO (takeMVar faucet) >>= \case
 faucetAmt :: Int
 faucetAmt = 10000
 
+-- | corresponds with metadata stored in:
+-- lib/jormungandr/test/data/jormungandr/stake_pools/registry/test-integration-registry.zip
 {-# NOINLINE faucetWithMetadata #-}
 faucetWithMetadata :: MVar [(String, String, String)]
 faucetWithMetadata = unsafePerformIO $ newMVar
-    [ ( "ed25519_sk1qm2de9sa6w5ccvrrh7dh7fgpzeupulsjkz3fdqanm2w7e6h0rgasxex46t"
+    [  -- ticker: SWIM
+      ( "ed25519_sk1qm2de9sa6w5ccvrrh7dh7fgpzeupulsjkz3fdqanm2w7e6h0rgasxex46t"
       , "ed25519_pk1kpudvc46w3nnwjfw5zzsrj7jxqwm4znhltkas8yzx9lcezs5e8cswtvx8t"
       , "account1skc834nzhf6xwd6f96sg2qwt6gcpmw52wlawmkqusgchlry2znylzam4v5a"
       )
+      -- ticker: LIVER
     , ( "ed25519_sk103yerx2fq2juzpjda2c0ghz5646cwezd0gvmtxa2jg9qj7hgj0es604myw"
       , "ed25519_pk1577ny3x5etp748l09l594t4lh3tlhxpekalhw0j4fe5ava2jam3shm08mf"
       , "account1sknm6vjy6n9v865lauh7sk4wh77907uc8xmh7ae7248xn4n42thwxlc0c70"
