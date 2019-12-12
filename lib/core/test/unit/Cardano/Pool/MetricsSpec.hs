@@ -19,19 +19,24 @@ module Cardano.Pool.MetricsSpec
 
 import Prelude
 
+import Cardano.BM.Data.Tracer
+    ( nullTracer )
 import Cardano.Pool.DB
     ( DBLayer (..) )
 import Cardano.Pool.DB.MVar
     ( newDBLayer )
 import Cardano.Pool.Metadata
-    ( StakePoolMetadata (..), sameStakePoolMetadata )
+    ( StakePoolMetadata (..), envVarMetadataRegistry, sameStakePoolMetadata )
 import Cardano.Pool.Metrics
     ( Block (..)
+    , ErrListStakePools (..)
+    , StakePoolLayer (..)
     , StakePoolLayerMsg (..)
     , associateMetadata
     , calculatePerformance
     , combineMetrics
     , monitorStakePools
+    , newStakePoolLayer
     )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( genesisParameters )
@@ -59,7 +64,7 @@ import Cardano.Wallet.Primitive.Types
     , slotSucc
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromText )
+    ( unsafeFromText, unsafeRunExceptT )
 import Control.Concurrent.Async
     ( race_ )
 import Control.Concurrent.MVar
@@ -69,7 +74,7 @@ import Control.Monad
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..) )
+    ( ExceptT (..), runExceptT )
 import Control.Monad.Trans.State.Strict
     ( StateT, evalStateT, get, modify' )
 import Data.Function
@@ -88,6 +93,8 @@ import Data.Text.Class
     ( toText )
 import Data.Word
     ( Word32, Word64 )
+import System.Environment
+    ( setEnv )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldContain, shouldSatisfy )
 import Test.QuickCheck
@@ -142,6 +149,10 @@ spec = do
     describe "monitorStakePools" $ do
         it "records all stake pool registrations in the database"
             $ property prop_trackRegistrations
+
+    describe "listStakePools" $ do
+        it "can't list on empty database" test_emptyDatabaseNotSynced
+        it "report correct progress when not synced" test_notSyncedProgress
 
     associateMetadataSpec
 
@@ -326,11 +337,58 @@ prop_trackRegistrations test = monadicIO $ do
                 pure header0
             -- These params are basically unused and completely arbitrary.
             , staticBlockchainParameters =
-                (block0, mockBlockchainParameters
-                    { getEpochStability = Quantity 2 })
+                ( block0
+                , mockBlockchainParameters { getEpochStability = Quantity 2 }
+                )
             }
 
 data instance Cursor RegistrationsTest = Cursor BlockHeader
+
+test_emptyDatabaseNotSynced :: IO ()
+test_emptyDatabaseNotSynced = do
+    setEnv envVarMetadataRegistry "-"
+    db@DBLayer{..} <- newDBLayer
+    -- NOTE The directory below isn't use, the test should fail much before
+    let spl = newStakePoolLayer nullTracer db nl "/dev/null"
+    res <- runExceptT $ listStakePools spl
+    case res of
+        Left (ErrMetricsIsUnsynced (Quantity p)) -> p `shouldBe` toEnum 0
+        _ -> fail $ "got something else than expected: " <> show res
+  where
+    nl = mockNetworkLayer
+        { networkTip =
+            pure header0
+        , staticBlockchainParameters =
+            ( block0
+            -- v arbitrary but defined.
+            , mockBlockchainParameters { getEpochLength = EpochLength 10 }
+            )
+        }
+
+test_notSyncedProgress :: IO ()
+test_notSyncedProgress = do
+    setEnv envVarMetadataRegistry "-"
+    db@DBLayer{..} <- newDBLayer
+    atomically $ unsafeRunExceptT $
+        putPoolProduction prodTip (PoolId "Pool & The Gang")
+    -- NOTE The directory below isn't use, the test should fail much before
+    let spl = newStakePoolLayer nullTracer db nl "/dev/null"
+    res <- runExceptT $ listStakePools spl
+    case res of
+        Left (ErrMetricsIsUnsynced (Quantity p)) -> p `shouldBe` toEnum 33
+        _ -> fail $ "got something else than expected: " <> show res
+  where
+    nodeTip = header0 { blockHeight = Quantity 42 }
+    prodTip = header0 { blockHeight = Quantity 14 }
+    nl = mockNetworkLayer
+        { networkTip =
+            pure nodeTip
+        , staticBlockchainParameters =
+            ( block0
+            -- v arbitrary but defined.
+            , mockBlockchainParameters { getEpochLength = EpochLength 10 }
+            )
+        }
 
 {-------------------------------------------------------------------------------
                                  Mock Data
@@ -354,7 +412,8 @@ mockNetworkLayer = NetworkLayer
         \_ -> error "mockNetworkLayer: postTx"
     , staticBlockchainParameters =
         ( error "mockNetworkLayer: genesis block"
-        , mockBlockchainParameters )
+        , mockBlockchainParameters
+        )
     , stakeDistribution =
         error "mockNetworkLayer: stakeDistribution"
     , getAccountBalance =

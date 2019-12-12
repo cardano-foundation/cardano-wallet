@@ -89,6 +89,8 @@ import Control.Monad.Trans.Except
     ( ExceptT (..), mapExceptT, runExceptT, throwE, withExceptT )
 import Control.Tracer
     ( contramap )
+import Data.Functor
+    ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.List
@@ -139,7 +141,7 @@ data StakePool = StakePool
     , stake :: Quantity "lovelace" Word64
     , production :: Quantity "block" Word64
     , apparentPerformance :: Double
-    } deriving (Generic)
+    } deriving (Show, Generic)
 
 --------------------------------------------------------------------------------
 -- Stake Pool Monitoring
@@ -251,6 +253,7 @@ data ErrListStakePools
      = ErrMetricsIsUnsynced (Quantity "percent" Percentage)
      | ErrListStakePoolsMetricsInconsistency ErrMetricsInconsistency
      | ErrListStakePoolsErrNetworkTip ErrNetworkTip
+     deriving (Show)
 
 newStakePoolLayer
     :: Trace IO StakePoolLayerMsg
@@ -275,22 +278,28 @@ newStakePoolLayer tr db@DBLayer{..} nl metadataDir = StakePoolLayer
         let nodeEpoch = nodeTip ^. #slotId . #epochNumber
         let genesisEpoch = block0 ^. #header . #slotId . #epochNumber
 
-        (distr, prod) <- liftIO . atomically $ (,)
+        (distr, prod, prodTip) <- liftIO . atomically $ (,,)
             <$> (Map.fromList <$> readStakeDistribution nodeEpoch)
-            <*> (count <$> readPoolProduction nodeEpoch)
+            <*> readPoolProduction nodeEpoch
+            <*> readPoolProductionTip
 
         when (Map.null distr || Map.null prod) $ do
-            computeProgress nodeTip >>= throwE . ErrMetricsIsUnsynced
+            liftIO $ logTrace tr $ MsgComputedProgress prodTip nodeTip
+            throwE $ ErrMetricsIsUnsynced $ computeProgress prodTip nodeTip
 
         if nodeEpoch == genesisEpoch
         then do
             seed <- liftIO $ atomically readSystemSeed
-            combineWith (sortArbitrarily seed) distr prod mempty
+            combineWith (sortArbitrarily seed) distr (count prod) mempty
 
         else do
-            let tip = nodeTip ^. #slotId
-            perfs <- liftIO $ readPoolsPerformances db epochLength tip
-            combineWith (pure . sortByPerformance) distr prod perfs
+            let sl = prodTip ^. #slotId
+            perfs <- liftIO $ readPoolsPerformances db epochLength sl
+            combineWith (pure . sortByPerformance) distr (count prod) perfs
+
+    readPoolProductionTip = readPoolProductionCursor 1 <&> \case
+        []  -> header block0
+        h:_ -> h
 
     -- For each pool, look up its metadata. If metadata could not be found for a
     -- pool, the result will be 'Nothing'.
@@ -330,11 +339,6 @@ newStakePoolLayer tr db@DBLayer{..} nl metadataDir = StakePoolLayer
             Left e ->
                 throwE $ ErrListStakePoolsMetricsInconsistency e
 
-    poolProductionTip :: IO (Maybe BlockHeader)
-    poolProductionTip = atomically $ readPoolProductionCursor 1 >>= \case
-        [x] -> return $ Just x
-        _ -> return Nothing
-
     sortByPerformance :: [StakePool] -> [StakePool]
     sortByPerformance = sortOn (Down . apparentPerformance)
 
@@ -352,20 +356,16 @@ newStakePoolLayer tr db@DBLayer{..} nl metadataDir = StakePoolLayer
         StakePool{poolId,stake,production,apparentPerformance}
 
     computeProgress
-        :: BlockHeader -- ^ The node tip, which respresents 100%.
-        -> ExceptT e IO (Quantity "percent" Percentage)
-    computeProgress nodeTip = liftIO $ do
-        mDbTip <- poolProductionTip
-        logTrace tr $ MsgComputedProgress mDbTip nodeTip
-        pure $ Quantity $ maybe minBound (`progress` nodeTip) mDbTip
-
-    progress :: BlockHeader -> BlockHeader -> Percentage
-    progress tip target =
-        let
-            s0 = getQuantity $ tip ^. #blockHeight
-            s1 = getQuantity $ target ^. #blockHeight
-        in toEnum $ round $ 100 * (toD s0) / (toD s1)
+        :: BlockHeader -- ^ ... / denominator
+        -> BlockHeader -- ^ numerator /...
+        -> Quantity "percent" Percentage
+    computeProgress prodTip nodeTip =
+        Quantity $ if s1 == 0
+            then minBound
+            else toEnum $ round $ 100 * (toD s0) / (toD s1)
       where
+        s0 = getQuantity $ prodTip ^. #blockHeight
+        s1 = getQuantity $ nodeTip ^. #blockHeight
         toD :: Integral i => i -> Double
         toD = fromIntegral
 
@@ -586,7 +586,7 @@ data StakePoolLayerMsg
     | MsgMetadataUsing PoolId PoolOwner StakePoolMetadata
     | MsgMetadataMissing PoolId
     | MsgMetadataMultiple PoolId [(PoolOwner, StakePoolMetadata)]
-    | MsgComputedProgress (Maybe BlockHeader) BlockHeader
+    | MsgComputedProgress BlockHeader BlockHeader
     deriving (Show, Eq)
 
 instance DefinePrivacyAnnotation StakePoolLayerMsg
@@ -605,14 +605,13 @@ instance ToText StakePoolLayerMsg where
         MsgRegistry msg -> toText msg
         MsgListStakePoolsBegin -> "Listing stake pools"
         MsgMetadataUnavailable -> "Stake pool metadata is unavailable"
-        MsgComputedProgress (Just dbTip) nodeTip -> mconcat
+        MsgComputedProgress prodTip nodeTip -> mconcat
             [ "The node tip is:\n"
             , pretty nodeTip
             , ",\nbut the last pool production stored in the db"
             , " is from:\n"
-            , pretty dbTip
+            , pretty prodTip
             ]
-        MsgComputedProgress Nothing _nodeTip -> ""
         MsgMetadataUsing pid owner _ ->
             "Using stake pool metadata from " <>
             toText owner <> " for " <> toText pid
