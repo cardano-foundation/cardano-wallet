@@ -281,11 +281,12 @@ newStakePoolLayer tr db@DBLayer{..} nl metadataDir = StakePoolLayer
             <$> (Map.fromList <$> readStakeDistribution nodeEpoch)
             <*> readPoolProduction nodeEpoch
 
-        let tip = maximumBy (compare `on` view #slotId)
+        let prodTip = maximumBy (compare `on` view #slotId)
                 $ mconcat (Map.elems prod)
 
         when (Map.null distr || Map.null prod) $ do
-            computeProgress tip >>= throwE . ErrMetricsIsUnsynced
+            liftIO $ logTrace tr $ MsgComputedProgress prodTip nodeTip
+            throwE $ ErrMetricsIsUnsynced $ computeProgress prodTip nodeTip
 
         if nodeEpoch == genesisEpoch
         then do
@@ -293,7 +294,8 @@ newStakePoolLayer tr db@DBLayer{..} nl metadataDir = StakePoolLayer
             combineWith (sortArbitrarily seed) distr (count prod) mempty
 
         else do
-            perfs <- liftIO $ readPoolsPerformances db epochLength (tip ^. #slotId)
+            let sl = prodTip ^. #slotId
+            perfs <- liftIO $ readPoolsPerformances db epochLength sl
             combineWith (pure . sortByPerformance) distr (count prod) perfs
 
     -- For each pool, look up its metadata. If metadata could not be found for a
@@ -334,11 +336,6 @@ newStakePoolLayer tr db@DBLayer{..} nl metadataDir = StakePoolLayer
             Left e ->
                 throwE $ ErrListStakePoolsMetricsInconsistency e
 
-    poolProductionTip :: IO (Maybe BlockHeader)
-    poolProductionTip = atomically $ readPoolProductionCursor 1 >>= \case
-        [x] -> return $ Just x
-        _ -> return Nothing
-
     sortByPerformance :: [StakePool] -> [StakePool]
     sortByPerformance = sortOn (Down . apparentPerformance)
 
@@ -356,22 +353,18 @@ newStakePoolLayer tr db@DBLayer{..} nl metadataDir = StakePoolLayer
         StakePool{poolId,stake,production,apparentPerformance}
 
     computeProgress
-        :: BlockHeader -- ^ Current tip which respresents 100%.
-        -> ExceptT e IO (Quantity "percent" Percentage)
-    computeProgress tip = liftIO $ do
-        mDbTip <- poolProductionTip
-        logTrace tr $ MsgComputedProgress mDbTip tip
-        pure $ Quantity $ maybe minBound progress mDbTip
+        :: BlockHeader -- ^ ... / denominator
+        -> BlockHeader -- ^ numerator /...
+        -> Quantity "percent" Percentage
+    computeProgress prodTip nodeTip =
+        Quantity $ if s1 == 0
+            then minBound
+            else toEnum $ round $ 100 * (toD s0) / (toD s1)
       where
-        progress :: BlockHeader -> Percentage
-        progress target =
-            let
-                s0 = getQuantity $ tip ^. #blockHeight
-                s1 = getQuantity $ target ^. #blockHeight
-            in toEnum $ round $ 100 * (toD s0) / (toD s1)
-          where
-            toD :: Integral i => i -> Double
-            toD = fromIntegral
+        s0 = getQuantity $ prodTip ^. #blockHeight
+        s1 = getQuantity $ nodeTip ^. #blockHeight
+        toD :: Integral i => i -> Double
+        toD = fromIntegral
 
 readPoolsPerformances
     :: DBLayer m
@@ -590,7 +583,7 @@ data StakePoolLayerMsg
     | MsgMetadataUsing PoolId PoolOwner StakePoolMetadata
     | MsgMetadataMissing PoolId
     | MsgMetadataMultiple PoolId [(PoolOwner, StakePoolMetadata)]
-    | MsgComputedProgress (Maybe BlockHeader) BlockHeader
+    | MsgComputedProgress BlockHeader BlockHeader
     deriving (Show, Eq)
 
 instance DefinePrivacyAnnotation StakePoolLayerMsg
@@ -609,14 +602,13 @@ instance ToText StakePoolLayerMsg where
         MsgRegistry msg -> toText msg
         MsgListStakePoolsBegin -> "Listing stake pools"
         MsgMetadataUnavailable -> "Stake pool metadata is unavailable"
-        MsgComputedProgress (Just dbTip) nodeTip -> mconcat
+        MsgComputedProgress prodTip nodeTip -> mconcat
             [ "The node tip is:\n"
             , pretty nodeTip
             , ",\nbut the last pool production stored in the db"
             , " is from:\n"
-            , pretty dbTip
+            , pretty prodTip
             ]
-        MsgComputedProgress Nothing _nodeTip -> ""
         MsgMetadataUsing pid owner _ ->
             "Using stake pool metadata from " <>
             toText owner <> " for " <> toText pid
