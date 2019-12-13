@@ -14,36 +14,11 @@ Good to read before / additional resources:
     - In particular sections 4.1, 4.2, 4.6 and 4.8
 
 
-    {-| A peer has agency if it is expected to send the next message.
-
-                                    Agency
-     ---------------------------------------------------------------------------
-     Client has agency                 | Idle
-     Server has agency                 | Intersect, Next
-
-      *-----------*
-      | Intersect |◀══════════════════════════════╗
-      *-----------*         FindIntersect         ║
-            │                                     ║
-            │                                *---------*                *------*
-            │ Intersect.{Unchanged,Improved} |         |═══════════════▶| Done |
-            └───────────────────────────────╼|         |     MsgDone    *------*
-                                             |   Idle  |
-         ╔═══════════════════════════════════|         |
-         ║            RequestNext            |         |⇦ START
-         ║                                   *---------*
-         ▼                                        ╿
-      *------*       Roll.{Backward,Forward}      │
-      | Next |────────────────────────────────────┘
-      *------*
-
-    -}
 -}
 
 module Cardano.Wallet.Shelley.Network
-    ( main
-    , convertBlockHeader
-    , convertTx
+    ( runExperiment
+    , point1
       -- * Top-Level Interface
     , ChainParameters (..)
 
@@ -141,8 +116,6 @@ import Control.Tracer
     ( Tracer, contramap )
 import Data.ByteString.Lazy
     ( ByteString )
-import Data.Quantity
-    ( Quantity (..) )
 import Data.Text
     ( Text )
 import Data.Void
@@ -150,16 +123,9 @@ import Data.Void
 import Network.Socket
     ( AddrInfo (..), Family (..), SockAddr (..), SocketType (..) )
 
-import qualified Cardano.Chain.Block as CC
-import qualified Cardano.Chain.Common as CC
-import qualified Cardano.Chain.UTxO as CC
 import qualified Cardano.Crypto as CC
-import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.Serialise as CBOR
-import qualified Data.ByteArray as BA
-import qualified Data.List.NonEmpty as NE
 import qualified Network.Socket as Socket
-import qualified Ouroboros.Consensus.Ledger.Byron as O
 import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
 
@@ -170,77 +136,6 @@ import Cardano.BM.Trace
     ( nullTracer )
 import Control.Monad
     ( (>=>) )
-
-convertTx :: CC.Tx -> W.Tx
-convertTx tx = W.Tx
-    { W.txId = convertHash $ CC.hash tx
-    , W.resolvedInputs = map convertTxIn $ NE.toList $ CC.txInputs tx
-    , W.outputs = map convertTxOut $ NE.toList $ CC.txOutputs tx
-    }
-  where
-    convertHash = W.Hash . BA.convert
-
-    convertTxIn (CC.TxInUtxo txH idx) = (W.TxIn (convertHash txH) idx, coin)
-       where
-          coin = error "1. We can't get the coin of Byron inputs!"
-
-    convertTxOut o = W.TxOut
-        (convertAddr $ CC.txOutAddress o)
-        (convertCoin $ CC.txOutValue o)
-      where
-        convertAddr = error "todo use toBinary"
-        -- Byron addresses should be no problem. I'm not sure how Shelley
-        -- addresses will look.
-        convertCoin = W.Coin . CC.unsafeGetLovelace
-
-convertBlockHeader :: ByronBlock -> W.BlockHeader
-convertBlockHeader b = W.BlockHeader
-    { W.slotId =
-        error "2. can't easily get the SlotId"
-            -- The cardano-ledger equivalent is EpochAndSlotCount, i.e epoch
-            -- number and the slot counted from the start of the epoch.
-            --
-            -- But block headers only contain the slot number (SlotNo), counted
-            -- from genesis.
-    , W.blockHeight = convertBlockNo $ O.blockNo b
-            -- Not in block headers.
-    , W.headerHash = convertHash $ O.blockHash b
-    , W.parentHeaderHash = convertChainHash $ O.blockPrevHash b
-    }
-  where
-    convertHash = W.Hash . BA.convert . O.unByronHash
-
-    convertChainHash x = case x of
-        O.BlockHash h ->
-            convertHash h
-        O.GenesisHash ->
-            error "how do we represent the genesis hash?"
-            -- Seems like a minor problem.
-    convertBlockNo = Quantity . fromIntegral . O.unBlockNo
-
--- Goal: see what info we can extract from blocks!
-rollForward :: ByronBlock -> IO ()
-rollForward b = do
-    let slot = show (O.unSlotNo . byronBlockSlotNo $ b)
-    let hash = show $ byronBlockHash b
-    putStrLn "\n\n"
-    putStrLn $ "=== SlotNo " ++ slot
-    putStrLn $ "=== " ++ hash
-    putStrLn "\n"
-    case byronBlockRaw b  of
-        CC.ABOBBlock cb -> do
-            let body = CC.blockBody cb
-            let txPay = CC.bodyTxPayload body
-            let txAuxs = CC.aUnTxPayload txPay
-            let txs = map CC.taTx txAuxs
-            print $ map convertTx txs
-        CC.ABOBBoundary _ ->
-            putStrLn "Our friend the Epoch Boundary Block!"
-
-rollBackward :: Point ByronBlock -> IO ()
-rollBackward p = do
-    putStrLn $ "rollback to: " ++ show p
-
 
 -- A point where there is high activity on the mainnet
 point1 :: Point ByronBlock
@@ -260,8 +155,17 @@ point1 =
 -- $ ./scripts/mainnet.sh
 --
 -- Then run main:
-main :: IO ()
-main = do
+runExperiment
+    :: Point ByronBlock
+       -- ^ Point to start fetching blocks from
+    -> Int
+       -- ^ How many blocks to fetch
+    -> (ByronBlock -> IO ())
+       -- ^ Roll-forward
+    -> (Point ByronBlock -> IO ())
+       -- ^ Roll-backward
+    -> IO ()
+runExperiment start n rollForward rollBackward = do
     -- I have cardano-node running from ../cardano-node
     let nodeId = CoreNodeId 0
     let path = "../cardano-node/socket/" <> (localSocketFilePath nodeId)
@@ -275,7 +179,13 @@ main = do
     let t = nullTracer
     let client = OuroborosInitiatorApplication $ \pid -> \case
             ChainSyncWithBlocksPtcl ->
-                chainSyncWithBlocks pid t params rollForward rollBackward
+                chainSyncWithBlocks
+                    pid t params
+                    rollForward
+                    rollBackward
+                    start
+                    n
+
             LocalTxSubmissionPtcl ->
                 (localTxSubmission pid t) >=> const (return ())
     connectClient client dummyNodeToClientVersion addr
@@ -373,12 +283,16 @@ chainSyncWithBlocks
         -- ^ Action to take when receiving a block
     -> (Point ByronBlock -> m ())
         -- ^ Action to take when receiving a block
+    -> Point ByronBlock
+        -- ^ Starting point
+    -> Int
+        -- ^ How many blocks to fetch
     -> Channel m ByteString
         -- ^ A 'Channel' is a abstract communication instrument which
         -- transports serialized messages between peers (e.g. a unix
         -- socket).
     -> m ()
-chainSyncWithBlocks pid t params forward backward channel =
+chainSyncWithBlocks pid t params forward backward startPoint limit channel =
     runPeer trace codec pid channel (chainSyncClientPeer client)
   where
     trace :: Tracer m (TraceSendRecv protocol peerId DeserialiseFailure)
@@ -393,6 +307,32 @@ chainSyncWithBlocks pid t params forward backward channel =
         (O.encodeTip encodeByronHeaderHash)
         (O.decodeTip decodeByronHeaderHash)
 
+
+    {-| A peer has agency if it is expected to send the next message.
+
+                                    Agency
+     ---------------------------------------------------------------------------
+     Client has agency                 | Idle
+     Server has agency                 | Intersect, Next
+
+      *-----------*
+      | Intersect |◀══════════════════════════════╗
+      *-----------*         FindIntersect         ║
+            │                                     ║
+            │                                *---------*                *------*
+            │ Intersect.{Unchanged,Improved} |         |═══════════════▶| Done |
+            └───────────────────────────────╼|         |     MsgDone    *------*
+                                             |   Idle  |
+         ╔═══════════════════════════════════|         |
+         ║            RequestNext            |         |⇦ START
+         ║                                   *---------*
+         ▼                                        ╿
+      *------*       Roll.{Backward,Forward}      │
+      | Next |────────────────────────────────────┘
+      *------*
+
+    -}
+
     client :: ChainSyncClient ByronBlock (Tip ByronBlock) m ()
     client = ChainSyncClient clientStIdle
       where
@@ -400,12 +340,10 @@ chainSyncWithBlocks pid t params forward backward channel =
         -- Find intersection between wallet and node chains.
         clientStIdle :: m (ClientStIdle ByronBlock (Tip ByronBlock) m ())
         clientStIdle = do
-                let n = 100 -- Arbitrary size of the batch to fetch
-                let point = point1
-                pure $ SendMsgFindIntersect [point] $ ClientStIntersect
+                pure $ SendMsgFindIntersect [startPoint] $ ClientStIntersect
                     { recvMsgIntersectFound = \_intersection _tip ->
                         ChainSyncClient $
-                            clientStFetchingBlocks n point
+                            clientStFetchingBlocks limit startPoint
                     , recvMsgIntersectNotFound = \_tip ->
                         ChainSyncClient $ do
                             clientStIdle
