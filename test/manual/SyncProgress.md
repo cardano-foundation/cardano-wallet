@@ -30,12 +30,20 @@ $ cardano-wallet-jormungandr wallet list
 
 1. Ctrl-C jormungandr
 
-2. Repeatedly poll
+2. List Shelley wallets
 ```bash
 $ cardano-wallet-jormungandr wallet list
+The node backend is unreachable at the moment. Trying again in a bit might work.
+```
+
+3. List Byron wallets
+
+```bash
+$ curl http://localhost:8090/v2/byron-wallets | jq
 ```
 
 The progress should eventually drop, and continue dropping. E.g:
+
 ```
 "state": {
             "status": "syncing",
@@ -52,4 +60,8 @@ The progress should eventually drop, and continue dropping. E.g:
 2. The state field should eventually reach Ready again when polling
 ```bash
 $ cardano-wallet-jormungandr wallet list
+```
+
+```bash
+$ curl http://localhost:8090/v2/byron-wallets | jq
 ```
