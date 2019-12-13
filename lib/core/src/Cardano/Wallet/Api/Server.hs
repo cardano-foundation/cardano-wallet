@@ -60,6 +60,7 @@ import Cardano.Wallet
     , ErrPostTx (..)
     , ErrQuitStakePool (..)
     , ErrRemovePendingTx (..)
+    , ErrSelectCoinsExternal (..)
     , ErrSelectForDelegation (..)
     , ErrSelectForPayment (..)
     , ErrSignDelegation (..)
@@ -636,29 +637,13 @@ selectCoins
     -> ApiSelectCoinsData n
     -> Handler (ApiCoinSelection n)
 selectCoins ctx (ApiT wid) body = do
-    CoinSelection mInputs mRecipients mChange <- liftHandler
+    (inputs, outputs) <- liftHandler
         $ withWorkerCtx ctx wid liftE
-        $ \wrk -> W.selectCoinsForPayment @_ @s @t wrk wid
-        $ coerceCoin <$> (body ^. #payments)
-    mOutputs <- liftHandler
-        $ withWorkerCtx ctx wid throwE
-        $ \wrk -> W.assignChangeAddressesAndCheckpoint
-            @_ @s @k wrk wid () mRecipients mChange
-    mkApiCoinSelection
-        <$> ensureNonEmpty ErrSelectCoinsUnableToAssignInputs  mInputs
-        <*> ensureNonEmpty ErrSelectCoinsUnableToAssignOutputs mOutputs
+        $ \wrk -> W.selectCoinsExternal @_ @s @t @k wrk wid ()
+        $ coerceCoin <$> body ^. #payments
+    pure $ mkApiCoinSelection inputs outputs
   where
-    liftE = throwE . ErrSelectForPaymentNoSuchWallet
-    ensureNonEmpty :: forall a.
-        (WalletId -> ErrSelectCoins) -> [a] -> Handler (NE.NonEmpty a)
-    ensureNonEmpty err mxs =
-        liftHandler $ case NE.nonEmpty mxs of
-            Nothing -> throwE $ err wid
-            Just xs -> pure xs
-
-data ErrSelectCoins
-    = ErrSelectCoinsUnableToAssignInputs WalletId
-    | ErrSelectCoinsUnableToAssignOutputs WalletId
+    liftE = throwE . ErrSelectCoinsExternalNoSuchWallet
 
 {-------------------------------------------------------------------------------
                                     Addresses
@@ -1550,15 +1535,19 @@ instance LiftHandler ErrWithRootKey where
                 , toText wid
                 ]
 
-instance LiftHandler ErrSelectCoins where
+instance Buildable e => LiftHandler (ErrSelectCoinsExternal e) where
     handler = \case
-        ErrSelectCoinsUnableToAssignInputs wid ->
+        ErrSelectCoinsExternalNoSuchWallet e ->
+            handler e
+        ErrSelectCoinsExternalUnableToMakeSelection e ->
+            handler e
+        ErrSelectCoinsExternalUnableToAssignInputs wid ->
             apiError err500 UnexpectedError $ mconcat
                 [ "I was unable to assign inputs while generating a coin "
                 , "selection for the specified wallet: "
                 , toText wid
                 ]
-        ErrSelectCoinsUnableToAssignOutputs wid ->
+        ErrSelectCoinsExternalUnableToAssignOutputs wid ->
             apiError err500 UnexpectedError $ mconcat
                 [ "I was unable to assign outputs while generating a coin "
                 , "selection for the specified wallet: "

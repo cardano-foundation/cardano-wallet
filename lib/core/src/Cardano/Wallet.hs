@@ -80,13 +80,14 @@ module Cardano.Wallet
     , ErrFetchRewards (..)
 
     -- ** Address
-    , assignChangeAddressesAndCheckpoint
     , listAddresses
 
     -- ** Payment
+    , selectCoinsExternal
     , selectCoinsForPayment
     , estimatePaymentFee
     , signPayment
+    , ErrSelectCoinsExternal (..)
     , ErrSelectForPayment (..)
     , ErrEstimatePaymentFee (..)
     , ErrSignPayment (..)
@@ -986,42 +987,56 @@ signPayment ctx wid argGenChange pwd (CoinSelection ins outs chgs) = db & \DBLay
     db = ctx ^. dbLayer @s @k
     tl = ctx ^. transactionLayer @t @k
 
--- | Augments the given set of outputs with additional outputs for each of the
---   given change outputs.
---
--- This function associates each change value with a target address belonging
--- to the given wallet, updates the wallet state to keep track of pending
--- change addresses, and writes a database checkpoint to record the updated
--- state.
---
--- See 'assignChangeAddresses'.
---
-assignChangeAddressesAndCheckpoint
-    :: forall ctx s k.
+-- | Makes a fully-resolved coin selection for the given set of payments.
+selectCoinsExternal
+    :: forall ctx s t k e.
         ( GenChange s
         , HasDBLayer s k ctx
+        , HasLogger ctx
+        , HasTransactionLayer t k ctx
         , IsOwned s k
         , NFData s
         , Show s
+        , e ~ ErrValidateSelection t
         )
     => ctx
     -> WalletId
     -> ArgGenChange s
-    -> [TxOut]
-    -> [Coin]
-    -> ExceptT ErrNoSuchWallet IO [TxOut]
-assignChangeAddressesAndCheckpoint ctx wid argGenChange outputs change =
-    db & \DBLayer{..} ->
-        mapExceptT atomically $ do
-            cp <- withNoSuchWallet wid
-                $ readCheckpoint
-                $ PrimaryKey wid
-            (allOuts, s') <- assignChangeAddresses
-                argGenChange outputs change (getState cp)
-            putCheckpoint (PrimaryKey wid) (updateState s' cp)
-            pure allOuts
+    -> NonEmpty TxOut
+    -> ExceptT (ErrSelectCoinsExternal e) IO
+        ( NonEmpty (TxIn, TxOut)
+        , NonEmpty TxOut
+        )
+selectCoinsExternal ctx wid argGenChange payments = do
+    CoinSelection mInputs mPayments mChange <-
+        withExceptT ErrSelectCoinsExternalUnableToMakeSelection $
+            selectCoinsForPayment @ctx @s @t @k @e ctx wid payments
+    mOutputs <- db & \DBLayer{..} ->
+        withExceptT ErrSelectCoinsExternalNoSuchWallet $
+            mapExceptT atomically $ do
+                cp <- withNoSuchWallet wid $ readCheckpoint $ PrimaryKey wid
+                (mOutputs, s') <- assignChangeAddresses
+                    argGenChange mPayments mChange $ getState cp
+                putCheckpoint (PrimaryKey wid) (updateState s' cp)
+                pure mOutputs
+    (,) <$> ensureNonEmpty mInputs  ErrSelectCoinsExternalUnableToAssignInputs
+        <*> ensureNonEmpty mOutputs ErrSelectCoinsExternalUnableToAssignOutputs
   where
     db = ctx ^. dbLayer @s @k
+    ensureNonEmpty
+        :: forall a. [a]
+        -> (WalletId -> ErrSelectCoinsExternal e)
+        -> ExceptT (ErrSelectCoinsExternal e) IO (NonEmpty a)
+    ensureNonEmpty mxs err = case NE.nonEmpty mxs of
+        Nothing -> throwE $ err wid
+        Just xs -> pure xs
+
+data ErrSelectCoinsExternal e
+    = ErrSelectCoinsExternalNoSuchWallet ErrNoSuchWallet
+    | ErrSelectCoinsExternalUnableToMakeSelection (ErrSelectForPayment e)
+    | ErrSelectCoinsExternalUnableToAssignInputs WalletId
+    | ErrSelectCoinsExternalUnableToAssignOutputs WalletId
+    deriving (Eq, Show)
 
 signDelegation
     :: forall ctx s t k.
