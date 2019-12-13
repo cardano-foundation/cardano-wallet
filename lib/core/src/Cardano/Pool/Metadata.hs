@@ -21,6 +21,7 @@ module Cardano.Pool.Metadata
 
       -- * Fetching metadata
     , MetadataConfig (..)
+    , cacheArchive
     , getMetadataConfig
     , getStakePoolMetadata
     , envVarMetadataRegistry
@@ -83,7 +84,7 @@ import Network.HTTP.Client
 import Network.HTTP.Simple
     ( httpSink )
 import System.Directory
-    ( getModificationTime )
+    ( createDirectoryIfMissing, getModificationTime )
 import System.Environment
     ( lookupEnv )
 import System.FilePath
@@ -172,14 +173,20 @@ defaultRecordTypeOptions = Aeson.defaultOptions
 
 -- | Configuration parameters used by 'getStakePoolMetadata'.
 data MetadataConfig = MetadataConfig
-    { cacheArchive :: FilePath
-    -- ^ Filename of zip archive.
+    { cacheDirectory :: FilePath
+    -- ^ Directory where the cache is stored
+    , cacheName :: String
+    -- ^ Name of zip archive.
     , cacheTTL :: NominalDiffTime
     -- ^ A constant for the maximum age of cached registry file before it's
     -- considered to be stale.
     , registryURL :: String
     -- ^ URL to use to download registry
     } deriving (Show, Eq)
+
+-- | Filepath to the zip archive
+cacheArchive :: MetadataConfig -> FilePath
+cacheArchive cfg = cacheDirectory cfg </> cacheName cfg
 
 -- | Associate a list of stake pool IDs with their
 -- metadata (if present), which is downloaded from the given URL.
@@ -228,8 +235,9 @@ fetchStakePoolMetaZipCached tr cfg = checkCached >>= \case
     Just mtime -> do
         logTrace tr (MsgUsingCached (cacheArchive cfg) mtime)
         pure $ Right (cacheArchive cfg)
-    Nothing ->
-       fetchStakePoolMetaZip tr (registryURL cfg) (cacheArchive cfg)
+    Nothing -> do
+        createDirectoryIfMissing True (cacheDirectory cfg)
+        fetchStakePoolMetaZip tr (registryURL cfg) (cacheArchive cfg)
   where
     checkCached = try (getModificationTime (cacheArchive cfg)) >>= \case
         Right mtime -> do
@@ -325,7 +333,8 @@ getMetadataConfig
 getMetadataConfig metadataDir = do
     env <- lookupEnv envVarMetadataRegistry
     pure $ MetadataConfig
-        { cacheArchive = metadataDir </> "registry.zip"
+        { cacheDirectory = metadataDir
+        , cacheName = "registry.zip"
         , cacheTTL = 3600 -- seconds, per the Num instance
         , registryURL = fromMaybe cardanoFoundationRegistryZip env
         }
