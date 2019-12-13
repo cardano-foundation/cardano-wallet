@@ -60,6 +60,8 @@ module Test.Integration.Framework.DSL
     , balanceTotal
     , balanceReward
     , blocks
+    , coinSelectionInputs
+    , coinSelectionOutputs
     , delegation
     , direction
     , feeEstimator
@@ -167,6 +169,7 @@ import Cardano.Wallet.Api.Types
     , ApiByronWallet
     , ApiByronWalletBalance
     , ApiCoinSelection
+    , ApiCoinSelectionInput
     , ApiEpochInfo
     , ApiFee
     , ApiNetworkInformation
@@ -836,6 +839,32 @@ outputs =
     _get :: s -> [a]
     _get = NE.toList . view typed
     _set :: (s, [a]) -> s
+    _set (s, v) = set typed (NE.fromList v) s
+
+coinSelectionInputs
+    :: forall s n a.
+        ( s ~ ApiCoinSelection n
+        , a ~ ApiCoinSelectionInput n
+        , HasType (NonEmpty a) s
+        )
+    => Lens' s [a]
+coinSelectionInputs =
+    lens _get _set
+  where
+    _get = NE.toList . view typed
+    _set (s, v) = set typed (NE.fromList v) s
+
+coinSelectionOutputs
+    :: forall s n a.
+        ( s ~ ApiCoinSelection n
+        , a ~ AddressAmount n
+        , HasType (NonEmpty a) s
+        )
+    => Lens' s [a]
+coinSelectionOutputs =
+    lens _get _set
+  where
+    _get = NE.toList . view typed
     _set (s, v) = set typed (NE.fromList v) s
 
 status :: HasType (ApiT TxStatus) s => Lens' s TxStatus

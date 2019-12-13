@@ -60,6 +60,7 @@ import Cardano.Wallet
     , ErrPostTx (..)
     , ErrQuitStakePool (..)
     , ErrRemovePendingTx (..)
+    , ErrSelectCoinsExternal (..)
     , ErrSelectForDelegation (..)
     , ErrSelectForPayment (..)
     , ErrSignDelegation (..)
@@ -101,6 +102,7 @@ import Cardano.Wallet.Api.Types
     , ApiByronWalletBalance (..)
     , ApiByronWalletMigrationInfo (..)
     , ApiCoinSelection (..)
+    , ApiCoinSelectionInput (..)
     , ApiEpochInfo (..)
     , ApiErrorCode (..)
     , ApiFee (..)
@@ -154,7 +156,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..), defaultAddressPoolGap, mkSeqState )
 import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection, changeBalance, feeBalance, inputBalance )
+    ( CoinSelection (..), changeBalance, feeBalance, inputBalance )
 import Cardano.Wallet.Primitive.Fee
     ( Fee (..) )
 import Cardano.Wallet.Primitive.Model
@@ -178,10 +180,11 @@ import Cardano.Wallet.Primitive.Types
     , SyncTolerance
     , TransactionInfo (TransactionInfo)
     , Tx (..)
-    , TxIn
+    , TxIn (..)
     , TxOut (..)
     , TxStatus (..)
     , UTxOStatistics (..)
+    , UnsignedTx (..)
     , WalletId (..)
     , WalletMetadata (..)
     , WalletName
@@ -277,10 +280,8 @@ import Servant
     , err409
     , err410
     , err500
-    , err501
     , err503
     , serve
-    , throwError
     )
 import Servant.Server
     ( Handler (..), ServantErr (..) )
@@ -612,7 +613,10 @@ getUTxOsStatistics ctx (ApiT wid) = do
 
 coinSelections
     :: forall ctx s t k n.
-        ( s ~ SeqState n k
+        ( Buildable (ErrValidateSelection t)
+        , DelegationAddress n k
+        , k ~ ShelleyKey
+        , s ~ SeqState n k
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -622,14 +626,24 @@ coinSelections =
 
 selectCoins
     :: forall ctx s t k n.
-        ( s ~ SeqState n k
+        ( Buildable (ErrValidateSelection t)
+        , DelegationAddress n k
+        , k ~ ShelleyKey
+        , s ~ SeqState n k
         , ctx ~ ApiLayer s t k
         )
     => ctx
     -> ApiT WalletId
     -> ApiSelectCoinsData n
     -> Handler (ApiCoinSelection n)
-selectCoins _ctx (ApiT _wid) _selectCoinsData = throwError err501
+selectCoins ctx (ApiT wid) body =
+    fmap mkApiCoinSelection
+        $ liftHandler
+        $ withWorkerCtx ctx wid liftE
+        $ \wrk -> W.selectCoinsExternal @_ @s @t @k wrk wid ()
+        $ coerceCoin <$> body ^. #payments
+  where
+    liftE = throwE . ErrSelectCoinsExternalNoSuchWallet
 
 {-------------------------------------------------------------------------------
                                     Addresses
@@ -1202,6 +1216,26 @@ createWallet ctx wid a0 a1 =
     re = ctx ^. workerRegistry @s @k
     df = ctx ^. dbFactory @s @k
 
+-- | Makes an 'ApiCoinSelection' from the given 'UnsignedTx'.
+mkApiCoinSelection :: forall n. UnsignedTx -> ApiCoinSelection n
+mkApiCoinSelection (UnsignedTx inputs outputs) =
+    ApiCoinSelection
+        (mkApiCoinSelectionInput <$> inputs)
+        (mkAddressAmount <$> outputs)
+  where
+    mkAddressAmount :: TxOut -> AddressAmount n
+    mkAddressAmount (TxOut addr (Coin c)) =
+        AddressAmount (ApiT addr, Proxy @n) (Quantity $ fromIntegral c)
+
+    mkApiCoinSelectionInput :: (TxIn, TxOut) -> ApiCoinSelectionInput n
+    mkApiCoinSelectionInput (TxIn txid index, TxOut addr (Coin c)) =
+        ApiCoinSelectionInput
+            { id = ApiT txid
+            , index = index
+            , address = (ApiT addr, Proxy @n)
+            , amount = Quantity $ fromIntegral c
+            }
+
 mkApiTransaction
     :: forall n.
        Hash "Tx"
@@ -1494,6 +1528,25 @@ instance LiftHandler ErrWithRootKey where
             apiError err403 WrongEncryptionPassphrase $ mconcat
                 [ "The given encryption passphrase doesn't match the one I use "
                 , "to encrypt the root private key of the given wallet: "
+                , toText wid
+                ]
+
+instance Buildable e => LiftHandler (ErrSelectCoinsExternal e) where
+    handler = \case
+        ErrSelectCoinsExternalNoSuchWallet e ->
+            handler e
+        ErrSelectCoinsExternalUnableToMakeSelection e ->
+            handler e
+        ErrSelectCoinsExternalUnableToAssignInputs wid ->
+            apiError err500 UnexpectedError $ mconcat
+                [ "I was unable to assign inputs while generating a coin "
+                , "selection for the specified wallet: "
+                , toText wid
+                ]
+        ErrSelectCoinsExternalUnableToAssignOutputs wid ->
+            apiError err500 UnexpectedError $ mconcat
+                [ "I was unable to assign outputs while generating a coin "
+                , "selection for the specified wallet: "
                 , toText wid
                 ]
 

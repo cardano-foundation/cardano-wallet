@@ -83,9 +83,11 @@ module Cardano.Wallet
     , listAddresses
 
     -- ** Payment
+    , selectCoinsExternal
     , selectCoinsForPayment
     , estimatePaymentFee
     , signPayment
+    , ErrSelectCoinsExternal (..)
     , ErrSelectForPayment (..)
     , ErrEstimatePaymentFee (..)
     , ErrSignPayment (..)
@@ -222,6 +224,7 @@ import Cardano.Wallet.Primitive.Types
     , TxOut (..)
     , TxStatus (..)
     , UTxOStatistics
+    , UnsignedTx (..)
     , WalletDelegation (..)
     , WalletId (..)
     , WalletMetadata (..)
@@ -984,6 +987,55 @@ signPayment ctx wid argGenChange pwd (CoinSelection ins outs chgs) = db & \DBLay
   where
     db = ctx ^. dbLayer @s @k
     tl = ctx ^. transactionLayer @t @k
+
+-- | Makes a fully-resolved coin selection for the given set of payments.
+selectCoinsExternal
+    :: forall ctx s t k e.
+        ( GenChange s
+        , HasDBLayer s k ctx
+        , HasLogger ctx
+        , HasTransactionLayer t k ctx
+        , IsOwned s k
+        , NFData s
+        , Show s
+        , e ~ ErrValidateSelection t
+        )
+    => ctx
+    -> WalletId
+    -> ArgGenChange s
+    -> NonEmpty TxOut
+    -> ExceptT (ErrSelectCoinsExternal e) IO UnsignedTx
+selectCoinsExternal ctx wid argGenChange payments = do
+    CoinSelection mInputs mPayments mChange <-
+        withExceptT ErrSelectCoinsExternalUnableToMakeSelection $
+            selectCoinsForPayment @ctx @s @t @k @e ctx wid payments
+    mOutputs <- db & \DBLayer{..} ->
+        withExceptT ErrSelectCoinsExternalNoSuchWallet $
+            mapExceptT atomically $ do
+                cp <- withNoSuchWallet wid $ readCheckpoint $ PrimaryKey wid
+                (mOutputs, s') <- assignChangeAddresses
+                    argGenChange mPayments mChange $ getState cp
+                putCheckpoint (PrimaryKey wid) (updateState s' cp)
+                pure mOutputs
+    UnsignedTx
+        <$> ensureNonEmpty mInputs  ErrSelectCoinsExternalUnableToAssignInputs
+        <*> ensureNonEmpty mOutputs ErrSelectCoinsExternalUnableToAssignOutputs
+  where
+    db = ctx ^. dbLayer @s @k
+    ensureNonEmpty
+        :: forall a. [a]
+        -> (WalletId -> ErrSelectCoinsExternal e)
+        -> ExceptT (ErrSelectCoinsExternal e) IO (NonEmpty a)
+    ensureNonEmpty mxs err = case NE.nonEmpty mxs of
+        Nothing -> throwE $ err wid
+        Just xs -> pure xs
+
+data ErrSelectCoinsExternal e
+    = ErrSelectCoinsExternalNoSuchWallet ErrNoSuchWallet
+    | ErrSelectCoinsExternalUnableToMakeSelection (ErrSelectForPayment e)
+    | ErrSelectCoinsExternalUnableToAssignInputs WalletId
+    | ErrSelectCoinsExternalUnableToAssignOutputs WalletId
+    deriving (Eq, Show)
 
 signDelegation
     :: forall ctx s t k.
