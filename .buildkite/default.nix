@@ -7,7 +7,7 @@ with pkgs;
 
 let
   buildTools = [
-    gnused coreutils git nix gnumake gnutar gzip lz4
+    gnused gnugrep coreutils git nix gnumake gnutar gzip lz4
     stack walletPackages.iohkLib.stack-hpc-coveralls
     haskellPackages.weeder
   ];
