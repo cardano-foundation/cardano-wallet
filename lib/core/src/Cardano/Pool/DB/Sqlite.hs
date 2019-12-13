@@ -42,7 +42,12 @@ import Cardano.Wallet.DB.Sqlite.Types
 import Cardano.Wallet.Logging
     ( transformTextTrace )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), EpochNo (..), PoolId, SlotId (..) )
+    ( BlockHeader (..)
+    , EpochNo (..)
+    , PoolId
+    , PoolRegistrationCertificate (..)
+    , SlotId (..)
+    )
 import Control.Exception
     ( bracket )
 import Control.Monad.IO.Class
@@ -66,7 +71,6 @@ import Database.Persist.Sql
     , deleteWhere
     , insertMany_
     , insert_
-    , repsert
     , selectFirst
     , selectList
     , (<.)
@@ -164,20 +168,40 @@ newDBLayer logConfig trace fp = do
                 [ StakeDistributionEpoch ==. fromIntegral epoch ]
                 []
 
-        , putStakePoolOwner = \poolId poolOwner ->
-            repsert
-                (PoolOwnerKey poolId poolOwner)
-                (PoolOwner poolId poolOwner)
+        , putPoolRegistration = \(EpochNo ep) PoolRegistrationCertificate
+            { poolId
+            , poolOwners
+            , poolMargin
+            , poolCost
+            } -> do
+            let ep_ = fromIntegral ep
+            let poolMargin_ = fromIntegral $ fromEnum poolMargin
+            let poolCost_ = getQuantity poolCost
+            insert_ $ PoolRegistration poolId ep_ poolMargin_ poolCost_
+            insertMany_ $ PoolOwner poolId <$> poolOwners
 
-        , readStakePoolOwners = \poolId ->
-            fmap (poolOwnerOwner . entityVal) <$> selectList
-                [ PoolOwnerPoolId ==. poolId ]
-                [ Asc PoolOwnerOwner ]
+        , readPoolRegistration = \poolId -> do
+            selectFirst [ PoolRegistrationPoolId ==. poolId ] [] >>= \case
+                Nothing -> pure Nothing
+                Just meta -> do
+                    let (PoolRegistration _ _ poolMargin_ poolCost_) = entityVal meta
+                    let poolMargin = toEnum $ fromIntegral poolMargin_
+                    let poolCost = Quantity poolCost_
+                    poolOwners <- fmap (poolOwnerOwner . entityVal) <$> selectList
+                        [ PoolOwnerPoolId ==. poolId ]
+                        [ Asc PoolOwnerOwner ]
+                    pure $ Just $ PoolRegistrationCertificate
+                        { poolId, poolOwners, poolMargin, poolCost }
+
+        , listRegisteredPools = do
+            fmap (poolRegistrationPoolId . entityVal) <$> selectList [ ]
+                [ Desc PoolRegistrationEpoch ]
 
         , rollbackTo = \point -> do
             let (EpochNo epoch) = epochNumber point
             deleteWhere [ PoolProductionSlot >. point ]
             deleteWhere [ StakeDistributionEpoch >. fromIntegral epoch ]
+            deleteWhere [ PoolRegistrationEpoch >. fromIntegral epoch ]
 
         , readPoolProductionCursor = \k -> do
             reverse . map (snd . fromPoolProduction . entityVal) <$> selectList
@@ -197,6 +221,8 @@ newDBLayer logConfig trace fp = do
         , cleanDB = do
             deleteWhere ([] :: [Filter PoolProduction])
             deleteWhere ([] :: [Filter PoolOwner])
+            deleteWhere ([] :: [Filter PoolRegistration])
+            deleteWhere ([] :: [Filter StakeDistribution])
 
         , atomically = runQuery
         })

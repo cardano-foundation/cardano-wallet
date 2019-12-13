@@ -161,7 +161,7 @@ import Data.Maybe
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Percentage, Quantity (..) )
 import Data.Text
     ( Text, split )
 import Data.Text.Class
@@ -244,6 +244,8 @@ data ApiStakePool = ApiStakePool
     , metrics :: !ApiStakePoolMetrics
     , apparentPerformance :: !Double
     , metadata :: !(Maybe StakePoolMetadata)
+    , cost :: !(Quantity "lovelace" Natural)
+    , margin :: !(Quantity "percent" Percentage)
     } deriving (Eq, Generic, Show)
 
 data ApiStakePoolMetrics = ApiStakePoolMetrics

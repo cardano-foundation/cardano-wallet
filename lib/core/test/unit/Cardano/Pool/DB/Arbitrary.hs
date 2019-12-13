@@ -7,7 +7,6 @@
 
 module Cardano.Pool.DB.Arbitrary
     ( StakePoolsFixture (..)
-    , StakePoolOwnersFixture (..)
     ) where
 
 import Prelude
@@ -21,6 +20,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , PoolId (..)
     , PoolOwner (..)
+    , PoolRegistrationCertificate (..)
     , SlotId (..)
     , SlotNo (..)
     , SlotParameters (..)
@@ -48,6 +48,7 @@ import Test.QuickCheck
     , choose
     , elements
     , listOf
+    , scale
     , shrinkIntegral
     , shrinkList
     , shuffle
@@ -64,11 +65,6 @@ import qualified Data.List as L
 data StakePoolsFixture = StakePoolsFixture
     { poolSlots :: [(PoolId, BlockHeader)]
     , rollbackSlots :: [SlotId] }
-    deriving stock (Eq, Show)
-
-data StakePoolOwnersFixture = StakePoolOwnersFixture
-    { fixturePoolId :: PoolId
-    , fixturePoolOwners :: [(PoolId, PoolOwner)] }
     deriving stock (Eq, Show)
 
 {-------------------------------------------------------------------------------
@@ -102,18 +98,27 @@ arbitraryEpochLength = 100
 arbitraryChainLength :: Word32
 arbitraryChainLength = 10
 
+-- NOTE Expected to have a high entropy
 instance Arbitrary PoolId where
     arbitrary = do
-        bytes <- vectorOf 32 (elements ['a'..'z'])
+        bytes <- vectorOf 32 arbitrary
         return $ PoolId $ B8.pack bytes
 
-instance Arbitrary StakePoolOwnersFixture where
-    arbitrary = StakePoolOwnersFixture <$> fmap PoolId genBytes <*> listOf entry
-      where
-        entry = (,) <$> fmap PoolId genBytes <*> fmap PoolOwner genBytes
-        genBytes = B8.replicate 32 <$> elements ['a'..'e']
-    shrink (StakePoolOwnersFixture p xs) =
-        StakePoolOwnersFixture p <$> shrinkList (const []) xs
+-- NOTE Excepted to have a reasonnably small entropy
+instance Arbitrary PoolOwner where
+    arbitrary = do
+        byte <- elements ['0'..'8']
+        return $ PoolOwner $ B8.pack (replicate 32 byte)
+
+instance Arbitrary PoolRegistrationCertificate where
+    shrink (PoolRegistrationCertificate p xs m c) =
+        (\xs' -> PoolRegistrationCertificate p xs' m c)
+            <$> shrinkList (const []) xs
+    arbitrary = PoolRegistrationCertificate
+        <$> arbitrary
+        <*> fmap L.nub (scale (`mod` 8) (listOf arbitrary))
+        <*> fmap toEnum (choose (0, 100))
+        <*> fmap Quantity arbitrary
 
 instance Arbitrary StakePoolsFixture where
     arbitrary = do

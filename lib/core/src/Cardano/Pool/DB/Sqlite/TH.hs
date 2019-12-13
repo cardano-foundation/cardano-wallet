@@ -23,7 +23,7 @@ import Prelude
 import Cardano.Wallet.DB.Sqlite.Types
     ( sqlSettings' )
 import Data.Word
-    ( Word32, Word64 )
+    ( Word32, Word64, Word8 )
 import Database.Persist.Class
     ( AtLeastOneUniqueKey (..), OnlyOneUniqueKey (..) )
 import Database.Persist.TH
@@ -75,5 +75,16 @@ PoolOwner sql=pool_owner
     poolOwnerOwner      W.PoolOwner  sql=pool_owner
 
     Primary poolOwnerPoolId poolOwnerOwner
+    Foreign PoolRegistration fk_registration_pool_id poolOwnerPoolId ! ON DELETE CASCADE
+    deriving Show Generic
+
+-- Mapping of registration certificate to pool
+PoolRegistration sql=pool_registration
+    poolRegistrationPoolId  W.PoolId  sql=pool_id
+    poolRegistrationEpoch   Word64    sql=epoch
+    poolRegistrationMargin  Word8     sql=margin
+    poolRegistrationCost    Word64    sql=cost
+
+    Primary poolRegistrationPoolId
     deriving Show Generic
 |]

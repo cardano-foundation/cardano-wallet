@@ -223,7 +223,7 @@ import Data.Function
 import Data.Functor
     ( ($>), (<&>) )
 import Data.Generics.Internal.VL.Lens
-    ( Lens', view, (.~), (^.) )
+    ( Lens', (.~), (^.) )
 import Data.Generics.Labels
     ()
 import Data.List
@@ -847,13 +847,16 @@ listPools spl =
         :: StakePool
         -> Maybe StakePoolMetadata
         -> ApiStakePool
-    mkApiStakePool StakePool{poolId,stake,production,apparentPerformance} =
+    mkApiStakePool sp meta =
         ApiStakePool
-            (ApiT poolId)
+            (ApiT $ poolId sp)
             (ApiStakePoolMetrics
-                (Quantity $ fromIntegral $ getQuantity stake)
-                (Quantity $ fromIntegral $ getQuantity production))
-            apparentPerformance
+                (Quantity $ fromIntegral $ getQuantity $ stake sp)
+                (Quantity $ fromIntegral $ getQuantity $ production sp))
+            (sp ^. #apparentPerformance)
+            meta
+            (fromIntegral <$> sp ^. #cost)
+            (Quantity $ sp ^. #margin)
 
 joinStakePool
     :: forall ctx s t n k.
@@ -871,7 +874,7 @@ joinStakePool
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
 joinStakePool ctx spl (ApiT pid) (ApiT wid) (ApiWalletPassphrase (ApiT pwd)) = do
-    pools <- fmap (getApiT . view #id) <$> listPools spl
+    pools <- liftIO $ knownStakePools spl
 
     (tx, txMeta, txTime) <- liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
         W.joinStakePool @_ @s @t @k wrk wid (pid, pools) () pwd

@@ -79,6 +79,8 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SlotNo (unSlotNo)
     )
+import Control.Arrow
+    ( first )
 import Control.Monad
     ( forM, forM_, when )
 import Control.Monad.IO.Class
@@ -141,6 +143,8 @@ data StakePool = StakePool
     , stake :: Quantity "lovelace" Word64
     , production :: Quantity "block" Word64
     , apparentPerformance :: Double
+    , cost :: Quantity "lovelace" Word64
+    , margin :: Percentage
     } deriving (Show, Generic)
 
 --------------------------------------------------------------------------------
@@ -171,12 +175,14 @@ monitorStakePools tr nl DBLayer{..} = do
     initCursor :: IO [BlockHeader]
     initCursor = do
         let (block0, bp) = staticBlockchainParameters nl
+        let ep0 = block0 ^. #header . #slotId . #epochNumber
         let k = fromIntegral . getQuantity . view #getEpochStability $ bp
         atomically $ do
-            mapM_ (uncurry putStakePoolOwner) $ concat
-                [ [ (reg ^. #poolId, owner) | owner <- reg ^. #poolOwners ]
-                | reg <- poolRegistrations block0
-                ]
+            forM_ (poolRegistrations block0)
+                $ \r@PoolRegistrationCertificate{poolId} -> do
+                readPoolRegistration poolId >>= \case
+                    Nothing -> putPoolRegistration ep0 r
+                    Just{}  -> pure ()
             readPoolProductionCursor k
 
     backward
@@ -206,14 +212,10 @@ monitorStakePools tr nl DBLayer{..} = do
 
         mapExceptT atomically $ do
             lift $ putStakeDistribution ep (Map.toList dist)
+            lift $ mapM_ (putPoolRegistration ep) registrations
             forM_ blocks $ \b ->
                 withExceptT ErrMonitorStakePoolsPoolAlreadyExists $
                     putPoolProduction (header b) (producer b)
-
-            lift $ mapM_ (uncurry putStakePoolOwner) $ concat
-                [ [ (reg ^. #poolId, owner) | owner <- reg ^. #poolOwners ]
-                | reg <- registrations ]
-
       where
         handler action = runExceptT action >>= \case
             Left ErrMonitorStakePoolsNetworkUnavailable{} -> do
@@ -244,10 +246,16 @@ data ErrMonitorStakePools
 
 -- | @StakePoolLayer@ is a thin layer ontop of the DB. It is /one/ value that
 -- can easily be passed to the API-server, where it can be used in a simple way.
-newtype StakePoolLayer m = StakePoolLayer
-      { listStakePools
-          :: ExceptT ErrListStakePools m [(StakePool, Maybe StakePoolMetadata)]
-      }
+data StakePoolLayer m = StakePoolLayer
+    { listStakePools
+        :: ExceptT ErrListStakePools m [(StakePool, Maybe StakePoolMetadata)]
+
+    , knownStakePools
+        :: m [PoolId]
+        -- ^ Get a list of known pools that doesn't require fetching things from
+        -- Jörmungandr or any registry. This list comes from the registration
+        -- certificates that have been seen on chain.
+    }
 
 data ErrListStakePools
      = ErrMetricsIsUnsynced (Quantity "percent" Percentage)
@@ -267,11 +275,13 @@ newStakePoolLayer tr db@DBLayer{..} nl metadataDir = StakePoolLayer
     { listStakePools = do
         lift $ logTrace tr MsgListStakePoolsBegin
         stakePools <- sortKnownPools
-        meta <- lift $ findMetadata (map (^. #poolId) stakePools)
-        pure $ zip stakePools meta
+        meta <- lift $ findMetadata (map (first (^. #poolId)) stakePools)
+        pure $ zip (map fst stakePools) meta
+    , knownStakePools =
+        atomically listRegisteredPools
     }
   where
-    sortKnownPools :: ExceptT ErrListStakePools IO [StakePool]
+    sortKnownPools :: ExceptT ErrListStakePools IO [(StakePool, [PoolOwner])]
     sortKnownPools = do
         nodeTip <- withExceptT ErrListStakePoolsErrNetworkTip
             $ networkTip nl
@@ -303,10 +313,10 @@ newStakePoolLayer tr db@DBLayer{..} nl metadataDir = StakePoolLayer
 
     -- For each pool, look up its metadata. If metadata could not be found for a
     -- pool, the result will be 'Nothing'.
-    findMetadata :: [PoolId] -> IO [Maybe StakePoolMetadata]
-    findMetadata poolIds = do
-        owners <- atomically $ mapM readStakePoolOwners poolIds
+    findMetadata :: [(PoolId, [PoolOwner])] -> IO [Maybe StakePoolMetadata]
+    findMetadata pools = do
         -- note: this will become simpler once we cache metadata in the database
+        let (poolIds, owners) = unzip pools
         let owners' = nub $ concat owners
         cfg <- getMetadataConfig metadataDir
         let tr' = contramap (fmap MsgRegistry) tr
@@ -315,9 +325,7 @@ newStakePoolLayer tr db@DBLayer{..} nl metadataDir = StakePoolLayer
                 logTrace tr MsgMetadataUnavailable
                 pure $ replicate (length poolIds) Nothing
             Right metas -> do
-                let res = associateMetadata
-                        (zip poolIds owners)
-                        (zip owners' metas)
+                let res = associateMetadata pools (zip owners' metas)
                 mapM_ (logTrace tr . fst) res
                 pure $ map snd res
 
@@ -325,35 +333,39 @@ newStakePoolLayer tr db@DBLayer{..} nl metadataDir = StakePoolLayer
     epochLength = bp ^. #getEpochLength
 
     combineWith
-        :: ([StakePool] -> IO [StakePool])
+        :: ([(StakePool, [PoolOwner])] -> IO [(StakePool, [PoolOwner])])
         -> Map PoolId (Quantity "lovelace" Word64)
         -> Map PoolId (Quantity "block" Word64)
         -> Map PoolId Double
-        -> ExceptT ErrListStakePools IO [StakePool]
-    combineWith sortResults distr prod perfs =
+        -> ExceptT ErrListStakePools IO [(StakePool, [PoolOwner])]
+    combineWith sortResults distr prod perfs = do
         case combineMetrics distr prod perfs of
-            Right x -> lift
-                $ sortResults
-                $ map (uncurry mkStakePool)
-                $ Map.toList x
             Left e ->
                 throwE $ ErrListStakePoolsMetricsInconsistency e
+            Right ps -> lift $ do
+                pools <- atomically $ Map.traverseMaybeWithKey mergeRegistration ps
+                sortResults $ Map.elems pools
+      where
+        mergeRegistration poolId (stake, production, apparentPerformance) =
+            fmap mkStakePool <$> readPoolRegistration poolId
+          where
+            mkStakePool PoolRegistrationCertificate{poolCost,poolMargin,poolOwners} =
+                ( StakePool
+                    { poolId
+                    , stake
+                    , production
+                    , apparentPerformance
+                    , cost = poolCost
+                    , margin = poolMargin
+                    }
+                , poolOwners
+                )
 
-    sortByPerformance :: [StakePool] -> [StakePool]
-    sortByPerformance = sortOn (Down . apparentPerformance)
+    sortByPerformance :: [(StakePool, a)] -> [(StakePool, a)]
+    sortByPerformance = sortOn (Down . apparentPerformance . fst)
 
-    sortArbitrarily :: StdGen -> [StakePool] -> IO [StakePool]
+    sortArbitrarily :: StdGen -> [a] -> IO [a]
     sortArbitrarily = shuffleWith
-
-    mkStakePool
-        :: PoolId
-        -> ( Quantity "lovelace" Word64
-           , Quantity "block" Word64
-           , Double
-           )
-        -> StakePool
-    mkStakePool poolId (stake, production, apparentPerformance) =
-        StakePool{poolId,stake,production,apparentPerformance}
 
     computeProgress
         :: BlockHeader -- ^ ... / denominator
