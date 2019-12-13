@@ -175,9 +175,10 @@ monitorStakePools tr nl DBLayer{..} = do
     initCursor :: IO [BlockHeader]
     initCursor = do
         let (block0, bp) = staticBlockchainParameters nl
+        let ep0 = block0 ^. #header . #slotId . #epochNumber
         let k = fromIntegral . getQuantity . view #getEpochStability $ bp
         atomically $ do
-            mapM_ putPoolRegistration (poolRegistrations block0)
+            mapM_ (putPoolRegistration ep0) (poolRegistrations block0)
             readPoolProductionCursor k
 
     backward
@@ -207,7 +208,7 @@ monitorStakePools tr nl DBLayer{..} = do
 
         mapExceptT atomically $ do
             lift $ putStakeDistribution ep (Map.toList dist)
-            lift $ mapM_ putPoolRegistration registrations
+            lift $ mapM_ (putPoolRegistration ep) registrations
             forM_ blocks $ \b ->
                 withExceptT ErrMonitorStakePoolsPoolAlreadyExists $
                     putPoolProduction (header b) (producer b)

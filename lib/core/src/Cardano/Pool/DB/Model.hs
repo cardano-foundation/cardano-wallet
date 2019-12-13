@@ -55,6 +55,8 @@ import Cardano.Wallet.Primitive.Types
     , PoolRegistrationCertificate (..)
     , SlotId (..)
     )
+import Control.Applicative
+    ( (<|>) )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -92,7 +94,7 @@ data PoolDatabase = PoolDatabase
     , owners :: !(Set (PoolId, PoolOwner))
     -- ^ Mapping between pool ids and owners
 
-    , metadata :: !(Map PoolId (Percentage, Quantity "lovelace" Word64))
+    , metadata :: !(Map EpochNo (PoolId, Percentage, Quantity "lovelace" Word64))
     -- ^ On-chain metadata associated with pools
 
     , seed :: !SystemSeed
@@ -166,11 +168,11 @@ mReadStakeDistribution epoch db@PoolDatabase{distributions} =
     , db
     )
 
-mPutPoolRegistration :: PoolRegistrationCertificate -> ModelPoolOp ()
-mPutPoolRegistration registration db@PoolDatabase{owners,metadata} =
+mPutPoolRegistration :: EpochNo -> PoolRegistrationCertificate -> ModelPoolOp ()
+mPutPoolRegistration ep registration db@PoolDatabase{owners,metadata} =
     ( Right ()
     , db { owners = Set.union entries owners
-         , metadata = Map.insert poolId (poolMargin, poolCost) metadata
+         , metadata = Map.insert ep (poolId, poolMargin, poolCost) metadata
          }
     )
   where
@@ -184,7 +186,7 @@ mPutPoolRegistration registration db@PoolDatabase{owners,metadata} =
 
 mReadPoolRegistration :: PoolId -> ModelPoolOp (Maybe PoolRegistrationCertificate)
 mReadPoolRegistration poolId db@PoolDatabase{owners, metadata} =
-    ( Right $ case Map.lookup poolId metadata of
+    ( Right $ case Map.foldr findPool Nothing metadata of
         Nothing -> Nothing
         Just (poolMargin, poolCost) ->
             let poolOwners = L.sortOn toText
@@ -197,6 +199,11 @@ mReadPoolRegistration poolId db@PoolDatabase{owners, metadata} =
                 }
     , db
     )
+  where
+    findPool ::  (PoolId, a, b) -> Maybe (a, b) -> Maybe (a, b)
+    findPool (poolId', poolMargin, poolCost)
+        | poolId' == poolId = (Just (poolMargin, poolCost) <|>)
+        | otherwise = (Nothing <|>)
 
 mReadSystemSeed
     :: PoolDatabase
@@ -219,18 +226,28 @@ mReadCursor k db@PoolDatabase{pools} =
 mRollbackTo :: SlotId -> ModelPoolOp ()
 mRollbackTo point PoolDatabase{pools, distributions, owners, metadata, seed} =
     let
-        updateSlots = Map.map (filter ((<= point) . slotId))
-        updatePools = Map.filter (not . L.null)
-        discardEpoch ep v
-            | ep <= epochNumber point = Just v
-            | otherwise = Nothing
+        metadata' = Map.mapMaybeWithKey discardEpoch metadata
+        knownPools = (\(a, _, _) -> a) <$> Map.elems metadata'
+        owners' = Set.fromList
+            [ (poolId, poolOwner)
+            | (poolId, poolOwner) <- Set.toList owners
+            , poolId `elem` knownPools
+            ]
     in
         ( Right ()
         , PoolDatabase
             { pools = updatePools $ updateSlots pools
             , distributions = Map.mapMaybeWithKey discardEpoch distributions
-            , owners
-            , metadata
+            , owners = owners'
+            , metadata = metadata'
             , seed
             }
         )
+
+  where
+    updateSlots = Map.map (filter ((<= point) . slotId))
+    updatePools = Map.filter (not . L.null)
+    discardEpoch :: EpochNo -> a -> Maybe a
+    discardEpoch ep v
+        | ep <= epochNumber point = Just v
+        | otherwise = Nothing

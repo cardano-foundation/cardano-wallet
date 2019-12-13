@@ -31,8 +31,6 @@ import Control.Arrow
     ( second )
 import Control.Monad
     ( foldM )
-import Data.ByteString
-    ( ByteString )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Ord
@@ -100,21 +98,25 @@ arbitraryEpochLength = 100
 arbitraryChainLength :: Word32
 arbitraryChainLength = 10
 
+-- NOTE Expected to have a high entropy
 instance Arbitrary PoolId where
     arbitrary = do
-        bytes <- vectorOf 32 (elements ['a'..'z'])
+        bytes <- vectorOf 32 arbitrary
         return $ PoolId $ B8.pack bytes
 
-genBytes :: Int -> Gen ByteString
-genBytes n = B8.pack <$> vectorOf n (elements ['a'..'z'])
+-- NOTE Excepted to have a reasonnably small entropy
+instance Arbitrary PoolOwner where
+    arbitrary = do
+        byte <- elements ['0'..'8']
+        return $ PoolOwner $ B8.pack (replicate 32 byte)
 
 instance Arbitrary PoolRegistrationCertificate where
     shrink (PoolRegistrationCertificate p xs m c) =
         (\xs' -> PoolRegistrationCertificate p xs' m c)
             <$> shrinkList (const []) xs
     arbitrary = PoolRegistrationCertificate
-        <$> fmap PoolId (genBytes 32)
-        <*> scale (`mod` 8) (listOf (PoolOwner <$> genBytes 32))
+        <$> arbitrary
+        <*> fmap L.nub (scale (`mod` 8) (listOf arbitrary))
         <*> fmap toEnum (choose (0, 100))
         <*> fmap Quantity arbitrary
 

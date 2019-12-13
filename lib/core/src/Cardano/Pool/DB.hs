@@ -86,10 +86,12 @@ data DBLayer m = forall stm. MonadFail stm => DBLayer
         -- This is useful for the @NetworkLayer@ to know how far we have synced.
 
     , putPoolRegistration
-        :: PoolRegistrationCertificate
+        :: EpochNo
+        -> PoolRegistrationCertificate
         -> stm ()
-        -- ^ Add a mapping between stake pools and their certificate. If the
-        -- mapping already exists, this will be a no-op.
+        -- ^ Add a mapping between stake pools and their corresponding
+        -- certificate. If the mapping already exists, data are replaced with
+        -- the latest version.
 
     , readPoolRegistration
         :: PoolId

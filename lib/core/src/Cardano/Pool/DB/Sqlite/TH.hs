@@ -75,14 +75,16 @@ PoolOwner sql=pool_owner
     poolOwnerOwner      W.PoolOwner  sql=pool_owner
 
     Primary poolOwnerPoolId poolOwnerOwner
+    Foreign PoolRegistration fk_registration_pool_id poolOwnerPoolId ! ON DELETE CASCADE
     deriving Show Generic
 
--- Mapping of metadata to pool
-PoolMetadata sql=pool_metadata
-    poolMetadataPoolId  W.PoolId     sql=pool_id
-    poolMetadataMargin  Word8        sql=margin
-    poolMetadataCost    Word64       sql=cost
+-- Mapping of registration certificate to pool
+PoolRegistration sql=pool_registration
+    poolRegistrationPoolId  W.PoolId  sql=pool_id
+    poolRegistrationEpoch   Word64    sql=epoch
+    poolRegistrationMargin  Word8     sql=margin
+    poolRegistrationCost    Word64    sql=cost
 
-    Primary poolMetadataPoolId
+    Primary poolRegistrationPoolId
     deriving Show Generic
 |]

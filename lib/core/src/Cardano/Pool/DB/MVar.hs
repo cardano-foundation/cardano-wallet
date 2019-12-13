@@ -70,8 +70,8 @@ newDBLayer = do
         , readPoolProductionCursor =
             readPoolDB db . mReadCursor
 
-        , putPoolRegistration =
-            void . alterPoolDB (const Nothing) db . mPutPoolRegistration
+        , putPoolRegistration = \a0 a1 ->
+            void $ alterPoolDB (const Nothing) db $ mPutPoolRegistration a0 a1
 
         , readPoolRegistration =
             readPoolDB db . mReadPoolRegistration

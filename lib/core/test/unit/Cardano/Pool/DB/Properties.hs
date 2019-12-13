@@ -138,6 +138,8 @@ properties = do
             (property . prop_putStakeReadStake)
         it "putPoolRegistration then readPoolRegistration yields expected result"
             (property . prop_poolRegistration)
+        it "rollback of pool Registrations"
+            (property . prop_rollbackRegistration)
         it "readStake . putStake a1 . putStake s0 == pure a1"
             (property . prop_putStakePutStake)
         it "readSystemSeed is idempotent"
@@ -368,18 +370,49 @@ prop_poolRegistration DBLayer {..} entries =
   where
     setup = run $ atomically cleanDB
     expected = L.sort (sortOwners <$> entries)
-    sortOwners registration = registration
-        { poolOwners = L.sortOn toText (poolOwners registration) }
-
     prop = do
-        run . atomically $ mapM_ putPoolRegistration entries
-        res <- run . atomically $ L.sort . catMaybes
+        run . atomically $ mapM_ (putPoolRegistration 0) entries
+        pools <- run . atomically $ L.sort . catMaybes
             <$> mapM (readPoolRegistration . poolId) entries
         monitor $ counterexample $ unlines
-            [ "Read from DB: " <> show res
+            [ "Read from DB: " <> show pools
             , "Expected    : " <> show expected
             ]
-        assert (res == expected)
+        assert (pools == expected)
+
+prop_rollbackRegistration
+    :: DBLayer IO
+    -> SlotId
+    -> [(EpochNo, PoolRegistrationCertificate)]
+    -> Property
+prop_rollbackRegistration DBLayer{..} rollbackPoint entries =
+    monadicIO (setup >> prop)
+  where
+    setup = run $ atomically cleanDB
+
+    beforeRollback pool = do
+        case L.find (on (==) poolId pool . snd) entries of
+            Nothing ->
+                error "unknown pool?"
+            Just (ep, pool') ->
+                (ep <= epochNumber rollbackPoint) &&
+                (sortOwners pool == sortOwners pool')
+
+    ownerHasManyPools =
+        let owners = concatMap (poolOwners . snd) entries
+        in L.length owners > L.length (L.nub owners)
+
+    prop = do
+        run . atomically $ mapM_ (uncurry putPoolRegistration) entries
+        run . atomically $ rollbackTo rollbackPoint
+        pools <- run . atomically $ L.sort . catMaybes
+            <$> mapM (readPoolRegistration . poolId . snd) entries
+        monitor $ classify (length pools < length entries) "rolled back some"
+        monitor $ classify ownerHasManyPools "owner has many pools"
+        monitor $ counterexample $ unlines
+            [ "Read from DB:   " <> show pools
+            ]
+        assert (all beforeRollback pools)
 
 -- | successive readSystemSeed yield the exact same value
 prop_readSystemSeedIdempotent
@@ -419,3 +452,8 @@ allPoolProduction DBLayer{..} (StakePoolsFixture pairs _) = atomically $
   where
     rearrange ms = concat
         [ [ (slotId h, p) | h <- hs ] | (p, hs) <- concatMap Map.assocs ms ]
+
+-- | Sort pool owners in a certificate by id
+sortOwners :: PoolRegistrationCertificate -> PoolRegistrationCertificate
+sortOwners registration = registration
+    { poolOwners = L.sortOn toText (poolOwners registration) }
