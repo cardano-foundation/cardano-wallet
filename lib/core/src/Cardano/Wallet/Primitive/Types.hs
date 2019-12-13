@@ -47,6 +47,7 @@ module Cardano.Wallet.Primitive.Types
     , SealedTx (..)
     , TransactionInfo (..)
     , FeePolicy (..)
+    , UnsignedTx (..)
     , txIns
     , isPending
     , inputs
@@ -735,6 +736,18 @@ instance FromText TxStatus where
 
 instance ToText TxStatus where
     toText = toTextFromBoundedEnum SnakeLowerCase
+
+-- | An unsigned transaction.
+--
+-- See 'Tx' for a signed transaction.
+--
+data UnsignedTx = UnsignedTx
+    { unsignedInputs
+        :: NonEmpty (TxIn, TxOut)
+    , unsignedOutputs
+        :: NonEmpty TxOut
+    }
+    deriving (Eq, Show)
 
 -- | The effect of a @Transaction@ on the wallet balance.
 data Direction

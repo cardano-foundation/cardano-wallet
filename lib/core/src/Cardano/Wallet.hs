@@ -224,6 +224,7 @@ import Cardano.Wallet.Primitive.Types
     , TxOut (..)
     , TxStatus (..)
     , UTxOStatistics
+    , UnsignedTx (..)
     , WalletDelegation (..)
     , WalletId (..)
     , WalletMetadata (..)
@@ -1003,10 +1004,7 @@ selectCoinsExternal
     -> WalletId
     -> ArgGenChange s
     -> NonEmpty TxOut
-    -> ExceptT (ErrSelectCoinsExternal e) IO
-        ( NonEmpty (TxIn, TxOut)
-        , NonEmpty TxOut
-        )
+    -> ExceptT (ErrSelectCoinsExternal e) IO UnsignedTx
 selectCoinsExternal ctx wid argGenChange payments = do
     CoinSelection mInputs mPayments mChange <-
         withExceptT ErrSelectCoinsExternalUnableToMakeSelection $
@@ -1019,7 +1017,8 @@ selectCoinsExternal ctx wid argGenChange payments = do
                     argGenChange mPayments mChange $ getState cp
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
                 pure mOutputs
-    (,) <$> ensureNonEmpty mInputs  ErrSelectCoinsExternalUnableToAssignInputs
+    UnsignedTx
+        <$> ensureNonEmpty mInputs  ErrSelectCoinsExternalUnableToAssignInputs
         <*> ensureNonEmpty mOutputs ErrSelectCoinsExternalUnableToAssignOutputs
   where
     db = ctx ^. dbLayer @s @k

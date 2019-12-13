@@ -184,6 +184,7 @@ import Cardano.Wallet.Primitive.Types
     , TxOut (..)
     , TxStatus (..)
     , UTxOStatistics (..)
+    , UnsignedTx (..)
     , WalletId (..)
     , WalletMetadata (..)
     , WalletName
@@ -303,7 +304,6 @@ import qualified Cardano.Wallet.Registry as Registry
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
-import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -636,12 +636,12 @@ selectCoins
     -> ApiT WalletId
     -> ApiSelectCoinsData n
     -> Handler (ApiCoinSelection n)
-selectCoins ctx (ApiT wid) body = do
-    (inputs, outputs) <- liftHandler
+selectCoins ctx (ApiT wid) body =
+    fmap mkApiCoinSelection
+        $ liftHandler
         $ withWorkerCtx ctx wid liftE
         $ \wrk -> W.selectCoinsExternal @_ @s @t @k wrk wid ()
         $ coerceCoin <$> body ^. #payments
-    pure $ mkApiCoinSelection inputs outputs
   where
     liftE = throwE . ErrSelectCoinsExternalNoSuchWallet
 
@@ -1216,13 +1216,9 @@ createWallet ctx wid a0 a1 =
     re = ctx ^. workerRegistry @s @k
     df = ctx ^. dbFactory @s @k
 
--- | Makes an 'ApiCoinSelection' from the given sets of inputs and outputs.
-mkApiCoinSelection
-    :: forall n.
-       NE.NonEmpty (TxIn, TxOut)
-    -> NE.NonEmpty TxOut
-    -> ApiCoinSelection n
-mkApiCoinSelection inputs outputs =
+-- | Makes an 'ApiCoinSelection' from the given 'UnsignedTx'.
+mkApiCoinSelection :: forall n. UnsignedTx -> ApiCoinSelection n
+mkApiCoinSelection (UnsignedTx inputs outputs) =
     ApiCoinSelection
         (mkApiCoinSelectionInput <$> inputs)
         (mkAddressAmount <$> outputs)
