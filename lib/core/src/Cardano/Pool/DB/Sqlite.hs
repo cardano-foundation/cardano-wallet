@@ -221,6 +221,8 @@ newDBLayer logConfig trace fp = do
         , cleanDB = do
             deleteWhere ([] :: [Filter PoolProduction])
             deleteWhere ([] :: [Filter PoolOwner])
+            deleteWhere ([] :: [Filter PoolRegistration])
+            deleteWhere ([] :: [Filter StakeDistribution])
 
         , atomically = runQuery
         })

@@ -144,6 +144,8 @@ properties = do
             (property . prop_putStakePutStake)
         it "readSystemSeed is idempotent"
             (property . prop_readSystemSeedIdempotent)
+        it "putPoolRegistration . listRegisteredPools yield pools"
+            (property . prop_listRegisteredPools)
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -413,6 +415,22 @@ prop_rollbackRegistration DBLayer{..} rollbackPoint entries =
             [ "Read from DB:   " <> show pools
             ]
         assert (all beforeRollback pools)
+
+prop_listRegisteredPools
+    :: DBLayer IO
+    -> [PoolRegistrationCertificate]
+    -> Property
+prop_listRegisteredPools DBLayer {..} entries =
+    monadicIO (setup >> prop)
+  where
+    setup = run $ atomically cleanDB
+    prop = do
+        run . atomically $ mapM_ (uncurry putPoolRegistration) (zip [0..] entries)
+        pools <- run . atomically $ listRegisteredPools
+        monitor $ counterexample $ unlines
+            [ "Read from DB: " <> show pools
+            ]
+        assert (pools == (poolId <$> reverse entries))
 
 -- | successive readSystemSeed yield the exact same value
 prop_readSystemSeedIdempotent
