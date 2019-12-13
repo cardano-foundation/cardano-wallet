@@ -131,6 +131,20 @@ spec = do
                 , expectListItemFieldSatisfy 2
                     #metadata ((== Just "Genesis Pool") . fmap (view #name))
 
+                , expectListItemFieldSatisfy 0
+                    #cost (== (Quantity 0))
+                , expectListItemFieldSatisfy 1
+                    #cost (== (Quantity 0))
+                , expectListItemFieldSatisfy 2
+                    #cost (== (Quantity 0))
+
+                , expectListItemFieldSatisfy 0
+                    #margin (== (Quantity minBound))
+                , expectListItemFieldSatisfy 1
+                    #margin (== (Quantity minBound))
+                , expectListItemFieldSatisfy 2
+                    #margin (== (Quantity minBound))
+
                 , expectListItemFieldEqual 0
                     (metrics . stake) 1
                 , expectListItemFieldSatisfy 0
