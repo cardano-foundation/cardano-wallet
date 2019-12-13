@@ -127,6 +127,14 @@ x-addressState: &addressState
     - used
     - unused
 
+x-stakePoolId: &stakePoolId
+  type: string
+  format: hex
+  minLength: 64
+  maxLength: 64
+  example: 42bf330e9653fef8a47a5aab2f2e74db8a5b947e
+  description: A unique identifier for the pool.
+
 x-walletId: &walletId
   description: A unique identifier for the wallet
   type: string
@@ -236,7 +244,7 @@ x-walletDelegation: &walletDelegation
         - not_delegating
         - delegating
     target:
-      <<: *addressId
+      <<: *stakePoolId
       description: A unique Stake-Pool identifier (present only if status = `delegating`)
   example:
     status: delegating
@@ -375,12 +383,6 @@ x-transactionStatus: &transactionStatus
     - pending
     - in_ledger
 
-x-stakePoolId: &stakePoolId
-  type: string
-  format: hex
-  example: 42bf330e9653fef8a47a5aab2f2e74db8a5b947e
-  description: A unique identifier for the pool.
-
 x-stakePoolMetrics: &stakePoolMetrics
   type: object
   required:
@@ -429,6 +431,7 @@ x-stakePoolMetadata: &stakePoolMetadata
       type: string
       minLength: 3
       maxLength: 5
+      example: IOHK
     name:
       type: string
       minLength: 1
@@ -439,10 +442,22 @@ x-stakePoolMetadata: &stakePoolMetadata
     homepage:
       type: string
       format: uri
+      example: https://iohk.io
     pledge_address:
       type: string
       format: bech32
       example: addr1sjck9mdmfyhzvjhydcjllgj9vjvl522w0573ncustrrr2rg7h9azg4cyqd36yyd48t5ut72hgld0fg2xfvz82xgwh7wal6g2xt8n996s3xvu5g
+
+x-stakePoolCost: &stakePoolCost
+  <<: *amount
+  description: |
+      Estimated cost set by the pool operator when registering his pool.
+      This fixed cost is taken from each reward earned by the pool before splitting rewards between stakeholders.
+
+x-stakePoolMargin: &stakePoolMargin
+  <<: *percentage
+  description: |
+      Variable margin on the total reward given to an operator before splitting rewards between stakeholders.
 
 x-networkInformationSyncProgress: &networkInformationSyncProgress
   <<: *syncProgress
@@ -568,10 +583,14 @@ definitions:
       - id
       - metrics
       - apparent_performance
+      - cost
+      - margin
     properties:
       id: *stakePoolId
       metrics: *stakePoolMetrics
       apparent_performance: *stakePoolApparentPerformance
+      cost: *stakePoolCost
+      margin: *stakePoolMargin
       metadata: *stakePoolMetadata
 
   ApiFee: &ApiFee
