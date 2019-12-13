@@ -13,19 +13,13 @@ module Test.Integration.Jormungandr.Scenario.API.StakePools
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiFee
-    , ApiNetworkInformation
-    , ApiStakePool
-    , ApiT (..)
-    , ApiTransaction
-    , ApiWallet
-    )
+    ( ApiFee, ApiStakePool, ApiT (..), ApiTransaction, ApiWallet )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
     ( Direction (..), PoolId (..), TxStatus (..), WalletDelegation (..) )
 import Control.Monad
-    ( forM_, unless )
+    ( forM_ )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.List
@@ -81,7 +75,6 @@ import Test.Integration.Framework.DSL
     , listStakePoolsEp
     , listTxEp
     , metrics
-    , networkInfoEp
     , quitStakePool
     , quitStakePoolEp
     , request
@@ -90,6 +83,7 @@ import Test.Integration.Framework.DSL
     , status
     , unsafeRequest
     , verify
+    , waitForNextEpoch
     , walletId
     )
 import Test.Integration.Framework.TestData
@@ -770,17 +764,6 @@ spec = do
 arbitraryPoolId :: ApiT PoolId
 arbitraryPoolId = either (error . show) ApiT $ fromText
     "a659052d84ddb6a04189bee523d59c0a3385c921f43db5dc5de17a4f3f11dc4c"
-
-waitForNextEpoch
-    :: Context t
-    -> IO ()
-waitForNextEpoch ctx = do
-    epoch <- getFromResponse (#nodeTip . #epochNumber) <$>
-        request @ApiNetworkInformation ctx networkInfoEp Default Empty
-    eventually $ do
-        epoch' <- getFromResponse (#nodeTip . #epochNumber) <$>
-            request @ApiNetworkInformation ctx networkInfoEp Default Empty
-        unless (getApiT epoch' > getApiT epoch) $ fail "not yet"
 
 joinStakePoolWithWalletBalance
     :: (Context t)
