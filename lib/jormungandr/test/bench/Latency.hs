@@ -1,4 +1,3 @@
-{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
@@ -79,8 +78,6 @@ import Data.Time
     ( NominalDiffTime )
 import Data.Time.Clock
     ( diffUTCTime )
-import Data.Time.Clock.System
-    ( SystemTime (..), getSystemTime )
 import Fmt
     ( Builder, build, fixedF, fmtLn, padLeftF, (+|), (|+) )
 import Network.HTTP.Client
@@ -383,6 +380,10 @@ measureApiLogs = measureLatency isLogRequestStart isLogRequestFinish
 sampleTimeSeconds :: Int
 sampleTimeSeconds = 5
 
+-- | Run tests for at least this long to get accurate timings.
+sampleNTimes :: Int
+sampleNTimes = 10
+
 -- | Measure how long an action takes based on trace points and taking an
 -- average of results over a short time period.
 measureLatency
@@ -393,7 +394,7 @@ measureLatency
     -> IO [NominalDiffTime]
 measureLatency start finish tvar action = do
     atomically $ writeTVar tvar []
-    _res <- repeatFor sampleTimeSeconds action
+    replicateM_ sampleNTimes action
     extractTimings start finish . reverse <$> readTVarIO tvar
 
 -- | Scan through iohk-monitoring logs and extract time differences between
@@ -419,22 +420,6 @@ extractTimings isStart isFinish msgs = map2 mkDiff filtered
         LogMessage msg | isFinish msg -> Just (True, getTimestamp logObj)
         _ -> Nothing
     getTimestamp = tstamp . loMeta
-
--- | Repeatedly run an action, until total elapsed time in seconds is greater
--- than the given amount.
-repeatFor :: Int -> IO a -> IO [a]
-repeatFor nSeconds action = do
-    start <- getSystemTime
-    let repeater rs = do
-            now <- getSystemTime
-            if finished start now
-                then pure rs
-                else do
-                    !r <- action
-                    repeater (r:rs)
-    reverse <$> repeater []
-  where
-    finished a b = systemSeconds b - systemSeconds a > fromIntegral nSeconds
 
 setupLatencyLogging
     :: TVar [LogObject ServerLog]
