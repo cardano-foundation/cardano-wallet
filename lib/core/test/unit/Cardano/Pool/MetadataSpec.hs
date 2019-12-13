@@ -38,7 +38,7 @@ import Data.Text.Class
 import Data.Time.Clock
     ( addUTCTime, getCurrentTime )
 import System.Directory
-    ( setModificationTime )
+    ( removePathForcibly, setModificationTime )
 import System.FilePath
     ( takeDirectory, (<.>), (</>) )
 import System.IO.Temp
@@ -108,6 +108,18 @@ spec = do
             void $ getStakePoolMetadata tr cfg presentOwners
 
             makeCacheExpired cfg
+
+            res <- getStakePoolMetadata tr cfg presentOwners
+            res `shouldBe` Right (map Just presentMetas)
+
+            msgs <- map registryLogMsg <$> getMsgs
+            length (filter isMsgUsingCached msgs) `shouldBe` 0
+            length (filter isMsgDownloadStarted msgs) `shouldBe` 2
+
+        it "Cache it, removes it, re-download it" $ \(cfg, tr, getMsgs) -> do
+            void $ getStakePoolMetadata tr cfg presentOwners
+
+            removePathForcibly (cacheArchive cfg)
 
             res <- getStakePoolMetadata tr cfg presentOwners
             res `shouldBe` Right (map Just presentMetas)
