@@ -159,8 +159,8 @@ import qualified Codec.Serialise as CBOR
 import qualified Data.ByteArray as BA
 import qualified Data.List.NonEmpty as NE
 import qualified Network.Socket as Socket
-import qualified Ouroboros.Consensus.Ledger.Byron as Abstract
-import qualified Ouroboros.Network.Block as Abstract
+import qualified Ouroboros.Consensus.Ledger.Byron as O
+import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
 
 -- ----------------
@@ -202,26 +202,26 @@ convertBlockHeader b = W.BlockHeader
             --
             -- But block headers only contain the slot number (SlotNo), counted
             -- from genesis.
-    , W.blockHeight = convertBlockNo $ Abstract.blockNo b
+    , W.blockHeight = convertBlockNo $ O.blockNo b
             -- Not in block headers.
-    , W.headerHash = convertHash $ Abstract.blockHash b
-    , W.parentHeaderHash = convertChainHash $ Abstract.blockPrevHash b
+    , W.headerHash = convertHash $ O.blockHash b
+    , W.parentHeaderHash = convertChainHash $ O.blockPrevHash b
     }
   where
-    convertHash = W.Hash . BA.convert . Abstract.unByronHash
+    convertHash = W.Hash . BA.convert . O.unByronHash
 
     convertChainHash x = case x of
-        Abstract.BlockHash h ->
+        O.BlockHash h ->
             convertHash h
-        Abstract.GenesisHash ->
+        O.GenesisHash ->
             error "how do we represent the genesis hash?"
             -- Seems like a minor problem.
-    convertBlockNo = Quantity . fromIntegral . Abstract.unBlockNo
+    convertBlockNo = Quantity . fromIntegral . O.unBlockNo
 
 -- Goal: see what info we can extract from blocks!
 rollForward :: ByronBlock -> IO ()
 rollForward b = do
-    let slot = show (Abstract.unSlotNo . byronBlockSlotNo $ b)
+    let slot = show (O.unSlotNo . byronBlockSlotNo $ b)
     let hash = show $ byronBlockHash b
     putStrLn "\n\n"
     putStrLn $ "=== SlotNo " ++ slot
@@ -249,8 +249,8 @@ point1 =
         Right h = CC.decodeAbstractHash "8a7505ec268a934c9c532fcf21185baf849c0de04a6d12cdf80b0fc45fe6ecb3"
         slot = 21600*19+6540
 
-    in Abstract.Point $ Point.block
-        (Abstract.SlotNo slot)
+    in O.Point $ Point.block
+        (O.SlotNo slot)
         (ByronHash h)
 
 -- How to run the node:
@@ -388,10 +388,10 @@ chainSyncWithBlocks pid t params forward backward channel =
     codec = codecChainSync
         encodeByronBlock
         (decodeByronBlock (epochSlots params))
-        (Abstract.encodePoint encodeByronHeaderHash)
-        (Abstract.decodePoint decodeByronHeaderHash)
-        (Abstract.encodeTip encodeByronHeaderHash)
-        (Abstract.decodeTip decodeByronHeaderHash)
+        (O.encodePoint encodeByronHeaderHash)
+        (O.decodePoint decodeByronHeaderHash)
+        (O.encodeTip encodeByronHeaderHash)
+        (O.decodeTip decodeByronHeaderHash)
 
     client :: ChainSyncClient ByronBlock (Tip ByronBlock) m ()
     client = ChainSyncClient clientStIdle
