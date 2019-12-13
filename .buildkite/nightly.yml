@@ -12,6 +12,12 @@ steps:
     agents:
       system: x86_64-linux
 
+  - label: 'Latency benchmark'
+    command: "./.buildkite/bench-latency.sh"
+    timeout_in_minutes: 120
+    agents:
+      system: x86_64-linux
+
   - block: 'Delete CI Caches'
 
   - label: 'Clean up CI cache'
