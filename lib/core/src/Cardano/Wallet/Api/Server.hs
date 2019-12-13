@@ -223,7 +223,7 @@ import Data.Function
 import Data.Functor
     ( ($>), (<&>) )
 import Data.Generics.Internal.VL.Lens
-    ( Lens', view, (.~), (^.) )
+    ( Lens', (.~), (^.) )
 import Data.Generics.Labels
     ()
 import Data.List
@@ -874,7 +874,7 @@ joinStakePool
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
 joinStakePool ctx spl (ApiT pid) (ApiT wid) (ApiWalletPassphrase (ApiT pwd)) = do
-    pools <- fmap (getApiT . view #id) <$> listPools spl
+    pools <- liftIO $ knownStakePools spl
 
     (tx, txMeta, txTime) <- liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
         W.joinStakePool @_ @s @t @k wrk wid (pid, pools) () pwd
