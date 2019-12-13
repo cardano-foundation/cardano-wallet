@@ -24,6 +24,7 @@ import Cardano.Pool.DB.Model
     , PoolErr (..)
     , emptyPoolDatabase
     , mCleanPoolProduction
+    , mListRegisteredPools
     , mPutPoolProduction
     , mPutPoolRegistration
     , mPutStakeDistribution
@@ -75,6 +76,9 @@ newDBLayer = do
 
         , readPoolRegistration =
             readPoolDB db . mReadPoolRegistration
+
+        , listRegisteredPools =
+            modifyMVar db (pure . swap . mListRegisteredPools)
 
         , readSystemSeed =
             modifyMVar db (fmap swap . mReadSystemSeed)

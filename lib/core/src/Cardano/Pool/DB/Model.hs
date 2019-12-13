@@ -39,6 +39,7 @@ module Cardano.Pool.DB.Model
     , mReadStakeDistribution
     , mPutPoolRegistration
     , mReadPoolRegistration
+    , mListRegisteredPools
     , mReadSystemSeed
     , mRollbackTo
     , mReadCursor
@@ -195,6 +196,10 @@ mReadPoolRegistration poolId db@PoolDatabase{owners, metadata} =
     )
   where
     only k (_, k') _ = k == k'
+
+mListRegisteredPools :: PoolDatabase -> ([PoolId], PoolDatabase)
+mListRegisteredPools db@PoolDatabase{metadata} =
+    ( snd <$> Map.keys metadata, db )
 
 mReadSystemSeed
     :: PoolDatabase

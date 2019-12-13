@@ -193,6 +193,10 @@ newDBLayer logConfig trace fp = do
                     pure $ Just $ PoolRegistrationCertificate
                         { poolId, poolOwners, poolMargin, poolCost }
 
+        , listRegisteredPools = do
+            fmap (poolRegistrationPoolId . entityVal) <$> selectList [ ]
+                [ Desc PoolRegistrationEpoch ]
+
         , rollbackTo = \point -> do
             let (EpochNo epoch) = epochNumber point
             deleteWhere [ PoolProductionSlot >. point ]

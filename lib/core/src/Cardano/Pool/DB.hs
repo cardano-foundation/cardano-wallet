@@ -98,6 +98,13 @@ data DBLayer m = forall stm. MonadFail stm => DBLayer
         -> stm (Maybe PoolRegistrationCertificate)
         -- ^ Find a registration certificate associated to a given pool
 
+    , listRegisteredPools
+        :: stm [PoolId]
+        -- ^ List the list of known pools, based on their registration
+        -- certificate. This list doesn't necessarily match the keys of the
+        -- map we would get from 'readPoolProduction' because not all registered
+        -- pools have necessarily produced any block yet!
+
     , readSystemSeed
         :: stm StdGen
         -- ^ Read the seed assigned to this particular database. The seed is

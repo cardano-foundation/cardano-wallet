@@ -246,10 +246,16 @@ data ErrMonitorStakePools
 
 -- | @StakePoolLayer@ is a thin layer ontop of the DB. It is /one/ value that
 -- can easily be passed to the API-server, where it can be used in a simple way.
-newtype StakePoolLayer m = StakePoolLayer
-      { listStakePools
-          :: ExceptT ErrListStakePools m [(StakePool, Maybe StakePoolMetadata)]
-      }
+data StakePoolLayer m = StakePoolLayer
+    { listStakePools
+        :: ExceptT ErrListStakePools m [(StakePool, Maybe StakePoolMetadata)]
+
+    , knownStakePools
+        :: m [PoolId]
+        -- ^ Get a list of known pools that doesn't require fetching things from
+        -- Jörmungandr or any registry. This list comes from the registration
+        -- certificates that have been seen on chain.
+    }
 
 data ErrListStakePools
      = ErrMetricsIsUnsynced (Quantity "percent" Percentage)
@@ -271,6 +277,8 @@ newStakePoolLayer tr db@DBLayer{..} nl metadataDir = StakePoolLayer
         stakePools <- sortKnownPools
         meta <- lift $ findMetadata (map (first (^. #poolId)) stakePools)
         pure $ zip (map fst stakePools) meta
+    , knownStakePools =
+        atomically listRegisteredPools
     }
   where
     sortKnownPools :: ExceptT ErrListStakePools IO [(StakePool, [PoolOwner])]
