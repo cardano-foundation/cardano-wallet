@@ -636,22 +636,19 @@ selectCoins
     -> ApiSelectCoinsData n
     -> Handler (ApiCoinSelection n)
 selectCoins ctx (ApiT wid) body = do
-    CoinSelection mInputs mOutputs mChange <-
-        liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
-            W.selectCoinsForPayment @_ @s @t wrk wid $
-                coerceCoin <$> (body ^. #payments)
+    CoinSelection mInputs mRecipients mChange <- liftHandler
+        $ withWorkerCtx ctx wid liftE
+        $ \wrk -> W.selectCoinsForPayment @_ @s @t wrk wid
+        $ coerceCoin <$> (body ^. #payments)
+    mOutputs <- liftHandler
+        $ withWorkerCtx ctx wid throwE
+        $ \wrk -> W.assignChangeAddressesAndCheckpoint
+            @_ @s @k wrk wid () mRecipients mChange
     mkApiCoinSelection
-        <$> (ensureNonEmptyInputs mInputs)
-        <*> (ensureNonEmptyOutputs =<<
-                liftHandler (withWorkerCtx ctx wid throwE $ \wrk ->
-                    W.assignChangeAddressesAndCheckpoint
-                        @_ @s @k wrk wid () mOutputs mChange))
+        <$> ensureNonEmpty ErrSelectCoinsUnableToAssignInputs  mInputs
+        <*> ensureNonEmpty ErrSelectCoinsUnableToAssignOutputs mOutputs
   where
     liftE = throwE . ErrSelectForPaymentNoSuchWallet
-    ensureNonEmptyInputs =
-        ensureNonEmpty ErrSelectCoinsUnableToAssignInputs
-    ensureNonEmptyOutputs =
-        ensureNonEmpty ErrSelectCoinsUnableToAssignOutputs
     ensureNonEmpty :: forall a.
         (WalletId -> ErrSelectCoins) -> [a] -> Handler (NE.NonEmpty a)
     ensureNonEmpty err mxs =
