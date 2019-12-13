@@ -87,8 +87,6 @@ import Data.Maybe
     ( catMaybes )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Set
-    ( Set )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -128,7 +126,6 @@ import Test.Utils.Trace
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
 import qualified Data.Text as T
 
 spec :: Spec
@@ -172,11 +169,11 @@ prop_combineDefaults mStake = do
 
 -- | it fails if a block-producer or performance is not in the stake distr
 prop_combineIsLeftBiased
-    :: Map PoolId (Quantity "lovelace" Word64)
-    -> Map PoolId (Quantity "block" Word64)
-    -> Map PoolId Double
+    :: Map (LowEntropy PoolId) (Quantity "lovelace" Word64)
+    -> Map (LowEntropy PoolId) (Quantity "block" Word64)
+    -> Map (LowEntropy PoolId) Double
     -> Property
-prop_combineIsLeftBiased mStake mProd mPerf =
+prop_combineIsLeftBiased mStake_ mProd_ mPerf_ =
     let
         shouldLeft = or
             [ not . Map.null $ Map.difference mProd mStake
@@ -190,19 +187,26 @@ prop_combineIsLeftBiased mStake mProd mPerf =
             shouldLeft === True
         Right x ->
             Map.map (\(a,_,_) -> a) x === mStake
+  where
+    mStake = Map.mapKeys getLowEntropy mStake_
+    mProd  = Map.mapKeys getLowEntropy mProd_
+    mPerf  = Map.mapKeys getLowEntropy mPerf_
 {-# HLINT ignore prop_combineIsLeftBiased "Use ||" #-}
 
 -- | Performances are always positive numbers
 prop_performancesBounded01
-    :: Map PoolId (Quantity "lovelace" Word64)
-    -> Map PoolId (Quantity "block" Word64)
+    :: Map (LowEntropy PoolId) (Quantity "lovelace" Word64)
+    -> Map (LowEntropy PoolId) (Quantity "block" Word64)
     -> (NonNegative Int)
     -> Property
-prop_performancesBounded01 mStake mProd (NonNegative emptySlots) =
+prop_performancesBounded01 mStake_ mProd_ (NonNegative emptySlots) =
     all (between 0 1) performances
     & counterexample (show performances)
     & classify (all (== 0) performances) "all null"
   where
+    mStake = Map.mapKeys getLowEntropy mStake_
+    mProd  = Map.mapKeys getLowEntropy mProd_
+
     performances :: [Double]
     performances = Map.elems $ calculatePerformance slots mStake mProd
 
@@ -266,44 +270,34 @@ prop_trackRegistrations test = monadicIO $ do
     let expected = getExpected test
     let numRegistrations = getNumRegistrations test
 
-    (logs, ownership) <- run $ captureLogging $ \tr -> do
+    (logs, registrations) <- run $ captureLogging $ \tr -> do
         done <- newEmptyMVar
         nl <- newMockNetworkLayer done test
         db@DBLayer{..} <- newDBLayer
         race_ (takeMVar done) (monitorStakePools tr nl db)
 
-        let pids = Map.keys expected
-        registrations <- atomically $ mapM readPoolRegistration pids
-        let owners = catMaybes $ fmap poolOwners <$> registrations
-        pure $ Map.fromList $ zip pids (L.sort <$> owners)
+        let pids = poolId <$> expected
+        atomically $ L.sort . catMaybes <$> mapM readPoolRegistration pids
 
     let numDiscoveryLogs = length (filter isDiscoveryMsg logs)
 
-    monitor $ counterexample $ "Actual pool owners:   " <> show ownership
-    monitor $ counterexample $ "Expected pool owners: " <> show expected
-    monitor $ counterexample $ "# Discovery log msgs: " <> show numDiscoveryLogs
-    monitor $ counterexample $ "# Registration certs: " <> show numRegistrations
+    monitor $ counterexample $ "Actual registrations:   " <> show registrations
+    monitor $ counterexample $ "Expected registrations: " <> show expected
+    monitor $ counterexample $ "# Discovery log msgs:   " <> show numDiscoveryLogs
+    monitor $ counterexample $ "# Registration certs:   " <> show numRegistrations
     monitor $ counterexample $ "Logs:\n" <>
         unlines (map (("  " ++) . T.unpack . toText) logs)
 
-    assert (ownership == expected)
+    assert (registrations == expected)
     assert (numDiscoveryLogs == numRegistrations)
   where
-    getExpected :: RegistrationsTest -> Map PoolId [PoolOwner]
+    getExpected :: RegistrationsTest -> [PoolRegistrationCertificate]
     getExpected =
-        Map.map (L.sort . Set.toList)
-        . L.foldl' merge mempty
+        fmap (\p -> p { poolOwners = L.sortOn toText (poolOwners p) })
+        . L.sort
+        . concatMap poolRegistrations
         . mconcat
         . getRegistrationsTest
-      where
-        merge
-            :: Map PoolId (Set PoolOwner)
-            -> Block
-            -> Map PoolId (Set PoolOwner)
-        merge m blk = Map.unionsWith (<>) $ m : (fromCert <$> poolRegistrations blk)
-          where
-            fromCert (PoolRegistrationCertificate pid owners _ _) =
-                Map.singleton pid (Set.fromList owners)
 
     isDiscoveryMsg :: Text -> Bool
     isDiscoveryMsg = T.isInfixOf "Discovered stake pool registration"
@@ -499,10 +493,15 @@ instance Arbitrary Lovelace where
         minLovelace = fromIntegral . getCoin $ minBound @Coin
         maxLovelace = fromIntegral . getCoin $ maxBound @Coin
 
-instance Arbitrary PoolId where
+newtype LowEntropy a = LowEntropy { getLowEntropy :: a } deriving (Eq, Show, Ord)
+
+instance Arbitrary (LowEntropy PoolId) where
     shrink _  = []
-    arbitrary = PoolId . B8.pack
+    arbitrary = LowEntropy . PoolId . B8.pack
         <$> elements [ "ares", "athena", "hades", "hestia", "nemesis" ]
+
+instance Arbitrary PoolId where
+    arbitrary = fmap (PoolId . B8.pack) (vectorOf 32 arbitrary)
 
 instance Arbitrary PoolOwner where
     shrink _  = []
@@ -514,7 +513,7 @@ instance Arbitrary PoolRegistrationCertificate where
         <$> shrink (p, NonEmpty o)
     arbitrary = PoolRegistrationCertificate
         <$> arbitrary
-        <*> fmap getNonEmpty (scale (`mod` 3) arbitrary)
+        <*> fmap (L.nub . getNonEmpty) (scale (`mod` 3) arbitrary)
         <*> fmap toEnum (choose (0, 100))
         <*> fmap Quantity arbitrary
 
