@@ -178,7 +178,11 @@ monitorStakePools tr nl DBLayer{..} = do
         let ep0 = block0 ^. #header . #slotId . #epochNumber
         let k = fromIntegral . getQuantity . view #getEpochStability $ bp
         atomically $ do
-            mapM_ (putPoolRegistration ep0) (poolRegistrations block0)
+            forM_ (poolRegistrations block0)
+                $ \r@PoolRegistrationCertificate{poolId} -> do
+                readPoolRegistration poolId >>= \case
+                    Nothing -> putPoolRegistration ep0 r
+                    Just{}  -> pure ()
             readPoolProductionCursor k
 
     backward
