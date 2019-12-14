@@ -171,8 +171,10 @@ maxNumberOfInputs :: Int
 maxNumberOfInputs = 255
 
 -- maximum number of outputs in a valid transaction
+--
+-- See: https://github.com/input-output-hk/chain-libs/blob/8ab073b04580e1034f45c63e650fa1e18a90d90f/chain-impl-mockchain/src/transaction/builder.rs#L94
 maxNumberOfOutputs :: Int
-maxNumberOfOutputs = 255
+maxNumberOfOutputs = 254
 
 {-------------------------------------------------------------------------------
                                  Blocks
