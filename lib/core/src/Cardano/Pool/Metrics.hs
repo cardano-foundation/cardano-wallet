@@ -96,7 +96,7 @@ import Data.Functor
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.List
-    ( foldl', nub, nubBy, sortOn )
+    ( foldl', nub, nubBy, sortOn, (\\) )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Map.Merge.Strict
@@ -343,7 +343,13 @@ newStakePoolLayer tr db@DBLayer{..} nl metadataDir = StakePoolLayer
             Left e ->
                 throwE $ ErrListStakePoolsMetricsInconsistency e
             Right ps -> lift $ do
-                pools <- atomically $ Map.traverseMaybeWithKey mergeRegistration ps
+                let len = fromIntegral (length ps)
+                let avg = if null ps
+                        then 0
+                        else sum ((\(_,_,c) -> c) <$> (Map.elems ps)) / len
+                ns <- readNewcomers db (Map.keys ps) avg
+                pools <- atomically $
+                    Map.traverseMaybeWithKey mergeRegistration (ps <> ns)
                 sortResults $ Map.elems pools
       where
         mergeRegistration poolId (stake, production, apparentPerformance) =
@@ -380,6 +386,18 @@ newStakePoolLayer tr db@DBLayer{..} nl metadataDir = StakePoolLayer
         s1 = getQuantity $ nodeTip ^. #blockHeight
         toD :: Integral i => i -> Double
         toD = fromIntegral
+
+readNewcomers
+    :: Monad m
+    => DBLayer m
+    -> [PoolId]
+    -> Double
+    -> m (Map PoolId (Quantity "lovelace" Word64, Quantity "block" Word64, Double))
+readNewcomers DBLayer{..} elders avg = do
+    pids <- atomically listRegisteredPools
+    pure $ Map.fromList $ zip
+        (pids \\ elders)
+        (repeat (Quantity 0, Quantity 0, avg))
 
 readPoolsPerformances
     :: DBLayer m
