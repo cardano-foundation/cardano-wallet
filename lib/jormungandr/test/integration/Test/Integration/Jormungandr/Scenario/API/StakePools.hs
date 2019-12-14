@@ -204,7 +204,6 @@ spec = do
         (poolIdC, poolCOwner)  <- registerStakePool ctx WithMetadata
 
         waitForNextEpoch ctx
-        waitForNextEpoch ctx
         (_, pools') <- eventually $
             unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
 
