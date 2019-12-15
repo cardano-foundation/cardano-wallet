@@ -73,8 +73,9 @@ StakeDistribution sql=stake_distribution
 PoolOwner sql=pool_owner
     poolOwnerPoolId     W.PoolId     sql=pool_id
     poolOwnerOwner      W.PoolOwner  sql=pool_owner
+    poolOwnerIndex      Word8        sql=pool_owner_index
 
-    Primary poolOwnerPoolId poolOwnerOwner
+    Primary poolOwnerPoolId poolOwnerOwner poolOwnerIndex
     Foreign PoolRegistration fk_registration_pool_id poolOwnerPoolId ! ON DELETE CASCADE
     deriving Show Generic
 

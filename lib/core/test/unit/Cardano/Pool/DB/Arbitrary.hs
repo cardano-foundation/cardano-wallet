@@ -116,7 +116,7 @@ instance Arbitrary PoolRegistrationCertificate where
             <$> shrinkList (const []) xs
     arbitrary = PoolRegistrationCertificate
         <$> arbitrary
-        <*> fmap L.nub (scale (`mod` 8) (listOf arbitrary))
+        <*> scale (`mod` 8) (listOf arbitrary)
         <*> fmap toEnum (choose (0, 100))
         <*> fmap Quantity arbitrary
 

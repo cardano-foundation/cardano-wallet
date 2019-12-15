@@ -178,7 +178,7 @@ newDBLayer logConfig trace fp = do
             let poolMargin_ = fromIntegral $ fromEnum poolMargin
             let poolCost_ = getQuantity poolCost
             insert_ $ PoolRegistration poolId ep_ poolMargin_ poolCost_
-            insertMany_ $ PoolOwner poolId <$> poolOwners
+            insertMany_ $ uncurry (PoolOwner poolId) <$> zip poolOwners [0..]
 
         , readPoolRegistration = \poolId -> do
             selectFirst [ PoolRegistrationPoolId ==. poolId ] [] >>= \case
@@ -189,7 +189,7 @@ newDBLayer logConfig trace fp = do
                     let poolCost = Quantity poolCost_
                     poolOwners <- fmap (poolOwnerOwner . entityVal) <$> selectList
                         [ PoolOwnerPoolId ==. poolId ]
-                        [ Asc PoolOwnerOwner ]
+                        [ Asc PoolOwnerIndex ]
                     pure $ Just $ PoolRegistrationCertificate
                         { poolId, poolOwners, poolMargin, poolCost }
 
