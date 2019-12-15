@@ -3,6 +3,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -13,7 +14,13 @@ module Test.Integration.Scenario.API.Wallets
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( AddressAmount (..), ApiTransaction, ApiUtxoStatistics, ApiWallet )
+    ( AddressAmount (..)
+    , ApiCoinSelection
+    , ApiT (..)
+    , ApiTransaction
+    , ApiUtxoStatistics
+    , ApiWallet
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Mnemonic
@@ -34,6 +41,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( toText )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -71,6 +80,7 @@ import Test.Integration.Framework.DSL
     , postTxEp
     , request
     , selectCoins
+    , selectCoinsEp
     , state
     , updateWalletPassEp
     , verify
@@ -1516,6 +1526,97 @@ spec = do
                 , expectFieldSatisfy
                     coinSelectionOutputs (flip all payments . flip elem)
                 ]
+
+    describe "WALLETS_COIN_SELECTION_03 - non-existing wallets" $  do
+        forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
+            let endpoint = mconcat
+                    [ "v2/wallets/"
+                    , T.pack walId
+                    , "/coin-selections/random"
+                    ]
+            let payload = Json [json| {
+                    "payments": [{
+                        "address": "addr1swjnxph3f4d7305se79dx6z67kj4h5qxumtl0hmwx57u705cvurz69zechc",
+                        "amount": {
+                            "quantity": 1,
+                            "unit": "lovelace"
+                        }
+                    }]
+                } |]
+            r <- request @(ApiCoinSelection n) ctx ("POST", endpoint) Default payload
+            expectResponseCode @IO HTTP.status404 r
+            if (title == "40 chars hex") then
+                expectErrorMessage (errMsg404NoWallet $ T.pack walId) r
+            else
+                expectErrorMessage errMsg404NoEndpoint r
+
+    it "WALLETS_COIN_SELECTION_03 - \
+        \Deleted wallet is not available for selection" $ \ctx -> do
+        w <- emptyWallet ctx
+        (addr:_) <- fmap (view #id) <$> listAddresses ctx w
+        let payments = NE.fromList [ AddressAmount addr (Quantity 1) ]
+        _ <- request @ApiWallet ctx (deleteWalletEp w) Default Empty
+        selectCoins ctx w payments >>= flip verify
+            [ expectResponseCode @IO HTTP.status404
+            , expectErrorMessage (errMsg404NoWallet $ w ^. walletId)
+            ]
+
+    it "WALLETS_COIN_SELECTION_03 - \
+        \Wrong selection method (not 'random')" $ \ctx -> do
+        w <- fixtureWallet ctx
+        (addr:_) <- fmap (view #id) <$> listAddresses ctx w
+        let payments = NE.fromList [ AddressAmount addr (Quantity 1) ]
+        let payload = Json [json| { "payments": #{payments} } |]
+        let wid = toText $ getApiT $ w ^. #id
+        let endpoints = ("POST",) . mconcat <$>
+                [ [ "v2/wallets/", wid, "/coin-selections/largest-first" ]
+                , [ "v2/wallets/", wid, "/coin-selections" ]
+                ]
+        forM_ endpoints $ \endpoint -> do
+            r <- request @(ApiCoinSelection n) ctx endpoint Default payload
+            verify r [ expectResponseCode @IO HTTP.status404 ]
+
+    describe "WALLETS_COIN_SELECTION_04 - HTTP headers" $ do
+        let matrix =
+                [ ( "No HTTP headers -> 415"
+                  , None
+                  , [ expectResponseCode @IO HTTP.status415
+                    , expectErrorMessage errMsg415
+                    ]
+                  )
+                , ( "Accept: text/plain -> 406"
+                  , Headers
+                        [ ("Content-Type", "application/json")
+                        , ("Accept", "text/plain")
+                        ]
+                  , [ expectResponseCode @IO HTTP.status406
+                    , expectErrorMessage errMsg406
+                    ]
+                  )
+                , ( "No Accept -> 200"
+                  , Headers [ ("Content-Type", "application/json") ]
+                  , [ expectResponseCode @IO HTTP.status200 ]
+                  )
+                , ( "No Content-Type -> 415"
+                  , Headers [ ("Accept", "application/json") ]
+                  , [ expectResponseCode @IO HTTP.status415
+                    , expectErrorMessage errMsg415
+                    ]
+                  )
+                , ( "Content-Type: text/plain -> 415"
+                  , Headers [ ("Content-Type", "text/plain") ]
+                  , [ expectResponseCode @IO HTTP.status415
+                    , expectErrorMessage errMsg415
+                    ]
+                  )
+                ]
+        forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> do
+            w <- fixtureWallet ctx
+            (addr:_) <- fmap (view #id) <$> listAddresses ctx w
+            let payments = NE.fromList [ AddressAmount addr (Quantity 1) ]
+            let payload = Json [json| { "payments": #{payments} } |]
+            r <- request @(ApiCoinSelection n) ctx (selectCoinsEp w) headers payload
+            verify r expectations
 
     it "WALLETS_UTXO_01 - Wallet's inactivity is reflected in utxo" $ \ctx -> do
         w <- emptyWallet ctx

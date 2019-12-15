@@ -1435,7 +1435,7 @@ paths:
       tags: ["Coin Selections"]
       summary: Random
       description: |
-        <p align="right">status: <strong>not implemented</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
 
         Select coins to cover the given set of payments.
 
