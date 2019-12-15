@@ -422,9 +422,15 @@ prop_listRegisteredPools DBLayer {..} entries =
     monadicIO (setup >> prop)
   where
     setup = run $ atomically cleanDB
+
+    hasDuplicateOwners PoolRegistrationCertificate{poolOwners} =
+        L.nub poolOwners /= poolOwners
+
     prop = do
         run . atomically $ mapM_ (uncurry putPoolRegistration) (zip [0..] entries)
         pools <- run . atomically $ listRegisteredPools
+        monitor $ classify (any hasDuplicateOwners entries)
+            "same owner multiple time in the same certificate"
         monitor $ counterexample $ unlines
             [ "Read from DB: " <> show pools
             ]
