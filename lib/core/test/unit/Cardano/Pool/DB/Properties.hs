@@ -56,8 +56,6 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
-import Data.Text.Class
-    ( toText )
 import Data.Word
     ( Word64 )
 import Fmt
@@ -138,7 +136,7 @@ properties = do
             (property . prop_putStakeReadStake)
         it "putPoolRegistration then readPoolRegistration yields expected result"
             (property . prop_poolRegistration)
-        it "rollback of pool Registrations"
+        it "rollback of PoolRegistration"
             (property . prop_rollbackRegistration)
         it "readStake . putStake a1 . putStake s0 == pure a1"
             (property . prop_putStakePutStake)
@@ -371,7 +369,7 @@ prop_poolRegistration DBLayer {..} entries =
     monadicIO (setup >> prop)
   where
     setup = run $ atomically cleanDB
-    expected = L.sort (sortOwners <$> entries)
+    expected = L.sort entries
     prop = do
         run . atomically $ mapM_ (putPoolRegistration 0) entries
         pools <- run . atomically $ L.sort . catMaybes
@@ -398,7 +396,7 @@ prop_rollbackRegistration DBLayer{..} rollbackPoint entries =
                 error "unknown pool?"
             Just (ep, pool') ->
                 (ep <= epochNumber rollbackPoint) &&
-                (sortOwners pool == sortOwners pool')
+                (pool == pool')
 
     ownerHasManyPools =
         let owners = concatMap (poolOwners . snd) entries
@@ -424,9 +422,15 @@ prop_listRegisteredPools DBLayer {..} entries =
     monadicIO (setup >> prop)
   where
     setup = run $ atomically cleanDB
+
+    hasDuplicateOwners PoolRegistrationCertificate{poolOwners} =
+        L.nub poolOwners /= poolOwners
+
     prop = do
         run . atomically $ mapM_ (uncurry putPoolRegistration) (zip [0..] entries)
         pools <- run . atomically $ listRegisteredPools
+        monitor $ classify (any hasDuplicateOwners entries)
+            "same owner multiple time in the same certificate"
         monitor $ counterexample $ unlines
             [ "Read from DB: " <> show pools
             ]
@@ -470,8 +474,3 @@ allPoolProduction DBLayer{..} (StakePoolsFixture pairs _) = atomically $
   where
     rearrange ms = concat
         [ [ (slotId h, p) | h <- hs ] | (p, hs) <- concatMap Map.assocs ms ]
-
--- | Sort pool owners in a certificate by id
-sortOwners :: PoolRegistrationCertificate -> PoolRegistrationCertificate
-sortOwners registration = registration
-    { poolOwners = L.sortOn toText (poolOwners registration) }
