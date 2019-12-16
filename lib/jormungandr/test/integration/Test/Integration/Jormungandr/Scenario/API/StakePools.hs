@@ -606,6 +606,16 @@ spec = do
             [ expectFieldEqual amount fee
             ]
 
+    it "STAKE_POOLS_ESTIMATE_FEE_01x - edge-case fee in-between coeff" $ \ctx -> do
+        let (feeMin, _) = ctx ^. feeEstimator $ DelegDescription 1 0 1
+        w <- fixtureWalletWith ctx [feeMin + 1, feeMin + 1]
+        r <- delegationFee ctx w
+        let (fee, _) = ctx ^. feeEstimator $ DelegDescription 2 1 1
+        verify r
+            [ expectResponseCode HTTP.status200
+            , expectFieldEqual amount fee
+            ]
+
     it "STAKE_POOLS_ESTIMATE_FEE_02 - \
         \empty wallet cannot estimate fee" $ \ctx -> do
         w <- emptyWallet ctx

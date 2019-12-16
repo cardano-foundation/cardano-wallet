@@ -931,7 +931,7 @@ spec = do
             ]
 
     it "TRANS_ESTIMATE_03 - we see result when we can't cover fee" $ \ctx -> do
-        let (feeMin, feeMax) = ctx ^. feeEstimator $ PaymentDescription 1 1 1
+        let (feeMin, feeMax) = ctx ^. feeEstimator $ PaymentDescription 1 1 0
         wSrc <- fixtureWalletWith ctx [feeMin `div` 2]
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses ctx wDest
@@ -950,7 +950,7 @@ spec = do
         r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
-            , expectFieldBetween amount (feeMin, feeMax)
+            , expectFieldBetween amount (feeMin-amt, feeMax+amt)
             ]
 
     it "TRANS_ESTIMATE_04 - Not enough money" $ \ctx -> do
