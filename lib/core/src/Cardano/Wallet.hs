@@ -85,11 +85,9 @@ module Cardano.Wallet
     -- ** Payment
     , selectCoinsExternal
     , selectCoinsForPayment
-    , estimatePaymentFee
     , signPayment
     , ErrSelectCoinsExternal (..)
     , ErrSelectForPayment (..)
-    , ErrEstimatePaymentFee (..)
     , ErrSignPayment (..)
     , ErrCoinSelection (..)
     , ErrAdjustForFee (..)
@@ -865,30 +863,6 @@ selectCoinsForMigration ctx wid = do
   where
     tl = ctx ^. transactionLayer @t @k
 
--- | Estimate a transaction fee by automatically selecting inputs from
--- the wallet to cover the requested outputs.
-estimatePaymentFee
-    :: forall ctx s t k e.
-        ( HasTransactionLayer t k ctx
-        , HasDBLayer s k ctx
-        , e ~ ErrValidateSelection t
-        )
-    => ctx
-    -> WalletId
-    -> NonEmpty TxOut
-    -> ExceptT (ErrEstimatePaymentFee e) IO Fee
-estimatePaymentFee ctx wid recipients = do
-    (wal, _, pending) <- withExceptT ErrEstimatePaymentFeeNoSuchWallet $
-        readWallet @ctx @s @k ctx wid
-    let bp = blockchainParameters wal
-    let utxo = availableUTxO @s pending wal
-    (sel, _utxo') <- withExceptT ErrEstimatePaymentFeeCoinSelection $ do
-        let opts = coinSelOpts tl (bp ^. #getTxMaxSize)
-        CoinSelection.random opts recipients utxo
-    pure $ computeFee (bp ^. #getFeePolicy) $ estimateSize tl sel
-  where
-    tl = ctx ^. transactionLayer @t @k
-
 -- | Augments the given outputs with new outputs. These new outputs corresponds
 -- to change outputs to which new addresses are being assigned to. This updates
 -- the wallet state as it needs to keep track of new pending change addresses.
@@ -1391,12 +1365,6 @@ data ErrSelectForPayment e
     = ErrSelectForPaymentNoSuchWallet ErrNoSuchWallet
     | ErrSelectForPaymentCoinSelection (ErrCoinSelection e)
     | ErrSelectForPaymentFee ErrAdjustForFee
-    deriving (Show, Eq)
-
--- | Errors that can occur when estimating transaction fees.
-data ErrEstimatePaymentFee e
-    = ErrEstimatePaymentFeeNoSuchWallet ErrNoSuchWallet
-    | ErrEstimatePaymentFeeCoinSelection (ErrCoinSelection e)
     deriving (Show, Eq)
 
 -- | Errors that can occur when listing UTxO statistics.
