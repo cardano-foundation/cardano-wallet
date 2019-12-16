@@ -92,7 +92,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Control.Arrow
     ( (***) )
 import Control.Concurrent.MVar
-    ( newEmptyMVar, putMVar, readMVar )
+    ( modifyMVar_, newMVar )
 import Control.DeepSeq
     ( NFData )
 import Control.Exception
@@ -111,6 +111,8 @@ import Data.Coerce
     ( coerce )
 import Data.Either
     ( isRight )
+import Data.Functor
+    ( ($>) )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.List.Split
@@ -220,7 +222,7 @@ newDBFactory
        -- ^ Path to database directory, or Nothing for in-memory database
     -> IO (DBFactory IO s k)
 newDBFactory cfg tr mDatabaseDir = do
-    mvar <- newEmptyMVar
+    mvar <- newMVar mempty
     case mDatabaseDir of
         Nothing -> pure DBFactory
             { withDatabase = \_ action ->
@@ -229,17 +231,20 @@ newDBFactory cfg tr mDatabaseDir = do
                 pure ()
             }
         Just databaseDir -> pure DBFactory
-            { withDatabase = \wid action ->
-                withDBLayer cfg tracerDB (Just $ databaseFile wid) $ \(ctx,db) -> do
-                    putMVar mvar ctx
-                    action db
+            { withDatabase = \wid action -> do
+                withDBLayer cfg tracerDB (Just $ databaseFile wid)
+                    $ \(ctx, db) -> do
+                        modifyMVar_ mvar (pure . Map.insert wid ctx)
+                        action db
             , removeDatabase = \wid -> do
                 let files =
                         [ databaseFile wid
                         , databaseFile wid <> "-wal"
                         , databaseFile wid <> "-shm"
                         ]
-                readMVar mvar >>= destroyDBLayer
+                modifyMVar_ mvar $ \m -> case Map.lookup wid m of
+                    Nothing -> pure m
+                    Just ctx -> destroyDBLayer ctx $> Map.delete wid m
                 mapM_ removePathForcibly files
             }
           where

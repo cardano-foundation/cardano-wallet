@@ -113,6 +113,8 @@ import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Concurrent
     ( forkIO )
+import Control.Concurrent.MVar
+    ( newEmptyMVar, takeMVar, tryPutMVar )
 import Control.DeepSeq
     ( NFData )
 import Control.Exception
@@ -356,6 +358,7 @@ fileModeSpec =  do
             withSystemTempDirectory "DBFactory" $ \dir -> do
                 cfg <- defaultConfigTesting
                 DBFactory{..} <- newDBFactory cfg nullTracer (Just dir)
+                mvar <- newEmptyMVar
 
                 -- NOTE
                 -- Start a concurrent worker which makes action on the DB in
@@ -363,8 +366,10 @@ fileModeSpec =  do
                 _ <- forkIO $ withDatabase testWid $ \(DBLayer{..} :: TestDBSeq) -> do
                     forever $ do
                         cp <- atomically $ readCheckpoint $ PrimaryKey testWid
+                        _ <- tryPutMVar mvar ()
                         B8.putStrLn (B8.pack $ show cp)
 
+                takeMVar mvar
                 removeDatabase testWid
                 listDirectory dir `shouldReturn` mempty
 
