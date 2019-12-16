@@ -470,9 +470,8 @@ wallets ctx =
     :<|> getUTxOsStatistics ctx
 
 deleteWallet
-    :: forall ctx s t k n.
-        ( s ~ SeqState n k
-        , ctx ~ ApiLayer s t k
+    :: forall ctx s t k.
+        ( ctx ~ ApiLayer s t k
         )
     => ctx
     -> ApiT WalletId
@@ -1009,15 +1008,8 @@ deleteByronWallet
     => ApiLayer s t k
     -> ApiT WalletId
     -> Handler NoContent
-deleteByronWallet ctx (ApiT wid) = do
-    liftHandler $ withWorkerCtx ctx wid throwE $
-        \worker -> W.deleteWallet worker wid
-    liftIO $ Registry.remove re wid
-    liftIO $ (df ^. #removeDatabase) wid
-    return NoContent
-  where
-    re = ctx ^. workerRegistry @s @k
-    df = ctx ^. dbFactory @s @k
+deleteByronWallet =
+    deleteWallet
 
 getByronWallet
     :: forall t k. ()
