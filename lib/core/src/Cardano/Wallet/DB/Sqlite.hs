@@ -555,6 +555,8 @@ mkCheckpointEntity wid wal =
         , checkpointEpochLength = coerce (bp ^. #getEpochLength)
         , checkpointTxMaxSize = coerce (bp ^. #getTxMaxSize)
         , checkpointEpochStability = coerce (bp ^. #getEpochStability)
+        , checkpointActiveSlotCoeff =
+            W.unActiveSlotCoefficient (bp ^. #getActiveSlotCoefficient)
         }
     utxo =
         [ UTxO wid sl (TxId input) ix addr coin
@@ -589,6 +591,7 @@ checkpointFromEntity cp utxo s =
         epochLength
         txMaxSize
         epochStability
+        activeSlotCoeff
         ) = cp
     header = (W.BlockHeader slot (Quantity bh) headerHash parentHeaderHash)
     utxo' = W.UTxO . Map.fromList $
@@ -603,6 +606,7 @@ checkpointFromEntity cp utxo s =
         , getEpochLength = W.EpochLength epochLength
         , getTxMaxSize = Quantity txMaxSize
         , getEpochStability = Quantity epochStability
+        , getActiveSlotCoefficient = W.ActiveSlotCoefficient activeSlotCoeff
         }
 
 mkTxHistory

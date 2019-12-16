@@ -426,6 +426,7 @@ mockBlockchainParameters = BlockchainParameters
     , getEpochLength = error "mockBlockchainParameters: getEpochLength"
     , getTxMaxSize = error "mockBlockchainParameters: getTxMaxSize"
     , getEpochStability = error "mockBlockchainParameters: getEpochStability"
+    , getActiveSlotCoefficient = error "mockBlockchainParameters: getActiveSlotCoefficient"
     }
 
 header0 :: BlockHeader

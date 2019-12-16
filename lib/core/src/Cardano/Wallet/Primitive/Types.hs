@@ -46,7 +46,6 @@ module Cardano.Wallet.Primitive.Types
     , TxWitness(..)
     , SealedTx (..)
     , TransactionInfo (..)
-    , FeePolicy (..)
     , UnsignedTx (..)
     , txIns
     , isPending
@@ -85,15 +84,20 @@ module Cardano.Wallet.Primitive.Types
 
     -- * BlockchainParameters
     , BlockchainParameters (..)
+    , ActiveSlotCoefficient (..)
+    , EpochLength (..)
+    , EpochNo (..)
+    , FeePolicy (..)
+    , SlotId (..)
+    , SlotLength (..)
+    , SlotNo (..)
+    , StartTime (..)
     , slotParams
 
     -- * Slotting
     , SyncProgress(..)
     , SyncTolerance(..)
     , mkSyncTolerance
-    , SlotId (..)
-    , SlotNo (..)
-    , EpochNo (..)
     , unsafeEpochNo
     , epochStartTime
     , epochPred
@@ -101,9 +105,6 @@ module Cardano.Wallet.Primitive.Types
     , epochCeiling
     , epochFloor
     , SlotParameters (..)
-    , SlotLength (..)
-    , EpochLength (..)
-    , StartTime (..)
     , syncProgress
     , syncProgressRelativeToTime
     , flatSlot
@@ -1095,6 +1096,9 @@ data BlockchainParameters = BlockchainParameters
         -- ^ Maximum size of a transaction (soft or hard limit).
     , getEpochStability :: Quantity "block" Word32
         -- ^ Length of the suffix of the chain considered unstable
+    , getActiveSlotCoefficient :: ActiveSlotCoefficient
+        -- ^ In Genesis/Praos, corresponds to the % of active slots
+        -- (i.e. slots for which someone can be elected as leader).
     } deriving (Generic, Show, Eq)
 
 instance NFData BlockchainParameters
@@ -1111,6 +1115,7 @@ instance Buildable BlockchainParameters where
             (bp :: BlockchainParameters))
         , "Tx max size:        " <> txMaxSizeF (getTxMaxSize bp)
         , "Epoch stability:    " <> epochStabilityF (getEpochStability bp)
+        , "Active slot coeff:  " <> build (getActiveSlotCoefficient bp)
         ]
       where
         genesisF = build . T.decodeUtf8 . convertToBase Base16 . getHash
@@ -1120,6 +1125,13 @@ instance Buildable BlockchainParameters where
         epochLengthF (EpochLength s) = build s
         txMaxSizeF (Quantity s) = build s
         epochStabilityF (Quantity s) = build s
+
+newtype ActiveSlotCoefficient
+    = ActiveSlotCoefficient { unActiveSlotCoefficient :: Double }
+    deriving stock (Generic, Eq, Show)
+    deriving newtype (Buildable)
+
+instance NFData ActiveSlotCoefficient
 
 slotParams :: BlockchainParameters -> SlotParameters
 slotParams bp =

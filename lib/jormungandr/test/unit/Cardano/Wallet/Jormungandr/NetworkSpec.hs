@@ -393,6 +393,7 @@ mockJormungandrClient logLine = JormungandrClient
             , getEpochLength = error "mock bp"
             , getTxMaxSize = error "mock bp"
             , getEpochStability = Quantity (fromIntegral k)
+            , getActiveSlotCoefficient = error "mock bp"
             })
 
     , postMessage = \_ -> error "mock postMessage"

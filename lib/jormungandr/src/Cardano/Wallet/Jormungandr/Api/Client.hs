@@ -59,7 +59,12 @@ import Cardano.Wallet.Jormungandr.Api
 import Cardano.Wallet.Jormungandr.Api.Types
     ( AccountId (..), AccountState, BlockId (..), StakeApiResponse )
 import Cardano.Wallet.Jormungandr.Binary
-    ( ConfigParam (..), Fragment (..), convertBlock, overrideFeePolicy )
+    ( ConfigParam (..)
+    , Fragment (..)
+    , Milli (..)
+    , convertBlock
+    , overrideFeePolicy
+    )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( softTxMaxSize )
 import Cardano.Wallet.Network
@@ -69,7 +74,8 @@ import Cardano.Wallet.Network
     , ErrPostTx (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..)
+    ( ActiveSlotCoefficient (..)
+    , Block (..)
     , BlockHeader (..)
     , BlockchainParameters (..)
     , Hash (..)
@@ -251,13 +257,13 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
                     SlotDuration x -> Just x
                     _ -> Nothing
 
-        let mblock0Date = mapMaybe getBlock0Date params
+        let mblock0T = mapMaybe getBlock0T params
               where
-                getBlock0Date = \case
+                getBlock0T = \case
                     Block0Date x -> Just x
                     _ -> Nothing
 
-        let mepochLength = mapMaybe getSlotsPerEpoch params
+        let mepLength = mapMaybe getSlotsPerEpoch params
               where
                 getSlotsPerEpoch = \case
                     SlotsPerEpoch x -> Just x
@@ -269,20 +275,29 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
                    EpochStabilityDepth x -> Just x
                    _ -> Nothing
 
-        case (mpolicy, mduration, mblock0Date, mepochLength, mStability) of
-            ([policy],[duration],[block0Date], [epochLength], [stability]) ->
+        let mcoeff = mapMaybe getCoeff params
+              where
+                getCoeff = \case
+                    ConsensusGenesisPraosParamF (Milli f) ->
+                        Just $ ActiveSlotCoefficient $ fromIntegral f / 1000
+                    _ -> Nothing
+
+
+        case (mpolicy, mduration, mblock0T, mepLength, mStability, mcoeff) of
+            ([policy],[duration],[block0T], [epLength], [stability],[coeff]) ->
                 return
                     ( jblock
                     , BlockchainParameters
                         { getGenesisBlockHash = block0
-                        , getGenesisBlockDate = block0Date
+                        , getGenesisBlockDate = block0T
                         , getFeePolicy = case mperCertFee of
                             [override] -> overrideFeePolicy policy override
                             _ -> policy
-                        , getEpochLength = epochLength
+                        , getEpochLength = epLength
                         , getSlotLength = SlotLength duration
                         , getTxMaxSize = softTxMaxSize
                         , getEpochStability = stability
+                        , getActiveSlotCoefficient = coeff
                         }
                     )
             _ ->

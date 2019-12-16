@@ -16,7 +16,8 @@ module Cardano.Wallet.DummyTarget.Primitive.Types
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( Block (..)
+    ( ActiveSlotCoefficient (..)
+    , Block (..)
     , BlockHeader (..)
     , BlockchainParameters (..)
     , Coin (..)
@@ -75,6 +76,7 @@ genesisParameters = BlockchainParameters
     , getEpochLength = EpochLength 21600
     , getTxMaxSize = Quantity 8192
     , getEpochStability = Quantity 2160
+    , getActiveSlotCoefficient = ActiveSlotCoefficient 1
     }
 
 
