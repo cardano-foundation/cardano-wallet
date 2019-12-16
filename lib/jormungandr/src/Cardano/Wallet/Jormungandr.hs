@@ -51,8 +51,6 @@ import Cardano.Wallet.Api.Types
     ( DecodeAddress, EncodeAddress )
 import Cardano.Wallet.DaedalusIPC
     ( daedalusIPC )
-import Cardano.Wallet.DB
-    ( DBFactory )
 import Cardano.Wallet.DB.Sqlite
     ( PersistState )
 import Cardano.Wallet.Jormungandr.Compatibility
@@ -236,8 +234,9 @@ serveWallet
     apiLayer tracer tl nl = do
         let (block0, bp) = staticBlockchainParameters nl
         wallets <- maybe (pure []) (Sqlite.findDatabases @k trText) databaseDir
+        db <- Sqlite.newDBFactory cfg trText databaseDir
         Server.newApiLayer
-            tracer (toWLBlock block0, bp, sTolerance) nl' tl dbFactory wallets
+            tracer (toWLBlock block0, bp, sTolerance) nl' tl db wallets
       where
         nl' = toWLBlock <$> nl
 
@@ -255,19 +254,6 @@ serveWallet
         nl' = toSPBlock <$> nl
         onExit = defaultWorkerAfter tr'
         trStakePool = contramap (fmap LogStakePoolLayerMsg) trRoot
-
-    dbFactory
-        :: forall s k.
-            ( IsOurs s Address
-            , IsOurs s ChimericAccount
-            , NFData s
-            , Show s
-            , PersistState s
-            , PersistPrivateKey (k 'RootK)
-            , WalletKey k
-            )
-        => DBFactory IO s k
-    dbFactory = Sqlite.mkDBFactory cfg trText databaseDir
 
     handleNetworkStartupError :: ErrStartup -> IO ExitCode
     handleNetworkStartupError = \case

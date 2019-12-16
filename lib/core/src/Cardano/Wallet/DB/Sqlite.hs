@@ -23,7 +23,7 @@
 
 module Cardano.Wallet.DB.Sqlite
     ( newDBLayer
-    , mkDBFactory
+    , newDBFactory
     , findDatabases
     , withDBLayer
 
@@ -91,6 +91,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Control.Arrow
     ( (***) )
+import Control.Concurrent.MVar
+    ( newEmptyMVar, putMVar, readMVar )
 import Control.DeepSeq
     ( NFData )
 import Control.Exception
@@ -190,17 +192,17 @@ withDBLayer
        -- ^ Logging object
     -> Maybe FilePath
        -- ^ Path to database directory, or Nothing for in-memory database
-    -> (DBLayer IO s k -> IO a)
+    -> ((SqliteContext, DBLayer IO s k) -> IO a)
        -- ^ Action to run.
     -> IO a
-withDBLayer logConfig trace mDatabaseDir action =
-    bracket before after (action . snd)
+withDBLayer logConfig trace mDatabaseDir =
+    bracket before after
   where
     before = newDBLayer logConfig trace mDatabaseDir
     after = destroyDBLayer . fst
 
 -- | Instantiate a 'DBFactory' from a given directory
-mkDBFactory
+newDBFactory
     :: forall s k.
         ( IsOurs s W.Address
         , IsOurs s W.ChimericAccount
@@ -216,33 +218,38 @@ mkDBFactory
        -- ^ Logging object
     -> Maybe FilePath
        -- ^ Path to database directory, or Nothing for in-memory database
-    -> DBFactory IO s k
-mkDBFactory cfg tr mDatabaseDir = case mDatabaseDir of
-    Nothing -> DBFactory
-        { withDatabase = \_ ->
-            withDBLayer cfg tracerDB Nothing
-        , removeDatabase = \_ ->
-            pure ()
-        }
-    Just databaseDir -> DBFactory
-        { withDatabase = \wid ->
-            withDBLayer cfg tracerDB (Just $ databaseFile wid)
-        , removeDatabase = \wid -> do
-            let files =
-                    [ databaseFile wid
-                    , databaseFile wid <> "-wal"
-                    , databaseFile wid <> "-shm"
-                    ]
-            mapM_ removePathForcibly files
-        }
+    -> IO (DBFactory IO s k)
+newDBFactory cfg tr mDatabaseDir = do
+    mvar <- newEmptyMVar
+    case mDatabaseDir of
+        Nothing -> pure DBFactory
+            { withDatabase = \_ action ->
+                withDBLayer cfg tracerDB Nothing (action . snd)
+            , removeDatabase = \_ ->
+                pure ()
+            }
+        Just databaseDir -> pure DBFactory
+            { withDatabase = \wid action ->
+                withDBLayer cfg tracerDB (Just $ databaseFile wid) $ \(ctx,db) -> do
+                    putMVar mvar ctx
+                    action db
+            , removeDatabase = \wid -> do
+                let files =
+                        [ databaseFile wid
+                        , databaseFile wid <> "-wal"
+                        , databaseFile wid <> "-shm"
+                        ]
+                readMVar mvar >>= destroyDBLayer
+                mapM_ removePathForcibly files
+            }
+          where
+            databaseFilePrefix = keyTypeDescriptor $ Proxy @k
+            databaseFile wid =
+                databaseDir </>
+                databaseFilePrefix <> "." <>
+                T.unpack (toText wid) <> ".sqlite"
       where
-        databaseFilePrefix = keyTypeDescriptor $ Proxy @k
-        databaseFile wid =
-            databaseDir </>
-            databaseFilePrefix <> "." <>
-            T.unpack (toText wid) <> ".sqlite"
-  where
-    tracerDB = appendName "database" tr
+        tracerDB = appendName "database" tr
 
 -- | Return all wallet databases that match the specified key type within the
 --   specified directory.

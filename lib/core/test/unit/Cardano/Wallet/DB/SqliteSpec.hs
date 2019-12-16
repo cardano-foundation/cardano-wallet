@@ -511,7 +511,7 @@ withTestDBFile action expectations = do
     withSystemTempFile "spec.db" $ \fp handle -> do
         hClose handle
         removeFile fp
-        withDBLayer logConfig trace (Just fp) action
+        withDBLayer logConfig trace (Just fp) (action . snd)
         expectations fp
 
 inMemoryDBLayer
