@@ -55,20 +55,25 @@ convertTx tx = W.Tx
 
 convertBlockHeader :: ByronBlock -> W.BlockHeader
 convertBlockHeader b = W.BlockHeader
-    { W.slotId =
-        error "2. can't easily get the SlotId"
-            -- The cardano-ledger equivalent is EpochAndSlotCount, i.e epoch
-            -- number and the slot counted from the start of the epoch.
-            --
-            -- But block headers only contain the slot number (SlotNo), counted
-            -- from genesis.
+    { W.slotId = convertSlot (O.blockSlot b)
+
     , W.blockHeight = convertBlockNo $ O.blockNo b
-            -- Not in block headers.
     , W.headerHash = convertHash $ O.blockHash b
     , W.parentHeaderHash = convertChainHash $ O.blockPrevHash b
     }
   where
     convertHash = W.Hash . BA.convert . O.unByronHash
+
+    -- The cardano-ledger equivalent is EpochAndSlotCount, i.e epoch
+    -- number and the slot counted from the start of the epoch.
+    --
+    -- But block headers only contain the slot number (SlotNo), counted
+    -- from genesis.
+    --
+    -- Assuming the epoch-length doesn't change, we can easily do the
+    -- conversion. The SlotId isn't interesting to the wallet, so long term, we
+    -- should concider using SlotNo instead.
+    convertSlot = W.fromFlatSlot (W.EpochLength 21600) . O.unSlotNo
 
     convertChainHash x = case x of
         O.BlockHash h ->
@@ -87,6 +92,7 @@ rollForward b = do
     putStrLn $ "=== SlotNo " ++ slot
     putStrLn $ "=== " ++ hash
     putStrLn "\n"
+    print $ convertBlockHeader b
     case O.byronBlockRaw b  of
         CC.ABOBBlock cb -> do
             let body = CC.blockBody cb
