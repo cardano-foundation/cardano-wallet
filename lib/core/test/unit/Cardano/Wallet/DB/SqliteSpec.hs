@@ -51,13 +51,18 @@ import Cardano.Crypto.Wallet
 import Cardano.DB.Sqlite
     ( SqliteContext, destroyDBLayer )
 import Cardano.Wallet.DB
-    ( DBLayer (..), ErrNoSuchWallet (..), PrimaryKey (..), cleanDB )
+    ( DBFactory (..)
+    , DBLayer (..)
+    , ErrNoSuchWallet (..)
+    , PrimaryKey (..)
+    , cleanDB
+    )
 import Cardano.Wallet.DB.Arbitrary
     ( KeyValPairs (..) )
 import Cardano.Wallet.DB.Properties
     ( properties, withDB )
 import Cardano.Wallet.DB.Sqlite
-    ( PersistState, newDBLayer, withDBLayer )
+    ( PersistState, newDBFactory, newDBLayer, withDBLayer )
 import Cardano.Wallet.DB.StateMachine
     ( prop_parallel, prop_sequential )
 import Cardano.Wallet.DummyTarget.Primitive.Types
@@ -106,12 +111,14 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
+import Control.Concurrent
+    ( forkIO )
 import Control.DeepSeq
     ( NFData )
 import Control.Exception
     ( throwIO )
 import Control.Monad
-    ( forM_, replicateM_, unless )
+    ( forM_, forever, replicateM_, unless )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -137,13 +144,13 @@ import Data.Time.Clock
 import GHC.Conc
     ( TVar, newTVarIO, readTVarIO, writeTVar )
 import System.Directory
-    ( doesFileExist, removeFile )
+    ( doesFileExist, listDirectory, removeFile )
 import System.IO
     ( hClose )
 import System.IO.Error
     ( isUserError )
 import System.IO.Temp
-    ( emptySystemTempFile, withSystemTempFile )
+    ( emptySystemTempFile, withSystemTempDirectory, withSystemTempFile )
 import System.IO.Unsafe
     ( unsafePerformIO )
 import System.Random
@@ -174,6 +181,7 @@ import qualified Cardano.BM.Data.AggregatedKind as CM
 import qualified Cardano.BM.Data.Backend as CM
 import qualified Cardano.BM.Data.SubTrace as CM
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.HashMap.Strict as HM
 import qualified Data.List as L
 import qualified Data.Set as Set
@@ -342,6 +350,23 @@ fileModeSpec =  do
                 db <- Just <$> temporaryDBFile
                 (ctx, _) <- newDBLayer' @(SeqState 'Testnet ShelleyKey) db
                 destroyDBLayer ctx
+
+    describe "DBFactory" $ do
+        it "withDatabase *> removeDatabase works and remove files" $ do
+            withSystemTempDirectory "DBFactory" $ \dir -> do
+                cfg <- defaultConfigTesting
+                DBFactory{..} <- newDBFactory cfg nullTracer (Just dir)
+
+                -- NOTE
+                -- Start a concurrent worker which makes action on the DB in
+                -- parallel to simulate activity.
+                _ <- forkIO $ withDatabase testWid $ \(DBLayer{..} :: TestDBSeq) -> do
+                    forever $ do
+                        cp <- atomically $ readCheckpoint $ PrimaryKey testWid
+                        B8.putStrLn (B8.pack $ show cp)
+
+                removeDatabase testWid
+                listDirectory dir `shouldReturn` mempty
 
     describe "Sqlite database file" $ do
         let writeSomething DBLayer{..} = do

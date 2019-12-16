@@ -44,6 +44,8 @@ import Cardano.Wallet.Logging
     ( logTrace )
 import Control.Concurrent.MVar
     ( newMVar, withMVar )
+import Control.Exception
+    ( throwIO )
 import Control.Monad
     ( mapM_ )
 import Control.Monad.Catch
@@ -129,7 +131,14 @@ handleConstraint e = handleJust select handler . fmap Right
 destroyDBLayer :: SqliteContext -> IO ()
 destroyDBLayer (SqliteContext {getSqlBackend, trace, dbFile}) = do
     logDebug trace (MsgClosing dbFile)
-    close' getSqlBackend
+    tryClose
+  where
+    tryClose = close' getSqlBackend
+        `catch` handleBusy
+
+    handleBusy e@(SqliteException name _ _) = case name of
+        Sqlite.ErrorBusy -> tryClose
+        _ -> throwIO e
 
 {-------------------------------------------------------------------------------
                            Internal / Database Setup
