@@ -220,29 +220,35 @@ prop_performancesBounded01 mStake_ mProd_ (NonNegative emptySlots) =
 
 performanceGoldens :: Spec
 performanceGoldens = do
-    it "50% stake, producing 8/8 blocks => performance=1.0" $ do
-        let stake      = mkStake      [ (poolA, 1), (poolB, 1) ]
-        let production = mkProduction [ (poolA, 8), (poolB, 0) ]
-        let performances = calculatePerformance 8 stake production
+    it "50% stake, coeff=1.0, producing 8/8 blocks => p=1.0" $ do
+        let stake        = mkStake      [ (poolA, 1), (poolB, 1) ]
+        let production   = mkProduction [ (poolA, 8), (poolB, 0) ]
+        let performances = calculatePerformance 1.0 8 stake production
         Map.lookup poolA performances `shouldBe` (Just 1)
 
-    it "50% stake, producing 4/8 blocks => performance=1.0" $ do
-        let stake      = mkStake      [ (poolA, 1), (poolB, 1) ]
-        let production = mkProduction [ (poolA, 4), (poolB, 0) ]
-        let performances = calculatePerformance 8 stake production
+    it "50% stake, coeff=1.0, producing 4/8 blocks => p=1.0" $ do
+        let stake        = mkStake      [ (poolA, 1), (poolB, 1) ]
+        let production   = mkProduction [ (poolA, 4), (poolB, 0) ]
+        let performances = calculatePerformance 1.0 8 stake production
         Map.lookup poolA performances `shouldBe` (Just 1)
 
-    it "50% stake, producing 2/8 blocks => performance=0.5" $ do
-        let stake      = mkStake      [ (poolA, 1), (poolB, 1) ]
-        let production = mkProduction [ (poolA, 2), (poolB, 0) ]
-        let performances = calculatePerformance 8 stake production
+    it "50% stake, coeff=1.0, producing 2/8 blocks => p=0.5" $ do
+        let stake        = mkStake      [ (poolA, 1), (poolB, 1) ]
+        let production   = mkProduction [ (poolA, 2), (poolB, 0) ]
+        let performances = calculatePerformance 1.0 8 stake production
         Map.lookup poolA performances `shouldBe` (Just 0.5)
 
-    it "50% stake, producing 0/8 blocks => performance=0.0" $ do
-        let stake      = mkStake      [ (poolA, 1), (poolB, 1) ]
-        let production = mkProduction [ (poolA, 0), (poolB, 0) ]
-        let performances = calculatePerformance 8 stake production
+    it "50% stake, coeff=1.0, producing 0/8 blocks => p=0.0" $ do
+        let stake        = mkStake      [ (poolA, 1), (poolB, 1) ]
+        let production   = mkProduction [ (poolA, 0), (poolB, 0) ]
+        let performances = calculatePerformance 1.0 8 stake production
         Map.lookup poolA performances `shouldBe` (Just 0)
+
+    it "100% stake, coeff=0.1, producing 1/10 blocks => p=1.0" $ do
+        let stake        = mkStake      [ (poolA, 1), (poolB, 0) ]
+        let production   = mkProduction [ (poolA, 1), (poolB, 0) ]
+        let performances = calculatePerformance 0.1 10 stake production
+        Map.lookup poolA performances `shouldBe` (Just 1.0)
   where
     poolA = PoolId "athena"
     poolB = PoolId "nemesis"
