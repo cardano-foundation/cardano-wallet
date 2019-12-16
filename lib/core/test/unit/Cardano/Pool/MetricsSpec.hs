@@ -48,7 +48,8 @@ import Cardano.Wallet.Network
     , NextBlocksResult (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..)
+    ( ActiveSlotCoefficient (..)
+    , BlockHeader (..)
     , BlockchainParameters (..)
     , Coin (..)
     , EpochLength (..)
@@ -195,11 +196,12 @@ prop_combineIsLeftBiased mStake_ mProd_ mPerf_ =
 
 -- | Performances are always positive numbers
 prop_performancesBounded01
-    :: Map (LowEntropy PoolId) (Quantity "lovelace" Word64)
+    :: ActiveSlotCoefficient
+    -> Map (LowEntropy PoolId) (Quantity "lovelace" Word64)
     -> Map (LowEntropy PoolId) (Quantity "block" Word64)
     -> (NonNegative Int)
     -> Property
-prop_performancesBounded01 mStake_ mProd_ (NonNegative emptySlots) =
+prop_performancesBounded01 coeff mStake_ mProd_ (NonNegative emptySlots) =
     all (between 0 1) performances
     & counterexample (show performances)
     & classify (all (== 0) performances) "all null"
@@ -208,7 +210,7 @@ prop_performancesBounded01 mStake_ mProd_ (NonNegative emptySlots) =
     mProd  = Map.mapKeys getLowEntropy mProd_
 
     performances :: [Double]
-    performances = Map.elems $ calculatePerformance slots mStake mProd
+    performances = Map.elems $ calculatePerformance coeff slots mStake mProd
 
     slots :: Int
     slots = emptySlots +
@@ -485,6 +487,11 @@ instance Arbitrary (Quantity "block" Word64) where
 instance Arbitrary (Quantity "lovelace" Word64) where
     arbitrary = Quantity . fromIntegral . unLovelace <$> (arbitrary @Lovelace)
     shrink (Quantity x) = map Quantity $ shrink x
+
+instance Arbitrary ActiveSlotCoefficient where
+    arbitrary = ActiveSlotCoefficient <$> choose (0.001, 1.0)
+    shrink (ActiveSlotCoefficient f) = ActiveSlotCoefficient
+        <$> filter (\f' -> f' > 0.001 && f' <= 1.0) (shrink f)
 
 -- TODO: Move to a shared location for Arbitrary newtypes
 newtype Lovelace = Lovelace { unLovelace :: Word64 }

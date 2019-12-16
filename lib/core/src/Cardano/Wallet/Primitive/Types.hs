@@ -1129,7 +1129,7 @@ instance Buildable BlockchainParameters where
 newtype ActiveSlotCoefficient
     = ActiveSlotCoefficient { unActiveSlotCoefficient :: Double }
     deriving stock (Generic, Eq, Show)
-    deriving newtype (Buildable)
+    deriving newtype (Buildable, Num, Fractional)
 
 instance NFData ActiveSlotCoefficient
 
