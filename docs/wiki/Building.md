@@ -40,10 +40,10 @@ To build the wallet for Windows, from Linux:
 nix-build release.nix -A x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-linux
 ```
 
-To build another branch (replace `master` with the branch name or commit hash):
+To build another branch (replace `master` with the branch name, tag, or commit hash):
 
 ```
-nix-build https://github.com/input-output-hk/cardano-wallet/archive/master.tar.gz -A cardano-wallet-jormungandr
+nix-build https://github.com/input-output-hk/cardano-wallet/archive/master.tar.gz --argstr gitrev master -A cardano-wallet-jormungandr
 ```
 
 The Hydra [Jobset page](https://hydra.iohk.io/jobset/Cardano/cardano-wallet#tabs-jobs)
