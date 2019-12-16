@@ -50,7 +50,6 @@ import Cardano.Wallet
     ( ErrAdjustForFee (..)
     , ErrCoinSelection (..)
     , ErrDecodeSignedTx (..)
-    , ErrEstimatePaymentFee (..)
     , ErrFetchRewards (..)
     , ErrJoinStakePool (..)
     , ErrListTransactions (..)
@@ -157,8 +156,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..), defaultAddressPoolGap, mkSeqState )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..), changeBalance, feeBalance, inputBalance )
-import Cardano.Wallet.Primitive.Fee
-    ( Fee (..) )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, availableBalance, currentTip, getState, totalBalance )
 import Cardano.Wallet.Primitive.Types
@@ -802,13 +799,11 @@ postTransactionFee
     -> Handler ApiFee
 postTransactionFee ctx (ApiT wid) body = do
     let outs = coerceCoin <$> (body ^. #payments)
-    (Fee fee) <- liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
-        W.estimatePaymentFee @_ @s @t wrk wid outs
-    return ApiFee
-        { amount = Quantity (fromIntegral fee)
-        }
+    liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
+        apiFee <$> W.selectCoinsForPayment @_ @s @t @k wrk wid outs
   where
-    liftE = throwE . ErrEstimatePaymentFeeNoSuchWallet
+    apiFee = ApiFee . Quantity . fromIntegral . feeBalance
+    liftE = throwE . ErrSelectForPaymentNoSuchWallet
 
 {-------------------------------------------------------------------------------
                                     Stake Pools
@@ -1599,11 +1594,6 @@ instance Buildable e => LiftHandler (ErrSelectForPayment e) where
         ErrSelectForPaymentNoSuchWallet e -> handler e
         ErrSelectForPaymentCoinSelection e -> handler e
         ErrSelectForPaymentFee e -> handler e
-
-instance Buildable e => LiftHandler (ErrEstimatePaymentFee e) where
-    handler = \case
-        ErrEstimatePaymentFeeNoSuchWallet e -> handler e
-        ErrEstimatePaymentFeeCoinSelection e -> handler e
 
 instance LiftHandler ErrListUTxOStatistics where
     handler = \case
