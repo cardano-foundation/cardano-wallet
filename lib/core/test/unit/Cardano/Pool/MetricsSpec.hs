@@ -47,10 +47,10 @@ import Cardano.Wallet.Network
     , NetworkLayer (..)
     , NextBlocksResult (..)
     )
-import Cardano.Wallet.Primitive.Model
-    ( BlockchainParameters (..), slotParams )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..)
+    ( ActiveSlotCoefficient (..)
+    , BlockHeader (..)
+    , BlockchainParameters (..)
     , Coin (..)
     , EpochLength (..)
     , Hash (..)
@@ -61,6 +61,7 @@ import Cardano.Wallet.Primitive.Types
     , flatSlot
     , flatSlot
     , fromFlatSlot
+    , slotParams
     , slotSucc
     )
 import Cardano.Wallet.Unsafe
@@ -195,11 +196,12 @@ prop_combineIsLeftBiased mStake_ mProd_ mPerf_ =
 
 -- | Performances are always positive numbers
 prop_performancesBounded01
-    :: Map (LowEntropy PoolId) (Quantity "lovelace" Word64)
+    :: ActiveSlotCoefficient
+    -> Map (LowEntropy PoolId) (Quantity "lovelace" Word64)
     -> Map (LowEntropy PoolId) (Quantity "block" Word64)
     -> (NonNegative Int)
     -> Property
-prop_performancesBounded01 mStake_ mProd_ (NonNegative emptySlots) =
+prop_performancesBounded01 coeff mStake_ mProd_ (NonNegative emptySlots) =
     all (between 0 1) performances
     & counterexample (show performances)
     & classify (all (== 0) performances) "all null"
@@ -208,7 +210,7 @@ prop_performancesBounded01 mStake_ mProd_ (NonNegative emptySlots) =
     mProd  = Map.mapKeys getLowEntropy mProd_
 
     performances :: [Double]
-    performances = Map.elems $ calculatePerformance slots mStake mProd
+    performances = Map.elems $ calculatePerformance coeff slots mStake mProd
 
     slots :: Int
     slots = emptySlots +
@@ -220,29 +222,35 @@ prop_performancesBounded01 mStake_ mProd_ (NonNegative emptySlots) =
 
 performanceGoldens :: Spec
 performanceGoldens = do
-    it "50% stake, producing 8/8 blocks => performance=1.0" $ do
-        let stake      = mkStake      [ (poolA, 1), (poolB, 1) ]
-        let production = mkProduction [ (poolA, 8), (poolB, 0) ]
-        let performances = calculatePerformance 8 stake production
+    it "50% stake, coeff=1.0, producing 8/8 blocks => p=1.0" $ do
+        let stake        = mkStake      [ (poolA, 1), (poolB, 1) ]
+        let production   = mkProduction [ (poolA, 8), (poolB, 0) ]
+        let performances = calculatePerformance 1.0 8 stake production
         Map.lookup poolA performances `shouldBe` (Just 1)
 
-    it "50% stake, producing 4/8 blocks => performance=1.0" $ do
-        let stake      = mkStake      [ (poolA, 1), (poolB, 1) ]
-        let production = mkProduction [ (poolA, 4), (poolB, 0) ]
-        let performances = calculatePerformance 8 stake production
+    it "50% stake, coeff=1.0, producing 4/8 blocks => p=1.0" $ do
+        let stake        = mkStake      [ (poolA, 1), (poolB, 1) ]
+        let production   = mkProduction [ (poolA, 4), (poolB, 0) ]
+        let performances = calculatePerformance 1.0 8 stake production
         Map.lookup poolA performances `shouldBe` (Just 1)
 
-    it "50% stake, producing 2/8 blocks => performance=0.5" $ do
-        let stake      = mkStake      [ (poolA, 1), (poolB, 1) ]
-        let production = mkProduction [ (poolA, 2), (poolB, 0) ]
-        let performances = calculatePerformance 8 stake production
+    it "50% stake, coeff=1.0, producing 2/8 blocks => p=0.5" $ do
+        let stake        = mkStake      [ (poolA, 1), (poolB, 1) ]
+        let production   = mkProduction [ (poolA, 2), (poolB, 0) ]
+        let performances = calculatePerformance 1.0 8 stake production
         Map.lookup poolA performances `shouldBe` (Just 0.5)
 
-    it "50% stake, producing 0/8 blocks => performance=0.0" $ do
-        let stake      = mkStake      [ (poolA, 1), (poolB, 1) ]
-        let production = mkProduction [ (poolA, 0), (poolB, 0) ]
-        let performances = calculatePerformance 8 stake production
+    it "50% stake, coeff=1.0, producing 0/8 blocks => p=0.0" $ do
+        let stake        = mkStake      [ (poolA, 1), (poolB, 1) ]
+        let production   = mkProduction [ (poolA, 0), (poolB, 0) ]
+        let performances = calculatePerformance 1.0 8 stake production
         Map.lookup poolA performances `shouldBe` (Just 0)
+
+    it "100% stake, coeff=0.1, producing 1/10 blocks => p=1.0" $ do
+        let stake        = mkStake      [ (poolA, 1), (poolB, 0) ]
+        let production   = mkProduction [ (poolA, 1), (poolB, 0) ]
+        let performances = calculatePerformance 0.1 10 stake production
+        Map.lookup poolA performances `shouldBe` (Just 1.0)
   where
     poolA = PoolId "athena"
     poolB = PoolId "nemesis"
@@ -426,6 +434,7 @@ mockBlockchainParameters = BlockchainParameters
     , getEpochLength = error "mockBlockchainParameters: getEpochLength"
     , getTxMaxSize = error "mockBlockchainParameters: getTxMaxSize"
     , getEpochStability = error "mockBlockchainParameters: getEpochStability"
+    , getActiveSlotCoefficient = error "mockBlockchainParameters: getActiveSlotCoefficient"
     }
 
 header0 :: BlockHeader
@@ -478,6 +487,11 @@ instance Arbitrary (Quantity "block" Word64) where
 instance Arbitrary (Quantity "lovelace" Word64) where
     arbitrary = Quantity . fromIntegral . unLovelace <$> (arbitrary @Lovelace)
     shrink (Quantity x) = map Quantity $ shrink x
+
+instance Arbitrary ActiveSlotCoefficient where
+    arbitrary = ActiveSlotCoefficient <$> choose (0.001, 1.0)
+    shrink (ActiveSlotCoefficient f) = ActiveSlotCoefficient
+        <$> filter (\f' -> f' > 0.001 && f' <= 1.0) (shrink f)
 
 -- TODO: Move to a shared location for Arbitrary newtypes
 newtype Lovelace = Lovelace { unLovelace :: Word64 }

@@ -125,18 +125,19 @@ TxOut
 -- A checkpoint for a given wallet is referred to by (wallet_id, slot).
 -- Volatile checkpoint data such as AD state will refer to this table.
 Checkpoint
-    checkpointWalletId       W.WalletId   sql=wallet_id
-    checkpointSlot           W.SlotId     sql=slot
-    checkpointHeaderHash     BlockId      sql=header_hash
-    checkpointParentHash     BlockId      sql=parent_header_hash
-    checkpointBlockHeight    Word32       sql=block_height
-    checkpointGenesisHash    BlockId      sql=genesis_hash
-    checkpointGenesisStart   UTCTime      sql=genesis_start
-    checkpointFeePolicy      W.FeePolicy  sql=fee_policy
-    checkpointSlotLength     Word64       sql=slot_length
-    checkpointEpochLength    Word32       sql=epoch_length
-    checkpointTxMaxSize      Word16       sql=tx_max_size
-    checkpointEpochStability Word32       sql=epoch_stability
+    checkpointWalletId          W.WalletId   sql=wallet_id
+    checkpointSlot              W.SlotId     sql=slot
+    checkpointHeaderHash        BlockId      sql=header_hash
+    checkpointParentHash        BlockId      sql=parent_header_hash
+    checkpointBlockHeight       Word32       sql=block_height
+    checkpointGenesisHash       BlockId      sql=genesis_hash
+    checkpointGenesisStart      UTCTime      sql=genesis_start
+    checkpointFeePolicy         W.FeePolicy  sql=fee_policy
+    checkpointSlotLength        Word64       sql=slot_length
+    checkpointEpochLength       Word32       sql=epoch_length
+    checkpointTxMaxSize         Word16       sql=tx_max_size
+    checkpointEpochStability    Word32       sql=epoch_stability
+    checkpointActiveSlotCoeff   Double       sql=active_slot_coeff
 
     Primary checkpointWalletId checkpointSlot
     Foreign Wallet checkpoint checkpointWalletId ! ON DELETE CASCADE

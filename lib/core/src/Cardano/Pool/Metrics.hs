@@ -70,7 +70,8 @@ import Cardano.Wallet.Network
     , staticBlockchainParameters
     )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..)
+    ( ActiveSlotCoefficient (..)
+    , BlockHeader (..)
     , EpochLength (..)
     , EpochNo (..)
     , PoolId (..)
@@ -304,7 +305,7 @@ newStakePoolLayer tr db@DBLayer{..} nl metadataDir = StakePoolLayer
 
         else do
             let sl = prodTip ^. #slotId
-            perfs <- liftIO $ readPoolsPerformances db epochLength sl
+            perfs <- liftIO $ readPoolsPerformances db activeSlotCoeff epochLength sl
             combineWith (pure . sortByPerformance) distr (count prod) perfs
 
     readPoolProductionTip = readPoolProductionCursor 1 <&> \case
@@ -331,6 +332,7 @@ newStakePoolLayer tr db@DBLayer{..} nl metadataDir = StakePoolLayer
 
     (block0, bp) = staticBlockchainParameters nl
     epochLength = bp ^. #getEpochLength
+    activeSlotCoeff = bp ^. #getActiveSlotCoefficient
 
     combineWith
         :: ([(StakePool, [PoolOwner])] -> IO [(StakePool, [PoolOwner])])
@@ -401,11 +403,13 @@ readNewcomers DBLayer{..} elders avg = do
 
 readPoolsPerformances
     :: DBLayer m
+    -> ActiveSlotCoefficient
     -> EpochLength
     -> SlotId
     -> m (Map PoolId Double)
-readPoolsPerformances DBLayer{..} (EpochLength el) tip = do
+readPoolsPerformances DBLayer{..} activeSlotCoeff (EpochLength el) tip = do
     atomically $ fmap avg $ forM historicalEpochs $ \ep -> calculatePerformance
+        activeSlotCoeff
         (slotsInEpoch ep)
         <$> (Map.fromList <$> readStakeDistribution ep)
         <*> (count <$> readPoolProduction ep)
@@ -442,10 +446,11 @@ readPoolsPerformances DBLayer{..} (EpochLength el) tip = do
 -- is a 'Double' between 0 and 1 as:
 --
 -- @
---     p = n / N * S / s
+--     p = n / (f * N) * S / s
 --   where
 --     n = number of blocks produced in an epoch e
 --     N = number of slots in e
+--     f = active slot coeff, i.e. % of slots for which a leader can be elected.
 --     s = stake owned by the pool in e
 --     S = total stake delegated to pools in e
 -- @
@@ -454,11 +459,12 @@ readPoolsPerformances DBLayer{..} (EpochLength el) tip = do
 -- practice, be greater than 1 if a stake pool produces more than it is
 -- expected.
 calculatePerformance
-    :: Int
+    :: ActiveSlotCoefficient
+    -> Int
     -> Map PoolId (Quantity "lovelace" Word64)
     -> Map PoolId (Quantity "block" Word64)
     -> Map PoolId Double
-calculatePerformance nTotal mStake mProd =
+calculatePerformance (ActiveSlotCoefficient f) nTotal mStake mProd =
     let
         stakeButNotProd = traverseMissing $ \_ _ -> 0
         prodButNoStake  = dropMissing
@@ -466,7 +472,7 @@ calculatePerformance nTotal mStake mProd =
             if (nTotal == 0 || s == Quantity 0) then
                 0
             else
-                min 1 ((double n / fromIntegral nTotal) * (sTotal / double s))
+                min 1 ((double n / (f * fromIntegral nTotal)) * (sTotal / double s))
     in
         Map.merge
             stakeButNotProd

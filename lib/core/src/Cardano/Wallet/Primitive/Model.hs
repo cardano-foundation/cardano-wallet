@@ -34,12 +34,11 @@ module Cardano.Wallet.Primitive.Model
     (
     -- * Type
       Wallet
-    , BlockchainParameters (..)
 
     -- * Construction & Modification
+    , FilteredBlock (..)
     , initWallet
     , updateState
-    , FilteredBlock (..)
     , applyBlock
     , applyBlocks
     , unsafeInitWallet
@@ -53,9 +52,6 @@ module Cardano.Wallet.Primitive.Model
     , availableUTxO
     , utxo
     , blockchainParameters
-
-    -- * Auxiliary
-    , slotParams
     ) where
 
 import Prelude
@@ -66,16 +62,11 @@ import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Block (..)
     , BlockHeader (..)
+    , BlockchainParameters (..)
     , ChimericAccount (..)
     , DelegationCertificate (..)
     , Direction (..)
     , Dom (..)
-    , EpochLength (..)
-    , FeePolicy (..)
-    , Hash (..)
-    , SlotLength (..)
-    , SlotParameters (SlotParameters)
-    , StartTime (..)
     , Tx (..)
     , TxIn (..)
     , TxMeta (..)
@@ -97,8 +88,6 @@ import Control.Monad.Extra
     ( mapMaybeM )
 import Control.Monad.Trans.State.Strict
     ( State, evalState, runState, state )
-import Data.ByteArray.Encoding
-    ( Base (Base16), convertToBase )
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
@@ -113,12 +102,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Set
     ( Set )
-import Data.Text.Class
-    ( toText )
-import Data.Word
-    ( Word16, Word32 )
 import Fmt
-    ( Buildable (..), blockListF', indentF )
+    ( Buildable (..), indentF )
 import GHC.Generics
     ( Generic )
 import Numeric.Natural
@@ -127,7 +112,6 @@ import Numeric.Natural
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import qualified Data.Text.Encoding as T
 
 {-------------------------------------------------------------------------------
                                      Type
@@ -192,51 +176,6 @@ instance Buildable s => Buildable (Wallet s) where
         <> indentF 4 ("Parameters:\n" <> indentF 4 (build bp))
         <> indentF 4 ("UTxO: " <> build u)
         <> indentF 4 (build s)
-
-data BlockchainParameters = BlockchainParameters
-    { getGenesisBlockHash :: Hash "Genesis"
-        -- ^ Hash of the very first block
-    , getGenesisBlockDate :: StartTime
-        -- ^ Start time of the chain.
-    , getFeePolicy :: FeePolicy
-        -- ^ Policy regarding transaction fee.
-    , getSlotLength :: SlotLength
-        -- ^ Length, in seconds, of a slot.
-    , getEpochLength :: EpochLength
-        -- ^ Number of slots in a single epoch.
-    , getTxMaxSize :: Quantity "byte" Word16
-        -- ^ Maximum size of a transaction (soft or hard limit).
-    , getEpochStability :: Quantity "block" Word32
-        -- ^ Length of the suffix of the chain considered unstable
-    } deriving (Generic, Show, Eq)
-
-instance NFData BlockchainParameters
-
-instance Buildable BlockchainParameters where
-    build bp = blockListF' "" id
-        [ "Genesis block hash: " <> genesisF (getGenesisBlockHash bp)
-        , "Genesis block date: " <> startTimeF (getGenesisBlockDate bp)
-        , "Fee policy:         " <> feePolicyF (getFeePolicy bp)
-        , "Slot length:        " <> slotLengthF (getSlotLength bp)
-        , "Epoch length:       " <> epochLengthF (getEpochLength bp)
-        , "Tx max size:        " <> txMaxSizeF (getTxMaxSize bp)
-        , "Epoch stability:    " <> epochStabilityF (getEpochStability bp)
-        ]
-      where
-        genesisF = build . T.decodeUtf8 . convertToBase Base16 . getHash
-        startTimeF (StartTime s) = build s
-        feePolicyF = build . toText
-        slotLengthF (SlotLength s) = build s
-        epochLengthF (EpochLength s) = build s
-        txMaxSizeF (Quantity s) = build s
-        epochStabilityF (Quantity s) = build s
-
-slotParams :: BlockchainParameters -> SlotParameters
-slotParams bp =
-    SlotParameters
-        (bp ^. #getEpochLength)
-        (bp ^. #getSlotLength)
-        (bp ^. #getGenesisBlockDate)
 
 {-------------------------------------------------------------------------------
                           Construction & Modification

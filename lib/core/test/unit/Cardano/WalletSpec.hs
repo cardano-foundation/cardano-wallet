@@ -55,10 +55,9 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
-import Cardano.Wallet.Primitive.Model
-    ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , BlockchainParameters (..)
     , ChimericAccount (..)
     , Coin (..)
     , Direction (..)

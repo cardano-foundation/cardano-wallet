@@ -76,11 +76,10 @@ import Cardano.Wallet.Network
     ( NetworkLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth )
-import Cardano.Wallet.Primitive.Model
-    ( BlockchainParameters )
 import Cardano.Wallet.Primitive.Types
     ( AddressState
     , Block
+    , BlockchainParameters
     , PoolId
     , SortOrder (..)
     , SyncTolerance
