@@ -481,9 +481,9 @@ deleteWallet
     -> ApiT WalletId
     -> Handler NoContent
 deleteWallet ctx (ApiT wid) = do
-    liftHandler $ withWorkerCtx ctx wid throwE $ \wrk -> W.deleteWallet wrk wid
-    liftIO $ Registry.remove re wid
+    liftHandler $ withWorkerCtx @_ @s @k ctx wid throwE $ \_ -> pure ()
     liftIO $ (df ^. #removeDatabase) wid
+    liftIO $ Registry.remove re wid
     return NoContent
   where
     re = ctx ^. workerRegistry @s @k
