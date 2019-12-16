@@ -45,7 +45,7 @@ blockchain_configuration:
   # fee(num_bytes, has_certificate) = constant + num_bytes * coefficient + has_certificate * certificate
   linear_fees:
     constant: 14
-    coefficient: 1
+    coefficient: 3
     certificate: 42
 
   # The speed to update the KES Key in seconds

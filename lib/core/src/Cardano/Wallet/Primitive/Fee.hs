@@ -47,8 +47,6 @@ import Cardano.Wallet.Primitive.Types
     , isValidCoin
     , pickRandom
     )
-import Control.Monad
-    ( unless )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
@@ -206,7 +204,7 @@ senderPaysFee opt utxo sel = evalStateT (go sel) utxo where
                 , outputs = outs
                 , change = rebalanceChangeOutputs opt upperBound chgs
                 }
-        remFee <- lift $ remainingFee opt coinSel'
+        let remFee = remainingFee opt coinSel'
         -- 3.1/
         -- Should the change cover the fee, we're (almost) good. By removing
         -- change outputs, we make them smaller and may reduce the size of the
@@ -313,29 +311,29 @@ removeDust threshold coins =
 
 -- | Computes how much is left to pay given a particular selection
 remainingFee
-    :: (HasCallStack, Monad m)
+    :: HasCallStack
     => FeeOptions
     -> CoinSelection
-    -> ExceptT ErrAdjustForFee m Fee
+    -> Fee
 remainingFee opts s = do
     if fee >= diff
-    then pure $ Fee (fee - diff)
+    then Fee (fee - diff)
     else do
         -- NOTE
         -- The only case where we may end up with an unbalanced transaction is
         -- when we have a dangling change output (i.e. adding it costs too much
         -- and we can't afford it, but not having it result in too many coins
-        -- left for fees) in which case.
+        -- left for fees).
         let Fee feeDangling = estimateFee opts $ s { change = [Coin (diff - fee)] }
-        unless (feeDangling >= diff) $ do
-            error $ unwords
+        if (feeDangling >= diff)
+            then Fee (feeDangling - fee)
+            else error $ unwords
                 [ "Generated an unbalanced tx! Too much left for fees"
                 , ": fee (raw) =", show fee
                 , ": fee (dangling) =", show feeDangling
                 , ", diff =", show diff
                 , "\nselection =", pretty s
                 ]
-        throwE $ ErrCannotCoverFee $ feeDangling - fee
   where
     Fee fee = estimateFee opts s
     diff = inputBalance s - (outputBalance s + changeBalance s)
