@@ -207,7 +207,7 @@ import Control.Monad
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT, except, throwE, withExceptT )
+    ( ExceptT, catchE, except, throwE, withExceptT )
 import Data.Aeson
     ( (.=) )
 import Data.Function
@@ -800,10 +800,19 @@ postTransactionFee
 postTransactionFee ctx (ApiT wid) body = do
     let outs = coerceCoin <$> (body ^. #payments)
     liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
-        apiFee <$> W.selectCoinsForPayment @_ @s @t @k wrk wid outs
+        (apiFee <$> W.selectCoinsForPayment @_ @s @t @k wrk wid outs)
+            `catchE` handleCannotCover wrk
   where
     apiFee = ApiFee . Quantity . fromIntegral . feeBalance
     liftE = throwE . ErrSelectForPaymentNoSuchWallet
+    handleCannotCover wrk = \case
+        ErrSelectForPaymentFee (ErrCannotCoverFee missing) -> do
+            (wallet, _, pending) <- withExceptT ErrSelectForPaymentNoSuchWallet $
+                W.readWallet wrk wid
+            let balance = availableBalance pending wallet
+            pure $ ApiFee $ Quantity $ fromIntegral missing + balance
+
+        e -> throwE e
 
 {-------------------------------------------------------------------------------
                                     Stake Pools

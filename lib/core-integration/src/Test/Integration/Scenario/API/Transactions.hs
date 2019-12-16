@@ -935,7 +935,7 @@ spec = do
         wSrc <- fixtureWalletWith ctx [feeMin `div` 2]
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses ctx wDest
-        let amt = 1
+        let amt = 1 :: Natural
 
         let destination = addr ^. #id
         let payload = Json [json|{
@@ -950,7 +950,7 @@ spec = do
         r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
-            , expectFieldBetween amount (feeMin - amt, feeMax + amt)
+            , expectFieldBetween amount (feeMin, feeMax)
             ]
 
     it "TRANS_ESTIMATE_04 - Not enough money" $ \ctx -> do
