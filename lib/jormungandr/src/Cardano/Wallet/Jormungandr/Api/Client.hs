@@ -68,10 +68,14 @@ import Cardano.Wallet.Network
     , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
     )
-import Cardano.Wallet.Primitive.Model
-    ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), BlockHeader (..), Hash (..), SealedTx, SlotLength (..) )
+    ( Block (..)
+    , BlockHeader (..)
+    , BlockchainParameters (..)
+    , Hash (..)
+    , SealedTx
+    , SlotLength (..)
+    )
 import Control.Arrow
     ( left )
 import Control.Exception

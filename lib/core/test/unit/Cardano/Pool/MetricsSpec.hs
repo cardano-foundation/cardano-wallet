@@ -47,10 +47,9 @@ import Cardano.Wallet.Network
     , NetworkLayer (..)
     , NextBlocksResult (..)
     )
-import Cardano.Wallet.Primitive.Model
-    ( BlockchainParameters (..), slotParams )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
+    , BlockchainParameters (..)
     , Coin (..)
     , EpochLength (..)
     , Hash (..)
@@ -61,6 +60,7 @@ import Cardano.Wallet.Primitive.Types
     , flatSlot
     , flatSlot
     , fromFlatSlot
+    , slotParams
     , slotSucc
     )
 import Cardano.Wallet.Unsafe

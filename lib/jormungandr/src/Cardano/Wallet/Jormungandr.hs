@@ -89,12 +89,11 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
-import Cardano.Wallet.Primitive.Model
-    ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address
     , Block
     , BlockHeader (..)
+    , BlockchainParameters (..)
     , ChimericAccount
     , Hash (..)
     , SyncTolerance

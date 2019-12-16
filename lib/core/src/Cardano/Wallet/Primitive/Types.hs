@@ -83,6 +83,10 @@ module Cardano.Wallet.Primitive.Types
     , computeUtxoStatistics
     , log10
 
+    -- * BlockchainParameters
+    , BlockchainParameters (..)
+    , slotParams
+
     -- * Slotting
     , SyncProgress(..)
     , SyncTolerance(..)
@@ -218,7 +222,7 @@ import Data.Text.Class
 import Data.Time.Clock
     ( NominalDiffTime, UTCTime, addUTCTime, diffUTCTime )
 import Data.Word
-    ( Word32, Word64 )
+    ( Word16, Word32, Word64 )
 import Data.Word.Odd
     ( Word31 )
 import Fmt
@@ -1071,6 +1075,58 @@ computeUtxoStatistics btype utxos =
 
     (^!) :: Word64 -> Word64 -> Word64
     (^!) = (^)
+
+{-------------------------------------------------------------------------------
+                             Blockchain Parameters
+-------------------------------------------------------------------------------}
+
+data BlockchainParameters = BlockchainParameters
+    { getGenesisBlockHash :: Hash "Genesis"
+        -- ^ Hash of the very first block
+    , getGenesisBlockDate :: StartTime
+        -- ^ Start time of the chain.
+    , getFeePolicy :: FeePolicy
+        -- ^ Policy regarding transaction fee.
+    , getSlotLength :: SlotLength
+        -- ^ Length, in seconds, of a slot.
+    , getEpochLength :: EpochLength
+        -- ^ Number of slots in a single epoch.
+    , getTxMaxSize :: Quantity "byte" Word16
+        -- ^ Maximum size of a transaction (soft or hard limit).
+    , getEpochStability :: Quantity "block" Word32
+        -- ^ Length of the suffix of the chain considered unstable
+    } deriving (Generic, Show, Eq)
+
+instance NFData BlockchainParameters
+
+instance Buildable BlockchainParameters where
+    build bp = blockListF' "" id
+        [ "Genesis block hash: " <> genesisF (getGenesisBlockHash bp)
+        , "Genesis block date: " <> startTimeF (getGenesisBlockDate
+            (bp :: BlockchainParameters))
+        , "Fee policy:         " <> feePolicyF (getFeePolicy bp)
+        , "Slot length:        " <> slotLengthF (getSlotLength
+            (bp :: BlockchainParameters))
+        , "Epoch length:       " <> epochLengthF (getEpochLength
+            (bp :: BlockchainParameters))
+        , "Tx max size:        " <> txMaxSizeF (getTxMaxSize bp)
+        , "Epoch stability:    " <> epochStabilityF (getEpochStability bp)
+        ]
+      where
+        genesisF = build . T.decodeUtf8 . convertToBase Base16 . getHash
+        startTimeF (StartTime s) = build s
+        feePolicyF = build . toText
+        slotLengthF (SlotLength s) = build s
+        epochLengthF (EpochLength s) = build s
+        txMaxSizeF (Quantity s) = build s
+        epochStabilityF (Quantity s) = build s
+
+slotParams :: BlockchainParameters -> SlotParameters
+slotParams bp =
+    SlotParameters
+        (bp ^. #getEpochLength)
+        (bp ^. #getSlotLength)
+        (bp ^. #getGenesisBlockDate)
 
 {-------------------------------------------------------------------------------
                                    Slotting

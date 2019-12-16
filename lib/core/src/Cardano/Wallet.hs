@@ -187,15 +187,13 @@ import Cardano.Wallet.Primitive.Fee
     , computeFee
     )
 import Cardano.Wallet.Primitive.Model
-    ( BlockchainParameters (..)
-    , Wallet
+    ( Wallet
     , applyBlocks
     , availableUTxO
     , blockchainParameters
     , currentTip
     , getState
     , initWallet
-    , slotParams
     , updateState
     )
 import Cardano.Wallet.Primitive.Types
@@ -203,6 +201,7 @@ import Cardano.Wallet.Primitive.Types
     , AddressState (..)
     , Block (..)
     , BlockHeader (..)
+    , BlockchainParameters (..)
     , ChimericAccount (..)
     , Coin (..)
     , DelegationCertificate (..)
@@ -233,6 +232,7 @@ import Cardano.Wallet.Primitive.Types
     , computeUtxoStatistics
     , dlgCertPoolId
     , log10
+    , slotParams
     , slotRangeFromTimeRange
     , slotStartTime
     , syncProgressRelativeToTime

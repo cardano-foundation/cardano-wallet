@@ -42,10 +42,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
-import Cardano.Wallet.Primitive.Model
-    ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
-    ( SyncTolerance (..) )
+    ( BlockchainParameters (..), SyncTolerance (..) )
 import Control.Concurrent.Async
     ( race )
 import Control.Concurrent.MVar

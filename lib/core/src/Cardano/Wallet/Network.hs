@@ -31,10 +31,9 @@ import Prelude
 
 import Cardano.BM.Trace
     ( Trace, logDebug, logError, logInfo, logWarning )
-import Cardano.Wallet.Primitive.Model
-    ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
+    , BlockchainParameters (..)
     , ChimericAccount (..)
     , EpochNo
     , Hash (..)

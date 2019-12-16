@@ -160,17 +160,12 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.Fee
     ( Fee (..) )
 import Cardano.Wallet.Primitive.Model
-    ( BlockchainParameters
-    , Wallet
-    , availableBalance
-    , currentTip
-    , getState
-    , totalBalance
-    )
+    ( Wallet, availableBalance, currentTip, getState, totalBalance )
 import Cardano.Wallet.Primitive.Types
     ( Address
     , AddressState
     , Block
+    , BlockchainParameters
     , ChimericAccount (..)
     , Coin (..)
     , Hash (..)

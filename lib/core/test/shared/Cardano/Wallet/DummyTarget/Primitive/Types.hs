@@ -15,11 +15,10 @@ module Cardano.Wallet.DummyTarget.Primitive.Types
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Model
-    ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
+    , BlockchainParameters (..)
     , Coin (..)
     , EpochLength (..)
     , FeePolicy (..)

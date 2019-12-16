@@ -24,10 +24,13 @@ import Cardano.Wallet.Network
     ( Cursor, ErrGetBlock (..), NetworkLayer (..), NextBlocksResult (..) )
 import Cardano.Wallet.Network.BlockHeaders
     ( emptyBlockHeaders )
-import Cardano.Wallet.Primitive.Model
-    ( BlockchainParameters (..) )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), Hash (..), SlotId (..), SlotNo (unSlotNo) )
+    ( BlockHeader (..)
+    , BlockchainParameters (..)
+    , Hash (..)
+    , SlotId (..)
+    , SlotNo (unSlotNo)
+    )
 import Control.Concurrent.MVar.Lifted
     ( newMVar )
 import Control.Monad.Fail

@@ -72,10 +72,8 @@ import Cardano.Wallet.Logging
     ( transformTextTrace )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
-import Cardano.Wallet.Primitive.Model
-    ( BlockchainParameters )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..), SyncTolerance )
+    ( BlockchainParameters, Hash (..), SyncTolerance )
 import Cardano.Wallet.Version
     ( gitRevision, showFullVersion, version )
 import Control.Applicative
