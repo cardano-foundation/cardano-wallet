@@ -94,6 +94,12 @@ let
       benchmarks = collectTests jobs.x86_64-pc-mingw32.benchmarks;
     };
 
+    # For testing migration tests on windows
+    migration-tests-win64 = import ./nix/windows-migration-tests-bundle.nix {
+      inherit pkgs project;
+      migration-tests = jobs.x86_64-pc-mingw32.migration-tests.x86_64-linux;
+    };
+
     # Fully-static linux binary (placeholder - does not build)
     cardano-wallet-jormungandr-linux64 = let
       name = "cardano-wallet-jormungandr-${project.version}";

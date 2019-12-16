@@ -114,6 +114,31 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             ];
           buildable = true;
           };
+        "migration-test" = {
+          depends = [
+            (hsPkgs."base" or (buildDepError "base"))
+            (hsPkgs."aeson" or (buildDepError "aeson"))
+            (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
+            (hsPkgs."cardano-wallet-jormungandr" or (buildDepError "cardano-wallet-jormungandr"))
+            (hsPkgs."cardano-wallet-launcher" or (buildDepError "cardano-wallet-launcher"))
+            (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
+            (hsPkgs."filepath" or (buildDepError "filepath"))
+            (hsPkgs."http-client" or (buildDepError "http-client"))
+            (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
+            (hsPkgs."lens" or (buildDepError "lens"))
+            (hsPkgs."lens-aeson" or (buildDepError "lens-aeson"))
+            (hsPkgs."network" or (buildDepError "network"))
+            (hsPkgs."optparse-applicative" or (buildDepError "optparse-applicative"))
+            (hsPkgs."servant-client" or (buildDepError "servant-client"))
+            (hsPkgs."servant-server" or (buildDepError "servant-server"))
+            (hsPkgs."process" or (buildDepError "process"))
+            (hsPkgs."retry" or (buildDepError "retry"))
+            (hsPkgs."text" or (buildDepError "text"))
+            (hsPkgs."text-class" or (buildDepError "text-class"))
+            (hsPkgs."wreq" or (buildDepError "wreq"))
+            ];
+          buildable = true;
+          };
         };
       tests = {
         "unit" = {

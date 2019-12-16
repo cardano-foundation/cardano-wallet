@@ -41,10 +41,10 @@ let
 
     # `tests` are the test suites which have been built
     tests = collectComponents "tests" isCardanoWallet haskellPackages;
-    benchmarks = collectComponents "benchmarks" isCardanoWallet haskellPackages;
     # `checks` are the result of executing the tests
-    checks = pkgs.recurseIntoAttrs (getPackageChecks
-       (filterCardanoPackages haskellPackages));
+    checks = pkgs.recurseIntoAttrs (getPackageChecks (filterCardanoPackages haskellPackages));
+    benchmarks = collectComponents "benchmarks" isCardanoWallet haskellPackages;
+    migration-tests = import ./nix/migration-tests.nix { inherit system crossSystem config pkgs; };
 
     dockerImage = pkgs.callPackage ./nix/docker.nix {
       inherit (self) cardano-wallet-jormungandr;
