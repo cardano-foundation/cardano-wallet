@@ -17,18 +17,20 @@ The team's process is derived from [extreme programming][xp] and adapted for rem
 <details>
     <summary>example</summary>
 
-**U/S**  
-As a stake pool operator  
-I want the pool ordering to be fair and not favor any particular pools especially during the bootstrapping era  
-So that every pool has the same chance to be selected by users in the early stages.
-
-**A/C**  
-Given that stake pools can be listed via https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listStakePools  
-And they are ordered by "apparent performance"  
-When I query stake pools during the first epoch (when little information about them is available)  
-Then pools are ordered arbitrarily  
-And the order is not necessarily the same between different wallets  
-And the order is consistent between successive calls within the same wallet.
+> ### User Story 
+> 
+> **As** a stake pool operator  
+> **I want** the pool ordering to be fair and not favor any particular pools especially during the bootstrapping era  
+> **So that** every pool has the same chance to be selected by users in the early stages.
+> 
+> ### Acceptance Criteria 
+> 
+> **Given** that stake pools can be listed via https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listStakePools  
+> **And** they are ordered by "apparent performance"  
+> **When** I query stake pools during the first epoch (when little information about them is available)  
+> **Then** pools are ordered arbitrarily  
+> **And** the order is not necessarily the same between different wallets  
+> **And** the order is consistent between successive calls within the same wallet.
 </details>
 
 
@@ -36,19 +38,25 @@ And the order is consistent between successive calls within the same wallet.
 
 - The project is divided into weekly iterations called _sprints_.
 - Releases happen at the beginning of every sprints, Monday or Tuesday.
-- Every 3 sprints, the team does 1 week of recovery time (see below):
+- Every 3 sprints, the team does 1 week of recovery time (See [Recovery Week](#recovery-week) below).
 - User stories are assigned to and owned by a single member of the team (a.k.a the pilot). Pilots are seconded by a Co-pilot as follows:
-    - The pilot should clarify product requirements as needed with the product owner(s).
-    - The pilot should break U/S into tasks (small, sizeable, chunks of work).
-    - The pilot should estimate U/S.
-    - The pilot should then implement each task of a U/S.
-    - The co-pilot should challenge the pilot's task division and review it.
-    - The co-pilot is the primary reviewer of the pilot's tasks. He may call for assistance from peers when needed.
-    - The co-pilot should challenge the pilot's implementation decisions and technical choices. 
+
+    | Mission | Role | 
+    | --- | --- | 
+    | Clarify product requirements as needed with the product owner(s) | Pilot |
+    | Break U/S into tasks (small, sizeable, chunks of work) | Pilot |
+    | Estimate U/S in terms of # of sprints | Pilot |
+    | Implement each task of a U/S | Pilot |
+    | Challenge the task division and review it | Co-Pilot |
+    | Primary reviewer of the development tasks | Co-Pilot | 
+    | Call for assistance from peers when needed | Co-Pilot |
+    | Challenge implementation decisions and technical choices | Co-Pilot |
+
+
 - Tasks and Pull Requests have a dedicated GitHub template:
     - [Task Template](https://github.com/input-output-hk/cardano-wallet/blob/master/.github/ISSUE_TEMPLATE/task.md)
     - [PR Template](https://github.com/input-output-hk/cardano-wallet/blob/master/.github/PULL_REQUEST_TEMPLATE.md)
-- Tasks move across the following board (see Task template for transitions)
+- Tasks move across the [following board](https://github.com/input-output-hk/cardano-wallet/projects/1) (see Task template for transitions)
 
 ```
 |*************|  |*************|  |*************|  |*************|
@@ -68,6 +76,7 @@ And the order is consistent between successive calls within the same wallet.
     - Re-organizing modules and folder achitecture
     - Fix small `TODOs` or `FIXMEs`, or, turn them into U/S 
     - Identify areas of the source code which needs improvement
+- Recovery weeks happen instead of a sprint, and start with a retrospective meeting about the last 3 sprints.
 
 
 ## Coding
@@ -96,21 +105,23 @@ And the order is consistent between successive calls within the same wallet.
 
 ## Bugs
 
-- When a potential bug is found, a [Bug ticket](https://github.com/input-output-hk/cardano-wallet/blob/master/.github/ISSUE_TEMPLATE/bug.md) is created with a label `UNCONFIRMED`.
+- When a potential bug is found, a [Bug ticket](https://github.com/input-output-hk/cardano-wallet/blob/master/.github/ISSUE_TEMPLATE/bug.md) is created with a label `BUG?` 
 - Corresponding sections of the ticket are filled-in (context, reproduction path, expected behavior...)
+- The bug is added to the [following board](https://github.com/input-output-hk/cardano-wallet/projects/2) in "Needs Triage"
 - The ticket is discussed on Slack with the team to confirm that it's indeed a bug.
-- Once confirmed, the label `UNCONFIRMED` is changed to `CONFIRMED` and the bug is given a priority.
+- Once confirmed, the label `BUG?` is changed to `BUG:CONFIRMED` and the bug is given a priority (either low or high).
 - If dispelled, the bug ticket is closed without further ado.  
-- Bugs then move across the same board as tasks, described previously.
+- When resolved, the bugs moved to the "QA" section of the bugs board.
 
 ## Communication
 
 - We have daily written, asynchronous, stand-up on Slack on a separate channel
 - Each Wednesday, an iteration meeting is done:
     - 1h max
-    - To do a restrospective on past U/S and estimations. 
+    - To do a retrospective on past U/S and estimations. 
     - To assign new U/S to team members
     - To discuss important matters or change in the process 
+- Every 3 sprints, the Wednesday meeting becomes a monthly retrospective where the team can discuss what went well, what didn't and take actions to improve things (see also https://www.retrospected.com/)
 - Discussions happen on Slack in clear threads, decisions are documented on GitHub as comments on issues
 - Our GitHub wiki can be extended at any time with insights and details about the software
 - Reports and metrics about the project are available to anyone
