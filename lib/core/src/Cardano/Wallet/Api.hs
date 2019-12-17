@@ -15,18 +15,21 @@ module Cardano.Wallet.Api
     ( -- * API
       Api
 
-      -- * Core API
-    , CoreApi
+      -- * Shelley
+    , Wallets
     , Addresses
     , CoinSelections
-    , Wallets
     , Transactions
+    , StakePools
 
-      -- * Stake Pool API
-    , StakePoolApi
+    -- * Byron
+    , ByronWallets
+    , ByronTransactions
+    , ByronMigrations
 
-      -- * Compatibility API
-    , CompatibilityApi
+    -- * Miscellaneous
+    , Network
+    , Proxy_
 
       -- * Api Layer
     , ApiLayer (..)
@@ -37,7 +40,6 @@ module Cardano.Wallet.Api
 
       -- * Miscellaneous Types
     , Any
-
     ) where
 
 import Prelude
@@ -127,49 +129,18 @@ import Servant.API.Verbs
     , Verb
     )
 
--- NOTE Somehow not exported in servant-0.15, despite the doc saying differently
-type PutAcccepted = Verb 'PUT 202
 
-type Api t = CoreApi t :<|> CompatibilityApi t :<|> StakePoolApi t
-
-type CoreApi t =
-    Addresses t
-    :<|> Wallets
-    :<|> CoinSelections t
-    :<|> Transactions t
+type Api n =
+         Wallets
+    :<|> Addresses n
+    :<|> CoinSelections n
+    :<|> Transactions n
+    :<|> StakePools n
+    :<|> ByronWallets
+    :<|> ByronTransactions n
+    :<|> ByronMigrations n
     :<|> Network
-
-type StakePoolApi t =
-    ListStakePools
-    :<|> JoinStakePool t
-    :<|> QuitStakePool t
-    :<|> DelegationFee
-
-type CompatibilityApi n =
-    DeleteByronWallet
-    :<|> GetByronWallet
-    :<|> GetByronWalletMigrationInfo
-    :<|> ListByronWallets
-    :<|> ListByronTransactions n
-    :<|> MigrateByronWallet n
-    :<|> PostByronWallet
-    :<|> DeleteByronTransaction
-
-{-------------------------------------------------------------------------------
-                                  Addresses
-
-  See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/Addresses
--------------------------------------------------------------------------------}
-
-type Addresses t =
-    ListAddresses t
-
--- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listAddresses
-type ListAddresses t = "wallets"
-    :> Capture "walletId" (ApiT WalletId)
-    :> "addresses"
-    :> QueryParam "state" (ApiT AddressState)
-    :> Get '[JSON] [ApiAddress t]
+    :<|> Proxy_
 
 {-------------------------------------------------------------------------------
                                   Wallets
@@ -226,6 +197,22 @@ type GetUTxOsStatistics = "wallets"
     :> Get '[JSON] ApiUtxoStatistics
 
 {-------------------------------------------------------------------------------
+                                  Addresses
+
+  See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/Addresses
+-------------------------------------------------------------------------------}
+
+type Addresses n =
+    ListAddresses n
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listAddresses
+type ListAddresses n = "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "addresses"
+    :> QueryParam "state" (ApiT AddressState)
+    :> Get '[JSON] [ApiAddress n]
+
+{-------------------------------------------------------------------------------
                                Coin Selections
 
   See also:
@@ -253,7 +240,6 @@ type Transactions n =
     CreateTransaction n
     :<|> ListTransactions n
     :<|> PostTransactionFee n
-    :<|> PostExternalTransaction
     :<|> DeleteTransaction
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransaction
@@ -263,14 +249,6 @@ type CreateTransaction n = "wallets"
     :> ReqBody '[JSON] (PostTransactionData n)
     :> PostAccepted '[JSON] (ApiTransaction n)
 
--- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransactionFee
-type PostTransactionFee n = "wallets"
-    :> Capture "walletId" (ApiT WalletId)
-    :> "transactions"
-    :> "fees"
-    :> ReqBody '[JSON] (PostTransactionFeeData n)
-    :> PostAccepted '[JSON] ApiFee
-
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listTransaction
 type ListTransactions n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
@@ -279,6 +257,14 @@ type ListTransactions n = "wallets"
     :> QueryParam "end" Iso8601Time
     :> QueryParam "order" (ApiT SortOrder)
     :> Get '[JSON] [ApiTransaction n]
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransactionFee
+type PostTransactionFee n = "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "transactions"
+    :> "fees"
+    :> ReqBody '[JSON] (PostTransactionFeeData n)
+    :> PostAccepted '[JSON] ApiFee
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteTransaction
 type DeleteTransaction = "wallets"
@@ -293,18 +279,31 @@ type DeleteTransaction = "wallets"
   See also: https://input-output-hk.github.io/cardano-wallet/api/edge/#tag/Stake-Pools
 -------------------------------------------------------------------------------}
 
+type StakePools n =
+    ListStakePools
+    :<|> JoinStakePool n
+    :<|> QuitStakePool n
+    :<|> DelegationFee
+
 -- | https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listStakePools
 type ListStakePools = "stake-pools"
     :> Get '[JSON] [ApiStakePool]
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/joinStakePool
-type JoinStakePool t = "stake-pools"
+type JoinStakePool n = "stake-pools"
     :> Capture "stakePoolId" (ApiT PoolId)
     :> "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> ReqBody '[JSON] ApiWalletPassphrase
-    :> PutAcccepted '[JSON] (ApiTransaction t)
+    :> PutAcccepted '[JSON] (ApiTransaction n)
 
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/quitStakePool
+type QuitStakePool n = "stake-pools"
+    :> Capture "stakePoolId" (ApiT PoolId)
+    :> "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> ReqBody '[JSON] ApiWalletPassphrase
+    :> DeleteAccepted '[JSON] (ApiTransaction n)
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getDelegationFee
 type DelegationFee = "wallets"
@@ -313,42 +312,17 @@ type DelegationFee = "wallets"
     :> "fees"
     :> Get '[JSON] ApiFee
 
--- | https://input-output-hk.github.io/cardano-wallet/api/#operation/quitStakePool
-type QuitStakePool t = "stake-pools"
-    :> Capture "stakePoolId" (ApiT PoolId)
-    :> "wallets"
-    :> Capture "walletId" (ApiT WalletId)
-    :> ReqBody '[JSON] ApiWalletPassphrase
-    :> DeleteAccepted '[JSON] (ApiTransaction t)
-
 {-------------------------------------------------------------------------------
-                                  Network
-
-  See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/Network
--------------------------------------------------------------------------------}
-
-type Network =
-    "network"
-    :> "information"
-    :> Get '[JSON] ApiNetworkInformation
-
-{-------------------------------------------------------------------------------
-                                  Proxy
-
-  See also: https://input-output-hk.github.io/cardano-wallet/api/edge/#tag/Proxy
--------------------------------------------------------------------------------}
-
--- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postExternalTransaction
-type PostExternalTransaction = "proxy"
-    :> "transactions"
-    :> ReqBody '[OctetStream] PostExternalTransactionData
-    :> PostAccepted '[JSON] ApiTxId
-
-{-------------------------------------------------------------------------------
-                              Compatibility API
+                                 Byron Wallets
 
   See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/Byron-Wallets
 -------------------------------------------------------------------------------}
+
+type ByronWallets =
+         PostByronWallet
+    :<|> DeleteByronWallet
+    :<|> GetByronWallet
+    :<|> ListByronWallets
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postByronWallet
 type PostByronWallet = "byron-wallets"
@@ -365,15 +339,19 @@ type GetByronWallet = "byron-wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> Get '[JSON] ApiByronWallet
 
--- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getByronWalletMigrationInfo
-type GetByronWalletMigrationInfo = "byron-wallets"
-    :> Capture "walletId" (ApiT WalletId)
-    :> "migrations"
-    :> Get '[JSON] ApiByronWalletMigrationInfo
-
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listByronWallets
 type ListByronWallets = "byron-wallets"
     :> Get '[JSON] [ApiByronWallet]
+
+{-------------------------------------------------------------------------------
+                                 Byron Transactions
+
+  See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/Byron-Transactions
+-------------------------------------------------------------------------------}
+
+type ByronTransactions n =
+         ListByronTransactions n
+    :<|> DeleteByronTransaction
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listByronTransactions
 type ListByronTransactions n = "byron-wallets"
@@ -384,6 +362,23 @@ type ListByronTransactions n = "byron-wallets"
     :> QueryParam "order" (ApiT SortOrder)
     :> Get '[JSON] [ApiTransaction n]
 
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteByronTransaction
+type DeleteByronTransaction = "byron-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "transactions"
+    :> Capture "transactionId" ApiTxId
+    :> DeleteNoContent '[Any] NoContent
+
+{-------------------------------------------------------------------------------
+                                 Byron Migrations
+
+  See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/Byron-Migrations
+-------------------------------------------------------------------------------}
+
+type ByronMigrations n =
+         GetByronWalletMigrationInfo
+    :<|> MigrateByronWallet n
+
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/migrateByronWallet
 type MigrateByronWallet n = "byron-wallets"
     :> Capture "sourceWalletId" (ApiT WalletId)
@@ -392,12 +387,37 @@ type MigrateByronWallet n = "byron-wallets"
     :> ReqBody '[JSON] ApiWalletPassphrase
     :> PostAccepted '[JSON] [ApiTransaction n]
 
--- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteByronTransaction
-type DeleteByronTransaction = "byron-wallets"
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getByronWalletMigrationInfo
+type GetByronWalletMigrationInfo = "byron-wallets"
     :> Capture "walletId" (ApiT WalletId)
+    :> "migrations"
+    :> Get '[JSON] ApiByronWalletMigrationInfo
+
+{-------------------------------------------------------------------------------
+                                  Network
+
+  See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/Network
+-------------------------------------------------------------------------------}
+
+type Network =
+    "network"
+    :> "information"
+    :> Get '[JSON] ApiNetworkInformation
+
+{-------------------------------------------------------------------------------
+                                   Proxy_
+
+  See also: https://input-output-hk.github.io/cardano-wallet/api/edge/#tag/Proxy
+-------------------------------------------------------------------------------}
+
+type Proxy_ =
+    PostExternalTransaction
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postExternalTransaction
+type PostExternalTransaction = "proxy"
     :> "transactions"
-    :> Capture "transactionId" ApiTxId
-    :> DeleteNoContent '[Any] NoContent
+    :> ReqBody '[OctetStream] PostExternalTransactionData
+    :> PostAccepted '[JSON] ApiTxId
 
 {-------------------------------------------------------------------------------
                                    Internals
@@ -412,6 +432,9 @@ instance Accept Any where
         [ "application" // "json"
         , "application" // "json" /: ("charset", "utf-8")
         ]
+
+-- NOTE Somehow not exported in servant-0.15, despite the doc saying differently
+type PutAcccepted = Verb 'PUT 202
 
 {-------------------------------------------------------------------------------
                                Api Layer

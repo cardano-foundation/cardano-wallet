@@ -93,7 +93,7 @@ import Cardano.BM.Setup
 import Cardano.BM.Trace
     ( Trace, logAlert, logDebug, logInfo )
 import Cardano.Wallet.Api
-    ( CoreApi, StakePoolApi )
+    ( Api )
 import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..) )
 import Cardano.Wallet.Api.Types
@@ -1096,16 +1096,17 @@ data WalletClient t = WalletClient
 walletClient :: forall t. (DecodeAddress t, EncodeAddress t) => WalletClient t
 walletClient =
     let
-        (addresses
-            :<|> wallets
+        (wallets
+            :<|> addresses
             :<|> coinSelections
             :<|> transactions
-            :<|> network)
-            :<|> pools =
-            client (Proxy @("v2" :> (CoreApi t :<|> StakePoolApi t)))
-
-        _listAddresses =
-            addresses
+            :<|> stakePools
+            :<|> _byronWallets
+            :<|> _byronTransactions
+            :<|> _byronMigrations
+            :<|> network
+            :<|> proxy_) =
+            client (Proxy @("v2" :> (Api t)))
 
         _deleteWallet
             :<|> _getWallet
@@ -1116,13 +1117,15 @@ walletClient =
             :<|> _getWalletUtxoStatistics
             = wallets
 
+        _listAddresses =
+            addresses
+
         _selectCoins
             = coinSelections
 
         _postTransaction
             :<|> _listTransactions
             :<|> _postTransactionFee
-            :<|> _postExternalTransaction
             :<|> _deleteTransaction
             = transactions
 
@@ -1130,9 +1133,12 @@ walletClient =
             :<|> _joinStakePool
             :<|> _quitStakePool
             :<|> _delegationFee
-            = pools
+            = stakePools
 
         _networkInformation = network
+
+        _postExternalTransaction
+            = proxy_
     in
         WalletClient
             { listAddresses = _listAddresses
