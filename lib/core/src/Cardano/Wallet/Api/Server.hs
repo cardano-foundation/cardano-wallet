@@ -1081,6 +1081,7 @@ getNetworkInformation (_block0, bp, st) nl = do
         (bp ^. #getEpochLength)
         (bp ^. #getSlotLength)
         (bp ^. #getGenesisBlockDate)
+        (bp ^. #getActiveSlotCoefficient)
 
 newtype ErrNextEpoch = ErrNextEpochCannotBeCalculated Iso8601Time
 
