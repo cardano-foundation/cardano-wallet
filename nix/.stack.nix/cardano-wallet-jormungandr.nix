@@ -245,6 +245,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."stm" or (buildDepError "stm"))
             (hsPkgs."temporary" or (buildDepError "temporary"))
             (hsPkgs."text" or (buildDepError "text"))
+            (hsPkgs."text-class" or (buildDepError "text-class"))
             (hsPkgs."time" or (buildDepError "time"))
             ];
           build-tools = [

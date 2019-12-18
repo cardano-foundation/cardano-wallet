@@ -15,12 +15,18 @@ module Main where
 
 import Prelude
 
+import Cardano.BM.Backend.Switchboard
+    ( effectuate )
 import Cardano.BM.Configuration.Static
     ( defaultConfigStdout )
 import Cardano.BM.Data.LogItem
     ( LOContent (..), LOMeta (..), LogObject (..) )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
+import Cardano.BM.Data.Tracer
+    ( ToObject (..) )
+import Cardano.BM.Setup
+    ( setupTrace_, shutdown )
 import Cardano.BM.Trace
     ( Trace, traceInTVarIO )
 import Cardano.Faucet
@@ -51,19 +57,19 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Types
     ( BlockchainParameters (..), SyncTolerance (..) )
 import Control.Concurrent.Async
-    ( race )
+    ( race_ )
 import Control.Concurrent.MVar
     ( newEmptyMVar, putMVar, takeMVar )
 import Control.Concurrent.STM.TVar
     ( TVar, newTVarIO, readTVarIO, writeTVar )
 import Control.Exception
-    ( throwIO )
+    ( bracket, onException, throwIO )
 import Control.Monad
     ( mapM_, replicateM, replicateM_ )
 import Control.Monad.STM
     ( atomically )
 import Data.Aeson
-    ( Value )
+    ( FromJSON (..), ToJSON (..), Value )
 import Data.Aeson.QQ
     ( aesonQQ )
 import Data.Generics.Internal.VL.Lens
@@ -74,6 +80,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( toText )
 import Data.Time
     ( NominalDiffTime )
 import Data.Time.Clock
@@ -123,10 +131,7 @@ import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
 main :: forall t n. (t ~ Jormungandr, n ~ 'Testnet) => IO ()
-main = withUtf8Encoding $ do
-    tvar <- newTVarIO []
-    logging <- setupLatencyLogging tvar
-
+main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
     fmtLn "Latencies for 2 fixture wallets scenario"
     runScenario logging tvar (nFixtureWallet 2)
 
@@ -421,26 +426,30 @@ extractTimings isStart isFinish msgs = map2 mkDiff filtered
         _ -> Nothing
     getTimestamp = tstamp . loMeta
 
-setupLatencyLogging
-    :: TVar [LogObject ServerLog]
-    -> IO (CM.Configuration, Trace IO ServerLog)
-setupLatencyLogging tvar = do
-    cfg <- do
-        cfg' <- defaultConfigStdout
-        CM.setMinSeverity cfg' Debug
-        pure cfg'
-    pure (cfg, traceInTVarIO tvar)
+withLatencyLogging
+    :: (ToJSON msg, FromJSON msg, ToObject msg, Show msg)
+    => ((CM.Configuration, Trace IO msg) -> TVar [LogObject msg] -> IO a)
+    -> IO a
+withLatencyLogging action = do
+    tvar <- newTVarIO []
+    cfg <- defaultConfigStdout
+    CM.setMinSeverity cfg Debug
+    bracket (setupTrace_ cfg "bench-latency") (shutdown . snd) $ \(_, sb) -> do
+        action (cfg, traceInTVarIO tvar) tvar `onException` do
+            fmtLn "Action failed. Here are the captured logs:"
+            readTVarIO tvar >>= mapM_ (effectuate sb) . reverse
 
 benchWithServer
     :: (CM.Configuration, Trace IO ServerLog)
     -> (Context Jormungandr -> IO ())
     -> IO ()
-benchWithServer logCfg = withContext
-  where
-    withContext :: (Context Jormungandr -> IO ()) -> IO ()
-    withContext action = do
-        ctx <- newEmptyMVar
-        let setupContext wAddr nPort bp = do
+benchWithServer logCfg action = withConfig $ \jmCfg -> do
+    ctx <- newEmptyMVar
+    race_ (takeMVar ctx >>= action) $ do
+        res <- serveWallet @'Testnet
+            logCfg (SyncTolerance 10)
+            Nothing "127.0.0.1"
+            ListenOnRandomPort (Launch jmCfg) $ \wAddr nPort bp -> do
                 let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
                 let sixtySeconds = 60*1000*1000 -- 60s in microseconds
                 manager <- (baseUrl,) <$> newManager (defaultManagerSettings
@@ -458,9 +467,12 @@ benchWithServer logCfg = withContext
                     , _feeEstimator = \_ -> error "feeEstimator not available"
                     , _target = Proxy
                     }
-        race (takeMVar ctx >>= action) (withServer setupContext) >>=
-            either pure (throwIO . ProcessHasExited "latency benchmark")
+        throwIO $ ProcessHasExited "Server has unexpectedly exited" res
 
-    withServer setup = withConfig $ \jmCfg ->
-        serveWallet @'Testnet logCfg (SyncTolerance 10) Nothing "127.0.0.1"
-            ListenOnRandomPort (Launch jmCfg) setup
+instance ToJSON ServerLog where
+    toJSON = toJSON . toText
+
+instance FromJSON ServerLog where
+    parseJSON _ = fail "FromJSON ServerLog stub"
+
+instance ToObject ServerLog
