@@ -168,16 +168,15 @@ newDBLayer logConfig trace fp = do
                 [ StakeDistributionEpoch ==. fromIntegral epoch ]
                 []
 
-        , putPoolRegistration = \(EpochNo ep) PoolRegistrationCertificate
+        , putPoolRegistration = \point PoolRegistrationCertificate
             { poolId
             , poolOwners
             , poolMargin
             , poolCost
             } -> do
-            let ep_ = fromIntegral ep
             let poolMargin_ = fromIntegral $ fromEnum poolMargin
             let poolCost_ = getQuantity poolCost
-            insert_ $ PoolRegistration poolId ep_ poolMargin_ poolCost_
+            insert_ $ PoolRegistration poolId point poolMargin_ poolCost_
             insertMany_ $ uncurry (PoolOwner poolId) <$> zip poolOwners [0..]
 
         , readPoolRegistration = \poolId -> do
@@ -195,13 +194,13 @@ newDBLayer logConfig trace fp = do
 
         , listRegisteredPools = do
             fmap (poolRegistrationPoolId . entityVal) <$> selectList [ ]
-                [ Desc PoolRegistrationEpoch ]
+                [ Desc PoolRegistrationSlot ]
 
         , rollbackTo = \point -> do
             let (EpochNo epoch) = epochNumber point
             deleteWhere [ PoolProductionSlot >. point ]
             deleteWhere [ StakeDistributionEpoch >. fromIntegral epoch ]
-            deleteWhere [ PoolRegistrationEpoch >. fromIntegral epoch ]
+            deleteWhere [ PoolRegistrationSlot >. point ]
 
         , readPoolProductionCursor = \k -> do
             reverse . map (snd . fromPoolProduction . entityVal) <$> selectList

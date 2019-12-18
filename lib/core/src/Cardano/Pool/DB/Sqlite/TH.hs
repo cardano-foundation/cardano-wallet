@@ -82,7 +82,7 @@ PoolOwner sql=pool_owner
 -- Mapping of registration certificate to pool
 PoolRegistration sql=pool_registration
     poolRegistrationPoolId  W.PoolId  sql=pool_id
-    poolRegistrationEpoch   Word64    sql=epoch
+    poolRegistrationSlot    W.SlotId  sql=slot
     poolRegistrationMargin  Word8     sql=margin
     poolRegistrationCost    Word64    sql=cost
 

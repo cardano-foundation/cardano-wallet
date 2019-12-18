@@ -90,7 +90,7 @@ data PoolDatabase = PoolDatabase
     , owners :: !(Map PoolId [PoolOwner])
     -- ^ Mapping between pool ids and owners
 
-    , metadata :: !(Map (EpochNo, PoolId) (Percentage, Quantity "lovelace" Word64))
+    , metadata :: !(Map (SlotId, PoolId) (Percentage, Quantity "lovelace" Word64))
     -- ^ On-chain metadata associated with pools
 
     , seed :: !SystemSeed
@@ -164,11 +164,11 @@ mReadStakeDistribution epoch db@PoolDatabase{distributions} =
     , db
     )
 
-mPutPoolRegistration :: EpochNo -> PoolRegistrationCertificate -> ModelPoolOp ()
-mPutPoolRegistration ep registration db@PoolDatabase{owners,metadata} =
+mPutPoolRegistration :: SlotId -> PoolRegistrationCertificate -> ModelPoolOp ()
+mPutPoolRegistration sl registration db@PoolDatabase{owners,metadata} =
     ( Right ()
     , db { owners = Map.insert poolId poolOwners owners
-         , metadata = Map.insert (ep, poolId) (poolMargin, poolCost) metadata
+         , metadata = Map.insert (sl, poolId) (poolMargin, poolCost) metadata
          }
     )
   where
@@ -222,7 +222,7 @@ mReadCursor k db@PoolDatabase{pools} =
 mRollbackTo :: SlotId -> ModelPoolOp ()
 mRollbackTo point PoolDatabase{pools, distributions, owners, metadata, seed} =
     let
-        metadata' = Map.mapMaybeWithKey (\(ep, _) -> discardEpoch ep) metadata
+        metadata' = Map.mapMaybeWithKey (discardBy id . fst) metadata
         owners' = Map.restrictKeys owners
             $ Set.fromList
             $ snd <$> Map.keys metadata'
@@ -230,7 +230,7 @@ mRollbackTo point PoolDatabase{pools, distributions, owners, metadata, seed} =
         ( Right ()
         , PoolDatabase
             { pools = updatePools $ updateSlots pools
-            , distributions = Map.mapMaybeWithKey discardEpoch distributions
+            , distributions = Map.mapMaybeWithKey (discardBy epochNumber) distributions
             , owners = owners'
             , metadata = metadata'
             , seed
@@ -241,7 +241,7 @@ mRollbackTo point PoolDatabase{pools, distributions, owners, metadata, seed} =
     updateSlots = Map.map (filter ((<= point) . slotId))
     updatePools = Map.filter (not . L.null)
 
-    discardEpoch :: EpochNo -> a -> Maybe a
-    discardEpoch ep v
-        | ep <= epochNumber point = Just v
+    discardBy :: Ord point => (SlotId -> point) -> point -> a -> Maybe a
+    discardBy get point' v
+        | point' <= get point = Just v
         | otherwise = Nothing

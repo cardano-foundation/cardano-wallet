@@ -371,7 +371,7 @@ prop_poolRegistration DBLayer {..} entries =
     setup = run $ atomically cleanDB
     expected = L.sort entries
     prop = do
-        run . atomically $ mapM_ (putPoolRegistration 0) entries
+        run . atomically $ mapM_ (putPoolRegistration (SlotId 0 0)) entries
         pools <- run . atomically $ L.sort . catMaybes
             <$> mapM (readPoolRegistration . poolId) entries
         monitor $ counterexample $ unlines
@@ -402,8 +402,7 @@ prop_rollbackRegistration DBLayer{..} rollbackPoint entries =
         in L.length owners > L.length (L.nub owners)
 
     prop = do
-        run . atomically $ forM_ entries $ \(sl, pool) ->
-            putPoolRegistration (epochNumber sl) pool
+        run . atomically $ mapM_ (uncurry putPoolRegistration) entries
         run . atomically $ rollbackTo rollbackPoint
         pools <- run . atomically $ L.sort . catMaybes
             <$> mapM (readPoolRegistration . poolId . snd) entries
@@ -427,7 +426,8 @@ prop_listRegisteredPools DBLayer {..} entries =
         L.nub poolOwners /= poolOwners
 
     prop = do
-        run . atomically $ mapM_ (uncurry putPoolRegistration) (zip [0..] entries)
+        let entries' = (zip [SlotId ep 0 | ep <- [0..]] entries)
+        run . atomically $ mapM_ (uncurry putPoolRegistration) entries'
         pools <- run . atomically $ listRegisteredPools
         monitor $ classify (any hasDuplicateOwners entries)
             "same owner multiple time in the same certificate"
