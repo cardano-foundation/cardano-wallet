@@ -15,8 +15,6 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
-{-# OPTIONS_GHC -fno-warn-redundant-constraints #-}
-
 -- |
 -- Copyright: © 2018-2019 IOHK
 -- License: Apache-2.0
@@ -82,12 +80,15 @@ import Cardano.Wallet.Api
     ( Addresses
     , Api
     , ApiLayer (..)
+    , ByronMigrations
+    , ByronTransactions
+    , ByronWallets
     , CoinSelections
-    , CompatibilityApi
-    , CoreApi
     , HasDBFactory
     , HasWorkerRegistry
-    , StakePoolApi
+    , Network
+    , Proxy_
+    , StakePools
     , Transactions
     , Wallets
     , dbFactory
@@ -139,7 +140,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
     , HardDerivation (..)
     , NetworkDiscriminant (..)
-    , PaymentAddress (..)
     , WalletKey (..)
     , digest
     , publicKey
@@ -316,7 +316,6 @@ start
         , DecodeAddress n
         , EncodeAddress n
         , DelegationAddress n ShelleyKey
-        , PaymentAddress n ByronKey
         )
     => Warp.Settings
     -> Trace IO ApiLog
@@ -325,21 +324,15 @@ start
     -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
     -> StakePoolLayer IO
     -> IO ()
-start settings tr socket rndCtx seqCtx spl = do
+start settings tr socket byron shelley spl = do
     logSettings <- newApiLoggerSettings <&> obfuscateKeys (const sensitive)
     Warp.runSettingsSocket settings socket
         $ handleRawError (curry handler)
         $ withApiLogger tr logSettings
         application
   where
-    -- | A Servant server for our wallet API
-    server :: Server (Api n)
-    server = coreApiServer seqCtx
-        :<|> compatibilityApiServer @t @n rndCtx seqCtx
-        :<|> stakePoolServer seqCtx spl
-
     application :: Application
-    application = serve (Proxy @("v2" :> Api n)) server
+    application = serve (Proxy @("v2" :> Api n)) (server byron shelley spl)
 
     sensitive :: [Text]
     sensitive =
@@ -416,58 +409,112 @@ ioToListenError hostPreference portOpt e
                                    Core API
 -------------------------------------------------------------------------------}
 
-coreApiServer
-    :: forall ctx s t k n.
-        ( DelegationAddress n k
-        , Buildable (ErrValidateSelection t)
-        , k ~ ShelleyKey
-        , s ~ SeqState n k
-        , ctx ~ ApiLayer s t k
-        )
-    => ctx
-    -> Server (CoreApi n)
-coreApiServer ctx =
-    addresses ctx
-    :<|> wallets ctx
-    :<|> coinSelections ctx
-    :<|> transactions ctx
-    :<|> network ctx
+-- | A Servant server for our wallet API
+server
+    :: forall t n byron shelley.
+        ( shelley ~ ApiLayer (SeqState n ShelleyKey) t ShelleyKey
+        , byron ~ ApiLayer (RndState 'Mainnet) t ByronKey
+        -- yoroi ~ ApiLayer (SeqState n ByronKey) t ByronKey
 
-stakePoolServer
-    :: forall ctx s t n k.
-        ( DelegationAddress n k
+        , DelegationAddress n ShelleyKey
         , Buildable (ErrValidateSelection t)
-        , k ~ ShelleyKey
-        , s ~ SeqState n k
-        , HardDerivation k
-        , ctx ~ ApiLayer s t k
         )
-    => ctx
+    => byron
+    -> shelley
     -> StakePoolLayer IO
-    -> Server (StakePoolApi n)
-stakePoolServer = stakePools
+    -> Server (Api n)
+server byron shelley spl =
+         wallets
+    :<|> addresses
+    :<|> coinSelections
+    :<|> transactions
+    :<|> stakePools
+    :<|> byronWallets
+    :<|> byronTransactions
+    :<|> byronMigrations
+    :<|> network
+    :<|> proxy
+  where
+    wallets :: Server Wallets
+    wallets = deleteWallet shelley
+        :<|> getWallet shelley
+        :<|> listWallets shelley
+        :<|> postWallet shelley
+        :<|> putWallet shelley
+        :<|> putWalletPassphrase shelley
+        :<|> getUTxOsStatistics shelley
+
+    addresses :: Server (Addresses n)
+    addresses = listAddresses shelley
+
+    coinSelections :: Server (CoinSelections n)
+    coinSelections = selectCoins shelley
+
+    transactions :: Server (Transactions n)
+    transactions =
+        postTransaction shelley
+        :<|> listTransactions shelley
+        :<|> postTransactionFee shelley
+        :<|> deleteTransaction shelley
+
+    stakePools :: Server (StakePools n)
+    stakePools = listPools spl
+        :<|> joinStakePool shelley spl
+        :<|> quitStakePool shelley
+        :<|> delegationFee shelley
+
+    byronWallets :: Server ByronWallets
+    byronWallets = postByronWallet byron
+        :<|> deleteByronWallet byron
+        :<|> getByronWallet byron
+        :<|> listByronWallets byron
+
+    byronTransactions :: Server (ByronTransactions n)
+    byronTransactions = listByronTransactions byron
+        :<|> deleteByronTransaction byron
+
+    byronMigrations :: Server (ByronMigrations n)
+    byronMigrations = getByronWalletMigrationInfo byron
+        :<|> migrateByronWallet byron shelley
+
+    network :: Server Network
+    network = getNetworkInformation genesis nl
+      where
+        nl = shelley ^. networkLayer @t
+        genesis = shelley ^. genesisData
+
+    proxy :: Server Proxy_
+    proxy = postExternalTransaction shelley
 
 {-------------------------------------------------------------------------------
                                     Wallets
 -------------------------------------------------------------------------------}
 
-wallets
+postWallet
     :: forall ctx s t k n.
-        ( DelegationAddress n k
+        ( s ~ SeqState n k
         , k ~ ShelleyKey
-        , s ~ SeqState n k
         , ctx ~ ApiLayer s t k
+        , HasDBFactory s k ctx
+        , HasWorkerRegistry s k ctx
         )
     => ctx
-    -> Server Wallets
-wallets ctx =
-    deleteWallet ctx
-    :<|> getWallet ctx
-    :<|> listWallets ctx
-    :<|> postWallet ctx
-    :<|> putWallet ctx
-    :<|> putWalletPassphrase ctx
-    :<|> getUTxOsStatistics ctx
+    -> WalletPostData
+    -> Handler ApiWallet
+postWallet ctx body = do
+    let seed = getApiMnemonicT (body ^. #mnemonicSentence)
+    let secondFactor =
+            maybe mempty getApiMnemonicT (body ^. #mnemonicSecondFactor)
+    let pwd = getApiT (body ^. #passphrase)
+    let rootXPrv = Seq.generateKeyFromSeed (seed, secondFactor) pwd
+    let g = maybe defaultAddressPoolGap getApiT (body ^. #addressPoolGap)
+    let s = mkSeqState (rootXPrv, pwd) g
+    let wid = WalletId $ digest $ publicKey rootXPrv
+    let wName = getApiT (body ^. #name)
+    void $ liftHandler $ createWallet @_ @s @t @k ctx wid wName s
+    liftHandler $ withWorkerCtx @_ @s @k ctx wid throwE $ \wrk ->
+        W.attachPrivateKey @_ @s @k wrk wid (rootXPrv, pwd)
+    getWallet ctx (ApiT wid)
 
 deleteWallet
     :: forall ctx s t k.
@@ -511,33 +558,6 @@ listWallets ctx = do
         mapM (getWalletWithCreationTime ctx) wids
   where
     re = ctx ^. workerRegistry @s @k
-
-postWallet
-    :: forall ctx s t k n.
-        ( DelegationAddress n k
-        , s ~ SeqState n k
-        , k ~ ShelleyKey
-        , ctx ~ ApiLayer s t k
-        , HasDBFactory s k ctx
-        , HasWorkerRegistry s k ctx
-        )
-    => ctx
-    -> WalletPostData
-    -> Handler ApiWallet
-postWallet ctx body = do
-    let seed = getApiMnemonicT (body ^. #mnemonicSentence)
-    let secondFactor =
-            maybe mempty getApiMnemonicT (body ^. #mnemonicSecondFactor)
-    let pwd = getApiT (body ^. #passphrase)
-    let rootXPrv = Seq.generateKeyFromSeed (seed, secondFactor) pwd
-    let g = maybe defaultAddressPoolGap getApiT (body ^. #addressPoolGap)
-    let s = mkSeqState (rootXPrv, pwd) g
-    let wid = WalletId $ digest $ publicKey rootXPrv
-    let wName = getApiT (body ^. #name)
-    void $ liftHandler $ createWallet @_ @s @t @k ctx wid wName s
-    liftHandler $ withWorkerCtx @_ @s @k ctx wid throwE $ \wrk ->
-        W.attachPrivateKey @_ @s @k wrk wid (rootXPrv, pwd)
-    getWallet ctx (ApiT wid)
 
 putWallet
     :: forall ctx s t k n.
@@ -598,22 +618,10 @@ getUTxOsStatistics ctx (ApiT wid) = do
   where
     liftE = throwE . ErrListUTxOStatisticsNoSuchWallet
 
+
 {-------------------------------------------------------------------------------
                                   Coin Selections
 -------------------------------------------------------------------------------}
-
-coinSelections
-    :: forall ctx s t k n.
-        ( Buildable (ErrValidateSelection t)
-        , DelegationAddress n k
-        , k ~ ShelleyKey
-        , s ~ SeqState n k
-        , ctx ~ ApiLayer s t k
-        )
-    => ctx
-    -> Server (CoinSelections n)
-coinSelections =
-    selectCoins
 
 selectCoins
     :: forall ctx s t k n.
@@ -636,20 +644,10 @@ selectCoins ctx (ApiT wid) body =
   where
     liftE = throwE . ErrSelectCoinsExternalNoSuchWallet
 
+
 {-------------------------------------------------------------------------------
                                     Addresses
 -------------------------------------------------------------------------------}
-
-addresses
-    :: forall ctx s t k n.
-        ( DelegationAddress n k
-        , k ~ ShelleyKey
-        , s ~ SeqState n k
-        , ctx ~ ApiLayer s t k
-        )
-    => ctx
-    -> Server (Addresses n)
-addresses = listAddresses
 
 listAddresses
     :: forall ctx s t k n.
@@ -673,26 +671,10 @@ listAddresses ctx (ApiT wid) stateFilter = do
         Just (ApiT s) -> (== s) . snd
     coerceAddress (a, s) = ApiAddress (ApiT a, Proxy @n) (ApiT s)
 
+
 {-------------------------------------------------------------------------------
                                     Transactions
 -------------------------------------------------------------------------------}
-
-transactions
-    :: forall ctx s t k n.
-        ( DelegationAddress n k
-        , Buildable (ErrValidateSelection t)
-        , s ~ SeqState n k
-        , k ~ ShelleyKey
-        , ctx ~ ApiLayer s t k
-        )
-    => ctx
-    -> Server (Transactions n)
-transactions ctx =
-    postTransaction ctx
-    :<|> listTransactions ctx
-    :<|> postTransactionFee ctx
-    :<|> postExternalTransaction ctx
-    :<|> deleteTransaction ctx
 
 postTransaction
     :: forall ctx s t k n.
@@ -729,18 +711,6 @@ postTransaction ctx (ApiT wid) body = do
     liftE1 = throwE . ErrSelectForPaymentNoSuchWallet
     liftE2 = throwE . ErrSignPaymentNoSuchWallet
     liftE3 = throwE . ErrSubmitTxNoSuchWallet
-
-postExternalTransaction
-    :: forall ctx s t k n.
-        ( s ~ SeqState n k
-        , ctx ~ ApiLayer s t k
-        )
-    => ctx
-    -> PostExternalTransactionData
-    -> Handler ApiTxId
-postExternalTransaction ctx (PostExternalTransactionData load) = do
-    tx <- liftHandler $ W.submitExternalTx @ctx @t @k ctx load
-    return $ ApiTxId (ApiT (txId tx))
 
 deleteTransaction
     :: forall ctx s t k. ctx ~ ApiLayer s t k
@@ -813,27 +783,10 @@ postTransactionFee ctx (ApiT wid) body = do
 
         e -> throwE e
 
+
 {-------------------------------------------------------------------------------
                                     Stake Pools
 -------------------------------------------------------------------------------}
-
-stakePools
-    :: forall ctx s t n k.
-        ( DelegationAddress n k
-        , Buildable (ErrValidateSelection t)
-        , k ~ ShelleyKey
-        , s ~ SeqState n k
-        , HardDerivation k
-        , ctx ~ ApiLayer s t k
-        )
-    => ctx
-    -> StakePoolLayer IO
-    -> Server (StakePoolApi n)
-stakePools ctx spl =
-    listPools spl
-    :<|> joinStakePool ctx spl
-    :<|> quitStakePool ctx
-    :<|> delegationFee ctx
 
 listPools
     :: StakePoolLayer IO
@@ -859,7 +812,6 @@ listPools spl =
 joinStakePool
     :: forall ctx s t n k.
         ( DelegationAddress n k
-        , Buildable (ErrValidateSelection t)
         , s ~ SeqState n k
         , k ~ ShelleyKey
         , HardDerivation k
@@ -888,11 +840,8 @@ joinStakePool ctx spl (ApiT pid) (ApiT wid) (ApiWalletPassphrase (ApiT pwd)) = d
 
 delegationFee
     :: forall ctx s t n k.
-        ( DelegationAddress n k
-        , Buildable (ErrValidateSelection t)
-        , s ~ SeqState n k
+        ( s ~ SeqState n k
         , k ~ ShelleyKey
-        , HardDerivation k
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -908,7 +857,6 @@ delegationFee ctx (ApiT wid) = do
 quitStakePool
     :: forall ctx s t n k.
         ( DelegationAddress n k
-        , Buildable (ErrValidateSelection t)
         , s ~ SeqState n k
         , k ~ ShelleyKey
         , HardDerivation k
@@ -932,79 +880,34 @@ quitStakePool ctx (ApiT pid) (ApiT wid) (ApiWalletPassphrase (ApiT pwd)) = do
   where
     liftE = throwE . ErrQuitStakePoolNoSuchWallet
 
-{-------------------------------------------------------------------------------
-                                    Network
--------------------------------------------------------------------------------}
-
-network
-    :: forall s t k. ()
-    => ApiLayer s t k
-    -> Handler ApiNetworkInformation
-network ctx = do
-    now <- liftIO getCurrentTime
-    nextEpoch <- liftHandler $ except $ calculateNextEpoch sp now
-    nodeTip <- liftHandler (NW.networkTip nl)
-    let ntrkTip = fromMaybe slotMinBound (slotAt sp now)
-    pure $ ApiNetworkInformation
-        { syncProgress =
-            ApiT $ syncProgressRelativeToTime st sp nodeTip now
-        , nextEpoch = nextEpoch
-        , nodeTip =
-            ApiBlockReference
-                { epochNumber = ApiT $ nodeTip ^. (#slotId . #epochNumber)
-                , slotNumber  = ApiT $ nodeTip ^. (#slotId . #slotNumber)
-                , height = natural (nodeTip ^. #blockHeight)
-                }
-        , networkTip =
-            ApiNetworkTip
-                { epochNumber = ApiT $ ntrkTip ^. #epochNumber
-                , slotNumber = ApiT $ ntrkTip ^. #slotNumber
-                }
-        }
-  where
-    nl = ctx ^. networkLayer @t
-    (_, bp, st) = ctx ^. genesisData
-    sp :: W.SlotParameters
-    sp = W.SlotParameters
-        (bp ^. #getEpochLength)
-        (bp ^. #getSlotLength)
-        (bp ^. #getGenesisBlockDate)
-
-newtype ErrNextEpoch = ErrNextEpochCannotBeCalculated Iso8601Time
-
-calculateNextEpoch
-    :: W.SlotParameters -> UTCTime -> Either ErrNextEpoch ApiEpochInfo
-calculateNextEpoch sps time = case W.epochCeiling sps time of
-    Nothing -> Left $ ErrNextEpochCannotBeCalculated $ Iso8601Time time
-    Just en -> Right $ ApiEpochInfo
-        { epochNumber = ApiT en
-        , epochStartTime = W.epochStartTime sps en
-        }
 
 {-------------------------------------------------------------------------------
-                               Compatibility API
+                                 Byron Wallets
 -------------------------------------------------------------------------------}
 
-compatibilityApiServer
-    :: forall t n.
-        ( Buildable (ErrValidateSelection t)
-        , DelegationAddress n ShelleyKey
-        )
+postByronWallet
+    :: forall t. ()
     => ApiLayer (RndState 'Mainnet) t ByronKey
-    -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
-    -> Server (CompatibilityApi n)
-compatibilityApiServer rndCtx seqCtx =
-    deleteByronWallet rndCtx
-    :<|> getByronWallet rndCtx
-    :<|> getByronWalletMigrationInfo rndCtx
-    :<|> listByronWallets rndCtx
-    :<|> listByronTransactions rndCtx
-    :<|> migrateByronWallet rndCtx seqCtx
-    :<|> postByronWallet rndCtx
-    :<|> deleteByronTransaction rndCtx
+    -> ByronWalletPostData
+    -> Handler ApiByronWallet
+postByronWallet ctx body = do
+    void
+        . liftHandler
+        . createWallet @_ @_ @t ctx wid name
+        . mkRndState rootXPrv
+        =<< liftIO (getStdRandom random)
+    liftHandler $ withWorkerCtx ctx wid throwE $ \worker ->
+        W.attachPrivateKey worker wid (rootXPrv, passphrase)
+    getByronWallet ctx (ApiT wid)
+  where
+    mnemonicSentence = getApiMnemonicT (body ^. #mnemonicSentence)
+    name = getApiT (body ^. #name)
+    passphrase = getApiT (body ^. #passphrase)
+    rootXPrv = Rnd.generateKeyFromSeed mnemonicSentence passphrase
+    wid = WalletId $ digest $ publicKey rootXPrv
 
 deleteByronWallet
-    :: forall s t k. (s ~ RndState 'Mainnet)
+    :: forall s t k. ()
     => ApiLayer s t k
     -> ApiT WalletId
     -> Handler NoContent
@@ -1012,17 +915,63 @@ deleteByronWallet =
     deleteWallet
 
 getByronWallet
-    :: forall t k. ()
-    => ApiLayer (RndState 'Mainnet) t k
+    :: forall s t k. ()
+    => ApiLayer s t k
     -> ApiT WalletId
     -> Handler ApiByronWallet
 getByronWallet ctx (ApiT wid) =
     fst <$> getByronWalletWithCreationTime ctx wid
 
-getByronWalletMigrationInfo
+listByronWallets
+    :: forall s t k. (s ~ RndState 'Mainnet)
+    => ApiLayer s t k
+    -> Handler [ApiByronWallet]
+listByronWallets ctx = do
+    wids <- liftIO $ Registry.keys re
+    fmap fst . sortOn snd <$>
+        mapM (getByronWalletWithCreationTime ctx) wids
+  where
+    re = ctx ^. workerRegistry @s @k
+
+
+{-------------------------------------------------------------------------------
+                               Byron Transactions
+-------------------------------------------------------------------------------}
+
+listByronTransactions
+    :: forall ctx s t k n. (ctx ~ ApiLayer s t k)
+    => ctx
+    -> ApiT WalletId
+    -> Maybe Iso8601Time
+    -> Maybe Iso8601Time
+    -> Maybe (ApiT SortOrder)
+    -> Handler [ApiTransaction n]
+listByronTransactions =
+    listTransactions
+
+deleteByronTransaction
     :: forall ctx s t k.
-       ( s ~ RndState 'Mainnet
-       , ctx ~ ApiLayer s t k )
+        ( s ~ RndState 'Mainnet
+        , ctx ~ ApiLayer s t k
+        )
+    => ctx
+    -> ApiT WalletId
+    -> ApiTxId
+    -> Handler NoContent
+deleteByronTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
+    liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
+        W.forgetPendingTx wrk wid tid
+    return NoContent
+  where
+    liftE = throwE . ErrRemovePendingTxNoSuchWallet
+
+
+{-------------------------------------------------------------------------------
+                                Byron Migrations
+-------------------------------------------------------------------------------}
+
+getByronWalletMigrationInfo
+    :: forall s t k. ()
     => ApiLayer s t k
         -- ^ Source wallet context (Byron)
     -> ApiT WalletId
@@ -1095,67 +1044,72 @@ migrateByronWallet rndCtx seqCtx (ApiT rndWid) (ApiT seqWid) migrateData = do
   where
     passphrase = getApiT $ migrateData ^. #passphrase
 
-listByronWallets
-    :: forall s t k. (s ~ RndState 'Mainnet)
-    => ApiLayer s t k
-    -> Handler [ApiByronWallet]
-listByronWallets ctx = do
-    wids <- liftIO $ Registry.keys re
-    fmap fst . sortOn snd <$>
-        mapM (getByronWalletWithCreationTime ctx) wids
-  where
-    re = ctx ^. workerRegistry @s @k
-
-postByronWallet
-    :: forall t. ()
-    => ApiLayer (RndState 'Mainnet) t ByronKey
-    -> ByronWalletPostData
-    -> Handler ApiByronWallet
-postByronWallet ctx body = do
-    void
-        . liftHandler
-        . createWallet @_ @_ @t ctx wid name
-        . mkRndState rootXPrv
-        =<< liftIO (getStdRandom random)
-    liftHandler $ withWorkerCtx ctx wid throwE $ \worker ->
-        W.attachPrivateKey worker wid (rootXPrv, passphrase)
-    getByronWallet ctx (ApiT wid)
-  where
-    mnemonicSentence = getApiMnemonicT (body ^. #mnemonicSentence)
-    name = getApiT (body ^. #name)
-    passphrase = getApiT (body ^. #passphrase)
-    rootXPrv = Rnd.generateKeyFromSeed mnemonicSentence passphrase
-    wid = WalletId $ digest $ publicKey rootXPrv
-
-listByronTransactions
-    :: forall ctx s t k n. (ctx ~ ApiLayer s t k)
-    => ctx
-    -> ApiT WalletId
-    -> Maybe Iso8601Time
-    -> Maybe Iso8601Time
-    -> Maybe (ApiT SortOrder)
-    -> Handler [ApiTransaction n]
-listByronTransactions =
-    listTransactions
-
-deleteByronTransaction
-    :: forall ctx s t k.
-        ( s ~ RndState 'Mainnet
-        , ctx ~ ApiLayer s t k
-        )
-    => ctx
-    -> ApiT WalletId
-    -> ApiTxId
-    -> Handler NoContent
-deleteByronTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
-    liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
-        W.forgetPendingTx wrk wid tid
-    return NoContent
-  where
-    liftE = throwE . ErrRemovePendingTxNoSuchWallet
 
 {-------------------------------------------------------------------------------
-                                Helpers
+                                    Network
+-------------------------------------------------------------------------------}
+
+getNetworkInformation
+    :: forall t. ()
+    => (Block, BlockchainParameters, SyncTolerance)
+    -> NetworkLayer IO t Block
+    -> Handler ApiNetworkInformation
+getNetworkInformation (_block0, bp, st) nl = do
+    now <- liftIO getCurrentTime
+    nextEpoch <- liftHandler $ except $ calculateNextEpoch sp now
+    nodeTip <- liftHandler (NW.networkTip nl)
+    let ntrkTip = fromMaybe slotMinBound (slotAt sp now)
+    pure $ ApiNetworkInformation
+        { syncProgress =
+            ApiT $ syncProgressRelativeToTime st sp nodeTip now
+        , nextEpoch = nextEpoch
+        , nodeTip =
+            ApiBlockReference
+                { epochNumber = ApiT $ nodeTip ^. (#slotId . #epochNumber)
+                , slotNumber  = ApiT $ nodeTip ^. (#slotId . #slotNumber)
+                , height = natural (nodeTip ^. #blockHeight)
+                }
+        , networkTip =
+            ApiNetworkTip
+                { epochNumber = ApiT $ ntrkTip ^. #epochNumber
+                , slotNumber = ApiT $ ntrkTip ^. #slotNumber
+                }
+        }
+  where
+    sp :: W.SlotParameters
+    sp = W.SlotParameters
+        (bp ^. #getEpochLength)
+        (bp ^. #getSlotLength)
+        (bp ^. #getGenesisBlockDate)
+
+newtype ErrNextEpoch = ErrNextEpochCannotBeCalculated Iso8601Time
+
+calculateNextEpoch
+    :: W.SlotParameters -> UTCTime -> Either ErrNextEpoch ApiEpochInfo
+calculateNextEpoch sps time = case W.epochCeiling sps time of
+    Nothing -> Left $ ErrNextEpochCannotBeCalculated $ Iso8601Time time
+    Just en -> Right $ ApiEpochInfo
+        { epochNumber = ApiT en
+        , epochStartTime = W.epochStartTime sps en
+        }
+
+{-------------------------------------------------------------------------------
+                                   Proxy
+-------------------------------------------------------------------------------}
+
+postExternalTransaction
+    :: forall ctx s t k.
+        ( ctx ~ ApiLayer s t k
+        )
+    => ctx
+    -> PostExternalTransactionData
+    -> Handler ApiTxId
+postExternalTransaction ctx (PostExternalTransactionData load) = do
+    tx <- liftHandler $ W.submitExternalTx @ctx @t @k ctx load
+    return $ ApiTxId (ApiT (txId tx))
+
+{-------------------------------------------------------------------------------
+                                  Helpers
 -------------------------------------------------------------------------------}
 
 -- | see 'Cardano.Wallet#createWallet'
@@ -1300,9 +1254,8 @@ getWalletWithCreationTime ctx wid = do
             }
     return (apiWallet, meta ^. #creationTime)
 
-
 getByronWalletWithCreationTime
-    :: forall s t k. (s ~ RndState 'Mainnet)
+    :: forall s t k. ()
     => ApiLayer s t k
     -> WalletId
     -> Handler (ApiByronWallet, UTCTime)
