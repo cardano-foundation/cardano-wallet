@@ -184,6 +184,8 @@ import Data.Word.Odd
     ( Word31 )
 import GHC.TypeLits
     ( KnownSymbol, natVal, symbolVal )
+import Network.Wai.Middleware.ServantError
+    ( servantErrorMsg )
 import Numeric.Natural
     ( Natural )
 import Servant
@@ -403,8 +405,7 @@ spec = do
             |] `shouldBe` (Left @String @(ApiT AddressPoolGap) msg)
 
         it "ApiT AddressPoolGap (not a integer)" $ do
-            let msg = "Error in $: expected Integer, encountered floating number\
-                    \ 2.5"
+            let msg = "Error in $: " <> servantErrorMsg "Integer" "floating number 2.5"
             Aeson.parseEither parseJSON [aesonQQ|
                 2.5
             |] `shouldBe` (Left @String @(ApiT AddressPoolGap) msg)
@@ -424,8 +425,8 @@ spec = do
             |] `shouldBe` (Left @String @(ApiT WalletId) msg)
 
         it "AddressAmount (too small)" $ do
-            let msg = "Error in $.amount.quantity: expected Natural, \
-                    \encountered negative number -14"
+            let msg = "Error in $.amount.quantity: "
+                    <> servantErrorMsg "Natural" "negative number -14"
             Aeson.parseEither parseJSON [aesonQQ|
                 { "address": "ta1sdaa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677ztw225s"
                 , "amount": {"unit":"lovelace","quantity":-14}

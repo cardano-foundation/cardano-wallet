@@ -1892,36 +1892,34 @@ spec = do
         [ ( "Quantity = 1.5"
         , [json|{"quantity": 1.5, "unit": "lovelace"}|]
         , [ expectResponseCode HTTP.status400
-          , expectErrorMessage "expected Natural, encountered\
-              \ floating number 1.5" ]
+          , expectErrorMessage (servantErrorMsg "Natural" "floating number 1.5")]
         )
         , ( "Quantity = -1000"
         , [json|{"quantity": -1000, "unit": "lovelace"}|]
         , [ expectResponseCode HTTP.status400
-          , expectErrorMessage "expected Natural, encountered\
-              \ negative number -1000" ]
+          , expectErrorMessage (servantErrorMsg "Natural" "negative number -1000")]
         )
         , ( "Quantity = \"-1000\""
         , [json|{"quantity": "-1000", "unit": "lovelace"}|]
         , [ expectResponseCode HTTP.status400
-          , expectErrorMessage "expected Natural, encountered String" ]
+          , expectErrorMessage (servantErrorMsg "Natural"  "String")]
         )
         , ( "Quantity = []"
         , [json|{"quantity": [], "unit": "lovelace"}|]
         , [ expectResponseCode HTTP.status400
-          , expectErrorMessage "expected Natural, encountered Array" ]
+          , expectErrorMessage (servantErrorMsg "Natural" "Array")]
         )
         , ( "Quantity = \"string with diacritics\""
         , [json|{"quantity": #{polishWalletName}
                 , "unit": "lovelace"}|]
         , [ expectResponseCode HTTP.status400
-          , expectErrorMessage "expected Natural, encountered String" ]
+          , expectErrorMessage (servantErrorMsg "Natural" "String")]
         )
         , ( "Quantity = \"string with wildcards\""
         , [json|{"quantity": #{wildcardsWalletName}
                 , "unit": "lovelace"}|]
         , [ expectResponseCode HTTP.status400
-          , expectErrorMessage "expected Natural, encountered String" ]
+          , expectErrorMessage (servantErrorMsg "Natural" "String")]
         )
         , ( "Quantity missing"
         , [json|{"unit": "lovelace"}|]

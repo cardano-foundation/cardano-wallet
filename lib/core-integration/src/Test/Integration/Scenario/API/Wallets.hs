@@ -719,7 +719,7 @@ spec = do
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
         verify r
             [ expectResponseCode @IO HTTP.status400
-            , expectErrorMessage "expected Integer, encountered floating number"
+            , expectErrorMessage (servantErrorMsg "Integer" "floating number")
             ]
 
 
@@ -733,7 +733,7 @@ spec = do
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
         verify r
             [ expectResponseCode @IO HTTP.status400
-            , expectErrorMessage "expected Integer, encountered floating number"
+            , expectErrorMessage (servantErrorMsg "Integer" "floating number")
             ]
 
     it "WALLETS_CREATE_08 - [] as address_pool_gap -> fail" $ \ctx -> do
@@ -746,7 +746,7 @@ spec = do
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
         verify r
             [ expectResponseCode @IO HTTP.status400
-            , expectErrorMessage "expected Integer, encountered Array"
+            , expectErrorMessage (servantErrorMsg "Integer" "Array")
             ]
 
     it "WALLETS_CREATE_08 - String as address_pool_gap -> fail" $ \ctx -> do
@@ -759,7 +759,7 @@ spec = do
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
         verify r
             [ expectResponseCode @IO HTTP.status400
-            , expectErrorMessage "expected Integer, encountered String"
+            , expectErrorMessage (servantErrorMsg "Integer" "String")
             ]
 
     it "WALLETS_CREATE_08 - default address_pool_gap" $ \ctx -> do
