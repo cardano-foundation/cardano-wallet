@@ -1348,11 +1348,13 @@ syncProgress (SyncTolerance timeTolerance) sp tip slotNow =
 
         ActiveSlotCoefficient f = sp ^. #getActiveSlotCoefficient
         remainingBlocks = round @_ @Int $ remainingSlots * f
-    in if distance n1 n0 < tolerance || n0 >= n1 then
+
+        progress = fromIntegral $
+            (100 * bhTip) `div` (bhTip + remainingBlocks)
+    in if distance n1 n0 < tolerance || n0 >= n1 || progress >= 100 then
         Ready
     else
-        Syncing $ Quantity $ toEnum $ fromIntegral $
-            (100 * bhTip) `div` (bhTip + remainingBlocks)
+        Syncing (toEnum progress)
 
 -- | Helper to compare the /local tip/ with the slot corresponding to a
 -- @UTCTime@, and calculate progress based on that.
