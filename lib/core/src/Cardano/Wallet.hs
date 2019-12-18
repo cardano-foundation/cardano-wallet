@@ -604,7 +604,7 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> do
                 liftIO $ logCheckpoint cp'
                 putCheckpoint (PrimaryKey wid) cp'
 
-        liftIO $ logCheckpoint cp
+        liftIO $ logCheckpoint (NE.last cps)
         putCheckpoint (PrimaryKey wid) (NE.last cps)
 
     -- NOTE
