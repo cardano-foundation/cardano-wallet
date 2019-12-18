@@ -32,7 +32,7 @@ import System.FilePath
 import System.IO.Temp
     ( withSystemTempDirectory )
 import Test.Hspec
-    ( Spec, describe, it, shouldSatisfy )
+    ( Spec, describe, it, shouldBe )
 import Test.Utils.Paths
     ( getTestData )
 import Test.Utils.Trace
@@ -66,10 +66,22 @@ test_migrationFromv20191216 =
             (logs, _) <- captureLogging $ \tr -> do
                 withDBLayer cfg tr (Just path) $ \_ -> pure ()
                 withDBLayer cfg tr (Just path) $ \_ -> pure ()
-            logs `shouldSatisfy`
-                any (T.isInfixOf "Non backward compatible database found")
-            logs `shouldSatisfy`
-                (not . any (T.isInfixOf "PersistError"))
+
+            let databaseConnMsg  = filter
+                    (T.isInfixOf "Using connection string")
+                    logs
+
+            let databaseResetMsg = filter
+                    (T.isInfixOf "Non backward compatible database found")
+                    logs
+
+            let migrationErrMsg  = filter
+                    (T.isInfixOf "PersistError")
+                    logs
+
+            length databaseConnMsg  `shouldBe` 3
+            length databaseResetMsg `shouldBe` 1
+            length migrationErrMsg  `shouldBe` 0
 
 testingLogConfig :: IO CM.Configuration
 testingLogConfig = do
