@@ -20,7 +20,7 @@ import Control.Monad.IO.Class
 import Data.Time.Clock
     ( getCurrentTime )
 import Test.Hspec
-    ( SpecWith, describe, it, shouldBe )
+    ( SpecWith, describe, it, shouldBe, shouldSatisfy )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
@@ -28,6 +28,7 @@ import Test.Integration.Framework.DSL
     , emptyByronWallet
     , emptyWallet
     , eventually
+    , eventuallyUsingDelay
     , eventually_
     , expectErrorMessage
     , expectEventually'
@@ -43,7 +44,6 @@ import Test.Integration.Framework.DSL
     , state
     , syncProgress
     , verify
-    , waitForNextEpoch
     )
 import Test.Integration.Framework.TestData
     ( errMsg405, getHeaderCases )
@@ -74,9 +74,9 @@ spec = do
         let calculatedNextEpoch = getFromResponse (#nextEpoch . #epochNumber) r1
         let nextEpochStartTime = getFromResponse (#nextEpoch . #epochStartTime) r1
 
-        waitForNextEpoch ctx
-        now <- liftIO getCurrentTime
-        nextEpochStartTime <= now `shouldBe` True
+        eventuallyUsingDelay 100 $ do
+            now <- liftIO getCurrentTime
+            now `shouldSatisfy` (>= nextEpochStartTime)
 
         r2 <- request @ApiNetworkInformation ctx networkInfoEp Default Empty
         let currentEpoch = getFromResponse (#networkTip . #epochNumber) r2
