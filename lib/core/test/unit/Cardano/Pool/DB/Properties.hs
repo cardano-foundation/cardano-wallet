@@ -383,7 +383,7 @@ prop_poolRegistration DBLayer {..} entries =
 prop_rollbackRegistration
     :: DBLayer IO
     -> SlotId
-    -> [(EpochNo, PoolRegistrationCertificate)]
+    -> [(SlotId, PoolRegistrationCertificate)]
     -> Property
 prop_rollbackRegistration DBLayer{..} rollbackPoint entries =
     monadicIO (setup >> prop)
@@ -394,16 +394,16 @@ prop_rollbackRegistration DBLayer{..} rollbackPoint entries =
         case L.find (on (==) poolId pool . snd) entries of
             Nothing ->
                 error "unknown pool?"
-            Just (ep, pool') ->
-                (ep <= epochNumber rollbackPoint) &&
-                (pool == pool')
+            Just (sl, pool') ->
+                (sl <= rollbackPoint) && (pool == pool')
 
     ownerHasManyPools =
         let owners = concatMap (poolOwners . snd) entries
         in L.length owners > L.length (L.nub owners)
 
     prop = do
-        run . atomically $ mapM_ (uncurry putPoolRegistration) entries
+        run . atomically $ forM_ entries $ \(sl, pool) ->
+            putPoolRegistration (epochNumber sl) pool
         run . atomically $ rollbackTo rollbackPoint
         pools <- run . atomically $ L.sort . catMaybes
             <$> mapM (readPoolRegistration . poolId . snd) entries
