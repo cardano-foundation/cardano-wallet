@@ -492,8 +492,7 @@ server byron shelley spl =
 
 postWallet
     :: forall ctx s t k n.
-        ( DelegationAddress n k
-        , s ~ SeqState n k
+        ( s ~ SeqState n k
         , k ~ ShelleyKey
         , ctx ~ ApiLayer s t k
         , HasDBFactory s k ctx
