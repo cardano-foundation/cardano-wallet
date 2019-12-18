@@ -20,7 +20,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
+    ( ActiveSlotCoefficient (..)
+    , Address (..)
     , AddressState (..)
     , Block (..)
     , BlockHeader (..)
@@ -42,6 +43,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , SlotParameters (..)
     , StartTime (..)
+    , SyncProgress (..)
     , SyncTolerance (..)
     , Tx (..)
     , TxIn (..)
@@ -240,6 +242,7 @@ spec = do
             { getEpochLength = EpochLength 21600
             , getSlotLength  = SlotLength 10
             , getGenesisBlockDate = StartTime (read "2019-11-09 16:43:02 UTC")
+            , getActiveSlotCoefficient = 1
             }
     let st = SyncTolerance 10
     let slotsPerEpoch = getEpochLength sp
@@ -247,6 +250,95 @@ spec = do
     describe "syncProgress" $ do
         it "works for any two slots" $ property $ \sl0 sl1 ->
             syncProgress st sp sl0 sl1 `deepseq` ()
+
+        let mockBlockHeader sl h = BlockHeader
+                { slotId = sl
+                , blockHeight = Quantity h
+                , headerHash = Hash "-"
+                , parentHeaderHash = Hash "-"
+                }
+
+        let mockSlotParams f = SlotParameters
+                { getEpochLength = EpochLength 10
+                , getSlotLength = SlotLength 10
+                , getGenesisBlockDate = StartTime $
+                    read "2019-01-01 00:00:00 UTC"
+                , getActiveSlotCoefficient = f
+                }
+
+        let syncTolerance = SyncTolerance 0
+
+        it "unit test #1 - 0/10   0%" $ do
+            let slotParams = mockSlotParams 1
+            let nodeTip = mockBlockHeader (SlotId 0 0) 0
+            let ntwkTip = SlotId 1 0
+            syncProgress syncTolerance slotParams nodeTip ntwkTip
+                `shouldBe` Syncing (Quantity $ toEnum 0)
+
+        it "unit test #2 - 10/20 50%" $ do
+            let slotParams = mockSlotParams 1
+            let nodeTip = mockBlockHeader (SlotId 1 0) 10
+            let ntwkTip = SlotId 2 0
+            syncProgress syncTolerance slotParams nodeTip ntwkTip
+                `shouldBe` Syncing (Quantity $ toEnum 50)
+
+        it "unit test #3 - 12/15 80% " $ do
+            let slotParams = mockSlotParams 0.5
+            let nodeTip = mockBlockHeader (SlotId 2 2) 12
+            let ntwkTip = SlotId 2 8
+            syncProgress syncTolerance slotParams nodeTip ntwkTip
+                `shouldBe` Syncing (Quantity $ toEnum 80)
+
+        it "unit test #4 - 10/10 100%" $ do
+            let slotParams = mockSlotParams 1
+            let nodeTip = mockBlockHeader (SlotId 1 0) 10
+            let ntwkTip = SlotId 1 0
+            syncProgress syncTolerance slotParams nodeTip ntwkTip
+                `shouldBe` Ready
+
+        it "unit test #5 - 11/10 100%" $ do
+            let slotParams = mockSlotParams 1
+            let nodeTip = mockBlockHeader (SlotId 1 1) 11
+            let ntwkTip = SlotId 1 0
+            syncProgress syncTolerance slotParams nodeTip ntwkTip
+                `shouldBe` Ready
+
+        --   100 |                          +  +
+        --       |
+        --       |                       +
+        --       |                    +
+        --       |              +  +
+        --       |
+        --       |           +
+        --       |     +  +
+        --       |  +
+        --       |
+        --       |--|--|--|--|--|--|--|--|--|--|
+        --       0  1  2  3  4  5  6  7  8  9  10
+        --
+        it "unit test #5 - distribution over several slots" $ do
+            let slotParams = mockSlotParams 0.5
+            let ntwkTip = SlotId 1 0
+            let plots =
+                    [ (mockBlockHeader (SlotId 0 0) 0, 0)
+                    , (mockBlockHeader (SlotId 0 1) 1, 20)
+                    , (mockBlockHeader (SlotId 0 2) 2, 33)
+                    , (mockBlockHeader (SlotId 0 3) 2, 33)
+                    , (mockBlockHeader (SlotId 0 4) 2, 40)
+                    , (mockBlockHeader (SlotId 0 5) 3, 60)
+                    , (mockBlockHeader (SlotId 0 6) 3, 60)
+                    , (mockBlockHeader (SlotId 0 7) 4, 66)
+                    , (mockBlockHeader (SlotId 0 8) 5, 83)
+                    , (mockBlockHeader (SlotId 0 9) 5, 100)
+                    , (mockBlockHeader (SlotId 1 0) 5, 100)
+                    ]
+            forM_ plots $ \(nodeTip, p) -> do
+                let progress = if p == 100
+                        then Ready
+                        else Syncing (Quantity $ toEnum p)
+                syncProgress syncTolerance slotParams nodeTip ntwkTip
+                    `shouldBe` progress
+
 
     describe "flatSlot" $ do
 
@@ -1237,8 +1329,19 @@ instance Arbitrary StartTime where
 instance Arbitrary EpochLength where
     arbitrary = EpochLength . getNonZero <$> arbitrary
 
+instance Arbitrary ActiveSlotCoefficient where
+    shrink (ActiveSlotCoefficient f)
+        | f < 1 = [1]
+        | otherwise = []
+    arbitrary =
+        ActiveSlotCoefficient <$> choose (0.001, 1.0)
+
 instance Arbitrary SlotParameters where
-    arbitrary = SlotParameters <$> arbitrary <*> arbitrary <*> arbitrary
+    arbitrary = SlotParameters
+        <$> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> arbitrary
     shrink = genericShrink
 
 instance Arbitrary SyncTolerance where
@@ -1249,10 +1352,11 @@ instance {-# OVERLAPS #-} Arbitrary (SlotParameters, SlotId) where
         (el, slot) <- arbitrary
         sl <- arbitrary
         st <- arbitrary
-        pure (SlotParameters el sl st, slot)
-    shrink (SlotParameters el sl st, slot) = do
+        f <- arbitrary
+        pure (SlotParameters el sl st f, slot)
+    shrink (SlotParameters el sl st f, slot) = do
         (el', slot') <- shrink (el, slot)
-        pure (SlotParameters el' sl st, slot')
+        pure (SlotParameters el' sl st f, slot')
 
 -- | Combines a 'SlotParameters' object and a single point in time.
 --

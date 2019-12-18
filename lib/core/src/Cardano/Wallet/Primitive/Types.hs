@@ -1113,7 +1113,7 @@ instance Buildable BlockchainParameters where
             (bp :: BlockchainParameters))
         , "Tx max size:        " <> txMaxSizeF (getTxMaxSize bp)
         , "Epoch stability:    " <> epochStabilityF (getEpochStability bp)
-        , "Active slot coeff:  " <> build (getActiveSlotCoefficient bp)
+        , "Active slot coeff:  " <> build (bp ^. #getActiveSlotCoefficient)
         ]
       where
         genesisF = build . T.decodeUtf8 . convertToBase Base16 . getHash
@@ -1137,6 +1137,7 @@ slotParams bp =
         (bp ^. #getEpochLength)
         (bp ^. #getSlotLength)
         (bp ^. #getGenesisBlockDate)
+        (bp ^. #getActiveSlotCoefficient)
 
 {-------------------------------------------------------------------------------
                                    Slotting
@@ -1214,6 +1215,8 @@ data SlotParameters = SlotParameters
         :: SlotLength
     , getGenesisBlockDate
         :: StartTime
+    , getActiveSlotCoefficient
+        :: ActiveSlotCoefficient
     } deriving (Eq, Generic, Show)
 
 data SyncProgress
@@ -1308,11 +1311,18 @@ syncProgress (SyncTolerance timeTolerance) sp tip slotNow =
         n1 = flatSlot epochLength slotNow
 
         tolerance = floor (timeTolerance / slotLength)
-    in if distance n1 n0 < tolerance || n0 >= n1 then
+
+        remainingSlots = fromIntegral $ n1 - n0
+
+        ActiveSlotCoefficient f = sp ^. #getActiveSlotCoefficient
+        remainingBlocks = round @_ @Int $ remainingSlots * f
+
+        progress = fromIntegral $
+            (100 * bhTip) `div` (bhTip + remainingBlocks)
+    in if distance n1 n0 < tolerance || n0 >= n1 || progress >= 100 then
         Ready
     else
-        Syncing $ Quantity $ toEnum $ fromIntegral $
-            (100 * bhTip) `div` (bhTip + n1 - n0)
+        Syncing (toEnum progress)
 
 -- | Helper to compare the /local tip/ with the slot corresponding to a
 -- @UTCTime@, and calculate progress based on that.
@@ -1365,7 +1375,7 @@ fromFlatSlot el@(EpochLength epochLength) n
 -- | @slotDifference a b@ is how many slots @a@ is after @b@. The result is
 -- non-negative, and if @b > a@ then this function returns zero.
 slotDifference :: SlotParameters -> SlotId -> SlotId -> Quantity "slot" Natural
-slotDifference (SlotParameters el _ _) a b
+slotDifference (SlotParameters el _ _ _) a b
     | a' > b' = Quantity $ fromIntegral $ a' - b'
     | otherwise = Quantity 0
   where
@@ -1374,20 +1384,20 @@ slotDifference (SlotParameters el _ _) a b
 
 -- | Return the slot immediately before the given slot.
 slotPred :: SlotParameters -> SlotId -> Maybe SlotId
-slotPred (SlotParameters (EpochLength el) _ _) (SlotId en sn)
+slotPred (SlotParameters (EpochLength el) _ _ _) (SlotId en sn)
     | en == 0 && sn == 0 = Nothing
     | sn > 0 = Just $ SlotId en (sn - 1)
     | otherwise = Just $ SlotId (en - 1) (SlotNo $ el - 1)
 
 -- | Return the slot immediately after the given slot.
 slotSucc :: SlotParameters -> SlotId -> SlotId
-slotSucc (SlotParameters (EpochLength el) _ _) (SlotId en (SlotNo sn))
+slotSucc (SlotParameters (EpochLength el) _ _ _) (SlotId en (SlotNo sn))
     | sn < el - 1 = SlotId en (SlotNo $ sn + 1)
     | otherwise = SlotId (en + 1) 0
 
 -- | The time that a slot begins.
 slotStartTime :: SlotParameters -> SlotId -> UTCTime
-slotStartTime (SlotParameters el (SlotLength sl) (StartTime st)) slot =
+slotStartTime (SlotParameters el (SlotLength sl) (StartTime st) _) slot =
     addUTCTime offset st
   where
     offset = sl * fromIntegral (flatSlot el slot)
@@ -1395,7 +1405,7 @@ slotStartTime (SlotParameters el (SlotLength sl) (StartTime st)) slot =
 -- | For the given time 't', determine the ID of the earliest slot with start
 --   time 's' such that 't ≤ s'.
 slotCeiling :: SlotParameters -> UTCTime -> SlotId
-slotCeiling sp@(SlotParameters _ (SlotLength sl) _) t =
+slotCeiling sp@(SlotParameters _ (SlotLength sl) _ _) t =
     fromMaybe slotMinBound $ slotAt sp (addUTCTime (pred sl) t)
 
 -- | For the given time 't', determine the ID of the latest slot with start
@@ -1410,7 +1420,7 @@ slotMinBound = SlotId 0 0
 -- | For the given time 't', determine the ID of the unique slot with start
 --   time 's' and end time 'e' such that 's ≤ t ≤ e'.
 slotAt :: SlotParameters -> UTCTime -> Maybe SlotId
-slotAt (SlotParameters (EpochLength el) (SlotLength sl) (StartTime st)) t
+slotAt (SlotParameters (EpochLength el) (SlotLength sl) (StartTime st) _) t
     | t < st = Nothing
     | otherwise = Just $ SlotId {epochNumber, slotNumber}
   where

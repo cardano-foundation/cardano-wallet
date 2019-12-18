@@ -272,6 +272,7 @@ instance Arbitrary MockChain where
             epochLength
             (genesisParameters ^. #getSlotLength)
             (genesisParameters ^. #getGenesisBlockDate)
+            (genesisParameters ^. #getActiveSlotCoefficient)
 
 instance GenState s => Arbitrary (InitialCheckpoint s) where
     shrink (InitialCheckpoint cp) = InitialCheckpoint <$> shrink cp

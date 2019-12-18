@@ -604,15 +604,10 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> do
                 liftIO $ logCheckpoint cp'
                 putCheckpoint (PrimaryKey wid) cp'
 
-        liftIO $ logCheckpoint cp
+        liftIO $ logCheckpoint (NE.last cps)
         putCheckpoint (PrimaryKey wid) (NE.last cps)
 
-    -- NOTE
-    -- We prune the database in a separate db transaction since this is not
-    -- strictly required to maintain integrity of the data. It's quite a heavy
-    -- operation, so we may still want to unlock the database to allow some
-    -- other operations to flow in the meantime.
-    mapExceptT atomically $ prune (PrimaryKey wid)
+        prune (PrimaryKey wid)
 
     liftIO $ do
         progress <- walletSyncProgress @ctx ctx (NE.last cps)

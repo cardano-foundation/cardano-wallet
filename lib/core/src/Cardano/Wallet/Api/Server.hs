@@ -1087,6 +1087,7 @@ getNetworkInformation (_block0, bp, st) nl = do
         (bp ^. #getEpochLength)
         (bp ^. #getSlotLength)
         (bp ^. #getGenesisBlockDate)
+        (bp ^. #getActiveSlotCoefficient)
 
     -- Unsafe constructor for the next epoch. Chances to reach the last epoch
     -- are quite unlikely in this context :)

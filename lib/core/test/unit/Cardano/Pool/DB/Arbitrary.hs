@@ -149,6 +149,7 @@ instance Arbitrary StakePoolsFixture where
             epochLength
             (genesisParameters ^. #getSlotLength)
             (genesisParameters ^. #getGenesisBlockDate)
+            (genesisParameters ^. #getActiveSlotCoefficient)
 
         generateNextSlots :: [SlotId] -> Int -> [SlotId]
         generateNextSlots slots@(s:_) num =
