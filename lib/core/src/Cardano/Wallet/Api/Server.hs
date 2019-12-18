@@ -207,7 +207,7 @@ import Control.Monad
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT, catchE, except, throwE, withExceptT )
+    ( ExceptT, catchE, throwE, withExceptT )
 import Data.Aeson
     ( (.=) )
 import Data.Function
@@ -242,6 +242,8 @@ import Data.Word
     ( Word32, Word64 )
 import Fmt
     ( Buildable, pretty )
+import GHC.Stack
+    ( HasCallStack )
 import Network.HTTP.Media.RenderHeader
     ( renderHeader )
 import Network.HTTP.Types.Header
@@ -1056,13 +1058,17 @@ getNetworkInformation
     -> Handler ApiNetworkInformation
 getNetworkInformation (_block0, bp, st) nl = do
     now <- liftIO getCurrentTime
-    nextEpoch <- liftHandler $ except $ calculateNextEpoch sp now
     nodeTip <- liftHandler (NW.networkTip nl)
     let ntrkTip = fromMaybe slotMinBound (slotAt sp now)
+    let nextEpochNo = unsafeEpochSucc (ntrkTip ^. #epochNumber)
     pure $ ApiNetworkInformation
         { syncProgress =
             ApiT $ syncProgressRelativeToTime st sp nodeTip now
-        , nextEpoch = nextEpoch
+        , nextEpoch =
+            ApiEpochInfo
+                { epochNumber = ApiT nextEpochNo
+                , epochStartTime = W.epochStartTime sp nextEpochNo
+                }
         , nodeTip =
             ApiBlockReference
                 { epochNumber = ApiT $ nodeTip ^. (#slotId . #epochNumber)
@@ -1082,16 +1088,11 @@ getNetworkInformation (_block0, bp, st) nl = do
         (bp ^. #getSlotLength)
         (bp ^. #getGenesisBlockDate)
 
-newtype ErrNextEpoch = ErrNextEpochCannotBeCalculated Iso8601Time
-
-calculateNextEpoch
-    :: W.SlotParameters -> UTCTime -> Either ErrNextEpoch ApiEpochInfo
-calculateNextEpoch sps time = case W.epochCeiling sps time of
-    Nothing -> Left $ ErrNextEpochCannotBeCalculated $ Iso8601Time time
-    Just en -> Right $ ApiEpochInfo
-        { epochNumber = ApiT en
-        , epochStartTime = W.epochStartTime sps en
-        }
+    -- Unsafe constructor for the next epoch. Chances to reach the last epoch
+    -- are quite unlikely in this context :)
+    unsafeEpochSucc :: HasCallStack => W.EpochNo -> W.EpochNo
+    unsafeEpochSucc = fromMaybe bomb . W.epochSucc
+      where bomb = error "reached final epoch of the Blockchain!?"
 
 {-------------------------------------------------------------------------------
                                    Proxy
@@ -1422,16 +1423,6 @@ instance LiftHandler ErrMigrateWallet where
                 , toText wid
                 , ", because it's either empty or full of small coins "
                 , "which wouldn't be worth migrating."
-                ]
-
-instance LiftHandler ErrNextEpoch where
-    handler = \case
-        ErrNextEpochCannotBeCalculated time ->
-            apiError err500 UnexpectedError $ mconcat
-                [ "I'm unable to calculate the next epoch that starts after "
-                , "time: "
-                , toText time
-                , ". This is unexpected, and unlikely to be your fault."
                 ]
 
 instance LiftHandler ErrNoSuchWallet where
