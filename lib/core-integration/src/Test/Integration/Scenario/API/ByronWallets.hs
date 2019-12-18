@@ -967,7 +967,7 @@ spec = do
         r <- request @ApiByronWallet ctx postByronWalletEp Default payload
         verify r
             [ expectResponseCode @IO HTTP.status400
-            , expectErrorMessage "expected [a], encountered String"
+            , expectErrorMessage (servantErrorMsg "[a]" "String")
             ]
 
     it "BYRON_RESTORE_05 - Num as mnemonic_sentence -> fail" $ \ctx -> do
@@ -979,7 +979,7 @@ spec = do
         r <- request @ApiByronWallet ctx postByronWalletEp Default payload
         verify r
             [ expectResponseCode @IO HTTP.status400
-            , expectErrorMessage "expected [a], encountered Number"
+            , expectErrorMessage (servantErrorMsg "[a]" "Number")
             ]
 
     it "BYRON_RESTORE_05 - mnemonic_sentence param missing -> fail" $ \ctx -> do

@@ -423,7 +423,7 @@ spec = do
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
         verify r
             [ expectResponseCode @IO HTTP.status400
-            , expectErrorMessage "expected [a], encountered String"
+            , expectErrorMessage (servantErrorMsg "[a]" "String")
             ]
 
     it "WALLETS_CREATE_05 - Num as mnemonic_sentence -> fail" $ \ctx -> do
@@ -435,7 +435,7 @@ spec = do
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
         verify r
             [ expectResponseCode @IO HTTP.status400
-            , expectErrorMessage "expected [a], encountered Number"
+            , expectErrorMessage (servantErrorMsg "[a]" "Number")
             ]
 
     it "WALLETS_CREATE_05 - mnemonic_sentence param missing -> fail" $ \ctx -> do
