@@ -28,6 +28,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Control.Monad.Fail
     ( MonadFail )
+import Control.Monad.IO.Class
+    ( MonadIO )
 import Control.Monad.Trans.Except
     ( ExceptT )
 import Data.Map.Strict
@@ -50,7 +52,11 @@ import System.Random
 -- >>> atomically $ putPoolProduction blockHeader pool
 --
 -- This gives you the power to also run /multiple/ operations atomically.
-data DBLayer m = forall stm. MonadFail stm => DBLayer
+--
+-- FIXME: Allowing 'MonadIO' to enable logging also within db transactions.
+-- Ideally, we should lower than constraint to only allow logging effects and
+-- not any dragons in IO.
+data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
     { putPoolProduction
         :: BlockHeader
         -> PoolId
@@ -86,7 +92,7 @@ data DBLayer m = forall stm. MonadFail stm => DBLayer
         -- This is useful for the @NetworkLayer@ to know how far we have synced.
 
     , putPoolRegistration
-        :: EpochNo
+        :: SlotId
         -> PoolRegistrationCertificate
         -> stm ()
         -- ^ Add a mapping between stake pools and their corresponding

@@ -30,7 +30,8 @@ import Prelude
 import Cardano.BM.Trace
     ( Trace )
 import Cardano.DB.Sqlite
-    ( SqliteContext (..)
+    ( DBLog (..)
+    , SqliteContext (..)
     , destroyDBLayer
     , handleConstraint
     , startSqliteBackend
@@ -40,7 +41,7 @@ import Cardano.Pool.DB
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..) )
 import Cardano.Wallet.Logging
-    ( transformTextTrace )
+    ( logTrace, transformTextTrace )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , EpochNo (..)
@@ -49,13 +50,13 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     )
 import Control.Exception
-    ( bracket )
+    ( bracket, handle, throwIO )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Data.List
-    ( foldl' )
+    ( foldl', isSubsequenceOf )
 import Data.Map.Strict
     ( Map )
 import Data.Quantity
@@ -80,6 +81,10 @@ import Database.Persist.Sql
     )
 import Database.Persist.Sqlite
     ( SqlPersistT )
+import Database.Persist.Types
+    ( PersistException )
+import System.Directory
+    ( removeFile )
 import System.FilePath
     ( (</>) )
 import System.Random
@@ -140,8 +145,8 @@ newDBLayer
     -> IO (SqliteContext, DBLayer IO)
 newDBLayer logConfig trace fp = do
     let trace' = transformTextTrace trace
-    ctx@SqliteContext{runQuery} <-
-        startSqliteBackend logConfig migrateAll trace' fp
+    let io = startSqliteBackend logConfig migrateAll trace' fp
+    ctx@SqliteContext{runQuery} <- handle (handlePersistError trace' fp io) io
     return (ctx, DBLayer
         { putPoolProduction = \point pool -> ExceptT $
             handleConstraint (ErrPointAlreadyExists point) $
@@ -168,16 +173,15 @@ newDBLayer logConfig trace fp = do
                 [ StakeDistributionEpoch ==. fromIntegral epoch ]
                 []
 
-        , putPoolRegistration = \(EpochNo ep) PoolRegistrationCertificate
+        , putPoolRegistration = \point PoolRegistrationCertificate
             { poolId
             , poolOwners
             , poolMargin
             , poolCost
             } -> do
-            let ep_ = fromIntegral ep
             let poolMargin_ = fromIntegral $ fromEnum poolMargin
             let poolCost_ = getQuantity poolCost
-            insert_ $ PoolRegistration poolId ep_ poolMargin_ poolCost_
+            insert_ $ PoolRegistration poolId point poolMargin_ poolCost_
             insertMany_ $ uncurry (PoolOwner poolId) <$> zip poolOwners [0..]
 
         , readPoolRegistration = \poolId -> do
@@ -195,13 +199,13 @@ newDBLayer logConfig trace fp = do
 
         , listRegisteredPools = do
             fmap (poolRegistrationPoolId . entityVal) <$> selectList [ ]
-                [ Desc PoolRegistrationEpoch ]
+                [ Desc PoolRegistrationSlot ]
 
         , rollbackTo = \point -> do
             let (EpochNo epoch) = epochNumber point
             deleteWhere [ PoolProductionSlot >. point ]
             deleteWhere [ StakeDistributionEpoch >. fromIntegral epoch ]
-            deleteWhere [ PoolRegistrationEpoch >. fromIntegral epoch ]
+            deleteWhere [ PoolRegistrationSlot >. point ]
 
         , readPoolProductionCursor = \k -> do
             reverse . map (snd . fromPoolProduction . entityVal) <$> selectList
@@ -226,6 +230,34 @@ newDBLayer logConfig trace fp = do
 
         , atomically = runQuery
         })
+
+-- | 'Temporary', catches migration error from previous versions and if any,
+-- _removes_ the database file completely before retrying to start the database.
+--
+-- This comes in handy to fix database schema in a non-backward compatible way
+-- without altering too much the user experience. Indeed, the pools' database
+-- can swiftly be re-synced from the chain, so instead of patching our mistakes
+-- with ugly work-around we can, at least for now, reset it semi-manually when
+-- needed to keep things tidy here.
+handlePersistError
+    :: Trace IO DBLog
+       -- ^ Logging object
+    -> Maybe FilePath
+       -- ^ Database file location, or Nothing for in-memory database
+    -> IO ctx
+       -- ^ Action to retry after "fixing" the database"
+    -> PersistException
+       -- ^ Error when trying to run a database migration
+    -> IO ctx
+handlePersistError _trace Nothing _action e = throwIO e
+handlePersistError trace (Just fp) action e = do
+    let mark = "Database migration: manual intervention required."
+    if mark `isSubsequenceOf` show e then do
+        logTrace trace MsgDatabaseReset
+        removeFile fp
+        action
+    else
+        throwIO e
 
 {-------------------------------------------------------------------------------
                                    Queries

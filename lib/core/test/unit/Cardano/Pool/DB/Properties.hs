@@ -371,7 +371,7 @@ prop_poolRegistration DBLayer {..} entries =
     setup = run $ atomically cleanDB
     expected = L.sort entries
     prop = do
-        run . atomically $ mapM_ (putPoolRegistration 0) entries
+        run . atomically $ mapM_ (putPoolRegistration (SlotId 0 0)) entries
         pools <- run . atomically $ L.sort . catMaybes
             <$> mapM (readPoolRegistration . poolId) entries
         monitor $ counterexample $ unlines
@@ -383,7 +383,7 @@ prop_poolRegistration DBLayer {..} entries =
 prop_rollbackRegistration
     :: DBLayer IO
     -> SlotId
-    -> [(EpochNo, PoolRegistrationCertificate)]
+    -> [(SlotId, PoolRegistrationCertificate)]
     -> Property
 prop_rollbackRegistration DBLayer{..} rollbackPoint entries =
     monadicIO (setup >> prop)
@@ -394,9 +394,8 @@ prop_rollbackRegistration DBLayer{..} rollbackPoint entries =
         case L.find (on (==) poolId pool . snd) entries of
             Nothing ->
                 error "unknown pool?"
-            Just (ep, pool') ->
-                (ep <= epochNumber rollbackPoint) &&
-                (pool == pool')
+            Just (sl, pool') ->
+                (sl <= rollbackPoint) && (pool == pool')
 
     ownerHasManyPools =
         let owners = concatMap (poolOwners . snd) entries
@@ -427,7 +426,8 @@ prop_listRegisteredPools DBLayer {..} entries =
         L.nub poolOwners /= poolOwners
 
     prop = do
-        run . atomically $ mapM_ (uncurry putPoolRegistration) (zip [0..] entries)
+        let entries' = (zip [SlotId ep 0 | ep <- [0..]] entries)
+        run . atomically $ mapM_ (uncurry putPoolRegistration) entries'
         pools <- run . atomically $ listRegisteredPools
         monitor $ classify (any hasDuplicateOwners entries)
             "same owner multiple time in the same certificate"

@@ -176,13 +176,13 @@ monitorStakePools tr nl DBLayer{..} = do
     initCursor :: IO [BlockHeader]
     initCursor = do
         let (block0, bp) = staticBlockchainParameters nl
-        let ep0 = block0 ^. #header . #slotId . #epochNumber
+        let sl0 = block0 ^. #header . #slotId
         let k = fromIntegral . getQuantity . view #getEpochStability $ bp
         atomically $ do
             forM_ (poolRegistrations block0)
                 $ \r@PoolRegistrationCertificate{poolId} -> do
                 readPoolRegistration poolId >>= \case
-                    Nothing -> putPoolRegistration ep0 r
+                    Nothing -> putPoolRegistration sl0 r
                     Just{}  -> pure ()
             readPoolProductionCursor k
 
@@ -205,16 +205,14 @@ monitorStakePools tr nl DBLayer{..} = do
         when (nodeTip /= currentTip) $ throwE ErrMonitorStakePoolsWrongTip
 
         liftIO $ logInfo tr $ "Writing stake-distribution for epoch " <> pretty ep
-
-        let registrations = concatMap poolRegistrations blocks
-        liftIO $ forM_ registrations $ \registration ->
-            logInfo tr $ "Discovered stake pool registration: "
-                <> pretty registration
-
         mapExceptT atomically $ do
             lift $ putStakeDistribution ep (Map.toList dist)
-            lift $ mapM_ (putPoolRegistration ep) registrations
-            forM_ blocks $ \b ->
+            forM_ blocks $ \b -> do
+                forM_ (poolRegistrations b) $ \pool -> do
+                    lift $ putPoolRegistration (b ^. #header . #slotId) pool
+                    liftIO
+                        $ logInfo tr
+                        $ "Discovered stake pool registration: " <> pretty pool
                 withExceptT ErrMonitorStakePoolsPoolAlreadyExists $
                     putPoolProduction (header b) (producer b)
       where

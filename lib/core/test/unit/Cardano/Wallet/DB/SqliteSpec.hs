@@ -112,15 +112,15 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Concurrent
-    ( forkIO )
+    ( forkIO, killThread, threadDelay )
 import Control.Concurrent.MVar
     ( newEmptyMVar, takeMVar, tryPutMVar )
 import Control.DeepSeq
     ( NFData )
 import Control.Exception
-    ( throwIO )
+    ( SomeException, finally, handle, throwIO )
 import Control.Monad
-    ( forM_, forever, replicateM_, unless )
+    ( forM_, forever, replicateM_, unless, void )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -183,7 +183,6 @@ import qualified Cardano.BM.Data.AggregatedKind as CM
 import qualified Cardano.BM.Data.Backend as CM
 import qualified Cardano.BM.Data.SubTrace as CM
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
-import qualified Data.ByteString.Char8 as B8
 import qualified Data.HashMap.Strict as HM
 import qualified Data.List as L
 import qualified Data.Set as Set
@@ -363,15 +362,17 @@ fileModeSpec =  do
                 -- NOTE
                 -- Start a concurrent worker which makes action on the DB in
                 -- parallel to simulate activity.
-                _ <- forkIO $ withDatabase testWid $ \(DBLayer{..} :: TestDBSeq) -> do
-                    forever $ do
-                        cp <- atomically $ readCheckpoint $ PrimaryKey testWid
-                        _ <- tryPutMVar mvar ()
-                        B8.putStrLn (B8.pack $ show cp)
+                pid <- forkIO $ withDatabase testWid $ \(DBLayer{..} :: TestDBSeq) -> do
+                    handle @SomeException (const (pure ())) $ forever $ do
+                        atomically $ do
+                            liftIO $ void $ tryPutMVar mvar ()
+                            liftIO $ threadDelay 10000
+                            void $ readCheckpoint $ PrimaryKey testWid
 
-                takeMVar mvar
-                removeDatabase testWid
-                listDirectory dir `shouldReturn` mempty
+                flip finally (killThread pid) $ do
+                    takeMVar mvar
+                    removeDatabase testWid
+                    listDirectory dir `shouldReturn` mempty
 
     describe "Sqlite database file" $ do
         let writeSomething DBLayer{..} = do
@@ -538,8 +539,8 @@ withTestDBFile
 withTestDBFile action expectations = do
     logConfig <- defaultConfigTesting
     trace <- setupTrace (Right logConfig) "connectionSpec"
-    withSystemTempFile "spec.db" $ \fp handle -> do
-        hClose handle
+    withSystemTempFile "spec.db" $ \fp h -> do
+        hClose h
         removeFile fp
         withDBLayer logConfig trace (Just fp) (action . snd)
         expectations fp
