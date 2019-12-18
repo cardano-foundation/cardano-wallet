@@ -102,8 +102,6 @@ module Cardano.Wallet.Primitive.Types
     , epochStartTime
     , epochPred
     , epochSucc
-    , epochCeiling
-    , epochFloor
     , SlotParameters (..)
     , syncProgress
     , syncProgressRelativeToTime
@@ -1201,36 +1199,6 @@ epochSucc :: EpochNo -> Maybe EpochNo
 epochSucc (EpochNo e)
     | e == maxBound = Nothing
     | otherwise = Just $ EpochNo $ succ e
-
--- | For the given time 't', calculate the number of the earliest epoch with
---   start time 's' such that 't ≤ s'.
---
--- Returns 'Nothing' if the calculation would result in an epoch number that is
--- not representable.
-epochCeiling :: SlotParameters -> UTCTime -> Maybe EpochNo
-epochCeiling sps t
-    | t < timeMin = Just minBound
-    | t > timeMax = Nothing
-    | otherwise = case slotCeiling sps t of
-        SlotId epoch 0 -> Just epoch
-        SlotId epoch _ -> epochSucc epoch
-  where
-    timeMin = epochStartTime sps minBound
-    timeMax = epochStartTime sps maxBound
-
--- | For the given time 't', calculate the number of the latest epoch with
---   start time 's' such that 's ≤ t'.
---
--- Returns 'Nothing' if the calculation would result in an epoch number that is
--- not representable.
-epochFloor :: SlotParameters -> UTCTime -> Maybe EpochNo
-epochFloor sps t
-    | t < timeMin = Nothing
-    | t > timeMax = Just maxBound
-    | otherwise = epochNumber <$> slotFloor sps t
-  where
-    timeMin = epochStartTime sps minBound
-    timeMax = epochStartTime sps maxBound
 
 instance NFData SlotId
 
