@@ -9,6 +9,7 @@
 
 module Network.Wai.Middleware.ServantError
     ( handleRawError
+    , servantErrorMsg
     ) where
 
 import Prelude
@@ -86,3 +87,7 @@ responseBody = \case
         Nothing
     ResponseStream{} ->
         Nothing
+
+servantErrorMsg :: String -> String -> String
+servantErrorMsg expected received =
+    "expected " <> expected <> ", encountered " <> received

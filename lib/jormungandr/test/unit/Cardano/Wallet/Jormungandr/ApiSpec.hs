@@ -36,6 +36,8 @@ import Data.Text.Class
     ( ToText (..) )
 import Data.Word
     ( Word64 )
+import Network.Wai.Middleware.ServantError
+    ( servantErrorMsg )
 import Test.Aeson.Internal.RoundtripSpecs
     ( roundtripSpecs )
 import Test.Hspec
@@ -153,7 +155,7 @@ spec = do
             let exampleStake = "{\"epoch\": 252054,\"stake\": {\"dangling\":0,\"\
                     \pools\":[[12345,1]],\"unassigned\":100100000000000}}"
             decodeJSON exampleStake `shouldBe`
-                Left "Error in $.stake.pools[0][0]: expected Text, encountered Number"
+                Left ("Error in $.stake.pools[0][0]: " <> servantErrorMsg "Text" "Number")
             return ()
 
         it "invalid stake pair in endpoint response gives expected error" $ do
