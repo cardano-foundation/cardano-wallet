@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 -- |
 -- Copyright: © 2018-2019 IOHK
 -- License: Apache-2.0
@@ -21,8 +23,20 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.Pool.DB.Properties
     ( newMemoryDBLayer, properties, withDB )
+import Cardano.Pool.DB.Sqlite
+    ( withDBLayer )
+import System.Directory
+    ( copyFile )
+import System.FilePath
+    ( (</>) )
+import System.IO.Temp
+    ( withSystemTempDirectory )
 import Test.Hspec
-    ( Spec, describe )
+    ( Spec, describe, it, shouldSatisfy )
+import Test.Utils.Paths
+    ( getTestData )
+import Test.Utils.Trace
+    ( captureLogging )
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.Aggregated as CM
@@ -30,10 +44,32 @@ import qualified Cardano.BM.Data.AggregatedKind as CM
 import qualified Cardano.BM.Data.Backend as CM
 import qualified Cardano.BM.Data.SubTrace as CM
 import qualified Data.HashMap.Strict as HM
+import qualified Data.Text as T
 
 spec :: Spec
-spec = withDB (newMemoryDBLayer testingLogConfig) $ do
+spec = do
+    withDB (newMemoryDBLayer testingLogConfig) $ do
         describe "Sqlite" properties
+
+    describe "Migration Regressions" $ do
+        test_migrationFromv20191216
+
+test_migrationFromv20191216 :: Spec
+test_migrationFromv20191216 =
+    it "'migrate' an existing database from v2019-12-16 by\
+       \ creating it from scratch again. But only once." $ do
+        let orig = $(getTestData) </> "stake-pools-db" </> "v2019-12-16.sqlite"
+        withSystemTempDirectory "stake-pools-db" $ \dir -> do
+            let path = dir </> "stake-pools.sqlite"
+            copyFile orig path
+            cfg <- defaultConfigTesting
+            (logs, _) <- captureLogging $ \tr -> do
+                withDBLayer cfg tr (Just path) $ \_ -> pure ()
+                withDBLayer cfg tr (Just path) $ \_ -> pure ()
+            logs `shouldSatisfy`
+                any (T.isInfixOf "Non backward compatible database found")
+            logs `shouldSatisfy`
+                (not . any (T.isInfixOf "PersistError"))
 
 testingLogConfig :: IO CM.Configuration
 testingLogConfig = do
