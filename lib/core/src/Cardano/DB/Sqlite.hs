@@ -22,6 +22,7 @@
 
 module Cardano.DB.Sqlite
     ( SqliteContext (..)
+    , DBLog (..)
     , chunkSize
     , dbChunked
     , destroyDBLayer
@@ -187,6 +188,7 @@ data DBLog
     | MsgQuery Text Severity
     | MsgConnStr Text
     | MsgClosing (Maybe FilePath)
+    | MsgDatabaseReset
     deriving (Generic, Show, Eq, ToJSON)
 
 instance DefinePrivacyAnnotation DBLog
@@ -197,6 +199,7 @@ instance DefineSeverity DBLog where
         MsgQuery _ sev -> sev
         MsgConnStr _ -> Debug
         MsgClosing _ -> Debug
+        MsgDatabaseReset -> Notice
 
 instance ToText DBLog where
     toText msg = case msg of
@@ -205,6 +208,9 @@ instance ToText DBLog where
         MsgQuery stmt _ -> stmt
         MsgConnStr connStr -> "Using connection string: " <> connStr
         MsgClosing fp -> "Closing database ("+|fromMaybe "in-memory" fp|+")"
+        MsgDatabaseReset ->
+            "Non backward compatible database found. Removing old database \
+            \and re-creating it from scratch."
 
 {-------------------------------------------------------------------------------
                                Extra DB Helpers
