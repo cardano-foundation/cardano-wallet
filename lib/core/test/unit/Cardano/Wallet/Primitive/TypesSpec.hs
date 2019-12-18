@@ -20,7 +20,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
+    ( ActiveSlotCoefficient (..)
+    , Address (..)
     , AddressState (..)
     , Block (..)
     , BlockHeader (..)
@@ -242,6 +243,7 @@ spec = do
             { getEpochLength = EpochLength 21600
             , getSlotLength  = SlotLength 10
             , getGenesisBlockDate = StartTime (read "2019-11-09 16:43:02 UTC")
+            , getActiveSlotCoefficient = 1
             }
     let st = SyncTolerance 10
     let slotsPerEpoch = getEpochLength sp
@@ -249,6 +251,10 @@ spec = do
     describe "syncProgress" $ do
         it "works for any two slots" $ property $ \sl0 sl1 ->
             syncProgress st sp sl0 sl1 `deepseq` ()
+
+        -- it "unit test #1" $ do
+        --     let syncTolerance = SyncTolerance 0
+
 
     describe "flatSlot" $ do
 
@@ -1343,8 +1349,19 @@ instance Arbitrary StartTime where
 instance Arbitrary EpochLength where
     arbitrary = EpochLength . getNonZero <$> arbitrary
 
+instance Arbitrary ActiveSlotCoefficient where
+    shrink (ActiveSlotCoefficient f)
+        | f < 1 = [1]
+        | otherwise = []
+    arbitrary =
+        ActiveSlotCoefficient <$> choose (0.001, 1.0)
+
 instance Arbitrary SlotParameters where
-    arbitrary = SlotParameters <$> arbitrary <*> arbitrary <*> arbitrary
+    arbitrary = SlotParameters
+        <$> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> arbitrary
     shrink = genericShrink
 
 instance Arbitrary SyncTolerance where
@@ -1355,10 +1372,11 @@ instance {-# OVERLAPS #-} Arbitrary (SlotParameters, SlotId) where
         (el, slot) <- arbitrary
         sl <- arbitrary
         st <- arbitrary
-        pure (SlotParameters el sl st, slot)
-    shrink (SlotParameters el sl st, slot) = do
+        f <- arbitrary
+        pure (SlotParameters el sl st f, slot)
+    shrink (SlotParameters el sl st f, slot) = do
         (el', slot') <- shrink (el, slot)
-        pure (SlotParameters el' sl st, slot')
+        pure (SlotParameters el' sl st f, slot')
 
 -- | Combines a 'SlotParameters' object and a single point in time.
 --
