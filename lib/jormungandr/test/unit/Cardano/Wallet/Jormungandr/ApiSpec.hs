@@ -173,8 +173,7 @@ spec = do
                     \pools\":[[\"7d749ef424507fb80fed0d2289d535a94f6870add0cf8b3\
                     \74cfe6cae078320ec\",1]],\"unassigned\":[]}}"
             decodeJSON exampleStake `shouldBe`
-                Left "Error in $.stake.unassigned: expected Word64, \
-                     \encountered Array"
+                Left ("Error in $.stake.unassigned: " <> servantErrorMsg "Word64" "Array")
             return ()
 
         it "invalid non-numerical field value in endpoint response gives expected error" $ do

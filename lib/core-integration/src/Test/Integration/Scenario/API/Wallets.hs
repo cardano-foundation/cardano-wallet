@@ -43,6 +43,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( toText )
+import Network.Wai.Middleware.ServantError
+    ( servantErrorMsg )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -295,7 +297,7 @@ spec = do
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
         verify r
             [ expectResponseCode @IO HTTP.status400
-            , expectErrorMessage "expected Text, encountered Array"
+            , expectErrorMessage (servantErrorMsg "Text" "Array")
             ]
 
     it "WALLETS_CREATE_04 - Num as name -> fail" $ \ctx -> do
@@ -307,7 +309,7 @@ spec = do
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
         verify r
             [ expectResponseCode @IO HTTP.status400
-            , expectErrorMessage "expected Text, encountered Number"
+            , expectErrorMessage (servantErrorMsg "Text" "Number")
             ]
 
     it "WALLETS_CREATE_04 - Name param missing -> fail" $ \ctx -> do
@@ -610,7 +612,7 @@ spec = do
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
         verify r
             [ expectResponseCode @IO HTTP.status400
-            , expectErrorMessage "expected Text, encountered Array"
+            , expectErrorMessage (servantErrorMsg "Text" "Array")
             ]
 
     it "WALLETS_CREATE_07 - Num as passphrase -> fail" $ \ctx -> do
@@ -622,7 +624,7 @@ spec = do
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
         verify r
             [ expectResponseCode @IO HTTP.status400
-            , expectErrorMessage "expected Text, encountered Number"
+            , expectErrorMessage (servantErrorMsg "Text" "Number")
             ]
 
     it "WALLETS_CREATE_07 - passphrase param missing -> fail" $ \ctx -> do
@@ -1095,7 +1097,7 @@ spec = do
         ru <- request @ApiWallet ctx ("PUT", "v2/wallets" </> walId) Default payload
         verify ru
             [ expectResponseCode @IO HTTP.status400
-            , expectErrorMessage "expected Text, encountered Array"
+            , expectErrorMessage (servantErrorMsg "Text" "Array")
             ]
 
     it "WALLETS_UPDATE_02 - Num as name -> fail" $ \ctx -> do
@@ -1107,7 +1109,7 @@ spec = do
         ru <- request @ApiWallet ctx ("PUT", "v2/wallets" </> walId) Default payload
         verify ru
             [ expectResponseCode @IO HTTP.status400
-            , expectErrorMessage "expected Text, encountered Number"
+            , expectErrorMessage (servantErrorMsg "Text" "Number")
             ]
 
     it "WALLETS_UPDATE_02 - Name param missing -> OK" $ \ctx -> do
@@ -1329,7 +1331,7 @@ spec = do
                         "new_passphrase": []
                           } |]
                    , [ expectResponseCode @IO HTTP.status400
-                     , expectErrorMessage "expected Text, encountered Array" ]
+                     , expectErrorMessage (servantErrorMsg "Text" "Array") ]
                    )
                  , ( "[] as old passphrase"
                    , Json [json| {
@@ -1337,7 +1339,7 @@ spec = do
                        "new_passphrase": "Secure passphrase"
                          } |]
                    , [ expectResponseCode @IO HTTP.status400
-                     , expectErrorMessage "expected Text, encountered Array" ]
+                     , expectErrorMessage (servantErrorMsg "Text" "Array") ]
                    )
                  , ( "Num as old passphrase"
                    , Json [json| {
@@ -1345,7 +1347,7 @@ spec = do
                       "new_passphrase": "Secure passphrase"
                          } |]
                    , [ expectResponseCode @IO HTTP.status400
-                     , expectErrorMessage "expected Text, encountered Number" ]
+                     , expectErrorMessage (servantErrorMsg "Text" "Number") ]
                    )
                  , ( "Num as new passphrase"
                    , Json [json| {
@@ -1353,7 +1355,7 @@ spec = do
                       "new_passphrase": 12345678910
                          } |]
                    , [ expectResponseCode @IO HTTP.status400
-                     , expectErrorMessage "expected Text, encountered Number" ]
+                     , expectErrorMessage (servantErrorMsg "Text" "Number") ]
                    )
                  , ( "Missing old passphrase"
                    , Json [json| {

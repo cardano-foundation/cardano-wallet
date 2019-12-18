@@ -48,6 +48,8 @@ import Data.Time.Utils
     ( utcTimePred, utcTimeSucc )
 import Network.HTTP.Types.Method
     ( Method )
+import Network.Wai.Middleware.ServantError
+    ( servantErrorMsg )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -539,7 +541,7 @@ spec = do
         r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status400
-            , expectErrorMessage "expected Text, encountered Array"
+            , expectErrorMessage (servantErrorMsg "Text" "Array")
             ]
 
     it "TRANS_CREATE_05 - Num as address" $ \ctx -> do
@@ -557,7 +559,7 @@ spec = do
         r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status400
-            , expectErrorMessage "expected Text, encountered Num"
+            , expectErrorMessage (servantErrorMsg "Text" "Num")
             ]
 
     it "TRANS_CREATE_05 - address param missing" $ \ctx -> do
@@ -1016,7 +1018,7 @@ spec = do
         r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status400
-            , expectErrorMessage "expected Text, encountered Array"
+            , expectErrorMessage (servantErrorMsg "Text" "Array")
             ]
 
     it "TRANS_ESTIMATE_05 - Num as address" $ \ctx -> do
@@ -1033,7 +1035,7 @@ spec = do
         r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status400
-            , expectErrorMessage "expected Text, encountered Num"
+            , expectErrorMessage (servantErrorMsg "Text" "Num")
             ]
 
     it "TRANS_ESTIMATE_05 - address param missing" $ \ctx -> do

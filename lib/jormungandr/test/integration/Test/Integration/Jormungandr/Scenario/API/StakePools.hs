@@ -30,6 +30,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
     ( fromText, toText )
+import Network.Wai.Middleware.ServantError
+    ( servantErrorMsg )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -574,7 +576,7 @@ spec = do
                 r <- request @(ApiTransaction n) ctx (sPoolEndp (p ^. #id) w)
                         Default payload
                 expectResponseCode HTTP.status400 r
-                expectErrorMessage "expected Text, encountered Number" r
+                expectErrorMessage (servantErrorMsg "Text" "Number") r
         it "Join" $ \ctx -> do
             verifyIt ctx joinStakePoolEp
         it "Quit" $ \ctx -> do

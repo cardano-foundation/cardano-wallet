@@ -38,6 +38,8 @@ import Data.Text
     ( Text )
 import Data.Word
     ( Word64 )
+import Network.Wai.Middleware.ServantError
+    ( servantErrorMsg )
 import Test.Hspec
     ( SpecWith, describe, it )
 import Test.Hspec.Expectations.Lifted
@@ -873,7 +875,7 @@ spec = do
         r <- request @ApiByronWallet ctx postByronWalletEp Default payload
         verify r
             [ expectResponseCode @IO HTTP.status400
-            , expectErrorMessage "expected Text, encountered Array"
+            , expectErrorMessage (servantErrorMsg "Text" "Array")
             ]
 
     it "BYRON_RESTORE_04 - Num as name -> fail" $ \ctx -> do
@@ -885,7 +887,7 @@ spec = do
         r <- request @ApiByronWallet ctx postByronWalletEp Default payload
         verify r
             [ expectResponseCode @IO HTTP.status400
-            , expectErrorMessage "expected Text, encountered Number"
+            , expectErrorMessage (servantErrorMsg "Text" "Number")
             ]
 
     it "BYRON_RESTORE_04 - Name param missing -> fail" $ \ctx -> do
@@ -1057,7 +1059,7 @@ spec = do
         r <- request @ApiByronWallet ctx postByronWalletEp Default payload
         verify r
             [ expectResponseCode @IO HTTP.status400
-            , expectErrorMessage "expected Text, encountered Array"
+            , expectErrorMessage (servantErrorMsg "Text" "Array")
             ]
 
     it "BYRON_RESTORE_06 - Num as passphrase -> fail" $ \ctx -> do
@@ -1069,7 +1071,7 @@ spec = do
         r <- request @ApiByronWallet ctx postByronWalletEp Default payload
         verify r
             [ expectResponseCode @IO HTTP.status400
-            , expectErrorMessage "expected Text, encountered Number"
+            , expectErrorMessage (servantErrorMsg"Text" "Number")
             ]
 
     it "BYRON_RESTORE_06 - passphrase param missing -> fail" $ \ctx -> do
