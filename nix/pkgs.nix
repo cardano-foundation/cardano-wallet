@@ -52,6 +52,16 @@ let
           ];
           unit.build-tools = [ jmPkgs.jormungandr ];
         };
+        packages.cardano-wallet-jormungandr.components.benchmarks.latency = {
+          build-tools = [ pkgs.makeWrapper];
+          postInstall = ''
+            makeWrapper \
+              $out/cardano-wallet-*/latency \
+              $out/bin/latency \
+              --run "cd $src" \
+              --prefix PATH : ${jmPkgs.jormungandr}/bin
+          '';
+        };
 
         packages.cardano-wallet-core.components.tests.unit.preBuild = ''
           export SWAGGER_YAML=${src + /specifications/api/swagger.yaml}

@@ -1,4 +1,3 @@
-{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
@@ -16,12 +15,18 @@ module Main where
 
 import Prelude
 
+import Cardano.BM.Backend.Switchboard
+    ( effectuate )
 import Cardano.BM.Configuration.Static
     ( defaultConfigStdout )
 import Cardano.BM.Data.LogItem
     ( LOContent (..), LOMeta (..), LogObject (..) )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
+import Cardano.BM.Data.Tracer
+    ( ToObject (..) )
+import Cardano.BM.Setup
+    ( setupTrace_, shutdown )
 import Cardano.BM.Trace
     ( Trace, traceInTVarIO )
 import Cardano.Faucet
@@ -52,17 +57,21 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Types
     ( BlockchainParameters (..), SyncTolerance (..) )
 import Control.Concurrent.Async
-    ( race )
+    ( race_ )
 import Control.Concurrent.MVar
     ( newEmptyMVar, putMVar, takeMVar )
 import Control.Concurrent.STM.TVar
     ( TVar, newTVarIO, readTVarIO, writeTVar )
 import Control.Exception
-    ( throwIO )
+    ( bracket, onException, throwIO )
 import Control.Monad
     ( mapM_, replicateM, replicateM_ )
 import Control.Monad.STM
     ( atomically )
+import Data.Aeson
+    ( FromJSON (..), ToJSON (..), Value )
+import Data.Aeson.QQ
+    ( aesonQQ )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Maybe
@@ -71,12 +80,12 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( toText )
 import Data.Time
     ( NominalDiffTime )
 import Data.Time.Clock
     ( diffUTCTime )
-import Data.Time.Clock.System
-    ( SystemTime (..), getSystemTime )
 import Fmt
     ( Builder, build, fixedF, fmtLn, padLeftF, (+|), (|+) )
 import Network.HTTP.Client
@@ -98,8 +107,10 @@ import Test.Integration.Framework.DSL
     , expectEventually
     , expectResponseCode
     , expectSuccess
+    , expectWalletUTxO
     , faucetAmt
     , fixtureWallet
+    , fixtureWalletWith
     , getAddressesEp
     , getWalletEp
     , getWalletUtxoEp
@@ -120,10 +131,7 @@ import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
 main :: forall t n. (t ~ Jormungandr, n ~ 'Testnet) => IO ()
-main = withUtf8Encoding $ do
-    tvar <- newTVarIO []
-    logging <- setupLatencyLogging tvar
-
+main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
     fmtLn "Latencies for 2 fixture wallets scenario"
     runScenario logging tvar (nFixtureWallet 2)
 
@@ -150,6 +158,18 @@ main = withUtf8Encoding $ do
 
     fmtLn "Latencies for 10 fixture wallets with 100 txs scenario"
     runScenario logging tvar (nFixtureWalletWithTxs 10 100)
+
+    fmtLn "Latencies for 2 fixture wallets with 100 utxos scenario"
+    runScenario logging tvar (nFixtureWalletWithUTxOs 2 1)
+
+    fmtLn "Latencies for 2 fixture wallets with 200 utxos scenario"
+    runScenario logging tvar (nFixtureWalletWithUTxOs 2 2)
+
+    fmtLn "Latencies for 2 fixture wallets with 500 utxos scenario"
+    runScenario logging tvar (nFixtureWalletWithUTxOs 2 5)
+
+    fmtLn "Latencies for 2 fixture wallets with 1000 utxos scenario"
+    runScenario logging tvar (nFixtureWalletWithUTxOs 2 10)
   where
     -- Creates n fixture wallets and return two of them
     nFixtureWallet n ctx = do
@@ -175,6 +195,27 @@ main = withUtf8Encoding $ do
                 else
                     [lastBit]
         mapM_ (repeatPostTx ctx wal1 amt batchSize . amtExp) expInflows
+
+        pure (wal1, wal2)
+
+    -- Creates n fixture wallets and send 10-output transactions
+    -- to one of them (10*m times). The money is sent in batches (see batchSize
+    -- below) from additionally created source fixture wallet. So m=1 means the
+    -- recipient wallet should assume 100 additional utxos. Then we wait for
+    -- the money to be accommodated in recipient wallet. After that the
+    -- source fixture wallet is removed.
+    nFixtureWalletWithUTxOs n m ctx = do
+        (wal1, wal2) <- nFixtureWallet n ctx
+
+        let amt = (1 :: Natural)
+        let batchSize = 100
+        let fixtureUtxos = replicate 10 100000000000
+        let expAddedUtxos = [replicate (batchSize*x) 1 | x <- [1..m]]
+        let expUtxos = map (++ fixtureUtxos) expAddedUtxos
+        let expInflows = [(fromIntegral faucetAmt) + batchSize*x | x <- [1..m]]
+        let expPair = zip expInflows expUtxos
+
+        mapM_ (repeatPostMultiTx ctx wal1 amt batchSize) expPair
 
         pure (wal1, wal2)
 
@@ -211,6 +252,48 @@ main = withUtf8Encoding $ do
         r <- request @(ApiTransaction n) ctx (postTxEndp wSrc) Default payload
         expectResponseCode HTTP.status202 r
         return r
+
+    repeatPostMultiTx ctx wDest amtToSend batchSize (amtExp, utxoExp) = do
+        wSrc <- fixtureWalletWith ctx (replicate batchSize 1000)
+        let pass = "Secure Passphrase" :: Text
+
+        postMultiTx ctx (wSrc, postTxEp, pass) wDest amtToSend batchSize
+
+        rWal1 <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
+        verify rWal1
+            [ expectSuccess
+            , expectEventually ctx getWalletEp balanceAvailable (fromIntegral amtExp)
+            ]
+
+        rStat <- request @ApiUtxoStatistics ctx (getWalletUtxoEp wDest) Default Empty
+        expectResponseCode @IO HTTP.status200 rStat
+        expectWalletUTxO utxoExp (snd rStat)
+
+        rDel <- request @ApiWallet ctx (deleteWalletEp wSrc) Default Empty
+        expectResponseCode @IO HTTP.status204 rDel
+
+        pure ()
+
+    postMultiTx ctx (wSrc, postTxEndp, pass) wDest amt nOuts = do
+        addrs <- listAddresses ctx wDest
+        let destinations = replicate nOuts $ (addrs !! 1) ^. #id
+        let amounts = take nOuts [amt, amt .. ]
+        let payments = flip map (zip amounts destinations) $ \(coin, addr) ->
+                [aesonQQ|{
+                        "address": #{addr},
+                        "amount": {
+                            "quantity": #{coin},
+                            "unit": "lovelace"
+                        }
+                        }|]
+        let payload = Json [aesonQQ|{
+                "payments": #{payments :: [Value]},
+                "passphrase": #{pass}
+            }|]
+        r <- request @(ApiTransaction n) ctx (postTxEndp wSrc) Default payload
+
+        expectResponseCode HTTP.status202 r
+        return ()
 
     runScenario logging tvar scenario = benchWithServer logging $ \ctx -> do
         (wal1, wal2) <- scenario ctx
@@ -302,6 +385,10 @@ measureApiLogs = measureLatency isLogRequestStart isLogRequestFinish
 sampleTimeSeconds :: Int
 sampleTimeSeconds = 5
 
+-- | Run tests for at least this long to get accurate timings.
+sampleNTimes :: Int
+sampleNTimes = 10
+
 -- | Measure how long an action takes based on trace points and taking an
 -- average of results over a short time period.
 measureLatency
@@ -312,7 +399,7 @@ measureLatency
     -> IO [NominalDiffTime]
 measureLatency start finish tvar action = do
     atomically $ writeTVar tvar []
-    _res <- repeatFor sampleTimeSeconds action
+    replicateM_ sampleNTimes action
     extractTimings start finish . reverse <$> readTVarIO tvar
 
 -- | Scan through iohk-monitoring logs and extract time differences between
@@ -339,42 +426,30 @@ extractTimings isStart isFinish msgs = map2 mkDiff filtered
         _ -> Nothing
     getTimestamp = tstamp . loMeta
 
--- | Repeatedly run an action, until total elapsed time in seconds is greater
--- than the given amount.
-repeatFor :: Int -> IO a -> IO [a]
-repeatFor nSeconds action = do
-    start <- getSystemTime
-    let repeater rs = do
-            now <- getSystemTime
-            if finished start now
-                then pure rs
-                else do
-                    !r <- action
-                    repeater (r:rs)
-    reverse <$> repeater []
-  where
-    finished a b = systemSeconds b - systemSeconds a > fromIntegral nSeconds
-
-setupLatencyLogging
-    :: TVar [LogObject ServerLog]
-    -> IO (CM.Configuration, Trace IO ServerLog)
-setupLatencyLogging tvar = do
-    cfg <- do
-        cfg' <- defaultConfigStdout
-        CM.setMinSeverity cfg' Debug
-        pure cfg'
-    pure (cfg, traceInTVarIO tvar)
+withLatencyLogging
+    :: (ToJSON msg, FromJSON msg, ToObject msg, Show msg)
+    => ((CM.Configuration, Trace IO msg) -> TVar [LogObject msg] -> IO a)
+    -> IO a
+withLatencyLogging action = do
+    tvar <- newTVarIO []
+    cfg <- defaultConfigStdout
+    CM.setMinSeverity cfg Debug
+    bracket (setupTrace_ cfg "bench-latency") (shutdown . snd) $ \(_, sb) -> do
+        action (cfg, traceInTVarIO tvar) tvar `onException` do
+            fmtLn "Action failed. Here are the captured logs:"
+            readTVarIO tvar >>= mapM_ (effectuate sb) . reverse
 
 benchWithServer
     :: (CM.Configuration, Trace IO ServerLog)
     -> (Context Jormungandr -> IO ())
     -> IO ()
-benchWithServer logCfg = withContext
-  where
-    withContext :: (Context Jormungandr -> IO ()) -> IO ()
-    withContext action = do
-        ctx <- newEmptyMVar
-        let setupContext wAddr nPort bp = do
+benchWithServer logCfg action = withConfig $ \jmCfg -> do
+    ctx <- newEmptyMVar
+    race_ (takeMVar ctx >>= action) $ do
+        res <- serveWallet @'Testnet
+            logCfg (SyncTolerance 10)
+            Nothing "127.0.0.1"
+            ListenOnRandomPort (Launch jmCfg) $ \wAddr nPort bp -> do
                 let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
                 let sixtySeconds = 60*1000*1000 -- 60s in microseconds
                 manager <- (baseUrl,) <$> newManager (defaultManagerSettings
@@ -392,9 +467,12 @@ benchWithServer logCfg = withContext
                     , _feeEstimator = \_ -> error "feeEstimator not available"
                     , _target = Proxy
                     }
-        race (takeMVar ctx >>= action) (withServer setupContext) >>=
-            either pure (throwIO . ProcessHasExited "latency benchmark")
+        throwIO $ ProcessHasExited "Server has unexpectedly exited" res
 
-    withServer setup = withConfig $ \jmCfg ->
-        serveWallet @'Testnet logCfg (SyncTolerance 10) Nothing "127.0.0.1"
-            ListenOnRandomPort (Launch jmCfg) setup
+instance ToJSON ServerLog where
+    toJSON = toJSON . toText
+
+instance FromJSON ServerLog where
+    parseJSON _ = fail "FromJSON ServerLog stub"
+
+instance ToObject ServerLog

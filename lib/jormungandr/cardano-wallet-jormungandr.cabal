@@ -272,6 +272,8 @@ benchmark latency
       -Werror
   build-depends:
       base
+    , aeson
+    , aeson-qq
     , async
     , bech32
     , bytestring
@@ -294,6 +296,7 @@ benchmark latency
     , stm
     , temporary
     , text
+    , text-class
     , time
   build-tools:
       cardano-wallet-jormungandr
