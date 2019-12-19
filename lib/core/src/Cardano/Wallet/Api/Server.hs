@@ -140,6 +140,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
     , HardDerivation (..)
     , NetworkDiscriminant (..)
+    , Passphrase
+    , PaymentAddress
     , WalletKey (..)
     , digest
     , publicKey
@@ -168,11 +170,14 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , HistogramBar (..)
     , PoolId
+    , SealedTx
     , SortOrder (..)
+    , SyncProgress
     , SyncTolerance
     , TransactionInfo (TransactionInfo)
     , Tx (..)
     , TxIn (..)
+    , TxMeta
     , TxOut (..)
     , TxStatus (..)
     , UTxOStatistics (..)
@@ -439,10 +444,10 @@ server byron shelley spl =
   where
     wallets :: Server Wallets
     wallets = deleteWallet shelley
-        :<|> getWallet shelley
-        :<|> listWallets shelley
-        :<|> postWallet shelley
-        :<|> putWallet shelley
+        :<|> (fmap fst . getWallet shelley mkShelleyWallet)
+        :<|> listWallets shelley mkShelleyWallet
+        :<|> postShelleyWallet shelley
+        :<|> putWallet shelley mkShelleyWallet
         :<|> putWalletPassphrase shelley
         :<|> getUTxOsStatistics shelley
 
@@ -467,17 +472,17 @@ server byron shelley spl =
 
     byronWallets :: Server ByronWallets
     byronWallets = postByronWallet byron
-        :<|> deleteByronWallet byron
-        :<|> getByronWallet byron
-        :<|> listByronWallets byron
+        :<|> deleteWallet byron
+        :<|> (fmap fst . getWallet byron mkByronWallet)
+        :<|> listWallets byron mkByronWallet
 
     byronTransactions :: Server (ByronTransactions n)
-    byronTransactions = listByronTransactions byron
-        :<|> deleteByronTransaction byron
+    byronTransactions = listTransactions byron
+        :<|> deleteTransaction byron
 
     byronMigrations :: Server (ByronMigrations n)
-    byronMigrations = getByronWalletMigrationInfo byron
-        :<|> migrateByronWallet byron shelley
+    byronMigrations = getMigrationInfo byron
+        :<|> migrateWallet signByronTx byron shelley
 
     network :: Server Network
     network = getNetworkInformation genesis nl
@@ -489,10 +494,21 @@ server byron shelley spl =
     proxy = postExternalTransaction shelley
 
 {-------------------------------------------------------------------------------
-                                    Wallets
+                              Wallet Constructors
 -------------------------------------------------------------------------------}
 
-postWallet
+type MkApiWallet ctx s w
+    =  ctx
+    -> WalletId
+    -> Wallet s
+    -> WalletMetadata
+    -> Set Tx
+    -> SyncProgress
+    -> Handler w
+
+--------------------- Shelley
+
+postShelleyWallet
     :: forall ctx s t k n.
         ( s ~ SeqState n k
         , k ~ ShelleyKey
@@ -503,10 +519,9 @@ postWallet
     => ctx
     -> WalletPostData
     -> Handler ApiWallet
-postWallet ctx body = do
+postShelleyWallet ctx body = do
     let seed = getApiMnemonicT (body ^. #mnemonicSentence)
-    let secondFactor =
-            maybe mempty getApiMnemonicT (body ^. #mnemonicSecondFactor)
+    let secondFactor = maybe mempty getApiMnemonicT (body ^. #mnemonicSecondFactor)
     let pwd = getApiT (body ^. #passphrase)
     let rootXPrv = Seq.generateKeyFromSeed (seed, secondFactor) pwd
     let g = maybe defaultAddressPoolGap getApiT (body ^. #addressPoolGap)
@@ -516,7 +531,83 @@ postWallet ctx body = do
     void $ liftHandler $ createWallet @_ @s @t @k ctx wid wName s
     liftHandler $ withWorkerCtx @_ @s @k ctx wid throwE $ \wrk ->
         W.attachPrivateKey @_ @s @k wrk wid (rootXPrv, pwd)
-    getWallet ctx (ApiT wid)
+    fst <$> getWallet ctx (mkShelleyWallet @_ @s @t @k) (ApiT wid)
+
+mkShelleyWallet
+    :: forall ctx s t k n.
+        ( ctx ~ ApiLayer s t k
+        , s ~ SeqState n k
+        , WalletKey k
+        , HasWorkerRegistry s k ctx
+        )
+    => MkApiWallet ctx s ApiWallet
+mkShelleyWallet ctx wid cp meta pending progress = do
+    reward <- liftHandler $ withWorkerCtx @_ @s @k ctx wid liftE $
+        \wrk -> W.fetchRewardBalance @_ @s @t @k wrk wid
+    pure ApiWallet
+        { addressPoolGap = ApiT $ getState cp ^. #externalPool . #gap
+        , balance = ApiT $ WalletBalance
+            { available = Quantity $ availableBalance pending cp
+            , total = Quantity $ totalBalance pending cp
+            , reward = Quantity $ fromIntegral $ getQuantity reward
+            }
+        , delegation = ApiT $ ApiT <$> meta ^. #delegation
+        , id = ApiT wid
+        , name = ApiT $ meta ^. #name
+        , passphrase = ApiT <$> meta ^. #passphraseInfo
+        , state = ApiT progress
+        , tip = getWalletTip cp
+        }
+  where
+    liftE = throwE . ErrFetchRewardsNoSuchWallet
+
+--------------------- Yoroi
+--
+--
+-- TODO
+
+--------------------- Byron
+
+postByronWallet
+    :: forall ctx s t k.
+        ( ctx ~ ApiLayer s t k
+        , s ~ RndState 'Mainnet
+        , k ~ ByronKey
+        )
+    => ctx
+    -> ByronWalletPostData
+    -> Handler ApiByronWallet
+postByronWallet ctx body = do
+    state <- liftIO $ mkRndState rootXPrv <$> getStdRandom random
+    void $ liftHandler $ createWallet @_ @_ @t ctx wid name state
+    liftHandler $ withWorkerCtx ctx wid throwE $ \wrk ->
+        W.attachPrivateKey wrk wid (rootXPrv, passphrase)
+    fst <$> getWallet ctx mkByronWallet (ApiT wid)
+  where
+    mnemonicSentence = getApiMnemonicT (body ^. #mnemonicSentence)
+    name = getApiT (body ^. #name)
+    passphrase = getApiT (body ^. #passphrase)
+    rootXPrv = Rnd.generateKeyFromSeed mnemonicSentence passphrase
+    wid = WalletId $ digest $ publicKey rootXPrv
+
+mkByronWallet
+    :: MkApiWallet ctx s ApiByronWallet
+mkByronWallet _ctx wid cp meta pending progress =
+    pure ApiByronWallet
+        { balance = ApiByronWalletBalance
+            { available = Quantity $ availableBalance pending cp
+            , total = Quantity $ totalBalance pending cp
+            }
+        , id = ApiT wid
+        , name = ApiT $ meta ^. #name
+        , passphrase = ApiT <$> meta ^. #passphraseInfo
+        , state = ApiT progress
+        , tip = getWalletTip cp
+        }
+
+{-------------------------------------------------------------------------------
+                                   Wallets
+-------------------------------------------------------------------------------}
 
 deleteWallet
     :: forall ctx s t k.
@@ -535,57 +626,60 @@ deleteWallet ctx (ApiT wid) = do
     df = ctx ^. dbFactory @s @k
 
 getWallet
-    :: forall ctx s t k n.
-        ( s ~ SeqState n k
-        , ctx ~ ApiLayer s t k
-        , WalletKey k
+    :: forall ctx s t k apiWallet.
+        ( ctx ~ ApiLayer s t k
+        , HasWorkerRegistry s k ctx
         )
     => ctx
+    -> MkApiWallet ctx s apiWallet
     -> ApiT WalletId
-    -> Handler ApiWallet
-getWallet ctx (ApiT wid) =
-    fst <$> getWalletWithCreationTime ctx wid
+    -> Handler (apiWallet, UTCTime)
+getWallet ctx mkApiWallet (ApiT wid) = do
+    (cp, meta, pending) <- liftHandler $ withWorkerCtx @_ @s @k ctx wid throwE $
+        \wrk -> W.readWallet @_ @s @k wrk wid
+
+    progress <- liftIO $
+        W.walletSyncProgress ctx cp
+
+    (, meta ^. #creationTime)
+        <$> mkApiWallet ctx wid cp meta pending progress
 
 listWallets
-    :: forall ctx s t k n.
-        ( s ~ SeqState n k
-        , ctx ~ ApiLayer s t k
-        , WalletKey k
+    :: forall ctx s t k apiWallet.
+        ( ctx ~ ApiLayer s t k
         )
     => ctx
-    -> Handler [ApiWallet]
-listWallets ctx = do
+    -> MkApiWallet ctx s apiWallet
+    -> Handler [apiWallet]
+listWallets ctx mkApiWallet = do
     wids <- liftIO $ Registry.keys re
-    fmap fst . sortOn snd <$>
-        mapM (getWalletWithCreationTime ctx) wids
+    fmap fst . sortOn snd <$> mapM (getWallet ctx mkApiWallet) (ApiT <$> wids)
   where
     re = ctx ^. workerRegistry @s @k
 
 putWallet
-    :: forall ctx s t k n.
-        ( s ~ SeqState n k
-        , ctx ~ ApiLayer s t k
-        , WalletKey k
+    :: forall ctx s t k apiWallet.
+        ( ctx ~ ApiLayer s t k
         )
     => ctx
+    -> MkApiWallet ctx s apiWallet
     -> ApiT WalletId
     -> WalletPutData
-    -> Handler ApiWallet
-putWallet ctx (ApiT wid) body = do
+    -> Handler apiWallet
+putWallet ctx mkApiWallet (ApiT wid) body = do
     case body ^. #name of
         Nothing ->
             return ()
         Just (ApiT wName) -> liftHandler $ withWorkerCtx ctx wid throwE $ \wrk ->
             W.updateWallet wrk wid (modify wName)
-    getWallet ctx (ApiT wid)
+    fst <$> getWallet ctx mkApiWallet (ApiT wid)
   where
     modify :: W.WalletName -> WalletMetadata -> WalletMetadata
     modify wName meta = meta { name = wName }
 
 putWalletPassphrase
-    :: forall ctx s t k n.
+    :: forall ctx s t k.
         ( WalletKey k
-        , s ~ SeqState n k
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -601,9 +695,8 @@ putWalletPassphrase ctx (ApiT wid) body = do
     liftE = throwE . ErrUpdatePassphraseNoSuchWallet
 
 getUTxOsStatistics
-    :: forall ctx s t k n.
-        ( s ~ SeqState n k
-        , ctx ~ ApiLayer s t k
+    :: forall ctx s t k.
+        ( ctx ~ ApiLayer s t k
         )
     => ctx
     -> ApiT WalletId
@@ -882,104 +975,18 @@ quitStakePool ctx (ApiT pid) (ApiT wid) (ApiWalletPassphrase (ApiT pwd)) = do
   where
     liftE = throwE . ErrQuitStakePoolNoSuchWallet
 
-
-{-------------------------------------------------------------------------------
-                                 Byron Wallets
--------------------------------------------------------------------------------}
-
-postByronWallet
-    :: forall t. ()
-    => ApiLayer (RndState 'Mainnet) t ByronKey
-    -> ByronWalletPostData
-    -> Handler ApiByronWallet
-postByronWallet ctx body = do
-    void
-        . liftHandler
-        . createWallet @_ @_ @t ctx wid name
-        . mkRndState rootXPrv
-        =<< liftIO (getStdRandom random)
-    liftHandler $ withWorkerCtx ctx wid throwE $ \worker ->
-        W.attachPrivateKey worker wid (rootXPrv, passphrase)
-    getByronWallet ctx (ApiT wid)
-  where
-    mnemonicSentence = getApiMnemonicT (body ^. #mnemonicSentence)
-    name = getApiT (body ^. #name)
-    passphrase = getApiT (body ^. #passphrase)
-    rootXPrv = Rnd.generateKeyFromSeed mnemonicSentence passphrase
-    wid = WalletId $ digest $ publicKey rootXPrv
-
-deleteByronWallet
-    :: forall s t k. ()
-    => ApiLayer s t k
-    -> ApiT WalletId
-    -> Handler NoContent
-deleteByronWallet =
-    deleteWallet
-
-getByronWallet
-    :: forall s t k. ()
-    => ApiLayer s t k
-    -> ApiT WalletId
-    -> Handler ApiByronWallet
-getByronWallet ctx (ApiT wid) =
-    fst <$> getByronWalletWithCreationTime ctx wid
-
-listByronWallets
-    :: forall s t k. (s ~ RndState 'Mainnet)
-    => ApiLayer s t k
-    -> Handler [ApiByronWallet]
-listByronWallets ctx = do
-    wids <- liftIO $ Registry.keys re
-    fmap fst . sortOn snd <$>
-        mapM (getByronWalletWithCreationTime ctx) wids
-  where
-    re = ctx ^. workerRegistry @s @k
-
-
-{-------------------------------------------------------------------------------
-                               Byron Transactions
--------------------------------------------------------------------------------}
-
-listByronTransactions
-    :: forall ctx s t k n. (ctx ~ ApiLayer s t k)
-    => ctx
-    -> ApiT WalletId
-    -> Maybe Iso8601Time
-    -> Maybe Iso8601Time
-    -> Maybe (ApiT SortOrder)
-    -> Handler [ApiTransaction n]
-listByronTransactions =
-    listTransactions
-
-deleteByronTransaction
-    :: forall ctx s t k.
-        ( s ~ RndState 'Mainnet
-        , ctx ~ ApiLayer s t k
-        )
-    => ctx
-    -> ApiT WalletId
-    -> ApiTxId
-    -> Handler NoContent
-deleteByronTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
-    liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
-        W.forgetPendingTx wrk wid tid
-    return NoContent
-  where
-    liftE = throwE . ErrRemovePendingTxNoSuchWallet
-
-
 {-------------------------------------------------------------------------------
                                 Byron Migrations
 -------------------------------------------------------------------------------}
 
-getByronWalletMigrationInfo
+getMigrationInfo
     :: forall s t k. ()
     => ApiLayer s t k
         -- ^ Source wallet context (Byron)
     -> ApiT WalletId
         -- ^ Source wallet (Byron)
     -> Handler ApiByronWalletMigrationInfo
-getByronWalletMigrationInfo ctx (ApiT wid) = do
+getMigrationInfo ctx (ApiT wid) = do
     sels <- getSelections
     when (null sels) $ liftHandler $ throwE $ ErrMigratingEmptyWallet wid
     return $ infoFromSelections sels
@@ -1001,42 +1008,41 @@ getByronWalletMigrationInfo ctx (ApiT wid) = do
             $ withWorkerCtx ctx wid throwE
             $ flip (W.selectCoinsForMigration @_ @s @t @k) wid
 
-migrateByronWallet
-    :: forall t n. DelegationAddress n ShelleyKey
-    => ApiLayer (RndState 'Mainnet) t ByronKey
-        -- ^ Source wallet context (Byron)
+migrateWallet
+    :: forall s t k n. DelegationAddress n ShelleyKey
+    =>  (  ApiLayer s t k
+        -> WalletId
+        -> Passphrase "encryption"
+        -> CoinSelection
+        -> Handler (Tx, TxMeta, UTCTime, SealedTx)
+        ) -- ^ Generic signer for the source wallet
+    -> ApiLayer s t k
+        -- ^ Source wallet context
     -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
         -- ^ Target wallet context (Shelley)
     -> ApiT WalletId
-        -- ^ Source wallet (Byron)
+        -- ^ Source wallet
     -> ApiT WalletId
         -- ^ Target wallet (Shelley)
     -> ApiWalletPassphrase
     -> Handler [ApiTransaction n]
-migrateByronWallet rndCtx seqCtx (ApiT rndWid) (ApiT seqWid) migrateData = do
+migrateWallet signSrcTx srcCtx sheCtx (ApiT srcWid) (ApiT sheWid) migrateData = do
     -- FIXME
     -- Better error handling here to inform users if they messed up with the
     -- wallet ids.
     cs <- liftHandler $
-        withWorkerCtx rndCtx rndWid throwE $ \rndWrk ->
-        withWorkerCtx seqCtx seqWid throwE $ \seqWrk -> do
-            cs <- W.selectCoinsForMigration @_ @_ @t rndWrk rndWid
-            W.assignMigrationTargetAddresses seqWrk seqWid () cs
+        withWorkerCtx srcCtx srcWid throwE $ \srcWrk ->
+        withWorkerCtx sheCtx sheWid throwE $ \sheWrk -> do
+            cs <- W.selectCoinsForMigration @_ @_ @t srcWrk srcWid
+            W.assignMigrationTargetAddresses sheWrk sheWid () cs
 
-    when (null cs) $ liftHandler $ throwE $ ErrMigratingEmptyWallet rndWid
+    when (null cs) $ liftHandler $ throwE $ ErrMigratingEmptyWallet srcWid
 
     forM cs $ \selection -> do
-        (tx, meta, time, wit) <- liftHandler
-            $ withWorkerCtx rndCtx rndWid (throwE . ErrSignPaymentNoSuchWallet)
-            $ \wrk ->
-                W.withRootKey
-                    wrk rndWid passphrase ErrSignPaymentWithRootKey
-            $ \xprv ->
-                W.signPayment @_ @_ @t
-                    wrk rndWid (xprv, passphrase) passphrase selection
+        (tx, meta, time, wit) <- signSrcTx srcCtx srcWid passphrase selection
         liftHandler
-            $ withWorkerCtx rndCtx rndWid (throwE . ErrSubmitTxNoSuchWallet)
-            $ \wrk -> W.submitTx @_ @_ @t wrk rndWid (tx, meta, wit)
+            $ withWorkerCtx srcCtx srcWid (throwE . ErrSubmitTxNoSuchWallet)
+            $ \wrk -> W.submitTx @_ @_ @t wrk srcWid (tx, meta, wit)
         pure $ mkApiTransaction
             (txId tx)
             (fmap Just <$> selection ^. #inputs)
@@ -1046,6 +1052,22 @@ migrateByronWallet rndCtx seqCtx (ApiT rndWid) (ApiT seqWid) migrateData = do
   where
     passphrase = getApiT $ migrateData ^. #passphrase
 
+signByronTx
+    :: forall t n.
+        ( PaymentAddress n ByronKey
+        )
+    => ApiLayer (RndState n) t ByronKey
+    -> WalletId
+    -> Passphrase "encryption"
+    -> CoinSelection
+    -> Handler (Tx, TxMeta, UTCTime, SealedTx)
+signByronTx ctx wid pwd selection = liftHandler
+    $ withWorkerCtx ctx wid (throwE . ErrSignPaymentNoSuchWallet)
+    $ \wrk -> W.withRootKey wrk wid pwd ErrSignPaymentWithRootKey
+    $ \xprv -> W.signPayment @_ @_ @t wrk wid (xprv, pwd) pwd selection
+
+-- TODO
+-- signYoroiTx
 
 {-------------------------------------------------------------------------------
                                     Network
@@ -1230,69 +1252,6 @@ coerceCoin (AddressAmount (ApiT addr, _) (Quantity c)) =
 
 natural :: Quantity q Word32 -> Quantity q Natural
 natural = Quantity . fromIntegral . getQuantity
-
-getWalletWithCreationTime
-    :: forall s t k n. (s ~ SeqState n k, WalletKey k)
-    => ApiLayer s t k
-    -> WalletId
-    -> Handler (ApiWallet, UTCTime)
-getWalletWithCreationTime ctx wid = do
-    (wallet, meta, pending) <-
-        liftHandler $ withWorkerCtx ctx wid throwE $
-            \wrk -> W.readWallet wrk wid
-    reward <- liftHandler $ withWorkerCtx ctx wid (throwE . ErrFetchRewardsNoSuchWallet) $
-            \wrk -> W.fetchRewardBalance @_ @s @k @t wrk wid
-    progress <- liftIO $ W.walletSyncProgress ctx wallet
-
-    let apiWallet = ApiWallet
-            { addressPoolGap = ApiT $ getState wallet ^. #externalPool . #gap
-            , balance = getWalletBalance wallet pending reward
-            , delegation = ApiT $ ApiT <$> meta ^. #delegation
-            , id = ApiT wid
-            , name = ApiT $ meta ^. #name
-            , passphrase = ApiT <$> meta ^. #passphraseInfo
-            , state = ApiT progress
-            , tip = getWalletTip wallet
-            }
-    return (apiWallet, meta ^. #creationTime)
-
-getByronWalletWithCreationTime
-    :: forall s t k. ()
-    => ApiLayer s t k
-    -> WalletId
-    -> Handler (ApiByronWallet, UTCTime)
-getByronWalletWithCreationTime ctx wid = do
-    (wallet, meta, pending) <-
-        liftHandler $ withWorkerCtx ctx wid throwE $
-            \wrk -> W.readWallet wrk wid
-    progress <- liftIO $ W.walletSyncProgress ctx wallet
-
-    let apiByronWallet = ApiByronWallet
-            { balance = getByronWalletBalance wallet pending
-            , id = ApiT wid
-            , name = ApiT $ meta ^. #name
-            , passphrase = ApiT <$> meta ^. #passphraseInfo
-            , state = ApiT progress
-            , tip = getWalletTip wallet
-            }
-    return (apiByronWallet, meta ^. #creationTime)
-
-getWalletBalance
-    :: Wallet s
-    -> Set Tx
-    -> Quantity "lovelace" Word64
-    -> ApiT WalletBalance
-getWalletBalance wallet pending (Quantity rewardBalance) = ApiT $ WalletBalance
-    { available = Quantity $ availableBalance pending wallet
-    , total = Quantity $ totalBalance pending wallet
-    , reward = Quantity $ fromIntegral rewardBalance
-    }
-
-getByronWalletBalance :: Wallet s -> Set Tx -> ApiByronWalletBalance
-getByronWalletBalance wallet pending = ApiByronWalletBalance
-    { available = Quantity $ availableBalance pending wallet
-    , total = Quantity $ totalBalance pending wallet
-    }
 
 getWalletTip :: Wallet s -> ApiBlockReference
 getWalletTip wallet = ApiBlockReference
