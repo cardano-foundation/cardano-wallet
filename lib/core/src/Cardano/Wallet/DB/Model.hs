@@ -173,7 +173,7 @@ mInitializeWallet
     => wid
     -> Wallet s
     -> WalletMetadata
-    -> [(Tx, TxMeta)]
+    -> TxHistory
     -> ModelOp wid s xprv ()
 mInitializeWallet wid cp meta txs0 db@Database{wallets,txs}
     | wid `Map.member` wallets = (Left (WalletAlreadyExists wid), db)
