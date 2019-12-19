@@ -74,7 +74,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , hex
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Hash (..), ProtocolMagic (..), invariant )
+    ( Address (..), Hash (..), invariant, testnetMagic )
 import Control.DeepSeq
     ( NFData )
 import Crypto.Hash
@@ -146,10 +146,9 @@ instance PaymentAddress 'Testnet ByronKey where
         $ CBOR.toStrictByteString
         $ CBOR.encodeAddress (getKey k)
             [ CBOR.encodeDerivationPathAttr pwd acctIx addrIx
-            , CBOR.encodeProtocolMagicAttr protocolMagic
+            , CBOR.encodeProtocolMagicAttr testnetMagic
             ]
       where
-        protocolMagic = ProtocolMagic 764824073
         (acctIx, addrIx) = derivationPath k
         pwd = payloadPassphrase k
     liftPaymentAddress (KeyFingerprint bytes) =

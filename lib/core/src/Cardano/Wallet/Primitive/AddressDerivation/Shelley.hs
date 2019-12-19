@@ -109,8 +109,8 @@ import qualified Data.ByteString.Lazy as BL
                             Sequential Derivation
 -------------------------------------------------------------------------------}
 
--- | A cryptographic key for sequential-scheme address derivation, with
--- phantom-types to disambiguate key types.
+-- | A cryptographic key for Shelley address derivation, with phantom-types to
+-- disambiguate derivation paths
 --
 -- @
 -- let rootPrivateKey = ShelleyKey 'RootK XPrv
