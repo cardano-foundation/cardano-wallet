@@ -244,8 +244,7 @@ instance MockPrivKey (ByronKey 'RootK) where
 
 data Cmd s wid
     = CleanDB
-    | CreateWallet MWid (Wallet s) WalletMetadata
-    | CreateWalletWithTxs MWid (Wallet s) WalletMetadata TxHistory
+    | CreateWallet MWid (Wallet s) WalletMetadata TxHistory
     | RemoveWallet wid
     | ListWallets
     | PutCheckpoint wid (Wallet s)
@@ -295,9 +294,7 @@ runMock :: Cmd s MWid -> Mock s -> (Resp s MWid, Mock s)
 runMock = \case
     CleanDB ->
         first (Resp . fmap Unit) . mCleanDB
-    CreateWallet wid wal meta ->
-        first (Resp . fmap (const (NewWallet wid))) . mInitializeWallet wid wal meta mempty
-    CreateWalletWithTxs wid wal meta txs ->
+    CreateWallet wid wal meta txs ->
         first (Resp . fmap (const (NewWallet wid))) . mInitializeWallet wid wal meta txs
     RemoveWallet wid ->
         first (Resp . fmap Unit) . mRemoveWallet wid
@@ -349,10 +346,7 @@ runIO db@DBLayer{..} = fmap Resp . go
     go = \case
         CleanDB -> do
             Right . Unit <$> cleanDB db
-        CreateWallet wid wal meta ->
-            catchWalletAlreadyExists (const (NewWallet (unMockWid wid))) $
-            mapExceptT atomically $ initializeWallet (widPK wid) wal meta mempty
-        CreateWalletWithTxs wid wal meta txs ->
+        CreateWallet wid wal meta txs ->
             catchWalletAlreadyExists (const (NewWallet (unMockWid wid))) $
             mapExceptT atomically $ initializeWallet (widPK wid) wal meta txs
         RemoveWallet wid -> catchNoSuchWallet Unit $
@@ -501,10 +495,6 @@ generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
         [ (5, CreateWallet
             <$> genId
             <*> (getInitialCheckpoint <$> arbitrary)
-            <*> arbitrary)
-        , (5, CreateWalletWithTxs
-            <$> genId
-            <*> (getInitialCheckpoint <$> arbitrary)
             <*> arbitrary
             <*> fmap unGenTxHistory arbitrary)
         ]
@@ -619,7 +609,6 @@ sm db = QSM.StateMachine
 instance CommandNames (At (Cmd s)) where
     cmdName (At CleanDB{}) = "CleanDB"
     cmdName (At CreateWallet{}) = "CreateWallet"
-    cmdName (At CreateWalletWithTxs{}) = "CreateWalletWithTxs"
     cmdName (At RemoveWallet{}) = "RemoveWallet"
     cmdName (At ListWallets{}) = "ListWallets"
     cmdName (At PutCheckpoint{}) = "PutCheckpoint"
@@ -636,7 +625,7 @@ instance CommandNames (At (Cmd s)) where
     cmdName (At RemovePendingTx{}) = "RemovePendingTx"
     cmdNames _ =
         [ "CleanDB"
-        , "CreateWallet", "CreateWalletWithTxs", "RemoveWallet", "ListWallets"
+        , "CreateWallet", "RemoveWallet", "ListWallets"
         , "PutCheckpoint", "ReadCheckpoint", "ListCheckpoints", "RollbackTo"
         , "PutWalletMeta", "ReadWalletMeta", "PutDelegationCertificate"
         , "PutTxHistory", "ReadTxHistory", "RemovePendingTx"
@@ -791,9 +780,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
         update :: Set MWid -> Event s Symbolic -> Set MWid
         update created ev =
             case (cmd ev, mockResp ev) of
-                (At (CreateWallet wid _ _), Resp (Right _)) ->
-                    Set.insert wid created
-                (At (CreateWalletWithTxs wid _ _ _), Resp (Right _)) ->
+                (At (CreateWallet wid _ _ _), Resp (Right _)) ->
                     Set.insert wid created
                 _otherwise ->
                     created
@@ -808,8 +795,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
       where
         match :: Event s Symbolic -> Maybe MWid
         match ev = case (cmd ev, mockResp ev) of
-            (At (CreateWallet wid _ _), Resp _) -> Just wid
-            (At (CreateWalletWithTxs wid _ _ _), Resp _) -> Just wid
+            (At (CreateWallet wid _ _ _), Resp _) -> Just wid
             _otherwise -> Nothing
 
     removeWalletTwice :: Fold (Event s Symbolic) (Maybe Tag)
@@ -865,9 +851,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
         update :: Map MWid Bool -> Event s Symbolic -> Map MWid Bool
         update created ev =
             case (cmd ev, mockResp ev) of
-                (At (CreateWallet wid _ _), Resp (Right _)) ->
-                    Map.insert wid False created
-                (At (CreateWalletWithTxs wid _ _ _), Resp (Right _)) ->
+                (At (CreateWallet wid _ _ _), Resp (Right _)) ->
                     Map.insert wid False created
                 (At ListWallets, Resp (Right (WalletIds wids))) ->
                     foldr (Map.adjust (const True)) created wids
