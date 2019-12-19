@@ -1,8 +1,6 @@
 packages:
   lib/*/*.cabal
 
-flags: +development
-
 package cardano-crypto
   tests: False
   benchmarks: False
