@@ -194,10 +194,6 @@ import qualified Test.StateMachine.Types.Rank2 as Rank2
 -- types.
 type Mock s = Database MWid s MPrivKey
 
--- | Shortcut for wallet type.
--- TODO: Shortcut is now potless. Remove.
-type MWallet s = Wallet s
-
 -- | Mock wallet ID -- simple and easy to read.
 newtype MWid = MWid String
     deriving (Show, Eq, Ord, Generic)
@@ -248,10 +244,10 @@ instance MockPrivKey (ByronKey 'RootK) where
 
 data Cmd s wid
     = CleanDB
-    | CreateWallet MWid (MWallet s) WalletMetadata
+    | CreateWallet MWid (Wallet s) WalletMetadata
     | RemoveWallet wid
     | ListWallets
-    | PutCheckpoint wid (MWallet s)
+    | PutCheckpoint wid (Wallet s)
     | ReadCheckpoint wid
     | ListCheckpoints wid
     | PutWalletMeta wid WalletMetadata
@@ -269,7 +265,7 @@ data Success s wid
     = Unit ()
     | NewWallet wid
     | WalletIds [wid]
-    | Checkpoint (Maybe (MWallet s))
+    | Checkpoint (Maybe (Wallet s))
     | Metadata (Maybe WalletMetadata)
     | TxHistory TxHistory
     | PrivateKey (Maybe MPrivKey)
@@ -665,7 +661,7 @@ instance ToExpr (Mock s) where
 instance ToExpr WalletId where
     toExpr = defaultExprViaShow
 
-instance Show s => ToExpr (MWallet s) where
+instance Show s => ToExpr (Wallet s) where
     toExpr = defaultExprViaShow
 
 instance ToExpr WalletMetadata where
@@ -895,7 +891,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
                     False
 
     readCheckpoint
-        :: (Maybe (MWallet s) -> Bool)
+        :: (Maybe (Wallet s) -> Bool)
         -> Tag
         -> Fold (Event s Symbolic) (Maybe Tag)
     readCheckpoint check res = Fold update False (extractf res)
