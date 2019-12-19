@@ -106,6 +106,7 @@ import Cardano.Wallet.Api.Types
     , ApiEpochInfo (..)
     , ApiErrorCode (..)
     , ApiFee (..)
+    , ApiMnemonicT (..)
     , ApiNetworkInformation (..)
     , ApiNetworkTip (..)
     , ApiSelectCoinsData (..)
@@ -148,8 +149,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Icarus
+    ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..) )
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
@@ -297,6 +300,7 @@ import System.Random
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Network as NW
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Rnd
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Ica
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Registry as Registry
@@ -328,10 +332,11 @@ start
     -> Trace IO ApiLog
     -> Socket
     -> ApiLayer (RndState 'Mainnet) t ByronKey
+    -> ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
     -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
     -> StakePoolLayer IO
     -> IO ()
-start settings tr socket byron shelley spl = do
+start settings tr socket byron icarus shelley spl = do
     logSettings <- newApiLoggerSettings <&> obfuscateKeys (const sensitive)
     Warp.runSettingsSocket settings socket
         $ handleRawError (curry handler)
@@ -339,7 +344,7 @@ start settings tr socket byron shelley spl = do
         application
   where
     application :: Application
-    application = serve (Proxy @("v2" :> Api n)) (server byron shelley spl)
+    application = serve (Proxy @("v2" :> Api n)) (server byron icarus shelley spl)
 
     sensitive :: [Text]
     sensitive =
@@ -418,19 +423,20 @@ ioToListenError hostPreference portOpt e
 
 -- | A Servant server for our wallet API
 server
-    :: forall t n byron shelley.
-        ( shelley ~ ApiLayer (SeqState n ShelleyKey) t ShelleyKey
-        , byron ~ ApiLayer (RndState 'Mainnet) t ByronKey
-        -- yoroi ~ ApiLayer (SeqState n ByronKey) t ByronKey
+    :: forall t n byron icarus shelley.
+        ( byron ~ ApiLayer (RndState 'Mainnet) t ByronKey
+        , icarus ~ ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
+        , shelley ~ ApiLayer (SeqState n ShelleyKey) t ShelleyKey
 
         , DelegationAddress n ShelleyKey
         , Buildable (ErrValidateSelection t)
         )
     => byron
+    -> icarus
     -> shelley
     -> StakePoolLayer IO
     -> Server (Api n)
-server byron shelley spl =
+server byron icarus shelley spl =
          wallets
     :<|> addresses
     :<|> coinSelections
@@ -471,7 +477,7 @@ server byron shelley spl =
         :<|> delegationFee shelley
 
     byronWallets :: Server ByronWallets
-    byronWallets = postByronWallet byron
+    byronWallets = postLegacyWallet (byron, icarus)
         :<|> deleteWallet byron
         :<|> (fmap fst . getWallet byron mkByronWallet)
         :<|> listWallets byron mkByronWallet
@@ -520,18 +526,19 @@ postShelleyWallet
     -> WalletPostData
     -> Handler ApiWallet
 postShelleyWallet ctx body = do
-    let seed = getApiMnemonicT (body ^. #mnemonicSentence)
-    let secondFactor = maybe mempty getApiMnemonicT (body ^. #mnemonicSecondFactor)
-    let pwd = getApiT (body ^. #passphrase)
-    let rootXPrv = Seq.generateKeyFromSeed (seed, secondFactor) pwd
-    let g = maybe defaultAddressPoolGap getApiT (body ^. #addressPoolGap)
-    let s = mkSeqState (rootXPrv, pwd) g
-    let wid = WalletId $ digest $ publicKey rootXPrv
-    let wName = getApiT (body ^. #name)
-    void $ liftHandler $ createWallet @_ @s @t @k ctx wid wName s
+    let state = mkSeqState (rootXPrv, pwd) g
+    void $ liftHandler $ createWallet @_ @s @t @k ctx wid wName state
     liftHandler $ withWorkerCtx @_ @s @k ctx wid throwE $ \wrk ->
         W.attachPrivateKey @_ @s @k wrk wid (rootXPrv, pwd)
     fst <$> getWallet ctx (mkShelleyWallet @_ @s @t @k) (ApiT wid)
+  where
+    seed = getApiMnemonicT (body ^. #mnemonicSentence)
+    secondFactor = maybe mempty getApiMnemonicT (body ^. #mnemonicSecondFactor)
+    pwd = getApiT (body ^. #passphrase)
+    rootXPrv = Seq.generateKeyFromSeed (seed, secondFactor) pwd
+    g = maybe defaultAddressPoolGap getApiT (body ^. #addressPoolGap)
+    wid = WalletId $ digest $ publicKey rootXPrv
+    wName = getApiT (body ^. #name)
 
 mkShelleyWallet
     :: forall ctx s t k n.
@@ -561,12 +568,22 @@ mkShelleyWallet ctx wid cp meta pending progress = do
   where
     liftE = throwE . ErrFetchRewardsNoSuchWallet
 
---------------------- Yoroi
---
---
--- TODO
+--------------------- Legacy
 
---------------------- Byron
+postLegacyWallet
+    :: forall byron icarus t.
+        ( byron ~ ApiLayer (RndState 'Mainnet) t ByronKey
+        , icarus ~ ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
+        )
+    => (byron, icarus)
+    -> ByronWalletPostData
+    -> Handler ApiByronWallet
+postLegacyWallet (byron, icarus) body = do
+    let ApiMnemonicT (_, mnemonic) = body ^. #mnemonicSentence
+    case length mnemonic of
+        n | n == 12 -> postByronWallet byron body
+        n | n == 15 -> postIcarusWallet icarus body
+        _ -> fail "Impossible! ApiMnemonicT only allows 12 or 15 words"
 
 postByronWallet
     :: forall ctx s t k.
@@ -589,6 +606,30 @@ postByronWallet ctx body = do
     passphrase = getApiT (body ^. #passphrase)
     rootXPrv = Rnd.generateKeyFromSeed mnemonicSentence passphrase
     wid = WalletId $ digest $ publicKey rootXPrv
+
+postIcarusWallet
+    :: forall ctx s t k.
+        ( ctx ~ ApiLayer s t k
+        , s ~ SeqState 'Mainnet k
+        , k ~ IcarusKey
+        , HasDBFactory s k ctx
+        , HasWorkerRegistry s k ctx
+        )
+    => ctx
+    -> ByronWalletPostData
+    -> Handler ApiByronWallet
+postIcarusWallet ctx body = do
+    let state = mkSeqState (rootXPrv, pwd) defaultAddressPoolGap
+    void $ liftHandler $ createWallet @_ @s @t @k ctx wid wName state
+    liftHandler $ withWorkerCtx @_ @s @k ctx wid throwE $ \wrk ->
+        W.attachPrivateKey @_ @s @k wrk wid (rootXPrv, pwd)
+    fst <$> getWallet ctx mkByronWallet (ApiT wid)
+  where
+    seed = getApiMnemonicT (body ^. #mnemonicSentence)
+    pwd = getApiT (body ^. #passphrase)
+    rootXPrv = Ica.generateKeyFromSeed seed pwd
+    wid = WalletId $ digest $ publicKey rootXPrv
+    wName = getApiT (body ^. #name)
 
 mkByronWallet
     :: MkApiWallet ctx s ApiByronWallet
@@ -976,15 +1017,15 @@ quitStakePool ctx (ApiT pid) (ApiT wid) (ApiWalletPassphrase (ApiT pwd)) = do
     liftE = throwE . ErrQuitStakePoolNoSuchWallet
 
 {-------------------------------------------------------------------------------
-                                Byron Migrations
+                                Legacy Migrations
 -------------------------------------------------------------------------------}
 
 getMigrationInfo
     :: forall s t k. ()
     => ApiLayer s t k
-        -- ^ Source wallet context (Byron)
+        -- ^ Source wallet context (Legacy)
     -> ApiT WalletId
-        -- ^ Source wallet (Byron)
+        -- ^ Source wallet (Legacy)
     -> Handler ApiByronWalletMigrationInfo
 getMigrationInfo ctx (ApiT wid) = do
     sels <- getSelections
@@ -1067,7 +1108,7 @@ signByronTx ctx wid pwd selection = liftHandler
     $ \xprv -> W.signPayment @_ @_ @t wrk wid (xprv, pwd) pwd selection
 
 -- TODO
--- signYoroiTx
+-- signIcarusTx
 
 {-------------------------------------------------------------------------------
                                     Network
