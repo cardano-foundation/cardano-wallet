@@ -665,7 +665,7 @@ deleteWallet ctx wid = db & \DBLayer{..} -> do
 -- Rather than force all callers of 'readWallet' to wait for fetching the
 -- account balance (via the 'NetworkLayer'), we expose this function for it.
 fetchRewardBalance
-    :: forall ctx s k t.
+    :: forall ctx s t k.
         ( HasDBLayer s k ctx
         , HasNetworkLayer t ctx
         , HasRewardAccount s
