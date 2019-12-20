@@ -104,7 +104,6 @@ import Test.Integration.Framework.TestData
     , japaneseMnemonics12
     , kanjiWalletName
     , mnemonics12
-    , mnemonics15
     , mnemonics18
     , mnemonics21
     , mnemonics24
@@ -910,14 +909,14 @@ spec = do
             r <- request @ApiByronWallet ctx postByronWalletEp Default payload
             expectResponseCode @IO HTTP.status400 r
             expectErrorMessage
-                "Invalid number of words: 12 words are expected" r
+                "Invalid number of words: 12 or 15 words are expected" r
 
     describe "BYRON_RESTORE_05 - Faulty mnemonics" $ do
         let matrix =
              [ ( "[] as mnemonic_sentence -> fail", []
                , [ expectResponseCode @IO HTTP.status400
                  , expectErrorMessage
-                    "Invalid number of words: 12 words are expected"
+                    "Invalid number of words: 12 or 15 words are expected"
                  ]
                )
              , ( "specMnemonicSentence -> fail", specMnemonicByron
@@ -1125,8 +1124,7 @@ spec = do
 
 incorrectSizeMnemonics :: [ [ Text ] ]
 incorrectSizeMnemonics =
-        [ mnemonics15
-        , mnemonics18
+        [ mnemonics18
         , mnemonics21
         , mnemonics24
         , mnemonics3

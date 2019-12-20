@@ -1,6 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
@@ -10,6 +10,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -21,20 +22,20 @@ import Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle (..)
-    , PaymentAddress (..)
     , DelegationAddress (..)
     , Depth (..)
     , KeyFingerprint
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
+    , PaymentAddress (..)
     , SoftDerivation (..)
     , WalletKey (..)
     , XPrv
     , XPub
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
-    ( IcarusKey(..))
+    ( IcarusKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -64,7 +65,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Types
     ( Address (..), ShowFmt (..) )
 import Control.Monad
-    ( forM_, forM, unless )
+    ( forM, forM_, unless )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.State.Strict
@@ -110,10 +111,10 @@ import Test.QuickCheck.Monadic
 import Test.Text.Roundtrip
     ( textRoundtrip )
 
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 
 
 spec :: Spec
