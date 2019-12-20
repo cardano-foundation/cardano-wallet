@@ -78,6 +78,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Icarus
+    ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -187,16 +189,22 @@ serveWallet
         Right (cp, nl) -> do
             let nPort = Port $ baseUrlPort $ _restApi cp
             let (_, bp) = staticBlockchainParameters nl
-            let rndTl = newTransactionLayer (getGenesisBlockHash bp)
-            let seqTl = newTransactionLayer (getGenesisBlockHash bp)
+            let byronTl = newTransactionLayer (getGenesisBlockHash bp)
+            let icarusTl = newTransactionLayer (getGenesisBlockHash bp)
+            let shelleyTl = newTransactionLayer (getGenesisBlockHash bp)
             let poolDBPath = Pool.defaultFilePath <$> databaseDir
             Pool.withDBLayer cfg trText poolDBPath $ \db ->
                 withSystemTempDirectory "stake-pool-metadata" $ \md -> do
                     poolApi <- stakePoolLayer tr nl db md
-                    rndApi  <- apiLayer trText rndTl nl
-                    seqApi  <- apiLayer trText seqTl nl
+                    byronApi <- apiLayer trText byronTl nl
+                    icarusApi <- apiLayer trText icarusTl nl
+                    shelleyApi <- apiLayer trText shelleyTl nl
                     let tr' = contramap (fmap LogApiServerMsg) tr
-                    startServer tr' socket nPort bp rndApi seqApi poolApi
+                    startServer tr' socket nPort bp
+                        byronApi
+                        icarusApi
+                        shelleyApi
+                        poolApi
                     pure ExitSuccess
 
     startServer
@@ -205,15 +213,16 @@ serveWallet
         -> Port "node"
         -> BlockchainParameters
         -> ApiLayer (RndState 'Mainnet) t ByronKey
+        -> ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
         -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
         -> StakePoolLayer IO
         -> IO ()
-    startServer tracer socket nPort bp rndApi seqApi poolApi = do
+    startServer tracer socket nPort bp byron icarus shelley pools = do
         sockAddr <- getSocketName socket
         let tracerApi = appendName "api" tracer
         let settings = Warp.defaultSettings
                 & setBeforeMainLoop (beforeMainLoop sockAddr nPort bp)
-        Server.start settings tracerApi socket rndApi seqApi poolApi
+        Server.start settings tracerApi socket byron icarus shelley pools
 
     apiLayer
         :: forall s k.
