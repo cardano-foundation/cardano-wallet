@@ -460,7 +460,9 @@ instance
                 <> show (natVal (Proxy :: Proxy mw))
                 <> " words are expected."
             ErrDictionary (ErrInvalidDictionaryWord w) ->
-                "Found invalid (non-English) word: \"" <> B.toList w <> "\"."
+                "Found invalid (ie., not present in https://github.com/bitcoin\
+                \/bips/blob/master/bip-0039/english.txt) word: \"" <> B.toList w
+                <> "\"."
             ErrEntropy ErrInvalidEntropyChecksum{} ->
                 "Invalid entropy checksum: please double-check the last word of \
                 \your mnemonic sentence."
