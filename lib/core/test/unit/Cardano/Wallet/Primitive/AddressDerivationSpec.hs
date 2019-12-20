@@ -106,6 +106,12 @@ spec = do
             property prop_passphraseHashMalformed
 
     describe "FromMnemonic" $ do
+        let noInDictErr word =
+                "Found an unknown word not present in the pre-defined dictionary\
+                \: \"" <> word <> "\". The full dictionary is available \
+                \here: https://github.com/input-output-hk/cardano-wallet/tree/m\
+                \aster/specifications/mnemonic/english.txt"
+
         it "early error reported first (Invalid Entropy)" $ do
             let res = fromMnemonic @'[15,18,21] @"testing"
                         [ "glimpse", "paper", "toward", "fine", "alert"
@@ -121,8 +127,7 @@ spec = do
                         , "baby", "pyramid", "alone", "shaft", "force"
                         , "circle", "fancy", "squeeze", "cannon", "toilet"
                         ]
-            res `shouldBe` Left (FromMnemonicError "Found invalid (non-English) \
-                \word: \"baguette\".")
+            res `shouldBe` Left (FromMnemonicError (noInDictErr "baguette"))
 
         it "early error reported first (Wrong number of words - 1)" $ do
             let res = fromMnemonic @'[15,18,21] @"testing"
@@ -147,16 +152,14 @@ spec = do
                         ["盗", "精", "序", "郎", "赋", "姿", "委", "善", "酵"
                         ,"祥", "赛", "矩", "蜡", "注", "韦", "效", "义", "冻"
                         ]
-            res `shouldBe` Left (FromMnemonicError "Found invalid (non-English) \
-                \word: \"盗\".")
+            res `shouldBe` Left (FromMnemonicError (noInDictErr "盗"))
 
         it "early error reported first (Error not in first constructor)" $ do
             let res = fromMnemonic @'[12,15,18] @"testing"
                         ["盗", "精", "序", "郎", "赋", "姿", "委", "善", "酵"
                         ,"祥", "赛", "矩", "蜡", "注", "韦", "效", "义", "冻"
                         ]
-            res `shouldBe` Left (FromMnemonicError "Found invalid (non-English) \
-                \word: \"盗\".")
+            res `shouldBe` Left (FromMnemonicError (noInDictErr "盗"))
 
         it "successfully parse 15 words in [15,18,21]" $ do
             let res = fromMnemonic @'[15,18,21] @"testing"

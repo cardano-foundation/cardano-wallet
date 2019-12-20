@@ -45,7 +45,8 @@ import Test.Hspec.Expectations.Lifted
 import Test.Integration.Framework.DSL
     ( KnownCommand (..), generateMnemonicsViaCLI, proc' )
 import Test.Integration.Framework.TestData
-    ( invalidMnemonics15
+    ( errMsgNotInDictionary
+    , invalidMnemonics15
     , japaneseMnemonics15
     , mnemonics6
     , russianWalletName
@@ -128,7 +129,7 @@ spec = do
         (c, out, err)  <- getRewardCredentialsViaCli @t (T.unwords japaneseMnemonics15) mempty
         c `shouldBe` ExitFailure 1
         T.unpack out `shouldContain` mempty
-        T.unpack err `shouldContain` "Found invalid (non-English) word"
+        T.unpack err `shouldContain` errMsgNotInDictionary
 
     it "CLI_MNEMONICS_REWARD_CREDENTIALS - \
         \invalid mnemonics show appropriate error" $ do

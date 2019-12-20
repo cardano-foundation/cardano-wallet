@@ -96,6 +96,7 @@ import Test.Integration.Framework.TestData
     , errMsg404NoEndpoint
     , errMsg404NoWallet
     , errMsg405
+    , errMsgNotInDictionary
     , falseWalletIds
     , frenchMnemonics12
     , getHeaderCases
@@ -933,16 +934,15 @@ spec = do
                )
              , ( "Japanese mnemonics -> fail", japaneseMnemonics12
                , [ expectResponseCode @IO HTTP.status400
-                 , expectErrorMessage "Found invalid (non-English) word:"
+                 , expectErrorMessage errMsgNotInDictionary
                  ]
                )
              , ( "French mnemonics -> fail"
                , frenchMnemonics12
                , [ expectResponseCode @IO HTTP.status400
-                 , expectErrorMessage "Found invalid (non-English) word:"
+                 , expectErrorMessage errMsgNotInDictionary
                  ]
                )
-
              ]
 
         forM_ matrix $ \(title, mnemonics, expectations) -> it title $

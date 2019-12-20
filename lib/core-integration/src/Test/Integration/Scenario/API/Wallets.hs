@@ -101,6 +101,7 @@ import Test.Integration.Framework.TestData
     , errMsg405
     , errMsg406
     , errMsg415
+    , errMsgNotInDictionary
     , falseWalletIds
     , frenchMnemonics12
     , frenchMnemonics21
@@ -118,6 +119,7 @@ import Test.Integration.Framework.TestData
     , mnemonics3
     , mnemonics6
     , mnemonics9
+    , notInDictMnemonics15
     , passphraseMaxLength
     , passphraseMinLength
     , payloadWith
@@ -341,20 +343,28 @@ spec = do
                       \double-check the last word of your mnemonic sentence."
                  ]
                )
+             , ( "invalid mnemonics -> fail", notInDictMnemonics15
+               , [ expectResponseCode @IO HTTP.status400
+                 , expectErrorMessage (errMsgNotInDictionary <> " 'four'. The \
+                       \full dictionary is available here: https://github.com/\
+                       \input-output-hk/cardano-wallet/tree/master/specificati\
+                       \ons/mnemonic/english.txt")
+                 ]
+               )
              , ( "Japanese mnemonics -> fail", japaneseMnemonics15
                , [ expectResponseCode @IO HTTP.status400
-                 , expectErrorMessage "Found invalid (non-English) word:"
-                 ] -- why only for Japanese?
+                 , expectErrorMessage errMsgNotInDictionary
+                 ]
                )
              , ( "Chinese mnemonics -> fail", chineseMnemonics18
                , [ expectResponseCode @IO HTTP.status400
-                 , expectErrorMessage "Found invalid (non-English) word:"
+                 , expectErrorMessage errMsgNotInDictionary
                  ]
                )
              , ( "French mnemonics -> fail"
                , frenchMnemonics21
                , [ expectResponseCode @IO HTTP.status400
-                 , expectErrorMessage "Found invalid (non-English) word:"
+                 , expectErrorMessage errMsgNotInDictionary
                  ]
                )
              , ( "3 mnemonic words -> fail" , mnemonics3
@@ -469,17 +479,17 @@ spec = do
                    )
                  , ( "Japanese mnemonics -> fail", japaneseMnemonics12
                    , [ expectResponseCode @IO HTTP.status400
-                     , expectErrorMessage "Found invalid (non-English) word:"
+                     , expectErrorMessage errMsgNotInDictionary
                      ]
                    )
                  , ( "Chinese mnemonics -> fail", chineseMnemonics9
                    , [ expectResponseCode @IO HTTP.status400
-                     , expectErrorMessage "Found invalid (non-English) word:"
+                     , expectErrorMessage errMsgNotInDictionary
                      ]
                    )
                  , ( "French mnemonics -> fail", frenchMnemonics12
                    , [ expectResponseCode @IO HTTP.status400
-                     , expectErrorMessage "Found invalid (non-English) word:"
+                     , expectErrorMessage errMsgNotInDictionary
                      ]
                    )
                  , ( "3 mnemonic words -> fail", mnemonics3

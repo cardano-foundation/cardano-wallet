@@ -17,6 +17,7 @@ module Test.Integration.Framework.TestData
     , mnemonics9
     , mnemonics12
     , mnemonics15
+    , notInDictMnemonics15
     , mnemonics18
     , mnemonics21
     , mnemonics24
@@ -74,6 +75,7 @@ module Test.Integration.Framework.TestData
     , errMsg415
     , errMsg415OctetStream
     , errMsg500
+    , errMsgNotInDictionary
     ) where
 
 import Prelude
@@ -204,6 +206,10 @@ invalidMnemonics12 = ["word","word","word","word","word","word","word",
 invalidMnemonics15 :: [Text]
 invalidMnemonics15 = ["word","word","word","word","word","word","word",
     "word","word","word","word","word","word","word","word"]
+
+notInDictMnemonics15 :: [Text]
+notInDictMnemonics15 = ["one", "two", "three", "four", "five", "six", "seven",
+    "eight", "nine", "diary", "twenty", "coin", "regret", "cry", "thumb"]
 
 specMnemonicSentence :: [Text]
 specMnemonicSentence = ["squirrel", "material", "silly", "twice", "direct",
@@ -466,3 +472,7 @@ errMsg500 = "That's embarrassing. It looks like I've created an invalid\
     \ transaction that could not be parsed by the node. Here's an error\
     \ message that may help with debugging: Transaction failed verification:\
     \ output with no credited value"
+
+errMsgNotInDictionary :: String
+errMsgNotInDictionary = "Found an unknown word not present in the pre-defined\
+    \ dictionary:"
