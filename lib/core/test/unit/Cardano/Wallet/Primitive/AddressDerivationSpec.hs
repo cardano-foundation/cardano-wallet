@@ -121,8 +121,9 @@ spec = do
                         , "baby", "pyramid", "alone", "shaft", "force"
                         , "circle", "fancy", "squeeze", "cannon", "toilet"
                         ]
-            res `shouldBe` Left (FromMnemonicError "Found invalid (non-English) \
-                \word: \"baguette\".")
+            res `shouldBe` Left (FromMnemonicError "Found invalid (ie., not \
+                \present in https://github.com/bitcoin/bips/blob/master/bip-0039\
+                \/english.txt) word: \"baguette\".")
 
         it "early error reported first (Wrong number of words - 1)" $ do
             let res = fromMnemonic @'[15,18,21] @"testing"
@@ -147,16 +148,18 @@ spec = do
                         ["盗", "精", "序", "郎", "赋", "姿", "委", "善", "酵"
                         ,"祥", "赛", "矩", "蜡", "注", "韦", "效", "义", "冻"
                         ]
-            res `shouldBe` Left (FromMnemonicError "Found invalid (non-English) \
-                \word: \"盗\".")
+            res `shouldBe` Left (FromMnemonicError "Found invalid (ie., not \
+                \present in https://github.com/bitcoin/bips/blob/master/bip-0039\
+                \/english.txt) word: \"盗\".")
 
         it "early error reported first (Error not in first constructor)" $ do
             let res = fromMnemonic @'[12,15,18] @"testing"
                         ["盗", "精", "序", "郎", "赋", "姿", "委", "善", "酵"
                         ,"祥", "赛", "矩", "蜡", "注", "韦", "效", "义", "冻"
                         ]
-            res `shouldBe` Left (FromMnemonicError "Found invalid (non-English) \
-                \word: \"盗\".")
+            res `shouldBe` Left (FromMnemonicError "Found invalid (ie., not \
+                \present in https://github.com/bitcoin/bips/blob/master/bip-0039\
+                \/english.txt) word: \"盗\".")
 
         it "successfully parse 15 words in [15,18,21]" $ do
             let res = fromMnemonic @'[15,18,21] @"testing"
