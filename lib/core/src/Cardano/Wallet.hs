@@ -96,6 +96,7 @@ module Cardano.Wallet
     -- ** Migration
     , selectCoinsForMigration
     , assignMigrationTargetAddresses
+    , ErrSelectForMigration (..)
 
     -- ** Delegation
     , joinStakePool
@@ -111,6 +112,7 @@ module Cardano.Wallet
     , forgetPendingTx
     , listTransactions
     , submitExternalTx
+    , signTx
     , submitTx
     , ErrMkTx (..)
     , ErrSubmitTx (..)
@@ -255,7 +257,7 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.Maybe
     ( MaybeT (..), maybeToExceptT )
 import Control.Monad.Trans.State.Strict
-    ( runState, runStateT, state )
+    ( runStateT, state )
 import Data.ByteString
     ( ByteString )
 import Data.Coerce
@@ -845,16 +847,19 @@ selectCoinsForMigration
     => ctx
     -> WalletId
        -- ^ The source wallet ID.
-    -> ExceptT ErrNoSuchWallet IO [CoinSelection]
+    -> ExceptT ErrSelectForMigration IO [CoinSelection]
 selectCoinsForMigration ctx wid = do
-    (cp, _, pending) <- readWallet @ctx @s @k ctx wid
+    (cp, _, pending) <- withExceptT ErrSelectForMigrationNoSuchWallet $
+        readWallet @ctx @s @k ctx wid
     let bp = blockchainParameters cp
     let utxo = availableUTxO @s pending cp
     let feePolicy@(LinearFee (Quantity a) _ _) = bp ^. #getFeePolicy
     let feeOptions = (feeOpts tl computeFee feePolicy)
             { dustThreshold = Coin $ ceiling a }
     let selOptions = coinSelOpts tl (bp ^. #getTxMaxSize)
-    pure $ depleteUTxO feeOptions (idealBatchSize selOptions) utxo
+    case depleteUTxO feeOptions (idealBatchSize selOptions) utxo of
+        cs | not (null cs) -> pure cs
+        _ -> throwE (ErrSelectForMigrationEmptyWallet wid)
   where
     tl = ctx ^. transactionLayer @t @k
 
@@ -903,16 +908,18 @@ assignMigrationTargetAddresses
     -- ^ Bits necessary to generate change address for a state @s@
     -> [CoinSelection]
     -- ^ Migration data for the source wallet.
-    -> ExceptT ErrNoSuchWallet IO [CoinSelection]
+    -> ExceptT ErrNoSuchWallet IO [UnsignedTx]
 assignMigrationTargetAddresses ctx wid argGenChange cs = db & \DBLayer{..} -> do
     mapExceptT atomically $ do
         cp <- withNoSuchWallet wid $ readCheckpoint (PrimaryKey wid)
-        let (cs', s') = flip runState (getState cp) $ do
-                forM cs $ \sel -> do
-                    outs <- forM (change sel) $ \c -> do
-                        addr <- state (genChange argGenChange)
-                        pure (TxOut addr c)
-                    pure (sel { change = [], outputs = outs })
+        (cs', s') <- flip runStateT (getState cp) $ do
+            forM cs $ \sel -> do
+                outs <- forM (change sel) $ \c -> do
+                    addr <- state (genChange argGenChange)
+                    pure (TxOut addr c)
+                pure $ UnsignedTx
+                    (NE.fromList (sel ^. #inputs))
+                    (NE.fromList outs)
         putCheckpoint (PrimaryKey wid) (updateState s' cp) $> cs'
   where
     db = ctx ^. dbLayer @s @k
@@ -956,6 +963,39 @@ signPayment ctx wid argGenChange pwd (CoinSelection ins outs chgs) = db & \DBLay
   where
     db = ctx ^. dbLayer @s @k
     tl = ctx ^. transactionLayer @t @k
+
+-- | Very much like 'signPayment', but doesn't not generate change addresses.
+signTx
+    :: forall ctx s t k.
+        ( HasTransactionLayer t k ctx
+        , HasDBLayer s k ctx
+        , Show s
+        , NFData s
+        , IsOwned s k
+        )
+    => ctx
+    -> WalletId
+    -> Passphrase "encryption"
+    -> UnsignedTx
+    -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
+signTx ctx wid pwd (UnsignedTx inpsNE outsNE) = db & \DBLayer{..} -> do
+    withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv -> do
+        mapExceptT atomically $ do
+            cp <- withExceptT ErrSignPaymentNoSuchWallet $ withNoSuchWallet wid $
+                readCheckpoint (PrimaryKey wid)
+
+            let keyFrom = isOwned (getState cp) (xprv, pwd)
+            (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
+                mkStdTx tl keyFrom inps outs
+
+            let bp = blockchainParameters cp
+            let (time, meta) = mkTxMeta bp (currentTip cp) (getState cp) inps outs
+            return (tx, meta, time, sealedTx)
+  where
+    db = ctx ^. dbLayer @s @k
+    tl = ctx ^. transactionLayer @t @k
+    inps = NE.toList inpsNE
+    outs = NE.toList outsNE
 
 -- | Makes a fully-resolved coin selection for the given set of payments.
 selectCoinsExternal
@@ -1448,6 +1488,12 @@ data ErrQuitStakePool
 data ErrFetchRewards
     = ErrFetchRewardsNetworkUnreachable ErrNetworkUnavailable
     | ErrFetchRewardsNoSuchWallet ErrNoSuchWallet
+
+data ErrSelectForMigration
+    = ErrSelectForMigrationNoSuchWallet ErrNoSuchWallet
+    | ErrSelectForMigrationEmptyWallet WalletId
+        -- ^ User attempted to migrate an empty wallet
+    deriving (Eq, Show)
 
 {-------------------------------------------------------------------------------
                                    Utils

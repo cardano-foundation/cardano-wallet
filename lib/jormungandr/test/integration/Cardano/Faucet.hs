@@ -28,7 +28,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PaymentAddress (..)
     , publicKey
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( generateKeyFromSeed )
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
@@ -74,6 +74,7 @@ import qualified Data.Text.IO as TIO
 initFaucet :: FeePolicy -> IO Faucet
 initFaucet policy = Faucet
     <$> newMVar seqMnemonics
+    <*> newMVar icaMnemonics
     <*> newMVar rndMnemonics
     <*> newMVar (mkTxBuilder policy <$> externalAddresses)
 
@@ -583,6 +584,410 @@ seqMnemonics = unsafeMkMnemonic <$>
       ]
     ]
 
+icaMnemonics :: [Mnemonic 15]
+icaMnemonics = unsafeMkMnemonic <$>
+    [ [ "public", "wild", "salad", "cereal", "when"
+      , "zone", "ship", "circle", "other", "second"
+      , "time", "priority", "select", "apart", "social"
+      ]
+    , [ "report", "weird", "border", "gesture", "since"
+      , "earn", "motor", "elbow", "huge", "pilot"
+      , "cool", "civil", "duty", "outer", "exhaust"
+      ]
+    , [ "illegal", "uncover", "fruit", "april", "snap"
+      , "army", "brown", "sister", "situate", "lunch"
+      , "they", "fog", "isolate", "earn", "vocal"
+      ]
+    , [ "knife", "satisfy", "measure", "around", "time"
+      , "thought", "cigar", "boss", "truck", "bar"
+      , "mushroom", "hold", "raccoon", "asset", "canvas"
+      ]
+    , [ "amazing", "pole", "kiss", "expose", "whip"
+      , "unfair", "example", "slice", "great", "they"
+      , "element", "claw", "photo", "dwarf", "green"
+      ]
+    , [ "round", "trend", "rescue", "flight", "awkward"
+      , "enemy", "luggage", "range", "eagle", "shaft"
+      , "giggle", "double", "pencil", "jazz", "home"
+      ]
+    , [ "talent", "example", "renew", "true", "amused"
+      , "alcohol", "immune", "exclude", "cat", "ceiling"
+      , "squeeze", "cover", "slender", "pond", "turkey"
+      ]
+    , [ "box", "elegant", "raccoon", "brick", "uphold"
+      , "behind", "blame", "marble", "tip", "move"
+      , "gift", "juice", "crystal", "circle", "sound"
+      ]
+    , [ "mango", "street", "flush", "universe", "clap"
+      , "system", "talk", "steel", "tray", "target"
+      , "forum", "dust", "brisk", "expose", "prevent"
+      ]
+    , [ "behind", "rib", "say", "absorb", "enroll"
+      , "pyramid", "balance", "strategy", "response", "evolve"
+      , "pipe", "dolphin", "shift", "flag", "history"
+      ]
+    , [ "pipe", "weekend", "master", "nice", "museum"
+      , "endless", "cancel", "animal", "end", "aware"
+      , "unaware", "submit", "mind", "alert", "oblige"
+      ]
+    , [ "surge", "fan", "diary", "forget", "lobster"
+      , "south", "auto", "slim", "display", "yellow"
+      , "caution", "victory", "wreck", "silver", "direct"
+      ]
+    , [ "mean", "slide", "heavy", "science", "south"
+      , "delay", "divorce", "design", "example", "swim"
+      , "dog", "neck", "disorder", "drip", "wet"
+      ]
+    , [ "crumble", "dog", "ordinary", "always", "mention"
+      , "lunch", "corn", "key", "color", "veteran"
+      , "item", "chapter", "winter", "flee", "shoe"
+      ]
+    , [ "toddler", "print", "pave", "venue", "mind"
+      , "program", "ocean", "purchase", "embody", "super"
+      , "exchange", "ignore", "artist", "party", "economy"
+      ]
+    , [ "survey", "slim", "girl", "raccoon", "valley"
+      , "clever", "wide", "assault", "blood", "copy"
+      , "uncover", "bachelor", "face", "cart", "style"
+      ]
+    , [ "vast", "toast", "supreme", "grid", "sniff"
+      , "ecology", "eternal", "agent", "cable", "mind"
+      , "step", "gravity", "gloom", "process", "couch"
+      ]
+    , [ "civil", "near", "wrist", "stuff", "draw"
+      , "nature", "second", "supreme", "minute", "kit"
+      , "document", "dolphin", "same", "extend", "rookie"
+      ]
+    , [ "account", "spend", "broom", "soon", "swim"
+      , "maid", "bring", "trust", "turtle", "hire"
+      , "room", "clutch", "copper", "mixture", "early"
+      ]
+    , [ "neck", "soup", "learn", "tag", "skull"
+      , "seek", "face", "vessel", "leopard", "rebel"
+      , "engine", "expand", "hat", "magic", "liquid"
+      ]
+    , [ "media", "tackle", "govern", "play", "snap"
+      , "cheap", "fit", "uniform", "welcome", "record"
+      , "measure", "lottery", "spoil", "group", "host"
+      ]
+    , [ "enhance", "luxury", "left", "inch", "together"
+      , "strike", "hotel", "fossil", "exhibit", "above"
+      , "unusual", "mutual", "hint", "shield", "moral"
+      ]
+    , [ "moral", "abandon", "depend", "tip", "soap"
+      , "mushroom", "grab", "worry", "royal", "strike"
+      , "scrub", "walnut", "summer", "that", "poet"
+      ]
+    , [ "fuel", "twice", "camera", "control", "custom"
+      , "oil", "puppy", "scissors", "will", "comic"
+      , "general", "cry", "assault", "debate", "whale"
+      ]
+    , [ "lizard", "burden", "tortoise", "ring", "monkey"
+      , "senior", "little", "endless", "increase", "quote"
+      , "flat", "repair", "snake", "asset", "brand"
+      ]
+    , [ "border", "receive", "task", "october", "weird"
+      , "palm", "gather", "claw", "either", "matter"
+      , "avocado", "pioneer", "borrow", "that", "cash"
+      ]
+    , [ "camp", "hawk", "gift", "swear", "steel"
+      , "evolve", "coconut", "sight", "sustain", "tube"
+      , "diagram", "treat", "reason", "tiny", "wear"
+      ]
+    , [ "water", "wood", "forest", "also", "exile"
+      , "settle", "city", "dance", "shine", "maze"
+      , "fish", "attract", "verb", "laptop", "hair"
+      ]
+    , [ "body", "soldier", "pony", "flame", "cave"
+      , "brave", "earth", "team", "symptom", "library"
+      , "write", "warrior", "certain", "gentle", "cool"
+      ]
+    , [ "project", "document", "thought", "dentist", "card"
+      , "main", "afraid", "cliff", "crucial", "debate"
+      , "raise", "anger", "hundred", "lunar", "final"
+      ]
+    , [ "sun", "someone", "emotion", "replace", "error"
+      , "surge", "mobile", "depth", "soft", "anger"
+      , "clog", "sing", "fabric", "decline", "output"
+      ]
+    , [ "behind", "jump", "convince", "spread", "lobster"
+      , "six", "tooth", "feel", "error", "jar"
+      , "reopen", "save", "rotate", "jealous", "dutch"
+      ]
+    , [ "title", "primary", "loan", "peasant", "reduce"
+      , "tooth", "warm", "way", "daring", "accident"
+      , "replace", "pact", "yellow", "mammal", "strategy"
+      ]
+    , [ "focus", "fortune", "foster", "cattle", "split"
+      , "just", "sorry", "phone", "field", "proud"
+      , "patch", "expose", "toward", "garment", "now"
+      ]
+    , [ "dust", "wheel", "blossom", "describe", "spray"
+      , "pipe", "broom", "corn", "vintage", "switch"
+      , "isolate", "disagree", "over", "ski", "truth"
+      ]
+    , [ "toast", "claim", "assault", "sword", "scorpion"
+      , "emotion", "weasel", "detect", "bounce", "mixture"
+      , "various", "warrior", "believe", "wing", "celery"
+      ]
+    , [ "donor", "casual", "mention", "media", "erosion"
+      , "tail", "pass", "camp", "raven", "accident"
+      , "nothing", "option", "lobster", "accident", "magnet"
+      ]
+    , [ "remove", "limit", "okay", "garment", "cat"
+      , "long", "steak", "since", "follow", "caution"
+      , "forward", "april", "nest", "grab", "height"
+      ]
+    , [ "nature", "weekend", "medal", "neither", "upgrade"
+      , "urban", "book", "swear", "ketchup", "enable"
+      , "enter", "oblige", "sport", "cat", "drink"
+      ]
+    , [ "wheel", "pair", "used", "radar", "rate"
+      , "mail", "execute", "february", "decline", "weasel"
+      , "exchange", "visit", "slam", "trap", "globe"
+      ]
+    , [ "session", "outside", "dash", "whisper", "prize"
+      , "frost", "used", "dune", "dust", "diamond"
+      , "expose", "hamster", "object", "home", "web"
+      ]
+    , [ "visa", "furnace", "shy", "fun", "quarter"
+      , "buffalo", "rough", "october", "cry", "push"
+      , "marriage", "around", "pony", "spike", "struggle"
+      ]
+    , [ "river", "verb", "deny", "tobacco", "release"
+      , "game", "culture", "trash", "essay", "excess"
+      , "citizen", "ignore", "home", "hawk", "purse"
+      ]
+    , [ "erode", "father", "violin", "afraid", "satisfy"
+      , "supreme", "tag", "flip", "tuition", "satoshi"
+      , "two", "wagon", "embody", "area", "good"
+      ]
+    , [ "repair", "resemble", "appear", "clown", "coconut"
+      , "truck", "trade", "ship", "fly", "hat"
+      , "layer", "gift", "camera", "else", "spawn"
+      ]
+    , [ "vast", "garment", "debate", "industry", "tennis"
+      , "private", "else", "lazy", "thumb", "arm"
+      , "wrong", "mesh", "mushroom", "diet", "feature"
+      ]
+    , [ "enjoy", "brave", "away", "fold", "denial"
+      , "unique", "garage", "blouse", "shuffle", "across"
+      , "core", "rich", "cash", "day", "large"
+      ]
+    , [ "clean", "riot", "orbit", "scheme", "supreme"
+      , "copy", "farm", "fetch", "filter", "saddle"
+      , "grain", "destroy", "pyramid", "false", "jewel"
+      ]
+    , [ "flavor", "any", "wish", "cry", "lion"
+      , "asset", "easily", "tired", "brass", "language"
+      , "multiply", "obvious", "cradle", "disorder", "green"
+      ]
+    , [ "mobile", "boost", "husband", "between", "open"
+      , "illegal", "kitten", "evil", "gallery", "sheriff"
+      , "excess", "october", "hope", "example", "artwork"
+      ]
+    , [ "nothing", "garlic", "length", "vacant", "beyond"
+      , "eagle", "odor", "verify", "fire", "ignore"
+      , "woman", "march", "plastic", "smart", "exact"
+      ]
+    , [ "dial", "athlete", "script", "fee", "reduce"
+      , "identify", "deer", "grab", "raw", "patrol"
+      , "cheese", "stock", "prepare", "wolf", "urban"
+      ]
+    , [ "cross", "shed", "mountain", "okay", "copper"
+      , "long", "bus", "offer", "dawn", "decide"
+      , "maze", "swing", "basket", "wine", "change"
+      ]
+    , [ "bachelor", "sniff", "mixed", "chunk", "convince"
+      , "base", "agent", "pretty", "proud", "name"
+      , "mind", "magnet", "swap", "rookie", "moon"
+      ]
+    , [ "lazy", "gorilla", "famous", "lunch", "summer"
+      , "share", "sketch", "width", "section", "bundle"
+      , "problem", "expect", "pulp", "vintage", "tray"
+      ]
+    , [ "just", "symbol", "fragile", "saddle", "easy"
+      , "proud", "imitate", "system", "comic", "avocado"
+      , "trash", "ketchup", "hen", "idea", "solve"
+      ]
+    , [ "midnight", "light", "axis", "green", "frog"
+      , "catch", "dice", "small", "knife", "lunch"
+      , "tennis", "love", "path", "happy", "squirrel"
+      ]
+    , [ "roast", "hint", "fresh", "fork", "floor"
+      , "afford", "deputy", "negative", "armor", "evidence"
+      , "ice", "arena", "flock", "moral", "relief"
+      ]
+    , [ "obey", "wage", "truly", "weird", "sense"
+      , "mimic", "expect", "ten", "random", "engine"
+      , "creek", "ivory", "example", "mixed", "pigeon"
+      ]
+    , [ "usual", "purity", "order", "make", "diamond"
+      , "jealous", "gap", "illness", "cliff", "wonder"
+      , "nature", "normal", "high", "hood", "balcony"
+      ]
+    , [ "brush", "busy", "steel", "pride", "vendor"
+      , "hurt", "lava", "salute", "season", "unknown"
+      , "announce", "area", "begin", "fashion", "section"
+      ]
+    , [ "shadow", "online", "parrot", "rough", "among"
+      , "decide", "spare", "cupboard", "actor", "pumpkin"
+      , "caught", "fit", "planet", "bleak", "trick"
+      ]
+    , [ "gym", "ability", "silent", "pipe", "tragic"
+      , "slice", "poet", "stairs", "swarm", "party"
+      , "cruise", "waste", "prefer", "trash", "boy"
+      ]
+    , [ "leader", "bitter", "era", "crawl", "tiger"
+      , "destroy", "sword", "enrich", "angry", "pull"
+      , "kitchen", "hold", "sea", "sock", "giraffe"
+      ]
+    , [ "defense", "brush", "fiscal", "cactus", "rotate"
+      , "trouble", "mean", "quantum", "shrug", "slight"
+      , "dignity", "corn", "immense", "first", "citizen"
+      ]
+    , [ "wedding", "size", "surprise", "split", "circle"
+      , "angry", "silver", "flame", "usage", "light"
+      , "stock", "innocent", "novel", "modify", "mushroom"
+      ]
+    , [ "multiply", "affair", "bargain", "response", "shop"
+      , "behave", "name", "box", "piano", "isolate"
+      , "play", "perfect", "shoe", "often", "depart"
+      ]
+    , [ "like", "hedgehog", "theme", "letter", "first"
+      , "output", "special", "that", "boost", "pupil"
+      , "coil", "indicate", "arctic", "swing", "bonus"
+      ]
+    , [ "bus", "enlist", "leaf", "spider", "fun"
+      , "joke", "step", "main", "abstract", "frequent"
+      , "flash", "erosion", "forward", "infant", "whisper"
+      ]
+    , [ "cheese", "volume", "image", "misery", "dragon"
+      , "border", "garage", "occur", "minute", "zero"
+      , "forget", "outer", "sport", "salt", "same"
+      ]
+    , [ "access", "prison", "immense", "olympic", "fall"
+      , "manual", "soccer", "nasty", "object", "attract"
+      , "tail", "decade", "index", "play", "risk"
+      ]
+    , [ "top", "fashion", "salt", "gown", "dilemma"
+      , "price", "permit", "isolate", "hedgehog", "december"
+      , "attack", "identify", "august", "naive", "effort"
+      ]
+    , [ "ticket", "pudding", "crane", "kangaroo", "nice"
+      , "security", "patient", "arrest", "pass", "motion"
+      , "bring", "cabin", "visual", "hospital", "half"
+      ]
+    , [ "isolate", "base", "oak", "bronze", "wish"
+      , "alarm", "height", "olive", "clog", "balcony"
+      , "rhythm", "spell", "refuse", "various", "fire"
+      ]
+    , [ "flag", "super", "pet", "impact", "impose"
+      , "anger", "cook", "verb", "laundry", "embrace"
+      , "uncover", "mercy", "orbit", "fall", "cycle"
+      ]
+    , [ "occur", "surprise", "world", "boy", "mouse"
+      , "pilot", "sibling", "float", "clump", "matrix"
+      , "field", "sauce", "umbrella", "exchange", "sponsor"
+      ]
+    , [ "announce", "employ", "holiday", "easy", "van"
+      , "risk", "cause", "exist", "absorb", "object"
+      , "bus", "rigid", "deny", "slot", "ginger"
+      ]
+    , [ "maximum", "annual", "target", "vague", "patch"
+      , "humble", "canvas", "bone", "robust", "try"
+      , "puzzle", "clerk", "lunar", "theory", "black"
+      ]
+    , [ "soldier", "seat", "waste", "symptom", "token"
+      , "fiber", "fury", "wear", "nut", "wood"
+      , "tackle", "clog", "will", "dynamic", "depend"
+      ]
+    , [ "large", "convince", "pear", "tube", "view"
+      , "rely", "prepare", "joy", "gadget", "mail"
+      , "chaos", "zebra", "reject", "example", "taste"
+      ]
+    , [ "detect", "glare", "pass", "virtual", "rigid"
+      , "someone", "transfer", "proud", "feel", "melt"
+      , "fever", "travel", "uniform", "lemon", "crop"
+      ]
+    , [ "join", "fever", "gossip", "someone", "state"
+      , "wheel", "galaxy", "season", "action", "patient"
+      , "install", "client", "chapter", "ethics", "lunar"
+      ]
+    , [ "deer", "mushroom", "law", "below", "mimic"
+      , "miracle", "tobacco", "frost", "response", "ivory"
+      , "captain", "moment", "digital", "car", "wide"
+      ]
+    , [ "sugar", "maximum", "custom", "entire", "minor"
+      , "act", "real", "fire", "balance", "that"
+      , "slow", "shuffle", "angry", "gentle", "tattoo"
+      ]
+    , [ "dad", "citizen", "merge", "bunker", "organ"
+      , "chicken", "stable", "tiger", "judge", "also"
+      , "marble", "corn", "tuna", "stay", "slush"
+      ]
+    , [ "globe", "air", "indicate", "dry", "latin"
+      , "gospel", "book", "grit", "wrap", "toward"
+      , "begin", "pretty", "fade", "adjust", "drill"
+      ]
+    , [ "among", "garbage", "survey", "unfair", "between"
+      , "advice", "dismiss", "tree", "buddy", "climb"
+      , "early", "venture", "later", "mule", "season"
+      ]
+    , [ "squeeze", "expire", "meat", "mixture", "whisper"
+      , "retreat", "siege", "beef", "absent", "double"
+      , "rotate", "citizen", "neither", "stereo", "accuse"
+      ]
+    , [ "improve", "make", "wrong", "tiger", "ten"
+      , "panther", "duty", "ring", "pull", "exotic"
+      , "milk", "chimney", "source", "present", "panther"
+      ]
+    , [ "busy", "devote", "dirt", "timber", "tumble"
+      , "away", "famous", "spatial", "economy", "hub"
+      , "near", "spike", "sock", "fee", "head"
+      ]
+    , [ "cost", "giant", "matter", "divide", "yard"
+      , "pluck", "distance", "once", "life", "wool"
+      , "ritual", "stage", "banner", "notable", "deposit"
+      ]
+    , [ "notable", "drill", "dust", "jump", "task"
+      , "immense", "very", "tide", "humor", "north"
+      , "cream", "behind", "upgrade", "gaze", "about"
+      ]
+    , [ "relax", "faculty", "bundle", "replace", "mercy"
+      , "find", "walk", "remove", "clinic", "glove"
+      , "session", "truly", "guess", "range", "skirt"
+      ]
+    , [ "wheel", "unlock", "spice", "monster", "swarm"
+      , "lion", "parrot", "pause", "figure", "rude"
+      , "jewel", "borrow", "law", "curve", "sport"
+      ]
+    , [ "merry", "battle", "blind", "analyst", "milk"
+      , "owner", "business", "decide", "glue", "wagon"
+      , "perfect", "expire", "razor", "list", "catalog"
+      ]
+    , [ "dust", "inner", "time", "daring", "donate"
+      , "script", "small", "race", "chase", "crawl"
+      , "asthma", "captain", "hawk", "subject", "culture"
+      ]
+    , [ "grass", "sail", "visit", "merry", "raven"
+      , "fault", "soda", "isolate", "echo", "tortoise"
+      , "pride", "game", "person", "project", "apple"
+      ]
+    , [ "idle", "absent", "exile", "youth", "magic"
+      , "reopen", "tilt", "panther", "human", "citizen"
+      , "bubble", "solution", "amused", "gauge", "piece"
+      ]
+    , [ "cost", "link", "fatal", "puppy", "direct"
+      , "under", "fitness", "wrestle", "egg", "token"
+      , "yard", "later", "net", "swap", "day"
+      ]
+    , [ "grain", "left", "kitchen", "attend", "merry"
+      , "slim", "wait", "sudden", "gas", "close"
+      , "drink", "deputy", "family", "crash", "virus"
+      ]
+    ]
+
 rndMnemonics :: [Mnemonic 12]
 rndMnemonics = unsafeMkMnemonic <$>
     [ [ "arctic", "decade", "pink", "easy"
@@ -1060,7 +1465,7 @@ genFaucets file n = do
     TIO.writeFile file ""
     forM_ [ (m, take 10 (addresses m)) | m <- ms ] $ \(m, addrs) -> do
         appendFile $ T.intercalate ", " $ surroundedBy '"' <$> mnemonicToText @15 m
-        forM_ addrs (appendFile . encodeAddress @'Testnet)
+        forM_ addrs (appendFile . encodeAddress @'Mainnet)
   where
     surroundedBy :: Char -> Text -> Text
     surroundedBy c txt = T.singleton c <> txt <> T.singleton c
@@ -1074,13 +1479,13 @@ genFaucets file n = do
             (seed, pwd) =
                 (Passphrase $ entropyToBytes $ mnemonicToEntropy mw, mempty)
             rootXPrv =
-                generateKeyFromSeed (seed, mempty) pwd
+                generateKeyFromSeed seed pwd
             accXPrv =
                 deriveAccountPrivateKey pwd rootXPrv minBound
             addrXPrv =
                 deriveAddressPrivateKey pwd accXPrv UTxOExternal
         in
-            [ paymentAddress @'Testnet (publicKey $ addrXPrv ix)
+            [ paymentAddress @'Mainnet (publicKey $ addrXPrv ix)
             | ix <- [minBound..maxBound]
             ]
 

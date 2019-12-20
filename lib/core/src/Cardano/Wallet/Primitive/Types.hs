@@ -156,6 +156,7 @@ module Cardano.Wallet.Primitive.Types
 
     -- * ProtocolMagic
     , ProtocolMagic (..)
+    , testnetMagic
 
     -- * Polymorphic
     , Hash (..)
@@ -1479,6 +1480,10 @@ instance NFData StartTime
 -- | Magic constant associated to a given network
 newtype ProtocolMagic = ProtocolMagic Int32
     deriving (Generic, Show)
+
+-- | Hard-coded protocol magic for the Byron TestNet
+testnetMagic :: ProtocolMagic
+testnetMagic = ProtocolMagic 764824073
 
 {-------------------------------------------------------------------------------
               Stake Pool Delegation and Registration Certificates

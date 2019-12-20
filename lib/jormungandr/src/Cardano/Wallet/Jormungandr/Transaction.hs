@@ -34,6 +34,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth, WalletKey (..), toChimericAccount )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Icarus
+    ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.CoinSelection
@@ -145,6 +147,7 @@ class TxWitnessTagFor (k :: Depth -> * -> *) where
     txWitnessTagFor :: TxWitnessTag
 
 instance TxWitnessTagFor ShelleyKey where txWitnessTagFor = TxWitnessUTxO
+instance TxWitnessTagFor IcarusKey  where txWitnessTagFor = TxWitnessLegacyUTxO
 instance TxWitnessTagFor ByronKey   where txWitnessTagFor = TxWitnessLegacyUTxO
 
 -- | Transaction with improper number of inputs and outputs is tried

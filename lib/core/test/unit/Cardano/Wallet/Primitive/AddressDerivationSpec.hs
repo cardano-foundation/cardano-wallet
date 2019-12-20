@@ -1,12 +1,19 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.Primitive.AddressDerivationSpec
     ( spec
+
+    -- * Generators
+    , genAddress
+    , genLegacyAddress
     ) where
 
 import Prelude
@@ -21,6 +28,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , FromMnemonicError (..)
     , Index
     , NetworkDiscriminant (..)
+    , NetworkDiscriminant (..)
     , Passphrase (..)
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
@@ -34,10 +42,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.Icarus
+    ( IcarusKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..) )
+    ( KnownNetwork (..), ShelleyKey (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..) )
+    ( Address (..), Hash (..) )
 import Control.Monad
     ( replicateM )
 import Control.Monad.IO.Class
@@ -58,7 +68,9 @@ import Test.QuickCheck
     , choose
     , expectFailure
     , genericShrink
+    , oneof
     , property
+    , vectorOf
     , (.&&.)
     , (===)
     , (==>)
@@ -69,9 +81,11 @@ import Test.Text.Roundtrip
     ( textRoundtrip )
 
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Rnd
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Ica
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
@@ -186,9 +200,16 @@ spec = do
             res `shouldSatisfy` isRight
 
     describe "Keys storing and retrieving roundtrips" $ do
-        it "XPrv ShelleyKey" (property (prop_roundtripXPrv @ShelleyKey))
-        it "XPrv ByronKey" (property (prop_roundtripXPrv @ByronKey))
-        it "XPub" (property prop_roundtripXPub)
+        it "XPrv ShelleyKey"
+            (property $ prop_roundtripXPrv @ShelleyKey)
+        it "XPrv IcarusKey"
+            (property $ prop_roundtripXPrv @IcarusKey)
+        it "XPrv ByronKey"
+            (property $ prop_roundtripXPrv @ByronKey)
+        it "XPub ShelleyKey"
+            (property $ prop_roundtripXPub @ShelleyKey)
+        it "XPub IcarusKey"
+            (property $ prop_roundtripXPub @IcarusKey)
 
 {-------------------------------------------------------------------------------
                                Properties
@@ -227,7 +248,11 @@ prop_roundtripXPrv xpriv = do
     xpriv' === xpriv
 
 prop_roundtripXPub
-    :: ShelleyKey 'AccountK XPub
+    ::  ( PersistPublicKey (k 'AccountK)
+        , Eq (k 'AccountK XPub)
+        , Show (k 'AccountK XPub)
+        )
+    => k 'AccountK XPub
     -> Property
 prop_roundtripXPub xpub = do
     let xpub' = (unsafeDeserializeXPub . serializeXPub) xpub
@@ -274,20 +299,30 @@ instance Arbitrary (Index 'WholeDomain 'AccountK) where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
 
-instance Arbitrary (Passphrase goal) where
+instance (PassphraseMaxLength purpose, PassphraseMinLength purpose) =>
+    Arbitrary (Passphrase purpose) where
+    arbitrary = do
+        n <- choose (passphraseMinLength p, passphraseMaxLength p)
+        bytes <- T.encodeUtf8 . T.pack <$> replicateM n arbitraryPrintableChar
+        return $ Passphrase $ BA.convert bytes
+      where p = Proxy :: Proxy purpose
+    shrink (Passphrase bytes)
+        | BA.length bytes <= passphraseMinLength p = []
+        | otherwise =
+            [ Passphrase
+            $ BA.convert
+            $ B8.take (passphraseMinLength p)
+            $ BA.convert bytes
+            ]
+      where p = Proxy :: Proxy purpose
+
+instance {-# OVERLAPS #-} Arbitrary (Passphrase "generation") where
     shrink (Passphrase "") = []
     shrink (Passphrase _ ) = [Passphrase ""]
     arbitrary = do
         n <- choose (0, 32)
         InfiniteList bytes _ <- arbitrary
         return $ Passphrase $ BA.convert $ BS.pack $ take n bytes
-
-instance {-# OVERLAPS #-} Arbitrary (Passphrase "encryption") where
-    arbitrary = do
-        let p = Proxy :: Proxy "encryption"
-        n <- choose (passphraseMinLength p, passphraseMaxLength p)
-        bytes <- T.encodeUtf8 . T.pack <$> replicateM n arbitraryPrintableChar
-        return $ Passphrase $ BA.convert bytes
 
 instance Arbitrary (Hash "encryption") where
     shrink _ = []
@@ -319,6 +354,14 @@ instance Arbitrary (ByronKey 'RootK XPrv) where
     shrink _ = []
     arbitrary = genRootKeysRnd
 
+instance Arbitrary (IcarusKey 'RootK XPrv) where
+    shrink _ = []
+    arbitrary = genRootKeysIca
+
+instance Arbitrary (IcarusKey 'AccountK XPub) where
+    shrink _ = []
+    arbitrary = publicKey <$> genRootKeysIca
+
 instance Arbitrary NetworkDiscriminant where
     arbitrary = arbitraryBoundedEnum
     shrink = genericShrink
@@ -336,8 +379,37 @@ genRootKeysRnd = Rnd.generateKeyFromSeed
     <$> genPassphrase @"seed" (16, 32)
     <*> genPassphrase @"encryption" (0, 16)
 
+genRootKeysIca :: Gen (IcarusKey depth XPrv)
+genRootKeysIca = Ica.unsafeGenerateKeyFromSeed
+    <$> genPassphrase @"seed" (16, 32)
+    <*> genPassphrase @"encryption" (0, 16)
+
 genPassphrase :: (Int, Int) -> Gen (Passphrase purpose)
 genPassphrase range = do
     n <- choose range
     InfiniteList bytes _ <- arbitrary
     return $ Passphrase $ BA.convert $ BS.pack $ take n bytes
+
+genAddress
+    :: forall (network :: NetworkDiscriminant). (KnownNetwork network)
+    => Gen Address
+genAddress = oneof
+    [ (\bytes -> Address (BS.pack (addrSingle @network:bytes)))
+        <$> vectorOf Seq.publicKeySize arbitrary
+    , (\bytes -> Address (BS.pack (addrGrouped @network:bytes)))
+        <$> vectorOf (2*Seq.publicKeySize) arbitrary
+    , (\bytes -> Address (BS.pack (addrAccount @network:bytes)))
+        <$> vectorOf Seq.publicKeySize arbitrary
+    ]
+
+genLegacyAddress :: (Int, Int) -> Gen Address
+genLegacyAddress range = do
+    n <- choose range
+    let prefix = BS.pack
+            [ 130       -- Array(2)
+            , 216, 24   -- Tag 24
+            , 88, fromIntegral n -- Bytes(n), n > 23 && n < 256
+            ]
+    addrPayload <- BS.pack <$> vectorOf n arbitrary
+    let crc = BS.pack [26,1,2,3,4]
+    return $ Address (prefix <> addrPayload <> crc)

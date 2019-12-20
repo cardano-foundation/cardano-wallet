@@ -160,10 +160,15 @@ x-walletMnemonicSentence: &walletMnemonicSentence
   example: ["squirrel", "material", "silly", "twice", "direct", "slush", "pistol", "razor", "become", "junk", "kingdom", "flee", "squirrel", "silly", "twice"]
 
 x-byronWalletMnemonicSentence: &byronWalletMnemonicSentence
-  description: A list of mnemonic words
+  description: |
+    A list of mnemonic words.
+
+    Important:
+      - a 12-word mnemonic sentence will be treated as being a Daedalus Byron wallet.
+      - a 15-word mnemonic sentence will be treated as being a Yoroi Byron wallet.
   type: array
   minItems: 12
-  maxItems: 12
+  maxItems: 15
   items:
     type: string
     format: bip-0039-mnemonic-word{english}

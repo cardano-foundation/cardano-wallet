@@ -77,7 +77,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , passphraseMinLength
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( KnownNetwork (..), ShelleyKey (..), publicKeySize )
+    ( KnownNetwork (..), ShelleyKey (..) )
+import Cardano.Wallet.Primitive.AddressDerivationSpec
+    ( genAddress, genLegacyAddress )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Mnemonic
@@ -221,14 +223,12 @@ import Test.Hspec
     ( Spec, SpecWith, describe, expectationFailure, it, runIO, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..)
-    , Gen
     , InfiniteList (..)
     , arbitraryBoundedEnum
     , arbitraryPrintableChar
     , arbitrarySizedBoundedIntegral
     , choose
     , frequency
-    , oneof
     , property
     , scale
     , shrinkIntegral
@@ -250,12 +250,10 @@ import Web.HttpApiData
     ( FromHttpApiData (..), ToHttpApiData (..) )
 
 import qualified Data.Aeson.Types as Aeson
-import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
 import qualified Data.Yaml as Yaml
 import qualified Prelude
 
@@ -949,30 +947,6 @@ instance {-# OVERLAPS #-} KnownNetwork network
             ]
         return (addr, proxy)
 
-genAddress
-    :: forall (network :: NetworkDiscriminant). (KnownNetwork network)
-    => Gen Address
-genAddress = oneof
-    [ (\bytes -> Address (BS.pack (addrSingle @network:bytes)))
-        <$> vectorOf publicKeySize arbitrary
-    , (\bytes -> Address (BS.pack (addrGrouped @network:bytes)))
-        <$> vectorOf (2*publicKeySize) arbitrary
-    , (\bytes -> Address (BS.pack (addrAccount @network:bytes)))
-        <$> vectorOf publicKeySize arbitrary
-    ]
-
-genLegacyAddress :: (Int, Int) -> Gen Address
-genLegacyAddress range = do
-    n <- choose range
-    let prefix = BS.pack
-            [ 130       -- Array(2)
-            , 216, 24   -- Tag 24
-            , 88, fromIntegral n -- Bytes(n), n > 23 && n < 256
-            ]
-    addrPayload <- BS.pack <$> vectorOf n arbitrary
-    let crc = BS.pack [26,1,2,3,4]
-    return $ Address (prefix <> addrPayload <> crc)
-
 instance Arbitrary (Quantity "lovelace" Natural) where
     shrink (Quantity 0) = []
     shrink _ = [Quantity 0]
@@ -1099,22 +1073,6 @@ instance Arbitrary WalletName where
     shrink (WalletName t)
         | T.length t <= walletNameMinLength = []
         | otherwise = [WalletName $ T.take walletNameMinLength t]
-
-instance (PassphraseMaxLength purpose, PassphraseMinLength purpose) =>
-    Arbitrary (Passphrase purpose) where
-    arbitrary = do
-        n <- choose (passphraseMinLength p, passphraseMaxLength p)
-        bytes <- T.encodeUtf8 . T.pack <$> replicateM n arbitraryPrintableChar
-        return $ Passphrase $ BA.convert bytes
-      where p = Proxy :: Proxy purpose
-    shrink (Passphrase bytes)
-        | BA.length bytes <= passphraseMinLength p = []
-        | otherwise =
-            [ Passphrase
-            $ BA.convert
-            $ B8.take (passphraseMinLength p)
-            $ BA.convert bytes ]
-      where p = Proxy :: Proxy purpose
 
 instance Arbitrary WalletPassphraseInfo where
     arbitrary = WalletPassphraseInfo <$> genUniformTime

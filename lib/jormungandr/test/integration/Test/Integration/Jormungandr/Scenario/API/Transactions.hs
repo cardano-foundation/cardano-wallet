@@ -459,7 +459,7 @@ fixtureExternalTx
 fixtureExternalTx ctx toSend = do
     -- we use faucet wallet as wSrc
     let password = "cardano-wallet" :: Text
-    mnemonicFaucet <- mnemonicToText <$> nextWallet @"seq" (_faucet ctx)
+    mnemonicFaucet <- mnemonicToText <$> nextWallet @"shelley" (_faucet ctx)
     let restoreFaucetWallet = Json [json| {
             "name": "Faucet Wallet",
             "mnemonic_sentence": #{mnemonicFaucet},

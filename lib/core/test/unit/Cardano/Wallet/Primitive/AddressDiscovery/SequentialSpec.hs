@@ -1,13 +1,16 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -22,15 +25,19 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DelegationAddress (..)
     , Depth (..)
     , KeyFingerprint
+    , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
+    , PaymentAddress (..)
     , SoftDerivation (..)
     , WalletKey (..)
     , XPrv
     , XPub
     )
+import Cardano.Wallet.Primitive.AddressDerivation.Icarus
+    ( IcarusKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..), unsafeGenerateKeyFromSeed )
+    ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
@@ -58,7 +65,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Types
     ( Address (..), ShowFmt (..) )
 import Control.Monad
-    ( forM, unless )
+    ( forM, forM_, unless )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.State.Strict
@@ -74,14 +81,13 @@ import Data.Proxy
 import Data.Text.Class
     ( TextDecodingError (..), fromText )
 import Data.Typeable
-    ( Typeable )
+    ( Typeable, typeRep )
 import Data.Word
     ( Word8 )
 import Test.Hspec
     ( Spec, describe, expectationFailure, it )
 import Test.QuickCheck
     ( Arbitrary (..)
-    , InfiniteList (..)
     , Property
     , arbitraryBoundedEnum
     , arbitraryBoundedEnum
@@ -105,6 +111,8 @@ import Test.QuickCheck.Monadic
 import Test.Text.Roundtrip
     ( textRoundtrip )
 
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 
@@ -123,35 +131,28 @@ spec = do
         it "defaultAddressPoolGap is valid"
             (property prop_defaultValid)
 
-    describe "AddressPool UTxOExternal" $ do
-        it "'lookupAddressPool' extends the pool by a maximum of 'gap'"
-            (checkCoverage (prop_poolGrowWithinGap @'UTxOExternal))
-        it "'addresses' preserves the address order"
-            (checkCoverage (prop_roundtripMkAddressPool @'UTxOExternal))
-        it "An AddressPool always contains at least 'gap pool' addresses"
-            (property (prop_poolAtLeastGapAddresses @'UTxOExternal))
-        it "Our addresses are eventually discovered"
-            (property (prop_poolEventuallyDiscoverOurs @'UTxOExternal))
+    let styles =
+            [ Style (Proxy @'UTxOExternal)
+            , Style (Proxy @'UTxOInternal)
+            , Style (Proxy @'MutableAccount)
+            ]
 
-    describe "AddressPool UTxOInternal" $ do
-        it "'lookupAddressPool' extends the pool by a maximum of 'gap'"
-            (checkCoverage (prop_poolGrowWithinGap @'UTxOInternal))
-        it "'addresses' preserves the address order"
-            (checkCoverage (prop_roundtripMkAddressPool @'UTxOInternal))
-        it "An AddressPool always contains at least 'gap pool' addresses"
-            (property (prop_poolAtLeastGapAddresses @'UTxOInternal))
-        it "Our addresses are eventually discovered"
-            (property (prop_poolEventuallyDiscoverOurs @'UTxOInternal))
+    let keys =
+            [ Key (Proxy @ShelleyKey)
+            , Key (Proxy @IcarusKey)
+            ]
 
-    describe "AddressPool MutableAccount" $ do
-        it "'lookupAddressPool' extends the pool by a maximum of 'gap'"
-            (checkCoverage (prop_poolGrowWithinGap @'MutableAccount))
-        it "'addresses' preserves the address order"
-            (checkCoverage (prop_roundtripMkAddressPool @'MutableAccount))
-        it "An AddressPool always contains at least 'gap pool' addresses"
-            (property (prop_poolAtLeastGapAddresses @'MutableAccount))
-        it "Our addresses are eventually discovered"
-            (property (prop_poolEventuallyDiscoverOurs @'MutableAccount))
+    describe "AddressPool (Shelley)" $ do
+        forM_ styles $ \s@(Style proxyS) -> forM_ keys $ \k@(Key proxyK) -> do
+            describe (show k <> " " <> show s) $ do
+                it "'lookupAddressPool' extends the pool by a maximum of 'gap'"
+                    (checkCoverage (prop_poolGrowWithinGap (proxyS, proxyK)))
+                it "'addresses' preserves the address order"
+                    (checkCoverage (prop_roundtripMkAddressPool (proxyS, proxyK)))
+                it "An AddressPool always contains at least 'gap pool' addresses"
+                    (property (prop_poolAtLeastGapAddresses (proxyS, proxyK)))
+                it "Our addresses are eventually discovered"
+                    (property (prop_poolEventuallyDiscoverOurs (proxyS, proxyK)))
 
     describe "AddressPoolGap - Text Roundtrip" $ do
         textRoundtrip $ Proxy @AddressPoolGap
@@ -246,17 +247,26 @@ prop_roundtripEnumGap g =
 
 -- | After a lookup, a property should never grow more than its gap value.
 prop_poolGrowWithinGap
-    :: (Typeable chain)
-    => (AddressPool chain ShelleyKey, Address)
+    :: forall (chain :: AccountingStyle) k.
+        ( Typeable chain
+        , Eq (k 'AccountK XPub)
+        , Show (k 'AccountK XPub)
+        , MkKeyFingerprint k (k 'AddressK XPub)
+        , MkKeyFingerprint k Address
+        , SoftDerivation k
+        , AddressPoolTest k
+        )
+    => (Proxy chain, Proxy k)
+    -> (AddressPool chain k, Address)
     -> Property
-prop_poolGrowWithinGap (pool, addr) =
-    cover 10 (isJust $ fst res) "pool hit" prop
+prop_poolGrowWithinGap _proxy (pool, addr) =
+    cover 7.5 (isJust $ fst res) "pool hit" prop
   where
     res = lookupAddress addr pool
     prop = case res of
         (Nothing, pool') -> pool === pool'
         (Just _, pool') ->
-            let k = length $ addresses liftAddr pool' \\ addresses liftAddr pool
+            let k = length $ addresses liftAddress pool' \\ addresses liftAddress pool
             in conjoin
                 [ gap pool === gap pool'
                 , property (k >= 0 && k <= fromEnum (gap pool))
@@ -264,35 +274,55 @@ prop_poolGrowWithinGap (pool, addr) =
 
 -- | A pool gives back its addresses in correct order and can be reconstructed
 prop_roundtripMkAddressPool
-    :: (Typeable chain)
-    => AddressPool chain ShelleyKey
+    :: forall (chain :: AccountingStyle) k.
+        ( Typeable chain
+        , Eq (k 'AccountK XPub)
+        , Show (k 'AccountK XPub)
+        , MkKeyFingerprint k (k 'AddressK XPub)
+        , MkKeyFingerprint k Address
+        , SoftDerivation k
+        , AddressPoolTest k
+        )
+    => (Proxy chain, Proxy k)
+    -> AddressPool chain k
     -> Property
-prop_roundtripMkAddressPool pool =
+prop_roundtripMkAddressPool _proxy pool =
     ( mkAddressPool
         (accountPubKey pool)
         (gap pool)
-        (addresses liftAddr pool)
+        (addresses liftAddress pool)
     ) === pool
 
 -- | A pool always contains a number of addresses at least equal to its gap
 prop_poolAtLeastGapAddresses
-    :: AddressPool chain ShelleyKey
+    :: forall (chain :: AccountingStyle) k.
+        ( AddressPoolTest k
+        )
+    => (Proxy chain, Proxy k)
+    -> AddressPool chain k
     -> Property
-prop_poolAtLeastGapAddresses pool =
+prop_poolAtLeastGapAddresses _proxy pool =
     property prop
   where
-    prop = length (addresses liftAddr pool) >= fromEnum (gap pool)
+    prop = length (addresses liftAddress pool) >= fromEnum (gap pool)
 
 -- | Our addresses are eventually discovered
 prop_poolEventuallyDiscoverOurs
-    :: forall (c :: AccountingStyle). (Typeable c)
-    => (AddressPoolGap, Address)
+    :: forall (chain :: AccountingStyle) k.
+        ( Typeable chain
+        , MkKeyFingerprint k (k 'AddressK XPub)
+        , MkKeyFingerprint k Address
+        , SoftDerivation k
+        , AddressPoolTest k
+        )
+    => (Proxy chain, Proxy k)
+    -> (AddressPoolGap, Address)
     -> Property
-prop_poolEventuallyDiscoverOurs (g, addr) =
+prop_poolEventuallyDiscoverOurs _proxy (g, addr) =
     addr `elem` ours ==> withMaxSuccess 10 $ property prop
   where
-    ours = take 25 (ourAddresses (accountingStyle @c))
-    pool = flip execState (mkAddressPool @c ourAccount g mempty) $
+    ours = take 25 (ourAddresses (Proxy @k) (accountingStyle @chain))
+    pool = flip execState (mkAddressPool @chain @k ourAccount g mempty) $
         forM ours (state . lookupAddress)
     prop = (fromEnum <$> fst (lookupAddress addr pool)) === elemIndex addr ours
 
@@ -309,13 +339,13 @@ prop_genChangeGap g =
     property prop
   where
     seed = Passphrase (BA.convert @ByteString "0000000000000000")
-    key = unsafeGenerateKeyFromSeed (seed, mempty) mempty
+    key = Shelley.unsafeGenerateKeyFromSeed (seed, mempty) mempty
     s0 = mkSeqState (key, mempty) g
     prop =
         length (fst $ changeAddresses [] s0) === fromEnum g
 
 prop_changeAddressRotation
-    :: SeqState 'Testnet ShelleyKey
+    :: SeqState 'Mainnet ShelleyKey
     -> Property
 prop_changeAddressRotation s0 =
     property prop
@@ -325,7 +355,7 @@ prop_changeAddressRotation s0 =
         ShowFmt (fst $ changeAddresses [] s') === ShowFmt (reverse as)
 
 prop_changeNoLock
-    :: (SeqState 'Testnet ShelleyKey, Int)
+    :: (SeqState 'Mainnet ShelleyKey, Int)
     -> Property
 prop_changeNoLock (s0, ix) =
     ShowFmt xs =/= ShowFmt ys .&&. ShowFmt addr `notElem` (ShowFmt <$> ys)
@@ -337,12 +367,12 @@ prop_changeNoLock (s0, ix) =
     (ys, _) = changeAddresses [] s'
 
 prop_lookupDiscovered
-    :: (SeqState 'Testnet ShelleyKey, Address)
+    :: (SeqState 'Mainnet ShelleyKey, Address)
     -> Property
 prop_lookupDiscovered (s0, addr) =
     let (ours, s) = isOurs addr s0 in ours ==> prop s
   where
-    key = unsafeGenerateKeyFromSeed (mempty, mempty) mempty :: ShelleyKey 'RootK XPrv
+    key = Shelley.unsafeGenerateKeyFromSeed (mempty, mempty) mempty :: ShelleyKey 'RootK XPrv
     prop s = monadicIO $ liftIO $ do
         unless (isJust $ isOwned s (key, mempty) addr) $ do
             expectationFailure "couldn't find private key corresponding to addr"
@@ -353,7 +383,7 @@ prop_lookupDiscovered (s0, addr) =
 -------------------------------------------------------------------------------}
 
 prop_compareKnownUnknown
-    :: (SeqState 'Testnet ShelleyKey, ShowFmt Address, ShowFmt Address)
+    :: (SeqState 'Mainnet ShelleyKey, ShowFmt Address, ShowFmt Address)
     -> Property
 prop_compareKnownUnknown (s, ShowFmt known, ShowFmt addr) =
     case (fst $ isOurs known s, fst $ isOurs addr s) of
@@ -363,7 +393,7 @@ prop_compareKnownUnknown (s, ShowFmt known, ShowFmt addr) =
     prop ordering = compareDiscovery s known addr === ordering
 
 prop_compareAntiSymmetric
-    :: (SeqState 'Testnet ShelleyKey, ShowFmt Address, ShowFmt Address)
+    :: (SeqState 'Mainnet ShelleyKey, ShowFmt Address, ShowFmt Address)
     -> Property
 prop_compareAntiSymmetric (s, ShowFmt a1, ShowFmt a2) =
     cover 90 (a1 /= a2) "a1 /= a2" prop
@@ -379,7 +409,7 @@ prop_compareAntiSymmetric (s, ShowFmt a1, ShowFmt a2) =
 -------------------------------------------------------------------------------}
 
 prop_knownAddressesAreOurs
-    :: SeqState 'Testnet ShelleyKey
+    :: SeqState 'Mainnet ShelleyKey
     -> Property
 prop_knownAddressesAreOurs s =
     map (\x -> (ShowFmt x, fst (isOurs x s))) (knownAddresses s)
@@ -387,7 +417,7 @@ prop_knownAddressesAreOurs s =
     map (\x -> (ShowFmt x, True)) (knownAddresses s)
 
 prop_atLeastKnownAddresses
-    :: SeqState 'Testnet ShelleyKey
+    :: SeqState 'Mainnet ShelleyKey
     -> Property
 prop_atLeastKnownAddresses s =
     property $ length (knownAddresses s) >= g (externalPool s)
@@ -401,7 +431,7 @@ prop_changeIsOnlyKnownAfterGeneration
     -> Property
 prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) =
     let
-        s0 :: SeqState 'Testnet ShelleyKey
+        s0 :: SeqState 'Mainnet ShelleyKey
         s0 = SeqState intPool extPool emptyPendingIxs rewardAccount
         addrs0 = knownAddresses s0
         (change, s1) = genChange mempty s0
@@ -421,43 +451,69 @@ prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) =
             (property (addr `elem` addrs))
 
 {-------------------------------------------------------------------------------
-                                Arbitrary Instances
+                                 Helpers
 -------------------------------------------------------------------------------}
 
-ourAccount
-    :: ShelleyKey 'AccountK XPub
-ourAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, mempty) mempty
-  where
-    seed = Passphrase $ BA.convert $ BS.replicate 32 0
+class AddressPoolTest k where
+    ourAccount
+        :: k 'AccountK XPub
+    ourAddresses
+        :: Proxy k
+        -> AccountingStyle
+        -> [Address]
+    liftAddress
+        :: KeyFingerprint "payment" k
+        -> Address
 
-ourAddresses
-    :: AccountingStyle
-    -> [Address]
-ourAddresses cc =
-    mkAddress . deriveAddressPublicKey ourAccount cc <$> [minBound..maxBound]
-  where
-    mkAddress key = delegationAddress @'Testnet key rewardAccount
+instance AddressPoolTest IcarusKey where
+    ourAccount = publicKey $ Icarus.unsafeGenerateKeyFromSeed seed mempty
+      where
+        seed = Passphrase $ BA.convert $ BS.replicate 32 0
+
+    ourAddresses _proxy cc =
+        mkAddress . deriveAddressPublicKey ourAccount cc <$> [minBound..maxBound]
+      where
+        mkAddress = paymentAddress @'Mainnet @IcarusKey
+
+    liftAddress =
+        liftPaymentAddress @'Mainnet
+
+instance AddressPoolTest ShelleyKey where
+    ourAccount = publicKey $ Shelley.unsafeGenerateKeyFromSeed (seed, mempty) mempty
+      where
+        seed = Passphrase $ BA.convert $ BS.replicate 32 0
+
+    ourAddresses _proxy cc =
+        mkAddress . deriveAddressPublicKey ourAccount cc <$> [minBound..maxBound]
+      where
+        mkAddress k = delegationAddress @'Mainnet k rewardAccount
+
+    liftAddress fingerprint =
+        liftDelegationAddress @'Mainnet fingerprint rewardAccount
 
 rewardAccount
     :: ShelleyKey 'AddressK XPub
 rewardAccount =
-    publicKey $ unsafeGenerateKeyFromSeed (seed, mempty) mempty
+    publicKey $ Shelley.unsafeGenerateKeyFromSeed (seed, mempty) mempty
   where
     seed = Passphrase $ BA.convert $ BS.replicate 16 0
 
-liftAddr
-    :: KeyFingerprint "payment" ShelleyKey
-    -> Address
-liftAddr fingerprint =
-    liftDelegationAddress @'Testnet fingerprint rewardAccount
-
 changeAddresses
     :: [Address]
-    -> SeqState 'Testnet ShelleyKey
-    -> ([Address], SeqState 'Testnet ShelleyKey)
+    -> SeqState 'Mainnet ShelleyKey
+    -> ([Address], SeqState 'Mainnet ShelleyKey)
 changeAddresses as s =
     let (a, s') = genChange mempty s
     in if a `elem` as then (as, s) else changeAddresses (a:as) s'
+
+unsafeMkAddressPoolGap :: (Integral a, Show a) => a -> AddressPoolGap
+unsafeMkAddressPoolGap g = case (mkAddressPoolGap $ fromIntegral g) of
+    Right a -> a
+    Left _ -> error $ "unsafeMkAddressPoolGap: bad argument: " <> show g
+
+{-------------------------------------------------------------------------------
+                                Arbitrary Instances
+-------------------------------------------------------------------------------}
 
 deriving instance Arbitrary a => Arbitrary (ShowFmt a)
 
@@ -475,24 +531,26 @@ instance Arbitrary AccountingStyle where
 instance Arbitrary Address where
     shrink _ = []
     arbitrary = frequency
-        [ (8, elements $ take 25 (ourAddresses UTxOExternal))
-        , (8, elements $ take 25 (ourAddresses UTxOInternal))
-        , (8, elements $ take 25 (ourAddresses MutableAccount))
-        , (1, notOurs)
+        [ (8, elements $ take 25 (ourAddresses (Proxy @ShelleyKey) UTxOExternal))
+        , (8, elements $ take 25 (ourAddresses (Proxy @ShelleyKey) UTxOInternal))
+        , (8, elements $ take 25 (ourAddresses (Proxy @ShelleyKey) MutableAccount))
+        , (8, elements $ take 25 (ourAddresses (Proxy @IcarusKey) UTxOExternal))
+        , (8, elements $ take 25 (ourAddresses (Proxy @IcarusKey) UTxOInternal))
+        , (8, elements $ take 25 (ourAddresses (Proxy @IcarusKey) MutableAccount))
         ]
-      where
-        notOurs = do
-            bytes <- Passphrase . BA.convert . BS.pack . take 32 . getInfiniteList
-                <$> arbitrary
-            let xprv = unsafeGenerateKeyFromSeed (bytes, mempty) mempty :: ShelleyKey 'AddressK XPrv
-            return $ delegationAddress @'Testnet (publicKey xprv) rewardAccount
 
-instance Typeable chain => Arbitrary (AddressPool chain ShelleyKey) where
+instance
+    ( Typeable chain
+    , MkKeyFingerprint k (k 'AddressK XPub)
+    , MkKeyFingerprint k Address
+    , SoftDerivation k
+    , AddressPoolTest k
+    ) => Arbitrary (AddressPool chain k) where
     shrink pool =
         let
             key = accountPubKey pool
             g = gap pool
-            addrs = addresses liftAddr pool
+            addrs = addresses liftAddress pool
         in case length addrs of
             k | k == fromEnum g && g == minBound ->
                 []
@@ -503,14 +561,15 @@ instance Typeable chain => Arbitrary (AddressPool chain ShelleyKey) where
                 , mkAddressPool key g []
                 , mkAddressPool key g (take (k - (fromEnum g `div` 5)) addrs)
                 ]
+
     arbitrary = do
         g <- unsafeMkAddressPoolGap <$> choose
             (getAddressPoolGap minBound, 2 * getAddressPoolGap minBound)
         n <- choose (0, 2 * fromEnum g)
-        let addrs = take n (ourAddresses (accountingStyle @chain))
+        let addrs = take n (ourAddresses (Proxy @k) (accountingStyle @chain))
         return $ mkAddressPool ourAccount g addrs
 
-instance Arbitrary (SeqState 'Testnet ShelleyKey) where
+instance Arbitrary (SeqState 'Mainnet ShelleyKey) where
     shrink (SeqState intPool extPool ixs rwd) =
         (\(i, e) -> SeqState i e ixs rwd) <$> shrink (intPool, extPool)
     arbitrary = do
@@ -518,7 +577,21 @@ instance Arbitrary (SeqState 'Testnet ShelleyKey) where
         extPool <- arbitrary
         return $ SeqState intPool extPool emptyPendingIxs rewardAccount
 
-unsafeMkAddressPoolGap :: (Integral a, Show a) => a -> AddressPoolGap
-unsafeMkAddressPoolGap g = case (mkAddressPoolGap $ fromIntegral g) of
-    Right a -> a
-    Left _ -> error $ "unsafeMkAddressPoolGap: bad argument: " <> show g
+-- | Wrapper to encapsulate accounting style proxies that are so-to-speak,
+-- different types in order to easily map over them and avoid duplicating
+-- properties.
+data Style =
+    forall (chain :: AccountingStyle). Typeable chain => Style (Proxy chain)
+instance Show Style where show (Style proxy) = show (typeRep proxy)
+
+-- | Wrapper to encapsulate keys.
+data Key = forall (k :: Depth -> * -> *).
+    ( Typeable k
+    , Eq (k 'AccountK XPub)
+    , Show (k 'AccountK XPub)
+    , MkKeyFingerprint k (k 'AddressK XPub)
+    , MkKeyFingerprint k Address
+    , SoftDerivation k
+    , AddressPoolTest k
+    ) => Key (Proxy k)
+instance Show Key where show (Key proxy) = show (typeRep proxy)

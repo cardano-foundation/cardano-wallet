@@ -29,11 +29,13 @@ import Test.Integration.Framework.DSL
     , Payload (..)
     , deleteByronWalletEp
     , emptyByronWallet
+    , emptyIcarusWallet
     , emptyWallet
     , expectErrorMessage
     , expectListSizeEqual
     , expectResponseCode
     , fixtureByronWallet
+    , fixtureIcarusWallet
     , listByronTxEp
     , request
     , toQueryString
@@ -61,23 +63,25 @@ data TestCase a = TestCase
 spec :: forall t n. (n ~ 'Testnet) => SpecWith (Context t)
 spec = do
 
-    it "BYRON_TX_LIST_01 - 0 txs on empty Byron wallet" $ \ctx -> do
-        w <- emptyByronWallet ctx
-        r <- request @([ApiTransaction n]) ctx (listByronTxEp w mempty)
-            Default Empty
-        verify r
-            [ expectResponseCode @IO HTTP.status200
-            , expectListSizeEqual 0
-            ]
+    it "BYRON_TX_LIST_01 - 0 txs on empty Byron wallet"
+        $ \ctx -> forM_ [emptyByronWallet, emptyIcarusWallet] $ \emptyLegacyWallet -> do
+            w <- emptyLegacyWallet ctx
+            r <- request @([ApiTransaction n]) ctx (listByronTxEp w mempty)
+                Default Empty
+            verify r
+                [ expectResponseCode @IO HTTP.status200
+                , expectListSizeEqual 0
+                ]
 
-    it "BYRON_TX_LIST_01 - Can list transactions on Byron Wallet" $ \ctx -> do
-        w <- fixtureByronWallet ctx
-        r <- request @([ApiTransaction n]) ctx (listByronTxEp w mempty)
-            Default Empty
-        verify r
-            [ expectResponseCode @IO HTTP.status200
-            , expectListSizeEqual 10
-            ]
+    it "BYRON_TX_LIST_01 - Can list transactions on Byron Wallet"
+        $ \ctx -> forM_ [fixtureByronWallet, fixtureIcarusWallet] $ \fixtureLegacyWallet -> do
+            w <- fixtureLegacyWallet ctx
+            r <- request @([ApiTransaction n]) ctx (listByronTxEp w mempty)
+                Default Empty
+            verify r
+                [ expectResponseCode @IO HTTP.status200
+                , expectListSizeEqual 10
+                ]
 
     describe "BYRON_TX_LIST_01 - Faulty start, end, order values" $ do
         let orderErr = "Please specify one of the following values:\

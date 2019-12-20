@@ -81,6 +81,7 @@ module Test.Integration.Framework.DSL
     , (</>)
     , (!!)
     , emptyByronWallet
+    , emptyIcarusWallet
     , emptyByronWalletWith
     , emptyWallet
     , emptyWalletWith
@@ -97,6 +98,7 @@ module Test.Integration.Framework.DSL
     , tearDown
     , fixtureRawTx
     , fixtureByronWallet
+    , fixtureIcarusWallet
     , fixtureWallet
     , fixtureWalletWith
     , faucetAmt
@@ -991,6 +993,11 @@ emptyByronWallet ctx = do
     mnemonic <- mnemonicToText @12 . entropyToMnemonic <$> genEntropy
     emptyByronWalletWith ctx ("Byron Wallet", mnemonic, "Secure Passphrase")
 
+emptyIcarusWallet :: Context t -> IO ApiByronWallet
+emptyIcarusWallet ctx = do
+    mnemonic <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
+    emptyByronWalletWith ctx ("Icarus Wallet", mnemonic, "Secure Passphrase")
+
 emptyByronWalletWith :: Context t -> (Text, [Text], Text) -> IO ApiByronWallet
 emptyByronWalletWith ctx (name, mnemonic, pass) = do
     let payload = Json [aesonQQ| {
@@ -1048,7 +1055,7 @@ fixtureWallet
     :: Context t
     -> IO ApiWallet
 fixtureWallet ctx = do
-    mnemonics <- mnemonicToText <$> nextWallet @"seq" (_faucet ctx)
+    mnemonics <- mnemonicToText <$> nextWallet @"shelley" (_faucet ctx)
     let payload = Json [aesonQQ| {
             "name": "Faucet Wallet",
             "mnemonic_sentence": #{mnemonics},
@@ -1071,7 +1078,23 @@ fixtureByronWallet
     :: Context t
     -> IO ApiByronWallet
 fixtureByronWallet ctx = do
-    mnemonics <- mnemonicToText <$> nextWallet @"rnd" (_faucet ctx)
+    mnemonics <- mnemonicToText <$> nextWallet @"byron" (_faucet ctx)
+    fixtureLegacyWallet ctx mnemonics
+
+-- | Restore a faucet Icarus wallet and wait until funds are available.
+fixtureIcarusWallet
+    :: Context t
+    -> IO ApiByronWallet
+fixtureIcarusWallet ctx = do
+    mnemonics <- mnemonicToText <$> nextWallet @"icarus" (_faucet ctx)
+    fixtureLegacyWallet ctx mnemonics
+
+-- | Restore a legacy wallet (Byron or Icarus)
+fixtureLegacyWallet
+    :: Context t
+    -> [Text]
+    -> IO ApiByronWallet
+fixtureLegacyWallet ctx mnemonics = do
     let payload = Json [aesonQQ| {
             "name": "Faucet Byron Wallet",
             "mnemonic_sentence": #{mnemonics},

@@ -57,6 +57,7 @@ import Test.Integration.Framework.DSL
     , deleteWalletEp
     , emptyByronWallet
     , emptyByronWalletWith
+    , emptyIcarusWallet
     , emptyWallet
     , emptyWalletWith
     , eventually_
@@ -69,6 +70,7 @@ import Test.Integration.Framework.DSL
     , expectListSizeEqual
     , expectResponseCode
     , fixtureByronWallet
+    , fixtureIcarusWallet
     , fixturePassphrase
     , fixtureWallet
     , getByronWalletEp
@@ -104,7 +106,6 @@ import Test.Integration.Framework.TestData
     , japaneseMnemonics12
     , kanjiWalletName
     , mnemonics12
-    , mnemonics15
     , mnemonics18
     , mnemonics21
     , mnemonics24
@@ -145,8 +146,8 @@ spec = do
 
     it "BYRON_CALCULATE_01 - \
         \for non-empty wallet calculated fee is > zero."
-        $ \ctx -> do
-            w <- fixtureByronWallet ctx
+        $ \ctx -> forM_ [fixtureByronWallet, fixtureIcarusWallet] $ \fixtureLegacyWallet -> do
+            w <- fixtureLegacyWallet ctx
             let ep = calculateByronMigrationCostEp w
             r <- request @ApiByronWalletMigrationInfo ctx ep Default Empty
             verify r
@@ -156,8 +157,8 @@ spec = do
 
     it "BYRON_CALCULATE_02 - \
         \Cannot calculate fee for empty wallet."
-        $ \ctx -> do
-            w <- emptyByronWallet ctx
+        $ \ctx -> forM_ [emptyByronWallet, emptyIcarusWallet] $ \emptyLegacyWallet -> do
+            w <- emptyLegacyWallet ctx
             let ep = calculateByronMigrationCostEp w
             r <- request @ApiByronWalletMigrationInfo ctx ep Default Empty
             verify r
@@ -224,9 +225,9 @@ spec = do
     it "BYRON_MIGRATE_01 - \
         \after a migration operation successfully completes, the correct \
         \amount eventually becomes available in the target wallet."
-        $ \ctx -> do
+        $ \ctx -> forM_ [fixtureByronWallet, fixtureIcarusWallet] $ \fixtureLegacyWallet -> do
             -- Restore a Byron wallet with funds, to act as a source wallet:
-            sourceWallet <- fixtureByronWallet ctx
+            sourceWallet <- fixtureLegacyWallet ctx
             let originalBalance = view byronBalanceAvailable sourceWallet
 
             -- Create an empty target wallet:
@@ -335,9 +336,9 @@ spec = do
 
     it "BYRON_MIGRATE_01 - \
         \a migration operation removes all funds from the source wallet."
-        $ \ctx -> do
+        $ \ctx -> forM_ [fixtureByronWallet, fixtureIcarusWallet] $ \fixtureLegacyWallet -> do
             -- Restore a Byron wallet with funds, to act as a source wallet:
-            sourceWallet <- fixtureByronWallet ctx
+            sourceWallet <- fixtureLegacyWallet ctx
 
             -- Perform a migration from the source wallet to a target wallet:
             targetWallet <- emptyWallet ctx
@@ -360,8 +361,8 @@ spec = do
 
     it "BYRON_MIGRATE_02 - \
         \migrating an empty wallet should fail."
-        $ \ctx -> do
-            sourceWallet <- emptyByronWallet ctx
+        $ \ctx -> forM_ [emptyByronWallet, emptyIcarusWallet] $ \emptyLegacyWallet -> do
+            sourceWallet <- emptyLegacyWallet ctx
             targetWallet <- emptyWallet ctx
             let payload = Json [json|{"passphrase": "Secure Passphrase"}|]
             let ep = migrateByronWalletEp sourceWallet targetWallet
@@ -410,9 +411,9 @@ spec = do
 
     it "BYRON_MIGRATE_03 - \
         \actual fee for migration is the same as the predicted fee."
-        $ \ctx -> do
+        $ \ctx -> forM_ [fixtureByronWallet, fixtureIcarusWallet] $ \fixtureLegacyWallet -> do
             -- Restore a Byron wallet with funds.
-            sourceWallet <- fixtureByronWallet ctx
+            sourceWallet <- fixtureLegacyWallet ctx
 
             -- Request a migration fee prediction.
             let ep0 = (calculateByronMigrationCostEp sourceWallet)
@@ -439,9 +440,10 @@ spec = do
                     getFromResponse amount r0
             actualFee `shouldBe` predictedFee
 
-    it "BYRON_MIGRATE_04 - migration fails with a wrong passphrase" $ \ctx -> do
+    it "BYRON_MIGRATE_04 - migration fails with a wrong passphrase"
+        $ \ctx -> forM_ [fixtureByronWallet, fixtureIcarusWallet] $ \fixtureLegacyWallet -> do
         -- Restore a Byron wallet with funds, to act as a source wallet:
-        sourceWallet <- fixtureByronWallet ctx
+        sourceWallet <- fixtureLegacyWallet ctx
 
         -- Perform a migration from the source wallet to a target wallet:
         targetWallet <- emptyWallet ctx
@@ -470,9 +472,61 @@ spec = do
                 , expectErrorMessage (errMsg404NoWallet $ tWallet ^. walletId)
                 ]
 
+        it "Icarus -> Icarus" $ \ctx -> do
+            sWallet <- fixtureIcarusWallet ctx
+            tWallet <- emptyIcarusWallet ctx
+
+            r <- request @[ApiTransaction n] ctx
+                (migrateByronWalletEp sWallet tWallet )
+                Default
+                (Json [json|{ "passphrase": #{fixturePassphrase} }|])
+            verify r
+                [ expectResponseCode @IO HTTP.status404
+                , expectErrorMessage (errMsg404NoWallet $ tWallet ^. walletId)
+                ]
+
+        it "Icarus -> Byron" $ \ctx -> do
+            sWallet <- fixtureIcarusWallet ctx
+            tWallet <- emptyByronWallet ctx
+
+            r <- request @[ApiTransaction n] ctx
+                (migrateByronWalletEp sWallet tWallet )
+                Default
+                (Json [json|{ "passphrase": #{fixturePassphrase} }|])
+            verify r
+                [ expectResponseCode @IO HTTP.status404
+                , expectErrorMessage (errMsg404NoWallet $ tWallet ^. walletId)
+                ]
+
+        it "Byron -> Icarus" $ \ctx -> do
+            sWallet <- fixtureByronWallet ctx
+            tWallet <- emptyIcarusWallet ctx
+
+            r <- request @[ApiTransaction n] ctx
+                (migrateByronWalletEp sWallet tWallet )
+                Default
+                (Json [json|{ "passphrase": #{fixturePassphrase} }|])
+            verify r
+                [ expectResponseCode @IO HTTP.status404
+                , expectErrorMessage (errMsg404NoWallet $ tWallet ^. walletId)
+                ]
+
         it "Shelley -> Byron" $ \ctx -> do
             sWallet <- fixtureWallet ctx
             tWallet <- emptyByronWallet ctx
+
+            r <- request @[ApiTransaction n] ctx
+                (migrateByronWalletEp sWallet tWallet )
+                Default
+                (Json [json|{ "passphrase": #{fixturePassphrase} }|])
+            verify r
+                [ expectResponseCode @IO HTTP.status404
+                , expectErrorMessage (errMsg404NoWallet $ sWallet ^. walletId)
+                ]
+
+        it "Shelley -> Icarus" $ \ctx -> do
+            sWallet <- fixtureWallet ctx
+            tWallet <- emptyIcarusWallet ctx
 
             r <- request @[ApiTransaction n] ctx
                 (migrateByronWalletEp sWallet tWallet )
@@ -910,14 +964,14 @@ spec = do
             r <- request @ApiByronWallet ctx postByronWalletEp Default payload
             expectResponseCode @IO HTTP.status400 r
             expectErrorMessage
-                "Invalid number of words: 12 words are expected" r
+                "Invalid number of words: 12 or 15 words are expected" r
 
     describe "BYRON_RESTORE_05 - Faulty mnemonics" $ do
         let matrix =
              [ ( "[] as mnemonic_sentence -> fail", []
                , [ expectResponseCode @IO HTTP.status400
                  , expectErrorMessage
-                    "Invalid number of words: 12 words are expected"
+                    "Invalid number of words: 12 or 15 words are expected"
                  ]
                )
              , ( "specMnemonicSentence -> fail", specMnemonicByron
@@ -1125,8 +1179,7 @@ spec = do
 
 incorrectSizeMnemonics :: [ [ Text ] ]
 incorrectSizeMnemonics =
-        [ mnemonics15
-        , mnemonics18
+        [ mnemonics18
         , mnemonics21
         , mnemonics24
         , mnemonics3
