@@ -474,5 +474,5 @@ errMsg500 = "That's embarrassing. It looks like I've created an invalid\
     \ output with no credited value"
 
 errMsgNotInDictionary :: String
-errMsgNotInDictionary = "Found invalid (ie., not present in https://github\
-    \.com/bitcoin/bips/blob/master/bip-0039/english.txt) word:"
+errMsgNotInDictionary = "Found an unknown word not present in the pre-defined\
+    \ dictionary:"

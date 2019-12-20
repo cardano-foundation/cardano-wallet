@@ -345,7 +345,10 @@ spec = do
                )
              , ( "invalid mnemonics -> fail", notInDictMnemonics15
                , [ expectResponseCode @IO HTTP.status400
-                 , expectErrorMessage (errMsgNotInDictionary <> " 'four'.")
+                 , expectErrorMessage (errMsgNotInDictionary <> " 'four'. The \
+                       \full dictionary is available here: https://github.com/\
+                       \input-output-hk/cardano-wallet/tree/master/specificati\
+                       \ons/mnemonic/english.txt")
                  ]
                )
              , ( "Japanese mnemonics -> fail", japaneseMnemonics15

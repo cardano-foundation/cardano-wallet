@@ -460,9 +460,10 @@ instance
                 <> show (natVal (Proxy :: Proxy mw))
                 <> " words are expected."
             ErrDictionary (ErrInvalidDictionaryWord w) ->
-                "Found invalid (ie., not present in https://github.com/bitcoin\
-                \/bips/blob/master/bip-0039/english.txt) word: \"" <> B.toList w
-                <> "\"."
+                "Found an unknown word not present in the pre-defined dictionary\
+                \: \"" <> B.toList w <> "\". The full dictionary is available \
+                \here: https://github.com/input-output-hk/cardano-wallet/tree/m\
+                \aster/specifications/mnemonic/english.txt"
             ErrEntropy ErrInvalidEntropyChecksum{} ->
                 "Invalid entropy checksum: please double-check the last word of \
                 \your mnemonic sentence."
