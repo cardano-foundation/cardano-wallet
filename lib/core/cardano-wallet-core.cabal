@@ -244,6 +244,7 @@ test-suite unit
       Cardano.Wallet.Network.PortsSpec
       Cardano.Wallet.NetworkSpec
       Cardano.Wallet.Primitive.AddressDerivation.ByronSpec
+      Cardano.Wallet.Primitive.AddressDerivation.IcarusSpec
       Cardano.Wallet.Primitive.AddressDerivation.ShelleySpec
       Cardano.Wallet.Primitive.AddressDerivationSpec
       Cardano.Wallet.Primitive.AddressDiscovery.RandomSpec

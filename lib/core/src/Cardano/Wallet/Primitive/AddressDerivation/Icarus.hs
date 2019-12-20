@@ -27,6 +27,7 @@ module Cardano.Wallet.Primitive.AddressDerivation.Icarus
     -- * Generation and derivation
     , generateKeyFromSeed
     , unsafeGenerateKeyFromSeed
+    , minSeedLengthBytes
     ) where
 
 import Prelude
