@@ -26,8 +26,9 @@ import GHC.TypeLits
 
 -- | An opaque 'Faucet' type from which one can get a wallet with funds
 data Faucet = Faucet
-    { sequential :: MVar [Mnemonic 15]
-    , random :: MVar [Mnemonic 12]
+    { shelley :: MVar [Mnemonic 15]
+    , icarus :: MVar [Mnemonic 15]
+    , byron :: MVar [Mnemonic 12]
     , txBuilder :: MVar [(Address, Coin) -> IO ByteString]
     }
 
@@ -35,7 +36,7 @@ data Faucet = Faucet
 -- private key that is owned "externally". Returns a bytes string ready to be
 -- sent to a node.
 nextTxBuilder :: Faucet -> IO ((Address, Coin) -> IO ByteString)
-nextTxBuilder (Faucet _ _ mvar) =
+nextTxBuilder (Faucet _ _ _ mvar) =
     takeMVar mvar >>= \case
         [] -> fail "nextTxBuilder: Awe crap! No more faucet tx builder available!"
         (h:q) -> h <$ putMVar mvar q
@@ -46,16 +47,23 @@ class NextWallet (scheme :: Symbol) where
     type MnemonicSize scheme :: Nat
     nextWallet :: Faucet -> IO (Mnemonic (MnemonicSize scheme))
 
-instance NextWallet "seq" where
-    type MnemonicSize "seq" = 15
-    nextWallet (Faucet mvar _ _) = do
+instance NextWallet "shelley" where
+    type MnemonicSize "shelley" = 15
+    nextWallet (Faucet mvar _ _ _) = do
         takeMVar mvar >>= \case
-            [] -> fail "nextWallet: Awe crap! No more faucet seq wallet available!"
+            [] -> fail "nextWallet: Awe crap! No more faucet shelley wallet available!"
             (h:q) -> h <$ putMVar mvar q
 
-instance NextWallet "rnd" where
-    type MnemonicSize "rnd" = 12
-    nextWallet (Faucet _ mvar _) = do
+instance NextWallet "icarus" where
+    type MnemonicSize "icarus" = 15
+    nextWallet (Faucet _ mvar _ _) = do
         takeMVar mvar >>= \case
-            [] -> fail "nextWallet: Awe crap! No more faucet rnd wallet available!"
+            [] -> fail "nextWallet: Awe crap! No more faucet icarus wallet available!"
+            (h:q) -> h <$ putMVar mvar q
+
+instance NextWallet "byron" where
+    type MnemonicSize "byron" = 12
+    nextWallet (Faucet _ _ mvar _) = do
+        takeMVar mvar >>= \case
+            [] -> fail "nextWallet: Awe crap! No more faucet byron wallet available!"
             (h:q) -> h <$ putMVar mvar q
