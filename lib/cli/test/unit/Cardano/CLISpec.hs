@@ -476,6 +476,12 @@ spec = do
             requireFilePath fp
             fileConfig <- getCG . fst . snd <$> initTracer (Just fp) Debug
             compareCfgs defaultConfig fileConfig
+        it "default setting" $ do
+            defaultConfig <- getCG . fst . snd <$> initTracer Nothing Debug
+            let fp = "../../specifications/logging/default.yaml"
+            requireFilePath fp
+            fileConfig <- getCG . fst . snd <$> initTracer (Just fp) Debug
+            compareCfgs defaultConfig fileConfig
   where
     backspace :: Text
     backspace = T.singleton (toEnum 127)

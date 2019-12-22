@@ -1,5 +1,4 @@
-# this is a default logging configuration of iohk-monitoring-framework
-# when initialized with defaultConfigStdout
+# this is a default logging configuration of cli
 
 # global filter; messages must have at least this severity to pass:
 minSeverity: Debug
@@ -23,7 +22,7 @@ defaultScribes:
 #hasPrometheus:
 
 # these backends are initialized:
-setupBackends: [KatipBK]
+setupBackends: [AggregationBK, KatipBK]
 
 # if not indicated otherwise, then messages are passed to these backends:
 defaultBackends:

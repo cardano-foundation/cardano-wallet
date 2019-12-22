@@ -88,6 +88,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
             (hsPkgs."filepath" or (buildDepError "filepath"))
             (hsPkgs."hspec" or (buildDepError "hspec"))
+            (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
             (hsPkgs."memory" or (buildDepError "memory"))
             (hsPkgs."optparse-applicative" or (buildDepError "optparse-applicative"))
             (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
