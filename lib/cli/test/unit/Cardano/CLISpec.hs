@@ -11,6 +11,12 @@ module Cardano.CLISpec
 
 import Prelude
 
+import Cardano.BM.Configuration.Model
+    ( Configuration (..) )
+import Cardano.BM.Configuration.Static
+    ( defaultConfigStdout )
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
 import Cardano.CLI
     ( MnemonicSize (..)
     , Port (..)
@@ -24,13 +30,15 @@ import Cardano.CLI
     , cmdWallet
     , hGetLine
     , hGetSensitiveLine
+    , initTracer
+    , requireFilePath
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Control.Concurrent
     ( forkFinally )
 import Control.Concurrent.MVar
-    ( newEmptyMVar, putMVar, takeMVar )
+    ( newEmptyMVar, putMVar, readMVar, takeMVar )
 import Control.Monad
     ( mapM_ )
 import Data.Proxy
@@ -461,9 +469,20 @@ spec = do
             , expectedStdout = "Prompt: ******\ESC[1D \ESC[1D\ESC[1D \ESC[1D**\n"
             , expectedResult = "pata14" :: Text
             }
+    describe "initTracer" $ do
+        it "no settings" $ do
+            defaultConfig <- getCG <$> defaultConfigStdout
+            let fp = "../../specifications/logging/empty.yaml"
+            requireFilePath fp
+            fileConfig <- getCG . fst . snd <$> initTracer (Just fp) Debug
+            compareCfgs defaultConfig fileConfig
   where
     backspace :: Text
     backspace = T.singleton (toEnum 127)
+    compareCfgs cfg1 cfg2 = do
+        cfgI1 <- readMVar cfg1
+        cfgI2 <- readMVar cfg2
+        cfgI1 `shouldBe` cfgI2
 
 {-------------------------------------------------------------------------------
                                 hGetSensitiveLine

@@ -58,6 +58,7 @@ module Cardano.CLI
     , withLogging
     , verbosityToArgs
     , verbosityToMinSeverity
+    , initTracer
 
     -- * ANSI Terminal Helpers
     , putErrLn
