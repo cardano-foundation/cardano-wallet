@@ -447,7 +447,7 @@ server byron icarus shelley spl =
     wallets :: Server Wallets
     wallets = deleteWallet shelley
         :<|> (fmap fst . getWallet shelley mkShelleyWallet)
-        :<|> listWallets shelley mkShelleyWallet
+        :<|> (fmap fst <$> listWallets shelley mkShelleyWallet)
         :<|> postShelleyWallet shelley
         :<|> putWallet shelley mkShelleyWallet
         :<|> putWalletPassphrase shelley
@@ -482,7 +482,7 @@ server byron icarus shelley spl =
                 (byron , fst <$> getWallet byron  mkLegacyWallet wid)
                 (icarus, fst <$> getWallet icarus mkLegacyWallet wid)
              )
-        :<|> liftA2 (++)
+        :<|> liftA2 (\xs ys -> fmap fst $ sortOn snd $ xs ++ ys)
             (listWallets byron  mkLegacyWallet)
             (listWallets icarus mkLegacyWallet)
 
@@ -752,10 +752,10 @@ listWallets
         )
     => ctx
     -> MkApiWallet ctx s apiWallet
-    -> Handler [apiWallet]
+    -> Handler [(apiWallet, UTCTime)]
 listWallets ctx mkApiWallet = do
     wids <- liftIO $ Registry.keys re
-    fmap fst . sortOn snd <$> mapM (getWallet ctx mkApiWallet) (ApiT <$> wids)
+    sortOn snd <$> mapM (getWallet ctx mkApiWallet) (ApiT <$> wids)
   where
     re = ctx ^. workerRegistry @s @k
 
