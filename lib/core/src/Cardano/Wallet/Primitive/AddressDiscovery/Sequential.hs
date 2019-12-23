@@ -34,6 +34,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , defaultAddressPoolGap
     , getAddressPoolGap
     , mkAddressPoolGap
+    , mkUnboundedAddressPoolGap
 
     -- ** Address Pool
     , AddressPool
@@ -43,6 +44,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , accountPubKey
     , mkAddressPool
     , lookupAddress
+    , shrinkPool
 
     -- * Pending Change Indexes
     , PendingIxs
@@ -110,7 +112,7 @@ import Data.Text.Read
 import Data.Typeable
     ( Typeable, typeRep )
 import Data.Word
-    ( Word8 )
+    ( Word32 )
 import Fmt
     ( Buildable (..), blockListF', hexF, indentF, prefixF, suffixF )
 import GHC.Generics
@@ -120,6 +122,7 @@ import GHC.Stack
 
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 import qualified Data.Text as T
 
 {-------------------------------------------------------------------------------
@@ -128,7 +131,7 @@ import qualified Data.Text as T
 
 -- | Maximum number of consecutive undiscovered addresses allowed
 newtype AddressPoolGap = AddressPoolGap
-    { getAddressPoolGap :: Word8 }
+    { getAddressPoolGap :: Word32 }
     deriving stock (Generic, Show, Eq, Ord)
 
 instance NFData AddressPoolGap
@@ -171,6 +174,16 @@ mkAddressPoolGap !g
         Right $ AddressPoolGap (fromIntegral g)
     | otherwise =
         Left $ ErrGapOutOfRange g
+
+-- | Constructor which allows by-passing the address pool gap boundary
+-- limitations.
+-- A practical use-case for this are sequential wallets for which we don't have
+-- access to the whole history which therefore require using arbitrary big gaps
+-- in order to discover addresses with indexes separated by possible huge gaps.
+--
+-- This defies a bit the purpose of this type though.
+mkUnboundedAddressPoolGap :: Word32 -> AddressPoolGap
+mkUnboundedAddressPoolGap = AddressPoolGap
 
 -- | Possible errors when casting to an 'AddressPoolGap'
 newtype MkAddressPoolGapError = ErrGapOutOfRange Integer
@@ -292,6 +305,50 @@ mkAddressPool key g addrs = AddressPool
                 [minBound..maxBound]
             )
     }
+
+-- When discovering sequential wallets from a snapshot, we have to use
+-- arbitrarily big pools for scanning the genesis block. However, keeping such
+-- big pools with huge gaps makes for poor storage, memory and time performances.
+-- So, once the genesis block has been scanned, we try to shrink the pool back
+-- to something sensible.
+shrinkPool
+    :: forall c key.
+        ( Typeable c
+        , MkKeyFingerprint key Address
+        , MkKeyFingerprint key (key 'AddressK XPub)
+        , SoftDerivation key
+        )
+    => (KeyFingerprint "payment" key -> Address)
+        -- ^ A way to lift fingerprint back into an 'Address'
+    -> [Address]
+        -- ^ A set of known addresses. Will shrink the pool down to the latest
+        -- known address from this list, while respecting the new gap.
+    -> AddressPoolGap
+        -- ^ A new address pool gap for this pool
+    -> AddressPool c key
+        -- ^ Original pool
+    -> AddressPool c key
+shrinkPool mkAddress knownAddrs newGap pool =
+    let
+        keys  = indexedKeys pool
+        maxV  = maximumValue (unsafePaymentKeyFingerprint <$> knownAddrs) keys
+        addrs = map (mkAddress . fst)
+            . L.sortOn snd
+            . Map.toList
+            . Map.filter (\v -> Just v <= maxV)
+            $ keys
+    in
+        mkAddressPool (accountPubKey pool) newGap addrs
+  where
+    maximumValue
+        :: (Ord k, Ord v)
+        => [k]
+        -> Map k v
+        -> Maybe v
+    maximumValue ks =
+        Map.foldl' keepHighest Nothing . (`Map.restrictKeys` (Set.fromList ks))
+      where
+        keepHighest highest v = if Just v > highest then Just v else highest
 
 -- | Lookup an address in the pool. When we find an address in a pool, the pool
 -- may be amended if the address was discovered near the edge. It is also

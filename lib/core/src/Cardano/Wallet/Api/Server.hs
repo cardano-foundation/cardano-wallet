@@ -71,9 +71,7 @@ import Cardano.Wallet
     , ErrWalletAlreadyExists (..)
     , ErrWithRootKey (..)
     , ErrWrongPassphrase (..)
-    , HasGenesisData
     , HasLogger
-    , HasNetworkLayer
     , genesisData
     , networkLayer
     )
@@ -153,7 +151,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( IsOurs, IsOwned )
+    ( IsOwned )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState, mkRndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -167,7 +165,6 @@ import Cardano.Wallet.Primitive.Types
     , AddressState
     , Block
     , BlockchainParameters
-    , ChimericAccount (..)
     , Coin (..)
     , Hash (..)
     , HistogramBar (..)
@@ -184,7 +181,6 @@ import Cardano.Wallet.Primitive.Types
     , UnsignedTx (..)
     , WalletId (..)
     , WalletMetadata (..)
-    , WalletName
     , slotAt
     , slotMinBound
     , syncProgressRelativeToTime
@@ -549,7 +545,9 @@ postShelleyWallet
     -> Handler ApiWallet
 postShelleyWallet ctx body = do
     let state = mkSeqState (rootXPrv, pwd) g
-    void $ liftHandler $ createWallet @_ @s @t @k ctx wid wName state
+    void $ liftHandler $ initWorker @_ @s @k ctx wid
+        (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
+        (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @t @k wrk wid)
     liftHandler $ withWorkerCtx @_ @s @k ctx wid throwE $ \wrk ->
         W.attachPrivateKey @_ @s @k wrk wid (rootXPrv, pwd)
     fst <$> getWallet ctx (mkShelleyWallet @_ @s @t @k) (ApiT wid)
@@ -618,13 +616,15 @@ postByronWallet
     -> Handler ApiByronWallet
 postByronWallet ctx body = do
     state <- liftIO $ mkRndState rootXPrv <$> getStdRandom random
-    void $ liftHandler $ createWallet @_ @_ @t ctx wid name state
+    void $ liftHandler $ initWorker @_ @s @k ctx wid
+        (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
+        (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @t @k wrk wid)
     liftHandler $ withWorkerCtx ctx wid throwE $ \wrk ->
         W.attachPrivateKey wrk wid (rootXPrv, passphrase)
     fst <$> getWallet ctx mkLegacyWallet (ApiT wid)
   where
     mnemonicSentence = getApiMnemonicT (body ^. #mnemonicSentence)
-    name = getApiT (body ^. #name)
+    wName = getApiT (body ^. #name)
     passphrase = getApiT (body ^. #passphrase)
     rootXPrv = Rnd.generateKeyFromSeed mnemonicSentence passphrase
     wid = WalletId $ digest $ publicKey rootXPrv
@@ -641,8 +641,9 @@ postIcarusWallet
     -> ByronWalletPostData
     -> Handler ApiByronWallet
 postIcarusWallet ctx body = do
-    let state = mkSeqState (rootXPrv, pwd) defaultAddressPoolGap
-    void $ liftHandler $ createWallet @_ @s @t @k ctx wid wName state
+    void $ liftHandler $ initWorker @_ @s @k ctx wid
+        (\wrk -> W.createIcarusWallet  @(WorkerCtx ctx) @s @k wrk wid wName creds)
+        (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @t @k wrk wid)
     liftHandler $ withWorkerCtx @_ @s @k ctx wid throwE $ \wrk ->
         W.attachPrivateKey @_ @s @k wrk wid (rootXPrv, pwd)
     fst <$> getWallet ctx mkLegacyWallet (ApiT wid)
@@ -650,6 +651,7 @@ postIcarusWallet ctx body = do
     seed = getApiMnemonicT (body ^. #mnemonicSentence)
     pwd = getApiT (body ^. #passphrase)
     rootXPrv = Ica.generateKeyFromSeed seed pwd
+    creds = (rootXPrv, pwd)
     wid = WalletId $ digest $ publicKey rootXPrv
     wName = getApiT (body ^. #name)
 
@@ -1219,25 +1221,22 @@ postExternalTransaction ctx (PostExternalTransactionData load) = do
 -------------------------------------------------------------------------------}
 
 -- | see 'Cardano.Wallet#createWallet'
-createWallet
-    :: forall ctx s t k.
+initWorker
+    :: forall ctx s k.
         ( HasWorkerRegistry s k ctx
         , HasDBFactory s k ctx
         , HasLogger ctx
-        , HasGenesisData (WorkerCtx ctx)
-        , HasNetworkLayer t (WorkerCtx ctx)
-        , HasLogger (WorkerCtx ctx)
-        , Show s
-        , NFData s
-        , IsOurs s Address
-        , IsOurs s ChimericAccount
         )
     => ctx
+        -- ^ Surrounding API context
     -> WalletId
-    -> WalletName
-    -> s
+        -- ^ Wallet Id
+    -> (WorkerCtx ctx -> ExceptT ErrWalletAlreadyExists IO WalletId)
+        -- ^ Create action
+    -> (WorkerCtx ctx -> ExceptT ErrNoSuchWallet IO ())
+        -- ^ Restore action
     -> ExceptT ErrCreateWallet IO WalletId
-createWallet ctx wid a0 a1 =
+initWorker ctx wid createWallet restoreWallet =
     liftIO (Registry.lookup re wid) >>= \case
         Just _ ->
             throwE $ ErrCreateWalletAlreadyExists $ ErrWalletAlreadyExists wid
@@ -1252,14 +1251,12 @@ createWallet ctx wid a0 a1 =
         { workerBefore = \ctx' _ -> do
             -- FIXME:
             -- Review error handling here
-            void $ unsafeRunExceptT $
-                W.createWallet @(WorkerCtx ctx) @s @k ctx' wid a0 a1
+            void $ unsafeRunExceptT $ createWallet ctx'
 
         , workerMain = \ctx' _ -> do
             -- FIXME:
             -- Review error handling here
-            unsafeRunExceptT $
-                W.restoreWallet @(WorkerCtx ctx) @s @t @k ctx' wid
+            unsafeRunExceptT $ restoreWallet ctx'
 
         , workerAfter =
             defaultWorkerAfter

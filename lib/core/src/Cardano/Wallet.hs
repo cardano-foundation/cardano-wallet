@@ -64,6 +64,7 @@ module Cardano.Wallet
     -- * Interface
     -- ** Wallet
     , createWallet
+    , createIcarusWallet
     , attachPrivateKey
     , listUtxoStatistics
     , readWallet
@@ -159,6 +160,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , HardDerivation (..)
     , MkKeyFingerprint (..)
     , Passphrase
+    , PaymentAddress (..)
     , WalletKey (..)
     , XPrv
     , checkPassphrase
@@ -166,6 +168,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , encryptPassphrase
     , toChimericAccount
     )
+import Cardano.Wallet.Primitive.AddressDerivation.Icarus
+    ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
@@ -173,6 +177,13 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , IsOurs (..)
     , IsOwned (..)
     , KnownAddresses (..)
+    )
+import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+    ( SeqState (..)
+    , defaultAddressPoolGap
+    , mkSeqState
+    , mkUnboundedAddressPoolGap
+    , shrinkPool
     )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..), CoinSelectionOptions (..), ErrCoinSelection (..) )
@@ -458,6 +469,48 @@ createWallet ctx wid wname s = db & \DBLayer{..} -> do
             }
     mapExceptT atomically $
         initializeWallet (PrimaryKey wid) cp meta hist $> wid
+  where
+    db = ctx ^. dbLayer @s @k
+    (block0, bp, _) = ctx ^. genesisData
+
+-- | Initialise and store a new legacy Icarus wallet. These wallets are
+-- intrinsically sequential, but, in the incentivized testnet, we only have
+-- access to the a snapshot of the MainNet.
+--
+-- To work-around this, we scan the genesis block with an arbitrary big gap and
+-- resort to a default gap afterwards.
+createIcarusWallet
+    :: forall ctx s k n.
+        ( HasGenesisData ctx
+        , HasDBLayer s k ctx
+        , PaymentAddress n k
+        , k ~ IcarusKey
+        , s ~ SeqState n k
+        )
+    => ctx
+    -> WalletId
+    -> WalletName
+    -> (k 'RootK XPrv, Passphrase "encryption")
+    -> ExceptT ErrWalletAlreadyExists IO WalletId
+createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
+    let s = mkSeqState credentials (mkUnboundedAddressPoolGap 10000)
+    let (hist, cp) = initWallet block0 bp s
+    let addrs = map address . concatMap (view #outputs . fst) $ hist
+    let g  = defaultAddressPoolGap
+    let s' = SeqState
+            (shrinkPool (liftPaymentAddress @n) addrs g (internalPool s))
+            (shrinkPool (liftPaymentAddress @n) addrs g (externalPool s))
+            (pendingChangeIxs s)
+            (rewardAccountKey s)
+    now <- lift getCurrentTime
+    let meta = WalletMetadata
+            { name = wname
+            , creationTime = now
+            , passphraseInfo = Nothing
+            , delegation = NotDelegating
+            }
+    mapExceptT atomically $
+        initializeWallet (PrimaryKey wid) (updateState s' cp) meta hist $> wid
   where
     db = ctx ^. dbLayer @s @k
     (block0, bp, _) = ctx ^. genesisData
