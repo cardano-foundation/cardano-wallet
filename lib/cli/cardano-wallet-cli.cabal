@@ -44,7 +44,6 @@ library
     , iohk-monitoring
     , servant-client
     , servant-client-core
-    , servant-server
     , text
     , text-class
     , optparse-applicative
@@ -68,12 +67,10 @@ test-suite unit
       -Werror
   build-depends:
       base
-    , cardano-crypto
     , cardano-wallet-cli
     , cardano-wallet-core
     , filepath
     , hspec
-    , memory
     , optparse-applicative
     , QuickCheck
     , temporary

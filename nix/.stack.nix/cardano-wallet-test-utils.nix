@@ -68,7 +68,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."hspec-core" or (buildDepError "hspec-core"))
           (hsPkgs."hspec-expectations" or (buildDepError "hspec-expectations"))
           (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
-          (hsPkgs."network" or (buildDepError "network"))
           (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
           (hsPkgs."stm" or (buildDepError "stm"))
           (hsPkgs."template-haskell" or (buildDepError "template-haskell"))

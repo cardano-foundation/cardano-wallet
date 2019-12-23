@@ -42,7 +42,6 @@ library
     , directory
     , exceptions
     , extra
-    , filepath
     , generic-lens
     , hspec
     , hspec-expectations-lifted
@@ -53,7 +52,6 @@ library
     , retry
     , time
     , template-haskell
-    , temporary
     , text
     , text-class
     , time
