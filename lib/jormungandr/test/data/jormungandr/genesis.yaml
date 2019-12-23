@@ -9279,6 +9279,42 @@ initial:
       - address: Ae2tdPwUPEZ2S6AbCeAHSLF87HNdT7JQN9NGBg26SYHfMEPDYLZyTAZnKpr
         value: 100000000000
 
+  # Special High Indexes Icarus Wallet
+  #
+  # Address indexes below are #501, #502, ..., #510
+  #
+  # "erosion", "ahead", "vibrant", "air", "day", "timber", "thunder", "general", "dice", "into", "chest", "enrich", "social", "neck", "shine"
+  - legacy_fund:
+      - address: Ae2tdPwUPEZB1rJ7Hgrvywn8zETWcv95csnqZ8UhxM74CrQ48VeEq3vjAai
+        value: 100000000000
+  - legacy_fund:
+      - address: Ae2tdPwUPEZLDsoZbe9FKwsCDhRQhGUxkGvrMH17Go3EtGNSMp6AutniqQh
+        value: 100000000000
+  - legacy_fund:
+      - address: Ae2tdPwUPEZLBfW9r9E6XcfZq9WsPJ1ufE9txTvMYUu8kLtwTAbEZdncEMc
+        value: 100000000000
+  - legacy_fund:
+      - address: Ae2tdPwUPEZ55N1WJFJSQbFuKbKGdbFZRVTS3PyNJ84VGZiecuqy8PAZfLE
+        value: 100000000000
+  - legacy_fund:
+      - address: Ae2tdPwUPEZBShWX3hTsErG1Fx9YRM85aNcqiMZ6VFn8TNA1ocgUddTC5qT
+        value: 100000000000
+  - legacy_fund:
+      - address: Ae2tdPwUPEZ8kzoviC5H9y39rb6mykNhiZqTz592zPFUb8TGU9mBa6ycrbo
+        value: 100000000000
+  - legacy_fund:
+      - address: Ae2tdPwUPEZJSoRXrbFXYaJEnZcBaBj137JWAzgG366H1oxupQPVd5daCFd
+        value: 100000000000
+  - legacy_fund:
+      - address: Ae2tdPwUPEZ8g2f5hJUnMGmro3dpwW9DfQSDpNfLk5tfE7hxZKtNzwwTHgc
+        value: 100000000000
+  - legacy_fund:
+      - address: Ae2tdPwUPEZFux7F1Cthr49tWitNF2vqwEL3A9R4cgvKFDSFkzGBBKv1a6W
+        value: 100000000000
+  - legacy_fund:
+      - address: Ae2tdPwUPEZFbUA2eji7qzph7Mug3v9HVSWvhSExvUDez3CzKB1grupYBAL
+        value: 100000000000
+
   # Funds & certificates for a single stake pool.
   # https://input-output-hk.github.io/jormungandr/advanced/03_starting_genesis_praos_blockchain.html
   #

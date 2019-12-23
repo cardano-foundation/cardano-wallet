@@ -11,7 +11,7 @@
   <a href="https://buildkite.com/input-output-hk/cardano-wallet"><img src="https://img.shields.io/buildkite/7ea3dac7a16f066d8dfc8f426a9a9f7a2131e899cd96c444cf/master?label=BUILD&style=for-the-badge"/></a>
   <a href="https://buildkite.com/input-output-hk/cardano-wallet-nightly"><img src="https://img.shields.io/buildkite/59ea9363b8526e867005ca8839db47715bc5f661f36e490143/master?label=BENCHMARK&style=for-the-badge" /></a>
   <a href="https://travis-ci.org/input-output-hk/cardano-wallet"><img src="https://img.shields.io/travis/input-output-hk/cardano-wallet.svg?label=DOCS&style=for-the-badge" /></a>
-  <!-- 
+  <!--
   <a href="https://coveralls.io/github/input-output-hk/cardano-wallet?branch=HEAD"><img src="https://img.shields.io/coveralls/github/input-output-hk/cardano-wallet/HEAD?style=for-the-badge" /></a>
   -->
 </p>
@@ -44,10 +44,10 @@ repository.
 See **Installation Instructions** for each available [release](https://github.com/input-output-hk/cardano-wallet/releases).
 
 > ### Latest releases
-> 
+>
 > | cardano-wallet                                                                            | Jörmungandr (compatible versions)                                                    |
 > | ---                                                                                       | ---                                                                                  |
-> | `master` branch                                                                           | [v0.8.5-alpha1](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.5-alpha1)         |
+> | `master` branch                                                                           | [v0.8.5](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.5)         |
 > | [v2019-12-16](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2019-12-16) | [v0.8.1](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.1)         |
 > | [v2019-12-13](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2019-12-13) | [v0.8.1](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.1)         |
 > | [v2019-12-09](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2019-12-09) | [v0.8.0-rc8](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.0-rc8) |

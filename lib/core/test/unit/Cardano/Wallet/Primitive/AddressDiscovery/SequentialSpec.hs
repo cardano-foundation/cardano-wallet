@@ -61,6 +61,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , mkAddressPool
     , mkAddressPoolGap
     , mkSeqState
+    , shrinkPool
     )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), ShowFmt (..) )
@@ -88,11 +89,13 @@ import Test.Hspec
     ( Spec, describe, expectationFailure, it )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Positive (..)
     , Property
     , arbitraryBoundedEnum
     , arbitraryBoundedEnum
     , checkCoverage
     , choose
+    , classify
     , conjoin
     , counterexample
     , cover
@@ -115,7 +118,6 @@ import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
-
 
 spec :: Spec
 spec = do
@@ -153,6 +155,10 @@ spec = do
                     (property (prop_poolAtLeastGapAddresses (proxyS, proxyK)))
                 it "Our addresses are eventually discovered"
                     (property (prop_poolEventuallyDiscoverOurs (proxyS, proxyK)))
+                it "Known addresses are still in a shrunk pool"
+                    (property (prop_shrinkPreserveKnown (proxyS, proxyK)))
+                it "Last address from a shrunk is the last known"
+                    (property (prop_shrinkMaxIndex (proxyS, proxyK)))
 
     describe "AddressPoolGap - Text Roundtrip" $ do
         textRoundtrip $ Proxy @AddressPoolGap
@@ -449,6 +455,55 @@ prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) =
         counterexample
             (show (ShowFmt addr) <> " not in " <> show (ShowFmt <$> addrs))
             (property (addr `elem` addrs))
+
+{-------------------------------------------------------------------------------
+                        Properties for shrinkPool
+-------------------------------------------------------------------------------}
+
+-- Make sure that, for any cut we take from an existing pool, the addresses
+-- from the cut are all necessarily in the pool.
+prop_shrinkPreserveKnown
+    :: forall (chain :: AccountingStyle) k.
+        ( Typeable chain
+        , MkKeyFingerprint k (k 'AddressK XPub)
+        , MkKeyFingerprint k Address
+        , SoftDerivation k
+        , AddressPoolTest k
+        )
+    => (Proxy chain, Proxy k)
+    -> Positive Int
+    -> AddressPool chain k
+    -> Property
+prop_shrinkPreserveKnown _proxy (Positive size) pool =
+    property
+        $ classify (length addrs' < length addrs) "pool is smaller"
+        $ all (`elem` addrs') cut
+  where
+    pool'  = shrinkPool liftAddress cut minBound pool
+    addrs  = addresses  liftAddress pool
+    addrs' = addresses  liftAddress pool'
+    cut    = take size addrs
+
+-- There's no address after the address from the cut with the highest index
+prop_shrinkMaxIndex
+    :: forall (chain :: AccountingStyle) k.
+        ( Typeable chain
+        , MkKeyFingerprint k (k 'AddressK XPub)
+        , MkKeyFingerprint k Address
+        , SoftDerivation k
+        , AddressPoolTest k
+        )
+    => (Proxy chain, Proxy k)
+    -> Positive Int
+    -> AddressPool chain k
+    -> Property
+prop_shrinkMaxIndex _proxy (Positive size) pool =
+    fromIntegral size > getAddressPoolGap minBound ==> last cut === last addrs'
+  where
+    pool'  = shrinkPool liftAddress cut minBound pool
+    addrs  = addresses  liftAddress pool
+    addrs' = addresses  liftAddress pool'
+    cut    = take size addrs
 
 {-------------------------------------------------------------------------------
                                  Helpers
