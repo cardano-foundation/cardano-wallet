@@ -92,23 +92,15 @@ import Cardano.BM.Setup
     ( setupTrace_, shutdown )
 import Cardano.BM.Trace
     ( Trace, logAlert, logDebug, logInfo )
-import Cardano.Wallet.Api
-    ( Api )
+import Cardano.Wallet.Api.Client
+    ( WalletClient (..), walletClient )
 import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..) )
 import Cardano.Wallet.Api.Types
     ( AddressAmount
-    , ApiAddress
-    , ApiFee
     , ApiMnemonicT (..)
-    , ApiNetworkInformation
-    , ApiStakePool
     , ApiT (..)
-    , ApiTransaction
     , ApiTxId (..)
-    , ApiUtxoStatistics
-    , ApiWallet
-    , ApiWalletPassphrase
     , DecodeAddress
     , EncodeAddress
     , Iso8601Time (..)
@@ -135,14 +127,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState
-    , Hash
-    , PoolId
-    , SortOrder
-    , SyncTolerance (..)
-    , WalletId
-    , WalletName
-    )
+    ( AddressState, Hash, SortOrder, SyncTolerance (..), WalletId, WalletName )
 import Cardano.Wallet.Version
     ( gitRevision, showFullVersion, version )
 import Control.Applicative
@@ -165,8 +150,6 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
     ( fromMaybe )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.String
     ( IsString )
 import Data.Text
@@ -216,10 +199,8 @@ import Options.Applicative
     , subparser
     , value
     )
-import Servant
-    ( (:<|>) (..), (:>), NoContent )
 import Servant.Client
-    ( BaseUrl (..), ClientM, Scheme (..), client, mkClientEnv, runClientM )
+    ( BaseUrl (..), ClientM, Scheme (..), mkClientEnv, runClientM )
 import Servant.Client.Core
     ( ServantError (..), responseBody )
 import System.Console.ANSI
@@ -1024,141 +1005,6 @@ argumentT = argument (eitherReader fromTextS)
 -- | Like 'fromText', but stringly-typed.
 fromTextS :: FromText a => String -> Either String a
 fromTextS = left getTextDecodingError . fromText . T.pack
-
-{-------------------------------------------------------------------------------
-                              Server Interaction
--------------------------------------------------------------------------------}
-
-data WalletClient t = WalletClient
-    { listAddresses
-        :: ApiT WalletId
-        -> Maybe (ApiT AddressState)
-        -> ClientM [ApiAddress t]
-    , deleteWallet
-        :: ApiT WalletId
-        -> ClientM ()
-    , getWallet
-        :: ApiT WalletId
-        -> ClientM ApiWallet
-    , getWalletUtxoStatistics
-        :: ApiT WalletId
-        -> ClientM ApiUtxoStatistics
-    , listWallets
-        :: ClientM [ApiWallet]
-    , postWallet
-        :: WalletPostData
-        -> ClientM ApiWallet
-    , putWallet
-        :: ApiT WalletId
-        -> WalletPutData
-        -> ClientM ApiWallet
-    , putWalletPassphrase
-        :: ApiT WalletId
-        -> WalletPutPassphraseData
-        -> ClientM NoContent
-    , listTransactions
-        :: ApiT WalletId
-        -> Maybe Iso8601Time
-        -> Maybe Iso8601Time
-        -> Maybe (ApiT SortOrder)
-        -> ClientM [ApiTransaction t]
-    , postTransaction
-        :: ApiT WalletId
-        -> PostTransactionData t
-        -> ClientM (ApiTransaction t)
-    , postTransactionFee
-        :: ApiT WalletId
-        -> PostTransactionFeeData t
-        -> ClientM ApiFee
-    , postExternalTransaction
-        :: PostExternalTransactionData
-        -> ClientM ApiTxId
-    , deleteTransaction
-        :: ApiT WalletId
-        -> ApiTxId
-        -> ClientM NoContent
-    , listPools
-        :: ClientM [ApiStakePool]
-    , joinStakePool
-        :: ApiT PoolId
-        -> ApiT WalletId
-        -> ApiWalletPassphrase
-        -> ClientM (ApiTransaction t)
-    , quitStakePool
-        :: ApiT PoolId
-        -> ApiT WalletId
-        -> ApiWalletPassphrase
-        -> ClientM (ApiTransaction t)
-    , networkInformation
-        :: ClientM ApiNetworkInformation
-    }
-
-walletClient :: forall t. (DecodeAddress t, EncodeAddress t) => WalletClient t
-walletClient =
-    let
-        (wallets
-            :<|> addresses
-            :<|> coinSelections
-            :<|> transactions
-            :<|> stakePools
-            :<|> _byronWallets
-            :<|> _byronTransactions
-            :<|> _byronMigrations
-            :<|> network
-            :<|> proxy_) =
-            client (Proxy @("v2" :> (Api t)))
-
-        _deleteWallet
-            :<|> _getWallet
-            :<|> _listWallets
-            :<|> _postWallet
-            :<|> _putWallet
-            :<|> _putWalletPassphrase
-            :<|> _getWalletUtxoStatistics
-            = wallets
-
-        _listAddresses =
-            addresses
-
-        _selectCoins
-            = coinSelections
-
-        _postTransaction
-            :<|> _listTransactions
-            :<|> _postTransactionFee
-            :<|> _deleteTransaction
-            = transactions
-
-        _listPools
-            :<|> _joinStakePool
-            :<|> _quitStakePool
-            :<|> _delegationFee
-            = stakePools
-
-        _networkInformation = network
-
-        _postExternalTransaction
-            = proxy_
-    in
-        WalletClient
-            { listAddresses = _listAddresses
-            , deleteWallet = void . _deleteWallet
-            , getWallet = _getWallet
-            , listWallets = _listWallets
-            , postWallet = _postWallet
-            , putWallet = _putWallet
-            , putWalletPassphrase = _putWalletPassphrase
-            , listTransactions = _listTransactions
-            , postTransaction = _postTransaction
-            , postExternalTransaction = _postExternalTransaction
-            , deleteTransaction = _deleteTransaction
-            , postTransactionFee = _postTransactionFee
-            , getWalletUtxoStatistics = _getWalletUtxoStatistics
-            , listPools = _listPools
-            , joinStakePool = _joinStakePool
-            , quitStakePool = _quitStakePool
-            , networkInformation = _networkInformation
-            }
 
 runClient
     :: forall a. ()

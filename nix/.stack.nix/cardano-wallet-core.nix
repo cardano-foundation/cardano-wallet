@@ -101,6 +101,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."retry" or (buildDepError "retry"))
           (hsPkgs."safe" or (buildDepError "safe"))
           (hsPkgs."servant" or (buildDepError "servant"))
+          (hsPkgs."servant-client" or (buildDepError "servant-client"))
           (hsPkgs."servant-server" or (buildDepError "servant-server"))
           (hsPkgs."split" or (buildDepError "split"))
           (hsPkgs."streaming-commons" or (buildDepError "streaming-commons"))
