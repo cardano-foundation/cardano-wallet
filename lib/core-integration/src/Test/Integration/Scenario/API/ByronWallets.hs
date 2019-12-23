@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE NumericUnderscores #-}
@@ -23,11 +24,19 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Mnemonic
-    ( entropyToMnemonic, genEntropy, mnemonicToText )
+    ( ConsistentEntropy
+    , EntropySize
+    , MnemonicWords
+    , ValidChecksumSize
+    , ValidEntropySize
+    , entropyToMnemonic
+    , genEntropy
+    , mnemonicToText
+    )
 import Cardano.Wallet.Primitive.Types
     ( SyncProgress (..), walletNameMaxLength, walletNameMinLength )
 import Control.Monad
-    ( forM_ )
+    ( forM_, void )
 import Data.Aeson.QQ
     ( aesonQQ )
 import Data.Generics.Internal.VL.Lens
@@ -673,9 +682,9 @@ spec = do
 
     it "BYRON_LIST_01 - Byron Wallets are listed from oldest to newest" $
         \ctx -> do
-            m1 <- genMnemonics
-            m2 <- genMnemonics
-            m3 <- genMnemonics
+            m1 <- genMnemonics @12
+            m2 <- genMnemonics @12
+            m3 <- genMnemonics @12
             _ <- emptyByronWalletWith ctx ("b1", m1, "Secure Passphrase")
             _ <- emptyByronWalletWith ctx ("b2", m2, "Secure Passphrase")
             _ <- emptyByronWalletWith ctx ("b3", m3, "Secure Passphrase")
@@ -689,12 +698,26 @@ spec = do
                 , expectListItemFieldEqual 2 walletName "b3"
                 ]
 
+    it "BYRON_LIST_01 - Interleave of Icarus and Random wallets" $ \ctx -> do
+        let pwd = "Secure Passphrase"
+        genMnemonics @15 >>= \m -> void (emptyByronWalletWith ctx ("ica1", m, pwd))
+        genMnemonics @12 >>= \m -> void (emptyByronWalletWith ctx ("rnd2", m, pwd))
+        genMnemonics @15 >>= \m -> void (emptyByronWalletWith ctx ("ica3", m, pwd))
+        rl <- request @[ApiByronWallet] ctx listByronWalletsEp Default Empty
+        verify rl
+            [ expectResponseCode @IO HTTP.status200
+            , expectListSizeEqual 3
+            , expectListItemFieldEqual 0 walletName "ica1"
+            , expectListItemFieldEqual 1 walletName "rnd2"
+            , expectListItemFieldEqual 2 walletName "ica3"
+            ]
+
     it "BYRON_LIST_02,03 -\
         \ Byron wallets listed only via Byron endpoints \\\
         \ Shelley wallets listed only via new endpoints" $ \ctx -> do
-        m1 <- genMnemonics
-        m2 <- genMnemonics
-        m3 <- genMnemonics
+        m1 <- genMnemonics @12
+        m2 <- genMnemonics @12
+        m3 <- genMnemonics @12
         _ <- emptyByronWalletWith ctx ("byron1", m1, "Secure Passphrase")
         _ <- emptyByronWalletWith ctx ("byron2", m2, "Secure Passphrase")
         _ <- emptyByronWalletWith ctx ("byron3", m3, "Secure Passphrase")
@@ -724,9 +747,9 @@ spec = do
 
     it "BYRON_LIST_04, DELETE_01 -\
         \ Deleted wallets cannot be listed" $ \ctx -> do
-        m1 <- genMnemonics
-        m2 <- genMnemonics
-        m3 <- genMnemonics
+        m1 <- genMnemonics @12
+        m2 <- genMnemonics @12
+        m3 <- genMnemonics @12
         _ <- emptyByronWalletWith ctx ("byron1", m1, "Secure Passphrase")
         wb2 <- emptyByronWalletWith ctx ("byron2", m2, "Secure Passphrase")
         _ <- emptyByronWalletWith ctx ("byron3", m3, "Secure Passphrase")
@@ -798,7 +821,7 @@ spec = do
             verify rl expectations
 
     it "BYRON_RESTORE_01, GET_01, LIST_01 - Restore a wallet" $ \ctx -> do
-        mnemonic <- genMnemonics
+        mnemonic <- genMnemonics @12
         let name = "Empty Byron Wallet"
         let payload = Json [json| {
                 "name": #{name},
@@ -831,7 +854,7 @@ spec = do
 
     it "BYRON_RESTORE_02 - One can restore previously deleted wallet" $
         \ctx -> do
-            m <- genMnemonics
+            m <- genMnemonics @12
             w <- emptyByronWalletWith
                 ctx ("Byron Wallet", m, "Secure Passphrase")
             rd <- request
@@ -842,7 +865,7 @@ spec = do
             w ^. walletId `shouldBe` wr ^. walletId
 
     it "BYRON_RESTORE_03 - Cannot restore wallet that exists" $ \ctx -> do
-        mnemonic <- genMnemonics
+        mnemonic <- genMnemonics @12
         let payload = Json [json| {
                 "name": "Some Byron Wallet",
                 "mnemonic_sentence": #{mnemonic},
@@ -1199,7 +1222,16 @@ spec = do
             , expectFieldEqual byronBalanceAvailable faucetAmt
             ]
  where
-     genMnemonics = mnemonicToText @12 . entropyToMnemonic <$> genEntropy
+     genMnemonics
+        :: forall mw ent csz.
+            ( ConsistentEntropy ent mw csz
+            , ValidEntropySize ent
+            , ValidChecksumSize ent csz
+            , ent ~ EntropySize mw
+            , mw ~ MnemonicWords ent
+            )
+        => IO [Text]
+     genMnemonics = mnemonicToText . entropyToMnemonic @mw <$> genEntropy
 
 incorrectSizeMnemonics :: [ [ Text ] ]
 incorrectSizeMnemonics =
