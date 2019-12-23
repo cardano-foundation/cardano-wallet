@@ -69,6 +69,7 @@ import Test.Integration.Framework.DSL
     , expectListItemFieldEqual
     , expectListSizeEqual
     , expectResponseCode
+    , faucetAmt
     , fixtureByronWallet
     , fixtureIcarusWallet
     , fixturePassphrase
@@ -1174,6 +1175,29 @@ spec = do
                 @ApiByronWallet ctx (method, "v2/byron-wallets") Default Empty
             expectResponseCode @IO HTTP.status405 r
             expectErrorMessage errMsg405 r
+
+    it "BYRON_RESTORE_08 - Icarus wallet with high indexes" $ \ctx -> do
+        -- NOTE
+        -- Special Icarus mnemonic where address indexes are all after the index
+        -- 500. Because we don't have the whole history, restoring sequential
+        -- wallets like Icarus ones is tricky from just a snapshot and we need
+        -- to use arbitrarily big address pool gaps.
+        let mnemonics =
+                [ "erosion", "ahead", "vibrant", "air", "day"
+                , "timber", "thunder", "general", "dice", "into"
+                , "chest", "enrich", "social", "neck", "shine"
+                ] :: [Text]
+        let payload = Json [json| {
+                "name": "High Index Wallet",
+                "mnemonic_sentence": #{mnemonics},
+                "passphrase": #{fixturePassphrase}
+                } |]
+
+        r <- request @ApiByronWallet ctx postByronWalletEp Default payload
+        verify r
+            [ expectResponseCode @IO HTTP.status201
+            , expectFieldEqual byronBalanceAvailable faucetAmt
+            ]
  where
      genMnemonics = mnemonicToText @12 . entropyToMnemonic <$> genEntropy
 
