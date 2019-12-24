@@ -61,9 +61,9 @@ test-suite unit
       -threaded
       -rtsopts
       -Wall
-      -O2
   if (!flag(development))
     ghc-options:
+      -O2
       -Werror
   build-depends:
       base

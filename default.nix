@@ -62,7 +62,8 @@ let
         ++ [(pkgs.callPackage ./nix/stylish-haskell.nix {})]
         ++ (with iohkLib; [ openapi-spec-validator ])
         ++ [ jormungandr jormungandr-cli
-             pkgs.pkgconfig pkgs.sqlite-interactive ];
+             pkgs.pkgconfig pkgs.sqlite-interactive
+             pkgs.cabal-install ];
       meta.platforms = pkgs.lib.platforms.unix;
     };
     stackShell = import ./nix/stack-shell.nix {

@@ -15,7 +15,12 @@ steps:
     agents:
       system: x86_64-linux
 
-  - label: Check auto-generated Nix
+  - label: 'Check Cabal Configure'
+    command: 'nix-shell --run "cabal v2-update && cabal v2-configure --enable-tests --enable-benchmarks"'
+    agents:
+      system: x86_64-linux
+
+  - label: 'Check auto-generated Nix'
     command: 'nix-build -A iohkLib.check-nix-tools -o check-nix-tools.sh && ./check-nix-tools.sh'
     agents:
       system: x86_64-linux
