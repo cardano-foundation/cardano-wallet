@@ -153,6 +153,7 @@ test-suite unit
     , monad-loops
     , QuickCheck
     , safe
+    , servant
     , text
     , text-class
     , time

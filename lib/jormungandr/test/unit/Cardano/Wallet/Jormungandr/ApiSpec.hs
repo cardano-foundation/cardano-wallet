@@ -16,8 +16,11 @@ import Cardano.Wallet.Jormungandr.Api.Types
     ( AccountState (..)
     , ApiStakeDistribution (..)
     , ApiT (..)
+    , JormungandrBinary
     , StakeApiResponse (..)
     )
+import Cardano.Wallet.Jormungandr.Binary
+    ( Block )
 import Cardano.Wallet.Primitive.Types
     ( PoolId (..) )
 import Cardano.Wallet.Unsafe
@@ -28,6 +31,8 @@ import Data.Aeson
     ( eitherDecode )
 import Data.Aeson.QQ
     ( aesonQQ )
+import Data.Either
+    ( isLeft )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -36,10 +41,12 @@ import Data.Text.Class
     ( ToText (..) )
 import Data.Word
     ( Word64 )
+import Servant.API
+    ( MimeUnrender (..) )
 import Test.Aeson.Internal.RoundtripSpecs
     ( roundtripSpecs )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe )
+    ( Spec, describe, it, shouldBe, shouldSatisfy )
 import Test.QuickCheck
     ( Arbitrary (..) )
 
@@ -192,6 +199,12 @@ spec = do
                 Left "Error in $.stake.unassigned: Word64 is either floating or \
                      \will cause over or underflow: 1.001000023e7"
             return ()
+
+        describe "MimeUnrender decoding" $ do
+            it "returns 'Left' when encountering an invalid binary block" $ do
+                mimeUnrender (Proxy @JormungandrBinary) ""
+                    `shouldSatisfy` (isLeft @_ @Block)
+
   where
     decodeJSON = eitherDecode :: BL.ByteString -> Either String StakeApiResponse
 
