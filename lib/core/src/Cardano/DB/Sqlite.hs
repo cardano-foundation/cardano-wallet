@@ -22,6 +22,7 @@
 
 module Cardano.DB.Sqlite
     ( SqliteContext (..)
+    , MigrationError (..)
     , DBLog (..)
     , chunkSize
     , dbChunked
@@ -46,15 +47,19 @@ import Cardano.Wallet.Logging
 import Control.Concurrent.MVar
     ( newMVar, withMVar )
 import Control.Exception
-    ( throwIO )
+    ( Exception, tryJust )
 import Control.Monad
     ( mapM_ )
 import Control.Monad.Catch
-    ( MonadCatch (..), handleJust )
+    ( Handler (..), MonadCatch (..), handleJust )
 import Control.Monad.Logger
     ( LogLevel (..) )
+import Control.Retry
+    ( constantDelay, limitRetriesByCumulativeDelay, recovering )
 import Data.Aeson
     ( ToJSON )
+import Data.List
+    ( isInfixOf )
 import Data.List.Split
     ( chunksOf )
 import Data.Maybe
@@ -64,7 +69,13 @@ import Data.Text
 import Data.Text.Class
     ( ToText (..) )
 import Database.Persist.Sql
-    ( LogFunc, Migration, close', runMigrationQuiet, runSqlConn )
+    ( LogFunc
+    , Migration
+    , PersistException
+    , close'
+    , runMigrationQuiet
+    , runSqlConn
+    )
 import Database.Persist.Sqlite
     ( SqlBackend, SqlPersistT, mkSqliteConnectionInfo, wrapConnectionInfo )
 import Database.Sqlite
@@ -99,6 +110,13 @@ data SqliteContext = SqliteContext
     -- ^ A 'Trace' for logging
     }
 
+-- | Error type for when migrations go wrong after opening a database.
+newtype MigrationError = MigrationError
+    { getMigrationErrorMessage :: Text }
+    deriving (Show, Eq, Generic, ToJSON)
+
+instance Exception MigrationError
+
 -- | Run a raw query from the outside using an instantiate DB layer. This is
 -- completely unsafe because it breaks the abstraction boundary and can have
 -- disastrous results on the database consistency.
@@ -129,17 +147,16 @@ handleConstraint e = handleJust select handler . fmap Right
       handler = const . pure  . Left $ e
 
 -- | Finalize database statements and close the database connection.
+-- If the database connection is still in use, it will retry for up to a minute,
+-- to let other threads finish up.
 destroyDBLayer :: SqliteContext -> IO ()
 destroyDBLayer (SqliteContext {getSqlBackend, trace, dbFile}) = do
     logDebug trace (MsgClosing dbFile)
-    tryClose
+    recovering pol [const $ Handler isBusy] (const $ close' getSqlBackend)
   where
-    tryClose = close' getSqlBackend
-        `catch` handleBusy
-
-    handleBusy e@(SqliteException name _ _) = case name of
-        Sqlite.ErrorBusy -> tryClose
-        _ -> throwIO e
+    isBusy (SqliteException name _ _) = pure (name == Sqlite.ErrorBusy)
+    pol = limitRetriesByCumulativeDelay (60000*ms) $ constantDelay (25*ms)
+    ms = 1000 -- microseconds in a millisecond
 
 {-------------------------------------------------------------------------------
                            Internal / Database Setup
@@ -152,7 +169,7 @@ startSqliteBackend
     -> Migration
     -> Trace IO DBLog
     -> Maybe FilePath
-    -> IO SqliteContext
+    -> IO (Either MigrationError SqliteContext)
 startSqliteBackend logConfig migrateAll trace fp = do
     let traceQuery = appendName "query" trace
     backend <- createSqliteBackend trace fp (queryLogFunc traceQuery)
@@ -161,9 +178,24 @@ startSqliteBackend logConfig migrateAll trace fp = do
         observe = bracketObserveIO logConfig traceQuery Debug "query"
     let runQuery :: SqlPersistT IO a -> IO a
         runQuery cmd = withMVar lock $ const $ observe $ runSqlConn cmd backend
-    migrations <- runQuery $ runMigrationQuiet migrateAll
-    logTrace trace $ MsgMigrations (length migrations)
-    pure $ SqliteContext backend runQuery fp trace
+    migrations <- tryJust isMigrationError $ runQuery $
+        runMigrationQuiet migrateAll
+    logTrace trace $ MsgMigrations (fmap length migrations)
+    let ctx = SqliteContext backend runQuery fp trace
+    case migrations of
+        Left e -> do
+            destroyDBLayer ctx
+            pure $ Left e
+        Right _ -> pure $ Right ctx
+
+-- | Exception predicate for migration errors.
+isMigrationError :: PersistException -> Maybe MigrationError
+isMigrationError e
+    | mark `isInfixOf` msg = Just $ MigrationError $ T.pack msg
+    | otherwise = Nothing
+  where
+    msg = show e
+    mark = "Database migration: manual intervention required."
 
 createSqliteBackend
     :: Trace IO DBLog
@@ -184,7 +216,7 @@ sqliteConnStr = maybe ":memory:" T.pack
 -------------------------------------------------------------------------------}
 
 data DBLog
-    = MsgMigrations Int
+    = MsgMigrations (Either MigrationError Int)
     | MsgQuery Text Severity
     | MsgConnStr Text
     | MsgClosing (Maybe FilePath)
@@ -194,8 +226,9 @@ data DBLog
 instance DefinePrivacyAnnotation DBLog
 instance DefineSeverity DBLog where
     defineSeverity ev = case ev of
-        MsgMigrations 0 -> Debug
-        MsgMigrations _ -> Notice
+        MsgMigrations (Right 0) -> Debug
+        MsgMigrations (Right _) -> Notice
+        MsgMigrations (Left _) -> Error
         MsgQuery _ sev -> sev
         MsgConnStr _ -> Debug
         MsgClosing _ -> Debug
@@ -203,14 +236,18 @@ instance DefineSeverity DBLog where
 
 instance ToText DBLog where
     toText msg = case msg of
-        MsgMigrations 0 -> "No database migrations were necessary."
-        MsgMigrations n -> fmt $ ""+||n||+" migrations were applied to the database."
+        MsgMigrations (Right 0) ->
+            "No database migrations were necessary."
+        MsgMigrations (Right n) ->
+            fmt $ ""+||n||+" migrations were applied to the database."
+        MsgMigrations (Left err) ->
+            "Failed to migrate the database: " <> getMigrationErrorMessage err
         MsgQuery stmt _ -> stmt
         MsgConnStr connStr -> "Using connection string: " <> connStr
         MsgClosing fp -> "Closing database ("+|fromMaybe "in-memory" fp|+")"
         MsgDatabaseReset ->
             "Non backward compatible database found. Removing old database \
-            \and re-creating it from scratch."
+            \and re-creating it from scratch. Ignore the previous error."
 
 {-------------------------------------------------------------------------------
                                Extra DB Helpers

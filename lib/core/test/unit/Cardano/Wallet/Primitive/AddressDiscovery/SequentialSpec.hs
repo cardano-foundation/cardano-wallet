@@ -102,8 +102,8 @@ import Test.QuickCheck
     , elements
     , expectFailure
     , frequency
+    , label
     , property
-    , withMaxSuccess
     , (.&&.)
     , (=/=)
     , (===)
@@ -325,12 +325,14 @@ prop_poolEventuallyDiscoverOurs
     -> (AddressPoolGap, Address)
     -> Property
 prop_poolEventuallyDiscoverOurs _proxy (g, addr) =
-    addr `elem` ours ==> withMaxSuccess 10 $ property prop
+    if addr `elem` ours then property $
+        (fromEnum <$> fst (lookupAddress addr pool)) === elemIndex addr ours
+    else
+        label "address not ours" (property True)
   where
     ours = take 25 (ourAddresses (Proxy @k) (accountingStyle @chain))
     pool = flip execState (mkAddressPool @chain @k ourAccount g mempty) $
         forM ours (state . lookupAddress)
-    prop = (fromEnum <$> fst (lookupAddress addr pool)) === elemIndex addr ours
 
 {-------------------------------------------------------------------------------
                     Properties for AddressScheme & PendingIxs
