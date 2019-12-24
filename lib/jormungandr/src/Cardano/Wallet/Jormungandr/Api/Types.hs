@@ -33,7 +33,7 @@ module Cardano.Wallet.Jormungandr.Api.Types
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Binary
-    ( Block, getBlock, runGet )
+    ( Block, eitherRunGet, getBlock )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..)
     , Hash (..)
@@ -109,7 +109,7 @@ instance ToHttpApiData AccountId where
 
 instance MimeUnrender JormungandrBinary [BlockId] where
     mimeUnrender _ =
-        pure . fmap (BlockId . Hash) . runGet (many $ getByteString 32)
+        fmap (map (BlockId . Hash)) . eitherRunGet (many $ getByteString 32)
 
 instance MimeUnrender Hex BlockId where
     mimeUnrender _ bs =
@@ -134,7 +134,7 @@ instance Accept JormungandrBinary where
     contentType _ = contentType $ Proxy @Servant.OctetStream
 
 instance MimeUnrender JormungandrBinary Block where
-    mimeUnrender _ = pure . runGet getBlock
+    mimeUnrender _ = eitherRunGet getBlock
 
 instance MimeRender JormungandrBinary SealedTx where
     mimeRender _ (SealedTx bytes) = BL.fromStrict bytes

@@ -34,6 +34,10 @@ import Control.Exception
     ( IOException, catch, tryJust )
 import Control.Monad
     ( forever )
+import Control.Monad.Trans.Class
+    ( lift )
+import Control.Monad.Trans.Except
+    ( ExceptT, except, runExceptT )
 import Data.Aeson
     ( FromJSON (..)
     , ToJSON (..)
@@ -48,7 +52,9 @@ import Data.Aeson
 import Data.Bifunctor
     ( first )
 import Data.Binary.Get
-    ( getWord32le, getWord64le, runGet )
+    ( getWord32le, getWord64le )
+import Data.Binary.Get.Safe
+    ( eitherRunGet )
 import Data.Binary.Put
     ( putLazyByteString, putWord32le, putWord64le, runPut )
 import Data.Maybe
@@ -197,7 +203,7 @@ ipcListener handle hello onMsg = do
     replyLoop = forever (recvMsg >>= onMsg >>= maybeSend)
 
     recvMsg :: IO (Either Text msgin)
-    recvMsg = first T.pack . eitherDecode <$> readMessage handle
+    recvMsg = fmap (first T.pack) $ (>>= eitherDecode) <$> readMessage handle
 
     sendMsg :: msgout -> IO ()
     sendMsg = sendMessage handle . encode
@@ -205,28 +211,31 @@ ipcListener handle hello onMsg = do
     maybeSend :: Maybe msgout -> IO ()
     maybeSend = maybe (pure ()) sendMsg
 
-readMessage :: Handle -> IO BL.ByteString
-readMessage = if isWindows then windowsReadMessage else posixReadMessage
+readMessage :: Handle -> IO (Either String BL.ByteString)
+readMessage =
+    if isWindows
+    then windowsReadMessage
+    else fmap Right . posixReadMessage
 
 isWindows :: Bool
 isWindows = os == "mingw32"
 
-windowsReadMessage :: Handle -> IO BL.ByteString
-windowsReadMessage handle = do
+windowsReadMessage :: Handle -> IO (Either String BL.ByteString)
+windowsReadMessage handle = runExceptT $ do
     _int1 <- readInt32 handle
     _int2 <- readInt32 handle
-    size <- readInt64 handle
-    BL.hGet handle $ fromIntegral size
+    size  <- readInt64 handle
+    lift $ BL.hGet handle $ fromIntegral size
   where
-    readInt64 :: Handle -> IO Word64
+    readInt64 :: Handle -> ExceptT String IO Word64
     readInt64 hnd = do
-        bs <- BL.hGet hnd 8
-        pure $ runGet getWord64le bs
+        bs <- lift $ BL.hGet hnd 8
+        except $ eitherRunGet getWord64le bs
 
-    readInt32 :: Handle -> IO Word32
+    readInt32 :: Handle -> ExceptT String IO Word32
     readInt32 hnd = do
-        bs <- BL.hGet hnd 4
-        pure $ runGet getWord32le bs
+        bs <- lift $ BL.hGet hnd 4
+        except $ eitherRunGet getWord32le bs
 
 posixReadMessage :: Handle -> IO BL.ByteString
 posixReadMessage = fmap L8.pack . hGetLine
