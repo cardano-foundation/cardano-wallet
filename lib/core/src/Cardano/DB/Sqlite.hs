@@ -47,13 +47,17 @@ import Cardano.Wallet.Logging
 import Control.Concurrent.MVar
     ( newMVar, withMVar )
 import Control.Exception
-    ( Exception, throwIO, tryJust )
+    ( Exception, tryJust )
 import Control.Monad
     ( mapM_ )
+import Control.Monad.Catch
+    ( Handler (..) )
 import Control.Monad.Catch
     ( MonadCatch (..), handleJust )
 import Control.Monad.Logger
     ( LogLevel (..) )
+import Control.Retry
+    ( constantDelay, limitRetriesByCumulativeDelay, recovering )
 import Data.Aeson
     ( ToJSON )
 import Data.List
@@ -149,18 +153,16 @@ handleConstraint e = handleJust select handler . fmap Right
       handler = const . pure  . Left $ e
 
 -- | Finalize database statements and close the database connection.
+-- If the database connection is still in use, it will retry for up to a minute,
+-- to let other threads finish up.
 destroyDBLayer :: SqliteContext -> IO ()
 destroyDBLayer (SqliteContext {getSqlBackend, trace, dbFile}) = do
     logDebug trace (MsgClosing dbFile)
-    tryClose
+    recovering pol [const $ Handler isBusy] (const $ close' getSqlBackend)
   where
-    tryClose = close' getSqlBackend
-        `catch` handleBusy
-
-    -- fixme: potential 100% cpu loop
-    handleBusy e@(SqliteException name _ _) = case name of
-        Sqlite.ErrorBusy -> tryClose
-        _ -> throwIO e
+    isBusy (SqliteException name _ _) = pure (name == Sqlite.ErrorBusy)
+    pol = limitRetriesByCumulativeDelay (60000*ms) $ constantDelay (25*ms)
+    ms = 1000 -- microseconds in a millisecond
 
 {-------------------------------------------------------------------------------
                            Internal / Database Setup
@@ -182,12 +184,13 @@ startSqliteBackend logConfig migrateAll trace fp = do
         observe = bracketObserveIO logConfig traceQuery Debug "query"
     let runQuery :: SqlPersistT IO a -> IO a
         runQuery cmd = withMVar lock $ const $ observe $ runSqlConn cmd backend
-    migrations <- tryJust isMigrationError $ runQuery $ runMigrationQuiet migrateAll
+    migrations <- tryJust isMigrationError $ runQuery $
+        runMigrationQuiet migrateAll
     logTrace trace $ MsgMigrations (fmap length migrations)
     let ctx = SqliteContext backend runQuery fp trace
     case migrations of
         Left e -> do
-            destroyDBLayer ctx -- fixme: don't use this
+            destroyDBLayer ctx
             pure $ Left e
         Right _ -> pure $ Right ctx
 
