@@ -51,9 +51,7 @@ import Control.Exception
 import Control.Monad
     ( mapM_ )
 import Control.Monad.Catch
-    ( Handler (..) )
-import Control.Monad.Catch
-    ( MonadCatch (..), handleJust )
+    ( Handler (..), MonadCatch (..), handleJust )
 import Control.Monad.Logger
     ( LogLevel (..) )
 import Control.Retry
