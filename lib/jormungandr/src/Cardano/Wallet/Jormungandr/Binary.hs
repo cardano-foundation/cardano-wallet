@@ -72,6 +72,7 @@ module Cardano.Wallet.Jormungandr.Binary
       -- * Re-export
     , Get
     , runGet
+    , eitherRunGet
     , runGetOrFail
     , Put
     , runPut
@@ -970,6 +971,15 @@ withRaw get = do
     -- After decoding once, go back and get the raw bytes.
     raw <- getByteString (end - start)
     pure (raw, a)
+
+-- | A safe version of 'runGet' which doesn't throw on error.
+eitherRunGet
+    :: Get a
+    -> BL.ByteString
+    -> Either String a
+eitherRunGet decoder bytes = case runGetOrFail decoder bytes of
+    Right (_, _, a) -> Right a
+    Left  (_, _, e) -> Left  e
 
 {-------------------------------------------------------------------------------
                                 Conversions
