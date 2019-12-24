@@ -81,7 +81,7 @@ test_migrationFromv20191216 =
 
             length databaseConnMsg  `shouldBe` 3
             length databaseResetMsg `shouldBe` 1
-            length migrationErrMsg  `shouldBe` 0
+            length migrationErrMsg  `shouldBe` 1
 
 testingLogConfig :: IO CM.Configuration
 testingLogConfig = do

@@ -31,6 +31,7 @@ import Cardano.BM.Trace
     ( Trace )
 import Cardano.DB.Sqlite
     ( DBLog (..)
+    , MigrationError (..)
     , SqliteContext (..)
     , destroyDBLayer
     , handleConstraint
@@ -50,13 +51,13 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     )
 import Control.Exception
-    ( bracket, handle, throwIO )
+    ( bracket, throwIO )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Data.List
-    ( foldl', isSubsequenceOf )
+    ( foldl' )
 import Data.Map.Strict
     ( Map )
 import Data.Quantity
@@ -81,8 +82,6 @@ import Database.Persist.Sql
     )
 import Database.Persist.Sqlite
     ( SqlPersistT )
-import Database.Persist.Types
-    ( PersistException )
 import System.Directory
     ( removeFile )
 import System.FilePath
@@ -146,7 +145,7 @@ newDBLayer
 newDBLayer logConfig trace fp = do
     let trace' = transformTextTrace trace
     let io = startSqliteBackend logConfig migrateAll trace' fp
-    ctx@SqliteContext{runQuery} <- handle (handlePersistError trace' fp io) io
+    ctx@SqliteContext{runQuery} <- handlingPersistError trace' fp io
     return (ctx, DBLayer
         { putPoolProduction = \point pool -> ExceptT $
             handleConstraint (ErrPointAlreadyExists point) $
@@ -239,25 +238,20 @@ newDBLayer logConfig trace fp = do
 -- can swiftly be re-synced from the chain, so instead of patching our mistakes
 -- with ugly work-around we can, at least for now, reset it semi-manually when
 -- needed to keep things tidy here.
-handlePersistError
+handlingPersistError
     :: Trace IO DBLog
        -- ^ Logging object
     -> Maybe FilePath
        -- ^ Database file location, or Nothing for in-memory database
+    -> IO (Either MigrationError ctx)
+       -- ^ Action to set up the context.
     -> IO ctx
-       -- ^ Action to retry after "fixing" the database"
-    -> PersistException
-       -- ^ Error when trying to run a database migration
-    -> IO ctx
-handlePersistError _trace Nothing _action e = throwIO e
-handlePersistError trace (Just fp) action e = do
-    let mark = "Database migration: manual intervention required."
-    if mark `isSubsequenceOf` show e then do
+handlingPersistError trace fp action = action >>= \case
+    Right ctx -> pure ctx
+    Left _ -> do
         logTrace trace MsgDatabaseReset
-        removeFile fp
-        action
-    else
-        throwIO e
+        maybe (pure ()) removeFile fp
+        action >>= either throwIO pure
 
 {-------------------------------------------------------------------------------
                                    Queries

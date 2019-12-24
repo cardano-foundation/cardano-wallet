@@ -22,6 +22,7 @@
 
 module Cardano.DB.Sqlite
     ( SqliteContext (..)
+    , MigrationError (..)
     , DBLog (..)
     , chunkSize
     , dbChunked
@@ -46,7 +47,7 @@ import Cardano.Wallet.Logging
 import Control.Concurrent.MVar
     ( newMVar, withMVar )
 import Control.Exception
-    ( throwIO )
+    ( Exception, throwIO, tryJust )
 import Control.Monad
     ( mapM_ )
 import Control.Monad.Catch
@@ -55,6 +56,8 @@ import Control.Monad.Logger
     ( LogLevel (..) )
 import Data.Aeson
     ( ToJSON )
+import Data.List
+    ( isInfixOf )
 import Data.List.Split
     ( chunksOf )
 import Data.Maybe
@@ -64,7 +67,13 @@ import Data.Text
 import Data.Text.Class
     ( ToText (..) )
 import Database.Persist.Sql
-    ( LogFunc, Migration, close', runMigrationQuiet, runSqlConn )
+    ( LogFunc
+    , Migration
+    , PersistException
+    , close'
+    , runMigrationQuiet
+    , runSqlConn
+    )
 import Database.Persist.Sqlite
     ( SqlBackend, SqlPersistT, mkSqliteConnectionInfo, wrapConnectionInfo )
 import Database.Sqlite
@@ -98,6 +107,17 @@ data SqliteContext = SqliteContext
     , trace :: Trace IO DBLog
     -- ^ A 'Trace' for logging
     }
+
+-- | Error type for when migrations go wrong after opening a database.
+newtype MigrationError = MigrationError
+    { getMigrationErrorMessage :: Text }
+    deriving (Show, Eq, Generic, ToJSON)
+
+instance ToText MigrationError where
+    toText = getMigrationErrorMessage
+
+-- fixme: poor practice to define exception instance when using checked exceptions.
+instance Exception MigrationError
 
 -- | Run a raw query from the outside using an instantiate DB layer. This is
 -- completely unsafe because it breaks the abstraction boundary and can have
@@ -137,6 +157,7 @@ destroyDBLayer (SqliteContext {getSqlBackend, trace, dbFile}) = do
     tryClose = close' getSqlBackend
         `catch` handleBusy
 
+    -- fixme: potential 100% cpu loop
     handleBusy e@(SqliteException name _ _) = case name of
         Sqlite.ErrorBusy -> tryClose
         _ -> throwIO e
@@ -152,7 +173,7 @@ startSqliteBackend
     -> Migration
     -> Trace IO DBLog
     -> Maybe FilePath
-    -> IO SqliteContext
+    -> IO (Either MigrationError SqliteContext)
 startSqliteBackend logConfig migrateAll trace fp = do
     let traceQuery = appendName "query" trace
     backend <- createSqliteBackend trace fp (queryLogFunc traceQuery)
@@ -161,9 +182,23 @@ startSqliteBackend logConfig migrateAll trace fp = do
         observe = bracketObserveIO logConfig traceQuery Debug "query"
     let runQuery :: SqlPersistT IO a -> IO a
         runQuery cmd = withMVar lock $ const $ observe $ runSqlConn cmd backend
-    migrations <- runQuery $ runMigrationQuiet migrateAll
-    logTrace trace $ MsgMigrations (length migrations)
-    pure $ SqliteContext backend runQuery fp trace
+    migrations <- tryJust isMigrationError $ runQuery $ runMigrationQuiet migrateAll
+    logTrace trace $ MsgMigrations (fmap length migrations)
+    let ctx = SqliteContext backend runQuery fp trace
+    case migrations of
+        Left e -> do
+            destroyDBLayer ctx -- fixme: don't use this
+            pure $ Left e
+        Right _ -> pure $ Right ctx
+
+-- | Exception predicate for migration errors.
+isMigrationError :: PersistException -> Maybe MigrationError
+isMigrationError e
+    | mark `isInfixOf` msg = Just $ MigrationError $ T.pack msg
+    | otherwise = Nothing
+  where
+    msg = show e
+    mark = "Database migration: manual intervention required."
 
 createSqliteBackend
     :: Trace IO DBLog
@@ -184,7 +219,7 @@ sqliteConnStr = maybe ":memory:" T.pack
 -------------------------------------------------------------------------------}
 
 data DBLog
-    = MsgMigrations Int
+    = MsgMigrations (Either MigrationError Int)
     | MsgQuery Text Severity
     | MsgConnStr Text
     | MsgClosing (Maybe FilePath)
@@ -194,8 +229,9 @@ data DBLog
 instance DefinePrivacyAnnotation DBLog
 instance DefineSeverity DBLog where
     defineSeverity ev = case ev of
-        MsgMigrations 0 -> Debug
-        MsgMigrations _ -> Notice
+        MsgMigrations (Right 0) -> Debug
+        MsgMigrations (Right _) -> Notice
+        MsgMigrations (Left _) -> Error
         MsgQuery _ sev -> sev
         MsgConnStr _ -> Debug
         MsgClosing _ -> Debug
@@ -203,8 +239,12 @@ instance DefineSeverity DBLog where
 
 instance ToText DBLog where
     toText msg = case msg of
-        MsgMigrations 0 -> "No database migrations were necessary."
-        MsgMigrations n -> fmt $ ""+||n||+" migrations were applied to the database."
+        MsgMigrations (Right 0) ->
+            "No database migrations were necessary."
+        MsgMigrations (Right n) ->
+            fmt $ ""+||n||+" migrations were applied to the database."
+        MsgMigrations (Left err) ->
+            "Failed to migrate the database: " <> toText err
         MsgQuery stmt _ -> stmt
         MsgConnStr connStr -> "Using connection string: " <> connStr
         MsgClosing fp -> "Closing database ("+|fromMaybe "in-memory" fp|+")"

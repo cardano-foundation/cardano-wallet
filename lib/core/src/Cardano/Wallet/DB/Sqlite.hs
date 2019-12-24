@@ -312,6 +312,7 @@ newDBLayer
 newDBLayer logConfig trace mDatabaseFile = do
     let trace' = transformTextTrace trace
     ctx@SqliteContext{runQuery} <-
+        either throwIO pure =<<
         startSqliteBackend logConfig migrateAll trace' mDatabaseFile
     return (ctx, DBLayer
 
