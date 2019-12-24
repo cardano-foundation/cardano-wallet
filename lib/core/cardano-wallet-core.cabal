@@ -139,6 +139,7 @@ library
       Cardano.Wallet.Unsafe
       Cardano.Wallet.Version
       Cardano.Wallet.Version.TH
+      Data.Binary.Get.Safe
       Data.Function.Utils
       Data.Time.Text
       Data.Time.Utils

@@ -135,6 +135,8 @@ import Data.Binary.Get
     , runGetOrFail
     , skip
     )
+import Data.Binary.Get.Safe
+    ( eitherRunGet )
 import Data.Binary.Put
     ( Put, PutM, putByteString, putWord16be, putWord64be, putWord8, runPut )
 import Data.Bits
@@ -971,15 +973,6 @@ withRaw get = do
     -- After decoding once, go back and get the raw bytes.
     raw <- getByteString (end - start)
     pure (raw, a)
-
--- | A safe version of 'runGet' which doesn't throw on error.
-eitherRunGet
-    :: Get a
-    -> BL.ByteString
-    -> Either String a
-eitherRunGet decoder bytes = case runGetOrFail decoder bytes of
-    Right (_, _, a) -> Right a
-    Left  (_, _, e) -> Left  e
 
 {-------------------------------------------------------------------------------
                                 Conversions
