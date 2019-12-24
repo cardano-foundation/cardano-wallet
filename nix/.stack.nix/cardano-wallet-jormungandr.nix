@@ -149,6 +149,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."monad-loops" or (buildDepError "monad-loops"))
             (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
             (hsPkgs."safe" or (buildDepError "safe"))
+            (hsPkgs."servant" or (buildDepError "servant"))
             (hsPkgs."text" or (buildDepError "text"))
             (hsPkgs."text-class" or (buildDepError "text-class"))
             (hsPkgs."time" or (buildDepError "time"))
