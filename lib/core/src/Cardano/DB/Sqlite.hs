@@ -117,10 +117,6 @@ newtype MigrationError = MigrationError
     { getMigrationErrorMessage :: Text }
     deriving (Show, Eq, Generic, ToJSON)
 
-instance ToText MigrationError where
-    toText = getMigrationErrorMessage
-
--- fixme: poor practice to define exception instance when using checked exceptions.
 instance Exception MigrationError
 
 -- | Run a raw query from the outside using an instantiate DB layer. This is
@@ -247,13 +243,13 @@ instance ToText DBLog where
         MsgMigrations (Right n) ->
             fmt $ ""+||n||+" migrations were applied to the database."
         MsgMigrations (Left err) ->
-            "Failed to migrate the database: " <> toText err
+            "Failed to migrate the database: " <> getMigrationErrorMessage err
         MsgQuery stmt _ -> stmt
         MsgConnStr connStr -> "Using connection string: " <> connStr
         MsgClosing fp -> "Closing database ("+|fromMaybe "in-memory" fp|+")"
         MsgDatabaseReset ->
             "Non backward compatible database found. Removing old database \
-            \and re-creating it from scratch."
+            \and re-creating it from scratch. Ignore the previous error."
 
 {-------------------------------------------------------------------------------
                                Extra DB Helpers
