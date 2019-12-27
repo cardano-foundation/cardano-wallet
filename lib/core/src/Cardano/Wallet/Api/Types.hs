@@ -64,6 +64,7 @@ module Cardano.Wallet.Api.Types
     , ApiByronWalletBalance (..)
     , ApiByronWalletMigrationInfo (..)
     , ByronWalletPostData (..)
+    , SeedGenerationMethod (..)
 
     -- * User-Facing Address Encoding/Decoding
     , EncodeAddress (..)
@@ -165,7 +166,13 @@ import Data.Quantity
 import Data.Text
     ( Text, split )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( CaseStyle (..)
+    , FromText (..)
+    , TextDecodingError (..)
+    , ToText (..)
+    , fromTextToBoundedEnum
+    , toTextFromBoundedEnum
+    )
 import Data.Time
     ( UTCTime )
 import Data.Time.Text
@@ -268,9 +275,10 @@ data WalletPostData = WalletPostData
     } deriving (Eq, Generic, Show)
 
 data ByronWalletPostData = ByronWalletPostData
-    { mnemonicSentence :: !(ApiMnemonicT '[12,15] "seed")
+    { mnemonicSentence :: !(ApiMnemonicT '[12,15,24] "seed")
         -- 12 words: Byron Daedalus
         -- 15 words: Byron Yoroi
+        -- 24 words: Byron Trezor or Ledger
     , name :: !(ApiT WalletName)
     , passphrase :: !(ApiT (Passphrase "encryption"))
     } deriving (Eq, Generic, Show)
@@ -383,6 +391,7 @@ data ApiErrorCode
     | NoSuchPool
     | PoolAlreadyJoined
     | NotDelegatingTo
+    | InvalidRestorationParameters
     deriving (Eq, Generic, Show)
 
 -- | Defines a point in time that can be formatted as and parsed from an
@@ -427,6 +436,18 @@ data ApiByronWallet = ApiByronWallet
 newtype ApiByronWalletMigrationInfo = ApiByronWalletMigrationInfo
     { migrationCost :: Quantity "lovelace" Natural
     } deriving (Eq, Generic, Show)
+
+data SeedGenerationMethod
+    = Cardano
+    | Ledger
+    deriving (Eq, Generic, Show, Enum, Bounded)
+
+instance FromHttpApiData SeedGenerationMethod where
+    parseUrlPiece = left (T.pack . show) . fromTextToBoundedEnum SnakeLowerCase
+
+instance ToHttpApiData SeedGenerationMethod where
+    toUrlPiece = toTextFromBoundedEnum SnakeLowerCase
+
 
 {-------------------------------------------------------------------------------
                               Polymorphic Types

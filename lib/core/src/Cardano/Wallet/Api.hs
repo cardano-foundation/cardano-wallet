@@ -68,6 +68,7 @@ import Cardano.Wallet.Api.Types
     , PostExternalTransactionData
     , PostTransactionData
     , PostTransactionFeeData
+    , SeedGenerationMethod
     , WalletPostData
     , WalletPutData
     , WalletPutPassphraseData
@@ -326,6 +327,7 @@ type ByronWallets =
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postByronWallet
 type PostByronWallet = "byron-wallets"
+    :> QueryParam "seed_generation_method" SeedGenerationMethod
     :> ReqBody '[JSON] ByronWalletPostData
     :> PostCreated '[JSON] ApiByronWallet
 

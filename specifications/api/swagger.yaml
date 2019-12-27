@@ -166,9 +166,10 @@ x-byronWalletMnemonicSentence: &byronWalletMnemonicSentence
     Important:
       - a 12-word mnemonic sentence will be treated as being a Daedalus Byron wallet.
       - a 15-word mnemonic sentence will be treated as being a Yoroi Byron wallet.
+      - a 24-word mnemonic sentence will be treated as being a Hardware wallet (Trezor or Ledger).
   type: array
   minItems: 12
-  maxItems: 15
+  maxItems: 24
   items:
     type: string
     format: bip-0039-mnemonic-word{english}
@@ -875,6 +876,18 @@ x-parametersSortOrder: &parametersSortOrder
   default: descending
   description: An optional sort order.
 
+x-parametersSeedGenerationMethod: &parametersSeedGenerationMethod
+  in: query
+  name: seed_generation_method
+  type: string
+  enum:
+    - cardano
+    - ledger
+  default: cardano
+  description: |
+    Which method should be used to translate a mnemonic sentence to a root master key.
+
+    ⚠️  In order to restore a 24-word sentence from a <strong>Hardware Ledger</strong>, use <code>ledger</code>.
 
 #############################################################################
 #                                                                           #
@@ -1472,6 +1485,7 @@ paths:
 
         Restore a Byron wallet from a mnemonic sentence.
       parameters:
+        - *parametersSeedGenerationMethod
         - <<: *parametersBody
           schema: *ApiByronWalletPostData
       responses: *responsesPostByronWallet

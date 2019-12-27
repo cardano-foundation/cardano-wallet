@@ -126,6 +126,7 @@ import Cardano.Wallet.Api.Types
     , PostExternalTransactionData (..)
     , PostTransactionData
     , PostTransactionFeeData
+    , SeedGenerationMethod (..)
     , WalletBalance (..)
     , WalletPostData (..)
     , WalletPutData (..)
@@ -158,6 +159,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..), defaultAddressPoolGap, mkSeqState )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..), changeBalance, feeBalance, inputBalance )
+import Cardano.Wallet.Primitive.Mnemonic
+    ( Mnemonic, mkMnemonic )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, availableBalance, currentTip, getState, totalBalance )
 import Cardano.Wallet.Primitive.Types
@@ -590,20 +593,41 @@ mkShelleyWallet ctx wid cp meta pending progress = do
 
 --------------------- Legacy
 
+-- | Error obtained when an invalid combination of number of words and seed
+-- generation is passed. We only allow:
+--
+-- - 12-word with "cardano" generation method
+-- - 15-word with "cardano" generation method
+-- - 24-word with either generation methods
+data ErrPostLegacyWallet
+    = ErrPostLegacyWallet (Maybe SeedGenerationMethod) Int
+
 postLegacyWallet
     :: forall byron icarus t.
         ( byron ~ ApiLayer (RndState 'Mainnet) t ByronKey
         , icarus ~ ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
         )
     => (byron, icarus)
+    -> Maybe SeedGenerationMethod
+        -- ^ Nothing is treated as 'CardanoSeed'
     -> ByronWalletPostData
     -> Handler ApiByronWallet
-postLegacyWallet (byron, icarus) body = do
+postLegacyWallet (byron, icarus) method body = do
     let ApiMnemonicT (_, mnemonic) = body ^. #mnemonicSentence
     case length mnemonic of
-        n | n == 12 -> postByronWallet byron body
-        n | n == 15 -> postIcarusWallet icarus body
-        _ -> fail "Impossible! ApiMnemonicT only allows 12 or 15 words"
+        n | n == 12 && method /= Just Ledger ->
+            postByronWallet byron body
+        n | n == 15 && method /= Just Ledger ->
+            postIcarusWallet icarus body
+        n | n == 24 && method /= Just Ledger ->
+            postTrezorWallet icarus body
+        n | n == 24 && method == Just Ledger ->
+            -- NOTE Safe because of the above check and, successful parsing from
+            -- the ApiMnemonicT.
+            let Right mnemonic' = mkMnemonic @24 mnemonic
+            in postLedgerWallet icarus body mnemonic'
+        _ ->
+            liftHandler . throwE $ ErrPostLegacyWallet method (length mnemonic)
 
 postByronWallet
     :: forall ctx s t k.
@@ -651,6 +675,45 @@ postIcarusWallet ctx body = do
     seed = getApiMnemonicT (body ^. #mnemonicSentence)
     pwd = getApiT (body ^. #passphrase)
     rootXPrv = Ica.generateKeyFromSeed seed pwd
+    creds = (rootXPrv, pwd)
+    wid = WalletId $ digest $ publicKey rootXPrv
+    wName = getApiT (body ^. #name)
+
+postTrezorWallet
+    :: forall ctx s t k.
+        ( ctx ~ ApiLayer s t k
+        , s ~ SeqState 'Mainnet k
+        , k ~ IcarusKey
+        , HasDBFactory s k ctx
+        , HasWorkerRegistry s k ctx
+        )
+    => ctx
+    -> ByronWalletPostData
+    -> Handler ApiByronWallet
+postTrezorWallet = postIcarusWallet
+
+postLedgerWallet
+    :: forall ctx s t k.
+        ( ctx ~ ApiLayer s t k
+        , s ~ SeqState 'Mainnet k
+        , k ~ IcarusKey
+        , HasDBFactory s k ctx
+        , HasWorkerRegistry s k ctx
+        )
+    => ctx
+    -> ByronWalletPostData
+    -> Mnemonic 24
+    -> Handler ApiByronWallet
+postLedgerWallet ctx body mnemonic = do
+    void $ liftHandler $ initWorker @_ @s @k ctx wid
+        (\wrk -> W.createIcarusWallet  @(WorkerCtx ctx) @s @k wrk wid wName creds)
+        (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @t @k wrk wid)
+    liftHandler $ withWorkerCtx @_ @s @k ctx wid throwE $ \wrk ->
+        W.attachPrivateKey @_ @s @k wrk wid (rootXPrv, pwd)
+    fst <$> getWallet ctx mkLegacyWallet (ApiT wid)
+  where
+    pwd = getApiT (body ^. #passphrase)
+    rootXPrv = Ica.generateKeyFromHardwareLedger mnemonic pwd
     creds = (rootXPrv, pwd)
     wid = WalletId $ digest $ publicKey rootXPrv
     wName = getApiT (body ^. #name)
@@ -1807,6 +1870,19 @@ instance LiftHandler ErrQuitStakePool where
                 , ", because I'm not a member of this stake pool."
                 , " Please check if you are using correct stake pool id"
                 , " in your request."
+                ]
+
+instance LiftHandler ErrPostLegacyWallet where
+    handler = \case
+        ErrPostLegacyWallet (Just Ledger) _ ->
+            apiError err403 InvalidRestorationParameters $ mconcat
+                [ "Are you trying to use the 'ledger' seed generation method on "
+                , "something else than a 24-word mnemonic? Well, that's forbidden!"
+                ]
+        ErrPostLegacyWallet _ _ ->
+            apiError err403 InvalidRestorationParameters $ mconcat
+                [ "That's embarassing! You've provided an invalid combination "
+                , "of parameters but I am not able to give you any more details."
                 ]
 
 instance LiftHandler (Request, ServantErr) where
