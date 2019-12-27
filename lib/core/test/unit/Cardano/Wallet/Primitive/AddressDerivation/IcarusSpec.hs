@@ -34,14 +34,21 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey (..)
+    , generateKeyFromHardwareLedger
     , generateKeyFromSeed
     , minSeedLengthBytes
     , unsafeGenerateKeyFromSeed
     )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
     ( genLegacyAddress )
+import Cardano.Wallet.Primitive.Mnemonic
+    ( mkMnemonic )
 import Cardano.Wallet.Primitive.Types
     ( Address )
+import Control.Monad
+    ( forM_ )
+import Data.Text
+    ( Text )
 import Test.Hspec
     ( Spec, describe, it, shouldBe )
 import Test.QuickCheck
@@ -84,6 +91,43 @@ spec = do
     describe "MkKeyFingerprint Properties" $ do
         it "paymentKeyFingerprint . liftPaymentAddress == pure" $
             property prop_roundtripFingerprintLift
+
+    describe "Hardware Ledger" $ do
+        goldenHardwareLedger (Passphrase mempty)
+            [ "option", "clump", "drop", "creek", "puppy", "senior"
+            , "example", "ginger", "what", "crazy", "business", "behind"
+            , "valley", "reward", "brain", "potato", "picnic", "kidney"
+            , "forum", "attitude", "rubber", "click", "wait", "culture"
+            ]
+            [ "Ae2tdPwUPEZCKBL1iu3LawYarcK5BYf7mkQQ7sGpCzy82hKxVfvBXWME8re"
+            , "Ae2tdPwUPEZCjKRF8Um1MRJfHkBqQSLZp9MyWBb15gYsjL2Prp2LHZjSLUJ"
+            , "Ae2tdPwUPEZAxHZN5BhTtnFfefuVNuGMhEjbhPnEGJ7JDEXBgCCTVLL9x6G"
+            , "Ae2tdPwUPEYxBgdtaecumKAUxCMo83hKiyKvUfLpXYDFEpCB3wrK5dXdqkT"
+            , "Ae2tdPwUPEYwgFzobnQcSYJaxzTMYv2enWhDiYTLgaz6h3wT5kacfngxDWh"
+            , "Ae2tdPwUPEZ1qZJPUct8oFkszq4vxrLWWFUH73bS1FnbQetxJrRzkyfEsoS"
+            , "Ae2tdPwUPEZHFmYE7sVRkCXqQFcQ2uvTKffcXoNeqicvEqSMK6yGq1M1pVN"
+            , "Ae2tdPwUPEZM7EJ5poAU1MS1ZE9goaZudopbbp8dYAsYqQ9jvXwrKJYaBuw"
+            , "Ae2tdPwUPEZBZnDCe7f5QbxkrYgPnVrrC1SEmZQbxLbCpsFPxE5963yhZjv"
+            , "Ae2tdPwUPEZEu5zvSyuD6hbgeEg9voiC5B3vF7rzhstCX5SyACczzKCuWMJ"
+            ]
+
+        goldenHardwareLedger (Passphrase "very secure passphrase")
+            [ "burden", "destroy", "client", "air", "agent", "episode"
+            , "horror", "orient", "scrap", "car", "point", "easy"
+            , "local", "primary", "grunt", "seminar", "goose", "spin"
+            , "charge", "olive", "angry", "hour", "start", "shop"
+            ]
+            [ "Ae2tdPwUPEZHiTeWAxzLFm5qYAGqLLwZ35huQJ7Dg5fJ4SN97d1QwhsuDrG"
+            , "Ae2tdPwUPEZBD4rL6Msf2DdthRYLuYFxeG1hawjqtKYzMw2USoFQ9VmuU9C"
+            , "Ae2tdPwUPEZH5dhpwZHFVsemEpvgMMpSboyrM1PEThh6MwQTCXG2FoCCPHR"
+            , "Ae2tdPwUPEYz1AhmV59DNL92P8rrU8Wa9x9ttPTUoBSCvnEoJacmZbTahRu"
+            , "Ae2tdPwUPEZKqr3xfBLtQuhwNqtnFLq7ttptUxwyatoFF1ofgSaUTFmqiBb"
+            , "Ae2tdPwUPEZL1exTaCW3yfMj8eosgg7zcG35qfTQFyetgcJ3969agkrXXU5"
+            , "Ae2tdPwUPEZL2X1g23MKScFTvaLACCgpdWxozSjb5aXmg3YCESeiSftHyGJ"
+            , "Ae2tdPwUPEZKHqZcXY3AqLhWHzKVieBhedr7ixRmMsxsVKA1aVTEHPVK5aG"
+            , "Ae2tdPwUPEZLU4TEkPMmkT2dfQ23YyKLFWXBwuxLi4rxF4kT6najwAi6APQ"
+            , "Ae2tdPwUPEZBFKNnz2F1Bn5pLkhp2rm9byDAyW1JzN7ZUYSgRPqrH3Jgs88"
+            ]
 
 {-------------------------------------------------------------------------------
                                Golden Tests
@@ -134,6 +178,30 @@ goldenAddressGeneration test = it title $ do
         , "/"
         , show (fromEnum p5)
         ]
+
+goldenHardwareLedger
+    :: Passphrase "encryption"
+        -- ^ An encryption passphrase
+    -> [Text]
+        -- ^ 24-word mnemonic
+    -> [Text]
+        -- ^ Some addresses, starting at index 0
+    -> Spec
+goldenHardwareLedger encPwd sentence addrs =
+    it title $ do
+        let Right mnemonic = mkMnemonic @24 sentence
+        let rootXPrv = generateKeyFromHardwareLedger mnemonic encPwd
+        let acctXPrv = deriveAccountPrivateKey encPwd rootXPrv minBound
+        let deriveAddr = deriveAddressPrivateKey encPwd acctXPrv UTxOExternal
+
+        forM_ (zip [0..] addrs) $ \(ix, addr) -> do
+            let addrXPrv = deriveAddr (toEnum ix)
+            base58 (paymentAddress @'Mainnet $ publicKey addrXPrv) `shouldBe` addr
+  where
+    title = T.unpack
+        $ T.unwords
+        $ take 3 sentence ++ [ "..." ] ++ drop 21 sentence
+    base58 = encodeAddress @'Mainnet
 
 {-------------------------------------------------------------------------------
                                  Properties

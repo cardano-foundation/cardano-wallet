@@ -26,6 +26,7 @@ module Cardano.Wallet.Primitive.AddressDerivation.Icarus
 
     -- * Generation and derivation
     , generateKeyFromSeed
+    , generateKeyFromHardwareLedger
     , unsafeGenerateKeyFromSeed
     , minSeedLengthBytes
     ) where
@@ -66,20 +67,34 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( decodeLegacyAddress )
+import Cardano.Wallet.Primitive.Mnemonic
+    ( Mnemonic, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), Hash (..), invariant )
+import Control.Arrow
+    ( first, left )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
     ( (<=<) )
+import Crypto.Error
+    ( eitherCryptoError )
 import Crypto.Hash
     ( hash )
+import Crypto.Hash.Algorithms
+    ( SHA256 (..), SHA512 (..) )
+import Crypto.MAC.HMAC
+    ( HMAC, hmac )
 import Data.Bifunctor
     ( bimap )
+import Data.Bits
+    ( clearBit, setBit, testBit )
 import Data.ByteString
     ( ByteString )
 import Data.Coerce
     ( coerce )
+import Data.Function
+    ( (&) )
 import Data.Maybe
     ( fromMaybe )
 import Data.Proxy
@@ -88,11 +103,17 @@ import Data.Word
     ( Word32 )
 import GHC.Generics
     ( Generic )
+import GHC.Stack
+    ( HasCallStack )
 
 import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Codec.CBOR.Write as CBOR
+import qualified Crypto.ECC.Edwards25519 as Ed25519
+import qualified Crypto.KDF.PBKDF2 as PBKDF2
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 
 -- | A cryptographic key for sequential-scheme address derivation, with
 -- phantom-types to disambiguate key types.
@@ -150,6 +171,84 @@ generateKeyFromSeed
         -- ^ Master encryption passphrase
     -> IcarusKey 'RootK XPrv
 generateKeyFromSeed = unsafeGenerateKeyFromSeed
+
+-- | Hardware Ledger devices generates keys from mnemonic using a different
+-- approach (different from the rest of Cardano).
+generateKeyFromHardwareLedger
+    :: Mnemonic 24
+        -- ^ The actual seed
+    -> Passphrase "encryption"
+        -- ^ Master encryption passphrase
+    -> IcarusKey 'RootK XPrv
+generateKeyFromHardwareLedger mnemonic (Passphrase pwd) = unsafeFromRight $ do
+    let seed = pbkdf2HmacSha512
+            $ T.encodeUtf8
+            $ T.intercalate " "
+            $ mnemonicToText mnemonic
+
+    let cc = hmacSha256 (BS.pack [1] <> seed)
+    let (kL, kR) = first normalizeEd25519 $ hashRepeatedly seed
+    pA <- ed25519ScalarMult kL
+
+    prv <- left show $ xprv $ kL <> kR <> pA <> cc
+    pure $ IcarusKey (xPrvChangePass (mempty :: ByteString) pwd prv)
+  where
+    unsafeFromRight :: (HasCallStack, Show e) => Either e a -> a
+    unsafeFromRight = either (error . show) id
+
+    hashRepeatedly :: ByteString -> (ByteString, ByteString)
+    hashRepeatedly bytes = case BS.splitAt 32 (hmacSha512 bytes) of
+        (kL, kR) | testBit (kL `BS.index` 31) 5 -> hashRepeatedly (kL <> kR)
+        (kL, kR) -> (kL, kR)
+
+    -- - Clear the lowest 3 bits of the first byte
+    -- - Clear the highest bit of the last byte
+    -- - Set the second highest bit of the last byte
+    --
+    -- As described in:
+    --
+    -- "BIP32-Ed25519 Hierarchical Deterministic Keys over a Non-linear Keyspace".
+    normalizeEd25519 :: ByteString -> ByteString
+    normalizeEd25519 bytes =
+        let
+            (firstByte, rest) = BS.splitAt 1 bytes
+            (rest', lastByte) = BS.splitAt 30 rest
+        in
+            mconcat
+                [ (firstByte `BS.index` 0)
+                    & (`clearBit` 0)
+                    & (`clearBit` 1)
+                    & (`clearBit` 2)
+                    & BS.singleton
+                , rest'
+                , lastByte `BS.index` 0
+                    & (`setBit` 6)
+                    & (`clearBit` 7)
+                    & BS.singleton
+                ]
+
+    ed25519ScalarMult :: ByteString -> Either String ByteString
+    ed25519ScalarMult bytes = do
+        scalar <- left show $ eitherCryptoError $ Ed25519.scalarDecodeLong bytes
+        pure $ Ed25519.pointEncode $ Ed25519.toPoint scalar
+
+    pbkdf2HmacSha512 :: ByteString -> ByteString
+    pbkdf2HmacSha512 bytes = PBKDF2.generate
+        (PBKDF2.prfHMAC SHA512)
+        (PBKDF2.Parameters 2048 64)
+        bytes
+        ("mnemonic" :: ByteString)
+
+    hmacSha256 :: ByteString -> ByteString
+    hmacSha256 =
+        BA.convert @(HMAC SHA256) . hmac salt
+
+    hmacSha512 :: ByteString -> ByteString
+    hmacSha512 =
+        BA.convert @(HMAC SHA512) . hmac salt
+
+    salt :: ByteString
+    salt = "ed25519 seed"
 
 -- | Generate a new key from seed. Note that the @depth@ is left open so that
 -- the caller gets to decide what type of key this is. This is mostly for
