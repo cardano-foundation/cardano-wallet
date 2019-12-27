@@ -224,6 +224,7 @@ test-suite integration
     , network
     , persistent
     , process
+    , random-shuffle
     , retry
     , safe
     , servant
@@ -233,6 +234,7 @@ test-suite integration
     , text-class
     , time
     , transformers
+    , unliftio
     , warp
     , yaml
   build-tools:
@@ -258,6 +260,7 @@ test-suite integration
       Test.Integration.Jormungandr.Scenario.CLI.StakePools
       Test.Integration.Jormungandr.Scenario.CLI.Transactions
       Test.Integration.Jormungandr.Scenario.CLI.Mnemonics
+      Test.Utils.Ports
 
 benchmark latency
   default-language:
