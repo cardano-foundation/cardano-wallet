@@ -18,6 +18,7 @@ let
   testData = {
     core = ../lib/core/test/data;
     jormungandr = ../lib/jormungandr/test/data;
+    daedalusIPC = ../lib/jormungandr/test/integration/js;
   };
 
   name = "cardano-wallet-jormungandr-${project.version}-tests-win64";
@@ -40,12 +41,13 @@ in pkgs.runCommand name {
   nativeBuildInputs = [ pkgs.zip pkgs.gnused project.jormungandr-cli ];
   passthru = { inherit tests benchmarks; };
 } ''
-  mkdir -pv jm jm/test/data $out/nix-support
+  mkdir -pv jm jm/test/data jm/test/integration $out/nix-support
   cd jm
 
   cp -v ${cardano-wallet-jormungandr}/bin/* .
   cp -v ${nodejs}/node.exe .
   cp -Rv --no-preserve=mode ${testData.core}/* ${testData.jormungandr}/* test/data
+  cp -Rv --no-preserve=mode ${testData.daedalusIPC} test/integration/js
   cp -v ${jm-bat} jm.bat
   hash="$(jcli genesis hash --input test/data/jormungandr/block0.bin)"
   sed -e "s/HASH/$hash/" ${cw-bat} > cw.bat
