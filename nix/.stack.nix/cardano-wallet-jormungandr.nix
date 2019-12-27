@@ -199,6 +199,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."network" or (buildDepError "network"))
             (hsPkgs."persistent" or (buildDepError "persistent"))
             (hsPkgs."process" or (buildDepError "process"))
+            (hsPkgs."random-shuffle" or (buildDepError "random-shuffle"))
             (hsPkgs."retry" or (buildDepError "retry"))
             (hsPkgs."safe" or (buildDepError "safe"))
             (hsPkgs."servant" or (buildDepError "servant"))
@@ -208,6 +209,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."text-class" or (buildDepError "text-class"))
             (hsPkgs."time" or (buildDepError "time"))
             (hsPkgs."transformers" or (buildDepError "transformers"))
+            (hsPkgs."unliftio" or (buildDepError "unliftio"))
             (hsPkgs."warp" or (buildDepError "warp"))
             (hsPkgs."yaml" or (buildDepError "yaml"))
             ];

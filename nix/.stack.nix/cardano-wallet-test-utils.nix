@@ -70,11 +70,9 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
           (hsPkgs."network" or (buildDepError "network"))
           (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
-          (hsPkgs."random-shuffle" or (buildDepError "random-shuffle"))
           (hsPkgs."stm" or (buildDepError "stm"))
           (hsPkgs."template-haskell" or (buildDepError "template-haskell"))
           (hsPkgs."time" or (buildDepError "time"))
-          (hsPkgs."unliftio" or (buildDepError "unliftio"))
           (hsPkgs."wai-app-static" or (buildDepError "wai-app-static"))
           (hsPkgs."warp" or (buildDepError "warp"))
           ];
