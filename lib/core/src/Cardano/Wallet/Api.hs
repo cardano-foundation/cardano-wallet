@@ -103,6 +103,8 @@ import Data.Text
     ( Text )
 import GHC.Generics
     ( Generic )
+import GHC.TypeLits
+    ( Symbol )
 import Network.HTTP.Media
     ( (//), (/:) )
 import Servant.API
@@ -319,14 +321,18 @@ type DelegationFee = "wallets"
 -------------------------------------------------------------------------------}
 
 type ByronWallets =
-         PostByronWallet
+         PostByronWallet "random" '[12]
+    :<|> PostByronWallet "icarus" '[15]
+    :<|> PostByronWallet "trezor" '[12,15,18,21,24]
+    :<|> PostByronWallet "ledger" '[12,15,18,21,24]
     :<|> DeleteByronWallet
     :<|> GetByronWallet
     :<|> ListByronWallets
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postByronWallet
-type PostByronWallet = "byron-wallets"
-    :> ReqBody '[JSON] ByronWalletPostData
+type PostByronWallet (style :: Symbol) mw = "byron-wallets"
+    :> style
+    :> ReqBody '[JSON] (ByronWalletPostData mw)
     :> PostCreated '[JSON] ApiByronWallet
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteByronWallet

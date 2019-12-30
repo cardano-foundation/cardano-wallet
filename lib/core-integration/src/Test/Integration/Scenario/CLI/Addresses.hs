@@ -39,7 +39,7 @@ import Test.Integration.Framework.DSL
     , KnownCommand
     , balanceAvailable
     , deleteWalletViaCLI
-    , emptyByronWallet
+    , emptyRandomWallet
     , emptyWallet
     , emptyWalletWith
     , expectCliListItemFieldEqual
@@ -213,15 +213,15 @@ spec = do
         c `shouldBe` ExitFailure 1
 
     it "BYRON_ADDRESS_LIST - Byron wallet on Shelley CLI" $ \ctx -> do
-        wid <- emptyByronWallet' ctx
+        wid <- emptyRandomWallet' ctx
         (Exit c, Stdout o, Stderr e) <- listAddressesViaCLI @t ctx [wid]
         e `shouldContain` errMsg404NoWallet (T.pack wid)
         o `shouldBe` ""
         c `shouldBe` ExitFailure 1
 
   where
-    emptyByronWallet' :: Context t -> IO String
-    emptyByronWallet' = fmap (T.unpack . view walletId) . emptyByronWallet
+    emptyRandomWallet' :: Context t -> IO String
+    emptyRandomWallet' = fmap (T.unpack . view walletId) . emptyRandomWallet
 
     emptyWallet' :: Context t -> IO String
     emptyWallet' = fmap (T.unpack . view walletId) . emptyWallet

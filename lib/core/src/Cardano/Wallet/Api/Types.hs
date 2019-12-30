@@ -14,6 +14,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -267,10 +268,8 @@ data WalletPostData = WalletPostData
     , passphrase :: !(ApiT (Passphrase "encryption"))
     } deriving (Eq, Generic, Show)
 
-data ByronWalletPostData = ByronWalletPostData
-    { mnemonicSentence :: !(ApiMnemonicT '[12,15] "seed")
-        -- 12 words: Byron Daedalus
-        -- 15 words: Byron Yoroi
+data ByronWalletPostData mw = ByronWalletPostData
+    { mnemonicSentence :: !(ApiMnemonicT mw "seed")
     , name :: !(ApiT WalletName)
     , passphrase :: !(ApiT (Passphrase "encryption"))
     } deriving (Eq, Generic, Show)
@@ -383,6 +382,7 @@ data ApiErrorCode
     | NoSuchPool
     | PoolAlreadyJoined
     | NotDelegatingTo
+    | InvalidRestorationParameters
     deriving (Eq, Generic, Show)
 
 -- | Defines a point in time that can be formatted as and parsed from an
@@ -528,9 +528,9 @@ instance FromJSON WalletPostData where
 instance ToJSON  WalletPostData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON ByronWalletPostData where
+instance FromMnemonic mw "seed" => FromJSON (ByronWalletPostData mw) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON  ByronWalletPostData where
+instance ToJSON (ByronWalletPostData mw) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON WalletPutData where

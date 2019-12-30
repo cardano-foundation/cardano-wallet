@@ -159,23 +159,6 @@ x-walletMnemonicSentence: &walletMnemonicSentence
     format: bip-0039-mnemonic-word{english}
   example: ["squirrel", "material", "silly", "twice", "direct", "slush", "pistol", "razor", "become", "junk", "kingdom", "flee", "squirrel", "silly", "twice"]
 
-x-byronWalletMnemonicSentence: &byronWalletMnemonicSentence
-  description: |
-    A list of mnemonic words.
-
-    Important:
-      - a 12-word mnemonic sentence will be treated as being a Daedalus Byron wallet.
-      - a 15-word mnemonic sentence will be treated as being a Yoroi Byron wallet.
-  type: array
-  minItems: 12
-  maxItems: 15
-  items:
-    type: string
-    format: bip-0039-mnemonic-word{english}
-  example: [
-    "squirrel", "material", "silly", "twice", "direct", "slush",
-    "pistol", "razor", "become", "junk", "kingdom", "junk"]
-
 x-walletSecondFactor: &walletSecondFactor
   description: An optional passphrase used to encrypt the mnemonic sentence.
   type: array
@@ -738,7 +721,7 @@ definitions:
       passphrase: *walletPassphrase
       address_pool_gap: *walletAddressPoolGap
 
-  ApiByronWalletPostData: &ApiByronWalletPostData
+  ApiByronWalletRandomPostData: &ApiByronWalletRandomPostData
     type: object
     required:
       - name
@@ -746,8 +729,53 @@ definitions:
       - passphrase
     properties:
       name: *walletName
-      mnemonic_sentence: *byronWalletMnemonicSentence
       passphrase: *walletPassphrase
+      mnemonic_sentence:
+        <<: *walletMnemonicSentence
+        minItems: 12
+        maxItems: 12
+
+  ApiByronWalletIcarusPostData: &ApiByronWalletIcarusPostData
+    type: object
+    required:
+      - name
+      - mnemonic_sentence
+      - passphrase
+    properties:
+      name: *walletName
+      passphrase: *walletPassphrase
+      mnemonic_sentence:
+        <<: *walletMnemonicSentence
+        minItems: 15
+        maxItems: 15
+
+  ApiByronWalletTrezorPostData: &ApiByronWalletTrezorPostData
+    type: object
+    required:
+      - name
+      - mnemonic_sentence
+      - passphrase
+    properties:
+      name: *walletName
+      passphrase: *walletPassphrase
+      mnemonic_sentence:
+        <<: *walletMnemonicSentence
+        minItems: 12
+        maxItems: 24
+
+  ApiByronWalletLedgerPostData: &ApiByronWalletLedgerPostData
+    type: object
+    required:
+      - name
+      - mnemonic_sentence
+      - passphrase
+    properties:
+      name: *walletName
+      passphrase: *walletPassphrase
+      mnemonic_sentence:
+        <<: *walletMnemonicSentence
+        minItems: 12
+        maxItems: 24
 
   ApiWalletPutData: &ApiWalletPutData
     type: object
@@ -874,7 +902,6 @@ x-parametersSortOrder: &parametersSortOrder
     - descending
   default: descending
   description: An optional sort order.
-
 
 #############################################################################
 #                                                                           #
@@ -1463,17 +1490,60 @@ paths:
         Return a list of known Byron wallets, ordered from oldest to newest.
       responses: *responsesListByronWallets
 
+  /byron-wallets/random:
     post:
-      operationId: postByronWallet
+      operationId: postByronRandomWallet
       tags: ["Byron Wallets"]
-      summary: Restore
+      summary: Restore (Random)
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
-        Restore a Byron wallet from a mnemonic sentence.
+        Restore a Byron Random wallet from a mnemonic sentence.
       parameters:
         - <<: *parametersBody
-          schema: *ApiByronWalletPostData
+          schema: *ApiByronWalletRandomPostData
+      responses: *responsesPostByronWallet
+
+  /byron-wallets/icarus:
+    post:
+      operationId: postByronIcarusWallet
+      tags: ["Byron Wallets"]
+      summary: Restore (Icarus)
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Restore a Byron Icarus wallet from a mnemonic sentence.
+      parameters:
+        - <<: *parametersBody
+          schema: *ApiByronWalletIcarusPostData
+      responses: *responsesPostByronWallet
+
+  /byron-wallets/trezor:
+    post:
+      operationId: postByronTrezorWallet
+      tags: ["Byron Wallets"]
+      summary: Restore (Trezor)
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Restore a Byron Trezor wallet from a mnemonic sentence.
+      parameters:
+        - <<: *parametersBody
+          schema: *ApiByronWalletTrezorPostData
+      responses: *responsesPostByronWallet
+
+  /byron-wallets/ledger:
+    post:
+      operationId: postByronLedgerWallet
+      tags: ["Byron Wallets"]
+      summary: Restore (Ledger)
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Restore a Byron Ledger wallet from a mnemonic sentence.
+      parameters:
+        - <<: *parametersBody
+          schema: *ApiByronWalletLedgerPostData
       responses: *responsesPostByronWallet
 
   /byron-wallets/{walletId}:

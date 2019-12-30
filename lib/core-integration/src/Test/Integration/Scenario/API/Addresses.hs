@@ -31,7 +31,7 @@ import Test.Integration.Framework.DSL
     , Payload (..)
     , balanceAvailable
     , deleteWalletEp
-    , emptyByronWallet
+    , emptyRandomWallet
     , emptyWallet
     , emptyWalletWith
     , expectErrorMessage
@@ -64,7 +64,7 @@ import qualified Network.HTTP.Types.Status as HTTP
 spec :: forall t n. (n ~ 'Testnet) => SpecWith (Context t)
 spec = do
     it "BYRON_ADDRESS_LIST - Byron wallet on Shelley ep" $ \ctx -> do
-        w <- emptyByronWallet ctx
+        w <- emptyRandomWallet ctx
         let wid = w ^. walletId
         let ep = ("GET", "v2/wallets/" <> wid <> "/addresses")
         r <- request @[ApiAddress n] ctx ep Default Empty
