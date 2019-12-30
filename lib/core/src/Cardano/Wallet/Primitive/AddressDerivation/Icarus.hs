@@ -103,8 +103,6 @@ import Data.Word
     ( Word32 )
 import GHC.Generics
     ( Generic )
-import GHC.Stack
-    ( HasCallStack )
 
 import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Codec.CBOR.Write as CBOR
@@ -174,6 +172,15 @@ generateKeyFromSeed = unsafeGenerateKeyFromSeed
 
 -- | Hardware Ledger devices generates keys from mnemonic using a different
 -- approach (different from the rest of Cardano).
+--
+-- It is a combination of:
+--
+-- - [SLIP 0010](https://github.com/satoshilabs/slips/blob/master/slip-0010.md)
+-- - [BIP 0032](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki)
+-- - [BIP 0039](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki)
+-- - [RFC 8032](https://tools.ietf.org/html/rfc8032#section-5.1.5)
+-- - What seems to be arbitrary changes from Ledger regarding the calculation of
+--   the initial chain code and generation of the root private key.
 generateKeyFromHardwareLedger
     :: Mnemonic 24
         -- ^ The actual seed
@@ -186,52 +193,80 @@ generateKeyFromHardwareLedger mnemonic (Passphrase pwd) = unsafeFromRight $ do
             $ T.intercalate " "
             $ mnemonicToText mnemonic
 
+    -- NOTE
+    -- SLIP-0010 refers to `iR` as the chain code. Here however, the chain code
+    -- is obtained as a hash of the initial seed whereas iR is used to make part
+    -- of the root private key itself.
     let cc = hmacSha256 (BS.pack [1] <> seed)
-    let (kL, kR) = first normalizeEd25519 $ hashRepeatedly seed
-    pA <- ed25519ScalarMult kL
+    let (iL, iR) = first pruneBuffer $ hashRepeatedly seed
+    pA <- ed25519ScalarMult iL
 
-    prv <- left show $ xprv $ kL <> kR <> pA <> cc
+    prv <- left show $ xprv $ iL <> iR <> pA <> cc
     pure $ IcarusKey (xPrvChangePass (mempty :: ByteString) pwd prv)
   where
-    unsafeFromRight :: (HasCallStack, Show e) => Either e a -> a
-    unsafeFromRight = either (error . show) id
+    -- Errors yielded in the body of 'generateKeyFromHardwareLedger' are
+    -- programmer errors (out-of-range byte buffer access or, invalid length for
+    -- cryptographic operations). Therefore, we throw badly if we encounter any.
+    unsafeFromRight :: Either String a -> a
+    unsafeFromRight = either error id
 
+    -- This is the algorithm described in SLIP 0010 for master key generation
+    -- with an extra step to discard _some_ of the potential private keys. Why
+    -- this extra step remains a mystery as of today.
+    --
+    --      1. Generate a seed byte sequence S of 512 bits according to BIP-0039.
+    --         (done in a previous step, passed as argument).
+    --
+    --      2. Calculate I = HMAC-SHA512(Key = "ed25519 seed", Data = S)
+    --
+    --      3. Split I into two 32-byte sequences, IL and IR.
+    --
+    -- extra *******************************************************************
+    -- *                                                                       *
+    -- *    3.5 If the third highest bit of the last byte of IL is not zero    *
+    -- *        S = I and go back to step 2.                                   *
+    -- *                                                                       *
+    -- *************************************************************************
+    --
+    --      4. Use parse256(IL) as master secret key, and IR as master chain code.
     hashRepeatedly :: ByteString -> (ByteString, ByteString)
     hashRepeatedly bytes = case BS.splitAt 32 (hmacSha512 bytes) of
-        (kL, kR) | testBit (kL `BS.index` 31) 5 -> hashRepeatedly (kL <> kR)
-        (kL, kR) -> (kL, kR)
+        (iL, iR) | isInvalidKey iL -> hashRepeatedly (iL <> iR)
+        (iL, iR) -> (iL, iR)
+      where
+        isInvalidKey k = testBit (k `BS.index` 31) 5
 
     -- - Clear the lowest 3 bits of the first byte
     -- - Clear the highest bit of the last byte
     -- - Set the second highest bit of the last byte
     --
-    -- As described in:
-    --
-    -- "BIP32-Ed25519 Hierarchical Deterministic Keys over a Non-linear Keyspace".
-    normalizeEd25519 :: ByteString -> ByteString
-    normalizeEd25519 bytes =
+    -- As described in [RFC 8032 - 5.1.5](https://tools.ietf.org/html/rfc8032#section-5.1.5)
+    pruneBuffer :: ByteString -> ByteString
+    pruneBuffer bytes =
         let
-            (firstByte, rest) = BS.splitAt 1 bytes
-            (rest', lastByte) = BS.splitAt 30 rest
+            (firstByte, rest) = fromMaybe (error "pruneBuffer: no first byte") $
+                BS.uncons bytes
+
+            (rest', lastByte) = fromMaybe (error "pruneBuffer: no last byte") $
+                BS.unsnoc rest
+
+            firstPruned = firstByte
+                & (`clearBit` 0)
+                & (`clearBit` 1)
+                & (`clearBit` 2)
+
+            lastPruned = lastByte
+                & (`setBit` 6)
+                & (`clearBit` 7)
         in
-            mconcat
-                [ (firstByte `BS.index` 0)
-                    & (`clearBit` 0)
-                    & (`clearBit` 1)
-                    & (`clearBit` 2)
-                    & BS.singleton
-                , rest'
-                , lastByte `BS.index` 0
-                    & (`setBit` 6)
-                    & (`clearBit` 7)
-                    & BS.singleton
-                ]
+            (firstPruned `BS.cons` BS.snoc rest' lastPruned)
 
     ed25519ScalarMult :: ByteString -> Either String ByteString
     ed25519ScalarMult bytes = do
         scalar <- left show $ eitherCryptoError $ Ed25519.scalarDecodeLong bytes
         pure $ Ed25519.pointEncode $ Ed25519.toPoint scalar
 
+    -- As described in [BIP 0039 - From Mnemonic to Seed](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki#from-mnemonic-to-seed)
     pbkdf2HmacSha512 :: ByteString -> ByteString
     pbkdf2HmacSha512 bytes = PBKDF2.generate
         (PBKDF2.prfHMAC SHA512)
@@ -243,6 +278,7 @@ generateKeyFromHardwareLedger mnemonic (Passphrase pwd) = unsafeFromRight $ do
     hmacSha256 =
         BA.convert @(HMAC SHA256) . hmac salt
 
+    -- As described in [SLIP 0010 - Master Key Generation](https://github.com/satoshilabs/slips/blob/master/slip-0010.md#master-key-generation)
     hmacSha512 :: ByteString -> ByteString
     hmacSha512 =
         BA.convert @(HMAC SHA512) . hmac salt
