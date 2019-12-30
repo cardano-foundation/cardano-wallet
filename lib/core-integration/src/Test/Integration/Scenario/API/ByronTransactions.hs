@@ -28,14 +28,14 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , deleteByronWalletEp
-    , emptyByronWallet
     , emptyIcarusWallet
+    , emptyRandomWallet
     , emptyWallet
     , expectErrorMessage
     , expectListSizeEqual
     , expectResponseCode
-    , fixtureByronWallet
     , fixtureIcarusWallet
+    , fixtureRandomWallet
     , listByronTxEp
     , request
     , toQueryString
@@ -64,8 +64,8 @@ spec :: forall t n. (n ~ 'Testnet) => SpecWith (Context t)
 spec = do
 
     it "BYRON_TX_LIST_01 - 0 txs on empty Byron wallet"
-        $ \ctx -> forM_ [emptyByronWallet, emptyIcarusWallet] $ \emptyLegacyWallet -> do
-            w <- emptyLegacyWallet ctx
+        $ \ctx -> forM_ [emptyRandomWallet, emptyIcarusWallet] $ \emptyByronWallet -> do
+            w <- emptyByronWallet ctx
             r <- request @([ApiTransaction n]) ctx (listByronTxEp w mempty)
                 Default Empty
             verify r
@@ -74,8 +74,8 @@ spec = do
                 ]
 
     it "BYRON_TX_LIST_01 - Can list transactions on Byron Wallet"
-        $ \ctx -> forM_ [fixtureByronWallet, fixtureIcarusWallet] $ \fixtureLegacyWallet -> do
-            w <- fixtureLegacyWallet ctx
+        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet] $ \fixtureByronWallet -> do
+            w <- fixtureByronWallet ctx
             r <- request @([ApiTransaction n]) ctx (listByronTxEp w mempty)
                 Default Empty
             verify r
@@ -152,14 +152,14 @@ spec = do
                 ]
 
         forM_ queries $ \tc -> it (T.unpack $ query tc) $ \ctx -> do
-            w <- emptyByronWallet ctx
+            w <- emptyRandomWallet ctx
             r <- request @([ApiTransaction n]) ctx (listByronTxEp w (query tc))
                 Default Empty
             verify r (assertions tc)
 
     it "BYRON_TX_LIST_01 - Start time shouldn't be later than end time" $
         \ctx -> do
-              w <- emptyByronWallet ctx
+              w <- emptyRandomWallet ctx
               let startTime = "2009-09-09T09:09:09Z"
               let endTime = "2001-01-01T01:01:01Z"
               let q = toQueryString
@@ -185,7 +185,7 @@ spec = do
 
     it "BYRON_TX_LIST_03 -\
         \ Shelley endpoint does not list Byron wallet transactions" $ \ctx -> do
-        w <- emptyByronWallet ctx
+        w <- emptyRandomWallet ctx
         let wid = w ^. walletId
         let ep = ("GET", "v2/wallets/" <> wid <> "/transactions")
         r <- request @([ApiTransaction n]) ctx ep Default Empty
@@ -195,7 +195,7 @@ spec = do
             ]
 
     it "BYRON_TX_LIST_04 - 'almost' valid walletId" $ \ctx -> do
-        w <- emptyByronWallet ctx
+        w <- emptyRandomWallet ctx
         let endpoint = "v2/byron-wallets/"
                 <> T.unpack (T.append (w ^. walletId) "0")
                 <> "/transactions"
@@ -205,7 +205,7 @@ spec = do
         expectErrorMessage errMsg404NoEndpoint r
 
     it "BYRON_TX_LIST_04 - Deleted wallet" $ \ctx -> do
-        w <- emptyByronWallet ctx
+        w <- emptyRandomWallet ctx
         _ <- request @ApiByronWallet ctx (deleteByronWalletEp w) Default Empty
         r <- request @([ApiTransaction n]) ctx (listByronTxEp w mempty)
             Default Empty
@@ -226,6 +226,6 @@ spec = do
     describe "BYRON_TX_LIST_05 - Request headers" $ do
         forM_ (getHeaderCases HTTP.status200)
             $ \(title, h, expec) -> it title $ \ctx -> do
-            w <- emptyByronWallet ctx
+            w <- emptyRandomWallet ctx
             r <- request @([ApiTransaction n]) ctx (listByronTxEp w mempty) h Empty
             verify r expec

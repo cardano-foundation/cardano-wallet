@@ -286,7 +286,9 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(PostTransactionData 'Testnet)
             jsonRoundtripAndGolden $ Proxy @(PostTransactionFeeData 'Testnet)
             jsonRoundtripAndGolden $ Proxy @WalletPostData
-            jsonRoundtripAndGolden $ Proxy @ByronWalletPostData
+            jsonRoundtripAndGolden $ Proxy @(ByronWalletPostData '[12])
+            jsonRoundtripAndGolden $ Proxy @(ByronWalletPostData '[15])
+            jsonRoundtripAndGolden $ Proxy @(ByronWalletPostData '[12,15,18,21,24])
             jsonRoundtripAndGolden $ Proxy @WalletPutData
             jsonRoundtripAndGolden $ Proxy @WalletPutPassphraseData
             jsonRoundtripAndGolden $ Proxy @(ApiT (Hash "Tx"))
@@ -997,7 +999,15 @@ instance Arbitrary WalletPostData where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance Arbitrary ByronWalletPostData where
+instance Arbitrary (ByronWalletPostData '[12]) where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary (ByronWalletPostData '[15]) where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary (ByronWalletPostData '[12,15,18,21,24]) where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
@@ -1369,8 +1379,15 @@ instance ToSchema ApiTxId where
 instance ToSchema WalletPostData where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWalletPostData"
 
-instance ToSchema ByronWalletPostData where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiByronWalletPostData"
+instance ToSchema (ByronWalletPostData '[12]) where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiByronWalletRandomPostData"
+
+instance ToSchema (ByronWalletPostData '[15]) where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiByronWalletIcarusPostData"
+
+instance ToSchema (ByronWalletPostData '[12,15,18,21,24]) where
+    -- NOTE ApiByronWalletLedgerPostData works too. Only the description differs.
+    declareNamedSchema _ = declareSchemaForDefinition "ApiByronWalletTrezorPostData"
 
 instance ToSchema WalletPutData where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWalletPutData"

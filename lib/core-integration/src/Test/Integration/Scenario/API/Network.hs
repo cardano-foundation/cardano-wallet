@@ -25,7 +25,7 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
-    , emptyByronWallet
+    , emptyRandomWallet
     , emptyWallet
     , eventually
     , eventuallyUsingDelay
@@ -112,7 +112,7 @@ spec = do
         \ctx -> do
             let getNetworkInfo = request @ApiNetworkInformation
                     ctx networkInfoEp Default Empty
-            w <- emptyByronWallet ctx
+            w <- emptyRandomWallet ctx
             eventually_ $ do
                 sync <- getNetworkInfo
                 verify sync [ expectFieldEqual syncProgress Ready ]

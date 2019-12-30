@@ -27,8 +27,8 @@ import GHC.TypeLits
 -- | An opaque 'Faucet' type from which one can get a wallet with funds
 data Faucet = Faucet
     { shelley :: MVar [Mnemonic 15]
-    , icarus :: MVar [Mnemonic 15]
-    , byron :: MVar [Mnemonic 12]
+    , icarus  :: MVar [Mnemonic 15]
+    , random  :: MVar [Mnemonic 12]
     , txBuilder :: MVar [(Address, Coin) -> IO ByteString]
     }
 
@@ -61,9 +61,9 @@ instance NextWallet "icarus" where
             [] -> fail "nextWallet: Awe crap! No more faucet icarus wallet available!"
             (h:q) -> h <$ putMVar mvar q
 
-instance NextWallet "byron" where
-    type MnemonicSize "byron" = 12
+instance NextWallet "random" where
+    type MnemonicSize "random" = 12
     nextWallet (Faucet _ _ mvar _) = do
         takeMVar mvar >>= \case
-            [] -> fail "nextWallet: Awe crap! No more faucet byron wallet available!"
+            [] -> fail "nextWallet: Awe crap! No more faucet random wallet available!"
             (h:q) -> h <$ putMVar mvar q

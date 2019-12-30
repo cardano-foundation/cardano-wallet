@@ -80,7 +80,7 @@ module Test.Integration.Framework.DSL
     -- * Helpers
     , (</>)
     , (!!)
-    , emptyByronWallet
+    , emptyRandomWallet
     , emptyIcarusWallet
     , emptyByronWalletWith
     , emptyWallet
@@ -97,7 +97,7 @@ module Test.Integration.Framework.DSL
     , listAllTransactions
     , tearDown
     , fixtureRawTx
-    , fixtureByronWallet
+    , fixtureRandomWallet
     , fixtureIcarusWallet
     , fixtureWallet
     , fixtureWalletWith
@@ -988,24 +988,24 @@ utcIso8601ToText :: UTCTime -> Text
 utcIso8601ToText = utcTimeToText iso8601ExtendedUtc
 
 -- | Create an empty wallet
-emptyByronWallet :: Context t -> IO ApiByronWallet
-emptyByronWallet ctx = do
+emptyRandomWallet :: Context t -> IO ApiByronWallet
+emptyRandomWallet ctx = do
     mnemonic <- mnemonicToText @12 . entropyToMnemonic <$> genEntropy
-    emptyByronWalletWith ctx ("Byron Wallet", mnemonic, "Secure Passphrase")
+    emptyByronWalletWith ctx "random" ("Random Wallet", mnemonic, "Secure Passphrase")
 
 emptyIcarusWallet :: Context t -> IO ApiByronWallet
 emptyIcarusWallet ctx = do
     mnemonic <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
-    emptyByronWalletWith ctx ("Icarus Wallet", mnemonic, "Secure Passphrase")
+    emptyByronWalletWith ctx "icarus" ("Icarus Wallet", mnemonic, "Secure Passphrase")
 
-emptyByronWalletWith :: Context t -> (Text, [Text], Text) -> IO ApiByronWallet
-emptyByronWalletWith ctx (name, mnemonic, pass) = do
+emptyByronWalletWith :: Context t -> Text -> (Text, [Text], Text) -> IO ApiByronWallet
+emptyByronWalletWith ctx style (name, mnemonic, pass) = do
     let payload = Json [aesonQQ| {
             "name": #{name},
             "mnemonic_sentence": #{mnemonic},
             "passphrase": #{pass}
         }|]
-    r <- request @ApiByronWallet ctx postByronWalletEp Default payload
+    r <- request @ApiByronWallet ctx (postByronWalletEp style) Default payload
     expectResponseCode @IO HTTP.status201 r
     return (getFromResponse id r)
 
@@ -1073,13 +1073,13 @@ fixtureWallet ctx = do
             then return (getFromResponse id r)
             else threadDelay oneSecond *> checkBalance w
 
--- | Restore a faucet Byron wallet and wait until funds are available.
-fixtureByronWallet
+-- | Restore a faucet Random wallet and wait until funds are available.
+fixtureRandomWallet
     :: Context t
     -> IO ApiByronWallet
-fixtureByronWallet ctx = do
-    mnemonics <- mnemonicToText <$> nextWallet @"byron" (_faucet ctx)
-    fixtureLegacyWallet ctx mnemonics
+fixtureRandomWallet ctx = do
+    mnemonics <- mnemonicToText <$> nextWallet @"random" (_faucet ctx)
+    fixtureLegacyWallet ctx "random" mnemonics
 
 -- | Restore a faucet Icarus wallet and wait until funds are available.
 fixtureIcarusWallet
@@ -1087,20 +1087,21 @@ fixtureIcarusWallet
     -> IO ApiByronWallet
 fixtureIcarusWallet ctx = do
     mnemonics <- mnemonicToText <$> nextWallet @"icarus" (_faucet ctx)
-    fixtureLegacyWallet ctx mnemonics
+    fixtureLegacyWallet ctx "icarus" mnemonics
 
 -- | Restore a legacy wallet (Byron or Icarus)
 fixtureLegacyWallet
     :: Context t
+    -> Text
     -> [Text]
     -> IO ApiByronWallet
-fixtureLegacyWallet ctx mnemonics = do
+fixtureLegacyWallet ctx style mnemonics = do
     let payload = Json [aesonQQ| {
             "name": "Faucet Byron Wallet",
             "mnemonic_sentence": #{mnemonics},
             "passphrase": #{fixturePassphrase}
             } |]
-    (_, w) <- unsafeRequest @ApiByronWallet ctx postByronWalletEp payload
+    (_, w) <- unsafeRequest @ApiByronWallet ctx (postByronWalletEp style) payload
     race (threadDelay sixtySeconds) (checkBalance w) >>= \case
         Left _ ->
             fail "fixtureByronWallet: waited too long for initial transaction"
@@ -1359,10 +1360,10 @@ networkInfoEp =
     , "v2/network/information"
     )
 
-postByronWalletEp :: (Method, Text)
-postByronWalletEp =
+postByronWalletEp :: Text -> (Method, Text)
+postByronWalletEp style =
     ( "POST"
-    , "v2/byron-wallets"
+    , "v2/byron-wallets/" <> style
     )
 
 listByronWalletsEp :: (Method, Text)

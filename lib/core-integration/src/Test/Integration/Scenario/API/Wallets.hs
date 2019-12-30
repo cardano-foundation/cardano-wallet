@@ -59,7 +59,7 @@ import Test.Integration.Framework.DSL
     , coinSelectionOutputs
     , delegation
     , deleteWalletEp
-    , emptyByronWallet
+    , emptyRandomWallet
     , emptyWallet
     , expectErrorMessage
     , expectEventually
@@ -1753,7 +1753,7 @@ spec = do
 
     it "BYRON_WALLETS_UTXO -\
         \ Cannot show Byron wal utxo with shelley ep (404)" $ \ctx -> do
-        w <- emptyByronWallet ctx
+        w <- emptyRandomWallet ctx
         let wid = w ^. walletId
         let endpoint =
                     "v2/wallets"
@@ -1765,7 +1765,7 @@ spec = do
 
     it "BYRON_WALLETS_UPDATE_PASS -\
         \ Cannot update Byron wal with shelley ep (404)" $ \ctx -> do
-        w <- emptyByronWallet ctx
+        w <- emptyRandomWallet ctx
         let payload = updatePassPayload "Secure passphrase" "Secure passphrase2"
         let wid = w ^. walletId
         let endpoint =
@@ -1778,7 +1778,7 @@ spec = do
 
     it "BYRON_WALLETS_UPDATE -\
         \ Cannot update Byron wal with shelley ep (404)" $ \ctx -> do
-        w <- emptyByronWallet ctx
+        w <- emptyRandomWallet ctx
         let wid = w ^. walletId
         let endpoint = "v2/wallets" </> wid
         let newName = updateNamePayload "new name"

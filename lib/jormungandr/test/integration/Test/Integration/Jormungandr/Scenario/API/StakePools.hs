@@ -49,7 +49,7 @@ import Test.Integration.Framework.DSL
     , delegationFee
     , delegationFeeEp
     , direction
-    , emptyByronWallet
+    , emptyRandomWallet
     , emptyWallet
     , eventually
     , eventuallyUsingDelay_
@@ -63,8 +63,8 @@ import Test.Integration.Framework.DSL
     , expectResponseCode
     , faucetUtxoAmt
     , feeEstimator
-    , fixtureByronWallet
     , fixturePassphrase
+    , fixtureRandomWallet
     , fixtureWallet
     , fixtureWalletWith
     , getFromResponse
@@ -583,7 +583,7 @@ spec = do
     it "STAKE_POOLS_JOIN_03 - Byron wallet cannot join stake pool" $ \ctx -> do
         (_, p:_) <- eventually $
             unsafeRequest @[ApiStakePool] ctx listStakePoolsEp Empty
-        w <- emptyByronWallet ctx
+        w <- emptyRandomWallet ctx
         r <- joinStakePool ctx (p ^. #id) (w, "Secure Passprase")
         expectResponseCode HTTP.status404 r
 
@@ -626,7 +626,7 @@ spec = do
             ]
 
     it "STAKE_POOLS_ESTIMATE_FEE_03 - can't use byron wallets" $ \ctx -> do
-        w <- fixtureByronWallet ctx
+        w <- fixtureRandomWallet ctx
         let ep = delegationFeeEp w
         r <- request @(ApiTransaction 'Mainnet) ctx ep Default Empty
         verify r

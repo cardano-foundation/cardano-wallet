@@ -79,7 +79,7 @@ import Test.Integration.Framework.DSL as DSL
     , balanceAvailable
     , balanceTotal
     , direction
-    , emptyByronWallet
+    , emptyRandomWallet
     , emptyWallet
     , eventually_
     , expectErrorMessage
@@ -276,7 +276,7 @@ spec = do
 
 
         txDeleteTest05 "wallets" emptyWallet
-        txDeleteTest05 "byron-wallets" emptyByronWallet
+        txDeleteTest05 "byron-wallets" emptyRandomWallet
 
     it "TRANS_EXTERNAL_CREATE_01api - proper single output transaction and \
        \proper binary format" $ \ctx -> do

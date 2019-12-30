@@ -66,7 +66,7 @@ import Test.Integration.Framework.DSL
     , deleteTxEp
     , deleteWalletEp
     , direction
-    , emptyByronWallet
+    , emptyRandomWallet
     , emptyWallet
     , eventually_
     , expectErrorMessage
@@ -82,8 +82,8 @@ import Test.Integration.Framework.DSL
     , faucetAmt
     , faucetUtxoAmt
     , feeEstimator
-    , fixtureByronWallet
     , fixturePassphrase
+    , fixtureRandomWallet
     , fixtureWallet
     , fixtureWalletWith
     , getFromResponse
@@ -1616,7 +1616,7 @@ spec = do
 
     it "BYRON_TRANS_DELETE_01 -\
         \ Byron: Can forget pending transaction" $ \ctx -> do
-        sourceWallet <- fixtureByronWallet ctx
+        sourceWallet <- fixtureRandomWallet ctx
         targetWallet <- emptyWallet ctx
 
         -- migrate funds and quickly get id of one of the pending txs
@@ -1657,7 +1657,7 @@ spec = do
 
     it "BYRON_TRANS_DELETE_02 -\
         \ Byron: Cannot forget tx that is already in ledger" $ \ctx -> do
-        w <- fixtureByronWallet ctx
+        w <- fixtureRandomWallet ctx
 
         -- Get TX id
         let listEp = listByronTxEp w mempty
@@ -1673,7 +1673,7 @@ spec = do
 
     describe "TRANS_DELETE_03 - checking no transaction id error for " $ do
         txDeleteNotExistsingTxIdTest emptyWallet "wallets"
-        txDeleteNotExistsingTxIdTest emptyByronWallet "byron-wallets"
+        txDeleteNotExistsingTxIdTest emptyRandomWallet "byron-wallets"
 
     describe "TRANS_DELETE_04 - False wallet ids for " $ do
         txDeleteFalseWalletIdsTest "wallets"
@@ -1681,11 +1681,11 @@ spec = do
 
     describe "TRANS_DELETE_07 - invalid tx id " $ do
         txDeleteInvalidTxIdsTest emptyWallet "wallets"
-        txDeleteInvalidTxIdsTest emptyByronWallet "byron-wallets"
+        txDeleteInvalidTxIdsTest emptyRandomWallet "byron-wallets"
 
     describe "TRANS_DELETE_08 - HTTP headers " $ do
         txDeleteHTTPHeadersTest emptyWallet "wallets"
-        txDeleteHTTPHeadersTest emptyByronWallet "byron-wallets"
+        txDeleteHTTPHeadersTest emptyRandomWallet "byron-wallets"
 
     describe "TRANS_DELETE_09 - HTTP methods not allowed " $ do
         txDeleteHTTPMethodsTest "wallets"
@@ -1694,11 +1694,11 @@ spec = do
     describe "TRANS_DELETE_06 -\
         \ Cannot forget tx that is performed from different wallet" $ do
         txDeleteFromDifferentWalletTest emptyWallet "wallets"
-        txDeleteFromDifferentWalletTest emptyByronWallet "byron-wallets"
+        txDeleteFromDifferentWalletTest emptyRandomWallet "byron-wallets"
 
     it "BYRON_TRANS_DELETE -\
         \ Cannot delete tx on Byron wallet using shelley ep" $ \ctx -> do
-            w <- emptyByronWallet ctx
+            w <- emptyRandomWallet ctx
             let wid = w ^. walletId
             let txid = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
             let endpoint = "v2/wallets/" <> wid <> "/transactions/" <> txid
@@ -1708,7 +1708,7 @@ spec = do
 
     it "BYRON_TRANS_ESTIMATE -\
         \ Cannot estimate tx on Byron wallet using shelley ep" $ \ctx -> do
-            w <- emptyByronWallet ctx
+            w <- emptyRandomWallet ctx
             let wid = w ^. walletId
             wDest <- emptyWallet ctx
             addr:_ <- listAddresses ctx wDest
@@ -1729,7 +1729,7 @@ spec = do
 
     it "BYRON_TRANS_CREATE -\
         \ Cannot create tx on Byron wallet using shelley ep" $ \ctx -> do
-            w <- emptyByronWallet ctx
+            w <- emptyRandomWallet ctx
             let wid = w ^. walletId
             wDest <- emptyWallet ctx
             addr:_ <- listAddresses ctx wDest

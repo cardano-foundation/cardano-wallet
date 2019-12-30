@@ -64,7 +64,7 @@ import Test.Integration.Framework.DSL
     , deleteTransactionViaCLI
     , deleteWalletViaCLI
     , direction
-    , emptyByronWallet
+    , emptyRandomWallet
     , emptyWallet
     , eventually_
     , expectCliFieldBetween
@@ -974,7 +974,7 @@ spec = do
 
     it "BYRON_TX_LIST_03 -\
         \ Shelley CLI does not list Byron wallet transactions" $ \ctx -> do
-        wid <- emptyByronWallet' ctx
+        wid <- emptyRandomWallet' ctx
         (Exit c, Stdout o, Stderr e) <- listTransactionsViaCLI @t ctx [wid]
         e `shouldContain` errMsg404NoWallet (T.pack wid)
         o `shouldBe` mempty
@@ -982,7 +982,7 @@ spec = do
 
     it "BYRON_TRANS_DELETE -\
         \ Cannot delete tx on Byron wallet using shelley CLI" $ \ctx -> do
-        wid <- emptyByronWallet' ctx
+        wid <- emptyRandomWallet' ctx
         (Exit c, Stdout o, Stderr e)
             <- deleteTransactionViaCLI @t ctx wid (replicate 64 '1')
         e `shouldContain` errMsg404NoWallet (T.pack wid)
@@ -992,7 +992,7 @@ spec = do
     describe "BYRON_TRANS_CREATE / BYRON_TRANS_ESTIMATE -\
         \ Cannot create/estimate tx on Byron wallet using shelley CLI" $ do
         forM_ ["create", "fees"] $ \action -> it action $ \ctx -> do
-            wSrc <- emptyByronWallet ctx
+            wSrc <- emptyRandomWallet ctx
             wDest <- emptyWallet ctx
             addrs:_ <- listAddresses ctx wDest
             let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
@@ -1045,8 +1045,8 @@ spec = do
       emptyWallet' :: Context t -> IO String
       emptyWallet' = fmap (T.unpack . view walletId) . emptyWallet
 
-      emptyByronWallet' :: Context t -> IO String
-      emptyByronWallet' = fmap (T.unpack . view walletId) . emptyByronWallet
+      emptyRandomWallet' :: Context t -> IO String
+      emptyRandomWallet' = fmap (T.unpack . view walletId) . emptyRandomWallet
 
       sortOrderMatrix :: [Maybe SortOrder]
       sortOrderMatrix = Nothing : fmap pure enumerate
