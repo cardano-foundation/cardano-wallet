@@ -182,7 +182,7 @@ generateKeyFromSeed = unsafeGenerateKeyFromSeed
 -- - What seems to be arbitrary changes from Ledger regarding the calculation of
 --   the initial chain code and generation of the root private key.
 generateKeyFromHardwareLedger
-    :: Mnemonic 24
+    :: Mnemonic mw
         -- ^ The actual seed
     -> Passphrase "encryption"
         -- ^ Master encryption passphrase
