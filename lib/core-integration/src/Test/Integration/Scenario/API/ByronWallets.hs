@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
@@ -48,7 +49,7 @@ import Data.Text
 import Data.Word
     ( Word64 )
 import Test.Hspec
-    ( SpecWith, describe, it )
+    ( SpecWith, describe, it, runIO )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe )
 import Test.Integration.Framework.DSL
@@ -102,6 +103,7 @@ import Test.Integration.Framework.DSL
     )
 import Test.Integration.Framework.TestData
     ( arabicWalletName
+    , errMsg400NumberOfWords
     , errMsg400ParseError
     , errMsg403NothingToMigrate
     , errMsg403WrongPass
@@ -116,12 +118,6 @@ import Test.Integration.Framework.TestData
     , japaneseMnemonics12
     , kanjiWalletName
     , mnemonics12
-    , mnemonics18
-    , mnemonics21
-    , mnemonics24
-    , mnemonics3
-    , mnemonics6
-    , mnemonics9
     , passphraseMaxLength
     , passphraseMinLength
     , polishWalletName
@@ -820,37 +816,86 @@ spec = do
                 @ApiByronWallet ctx (deleteByronWalletEp w) headers Empty
             verify rl expectations
 
-    it "BYRON_RESTORE_01, GET_01, LIST_01 - Restore a wallet" $ \ctx -> do
-        mnemonic <- genMnemonics @12
-        let name = "Empty Byron Wallet"
-        let payload = Json [json| {
-                "name": #{name},
-                "mnemonic_sentence": #{mnemonic},
-                "passphrase": "Secure Passphrase"
-            }|]
-        let expectations =
-                    [ expectFieldEqual walletName name
-                    , expectFieldEqual byronBalanceAvailable 0
-                    , expectFieldEqual byronBalanceTotal 0
-                    , expectEventually ctx getByronWalletEp state Ready
-                    , expectFieldNotEqual passphraseLastUpdate Nothing
+    describe "BYRON_RESTORE_01, GET_01, LIST_01 - Restore a wallet" $ do
+        let scenarioSuccess style mnemonic ctx = do
+                let name = "Empty Byron Wallet"
+                let payload = Json [json| {
+                        "name": #{name},
+                        "mnemonic_sentence": #{mnemonic},
+                        "passphrase": "Secure Passphrase"
+                    }|]
+                let expectations =
+                            [ expectFieldEqual walletName name
+                            , expectFieldEqual byronBalanceAvailable 0
+                            , expectFieldEqual byronBalanceTotal 0
+                            , expectEventually ctx getByronWalletEp state Ready
+                            , expectFieldNotEqual passphraseLastUpdate Nothing
+                            ]
+                -- create
+                r <- request @ApiByronWallet ctx (postByronWalletEp style) Default payload
+                verify r expectations
+                let w = getFromResponse id r
+                -- get
+                rg <- request @ApiByronWallet ctx (getByronWalletEp w) Default Empty
+                verify rg $ (expectResponseCode @IO HTTP.status200) : expectations
+                -- list
+                rl <- request @[ApiByronWallet] ctx listByronWalletsEp Default Empty
+                verify rl
+                    [ expectResponseCode @IO HTTP.status200
+                    , expectListSizeEqual 1
+                    , expectListItemFieldEqual 0 walletName name
+                    , expectListItemFieldEqual 0 byronBalanceAvailable 0
+                    , expectListItemFieldEqual 0 byronBalanceTotal 0
                     ]
-        -- create
-        r <- request @ApiByronWallet ctx (postByronWalletEp "random") Default payload
-        verify r expectations
-        let w = getFromResponse id r
-        -- get
-        rg <- request @ApiByronWallet ctx (getByronWalletEp w) Default Empty
-        verify rg $ (expectResponseCode @IO HTTP.status200) : expectations
-        -- list
-        rl <- request @[ApiByronWallet] ctx listByronWalletsEp Default Empty
-        verify rl
-            [ expectResponseCode @IO HTTP.status200
-            , expectListSizeEqual 1
-            , expectListItemFieldEqual 0 walletName name
-            , expectListItemFieldEqual 0 byronBalanceAvailable 0
-            , expectListItemFieldEqual 0 byronBalanceTotal 0
-            ]
+
+        let scenarioFailure style mnemonic ctx = do
+                let payload = Json [json| {
+                        "name": "Empty Byron Wallet",
+                        "mnemonic_sentence": #{mnemonic},
+                        "passphrase": "Secure Passphrase"
+                    }|]
+                r <- request @ApiByronWallet ctx (postByronWalletEp style) Default payload
+                verify r
+                    [ expectResponseCode @IO HTTP.status400
+                    , expectErrorMessage errMsg400NumberOfWords
+                    ]
+
+        let it' style genMnemonicIO test = do
+                mnemonic <- runIO genMnemonicIO
+                flip it (test style mnemonic) $ unwords
+                    [ "restore"
+                    , T.unpack style
+                    , show (length mnemonic)
+                    , "words"
+                    ]
+
+        it' "random" (genMnemonics @9)  scenarioFailure -- ❌
+        it' "random" (genMnemonics @12) scenarioSuccess -- ✔️
+        it' "random" (genMnemonics @15) scenarioFailure -- ❌
+        it' "random" (genMnemonics @18) scenarioFailure -- ❌
+        it' "random" (genMnemonics @21) scenarioFailure -- ❌
+        it' "random" (genMnemonics @24) scenarioFailure -- ❌
+
+        it' "icarus" (genMnemonics @9)  scenarioFailure -- ❌
+        it' "icarus" (genMnemonics @12) scenarioFailure -- ❌
+        it' "icarus" (genMnemonics @15) scenarioSuccess -- ✔️
+        it' "icarus" (genMnemonics @18) scenarioFailure -- ❌
+        it' "icarus" (genMnemonics @21) scenarioFailure -- ❌
+        it' "icarus" (genMnemonics @24) scenarioFailure -- ❌
+
+        it' "trezor" (genMnemonics @9)  scenarioFailure -- ❌
+        it' "trezor" (genMnemonics @12) scenarioSuccess -- ✔️
+        it' "trezor" (genMnemonics @15) scenarioSuccess -- ✔️
+        it' "trezor" (genMnemonics @18) scenarioSuccess -- ✔️
+        it' "trezor" (genMnemonics @21) scenarioSuccess -- ✔️
+        it' "trezor" (genMnemonics @24) scenarioSuccess -- ✔️
+
+        it' "ledger" (genMnemonics @9)  scenarioFailure -- ❌
+        it' "ledger" (genMnemonics @12) scenarioSuccess -- ✔️
+        it' "ledger" (genMnemonics @15) scenarioSuccess -- ✔️
+        it' "ledger" (genMnemonics @18) scenarioSuccess -- ✔️
+        it' "ledger" (genMnemonics @21) scenarioSuccess -- ✔️
+        it' "ledger" (genMnemonics @24) scenarioSuccess -- ✔️
 
     it "BYRON_RESTORE_02 - One can restore previously deleted wallet" $
         \ctx -> do
@@ -977,18 +1022,6 @@ spec = do
             [ expectResponseCode @IO HTTP.status400
             , expectErrorMessage "key 'name' not present"
             ]
-
-    describe "BYRON_RESTORE_05 - Non 12 word long mnemonic is incorrect" $ do
-        forM_ incorrectSizeMnemonics $ \m -> it (show $ length m) $ \ctx -> do
-            let payload = Json [json| {
-                    "name": "Some Byron Wallet",
-                    "mnemonic_sentence": #{m},
-                    "passphrase": "Secure Passphrase"
-                    } |]
-            r <- request @ApiByronWallet ctx (postByronWalletEp "random") Default payload
-            expectResponseCode @IO HTTP.status400 r
-            expectErrorMessage
-                "Invalid number of words: 12 words are expected" r
 
     describe "BYRON_RESTORE_05 - Faulty mnemonics" $ do
         let matrix =
@@ -1232,15 +1265,6 @@ spec = do
             )
         => IO [Text]
      genMnemonics = mnemonicToText . entropyToMnemonic @mw <$> genEntropy
-
-incorrectSizeMnemonics :: [ [ Text ] ]
-incorrectSizeMnemonics =
-        [ mnemonics18
-        , mnemonics21
-        , mnemonics24
-        , mnemonics3
-        , mnemonics6
-        , mnemonics9 ]
 
 valid40CharHexDesc :: String
 valid40CharHexDesc = "40 chars hex"
