@@ -126,7 +126,6 @@ import Cardano.Wallet.Api.Types
     , PostExternalTransactionData (..)
     , PostTransactionData
     , PostTransactionFeeData
-    , SeedGenerationMethod (..)
     , WalletBalance (..)
     , WalletPostData (..)
     , WalletPutData (..)
@@ -139,9 +138,12 @@ import Cardano.Wallet.Network
     ( ErrNetworkTip (..), ErrNetworkUnavailable (..), NetworkLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
+    , Depth (..)
     , HardDerivation (..)
     , NetworkDiscriminant (..)
+    , Passphrase
     , WalletKey (..)
+    , XPrv
     , digest
     , publicKey
     )
@@ -160,7 +162,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..), changeBalance, feeBalance, inputBalance )
 import Cardano.Wallet.Primitive.Mnemonic
-    ( Mnemonic, mkMnemonic )
+    ( mkMnemonic )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, availableBalance, currentTip, getState, totalBalance )
 import Cardano.Wallet.Primitive.Types
@@ -476,7 +478,11 @@ server byron icarus shelley spl =
         :<|> delegationFee shelley
 
     byronWallets :: Server ByronWallets
-    byronWallets = postLegacyWallet (byron, icarus)
+    byronWallets =
+             postRandomWallet byron
+        :<|> postIcarusWallet icarus
+        :<|> postTrezorWallet icarus
+        :<|> postLedgerWallet icarus
         :<|> (\wid -> withLegacyLayer wid
                 (byron , deleteWallet byron wid)
                 (icarus, deleteWallet icarus wid)
@@ -593,130 +599,29 @@ mkShelleyWallet ctx wid cp meta pending progress = do
 
 --------------------- Legacy
 
--- | Error obtained when an invalid combination of number of words and seed
--- generation is passed. We only allow:
---
--- - 12-word with "cardano" generation method
--- - 15-word with "cardano" generation method
--- - 24-word with either generation methods
-data ErrPostLegacyWallet
-    = ErrPostLegacyWallet (Maybe SeedGenerationMethod) Int
-
 postLegacyWallet
-    :: forall byron icarus t.
-        ( byron ~ ApiLayer (RndState 'Mainnet) t ByronKey
-        , icarus ~ ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
-        )
-    => (byron, icarus)
-    -> Maybe SeedGenerationMethod
-        -- ^ Nothing is treated as 'CardanoSeed'
-    -> ByronWalletPostData
-    -> Handler ApiByronWallet
-postLegacyWallet (byron, icarus) method body = do
-    let ApiMnemonicT (_, mnemonic) = body ^. #mnemonicSentence
-    case length mnemonic of
-        n | n == 12 && method /= Just Ledger ->
-            postByronWallet byron body
-        n | n == 15 && method /= Just Ledger ->
-            postIcarusWallet icarus body
-        n | n == 24 && method /= Just Ledger ->
-            postTrezorWallet icarus body
-        n | n == 24 && method == Just Ledger ->
-            -- NOTE Safe because of the above check and, successful parsing from
-            -- the ApiMnemonicT.
-            let Right mnemonic' = mkMnemonic @24 mnemonic
-            in postLedgerWallet icarus body mnemonic'
-        _ ->
-            liftHandler . throwE $ ErrPostLegacyWallet method (length mnemonic)
-
-postByronWallet
     :: forall ctx s t k.
         ( ctx ~ ApiLayer s t k
-        , s ~ RndState 'Mainnet
-        , k ~ ByronKey
+        , WalletKey k
         )
     => ctx
-    -> ByronWalletPostData
+        -- ^ Surrounding Context
+    -> (k 'RootK XPrv, Passphrase "encryption")
+        -- ^ Root key
+    -> (  WorkerCtx ctx
+       -> WalletId
+       -> ExceptT ErrWalletAlreadyExists IO WalletId
+       )
+        -- ^ How to create this legacy wallet
     -> Handler ApiByronWallet
-postByronWallet ctx body = do
-    state <- liftIO $ mkRndState rootXPrv <$> getStdRandom random
-    void $ liftHandler $ initWorker @_ @s @k ctx wid
-        (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
+postLegacyWallet ctx (rootXPrv, pwd) createWallet = do
+    void $ liftHandler $ initWorker @_ @s @k ctx wid (`createWallet` wid)
         (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @t @k wrk wid)
     liftHandler $ withWorkerCtx ctx wid throwE $ \wrk ->
-        W.attachPrivateKey wrk wid (rootXPrv, passphrase)
+        W.attachPrivateKey wrk wid (rootXPrv, pwd)
     fst <$> getWallet ctx mkLegacyWallet (ApiT wid)
   where
-    mnemonicSentence = getApiMnemonicT (body ^. #mnemonicSentence)
-    wName = getApiT (body ^. #name)
-    passphrase = getApiT (body ^. #passphrase)
-    rootXPrv = Rnd.generateKeyFromSeed mnemonicSentence passphrase
     wid = WalletId $ digest $ publicKey rootXPrv
-
-postIcarusWallet
-    :: forall ctx s t k.
-        ( ctx ~ ApiLayer s t k
-        , s ~ SeqState 'Mainnet k
-        , k ~ IcarusKey
-        , HasDBFactory s k ctx
-        , HasWorkerRegistry s k ctx
-        )
-    => ctx
-    -> ByronWalletPostData
-    -> Handler ApiByronWallet
-postIcarusWallet ctx body = do
-    void $ liftHandler $ initWorker @_ @s @k ctx wid
-        (\wrk -> W.createIcarusWallet  @(WorkerCtx ctx) @s @k wrk wid wName creds)
-        (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @t @k wrk wid)
-    liftHandler $ withWorkerCtx @_ @s @k ctx wid throwE $ \wrk ->
-        W.attachPrivateKey @_ @s @k wrk wid (rootXPrv, pwd)
-    fst <$> getWallet ctx mkLegacyWallet (ApiT wid)
-  where
-    seed = getApiMnemonicT (body ^. #mnemonicSentence)
-    pwd = getApiT (body ^. #passphrase)
-    rootXPrv = Ica.generateKeyFromSeed seed pwd
-    creds = (rootXPrv, pwd)
-    wid = WalletId $ digest $ publicKey rootXPrv
-    wName = getApiT (body ^. #name)
-
-postTrezorWallet
-    :: forall ctx s t k.
-        ( ctx ~ ApiLayer s t k
-        , s ~ SeqState 'Mainnet k
-        , k ~ IcarusKey
-        , HasDBFactory s k ctx
-        , HasWorkerRegistry s k ctx
-        )
-    => ctx
-    -> ByronWalletPostData
-    -> Handler ApiByronWallet
-postTrezorWallet = postIcarusWallet
-
-postLedgerWallet
-    :: forall ctx s t k.
-        ( ctx ~ ApiLayer s t k
-        , s ~ SeqState 'Mainnet k
-        , k ~ IcarusKey
-        , HasDBFactory s k ctx
-        , HasWorkerRegistry s k ctx
-        )
-    => ctx
-    -> ByronWalletPostData
-    -> Mnemonic 24
-    -> Handler ApiByronWallet
-postLedgerWallet ctx body mnemonic = do
-    void $ liftHandler $ initWorker @_ @s @k ctx wid
-        (\wrk -> W.createIcarusWallet  @(WorkerCtx ctx) @s @k wrk wid wName creds)
-        (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @t @k wrk wid)
-    liftHandler $ withWorkerCtx @_ @s @k ctx wid throwE $ \wrk ->
-        W.attachPrivateKey @_ @s @k wrk wid (rootXPrv, pwd)
-    fst <$> getWallet ctx mkLegacyWallet (ApiT wid)
-  where
-    pwd = getApiT (body ^. #passphrase)
-    rootXPrv = Ica.generateKeyFromHardwareLedger mnemonic pwd
-    creds = (rootXPrv, pwd)
-    wid = WalletId $ digest $ publicKey rootXPrv
-    wName = getApiT (body ^. #name)
 
 mkLegacyWallet
     :: MkApiWallet ctx s ApiByronWallet
@@ -732,6 +637,99 @@ mkLegacyWallet _ctx wid cp meta pending progress =
         , state = ApiT progress
         , tip = getWalletTip cp
         }
+
+postRandomWallet
+    :: forall ctx s t k.
+        ( ctx ~ ApiLayer s t k
+        , s ~ RndState 'Mainnet
+        , k ~ ByronKey
+        )
+    => ctx
+    -> ByronWalletPostData '[12]
+    -> Handler ApiByronWallet
+postRandomWallet ctx body = do
+    s <- liftIO $ mkRndState rootXPrv <$> getStdRandom random
+    postLegacyWallet ctx (rootXPrv, pwd) $ \wrk wid ->
+        W.createWallet @(WorkerCtx ctx) @s @k wrk wid wName s
+  where
+    wName = getApiT (body ^. #name)
+    pwd   = getApiT (body ^. #passphrase)
+    rootXPrv = Rnd.generateKeyFromSeed seed pwd
+      where seed = getApiMnemonicT (body ^. #mnemonicSentence)
+
+postIcarusWallet
+    :: forall ctx s t k.
+        ( ctx ~ ApiLayer s t k
+        , s ~ SeqState 'Mainnet k
+        , k ~ IcarusKey
+        , HasWorkerRegistry s k ctx
+        )
+    => ctx
+    -> ByronWalletPostData '[15]
+    -> Handler ApiByronWallet
+postIcarusWallet ctx body = do
+    postLegacyWallet ctx (rootXPrv, pwd) $ \wrk wid ->
+        W.createIcarusWallet @(WorkerCtx ctx) @s @k wrk wid wName (rootXPrv, pwd)
+  where
+    wName = getApiT (body ^. #name)
+    pwd   = getApiT (body ^. #passphrase)
+    rootXPrv = Ica.generateKeyFromSeed seed pwd
+      where seed = getApiMnemonicT (body ^. #mnemonicSentence)
+
+postTrezorWallet
+    :: forall ctx s t k.
+        ( ctx ~ ApiLayer s t k
+        , s ~ SeqState 'Mainnet k
+        , k ~ IcarusKey
+        , HasWorkerRegistry s k ctx
+        )
+    => ctx
+    -> ByronWalletPostData '[12,15,18,21,24]
+    -> Handler ApiByronWallet
+postTrezorWallet ctx body = do
+    postLegacyWallet ctx (rootXPrv, pwd) $ \wrk wid ->
+        W.createIcarusWallet @(WorkerCtx ctx) @s @k wrk wid wName (rootXPrv, pwd)
+  where
+    wName = getApiT (body ^. #name)
+    pwd   = getApiT (body ^. #passphrase)
+    rootXPrv = Ica.generateKeyFromSeed seed pwd
+      where seed = getApiMnemonicT (body ^. #mnemonicSentence)
+
+postLedgerWallet
+    :: forall ctx s t k.
+        ( ctx ~ ApiLayer s t k
+        , s ~ SeqState 'Mainnet k
+        , k ~ IcarusKey
+        , HasWorkerRegistry s k ctx
+        )
+    => ctx
+    -> ByronWalletPostData '[12,15,18,21,24]
+    -> Handler ApiByronWallet
+postLedgerWallet ctx body = do
+    postLegacyWallet ctx (rootXPrv, pwd) $ \wrk wid ->
+        W.createIcarusWallet @(WorkerCtx ctx) @s @k wrk wid wName (rootXPrv, pwd)
+  where
+    wName = getApiT (body ^. #name)
+    pwd   = getApiT (body ^. #passphrase)
+    ApiMnemonicT (_, mw) = body ^. #mnemonicSentence
+
+    -- NOTE Safe because #mnemonicSentence has been parsed successfully
+    rootXPrv = case length mw of
+        n | n == 12 ->
+            let Right mnemonic = mkMnemonic @12 mw
+            in  Ica.generateKeyFromHardwareLedger mnemonic pwd
+        n | n == 15 ->
+            let Right mnemonic = mkMnemonic @15 mw
+            in  Ica.generateKeyFromHardwareLedger mnemonic pwd
+        n | n == 18 ->
+            let Right mnemonic = mkMnemonic @18 mw
+            in  Ica.generateKeyFromHardwareLedger mnemonic pwd
+        n | n == 21 ->
+            let Right mnemonic = mkMnemonic @21 mw
+            in  Ica.generateKeyFromHardwareLedger mnemonic pwd
+        _  {- 24 -} ->
+            let Right mnemonic = mkMnemonic @24 mw
+            in  Ica.generateKeyFromHardwareLedger mnemonic pwd
 
 {-------------------------------------------------------------------------------
                              ApiLayer Discrimination
@@ -1870,19 +1868,6 @@ instance LiftHandler ErrQuitStakePool where
                 , ", because I'm not a member of this stake pool."
                 , " Please check if you are using correct stake pool id"
                 , " in your request."
-                ]
-
-instance LiftHandler ErrPostLegacyWallet where
-    handler = \case
-        ErrPostLegacyWallet (Just Ledger) _ ->
-            apiError err403 InvalidRestorationParameters $ mconcat
-                [ "Are you trying to use the 'ledger' seed generation method on "
-                , "something else than a 24-word mnemonic? Well, that's forbidden!"
-                ]
-        ErrPostLegacyWallet _ _ ->
-            apiError err403 InvalidRestorationParameters $ mconcat
-                [ "That's embarassing! You've provided an invalid combination "
-                , "of parameters but I am not able to give you any more details."
                 ]
 
 instance LiftHandler (Request, ServantErr) where

@@ -14,6 +14,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -64,7 +65,6 @@ module Cardano.Wallet.Api.Types
     , ApiByronWalletBalance (..)
     , ApiByronWalletMigrationInfo (..)
     , ByronWalletPostData (..)
-    , SeedGenerationMethod (..)
 
     -- * User-Facing Address Encoding/Decoding
     , EncodeAddress (..)
@@ -166,13 +166,7 @@ import Data.Quantity
 import Data.Text
     ( Text, split )
 import Data.Text.Class
-    ( CaseStyle (..)
-    , FromText (..)
-    , TextDecodingError (..)
-    , ToText (..)
-    , fromTextToBoundedEnum
-    , toTextFromBoundedEnum
-    )
+    ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Time
     ( UTCTime )
 import Data.Time.Text
@@ -274,11 +268,8 @@ data WalletPostData = WalletPostData
     , passphrase :: !(ApiT (Passphrase "encryption"))
     } deriving (Eq, Generic, Show)
 
-data ByronWalletPostData = ByronWalletPostData
-    { mnemonicSentence :: !(ApiMnemonicT '[12,15,24] "seed")
-        -- 12 words: Byron Daedalus
-        -- 15 words: Byron Yoroi
-        -- 24 words: Byron Trezor or Ledger
+data ByronWalletPostData mw = ByronWalletPostData
+    { mnemonicSentence :: !(ApiMnemonicT mw "seed")
     , name :: !(ApiT WalletName)
     , passphrase :: !(ApiT (Passphrase "encryption"))
     } deriving (Eq, Generic, Show)
@@ -437,18 +428,6 @@ newtype ApiByronWalletMigrationInfo = ApiByronWalletMigrationInfo
     { migrationCost :: Quantity "lovelace" Natural
     } deriving (Eq, Generic, Show)
 
-data SeedGenerationMethod
-    = Cardano
-    | Ledger
-    deriving (Eq, Generic, Show, Enum, Bounded)
-
-instance FromHttpApiData SeedGenerationMethod where
-    parseUrlPiece = left (T.pack . show) . fromTextToBoundedEnum SnakeLowerCase
-
-instance ToHttpApiData SeedGenerationMethod where
-    toUrlPiece = toTextFromBoundedEnum SnakeLowerCase
-
-
 {-------------------------------------------------------------------------------
                               Polymorphic Types
 -------------------------------------------------------------------------------}
@@ -549,9 +528,9 @@ instance FromJSON WalletPostData where
 instance ToJSON  WalletPostData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON ByronWalletPostData where
+instance FromMnemonic mw "seed" => FromJSON (ByronWalletPostData mw) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON  ByronWalletPostData where
+instance ToJSON (ByronWalletPostData mw) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON WalletPutData where
