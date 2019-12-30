@@ -1254,6 +1254,27 @@ spec = do
             [ expectResponseCode @IO HTTP.status201
             , expectFieldEqual byronBalanceAvailable faucetAmt
             ]
+
+    it "BYRON_RESTORE_09 - Ledger wallet" $ \ctx -> do
+        -- NOTE
+        -- Special legacy wallets where addresses have been generated from a
+        -- seed derived using the auxiliary method used by Ledger.
+        let mnemonics =
+                [ "vague" , "wrist" , "poet" , "crazy" , "danger" , "dinner"
+                , "grace" , "home" , "naive" , "unfold" , "april" , "exile"
+                , "relief" , "rifle" , "ranch" , "tone" , "betray" , "wrong"
+                ] :: [Text]
+        let payload = Json [json| {
+                "name": "Ledger Wallet",
+                "mnemonic_sentence": #{mnemonics},
+                "passphrase": #{fixturePassphrase}
+                } |]
+
+        r <- request @ApiByronWallet ctx (postByronWalletEp "ledger") Default payload
+        verify r
+            [ expectResponseCode @IO HTTP.status201
+            , expectFieldEqual byronBalanceAvailable faucetAmt
+            ]
  where
      genMnemonics
         :: forall mw ent csz.
