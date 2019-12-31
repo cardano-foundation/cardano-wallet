@@ -68,6 +68,8 @@ import System.Environment
     ( setEnv )
 import System.FilePath
     ( (</>) )
+import System.IO.Temp
+    ( withSystemTempDirectory )
 import Test.Hspec
     ( Spec, SpecWith, after, describe, hspec, parallel )
 import Test.Hspec.Extra
@@ -147,7 +149,7 @@ specWithServer
 specWithServer (logCfg, tr) = aroundAll withContext . after tearDown
   where
     withContext :: (Context Jormungandr -> IO ()) -> IO ()
-    withContext action = do
+    withContext action = withWalletDbTempDir $ \d -> do
         ctx <- newEmptyMVar
         let setupContext wAddr nPort bp = do
                 let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
@@ -169,13 +171,13 @@ specWithServer (logCfg, tr) = aroundAll withContext . after tearDown
                     , _feePolicy = feePolicy
                     , _target = Proxy
                     }
-        race (takeMVar ctx >>= action) (withServer setupContext) >>=
+        race (takeMVar ctx >>= action) (withServer setupContext d) >>=
             either pure (throwIO . ProcessHasExited "integration")
 
-    withServer setup =
+    withServer setup dbDir =
         withConfig $ \jmCfg ->
         withMetadataRegistry $
-            serveWallet @'Testnet logging (SyncTolerance 10) Nothing "127.0.0.1"
+            serveWallet @'Testnet logging (SyncTolerance 10) (Just dbDir) "127.0.0.1"
                 ListenOnRandomPort (Launch jmCfg) setup
 
     logging = (logCfg, transformTextTrace tr)
@@ -214,3 +216,6 @@ mkFeeEstimator policy = \case
     -- can be represented without any rounding issue using 'Double' (or,
     -- transactions have suddenly become overly expensive o_O)
     linear nb nc = fromIntegral $ round a + nb * round b + nc * round c
+
+withWalletDbTempDir :: (FilePath -> IO a) -> IO a
+withWalletDbTempDir = withSystemTempDirectory "wal-db-temp-dir"
