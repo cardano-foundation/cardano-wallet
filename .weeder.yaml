@@ -5,12 +5,119 @@
     - message:
       - name: Weeds exported
       - module:
+        - name: Cardano.Pool.MetricsSpec
+        - identifier:
+          - RegistrationsTest
+          - arbitraryChunks
+      - module:
         - name: Cardano.Wallet.DB.StateMachine
         - identifier: showLabelledExamples
+      - module:
+        - name: Spec
+        - identifier: main
   - section:
     - name: test:unit bench:db
     - message:
       - name: Module reused between components
+      - module: Cardano.Wallet.DummyTarget.Primitive.Types
+    - message:
+      - name: Weeds exported
+      - module:
+        - name: Cardano.Wallet.DummyTarget.Primitive.Types
+        - identifier: genesisHash
+- package:
+  - name: cardano-wallet-jormungandr
+  - section:
+    - name: test:integration
+    - message:
+      - name: Redundant build-depends entry
+      - depends:
+        - aeson-qq
+        - cryptonite
+        - exceptions
+        - extra
+        - generic-arbitrary
+        - lifted-base
+        - monad-control
+        - persistent
+        - safe
+        - template-haskell
+        - time
+        - warp
+        - yaml
+  - section:
+    - name: test:integration bench:latency
+    - message:
+      - name: Module reused between components
+      - module:
+        - Cardano.Faucet
+        - Cardano.Wallet.Jormungandr.Launch
+        - Test.Integration.Jcli
+    - message:
+      - name: Weeds exported
+      - module:
+        - name: Cardano.Faucet
+        - identifier: genFaucets
+      - module:
+        - name: Cardano.Wallet.Jormungandr.Launch
+        - identifier: withBackendOnly
+  - section:
+    - name: test:unit
+    - message:
+      - name: Weeds exported
+      - module:
+        - name: Cardano.Wallet.Jormungandr.NetworkSpec
+        - identifier:
+          - C
+          - Consumer
+          - MockBlock
+          - 'N'
+          - Node
+          - NodeAddBlocks
+          - NodeGarbageCollect
+          - NodeOp
+          - NodeRewind
+          - S
+          - TestNetworkLayer
+          - addGaps
+          - applyNodeOp
+          - applyNodeOps
+          - block0
+          - block0H
+          - consumerRestoreStep
+          - emptyNode
+          - fromJBlock
+          - genBlocks
+          - genBlocksWith
+          - genCheckpoints
+          - genConsumer
+          - genGC
+          - genGaps
+          - genNodeOp
+          - genNodeOps
+          - genRewind
+          - genSwitchChain
+          - genesisHash
+          - getNodeChain
+          - getNodeTip
+          - isNodeAddBlocks
+          - isNodeRewindOf
+          - mockBlockHash
+          - mockJormungandrClient
+          - mockNetworkLayer
+          - nodeAddBlocks
+          - nodeGarbageCollect
+          - nodeRewind
+          - parentGenesisHash
+          - prop_generator
+          - prop_sync
+          - removeNoOp
+          - shiftOp
+          - showBlock
+          - showChain
+          - showCheckpoints
+          - showHash
+          - toJBlock
 - package:
   - name: cardano-wallet-launcher
   - section:
@@ -18,6 +125,4 @@
     - message:
       - name: Module not compiled
       - module: Cardano.Launcher.Windows
-- package:
-  - name: cardano-wallet-jormungandr
-  - section: test:integration
+
