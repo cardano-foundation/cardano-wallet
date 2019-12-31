@@ -18,6 +18,8 @@
 
 <hr/>
 
+## Overview
+
 Cardano Wallet helps you manage your Ada. You can use it to send and
 receive payments on the [Cardano](https://www.cardano.org) blockchain.
 
@@ -29,30 +31,28 @@ It can be used as a component of a frontend such as
 interface for wallets. Most users who would like to use Cardano should
 start with Daedalus.
 
-## Overview
+> :information_source: This source code repository contains the next major version of Cardano
+> Wallet, which has been completely rewritten for the
+> [Shelley](https://cardanoroadmap.com/) phase.
+> 
+> :bulb: The Byron version of Cardano Wallet is in the
+> [cardano-sl](https://github.com/input-output-hk/cardano-sl)
+> repository.
 
-This source code repository contains the next major version of Cardano
-Wallet, which has been completely rewritten for the
-[Shelley](https://cardanoroadmap.com/) phase.
-
-The Byron version of Cardano Wallet is in the
-[cardano-sl](https://github.com/input-output-hk/cardano-sl)
-repository.
-
-## How to install
+## How to install (Linux / Windows / Mac OS)
 
 See **Installation Instructions** for each available [release](https://github.com/input-output-hk/cardano-wallet/releases).
 
 > ### Latest releases
 >
-> | cardano-wallet                                                                            | Jörmungandr (compatible versions)                                                    |
-> | ---                                                                                       | ---                                                                                  |
-> | `master` branch                                                                           | [v0.8.5](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.5)         |
-> | [v2019-12-16](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2019-12-16) | [v0.8.1](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.1)         |
-> | [v2019-12-13](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2019-12-13) | [v0.8.1](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.1)         |
-> | [v2019-12-09](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2019-12-09) | [v0.8.0-rc8](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.0-rc8) |
+> | cardano-wallet                                                                            | Jörmungandr (compatible versions)                                                |
+> | ---                                                                                       | ---                                                                              |
+> | `master` branch                                                                           | [v0.8.5](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.5)     |
+> | [v2019-12-23](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2019-12-23) | [v0.8.5](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.5) |
+> | [v2019-12-16](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2019-12-16) | [v0.8.1](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.1)     |
+> | [v2019-12-13](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2019-12-13) | [v0.8.1](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.1)     |
 
-## How to build
+## How to build from sources
 
 See [Wiki - Building](https://github.com/input-output-hk/cardano-wallet/wiki/Building)
 
