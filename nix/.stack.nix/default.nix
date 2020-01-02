@@ -39,6 +39,10 @@
           "zip" = { flags = { "disable-bzip2" = lib.mkOverride 900 true; }; };
           };
         })
-    { packages = {}; }
+    {
+      packages = {
+        "$locals" = { package = { ghcOptions = "-ddump-to-file -ddump-hi"; }; };
+        };
+      }
     ];
   }

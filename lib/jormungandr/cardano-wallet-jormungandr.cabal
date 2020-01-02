@@ -35,7 +35,6 @@ library
       base
     , aeson
     , async
-    , base58-bytestring
     , binary
     , bytestring
     , cardano-crypto
@@ -46,10 +45,8 @@ library
     , contra-tracer
     , cryptonite
     , deepseq
-    , directory
     , either
     , exceptions
-    , extra
     , filepath
     , fmt
     , http-client
@@ -60,7 +57,6 @@ library
     , monad-loops
     , memory
     , network
-    , safe
     , servant
     , servant-client
     , servant-client-core
@@ -69,7 +65,6 @@ library
     , text-class
     , time
     , transformers
-    , yaml
     , warp
   hs-source-dirs:
       src
@@ -108,7 +103,6 @@ executable cardano-wallet-jormungandr
     , optparse-applicative
     , process
     , text
-    , text-class
   hs-source-dirs:
       exe
   main-is:
@@ -135,7 +129,6 @@ test-suite unit
     , bytestring
     , cardano-crypto
     , cardano-wallet-core
-    , cardano-wallet-core-integration
     , cardano-wallet-jormungandr
     , cardano-wallet-test-utils
     , containers
@@ -144,7 +137,6 @@ test-suite unit
     , filepath
     , fmt
     , generic-arbitrary
-    , generic-lens
     , hspec
     , hspec-golden-aeson
     , lifted-base
@@ -156,7 +148,6 @@ test-suite unit
     , servant
     , text
     , text-class
-    , time
     , transformers
   build-tools:
       hspec-discover
@@ -234,7 +225,6 @@ test-suite integration
     , text-class
     , time
     , transformers
-    , unliftio
     , warp
     , yaml
   build-tools:

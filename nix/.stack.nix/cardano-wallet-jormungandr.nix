@@ -63,7 +63,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."base" or (buildDepError "base"))
           (hsPkgs."aeson" or (buildDepError "aeson"))
           (hsPkgs."async" or (buildDepError "async"))
-          (hsPkgs."base58-bytestring" or (buildDepError "base58-bytestring"))
           (hsPkgs."binary" or (buildDepError "binary"))
           (hsPkgs."bytestring" or (buildDepError "bytestring"))
           (hsPkgs."cardano-crypto" or (buildDepError "cardano-crypto"))
@@ -74,10 +73,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
           (hsPkgs."cryptonite" or (buildDepError "cryptonite"))
           (hsPkgs."deepseq" or (buildDepError "deepseq"))
-          (hsPkgs."directory" or (buildDepError "directory"))
           (hsPkgs."either" or (buildDepError "either"))
           (hsPkgs."exceptions" or (buildDepError "exceptions"))
-          (hsPkgs."extra" or (buildDepError "extra"))
           (hsPkgs."filepath" or (buildDepError "filepath"))
           (hsPkgs."fmt" or (buildDepError "fmt"))
           (hsPkgs."http-client" or (buildDepError "http-client"))
@@ -88,7 +85,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."monad-loops" or (buildDepError "monad-loops"))
           (hsPkgs."memory" or (buildDepError "memory"))
           (hsPkgs."network" or (buildDepError "network"))
-          (hsPkgs."safe" or (buildDepError "safe"))
           (hsPkgs."servant" or (buildDepError "servant"))
           (hsPkgs."servant-client" or (buildDepError "servant-client"))
           (hsPkgs."servant-client-core" or (buildDepError "servant-client-core"))
@@ -97,7 +93,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."text-class" or (buildDepError "text-class"))
           (hsPkgs."time" or (buildDepError "time"))
           (hsPkgs."transformers" or (buildDepError "transformers"))
-          (hsPkgs."yaml" or (buildDepError "yaml"))
           (hsPkgs."warp" or (buildDepError "warp"))
           ];
         buildable = true;
@@ -116,7 +111,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."optparse-applicative" or (buildDepError "optparse-applicative"))
             (hsPkgs."process" or (buildDepError "process"))
             (hsPkgs."text" or (buildDepError "text"))
-            (hsPkgs."text-class" or (buildDepError "text-class"))
             ];
           buildable = true;
           };
@@ -131,7 +125,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."bytestring" or (buildDepError "bytestring"))
             (hsPkgs."cardano-crypto" or (buildDepError "cardano-crypto"))
             (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
-            (hsPkgs."cardano-wallet-core-integration" or (buildDepError "cardano-wallet-core-integration"))
             (hsPkgs."cardano-wallet-jormungandr" or (buildDepError "cardano-wallet-jormungandr"))
             (hsPkgs."cardano-wallet-test-utils" or (buildDepError "cardano-wallet-test-utils"))
             (hsPkgs."containers" or (buildDepError "containers"))
@@ -140,7 +133,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."filepath" or (buildDepError "filepath"))
             (hsPkgs."fmt" or (buildDepError "fmt"))
             (hsPkgs."generic-arbitrary" or (buildDepError "generic-arbitrary"))
-            (hsPkgs."generic-lens" or (buildDepError "generic-lens"))
             (hsPkgs."hspec" or (buildDepError "hspec"))
             (hsPkgs."hspec-golden-aeson" or (buildDepError "hspec-golden-aeson"))
             (hsPkgs."lifted-base" or (buildDepError "lifted-base"))
@@ -152,7 +144,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."servant" or (buildDepError "servant"))
             (hsPkgs."text" or (buildDepError "text"))
             (hsPkgs."text-class" or (buildDepError "text-class"))
-            (hsPkgs."time" or (buildDepError "time"))
             (hsPkgs."transformers" or (buildDepError "transformers"))
             ];
           build-tools = [
@@ -209,7 +200,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."text-class" or (buildDepError "text-class"))
             (hsPkgs."time" or (buildDepError "time"))
             (hsPkgs."transformers" or (buildDepError "transformers"))
-            (hsPkgs."unliftio" or (buildDepError "unliftio"))
             (hsPkgs."warp" or (buildDepError "warp"))
             (hsPkgs."yaml" or (buildDepError "yaml"))
             ];

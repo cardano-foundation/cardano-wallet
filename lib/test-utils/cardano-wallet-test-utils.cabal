@@ -37,7 +37,6 @@ library
     , hspec-core
     , hspec-expectations
     , iohk-monitoring
-    , network
     , QuickCheck
     , stm
     , template-haskell

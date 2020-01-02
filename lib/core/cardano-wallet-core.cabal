@@ -80,7 +80,6 @@ library
     , split
     , streaming-commons
     , template-haskell
-    , temporary
     , text
     , text-class
     , time
@@ -205,7 +204,6 @@ test-suite unit
     , servant-swagger
     , stm
     , swagger2
-    , template-haskell
     , temporary
     , text
     , text-class
@@ -291,7 +289,6 @@ benchmark db
     , cardano-crypto
     , cardano-wallet-core
     , cardano-wallet-launcher
-    , cborg
     , containers
     , criterion
     , cryptonite
@@ -303,10 +300,7 @@ benchmark db
     , memory
     , persistent-sqlite
     , random
-    , split
     , temporary
-    , text
-    , text-class
     , time
     , transformers
   type:
