@@ -71,7 +71,7 @@ import System.FilePath
 import System.IO.Temp
     ( withSystemTempDirectory )
 import Test.Hspec
-    ( Spec, SpecWith, after, describe, hspec, parallel )
+    ( Spec, SpecWith, after, describe, hspec )
 import Test.Hspec.Extra
     ( aroundAll )
 import Test.Integration.Framework.DSL
@@ -115,11 +115,11 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(conf,tr) -> do
     let logging = (conf, transformTextTrace tr)
     hspec $ do
         describe "No backend required" $ do
-            describe "Cardano.Wallet.NetworkSpec" $ parallel NetworkLayer.spec
-            describe "Mnemonics CLI tests" $ parallel (MnemonicsCLI.spec @t)
-            describe "Mnemonics CLI tests (Jormungandr)" $ parallel (MnemonicsJormungandr.spec @t)
-            describe "Miscellaneous CLI tests" $ parallel (MiscellaneousCLI.spec @t)
-            describe "Launcher CLI tests" $ parallel (LauncherCLI.spec @t)
+            describe "Cardano.Wallet.NetworkSpec" $ NetworkLayer.spec
+            describe "Mnemonics CLI tests" $ (MnemonicsCLI.spec @t)
+            describe "Mnemonics CLI tests (Jormungandr)" $ (MnemonicsJormungandr.spec @t)
+            describe "Miscellaneous CLI tests" $ (MiscellaneousCLI.spec @t)
+            describe "Launcher CLI tests" $ (LauncherCLI.spec @t)
             describe "Stake Pool Metrics" MetricsSpec.spec
 
         describe "API Specifications" $ specWithServer logging $ do
