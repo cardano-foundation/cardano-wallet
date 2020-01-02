@@ -13,14 +13,8 @@ module Cardano.Pool.DB.SqliteSpec
 
 import Prelude
 
-import Cardano.BM.Configuration.Static
-    ( defaultConfigTesting )
-import Cardano.BM.Data.MonitoringEval
-    ( MEvAction (..), MEvExpr (..), Operand (..), Operator (..) )
-import Cardano.BM.Data.Observable
-    ( ObservableInstance (..) )
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
+import Cardano.DB.Sqlite
+    ( DBLog (..) )
 import Cardano.Pool.DB.Properties
     ( newMemoryDBLayer, properties, withDB )
 import Cardano.Pool.DB.Sqlite
@@ -38,17 +32,9 @@ import Test.Utils.Paths
 import Test.Utils.Trace
     ( captureLogging )
 
-import qualified Cardano.BM.Configuration.Model as CM
-import qualified Cardano.BM.Data.Aggregated as CM
-import qualified Cardano.BM.Data.AggregatedKind as CM
-import qualified Cardano.BM.Data.Backend as CM
-import qualified Cardano.BM.Data.SubTrace as CM
-import qualified Data.HashMap.Strict as HM
-import qualified Data.Text as T
-
 spec :: Spec
 spec = do
-    withDB (newMemoryDBLayer testingLogConfig) $ do
+    withDB newMemoryDBLayer $ do
         describe "Sqlite" properties
 
     describe "Migration Regressions" $ do
@@ -62,56 +48,25 @@ test_migrationFromv20191216 =
         withSystemTempDirectory "stake-pools-db" $ \dir -> do
             let path = dir </> "stake-pools.sqlite"
             copyFile orig path
-            cfg <- defaultConfigTesting
             (logs, _) <- captureLogging $ \tr -> do
-                withDBLayer cfg tr (Just path) $ \_ -> pure ()
-                withDBLayer cfg tr (Just path) $ \_ -> pure ()
+                withDBLayer tr (Just path) $ \_ -> pure ()
+                withDBLayer tr (Just path) $ \_ -> pure ()
 
-            let databaseConnMsg  = filter
-                    (T.isInfixOf "Using connection string")
-                    logs
+            let databaseConnMsg  = filter isMsgConnStr logs
 
-            let databaseResetMsg = filter
-                    (T.isInfixOf "Non backward compatible database found")
-                    logs
+            let databaseResetMsg = filter (== MsgDatabaseReset) logs
 
-            let migrationErrMsg  = filter
-                    (T.isInfixOf "PersistError")
-                    logs
+            let migrationErrMsg  = filter isMsgMigrationError logs
 
             length databaseConnMsg  `shouldBe` 3
             length databaseResetMsg `shouldBe` 1
             length migrationErrMsg  `shouldBe` 1
 
-testingLogConfig :: IO CM.Configuration
-testingLogConfig = do
-    logConfig <- defaultConfigTesting
-    CM.setMinSeverity logConfig Debug
-    CM.setSetupBackends logConfig [CM.KatipBK, CM.AggregationBK, CM.MonitoringBK]
 
-    CM.setSubTrace logConfig "query"
-        (Just $ CM.ObservableTraceSelf [MonotonicClock])
+isMsgConnStr :: DBLog -> Bool
+isMsgConnStr (MsgConnStr _) = True
+isMsgConnStr _ = False
 
-    CM.setBackends logConfig
-        "query"
-        (Just [CM.AggregationBK])
-    CM.setAggregatedKind logConfig
-        "query"
-        (Just CM.StatsAK) -- statistics AgreggatedKind
-    CM.setBackends logConfig
-        "#aggregation.query"
-        (Just [CM.KatipBK])
-
-    -- This monitor should always trigger.
-    CM.setMonitors logConfig $ HM.singleton
-        "query.diff"
-        ( Nothing
-        , Compare "query.diff.timestamp" (GE, (OpMeasurable (CM.Seconds 0)))
-        , [CreateMessage Info "runQuery monitor works"]
-        )
-
-    CM.setBackends logConfig
-        "query"
-        (Just [CM.AggregationBK, CM.KatipBK, CM.MonitoringBK])
-
-    pure logConfig
+isMsgMigrationError :: DBLog -> Bool
+isMsgMigrationError (MsgMigrations (Left _)) = True
+isMsgMigrationError _ = False

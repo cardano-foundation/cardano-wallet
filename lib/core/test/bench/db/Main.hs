@@ -143,7 +143,6 @@ import System.IO.Unsafe
 import System.Random
     ( mkStdGen, randoms )
 
-import qualified Cardano.BM.Configuration.Model as CM
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -333,9 +332,8 @@ withDB bm = envWithCleanup setupDB cleanupDB (\ ~(_, _, db) -> bm db)
 
 setupDB :: IO (FilePath, SqliteContext, DBLayerBench)
 setupDB = do
-    logConfig <- CM.empty
     f <- emptySystemTempFile "bench.db"
-    (ctx, db) <- newDBLayer logConfig nullTracer (Just f)
+    (ctx, db) <- newDBLayer nullTracer (Just f)
     pure (f, ctx, db)
 
 cleanupDB :: (FilePath, SqliteContext, DBLayerBench) -> IO ()

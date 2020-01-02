@@ -79,12 +79,14 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."async" or (buildDepError "async"))
             (hsPkgs."cardano-wallet-launcher" or (buildDepError "cardano-wallet-launcher"))
             (hsPkgs."cardano-wallet-test-utils" or (buildDepError "cardano-wallet-test-utils"))
+            (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
             (hsPkgs."fmt" or (buildDepError "fmt"))
             (hsPkgs."hspec" or (buildDepError "hspec"))
             (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
             (hsPkgs."process" or (buildDepError "process"))
             (hsPkgs."retry" or (buildDepError "retry"))
             (hsPkgs."text" or (buildDepError "text"))
+            (hsPkgs."text-class" or (buildDepError "text-class"))
             (hsPkgs."time" or (buildDepError "time"))
             ];
           build-tools = [

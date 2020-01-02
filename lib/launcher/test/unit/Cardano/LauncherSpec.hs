@@ -13,18 +13,21 @@ import Cardano.BM.Configuration.Model
     ( setMinSeverity )
 import Cardano.BM.Configuration.Static
     ( defaultConfigStdout )
+import Cardano.BM.Data.LogItem
+    ( LOContent (LogMessage), LogObject (..), mkLOMeta )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
+import Cardano.BM.Data.Tracer
+    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
 import Cardano.BM.Setup
     ( setupTrace_, shutdown )
 import Cardano.BM.Trace
-    ( Trace, logDebug )
+    ( logDebug )
 import Cardano.Launcher
     ( Command (..)
     , LauncherLog
     , ProcessHasExited (..)
     , StdStream (..)
-    , transformTextTrace
     , withBackendProcessHandle
     )
 import Control.Concurrent
@@ -44,12 +47,18 @@ import Control.Exception
     ( IOException, bracket, handle )
 import Control.Monad
     ( forever )
+import Control.Monad.IO.Class
+    ( MonadIO (..) )
 import Control.Retry
     ( constantDelay, limitRetriesByCumulativeDelay, recoverAll )
+import Control.Tracer
+    ( Tracer (..), nullTracer, traceWith )
 import Data.Maybe
     ( isJust )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( ToText (..) )
 import Data.Time.Clock
     ( diffUTCTime, getCurrentTime )
 import Fmt
@@ -205,7 +214,7 @@ getIsWine = handle (\(_ :: IOException) -> pure False) $ do
 -- | Run a bunch of command in separate processes. Note that, this operation is
 -- blocking and will throw when one of the given commands terminates.
 -- It records the PID of all processes which started (in undefined order).
-launch :: Trace IO LauncherLog -> [Command] -> IO ([ProcessHandle], ProcessHasExited)
+launch :: Tracer IO LauncherLog -> [Command] -> IO ([ProcessHandle], ProcessHasExited)
 launch tr cmds = do
     phsVar <- newMVar []
     let
@@ -232,9 +241,9 @@ assertProcessesExited phs = recoverAll policy test
         statuses <- mapM getProcessExitCode phs
         statuses `shouldSatisfy` all isJust
 
-withTestLogging :: (Trace IO LauncherLog -> IO a) -> IO a
+withTestLogging :: (Tracer IO LauncherLog -> IO a) -> IO a
 withTestLogging action =
-    bracket before after (action . transformTextTrace . fst)
+    bracket before after (action . trMessage . fst)
   where
     before = do
         cfg <- defaultConfigStdout
@@ -243,3 +252,16 @@ withTestLogging action =
     after (tr, sb) = do
         logDebug tr "Logging shutdown."
         shutdown sb
+
+trMessage
+    :: (MonadIO m, ToText a, DefinePrivacyAnnotation a, DefineSeverity a)
+    => Tracer m (LogObject Text)
+    -> Tracer m a
+trMessage tr = Tracer $ \arg -> do
+   let msg = toText arg
+       tracer = if msg == mempty then nullTracer else tr
+   lo <- LogObject
+       <$> pure mempty
+       <*> (mkLOMeta (defineSeverity arg) (definePrivacyAnnotation arg))
+       <*> pure (LogMessage msg)
+   traceWith tracer lo

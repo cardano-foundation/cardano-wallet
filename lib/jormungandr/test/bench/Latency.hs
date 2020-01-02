@@ -28,7 +28,7 @@ import Cardano.BM.Data.Tracer
 import Cardano.BM.Setup
     ( setupTrace_, shutdown )
 import Cardano.BM.Trace
-    ( Trace, traceInTVarIO )
+    ( traceInTVarIO )
 import Cardano.Faucet
     ( initFaucet, sockAddrPort )
 import Cardano.Launcher
@@ -46,13 +46,15 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Jormungandr
-    ( ServerLog (..), serveWallet )
+    ( Tracers, Tracers' (..), nullTracers, serveWallet )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
 import Cardano.Wallet.Jormungandr.Launch
     ( withConfig )
 import Cardano.Wallet.Jormungandr.Network
     ( JormungandrBackend (..) )
+import Cardano.Wallet.Logging
+    ( trMessage )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
@@ -357,18 +359,18 @@ fmtResult title ts =
         titleF = padLeftF 25 ' ' titleExt
     in fmtLn (titleF+|buildResult ts|+" ms")
 
-isLogRequestStart :: ServerLog -> Bool
+isLogRequestStart :: ApiLog -> Bool
 isLogRequestStart = \case
-    LogApiServerMsg (ApiLog _ LogRequestStart) -> True
+    ApiLog _ LogRequestStart -> True
     _ -> False
 
-isLogRequestFinish :: ServerLog -> Bool
+isLogRequestFinish :: ApiLog -> Bool
 isLogRequestFinish = \case
-    LogApiServerMsg (ApiLog _ LogRequestFinish) -> True
+    ApiLog _ LogRequestFinish -> True
     _ -> False
 
 measureApiLogs
-    :: TVar [LogObject ServerLog] -- ^ Log message variable.
+    :: TVar [LogObject ApiLog] -- ^ Log message variable.
     -> IO a -- ^ Action to run
     -> IO [NominalDiffTime]
 measureApiLogs = measureLatency isLogRequestStart isLogRequestFinish
@@ -419,27 +421,30 @@ extractTimings isStart isFinish msgs = map2 mkDiff filtered
     getTimestamp = tstamp . loMeta
 
 withLatencyLogging
-    :: (ToJSON msg, FromJSON msg, ToObject msg, Show msg)
-    => ((CM.Configuration, Trace IO msg) -> TVar [LogObject msg] -> IO a)
+    ::(Tracers IO -> TVar [LogObject ApiLog] -> IO a)
     -> IO a
 withLatencyLogging action = do
     tvar <- newTVarIO []
     cfg <- defaultConfigStdout
     CM.setMinSeverity cfg Debug
     bracket (setupTrace_ cfg "bench-latency") (shutdown . snd) $ \(_, sb) -> do
-        action (cfg, traceInTVarIO tvar) tvar `onException` do
+        action (setupTracers tvar) tvar `onException` do
             fmtLn "Action failed. Here are the captured logs:"
             readTVarIO tvar >>= mapM_ (effectuate sb) . reverse
 
+setupTracers :: TVar [LogObject ApiLog] -> Tracers IO
+setupTracers tvar = nullTracers
+    { apiServerTracer = trMessage (traceInTVarIO tvar) }
+
 benchWithServer
-    :: (CM.Configuration, Trace IO ServerLog)
+    :: Tracers IO
     -> (Context Jormungandr -> IO ())
     -> IO ()
-benchWithServer logCfg action = withConfig $ \jmCfg -> do
+benchWithServer tracers action = withConfig $ \jmCfg -> do
     ctx <- newEmptyMVar
     race_ (takeMVar ctx >>= action) $ do
         res <- serveWallet @'Testnet
-            logCfg (SyncTolerance 10)
+            tracers (SyncTolerance 10)
             Nothing "127.0.0.1"
             ListenOnRandomPort (Launch jmCfg) $ \wAddr nPort bp -> do
                 let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
@@ -461,10 +466,10 @@ benchWithServer logCfg action = withConfig $ \jmCfg -> do
                     }
         throwIO $ ProcessHasExited "Server has unexpectedly exited" res
 
-instance ToJSON ServerLog where
+instance ToJSON ApiLog where
     toJSON = toJSON . toText
 
-instance FromJSON ServerLog where
-    parseJSON _ = fail "FromJSON ServerLog stub"
+instance FromJSON ApiLog where
+    parseJSON _ = fail "FromJSON ApiLog stub"
 
-instance ToObject ServerLog
+instance ToObject ApiLog

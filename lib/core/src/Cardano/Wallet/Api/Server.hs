@@ -30,12 +30,19 @@ module Cardano.Wallet.Api.Server
     , newApiLayer
     , withListeningSocket
     , defaultWorkerAfter
+
+    -- * Logging
+    , WorkerRegistryLog (..)
     ) where
 
 import Prelude
 
-import Cardano.BM.Trace
-    ( Trace, logError, logNotice )
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
+import Cardano.BM.Data.Trace
+    ( Trace )
+import Cardano.BM.Data.Tracer
+    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
 import Cardano.Pool.Metadata
     ( StakePoolMetadata )
 import Cardano.Pool.Metrics
@@ -134,6 +141,8 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.DB
     ( DBFactory )
+import Cardano.Wallet.Logging
+    ( fromLogObject, logTrace, transformTextTrace )
 import Cardano.Wallet.Network
     ( ErrNetworkTip (..), ErrNetworkUnavailable (..), NetworkLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -216,6 +225,8 @@ import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT, catchE, throwE, withExceptT )
+import Control.Tracer
+    ( Tracer, contramap )
 import Data.Aeson
     ( (.=) )
 import Data.Function
@@ -241,7 +252,7 @@ import Data.Streaming.Network
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( toText )
+    ( ToText (..) )
 import Data.Time
     ( UTCTime )
 import Data.Time.Clock
@@ -330,7 +341,7 @@ start
         , DelegationAddress n ShelleyKey
         )
     => Warp.Settings
-    -> Trace IO ApiLog
+    -> Tracer IO ApiLog
     -> Socket
     -> ApiLayer (RndState 'Mainnet) t ByronKey
     -> ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
@@ -1320,7 +1331,7 @@ initWorker ctx wid createWallet restoreWallet =
             unsafeRunExceptT $ restoreWallet ctx'
 
         , workerAfter =
-            defaultWorkerAfter
+            defaultWorkerAfter . transformTextTrace
 
         , workerAcquire =
             (df ^. #withDatabase) wid
@@ -1407,7 +1418,7 @@ getWalletTip wallet = ApiBlockReference
 -- | Create a new instance of the wallet layer.
 newApiLayer
     :: forall ctx s t k. ctx ~ ApiLayer s t k
-    => Trace IO Text
+    => Tracer IO WorkerRegistryLog
     -> (Block, BlockchainParameters, SyncTolerance)
     -> NetworkLayer IO t Block
     -> TransactionLayer t k
@@ -1416,7 +1427,8 @@ newApiLayer
     -> IO ctx
 newApiLayer tr g0 nw tl df wids = do
     re <- Registry.empty
-    let ctx = ApiLayer tr g0 nw tl df re
+    let tr' = contramap MsgFromWorker tr
+    let ctx = ApiLayer (fromLogObject tr') g0 nw tl df re
     forM_ wids (registerWorker re ctx)
     return ctx
   where
@@ -1432,7 +1444,7 @@ newApiLayer tr g0 nw tl df wids = do
                         W.restoreWallet @(WorkerCtx ctx) @s @t ctx' wid
 
                 , workerAfter =
-                    defaultWorkerAfter
+                    defaultWorkerAfter . transformTextTrace
 
                 , workerAcquire =
                     (df ^. #withDatabase) wid
@@ -1468,17 +1480,16 @@ withWorkerCtx ctx wid onMissing action =
   where
     re = ctx ^. workerRegistry @s @k
 
-defaultWorkerAfter :: Trace IO Text -> Either SomeException a -> IO ()
-defaultWorkerAfter tr = \case
-    Right _ ->
-        logNotice tr "Worker has exited: main action is over."
+defaultWorkerAfter
+    :: Trace IO WorkerRegistryLog
+    -> Either SomeException a
+    -> IO ()
+defaultWorkerAfter tr = logTrace tr . \case
+    Right _ -> MsgFinished
     Left e -> case asyncExceptionFromException e of
-        Just ThreadKilled ->
-            logNotice tr "Worker has exited: killed by parent."
-        Just UserInterrupt ->
-            logNotice tr "Worker has exited: killed by user."
-        _ ->
-            logError tr $ "Worker has exited unexpectedly: " <> pretty (show e)
+        Just ThreadKilled -> MsgThreadKilled
+        Just UserInterrupt -> MsgUserInterrupt
+        _ -> MsgUnhandledException $ pretty $ show e
 
 {-------------------------------------------------------------------------------
                                 Error Handling
@@ -1923,3 +1934,38 @@ instance LiftHandler (Request, ServantErr) where
                 , renderHeader $ contentType $ Proxy @JSON
                 ) : headers
             }
+
+{-------------------------------------------------------------------------------
+                                    Logging
+-------------------------------------------------------------------------------}
+
+data WorkerRegistryLog
+    = MsgFinished
+    | MsgThreadKilled
+    | MsgUserInterrupt
+    | MsgUnhandledException Text
+    | MsgFromWorker Text
+    -- ^ Registry permits workers to log with Text only
+    deriving (Show, Eq)
+
+instance ToText WorkerRegistryLog where
+    toText = \case
+        MsgFinished ->
+            "Worker has exited: main action is over."
+        MsgThreadKilled ->
+            "Worker has exited: killed by parent."
+        MsgUserInterrupt ->
+            "Worker has exited: killed by user."
+        MsgUnhandledException msg ->
+            "Worker has exited unexpectedly: " <> msg
+        MsgFromWorker msg ->
+            msg
+
+instance DefinePrivacyAnnotation WorkerRegistryLog
+instance DefineSeverity WorkerRegistryLog where
+    defineSeverity = \case
+        MsgFinished -> Notice
+        MsgThreadKilled -> Notice
+        MsgUserInterrupt -> Notice
+        MsgUnhandledException _ -> Error
+        MsgFromWorker _ -> Info

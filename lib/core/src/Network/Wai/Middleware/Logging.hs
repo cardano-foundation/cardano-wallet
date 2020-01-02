@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 
@@ -29,10 +30,6 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
-import Cardano.BM.Trace
-    ( Trace )
-import Cardano.Wallet.Logging
-    ( logTrace )
 import Control.Applicative
     ( (<|>) )
 import Control.Arrow
@@ -40,7 +37,7 @@ import Control.Arrow
 import Control.Concurrent.MVar
     ( MVar, modifyMVar, newMVar )
 import Control.Tracer
-    ( contramap )
+    ( Tracer, contramap, traceWith )
 import Data.Aeson
     ( Value (..) )
 import Data.ByteString
@@ -55,6 +52,8 @@ import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock
     ( NominalDiffTime, diffUTCTime, getCurrentTime )
+import GHC.Generics
+    ( Generic )
 import Network.HTTP.Types.Status
     ( Status (..) )
 import Network.Wai
@@ -75,17 +74,17 @@ import qualified Data.Text.Encoding as T
 -- The logger logs requests' and responses' bodies along with a few other
 -- useful piece of information.
 withApiLogger
-    :: Trace IO ApiLog
+    :: Tracer IO ApiLog
     -> ApiLoggerSettings
     -> Middleware
 withApiLogger t0 settings app req0 sendResponse = do
     rid <- nextRequestId settings
-    let t = contramap (fmap (ApiLog rid)) t0
-    logTrace t LogRequestStart
+    let t = contramap (ApiLog rid) t0
+    traceWith t LogRequestStart
     start <- getCurrentTime
     (req, reqBody) <- getRequestBody req0
-    logTrace t (LogRequest req)
-    logTrace t (LogRequestBody (_obfuscateKeys settings req) reqBody)
+    traceWith t (LogRequest req)
+    traceWith t (LogRequestBody (_obfuscateKeys settings req) reqBody)
     app req $ \res -> do
         builderIO <- newIORef (Nothing, mempty)
         rcvd <- recordChunks builderIO res >>= sendResponse
@@ -93,18 +92,18 @@ withApiLogger t0 settings app req0 sendResponse = do
         readIORef builderIO >>=
             let fromBuilder = second (BL.toStrict . B.toLazyByteString)
             in uncurry (logResponse t time) . fromBuilder
-        logTrace t LogRequestFinish
+        traceWith t LogRequestFinish
         return rcvd
   where
     logResponse
-        :: Trace IO HandlerLog
+        :: Tracer IO HandlerLog
         -> NominalDiffTime
         -> Maybe Status
         -> ByteString
         -> IO ()
     logResponse t time status body = do
-        logTrace t (LogResponse time status)
-        logTrace t (LogResponseBody body)
+        traceWith t (LogResponse time status)
+        traceWith t (LogResponseBody body)
 
 -- | API logger settings
 data ApiLoggerSettings = ApiLoggerSettings
@@ -118,7 +117,7 @@ data ApiLoggerSettings = ApiLoggerSettings
 
 -- | Just a wrapper for readability
 newtype RequestId = RequestId Integer
-    deriving (Show, Eq)
+    deriving (Generic, Show, Eq)
 
 -- | Create a new opaque 'ApiLoggerSettings'
 newApiLoggerSettings :: IO ApiLoggerSettings
@@ -217,7 +216,7 @@ data ApiLog = ApiLog
     -- ^ Unique integer associated with the request, for the purpose of tracing.
     , logMsg :: HandlerLog
     -- ^ Event trace for the handler.
-    } deriving (Show)
+    } deriving (Generic, Show)
 
 instance DefinePrivacyAnnotation ApiLog where
     definePrivacyAnnotation (ApiLog _ msg) = definePrivacyAnnotation msg
@@ -230,7 +229,7 @@ instance ToText ApiLog where
         "[" <> T.pack (show rid) <> "] "
         <> toText msg
 
--- | Trace events related to the handling of a single request.
+-- | Tracer events related to the handling of a single request.
 data HandlerLog
     = LogRequestStart
     | LogRequest Request
@@ -239,7 +238,7 @@ data HandlerLog
     | LogResponse NominalDiffTime (Maybe Status)
     | LogResponseBody ByteString
     | LogRequestFinish
-    deriving (Show)
+    deriving (Generic, Show)
 
 instance ToText HandlerLog where
     toText msg = case msg of

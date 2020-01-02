@@ -10,11 +10,6 @@ module Cardano.Launcher.Windows
 
 import Prelude
 
-import Cardano.BM.Trace
-    ( Trace )
-import Data.Text
-    ( Text )
-
 -- | Stub function for windows.
-installSignalHandlers :: Trace IO Text -> IO ()
+installSignalHandlers :: IO () -> IO ()
 installSignalHandlers _ = pure ()

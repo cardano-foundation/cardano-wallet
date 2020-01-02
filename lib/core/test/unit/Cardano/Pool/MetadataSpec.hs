@@ -7,8 +7,6 @@ module Cardano.Pool.MetadataSpec (spec) where
 
 import Prelude
 
-import Cardano.BM.Trace
-    ( Trace )
 import Cardano.Pool.Metadata
     ( FetchError (..)
     , MetadataConfig (..)
@@ -28,6 +26,8 @@ import Codec.Archive.Zip
     ( CompressionMethod (..), addEntry, createArchive, mkEntrySelector )
 import Control.Monad
     ( forM_, replicateM, void )
+import Control.Tracer
+    ( Tracer )
 import Data.Aeson
     ( encode )
 import Data.ByteString
@@ -137,7 +137,7 @@ spec = do
                                  Test fixtures
 -------------------------------------------------------------------------------}
 
-withFixtures :: ((MetadataConfig, Trace IO RegistryLog, IO [RegistryLog]) -> IO a) -> IO a
+withFixtures :: ((MetadataConfig, Tracer IO RegistryLog, IO [RegistryLog]) -> IO a) -> IO a
 withFixtures action =
     withStaticServer dataDir $ \baseUrl ->
     withSystemTempDirectory "stake-pool-metadata" $ \metadataDir ->

@@ -1,7 +1,9 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -29,30 +31,54 @@ module Cardano.Wallet.Jormungandr
     , toSPBlock
 
       -- * Tracing
-    , ServerLog (..)
+    , Tracers' (..)
+    , Tracers
+    , TracerSeverities
+    , tracerLabels
+    , tracerDescriptions
+    , nullTracers
+    , setupTracers
+    , tracerSeverities
     ) where
 
 import Prelude
 
-
+import Cardano.BM.Data.LogItem
+    ( LoggerName )
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
+import Cardano.BM.Data.Tracer
+    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
 import Cardano.BM.Trace
-    ( Trace, appendName, logInfo )
+    ( Trace, appendName )
 import Cardano.CLI
-    ( Port (..), failWith )
+    ( Port (..) )
+import Cardano.DB.Sqlite
+    ( DBLog )
 import Cardano.Launcher
     ( ProcessHasExited (..), installSignalHandlers )
 import Cardano.Pool.Metrics
-    ( StakePoolLayer, StakePoolLayerMsg, monitorStakePools, newStakePoolLayer )
+    ( StakePoolLayer
+    , StakePoolLayerLog
+    , StakePoolMonitorLog
+    , monitorStakePools
+    , newStakePoolLayer
+    )
 import Cardano.Wallet.Api
     ( ApiLayer )
 import Cardano.Wallet.Api.Server
-    ( HostPreference, Listen (..), ListenError (..), defaultWorkerAfter )
+    ( HostPreference
+    , Listen (..)
+    , ListenError (..)
+    , WorkerRegistryLog
+    , defaultWorkerAfter
+    )
 import Cardano.Wallet.Api.Types
     ( DecodeAddress, EncodeAddress )
 import Cardano.Wallet.DaedalusIPC
-    ( daedalusIPC )
+    ( DaedalusIPCLog, daedalusIPC )
 import Cardano.Wallet.DB.Sqlite
-    ( PersistState )
+    ( PersistState, WalletDatabasesLog )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
 import Cardano.Wallet.Jormungandr.Network
@@ -61,10 +87,13 @@ import Cardano.Wallet.Jormungandr.Network
     , ErrStartup (..)
     , JormungandrBackend (..)
     , JormungandrConnParams (..)
+    , NetworkLayerLog
     , withNetworkLayer
     )
 import Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer )
+import Cardano.Wallet.Logging
+    ( filterTraceSeverity, fromLogObject, trMessageText )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -94,11 +123,12 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader (..)
     , BlockchainParameters (..)
     , ChimericAccount
-    , Hash (..)
     , SyncTolerance
     )
 import Cardano.Wallet.Transaction
     ( TransactionLayer )
+import Control.Applicative
+    ( Const (..) )
 import Control.Concurrent
     ( forkFinally )
 import Control.Concurrent.Async
@@ -108,7 +138,7 @@ import Control.DeepSeq
 import Control.Monad
     ( void )
 import Control.Tracer
-    ( contramap )
+    ( Tracer (..), nullTracer, traceWith )
 import Data.Function
     ( (&) )
 import Data.Functor
@@ -121,6 +151,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..), showT )
+import GHC.Generics
+    ( Generic )
 import Network.Socket
     ( SockAddr, Socket, getSocketName )
 import Network.Wai.Handler.Warp
@@ -132,7 +164,6 @@ import System.Exit
 import System.IO.Temp
     ( withSystemTempDirectory )
 
-import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.Pool.DB as Pool
 import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Cardano.Pool.Metrics as Pool
@@ -153,7 +184,7 @@ serveWallet
         , EncodeAddress n
         , DelegationAddress n ShelleyKey
         )
-    => (CM.Configuration, Trace IO ServerLog)
+    => Tracers IO
     -- ^ Logging config.
     -> SyncTolerance
     -- ^ A time tolerance within we consider being synced
@@ -169,22 +200,19 @@ serveWallet
     -- ^ Callback to run before the main loop
     -> IO ExitCode
 serveWallet
-        (cfg, tr) sTolerance databaseDir hostPref listen lj beforeMainLoop = do
-    installSignalHandlers trText
-    logInfo trText "Wallet backend server starting..."
-    logInfo trText $ "Node is Jörmungandr on " <> toText (networkDiscriminantVal @n)
+    Tracers{..} sTolerance databaseDir hostPref listen lj beforeMainLoop = do
+    installSignalHandlers (traceWith applicationTracer MsgSigTerm)
+    traceWith applicationTracer MsgStarting
+    traceWith applicationTracer $ MsgNetworkName $ networkDiscriminantVal @n
     Server.withListeningSocket hostPref listen $ \case
         Left e -> handleApiServerStartupError e
         Right (wPort, socket) -> do
-            let tracerIPC = appendName "daedalus-ipc" trText
             either id id <$> race
-                (daedalusIPC tracerIPC wPort $> ExitSuccess)
+                (daedalusIPC daedalusIPCTracer wPort $> ExitSuccess)
                 (serveApp socket)
 
   where
-    trText = contramap (fmap LogText) tr
-
-    serveApp socket = withNetworkLayer trText lj $ \case
+    serveApp socket = withNetworkLayer networkTracer lj $ \case
         Left e -> handleNetworkStartupError e
         Right (cp, nl) -> do
             let nPort = Port $ baseUrlPort $ _restApi cp
@@ -193,14 +221,13 @@ serveWallet
             let icarusTl = newTransactionLayer (getGenesisBlockHash bp)
             let shelleyTl = newTransactionLayer (getGenesisBlockHash bp)
             let poolDBPath = Pool.defaultFilePath <$> databaseDir
-            Pool.withDBLayer cfg trText poolDBPath $ \db ->
+            Pool.withDBLayer stakePoolDBTracer poolDBPath $ \db ->
                 withSystemTempDirectory "stake-pool-metadata" $ \md -> do
-                    poolApi <- stakePoolLayer tr nl db md
-                    byronApi <- apiLayer trText byronTl nl
-                    icarusApi <- apiLayer trText icarusTl nl
-                    shelleyApi <- apiLayer trText shelleyTl nl
-                    let tr' = contramap (fmap LogApiServerMsg) tr
-                    startServer tr' socket nPort bp
+                    poolApi <- stakePoolLayer nl db md
+                    byronApi <- apiLayer "byron" byronTl nl
+                    icarusApi <- apiLayer "icarus" icarusTl nl
+                    shelleyApi <- apiLayer "shelley" shelleyTl nl
+                    startServer socket nPort bp
                         byronApi
                         icarusApi
                         shelleyApi
@@ -208,8 +235,7 @@ serveWallet
                     pure ExitSuccess
 
     startServer
-        :: Trace IO ApiLog
-        -> Socket
+        :: Socket
         -> Port "node"
         -> BlockchainParameters
         -> ApiLayer (RndState 'Mainnet) t ByronKey
@@ -217,12 +243,11 @@ serveWallet
         -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
         -> StakePoolLayer IO
         -> IO ()
-    startServer tracer socket nPort bp byron icarus shelley pools = do
+    startServer socket nPort bp byron icarus shelley pools = do
         sockAddr <- getSocketName socket
-        let tracerApi = appendName "api" tracer
         let settings = Warp.defaultSettings
                 & setBeforeMainLoop (beforeMainLoop sockAddr nPort bp)
-        Server.start settings tracerApi socket byron icarus shelley pools
+        Server.start settings apiServerTracer socket byron icarus shelley pools
 
     apiLayer
         :: forall s k.
@@ -234,104 +259,43 @@ serveWallet
             , PersistPrivateKey (k 'RootK)
             , WalletKey k
             )
-        => Trace IO Text
+        => LoggerName
         -> TransactionLayer t k
         -> NetworkLayer IO t J.Block
         -> IO (ApiLayer s t k)
-    apiLayer tracer tl nl = do
+    apiLayer _loggerName tl nl = do
+        -- let walletDbTrace = appendName loggerName walletDatabasesTracer
+        -- let dbTrace = appendName loggerName contramap (fmap MsgDBLog) tracer
+        -- let apiTrace = contramap (fmap MsgApiWorker) tracer
         let (block0, bp) = staticBlockchainParameters nl
-        wallets <- maybe (pure []) (Sqlite.findDatabases @k trText) databaseDir
-        db <- Sqlite.newDBFactory cfg trText databaseDir
+        wallets <- maybe (pure []) (Sqlite.findDatabases @k walletDatabasesTracer) databaseDir
+        db <- Sqlite.newDBFactory walletDbTracer databaseDir
         Server.newApiLayer
-            tracer (toWLBlock block0, bp, sTolerance) nl' tl db wallets
+            workerRegistryTracer (toWLBlock block0, bp, sTolerance) nl' tl db wallets
       where
         nl' = toWLBlock <$> nl
 
     stakePoolLayer
-        :: Trace IO ServerLog
-        -> NetworkLayer IO t J.Block
+        :: NetworkLayer IO t J.Block
         -> Pool.DBLayer IO
         -> FilePath
         -> IO (StakePoolLayer IO)
-    stakePoolLayer trRoot nl db metadataDir = do
-        void $ forkFinally (monitorStakePools tr' nl' db) onExit
-        pure $ newStakePoolLayer trStakePool db nl' metadataDir
+    stakePoolLayer nl db metadataDir = do
+        void $ forkFinally (monitorStakePools stakePoolMonitorTracer nl' db) onExit
+        pure $ newStakePoolLayer stakePoolLayerTracer db nl' metadataDir
       where
-        tr' = appendName "stake-pools" (contramap (fmap LogText) trRoot)
         nl' = toSPBlock <$> nl
-        onExit = defaultWorkerAfter tr'
-        trStakePool = contramap (fmap LogStakePoolLayerMsg) trRoot
+        onExit = defaultWorkerAfter (fromLogObject workerRegistryTracer)
 
     handleNetworkStartupError :: ErrStartup -> IO ExitCode
-    handleNetworkStartupError = \case
-        ErrStartupGetBlockchainParameters e -> case e of
-            ErrGetBlockchainParamsNetworkUnreachable _ ->
-                handleNetworkUnreachable
-            ErrGetBlockchainParamsGenesisNotFound h ->
-                handleGenesisNotFound h
-            ErrGetBlockchainParamsIncompleteParams _ ->
-                handleNoInitialPolicy
-        ErrStartupInvalidGenesisBlock file ->
-            failWith trText $ mempty
-                <> "As far as I can tell, this isn't a valid block file: "
-                <> T.pack file
-        ErrStartupInvalidGenesisHash h ->
-            failWith trText $ mempty
-                <> "As far as I can tell, this isn't a valid block hash: "
-                <> T.pack h
-        ErrStartupCommandExited pe -> case pe of
-            ProcessDidNotStart _cmd exc ->
-                failWith trText $
-                    "Could not start the node backend. " <> T.pack (show exc)
-            ProcessHasExited _cmd st ->
-                failWith trText $
-                    "The node exited with status " <> T.pack (show st)
-        ErrStartupNodeNotListening -> do
-            failWith trText $ mempty
-                <> "Waited too long for Jörmungandr to become available. "
-                <> "Giving up!"
-
-    handleGenesisNotFound :: Hash "Genesis" -> IO ExitCode
-    handleGenesisNotFound block0H = do
-        failWith trText $ T.pack $ mconcat
-            [ "Failed to retrieve the genesis block. The block doesn't exist! "
-            , "Hint: double-check the genesis hash you've just gave "
-            , "me via '--genesis-block-hash' (i.e. " <> showT block0H <> ")."
-            ]
-
-    handleNetworkUnreachable :: IO ExitCode
-    handleNetworkUnreachable = do
-        failWith trText
-            "It looks like Jörmungandr is down? Hint: double-check Jörmungandr\
-            \ server's port."
-
-    handleNoInitialPolicy :: IO ExitCode
-    handleNoInitialPolicy = do
-        failWith trText $ mempty
-            <> "I successfully retrieved the genesis block from Jörmungandr, "
-            <> "but there's no initial fee policy defined?"
+    handleNetworkStartupError err = do
+        traceWith applicationTracer $ MsgWalletStartupError err
+        pure $ ExitFailure $ exitCodeNetwork err
 
     handleApiServerStartupError :: ListenError -> IO ExitCode
-    handleApiServerStartupError = \case
-        ListenErrorHostDoesNotExist host ->
-            failWith trText $ mempty
-                <> "Can't listen on "
-                <> T.pack (show host)
-                <> ". It does not exist."
-        ListenErrorInvalidAddress host ->
-            failWith trText $ mempty
-                <> "Can't listen on "
-                <> T.pack (show host)
-                <> ". Invalid address."
-        ListenErrorAddressAlreadyInUse mPort ->
-            failWith trText $ mempty
-                <> "The API server listen port "
-                <> maybe "(unknown)" (T.pack . show) mPort
-                <> " is already in use."
-        ListenErrorOperationNotPermitted ->
-            failWith trText $ mempty
-                <> "Cannot listen on the given port. "
-                <> "The operation is not permitted."
+    handleApiServerStartupError err = do
+        traceWith applicationTracer $ MsgServerStartupError err
+        pure $ ExitFailure $ exitCodeApiServer err
 
 --------------------------------------------------------------------------------
 -- Exported Utilities
@@ -362,15 +326,218 @@ toWLBlock = J.convertBlock
                                     Logging
 -------------------------------------------------------------------------------}
 
--- | The type of trace events produced by the Jörmungandr API server.
-data ServerLog
-    = LogApiServerMsg ApiLog
-    | LogStakePoolLayerMsg StakePoolLayerMsg
-    | LogText Text
-    deriving (Show)
+-- | Log messages related to application startup and shutdown.
+data ApplicationLog
+    = MsgStarting
+    | MsgNetworkName NetworkDiscriminant
+    | MsgSigTerm
+    | MsgWalletStartupError ErrStartup
+    | MsgServerStartupError ListenError
+    deriving (Generic, Show, Eq)
 
-instance ToText ServerLog where
+instance ToText ApplicationLog where
     toText msg = case msg of
-        LogApiServerMsg load -> toText load
-        LogStakePoolLayerMsg load -> toText load
-        LogText txt -> txt
+        MsgStarting -> "Wallet backend server starting..."
+        MsgNetworkName n -> "Node is Jörmungandr on " <> toText n
+        MsgSigTerm -> "Terminated by signal."
+        MsgWalletStartupError startupErr -> case startupErr of
+            ErrStartupGetBlockchainParameters e -> case e of
+                ErrGetBlockchainParamsNetworkUnreachable _ ->
+                    "It looks like Jörmungandr is down? Hint: double-check\
+                    \  Jörmungandr server's port."
+                ErrGetBlockchainParamsGenesisNotFound block0H ->
+                    T.pack $ mconcat
+                    [ "Failed to retrieve the genesis block. The block doesn't"
+                    , " exist! Hint: double-check the genesis hash you've just "
+                    , " gave me via '--genesis-block-hash'"
+                    , "(i.e. " <> showT block0H <> ")."
+                    ]
+                ErrGetBlockchainParamsIncompleteParams _ -> mempty
+                    <> "I successfully retrieved the genesis block from "
+                    <> "Jörmungandr, but there's no initial fee policy defined?"
+            ErrStartupInvalidGenesisBlock file -> mempty
+                    <> "As far as I can tell, this isn't a valid block file: "
+                    <> T.pack file
+            ErrStartupInvalidGenesisHash h -> mempty
+                    <> "As far as I can tell, this isn't a valid block hash: "
+                    <> T.pack h
+            ErrStartupCommandExited pe -> case pe of
+                ProcessDidNotStart _cmd exc ->
+                    "Could not start the node backend. " <> T.pack (show exc)
+                ProcessHasExited _cmd st ->
+                    "The node exited with status " <> T.pack (show st)
+            ErrStartupNodeNotListening -> mempty
+                    <> "Waited too long for Jörmungandr to become available. "
+                    <> "Giving up!"
+        MsgServerStartupError startupErr -> case startupErr of
+            ListenErrorHostDoesNotExist host -> mempty
+                    <> "Can't listen on "
+                    <> T.pack (show host)
+                    <> ". It does not exist."
+            ListenErrorInvalidAddress host -> mempty
+                    <> "Can't listen on "
+                    <> T.pack (show host)
+                    <> ". Invalid address."
+            ListenErrorAddressAlreadyInUse mPort -> mempty
+                    <> "The API server listen port "
+                    <> maybe "(unknown)" (T.pack . show) mPort
+                    <> " is already in use."
+            ListenErrorOperationNotPermitted -> mempty
+                    <> "Cannot listen on the given port. "
+                    <> "The operation is not permitted."
+
+instance DefinePrivacyAnnotation ApplicationLog
+instance DefineSeverity ApplicationLog where
+    defineSeverity ev = case ev of
+        MsgStarting -> Info
+        MsgSigTerm -> Notice
+        MsgNetworkName _ -> Info
+        MsgWalletStartupError _ -> Alert
+        MsgServerStartupError _ -> Alert
+
+-- | Failure status codes for network backend errors.
+exitCodeNetwork :: ErrStartup -> Int
+exitCodeNetwork = \case
+    ErrStartupGetBlockchainParameters e -> case e of
+        ErrGetBlockchainParamsNetworkUnreachable _ -> 30
+        ErrGetBlockchainParamsGenesisNotFound _ -> 31
+        ErrGetBlockchainParamsIncompleteParams _ -> 32
+    ErrStartupInvalidGenesisBlock _ -> 33
+    ErrStartupInvalidGenesisHash _ -> 34
+    ErrStartupCommandExited pe -> case pe of
+        ProcessDidNotStart _ _ -> 40
+        ProcessHasExited _ _ -> 41
+    ErrStartupNodeNotListening -> 42
+
+-- | Failure status codes for HTTP API server errors.
+exitCodeApiServer :: ListenError -> Int
+exitCodeApiServer = \case
+    ListenErrorHostDoesNotExist _ -> 10
+    ListenErrorInvalidAddress _ -> 11
+    ListenErrorAddressAlreadyInUse _ -> 12
+    ListenErrorOperationNotPermitted -> 13
+
+{-------------------------------------------------------------------------------
+                                    Tracers
+-------------------------------------------------------------------------------}
+
+-- | The types of trace events produced by the Jörmungandr API server.
+data Tracers' f = Tracers
+    { applicationTracer      :: f ApplicationLog
+    , apiServerTracer        :: f ApiLog
+    , apiWorkerTracer        :: f WorkerRegistryLog
+    , walletDatabasesTracer  :: f WalletDatabasesLog
+    , walletDbTracer         :: f DBLog
+    , networkTracer          :: f NetworkLayerLog
+    , stakePoolMonitorTracer :: f StakePoolMonitorLog
+    , stakePoolLayerTracer   :: f StakePoolLayerLog
+    , stakePoolDBTracer      :: f DBLog
+    , daedalusIPCTracer      :: f DaedalusIPCLog
+    , workerRegistryTracer   :: f WorkerRegistryLog
+    }
+
+-- | All of the Jörmungandr 'Tracer's.
+type Tracers m = Tracers' (Tracer m)
+
+-- | The minimum severities for 'Tracers'. 'Nothing' indicates that tracing is
+-- completely disabled.
+type TracerSeverities = Tracers' (Const (Maybe Severity))
+
+-- | Construct a 'TracerSeverities' record with all tracers set to the given
+-- severity.
+tracerSeverities :: Maybe Severity -> TracerSeverities
+tracerSeverities sev = Tracers
+    { applicationTracer      = Const sev
+    , apiServerTracer        = Const sev
+    , apiWorkerTracer        = Const sev
+    , walletDatabasesTracer  = Const sev
+    , walletDbTracer         = Const sev
+    , networkTracer          = Const sev
+    , stakePoolMonitorTracer = Const sev
+    , stakePoolLayerTracer   = Const sev
+    , stakePoolDBTracer      = Const sev
+    , daedalusIPCTracer      = Const sev
+    , workerRegistryTracer   = Const sev
+    }
+
+-- | Set up tracing with textual log messages.
+setupTracers :: TracerSeverities -> Trace IO Text -> Tracers IO
+setupTracers sev tr = Tracers
+    { applicationTracer      = mkTrace applicationTracer      $ onoff applicationTracer      tr
+    , apiServerTracer        = mkTrace apiServerTracer        $ onoff apiServerTracer        tr
+    , apiWorkerTracer        = mkTrace apiWorkerTracer        $ onoff apiWorkerTracer        tr
+    , walletDatabasesTracer  = mkTrace walletDatabasesTracer  $ onoff walletDatabasesTracer  tr
+    , walletDbTracer         = mkTrace walletDbTracer         $ onoff walletDbTracer         tr
+    , networkTracer          = mkTrace networkTracer          $ onoff networkTracer          tr
+    , stakePoolMonitorTracer = mkTrace stakePoolMonitorTracer $ onoff stakePoolMonitorTracer tr
+    , stakePoolLayerTracer   = mkTrace stakePoolLayerTracer   $ onoff stakePoolLayerTracer   tr
+    , stakePoolDBTracer      = mkTrace stakePoolDBTracer      $ onoff stakePoolDBTracer      tr
+    , daedalusIPCTracer      = mkTrace daedalusIPCTracer      $ onoff daedalusIPCTracer      tr
+    , workerRegistryTracer   = mkTrace workerRegistryTracer   $ onoff workerRegistryTracer   tr
+    }
+  where
+    onoff
+        :: Monad m
+        => (TracerSeverities -> Const (Maybe Severity) a)
+        -> Trace m b
+        -> Trace m b
+    onoff f = case getConst (f sev) of
+        Nothing -> const nullTracer
+        Just s -> filterTraceSeverity s
+
+    mkTrace
+        :: (DefinePrivacyAnnotation a, DefineSeverity a, ToText a)
+        => (Tracers' (Const Text) -> Const Text a)
+        -> Trace IO Text
+        -> Tracer IO a
+    mkTrace f = trMessageText . appendName (getConst $ f tracerLabels)
+
+-- | Strings that the user can refer to tracers by.
+tracerLabels :: Tracers' (Const Text)
+tracerLabels = Tracers
+    { applicationTracer      = Const "application"
+    , apiServerTracer        = Const "api-server"
+    , apiWorkerTracer        = Const "api-worker"
+    , walletDatabasesTracer  = Const "wallet-databases"
+    , walletDbTracer         = Const "wallet-db"
+    , networkTracer          = Const "network"
+    , stakePoolMonitorTracer = Const "stake-pool-monitor"
+    , stakePoolLayerTracer   = Const "stake-pool-layer"
+    , stakePoolDBTracer      = Const "stake-pool-db"
+    , daedalusIPCTracer      = Const "daedalus-ipc"
+    , workerRegistryTracer   = Const "worker-registry"
+    }
+
+-- | Names and descriptions of the tracers, for user documentation.
+tracerDescriptions :: [(String, String)]
+tracerDescriptions =
+    [ (lbl applicationTracer      , "")
+    , (lbl apiServerTracer        , "")
+    , (lbl apiWorkerTracer        , "")
+    , (lbl walletDatabasesTracer  , "")
+    , (lbl walletDbTracer         , "")
+    , (lbl networkTracer          , "")
+    , (lbl stakePoolMonitorTracer , "")
+    , (lbl stakePoolLayerTracer   , "")
+    , (lbl stakePoolDBTracer      , "")
+    , (lbl daedalusIPCTracer      , "")
+    , (lbl workerRegistryTracer   , "")
+    ]
+  where
+    lbl f = T.unpack . getConst . f $ tracerLabels
+
+-- | Use a 'nullTracer' for each of the 'Tracer's in 'Tracers'
+nullTracers :: Monad m => Tracers m
+nullTracers = Tracers
+    { applicationTracer      = nullTracer
+    , apiServerTracer        = nullTracer
+    , apiWorkerTracer        = nullTracer
+    , walletDatabasesTracer  = nullTracer
+    , walletDbTracer         = nullTracer
+    , networkTracer          = nullTracer
+    , stakePoolMonitorTracer = nullTracer
+    , stakePoolLayerTracer   = nullTracer
+    , stakePoolDBTracer      = nullTracer
+    , daedalusIPCTracer      = nullTracer
+    , workerRegistryTracer   = nullTracer
+    }

@@ -24,11 +24,12 @@ module Main where
 
 import Prelude
 
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
 import Cardano.BM.Trace
     ( Trace, logInfo )
 import Cardano.CLI
     ( Port (..)
-    , Verbosity (..)
     , cli
     , cmdAddress
     , cmdMnemonic
@@ -42,6 +43,9 @@ import Cardano.CLI
     , getDataDir
     , hostPreferenceOption
     , listenOption
+    , loggingSeverities
+    , loggingSeverityOrOffReader
+    , loggingSeverityReader
     , nodePortMaybeOption
     , nodePortOption
     , optionT
@@ -50,8 +54,6 @@ import Cardano.CLI
     , setupDirectory
     , stateDirOption
     , syncToleranceOption
-    , verbosityOption
-    , verbosityToMinSeverity
     , withLogging
     )
 import Cardano.Launcher
@@ -59,7 +61,13 @@ import Cardano.Launcher
 import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..) )
 import Cardano.Wallet.Jormungandr
-    ( serveWallet )
+    ( TracerSeverities
+    , Tracers' (..)
+    , serveWallet
+    , setupTracers
+    , tracerDescriptions
+    , tracerLabels
+    )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( localhostBaseUrl )
 import Cardano.Wallet.Jormungandr.Network
@@ -67,8 +75,6 @@ import Cardano.Wallet.Jormungandr.Network
     , JormungandrConfig (..)
     , JormungandrConnParams (..)
     )
-import Cardano.Wallet.Logging
-    ( transformTextTrace )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
@@ -76,7 +82,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Version
     ( gitRevision, showFullVersion, version )
 import Control.Applicative
-    ( optional, (<|>) )
+    ( Const (..), optional, (<|>) )
 import Data.List
     ( isPrefixOf )
 import Data.Maybe
@@ -88,17 +94,23 @@ import Network.Socket
 import Options.Applicative
     ( CommandFields
     , Mod
+    , ParseError (InfoMsg)
     , Parser
+    , abortOption
     , argument
     , command
     , footerDoc
     , help
     , helper
+    , hidden
     , info
+    , internal
     , long
     , many
     , metavar
+    , option
     , progDesc
+    , value
     )
 import Options.Applicative.Types
     ( readerAsk, readerError )
@@ -163,7 +175,7 @@ data LaunchArgs = LaunchArgs
     , _nodePort :: Maybe (Port "Node")
     , _stateDir :: Maybe FilePath
     , _syncTolerance :: SyncTolerance
-    , _verbosity :: Verbosity
+    , _logging :: LoggingOptions
     , _jormungandrArgs :: JormungandrArgs
     }
 
@@ -175,7 +187,7 @@ data JormungandrArgs = JormungandrArgs
 cmdLaunch
     :: FilePath
     -> Mod CommandFields (IO ())
-cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
+cmdLaunch dataDir = command "launch" $ info (helper <*> helperTracing <*> cmd) $ mempty
     <> progDesc "Launch and monitor a wallet server and its chain producers."
     <> footerDoc (Just $ D.empty
         <> D.text "Examples:"
@@ -204,12 +216,12 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
         <*> nodePortMaybeOption
         <*> stateDirOption dataDir
         <*> syncToleranceOption
-        <*> verbosityOption
+        <*> loggingOptions
         <*> (JormungandrArgs
             <$> genesisBlockOption
             <*> extraArguments)
-    exec (LaunchArgs hostPreference listen nodePort mStateDir sTolerance verbosity jArgs) = do
-        withLogging Nothing (verbosityToMinSeverity verbosity) $ \(cfg, tr) -> do
+    exec (LaunchArgs hostPreference listen nodePort mStateDir sTolerance logOpt jArgs) = do
+        withLogging Nothing (loggingMinSeverity logOpt) $ \(_, tr) -> do
             case genesisBlock jArgs of
                 Right block0File -> requireFilePath block0File
                 Left _ -> pure ()
@@ -227,7 +239,7 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
             logInfo tr $
                 "Running as v" <> T.pack (showFullVersion version gitRevision)
             exitWith =<< serveWallet @'Testnet
-                (cfg, transformTextTrace tr)
+                (setupTracers (loggingTracers logOpt) tr)
                 sTolerance
                 (Just databaseDir)
                 hostPreference
@@ -246,13 +258,13 @@ data ServeArgs = ServeArgs
     , _nodePort :: Port "Node"
     , _database :: Maybe FilePath
     , _syncTolerance :: SyncTolerance
-    , _verbosity :: Verbosity
     , _block0H :: Hash "Genesis"
+    , _logging :: LoggingOptions
     }
 
 cmdServe
     :: Mod CommandFields (IO ())
-cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
+cmdServe = command "serve" $ info (helper <*> helperTracing <*> cmd) $ mempty
     <> progDesc "Serve API that listens for commands/actions."
   where
     cmd = fmap exec $ ServeArgs
@@ -261,21 +273,21 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
         <*> nodePortOption
         <*> optional databaseOption
         <*> syncToleranceOption
-        <*> verbosityOption
         <*> genesisHashOption
+        <*> loggingOptions
     exec
         :: ServeArgs
         -> IO ()
-    exec (ServeArgs hostPreference listen nodePort databaseDir sTolerance verbosity block0H) = do
-        let minSeverity = verbosityToMinSeverity verbosity
-        withLogging Nothing minSeverity $ \(cfg, tr) -> do
+    exec (ServeArgs hostPreference listen nodePort databaseDir sTolerance block0H logOpt) = do
+        let minSeverity = loggingMinSeverity logOpt
+        withLogging Nothing minSeverity $ \(_, tr) -> do
             let baseUrl = localhostBaseUrl $ getPort nodePort
             let cp = JormungandrConnParams block0H baseUrl
             whenJust databaseDir $ setupDirectory (logInfo tr)
             logInfo tr $
                 "Running as v" <> T.pack (showFullVersion version gitRevision)
             exitWith =<< serveWallet @'Testnet
-                (cfg, transformTextTrace tr)
+                (setupTracers (loggingTracers logOpt) tr)
                 sTolerance
                 databaseDir
                 hostPreference
@@ -332,3 +344,67 @@ extraArguments = many $ argument jmArg $ mempty
     suggestion arg = "The " <> arg <> " option is used by the 'launch'"
         <> " command.\nIf you need to use this option,"
         <> " run Jörmungandr separately and use 'serve'."
+
+data LoggingOptions = LoggingOptions
+    { loggingMinSeverity :: Severity
+    , loggingTracers :: TracerSeverities
+    }
+
+loggingOptions :: Parser LoggingOptions
+loggingOptions = LoggingOptions
+    <$> minSev
+    <*> loggingTracersOptions
+  where
+    minSev = option loggingSeverityReader $ mempty
+        <> long "log-level"
+        <> value Debug
+        <> metavar "SEVERITY"
+        <> help ("Global minimum severity for a message to be logged. " <>
+            "Defaults to \"DEBUG\" unless otherwise configured.")
+        <> hidden
+
+loggingTracersOptions :: Parser TracerSeverities
+loggingTracersOptions = Tracers
+    <$> traceOpt applicationTracer (Just Info)
+    <*> traceOpt apiServerTracer (Just Info)
+    <*> traceOpt apiWorkerTracer (Just Info)
+    <*> traceOpt walletDatabasesTracer (Just Info)
+    <*> traceOpt walletDbTracer (Just Info)
+    <*> traceOpt networkTracer (Just Info)
+    <*> traceOpt stakePoolMonitorTracer (Just Info)
+    <*> traceOpt stakePoolLayerTracer (Just Info)
+    <*> traceOpt stakePoolDBTracer (Just Info)
+    <*> traceOpt daedalusIPCTracer (Just Info)
+    <*> traceOpt workerRegistryTracer (Just Info)
+  where
+    traceOpt field def = fmap Const . option loggingSeverityOrOffReader $ mempty
+        <> long ("trace-" <> T.unpack (getConst (field tracerLabels)))
+        <> value def
+        <> metavar "SEVERITY"
+        <> internal
+        <> help ("Minimum severity for a message to be logged, " <>
+            "or \"off\" to disable the tracer. Defaults to \"INFO\".")
+
+-- | A hidden "helper" option which always fails, but shows info about the
+-- logging options.
+helperTracing :: Parser (a -> a)
+helperTracing = abortOption (InfoMsg helperTracingText) $ mempty
+    <> long "help-tracing"
+    <> help "Show help for tracing options"
+    <> hidden
+
+helperTracingText :: String
+helperTracingText = unlines $
+    [ "Additional tracing options:"
+    , ""
+    , "  --log-level SEVERITY     Global minimum severity for a message to be logged."
+    , "                           Defaults to \"DEBUG\" unless otherwise configured."
+    , "  --trace-NAME=off         Disable logging on the given tracer."
+    , "  --trace-NAME=SEVERITY    Set the minimum logging severity for the given"
+    , "                           tracer. Defaults to \"INFO\"."
+    , ""
+    , "The possible log levels (lowest to highest) are:"
+    , "  " ++ unwords (map fst loggingSeverities)
+    , ""
+    , "The possible tracers are:"
+    ] ++ ["  " ++ name ++ "  " ++ desc | (name, desc) <- tracerDescriptions]

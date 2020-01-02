@@ -32,14 +32,6 @@ import Prelude
 
 import Cardano.BM.Configuration.Static
     ( defaultConfigTesting )
-import Cardano.BM.Data.LogItem
-    ( LOContent (..), LOMeta (severity), LogObject (..) )
-import Cardano.BM.Data.MonitoringEval
-    ( MEvAction (..), MEvExpr (..), Operand (..), Operator (..) )
-import Cardano.BM.Data.Observable
-    ( ObservableInstance (..) )
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( nullTracer )
 import Cardano.BM.Setup
@@ -49,7 +41,7 @@ import Cardano.BM.Trace
 import Cardano.Crypto.Wallet
     ( XPrv )
 import Cardano.DB.Sqlite
-    ( SqliteContext, destroyDBLayer )
+    ( DBLog (..), SqliteContext, destroyDBLayer )
 import Cardano.Wallet.DB
     ( DBFactory (..)
     , DBLayer (..)
@@ -67,6 +59,8 @@ import Cardano.Wallet.DB.StateMachine
     ( prop_parallel, prop_sequential )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0, genesisParameters, mockHash )
+import Cardano.Wallet.Logging
+    ( trMessageText )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , NetworkDiscriminant (..)
@@ -177,13 +171,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Monadic
     ( monadicIO )
 
-import qualified Cardano.BM.Configuration.Model as CM
-import qualified Cardano.BM.Data.Aggregated as CM
-import qualified Cardano.BM.Data.AggregatedKind as CM
-import qualified Cardano.BM.Data.Backend as CM
-import qualified Cardano.BM.Data.SubTrace as CM
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
-import qualified Data.HashMap.Strict as HM
 import qualified Data.List as L
 import qualified Data.Set as Set
 import qualified Data.Text as T
@@ -219,26 +207,22 @@ loggingSpec = withLoggingDB @(SeqState 'Testnet ShelleyKey) @ShelleyKey $ do
         it "should log queries at DEBUG level" $ \(getLogs, DBLayer{..}) -> do
             atomically $ unsafeRunExceptT $
                 initializeWallet testPk testCpSeq testMetadata mempty
-            logs <- logMessages <$> getLogs
-            logs `shouldHaveLog` (Debug, "INSERT")
+            logs <- getLogs
+            logs `shouldHaveMsgQuery` "INSERT"
 
         it "should not log query parameters" $ \(getLogs, DBLayer{..}) -> do
             atomically $ unsafeRunExceptT $
                 initializeWallet testPk testCpSeq testMetadata mempty
             let walletName = T.unpack $ coerce $ name testMetadata
-            msgs <- T.unlines . map snd . logMessages <$> getLogs
+            msgs <- T.unlines . mapMaybe getMsgQuery <$> getLogs
             T.unpack msgs `shouldNotContain` walletName
 
     describe "Sqlite observables" $ do
         it "should measure query timings" $ \(getLogs, DBLayer{..}) -> do
             let count = 5
             replicateM_ count (atomically listWallets)
-            -- Commented out until this is fixed:
-            --   https://github.com/input-output-hk/iohk-monitoring-framework/issues/391
-            -- msg <- T.unlines . map snd . logMessages <$> getLogs
-            -- T.unpack msgs `shouldContain` "runQuery monitor works"
             msgs <- findObserveDiffs <$> getLogs
-            length msgs `shouldBe` count
+            length msgs `shouldBe` count * 2
 
 -- | Set up a DBLayer for testing, with the command context, and the logging
 -- variable.
@@ -261,44 +245,10 @@ newMemoryDBLayer'
         , PersistState s
         , PersistPrivateKey (k 'RootK)
         )
-    => IO (TVar [LogObject Text], (SqliteContext, DBLayer IO s k))
+    => IO (TVar [DBLog], (SqliteContext, DBLayer IO s k))
 newMemoryDBLayer' = do
-    logConfig <- testingLogConfig
     logVar <- newTVarIO []
-    (logVar, ) <$> newDBLayer logConfig (traceInTVarIO logVar) Nothing
-
-testingLogConfig :: IO CM.Configuration
-testingLogConfig = do
-    logConfig <- defaultConfigTesting
-    CM.setMinSeverity logConfig Debug
-    CM.setSetupBackends logConfig [CM.KatipBK, CM.AggregationBK, CM.MonitoringBK]
-
-    CM.setSubTrace logConfig "query"
-        (Just $ CM.ObservableTraceSelf [MonotonicClock])
-
-    CM.setBackends logConfig
-        "query"
-        (Just [CM.AggregationBK])
-    CM.setAggregatedKind logConfig
-        "query"
-        (Just CM.StatsAK) -- statistics AgreggatedKind
-    CM.setBackends logConfig
-        "#aggregation.query"
-        (Just [CM.KatipBK])
-
-    -- This monitor should always trigger.
-    CM.setMonitors logConfig $ HM.singleton
-        "query.diff"
-        ( Nothing
-        , Compare "query.diff.timestamp" (GE, (OpMeasurable (CM.Seconds 0)))
-        , [CreateMessage Info "runQuery monitor works"]
-        )
-
-    CM.setBackends logConfig
-        "query"
-        (Just [CM.AggregationBK, CM.KatipBK, CM.MonitoringBK])
-
-    pure logConfig
+    (logVar, ) <$> newDBLayer (traceInTVarIO logVar) Nothing
 
 withLoggingDB
     ::  ( IsOurs s Address
@@ -308,7 +258,7 @@ withLoggingDB
         , PersistState s
         , PersistPrivateKey (k 'RootK)
         )
-    => SpecWith (IO [LogObject Text], DBLayer IO s k)
+    => SpecWith (IO [DBLog], DBLayer IO s k)
     -> Spec
 withLoggingDB = beforeAll newMemoryDBLayer' . beforeWith clean
   where
@@ -317,24 +267,22 @@ withLoggingDB = beforeAll newMemoryDBLayer' . beforeWith clean
         TVar.atomically $ writeTVar logs []
         pure (readTVarIO logs, db)
 
-logMessages :: [LogObject a] -> [(Severity, a)]
-logMessages = mapMaybe getMessage
-  where
-    getMessage (LogObject _ m (LogMessage a)) = Just (severity m, a)
-    getMessage _ = Nothing
-
-findObserveDiffs :: [LogObject a] -> [LOContent a]
-findObserveDiffs = filter isObserveDiff . map loContent
-  where
-    isObserveDiff (ObserveDiff _) = True
-    isObserveDiff _ = False
-
-shouldHaveLog :: [(Severity, Text)] -> (Severity, Text) -> Expectation
-shouldHaveLog msgs (sev, str) = unless (any match msgs) $
-    fail $ "Did not find " ++ show sev ++ " log " ++
+shouldHaveMsgQuery :: [DBLog] -> Text -> Expectation
+shouldHaveMsgQuery msgs str = unless (any match msgs) $
+    fail $ "Did not find DB query " ++
         T.unpack str ++ " within " ++ show msgs
   where
-    match (sev', msg) = sev' == sev && str `T.isInfixOf` msg
+    match = maybe False (str `T.isInfixOf`) . getMsgQuery
+
+getMsgQuery :: DBLog -> Maybe Text
+getMsgQuery (MsgQuery msg _) = Just msg
+getMsgQuery _ = Nothing
+
+findObserveDiffs :: [DBLog] -> [DBLog]
+findObserveDiffs = filter isObserveDiff
+  where
+    isObserveDiff (MsgRun _) = True
+    isObserveDiff _ = False
 
 {-------------------------------------------------------------------------------
                                 File Mode Spec
@@ -355,8 +303,7 @@ fileModeSpec =  do
     describe "DBFactory" $ do
         it "withDatabase *> removeDatabase works and remove files" $ do
             withSystemTempDirectory "DBFactory" $ \dir -> do
-                cfg <- defaultConfigTesting
-                DBFactory{..} <- newDBFactory cfg nullTracer (Just dir)
+                DBFactory{..} <- newDBFactory nullTracer (Just dir)
                 mvar <- newEmptyMVar
 
                 -- NOTE
@@ -542,7 +489,7 @@ withTestDBFile action expectations = do
     withSystemTempFile "spec.db" $ \fp h -> do
         hClose h
         removeFile fp
-        withDBLayer logConfig trace (Just fp) (action . snd)
+        withDBLayer (trMessageText trace) (Just fp) (action . snd)
         expectations fp
 
 inMemoryDBLayer
@@ -566,9 +513,7 @@ newDBLayer'
         )
     => Maybe FilePath
     -> IO (SqliteContext, DBLayer IO s ShelleyKey)
-newDBLayer' fp = do
-    logConfig <- CM.empty
-    newDBLayer logConfig nullTracer fp
+newDBLayer' = newDBLayer nullTracer
 
 -- | Clean the database
 cleanDB'

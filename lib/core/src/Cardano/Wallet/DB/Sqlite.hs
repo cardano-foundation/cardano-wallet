@@ -29,14 +29,20 @@ module Cardano.Wallet.DB.Sqlite
 
     -- * Interfaces
     , PersistState (..)
+
+    -- * Logging
+    , WalletDatabasesLog (..)
     ) where
 
 import Prelude
 
-import Cardano.BM.Trace
-    ( Trace, appendName, logInfo, logNotice )
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
+import Cardano.BM.Data.Tracer
+    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
 import Cardano.DB.Sqlite
-    ( SqliteContext (..)
+    ( DBLog
+    , SqliteContext (..)
     , chunkSize
     , dbChunked
     , destroyDBLayer
@@ -74,8 +80,6 @@ import Cardano.Wallet.DB.Sqlite.TH
     )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..), HDPassphrase (..), TxId (..) )
-import Cardano.Wallet.Logging
-    ( transformTextTrace )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , MkKeyFingerprint (..)
@@ -107,6 +111,8 @@ import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..) )
+import Control.Tracer
+    ( Tracer, traceWith )
 import Data.Coerce
     ( coerce )
 import Data.Either
@@ -125,10 +131,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text
-    ( Text )
 import Data.Text.Class
-    ( fromText, toText )
+    ( ToText (..), fromText )
 import Data.Typeable
     ( Typeable )
 import Data.Word
@@ -164,7 +168,6 @@ import System.Directory
 import System.FilePath
     ( (</>) )
 
-import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.Wallet.Primitive.AddressDerivation as W
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
@@ -188,19 +191,17 @@ withDBLayer
         , PersistState s
         , PersistPrivateKey (k 'RootK)
         )
-    => CM.Configuration
-       -- ^ Logging configuration
-    -> Trace IO Text
+    => Tracer IO DBLog
        -- ^ Logging object
     -> Maybe FilePath
        -- ^ Path to database directory, or Nothing for in-memory database
     -> ((SqliteContext, DBLayer IO s k) -> IO a)
        -- ^ Action to run.
     -> IO a
-withDBLayer logConfig trace mDatabaseDir =
+withDBLayer trace mDatabaseDir =
     bracket before after
   where
-    before = newDBLayer logConfig trace mDatabaseDir
+    before = newDBLayer trace mDatabaseDir
     after = destroyDBLayer . fst
 
 -- | Instantiate a 'DBFactory' from a given directory
@@ -214,25 +215,23 @@ newDBFactory
         , PersistPrivateKey (k 'RootK)
         , WalletKey k
         )
-    => CM.Configuration
-       -- ^ Logging configuration
-    -> Trace IO Text
+    => Tracer IO DBLog
        -- ^ Logging object
     -> Maybe FilePath
        -- ^ Path to database directory, or Nothing for in-memory database
     -> IO (DBFactory IO s k)
-newDBFactory cfg tr mDatabaseDir = do
+newDBFactory tr mDatabaseDir = do
     mvar <- newMVar mempty
     case mDatabaseDir of
         Nothing -> pure DBFactory
             { withDatabase = \_ action ->
-                withDBLayer cfg tracerDB Nothing (action . snd)
+                withDBLayer tr Nothing (action . snd)
             , removeDatabase = \_ ->
                 pure ()
             }
         Just databaseDir -> pure DBFactory
             { withDatabase = \wid action -> do
-                withDBLayer cfg tracerDB (Just $ databaseFile wid)
+                withDBLayer tr (Just $ databaseFile wid)
                     $ \(ctx, db) -> do
                         modifyMVar_ mvar (pure . Map.insert wid ctx)
                         action db
@@ -253,14 +252,12 @@ newDBFactory cfg tr mDatabaseDir = do
                 databaseDir </>
                 databaseFilePrefix <> "." <>
                 T.unpack (toText wid) <> ".sqlite"
-      where
-        tracerDB = appendName "database" tr
 
 -- | Return all wallet databases that match the specified key type within the
 --   specified directory.
 findDatabases
     :: forall k. WalletKey k
-    => Trace IO Text
+    => Tracer IO WalletDatabasesLog
     -> FilePath
     -> IO [W.WalletId]
 findDatabases tr dir = do
@@ -271,13 +268,10 @@ findDatabases tr dir = do
             (True, prefix : basename : ["sqlite"]) | prefix == expectedPrefix ->
                 case fromText basename of
                     Right wid -> do
-                        logInfo tr $ "Found existing wallet: " <> basename
+                        traceWith tr $ MsgFoundDatabase (dir </> file) wid
                         return (Just wid)
                     _ -> do
-                        logNotice tr $ mconcat
-                            [ "Found something other than a database file in "
-                            , "the database folder: ", T.pack file
-                            ]
+                        traceWith tr $ MsgUnknownFile file
                         return Nothing
             _ -> return Nothing
   where
@@ -302,18 +296,15 @@ newDBLayer
         , PersistState s
         , PersistPrivateKey (k 'RootK)
         )
-    => CM.Configuration
-       -- ^ Logging configuration
-    -> Trace IO Text
+    => Tracer IO DBLog
        -- ^ Logging object
     -> Maybe FilePath
        -- ^ Path to database file, or Nothing for in-memory database
     -> IO (SqliteContext, DBLayer IO s k)
-newDBLayer logConfig trace mDatabaseFile = do
-    let trace' = transformTextTrace trace
+newDBLayer trace mDatabaseFile = do
     ctx@SqliteContext{runQuery} <-
         either throwIO pure =<<
-        startSqliteBackend logConfig migrateAll trace' mDatabaseFile
+        startSqliteBackend migrateAll trace mDatabaseFile
     return (ctx, DBLayer
 
         {-----------------------------------------------------------------------
@@ -1097,3 +1088,28 @@ selectRndStatePending wid = do
   where
     assocFromEntity (RndStatePendingAddress _ accIx addrIx addr) =
         ((W.Index accIx, W.Index addrIx), addr)
+
+{-------------------------------------------------------------------------------
+                                    Logging
+-------------------------------------------------------------------------------}
+
+-- | Log messages arising from accessing the wallet repository.
+data WalletDatabasesLog
+    = MsgFoundDatabase FilePath W.WalletId
+    | MsgUnknownFile FilePath
+    deriving (Show, Eq)
+
+instance ToText WalletDatabasesLog where
+    toText = \case
+        MsgFoundDatabase _file wid ->
+            "Found existing wallet: " <> toText wid
+        MsgUnknownFile file -> mconcat
+            [ "Found something other than a database file in "
+            , "the database folder: ", T.pack file
+            ]
+
+instance DefinePrivacyAnnotation WalletDatabasesLog
+instance DefineSeverity WalletDatabasesLog where
+    defineSeverity = \case
+        MsgFoundDatabase _ _ -> Info
+        MsgUnknownFile _ -> Notice

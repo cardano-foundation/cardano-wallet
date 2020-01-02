@@ -31,7 +31,8 @@ import Cardano.Pool.Metrics
     ( Block (..)
     , ErrListStakePools (..)
     , StakePoolLayer (..)
-    , StakePoolLayerMsg (..)
+    , StakePoolLayerLog (..)
+    , StakePoolMonitorLog (..)
     , associateMetadata
     , calculatePerformance
     , combineMetrics
@@ -88,8 +89,6 @@ import Data.Maybe
     ( catMaybes )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text
-    ( Text )
 import Data.Text.Class
     ( toText )
 import Data.Word
@@ -307,8 +306,9 @@ prop_trackRegistrations test = monadicIO $ do
         . mconcat
         . getRegistrationsTest
 
-    isDiscoveryMsg :: Text -> Bool
-    isDiscoveryMsg = T.isInfixOf "Discovered stake pool registration"
+    isDiscoveryMsg :: StakePoolMonitorLog -> Bool
+    isDiscoveryMsg (MsgStakePoolRegistration _) = True
+    isDiscoveryMsg _ = False
 
     getNumRegistrations :: RegistrationsTest -> Int
     getNumRegistrations =
