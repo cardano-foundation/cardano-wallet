@@ -235,7 +235,7 @@ mRemovePendingTx wid tid db@(Database wallets txs) = case Map.lookup wid wallets
         updateWallets = Map.adjust changeTxMeta wid wallets
         changeTxMeta meta = meta { txHistory = Map.delete tid (txHistory meta) }
 
-mRollbackTo :: Ord wid => wid -> SlotId -> ModelOp wid s xprv ()
+mRollbackTo :: Ord wid => wid -> SlotId -> ModelOp wid s xprv SlotId
 mRollbackTo wid point db@(Database wallets txs) = case Map.lookup wid wallets of
     Nothing ->
         ( Left (NoSuchWallet wid), db )
@@ -253,7 +253,7 @@ mRollbackTo wid point db@(Database wallets txs) = case Map.lookup wid wallets of
                             Map.mapMaybe (rescheduleOrForget nearest) (txHistory wal)
                         }
                 in
-                    ( Right ()
+                    ( Right nearest
                     , Database (Map.insert wid wal' wallets) txs
                     )
   where

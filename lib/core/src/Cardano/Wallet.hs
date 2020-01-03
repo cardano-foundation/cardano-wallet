@@ -631,10 +631,8 @@ rollbackBlocks
     -> ExceptT ErrNoSuchWallet IO ()
 rollbackBlocks ctx wid point = db & \DBLayer{..} -> do
     liftIO $ logInfo tr $ "Try rolling back to " <> pretty point
-    mapExceptT atomically $ rollbackTo (PrimaryKey wid) point
-    -- TODO
-    -- point' <- mapExceptT atomically $ rollbackTo (PrimaryKey wid) point
-    -- liftIO $ logInfo tr $ "Rolled back to " <> pretty point'
+    point' <- mapExceptT atomically $ rollbackTo (PrimaryKey wid) point
+    liftIO $ logInfo tr $ "Rolled back to " <> pretty point'
   where
     db = ctx ^. dbLayer @s @k
     tr = ctx ^. logger

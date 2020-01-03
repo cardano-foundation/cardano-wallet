@@ -225,8 +225,13 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     , rollbackTo
         :: PrimaryKey WalletId
         -> SlotId
-        -> ExceptT ErrNoSuchWallet stm ()
+        -> ExceptT ErrNoSuchWallet stm SlotId
         -- ^ Drops all checkpoints and transaction data after the given slot.
+        --
+        -- Returns the actual slot to which the database has rolled back. This
+        -- slot is guaranteed to be smaller or equal to the given point of
+        -- rollback but can't be guaranteed to be exactly the same because the
+        -- database only keeps sparse checkpoints.
 
     , prune
         :: PrimaryKey WalletId
