@@ -6,7 +6,8 @@ Structure:
 - [Inventory of Jörmungandr on-chain types we use](#Inventory)
 - [Discussion](#Discussion)
 - [Summary Byron](#Summary-Byron)
-- [A glimpse into Shelley](#A-glimpse-into-shelley)
+- [Extra: A glimpse into Shelley](#extra-A-glimpse-into-shelley)
+- [Extra: Other, fuzzier differences](#extra-other-fuzzier-differences)
 
 ## Inventory
 
@@ -52,23 +53,27 @@ Jörmungandr does not fully support protocol parameter updates. If protocol para
 
 ### Blocks
 
-The Jörmungandr wallet uses the `BlockHeader = (slotId, hash, prevHash)` record to identify
-points on the chain.
+The Jörmungandr wallet uses the `BlockHeader = (slotId, blockHeight, hash, prevHash)` record to identify points on the chain.
 
-The Byron Haskell node only *needs* `(slotNo, hash)` to start giving us blocks, but 
-`prevHash` is available. Small ❌.
+The Byron Haskell node only *needs* `Point ByronBlock = Origin | At (slotNo, hash)` to start giving us blocks. The wallet can retrieve `blockHeight` and `prevHash` from block headers. But those two fields are not needed to initiate the chain-sync protocol. Small ❌. 
+
+We might need to convert the genesis point `Origin`, to a `BlockHeader` if we are to persist it in the DB ❌
 
 Byron `SlotNo` counts slots from genesis in a single number. The current Jörmungandr-compatible wallet `SlotId` counts the epoch AND the slot in that epoch. ❌
+
+In jörmungandr a slot can only be inhabited by a single block. On the haskell side, epoch boundary blocks will share slot with the normal block that comes after it. ❌
 
 ### Transactions
 
 Transaction inputs in Jörmungandr consist of (txHash, index, coinValue). In the Haskell Byron implementation they are only (txHash, index). ❌
 
+The addresses we get from the Haskell chain-sync protocol are not byte-strings, but rather in their deserialized form.
+
 ### Delegation certificates (Shelley)
 
 There are delegation certificates in the Byron Haskell node.
 [haskell cardano-ledger `Certificate`](https://github.com/input-output-hk/cardano-ledger/blob/0ad59ce46b3da8af6f6af97064e7c77cc7c2ac8b/cardano-ledger/src/Cardano/Chain/Delegation/Certificate.hs#L87-L99<Paste>)
-I think they might be there for compatibility and be nothing we should concern ourselves with. (TODO: confirm)
+I think they might be there for compatibility and be nothing we should concern ourselves with.
 
 The Jörmungandr wallet looks at delegation certificates to determine if, and to what it is delegating. This is pointless in Byron.
 
@@ -94,6 +99,13 @@ The same goes for the different transaction inputs:
 - We previously had a `Tx` abstraction for supporting inputs with and without `coin`-values. Removing it was conceptually simple but touched a lot of code. Before re-adding it we could take the opportunity to think of alternative solutions. ⚠️
 - The coins in the Jörmungandr tx inputs are exposed in the Wallet API. Something needs to be changed to be able to serve Haskell Byron tx inputs in the API. If we want to continue exposing them in for the Jörmungandr-compatible wallet we need some added abstraction in the wallet API code. ⚠️
 
+### Addresses
+
+We can trivially re-encode addresses to work with the wallet core and re-decode them later
+(when checking if they are ours or not).
+
+We might be able to treat addresses more abstractly and avoid this.
+
 ### Active slot coeff
 
 While missing in Byron, it will exist in Shelley. We could set it to 100% internally in the wallet. Should be a problem at all. ✅
@@ -102,6 +114,12 @@ While missing in Byron, it will exist in Shelley. We could set it to 100% intern
 
 With a good abstraction, or dropped Jörmungandr support we could remove the prevBlockHash field in BlockHeader, but it does no damage there. ✅
 
+### Point ByronBlock vs BlockHeader
+
+We can probably get by with magic values to represent the `Origin`-case. ✅
+
+A way to treat points (like ourobouros-network's`Point ByronBlock`) more abstractl in the wallet might be needed to avoid sabotaging other abstractions. ℹ️
+
 ### SlotId vs SlotNo
 
 When slotsPerEpoch cannot change the conversion between SlotId and SlotNo is simple.
@@ -109,6 +127,14 @@ When slotsPerEpoch cannot change the conversion between SlotId and SlotNo is sim
 But to support protocol parameter updates, we should consider making the core wallet logic deal with SlotNo for the Haskell node.
 
 For Byron, we can assume they are static. ✅
+
+### Epoch Bounday Blocks
+
+I imagine having two blocks with the same slot might break assumtions in our DB-rollbacks, but I don't know.
+
+A simple solution would be to filter them out. ✅
+
+For mainnet Shelley, EBBs do provide an easy way of knowing when a new epoch starts without having to keep track of protocol parameters (and when slots are counted from genesis). This would be an argument for not filtering them out. We will however most likely be maintaining up-to-date protocol parameters anyway, and would be able to tell when we're entering a new epoch through the protocol-params and the current slotNo.
 
 ### Delegation features
 
@@ -122,8 +148,19 @@ We cannot implement delegation features. We could
 - Absence of delegation features requires dummy implementation or re-designed API for Byron
 - A few small problems with trivial solutions.
 
-### A glimpse into Shelley (TODO)
+### Extra: A glimpse into Shelley
 
 - We need to support changing protocol parameters.
-- Delegation features will likely work differently.
-- Interesting thread: https://input-output-rnd.slack.com/archives/C819S481Y/p1576776488005100 
+- Delegation features will likely work differently. E.g through imported ledger-rules or by asking for certain ledger state once per epoch. (See Duncans messeges: https://input-output-rnd.slack.com/archives/C819S481Y/p1576776488005100) The very good thing is that we will be able to ask for the ledger state of any point in the unstable chain. In jörmungandr we could only retrieve the latest stake-distribution and we didn't know what point it belonged to when we got it. This was very tricky to deal with.
+
+## Extra: Other, Fuzzier Differences
+
+I tried to get a wallet executable working with the Haskell node and discovered new kinds of difficulties.
+
+- Chain parameters are not in the Haskell genesis, but needed as genesis data (e.g hard-coded or config at launch)
+- Block0 does not have to be treated differently because of above. In fact, might be a lot easier to not treat it differently.
+- NetworkLayer and `follow` seem like the wrong abstractions to work with both jörmungandr and
+  Haskell.
+- If `follow` is removed from core, `monitorStakePools` breaks (or will have be made jormungandr-specific).
+- Both CLI and api will differ. (E.g. different configuration and cli arguments)
+- Use of BlockHeader as Point
