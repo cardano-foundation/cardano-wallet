@@ -262,24 +262,30 @@ data FollowAction err
     deriving (Eq, Show)
 
 -- | Subscribe to a blockchain and get called with new block (in order)!
+--
+-- Exits when the node switches to a different chain with the greatest known
+-- common tip between the follower and the node. This makes it easier for client
+-- to re-start following from a different point if they have, for instance,
+-- rolled back to a point further in the past. If this occurs, clients will need
+-- to restart the chain follower from a known list of headers, re-initializing
+-- the cursor.
+--
+-- Exits with 'Nothing' in case of error.
 follow
-    :: forall target block e0 e1. (Show e0, Show e1)
+    :: forall target block e. (Show e)
     => NetworkLayer IO target block
     -- ^ The @NetworkLayer@ used to poll for new blocks.
     -> Trace IO Text
     -- ^ Logger trace
     -> [BlockHeader]
     -- ^ A list of known tips to start from. Blocks /after/ the tip will be yielded.
-    -> (NE.NonEmpty block -> BlockHeader -> IO (FollowAction e0))
+    -> (NE.NonEmpty block -> BlockHeader -> IO (FollowAction e))
     -- ^ Callback with blocks and the current tip of the /node/.
-    -- @follow@ stops polling and terminates if the callback errors.
-    -> (SlotId -> IO (FollowAction e1))
-    -- ^ Callback with a point of rollback when needed.
     -- @follow@ stops polling and terminates if the callback errors.
     -> (block -> BlockHeader)
     -- ^ Getter on the abstract 'block' type
-    -> IO ()
-follow nl tr cps yield rollback header =
+    -> IO (Maybe SlotId)
+follow nl tr cps yield header =
     sleep 0 (initCursor nl cps)
   where
     delay0 :: Int
@@ -292,27 +298,28 @@ follow nl tr cps yield rollback header =
     -- | Wait a short delay before querying for blocks again. We also take this
     -- opportunity to refresh the chain tip as it has probably increased in
     -- order to refine our syncing status.
-    sleep :: Int -> Cursor target -> IO ()
+    sleep :: Int -> Cursor target -> IO (Maybe SlotId)
     sleep delay cursor = do
         when (delay > 0) (threadDelay delay)
         step delay cursor `catch` retry
       where
         retry (e :: SomeException) = case asyncExceptionFromException e of
             Just ThreadKilled ->
-                return ()
+                return Nothing
             Just UserInterrupt ->
-                return ()
+                return Nothing
             Nothing | fromException e == Just AsyncCancelled -> do
-                return ()
+                return Nothing
             Just _ -> do
                 logError tr $ "Non-recoverable error following the chain: " <> eT
+                return Nothing
             _ -> do
                 logError tr $ "Recoverable error following the chain: " <> eT
                 sleep (retryDelay delay) cursor
           where
             eT = T.pack (show e)
 
-    step :: Int -> Cursor target -> IO ()
+    step :: Int -> Cursor target -> IO (Maybe SlotId)
     step delay cursor = runExceptT (nextBlocks nl cursor) >>= \case
         Left e -> do
             logWarning tr $ T.pack $ "Failed to get next blocks: " <> show e
@@ -335,17 +342,16 @@ follow nl tr cps yield rollback header =
             liftIO $ logInfo tr $ mconcat
                 [ "Applying blocks [", pretty slFst, " ... ", pretty slLst, "]" ]
 
-            yield blocks nodeTip >>= handle cursor' "Failed to roll forward: "
+            yield blocks nodeTip >>= handle cursor'
 
-        Right (RollBackward cursor') -> do
-            let point = cursorSlotId nl cursor'
-            logInfo tr $ "Rolling back to " <> pretty point
-            rollback point >>= handle cursor' "Failed to roll backward: "
+        Right (RollBackward cursor') ->
+            return $ Just (cursorSlotId nl cursor')
       where
-        handle :: Show e => Cursor target -> String -> FollowAction e -> IO ()
-        handle cursor' msg = \case
-            ExitWith e ->
-                logError tr $ T.pack $ msg <> show e
+        handle :: Cursor target -> FollowAction e -> IO (Maybe SlotId)
+        handle cursor' = \case
+            ExitWith e -> do
+                logError tr $ T.pack $ "Failed to roll forward: " <> show e
+                return Nothing
             Continue ->
                 step delay0 cursor'
             RetryImmediately ->
