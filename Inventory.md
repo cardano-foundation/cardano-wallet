@@ -5,9 +5,9 @@ Goal: identify gaps and risks for integrating with the Haskell node.
 Structure:
 - [Inventory of Jörmungandr on-chain types we use](#Inventory)
 - [Discussion](#Discussion)
+- [Other, fuzzier difficulties of integration](#other-fuzzier-differences-of-integration)
 - [Summary Byron](#Summary-Byron)
 - [Extra: A glimpse into Shelley](#extra-A-glimpse-into-shelley)
-- [Extra: Other, fuzzier differences](#extra-other-fuzzier-differences)
 
 ## Inventory
 
@@ -61,7 +61,7 @@ We might need to convert the genesis point `Origin`, to a `BlockHeader` if we ar
 
 Byron `SlotNo` counts slots from genesis in a single number. The current Jörmungandr-compatible wallet `SlotId` counts the epoch AND the slot in that epoch. ❌
 
-In jörmungandr a slot can only be inhabited by a single block. On the haskell side, epoch boundary blocks will share slot with the normal block that comes after it. ❌
+In Jörmungandr a slot can only be inhabited by a single block. On the Haskell side, epoch boundary blocks will share slot with the normal block that comes after it. ❌
 
 ### Transactions
 
@@ -91,7 +91,7 @@ The stake pool metrics worker needs to know the minter of each block. In Byron t
 
 We supported cardano-http-bridge in the past. Existing abstractions should already be able to deal with this difference. It *should* not be that much trouble, but it could be. ⚠️
 
-Making sure related functionality (fee-estimation, coin selection) could maybe be subtly difficult. (@paweljakubas thoughts?)
+Making sure related functionality (fee-estimation, coin selection) could maybe be subtly difficult. (@paweljakubas?)
 
 ### Tx inputs
 
@@ -118,7 +118,7 @@ With a good abstraction, or dropped Jörmungandr support we could remove the pre
 
 We can probably get by with magic values to represent the `Origin`-case. ✅
 
-A way to treat points (like ourobouros-network's`Point ByronBlock`) more abstractl in the wallet might be needed to avoid sabotaging other abstractions. ℹ️
+A way to treat points (like ourobouros-network's`Point ByronBlock`) more abstract in the wallet could potentially be needed to avoid sabotaging other abstractions.
 
 ### SlotId vs SlotNo
 
@@ -130,7 +130,7 @@ For Byron, we can assume they are static. ✅
 
 ### Epoch Bounday Blocks
 
-I imagine having two blocks with the same slot might break assumtions in our DB-rollbacks, but I don't know.
+I imagine having two blocks with the same slot might break assumptions in our DB-rollbacks, but I don't know.
 
 A simple solution would be to filter them out. ✅
 
@@ -142,25 +142,26 @@ We cannot implement delegation features. We could
 1. Keep the API the same, and use dummy implementations internally. E.g return an empty list of stake pools. E.g say that wallets have 0 account balance. I think this should work without any hustle.
 2. Make the wallet modular enough to not have to do the above. I am not sure how difficult this would be.
 
-### Summary Byron
-- Deal with absence of `coin` value in transaction inputs (both internally and in the API)
-- Deal with of tx fee policy working differently
-- Absence of delegation features requires dummy implementation or re-designed API for Byron
-- A few small problems with trivial solutions.
-
-### Extra: A glimpse into Shelley
-
-- We need to support changing protocol parameters.
-- Delegation features will likely work differently. E.g through imported ledger-rules or by asking for certain ledger state once per epoch. (See Duncans messeges: https://input-output-rnd.slack.com/archives/C819S481Y/p1576776488005100) The very good thing is that we will be able to ask for the ledger state of any point in the unstable chain. In jörmungandr we could only retrieve the latest stake-distribution and we didn't know what point it belonged to when we got it. This was very tricky to deal with.
-
-## Extra: Other, Fuzzier Differences
+## Other, fuzzier difficulties of integration
 
 I tried to get a wallet executable working with the Haskell node and discovered new kinds of difficulties.
 
-- Chain parameters are not in the Haskell genesis, but needed as genesis data (e.g hard-coded or config at launch)
-- Block0 does not have to be treated differently because of above. In fact, might be a lot easier to not treat it differently.
-- NetworkLayer and `follow` seem like the wrong abstractions to work with both jörmungandr and
-  Haskell.
+- Chain parameters are not in the Haskell genesis block. The wallet will need to hard-code or read them from a config file at startup.
+- The genesis block does not have to be treated differently because of above. The jörmungandr wallet currently treats it completely separate.
+- NetworkLayer and `follow` seem like the wrong abstractions to work with both jörmungandre and Haskell.
 - If `follow` is removed from core, `monitorStakePools` breaks (or will have be made jormungandr-specific).
 - Both CLI and api will differ. (E.g. different configuration and cli arguments)
-- Use of BlockHeader as Point
+- Use of BlockHeader as Point could be problematic if inconvenient conversions are needed at inconvenient places.
+
+## Summary Byron
+- Need to deal with absence of `coin` value in transaction inputs (both internally and in the API)
+- Need to deal with of tx fee policy working differently
+- Absence of delegation features requires dummy implementation or re-designed API for Byron
+- There are a few small problems with trivial immediate solutions.
+- There seem to be several fuzzier differences. For instance, the wallet `NetworkLayer` seem to be the wrong abstraction.
+- Some of the fuzzier difficulties might lack cheap temporary solutions. More careful consideration might be useful there, re-evaluating current architecture while keeping future goals in mind.
+
+## Extra: A glimpse into Shelley
+
+- We need to support changing protocol parameters.
+- Delegation features will likely work differently. E.g through imported ledger-rules or by asking for certain ledger state once per epoch. (See Duncan's messages: https://input-output-rnd.slack.com/archives/C819S481Y/p1576776488005100) The very good thing is that we will be able to ask for the ledger state of any point in the unstable chain. In Jörmungandr we could only retrieve the latest stake-distribution and we didn't know what point it belonged to when we got it. This was very tricky to deal with.
