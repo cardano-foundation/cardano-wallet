@@ -68,9 +68,9 @@ followSpec =
             let tr = traceInTVarIO tvar
             let getHeader = header
             let advance _blocks _h = return $ Continue @()
-            let rollback _slot = return $ Continue @()
-            void $ race (threadDelay $ 10 * second)
-                (follow mockNetworkLayer tr [] advance rollback getHeader)
+            void $ race
+                (threadDelay $ 10 * second)
+                (follow mockNetworkLayer tr [] advance getHeader)
             errors <- mapMaybe (unMsg . loContent) <$> readTVarIO tvar
             case length errors of
                 x | x == 5 -> return ()

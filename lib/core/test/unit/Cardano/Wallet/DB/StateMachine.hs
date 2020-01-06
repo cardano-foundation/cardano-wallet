@@ -270,6 +270,7 @@ data Success s wid
     | TxHistory TxHistory
     | PrivateKey (Maybe MPrivKey)
     | BlockHeaders [BlockHeader]
+    | Point SlotId
     deriving (Show, Eq, Functor, Foldable, Traversable)
 
 newtype Resp s wid
@@ -321,7 +322,7 @@ runMock = \case
     ReadPrivateKey wid ->
         first (Resp . fmap PrivateKey) . mReadPrivateKey wid
     RollbackTo wid sl ->
-        first (Resp . fmap Unit) . mRollbackTo wid sl
+        first (Resp . fmap Point) . mRollbackTo wid sl
     RemovePendingTx wid tid ->
         first (Resp . fmap Unit) . mRemovePendingTx wid tid
 
@@ -375,7 +376,7 @@ runIO db@DBLayer{..} = fmap Resp . go
             mapExceptT atomically $ putPrivateKey (PrimaryKey wid) (fromMockPrivKey pk)
         ReadPrivateKey wid -> Right . PrivateKey . fmap toMockPrivKey <$>
             atomically (readPrivateKey $ PrimaryKey wid)
-        RollbackTo wid sl -> catchNoSuchWallet Unit $
+        RollbackTo wid sl -> catchNoSuchWallet Point $
             mapExceptT atomically $ rollbackTo (PrimaryKey wid) sl
 
     catchWalletAlreadyExists f =
@@ -742,7 +743,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
   where
     isRollbackSuccess :: Event s Symbolic -> Maybe MWid
     isRollbackSuccess ev = case (cmd ev, mockResp ev, before ev) of
-        (At (RollbackTo wid _), Resp (Right (Unit ())), Model _ wids ) ->
+        (At (RollbackTo wid _), Resp (Right Point{}), Model _ wids ) ->
             Just (wids ! wid)
         _otherwise ->
             Nothing

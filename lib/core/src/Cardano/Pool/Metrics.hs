@@ -163,15 +163,19 @@ monitorStakePools
     -> NetworkLayer IO t Block
     -> DBLayer IO
     -> IO ()
-monitorStakePools tr nl DBLayer{..} = do
+monitorStakePools tr nl db@DBLayer{..} = do
     cursor <- initCursor
     logInfo tr $ mconcat
-        [ "Start monitoring stake pools. Currently at "
+        [ "Monitoring stake pools. Currently at "
         , case cursor of
             [] -> "genesis"
             _  -> pretty (last cursor)
         ]
-    follow nl tr cursor forward backward header
+    follow nl tr cursor forward header >>= \case
+        Nothing    -> pure ()
+        Just point -> do
+            liftIO . atomically $ rollbackTo point
+            monitorStakePools tr nl db
   where
     initCursor :: IO [BlockHeader]
     initCursor = do
@@ -185,13 +189,6 @@ monitorStakePools tr nl DBLayer{..} = do
                     Nothing -> putPoolRegistration sl0 r
                     Just{}  -> pure ()
             readPoolProductionCursor k
-
-    backward
-        :: SlotId
-        -> IO (FollowAction ErrMonitorStakePools)
-    backward point = do
-        liftIO . atomically $ rollbackTo point
-        return Continue
 
     forward
         :: NonEmpty Block

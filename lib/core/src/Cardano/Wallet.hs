@@ -258,7 +258,7 @@ import Cardano.Wallet.Transaction
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( forM, forM_, void, when )
+    ( forM, forM_, when )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Class
@@ -605,8 +605,11 @@ restoreWallet
 restoreWallet ctx wid = db & \DBLayer{..} -> do
     cps <- liftIO $ atomically $ listCheckpoints (PrimaryKey wid)
     let forward bs h = run $ restoreBlocks @ctx @s @k ctx wid bs h
-    let backward sid = run $ mapExceptT atomically $ rollbackTo (PrimaryKey wid) sid
-    void $ liftIO $ follow nw tr cps forward backward (view #header)
+    liftIO (follow nw tr cps forward (view #header)) >>= \case
+        Nothing -> pure ()
+        Just point -> do
+            rollbackBlocks @ctx @s @k ctx wid point
+            restoreWallet @ctx @s @t @k ctx wid
   where
     db = ctx ^. dbLayer @s @k
     nw = ctx ^. networkLayer @t
@@ -614,6 +617,25 @@ restoreWallet ctx wid = db & \DBLayer{..} -> do
 
     run :: ExceptT ErrNoSuchWallet IO () -> IO (FollowAction ErrNoSuchWallet)
     run = fmap (either ExitWith (const Continue)) . runExceptT
+
+-- | Rewind the UTxO snapshots, transaction history and other information to a
+-- the earliest point in the past that is before or is the point of rollback.
+rollbackBlocks
+    :: forall ctx s k.
+        ( HasLogger ctx
+        , HasDBLayer s k ctx
+        )
+    => ctx
+    -> WalletId
+    -> SlotId
+    -> ExceptT ErrNoSuchWallet IO ()
+rollbackBlocks ctx wid point = db & \DBLayer{..} -> do
+    liftIO $ logInfo tr $ "Try rolling back to " <> pretty point
+    point' <- mapExceptT atomically $ rollbackTo (PrimaryKey wid) point
+    liftIO $ logInfo tr $ "Rolled back to " <> pretty point'
+  where
+    db = ctx ^. dbLayer @s @k
+    tr = ctx ^. logger
 
 -- | Apply the given blocks to the wallet and update the wallet state,
 -- transaction history and corresponding metadata.

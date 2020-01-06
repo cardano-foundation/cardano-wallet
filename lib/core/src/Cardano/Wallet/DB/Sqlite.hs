@@ -367,7 +367,7 @@ newDBLayer logConfig trace mDatabaseFile = do
                 Nothing -> selectLatestCheckpoint wid >>= \case
                     Nothing -> pure $ Left $ ErrNoSuchWallet wid
                     Just _  -> lift $ throwIO (ErrNoOlderCheckpoint wid point)
-                Just nearestPoint -> Right <$> do
+                Just nearestPoint -> do
                     deleteCheckpoints wid
                         [ CheckpointSlot >. point
                         ]
@@ -385,6 +385,7 @@ newDBLayer logConfig trace mDatabaseFile = do
                         [ TxMetaDirection ==. W.Incoming
                         , TxMetaSlot >. point
                         ]
+                    pure (Right nearestPoint)
 
         , prune = \(PrimaryKey wid) -> ExceptT $ do
             selectLatestCheckpoint wid >>= \case
