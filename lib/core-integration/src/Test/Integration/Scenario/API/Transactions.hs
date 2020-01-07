@@ -66,7 +66,7 @@ import Test.Integration.Framework.DSL
     , deleteTxEp
     , deleteWalletEp
     , direction
-    , emptyRandomWallet
+    , emptyByronWallet
     , emptyWallet
     , eventually_
     , expectErrorMessage
@@ -1673,7 +1673,8 @@ spec = do
 
     describe "TRANS_DELETE_03 - checking no transaction id error for " $ do
         txDeleteNotExistsingTxIdTest emptyWallet "wallets"
-        txDeleteNotExistsingTxIdTest emptyRandomWallet "byron-wallets"
+        txDeleteNotExistsingTxIdTest (emptyByronWallet "random") "byron-wallets"
+        txDeleteNotExistsingTxIdTest (emptyByronWallet "icarus") "byron-wallets"
 
     describe "TRANS_DELETE_04 - False wallet ids for " $ do
         txDeleteFalseWalletIdsTest "wallets"
@@ -1681,11 +1682,13 @@ spec = do
 
     describe "TRANS_DELETE_07 - invalid tx id " $ do
         txDeleteInvalidTxIdsTest emptyWallet "wallets"
-        txDeleteInvalidTxIdsTest emptyRandomWallet "byron-wallets"
+        txDeleteInvalidTxIdsTest (emptyByronWallet "random") "byron-wallets"
+        txDeleteInvalidTxIdsTest (emptyByronWallet "icarus") "byron-wallets"
 
     describe "TRANS_DELETE_08 - HTTP headers " $ do
         txDeleteHTTPHeadersTest emptyWallet "wallets"
-        txDeleteHTTPHeadersTest emptyRandomWallet "byron-wallets"
+        txDeleteHTTPHeadersTest (emptyByronWallet "random") "byron-wallets"
+        txDeleteHTTPHeadersTest (emptyByronWallet "icarus") "byron-wallets"
 
     describe "TRANS_DELETE_09 - HTTP methods not allowed " $ do
         txDeleteHTTPMethodsTest "wallets"
@@ -1694,60 +1697,69 @@ spec = do
     describe "TRANS_DELETE_06 -\
         \ Cannot forget tx that is performed from different wallet" $ do
         txDeleteFromDifferentWalletTest emptyWallet "wallets"
-        txDeleteFromDifferentWalletTest emptyRandomWallet "byron-wallets"
+        txDeleteFromDifferentWalletTest (emptyByronWallet "random") "byron-wallets"
+        txDeleteFromDifferentWalletTest (emptyByronWallet "icarus") "byron-wallets"
 
-    it "BYRON_TRANS_DELETE -\
-        \ Cannot delete tx on Byron wallet using shelley ep" $ \ctx -> do
-            w <- emptyRandomWallet ctx
-            let wid = w ^. walletId
-            let txid = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
-            let endpoint = "v2/wallets/" <> wid <> "/transactions/" <> txid
-            r <- request @ApiTxId @IO ctx ("DELETE", endpoint) Default Empty
-            expectResponseCode HTTP.status404 r
-            expectErrorMessage (errMsg404NoWallet wid) r
+    describe "BYRON_TRANS_NEGATIVE" $ do
+        forM_ ["random", "icarus"] $ \style -> do
+            it ("BYRON_TRANS_DELETE -\
+                \ Cannot delete tx on Byron wallet using shelley ep - "
+                <> T.unpack style)
+                 $ \ctx -> do
+                    w <- emptyByronWallet style ctx
+                    let wid = w ^. walletId
+                    let txid = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
+                    let endpoint = "v2/wallets/" <> wid <> "/transactions/" <> txid
+                    r <- request @ApiTxId @IO ctx ("DELETE", endpoint) Default Empty
+                    expectResponseCode HTTP.status404 r
+                    expectErrorMessage (errMsg404NoWallet wid) r
 
-    it "BYRON_TRANS_ESTIMATE -\
-        \ Cannot estimate tx on Byron wallet using shelley ep" $ \ctx -> do
-            w <- emptyRandomWallet ctx
-            let wid = w ^. walletId
-            wDest <- emptyWallet ctx
-            addr:_ <- listAddresses ctx wDest
-            let destination = addr ^. #id
-            let payload = Json [json|{
-                    "payments": [{
-                        "address": #{destination},
-                        "amount": {
-                            "quantity": 1,
-                            "unit": "lovelace"
-                        }
-                    }]
-                }|]
-            let endpoint = "v2/wallets/" <> wid <> "/transactions/fees"
-            r <- request @ApiFee ctx ("POST", endpoint) Default payload
-            expectResponseCode @IO HTTP.status404 r
-            expectErrorMessage (errMsg404NoWallet wid) r
+            it ("BYRON_TRANS_ESTIMATE -\
+                \ Cannot estimate tx on Byron wallet using shelley ep - "
+                <> T.unpack style)
+                 $ \ctx -> do
+                    w <- emptyByronWallet style ctx
+                    let wid = w ^. walletId
+                    wDest <- emptyWallet ctx
+                    addr:_ <- listAddresses ctx wDest
+                    let destination = addr ^. #id
+                    let payload = Json [json|{
+                            "payments": [{
+                                "address": #{destination},
+                                "amount": {
+                                    "quantity": 1,
+                                    "unit": "lovelace"
+                                }
+                            }]
+                        }|]
+                    let endpoint = "v2/wallets/" <> wid <> "/transactions/fees"
+                    r <- request @ApiFee ctx ("POST", endpoint) Default payload
+                    expectResponseCode @IO HTTP.status404 r
+                    expectErrorMessage (errMsg404NoWallet wid) r
 
-    it "BYRON_TRANS_CREATE -\
-        \ Cannot create tx on Byron wallet using shelley ep" $ \ctx -> do
-            w <- emptyRandomWallet ctx
-            let wid = w ^. walletId
-            wDest <- emptyWallet ctx
-            addr:_ <- listAddresses ctx wDest
-            let destination = addr ^. #id
-            let payload = Json [json|{
-                    "payments": [{
-                        "address": #{destination},
-                        "amount": {
-                            "quantity": 1,
-                            "unit": "lovelace"
-                        }
-                    }],
-                    "passphrase": "cardano-wallet"
-                }|]
-            let endpoint = "v2/wallets/" <> wid <> "/transactions"
-            r <- request @(ApiTransaction n) ctx ("POST", endpoint) Default payload
-            expectResponseCode @IO HTTP.status404 r
-            expectErrorMessage (errMsg404NoWallet wid) r
+            it ("BYRON_TRANS_CREATE -\
+                \ Cannot create tx on Byron wallet using shelley ep - "
+                <> T.unpack style)
+                $ \ctx -> do
+                    w <- emptyByronWallet style ctx
+                    let wid = w ^. walletId
+                    wDest <- emptyWallet ctx
+                    addr:_ <- listAddresses ctx wDest
+                    let destination = addr ^. #id
+                    let payload = Json [json|{
+                            "payments": [{
+                                "address": #{destination},
+                                "amount": {
+                                    "quantity": 1,
+                                    "unit": "lovelace"
+                                }
+                            }],
+                            "passphrase": "cardano-wallet"
+                        }|]
+                    let endpoint = "v2/wallets/" <> wid <> "/transactions"
+                    r <- request @(ApiTransaction n) ctx ("POST", endpoint) Default payload
+                    expectResponseCode @IO HTTP.status404 r
+                    expectErrorMessage (errMsg404NoWallet wid) r
   where
     txDeleteNotExistsingTxIdTest eWallet resource =
         it resource $ \ctx -> do

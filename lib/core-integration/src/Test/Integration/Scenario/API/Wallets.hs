@@ -59,7 +59,7 @@ import Test.Integration.Framework.DSL
     , coinSelectionOutputs
     , delegation
     , deleteWalletEp
-    , emptyRandomWallet
+    , emptyByronWallet
     , emptyWallet
     , expectErrorMessage
     , expectEventually
@@ -1751,37 +1751,47 @@ spec = do
             expectResponseCode @IO HTTP.status405 r
             expectErrorMessage errMsg405 r
 
-    it "BYRON_WALLETS_UTXO -\
-        \ Cannot show Byron wal utxo with shelley ep (404)" $ \ctx -> do
-        w <- emptyRandomWallet ctx
-        let wid = w ^. walletId
-        let endpoint =
-                    "v2/wallets"
-                    </> wid
-                    </> ("statistics/utxos" :: Text)
-        r <- request @ApiUtxoStatistics ctx ("GET", endpoint) Default Empty
-        expectResponseCode @IO HTTP.status404 r
-        expectErrorMessage (errMsg404NoWallet wid) r
+    describe "BYRON_WALLETS_NEGATIVE" $ do
+        forM_ ["random", "icarus"] $ \style -> do
+            it ("BYRON_WALLETS_UTXO -\
+                \ Cannot show Byron wal utxo with shelley ep (404) - "
+                <> T.unpack style)
+                $ \ctx -> do
+                    w <- emptyByronWallet style ctx
+                    let wid = w ^. walletId
+                    let endpoint =
+                                "v2/wallets"
+                                </> wid
+                                </> ("statistics/utxos" :: Text)
+                    r <- request @ApiUtxoStatistics ctx
+                        ("GET", endpoint)
+                        Default Empty
+                    expectResponseCode @IO HTTP.status404 r
+                    expectErrorMessage (errMsg404NoWallet wid) r
 
-    it "BYRON_WALLETS_UPDATE_PASS -\
-        \ Cannot update Byron wal with shelley ep (404)" $ \ctx -> do
-        w <- emptyRandomWallet ctx
-        let payload = updatePassPayload "Secure passphrase" "Secure passphrase2"
-        let wid = w ^. walletId
-        let endpoint =
-                "v2/wallets"
-                </> wid
-                </> ("passphrase" :: Text)
-        rup <- request @ApiWallet ctx ("PUT", endpoint) Default payload
-        expectResponseCode @IO HTTP.status404 rup
-        expectErrorMessage (errMsg404NoWallet wid) rup
+            it ("BYRON_WALLETS_UPDATE_PASS -\
+                \ Cannot update Byron wal with shelley ep (404) - "
+                <> T.unpack style)
+                $ \ctx -> do
+                w <- emptyByronWallet style ctx
+                let payload = updatePassPayload "Secure passphrase" "Secure passphrase2"
+                let wid = w ^. walletId
+                let endpoint =
+                        "v2/wallets"
+                        </> wid
+                        </> ("passphrase" :: Text)
+                rup <- request @ApiWallet ctx ("PUT", endpoint) Default payload
+                expectResponseCode @IO HTTP.status404 rup
+                expectErrorMessage (errMsg404NoWallet wid) rup
 
-    it "BYRON_WALLETS_UPDATE -\
-        \ Cannot update Byron wal with shelley ep (404)" $ \ctx -> do
-        w <- emptyRandomWallet ctx
-        let wid = w ^. walletId
-        let endpoint = "v2/wallets" </> wid
-        let newName = updateNamePayload "new name"
-        ru <- request @ApiWallet ctx ("GET", endpoint) Default newName
-        expectResponseCode @IO HTTP.status404 ru
-        expectErrorMessage (errMsg404NoWallet wid) ru
+            it ("BYRON_WALLETS_UPDATE -\
+                \ Cannot update Byron wal with shelley ep (404) - "
+                <> T.unpack style)
+                $ \ctx -> do
+                    w <- emptyByronWallet style ctx
+                    let wid = w ^. walletId
+                    let endpoint = "v2/wallets" </> wid
+                    let newName = updateNamePayload "new name"
+                    ru <- request @ApiWallet ctx ("GET", endpoint) Default newName
+                    expectResponseCode @IO HTTP.status404 ru
+                    expectErrorMessage (errMsg404NoWallet wid) ru

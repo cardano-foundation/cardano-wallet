@@ -80,9 +80,10 @@ module Test.Integration.Framework.DSL
     -- * Helpers
     , (</>)
     , (!!)
-    , emptyRandomWallet
-    , emptyIcarusWallet
+    , byronWalletMnemonics
+    , emptyByronWallet
     , emptyByronWalletWith
+    , emptyRandomWallet
     , emptyWallet
     , emptyWalletWith
     , getFromResponse
@@ -987,16 +988,25 @@ eventuallyUsingDelay_ = eventuallyUsingDelay
 utcIso8601ToText :: UTCTime -> Text
 utcIso8601ToText = utcTimeToText iso8601ExtendedUtc
 
--- | Create an empty wallet
-emptyRandomWallet :: Context t -> IO ApiByronWallet
-emptyRandomWallet ctx = do
-    mnemonic <- mnemonicToText @12 . entropyToMnemonic <$> genEntropy
-    emptyByronWalletWith ctx "random" ("Random Wallet", mnemonic, "Secure Passphrase")
+byronWalletStyles :: [Text]
+byronWalletStyles = ["random", "icarus", "trezor", "ledger"]
 
-emptyIcarusWallet :: Context t -> IO ApiByronWallet
-emptyIcarusWallet ctx = do
-    mnemonic <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
-    emptyByronWalletWith ctx "icarus" ("Icarus Wallet", mnemonic, "Secure Passphrase")
+byronWalletMnemonics :: Map.Map Text (IO [Text])
+byronWalletMnemonics = Map.fromList $ zip byronWalletStyles
+        [ mnemonicToText @12 . entropyToMnemonic <$> genEntropy
+        , mnemonicToText @15 . entropyToMnemonic <$> genEntropy
+        , mnemonicToText @24 . entropyToMnemonic <$> genEntropy
+        , mnemonicToText @24 . entropyToMnemonic <$> genEntropy
+        ]
+
+-- | Create an empty byron wallet
+emptyByronWallet :: Text -> Context t -> IO ApiByronWallet
+emptyByronWallet style ctx  = do
+    mnemonic <- (byronWalletMnemonics Map.! style)
+    emptyByronWalletWith ctx style (style <> " wallet", mnemonic, "Secure Passphrase")
+
+emptyRandomWallet :: Context t -> IO ApiByronWallet
+emptyRandomWallet = emptyByronWallet "random"
 
 emptyByronWalletWith :: Context t -> Text -> (Text, [Text], Text) -> IO ApiByronWallet
 emptyByronWalletWith ctx style (name, mnemonic, pass) = do
@@ -1022,7 +1032,7 @@ emptyWallet ctx = do
     expectResponseCode @IO HTTP.status201 r
     return (getFromResponse id r)
 
--- | Create an empty wallet
+-- | Create an empty shelley wallet
 emptyWalletWith :: Context t -> (Text, Text, Int) -> IO ApiWallet
 emptyWalletWith ctx (name, passphrase, addrPoolGap) = do
     mnemonic <- (mnemonicToText . entropyToMnemonic) <$> genEntropy @160

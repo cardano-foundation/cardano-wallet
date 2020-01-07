@@ -31,7 +31,7 @@ import Test.Integration.Framework.DSL
     , Payload (..)
     , balanceAvailable
     , deleteWalletEp
-    , emptyRandomWallet
+    , emptyByronWallet
     , emptyWallet
     , emptyWalletWith
     , expectErrorMessage
@@ -63,13 +63,15 @@ import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall t n. (n ~ 'Testnet) => SpecWith (Context t)
 spec = do
-    it "BYRON_ADDRESS_LIST - Byron wallet on Shelley ep" $ \ctx -> do
-        w <- emptyRandomWallet ctx
-        let wid = w ^. walletId
-        let ep = ("GET", "v2/wallets/" <> wid <> "/addresses")
-        r <- request @[ApiAddress n] ctx ep Default Empty
-        expectResponseCode @IO HTTP.status404 r
-        expectErrorMessage (errMsg404NoWallet wid) r
+    describe "BYRON_ADDRESS_LIST - Byron wallet on Shelley ep" $ do
+        forM_ ["random", "icarus"] $ \style -> do
+            it ("Byron wallet on Shelley ep - " <> T.unpack style) $ \ctx -> do
+                w <- emptyByronWallet style ctx
+                let wid = w ^. walletId
+                let ep = ("GET", "v2/wallets/" <> wid <> "/addresses")
+                r <- request @[ApiAddress n] ctx ep Default Empty
+                expectResponseCode @IO HTTP.status404 r
+                expectErrorMessage (errMsg404NoWallet wid) r
 
     it "ADDRESS_LIST_01 - Can list known addresses on a default wallet" $ \ctx -> do
         let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap

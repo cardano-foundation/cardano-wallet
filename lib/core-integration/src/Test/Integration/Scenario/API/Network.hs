@@ -25,7 +25,7 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
-    , emptyRandomWallet
+    , emptyByronWallet
     , emptyWallet
     , eventually
     , eventuallyUsingDelay
@@ -48,6 +48,7 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( errMsg405, getHeaderCases )
 
+import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall t. SpecWith (Context t)
@@ -108,31 +109,33 @@ spec = do
             expectEventually' ctx getWalletEp
                 (#tip . #height) blockHeight w
 
-    it "NETWORK_BYRON - Byron wallet has the same tip as network/information" $
-        \ctx -> do
-            let getNetworkInfo = request @ApiNetworkInformation
-                    ctx networkInfoEp Default Empty
-            w <- emptyRandomWallet ctx
-            eventually_ $ do
-                sync <- getNetworkInfo
-                verify sync [ expectFieldEqual syncProgress Ready ]
-            r <- getNetworkInfo
+    describe "NETWORK_BYRON" $ do
+            forM_ ["random", "icarus"] $ \style -> do
+                it ("Byron wallet has the same tip as network/information - "
+                    <> T.unpack style) $ \ctx -> do
+                    let getNetworkInfo = request @ApiNetworkInformation
+                            ctx networkInfoEp Default Empty
+                    w <- emptyByronWallet style ctx
+                    eventually_ $ do
+                        sync <- getNetworkInfo
+                        verify sync [ expectFieldEqual syncProgress Ready ]
+                    r <- getNetworkInfo
 
-            let epochNum =
-                    getFromResponse (#nodeTip . #epochNumber . #getApiT) r
-            let slotNum =
-                    getFromResponse (#nodeTip . #slotNumber . #getApiT) r
-            let blockHeight =
-                    getFromResponse (#nodeTip . #height) r
+                    let epochNum =
+                            getFromResponse (#nodeTip . #epochNumber . #getApiT) r
+                    let slotNum =
+                            getFromResponse (#nodeTip . #slotNumber . #getApiT) r
+                    let blockHeight =
+                            getFromResponse (#nodeTip . #height) r
 
-            expectEventually' ctx getByronWalletEp
-                state Ready w
-            expectEventually' ctx getByronWalletEp
-                (#tip . #epochNumber . #getApiT) epochNum w
-            expectEventually' ctx getByronWalletEp
-                (#tip . #slotNumber . #getApiT) slotNum w
-            expectEventually' ctx getByronWalletEp
-                (#tip . #height) blockHeight w
+                    expectEventually' ctx getByronWalletEp
+                        state Ready w
+                    expectEventually' ctx getByronWalletEp
+                        (#tip . #epochNumber . #getApiT) epochNum w
+                    expectEventually' ctx getByronWalletEp
+                        (#tip . #slotNumber . #getApiT) slotNum w
+                    expectEventually' ctx getByronWalletEp
+                        (#tip . #height) blockHeight w
 
     describe "NETWORK - v2/network/information - Methods Not Allowed" $ do
         let matrix = ["POST", "CONNECT", "TRACE", "OPTIONS"]
