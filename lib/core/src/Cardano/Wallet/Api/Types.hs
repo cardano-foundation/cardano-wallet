@@ -17,7 +17,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 -- |
--- Copyright: © 2018-2019 IOHK
+-- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
 -- API type representations of various types. We define here pretty much all our

@@ -1,10 +1,10 @@
 name:          bech32
-version:       2019.12.23
+version:       2020.1.7
 synopsis:      Implementation of the Bech32 segwit address format (BIP 0173).
 homepage:      https://github.com/input-output-hk/cardano-wallet
 author:        IOHK Engineering Team
 maintainer:    operations@iohk.io
-copyright:     2017 Marko Bencun, 2019 IOHK
+copyright:     2017 Marko Bencun, 2019-2020 IOHK
 license:       Apache-2.0
 category:      Web
 build-type:    Simple

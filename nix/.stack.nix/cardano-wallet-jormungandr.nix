@@ -44,10 +44,10 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       specVersion = "1.10";
       identifier = {
         name = "cardano-wallet-jormungandr";
-        version = "2019.12.23";
+        version = "2020.1.7";
         };
       license = "Apache-2.0";
-      copyright = "2019 IOHK";
+      copyright = "2018-2020 IOHK";
       maintainer = "operations@iohk.io";
       author = "IOHK Engineering Team";
       homepage = "https://github.com/input-output-hk/cardano-wallet";

@@ -2,7 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 -- |
--- Copyright: © 2018-2019 IOHK
+-- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
 -- Provides a function to launch the jormungandr node backend for integration

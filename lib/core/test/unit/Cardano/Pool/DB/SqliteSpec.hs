@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 -- |
--- Copyright: © 2018-2019 IOHK
+-- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
 -- DBLayer tests for SQLite implementation.

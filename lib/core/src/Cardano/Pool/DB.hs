@@ -4,7 +4,7 @@
 {-# LANGUAGE RankNTypes #-}
 
 -- |
--- Copyright: © 2018-2019 IOHK
+-- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
 -- Database / Persistence layer for the pool production.

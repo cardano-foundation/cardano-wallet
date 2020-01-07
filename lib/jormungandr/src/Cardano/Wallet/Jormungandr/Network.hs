@@ -12,7 +12,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
--- Copyright: © 2018-2019 IOHK
+-- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
 -- This module allows the wallet to retrieve blocks from a known @Jormungandr@

@@ -1,7 +1,7 @@
 {-# LANGUAGE NumericUnderscores #-}
 
 -- |
--- Copyright: © 2018-2019 IOHK
+-- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
 -- Provides utility functions relating to testing with times and dates.

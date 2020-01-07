@@ -5,7 +5,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
--- Copyright: © 2018-2019 IOHK
+-- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
 -- This module contains instances and types necessary for storing wallets in a

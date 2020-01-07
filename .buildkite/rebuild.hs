@@ -5,7 +5,7 @@
 {-# LANGUAGE TypeApplications #-}
 
 -- |
--- Copyright: © 2018-2019 IOHK
+-- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
 -- Script for building cardano-wallet with Stack under Buildkite.

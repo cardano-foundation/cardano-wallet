@@ -3,7 +3,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
--- Copyright: © 2018-2019 IOHK
+-- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
 -- Dummy implementation of the database-layer, using 'MVar'. This may be good
