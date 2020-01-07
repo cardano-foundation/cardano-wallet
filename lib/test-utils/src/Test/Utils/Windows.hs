@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 
 -- |
--- Copyright: © 2018-2019 IOHK
+-- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
 -- Utility function for making test suites pass on Windows.

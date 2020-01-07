@@ -5,7 +5,7 @@ description:         Shared core functionality for our integration test suites.
 homepage:            https://github.com/input-output-hk/cardano-wallet
 author:              IOHK Engineering Team
 maintainer:          operations@iohk.io
-copyright:           2019 IOHK
+copyright:           2018-2020 IOHK
 license:             Apache-2.0
 category:            Web
 build-type:          Simple

@@ -13,7 +13,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
--- Copyright: © 2018-2019 IOHK
+-- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
 -- This module implements parts of a Jörmungandr REST API Client. It also

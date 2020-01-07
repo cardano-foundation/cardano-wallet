@@ -11,7 +11,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
--- Copyright: © 2018-2019 IOHK
+-- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
 -- This benchmark gathers timings of the important database operations, for

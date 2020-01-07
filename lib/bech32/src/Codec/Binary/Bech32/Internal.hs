@@ -8,7 +8,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 -- |
--- Copyright: © 2017 Marko Bencun, 2018-2019 IOHK
+-- Copyright: © 2017 Marko Bencun, 2018-2020 IOHK
 -- License: Apache-2.0
 --
 -- Implementation of the [Bech32]

@@ -10,7 +10,7 @@
 {-# LANGUAGE TypeApplications #-}
 
 -- |
--- Copyright: © 2018-2019 IOHK
+-- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
 -- The format is for the Shelley era as implemented by the Jörmungandr node.

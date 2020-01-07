@@ -47,7 +47,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
         version = "2019.6.24";
         };
       license = "Apache-2.0";
-      copyright = "2019 IOHK";
+      copyright = "2018-2020 IOHK";
       maintainer = "operations@iohk.io";
       author = "IOHK Engineering Team";
       homepage = "https://github.com/input-output-hk/cardano-wallet";

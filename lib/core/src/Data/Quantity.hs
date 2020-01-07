@@ -10,7 +10,7 @@
 {-# LANGUAGE TypeApplications #-}
 
 -- |
--- Copyright: © 2018-2019 IOHK
+-- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
 -- Representation of values with an associated (free) unit of measure. Useful to

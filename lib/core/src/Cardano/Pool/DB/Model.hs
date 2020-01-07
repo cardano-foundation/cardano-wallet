@@ -14,7 +14,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 -- |
--- Copyright: © 2018-2019 IOHK
+-- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
 -- An implementation of the production pool database using only pure functions.

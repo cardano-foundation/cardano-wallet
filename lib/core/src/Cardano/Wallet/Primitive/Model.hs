@@ -15,7 +15,7 @@
 {-# LANGUAGE TypeOperators #-}
 
 -- |
--- Copyright: © 2018-2019 IOHK
+-- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
 -- Here we find the "business logic" to manage a Cardano wallet. This is a

@@ -14,7 +14,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 -- |
--- Copyright: © 2018-2019 IOHK
+-- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
 -- An implementation of address discovery for the random address

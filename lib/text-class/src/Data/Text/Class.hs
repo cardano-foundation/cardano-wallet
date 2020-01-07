@@ -8,7 +8,7 @@
 {-# OPTIONS_GHC -fno-warn-redundant-constraints #-}
 
 -- |
--- Copyright: © 2018-2019 IOHK
+-- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
 -- Extend the 'Data.Text' module with an extra abstraction to encode and decode
