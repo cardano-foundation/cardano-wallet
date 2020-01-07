@@ -12,7 +12,7 @@ module Test.Integration.Scenario.API.Addresses
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddress, ApiTransaction, ApiWallet )
+    ( ApiAddress, ApiTransaction, ApiWallet, WalletStyle (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -30,7 +30,6 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , balanceAvailable
-    , deleteWalletEp
     , emptyRandomWallet
     , emptyWallet
     , emptyWalletWith
@@ -40,15 +39,14 @@ import Test.Integration.Framework.DSL
     , expectListSizeEqual
     , expectResponseCode
     , fixtureWallet
-    , getAddressesEp
-    , getWalletEp
     , json
     , listAddresses
-    , postTxEp
     , request
     , state
     , verify
     , walletId
+    , withMethod
+    , withPathParam
     )
 import Test.Integration.Framework.TestData
     ( errMsg404NoEndpoint
@@ -58,6 +56,7 @@ import Test.Integration.Framework.TestData
     , falseWalletIds
     )
 
+import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
@@ -74,7 +73,8 @@ spec = do
     it "ADDRESS_LIST_01 - Can list known addresses on a default wallet" $ \ctx -> do
         let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
         w <- emptyWallet ctx
-        r <- request @[ApiAddress n] ctx (getAddressesEp w "") Default Empty
+        r <- request @[ApiAddress n] ctx
+            (Link.listAddresses w) Default Empty
         expectResponseCode @IO HTTP.status200 r
         expectListSizeEqual g r
         forM_ [0..(g-1)] $ \addrNum -> do
@@ -83,7 +83,8 @@ spec = do
     it "ADDRESS_LIST_01 - Can list addresses with non-default pool gap" $ \ctx -> do
         let g = 15
         w <- emptyWalletWith ctx ("Wallet", "cardano-wallet", g)
-        r <- request @[ApiAddress n] ctx (getAddressesEp w "") Default Empty
+        r <- request @[ApiAddress n] ctx
+            (Link.listAddresses w) Default Empty
         expectResponseCode @IO HTTP.status200 r
         expectListSizeEqual g r
         forM_ [0..(g-1)] $ \addrNum -> do
@@ -92,14 +93,14 @@ spec = do
     it "ADDRESS_LIST_02 - Can filter used and unused addresses" $ \ctx -> do
         let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
         w <- fixtureWallet ctx
-        rUsed <- request @[ApiAddress n] ctx (getAddressesEp w "?state=used")
-                Default Empty
+        rUsed <- request @[ApiAddress n] ctx
+            (Link.listAddresses' w (Just Used)) Default Empty
         expectResponseCode @IO HTTP.status200 rUsed
         expectListSizeEqual 10 rUsed
         forM_ [0..9] $ \addrNum -> do
             expectListItemFieldEqual addrNum state Used rUsed
-        rUnused <- request @[ApiAddress n] ctx (getAddressesEp w "?state=unused")
-                Default Empty
+        rUnused <- request @[ApiAddress n] ctx
+            (Link.listAddresses' w (Just Unused)) Default Empty
         expectResponseCode @IO HTTP.status200 rUnused
         expectListSizeEqual g rUnused
         forM_ [10..(g-1)] $ \addrNum -> do
@@ -108,10 +109,10 @@ spec = do
     it "ADDRESS_LIST_02 - Shows nothing when there are no used addresses"
         $ \ctx -> do
         w <- emptyWallet ctx
-        rUsed <- request @[ApiAddress n] ctx (getAddressesEp w "?state=used")
-                Default Empty
-        rUnused <- request @[ApiAddress n] ctx (getAddressesEp w "?state=unused")
-                Default Empty
+        rUsed <- request @[ApiAddress n] ctx
+            (Link.listAddresses' w (Just Used)) Default Empty
+        rUnused <- request @[ApiAddress n] ctx
+            (Link.listAddresses' w (Just Unused)) Default Empty
         expectResponseCode @IO HTTP.status200 rUsed
         expectListSizeEqual 0 rUsed
         expectResponseCode @IO HTTP.status200 rUnused
@@ -131,11 +132,12 @@ spec = do
                 , "44444444"
                 , "*"
                 ]
+
+        let withQuery f (method, link) = (method, link <> "?state=" <> T.pack f)
         forM_ filters $ \fil -> it fil $ \ctx -> do
-            let stateFilter = "?state=" <> T.pack fil
             w <- emptyWallet ctx
-            r <- request @[ApiAddress n] ctx (getAddressesEp w stateFilter)
-                    Default Empty
+            let link = withQuery fil $ Link.listAddresses w
+            r <- request @[ApiAddress n] ctx link Default Empty
             verify r
                 [ expectResponseCode @IO HTTP.status400
                 , expectErrorMessage $
@@ -149,7 +151,8 @@ spec = do
         wDest <- emptyWalletWith ctx ("Wallet", "cardano-wallet", 10)
 
         -- make sure all addresses in address_pool_gap are 'Unused'
-        r <- request @[ApiAddress n] ctx (getAddressesEp wDest "") Default Empty
+        r <- request @[ApiAddress n] ctx
+            (Link.listAddresses wDest) Default Empty
         verify r
             [ expectResponseCode @IO HTTP.status200
             , expectListSizeEqual 10
@@ -172,15 +175,18 @@ spec = do
                     "passphrase": "cardano-wallet"
                 }|]
 
-            rTrans <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
+            rTrans <- request @(ApiTransaction n) ctx
+                (Link.createTransaction wSrc) Default payload
             expectResponseCode @IO HTTP.status202 rTrans
 
         -- make sure all transactions are in ledger
-        rb <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
-        expectEventually ctx getWalletEp balanceAvailable 10 rb
+        rb <- request @ApiWallet ctx
+            (Link.getWallet @'Shelley wDest) Default Empty
+        expectEventually ctx (Link.getWallet @'Shelley) balanceAvailable 10 rb
 
         -- verify new address_pool_gap has been created
-        rAddr <- request @[ApiAddress n] ctx (getAddressesEp wDest "") Default Empty
+        rAddr <- request @[ApiAddress n] ctx
+            (Link.listAddresses wDest) Default Empty
         verify rAddr
             [ expectResponseCode @IO HTTP.status200
             , expectListSizeEqual 20
@@ -192,8 +198,10 @@ spec = do
 
     describe "ADDRESS_LIST_04 - False wallet ids" $ do
         forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
-            let endpoint = "v2/wallets/" <> walId <> "/addresses"
-            r <- request @[ApiAddress n] ctx ("GET", T.pack endpoint) Default Empty
+            w <- emptyWallet ctx
+            let endpoint = withPathParam 0 (const $ T.pack walId) $
+                    Link.listAddresses w
+            r <- request @[ApiAddress n] ctx endpoint Default Empty
             expectResponseCode @IO HTTP.status404 r
             if (title == "40 chars hex") then
                 expectErrorMessage (errMsg404NoWallet $ T.pack walId) r
@@ -202,17 +210,18 @@ spec = do
 
     it "ADDRESS_LIST_04 - 'almost' valid walletId" $ \ctx -> do
         w <- emptyWallet ctx
-        let endpoint =
-                "v2/wallets" <> T.unpack (T.append (w ^. walletId) "0")
-                <> "/addresses"
-        r <- request @[ApiAddress n] ctx ("GET", T.pack endpoint) Default Empty
+        let endpoint = withPathParam 0 (<> "0") $
+                Link.listAddresses w
+        r <- request @[ApiAddress n] ctx endpoint Default Empty
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage errMsg404NoEndpoint r
 
     it "ADDRESS_LIST_04 - Deleted wallet" $ \ctx -> do
         w <- emptyWallet ctx
-        _ <- request @ApiWallet ctx (deleteWalletEp w) Default Empty
-        r <- request @[ApiAddress n] ctx (getAddressesEp w "") Default Empty
+        _ <- request @ApiWallet ctx
+            (Link.deleteWallet @'Shelley w) Default Empty
+        r <- request @[ApiAddress n] ctx
+            (Link.listAddresses w) Default Empty
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
@@ -220,11 +229,10 @@ spec = do
         let matrix = ["PUT", "DELETE", "CONNECT", "TRACE", "OPTIONS", "POST"]
         forM_ matrix $ \method -> it (show method) $ \ctx -> do
             w <- emptyWallet ctx
-            let endpoint = "v2/wallets/" <> w ^. walletId <> "/addresses"
-            r <- request @[ApiAddress n] ctx (method, endpoint) Default Empty
+            let link = withMethod method $ Link.listAddresses w
+            r <- request @[ApiAddress n] ctx link Default Empty
             expectResponseCode @IO HTTP.status405 r
             expectErrorMessage errMsg405 r
-
 
     describe "ADDRESS_LIST_05 - Request headers" $ do
         let headerCases =
@@ -252,5 +260,6 @@ spec = do
                   ]
         forM_ headerCases $ \(title, headers, expectations) -> it title $ \ctx -> do
             w <- emptyWallet ctx
-            r <- request @[ApiAddress n] ctx (getAddressesEp w "") headers Empty
+            r <- request @[ApiAddress n] ctx
+                (Link.listAddresses w) headers Empty
             verify r expectations

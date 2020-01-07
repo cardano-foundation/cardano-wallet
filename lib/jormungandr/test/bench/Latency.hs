@@ -43,6 +43,7 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiUtxoStatistics
     , ApiWallet
+    , WalletStyle (..)
     )
 import Cardano.Wallet.Jormungandr
     ( ServerLog (..), serveWallet )
@@ -103,7 +104,6 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , balanceAvailable
-    , deleteWalletEp
     , expectEventually
     , expectResponseCode
     , expectSuccess
@@ -111,22 +111,14 @@ import Test.Integration.Framework.DSL
     , faucetAmt
     , fixtureWallet
     , fixtureWalletWith
-    , getAddressesEp
-    , getWalletEp
-    , getWalletUtxoEp
     , json
     , listAddresses
-    , listStakePoolsEp
-    , listTxEp
-    , listWalletsEp
-    , networkInfoEp
-    , postTxEp
-    , postTxFeeEp
     , request
     , verify
     )
 
 import qualified Cardano.BM.Configuration.Model as CM
+import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
@@ -223,15 +215,15 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
         wSrc <- fixtureWallet ctx
         let pass = "cardano-wallet" :: Text
 
-        replicateM_ batchSize (postTx ctx (wSrc, postTxEp, pass) wDest amtToSend)
+        replicateM_ batchSize (postTx ctx (wSrc, Link.createTransaction, pass) wDest amtToSend)
 
-        rWal1 <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
+        rWal1 <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default Empty
         verify rWal1
             [ expectSuccess
-            , expectEventually ctx getWalletEp balanceAvailable amtExp
+            , expectEventually ctx (Link.getWallet @'Shelley) balanceAvailable amtExp
             ]
 
-        rDel <- request @ApiWallet ctx (deleteWalletEp wSrc) Default Empty
+        rDel <- request @ApiWallet ctx (Link.deleteWallet @'Shelley wSrc) Default Empty
         expectResponseCode @IO HTTP.status204 rDel
 
         pure ()
@@ -257,19 +249,19 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
         wSrc <- fixtureWalletWith ctx (replicate batchSize 1000)
         let pass = "Secure Passphrase" :: Text
 
-        postMultiTx ctx (wSrc, postTxEp, pass) wDest amtToSend batchSize
+        postMultiTx ctx (wSrc, Link.createTransaction, pass) wDest amtToSend batchSize
 
-        rWal1 <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
+        rWal1 <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default Empty
         verify rWal1
             [ expectSuccess
-            , expectEventually ctx getWalletEp balanceAvailable (fromIntegral amtExp)
+            , expectEventually ctx (Link.getWallet @'Shelley) balanceAvailable (fromIntegral amtExp)
             ]
 
-        rStat <- request @ApiUtxoStatistics ctx (getWalletUtxoEp wDest) Default Empty
+        rStat <- request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics wDest) Default Empty
         expectResponseCode @IO HTTP.status200 rStat
         expectWalletUTxO utxoExp (snd rStat)
 
-        rDel <- request @ApiWallet ctx (deleteWalletEp wSrc) Default Empty
+        rDel <- request @ApiWallet ctx (Link.deleteWallet @'Shelley wSrc) Default Empty
         expectResponseCode @IO HTTP.status204 rDel
 
         pure ()
@@ -299,27 +291,27 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
         (wal1, wal2) <- scenario ctx
 
         t1 <- measureApiLogs tvar
-            (request @[ApiWallet] ctx listWalletsEp Default Empty)
+            (request @[ApiWallet] ctx (Link.listWallets @'Shelley) Default Empty)
 
         fmtResult "listWallets        " t1
 
         t2 <- measureApiLogs tvar
-            (request @ApiWallet ctx (getWalletEp wal1) Default Empty)
+            (request @ApiWallet ctx (Link.getWallet @'Shelley wal1) Default Empty)
 
         fmtResult "getWallet          " t2
 
         t3 <- measureApiLogs tvar
-            (request @ApiUtxoStatistics ctx (getWalletUtxoEp wal1) Default Empty)
+            (request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics wal1) Default Empty)
 
         fmtResult "getUTxOsStatistics " t3
 
         t4 <- measureApiLogs tvar
-            (request @[ApiAddress n] ctx (getAddressesEp wal1 "") Default Empty)
+            (request @[ApiAddress n] ctx (Link.listAddresses wal1) Default Empty)
 
         fmtResult "listAddresses      " t4
 
         t5 <- measureApiLogs tvar
-            (request @[ApiTransaction n] ctx (listTxEp wal1 "") Default Empty)
+            (request @[ApiTransaction n] ctx (Link.listTransactions @'Shelley wal1) Default Empty)
 
         fmtResult "listTransactions   " t5
 
@@ -336,17 +328,17 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
                 }]
             }|]
         t6 <- measureApiLogs tvar
-            (request @ApiFee ctx (postTxFeeEp wal1) Default payload)
+            (request @ApiFee ctx (Link.getTransactionFee wal1) Default payload)
 
         fmtResult "postTransactionFee " t6
 
         t7 <- measureApiLogs tvar
-            (request @[ApiStakePool] ctx listStakePoolsEp Default Empty)
+            (request @[ApiStakePool] ctx Link.listStakePools Default Empty)
 
         fmtResult "listStakePools     " t7
 
         t8 <- measureApiLogs tvar
-            (request @ApiNetworkInformation ctx networkInfoEp Default Empty)
+            (request @ApiNetworkInformation ctx Link.getNetworkInfo Default Empty)
 
         fmtResult "getNetworkInfo     " t8
 

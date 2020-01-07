@@ -10,7 +10,12 @@ module Test.Integration.Scenario.API.Network
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiEpochInfo (..), ApiNetworkInformation )
+    ( ApiByronWallet
+    , ApiEpochInfo (..)
+    , ApiNetworkInformation
+    , ApiWallet
+    , WalletStyle (..)
+    )
 import Cardano.Wallet.Primitive.Types
     ( SyncProgress (..) )
 import Control.Monad
@@ -31,14 +36,10 @@ import Test.Integration.Framework.DSL
     , eventuallyUsingDelay
     , eventually_
     , expectErrorMessage
-    , expectEventually'
     , expectFieldEqual
     , expectFieldSatisfy
     , expectResponseCode
-    , getByronWalletEp
     , getFromResponse
-    , getWalletEp
-    , networkInfoEp
     , nextEpoch
     , request
     , state
@@ -48,6 +49,7 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( errMsg405, getHeaderCases )
 
+import qualified Cardano.Wallet.Api.Link as Link
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall t. SpecWith (Context t)
@@ -55,7 +57,8 @@ spec = do
     it "NETWORK - Can query network information" $ \ctx -> do
         r <- eventually $ do
             now <- liftIO getCurrentTime
-            r <- request @ApiNetworkInformation ctx networkInfoEp Default Empty
+            r <- request @ApiNetworkInformation ctx
+                Link.getNetworkInfo Default Empty
             expectResponseCode @IO HTTP.status200 r
             verify r
                 [ expectFieldSatisfy nextEpoch ((> now) . epochStartTime)
@@ -70,7 +73,8 @@ spec = do
         nextEpochNum `shouldBe` currentEpochNum + 1
 
     it "NETWORK - Calculated next epoch is the next epoch" $ \ctx -> do
-        r1 <- request @ApiNetworkInformation ctx networkInfoEp Default Empty
+        r1 <- request @ApiNetworkInformation ctx
+            Link.getNetworkInfo Default Empty
         let calculatedNextEpoch = getFromResponse (#nextEpoch . #epochNumber) r1
         let nextEpochStartTime = getFromResponse (#nextEpoch . #epochStartTime) r1
 
@@ -78,14 +82,15 @@ spec = do
             now <- liftIO getCurrentTime
             now `shouldSatisfy` (>= nextEpochStartTime)
 
-        r2 <- request @ApiNetworkInformation ctx networkInfoEp Default Empty
+        r2 <- request @ApiNetworkInformation ctx
+            Link.getNetworkInfo Default Empty
         let currentEpoch = getFromResponse (#networkTip . #epochNumber) r2
         currentEpoch `shouldBe` calculatedNextEpoch
 
     it "NETWORK_SHELLEY - Wallet has the same tip as network/information" $
         \ctx -> do
-            let getNetworkInfo = request @ApiNetworkInformation
-                    ctx networkInfoEp Default Empty
+            let getNetworkInfo = request @ApiNetworkInformation ctx
+                    Link.getNetworkInfo Default Empty
             w <- emptyWallet ctx
             eventually_ $ do
                 sync <- getNetworkInfo
@@ -99,19 +104,20 @@ spec = do
             let blockHeight =
                     getFromResponse (#nodeTip . #height) r
 
-            expectEventually' ctx getWalletEp
-                state Ready w
-            expectEventually' ctx getWalletEp
-                (#tip . #epochNumber . #getApiT) epochNum w
-            expectEventually' ctx getWalletEp
-                (#tip . #slotNumber . #getApiT) slotNum  w
-            expectEventually' ctx getWalletEp
-                (#tip . #height) blockHeight w
+            eventually $ do
+                res <- request @ApiWallet ctx
+                    (Link.getWallet @'Shelley w) Default Empty
+                verify res
+                    [ expectFieldEqual state Ready
+                    , expectFieldEqual (#tip . #epochNumber . #getApiT) epochNum
+                    , expectFieldEqual (#tip . #slotNumber  . #getApiT) slotNum
+                    , expectFieldEqual (#tip . #height) blockHeight
+                    ]
 
     it "NETWORK_BYRON - Byron wallet has the same tip as network/information" $
         \ctx -> do
-            let getNetworkInfo = request @ApiNetworkInformation
-                    ctx networkInfoEp Default Empty
+            let getNetworkInfo = request @ApiNetworkInformation ctx
+                    Link.getNetworkInfo Default Empty
             w <- emptyRandomWallet ctx
             eventually_ $ do
                 sync <- getNetworkInfo
@@ -125,14 +131,15 @@ spec = do
             let blockHeight =
                     getFromResponse (#nodeTip . #height) r
 
-            expectEventually' ctx getByronWalletEp
-                state Ready w
-            expectEventually' ctx getByronWalletEp
-                (#tip . #epochNumber . #getApiT) epochNum w
-            expectEventually' ctx getByronWalletEp
-                (#tip . #slotNumber . #getApiT) slotNum w
-            expectEventually' ctx getByronWalletEp
-                (#tip . #height) blockHeight w
+            eventually $ do
+                res <- request @ApiByronWallet ctx
+                    (Link.getWallet @'Byron w) Default Empty
+                verify res
+                    [ expectFieldEqual state Ready
+                    , expectFieldEqual (#tip . #epochNumber . #getApiT) epochNum
+                    , expectFieldEqual (#tip . #slotNumber  . #getApiT) slotNum
+                    , expectFieldEqual (#tip . #height) blockHeight
+                    ]
 
     describe "NETWORK - v2/network/information - Methods Not Allowed" $ do
         let matrix = ["POST", "CONNECT", "TRACE", "OPTIONS"]
@@ -145,6 +152,6 @@ spec = do
     describe "NETWORK - HTTP headers" $ do
         forM_ (getHeaderCases HTTP.status200)
             $ \(title, headers, expectations) -> it title $ \ctx -> do
-                r <- request @ApiNetworkInformation
-                    ctx networkInfoEp headers Empty
+                r <- request @ApiNetworkInformation ctx
+                    Link.getNetworkInfo headers Empty
                 verify r expectations

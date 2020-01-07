@@ -11,7 +11,7 @@ module Test.Integration.Scenario.CLI.Addresses
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddress, EncodeAddress (..), getApiT )
+    ( ApiAddress, EncodeAddress (..), WalletStyle (..), getApiT )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -46,7 +46,6 @@ import Test.Integration.Framework.DSL
     , expectEventually'
     , expectValidJSON
     , fixtureWallet
-    , getWalletEp
     , listAddressesViaCLI
     , postTransactionViaCLI
     , state
@@ -55,6 +54,7 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( errMsg404NoWallet, falseWalletIds )
 
+import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
 
 spec
@@ -169,7 +169,7 @@ spec = do
             cTx `shouldBe` ExitSuccess
 
         -- make sure all transactions are in ledger
-        expectEventually' ctx getWalletEp balanceAvailable 10 wDest
+        expectEventually' ctx (Link.getWallet @'Shelley) balanceAvailable 10 wDest
 
         -- verify new address_pool_gap has been created
         (Exit c1, Stdout o1, Stderr e1) <- listAddressesViaCLI @t ctx [widDest]

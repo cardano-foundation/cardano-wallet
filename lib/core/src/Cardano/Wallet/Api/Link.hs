@@ -74,6 +74,8 @@ module Cardano.Wallet.Api.Link
 
       -- * Proxy
     , postExternalTransaction
+
+    , PostWallet
     ) where
 
 import Prelude

@@ -20,6 +20,7 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiTxId (..)
     , ApiWallet
+    , WalletStyle (..)
     , insertedAt
     , pendingSince
     , time
@@ -27,7 +28,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Direction (..), TxStatus (..), WalletId )
+    ( Direction (..), SortOrder (..), TxStatus (..), WalletId )
 import Control.Monad
     ( forM_ )
 import Data.Aeson
@@ -41,7 +42,7 @@ import Data.Maybe
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( ToText (..) )
+    ( FromText (..), ToText (..) )
 import Data.Time.Clock
     ( UTCTime, addUTCTime )
 import Data.Time.Utils
@@ -62,9 +63,6 @@ import Test.Integration.Framework.DSL
     , amount
     , balanceAvailable
     , balanceTotal
-    , deleteByronTxEp
-    , deleteTxEp
-    , deleteWalletEp
     , direction
     , emptyRandomWallet
     , emptyWallet
@@ -87,16 +85,10 @@ import Test.Integration.Framework.DSL
     , fixtureWallet
     , fixtureWalletWith
     , getFromResponse
-    , getWalletEp
     , json
     , listAddresses
     , listAllTransactions
-    , listByronTxEp
     , listTransactions
-    , listTxEp
-    , migrateByronWalletEp
-    , postTxEp
-    , postTxFeeEp
     , request
     , status
     , toQueryString
@@ -131,6 +123,7 @@ import Test.Integration.Framework.TestData
 import Web.HttpApiData
     ( ToHttpApiData (..) )
 
+import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
@@ -152,7 +145,7 @@ spec = do
                 }
 
         let amt = 1000
-        r <- postTx ctx (wSrc, postTxEp, fixturePassphrase) wSrc amt
+        r <- postTx ctx (wSrc, Link.createTransaction, fixturePassphrase) wSrc amt
         verify r
             [ expectSuccess
             , expectResponseCode HTTP.status202
@@ -165,9 +158,7 @@ spec = do
 
         eventually_ $ do
             rt <- request @([ApiTransaction n]) ctx
-                (listTxEp wSrc mempty)
-                Default
-                Empty
+                (Link.listTransactions @'Shelley wSrc) Default Empty
             verify rt
                 [ expectSuccess
                 , expectResponseCode HTTP.status200
@@ -186,15 +177,18 @@ spec = do
         eventually_ $ do
             -- Post Tx
             let amt = (1 :: Natural)
-            r <- postTx ctx (wSrc, postTxEp ,"Secure Passphrase") wDest amt
+            r <- postTx ctx (wSrc, Link.createTransaction ,"Secure Passphrase") wDest amt
             let tx = getFromResponse Prelude.id r
             tx ^. status `shouldBe` Pending
             insertedAt tx `shouldBe` Nothing
             pendingSince tx `shouldSatisfy` isJust
 
             -- Verify Tx
-            let q = toQueryString [("order", "descending")]
-            (_, txs) <- unsafeRequest @([ApiTransaction n]) ctx (listTxEp wSrc q) Empty
+            let link = Link.listTransactions' @'Shelley wSrc
+                    Nothing
+                    Nothing
+                    (Just Descending)
+            (_, txs) <- unsafeRequest @([ApiTransaction n]) ctx link Empty
             case filter ((== Pending) . view status) txs of
                 [] ->
                     fail "Tx no longer pending, need to retry scenario."
@@ -212,7 +206,7 @@ spec = do
                 , nChanges = 1
                 }
         let amt = (1 :: Natural)
-        r <- postTx ctx (wa, postTxEp, "cardano-wallet") wb amt
+        r <- postTx ctx (wa, Link.createTransaction, "cardano-wallet") wb amt
         verify r
             [ expectSuccess
             , expectResponseCode HTTP.status202
@@ -221,7 +215,7 @@ spec = do
             , expectFieldEqual status Pending
             ]
 
-        ra <- request @ApiWallet ctx (getWalletEp wa) Default Empty
+        ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wa) Default Empty
         verify ra
             [ expectSuccess
             , expectFieldBetween balanceTotal
@@ -231,14 +225,16 @@ spec = do
             , expectFieldEqual balanceAvailable (faucetAmt - faucetUtxoAmt)
             ]
 
-        rb <- request @ApiWallet ctx (getWalletEp wb) Default Empty
+        rb <- request @ApiWallet ctx (Link.getWallet @'Shelley wb) Default Empty
         verify rb
             [ expectSuccess
-            , expectEventually ctx getWalletEp balanceAvailable (faucetAmt + amt)
+            , expectEventually ctx (Link.getWallet @'Shelley)
+                balanceAvailable (faucetAmt + amt)
             ]
 
         verify ra
-            [ expectEventually ctx getWalletEp balanceAvailable (faucetAmt - feeMax - amt)
+            [ expectEventually ctx (Link.getWallet @'Shelley)
+                balanceAvailable (faucetAmt - feeMax - amt)
             ]
 
     it "TRANS_CREATE_02 - Multiple Output Tx to single wallet" $ \ctx -> do
@@ -272,8 +268,8 @@ spec = do
                 , nChanges = 2
                 }
 
-        r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
-        ra <- request @ApiWallet ctx (getWalletEp wSrc) Default Empty
+        r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
+        ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
         verify r
             [ expectResponseCode HTTP.status202
             , expectFieldBetween amount (feeMin + (2*amt), feeMax + (2*amt))
@@ -287,10 +283,12 @@ spec = do
                 )
             , expectFieldEqual balanceAvailable (faucetAmt - 2 * faucetUtxoAmt)
             ]
-        rd <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
+        rd <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default Empty
         verify rd
-            [ expectEventually ctx getWalletEp balanceAvailable (2*amt)
-            , expectEventually ctx getWalletEp balanceTotal (2*amt)
+            [ expectEventually ctx (Link.getWallet @'Shelley)
+                balanceAvailable (2*amt)
+            , expectEventually ctx (Link.getWallet @'Shelley)
+                balanceTotal (2*amt)
             ]
 
     it "TRANS_CREATE_02 - Multiple Output Tx to different wallets" $ \ctx -> do
@@ -328,8 +326,8 @@ spec = do
                 , nChanges = 2
                 }
 
-        r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
-        ra <- request @ApiWallet ctx (getWalletEp wSrc) Default Empty
+        r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
+        ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
         verify r
             [ expectResponseCode HTTP.status202
             , expectFieldBetween amount (feeMin + (2*amt), feeMax + (2*amt))
@@ -344,11 +342,13 @@ spec = do
             , expectFieldEqual balanceAvailable (faucetAmt - 2 * faucetUtxoAmt)
             ]
         forM_ [wDest1, wDest2] $ \wDest -> do
-            rd <- request @ApiWallet ctx (getWalletEp wDest) Default payload
+            rd <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default payload
             verify rd
                 [ expectSuccess
-                , expectEventually ctx getWalletEp balanceAvailable amt
-                , expectEventually ctx getWalletEp balanceTotal amt
+                , expectEventually ctx (Link.getWallet @'Shelley)
+                    balanceAvailable amt
+                , expectEventually ctx (Link.getWallet @'Shelley)
+                    balanceTotal amt
                 ]
 
     it "TRANS_CREATE_02 - Multiple Output Txs don't work on single UTxO" $ \ctx -> do
@@ -378,7 +378,7 @@ spec = do
                 "passphrase": "Secure Passphrase"
             }|]
 
-        r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
+        r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403UTxO
@@ -402,7 +402,7 @@ spec = do
                 }],
                 "passphrase": "Secure Passphrase"
             }|]
-        r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
+        r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
             , expectFieldEqual amount (feeMin + amt)
@@ -410,19 +410,21 @@ spec = do
             , expectFieldEqual status Pending
             ]
 
-        ra <- request @ApiWallet ctx (getWalletEp wSrc) Default Empty
+        ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
         verify ra
             [ expectFieldEqual balanceTotal 0
             , expectFieldEqual balanceAvailable 0
             ]
 
-        rd <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
+        rd <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default Empty
         verify rd
-            [ expectEventually ctx getWalletEp balanceAvailable amt
-            , expectEventually ctx getWalletEp balanceTotal amt
+            [ expectEventually ctx (Link.getWallet @'Shelley)
+                balanceAvailable amt
+            , expectEventually ctx (Link.getWallet @'Shelley)
+                balanceTotal amt
             ]
 
-        ra2 <- request @ApiWallet ctx (getWalletEp wSrc) Default Empty
+        ra2 <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
         verify ra2
             [ expectFieldEqual balanceTotal 0
             , expectFieldEqual balanceAvailable 0
@@ -430,7 +432,7 @@ spec = do
 
     it "TRANS_CREATE_04 - Error shown when ErrInputsDepleted encountered" $ \ctx -> do
         (wSrc, payload) <- fixtureErrInputsDepleted ctx
-        r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
+        r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403InputsDepleted
@@ -453,7 +455,7 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
+        r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403Fee
@@ -476,7 +478,7 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
+        r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status403
             , expectErrorMessage $
@@ -499,7 +501,7 @@ spec = do
                 }],
                 "passphrase": "This password is wrong"
             }|]
-        r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
+        r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403WrongPass
@@ -518,7 +520,7 @@ spec = do
                     }],
                     "passphrase": "cardano-wallet"
                 }|]
-            r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
+            r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
             verify r
                 [ expectResponseCode HTTP.status400
                 , expectErrorMessage errMsg
@@ -536,7 +538,7 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
+        r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status400
             , expectErrorMessage "expected Text, encountered Array"
@@ -554,7 +556,7 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
+        r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status400
             , expectErrorMessage "expected Text, encountered Num"
@@ -571,7 +573,7 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
+        r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status400
             , expectErrorMessage "key 'address' not present"
@@ -591,7 +593,7 @@ spec = do
                     }],
                     "passphrase": "cardano-wallet"
                 }|]
-            r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
+            r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
             verify r expectations
 
     describe "TRANS_CREATE_07 - False wallet ids" $ do
@@ -643,7 +645,7 @@ spec = do
 
     it "TRANS_CREATE_07 - Deleted wallet" $ \ctx -> do
         w <- emptyWallet ctx
-        _ <- request @ApiWallet ctx (deleteWalletEp w) Default Empty
+        _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses ctx wDest
         let destination = addr ^. #id
@@ -657,7 +659,7 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        r <- request @(ApiTransaction n) ctx (postTxEp w) Default payload
+        r <- request @(ApiTransaction n) ctx (Link.createTransaction w) Default payload
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
@@ -703,7 +705,7 @@ spec = do
                     }],
                     "passphrase": "cardano-wallet"
                 }|]
-            r <- request @(ApiTransaction n) ctx (postTxEp w)
+            r <- request @(ApiTransaction n) ctx (Link.createTransaction w)
                     headers payload
             verify r expectations
 
@@ -725,7 +727,7 @@ spec = do
         forM_ matrix $ \(name, nonJson) -> it name $ \ctx -> do
             w <- emptyWallet ctx
             let payload = nonJson
-            r <- request @(ApiTransaction n) ctx (postTxEp w)
+            r <- request @(ApiTransaction n) ctx (Link.createTransaction w)
                     Default payload
             expectResponseCode @IO HTTP.status400 r
 
@@ -767,7 +769,7 @@ spec = do
                         }
                     }]
                 }|]
-            r <- request @ApiFee ctx (postTxFeeEp w)
+            r <- request @ApiFee ctx (Link.getTransactionFee w)
                     headers payload
             verify r expectations
 
@@ -790,7 +792,7 @@ spec = do
         forM_ matrix $ \(name, nonJson) -> it name $ \ctx -> do
             w <- emptyWallet ctx
             let payload = nonJson
-            r <- request @ApiFee ctx (postTxFeeEp w)
+            r <- request @ApiFee ctx (Link.getTransactionFee w)
                     Default payload
             expectResponseCode @IO HTTP.status400 r
 
@@ -815,7 +817,7 @@ spec = do
                 , nChanges = 1
                 }
 
-        r <- request @ApiFee ctx (postTxFeeEp wa) Default payload
+        r <- request @ApiFee ctx (Link.getTransactionFee wa) Default payload
         verify r
             [ expectSuccess
             , expectResponseCode HTTP.status202
@@ -852,7 +854,7 @@ spec = do
                 , nChanges = 2
                 }
 
-        r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
+        r <- request @ApiFee ctx (Link.getTransactionFee wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
             , expectFieldBetween amount (feeMin - (2*amt), feeMax + (2*amt))
@@ -892,7 +894,7 @@ spec = do
                 , nChanges = 2
                 }
 
-        r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
+        r <- request @ApiFee ctx (Link.getTransactionFee wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
             , expectFieldBetween amount (feeMin - (2*amt), feeMax + (2*amt))
@@ -924,7 +926,7 @@ spec = do
                 ]
             }|]
 
-        r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
+        r <- request @ApiFee ctx (Link.getTransactionFee wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403UTxO
@@ -947,7 +949,7 @@ spec = do
                     }
                 }]
             }|]
-        r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
+        r <- request @ApiFee ctx (Link.getTransactionFee wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
             , expectFieldBetween amount (feeMin-amt, feeMax+amt)
@@ -969,7 +971,7 @@ spec = do
                     }
                 }]
             }|]
-        r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
+        r <- request @ApiFee ctx (Link.getTransactionFee wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status403
             , expectErrorMessage $
@@ -978,7 +980,7 @@ spec = do
 
     it "TRANS_ESTIMATE_04 - Error shown when ErrInputsDepleted encountered" $ \ctx -> do
         (wSrc, payload) <- fixtureErrInputsDepleted ctx
-        r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
+        r <- request @ApiFee ctx (Link.getTransactionFee wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403InputsDepleted
@@ -996,7 +998,7 @@ spec = do
                         }
                     }]
                 }|]
-            r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
+            r <- request @ApiFee ctx (Link.getTransactionFee wSrc) Default payload
             verify r
                 [ expectResponseCode HTTP.status400
                 , expectErrorMessage errMsg
@@ -1013,7 +1015,7 @@ spec = do
                     }
                 }]
             }|]
-        r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
+        r <- request @ApiFee ctx (Link.getTransactionFee wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status400
             , expectErrorMessage "expected Text, encountered Array"
@@ -1030,7 +1032,7 @@ spec = do
                     }
                 }]
             }|]
-        r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
+        r <- request @ApiFee ctx (Link.getTransactionFee wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status400
             , expectErrorMessage "expected Text, encountered Num"
@@ -1046,7 +1048,7 @@ spec = do
                     }
                 }]
             }|]
-        r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
+        r <- request @ApiFee ctx (Link.getTransactionFee wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status400
             , expectErrorMessage "key 'address' not present"
@@ -1065,7 +1067,7 @@ spec = do
                         "amount": #{amt}
                     }]
                 }|]
-            r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
+            r <- request @ApiFee ctx (Link.getTransactionFee wSrc) Default payload
             verify r expectations
 
     describe "TRANS_ESTIMATE_07 - False wallet ids" $ do
@@ -1115,7 +1117,7 @@ spec = do
 
     it "TRANS_ESTIMATE_07 - Deleted wallet" $ \ctx -> do
         w <- emptyWallet ctx
-        _ <- request @ApiWallet ctx (deleteWalletEp w) Default Empty
+        _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses ctx wDest
         let destination = addr ^. #id
@@ -1128,7 +1130,7 @@ spec = do
                     }
                 }]
             }|]
-        r <- request @ApiFee ctx (postTxFeeEp w) Default payload
+        r <- request @ApiFee ctx (Link.getTransactionFee w) Default payload
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
@@ -1150,14 +1152,16 @@ spec = do
                 "passphrase": "cardano-wallet"
             }|]
 
-        tx <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
+        tx <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
         expectResponseCode HTTP.status202 tx
-        expectEventually' ctx getWalletEp balanceAvailable amt wDest
-        expectEventually' ctx getWalletEp balanceTotal amt wDest
+        expectEventually' ctx (Link.getWallet @'Shelley)
+            balanceAvailable amt wDest
+        expectEventually' ctx (Link.getWallet @'Shelley)
+            balanceTotal amt wDest
 
         -- Verify Tx list contains Incoming and Outgoing
-        r <- request @([ApiTransaction n]) ctx (listTxEp wSrc mempty)
-            Default Empty
+        let link = Link.listTransactions @'Shelley wSrc
+        r <- request @([ApiTransaction n]) ctx link Default Empty
         expectResponseCode @IO HTTP.status200 r
 
         verify r
@@ -1382,10 +1386,12 @@ spec = do
                     }
                 ]
 
+        let withQuery q (method, link) = (method, link <> q)
+
         forM_ matrix $ \tc -> do
-          rf <- request @([ApiTransaction n]) ctx (listTxEp w (query tc))
-              Default Empty
-          verify rf (assertions tc)
+            let link = withQuery (query tc) $ Link.listTransactions @'Shelley w
+            rf <- request @([ApiTransaction n]) ctx link Default Empty
+            verify rf (assertions tc)
 
     describe "TRANS_LIST_02,03 - Faulty start, end, order values" $ do
         let orderErr = "Please specify one of the following values:\
@@ -1455,27 +1461,28 @@ spec = do
                      }
                 ]
 
+        let withQuery q (method, link) = (method, link <> q)
+
         forM_ queries $ \tc -> it (T.unpack $ query tc) $ \ctx -> do
             w <- emptyWallet ctx
-            r <- request @([ApiTransaction n]) ctx (listTxEp w (query tc))
-                Default Empty
+            let link = withQuery (query tc) $ Link.listTransactions @'Shelley w
+            r <- request @([ApiTransaction n]) ctx link Default Empty
             verify r (assertions tc)
 
     it "TRANS_LIST_02 - Start time shouldn't be later than end time" $
         \ctx -> do
-              w <- emptyWallet ctx
-              let startTime = "2009-09-09T09:09:09Z"
-              let endTime = "2001-01-01T01:01:01Z"
-              let q = toQueryString
-                      [ ("start", T.pack startTime)
-                      , ("end", T.pack endTime)
-                      ]
-              r <- request @([ApiTransaction n]) ctx (listTxEp w q)
-                  Default Empty
-              expectResponseCode @IO HTTP.status400 r
-              expectErrorMessage
-                  (errMsg400StartTimeLaterThanEndTime startTime endTime) r
-              pure ()
+            w <- emptyWallet ctx
+            let startTime = "2009-09-09T09:09:09Z"
+            let endTime = "2001-01-01T01:01:01Z"
+            let link = Link.listTransactions' @'Shelley w
+                    (either (const Nothing) Just $ fromText $ T.pack startTime)
+                    (either (const Nothing) Just $ fromText $ T.pack endTime)
+                    Nothing
+            r <- request @([ApiTransaction n]) ctx link Default Empty
+            expectResponseCode @IO HTTP.status400 r
+            expectErrorMessage
+                (errMsg400StartTimeLaterThanEndTime startTime endTime) r
+            pure ()
 
     describe "TRANS_LIST_04 - Request headers" $ do
         let headerCases =
@@ -1503,7 +1510,8 @@ spec = do
                   ]
         forM_ headerCases $ \(title, headers, expectations) -> it title $ \ctx -> do
             w <- emptyWallet ctx
-            r <- request @([ApiTransaction n]) ctx (listTxEp w mempty) headers Empty
+            r <- request @([ApiTransaction n]) ctx (Link.listTransactions @'Shelley w)
+                headers Empty
             verify r expectations
 
     it "TRANS_LIST_04 - 'almost' valid walletId" $ \ctx -> do
@@ -1518,8 +1526,8 @@ spec = do
 
     it "TRANS_LIST_04 - Deleted wallet" $ \ctx -> do
         w <- emptyWallet ctx
-        _ <- request @ApiWallet ctx (deleteWalletEp w) Default Empty
-        r <- request @([ApiTransaction n]) ctx (listTxEp w mempty)
+        _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
+        r <- request @([ApiTransaction n]) ctx (Link.listTransactions @'Shelley w)
             Default Empty
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
@@ -1572,7 +1580,7 @@ spec = do
         (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         -- post tx
         let amt = (1 :: Natural)
-        rMkTx <- postTx ctx (wSrc, postTxEp, "cardano-wallet") wDest amt
+        rMkTx <- postTx ctx (wSrc, Link.createTransaction, "cardano-wallet") wDest amt
         let txid = getFromResponse #id rMkTx
         verify rMkTx
             [ expectSuccess
@@ -1582,17 +1590,17 @@ spec = do
             ]
 
         -- verify balance on src wallet
-        request @ApiWallet ctx (getWalletEp wSrc) Default Empty >>= flip verify
+        request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty >>= flip verify
             [ expectSuccess
             , expectFieldEqual balanceAvailable (faucetAmt - faucetUtxoAmt)
             ]
 
         -- forget transaction
-        request @ApiTxId ctx (deleteTxEp wSrc (ApiTxId txid)) Default Empty
+        request @ApiTxId ctx (Link.deleteTransaction @'Shelley wSrc (ApiTxId txid)) Default Empty
             >>= expectResponseCode @IO HTTP.status204
 
         -- verify again balance on src wallet
-        request @ApiWallet ctx (getWalletEp wSrc) Default Empty >>= flip verify
+        request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty >>= flip verify
             [ expectSuccess
             , expectFieldEqual balanceTotal faucetAmt
             , expectFieldEqual balanceAvailable faucetAmt
@@ -1600,7 +1608,7 @@ spec = do
 
         -- transaction eventually is in source wallet
         eventually_ $ do
-            let ep = listTxEp wSrc mempty
+            let ep = Link.listTransactions @'Shelley wSrc
             request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
                 [ expectListItemFieldEqual 0 direction Outgoing
                 , expectListItemFieldEqual 0 status InLedger
@@ -1608,7 +1616,7 @@ spec = do
 
         -- transaction eventually is in target wallet
         eventually_ $ do
-            let ep = listTxEp wDest mempty
+            let ep = Link.listTransactions @'Shelley wDest
             request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
                 [ expectListItemFieldEqual 0 direction Incoming
                 , expectListItemFieldEqual 0 status InLedger
@@ -1621,13 +1629,12 @@ spec = do
 
         -- migrate funds and quickly get id of one of the pending txs
         let payload = Json [json|{"passphrase": #{fixturePassphrase}}|]
-        let migrEp = migrateByronWalletEp sourceWallet targetWallet
+        let migrEp = Link.migrateWallet sourceWallet targetWallet
         (_, t:_) <- unsafeRequest @[ApiTransaction n] ctx migrEp payload
         t ^. status `shouldBe` Pending
-        let txid = t ^. #id
 
         -- quickly forget transaction that is still pending...
-        let delEp = deleteByronTxEp sourceWallet (ApiTxId txid)
+        let delEp = Link.deleteTransaction @'Byron sourceWallet t
         rDel <- request @ApiTxId ctx delEp Default Empty
         expectResponseCode @IO HTTP.status204 rDel
 
@@ -1637,19 +1644,19 @@ spec = do
 
         -- post transaction
         rTx <-
-            postTx ctx (wSrc, postTxEp, "cardano-wallet") wDest (1 :: Natural)
+            postTx ctx (wSrc, Link.createTransaction, "cardano-wallet") wDest (1 :: Natural)
         let txid = getFromResponse #id rTx
 
         -- Wait for the transaction to be accepted
         eventually_ $ do
-            let ep = listTxEp wSrc mempty
+            let ep = Link.listTransactions @'Shelley wSrc
             request @([ApiTransaction n]) ctx ep Default Empty >>= flip verify
                 [ expectListItemFieldEqual 0 direction Outgoing
                 , expectListItemFieldEqual 0 status InLedger
                 ]
 
         -- Try Forget transaction once it's no longer pending
-        let ep = deleteTxEp wSrc (ApiTxId txid)
+        let ep = Link.deleteTransaction @'Shelley wSrc (ApiTxId txid)
         rDel <- request @ApiTxId ctx ep Default Empty
         expectResponseCode @IO HTTP.status403 rDel
         let err = errMsg403NoPendingAnymore (toUrlPiece (ApiTxId txid))
@@ -1660,12 +1667,12 @@ spec = do
         w <- fixtureRandomWallet ctx
 
         -- Get TX id
-        let listEp = listByronTxEp w mempty
+        let listEp = Link.listTransactions @'Byron w
         (_, t:_) <- unsafeRequest @([ApiTransaction n]) ctx listEp Empty
         let txid = t ^. #id
 
         -- Try Forget transaction that is no longer pending
-        let delEp = deleteByronTxEp w (ApiTxId txid)
+        let delEp = Link.deleteTransaction @'Byron w t
         rDel <- request @ApiTxId ctx delEp Default Empty
         expectResponseCode @IO HTTP.status403 rDel
         let err = errMsg403NoPendingAnymore (toUrlPiece (ApiTxId txid))
@@ -1796,7 +1803,10 @@ spec = do
         it resource $ \ctx -> do
             -- post tx
             (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
-            rMkTx <- postTx ctx (wSrc, postTxEp, "cardano-wallet") wDest (1 :: Natural)
+            rMkTx <- postTx ctx
+                (wSrc, Link.createTransaction, "cardano-wallet")
+                wDest
+                (1 :: Natural)
 
             -- try to forget from different wallet
             wDifferent <- eWallet ctx
