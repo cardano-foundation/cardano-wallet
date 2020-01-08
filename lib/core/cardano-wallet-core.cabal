@@ -103,6 +103,7 @@ library
       Cardano.Pool.DB.Sqlite.TH
       Cardano.Pool.Metrics
       Cardano.Pool.Metadata
+      Cardano.Pool.Ranking
       Cardano.Wallet
       Cardano.Wallet.Api
       Cardano.Wallet.Api.Client
@@ -231,8 +232,9 @@ test-suite unit
       Cardano.Pool.DB.Arbitrary
       Cardano.Pool.DB.Properties
       Cardano.Pool.DB.SqliteSpec
-      Cardano.Pool.MetricsSpec
       Cardano.Pool.MetadataSpec
+      Cardano.Pool.MetricsSpec
+      Cardano.Pool.RankingSpec
       Cardano.Wallet.Api.ServerSpec
       Cardano.Wallet.Api.TypesSpec
       Cardano.Wallet.ApiSpec
