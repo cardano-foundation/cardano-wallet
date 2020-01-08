@@ -63,6 +63,8 @@ Byron `SlotNo` counts slots from genesis in a single number. The current Jörmun
 
 In Jörmungandr a slot can only be inhabited by a single block. On the Haskell side, epoch boundary blocks will share slot with the normal block that comes after it. ❌
 
+There is no limit on how far the Jörmungandr nodes can rollback. The Haskell Nodes have a limit: (`k` blocks). Haskell nodes have a clear separation between mutable and immutable parts of the chain.
+
 ### Transactions
 
 Transaction inputs in Jörmungandr consist of (txHash, index, coinValue). In the Haskell Byron implementation they are only (txHash, index). ❌
@@ -135,6 +137,10 @@ I imagine having two blocks with the same slot might break assumptions in our DB
 A simple solution would be to filter them out. ✅
 
 For mainnet Shelley, EBBs do provide an easy way of knowing when a new epoch starts without having to keep track of protocol parameters (and when slots are counted from genesis). This would be an argument for not filtering them out. We will however most likely be maintaining up-to-date protocol parameters anyway, and would be able to tell when we're entering a new epoch through the protocol-params and the current slotNo.
+
+### No rollbacks further than "k"
+
+With the Haskell node we will be able to say that old enough state/checkpoints are immutable and can never be rolled back. We might want to change which checkpoints we store in DB. There is no point in keeping multiple checkpoints in the immutable part of the chain.
 
 ### Delegation features
 
