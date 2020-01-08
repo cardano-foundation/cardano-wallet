@@ -43,7 +43,6 @@ module Cardano.CLI
     , nodePortOption
     , nodePortMaybeOption
     , stateDirOption
-    , loggingConfigFileOption
     , verbosityOption
     , syncToleranceOption
 
@@ -954,13 +953,6 @@ sortOrderOption = optionT $ mempty
     <> metavar "ORDER"
     <> help "specifies a sort order, either 'ascending' or 'descending'."
     <> showDefaultWith showT
-
--- | [--logging-config=FILE.YAML]
-loggingConfigFileOption :: Parser FilePath
-loggingConfigFileOption = optionT $ mempty
-    <> long "logging-config"
-    <> metavar "FILE.YAML"
-    <> help "File to configure the iohk-monitoring framework."
 
 -- | [(--quiet|--verbose)]
 verbosityOption :: Parser Verbosity
