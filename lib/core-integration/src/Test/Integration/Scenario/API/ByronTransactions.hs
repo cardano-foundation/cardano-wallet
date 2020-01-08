@@ -14,20 +14,21 @@ module Test.Integration.Scenario.API.ByronTransactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiByronWallet, ApiTransaction )
+    ( ApiByronWallet, ApiTransaction, WalletStyle (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
+import Data.Text.Class
+    ( fromText )
 import Test.Hspec
     ( SpecWith, describe, it )
 import Test.Integration.Framework.DSL
     ( Context
     , Headers (..)
     , Payload (..)
-    , deleteByronWalletEp
     , emptyIcarusWallet
     , emptyRandomWallet
     , emptyWallet
@@ -36,7 +37,6 @@ import Test.Integration.Framework.DSL
     , expectResponseCode
     , fixtureIcarusWallet
     , fixtureRandomWallet
-    , listByronTxEp
     , request
     , toQueryString
     , verify
@@ -52,6 +52,7 @@ import Test.Integration.Framework.TestData
     , getHeaderCases
     )
 
+import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
@@ -66,8 +67,8 @@ spec = do
     it "BYRON_TX_LIST_01 - 0 txs on empty Byron wallet"
         $ \ctx -> forM_ [emptyRandomWallet, emptyIcarusWallet] $ \emptyByronWallet -> do
             w <- emptyByronWallet ctx
-            r <- request @([ApiTransaction n]) ctx (listByronTxEp w mempty)
-                Default Empty
+            let link = Link.listTransactions @'Byron w
+            r <- request @([ApiTransaction n]) ctx link Default Empty
             verify r
                 [ expectResponseCode @IO HTTP.status200
                 , expectListSizeEqual 0
@@ -76,8 +77,8 @@ spec = do
     it "BYRON_TX_LIST_01 - Can list transactions on Byron Wallet"
         $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet] $ \fixtureByronWallet -> do
             w <- fixtureByronWallet ctx
-            r <- request @([ApiTransaction n]) ctx (listByronTxEp w mempty)
-                Default Empty
+            let link = Link.listTransactions @'Byron w
+            r <- request @([ApiTransaction n]) ctx link Default Empty
             verify r
                 [ expectResponseCode @IO HTTP.status200
                 , expectListSizeEqual 10
@@ -151,26 +152,27 @@ spec = do
                      }
                 ]
 
+        let withQuery q (method, link) = (method, link <> q)
+
         forM_ queries $ \tc -> it (T.unpack $ query tc) $ \ctx -> do
             w <- emptyRandomWallet ctx
-            r <- request @([ApiTransaction n]) ctx (listByronTxEp w (query tc))
-                Default Empty
+            let link = withQuery (query tc) $ Link.listTransactions @'Byron w
+            r <- request @([ApiTransaction n]) ctx link Default Empty
             verify r (assertions tc)
 
     it "BYRON_TX_LIST_01 - Start time shouldn't be later than end time" $
         \ctx -> do
-              w <- emptyRandomWallet ctx
-              let startTime = "2009-09-09T09:09:09Z"
-              let endTime = "2001-01-01T01:01:01Z"
-              let q = toQueryString
-                      [ ("start", T.pack startTime)
-                      , ("end", T.pack endTime)
-                      ]
-              r <- request @([ApiTransaction n]) ctx (listByronTxEp w q)
-                  Default Empty
-              expectResponseCode @IO HTTP.status400 r
-              expectErrorMessage
-                  (errMsg400StartTimeLaterThanEndTime startTime endTime) r
+            w <- emptyRandomWallet ctx
+            let startTime = "2009-09-09T09:09:09Z"
+            let endTime = "2001-01-01T01:01:01Z"
+            let link = Link.listTransactions' @'Byron w
+                    (either (const Nothing) Just $ fromText $ T.pack startTime)
+                    (either (const Nothing) Just $ fromText $ T.pack endTime)
+                    Nothing
+            r <- request @([ApiTransaction n]) ctx link Default Empty
+            expectResponseCode @IO HTTP.status400 r
+            expectErrorMessage
+                (errMsg400StartTimeLaterThanEndTime startTime endTime) r
 
     it "BYRON_TX_LIST_02 -\
         \ Byron endpoint does not list Shelley wallet transactions" $ \ctx -> do
@@ -206,9 +208,10 @@ spec = do
 
     it "BYRON_TX_LIST_04 - Deleted wallet" $ \ctx -> do
         w <- emptyRandomWallet ctx
-        _ <- request @ApiByronWallet ctx (deleteByronWalletEp w) Default Empty
-        r <- request @([ApiTransaction n]) ctx (listByronTxEp w mempty)
-            Default Empty
+        _ <- request @ApiByronWallet ctx
+            (Link.deleteWallet @'Byron w) Default Empty
+        let link = Link.listTransactions @'Byron w
+        r <- request @([ApiTransaction n]) ctx link Default Empty
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
@@ -227,5 +230,6 @@ spec = do
         forM_ (getHeaderCases HTTP.status200)
             $ \(title, h, expec) -> it title $ \ctx -> do
             w <- emptyRandomWallet ctx
-            r <- request @([ApiTransaction n]) ctx (listByronTxEp w mempty) h Empty
+            let link = Link.listTransactions @'Byron w
+            r <- request @([ApiTransaction n]) ctx link h Empty
             verify r expec

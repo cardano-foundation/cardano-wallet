@@ -105,6 +105,7 @@ library
       Cardano.Wallet
       Cardano.Wallet.Api
       Cardano.Wallet.Api.Client
+      Cardano.Wallet.Api.Link
       Cardano.Wallet.Api.Server
       Cardano.Wallet.Api.Types
       Cardano.Wallet.DB

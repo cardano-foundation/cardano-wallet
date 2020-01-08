@@ -30,8 +30,14 @@
 
 module Cardano.Wallet.Api.Types
     (
+    -- * Wallet Styles
+      WalletStyle (..)
+    , ByronWalletStyle (..)
+    , StyleSymbol
+    , AllowedMnemonics
+
     -- * API Types
-      ApiAddress (..)
+    , ApiAddress (..)
     , ApiEpochInfo (..)
     , ApiSelectCoinsData (..)
     , ApiCoinSelection (..)
@@ -194,6 +200,32 @@ import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+
+{-------------------------------------------------------------------------------
+                               Styles of Wallets
+-------------------------------------------------------------------------------}
+
+data WalletStyle
+    = Shelley
+    | Byron
+
+data ByronWalletStyle
+    = Random
+    | Icarus
+    | Trezor
+    | Ledger
+
+type family StyleSymbol (style :: ByronWalletStyle) :: Symbol where
+    StyleSymbol 'Random  = "random"
+    StyleSymbol 'Icarus  = "icarus"
+    StyleSymbol 'Trezor  = "trezor"
+    StyleSymbol 'Ledger  = "ledger"
+
+type family AllowedMnemonics (style :: ByronWalletStyle) :: [Nat] where
+    AllowedMnemonics 'Random  = '[12]
+    AllowedMnemonics 'Icarus  = '[15]
+    AllowedMnemonics 'Trezor  = '[12,15,18,21,24]
+    AllowedMnemonics 'Ledger  = '[12,15,18,21,24]
 
 {-------------------------------------------------------------------------------
                                   API Types

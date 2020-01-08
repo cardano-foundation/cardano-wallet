@@ -68,6 +68,7 @@ import Test.Integration.Faucet
     ( Faucet )
 
 import qualified Data.Aeson as Aeson
+import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Text as T
 import qualified Network.HTTP.Client as HTTP
 import qualified Network.HTTP.Types.Status as HTTP
@@ -181,10 +182,11 @@ request ctx (verb, path) reqHeaders body = do
                 Empty -> mempty
 
     handleResponse res = case responseStatus res of
-        s | s < status500 -> maybe
-            (s, Left $ decodeFailure res)
+        s | s < status500 -> either
+            (\err -> (s, Left $ DecodeFailure $ BL8.pack $ err <> ": " <> show res))
             ((s,) . Right)
-            (Aeson.decode $ responseBody res)
+            (Aeson.eitherDecode $ responseBody res)
+
         -- TODO: decode API error responses into ClientError
         s -> (s, Left $ decodeFailure res)
 

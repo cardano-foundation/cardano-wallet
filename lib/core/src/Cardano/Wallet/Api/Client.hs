@@ -24,6 +24,7 @@ module Cardano.Wallet.Api.Client
     ( -- * API endpoints
       WalletClient (..)
     , walletClient
+
       -- * Helper functions
     , waitForSync
     , waitForRestore

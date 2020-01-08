@@ -11,7 +11,7 @@ module Test.Integration.Jormungandr.Scenario.CLI.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiTxId (..), ApiWallet, getApiT )
+    ( ApiTxId (..), ApiWallet, WalletStyle (..), getApiT )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..), hex )
 import Cardano.Wallet.Primitive.Types
@@ -43,7 +43,6 @@ import Test.Integration.Framework.DSL
     , expectEventually'
     , expectValidJSON
     , fixtureRawTx
-    , getWalletEp
     , getWalletViaCLI
     , listAddresses
     , postExternalTransactionViaCLI
@@ -60,6 +59,7 @@ import Test.Integration.Jormungandr.Scenario.API.Transactions
 import Web.HttpApiData
     ( ToHttpApiData (..) )
 
+import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
@@ -83,8 +83,8 @@ spec = do
         out `shouldContain` "id"
         code `shouldBe` ExitSuccess
 
-        expectEventually' ctx getWalletEp balanceAvailable amt w
-        expectEventually' ctx getWalletEp balanceTotal amt w
+        expectEventually' ctx (Link.getWallet @'Shelley) balanceAvailable amt w
+        expectEventually' ctx (Link.getWallet @'Shelley) balanceTotal amt w
 
     it "TRANS_EXTERNAL_CREATE_01cli - proper single output transaction and \
        \proper binary format" $ \ctx -> do
@@ -103,8 +103,8 @@ spec = do
         out `shouldBe` "{\n    \"id\": " ++ show expectedTxId ++ "\n}\n"
         code `shouldBe` ExitSuccess
 
-        expectEventually' ctx getWalletEp balanceTotal (initTotal + toSend) wDest
-        expectEventually' ctx getWalletEp balanceAvailable (initAvailable + toSend) wDest
+        expectEventually' ctx (Link.getWallet @'Shelley) balanceTotal (initTotal + toSend) wDest
+        expectEventually' ctx (Link.getWallet @'Shelley) balanceAvailable (initAvailable + toSend) wDest
 
         -- verify balance on dest wallet
         Stdout gOutDest <- getWalletViaCLI @t ctx (T.unpack (wDest ^. walletId))
@@ -152,8 +152,8 @@ spec = do
         let txid = T.unpack $ toUrlPiece (txJson ^. #id)
 
         -- funds eventually are on target wallet
-        expectEventually' ctx getWalletEp balanceAvailable amt w
-        expectEventually' ctx getWalletEp balanceTotal amt w
+        expectEventually' ctx (Link.getWallet @'Shelley) balanceAvailable amt w
+        expectEventually' ctx (Link.getWallet @'Shelley) balanceTotal amt w
 
         -- Try to forget external tx
         (Exit c2, Stdout out2, Stderr err2) <-

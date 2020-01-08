@@ -18,6 +18,7 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiTxId (..)
     , ApiWallet
+    , WalletStyle (..)
     , encodeAddress
     , getApiT
     , insertedAt
@@ -76,7 +77,6 @@ import Test.Integration.Framework.DSL
     , feeEstimator
     , fixtureWallet
     , fixtureWalletWith
-    , getWalletEp
     , getWalletViaCLI
     , listAddresses
     , listAllTransactions
@@ -106,6 +106,7 @@ import Test.Integration.Framework.TestData
 import Web.HttpApiData
     ( ToHttpApiData (..) )
 
+import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
 
 spec
@@ -139,8 +140,8 @@ spec = do
                 )
             ]
 
-        expectEventually' ctx getWalletEp balanceAvailable amt wDest
-        expectEventually' ctx getWalletEp balanceTotal amt wDest
+        expectEventually' ctx (Link.getWallet @'Shelley) balanceAvailable amt wDest
+        expectEventually' ctx (Link.getWallet @'Shelley) balanceTotal amt wDest
 
         -- verify balance on dest wallet
         Stdout gOutDest <- getWalletViaCLI @t ctx (T.unpack (wDest ^. walletId))
@@ -189,8 +190,8 @@ spec = do
                 )
             ]
 
-        expectEventually' ctx getWalletEp balanceAvailable (2*amt) wDest
-        expectEventually' ctx getWalletEp balanceTotal (2*amt) wDest
+        expectEventually' ctx (Link.getWallet @'Shelley) balanceAvailable (2*amt) wDest
+        expectEventually' ctx (Link.getWallet @'Shelley) balanceTotal (2*amt) wDest
 
         -- verify balance on dest wallet
         Stdout gOutDest <- getWalletViaCLI @t ctx (T.unpack (wDest ^. walletId))
@@ -242,8 +243,8 @@ spec = do
             ]
 
         forM_ [wDest1, wDest2] $ \wDest -> do
-            expectEventually' ctx getWalletEp balanceAvailable amt wDest
-            expectEventually' ctx getWalletEp balanceTotal amt wDest
+            expectEventually' ctx (Link.getWallet @'Shelley) balanceAvailable amt wDest
+            expectEventually' ctx (Link.getWallet @'Shelley) balanceTotal amt wDest
 
             -- verify balance on dest wallets
             Stdout gOutDest <- getWalletViaCLI @t ctx (T.unpack (wDest ^. walletId))
@@ -300,8 +301,8 @@ spec = do
             , expectCliFieldEqual balanceAvailable 0
             ]
 
-        expectEventually' ctx getWalletEp balanceAvailable amt wDest
-        expectEventually' ctx getWalletEp balanceTotal amt wDest
+        expectEventually' ctx (Link.getWallet @'Shelley) balanceAvailable amt wDest
+        expectEventually' ctx (Link.getWallet @'Shelley) balanceTotal amt wDest
 
         Stdout gOutDest <- getWalletViaCLI @t ctx (T.unpack (wDest ^. walletId))
         destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
@@ -680,8 +681,8 @@ spec = do
         -- post transaction
         (c, _, _) <- postTransactionViaCLI @t ctx "cardano-wallet" args
         c `shouldBe` ExitSuccess
-        expectEventually' ctx getWalletEp balanceAvailable amt wDest
-        expectEventually' ctx getWalletEp balanceTotal amt wDest
+        expectEventually' ctx (Link.getWallet @'Shelley) balanceAvailable amt wDest
+        expectEventually' ctx (Link.getWallet @'Shelley) balanceTotal amt wDest
 
         -- Verify Tx list contains Incoming and Outgoing
         (Exit code, Stdout out, Stderr err) <-

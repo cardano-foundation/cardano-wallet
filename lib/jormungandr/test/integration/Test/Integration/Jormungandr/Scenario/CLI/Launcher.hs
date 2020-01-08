@@ -18,7 +18,7 @@ import Cardano.CLI
 import Cardano.Launcher
     ( Command (..), StdStream (..), withBackendProcess )
 import Cardano.Wallet.Api.Types
-    ( ApiWallet )
+    ( ApiWallet, WalletStyle (..) )
 import Cardano.Wallet.Primitive.Types
     ( SyncProgress (..) )
 import Control.Exception
@@ -57,7 +57,6 @@ import Test.Integration.Framework.DSL
     , expectPathEventuallyExist
     , expectValidJSON
     , generateMnemonicsViaCLI
-    , getWalletEp
     , proc'
     , state
     , waitForServer
@@ -67,6 +66,7 @@ import Test.Utils.Paths
 import Test.Utils.Ports
     ( findPort )
 
+import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text.IO as TIO
 
 spec :: forall t. (KnownCommand t) => Spec
@@ -210,7 +210,7 @@ spec = do
                 TIO.hGetContents e >>= TIO.putStrLn
             withCreateProcess process $ \_ (Just o) (Just e) ph -> do
                 waitForServer @t ctx
-                expectEventually' ctx getWalletEp state Ready wallet
+                expectEventually' ctx (Link.getWallet @'Shelley) state Ready wallet
               `finally` do
                 terminateProcess ph
                 TIO.hGetContents o >>= TIO.putStrLn

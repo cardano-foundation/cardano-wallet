@@ -24,6 +24,7 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction (..)
     , ApiTxId (..)
     , ApiWallet
+    , WalletStyle (..)
     )
 import Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer )
@@ -95,14 +96,9 @@ import Test.Integration.Framework.DSL as DSL
     , fixtureRawTx
     , fixtureWallet
     , getFromResponse
-    , getWalletEp
     , json
     , listAddresses
     , listAllTransactions
-    , listTxEp
-    , postExternalTxEp
-    , postTxEp
-    , postTxFeeEp
     , request
     , state
     , status
@@ -125,6 +121,7 @@ import Test.Integration.Jcli
 import Test.QuickCheck
     ( arbitrary, generate, vectorOf )
 
+import qualified Cardano.Wallet.Api.Link as Link
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -139,12 +136,12 @@ spec = do
 
     it "TRANS_CREATE_09 - 0 amount transaction is accepted on single output tx" $ \ctx -> do
         (wSrc, payload) <- fixtureZeroAmtSingle ctx
-        r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
+        r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
         expectResponseCode HTTP.status202 r
 
     it "TRANS_CREATE_09 - 0 amount transaction is accepted on multi-output tx" $ \ctx -> do
         (wSrc, payload) <- fixtureZeroAmtMulti ctx
-        r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
+        r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
         expectResponseCode HTTP.status202 r
 
     it "TRANS_CREATE_10 - 'account' outputs" $ \ctx -> do
@@ -176,7 +173,7 @@ spec = do
                 "passphrase": #{fixturePassphrase}
             }|]
 
-        r <- request @(ApiTransaction n) ctx (postTxEp wSrc) Default payload
+        r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
             , expectFieldEqual DSL.direction Outgoing
@@ -185,7 +182,7 @@ spec = do
 
         eventually_ $ do
             request @([ApiTransaction n]) ctx
-                (listTxEp wSrc mempty)
+                (Link.listTransactions @'Shelley wSrc)
                 Default
                 Empty
                 >>= flip verify
@@ -193,7 +190,7 @@ spec = do
                 , expectListItemFieldEqual 0 DSL.status InLedger
                 ]
             request @([ApiTransaction n]) ctx
-                (listTxEp wDest mempty)
+                (Link.listTransactions @'Shelley wDest)
                 Default
                 Empty
                 >>= flip verify
@@ -202,7 +199,7 @@ spec = do
                 , expectListItemFieldEqual 0 DSL.amount utxoAmt
                 ]
             request @ApiWallet ctx
-                (getWalletEp wDest)
+                (Link.getWallet @'Shelley wDest)
                 Default
                 Empty
                 >>= flip verify
@@ -213,13 +210,13 @@ spec = do
     it "TRANS_ESTIMATE_09 - \
         \a fee can be estimated for a tx with an output of amount 0 (single)" $ \ctx -> do
         (wSrc, payload) <- fixtureZeroAmtSingle ctx
-        r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
+        r <- request @ApiFee ctx (Link.getTransactionFee wSrc) Default payload
         expectResponseCode HTTP.status202 r
 
     it "TRANS_ESTIMATE_09 - \
         \a fee can be estimated for a tx with an output of amount 0 (multi)" $ \ctx -> do
         (wSrc, payload) <- fixtureZeroAmtMulti ctx
-        r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
+        r <- request @ApiFee ctx (Link.getTransactionFee wSrc) Default payload
         expectResponseCode HTTP.status202 r
 
     it "TRANS_LIST_?? - List transactions of a fixture wallet" $ \ctx -> do
@@ -237,11 +234,11 @@ spec = do
                         [ ("Content-Type", "application/octet-stream")
                         , ("Accept", "application/json")]
 
-        request @ApiTxId ctx postExternalTxEp headers (NonJson payload)
+        request @ApiTxId ctx Link.postExternalTransaction headers (NonJson payload)
             >>= expectResponseCode HTTP.status202
 
-        expectEventually' ctx getWalletEp balanceAvailable amt w
-        expectEventually' ctx getWalletEp balanceTotal amt w
+        expectEventually' ctx (Link.getWallet @'Shelley) balanceAvailable amt w
+        expectEventually' ctx (Link.getWallet @'Shelley) balanceTotal amt w
 
     describe "TRANS_DELETE_05 - Cannot forget external tx -> 404" $ do
         let txDeleteTest05
@@ -259,7 +256,7 @@ spec = do
                                 [ ("Content-Type", "application/octet-stream")
                                 , ("Accept", "application/json")]
 
-                r <- request @ApiTxId ctx postExternalTxEp headers (NonJson payload)
+                r <- request @ApiTxId ctx Link.postExternalTransaction headers (NonJson payload)
                 let txid = toText $ getApiT$ getFromResponse #id r
 
                 -- try to forget external tx using wallet or byron-wallet
@@ -271,8 +268,8 @@ spec = do
                 expectErrorMessage (errMsg404CannotFindTx txid) ra
 
                 -- tx eventually gets into ledger (funds are on the target wallet)
-                expectEventually' ctx getWalletEp balanceAvailable amt wal
-                expectEventually' ctx getWalletEp balanceTotal amt wal
+                expectEventually' ctx (Link.getWallet @'Shelley) balanceAvailable amt wal
+                expectEventually' ctx (Link.getWallet @'Shelley) balanceTotal amt wal
 
 
         txDeleteTest05 "wallets" emptyWallet
@@ -290,21 +287,21 @@ spec = do
         (initTotal, initAvailable) <- getWalletBalance ctx wDest
 
         r <- request
-            @ApiTxId ctx postExternalTxEp headers (payload encodedSignedTx)
+            @ApiTxId ctx Link.postExternalTransaction headers (payload encodedSignedTx)
         verify r
             [ expectSuccess
             , expectResponseCode HTTP.status202
             ]
 
-        rb <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
+        rb <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default Empty
         verify rb
             [ expectSuccess
-            , expectEventually ctx getWalletEp balanceTotal (initTotal + toSend)
-            , expectEventually ctx getWalletEp balanceAvailable (initAvailable + toSend)
+            , expectEventually ctx (Link.getWallet @'Shelley) balanceTotal (initTotal + toSend)
+            , expectEventually ctx (Link.getWallet @'Shelley) balanceAvailable (initAvailable + toSend)
             ]
-        ra <- request @ApiWallet ctx (getWalletEp wSrc) Default Empty
+        ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
         verify ra
-            [ expectEventually ctx getWalletEp balanceAvailable (faucetAmt - fee - toSend)
+            [ expectEventually ctx (Link.getWallet @'Shelley) balanceAvailable (faucetAmt - fee - toSend)
             ]
 
     it "TRANS_EXTERNAL_CREATE_02 - proper single output transaction and \
@@ -317,7 +314,7 @@ spec = do
         let headers = Headers [ ("Content-Type", "application/octet-stream") ]
         let payloadWrong = NonJson . BL.fromStrict . T.encodeUtf8
         r1 <- request
-            @ApiTxId ctx postExternalTxEp headers (payloadWrong wronglyEncodedTx)
+            @ApiTxId ctx Link.postExternalTransaction headers (payloadWrong wronglyEncodedTx)
         verify r1
             [ expectErrorMessage errMsg400MalformedTxPayload
             , expectResponseCode HTTP.status400
@@ -329,7 +326,7 @@ spec = do
         (ExternalTxFixture _ _ _ bin _) <- fixtureExternalTx ctx toSend
         let payload = NonJson $ BL.fromStrict $ ("\NUL\NUL"<>) $ getSealedTx bin
         let headers = Headers [ ("Content-Type", "application/octet-stream") ]
-        r <- request @ApiTxId ctx postExternalTxEp headers payload
+        r <- request @ApiTxId ctx Link.postExternalTransaction headers payload
         verify r
             [ expectErrorMessage errMsg400MalformedTxPayload
             , expectResponseCode HTTP.status400
@@ -338,7 +335,7 @@ spec = do
     it "TRANS_EXTERNAL_CREATE_03 - empty payload" $ \ctx -> do
         _ <- emptyWallet ctx
         let headers = Headers [ ("Content-Type", "application/octet-stream") ]
-        r <- request @ApiTxId ctx postExternalTxEp headers Empty
+        r <- request @ApiTxId ctx Link.postExternalTransaction headers Empty
         verify r
             [ expectErrorMessage errMsg400MalformedTxPayload
             , expectResponseCode HTTP.status400
@@ -360,7 +357,7 @@ spec = do
         forM_ (externalTxHeaders @ApiTxId) $ \(title, headers, expectations) ->
             it title $ \ctx -> do
                 let payload = NonJson mempty
-                r <- request @ApiTxId ctx postExternalTxEp headers payload
+                r <- request @ApiTxId ctx Link.postExternalTransaction headers payload
                 verify r expectations
 
   where
@@ -493,7 +490,7 @@ fixtureExternalTx ctx toSend = do
     r1 <- request @ApiWallet ctx ("POST", "v2/wallets") Default createWallet
     verify r1
         [ expectFieldEqual walletName "Destination Wallet"
-        , expectEventually ctx getWalletEp state Ready
+        , expectEventually ctx (Link.getWallet @'Shelley) state Ready
         ]
     let wDest = getFromResponse Prelude.id r1
     addrsDest <- listAddresses ctx wDest
@@ -545,7 +542,7 @@ fixtureExternalTx ctx toSend = do
 
 getWalletBalance :: Context t -> ApiWallet -> IO (Natural, Natural)
 getWalletBalance ctx w = do
-    r <- request @ApiWallet ctx (getWalletEp w) Default Empty
+    r <- request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
     let total = getFromResponse balanceTotal r
     let available = getFromResponse balanceAvailable r
     return (total, available)

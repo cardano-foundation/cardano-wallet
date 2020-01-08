@@ -106,7 +106,6 @@ module Test.Integration.Framework.DSL
     , proc'
     , waitForServer
     , for
-    , toQueryString
     , utcIso8601ToText
     , eventually
     , eventuallyUsingDelay
@@ -114,34 +113,9 @@ module Test.Integration.Framework.DSL
     , eventuallyUsingDelay_
     , fixturePassphrase
     , waitForNextEpoch
-
-    -- * Endpoints
-    , postByronWalletEp
-    , migrateByronWalletEp
-    , calculateByronMigrationCostEp
-    , getByronWalletEp
-    , listByronWalletsEp
-    , listByronTxEp
-    , deleteByronWalletEp
-    , deleteByronTxEp
-    , getWalletEp
-    , deleteWalletEp
-    , getWalletUtxoEp
-    , getAddressesEp
-    , listStakePoolsEp
-    , joinStakePoolEp
-    , delegationFeeEp
-    , quitStakePoolEp
-    , selectCoinsEp
-    , stakePoolEp
-    , postTxEp
-    , postExternalTxEp
-    , postTxFeeEp
-    , listTxEp
-    , networkInfoEp
-    , updateWalletPassEp
-    , listWalletsEp
-    , deleteTxEp
+    , toQueryString
+    , withMethod
+    , withPathParam
 
     -- * CLI
     , command
@@ -178,11 +152,12 @@ import Cardano.Wallet.Api.Types
     , ApiStakePoolMetrics
     , ApiT (..)
     , ApiTransaction
-    , ApiTxId
     , ApiTxInput (..)
     , ApiUtxoStatistics (..)
     , ApiWallet
+    , ByronWalletStyle (..)
     , Iso8601Time (..)
+    , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
@@ -238,6 +213,8 @@ import Data.Foldable
     ( toList )
 import Data.Function
     ( (&) )
+import Data.Functor.Identity
+    ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
     ( Lens', lens, set, view, (^.) )
 import Data.Generics.Labels
@@ -251,15 +228,13 @@ import Data.List
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Maybe
-    ( catMaybes, fromMaybe )
+    ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
-import Data.Text.Class
-    ( ToText (..) )
 import Data.Time
     ( UTCTime )
 import Data.Time.Text
@@ -311,6 +286,7 @@ import Test.Integration.Framework.Request
 import Web.HttpApiData
     ( ToHttpApiData (..) )
 
+import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.Types as Types
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as B8
@@ -322,6 +298,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
 import qualified Network.HTTP.Types.Status as HTTP
+
 --
 -- API response expectations
 --
@@ -937,10 +914,10 @@ waitForNextEpoch
     -> IO ()
 waitForNextEpoch ctx = do
     epoch <- getFromResponse (#nodeTip . #epochNumber) <$>
-        request @ApiNetworkInformation ctx networkInfoEp Default Empty
+        request @ApiNetworkInformation ctx Link.getNetworkInfo Default Empty
     eventually $ do
         epoch' <- getFromResponse (#nodeTip . #epochNumber) <$>
-            request @ApiNetworkInformation ctx networkInfoEp Default Empty
+            request @ApiNetworkInformation ctx Link.getNetworkInfo Default Empty
         unless (getApiT epoch' > getApiT epoch) $ fail "not yet"
 
 -- Retry the given action a couple of time until it doesn't throw, or until it
@@ -991,21 +968,30 @@ utcIso8601ToText = utcTimeToText iso8601ExtendedUtc
 emptyRandomWallet :: Context t -> IO ApiByronWallet
 emptyRandomWallet ctx = do
     mnemonic <- mnemonicToText @12 . entropyToMnemonic <$> genEntropy
-    emptyByronWalletWith ctx "random" ("Random Wallet", mnemonic, "Secure Passphrase")
+    emptyByronWalletWith @'Random ctx
+        ("Random Wallet", mnemonic, "Secure Passphrase")
 
 emptyIcarusWallet :: Context t -> IO ApiByronWallet
 emptyIcarusWallet ctx = do
     mnemonic <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
-    emptyByronWalletWith ctx "icarus" ("Icarus Wallet", mnemonic, "Secure Passphrase")
+    emptyByronWalletWith @'Icarus ctx
+        ("Icarus Wallet", mnemonic, "Secure Passphrase")
 
-emptyByronWalletWith :: Context t -> Text -> (Text, [Text], Text) -> IO ApiByronWallet
-emptyByronWalletWith ctx style (name, mnemonic, pass) = do
+emptyByronWalletWith
+    :: forall (style :: ByronWalletStyle) t.
+        ( Link.PostWallet style
+        )
+    => Context t
+    -> (Text, [Text], Text)
+    -> IO ApiByronWallet
+emptyByronWalletWith ctx (name, mnemonic, pass) = do
     let payload = Json [aesonQQ| {
             "name": #{name},
             "mnemonic_sentence": #{mnemonic},
             "passphrase": #{pass}
         }|]
-    r <- request @ApiByronWallet ctx (postByronWalletEp style) Default payload
+    r <- request @ApiByronWallet ctx
+        (Link.postWallet @style) Default payload
     expectResponseCode @IO HTTP.status201 r
     return (getFromResponse id r)
 
@@ -1018,7 +1004,8 @@ emptyWallet ctx = do
             "mnemonic_sentence": #{mnemonic},
             "passphrase": "Secure Passphrase"
         }|]
-    r <- request @ApiWallet ctx postWalletEp Default payload
+    r <- request @ApiWallet ctx
+        (Link.postWallet @'Shelley) Default payload
     expectResponseCode @IO HTTP.status201 r
     return (getFromResponse id r)
 
@@ -1032,7 +1019,8 @@ emptyWalletWith ctx (name, passphrase, addrPoolGap) = do
             "passphrase": #{passphrase},
             "address_pool_gap" : #{addrPoolGap}
         }|]
-    r <- request @ApiWallet ctx postWalletEp Default payload
+    r <- request @ApiWallet ctx
+        (Link.postWallet @'Shelley) Default payload
     expectResponseCode @IO HTTP.status201 r
     return (getFromResponse id r)
 
@@ -1061,14 +1049,16 @@ fixtureWallet ctx = do
             "mnemonic_sentence": #{mnemonics},
             "passphrase": #{fixturePassphrase}
             } |]
-    (_, w) <- unsafeRequest @ApiWallet ctx postWalletEp payload
+    (_, w) <- unsafeRequest @ApiWallet ctx
+        (Link.postWallet @'Shelley) payload
     race (threadDelay sixtySeconds) (checkBalance w) >>= \case
         Left _ -> fail "fixtureWallet: waited too long for initial transaction"
         Right a -> return a
   where
     sixtySeconds = 60*oneSecond
     checkBalance w = do
-        r <- request @ApiWallet ctx (getWalletEp w) Default Empty
+        r <- request @ApiWallet ctx
+            (Link.getWallet @'Shelley w) Default Empty
         if getFromResponse balanceAvailable r > 0
             then return (getFromResponse id r)
             else threadDelay oneSecond *> checkBalance w
@@ -1079,7 +1069,7 @@ fixtureRandomWallet
     -> IO ApiByronWallet
 fixtureRandomWallet ctx = do
     mnemonics <- mnemonicToText <$> nextWallet @"random" (_faucet ctx)
-    fixtureLegacyWallet ctx "random" mnemonics
+    fixtureLegacyWallet @'Random ctx mnemonics
 
 -- | Restore a faucet Icarus wallet and wait until funds are available.
 fixtureIcarusWallet
@@ -1087,21 +1077,24 @@ fixtureIcarusWallet
     -> IO ApiByronWallet
 fixtureIcarusWallet ctx = do
     mnemonics <- mnemonicToText <$> nextWallet @"icarus" (_faucet ctx)
-    fixtureLegacyWallet ctx "icarus" mnemonics
+    fixtureLegacyWallet @'Icarus ctx mnemonics
 
 -- | Restore a legacy wallet (Byron or Icarus)
 fixtureLegacyWallet
-    :: Context t
-    -> Text
+    :: forall (style :: ByronWalletStyle) t.
+        ( Link.PostWallet style
+        )
+    => Context t
     -> [Text]
     -> IO ApiByronWallet
-fixtureLegacyWallet ctx style mnemonics = do
+fixtureLegacyWallet ctx mnemonics = do
     let payload = Json [aesonQQ| {
             "name": "Faucet Byron Wallet",
             "mnemonic_sentence": #{mnemonics},
             "passphrase": #{fixturePassphrase}
             } |]
-    (_, w) <- unsafeRequest @ApiByronWallet ctx (postByronWalletEp style) payload
+    (_, w) <- unsafeRequest @ApiByronWallet ctx
+        (Link.postWallet @style) payload
     race (threadDelay sixtySeconds) (checkBalance w) >>= \case
         Left _ ->
             fail "fixtureByronWallet: waited too long for initial transaction"
@@ -1110,7 +1103,8 @@ fixtureLegacyWallet ctx style mnemonics = do
   where
     sixtySeconds = 60*oneSecond
     checkBalance w = do
-        r <- request @ApiByronWallet ctx (getByronWalletEp w) Default Empty
+        r <- request @ApiByronWallet ctx
+            (Link.getWallet @'Byron w) Default Empty
         if getFromResponse byronBalanceAvailable r > 0
             then return (getFromResponse id r)
             else threadDelay oneSecond *> checkBalance w
@@ -1129,8 +1123,10 @@ fixtureWalletWith ctx coins0 = do
     src <- fixtureWallet ctx
     dest <- emptyWallet ctx
     mapM_ (moveCoins src dest) (groupsOf 10 coins0)
-    void $ request @() ctx (deleteWalletEp src) Default Empty
-    snd <$> unsafeRequest @ApiWallet ctx (getWalletEp dest) Empty
+    void $ request @() ctx
+        (Link.deleteWallet @'Shelley src) Default Empty
+    snd <$> unsafeRequest @ApiWallet ctx
+        (Link.getWallet @'Shelley dest) Empty
   where
     -- | Move coins from a wallet to another
     moveCoins
@@ -1143,10 +1139,11 @@ fixtureWalletWith ctx coins0 = do
         -> IO ()
     moveCoins src dest coins = do
         balance <- getFromResponse balanceAvailable
-            <$> request @ApiWallet ctx (getWalletEp dest) Default Empty
+            <$> request @ApiWallet ctx
+                    (Link.getWallet @'Shelley dest) Default Empty
         addrs <- fmap (view #id) . getFromResponse id
-            <$> request @[ApiAddress 'Testnet]
-                ctx (getAddressesEp dest "") Default Empty
+            <$> request @[ApiAddress 'Testnet] ctx
+                    (Link.listAddresses dest) Default Empty
         let payments = for (zip coins addrs) $ \(amt, addr) -> [aesonQQ|{
                 "address": #{addr},
                 "amount": {
@@ -1158,10 +1155,11 @@ fixtureWalletWith ctx coins0 = do
                 "payments": #{payments :: [Value]},
                 "passphrase": #{fixturePassphrase}
             }|]
-        request @(ApiTransaction 'Testnet) ctx (postTxEp src) Default payload
+        request @(ApiTransaction 'Testnet) ctx
+            (Link.createTransaction src) Default payload
             >>= expectResponseCode HTTP.status202
         expectEventually'
-            ctx getWalletEp balanceAvailable (sum (balance:coins)) dest
+            ctx (Link.getWallet @'Shelley) balanceAvailable (sum (balance:coins)) dest
         expectEventuallyL ctx balanceAvailable balanceTotal src
 
 -- | Total amount on each faucet wallet
@@ -1212,7 +1210,8 @@ joinStakePool ctx p (w, pass) = do
     let payload = Json [aesonQQ| {
             "passphrase": #{pass}
             } |]
-    request @(ApiTransaction 'Testnet) ctx (joinStakePoolEp p w) Default payload
+    request @(ApiTransaction 'Testnet) ctx
+        (Link.joinStakePool (Identity p) w) Default payload
 
 quitStakePool
     :: forall t w. (HasType (ApiT WalletId) w)
@@ -1224,7 +1223,8 @@ quitStakePool ctx p (w, pass) = do
     let payload = Json [aesonQQ| {
             "passphrase": #{pass}
             } |]
-    request @(ApiTransaction 'Testnet) ctx (quitStakePoolEp p w) Default payload
+    request @(ApiTransaction 'Testnet) ctx
+        (Link.quitStakePool (Identity p) w) Default payload
 
 selectCoins
     :: forall t w. (HasType (ApiT WalletId) w)
@@ -1235,8 +1235,9 @@ selectCoins
 selectCoins ctx w payments = do
     let payload = Json [aesonQQ| {
             "payments": #{payments}
-            } |]
-    request @(ApiCoinSelection 'Testnet) ctx (selectCoinsEp w) Default payload
+        } |]
+    request @(ApiCoinSelection 'Testnet) ctx
+        (Link.selectCoins w) Default payload
 
 delegationFee
     :: forall t w. (HasType (ApiT WalletId) w)
@@ -1244,22 +1245,23 @@ delegationFee
     -> w
     -> IO (HTTP.Status, Either RequestException ApiFee)
 delegationFee ctx w = do
-    request @ApiFee ctx (delegationFeeEp w) Default Empty
+    request @ApiFee ctx (Link.getDelegationFee w) Default Empty
 
 listAddresses
     :: Context t
     -> ApiWallet
     -> IO [ApiAddress 'Testnet]
 listAddresses ctx w = do
-    (_, addrs) <- unsafeRequest
-        @[ApiAddress 'Testnet] ctx (getAddressesEp w "") Empty
+    let link = Link.listAddresses w
+    (_, addrs) <- unsafeRequest @[ApiAddress 'Testnet] ctx link Empty
     return addrs
 
 listAllTransactions
     :: Context t
     -> ApiWallet
     -> IO [ApiTransaction 'Testnet]
-listAllTransactions ctx w = listTransactions ctx w Nothing Nothing Nothing
+listAllTransactions ctx w =
+    listTransactions ctx w Nothing Nothing Nothing
 
 listTransactions
     :: Context t
@@ -1272,21 +1274,10 @@ listTransactions ctx wallet mStart mEnd mOrder = do
     (_, txs) <- unsafeRequest @[ApiTransaction 'Testnet] ctx path Empty
     return txs
   where
-    path = listTxEp wallet $ toQueryString $ catMaybes
-        [ ("start", ) . toText <$> (Iso8601Time <$> mStart)
-        , ("end"  , ) . toText <$> (Iso8601Time <$> mEnd  )
-        , ("order", ) . toText <$> mOrder
-        ]
-
-toQueryString :: [(Text, Text)] -> Text
-toQueryString kvs = if T.null suffix then mempty else "?" <> suffix
-  where
-    suffix = T.intercalate "&" $ buildQueryParam <$> kvs
-    buildQueryParam (k, v) = k <> "=" <> toQueryParam v
-
-infixr 5 </>
-(</>) :: ToHttpApiData a => Text -> a -> Text
-base </> next = mconcat [base, "/", toQueryParam next]
+    path = Link.listTransactions' @'Shelley wallet
+        (Iso8601Time <$> mStart)
+        (Iso8601Time <$> mEnd)
+        mOrder
 
 -- | teardown after each test (currently only deleting all wallets)
 tearDown :: Context t -> IO ()
@@ -1350,193 +1341,52 @@ wantedErrorButSuccess =
 verify :: (Monad m) => a -> [a -> m ()] -> m ()
 verify a = mapM_ (a &)
 
----
---- Endoints
----
+--
+-- Manipulating endpoints
+--
 
-networkInfoEp :: (Method, Text)
-networkInfoEp =
-    ( "GET"
-    , "v2/network/information"
-    )
+-- | Override the method of a particular endpoint, mostly to exercise invalid
+-- endpoints from existing ones.
+withMethod :: Method -> (Method, Text) -> (Method, Text)
+withMethod method (_, path) = (method, path)
 
-postByronWalletEp :: Text -> (Method, Text)
-postByronWalletEp style =
-    ( "POST"
-    , "v2/byron-wallets/" <> style
-    )
+-- | Modifies the value of a path parameter at position 'n' (indexed from 0)
+-- with the given update function. Throws if the given endpoint has no path
+-- parameter in the given position.
+--
+-- >>> Link.getWallet @Shelley myWallet
+-- ( "GET", "v2/wallets/2512a00e9653fe49a44a5886202e24d77eeb998f" )
+--
+-- >>> withPathParam 0 (<> "suffix") $ Link.getWallet @Shelley myWallet
+-- ( "GET", "v2/wallets/2512a00e9653fe49a44a5886202e24d77eeb998fsuffix" )
+--
+-- >>> withPathParam 1 (const "suffix") $ Link.joinStakePool @Shelley myPool myWallet
+-- ( "GET", "v2/stake-pools/2512a00e9653fe49a44a5886202e24d77eeb998f/wallets/patate" )
+withPathParam :: Int -> (Text -> Text) -> (Method, Text) -> (Method, Text)
+withPathParam n0 update (method, path) =
+    case T.splitOn "/" path of
+        [] -> errInvalidEndpoint
 
-listByronWalletsEp :: (Method, Text)
-listByronWalletsEp =
-    ( "GET"
-    , "v2/byron-wallets"
-    )
+        version:q ->
+            (method, T.intercalate "/" (version:findAndModify n0 q))
+  where
+    findAndModify 0 (k:v:q) = k : update v : q
+    findAndModify n (k:v:q) = k : v : findAndModify (n - 1) q
+    findAndModify _ _       = errInvalidEndpoint
 
-listByronTxEp :: ApiByronWallet -> Text -> (Method, Text)
-listByronTxEp w query =
-    ( "GET"
-    , "v2/byron-wallets/" <> w ^. walletId <> "/transactions" <> query
-    )
+    errInvalidEndpoint :: a
+    errInvalidEndpoint =
+        error $ "modifyPathParam: invalid endpoint: " <> show (method, path)
 
-migrateByronWalletEp
-    :: forall w n. (HasType (ApiT WalletId) w, HasType (ApiT WalletId) n)
-    => w
-    -> n
-    -> (Method, Text)
-migrateByronWalletEp wSrc wDest =
-    ( "POST"
-    , "v2/byron-wallets/" <>
-        wSrc ^. walletId <> "/migrations/" <> wDest ^. walletId
-    )
+toQueryString :: [(Text, Text)] -> Text
+toQueryString kvs = if T.null suffix then mempty else "?" <> suffix
+  where
+    suffix = T.intercalate "&" $ buildQueryParam <$> kvs
+    buildQueryParam (k, v) = k <> "=" <> toQueryParam v
 
-calculateByronMigrationCostEp
-    :: forall w. (HasType (ApiT WalletId) w)
-    => w
-    -> (Method, Text)
-calculateByronMigrationCostEp w =
-    ( "GET"
-    , "v2/byron-wallets/" <> w ^. walletId <> "/migrations"
-    )
-
-getByronWalletEp :: ApiByronWallet -> (Method, Text)
-getByronWalletEp w =
-    ( "GET"
-    , "v2/byron-wallets/" <> w ^. walletId
-    )
-
-deleteByronWalletEp :: ApiByronWallet -> (Method, Text)
-deleteByronWalletEp w =
-    ( "DELETE"
-    , "v2/byron-wallets/" <> w ^. walletId
-    )
-
-deleteByronTxEp :: ApiByronWallet -> ApiTxId -> (Method, Text)
-deleteByronTxEp w tid =
-    ( "DELETE"
-    , "v2/byron-wallets/" <> w ^. walletId <> "/transactions/" <>
-        (toUrlPiece tid)
-    )
-
-listStakePoolsEp :: (Method, Text)
-listStakePoolsEp =
-    ( "GET"
-    , "v2/stake-pools"
-    )
-
-stakePoolEp
-    :: forall w. (HasType (ApiT WalletId) w)
-    => Method
-    -> ApiT PoolId
-    -> w
-    -> (Method, Text)
-stakePoolEp verb poolId w =
-    ( verb
-    , "v2/stake-pools/"
-        <> toText (getApiT poolId)
-        <> "/wallets/"
-        <> w ^. walletId
-    )
-
-joinStakePoolEp
-    :: forall w. (HasType (ApiT WalletId) w)
-    => ApiT PoolId
-    -> w
-    -> (Method, Text)
-joinStakePoolEp = stakePoolEp "PUT"
-
-delegationFeeEp
-    :: forall w. (HasType (ApiT WalletId) w)
-    => w
-    -> (Method, Text)
-delegationFeeEp w =
-    ( "GET"
-    , "v2/wallets/" <> w ^. walletId <> "/delegations/fees"
-    )
-
-quitStakePoolEp
-    :: forall w. (HasType (ApiT WalletId) w)
-    => ApiT PoolId
-    -> w
-    -> (Method, Text)
-quitStakePoolEp = stakePoolEp "DELETE"
-
-selectCoinsEp :: HasType (ApiT WalletId) w => w -> (Method, Text)
-selectCoinsEp w =
-    ( "POST"
-    , "v2/wallets/" <> w ^. walletId <> "/coin-selections/random"
-    )
-
-postWalletEp :: (Method, Text)
-postWalletEp =
-    ( "POST"
-    , "v2/wallets"
-    )
-
-postExternalTxEp :: (Method, Text)
-postExternalTxEp =
-    ( "POST"
-    , "v2/proxy/transactions"
-    )
-
-getWalletEp :: ApiWallet -> (Method, Text)
-getWalletEp w =
-    ( "GET"
-    , "v2/wallets/" <> w ^. walletId
-    )
-
-listWalletsEp :: (Method, Text)
-listWalletsEp =
-    ( "GET"
-    , "v2/wallets"
-    )
-
-deleteWalletEp :: ApiWallet -> (Method, Text)
-deleteWalletEp w =
-    ( "DELETE"
-    , "v2/wallets/" <> w ^. walletId
-    )
-
-getWalletUtxoEp :: ApiWallet -> (Method, Text)
-getWalletUtxoEp w =
-    ( "GET"
-    , "v2/wallets/" <> w ^. walletId <> "/statistics/utxos"
-    )
-
-getAddressesEp :: ApiWallet -> Text -> (Method, Text)
-getAddressesEp w stateFilter =
-    ( "GET"
-    , "v2/wallets/" <> w ^. walletId <> "/addresses" <> stateFilter
-    )
-
-postTxEp :: ApiWallet -> (Method, Text)
-postTxEp w =
-    ( "POST"
-    , "v2/wallets/" <> w ^. walletId <> "/transactions"
-    )
-
-deleteTxEp :: ApiWallet -> ApiTxId -> (Method, Text)
-deleteTxEp w tid =
-    ( "DELETE"
-    , "v2/wallets/" <> w ^. walletId <> "/transactions/" <> (toUrlPiece tid)
-    )
-
-listTxEp :: ApiWallet -> Text -> (Method, Text)
-listTxEp w query =
-    ( "GET"
-    , "v2/wallets/" <> w ^. walletId <> "/transactions" <> query
-    )
-
-postTxFeeEp :: ApiWallet -> (Method, Text)
-postTxFeeEp w =
-    ( "POST"
-    , "v2/wallets/" <> w ^. walletId <> "/transactions/fees"
-    )
-
-updateWalletPassEp :: ApiWallet -> (Method, Text)
-updateWalletPassEp w =
-    ( "PUT"
-    , "v2/wallets/" <> w ^. walletId <> "/passphrase"
-    )
+infixr 5 </>
+(</>) :: ToHttpApiData a => Text -> a -> Text
+base </> next = mconcat [base, "/", toQueryParam next]
 
 ---
 --- CLI

@@ -17,19 +17,52 @@ module Cardano.Wallet.Api
 
       -- * Shelley
     , Wallets
+        , DeleteWallet
+        , GetWallet
+        , ListWallets
+        , PostWallet
+        , PutWallet
+        , PutWalletPassphrase
+        , GetUTxOsStatistics
+
     , Addresses
+        , ListAddresses
+
     , CoinSelections
+        , SelectCoins
+
     , Transactions
+        , CreateTransaction
+        , PostTransactionFee
+        , ListTransactions
+        , DeleteTransaction
+
     , StakePools
+        , ListStakePools
+        , JoinStakePool
+        , QuitStakePool
+        , DelegationFee
 
     -- * Byron
     , ByronWallets
+        , DeleteByronWallet
+        , GetByronWallet
+        , ListByronWallets
+        , PostByronWallet
+
     , ByronTransactions
+        , ListByronTransactions
+        , DeleteByronTransaction
+
     , ByronMigrations
+        , MigrateByronWallet
+        , GetByronWalletMigrationInfo
 
     -- * Miscellaneous
     , Network
+
     , Proxy_
+        , PostExternalTransaction
 
       -- * Api Layer
     , ApiLayer (..)
@@ -49,7 +82,8 @@ import Cardano.BM.Trace
 import Cardano.Wallet
     ( WalletLayer (..) )
 import Cardano.Wallet.Api.Types
-    ( ApiAddress
+    ( AllowedMnemonics
+    , ApiAddress
     , ApiByronWallet
     , ApiByronWalletMigrationInfo
     , ApiCoinSelection
@@ -64,10 +98,12 @@ import Cardano.Wallet.Api.Types
     , ApiWallet
     , ApiWalletPassphrase
     , ByronWalletPostData
+    , ByronWalletStyle (..)
     , Iso8601Time
     , PostExternalTransactionData
     , PostTransactionData
     , PostTransactionFeeData
+    , StyleSymbol
     , WalletPostData
     , WalletPutData
     , WalletPutPassphraseData
@@ -103,8 +139,6 @@ import Data.Text
     ( Text )
 import GHC.Generics
     ( Generic )
-import GHC.TypeLits
-    ( Symbol )
 import Network.HTTP.Media
     ( (//), (/:) )
 import Servant.API
@@ -321,18 +355,18 @@ type DelegationFee = "wallets"
 -------------------------------------------------------------------------------}
 
 type ByronWallets =
-         PostByronWallet "random" '[12]
-    :<|> PostByronWallet "icarus" '[15]
-    :<|> PostByronWallet "trezor" '[12,15,18,21,24]
-    :<|> PostByronWallet "ledger" '[12,15,18,21,24]
+         PostByronWallet 'Random
+    :<|> PostByronWallet 'Icarus
+    :<|> PostByronWallet 'Trezor
+    :<|> PostByronWallet 'Ledger
     :<|> DeleteByronWallet
     :<|> GetByronWallet
     :<|> ListByronWallets
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postByronWallet
-type PostByronWallet (style :: Symbol) mw = "byron-wallets"
-    :> style
-    :> ReqBody '[JSON] (ByronWalletPostData mw)
+type PostByronWallet (style :: ByronWalletStyle) = "byron-wallets"
+    :> StyleSymbol style
+    :> ReqBody '[JSON] (ByronWalletPostData (AllowedMnemonics style))
     :> PostCreated '[JSON] ApiByronWallet
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteByronWallet
