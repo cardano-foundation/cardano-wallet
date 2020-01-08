@@ -4,6 +4,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
@@ -51,7 +52,7 @@ import Control.Exception
 import Control.Monad
     ( mapM_ )
 import Control.Monad.Catch
-    ( Handler (..), MonadCatch (..), handleJust )
+    ( Handler (..), MonadCatch (..), handleIf, handleJust )
 import Control.Monad.Logger
     ( LogLevel (..) )
 import Control.Retry
@@ -147,13 +148,26 @@ handleConstraint e = handleJust select handler . fmap Right
       handler = const . pure  . Left $ e
 
 -- | Finalize database statements and close the database connection.
+--
 -- If the database connection is still in use, it will retry for up to a minute,
 -- to let other threads finish up.
+--
+-- This function is idempotent: if the database connection has already been
+-- closed, calling this function will exit without doing anything.
+--
 destroyDBLayer :: SqliteContext -> IO ()
 destroyDBLayer (SqliteContext {getSqlBackend, trace, dbFile}) = do
     logDebug trace (MsgClosing dbFile)
-    recovering pol [const $ Handler isBusy] (const $ close' getSqlBackend)
+    handleIf
+        isAlreadyClosed
+        (const $ pure ())
+        (recovering pol [const $ Handler isBusy] (const $ close' getSqlBackend))
   where
+    isAlreadyClosed = \case
+        -- Thrown when an attempt is made to close a connection that is already
+        -- in the closed state:
+        Sqlite.SqliteException Sqlite.ErrorMisuse _ _ -> True
+        Sqlite.SqliteException {}                     -> False
     isBusy (SqliteException name _ _) = pure (name == Sqlite.ErrorBusy)
     pol = limitRetriesByCumulativeDelay (60000*ms) $ constantDelay (25*ms)
     ms = 1000 -- microseconds in a millisecond
