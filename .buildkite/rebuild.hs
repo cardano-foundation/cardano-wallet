@@ -70,8 +70,9 @@ main = do
             buildResult <- buildStep optDryRun bk
             when (shouldUploadCoverage bk) $ uploadCoverageStep optDryRun
             whenRun optDryRun $ cachePutStep cacheConfig
-            weederResult <- weederStep optDryRun
-            exitWith (buildResult -&&- weederResult)
+            if buildResult == ExitSuccess
+                then exitWith =<< weederStep optDryRun
+                else exitWith buildResult
         CleanupCache ->
             cleanupCacheStep optDryRun cacheConfig optBuildDirectory
         PurgeCache ->
@@ -599,10 +600,3 @@ timeout mins act = race (sleep (fromIntegral mins * 60)) act >>= \case
     Left () -> do
         eprintf ("\nTimed out after "%d%" minutes.\n") mins
         pure (ExitFailure 124)
-
--- | Combine two 'ExitCode' results with "and".
-(-&&-) :: ExitCode -> ExitCode -> ExitCode
-ExitSuccess -&&- st = st
-exitFailure -&&- _ = exitFailure
-
-infixr 3 -&&-
