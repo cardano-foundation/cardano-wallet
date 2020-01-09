@@ -153,7 +153,7 @@ spec = do
                 let cmd = Command
                         (commandName @t)
                         ["serve"
-                        , "--database", "/does-not-exist"
+                        , "--database", "/*"
                         , "--node-port", show (ctx ^. typed @(Port "node"))
                         , "--random-port"
                         , "--verbose"
