@@ -212,7 +212,6 @@ test-suite unit
     , time
     , transformers
     , tree-diff
-    , unordered-containers
     , yaml
     , wai
     , warp
