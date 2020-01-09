@@ -11,12 +11,12 @@ module Network.Wai.Middleware.LoggingSpec
 
 import Prelude
 
-import Cardano.BM.Data.LogItem
-    ( LOContent (..), LOMeta (..), LogObject (..) )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
+import Cardano.BM.Data.Tracer
+    ( DefineSeverity (..) )
 import Cardano.BM.Trace
-    ( Trace, traceInTVarIO )
+    ( traceInTVarIO )
 import Cardano.Wallet.Api
     ( Any )
 import Cardano.Wallet.Api.Server
@@ -35,6 +35,8 @@ import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.STM
     ( atomically )
+import Control.Tracer
+    ( Tracer )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..) )
 import Data.ByteString
@@ -219,11 +221,7 @@ spec = describe "Logging Middleware"
         monadicIO $ liftIO $ do
             void $ mapConcurrently (const (get ctx "/get")) (replicate n ())
             entries <- readTVarIO (logs ctx)
-            let getReqId l = case loContent l of
-                    LogMessage (ApiLog (RequestId rid) _) ->
-                        Just rid
-                    _ ->
-                        Nothing
+            let getReqId (ApiLog (RequestId rid) _) = rid
             let uniqueReqIds = L.nubBy (\l1 l2 -> getReqId l1 == getReqId l2)
             pendingOnWindows "Disabled on windows due to race with log flushing"
             length (uniqueReqIds entries) `shouldBe` n
@@ -271,7 +269,7 @@ spec = describe "Logging Middleware"
     tearDown = cancel . server
 
 data Context = Context
-    { logs :: TVar [LogObject ApiLog]
+    { logs :: TVar [ApiLog]
     , manager :: Manager
     , port :: Int
     , server :: Async ()
@@ -322,7 +320,7 @@ expectLogs ctx expectations = do
             <> show entries
 
     forM_ (zip entries expectations) $ \(l, (sev, str)) -> do
-        (severity . loMeta $ l) `shouldBe` sev
+        (defineSeverity l) `shouldBe` sev
         case logMessage l of
             Just txt ->
                 T.unpack txt `shouldContain` str
@@ -331,25 +329,19 @@ expectLogs ctx expectations = do
 
 -- | Extract the message from a 'LogObject'. Returns 'Nothing' if it's not
 -- a log message.
-logMessage :: LogObject ApiLog -> Maybe Text
-logMessage l = case loContent l of
-    LogMessage (ApiLog _ theMsg) -> case theMsg of
-        LogRequestStart -> Just "LogRequestStart"
-        LogRequestFinish -> Just "LogRequestFinish"
-        LogResponse _ Nothing -> Nothing
-        _ -> Just (toText theMsg)
-    _ ->
-        Nothing
+logMessage :: ApiLog -> Maybe Text
+logMessage (ApiLog _ theMsg) = case theMsg of
+    LogRequestStart -> Just "LogRequestStart"
+    LogRequestFinish -> Just "LogRequestFinish"
+    LogResponse _ Nothing -> Nothing
+    _ -> Just (toText theMsg)
 
 -- | Extract the execution time, in microseconds, from a log request.
 -- Returns 'Nothing' if the log line doesn't contain any time indication.
-captureTime :: LogObject ApiLog -> Maybe Int
-captureTime l = case loContent l of
-    LogMessage (ApiLog _ theMsg) -> case theMsg of
-        LogResponse time _ ->
-            Just $ round $ toMicro $ realToFrac @_ @Double time
-        _ ->
-            Nothing
+captureTime :: ApiLog -> Maybe Int
+captureTime (ApiLog _ theMsg) = case theMsg of
+    LogResponse time _ ->
+        Just $ round $ toMicro $ realToFrac @_ @Double time
     _ ->
         Nothing
   where
@@ -411,7 +403,7 @@ instance FromJSON ResponseJson
 start
     :: ApiLoggerSettings
     -> Warp.Settings
-    -> Trace IO ApiLog
+    -> Tracer IO ApiLog
     -> Socket
     -> IO ()
 start logSettings warpSettings trace socket = do

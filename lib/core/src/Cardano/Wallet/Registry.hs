@@ -17,6 +17,7 @@ module Cardano.Wallet.Registry
       -- * Worker
     , Worker
     , MkWorker(..)
+    , defaultWorkerAfter
     , newWorker
     , workerThread
     , workerId
@@ -27,15 +28,22 @@ module Cardano.Wallet.Registry
 
       -- * Logging
     , WithWorkerKey (..)
+    , WorkerRegistryLog (..)
     ) where
 
 import Prelude hiding
     ( log, lookup )
 
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
+import Cardano.BM.Data.Tracer
+    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
 import Cardano.BM.Trace
     ( Trace, appendName )
 import Cardano.Wallet
     ( HasLogger, logger )
+import Cardano.Wallet.Logging
+    ( logTrace )
 import Control.Concurrent
     ( ThreadId, forkFinally, killThread )
 import Control.Concurrent.MVar
@@ -49,7 +57,11 @@ import Control.Concurrent.MVar
     , tryPutMVar
     )
 import Control.Exception
-    ( SomeException, finally )
+    ( AsyncException (..)
+    , SomeException
+    , asyncExceptionFromException
+    , finally
+    )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Tracer
@@ -68,6 +80,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import Fmt
+    ( pretty )
 import GHC.Generics
     ( Generic )
 
@@ -164,6 +178,17 @@ data MkWorker key resource ctx = MkWorker
         -- ^ A bracket-style factory to acquire a resource
     }
 
+defaultWorkerAfter
+    :: Trace IO WorkerRegistryLog
+    -> Either SomeException a
+    -> IO ()
+defaultWorkerAfter tr = logTrace tr . \case
+    Right _ -> MsgFinished
+    Left e -> case asyncExceptionFromException e of
+        Just ThreadKilled -> MsgThreadKilled
+        Just UserInterrupt -> MsgUserInterrupt
+        _ -> MsgUnhandledException $ pretty $ show e
+
 -- | Create a new worker for a given key. Workers maintain an acquired resource.
 -- They expect a task as argument and will terminate as soon as their task
 -- is over; so in practice, we provide a never-ending task that keeps the worker
@@ -209,3 +234,39 @@ data WithWorkerKey key = WithWorkerKey key Text
 
 instance ToText key => ToText (WithWorkerKey key) where
     toText (WithWorkerKey k msg) = T.take 8 (toText k) <> ": " <> msg
+
+
+{-------------------------------------------------------------------------------
+                                    Logging
+-------------------------------------------------------------------------------}
+
+data WorkerRegistryLog
+    = MsgFinished
+    | MsgThreadKilled
+    | MsgUserInterrupt
+    | MsgUnhandledException Text
+    | MsgFromWorker Text
+    -- ^ Registry permits workers to log with Text only
+    deriving (Show, Eq)
+
+instance ToText WorkerRegistryLog where
+    toText = \case
+        MsgFinished ->
+            "Worker has exited: main action is over."
+        MsgThreadKilled ->
+            "Worker has exited: killed by parent."
+        MsgUserInterrupt ->
+            "Worker has exited: killed by user."
+        MsgUnhandledException msg ->
+            "Worker has exited unexpectedly: " <> msg
+        MsgFromWorker msg ->
+            msg
+
+instance DefinePrivacyAnnotation WorkerRegistryLog
+instance DefineSeverity WorkerRegistryLog where
+    defineSeverity = \case
+        MsgFinished -> Notice
+        MsgThreadKilled -> Notice
+        MsgUserInterrupt -> Notice
+        MsgUnhandledException _ -> Error
+        MsgFromWorker _ -> Info

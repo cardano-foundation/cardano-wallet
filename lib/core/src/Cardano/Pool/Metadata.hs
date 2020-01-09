@@ -40,10 +40,6 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
-import Cardano.BM.Trace
-    ( Trace )
-import Cardano.Wallet.Logging
-    ( logTrace )
 import Cardano.Wallet.Primitive.Types
     ( PoolOwner (..), ShowFmt (..) )
 import Codec.Archive.Zip
@@ -54,7 +50,7 @@ import Control.Monad
 import Control.Monad.IO.Class
     ( MonadIO (..), liftIO )
 import Control.Tracer
-    ( contramap )
+    ( Tracer, contramap, traceWith )
 import Data.Aeson
     ( FromJSON (..)
     , ToJSON (..)
@@ -214,26 +210,25 @@ cacheArchive cfg = cacheDirectory cfg </> cacheName cfg
 -- 'PoolOwner'. If an metadata entry does not exist or could not be parsed, it
 -- will be 'Nothing'.
 getStakePoolMetadata
-    :: Trace IO RegistryLog
+    :: Tracer IO RegistryLog
     -- ^ Logging object - use 'transformTrace' to convert to 'Text'.
     -> MetadataConfig
     -> [PoolOwner]
     -- ^ List of stake pools to get metadata for.
     -> IO (Either FetchError [Maybe StakePoolMetadata])
 getStakePoolMetadata tr cfg poolOwners = do
-    let msg = RegistryLog (registryURL cfg) (cacheArchive cfg)
-    let tr' = contramap (fmap msg) tr
+    let tr' = contramap (RegistryLog (registryURL cfg) (cacheArchive cfg)) tr
     fetchStakePoolMetaZipCached tr' cfg >>= \case
         Right f -> Right <$> getMetadataFromZip tr' f poolOwners
         Left e -> pure $ Left e
 
 fetchStakePoolMetaZipCached
-    :: Trace IO RegistryLogMsg
+    :: Tracer IO RegistryLogMsg
     -> MetadataConfig
     -> IO (Either FetchError FilePath)
 fetchStakePoolMetaZipCached tr cfg = checkCached >>= \case
     Just mtime -> do
-        logTrace tr (MsgUsingCached (cacheArchive cfg) mtime)
+        traceWith tr (MsgUsingCached (cacheArchive cfg) mtime)
         pure $ Right (cacheArchive cfg)
     Nothing -> do
         createDirectoryIfMissing True (cacheDirectory cfg)
@@ -250,18 +245,18 @@ fetchStakePoolMetaZipCached tr cfg = checkCached >>= \case
 
 -- | Fetch a URL, streaming to the given filename.
 fetchStakePoolMetaZip
-    :: Trace IO RegistryLogMsg
+    :: Tracer IO RegistryLogMsg
     -> String -- ^ URL
     -> FilePath -- ^ Zip file name
     -> IO (Either FetchError FilePath)
 fetchStakePoolMetaZip tr url zipFileName = do
-    logTrace tr MsgDownloadStarted
+    traceWith tr MsgDownloadStarted
     fmap join $ tryJust fileExceptionHandler $
         withFile zipFileName WriteMode $ \zipFile -> tryJust handler $ do
             req <- parseUrlThrow url
             httpSink req $ \_response -> Conduit.mapM_ (BS.hPut zipFile)
             size <- hTell zipFile
-            logTrace tr $ MsgDownloadComplete size
+            traceWith tr $ MsgDownloadComplete size
             pure zipFileName
   where
     fileExceptionHandler = Just . FetchErrorFile . displayException @IOException
@@ -270,7 +265,7 @@ fetchStakePoolMetaZip tr url zipFileName = do
 -- | With the given zip file, extract and parse metadata for the given stake
 -- pools.
 getMetadataFromZip
-    :: Trace IO RegistryLogMsg
+    :: Tracer IO RegistryLogMsg
     -> FilePath -- ^ Zip file path.
     -> [PoolOwner] -- ^ Stake pools to extract.
     -> IO [Maybe StakePoolMetadata]
@@ -286,7 +281,7 @@ getMetadataFromZip tr zipFileName =
 -- This may throw "Codec.Archive.Zip.EntrySelectorException" if there is an
 -- internal error and the pool id results in an invalid filename.
 findStakePoolMeta
-    :: Trace IO RegistryLogMsg -- ^ Logging.
+    :: Tracer IO RegistryLogMsg -- ^ Logging.
     -> FilePath -- ^ Filename within zip file to work on.
     -> ZipArchive (Maybe StakePoolMetadata)
 findStakePoolMeta tr entry = do
@@ -305,7 +300,7 @@ findStakePoolMeta tr entry = do
             trace $ MsgExtractFileResult Nothing
             pure Nothing
   where
-    trace = liftIO . logTrace tr
+    trace = liftIO . traceWith tr
 
 -- | A GitHub repo zip file archive contains the files beneath a top level
 -- directory (which has a variable name). This function searches the archive

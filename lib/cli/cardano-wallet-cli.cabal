@@ -36,6 +36,7 @@ library
     , bech32
     , bytestring
     , cardano-wallet-core
+    , contra-tracer
     , directory
     , extra
     , filepath

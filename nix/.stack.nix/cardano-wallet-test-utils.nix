@@ -62,6 +62,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
         depends = [
           (hsPkgs."base" or (buildDepError "base"))
           (hsPkgs."async" or (buildDepError "async"))
+          (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
           (hsPkgs."filepath" or (buildDepError "filepath"))
           (hsPkgs."file-embed" or (buildDepError "file-embed"))
           (hsPkgs."hspec" or (buildDepError "hspec"))

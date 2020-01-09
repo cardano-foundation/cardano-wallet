@@ -29,15 +29,13 @@ import Cardano.Pool.Metadata
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.Jormungandr
-    ( serveWallet )
+    ( serveWallet, setupTracers, tracerSeverities )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
 import Cardano.Wallet.Jormungandr.Launch
     ( withConfig )
 import Cardano.Wallet.Jormungandr.Network
     ( JormungandrBackend (..) )
-import Cardano.Wallet.Logging
-    ( transformTextTrace )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Fee
@@ -79,7 +77,6 @@ import Test.Utils.Paths
 import Test.Utils.StaticServer
     ( withStaticServer )
 
-import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.Pool.MetricsSpec as MetricsSpec
 import qualified Cardano.Wallet.Jormungandr.NetworkSpec as NetworkLayer
 import qualified Data.Text as T
@@ -109,8 +106,7 @@ instance KnownCommand Jormungandr where
     commandName = "cardano-wallet-jormungandr"
 
 main :: forall t. (t ~ Jormungandr) => IO ()
-main = withUtf8Encoding $ withLogging Nothing Info $ \(conf,tr) -> do
-    let logging = (conf, transformTextTrace tr)
+main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
     hspec $ do
         describe "No backend required" $ do
             describe "Cardano.Wallet.NetworkSpec" $ parallel NetworkLayer.spec
@@ -120,7 +116,7 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(conf,tr) -> do
             describe "Launcher CLI tests" $ parallel (LauncherCLI.spec @t)
             describe "Stake Pool Metrics" MetricsSpec.spec
 
-        describe "API Specifications" $ specWithServer logging $ do
+        describe "API Specifications" $ specWithServer tr $ do
             Addresses.spec
             StakePoolsApiJormungandr.spec
             Transactions.spec
@@ -131,7 +127,7 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(conf,tr) -> do
             ByronTransactions.spec
             Network.spec
 
-        describe "CLI Specifications" $ specWithServer logging $ do
+        describe "CLI Specifications" $ specWithServer tr $ do
             AddressesCLI.spec @t
             ServerCLI.spec @t
             StakePoolsCliJormungandr.spec @t
@@ -141,10 +137,10 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(conf,tr) -> do
             NetworkCLI.spec @t
 
 specWithServer
-    :: (CM.Configuration, Trace IO Text)
+    :: Trace IO Text
     -> SpecWith (Context Jormungandr)
     -> Spec
-specWithServer (logCfg, tr) = aroundAll withContext . after tearDown
+specWithServer tr = aroundAll withContext . after tearDown
   where
     withContext :: (Context Jormungandr -> IO ()) -> IO ()
     withContext action = do
@@ -175,10 +171,10 @@ specWithServer (logCfg, tr) = aroundAll withContext . after tearDown
     withServer setup =
         withConfig $ \jmCfg ->
         withMetadataRegistry $
-            serveWallet @'Testnet logging (SyncTolerance 10) Nothing "127.0.0.1"
+            serveWallet @'Testnet tracers (SyncTolerance 10) Nothing "127.0.0.1"
                 ListenOnRandomPort (Launch jmCfg) setup
 
-    logging = (logCfg, transformTextTrace tr)
+    tracers = setupTracers (tracerSeverities (Just Info)) tr
 
 -- | Run a HTTP file server on any free port, serving up the integration tests
 -- stake pool metadata registry.

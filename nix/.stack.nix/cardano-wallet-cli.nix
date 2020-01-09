@@ -64,6 +64,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."bech32" or (buildDepError "bech32"))
           (hsPkgs."bytestring" or (buildDepError "bytestring"))
           (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
+          (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
           (hsPkgs."directory" or (buildDepError "directory"))
           (hsPkgs."extra" or (buildDepError "extra"))
           (hsPkgs."filepath" or (buildDepError "filepath"))

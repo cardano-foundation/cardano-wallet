@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -46,6 +47,9 @@ module Cardano.Wallet.Jormungandr.Network
     , ErrStartup (..)
     , ErrUnexpectedNetworkFailure (..)
 
+    -- * Logging
+    , NetworkLayerLog (..)
+
     -- * Internal constructors
     , mkRawNetworkLayer
     , BaseUrl (..)
@@ -54,12 +58,17 @@ module Cardano.Wallet.Jormungandr.Network
 
 import Prelude
 
-import Cardano.BM.Trace
-    ( Trace )
+import Cardano.BM.Data.Tracer
+    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
 import Cardano.CLI
-    ( Port (..), waitForService )
+    ( Port (..), WaitForServiceLog, waitForService )
 import Cardano.Launcher
-    ( Command (..), ProcessHasExited, StdStream (..), withBackendProcess )
+    ( Command (..)
+    , LauncherLog
+    , ProcessHasExited
+    , StdStream (..)
+    , withBackendProcess
+    )
 import Cardano.Wallet.Jormungandr.Api.Client
     ( BaseUrl (..)
     , ErrGetAccountState (..)
@@ -94,8 +103,6 @@ import Cardano.Wallet.Jormungandr.Binary
     ( runGetOrFail )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr, localhostBaseUrl )
-import Cardano.Wallet.Logging
-    ( transformTextTrace )
 import Cardano.Wallet.Network
     ( Cursor
     , ErrGetAccountBalance (..)
@@ -140,6 +147,8 @@ import Control.Monad.Trans.Control
     ( MonadBaseControl )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT, throwE, withExceptT )
+import Control.Tracer
+    ( Tracer, contramap )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertToBase )
 import Data.Coerce
@@ -148,10 +157,12 @@ import Data.Map.Strict
     ( Map )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text
-    ( Text )
+import Data.Text.Class
+    ( ToText (..) )
 import Data.Word
     ( Word32, Word64 )
+import GHC.Generics
+    ( Generic )
 import System.FilePath
     ( (</>) )
 
@@ -188,7 +199,7 @@ data JormungandrConfig = JormungandrConfig
 -- occurred while starting the Node.
 withNetworkLayer
     :: forall a t. (t ~ Jormungandr)
-    => Trace IO Text
+    => Tracer IO NetworkLayerLog
     -- ^ Logging
     -> JormungandrBackend
     -- ^ How Jörmungandr is started.
@@ -201,7 +212,7 @@ withNetworkLayer tr (Launch lj) action = withNetworkLayerLaunch tr lj action
 
 withNetworkLayerLaunch
     :: forall a t. (t ~ Jormungandr)
-    => Trace IO Text
+    => Tracer IO NetworkLayerLog
     -- ^ Logging of node startup.
     -> JormungandrConfig
     -- ^ Configuration for starting Jörmungandr.
@@ -215,7 +226,7 @@ withNetworkLayerLaunch tr lj action = do
 
 withNetworkLayerConn
     :: forall a t. (t ~ Jormungandr)
-    => Trace IO Text
+    => Tracer IO NetworkLayerLog
     -- ^ Logging of network layer startup
     -> JormungandrConnParams
     -- ^ Parameters for connecting to Jörmungandr node which is already running.
@@ -232,7 +243,7 @@ withNetworkLayerConn tr cp@(JormungandrConnParams block0H baseUrl) action =
 -- backend target.
 newNetworkLayer
     :: forall t. (t ~ Jormungandr)
-    => Trace IO Text
+    => Tracer IO NetworkLayerLog
     -> BaseUrl
     -> Hash "Genesis"
     -> ExceptT ErrGetBlockchainParams IO (NetworkLayer IO t J.Block)
@@ -240,7 +251,8 @@ newNetworkLayer tr baseUrl block0H = do
     mgr <- liftIO $ newManager defaultManagerSettings
     st <- newMVar emptyBlockHeaders
     let jor = mkJormungandrClient mgr baseUrl
-    liftIO $ waitForService "Jörmungandr" tr (Port $ baseUrlPort baseUrl) $
+    let tr' = contramap MsgWaitForService tr
+    liftIO $ waitForService "Jörmungandr" tr' (Port $ baseUrlPort baseUrl) $
         waitForNetwork (void $ getTipId jor) defaultRetryPolicy
     (block0, bp) <- getInitialBlockchainParameters jor (coerce block0H)
     return (mkRawNetworkLayer (block0, bp) 1000 st jor)
@@ -493,7 +505,7 @@ cursorBackward point (Cursor cursor) =
 
 -- | Launches a Jörmungandr node backend with the given configuration
 withJormungandr
-    :: Trace IO Text
+    :: Tracer IO NetworkLayerLog
     -- ^ Logging
     -> JormungandrConfig
     -- ^ Launch configuration
@@ -510,8 +522,7 @@ withJormungandr tr (JormungandrConfig stateDir block0 mPort output extraArgs) cb
                     , "--storage", stateDir </> "chain"
                     ] ++ extraArgs
             let cmd = Command "jormungandr" args (return ()) output
-            let tr' = transformTextTrace tr
-            res <- withBackendProcess tr' cmd $ do
+            res <- withBackendProcess (contramap MsgLauncher tr) cmd $ do
                 waitForPort defaultRetryPolicy apiPort >>= \case
                     True -> Right <$> cb (JormungandrConnParams block0H baseUrl)
                     False -> pure $ Left ErrStartupNodeNotListening
@@ -546,6 +557,26 @@ data ErrStartup
     | ErrStartupGetBlockchainParameters ErrGetBlockchainParams
     | ErrStartupInvalidGenesisBlock FilePath
     | ErrStartupInvalidGenesisHash String
-    deriving (Show, Eq)
+    deriving (Generic, Show, Eq)
 
 instance Exception ErrStartup
+
+{-------------------------------------------------------------------------------
+                                    Logging
+-------------------------------------------------------------------------------}
+
+data NetworkLayerLog
+    = MsgLauncher LauncherLog
+    | MsgWaitForService WaitForServiceLog
+    deriving (Show, Eq)
+
+instance ToText NetworkLayerLog where
+    toText = \case
+        MsgLauncher msg -> toText msg
+        MsgWaitForService msg -> toText msg
+
+instance DefinePrivacyAnnotation NetworkLayerLog
+instance DefineSeverity NetworkLayerLog where
+    defineSeverity ev = case ev of
+        MsgLauncher msg -> defineSeverity msg
+        MsgWaitForService msg -> defineSeverity msg

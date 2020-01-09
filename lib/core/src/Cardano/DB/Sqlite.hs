@@ -39,16 +39,10 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
-import Cardano.BM.Observer.Monadic
-    ( bracketObserveIO )
-import Cardano.BM.Trace
-    ( Trace, appendName, logDebug )
-import Cardano.Wallet.Logging
-    ( logTrace )
 import Control.Concurrent.MVar
     ( newMVar, withMVar )
 import Control.Exception
-    ( Exception, tryJust )
+    ( Exception, bracket_, tryJust )
 import Control.Monad
     ( mapM_ )
 import Control.Monad.Catch
@@ -57,6 +51,8 @@ import Control.Monad.Logger
     ( LogLevel (..) )
 import Control.Retry
     ( constantDelay, limitRetriesByCumulativeDelay, recovering )
+import Control.Tracer
+    ( Tracer, traceWith )
 import Data.Aeson
     ( ToJSON )
 import Data.List
@@ -88,8 +84,6 @@ import GHC.Generics
 import System.Log.FastLogger
     ( fromLogStr )
 
-
-import qualified Cardano.BM.Configuration.Model as CM
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -107,8 +101,8 @@ data SqliteContext = SqliteContext
     -- ^ 'safely' run a query with logging and lock-protection
     , dbFile :: Maybe FilePath
     -- ^ The actual database file, if any. If none, runs in-memory
-    , trace :: Trace IO DBLog
-    -- ^ A 'Trace' for logging
+    , trace :: Tracer IO DBLog
+    -- ^ A 'Tracer' for logging
     }
 
 -- | Error type for when migrations go wrong after opening a database.
@@ -124,8 +118,8 @@ instance Exception MigrationError
 unsafeRunQuery :: SqliteContext -> SqlPersistT IO a -> IO a
 unsafeRunQuery = runQuery
 
-queryLogFunc :: Trace IO DBLog -> LogFunc
-queryLogFunc tr _loc _source level str = logTrace tr (MsgQuery msg sev)
+queryLogFunc :: Tracer IO DBLog -> LogFunc
+queryLogFunc tr _loc _source level str = traceWith tr (MsgQuery msg sev)
   where
     -- Filter out parameters which appear after the statement semicolon.
     -- They will contain sensitive material that we don't want in the log.
@@ -157,7 +151,7 @@ handleConstraint e = handleJust select handler . fmap Right
 --
 destroyDBLayer :: SqliteContext -> IO ()
 destroyDBLayer (SqliteContext {getSqlBackend, trace, dbFile}) = do
-    logDebug trace (MsgClosing dbFile)
+    traceWith trace (MsgClosing dbFile)
     handleIf
         isAlreadyClosed
         (const $ pure ())
@@ -179,22 +173,21 @@ destroyDBLayer (SqliteContext {getSqlBackend, trace, dbFile}) = do
 -- | Opens the SQLite database connection, sets up query logging and timing,
 -- runs schema migrations if necessary.
 startSqliteBackend
-    :: CM.Configuration
-    -> Migration
-    -> Trace IO DBLog
+    :: Migration
+    -> Tracer IO DBLog
     -> Maybe FilePath
     -> IO (Either MigrationError SqliteContext)
-startSqliteBackend logConfig migrateAll trace fp = do
-    let traceQuery = appendName "query" trace
-    backend <- createSqliteBackend trace fp (queryLogFunc traceQuery)
+startSqliteBackend migrateAll trace fp = do
+    backend <- createSqliteBackend trace fp (queryLogFunc trace)
     lock <- newMVar ()
+    let traceRun = traceWith trace . MsgRun
     let observe :: IO a -> IO a
-        observe = bracketObserveIO logConfig traceQuery Debug "query"
+        observe = bracket_ (traceRun False) (traceRun True)
     let runQuery :: SqlPersistT IO a -> IO a
         runQuery cmd = withMVar lock $ const $ observe $ runSqlConn cmd backend
     migrations <- tryJust isMigrationError $ runQuery $
         runMigrationQuiet migrateAll
-    logTrace trace $ MsgMigrations (fmap length migrations)
+    traceWith trace $ MsgMigrations (fmap length migrations)
     let ctx = SqliteContext backend runQuery fp trace
     case migrations of
         Left e -> do
@@ -212,13 +205,13 @@ isMigrationError e
     mark = "Database migration: manual intervention required."
 
 createSqliteBackend
-    :: Trace IO DBLog
+    :: Tracer IO DBLog
     -> Maybe FilePath
     -> LogFunc
     -> IO SqlBackend
 createSqliteBackend trace fp logFunc = do
     let connStr = sqliteConnStr fp
-    logTrace trace $ MsgConnStr connStr
+    traceWith trace $ MsgConnStr connStr
     conn <- Sqlite.open connStr
     wrapConnectionInfo (mkSqliteConnectionInfo connStr) conn logFunc
 
@@ -232,6 +225,7 @@ sqliteConnStr = maybe ":memory:" T.pack
 data DBLog
     = MsgMigrations (Either MigrationError Int)
     | MsgQuery Text Severity
+    | MsgRun Bool
     | MsgConnStr Text
     | MsgClosing (Maybe FilePath)
     | MsgDatabaseReset
@@ -244,6 +238,7 @@ instance DefineSeverity DBLog where
         MsgMigrations (Right _) -> Notice
         MsgMigrations (Left _) -> Error
         MsgQuery _ sev -> sev
+        MsgRun _ -> Debug
         MsgConnStr _ -> Debug
         MsgClosing _ -> Debug
         MsgDatabaseReset -> Notice
@@ -257,6 +252,8 @@ instance ToText DBLog where
         MsgMigrations (Left err) ->
             "Failed to migrate the database: " <> getMigrationErrorMessage err
         MsgQuery stmt _ -> stmt
+        MsgRun False -> "Running database action - Start"
+        MsgRun True -> "Running database action - Finish"
         MsgConnStr connStr -> "Using connection string: " <> connStr
         MsgClosing fp -> "Closing database ("+|fromMaybe "in-memory" fp|+")"
         MsgDatabaseReset ->

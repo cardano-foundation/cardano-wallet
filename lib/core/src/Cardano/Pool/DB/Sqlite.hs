@@ -27,8 +27,6 @@ module Cardano.Pool.DB.Sqlite
 
 import Prelude
 
-import Cardano.BM.Trace
-    ( Trace )
 import Cardano.DB.Sqlite
     ( DBLog (..)
     , MigrationError (..)
@@ -41,8 +39,6 @@ import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists (..) )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..) )
-import Cardano.Wallet.Logging
-    ( logTrace, transformTextTrace )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , EpochNo (..)
@@ -56,14 +52,14 @@ import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
+import Control.Tracer
+    ( Tracer, traceWith )
 import Data.List
     ( foldl' )
 import Data.Map.Strict
     ( Map )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text
-    ( Text )
 import Data.Word
     ( Word64 )
 import Database.Persist.Sql
@@ -91,7 +87,6 @@ import System.Random
 
 import Cardano.Pool.DB.Sqlite.TH
 
-import qualified Cardano.BM.Configuration.Model as CM
 import qualified Data.Map.Strict as Map
 
 -- | Return the preferred @FilePath@ for the stake pool .sqlite file, given a
@@ -109,19 +104,17 @@ defaultFilePath = (</> "stake-pools.sqlite")
 -- If the given file path does not exist, it will be created by the sqlite
 -- library.
 withDBLayer
-    :: CM.Configuration
-       -- ^ Logging configuration
-    -> Trace IO Text
+    :: Tracer IO DBLog
        -- ^ Logging object
     -> Maybe FilePath
        -- ^ Database file location, or Nothing for in-memory database
     -> (DBLayer IO -> IO a)
        -- ^ Action to run.
     -> IO a
-withDBLayer logConfig trace fp action =
+withDBLayer trace fp action =
     bracket before after (action . snd)
   where
-    before = newDBLayer logConfig trace fp
+    before = newDBLayer trace fp
     after = destroyDBLayer . fst
 
 -- | Sets up a connection to the SQLite database.
@@ -135,17 +128,14 @@ withDBLayer logConfig trace fp action =
 -- should be closed with 'destroyDBLayer'. If you use 'withDBLayer' then both of
 -- these things will be handled for you.
 newDBLayer
-    :: CM.Configuration
-       -- ^ Logging configuration
-    -> Trace IO Text
+    :: Tracer IO DBLog
        -- ^ Logging object
     -> Maybe FilePath
        -- ^ Database file location, or Nothing for in-memory database
     -> IO (SqliteContext, DBLayer IO)
-newDBLayer logConfig trace fp = do
-    let trace' = transformTextTrace trace
-    let io = startSqliteBackend logConfig migrateAll trace' fp
-    ctx@SqliteContext{runQuery} <- handlingPersistError trace' fp io
+newDBLayer trace fp = do
+    let io = startSqliteBackend migrateAll trace fp
+    ctx@SqliteContext{runQuery} <- handlingPersistError trace fp io
     return (ctx, DBLayer
         { putPoolProduction = \point pool -> ExceptT $
             handleConstraint (ErrPointAlreadyExists point) $
@@ -239,7 +229,7 @@ newDBLayer logConfig trace fp = do
 -- with ugly work-around we can, at least for now, reset it semi-manually when
 -- needed to keep things tidy here.
 handlingPersistError
-    :: Trace IO DBLog
+    :: Tracer IO DBLog
        -- ^ Logging object
     -> Maybe FilePath
        -- ^ Database file location, or Nothing for in-memory database
@@ -249,7 +239,7 @@ handlingPersistError
 handlingPersistError trace fp action = action >>= \case
     Right ctx -> pure ctx
     Left _ -> do
-        logTrace trace MsgDatabaseReset
+        traceWith trace MsgDatabaseReset
         maybe (pure ()) removeFile fp
         action >>= either throwIO pure
 

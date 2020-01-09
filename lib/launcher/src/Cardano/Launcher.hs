@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE LambdaCase #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -22,7 +23,6 @@ module Cardano.Launcher
 
     -- * Logging
     , LauncherLog(..)
-    , transformTextTrace
     ) where
 
 import Prelude
@@ -31,8 +31,6 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
-import Cardano.BM.Trace
-    ( Trace, appendName, traceNamedItem )
 import Control.Concurrent
     ( forkIO )
 import Control.Concurrent.Async
@@ -44,7 +42,7 @@ import Control.Exception
 import Control.Monad
     ( join, void )
 import Control.Tracer
-    ( contramap )
+    ( Tracer, contramap, traceWith )
 import Data.Aeson
     ( ToJSON (..), object, (.=) )
 import Data.List
@@ -112,6 +110,12 @@ data Command = Command
         -- ^ What to do with stdout & stderr
     } deriving (Generic)
 
+instance Show Command where
+    show = show . build
+
+instance Eq Command where
+    a == b = build a == build b
+
 -- Format a command nicely with one argument / option per line.
 --
 -- e.g.
@@ -149,7 +153,7 @@ instance Exception ProcessHasExited
 -- (see 'withCreateProcess') for details. If the process exits, the action is
 -- cancelled. The return type reflects those two cases.
 withBackendProcess
-    :: Trace IO LauncherLog
+    :: Tracer IO LauncherLog
     -- ^ Logging
     -> Command
     -- ^ 'Command' description
@@ -161,7 +165,7 @@ withBackendProcess tr cmd = withBackendProcessHandle tr cmd . const
 -- | A variant of 'withBackendProcess' which also provides the 'ProcessHandle' to the
 -- given action.
 withBackendProcessHandle
-    :: Trace IO LauncherLog
+    :: Tracer IO LauncherLog
     -- ^ Logging
     -> Command
     -- ^ 'Command' description
@@ -170,22 +174,22 @@ withBackendProcessHandle
     -> IO (Either ProcessHasExited a)
 withBackendProcessHandle tr cmd@(Command name args before output) action = do
     before
-    logTrace tr $ MsgLauncherStart cmd
+    traceWith tr $ MsgLauncherStart cmd
     let process = (proc name args) { std_out = output, std_err = output }
     res <- fmap join $ tryJust spawnPredicate $
         withCreateProcess process $ \_ _ _ h -> do
             pid <- maybe "-" (T.pack . show) <$> getPid h
-            let tr' = appendName (T.pack name <> "." <> pid) tr
-            logTrace tr' $ MsgLauncherStarted name pid
+            let tr' = contramap (WithProcessInfo name pid) tr
+            traceWith tr' MsgLauncherStarted
 
             let waitForExit =
                     ProcessHasExited name <$> interruptibleWaitForProcess tr' h
             let runAction = do
-                    logTrace tr' MsgLauncherAction
-                    action h <* logTrace tr' MsgLauncherCleanup
+                    traceWith tr' MsgLauncherAction
+                    action h <* traceWith tr' MsgLauncherCleanup
 
             race waitForExit runAction
-    either (logTrace tr . MsgLauncherFinish) (const $ pure ()) res
+    either (traceWith tr . MsgLauncherFinish) (const $ pure ()) res
     pure res
   where
     -- Exceptions resulting from the @exec@ call for this command. The most
@@ -201,7 +205,7 @@ withBackendProcessHandle tr cmd@(Command name args before output) action = do
     -- behaviour of the process library on Windows where 'waitForProcess' seems
     -- to block all concurrent async actions in the thread.
     interruptibleWaitForProcess
-        :: Trace IO LauncherLog
+        :: Tracer IO LaunchedProcessLog
         -> ProcessHandle
         -> IO ExitCode
     interruptibleWaitForProcess tr' ph = do
@@ -210,12 +214,12 @@ withBackendProcessHandle tr cmd@(Command name args before output) action = do
         takeMVar status
       where
         waitThread var = do
-            logTrace tr' MsgLauncherWaitBefore
+            traceWith tr' MsgLauncherWaitBefore
             status <- waitForProcess ph
-            logTrace tr' (MsgLauncherWaitAfter $ exitStatus status)
+            traceWith tr' (MsgLauncherWaitAfter $ exitStatus status)
             putMVar var status
         continue var = do
-            logTrace tr' MsgLauncherCancel
+            traceWith tr' MsgLauncherCancel
             putMVar var (ExitFailure 256)
 
 {-------------------------------------------------------------------------------
@@ -224,14 +228,18 @@ withBackendProcessHandle tr cmd@(Command name args before output) action = do
 
 data LauncherLog
     = MsgLauncherStart Command
-    | MsgLauncherStarted String Text
+    | WithProcessInfo String Text LaunchedProcessLog
+    | MsgLauncherFinish ProcessHasExited
+    deriving (Show, Eq, Generic, ToJSON)
+
+data LaunchedProcessLog
+    = MsgLauncherStarted
     | MsgLauncherWaitBefore
     | MsgLauncherWaitAfter Int
     | MsgLauncherCancel
-    | MsgLauncherFinish ProcessHasExited
     | MsgLauncherAction
     | MsgLauncherCleanup
-    deriving (Generic, ToJSON)
+    deriving (Show, Eq, Generic, ToJSON)
 
 instance ToJSON Command where
     toJSON (Command name args _ _) = toJSON (name:args)
@@ -246,27 +254,23 @@ exitStatus :: ExitCode -> Int
 exitStatus ExitSuccess = 0
 exitStatus (ExitFailure n) = n
 
-transformTextTrace :: ToText a => Trace IO Text -> Trace IO a
-transformTextTrace = contramap (fmap toText)
-
-logTrace :: Trace IO LauncherLog -> LauncherLog -> IO ()
-logTrace tr msg = traceNamedItem tr priv sev msg
-  where
-    priv = definePrivacyAnnotation msg
-    sev = defineSeverity msg
-
 instance DefinePrivacyAnnotation LauncherLog
 instance DefineSeverity LauncherLog where
-    defineSeverity ev = case ev of
+    defineSeverity = \case
         MsgLauncherStart _ -> Notice
-        MsgLauncherStarted _ _ -> Info
-        MsgLauncherWaitBefore -> Debug
-        MsgLauncherWaitAfter _ -> Debug
-        MsgLauncherCancel -> Debug
+        WithProcessInfo _ _ msg -> defineSeverity msg
+        MsgLauncherFinish (ProcessDidNotStart _ _) -> Error
         MsgLauncherFinish (ProcessHasExited _ st) -> case st of
             ExitSuccess -> Notice
             ExitFailure _ -> Error
-        MsgLauncherFinish (ProcessDidNotStart _ _) -> Error
+
+instance DefinePrivacyAnnotation LaunchedProcessLog
+instance DefineSeverity LaunchedProcessLog where
+    defineSeverity = \case
+        MsgLauncherStarted -> Info
+        MsgLauncherWaitBefore -> Debug
+        MsgLauncherWaitAfter _ -> Debug
+        MsgLauncherCancel -> Debug
         MsgLauncherAction -> Debug
         MsgLauncherCleanup -> Notice
 
@@ -276,17 +280,20 @@ instance ToText LauncherLog where
 launcherLogText :: LauncherLog -> Builder
 launcherLogText (MsgLauncherStart cmd) =
     "Starting process "+|cmd|+""
-launcherLogText (MsgLauncherStarted name pid) =
-    "Process "+|name|+" started with pid "+|pid|+""
-launcherLogText MsgLauncherWaitBefore = "About to waitForProcess"
-launcherLogText (MsgLauncherWaitAfter status) = "waitForProcess returned "+||status||+""
-launcherLogText MsgLauncherCancel = "There was an exception waiting for the process"
-launcherLogText (MsgLauncherFinish (ProcessHasExited name code)) =
-    "Child process "+|name|+" exited with status "+||exitStatus code||+""
+launcherLogText (WithProcessInfo name pid msg) =
+    "["+|name|+"."+|pid|+"] "+|launchedProcessText msg|+""
 launcherLogText (MsgLauncherFinish (ProcessDidNotStart name _e)) =
     "Could not start "+|name|+""
-launcherLogText MsgLauncherAction = "Running withBackend action"
-launcherLogText MsgLauncherCleanup = "Terminating child process"
+launcherLogText (MsgLauncherFinish (ProcessHasExited name code)) =
+    "Child process "+|name|+" exited with status "+||exitStatus code||+""
+
+launchedProcessText :: LaunchedProcessLog -> Builder
+launchedProcessText MsgLauncherStarted = "Process started"
+launchedProcessText MsgLauncherWaitBefore = "About to waitForProcess"
+launchedProcessText (MsgLauncherWaitAfter status) = "waitForProcess returned "+||status||+""
+launchedProcessText MsgLauncherCancel = "There was an exception waiting for the process"
+launchedProcessText MsgLauncherAction = "Running withBackend action"
+launchedProcessText MsgLauncherCleanup = "Terminating child process"
 
 {-------------------------------------------------------------------------------
                             Unicode Terminal Helpers

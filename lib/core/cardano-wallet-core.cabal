@@ -175,6 +175,7 @@ test-suite unit
     , cardano-wallet-test-utils
     , cborg
     , containers
+    , contra-tracer
     , cryptonite
     , directory
     , deepseq
@@ -211,7 +212,6 @@ test-suite unit
     , time
     , transformers
     , tree-diff
-    , unordered-containers
     , yaml
     , wai
     , warp

@@ -70,12 +70,14 @@ test-suite unit
     , async
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
+    , contra-tracer
     , fmt
     , hspec
     , iohk-monitoring
     , process
     , retry
     , text
+    , text-class
     , time
   build-tools:
       hspec-discover

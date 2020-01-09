@@ -1,12 +1,11 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+
 module Cardano.Pool.MetricsSpec where
 
 import Prelude
 
-import Cardano.BM.Configuration.Static
-    ( defaultConfigStdout )
 import Cardano.BM.Trace
     ( nullTracer )
 import Cardano.Pool.DB
@@ -123,5 +122,4 @@ spec = around setup $ do
     withDB name action =
         withSystemTempDirectory "stake-pool" $ \dir -> do
             let dbFile = dir </> name
-            cfg <- defaultConfigStdout
-            Pool.withDBLayer cfg nullTracer (Just dbFile) action
+            Pool.withDBLayer nullTracer (Just dbFile) action

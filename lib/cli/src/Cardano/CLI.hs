@@ -43,8 +43,10 @@ module Cardano.CLI
     , nodePortOption
     , nodePortMaybeOption
     , stateDirOption
-    , verbosityOption
     , syncToleranceOption
+    , loggingSeverityReader
+    , loggingSeverityOrOffReader
+    , loggingSeverities
 
     -- * Types
     , Service
@@ -53,10 +55,7 @@ module Cardano.CLI
     , Port (..)
 
     -- * Logging
-    , Verbosity (..)
     , withLogging
-    , verbosityToArgs
-    , verbosityToMinSeverity
 
     -- * ANSI Terminal Helpers
     , putErrLn
@@ -73,9 +72,9 @@ module Cardano.CLI
     , decodeError
     , requireFilePath
     , getDataDir
-    , waitForService
     , setupDirectory
-    , failWith
+    , waitForService
+    , WaitForServiceLog (..)
     ) where
 
 import Prelude hiding
@@ -87,10 +86,12 @@ import Cardano.BM.Configuration.Static
     ( defaultConfigStdout )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
+import Cardano.BM.Data.Tracer
+    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
 import Cardano.BM.Setup
     ( setupTrace_, shutdown )
 import Cardano.BM.Trace
-    ( Trace, logAlert, logDebug, logInfo )
+    ( Trace, logDebug )
 import Cardano.Wallet.Api.Client
     ( WalletClient (..), walletClient )
 import Cardano.Wallet.Api.Server
@@ -137,10 +138,14 @@ import Control.Exception
     ( bracket, catch )
 import Control.Monad
     ( join, unless, void, when )
+import Control.Tracer
+    ( Tracer, traceWith )
 import Data.Aeson
     ( (.:) )
 import Data.Bifunctor
     ( bimap )
+import Data.Char
+    ( toLower )
 import Data.Functor
     ( (<$), (<&>) )
 import Data.List.Extra
@@ -198,6 +203,8 @@ import Options.Applicative
     , subparser
     , value
     )
+import Options.Applicative.Types
+    ( ReadM (..), readerAsk )
 import Servant.Client
     ( BaseUrl (..), ClientM, Scheme (..), mkClientEnv, runClientM )
 import Servant.Client.Core
@@ -219,7 +226,7 @@ import System.Directory
     , getXdgDirectory
     )
 import System.Exit
-    ( ExitCode (..), exitFailure, exitSuccess, exitWith )
+    ( exitFailure, exitSuccess )
 import System.FilePath
     ( (</>) )
 import System.Info
@@ -954,16 +961,31 @@ sortOrderOption = optionT $ mempty
     <> help "specifies a sort order, either 'ascending' or 'descending'."
     <> showDefaultWith showT
 
--- | [(--quiet|--verbose)]
-verbosityOption :: Parser Verbosity
-verbosityOption = (Quiet <$ quiet) <|> (Verbose <$ verbose) <|> (pure Default)
-  where
-    quiet = flag' False $ mempty
-        <> long "quiet"
-        <> help "suppress all log output apart from errors"
-    verbose = flag' False $ mempty
-        <> long "verbose"
-        <> help "display debugging information in the log output"
+loggingSeverities :: [(String, Severity)]
+loggingSeverities =
+    [ ("debug", Debug)
+    , ("info", Info)
+    , ("notice", Notice)
+    , ("warning", Warning)
+    , ("error", Error)
+    , ("critical", Critical)
+    , ("alert", Alert)
+    , ("emergency", Emergency)
+    ]
+
+loggingSeverityReader :: ReadM Severity
+loggingSeverityReader = do
+    arg <- readerAsk
+    case lookup (map toLower arg) loggingSeverities of
+        Just sev -> pure sev
+        Nothing -> fail $ "unknown logging severity: " ++ arg
+
+loggingSeverityOrOffReader :: ReadM (Maybe Severity)
+loggingSeverityOrOffReader = do
+    arg <- readerAsk
+    case map toLower arg of
+        "off" -> pure Nothing
+        _ -> Just <$> loggingSeverityReader
 
 -- | <wallet-id=WALLET_ID>
 walletIdArgument :: Parser WalletId
@@ -1097,7 +1119,7 @@ instance ToText (Port tag) where
     toText (Port p) = toText p
 
 -- | Wrapper type around 'Text' to make its semantic more explicit
-newtype Service = Service Text deriving newtype IsString
+newtype Service = Service Text deriving newtype (IsString, Show, Eq)
 
 newtype TxId = TxId { getTxId :: Hash "Tx" }
     deriving (Eq, Show)
@@ -1121,21 +1143,6 @@ data Verbosity
     | Verbose
         -- ^ Include more information in the log output.
     deriving (Eq, Show)
-
--- | Convert a given 'Verbosity' level into a list of command line arguments
---   that can be passed through to a sub-process.
-verbosityToArgs :: Verbosity -> [String]
-verbosityToArgs = \case
-    Default -> []
-    Quiet   -> ["--quiet"]
-    Verbose -> ["--verbose"]
-
--- | Map a given 'Verbosity' level onto a 'Severity' level.
-verbosityToMinSeverity :: Verbosity -> Severity
-verbosityToMinSeverity = \case
-    Default -> Info
-    Quiet   -> Error
-    Verbose -> Debug
 
 -- | Initialize logging at the specified minimum 'Severity' level.
 initTracer
@@ -1350,41 +1357,6 @@ getDataDir backendDir = do
     dataDir <- getXdgDirectory dir "cardano-wallet"
     return $ dataDir </> backendDir
 
--- | Wait for a service to become available on a given TCP port. Exit on failure
--- with a proper error message.
-waitForService
-    :: Service
-        -- ^ Name of the service
-    -> Trace IO Text
-        -- ^ A 'Trace' for logging
-    -> Port "node"
-        -- ^ TCP Port of the service
-    -> IO ()
-        -- ^ Service we're waiting after.
-    -> IO ()
-waitForService (Service service) tracer port action = do
-    let handler (ErrNetworkInvalid net) = do
-            exitWith =<< failWith tracer (mconcat
-                [ "The node backend is not running on the \"", net, "\" "
-                , "network. Please start the wallet server and the node "
-                , "backend on the same network. Exiting now."
-                ])
-
-        handler _ = do
-            exitWith =<< failWith tracer (mconcat
-                [ "Waited too long for "
-                , service
-                , " to become available. Giving up!"
-                ])
-    logInfo tracer $ mconcat
-        [ "Waiting for "
-        , service
-        , " to be ready on tcp/"
-        , T.pack (showT port)
-        ]
-    action `catch` handler
-    logInfo tracer $ service <> " is ready."
-
 -- | Look whether a particular filepath is correctly resolved on the filesystem.
 -- This makes for a better user experience when passing wrong filepaths via
 -- options or arguments, especially when they get forwarded to other services.
@@ -1397,17 +1369,6 @@ requireFilePath path = doesFileExist path >>= \case
   where
     pathT = T.pack path
 
--- Terminate the applicatio and make sure to flush logs before exiting.
-failWith
-    :: Trace IO Text
-        -- ^ A 'Trace' for logging
-    -> Text
-        -- ^ A message to before exiting
-    -> IO ExitCode
-failWith tr msg = do
-    logAlert tr msg
-    pure (ExitFailure 1)
-
 -- | Make a parser optional
 optionalE
     :: (Monoid m, Eq m)
@@ -1416,3 +1377,68 @@ optionalE
 optionalE parse = \case
     m | m == mempty -> Right Nothing
     m  -> Just <$> parse m
+
+{-------------------------------------------------------------------------------
+                        Polling for service availability
+-------------------------------------------------------------------------------}
+
+-- | Wait for a service to become available on a given TCP port. Exit on failure
+-- with a proper error message.
+waitForService
+    :: Service
+        -- ^ Name of the service
+    -> Tracer IO WaitForServiceLog
+        -- ^ A 'Trace' for logging
+    -> Port "node"
+        -- ^ TCP Port of the service
+    -> IO ()
+        -- ^ Service we're waiting after.
+    -> IO ()
+waitForService service tracer port action = do
+    let handler (ErrNetworkInvalid net) = do
+            traceWith tracer $ MsgServiceErrNetworkInvalid net
+            exitFailure
+        handler _ = do
+            traceWith tracer $ MsgServiceTimedOut service
+            exitFailure
+
+    traceWith tracer $ MsgServiceWaiting service port
+    action `catch` handler
+    traceWith tracer $ MsgServiceReady service
+
+-- | Log messages from 'waitForService'
+data WaitForServiceLog
+    = MsgServiceWaiting Service (Port "node")
+    | MsgServiceReady Service
+    | MsgServiceTimedOut Service
+    | MsgServiceErrNetworkInvalid Text
+    deriving (Show, Eq)
+
+instance ToText WaitForServiceLog where
+    toText = \case
+        MsgServiceWaiting (Service service) port -> mconcat
+            [ "Waiting for "
+            , service
+            , " to be ready on tcp/"
+            , T.pack (showT port)
+            ]
+        MsgServiceReady (Service service) ->
+            service <> " is ready."
+        MsgServiceTimedOut (Service service) -> mconcat
+             [ "Waited too long for "
+             , service
+             , " to become available. Giving up!"
+             ]
+        MsgServiceErrNetworkInvalid net -> mconcat
+            [ "The node backend is not running on the \"", net, "\" "
+            , "network. Please start the wallet server and the node "
+            , "backend on the same network. Exiting now."
+            ]
+
+instance DefinePrivacyAnnotation WaitForServiceLog
+instance DefineSeverity WaitForServiceLog where
+    defineSeverity = \case
+        MsgServiceWaiting _ _ -> Info
+        MsgServiceReady _ -> Info
+        MsgServiceTimedOut _ -> Info
+        MsgServiceErrNetworkInvalid _ -> Info

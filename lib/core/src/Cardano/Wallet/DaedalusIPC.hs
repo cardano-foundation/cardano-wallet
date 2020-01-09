@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
@@ -22,12 +24,15 @@
 
 module Cardano.Wallet.DaedalusIPC
     ( daedalusIPC
+    , DaedalusIPCLog(..)
     ) where
 
 import Prelude
 
-import Cardano.BM.Trace
-    ( Trace, logDebug, logError, logInfo, logNotice )
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
+import Cardano.BM.Data.Tracer
+    ( DefinePrivacyAnnotation (..), DefineSeverity (..), ToObject (..) )
 import Control.Concurrent
     ( threadDelay )
 import Control.Exception
@@ -38,6 +43,8 @@ import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT, except, runExceptT )
+import Control.Tracer
+    ( Tracer, traceWith )
 import Data.Aeson
     ( FromJSON (..)
     , ToJSON (..)
@@ -61,10 +68,12 @@ import Data.Maybe
     ( fromMaybe )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( ToText (..) )
 import Data.Word
     ( Word32, Word64 )
-import Fmt
-    ( fmt, (+||), (||+) )
+import GHC.Generics
+    ( Generic )
 import GHC.IO.Handle.FD
     ( fdToHandle )
 import System.Environment
@@ -95,6 +104,9 @@ instance FromJSON MsgIn where
         (_ :: [()]) <- v .: "QueryPort"
         pure QueryPort
 
+instance ToJSON MsgIn where
+    toJSON QueryPort = object [ "QueryPort" .= Array mempty ]
+
 instance ToJSON MsgOut where
     toJSON Started = object [ "Started" .= Array mempty ]
     toJSON (ReplyPort p) = object [ "ReplyPort" .= p ]
@@ -109,36 +121,66 @@ instance ToJSON MsgOut where
 -- the parent process exits. Otherwise, it will return immediately. Before
 -- returning, it will log an message about why it has exited.
 daedalusIPC
-    :: Trace IO Text
+    :: Tracer IO DaedalusIPCLog
     -- ^ Logging object
     -> Int
     -- ^ Port number to send to Daedalus
     -> IO ()
-daedalusIPC trace port = runNodeChannel hello msg >>= \case
+daedalusIPC tr port = runNodeChannel hello (withLog msg) >>= \case
     Right runServer -> do
-        logInfo trace "Daedalus IPC server starting"
         NodeChannelFinished err <- runServer
-        logNotice trace $ fmt $
-            "Daedalus IPC finished for this reason: "+||err||+""
+        traceWith tr $ MsgFinished $ T.pack $ show err
     Left NodeChannelDisabled -> do
-        logInfo trace "Daedalus IPC is not enabled."
+        traceWith tr MsgNotEnabled
         threadDelay maxBound
     Left (NodeChannelBadFD err) ->
-        logError trace $ fmt $ "Problem starting Daedalus IPC: "+||err||+""
+        traceWith tr $ MsgStartupError err
   where
     -- Introductory message
     hello = do
-        logDebug trace "Sending Started"
+        traceWith tr MsgSendHello
         pure Started
 
     -- How to respond to an incoming message, or when there is an incoming
     -- message that couldn't be parsed.
-    msg (Right QueryPort) = do
-        logDebug trace "Received QueryPort"
-        pure $ Just (ReplyPort port)
-    msg (Left e) = do
-        logDebug trace "Received unknown message"
-        pure $ Just (ParseError e)
+    msg (Right QueryPort) = pure $ Just (ReplyPort port)
+    msg (Left e) = pure $ Just (ParseError e)
+
+    withLog action m = traceWith tr (MsgReceive m) >> action m
+
+----------------------------------------------------------------------------
+-- Logging
+
+data DaedalusIPCLog
+    = MsgStarting
+    | MsgNotEnabled
+    | MsgStartupError Text
+    | MsgSendHello
+    | MsgReceive (Either Text MsgIn)
+    | MsgFinished Text
+    deriving (Generic, Show, Eq, ToJSON)
+
+instance ToText DaedalusIPCLog where
+    toText = \case
+        MsgStarting -> "Daedalus IPC server starting"
+        MsgNotEnabled -> "Daedalus IPC is not enabled."
+        MsgStartupError err -> "Problem starting Daedalus IPC: " <> err
+        MsgSendHello -> "Sending Started"
+        MsgReceive (Right QueryPort) -> "Received QueryPort"
+        MsgReceive (Left _) -> "Received unknown message"
+        MsgFinished err ->
+            "Daedalus IPC finished for this reason: " <> err
+
+instance ToObject DaedalusIPCLog
+instance DefinePrivacyAnnotation DaedalusIPCLog
+instance DefineSeverity DaedalusIPCLog where
+    defineSeverity = \case
+        MsgStarting -> Info
+        MsgNotEnabled -> Info
+        MsgStartupError _ -> Error
+        MsgSendHello -> Debug
+        MsgReceive _ -> Debug
+        MsgFinished _ -> Notice
 
 ----------------------------------------------------------------------------
 -- NodeJS child_process IPC protocol

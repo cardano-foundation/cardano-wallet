@@ -11,14 +11,10 @@ module Cardano.Pool.DB.Properties
 
 import Prelude
 
-import Cardano.BM.Configuration.Model
-    ( Configuration )
-import Cardano.BM.Data.LogItem
-    ( LogObject (..) )
 import Cardano.BM.Trace
     ( traceInTVarIO )
 import Cardano.DB.Sqlite
-    ( SqliteContext )
+    ( DBLog (..), SqliteContext )
 import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists (..) )
 import Cardano.Pool.DB.Arbitrary
@@ -54,8 +50,6 @@ import Data.Ord
     ( Down (..) )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text
-    ( Text )
 import Data.Word
     ( Word64 )
 import Fmt
@@ -92,15 +86,13 @@ withDB create = beforeAll create . beforeWith
 
 -- | Set up a DBLayer for testing, with the command context, and the logging
 -- variable.
-newMemoryDBLayer :: IO Configuration -> IO (DBLayer IO)
-newMemoryDBLayer conf = snd . snd <$> (newMemoryDBLayer' conf)
+newMemoryDBLayer :: IO (DBLayer IO)
+newMemoryDBLayer = snd . snd <$> newMemoryDBLayer'
 
-newMemoryDBLayer'
-    :: IO Configuration -> IO (TVar [LogObject Text], (SqliteContext, DBLayer IO))
-newMemoryDBLayer' testingLogConfig = do
-    logConfig <- testingLogConfig
+newMemoryDBLayer' :: IO (TVar [DBLog], (SqliteContext, DBLayer IO))
+newMemoryDBLayer' = do
     logVar <- newTVarIO []
-    (logVar, ) <$> newDBLayer logConfig (traceInTVarIO logVar) Nothing
+    (logVar, ) <$> newDBLayer (traceInTVarIO logVar) Nothing
 
 properties :: SpecWith (DBLayer IO)
 properties = do
