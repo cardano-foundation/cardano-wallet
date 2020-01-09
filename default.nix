@@ -24,6 +24,9 @@ let
     inherit pkgs src jmPkgs;
   };
 
+  filterCardanoPackages = pkgs.lib.filterAttrs (_: package: isCardanoWallet package);
+  getPackageChecks = pkgs.lib.mapAttrs (_: package: package.checks);
+
   self = {
     inherit pkgs iohkLib src haskellPackages;
     inherit jormungandr jormungandr-cli;
@@ -36,8 +39,12 @@ let
       haskellBuildUtils = iohkLib.haskellBuildUtils.package;
     };
 
+    # `tests` are the test suites which have been built
     tests = collectComponents "tests" isCardanoWallet haskellPackages;
     benchmarks = collectComponents "benchmarks" isCardanoWallet haskellPackages;
+    # `checks` are the result of executing the tests
+    checks = pkgs.recurseIntoAttrs (getPackageChecks
+       (filterCardanoPackages haskellPackages));
 
     dockerImage = pkgs.callPackage ./nix/docker.nix {
       inherit (self) cardano-wallet-jormungandr;

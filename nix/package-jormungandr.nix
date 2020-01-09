@@ -59,6 +59,7 @@ let
       cp -R ${cardano-wallet-jormungandr} $out
       chmod -R +w $out
       ${setGitRev}
+      rm $out/bin/libffi-6.dll
       cp -v ${pkgs.libffi}/bin/libffi-6.dll $out/bin
       cp ${jormungandr-win64}/bin/* $out/bin
     '';

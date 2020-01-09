@@ -31,12 +31,16 @@ let
       # Add source filtering to local packages
       {
         packages.cardano-wallet-core.src = filterSubDir /lib/core;
+        packages.cardano-wallet-core.components.tests.unit.keepSource = true;
         packages.cardano-wallet-core-integration.src = filterSubDir /lib/core-integration;
         packages.cardano-wallet-cli.src = filterSubDir /lib/cli;
         packages.cardano-wallet-launcher.src = filterSubDir /lib/launcher;
         packages.cardano-wallet-jormungandr.src = filterSubDir /lib/jormungandr;
+        packages.cardano-wallet-jormungandr.components.tests.unit.keepSource = true;
+        packages.cardano-wallet-jormungandr.components.tests.integration.keepSource = true;
         packages.cardano-wallet-test-utils.src = filterSubDir /lib/test-utils;
         packages.text-class.src = filterSubDir /lib/text-class;
+        packages.text-class.components.tests.unit.keepSource = true;
         packages.bech32.src = filterSubDir /lib/bech32;
       }
 
@@ -44,7 +48,7 @@ let
       {
         packages.cardano-wallet-jormungandr.components.tests = {
           # Some tests want to write ~/.local/share/cardano-wallet
-          integration.preBuild = "export HOME=`pwd`";
+          integration.preCheck = "export HOME=`pwd`";
           # provide jormungandr command to test suites
           integration.build-tools = [
             jmPkgs.jormungandr
@@ -71,7 +75,6 @@ let
         # Workaround for Haskell.nix issue
         packages.cardano-wallet-jormungandr.components.all.postInstall = pkgs.lib.mkForce "";
         packages.cardano-wallet-core.components.all.preBuild = pkgs.lib.mkForce "";
-        packages.cardano-wallet-jormungandr.components.all.preBuild = pkgs.lib.mkForce "";
       }
 
       # Musl libc fully static build

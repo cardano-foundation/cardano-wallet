@@ -9,7 +9,7 @@ let
     walletPkgs.pkgs.recurseIntoAttrs {
       inherit (walletPkgs)
         cardano-wallet-jormungandr
-        tests
+        checks
         benchmarks;
     };
 

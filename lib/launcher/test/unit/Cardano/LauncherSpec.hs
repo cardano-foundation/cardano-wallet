@@ -191,9 +191,9 @@ setupMockCommands
         }
     setupWin True = MockCommands
         { mockCommand = \success before -> if success
-                then Command "PING" ["127.0.0.1", "-n", "1", "-w", "1000"] before Inherit
+                then Command "PING" ["/n", "1", "/w", "1000", "127.0.0.1"] before Inherit
                 else Command "START" ["/wait", "xyzzy"] before Inherit
-        , foreverCommand = Command "ping" ["127.0.0.1", "-n", "20", "-w", "1000"] (pure ()) Inherit
+        , foreverCommand = Command "PING" ["/n", "20", "/w", "1000", "127.0.0.1"] (pure ()) Inherit
         }
 
 -- | Use the presence of @winepath.exe@ to detect when running tests under Wine.
