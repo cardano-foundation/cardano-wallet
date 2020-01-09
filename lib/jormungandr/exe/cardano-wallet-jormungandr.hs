@@ -405,4 +405,10 @@ helperTracingText = unlines $
     , "  " ++ unwords (map fst loggingSeverities)
     , ""
     , "The possible tracers are:"
-    ] ++ ["  " ++ name ++ "  " ++ desc | (name, desc) <- tracerDescriptions]
+    ] ++ [ pretty name desc | (name, desc) <- tracerDescriptions]
+  where
+    maxLength = maximum $ map (length . fst) tracerDescriptions
+    pretty name desc =
+        "  " ++ padRight maxLength ' ' name ++ "  " ++ desc
+      where
+        padRight n char str = take n $ str ++ replicate n char
