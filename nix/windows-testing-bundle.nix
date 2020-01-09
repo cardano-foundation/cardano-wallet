@@ -56,19 +56,17 @@ in pkgs.runCommand name {
       ${testData.jormungandr}/jormungandr/config.yaml > config.yaml
 
   ${pkgs.lib.concatMapStringsSep "\n" (test: ''
-    pkg=`ls -1 ${test} | head -1`
-    exe=`cd ${test}/$pkg; ls -1 *.exe`
-    name=$pkg-test-$exe
-    cp ${test}/$pkg/$exe $name
+    exe=`cd ${test}/bin; ls -1 *.exe`
+    name=${test.packageName}-test-$exe
+    cp ${test}/bin/$exe $name
     echo $name >> tests.bat
     echo "if %errorlevel% neq 0 exit /b %errorlevel%" >> tests.bat
   '') tests}
 
   ${pkgs.lib.concatMapStringsSep "\n" (bench: ''
-    pkg=`ls -1 ${bench} | head -1`
-    exe=`cd ${bench}/$pkg; ls -1 *.exe`
-    name=$pkg-bench-$exe
-    cp ${bench}/$pkg/$exe $name
+    exe=`cd ${bench}/bin; ls -1 *.exe`
+    name=${bench.packageName}-bench-$exe
+    cp ${bench}/bin/$exe $name
   '') benchmarks}
 
   chmod -R +w .
