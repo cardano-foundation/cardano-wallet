@@ -79,6 +79,8 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SlotNo (unSlotNo)
     )
+import Cardano.Wallet.Registry
+    ( WorkerRegistryLog )
 import Control.Arrow
     ( first )
 import Control.Monad
@@ -603,6 +605,7 @@ associateMetadata poolOwners ownerMeta =
 -- | Messages associated with stake pool layer.
 data StakePoolLayerLog
     = MsgRegistry RegistryLog
+    | MsgStakePoolWorker WorkerRegistryLog
     | MsgListStakePoolsBegin
     | MsgMetadataUnavailable
     | MsgMetadataUsing PoolId PoolOwner StakePoolMetadata
@@ -615,6 +618,7 @@ instance DefinePrivacyAnnotation StakePoolLayerLog
 instance DefineSeverity StakePoolLayerLog where
     defineSeverity ev = case ev of
         MsgRegistry msg -> defineSeverity msg
+        MsgStakePoolWorker msg -> defineSeverity msg
         MsgListStakePoolsBegin -> Debug
         MsgMetadataUnavailable -> Notice
         MsgComputedProgress{} -> Debug
@@ -625,6 +629,7 @@ instance DefineSeverity StakePoolLayerLog where
 instance ToText StakePoolLayerLog where
     toText = \case
         MsgRegistry msg -> toText msg
+        MsgStakePoolWorker msg -> toText msg
         MsgListStakePoolsBegin -> "Listing stake pools"
         MsgMetadataUnavailable -> "Stake pool metadata is unavailable"
         MsgComputedProgress prodTip nodeTip -> mconcat

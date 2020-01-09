@@ -29,20 +29,10 @@ module Cardano.Wallet.Api.Server
     , start
     , newApiLayer
     , withListeningSocket
-    , defaultWorkerAfter
-
-    -- * Logging
-    , WorkerRegistryLog (..)
     ) where
 
 import Prelude
 
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
-import Cardano.BM.Data.Trace
-    ( Trace )
-import Cardano.BM.Data.Tracer
-    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
 import Cardano.Pool.Metadata
     ( StakePoolMetadata )
 import Cardano.Pool.Metrics
@@ -142,7 +132,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.DB
     ( DBFactory )
 import Cardano.Wallet.Logging
-    ( fromLogObject, logTrace, transformTextTrace )
+    ( fromLogObject, transformTextTrace )
 import Cardano.Wallet.Network
     ( ErrNetworkTip (..), ErrNetworkUnavailable (..), NetworkLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -200,7 +190,13 @@ import Cardano.Wallet.Primitive.Types
     , syncProgressRelativeToTime
     )
 import Cardano.Wallet.Registry
-    ( HasWorkerCtx (..), MkWorker (..), newWorker, workerResource )
+    ( HasWorkerCtx (..)
+    , MkWorker (..)
+    , WorkerRegistryLog (..)
+    , defaultWorkerAfter
+    , newWorker
+    , workerResource
+    )
 import Cardano.Wallet.Transaction
     ( TransactionLayer )
 import Cardano.Wallet.Unsafe
@@ -212,13 +208,7 @@ import Control.Arrow
 import Control.DeepSeq
     ( NFData )
 import Control.Exception
-    ( AsyncException (..)
-    , IOException
-    , SomeException
-    , asyncExceptionFromException
-    , bracket
-    , tryJust
-    )
+    ( IOException, bracket, tryJust )
 import Control.Monad
     ( forM, forM_, void )
 import Control.Monad.IO.Class
@@ -1480,17 +1470,6 @@ withWorkerCtx ctx wid onMissing action =
   where
     re = ctx ^. workerRegistry @s @k
 
-defaultWorkerAfter
-    :: Trace IO WorkerRegistryLog
-    -> Either SomeException a
-    -> IO ()
-defaultWorkerAfter tr = logTrace tr . \case
-    Right _ -> MsgFinished
-    Left e -> case asyncExceptionFromException e of
-        Just ThreadKilled -> MsgThreadKilled
-        Just UserInterrupt -> MsgUserInterrupt
-        _ -> MsgUnhandledException $ pretty $ show e
-
 {-------------------------------------------------------------------------------
                                 Error Handling
 -------------------------------------------------------------------------------}
@@ -1934,38 +1913,3 @@ instance LiftHandler (Request, ServantErr) where
                 , renderHeader $ contentType $ Proxy @JSON
                 ) : headers
             }
-
-{-------------------------------------------------------------------------------
-                                    Logging
--------------------------------------------------------------------------------}
-
-data WorkerRegistryLog
-    = MsgFinished
-    | MsgThreadKilled
-    | MsgUserInterrupt
-    | MsgUnhandledException Text
-    | MsgFromWorker Text
-    -- ^ Registry permits workers to log with Text only
-    deriving (Show, Eq)
-
-instance ToText WorkerRegistryLog where
-    toText = \case
-        MsgFinished ->
-            "Worker has exited: main action is over."
-        MsgThreadKilled ->
-            "Worker has exited: killed by parent."
-        MsgUserInterrupt ->
-            "Worker has exited: killed by user."
-        MsgUnhandledException msg ->
-            "Worker has exited unexpectedly: " <> msg
-        MsgFromWorker msg ->
-            msg
-
-instance DefinePrivacyAnnotation WorkerRegistryLog
-instance DefineSeverity WorkerRegistryLog where
-    defineSeverity = \case
-        MsgFinished -> Notice
-        MsgThreadKilled -> Notice
-        MsgUserInterrupt -> Notice
-        MsgUnhandledException _ -> Error
-        MsgFromWorker _ -> Info

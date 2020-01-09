@@ -367,13 +367,13 @@ loggingTracersOptions :: Parser TracerSeverities
 loggingTracersOptions = Tracers
     <$> traceOpt applicationTracer (Just Info)
     <*> traceOpt apiServerTracer (Just Info)
+    <*> traceOpt walletEngine (Just Info)
     <*> traceOpt walletDbTracer (Just Info)
     <*> traceOpt networkTracer (Just Info)
     <*> traceOpt stakePoolMonitorTracer (Just Info)
     <*> traceOpt stakePoolLayerTracer (Just Info)
     <*> traceOpt stakePoolDBTracer (Just Info)
     <*> traceOpt daedalusIPCTracer (Just Info)
-    <*> traceOpt workerRegistryTracer (Just Info)
   where
     traceOpt field def = fmap Const . option loggingSeverityOrOffReader $ mempty
         <> long ("trace-" <> T.unpack (getConst (field tracerLabels)))
