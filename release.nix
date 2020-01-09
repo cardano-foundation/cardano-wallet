@@ -40,7 +40,14 @@ with pkgs.lib;
 
 let
   testsSupportedSystems = [ "x86_64-linux" "x86_64-darwin" ];
-  collectTests = ds: filter (d: elem d.system testsSupportedSystems) (collect isDerivation ds);
+  # Recurse through an attrset, returning all test derivations in a list.
+  collectTests' = ds: filter (d: elem d.system testsSupportedSystems) (collect isDerivation ds);
+  # Adds the package name to the test derivations for windows-testing-bundle.nix
+  # (passthru.identifier.name does not survive mapTestOn)
+  collectTests = ds: concatLists (
+    mapAttrsToList (packageName: package:
+      map (drv: drv // { inherit packageName; }) (collectTests' package)
+    ) ds);
 
   inherit (systems.examples) mingwW64 musl64;
 
