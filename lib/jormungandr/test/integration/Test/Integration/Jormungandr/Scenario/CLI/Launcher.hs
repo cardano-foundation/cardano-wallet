@@ -151,7 +151,7 @@ spec = do
                     , "--secret", secret
                     ]
             (Exit c, Stdout o, Stderr _) <- cardanoWalletCLI @t args
-            c `shouldBe` ExitFailure 1
+            c `shouldBe` ExitFailure 33
             o `shouldContain`
                 ("As far as I can tell, this isn't a valid block file: " <> secret)
 

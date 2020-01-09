@@ -113,23 +113,6 @@ spec = do
             waitForProcess ph `shouldReturn` ExitSuccess
 
     describe "LOGGING - cardano-wallet serve logging [SERIAL]" $ do
-        it "LOGGING - Serve --quiet logs Error only" $ \ctx -> do
-            withTempFile $ \logs hLogs -> do
-                let cmd = Command
-                        (commandName @t)
-                        ["serve"
-                        , "--node-port", show (ctx ^. typed @(Port "node"))
-                        , "--random-port"
-                        , "--quiet"
-                        , "--genesis-block-hash", block0H
-                        ]
-                        (pure ())
-                        (UseHandle hLogs)
-                void $ withBackendProcess nullTracer cmd $ do
-                    threadDelay (10 * oneSecond)
-                hClose hLogs
-                TIO.readFile logs `shouldReturn` mempty
-
         it "LOGGING - Serve default logs Info" $ \ctx -> do
             withTempFile $ \logs hLogs -> do
                 let cmd = Command
@@ -156,7 +139,7 @@ spec = do
                         , "--database", "/does-not-exist"
                         , "--node-port", show (ctx ^. typed @(Port "node"))
                         , "--random-port"
-                        , "--verbose"
+                        , "--log-level", "DEBUG"
                         , "--genesis-block-hash", block0H
                         ]
                         (pure ())

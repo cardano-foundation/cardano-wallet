@@ -357,10 +357,10 @@ loggingOptions = LoggingOptions
   where
     minSev = option loggingSeverityReader $ mempty
         <> long "log-level"
-        <> value Debug
+        <> value Info
         <> metavar "SEVERITY"
         <> help ("Global minimum severity for a message to be logged. " <>
-            "Defaults to \"DEBUG\" unless otherwise configured.")
+            "Defaults to \"INFO\" unless otherwise configured.")
         <> hidden
 
 loggingTracersOptions :: Parser TracerSeverities
@@ -396,7 +396,7 @@ helperTracingText = unlines $
     [ "Additional tracing options:"
     , ""
     , "  --log-level SEVERITY     Global minimum severity for a message to be logged."
-    , "                           Defaults to \"DEBUG\" unless otherwise configured."
+    , "                           Defaults to \"INFO\" unless otherwise configured."
     , "  --trace-NAME=off         Disable logging on the given tracer."
     , "  --trace-NAME=SEVERITY    Set the minimum logging severity for the given"
     , "                           tracer. Defaults to \"INFO\"."
