@@ -59,7 +59,7 @@ The Byron Haskell node only *needs* `Point ByronBlock = Origin | At (slotNo, ha
 
 We might need to convert the genesis point `Origin`, to a `BlockHeader` if we are to persist it in the DB ❌
 
-Byron `SlotNo` counts slots from genesis in a single number. The current Jörmungandr-compatible wallet `SlotId` counts the epoch AND the slot in that epoch. ❌
+Byron `SlotNo` counts slots from genesis in a single number. The current Jörmungandr-compatible wallet's `SlotId` counts the epoch AND the slot in that epoch. ❌
 
 In Jörmungandr a slot can only be inhabited by a single block. On the Haskell side, epoch boundary blocks will share slot with the normal block that comes after it. ❌
 
@@ -91,9 +91,7 @@ The stake pool metrics worker needs to know the minter of each block. In Byron t
 
 ###  FeePolicy
 
-We supported cardano-http-bridge in the past. Existing abstractions should already be able to deal with this difference. It *should* not be that much trouble, but it could be. ⚠️
-
-Making sure related functionality (fee-estimation, coin selection) could maybe be subtly difficult. (@paweljakubas?)
+We supported cardano-http-bridge in the past. Existing abstractions should already be able to deal with this difference. It *should* not be that much trouble.
 
 ### Tx inputs
 
@@ -110,7 +108,7 @@ We might be able to treat addresses more abstractly and avoid this.
 
 ### Active slot coeff
 
-While missing in Byron, it will exist in Shelley. We could set it to 100% internally in the wallet. Should be a problem at all. ✅
+While missing in Byron, it will exist in Shelley. We could set it to 100% internally in the wallet. Shouldn't be a problem at all. ✅
 
 ### Superfluous prevBlockHash in BlockHeader
 
@@ -130,7 +128,7 @@ But to support protocol parameter updates, we should consider making the core wa
 
 For Byron, we can assume they are static. ✅
 
-### Epoch Bounday Blocks
+### Epoch Boundary Blocks
 
 I imagine having two blocks with the same slot might break assumptions in our DB-rollbacks, but I don't know.
 
@@ -153,10 +151,10 @@ We cannot implement delegation features. We could
 I tried to get a wallet executable working with the Haskell node and discovered new kinds of difficulties.
 
 - Chain parameters are not in the Haskell genesis block. The wallet will need to hard-code or read them from a config file at startup.
-- The genesis block does not have to be treated differently because of above. The jörmungandr wallet currently treats it completely separate.
-- NetworkLayer and `follow` seem like the wrong abstractions to work with both jörmungandre and Haskell.
+- The genesis block does not have to be treated differently because of above. The Jörmungandr wallet currently treats it completely separate.
+- NetworkLayer and `follow` seem like the wrong abstractions to work with both Jörmungandr and Haskell.
 - If `follow` is removed from core, `monitorStakePools` breaks (or will have be made jormungandr-specific).
-- Both CLI and api will differ. (E.g. different configuration and cli arguments)
+- Both CLI and API will differ. (E.g. different configuration and CLI arguments)
 - Use of BlockHeader as Point could be problematic if inconvenient conversions are needed at inconvenient places.
 
 ## Summary Byron
