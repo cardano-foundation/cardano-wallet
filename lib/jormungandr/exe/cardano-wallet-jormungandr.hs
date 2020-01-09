@@ -367,8 +367,6 @@ loggingTracersOptions :: Parser TracerSeverities
 loggingTracersOptions = Tracers
     <$> traceOpt applicationTracer (Just Info)
     <*> traceOpt apiServerTracer (Just Info)
-    <*> traceOpt apiWorkerTracer (Just Info)
-    <*> traceOpt walletDatabasesTracer (Just Info)
     <*> traceOpt walletDbTracer (Just Info)
     <*> traceOpt networkTracer (Just Info)
     <*> traceOpt stakePoolMonitorTracer (Just Info)

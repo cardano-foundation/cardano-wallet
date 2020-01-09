@@ -31,7 +31,7 @@ module Cardano.Wallet.DB.Sqlite
     , PersistState (..)
 
     -- * Logging
-    , WalletDatabasesLog (..)
+    , DatabasesStartupLog (..)
     ) where
 
 import Prelude
@@ -257,7 +257,7 @@ newDBFactory tr mDatabaseDir = do
 --   specified directory.
 findDatabases
     :: forall k. WalletKey k
-    => Tracer IO WalletDatabasesLog
+    => Tracer IO DatabasesStartupLog
     -> FilePath
     -> IO [W.WalletId]
 findDatabases tr dir = do
@@ -1094,12 +1094,12 @@ selectRndStatePending wid = do
 -------------------------------------------------------------------------------}
 
 -- | Log messages arising from accessing the wallet repository.
-data WalletDatabasesLog
+data DatabasesStartupLog
     = MsgFoundDatabase FilePath W.WalletId
     | MsgUnknownFile FilePath
     deriving (Show, Eq)
 
-instance ToText WalletDatabasesLog where
+instance ToText DatabasesStartupLog where
     toText = \case
         MsgFoundDatabase _file wid ->
             "Found existing wallet: " <> toText wid
@@ -1108,8 +1108,8 @@ instance ToText WalletDatabasesLog where
             , "the database folder: ", T.pack file
             ]
 
-instance DefinePrivacyAnnotation WalletDatabasesLog
-instance DefineSeverity WalletDatabasesLog where
+instance DefinePrivacyAnnotation DatabasesStartupLog
+instance DefineSeverity DatabasesStartupLog where
     defineSeverity = \case
         MsgFoundDatabase _ _ -> Info
         MsgUnknownFile _ -> Notice

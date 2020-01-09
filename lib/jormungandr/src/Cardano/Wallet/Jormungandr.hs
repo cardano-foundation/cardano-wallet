@@ -78,7 +78,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.DaedalusIPC
     ( DaedalusIPCLog, daedalusIPC )
 import Cardano.Wallet.DB.Sqlite
-    ( PersistState, WalletDatabasesLog )
+    ( DatabasesStartupLog, PersistState )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
 import Cardano.Wallet.Jormungandr.Network
@@ -143,6 +143,8 @@ import Data.Function
     ( (&) )
 import Data.Functor
     ( ($>) )
+import Data.Functor.Contravariant
+    ( contramap )
 import Data.Maybe
     ( fromMaybe )
 import Data.Quantity
@@ -264,11 +266,9 @@ serveWallet
         -> NetworkLayer IO t J.Block
         -> IO (ApiLayer s t k)
     apiLayer _loggerName tl nl = do
-        -- let walletDbTrace = appendName loggerName walletDatabasesTracer
-        -- let dbTrace = appendName loggerName contramap (fmap MsgDBLog) tracer
-        -- let apiTrace = contramap (fmap MsgApiWorker) tracer
         let (block0, bp) = staticBlockchainParameters nl
-        wallets <- maybe (pure []) (Sqlite.findDatabases @k walletDatabasesTracer) databaseDir
+        let tracer = contramap MsgDatabaseStartup applicationTracer
+        wallets <- maybe (pure []) (Sqlite.findDatabases @k tracer) databaseDir
         db <- Sqlite.newDBFactory walletDbTracer databaseDir
         Server.newApiLayer
             workerRegistryTracer (toWLBlock block0, bp, sTolerance) nl' tl db wallets
@@ -333,6 +333,7 @@ data ApplicationLog
     | MsgSigTerm
     | MsgWalletStartupError ErrStartup
     | MsgServerStartupError ListenError
+    | MsgDatabaseStartup DatabasesStartupLog
     deriving (Generic, Show, Eq)
 
 instance ToText ApplicationLog where
@@ -340,6 +341,7 @@ instance ToText ApplicationLog where
         MsgStarting -> "Wallet backend server starting..."
         MsgNetworkName n -> "Node is Jörmungandr on " <> toText n
         MsgSigTerm -> "Terminated by signal."
+        MsgDatabaseStartup dbMsg -> toText dbMsg
         MsgWalletStartupError startupErr -> case startupErr of
             ErrStartupGetBlockchainParameters e -> case e of
                 ErrGetBlockchainParamsNetworkUnreachable _ ->
@@ -392,6 +394,7 @@ instance DefineSeverity ApplicationLog where
         MsgStarting -> Info
         MsgSigTerm -> Notice
         MsgNetworkName _ -> Info
+        MsgDatabaseStartup dbEv -> defineSeverity dbEv
         MsgWalletStartupError _ -> Alert
         MsgServerStartupError _ -> Alert
 
@@ -425,8 +428,6 @@ exitCodeApiServer = \case
 data Tracers' f = Tracers
     { applicationTracer      :: f ApplicationLog
     , apiServerTracer        :: f ApiLog
-    , apiWorkerTracer        :: f WorkerRegistryLog
-    , walletDatabasesTracer  :: f WalletDatabasesLog
     , walletDbTracer         :: f DBLog
     , networkTracer          :: f NetworkLayerLog
     , stakePoolMonitorTracer :: f StakePoolMonitorLog
@@ -449,8 +450,6 @@ tracerSeverities :: Maybe Severity -> TracerSeverities
 tracerSeverities sev = Tracers
     { applicationTracer      = Const sev
     , apiServerTracer        = Const sev
-    , apiWorkerTracer        = Const sev
-    , walletDatabasesTracer  = Const sev
     , walletDbTracer         = Const sev
     , networkTracer          = Const sev
     , stakePoolMonitorTracer = Const sev
@@ -465,8 +464,6 @@ setupTracers :: TracerSeverities -> Trace IO Text -> Tracers IO
 setupTracers sev tr = Tracers
     { applicationTracer      = mkTrace applicationTracer      $ onoff applicationTracer      tr
     , apiServerTracer        = mkTrace apiServerTracer        $ onoff apiServerTracer        tr
-    , apiWorkerTracer        = mkTrace apiWorkerTracer        $ onoff apiWorkerTracer        tr
-    , walletDatabasesTracer  = mkTrace walletDatabasesTracer  $ onoff walletDatabasesTracer  tr
     , walletDbTracer         = mkTrace walletDbTracer         $ onoff walletDbTracer         tr
     , networkTracer          = mkTrace networkTracer          $ onoff networkTracer          tr
     , stakePoolMonitorTracer = mkTrace stakePoolMonitorTracer $ onoff stakePoolMonitorTracer tr
@@ -497,8 +494,6 @@ tracerLabels :: Tracers' (Const Text)
 tracerLabels = Tracers
     { applicationTracer      = Const "application"
     , apiServerTracer        = Const "api-server"
-    , apiWorkerTracer        = Const "api-worker"
-    , walletDatabasesTracer  = Const "wallet-databases"
     , walletDbTracer         = Const "wallet-db"
     , networkTracer          = Const "network"
     , stakePoolMonitorTracer = Const "stake-pool-monitor"
@@ -511,17 +506,33 @@ tracerLabels = Tracers
 -- | Names and descriptions of the tracers, for user documentation.
 tracerDescriptions :: [(String, String)]
 tracerDescriptions =
-    [ (lbl applicationTracer      , "")
-    , (lbl apiServerTracer        , "")
-    , (lbl apiWorkerTracer        , "")
-    , (lbl walletDatabasesTracer  , "")
-    , (lbl walletDbTracer         , "")
-    , (lbl networkTracer          , "")
-    , (lbl stakePoolMonitorTracer , "")
-    , (lbl stakePoolLayerTracer   , "")
-    , (lbl stakePoolDBTracer      , "")
-    , (lbl daedalusIPCTracer      , "")
-    , (lbl workerRegistryTracer   , "")
+    [ ( lbl applicationTracer
+      , "About start-up logic and the server's surroundings."
+      )
+    , ( lbl apiServerTracer
+      , "About the HTTP API requests and responses."
+      )
+    , ( lbl walletDbTracer
+      , "About database operations of each wallet."
+      )
+    , ( lbl networkTracer
+      , "About networking communications with the node."
+      )
+    , ( lbl stakePoolMonitorTracer
+      , "About the background worker monitoring stake pools."
+      )
+    , ( lbl stakePoolLayerTracer
+      , "About operations on stake pools."
+      )
+    , ( lbl stakePoolDBTracer
+      , "About database operations of the stake pools db."
+      )
+    , ( lbl daedalusIPCTracer
+      , "About inter-process communications with Daedalus."
+      )
+    , ( lbl workerRegistryTracer
+      , "About background wallet workers events."
+      )
     ]
   where
     lbl f = T.unpack . getConst . f $ tracerLabels
@@ -531,8 +542,6 @@ nullTracers :: Monad m => Tracers m
 nullTracers = Tracers
     { applicationTracer      = nullTracer
     , apiServerTracer        = nullTracer
-    , apiWorkerTracer        = nullTracer
-    , walletDatabasesTracer  = nullTracer
     , walletDbTracer         = nullTracer
     , networkTracer          = nullTracer
     , stakePoolMonitorTracer = nullTracer
