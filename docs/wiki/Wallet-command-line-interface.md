@@ -89,7 +89,6 @@ Many options supported by [`cardano-wallet serve`](#serve) are also supported by
 >   ([--random-port] | [--port INT])
 >   [--node-port INT]
 >   [--state-dir DIR]
->   [--logging-config FILE.YAML] 
 >   [--sync-tolerance DURATION]
 >   ([--quiet] | [--verbose])
 >   (--genesis-block-hash STRING | --genesis-block FILE) 
@@ -205,7 +204,6 @@ Serve API that listens for commands/actions. Before launching user should start 
 >   ([--random-port] | [--port INT])
 >   [--node-port INT]
 >   [--database DIR]
->   [--logging-config FILE.YAML] 
 >   [--sync-tolerance DURATION]
 >   ([--quiet] | [--verbose])
 >   --genesis-block-hash STRING
@@ -242,12 +240,6 @@ Wallet databases will be stored in this directory. If it does not
 exist it will be created. The database files are in
 [SQLite](https://www.sqlite.org) format, and there will be at least
 one database file per wallet.
-
-##### --logging-config
-
-Use a YAML configuration file for fine-grained control over logging.
-
-See [`iohk-monitoring-framework/iohk-monitoring/test/config.yaml`](https://github.com/input-output-hk/iohk-monitoring-framework/blob/bea0e079fc32ed316ce352d17d14199a680e3f6c/iohk-monitoring/test/config.yaml) for an example.
 
 ##### --genesis-block-hash
 
