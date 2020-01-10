@@ -127,7 +127,7 @@ With a good abstraction we could remove the prevBlockHash field in BlockHeader, 
 
 We can probably get by with magic values to represent the `Origin`-case. ✅
 
-A way to treat points (like ourobouros-network's`Point ByronBlock`) more abstract in the wallet could potentially be needed to avoid sabotaging other abstractions.
+A way to treat points (like ourobouros-network's`Point ByronBlock`) more abstract in the wallet could potentially be needed to avoid polluting other abstractions.
 
 ### SlotId vs SlotNo
 
