@@ -103,9 +103,8 @@ We supported cardano-http-bridge in the past. Existing abstractions should alrea
 
 ### Tx inputs
 
-The same goes for the different transaction inputs:
-- We previously had a `Tx` abstraction for supporting inputs with and without `coin`-values. Removing it was conceptually simple but touched a lot of code. Before re-adding it we could take the opportunity to think of alternative solutions. ⚠️
-- The coins in the Jörmungandr tx inputs are exposed in the Wallet API. Something needs to be changed to be able to serve Haskell Byron tx inputs in the API. If we want to continue exposing them in for the Jörmungandr-compatible wallet we need some added abstraction in the wallet API code. ⚠️
+The same goes for the different transaction inputs.
+We previously had a `Tx` abstraction for supporting inputs with and without `coin`-values. Removing it was conceptually simple but touched a lot of code. Before re-adding it we could take the opportunity to think of alternative solutions. ⚠️
 
 ### Addresses
 
