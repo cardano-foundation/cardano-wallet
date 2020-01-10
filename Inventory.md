@@ -174,5 +174,20 @@ I tried to get a wallet executable working with the Haskell node and discovered 
 
 ## Extra: A glimpse into Shelley
 
-- We need to support changing protocol parameters.
-- Delegation features will likely work differently. E.g through imported ledger-rules or by asking for certain ledger state once per epoch. (See Duncan's messages: https://input-output-rnd.slack.com/archives/C819S481Y/p1576776488005100) The very good thing is that we will be able to ask for the ledger state of any point in the unstable chain. In Jörmungandr we could only retrieve the latest stake-distribution and we didn't know what point it belonged to when we got it. This was very tricky to deal with.
+We need to support changing protocol parameters. Most likely via a function from cardano-ledger, as specified in the [WB-44](https://jira.iohk.io/secure/RapidBoard.jspa?rapidView=46&projectKey=WB&view=planning&selectedIssue=WB-44&issueLimit=100) proposal.
+
+We will use different mechanisms for retrieving data than for the jörmungandr delegation features:
+
+> For protocol params, stake pools etc, you have a choice:
+>
+> Use the ledger rules (via the lib) to maintain the appropriate subset of the ledger state (everything other than the big things like utxo, reward accounts & stake distribution). With this approach you always have locally the full values and they are automatically in-sync with the block you're up to.
+>
+> Don't use the ledger rules, and every time you want to find some bit of the ledger state (other than the wallet utxo), you can use the local state query protocol to get reference to a snapshot of the ledger state as of a recent block, and then run queries against it to get what you want.
+>
+>[...]
+
+>If it were not for the reward accounts I'd say don't even think about 2 and do everything via 1.
+
+—- [Duncan](https://input-output-rnd.slack.com/archives/C819S481Y/p1576777084005800?thread_ts=1576776488.005100&cid=C819S481Y)
+
+In Jörmungandr we could only retrieve the latest stake-distribution and we had to cleverly make sure that it corresponded to the same chain as our local chain. With the `LocalStateQuery` protocol we should be able to ask for the ledger state of any point within `k` to the tip. This is great as we won't have to be concerned about race-conditions.
