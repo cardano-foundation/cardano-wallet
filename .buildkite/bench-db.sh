@@ -17,7 +17,7 @@ if [ -n "${SCRATCH_DIR:-}" ]; then
   export TMPDIR="$SCRATCH_DIR"
 fi
 
-./$bench_name/cardano-wallet-core*/db --json $bench_name.json -o $bench_name.html | tee $bench_name.txt
+./$bench_name/bin/db --json $bench_name.json -o $bench_name.html | tee $bench_name.txt
 
 printf 'Link to \033]1339;url=artifact://'$bench_name.html';content='"Benchmark Report"'\a\n'
 
