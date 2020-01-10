@@ -120,7 +120,9 @@ While missing in Byron, it will exist in Shelley. We could set it to 100% intern
 
 ### Superfluous prevBlockHash in BlockHeader
 
-With a good abstraction, or dropped Jörmungandr support we could remove the prevBlockHash field in BlockHeader, but it does no damage there. ✅
+We cannot drop Jörmungandr-support anytime soon. 
+
+With a good abstraction we could remove the prevBlockHash field in BlockHeader, but it does no damage there. ✅
 
 ### Point ByronBlock vs BlockHeader
 
