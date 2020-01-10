@@ -150,10 +150,16 @@ spec = do
 
         it "LOGGING - Serve shuts down logging correctly" $ \ctx -> do
             withTempFile $ \logs hLogs -> do
+                -- This starts the server with a database directory that should
+                -- fail to create, thus causing the program to exit.
+                -- On Linux/macOS, the user should not have permission to create
+                -- a directory in /.
+                -- On Windows, * is an invalid filename character.
+                let dirShouldFailToCreate = "/*"
                 let cmd = Command
                         (commandName @t)
                         ["serve"
-                        , "--database", "/*"
+                        , "--database", dirShouldFailToCreate
                         , "--node-port", show (ctx ^. typed @(Port "node"))
                         , "--random-port"
                         , "--verbose"
