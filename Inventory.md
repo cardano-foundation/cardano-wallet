@@ -157,20 +157,38 @@ We cannot implement delegation features. We could
 
 ## Other, fuzzier difficulties of integration
 
-I tried to get a wallet executable working with the Haskell node and discovered new kinds of difficulties.
+I tried to get a wallet executable working with the Haskell node. This section contains my impressions.
 
-- NetworkLayer and `follow` seem like the wrong abstractions to work with both Jörmungandr and Haskell.
-- If `follow` is removed from core, `monitorStakePools` breaks (or will have be made jormungandr-specific).
 - Both CLI and API will differ. (E.g. different configuration and CLI arguments)
 - Use of BlockHeader as Point could be problematic if inconvenient conversions are needed at inconvenient places.
+- `nextBlocks`, `monitorStakePools` and `follow` seem like the wrong abstractions in *core* to support the Haskell node. Reasoning:
+
+The `NetworkLayer` (and therefore cardano-wallet-jörmungandr) implements
+```haskell
+    { nextBlocks
+        :: Cursor target
+        -> ExceptT ErrGetBlock m (NextBlocksResult target block)
+```
+which the `follow` function calls repeatedly with different `Cursor target`.
+
+The Haskell chain sync protocol is stateful in the sense that the node knows where we are on the chain and will tell us when to roll forward and when to roll back automatically. A  `nextBlocks` without the `Cursor target` argument (local tip) would work better. But I thought the most straight-forward abstraction for the Haskell node would be:
+
+```haskell
+follow 
+    :: [point] -- points/BlockHeaders we know about
+    -> (RollBackOrForward block -> IO ()) 
+    -> IO () -- syncs forever
+```
+which we could put inside `NetworkLayer. `[src](https://github.com/input-output-hk/cardano-wallet/blob/ed10bfeabac2e184a3d090d875846091249a3288/lib/core/src/Cardano/Wallet/Network.hs#L65-L68), and note this is different from our current `follow` in `Cardano.Wallet.Network`.
+
+It was my intention for this `follow` to also work with `cardano-wallet-jormungandr`. But it does not! [`monitorStakePools`](https://github.com/input-output-hk/cardano-wallet/blob/cc7b767608399279fe1f88f5be2ed84268af3d35/lib/core/src/Cardano/Pool/Metrics.hs#L155-L229) relies on being able to tell the current `Cardano.Wallet.Network.follow` to `RetryImmediately`. This is to avoid *jörmungandr-specific* race-conditions when fetching the current stake-distribution. We can't tell the Haskell node to give us a block it has already sent us. Or even if we can with some trickery, it would just be unnecessary. Which is why I didn't  think the current `monitorStakePools` or `Cardano.Wallet.Network.follow` would be good abstractions, nor `nextBlocks`.
 
 ## Summary Byron
-- Need to deal with absence of `coin` value in transaction inputs (both internally and in the API)
+- Need to deal with absence of `coin` value in transaction inputs
 - Need to deal with of tx fee policy working differently
-- Absence of delegation features requires dummy implementation or re-designed API for Byron
-- There are a few small problems with trivial immediate solutions.
-- There seem to be several fuzzier differences. For instance, the wallet `NetworkLayer` seem to be the wrong abstraction.
-- Some of the fuzzier difficulties might lack cheap temporary solutions. More careful consideration might be useful there, re-evaluating current architecture while keeping future goals in mind.
+- Absence of delegation features requires dummy implementation or slight changes to server-startup
+- There are a few other small problems with trivial immediate solutions.
+- I had trouble connecting the existing `NetworkLayer` abstraction with the Haskell Node.
 
 ## Extra: A glimpse into Shelley
 
