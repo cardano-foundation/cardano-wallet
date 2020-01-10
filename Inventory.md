@@ -65,6 +65,14 @@ In Jörmungandr a slot can only be inhabited by a single block. On the Haskell s
 
 There is no limit on how far the Jörmungandr nodes can rollback. The Haskell Nodes have a limit: (`k` blocks). Haskell nodes have a clear separation between mutable and immutable parts of the chain.
 
+### Genesis block
+
+The `block0` of Jörmungandr contains the initial UTxO distribution and protocol parameters. The wallet retrieves it from Jörmungandr REST API like other blocks, but the wallet then treats it specially; to even start the wallet server, we first need the `block0`.
+
+The Haskell node's initial protocol parameters and initial UTxO can be derived from the "Genesis Config", which is read from a config file ([example](https://github.com/input-output-hk/cardano-ledger/blob/0ad59ce46b3da8af6f6af97064e7c77cc7c2ac8b/cardano-ledger/mainnet-genesis.json#L1)).
+
+So from the wallet's perspective, Jörmungandr and Haskell are very similar, except for *how* the genesis data is retrieved. Small ❌.
+
 ### Transactions
 
 Transaction inputs in Jörmungandr consist of (txHash, index, coinValue). In the Haskell Byron implementation they are only (txHash, index). ❌
@@ -150,8 +158,6 @@ We cannot implement delegation features. We could
 
 I tried to get a wallet executable working with the Haskell node and discovered new kinds of difficulties.
 
-- Chain parameters are not in the Haskell genesis block. The wallet will need to hard-code or read them from a config file at startup.
-- The genesis block does not have to be treated differently because of above. The Jörmungandr wallet currently treats it completely separate.
 - NetworkLayer and `follow` seem like the wrong abstractions to work with both Jörmungandr and Haskell.
 - If `follow` is removed from core, `monitorStakePools` breaks (or will have be made jormungandr-specific).
 - Both CLI and API will differ. (E.g. different configuration and CLI arguments)
