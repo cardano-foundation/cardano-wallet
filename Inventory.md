@@ -152,7 +152,7 @@ With the Haskell node we will be able to say that old enough state/checkpoints a
 
 We cannot implement delegation features. We could
 1. Keep the API the same, and use dummy implementations internally. E.g return an empty list of stake pools. E.g say that wallets have 0 account balance. I think this should work without any hustle.
-2. Make the wallet modular enough to not have to do the above. I am not sure how difficult this would be.
+2. Serve only a portion of the API. With some trivial tweaks, this should be possible.
 
 ## Other, fuzzier difficulties of integration
 
