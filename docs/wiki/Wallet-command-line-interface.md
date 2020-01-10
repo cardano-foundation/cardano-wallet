@@ -267,6 +267,47 @@ $ cardano-wallet serve --genesis-block-hash $(jcli genesis hash --input block0.b
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
 
+## Logging options for launch / serve
+
+Both `launch` and `serve` accept extra command-line arguments for
+logging (also called "tracing").
+
+> `cardano-wallet launch --help-tracing`
+
+```
+Additional tracing options:
+
+  --log-level SEVERITY     Global minimum severity for a message to be logged.
+                           Defaults to "DEBUG" unless otherwise configured.
+  --trace-NAME=off         Disable logging on the given tracer.
+  --trace-NAME=SEVERITY    Set the minimum logging severity for the given
+                           tracer. Defaults to "INFO".
+
+The possible log levels (lowest to highest) are:
+  debug info notice warning error critical alert emergency
+
+The possible tracers are:
+  application         About start-up logic and the server's surroundings.
+  api-server          About the HTTP API requests and responses.
+  wallet-engine       About background wallet workers events and core wallet engine.
+  wallet-db           About database operations of each wallet.
+  network             About networking communications with the node.
+  stake-pool-monitor  About the background worker monitoring stake pools.
+  stake-pool-layer    About operations on stake pools.
+  stake-pool-db       About database operations of the stake pools db.
+  daedalus-ipc        About inter-process communications with Daedalus.
+```
+
+##### example
+
+Use these options to enable debug-level tracing for certain components
+of the wallet. For example, to log all database queries for the wallet
+databases, use:
+
+```
+$ cardano-wallet serve --trace-wallet-db=debug ...
+```
+
 ## mnemonic generate
 
 > `cardano-wallet mnemonic generate [--size=INT]`
