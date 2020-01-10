@@ -270,7 +270,8 @@ $ cardano-wallet serve --genesis-block-hash $(jcli genesis hash --input block0.b
 ## Logging options for launch / serve
 
 Both `launch` and `serve` accept extra command-line arguments for
-logging (also called "tracing").
+logging (also called "tracing"). Use `--help-tracing` to show the
+options, the tracer names, and the possible log levels.
 
 > `cardano-wallet launch --help-tracing`
 
