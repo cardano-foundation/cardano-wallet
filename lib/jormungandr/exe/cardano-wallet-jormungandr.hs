@@ -27,7 +27,7 @@ import Prelude
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Trace
-    ( Trace, logInfo )
+    ( Trace, appendName, logDebug, logInfo )
 import Cardano.CLI
     ( Port (..)
     , cli
@@ -62,6 +62,7 @@ import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..) )
 import Cardano.Wallet.Jormungandr
     ( TracerSeverities
+    , Tracers
     , Tracers' (..)
     , serveWallet
     , setupTracers
@@ -75,12 +76,14 @@ import Cardano.Wallet.Jormungandr.Network
     , JormungandrConfig (..)
     , JormungandrConnParams (..)
     )
+import Cardano.Wallet.Logging
+    ( transformTextTrace )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
     ( BlockchainParameters, Hash (..), SyncTolerance )
 import Cardano.Wallet.Version
-    ( gitRevision, showFullVersion, version )
+    ( GitRevision, Version, gitRevision, showFullVersion, version )
 import Control.Applicative
     ( Const (..), optional, (<|>) )
 import Data.List
@@ -89,6 +92,8 @@ import Data.Maybe
     ( fromMaybe )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( ToText (..) )
 import Network.Socket
     ( SockAddr )
 import Options.Applicative
@@ -114,6 +119,8 @@ import Options.Applicative
     )
 import Options.Applicative.Types
     ( readerAsk, readerError )
+import System.Environment
+    ( getArgs, getExecutablePath )
 import System.Exit
     ( exitWith )
 import System.FilePath
@@ -156,13 +163,12 @@ main = withUtf8Encoding $ do
         <> cmdVersion
 
 beforeMainLoop
-    :: Trace IO Text
+    :: Trace IO MainLog
     -> SockAddr
     -> Port "node"
     -> BlockchainParameters
     -> IO ()
-beforeMainLoop tr addr _ _ = do
-    logInfo tr $ "Wallet backend server listening on " <> T.pack (show addr)
+beforeMainLoop tr addr _ _ = logInfo tr $ MsgListenAddress addr
 
 {-------------------------------------------------------------------------------
                             Command - 'launch'
@@ -177,12 +183,12 @@ data LaunchArgs = LaunchArgs
     , _syncTolerance :: SyncTolerance
     , _logging :: LoggingOptions
     , _jormungandrArgs :: JormungandrArgs
-    }
+    } deriving (Show, Eq)
 
 data JormungandrArgs = JormungandrArgs
     { genesisBlock :: Either (Hash "Genesis") FilePath
     , extraJormungandrArgs :: [String]
-    }
+    } deriving (Show, Eq)
 
 cmdLaunch
     :: FilePath
@@ -220,8 +226,9 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> helperTracing <*> cmd) $
         <*> (JormungandrArgs
             <$> genesisBlockOption
             <*> extraArguments)
-    exec (LaunchArgs hostPreference listen nodePort mStateDir sTolerance logOpt jArgs) = do
-        withLogging Nothing (loggingMinSeverity logOpt) $ \(_, tr) -> do
+    exec args@(LaunchArgs hostPreference listen nodePort mStateDir sTolerance logOpt jArgs) = do
+        withTracers logOpt $ \tr tracers -> do
+            logDebug tr $ MsgLaunchArgs args
             case genesisBlock jArgs of
                 Right block0File -> requireFilePath block0File
                 Left _ -> pure ()
@@ -234,12 +241,10 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> helperTracing <*> cmd) $
                     , _outputStream = Inherit
                     , _extraArgs = extraJormungandrArgs jArgs
                     }
-            setupDirectory (logInfo tr) stateDir
-            setupDirectory (logInfo tr) databaseDir
-            logInfo tr $
-                "Running as v" <> T.pack (showFullVersion version gitRevision)
+            setupDirectory (logInfo tr . MsgSetupStateDir) stateDir
+            setupDirectory (logInfo tr . MsgSetupDatabases) databaseDir
             exitWith =<< serveWallet @'Testnet
-                (setupTracers (loggingTracers logOpt) tr)
+                tracers
                 sTolerance
                 (Just databaseDir)
                 hostPreference
@@ -260,7 +265,7 @@ data ServeArgs = ServeArgs
     , _syncTolerance :: SyncTolerance
     , _block0H :: Hash "Genesis"
     , _logging :: LoggingOptions
-    }
+    } deriving (Show, Eq)
 
 cmdServe
     :: Mod CommandFields (IO ())
@@ -278,16 +283,14 @@ cmdServe = command "serve" $ info (helper <*> helperTracing <*> cmd) $ mempty
     exec
         :: ServeArgs
         -> IO ()
-    exec (ServeArgs hostPreference listen nodePort databaseDir sTolerance block0H logOpt) = do
-        let minSeverity = loggingMinSeverity logOpt
-        withLogging Nothing minSeverity $ \(_, tr) -> do
+    exec args@(ServeArgs hostPreference listen nodePort databaseDir sTolerance block0H logOpt) = do
+        withTracers logOpt $ \tr tracers -> do
+            logDebug tr $ MsgServeArgs args
             let baseUrl = localhostBaseUrl $ getPort nodePort
             let cp = JormungandrConnParams block0H baseUrl
-            whenJust databaseDir $ setupDirectory (logInfo tr)
-            logInfo tr $
-                "Running as v" <> T.pack (showFullVersion version gitRevision)
+            whenJust databaseDir $ setupDirectory (logInfo tr . MsgSetupDatabases)
             exitWith =<< serveWallet @'Testnet
-                (setupTracers (loggingTracers logOpt) tr)
+                tracers
                 sTolerance
                 databaseDir
                 hostPreference
@@ -348,7 +351,7 @@ extraArguments = many $ argument jmArg $ mempty
 data LoggingOptions = LoggingOptions
     { loggingMinSeverity :: Severity
     , loggingTracers :: TracerSeverities
-    }
+    } deriving (Show, Eq)
 
 loggingOptions :: Parser LoggingOptions
 loggingOptions = LoggingOptions
@@ -403,6 +406,9 @@ helperTracingText = unlines $
     , "The possible log levels (lowest to highest) are:"
     , "  " ++ unwords (map fst loggingSeverities)
     , ""
+    , "Note: to get any debug logging, ensure that the global minimum severity is"
+    , "  also at debug level."
+    , ""
     , "The possible tracers are:"
     ] ++ [ pretty name desc | (name, desc) <- tracerDescriptions]
   where
@@ -411,3 +417,39 @@ helperTracingText = unlines $
         "  " ++ padRight maxLength ' ' name ++ "  " ++ desc
       where
         padRight n char str = take n $ str ++ replicate n char
+
+{-------------------------------------------------------------------------------
+                                    Logging
+-------------------------------------------------------------------------------}
+
+data MainLog
+    = MsgCmdLine String [String]
+    | MsgVersion Version GitRevision
+    | MsgSetupStateDir Text
+    | MsgSetupDatabases Text
+    | MsgLaunchArgs LaunchArgs
+    | MsgServeArgs ServeArgs
+    | MsgListenAddress SockAddr
+    deriving (Show, Eq)
+
+instance ToText MainLog where
+    toText msg = case msg of
+        MsgCmdLine exe args ->
+            T.pack $ unwords ("Command line:":exe:args)
+        MsgVersion ver rev ->
+            "Running as v" <> T.pack (showFullVersion ver rev)
+        MsgSetupStateDir txt -> "Wallet state: " <> txt
+        MsgSetupDatabases txt -> "Wallet databases: " <> txt
+        MsgLaunchArgs args -> T.pack $ show args
+        MsgServeArgs args -> T.pack $ show args
+        MsgListenAddress addr ->
+            "Wallet backend server listening on " <> T.pack (show addr)
+
+withTracers :: LoggingOptions -> (Trace IO MainLog -> Tracers IO -> IO a) -> IO a
+withTracers logOpt action =
+    withLogging Nothing (loggingMinSeverity logOpt) $ \(_, tr) -> do
+        let trMain = appendName "main" (transformTextTrace tr)
+        let tracers = setupTracers (loggingTracers logOpt) tr
+        logInfo trMain $ MsgVersion version gitRevision
+        logInfo trMain =<< MsgCmdLine <$> getExecutablePath <*> getArgs
+        action trMain tracers

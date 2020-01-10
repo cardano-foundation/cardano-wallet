@@ -580,3 +580,8 @@ instance DefineSeverity NetworkLayerLog where
     defineSeverity ev = case ev of
         MsgLauncher msg -> defineSeverity msg
         MsgWaitForService msg -> defineSeverity msg
+
+instance ToText JormungandrBackend where
+    toText = \case
+        UseRunning _ -> "Using running Jörmungandr"
+        Launch _ -> "Launching Jörmungandr"

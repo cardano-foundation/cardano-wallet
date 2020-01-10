@@ -2,9 +2,11 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -39,6 +41,9 @@ module Cardano.Wallet.Jormungandr
     , nullTracers
     , setupTracers
     , tracerSeverities
+
+      -- * Log messages
+    , ApplicationLog (..)
     ) where
 
 import Prelude
@@ -196,10 +201,9 @@ serveWallet
     -> (SockAddr -> Port "node" -> BlockchainParameters -> IO ())
     -- ^ Callback to run before the main loop
     -> IO ExitCode
-serveWallet
-    Tracers{..} sTolerance databaseDir hostPref listen lj beforeMainLoop = do
+serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMainLoop = do
     installSignalHandlers (traceWith applicationTracer MsgSigTerm)
-    traceWith applicationTracer MsgStarting
+    traceWith applicationTracer $ MsgStarting backend
     traceWith applicationTracer $ MsgNetworkName $ networkDiscriminantVal @n
     Server.withListeningSocket hostPref listen $ \case
         Left e -> handleApiServerStartupError e
@@ -209,7 +213,7 @@ serveWallet
                 (serveApp socket)
 
   where
-    serveApp socket = withNetworkLayer networkTracer lj $ \case
+    serveApp socket = withNetworkLayer networkTracer backend $ \case
         Left e -> handleNetworkStartupError e
         Right (cp, nl) -> do
             let nPort = Port $ baseUrlPort $ _restApi cp
@@ -327,7 +331,7 @@ toWLBlock = J.convertBlock
 
 -- | Log messages related to application startup and shutdown.
 data ApplicationLog
-    = MsgStarting
+    = MsgStarting JormungandrBackend
     | MsgNetworkName NetworkDiscriminant
     | MsgSigTerm
     | MsgWalletStartupError ErrStartup
@@ -337,7 +341,8 @@ data ApplicationLog
 
 instance ToText ApplicationLog where
     toText msg = case msg of
-        MsgStarting -> "Wallet backend server starting..."
+        MsgStarting backend ->
+            "Wallet backend server starting. " <> toText backend <> "..."
         MsgNetworkName n -> "Node is Jörmungandr on " <> toText n
         MsgSigTerm -> "Terminated by signal."
         MsgDatabaseStartup dbMsg -> toText dbMsg
@@ -390,7 +395,7 @@ instance ToText ApplicationLog where
 instance DefinePrivacyAnnotation ApplicationLog
 instance DefineSeverity ApplicationLog where
     defineSeverity ev = case ev of
-        MsgStarting -> Info
+        MsgStarting _ -> Info
         MsgSigTerm -> Notice
         MsgNetworkName _ -> Info
         MsgDatabaseStartup dbEv -> defineSeverity dbEv
@@ -441,6 +446,9 @@ type Tracers m = Tracers' (Tracer m)
 -- | The minimum severities for 'Tracers'. 'Nothing' indicates that tracing is
 -- completely disabled.
 type TracerSeverities = Tracers' (Const (Maybe Severity))
+
+deriving instance Show TracerSeverities
+deriving instance Eq TracerSeverities
 
 -- | Construct a 'TracerSeverities' record with all tracers set to the given
 -- severity.
