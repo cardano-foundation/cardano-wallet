@@ -60,9 +60,7 @@ let
           pkgs.lib.optionalAttrs (!pkgs.stdenv.hostPlatform.isWindows) {
             build-tools = [ pkgs.makeWrapper];
             postInstall = ''
-              makeWrapper \
-                $out/cardano-wallet-*/latency \
-                $out/bin/latency \
+              wrapProgram $out/bin/latency \
                 --run "cd $src" \
                 --prefix PATH : ${jmPkgs.jormungandr}/bin
             '';
