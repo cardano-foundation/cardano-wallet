@@ -9,6 +9,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -55,6 +56,8 @@ import Control.Tracer
     ( Tracer, traceWith )
 import Data.Aeson
     ( ToJSON )
+import Data.Function
+    ( (&) )
 import Data.List
     ( isInfixOf )
 import Data.List.Split
@@ -185,8 +188,9 @@ startSqliteBackend migrateAll trace fp = do
         observe = bracket_ (traceRun False) (traceRun True)
     let runQuery :: SqlPersistT IO a -> IO a
         runQuery cmd = withMVar lock $ const $ observe $ runSqlConn cmd backend
-    migrations <- tryJust isMigrationError $ runQuery $
-        runMigrationQuiet migrateAll
+    migrations <- runQuery (runMigrationQuiet migrateAll)
+        & tryJust (isMigrationError @PersistException)
+        & tryJust (isMigrationError @SqliteException)
     traceWith trace $ MsgMigrations (fmap length migrations)
     let ctx = SqliteContext backend runQuery fp trace
     case migrations of
@@ -195,14 +199,23 @@ startSqliteBackend migrateAll trace fp = do
             pure $ Left e
         Right _ -> pure $ Right ctx
 
--- | Exception predicate for migration errors.
-isMigrationError :: PersistException -> Maybe MigrationError
-isMigrationError e
-    | mark `isInfixOf` msg = Just $ MigrationError $ T.pack msg
-    | otherwise = Nothing
-  where
-    msg = show e
-    mark = "Database migration: manual intervention required."
+class Exception e => IsMigrationError e where
+    -- | Exception predicate for migration errors.
+    isMigrationError :: e -> Maybe MigrationError
+
+instance IsMigrationError PersistException where
+    isMigrationError e
+        | mark `isInfixOf` msg = Just $ MigrationError $ T.pack msg
+        | otherwise = Nothing
+      where
+        msg = show e
+        mark = "Database migration: manual intervention required."
+
+instance IsMigrationError SqliteException where
+    isMigrationError (SqliteException ErrorConstraint _ msg) =
+        Just $ MigrationError msg
+    isMigrationError _ =
+        Nothing
 
 createSqliteBackend
     :: Tracer IO DBLog
