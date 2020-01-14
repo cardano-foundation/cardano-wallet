@@ -31,8 +31,8 @@ This example uses the [itn_rewards_v1](https://hydra.iohk.io/job/Cardano/iohk-ni
 1. Set up a state directory with the network config on the Docker host.
 
    ```
-   mkdir state-docker
-   wget -P state-docker https://hydra.iohk.io/job/Cardano/iohk-nix/jormungandr-deployment/latest/download/1/itn_rewards_v1-config.yaml
+   mkdir $HOME/state-docker
+   wget -P $HOME/state-docker https://hydra.iohk.io/job/Cardano/iohk-nix/jormungandr-deployment/latest/download/1/itn_rewards_v1-config.yaml
    ```
 
 2. Run the `cardano-wallet` server and `jormungandr`:
@@ -40,7 +40,7 @@ This example uses the [itn_rewards_v1](https://hydra.iohk.io/job/Cardano/iohk-ni
    ```
    docker run \
        -p 127.0.0.1:8090:8090 \
-       --volume $(pwd)/state-docker:/data \
+       --volume $HOME/state-docker:/data \
        --env TMPDIR=/data \
        --rm \
        inputoutput/cardano-wallet \
@@ -56,11 +56,12 @@ This example uses the [itn_rewards_v1](https://hydra.iohk.io/job/Cardano/iohk-ni
    * `-p 127.0.0.1:8090:8090` - exposes the API server port from the
      container to the Docker host.
      
-   * `--volume $(pwd)/state-docker:/data` - mounts the
-     `./state-docker` directory on the Docker host to `/data` inside
+   * `--volume $HOME/state-docker:/data` - mounts the
+     `~/state-docker` directory on the Docker host to `/data` inside
      the container.
      
-   * `--env TMPDIR=/data` - work around a temp directory issue.
+   * `--env TMPDIR=/data` - work around a temp directory issue
+     ([#1262](https://github.com/input-output-hk/cardano-wallet/pull/1262)).
    
    * `--listen-address 0.0.0.0` - ensures that the API server binds to
      the Docker network interface, so that the server can be accessed
