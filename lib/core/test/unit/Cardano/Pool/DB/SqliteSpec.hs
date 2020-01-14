@@ -53,9 +53,7 @@ test_migrationFromv20191216 =
                 withDBLayer tr (Just path) $ \_ -> pure ()
 
             let databaseConnMsg  = filter isMsgConnStr logs
-
             let databaseResetMsg = filter (== MsgDatabaseReset) logs
-
             let migrationErrMsg  = filter isMsgMigrationError logs
 
             length databaseConnMsg  `shouldBe` 3
