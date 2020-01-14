@@ -38,6 +38,7 @@ import Cardano.Wallet.Api.Types
     ( ApiAddress
     , ApiFee
     , ApiNetworkInformation (..)
+    , ApiNetworkTip
     , ApiStakePool
     , ApiT (..)
     , ApiTransaction
@@ -103,6 +104,10 @@ data WalletClient t = WalletClient
         :: ApiT WalletId
         -> WalletPutPassphraseData
         -> ClientM NoContent
+    , forceResyncWallet
+        :: ApiT WalletId
+        -> ApiNetworkTip
+        -> ClientM NoContent
     , listTransactions
         :: ApiT WalletId
         -> Maybe Iso8601Time
@@ -167,6 +172,7 @@ walletClient =
             :<|> _putWallet
             :<|> _putWalletPassphrase
             :<|> _getWalletUtxoStatistics
+            :<|> _forceResyncWallet
             = wallets
 
         _listAddresses =
@@ -200,6 +206,7 @@ walletClient =
             , postWallet = _postWallet
             , putWallet = _putWallet
             , putWalletPassphrase = _putWalletPassphrase
+            , forceResyncWallet = _forceResyncWallet
             , listTransactions = _listTransactions
             , postTransaction = _postTransaction
             , postExternalTransaction = _postExternalTransaction

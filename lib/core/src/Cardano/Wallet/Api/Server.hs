@@ -210,7 +210,7 @@ import Control.DeepSeq
 import Control.Exception
     ( IOException, bracket, tryJust )
 import Control.Monad
-    ( forM, forM_, void )
+    ( forM, forM_, void, when )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
@@ -458,6 +458,7 @@ server byron icarus shelley spl =
         :<|> putWallet shelley mkShelleyWallet
         :<|> putWalletPassphrase shelley
         :<|> getUTxOsStatistics shelley
+        :<|> forceResyncWallet shelley
 
     addresses :: Server (Addresses n)
     addresses = listAddresses shelley
@@ -495,6 +496,10 @@ server byron icarus shelley spl =
         :<|> liftA2 (\xs ys -> fmap fst $ sortOn snd $ xs ++ ys)
             (listWallets byron  mkLegacyWallet)
             (listWallets icarus mkLegacyWallet)
+        :<|> (\wid tip -> withLegacyLayer wid
+                (byron , forceResyncWallet byron  wid tip)
+                (icarus, forceResyncWallet icarus wid tip)
+             )
 
     byronTransactions :: Server (ByronTransactions n)
     byronTransactions =
@@ -877,6 +882,22 @@ getUTxOsStatistics ctx (ApiT wid) = do
   where
     liftE = throwE . ErrListUTxOStatisticsNoSuchWallet
 
+forceResyncWallet
+    :: forall ctx s t k.
+        ( ctx ~ ApiLayer s t k
+        )
+    => ctx
+    -> ApiT WalletId
+    -> ApiNetworkTip
+    -> Handler NoContent
+forceResyncWallet ctx (ApiT wid) tip = guardTip >> do
+    liftHandler $ withWorkerCtx ctx wid throwE $ \wrk ->
+        W.rollbackBlocks wrk wid W.slotMinBound
+    pure NoContent
+  where
+    guardTip :: Handler ()
+    guardTip = when (tip /= ApiNetworkTip (ApiT 0) (ApiT 0))
+        $ liftHandler $ throwE $ ErrRejectedTip tip
 
 {-------------------------------------------------------------------------------
                                   Coin Selections
@@ -1496,9 +1517,22 @@ data ErrCreateWallet
         -- ^ Somehow, we couldn't create a worker or open a db connection
     deriving (Eq, Show)
 
+data ErrRejectedTip
+    = ErrRejectedTip ApiNetworkTip
+    deriving (Eq, Show)
+
 -- | Small helper to easy show things to Text
 showT :: Show a => a -> Text
 showT = T.pack . show
+
+instance LiftHandler ErrRejectedTip where
+    handler = \case
+        ErrRejectedTip {} ->
+            apiError err403 RejectedTip $ mconcat
+                [ "I am sorry but I refuse to rollback to the given point. "
+                , "Notwithstanding I'll willingly rollback to the genesis point "
+                , "(0, 0) if you demand it."
+                ]
 
 instance LiftHandler ErrSelectForMigration where
     handler = \case

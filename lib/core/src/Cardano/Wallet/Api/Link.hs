@@ -48,6 +48,7 @@ module Cardano.Wallet.Api.Link
     , getUTxOsStatistics
     , getMigrationInfo
     , migrateWallet
+    , forceResyncWallet
 
       -- * Addresses
     , listAddresses
@@ -238,6 +239,19 @@ getMigrationInfo
     -> (Method, Text)
 getMigrationInfo w =
     endpoint @Api.GetByronWalletMigrationInfo (wid &)
+  where
+    wid = w ^. typed @(ApiT WalletId)
+
+forceResyncWallet
+    :: forall style w.
+        ( HasType (ApiT WalletId) w
+        , Discriminate style
+        )
+    => w
+    -> (Method, Text)
+forceResyncWallet w = discriminate @style
+    (endpoint @Api.ForceResyncWallet (wid &))
+    (endpoint @Api.ForceResyncByronWallet (wid &))
   where
     wid = w ^. typed @(ApiT WalletId)
 
