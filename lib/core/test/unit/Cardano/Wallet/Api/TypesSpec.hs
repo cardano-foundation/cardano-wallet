@@ -1412,6 +1412,9 @@ instance ToSchema ApiUtxoStatistics where
 instance ToSchema ApiNetworkInformation where
     declareNamedSchema _ = declareSchemaForDefinition "ApiNetworkInformation"
 
+instance ToSchema ApiNetworkTip where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiNetworkTip"
+
 -- | Utility function to provide an ad-hoc 'ToSchema' instance for a definition:
 -- we simply look it up within the Swagger specification.
 declareSchemaForDefinition :: T.Text -> Declare (Definitions Schema) NamedSchema
