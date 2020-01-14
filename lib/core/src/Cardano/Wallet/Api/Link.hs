@@ -77,6 +77,7 @@ module Cardano.Wallet.Api.Link
     , postExternalTransaction
 
     , PostWallet
+    , Discriminate
     ) where
 
 import Prelude

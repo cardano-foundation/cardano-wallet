@@ -70,6 +70,7 @@ import Cardano.Wallet
     , ErrWrongPassphrase (..)
     , HasLogger
     , genesisData
+    , logger
     , networkLayer
     )
 import Cardano.Wallet.Api
@@ -130,7 +131,7 @@ import Cardano.Wallet.Api.Types
     , getApiMnemonicT
     )
 import Cardano.Wallet.DB
-    ( DBFactory )
+    ( DBFactory (..) )
 import Cardano.Wallet.Logging
     ( fromLogObject, transformTextTrace )
 import Cardano.Wallet.Network
@@ -209,12 +210,14 @@ import Control.DeepSeq
     ( NFData )
 import Control.Exception
     ( IOException, bracket, tryJust )
+import Control.Exception.Lifted
+    ( finally )
 import Control.Monad
-    ( forM, forM_, void, when )
+    ( forM, forM_, unless, void )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT, catchE, throwE, withExceptT )
+    ( ExceptT (..), catchE, runExceptT, throwE, withExceptT )
 import Control.Tracer
     ( Tracer, contramap )
 import Data.Aeson
@@ -787,7 +790,7 @@ deleteWallet
     -> Handler NoContent
 deleteWallet ctx (ApiT wid) = do
     liftHandler $ withWorkerCtx @_ @s @k ctx wid throwE $ \_ -> pure ()
-    liftIO $ (df ^. #removeDatabase) wid
+    liftIO $ removeDatabase df wid
     liftIO $ Registry.remove re wid
     return NoContent
   where
@@ -890,14 +893,35 @@ forceResyncWallet
     -> ApiT WalletId
     -> ApiNetworkTip
     -> Handler NoContent
-forceResyncWallet ctx (ApiT wid) tip = guardTip >> do
-    liftHandler $ withWorkerCtx ctx wid throwE $ \wrk ->
-        W.rollbackBlocks wrk wid W.slotMinBound
-    pure NoContent
+forceResyncWallet ctx (ApiT wid) tip = guardTip (== W.slotMinBound) $ \pt -> do
+    liftIO $ Registry.remove re wid
+    liftHandler (safeRollback pt) `finally` liftIO (registerWorker ctx wid)
   where
-    guardTip :: Handler ()
-    guardTip = when (tip /= ApiNetworkTip (ApiT 0) (ApiT 0))
-        $ liftHandler $ throwE $ ErrRejectedTip tip
+    re = ctx ^. workerRegistry @s @k
+    tr = ctx ^. logger
+    df = ctx ^. dbFactory @s @k
+
+    -- NOTE Safe because it happens without any worker running and, we've
+    -- controlled that 'point' is genesis.
+    safeRollback :: W.SlotId -> ExceptT ErrNoSuchWallet IO ()
+    safeRollback point = do
+        let tr' = Registry.transformTrace wid tr
+        ExceptT $ withDatabase df wid $ \db -> do
+            let wrk = hoistResource db (ctx & logger .~ tr')
+            runExceptT $ W.rollbackBlocks wrk wid point
+
+    guardTip
+        :: (W.SlotId -> Bool)
+        -> (W.SlotId -> Handler ())
+        -> Handler NoContent
+    guardTip predicate handler_ = do
+        unless (predicate point) $ liftHandler $ throwE $ ErrRejectedTip tip
+        handler_ point $> NoContent
+      where
+        point = W.SlotId
+            { epochNumber = tip ^. #epochNumber . #getApiT
+            , slotNumber  = tip ^. #slotNumber  . #getApiT
+            }
 
 {-------------------------------------------------------------------------------
                                   Coin Selections
@@ -1345,7 +1369,7 @@ initWorker ctx wid createWallet restoreWallet =
             defaultWorkerAfter . transformTextTrace
 
         , workerAcquire =
-            (df ^. #withDatabase) wid
+            withDatabase df wid
         }
     re = ctx ^. workerRegistry @s @k
     df = ctx ^. dbFactory @s @k
@@ -1440,31 +1464,42 @@ newApiLayer tr g0 nw tl df wids = do
     re <- Registry.empty
     let tr' = contramap MsgFromWorker tr
     let ctx = ApiLayer (fromLogObject tr') g0 nw tl df re
-    forM_ wids (registerWorker re ctx)
+    forM_ wids (registerWorker ctx)
     return ctx
+
+-- | Register a restoration worker to the registry.
+registerWorker
+    :: forall ctx s t k.
+        ( ctx ~ ApiLayer s t k
+        )
+    => ApiLayer s t k
+    -> WalletId
+    -> IO ()
+registerWorker ctx wid = do
+    newWorker @_ @_ @ctx ctx wid config >>= \case
+        Nothing ->
+            return ()
+        Just worker ->
+            Registry.insert re worker
   where
-    registerWorker re ctx wid = do
-        let config = MkWorker
-                { workerBefore =
-                    \_ _ -> return ()
+    re = ctx ^. workerRegistry
+    df = ctx ^. dbFactory
+    config = MkWorker
+        { workerBefore =
+            \_ _ -> return ()
 
-                , workerMain = \ctx' _ -> do
-                    -- FIXME:
-                    -- Review error handling here
-                    unsafeRunExceptT $
-                        W.restoreWallet @(WorkerCtx ctx) @s @t ctx' wid
+        , workerMain = \ctx' _ -> do
+            -- FIXME:
+            -- Review error handling here
+            unsafeRunExceptT $
+                W.restoreWallet @(WorkerCtx ctx) @s @t ctx' wid
 
-                , workerAfter =
-                    defaultWorkerAfter . transformTextTrace
+        , workerAfter =
+            defaultWorkerAfter . transformTextTrace
 
-                , workerAcquire =
-                    (df ^. #withDatabase) wid
-                }
-        newWorker @_ @_ @ctx ctx wid config >>= \case
-            Nothing ->
-                return ()
-            Just worker ->
-                Registry.insert re worker
+        , workerAcquire =
+            withDatabase df wid
+        }
 
 -- | Run an action in a particular worker context. Fails if there's no worker
 -- for a given id.
@@ -1517,8 +1552,7 @@ data ErrCreateWallet
         -- ^ Somehow, we couldn't create a worker or open a db connection
     deriving (Eq, Show)
 
-data ErrRejectedTip
-    = ErrRejectedTip ApiNetworkTip
+newtype ErrRejectedTip = ErrRejectedTip ApiNetworkTip
     deriving (Eq, Show)
 
 -- | Small helper to easy show things to Text
@@ -1531,7 +1565,7 @@ instance LiftHandler ErrRejectedTip where
             apiError err403 RejectedTip $ mconcat
                 [ "I am sorry but I refuse to rollback to the given point. "
                 , "Notwithstanding I'll willingly rollback to the genesis point "
-                , "(0, 0) if you demand it."
+                , "(0, 0) should you demand it."
                 ]
 
 instance LiftHandler ErrSelectForMigration where
