@@ -1,5 +1,7 @@
 Docker builds of `cardano-wallet` are available on
-[DockerHub](https://hub.docker.com/repository/docker/inputoutput/cardano-wallet).
+[DockerHub][].
+
+[DockerHub]: https://hub.docker.com/repository/docker/inputoutput/cardano-wallet
 
 ## Downloading the Docker image
 
@@ -16,6 +18,9 @@ To run basic CLI commands, use:
 ```
 docker run --rm inputoutput/cardano-wallet --help
 ```
+
+See [Wallet Command Line Interface](./Wallet-command-line-interface)
+for full documentation of the CLI.
 
 Running a `cardano-wallet` server requires setting up a state
 directory with a jormungandr config file.
@@ -39,7 +44,9 @@ This example uses the [itn_rewards_v1](https://hydra.iohk.io/job/Cardano/iohk-ni
        --env TMPDIR=/data \
        --rm \
        inputoutput/cardano-wallet \
-       launch --listen-address 0.0.0.0 --state-dir /data \
+       launch \
+       --listen-address 0.0.0.0 \
+       --state-dir /data \
        --genesis-block-hash 8e4d2a343f3dcf9330ad9035b3e8d168e6728904262f2c434a4f8f934ec7b676 \
        --sync-tolerance 300s -- --config /data/itn_rewards_v1-config.yaml
    ```
@@ -62,7 +69,7 @@ This example uses the [itn_rewards_v1](https://hydra.iohk.io/job/Cardano/iohk-ni
    * `--state-dir /data` - use the data volume for chain and wallet databases.
    
    
-3. Wait for log message `Wallet backend server listening on
+3. Wait for the log message `Wallet backend server listening on
    0.0.0.0:8090` to be shown (it may take 30-60 minutes for
    jormungandr to bootstrap).
 
@@ -77,13 +84,15 @@ This example uses the [itn_rewards_v1](https://hydra.iohk.io/job/Cardano/iohk-ni
 
 ## Naming scheme
 
+The following tags are pushed to [DockerHub][].
+
 | Tag                                               | Network node backend | Version          |
 |:--------------------------------------------------|:--------------------:|:-----------------|
 | `inputoutput/cardano-wallet`                      | Jörmungandr          | same as _latest_ |
 | `inputoutput/cardano-wallet:latest`               | Jörmungandr          | Latest [GitHub release](https://github.com/input-output-hk/cardano-wallet/releases) |
-| `inputoutput/cardano-wallet:2020.1.7-jormungandr` | Jörmungandr          | [v2020-01-07](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2020-01-07) |
 | `inputoutput/cardano-wallet:dev-master-jormungandr` | Jörmungandr        | Latest revision of [master branch](https://github.com/input-output-hk/cardano-wallet/commits/master) |
-| `inputoutput/cardano-wallet:e902913750f763ac3dcb37f57fa35154db2934eb-jormungandr` | Jörmungandr        | A certain revision of the master branch. |
+| `inputoutput/cardano-wallet:2020.1.7-jormungandr` | Jörmungandr          | [v2020-01-07](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2020-01-07) (for example) |
+| `inputoutput/cardano-wallet:e902913750f763ac3dcb37f57fa35154db2934eb-jormungandr` | Jörmungandr        | A certain revision of the master branch (e902913 for example). |
 
 ## Building the Docker image locally
 
