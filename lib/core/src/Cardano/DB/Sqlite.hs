@@ -189,8 +189,8 @@ startSqliteBackend migrateAll trace fp = do
     let runQuery :: SqlPersistT IO a -> IO a
         runQuery cmd = withMVar lock $ const $ observe $ runSqlConn cmd backend
     migrations <- runQuery (runMigrationQuiet migrateAll)
-        & tryJust (isMigrationError @PersistException)
-        & tryJust (isMigrationError @SqliteException)
+        & tryJust (matchMigrationError @PersistException)
+        & tryJust (matchMigrationError @SqliteException)
     traceWith trace $ MsgMigrations (fmap length migrations)
     let ctx = SqliteContext backend runQuery fp trace
     case migrations of
@@ -199,22 +199,22 @@ startSqliteBackend migrateAll trace fp = do
             pure $ Left e
         Right _ -> pure $ Right ctx
 
-class Exception e => IsMigrationError e where
+class Exception e => MatchMigrationError e where
     -- | Exception predicate for migration errors.
-    isMigrationError :: e -> Maybe MigrationError
+    matchMigrationError :: e -> Maybe MigrationError
 
-instance IsMigrationError PersistException where
-    isMigrationError e
+instance MatchMigrationError PersistException where
+    matchMigrationError e
         | mark `isInfixOf` msg = Just $ MigrationError $ T.pack msg
         | otherwise = Nothing
       where
         msg = show e
         mark = "Database migration: manual intervention required."
 
-instance IsMigrationError SqliteException where
-    isMigrationError (SqliteException ErrorConstraint _ msg) =
+instance MatchMigrationError SqliteException where
+    matchMigrationError (SqliteException ErrorConstraint _ msg) =
         Just $ MigrationError msg
-    isMigrationError _ =
+    matchMigrationError _ =
         Nothing
 
 createSqliteBackend
