@@ -45,7 +45,7 @@ import Control.Concurrent.MVar
 import Control.Exception
     ( Exception, bracket_, tryJust )
 import Control.Monad
-    ( mapM_ )
+    ( join, mapM_ )
 import Control.Monad.Catch
     ( Handler (..), MonadCatch (..), handleIf, handleJust )
 import Control.Monad.Logger
@@ -191,6 +191,8 @@ startSqliteBackend migrateAll trace fp = do
     migrations <- runQuery (runMigrationQuiet migrateAll)
         & tryJust (matchMigrationError @PersistException)
         & tryJust (matchMigrationError @SqliteException)
+        & fmap join
+        :: IO (Either MigrationError [Text])
     traceWith trace $ MsgMigrations (fmap length migrations)
     let ctx = SqliteContext backend runQuery fp trace
     case migrations of
