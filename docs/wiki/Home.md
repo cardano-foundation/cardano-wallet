@@ -14,5 +14,6 @@
 
 - [Building](https://github.com/input-output-hk/cardano-wallet/wiki/Building)
 - [Testing](https://github.com/input-output-hk/cardano-wallet/wiki/Testing)
+- [Using Docker](https://github.com/input-output-hk/cardano-wallet/wiki/Docker)
 - [Api Documentation (edge)](https://input-output-hk.github.io/cardano-wallet/api/edge/)
 - [Command-Line Interface](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface)
