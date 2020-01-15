@@ -338,12 +338,19 @@ expectSuccess (_, res) = case res of
 
 -- | Expect a given response code on the response.
 expectResponseCode
-    :: (MonadIO m)
+    :: (MonadIO m, Show a)
     => HTTP.Status
     -> (HTTP.Status, a)
     -> m ()
-expectResponseCode want (got, _) =
-    got `shouldBe` want
+expectResponseCode want (got, a) =
+    if got == want
+        then pure ()
+        else liftIO $ expectationFailure $ unlines
+            [ "expected: " <> show want
+            , " but got: " <> show got
+            , ""
+            , "from the following response: " <> show a
+            ]
 
 expectFieldEqual
     :: (MonadIO m, MonadFail m, Show a, Eq a)
