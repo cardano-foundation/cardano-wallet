@@ -96,7 +96,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Control.Arrow
     ( (***) )
 import Control.Concurrent.MVar
-    ( modifyMVar_, newMVar )
+    ( modifyMVar, modifyMVar_, newMVar )
 import Control.DeepSeq
     ( NFData )
 import Control.Exception
@@ -223,17 +223,30 @@ newDBFactory
 newDBFactory tr mDatabaseDir = do
     mvar <- newMVar mempty
     case mDatabaseDir of
+        -- NOTE
+        -- For the in-memory database, we do actually preserve the database
+        -- after the 'action' is done. This allows for calling 'withDatabase'
+        -- several times within the same execution and get back the same
+        -- database. The memory is only cleaned up when calling
+        -- 'removeDatabase', to mimic the way the file database works!
         Nothing -> pure DBFactory
-            { withDatabase = \_ action ->
-                withDBLayer tr Nothing (action . snd)
-            , removeDatabase = \_ ->
-                pure ()
+            { withDatabase = \wid action -> do
+                db <- modifyMVar mvar $ \m -> case Map.lookup wid m of
+                    Just (_, db) -> pure (m, db)
+                    Nothing -> do
+                        (ctx, db) <- newDBLayer tr Nothing
+                        pure (Map.insert wid (ctx, db) m, db)
+                action db
+            , removeDatabase = \wid ->
+                modifyMVar_ mvar $ \m -> case Map.lookup wid m of
+                    Nothing -> pure m
+                    Just (ctx, _) -> destroyDBLayer ctx $> Map.delete wid m
             }
         Just databaseDir -> pure DBFactory
             { withDatabase = \wid action -> do
                 withDBLayer tr (Just $ databaseFile wid)
                     $ \(ctx, db) -> do
-                        modifyMVar_ mvar (pure . Map.insert wid ctx)
+                        modifyMVar_ mvar (pure . Map.insert wid (ctx, db))
                         action db
             , removeDatabase = \wid -> do
                 let files =
@@ -243,7 +256,7 @@ newDBFactory tr mDatabaseDir = do
                         ]
                 modifyMVar_ mvar $ \m -> case Map.lookup wid m of
                     Nothing -> pure m
-                    Just ctx -> destroyDBLayer ctx $> Map.delete wid m
+                    Just (ctx, _) -> destroyDBLayer ctx $> Map.delete wid m
                 mapM_ removePathForcibly files
             }
           where
