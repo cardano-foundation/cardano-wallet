@@ -1,4 +1,6 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
@@ -13,6 +15,8 @@ module Test.Integration.Scenario.API.Wallets
 
 import Prelude
 
+import Cardano.Wallet.Api.Link
+    ( Discriminate )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiCoinSelection
@@ -29,13 +33,20 @@ import Cardano.Wallet.Primitive.Mnemonic
 import Cardano.Wallet.Primitive.Types
     ( SyncProgress (..)
     , WalletDelegation (..)
+    , WalletId
     , walletNameMaxLength
     , walletNameMinLength
     )
 import Control.Monad
     ( forM_ )
+import Data.Aeson
+    ( FromJSON )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
+import Data.Generics.Product.Fields
+    ( HasField' )
+import Data.Generics.Product.Typed
+    ( HasType )
 import Data.List.NonEmpty
     ( NonEmpty ((:|)) )
 import Data.Quantity
@@ -44,6 +55,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( toText )
+import GHC.Generics
+    ( Generic )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -59,8 +72,10 @@ import Test.Integration.Framework.DSL
     , coinSelectionInputs
     , coinSelectionOutputs
     , delegation
+    , emptyIcarusWallet
     , emptyRandomWallet
     , emptyWallet
+    , eventually
     , expectErrorMessage
     , expectEventually
     , expectFieldEqual
@@ -93,6 +108,7 @@ import Test.Integration.Framework.TestData
     , chineseMnemonics18
     , chineseMnemonics9
     , errMsg400ParseError
+    , errMsg403RejectedTip
     , errMsg403WrongPass
     , errMsg404NoEndpoint
     , errMsg404NoWallet
@@ -1779,3 +1795,101 @@ spec = do
         ru <- request @ApiWallet ctx ("GET", endpoint) Default newName
         expectResponseCode @IO HTTP.status404 ru
         expectErrorMessage (errMsg404NoWallet wid) ru
+
+    describe "WALLETS_RESYNC_01" $ do
+        scenarioWalletResync01_happyPath @'Shelley emptyWallet
+        scenarioWalletResync01_happyPath @'Byron emptyRandomWallet
+        scenarioWalletResync01_happyPath @'Byron emptyIcarusWallet
+
+    describe "WALLETS_RESYNC_02" $ do
+        scenarioWalletResync02_notGenesis @'Shelley emptyWallet
+        scenarioWalletResync02_notGenesis @'Byron emptyRandomWallet
+        scenarioWalletResync02_notGenesis @'Byron emptyIcarusWallet
+
+    describe "WALLETS_RESYNC_03" $ do
+        scenarioWalletResync03_invalidPayload @'Shelley emptyWallet
+        scenarioWalletResync03_invalidPayload @'Byron emptyRandomWallet
+        scenarioWalletResync03_invalidPayload @'Byron emptyIcarusWallet
+
+
+-- force resync eventually get us back to the same point
+scenarioWalletResync01_happyPath
+    :: forall style t n wallet.
+        ( n ~ 'Testnet
+        , Discriminate style
+        , HasType (ApiT WalletId) wallet
+        , HasField' "state" wallet (ApiT SyncProgress)
+        , FromJSON wallet
+        , Generic wallet
+        , Show wallet
+        )
+    => (Context t -> IO wallet)
+    -> SpecWith (Context t)
+scenarioWalletResync01_happyPath fixture = it
+  "force resync eventually get us back to the same point" $ \ctx -> do
+    w <- fixture ctx
+
+    -- 1. Wait for wallet to be synced
+    eventually $ do
+        v <- request @wallet ctx (Link.getWallet @style w) Default Empty
+        verify v [ expectFieldSatisfy @IO #state (== (ApiT Ready)) ]
+
+    -- 2. Force a resync
+    let payload = Json [json|{ "epoch_number": 0, "slot_number": 0 }|]
+    r <- request @wallet ctx (Link.forceResyncWallet @style w) Default payload
+    verify r [ expectResponseCode @IO HTTP.status204 ]
+
+    -- 3. The wallet eventually re-sync
+    eventually $ do
+        v <- request @wallet ctx (Link.getWallet @style w) Default Empty
+        verify v [ expectFieldSatisfy @IO #state (== (ApiT Ready)) ]
+
+-- force resync eventually get us back to the same point
+scenarioWalletResync02_notGenesis
+    :: forall style t n wallet.
+        ( n ~ 'Testnet
+        , Discriminate style
+        , HasType (ApiT WalletId) wallet
+        , HasField' "state" wallet (ApiT SyncProgress)
+        , FromJSON wallet
+        , Generic wallet
+        , Show wallet
+        )
+    => (Context t -> IO wallet)
+    -> SpecWith (Context t)
+scenarioWalletResync02_notGenesis fixture = it
+  "given point is not genesis (i.e. (0, 0))" $ \ctx -> do
+    w <- fixture ctx
+
+    -- 1. Force a resync on an invalid point (/= from genesis)
+    let payload = Json [json|{ "epoch_number": 14, "slot_number": 42 }|]
+    r <- request @wallet ctx (Link.forceResyncWallet @style w) Default payload
+    verify r
+        [ expectResponseCode @IO HTTP.status403
+        , expectErrorMessage errMsg403RejectedTip
+        ]
+
+-- force resync eventually get us back to the same point
+scenarioWalletResync03_invalidPayload
+    :: forall style t n wallet.
+        ( n ~ 'Testnet
+        , Discriminate style
+        , HasType (ApiT WalletId) wallet
+        , HasField' "state" wallet (ApiT SyncProgress)
+        , FromJSON wallet
+        , Generic wallet
+        , Show wallet
+        )
+    => (Context t -> IO wallet)
+    -> SpecWith (Context t)
+scenarioWalletResync03_invalidPayload fixture = it
+  "given payload is invalid (camelCase)" $ \ctx -> do
+    w <- fixture ctx
+
+    -- 1. Force a resync using an invalid payload
+    let payload = Json [json|{ "epochNumber": 0, "slot_number": 0 }|]
+    r <- request @wallet ctx (Link.forceResyncWallet @style w) Default payload
+    verify r
+        [ expectResponseCode @IO HTTP.status400
+        , expectErrorMessage "key 'epoch_number' not present"
+        ]
