@@ -187,12 +187,13 @@ destroyDBLayer (SqliteContext {getSqlBackend, trace, dbFile}) = do
 -- | Opens the SQLite database connection, sets up query logging and timing,
 -- runs schema migrations if necessary.
 startSqliteBackend
-    :: Migration
+    :: (Sqlite.Connection -> IO ())
+    -> Migration
     -> Tracer IO DBLog
     -> Maybe FilePath
     -> IO (Either MigrationError SqliteContext)
-startSqliteBackend migrateAll trace fp = do
-    backend <- createSqliteBackend trace fp (queryLogFunc trace)
+startSqliteBackend migrateManually migrateAll trace fp = do
+    backend <- createSqliteBackend trace fp migrateManually (queryLogFunc trace)
     lock <- newMVar ()
     let traceRun = traceWith trace . MsgRun
     let observe :: IO a -> IO a
@@ -233,12 +234,14 @@ instance MatchMigrationError SqliteException where
 createSqliteBackend
     :: Tracer IO DBLog
     -> Maybe FilePath
+    -> (Sqlite.Connection -> IO ())
     -> LogFunc
     -> IO SqlBackend
-createSqliteBackend trace fp logFunc = do
+createSqliteBackend trace fp migrateManually logFunc = do
     let connStr = sqliteConnStr fp
     traceWith trace $ MsgConnStr connStr
     conn <- Sqlite.open connStr
+    migrateManually conn
     wrapConnectionInfo (mkSqliteConnectionInfo connStr) conn logFunc
 
 sqliteConnStr :: Maybe FilePath -> Text
@@ -258,6 +261,7 @@ data DBLog
     | MsgIsAlreadyClosed Text
     | MsgStatementAlreadyFinalized Text
     | MsgRemoving Text
+    | MsgManualMigration Text
     deriving (Generic, Show, Eq, ToJSON)
 
 instance DefinePrivacyAnnotation DBLog
@@ -274,6 +278,7 @@ instance DefineSeverity DBLog where
         MsgIsAlreadyClosed _ -> Warning
         MsgStatementAlreadyFinalized _ -> Warning
         MsgRemoving _ -> Info
+        MsgManualMigration _ -> Notice
 
 instance ToText DBLog where
     toText = \case
@@ -297,6 +302,8 @@ instance ToText DBLog where
             "Statement already finalized: " <> msg
         MsgRemoving wid ->
             "Removing wallet's database. Wallet id was " <> wid
+        MsgManualMigration t ->
+            "Manual migration: " <> t
 
 {-------------------------------------------------------------------------------
                                Extra DB Helpers

@@ -161,6 +161,8 @@ import Database.Persist.Sql
     )
 import Database.Persist.Sqlite
     ( SqlPersistT )
+import Database.Persist.Types
+    ( PersistValue (PersistText) )
 import Fmt
     ( pretty )
 import System.Directory
@@ -175,6 +177,7 @@ import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Map as Map
 import qualified Data.Text as T
+import qualified Database.Sqlite as Sqlite
 
 -- | Runs an action with a connection to the SQLite database.
 --
@@ -193,15 +196,16 @@ withDBLayer
         )
     => Tracer IO DBLog
        -- ^ Logging object
+    -> W.ActiveSlotCoefficient
     -> Maybe FilePath
        -- ^ Path to database directory, or Nothing for in-memory database
     -> ((SqliteContext, DBLayer IO s k) -> IO a)
        -- ^ Action to run.
     -> IO a
-withDBLayer trace mDatabaseDir =
+withDBLayer trace defaultActiveSlotCoeff mDatabaseDir =
     bracket before after
   where
-    before = newDBLayer trace mDatabaseDir
+    before = newDBLayer trace defaultActiveSlotCoeff mDatabaseDir
     after = destroyDBLayer . fst
 
 -- | Instantiate a 'DBFactory' from a given directory
@@ -217,10 +221,11 @@ newDBFactory
         )
     => Tracer IO DBLog
        -- ^ Logging object
+    -> W.ActiveSlotCoefficient
     -> Maybe FilePath
        -- ^ Path to database directory, or Nothing for in-memory database
     -> IO (DBFactory IO s k)
-newDBFactory tr mDatabaseDir = do
+newDBFactory tr defaultActiveSlotCoeff mDatabaseDir = do
     mvar <- newMVar mempty
     case mDatabaseDir of
         -- NOTE
@@ -234,17 +239,21 @@ newDBFactory tr mDatabaseDir = do
                 db <- modifyMVar mvar $ \m -> case Map.lookup wid m of
                     Just (_, db) -> pure (m, db)
                     Nothing -> do
-                        (ctx, db) <- newDBLayer tr Nothing
+                        (ctx, db) <-
+                            newDBLayer tr defaultActiveSlotCoeff Nothing
                         pure (Map.insert wid (ctx, db) m, db)
                 action db
             , removeDatabase = \wid -> do
                 traceWith tr $ MsgRemoving (pretty wid)
                 modifyMVar_ mvar (pure . Map.delete wid)
             }
-
         Just databaseDir -> pure DBFactory
             { withDatabase = \wid action -> do
-                withDBLayer tr (Just $ databaseFile wid) (action . snd)
+                withDBLayer
+                    tr
+                    defaultActiveSlotCoeff
+                    (Just $ databaseFile wid)
+                    (action . snd)
             , removeDatabase = \wid -> do
                 traceWith tr $ MsgRemoving (pretty wid)
                 let files =
@@ -306,13 +315,53 @@ newDBLayer
         )
     => Tracer IO DBLog
        -- ^ Logging object
+    -> W.ActiveSlotCoefficient
     -> Maybe FilePath
        -- ^ Path to database file, or Nothing for in-memory database
     -> IO (SqliteContext, DBLayer IO s k)
-newDBLayer trace mDatabaseFile = do
+newDBLayer trace defaultActiveSlotCoeff mDatabaseFile = do
+    let migrateManually conn = do
+            let report = traceWith trace . MsgManualMigration
+            getCheckpointTableInfo <- Sqlite.prepare conn
+                "select sql from sqlite_master\
+                \   where type = 'table'      \
+                \     and name = 'checkpoint';"
+            row <- Sqlite.step getCheckpointTableInfo
+                >> Sqlite.columns getCheckpointTableInfo
+            Sqlite.finalize getCheckpointTableInfo
+            case row of
+                [PersistText t]
+                    | "active_slot_coeff" `T.isInfixOf` t ->
+                        report
+                            "Checkpoint table already contains all required \
+                            \fields: doing nothing."
+                    | otherwise -> do
+                        report
+                            "Checkpoint table is MISSING a required field: \
+                            \active_slot_coeff."
+
+                        report
+                            "Adding required field active_slot_coeff to \
+                            \checkpoint table."
+                        addColumn <- Sqlite.prepare conn $ mconcat
+                            [ "alter table checkpoint "
+                            , "add column active_slot_coeff double not null "
+                            , "default "
+                            , T.pack $ show $ W.unActiveSlotCoefficient
+                                defaultActiveSlotCoeff
+                            , ";"
+                            ]
+                        _ <- Sqlite.step addColumn
+                        Sqlite.finalize addColumn
+
+                        report
+                            "Finished preprocessing checkpoint table."
+                _ ->
+                    traceWith trace $ MsgManualMigration
+                        "Cannot find checkpoint table!"
     ctx@SqliteContext{runQuery} <-
         either throwIO pure =<<
-        startSqliteBackend migrateAll trace mDatabaseFile
+        startSqliteBackend migrateManually migrateAll trace mDatabaseFile
     return (ctx, DBLayer
 
         {-----------------------------------------------------------------------

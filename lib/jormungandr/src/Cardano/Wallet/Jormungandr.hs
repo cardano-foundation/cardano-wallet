@@ -264,7 +264,10 @@ serveWallet
         let (block0, bp) = staticBlockchainParameters nl
         let tracer = contramap MsgDatabaseStartup applicationTracer
         wallets <- maybe (pure []) (Sqlite.findDatabases @k tracer) databaseDir
-        db <- Sqlite.newDBFactory walletDbTracer databaseDir
+        db <- Sqlite.newDBFactory
+            walletDbTracer
+            (getActiveSlotCoefficient bp)
+            databaseDir
         Server.newApiLayer
             walletEngineTracer (toWLBlock block0, bp, sTolerance) nl' tl db wallets
       where

@@ -83,7 +83,8 @@ import Cardano.Wallet.Primitive.Mnemonic
 import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
+    ( ActiveSlotCoefficient
+    , Address (..)
     , ChimericAccount (..)
     , Coin (..)
     , Direction (..)
@@ -248,7 +249,8 @@ newMemoryDBLayer'
     => IO (TVar [DBLog], (SqliteContext, DBLayer IO s k))
 newMemoryDBLayer' = do
     logVar <- newTVarIO []
-    (logVar, ) <$> newDBLayer (traceInTVarIO logVar) Nothing
+    (logVar, ) <$>
+        newDBLayer (traceInTVarIO logVar) defaultActiveSlotCoeff Nothing
 
 withLoggingDB
     ::  ( IsOurs s Address
@@ -303,7 +305,8 @@ fileModeSpec =  do
     describe "DBFactory" $ do
         it "withDatabase *> removeDatabase works and remove files" $ do
             withSystemTempDirectory "DBFactory" $ \dir -> do
-                DBFactory{..} <- newDBFactory nullTracer (Just dir)
+                DBFactory{..} <- newDBFactory
+                    nullTracer defaultActiveSlotCoeff (Just dir)
                 mvar <- newEmptyMVar
 
                 -- NOTE
@@ -489,7 +492,11 @@ withTestDBFile action expectations = do
     withSystemTempFile "spec.db" $ \fp h -> do
         hClose h
         removeFile fp
-        withDBLayer (trMessageText trace) (Just fp) (action . snd)
+        withDBLayer
+            (trMessageText trace)
+            defaultActiveSlotCoeff
+            (Just fp)
+            (action . snd)
         expectations fp
 
 inMemoryDBLayer
@@ -504,6 +511,9 @@ inMemoryDBLayer = newDBLayer' Nothing
 temporaryDBFile :: IO FilePath
 temporaryDBFile = emptySystemTempFile "cardano-wallet-SqliteFileMode"
 
+defaultActiveSlotCoeff :: ActiveSlotCoefficient
+defaultActiveSlotCoeff = 1.0
+
 newDBLayer'
     ::  ( IsOurs s Address
         , IsOurs s ChimericAccount
@@ -513,7 +523,7 @@ newDBLayer'
         )
     => Maybe FilePath
     -> IO (SqliteContext, DBLayer IO s ShelleyKey)
-newDBLayer' = newDBLayer nullTracer
+newDBLayer' = newDBLayer nullTracer defaultActiveSlotCoeff
 
 -- | Clean the database
 cleanDB'
