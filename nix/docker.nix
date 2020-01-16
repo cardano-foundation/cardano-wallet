@@ -34,9 +34,6 @@ let
     mkdir -p ${dataDir}
     ln -s ${dataDir} /cardano-wallet
 
-    # set up /tmp (override with TMPDIR variable)
-    mkdir -p /tmp
-
     export LOCALE_ARCHIVE="${glibcLocales}/lib/locale/locale-archive"
     exec ${cardano-wallet-jormungandr}/bin/cardano-wallet-jormungandr "$@"
   '';
@@ -48,6 +45,8 @@ let
       glibcLocales iana-etc cacert
       bashInteractive coreutils utillinux iproute iputils curl socat
     ];
+    # set up /tmp (override with TMPDIR variable)
+    extraCommands = "mkdir -m 0777 tmp";
   };
 
 in
