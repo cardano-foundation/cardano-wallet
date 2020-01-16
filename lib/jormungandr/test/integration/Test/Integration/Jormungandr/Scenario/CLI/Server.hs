@@ -45,7 +45,7 @@ import System.Process
 import Test.Hspec
     ( SpecWith, describe, it, runIO )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldContain, shouldNotContain, shouldReturn )
+    ( shouldBe, shouldContain, shouldNotBe, shouldReturn )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , KnownCommand (..)
@@ -113,6 +113,8 @@ spec = do
             waitForProcess ph `shouldReturn` ExitSuccess
 
     describe "LOGGING - cardano-wallet serve logging [SERIAL]" $ do
+        let grep str = filter (T.isInfixOf str)
+
         it "LOGGING - Serve default logs Info" $ \ctx -> do
             withTempFile $ \logs hLogs -> do
                 let cmd = Command
@@ -127,9 +129,53 @@ spec = do
                 void $ withBackendProcess nullTracer cmd $ do
                     threadDelay (10 * oneSecond)
                 hClose hLogs
-                logged <- T.unpack <$> TIO.readFile logs
-                logged `shouldNotContain` "TRACE"
-                logged `shouldNotContain` "DEBUG"
+                logged <- T.lines <$> TIO.readFile logs
+                grep "Debug" logged `shouldBe` []
+                grep "Info" logged `shouldNotBe` []
+
+        it "LOGGING - Serve debug logs for one component" $ \ctx -> do
+            withTempFile $ \logs hLogs -> do
+                let cmd = Command
+                        (commandName @t)
+                        ["serve"
+                        , "--node-port", show (ctx ^. typed @(Port "node"))
+                        , "--random-port"
+                        , "--genesis-block-hash", block0H
+                        , "--log-level", "debug"
+                        , "--trace-stake-pool-db", "debug"
+                        ]
+                        (pure ())
+                        (UseHandle hLogs)
+                void $ withBackendProcess nullTracer cmd $ do
+                    threadDelay (5 * oneSecond)
+                hClose hLogs
+                logged <- T.lines <$> TIO.readFile logs
+                let allDebugLogs = grep "Debug" logged
+                let componentDebugLogs = grep "stake-pool-db" allDebugLogs
+                let networkDebugLogs = grep "network" allDebugLogs
+                length componentDebugLogs `shouldNotBe` 0
+                length networkDebugLogs `shouldBe` 0
+
+        it "LOGGING - Serve disable logs for one component" $ \ctx -> do
+            withTempFile $ \logs hLogs -> do
+                let cmd = Command
+                        (commandName @t)
+                        ["serve"
+                        , "--node-port", show (ctx ^. typed @(Port "node"))
+                        , "--random-port"
+                        , "--genesis-block-hash", block0H
+                        , "--trace-network", "off"
+                        ]
+                        (pure ())
+                        (UseHandle hLogs)
+                void $ withBackendProcess nullTracer cmd $ do
+                    threadDelay (5 * oneSecond)
+                hClose hLogs
+                logged <- T.lines <$> TIO.readFile logs
+                let countLogs comp = length $
+                        filter (T.isInfixOf $ "cardano-wallet." <> comp) logged
+                countLogs "network" `shouldBe` 0
+                countLogs "application" `shouldNotBe` 0
 
         it "LOGGING - Serve shuts down logging correctly" $ \ctx -> do
             withTempFile $ \logs hLogs -> do
