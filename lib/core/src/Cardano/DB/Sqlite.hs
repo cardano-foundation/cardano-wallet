@@ -24,6 +24,7 @@
 
 module Cardano.DB.Sqlite
     ( SqliteContext (..)
+    , ManualMigration (..)
     , MigrationError (..)
     , DBLog (..)
     , chunkSize
@@ -187,13 +188,13 @@ destroyDBLayer (SqliteContext {getSqlBackend, trace, dbFile}) = do
 -- | Opens the SQLite database connection, sets up query logging and timing,
 -- runs schema migrations if necessary.
 startSqliteBackend
-    :: (Sqlite.Connection -> IO ())
+    :: ManualMigration
     -> Migration
     -> Tracer IO DBLog
     -> Maybe FilePath
     -> IO (Either MigrationError SqliteContext)
-startSqliteBackend migrateManually migrateAll trace fp = do
-    backend <- createSqliteBackend trace fp migrateManually (queryLogFunc trace)
+startSqliteBackend manualMigration migrateAll trace fp = do
+    backend <- createSqliteBackend trace fp manualMigration (queryLogFunc trace)
     lock <- newMVar ()
     let traceRun = traceWith trace . MsgRun
     let observe :: IO a -> IO a
@@ -231,17 +232,23 @@ instance MatchMigrationError SqliteException where
     matchMigrationError _ =
         Nothing
 
+-- | Encapsulates a manual migration action (or sequence of actions) to be
+--   performed immediately after an SQL connection is initiated.
+--
+newtype ManualMigration = ManualMigration
+    { executeManualMigration :: Sqlite.Connection -> IO () }
+
 createSqliteBackend
     :: Tracer IO DBLog
     -> Maybe FilePath
-    -> (Sqlite.Connection -> IO ())
+    -> ManualMigration
     -> LogFunc
     -> IO SqlBackend
-createSqliteBackend trace fp migrateManually logFunc = do
+createSqliteBackend trace fp migration logFunc = do
     let connStr = sqliteConnStr fp
     traceWith trace $ MsgConnStr connStr
     conn <- Sqlite.open connStr
-    migrateManually conn
+    executeManualMigration migration conn
     wrapConnectionInfo (mkSqliteConnectionInfo connStr) conn logFunc
 
 sqliteConnStr :: Maybe FilePath -> Text

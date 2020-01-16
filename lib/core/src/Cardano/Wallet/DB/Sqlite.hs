@@ -42,6 +42,7 @@ import Cardano.BM.Data.Tracer
     ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
 import Cardano.DB.Sqlite
     ( DBLog (..)
+    , ManualMigration (..)
     , SqliteContext (..)
     , chunkSize
     , dbChunked
@@ -300,16 +301,16 @@ findDatabases tr dir = do
 migrateManually
     :: Tracer IO DBLog
     -> W.ActiveSlotCoefficient
-    -> Sqlite.Connection
-    -> IO ()
-migrateManually trace defaultActiveSlotCoeff conn =
-    addActiveSlotCoefficient
+    -> ManualMigration
+migrateManually trace defaultActiveSlotCoeff =
+    ManualMigration $
+        addActiveSlotCoefficient
   where
 
     -- | Adds an 'active_slot_coeff' column to the 'checkpoint' table if
     --   it is missing.
     --
-    addActiveSlotCoefficient = do
+    addActiveSlotCoefficient conn = do
         let report = traceWith trace . MsgManualMigration
         getCheckpointTableInfo <- Sqlite.prepare conn
             "select sql from sqlite_master\
