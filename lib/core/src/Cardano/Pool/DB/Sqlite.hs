@@ -136,7 +136,7 @@ newDBLayer
     -> IO (SqliteContext, DBLayer IO)
 newDBLayer trace fp = do
     let io = startSqliteBackend
-            (ManualMigration $ const $ pure ())
+            (ManualMigration mempty)
             migrateAll
             trace
             fp
