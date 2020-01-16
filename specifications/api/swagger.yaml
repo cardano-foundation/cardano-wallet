@@ -65,6 +65,22 @@ x-blockReference: &blockReference
     epoch_number: *epochNumber
     height: *numberOfBlocks
 
+x-genesisBlock: &genesisBlock
+  description: A reference to a particular block.
+  type: object
+  required:
+    - slot_number
+    - epoch_number
+  properties:
+    slot_number:
+      <<: *slotNumber
+      maximum: 0
+      example: 0
+    epoch_number:
+      <<: *epochNumber
+      maximum: 0
+      example: 0
+
 x-percentage: &percentage
   type: object
   required:
@@ -492,16 +508,6 @@ x-networkInformationNodeTip: &networkInformationNodeTip
   <<: *blockReference
   description: Underlying node's tip
 
-x-networkInformationNetworkTip: &networkInformationNetworkTip
-  description: Projected network's tip
-  type: object
-  required:
-    - slot_number
-    - epoch_number
-  properties:
-    slot_number: *slotNumber
-    epoch_number: *epochNumber
-
 x-networkInformationProtocolUpdate: &networkInformationProtocolUpdate
   type: string
   description: |
@@ -536,6 +542,16 @@ definitions:
       epoch_number: *epochNumber
       epoch_start_time: *date
 
+  ApiNetworkTip: &ApiNetworkTip
+    description: A network tip
+    type: object
+    required:
+      - slot_number
+      - epoch_number
+    properties:
+      slot_number: *slotNumber
+      epoch_number: *epochNumber
+
   ApiNetworkInformation: &ApiNetworkInformation
     type: object
     required:
@@ -546,7 +562,7 @@ definitions:
     properties:
       sync_progress: *networkInformationSyncProgress
       node_tip: *networkInformationNodeTip
-      network_tip: *networkInformationNetworkTip
+      network_tip: *ApiNetworkTip
       next_epoch: *ApiEpochInfo
 
   ApiSelectCoinsData: &ApiSelectCoinsData
@@ -1057,6 +1073,16 @@ x-responsesDeleteWallet: &responsesDeleteWallet
   204:
     description: No Content
 
+x-responsesForceResyncWallet: &responsesForceResyncWallet
+  <<: *responsesErr400
+  <<: *responsesErr403
+  <<: *responsesErr404
+  <<: *responsesErr405
+  <<: *responsesErr406
+  <<: *responsesErr415
+  204:
+    description: No Content
+
 x-responsesPutWallet: &responsesPutWallet
   <<: *responsesErr400
   <<: *responsesErr404
@@ -1276,6 +1302,27 @@ paths:
         - <<: *parametersBody
           schema: *ApiWalletPutData
       responses: *responsesPutWallet
+
+  /wallets/{walletId}/tip:
+    put:
+      operationId: forceResync
+      tags: ["Wallets"]
+      summary: Force Resync
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Force the wallet to rewind back to the given block and sync again with the chain.
+        Any incoming transaction will be erased whereas outgoing transactions will be put back
+        as pending. This action should only be taken as an extreme measure to resolve potential
+        syncing issues. If its use is required, please submit a ticket to https://github.com/input-output-hk/cardano-wallet/issues.
+
+        > ⚠️ At this stage, the server only allows resyncing to genesis (i.e. `(0,0)`).
+        > Any other point will yield a `403 Forbidden` error.
+      parameters:
+        - *parametersWalletId
+        - <<: *parametersBody
+          schema: *genesisBlock
+      responses: *responsesForceResyncWallet
 
   /wallets/{walletId}/statistics/utxos:
     get:
@@ -1570,6 +1617,27 @@ paths:
       parameters:
         - *parametersWalletId
       responses: *responsesDeleteWallet
+
+  /byron-wallets/{walletId}/tip:
+    put:
+      operationId: forceResyncByron
+      tags: ["Byron Wallets"]
+      summary: Force Resync
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Force the wallet to rewind back to the given block and sync again with the chain.
+        Any incoming transaction will be erased whereas outgoing transactions will be put back
+        as pending. This action should only be taken as an extreme measure to resolve potential
+        syncing issues. If its use is required, please submit a ticket to https://github.com/input-output-hk/cardano-wallet/issues.
+
+        > ⚠️ At this stage, the server only allows resyncing to genesis (i.e. `(0,0)`).
+        > Any other point will yield a `403 Forbidden` error.
+      parameters:
+        - *parametersWalletId
+        - <<: *parametersBody
+          schema: *genesisBlock
+      responses: *responsesForceResyncWallet
 
   /byron-wallets/{walletId}/transactions:
     get:

@@ -74,6 +74,7 @@ module Cardano.Wallet
     , updateWalletPassphrase
     , walletSyncProgress
     , fetchRewardBalance
+    , rollbackBlocks
     , ErrWalletAlreadyExists (..)
     , ErrNoSuchWallet (..)
     , ErrListUTxOStatistics (..)

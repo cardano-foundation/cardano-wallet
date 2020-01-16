@@ -41,7 +41,7 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Tracer
     ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
 import Cardano.DB.Sqlite
-    ( DBLog
+    ( DBLog (..)
     , SqliteContext (..)
     , chunkSize
     , dbChunked
@@ -96,7 +96,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Control.Arrow
     ( (***) )
 import Control.Concurrent.MVar
-    ( modifyMVar_, newMVar )
+    ( modifyMVar, modifyMVar_, newMVar )
 import Control.DeepSeq
     ( NFData )
 import Control.Exception
@@ -117,8 +117,6 @@ import Data.Coerce
     ( coerce )
 import Data.Either
     ( isRight )
-import Data.Functor
-    ( ($>) )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.List.Split
@@ -163,6 +161,8 @@ import Database.Persist.Sql
     )
 import Database.Persist.Sqlite
     ( SqlPersistT )
+import Fmt
+    ( pretty )
 import System.Directory
     ( doesFileExist, listDirectory, removePathForcibly )
 import System.FilePath
@@ -223,27 +223,35 @@ newDBFactory
 newDBFactory tr mDatabaseDir = do
     mvar <- newMVar mempty
     case mDatabaseDir of
+        -- NOTE
+        -- For the in-memory database, we do actually preserve the database
+        -- after the 'action' is done. This allows for calling 'withDatabase'
+        -- several times within the same execution and get back the same
+        -- database. The memory is only cleaned up when calling
+        -- 'removeDatabase', to mimic the way the file database works!
         Nothing -> pure DBFactory
-            { withDatabase = \_ action ->
-                withDBLayer tr Nothing (action . snd)
-            , removeDatabase = \_ ->
-                pure ()
+            { withDatabase = \wid action -> do
+                db <- modifyMVar mvar $ \m -> case Map.lookup wid m of
+                    Just (_, db) -> pure (m, db)
+                    Nothing -> do
+                        (ctx, db) <- newDBLayer tr Nothing
+                        pure (Map.insert wid (ctx, db) m, db)
+                action db
+            , removeDatabase = \wid -> do
+                traceWith tr $ MsgRemoving (pretty wid)
+                modifyMVar_ mvar (pure . Map.delete wid)
             }
+
         Just databaseDir -> pure DBFactory
             { withDatabase = \wid action -> do
-                withDBLayer tr (Just $ databaseFile wid)
-                    $ \(ctx, db) -> do
-                        modifyMVar_ mvar (pure . Map.insert wid ctx)
-                        action db
+                withDBLayer tr (Just $ databaseFile wid) (action . snd)
             , removeDatabase = \wid -> do
+                traceWith tr $ MsgRemoving (pretty wid)
                 let files =
                         [ databaseFile wid
                         , databaseFile wid <> "-wal"
                         , databaseFile wid <> "-shm"
                         ]
-                modifyMVar_ mvar $ \m -> case Map.lookup wid m of
-                    Nothing -> pure m
-                    Just ctx -> destroyDBLayer ctx $> Map.delete wid m
                 mapM_ removePathForcibly files
             }
           where

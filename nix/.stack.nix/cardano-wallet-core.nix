@@ -88,6 +88,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."http-media" or (buildDepError "http-media"))
           (hsPkgs."http-types" or (buildDepError "http-types"))
           (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
+          (hsPkgs."lifted-base" or (buildDepError "lifted-base"))
           (hsPkgs."memory" or (buildDepError "memory"))
           (hsPkgs."monad-logger" or (buildDepError "monad-logger"))
           (hsPkgs."network" or (buildDepError "network"))

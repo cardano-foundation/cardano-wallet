@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE RankNTypes #-}
@@ -57,20 +56,18 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Word
     ( Word32 )
-import GHC.Generics
-    ( Generic )
 
 import qualified Data.List as L
 
 -- | Instantiate database layers at will
 data DBFactory m s k = DBFactory
-    { withDatabase :: WalletId -> (DBLayer m s k -> IO ()) -> IO ()
+    { withDatabase :: forall a. WalletId -> (DBLayer m s k -> IO a) -> IO a
         -- ^ Creates a new or use an existing database, maintaining an open
         -- connection so long as necessary
 
     , removeDatabase :: WalletId -> IO ()
         -- ^ Erase any trace of the database
-    } deriving (Generic)
+    }
 
 -- | A Database interface for storing various things in a DB. In practice,
 -- we'll need some extra contraints on the wallet state that allows us to

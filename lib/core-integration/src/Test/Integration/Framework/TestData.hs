@@ -77,6 +77,7 @@ module Test.Integration.Framework.TestData
     , errMsg500
     , errMsg400NumberOfWords
     , errMsgNotInDictionary
+    , errMsg403RejectedTip
     ) where
 
 import Prelude
@@ -480,3 +481,9 @@ errMsgNotInDictionary = "Found an unknown word not present in the pre-defined\
 
 errMsg400NumberOfWords :: String
 errMsg400NumberOfWords = "Invalid number of words:"
+
+errMsg403RejectedTip :: String
+errMsg403RejectedTip =
+    "I am sorry but I refuse to rollback to the given point. \
+    \Notwithstanding I'll willingly rollback to the genesis point (0, 0) \
+    \should you demand it."
