@@ -7,6 +7,7 @@
         "quickcheck-state-machine" = (((hackage.quickcheck-state-machine)."0.6.0").revisions).default;
         "command" = (((hackage.command)."0.1.1").revisions).default;
         "clock" = (((hackage.clock)."0.8").revisions).default;
+        "zip" = (((hackage.zip)."1.3.0").revisions).default;
         "prometheus" = (((hackage.prometheus)."2.1.2").revisions).default;
         "time-units" = (((hackage.time-units)."1.0.0").revisions).default;
         "libsystemd-journal" = (((hackage.libsystemd-journal)."1.4.4").revisions).default;
@@ -19,7 +20,6 @@
         text-class = ./text-class.nix;
         cardano-wallet-test-utils = ./cardano-wallet-test-utils.nix;
         cardano-wallet-jormungandr = ./cardano-wallet-jormungandr.nix;
-        zip = ./zip.nix;
         persistent = ./persistent.nix;
         persistent-sqlite = ./persistent-sqlite.nix;
         persistent-template = ./persistent-template.nix;
