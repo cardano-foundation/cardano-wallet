@@ -340,15 +340,21 @@ newDBLayer trace defaultActiveSlotCoeff mDatabaseFile = do
                             "Checkpoint table is MISSING a required field: \
                             \active_slot_coeff."
 
-                        report
-                            "Adding required field active_slot_coeff to \
-                            \checkpoint table."
+                        let defaultActiveSlotCoeffText = toText $
+                                W.unActiveSlotCoefficient $
+                                defaultActiveSlotCoeff
+
+                        report $ mconcat
+                            [ "Adding required field active_slot_coeff to "
+                            , "checkpoint table with default value of "
+                            , defaultActiveSlotCoeffText
+                            , "."
+                            ]
                         addColumn <- Sqlite.prepare conn $ mconcat
                             [ "alter table checkpoint "
                             , "add column active_slot_coeff double not null "
                             , "default "
-                            , T.pack $ show $ W.unActiveSlotCoefficient
-                                defaultActiveSlotCoeff
+                            , defaultActiveSlotCoeffText
                             , ";"
                             ]
                         _ <- Sqlite.step addColumn
