@@ -45,12 +45,12 @@ See **Installation Instructions** for each available [release](https://github.co
 
 > ### Latest releases
 >
-> | cardano-wallet                                                                            | Jörmungandr (compatible versions)                                                |
-> | ---                                                                                       | ---                                                                              |
-> | `master` branch                                                                           | [v0.8.5](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.5)     |
+> | cardano-wallet                                                                            | Jörmungandr (compatible versions)                                            |
+> | ---                                                                                       | ---                                                                          |
+> | `master` branch                                                                           | [v0.8.5](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.5) |
+> | [v2020-01-14](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2020-01-14) | [v0.8.5](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.5) |
+> | [v2020-01-07](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2020-01-07) | [v0.8.5](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.5) |
 > | [v2019-12-23](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2019-12-23) | [v0.8.5](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.5) |
-> | [v2019-12-16](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2019-12-16) | [v0.8.1](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.1)     |
-> | [v2019-12-13](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2019-12-13) | [v0.8.1](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.1)     |
 
 ## How to build from sources
 
