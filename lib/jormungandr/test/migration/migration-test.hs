@@ -34,7 +34,7 @@ import Cardano.BM.Configuration.Static
 import Cardano.BM.Setup
     ( withTrace )
 import Cardano.BM.Trace
-    ( Trace, logError, logInfo )
+    ( Trace, logError, logInfo, logNotice )
 import Cardano.Launcher
     ( Command (..), ProcessHasExited (..), StdStream (..), withBackendProcess )
 import Cardano.Wallet.Api.Types
@@ -49,8 +49,10 @@ import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Control.Concurrent
     ( threadDelay )
+import Control.Lens
+    ( (^.), (^..), (^?) )
 import Control.Monad
-    ( forever, void )
+    ( forever, mapM_, void )
 import Control.Retry
     ( RetryPolicy
     , constantDelay
@@ -60,19 +62,18 @@ import Control.Retry
     )
 import Data.Aeson
     ( Value (..), object, toJSON, (.=) )
+import Data.Aeson.Lens
+    ( key, values, _Integral, _String )
+import Data.Maybe
+    ( isNothing )
 import Data.Text
     ( Text )
+import Network.Wreq
+    ( get, post, responseBody )
 import System.Environment
     ( getArgs )
 import System.Exit
     ( ExitCode (..), exitFailure, exitWith )
-
-import Control.Lens
-    ( (^.), (^..) )
-import Data.Aeson.Lens
-    ( key, values, _String )
-import Network.Wreq
-    ( get, post, responseBody )
 
 import qualified Data.Text as T
 
@@ -130,7 +131,7 @@ doStep1
     -> ApiBase
     -> IO ExitCode
 doStep1 tr apiBase = do
-    waitForSync apiBase
+    waitForSync tr apiBase
     mnem <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy :: IO [Text]
     let postData = object
             [ "mnemonic_sentence" .= toJSON mnem
@@ -140,7 +141,7 @@ doStep1 tr apiBase = do
     wal <- post (url apiBase "wallets") (toJSON postData)
     let walId = wal ^. responseBody . key "id" . _String
     logInfo tr $ "Create wallet with id " <> walId
-    void $ waitForRestore apiBase walId
+    waitForRestore tr apiBase walId
     pure ExitSuccess
 
 -- | @step2@ action. Checks the contents of the database on the new version.
@@ -150,13 +151,16 @@ doStep2
     -> ApiBase
     -> IO ExitCode
 doStep2 tr apiBase = do
-    waitForSync apiBase
+    waitForSync tr apiBase
+    waitForBlock tr apiBase
     wals <- get (url apiBase "wallets")
     let walIds = wals ^.. responseBody . values . key "id" . _String
     logInfo tr $ "wallets are " <> T.unwords walIds
     let walNames = wals ^.. responseBody . values . key "name" . _String
     if walNames == [testWalletName]
-        then pure ExitSuccess
+        then do
+            mapM_ (waitForRestore tr apiBase) walIds
+            pure ExitSuccess
         else do
             logError tr $ "Expected wallet name " <> testWalletName <>
                 " but got wallet names:\n" <> T.unlines walNames
@@ -176,28 +180,61 @@ url :: ApiBase -> Text -> String
 url (ApiBase base) path = base ++ T.unpack path
 
 -- | Poll a wallet by ID until it has restored.
-waitForRestore :: ApiBase -> Text -> IO ()
-waitForRestore base wid = void $ retrying retryPolicy (const shouldRetry) (const action)
+waitForRestore :: Trace IO Text -> ApiBase -> Text -> IO ()
+waitForRestore tr base wid =
+    void $ waitForSomething tr "restore" action shouldRetry
   where
-    shouldRetry res =
-        let status = res ^. responseBody . key "state" . key "status" . _String
-        in pure (status /= "ready")
+    shouldRetry res = (res ^. responseBody . restoreStatus) /= "ready"
+    restoreStatus = key "state" . key "status" . _String
     action = get (url base ("wallets/" <> wid))
 
 -- | Poll the wallet server until it reports that it has synced with the
 -- network.
-waitForSync :: ApiBase -> IO ()
-waitForSync base = void $ retrying retryPolicy (const shouldRetry) (const action)
+waitForSync :: Trace IO Text -> ApiBase -> IO ()
+waitForSync tr base =
+    void $ waitForSomething tr "sync" action shouldRetry
   where
-    shouldRetry res =
-        let status = res ^. responseBody . key "sync_progress" . key "status" . _String
-        in pure (status /= "ready")
+    shouldRetry res = (res ^. responseBody . syncStatus) /= "ready"
+    syncStatus = key "sync_progress" . key "status" . _String
     action = get (url base "network/information")
 
-retryPolicy :: RetryPolicy
-retryPolicy = limitRetriesByCumulativeDelay (3600 * second) (constantDelay second)
+-- | Poll the node's block height until it changes.
+waitForBlock :: Trace IO Text -> ApiBase -> IO ()
+waitForBlock tr base = void $ do
+    bh <- waitForSomething tr "initial block height"
+        getBlockHeight isNothing
+    case bh of
+        Just _ ->
+            waitForSomething tr "block height increase"
+                getBlockHeight (<= bh)
+        Nothing -> do
+            logError tr "Could not extract block height from network info"
+            exitFailure
+
   where
-    second = 1000*1000
+    getBlockHeight :: IO (Maybe Integer)
+    getBlockHeight = do
+        res <- get (url base "network/information")
+        pure (res ^? responseBody . blockHeight)
+
+    blockHeight = key "node_tip" . key "height" . key "quantity" . _Integral
+
+waitForSomething :: Trace IO Text -> Text -> IO res -> (res -> Bool) -> IO res
+waitForSomething tr name action shouldRetry = do
+    logNotice tr $ "Waiting for " <> name
+    res <- retrying retryPolicy (const (pure . shouldRetry)) (const action)
+    if shouldRetry res
+        then do
+            logError tr $ "Timed out waiting for " <> name
+            exitFailure
+        else do
+            logNotice tr $ name <> " is done."
+            pure res
+
+retryPolicy :: RetryPolicy
+retryPolicy = limitRetriesByCumulativeDelay (60 * sec) (constantDelay sec)
+  where
+    sec = 1000 * 1000
 
 {-------------------------------------------------------------------------------
                                   Port helper

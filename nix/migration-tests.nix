@@ -1,10 +1,33 @@
-# Test harness for migrating databases from previous versions to the
+############################################################################
+#
+# Test harness for migrating state from previous versions to the
 # current version.
+#
+# To build all migration tests:
+#   nix-build nix/migration-tests.nix -o migration-tests
+#
+# To run all migration tests:
+#   ./migration-tests/runall.sh
+#
+# To run migration tests for given version to the current version.
+#   ./migration-tests/v2019-12-16/run.sh
+#
+# To build and run the migration test for just one version:
+#   nix-build nix/migration-tests.nix -A v2019-12-16 -o run-migration-test-v2019-12-16
+#   ./run-migration-test-v2019-12-16
+#
+# You can inspect the resulting bash scripts and run parts
+# individually. For example, run step1 to set up a state directory for
+# the old version, then try:
+#   stateDir=./debug /nix/store/...-launch-migration-test-v2019-12-16.sh step1
+#   stack exec migration-test -- step2 launch --state-dir=./debug ...
+#
+############################################################################
 
 { system ? builtins.currentSystem
 , crossSystem ? null
 , config ? {}
-, pkgs ? import ./nixpkgs-haskell.nix  {}
+, pkgs ? import ./nixpkgs-haskell.nix {}
 }:
 
 with pkgs.lib;
@@ -12,17 +35,17 @@ with pkgs.lib;
 let
   # List of git revisions to test against.
   releases = [
-    { rev = "v2019-11-18";
-      sha256 = "0ijsdi8f0y49hn62dj80xipf14nb0hnisddq6b8lj10jznwgsdag";
-      allowFail = true; }
-    { rev = "v2019-12-09";
-      sha256 = "1ld415pbbhj8hg14325w2dcwxkkanm3vx09s7cs1viy8lcl69sln";
-      allowFail = true; }
     { rev = "v2019-12-13";
       sha256 = "1a2b4iflwwp824b1k9b82jw2q8pqlar6hg96nv03zv55glkgdllm";
       allowFail = true; }
     { rev = "v2019-12-16";
       sha256 = "0y5xf43lrc7gygvxh5ywkglr3d1xcc19dsskm7frl0v6m9yxzni6"; }
+    { rev = "v2019-12-23";
+      sha256 = "1fq8hjwqnajlz7g09zihmzhjc3hyyjl685nr5qa4r2fqnjzq5i24"; }
+    { rev = "v2020-01-07";
+      sha256 = "1bsw89xhd60jjdxx9d5ya6ly0rpswwcj7x5ppqjhydvsdsrd3rww"; }
+    { rev = "v2020-01-14";
+      sha256 = "0kvwzrkpv3d62qr9sh9h7v7d398c600qr9dgw6zd3wcmxjk53762"; }
   ];
 
   # Download the sources for a release.
@@ -58,8 +81,9 @@ let
   mkTestsBash = let
     # Create a script that runs the migration test against the server of
     # a certain release.
-    testRelease = walletPackages: rel:
-      pkgs.writeScript "launch-migration-test-${releaseName rel}.sh" ''
+    testRelease = rel: let
+        walletPackages = importRelease rel;
+      in pkgs.writeScript "launch-migration-test-${releaseName rel}.sh" ''
         #!${pkgs.runtimeShell}
 
         export PATH=${makeBinPath [
@@ -80,9 +104,8 @@ let
     # version.
     mkTestRunner = rel: rec {
       name = releaseName rel;
-      test = testRelease walletPackages rel;
-      testStep2 = testRelease walletPackages null;
-      walletPackages = importRelease rel;
+      test = testRelease rel;
+      testStep2 = testRelease null;
       allowFail = rel.allowFail or false;
       runner = pkgs.writeScript "run-${test.name}" ''
         #!${pkgs.runtimeShell}
@@ -105,7 +128,10 @@ let
     # At the top level is a script that runs all tests.
     rels: let
       tests = map mkTestRunner rels;
-    in pkgs.runCommand "migration-tests" {} (''
+    in pkgs.runCommand "migration-tests" {
+      # provide individual tests as attributes of this derivation
+      passthru = listToAttrs (map (test: nameValuePair test.name test.runner) tests);
+    } (''
       mkdir -p $out
       echo "#!${pkgs.runtimeShell}" >> $out/runall.sh
       echo "set -euo pipefail" >> $out/runall.sh

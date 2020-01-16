@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 
 # Run the migration-test executable and launch a self-node.
-# You should have all necessary programs on the PATH.
-# Set the "stateDir" environment variable to a suitable temporary location.
+#
+# Environment variables you can set:
+#   PATH - You should have all necessary programs on the PATH.
+#   stateDir - suitable temporary location for databases.
+#   src - top of source tree, defaults to parent directory of this script.
+
 
 set -euo pipefail
 
