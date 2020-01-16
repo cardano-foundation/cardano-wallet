@@ -43,10 +43,18 @@ import Cardano.BM.Data.Tracer
 import Cardano.Wallet.Primitive.Types
     ( PoolOwner (..), ShowFmt (..) )
 import Codec.Archive.Zip
+    ( EntrySelector
+    , ZipArchive
+    , ZipException (..)
+    , getEntries
+    , getEntry
+    , unEntrySelector
+    , withArchive
+    )
 import Control.Exception
-    ( IOException, displayException, try, tryJust )
+    ( IOException, catch, displayException, onException, try, tryJust )
 import Control.Monad
-    ( join, (>=>) )
+    ( join, when, (>=>) )
 import Control.Monad.IO.Class
     ( MonadIO (..), liftIO )
 import Control.Tracer
@@ -61,6 +69,8 @@ import Data.Aeson
     , genericToJSON
     , omitNothingFields
     )
+import Data.Either
+    ( isLeft )
 import Data.List
     ( find )
 import Data.Maybe
@@ -80,7 +90,7 @@ import Network.HTTP.Client
 import Network.HTTP.Simple
     ( httpSink )
 import System.Directory
-    ( createDirectoryIfMissing, getModificationTime )
+    ( createDirectoryIfMissing, getModificationTime, removeFile )
 import System.Environment
     ( lookupEnv )
 import System.FilePath
@@ -219,8 +229,10 @@ getStakePoolMetadata
 getStakePoolMetadata tr cfg poolOwners = do
     let tr' = contramap (RegistryLog (registryURL cfg) (cacheArchive cfg)) tr
     fetchStakePoolMetaZipCached tr' cfg >>= \case
-        Right f -> Right <$> getMetadataFromZip tr' f poolOwners
-        Left e -> pure $ Left e
+        Right f -> getMetadataFromZip tr' f poolOwners
+        Left e -> do
+            traceWith tr' (MsgDownloadError e)
+            pure $ Left e
 
 fetchStakePoolMetaZipCached
     :: Tracer IO RegistryLogMsg
@@ -251,16 +263,22 @@ fetchStakePoolMetaZip
     -> IO (Either FetchError FilePath)
 fetchStakePoolMetaZip tr url zipFileName = do
     traceWith tr MsgDownloadStarted
-    fmap join $ tryJust fileExceptionHandler $
+    res <- flip onException cleanup $ fmap join $ tryJust fileExceptionHandler $
         withFile zipFileName WriteMode $ \zipFile -> tryJust handler $ do
             req <- parseUrlThrow url
             httpSink req $ \_response -> Conduit.mapM_ (BS.hPut zipFile)
             size <- hTell zipFile
             traceWith tr $ MsgDownloadComplete size
             pure zipFileName
+    when (isLeft res) cleanup
+    pure res
+
   where
     fileExceptionHandler = Just . FetchErrorFile . displayException @IOException
     handler = Just . FetchErrorDownload . displayException @HttpException
+    cleanup = do
+        traceWith tr MsgCleanupDownload
+        removeFile zipFileName `catch` (\(_ :: IOException) -> pure ())
 
 -- | With the given zip file, extract and parse metadata for the given stake
 -- pools.
@@ -268,9 +286,14 @@ getMetadataFromZip
     :: Tracer IO RegistryLogMsg
     -> FilePath -- ^ Zip file path.
     -> [PoolOwner] -- ^ Stake pools to extract.
-    -> IO [Maybe StakePoolMetadata]
+    -> IO (Either FetchError [Maybe StakePoolMetadata])
 getMetadataFromZip tr zipFileName =
-    withArchive zipFileName . mapM (findStakePoolMeta tr . registryFile)
+    tryJust onParseFailed .
+    withArchive zipFileName .
+    mapM (findStakePoolMeta tr . registryFile)
+  where
+    onParseFailed (ParsingFailed f s) = Just $ FetchErrorZipParsingFailed f s
+    onParseFailed _ = Nothing
 
 -- | Try to read and parse a metadata JSON file within a 'ZipArchive', if it is
 -- present.
@@ -397,6 +420,7 @@ data RegistryLogMsg
     = MsgDownloadStarted
     | MsgDownloadComplete Integer
     | MsgDownloadError FetchError
+    | MsgCleanupDownload
     | MsgExtractFile FilePath
     | MsgExtractFileResult (Maybe (Either String StakePoolMetadata))
     | MsgUsingCached FilePath UTCTime
@@ -409,6 +433,7 @@ instance DefineSeverity RegistryLogMsg where
         MsgDownloadComplete _ -> Info
         MsgDownloadError _ -> Error
         MsgExtractFile _ -> Debug
+        MsgCleanupDownload -> Debug
         MsgExtractFileResult (Just (Left _)) -> Warning
         MsgExtractFileResult _ -> Debug
         MsgUsingCached _ _ -> Info
@@ -425,6 +450,8 @@ instance ToText RegistryLogMsg where
             fmt $ "Completed download of "+|size|+" bytes"
         MsgDownloadError e ->
             "Failed: " <> toText e
+        MsgCleanupDownload ->
+            "Removing incompletely downloaded file"
         MsgExtractFile f ->
             fmt $ "Extracting file: "+|f|+""
         MsgExtractFileResult Nothing ->
