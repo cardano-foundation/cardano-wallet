@@ -39,7 +39,7 @@ This example uses the [itn_rewards_v1](https://hydra.iohk.io/job/Cardano/iohk-ni
 
    ```
    docker run \
-       -p 127.0.0.1:8090:8090 \
+       --publish 127.0.0.1:8090:8090 \
        --volume $HOME/state-docker:/data \
        --env TMPDIR=/data \
        --rm \
@@ -48,12 +48,12 @@ This example uses the [itn_rewards_v1](https://hydra.iohk.io/job/Cardano/iohk-ni
        --listen-address 0.0.0.0 \
        --state-dir /data \
        --genesis-block-hash 8e4d2a343f3dcf9330ad9035b3e8d168e6728904262f2c434a4f8f934ec7b676 \
-       --sync-tolerance 300s -- --config /data/itn_rewards_v1-config.yaml
+       -- --config /data/itn_rewards_v1-config.yaml
    ```
 
    Explanation of the arguments:
    
-   * `-p 127.0.0.1:8090:8090` - exposes the API server port from the
+   * `--publish 127.0.0.1:8090:8090` - exposes the API server port from the
      container to the Docker host.
      
    * `--volume $HOME/state-docker:/data` - mounts the
@@ -61,7 +61,9 @@ This example uses the [itn_rewards_v1](https://hydra.iohk.io/job/Cardano/iohk-ni
      the container.
      
    * `--env TMPDIR=/data` - work around a temp directory issue
-     ([#1262](https://github.com/input-output-hk/cardano-wallet/pull/1262)).
+     ([#1262](https://github.com/input-output-hk/cardano-wallet/pull/1262)). 
+     Alternatively, you may mount an additional volume on your own temporary
+     directory with `--volume /tmp:/tmp`.
    
    * `--listen-address 0.0.0.0` - ensures that the API server binds to
      the Docker network interface, so that the server can be accessed
@@ -106,7 +108,7 @@ Then run this command from the `cardano-wallet` git repo:
 docker load -i $(nix-build -A dockerImage --no-out-link)
 ```
 
-If you have no local changes, the the build should be downloaded from
+If you have no local changes, the build should be downloaded from
 the [IOHK binary cache](https://hydra.iohk.io/job/Cardano/cardano-wallet/native.dockerImage.x86_64-linux)
 then loaded into your local Docker image storage.
 
