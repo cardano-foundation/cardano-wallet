@@ -294,6 +294,67 @@ findDatabases tr dir = do
   where
     expectedPrefix = T.pack $ keyTypeDescriptor $ Proxy @k
 
+-- | Executes any manual database migration steps that may be required on
+--   startup.
+--
+migrateManually
+    :: Tracer IO DBLog
+    -> W.ActiveSlotCoefficient
+    -> Sqlite.Connection
+    -> IO ()
+migrateManually trace defaultActiveSlotCoeff conn =
+    addActiveSlotCoefficient
+  where
+
+    -- | Adds an 'active_slot_coeff' column to the 'checkpoint' table if
+    --   it is missing.
+    --
+    addActiveSlotCoefficient = do
+        let report = traceWith trace . MsgManualMigration
+        getCheckpointTableInfo <- Sqlite.prepare conn
+            "select sql from sqlite_master\
+            \   where type = 'table'      \
+            \     and name = 'checkpoint';"
+        row <- Sqlite.step getCheckpointTableInfo
+            >> Sqlite.columns getCheckpointTableInfo
+        Sqlite.finalize getCheckpointTableInfo
+        case row of
+            [PersistText t]
+                | "active_slot_coeff" `T.isInfixOf` t ->
+                    report
+                        "Checkpoint table already contains all required \
+                        \fields: doing nothing."
+                | otherwise -> do
+                    report
+                        "Checkpoint table is MISSING a required field: \
+                        \active_slot_coeff."
+
+                    let defaultActiveSlotCoeffText = toText $
+                            W.unActiveSlotCoefficient $
+                            defaultActiveSlotCoeff
+
+                    report $ mconcat
+                        [ "Adding required field active_slot_coeff to "
+                        , "checkpoint table with default value of "
+                        , defaultActiveSlotCoeffText
+                        , "."
+                        ]
+                    addColumn <- Sqlite.prepare conn $ mconcat
+                        [ "alter table checkpoint "
+                        , "add column active_slot_coeff double not null "
+                        , "default "
+                        , defaultActiveSlotCoeffText
+                        , ";"
+                        ]
+                    _ <- Sqlite.step addColumn
+                    Sqlite.finalize addColumn
+
+                    report
+                        "Finished preprocessing checkpoint table."
+            _ ->
+                report
+                    "Cannot find checkpoint table!"
+
 -- | Sets up a connection to the SQLite database.
 --
 -- Database migrations are run to create tables if necessary.
@@ -320,54 +381,13 @@ newDBLayer
        -- ^ Path to database file, or Nothing for in-memory database
     -> IO (SqliteContext, DBLayer IO s k)
 newDBLayer trace defaultActiveSlotCoeff mDatabaseFile = do
-    let migrateManually conn = do
-            let report = traceWith trace . MsgManualMigration
-            getCheckpointTableInfo <- Sqlite.prepare conn
-                "select sql from sqlite_master\
-                \   where type = 'table'      \
-                \     and name = 'checkpoint';"
-            row <- Sqlite.step getCheckpointTableInfo
-                >> Sqlite.columns getCheckpointTableInfo
-            Sqlite.finalize getCheckpointTableInfo
-            case row of
-                [PersistText t]
-                    | "active_slot_coeff" `T.isInfixOf` t ->
-                        report
-                            "Checkpoint table already contains all required \
-                            \fields: doing nothing."
-                    | otherwise -> do
-                        report
-                            "Checkpoint table is MISSING a required field: \
-                            \active_slot_coeff."
-
-                        let defaultActiveSlotCoeffText = toText $
-                                W.unActiveSlotCoefficient $
-                                defaultActiveSlotCoeff
-
-                        report $ mconcat
-                            [ "Adding required field active_slot_coeff to "
-                            , "checkpoint table with default value of "
-                            , defaultActiveSlotCoeffText
-                            , "."
-                            ]
-                        addColumn <- Sqlite.prepare conn $ mconcat
-                            [ "alter table checkpoint "
-                            , "add column active_slot_coeff double not null "
-                            , "default "
-                            , defaultActiveSlotCoeffText
-                            , ";"
-                            ]
-                        _ <- Sqlite.step addColumn
-                        Sqlite.finalize addColumn
-
-                        report
-                            "Finished preprocessing checkpoint table."
-                _ ->
-                    traceWith trace $ MsgManualMigration
-                        "Cannot find checkpoint table!"
     ctx@SqliteContext{runQuery} <-
         either throwIO pure =<<
-        startSqliteBackend migrateManually migrateAll trace mDatabaseFile
+        startSqliteBackend
+            (migrateManually trace defaultActiveSlotCoeff)
+            migrateAll
+            trace
+            mDatabaseFile
     return (ctx, DBLayer
 
         {-----------------------------------------------------------------------
