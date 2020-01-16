@@ -790,8 +790,8 @@ deleteWallet
     -> Handler NoContent
 deleteWallet ctx (ApiT wid) = do
     liftHandler $ withWorkerCtx @_ @s @k ctx wid throwE $ \_ -> pure ()
-    liftIO $ removeDatabase df wid
     liftIO $ Registry.remove re wid
+    liftIO $ removeDatabase df wid
     return NoContent
   where
     re = ctx ^. workerRegistry @s @k

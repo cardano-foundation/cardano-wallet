@@ -41,7 +41,7 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Tracer
     ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
 import Cardano.DB.Sqlite
-    ( DBLog
+    ( DBLog (..)
     , SqliteContext (..)
     , chunkSize
     , dbChunked
@@ -117,8 +117,6 @@ import Data.Coerce
     ( coerce )
 import Data.Either
     ( isRight )
-import Data.Functor
-    ( ($>) )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.List.Split
@@ -163,6 +161,8 @@ import Database.Persist.Sql
     )
 import Database.Persist.Sqlite
     ( SqlPersistT )
+import Fmt
+    ( pretty )
 import System.Directory
     ( doesFileExist, listDirectory, removePathForcibly )
 import System.FilePath
@@ -237,26 +237,21 @@ newDBFactory tr mDatabaseDir = do
                         (ctx, db) <- newDBLayer tr Nothing
                         pure (Map.insert wid (ctx, db) m, db)
                 action db
-            , removeDatabase = \wid ->
-                modifyMVar_ mvar $ \m -> case Map.lookup wid m of
-                    Nothing -> pure m
-                    Just (ctx, _) -> destroyDBLayer ctx $> Map.delete wid m
+            , removeDatabase = \wid -> do
+                traceWith tr $ MsgRemoving (pretty wid)
+                modifyMVar_ mvar (pure . Map.delete wid)
             }
+
         Just databaseDir -> pure DBFactory
             { withDatabase = \wid action -> do
-                withDBLayer tr (Just $ databaseFile wid)
-                    $ \(ctx, db) -> do
-                        modifyMVar_ mvar (pure . Map.insert wid (ctx, db))
-                        action db
+                withDBLayer tr (Just $ databaseFile wid) (action . snd)
             , removeDatabase = \wid -> do
+                traceWith tr $ MsgRemoving (pretty wid)
                 let files =
                         [ databaseFile wid
                         , databaseFile wid <> "-wal"
                         , databaseFile wid <> "-shm"
                         ]
-                modifyMVar_ mvar $ \m -> case Map.lookup wid m of
-                    Nothing -> pure m
-                    Just (ctx, _) -> destroyDBLayer ctx $> Map.delete wid m
                 mapM_ removePathForcibly files
             }
           where

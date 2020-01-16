@@ -90,6 +90,7 @@ import System.Log.FastLogger
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Database.Persist.Sql as Persist
 import qualified Database.Sqlite as Sqlite
 
 {-------------------------------------------------------------------------------
@@ -155,16 +156,26 @@ handleConstraint e = handleJust select handler . fmap Right
 destroyDBLayer :: SqliteContext -> IO ()
 destroyDBLayer (SqliteContext {getSqlBackend, trace, dbFile}) = do
     traceWith trace (MsgClosing dbFile)
-    handleIf
-        isAlreadyClosed
-        (const $ pure ())
-        (recovering pol [const $ Handler isBusy] (const $ close' getSqlBackend))
+    recovering pol [const $ Handler isBusy] (const $ close' getSqlBackend)
+        & handleIf isAlreadyClosed
+            (traceWith trace . MsgIsAlreadyClosed . showT)
+        & handleIf statementAlreadyFinalized
+            (traceWith trace . MsgStatementAlreadyFinalized . showT)
   where
     isAlreadyClosed = \case
         -- Thrown when an attempt is made to close a connection that is already
         -- in the closed state:
         Sqlite.SqliteException Sqlite.ErrorMisuse _ _ -> True
         Sqlite.SqliteException {}                     -> False
+
+    statementAlreadyFinalized = \case
+        -- Thrown
+        Persist.StatementAlreadyFinalized{} -> True
+        Persist.Couldn'tGetSQLConnection{}  -> False
+
+    showT :: Show a => a -> Text
+    showT = T.pack . show
+
     isBusy (SqliteException name _ _) = pure (name == Sqlite.ErrorBusy)
     pol = limitRetriesByCumulativeDelay (60000*ms) $ constantDelay (25*ms)
     ms = 1000 -- microseconds in a millisecond
@@ -244,6 +255,9 @@ data DBLog
     | MsgConnStr Text
     | MsgClosing (Maybe FilePath)
     | MsgDatabaseReset
+    | MsgIsAlreadyClosed Text
+    | MsgStatementAlreadyFinalized Text
+    | MsgRemoving Text
     deriving (Generic, Show, Eq, ToJSON)
 
 instance DefinePrivacyAnnotation DBLog
@@ -257,9 +271,12 @@ instance DefineSeverity DBLog where
         MsgConnStr _ -> Debug
         MsgClosing _ -> Debug
         MsgDatabaseReset -> Notice
+        MsgIsAlreadyClosed _ -> Warning
+        MsgStatementAlreadyFinalized _ -> Warning
+        MsgRemoving _ -> Info
 
 instance ToText DBLog where
-    toText msg = case msg of
+    toText = \case
         MsgMigrations (Right 0) ->
             "No database migrations were necessary."
         MsgMigrations (Right n) ->
@@ -274,6 +291,12 @@ instance ToText DBLog where
         MsgDatabaseReset ->
             "Non backward compatible database found. Removing old database \
             \and re-creating it from scratch. Ignore the previous error."
+        MsgIsAlreadyClosed msg ->
+            "Attempted to close an already closed connection: " <> msg
+        MsgStatementAlreadyFinalized msg ->
+            "Statement already finalized: " <> msg
+        MsgRemoving wid ->
+            "Removing wallet's database. Wallet id was " <> wid
 
 {-------------------------------------------------------------------------------
                                Extra DB Helpers
