@@ -14,7 +14,8 @@
 , cardano-wallet-jormungandr
 
 # Other things to include in the image.
-, glibcLocales, iana-etc, bashInteractive, coreutils, utillinux, iproute, iputils, curl, socat
+, glibcLocales, iana-etc, cacert
+, bashInteractive, coreutils, utillinux, iproute, iputils, curl, socat
 
 # Used to generate the docker image names
 , repoName ? "inputoutput/cardano-wallet"
@@ -43,7 +44,10 @@ let
   # Layer of tools which aren't going to change much between versions.
   baseImage = dockerTools.buildImage {
     name = "${repoName}-env";
-    contents = [ iana-etc bashInteractive coreutils utillinux iproute iputils curl socat ];
+    contents = [
+      glibcLocales iana-etc cacert
+      bashInteractive coreutils utillinux iproute iputils curl socat
+    ];
   };
 
 in
