@@ -54,7 +54,12 @@ import Cardano.Wallet.DB.Arbitrary
 import Cardano.Wallet.DB.Properties
     ( properties, withDB )
 import Cardano.Wallet.DB.Sqlite
-    ( PersistState, newDBFactory, newDBLayer, withDBLayer )
+    ( DefaultFieldValues (..)
+    , PersistState
+    , newDBFactory
+    , newDBLayer
+    , withDBLayer
+    )
 import Cardano.Wallet.DB.StateMachine
     ( prop_parallel, prop_sequential )
 import Cardano.Wallet.DummyTarget.Primitive.Types
@@ -83,7 +88,7 @@ import Cardano.Wallet.Primitive.Mnemonic
 import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet )
 import Cardano.Wallet.Primitive.Types
-    ( ActiveSlotCoefficient
+    ( ActiveSlotCoefficient (..)
     , Address (..)
     , ChimericAccount (..)
     , Coin (..)
@@ -250,7 +255,7 @@ newMemoryDBLayer'
 newMemoryDBLayer' = do
     logVar <- newTVarIO []
     (logVar, ) <$>
-        newDBLayer (traceInTVarIO logVar) defaultActiveSlotCoeff Nothing
+        newDBLayer (traceInTVarIO logVar) defaultFieldValues Nothing
 
 withLoggingDB
     ::  ( IsOurs s Address
@@ -306,7 +311,7 @@ fileModeSpec =  do
         it "withDatabase *> removeDatabase works and remove files" $ do
             withSystemTempDirectory "DBFactory" $ \dir -> do
                 DBFactory{..} <- newDBFactory
-                    nullTracer defaultActiveSlotCoeff (Just dir)
+                    nullTracer defaultFieldValues (Just dir)
                 mvar <- newEmptyMVar
 
                 -- NOTE
@@ -494,7 +499,7 @@ withTestDBFile action expectations = do
         removeFile fp
         withDBLayer
             (trMessageText trace)
-            defaultActiveSlotCoeff
+            defaultFieldValues
             (Just fp)
             (action . snd)
         expectations fp
@@ -511,8 +516,9 @@ inMemoryDBLayer = newDBLayer' Nothing
 temporaryDBFile :: IO FilePath
 temporaryDBFile = emptySystemTempFile "cardano-wallet-SqliteFileMode"
 
-defaultActiveSlotCoeff :: ActiveSlotCoefficient
-defaultActiveSlotCoeff = 1.0
+defaultFieldValues :: DefaultFieldValues
+defaultFieldValues = DefaultFieldValues
+    { defaultActiveSlotCoefficient = ActiveSlotCoefficient 1.0 }
 
 newDBLayer'
     ::  ( IsOurs s Address
@@ -523,7 +529,7 @@ newDBLayer'
         )
     => Maybe FilePath
     -> IO (SqliteContext, DBLayer IO s ShelleyKey)
-newDBLayer' = newDBLayer nullTracer defaultActiveSlotCoeff
+newDBLayer' = newDBLayer nullTracer defaultFieldValues
 
 -- | Clean the database
 cleanDB'

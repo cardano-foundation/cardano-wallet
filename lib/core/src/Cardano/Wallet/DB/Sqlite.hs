@@ -30,6 +30,9 @@ module Cardano.Wallet.DB.Sqlite
     -- * Interfaces
     , PersistState (..)
 
+    -- * Migration Support
+    , DefaultFieldValues (..)
+
     -- * Logging
     , DatabasesStartupLog (..)
     ) where
@@ -197,16 +200,17 @@ withDBLayer
         )
     => Tracer IO DBLog
        -- ^ Logging object
-    -> W.ActiveSlotCoefficient
+    -> DefaultFieldValues
+       -- ^ Default database field values, used during migration.
     -> Maybe FilePath
        -- ^ Path to database directory, or Nothing for in-memory database
     -> ((SqliteContext, DBLayer IO s k) -> IO a)
        -- ^ Action to run.
     -> IO a
-withDBLayer trace defaultActiveSlotCoeff mDatabaseDir =
+withDBLayer trace defaultFieldValues mDatabaseDir =
     bracket before after
   where
-    before = newDBLayer trace defaultActiveSlotCoeff mDatabaseDir
+    before = newDBLayer trace defaultFieldValues mDatabaseDir
     after = destroyDBLayer . fst
 
 -- | Instantiate a 'DBFactory' from a given directory
@@ -222,11 +226,12 @@ newDBFactory
         )
     => Tracer IO DBLog
        -- ^ Logging object
-    -> W.ActiveSlotCoefficient
+    -> DefaultFieldValues
+       -- ^ Default database field values, used during migration.
     -> Maybe FilePath
        -- ^ Path to database directory, or Nothing for in-memory database
     -> IO (DBFactory IO s k)
-newDBFactory tr defaultActiveSlotCoeff mDatabaseDir = do
+newDBFactory tr defaultFieldValues mDatabaseDir = do
     mvar <- newMVar mempty
     case mDatabaseDir of
         -- NOTE
@@ -241,7 +246,7 @@ newDBFactory tr defaultActiveSlotCoeff mDatabaseDir = do
                     Just (_, db) -> pure (m, db)
                     Nothing -> do
                         (ctx, db) <-
-                            newDBLayer tr defaultActiveSlotCoeff Nothing
+                            newDBLayer tr defaultFieldValues Nothing
                         pure (Map.insert wid (ctx, db) m, db)
                 action db
             , removeDatabase = \wid -> do
@@ -252,7 +257,7 @@ newDBFactory tr defaultActiveSlotCoeff mDatabaseDir = do
             { withDatabase = \wid action -> do
                 withDBLayer
                     tr
-                    defaultActiveSlotCoeff
+                    defaultFieldValues
                     (Just $ databaseFile wid)
                     (action . snd)
             , removeDatabase = \wid -> do
@@ -300,9 +305,9 @@ findDatabases tr dir = do
 --
 migrateManually
     :: Tracer IO DBLog
-    -> W.ActiveSlotCoefficient
+    -> DefaultFieldValues
     -> ManualMigration
-migrateManually trace defaultActiveSlotCoeff =
+migrateManually trace defaultFieldValues =
     ManualMigration $
         addActiveSlotCoefficient
   where
@@ -332,7 +337,8 @@ migrateManually trace defaultActiveSlotCoeff =
 
                     let defaultActiveSlotCoeffText = toText $
                             W.unActiveSlotCoefficient $
-                            defaultActiveSlotCoeff
+                            defaultActiveSlotCoefficient
+                            defaultFieldValues
 
                     report $ mconcat
                         [ "Adding required field active_slot_coeff to "
@@ -356,6 +362,12 @@ migrateManually trace defaultActiveSlotCoeff =
                 report
                     "Cannot find checkpoint table!"
 
+-- | A set of default field values that can be consulted when performing a
+--   database migration.
+--
+newtype DefaultFieldValues = DefaultFieldValues
+    { defaultActiveSlotCoefficient :: W.ActiveSlotCoefficient }
+
 -- | Sets up a connection to the SQLite database.
 --
 -- Database migrations are run to create tables if necessary.
@@ -377,15 +389,16 @@ newDBLayer
         )
     => Tracer IO DBLog
        -- ^ Logging object
-    -> W.ActiveSlotCoefficient
+    -> DefaultFieldValues
+       -- ^ Default database field values, used during migration.
     -> Maybe FilePath
        -- ^ Path to database file, or Nothing for in-memory database
     -> IO (SqliteContext, DBLayer IO s k)
-newDBLayer trace defaultActiveSlotCoeff mDatabaseFile = do
+newDBLayer trace defaultFieldValues mDatabaseFile = do
     ctx@SqliteContext{runQuery} <-
         either throwIO pure =<<
         startSqliteBackend
-            (migrateManually trace defaultActiveSlotCoeff)
+            (migrateManually trace defaultFieldValues)
             migrateAll
             trace
             mDatabaseFile
