@@ -66,6 +66,8 @@ import System.Environment
     ( setEnv )
 import System.FilePath
     ( (</>) )
+import System.IO.Temp
+    ( withSystemTempDirectory )
 import Test.Hspec
     ( Spec, SpecWith, after, describe, hspec, parallel )
 import Test.Hspec.Extra
@@ -171,8 +173,15 @@ specWithServer tr = aroundAll withContext . after tearDown
     withServer setup =
         withConfig $ \jmCfg ->
         withMetadataRegistry $
-            serveWallet @'Testnet tracers (SyncTolerance 10) Nothing "127.0.0.1"
-                ListenOnRandomPort (Launch jmCfg) setup
+        withSystemTempDirectory "cardano-wallet-databases" $ \db ->
+            serveWallet @'Testnet
+                tracers
+                (SyncTolerance 10)
+                (Just db)
+                "127.0.0.1"
+                ListenOnRandomPort
+                (Launch jmCfg)
+                setup
 
     tracers = setupTracers (tracerSeverities (Just Info)) tr
 
