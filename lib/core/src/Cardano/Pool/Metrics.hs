@@ -32,7 +32,6 @@ module Cardano.Pool.Metrics
       -- * Combining Metrics
     , ErrMetricsInconsistency (..)
     , combineMetrics
-    , calculatePerformance
 
       -- * Associating metadata
     , associateMetadata
@@ -57,6 +56,8 @@ import Cardano.Pool.Metadata
     , getStakePoolMetadata
     , sameStakePoolMetadata
     )
+import Cardano.Pool.Performance
+    ( count, readPoolsPerformances )
 import Cardano.Wallet.Network
     ( ErrNetworkTip
     , ErrNetworkUnavailable
@@ -67,20 +68,16 @@ import Cardano.Wallet.Network
     , staticBlockchainParameters
     )
 import Cardano.Wallet.Primitive.Types
-    ( ActiveSlotCoefficient (..)
-    , BlockHeader (..)
-    , EpochLength (..)
+    ( BlockHeader (..)
     , EpochNo (..)
-    , PoolId (..)
+    , PoolId
     , PoolOwner (..)
     , PoolRegistrationCertificate (..)
-    , SlotId (..)
-    , SlotNo (unSlotNo)
     )
 import Control.Arrow
     ( first )
 import Control.Monad
-    ( forM, forM_, when )
+    ( forM_, when )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Class
@@ -94,11 +91,11 @@ import Data.Functor
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.List
-    ( foldl', nub, nubBy, sortOn, (\\) )
+    ( nub, nubBy, sortOn, (\\) )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Map.Merge.Strict
-    ( dropMissing, traverseMissing, zipWithMatched )
+    ( traverseMissing, zipWithMatched )
 import Data.Map.Strict
     ( Map )
 import Data.Ord
@@ -382,92 +379,6 @@ readNewcomers DBLayer{..} elders avg = do
         (pids \\ elders)
         (repeat (Quantity 0, Quantity 0, avg))
 
-readPoolsPerformances
-    :: DBLayer m
-    -> ActiveSlotCoefficient
-    -> EpochLength
-    -> SlotId
-    -> m (Map PoolId Double)
-readPoolsPerformances DBLayer{..} activeSlotCoeff (EpochLength el) tip = do
-    atomically $ fmap avg $ forM historicalEpochs $ \ep -> calculatePerformance
-        activeSlotCoeff
-        (slotsInEpoch ep)
-        <$> (Map.fromList <$> readStakeDistribution ep)
-        <*> (count <$> readPoolProduction ep)
-  where
-    currentEpoch = tip ^. #epochNumber
-
-    historicalEpochs :: [EpochNo]
-    historicalEpochs
-        | currentEpoch > window = [currentEpoch - window .. currentEpoch]
-        | otherwise             = [0..currentEpoch]
-      where
-        window = 14
-
-    slotsInEpoch :: EpochNo -> Int
-    slotsInEpoch e =
-        if e == currentEpoch
-        then fromIntegral $ unSlotNo $ tip ^. #slotNumber
-        else fromIntegral el
-
-    -- | Performances are computed over many epochs to cope with the fact that
-    -- our data is sparse (regarding stake distribution at least).
-    --
-    -- So the approach is the following:
-    --
-    -- 1. Compute performances, if available, for the last `n` epochs
-    -- 2. Compute the average performance for all epochs for which we had data
-    avg :: [Map PoolId Double] -> Map PoolId Double
-    avg performances =
-        Map.map (/ len) . Map.unionsWith (+) $ performances
-      where
-        len = fromIntegral $ length $ filter (not . Map.null) performances
-
--- | Calculate pool apparent performance over the given data. The performance
--- is a 'Double' between 0 and 1 as:
---
--- @
---     p = n / (f * N) * S / s
---   where
---     n = number of blocks produced in an epoch e
---     N = number of slots in e
---     f = active slot coeff, i.e. % of slots for which a leader can be elected.
---     s = stake owned by the pool in e
---     S = total stake delegated to pools in e
--- @
---
--- Note that, this apparent performance is clamped to [0,1] as it may in
--- practice, be greater than 1 if a stake pool produces more than it is
--- expected.
-calculatePerformance
-    :: ActiveSlotCoefficient
-    -> Int
-    -> Map PoolId (Quantity "lovelace" Word64)
-    -> Map PoolId (Quantity "block" Word64)
-    -> Map PoolId Double
-calculatePerformance (ActiveSlotCoefficient f) nTotal mStake mProd =
-    let
-        stakeButNotProd = traverseMissing $ \_ _ -> 0
-        prodButNoStake  = dropMissing
-        stakeAndProd sTotal = zipWithMatched $ \_ s n ->
-            if (nTotal == 0 || s == Quantity 0) then
-                0
-            else
-                min 1 ((double n / (f * fromIntegral nTotal)) * (sTotal / double s))
-    in
-        Map.merge
-            stakeButNotProd
-            prodButNoStake
-            (stakeAndProd (sumQ mStake))
-            mStake
-            mProd
-  where
-    double :: Integral a => Quantity any a -> Double
-    double (Quantity a) = fromIntegral a
-
-    sumQ :: Integral a => Map k (Quantity any a) -> Double
-    sumQ = fromIntegral . foldl' (\y (Quantity x) -> (y + x)) 0 . Map.elems
-
 -- | Combines three different sources of data into one:
 --
 -- 1. A stake-distribution map
@@ -551,10 +462,6 @@ zipWithRightDefault combine onMissing rZero =
     leftButNotRight = traverseMissing $ \_k l -> pure (combine l rZero)
     rightButNotLeft = traverseMissing $ \k _r -> Left (onMissing k)
     bothPresent     = zipWithMatched  $ \_k l r -> (combine l r)
-
--- | Count elements inside a 'Map'
-count :: Map k [a] -> Map k (Quantity any Word64)
-count = Map.map (Quantity . fromIntegral . length)
 
 -- | Given a mapping from 'PoolId' -> 'PoolOwner' and a mapping between
 -- 'PoolOwner' <-> 'StakePoolMetadata', return a matching 'StakePoolMeta' entry
