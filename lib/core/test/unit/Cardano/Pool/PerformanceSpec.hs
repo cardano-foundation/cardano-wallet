@@ -19,6 +19,7 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
+    , NonEmptyList (..)
     , Property
     , choose
     , classify
@@ -31,6 +32,18 @@ spec = do
     describe "apparentPerformance" $ do
         it "performances are non negative"
             $ property prop_performancesNonNegative
+
+        it "more blocks produced means better perf"
+            $ property
+            $ prop_effectOnPerformance [PositiveEffect]
+            $ \stat -> let p = poolProduction stat
+                in stat { poolProduction = p + 1 }
+
+        it "less blocks produced means lower (or equal) perf"
+            $ property
+            $ prop_effectOnPerformance [NegativeEffect, NoEffect]
+            $ \stat -> let p = poolProduction stat
+                in stat { poolProduction = if p >= 1 then p - 1 else p }
 
         describe "golden test cases" $ do
             performanceGoldens
@@ -48,6 +61,30 @@ prop_performancesNonNegative (ActiveSlotCoefficient ε) stats =
     & classify (p >= 10) ("p >= 10")
   where
     p = apparentPerformance ε stats
+
+data EffectOnPerformance
+    = PositiveEffect
+    | NegativeEffect
+    | NoEffect
+    deriving (Show, Eq)
+
+prop_effectOnPerformance
+    :: [EffectOnPerformance]
+    -> (EpochStats -> EpochStats)
+    -> ActiveSlotCoefficient
+    -> NonEmptyList EpochStats
+    -> Property
+prop_effectOnPerformance
+  expectedEffects modifier (ActiveSlotCoefficient ε) (NonEmpty stats) =
+    property $ case pAfter `compare` pBefore of
+        GT -> PositiveEffect `elem` expectedEffects
+        LT -> NegativeEffect `elem` expectedEffects
+        EQ -> NoEffect `elem` expectedEffects
+    & counterexample ("pBefore = " <> show pBefore)
+    & counterexample ("pAfter  = " <> show pAfter)
+  where
+    pBefore = apparentPerformance ε stats
+    pAfter  = apparentPerformance ε (modifier <$> stats)
 
 performanceGoldens :: Spec
 performanceGoldens = do
