@@ -282,8 +282,8 @@ newStakePoolLayer tr db@DBLayer{..} nl metadataDir = StakePoolLayer
             combineWith (sortArbitrarily seed) distr (count prod) mempty
 
         else do
-            let sl = prodTip ^. #slotId
-            perfs <- liftIO $ readPoolsPerformances db activeSlotCoeff epochLength sl
+            let currentEpoch = prodTip ^. #slotId . #epochNumber
+            perfs <- liftIO $ readPoolsPerformances db currentEpoch
             combineWith (pure . sortByPerformance) distr (count prod) perfs
 
     readPoolProductionTip = readPoolProductionCursor 1 <&> \case
@@ -308,9 +308,7 @@ newStakePoolLayer tr db@DBLayer{..} nl metadataDir = StakePoolLayer
                 mapM_ (traceWith tr . fst) res
                 pure $ map snd res
 
-    (block0, bp) = staticBlockchainParameters nl
-    epochLength = bp ^. #getEpochLength
-    activeSlotCoeff = bp ^. #getActiveSlotCoefficient
+    (block0, _) = staticBlockchainParameters nl
 
     combineWith
         :: ([(StakePool, [PoolOwner])] -> IO [(StakePool, [PoolOwner])])

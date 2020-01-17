@@ -97,12 +97,10 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
     , NonEmptyList (..)
-    , NonNegative (..)
     , Positive (..)
     , Property
     , checkCoverage
     , choose
-    , classify
     , counterexample
     , cover
     , elements

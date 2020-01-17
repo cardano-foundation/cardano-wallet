@@ -1,6 +1,5 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
 
 -- |
@@ -45,17 +44,9 @@ import Prelude
 import Cardano.Pool.DB
     ( DBLayer (..) )
 import Cardano.Wallet.Primitive.Types
-    ( ActiveSlotCoefficient (..)
-    , EpochLength (..)
-    , EpochNo (..)
-    , PoolId
-    , SlotId (..)
-    , SlotNo (..)
-    )
+    ( EpochNo (..), PoolId )
 import Control.Monad
     ( forM )
-import Data.Generics.Internal.VL.Lens
-    ( (^.) )
 import Data.Map.Merge.Strict
     ( dropMissing, traverseMissing, zipWithMatched )
 import Data.Map.Strict
@@ -76,21 +67,20 @@ data EpochStats = EpochStats
     { poolProduction :: !Natural
     , poolStake :: !Natural
     , totalStake :: !Natural
-    , epochHeight :: !Natural
+    , totalProduction :: !Natural
     } deriving (Generic, Show)
 
 -- We consider the following variables, indexed by a given epoch
 --
--- - n(e) = number of blocks produced in an epoch e
--- - N(e) = number of slots in e
+-- - n(e) = number of blocks produced by the pool in e
+-- - N(e) = total number of blocks produced in e
 -- - s(e) = stake owned by the pool in e
 -- - S(e) = total stake delegated to pools in e
--- - ε(e) = active slot coeff, i.e. % of slots for which a leader can be elected
 --
 -- From this, we define `μ` as the _reasonably expectable block production_:
 --
 --     μ(e) =
---       ε(e) * N(e) * s(e) / S(e)
+--       N(e) * s(e) / S(e)
 --
 -- Intuitively, @μ@ corresponds to the number of blocks a particular pool should
 -- have produced provided the election was exactly proportional to its relative
@@ -98,26 +88,27 @@ data EpochStats = EpochStats
 --
 -- This gives us the apparent performance @p@ across many epochs as:
 --
---          i
---          Σ n(i)
---     p =  -----
---          i
---          Σ μ(i)
+--              Σ n(i)
+--     p =  --------------
+--          max 1 (Σ μ(i))
+--
+-- Note that we take the maximum between @μ@ and 1 in order to cope with very
+-- small pools that would look like they're over performing if their chance of
+-- producing at least one block in the observed window (14 epochs here) is far
+-- smaller than one.
 apparentPerformance
-    :: Double
-        -- ^ ε, considered constant across epochs
-    -> [EpochStats]
+    :: [EpochStats]
         -- ^ Epoch statistics, for a given pool
     -> Double
         -- ^ Average performance
-apparentPerformance _     [] = 0
-apparentPerformance ε epochs =
-    sum (n <$> epochs) / sum (μ <$> epochs)
+apparentPerformance     [] = 0
+apparentPerformance epochs =
+    sum (n <$> epochs) / max 1 (sum (μ <$> epochs))
   where
     n = double . poolProduction
-    μ e = ε * _N * s / _S
+    μ e = _N * s / _S
       where
-        _N = double (epochHeight e)
+        _N = double (totalProduction e)
         _S = double (totalStake e)
         s  = double (poolStake e)
 
@@ -125,23 +116,19 @@ apparentPerformance ε epochs =
 readPoolsPerformances
     :: Monad m
     => DBLayer m
-    -> ActiveSlotCoefficient
-    -> EpochLength
-    -> SlotId
+    -> EpochNo
     -> m (Map PoolId Double)
-readPoolsPerformances DBLayer{..} (ActiveSlotCoefficient ε) epLen tip = do
+readPoolsPerformances DBLayer{..} currentEpoch = do
     stats <- atomically $ forM historicalEpochs $ \ep -> mkEpochStats
         <$> (count <$> readPoolProduction ep)
         <*> (Map.fromList <$> readStakeDistribution ep)
-        <*> pure (slotsInEpoch ep)
-    pure $ apparentPerformance ε <$> Map.unionsWith (<>) stats
+    pure $ apparentPerformance <$> Map.unionsWith (<>) stats
   where
     mkEpochStats
         :: Map PoolId (Quantity "block" Word64)
         -> Map PoolId (Quantity "lovelace" Word64)
-        -> Natural
         -> Map PoolId [EpochStats]
-    mkEpochStats mProduction mStake epHeight =
+    mkEpochStats mProduction mStake =
         let
             productionButNoStake =
                 dropMissing
@@ -157,6 +144,7 @@ readPoolsPerformances DBLayer{..} (ActiveSlotCoefficient ε) epLen tip = do
             mStake
       where
         epTotalStake = sumQ mStake
+        epTotalProduction = sumQ mProduction
 
         mkEpochStats_
             :: Quantity "block" Word64
@@ -166,10 +154,10 @@ readPoolsPerformances DBLayer{..} (ActiveSlotCoefficient ε) epLen tip = do
             { poolProduction = fromIntegral epProduction
             , poolStake = fromIntegral epStake
             , totalStake = epTotalStake
-            , epochHeight = epHeight
+            , totalProduction  = epTotalProduction
             }
 
-    sumQ :: Integral a => Map k (Quantity "lovelace" a) -> Natural
+    sumQ :: Integral a => Map k (Quantity any a) -> Natural
     sumQ = fromIntegral . Map.foldl' (\a (Quantity b) -> a + b) 0
 
     historicalEpochs :: [EpochNo]
@@ -178,13 +166,6 @@ readPoolsPerformances DBLayer{..} (ActiveSlotCoefficient ε) epLen tip = do
         | otherwise             = [0..currentEpoch]
       where
         window = 14
-        currentEpoch = tip ^. #epochNumber
-
-    slotsInEpoch :: EpochNo -> Natural
-    slotsInEpoch e =
-        if e == tip ^. #epochNumber
-        then fromIntegral $ unSlotNo $ tip ^. #slotNumber
-        else fromIntegral $ unEpochLength epLen
 
 --------------------------------------------------------------------------------
 -- Internals / Helpers
