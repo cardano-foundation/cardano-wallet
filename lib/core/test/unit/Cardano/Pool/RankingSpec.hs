@@ -34,8 +34,6 @@ import Cardano.Pool.Ranking
     )
 import Control.Exception
     ( SomeException, evaluate, try )
-import Data.Bifunctor
-    ( bimap )
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
@@ -221,21 +219,20 @@ allElseEqualProperty
     -> Property
 allElseEqualProperty expectedEffect pool constants =
     forAll arbitrary $ \(value1 :: a) (value2 :: a) -> do
-        let (poolLower, poolHigher) = sortTuple (value1, value2)
-                & bimap poolWith poolWith
+        let (higherVal, lowerVal) = sortTupleOn id (value1, value2)
 
-        let (dLower, dHigher) =
-                ( desirability constants poolLower
-                , desirability constants poolHigher
+        let (moreDesPool, lessDesPool) = sortTupleOn snd
+                ( poolDesPairWith value1
+                , poolDesPairWith value2
                 )
 
         let poolRankDesc = unlines
                 [ "Pools:"
-                , showPool poolLower  dLower
-                , showPool poolHigher dHigher
+                , showPool moreDesPool
+                , showPool lessDesPool
                 ]
 
-        case dLower `compare` dHigher of
+        case des higherVal `compare` des lowerVal of
             EQ -> property True
             -- A reason we end up in this case could be that both pools are
             -- un-profitable. It would be interesting to re-run tests with
@@ -244,24 +241,29 @@ allElseEqualProperty expectedEffect pool constants =
             GT -> expectedEffect === PositiveEffect
             LT -> expectedEffect === NegativeEffect
           & counterexample poolRankDesc
-          & classify (dLower == dHigher) "same desirability"
+          & classify (des higherVal == des lowerVal) "same desirability"
   where
     poolWith :: a -> Pool
     poolWith val = pool & (field' @field) .~ val
 
-    sortTuple :: (a, a) -> (a, a)
-    sortTuple (a, b)
-        | a > b     = (a, b)
-        | otherwise = (b, a)
+    poolDesPairWith :: a -> (Pool, Double)
+    poolDesPairWith val = (poolWith val, desirability constants (poolWith val))
 
-    showPool :: Pool -> Double -> String
-    showPool x d = unwords
+    sortTupleOn :: (Ord c) => (b -> c) -> (b, b) -> (b, b)
+    sortTupleOn f (a, b)
+        | (f a) > (f b) = (a, b)
+        | otherwise     = (b, a)
+
+    showPool :: (Pool, Double) -> String
+    showPool (x, d) = unwords
         [ show (symbolVal $ Proxy @field)
         , "="
         , show (x ^. field' @field)
         , ", desirability ="
         , show d
         ]
+
+    des val = desirability constants (poolWith val)
 
 instance Arbitrary Pool where
     arbitrary = genericArbitrary
