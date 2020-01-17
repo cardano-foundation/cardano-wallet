@@ -64,7 +64,6 @@ import Test.QuickCheck
     , property
     , (.&&.)
     , (===)
-    , (==>)
     )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
@@ -86,9 +85,6 @@ spec = do
             it "higher performance => higher desirability (or equal)"
                 $ property
                 $ allElseEqualProperty @"recentAvgPerformance" PositiveEffect
-
-            it "higher oversaturation => desirability NOT affected"
-                $ property prop_oversaturationDoesNotInfluenceDesirability
 
         describe "desirability" $ do
             it "desirability >= 0"
@@ -160,24 +156,6 @@ prop_saturatedPoolRewardsReduces constants' pool =
         p  = R.getNonNegative $ recentAvgPerformance pool
     in
         saturatedPoolRewards constants pool === p*_R*z0
-
-prop_oversaturationDoesNotInfluenceDesirability
-    :: Pool
-    -> EpochConstants
-    -> Property
-prop_oversaturationDoesNotInfluenceDesirability pool constants =
-    forAll arbitrary $ \v1 v2 -> do
-        let (higherStake, lowerStake) = sortTuple (v1, v2)
-        let z0 = getRatio $ saturatedPoolSize constants
-        higherStake > z0 ==>
-            des higherStake === des lowerStake
-  where
-    sortTuple (a, b)
-        | a > b     = (a, b)
-        | otherwise = (b, a)
-
-    des _stake = desirability constants pool
-    -- TODO: set pool{R.stake = stake}, but that field doesn't even exist!
 
 data EffectOnDesirability
     = PositiveEffect
