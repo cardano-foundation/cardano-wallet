@@ -75,13 +75,13 @@ module Cardano.Pool.Ranking
     , Pool (..)
     , Lovelace (..)
     , Ratio
-    , unsafeToRatio
+    , unsafeMkRatio
     , getRatio
     , unsafeMkRelativeStake
     , NonNegative (..)
     , Positive (..)
-    , unsafeToPositive
-    , unsafeToNonNegative
+    , unsafeMkPositive
+    , unsafeMkNonNegative
     )
     where
 
@@ -167,15 +167,15 @@ newtype Ratio = Ratio { getRatio :: Double }
     deriving (Show, Eq)
     deriving newtype Ord
 
-unsafeToRatio :: Double -> Ratio
-unsafeToRatio x
+unsafeMkRatio :: Double -> Ratio
+unsafeMkRatio x
     | x >= 0 && x <= 1  = Ratio x
-    | otherwise         = error $ "unsafeToRatio: " ++ show x
+    | otherwise         = error $ "unsafeMkRatio: " ++ show x
                           ++ "not in range [0, 1]"
 
 unsafeMkRelativeStake :: Lovelace -> EpochConstants -> Ratio
 unsafeMkRelativeStake (Lovelace stake) constants =
-    unsafeToRatio $ (fromIntegral stake) / total
+    unsafeMkRatio $ (fromIntegral stake) / total
   where
     total = fromIntegral . getLovelace . totalRewards $ constants
 
@@ -183,16 +183,16 @@ newtype Positive a = Positive { getPositive :: a }
     deriving (Generic, Eq, Show)
     deriving newtype (Ord, Num)
 
-unsafeToPositive :: (Ord a, Show a, Num a) => a -> (Positive a)
-unsafeToPositive x
+unsafeMkPositive :: (Ord a, Show a, Num a) => a -> (Positive a)
+unsafeMkPositive x
     | x > 0    = Positive x
-    | otherwise = error $ "unsafeToPositive: " ++ show x ++ " > 0 does not hold"
+    | otherwise = error $ "unsafeMkPositive: " ++ show x ++ " > 0 does not hold"
 
 newtype NonNegative a = NonNegative { getNonNegative :: a }
     deriving (Generic, Eq, Show)
     deriving newtype (Ord, Num)
 
-unsafeToNonNegative :: (Ord a, Show a, Num a) => a -> (NonNegative a)
-unsafeToNonNegative x
+unsafeMkNonNegative :: (Ord a, Show a, Num a) => a -> (NonNegative a)
+unsafeMkNonNegative x
     | x >= 0    = NonNegative x
-    | otherwise = error $ "unsafeToNegative: " ++ show x ++ " >= 0 does not hold"
+    | otherwise = error $ "unsafeMkNegative: " ++ show x ++ " >= 0 does not hold"

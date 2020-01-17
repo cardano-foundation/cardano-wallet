@@ -28,9 +28,9 @@ import Cardano.Pool.Ranking
     , desirability
     , saturatedPoolRewards
     , saturatedPoolSize
+    , unsafeMkNonNegative
+    , unsafeMkRatio
     , unsafeMkRelativeStake
-    , unsafeToNonNegative
-    , unsafeToRatio
     )
 import Control.Exception
     ( SomeException, evaluate, try )
@@ -106,37 +106,37 @@ spec = do
             it "R > 0, stake > R => unsafeMkRelativeStake ∈ [0,1]"
                 $ property prop_unsafeMkRelativeStakeBounds
 
-        describe "unsafeTo- newtypes" $ do
-            it "unsafeToRatio requires ∈ [0,1]"
+        describe "unsafeMk- newtypes" $ do
+            it "unsafeMkRatio requires ∈ [0,1]"
                 $ property $ \v -> ioProperty $
-                    prop_unsafeTo
+                    prop_unsafeMk
                         (\x -> x >= 0 && x <= 1)
-                        R.unsafeToRatio
+                        R.unsafeMkRatio
                         R.getRatio
                         v
-            it "unsafeToPositive requires > 0" $
+            it "unsafeMkPositive requires > 0" $
                 property $ \(v :: Int) -> ioProperty $
-                    prop_unsafeTo
+                    prop_unsafeMk
                         (> 0)
-                        R.unsafeToPositive
+                        R.unsafeMkPositive
                         R.getPositive
                         v
-            it "unsafeToNonNegative requires >= 0" $
+            it "unsafeMkNonNegative requires >= 0" $
                 property $ \(v :: Double) -> ioProperty $
-                    prop_unsafeTo
+                    prop_unsafeMk
                         (>= 0)
-                        R.unsafeToNonNegative
+                        R.unsafeMkNonNegative
                         R.getNonNegative
                         v
 
-prop_unsafeTo
+prop_unsafeMk
     :: (Eq a, Show a)
     => (a -> Bool)
     -> (a -> b)
     -> (b -> a)
     -> a
     -> IO Property
-prop_unsafeTo isValid f g x = do
+prop_unsafeMk isValid f g x = do
     r <- try . evaluate . f $ x
     let valid = isValid x
     return $
@@ -170,7 +170,7 @@ prop_saturatedPoolRewardsReduces :: EpochConstants -> Pool -> Property
 prop_saturatedPoolRewardsReduces constants' pool =
     let
         constants = constants'
-            { leaderStakeInfluence = unsafeToNonNegative 0 }
+            { leaderStakeInfluence = unsafeMkNonNegative 0 }
         z0 = getRatio $ saturatedPoolSize constants
         _R = fromIntegral $ getLovelace $ totalRewards constants
         p  = R.getNonNegative $ recentAvgPerformance pool
@@ -276,8 +276,8 @@ deriving via (NonNegative Double) instance (Arbitrary (R.NonNegative Double))
 deriving via (Positive Int) instance (Arbitrary (R.Positive Int))
 
 instance Arbitrary Ratio where
-    arbitrary = unsafeToRatio <$> choose (0, 1)
-    shrink = map unsafeToRatio
+    arbitrary = unsafeMkRatio <$> choose (0, 1)
+    shrink = map unsafeMkRatio
         . map getRatio
         . shrink
 
