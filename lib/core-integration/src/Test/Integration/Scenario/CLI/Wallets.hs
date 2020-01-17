@@ -38,6 +38,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Text
     ( Text )
+import Data.Word
+    ( Word32 )
 import System.Command
     ( Exit (..), Stderr (..), Stdout (..) )
 import System.Exit
@@ -49,7 +51,6 @@ import Test.Hspec.Expectations.Lifted
 import Test.Integration.Framework.DSL
     ( Context (..)
     , KnownCommand
-    , addressPoolGap
     , balanceAvailable
     , balanceReward
     , balanceTotal
@@ -167,7 +168,8 @@ spec = do
         j <- expectValidJSON (Proxy @ApiWallet) out
         verify j
             [ expectCliFieldEqual walletName "n"
-            , expectCliFieldEqual addressPoolGap 20
+            , expectCliFieldEqual
+                    (#addressPoolGap . #getApiT . #getAddressPoolGap) 20
             , expectCliFieldEqual balanceAvailable 0
             , expectCliFieldEqual balanceTotal 0
             , expectCliFieldEqual balanceReward 0
@@ -367,7 +369,10 @@ spec = do
                 c `shouldBe` ExitSuccess
                 T.unpack e `shouldContain` cmdOk
                 j <- expectValidJSON (Proxy @ApiWallet) o
-                expectCliFieldEqual addressPoolGap (read gap :: Int) j
+                expectCliFieldEqual
+                        (#addressPoolGap . #getApiT . #getAddressPoolGap)
+                        (read gap :: Word32)
+                        j
 
         let expectsErr c o e gap = do
                 c `shouldBe` ExitFailure 1
@@ -378,12 +383,12 @@ spec = do
                     ++ show addressPoolGapMax ++ "."
 
         let matrix =
-                [ ( "Gap max", show addressPoolGapMax, expectsOk )
-                , ( "Gap min", show addressPoolGapMin, expectsOk )
-                , ( "Gap max - 1", show (addressPoolGapMax - 1), expectsOk )
-                , ( "Gap min + 1", show (addressPoolGapMin + 1), expectsOk )
-                , ( "Gap max + 1 -> fail", show (addressPoolGapMax + 1), expectsErr )
-                , ( "Gap min - 1 -> fail", show (addressPoolGapMin - 1), expectsErr )
+                [ ( "Gap max", show addrPoolMax, expectsOk )
+                , ( "Gap min", show addrPoolMin, expectsOk )
+                , ( "Gap max - 1", show (addrPoolMax - 1), expectsOk )
+                , ( "Gap min + 1", show (addrPoolMin + 1), expectsOk )
+                , ( "Gap max + 1 -> fail", show (addrPoolMax + 1), expectsErr )
+                , ( "Gap min - 1 -> fail", show (addrPoolMin - 1), expectsErr )
                 , ( "-1000 -> fail", "-1000", expectsErr )
                 , ( "0 -> fail", "0", expectsErr )
                 , ( "10.5 -> fail", "10.5", expectsErr )
@@ -404,7 +409,8 @@ spec = do
         j <- expectValidJSON (Proxy @ApiWallet) out
         verify j
             [ expectCliFieldEqual walletName "Empty Wallet"
-            , expectCliFieldEqual addressPoolGap 20
+            , expectCliFieldEqual
+                    (#addressPoolGap . #getApiT . #getAddressPoolGap) 20
             , expectCliFieldEqual balanceAvailable 0
             , expectCliFieldEqual balanceTotal 0
             , expectCliFieldEqual balanceReward 0
@@ -434,7 +440,8 @@ spec = do
         length j `shouldBe` 2
         verify j
             [ expectCliListItemFieldEqual 0 walletName name
-            , expectCliListItemFieldEqual 0 addressPoolGap 21
+            , expectCliListItemFieldEqual 0
+                    (#addressPoolGap . #getApiT . #getAddressPoolGap) 21
             , expectCliListItemFieldEqual 0 balanceAvailable 0
             , expectCliListItemFieldEqual 0 balanceTotal 0
             , expectCliListItemFieldEqual 0 balanceReward 0
@@ -473,7 +480,7 @@ spec = do
             let name = "name"
             let ppOld = "old secure passphrase"
             let ppNew = "new secure passphrase"
-            w <- emptyWalletWith ctx (name, T.pack ppOld, addressPoolGapMin)
+            w <- emptyWalletWith ctx (name, T.pack ppOld, addrPoolMin)
             let initPassUpdateTime = w ^. passphraseLastUpdate
             let wid = T.unpack $ w ^. walletId
 
@@ -524,7 +531,7 @@ spec = do
         forM_ matrix $ \(title, ppNew, expectations) -> it title $ \ctx -> do
             let name = "name"
             let ppOld = "old secure passphrase"
-            wid <- emptyWalletWith' ctx (name, T.pack ppOld, addressPoolGapMin)
+            wid <- emptyWalletWith' ctx (name, T.pack ppOld, addrPoolMin)
             (exitCode, out, err) <-
                 updateWalletPassphraseViaCLI @t ctx wid ppOld ppNew ppNew
             expectations (exitCode, out, err)
@@ -536,7 +543,7 @@ spec = do
             let ppOld = "old secure passphrase"
             let ppNew1 = "new secure passphrase 1"
             let ppNew2 = "new secure passphrase 2"
-            wid <- emptyWalletWith' ctx (name, T.pack ppOld, addressPoolGapMin)
+            wid <- emptyWalletWith' ctx (name, T.pack ppOld, addrPoolMin)
             (exitCode, out, err) <-
                 updateWalletPassphraseViaCLI @t ctx wid ppOld ppNew1 ppNew2
             out `shouldBe` mempty
@@ -567,7 +574,7 @@ spec = do
             let ppOldRight = "right secure passphrase"
             let ppNew = "new secure passphrase"
             wid <- emptyWalletWith' ctx
-                (name, T.pack ppOldRight, addressPoolGapMin)
+                (name, T.pack ppOldRight, addrPoolMin)
             (exitCode, out, err) <-
                 updateWalletPassphraseViaCLI @t ctx wid ppOldWrong ppNew ppNew
             expectations (exitCode, out, err)
@@ -588,7 +595,7 @@ spec = do
             let name = "name"
             let ppNew = replicate passphraseMaxLength 'ź'
             wid <- emptyWalletWith' ctx
-                (name, T.pack ppOldRight, addressPoolGapMin)
+                (name, T.pack ppOldRight, addrPoolMin)
             (exitCode, out, err) <-
                 updateWalletPassphraseViaCLI @t ctx wid ppOldRight ppNew ppNew
             expectations (exitCode, out, err)
@@ -734,6 +741,10 @@ emptyWallet' = fmap (T.unpack . view walletId) . emptyWallet
 emptyWalletWith' :: Context t -> (Text, Text, Int) -> IO String
 emptyWalletWith' ctx (name, pass, pg) =
     fmap (T.unpack . view walletId) (emptyWalletWith ctx (name, pass, pg))
+
+addrPoolMin, addrPoolMax :: Int
+addrPoolMin = fromIntegral addressPoolGapMin
+addrPoolMax = fromIntegral addressPoolGapMax
 
 walletNames :: [(String, String)]
 walletNames =

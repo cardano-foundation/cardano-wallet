@@ -51,7 +51,6 @@ module Test.Integration.Framework.DSL
     , RequestException(..)
 
     -- * Lens
-    , addressPoolGap
     , amount
     , apparentPerformance
     , byronBalanceAvailable
@@ -161,8 +160,6 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( AddressPoolGap, getAddressPoolGap, mkAddressPoolGap )
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
@@ -651,15 +648,6 @@ expectPathEventuallyExist filepath = do
 
 -- Lenses
 --
-addressPoolGap :: HasType (ApiT AddressPoolGap) s => Lens' s Int
-addressPoolGap =
-    lens _get _set
-  where
-    _get :: HasType (ApiT AddressPoolGap) s => s -> Int
-    _get = fromIntegral . getAddressPoolGap . getApiT . view typed
-    _set :: HasType (ApiT AddressPoolGap) s => (s, Int) -> s
-    _set (s, v) = set typed (ApiT $ unsafeMkAddressPoolGap v) s
-
 balanceAvailable :: HasType (ApiT WalletBalance) s => Lens' s Natural
 balanceAvailable =
     lens _get _set
@@ -1324,11 +1312,6 @@ unsafeCreateDigest :: Text -> Digest Blake2b_160
 unsafeCreateDigest s = fromMaybe
     (error $ "unsafeCreateDigest failed to create digest from: " <> show s)
     (digestFromByteString $ B8.pack $ T.unpack s)
-
-unsafeMkAddressPoolGap :: Int -> AddressPoolGap
-unsafeMkAddressPoolGap g = case (mkAddressPoolGap $ fromIntegral g) of
-    Right a -> a
-    Left _ -> error $ "unsafeMkAddressPoolGap: bad argument: " <> show g
 
 wantedSuccessButError
     :: (MonadFail m, Show e)

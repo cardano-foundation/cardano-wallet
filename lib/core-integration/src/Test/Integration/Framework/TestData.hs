@@ -86,6 +86,9 @@ import Cardano.Wallet.Version
     ( gitRevision, showFullVersion, version )
 import Data.Text
     ( Text, pack, unpack )
+import Data.Word
+    ( Word32 )
+import qualified Network.HTTP.Types.Status as HTTP
 import Numeric.Natural
     ( Natural )
 import Test.Integration.Framework.DSL
@@ -96,8 +99,6 @@ import Test.Integration.Framework.DSL
     , expectResponseCode
     , json
     )
-
-import qualified Network.HTTP.Types.Status as HTTP
 
 -- useful for testing POST/PUT endpoints (ones with payload)
 postHeaderCases
@@ -288,10 +289,10 @@ passphraseMinLength = 10
 passphraseMaxLength :: Int
 passphraseMaxLength = 255
 
-addressPoolGapMin :: Int
+addressPoolGapMin :: Word32
 addressPoolGapMin = 10
 
-addressPoolGapMax :: Int
+addressPoolGapMax :: Word32
 addressPoolGapMax = 100
 
 payloadWith :: Text -> [Text] -> Payload

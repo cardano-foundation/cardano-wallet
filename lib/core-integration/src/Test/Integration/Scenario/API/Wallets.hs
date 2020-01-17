@@ -65,7 +65,6 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
-    , addressPoolGap
     , balanceAvailable
     , balanceReward
     , balanceTotal
@@ -166,7 +165,8 @@ spec = do
         verify r
             [ expectResponseCode @IO HTTP.status201
             , expectFieldEqual walletName "1st Wallet"
-            , expectFieldEqual addressPoolGap 30
+            , expectFieldEqual
+                    (#addressPoolGap . #getApiT . #getAddressPoolGap) 30
             , expectFieldEqual balanceAvailable 0
             , expectFieldEqual balanceTotal 0
             , expectFieldEqual balanceReward 0
@@ -662,24 +662,31 @@ spec = do
             ]
 
     describe "WALLETS_CREATE_08 - address_pool_gap" $ do
+        let addrPoolMin, addrPoolMax :: Int
+            addrPoolMin = fromIntegral addressPoolGapMin
+            addrPoolMax = fromIntegral addressPoolGapMax
         let matrix =
-                [ ( show addressPoolGapMin, addressPoolGapMin
+                [ ( show addressPoolGapMin
+                  , addrPoolMin
                   , [ expectResponseCode @IO HTTP.status201
-                    , expectFieldEqual addressPoolGap addressPoolGapMin
+                    , expectFieldEqual
+                            (#addressPoolGap . #getApiT . #getAddressPoolGap)
+                            addressPoolGapMin
                     ]
                   )
                 , ( show (addressPoolGapMin - 1) ++ " -> fail"
-                  , (addressPoolGapMin - 1)
+                  , addrPoolMin - 1
                   , [ expectResponseCode @IO HTTP.status400
                     , expectErrorMessage "An address pool gap must be a natural\
                       \ number between 10 and 100."
                     ]
                   )
-                , ( show addressPoolGapMax, addressPoolGapMax
+                , ( show addressPoolGapMax
+                  , addrPoolMax
                   , [ expectResponseCode @IO HTTP.status201 ]
                   )
                 , ( show (addressPoolGapMax + 1) ++ " -> fail"
-                  , addressPoolGapMax + 1
+                  , (addrPoolMax + 1)
                   , [ expectResponseCode @IO HTTP.status400
                     , expectErrorMessage "An address pool gap must be a natural\
                       \ number between 10 and 100."
@@ -794,7 +801,8 @@ spec = do
         r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
         verify r
             [ expectResponseCode @IO HTTP.status201
-            , expectFieldEqual addressPoolGap 20
+            , expectFieldEqual
+                    (#addressPoolGap . #getApiT . #getAddressPoolGap) 20
             ]
 
     describe "WALLETS_CREATE_09 - HTTP headers" $ do
@@ -884,7 +892,8 @@ spec = do
         verify rg
             [ expectResponseCode @IO HTTP.status200
             , expectFieldEqual walletName "Secure Wallet"
-            , expectFieldEqual addressPoolGap 20
+            , expectFieldEqual
+                    (#addressPoolGap . #getApiT . #getAddressPoolGap) 20
             , expectFieldEqual balanceAvailable 0
             , expectFieldEqual balanceTotal 0
             , expectFieldEqual balanceReward 0
@@ -953,7 +962,8 @@ spec = do
             [ expectResponseCode @IO HTTP.status200
             , expectListSizeEqual 1
             , expectListItemFieldEqual 0 walletName "Wallet to be listed"
-            , expectListItemFieldEqual 0 addressPoolGap 20
+            , expectListItemFieldEqual 0
+                    (#addressPoolGap . #getApiT . #getAddressPoolGap) 20
             , expectListItemFieldEqual 0 balanceAvailable 0
             , expectListItemFieldEqual 0 balanceTotal 0
             , expectListItemFieldEqual 0 balanceReward 0
@@ -1025,7 +1035,8 @@ spec = do
         let walId = getFromResponse walletId r
         let expectations = [ expectResponseCode @IO HTTP.status200
                     , expectFieldEqual walletName "New great name"
-                    , expectFieldEqual addressPoolGap 20
+                    , expectFieldEqual
+                            (#addressPoolGap . #getApiT . #getAddressPoolGap) 20
                     , expectFieldEqual balanceAvailable 0
                     , expectFieldEqual balanceTotal 0
                     , expectEventually ctx (Link.getWallet @'Shelley) state Ready
@@ -1042,7 +1053,8 @@ spec = do
             [ expectResponseCode @IO HTTP.status200
             , expectListSizeEqual 1
             , expectListItemFieldEqual 0 walletName "New great name"
-            , expectListItemFieldEqual 0 addressPoolGap 20
+            , expectListItemFieldEqual 0
+                    (#addressPoolGap . #getApiT . #getAddressPoolGap) 20
             , expectListItemFieldEqual 0 balanceAvailable 0
             , expectListItemFieldEqual 0 balanceTotal 0
             , expectListItemFieldEqual 0 delegation (NotDelegating)
