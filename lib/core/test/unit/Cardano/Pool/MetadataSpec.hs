@@ -42,6 +42,8 @@ import System.Directory
     ( removeDirectoryRecursive, setModificationTime )
 import System.FilePath
     ( takeDirectory, (<.>), (</>) )
+import System.IO
+    ( IOMode (..), withFile )
 import System.IO.Temp
     ( withSystemTempDirectory )
 import Test.Hspec
@@ -87,13 +89,20 @@ spec = do
             res <- getStakePoolMetadata tr cfg (absentOwner:presentOwners)
             res `shouldBe` Right (Nothing:map Just presentMetas)
 
+        let expectDownloadError name res = case res of
+                Left (FetchErrorDownload msg) ->
+                    head (words msg) `shouldBe` name
+                _ -> error "expected fetch error but got none"
+
         it "Fails with an unavailable HTTP server" $ \(cfg, tr, _) -> do
             let badCfg = cfg { registryURL = "http://localhost:99/master.zip" }
             res <- getStakePoolMetadata tr badCfg presentOwners
-            case res of
-                Left (FetchErrorDownload msg) ->
-                    head (words msg) `shouldBe` "HttpExceptionRequest"
-                _ -> error "expected fetch error but got none"
+            expectDownloadError "HttpExceptionRequest" res
+
+        it "Handles name resolution failures" $ \(cfg, tr, _) -> do
+            let badCfg = cfg { registryURL = "http://xyzzy/master.zip" }
+            res <- getStakePoolMetadata tr badCfg presentOwners
+            expectDownloadError "HttpExceptionRequest" res
 
         it "Caches the zip" $ \(cfg, tr, getMsgs) -> do
             void $ getStakePoolMetadata tr cfg presentOwners
@@ -128,6 +137,26 @@ spec = do
             msgs <- map registryLogMsg <$> getMsgs
             length (filter isMsgUsingCached msgs) `shouldBe` 0
             length (filter isMsgDownloadStarted msgs) `shouldBe` 2
+
+        it "Handles broken cache file" $ \(cfg, tr, _) -> do
+            void $ getStakePoolMetadata tr cfg presentOwners
+
+            -- truncate cache file
+            withFile (cacheArchive cfg) WriteMode (const $ pure ())
+
+            res <- getStakePoolMetadata tr cfg presentOwners
+            case res of
+                Left (FetchErrorZipParsingFailed _ _) -> pure ()
+                _ -> error "expected FetchErrorZipParsingFailed"
+
+        it "Does not leave poisoned cache" $ \(cfg, tr, getMsgs) -> do
+            let badCfg = cfg { registryURL = "http://localhost:99/master.zip" }
+            _ <- getStakePoolMetadata tr badCfg presentOwners
+            res <- getStakePoolMetadata tr badCfg presentOwners
+            expectDownloadError "HttpExceptionRequest" res
+
+            msgs <- map registryLogMsg <$> getMsgs
+            length (filter (== MsgCleanupDownload) msgs) `shouldBe` 2
 
     describe "Cardano.Pool.Registry.getStakePoolMetadata" $
         it "Arbitrary zip files" $
