@@ -209,7 +209,7 @@ newWorker
 newWorker ctx k (MkWorker before main after acquire) = do
     mvar <- newEmptyMVar
     let io = acquire $ \resource -> do
-            let ctx' = hoistResource resource (ctx & logger .~ tr)
+            let ctx' = hoistResource resource ctx -- (ctx & logger .~ tr)
             before ctx' k `finally` putMVar mvar (Just resource)
             main ctx' k
     threadId <- forkFinally io (cleanup mvar)
@@ -222,8 +222,8 @@ newWorker ctx k (MkWorker before main after acquire) = do
             }
   where
     tr  = ctx ^. logger
-    tr' = transformTrace k tr
-    cleanup mvar e = tryPutMVar mvar Nothing *> after tr e
+    -- tr' = untransformTrace k tr
+    cleanup mvar e = tryPutMVar mvar Nothing *> pure () -- after tr e
 
 -- | A worker log event includes the key (i.e. wallet ID) as context.
 data WithWorkerKey key msg = WithWorkerKey key msg
@@ -239,9 +239,14 @@ instance (ToText key, ToText msg) => ToText (WithWorkerKey key msg) where
 transformTrace
     :: ToText key
     => key
-    -> Tracer IO msg
     -> Tracer IO (WithWorkerKey key msg)
-transformTrace k = contramap (\(WithWorkerKey _ msg) -> msg)
+    -> Tracer IO msg
+transformTrace k = contramap (WithWorkerKey k)
+
+untransformTrace
+    :: Tracer IO msg
+    -> Tracer IO (WithWorkerKey key msg)
+untransformTrace = contramap (\(WithWorkerKey _ msg) -> msg)
 
 data WorkerRegistryLog msg
     = MsgFinished
