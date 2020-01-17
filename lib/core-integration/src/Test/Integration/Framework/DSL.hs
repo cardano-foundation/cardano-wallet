@@ -53,11 +53,6 @@ module Test.Integration.Framework.DSL
     -- * Lens
     , amount
     , apparentPerformance
-    , byronBalanceAvailable
-    , balanceAvailable
-    , byronBalanceTotal
-    , balanceTotal
-    , balanceReward
     , blocks
     , coinSelectionInputs
     , coinSelectionOutputs
@@ -141,7 +136,6 @@ import Cardano.Wallet.Api.Types
     ( AddressAmount
     , ApiAddress
     , ApiByronWallet
-    , ApiByronWalletBalance
     , ApiCoinSelection
     , ApiCoinSelectionInput
     , ApiEpochInfo
@@ -175,7 +169,6 @@ import Cardano.Wallet.Primitive.Types
     , TxStatus (..)
     , UTxO (..)
     , UTxOStatistics (..)
-    , WalletBalance (..)
     , WalletDelegation (..)
     , WalletId (..)
     , WalletName (..)
@@ -283,7 +276,6 @@ import Web.HttpApiData
     ( ToHttpApiData (..) )
 
 import qualified Cardano.Wallet.Api.Link as Link
-import qualified Cardano.Wallet.Primitive.Types as Types
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
@@ -647,76 +639,6 @@ expectPathEventuallyExist filepath = do
 
 -- Lenses
 --
-balanceAvailable :: HasType (ApiT WalletBalance) s => Lens' s Natural
-balanceAvailable =
-    lens _get _set
-  where
-    _get :: HasType (ApiT WalletBalance) s => s -> Natural
-    _get = fromQuantity @"lovelace" . available . getApiT . view typed
-    _set :: HasType (ApiT WalletBalance) s => (s, Natural) -> s
-    _set (s, v) = set typed initBal s
-      where
-        -- TODO: Fix this setter: it sets all fields to the same value.
-        initBal = ApiT $ WalletBalance
-            { Types.available = Quantity v
-            , Types.total = Quantity v
-            , Types.reward = Quantity v
-            }
-
-byronBalanceAvailable :: HasType (ApiByronWalletBalance) s => Lens' s Natural
-byronBalanceAvailable =
-    lens _get _set
-  where
-    _get :: HasType (ApiByronWalletBalance) s => s -> Natural
-    _get = fromQuantity @"lovelace" . available' . view typed
-    _set :: HasType (ApiByronWalletBalance) s => (s, Natural) -> s
-    _set (_s, _v) = error "byronBalanceAvailable setter unimplemented"
-    available' :: ApiByronWalletBalance -> Quantity "lovelace" Natural
-    available' = getField @"available"
-
-balanceTotal :: HasType (ApiT WalletBalance) s => Lens' s Natural
-balanceTotal =
-    lens _get _set
-  where
-    _get :: HasType (ApiT WalletBalance) s => s -> Natural
-    _get = fromQuantity @"lovelace" . Types.total . getApiT . view typed
-    _set :: HasType (ApiT WalletBalance) s => (s, Natural) -> s
-    _set (s, v) = set typed initBal s
-      where
-        -- TODO: Fix this setter: it sets all fields to the same value.
-        initBal = ApiT $ WalletBalance
-            { Types.available = Quantity v
-            , Types.total = Quantity v
-            , Types.reward = Quantity v
-            }
-
-byronBalanceTotal :: HasType (ApiByronWalletBalance) s => Lens' s Natural
-byronBalanceTotal =
-    lens _get _set
-  where
-    _get :: HasType (ApiByronWalletBalance) s => s -> Natural
-    _get = fromQuantity @"lovelace" . total' . view typed
-    _set :: HasType (ApiByronWalletBalance) s => (s, Natural) -> s
-    _set (_s, _v) = error "byronBalanceTotal setter unimplemented"
-    total' :: ApiByronWalletBalance -> Quantity "lovelace" Natural
-    total' = getField @"total"
-
-
-balanceReward :: HasType (ApiT WalletBalance) s => Lens' s Natural
-balanceReward =
-    lens _get _set
-  where
-    _get :: HasType (ApiT WalletBalance) s => s -> Natural
-    _get = fromQuantity @"lovelace" . Types.reward . getApiT . view typed
-    _set :: HasType (ApiT WalletBalance) s => (s, Natural) -> s
-    _set (s, v) = set typed initBal s
-      where
-        -- TODO: Fix this setter: it sets all fields to the same value.
-        initBal = ApiT $ WalletBalance
-            { Types.available = Quantity v
-            , Types.total = Quantity v
-            , Types.reward = Quantity v
-            }
 
 delegation
     :: forall s d. (d ~ WalletDelegation (ApiT PoolId), HasType (ApiT d) s)
@@ -1044,7 +966,7 @@ fixtureWallet ctx = do
     checkBalance w = do
         r <- request @ApiWallet ctx
             (Link.getWallet @'Shelley w) Default Empty
-        if getFromResponse balanceAvailable r > 0
+        if getFromResponse (#balance . #getApiT . #available) r > Quantity 0
             then return (getFromResponse id r)
             else threadDelay oneSecond *> checkBalance w
 
@@ -1090,7 +1012,7 @@ fixtureLegacyWallet ctx mnemonics = do
     checkBalance w = do
         r <- request @ApiByronWallet ctx
             (Link.getWallet @'Byron w) Default Empty
-        if getFromResponse byronBalanceAvailable r > 0
+        if getFromResponse (#balance . #available) r > Quantity 0
             then return (getFromResponse id r)
             else threadDelay oneSecond *> checkBalance w
 
@@ -1123,7 +1045,7 @@ fixtureWalletWith ctx coins0 = do
             -- ^ Coins to move
         -> IO ()
     moveCoins src dest coins = do
-        balance <- getFromResponse balanceAvailable
+        balance <- getFromResponse (#balance . #getApiT . #available . #getQuantity)
             <$> request @ApiWallet ctx
                     (Link.getWallet @'Shelley dest) Default Empty
         addrs <- fmap (view #id) . getFromResponse id
@@ -1144,8 +1066,15 @@ fixtureWalletWith ctx coins0 = do
             (Link.createTransaction src) Default payload
             >>= expectResponseCode HTTP.status202
         expectEventually'
-            ctx (Link.getWallet @'Shelley) balanceAvailable (sum (balance:coins)) dest
-        expectEventuallyL ctx balanceAvailable balanceTotal src
+            ctx (Link.getWallet @'Shelley)
+            (#balance . #getApiT . #available . #getQuantity)
+            (sum (balance:coins))
+            dest
+        expectEventuallyL
+            ctx
+            (#balance . #getApiT . #available)
+            (#balance . #getApiT . #total)
+            src
 
 -- | Total amount on each faucet wallet
 faucetAmt :: Natural

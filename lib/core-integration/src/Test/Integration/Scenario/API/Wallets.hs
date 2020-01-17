@@ -65,9 +65,6 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
-    , balanceAvailable
-    , balanceReward
-    , balanceTotal
     , coinSelectionInputs
     , coinSelectionOutputs
     , delegation
@@ -166,9 +163,9 @@ spec = do
             , expectFieldEqual walletName "1st Wallet"
             , expectFieldEqual
                     (#addressPoolGap . #getApiT . #getAddressPoolGap) 30
-            , expectFieldEqual balanceAvailable 0
-            , expectFieldEqual balanceTotal 0
-            , expectFieldEqual balanceReward 0
+            , expectFieldEqual (#balance . #getApiT . #available) (Quantity 0)
+            , expectFieldEqual (#balance . #getApiT . #total) (Quantity 0)
+            , expectFieldEqual (#balance . #getApiT . #reward) (Quantity 0)
             , expectEventually ctx (Link.getWallet @'Shelley)
                     (#state . #getApiT) Ready
             , expectFieldEqual delegation (NotDelegating)
@@ -185,8 +182,8 @@ spec = do
         rInit <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payldCrt
         verify rInit
             [ expectResponseCode @IO HTTP.status201
-            , expectFieldEqual balanceAvailable 0
-            , expectFieldEqual balanceTotal 0
+            , expectFieldEqual (#balance . #getApiT . #available) (Quantity 0)
+            , expectFieldEqual (#balance . #getApiT . #total) (Quantity 0)
             ]
 
         --send funds
@@ -209,8 +206,12 @@ spec = do
 
         rGet <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default Empty
         verify rGet
-            [ expectEventually ctx (Link.getWallet @'Shelley) balanceTotal 1
-            , expectEventually ctx (Link.getWallet @'Shelley) balanceAvailable 1
+            [ expectEventually ctx (Link.getWallet @'Shelley)
+                    (#balance . #getApiT . #total)
+                    (Quantity 1)
+            , expectEventually ctx (Link.getWallet @'Shelley)
+                    (#balance . #getApiT . #available)
+                    (Quantity 1)
             ]
 
         -- delete wallet
@@ -221,8 +222,12 @@ spec = do
         rRestore <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payldCrt
         verify rRestore
             [ expectResponseCode @IO HTTP.status201
-            , expectEventually ctx (Link.getWallet @'Shelley) balanceAvailable 1
-            , expectEventually ctx (Link.getWallet @'Shelley) balanceTotal 1
+            , expectEventually ctx (Link.getWallet @'Shelley)
+                    (#balance . #getApiT . #available)
+                    (Quantity 1)
+            , expectEventually ctx (Link.getWallet @'Shelley)
+                    (#balance . #getApiT . #total)
+                    (Quantity 1)
             ]
 
     it "WALLETS_CREATE_03,09 - Cannot create wallet that exists" $ \ctx -> do
@@ -894,9 +899,9 @@ spec = do
             , expectFieldEqual walletName "Secure Wallet"
             , expectFieldEqual
                     (#addressPoolGap . #getApiT . #getAddressPoolGap) 20
-            , expectFieldEqual balanceAvailable 0
-            , expectFieldEqual balanceTotal 0
-            , expectFieldEqual balanceReward 0
+            , expectFieldEqual (#balance . #getApiT . #available) (Quantity 0)
+            , expectFieldEqual (#balance . #getApiT . #total) (Quantity 0)
+            , expectFieldEqual (#balance . #getApiT . #reward) (Quantity 0)
             , expectEventually ctx (Link.getWallet @'Shelley)
                     (#state . #getApiT) Ready
             , expectFieldEqual delegation (NotDelegating)
@@ -965,9 +970,12 @@ spec = do
             , expectListItemFieldEqual 0 walletName "Wallet to be listed"
             , expectListItemFieldEqual 0
                     (#addressPoolGap . #getApiT . #getAddressPoolGap) 20
-            , expectListItemFieldEqual 0 balanceAvailable 0
-            , expectListItemFieldEqual 0 balanceTotal 0
-            , expectListItemFieldEqual 0 balanceReward 0
+            , expectListItemFieldEqual 0
+                    (#balance . #getApiT . #available) (Quantity 0)
+            , expectListItemFieldEqual 0
+                    (#balance . #getApiT . #total) (Quantity 0)
+            , expectListItemFieldEqual 0
+                    (#balance . #getApiT . #reward) (Quantity 0)
             , expectListItemFieldEqual 0 delegation (NotDelegating)
             , expectListItemFieldEqual 0 walletId
                 "dfe87fcf0560fb57937a6468ea51e860672fad79"
@@ -1038,8 +1046,10 @@ spec = do
                     , expectFieldEqual walletName "New great name"
                     , expectFieldEqual
                             (#addressPoolGap . #getApiT . #getAddressPoolGap) 20
-                    , expectFieldEqual balanceAvailable 0
-                    , expectFieldEqual balanceTotal 0
+                    , expectFieldEqual
+                            (#balance . #getApiT . #available) (Quantity 0)
+                    , expectFieldEqual
+                            (#balance . #getApiT . #total) (Quantity 0)
                     , expectEventually ctx (Link.getWallet @'Shelley)
                             (#state . #getApiT) Ready
                     , expectFieldEqual delegation (NotDelegating)
@@ -1057,8 +1067,8 @@ spec = do
             , expectListItemFieldEqual 0 walletName "New great name"
             , expectListItemFieldEqual 0
                     (#addressPoolGap . #getApiT . #getAddressPoolGap) 20
-            , expectListItemFieldEqual 0 balanceAvailable 0
-            , expectListItemFieldEqual 0 balanceTotal 0
+            , expectListItemFieldEqual 0 (#balance . #getApiT . #available) (Quantity 0)
+            , expectListItemFieldEqual 0 (#balance . #getApiT . #total) (Quantity 0)
             , expectListItemFieldEqual 0 delegation (NotDelegating)
             , expectListItemFieldEqual 0 walletId walId
             , expectListItemFieldEqual 0 passphraseLastUpdate passLastUpdateValue
@@ -1684,10 +1694,12 @@ spec = do
             rGet <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default Empty
             let coinsSent = map fromIntegral $ take alreadyAbsorbed coins
             verify rGet
-                [ expectEventually ctx (Link.getWallet @'Shelley) balanceTotal
-                    (fromIntegral $ sum coinsSent)
-                , expectEventually ctx (Link.getWallet @'Shelley) balanceAvailable
-                    (fromIntegral $ sum coinsSent)
+                [ expectEventually ctx (Link.getWallet @'Shelley)
+                        (#balance . #getApiT . #total)
+                        (Quantity (fromIntegral $ sum coinsSent))
+                , expectEventually ctx (Link.getWallet @'Shelley)
+                        (#balance . #getApiT . #available)
+                        (Quantity (fromIntegral $ sum coinsSent))
                 ]
             --verify utxo
             rStat1 <- request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics wDest) Default Empty

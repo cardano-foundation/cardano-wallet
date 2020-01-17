@@ -105,7 +105,6 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
-    , balanceAvailable
     , expectEventually
     , expectResponseCode
     , expectSuccess
@@ -222,7 +221,8 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
         rWal1 <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default Empty
         verify rWal1
             [ expectSuccess
-            , expectEventually ctx (Link.getWallet @'Shelley) balanceAvailable amtExp
+            , expectEventually ctx (Link.getWallet @'Shelley)
+                    (#balance . #getApiT . #available . #getQuantity) amtExp
             ]
 
         rDel <- request @ApiWallet ctx (Link.deleteWallet @'Shelley wSrc) Default Empty
@@ -256,7 +256,9 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
         rWal1 <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default Empty
         verify rWal1
             [ expectSuccess
-            , expectEventually ctx (Link.getWallet @'Shelley) balanceAvailable (fromIntegral amtExp)
+            , expectEventually ctx (Link.getWallet @'Shelley)
+                    (#balance . #getApiT . #available . #getQuantity)
+                    (fromIntegral amtExp)
             ]
 
         rStat <- request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics wDest) Default Empty

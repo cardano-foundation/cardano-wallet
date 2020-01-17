@@ -77,8 +77,6 @@ import Test.Integration.Framework.DSL as DSL
     , Payload (..)
     , TxDescription (..)
     , amount
-    , balanceAvailable
-    , balanceTotal
     , direction
     , emptyRandomWallet
     , emptyWallet
@@ -202,8 +200,10 @@ spec = do
                 Default
                 Empty
                 >>= flip verify
-                [ expectFieldEqual balanceAvailable utxoAmt
-                , expectFieldEqual balanceTotal utxoAmt
+                [ expectFieldEqual
+                        (#balance . #getApiT . #available) (Quantity utxoAmt)
+                , expectFieldEqual
+                        (#balance . #getApiT . #total) (Quantity utxoAmt)
                 ]
 
     it "TRANS_ESTIMATE_09 - \
@@ -236,8 +236,10 @@ spec = do
         request @ApiTxId ctx Link.postExternalTransaction headers (NonJson payload)
             >>= expectResponseCode HTTP.status202
 
-        expectEventually' ctx (Link.getWallet @'Shelley) balanceAvailable amt w
-        expectEventually' ctx (Link.getWallet @'Shelley) balanceTotal amt w
+        expectEventually' ctx (Link.getWallet @'Shelley)
+                (#balance . #getApiT . #available) (Quantity amt) w
+        expectEventually' ctx (Link.getWallet @'Shelley)
+                (#balance . #getApiT . #total) (Quantity amt) w
 
     describe "TRANS_DELETE_05 - Cannot forget external tx -> 404" $ do
         let txDeleteTest05
@@ -267,8 +269,10 @@ spec = do
                 expectErrorMessage (errMsg404CannotFindTx txid) ra
 
                 -- tx eventually gets into ledger (funds are on the target wallet)
-                expectEventually' ctx (Link.getWallet @'Shelley) balanceAvailable amt wal
-                expectEventually' ctx (Link.getWallet @'Shelley) balanceTotal amt wal
+                expectEventually' ctx (Link.getWallet @'Shelley)
+                        (#balance . #getApiT . #available) (Quantity amt) wal
+                expectEventually' ctx (Link.getWallet @'Shelley)
+                        (#balance . #getApiT . #total) (Quantity amt) wal
 
 
         txDeleteTest05 "wallets" emptyWallet
@@ -295,12 +299,18 @@ spec = do
         rb <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default Empty
         verify rb
             [ expectSuccess
-            , expectEventually ctx (Link.getWallet @'Shelley) balanceTotal (initTotal + toSend)
-            , expectEventually ctx (Link.getWallet @'Shelley) balanceAvailable (initAvailable + toSend)
+            , expectEventually ctx (Link.getWallet @'Shelley)
+                    (#balance . #getApiT . #total . #getQuantity)
+                    (initTotal + toSend)
+            , expectEventually ctx (Link.getWallet @'Shelley)
+                    (#balance . #getApiT . #available . #getQuantity)
+                    (initAvailable + toSend)
             ]
         ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
         verify ra
-            [ expectEventually ctx (Link.getWallet @'Shelley) balanceAvailable (faucetAmt - fee - toSend)
+            [ expectEventually ctx (Link.getWallet @'Shelley)
+                    (#balance . #getApiT . #available . #getQuantity)
+                    (faucetAmt - fee - toSend)
             ]
 
     it "TRANS_EXTERNAL_CREATE_02 - proper single output transaction and \
@@ -542,6 +552,8 @@ fixtureExternalTx ctx toSend = do
 getWalletBalance :: Context t -> ApiWallet -> IO (Natural, Natural)
 getWalletBalance ctx w = do
     r <- request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
-    let total = getFromResponse balanceTotal r
-    let available = getFromResponse balanceAvailable r
+    let total =
+            getFromResponse (#balance . #getApiT . #total . #getQuantity) r
+    let available =
+            getFromResponse (#balance . #getApiT . #available . #getQuantity) r
     return (total, available)

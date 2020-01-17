@@ -24,6 +24,8 @@ import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text
     ( Text )
 import System.Command
@@ -37,7 +39,6 @@ import Test.Hspec.Expectations.Lifted
 import Test.Integration.Framework.DSL
     ( Context (..)
     , KnownCommand
-    , balanceAvailable
     , deleteWalletViaCLI
     , emptyRandomWallet
     , emptyWallet
@@ -168,7 +169,8 @@ spec = do
             cTx `shouldBe` ExitSuccess
 
         -- make sure all transactions are in ledger
-        expectEventually' ctx (Link.getWallet @'Shelley) balanceAvailable 10 wDest
+        expectEventually' ctx (Link.getWallet @'Shelley)
+                (#balance . #getApiT . #available) (Quantity 10) wDest
 
         -- verify new address_pool_gap has been created
         (Exit c1, Stdout o1, Stderr e1) <- listAddressesViaCLI @t ctx [widDest]

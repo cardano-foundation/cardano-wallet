@@ -46,6 +46,8 @@ import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Maybe
     ( mapMaybe )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text
     ( Text )
 import Data.Word
@@ -60,10 +62,6 @@ import Test.Integration.Framework.DSL
     , Payload (..)
     , RequestException (..)
     , amount
-    , balanceAvailable
-    , balanceTotal
-    , byronBalanceAvailable
-    , byronBalanceTotal
     , emptyByronWalletWith
     , emptyIcarusWallet
     , emptyRandomWallet
@@ -227,7 +225,8 @@ spec = do
         $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet] $ \fixtureByronWallet -> do
             -- Restore a Byron wallet with funds, to act as a source wallet:
             sourceWallet <- fixtureByronWallet ctx
-            let originalBalance = view byronBalanceAvailable sourceWallet
+            let originalBalance =
+                        view (#balance . #available . #getQuantity) sourceWallet
 
             -- Create an empty target wallet:
             targetWallet <- emptyWallet ctx
@@ -257,8 +256,12 @@ spec = do
                 r2 <- request @ApiWallet ctx
                     (Link.getWallet @'Shelley targetWallet) Default Empty
                 verify r2
-                    [ expectFieldEqual balanceAvailable expectedBalance
-                    , expectFieldEqual balanceTotal     expectedBalance
+                    [ expectFieldEqual
+                            (#balance . #getApiT . #available)
+                            (Quantity expectedBalance)
+                    , expectFieldEqual
+                            (#balance . #getApiT . #total)
+                            (Quantity expectedBalance)
                     ]
 
     it "BYRON_MIGRATE_01 - \
@@ -287,9 +290,9 @@ spec = do
                 (Link.getWallet @'Byron wOld)
                 Default
                 Empty >>= flip verify
-                [ expectFieldSatisfy byronBalanceAvailable (> 0)
+                [ expectFieldSatisfy (#balance . #available) (> Quantity 0)
                 ]
-        let originalBalance = view byronBalanceAvailable wOld
+        let originalBalance = view (#balance . #available . #getQuantity) wOld
 
         -- Calculate the expected migration fee:
         rFee <- request @ApiByronWalletMigrationInfo ctx
@@ -320,8 +323,12 @@ spec = do
                 (Link.getWallet @'Shelley wNew)
                 Default
                 Empty >>= flip verify
-                [ expectFieldEqual balanceAvailable expectedBalance
-                , expectFieldEqual balanceTotal     expectedBalance
+                [ expectFieldEqual
+                        (#balance . #getApiT . #available)
+                        (Quantity expectedBalance)
+                , expectFieldEqual
+                        (#balance . #getApiT . #total)
+                        (Quantity expectedBalance)
                 ]
 
         -- Analyze the target wallet UTxO distribution
@@ -355,7 +362,7 @@ spec = do
                 (Link.getWallet @'Byron sourceWallet) Default Empty
             verify r1
                 [ expectResponseCode @IO HTTP.status200
-                , expectFieldSatisfy byronBalanceAvailable (== 0)
+                , expectFieldSatisfy (#balance . #available) (== Quantity 0)
                 ]
 
     it "BYRON_MIGRATE_02 - \
@@ -395,7 +402,7 @@ spec = do
                     (Link.getWallet @'Byron sourceWallet)
                     Default
                     Empty >>= flip verify
-                    [ expectFieldSatisfy byronBalanceAvailable (> 0)
+                    [ expectFieldSatisfy (#balance . #available) (> Quantity 0)
                     ]
 
             targetWallet <- emptyWallet ctx
@@ -811,8 +818,8 @@ spec = do
                     }|]
                 let expectations =
                             [ expectFieldEqual walletName name
-                            , expectFieldEqual byronBalanceAvailable 0
-                            , expectFieldEqual byronBalanceTotal 0
+                            , expectFieldEqual (#balance . #available) (Quantity 0)
+                            , expectFieldEqual (#balance . #total) (Quantity 0)
                             , expectEventually ctx (Link.getWallet @'Byron)
                                     (#state . #getApiT) Ready
                             , expectFieldNotEqual passphraseLastUpdate Nothing
@@ -830,8 +837,8 @@ spec = do
                     [ expectResponseCode @IO HTTP.status200
                     , expectListSizeEqual 1
                     , expectListItemFieldEqual 0 walletName name
-                    , expectListItemFieldEqual 0 byronBalanceAvailable 0
-                    , expectListItemFieldEqual 0 byronBalanceTotal 0
+                    , expectListItemFieldEqual 0 (#balance . #available) (Quantity 0)
+                    , expectListItemFieldEqual 0 (#balance . #total) (Quantity 0)
                     ]
 
         let scenarioFailure endpoint mnemonic ctx = do
@@ -1236,7 +1243,7 @@ spec = do
         r <- request @ApiByronWallet ctx (Link.postWallet @'Icarus) Default payload
         verify r
             [ expectResponseCode @IO HTTP.status201
-            , expectFieldEqual byronBalanceAvailable faucetAmt
+            , expectFieldEqual (#balance . #available) (Quantity faucetAmt)
             ]
 
     it "BYRON_RESTORE_09 - Ledger wallet" $ \ctx -> do
@@ -1257,7 +1264,7 @@ spec = do
         r <- request @ApiByronWallet ctx (Link.postWallet @'Ledger) Default payload
         verify r
             [ expectResponseCode @IO HTTP.status201
-            , expectFieldEqual byronBalanceAvailable faucetAmt
+            , expectFieldEqual (#balance . #available) (Quantity faucetAmt)
             ]
  where
      genMnemonics

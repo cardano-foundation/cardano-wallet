@@ -23,13 +23,14 @@ import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
+import Data.Quantity
+    ( Quantity (..) )
 import Test.Hspec
     ( SpecWith, describe, it )
 import Test.Integration.Framework.DSL
     ( Context
     , Headers (..)
     , Payload (..)
-    , balanceAvailable
     , emptyRandomWallet
     , emptyWallet
     , emptyWalletWith
@@ -181,7 +182,9 @@ spec = do
         -- make sure all transactions are in ledger
         rb <- request @ApiWallet ctx
             (Link.getWallet @'Shelley wDest) Default Empty
-        expectEventually ctx (Link.getWallet @'Shelley) balanceAvailable 10 rb
+        expectEventually ctx (Link.getWallet @'Shelley)
+                (#balance . #getApiT . #available) (Quantity 10) rb
+        print rb
 
         -- verify new address_pool_gap has been created
         rAddr <- request @[ApiAddress n] ctx

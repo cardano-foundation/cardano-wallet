@@ -36,6 +36,8 @@ import Data.Generics.Product.Typed
     ( typed )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text
     ( Text )
 import Data.Word
@@ -51,9 +53,6 @@ import Test.Hspec.Expectations.Lifted
 import Test.Integration.Framework.DSL
     ( Context (..)
     , KnownCommand
-    , balanceAvailable
-    , balanceReward
-    , balanceTotal
     , cardanoWalletCLI
     , createWalletViaCLI
     , delegation
@@ -169,9 +168,9 @@ spec = do
             [ expectCliFieldEqual walletName "n"
             , expectCliFieldEqual
                     (#addressPoolGap . #getApiT . #getAddressPoolGap) 20
-            , expectCliFieldEqual balanceAvailable 0
-            , expectCliFieldEqual balanceTotal 0
-            , expectCliFieldEqual balanceReward 0
+            , expectCliFieldEqual (#balance . #getApiT . #available) (Quantity 0)
+            , expectCliFieldEqual (#balance . #getApiT . #total) (Quantity 0)
+            , expectCliFieldEqual (#balance . #getApiT . #reward) (Quantity 0)
             , expectEventually' ctx (Link.getWallet @'Shelley)
                     (#state . #getApiT) Ready
             , expectCliFieldEqual delegation (NotDelegating)
@@ -188,8 +187,8 @@ spec = do
         T.unpack e1 `shouldContain` cmdOk
         wDest <- expectValidJSON (Proxy @ApiWallet) o1
         verify wDest
-            [ expectCliFieldEqual balanceAvailable 0
-            , expectCliFieldEqual balanceTotal 0
+            [ expectCliFieldEqual (#balance . #getApiT . #available) (Quantity 0)
+            , expectCliFieldEqual (#balance . #getApiT . #total) (Quantity 0)
             ]
 
         --send transaction to the wallet
@@ -206,8 +205,10 @@ spec = do
         _ <- expectValidJSON (Proxy @(ApiTransaction n)) op
         cp `shouldBe` ExitSuccess
 
-        expectEventually' ctx (Link.getWallet @'Shelley) balanceAvailable amount wDest
-        expectEventually' ctx (Link.getWallet @'Shelley) balanceTotal amount wDest
+        expectEventually' ctx (Link.getWallet @'Shelley)
+                (#balance . #getApiT . #available) (Quantity amount) wDest
+        expectEventually' ctx (Link.getWallet @'Shelley)
+                (#balance . #getApiT . #total) (Quantity amount) wDest
 
         -- delete wallet
         Exit cd <- deleteWalletViaCLI @t ctx $ T.unpack (wDest ^. walletId)
@@ -228,8 +229,10 @@ spec = do
         Stdout o3 <- getWalletViaCLI @t ctx $ T.unpack (wRestored ^. walletId)
         justRestored <- expectValidJSON (Proxy @ApiWallet) o3
         verify justRestored
-            [ expectCliFieldEqual balanceAvailable amount
-            , expectCliFieldEqual balanceTotal amount
+            [ expectCliFieldEqual
+                    (#balance . #getApiT . #available) (Quantity amount)
+            , expectCliFieldEqual
+                    (#balance . #getApiT . #total) (Quantity amount)
             , expectCliFieldEqual walletId (wDest ^. walletId)
             ]
 
@@ -412,9 +415,9 @@ spec = do
             [ expectCliFieldEqual walletName "Empty Wallet"
             , expectCliFieldEqual
                     (#addressPoolGap . #getApiT . #getAddressPoolGap) 20
-            , expectCliFieldEqual balanceAvailable 0
-            , expectCliFieldEqual balanceTotal 0
-            , expectCliFieldEqual balanceReward 0
+            , expectCliFieldEqual (#balance . #getApiT . #available) (Quantity 0)
+            , expectCliFieldEqual (#balance . #getApiT . #total) (Quantity 0)
+            , expectCliFieldEqual (#balance . #getApiT . #reward) (Quantity 0)
             , expectEventually' ctx (Link.getWallet @'Shelley)
                     (#state . #getApiT) Ready
             , expectCliFieldEqual delegation (NotDelegating)
@@ -444,9 +447,12 @@ spec = do
             [ expectCliListItemFieldEqual 0 walletName name
             , expectCliListItemFieldEqual 0
                     (#addressPoolGap . #getApiT . #getAddressPoolGap) 21
-            , expectCliListItemFieldEqual 0 balanceAvailable 0
-            , expectCliListItemFieldEqual 0 balanceTotal 0
-            , expectCliListItemFieldEqual 0 balanceReward 0
+            , expectCliListItemFieldEqual 0
+                    (#balance . #getApiT . #available) (Quantity 0)
+            , expectCliListItemFieldEqual 0
+                    (#balance . #getApiT . #total) (Quantity 0)
+            , expectCliListItemFieldEqual 0
+                    (#balance . #getApiT . #reward) (Quantity 0)
             , expectCliListItemFieldEqual 0 delegation (NotDelegating)
             , expectCliListItemFieldEqual 0 walletId (T.pack w1)
             ]
@@ -688,10 +694,14 @@ spec = do
             _ <- expectValidJSON (Proxy @(ApiTransaction n)) op
             cp `shouldBe` ExitSuccess
             let coinsSent = map fromIntegral $ take alreadyAbsorbed coins
-            expectEventually' ctx (Link.getWallet @'Shelley) balanceAvailable
-                (fromIntegral $ sum coinsSent) wDest
-            expectEventually' ctx (Link.getWallet @'Shelley) balanceTotal
-                (fromIntegral $ sum coinsSent) wDest
+            expectEventually' ctx (Link.getWallet @'Shelley)
+                    (#balance . #getApiT . #available)
+                    (Quantity (fromIntegral $ sum coinsSent))
+                    wDest
+            expectEventually' ctx (Link.getWallet @'Shelley)
+                    (#balance . #getApiT . #total)
+                    (Quantity (fromIntegral $ sum coinsSent))
+                    wDest
             --verify utxo
             (Exit c, Stdout o, Stderr e)
                     <- getWalletUtxoStatisticsViaCLI @t ctx $ T.unpack (wDest ^. walletId)

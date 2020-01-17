@@ -49,9 +49,6 @@ import Test.Integration.Framework.DSL
     , TxDescription (..)
     , amount
     , apparentPerformance
-    , balanceAvailable
-    , balanceReward
-    , balanceTotal
     , blocks
     , delegation
     , delegationFee
@@ -294,7 +291,7 @@ spec = do
         -- Wait for money to flow
         eventually $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-                [ expectFieldSatisfy balanceReward (> 0)
+                [ expectFieldSatisfy (#balance . #getApiT . #reward) (> (Quantity 0))
                 ]
 
         -- Quit a pool
@@ -314,12 +311,14 @@ spec = do
 
         waitForNextEpoch ctx
         waitForNextEpoch ctx
-        reward <- getFromResponse balanceReward <$>
+        reward <- getFromResponse (#balance . #getApiT . #reward) <$>
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
 
         waitForNextEpoch ctx
         request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-            [ expectFieldSatisfy balanceReward (== reward)
+            [ expectFieldSatisfy
+                    (#balance . #getApiT . #reward)
+                    (== reward)
             ]
 
     it "STAKE_POOLS_JOIN_04 -\
@@ -341,15 +340,19 @@ spec = do
         reward <- eventually $ do
             r <- request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
             verify r
-                [ expectFieldSatisfy balanceReward (> 0)
+                [ expectFieldSatisfy
+                        (#balance . #getApiT . #reward)
+                        (> (Quantity 0))
                 ]
-            pure $ getFromResponse balanceReward r
+            pure $ getFromResponse (#balance . #getApiT . #reward) r
 
         waitForNextEpoch ctx
 
         eventually $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-                [ expectFieldSatisfy balanceReward (== reward)
+                [ expectFieldSatisfy
+                        (#balance . #getApiT . #reward)
+                        (== reward)
                 ]
 
     it "STAKE_POOLS_JOIN_01 - I can join another stake-pool after previously \
@@ -439,8 +442,8 @@ spec = do
                 request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
                     [ expectFieldEqual delegation (NotDelegating)
                     -- balance is 0 because the rest was used for fees
-                    , expectFieldEqual balanceTotal 0
-                    , expectFieldEqual balanceAvailable 0
+                    , expectFieldEqual (#balance . #getApiT . #total) (Quantity 0)
+                    , expectFieldEqual (#balance . #getApiT . #available) (Quantity 0)
                     ]
 
         it "STAKE_POOLS_QUIT_01x - \

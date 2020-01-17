@@ -22,6 +22,8 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Quantity
+    ( Quantity (..) )
 import Numeric.Natural
     ( Natural )
 import System.Command
@@ -35,8 +37,6 @@ import Test.Hspec.Expectations.Lifted
 import Test.Integration.Framework.DSL
     ( Context (..)
     , KnownCommand
-    , balanceAvailable
-    , balanceTotal
     , deleteTransactionViaCLI
     , emptyWallet
     , expectCliFieldEqual
@@ -83,8 +83,10 @@ spec = do
         out `shouldContain` "id"
         code `shouldBe` ExitSuccess
 
-        expectEventually' ctx (Link.getWallet @'Shelley) balanceAvailable amt w
-        expectEventually' ctx (Link.getWallet @'Shelley) balanceTotal amt w
+        expectEventually' ctx (Link.getWallet @'Shelley)
+                (#balance . #getApiT . #available) (Quantity amt) w
+        expectEventually' ctx (Link.getWallet @'Shelley)
+                (#balance . #getApiT . #total) (Quantity amt) w
 
     it "TRANS_EXTERNAL_CREATE_01cli - proper single output transaction and \
        \proper binary format" $ \ctx -> do
@@ -103,15 +105,23 @@ spec = do
         out `shouldBe` "{\n    \"id\": " ++ show expectedTxId ++ "\n}\n"
         code `shouldBe` ExitSuccess
 
-        expectEventually' ctx (Link.getWallet @'Shelley) balanceTotal (initTotal + toSend) wDest
-        expectEventually' ctx (Link.getWallet @'Shelley) balanceAvailable (initAvailable + toSend) wDest
+        expectEventually' ctx (Link.getWallet @'Shelley)
+                (#balance . #getApiT . #total . #getQuantity)
+                (initTotal + toSend) wDest
+        expectEventually' ctx (Link.getWallet @'Shelley)
+                (#balance . #getApiT . #available . #getQuantity)
+                (initAvailable + toSend) wDest
 
         -- verify balance on dest wallet
         Stdout gOutDest <- getWalletViaCLI @t ctx (T.unpack (wDest ^. walletId))
         destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
         verify destJson
-            [ expectCliFieldEqual balanceAvailable (initAvailable + toSend)
-            , expectCliFieldEqual balanceTotal (initTotal + toSend)
+            [ expectCliFieldEqual
+                    (#balance . #getApiT . #available . #getQuantity)
+                    (initAvailable + toSend)
+            , expectCliFieldEqual
+                    (#balance . #getApiT . #total . #getQuantity)
+                    (initTotal + toSend)
             ]
 
     it "TRANS_EXTERNAL_CREATE_02 - proper single output transaction and \
@@ -152,8 +162,10 @@ spec = do
         let txid = T.unpack $ toUrlPiece (txJson ^. #id)
 
         -- funds eventually are on target wallet
-        expectEventually' ctx (Link.getWallet @'Shelley) balanceAvailable amt w
-        expectEventually' ctx (Link.getWallet @'Shelley) balanceTotal amt w
+        expectEventually' ctx (Link.getWallet @'Shelley)
+                (#balance . #getApiT . #available) (Quantity amt) w
+        expectEventually' ctx (Link.getWallet @'Shelley)
+                (#balance . #getApiT . #total) (Quantity amt) w
 
         -- Try to forget external tx
         (Exit c2, Stdout out2, Stderr err2) <-
