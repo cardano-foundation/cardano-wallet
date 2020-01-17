@@ -135,7 +135,7 @@ data StakePool = StakePool
     { poolId :: PoolId
     , stake :: Quantity "lovelace" Word64
     , production :: Quantity "block" Word64
-    , apparentPerformance :: Double
+    , performance :: Double
     , cost :: Quantity "lovelace" Word64
     , margin :: Percentage
     } deriving (Show, Generic)
@@ -332,7 +332,7 @@ newStakePoolLayer tr db@DBLayer{..} nl metadataDir = StakePoolLayer
                     Map.traverseMaybeWithKey mergeRegistration (ps <> ns)
                 sortResults $ Map.elems pools
       where
-        mergeRegistration poolId (stake, production, apparentPerformance) =
+        mergeRegistration poolId (stake, production, performance) =
             fmap mkStakePool <$> readPoolRegistration poolId
           where
             mkStakePool PoolRegistrationCertificate{poolCost,poolMargin,poolOwners} =
@@ -340,7 +340,7 @@ newStakePoolLayer tr db@DBLayer{..} nl metadataDir = StakePoolLayer
                     { poolId
                     , stake
                     , production
-                    , apparentPerformance
+                    , performance
                     , cost = poolCost
                     , margin = poolMargin
                     }
@@ -348,7 +348,7 @@ newStakePoolLayer tr db@DBLayer{..} nl metadataDir = StakePoolLayer
                 )
 
     sortByPerformance :: [(StakePool, a)] -> [(StakePool, a)]
-    sortByPerformance = sortOn (Down . apparentPerformance . fst)
+    sortByPerformance = sortOn (Down . performance . fst)
 
     sortArbitrarily :: StdGen -> [a] -> IO [a]
     sortArbitrarily = shuffleWith
