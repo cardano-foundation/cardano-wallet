@@ -77,7 +77,6 @@ module Cardano.Pool.Ranking
     , Ratio
     , unsafeMkRatio
     , getRatio
-    , unsafeMkRelativeStake
     , NonNegative (..)
     , Positive (..)
     , unsafeMkPositive
@@ -172,12 +171,6 @@ unsafeMkRatio x
     | x >= 0 && x <= 1  = Ratio x
     | otherwise         = error $ "unsafeMkRatio: " ++ show x
                           ++ "not in range [0, 1]"
-
-unsafeMkRelativeStake :: Lovelace -> EpochConstants -> Ratio
-unsafeMkRelativeStake (Lovelace stake) constants =
-    unsafeMkRatio $ (fromIntegral stake) / total
-  where
-    total = fromIntegral . getLovelace . totalRewards $ constants
 
 newtype Positive a = Positive { getPositive :: a }
     deriving (Generic, Eq, Show)

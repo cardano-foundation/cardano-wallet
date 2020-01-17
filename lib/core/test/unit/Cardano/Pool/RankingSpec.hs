@@ -30,7 +30,6 @@ import Cardano.Pool.Ranking
     , saturatedPoolSize
     , unsafeMkNonNegative
     , unsafeMkRatio
-    , unsafeMkRelativeStake
     )
 import Control.Exception
     ( SomeException, evaluate, try )
@@ -102,10 +101,6 @@ spec = do
             it "saturatedPoolRewards >= 0"
                 $ property prop_saturatedPoolRewardsNonNegative
 
-        describe "unsafeMkRelativeStake" $ do
-            it "R > 0, stake > R => unsafeMkRelativeStake ∈ [0,1]"
-                $ property prop_unsafeMkRelativeStakeBounds
-
         describe "unsafeMk- newtypes" $ do
             it "unsafeMkRatio requires ∈ [0,1]"
                 $ property $ \v -> ioProperty $
@@ -146,17 +141,6 @@ prop_unsafeMk isValid f g x = do
 
         & classify valid "valid"
         & classify (not valid) "error"
-
-prop_unsafeMkRelativeStakeBounds :: EpochConstants -> Lovelace -> Property
-prop_unsafeMkRelativeStakeBounds constants stake =
-    let
-        s = getRatio $ unsafeMkRelativeStake stake constants
-        total = totalRewards constants
-    in
-        total > 0 ==>
-            total >= stake ==>
-                property $ s >= 0 && s <= 1
-        & counterexample ("relative stake = " ++ show s)
 
 prop_desirabilityNonNegative :: EpochConstants -> Pool -> Property
 prop_desirabilityNonNegative constants pool = property $
