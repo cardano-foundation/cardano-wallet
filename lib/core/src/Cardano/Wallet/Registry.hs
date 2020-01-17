@@ -39,8 +39,6 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
-import Cardano.BM.Trace
-    ( Trace, appendName )
 import Cardano.Wallet
     ( HasLogger, logger )
 import Cardano.Wallet.Logging
@@ -66,7 +64,7 @@ import Control.Exception
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Tracer
-    ( contramap )
+    ( Tracer, contramap )
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
@@ -166,21 +164,21 @@ data Worker key resource = Worker
     } deriving (Generic)
 
 -- | See 'newWorker'
-data MkWorker key resource ctx = MkWorker
+data MkWorker key resource msg ctx = MkWorker
     { workerBefore :: WorkerCtx ctx -> key -> IO ()
         -- ^ A task to execute before the main worker's task. When creating a
         -- worker, this task is guaranteed to have terminated once 'newWorker'
         -- returns.
     , workerMain :: WorkerCtx ctx -> key -> IO ()
         -- ^ A task for the worker, possibly infinite
-    , workerAfter :: Trace IO Text -> Either SomeException () -> IO ()
+    , workerAfter :: Tracer IO msg -> Either SomeException () -> IO ()
         -- ^ Action to run when the worker exits
     , workerAcquire :: (resource -> IO ()) -> IO ()
         -- ^ A bracket-style factory to acquire a resource
     }
 
 defaultWorkerAfter
-    :: Trace IO WorkerRegistryLog
+    :: Tracer IO (WorkerRegistryLog msg)
     -> Either SomeException a
     -> IO ()
 defaultWorkerAfter tr = logTrace tr . \case
@@ -201,14 +199,14 @@ defaultWorkerAfter tr = logTrace tr . \case
 -- >>> newWorker ctx k withDBLayer restoreWallet
 -- worker<thread#1234>
 newWorker
-    :: forall key resource ctx.
-        ( HasLogger ctx
+    :: forall key resource msg s ctx.
+        ( HasLogger s ctx
         , HasWorkerCtx resource ctx
         , ToText key
         )
     => ctx
     -> key
-    -> MkWorker key resource ctx
+    -> MkWorker key resource msg ctx
     -> IO (Maybe (Worker key resource))
 newWorker ctx k (MkWorker before main after acquire) = do
     mvar <- newEmptyMVar
@@ -230,12 +228,11 @@ newWorker ctx k (MkWorker before main after acquire) = do
     cleanup mvar e = tryPutMVar mvar Nothing *> after tr' e
 
 -- | A worker log event includes the key (i.e. wallet ID) as context.
-data WithWorkerKey key = WithWorkerKey key Text
+data WithWorkerKey key msg = WithWorkerKey key msg
     deriving (Eq, Show)
 
-instance ToText key => ToText (WithWorkerKey key) where
-    toText (WithWorkerKey k msg) = T.take 8 (toText k) <> ": " <> msg
-
+instance (ToText key, ToText msg) => ToText (WithWorkerKey key msg) where
+    toText (WithWorkerKey k msg) = T.take 8 (toText k) <> ": " <> toText msg
 
 {-------------------------------------------------------------------------------
                                     Logging
@@ -244,21 +241,20 @@ instance ToText key => ToText (WithWorkerKey key) where
 transformTrace
     :: ToText key
     => key
-    -> Trace IO Text
-    -> Trace IO Text
-transformTrace k tr =
-    contramap (fmap (toText . WithWorkerKey k)) $ appendName "worker" tr
+    -> Tracer IO (WithWorkerKey key msg)
+    -> Tracer IO msg
+transformTrace k = contramap (WithWorkerKey k)
 
-data WorkerRegistryLog
+data WorkerRegistryLog msg
     = MsgFinished
     | MsgThreadKilled
     | MsgUserInterrupt
     | MsgUnhandledException Text
-    | MsgFromWorker Text
+    | MsgFromWorker msg
     -- ^ Registry permits workers to log with Text only
     deriving (Show, Eq)
 
-instance ToText WorkerRegistryLog where
+instance ToText msg => ToText (WorkerRegistryLog msg) where
     toText = \case
         MsgFinished ->
             "Worker has exited: main action is over."
@@ -266,16 +262,16 @@ instance ToText WorkerRegistryLog where
             "Worker has exited: killed by parent."
         MsgUserInterrupt ->
             "Worker has exited: killed by user."
-        MsgUnhandledException msg ->
-            "Worker has exited unexpectedly: " <> msg
+        MsgUnhandledException err ->
+            "Worker has exited unexpectedly: " <> err
         MsgFromWorker msg ->
-            msg
+            toText msg
 
-instance DefinePrivacyAnnotation WorkerRegistryLog
-instance DefineSeverity WorkerRegistryLog where
+instance DefinePrivacyAnnotation (WorkerRegistryLog msg)
+instance DefineSeverity msg => DefineSeverity (WorkerRegistryLog msg) where
     defineSeverity = \case
         MsgFinished -> Notice
         MsgThreadKilled -> Notice
         MsgUserInterrupt -> Notice
         MsgUnhandledException _ -> Error
-        MsgFromWorker _ -> Info
+        MsgFromWorker msg -> defineSeverity msg
