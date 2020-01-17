@@ -133,7 +133,7 @@ saturatedPoolRewards constants pool =
 -- | Determines z0, i.e 1 / k
 saturatedPoolSize :: EpochConstants -> RelativeStakeOf "pool"
 saturatedPoolSize constants =
-    RelativeStake $ 1 / fromIntegral (getPositive $ optimalNumberOfPools constants)
+    RelativeStake $ 1 / fromIntegral (getPositive $ desiredNumberOfPools constants)
 
 --------------------------------------------------------------------------------
 -- Types
@@ -142,7 +142,7 @@ saturatedPoolSize constants =
 data EpochConstants = EpochConstants
     { leaderStakeInfluence :: NonNegative Double
       -- ^ a_0
-    , optimalNumberOfPools :: Positive Int
+    , desiredNumberOfPools :: Positive Int
       -- ^ k
     , totalRewards :: Lovelace
       -- ^ Total rewards in an epoch. "R" in the spec.
@@ -150,10 +150,15 @@ data EpochConstants = EpochConstants
 
 data Pool = Pool
     { leaderStake :: RelativeStakeOf "pool leader"
+      -- ^ s
     , cost :: Lovelace
+      -- ^ c
     , margin :: Margin
+      -- ^ m
     , recentAvgPerformance :: NonNegative Double
-      -- ^ An already averaged performance-value
+      -- ^ \hat{p}, an already averaged performance-value.
+      --
+      -- Should mostly be in the range [0, 1], but lucky pools may exceed 1.
     } deriving (Show, Eq, Generic)
 
 newtype Lovelace = Lovelace { getLovelace :: NonNegative Double }

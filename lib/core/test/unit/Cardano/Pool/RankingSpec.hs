@@ -33,6 +33,8 @@ import Cardano.Pool.Ranking
     , unsafeMkMargin
     , unsafeToNonNegative
     )
+import Control.Exception
+    ( SomeException, evaluate, try )
 import Data.Bifunctor
     ( bimap )
 import Data.Function
@@ -62,7 +64,9 @@ import Test.QuickCheck
     , classify
     , counterexample
     , forAll
+    , ioProperty
     , property
+    , (.&&.)
     , (===)
     , (==>)
     )
@@ -104,6 +108,47 @@ spec = do
         describe "mkRelativeStake" $ do
             it "stake > R, R >= 1 => mkRelativeStake ∈ [0,1] (even with conversions)"
                 $ property prop_mkRelativeStakeBounds
+
+        describe "newtypes" $ do
+            it "unsafeMkMargin requires ∈ [0,1]"
+                $ property $ \v -> ioProperty $
+                    prop_unsafeTo
+                        (\x -> x >= 0 && x <= 1)
+                        R.unsafeMkMargin
+                        R.getMargin
+                        v
+            it "unsafeToPositive requires > 0" $
+                property $ \(v :: Int) -> ioProperty $
+                    prop_unsafeTo
+                        (> 0)
+                        R.unsafeToPositive
+                        R.getPositive
+                        v
+            it "unsafeToNonNegative requires >= 0" $
+                property $ \(v :: Double) -> ioProperty $
+                    prop_unsafeTo
+                        (>= 0)
+                        R.unsafeToNonNegative
+                        R.getNonNegative
+                        v
+
+prop_unsafeTo
+    :: (Eq a, Show a)
+    => (a -> Bool)
+    -> (a -> b)
+    -> (b -> a)
+    -> a
+    -> IO Property
+prop_unsafeTo isValid f g x = do
+    r <- try . evaluate . f $ x
+    let valid = isValid x
+    return $
+        case r of
+            Left (_e::SomeException) -> valid === False
+            Right x' -> g x' === x .&&. valid === True
+
+        & classify valid "valid"
+        & classify (not valid) "error"
 
 prop_mkRelativeStakeBounds :: EpochConstants -> Word64 -> Word64 -> Property
 prop_mkRelativeStakeBounds constants' tot stake =
@@ -237,7 +282,7 @@ instance Arbitrary (RelativeStakeOf a) where
         map RelativeStake $ filter (\a -> a >= 0 && a <= 1) $ shrink x
 
 -- TODO: We should ideally not export the NonNegative and Positive constructors,
--- in which case we wouldn't be able to use derivingVia.
+-- in which case we wouldn't be able to use DerivingVia.
 deriving via (NonNegative Double) instance (Arbitrary Lovelace)
 deriving via (NonNegative Double) instance (Arbitrary (R.NonNegative Double))
 deriving via (Positive Int) instance (Arbitrary (R.Positive Int))
