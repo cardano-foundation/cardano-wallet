@@ -70,7 +70,7 @@ import Test.QuickCheck
     , (==>)
     )
 import Test.QuickCheck.Arbitrary.Generic
-    ( genericArbitrary, genericShrink )
+    ( genericArbitrary )
 
 import qualified Cardano.Pool.Ranking as R
 
@@ -265,7 +265,7 @@ allElseEqualProperty expectedEffect pool constants =
 
 instance Arbitrary Pool where
     arbitrary = genericArbitrary
-    shrink = genericShrink
+    shrink _ = []
 
 -- TODO: We should ideally not export the NonNegative and Positive constructors,
 -- in which case we wouldn't be able to use DerivingVia.
@@ -282,4 +282,4 @@ instance Arbitrary Ratio where
 
 instance Arbitrary EpochConstants where
     arbitrary = genericArbitrary
-    shrink = genericShrink
+    shrink _ = []
