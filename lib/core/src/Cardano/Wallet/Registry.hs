@@ -41,8 +41,6 @@ import Cardano.BM.Data.Tracer
     ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
 import Cardano.Wallet
     ( HasLogger, logger )
-import Cardano.Wallet.Logging
-    ( logTrace )
 import Control.Concurrent
     ( ThreadId, forkFinally, killThread )
 import Control.Concurrent.MVar
@@ -64,7 +62,7 @@ import Control.Exception
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Tracer
-    ( Tracer, contramap )
+    ( Tracer, contramap, traceWith )
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
@@ -181,7 +179,7 @@ defaultWorkerAfter
     :: Tracer IO (WorkerRegistryLog msg)
     -> Either SomeException a
     -> IO ()
-defaultWorkerAfter tr = logTrace tr . \case
+defaultWorkerAfter tr = traceWith tr . \case
     Right _ -> MsgFinished
     Left e -> case asyncExceptionFromException e of
         Just ThreadKilled -> MsgThreadKilled
@@ -199,8 +197,8 @@ defaultWorkerAfter tr = logTrace tr . \case
 -- >>> newWorker ctx k withDBLayer restoreWallet
 -- worker<thread#1234>
 newWorker
-    :: forall key resource msg s ctx.
-        ( HasLogger s ctx
+    :: forall key resource msg ctx.
+        ( HasLogger ctx
         , HasWorkerCtx resource ctx
         , ToText key
         )
@@ -211,7 +209,7 @@ newWorker
 newWorker ctx k (MkWorker before main after acquire) = do
     mvar <- newEmptyMVar
     let io = acquire $ \resource -> do
-            let ctx' = hoistResource resource (ctx & logger .~ tr')
+            let ctx' = hoistResource resource (ctx & logger .~ tr)
             before ctx' k `finally` putMVar mvar (Just resource)
             main ctx' k
     threadId <- forkFinally io (cleanup mvar)
@@ -225,7 +223,7 @@ newWorker ctx k (MkWorker before main after acquire) = do
   where
     tr  = ctx ^. logger
     tr' = transformTrace k tr
-    cleanup mvar e = tryPutMVar mvar Nothing *> after tr' e
+    cleanup mvar e = tryPutMVar mvar Nothing *> after tr e
 
 -- | A worker log event includes the key (i.e. wallet ID) as context.
 data WithWorkerKey key msg = WithWorkerKey key msg
@@ -241,9 +239,9 @@ instance (ToText key, ToText msg) => ToText (WithWorkerKey key msg) where
 transformTrace
     :: ToText key
     => key
-    -> Tracer IO (WithWorkerKey key msg)
     -> Tracer IO msg
-transformTrace k = contramap (WithWorkerKey k)
+    -> Tracer IO (WithWorkerKey key msg)
+transformTrace k = contramap (\(WithWorkerKey _ msg) -> msg)
 
 data WorkerRegistryLog msg
     = MsgFinished

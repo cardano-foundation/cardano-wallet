@@ -366,7 +366,7 @@ import qualified Data.Set as Set
 
 data WalletLayer s t (k :: Depth -> * -> *)
     = WalletLayer
-        (Tracer IO (WalletLog s))
+        (Tracer IO WalletLog)
         (Block, BlockchainParameters, SyncTolerance)
         (NetworkLayer IO t Block)
         (TransactionLayer t k)
@@ -407,7 +407,7 @@ type HasDBLayer s k = HasType (DBLayer IO s k)
 
 type HasGenesisData = HasType (Block, BlockchainParameters, SyncTolerance)
 
-type HasLogger s = HasType (Tracer IO (WalletLog s))
+type HasLogger = HasType (Tracer IO WalletLog)
 
 -- | This module is only interested in one block-, and tx-type. This constraint
 -- hides that choice, for some ease of use.
@@ -428,10 +428,10 @@ genesisData =
     typed @(Block, BlockchainParameters, SyncTolerance)
 
 logger
-    :: forall s ctx. HasLogger s ctx
-    => Lens' ctx (Tracer IO (WalletLog s))
+    :: forall s ctx. HasLogger ctx
+    => Lens' ctx (Tracer IO WalletLog)
 logger =
-    typed @(Tracer IO (WalletLog s))
+    typed @(Tracer IO WalletLog)
 
 networkLayer
     :: forall t ctx. (HasNetworkLayer t ctx)
@@ -600,7 +600,7 @@ listUtxoStatistics ctx wid = do
 -- network tip is reached or until failure.
 restoreWallet
     :: forall ctx s t k.
-        ( HasLogger s ctx
+        ( HasLogger ctx
         , HasNetworkLayer t ctx
         , HasDBLayer s k ctx
         , HasGenesisData ctx
@@ -628,7 +628,7 @@ restoreWallet ctx wid = db & \DBLayer{..} -> do
 -- the earliest point in the past that is before or is the point of rollback.
 rollbackBlocks
     :: forall ctx s k.
-        ( HasLogger s ctx
+        ( HasLogger ctx
         , HasDBLayer s k ctx
         )
     => ctx
@@ -647,7 +647,7 @@ rollbackBlocks ctx wid point = db & \DBLayer{..} -> do
 -- transaction history and corresponding metadata.
 restoreBlocks
     :: forall ctx s k.
-        ( HasLogger s ctx
+        ( HasLogger ctx
         , HasDBLayer s k ctx
         , HasGenesisData ctx
         )
@@ -705,7 +705,7 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> do
     tr = ctx ^. logger @s
 
     logCheckpoint :: Wallet s -> IO ()
-    logCheckpoint cp = traceWith tr $ MsgCheckpoint cp
+    logCheckpoint cp = traceWith tr $ MsgCheckpoint (currentTip cp)
 
     logDelegation :: (SlotId, DelegationCertificate) -> IO ()
     logDelegation (slotId, cert) = traceWith tr $ MsgDelegation slotId cert
@@ -840,7 +840,7 @@ feeOpts tl feeCompute feePolicy = FeeOptions
 selectCoinsForPayment
     :: forall ctx s t k e.
         ( HasTransactionLayer t k ctx
-        , HasLogger s ctx
+        , HasLogger ctx
         , HasDBLayer s k ctx
         , e ~ ErrValidateSelection t
         )
@@ -871,7 +871,7 @@ selectCoinsForPayment ctx wid recipients = do
 selectCoinsForDelegation
     :: forall ctx s t k.
         ( HasTransactionLayer t k ctx
-        , HasLogger s ctx
+        , HasLogger ctx
         , HasDBLayer s k ctx
         )
     => ctx
@@ -1062,7 +1062,7 @@ selectCoinsExternal
     :: forall ctx s t k e.
         ( GenChange s
         , HasDBLayer s k ctx
-        , HasLogger s ctx
+        , HasLogger ctx
         , HasTransactionLayer t k ctx
         , IsOwned s k
         , NFData s
@@ -1324,7 +1324,7 @@ data DelegationAction = Join | Quit
 joinStakePool
     :: forall ctx s t k.
         ( HasDBLayer s k ctx
-        , HasLogger s ctx
+        , HasLogger ctx
         , HasNetworkLayer t ctx
         , HasTransactionLayer t k ctx
         , Show s
@@ -1367,7 +1367,7 @@ joinStakePool ctx wid (pid, pools) argGenChange pwd = db & \DBLayer{..} -> do
 quitStakePool
     :: forall ctx s t k.
         ( HasDBLayer s k ctx
-        , HasLogger s ctx
+        , HasLogger ctx
         , HasNetworkLayer t ctx
         , HasTransactionLayer t k ctx
         , Show s
@@ -1571,12 +1571,12 @@ withNoSuchWallet wid =
                                     Logging
 -------------------------------------------------------------------------------}
 
-data WalletLog s
+data WalletLog
     = MsgTryingRollback SlotId
     | MsgRolledBack SlotId
     | MsgFollow FollowLog
     | MsgDelegation SlotId DelegationCertificate
-    | MsgCheckpoint (Wallet s)
+    | MsgCheckpoint BlockHeader
     | MsgMetadata WalletMetadata
     | MsgSyncProgress SyncProgress
     | MsgDiscoveredTxs [(Tx, TxMeta)]
@@ -1588,7 +1588,7 @@ data WalletLog s
     | MsgPaymentCoinSelectionAdjusted CoinSelection
     deriving (Show, Eq)
 
-instance ToText (WalletLog s) where
+instance ToText WalletLog where
     toText = \case
         MsgTryingRollback point ->
             "Try rolling back to " <> pretty point
@@ -1607,8 +1607,8 @@ instance ToText (WalletLog s) where
                 , " within slot "
                 , pretty slotId
                 ]
-        MsgCheckpoint cp ->
-            "Creating checkpoint at " <> pretty (currentTip cp)
+        MsgCheckpoint checkpointTip ->
+            "Creating checkpoint at " <> pretty checkpointTip
         MsgMetadata meta ->
             pretty meta
         MsgSyncProgress progress ->
@@ -1628,8 +1628,8 @@ instance ToText (WalletLog s) where
         MsgPaymentCoinSelectionAdjusted sel ->
             "Coins after fee adjustment: \n" <> pretty sel
 
-instance DefinePrivacyAnnotation (WalletLog s)
-instance DefineSeverity (WalletLog s) where
+instance DefinePrivacyAnnotation WalletLog
+instance DefineSeverity WalletLog where
     defineSeverity = \case
         MsgTryingRollback _ -> Info
         MsgRolledBack _ -> Info
