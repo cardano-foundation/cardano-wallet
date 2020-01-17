@@ -153,9 +153,10 @@ data Pool = Pool
     , margin :: Ratio
       -- ^ m
     , recentAvgPerformance :: NonNegative Double
-      -- ^ \hat{p}, an already averaged performance-value.
+      -- ^ \hat{p}, an already averaged (apparent) performance-value.
       --
-      -- Should mostly be in the range [0, 1], but lucky pools may exceed 1.
+      -- Should mostly be in the range [0, 1]. May be higher than 1 due to
+      -- randomness.
     } deriving (Show, Eq, Generic)
 
 newtype Lovelace = Lovelace { getLovelace :: Word64 }
