@@ -48,7 +48,7 @@ import Cardano.Launcher
 import Cardano.Wallet.DB
     ( DBLayer (..), PrimaryKey (..), cleanDB )
 import Cardano.Wallet.DB.Sqlite
-    ( newDBLayer )
+    ( DefaultFieldValues (..), newDBLayer )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0, genesisParameters, mkTxId )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -75,7 +75,8 @@ import Cardano.Wallet.Primitive.Mnemonic
 import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet, unsafeInitWallet )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
+    ( ActiveSlotCoefficient (..)
+    , Address (..)
     , BlockHeader (..)
     , Coin (..)
     , Direction (..)
@@ -333,8 +334,12 @@ withDB bm = envWithCleanup setupDB cleanupDB (\ ~(_, _, db) -> bm db)
 setupDB :: IO (FilePath, SqliteContext, DBLayerBench)
 setupDB = do
     f <- emptySystemTempFile "bench.db"
-    (ctx, db) <- newDBLayer nullTracer (Just f)
+    (ctx, db) <- newDBLayer nullTracer defaultFieldValues (Just f)
     pure (f, ctx, db)
+
+defaultFieldValues :: DefaultFieldValues
+defaultFieldValues = DefaultFieldValues
+    { defaultActiveSlotCoefficient = ActiveSlotCoefficient 1.0 }
 
 cleanupDB :: (FilePath, SqliteContext, DBLayerBench) -> IO ()
 cleanupDB (db, ctx, _) = do
