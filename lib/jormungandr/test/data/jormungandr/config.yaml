@@ -3,4 +3,5 @@ p2p:
   topics_of_interest:
     messages: low
     blocks: normal
-  public_address: "/ip4/127.0.0.1/tcp/8081"
+  # Listen on localhost, on any free port. Only suitable for self node.
+  public_address: "/ip4/127.0.0.1/tcp/0"
