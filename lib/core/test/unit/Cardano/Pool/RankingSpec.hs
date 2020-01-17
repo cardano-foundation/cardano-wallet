@@ -104,9 +104,9 @@ spec = do
             it "saturatedPoolRewards >= 0"
                 $ property prop_saturatedPoolRewardsNonNegative
 
-        describe "mkRelativeStake" $ do
-            it "stake > R, R >= 1 => mkRelativeStake ∈ [0,1] (even with conversions)"
-                $ property prop_mkRelativeStakeBounds
+        describe "unsafeMkRelativeStake" $ do
+            it "R > 0, stake > R => unsafeMkRelativeStake ∈ [0,1]"
+                $ property prop_unsafeMkRelativeStakeBounds
 
         describe "unsafeTo- newtypes" $ do
             it "unsafeToRatio requires ∈ [0,1]"
@@ -149,16 +149,16 @@ prop_unsafeTo isValid f g x = do
         & classify valid "valid"
         & classify (not valid) "error"
 
-prop_mkRelativeStakeBounds :: EpochConstants -> Lovelace -> Property
-prop_mkRelativeStakeBounds constants stake =
+prop_unsafeMkRelativeStakeBounds :: EpochConstants -> Lovelace -> Property
+prop_unsafeMkRelativeStakeBounds constants stake =
     let
         s = getRatio $ unsafeMkRelativeStake stake constants
         total = totalRewards constants
     in
-            total >= 1 ==>
-                total >= stake ==>
-                    property $ s >= 0 && s <= 1
-            & counterexample ("relative stake = " ++ show s)
+        total > 0 ==>
+            total >= stake ==>
+                property $ s >= 0 && s <= 1
+        & counterexample ("relative stake = " ++ show s)
 
 prop_desirabilityNonNegative :: EpochConstants -> Pool -> Property
 prop_desirabilityNonNegative constants pool = property $
