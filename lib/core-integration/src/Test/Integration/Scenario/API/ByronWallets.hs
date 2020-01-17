@@ -87,7 +87,6 @@ import Test.Integration.Framework.DSL
     , json
     , passphraseLastUpdate
     , request
-    , state
     , unsafeRequest
     , verify
     , walletId
@@ -814,7 +813,8 @@ spec = do
                             [ expectFieldEqual walletName name
                             , expectFieldEqual byronBalanceAvailable 0
                             , expectFieldEqual byronBalanceTotal 0
-                            , expectEventually ctx (Link.getWallet @'Byron) state Ready
+                            , expectEventually ctx (Link.getWallet @'Byron)
+                                    (#state . #getApiT) Ready
                             , expectFieldNotEqual passphraseLastUpdate Nothing
                             ]
                 -- create

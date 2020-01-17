@@ -91,7 +91,6 @@ import Test.Integration.Framework.DSL
     , passphraseLastUpdate
     , request
     , selectCoins
-    , state
     , unsafeRequest
     , verify
     , walletId
@@ -170,7 +169,8 @@ spec = do
             , expectFieldEqual balanceAvailable 0
             , expectFieldEqual balanceTotal 0
             , expectFieldEqual balanceReward 0
-            , expectEventually ctx (Link.getWallet @'Shelley) state Ready
+            , expectEventually ctx (Link.getWallet @'Shelley)
+                    (#state . #getApiT) Ready
             , expectFieldEqual delegation (NotDelegating)
             , expectFieldEqual walletId
                 "2cf060fe53e4e0593f145f22b858dfc60676d4ab"
@@ -897,7 +897,8 @@ spec = do
             , expectFieldEqual balanceAvailable 0
             , expectFieldEqual balanceTotal 0
             , expectFieldEqual balanceReward 0
-            , expectEventually ctx (Link.getWallet @'Shelley) state Ready
+            , expectEventually ctx (Link.getWallet @'Shelley)
+                    (#state . #getApiT) Ready
             , expectFieldEqual delegation (NotDelegating)
             , expectFieldEqual walletId (w ^. walletId)
             , expectFieldNotEqual passphraseLastUpdate Nothing
@@ -1039,7 +1040,8 @@ spec = do
                             (#addressPoolGap . #getApiT . #getAddressPoolGap) 20
                     , expectFieldEqual balanceAvailable 0
                     , expectFieldEqual balanceTotal 0
-                    , expectEventually ctx (Link.getWallet @'Shelley) state Ready
+                    , expectEventually ctx (Link.getWallet @'Shelley)
+                            (#state . #getApiT) Ready
                     , expectFieldEqual delegation (NotDelegating)
                     , expectFieldEqual walletId walId
                     , expectFieldEqual passphraseLastUpdate passLastUpdateValue

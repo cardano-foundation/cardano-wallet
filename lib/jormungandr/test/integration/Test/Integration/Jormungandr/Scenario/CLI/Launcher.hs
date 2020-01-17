@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
@@ -58,7 +59,6 @@ import Test.Integration.Framework.DSL
     , expectValidJSON
     , generateMnemonicsViaCLI
     , proc'
-    , state
     , waitForServer
     )
 import Test.Utils.Paths
@@ -210,7 +210,8 @@ spec = do
                 TIO.hGetContents e >>= TIO.putStrLn
             withCreateProcess process $ \_ (Just o) (Just e) ph -> do
                 waitForServer @t ctx
-                expectEventually' ctx (Link.getWallet @'Shelley) state Ready wallet
+                expectEventually' ctx (Link.getWallet @'Shelley)
+                        (#state . #getApiT) Ready wallet
               `finally` do
                 terminateProcess ph
                 TIO.hGetContents o >>= TIO.putStrLn

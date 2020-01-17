@@ -75,7 +75,6 @@ import Test.Integration.Framework.DSL
     , listWalletsViaCLI
     , passphraseLastUpdate
     , postTransactionViaCLI
-    , state
     , updateWalletNameViaCLI
     , updateWalletPassphraseViaCLI
     , verify
@@ -173,7 +172,8 @@ spec = do
             , expectCliFieldEqual balanceAvailable 0
             , expectCliFieldEqual balanceTotal 0
             , expectCliFieldEqual balanceReward 0
-            , expectEventually' ctx (Link.getWallet @'Shelley) state Ready
+            , expectEventually' ctx (Link.getWallet @'Shelley)
+                    (#state . #getApiT) Ready
             , expectCliFieldEqual delegation (NotDelegating)
             , expectCliFieldNotEqual passphraseLastUpdate Nothing
             ]
@@ -219,7 +219,8 @@ spec = do
         T.unpack e2 `shouldContain` cmdOk
         wRestored <- expectValidJSON (Proxy @ApiWallet) o2
         verify wRestored
-            [ expectEventually' ctx (Link.getWallet @'Shelley) state Ready
+            [ expectEventually' ctx (Link.getWallet @'Shelley)
+                    (#state . #getApiT) Ready
             , expectCliFieldEqual walletId (wDest ^. walletId)
             ]
 
@@ -414,7 +415,8 @@ spec = do
             , expectCliFieldEqual balanceAvailable 0
             , expectCliFieldEqual balanceTotal 0
             , expectCliFieldEqual balanceReward 0
-            , expectEventually' ctx (Link.getWallet @'Shelley) state Ready
+            , expectEventually' ctx (Link.getWallet @'Shelley)
+                    (#state . #getApiT) Ready
             , expectCliFieldEqual delegation (NotDelegating)
             , expectCliFieldNotEqual passphraseLastUpdate Nothing
             ]

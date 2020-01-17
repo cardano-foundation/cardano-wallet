@@ -100,7 +100,6 @@ import Test.Integration.Framework.DSL as DSL
     , listAddresses
     , listAllTransactions
     , request
-    , state
     , status
     , verify
     , walletId
@@ -490,7 +489,7 @@ fixtureExternalTx ctx toSend = do
     r1 <- request @ApiWallet ctx ("POST", "v2/wallets") Default createWallet
     verify r1
         [ expectFieldEqual walletName "Destination Wallet"
-        , expectEventually ctx (Link.getWallet @'Shelley) state Ready
+        , expectEventually ctx (Link.getWallet @'Shelley) (#state . #getApiT) Ready
         ]
     let wDest = getFromResponse Prelude.id r1
     addrsDest <- listAddresses ctx wDest

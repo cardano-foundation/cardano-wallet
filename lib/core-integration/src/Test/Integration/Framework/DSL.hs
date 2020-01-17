@@ -70,7 +70,6 @@ module Test.Integration.Framework.DSL
     , outputs
     , passphraseLastUpdate
     , stake
-    , state
     , status
     , syncProgress
     , walletId
@@ -749,15 +748,6 @@ passphraseLastUpdate =
     _set :: (s, Maybe Text) -> s
     _set (s, v) =
         set typed (ApiT . WalletPassphraseInfo . read . T.unpack <$> v) s
-
-state :: HasField' "state" s (ApiT t) => Lens' s t
-state =
-    lens _get _set
-  where
-    _get :: HasField' "state" s (ApiT t) => s -> t
-    _get = getApiT . getField @"state"
-    _set :: HasField' "state" s (ApiT t) => (s, t) -> s
-    _set (s, v) = setField @"state" (ApiT v) s
 
 walletName :: HasType (ApiT WalletName) s => Lens' s Text
 walletName =
