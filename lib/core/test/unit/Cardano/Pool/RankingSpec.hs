@@ -267,7 +267,7 @@ allElseEqualProperty expectedEffect pool constants =
 
 instance Arbitrary Pool where
     arbitrary = genericArbitrary
-    shrink _ = [] -- TODO: Implement a shrinker that works.
+    shrink = genericShrink
 
 -- TODO: We should ideally not export the NonNegative and Positive constructors,
 -- in which case we wouldn't be able to use DerivingVia.
@@ -277,9 +277,7 @@ deriving via (Positive Int) instance (Arbitrary (R.Positive Int))
 
 instance Arbitrary Ratio where
     arbitrary = unsafeMkRatio <$> choose (0, 1)
-    shrink = map unsafeMkRatio
-        . map getRatio
-        . shrink
+    shrink _ = [] -- TODO: Implement a shrinker that works.
 
 instance Arbitrary EpochConstants where
     arbitrary = genericArbitrary
