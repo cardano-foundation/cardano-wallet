@@ -25,11 +25,10 @@ import Cardano.Pool.Ranking
     , Lovelace (..)
     , Pool (..)
     , Ratio (..)
-    , RelativeStakeOf (..)
     , desirability
-    , mkRelativeStake
     , saturatedPoolRewards
     , saturatedPoolSize
+    , unsafeMkRelativeStake
     , unsafeToNonNegative
     , unsafeToRatio
     )
@@ -153,8 +152,7 @@ prop_unsafeTo isValid f g x = do
 prop_mkRelativeStakeBounds :: EpochConstants -> Word64 -> Word64 -> Property
 prop_mkRelativeStakeBounds constants' tot stake =
     let
-        rel = unRelativeStake
-            $ mkRelativeStake
+        rel = getRatio $ unsafeMkRelativeStake
                 (Lovelace $ fromIntegral stake)
                 constants
     in
@@ -180,7 +178,7 @@ prop_saturatedPoolRewardsReduces constants' pool =
     let
         constants = constants'
             { leaderStakeInfluence = unsafeToNonNegative 0 }
-        z0 = unRelativeStake  $ saturatedPoolSize constants
+        z0 = getRatio $ saturatedPoolSize constants
         _R = R.getNonNegative $ getLovelace $ totalRewards constants
         p  = R.getNonNegative $ recentAvgPerformance pool
     in
@@ -193,7 +191,7 @@ prop_oversaturationDoesNotInfluenceDesirability
 prop_oversaturationDoesNotInfluenceDesirability pool constants =
     forAll arbitrary $ \v1 v2 -> do
         let (higherStake, lowerStake) = sortTuple (v1, v2)
-        let z0 = unRelativeStake $ saturatedPoolSize constants
+        let z0 = getRatio $ saturatedPoolSize constants
         higherStake > z0 ==>
             des higherStake === des lowerStake
   where
@@ -273,13 +271,6 @@ allElseEqualProperty expectedEffect pool constants =
 instance Arbitrary Pool where
     arbitrary = genericArbitrary
     shrink = genericShrink
-
-instance Arbitrary (RelativeStakeOf a) where
-    arbitrary =
-        RelativeStake <$> choose (0, 1)
-
-    shrink (RelativeStake x) =
-        map RelativeStake $ filter (\a -> a >= 0 && a <= 1) $ shrink x
 
 -- TODO: We should ideally not export the NonNegative and Positive constructors,
 -- in which case we wouldn't be able to use DerivingVia.

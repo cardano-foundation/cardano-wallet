@@ -2,7 +2,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -74,12 +73,11 @@ module Cardano.Pool.Ranking
       -- * Types
     , EpochConstants (..)
     , Pool (..)
-    , RelativeStakeOf (..)
-    , mkRelativeStake
     , Lovelace (..)
     , Ratio
     , unsafeToRatio
     , getRatio
+    , unsafeMkRelativeStake
     , NonNegative (..)
     , Positive (..)
     , unsafeToPositive
@@ -91,8 +89,6 @@ import Prelude
 
 import GHC.Generics
     ( Generic )
-import GHC.TypeLits
-    ( Symbol )
 
 --------------------------------------------------------------------------------
 -- Formulas from spec
@@ -121,8 +117,8 @@ saturatedPoolRewards :: EpochConstants -> Pool -> Double
 saturatedPoolRewards constants pool =
     let
         a0 = getNonNegative $ leaderStakeInfluence constants
-        z0 = unRelativeStake $ saturatedPoolSize constants
-        s = unRelativeStake $ leaderStake pool
+        z0 = getRatio $ saturatedPoolSize constants
+        s = getRatio $ leaderStake pool
         _R = getNonNegative $ getLovelace $ totalRewards constants
         p = getNonNegative $ recentAvgPerformance pool
         -- ^ technically \hat{p} in the spec
@@ -131,9 +127,9 @@ saturatedPoolRewards constants pool =
         * (z0 + ((min s z0) * a0))
 
 -- | Determines z0, i.e 1 / k
-saturatedPoolSize :: EpochConstants -> RelativeStakeOf "pool"
+saturatedPoolSize :: EpochConstants -> Ratio
 saturatedPoolSize constants =
-    RelativeStake $ 1 / fromIntegral (getPositive $ desiredNumberOfPools constants)
+    Ratio $ 1 / fromIntegral (getPositive $ desiredNumberOfPools constants)
 
 --------------------------------------------------------------------------------
 -- Types
@@ -149,7 +145,7 @@ data EpochConstants = EpochConstants
     } deriving (Show, Eq, Generic)
 
 data Pool = Pool
-    { leaderStake :: RelativeStakeOf "pool leader"
+    { leaderStake :: Ratio
       -- ^ s
     , cost :: Lovelace
       -- ^ c
@@ -175,20 +171,9 @@ unsafeToRatio x
     | otherwise         = error $ "unsafeToRatio: " ++ show x
                           ++ "not in range [0, 1]"
 
--- | Stake relative to the total active stake in an epoch
---
--- The value
--- 0.01 :: RelativeStakeOf "pool"
--- would mean that a pool has a stake that is 1% of the total active stake in
--- the epoch.
-newtype RelativeStakeOf (tag :: Symbol)
-    = RelativeStake { unRelativeStake :: Double }
-    deriving (Eq, Ord, Show, Generic)
-    deriving newtype (Num, Fractional)
-
-mkRelativeStake :: Lovelace -> EpochConstants -> RelativeStakeOf (tag :: Symbol)
-mkRelativeStake (Lovelace (NonNegative stake)) constants =
-    RelativeStake $ stake / total
+unsafeMkRelativeStake :: Lovelace -> EpochConstants -> Ratio
+unsafeMkRelativeStake (Lovelace (NonNegative stake)) constants =
+    unsafeToRatio $ stake / total
   where
     total = getNonNegative $ getLovelace $ totalRewards constants
 
