@@ -149,21 +149,16 @@ prop_unsafeTo isValid f g x = do
         & classify valid "valid"
         & classify (not valid) "error"
 
-prop_mkRelativeStakeBounds :: EpochConstants -> Word64 -> Word64 -> Property
-prop_mkRelativeStakeBounds constants' tot stake =
+prop_mkRelativeStakeBounds :: EpochConstants -> Lovelace -> Property
+prop_mkRelativeStakeBounds constants stake =
     let
-        rel = getRatio $ unsafeMkRelativeStake
-                (Lovelace $ fromIntegral stake)
-                constants
+        s = getRatio $ unsafeMkRelativeStake stake constants
+        total = totalRewards constants
     in
-        counterexample ("relative stake = " ++ show rel) $
-            tot >= 1 ==>
-                tot >= stake ==>
-                    property $ rel >= 0 && rel <= 1
-
-  where
-    constants = constants'
-        { totalRewards = Lovelace . unsafeToNonNegative $ fromIntegral tot }
+            total >= 1 ==>
+                total >= stake ==>
+                    property $ s >= 0 && s <= 1
+            & counterexample ("relative stake = " ++ show s)
 
 prop_desirabilityNonNegative :: EpochConstants -> Pool -> Property
 prop_desirabilityNonNegative constants pool = property $
@@ -179,7 +174,7 @@ prop_saturatedPoolRewardsReduces constants' pool =
         constants = constants'
             { leaderStakeInfluence = unsafeToNonNegative 0 }
         z0 = getRatio $ saturatedPoolSize constants
-        _R = R.getNonNegative $ getLovelace $ totalRewards constants
+        _R = fromIntegral $ getLovelace $ totalRewards constants
         p  = R.getNonNegative $ recentAvgPerformance pool
     in
         saturatedPoolRewards constants pool === p*_R*z0
@@ -274,7 +269,7 @@ instance Arbitrary Pool where
 
 -- TODO: We should ideally not export the NonNegative and Positive constructors,
 -- in which case we wouldn't be able to use DerivingVia.
-deriving via (NonNegative Double) instance (Arbitrary Lovelace)
+deriving via Word64 instance (Arbitrary Lovelace)
 deriving via (NonNegative Double) instance (Arbitrary (R.NonNegative Double))
 deriving via (Positive Int) instance (Arbitrary (R.Positive Int))
 

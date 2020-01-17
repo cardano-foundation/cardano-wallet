@@ -87,6 +87,8 @@ module Cardano.Pool.Ranking
 
 import Prelude
 
+import Data.Word
+    ( Word64 )
 import GHC.Generics
     ( Generic )
 
@@ -107,7 +109,7 @@ desirability constants pool
   where
     f_saturated = saturatedPoolRewards constants pool
     m = getRatio $ margin pool
-    c = getNonNegative $ getLovelace $ cost pool
+    c = fromIntegral $ getLovelace $ cost pool
 
 -- | Total rewards for a pool if it were saturated.
 --
@@ -119,7 +121,7 @@ saturatedPoolRewards constants pool =
         a0 = getNonNegative $ leaderStakeInfluence constants
         z0 = getRatio $ saturatedPoolSize constants
         s = getRatio $ leaderStake pool
-        _R = getNonNegative $ getLovelace $ totalRewards constants
+        _R = fromIntegral $ getLovelace $ totalRewards constants
         p = getNonNegative $ recentAvgPerformance pool
         -- ^ technically \hat{p} in the spec
     in
@@ -157,7 +159,7 @@ data Pool = Pool
       -- Should mostly be in the range [0, 1], but lucky pools may exceed 1.
     } deriving (Show, Eq, Generic)
 
-newtype Lovelace = Lovelace { getLovelace :: NonNegative Double }
+newtype Lovelace = Lovelace { getLovelace :: Word64 }
     deriving (Show, Eq)
     deriving newtype (Ord, Num)
 
@@ -172,10 +174,10 @@ unsafeToRatio x
                           ++ "not in range [0, 1]"
 
 unsafeMkRelativeStake :: Lovelace -> EpochConstants -> Ratio
-unsafeMkRelativeStake (Lovelace (NonNegative stake)) constants =
-    unsafeToRatio $ stake / total
+unsafeMkRelativeStake (Lovelace stake) constants =
+    unsafeToRatio $ (fromIntegral stake) / total
   where
-    total = getNonNegative $ getLovelace $ totalRewards constants
+    total = fromIntegral . getLovelace . totalRewards $ constants
 
 newtype Positive a = Positive { getPositive :: a }
     deriving (Generic, Eq, Show)
