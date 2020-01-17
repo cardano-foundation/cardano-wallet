@@ -79,10 +79,8 @@ module Cardano.Wallet.Api
 
 import Prelude
 
-import Cardano.BM.Trace
-    ( Trace )
 import Cardano.Wallet
-    ( WalletLayer (..) )
+    ( WalletLayer (..), WalletLog )
 import Cardano.Wallet.Api.Types
     ( AllowedMnemonics
     , ApiAddress
@@ -130,6 +128,8 @@ import Cardano.Wallet.Registry
     ( HasWorkerCtx (..), WorkerRegistry )
 import Cardano.Wallet.Transaction
     ( TransactionLayer )
+import Control.Tracer
+    ( Tracer )
 import Data.Generics.Internal.VL.Lens
     ( Lens' )
 import Data.Generics.Labels
@@ -501,7 +501,7 @@ type PutAcccepted = Verb 'PUT 202
 
 data ApiLayer s t (k :: Depth -> * -> *)
     = ApiLayer
-        (Trace IO Text)
+        (Tracer IO WalletLog)
         (Block, BlockchainParameters, SyncTolerance)
         (NetworkLayer IO t (Block))
         (TransactionLayer t k)

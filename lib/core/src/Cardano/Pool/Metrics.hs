@@ -58,12 +58,13 @@ import Cardano.Pool.Metadata
     , getStakePoolMetadata
     , sameStakePoolMetadata
     )
-import Cardano.Wallet.Logging
-    ( fromLogObject )
+import Cardano.Wallet
+    ( WalletLog )
 import Cardano.Wallet.Network
     ( ErrNetworkTip
     , ErrNetworkUnavailable
     , FollowAction (..)
+    , FollowLog
     , NetworkLayer (networkTip, stakeDistribution)
     , follow
     , staticBlockchainParameters
@@ -109,8 +110,6 @@ import Data.Ord
     ( Down (..) )
 import Data.Quantity
     ( Percentage, Quantity (..) )
-import Data.Text
-    ( Text )
 import Data.Text.Class
     ( ToText (..) )
 import Data.Vector.Shuffle
@@ -218,7 +217,7 @@ monitorStakePools tr nl db@DBLayer{..} = do
             Right () ->
                 pure Continue
 
-    trFollow = fromLogObject (contramap MsgFollow tr)
+    trFollow = contramap MsgFollow tr
 
 -- | Internal error data-type used to drive the 'forward' logic
 data ErrMonitorStakePools
@@ -605,7 +604,7 @@ associateMetadata poolOwners ownerMeta =
 -- | Messages associated with stake pool layer.
 data StakePoolLayerLog
     = MsgRegistry RegistryLog
-    | MsgStakePoolWorker WorkerRegistryLog
+    | MsgStakePoolWorker (WorkerRegistryLog WalletLog)
     | MsgListStakePoolsBegin
     | MsgMetadataUnavailable
     | MsgMetadataUsing PoolId PoolOwner StakePoolMetadata
@@ -650,7 +649,7 @@ instance ToText StakePoolLayerLog where
 -- | Messages associated with stake pool monitoring
 data StakePoolMonitorLog
     = MsgStartMonitoring [BlockHeader]
-    | MsgFollow Text
+    | MsgFollow FollowLog
     | MsgStakeDistribution EpochNo
     | MsgStakePoolRegistration PoolRegistrationCertificate
     | MsgApplyError ErrMonitorStakePools
@@ -664,7 +663,8 @@ instance ToText StakePoolMonitorLog where
                 [] -> "genesis"
                 _  -> pretty (last cursor)
             ]
-        MsgFollow txt -> txt
+        MsgFollow msg ->
+            toText msg
         MsgStakeDistribution ep ->
             "Writing stake-distribution for epoch " <> pretty ep
         MsgStakePoolRegistration pool ->
@@ -683,7 +683,7 @@ instance DefinePrivacyAnnotation StakePoolMonitorLog
 instance DefineSeverity StakePoolMonitorLog where
     defineSeverity = \case
         MsgStartMonitoring _ -> Info
-        MsgFollow _ -> Info
+        MsgFollow msg -> defineSeverity msg
         MsgStakeDistribution _ -> Info
         MsgStakePoolRegistration _ -> Info
         MsgApplyError e -> case e of

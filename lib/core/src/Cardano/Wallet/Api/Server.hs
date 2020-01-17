@@ -69,6 +69,7 @@ import Cardano.Wallet
     , ErrWithRootKey (..)
     , ErrWrongPassphrase (..)
     , HasLogger
+    , WalletLog
     , genesisData
     , logger
     , networkLayer
@@ -132,8 +133,6 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.DB
     ( DBFactory (..) )
-import Cardano.Wallet.Logging
-    ( fromLogObject, transformTextTrace )
 import Cardano.Wallet.Network
     ( ErrNetworkTip (..), ErrNetworkUnavailable (..), NetworkLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -905,7 +904,7 @@ forceResyncWallet ctx (ApiT wid) tip = guardTip (== W.slotMinBound) $ \pt -> do
     -- controlled that 'point' is genesis.
     safeRollback :: W.SlotId -> ExceptT ErrNoSuchWallet IO ()
     safeRollback point = do
-        let tr' = Registry.transformTrace wid tr
+        let tr' = tr -- Registry.transformTrace wid tr
         ExceptT $ withDatabase df wid $ \db -> do
             let wrk = hoistResource db (ctx & logger .~ tr')
             runExceptT $ W.rollbackBlocks wrk wid point
@@ -1366,7 +1365,7 @@ initWorker ctx wid createWallet restoreWallet =
             unsafeRunExceptT $ restoreWallet ctx'
 
         , workerAfter =
-            defaultWorkerAfter . transformTextTrace
+            defaultWorkerAfter
 
         , workerAcquire =
             withDatabase df wid
@@ -1453,7 +1452,7 @@ getWalletTip wallet = ApiBlockReference
 -- | Create a new instance of the wallet layer.
 newApiLayer
     :: forall ctx s t k. ctx ~ ApiLayer s t k
-    => Tracer IO WorkerRegistryLog
+    => Tracer IO (WorkerRegistryLog WalletLog)
     -> (Block, BlockchainParameters, SyncTolerance)
     -> NetworkLayer IO t Block
     -> TransactionLayer t k
@@ -1463,7 +1462,7 @@ newApiLayer
 newApiLayer tr g0 nw tl df wids = do
     re <- Registry.empty
     let tr' = contramap MsgFromWorker tr
-    let ctx = ApiLayer (fromLogObject tr') g0 nw tl df re
+    let ctx = ApiLayer tr' g0 nw tl df re
     forM_ wids (registerWorker ctx)
     return ctx
 
@@ -1495,7 +1494,7 @@ registerWorker ctx wid = do
                 W.restoreWallet @(WorkerCtx ctx) @s @t ctx' wid
 
         , workerAfter =
-            defaultWorkerAfter . transformTextTrace
+            defaultWorkerAfter
 
         , workerAcquire =
             withDatabase df wid

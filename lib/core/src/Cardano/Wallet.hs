@@ -130,6 +130,9 @@ module Cardano.Wallet
     , withRootKey
     , ErrWithRootKey (..)
     , ErrWrongPassphrase (..)
+
+    -- * Logging
+    , WalletLog (..)
     ) where
 
 import Prelude hiding
