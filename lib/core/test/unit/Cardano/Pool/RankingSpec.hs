@@ -23,15 +23,15 @@ import Prelude
 import Cardano.Pool.Ranking
     ( EpochConstants (..)
     , Lovelace (..)
-    , Margin (..)
     , Pool (..)
+    , Ratio (..)
     , RelativeStakeOf (..)
     , desirability
     , mkRelativeStake
     , saturatedPoolRewards
     , saturatedPoolSize
-    , unsafeMkMargin
     , unsafeToNonNegative
+    , unsafeToRatio
     )
 import Control.Exception
     ( SomeException, evaluate, try )
@@ -109,13 +109,13 @@ spec = do
             it "stake > R, R >= 1 => mkRelativeStake ∈ [0,1] (even with conversions)"
                 $ property prop_mkRelativeStakeBounds
 
-        describe "newtypes" $ do
-            it "unsafeMkMargin requires ∈ [0,1]"
+        describe "unsafeTo- newtypes" $ do
+            it "unsafeToRatio requires ∈ [0,1]"
                 $ property $ \v -> ioProperty $
                     prop_unsafeTo
                         (\x -> x >= 0 && x <= 1)
-                        R.unsafeMkMargin
-                        R.getMargin
+                        R.unsafeToRatio
+                        R.getRatio
                         v
             it "unsafeToPositive requires > 0" $
                 property $ \(v :: Int) -> ioProperty $
@@ -287,11 +287,11 @@ deriving via (NonNegative Double) instance (Arbitrary Lovelace)
 deriving via (NonNegative Double) instance (Arbitrary (R.NonNegative Double))
 deriving via (Positive Int) instance (Arbitrary (R.Positive Int))
 
-instance Arbitrary Margin where
-    arbitrary = unsafeMkMargin <$> choose (0, 1)
-    shrink = map unsafeMkMargin
+instance Arbitrary Ratio where
+    arbitrary = unsafeToRatio <$> choose (0, 1)
+    shrink = map unsafeToRatio
         . filter (\a -> a >= 0 && a <= 1)
-        . map getMargin
+        . map getRatio
         . shrink
 
 instance Arbitrary EpochConstants where

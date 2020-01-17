@@ -77,9 +77,9 @@ module Cardano.Pool.Ranking
     , RelativeStakeOf (..)
     , mkRelativeStake
     , Lovelace (..)
-    , Margin
-    , unsafeMkMargin
-    , getMargin
+    , Ratio
+    , unsafeToRatio
+    , getRatio
     , NonNegative (..)
     , Positive (..)
     , unsafeToPositive
@@ -110,7 +110,7 @@ desirability constants pool
     | otherwise    = (f_saturated - c) * (1 - m)
   where
     f_saturated = saturatedPoolRewards constants pool
-    m = getMargin $ margin pool
+    m = getRatio $ margin pool
     c = getNonNegative $ getLovelace $ cost pool
 
 -- | Total rewards for a pool if it were saturated.
@@ -153,7 +153,7 @@ data Pool = Pool
       -- ^ s
     , cost :: Lovelace
       -- ^ c
-    , margin :: Margin
+    , margin :: Ratio
       -- ^ m
     , recentAvgPerformance :: NonNegative Double
       -- ^ \hat{p}, an already averaged performance-value.
@@ -165,14 +165,14 @@ newtype Lovelace = Lovelace { getLovelace :: NonNegative Double }
     deriving (Show, Eq)
     deriving newtype (Ord, Num)
 
-newtype Margin = Margin { getMargin :: Double }
+newtype Ratio = Ratio { getRatio :: Double }
     deriving (Show, Eq)
     deriving newtype Ord
 
-unsafeMkMargin :: Double -> Margin
-unsafeMkMargin x
-    | x >= 0 && x <= 1  = Margin x
-    | otherwise         = error $ "unsafeMkMargin: " ++ show x
+unsafeToRatio :: Double -> Ratio
+unsafeToRatio x
+    | x >= 0 && x <= 1  = Ratio x
+    | otherwise         = error $ "unsafeToRatio: " ++ show x
                           ++ "not in range [0, 1]"
 
 -- | Stake relative to the total active stake in an epoch
