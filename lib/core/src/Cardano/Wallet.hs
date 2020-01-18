@@ -410,7 +410,7 @@ type HasDBLayer s k = HasType (DBLayer IO s k)
 
 type HasGenesisData = HasType (Block, BlockchainParameters, SyncTolerance)
 
-type HasLogger = HasType (Tracer IO WalletLog)
+type HasLogger msg = HasType (Tracer IO msg)
 
 -- | This module is only interested in one block-, and tx-type. This constraint
 -- hides that choice, for some ease of use.
@@ -431,10 +431,10 @@ genesisData =
     typed @(Block, BlockchainParameters, SyncTolerance)
 
 logger
-    :: forall s ctx. HasLogger ctx
-    => Lens' ctx (Tracer IO WalletLog)
+    :: forall msg ctx. HasLogger msg ctx
+    => Lens' ctx (Tracer IO msg)
 logger =
-    typed @(Tracer IO WalletLog)
+    typed @(Tracer IO msg)
 
 networkLayer
     :: forall t ctx. (HasNetworkLayer t ctx)
@@ -603,7 +603,7 @@ listUtxoStatistics ctx wid = do
 -- network tip is reached or until failure.
 restoreWallet
     :: forall ctx s t k.
-        ( HasLogger ctx
+        ( HasLogger WalletLog ctx
         , HasNetworkLayer t ctx
         , HasDBLayer s k ctx
         , HasGenesisData ctx
@@ -622,7 +622,7 @@ restoreWallet ctx wid = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @s @k
     nw = ctx ^. networkLayer @t
-    tr = contramap MsgFollow (ctx ^. logger @s)
+    tr = contramap MsgFollow (ctx ^. logger @WalletLog)
 
     run :: ExceptT ErrNoSuchWallet IO () -> IO (FollowAction ErrNoSuchWallet)
     run = fmap (either ExitWith (const Continue)) . runExceptT
@@ -631,7 +631,7 @@ restoreWallet ctx wid = db & \DBLayer{..} -> do
 -- the earliest point in the past that is before or is the point of rollback.
 rollbackBlocks
     :: forall ctx s k.
-        ( HasLogger ctx
+        ( HasLogger WalletLog ctx
         , HasDBLayer s k ctx
         )
     => ctx
@@ -644,13 +644,13 @@ rollbackBlocks ctx wid point = db & \DBLayer{..} -> do
     lift $ traceWith tr $ MsgRolledBack point'
   where
     db = ctx ^. dbLayer @s @k
-    tr = ctx ^. logger @s
+    tr = ctx ^. logger @WalletLog
 
 -- | Apply the given blocks to the wallet and update the wallet state,
 -- transaction history and corresponding metadata.
 restoreBlocks
     :: forall ctx s k.
-        ( HasLogger ctx
+        ( HasLogger WalletLog ctx
         , HasDBLayer s k ctx
         , HasGenesisData ctx
         )
@@ -705,7 +705,7 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> do
         traceWith tr $ MsgDiscoveredTxsContent txs
   where
     db = ctx ^. dbLayer @s @k
-    tr = ctx ^. logger @s
+    tr = ctx ^. logger @WalletLog
 
     logCheckpoint :: Wallet s -> IO ()
     logCheckpoint cp = traceWith tr $ MsgCheckpoint (currentTip cp)
@@ -843,7 +843,7 @@ feeOpts tl feeCompute feePolicy = FeeOptions
 selectCoinsForPayment
     :: forall ctx s t k e.
         ( HasTransactionLayer t k ctx
-        , HasLogger ctx
+        , HasLogger WalletLog ctx
         , HasDBLayer s k ctx
         , e ~ ErrValidateSelection t
         )
@@ -867,14 +867,14 @@ selectCoinsForPayment ctx wid recipients = do
         pure balancedSel
   where
     tl = ctx ^. transactionLayer @t @k
-    tr = ctx ^. logger @s
+    tr = ctx ^. logger @WalletLog
 
 -- | Select necessary coins to cover for a single delegation request (including
 -- one certificate).
 selectCoinsForDelegation
     :: forall ctx s t k.
         ( HasTransactionLayer t k ctx
-        , HasLogger ctx
+        , HasLogger WalletLog ctx
         , HasDBLayer s k ctx
         )
     => ctx
@@ -893,7 +893,7 @@ selectCoinsForDelegation ctx wid = do
         pure balancedSel
   where
     tl = ctx ^. transactionLayer @t @k
-    tr = ctx ^. logger @s
+    tr = ctx ^. logger @WalletLog
 
 -- | Constructs a set of coin selections that select all funds from the given
 --   source wallet, returning them as change.
@@ -1065,7 +1065,7 @@ selectCoinsExternal
     :: forall ctx s t k e.
         ( GenChange s
         , HasDBLayer s k ctx
-        , HasLogger ctx
+        , HasLogger WalletLog ctx
         , HasTransactionLayer t k ctx
         , IsOwned s k
         , NFData s
@@ -1327,7 +1327,7 @@ data DelegationAction = Join | Quit
 joinStakePool
     :: forall ctx s t k.
         ( HasDBLayer s k ctx
-        , HasLogger ctx
+        , HasLogger WalletLog ctx
         , HasNetworkLayer t ctx
         , HasTransactionLayer t k ctx
         , Show s
@@ -1370,7 +1370,7 @@ joinStakePool ctx wid (pid, pools) argGenChange pwd = db & \DBLayer{..} -> do
 quitStakePool
     :: forall ctx s t k.
         ( HasDBLayer s k ctx
-        , HasLogger ctx
+        , HasLogger WalletLog ctx
         , HasNetworkLayer t ctx
         , HasTransactionLayer t k ctx
         , Show s

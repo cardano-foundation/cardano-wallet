@@ -367,12 +367,11 @@ loggingTracersOptions :: Parser TracerSeverities
 loggingTracersOptions = Tracers
     <$> traceOpt applicationTracer (Just Info)
     <*> traceOpt apiServerTracer (Just Info)
-    <*> traceOpt walletEngine (Just Info)
+    <*> traceOpt walletEngineTracer (Just Info)
     <*> traceOpt walletDbTracer (Just Info)
+    <*> traceOpt stakePoolEngineTracer (Just Info)
+    <*> traceOpt stakePoolDbTracer (Just Info)
     <*> traceOpt networkTracer (Just Info)
-    <*> traceOpt stakePoolMonitorTracer (Just Info)
-    <*> traceOpt stakePoolLayerTracer (Just Info)
-    <*> traceOpt stakePoolDBTracer (Just Info)
     <*> traceOpt daedalusIPCTracer (Just Info)
   where
     traceOpt field def = fmap Const . option loggingSeverityOrOffReader $ mempty

@@ -38,8 +38,7 @@ module Cardano.Pool.Metrics
     , associateMetadata
 
       -- * Logging
-    , StakePoolMonitorLog (..)
-    , StakePoolLayerLog (..)
+    , StakePoolLog (..)
     )
     where
 
@@ -58,8 +57,6 @@ import Cardano.Pool.Metadata
     , getStakePoolMetadata
     , sameStakePoolMetadata
     )
-import Cardano.Wallet
-    ( WalletLog )
 import Cardano.Wallet.Network
     ( ErrNetworkTip
     , ErrNetworkUnavailable
@@ -80,8 +77,6 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SlotNo (unSlotNo)
     )
-import Cardano.Wallet.Registry
-    ( WorkerRegistryLog )
 import Control.Arrow
     ( first )
 import Control.Monad
@@ -159,7 +154,7 @@ data StakePool = StakePool
 -- The pool productions and stake distrubtions in the db can /never/ be from
 -- different forks such that it's safe for readers to access it.
 monitorStakePools
-    :: Tracer IO StakePoolMonitorLog
+    :: Tracer IO StakePoolLog
     -> NetworkLayer IO t Block
     -> DBLayer IO
     -> IO ()
@@ -251,7 +246,7 @@ data ErrListStakePools
      deriving (Show)
 
 newStakePoolLayer
-    :: Tracer IO StakePoolLayerLog
+    :: Tracer IO StakePoolLog
     -> DBLayer IO
     -> NetworkLayer IO t Block
     -> FilePath
@@ -575,7 +570,7 @@ associateMetadata
     -- ^ Ordered mapping from pool to owner(s).
     -> [(PoolOwner, Maybe StakePoolMetadata)]
     -- ^ Association between owner and metadata
-    -> [(StakePoolLayerLog, Maybe StakePoolMetadata)]
+    -> [(StakePoolLog, Maybe StakePoolMetadata)]
 associateMetadata poolOwners ownerMeta =
     map (uncurry getResult . fmap associate) poolOwners
   where
@@ -589,7 +584,7 @@ associateMetadata poolOwners ownerMeta =
     getResult
         :: PoolId
         -> [(PoolOwner, StakePoolMetadata)]
-        -> (StakePoolLayerLog, Maybe StakePoolMetadata)
+        -> (StakePoolLog, Maybe StakePoolMetadata)
     getResult pid metas = case nubBy sameMeta metas of
         [(owner, meta)] -> (MsgMetadataUsing pid owner meta, Just meta)
         [] -> (MsgMetadataMissing pid, Nothing)
@@ -602,33 +597,44 @@ associateMetadata poolOwners ownerMeta =
 -------------------------------------------------------------------------------}
 
 -- | Messages associated with stake pool layer.
-data StakePoolLayerLog
+data StakePoolLog
     = MsgRegistry RegistryLog
-    | MsgStakePoolWorker (WorkerRegistryLog WalletLog)
     | MsgListStakePoolsBegin
     | MsgMetadataUnavailable
     | MsgMetadataUsing PoolId PoolOwner StakePoolMetadata
     | MsgMetadataMissing PoolId
     | MsgMetadataMultiple PoolId [(PoolOwner, StakePoolMetadata)]
     | MsgComputedProgress BlockHeader BlockHeader
+    | MsgStartMonitoring [BlockHeader]
+    | MsgFollow FollowLog
+    | MsgStakeDistribution EpochNo
+    | MsgStakePoolRegistration PoolRegistrationCertificate
+    | MsgApplyError ErrMonitorStakePools
     deriving (Show, Eq)
 
-instance DefinePrivacyAnnotation StakePoolLayerLog
-instance DefineSeverity StakePoolLayerLog where
+instance DefinePrivacyAnnotation StakePoolLog
+instance DefineSeverity StakePoolLog where
     defineSeverity ev = case ev of
         MsgRegistry msg -> defineSeverity msg
-        MsgStakePoolWorker msg -> defineSeverity msg
         MsgListStakePoolsBegin -> Debug
         MsgMetadataUnavailable -> Notice
         MsgComputedProgress{} -> Debug
         MsgMetadataUsing{} -> Debug
         MsgMetadataMissing{} -> Debug
         MsgMetadataMultiple{} -> Debug
+        MsgStartMonitoring _ -> Info
+        MsgFollow msg -> defineSeverity msg
+        MsgStakeDistribution _ -> Info
+        MsgStakePoolRegistration _ -> Info
+        MsgApplyError e -> case e of
+            ErrMonitorStakePoolsNetworkUnavailable{} -> Notice
+            ErrMonitorStakePoolsNetworkTip{} -> Notice
+            ErrMonitorStakePoolsWrongTip{} -> Debug
+            ErrMonitorStakePoolsPoolAlreadyExists{} -> Debug
 
-instance ToText StakePoolLayerLog where
+instance ToText StakePoolLog where
     toText = \case
         MsgRegistry msg -> toText msg
-        MsgStakePoolWorker msg -> toText msg
         MsgListStakePoolsBegin -> "Listing stake pools"
         MsgMetadataUnavailable -> "Stake pool metadata is unavailable"
         MsgComputedProgress prodTip nodeTip -> mconcat
@@ -645,18 +651,6 @@ instance ToText StakePoolLayerLog where
             "No stake pool metadata for " <> toText pid
         MsgMetadataMultiple pid _ ->
             "Multiple different metadata registered for " <> toText pid
-
--- | Messages associated with stake pool monitoring
-data StakePoolMonitorLog
-    = MsgStartMonitoring [BlockHeader]
-    | MsgFollow FollowLog
-    | MsgStakeDistribution EpochNo
-    | MsgStakePoolRegistration PoolRegistrationCertificate
-    | MsgApplyError ErrMonitorStakePools
-    deriving (Show, Eq)
-
-instance ToText StakePoolMonitorLog where
-    toText = \case
         MsgStartMonitoring cursor -> mconcat
             [ "Monitoring stake pools. Currently at "
             , case cursor of
@@ -678,16 +672,3 @@ instance ToText StakePoolMonitorLog where
                 "Race condition when fetching stake distribution."
             ErrMonitorStakePoolsPoolAlreadyExists{} ->
                 ""
-
-instance DefinePrivacyAnnotation StakePoolMonitorLog
-instance DefineSeverity StakePoolMonitorLog where
-    defineSeverity = \case
-        MsgStartMonitoring _ -> Info
-        MsgFollow msg -> defineSeverity msg
-        MsgStakeDistribution _ -> Info
-        MsgStakePoolRegistration _ -> Info
-        MsgApplyError e -> case e of
-            ErrMonitorStakePoolsNetworkUnavailable{} -> Notice
-            ErrMonitorStakePoolsNetworkTip{} -> Notice
-            ErrMonitorStakePoolsWrongTip{} -> Debug
-            ErrMonitorStakePoolsPoolAlreadyExists{} -> Debug

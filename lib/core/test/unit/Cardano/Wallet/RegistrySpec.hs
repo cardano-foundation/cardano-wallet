@@ -13,11 +13,17 @@ module Cardano.Wallet.RegistrySpec
 import Prelude
 
 import Cardano.BM.Trace
-    ( Trace, nullTracer )
+    ( nullTracer )
 import Cardano.Wallet.Primitive.Types
     ( WalletId (..) )
 import Cardano.Wallet.Registry
-    ( HasWorkerCtx (..), MkWorker (..), Worker, newWorker, workerThread )
+    ( HasWorkerCtx (..)
+    , MkWorker (..)
+    , Worker
+    , WorkerLog
+    , newWorker
+    , workerThread
+    )
 import Control.Concurrent
     ( threadDelay, throwTo )
 import Control.Concurrent.Async
@@ -39,6 +45,8 @@ import Control.Exception
     )
 import Control.Monad
     ( replicateM, void )
+import Control.Tracer
+    ( Tracer )
 import Crypto.Hash
     ( hash )
 import Data.Text
@@ -200,13 +208,18 @@ workerIsUsableAfterBefore (Delay delay) = monadicIO $ do
                       Tests machinery, Arbitrary instances
 -------------------------------------------------------------------------------}
 
-data DummyCtx = DummyCtx (Trace IO Text) DummyResource deriving (Generic)
+data DummyCtx = DummyCtx
+    (Tracer IO (WorkerLog WalletId Text))
+    DummyResource
+    deriving (Generic)
 
 data DummyResource = DummyResource deriving (Generic)
 
 instance HasWorkerCtx DummyResource DummyCtx where
     type WorkerCtx DummyCtx = DummyCtx
-    hoistResource _ = id
+    type WorkerMsg DummyCtx = Text
+    type WorkerKey DummyCtx = WalletId
+    hoistResource _ _ = id
 
 -- A reasonnably 'long' delay to test asynchronous race conditions, in us
 newtype Delay = Delay Int deriving Show

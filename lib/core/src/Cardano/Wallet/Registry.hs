@@ -1,8 +1,10 @@
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Wallet.Registry
@@ -27,9 +29,7 @@ module Cardano.Wallet.Registry
     , HasWorkerCtx (..)
 
       -- * Logging
-    , WithWorkerKey (..)
-    , WorkerRegistryLog (..)
-    , transformTrace
+    , WorkerLog (..)
     ) where
 
 import Prelude hiding
@@ -62,11 +62,9 @@ import Control.Exception
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Tracer
-    ( Tracer, contramap, traceWith )
-import Data.Function
-    ( (&) )
+    ( Tracer, traceWith )
 import Data.Generics.Internal.VL.Lens
-    ( (.~), (^.) )
+    ( (^.) )
 import Data.Generics.Labels
     ()
 import Data.Generics.Product.Typed
@@ -92,7 +90,13 @@ import qualified Data.Text as T
 -- | A class to link an existing context to a worker context.
 class HasType resource (WorkerCtx ctx) => HasWorkerCtx resource ctx where
     type WorkerCtx ctx :: *
-    hoistResource :: resource -> ctx -> WorkerCtx ctx
+    type WorkerMsg ctx :: *
+    type WorkerKey ctx :: *
+    hoistResource
+        :: resource
+        -> (WorkerMsg ctx -> WorkerLog (WorkerKey ctx) (WorkerMsg ctx))
+        -> ctx
+        -> WorkerCtx ctx
 
 {-------------------------------------------------------------------------------
                                 Worker Registry
@@ -169,14 +173,14 @@ data MkWorker key resource msg ctx = MkWorker
         -- returns.
     , workerMain :: WorkerCtx ctx -> key -> IO ()
         -- ^ A task for the worker, possibly infinite
-    , workerAfter :: Tracer IO msg -> Either SomeException () -> IO ()
+    , workerAfter :: Tracer IO (WorkerLog key msg) -> Either SomeException () -> IO ()
         -- ^ Action to run when the worker exits
     , workerAcquire :: (resource -> IO ()) -> IO ()
         -- ^ A bracket-style factory to acquire a resource
     }
 
 defaultWorkerAfter
-    :: Tracer IO (WorkerRegistryLog msg)
+    :: Tracer IO (WorkerLog key msg)
     -> Either SomeException a
     -> IO ()
 defaultWorkerAfter tr = traceWith tr . \case
@@ -197,10 +201,11 @@ defaultWorkerAfter tr = traceWith tr . \case
 -- >>> newWorker ctx k withDBLayer restoreWallet
 -- worker<thread#1234>
 newWorker
-    :: forall key resource msg ctx.
-        ( HasLogger ctx
+    :: forall resource ctx key msg.
+        ( key ~ WorkerKey ctx
+        , msg ~ WorkerMsg ctx
+        , HasLogger (WorkerLog key msg) ctx
         , HasWorkerCtx resource ctx
-        , ToText key
         )
     => ctx
     -> key
@@ -209,7 +214,7 @@ newWorker
 newWorker ctx k (MkWorker before main after acquire) = do
     mvar <- newEmptyMVar
     let io = acquire $ \resource -> do
-            let ctx' = hoistResource resource ctx -- (ctx & logger .~ tr)
+            let ctx' = hoistResource resource (MsgFromWorker k) ctx
             before ctx' k `finally` putMVar mvar (Just resource)
             main ctx' k
     threadId <- forkFinally io (cleanup mvar)
@@ -221,43 +226,22 @@ newWorker ctx k (MkWorker before main after acquire) = do
             , workerResource = resource
             }
   where
-    tr  = ctx ^. logger
-    -- tr' = untransformTrace k tr
-    cleanup mvar e = tryPutMVar mvar Nothing *> pure () -- after tr e
-
--- | A worker log event includes the key (i.e. wallet ID) as context.
-data WithWorkerKey key msg = WithWorkerKey key msg
-    deriving (Eq, Show)
-
-instance (ToText key, ToText msg) => ToText (WithWorkerKey key msg) where
-    toText (WithWorkerKey k msg) = T.take 8 (toText k) <> ": " <> toText msg
+    tr  = ctx ^. logger @(WorkerLog key msg)
+    cleanup mvar e = tryPutMVar mvar Nothing *> after tr e
 
 {-------------------------------------------------------------------------------
                                     Logging
 -------------------------------------------------------------------------------}
 
-transformTrace
-    :: ToText key
-    => key
-    -> Tracer IO (WithWorkerKey key msg)
-    -> Tracer IO msg
-transformTrace k = contramap (WithWorkerKey k)
-
-untransformTrace
-    :: Tracer IO msg
-    -> Tracer IO (WithWorkerKey key msg)
-untransformTrace = contramap (\(WithWorkerKey _ msg) -> msg)
-
-data WorkerRegistryLog msg
+data WorkerLog key msg
     = MsgFinished
     | MsgThreadKilled
     | MsgUserInterrupt
     | MsgUnhandledException Text
-    | MsgFromWorker msg
-    -- ^ Registry permits workers to log with Text only
+    | MsgFromWorker key msg
     deriving (Show, Eq)
 
-instance ToText msg => ToText (WorkerRegistryLog msg) where
+instance (ToText key, ToText msg) => ToText (WorkerLog key msg) where
     toText = \case
         MsgFinished ->
             "Worker has exited: main action is over."
@@ -267,14 +251,15 @@ instance ToText msg => ToText (WorkerRegistryLog msg) where
             "Worker has exited: killed by user."
         MsgUnhandledException err ->
             "Worker has exited unexpectedly: " <> err
-        MsgFromWorker msg ->
-            toText msg
+        MsgFromWorker key msg
+            | toText key == mempty -> toText msg
+            | otherwise -> T.take 8 (toText key) <> ": " <> toText msg
 
-instance DefinePrivacyAnnotation (WorkerRegistryLog msg)
-instance DefineSeverity msg => DefineSeverity (WorkerRegistryLog msg) where
+instance DefinePrivacyAnnotation (WorkerLog key msg)
+instance DefineSeverity msg => DefineSeverity (WorkerLog key msg) where
     defineSeverity = \case
         MsgFinished -> Notice
         MsgThreadKilled -> Notice
         MsgUserInterrupt -> Notice
         MsgUnhandledException _ -> Error
-        MsgFromWorker msg -> defineSeverity msg
+        MsgFromWorker _ msg -> defineSeverity msg

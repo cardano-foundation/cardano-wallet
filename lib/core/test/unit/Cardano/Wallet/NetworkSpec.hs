@@ -1,12 +1,12 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
+
 module Cardano.Wallet.NetworkSpec
     ( spec
     ) where
 
 import Prelude
 
-import Cardano.BM.Data.LogItem
-    ( LOContent (..), LogObject (..) )
 import Cardano.BM.Trace
     ( traceInTVarIO )
 import Cardano.Wallet.DummyTarget.Primitive.Types
@@ -16,6 +16,7 @@ import Cardano.Wallet.Network
     , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
     , FollowAction (..)
+    , FollowLog (..)
     , NetworkLayer (..)
     , follow
     )
@@ -33,8 +34,6 @@ import Data.Maybe
     ( mapMaybe )
 import Test.Hspec
     ( Spec, describe, expectationFailure, it )
-
-import qualified Data.Text as T
 
 spec :: Spec
 spec = do
@@ -71,19 +70,16 @@ followSpec =
             void $ race
                 (threadDelay $ 10 * second)
                 (follow mockNetworkLayer tr [] advance getHeader)
-            errors <- mapMaybe (unMsg . loContent) <$> readTVarIO tvar
+            errors <- mapMaybe matchRecoverableErrors <$> readTVarIO tvar
             case length errors of
                 x | x == 5 -> return ()
                   | otherwise -> expectationFailure
                         $ "we expected 4 errors to be logged, not " ++ show x
   where
     second = 1000*1000
-    unMsg (LogMessage txt)
-        | err `T.isPrefixOf` txt = Just txt
-        | otherwise = Nothing
-    unMsg _ = Nothing
-
-    err = "Recoverable error following the chain:"
+    matchRecoverableErrors = \case
+        e@MsgUnhandledException{} -> Just e
+        _ -> Nothing
 
 mockNetworkLayer :: NetworkLayer IO DummyTarget Block
 mockNetworkLayer = NetworkLayer
