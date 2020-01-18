@@ -353,7 +353,7 @@ follow nl tr cps yield header =
       where
         handle :: Cursor target -> FollowAction e -> IO (Maybe SlotId)
         handle cursor' = \case
-            ExitWith e ->
+            ExitWith _ -> -- NOTE error logged as part of `MsgFollowAction`
                 return Nothing
             Continue ->
                 step delay0 cursor'
