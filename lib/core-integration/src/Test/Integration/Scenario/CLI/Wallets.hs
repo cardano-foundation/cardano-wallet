@@ -21,7 +21,12 @@ import Cardano.Wallet.Api.Types
     , getApiT
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..) )
+    ( NetworkDiscriminant (..)
+    , PassphraseMaxLength (..)
+    , PassphraseMinLength (..)
+    )
+import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+    ( AddressPoolGap (..) )
 import Cardano.Wallet.Primitive.Types
     ( SyncProgress (..)
     , WalletDelegation (..)
@@ -81,16 +86,12 @@ import Test.Integration.Framework.DSL
     , walletName
     )
 import Test.Integration.Framework.TestData
-    ( addressPoolGapMax
-    , addressPoolGapMin
-    , arabicWalletName
+    ( arabicWalletName
     , cmdOk
     , errMsg403WrongPass
     , errMsg404NoWallet
     , errMsgWalletIdEncoding
     , falseWalletIds
-    , passphraseMaxLength
-    , passphraseMinLength
     , russianWalletName
     , wildcardsWalletName
     )
@@ -328,10 +329,11 @@ spec = do
             e `shouldBe` cmdOk
 
     describe "WALLETS_CREATE_07 - Passphrase is valid" $ do
-        let passphraseMax = replicate passphraseMaxLength 'ą'
-        let passBelowMax = replicate ( passphraseMaxLength - 1 ) 'ć'
-        let passphraseMin = replicate passphraseMinLength 'ń'
-        let passAboveMin = replicate ( passphraseMinLength + 1 ) 'ę'
+        let proxy_ = Proxy @"encryption"
+        let passphraseMax = replicate (passphraseMaxLength proxy_) 'ą'
+        let passBelowMax = replicate (passphraseMaxLength proxy_ - 1) 'ć'
+        let passphraseMin = replicate (passphraseMinLength proxy_) 'ń'
+        let passAboveMin = replicate (passphraseMinLength proxy_ + 1) 'ę'
         let matrix =
                 [ ( "Pass min", passphraseMin )
                 , ( "Pass max", passphraseMax )
@@ -350,16 +352,17 @@ spec = do
             expectCliFieldNotEqual passphraseLastUpdate Nothing j
 
     describe "WALLETS_CREATE_07 - When passphrase is invalid" $ do
-        let pasAboveMax = replicate (passphraseMaxLength + 1) 'ą'
-        let passBelowMin = replicate (passphraseMinLength - 1) 'ń'
+        let proxy_ = Proxy @"encryption"
+        let passAboveMax = replicate (passphraseMaxLength proxy_ + 1) 'ą'
+        let passBelowMin = replicate (passphraseMinLength proxy_ - 1) 'ń'
         let passMinWarn = "passphrase is too short: expected at \
-            \least " ++ show passphraseMinLength ++ " characters"
+            \least " ++ show (passphraseMinLength proxy_) ++ " characters"
         let passMaxWarn = "passphrase is too long: expected at \
-            \most " ++ show passphraseMaxLength ++ " characters"
+            \most " ++ show (passphraseMaxLength proxy_) ++ " characters"
 
         let matrix =
                 [ ( "Pass below min length", passBelowMin, passMinWarn )
-                , ( "Pass above max length", pasAboveMax, passMaxWarn )
+                , ( "Pass above max length", passAboveMax, passMaxWarn )
                 ]
         forM_ matrix $ \(title, pass, warn) -> it title $ \ctx -> do
             Stdout m <- generateMnemonicsViaCLI @t []
@@ -378,13 +381,16 @@ spec = do
                         (read gap :: Word32)
                         j
 
+        let addrPoolMin = fromIntegral @_ @Int $ getAddressPoolGap minBound
+        let addrPoolMax = fromIntegral @_ @Int $ getAddressPoolGap maxBound
+
         let expectsErr c o e gap = do
                 c `shouldBe` ExitFailure 1
                 o `shouldNotContain` gap
                 T.unpack e `shouldContain`
                     "An address pool gap must be a natural number between "
-                    ++ show addressPoolGapMin ++ " and "
-                    ++ show addressPoolGapMax ++ "."
+                    ++ show addrPoolMin ++ " and "
+                    ++ show addrPoolMax ++ "."
 
         let matrix =
                 [ ( "Gap max", show addrPoolMax, expectsOk )
@@ -488,6 +494,7 @@ spec = do
             let name = "name"
             let ppOld = "old secure passphrase"
             let ppNew = "new secure passphrase"
+            let addrPoolMin = fromIntegral @_ @Int $ getAddressPoolGap minBound
             w <- emptyWalletWith ctx (name, T.pack ppOld, addrPoolMin)
             let initPassUpdateTime = w ^. passphraseLastUpdate
             let wid = T.unpack $ w ^. walletId
@@ -505,21 +512,23 @@ spec = do
             expectCliFieldNotEqual passphraseLastUpdate initPassUpdateTime j
 
     describe "WALLETS_UPDATE_PASS_02 - New passphrase values" $ do
+        let minLength = passphraseMinLength (Proxy @"encryption")
+        let maxLength = passphraseMaxLength (Proxy @"encryption")
         let matrix =
-                [ ( show passphraseMinLength ++ " char long"
-                  , replicate passphraseMinLength 'ź'
+                [ ( show minLength ++ " char long"
+                  , replicate minLength 'ź'
                   , expect (ExitSuccess, "\n", cmdOk)
                   )
-                , ( show (passphraseMinLength - 1) ++ " char long"
-                  , replicate (passphraseMinLength - 1) 'ź'
+                , ( show (minLength - 1) ++ " char long"
+                  , replicate (minLength - 1) 'ź'
                   , expect (ExitFailure 1, mempty, "passphrase is too short")
                   )
-                , ( show passphraseMaxLength ++ " char long"
-                  , replicate passphraseMinLength 'ź'
+                , ( show maxLength ++ " char long"
+                  , replicate minLength 'ź'
                   , expect (ExitSuccess, "\n", cmdOk)
                   )
-                , ( show (passphraseMaxLength + 1) ++ " char long"
-                  , replicate (passphraseMaxLength + 1) 'ź'
+                , ( show (maxLength + 1) ++ " char long"
+                  , replicate (maxLength + 1) 'ź'
                   , expect (ExitFailure 1, mempty, "passphrase is too long")
                   )
                 , ( "Empty passphrase"
@@ -539,6 +548,7 @@ spec = do
         forM_ matrix $ \(title, ppNew, expectations) -> it title $ \ctx -> do
             let name = "name"
             let ppOld = "old secure passphrase"
+            let addrPoolMin = fromIntegral @_ @Int $ getAddressPoolGap minBound
             wid <- emptyWalletWith' ctx (name, T.pack ppOld, addrPoolMin)
             (exitCode, out, err) <-
                 updateWalletPassphraseViaCLI @t ctx wid ppOld ppNew ppNew
@@ -551,6 +561,7 @@ spec = do
             let ppOld = "old secure passphrase"
             let ppNew1 = "new secure passphrase 1"
             let ppNew2 = "new secure passphrase 2"
+            let addrPoolMin = fromIntegral @_ @Int $ getAddressPoolGap minBound
             wid <- emptyWalletWith' ctx (name, T.pack ppOld, addrPoolMin)
             (exitCode, out, err) <-
                 updateWalletPassphraseViaCLI @t ctx wid ppOld ppNew1 ppNew2
@@ -559,13 +570,15 @@ spec = do
             exitCode `shouldBe` ExitFailure 1
 
     describe "WALLETS_UPDATE_PASS_03 - Old passphrase values" $ do
+        let minLength = passphraseMinLength (Proxy @"encryption")
+        let maxLength = passphraseMaxLength (Proxy @"encryption")
         let matrix =
-                [ ( show (passphraseMinLength - 1) ++ " char long"
-                  , replicate (passphraseMinLength - 1) 'ź'
+                [ ( show (minLength - 1) ++ " char long"
+                  , replicate (minLength - 1) 'ź'
                   , expect (ExitFailure 1, mempty, "passphrase is too short")
                   )
-                , ( show (passphraseMaxLength + 1) ++ " char long"
-                  , replicate (passphraseMaxLength + 1) 'ź'
+                , ( show (maxLength + 1) ++ " char long"
+                  , replicate (maxLength + 1) 'ź'
                   , expect (ExitFailure 1, mempty, "passphrase is too long")
                   )
                 , ( "Empty passphrase"
@@ -581,6 +594,7 @@ spec = do
             let name = "name"
             let ppOldRight = "right secure passphrase"
             let ppNew = "new secure passphrase"
+            let addrPoolMin = fromIntegral @_ @Int $ getAddressPoolGap minBound
             wid <- emptyWalletWith' ctx
                 (name, T.pack ppOldRight, addrPoolMin)
             (exitCode, out, err) <-
@@ -589,19 +603,22 @@ spec = do
 
     describe "WALLETS_UPDATE_PASS_03 - \
         \Can update pass from pass that's boundary value" $ do
+        let minLength = passphraseMinLength (Proxy @"encryption")
+        let maxLength = passphraseMaxLength (Proxy @"encryption")
         let matrix =
-                [ ( show passphraseMinLength ++ " char long"
-                  , replicate passphraseMinLength 'ź'
+                [ ( show minLength ++ " char long"
+                  , replicate minLength 'ź'
                   , expect (ExitSuccess, "\n", cmdOk)
                   )
-                , ( show passphraseMaxLength ++ " char long"
-                  , replicate passphraseMaxLength 'ź'
+                , ( show maxLength ++ " char long"
+                  , replicate maxLength 'ź'
                  , expect (ExitSuccess, "\n", cmdOk)
                   )
                 ]
         forM_ matrix $ \(title, ppOldRight, expectations) -> it title $ \ctx -> do
             let name = "name"
-            let ppNew = replicate passphraseMaxLength 'ź'
+            let ppNew = replicate maxLength 'ź'
+            let addrPoolMin = fromIntegral @_ @Int $ getAddressPoolGap minBound
             wid <- emptyWalletWith' ctx
                 (name, T.pack ppOldRight, addrPoolMin)
             (exitCode, out, err) <-
@@ -753,10 +770,6 @@ emptyWallet' = fmap (T.unpack . view walletId) . emptyWallet
 emptyWalletWith' :: Context t -> (Text, Text, Int) -> IO String
 emptyWalletWith' ctx (name, pass, pg) =
     fmap (T.unpack . view walletId) (emptyWalletWith ctx (name, pass, pg))
-
-addrPoolMin, addrPoolMax :: Int
-addrPoolMin = fromIntegral addressPoolGapMin
-addrPoolMax = fromIntegral addressPoolGapMax
 
 walletNames :: [(String, String)]
 walletNames =

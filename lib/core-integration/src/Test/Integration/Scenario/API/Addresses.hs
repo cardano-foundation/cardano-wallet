@@ -184,7 +184,6 @@ spec = do
             (Link.getWallet @'Shelley wDest) Default Empty
         expectEventually ctx (Link.getWallet @'Shelley)
                 (#balance . #getApiT . #available) (Quantity 10) rb
-        print rb
 
         -- verify new address_pool_gap has been created
         rAddr <- request @[ApiAddress n] ctx

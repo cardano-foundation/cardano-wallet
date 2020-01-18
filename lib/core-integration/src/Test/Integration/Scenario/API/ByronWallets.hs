@@ -25,7 +25,10 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..) )
+    ( NetworkDiscriminant (..)
+    , PassphraseMaxLength (..)
+    , PassphraseMinLength (..)
+    )
 import Cardano.Wallet.Primitive.Mnemonic
     ( ConsistentEntropy
     , EntropySize
@@ -46,6 +49,8 @@ import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Maybe
     ( mapMaybe )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -109,8 +114,6 @@ import Test.Integration.Framework.TestData
     , japaneseMnemonics12
     , kanjiWalletName
     , mnemonics12
-    , passphraseMaxLength
-    , passphraseMinLength
     , polishWalletName
     , postHeaderCases
     , russianWalletName
@@ -1095,24 +1098,26 @@ spec = do
             ]
 
     describe "BYRON_RESTORE_06 - Passphrase" $ do
-        let passphraseMax = T.pack (replicate passphraseMaxLength 'ą')
+        let minLength = passphraseMinLength (Proxy @"encryption")
+        let maxLength = passphraseMaxLength (Proxy @"encryption")
         let matrix =
-                [ ( show passphraseMinLength ++ " char long"
-                  , T.pack (replicate passphraseMinLength 'ź')
+                [ ( show minLength ++ " char long"
+                  , T.pack (replicate minLength 'ź')
                   , [ expectResponseCode @IO HTTP.status201 ]
                   )
-                , ( show (passphraseMinLength - 1) ++ " char long"
-                  , T.pack (replicate (passphraseMinLength - 1) 'ż')
+                , ( show (minLength - 1) ++ " char long"
+                  , T.pack (replicate (minLength - 1) 'ż')
                   , [ expectResponseCode @IO HTTP.status400
                     , expectErrorMessage "passphrase is too short: expected at\
                             \ least 10 characters"
                     ]
                   )
-                , ( show passphraseMaxLength ++ " char long", passphraseMax
+                , ( show maxLength ++ " char long"
+                  , T.pack (replicate maxLength 'ą')
                   , [ expectResponseCode @IO HTTP.status201 ]
                   )
-                , ( show (passphraseMaxLength + 1) ++ " char long"
-                  , T.pack (replicate (passphraseMaxLength + 1) 'ę')
+                , ( show (maxLength + 1) ++ " char long"
+                  , T.pack (replicate (maxLength + 1) 'ę')
                   , [ expectResponseCode @IO HTTP.status400
                     , expectErrorMessage "passphrase is too long: expected at\
                             \ most 255 characters"

@@ -21,7 +21,10 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..) )
+    ( NetworkDiscriminant (..)
+    , PassphraseMaxLength (..)
+    , PassphraseMinLength (..)
+    )
 import Cardano.Wallet.Primitive.Types
     ( Direction (..), PoolId (..), TxStatus (..), WalletDelegation (..) )
 import Control.Monad
@@ -34,6 +37,8 @@ import Data.List
     ( find )
 import Data.Maybe
     ( isJust, isNothing )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
@@ -98,8 +103,6 @@ import Test.Integration.Framework.TestData
     , errMsg415
     , falseWalletIds
     , getHeaderCases
-    , passphraseMaxLength
-    , passphraseMinLength
     )
 import Test.Integration.Jormungandr.Fixture
     ( OwnerIdentity (..), registerStakePool )
@@ -544,8 +547,8 @@ spec = do
     describe "STAKE_POOLS_JOIN/QUIT_02 -\
         \ Passphrase must have appropriate length" $ do
 
-        let pMax = passphraseMaxLength
-        let pMin = passphraseMinLength
+        let pMax = passphraseMaxLength (Proxy @"encryption")
+        let pMin = passphraseMinLength (Proxy @"encryption")
         let tooShort =
                 "passphrase is too short: expected at least 10 characters"
         let tooLong =

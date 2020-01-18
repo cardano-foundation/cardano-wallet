@@ -27,7 +27,12 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..) )
+    ( NetworkDiscriminant (..)
+    , PassphraseMaxLength (..)
+    , PassphraseMinLength (..)
+    )
+import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+    ( AddressPoolGap (..) )
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
@@ -49,6 +54,8 @@ import Data.Generics.Product.Typed
     ( HasType )
 import Data.List.NonEmpty
     ( NonEmpty ((:|)) )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -97,9 +104,7 @@ import Test.Integration.Framework.DSL
     , (</>)
     )
 import Test.Integration.Framework.TestData
-    ( addressPoolGapMax
-    , addressPoolGapMin
-    , arabicWalletName
+    ( arabicWalletName
     , chineseMnemonics18
     , chineseMnemonics9
     , errMsg400ParseError
@@ -129,8 +134,6 @@ import Test.Integration.Framework.TestData
     , mnemonics6
     , mnemonics9
     , notInDictMnemonics15
-    , passphraseMaxLength
-    , passphraseMinLength
     , payloadWith
     , polishWalletName
     , russianWalletName
@@ -576,25 +579,27 @@ spec = do
             verify r expectations
 
     describe "WALLETS_CREATE_07 - Passphrase" $ do
-        let passphraseMax = T.pack (replicate passphraseMaxLength 'ą')
+        let minLength = passphraseMinLength (Proxy @"encryption")
+        let maxLength = passphraseMaxLength (Proxy @"encryption")
         let matrix =
-                [ ( show passphraseMinLength ++ " char long"
-                  , T.pack (replicate passphraseMinLength 'ź')
+                [ ( show minLength ++ " char long"
+                  , T.pack (replicate minLength 'ź')
                   , [ expectResponseCode @IO HTTP.status201
                     ]
                   )
-                , ( show (passphraseMinLength - 1) ++ " char long"
-                  , T.pack (replicate (passphraseMinLength - 1) 'ż')
+                , ( show (minLength - 1) ++ " char long"
+                  , T.pack (replicate (minLength - 1) 'ż')
                   , [ expectResponseCode @IO HTTP.status400
                     , expectErrorMessage "passphrase is too short: expected at\
                             \ least 10 characters"
                     ]
                   )
-                , ( show passphraseMaxLength ++ " char long", passphraseMax
+                , ( show maxLength ++ " char long"
+                , T.pack (replicate maxLength 'ą')
                   , [ expectResponseCode @IO HTTP.status201 ]
                   )
-                , ( show (passphraseMaxLength + 1) ++ " char long"
-                  , T.pack (replicate (passphraseMaxLength + 1) 'ę')
+                , ( show (maxLength + 1) ++ " char long"
+                  , T.pack (replicate (maxLength + 1) 'ę')
                   , [ expectResponseCode @IO HTTP.status400
                     , expectErrorMessage "passphrase is too long: expected at\
                             \ most 255 characters"
@@ -667,30 +672,27 @@ spec = do
             ]
 
     describe "WALLETS_CREATE_08 - address_pool_gap" $ do
-        let addrPoolMin, addrPoolMax :: Int
-            addrPoolMin = fromIntegral addressPoolGapMin
-            addrPoolMax = fromIntegral addressPoolGapMax
+        let addrPoolMin = fromIntegral @_ @Int $ getAddressPoolGap minBound
+        let addrPoolMax = fromIntegral @_ @Int $ getAddressPoolGap maxBound
         let matrix =
-                [ ( show addressPoolGapMin
+                [ ( show addrPoolMin
                   , addrPoolMin
                   , [ expectResponseCode @IO HTTP.status201
-                    , expectFieldEqual
-                            (#addressPoolGap . #getApiT . #getAddressPoolGap)
-                            addressPoolGapMin
+                    , expectFieldEqual (#addressPoolGap . #getApiT) minBound
                     ]
                   )
-                , ( show (addressPoolGapMin - 1) ++ " -> fail"
+                , ( show (addrPoolMin - 1) ++ " -> fail"
                   , addrPoolMin - 1
                   , [ expectResponseCode @IO HTTP.status400
                     , expectErrorMessage "An address pool gap must be a natural\
                       \ number between 10 and 100."
                     ]
                   )
-                , ( show addressPoolGapMax
+                , ( show addrPoolMax
                   , addrPoolMax
                   , [ expectResponseCode @IO HTTP.status201 ]
                   )
-                , ( show (addressPoolGapMax + 1) ++ " -> fail"
+                , ( show (addrPoolMax + 1) ++ " -> fail"
                   , (addrPoolMax + 1)
                   , [ expectResponseCode @IO HTTP.status400
                     , expectErrorMessage "An address pool gap must be a natural\
@@ -1255,25 +1257,27 @@ spec = do
         expectFieldNotEqual passphraseLastUpdate originalPassUpdateDateTime rg
 
     describe "WALLETS_UPDATE_PASS_02 - New passphrase values" $ do
-        let passphraseMax = T.pack (replicate passphraseMaxLength 'ą')
+        let minLength = passphraseMinLength (Proxy @"encryption")
+        let maxLength = passphraseMaxLength (Proxy @"encryption")
         let matrix =
-                [ ( show passphraseMinLength ++ " char long"
-                  , T.pack (replicate passphraseMinLength 'ź')
+                [ ( show minLength ++ " char long"
+                  , T.pack (replicate minLength 'ź')
                   , [ expectResponseCode @IO HTTP.status204
                     ]
                   )
-                , ( show (passphraseMinLength - 1) ++ " char long"
-                  , T.pack (replicate (passphraseMinLength - 1) 'ż')
+                , ( show (minLength - 1) ++ " char long"
+                  , T.pack (replicate (minLength - 1) 'ż')
                   , [ expectResponseCode @IO HTTP.status400
                     , expectErrorMessage "passphrase is too short: expected at\
                             \ least 10 characters"
                     ]
                   )
-                , ( show passphraseMaxLength ++ " char long", passphraseMax
+                , ( show maxLength ++ " char long"
+                  , T.pack (replicate maxLength 'ą')
                   , [ expectResponseCode @IO HTTP.status204 ]
                   )
-                , ( show (passphraseMaxLength + 1) ++ " char long"
-                  , T.pack (replicate (passphraseMaxLength + 1) 'ę')
+                , ( show (maxLength + 1) ++ " char long"
+                  , T.pack (replicate (maxLength + 1) 'ę')
                   , [ expectResponseCode @IO HTTP.status400
                     , expectErrorMessage "passphrase is too long: expected at\
                             \ most 255 characters"
@@ -1310,15 +1314,17 @@ spec = do
             verify rup expectations
 
     describe "WALLETS_UPDATE_PASS_03 - Old passphrase invalid values" $ do
+        let minLength = passphraseMinLength (Proxy @"encryption")
+        let maxLength = passphraseMaxLength (Proxy @"encryption")
         let matrix =
-                [ ( show (passphraseMinLength - 1) ++ " char long"
-                  , T.pack (replicate (passphraseMinLength - 1) 'ż')
+                [ ( show (minLength - 1) ++ " char long"
+                  , T.pack (replicate (minLength - 1) 'ż')
                   , [ expectResponseCode @IO HTTP.status400
                     , expectErrorMessage "passphrase is too short: expected at\
                             \ least 10 characters" ]
                   )
-                , ( show (passphraseMaxLength + 1) ++ " char long"
-                  , T.pack (replicate (passphraseMaxLength + 1) 'ę')
+                , ( show (maxLength + 1) ++ " char long"
+                  , T.pack (replicate (maxLength + 1) 'ę')
                   , [ expectResponseCode @IO HTTP.status400
                     , expectErrorMessage "passphrase is too long: expected at\
                             \ most 255 characters" ]
@@ -1343,11 +1349,13 @@ spec = do
 
     describe "WALLETS_UPDATE_PASS_03 - Can update pass from pass that's boundary\
     \ value" $ do
+        let minLength = passphraseMinLength (Proxy @"encryption")
+        let maxLength = passphraseMaxLength (Proxy @"encryption")
         let matrix =
-                [ ( show passphraseMinLength ++ " char long"
-                  , T.pack (replicate passphraseMinLength 'ź') )
-                , ( show passphraseMaxLength ++ " char long"
-                  , T.pack (replicate passphraseMaxLength 'ą') )
+                [ ( show minLength ++ " char long"
+                  , T.pack (replicate minLength 'ź') )
+                , ( show maxLength ++ " char long"
+                  , T.pack (replicate maxLength 'ą') )
                 , ( "Russian passphrase", russianWalletName )
                 , ( "Polish passphrase", polishWalletName )
                 , ( "Kanji passphrase", kanjiWalletName )
@@ -1360,12 +1368,13 @@ spec = do
                      "mnemonic_sentence": #{mnemonics24},
                      "passphrase": #{oldPass}
                      } |]
-            r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default createPayload
-            let payload = updatePassPayload oldPass
-                                (T.pack (replicate passphraseMaxLength '💘'))
-            let endpoint = "v2/wallets" </> (getFromResponse walletId r)
-                    </> ("passphrase" :: Text)
-            rup <- request @ApiWallet ctx ("PUT", endpoint) Default payload
+            (_, w) <- unsafeRequest @ApiWallet ctx
+                (Link.postWallet @'Shelley) createPayload
+            let len = passphraseMaxLength (Proxy @"encryption")
+            let newPass = T.pack $ replicate len '💘'
+            let payload = updatePassPayload oldPass newPass
+            rup <- request @ApiWallet ctx
+                (Link.putWalletPassphrase w) Default payload
             expectResponseCode @IO HTTP.status204 rup
 
     describe "WALLETS_UPDATE_PASS_02,03 - invalid payloads" $  do
