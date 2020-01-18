@@ -697,7 +697,7 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> do
 
     liftIO $ do
         progress <- walletSyncProgress @ctx ctx (NE.last cps)
-        traceWith tr $ MsgMetadata meta
+        traceWith tr $ MsgWalletMetadata meta
         traceWith tr $ MsgSyncProgress progress
         traceWith tr $ MsgDiscoveredTxs txs
         traceWith tr $ MsgTip localTip
@@ -1580,7 +1580,7 @@ data WalletLog
     | MsgFollow FollowLog
     | MsgDelegation SlotId DelegationCertificate
     | MsgCheckpoint BlockHeader
-    | MsgMetadata WalletMetadata
+    | MsgWalletMetadata WalletMetadata
     | MsgSyncProgress SyncProgress
     | MsgDiscoveredTxs [(Tx, TxMeta)]
     | MsgDiscoveredTxsContent [(Tx, TxMeta)]
@@ -1612,7 +1612,7 @@ instance ToText WalletLog where
                 ]
         MsgCheckpoint checkpointTip ->
             "Creating checkpoint at " <> pretty checkpointTip
-        MsgMetadata meta ->
+        MsgWalletMetadata meta ->
             pretty meta
         MsgSyncProgress progress ->
             "syncProgress: " <> pretty progress
@@ -1639,7 +1639,7 @@ instance DefineSeverity WalletLog where
         MsgFollow msg -> defineSeverity msg
         MsgDelegation _ _ -> Info
         MsgCheckpoint _ -> Info
-        MsgMetadata _ -> Info
+        MsgWalletMetadata _ -> Info
         MsgSyncProgress _ -> Info
         MsgDiscoveredTxs _ -> Info
         MsgDiscoveredTxsContent _ -> Debug
