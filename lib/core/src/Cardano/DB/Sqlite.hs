@@ -4,6 +4,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -24,15 +25,23 @@
 
 module Cardano.DB.Sqlite
     ( SqliteContext (..)
-    , ManualMigration (..)
-    , MigrationError (..)
-    , DBLog (..)
     , chunkSize
     , dbChunked
     , destroyDBLayer
     , handleConstraint
     , startSqliteBackend
     , unsafeRunQuery
+
+    -- * Manual Migration
+    , ManualMigration (..)
+    , MigrationError (..)
+    , DBField(..)
+    , tableName
+    , fieldName
+    , fieldType
+
+    -- * Logging
+    , DBLog (..)
     ) where
 
 import Prelude
@@ -56,7 +65,7 @@ import Control.Retry
 import Control.Tracer
     ( Tracer, traceWith )
 import Data.Aeson
-    ( ToJSON )
+    ( ToJSON (..) )
 import Data.Function
     ( (&) )
 import Data.List
@@ -65,15 +74,24 @@ import Data.List.Split
     ( chunksOf )
 import Data.Maybe
     ( fromMaybe )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
 import Database.Persist.Sql
-    ( LogFunc
+    ( DBName (..)
+    , EntityField
+    , LogFunc
     , Migration
+    , PersistEntity (..)
     , PersistException
+    , SqlType (..)
     , close'
+    , entityDB
+    , fieldDB
+    , fieldSqlType
     , runMigrationQuiet
     , runSqlConn
     )
@@ -88,6 +106,7 @@ import GHC.Generics
 import System.Log.FastLogger
     ( fromLogStr )
 
+import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -268,8 +287,55 @@ data DBLog
     | MsgIsAlreadyClosed Text
     | MsgStatementAlreadyFinalized Text
     | MsgRemoving Text
-    | MsgManualMigration Text
+    | MsgManualMigrationNeeded DBField Text
+    | MsgManualMigrationNotNeeded DBField
     deriving (Generic, Show, Eq, ToJSON)
+
+data DBField where
+    DBField
+        :: forall record typ. (PersistEntity record)
+        => EntityField record typ
+        -> DBField
+
+tableName :: DBField -> Text
+tableName (DBField (_ :: EntityField record typ)) =
+    unDBName $ entityDB $ entityDef (Proxy @record)
+
+fieldName :: DBField -> Text
+fieldName (DBField field) =
+    unDBName $ fieldDB $ persistFieldDef field
+
+fieldType :: DBField -> Text
+fieldType (DBField field) =
+    showSqlType $ fieldSqlType $ persistFieldDef field
+
+showSqlType :: SqlType -> Text
+showSqlType = \case
+    SqlString  -> "VARCHAR"
+    SqlInt32   -> "INTEGER"
+    SqlInt64   -> "INTEGER"
+    SqlReal    -> "REAL"
+    SqlDay     -> "DATE"
+    SqlTime    -> "TIME"
+    SqlDayTime -> "TIMESTAMP"
+    SqlBlob    -> "BLOB"
+    SqlBool    -> "BOOLEAN"
+    SqlOther t -> t
+    SqlNumeric precision scale -> T.concat
+        [ "NUMERIC("
+        , T.pack (show precision)
+        , ","
+        , T.pack (show scale), ")"
+        ]
+
+instance Show DBField where
+    show field = T.unpack (tableName field <> "." <> fieldName field)
+
+instance Eq DBField where
+    field0 == field1 = show field0 == show field1
+
+instance ToJSON DBField where
+    toJSON = Aeson.String . fieldName
 
 instance DefinePrivacyAnnotation DBLog
 instance DefineSeverity DBLog where
@@ -285,7 +351,8 @@ instance DefineSeverity DBLog where
         MsgIsAlreadyClosed _ -> Warning
         MsgStatementAlreadyFinalized _ -> Warning
         MsgRemoving _ -> Info
-        MsgManualMigration _ -> Notice
+        MsgManualMigrationNeeded{} -> Notice
+        MsgManualMigrationNotNeeded{} -> Debug
 
 instance ToText DBLog where
     toText = \case
@@ -309,8 +376,21 @@ instance ToText DBLog where
             "Statement already finalized: " <> msg
         MsgRemoving wid ->
             "Removing wallet's database. Wallet id was " <> wid
-        MsgManualMigration t ->
-            "Manual migration: " <> t
+        MsgManualMigrationNeeded field value -> mconcat
+            [ tableName field
+            , " table does not contain required field '"
+            , fieldName field
+            , "'. "
+            , "Adding this field with a default value of "
+            , value
+            , "."
+            ]
+        MsgManualMigrationNotNeeded field -> mconcat
+            [ tableName field
+            , " table already contains required field '"
+            , fieldName field
+            , "'."
+            ]
 
 {-------------------------------------------------------------------------------
                                Extra DB Helpers

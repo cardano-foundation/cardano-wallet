@@ -44,14 +44,18 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Tracer
     ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
 import Cardano.DB.Sqlite
-    ( DBLog (..)
+    ( DBField (..)
+    , DBLog (..)
     , ManualMigration (..)
     , SqliteContext (..)
     , chunkSize
     , dbChunked
     , destroyDBLayer
+    , fieldName
+    , fieldType
     , handleConstraint
     , startSqliteBackend
+    , tableName
     )
 import Cardano.Wallet.DB
     ( DBFactory (..)
@@ -307,66 +311,58 @@ migrateManually
     :: Tracer IO DBLog
     -> DefaultFieldValues
     -> ManualMigration
-migrateManually trace defaultFieldValues =
+migrateManually tr defaultFieldValues =
     ManualMigration
         addActiveSlotCoefficientIfMissing
   where
-
-    report :: T.Text -> IO ()
-    report = traceWith trace . MsgManualMigration
+    activeSlotCoeff = DBField CheckpointActiveSlotCoeff
 
     -- | Adds an 'active_slot_coeff' column to the 'checkpoint' table if
     --   it is missing.
     --
     addActiveSlotCoefficientIfMissing :: Sqlite.Connection -> IO ()
     addActiveSlotCoefficientIfMissing conn = do
-        isActiveSlotCoefficientPresent conn >>= \case
-            True ->
-                report $ mconcat
-                    [ "Checkpoint table already contains required field "
-                    , "active_slot_coeff."
-                    ]
-            False -> do
-                report $ mconcat
-                    [ "Checkpoint table does not contain required field "
-                    , "active_slot_coeff. "
-                    , "Adding this field with a default value of "
-                    , coefficientText
-                    , "."
-                    ]
-                addColumn <- Sqlite.prepare conn $ mconcat
-                    [ "alter table checkpoint "
-                    , "add column active_slot_coeff double not null "
-                    , "default "
-                    , coefficientText
+        isFieldPresent conn activeSlotCoeff >>= \case
+            Nothing ->
+                -- NOTE
+                -- The host table doesn't even exist. Typically, when the db is
+                -- first created.
+                traceWith tr $ MsgManualMigrationNotNeeded activeSlotCoeff
+            Just True ->
+                traceWith tr $ MsgManualMigrationNotNeeded activeSlotCoeff
+            Just False -> do
+                traceWith tr $ MsgManualMigrationNeeded activeSlotCoeff value
+                addColumn <- Sqlite.prepare conn $ T.unwords
+                    [ "ALTER TABLE", tableName activeSlotCoeff
+                    , "ADD COLUMN", fieldName activeSlotCoeff
+                    , fieldType activeSlotCoeff, "NOT NULL", "DEFAULT", value
                     , ";"
                     ]
                 _ <- Sqlite.step addColumn
                 Sqlite.finalize addColumn
       where
-        coefficientText = toText
+        value = toText
             $ W.unActiveSlotCoefficient
             $ defaultActiveSlotCoefficient defaultFieldValues
 
-    -- | Determines whether or not the 'checkpoint' table has an
-    --   'active_slot_coeff' column.
+    -- | Determines whether a field is present in its parent table.
     --
-    isActiveSlotCoefficientPresent :: Sqlite.Connection -> IO Bool
-    isActiveSlotCoefficientPresent conn = do
+    -- Returns 'Nothing' if the parent table doesn't exist. Just Bool otherwise.
+    isFieldPresent :: Sqlite.Connection -> DBField -> IO (Maybe Bool)
+    isFieldPresent conn field = do
         getCheckpointTableInfo <- Sqlite.prepare conn $ mconcat
-            [ "select sql from sqlite_master "
-            , "where type = 'table' "
-            , "and name = 'checkpoint';"
+            [ "SELECT sql FROM sqlite_master "
+            , "WHERE type = 'table' "
+            , "AND name = '" <> fieldName field <> "';"
             ]
         row <- Sqlite.step getCheckpointTableInfo
             >> Sqlite.columns getCheckpointTableInfo
         Sqlite.finalize getCheckpointTableInfo
         pure $ case row of
             [PersistText t]
-                | "active_slot_coeff" `T.isInfixOf` t -> True
-                | otherwise                           -> False
-            _ ->
-                error "Cannot find checkpoint table!"
+                | fieldName field `T.isInfixOf` t -> Just True
+                | otherwise                       -> Just False
+            _ -> Nothing
 
 -- | A set of default field values that can be consulted when performing a
 --   database migration.
