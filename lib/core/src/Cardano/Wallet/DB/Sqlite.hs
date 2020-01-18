@@ -353,7 +353,7 @@ migrateManually tr defaultFieldValues =
         getCheckpointTableInfo <- Sqlite.prepare conn $ mconcat
             [ "SELECT sql FROM sqlite_master "
             , "WHERE type = 'table' "
-            , "AND name = '" <> fieldName field <> "';"
+            , "AND name = '" <> tableName field <> "';"
             ]
         row <- Sqlite.step getCheckpointTableInfo
             >> Sqlite.columns getCheckpointTableInfo
