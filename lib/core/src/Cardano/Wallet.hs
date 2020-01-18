@@ -75,11 +75,13 @@ module Cardano.Wallet
     , walletSyncProgress
     , fetchRewardBalance
     , rollbackBlocks
+    , checkWalletIntegrity
     , ErrWalletAlreadyExists (..)
     , ErrNoSuchWallet (..)
     , ErrListUTxOStatistics (..)
     , ErrUpdatePassphrase (..)
     , ErrFetchRewards (..)
+    , ErrCheckWalletIntegrity (..)
 
     -- ** Address
     , listAddresses
@@ -264,6 +266,8 @@ import Cardano.Wallet.Transaction
     )
 import Control.DeepSeq
     ( NFData )
+import Control.Exception
+    ( Exception )
 import Control.Monad
     ( forM, forM_, when )
 import Control.Monad.IO.Class
@@ -523,6 +527,26 @@ createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @s @k
     (block0, bp, _) = ctx ^. genesisData
+
+-- | Check whether a wallet is in good shape when restarting a worker.
+checkWalletIntegrity
+    :: forall ctx s k. HasDBLayer s k ctx
+    => ctx
+    -> WalletId
+    -> BlockchainParameters
+    -> ExceptT ErrCheckWalletIntegrity IO ()
+checkWalletIntegrity ctx wid bp = db & \DBLayer{..} -> mapExceptT atomically $ do
+    cp <- withExceptT ErrCheckWalletIntegrityNoSuchWallet $ withNoSuchWallet wid $
+        readCheckpoint (PrimaryKey wid)
+    whenDifferentGenesis (blockchainParameters cp) bp $ throwE $
+        ErrCheckIntegrityDifferentGenesis
+            (getGenesisBlockHash bp)
+            (getGenesisBlockHash (blockchainParameters cp))
+  where
+    db = ctx ^. dbLayer @s @k
+    whenDifferentGenesis bp1 bp2 = when $
+        (bp1 ^. #getGenesisBlockHash /= bp2 ^. #getGenesisBlockHash) ||
+        (bp1 ^. #getGenesisBlockDate /= bp2 ^. #getGenesisBlockDate)
 
 -- | Retrieve the wallet state for the wallet with the given ID.
 readWallet
@@ -1557,6 +1581,13 @@ data ErrSelectForMigration
     | ErrSelectForMigrationEmptyWallet WalletId
         -- ^ User attempted to migrate an empty wallet
     deriving (Eq, Show)
+
+data ErrCheckWalletIntegrity
+    = ErrCheckWalletIntegrityNoSuchWallet ErrNoSuchWallet
+    | ErrCheckIntegrityDifferentGenesis (Hash "Genesis") (Hash "Genesis")
+    deriving (Eq, Show)
+
+instance Exception ErrCheckWalletIntegrity
 
 {-------------------------------------------------------------------------------
                                    Utils
