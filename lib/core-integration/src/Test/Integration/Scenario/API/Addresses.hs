@@ -23,13 +23,14 @@ import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
+import Data.Quantity
+    ( Quantity (..) )
 import Test.Hspec
     ( SpecWith, describe, it )
 import Test.Integration.Framework.DSL
     ( Context
     , Headers (..)
     , Payload (..)
-    , balanceAvailable
     , emptyRandomWallet
     , emptyWallet
     , emptyWalletWith
@@ -42,7 +43,6 @@ import Test.Integration.Framework.DSL
     , json
     , listAddresses
     , request
-    , state
     , verify
     , walletId
     , withMethod
@@ -78,7 +78,7 @@ spec = do
         expectResponseCode @IO HTTP.status200 r
         expectListSizeEqual g r
         forM_ [0..(g-1)] $ \addrNum -> do
-            expectListItemFieldEqual addrNum state Unused r
+            expectListItemFieldEqual addrNum (#state . #getApiT) Unused r
 
     it "ADDRESS_LIST_01 - Can list addresses with non-default pool gap" $ \ctx -> do
         let g = 15
@@ -88,7 +88,7 @@ spec = do
         expectResponseCode @IO HTTP.status200 r
         expectListSizeEqual g r
         forM_ [0..(g-1)] $ \addrNum -> do
-            expectListItemFieldEqual addrNum state Unused r
+            expectListItemFieldEqual addrNum (#state . #getApiT) Unused r
 
     it "ADDRESS_LIST_02 - Can filter used and unused addresses" $ \ctx -> do
         let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
@@ -98,13 +98,13 @@ spec = do
         expectResponseCode @IO HTTP.status200 rUsed
         expectListSizeEqual 10 rUsed
         forM_ [0..9] $ \addrNum -> do
-            expectListItemFieldEqual addrNum state Used rUsed
+            expectListItemFieldEqual addrNum (#state . #getApiT) Used rUsed
         rUnused <- request @[ApiAddress n] ctx
             (Link.listAddresses' w (Just Unused)) Default Empty
         expectResponseCode @IO HTTP.status200 rUnused
         expectListSizeEqual g rUnused
         forM_ [10..(g-1)] $ \addrNum -> do
-            expectListItemFieldEqual addrNum state Unused rUnused
+            expectListItemFieldEqual addrNum (#state . #getApiT) Unused rUnused
 
     it "ADDRESS_LIST_02 - Shows nothing when there are no used addresses"
         $ \ctx -> do
@@ -118,7 +118,7 @@ spec = do
         expectResponseCode @IO HTTP.status200 rUnused
         expectListSizeEqual 20 rUnused
         forM_ [0..19] $ \addrNum -> do
-            expectListItemFieldEqual addrNum state Unused rUnused
+            expectListItemFieldEqual addrNum (#state . #getApiT) Unused rUnused
 
     describe "ADDRESS_LIST_02 - Invalid filters are bad requests" $ do
         let filters =
@@ -158,7 +158,7 @@ spec = do
             , expectListSizeEqual 10
             ]
         forM_ [0..9] $ \addrNum -> do
-            expectListItemFieldEqual addrNum state Unused r
+            expectListItemFieldEqual addrNum (#state . #getApiT) Unused r
         addrs <- listAddresses ctx wDest
 
         -- run 10 transactions to make all addresses `Used`
@@ -182,7 +182,8 @@ spec = do
         -- make sure all transactions are in ledger
         rb <- request @ApiWallet ctx
             (Link.getWallet @'Shelley wDest) Default Empty
-        expectEventually ctx (Link.getWallet @'Shelley) balanceAvailable 10 rb
+        expectEventually ctx (Link.getWallet @'Shelley)
+                (#balance . #getApiT . #available) (Quantity 10) rb
 
         -- verify new address_pool_gap has been created
         rAddr <- request @[ApiAddress n] ctx
@@ -192,9 +193,9 @@ spec = do
             , expectListSizeEqual 20
             ]
         forM_ [0..9] $ \addrNum -> do
-            expectListItemFieldEqual addrNum state Used rAddr
+            expectListItemFieldEqual addrNum (#state . #getApiT) Used rAddr
         forM_ [10..19] $ \addrNum -> do
-            expectListItemFieldEqual addrNum state Unused rAddr
+            expectListItemFieldEqual addrNum (#state . #getApiT) Unused rAddr
 
     describe "ADDRESS_LIST_04 - False wallet ids" $ do
         forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do

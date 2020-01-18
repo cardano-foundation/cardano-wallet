@@ -39,6 +39,8 @@ import Data.Generics.Product.Typed
     ( HasType )
 import Data.Maybe
     ( isJust )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -61,8 +63,6 @@ import Test.Integration.Framework.DSL
     , Payload (..)
     , TxDescription (..)
     , amount
-    , balanceAvailable
-    , balanceTotal
     , direction
     , emptyRandomWallet
     , emptyWallet
@@ -218,23 +218,27 @@ spec = do
         ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wa) Default Empty
         verify ra
             [ expectSuccess
-            , expectFieldBetween balanceTotal
-                ( faucetAmt - feeMax - amt
-                , faucetAmt - feeMin - amt
-                )
-            , expectFieldEqual balanceAvailable (faucetAmt - faucetUtxoAmt)
+            , expectFieldBetween (#balance . #getApiT . #total)
+                    ( Quantity (faucetAmt - feeMax - amt)
+                    , Quantity (faucetAmt - feeMin - amt)
+                    )
+            , expectFieldEqual
+                    (#balance . #getApiT . #available)
+                    (Quantity (faucetAmt - faucetUtxoAmt))
             ]
 
         rb <- request @ApiWallet ctx (Link.getWallet @'Shelley wb) Default Empty
         verify rb
             [ expectSuccess
             , expectEventually ctx (Link.getWallet @'Shelley)
-                balanceAvailable (faucetAmt + amt)
+                    (#balance . #getApiT . #available)
+                    (Quantity (faucetAmt + amt))
             ]
 
         verify ra
             [ expectEventually ctx (Link.getWallet @'Shelley)
-                balanceAvailable (faucetAmt - feeMax - amt)
+                    (#balance . #getApiT . #available)
+                    (Quantity (faucetAmt - feeMax - amt))
             ]
 
     it "TRANS_CREATE_02 - Multiple Output Tx to single wallet" $ \ctx -> do
@@ -277,18 +281,22 @@ spec = do
             , expectFieldEqual status Pending
             ]
         verify ra
-            [ expectFieldBetween balanceTotal
-                ( faucetAmt - feeMax - (2*amt)
-                , faucetAmt - feeMin - (2*amt)
+            [ expectFieldBetween (#balance . #getApiT . #total)
+                ( Quantity (faucetAmt - feeMax - (2*amt))
+                , Quantity (faucetAmt - feeMin - (2*amt))
                 )
-            , expectFieldEqual balanceAvailable (faucetAmt - 2 * faucetUtxoAmt)
+            , expectFieldEqual
+                    (#balance . #getApiT . #available)
+                    (Quantity (faucetAmt - 2 * faucetUtxoAmt))
             ]
         rd <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default Empty
         verify rd
             [ expectEventually ctx (Link.getWallet @'Shelley)
-                balanceAvailable (2*amt)
+                    (#balance . #getApiT . #available)
+                    (Quantity (2*amt))
             , expectEventually ctx (Link.getWallet @'Shelley)
-                balanceTotal (2*amt)
+                    (#balance . #getApiT . #total)
+                    (Quantity (2*amt))
             ]
 
     it "TRANS_CREATE_02 - Multiple Output Tx to different wallets" $ \ctx -> do
@@ -335,20 +343,24 @@ spec = do
             , expectFieldEqual status Pending
             ]
         verify ra
-            [ expectFieldBetween balanceTotal
-                ( faucetAmt - feeMax - (2*amt)
-                , faucetAmt - feeMin - (2*amt)
+            [ expectFieldBetween (#balance . #getApiT . #total)
+                ( Quantity (faucetAmt - feeMax - (2*amt))
+                , Quantity (faucetAmt - feeMin - (2*amt))
                 )
-            , expectFieldEqual balanceAvailable (faucetAmt - 2 * faucetUtxoAmt)
+            , expectFieldEqual
+                    (#balance . #getApiT . #available)
+                    (Quantity (faucetAmt - 2 * faucetUtxoAmt))
             ]
         forM_ [wDest1, wDest2] $ \wDest -> do
             rd <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default payload
             verify rd
                 [ expectSuccess
                 , expectEventually ctx (Link.getWallet @'Shelley)
-                    balanceAvailable amt
+                        (#balance . #getApiT . #available)
+                        (Quantity amt)
                 , expectEventually ctx (Link.getWallet @'Shelley)
-                    balanceTotal amt
+                        (#balance . #getApiT . #total)
+                        (Quantity amt)
                 ]
 
     it "TRANS_CREATE_02 - Multiple Output Txs don't work on single UTxO" $ \ctx -> do
@@ -412,22 +424,24 @@ spec = do
 
         ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
         verify ra
-            [ expectFieldEqual balanceTotal 0
-            , expectFieldEqual balanceAvailable 0
+            [ expectFieldEqual (#balance . #getApiT . #total) (Quantity 0)
+            , expectFieldEqual (#balance . #getApiT . #available) (Quantity 0)
             ]
 
         rd <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default Empty
         verify rd
             [ expectEventually ctx (Link.getWallet @'Shelley)
-                balanceAvailable amt
+                    (#balance . #getApiT . #available)
+                    (Quantity amt)
             , expectEventually ctx (Link.getWallet @'Shelley)
-                balanceTotal amt
+                    (#balance . #getApiT . #total)
+                    (Quantity amt)
             ]
 
         ra2 <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
         verify ra2
-            [ expectFieldEqual balanceTotal 0
-            , expectFieldEqual balanceAvailable 0
+            [ expectFieldEqual (#balance . #getApiT . #total) (Quantity 0)
+            , expectFieldEqual (#balance . #getApiT . #available) (Quantity 0)
             ]
 
     it "TRANS_CREATE_04 - Error shown when ErrInputsDepleted encountered" $ \ctx -> do
@@ -1154,10 +1168,16 @@ spec = do
 
         tx <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
         expectResponseCode HTTP.status202 tx
-        expectEventually' ctx (Link.getWallet @'Shelley)
-            balanceAvailable amt wDest
-        expectEventually' ctx (Link.getWallet @'Shelley)
-            balanceTotal amt wDest
+        expectEventually' ctx
+                (Link.getWallet @'Shelley)
+                (#balance . #getApiT . #available)
+                (Quantity amt)
+                wDest
+        expectEventually' ctx
+                (Link.getWallet @'Shelley)
+                (#balance . #getApiT . #total)
+                (Quantity amt)
+                wDest
 
         -- Verify Tx list contains Incoming and Outgoing
         let link = Link.listTransactions @'Shelley wSrc
@@ -1592,7 +1612,9 @@ spec = do
         -- verify balance on src wallet
         request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty >>= flip verify
             [ expectSuccess
-            , expectFieldEqual balanceAvailable (faucetAmt - faucetUtxoAmt)
+            , expectFieldEqual
+                    (#balance . #getApiT . #available)
+                    (Quantity (faucetAmt - faucetUtxoAmt))
             ]
 
         -- forget transaction
@@ -1602,8 +1624,12 @@ spec = do
         -- verify again balance on src wallet
         request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty >>= flip verify
             [ expectSuccess
-            , expectFieldEqual balanceTotal faucetAmt
-            , expectFieldEqual balanceAvailable faucetAmt
+            , expectFieldEqual
+                    (#balance . #getApiT . #total)
+                    (Quantity faucetAmt)
+            , expectFieldEqual
+                    (#balance . #getApiT . #available)
+                    (Quantity faucetAmt)
             ]
 
         -- transaction eventually is in source wallet

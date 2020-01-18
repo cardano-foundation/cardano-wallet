@@ -34,12 +34,8 @@ module Test.Integration.Framework.TestData
     , wildcardsWalletName
 
     -- * Helpers
-    , addressPoolGapMax
-    , addressPoolGapMin
     , cmdOk
     , versionLine
-    , passphraseMaxLength
-    , passphraseMinLength
     , payloadWith
     , simplePayload
     , updateNamePayload
@@ -281,18 +277,6 @@ wildcardsWalletName = "`~`!@#$%^&*()_+-=<>,./?;':\"\"'{}[]\\|❤️ 💔 💌 �
 
 cmdOk :: String
 cmdOk = "Ok.\n"
-
-passphraseMinLength :: Int
-passphraseMinLength = 10
-
-passphraseMaxLength :: Int
-passphraseMaxLength = 255
-
-addressPoolGapMin :: Int
-addressPoolGapMin = 10
-
-addressPoolGapMax :: Int
-addressPoolGapMax = 100
 
 payloadWith :: Text -> [Text] -> Payload
 payloadWith name mnemonics = Json [json| {

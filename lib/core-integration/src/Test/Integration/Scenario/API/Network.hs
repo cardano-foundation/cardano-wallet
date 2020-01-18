@@ -42,7 +42,6 @@ import Test.Integration.Framework.DSL
     , getFromResponse
     , nextEpoch
     , request
-    , state
     , syncProgress
     , verify
     )
@@ -108,7 +107,7 @@ spec = do
                 res <- request @ApiWallet ctx
                     (Link.getWallet @'Shelley w) Default Empty
                 verify res
-                    [ expectFieldEqual state Ready
+                    [ expectFieldEqual (#state . #getApiT) Ready
                     , expectFieldEqual (#tip . #epochNumber . #getApiT) epochNum
                     , expectFieldEqual (#tip . #slotNumber  . #getApiT) slotNum
                     , expectFieldEqual (#tip . #height) blockHeight
@@ -135,7 +134,7 @@ spec = do
                 res <- request @ApiByronWallet ctx
                     (Link.getWallet @'Byron w) Default Empty
                 verify res
-                    [ expectFieldEqual state Ready
+                    [ expectFieldEqual (#state . #getApiT) Ready
                     , expectFieldEqual (#tip . #epochNumber . #getApiT) epochNum
                     , expectFieldEqual (#tip . #slotNumber  . #getApiT) slotNum
                     , expectFieldEqual (#tip . #height) blockHeight

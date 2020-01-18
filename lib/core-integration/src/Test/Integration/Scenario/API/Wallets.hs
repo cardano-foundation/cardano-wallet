@@ -27,7 +27,12 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..) )
+    ( NetworkDiscriminant (..)
+    , PassphraseMaxLength (..)
+    , PassphraseMinLength (..)
+    )
+import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+    ( AddressPoolGap (..) )
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
@@ -49,6 +54,8 @@ import Data.Generics.Product.Typed
     ( HasType )
 import Data.List.NonEmpty
     ( NonEmpty ((:|)) )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -65,10 +72,6 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
-    , addressPoolGap
-    , balanceAvailable
-    , balanceReward
-    , balanceTotal
     , coinSelectionInputs
     , coinSelectionOutputs
     , delegation
@@ -92,7 +95,6 @@ import Test.Integration.Framework.DSL
     , passphraseLastUpdate
     , request
     , selectCoins
-    , state
     , unsafeRequest
     , verify
     , walletId
@@ -102,9 +104,7 @@ import Test.Integration.Framework.DSL
     , (</>)
     )
 import Test.Integration.Framework.TestData
-    ( addressPoolGapMax
-    , addressPoolGapMin
-    , arabicWalletName
+    ( arabicWalletName
     , chineseMnemonics18
     , chineseMnemonics9
     , errMsg400ParseError
@@ -134,8 +134,6 @@ import Test.Integration.Framework.TestData
     , mnemonics6
     , mnemonics9
     , notInDictMnemonics15
-    , passphraseMaxLength
-    , passphraseMinLength
     , payloadWith
     , polishWalletName
     , russianWalletName
@@ -166,11 +164,13 @@ spec = do
         verify r
             [ expectResponseCode @IO HTTP.status201
             , expectFieldEqual walletName "1st Wallet"
-            , expectFieldEqual addressPoolGap 30
-            , expectFieldEqual balanceAvailable 0
-            , expectFieldEqual balanceTotal 0
-            , expectFieldEqual balanceReward 0
-            , expectEventually ctx (Link.getWallet @'Shelley) state Ready
+            , expectFieldEqual
+                    (#addressPoolGap . #getApiT . #getAddressPoolGap) 30
+            , expectFieldEqual (#balance . #getApiT . #available) (Quantity 0)
+            , expectFieldEqual (#balance . #getApiT . #total) (Quantity 0)
+            , expectFieldEqual (#balance . #getApiT . #reward) (Quantity 0)
+            , expectEventually ctx (Link.getWallet @'Shelley)
+                    (#state . #getApiT) Ready
             , expectFieldEqual delegation (NotDelegating)
             , expectFieldEqual walletId
                 "2cf060fe53e4e0593f145f22b858dfc60676d4ab"
@@ -185,8 +185,8 @@ spec = do
         rInit <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payldCrt
         verify rInit
             [ expectResponseCode @IO HTTP.status201
-            , expectFieldEqual balanceAvailable 0
-            , expectFieldEqual balanceTotal 0
+            , expectFieldEqual (#balance . #getApiT . #available) (Quantity 0)
+            , expectFieldEqual (#balance . #getApiT . #total) (Quantity 0)
             ]
 
         --send funds
@@ -209,8 +209,12 @@ spec = do
 
         rGet <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default Empty
         verify rGet
-            [ expectEventually ctx (Link.getWallet @'Shelley) balanceTotal 1
-            , expectEventually ctx (Link.getWallet @'Shelley) balanceAvailable 1
+            [ expectEventually ctx (Link.getWallet @'Shelley)
+                    (#balance . #getApiT . #total)
+                    (Quantity 1)
+            , expectEventually ctx (Link.getWallet @'Shelley)
+                    (#balance . #getApiT . #available)
+                    (Quantity 1)
             ]
 
         -- delete wallet
@@ -221,8 +225,12 @@ spec = do
         rRestore <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payldCrt
         verify rRestore
             [ expectResponseCode @IO HTTP.status201
-            , expectEventually ctx (Link.getWallet @'Shelley) balanceAvailable 1
-            , expectEventually ctx (Link.getWallet @'Shelley) balanceTotal 1
+            , expectEventually ctx (Link.getWallet @'Shelley)
+                    (#balance . #getApiT . #available)
+                    (Quantity 1)
+            , expectEventually ctx (Link.getWallet @'Shelley)
+                    (#balance . #getApiT . #total)
+                    (Quantity 1)
             ]
 
     it "WALLETS_CREATE_03,09 - Cannot create wallet that exists" $ \ctx -> do
@@ -571,25 +579,27 @@ spec = do
             verify r expectations
 
     describe "WALLETS_CREATE_07 - Passphrase" $ do
-        let passphraseMax = T.pack (replicate passphraseMaxLength 'ą')
+        let minLength = passphraseMinLength (Proxy @"encryption")
+        let maxLength = passphraseMaxLength (Proxy @"encryption")
         let matrix =
-                [ ( show passphraseMinLength ++ " char long"
-                  , T.pack (replicate passphraseMinLength 'ź')
+                [ ( show minLength ++ " char long"
+                  , T.pack (replicate minLength 'ź')
                   , [ expectResponseCode @IO HTTP.status201
                     ]
                   )
-                , ( show (passphraseMinLength - 1) ++ " char long"
-                  , T.pack (replicate (passphraseMinLength - 1) 'ż')
+                , ( show (minLength - 1) ++ " char long"
+                  , T.pack (replicate (minLength - 1) 'ż')
                   , [ expectResponseCode @IO HTTP.status400
                     , expectErrorMessage "passphrase is too short: expected at\
                             \ least 10 characters"
                     ]
                   )
-                , ( show passphraseMaxLength ++ " char long", passphraseMax
+                , ( show maxLength ++ " char long"
+                , T.pack (replicate maxLength 'ą')
                   , [ expectResponseCode @IO HTTP.status201 ]
                   )
-                , ( show (passphraseMaxLength + 1) ++ " char long"
-                  , T.pack (replicate (passphraseMaxLength + 1) 'ę')
+                , ( show (maxLength + 1) ++ " char long"
+                  , T.pack (replicate (maxLength + 1) 'ę')
                   , [ expectResponseCode @IO HTTP.status400
                     , expectErrorMessage "passphrase is too long: expected at\
                             \ most 255 characters"
@@ -662,24 +672,28 @@ spec = do
             ]
 
     describe "WALLETS_CREATE_08 - address_pool_gap" $ do
+        let addrPoolMin = fromIntegral @_ @Int $ getAddressPoolGap minBound
+        let addrPoolMax = fromIntegral @_ @Int $ getAddressPoolGap maxBound
         let matrix =
-                [ ( show addressPoolGapMin, addressPoolGapMin
+                [ ( show addrPoolMin
+                  , addrPoolMin
                   , [ expectResponseCode @IO HTTP.status201
-                    , expectFieldEqual addressPoolGap addressPoolGapMin
+                    , expectFieldEqual (#addressPoolGap . #getApiT) minBound
                     ]
                   )
-                , ( show (addressPoolGapMin - 1) ++ " -> fail"
-                  , (addressPoolGapMin - 1)
+                , ( show (addrPoolMin - 1) ++ " -> fail"
+                  , addrPoolMin - 1
                   , [ expectResponseCode @IO HTTP.status400
                     , expectErrorMessage "An address pool gap must be a natural\
                       \ number between 10 and 100."
                     ]
                   )
-                , ( show addressPoolGapMax, addressPoolGapMax
+                , ( show addrPoolMax
+                  , addrPoolMax
                   , [ expectResponseCode @IO HTTP.status201 ]
                   )
-                , ( show (addressPoolGapMax + 1) ++ " -> fail"
-                  , addressPoolGapMax + 1
+                , ( show (addrPoolMax + 1) ++ " -> fail"
+                  , (addrPoolMax + 1)
                   , [ expectResponseCode @IO HTTP.status400
                     , expectErrorMessage "An address pool gap must be a natural\
                       \ number between 10 and 100."
@@ -794,7 +808,8 @@ spec = do
         r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
         verify r
             [ expectResponseCode @IO HTTP.status201
-            , expectFieldEqual addressPoolGap 20
+            , expectFieldEqual
+                    (#addressPoolGap . #getApiT . #getAddressPoolGap) 20
             ]
 
     describe "WALLETS_CREATE_09 - HTTP headers" $ do
@@ -884,11 +899,13 @@ spec = do
         verify rg
             [ expectResponseCode @IO HTTP.status200
             , expectFieldEqual walletName "Secure Wallet"
-            , expectFieldEqual addressPoolGap 20
-            , expectFieldEqual balanceAvailable 0
-            , expectFieldEqual balanceTotal 0
-            , expectFieldEqual balanceReward 0
-            , expectEventually ctx (Link.getWallet @'Shelley) state Ready
+            , expectFieldEqual
+                    (#addressPoolGap . #getApiT . #getAddressPoolGap) 20
+            , expectFieldEqual (#balance . #getApiT . #available) (Quantity 0)
+            , expectFieldEqual (#balance . #getApiT . #total) (Quantity 0)
+            , expectFieldEqual (#balance . #getApiT . #reward) (Quantity 0)
+            , expectEventually ctx (Link.getWallet @'Shelley)
+                    (#state . #getApiT) Ready
             , expectFieldEqual delegation (NotDelegating)
             , expectFieldEqual walletId (w ^. walletId)
             , expectFieldNotEqual passphraseLastUpdate Nothing
@@ -953,10 +970,14 @@ spec = do
             [ expectResponseCode @IO HTTP.status200
             , expectListSizeEqual 1
             , expectListItemFieldEqual 0 walletName "Wallet to be listed"
-            , expectListItemFieldEqual 0 addressPoolGap 20
-            , expectListItemFieldEqual 0 balanceAvailable 0
-            , expectListItemFieldEqual 0 balanceTotal 0
-            , expectListItemFieldEqual 0 balanceReward 0
+            , expectListItemFieldEqual 0
+                    (#addressPoolGap . #getApiT . #getAddressPoolGap) 20
+            , expectListItemFieldEqual 0
+                    (#balance . #getApiT . #available) (Quantity 0)
+            , expectListItemFieldEqual 0
+                    (#balance . #getApiT . #total) (Quantity 0)
+            , expectListItemFieldEqual 0
+                    (#balance . #getApiT . #reward) (Quantity 0)
             , expectListItemFieldEqual 0 delegation (NotDelegating)
             , expectListItemFieldEqual 0 walletId
                 "dfe87fcf0560fb57937a6468ea51e860672fad79"
@@ -1025,10 +1046,14 @@ spec = do
         let walId = getFromResponse walletId r
         let expectations = [ expectResponseCode @IO HTTP.status200
                     , expectFieldEqual walletName "New great name"
-                    , expectFieldEqual addressPoolGap 20
-                    , expectFieldEqual balanceAvailable 0
-                    , expectFieldEqual balanceTotal 0
-                    , expectEventually ctx (Link.getWallet @'Shelley) state Ready
+                    , expectFieldEqual
+                            (#addressPoolGap . #getApiT . #getAddressPoolGap) 20
+                    , expectFieldEqual
+                            (#balance . #getApiT . #available) (Quantity 0)
+                    , expectFieldEqual
+                            (#balance . #getApiT . #total) (Quantity 0)
+                    , expectEventually ctx (Link.getWallet @'Shelley)
+                            (#state . #getApiT) Ready
                     , expectFieldEqual delegation (NotDelegating)
                     , expectFieldEqual walletId walId
                     , expectFieldEqual passphraseLastUpdate passLastUpdateValue
@@ -1042,9 +1067,10 @@ spec = do
             [ expectResponseCode @IO HTTP.status200
             , expectListSizeEqual 1
             , expectListItemFieldEqual 0 walletName "New great name"
-            , expectListItemFieldEqual 0 addressPoolGap 20
-            , expectListItemFieldEqual 0 balanceAvailable 0
-            , expectListItemFieldEqual 0 balanceTotal 0
+            , expectListItemFieldEqual 0
+                    (#addressPoolGap . #getApiT . #getAddressPoolGap) 20
+            , expectListItemFieldEqual 0 (#balance . #getApiT . #available) (Quantity 0)
+            , expectListItemFieldEqual 0 (#balance . #getApiT . #total) (Quantity 0)
             , expectListItemFieldEqual 0 delegation (NotDelegating)
             , expectListItemFieldEqual 0 walletId walId
             , expectListItemFieldEqual 0 passphraseLastUpdate passLastUpdateValue
@@ -1231,25 +1257,27 @@ spec = do
         expectFieldNotEqual passphraseLastUpdate originalPassUpdateDateTime rg
 
     describe "WALLETS_UPDATE_PASS_02 - New passphrase values" $ do
-        let passphraseMax = T.pack (replicate passphraseMaxLength 'ą')
+        let minLength = passphraseMinLength (Proxy @"encryption")
+        let maxLength = passphraseMaxLength (Proxy @"encryption")
         let matrix =
-                [ ( show passphraseMinLength ++ " char long"
-                  , T.pack (replicate passphraseMinLength 'ź')
+                [ ( show minLength ++ " char long"
+                  , T.pack (replicate minLength 'ź')
                   , [ expectResponseCode @IO HTTP.status204
                     ]
                   )
-                , ( show (passphraseMinLength - 1) ++ " char long"
-                  , T.pack (replicate (passphraseMinLength - 1) 'ż')
+                , ( show (minLength - 1) ++ " char long"
+                  , T.pack (replicate (minLength - 1) 'ż')
                   , [ expectResponseCode @IO HTTP.status400
                     , expectErrorMessage "passphrase is too short: expected at\
                             \ least 10 characters"
                     ]
                   )
-                , ( show passphraseMaxLength ++ " char long", passphraseMax
+                , ( show maxLength ++ " char long"
+                  , T.pack (replicate maxLength 'ą')
                   , [ expectResponseCode @IO HTTP.status204 ]
                   )
-                , ( show (passphraseMaxLength + 1) ++ " char long"
-                  , T.pack (replicate (passphraseMaxLength + 1) 'ę')
+                , ( show (maxLength + 1) ++ " char long"
+                  , T.pack (replicate (maxLength + 1) 'ę')
                   , [ expectResponseCode @IO HTTP.status400
                     , expectErrorMessage "passphrase is too long: expected at\
                             \ most 255 characters"
@@ -1286,15 +1314,17 @@ spec = do
             verify rup expectations
 
     describe "WALLETS_UPDATE_PASS_03 - Old passphrase invalid values" $ do
+        let minLength = passphraseMinLength (Proxy @"encryption")
+        let maxLength = passphraseMaxLength (Proxy @"encryption")
         let matrix =
-                [ ( show (passphraseMinLength - 1) ++ " char long"
-                  , T.pack (replicate (passphraseMinLength - 1) 'ż')
+                [ ( show (minLength - 1) ++ " char long"
+                  , T.pack (replicate (minLength - 1) 'ż')
                   , [ expectResponseCode @IO HTTP.status400
                     , expectErrorMessage "passphrase is too short: expected at\
                             \ least 10 characters" ]
                   )
-                , ( show (passphraseMaxLength + 1) ++ " char long"
-                  , T.pack (replicate (passphraseMaxLength + 1) 'ę')
+                , ( show (maxLength + 1) ++ " char long"
+                  , T.pack (replicate (maxLength + 1) 'ę')
                   , [ expectResponseCode @IO HTTP.status400
                     , expectErrorMessage "passphrase is too long: expected at\
                             \ most 255 characters" ]
@@ -1319,11 +1349,13 @@ spec = do
 
     describe "WALLETS_UPDATE_PASS_03 - Can update pass from pass that's boundary\
     \ value" $ do
+        let minLength = passphraseMinLength (Proxy @"encryption")
+        let maxLength = passphraseMaxLength (Proxy @"encryption")
         let matrix =
-                [ ( show passphraseMinLength ++ " char long"
-                  , T.pack (replicate passphraseMinLength 'ź') )
-                , ( show passphraseMaxLength ++ " char long"
-                  , T.pack (replicate passphraseMaxLength 'ą') )
+                [ ( show minLength ++ " char long"
+                  , T.pack (replicate minLength 'ź') )
+                , ( show maxLength ++ " char long"
+                  , T.pack (replicate maxLength 'ą') )
                 , ( "Russian passphrase", russianWalletName )
                 , ( "Polish passphrase", polishWalletName )
                 , ( "Kanji passphrase", kanjiWalletName )
@@ -1336,12 +1368,13 @@ spec = do
                      "mnemonic_sentence": #{mnemonics24},
                      "passphrase": #{oldPass}
                      } |]
-            r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default createPayload
-            let payload = updatePassPayload oldPass
-                                (T.pack (replicate passphraseMaxLength '💘'))
-            let endpoint = "v2/wallets" </> (getFromResponse walletId r)
-                    </> ("passphrase" :: Text)
-            rup <- request @ApiWallet ctx ("PUT", endpoint) Default payload
+            (_, w) <- unsafeRequest @ApiWallet ctx
+                (Link.postWallet @'Shelley) createPayload
+            let len = passphraseMaxLength (Proxy @"encryption")
+            let newPass = T.pack $ replicate len '💘'
+            let payload = updatePassPayload oldPass newPass
+            rup <- request @ApiWallet ctx
+                (Link.putWalletPassphrase w) Default payload
             expectResponseCode @IO HTTP.status204 rup
 
     describe "WALLETS_UPDATE_PASS_02,03 - invalid payloads" $  do
@@ -1670,10 +1703,12 @@ spec = do
             rGet <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default Empty
             let coinsSent = map fromIntegral $ take alreadyAbsorbed coins
             verify rGet
-                [ expectEventually ctx (Link.getWallet @'Shelley) balanceTotal
-                    (fromIntegral $ sum coinsSent)
-                , expectEventually ctx (Link.getWallet @'Shelley) balanceAvailable
-                    (fromIntegral $ sum coinsSent)
+                [ expectEventually ctx (Link.getWallet @'Shelley)
+                        (#balance . #getApiT . #total)
+                        (Quantity (fromIntegral $ sum coinsSent))
+                , expectEventually ctx (Link.getWallet @'Shelley)
+                        (#balance . #getApiT . #available)
+                        (Quantity (fromIntegral $ sum coinsSent))
                 ]
             --verify utxo
             rStat1 <- request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics wDest) Default Empty
