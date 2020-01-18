@@ -31,8 +31,7 @@ import Cardano.Pool.Metrics
     ( Block (..)
     , ErrListStakePools (..)
     , StakePoolLayer (..)
-    , StakePoolLayerLog (..)
-    , StakePoolMonitorLog (..)
+    , StakePoolLog (..)
     , associateMetadata
     , calculatePerformance
     , combineMetrics
@@ -306,7 +305,7 @@ prop_trackRegistrations test = monadicIO $ do
         . mconcat
         . getRegistrationsTest
 
-    isDiscoveryMsg :: StakePoolMonitorLog -> Bool
+    isDiscoveryMsg :: StakePoolLog -> Bool
     isDiscoveryMsg (MsgStakePoolRegistration _) = True
     isDiscoveryMsg _ = False
 

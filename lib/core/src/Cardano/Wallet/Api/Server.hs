@@ -69,8 +69,8 @@ import Cardano.Wallet
     , ErrWithRootKey (..)
     , ErrWrongPassphrase (..)
     , HasLogger
+    , WalletLog
     , genesisData
-    , logger
     , networkLayer
     )
 import Cardano.Wallet.Api
@@ -132,8 +132,6 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.DB
     ( DBFactory (..) )
-import Cardano.Wallet.Logging
-    ( fromLogObject, transformTextTrace )
 import Cardano.Wallet.Network
     ( ErrNetworkTip (..), ErrNetworkUnavailable (..), NetworkLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -193,7 +191,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..)
     , MkWorker (..)
-    , WorkerRegistryLog (..)
+    , WorkerLog (..)
     , defaultWorkerAfter
     , newWorker
     , workerResource
@@ -219,7 +217,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Except
     ( ExceptT (..), catchE, runExceptT, throwE, withExceptT )
 import Control.Tracer
-    ( Tracer, contramap )
+    ( Tracer )
 import Data.Aeson
     ( (.=) )
 import Data.Function
@@ -898,16 +896,14 @@ forceResyncWallet ctx (ApiT wid) tip = guardTip (== W.slotMinBound) $ \pt -> do
     liftHandler (safeRollback pt) `finally` liftIO (registerWorker ctx wid)
   where
     re = ctx ^. workerRegistry @s @k
-    tr = ctx ^. logger
     df = ctx ^. dbFactory @s @k
 
     -- NOTE Safe because it happens without any worker running and, we've
     -- controlled that 'point' is genesis.
     safeRollback :: W.SlotId -> ExceptT ErrNoSuchWallet IO ()
     safeRollback point = do
-        let tr' = Registry.transformTrace wid tr
         ExceptT $ withDatabase df wid $ \db -> do
-            let wrk = hoistResource db (ctx & logger .~ tr')
+            let wrk = hoistResource db (MsgFromWorker wid) ctx
             runExceptT $ W.rollbackBlocks wrk wid point
 
     guardTip
@@ -1332,7 +1328,7 @@ initWorker
     :: forall ctx s k.
         ( HasWorkerRegistry s k ctx
         , HasDBFactory s k ctx
-        , HasLogger ctx
+        , HasLogger (WorkerLog WalletId WalletLog) ctx
         )
     => ctx
         -- ^ Surrounding API context
@@ -1348,7 +1344,7 @@ initWorker ctx wid createWallet restoreWallet =
         Just _ ->
             throwE $ ErrCreateWalletAlreadyExists $ ErrWalletAlreadyExists wid
         Nothing ->
-            liftIO (newWorker @_ @_ @ctx ctx wid config) >>= \case
+            liftIO (newWorker @_ @ctx ctx wid config) >>= \case
                 Nothing ->
                     throwE ErrCreateWalletFailedToCreateWorker
                 Just worker ->
@@ -1366,7 +1362,7 @@ initWorker ctx wid createWallet restoreWallet =
             unsafeRunExceptT $ restoreWallet ctx'
 
         , workerAfter =
-            defaultWorkerAfter . transformTextTrace
+            defaultWorkerAfter
 
         , workerAcquire =
             withDatabase df wid
@@ -1453,7 +1449,7 @@ getWalletTip wallet = ApiBlockReference
 -- | Create a new instance of the wallet layer.
 newApiLayer
     :: forall ctx s t k. ctx ~ ApiLayer s t k
-    => Tracer IO WorkerRegistryLog
+    => Tracer IO (WorkerLog WalletId WalletLog)
     -> (Block, BlockchainParameters, SyncTolerance)
     -> NetworkLayer IO t Block
     -> TransactionLayer t k
@@ -1462,8 +1458,7 @@ newApiLayer
     -> IO ctx
 newApiLayer tr g0 nw tl df wids = do
     re <- Registry.empty
-    let tr' = contramap MsgFromWorker tr
-    let ctx = ApiLayer (fromLogObject tr') g0 nw tl df re
+    let ctx = ApiLayer tr g0 nw tl df re
     forM_ wids (registerWorker ctx)
     return ctx
 
@@ -1476,7 +1471,7 @@ registerWorker
     -> WalletId
     -> IO ()
 registerWorker ctx wid = do
-    newWorker @_ @_ @ctx ctx wid config >>= \case
+    newWorker @_ @ctx ctx wid config >>= \case
         Nothing ->
             return ()
         Just worker ->
@@ -1495,7 +1490,7 @@ registerWorker ctx wid = do
                 W.restoreWallet @(WorkerCtx ctx) @s @t ctx' wid
 
         , workerAfter =
-            defaultWorkerAfter . transformTextTrace
+            defaultWorkerAfter
 
         , workerAcquire =
             withDatabase df wid
@@ -1522,7 +1517,7 @@ withWorkerCtx ctx wid onMissing action =
         Nothing ->
             onMissing (ErrNoSuchWallet wid)
         Just wrk ->
-            action $ hoistResource (workerResource wrk) ctx
+            action $ hoistResource (workerResource wrk) (MsgFromWorker wid) ctx
   where
     re = ctx ^. workerRegistry @s @k
 

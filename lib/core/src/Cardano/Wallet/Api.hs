@@ -79,10 +79,8 @@ module Cardano.Wallet.Api
 
 import Prelude
 
-import Cardano.BM.Trace
-    ( Trace )
 import Cardano.Wallet
-    ( WalletLayer (..) )
+    ( WalletLayer (..), WalletLog )
 import Cardano.Wallet.Api.Types
     ( AllowedMnemonics
     , ApiAddress
@@ -127,9 +125,11 @@ import Cardano.Wallet.Primitive.Types
     , WalletId (..)
     )
 import Cardano.Wallet.Registry
-    ( HasWorkerCtx (..), WorkerRegistry )
+    ( HasWorkerCtx (..), WorkerLog, WorkerRegistry )
 import Cardano.Wallet.Transaction
     ( TransactionLayer )
+import Control.Tracer
+    ( Tracer, contramap )
 import Data.Generics.Internal.VL.Lens
     ( Lens' )
 import Data.Generics.Labels
@@ -138,8 +138,6 @@ import Data.Generics.Product.Typed
     ( HasType, typed )
 import Data.List.NonEmpty
     ( NonEmpty ((:|)) )
-import Data.Text
-    ( Text )
 import GHC.Generics
     ( Generic )
 import Network.HTTP.Media
@@ -501,7 +499,7 @@ type PutAcccepted = Verb 'PUT 202
 
 data ApiLayer s t (k :: Depth -> * -> *)
     = ApiLayer
-        (Trace IO Text)
+        (Tracer IO (WorkerLog WalletId WalletLog))
         (Block, BlockchainParameters, SyncTolerance)
         (NetworkLayer IO t (Block))
         (TransactionLayer t k)
@@ -511,8 +509,10 @@ data ApiLayer s t (k :: Depth -> * -> *)
 
 instance HasWorkerCtx (DBLayer IO s k) (ApiLayer s t k) where
     type WorkerCtx (ApiLayer s t k) = WalletLayer s t k
-    hoistResource db (ApiLayer tr bp nw tl _ _) =
-        WalletLayer tr bp nw tl db
+    type WorkerMsg (ApiLayer s t k) = WalletLog
+    type WorkerKey (ApiLayer s t k) = WalletId
+    hoistResource db transform (ApiLayer tr bp nw tl _ _) =
+        WalletLayer (contramap transform tr) bp nw tl db
 
 {-------------------------------------------------------------------------------
                                Capabilities
@@ -521,6 +521,8 @@ instance HasWorkerCtx (DBLayer IO s k) (ApiLayer s t k) where
 type HasWorkerRegistry s k ctx =
     ( HasType (WorkerRegistry WalletId (DBLayer IO s k)) ctx
     , HasWorkerCtx (DBLayer IO s k) ctx
+    , WorkerKey ctx ~ WalletId
+    , WorkerMsg ctx ~ WalletLog
     )
 
 workerRegistry

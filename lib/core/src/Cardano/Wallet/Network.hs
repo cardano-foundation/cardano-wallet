@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -22,6 +23,9 @@ module Cardano.Wallet.Network
     , ErrPostTx (..)
     , ErrGetAccountBalance (..)
 
+    -- * Logging
+    , FollowLog (..)
+
     -- * Initialization
     , defaultRetryPolicy
     , waitForNetwork
@@ -29,8 +33,10 @@ module Cardano.Wallet.Network
 
 import Prelude
 
-import Cardano.BM.Trace
-    ( Trace, logDebug, logError, logInfo, logWarning )
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
+import Cardano.BM.Data.Tracer
+    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , BlockchainParameters (..)
@@ -56,12 +62,12 @@ import Control.Exception
     )
 import Control.Monad
     ( when )
-import Control.Monad.IO.Class
-    ( liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
 import Control.Retry
     ( RetryPolicyM, constantDelay, limitRetriesByCumulativeDelay, retrying )
+import Control.Tracer
+    ( Tracer, traceWith )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map
@@ -70,6 +76,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( ToText (..) )
 import Data.Word
     ( Word64 )
 import Fmt
@@ -259,7 +267,7 @@ data FollowAction err
       -- ^ Forget about the blocks in the current callback, and retry immediately.
     | RetryLater
       -- ^ Like 'RetryImmediately' but only retries after a short delay
-    deriving (Eq, Show)
+    deriving (Eq, Show, Functor)
 
 -- | Subscribe to a blockchain and get called with new block (in order)!
 --
@@ -275,7 +283,7 @@ follow
     :: forall target block e. (Show e)
     => NetworkLayer IO target block
     -- ^ The @NetworkLayer@ used to poll for new blocks.
-    -> Trace IO Text
+    -> Tracer IO FollowLog
     -- ^ Logger trace
     -> [BlockHeader]
     -- ^ A list of known tips to start from. Blocks /after/ the tip will be yielded.
@@ -311,10 +319,10 @@ follow nl tr cps yield header =
             Nothing | fromException e == Just AsyncCancelled -> do
                 return Nothing
             Just _ -> do
-                logError tr $ "Non-recoverable error following the chain: " <> eT
+                traceWith tr $ MsgFatalUnhandledException eT
                 return Nothing
             _ -> do
-                logError tr $ "Recoverable error following the chain: " <> eT
+                traceWith tr $ MsgUnhandledException eT
                 sleep (retryDelay delay) cursor
           where
             eT = T.pack (show e)
@@ -322,35 +330,30 @@ follow nl tr cps yield header =
     step :: Int -> Cursor target -> IO (Maybe SlotId)
     step delay cursor = runExceptT (nextBlocks nl cursor) >>= \case
         Left e -> do
-            logWarning tr $ T.pack $ "Failed to get next blocks: " <> show e
+            traceWith tr $ MsgNextBlockFailed e
             sleep (retryDelay delay) cursor
 
         Right AwaitReply -> do
-            logDebug tr "In sync with the node."
+            traceWith tr MsgSynced
             sleep delay0 cursor
 
         Right (RollForward cursor' _ []) -> do -- FIXME Make RollForward return NE
-            logDebug tr "In sync with the node."
+            traceWith tr MsgSynced
             sleep delay0 cursor'
 
         Right (RollForward cursor' nodeTip (blockFirst : blocksRest)) -> do
             let blocks = blockFirst :| blocksRest
-            let (slFst, slLst) =
-                    ( slotId . header . NE.head $ blocks
-                    , slotId . header . NE.last $ blocks
-                    )
-            liftIO $ logInfo tr $ mconcat
-                [ "Applying blocks [", pretty slFst, " ... ", pretty slLst, "]" ]
-
-            yield blocks nodeTip >>= handle cursor'
+            traceWith tr $ MsgApplyBlocks (header <$> blocks)
+            action <- yield blocks nodeTip
+            traceWith tr $ MsgFollowAction (fmap show action)
+            handle cursor' action
 
         Right (RollBackward cursor') ->
             return $ Just (cursorSlotId nl cursor')
       where
         handle :: Cursor target -> FollowAction e -> IO (Maybe SlotId)
         handle cursor' = \case
-            ExitWith e -> do
-                logError tr $ T.pack $ "Failed to roll forward: " <> show e
+            ExitWith _ -> -- NOTE error logged as part of `MsgFollowAction`
                 return Nothing
             Continue ->
                 step delay0 cursor'
@@ -358,3 +361,48 @@ follow nl tr cps yield header =
                 step delay0 cursor
             RetryLater ->
                 sleep delay0 cursor
+
+{-------------------------------------------------------------------------------
+                                    Logging
+-------------------------------------------------------------------------------}
+
+data FollowLog
+    = MsgFollowAction (FollowAction String)
+    | MsgFatalUnhandledException Text
+    | MsgUnhandledException Text
+    | MsgNextBlockFailed ErrGetBlock
+    | MsgSynced
+    | MsgApplyBlocks (NonEmpty BlockHeader)
+    deriving (Show, Eq)
+
+instance ToText FollowLog where
+    toText = \case
+        MsgFollowAction action -> case action of
+            ExitWith e -> "Failed to roll forward: " <> T.pack e
+            _ -> T.pack $ "Follower says " <> show action
+        MsgFatalUnhandledException err ->
+            "Non-recoverable error following the chain: " <> err
+        MsgUnhandledException err ->
+            "Recoverable error following the chain: " <> err
+        MsgNextBlockFailed e ->
+            T.pack $ "Failed to get next blocks: " <> show e
+        MsgSynced ->
+            "In sync with the node."
+        MsgApplyBlocks hdrs ->
+            let (slFst, slLst) =
+                    ( slotId $ NE.head hdrs
+                    , slotId $ NE.last hdrs
+                    )
+            in mconcat
+                [ "Applying blocks [", pretty slFst, " ... ", pretty slLst, "]" ]
+
+instance DefinePrivacyAnnotation FollowLog
+instance DefineSeverity FollowLog where
+    defineSeverity = \case
+        MsgFollowAction (ExitWith _) -> Error
+        MsgFollowAction _ -> Debug
+        MsgFatalUnhandledException _ -> Error
+        MsgUnhandledException _ -> Error
+        MsgNextBlockFailed _ -> Warning
+        MsgSynced -> Debug
+        MsgApplyBlocks _ -> Info

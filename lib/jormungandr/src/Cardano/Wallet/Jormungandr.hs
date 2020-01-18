@@ -58,12 +58,9 @@ import Cardano.DB.Sqlite
 import Cardano.Launcher
     ( ProcessHasExited (..), installSignalHandlers )
 import Cardano.Pool.Metrics
-    ( StakePoolLayer
-    , StakePoolLayerLog (MsgStakePoolWorker)
-    , StakePoolMonitorLog
-    , monitorStakePools
-    , newStakePoolLayer
-    )
+    ( StakePoolLayer, StakePoolLog, monitorStakePools, newStakePoolLayer )
+import Cardano.Wallet
+    ( WalletLog )
 import Cardano.Wallet.Api
     ( ApiLayer )
 import Cardano.Wallet.Api.Server
@@ -88,7 +85,7 @@ import Cardano.Wallet.Jormungandr.Network
 import Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Logging
-    ( filterTraceSeverity, fromLogObject, trMessageText )
+    ( filterTraceSeverity, trMessageText )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -119,9 +116,10 @@ import Cardano.Wallet.Primitive.Types
     , BlockchainParameters (..)
     , ChimericAccount
     , SyncTolerance
+    , WalletId
     )
 import Cardano.Wallet.Registry
-    ( WorkerRegistryLog, defaultWorkerAfter )
+    ( WorkerLog (..), defaultWorkerAfter )
 import Cardano.Wallet.Transaction
     ( TransactionLayer )
 import Control.Applicative
@@ -220,7 +218,7 @@ serveWallet
             let icarusTl = newTransactionLayer (getGenesisBlockHash bp)
             let shelleyTl = newTransactionLayer (getGenesisBlockHash bp)
             let poolDBPath = Pool.defaultFilePath <$> databaseDir
-            Pool.withDBLayer stakePoolDBTracer poolDBPath $ \db ->
+            Pool.withDBLayer stakePoolDbTracer poolDBPath $ \db ->
                 withSystemTempDirectory "stake-pool-metadata" $ \md -> do
                     poolApi <- stakePoolLayer nl db md
                     byronApi <- apiLayer "byron" byronTl nl
@@ -268,7 +266,7 @@ serveWallet
         wallets <- maybe (pure []) (Sqlite.findDatabases @k tracer) databaseDir
         db <- Sqlite.newDBFactory walletDbTracer databaseDir
         Server.newApiLayer
-            walletEngine (toWLBlock block0, bp, sTolerance) nl' tl db wallets
+            walletEngineTracer (toWLBlock block0, bp, sTolerance) nl' tl db wallets
       where
         nl' = toWLBlock <$> nl
 
@@ -278,12 +276,12 @@ serveWallet
         -> FilePath
         -> IO (StakePoolLayer IO)
     stakePoolLayer nl db metadataDir = do
-        void $ forkFinally (monitorStakePools stakePoolMonitorTracer nl' db) onExit
-        pure $ newStakePoolLayer stakePoolLayerTracer db nl' metadataDir
+        void $ forkFinally (monitorStakePools tr nl' db) onExit
+        pure $ newStakePoolLayer tr db nl' metadataDir
       where
         nl' = toSPBlock <$> nl
-        onExit = defaultWorkerAfter
-            (fromLogObject $ contramap MsgStakePoolWorker stakePoolLayerTracer)
+        tr  = contramap (MsgFromWorker mempty) stakePoolEngineTracer
+        onExit = defaultWorkerAfter stakePoolEngineTracer
 
     handleNetworkStartupError :: ErrStartup -> IO ExitCode
     handleNetworkStartupError err = do
@@ -424,15 +422,14 @@ exitCodeApiServer = \case
 
 -- | The types of trace events produced by the Jörmungandr API server.
 data Tracers' f = Tracers
-    { applicationTracer      :: f ApplicationLog
-    , apiServerTracer        :: f ApiLog
-    , walletEngine           :: f WorkerRegistryLog
-    , walletDbTracer         :: f DBLog
-    , networkTracer          :: f NetworkLayerLog
-    , stakePoolMonitorTracer :: f StakePoolMonitorLog
-    , stakePoolLayerTracer   :: f StakePoolLayerLog
-    , stakePoolDBTracer      :: f DBLog
-    , daedalusIPCTracer      :: f DaedalusIPCLog
+    { applicationTracer     :: f ApplicationLog
+    , apiServerTracer       :: f ApiLog
+    , walletEngineTracer    :: f (WorkerLog WalletId WalletLog)
+    , walletDbTracer        :: f DBLog
+    , stakePoolEngineTracer :: f (WorkerLog Text StakePoolLog)
+    , stakePoolDbTracer     :: f DBLog
+    , networkTracer         :: f NetworkLayerLog
+    , daedalusIPCTracer     :: f DaedalusIPCLog
     }
 
 -- | All of the Jörmungandr 'Tracer's.
@@ -446,29 +443,27 @@ type TracerSeverities = Tracers' (Const (Maybe Severity))
 -- severity.
 tracerSeverities :: Maybe Severity -> TracerSeverities
 tracerSeverities sev = Tracers
-    { applicationTracer      = Const sev
-    , apiServerTracer        = Const sev
-    , walletDbTracer         = Const sev
-    , walletEngine           = Const sev
-    , networkTracer          = Const sev
-    , stakePoolMonitorTracer = Const sev
-    , stakePoolLayerTracer   = Const sev
-    , stakePoolDBTracer      = Const sev
-    , daedalusIPCTracer      = Const sev
+    { applicationTracer     = Const sev
+    , apiServerTracer       = Const sev
+    , walletDbTracer        = Const sev
+    , walletEngineTracer    = Const sev
+    , stakePoolEngineTracer = Const sev
+    , stakePoolDbTracer     = Const sev
+    , networkTracer         = Const sev
+    , daedalusIPCTracer     = Const sev
     }
 
 -- | Set up tracing with textual log messages.
 setupTracers :: TracerSeverities -> Trace IO Text -> Tracers IO
 setupTracers sev tr = Tracers
-    { applicationTracer      = mkTrace applicationTracer      $ onoff applicationTracer      tr
-    , apiServerTracer        = mkTrace apiServerTracer        $ onoff apiServerTracer        tr
-    , walletEngine           = mkTrace walletEngine           $ onoff walletEngine           tr
-    , walletDbTracer         = mkTrace walletDbTracer         $ onoff walletDbTracer         tr
-    , networkTracer          = mkTrace networkTracer          $ onoff networkTracer          tr
-    , stakePoolMonitorTracer = mkTrace stakePoolMonitorTracer $ onoff stakePoolMonitorTracer tr
-    , stakePoolLayerTracer   = mkTrace stakePoolLayerTracer   $ onoff stakePoolLayerTracer   tr
-    , stakePoolDBTracer      = mkTrace stakePoolDBTracer      $ onoff stakePoolDBTracer      tr
-    , daedalusIPCTracer      = mkTrace daedalusIPCTracer      $ onoff daedalusIPCTracer      tr
+    { applicationTracer     = mkTrace applicationTracer     $ onoff applicationTracer tr
+    , apiServerTracer       = mkTrace apiServerTracer       $ onoff apiServerTracer tr
+    , walletEngineTracer    = mkTrace walletEngineTracer    $ onoff walletEngineTracer tr
+    , walletDbTracer        = mkTrace walletDbTracer        $ onoff walletDbTracer tr
+    , stakePoolEngineTracer = mkTrace stakePoolEngineTracer $ onoff stakePoolEngineTracer tr
+    , stakePoolDbTracer     = mkTrace stakePoolDbTracer     $ onoff stakePoolDbTracer tr
+    , networkTracer         = mkTrace networkTracer         $ onoff networkTracer tr
+    , daedalusIPCTracer     = mkTrace daedalusIPCTracer     $ onoff daedalusIPCTracer tr
     }
   where
     onoff
@@ -490,15 +485,14 @@ setupTracers sev tr = Tracers
 -- | Strings that the user can refer to tracers by.
 tracerLabels :: Tracers' (Const Text)
 tracerLabels = Tracers
-    { applicationTracer      = Const "application"
-    , apiServerTracer        = Const "api-server"
-    , walletEngine           = Const "wallet-engine"
-    , walletDbTracer         = Const "wallet-db"
-    , networkTracer          = Const "network"
-    , stakePoolMonitorTracer = Const "stake-pool-monitor"
-    , stakePoolLayerTracer   = Const "stake-pool-layer"
-    , stakePoolDBTracer      = Const "stake-pool-db"
-    , daedalusIPCTracer      = Const "daedalus-ipc"
+    { applicationTracer     = Const "application"
+    , apiServerTracer       = Const "api-server"
+    , walletEngineTracer    = Const "wallet-engine"
+    , walletDbTracer        = Const "wallet-db"
+    , stakePoolEngineTracer = Const "pools-engine"
+    , stakePoolDbTracer     = Const "pools-db"
+    , networkTracer         = Const "network"
+    , daedalusIPCTracer     = Const "daedalus-ipc"
     }
 
 -- | Names and descriptions of the tracers, for user documentation.
@@ -510,23 +504,20 @@ tracerDescriptions =
     , ( lbl apiServerTracer
       , "About the HTTP API requests and responses."
       )
-    , ( lbl walletEngine
+    , ( lbl walletEngineTracer
       , "About background wallet workers events and core wallet engine."
       )
     , ( lbl walletDbTracer
       , "About database operations of each wallet."
       )
+    , ( lbl stakePoolEngineTracer
+      , "About the background worker monitoring stake pools and stake pools engine."
+      )
+    , ( lbl stakePoolDbTracer
+      , "About database operations on stake pools."
+      )
     , ( lbl networkTracer
       , "About networking communications with the node."
-      )
-    , ( lbl stakePoolMonitorTracer
-      , "About the background worker monitoring stake pools."
-      )
-    , ( lbl stakePoolLayerTracer
-      , "About operations on stake pools."
-      )
-    , ( lbl stakePoolDBTracer
-      , "About database operations of the stake pools db."
       )
     , ( lbl daedalusIPCTracer
       , "About inter-process communications with Daedalus."
@@ -538,13 +529,12 @@ tracerDescriptions =
 -- | Use a 'nullTracer' for each of the 'Tracer's in 'Tracers'
 nullTracers :: Monad m => Tracers m
 nullTracers = Tracers
-    { applicationTracer      = nullTracer
-    , apiServerTracer        = nullTracer
-    , walletEngine           = nullTracer
-    , walletDbTracer         = nullTracer
-    , networkTracer          = nullTracer
-    , stakePoolMonitorTracer = nullTracer
-    , stakePoolLayerTracer   = nullTracer
-    , stakePoolDBTracer      = nullTracer
-    , daedalusIPCTracer      = nullTracer
+    { applicationTracer     = nullTracer
+    , apiServerTracer       = nullTracer
+    , walletEngineTracer    = nullTracer
+    , walletDbTracer        = nullTracer
+    , stakePoolEngineTracer = nullTracer
+    , stakePoolDbTracer     = nullTracer
+    , networkTracer         = nullTracer
+    , daedalusIPCTracer     = nullTracer
     }
