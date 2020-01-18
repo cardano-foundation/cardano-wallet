@@ -82,21 +82,26 @@ let
     # Create a script that runs the migration test against the server of
     # a certain release.
     testRelease = rel: let
-        walletPackages = importRelease rel;
+        targetRelease = importRelease rel;
+        # Use the genesis block from the latest release only.
+        # Having different genesis block (hash) across releases will basically
+        # make all wallets incompatible with each others. Prior to v2020-01-20,
+        # workers would simply loop ad-infinitum trying to rollback to (0, 0).
+        latestRelease = importRelease null;
       in pkgs.writeScript "launch-migration-test-${releaseName rel}.sh" ''
         #!${pkgs.runtimeShell}
 
         export PATH=${makeBinPath [
-          walletPackages.cardano-wallet-jormungandr
-          walletPackages.jormungandr
+          targetRelease.cardano-wallet-jormungandr
+          targetRelease.jormungandr
           migrationTest
           pkgs.bash
           pkgs.coreutils
         ]}
-        export src=${walletPackages.src}
+        export src=${latestRelease.src}
 
         exec ${./launch-migration-test.sh} "$@"
-      '' // { inherit (walletPackages) cardano-wallet-jormungandr; };
+      '' // { inherit (latestRelease) cardano-wallet-jormungandr; };
 
     # Create a test runner script for the given release.
     # The test scenario is quite simple at present.
@@ -180,6 +185,7 @@ let
         ''}
       '';
     };
+    latest = importRelease null;
   in
     # Create a directory with migration test scripts for each release version.
     # At the top level is a script that runs all tests.
@@ -190,7 +196,7 @@ let
       mkdir -p $out/${test.name}/data
       cp ${test.cardano-wallet-jormungandr}/bin/* $out/${test.name}
       cp ${test.runner} $out/${test.name}/${test.runner.name}
-      cp ${test.src}/lib/jormungandr/test/data/jormungandr/{block0.bin,config.yaml,secret.yaml} $out/${test.name}/data
+      cp ${latest.src}/lib/jormungandr/test/data/jormungandr/{block0.bin,config.yaml,secret.yaml} $out/${test.name}/data
 
       # append test to the run all script
       echo "${test.name}\${test.runner.name}" >> $out/runall.bat
