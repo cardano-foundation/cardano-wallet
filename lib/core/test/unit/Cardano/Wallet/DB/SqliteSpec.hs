@@ -54,7 +54,12 @@ import Cardano.Wallet.DB.Arbitrary
 import Cardano.Wallet.DB.Properties
     ( properties, withDB )
 import Cardano.Wallet.DB.Sqlite
-    ( PersistState, newDBFactory, newDBLayer, withDBLayer )
+    ( DefaultFieldValues (..)
+    , PersistState
+    , newDBFactory
+    , newDBLayer
+    , withDBLayer
+    )
 import Cardano.Wallet.DB.StateMachine
     ( prop_parallel, prop_sequential )
 import Cardano.Wallet.DummyTarget.Primitive.Types
@@ -83,7 +88,8 @@ import Cardano.Wallet.Primitive.Mnemonic
 import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
+    ( ActiveSlotCoefficient (..)
+    , Address (..)
     , ChimericAccount (..)
     , Coin (..)
     , Direction (..)
@@ -248,7 +254,8 @@ newMemoryDBLayer'
     => IO (TVar [DBLog], (SqliteContext, DBLayer IO s k))
 newMemoryDBLayer' = do
     logVar <- newTVarIO []
-    (logVar, ) <$> newDBLayer (traceInTVarIO logVar) Nothing
+    (logVar, ) <$>
+        newDBLayer (traceInTVarIO logVar) defaultFieldValues Nothing
 
 withLoggingDB
     ::  ( IsOurs s Address
@@ -303,7 +310,8 @@ fileModeSpec =  do
     describe "DBFactory" $ do
         it "withDatabase *> removeDatabase works and remove files" $ do
             withSystemTempDirectory "DBFactory" $ \dir -> do
-                DBFactory{..} <- newDBFactory nullTracer (Just dir)
+                DBFactory{..} <- newDBFactory
+                    nullTracer defaultFieldValues (Just dir)
                 mvar <- newEmptyMVar
 
                 -- NOTE
@@ -489,7 +497,11 @@ withTestDBFile action expectations = do
     withSystemTempFile "spec.db" $ \fp h -> do
         hClose h
         removeFile fp
-        withDBLayer (trMessageText trace) (Just fp) (action . snd)
+        withDBLayer
+            (trMessageText trace)
+            defaultFieldValues
+            (Just fp)
+            (action . snd)
         expectations fp
 
 inMemoryDBLayer
@@ -504,6 +516,10 @@ inMemoryDBLayer = newDBLayer' Nothing
 temporaryDBFile :: IO FilePath
 temporaryDBFile = emptySystemTempFile "cardano-wallet-SqliteFileMode"
 
+defaultFieldValues :: DefaultFieldValues
+defaultFieldValues = DefaultFieldValues
+    { defaultActiveSlotCoefficient = ActiveSlotCoefficient 1.0 }
+
 newDBLayer'
     ::  ( IsOurs s Address
         , IsOurs s ChimericAccount
@@ -513,7 +529,7 @@ newDBLayer'
         )
     => Maybe FilePath
     -> IO (SqliteContext, DBLayer IO s ShelleyKey)
-newDBLayer' = newDBLayer nullTracer
+newDBLayer' = newDBLayer nullTracer defaultFieldValues
 
 -- | Clean the database
 cleanDB'

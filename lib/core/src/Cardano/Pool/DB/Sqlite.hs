@@ -29,6 +29,7 @@ import Prelude
 
 import Cardano.DB.Sqlite
     ( DBLog (..)
+    , ManualMigration (..)
     , MigrationError (..)
     , SqliteContext (..)
     , destroyDBLayer
@@ -134,7 +135,11 @@ newDBLayer
        -- ^ Database file location, or Nothing for in-memory database
     -> IO (SqliteContext, DBLayer IO)
 newDBLayer trace fp = do
-    let io = startSqliteBackend migrateAll trace fp
+    let io = startSqliteBackend
+            (ManualMigration mempty)
+            migrateAll
+            trace
+            fp
     ctx@SqliteContext{runQuery} <- handlingPersistError trace fp io
     return (ctx, DBLayer
         { putPoolProduction = \point pool -> ExceptT $

@@ -30,6 +30,9 @@ module Cardano.Wallet.DB.Sqlite
     -- * Interfaces
     , PersistState (..)
 
+    -- * Migration Support
+    , DefaultFieldValues (..)
+
     -- * Logging
     , DatabasesStartupLog (..)
     ) where
@@ -41,13 +44,18 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Tracer
     ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
 import Cardano.DB.Sqlite
-    ( DBLog (..)
+    ( DBField (..)
+    , DBLog (..)
+    , ManualMigration (..)
     , SqliteContext (..)
     , chunkSize
     , dbChunked
     , destroyDBLayer
+    , fieldName
+    , fieldType
     , handleConstraint
     , startSqliteBackend
+    , tableName
     )
 import Cardano.Wallet.DB
     ( DBFactory (..)
@@ -161,6 +169,8 @@ import Database.Persist.Sql
     )
 import Database.Persist.Sqlite
     ( SqlPersistT )
+import Database.Persist.Types
+    ( PersistValue (PersistText) )
 import Fmt
     ( pretty )
 import System.Directory
@@ -175,6 +185,7 @@ import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Map as Map
 import qualified Data.Text as T
+import qualified Database.Sqlite as Sqlite
 
 -- | Runs an action with a connection to the SQLite database.
 --
@@ -193,15 +204,17 @@ withDBLayer
         )
     => Tracer IO DBLog
        -- ^ Logging object
+    -> DefaultFieldValues
+       -- ^ Default database field values, used during migration.
     -> Maybe FilePath
        -- ^ Path to database directory, or Nothing for in-memory database
     -> ((SqliteContext, DBLayer IO s k) -> IO a)
        -- ^ Action to run.
     -> IO a
-withDBLayer trace mDatabaseDir =
+withDBLayer trace defaultFieldValues mDatabaseDir =
     bracket before after
   where
-    before = newDBLayer trace mDatabaseDir
+    before = newDBLayer trace defaultFieldValues mDatabaseDir
     after = destroyDBLayer . fst
 
 -- | Instantiate a 'DBFactory' from a given directory
@@ -217,10 +230,12 @@ newDBFactory
         )
     => Tracer IO DBLog
        -- ^ Logging object
+    -> DefaultFieldValues
+       -- ^ Default database field values, used during migration.
     -> Maybe FilePath
        -- ^ Path to database directory, or Nothing for in-memory database
     -> IO (DBFactory IO s k)
-newDBFactory tr mDatabaseDir = do
+newDBFactory tr defaultFieldValues mDatabaseDir = do
     mvar <- newMVar mempty
     case mDatabaseDir of
         -- NOTE
@@ -234,17 +249,21 @@ newDBFactory tr mDatabaseDir = do
                 db <- modifyMVar mvar $ \m -> case Map.lookup wid m of
                     Just (_, db) -> pure (m, db)
                     Nothing -> do
-                        (ctx, db) <- newDBLayer tr Nothing
+                        (ctx, db) <-
+                            newDBLayer tr defaultFieldValues Nothing
                         pure (Map.insert wid (ctx, db) m, db)
                 action db
             , removeDatabase = \wid -> do
                 traceWith tr $ MsgRemoving (pretty wid)
                 modifyMVar_ mvar (pure . Map.delete wid)
             }
-
         Just databaseDir -> pure DBFactory
             { withDatabase = \wid action -> do
-                withDBLayer tr (Just $ databaseFile wid) (action . snd)
+                withDBLayer
+                    tr
+                    defaultFieldValues
+                    (Just $ databaseFile wid)
+                    (action . snd)
             , removeDatabase = \wid -> do
                 traceWith tr $ MsgRemoving (pretty wid)
                 let files =
@@ -285,6 +304,72 @@ findDatabases tr dir = do
   where
     expectedPrefix = T.pack $ keyTypeDescriptor $ Proxy @k
 
+-- | Executes any manual database migration steps that may be required on
+--   startup.
+--
+migrateManually
+    :: Tracer IO DBLog
+    -> DefaultFieldValues
+    -> ManualMigration
+migrateManually tr defaultFieldValues =
+    ManualMigration
+        addActiveSlotCoefficientIfMissing
+  where
+    activeSlotCoeff = DBField CheckpointActiveSlotCoeff
+
+    -- | Adds an 'active_slot_coeff' column to the 'checkpoint' table if
+    --   it is missing.
+    --
+    addActiveSlotCoefficientIfMissing :: Sqlite.Connection -> IO ()
+    addActiveSlotCoefficientIfMissing conn = do
+        isFieldPresent conn activeSlotCoeff >>= \case
+            Nothing ->
+                -- NOTE
+                -- The host table doesn't even exist. Typically, when the db is
+                -- first created.
+                traceWith tr $ MsgManualMigrationNotNeeded activeSlotCoeff
+            Just True ->
+                traceWith tr $ MsgManualMigrationNotNeeded activeSlotCoeff
+            Just False -> do
+                traceWith tr $ MsgManualMigrationNeeded activeSlotCoeff value
+                addColumn <- Sqlite.prepare conn $ T.unwords
+                    [ "ALTER TABLE", tableName activeSlotCoeff
+                    , "ADD COLUMN", fieldName activeSlotCoeff
+                    , fieldType activeSlotCoeff, "NOT NULL", "DEFAULT", value
+                    , ";"
+                    ]
+                _ <- Sqlite.step addColumn
+                Sqlite.finalize addColumn
+      where
+        value = toText
+            $ W.unActiveSlotCoefficient
+            $ defaultActiveSlotCoefficient defaultFieldValues
+
+    -- | Determines whether a field is present in its parent table.
+    --
+    -- Returns 'Nothing' if the parent table doesn't exist. Just Bool otherwise.
+    isFieldPresent :: Sqlite.Connection -> DBField -> IO (Maybe Bool)
+    isFieldPresent conn field = do
+        getCheckpointTableInfo <- Sqlite.prepare conn $ mconcat
+            [ "SELECT sql FROM sqlite_master "
+            , "WHERE type = 'table' "
+            , "AND name = '" <> fieldName field <> "';"
+            ]
+        row <- Sqlite.step getCheckpointTableInfo
+            >> Sqlite.columns getCheckpointTableInfo
+        Sqlite.finalize getCheckpointTableInfo
+        pure $ case row of
+            [PersistText t]
+                | fieldName field `T.isInfixOf` t -> Just True
+                | otherwise                       -> Just False
+            _ -> Nothing
+
+-- | A set of default field values that can be consulted when performing a
+--   database migration.
+--
+newtype DefaultFieldValues = DefaultFieldValues
+    { defaultActiveSlotCoefficient :: W.ActiveSlotCoefficient }
+
 -- | Sets up a connection to the SQLite database.
 --
 -- Database migrations are run to create tables if necessary.
@@ -306,13 +391,19 @@ newDBLayer
         )
     => Tracer IO DBLog
        -- ^ Logging object
+    -> DefaultFieldValues
+       -- ^ Default database field values, used during migration.
     -> Maybe FilePath
        -- ^ Path to database file, or Nothing for in-memory database
     -> IO (SqliteContext, DBLayer IO s k)
-newDBLayer trace mDatabaseFile = do
+newDBLayer trace defaultFieldValues mDatabaseFile = do
     ctx@SqliteContext{runQuery} <-
         either throwIO pure =<<
-        startSqliteBackend migrateAll trace mDatabaseFile
+        startSqliteBackend
+            (migrateManually trace defaultFieldValues)
+            migrateAll
+            trace
+            mDatabaseFile
     return (ctx, DBLayer
 
         {-----------------------------------------------------------------------

@@ -70,7 +70,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.DaedalusIPC
     ( DaedalusIPCLog, daedalusIPC )
 import Cardano.Wallet.DB.Sqlite
-    ( DatabasesStartupLog, PersistState )
+    ( DatabasesStartupLog, DefaultFieldValues (..), PersistState )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
 import Cardano.Wallet.Jormungandr.Network
@@ -264,7 +264,10 @@ serveWallet
         let (block0, bp) = staticBlockchainParameters nl
         let tracer = contramap MsgDatabaseStartup applicationTracer
         wallets <- maybe (pure []) (Sqlite.findDatabases @k tracer) databaseDir
-        db <- Sqlite.newDBFactory walletDbTracer databaseDir
+        db <- Sqlite.newDBFactory
+            walletDbTracer
+            (DefaultFieldValues $ getActiveSlotCoefficient bp)
+            databaseDir
         Server.newApiLayer
             walletEngineTracer (toWLBlock block0, bp, sTolerance) nl' tl db wallets
       where
