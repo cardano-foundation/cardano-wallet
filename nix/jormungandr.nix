@@ -29,7 +29,8 @@
 #
 ############################################################################
 
-{ iohkLib ? import ./iohk-common.nix {}
+{ iohkLib ? import ./iohk-common.nix { inherit system; }
+, system ? builtins.currentSystem
 , pkgs ? iohkLib.pkgs
 }:
 

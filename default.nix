@@ -17,7 +17,7 @@ let
     name = "cardano-wallet-src";
   };
 
-  jmPkgs = import ./nix/jormungandr.nix { inherit iohkLib; };
+  jmPkgs = import ./nix/jormungandr.nix { inherit system; };
   inherit (jmPkgs) jormungandr jormungandr-cli;
 
   haskellPackages = import ./nix/pkgs.nix {

@@ -36,7 +36,7 @@ with (import iohkLib.release-lib) {
   gitrev = cardano-wallet.rev;
 };
 
-with pkgs.lib;
+with project.pkgs.lib;
 
 let
   testsSupportedSystems = [ "x86_64-linux" "x86_64-darwin" ];
@@ -64,7 +64,7 @@ let
       collectTests jobs.native.benchmarks ++
       [ jobs.native.cardano-wallet-jormungandr.x86_64-linux
         jobs.native.cardano-wallet-jormungandr.x86_64-darwin
-        jobs.x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-linux
+        jobs.x86_64-w64-mingw32.cardano-wallet-jormungandr.x86_64-linux
         jobs.native.shell.x86_64-linux
         jobs.native.shell.x86_64-darwin
         jobs.cardano-wallet-jormungandr-win64
@@ -77,21 +77,21 @@ let
     daedalus-jormungandr = with jobs; {
       linux = native.cardano-wallet-jormungandr.x86_64-linux;
       macos = native.cardano-wallet-jormungandr.x86_64-darwin;
-      windows = x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-linux;
+      windows = x86_64-w64-mingw32.cardano-wallet-jormungandr.x86_64-linux;
     };
 
     # Windows release ZIP archive
     cardano-wallet-jormungandr-win64 = import ./nix/windows-release.nix {
       inherit pkgs project;
-      cardano-wallet-jormungandr = jobs.x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-linux;
+      cardano-wallet-jormungandr = jobs.x86_64-w64-mingw32.cardano-wallet-jormungandr.x86_64-linux;
     };
 
     # This is used for testing the build on windows.
     cardano-wallet-jormungandr-tests-win64 = import ./nix/windows-testing-bundle.nix {
       inherit pkgs project;
-      cardano-wallet-jormungandr = jobs.x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-linux;
-      tests = collectTests jobs.x86_64-pc-mingw32.tests;
-      benchmarks = collectTests jobs.x86_64-pc-mingw32.benchmarks;
+      cardano-wallet-jormungandr = jobs.x86_64-w64-mingw32.cardano-wallet-jormungandr.x86_64-linux;
+      tests = collectTests jobs.x86_64-w64-mingw32.tests;
+      benchmarks = collectTests jobs.x86_64-w64-mingw32.benchmarks;
     };
 
     # For testing migration tests on windows
