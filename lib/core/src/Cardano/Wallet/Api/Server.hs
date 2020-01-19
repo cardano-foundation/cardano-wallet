@@ -207,7 +207,7 @@ import Control.Arrow
 import Control.DeepSeq
     ( NFData )
 import Control.Exception
-    ( IOException, bracket, tryJust )
+    ( IOException, bracket, throwIO, tryJust )
 import Control.Exception.Lifted
     ( finally )
 import Control.Monad
@@ -1477,11 +1477,12 @@ registerWorker ctx wid = do
         Just worker ->
             Registry.insert re worker
   where
+    (_, bp, _) = ctx ^. genesisData
     re = ctx ^. workerRegistry
     df = ctx ^. dbFactory
     config = MkWorker
-        { workerBefore =
-            \_ _ -> return ()
+        { workerBefore = \ctx' _ ->
+            runExceptT (W.checkWalletIntegrity ctx' wid bp) >>= either throwIO pure
 
         , workerMain = \ctx' _ -> do
             -- FIXME:

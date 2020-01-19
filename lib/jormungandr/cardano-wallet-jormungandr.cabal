@@ -306,3 +306,33 @@ benchmark latency
       Test.Integration.Jcli
       Cardano.Faucet
       Cardano.Wallet.Jormungandr.Launch
+
+executable migration-test
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -threaded -rtsopts
+      -Wall
+      -O2
+  if (!flag(development))
+    ghc-options:
+      -Werror
+  build-depends:
+      base
+    , aeson
+    , cardano-wallet-core
+    , cardano-wallet-launcher
+    , iohk-monitoring
+    , lens
+    , lens-aeson
+    , process
+    , retry
+    , text
+    , wreq
+  hs-source-dirs:
+      test/migration
+  main-is:
+      migration-test.hs

@@ -114,6 +114,22 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             ];
           buildable = true;
           };
+        "migration-test" = {
+          depends = [
+            (hsPkgs."base" or (buildDepError "base"))
+            (hsPkgs."aeson" or (buildDepError "aeson"))
+            (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
+            (hsPkgs."cardano-wallet-launcher" or (buildDepError "cardano-wallet-launcher"))
+            (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
+            (hsPkgs."lens" or (buildDepError "lens"))
+            (hsPkgs."lens-aeson" or (buildDepError "lens-aeson"))
+            (hsPkgs."process" or (buildDepError "process"))
+            (hsPkgs."retry" or (buildDepError "retry"))
+            (hsPkgs."text" or (buildDepError "text"))
+            (hsPkgs."wreq" or (buildDepError "wreq"))
+            ];
+          buildable = true;
+          };
         };
       tests = {
         "unit" = {

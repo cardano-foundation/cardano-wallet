@@ -39,12 +39,14 @@ let
       haskellBuildUtils = iohkLib.haskellBuildUtils.package;
     };
 
-    # `tests` are the test suites which have been built
+    # `tests` are the test suites which have been built.
     tests = collectComponents "tests" isCardanoWallet haskellPackages;
+    # `checks` are the result of executing the tests.
+    checks = pkgs.recurseIntoAttrs (getPackageChecks (filterCardanoPackages haskellPackages));
+    # `benchmarks` are only built, not run.
     benchmarks = collectComponents "benchmarks" isCardanoWallet haskellPackages;
-    # `checks` are the result of executing the tests
-    checks = pkgs.recurseIntoAttrs (getPackageChecks
-       (filterCardanoPackages haskellPackages));
+    # `migration-tests` build previous releases then check if the database successfully upgrades.
+    migration-tests = import ./nix/migration-tests.nix { inherit system crossSystem config pkgs; };
 
     dockerImage = pkgs.callPackage ./nix/docker.nix {
       inherit (self) cardano-wallet-jormungandr;
