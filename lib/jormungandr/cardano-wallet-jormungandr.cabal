@@ -324,22 +324,13 @@ executable migration-test
       base
     , aeson
     , cardano-wallet-core
-    , cardano-wallet-jormungandr
     , cardano-wallet-launcher
-    , contra-tracer
-    , filepath
-    , http-client
     , iohk-monitoring
     , lens
     , lens-aeson
-    , network
-    , optparse-applicative
-    , servant-client
-    , servant-server
     , process
     , retry
     , text
-    , text-class
     , wreq
   hs-source-dirs:
       test/migration
