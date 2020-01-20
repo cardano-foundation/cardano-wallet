@@ -114,6 +114,7 @@ spec = do
 
     describe "LOGGING - cardano-wallet serve logging [SERIAL]" $ do
         let grep str = filter (T.isInfixOf str)
+            grepNot str = filter (not . T.isInfixOf str)
 
         it "LOGGING - Serve default logs Info" $ \ctx -> do
             withTempFile $ \logs hLogs -> do
@@ -130,8 +131,9 @@ spec = do
                     threadDelay (10 * oneSecond)
                 hClose hLogs
                 logged <- T.lines <$> TIO.readFile logs
-                grep "Debug" logged `shouldBe` []
-                grep "Info" logged `shouldNotBe` []
+                let loggedNotMain = grepNot "cardano-wallet.main:Debug" logged
+                grep "Debug" loggedNotMain `shouldBe` []
+                grep "Info" loggedNotMain `shouldNotBe` []
 
         it "LOGGING - Serve debug logs for one component" $ \ctx -> do
             withTempFile $ \logs hLogs -> do
