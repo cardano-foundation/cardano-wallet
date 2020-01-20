@@ -102,7 +102,7 @@ import Data.Map.Strict
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
-    ( Percentage, Quantity (..) )
+    ( Percentage, Quantity (..), getPercentage )
 import Data.Text.Class
     ( ToText (..) )
 import Data.Vector.Shuffle
@@ -116,6 +116,7 @@ import GHC.Generics
 import System.Random
     ( StdGen )
 
+import qualified Cardano.Pool.Ranking as Ranking
 import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
 
@@ -137,6 +138,7 @@ data StakePool = StakePool
     , stake :: Quantity "lovelace" Word64
     , production :: Quantity "block" Word64
     , performance :: Double
+    , desirability :: Double
     , cost :: Quantity "lovelace" Word64
     , margin :: Percentage
     } deriving (Show, Generic)
@@ -286,7 +288,7 @@ newStakePoolLayer tr db@DBLayer{..} nl metadataDir = StakePoolLayer
         else do
             let currentEpoch = prodTip ^. #slotId . #epochNumber
             perfs <- liftIO $ readPoolsPerformances db currentEpoch
-            combineWith (pure . sortByPerformance) distr (count prod) perfs
+            combineWith (pure . sortByDesirability) distr (count prod) perfs
 
     readPoolProductionTip = readPoolProductionCursor 1 <&> \case
         []  -> header block0
@@ -343,12 +345,42 @@ newStakePoolLayer tr db@DBLayer{..} nl metadataDir = StakePoolLayer
                     , performance
                     , cost = poolCost
                     , margin = poolMargin
+                    , desirability =
+                        Ranking.desirability
+                            jormungandrITNConstants
+                            (Ranking.Pool
+                                (Ranking.unsafeMkRatio 0) -- pool leader pledge
+                                (Ranking.Lovelace $ fromIntegral $ getQuantity poolCost)
+                                (Ranking.unsafeMkRatio $ fromIntegral (getPercentage poolMargin) / 100)
+                                (Ranking.unsafeMkNonNegative performance))
                     }
                 , poolOwners
                 )
 
-    sortByPerformance :: [(StakePool, a)] -> [(StakePool, a)]
-    sortByPerformance = sortOn (Down . performance . fst)
+    -- | Constants needed for ranking pools. Specific to the incentiviced
+    -- testnet.
+    jormungandrITNConstants :: Ranking.EpochConstants
+    jormungandrITNConstants = Ranking.EpochConstants
+        { Ranking.leaderStakeInfluence = Ranking.unsafeMkNonNegative 0
+        , Ranking.desiredNumberOfPools = Ranking.unsafeMkPositive 100
+        , Ranking.totalRewards = Ranking.Lovelace $ deductTreasuryTax 3835616440000
+          -- TODO: take rewardDrawingLimitMax into account (depends on stake)
+          --
+          -- NOTE:
+          -- The ITN has the reward parameters (`jcli rest v0 settings get`)
+          --    compoundingRatio = 0/1
+          --    compoundingType: Linear
+          --
+          -- meaning that the inital value (3835616440000) is contributed every
+          -- epoch, and never decays.
+          --
+          -- Further note that we are not taking tx-fees into account.
+        }
+      where
+        deductTreasuryTax x = (x * 9) `div` 10 -- 10% tax
+
+    sortByDesirability :: [(StakePool, a)] -> [(StakePool, a)]
+    sortByDesirability = sortOn (Down . desirability . fst)
 
     sortArbitrarily :: StdGen -> [a] -> IO [a]
     sortArbitrarily = shuffleWith
