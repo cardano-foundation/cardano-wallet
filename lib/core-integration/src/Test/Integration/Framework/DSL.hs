@@ -56,7 +56,6 @@ module Test.Integration.Framework.DSL
     , blocks
     , coinSelectionInputs
     , coinSelectionOutputs
-    , delegation
     , direction
     , feeEstimator
     , inputs
@@ -169,7 +168,6 @@ import Cardano.Wallet.Primitive.Types
     , TxStatus (..)
     , UTxO (..)
     , UTxOStatistics (..)
-    , WalletDelegation (..)
     , WalletId (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
@@ -639,17 +637,6 @@ expectPathEventuallyExist filepath = do
 
 -- Lenses
 --
-
-delegation
-    :: forall s d. (d ~ WalletDelegation (ApiT PoolId), HasType (ApiT d) s)
-    => Lens' s (WalletDelegation (ApiT PoolId))
-delegation =
-    lens _get _set
-  where
-    _get :: s -> d
-    _get = getApiT . view typed
-    _set :: (s, d) -> s
-    _set (s, v) = set typed (ApiT v ) s
 
 feeEstimator
     :: Lens' (Context t) (TxDescription -> (Natural, Natural))

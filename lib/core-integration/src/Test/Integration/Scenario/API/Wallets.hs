@@ -74,7 +74,6 @@ import Test.Integration.Framework.DSL
     , Payload (..)
     , coinSelectionInputs
     , coinSelectionOutputs
-    , delegation
     , emptyIcarusWallet
     , emptyRandomWallet
     , emptyWallet
@@ -171,7 +170,7 @@ spec = do
             , expectFieldEqual (#balance . #getApiT . #reward) (Quantity 0)
             , expectEventually ctx (Link.getWallet @'Shelley)
                     (#state . #getApiT) Ready
-            , expectFieldEqual delegation (NotDelegating)
+            , expectFieldEqual (#delegation . #getApiT) NotDelegating
             , expectFieldEqual walletId
                 "2cf060fe53e4e0593f145f22b858dfc60676d4ab"
             , expectFieldNotEqual passphraseLastUpdate Nothing
@@ -951,7 +950,7 @@ spec = do
             , expectFieldEqual (#balance . #getApiT . #reward) (Quantity 0)
             , expectEventually ctx (Link.getWallet @'Shelley)
                     (#state . #getApiT) Ready
-            , expectFieldEqual delegation (NotDelegating)
+            , expectFieldEqual (#delegation . #getApiT) NotDelegating
             , expectFieldEqual walletId (w ^. walletId)
             , expectFieldNotEqual passphraseLastUpdate Nothing
             ]
@@ -1023,7 +1022,7 @@ spec = do
                     (#balance . #getApiT . #total) (Quantity 0)
             , expectListItemFieldEqual 0
                     (#balance . #getApiT . #reward) (Quantity 0)
-            , expectListItemFieldEqual 0 delegation (NotDelegating)
+            , expectListItemFieldEqual 0 (#delegation . #getApiT) NotDelegating
             , expectListItemFieldEqual 0 walletId
                 "dfe87fcf0560fb57937a6468ea51e860672fad79"
             ]
@@ -1099,7 +1098,7 @@ spec = do
                             (#balance . #getApiT . #total) (Quantity 0)
                     , expectEventually ctx (Link.getWallet @'Shelley)
                             (#state . #getApiT) Ready
-                    , expectFieldEqual delegation (NotDelegating)
+                    , expectFieldEqual (#delegation . #getApiT) NotDelegating
                     , expectFieldEqual walletId walId
                     , expectFieldEqual passphraseLastUpdate passLastUpdateValue
                     ]
@@ -1116,7 +1115,7 @@ spec = do
                     (#addressPoolGap . #getApiT . #getAddressPoolGap) 20
             , expectListItemFieldEqual 0 (#balance . #getApiT . #available) (Quantity 0)
             , expectListItemFieldEqual 0 (#balance . #getApiT . #total) (Quantity 0)
-            , expectListItemFieldEqual 0 delegation (NotDelegating)
+            , expectListItemFieldEqual 0 (#delegation . #getApiT) NotDelegating
             , expectListItemFieldEqual 0 walletId walId
             , expectListItemFieldEqual 0 passphraseLastUpdate passLastUpdateValue
             ]

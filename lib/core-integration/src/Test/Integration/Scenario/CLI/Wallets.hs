@@ -60,7 +60,6 @@ import Test.Integration.Framework.DSL
     , KnownCommand
     , cardanoWalletCLI
     , createWalletViaCLI
-    , delegation
     , deleteWalletViaCLI
     , emptyRandomWallet
     , emptyWallet
@@ -174,7 +173,7 @@ spec = do
             , expectCliFieldEqual (#balance . #getApiT . #reward) (Quantity 0)
             , expectEventually' ctx (Link.getWallet @'Shelley)
                     (#state . #getApiT) Ready
-            , expectCliFieldEqual delegation (NotDelegating)
+            , expectCliFieldEqual (#delegation . #getApiT) NotDelegating
             , expectCliFieldNotEqual passphraseLastUpdate Nothing
             ]
 
@@ -426,7 +425,7 @@ spec = do
             , expectCliFieldEqual (#balance . #getApiT . #reward) (Quantity 0)
             , expectEventually' ctx (Link.getWallet @'Shelley)
                     (#state . #getApiT) Ready
-            , expectCliFieldEqual delegation (NotDelegating)
+            , expectCliFieldEqual (#delegation . #getApiT) (NotDelegating)
             , expectCliFieldNotEqual passphraseLastUpdate Nothing
             ]
 
@@ -459,7 +458,7 @@ spec = do
                     (#balance . #getApiT . #total) (Quantity 0)
             , expectCliListItemFieldEqual 0
                     (#balance . #getApiT . #reward) (Quantity 0)
-            , expectCliListItemFieldEqual 0 delegation (NotDelegating)
+            , expectCliListItemFieldEqual 0 (#delegation . #getApiT) NotDelegating
             , expectCliListItemFieldEqual 0 walletId (T.pack w1)
             ]
 

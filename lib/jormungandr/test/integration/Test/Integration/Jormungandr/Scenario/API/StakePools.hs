@@ -54,7 +54,6 @@ import Test.Integration.Framework.DSL
     , TxDescription (..)
     , amount
     , blocks
-    , delegation
     , delegationFee
     , direction
     , emptyRandomWallet
@@ -391,7 +390,7 @@ spec = do
                 , expectListItemFieldEqual 0 status InLedger
                 ]
         request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-            [ expectFieldEqual delegation (Delegating (p1 ^. #id))
+            [ expectFieldEqual (#delegation . #getApiT) (Delegating (p1 ^. #id))
             ]
 
         -- Join pool p2
@@ -411,7 +410,7 @@ spec = do
                 [ expectListSizeEqual 0
                 ]
         request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-            [ expectFieldEqual delegation (Delegating (p2 ^. #id))
+            [ expectFieldEqual (#delegation . #getApiT) (Delegating (p2 ^. #id))
             ]
 
     describe "STAKE_POOLS_JOIN_01x - Fee boundary values" $ do
@@ -457,7 +456,7 @@ spec = do
             expectResponseCode HTTP.status202 rq
             eventually $ do
                 request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-                    [ expectFieldEqual delegation (NotDelegating)
+                    [ expectFieldEqual (#delegation . #getApiT) NotDelegating
                     -- balance is 0 because the rest was used for fees
                     , expectFieldEqual (#balance . #getApiT . #total) (Quantity 0)
                     , expectFieldEqual (#balance . #getApiT . #available) (Quantity 0)
@@ -495,21 +494,21 @@ spec = do
         expectResponseCode HTTP.status202 r
         eventually $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-                [ expectFieldEqual delegation (Delegating (p1 ^. #id))
+                [ expectFieldEqual (#delegation . #getApiT) (Delegating (p1 ^. #id))
                 ]
 
         r1q <- quitStakePool ctx (p1 ^. #id) (w, fixturePassphrase)
         expectResponseCode HTTP.status202 r1q
         eventually $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-                [ expectFieldEqual delegation (NotDelegating)
+                [ expectFieldEqual (#delegation . #getApiT) NotDelegating
                 ]
 
         r2 <- joinStakePool ctx (p2 ^. #id) (w, fixturePassphrase)
         expectResponseCode HTTP.status202 r2
         eventually $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-                [ expectFieldEqual delegation (Delegating (p2 ^. #id))
+                [ expectFieldEqual (#delegation . #getApiT) (Delegating (p2 ^. #id))
                 ]
 
     it "STAKE_POOLS_JOIN_01 - Cannot join non-existant stakepool" $ \ctx -> do
@@ -542,12 +541,12 @@ spec = do
 
         -- Verify the wallet is now delegating
         request @ApiWallet ctx (Link.getWallet @'Shelley wA) Default Empty >>= flip verify
-            [ expectFieldEqual delegation (Delegating (p ^. #id))
+            [ expectFieldEqual (#delegation . #getApiT) (Delegating (p ^. #id))
             ]
 
         -- Verify the other is NOT delegating
         request @ApiWallet ctx (Link.getWallet @'Shelley wB) Default Empty >>= flip verify
-            [ expectFieldEqual delegation NotDelegating
+            [ expectFieldEqual (#delegation . #getApiT) NotDelegating
             ]
 
     it "STAKE_POOLS_JOIN_02 - Passphrase must be correct to join" $ \ctx -> do
@@ -769,7 +768,7 @@ spec = do
                 ]
 
         request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-            [ expectFieldEqual delegation NotDelegating
+            [ expectFieldEqual (#delegation . #getApiT) NotDelegating
             ]
 
     it "STAKE_POOLS_QUIT_01 - Quiting before even joining" $ \ctx -> do
@@ -797,7 +796,7 @@ spec = do
         expectResponseCode HTTP.status202 r
         eventually $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-                [ expectFieldEqual delegation (Delegating (p1 ^. #id))
+                [ expectFieldEqual (#delegation . #getApiT) (Delegating (p1 ^. #id))
                 ]
 
         let pId = p2 ^. #id
@@ -825,7 +824,7 @@ joinStakePoolWithWalletBalance ctx balance = do
     -- Verify the wallet is now delegating
     eventually $ do
         request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-            [ expectFieldEqual delegation (Delegating (p ^. #id))
+            [ expectFieldEqual (#delegation . #getApiT) (Delegating (p ^. #id))
             ]
     return (w, p)
 
@@ -841,6 +840,6 @@ joinStakePoolWithFixtureWallet ctx = do
     -- Verify the wallet is now delegating
     eventually $ do
         request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-            [ expectFieldEqual delegation (Delegating (p ^. #id))
+            [ expectFieldEqual (#delegation . #getApiT) (Delegating (p ^. #id))
             ]
     return (w, p)
