@@ -83,10 +83,9 @@ spec = do
                     , "--"
                     , "--secret", secret
                     ]
-            (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t args
+            (Exit c, Stdout _, Stderr e) <- cardanoWalletCLI @t args
             c `shouldBe` ExitFailure 1
-            o `shouldBe` mempty
-            e `shouldBe` f ++ " must be a directory, but it is a file. Exiting.\n"
+            e `shouldContain` f ++ " must be a directory, but it is a file. Exiting.\n"
 
         describe "LAUNCH - Can start launcher with --state-dir" $ do
             let tests =
@@ -137,9 +136,8 @@ spec = do
                     , "--"
                     , "--secret", secret
                     ]
-            (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t args
+            (Exit c, Stdout _, Stderr e) <- cardanoWalletCLI @t args
             c `shouldBe` ExitFailure 1
-            o `shouldBe` mempty
             e `shouldContain`
                 ("I couldn't find any file at the given location: " <> block0')
 
