@@ -111,6 +111,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."optparse-applicative" or (buildDepError "optparse-applicative"))
             (hsPkgs."process" or (buildDepError "process"))
             (hsPkgs."text" or (buildDepError "text"))
+            (hsPkgs."text-class" or (buildDepError "text-class"))
             ];
           buildable = true;
           };

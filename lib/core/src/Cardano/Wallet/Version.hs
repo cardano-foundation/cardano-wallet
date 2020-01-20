@@ -22,6 +22,8 @@ module Cardano.Wallet.Version
     ( -- * Values computed at compile-time
       version
     , gitRevision
+    , GitRevision
+    , Version
 
       -- * Displaying Versions
     , showVersion
@@ -47,7 +49,7 @@ import Paths_cardano_wallet_core
 
 import qualified Data.Text as T
 
-newtype GitRevision = GitRevision Text
+newtype GitRevision = GitRevision Text deriving (Show, Eq)
 
 -- | Like 'showVersion', but also show the git revision.
 showFullVersion :: Version -> GitRevision -> String

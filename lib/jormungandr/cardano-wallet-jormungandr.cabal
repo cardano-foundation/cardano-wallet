@@ -103,6 +103,7 @@ executable cardano-wallet-jormungandr
     , optparse-applicative
     , process
     , text
+    , text-class
   hs-source-dirs:
       exe
   main-is:

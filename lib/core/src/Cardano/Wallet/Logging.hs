@@ -17,6 +17,7 @@ module Cardano.Wallet.Logging
     , trMessage
     , trMessageText
     , filterTraceSeverity
+    , stdoutTextTracer
     ) where
 
 import Prelude
@@ -39,6 +40,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
+
+import qualified Data.Text.IO as T
 
 -- | Converts a 'Text' trace into any other type of trace that has a 'ToText'
 -- instance.
@@ -82,6 +85,8 @@ trMessageText tr = Tracer $ \arg -> do
        <*> pure (LogMessage msg)
    traceWith tracer lo
 
+-- | Tracer transformer which converts 'Trace m a' to 'Tracer m a' by wrapping
+-- typed log messages into a 'LogObject'.
 trMessage
     :: (MonadIO m, DefinePrivacyAnnotation a, DefineSeverity a)
     => Tracer m (LogObject a)
@@ -116,3 +121,8 @@ filterNonEmpty tr = Tracer $ \arg -> do
   where
     nonEmptyMessage (LogMessage msg) = msg /= mempty
     nonEmptyMessage _ = True
+
+-- | Creates a tracer that prints any 'ToText' log message. This is useful for
+-- debugging functions in the REPL, when you need a 'Tracer' object.
+stdoutTextTracer :: (MonadIO m, ToText a) => Tracer m a
+stdoutTextTracer = Tracer $ liftIO . T.putStrLn . toText
