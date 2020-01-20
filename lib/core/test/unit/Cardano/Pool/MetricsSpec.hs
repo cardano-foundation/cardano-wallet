@@ -33,7 +33,6 @@ import Cardano.Pool.Metrics
     , StakePoolLayer (..)
     , StakePoolLog (..)
     , associateMetadata
-    , calculatePerformance
     , combineMetrics
     , monitorStakePools
     , newStakePoolLayer
@@ -78,8 +77,6 @@ import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
 import Control.Monad.Trans.State.Strict
     ( StateT, evalStateT, get, modify' )
-import Data.Function
-    ( (&) )
 import Data.Functor
     ( ($>) )
 import Data.Map.Strict
@@ -100,12 +97,10 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
     , NonEmptyList (..)
-    , NonNegative (..)
     , Positive (..)
     , Property
     , checkCoverage
     , choose
-    , classify
     , counterexample
     , cover
     , elements
@@ -136,13 +131,6 @@ spec = do
         it "it fails if a block-producer is not in the stake distr"
             $ checkCoverage
             $ property prop_combineIsLeftBiased
-
-    describe "calculatePerformances" $ do
-        it "performances are always between 0 and 1"
-            $ property prop_performancesBounded01
-
-        describe "golden test cases" $ do
-            performanceGoldens
 
     describe "monitorStakePools" $ do
         it "records all stake pool registrations in the database"
@@ -191,69 +179,6 @@ prop_combineIsLeftBiased mStake_ mProd_ mPerf_ =
     mProd  = Map.mapKeys getLowEntropy mProd_
     mPerf  = Map.mapKeys getLowEntropy mPerf_
 {-# HLINT ignore prop_combineIsLeftBiased "Use ||" #-}
-
--- | Performances are always positive numbers
-prop_performancesBounded01
-    :: ActiveSlotCoefficient
-    -> Map (LowEntropy PoolId) (Quantity "lovelace" Word64)
-    -> Map (LowEntropy PoolId) (Quantity "block" Word64)
-    -> (NonNegative Int)
-    -> Property
-prop_performancesBounded01 coeff mStake_ mProd_ (NonNegative emptySlots) =
-    all (between 0 1) performances
-    & counterexample (show performances)
-    & classify (all (== 0) performances) "all null"
-  where
-    mStake = Map.mapKeys getLowEntropy mStake_
-    mProd  = Map.mapKeys getLowEntropy mProd_
-
-    performances :: [Double]
-    performances = Map.elems $ calculatePerformance coeff slots mStake mProd
-
-    slots :: Int
-    slots = emptySlots +
-        fromIntegral (Map.foldl (\y (Quantity x) -> (y + x)) 0 mProd)
-
-    between :: Ord a => a -> a -> a -> Bool
-    between inf sup x = x >= inf && x <= sup
-
-
-performanceGoldens :: Spec
-performanceGoldens = do
-    it "50% stake, coeff=1.0, producing 8/8 blocks => p=1.0" $ do
-        let stake        = mkStake      [ (poolA, 1), (poolB, 1) ]
-        let production   = mkProduction [ (poolA, 8), (poolB, 0) ]
-        let performances = calculatePerformance 1.0 8 stake production
-        Map.lookup poolA performances `shouldBe` (Just 1)
-
-    it "50% stake, coeff=1.0, producing 4/8 blocks => p=1.0" $ do
-        let stake        = mkStake      [ (poolA, 1), (poolB, 1) ]
-        let production   = mkProduction [ (poolA, 4), (poolB, 0) ]
-        let performances = calculatePerformance 1.0 8 stake production
-        Map.lookup poolA performances `shouldBe` (Just 1)
-
-    it "50% stake, coeff=1.0, producing 2/8 blocks => p=0.5" $ do
-        let stake        = mkStake      [ (poolA, 1), (poolB, 1) ]
-        let production   = mkProduction [ (poolA, 2), (poolB, 0) ]
-        let performances = calculatePerformance 1.0 8 stake production
-        Map.lookup poolA performances `shouldBe` (Just 0.5)
-
-    it "50% stake, coeff=1.0, producing 0/8 blocks => p=0.0" $ do
-        let stake        = mkStake      [ (poolA, 1), (poolB, 1) ]
-        let production   = mkProduction [ (poolA, 0), (poolB, 0) ]
-        let performances = calculatePerformance 1.0 8 stake production
-        Map.lookup poolA performances `shouldBe` (Just 0)
-
-    it "100% stake, coeff=0.1, producing 1/10 blocks => p=1.0" $ do
-        let stake        = mkStake      [ (poolA, 1), (poolB, 0) ]
-        let production   = mkProduction [ (poolA, 1), (poolB, 0) ]
-        let performances = calculatePerformance 0.1 10 stake production
-        Map.lookup poolA performances `shouldBe` (Just 1.0)
-  where
-    poolA = PoolId "athena"
-    poolB = PoolId "nemesis"
-    mkStake = Map.map Quantity . Map.fromList
-    mkProduction = Map.map Quantity . Map.fromList
 
 -- | A list of chunks of blocks to be served up by the mock network layer.
 newtype RegistrationsTest = RegistrationsTest

@@ -1104,7 +1104,7 @@ listPools spl =
             (ApiStakePoolMetrics
                 (Quantity $ fromIntegral $ getQuantity $ stake sp)
                 (Quantity $ fromIntegral $ getQuantity $ production sp))
-            (sp ^. #apparentPerformance)
+            (sp ^. #performance)
             meta
             (fromIntegral <$> sp ^. #cost)
             (Quantity $ sp ^. #margin)

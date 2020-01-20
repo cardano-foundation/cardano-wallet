@@ -406,13 +406,18 @@ x-stakePoolApparentPerformance: &stakePoolApparentPerformance
     are therefore an average measure that is more accurate for servers that are online
     often.
 
-    The performance is a float with double-precision between `0` and `1`:
+    The performance is a float with double-precision which is _typically_ within `0` and `1`:
 
       - `0` means that a pool is not performing well.
-      - `1` means that a pool is performing _as expected_ (or better).
+      - `1` means that a pool is performing _as expected_.
+      - above `1` means the pool is performing beyond expectations.
+
+    Pools that are lucky enough to win most of their slots early in the epoch will tend to look
+    like they're over-performing for a while. Having a wallet regularly connected to the network
+    would harmonize the performance and give better results.
+
   type: number
   minimum: 0
-  maximum: 1
   example: 0.5053763440860215
 
 x-stakePoolMetadata: &stakePoolMetadata
