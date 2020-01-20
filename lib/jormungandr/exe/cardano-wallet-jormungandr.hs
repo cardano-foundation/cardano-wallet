@@ -94,6 +94,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import Data.Void
+    ( Void )
 import Network.Socket
     ( SockAddr )
 import Options.Applicative
@@ -103,6 +105,7 @@ import Options.Applicative
     , Parser
     , abortOption
     , argument
+    , auto
     , command
     , footerDoc
     , help
@@ -351,12 +354,14 @@ extraArguments = many $ argument jmArg $ mempty
 data LoggingOptions = LoggingOptions
     { loggingMinSeverity :: Severity
     , loggingTracers :: TracerSeverities
+    , loggingTracersDoc :: Maybe Void
     } deriving (Show, Eq)
 
 loggingOptions :: Parser LoggingOptions
 loggingOptions = LoggingOptions
     <$> minSev
     <*> loggingTracersOptions
+    <*> tracersDoc
   where
     -- Note: If the global log level is Info then there will be no Debug-level
     --   messages whatsoever.
@@ -367,9 +372,15 @@ loggingOptions = LoggingOptions
         <> long "log-level"
         <> value Debug
         <> metavar "SEVERITY"
-        <> help ("Global minimum severity for a message to be logged. " <>
-            "Defaults to \"DEBUG\" unless otherwise configured.")
+        <> help "Global minimum severity for a message to be logged. \
+            \Individual tracers severities still need to be configured \
+            \independently. Defaults to \"DEBUG\"."
         <> hidden
+    tracersDoc = optional $ option auto $ mempty
+        <> long "trace-NAME"
+        <> metavar "SEVERITY"
+        <> help "Individual component severity for 'NAME'. See --help-tracing \
+            \for details and available tracers."
 
 loggingTracersOptions :: Parser TracerSeverities
 loggingTracersOptions = Tracers
@@ -387,8 +398,6 @@ loggingTracersOptions = Tracers
         <> value def
         <> metavar "SEVERITY"
         <> internal
-        <> help ("Minimum severity for a message to be logged, " <>
-            "or \"off\" to disable the tracer. Defaults to \"INFO\".")
 
 -- | A hidden "helper" option which always fails, but shows info about the
 -- logging options.
@@ -403,10 +412,15 @@ helperTracingText = unlines $
     [ "Additional tracing options:"
     , ""
     , "  --log-level SEVERITY     Global minimum severity for a message to be logged."
-    , "                           Defaults to \"DEBUG\" unless otherwise configured."
+    , "                           Defaults to \"DEBUG\"."
+    , ""
     , "  --trace-NAME=off         Disable logging on the given tracer."
-    , "  --trace-NAME=SEVERITY    Set the minimum logging severity for the given"
-    , "                           tracer. Defaults to \"INFO\"."
+    , "  --trace-NAME=SEVERITY    Minimum severity for a message to be logged, or"
+    , "                           \"off\" to disable the tracer. Note that component"
+    , "                           traces still abide by the global log-level. For"
+    , "                           example, if the global log level is \"INFO\", then"
+    , "                           there will be no \"DEBUG\" messages whatsoever."
+    , "                           Defaults to \"INFO\"."
     , ""
     , "The possible log levels (lowest to highest) are:"
     , "  " ++ unwords (map fst loggingSeverities)
