@@ -301,9 +301,16 @@ mkRawNetworkLayer (block0, bp) batchSize st j = NetworkLayer
         _getAccountBalance
     }
   where
-    -- security parameter, the maximum number of unstable blocks
+    -- security parameter, the maximum number of unstable blocks.
+    -- When @k@ is too small, we use an arbitrary bigger (although still
+    -- reasonably sized) value to make sure that our observation window is
+    -- big-enough. This allows for re-syncing faster when connecting to a
+    -- network after a long period of time where the node might have drifted
+    -- completely. In theory, nodes can't switch to chains that are longer than
+    -- @k@ but in practice with Jörmungandr, nodes can make jumps longer than
+    -- that.
     k :: Quantity "block" Word32
-    k = getEpochStability bp
+    k = (max 100) <$> getEpochStability bp
 
     genesis :: Hash "Genesis"
     genesis = getGenesisBlockHash bp

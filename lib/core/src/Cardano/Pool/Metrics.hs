@@ -177,7 +177,7 @@ monitorStakePools tr nl db@DBLayer{..} = do
                 readPoolRegistration poolId >>= \case
                     Nothing -> putPoolRegistration sl0 r
                     Just{}  -> pure ()
-            readPoolProductionCursor k
+            readPoolProductionCursor (max 100 k)
 
     forward
         :: NonEmpty Block
