@@ -73,6 +73,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolId
     , PoolOwner (..)
     , PoolRegistrationCertificate (..)
+    , SlotId
     )
 import Control.Arrow
     ( first )
@@ -161,6 +162,7 @@ monitorStakePools tr nl db@DBLayer{..} = do
     follow nl trFollow cursor forward header >>= \case
         Nothing    -> pure ()
         Just point -> do
+            traceWith tr $ MsgRollingBackTo point
             liftIO . atomically $ rollbackTo point
             monitorStakePools tr nl db
   where
@@ -175,7 +177,7 @@ monitorStakePools tr nl db@DBLayer{..} = do
                 readPoolRegistration poolId >>= \case
                     Nothing -> putPoolRegistration sl0 r
                     Just{}  -> pure ()
-            readPoolProductionCursor k
+            readPoolProductionCursor (max 100 k)
 
     forward
         :: NonEmpty Block
@@ -514,6 +516,7 @@ data StakePoolLog
     | MsgFollow FollowLog
     | MsgStakeDistribution EpochNo
     | MsgStakePoolRegistration PoolRegistrationCertificate
+    | MsgRollingBackTo SlotId
     | MsgApplyError ErrMonitorStakePools
     deriving (Show, Eq)
 
@@ -531,6 +534,7 @@ instance DefineSeverity StakePoolLog where
         MsgFollow msg -> defineSeverity msg
         MsgStakeDistribution _ -> Info
         MsgStakePoolRegistration _ -> Info
+        MsgRollingBackTo _ -> Info
         MsgApplyError e -> case e of
             ErrMonitorStakePoolsNetworkUnavailable{} -> Notice
             ErrMonitorStakePoolsNetworkTip{} -> Notice
@@ -568,6 +572,8 @@ instance ToText StakePoolLog where
             "Writing stake-distribution for epoch " <> pretty ep
         MsgStakePoolRegistration pool ->
             "Discovered stake pool registration: " <> pretty pool
+        MsgRollingBackTo point ->
+            "Rolling back to " <> pretty point
         MsgApplyError e -> case e of
             ErrMonitorStakePoolsNetworkUnavailable{} ->
                 "Network is not available."
