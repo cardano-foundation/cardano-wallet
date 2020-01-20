@@ -424,7 +424,15 @@ newDBLayer trace defaultFieldValues fp = do
             selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just _  -> Right <$> do
-                    deleteCascadeWhere [WalId ==. wid]
+                    deleteWhere [WalId ==. wid]
+                    deleteWhere [TxMetaWalletId ==. wid]
+                    deleteWhere [PrivateKeyWalletId ==. wid]
+                    deleteWhere [SeqStateWalletId ==. wid]
+                    deleteWhere [SeqStatePendingWalletId ==. wid]
+                    deleteWhere [RndStateWalletId ==. wid]
+                    deleteWhere [RndStatePendingAddressWalletId ==. wid]
+                    deleteWhere [CertWalletId ==. wid]
+                    deleteCascadeWhere [CheckpointWalletId ==. wid]
                     deleteLooseTransactions
 
         , listWallets =
