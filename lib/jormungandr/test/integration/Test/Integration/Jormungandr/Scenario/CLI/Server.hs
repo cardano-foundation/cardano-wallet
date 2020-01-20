@@ -142,7 +142,7 @@ spec = do
                         , "--random-port"
                         , "--genesis-block-hash", block0H
                         , "--log-level", "debug"
-                        , "--trace-stake-pool-db", "debug"
+                        , "--trace-pools-db", "debug"
                         ]
                         (pure ())
                         (UseHandle hLogs)
@@ -150,11 +150,10 @@ spec = do
                     threadDelay (5 * oneSecond)
                 hClose hLogs
                 logged <- T.lines <$> TIO.readFile logs
-                let allDebugLogs = grep "Debug" logged
-                let componentDebugLogs = grep "stake-pool-db" allDebugLogs
-                let networkDebugLogs = grep "network" allDebugLogs
-                length componentDebugLogs `shouldNotBe` 0
-                length networkDebugLogs `shouldBe` 0
+                let poolsDebugLogs = grep "cardano-wallet.pools-db:Debug" logged
+                let netDebugLogs = grep "cardano-wallet.network:Debug" logged
+                length poolsDebugLogs `shouldNotBe` 0
+                length netDebugLogs `shouldBe` 0
 
         it "LOGGING - Serve disable logs for one component" $ \ctx -> do
             withTempFile $ \logs hLogs -> do
