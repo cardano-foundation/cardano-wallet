@@ -413,7 +413,7 @@ x-stakePoolApparentPerformance: &stakePoolApparentPerformance
       - above `1` means the pool is performing beyond expectations.
 
     Pools that are lucky enough to win most of their slots early in the epoch will tend to look
-    like they're over-performing for a while. Having a wallet reguarly connected to the network
+    like they're over-performing for a while. Having a wallet regularly connected to the network
     would harmonize the performance and give better results.
 
   type: number
