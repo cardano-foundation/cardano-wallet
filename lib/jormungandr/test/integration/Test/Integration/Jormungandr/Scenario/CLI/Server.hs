@@ -141,7 +141,6 @@ spec = do
                         , "--node-port", show (ctx ^. typed @(Port "node"))
                         , "--random-port"
                         , "--genesis-block-hash", block0H
-                        , "--log-level", "debug"
                         , "--trace-pools-db", "debug"
                         ]
                         (pure ())
@@ -190,7 +189,6 @@ spec = do
                         , "--database", dirShouldFailToCreate
                         , "--node-port", show (ctx ^. typed @(Port "node"))
                         , "--random-port"
-                        , "--log-level", "DEBUG"
                         , "--genesis-block-hash", block0H
                         ]
                         (pure ())
