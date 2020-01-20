@@ -358,12 +358,17 @@ loggingOptions = LoggingOptions
     <$> minSev
     <*> loggingTracersOptions
   where
+    -- Note: If the global log level is Info then there will be no Debug-level
+    --   messages whatsoever.
+    --   If the global log level is Debug then there will be Debug, Info, and
+    --   higher-severity messages.
+    --   So the default global log level is Debug.
     minSev = option loggingSeverityReader $ mempty
         <> long "log-level"
-        <> value Info
+        <> value Debug
         <> metavar "SEVERITY"
         <> help ("Global minimum severity for a message to be logged. " <>
-            "Defaults to \"INFO\" unless otherwise configured.")
+            "Defaults to \"DEBUG\" unless otherwise configured.")
         <> hidden
 
 loggingTracersOptions :: Parser TracerSeverities
@@ -398,16 +403,13 @@ helperTracingText = unlines $
     [ "Additional tracing options:"
     , ""
     , "  --log-level SEVERITY     Global minimum severity for a message to be logged."
-    , "                           Defaults to \"INFO\" unless otherwise configured."
+    , "                           Defaults to \"DEBUG\" unless otherwise configured."
     , "  --trace-NAME=off         Disable logging on the given tracer."
     , "  --trace-NAME=SEVERITY    Set the minimum logging severity for the given"
     , "                           tracer. Defaults to \"INFO\"."
     , ""
     , "The possible log levels (lowest to highest) are:"
     , "  " ++ unwords (map fst loggingSeverities)
-    , ""
-    , "Note: to get any debug logging, ensure that the global minimum severity is"
-    , "  also at debug level."
     , ""
     , "The possible tracers are:"
     ] ++ [ pretty name desc | (name, desc) <- tracerDescriptions]
