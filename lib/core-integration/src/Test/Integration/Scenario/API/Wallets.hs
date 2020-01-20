@@ -177,19 +177,19 @@ spec = do
             , expectFieldNotEqual passphraseLastUpdate Nothing
             ]
 
-    it "CREATE_WALLET_01 - SQL injection attempt when creating a wallet" $ \ctx -> do
+    it "OWASP_INJECTION_CREATE_WALLET_01 - SQL injection when creating a wallet" $ \ctx -> do
         let mnemonics = [ "pulp", "ten", "light", "rhythm", "replace"
                         , "vessel", "slow", "drift", "kingdom", "amazing"
                         , "negative", "join", "auction", "ugly", "symptom"] :: [Text]
         let payload = Json [json| {
-                "name": "new wallet\",''); DROP TABLE \"wallet\"; --",
+                "name": "new wallet\",'',''); DROP TABLE \"wallet\"; --",
                 "mnemonic_sentence": #{mnemonics},
                 "passphrase": "12345678910"
                 } |]
         r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
         verify r
             [ expectResponseCode @IO HTTP.status201
-            , expectFieldEqual walletName "new wallet\",''); DROP TABLE \"wallet\"; --"
+            , expectFieldEqual walletName "new wallet\",'',''); DROP TABLE \"wallet\"; --"
             , expectFieldEqual
                 (#addressPoolGap . #getApiT . #getAddressPoolGap) 20
             , expectFieldEqual (#balance . #getApiT . #available) (Quantity 0)
