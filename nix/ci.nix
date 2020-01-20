@@ -17,8 +17,7 @@ let
     walletJobs (import ../default.nix { inherit system; })
   ) {
     x86_64-linux = {};
-    # Uncomment to test build on macOS too
-    # x86_64-darwin = {};
+    x86_64-darwin = {};
   };
 
   crossSystems = with lib.systems.examples;
