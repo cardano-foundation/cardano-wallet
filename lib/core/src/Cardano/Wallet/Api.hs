@@ -62,6 +62,8 @@ module Cardano.Wallet.Api
 
     -- * Miscellaneous
     , Network
+        , GetNetworkInformation
+        , GetNetworkParameters
 
     , Proxy_
         , PostExternalTransaction
@@ -87,8 +89,10 @@ import Cardano.Wallet.Api.Types
     , ApiByronWallet
     , ApiByronWalletMigrationInfo
     , ApiCoinSelection
+    , ApiEpochNumber
     , ApiFee
     , ApiNetworkInformation
+    , ApiNetworkParameters
     , ApiNetworkTip
     , ApiSelectCoinsData
     , ApiStakePool
@@ -457,11 +461,17 @@ type GetByronWalletMigrationInfo = "byron-wallets"
 -------------------------------------------------------------------------------}
 
 type Network =
-    GetNetworkInformation
+         GetNetworkInformation
+    :<|> GetNetworkParameters
 
 type GetNetworkInformation = "network"
     :> "information"
     :> Get '[JSON] ApiNetworkInformation
+
+type GetNetworkParameters = "network"
+    :> "parameters"
+    :> Capture "epoch" ApiEpochNumber
+    :> Get '[JSON] ApiNetworkParameters
 
 {-------------------------------------------------------------------------------
                                    Proxy_

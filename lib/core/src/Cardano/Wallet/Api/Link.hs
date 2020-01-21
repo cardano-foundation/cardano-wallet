@@ -72,6 +72,7 @@ module Cardano.Wallet.Api.Link
 
       -- * Network
     , getNetworkInfo
+    , getNetworkParams
 
       -- * Proxy
     , postExternalTransaction
@@ -85,7 +86,8 @@ import Prelude
 import Cardano.Wallet.Api
     ( Api )
 import Cardano.Wallet.Api.Types
-    ( ApiT (..)
+    ( ApiEpochNumber
+    , ApiT (..)
     , ApiTxId (ApiTxId)
     , ByronWalletStyle (..)
     , Iso8601Time
@@ -421,7 +423,18 @@ getDelegationFee w =
 getNetworkInfo
     :: (Method, Text)
 getNetworkInfo =
-    endpoint @Api.Network id
+    endpoint @Api.GetNetworkInformation id
+
+getNetworkParams
+    :: forall e.
+        ( HasType ApiEpochNumber e
+        )
+    => e
+    -> (Method, Text)
+getNetworkParams e =
+    endpoint @Api.GetNetworkParameters (epoch &)
+  where
+    epoch = e ^. typed @ApiEpochNumber
 
 --
 -- Proxy
