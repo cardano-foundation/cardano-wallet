@@ -34,6 +34,7 @@ module Cardano.Wallet.Jormungandr.Binary
     , Milli (..)
     , PerCertificateFee (..)
     , TaxParameters (..)
+    , Ratio (..)
     , getBlock
     , getBlockHeader
     , getBlockId
@@ -76,18 +77,21 @@ module Cardano.Wallet.Jormungandr.Binary
     , runGetOrFail
     , Put
     , runPut
-
-      -- * Rewards
-    , RewardParams (..)
-    , RewardFormula (..)
-    , TreasuryTax (..)
-    , Ratio (..)
     ) where
 
 import Prelude
 
 import Cardano.Crypto.Wallet
     ( XPrv, sign, toXPub, unXPub, unXSignature )
+import Cardano.Wallet.Jormungandr.Rewards
+    ( PoolCapping (..)
+    , Ratio (..)
+    , RewardFormula (..)
+    , RewardLimit (..)
+    , RewardParams (..)
+    , TaxParameters (..)
+    , ratio
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.Fee
@@ -523,22 +527,6 @@ getPoolRegistration tid = label "POOL-REGISTRATION" $ do
     _sig <- getPoolSig
     pure (poolId, ownerAccIds, taxes, tx)
 
-data TaxParameters = TaxParameters
-    { taxFixed :: Word64
-        -- ^ fixed cut the stake pool will take from the total reward due
-        -- to the stake pool
-    , taxRatioNumerator :: Word64
-        -- ^ With 'taxRatioDenominator' forms a ratio "n/d" which is the
-        -- percentage of the remaining value that will be taken from the
-        -- total due.
-    , taxRatioDenominator :: Word64
-        -- ^ See 'taxRatioNumerator'
-    , taxLimit :: Maybe Word64
-        -- ^ A value that can be set to limit the pool's Tax.
-    } deriving (Generic, Eq, Show)
-
-instance NFData TaxParameters
-
 getPoolRegistrationCert :: Get (PoolId, [PoolOwner], TaxParameters)
 getPoolRegistrationCert = do
     (certBytes, (ownerAccIds, taxes)) <- withRaw getCert
@@ -574,19 +562,7 @@ getPoolRegistrationCert = do
                 replicateM numOperators getSingleAccountId
         -- Reward tax type -- fixed, ratio numerator, denominator, and optional
         -- limit value
-        taxes <- label "POOL-REWARD-SCHM" $ do
-            taxFixed <- getWord64be
-            taxRatioNumerator <- getWord64be
-            taxRatioDenominator <- getWord64be
-            taxLimit <- getWord64be <&> \case
-                0 -> Nothing
-                n -> Just n
-            pure $ TaxParameters
-                { taxFixed
-                , taxRatioNumerator
-                , taxRatioDenominator
-                , taxLimit
-                }
+        taxes <- label "POOL-REWARD-SCHM" getTaxParameters
         _rewardAcc <- label "POOL-REWARD-ACNT" getAccountIdMaybe
         pure ( PoolOwner <$> ownerAccIds
              , taxes
@@ -780,10 +756,14 @@ data ConfigParam
     -- ^ Per certificate fees, override the 'certificate' fee of the linear fee
     | ConfigRewardFormula RewardFormula
     -- ^ Reward Parameters.
-    | RewardLimitByAbsoluteStake Ratio
-    -- ^ Fraction of the total active stake. Limits the contribution of
-    -- RewardParams.
-    | ConfigTreasuryTax TreasuryTax
+    | TreasuryTax TaxParameters
+    -- ^ Treasury tax parameters.
+    | ConfigRewardLimit RewardLimit
+    -- ^ limit the epoch total reward drawing limit to a portion of the total
+    -- active stake of the system.
+    | ConfigPoolCapping PoolCapping
+    -- ^ settings to incentivize the numbers of stake pool to be registered on
+    -- the blockchain.
     | UnimplementedConfigParam  Word16
     deriving (Generic, Eq, Show)
 
@@ -817,15 +797,15 @@ getConfigParam = label "getConfigParam" $ do
         14 -> ConfigLinearFee <$> getLinearFee
         15 -> ProposalExpiration . Quantity <$> getWord32be
         16 -> KesUpdateSpeed . Quantity <$> getWord32be
-        17 -> unimpl -- treasury
-        18 -> unimpl -- treasury params
+        17 -> unimpl -- treasury initial value
+        18 -> TreasuryTax <$> getTaxParameters
         19 -> unimpl -- reward pot
-        20 -> ConfigRewardFormula <$> getRewardFormula -- reward params
+        20 -> ConfigRewardFormula <$> getRewardFormula
         21 -> ConfigPerCertificate <$> getPerCertificateFee
-        22 -> ConfigTreasuryTax <$> getTreasuryTax  -- fees in treasury
-        23 -> unimpl -- reward limit none
-        24 -> RewardLimitByAbsoluteStake <$> getRewardLimitByAbsoluteStake-- reward limit by absolute stake
-        25 -> unimpl -- pool reward participation capping
+        22 -> unimpl -- fees in treasury
+        23 -> pure (ConfigRewardLimit RewardLimitNone)
+        24 -> ConfigRewardLimit . RewardLimitByAbsoluteStake <$> getRatio
+        25 -> ConfigPoolCapping <$> getPoolCapping
         other -> fail $ "Invalid config param with tag " ++ show other
   where
     -- NOTE
@@ -836,48 +816,45 @@ getConfigParam = label "getConfigParam" $ do
     secondsToNominalDiffTime =
         toEnum . fromEnum . secondsToDiffTime .  fromIntegral
 
-    getRewardFormula :: Get RewardFormula
-    getRewardFormula = do
-        tag <- getWord8
-        case tag of
-            1 -> LinearFormula <$> getRewardParams
-            2 -> HalvingFormula <$> getRewardParams
-            _ -> fail $ "Unknown reward parameters with tag " ++ show tag
+getRatio :: Get Ratio
+getRatio = do
+    ratioNum <- getWord64be
+    ratioDen <- getWord64be
+    return $ Ratio ratioNum ratioDen
 
+getTaxParameters :: Get TaxParameters
+getTaxParameters = do
+    taxFixed <- getWord64be
+    taxRatio <- getRatio
+    taxLimit <- getWord64be <&> \case
+        0 -> Nothing
+        n -> Just n
+    pure $ TaxParameters { taxFixed, taxRatio, taxLimit }
+
+getRewardFormula :: Get RewardFormula
+getRewardFormula = do
+    tag <- getWord8
+    case tag of
+        1 -> LinearFormula <$> getRewardParams
+        2 -> HalvingFormula <$> getRewardParams
+        _ -> fail $ "Unknown reward parameters with tag " ++ show tag
+  where
     -- NOTE: getHalvingParams and getLinearParams are currently identical.
     --
     -- https://github.com/input-output-hk/chain-libs/blob/149e01cf61a9eef2660a6944fe0acc73d490e70f/chain-impl-mockchain/src/config.rs#L404-L442
     getRewardParams :: Get RewardParams
     getRewardParams = do
-        start <- getWord64be
-        ratio <- getRatio
-        epochStart <- getWord32be
-        epochRate <- getWord32be
-        return $ RewardParams
-                { rStart = start
-                , rRatio = ratio
-                , rEpochStart = epochStart
-                , rEpochRate = epochRate
-                }
+        rFixed <- getWord64be
+        rRatio <- getRatio
+        rEpochStart <- getWord32be
+        rEpochRate <- getWord32be
+        return $ RewardParams { rFixed, rRatio, rEpochStart, rEpochRate }
 
-    getRatio :: Get Ratio
-    getRatio = do
-        ratioNum <- getWord64be
-        ratioDen <- getWord64be
-        return $ Ratio ratioNum ratioDen
-
-
-    getRewardLimitByAbsoluteStake :: Get Ratio
-    getRewardLimitByAbsoluteStake = getRatio
-
-    getTreasuryTax :: Get TreasuryTax
-    getTreasuryTax = do
-        fixed <- getWord64be
-        ratio <- getRatio
-        return $ TreasuryTax
-            { treasuryTaxFixed = fixed
-            , treasuryTaxRatio = ratio
-            }
+getPoolCapping :: Get PoolCapping
+getPoolCapping = do
+    minParticipation <- getWord32be
+    maxParticipation <- getWord32be
+    pure PoolCapping{minParticipation,maxParticipation}
 
 -- | Used to represent (>= 0) rational numbers as (>= 0) integers, by just
 -- multiplying by 1000. For instance: '3.141592' is represented as 'Milli 3142'.
@@ -890,34 +867,6 @@ newtype LeaderId = LeaderId ByteString
     deriving (Generic, Eq, Show)
 
 instance NFData LeaderId
-
-data Ratio = Ratio Word64 Word64
-    deriving (Show, Eq, Generic)
-
-instance NFData Ratio
-
-data RewardFormula
-    = HalvingFormula RewardParams
-    | LinearFormula RewardParams
-    deriving (Show, Eq, Generic)
-
-instance NFData RewardFormula
-
-data RewardParams = RewardParams
-    { rStart :: Word64
-    , rRatio :: Ratio
-    , rEpochStart :: Word32
-    , rEpochRate :: Word32
-    } deriving (Show, Eq, Generic)
-
-instance NFData RewardParams
-
-data TreasuryTax = TreasuryTax
-    { treasuryTaxFixed :: Word64
-    , treasuryTaxRatio :: Ratio
-    } deriving (Show, Eq, Generic)
-
-instance NFData TreasuryTax
 
 data ConsensusVersion = BFT | GenesisPraos
     deriving (Generic, Eq, Show)
@@ -1127,14 +1076,7 @@ overrideFeePolicy linearFee@(LinearFee a b _) override =
 poolRegistrationsFromBlock :: Block -> [W.PoolRegistrationCertificate]
 poolRegistrationsFromBlock (Block _hdr fragments) = do
     PoolRegistration (poolId, owners, taxes, _tx) <- fragments
-    let margin = fromRight maxBound $ mkPercentage @Int $ round $ 100 *
-               ( double (taxRatioNumerator taxes)
-               / double (taxRatioDenominator taxes)
-               )
+    let margin = fromRight maxBound $ mkPercentage @Int $ round $
+            100 * ratio (taxRatio taxes)
     let cost = Quantity (taxFixed taxes)
     pure $ W.PoolRegistrationCertificate poolId owners margin cost
-  where
-    double :: Integral i => i -> Double
-    double = fromIntegral
-
---
