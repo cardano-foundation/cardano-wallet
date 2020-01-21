@@ -64,6 +64,8 @@ import Cardano.Launcher
     ( ProcessHasExited (..), installSignalHandlers )
 import Cardano.Pool.Metrics
     ( StakePoolLayer, StakePoolLog, monitorStakePools, newStakePoolLayer )
+import Cardano.Pool.Ranking
+    ( EpochConstants (..), unsafeMkNonNegative, unsafeMkPositive )
 import Cardano.Wallet
     ( WalletLog )
 import Cardano.Wallet.Api
@@ -284,11 +286,18 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
         -> IO (StakePoolLayer IO)
     stakePoolLayer nl db metadataDir = do
         void $ forkFinally (monitorStakePools tr nl' db) onExit
-        pure $ newStakePoolLayer tr db nl' metadataDir
+        pure $ newStakePoolLayer tr getEpCst db nl' metadataDir
       where
         nl' = toSPBlock <$> nl
         tr  = contramap (MsgFromWorker mempty) stakePoolEngineTracer
         onExit = defaultWorkerAfter stakePoolEngineTracer
+
+        -- FIXME Extract these constants from the genesis block
+        getEpCst = const $ EpochConstants
+            { leaderStakeInfluence = unsafeMkNonNegative 0
+            , desiredNumberOfPools = unsafeMkPositive 100
+            , totalRewards = Quantity 3452054796000
+            }
 
     handleNetworkStartupError :: ErrStartup -> IO ExitCode
     handleNetworkStartupError err = do

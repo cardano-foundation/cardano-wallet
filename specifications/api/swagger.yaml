@@ -468,6 +468,22 @@ x-stakePoolMargin: &stakePoolMargin
   description: |
       Variable margin on the total reward given to an operator before splitting rewards between stakeholders.
 
+x-stakePoolSaturation: &stakePoolSaturation
+  type: number
+  minimum: 0
+  description: |
+    Saturation-level of the pool based on the desired number of pools aimed by the network.
+    A value above `1` indicates that the pool is saturated.
+  example: 0.74
+
+x-stakePoolDesirability: &stakePoolDesirability
+  type: number
+  minimum: 0
+  description: |
+    How desirable / attractive a pool is. To determine a pool's _rank_, we order pools by decreasing desirability.
+    The most desirable pool gets rank 1, the second most desirable pool gets rank 2 and so on.
+  example: 42
+
 x-networkInformationSyncProgress: &networkInformationSyncProgress
   <<: *syncProgress
   description: |
@@ -594,6 +610,8 @@ definitions:
       - apparent_performance
       - cost
       - margin
+      - saturation
+      - desirability
     properties:
       id: *stakePoolId
       metrics: *stakePoolMetrics
@@ -601,6 +619,8 @@ definitions:
       cost: *stakePoolCost
       margin: *stakePoolMargin
       metadata: *stakePoolMetadata
+      saturation: *stakePoolSaturation
+      desirability: *stakePoolDesirability
 
   ApiFee: &ApiFee
     type: object
@@ -1461,7 +1481,7 @@ paths:
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
-        List all known stake pools ordered by descending `apparent_performance`.
+        List all known stake pools ordered by descending `desirability`.
         Some pools _may_ also have metadata attached to them if they have been registered
         to the metadata registry.
       responses: *responsesListStakePools

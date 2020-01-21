@@ -53,7 +53,6 @@ import Test.Integration.Framework.DSL
     , Payload (..)
     , TxDescription (..)
     , amount
-    , apparentPerformance
     , blocks
     , delegation
     , delegationFee
@@ -150,24 +149,38 @@ spec = do
 
                 , expectListItemFieldEqual 0
                     (metrics . stake) 1
+                , expectListItemFieldEqual 1
+                    (metrics . stake) 1
+                , expectListItemFieldEqual 2
+                    (metrics . stake) 1
+
                 , expectListItemFieldSatisfy 0
                     (metrics . blocks) (> 1)
+                , expectListItemFieldEqual 1
+                    (metrics . blocks) 0
+                , expectListItemFieldEqual 2
+                    (metrics . blocks) 0
+
                 , expectListItemFieldSatisfy 0
-                    apparentPerformance (> 0)
+                    #apparentPerformance (> 0)
+                , expectListItemFieldSatisfy 1
+                    #apparentPerformance (== 0)
+                , expectListItemFieldSatisfy 2
+                    #apparentPerformance (== 0)
 
-                , expectListItemFieldEqual 1
-                    (metrics . stake) 1
-                , expectListItemFieldEqual 1
-                    (metrics . blocks) 0
-                , expectListItemFieldEqual 2
-                    apparentPerformance 0
+                , expectListItemFieldSatisfy 0
+                    #desirability (>= 0)
+                , expectListItemFieldSatisfy 1
+                    #desirability (>= 0)
+                , expectListItemFieldSatisfy 2
+                    #desirability (>= 0)
 
-                , expectListItemFieldEqual 2
-                    (metrics . stake) 1
-                , expectListItemFieldEqual 2
-                    (metrics . blocks) 0
-                , expectListItemFieldEqual 2
-                    apparentPerformance 0
+                , expectListItemFieldSatisfy 0
+                    #saturation (>= 0)
+                , expectListItemFieldSatisfy 1
+                    #saturation (>= 0)
+                , expectListItemFieldSatisfy 2
+                    #saturation (>= 0)
                 ]
 
     it "STAKE_POOLS_LIST_02 - May fail on epoch boundaries" $ \ctx -> do
