@@ -113,7 +113,7 @@ desirability constants pool
     c = fromIntegral $ getQuantity $ cost pool
 
 -- | The saturation-level of a pool indicate how far a pool is from the
--- desirated relative stake fixed by the network. A saturation level above 1
+-- desired relative stake fixed by the network. A saturation level above 1
 -- means that the pool is satured. A level of 0.5 / 50% means that the pool owns
 -- half the ideal stake.
 --

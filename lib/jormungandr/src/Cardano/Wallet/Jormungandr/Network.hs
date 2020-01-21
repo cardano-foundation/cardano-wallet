@@ -564,6 +564,7 @@ data ErrStartup
     | ErrStartupGetBlockchainParameters ErrGetBlockchainParams
     | ErrStartupInvalidGenesisBlock FilePath
     | ErrStartupInvalidGenesisHash String
+    | ErrStartupMissingIncentiveParameters
     deriving (Generic, Show, Eq)
 
 instance Exception ErrStartup

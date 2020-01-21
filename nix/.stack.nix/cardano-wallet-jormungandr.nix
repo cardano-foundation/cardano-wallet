@@ -85,6 +85,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."monad-loops" or (buildDepError "monad-loops"))
           (hsPkgs."memory" or (buildDepError "memory"))
           (hsPkgs."network" or (buildDepError "network"))
+          (hsPkgs."safe" or (buildDepError "safe"))
           (hsPkgs."servant" or (buildDepError "servant"))
           (hsPkgs."servant-client" or (buildDepError "servant-client"))
           (hsPkgs."servant-client-core" or (buildDepError "servant-client-core"))

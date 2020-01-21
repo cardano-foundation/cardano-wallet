@@ -34,6 +34,7 @@ module Cardano.Wallet.Jormungandr.Binary
     , Milli (..)
     , PerCertificateFee (..)
     , TaxParameters (..)
+    , Ratio (..)
     , getBlock
     , getBlockHeader
     , getBlockId
@@ -58,6 +59,7 @@ module Cardano.Wallet.Jormungandr.Binary
     , convertBlock
     , convertBlockHeader
     , poolRegistrationsFromBlock
+    , rankingEpochConstants
 
     -- * Addresses
     , putAddress
@@ -82,6 +84,18 @@ import Prelude
 
 import Cardano.Crypto.Wallet
     ( XPrv, sign, toXPub, unXPub, unXSignature )
+import Cardano.Pool.Ranking
+    ( EpochConstants (..), unsafeMkNonNegative, unsafeMkPositive )
+import Cardano.Wallet.Jormungandr.Rewards
+    ( PoolCapping (..)
+    , Ratio (..)
+    , RewardFormula (..)
+    , RewardLimit (..)
+    , RewardParams (..)
+    , TaxParameters (..)
+    , ratio
+    , rewardsAt
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.Fee
@@ -148,7 +162,7 @@ import Data.Either
 import Data.Functor
     ( ($>), (<&>) )
 import Data.Maybe
-    ( catMaybes )
+    ( catMaybes, mapMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -163,6 +177,8 @@ import GHC.Generics
     ( Generic )
 import GHC.Stack
     ( HasCallStack )
+import Safe
+    ( headMay )
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.ByteArray as BA
@@ -517,22 +533,6 @@ getPoolRegistration tid = label "POOL-REGISTRATION" $ do
     _sig <- getPoolSig
     pure (poolId, ownerAccIds, taxes, tx)
 
-data TaxParameters = TaxParameters
-    { taxFixed :: Word64
-        -- ^ fixed cut the stake pool will take from the total reward due
-        -- to the stake pool
-    , taxRatioNumerator :: Word64
-        -- ^ With 'taxRatioDenominator' forms a ratio "n/d" which is the
-        -- percentage of the remaining value that will be taken from the
-        -- total due.
-    , taxRatioDenominator :: Word64
-        -- ^ See 'taxRatioNumerator'
-    , taxLimit :: Maybe Word64
-        -- ^ A value that can be set to limit the pool's Tax.
-    } deriving (Generic, Eq, Show)
-
-instance NFData TaxParameters
-
 getPoolRegistrationCert :: Get (PoolId, [PoolOwner], TaxParameters)
 getPoolRegistrationCert = do
     (certBytes, (ownerAccIds, taxes)) <- withRaw getCert
@@ -568,19 +568,7 @@ getPoolRegistrationCert = do
                 replicateM numOperators getSingleAccountId
         -- Reward tax type -- fixed, ratio numerator, denominator, and optional
         -- limit value
-        taxes <- label "POOL-REWARD-SCHM" $ do
-            taxFixed <- getWord64be
-            taxRatioNumerator <- getWord64be
-            taxRatioDenominator <- getWord64be
-            taxLimit <- getWord64be <&> \case
-                0 -> Nothing
-                n -> Just n
-            pure $ TaxParameters
-                { taxFixed
-                , taxRatioNumerator
-                , taxRatioDenominator
-                , taxLimit
-                }
+        taxes <- label "POOL-REWARD-SCHM" getTaxParameters
         _rewardAcc <- label "POOL-REWARD-ACNT" getAccountIdMaybe
         pure ( PoolOwner <$> ownerAccIds
              , taxes
@@ -772,6 +760,16 @@ data ConfigParam
     -- after start time.
     | ConfigPerCertificate PerCertificateFee
     -- ^ Per certificate fees, override the 'certificate' fee of the linear fee
+    | ConfigRewardFormula RewardFormula
+    -- ^ Reward Parameters.
+    | TreasuryTax TaxParameters
+    -- ^ Treasury tax parameters.
+    | ConfigRewardLimit RewardLimit
+    -- ^ limit the epoch total reward drawing limit to a portion of the total
+    -- active stake of the system.
+    | ConfigPoolCapping PoolCapping
+    -- ^ settings to incentivize the numbers of stake pool to be registered on
+    -- the blockchain.
     | UnimplementedConfigParam  Word16
     deriving (Generic, Eq, Show)
 
@@ -805,15 +803,15 @@ getConfigParam = label "getConfigParam" $ do
         14 -> ConfigLinearFee <$> getLinearFee
         15 -> ProposalExpiration . Quantity <$> getWord32be
         16 -> KesUpdateSpeed . Quantity <$> getWord32be
-        17 -> unimpl -- treasury
-        18 -> unimpl -- treasury params
+        17 -> unimpl -- treasury initial value
+        18 -> TreasuryTax <$> getTaxParameters
         19 -> unimpl -- reward pot
-        20 -> unimpl -- reward params
+        20 -> ConfigRewardFormula <$> getRewardFormula
         21 -> ConfigPerCertificate <$> getPerCertificateFee
         22 -> unimpl -- fees in treasury
-        23 -> unimpl -- reward limit none
-        24 -> unimpl -- reward limit by absolute stake
-        25 -> unimpl -- pool reward participation capping
+        23 -> pure (ConfigRewardLimit RewardLimitNone)
+        24 -> ConfigRewardLimit . RewardLimitByAbsoluteStake <$> getRatio
+        25 -> ConfigPoolCapping <$> getPoolCapping
         other -> fail $ "Invalid config param with tag " ++ show other
   where
     -- NOTE
@@ -823,6 +821,46 @@ getConfigParam = label "getConfigParam" $ do
     secondsToNominalDiffTime :: Word8 -> NominalDiffTime
     secondsToNominalDiffTime =
         toEnum . fromEnum . secondsToDiffTime .  fromIntegral
+
+getRatio :: Get Ratio
+getRatio = do
+    ratioNum <- getWord64be
+    ratioDen <- getWord64be
+    return $ Ratio ratioNum ratioDen
+
+getTaxParameters :: Get TaxParameters
+getTaxParameters = do
+    taxFixed <- getWord64be
+    taxRatio <- getRatio
+    taxLimit <- getWord64be <&> \case
+        0 -> Nothing
+        n -> Just n
+    pure $ TaxParameters { taxFixed, taxRatio, taxLimit }
+
+getRewardFormula :: Get RewardFormula
+getRewardFormula = do
+    tag <- getWord8
+    case tag of
+        1 -> LinearFormula <$> getRewardParams
+        2 -> HalvingFormula <$> getRewardParams
+        _ -> fail $ "Unknown reward parameters with tag " ++ show tag
+  where
+    -- NOTE: getHalvingParams and getLinearParams are currently identical.
+    --
+    -- https://github.com/input-output-hk/chain-libs/blob/149e01cf61a9eef2660a6944fe0acc73d490e70f/chain-impl-mockchain/src/config.rs#L404-L442
+    getRewardParams :: Get RewardParams
+    getRewardParams = do
+        rFixed <- getWord64be
+        rRatio <- getRatio
+        rEpochStart <- getWord32be
+        rEpochRate <- getWord32be
+        return $ RewardParams { rFixed, rRatio, rEpochStart, rEpochRate }
+
+getPoolCapping :: Get PoolCapping
+getPoolCapping = do
+    minParticipation <- getWord32be
+    maxParticipation <- getWord32be
+    pure PoolCapping{minParticipation,maxParticipation}
 
 -- | Used to represent (>= 0) rational numbers as (>= 0) integers, by just
 -- multiplying by 1000. For instance: '3.141592' is represented as 'Milli 3142'.
@@ -1044,12 +1082,57 @@ overrideFeePolicy linearFee@(LinearFee a b _) override =
 poolRegistrationsFromBlock :: Block -> [W.PoolRegistrationCertificate]
 poolRegistrationsFromBlock (Block _hdr fragments) = do
     PoolRegistration (poolId, owners, taxes, _tx) <- fragments
-    let margin = fromRight maxBound $ mkPercentage @Int $ round $ 100 *
-               ( double (taxRatioNumerator taxes)
-               / double (taxRatioDenominator taxes)
-               )
+    let margin = fromRight maxBound $ mkPercentage @Int $ round $
+            100 * ratio (taxRatio taxes)
     let cost = Quantity (taxFixed taxes)
     pure $ W.PoolRegistrationCertificate poolId owners margin cost
+
+-- | If all incentives parameters are present in the blocks, returns a function
+-- that computes reward based on a given epoch.
+-- Returns 'Nothing' otherwise.
+rankingEpochConstants
+    :: Block
+    -> Maybe (EpochNo -> Quantity "lovelace" Word64 -> EpochConstants)
+rankingEpochConstants block0 = do
+    poolCapping   <- mPoolCapping
+    rewardLimit   <- mRewardLimit
+    treasuryTax   <- mTreasuryTax
+    rewardFormula <- mRewardFormula
+    pure $ \ep totalStake -> EpochConstants
+        { leaderStakeInfluence =
+            unsafeMkNonNegative 0
+        , desiredNumberOfPools =
+            unsafeMkPositive $ fromIntegral $ maxParticipation poolCapping
+        , totalRewards =
+            rewardsAt (rewardLimit, totalStake) treasuryTax ep rewardFormula
+        }
   where
-    double :: Integral i => i -> Double
-    double = fromIntegral
+    params = mconcat $ mapMaybe matchConfigParameters (fragments block0)
+      where
+        matchConfigParameters = \case
+            Initial xs -> Just xs
+            _ -> Nothing
+
+    mPoolCapping = headMay $ mapMaybe matchPoolCapping params
+      where
+        matchPoolCapping = \case
+            ConfigPoolCapping x -> Just x
+            _ -> Nothing
+
+    mRewardLimit = headMay $ mapMaybe matchRewardLimit params
+      where
+        matchRewardLimit = \case
+            ConfigRewardLimit x -> Just x
+            _ -> Nothing
+
+    mTreasuryTax = headMay $ mapMaybe matchTreasuryTax params
+      where
+        matchTreasuryTax = \case
+            TreasuryTax x -> Just x
+            _ -> Nothing
+
+    mRewardFormula = headMay $ mapMaybe matchRewardFormula params
+      where
+        matchRewardFormula = \case
+            ConfigRewardFormula x -> Just x
+            _ -> Nothing

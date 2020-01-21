@@ -70,6 +70,10 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         -- ^ Read the all stake pools together with corresponding slot ids
         -- for a given epoch.
 
+    , readTotalProduction
+        :: stm (Map PoolId (Quantity "block" Word64))
+        -- ^ Read the total pool production since the pool was first registered.
+
     , putStakeDistribution
         :: EpochNo
         -> [(PoolId, Quantity "lovelace" Word64)]

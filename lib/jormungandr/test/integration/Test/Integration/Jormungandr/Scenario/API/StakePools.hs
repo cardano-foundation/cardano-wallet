@@ -27,6 +27,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.Types
     ( Direction (..), PoolId (..), TxStatus (..), WalletDelegation (..) )
+import Control.Arrow
+    ( second )
 import Control.Monad
     ( forM_ )
 import Data.Functor.Identity
@@ -34,9 +36,11 @@ import Data.Functor.Identity
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.List
-    ( find )
+    ( find, sortOn )
 import Data.Maybe
     ( isJust, isNothing )
+import Data.Ord
+    ( Down (..) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -123,7 +127,7 @@ spec = do
             -- For some reason, the first pool (the node we run), produces
             -- blocks in 100% of the /slots/. This means it will have produced
             -- either 1 or 2 blocks in the current epoch.
-            verify r
+            verify (sortByPerformance r)
                 [ expectListSizeEqual 3
 
                 , expectListItemFieldSatisfy 0
@@ -257,8 +261,8 @@ spec = do
 
     it "STAKE_POOLS_JOIN_01 - Controlled stake increases when joining" $ \ctx -> do
         w <- fixtureWallet ctx
-        (_, p:_) <- eventually $
-            unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
+        (_, Right (p:_)) <- eventually $ sortByPerformance <$>
+            request @[ApiStakePool] ctx Link.listStakePools Default Empty
 
         -- Join a pool
         joinStakePool ctx (p ^. #id) (w, fixturePassphrase) >>= flip verify
@@ -279,7 +283,8 @@ spec = do
         let existingPoolStake = getQuantity $ p ^. #metrics . #controlledStake
         let contributedStake = faucetUtxoAmt - fee
         eventually $ do
-            request @[ApiStakePool] ctx Link.listStakePools Default Empty >>= flip verify
+            v <- request @[ApiStakePool] ctx Link.listStakePools Default Empty
+            verify (sortByPerformance v)
                 [ expectListItemFieldSatisfy 0 (metrics . stake)
                     (> (existingPoolStake + contributedStake))
                     -- No exact equality since the delegation from previous
@@ -843,3 +848,10 @@ joinStakePoolWithFixtureWallet ctx = do
             [ expectFieldEqual delegation (Delegating (p ^. #id))
             ]
     return (w, p)
+
+sortByPerformance
+    :: Functor f
+    => (a, f [ApiStakePool])
+    -> (a, f [ApiStakePool])
+sortByPerformance =
+    second (fmap (sortOn (Down . view #apparentPerformance)))

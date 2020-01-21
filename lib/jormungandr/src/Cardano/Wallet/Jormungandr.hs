@@ -64,8 +64,6 @@ import Cardano.Launcher
     ( ProcessHasExited (..), installSignalHandlers )
 import Cardano.Pool.Metrics
     ( StakePoolLayer, StakePoolLog, monitorStakePools, newStakePoolLayer )
-import Cardano.Pool.Ranking
-    ( EpochConstants (..), unsafeMkNonNegative, unsafeMkPositive )
 import Cardano.Wallet
     ( WalletLog )
 import Cardano.Wallet.Api
@@ -137,6 +135,8 @@ import Control.Concurrent.Async
     ( race )
 import Control.DeepSeq
     ( NFData )
+import Control.Exception
+    ( throwIO )
 import Control.Monad
     ( void )
 import Control.Tracer
@@ -219,14 +219,14 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
         Left e -> handleNetworkStartupError e
         Right (cp, nl) -> do
             let nPort = Port $ baseUrlPort $ _restApi cp
-            let (_, bp) = staticBlockchainParameters nl
+            let (block0, bp) = staticBlockchainParameters nl
             let byronTl = newTransactionLayer (getGenesisBlockHash bp)
             let icarusTl = newTransactionLayer (getGenesisBlockHash bp)
             let shelleyTl = newTransactionLayer (getGenesisBlockHash bp)
             let poolDBPath = Pool.defaultFilePath <$> databaseDir
             Pool.withDBLayer stakePoolDbTracer poolDBPath $ \db ->
                 withSystemTempDirectory "stake-pool-metadata" $ \md -> do
-                    poolApi <- stakePoolLayer nl db md
+                    poolApi <- stakePoolLayer nl db block0 md
                     byronApi <- apiLayer "byron" byronTl nl
                     icarusApi <- apiLayer "icarus" icarusTl nl
                     shelleyApi <- apiLayer "shelley" shelleyTl nl
@@ -282,22 +282,18 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
     stakePoolLayer
         :: NetworkLayer IO t J.Block
         -> Pool.DBLayer IO
+        -> J.Block
         -> FilePath
         -> IO (StakePoolLayer IO)
-    stakePoolLayer nl db metadataDir = do
+    stakePoolLayer nl db block0 metadataDir = do
         void $ forkFinally (monitorStakePools tr nl' db) onExit
+        getEpCst <- maybe (throwIO ErrStartupMissingIncentiveParameters) pure $
+            J.rankingEpochConstants block0
         pure $ newStakePoolLayer tr getEpCst db nl' metadataDir
       where
         nl' = toSPBlock <$> nl
         tr  = contramap (MsgFromWorker mempty) stakePoolEngineTracer
         onExit = defaultWorkerAfter stakePoolEngineTracer
-
-        -- FIXME Extract these constants from the genesis block
-        getEpCst = const $ EpochConstants
-            { leaderStakeInfluence = unsafeMkNonNegative 0
-            , desiredNumberOfPools = unsafeMkPositive 100
-            , totalRewards = Quantity 3452054796000
-            }
 
     handleNetworkStartupError :: ErrStartup -> IO ExitCode
     handleNetworkStartupError err = do
@@ -384,6 +380,8 @@ instance ToText ApplicationLog where
             ErrStartupNodeNotListening -> mempty
                     <> "Waited too long for Jörmungandr to become available. "
                     <> "Giving up!"
+            ErrStartupMissingIncentiveParameters ->
+                "Couldn't find incentive parameters in the genesis block."
         MsgServerStartupError startupErr -> case startupErr of
             ListenErrorHostDoesNotExist host -> mempty
                     <> "Can't listen on "
@@ -418,6 +416,7 @@ exitCodeNetwork = \case
         ErrGetBlockchainParamsNetworkUnreachable _ -> 30
         ErrGetBlockchainParamsGenesisNotFound _ -> 31
         ErrGetBlockchainParamsIncompleteParams _ -> 32
+    ErrStartupMissingIncentiveParameters -> 32
     ErrStartupInvalidGenesisBlock _ -> 33
     ErrStartupInvalidGenesisHash _ -> 34
     ErrStartupCommandExited pe -> case pe of

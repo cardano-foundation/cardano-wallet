@@ -57,6 +57,7 @@ library
     , monad-loops
     , memory
     , network
+    , safe
     , servant
     , servant-client
     , servant-client-core
@@ -74,6 +75,7 @@ library
       Cardano.Wallet.Jormungandr.Api.Client
       Cardano.Wallet.Jormungandr.Api.Types
       Cardano.Wallet.Jormungandr.Binary
+      Cardano.Wallet.Jormungandr.Rewards
       Cardano.Wallet.Jormungandr.Compatibility
       Cardano.Wallet.Jormungandr.Network
       Cardano.Wallet.Jormungandr.Transaction
@@ -163,6 +165,7 @@ test-suite unit
       Cardano.Wallet.Jormungandr.BinarySpec
       Cardano.Wallet.Jormungandr.CompatibilitySpec
       Cardano.Wallet.Jormungandr.NetworkSpec
+      Cardano.Wallet.Jormungandr.RewardsSpec
       Cardano.Wallet.Jormungandr.TransactionSpec
 
 test-suite integration

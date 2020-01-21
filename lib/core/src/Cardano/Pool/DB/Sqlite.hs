@@ -166,6 +166,17 @@ newDBLayer trace fp = do
 
             pure (foldl' toMap Map.empty production)
 
+        , readTotalProduction = do
+            production <- fmap entityVal <$>
+                selectList ([] :: [Filter PoolProduction]) []
+
+            let toMap m (PoolProduction{poolProductionPoolId}) =
+                    Map.alter alter poolProductionPoolId m
+                  where
+                    alter = Just . maybe 1 (+1)
+
+            pure $ Map.map Quantity $ foldl' toMap Map.empty production
+
         , putStakeDistribution = \epoch@(EpochNo ep) distribution -> do
             deleteWhere [StakeDistributionEpoch ==. fromIntegral ep]
             insertMany_ (mkStakeDistribution epoch distribution)
