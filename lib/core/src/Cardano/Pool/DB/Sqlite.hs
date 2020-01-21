@@ -6,6 +6,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -46,15 +47,20 @@ import Cardano.Wallet.Primitive.Types
     , PoolId
     , PoolRegistrationCertificate (..)
     , SlotId (..)
+    , slotMinBound
     )
 import Control.Exception
     ( bracket, throwIO )
+import Control.Monad
+    ( when )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Control.Tracer
     ( Tracer, traceWith )
+import Data.Function
+    ( (&) )
 import Data.List
     ( foldl' )
 import Data.Map.Strict
@@ -135,13 +141,15 @@ newDBLayer
        -- ^ Database file location, or Nothing for in-memory database
     -> IO (SqliteContext, DBLayer IO)
 newDBLayer trace fp = do
-    let io = startSqliteBackend
-            (ManualMigration mempty)
-            migrateAll
-            trace
-            fp
-    ctx@SqliteContext{runQuery} <- handlingPersistError trace fp io
-    return (ctx, DBLayer
+    let start = startSqliteBackend (ManualMigration mempty) migrateAll trace fp
+    (nMigrations, ctx) <- handlingPersistError trace fp start
+    let dbLayer = mkDBLayer ctx
+    when (nMigrations > Quantity 0) $ do
+        traceWith trace MsgForcedRollback
+        dbLayer & \DBLayer{..} -> atomically $ rollbackTo slotMinBound
+    pure (ctx, dbLayer)
+  where
+    mkDBLayer SqliteContext{runQuery} = DBLayer
         { putPoolProduction = \point pool -> ExceptT $
             handleConstraint (ErrPointAlreadyExists point) $
                 insert_ (mkPoolProduction pool point)
@@ -223,7 +231,7 @@ newDBLayer trace fp = do
             deleteWhere ([] :: [Filter StakeDistribution])
 
         , atomically = runQuery
-        })
+        }
 
 -- | 'Temporary', catches migration error from previous versions and if any,
 -- _removes_ the database file completely before retrying to start the database.

@@ -396,16 +396,16 @@ newDBLayer
     -> Maybe FilePath
        -- ^ Path to database file, or Nothing for in-memory database
     -> IO (SqliteContext, DBLayer IO s k)
-newDBLayer trace defaultFieldValues mDatabaseFile = do
-    ctx@SqliteContext{runQuery} <-
-        either throwIO pure =<<
-        startSqliteBackend
-            (migrateManually trace defaultFieldValues)
-            migrateAll
-            trace
-            mDatabaseFile
-    return (ctx, DBLayer
-
+newDBLayer trace defaultFieldValues fp = do
+    let manualMigrations = migrateManually trace defaultFieldValues
+    let start = startSqliteBackend manualMigrations migrateAll trace fp
+    (nMigrations, ctx@SqliteContext{runQuery}) <- either throwIO pure =<< start
+    let dbLayer = mkDBLayer ctx
+    when (nMigrations > Quantity 0) $ do
+        traceWith trace MsgForcedRollback *> runQuery forceRollback
+    pure (ctx, dbLayer)
+  where
+    mkDBLayer SqliteContext{runQuery} = DBLayer
         {-----------------------------------------------------------------------
                                       Wallets
         -----------------------------------------------------------------------}
@@ -424,7 +424,15 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
             selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just _  -> Right <$> do
-                    deleteCascadeWhere [WalId ==. wid]
+                    deleteWhere [WalId ==. wid]
+                    deleteWhere [TxMetaWalletId ==. wid]
+                    deleteWhere [PrivateKeyWalletId ==. wid]
+                    deleteWhere [SeqStateWalletId ==. wid]
+                    deleteWhere [SeqStatePendingWalletId ==. wid]
+                    deleteWhere [RndStateWalletId ==. wid]
+                    deleteWhere [RndStatePendingAddressWalletId ==. wid]
+                    deleteWhere [CertWalletId ==. wid]
+                    deleteCascadeWhere [CheckpointWalletId ==. wid]
                     deleteLooseTransactions
 
         , listWallets =
@@ -568,7 +576,7 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
 
         , atomically = runQuery
 
-        })
+        }
 
 delegationFromEntity
     :: Maybe DelegationCertificate
@@ -991,6 +999,27 @@ findNearestPoint wid sl =
 -- violated.
 data ErrRollbackTo = ErrNoOlderCheckpoint W.WalletId W.SlotId deriving (Show)
 instance Exception ErrRollbackTo
+
+
+{-------------------------------------------------------------------------------
+                                    Logging
+-------------------------------------------------------------------------------}
+
+-- | @persistent@ handles automatic migrations by creating copies of existing
+-- tables, and re-creating them from scratch. When paired with automatic cascade
+-- deletion, this has dramatic consequences on the wallet data integrity (when a
+-- source table is deleted due to a migration, all foreign tables are also
+-- deleted, but only the rows in the source table are replaced!).
+--
+-- To cope with this, when any automated migration is detected, we manually
+-- roll back all rows referencing checkpoints and replace the genesis checkpoint.
+forceRollback
+    :: SqlPersistT IO ()
+forceRollback = do
+    deleteCascadeWhere [CheckpointSlot >. W.slotMinBound]
+    deleteWhere [CertSlot >. W.slotMinBound]
+    deleteWhere [TxMetaSlot >. W.slotMinBound]
+    deleteLooseTransactions
 
 {-------------------------------------------------------------------------------
                      DB queries for address discovery state
