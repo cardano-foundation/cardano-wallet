@@ -457,7 +457,9 @@ type GetByronWalletMigrationInfo = "byron-wallets"
 -------------------------------------------------------------------------------}
 
 type Network =
-    "network"
+    GetNetworkInformation
+
+type GetNetworkInformation = "network"
     :> "information"
     :> Get '[JSON] ApiNetworkInformation
 
