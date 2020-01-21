@@ -61,7 +61,6 @@ module Test.Integration.Framework.DSL
     , nextEpoch
     , outputs
     , stake
-    , syncProgress
     , walletId
 
     -- * Helpers
@@ -156,7 +155,6 @@ import Cardano.Wallet.Primitive.Types
     , HistogramBar (..)
     , PoolId (..)
     , SortOrder (..)
-    , SyncProgress (..)
     , TxIn (..)
     , TxOut (..)
     , UTxO (..)
@@ -689,15 +687,6 @@ coinSelectionOutputs =
   where
     _get = NE.toList . view typed
     _set (s, v) = set typed (NE.fromList v) s
-
-syncProgress :: HasType (ApiT SyncProgress) s => Lens' s SyncProgress
-syncProgress =
-    lens _get _set
-  where
-    _get :: HasType (ApiT SyncProgress) s => s -> SyncProgress
-    _get = getApiT . view typed
-    _set :: HasType (ApiT SyncProgress) s => (s, SyncProgress) -> s
-    _set (s, v) = set typed (ApiT v) s
 
 metrics :: HasType ApiStakePoolMetrics s => Lens' s ApiStakePoolMetrics
 metrics =
