@@ -81,7 +81,6 @@ import Test.Integration.Framework.DSL
     , updateWalletPassphraseViaCLI
     , verify
     , walletId
-    , walletName
     )
 import Test.Integration.Framework.TestData
     ( arabicWalletName
@@ -164,7 +163,7 @@ spec = do
         T.unpack err `shouldContain` cmdOk
         j <- expectValidJSON (Proxy @ApiWallet) out
         verify j
-            [ expectCliFieldEqual walletName "n"
+            [ expectCliFieldEqual (#name . #getApiT . #getWalletName) "n"
             , expectCliFieldEqual
                     (#addressPoolGap . #getApiT . #getAddressPoolGap) 20
             , expectCliFieldEqual (#balance . #getApiT . #available) (Quantity 0)
@@ -243,7 +242,7 @@ spec = do
         c1 `shouldBe` ExitSuccess
         T.unpack e1 `shouldContain` cmdOk
         j <- expectValidJSON (Proxy @ApiWallet) o1
-        expectCliFieldEqual walletName "n1" j
+        expectCliFieldEqual (#name . #getApiT . #getWalletName) "n1" j
 
         (c2, o2, e2) <- createWalletViaCLI @t ctx ["n2"] m1 m2 "Xsecure-passphraseX"
         c2 `shouldBe` ExitFailure 1
@@ -259,7 +258,7 @@ spec = do
             c `shouldBe` ExitSuccess
             T.unpack e `shouldContain` cmdOk
             j <- expectValidJSON (Proxy @ApiWallet) o
-            expectCliFieldEqual walletName (T.pack n) j
+            expectCliFieldEqual (#name . #getApiT . #getWalletName) (T.pack n) j
 
     it "WALLETS_CREATE_04 - Cannot create wallet when name exceeds length" $ \ctx -> do
         let n = replicate (walletNameMaxLength + 1) 'ą'
@@ -281,7 +280,8 @@ spec = do
             c `shouldBe` ExitSuccess
             T.unpack err `shouldContain` cmdOk
             j <- expectValidJSON (Proxy @ApiWallet) out
-            expectCliFieldEqual walletName (T.pack name) j
+            expectCliFieldEqual
+                    (#name . #getApiT . #getWalletName) (T.pack name) j
 
     describe "WALLETS_CREATE_05 - Can't create wallet with wrong size of mnemonic" $ do
         forM_ ["9", "12"] $ \(size) -> it size $ \ctx -> do
@@ -309,7 +309,8 @@ spec = do
             c `shouldBe` ExitSuccess
             T.unpack err `shouldContain` cmdOk
             j <- expectValidJSON (Proxy @ApiWallet) out
-            expectCliFieldEqual walletName (T.pack name) j
+            expectCliFieldEqual
+                    (#name . #getApiT . #getWalletName) (T.pack name) j
 
     describe "WALLETS_CREATE_06 - Can't create wallet with wrong size of mnemonic snd factor" $ do
         forM_ ["15", "18", "21", "24"] $ \(size) -> it size $ \ctx -> do
@@ -416,7 +417,8 @@ spec = do
         err `shouldBe` cmdOk
         j <- expectValidJSON (Proxy @ApiWallet) out
         verify j
-            [ expectCliFieldEqual walletName "Empty Wallet"
+            [ expectCliFieldEqual
+                    (#name . #getApiT . #getWalletName) "Empty Wallet"
             , expectCliFieldEqual
                     (#addressPoolGap . #getApiT . #getAddressPoolGap) 20
             , expectCliFieldEqual (#balance . #getApiT . #available) (Quantity 0)
@@ -448,7 +450,8 @@ spec = do
         j <- expectValidJSON (Proxy @[ApiWallet]) out
         length j `shouldBe` 2
         verify j
-            [ expectCliListItemFieldEqual 0 walletName name
+            [ expectCliListItemFieldEqual 0
+                    (#name . #getApiT . #getWalletName) name
             , expectCliListItemFieldEqual 0
                     (#addressPoolGap . #getApiT . #getAddressPoolGap) 21
             , expectCliListItemFieldEqual 0
@@ -485,7 +488,7 @@ spec = do
             c `shouldBe` ExitSuccess
             err `shouldBe` cmdOk
             j <- expectValidJSON (Proxy @ApiWallet) out
-            expectCliFieldEqual walletName (T.pack n) j
+            expectCliFieldEqual (#name . #getApiT . #getWalletName) (T.pack n) j
 
     it "WALLETS_UPDATE_PASS_01 - Can update passphrase normally"
         $ \ctx -> do

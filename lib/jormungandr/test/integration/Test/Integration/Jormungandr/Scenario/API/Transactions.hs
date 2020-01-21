@@ -101,7 +101,6 @@ import Test.Integration.Framework.DSL as DSL
     , status
     , verify
     , walletId
-    , walletName
     )
 import Test.Integration.Framework.Request
     ( RequestException )
@@ -475,7 +474,7 @@ fixtureExternalTx ctx toSend = do
         @ApiWallet ctx ("POST", "v2/wallets") Default restoreFaucetWallet
     verify r0
         [ expectResponseCode @IO HTTP.status201
-        , expectFieldEqual walletName "Faucet Wallet"
+        , expectFieldEqual (#name . #getApiT . #getWalletName) "Faucet Wallet"
         ]
     let wSrc = getFromResponse Prelude.id r0
     -- we take input by lookking at transactions of the faucet wallet
@@ -498,7 +497,7 @@ fixtureExternalTx ctx toSend = do
             } |]
     r1 <- request @ApiWallet ctx ("POST", "v2/wallets") Default createWallet
     verify r1
-        [ expectFieldEqual walletName "Destination Wallet"
+        [ expectFieldEqual (#name . #getApiT . #getWalletName) "Destination Wallet"
         , expectEventually ctx (Link.getWallet @'Shelley) (#state . #getApiT) Ready
         ]
     let wDest = getFromResponse Prelude.id r1

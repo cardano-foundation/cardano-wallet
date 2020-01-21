@@ -66,7 +66,6 @@ module Test.Integration.Framework.DSL
     , status
     , syncProgress
     , walletId
-    , walletName
 
     -- * Helpers
     , (</>)
@@ -168,7 +167,6 @@ import Cardano.Wallet.Primitive.Types
     , UTxO (..)
     , UTxOStatistics (..)
     , WalletId (..)
-    , WalletName (..)
     , computeUtxoStatistics
     , log10
     )
@@ -390,8 +388,8 @@ expectFieldNotEqual getter a (_, res) = case res of
 -- | Expects that returned data list's particular item field
 --   matches the expected value.
 --   e.g.
---   expectListItemFieldEqual 0 walletName "first" response
---   expectListItemFieldEqual 1 walletName "second" response
+--   expectListItemFieldEqual 0 (#name . #getApiT . #getWalletName) "first" r
+--   expectListItemFieldEqual 1 (#name . #getApiT . #getWalletName) "second" r
 expectListItemFieldEqual
     :: (MonadIO m, MonadFail m, Show a, Eq a)
     => Int
@@ -643,15 +641,6 @@ feeEstimator =
   where
     _get = _feeEstimator
     _set (ctx, v) = ctx { _feeEstimator = v }
-
-walletName :: HasType (ApiT WalletName) s => Lens' s Text
-walletName =
-    lens _get _set
-  where
-    _get :: HasType (ApiT WalletName) s => s -> Text
-    _get = getWalletName . getApiT . view typed
-    _set :: HasType (ApiT WalletName) s => (s, Text) -> s
-    _set (s, v) = set typed (ApiT $ WalletName v) s
 
 walletId :: HasType (ApiT WalletId) s => Lens' s Text
 walletId =
