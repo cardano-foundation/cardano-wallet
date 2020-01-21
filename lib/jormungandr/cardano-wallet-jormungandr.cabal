@@ -74,6 +74,7 @@ library
       Cardano.Wallet.Jormungandr.Api.Client
       Cardano.Wallet.Jormungandr.Api.Types
       Cardano.Wallet.Jormungandr.Binary
+      Cardano.Wallet.Jormungandr.Rewards
       Cardano.Wallet.Jormungandr.Compatibility
       Cardano.Wallet.Jormungandr.Network
       Cardano.Wallet.Jormungandr.Transaction

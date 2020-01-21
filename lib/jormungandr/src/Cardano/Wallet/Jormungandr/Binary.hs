@@ -78,13 +78,10 @@ module Cardano.Wallet.Jormungandr.Binary
     , runPut
 
       -- * Rewards
-    , rewardParamsFromBlock0
-    , calculateRewards
-    , applyLimit
-    , rewardsAt
     , RewardParams (..)
-    , LinearParams (..)
+    , RewardFormula (..)
     , TreasuryTax (..)
+    , Ratio (..)
     ) where
 
 import Prelude
@@ -157,7 +154,7 @@ import Data.Either
 import Data.Functor
     ( ($>), (<&>) )
 import Data.Maybe
-    ( catMaybes, mapMaybe )
+    ( catMaybes )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -781,9 +778,9 @@ data ConfigParam
     -- after start time.
     | ConfigPerCertificate PerCertificateFee
     -- ^ Per certificate fees, override the 'certificate' fee of the linear fee
-    | ConfigRewardParams RewardParams
+    | ConfigRewardFormula RewardFormula
     -- ^ Reward Parameters.
-    | RewardLimitByAbsoluteStake (Word64, Word64)
+    | RewardLimitByAbsoluteStake Ratio
     -- ^ Fraction of the total active stake. Limits the contribution of
     -- RewardParams.
     | ConfigTreasuryTax TreasuryTax
@@ -823,7 +820,7 @@ getConfigParam = label "getConfigParam" $ do
         17 -> unimpl -- treasury
         18 -> unimpl -- treasury params
         19 -> unimpl -- reward pot
-        20 -> ConfigRewardParams <$> getRewardParams -- reward params
+        20 -> ConfigRewardFormula <$> getRewardFormula -- reward params
         21 -> ConfigPerCertificate <$> getPerCertificateFee
         22 -> ConfigTreasuryTax <$> getTreasuryTax  -- fees in treasury
         23 -> unimpl -- reward limit none
@@ -839,52 +836,38 @@ getConfigParam = label "getConfigParam" $ do
     secondsToNominalDiffTime =
         toEnum . fromEnum . secondsToDiffTime .  fromIntegral
 
-    getRewardParams :: Get RewardParams
-    getRewardParams = do
+    getRewardFormula :: Get RewardFormula
+    getRewardFormula = do
         tag <- getWord8
         case tag of
-            1 -> LinearRewards <$> getLinearParams
-            2 -> HalvingRewards <$> getHalvingParams
+            1 -> LinearFormula <$> getRewardParams
+            2 -> HalvingFormula <$> getRewardParams
             _ -> fail $ "Unknown reward parameters with tag " ++ show tag
 
     -- NOTE: getHalvingParams and getLinearParams are currently identical.
     --
     -- https://github.com/input-output-hk/chain-libs/blob/149e01cf61a9eef2660a6944fe0acc73d490e70f/chain-impl-mockchain/src/config.rs#L404-L442
-    getLinearParams :: Get LinearParams
-    getLinearParams = do
+    getRewardParams :: Get RewardParams
+    getRewardParams = do
         start <- getWord64be
         ratio <- getRatio
         epochStart <- getWord32be
         epochRate <- getWord32be
-        return $ LinearParams
-                { lStart = start
-                , lRatio = ratio
-                , lEpochStart = epochStart
-                , lEpochRate = epochRate
+        return $ RewardParams
+                { rStart = start
+                , rRatio = ratio
+                , rEpochStart = epochStart
+                , rEpochRate = epochRate
                 }
 
-    getHalvingParams :: Get HalvingParams
-    getHalvingParams = do
-        start <- getWord64be
-        ratio <- getRatio
-        epochStart <- getWord32be
-        epochRate <- getWord32be
-        return $ HalvingParams
-                { hStart = start
-                , hRatio = ratio
-                , hEpochStart = epochStart
-                , hEpochRate = epochRate
-                }
-
-
-    getRatio :: Get (Word64, Word64)
+    getRatio :: Get Ratio
     getRatio = do
         ratioNum <- getWord64be
         ratioDen <- getWord64be
-        return (ratioNum, ratioDen)
+        return $ Ratio ratioNum ratioDen
 
 
-    getRewardLimitByAbsoluteStake :: Get (Word64, Word64)
+    getRewardLimitByAbsoluteStake :: Get Ratio
     getRewardLimitByAbsoluteStake = getRatio
 
     getTreasuryTax :: Get TreasuryTax
@@ -908,32 +891,30 @@ newtype LeaderId = LeaderId ByteString
 
 instance NFData LeaderId
 
-data RewardParams = LinearRewards LinearParams | HalvingRewards HalvingParams
+data Ratio = Ratio Word64 Word64
     deriving (Show, Eq, Generic)
+
+instance NFData Ratio
+
+data RewardFormula
+    = HalvingFormula RewardParams
+    | LinearFormula RewardParams
+    deriving (Show, Eq, Generic)
+
+instance NFData RewardFormula
+
+data RewardParams = RewardParams
+    { rStart :: Word64
+    , rRatio :: Ratio
+    , rEpochStart :: Word32
+    , rEpochRate :: Word32
+    } deriving (Show, Eq, Generic)
 
 instance NFData RewardParams
 
-data LinearParams = LinearParams
-    { lStart :: Word64
-    , lRatio :: (Word64, Word64)
-    , lEpochStart :: Word32
-    , lEpochRate :: Word32
-    } deriving (Show, Eq, Generic)
-
-instance NFData LinearParams
-
-data HalvingParams = HalvingParams
-    { hStart :: Word64
-    , hRatio :: (Word64, Word64)
-    , hEpochStart :: Word32
-    , hEpochRate :: Word32
-    } deriving (Show, Eq, Generic)
-
-instance NFData HalvingParams
-
 data TreasuryTax = TreasuryTax
     { treasuryTaxFixed :: Word64
-    , treasuryTaxRatio :: (Word64, Word64)
+    , treasuryTaxRatio :: Ratio
     } deriving (Show, Eq, Generic)
 
 instance NFData TreasuryTax
@@ -1157,89 +1138,3 @@ poolRegistrationsFromBlock (Block _hdr fragments) = do
     double = fromIntegral
 
 --
--- Rewards
---
--- TODO: Maybe move to separate module
---
--- Based on the information in:
--- https://github.com/input-output-hk/chain-libs/blob/master/chain-impl-mockchain/doc/incentives.md
-
-rewardParamsFromBlock0
-    :: Block
-    -> Maybe (RewardParams, TreasuryTax, Maybe (Word64, Word64))
-rewardParamsFromBlock0 block =
-    let
-        params = (fragments block) >>= \case
-                Initial ps -> ps
-                _ -> []
-
-        rewardParams = flip mapMaybe params $ \case
-                ConfigRewardParams x -> Just x
-                _ -> Nothing
-
-        treasuryParams = flip mapMaybe params $ \case
-                ConfigTreasuryTax x -> Just x
-                _ -> Nothing
-
-        rewardLimitByAbsStake = flip mapMaybe params $ \case
-                RewardLimitByAbsoluteStake x -> Just x
-                _ -> Nothing
-    in
-        case (rewardParams, treasuryParams) of
-            ([rp], [tp]) ->
-                let
-                    mrl = case rewardLimitByAbsStake of
-                        [rl] -> Just rl
-                        _ -> Nothing
-                in
-                    return (rp, tp, mrl)
-            _ -> Nothing
-
-calculateRewards
-    :: (RewardParams, TreasuryTax, Maybe (Word64, Word64))
-    -> EpochNo
-       -- ^
-    -> Quantity "lovelace" Double
-       -- ^ The total active stake
-    -> Double
-calculateRewards (rewardParams, treasury, limit) epoch totalStake =
-    subtractTreasuryTax treasury
-    $ applyLimit limit totalStake
-    $ rewardsAt epoch rewardParams
-
--- | Limit rewards by a fraction of the total active stake
-applyLimit
-    :: Maybe (Word64, Word64)
-    -> Quantity "lovelace" Double
-    -> Double
-    -> Double
-applyLimit (Just (a, b)) (Quantity totalStake) = min (fromIntegral a * totalStake / fromIntegral b)
-applyLimit Nothing _ = id
-
-
-rewardsAt
-    :: EpochNo
-    -> RewardParams
-    -> Double
-rewardsAt
-    (EpochNo currentEpoch)
-    (LinearRewards (LinearParams initial ratio epochStart epochRate)) =
-    max 0 $
-    (fromIntegral initial) - (ratio' * (fromIntegral @Int . floor $ (elapsed / epochRate')))
-  where
-    ratio' = fromIntegral (fst ratio) / fromIntegral (snd ratio)
-    elapsed :: Double
-    elapsed = fromIntegral $ max 0 (fromIntegral currentEpoch - epochStart)
-    epochRate' = fromIntegral epochRate
-rewardsAt _ (HalvingRewards _) = error "rewardsAt: to be implemented"
-
--- * Linear formula: `C - ratio * (#epoch after epoch_start / epoch_rate)`
--- | NOTE: Care to make sure this calculation has "full precision" were NOT
--- taken. To be used for an estimate.
-subtractTreasuryTax :: TreasuryTax -> Double -> Double
-subtractTreasuryTax (TreasuryTax fixed ratio) x =
-    (x - fromIntegral fixed) * (1 - (rNum / rDen))
-  where
-    rNum = fromIntegral $ fst ratio
-    rDen = fromIntegral $ snd ratio
-
