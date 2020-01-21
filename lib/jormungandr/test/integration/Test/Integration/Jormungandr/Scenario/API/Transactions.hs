@@ -76,7 +76,6 @@ import Test.Integration.Framework.DSL as DSL
     , Headers (..)
     , Payload (..)
     , TxDescription (..)
-    , direction
     , emptyRandomWallet
     , emptyWallet
     , eventually_
@@ -171,7 +170,7 @@ spec = do
         r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
-            , expectFieldEqual DSL.direction Outgoing
+            , expectFieldEqual (#direction . #getApiT) Outgoing
             , expectFieldEqual DSL.status Pending
             ]
 
@@ -181,7 +180,7 @@ spec = do
                 Default
                 Empty
                 >>= flip verify
-                [ expectListItemFieldEqual 0 DSL.direction Outgoing
+                [ expectListItemFieldEqual 0 (#direction . #getApiT) Outgoing
                 , expectListItemFieldEqual 0 DSL.status InLedger
                 ]
             request @([ApiTransaction n]) ctx
@@ -189,7 +188,7 @@ spec = do
                 Default
                 Empty
                 >>= flip verify
-                [ expectListItemFieldEqual 0 DSL.direction Incoming
+                [ expectListItemFieldEqual 0 (#direction . #getApiT) Incoming
                 , expectListItemFieldEqual 0 DSL.status InLedger
                 , expectListItemFieldEqual 0 #amount (Quantity utxoAmt)
                 ]

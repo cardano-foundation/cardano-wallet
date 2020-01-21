@@ -55,7 +55,6 @@ module Test.Integration.Framework.DSL
     , blocks
     , coinSelectionInputs
     , coinSelectionOutputs
-    , direction
     , feeEstimator
     , inputs
     , metrics
@@ -154,7 +153,6 @@ import Cardano.Wallet.Primitive.Mnemonic
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
-    , Direction (..)
     , Hash (..)
     , HistogramBar (..)
     , PoolId (..)
@@ -647,15 +645,6 @@ walletId =
     _get = T.pack . show . getWalletId . getApiT . view typed
     _set :: HasType (ApiT WalletId) s => (s, Text) -> s
     _set (s, v) = set typed (ApiT $ WalletId (unsafeCreateDigest v)) s
-
-direction :: HasType (ApiT Direction) s => Lens' s Direction
-direction =
-    lens _get _set
-  where
-    _get :: HasType (ApiT Direction) s => s -> Direction
-    _get = getApiT . view typed
-    _set :: HasType (ApiT Direction) s => (s, Direction) -> s
-    _set (s, v) = set typed (ApiT v) s
 
 inputs :: HasType [ApiTxInput t] s => Lens' s [ApiTxInput t]
 inputs =

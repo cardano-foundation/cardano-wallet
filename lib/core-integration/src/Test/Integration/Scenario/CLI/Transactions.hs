@@ -63,7 +63,6 @@ import Test.Integration.Framework.DSL
     , cardanoWalletCLI
     , deleteTransactionViaCLI
     , deleteWalletViaCLI
-    , direction
     , emptyRandomWallet
     , emptyWallet
     , eventually_
@@ -125,7 +124,7 @@ spec = do
         txJson <- postTxViaCLI ctx wSrc wDest amt
         verify txJson
             [ expectCliFieldBetween (#amount . #getQuantity) (feeMin + amt, feeMax + amt)
-            , expectCliFieldEqual direction Outgoing
+            , expectCliFieldEqual (#direction . #getApiT) Outgoing
             , expectCliFieldEqual status Pending
             ]
 
@@ -178,7 +177,7 @@ spec = do
         txJson <- expectValidJSON (Proxy @(ApiTransaction n)) out
         verify txJson
             [ expectCliFieldBetween (#amount . #getQuantity) (feeMin + (2*amt), feeMax + (2*amt))
-            , expectCliFieldEqual direction Outgoing
+            , expectCliFieldEqual (#direction . #getApiT) Outgoing
             , expectCliFieldEqual status Pending
             ]
         c `shouldBe` ExitSuccess
@@ -234,7 +233,7 @@ spec = do
         txJson <- expectValidJSON (Proxy @(ApiTransaction n)) out
         verify txJson
             [ expectCliFieldBetween (#amount . #getQuantity) (feeMin + (2*amt), feeMax + (2*amt))
-            , expectCliFieldEqual direction Outgoing
+            , expectCliFieldEqual (#direction . #getApiT) Outgoing
             , expectCliFieldEqual status Pending
             ]
         c `shouldBe` ExitSuccess
@@ -298,7 +297,7 @@ spec = do
         txJson <- expectValidJSON (Proxy @(ApiTransaction n)) out
         verify txJson
             [ expectCliFieldEqual (#amount . #getQuantity) (feeMin+amt)
-            , expectCliFieldEqual direction Outgoing
+            , expectCliFieldEqual (#direction . #getApiT) Outgoing
             , expectCliFieldEqual status Pending
             ]
         c `shouldBe` ExitSuccess
@@ -706,8 +705,8 @@ spec = do
         code `shouldBe` ExitSuccess
         outJson <- expectValidJSON (Proxy @([ApiTransaction n])) out
         verify outJson
-            [ expectCliListItemFieldEqual 0 direction Outgoing
-            , expectCliListItemFieldEqual 1 direction Incoming
+            [ expectCliListItemFieldEqual 0 (#direction . #getApiT) Outgoing
+            , expectCliListItemFieldEqual 1 (#direction . #getApiT) Incoming
             ]
 
     describe "TRANS_LIST_02 - Start time shouldn't be later than end time" $
@@ -911,7 +910,7 @@ spec = do
         -- post transaction
         txJson <- postTxViaCLI ctx wSrc wDest 1
         verify txJson
-            [ expectCliFieldEqual direction Outgoing
+            [ expectCliFieldEqual (#direction . #getApiT) Outgoing
             , expectCliFieldEqual status Pending
             ]
         let txId =  getTxId txJson
@@ -920,7 +919,7 @@ spec = do
             (fromStdout <$> listTransactionsViaCLI @t ctx [wSrcId])
                 >>= expectValidJSON (Proxy @([ApiTransaction n]))
                 >>= flip verify
-                    [ expectCliListItemFieldEqual 0 direction Outgoing
+                    [ expectCliListItemFieldEqual 0 (#direction . #getApiT) Outgoing
                     , expectCliListItemFieldEqual 0 status InLedger
                     ]
 

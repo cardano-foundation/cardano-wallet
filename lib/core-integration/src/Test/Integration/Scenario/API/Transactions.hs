@@ -62,7 +62,6 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , TxDescription (..)
-    , direction
     , emptyRandomWallet
     , emptyWallet
     , eventually_
@@ -151,7 +150,7 @@ spec = do
             -- tx amount includes only fees because it is tx to self address
             -- when tx is pending
             , expectFieldBetween (#amount . #getQuantity) (feeMin, feeMax)
-            , expectFieldEqual direction Outgoing
+            , expectFieldEqual (#direction . #getApiT) Outgoing
             , expectFieldEqual status Pending
             ]
 
@@ -165,7 +164,7 @@ spec = do
                 -- also when tx is already in ledger
                 , expectListItemFieldBetween 0
                         (#amount . #getQuantity) (feeMin, feeMax)
-                , expectListItemFieldEqual 0 direction Outgoing
+                , expectListItemFieldEqual 0 (#direction . #getApiT) Outgoing
                 , expectListItemFieldEqual 0 status InLedger
                 ]
 
@@ -193,7 +192,7 @@ spec = do
                 [] ->
                     fail "Tx no longer pending, need to retry scenario."
                 tx':_ -> do
-                    tx' ^. direction `shouldBe` Outgoing
+                    tx' ^. (#direction . #getApiT) `shouldBe` Outgoing
                     tx' ^. status `shouldBe` Pending
                     insertedAt tx' `shouldBe` Nothing
                     pendingSince tx' `shouldBe` pendingSince tx
@@ -212,7 +211,7 @@ spec = do
             , expectResponseCode HTTP.status202
             , expectFieldBetween
                     (#amount . #getQuantity) (feeMin + amt, feeMax + amt)
-            , expectFieldEqual direction Outgoing
+            , expectFieldEqual (#direction . #getApiT) Outgoing
             , expectFieldEqual status Pending
             ]
 
@@ -279,7 +278,7 @@ spec = do
             [ expectResponseCode HTTP.status202
             , expectFieldBetween
                     (#amount . #getQuantity) (feeMin + (2*amt), feeMax + (2*amt))
-            , expectFieldEqual direction Outgoing
+            , expectFieldEqual (#direction . #getApiT) Outgoing
             , expectFieldEqual status Pending
             ]
         verify ra
@@ -342,7 +341,7 @@ spec = do
             [ expectResponseCode HTTP.status202
             , expectFieldBetween
                     (#amount . #getQuantity) (feeMin + (2*amt), feeMax + (2*amt))
-            , expectFieldEqual direction Outgoing
+            , expectFieldEqual (#direction . #getApiT) Outgoing
             , expectFieldEqual status Pending
             ]
         verify ra
@@ -421,7 +420,7 @@ spec = do
         verify r
             [ expectResponseCode HTTP.status202
             , expectFieldEqual (#amount . #getQuantity) (feeMin + amt)
-            , expectFieldEqual direction Outgoing
+            , expectFieldEqual (#direction . #getApiT) Outgoing
             , expectFieldEqual status Pending
             ]
 
@@ -1191,8 +1190,8 @@ spec = do
         expectResponseCode @IO HTTP.status200 r
 
         verify r
-            [ expectListItemFieldEqual 0 direction Outgoing
-            , expectListItemFieldEqual 1 direction Incoming
+            [ expectListItemFieldEqual 0 (#direction . #getApiT) Outgoing
+            , expectListItemFieldEqual 1 (#direction . #getApiT) Incoming
             ]
 
     -- This scenario covers the following matrix of cases. Cases were generated
@@ -1611,7 +1610,7 @@ spec = do
         verify rMkTx
             [ expectSuccess
             , expectResponseCode HTTP.status202
-            , expectFieldEqual direction Outgoing
+            , expectFieldEqual (#direction . #getApiT) Outgoing
             , expectFieldEqual status Pending
             ]
 
@@ -1642,7 +1641,7 @@ spec = do
         eventually_ $ do
             let ep = Link.listTransactions @'Shelley wSrc
             request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListItemFieldEqual 0 direction Outgoing
+                [ expectListItemFieldEqual 0 (#direction . #getApiT) Outgoing
                 , expectListItemFieldEqual 0 status InLedger
                 ]
 
@@ -1650,7 +1649,7 @@ spec = do
         eventually_ $ do
             let ep = Link.listTransactions @'Shelley wDest
             request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListItemFieldEqual 0 direction Incoming
+                [ expectListItemFieldEqual 0 (#direction . #getApiT) Incoming
                 , expectListItemFieldEqual 0 status InLedger
                 ]
 
@@ -1683,7 +1682,7 @@ spec = do
         eventually_ $ do
             let ep = Link.listTransactions @'Shelley wSrc
             request @([ApiTransaction n]) ctx ep Default Empty >>= flip verify
-                [ expectListItemFieldEqual 0 direction Outgoing
+                [ expectListItemFieldEqual 0 (#direction . #getApiT) Outgoing
                 , expectListItemFieldEqual 0 status InLedger
                 ]
 

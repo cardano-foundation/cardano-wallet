@@ -54,7 +54,6 @@ import Test.Integration.Framework.DSL
     , TxDescription (..)
     , blocks
     , delegationFee
-    , direction
     , emptyRandomWallet
     , emptyWallet
     , eventually
@@ -242,14 +241,14 @@ spec = do
         joinStakePool ctx (p ^. #id) (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
             , expectFieldEqual status Pending
-            , expectFieldEqual direction Outgoing
+            , expectFieldEqual (#direction . #getApiT) Outgoing
             ]
 
         -- Wait for the certificate to be inserted
         eventually $ do
             let ep = Link.listTransactions @'Shelley w
             request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListItemFieldEqual 0 direction Outgoing
+                [ expectListItemFieldEqual 0 (#direction . #getApiT) Outgoing
                 , expectListItemFieldEqual 0 status InLedger
                 ]
 
@@ -262,14 +261,14 @@ spec = do
         joinStakePool ctx (p ^. #id) (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
             , expectFieldEqual status Pending
-            , expectFieldEqual direction Outgoing
+            , expectFieldEqual (#direction . #getApiT) Outgoing
             ]
 
         -- Wait for the certificate to be inserted
         eventually $ do
             let ep = Link.listTransactions @'Shelley w
             request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListItemFieldEqual 0 direction Outgoing
+                [ expectListItemFieldEqual 0 (#direction . #getApiT) Outgoing
                 , expectListItemFieldEqual 0 status InLedger
                 ]
 
@@ -294,12 +293,12 @@ spec = do
         joinStakePool ctx (p ^. #id) (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
             , expectFieldEqual status Pending
-            , expectFieldEqual direction Outgoing
+            , expectFieldEqual (#direction . #getApiT) Outgoing
             ]
         eventually $ do
             let ep = Link.listTransactions @'Shelley w
             request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListItemFieldEqual 0 direction Outgoing
+                [ expectListItemFieldEqual 0 (#direction . #getApiT) Outgoing
                 , expectListItemFieldEqual 0 status InLedger
                 ]
 
@@ -313,14 +312,14 @@ spec = do
         quitStakePool ctx (p ^. #id) (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
             , expectFieldEqual status Pending
-            , expectFieldEqual direction Outgoing
+            , expectFieldEqual (#direction . #getApiT) Outgoing
             ]
         eventually $ do
             let ep = Link.listTransactions @'Shelley w
             request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListItemFieldEqual 0 direction Outgoing
+                [ expectListItemFieldEqual 0 (#direction . #getApiT) Outgoing
                 , expectListItemFieldEqual 0 status InLedger
-                , expectListItemFieldEqual 1 direction Outgoing
+                , expectListItemFieldEqual 1 (#direction . #getApiT) Outgoing
                 , expectListItemFieldEqual 1 status InLedger
                 ]
 
@@ -380,12 +379,12 @@ spec = do
         joinStakePool ctx (p1 ^. #id) (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
             , expectFieldEqual status Pending
-            , expectFieldEqual direction Outgoing
+            , expectFieldEqual (#direction . #getApiT) Outgoing
             ]
         eventually $ do
             let ep = Link.listTransactions @'Shelley w
             request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListItemFieldEqual 0 direction Outgoing
+                [ expectListItemFieldEqual 0 (#direction . #getApiT) Outgoing
                 , expectListItemFieldEqual 0 status InLedger
                 ]
         request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
@@ -396,7 +395,7 @@ spec = do
         joinStakePool ctx (p2 ^. #id) (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
             , expectFieldEqual status Pending
-            , expectFieldEqual direction Outgoing
+            , expectFieldEqual (#direction . #getApiT) Outgoing
             ]
         eventually $ do
             let ep = Link.listTransactions @'Shelley w
@@ -422,7 +421,7 @@ spec = do
             joinStakePool ctx (p ^. #id) (w, "Secure Passphrase")>>= flip verify
                 [ expectResponseCode HTTP.status202
                 , expectFieldEqual status Pending
-                , expectFieldEqual direction Outgoing
+                , expectFieldEqual (#direction . #getApiT) Outgoing
                 ]
 
         it "STAKE_POOLS_JOIN_01x - \
@@ -527,14 +526,14 @@ spec = do
         joinStakePool ctx (p ^. #id) (wA, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
             , expectFieldEqual status Pending
-            , expectFieldEqual direction Outgoing
+            , expectFieldEqual (#direction . #getApiT) Outgoing
             ]
 
         -- Wait for the certificate to be inserted
         eventually $ do
             let ep = Link.listTransactions @'Shelley wA
             request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListItemFieldEqual 0 direction Outgoing
+                [ expectListItemFieldEqual 0 (#direction . #getApiT) Outgoing
                 , expectListItemFieldEqual 0 status InLedger
                 ]
 
@@ -761,9 +760,9 @@ spec = do
         eventually $ do
             let ep = Link.listTransactions @'Shelley w
             request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListItemFieldEqual 0 direction Outgoing
+                [ expectListItemFieldEqual 0 (#direction . #getApiT) Outgoing
                 , expectListItemFieldEqual 0 status InLedger
-                , expectListItemFieldEqual 1 direction Outgoing
+                , expectListItemFieldEqual 1 (#direction . #getApiT) Outgoing
                 , expectListItemFieldEqual 1 status InLedger
                 ]
 
