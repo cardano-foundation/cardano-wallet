@@ -30,6 +30,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
+import Control.Arrow
+    ( second )
 import Control.Monad
     ( forM_, replicateM )
 import Control.Monad.IO.Class
@@ -136,6 +138,8 @@ properties = do
             (property . prop_readSystemSeedIdempotent)
         it "putPoolRegistration . listRegisteredPools yield pools"
             (property . prop_listRegisteredPools)
+        it "putPoolProduction* . readTotalProduction matches expectations"
+            (property . prop_readTotalProduction)
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -170,6 +174,26 @@ prop_putReadPoolProduction DBLayer{..} (StakePoolsFixture pairs _) =
         run . forM_ (uniqueEpochs pairs) $ \epoch -> do
             res' <- atomically' $ readPoolProduction' epoch
             atomically (readPoolProduction epoch) `shouldReturn` res'
+
+prop_readTotalProduction
+    :: DBLayer IO
+    -> StakePoolsFixture
+    -> Property
+prop_readTotalProduction DBLayer{..} (StakePoolsFixture pairs _) =
+    monadicIO (setup >> prop)
+  where
+    setup = liftIO $ do
+        atomically cleanDB
+        atomically $ forM_ pairs $ \(pool, slot) ->
+            unsafeRunExceptT $ putPoolProduction slot pool
+    prop = do
+        production <- run $ atomically readTotalProduction
+        monitor $ counterexample ("from database: " <> show production)
+        let production'
+                = Map.map Quantity
+                $ Map.fromListWith (+)
+                $ second (const 1) <$> pairs
+        assert (production == production')
 
 -- | Cannot put pool production with already put slot
 prop_putSlotTwicePoolProduction
