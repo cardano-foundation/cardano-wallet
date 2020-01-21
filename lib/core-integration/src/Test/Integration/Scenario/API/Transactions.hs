@@ -88,7 +88,6 @@ import Test.Integration.Framework.DSL
     , listAllTransactions
     , listTransactions
     , request
-    , status
     , toQueryString
     , unsafeRequest
     , utcIso8601ToText
@@ -151,7 +150,7 @@ spec = do
             -- when tx is pending
             , expectFieldBetween (#amount . #getQuantity) (feeMin, feeMax)
             , expectFieldEqual (#direction . #getApiT) Outgoing
-            , expectFieldEqual status Pending
+            , expectFieldEqual (#status . #getApiT) Pending
             ]
 
         eventually_ $ do
@@ -165,7 +164,7 @@ spec = do
                 , expectListItemFieldBetween 0
                         (#amount . #getQuantity) (feeMin, feeMax)
                 , expectListItemFieldEqual 0 (#direction . #getApiT) Outgoing
-                , expectListItemFieldEqual 0 status InLedger
+                , expectListItemFieldEqual 0 (#status . #getApiT) InLedger
                 ]
 
     it "Regression #935 -\
@@ -178,7 +177,7 @@ spec = do
             let amt = (1 :: Natural)
             r <- postTx ctx (wSrc, Link.createTransaction ,"Secure Passphrase") wDest amt
             let tx = getFromResponse Prelude.id r
-            tx ^. status `shouldBe` Pending
+            tx ^. (#status . #getApiT) `shouldBe` Pending
             insertedAt tx `shouldBe` Nothing
             pendingSince tx `shouldSatisfy` isJust
 
@@ -188,12 +187,12 @@ spec = do
                     Nothing
                     (Just Descending)
             (_, txs) <- unsafeRequest @([ApiTransaction n]) ctx link Empty
-            case filter ((== Pending) . view status) txs of
+            case filter ((== Pending) . view (#status . #getApiT)) txs of
                 [] ->
                     fail "Tx no longer pending, need to retry scenario."
                 tx':_ -> do
                     tx' ^. (#direction . #getApiT) `shouldBe` Outgoing
-                    tx' ^. status `shouldBe` Pending
+                    tx' ^. (#status . #getApiT) `shouldBe` Pending
                     insertedAt tx' `shouldBe` Nothing
                     pendingSince tx' `shouldBe` pendingSince tx
 
@@ -212,7 +211,7 @@ spec = do
             , expectFieldBetween
                     (#amount . #getQuantity) (feeMin + amt, feeMax + amt)
             , expectFieldEqual (#direction . #getApiT) Outgoing
-            , expectFieldEqual status Pending
+            , expectFieldEqual (#status . #getApiT) Pending
             ]
 
         ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wa) Default Empty
@@ -279,7 +278,7 @@ spec = do
             , expectFieldBetween
                     (#amount . #getQuantity) (feeMin + (2*amt), feeMax + (2*amt))
             , expectFieldEqual (#direction . #getApiT) Outgoing
-            , expectFieldEqual status Pending
+            , expectFieldEqual (#status . #getApiT) Pending
             ]
         verify ra
             [ expectFieldBetween (#balance . #getApiT . #total)
@@ -342,7 +341,7 @@ spec = do
             , expectFieldBetween
                     (#amount . #getQuantity) (feeMin + (2*amt), feeMax + (2*amt))
             , expectFieldEqual (#direction . #getApiT) Outgoing
-            , expectFieldEqual status Pending
+            , expectFieldEqual (#status . #getApiT) Pending
             ]
         verify ra
             [ expectFieldBetween (#balance . #getApiT . #total)
@@ -421,7 +420,7 @@ spec = do
             [ expectResponseCode HTTP.status202
             , expectFieldEqual (#amount . #getQuantity) (feeMin + amt)
             , expectFieldEqual (#direction . #getApiT) Outgoing
-            , expectFieldEqual status Pending
+            , expectFieldEqual (#status . #getApiT) Pending
             ]
 
         ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
@@ -1611,7 +1610,7 @@ spec = do
             [ expectSuccess
             , expectResponseCode HTTP.status202
             , expectFieldEqual (#direction . #getApiT) Outgoing
-            , expectFieldEqual status Pending
+            , expectFieldEqual (#status . #getApiT) Pending
             ]
 
         -- verify balance on src wallet
@@ -1642,7 +1641,7 @@ spec = do
             let ep = Link.listTransactions @'Shelley wSrc
             request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
                 [ expectListItemFieldEqual 0 (#direction . #getApiT) Outgoing
-                , expectListItemFieldEqual 0 status InLedger
+                , expectListItemFieldEqual 0 (#status . #getApiT) InLedger
                 ]
 
         -- transaction eventually is in target wallet
@@ -1650,7 +1649,7 @@ spec = do
             let ep = Link.listTransactions @'Shelley wDest
             request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
                 [ expectListItemFieldEqual 0 (#direction . #getApiT) Incoming
-                , expectListItemFieldEqual 0 status InLedger
+                , expectListItemFieldEqual 0 (#status . #getApiT) InLedger
                 ]
 
     it "BYRON_TRANS_DELETE_01 -\
@@ -1662,7 +1661,7 @@ spec = do
         let payload = Json [json|{"passphrase": #{fixturePassphrase}}|]
         let migrEp = Link.migrateWallet sourceWallet targetWallet
         (_, t:_) <- unsafeRequest @[ApiTransaction n] ctx migrEp payload
-        t ^. status `shouldBe` Pending
+        t ^. (#status . #getApiT) `shouldBe` Pending
 
         -- quickly forget transaction that is still pending...
         let delEp = Link.deleteTransaction @'Byron sourceWallet t
@@ -1683,7 +1682,7 @@ spec = do
             let ep = Link.listTransactions @'Shelley wSrc
             request @([ApiTransaction n]) ctx ep Default Empty >>= flip verify
                 [ expectListItemFieldEqual 0 (#direction . #getApiT) Outgoing
-                , expectListItemFieldEqual 0 status InLedger
+                , expectListItemFieldEqual 0 (#status . #getApiT) InLedger
                 ]
 
         -- Try Forget transaction once it's no longer pending

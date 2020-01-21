@@ -81,7 +81,6 @@ import Test.Integration.Framework.DSL
     , listTransactionsViaCLI
     , postTransactionFeeViaCLI
     , postTransactionViaCLI
-    , status
     , utcIso8601ToText
     , verify
     , walletId
@@ -125,7 +124,7 @@ spec = do
         verify txJson
             [ expectCliFieldBetween (#amount . #getQuantity) (feeMin + amt, feeMax + amt)
             , expectCliFieldEqual (#direction . #getApiT) Outgoing
-            , expectCliFieldEqual status Pending
+            , expectCliFieldEqual (#status . #getApiT) Pending
             ]
 
         -- verify balance on src wallet
@@ -178,7 +177,7 @@ spec = do
         verify txJson
             [ expectCliFieldBetween (#amount . #getQuantity) (feeMin + (2*amt), feeMax + (2*amt))
             , expectCliFieldEqual (#direction . #getApiT) Outgoing
-            , expectCliFieldEqual status Pending
+            , expectCliFieldEqual (#status . #getApiT) Pending
             ]
         c `shouldBe` ExitSuccess
 
@@ -234,7 +233,7 @@ spec = do
         verify txJson
             [ expectCliFieldBetween (#amount . #getQuantity) (feeMin + (2*amt), feeMax + (2*amt))
             , expectCliFieldEqual (#direction . #getApiT) Outgoing
-            , expectCliFieldEqual status Pending
+            , expectCliFieldEqual (#status . #getApiT) Pending
             ]
         c `shouldBe` ExitSuccess
 
@@ -298,7 +297,7 @@ spec = do
         verify txJson
             [ expectCliFieldEqual (#amount . #getQuantity) (feeMin+amt)
             , expectCliFieldEqual (#direction . #getApiT) Outgoing
-            , expectCliFieldEqual status Pending
+            , expectCliFieldEqual (#status . #getApiT) Pending
             ]
         c `shouldBe` ExitSuccess
 
@@ -911,7 +910,7 @@ spec = do
         txJson <- postTxViaCLI ctx wSrc wDest 1
         verify txJson
             [ expectCliFieldEqual (#direction . #getApiT) Outgoing
-            , expectCliFieldEqual status Pending
+            , expectCliFieldEqual (#status . #getApiT) Pending
             ]
         let txId =  getTxId txJson
 
@@ -920,7 +919,7 @@ spec = do
                 >>= expectValidJSON (Proxy @([ApiTransaction n]))
                 >>= flip verify
                     [ expectCliListItemFieldEqual 0 (#direction . #getApiT) Outgoing
-                    , expectCliListItemFieldEqual 0 status InLedger
+                    , expectCliListItemFieldEqual 0 (#status . #getApiT) InLedger
                     ]
 
      -- Try Forget transaction once it's no longer pending

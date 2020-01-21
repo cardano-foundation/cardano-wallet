@@ -96,7 +96,6 @@ import Test.Integration.Framework.DSL as DSL
     , listAddresses
     , listAllTransactions
     , request
-    , status
     , verify
     , walletId
     )
@@ -171,7 +170,7 @@ spec = do
         verify r
             [ expectResponseCode HTTP.status202
             , expectFieldEqual (#direction . #getApiT) Outgoing
-            , expectFieldEqual DSL.status Pending
+            , expectFieldEqual (#status . #getApiT) Pending
             ]
 
         eventually_ $ do
@@ -181,7 +180,7 @@ spec = do
                 Empty
                 >>= flip verify
                 [ expectListItemFieldEqual 0 (#direction . #getApiT) Outgoing
-                , expectListItemFieldEqual 0 DSL.status InLedger
+                , expectListItemFieldEqual 0 (#status . #getApiT) InLedger
                 ]
             request @([ApiTransaction n]) ctx
                 (Link.listTransactions @'Shelley wDest)
@@ -189,7 +188,7 @@ spec = do
                 Empty
                 >>= flip verify
                 [ expectListItemFieldEqual 0 (#direction . #getApiT) Incoming
-                , expectListItemFieldEqual 0 DSL.status InLedger
+                , expectListItemFieldEqual 0 (#status . #getApiT) InLedger
                 , expectListItemFieldEqual 0 #amount (Quantity utxoAmt)
                 ]
             request @ApiWallet ctx
