@@ -91,7 +91,6 @@ import Test.Integration.Framework.DSL
     , getFromResponse
     , json
     , listAddresses
-    , passphraseLastUpdate
     , request
     , selectCoins
     , unsafeRequest
@@ -173,7 +172,7 @@ spec = do
             , expectFieldEqual (#delegation . #getApiT) NotDelegating
             , expectFieldEqual walletId
                 "2cf060fe53e4e0593f145f22b858dfc60676d4ab"
-            , expectFieldNotEqual passphraseLastUpdate Nothing
+            , expectFieldNotEqual #passphrase Nothing
             ]
 
     describe "OWASP_INJECTION_CREATE_WALLET_01 - \
@@ -952,7 +951,7 @@ spec = do
                     (#state . #getApiT) Ready
             , expectFieldEqual (#delegation . #getApiT) NotDelegating
             , expectFieldEqual walletId (w ^. walletId)
-            , expectFieldNotEqual passphraseLastUpdate Nothing
+            , expectFieldNotEqual #passphrase Nothing
             ]
 
     it "WALLETS_GET_02, WALLETS_DELETE_01 - Deleted wallet is not available" $ \ctx -> do
@@ -1085,7 +1084,7 @@ spec = do
     it "WALLETS_UPDATE_01 - Updated wallet name is available" $ \ctx -> do
 
         r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default simplePayload
-        let passLastUpdateValue = getFromResponse passphraseLastUpdate r
+        let passLastUpdateValue = getFromResponse #passphrase r
         let newName = updateNamePayload "New great name"
         let walId = getFromResponse walletId r
         let expectations = [ expectResponseCode @IO HTTP.status200
@@ -1100,7 +1099,7 @@ spec = do
                             (#state . #getApiT) Ready
                     , expectFieldEqual (#delegation . #getApiT) NotDelegating
                     , expectFieldEqual walletId walId
-                    , expectFieldEqual passphraseLastUpdate passLastUpdateValue
+                    , expectFieldEqual #passphrase passLastUpdateValue
                     ]
         ru <- request @ApiWallet ctx ("PUT", "v2/wallets" </> walId) Default newName
         verify ru expectations
@@ -1117,7 +1116,7 @@ spec = do
             , expectListItemFieldEqual 0 (#balance . #getApiT . #total) (Quantity 0)
             , expectListItemFieldEqual 0 (#delegation . #getApiT) NotDelegating
             , expectListItemFieldEqual 0 walletId walId
-            , expectListItemFieldEqual 0 passphraseLastUpdate passLastUpdateValue
+            , expectListItemFieldEqual 0 #passphrase passLastUpdateValue
             ]
 
     describe "WALLETS_UPDATE_02 - Various names" $ do
@@ -1296,9 +1295,9 @@ spec = do
         expectResponseCode @IO HTTP.status204 rup
 
         let getEndpoint = "v2/wallets" </> (getFromResponse walletId r)
-        let originalPassUpdateDateTime = getFromResponse passphraseLastUpdate r
+        let originalPassUpdateDateTime = getFromResponse #passphrase r
         rg <- request @ApiWallet ctx ("GET", getEndpoint) Default Empty
-        expectFieldNotEqual passphraseLastUpdate originalPassUpdateDateTime rg
+        expectFieldNotEqual #passphrase originalPassUpdateDateTime rg
 
     describe "WALLETS_UPDATE_PASS_02 - New passphrase values" $ do
         let minLength = passphraseMinLength (Proxy @"encryption")

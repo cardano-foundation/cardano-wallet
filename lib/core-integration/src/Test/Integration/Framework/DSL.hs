@@ -62,7 +62,6 @@ module Test.Integration.Framework.DSL
     , metrics
     , nextEpoch
     , outputs
-    , passphraseLastUpdate
     , stake
     , status
     , syncProgress
@@ -170,7 +169,6 @@ import Cardano.Wallet.Primitive.Types
     , UTxOStatistics (..)
     , WalletId (..)
     , WalletName (..)
-    , WalletPassphraseInfo (..)
     , computeUtxoStatistics
     , log10
     )
@@ -645,18 +643,6 @@ feeEstimator =
   where
     _get = _feeEstimator
     _set (ctx, v) = ctx { _feeEstimator = v }
-
-passphraseLastUpdate
-    :: forall s i. (i ~ WalletPassphraseInfo, HasType (Maybe (ApiT i)) s)
-    => Lens' s (Maybe Text)
-passphraseLastUpdate =
-    lens _get _set
-  where
-    _get :: s -> Maybe Text
-    _get = fmap (T.pack . show . lastUpdatedAt . getApiT) . view typed
-    _set :: (s, Maybe Text) -> s
-    _set (s, v) =
-        set typed (ApiT . WalletPassphraseInfo . read . T.unpack <$> v) s
 
 walletName :: HasType (ApiT WalletName) s => Lens' s Text
 walletName =

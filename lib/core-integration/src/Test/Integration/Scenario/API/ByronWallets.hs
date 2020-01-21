@@ -88,7 +88,6 @@ import Test.Integration.Framework.DSL
     , fixtureWallet
     , getFromResponse
     , json
-    , passphraseLastUpdate
     , request
     , unsafeRequest
     , verify
@@ -825,7 +824,7 @@ spec = do
                             , expectFieldEqual (#balance . #total) (Quantity 0)
                             , expectEventually ctx (Link.getWallet @'Byron)
                                     (#state . #getApiT) Ready
-                            , expectFieldNotEqual passphraseLastUpdate Nothing
+                            , expectFieldNotEqual #passphrase Nothing
                             ]
                 -- create
                 r <- request @ApiByronWallet ctx endpoint Default payload

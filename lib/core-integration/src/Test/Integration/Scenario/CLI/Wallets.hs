@@ -76,7 +76,6 @@ import Test.Integration.Framework.DSL
     , getWalletViaCLI
     , listAddresses
     , listWalletsViaCLI
-    , passphraseLastUpdate
     , postTransactionViaCLI
     , updateWalletNameViaCLI
     , updateWalletPassphraseViaCLI
@@ -174,7 +173,7 @@ spec = do
             , expectEventually' ctx (Link.getWallet @'Shelley)
                     (#state . #getApiT) Ready
             , expectCliFieldEqual (#delegation . #getApiT) NotDelegating
-            , expectCliFieldNotEqual passphraseLastUpdate Nothing
+            , expectCliFieldNotEqual #passphrase Nothing
             ]
 
     it "WALLETS_CREATE_02 - Restored wallet preserves funds" $ \ctx -> do
@@ -348,7 +347,7 @@ spec = do
             c `shouldBe` ExitSuccess
             T.unpack e `shouldContain` cmdOk
             j <- expectValidJSON (Proxy @ApiWallet) o
-            expectCliFieldNotEqual passphraseLastUpdate Nothing j
+            expectCliFieldNotEqual #passphrase Nothing j
 
     describe "WALLETS_CREATE_07 - When passphrase is invalid" $ do
         let proxy_ = Proxy @"encryption"
@@ -426,7 +425,7 @@ spec = do
             , expectEventually' ctx (Link.getWallet @'Shelley)
                     (#state . #getApiT) Ready
             , expectCliFieldEqual (#delegation . #getApiT) (NotDelegating)
-            , expectCliFieldNotEqual passphraseLastUpdate Nothing
+            , expectCliFieldNotEqual #passphrase Nothing
             ]
 
     describe "WALLETS_GET_03,04 - Cannot get wallets with false ids" $ do
@@ -495,7 +494,7 @@ spec = do
             let ppNew = "new secure passphrase"
             let addrPoolMin = fromIntegral @_ @Int $ getAddressPoolGap minBound
             w <- emptyWalletWith ctx (name, T.pack ppOld, addrPoolMin)
-            let initPassUpdateTime = w ^. passphraseLastUpdate
+            let initPassUpdateTime = w ^. #passphrase
             let wid = T.unpack $ w ^. walletId
 
             --update pass
@@ -508,7 +507,7 @@ spec = do
             --verify passphraseLastUpdate was updated
             Stdout o <- getWalletViaCLI @t ctx wid
             j <- expectValidJSON (Proxy @ApiWallet) o
-            expectCliFieldNotEqual passphraseLastUpdate initPassUpdateTime j
+            expectCliFieldNotEqual #passphrase initPassUpdateTime j
 
     describe "WALLETS_UPDATE_PASS_02 - New passphrase values" $ do
         let minLength = passphraseMinLength (Proxy @"encryption")
