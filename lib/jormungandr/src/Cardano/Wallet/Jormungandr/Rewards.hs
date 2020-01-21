@@ -3,7 +3,8 @@
 {-# LANGUAGE TypeApplications #-}
 module Cardano.Wallet.Jormungandr.Rewards
     (
-      rewardParamsFromBlock0
+      rankingEpochConstants
+    , rewardParamsFromBlock0
     , calculateRewards
     , applyLimit
     , rewardsAt
@@ -19,6 +20,7 @@ import Data.Maybe
 import Data.Quantity
     ( Quantity (..) )
 
+import qualified Cardano.Pool.Ranking as Ranking
 import Cardano.Wallet.Jormungandr.Binary
 
 -- Rewards
@@ -69,6 +71,25 @@ calculateRewards (rewardParams, treasury, limit) epoch totalStake =
     $ applyLimit limit totalStake
     $ rewardsAt epoch rewardParams
 
+rankingEpochConstants
+    :: (RewardFormula, TreasuryTax, Maybe Ratio)
+    -> EpochNo
+       -- ^
+    -> Quantity "lovelace" Double
+       -- ^ The total active stake
+    -> Ranking.EpochConstants
+rankingEpochConstants params epoch stake =
+    Ranking.EpochConstants
+        { Ranking.leaderStakeInfluence =
+            Ranking.unsafeMkNonNegative 0
+            -- Always 0 for current versions of jormungandr.
+        , Ranking.desiredNumberOfPools =
+            Ranking.unsafeMkPositive 100
+            -- TODO: Read from block0
+        , Ranking.totalRewards =
+            Ranking.Lovelace $ round $ calculateRewards params epoch stake
+        }
+
 -- | Limit rewards by a fraction of the total active stake
 applyLimit
     :: Maybe Ratio
@@ -104,3 +125,4 @@ subtractTreasuryTax (TreasuryTax fixed ratio) x =
     Ratio rNum' rDen' = ratio
     rNum = fromIntegral rNum'
     rDen = fromIntegral rDen'
+
