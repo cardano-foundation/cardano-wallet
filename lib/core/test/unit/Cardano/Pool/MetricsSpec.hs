@@ -54,6 +54,7 @@ import Cardano.Wallet.Primitive.Types
     , BlockchainParameters (..)
     , Coin (..)
     , EpochLength (..)
+    , EpochNo
     , Hash (..)
     , PoolId (..)
     , PoolOwner (..)
@@ -280,7 +281,7 @@ test_emptyDatabaseNotSynced = do
     setEnv envVarMetadataRegistry "-"
     db@DBLayer{..} <- newDBLayer
     -- NOTE The directory below isn't use, the test should fail much before
-    let spl = newStakePoolLayer nullTracer (const epConsts) db nl "/dev/null"
+    let spl = newStakePoolLayer nullTracer getEpConsts db nl "/dev/null"
     res <- runExceptT $ listStakePools spl
     case res of
         Left (ErrMetricsIsUnsynced (Quantity p)) -> p `shouldBe` toEnum 0
@@ -303,7 +304,7 @@ test_notSyncedProgress = do
     atomically $ unsafeRunExceptT $
         putPoolProduction prodTip (PoolId "Pool & The Gang")
     -- NOTE The directory below isn't use, the test should fail much before
-    let spl = newStakePoolLayer nullTracer (const epConsts) db nl "/dev/null"
+    let spl = newStakePoolLayer nullTracer getEpConsts db nl "/dev/null"
     res <- runExceptT $ listStakePools spl
     case res of
         Left (ErrMetricsIsUnsynced (Quantity p)) -> p `shouldBe` toEnum 33
@@ -373,8 +374,8 @@ header0 = BlockHeader
 block0 :: Block
 block0 = Block header0 (PoolId "") []
 
-epConsts :: EpochConstants
-epConsts = EpochConstants
+getEpConsts :: EpochNo -> Quantity "lovelace" Word64 -> EpochConstants
+getEpConsts _ _ = EpochConstants
     { leaderStakeInfluence = unsafeMkNonNegative 0
     , desiredNumberOfPools = unsafeMkPositive 100
     , totalRewards = Quantity 1000

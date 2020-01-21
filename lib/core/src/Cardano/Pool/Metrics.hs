@@ -251,7 +251,7 @@ data ErrListStakePools
 
 newStakePoolLayer
     :: Tracer IO StakePoolLog
-    -> (EpochNo -> EpochConstants)
+    -> (EpochNo -> Quantity "lovelace" Word64 -> EpochConstants)
     -> DBLayer IO
     -> NetworkLayer IO t Block
     -> FilePath
@@ -321,7 +321,7 @@ newStakePoolLayer tr getEpCst db@DBLayer{..} nl metadataDir = StakePoolLayer
     (block0, _) = staticBlockchainParameters nl
 
     combineWith
-        :: EpochConstants
+        :: (Quantity "lovelace" Word64 -> EpochConstants)
         -> ([(StakePool, [PoolOwner])] -> IO [(StakePool, [PoolOwner])])
         -> Map PoolId (Quantity "lovelace" Word64)
         -> Map PoolId (Quantity "block" Word64)
@@ -356,9 +356,9 @@ newStakePoolLayer tr getEpCst db@DBLayer{..} nl metadataDir = StakePoolLayer
                     , cost = poolCost
                     , margin = poolMargin
                     , saturation =
-                        Ranking.saturation epCst totalStake stake
+                        Ranking.saturation (epCst totalStake) totalStake stake
                     , desirability =
-                        Ranking.desirability epCst $ Ranking.Pool
+                        Ranking.desirability (epCst totalStake) $ Ranking.Pool
                             (unsafeMkRatio 0) -- pool leader pledge
                             poolCost
                             (unsafeMkRatio $ fromIntegral (getPercentage poolMargin) / 100)

@@ -1,4 +1,6 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
 module Cardano.Wallet.Jormungandr.Rewards
@@ -21,6 +23,8 @@ import Cardano.Wallet.Primitive.Types
     ( EpochNo (..) )
 import Control.DeepSeq
     ( NFData (..) )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Word
     ( Word32, Word64 )
 import GHC.Generics
@@ -113,16 +117,20 @@ data PoolCapping = PoolCapping
 instance NFData PoolCapping
 
 rewardsAt
-    :: RewardFormula
+    :: (RewardLimit, Quantity "lovelace" Word64)
     -> TaxParameters
     -> EpochNo
-    -> Double
-rewardsAt formula tax epochNo = taxCut tax $ case formula of
+    -> RewardFormula
+    -> Quantity "lovelace" Word64
+rewardsAt limit tax epochNo = q . taxCut tax . capDrawing limit . \case
     LinearFormula  params | ep < rEpochStart params -> 0
     LinearFormula  params -> linearAbsorption params
     HalvingFormula params | ep < rEpochStart params -> 0
     HalvingFormula params -> halvingAbsorption params
   where
+    q :: Double -> Quantity "lovelace" Word64
+    q = Quantity . round
+
     ep = fromIntegral (unEpochNo epochNo)
 
     linearAbsorption RewardParams{rFixed,rRatio,rEpochStart,rEpochRate} =
@@ -146,7 +154,16 @@ rewardsAt formula tax epochNo = taxCut tax $ case formula of
     taxCut TaxParameters{taxFixed,taxRatio,taxLimit} x =
         if cut > x then 0 else x - cut
       where
-        cut = maybe id max limit $ c + r * x
+        cut = maybe id max lim $ c + r * x
+        lim = fromIntegral <$> taxLimit
         r = ratio taxRatio
         c = fromIntegral taxFixed
-        limit = fromIntegral <$> taxLimit
+
+    capDrawing = \case
+        (RewardLimitNone, _) -> id
+        (RewardLimitByAbsoluteStake lim, Quantity totalStake) ->
+            let
+                r  = ratio lim
+                _S = fromIntegral totalStake
+            in
+                min (r * _S)

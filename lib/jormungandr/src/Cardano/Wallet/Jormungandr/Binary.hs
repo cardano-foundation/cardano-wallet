@@ -59,6 +59,7 @@ module Cardano.Wallet.Jormungandr.Binary
     , convertBlock
     , convertBlockHeader
     , poolRegistrationsFromBlock
+    , rankingEpochConstants
 
     -- * Addresses
     , putAddress
@@ -83,6 +84,8 @@ import Prelude
 
 import Cardano.Crypto.Wallet
     ( XPrv, sign, toXPub, unXPub, unXSignature )
+import Cardano.Pool.Ranking
+    ( EpochConstants (..), unsafeMkNonNegative, unsafeMkPositive )
 import Cardano.Wallet.Jormungandr.Rewards
     ( PoolCapping (..)
     , Ratio (..)
@@ -91,6 +94,7 @@ import Cardano.Wallet.Jormungandr.Rewards
     , RewardParams (..)
     , TaxParameters (..)
     , ratio
+    , rewardsAt
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..), Passphrase (..) )
@@ -158,7 +162,7 @@ import Data.Either
 import Data.Functor
     ( ($>), (<&>) )
 import Data.Maybe
-    ( catMaybes )
+    ( catMaybes, mapMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -173,6 +177,8 @@ import GHC.Generics
     ( Generic )
 import GHC.Stack
     ( HasCallStack )
+import Safe
+    ( headMay )
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.ByteArray as BA
@@ -1080,3 +1086,53 @@ poolRegistrationsFromBlock (Block _hdr fragments) = do
             100 * ratio (taxRatio taxes)
     let cost = Quantity (taxFixed taxes)
     pure $ W.PoolRegistrationCertificate poolId owners margin cost
+
+-- | If all incentives parameters are present in the blocks, returns a function
+-- that computes reward based on a given epoch.
+-- Returns 'Nothing' otherwise.
+rankingEpochConstants
+    :: Block
+    -> Maybe (EpochNo -> Quantity "lovelace" Word64 -> EpochConstants)
+rankingEpochConstants block0 = do
+    poolCapping   <- mPoolCapping
+    rewardLimit   <- mRewardLimit
+    treasuryTax   <- mTreasuryTax
+    rewardFormula <- mRewardFormula
+    pure $ \ep totalStake -> EpochConstants
+        { leaderStakeInfluence =
+            unsafeMkNonNegative 0
+        , desiredNumberOfPools =
+            unsafeMkPositive $ fromIntegral $ maxParticipation poolCapping
+        , totalRewards =
+            rewardsAt (rewardLimit, totalStake) treasuryTax ep rewardFormula
+        }
+  where
+    params = mconcat $ mapMaybe matchConfigParameters (fragments block0)
+      where
+        matchConfigParameters = \case
+            Initial xs -> Just xs
+            _ -> Nothing
+
+    mPoolCapping = headMay $ mapMaybe matchPoolCapping params
+      where
+        matchPoolCapping = \case
+            ConfigPoolCapping x -> Just x
+            _ -> Nothing
+
+    mRewardLimit = headMay $ mapMaybe matchRewardLimit params
+      where
+        matchRewardLimit = \case
+            ConfigRewardLimit x -> Just x
+            _ -> Nothing
+
+    mTreasuryTax = headMay $ mapMaybe matchTreasuryTax params
+      where
+        matchTreasuryTax = \case
+            TreasuryTax x -> Just x
+            _ -> Nothing
+
+    mRewardFormula = headMay $ mapMaybe matchRewardFormula params
+      where
+        matchRewardFormula = \case
+            ConfigRewardFormula x -> Just x
+            _ -> Nothing

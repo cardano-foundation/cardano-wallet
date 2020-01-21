@@ -57,6 +57,7 @@ library
     , monad-loops
     , memory
     , network
+    , safe
     , servant
     , servant-client
     , servant-client-core
