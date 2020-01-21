@@ -51,7 +51,6 @@ module Test.Integration.Framework.DSL
     , RequestException(..)
 
     -- * Lens
-    , apparentPerformance
     , blocks
     , coinSelectionInputs
     , coinSelectionOutputs
@@ -719,15 +718,6 @@ blocks
 blocks = lens
     (getQuantity . getField @"producedBlocks")
     (\(s, v) -> setField @"producedBlocks" (Quantity v) s)
-
-apparentPerformance :: HasType Double s => Lens' s Double
-apparentPerformance =
-    lens _get _set
-  where
-    _get :: HasType Double s => s -> Double
-    _get = view typed
-    _set :: HasType Double s => (s, Double) -> s
-    _set (s, v) = set typed v s
 
 --
 -- Helpers
