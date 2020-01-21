@@ -66,6 +66,7 @@ module Cardano.Pool.Ranking
     (
       -- * Formulas
       desirability
+    , saturation
 
     , saturatedPoolRewards
     , saturatedPoolSize
@@ -73,7 +74,6 @@ module Cardano.Pool.Ranking
       -- * Types
     , EpochConstants (..)
     , Pool (..)
-    , Lovelace (..)
     , Ratio
     , unsafeMkRatio
     , getRatio
@@ -86,6 +86,8 @@ module Cardano.Pool.Ranking
 
 import Prelude
 
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Word
     ( Word64 )
 import GHC.Generics
@@ -104,11 +106,46 @@ desirability
     -> Double
 desirability constants pool
     | f_saturated <= c = 0
-    | otherwise    = (f_saturated - c) * (1 - m)
+    | otherwise        = (f_saturated - c) * (1 - m)
   where
     f_saturated = saturatedPoolRewards constants pool
     m = getRatio $ margin pool
-    c = fromIntegral $ getLovelace $ cost pool
+    c = fromIntegral $ getQuantity $ cost pool
+
+-- | The saturation-level of a pool indicate how far a pool is from the
+-- desirated relative stake fixed by the network. A saturation level above 1
+-- means that the pool is satured. A level of 0.5 / 50% means that the pool owns
+-- half the ideal stake.
+--
+-- The saturation corresponds therefore to the ratio between the ideal relative
+-- stake of a pool on the actual relative stake of that pool.
+--
+-- The ideal relative stake is given by:
+--
+--              1     S     1
+--   σ_ideal = --- * --- = --- = z0 (where S stands for the total available
+--              S     k     k        stake in Ada)
+--
+-- which gives us the saturation as:
+--
+--             σ         σ
+--    sat = --------- = ----
+--           σ_ideal     z0
+--
+saturation
+    :: EpochConstants
+    -> Quantity "lovelace" Word64
+        -- ^ Total delegated stake
+    -> Quantity "lovelace" Word64
+        -- ^ Pool's stake
+    -> Double
+saturation constants total own =
+    σ / z0
+  where
+    z0 = getRatio $ saturatedPoolSize constants
+    _S = fromIntegral $ getQuantity total
+    s  = fromIntegral $ getQuantity own
+    σ  = s / _S
 
 -- | Total rewards for a pool if it were saturated.
 --
@@ -120,12 +157,11 @@ saturatedPoolRewards constants pool =
         a0 = getNonNegative $ leaderStakeInfluence constants
         z0 = getRatio $ saturatedPoolSize constants
         s = getRatio $ leaderStake pool
-        _R = fromIntegral $ getLovelace $ totalRewards constants
+        _R = fromIntegral $ getQuantity $ totalRewards constants
         p = getNonNegative $ recentAvgPerformance pool
         -- ^ technically \hat{p} in the spec
     in
-        (p * _R) / (1 + a0)
-        * (z0 + ((min s z0) * a0))
+        (p * _R) / (1 + a0) * (z0 + ((min s z0) * a0))
 
 -- | Determines z0, i.e 1 / k
 saturatedPoolSize :: EpochConstants -> Ratio
@@ -141,14 +177,14 @@ data EpochConstants = EpochConstants
       -- ^ a_0
     , desiredNumberOfPools :: Positive Int
       -- ^ k
-    , totalRewards :: Lovelace
+    , totalRewards :: Quantity "lovelace" Word64
       -- ^ Total rewards in an epoch. "R" in the spec.
     } deriving (Show, Eq, Generic)
 
 data Pool = Pool
     { leaderStake :: Ratio
       -- ^ s
-    , cost :: Lovelace
+    , cost :: Quantity "lovelace" Word64
       -- ^ c
     , margin :: Ratio
       -- ^ m
@@ -158,10 +194,6 @@ data Pool = Pool
       -- Should mostly be in the range [0, 1]. May be higher than 1 due to
       -- randomness.
     } deriving (Show, Eq, Generic)
-
-newtype Lovelace = Lovelace { getLovelace :: Word64 }
-    deriving (Show, Eq)
-    deriving newtype (Ord, Num)
 
 newtype Ratio = Ratio { getRatio :: Double }
     deriving (Show, Eq)

@@ -22,7 +22,6 @@ import Prelude
 
 import Cardano.Pool.Ranking
     ( EpochConstants (..)
-    , Lovelace (..)
     , Pool (..)
     , Ratio (..)
     , desirability
@@ -45,6 +44,8 @@ import Data.Ord
     ( Ordering (..) )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Word
     ( Word64 )
 import GHC.TypeLits
@@ -152,7 +153,7 @@ prop_saturatedPoolRewardsReduces constants' pool =
         constants = constants'
             { leaderStakeInfluence = unsafeMkNonNegative 0 }
         z0 = getRatio $ saturatedPoolSize constants
-        _R = fromIntegral $ getLovelace $ totalRewards constants
+        _R = fromIntegral $ getQuantity $ totalRewards constants
         p  = R.getNonNegative $ recentAvgPerformance pool
     in
         saturatedPoolRewards constants pool === p*_R*z0
@@ -233,7 +234,7 @@ instance Arbitrary Pool where
 
 -- TODO: We should ideally not export the NonNegative and Positive constructors,
 -- in which case we wouldn't be able to use DerivingVia.
-deriving via Word64 instance (Arbitrary Lovelace)
+deriving via Word64 instance (Arbitrary (Quantity "lovelace" Word64))
 deriving via (NonNegative Double) instance (Arbitrary (R.NonNegative Double))
 deriving via (Positive Int) instance (Arbitrary (R.Positive Int))
 

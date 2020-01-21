@@ -279,6 +279,8 @@ data ApiStakePool = ApiStakePool
     , metadata :: !(Maybe StakePoolMetadata)
     , cost :: !(Quantity "lovelace" Natural)
     , margin :: !(Quantity "percent" Percentage)
+    , desirability :: !Double
+    , saturation :: !Double
     } deriving (Eq, Generic, Show)
 
 data ApiStakePoolMetrics = ApiStakePoolMetrics

@@ -58,6 +58,8 @@ import Cardano.Pool.Metadata
     )
 import Cardano.Pool.Performance
     ( count, readPoolsPerformances )
+import Cardano.Pool.Ranking
+    ( EpochConstants (..), unsafeMkNonNegative, unsafeMkRatio )
 import Cardano.Wallet.Network
     ( ErrNetworkTip
     , ErrNetworkUnavailable
@@ -102,7 +104,7 @@ import Data.Map.Strict
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
-    ( Percentage, Quantity (..) )
+    ( Percentage, Quantity (..), getPercentage )
 import Data.Text.Class
     ( ToText (..) )
 import Data.Vector.Shuffle
@@ -116,6 +118,7 @@ import GHC.Generics
 import System.Random
     ( StdGen )
 
+import qualified Cardano.Pool.Ranking as Ranking
 import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
 
@@ -137,8 +140,10 @@ data StakePool = StakePool
     , stake :: Quantity "lovelace" Word64
     , production :: Quantity "block" Word64
     , performance :: Double
+    , desirability :: Double
     , cost :: Quantity "lovelace" Word64
     , margin :: Percentage
+    , saturation :: Double
     } deriving (Show, Generic)
 
 --------------------------------------------------------------------------------
@@ -246,13 +251,14 @@ data ErrListStakePools
 
 newStakePoolLayer
     :: Tracer IO StakePoolLog
+    -> (EpochNo -> EpochConstants)
     -> DBLayer IO
     -> NetworkLayer IO t Block
     -> FilePath
     -- ^ A directory to cache downloaded stake pool metadata. Will be created if
     -- it does not exist.
     -> StakePoolLayer IO
-newStakePoolLayer tr db@DBLayer{..} nl metadataDir = StakePoolLayer
+newStakePoolLayer tr getEpCst db@DBLayer{..} nl metadataDir = StakePoolLayer
     { listStakePools = do
         lift $ traceWith tr MsgListStakePoolsBegin
         stakePools <- sortKnownPools
@@ -281,12 +287,14 @@ newStakePoolLayer tr db@DBLayer{..} nl metadataDir = StakePoolLayer
         if nodeEpoch == genesisEpoch
         then do
             seed <- liftIO $ atomically readSystemSeed
-            combineWith (sortArbitrarily seed) distr (count prod) mempty
+            let epCst = getEpCst 0
+            combineWith epCst (sortArbitrarily seed) distr (count prod) mempty
 
         else do
             let currentEpoch = prodTip ^. #slotId . #epochNumber
             perfs <- liftIO $ readPoolsPerformances db currentEpoch
-            combineWith (pure . sortByPerformance) distr (count prod) perfs
+            let epCst = getEpCst currentEpoch
+            combineWith epCst (pure . sortByDesirability) distr (count prod) perfs
 
     readPoolProductionTip = readPoolProductionCursor 1 <&> \case
         []  -> header block0
@@ -313,12 +321,13 @@ newStakePoolLayer tr db@DBLayer{..} nl metadataDir = StakePoolLayer
     (block0, _) = staticBlockchainParameters nl
 
     combineWith
-        :: ([(StakePool, [PoolOwner])] -> IO [(StakePool, [PoolOwner])])
+        :: EpochConstants
+        -> ([(StakePool, [PoolOwner])] -> IO [(StakePool, [PoolOwner])])
         -> Map PoolId (Quantity "lovelace" Word64)
         -> Map PoolId (Quantity "block" Word64)
         -> Map PoolId Double
         -> ExceptT ErrListStakePools IO [(StakePool, [PoolOwner])]
-    combineWith sortResults distr prod perfs = do
+    combineWith epCst sortResults distr prod perfs = do
         case combineMetrics distr prod perfs of
             Left e ->
                 throwE $ ErrListStakePoolsMetricsInconsistency e
@@ -332,6 +341,9 @@ newStakePoolLayer tr db@DBLayer{..} nl metadataDir = StakePoolLayer
                     Map.traverseMaybeWithKey mergeRegistration (ps <> ns)
                 sortResults $ Map.elems pools
       where
+        totalStake =
+            Quantity $ Map.foldl' (\a (Quantity b) -> a + b) 0 distr
+
         mergeRegistration poolId (stake, production, performance) =
             fmap mkStakePool <$> readPoolRegistration poolId
           where
@@ -343,12 +355,20 @@ newStakePoolLayer tr db@DBLayer{..} nl metadataDir = StakePoolLayer
                     , performance
                     , cost = poolCost
                     , margin = poolMargin
+                    , saturation =
+                        Ranking.saturation epCst totalStake stake
+                    , desirability =
+                        Ranking.desirability epCst $ Ranking.Pool
+                            (unsafeMkRatio 0) -- pool leader pledge
+                            poolCost
+                            (unsafeMkRatio $ fromIntegral (getPercentage poolMargin) / 100)
+                            (unsafeMkNonNegative performance)
                     }
                 , poolOwners
                 )
 
-    sortByPerformance :: [(StakePool, a)] -> [(StakePool, a)]
-    sortByPerformance = sortOn (Down . performance . fst)
+    sortByDesirability :: [(StakePool, a)] -> [(StakePool, a)]
+    sortByDesirability = sortOn (Down . desirability . fst)
 
     sortArbitrarily :: StdGen -> [a] -> IO [a]
     sortArbitrarily = shuffleWith

@@ -1108,6 +1108,8 @@ listPools spl =
             meta
             (fromIntegral <$> sp ^. #cost)
             (Quantity $ sp ^. #margin)
+            (sp ^. #desirability)
+            (sp ^. #saturation)
 
 joinStakePool
     :: forall ctx s t n k.
