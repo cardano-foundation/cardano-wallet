@@ -35,6 +35,7 @@ module Cardano.Pool.DB.Model
     , mCleanPoolProduction
     , mPutPoolProduction
     , mReadPoolProduction
+    , mReadTotalProduction
     , mPutStakeDistribution
     , mReadStakeDistribution
     , mPutPoolRegistration
@@ -146,6 +147,10 @@ mReadPoolProduction epoch db@PoolDatabase{pools} =
     let updateSlots e = Map.map (filter (\x -> epochNumber (slotId x) == e))
         updatePools = Map.filter (not . L.null)
     in (Right (updatePools $ (updateSlots epoch) pools), db)
+
+mReadTotalProduction :: ModelPoolOp (Map PoolId (Quantity "block" Word64))
+mReadTotalProduction db@PoolDatabase{pools} =
+    ( Right (Map.map (Quantity . fromIntegral . length) pools), db )
 
 mPutStakeDistribution
     :: EpochNo

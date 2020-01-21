@@ -57,7 +57,7 @@ import Cardano.Pool.Metadata
     , sameStakePoolMetadata
     )
 import Cardano.Pool.Performance
-    ( count, readPoolsPerformances )
+    ( readPoolsPerformances )
 import Cardano.Pool.Ranking
     ( EpochConstants (..), unsafeMkNonNegative, unsafeMkRatio )
 import Cardano.Wallet.Network
@@ -277,7 +277,7 @@ newStakePoolLayer tr getEpCst db@DBLayer{..} nl metadataDir = StakePoolLayer
 
         (distr, prod, prodTip) <- liftIO . atomically $ (,,)
             <$> (Map.fromList <$> readStakeDistribution nodeEpoch)
-            <*> readPoolProduction nodeEpoch
+            <*> readTotalProduction
             <*> readPoolProductionTip
 
         when (Map.null distr || Map.null prod) $ do
@@ -288,13 +288,13 @@ newStakePoolLayer tr getEpCst db@DBLayer{..} nl metadataDir = StakePoolLayer
         then do
             seed <- liftIO $ atomically readSystemSeed
             let epCst = getEpCst 0
-            combineWith epCst (sortArbitrarily seed) distr (count prod) mempty
+            combineWith epCst (sortArbitrarily seed) distr prod mempty
 
         else do
             let currentEpoch = prodTip ^. #slotId . #epochNumber
             perfs <- liftIO $ readPoolsPerformances db currentEpoch
             let epCst = getEpCst currentEpoch
-            combineWith epCst (pure . sortByDesirability) distr (count prod) perfs
+            combineWith epCst (pure . sortByDesirability) distr prod perfs
 
     readPoolProductionTip = readPoolProductionCursor 1 <&> \case
         []  -> header block0

@@ -33,6 +33,7 @@ import Cardano.Pool.DB.Model
     , mReadPoolRegistration
     , mReadStakeDistribution
     , mReadSystemSeed
+    , mReadTotalProduction
     , mRollbackTo
     )
 import Control.Concurrent.MVar
@@ -61,6 +62,9 @@ newDBLayer = do
 
         , readPoolProduction =
             readPoolDB db . mReadPoolProduction
+
+        , readTotalProduction =
+            readPoolDB db mReadTotalProduction
 
         , putStakeDistribution = \a0 a1 ->
             void $ alterPoolDB (const Nothing) db (mPutStakeDistribution a0 a1)
