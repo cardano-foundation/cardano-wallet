@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Jormungandr.Rewards
     (
@@ -136,7 +137,7 @@ rewardsAt limit tax epochNo = q . taxCut tax . capDrawing limit . \case
     linearAbsorption RewardParams{rFixed,rRatio,rEpochStart,rEpochRate} =
         if a > c then 0 else c - a
       where
-        a = r * (n / e)
+        a = r * fromIntegral (floor @Double @Integer (n / e))
         c = fromIntegral rFixed
         r = ratio rRatio
         n = fromIntegral (ep - rEpochStart)
@@ -145,7 +146,7 @@ rewardsAt limit tax epochNo = q . taxCut tax . capDrawing limit . \case
     halvingAbsorption RewardParams{rFixed,rRatio,rEpochStart,rEpochRate} =
         c * a
       where
-        a = r * (n / e)
+        a = r ** fromIntegral (floor @Double @Integer (n / e))
         c = fromIntegral rFixed
         r = ratio rRatio
         n = fromIntegral (ep - rEpochStart)
