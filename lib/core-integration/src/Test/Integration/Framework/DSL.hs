@@ -51,7 +51,6 @@ module Test.Integration.Framework.DSL
     , RequestException(..)
 
     -- * Lens
-    , amount
     , apparentPerformance
     , blocks
     , coinSelectionInputs
@@ -224,8 +223,6 @@ import Data.Time.Text
     ( iso8601ExtendedUtc, utcTimeToText )
 import Data.Word
     ( Word64 )
-import GHC.TypeLits
-    ( Symbol )
 import Language.Haskell.TH.Quote
     ( QuasiQuoter )
 import Network.HTTP.Client
@@ -651,15 +648,6 @@ walletId =
     _set :: HasType (ApiT WalletId) s => (s, Text) -> s
     _set (s, v) = set typed (ApiT $ WalletId (unsafeCreateDigest v)) s
 
-amount :: HasType (Quantity "lovelace" Natural) s => Lens' s Natural
-amount =
-    lens _get _set
-  where
-    _get :: HasType (Quantity "lovelace" Natural) s => s -> Natural
-    _get = fromQuantity @"lovelace" @Natural . view typed
-    _set :: HasType (Quantity "lovelace" Natural) s => (s, Natural) -> s
-    _set (s, v) = set typed (Quantity @"lovelace" @Natural v) s
-
 direction :: HasType (ApiT Direction) s => Lens' s Direction
 direction =
     lens _get _set
@@ -1048,9 +1036,6 @@ faucetUtxoAmt :: Natural
 faucetUtxoAmt = ada 100_000
   where
     ada = (*) (1_000_000)
-
-fromQuantity :: Quantity (u :: Symbol) a -> a
-fromQuantity (Quantity a) = a
 
 getFromResponse
     :: Lens' s a

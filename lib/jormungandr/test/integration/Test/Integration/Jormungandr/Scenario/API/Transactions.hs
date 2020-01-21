@@ -76,7 +76,6 @@ import Test.Integration.Framework.DSL as DSL
     , Headers (..)
     , Payload (..)
     , TxDescription (..)
-    , amount
     , direction
     , emptyRandomWallet
     , emptyWallet
@@ -192,7 +191,7 @@ spec = do
                 >>= flip verify
                 [ expectListItemFieldEqual 0 DSL.direction Incoming
                 , expectListItemFieldEqual 0 DSL.status InLedger
-                , expectListItemFieldEqual 0 DSL.amount utxoAmt
+                , expectListItemFieldEqual 0 #amount (Quantity utxoAmt)
                 ]
             request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest)

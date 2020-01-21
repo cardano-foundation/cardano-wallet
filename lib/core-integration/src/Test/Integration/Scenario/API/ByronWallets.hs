@@ -66,7 +66,6 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , RequestException (..)
-    , amount
     , emptyByronWalletWith
     , emptyIcarusWallet
     , emptyRandomWallet
@@ -135,12 +134,12 @@ spec = do
           where
             inputBalance = fromIntegral
                 . sum
-                . fmap (view amount)
+                . fmap (view (#amount . #getQuantity))
                 . mapMaybe ApiTypes.source
                 . view #inputs
             outputBalance = fromIntegral
                 . sum
-                . fmap (view amount)
+                . fmap (view (#amount . #getQuantity))
                 . view #outputs
 
     it "BYRON_CALCULATE_01 - \
@@ -151,7 +150,7 @@ spec = do
             r <- request @ApiByronWalletMigrationInfo ctx ep Default Empty
             verify r
                 [ expectResponseCode @IO HTTP.status200
-                , expectFieldSatisfy amount (> 0)
+                , expectFieldSatisfy #migrationCost (> Quantity 0)
                 ]
 
     it "BYRON_CALCULATE_02 - \
@@ -237,9 +236,9 @@ spec = do
                 (Link.getMigrationInfo sourceWallet) Default Empty
             verify r0
                 [ expectResponseCode @IO HTTP.status200
-                , expectFieldSatisfy amount (> 0)
+                , expectFieldSatisfy #migrationCost (> Quantity 0)
                 ]
-            let expectedFee = getFromResponse amount r0
+            let expectedFee = getFromResponse (#migrationCost . #getQuantity) r0
 
             -- Perform a migration from the source wallet to the target wallet:
             r1 <- request @[ApiTransaction n] ctx
@@ -302,9 +301,9 @@ spec = do
             Empty
         verify rFee
             [ expectResponseCode @IO HTTP.status200
-            , expectFieldSatisfy amount (> 0)
+            , expectFieldSatisfy #migrationCost (> Quantity 0)
             ]
-        let expectedFee = getFromResponse amount rFee
+        let expectedFee = getFromResponse (#migrationCost . #getQuantity) rFee
 
         -- Migrate to a new empty wallet
         wNew <- emptyWallet ctx
@@ -427,7 +426,7 @@ spec = do
             r0 <- request @ApiByronWalletMigrationInfo ctx ep0 Default Empty
             verify r0
                 [ expectResponseCode @IO HTTP.status200
-                , expectFieldSatisfy amount (> 0)
+                , expectFieldSatisfy #migrationCost (> Quantity 0)
                 ]
 
             -- Perform the migration.
@@ -444,7 +443,7 @@ spec = do
             let actualFee = fromIntegral $ sum $ apiTransactionFee
                     <$> getFromResponse id r1
             let predictedFee =
-                    getFromResponse amount r0
+                    getFromResponse (#migrationCost . #getQuantity) r0
             actualFee `shouldBe` predictedFee
 
     it "BYRON_MIGRATE_04 - migration fails with a wrong passphrase"

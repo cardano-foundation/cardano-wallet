@@ -52,7 +52,6 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , TxDescription (..)
-    , amount
     , blocks
     , delegationFee
     , direction
@@ -620,12 +619,13 @@ spec = do
             unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
         w <- fixtureWallet ctx
         r <- delegationFee ctx w
+        print r
         verify r
             [ expectResponseCode HTTP.status200
             ]
-        let fee = getFromResponse amount r
+        let fee = getFromResponse #amount r
         joinStakePool ctx (p ^. #id) (w, fixturePassphrase) >>= flip verify
-            [ expectFieldEqual amount fee
+            [ expectFieldEqual #amount fee
             ]
 
     it "STAKE_POOLS_ESTIMATE_FEE_01x - edge-case fee in-between coeff" $ \ctx -> do
@@ -635,7 +635,7 @@ spec = do
         let (fee, _) = ctx ^. feeEstimator $ DelegDescription 2 1 1
         verify r
             [ expectResponseCode HTTP.status200
-            , expectFieldEqual amount fee
+            , expectFieldEqual #amount (Quantity fee)
             ]
 
     it "STAKE_POOLS_ESTIMATE_FEE_02 - \

@@ -60,7 +60,6 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , KnownCommand
     , TxDescription (..)
-    , amount
     , cardanoWalletCLI
     , deleteTransactionViaCLI
     , deleteWalletViaCLI
@@ -125,7 +124,7 @@ spec = do
         let amt = 14
         txJson <- postTxViaCLI ctx wSrc wDest amt
         verify txJson
-            [ expectCliFieldBetween amount (feeMin + amt, feeMax + amt)
+            [ expectCliFieldBetween (#amount . #getQuantity) (feeMin + amt, feeMax + amt)
             , expectCliFieldEqual direction Outgoing
             , expectCliFieldEqual status Pending
             ]
@@ -178,7 +177,7 @@ spec = do
         err `shouldBe` "Please enter your passphrase: **************\nOk.\n"
         txJson <- expectValidJSON (Proxy @(ApiTransaction n)) out
         verify txJson
-            [ expectCliFieldBetween amount (feeMin + (2*amt), feeMax + (2*amt))
+            [ expectCliFieldBetween (#amount . #getQuantity) (feeMin + (2*amt), feeMax + (2*amt))
             , expectCliFieldEqual direction Outgoing
             , expectCliFieldEqual status Pending
             ]
@@ -234,7 +233,7 @@ spec = do
         err `shouldBe` "Please enter your passphrase: **************\nOk.\n"
         txJson <- expectValidJSON (Proxy @(ApiTransaction n)) out
         verify txJson
-            [ expectCliFieldBetween amount (feeMin + (2*amt), feeMax + (2*amt))
+            [ expectCliFieldBetween (#amount . #getQuantity) (feeMin + (2*amt), feeMax + (2*amt))
             , expectCliFieldEqual direction Outgoing
             , expectCliFieldEqual status Pending
             ]
@@ -298,7 +297,7 @@ spec = do
         err `shouldBe` "Please enter your passphrase: *****************\nOk.\n"
         txJson <- expectValidJSON (Proxy @(ApiTransaction n)) out
         verify txJson
-            [ expectCliFieldEqual amount (feeMin+amt)
+            [ expectCliFieldEqual (#amount . #getQuantity) (feeMin+amt)
             , expectCliFieldEqual direction Outgoing
             , expectCliFieldEqual status Pending
             ]
@@ -500,7 +499,7 @@ spec = do
         err `shouldBe` "Ok.\n"
         txJson <- expectValidJSON (Proxy @ApiFee) out
         verify txJson
-            [ expectCliFieldBetween amount (feeMin - amt, feeMax + amt)
+            [ expectCliFieldBetween (#amount . #getQuantity) (feeMin - amt, feeMax + amt)
             ]
         c `shouldBe` ExitSuccess
 
@@ -525,7 +524,7 @@ spec = do
         err `shouldBe` "Ok.\n"
         txJson <- expectValidJSON (Proxy @ApiFee) out
         verify txJson
-            [ expectCliFieldBetween amount (feeMin, feeMax)
+            [ expectCliFieldBetween (#amount . #getQuantity) (feeMin, feeMax)
             ]
         c `shouldBe` ExitSuccess
 
@@ -553,7 +552,7 @@ spec = do
         err `shouldBe` "Ok.\n"
         txJson <- expectValidJSON (Proxy @ApiFee) out
         verify txJson
-            [ expectCliFieldBetween amount (feeMin, feeMax)
+            [ expectCliFieldBetween (#amount . #getQuantity) (feeMin, feeMax)
             ]
         c `shouldBe` ExitSuccess
 
@@ -743,26 +742,26 @@ spec = do
                 code `shouldBe` ExitFailure 1
 
     it "TRANS_LIST_03 - Can order results" $ \ctx -> do
-        let a1 = sum $ replicate 10 1
-        let a2 = sum $ replicate 10 2
+        let a1 = Quantity $ sum $ replicate 10 1
+        let a2 = Quantity $ sum $ replicate 10 2
         w <- fixtureWalletWith ctx $ mconcat
                 [ replicate 10 1
                 , replicate 10 2
                 ]
         let orderings =
                 [ ( mempty
-                  , [ expectCliListItemFieldEqual 0 amount a2
-                    , expectCliListItemFieldEqual 1 amount a1
+                  , [ expectCliListItemFieldEqual 0 #amount a2
+                    , expectCliListItemFieldEqual 1 #amount a1
                     ]
                   )
                 , ( [ "--order", "ascending" ]
-                  , [ expectCliListItemFieldEqual 0 amount a1
-                    , expectCliListItemFieldEqual 1 amount a2
+                  , [ expectCliListItemFieldEqual 0 #amount a1
+                    , expectCliListItemFieldEqual 1 #amount a2
                     ]
                   )
                 , ( [ "--order", "descending" ]
-                  , [ expectCliListItemFieldEqual 0 amount a2
-                    , expectCliListItemFieldEqual 1 amount a1
+                  , [ expectCliListItemFieldEqual 0 #amount a2
+                    , expectCliListItemFieldEqual 1 #amount a1
                     ]
                   )
                 ]
