@@ -179,8 +179,8 @@ import Data.Text
     ( Text, split )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
-import Data.Time
-    ( UTCTime )
+import Data.Time.Clock
+    ( NominalDiffTime, UTCTime )
 import Data.Time.Text
     ( iso8601, iso8601ExtendedUtc, utcTimeFromText, utcTimeToText )
 import Data.Word
@@ -347,11 +347,11 @@ newtype ApiEpochNumber = ApiEpochNumber
 
 data ApiNetworkParameters = ApiNetworkParameters
     { genesisBlockHash :: !(ApiT (Hash "Genesis"))
-    , blockchainStart :: !(ApiT StartTime)
-    , slotLength :: !(ApiT SlotLength)
-    , epochLength :: !(ApiT EpochLength)
+    , blockchainStartTime :: !(ApiT StartTime)
+    , slotLength :: !(Quantity "second" NominalDiffTime)
+    , epochLength :: !(Quantity "slot" Word32)
     , epochStability :: !(Quantity "block" Word32)
-    , activeSlotCoeff :: !(ApiT ActiveSlotCoefficient)
+    , activeSlotCoefficient :: !(Quantity "percent" Percentage)
     } deriving (Eq, Generic, Show)
 
 newtype ApiTxId = ApiTxId

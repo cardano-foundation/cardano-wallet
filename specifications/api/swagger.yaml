@@ -32,10 +32,19 @@ x-slotNumber: &slotNumber
   minimum: 0
   example: 1337
 
-x-slotLength: &slotLength
-  type: number
-  minimum: 0.0
-  example: 1.0
+x-numberOfSeconds: &numberOfSeconds
+  type: object
+  required:
+    - quantity
+    - unit
+  properties:
+    quantity:
+      type: number
+      minimum: 0.0
+      example: 10.0
+    unit:
+      type: string
+      enum: ["second"]
 
 x-epochNumber: &epochNumber
   type: integer
@@ -50,10 +59,19 @@ x-blockId: &blockId
   minLength: 64
   example: 3c07030e36bfffe67e2e2ec09e5293d384637cd2f004356ef320f3fe6c52041a
 
-x-epochLength: &epochLength
-  type: integer
-  minimum: 0
-  example: 14
+x-numberOfSlots: &numberOfSlots
+  type: object
+  required:
+    - quantity
+    - unit
+  properties:
+    quantity:
+      type: integer
+      minimum: 0
+      example: 42000
+    unit:
+      type: string
+      enum: ["slot"]
 
 x-numberOfBlocks: &numberOfBlocks
   type: object
@@ -555,7 +573,6 @@ x-networkInformationProtocolUpdate: &networkInformationProtocolUpdate
     - up_to_date
     - update_available
 
-
 #############################################################################
 #                                                                           #
 #                              DEFINITIONS                                  #
@@ -616,8 +633,8 @@ definitions:
     properties:
       genesis_block_hash: *blockId
       blockchain_start_time: *date
-      slot_length: *slotLength
-      epoch_length: *epochLength
+      slot_length: *numberOfSeconds
+      epoch_length: *numberOfSlots
       epoch_stability: *numberOfBlocks
       active_slot_coefficient: *percentage
 
@@ -978,6 +995,14 @@ x-parametersSortOrder: &parametersSortOrder
     - descending
   default: descending
   description: An optional sort order.
+
+x-parametersEpoch: &parametersEpoch
+  in: query
+  name: epoch
+  type: string
+  description: |
+    Epoch parameter number as string or `latest`
+    Example: `latest`, `0`, `22`
 
 #############################################################################
 #                                                                           #
@@ -1775,12 +1800,12 @@ paths:
 
   /network/information:
     get:
-        operationId: getNetworkInformation
-        tags: ["Network"]
-        summary: Information
-        description: |
-          <p align="right">status: <strong>stable</strong></p>
-        responses: *responsesGetNetworkInformation
+      operationId: getNetworkInformation
+      tags: ["Network"]
+      summary: Information
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+      responses: *responsesGetNetworkInformation
 
   /network/parameters/{epoch}:
     get:
