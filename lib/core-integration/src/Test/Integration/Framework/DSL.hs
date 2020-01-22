@@ -53,7 +53,6 @@ module Test.Integration.Framework.DSL
     -- * Lens
     , coinSelectionInputs
     , coinSelectionOutputs
-    , feeEstimator
     , inputs
     , outputs
     , walletId
@@ -615,14 +614,6 @@ expectPathEventuallyExist filepath = do
 
 -- Lenses
 --
-
-feeEstimator
-    :: Lens' (Context t) (TxDescription -> (Natural, Natural))
-feeEstimator =
-    lens _get _set
-  where
-    _get = _feeEstimator
-    _set (ctx, v) = ctx { _feeEstimator = v }
 
 walletId :: HasType (ApiT WalletId) s => Lens' s Text
 walletId =

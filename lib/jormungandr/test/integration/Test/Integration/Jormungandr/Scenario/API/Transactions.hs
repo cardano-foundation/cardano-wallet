@@ -87,7 +87,6 @@ import Test.Integration.Framework.DSL as DSL
     , expectResponseCode
     , expectSuccess
     , faucetAmt
-    , feeEstimator
     , fixturePassphrase
     , fixtureRawTx
     , fixtureWallet
@@ -514,7 +513,7 @@ fixtureExternalTx ctx toSend = do
             , (addrChng, keysAddrChng)
             , (addrDest', keysAddrDest)
             ]
-    let (fee, _) = ctx ^. feeEstimator $ PaymentDescription
+    let (fee, _) = ctx ^. #_feeEstimator $ PaymentDescription
             { nInputs = 1
             , nOutputs = 1
             , nChanges = 1
