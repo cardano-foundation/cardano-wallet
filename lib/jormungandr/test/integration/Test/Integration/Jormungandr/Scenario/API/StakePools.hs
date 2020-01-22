@@ -27,8 +27,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.Types
     ( Direction (..), PoolId (..), TxStatus (..), WalletDelegation (..) )
-import Control.Arrow
-    ( second )
 import Control.Monad
     ( forM_ )
 import Data.Functor.Identity
@@ -36,11 +34,9 @@ import Data.Functor.Identity
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.List
-    ( find, sortOn )
+    ( find )
 import Data.Maybe
     ( isJust, isNothing )
-import Data.Ord
-    ( Down (..) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -127,7 +123,7 @@ spec = do
             -- For some reason, the first pool (the node we run), produces
             -- blocks in 100% of the /slots/. This means it will have produced
             -- either 1 or 2 blocks in the current epoch.
-            verify (sortByPerformance r)
+            verify r
                 [ expectListSizeEqual 3
 
                 , expectListItemFieldSatisfy 0
@@ -261,7 +257,7 @@ spec = do
 
     it "STAKE_POOLS_JOIN_01 - Controlled stake increases when joining" $ \ctx -> do
         w <- fixtureWallet ctx
-        (_, Right (p:_)) <- eventually $ sortByPerformance <$>
+        (_, Right (p:_)) <- eventually $
             request @[ApiStakePool] ctx Link.listStakePools Default Empty
 
         -- Join a pool
@@ -284,7 +280,7 @@ spec = do
         let contributedStake = faucetUtxoAmt - fee
         eventually $ do
             v <- request @[ApiStakePool] ctx Link.listStakePools Default Empty
-            verify (sortByPerformance v)
+            verify v
                 [ expectListItemFieldSatisfy 0 (metrics . stake)
                     (> (existingPoolStake + contributedStake))
                     -- No exact equality since the delegation from previous
@@ -848,10 +844,3 @@ joinStakePoolWithFixtureWallet ctx = do
             [ expectFieldEqual delegation (Delegating (p ^. #id))
             ]
     return (w, p)
-
-sortByPerformance
-    :: Functor f
-    => (a, f [ApiStakePool])
-    -> (a, f [ApiStakePool])
-sortByPerformance =
-    second (fmap (sortOn (Down . view #apparentPerformance)))
