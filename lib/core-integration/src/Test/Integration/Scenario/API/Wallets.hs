@@ -177,6 +177,51 @@ spec = do
             , expectFieldNotEqual passphraseLastUpdate Nothing
             ]
 
+    describe "OWASP_INJECTION_CREATE_WALLET_01 - \
+             \SQL injection when creating a wallet" $  do
+        let mnemonics =
+                [ "pulp", "ten", "light", "rhythm", "replace"
+                , "vessel", "slow", "drift", "kingdom", "amazing"
+                , "negative", "join", "auction", "ugly", "symptom"] :: [Text]
+        let matrix =
+                [ ( "new wallet\",'',''); DROP TABLE \"wallet\"; --"
+                  , "new wallet\",'',''); DROP TABLE \"wallet\"; --"
+                  )
+                , ( "new wallet','ŚεℒℇℂƮ’','ŚεℒℇℂƮ’'); DROP TABLE \"wallet\"; --"
+                  , "new wallet','\346\949\8466\8455\8450\430\8217',\
+                    \'\346\949\8466\8455\8450\430\8217'); DROP TABLE \"wallet\"; --"
+                  ) ]
+        forM_ matrix $ \(nameIn, nameOut) -> it nameIn $ \ctx -> do
+            let payload = Json [json| {
+                    "name": #{nameIn},
+                    "mnemonic_sentence": #{mnemonics},
+                    "passphrase": "12345678910"
+                    } |]
+            let postWallet = Link.postWallet @'Shelley
+            r <- request @ApiWallet ctx postWallet Default payload
+            verify r
+                [ expectResponseCode @IO HTTP.status201
+                , expectFieldEqual walletName nameOut
+                , expectFieldEqual
+                    (#addressPoolGap . #getApiT . #getAddressPoolGap) 20
+                , expectFieldEqual
+                    (#balance . #getApiT . #available) (Quantity 0)
+                , expectFieldEqual (#balance . #getApiT . #total) (Quantity 0)
+                , expectFieldEqual (#balance . #getApiT . #reward) (Quantity 0)
+                , expectEventually ctx (Link.getWallet @'Shelley)
+                    (#state . #getApiT) Ready
+                , expectFieldEqual delegation (NotDelegating)
+                , expectFieldEqual walletId
+                    "135bfb99b9f7a0c702bf8c658cc0d9b1a0d797a2"
+                , expectFieldNotEqual passphraseLastUpdate Nothing
+                ]
+            let listWallets = Link.listWallets @'Shelley
+            rl <- request @[ApiWallet] ctx listWallets Default Empty
+            verify rl
+                [ expectResponseCode @IO HTTP.status200
+                , expectListSizeEqual 1
+                ]
+
     it "WALLETS_CREATE_02 - Restored wallet preserves funds" $ \ctx -> do
         wSrc <- fixtureWallet ctx
         -- create wallet
