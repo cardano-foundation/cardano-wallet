@@ -53,8 +53,6 @@ module Test.Integration.Framework.DSL
     -- * Lens
     , coinSelectionInputs
     , coinSelectionOutputs
-    , inputs
-    , outputs
     , walletId
 
     -- * Helpers
@@ -129,7 +127,6 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkInformation
     , ApiT (..)
     , ApiTransaction
-    , ApiTxInput (..)
     , ApiUtxoStatistics (..)
     , ApiWallet
     , ByronWalletStyle (..)
@@ -623,26 +620,6 @@ walletId =
     _get = T.pack . show . getWalletId . getApiT . view typed
     _set :: HasType (ApiT WalletId) s => (s, Text) -> s
     _set (s, v) = set typed (ApiT $ WalletId (unsafeCreateDigest v)) s
-
-inputs :: HasType [ApiTxInput t] s => Lens' s [ApiTxInput t]
-inputs =
-    lens _get _set
-  where
-    _get :: HasType [ApiTxInput t] s => s -> [ApiTxInput t]
-    _get = view typed
-    _set :: HasType [ApiTxInput t] s => (s, [ApiTxInput t]) -> s
-    _set (s, v) = set typed v s
-
-outputs
-    :: forall s t a. (a ~ AddressAmount t, HasType (NonEmpty a) s)
-    => Lens' s [a]
-outputs =
-    lens _get _set
-  where
-    _get :: s -> [a]
-    _get = NE.toList . view typed
-    _set :: (s, [a]) -> s
-    _set (s, v) = set typed (NE.fromList v) s
 
 coinSelectionInputs
     :: forall s n a.
