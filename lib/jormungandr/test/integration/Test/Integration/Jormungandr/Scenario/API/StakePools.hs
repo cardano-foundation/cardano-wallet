@@ -148,11 +148,11 @@ spec = do
                     #margin (== (Quantity minBound))
 
                 , expectListItemFieldEqual 0
-                    (metrics . stake) 1
+                    (metrics . stake) 1000
                 , expectListItemFieldEqual 1
-                    (metrics . stake) 1
+                    (metrics . stake) 1000
                 , expectListItemFieldEqual 2
-                    (metrics . stake) 1
+                    (metrics . stake) 1000
 
                 , expectListItemFieldSatisfy 0
                     (metrics . blocks) (> 1)

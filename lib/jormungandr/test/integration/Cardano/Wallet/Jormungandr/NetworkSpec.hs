@@ -139,7 +139,7 @@ spec = do
                 res <- runExceptT $
                     Jormungandr.getAccountState client testAccountId
                 res `shouldBe` Right AccountState
-                    { currentBalance = Quantity 1
+                    { currentBalance = Quantity 1000
                     , totalTransactionCount = Quantity 0
                     , stakePools = [(testPoolId, Quantity 1)]
                     }
