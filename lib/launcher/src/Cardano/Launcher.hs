@@ -38,7 +38,7 @@ import Control.Concurrent.Async
 import Control.Concurrent.MVar
     ( newEmptyMVar, putMVar, takeMVar )
 import Control.Exception
-    ( Exception, IOException, onException, tryJust )
+    ( Exception, IOException, finally, onException, tryJust )
 import Control.Monad
     ( join, void )
 import Control.Tracer
@@ -186,7 +186,7 @@ withBackendProcessHandle tr cmd@(Command name args before output) action = do
                     ProcessHasExited name <$> interruptibleWaitForProcess tr' h
             let runAction = do
                     traceWith tr' MsgLauncherAction
-                    action h <* traceWith tr' MsgLauncherCleanup
+                    action h `finally` traceWith tr' MsgLauncherCleanup
 
             race waitForExit runAction
     either (traceWith tr . MsgLauncherFinish) (const $ pure ()) res
