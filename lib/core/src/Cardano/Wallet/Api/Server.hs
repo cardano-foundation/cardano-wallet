@@ -286,6 +286,7 @@ import Servant
     , err409
     , err410
     , err500
+    , err501
     , err503
     , serve
     )
@@ -1316,7 +1317,7 @@ getNetworkParameters
     -> NetworkLayer IO t Block
     -> ApiEpochNumber
     -> Handler ApiNetworkParameters
-getNetworkParameters _ _ _ = error "not implemented"
+getNetworkParameters _ _ _ = liftIO $ throwIO err501
 
 {-------------------------------------------------------------------------------
                                    Proxy

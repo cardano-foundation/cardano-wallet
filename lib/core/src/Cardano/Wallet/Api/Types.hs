@@ -341,9 +341,8 @@ newtype ApiFee = ApiFee
     { amount :: (Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
 
-newtype ApiEpochNumber = ApiEpochNumber
-    { epochNumber :: Text
-    } deriving (Eq, Generic, Show)
+data ApiEpochNumber = ApiEpochNumberLatest | ApiEpochNumber EpochNo
+    deriving (Eq, Generic, Show)
 
 data ApiNetworkParameters = ApiNetworkParameters
     { genesisBlockHash :: !(ApiT (Hash "Genesis"))
@@ -466,32 +465,41 @@ instance FromHttpApiData Iso8601Time where
 instance ToHttpApiData Iso8601Time where
     toUrlPiece = toText
 
+instance ToText ApiEpochNumber where
+    toText ApiEpochNumberLatest = "latest"
+    toText (ApiEpochNumber (EpochNo e)) = T.pack $ show e
+
 instance FromText ApiEpochNumber where
     fromText txt = case txt of
-        "latest" -> Right (ApiEpochNumber "latest")
-        rest -> case T.decimal rest of
+        "latest" -> Right ApiEpochNumberLatest
+        rest -> case T.decimal @Int rest of
             Right (num, "") ->
                 if num >= minValue && num <= maxValue then
-                    Right (ApiEpochNumber rest)
+                    Right $ ApiEpochNumber $ EpochNo $ fromIntegral num
                 else
                     Left (err txt)
             _ -> Left (err txt)
       where
-        minValue = minBound @Word31
-        maxValue = maxBound @Word31
+        minValue = fromIntegral $ minBound @Word31
+        maxValue = fromIntegral $ maxBound @Word31
         err t = TextDecodingError $ mempty
             <> "Unable to parse epoch number: '"
             <> T.unpack t
-            <> "'. Expecting either \"latest\" or number from 0 to 2147483647"
-
-instance ToText ApiEpochNumber where
-    toText (ApiEpochNumber txt) = txt
+            <> "'. Expecting either \"latest\" or integer from "
+            <> show minValue <> " to " <> show maxValue
 
 instance ToHttpApiData ApiEpochNumber where
     toUrlPiece = toText
 
 instance FromHttpApiData ApiEpochNumber where
     parseUrlPiece = first (T.pack . getTextDecodingError) . fromText
+
+instance ToJSON ApiEpochNumber where
+    toJSON = Aeson.String . toText
+
+instance FromJSON ApiEpochNumber where
+    parseJSON =
+        parseJSON >=> eitherToParser . bimap ShowFmt Prelude.id . fromText
 
 {-------------------------------------------------------------------------------
                               API Types: Byron

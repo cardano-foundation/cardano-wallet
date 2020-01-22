@@ -1813,7 +1813,8 @@ paths:
       tags: ["Network"]
       summary: Parameters
       parameters:
-        - *parametersEpoch
+        - <<: *parametersEpoch
+          name: epoch
       description: |
         <p align="right">status: <strong>under development</strong></p>
       responses: *responsesGetNetworkParameters
