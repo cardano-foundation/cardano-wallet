@@ -53,6 +53,8 @@ import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Text.Read
     ( decimal )
+import Fmt
+    ( Buildable (..), fmt )
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
@@ -119,6 +121,12 @@ instance FromText b => FromText (Quantity sym b) where
 
 instance ToText b => ToText (Quantity sym b) where
     toText (Quantity b) = toText b
+
+-- Builds (Quantity "lovelace" Word64) as "42 lovelace"
+instance (KnownSymbol unit, Buildable a) => Buildable (Quantity unit a) where
+    build (Quantity a) = build a <> fmt " " <> build u
+      where
+        u = symbolVal (Proxy :: Proxy unit)
 
 {-------------------------------------------------------------------------------
                                 Percentage
