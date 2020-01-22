@@ -52,7 +52,6 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , TxDescription (..)
-    , blocks
     , delegationFee
     , emptyRandomWallet
     , emptyWallet
@@ -75,10 +74,8 @@ import Test.Integration.Framework.DSL
     , getFromResponse
     , joinStakePool
     , json
-    , metrics
     , quitStakePool
     , request
-    , stake
     , unsafeRequest
     , verify
     , waitForNextEpoch
@@ -144,18 +141,18 @@ spec = do
                     #margin (== (Quantity minBound))
 
                 , expectListItemFieldEqual 0
-                    (metrics . stake) 1000
+                    (#metrics . #controlledStake) (Quantity 1000)
                 , expectListItemFieldEqual 1
-                    (metrics . stake) 1000
+                    (#metrics . #controlledStake) (Quantity 1000)
                 , expectListItemFieldEqual 2
-                    (metrics . stake) 1000
+                    (#metrics . #controlledStake) (Quantity 1000)
 
                 , expectListItemFieldSatisfy 0
-                    (metrics . blocks) (> 1)
+                    (#metrics . #producedBlocks) (> Quantity 1)
                 , expectListItemFieldEqual 1
-                    (metrics . blocks) 0
+                    (#metrics . #producedBlocks) (Quantity 0)
                 , expectListItemFieldEqual 2
-                    (metrics . blocks) 0
+                    (#metrics . #producedBlocks) (Quantity 0)
 
                 , expectListItemFieldSatisfy 0
                     #apparentPerformance (> 0)
@@ -276,9 +273,9 @@ spec = do
         let contributedStake = faucetUtxoAmt - fee
         eventually $ do
             v <- request @[ApiStakePool] ctx Link.listStakePools Default Empty
-            verify v
-                [ expectListItemFieldSatisfy 0 (metrics . stake)
-                    (> (existingPoolStake + contributedStake))
+            verify (sortByPerformance v)
+                [ expectListItemFieldSatisfy 0 (#metrics . #controlledStake)
+                    (> Quantity (existingPoolStake + contributedStake))
                     -- No exact equality since the delegation from previous
                     -- tests may take effect.
                 ]

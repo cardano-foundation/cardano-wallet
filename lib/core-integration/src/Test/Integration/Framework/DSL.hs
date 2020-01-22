@@ -51,15 +51,11 @@ module Test.Integration.Framework.DSL
     , RequestException(..)
 
     -- * Lens
-    , blocks
     , coinSelectionInputs
     , coinSelectionOutputs
     , feeEstimator
     , inputs
-    , metrics
-    , nextEpoch
     , outputs
-    , stake
     , walletId
 
     -- * Helpers
@@ -130,10 +126,8 @@ import Cardano.Wallet.Api.Types
     , ApiByronWallet
     , ApiCoinSelection
     , ApiCoinSelectionInput
-    , ApiEpochInfo
     , ApiFee
     , ApiNetworkInformation
-    , ApiStakePoolMetrics
     , ApiT (..)
     , ApiTransaction
     , ApiTxInput (..)
@@ -194,8 +188,6 @@ import Data.Generics.Internal.VL.Lens
     ( Lens', lens, set, view, (^.) )
 import Data.Generics.Labels
     ()
-import Data.Generics.Product.Fields
-    ( HasField', getField, setField )
 import Data.Generics.Product.Typed
     ( HasType, typed )
 import Data.List
@@ -686,38 +678,6 @@ coinSelectionOutputs =
   where
     _get = NE.toList . view typed
     _set (s, v) = set typed (NE.fromList v) s
-
-metrics :: HasType ApiStakePoolMetrics s => Lens' s ApiStakePoolMetrics
-metrics =
-    lens _get _set
-  where
-    _get :: HasType ApiStakePoolMetrics s => s -> ApiStakePoolMetrics
-    _get = view typed
-    _set :: HasType ApiStakePoolMetrics s => (s, ApiStakePoolMetrics) -> s
-    _set (s, v) = set typed v s
-
-nextEpoch :: HasType ApiEpochInfo s => Lens' s ApiEpochInfo
-nextEpoch =
-    lens _get _set
-  where
-    _get :: HasType ApiEpochInfo s => s -> ApiEpochInfo
-    _get = view typed
-    _set :: HasType ApiEpochInfo s => (s, ApiEpochInfo) -> s
-    _set (s, v) = set typed v s
-
-stake
-    :: HasField' "controlledStake" s (Quantity "lovelace" Natural)
-    => Lens' s Natural
-stake = lens
-    (getQuantity . getField @"controlledStake")
-    (\(s, v) -> setField @"controlledStake" (Quantity v) s)
-
-blocks
-    :: HasField' "producedBlocks" s (Quantity "block" Natural)
-    => Lens' s Natural
-blocks = lens
-    (getQuantity . getField @"producedBlocks")
-    (\(s, v) -> setField @"producedBlocks" (Quantity v) s)
 
 --
 -- Helpers

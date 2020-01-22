@@ -40,7 +40,6 @@ import Test.Integration.Framework.DSL
     , expectFieldSatisfy
     , expectResponseCode
     , getFromResponse
-    , nextEpoch
     , request
     , verify
     )
@@ -59,7 +58,7 @@ spec = do
                 Link.getNetworkInfo Default Empty
             expectResponseCode @IO HTTP.status200 r
             verify r
-                [ expectFieldSatisfy nextEpoch ((> now) . epochStartTime)
+                [ expectFieldSatisfy #nextEpoch ((> now) . epochStartTime)
                 , expectFieldEqual (#syncProgress . #getApiT) Ready
                 ]
             return r
