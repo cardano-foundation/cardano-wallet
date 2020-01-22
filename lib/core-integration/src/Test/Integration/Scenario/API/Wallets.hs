@@ -177,7 +177,8 @@ spec = do
             , expectFieldNotEqual passphraseLastUpdate Nothing
             ]
 
-    describe "OWASP_INJECTION_CREATE_WALLET_01 - SQL injection when creating a wallet" $  do
+    describe "OWASP_INJECTION_CREATE_WALLET_01 - \
+             \SQL injection when creating a wallet" $  do
         let mnemonics =
                 [ "pulp", "ten", "light", "rhythm", "replace"
                 , "vessel", "slow", "drift", "kingdom", "amazing"
@@ -196,13 +197,15 @@ spec = do
                     "mnemonic_sentence": #{mnemonics},
                     "passphrase": "12345678910"
                     } |]
-            r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
+            let postWallet = Link.postWallet @'Shelley
+            r <- request @ApiWallet ctx postWallet Default payload
             verify r
                 [ expectResponseCode @IO HTTP.status201
                 , expectFieldEqual walletName nameOut
                 , expectFieldEqual
                     (#addressPoolGap . #getApiT . #getAddressPoolGap) 20
-                , expectFieldEqual (#balance . #getApiT . #available) (Quantity 0)
+                , expectFieldEqual
+                    (#balance . #getApiT . #available) (Quantity 0)
                 , expectFieldEqual (#balance . #getApiT . #total) (Quantity 0)
                 , expectFieldEqual (#balance . #getApiT . #reward) (Quantity 0)
                 , expectEventually ctx (Link.getWallet @'Shelley)
@@ -212,7 +215,8 @@ spec = do
                     "135bfb99b9f7a0c702bf8c658cc0d9b1a0d797a2"
                 , expectFieldNotEqual passphraseLastUpdate Nothing
                 ]
-            rl <- request @[ApiWallet] ctx (Link.listWallets @'Shelley) Default Empty
+            let listWallets = Link.listWallets @'Shelley
+            rl <- request @[ApiWallet] ctx listWallets Default Empty
             verify rl
                 [ expectResponseCode @IO HTTP.status200
                 , expectListSizeEqual 1
