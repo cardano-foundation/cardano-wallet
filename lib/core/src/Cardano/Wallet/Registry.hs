@@ -58,6 +58,8 @@ import Control.Exception
     , asyncExceptionFromException
     , finally
     )
+import Control.Monad
+    ( void )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Tracer
@@ -240,11 +242,10 @@ register registry ctx k (MkWorker before main after acquire) = do
                 }
         registry `insert` worker
         return worker
-    cleanup mvar e = finally
-        (registry `unregister` k)
-        (finally
-            (tryPutMVar mvar Nothing)
-            (after tr e))
+    cleanup mvar e = do
+        registry `unregister` k
+        void $ tryPutMVar mvar Nothing
+        after tr e
 
 {-------------------------------------------------------------------------------
                                     Logging
