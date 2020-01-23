@@ -1613,7 +1613,8 @@ registerWorker ctx wid = do
     df = ctx ^. dbFactory
     config = MkWorker
         { workerBefore = \ctx' _ ->
-            runExceptT (W.checkWalletIntegrity ctx' wid bp) >>= either throwIO pure
+            runExceptT (W.checkWalletIntegrity ctx' wid bp)
+                >>= either throwIO pure
 
         , workerMain = \ctx' _ -> do
             -- FIXME:

@@ -173,7 +173,8 @@ data MkWorker key resource msg ctx = MkWorker
         -- returns.
     , workerMain :: WorkerCtx ctx -> key -> IO ()
         -- ^ A task for the worker, possibly infinite
-    , workerAfter :: Tracer IO (WorkerLog key msg) -> Either SomeException () -> IO ()
+    , workerAfter
+        :: Tracer IO (WorkerLog key msg) -> Either SomeException () -> IO ()
         -- ^ Action to run when the worker exits
     , workerAcquire :: (resource -> IO ()) -> IO ()
         -- ^ A bracket-style factory to acquire a resource
