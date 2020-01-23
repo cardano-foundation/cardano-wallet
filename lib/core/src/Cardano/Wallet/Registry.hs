@@ -137,6 +137,16 @@ insert
 insert (WorkerRegistry mvar) wrk =
     modifyMVar_ mvar (pure . Map.insert (workerId wrk) wrk)
 
+-- | Unregister a worker from the registry, but don't cancel the running task.
+--
+unregister
+    :: Ord key
+    => WorkerRegistry key resource
+    -> key
+    -> IO ()
+unregister (WorkerRegistry mvar) k =
+    modifyMVar_ mvar (pure . Map.delete k)
+
 -- | Remove a worker from the registry (and cancel any running task)
 remove
     :: Ord key
