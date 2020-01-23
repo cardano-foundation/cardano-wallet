@@ -217,12 +217,12 @@ register
         , HasLogger (WorkerLog key msg) ctx
         , HasWorkerCtx resource ctx
         )
-    => ctx
+    => WorkerRegistry key resource
+    -> ctx
     -> key
-    -> WorkerRegistry key resource
     -> MkWorker key resource msg ctx
     -> IO (Maybe (Worker key resource))
-register ctx k registry (MkWorker before main after acquire) = do
+register registry ctx k (MkWorker before main after acquire) = do
     mvar <- newEmptyMVar
     let io = acquire $ \resource -> do
             let ctx' = hoistResource resource (MsgFromWorker k) ctx

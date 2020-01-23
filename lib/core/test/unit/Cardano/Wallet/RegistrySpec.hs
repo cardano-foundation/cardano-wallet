@@ -283,7 +283,7 @@ workerTest (WorkerTest before main acquire concurrently assertion timeout) = do
             , workerAcquire = acquire
             }
     registry <- empty
-    register ctx wid registry config >>= \case
+    register registry ctx wid config >>= \case
         Nothing -> assertion WorkerNotStarted
         Just worker -> do
             concurrently worker

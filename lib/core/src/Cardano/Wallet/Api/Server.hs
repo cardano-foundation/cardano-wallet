@@ -1474,7 +1474,7 @@ initWorker ctx wid createWallet restoreWallet =
         Just _ ->
             throwE $ ErrCreateWalletAlreadyExists $ ErrWalletAlreadyExists wid
         Nothing ->
-            liftIO (Registry.register @_ @ctx ctx wid re config) >>= \case
+            liftIO (Registry.register @_ @ctx re ctx wid config) >>= \case
                 Nothing ->
                     throwE ErrCreateWalletFailedToCreateWorker
                 Just _ ->
@@ -1601,7 +1601,7 @@ registerWorker
     -> WalletId
     -> IO ()
 registerWorker ctx wid =
-    void $ Registry.register @_ @ctx ctx wid re config
+    void $ Registry.register @_ @ctx re ctx wid config
   where
     (_, bp, _) = ctx ^. genesisData
     re = ctx ^. workerRegistry
