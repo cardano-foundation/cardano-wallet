@@ -4,7 +4,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
@@ -193,7 +192,9 @@ walletClient =
             :<|> _delegationFee
             = stakePools
 
-        _networkInformation = network
+        _networkInformation
+            :<|> _networkParameters
+            = network
 
         _postExternalTransaction
             = proxy_

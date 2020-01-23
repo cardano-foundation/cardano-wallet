@@ -36,9 +36,11 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelection (..)
     , ApiCoinSelectionInput (..)
     , ApiEpochInfo (..)
+    , ApiEpochNumber (..)
     , ApiFee (..)
     , ApiMnemonicT (..)
     , ApiNetworkInformation (..)
+    , ApiNetworkParameters (..)
     , ApiNetworkTip (..)
     , ApiSelectCoinsData (..)
     , ApiStakePool (..)
@@ -109,6 +111,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SlotNo (..)
     , SortOrder (..)
+    , StartTime (..)
     , SyncProgress (..)
     , TxIn (..)
     , TxIn (..)
@@ -178,6 +181,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
+import Data.Time.Clock
+    ( NominalDiffTime )
 import Data.Typeable
     ( Typeable, splitTyConApp, tyConName, typeRep )
 import Data.Word
@@ -228,6 +233,7 @@ import Test.QuickCheck
     , arbitraryPrintableChar
     , arbitrarySizedBoundedIntegral
     , choose
+    , elements
     , frequency
     , property
     , scale
@@ -271,6 +277,9 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiNetworkTip
             jsonRoundtripAndGolden $ Proxy @ApiBlockReference
             jsonRoundtripAndGolden $ Proxy @ApiNetworkInformation
+            jsonRoundtripAndGolden $ Proxy @ApiNetworkParameters
+            jsonRoundtripAndGolden $ Proxy @(ApiT (Hash "Genesis"))
+            jsonRoundtripAndGolden $ Proxy @ApiEpochNumber
             jsonRoundtripAndGolden $ Proxy @ApiStakePool
             jsonRoundtripAndGolden $ Proxy @(AddressAmount 'Testnet)
             jsonRoundtripAndGolden $ Proxy @(ApiTransaction 'Testnet)
@@ -460,6 +469,41 @@ spec = do
             Aeson.parseEither parseJSON [aesonQQ|
                 "4c43d68b21921034519c36d2475f5adba989bb4465ec"
             |] `shouldBe` (Left @String @(ApiT PoolId) msg)
+
+        it "ApiT (Hash \"Genesis\")" $ do
+            let msg = "Error in $: Invalid genesis hash: \
+                    \expecting a hex-encoded value that is 32 bytes in length."
+            Aeson.parseEither parseJSON [aesonQQ|
+                "-----"
+            |] `shouldBe` (Left @String @(ApiT (Hash "Genesis")) msg)
+
+        it "ApiEpochNumber" $ do
+            let msg = "Error in $: Unable to parse epoch number: 'earliest'. \
+                      \Expecting either \"latest\" or integer from 0 to 2147483647"
+            Aeson.parseEither parseJSON [aesonQQ|
+                "earliest"
+            |] `shouldBe` (Left @String @ApiEpochNumber msg)
+
+        it "ApiEpochNumber" $ do
+            let msg = "Error in $: Unable to parse epoch number: '2.5'. \
+                      \Expecting either \"latest\" or integer from 0 to 2147483647"
+            Aeson.parseEither parseJSON [aesonQQ|
+                "2.5"
+            |] `shouldBe` (Left @String @ApiEpochNumber msg)
+
+        it "ApiEpochNumber" $ do
+            let msg = "Error in $: Unable to parse epoch number: '2147483648'. \
+                      \Expecting either \"latest\" or integer from 0 to 2147483647"
+            Aeson.parseEither parseJSON [aesonQQ|
+                "2147483648"
+            |] `shouldBe` (Left @String @ApiEpochNumber msg)
+
+        it "ApiEpochNumber" $ do
+            let msg = "Error in $: Unable to parse epoch number: '-1'. \
+                      \Expecting either \"latest\" or integer from 0 to 2147483647"
+            Aeson.parseEither parseJSON [aesonQQ|
+                "-1"
+            |] `shouldBe` (Left @String @ApiEpochNumber msg)
 
         describe "StakePoolMetadata" $ do
             let msg = "Error in $.ticker: stake pool ticker length must be \
@@ -787,6 +831,25 @@ spec = do
                     }
             in
                 x' === x .&&. show x' === show x
+        it "ApiNetworkParameters" $ property $ \x ->
+            let
+                x' = ApiNetworkParameters
+                    { genesisBlockHash =
+                            genesisBlockHash (x :: ApiNetworkParameters)
+                    , blockchainStartTime =
+                            blockchainStartTime (x :: ApiNetworkParameters)
+                    , slotLength =
+                            slotLength (x :: ApiNetworkParameters)
+                    , epochLength =
+                            epochLength (x :: ApiNetworkParameters)
+                    , epochStability =
+                            epochStability (x :: ApiNetworkParameters)
+                    , activeSlotCoefficient =
+                            activeSlotCoefficient (x :: ApiNetworkParameters)
+                    }
+            in
+                x' === x .&&. show x' === show x
+
 
 -- Golden tests files are generated automatically on first run. On later runs
 -- we check that the format stays the same. The golden files should be tracked
@@ -1171,6 +1234,41 @@ instance Arbitrary ApiNetworkInformation where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
+instance Arbitrary (Quantity "block" Word32) where
+    shrink (Quantity 0) = []
+    shrink _ = [Quantity 0]
+    arbitrary = Quantity . fromIntegral <$> (arbitrary @Word32)
+
+instance Arbitrary (Quantity "slot" Word32) where
+    shrink (Quantity 0) = []
+    shrink _ = [Quantity 0]
+    arbitrary = Quantity . fromIntegral <$> (arbitrary @Word32)
+
+instance Arbitrary (Hash "Genesis") where
+    arbitrary = Hash . B8.pack <$> replicateM 32 arbitrary
+
+instance Arbitrary StartTime where
+    arbitrary = StartTime <$> genUniformTime
+
+instance Arbitrary (Quantity "second" NominalDiffTime) where
+    shrink (Quantity 0.0) = []
+    shrink _ = [Quantity 0.0]
+    arbitrary = Quantity . fromInteger <$> choose (0, 10000)
+
+instance Arbitrary ApiNetworkParameters where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiEpochNumber where
+    arbitrary = do
+        let lowerBound = fromIntegral (minBound @Word31)
+        let upperBound = fromIntegral (maxBound @Word31)
+        epochN <- choose (lowerBound :: Int, upperBound)
+        elements
+            [ ApiEpochNumberLatest
+            , ApiEpochNumber (EpochNo (fromIntegral epochN))]
+    shrink = genericShrink
+
 instance Arbitrary SlotId where
     arbitrary = SlotId <$> arbitrary <*> arbitrary
     shrink = genericShrink
@@ -1413,6 +1511,9 @@ instance ToSchema ApiUtxoStatistics where
 
 instance ToSchema ApiNetworkInformation where
     declareNamedSchema _ = declareSchemaForDefinition "ApiNetworkInformation"
+
+instance ToSchema ApiNetworkParameters where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiNetworkParameters"
 
 instance ToSchema ApiNetworkTip where
     declareNamedSchema _ = declareSchemaForDefinition "ApiNetworkTip"

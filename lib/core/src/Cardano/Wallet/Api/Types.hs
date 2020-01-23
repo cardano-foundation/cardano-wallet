@@ -65,6 +65,8 @@ module Cardano.Wallet.Api.Types
     , ApiBlockReference (..)
     , ApiNetworkTip (..)
     , Iso8601Time (..)
+    , ApiEpochNumber (..)
+    , ApiNetworkParameters (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -100,16 +102,20 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
+    ( ActiveSlotCoefficient (..)
+    , Address (..)
     , AddressState (..)
     , BoundType
     , Coin (..)
     , Direction (..)
+    , EpochLength (..)
     , EpochNo (..)
     , Hash (..)
     , PoolId (..)
     , ShowFmt (..)
+    , SlotLength (..)
     , SlotNo (..)
+    , StartTime (..)
     , SyncProgress (..)
     , TxIn (..)
     , TxStatus (..)
@@ -173,8 +179,8 @@ import Data.Text
     ( Text, split )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
-import Data.Time
-    ( UTCTime )
+import Data.Time.Clock
+    ( NominalDiffTime, UTCTime )
 import Data.Time.Text
     ( iso8601, iso8601ExtendedUtc, utcTimeFromText, utcTimeToText )
 import Data.Word
@@ -200,6 +206,7 @@ import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Data.Text.Read as T
 
 {-------------------------------------------------------------------------------
                                Styles of Wallets
@@ -334,6 +341,18 @@ newtype ApiFee = ApiFee
     { amount :: (Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
 
+data ApiEpochNumber = ApiEpochNumberLatest | ApiEpochNumber EpochNo
+    deriving (Eq, Generic, Show)
+
+data ApiNetworkParameters = ApiNetworkParameters
+    { genesisBlockHash :: !(ApiT (Hash "Genesis"))
+    , blockchainStartTime :: !(ApiT StartTime)
+    , slotLength :: !(Quantity "second" NominalDiffTime)
+    , epochLength :: !(Quantity "slot" Word32)
+    , epochStability :: !(Quantity "block" Word32)
+    , activeSlotCoefficient :: !(Quantity "percent" Percentage)
+    } deriving (Eq, Generic, Show)
+
 newtype ApiTxId = ApiTxId
     { id :: ApiT (Hash "Tx")
     } deriving (Eq, Generic, Show)
@@ -445,6 +464,42 @@ instance FromHttpApiData Iso8601Time where
 
 instance ToHttpApiData Iso8601Time where
     toUrlPiece = toText
+
+instance ToText ApiEpochNumber where
+    toText ApiEpochNumberLatest = "latest"
+    toText (ApiEpochNumber (EpochNo e)) = T.pack $ show e
+
+instance FromText ApiEpochNumber where
+    fromText txt = case txt of
+        "latest" -> Right ApiEpochNumberLatest
+        rest -> case T.decimal @Int rest of
+            Right (num, "") ->
+                if num >= minValue && num <= maxValue then
+                    Right $ ApiEpochNumber $ EpochNo $ fromIntegral num
+                else
+                    Left (err txt)
+            _ -> Left (err txt)
+      where
+        minValue = fromIntegral $ minBound @Word31
+        maxValue = fromIntegral $ maxBound @Word31
+        err t = TextDecodingError $ mempty
+            <> "Unable to parse epoch number: '"
+            <> T.unpack t
+            <> "'. Expecting either \"latest\" or integer from "
+            <> show minValue <> " to " <> show maxValue
+
+instance ToHttpApiData ApiEpochNumber where
+    toUrlPiece = toText
+
+instance FromHttpApiData ApiEpochNumber where
+    parseUrlPiece = first (T.pack . getTextDecodingError) . fromText
+
+instance ToJSON ApiEpochNumber where
+    toJSON = Aeson.String . toText
+
+instance FromJSON ApiEpochNumber where
+    parseJSON =
+        parseJSON >=> eitherToParser . bimap ShowFmt Prelude.id . fromText
 
 {-------------------------------------------------------------------------------
                               API Types: Byron
@@ -765,6 +820,36 @@ instance ToJSON (ApiT TxStatus) where
 instance FromJSON ApiNetworkInformation where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiNetworkInformation where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON (ApiT StartTime) where
+    parseJSON = fmap (ApiT . StartTime) . parseJSON
+instance ToJSON (ApiT StartTime) where
+    toJSON (ApiT (StartTime sn)) = toJSON sn
+
+instance FromJSON (ApiT SlotLength) where
+    parseJSON = fmap (ApiT . SlotLength) . parseJSON
+instance ToJSON (ApiT SlotLength) where
+    toJSON (ApiT (SlotLength sn)) = toJSON sn
+
+instance FromJSON (ApiT EpochLength) where
+    parseJSON = fmap (ApiT . EpochLength) . parseJSON
+instance ToJSON (ApiT EpochLength) where
+    toJSON (ApiT (EpochLength sn)) = toJSON sn
+
+instance FromJSON (ApiT ActiveSlotCoefficient) where
+    parseJSON = fmap (ApiT . ActiveSlotCoefficient) . parseJSON
+instance ToJSON (ApiT ActiveSlotCoefficient) where
+    toJSON (ApiT (ActiveSlotCoefficient sn)) = toJSON sn
+
+instance FromJSON (ApiT (Hash "Genesis")) where
+    parseJSON = parseJSON >=> eitherToParser . bimap ShowFmt ApiT . fromText
+instance ToJSON (ApiT (Hash "Genesis")) where
+    toJSON = toJSON . toText . getApiT
+
+instance FromJSON ApiNetworkParameters where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiNetworkParameters where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance ToJSON ApiErrorCode where

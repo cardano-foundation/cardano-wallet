@@ -101,10 +101,12 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelection (..)
     , ApiCoinSelectionInput (..)
     , ApiEpochInfo (..)
+    , ApiEpochNumber
     , ApiErrorCode (..)
     , ApiFee (..)
     , ApiMnemonicT (..)
     , ApiNetworkInformation (..)
+    , ApiNetworkParameters
     , ApiNetworkTip (..)
     , ApiSelectCoinsData (..)
     , ApiStakePool (..)
@@ -284,8 +286,10 @@ import Servant
     , err409
     , err410
     , err500
+    , err501
     , err503
     , serve
+    , throwError
     )
 import Servant.Server
     ( Handler (..), ServantErr (..) )
@@ -525,7 +529,9 @@ server byron icarus shelley spl =
              )
 
     network :: Server Network
-    network = getNetworkInformation genesis nl
+    network =
+        getNetworkInformation genesis nl
+        :<|> (getNetworkParameters genesis nl)
       where
         nl = shelley ^. networkLayer @t
         genesis = shelley ^. genesisData
@@ -1305,6 +1311,14 @@ getNetworkInformation (_block0, bp, st) nl = do
     unsafeEpochSucc :: HasCallStack => W.EpochNo -> W.EpochNo
     unsafeEpochSucc = fromMaybe bomb . W.epochSucc
       where bomb = error "reached final epoch of the Blockchain!?"
+
+getNetworkParameters
+    :: forall t. ()
+    => (Block, BlockchainParameters, SyncTolerance)
+    -> NetworkLayer IO t Block
+    -> ApiEpochNumber
+    -> Handler ApiNetworkParameters
+getNetworkParameters _ _ _ = throwError err501
 
 {-------------------------------------------------------------------------------
                                    Proxy

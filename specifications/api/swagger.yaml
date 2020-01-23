@@ -32,10 +32,46 @@ x-slotNumber: &slotNumber
   minimum: 0
   example: 1337
 
+x-numberOfSeconds: &numberOfSeconds
+  type: object
+  required:
+    - quantity
+    - unit
+  properties:
+    quantity:
+      type: number
+      minimum: 0.0
+      example: 10.0
+    unit:
+      type: string
+      enum: ["second"]
+
 x-epochNumber: &epochNumber
   type: integer
   minimum: 0
   example: 14
+
+x-blockId: &blockId
+  description: The hash of genesis block
+  type: string
+  format: hex
+  maxLength: 64
+  minLength: 64
+  example: 3c07030e36bfffe67e2e2ec09e5293d384637cd2f004356ef320f3fe6c52041a
+
+x-numberOfSlots: &numberOfSlots
+  type: object
+  required:
+    - quantity
+    - unit
+  properties:
+    quantity:
+      type: integer
+      minimum: 0
+      example: 42000
+    unit:
+      type: string
+      enum: ["slot"]
 
 x-numberOfBlocks: &numberOfBlocks
   type: object
@@ -537,7 +573,6 @@ x-networkInformationProtocolUpdate: &networkInformationProtocolUpdate
     - up_to_date
     - update_available
 
-
 #############################################################################
 #                                                                           #
 #                              DEFINITIONS                                  #
@@ -585,6 +620,23 @@ definitions:
       node_tip: *networkInformationNodeTip
       network_tip: *ApiNetworkTip
       next_epoch: *ApiEpochInfo
+
+  ApiNetworkParameters: &ApiNetworkParameters
+    type: object
+    required:
+      - genesis_block_hash
+      - blockchain_start_time
+      - slot_length
+      - epoch_length
+      - epoch_stability
+      - active_slot_coefficient
+    properties:
+      genesis_block_hash: *blockId
+      blockchain_start_time: *date
+      slot_length: *numberOfSeconds
+      epoch_length: *numberOfSlots
+      epoch_stability: *numberOfBlocks
+      active_slot_coefficient: *percentage
 
   ApiSelectCoinsData: &ApiSelectCoinsData
     type: object
@@ -882,6 +934,15 @@ x-parametersTransactionId: &parametersTransactionId
   format: hex
   maxLength: 64
   minLength: 64
+
+x-parametersEpochId: &parametersEpochId
+  in: path
+  name: epochId
+  required: true
+  type: string
+  description: |
+    Epoch parameter number as string or `latest`
+    Example: `latest`, `0`, `22`
 
 x-parametersStakePoolId: &parametersStakePoolId
   in: path
@@ -1243,6 +1304,14 @@ x-responsesGetNetworkInformation: &responsesGetNetworkInformation
     description: Ok
     schema: *ApiNetworkInformation
 
+x-responsesGetNetworkParameters: &responsesGetNetworkParameters
+  <<: *responsesErr400
+  <<: *responsesErr404
+  <<: *responsesErr405
+  <<: *responsesErr406
+  200:
+    description: Ok
+    schema: *ApiNetworkParameters
 
 #############################################################################
 #                                                                           #
@@ -1732,12 +1801,24 @@ paths:
 
   /network/information:
     get:
-        operationId: getNetworkInformation
-        tags: ["Network"]
-        summary: Information
-        description: |
-          <p align="right">status: <strong>stable</strong></p>
-        responses: *responsesGetNetworkInformation
+      operationId: getNetworkInformation
+      tags: ["Network"]
+      summary: Information
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+      responses: *responsesGetNetworkInformation
+
+  /network/parameters/{epochId}:
+    get:
+      operationId: getNetworkParameters
+      tags: ["Network"]
+      summary: Parameters
+      description: |
+        <p align="right">status: <strong>under development</strong></p>
+      parameters:
+        - <<: *parametersEpochId
+          name: epochId
+      responses: *responsesGetNetworkParameters
 
   /proxy/transactions:
     post:
