@@ -935,6 +935,15 @@ x-parametersTransactionId: &parametersTransactionId
   maxLength: 64
   minLength: 64
 
+x-parametersEpochId: &parametersEpochId
+  in: path
+  name: epochId
+  required: true
+  type: string
+  description: |
+    Epoch parameter number as string or `latest`
+    Example: `latest`, `0`, `22`
+
 x-parametersStakePoolId: &parametersStakePoolId
   in: path
   name: stakePoolId
@@ -995,14 +1004,6 @@ x-parametersSortOrder: &parametersSortOrder
     - descending
   default: descending
   description: An optional sort order.
-
-x-parametersEpoch: &parametersEpoch
-  in: query
-  name: epoch
-  type: string
-  description: |
-    Epoch parameter number as string or `latest`
-    Example: `latest`, `0`, `22`
 
 #############################################################################
 #                                                                           #
@@ -1807,16 +1808,16 @@ paths:
         <p align="right">status: <strong>stable</strong></p>
       responses: *responsesGetNetworkInformation
 
-  /network/parameters/{epoch}:
+  /network/parameters/{epochId}:
     get:
       operationId: getNetworkParameters
       tags: ["Network"]
       summary: Parameters
-      parameters:
-        - <<: *parametersEpoch
-          name: epoch
       description: |
         <p align="right">status: <strong>under development</strong></p>
+      parameters:
+        - <<: *parametersEpochId
+          name: epochId
       responses: *responsesGetNetworkParameters
 
   /proxy/transactions:

@@ -470,7 +470,7 @@ type GetNetworkInformation = "network"
 
 type GetNetworkParameters = "network"
     :> "parameters"
-    :> Capture "epoch" ApiEpochNumber
+    :> Capture "epochId" ApiEpochNumber
     :> Get '[JSON] ApiNetworkParameters
 
 {-------------------------------------------------------------------------------

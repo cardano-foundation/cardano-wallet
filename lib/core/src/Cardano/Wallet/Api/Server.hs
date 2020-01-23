@@ -289,6 +289,7 @@ import Servant
     , err501
     , err503
     , serve
+    , throwError
     )
 import Servant.Server
     ( Handler (..), ServantErr (..) )
@@ -1317,7 +1318,7 @@ getNetworkParameters
     -> NetworkLayer IO t Block
     -> ApiEpochNumber
     -> Handler ApiNetworkParameters
-getNetworkParameters _ _ _ = liftIO $ throwIO err501
+getNetworkParameters _ _ _ = throwError err501
 
 {-------------------------------------------------------------------------------
                                    Proxy
