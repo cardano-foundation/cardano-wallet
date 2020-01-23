@@ -90,6 +90,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Word
     ( Word64 )
+import Fmt
+    ( Buildable (..), blockListF', fmt )
 import GHC.Generics
     ( Generic )
 
@@ -180,6 +182,16 @@ data EpochConstants = EpochConstants
     , totalRewards :: Quantity "lovelace" Word64
       -- ^ Total rewards in an epoch. "R" in the spec.
     } deriving (Show, Eq, Generic)
+
+instance Buildable EpochConstants where
+    build ec = fmt "\n" <> blockListF' "" id
+        [ "leaderStakeInfluence (a0) =  "
+            <> build (getNonNegative $ leaderStakeInfluence ec)
+        , "desiredNumberOfPool (k) = "
+            <> build (getPositive $ desiredNumberOfPools ec)
+        , "totalRewards (R) = "
+            <> build (getQuantity $ totalRewards ec)
+        ]
 
 data Pool = Pool
     { leaderStake :: Ratio

@@ -288,13 +288,13 @@ newStakePoolLayer tr getEpCst db@DBLayer{..} nl metadataDir = StakePoolLayer
         then do
             seed <- liftIO $ atomically readSystemSeed
             let epCst = getEpCst 0
-            combineWith epCst (sortArbitrarily seed) distr prod mempty
+            combineWith (sortArbitrarily seed) epCst distr prod mempty
 
         else do
             let currentEpoch = prodTip ^. #slotId . #epochNumber
             perfs <- liftIO $ readPoolsPerformances db currentEpoch
             let epCst = getEpCst currentEpoch
-            combineWith epCst (pure . sortByDesirability) distr prod perfs
+            combineWith (pure . sortByDesirability) epCst distr prod perfs
 
     readPoolProductionTip = readPoolProductionCursor 1 <&> \case
         []  -> header block0
@@ -321,13 +321,16 @@ newStakePoolLayer tr getEpCst db@DBLayer{..} nl metadataDir = StakePoolLayer
     (block0, _) = staticBlockchainParameters nl
 
     combineWith
-        :: (Quantity "lovelace" Word64 -> EpochConstants)
-        -> ([(StakePool, [PoolOwner])] -> IO [(StakePool, [PoolOwner])])
+        :: ([(StakePool, [PoolOwner])] -> IO [(StakePool, [PoolOwner])])
+        -> (Quantity "lovelace" Word64 -> EpochConstants)
         -> Map PoolId (Quantity "lovelace" Word64)
         -> Map PoolId (Quantity "block" Word64)
         -> Map PoolId Double
         -> ExceptT ErrListStakePools IO [(StakePool, [PoolOwner])]
-    combineWith epCst sortResults distr prod perfs = do
+    combineWith sortResults mkEpCst distr prod perfs = do
+        liftIO $ do
+            traceWith tr $ MsgUsingTotalStakeForRanking totalStake
+            traceWith tr $ MsgUsingRankingEpochConstants epConstants
         case combineMetrics distr prod perfs of
             Left e ->
                 throwE $ ErrListStakePoolsMetricsInconsistency e
@@ -344,6 +347,8 @@ newStakePoolLayer tr getEpCst db@DBLayer{..} nl metadataDir = StakePoolLayer
         totalStake =
             Quantity $ Map.foldl' (\a (Quantity b) -> a + b) 0 distr
 
+        epConstants = mkEpCst totalStake
+
         mergeRegistration poolId (stake, production, performance) =
             fmap mkStakePool <$> readPoolRegistration poolId
           where
@@ -356,9 +361,9 @@ newStakePoolLayer tr getEpCst db@DBLayer{..} nl metadataDir = StakePoolLayer
                     , cost = poolCost
                     , margin = poolMargin
                     , saturation =
-                        Ranking.saturation (epCst totalStake) totalStake stake
+                        Ranking.saturation epConstants totalStake stake
                     , desirability =
-                        Ranking.desirability (epCst totalStake) $ Ranking.Pool
+                        Ranking.desirability epConstants $ Ranking.Pool
                             (unsafeMkRatio 0) -- pool leader pledge
                             poolCost
                             (unsafeMkRatio $ fromIntegral (getPercentage poolMargin) / 100)
@@ -538,6 +543,8 @@ data StakePoolLog
     | MsgStakePoolRegistration PoolRegistrationCertificate
     | MsgRollingBackTo SlotId
     | MsgApplyError ErrMonitorStakePools
+    | MsgUsingRankingEpochConstants EpochConstants
+    | MsgUsingTotalStakeForRanking (Quantity "lovelace" Word64)
     deriving (Show, Eq)
 
 instance DefinePrivacyAnnotation StakePoolLog
@@ -555,6 +562,16 @@ instance DefineSeverity StakePoolLog where
         MsgStakeDistribution _ -> Info
         MsgStakePoolRegistration _ -> Info
         MsgRollingBackTo _ -> Info
+        MsgUsingRankingEpochConstants ec
+            | oddlySmallRewards ec
+                -> Notice
+            | otherwise
+                -> Debug
+        MsgUsingTotalStakeForRanking s
+            | oddlySmallTotalStake s
+                -> Notice
+            | otherwise
+                -> Debug
         MsgApplyError e -> case e of
             ErrMonitorStakePoolsNetworkUnavailable{} -> Notice
             ErrMonitorStakePoolsNetworkTip{} -> Notice
@@ -592,6 +609,25 @@ instance ToText StakePoolLog where
             "Writing stake-distribution for epoch " <> pretty ep
         MsgStakePoolRegistration pool ->
             "Discovered stake pool registration: " <> pretty pool
+        MsgUsingRankingEpochConstants ec
+            | oddlySmallRewards ec -> mconcat
+                [ "The total rewards for this epoch are oddly small. "
+                , "This may cause stake pool ranking to be unreliable. "
+                , "Epoch constants are: "
+                , pretty ec
+                ]
+            | otherwise ->
+                "Using ranking epoch constants: " <> pretty ec
+        MsgUsingTotalStakeForRanking s
+            | oddlySmallTotalStake s -> mconcat
+                [ "The total stake is oddly small ("
+                , pretty s
+                , "). This may result in unreliable epoch constants."
+                ]
+            | otherwise -> mconcat
+                [ "The total stake used to determine epoch constants was: "
+                , pretty s
+                ]
         MsgRollingBackTo point ->
             "Rolling back to " <> pretty point
         MsgApplyError e -> case e of
@@ -603,3 +639,9 @@ instance ToText StakePoolLog where
                 "Race condition when fetching stake distribution."
             ErrMonitorStakePoolsPoolAlreadyExists{} ->
                 ""
+
+oddlySmallRewards :: EpochConstants -> Bool
+oddlySmallRewards ec = (ec ^. #totalRewards) <= Quantity 100
+
+oddlySmallTotalStake :: Quantity "lovelace" Word64 -> Bool
+oddlySmallTotalStake = (<= Quantity 100)
