@@ -563,12 +563,12 @@ instance DefineSeverity StakePoolLog where
         MsgStakePoolRegistration _ -> Info
         MsgRollingBackTo _ -> Info
         MsgUsingRankingEpochConstants ec
-            | (ec ^. #totalRewards) <= Quantity 100
+            | oddlySmallRewards ec
                 -> Notice
             | otherwise
                 -> Debug
         MsgUsingTotalStakeForRanking s
-            | s <= Quantity 100
+            | oddlySmallTotalStake s
                 -> Notice
             | otherwise
                 -> Debug
@@ -609,10 +609,25 @@ instance ToText StakePoolLog where
             "Writing stake-distribution for epoch " <> pretty ep
         MsgStakePoolRegistration pool ->
             "Discovered stake pool registration: " <> pretty pool
-        MsgUsingRankingEpochConstants csts ->
-            "Using ranking epoch constants: " <> pretty csts
-        MsgUsingTotalStakeForRanking s ->
-            "The total stake used to determine epoch constants was: " <> pretty s
+        MsgUsingRankingEpochConstants ec
+            | oddlySmallRewards ec -> mconcat
+                [ "The total rewards for this epoch are oddly small. "
+                , "This may cause stake pool ranking to be unreliable. "
+                , "Epoch constants are: "
+                , pretty ec
+                ]
+            | otherwise ->
+                "Using ranking epoch constants: " <> pretty ec
+        MsgUsingTotalStakeForRanking s
+            | oddlySmallTotalStake s -> mconcat
+                [ "The total stake is oddly small ("
+                , pretty s
+                , "). This may result in unreliable epoch constants."
+                ]
+            | otherwise -> mconcat
+                [ "The total stake used to determine epoch constants was: "
+                , pretty s
+                ]
         MsgRollingBackTo point ->
             "Rolling back to " <> pretty point
         MsgApplyError e -> case e of
@@ -624,3 +639,9 @@ instance ToText StakePoolLog where
                 "Race condition when fetching stake distribution."
             ErrMonitorStakePoolsPoolAlreadyExists{} ->
                 ""
+
+oddlySmallRewards :: EpochConstants -> Bool
+oddlySmallRewards ec = (ec ^. #totalRewards) <= Quantity 100
+
+oddlySmallTotalStake :: Quantity "lovelace" Word64 -> Bool
+oddlySmallTotalStake = (<= Quantity 100)
