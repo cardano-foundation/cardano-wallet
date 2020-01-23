@@ -229,18 +229,17 @@ register ctx k registry (MkWorker before main after acquire) = do
             before ctx' k `finally` putMVar mvar (Just resource)
             main ctx' k
     threadId <- forkFinally io (cleanup mvar)
-    takeMVar mvar >>= \case
-        Nothing -> return Nothing
-        Just resource -> do
-            let worker = Worker
-                    { workerId = k
-                    , workerThread = threadId
-                    , workerResource = resource
-                    }
-            registry `insert` worker
-            return $ Just worker
+    takeMVar mvar >>= traverse (create threadId)
   where
     tr = ctx ^. logger @(WorkerLog key msg)
+    create threadId resource = do
+        let worker = Worker
+                { workerId = k
+                , workerThread = threadId
+                , workerResource = resource
+                }
+        registry `insert` worker
+        return worker
     cleanup mvar e = finally
         (registry `unregister` k)
         (finally
