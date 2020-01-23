@@ -13,8 +13,8 @@ module Cardano.Wallet.Registry
     , empty
     , keys
     , lookup
-    , remove
     , register
+    , unregister
 
       -- * Worker
     , Worker
@@ -64,6 +64,8 @@ import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Tracer
     ( Tracer, traceWith )
+import Data.Foldable
+    ( traverse_ )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Labels
@@ -138,31 +140,27 @@ insert
 insert (WorkerRegistry mvar) wrk =
     modifyMVar_ mvar (pure . Map.insert (workerId wrk) wrk)
 
--- | Unregister a worker from the registry, but don't cancel the running task.
+-- | Delete a worker from the registry, but don't cancel the running task.
+--
+delete
+    :: Ord key
+    => WorkerRegistry key resource
+    -> key
+    -> IO (Maybe (Worker key resource))
+delete (WorkerRegistry mvar) k = do
+    mWorker <- Map.lookup k <$> readMVar mvar
+    modifyMVar_ mvar (pure . Map.delete k)
+    pure mWorker
+
+-- | Unregister a worker from the registry, terminating the running task.
 --
 unregister
     :: Ord key
     => WorkerRegistry key resource
     -> key
     -> IO ()
-unregister (WorkerRegistry mvar) k =
-    modifyMVar_ mvar (pure . Map.delete k)
-
--- | Remove a worker from the registry (and cancel any running task)
-remove
-    :: Ord key
-    => WorkerRegistry key resource
-    -> key
-    -> IO ()
-remove (WorkerRegistry mvar) k =
-    modifyMVar_ mvar (Map.alterF alterF k)
-  where
-    alterF = \case
-        Nothing -> pure Nothing
-        Just wrk -> do
-            -- NOTE: It is safe to kill a thread that is already dead.
-            killThread (workerThread wrk)
-            return Nothing
+unregister registry k =
+    delete registry k >>= traverse_ (killThread . workerThread)
 
 {-------------------------------------------------------------------------------
                                     Worker
@@ -243,7 +241,7 @@ register registry ctx k (MkWorker before main after acquire) = do
         registry `insert` worker
         return worker
     cleanup mvar e = do
-        registry `unregister` k
+        void $ registry `delete` k
         void $ tryPutMVar mvar Nothing
         after tr e
 

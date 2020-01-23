@@ -883,11 +883,11 @@ deleteWallet
     => ctx
     -> ApiT WalletId
     -> Handler NoContent
-deleteWallet ctx (ApiT wid) = do
-    liftHandler $ withWorkerCtx @_ @s @k ctx wid throwE $ \_ -> pure ()
-    liftIO $ Registry.remove re wid
-    liftIO $ removeDatabase df wid
-    return NoContent
+deleteWallet ctx (ApiT wid) =
+    liftHandler $ withWorkerCtx @_ @s @k ctx wid throwE $ \_ -> do
+        liftIO $ Registry.unregister re wid
+        liftIO $ removeDatabase df wid
+        return NoContent
   where
     re = ctx ^. workerRegistry @s @k
     df = ctx ^. dbFactory @s @k
@@ -989,7 +989,7 @@ forceResyncWallet
     -> ApiNetworkTip
     -> Handler NoContent
 forceResyncWallet ctx (ApiT wid) tip = guardTip (== W.slotMinBound) $ \pt -> do
-    liftIO $ Registry.remove re wid
+    liftIO $ Registry.unregister re wid
     liftHandler (safeRollback pt) `finally` liftIO (registerWorker ctx wid)
   where
     re = ctx ^. workerRegistry @s @k
