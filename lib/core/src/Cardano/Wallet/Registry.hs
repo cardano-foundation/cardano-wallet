@@ -11,16 +11,15 @@ module Cardano.Wallet.Registry
     ( -- * Worker Registry
       WorkerRegistry
     , empty
-    , insert
     , keys
     , lookup
     , remove
+    , register
 
       -- * Worker
     , Worker
     , MkWorker(..)
     , defaultWorkerAfter
-    , newWorker
     , workerThread
     , workerId
     , workerResource
@@ -201,28 +200,29 @@ defaultWorkerAfter tr = traceWith tr . \case
         Just UserInterrupt -> MsgUserInterrupt
         _ -> MsgUnhandledException $ pretty $ show e
 
--- | Create a new worker for a given key. Workers maintain an acquired resource.
--- They expect a task as argument and will terminate as soon as their task
--- is over; so in practice, we provide a never-ending task that keeps the worker
--- alive forever.
+-- | Register a new worker for a given key.
+--
+-- A worker maintains an acquired resource. It expects a task as an argument
+-- and will terminate as soon as its task is over. In practice, we provide a
+-- never-ending task that keeps the worker alive forever.
 --
 -- Returns 'Nothing' if the worker fails to acquire the necessary resource or
--- terminate unexpectedly before entering its 'main' action.
+-- terminates unexpectedly before entering its 'main' action.
 --
--- >>> newWorker ctx k withDBLayer restoreWallet
--- worker<thread#1234>
-newWorker
+register
     :: forall resource ctx key msg.
-        ( key ~ WorkerKey ctx
+        ( Ord key
+        , key ~ WorkerKey ctx
         , msg ~ WorkerMsg ctx
         , HasLogger (WorkerLog key msg) ctx
         , HasWorkerCtx resource ctx
         )
     => ctx
     -> key
+    -> WorkerRegistry key resource
     -> MkWorker key resource msg ctx
     -> IO (Maybe (Worker key resource))
-newWorker ctx k (MkWorker before main after acquire) = do
+register ctx k registry (MkWorker before main after acquire) = do
     mvar <- newEmptyMVar
     let io = acquire $ \resource -> do
             let ctx' = hoistResource resource (MsgFromWorker k) ctx
@@ -231,14 +231,21 @@ newWorker ctx k (MkWorker before main after acquire) = do
     threadId <- forkFinally io (cleanup mvar)
     takeMVar mvar >>= \case
         Nothing -> return Nothing
-        Just resource -> return $ Just Worker
-            { workerId = k
-            , workerThread = threadId
-            , workerResource = resource
-            }
+        Just resource -> do
+            let worker = Worker
+                    { workerId = k
+                    , workerThread = threadId
+                    , workerResource = resource
+                    }
+            registry `insert` worker
+            return $ Just worker
   where
-    tr  = ctx ^. logger @(WorkerLog key msg)
-    cleanup mvar e = tryPutMVar mvar Nothing *> after tr e
+    tr = ctx ^. logger @(WorkerLog key msg)
+    cleanup mvar e = finally
+        (registry `unregister` k)
+        (finally
+            (tryPutMVar mvar Nothing)
+            (after tr e))
 
 {-------------------------------------------------------------------------------
                                     Logging

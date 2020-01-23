@@ -196,7 +196,6 @@ import Cardano.Wallet.Registry
     , MkWorker (..)
     , WorkerLog (..)
     , defaultWorkerAfter
-    , newWorker
     , workerResource
     )
 import Cardano.Wallet.Transaction
@@ -1475,11 +1474,11 @@ initWorker ctx wid createWallet restoreWallet =
         Just _ ->
             throwE $ ErrCreateWalletAlreadyExists $ ErrWalletAlreadyExists wid
         Nothing ->
-            liftIO (newWorker @_ @ctx ctx wid config) >>= \case
+            liftIO (Registry.register @_ @ctx ctx wid re config) >>= \case
                 Nothing ->
                     throwE ErrCreateWalletFailedToCreateWorker
-                Just worker ->
-                    liftIO (Registry.insert re worker) $> wid
+                Just _ ->
+                    pure wid
   where
     config = MkWorker
         { workerBefore = \ctx' _ -> do
@@ -1601,12 +1600,8 @@ registerWorker
     => ApiLayer s t k
     -> WalletId
     -> IO ()
-registerWorker ctx wid = do
-    newWorker @_ @ctx ctx wid config >>= \case
-        Nothing ->
-            return ()
-        Just worker ->
-            Registry.insert re worker
+registerWorker ctx wid =
+    void $ Registry.register @_ @ctx ctx wid re config
   where
     (_, bp, _) = ctx ^. genesisData
     re = ctx ^. workerRegistry

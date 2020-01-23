@@ -21,7 +21,8 @@ import Cardano.Wallet.Registry
     , MkWorker (..)
     , Worker
     , WorkerLog
-    , newWorker
+    , empty
+    , register
     , workerThread
     )
 import Control.Concurrent
@@ -281,7 +282,8 @@ workerTest (WorkerTest before main acquire concurrently assertion timeout) = do
             , workerAfter = \_ -> putMVar onExit
             , workerAcquire = acquire
             }
-    newWorker ctx wid config >>= \case
+    registry <- empty
+    register ctx wid registry config >>= \case
         Nothing -> assertion WorkerNotStarted
         Just worker -> do
             concurrently worker
