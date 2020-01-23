@@ -29,7 +29,8 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Trace
     ( Trace, appendName, logDebug, logInfo )
 import Cardano.CLI
-    ( Port (..)
+    ( LoggingOptions (..)
+    , Port (..)
     , cli
     , cmdAddress
     , cmdMnemonic
@@ -41,11 +42,11 @@ import Cardano.CLI
     , databaseOption
     , enableWindowsANSI
     , getDataDir
+    , helperTracing
     , hostPreferenceOption
     , listenOption
-    , loggingSeverities
+    , loggingOptions
     , loggingSeverityOrOffReader
-    , loggingSeverityReader
     , nodePortMaybeOption
     , nodePortOption
     , optionT
@@ -94,23 +95,17 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
-import Data.Void
-    ( Void )
 import Network.Socket
     ( SockAddr )
 import Options.Applicative
     ( CommandFields
     , Mod
-    , ParseError (InfoMsg)
     , Parser
-    , abortOption
     , argument
-    , auto
     , command
     , footerDoc
     , help
     , helper
-    , hidden
     , info
     , internal
     , long
@@ -184,7 +179,7 @@ data LaunchArgs = LaunchArgs
     , _nodePort :: Maybe (Port "Node")
     , _stateDir :: Maybe FilePath
     , _syncTolerance :: SyncTolerance
-    , _logging :: LoggingOptions
+    , _logging :: LoggingOptions TracerSeverities
     , _jormungandrArgs :: JormungandrArgs
     } deriving (Show, Eq)
 
@@ -196,7 +191,7 @@ data JormungandrArgs = JormungandrArgs
 cmdLaunch
     :: FilePath
     -> Mod CommandFields (IO ())
-cmdLaunch dataDir = command "launch" $ info (helper <*> helperTracing <*> cmd) $ mempty
+cmdLaunch dataDir = command "launch" $ info (helper <*> helper' <*> cmd) $ mempty
     <> progDesc "Launch and monitor a wallet server and its chain producers."
     <> footerDoc (Just $ D.empty
         <> D.text "Examples:"
@@ -219,13 +214,15 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> helperTracing <*> cmd) $
         <> D.text "not to define any these configuration settings."
        )
   where
+    helper' = helperTracing tracerDescriptions
+
     cmd = fmap exec $ LaunchArgs
         <$> hostPreferenceOption
         <*> listenOption
         <*> nodePortMaybeOption
         <*> stateDirOption dataDir
         <*> syncToleranceOption
-        <*> loggingOptions
+        <*> loggingOptions tracerSeveritiesOption
         <*> (JormungandrArgs
             <$> genesisBlockOption
             <*> extraArguments)
@@ -267,14 +264,16 @@ data ServeArgs = ServeArgs
     , _database :: Maybe FilePath
     , _syncTolerance :: SyncTolerance
     , _block0H :: Hash "Genesis"
-    , _logging :: LoggingOptions
+    , _logging :: LoggingOptions TracerSeverities
     } deriving (Show, Eq)
 
 cmdServe
     :: Mod CommandFields (IO ())
-cmdServe = command "serve" $ info (helper <*> helperTracing <*> cmd) $ mempty
+cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
     <> progDesc "Serve API that listens for commands/actions."
   where
+    helper' = helperTracing tracerDescriptions
+
     cmd = fmap exec $ ServeArgs
         <$> hostPreferenceOption
         <*> listenOption
@@ -282,7 +281,7 @@ cmdServe = command "serve" $ info (helper <*> helperTracing <*> cmd) $ mempty
         <*> optional databaseOption
         <*> syncToleranceOption
         <*> genesisHashOption
-        <*> loggingOptions
+        <*> loggingOptions tracerSeveritiesOption
     exec
         :: ServeArgs
         -> IO ()
@@ -351,39 +350,8 @@ extraArguments = many $ argument jmArg $ mempty
         <> " command.\nIf you need to use this option,"
         <> " run Jörmungandr separately and use 'serve'."
 
-data LoggingOptions = LoggingOptions
-    { loggingMinSeverity :: Severity
-    , loggingTracers :: TracerSeverities
-    , loggingTracersDoc :: Maybe Void
-    } deriving (Show, Eq)
-
-loggingOptions :: Parser LoggingOptions
-loggingOptions = LoggingOptions
-    <$> minSev
-    <*> loggingTracersOptions
-    <*> tracersDoc
-  where
-    -- Note: If the global log level is Info then there will be no Debug-level
-    --   messages whatsoever.
-    --   If the global log level is Debug then there will be Debug, Info, and
-    --   higher-severity messages.
-    --   So the default global log level is Debug.
-    minSev = option loggingSeverityReader $ mempty
-        <> long "log-level"
-        <> value Debug
-        <> metavar "SEVERITY"
-        <> help "Global minimum severity for a message to be logged. \
-            \Individual tracers severities still need to be configured \
-            \independently. Defaults to \"DEBUG\"."
-        <> hidden
-    tracersDoc = optional $ option auto $ mempty
-        <> long "trace-NAME"
-        <> metavar "SEVERITY"
-        <> help "Individual component severity for 'NAME'. See --help-tracing \
-            \for details and available tracers."
-
-loggingTracersOptions :: Parser TracerSeverities
-loggingTracersOptions = Tracers
+tracerSeveritiesOption :: Parser TracerSeverities
+tracerSeveritiesOption = Tracers
     <$> traceOpt applicationTracer (Just Info)
     <*> traceOpt apiServerTracer (Just Info)
     <*> traceOpt walletEngineTracer (Just Info)
@@ -398,41 +366,6 @@ loggingTracersOptions = Tracers
         <> value def
         <> metavar "SEVERITY"
         <> internal
-
--- | A hidden "helper" option which always fails, but shows info about the
--- logging options.
-helperTracing :: Parser (a -> a)
-helperTracing = abortOption (InfoMsg helperTracingText) $ mempty
-    <> long "help-tracing"
-    <> help "Show help for tracing options"
-    <> hidden
-
-helperTracingText :: String
-helperTracingText = unlines $
-    [ "Additional tracing options:"
-    , ""
-    , "  --log-level SEVERITY     Global minimum severity for a message to be logged."
-    , "                           Defaults to \"DEBUG\"."
-    , ""
-    , "  --trace-NAME=off         Disable logging on the given tracer."
-    , "  --trace-NAME=SEVERITY    Minimum severity for a message to be logged, or"
-    , "                           \"off\" to disable the tracer. Note that component"
-    , "                           traces still abide by the global log-level. For"
-    , "                           example, if the global log level is \"INFO\", then"
-    , "                           there will be no \"DEBUG\" messages whatsoever."
-    , "                           Defaults to \"INFO\"."
-    , ""
-    , "The possible log levels (lowest to highest) are:"
-    , "  " ++ unwords (map fst loggingSeverities)
-    , ""
-    , "The possible tracers are:"
-    ] ++ [ pretty name desc | (name, desc) <- tracerDescriptions]
-  where
-    maxLength = maximum $ map (length . fst) tracerDescriptions
-    pretty name desc =
-        "  " ++ padRight maxLength ' ' name ++ "  " ++ desc
-      where
-        padRight n char str = take n $ str ++ replicate n char
 
 {-------------------------------------------------------------------------------
                                     Logging
@@ -461,7 +394,10 @@ instance ToText MainLog where
         MsgListenAddress addr ->
             "Wallet backend server listening on " <> T.pack (show addr)
 
-withTracers :: LoggingOptions -> (Trace IO MainLog -> Tracers IO -> IO a) -> IO a
+withTracers
+    :: LoggingOptions TracerSeverities
+    -> (Trace IO MainLog -> Tracers IO -> IO a)
+    -> IO a
 withTracers logOpt action =
     withLogging Nothing (loggingMinSeverity logOpt) $ \(_, tr) -> do
         let trMain = appendName "main" (transformTextTrace tr)

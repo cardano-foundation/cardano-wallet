@@ -27,6 +27,10 @@ module Cardano.Wallet.Api.Server
     , ListenError (..)
     , HostPreference
     , start
+    , serve
+    , server
+    , stakePoolsServer
+    , dummyStakePoolsServer
     , newApiLayer
     , withListeningSocket
     ) where
@@ -120,8 +124,6 @@ import Cardano.Wallet.Api.Types
     , ApiWallet (..)
     , ApiWalletPassphrase (..)
     , ByronWalletPostData (..)
-    , DecodeAddress (..)
-    , EncodeAddress (..)
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
     , PostTransactionData
@@ -276,7 +278,6 @@ import Numeric.Natural
     ( Natural )
 import Servant
     ( (:<|>) (..)
-    , (:>)
     , Application
     , JSON
     , NoContent (..)
@@ -329,30 +330,18 @@ data Listen
 
 -- | Start the application server, using the given settings and a bound socket.
 start
-    :: forall t (n :: NetworkDiscriminant).
-        ( Buildable (ErrValidateSelection t)
-        , DecodeAddress n
-        , EncodeAddress n
-        , DelegationAddress n ShelleyKey
-        )
-    => Warp.Settings
+    :: Warp.Settings
     -> Tracer IO ApiLog
     -> Socket
-    -> ApiLayer (RndState 'Mainnet) t ByronKey
-    -> ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
-    -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
-    -> StakePoolLayer IO
+    -> Application
     -> IO ()
-start settings tr socket byron icarus shelley spl = do
+start settings tr socket application = do
     logSettings <- newApiLoggerSettings <&> obfuscateKeys (const sensitive)
     Warp.runSettingsSocket settings socket
         $ handleRawError (curry handler)
         $ withApiLogger tr logSettings
         application
   where
-    application :: Application
-    application = serve (Proxy @("v2" :> Api n)) (server byron icarus shelley spl)
-
     sensitive :: [Text]
     sensitive =
         [ "passphrase"
@@ -441,9 +430,9 @@ server
     => byron
     -> icarus
     -> shelley
-    -> StakePoolLayer IO
+    -> Server (StakePools n)
     -> Server (Api n)
-server byron icarus shelley spl =
+server byron icarus shelley stakePools =
          wallets
     :<|> addresses
     :<|> coinSelections
@@ -477,12 +466,6 @@ server byron icarus shelley spl =
         :<|> listTransactions shelley
         :<|> postTransactionFee shelley
         :<|> deleteTransaction shelley
-
-    stakePools :: Server (StakePools n)
-    stakePools = listPools spl
-        :<|> joinStakePool shelley spl
-        :<|> quitStakePool shelley
-        :<|> delegationFee shelley
 
     byronWallets :: Server ByronWallets
     byronWallets =
@@ -538,6 +521,25 @@ server byron icarus shelley spl =
 
     proxy :: Server Proxy_
     proxy = postExternalTransaction shelley
+
+stakePoolsServer
+    :: (DelegationAddress n ShelleyKey)
+    => ApiLayer (SeqState n ShelleyKey) t ShelleyKey
+    -> StakePoolLayer IO
+    -> Server (StakePools n)
+stakePoolsServer shelley spl =
+         listPools spl
+    :<|> joinStakePool shelley spl
+    :<|> quitStakePool shelley
+    :<|> delegationFee shelley
+
+dummyStakePoolsServer :: Server (StakePools n)
+dummyStakePoolsServer =
+         throwError err501
+    :<|> (\_ _ _ -> throwError err501)
+    :<|> (\_ _ _ -> throwError err501)
+    :<|> (\_ -> throwError err501)
+
 
 {-------------------------------------------------------------------------------
                               Wallet Constructors

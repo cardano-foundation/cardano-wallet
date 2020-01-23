@@ -67,7 +67,7 @@ import Cardano.Pool.Metrics
 import Cardano.Wallet
     ( WalletLog )
 import Cardano.Wallet.Api
-    ( ApiLayer )
+    ( ApiLayer, ApiV2 )
 import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..), ListenError (..) )
 import Cardano.Wallet.Api.Types
@@ -149,6 +149,8 @@ import Data.Functor.Contravariant
     ( contramap )
 import Data.Maybe
     ( fromMaybe )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -250,7 +252,10 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
         sockAddr <- getSocketName socket
         let settings = Warp.defaultSettings
                 & setBeforeMainLoop (beforeMainLoop sockAddr nPort bp)
-        Server.start settings apiServerTracer socket byron icarus shelley pools
+        let application = Server.serve (Proxy @(ApiV2 n))
+                $ Server.server byron icarus shelley
+                $ Server.stakePoolsServer shelley pools
+        Server.start settings apiServerTracer socket application
 
     apiLayer
         :: forall s k.

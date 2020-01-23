@@ -122,7 +122,8 @@ prop_sync s0 = monadicIO $ do
     (consumer, s) <- run $ flip runStateT s0 $ do
         -- Set up network layer with mock Jormungandr
         nl <- mockNetworkLayer logLine
-        let c0 = (C c0Chain (initCursor nl c0Cps) 0 0)
+        cursor <- initCursor nl c0Cps
+        let c0 = C c0Chain cursor 0 0
         consumerRestoreStep logLineC nl c0 Nothing
 
     let nodeChain = getNodeChain (node s)

@@ -328,9 +328,9 @@ mkRawNetworkLayer (block0, bp) batchSize st j = NetworkLayer
         nodeChain <- readMVar st
         pure (greatestCommonBlockHeader nodeChain localChain)
 
-    _initCursor :: [BlockHeader] -> Cursor t
+    _initCursor :: [BlockHeader] -> m (Cursor t)
     _initCursor bhs =
-        Cursor $ appendBlockHeaders k emptyBlockHeaders bhs
+        pure $ Cursor $ appendBlockHeaders k emptyBlockHeaders bhs
 
     _cursorSlotId :: Cursor t -> SlotId
     _cursorSlotId (Cursor unstable) =

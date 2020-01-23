@@ -113,7 +113,7 @@ data NetworkLayer m target block = NetworkLayer
         -- whether we are 'in sync' with the node or, close enough.
 
     , initCursor
-        :: [BlockHeader] -> Cursor target
+        :: [BlockHeader] -> m (Cursor target)
         -- ^ Creates a cursor from the given block header so that 'nextBlocks'
         -- can be used to fetch blocks.
 
@@ -294,7 +294,7 @@ follow
     -- ^ Getter on the abstract 'block' type
     -> IO (Maybe SlotId)
 follow nl tr cps yield header =
-    sleep 0 (initCursor nl cps)
+    sleep 0 =<< initCursor nl cps
   where
     delay0 :: Int
     delay0 = 500*1000 -- 500ms

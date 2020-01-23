@@ -262,7 +262,7 @@ prop_trackRegistrations test = monadicIO $ do
                             $ ErrGetBlockNetworkUnreachable
                             $ ErrNetworkInvalid "The test case has finished")
             , initCursor =
-                const $ Cursor header0
+                pure . const (Cursor header0)
             , stakeDistribution =
                 pure (0, mempty)
             , networkTip =
