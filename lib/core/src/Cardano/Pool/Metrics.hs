@@ -563,12 +563,12 @@ instance DefineSeverity StakePoolLog where
         MsgStakePoolRegistration _ -> Info
         MsgRollingBackTo _ -> Info
         MsgUsingRankingEpochConstants ec
-            | (ec ^. #totalRewards) == Quantity 0
+            | (ec ^. #totalRewards) <= Quantity 100
                 -> Notice
             | otherwise
                 -> Debug
         MsgUsingTotalStakeForRanking s
-            | s == Quantity 0
+            | s <= Quantity 100
                 -> Notice
             | otherwise
                 -> Debug
