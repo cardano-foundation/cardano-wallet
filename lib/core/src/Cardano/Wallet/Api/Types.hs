@@ -341,7 +341,8 @@ newtype ApiFee = ApiFee
     { amount :: (Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
 
-data ApiEpochNumber = ApiEpochNumberLatest | ApiEpochNumber EpochNo
+data ApiEpochNumber =
+    ApiEpochNumberLatest | ApiEpochNumber EpochNo | ApiEpochNumberInvalid Text
     deriving (Eq, Generic, Show)
 
 data ApiNetworkParameters = ApiNetworkParameters
@@ -468,6 +469,7 @@ instance ToHttpApiData Iso8601Time where
 instance ToText ApiEpochNumber where
     toText ApiEpochNumberLatest = "latest"
     toText (ApiEpochNumber (EpochNo e)) = T.pack $ show e
+    toText (ApiEpochNumberInvalid txt) = txt
 
 instance FromText ApiEpochNumber where
     fromText txt = case txt of
@@ -477,29 +479,17 @@ instance FromText ApiEpochNumber where
                 if num >= minValue && num <= maxValue then
                     Right $ ApiEpochNumber $ EpochNo $ fromIntegral num
                 else
-                    Left (err txt)
-            _ -> Left (err txt)
+                    Right $ ApiEpochNumberInvalid rest
+            _ -> Right $ ApiEpochNumberInvalid rest
       where
         minValue = fromIntegral $ minBound @Word31
         maxValue = fromIntegral $ maxBound @Word31
-        err t = TextDecodingError $ mempty
-            <> "Unable to parse epoch number: '"
-            <> T.unpack t
-            <> "'. Expecting either \"latest\" or integer from "
-            <> show minValue <> " to " <> show maxValue
 
 instance ToHttpApiData ApiEpochNumber where
     toUrlPiece = toText
 
 instance FromHttpApiData ApiEpochNumber where
     parseUrlPiece = first (T.pack . getTextDecodingError) . fromText
-
-instance ToJSON ApiEpochNumber where
-    toJSON = Aeson.String . toText
-
-instance FromJSON ApiEpochNumber where
-    parseJSON =
-        parseJSON >=> eitherToParser . bimap ShowFmt Prelude.id . fromText
 
 {-------------------------------------------------------------------------------
                               API Types: Byron
