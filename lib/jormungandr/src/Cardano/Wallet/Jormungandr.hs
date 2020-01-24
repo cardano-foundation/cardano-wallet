@@ -253,8 +253,7 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
         let settings = Warp.defaultSettings
                 & setBeforeMainLoop (beforeMainLoop sockAddr nPort bp)
         let application = Server.serve (Proxy @(ApiV2 n))
-                $ Server.server byron icarus shelley
-                $ Server.stakePoolsServer shelley pools
+                $ Server.server byron icarus shelley pools
         Server.start settings apiServerTracer socket application
 
     apiLayer

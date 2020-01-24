@@ -66,6 +66,8 @@ import Cardano.Wallet.Byron.Network
     ( AddrInfo, newNetworkLayer )
 import Cardano.Wallet.Byron.Transaction
     ( newTransactionLayer )
+import Cardano.Wallet.Byron.Transaction.Size
+    ( WorstSizeOf )
 import Cardano.Wallet.DB.Sqlite
     ( DatabasesStartupLog, DefaultFieldValues (..), PersistState )
 import Cardano.Wallet.Logging
@@ -73,8 +75,7 @@ import Cardano.Wallet.Logging
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress
-    , Depth (..)
+    ( Depth (..)
     , NetworkDiscriminant (..)
     , NetworkDiscriminantVal
     , PersistPrivateKey
@@ -85,8 +86,6 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
@@ -112,6 +111,8 @@ import Control.Tracer
     ( Tracer (..), nullTracer, traceWith )
 import Data.Function
     ( (&) )
+import Data.Functor
+    ( ($>) )
 import Data.Functor.Contravariant
     ( contramap )
 import Data.Proxy
@@ -145,7 +146,8 @@ serveWallet
         , KnownNetwork n
         , DecodeAddress n
         , EncodeAddress n
-        , DelegationAddress n ShelleyKey
+        , WorstSizeOf Address n IcarusKey
+        , WorstSizeOf Address n ByronKey
         , t ~ IO Byron
         )
     => Tracers IO
@@ -175,24 +177,21 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen addrInfo beforeMa
 
     serveApp socket = do
         let nl = newNetworkLayer nullTracer bp addrInfo (versionData @n)
-        byronApi   <- apiLayer newTransactionLayer nl
-        icarusApi  <- apiLayer newTransactionLayer nl
-        shelleyApi <- apiLayer newTransactionLayer nl
-        startServer socket byronApi icarusApi shelleyApi
-        pure ExitSuccess
+        byronApi   <- apiLayer (newTransactionLayer @n) nl
+        icarusApi  <- apiLayer (newTransactionLayer @n) nl
+        startServer socket byronApi icarusApi $> ExitSuccess
 
     startServer
         :: Socket
         -> ApiLayer (RndState 'Mainnet) t ByronKey
         -> ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
-        -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
         -> IO ()
-    startServer socket byron icarus shelley = do
+    startServer socket byron icarus = do
         sockAddr <- getSocketName socket
         let settings = Warp.defaultSettings & setBeforeMainLoop
                 (beforeMainLoop sockAddr)
         let application = Server.serve (Proxy @(ApiV2 n)) $
-                Server.server byron icarus shelley Server.dummyStakePoolsServer
+                Server.byronServer byron icarus
         Server.start settings apiServerTracer socket application
 
     apiLayer

@@ -29,8 +29,7 @@ module Cardano.Wallet.Api.Server
     , start
     , serve
     , server
-    , stakePoolsServer
-    , dummyStakePoolsServer
+    , byronServer
     , newApiLayer
     , withListeningSocket
     ) where
@@ -430,9 +429,9 @@ server
     => byron
     -> icarus
     -> shelley
-    -> Server (StakePools n)
+    -> StakePoolLayer IO
     -> Server (Api n)
-server byron icarus shelley stakePools =
+server byron icarus shelley spl =
          wallets
     :<|> addresses
     :<|> coinSelections
@@ -466,6 +465,12 @@ server byron icarus shelley stakePools =
         :<|> listTransactions shelley
         :<|> postTransactionFee shelley
         :<|> deleteTransaction shelley
+
+    stakePools :: Server (StakePools n)
+    stakePools = listPools spl
+        :<|> joinStakePool shelley spl
+        :<|> quitStakePool shelley
+        :<|> delegationFee shelley
 
     byronWallets :: Server ByronWallets
     byronWallets =
@@ -522,24 +527,107 @@ server byron icarus shelley stakePools =
     proxy :: Server Proxy_
     proxy = postExternalTransaction shelley
 
-stakePoolsServer
-    :: (DelegationAddress n ShelleyKey)
-    => ApiLayer (SeqState n ShelleyKey) t ShelleyKey
-    -> StakePoolLayer IO
-    -> Server (StakePools n)
-stakePoolsServer shelley spl =
-         listPools spl
-    :<|> joinStakePool shelley spl
-    :<|> quitStakePool shelley
-    :<|> delegationFee shelley
 
-dummyStakePoolsServer :: Server (StakePools n)
-dummyStakePoolsServer =
-         throwError err501
-    :<|> (\_ _ _ -> throwError err501)
-    :<|> (\_ _ _ -> throwError err501)
-    :<|> (\_ -> throwError err501)
+-- | A diminished servant server to serve Byron wallets only.
+byronServer
+    :: forall t n. ()
+    => ApiLayer (RndState 'Mainnet) t ByronKey
+    -> ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
+    -> Server (Api n)
+byronServer byron icarus =
+         wallets
+    :<|> addresses
+    :<|> coinSelections
+    :<|> transactions
+    :<|> stakePools
+    :<|> byronWallets
+    :<|> byronTransactions
+    :<|> byronMigrations
+    :<|> network
+    :<|> proxy
+  where
+    wallets :: Server Wallets
+    wallets =
+             (\_ -> throwError err501)
+        :<|> (\_ -> throwError err501)
+        :<|> throwError err501
+        :<|> (\_ -> throwError err501)
+        :<|> (\_ _ -> throwError err501)
+        :<|> (\_ _ -> throwError err501)
+        :<|> (\_ -> throwError err501)
+        :<|> (\_ _ -> throwError err501)
 
+    addresses :: Server (Addresses n)
+    addresses _ _ = throwError err501
+
+    coinSelections :: Server (CoinSelections n)
+    coinSelections _ _ = throwError err501
+
+    transactions :: Server (Transactions n)
+    transactions =
+             (\_ _ -> throwError err501)
+        :<|> (\_ _ _ _ -> throwError err501)
+        :<|> (\_ _ -> throwError err501)
+        :<|> (\_ _ -> throwError err501)
+
+    stakePools :: Server (StakePools n)
+    stakePools =
+             throwError err501
+        :<|> (\_ _ _ -> throwError err501)
+        :<|> (\_ _ _ -> throwError err501)
+        :<|> (\_ -> throwError err501)
+
+    byronWallets :: Server ByronWallets
+    byronWallets =
+             postRandomWallet byron
+        :<|> postIcarusWallet icarus
+        :<|> postTrezorWallet icarus
+        :<|> postLedgerWallet icarus
+        :<|> (\wid -> withLegacyLayer wid
+                (byron , deleteWallet byron wid)
+                (icarus, deleteWallet icarus wid)
+             )
+        :<|> (\wid -> withLegacyLayer wid
+                (byron , fst <$> getWallet byron  mkLegacyWallet wid)
+                (icarus, fst <$> getWallet icarus mkLegacyWallet wid)
+             )
+        :<|> liftA2 (\xs ys -> fmap fst $ sortOn snd $ xs ++ ys)
+            (listWallets byron  mkLegacyWallet)
+            (listWallets icarus mkLegacyWallet)
+        :<|> (\wid tip -> withLegacyLayer wid
+                (byron , forceResyncWallet byron  wid tip)
+                (icarus, forceResyncWallet icarus wid tip)
+             )
+
+    byronTransactions :: Server (ByronTransactions n)
+    byronTransactions =
+             (\wid r0 r1 s -> withLegacyLayer wid
+                (byron , listTransactions byron  wid r0 r1 s)
+                (icarus, listTransactions icarus wid r0 r1 s)
+             )
+        :<|> (\wid txid -> withLegacyLayer wid
+                (byron , deleteTransaction byron  wid txid)
+                (icarus, deleteTransaction icarus wid txid)
+             )
+
+    byronMigrations :: Server (ByronMigrations n)
+    byronMigrations =
+             (\wid -> withLegacyLayer wid
+                (byron , getMigrationInfo byron  wid)
+                (icarus, getMigrationInfo icarus wid)
+             )
+        :<|> \_ _ _ -> throwError err501
+
+    network :: Server Network
+    network =
+        getNetworkInformation genesis nl
+        :<|> (getNetworkParameters genesis nl)
+      where
+        nl = icarus ^. networkLayer @t
+        genesis = icarus ^. genesisData
+
+    proxy :: Server Proxy_
+    proxy = postExternalTransaction icarus
 
 {-------------------------------------------------------------------------------
                               Wallet Constructors
