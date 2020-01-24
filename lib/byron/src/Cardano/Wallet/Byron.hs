@@ -63,7 +63,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Byron.Compatibility
     ( Byron, ByronBlock, KnownNetwork (..), fromByronBlock )
 import Cardano.Wallet.Byron.Network
-    ( AddrInfo, withNetworkLayer )
+    ( AddrInfo, newNetworkLayer )
 import Cardano.Wallet.Byron.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.DB.Sqlite
@@ -146,7 +146,7 @@ serveWallet
         , DecodeAddress n
         , EncodeAddress n
         , DelegationAddress n ShelleyKey
-        , t ~ Byron
+        , t ~ IO Byron
         )
     => Tracers IO
     -- ^ Logging config.
@@ -173,13 +173,13 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen addrInfo beforeMa
   where
     bp = blockchainParameters @n
 
-    serveApp socket =
-        withNetworkLayer nullTracer bp addrInfo (versionData @n) $ \nl -> do
-            byronApi   <- apiLayer newTransactionLayer nl
-            icarusApi  <- apiLayer newTransactionLayer nl
-            shelleyApi <- apiLayer newTransactionLayer nl
-            startServer socket byronApi icarusApi shelleyApi
-            pure ExitSuccess
+    serveApp socket = do
+        let nl = newNetworkLayer nullTracer bp addrInfo (versionData @n)
+        byronApi   <- apiLayer newTransactionLayer nl
+        icarusApi  <- apiLayer newTransactionLayer nl
+        shelleyApi <- apiLayer newTransactionLayer nl
+        startServer socket byronApi icarusApi shelleyApi
+        pure ExitSuccess
 
     startServer
         :: Socket

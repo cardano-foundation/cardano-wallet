@@ -40,7 +40,7 @@ import GHC.Stack
 
 newTransactionLayer
     :: forall k t.
-        ( t ~ Byron
+        ( t ~ IO Byron
         )
     => TransactionLayer t k
 newTransactionLayer = TransactionLayer
@@ -104,7 +104,7 @@ newTransactionLayer = TransactionLayer
     _decodeSignedTx =
         notImplemented "decodeSignedTx"
 
-type instance ErrValidateSelection Byron = ()
+type instance ErrValidateSelection (IO Byron) = ()
 
 --------------------------------------------------------------------------------
 -- Temporary

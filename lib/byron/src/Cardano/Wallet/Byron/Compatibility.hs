@@ -33,7 +33,6 @@ module Cardano.Wallet.Byron.Compatibility
     , genesisBlock
 
       -- * Network Parameters
-    , pattern Cursor
     , mainnetVersionData
     , testnetVersionData
 
@@ -73,8 +72,6 @@ import Cardano.Chain.UTxO
     ( Tx (..), TxAux, TxIn (..), TxOut (..), taTx, unTxPayload )
 import Cardano.Crypto
     ( AbstractHash (..), hash )
-import Cardano.Wallet.Network
-    ( Cursor )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Codec.SerialiseTerm
@@ -227,10 +224,6 @@ genesisBlock genesisHash = ByronBlock
 --------------------------------------------------------------------------------
 --
 -- Network Parameters
-
--- | Network layer cursor for Byron. Mostly useless since the protocol itself is
--- stateful and the node's keep track of the associated connection's cursor.
-data instance Cursor Byron = Cursor (Point ByronBlock) deriving Show
 
 -- | Settings for configuring a MainNet network client
 mainnetVersionData
