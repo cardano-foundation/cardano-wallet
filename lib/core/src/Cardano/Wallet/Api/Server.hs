@@ -137,7 +137,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.DB
     ( DBFactory (..) )
 import Cardano.Wallet.Network
-    ( ErrNetworkTip (..), ErrNetworkUnavailable (..), NetworkLayer )
+    ( ErrCurrentNodeTip (..), ErrNetworkUnavailable (..), NetworkLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
     , Depth (..)
@@ -1277,7 +1277,7 @@ getNetworkInformation
     -> Handler ApiNetworkInformation
 getNetworkInformation (_block0, bp, st) nl = do
     now <- liftIO getCurrentTime
-    nodeTip <- liftHandler (NW.networkTip nl)
+    nodeTip <- liftHandler (NW.currentNodeTip nl)
     let ntrkTip = fromMaybe slotMinBound (slotAt sp now)
     let nextEpochNo = unsafeEpochSucc (ntrkTip ^. #epochNumber)
     pure $ ApiNetworkInformation
@@ -1297,7 +1297,7 @@ getNetworkInformation (_block0, bp, st) nl = do
         , networkTip =
             ApiNetworkTip
                 { epochNumber = ApiT $ ntrkTip ^. #epochNumber
-                , slotNumber = ApiT $ ntrkTip ^. #slotNumber
+                , slotNumber  = ApiT $ ntrkTip ^. #slotNumber
                 }
         }
   where
@@ -1874,10 +1874,10 @@ instance LiftHandler ErrStartTimeLaterThanEndTime where
         , "'."
         ]
 
-instance LiftHandler ErrNetworkTip where
+instance LiftHandler ErrCurrentNodeTip where
     handler = \case
-        ErrNetworkTipNetworkUnreachable e -> handler e
-        ErrNetworkTipNotFound -> apiError err503 NetworkTipNotFound $ mconcat
+        ErrCurrentNodeTipNetworkUnreachable e -> handler e
+        ErrCurrentNodeTipNotFound -> apiError err503 NetworkTipNotFound $ mconcat
             [ "I couldn't get the current network tip at the moment. It's "
             , "probably because the node is down or not started yet. Retrying "
             , "in a bit might give better results!"
@@ -1886,7 +1886,7 @@ instance LiftHandler ErrNetworkTip where
 instance LiftHandler ErrListStakePools where
      handler = \case
          ErrListStakePoolsMetricsInconsistency e -> handler e
-         ErrListStakePoolsErrNetworkTip e -> handler e
+         ErrListStakePoolsCurrentNodeTip e -> handler e
          ErrMetricsIsUnsynced p ->
              apiError err503 NotSynced $ mconcat
                  [ "I can't list stake pools yet because I need to scan the "

@@ -61,11 +61,11 @@ import Cardano.Pool.Performance
 import Cardano.Pool.Ranking
     ( EpochConstants (..), unsafeMkNonNegative, unsafeMkRatio )
 import Cardano.Wallet.Network
-    ( ErrNetworkTip
+    ( ErrCurrentNodeTip
     , ErrNetworkUnavailable
     , FollowAction (..)
     , FollowLog
-    , NetworkLayer (networkTip, stakeDistribution)
+    , NetworkLayer (currentNodeTip, stakeDistribution)
     , follow
     , staticBlockchainParameters
     )
@@ -191,8 +191,8 @@ monitorStakePools tr nl db@DBLayer{..} = do
     forward blocks nodeTip = handler $ do
         (ep, dist) <- withExceptT ErrMonitorStakePoolsNetworkUnavailable $
             stakeDistribution nl
-        currentTip <- withExceptT ErrMonitorStakePoolsNetworkTip $
-            networkTip nl
+        currentTip <- withExceptT ErrMonitorStakePoolsCurrentNodeTip $
+            currentNodeTip nl
         when (nodeTip /= currentTip) $ throwE ErrMonitorStakePoolsWrongTip
 
         liftIO $ traceWith tr $ MsgStakeDistribution ep
@@ -210,7 +210,7 @@ monitorStakePools tr nl db@DBLayer{..} = do
                 traceWith tr (MsgApplyError e)
                 pure $ case e of
                     ErrMonitorStakePoolsNetworkUnavailable{} -> RetryLater
-                    ErrMonitorStakePoolsNetworkTip{} -> RetryLater
+                    ErrMonitorStakePoolsCurrentNodeTip{} -> RetryLater
                     ErrMonitorStakePoolsWrongTip{} -> RetryImmediately
                     ErrMonitorStakePoolsPoolAlreadyExists{} -> ExitWith e
             Right () ->
@@ -222,7 +222,7 @@ monitorStakePools tr nl db@DBLayer{..} = do
 data ErrMonitorStakePools
     = ErrMonitorStakePoolsNetworkUnavailable ErrNetworkUnavailable
     | ErrMonitorStakePoolsPoolAlreadyExists ErrPointAlreadyExists
-    | ErrMonitorStakePoolsNetworkTip ErrNetworkTip
+    | ErrMonitorStakePoolsCurrentNodeTip ErrCurrentNodeTip
     | ErrMonitorStakePoolsWrongTip
     deriving (Show, Eq)
 
@@ -246,7 +246,7 @@ data StakePoolLayer m = StakePoolLayer
 data ErrListStakePools
      = ErrMetricsIsUnsynced (Quantity "percent" Percentage)
      | ErrListStakePoolsMetricsInconsistency ErrMetricsInconsistency
-     | ErrListStakePoolsErrNetworkTip ErrNetworkTip
+     | ErrListStakePoolsCurrentNodeTip ErrCurrentNodeTip
      deriving (Show)
 
 newStakePoolLayer
@@ -270,8 +270,8 @@ newStakePoolLayer tr getEpCst db@DBLayer{..} nl metadataDir = StakePoolLayer
   where
     sortKnownPools :: ExceptT ErrListStakePools IO [(StakePool, [PoolOwner])]
     sortKnownPools = do
-        nodeTip <- withExceptT ErrListStakePoolsErrNetworkTip
-            $ networkTip nl
+        nodeTip <- withExceptT ErrListStakePoolsCurrentNodeTip
+            $ currentNodeTip nl
         let nodeEpoch = nodeTip ^. #slotId . #epochNumber
         let genesisEpoch = block0 ^. #header . #slotId . #epochNumber
 
@@ -574,7 +574,7 @@ instance DefineSeverity StakePoolLog where
                 -> Debug
         MsgApplyError e -> case e of
             ErrMonitorStakePoolsNetworkUnavailable{} -> Notice
-            ErrMonitorStakePoolsNetworkTip{} -> Notice
+            ErrMonitorStakePoolsCurrentNodeTip{} -> Notice
             ErrMonitorStakePoolsWrongTip{} -> Debug
             ErrMonitorStakePoolsPoolAlreadyExists{} -> Debug
 
@@ -633,7 +633,7 @@ instance ToText StakePoolLog where
         MsgApplyError e -> case e of
             ErrMonitorStakePoolsNetworkUnavailable{} ->
                 "Network is not available."
-            ErrMonitorStakePoolsNetworkTip{} ->
+            ErrMonitorStakePoolsCurrentNodeTip{} ->
                 "Network is not available."
             ErrMonitorStakePoolsWrongTip{} ->
                 "Race condition when fetching stake distribution."

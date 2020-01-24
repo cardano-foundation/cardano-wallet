@@ -203,7 +203,7 @@ newNetworkLayer
         -- ^ Communication channel with the Network Client
     -> NetworkLayer m Byron ByronBlock
 newNetworkLayer bp queue = NetworkLayer
-    { networkTip = _networkTip
+    { currentNodeTip = _currentNodeTip
     , findIntersection = _findIntersection
     , nextBlocks = _nextBlocks
     , initCursor = _initCursor
@@ -223,8 +223,8 @@ newNetworkLayer bp queue = NetworkLayer
     _nextBlocks _ = do
         lift (queue `send` CmdNextBlocks)
 
-    _networkTip = do
-        tip <- lift (queue `send` CmdNetworkTip)
+    _currentNodeTip = do
+        tip <- lift (queue `send` CmdCurrentNodeTip)
         pure (fromTip (W.getGenesisBlockHash bp) tip)
 
     _cursorSlotId (Cursor point) = do
@@ -291,7 +291,7 @@ data NetworkClientCmd (m :: * -> *)
         (Either ErrCmdFindIntersection (Point ByronBlock) -> m ())
     | CmdNextBlocks
         (NextBlocksResult Byron ByronBlock -> m ())
-    | CmdNetworkTip
+    | CmdCurrentNodeTip
         (Tip ByronBlock -> m ())
 
 data ErrCmdFindIntersection

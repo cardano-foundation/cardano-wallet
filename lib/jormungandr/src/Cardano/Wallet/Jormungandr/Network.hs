@@ -41,7 +41,7 @@ module Cardano.Wallet.Jormungandr.Network
     , ErrGetBlock (..)
     , ErrGetBlockchainParams (..)
     , ErrGetDescendants (..)
-    , ErrNetworkTip (..)
+    , ErrCurrentNodeTip (..)
     , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
     , ErrStartup (..)
@@ -71,11 +71,11 @@ import Cardano.Launcher
     )
 import Cardano.Wallet.Jormungandr.Api.Client
     ( BaseUrl (..)
+    , ErrCurrentNodeTip (..)
     , ErrGetAccountState (..)
     , ErrGetBlock (..)
     , ErrGetBlockchainParams (..)
     , ErrGetDescendants (..)
-    , ErrNetworkTip (..)
     , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
     , ErrUnexpectedNetworkFailure (..)
@@ -274,8 +274,8 @@ mkRawNetworkLayer
     -> JormungandrClient m
     -> NetworkLayer m t block
 mkRawNetworkLayer (block0, bp) batchSize st j = NetworkLayer
-    { networkTip =
-        _networkTip
+    { currentNodeTip =
+        _currentNodeTip
 
     , findIntersection =
         _findIntersection
@@ -315,13 +315,13 @@ mkRawNetworkLayer (block0, bp) batchSize st j = NetworkLayer
     genesis :: Hash "Genesis"
     genesis = getGenesisBlockHash bp
 
-    _networkTip :: ExceptT ErrNetworkTip m BlockHeader
-    _networkTip = modifyMVar st $ \bs -> do
+    _currentNodeTip :: ExceptT ErrCurrentNodeTip m BlockHeader
+    _currentNodeTip = modifyMVar st $ \bs -> do
         let tip = withExceptT liftE $ getTipId j
         bs' <- withExceptT liftE $ updateUnstableBlocks k tip (getBlockHeader j) bs
         ExceptT . pure $ case blockHeadersTip bs' of
             Just t -> Right (bs', t)
-            Nothing -> Left ErrNetworkTipNotFound
+            Nothing -> Left ErrCurrentNodeTipNotFound
 
     _findIntersection :: Cursor t -> m (Maybe BlockHeader)
     _findIntersection (Cursor localChain) = do
@@ -362,7 +362,7 @@ mkRawNetworkLayer (block0, bp) batchSize st j = NetworkLayer
         :: Cursor t
         -> ExceptT ErrGetBlock m (NextBlocksResult t block)
     _nextBlocks cursor@(Cursor localChain) = do
-        lift (runExceptT _networkTip) >>= \case
+        lift (runExceptT _currentNodeTip) >>= \case
             Right _ -> do
                 unstable <- readMVar st
                 case direction cursor unstable of
@@ -389,10 +389,10 @@ mkRawNetworkLayer (block0, bp) batchSize st j = NetworkLayer
                     Restart ->
                         pure (recover localChain)
 
-            Left ErrNetworkTipNotFound ->
+            Left ErrCurrentNodeTipNotFound ->
                 pure AwaitReply
 
-            Left (ErrNetworkTipNetworkUnreachable e) ->
+            Left (ErrCurrentNodeTipNetworkUnreachable e) ->
                 throwE (ErrGetBlockNetworkUnreachable e)
       where
         tryRollForward

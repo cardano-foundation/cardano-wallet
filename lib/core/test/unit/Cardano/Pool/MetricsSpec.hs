@@ -265,7 +265,7 @@ prop_trackRegistrations test = monadicIO $ do
                 pure . const (Cursor header0)
             , stakeDistribution =
                 pure (0, mempty)
-            , networkTip =
+            , currentNodeTip =
                 pure header0
             -- These params are basically unused and completely arbitrary.
             , staticBlockchainParameters =
@@ -288,7 +288,7 @@ test_emptyDatabaseNotSynced = do
         _ -> fail $ "got something else than expected: " <> show res
   where
     nl = mockNetworkLayer
-        { networkTip =
+        { currentNodeTip =
             pure header0
         , staticBlockchainParameters =
             ( block0
@@ -313,7 +313,7 @@ test_notSyncedProgress = do
     nodeTip = header0 { blockHeight = Quantity 42 }
     prodTip = header0 { blockHeight = Quantity 14 }
     nl = mockNetworkLayer
-        { networkTip =
+        { currentNodeTip =
             pure nodeTip
         , staticBlockchainParameters =
             ( block0
@@ -338,8 +338,8 @@ mockNetworkLayer = NetworkLayer
         \_ -> error "mockNetworkLayer: initCursor"
     , cursorSlotId =
         \_ -> error "mockNetworkLayer: cursorSlotId"
-    , networkTip =
-        error "mockNetworkLayer: networkTip"
+    , currentNodeTip =
+        error "mockNetworkLayer: currentNodeTip"
     , postTx =
         \_ -> error "mockNetworkLayer: postTx"
     , staticBlockchainParameters =
