@@ -114,7 +114,6 @@ import Cardano.Wallet.Primitive.Types
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
-    , TxWitness (..)
     , unsafeEpochNo
     )
 import Control.DeepSeq
@@ -467,13 +466,11 @@ getGenericTransaction tid = label "getGenericTransaction" $ do
     _wits <- replicateM witnessCount getWitness
     return $ Tx tid ins outs
   where
-    getWitness :: Get TxWitness
+    getWitness :: Get ByteString
     getWitness = do
         tag <- lookAhead getTxWitnessTag
         let len = txWitnessSize tag + txWitnessTagSize
-        -- NOTE: Regardless of the type of witness, we decode it as a
-        -- @TxWitness@.
-        TxWitness <$> getByteString len
+        getByteString len
 
     getTokenTransfer :: Get ([(TxIn, Coin)], [TxOut])
     getTokenTransfer = label "getTokenTransfer" $ do
