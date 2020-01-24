@@ -84,7 +84,6 @@ followSpec =
 mockNetworkLayer :: NetworkLayer IO DummyTarget Block
 mockNetworkLayer = NetworkLayer
     { nextBlocks = \_ -> error "no next blocks"
-    , findIntersection = \_ -> error "no find intersection"
     , initCursor = \_ -> error "no init cursor"
     , cursorSlotId = \_ -> error "no cursor slot id"
     , currentNodeTip = error "there is no current node tip"

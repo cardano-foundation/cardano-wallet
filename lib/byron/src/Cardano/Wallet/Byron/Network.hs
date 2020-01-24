@@ -204,7 +204,6 @@ newNetworkLayer
     -> NetworkLayer m Byron ByronBlock
 newNetworkLayer bp queue = NetworkLayer
     { currentNodeTip = _currentNodeTip
-    , findIntersection = _findIntersection
     , nextBlocks = _nextBlocks
     , initCursor = _initCursor
     , cursorSlotId = _cursorSlotId
@@ -238,12 +237,6 @@ newNetworkLayer bp queue = NetworkLayer
         ( genesisBlock $ toByronHash $ coerce $ W.getGenesisBlockHash bp
         , bp
         )
-
-    -- NOTE
-    -- Only needed for testing, probably need to be removed from the network
-    -- layer...
-    _findIntersection =
-        notImplemented "findIntersection"
 
     _postTx =
         notImplemented "postTx"

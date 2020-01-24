@@ -332,8 +332,6 @@ mockNetworkLayer :: NetworkLayer m t b
 mockNetworkLayer = NetworkLayer
     { nextBlocks =
         \_ -> error "mockNetworkLayer: nextBlocks"
-    , findIntersection =
-        \_ -> error "mockNetworkLayer: findIntersection"
     , initCursor =
         \_ -> error "mockNetworkLayer: initCursor"
     , cursorSlotId =

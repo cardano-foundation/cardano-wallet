@@ -7,6 +7,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
@@ -54,6 +55,7 @@ module Cardano.Wallet.Jormungandr.Network
     , mkRawNetworkLayer
     , BaseUrl (..)
     , Scheme (..)
+    , pattern Cursor
     ) where
 
 import Prelude
@@ -277,9 +279,6 @@ mkRawNetworkLayer (block0, bp) batchSize st j = NetworkLayer
     { currentNodeTip =
         _currentNodeTip
 
-    , findIntersection =
-        _findIntersection
-
     , nextBlocks =
         _nextBlocks
 
@@ -322,11 +321,6 @@ mkRawNetworkLayer (block0, bp) batchSize st j = NetworkLayer
         ExceptT . pure $ case blockHeadersTip bs' of
             Just t -> Right (bs', t)
             Nothing -> Left ErrCurrentNodeTipNotFound
-
-    _findIntersection :: Cursor t -> m (Maybe BlockHeader)
-    _findIntersection (Cursor localChain) = do
-        nodeChain <- readMVar st
-        pure (greatestCommonBlockHeader nodeChain localChain)
 
     _initCursor :: [BlockHeader] -> m (Cursor t)
     _initCursor bhs =

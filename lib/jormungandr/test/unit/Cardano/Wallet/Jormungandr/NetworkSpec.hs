@@ -4,8 +4,10 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -19,11 +21,11 @@ import Cardano.Wallet.Jormungandr.Api.Client
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
 import Cardano.Wallet.Jormungandr.Network
-    ( ErrGetDescendants (..), mkRawNetworkLayer )
+    ( pattern Cursor, ErrGetDescendants (..), mkRawNetworkLayer )
 import Cardano.Wallet.Network
     ( Cursor, ErrGetBlock (..), NetworkLayer (..), NextBlocksResult (..) )
 import Cardano.Wallet.Network.BlockHeaders
-    ( emptyBlockHeaders )
+    ( BlockHeaders, emptyBlockHeaders, greatestCommonBlockHeader )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , BlockchainParameters (..)
@@ -32,7 +34,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (unSlotNo)
     )
 import Control.Concurrent.MVar.Lifted
-    ( newMVar )
+    ( MVar, newMVar, readMVar )
 import Control.Monad.Fail
     ( MonadFail )
 import Control.Monad.Trans.Class
@@ -121,10 +123,10 @@ prop_sync s0 = monadicIO $ do
     (c0Chain, c0Cps) <- pick $ genConsumer s0
     (consumer, s) <- run $ flip runStateT s0 $ do
         -- Set up network layer with mock Jormungandr
-        nl <- mockNetworkLayer logLine
+        nXl@(nl, _) <- mockNetworkLayer logLine
         cursor <- initCursor nl c0Cps
         let c0 = C c0Chain cursor 0 0
-        consumerRestoreStep logLineC nl c0 Nothing
+        consumerRestoreStep logLineC nXl c0 Nothing
 
     let nodeChain = getNodeChain (node s)
     monitor $ counterexample $ unlines
@@ -281,7 +283,7 @@ consumerRestoreStep
     :: (Monad m)
     => (String -> StateT S m ())
     -- ^ logger function
-    -> TestNetworkLayer m
+    -> (TestNetworkLayer m, Cursor Jormungandr -> m (Maybe BlockHeader))
     -- ^ Network layer.
     -> Consumer
     -- ^ Current consumer state.
@@ -291,7 +293,7 @@ consumerRestoreStep
     -- eventually be in sync.
     -> StateT S m Consumer
 consumerRestoreStep _ _ c (Just 0) = pure c
-consumerRestoreStep logLine nw (C bs cur hit total) mLimit = do
+consumerRestoreStep logLine nXw@(nw, findIntersection) (C bs cur hit total) mLimit = do
     -- We apply blocks by batch of `k`, so, when the node stabilizes, we should
     -- finish in less than the chain length divided by k steps.
     S n ops (Quantity k) _ <- get
@@ -301,25 +303,26 @@ consumerRestoreStep logLine nw (C bs cur hit total) mLimit = do
                 then Just (2 + length (nodeChainIds n) `div` fromIntegral k)
                 else Nothing
     logLine $ "nextBlocks " <> show (cursorSlotId nw cur)
-    hit' <- findIntersection nw cur <&> \case
+    hit' <- lift (findIntersection cur) <&> \case
         Nothing -> hit
         Just _  -> hit + 1
     let total' = total + 1
     runExceptT (nextBlocks nw cur) >>= \case
         Left e -> do
             logLine ("Failed to get next blocks: " ++ show e)
-            consumerRestoreStep logLine nw (C bs cur hit' total') limit
+            consumerRestoreStep logLine nXw (C bs cur hit' total') limit
         Right AwaitReply -> do
             logLine "AwaitReply"
-            consumerRestoreStep logLine nw (C bs cur hit' total') limit
+            consumerRestoreStep logLine nXw (C bs cur hit' total') limit
         Right (RollForward cur' _ bs') -> do
             logLine $ "RollForward " <> unwords (showBlock <$> bs')
-            consumerRestoreStep logLine nw (C (bs ++ bs') cur' hit' total') limit
+            consumerRestoreStep logLine nXw (C (bs ++ bs') cur' hit' total') limit
         Right (RollBackward cur') -> do
             logLine $ "RollBackward " <> show (cursorSlotId nw cur')
             let sl = cursorSlotId nw cur'
             let bs' = takeWhile (\b -> mockBlockSlot b <= sl) bs
-            consumerRestoreStep logLine nw (C bs' cur' hit' total') limit
+            consumerRestoreStep logLine nXw (C bs' cur' hit' total') limit
+
 
 ----------------------------------------------------------------------------
 -- Network layer with mock jormungandr node
@@ -331,13 +334,21 @@ type TestNetworkLayer m =
 mockNetworkLayer
     :: forall m. (MonadFail m, MonadBaseControl IO m)
     => (String -> StateT S m ()) -- ^ logger function
-    -> StateT S m (TestNetworkLayer m)
+    -> StateT S m (TestNetworkLayer m, Cursor Jormungandr -> m (Maybe BlockHeader))
 mockNetworkLayer logLine = do
     let jm = mockJormungandrClient logLine
     Quantity k <- gets mockNodeK
     st <- newMVar emptyBlockHeaders
     Right (b0,bp) <- runExceptT $ getInitialBlockchainParameters jm genesisHash
-    pure $ fromJBlock <$> mkRawNetworkLayer (b0, bp) (fromIntegral k) st jm
+    pure
+        ( fromJBlock <$> mkRawNetworkLayer (b0, bp) (fromIntegral k) st jm
+        , findIntersection st
+        )
+  where
+    findIntersection :: MVar BlockHeaders -> Cursor Jormungandr -> m (Maybe BlockHeader)
+    findIntersection st (Cursor localChain) = do
+        nodeChain <- readMVar st
+        pure (greatestCommonBlockHeader nodeChain localChain)
 
 -- | A network layer which returns mock blocks and mutates its state according
 -- to the generated operations.

@@ -106,12 +106,6 @@ data NetworkLayer m target block = NetworkLayer
         -- If the node has adopted an alternate fork of the chain, it will
         -- return 'RollBackward' with a new cursor.
 
-    , findIntersection
-        :: Cursor target -> m (Maybe BlockHeader)
-        -- ^ Attempt to find an intersection between the node's unstable blocks
-        -- and a given list of headers. This can be useful if we need to know
-        -- whether we are 'in sync' with the node or, close enough.
-
     , initCursor
         :: [BlockHeader] -> m (Cursor target)
         -- ^ Creates a cursor from the given block header so that 'nextBlocks'
