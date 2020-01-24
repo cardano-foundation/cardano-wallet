@@ -45,15 +45,22 @@ import Cardano.Wallet.Byron.Compatibility
 import Cardano.Wallet.Logging
     ( trMessage )
 import Cardano.Wallet.Network
-    ( NetworkLayer (..), NextBlocksResult (..) )
+    ( ErrCurrentNodeTip (..)
+    , ErrGetBlock (..)
+    , ErrNetworkUnavailable (..)
+    , NetworkLayer (..)
+    , NextBlocksResult (..)
+    )
 import Codec.SerialiseTerm
     ( CodecCBORTerm )
 import Control.Concurrent
     ( forkIO, killThread )
 import Control.Exception
-    ( Exception, bracket, catch, throw, throwIO )
+    ( bracket, catch, throwIO )
 import Control.Monad
     ( void )
+import Control.Monad.Class.MonadAsync
+    ( MonadAsync (..) )
 import Control.Monad.Class.MonadST
     ( MonadST )
 import Control.Monad.Class.MonadSTM
@@ -70,15 +77,17 @@ import Control.Monad.Class.MonadSTM
 import Control.Monad.Class.MonadThrow
     ( MonadThrow )
 import Control.Monad.Class.MonadTimer
-    ( MonadTimer )
-import Control.Monad.Trans.Class
-    ( lift )
+    ( MonadTimer, threadDelay )
+import Control.Monad.Trans.Except
+    ( ExceptT (..), withExceptT )
 import Control.Tracer
     ( Tracer, contramap )
 import Data.ByteString.Lazy
     ( ByteString )
 import Data.Coerce
     ( coerce )
+import Data.Functor
+    ( (<&>) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -196,7 +205,7 @@ withNetworkLayer tr bp addrInfo versionData action = do
 -- | Create an instance of the network layer, using the given communication
 -- channel.
 newNetworkLayer
-    :: MonadSTM m
+    :: (MonadSTM m, MonadAsync m, MonadTimer m)
     => W.BlockchainParameters
         -- ^ Static blockchain parameters
     -> TQueue m (NetworkClientCmd m)
@@ -216,15 +225,18 @@ newNetworkLayer bp queue = NetworkLayer
     _initCursor headers = do
         let points = genesisPoint : (toPoint <$> headers)
         queue `send` CmdFindIntersection points >>= \case
-            Left e  -> throw e
-            Right intersection -> pure $ Cursor intersection
+            Right(Just intersection) ->
+                pure $ Cursor intersection
+            _ -> fail
+                "initCursor: intersection not found? This can't happened \
+                \because we always give at least the genesis point..."
 
-    _nextBlocks _ = do
-        lift (queue `send` CmdNextBlocks)
+    _nextBlocks _ = withExceptT ErrGetBlockNetworkUnreachable $ do
+        ExceptT (queue `send` CmdNextBlocks)
 
-    _currentNodeTip = do
-        tip <- lift (queue `send` CmdCurrentNodeTip)
-        pure (fromTip (W.getGenesisBlockHash bp) tip)
+    _currentNodeTip = withExceptT ErrCurrentNodeTipNetworkUnreachable $ do
+        tip <- ExceptT (queue `send` CmdCurrentNodeTip)
+        pure $ fromTip (W.getGenesisBlockHash bp) tip
 
     _cursorSlotId (Cursor point) = do
         fromSlotNo $ fromWithOrigin (SlotNo 0) $ pointSlot point
@@ -281,18 +293,11 @@ newNetworkLayer bp queue = NetworkLayer
 data NetworkClientCmd (m :: * -> *)
     = CmdFindIntersection
         [Point ByronBlock]
-        (Either ErrCmdFindIntersection (Point ByronBlock) -> m ())
+        (Maybe (Point ByronBlock) -> m ())
     | CmdNextBlocks
         (NextBlocksResult Byron ByronBlock -> m ())
     | CmdCurrentNodeTip
         (Tip ByronBlock -> m ())
-
-data ErrCmdFindIntersection
-    = ErrIntersectionNotFound
-    | ErrIntersectionUnexpectedForward
-    deriving (Show)
-
-instance Exception ErrCmdFindIntersection
 
 -- | Helper function to easily send commands to the node's client and read
 -- responses back.
@@ -302,18 +307,19 @@ instance Exception ErrCmdFindIntersection
 --
 -- >>> queue `send` CmdNextBlocks
 -- AwaitReply
---
--- FIXME
--- Make this "timeoutable" to avoid possibly blocking indefinitly.
 send
-    :: MonadSTM m
+    :: (MonadSTM m, MonadAsync m, MonadTimer m)
     => TQueue m (NetworkClientCmd m)
     -> ((a -> m ()) -> NetworkClientCmd m)
-    -> m a
+    -> m (Either ErrNetworkUnavailable a)
 send queue cmd = do
     tvar <- newEmptyTMVarM
     atomically $ writeTQueue queue (cmd (atomically . putTMVar tvar))
-    atomically $ takeTMVar tvar
+    race timeout (atomically $ takeTMVar tvar) <&> \case
+        Left{}  -> Left (ErrNetworkUnreachable "timeout")
+        Right a -> Right a
+  where
+    timeout = threadDelay 60
 
 --------------------------------------------------------------------------------
 --
@@ -453,7 +459,7 @@ chainSyncWithBlocks tr pid genesisHash queue channel = do
 
             CmdNextBlocks respond -> pure $
                 SendMsgRequestNext
-                    (clientStNext ([], 2160) respond)
+                    (clientStNext ([], 1000) respond)
                     (pure $ clientStNext ([], 1) respond)
 
             CmdCurrentNodeTip respond -> do
@@ -461,19 +467,19 @@ chainSyncWithBlocks tr pid genesisHash queue channel = do
                 clientStIdle
 
         clientStIntersect
-            :: (Either ErrCmdFindIntersection (Point ByronBlock) -> m ())
+            :: (Maybe (Point ByronBlock) -> m ())
             -> ClientStIntersect ByronBlock (Tip ByronBlock) m Void
         clientStIntersect respond = ClientStIntersect
             { recvMsgIntersectFound = \intersection tip ->
                 ChainSyncClient $ do
                     swapTMVarM nodeTipVar tip
-                    respond (Right intersection)
+                    respond (Just intersection)
                     clientStIdle
 
             , recvMsgIntersectNotFound = \tip ->
                 ChainSyncClient $ do
                     swapTMVarM nodeTipVar tip
-                    respond (Left ErrIntersectionNotFound)
+                    respond Nothing
                     clientStIdle
             }
 
