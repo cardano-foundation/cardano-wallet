@@ -373,9 +373,6 @@ instance WalletKey IcarusKey where
     getRawKey =
         getKey
 
-    dummyKey =
-        let Right pub = xpub (BS.replicate 64 0) in IcarusKey pub
-
 {-------------------------------------------------------------------------------
                          Relationship Key / Address
 -------------------------------------------------------------------------------}

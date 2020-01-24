@@ -70,7 +70,6 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , MkKeyFingerprint(..)
     , ErrMkKeyFingerprint(..)
     , KeyFingerprint(..)
-    , dummyAddress
 
     -- * Passphrase
     , Passphrase(..)
@@ -593,9 +592,6 @@ class WalletKey (key :: Depth -> * -> *) where
         :: key depth raw
         -> raw
 
-    -- | Produce a fake address key of this scheme, for use in 'dummyAddress'.
-    dummyKey :: key 'AddressK XPub
-
 -- | Encoding of addresses for certain key types and backend targets.
 class MkKeyFingerprint key Address
     => PaymentAddress (network :: NetworkDiscriminant) key where
@@ -637,20 +633,6 @@ class PaymentAddress network key
         -> key 'AddressK XPub
             -- ^ Staking key / Reward account
         -> Address
-
--- | Produce a fake address of representative size for the target and key
--- type. This can be used in transaction size estimations.
---
--- This function is ambiguous, like 'paymentAddress', and types need to be
--- applied.
-dummyAddress
-    :: forall network key.
-        ( PaymentAddress network key
-        , WalletKey key
-        )
-    => Address
-dummyAddress =
-    paymentAddress @network @key (dummyKey @key)
 
 -- | Operations for saving a private key into a database, and restoring it from
 -- a database. The keys should be encoded in hexadecimal strings.

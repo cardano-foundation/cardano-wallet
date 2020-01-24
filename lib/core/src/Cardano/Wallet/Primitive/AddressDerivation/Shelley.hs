@@ -245,7 +245,6 @@ instance WalletKey ShelleyKey where
     publicKey = publicKeySeq
     digest = digestSeq
     getRawKey = getKey
-    dummyKey = dummyKeySeq
     keyTypeDescriptor _ = "seq"
 
 -- | Extract the public key part of a private key.
@@ -262,10 +261,6 @@ digestSeq
     -> Digest a
 digestSeq (ShelleyKey k) =
     hash (unXPub k)
-
-dummyKeySeq :: ShelleyKey 'AddressK XPub
-dummyKeySeq = ShelleyKey key
-    where Right key = xpub (BS.replicate 64 0)
 
 -- | Re-encrypt a private key using a different passphrase.
 --

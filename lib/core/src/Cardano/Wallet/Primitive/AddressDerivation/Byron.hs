@@ -56,7 +56,6 @@ import Cardano.Crypto.Wallet
     , unXPub
     , xPrvChangePass
     , xprv
-    , xpub
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
@@ -138,7 +137,6 @@ instance WalletKey ByronKey where
     -- Hash a public key to some other representation.
     digest = hash . unXPub . getKey
     getRawKey = getKey
-    dummyKey = dummyKeyRnd
     keyTypeDescriptor _ = "rnd"
 
 instance PaymentAddress 'Testnet ByronKey where
@@ -261,13 +259,6 @@ hdPassphrase masterKey = Passphrase $
     (PBKDF2.Parameters 500 32)
     (unXPub masterKey)
     ("address-hashing" :: ByteString)
-
-dummyKeyRnd :: ByronKey 'AddressK XPub
-dummyKeyRnd = ByronKey key (minBound, minBound) pwd
-  where
-    Right key = xpub (B8.replicate 64 '\0')
-    -- The 'hdPassphrase' result is 256 bits
-    pwd = Passphrase (BA.convert $ B8.replicate 32 '\0')
 
 {-------------------------------------------------------------------------------
                                    Passphrase
