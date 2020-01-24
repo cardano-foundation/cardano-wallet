@@ -253,6 +253,13 @@ instance Functor (NextBlocksResult target) where
 -- NOTE: @Retry@ is needed to handle data-races in
 -- 'Cardano.Pool.Metrics', where it is essensial that we fetch the stake
 -- distribution while the node-tip
+--
+-- FIXME:
+-- Retry actions with the Haskell nodes are not possible (or at least, requires
+-- some additional manipulation to find a new intersection). As a possible fix,
+-- we could use a type family to define 'FollowAction' in terms of the
+-- underlying target. 'RetryImmediately' and 'RetryLater' could be authorized in
+-- the context of Jormungandr but absent in the context of the Haskell nodes.
 data FollowAction err
     = ExitWith err
       -- ^ Stop following the chain.
