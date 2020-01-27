@@ -1299,20 +1299,13 @@ getNetworkInformation (_block0, bp, st) nl = do
                 }
         }
   where
-    sp = toSlotParameters bp
+    sp = W.slotParams bp
 
     -- Unsafe constructor for the next epoch. Chances to reach the last epoch
     -- are quite unlikely in this context :)
     unsafeEpochSucc :: HasCallStack => W.EpochNo -> W.EpochNo
     unsafeEpochSucc = fromMaybe bomb . W.epochSucc
       where bomb = error "reached final epoch of the Blockchain!?"
-
-toSlotParameters :: BlockchainParameters -> W.SlotParameters
-toSlotParameters bp = W.SlotParameters
-    (bp ^. #getEpochLength)
-    (bp ^. #getSlotLength)
-    (bp ^. #getGenesisBlockDate)
-    (bp ^. #getActiveSlotCoefficient)
 
 getNetworkParameters
     :: (Block, BlockchainParameters, SyncTolerance)
@@ -1325,7 +1318,7 @@ getNetworkParameters (_block0, bp, _st) apiEpochNum = do
         ApiEpochNumber epochNum -> do
             now <- liftIO getCurrentTime
             let ntrkTip =
-                    fromMaybe slotMinBound (slotAt (toSlotParameters bp) now)
+                    fromMaybe slotMinBound (slotAt (W.slotParams bp) now)
             let currentEpochNum = ntrkTip ^. #epochNumber
             when (currentEpochNum < epochNum) $ liftHandler $ throwE $
                 ErrGetNetworkParametersNoSuchEpochNo currentEpochNum epochNum

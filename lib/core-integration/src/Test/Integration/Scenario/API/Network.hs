@@ -191,12 +191,12 @@ spec = do
         let (ApiT (EpochNo currentEpochNo)) =
                 getFromResponse (#nextEpoch . #epochNumber) r1
 
-        let reqEpochNo = T.pack $ show $ currentEpochNo + 10
-        let endpoint = ( "GET", "v2/network/parameters/"<>reqEpochNo )
+        let futureEpochNo = T.pack $ show $ currentEpochNo + 10
+        let endpoint = ( "GET", "v2/network/parameters/"<>futureEpochNo )
         r2 <- request @ApiNetworkParameters ctx endpoint Default Empty
 
         expectResponseCode @IO HTTP.status404 r2
-        expectErrorMessage (errMsg404NoEpochNo (T.unpack reqEpochNo)) r2
+        expectErrorMessage (errMsg404NoEpochNo (T.unpack futureEpochNo)) r2
 
     describe "NETWORK - Can query blockchain parameters with \
              \valid arguments" $ do
