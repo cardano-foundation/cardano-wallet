@@ -531,7 +531,7 @@ server byron icarus shelley spl =
     network :: Server Network
     network =
         getNetworkInformation genesis nl
-        :<|> (getNetworkParameters genesis nl)
+        :<|> (getNetworkParameters genesis)
       where
         nl = shelley ^. networkLayer @t
         genesis = shelley ^. genesisData
@@ -1315,12 +1315,10 @@ toSlotParameters bp = W.SlotParameters
     (bp ^. #getActiveSlotCoefficient)
 
 getNetworkParameters
-    :: forall t. ()
-    => (Block, BlockchainParameters, SyncTolerance)
-    -> NetworkLayer IO t Block
+    :: (Block, BlockchainParameters, SyncTolerance)
     -> ApiEpochNumber
     -> Handler ApiNetworkParameters
-getNetworkParameters (_block0, bp, _st) _nl apiEpochNum = do
+getNetworkParameters (_block0, bp, _st) apiEpochNum = do
     case apiEpochNum of
         ApiEpochNumberInvalid txt ->
             liftHandler $ throwE $ ErrGetNetworkParametersInvalidValue txt

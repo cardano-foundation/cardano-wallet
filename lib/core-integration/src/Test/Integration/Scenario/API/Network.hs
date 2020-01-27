@@ -198,7 +198,7 @@ spec = do
         expectResponseCode @IO HTTP.status404 r2
         expectErrorMessage (errMsg404NoEpochNo (T.unpack reqEpochNo)) r2
 
-    describe "NETWORK - x Can query blockchain parameters with \
+    describe "NETWORK - Can query blockchain parameters with \
              \valid arguments" $ do
         let matrix = ["latest", "0"]
         forM_ matrix $ \arg -> it (show arg) $ \ctx -> do
@@ -206,7 +206,7 @@ spec = do
             r <- request @ApiNetworkParameters ctx endpoint Default Empty
             expectResponseCode @IO HTTP.status200 r
 
-    it "NETWORK - x Can query blockchain parameters with \
+    it "NETWORK - Can query blockchain parameters with \
              \valid arguments" $ \ctx -> do
         r <- request @ApiNetworkInformation ctx
             Link.getNetworkInfo Default Empty
