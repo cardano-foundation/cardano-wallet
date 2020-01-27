@@ -1224,6 +1224,11 @@ instance Arbitrary (Quantity "second" NominalDiffTime) where
     shrink _ = [Quantity 0.0]
     arbitrary = Quantity . fromInteger <$> choose (0, 10000)
 
+instance Arbitrary (Quantity "percent" Double) where
+    shrink (Quantity 0.0) = []
+    shrink _ = [Quantity 0.0]
+    arbitrary = Quantity <$> choose (0,100)
+
 instance Arbitrary ApiNetworkParameters where
     arbitrary = genericArbitrary
     shrink = genericShrink

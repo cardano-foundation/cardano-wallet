@@ -237,7 +237,7 @@ import Data.Maybe
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
-    ( Quantity (..), mkPercentage )
+    ( Quantity (..) )
 import Data.Set
     ( Set )
 import Data.Streaming.Network
@@ -1327,10 +1327,6 @@ getNetworkParameters (_block0, bp, _st) apiEpochNum = do
             pure resp
   where
     (W.SlotLength slotLength) = bp ^. #getSlotLength
-    handlePercentageConv =
-        either
-        (error . ("from activeSlotCoefficient: " <>) . show)
-        Quantity . mkPercentage
     resp :: ApiNetworkParameters
     resp = ApiNetworkParameters
         (ApiT $ bp ^. #getGenesisBlockHash)
@@ -1338,9 +1334,7 @@ getNetworkParameters (_block0, bp, _st) apiEpochNum = do
         (Quantity slotLength)
         (Quantity $ W.unEpochLength $ bp ^. #getEpochLength)
         (bp ^. #getEpochStability)
-        ( handlePercentageConv
-            $ round @Double @Word
-            $ W.unActiveSlotCoefficient
+        (Quantity $ W.unActiveSlotCoefficient
             $ bp ^. #getActiveSlotCoefficient )
 
 data ErrGetNetworkParameters

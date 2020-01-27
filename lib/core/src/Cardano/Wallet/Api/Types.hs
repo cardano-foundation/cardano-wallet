@@ -351,7 +351,7 @@ data ApiNetworkParameters = ApiNetworkParameters
     , slotLength :: !(Quantity "second" NominalDiffTime)
     , epochLength :: !(Quantity "slot" Word32)
     , epochStability :: !(Quantity "block" Word32)
-    , activeSlotCoefficient :: !(Quantity "percent" Percentage)
+    , activeSlotCoefficient :: !(Quantity "percent" Double)
     } deriving (Eq, Generic, Show)
 
 newtype ApiTxId = ApiTxId
