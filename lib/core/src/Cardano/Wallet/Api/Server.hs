@@ -1954,7 +1954,7 @@ instance LiftHandler ErrQuitStakePool where
 instance LiftHandler ErrGetNetworkParameters where
     handler = \case
         ErrGetNetworkParametersInvalidValue txt ->
-            apiError err400 PoolAlreadyJoined $ mconcat
+            apiError err400 InvalidEpochNo $ mconcat
                 [ "I couldn't show blockchain parameters for "
                 , txt
                 , ". It should be either 'latest' or integer from "
