@@ -197,3 +197,31 @@ spec = do
 
         expectResponseCode @IO HTTP.status404 r2
         expectErrorMessage (errMsg404NoEpochNo (T.unpack reqEpochNo)) r2
+
+    describe "NETWORK - x Can query blockchain parameters with \
+             \valid arguments" $ do
+        let matrix = ["latest", "0"]
+        forM_ matrix $ \arg -> it (show arg) $ \ctx -> do
+            let endpoint = ( "GET", "v2/network/parameters/"<>arg )
+            r <- request @ApiNetworkParameters ctx endpoint Default Empty
+            expectResponseCode @IO HTTP.status200 r
+
+    it "NETWORK - x Can query blockchain parameters with \
+             \valid arguments" $ \ctx -> do
+        r <- request @ApiNetworkInformation ctx
+            Link.getNetworkInfo Default Empty
+        let (ApiT (EpochNo currentEpochNo)) =
+                getFromResponse (#nextEpoch . #epochNumber) r
+
+        let epochNoOk1 = T.pack $ show $ currentEpochNo - 10
+        let endpoint1 = ( "GET", "v2/network/parameters/"<>epochNoOk1 )
+        r1@(_,(Right apiParams1)) <-
+            request @ApiNetworkParameters ctx endpoint1 Default Empty
+        expectResponseCode @IO HTTP.status200 r1
+
+        let epochNoOk2 = T.pack $ show $ currentEpochNo - 1
+        let endpoint2 = ( "GET", "v2/network/parameters/"<>epochNoOk2 )
+        r2@(_,(Right apiParams2)) <- request @ApiNetworkParameters ctx endpoint2 Default Empty
+        expectResponseCode @IO HTTP.status200 r2
+
+        apiParams1 `shouldBe` apiParams2

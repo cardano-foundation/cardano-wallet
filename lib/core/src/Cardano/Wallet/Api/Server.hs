@@ -106,7 +106,7 @@ import Cardano.Wallet.Api.Types
     , ApiFee (..)
     , ApiMnemonicT (..)
     , ApiNetworkInformation (..)
-    , ApiNetworkParameters
+    , ApiNetworkParameters (..)
     , ApiNetworkTip (..)
     , ApiSelectCoinsData (..)
     , ApiStakePool (..)
@@ -237,7 +237,7 @@ import Data.Maybe
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..), mkPercentage )
 import Data.Set
     ( Set )
 import Data.Streaming.Network
@@ -288,10 +288,8 @@ import Servant
     , err409
     , err410
     , err500
-    , err501
     , err503
     , serve
-    , throwError
     )
 import Servant.Server
     ( Handler (..), ServantErr (..) )
@@ -1330,9 +1328,9 @@ getNetworkParameters (_block0, bp, _st) _nl apiEpochNum = do
             let currentEpochNum = ntrkTip ^. #epochNumber
             when (currentEpochNum < epochNum) $ liftHandler $ throwE $
                 ErrGetNetworkParametersWrongEpochNo currentEpochNum epochNum
-            throwError err501
-        _ ->
-            throwError err501
+            pure resp
+        ApiEpochNumberLatest ->
+            pure resp
   where
     sp :: W.SlotParameters
     sp = W.SlotParameters
@@ -1340,6 +1338,23 @@ getNetworkParameters (_block0, bp, _st) _nl apiEpochNum = do
         (bp ^. #getSlotLength)
         (bp ^. #getGenesisBlockDate)
         (bp ^. #getActiveSlotCoefficient)
+    (W.SlotLength slotLength) = bp ^. #getSlotLength
+    handlePercentageConv =
+        either
+        (error . ("from activeSlotCoefficient: " <>) . show)
+        Quantity . mkPercentage
+    resp :: ApiNetworkParameters
+    resp = ApiNetworkParameters {
+          genesisBlockHash = ApiT $ bp ^. #getGenesisBlockHash
+        , blockchainStartTime = ApiT $ bp ^. #getGenesisBlockDate
+        , slotLength = Quantity slotLength
+        , epochLength = Quantity $ W.unEpochLength $ bp ^. #getEpochLength
+        , epochStability = bp ^. #getEpochStability
+        , activeSlotCoefficient = handlePercentageConv
+                $ round @Double @Word
+                $ W.unActiveSlotCoefficient
+                $ bp ^. #getActiveSlotCoefficient
+        }
 
 data ErrGetNetworkParameters
     = ErrGetNetworkParametersInvalidValue Text
