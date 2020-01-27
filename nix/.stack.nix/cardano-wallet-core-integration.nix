@@ -79,6 +79,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."http-api-data" or (buildDepError "http-api-data"))
           (hsPkgs."http-client" or (buildDepError "http-client"))
           (hsPkgs."http-types" or (buildDepError "http-types"))
+          (hsPkgs."OddWord" or (buildDepError "OddWord"))
           (hsPkgs."process" or (buildDepError "process"))
           (hsPkgs."retry" or (buildDepError "retry"))
           (hsPkgs."time" or (buildDepError "time"))
