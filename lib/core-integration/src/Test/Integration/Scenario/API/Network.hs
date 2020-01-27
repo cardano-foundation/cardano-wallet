@@ -155,7 +155,7 @@ spec = do
                     Link.getNetworkInfo headers Empty
                 verify r expectations
 
-    describe "NETWORK - Cannot query blockchain parameters with \
+    describe "NETWORK - x Cannot query blockchain parameters with \
              \invalid arguments" $ do
         let matrix = ["earliest", "invalid"]
         forM_ matrix $ \arg -> it (show arg) $ \ctx -> do
@@ -163,3 +163,18 @@ spec = do
             r <- request @ApiNetworkParameters ctx endpoint Default Empty
             expectResponseCode @IO HTTP.status400 r
             expectErrorMessage (errMsg400MalformedEpoch $ T.unpack arg) r
+
+    describe "NETWORK - v2/network/parameters - Methods Not Allowed" $ do
+        let matrix = ["POST", "CONNECT", "TRACE", "OPTIONS"]
+        forM_ matrix $ \method -> it (show method) $ \ctx -> do
+            let endpoint = (method, "v2/network/parameters/latest")
+            r <- request @ApiNetworkParameters ctx endpoint Default Empty
+            expectResponseCode @IO HTTP.status405 r
+            expectErrorMessage errMsg405 r
+
+    describe "NETWORK - HTTP headers" $ do
+        forM_ (getHeaderCases HTTP.status200)
+            $ \(title, headers, expectations) -> it title $ \ctx -> do
+                r <- request @ApiNetworkParameters ctx
+                    Link.getNetworkInfo headers Empty
+                verify r expectations
