@@ -213,7 +213,7 @@ import Control.Exception
 import Control.Exception.Lifted
     ( finally )
 import Control.Monad
-    ( forM, forM_, unless, void )
+    ( forM, forM_, unless, void, when )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
@@ -1320,15 +1320,30 @@ getNetworkParameters
     -> NetworkLayer IO t Block
     -> ApiEpochNumber
     -> Handler ApiNetworkParameters
-getNetworkParameters _ _ apiEpochNum = do
+getNetworkParameters (_block0, bp, _st) _nl apiEpochNum = do
     case apiEpochNum of
         ApiEpochNumberInvalid txt ->
             liftHandler $ throwE $ ErrGetNetworkParametersInvalidValue txt
+        ApiEpochNumber epochNum -> do
+            now <- liftIO getCurrentTime
+            let ntrkTip = fromMaybe slotMinBound (slotAt sp now)
+            let currentEpochNum = ntrkTip ^. #epochNumber
+            when (currentEpochNum < epochNum) $ liftHandler $ throwE $
+                ErrGetNetworkParametersWrongEpochNo currentEpochNum epochNum
+            throwError err501
         _ ->
             throwError err501
+  where
+    sp :: W.SlotParameters
+    sp = W.SlotParameters
+        (bp ^. #getEpochLength)
+        (bp ^. #getSlotLength)
+        (bp ^. #getGenesisBlockDate)
+        (bp ^. #getActiveSlotCoefficient)
 
 data ErrGetNetworkParameters
     = ErrGetNetworkParametersInvalidValue Text
+    | ErrGetNetworkParametersWrongEpochNo W.EpochNo W.EpochNo
     deriving (Eq, Show)
 
 {-------------------------------------------------------------------------------
@@ -1962,6 +1977,15 @@ instance LiftHandler ErrGetNetworkParameters where
                 , " to "
                 , T.pack (show (maxBound @Word31))
                 , "."
+                ]
+        ErrGetNetworkParametersWrongEpochNo (W.EpochNo cEpochNo) (W.EpochNo rEpochNo) ->
+            apiError err404 NotEpochNo $ mconcat
+                [ "I couldn't show blockchain parameters for epoch number later"
+                , " than current one. You requested "
+                , T.pack (show rEpochNo)
+                , " epoch. Current one is "
+                , T.pack (show cEpochNo)
+                , ". Use smaller epoch than current or 'latest'."
                 ]
 
 instance LiftHandler (Request, ServantErr) where

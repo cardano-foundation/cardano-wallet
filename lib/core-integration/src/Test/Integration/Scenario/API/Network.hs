@@ -14,17 +14,20 @@ import Cardano.Wallet.Api.Types
     , ApiEpochInfo (..)
     , ApiNetworkInformation
     , ApiNetworkParameters
+    , ApiT (..)
     , ApiWallet
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( SyncProgress (..) )
+    ( EpochNo (..), SyncProgress (..) )
 import Control.Monad
     ( forM_ )
 import Control.Monad.IO.Class
     ( liftIO )
 import Data.Time.Clock
     ( getCurrentTime )
+import Data.Word.Odd
+    ( Word31 )
 import Test.Hspec
     ( SpecWith, describe, it, shouldBe, shouldSatisfy )
 import Test.Integration.Framework.DSL
@@ -45,7 +48,7 @@ import Test.Integration.Framework.DSL
     , verify
     )
 import Test.Integration.Framework.TestData
-    ( errMsg400MalformedEpoch, errMsg405, getHeaderCases )
+    ( errMsg400MalformedEpoch, errMsg404NoEpochNo, errMsg405, getHeaderCases )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
@@ -155,9 +158,11 @@ spec = do
                     Link.getNetworkInfo headers Empty
                 verify r expectations
 
-    describe "NETWORK - x Cannot query blockchain parameters with \
+    describe "NETWORK - Cannot query blockchain parameters with \
              \invalid arguments" $ do
-        let matrix = ["earliest", "invalid"]
+        let epochNoWrong =
+                T.pack $show $ (+10) $ fromIntegral @Word31 @Int maxBound
+        let matrix = ["earliest", "invalid", epochNoWrong, "-1"]
         forM_ matrix $ \arg -> it (show arg) $ \ctx -> do
             let endpoint = ( "GET", "v2/network/parameters/"<>arg )
             r <- request @ApiNetworkParameters ctx endpoint Default Empty
@@ -178,3 +183,17 @@ spec = do
                 r <- request @ApiNetworkParameters ctx
                     Link.getNetworkInfo headers Empty
                 verify r expectations
+
+    it "NETWORK - Cannot query blockchain parameters with epoch later \
+       \than current one" $ \ctx -> do
+        r1 <- request @ApiNetworkInformation ctx
+            Link.getNetworkInfo Default Empty
+        let (ApiT (EpochNo currentEpochNo)) =
+                getFromResponse (#nextEpoch . #epochNumber) r1
+
+        let reqEpochNo = T.pack $ show $ currentEpochNo + 10
+        let endpoint = ( "GET", "v2/network/parameters/"<>reqEpochNo )
+        r2 <- request @ApiNetworkParameters ctx endpoint Default Empty
+
+        expectResponseCode @IO HTTP.status404 r2
+        expectErrorMessage (errMsg404NoEpochNo (T.unpack reqEpochNo)) r2

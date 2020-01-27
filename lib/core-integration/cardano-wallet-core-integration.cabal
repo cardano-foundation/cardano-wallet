@@ -48,6 +48,7 @@ library
     , http-api-data
     , http-client
     , http-types
+    , OddWord
     , process
     , retry
     , time
