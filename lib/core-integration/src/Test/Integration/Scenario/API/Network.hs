@@ -13,6 +13,7 @@ import Cardano.Wallet.Api.Types
     ( ApiByronWallet
     , ApiEpochInfo (..)
     , ApiNetworkInformation
+    , ApiNetworkParameters
     , ApiWallet
     , WalletStyle (..)
     )
@@ -44,9 +45,10 @@ import Test.Integration.Framework.DSL
     , verify
     )
 import Test.Integration.Framework.TestData
-    ( errMsg405, getHeaderCases )
+    ( errMsg400MalformedEpoch, errMsg405, getHeaderCases )
 
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall t. SpecWith (Context t)
@@ -152,3 +154,12 @@ spec = do
                 r <- request @ApiNetworkInformation ctx
                     Link.getNetworkInfo headers Empty
                 verify r expectations
+
+    describe "NETWORK - Cannot query blockchain parameters with \
+             \invalid arguments" $ do
+        let matrix = ["earliest", "invalid"]
+        forM_ matrix $ \arg -> it (show arg) $ \ctx -> do
+            let endpoint = ( "GET", "v2/network/parameters/"<>arg )
+            r <- request @ApiNetworkParameters ctx endpoint Default Empty
+            expectResponseCode @IO HTTP.status400 r
+            expectErrorMessage (errMsg400MalformedEpoch $ T.unpack arg) r

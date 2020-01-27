@@ -101,7 +101,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelection (..)
     , ApiCoinSelectionInput (..)
     , ApiEpochInfo (..)
-    , ApiEpochNumber
+    , ApiEpochNumber (..)
     , ApiErrorCode (..)
     , ApiFee (..)
     , ApiMnemonicT (..)
@@ -252,6 +252,8 @@ import Data.Time.Clock
     ( getCurrentTime )
 import Data.Word
     ( Word32, Word64 )
+import Data.Word.Odd
+    ( Word31 )
 import Fmt
     ( Buildable, pretty )
 import GHC.Stack
@@ -1318,7 +1320,16 @@ getNetworkParameters
     -> NetworkLayer IO t Block
     -> ApiEpochNumber
     -> Handler ApiNetworkParameters
-getNetworkParameters _ _ _ = throwError err501
+getNetworkParameters _ _ apiEpochNum = do
+    case apiEpochNum of
+        ApiEpochNumberInvalid txt ->
+            liftHandler $ throwE $ ErrGetNetworkParametersInvalidValue txt
+        _ ->
+            throwError err501
+
+data ErrGetNetworkParameters
+    = ErrGetNetworkParametersInvalidValue Text
+    deriving (Eq, Show)
 
 {-------------------------------------------------------------------------------
                                    Proxy
@@ -1938,6 +1949,19 @@ instance LiftHandler ErrQuitStakePool where
                 , ", because I'm not a member of this stake pool."
                 , " Please check if you are using correct stake pool id"
                 , " in your request."
+                ]
+
+instance LiftHandler ErrGetNetworkParameters where
+    handler = \case
+        ErrGetNetworkParametersInvalidValue txt ->
+            apiError err400 PoolAlreadyJoined $ mconcat
+                [ "I couldn't show blockchain parameters for "
+                , txt
+                , ". It should be either 'latest' or integer from "
+                , T.pack (show (minBound @Word31))
+                , " to "
+                , T.pack (show (maxBound @Word31))
+                , "."
                 ]
 
 instance LiftHandler (Request, ServantErr) where
