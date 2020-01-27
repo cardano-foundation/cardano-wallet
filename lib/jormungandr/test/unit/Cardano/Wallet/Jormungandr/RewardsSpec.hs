@@ -24,11 +24,11 @@ import Data.Quantity
 import Test.Hspec
     ( Spec, describe, it, shouldBe )
 import Test.QuickCheck
-    ( Arbitrary (..), choose, property, (===) )
+    ( Arbitrary (..), choose, property, withMaxSuccess, (===) )
 
 spec :: Spec
 spec = describe "rewardsAt" $ do
-    it "try-out ITN parameters" $ property $ \epochNo ->
+    it "try-out ITN parameters" $ property $ withMaxSuccess 100000 $ \epochNo ->
         let
             drawingLimit =
                 ( RewardLimitByAbsoluteStake (Ratio 4109589 10000000000)
@@ -39,15 +39,19 @@ spec = describe "rewardsAt" $ do
                 , taxRatio = Ratio 1 10
                 , taxLimit = Nothing
                 }
+            epochStart = EpochNo 1
             rewardFormula = LinearFormula $ RewardParams
                 { rFixed = 3835616440000
                 , rEpochRate = 1
-                , rEpochStart = 1
+                , rEpochStart = fromIntegral $ unEpochNo epochStart
                 , rRatio = Ratio 0 1
                 }
         in
             rewardsAt drawingLimit treasuryTax epochNo rewardFormula
-                === Quantity 3452054796000
+                ===
+            if epochNo < epochStart
+            then Quantity 0
+            else Quantity 3452054796000
 
     describe "Halving, C = 10000, ratio = 1/1, estart=10, rate=1" $ do
         let rewardFormula = HalvingFormula $ RewardParams
