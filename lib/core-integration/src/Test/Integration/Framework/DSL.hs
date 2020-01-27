@@ -51,8 +51,6 @@ module Test.Integration.Framework.DSL
     , RequestException(..)
 
     -- * Lens
-    , coinSelectionInputs
-    , coinSelectionOutputs
     , walletId
 
     -- * Helpers
@@ -122,7 +120,6 @@ import Cardano.Wallet.Api.Types
     , ApiAddress
     , ApiByronWallet
     , ApiCoinSelection
-    , ApiCoinSelectionInput
     , ApiFee
     , ApiNetworkInformation
     , ApiT (..)
@@ -252,7 +249,6 @@ import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
-import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -620,32 +616,6 @@ walletId =
     _get = T.pack . show . getWalletId . getApiT . view typed
     _set :: HasType (ApiT WalletId) s => (s, Text) -> s
     _set (s, v) = set typed (ApiT $ WalletId (unsafeCreateDigest v)) s
-
-coinSelectionInputs
-    :: forall s n a.
-        ( s ~ ApiCoinSelection n
-        , a ~ ApiCoinSelectionInput n
-        , HasType (NonEmpty a) s
-        )
-    => Lens' s [a]
-coinSelectionInputs =
-    lens _get _set
-  where
-    _get = NE.toList . view typed
-    _set (s, v) = set typed (NE.fromList v) s
-
-coinSelectionOutputs
-    :: forall s n a.
-        ( s ~ ApiCoinSelection n
-        , a ~ AddressAmount n
-        , HasType (NonEmpty a) s
-        )
-    => Lens' s [a]
-coinSelectionOutputs =
-    lens _get _set
-  where
-    _get = NE.toList . view typed
-    _set (s, v) = set typed (NE.fromList v) s
 
 --
 -- Helpers

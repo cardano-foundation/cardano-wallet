@@ -272,7 +272,7 @@ spec = do
         let contributedStake = faucetUtxoAmt - fee
         eventually $ do
             v <- request @[ApiStakePool] ctx Link.listStakePools Default Empty
-            verify (sortByPerformance v)
+            verify v
                 [ expectListItemFieldSatisfy 0 (#metrics . #controlledStake)
                     (> Quantity (existingPoolStake + contributedStake))
                     -- No exact equality since the delegation from previous

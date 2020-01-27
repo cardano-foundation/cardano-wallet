@@ -72,8 +72,6 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
-    , coinSelectionInputs
-    , coinSelectionOutputs
     , emptyIcarusWallet
     , emptyRandomWallet
     , emptyWallet
@@ -198,7 +196,7 @@ spec = do
             r <- request @ApiWallet ctx postWallet Default payload
             verify r
                 [ expectResponseCode @IO HTTP.status201
-                , expectFieldEqual walletName nameOut
+                , expectFieldEqual (#name . #getApiT . #getWalletName) nameOut
                 , expectFieldEqual
                     (#addressPoolGap . #getApiT . #getAddressPoolGap) 20
                 , expectFieldEqual
@@ -207,10 +205,10 @@ spec = do
                 , expectFieldEqual (#balance . #getApiT . #reward) (Quantity 0)
                 , expectEventually ctx (Link.getWallet @'Shelley)
                     (#state . #getApiT) Ready
-                , expectFieldEqual delegation (NotDelegating)
+                , expectFieldEqual (#delegation . #getApiT) (NotDelegating)
                 , expectFieldEqual walletId
                     "135bfb99b9f7a0c702bf8c658cc0d9b1a0d797a2"
-                , expectFieldNotEqual passphraseLastUpdate Nothing
+                , expectFieldNotEqual #passphrase Nothing
                 ]
             let listWallets = Link.listWallets @'Shelley
             rl <- request @[ApiWallet] ctx listWallets Default Empty
@@ -1609,9 +1607,9 @@ spec = do
             let payment = AddressAmount targetAddress amount
             selectCoins ctx source (payment :| []) >>= flip verify
                 [ expectResponseCode HTTP.status200
-                , expectFieldSatisfy coinSelectionInputs (not . null)
-                , expectFieldSatisfy coinSelectionOutputs ((> 1) . length)
-                , expectFieldSatisfy coinSelectionOutputs (payment `elem`)
+                , expectFieldSatisfy #inputs (not . null)
+                , expectFieldSatisfy #outputs ((> 1) . length)
+                , expectFieldSatisfy #outputs (payment `elem`)
                 ]
 
     it "WALLETS_COIN_SELECTION_02 - \
@@ -1629,11 +1627,11 @@ spec = do
                 [ expectResponseCode
                     HTTP.status200
                 , expectFieldSatisfy
-                    coinSelectionInputs (not . null)
+                    #inputs (not . null)
                 , expectFieldSatisfy
-                    coinSelectionOutputs ((> paymentCount) . length)
+                    #outputs ((> paymentCount) . length)
                 , expectFieldSatisfy
-                    coinSelectionOutputs (flip all payments . flip elem)
+                    #outputs (flip all payments . flip elem)
                 ]
 
     describe "WALLETS_COIN_SELECTION_03 - non-existing wallets" $  do
