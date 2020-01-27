@@ -60,11 +60,9 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , KnownCommand
     , TxDescription (..)
-    , amount
     , cardanoWalletCLI
     , deleteTransactionViaCLI
     , deleteWalletViaCLI
-    , direction
     , emptyRandomWallet
     , emptyWallet
     , eventually_
@@ -74,7 +72,6 @@ import Test.Integration.Framework.DSL
     , expectEventually'
     , expectValidJSON
     , faucetAmt
-    , feeEstimator
     , fixtureWallet
     , fixtureWalletWith
     , getWalletViaCLI
@@ -83,7 +80,6 @@ import Test.Integration.Framework.DSL
     , listTransactionsViaCLI
     , postTransactionFeeViaCLI
     , postTransactionViaCLI
-    , status
     , utcIso8601ToText
     , verify
     , walletId
@@ -117,7 +113,7 @@ spec = do
     it "TRANS_CREATE_01 - Can create transaction via CLI" $ \ctx -> do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
-        let (feeMin, feeMax) = ctx ^. feeEstimator $ PaymentDescription
+        let (feeMin, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription
                 { nInputs = 1
                 , nOutputs = 1
                 , nChanges = 1
@@ -125,9 +121,9 @@ spec = do
         let amt = 14
         txJson <- postTxViaCLI ctx wSrc wDest amt
         verify txJson
-            [ expectCliFieldBetween amount (feeMin + amt, feeMax + amt)
-            , expectCliFieldEqual direction Outgoing
-            , expectCliFieldEqual status Pending
+            [ expectCliFieldBetween (#amount . #getQuantity) (feeMin + amt, feeMax + amt)
+            , expectCliFieldEqual (#direction . #getApiT) Outgoing
+            , expectCliFieldEqual (#status . #getApiT) Pending
             ]
 
         -- verify balance on src wallet
@@ -162,7 +158,7 @@ spec = do
         let addr1 = encodeAddress @n (getApiT $ fst $ addr !! 1 ^. #id)
         let addr2 = encodeAddress @n (getApiT $ fst $ addr !! 2 ^. #id)
         let amt = 14
-        let (feeMin, feeMax) = ctx ^. feeEstimator $ PaymentDescription
+        let (feeMin, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription
                 { nInputs = 2
                 , nOutputs = 2
                 , nChanges = 2
@@ -178,9 +174,9 @@ spec = do
         err `shouldBe` "Please enter your passphrase: **************\nOk.\n"
         txJson <- expectValidJSON (Proxy @(ApiTransaction n)) out
         verify txJson
-            [ expectCliFieldBetween amount (feeMin + (2*amt), feeMax + (2*amt))
-            , expectCliFieldEqual direction Outgoing
-            , expectCliFieldEqual status Pending
+            [ expectCliFieldBetween (#amount . #getQuantity) (feeMin + (2*amt), feeMax + (2*amt))
+            , expectCliFieldEqual (#direction . #getApiT) Outgoing
+            , expectCliFieldEqual (#status . #getApiT) Pending
             ]
         c `shouldBe` ExitSuccess
 
@@ -218,7 +214,7 @@ spec = do
         let addr1' = encodeAddress @n (getApiT $ fst $ addr1 ^. #id)
         let addr2' = encodeAddress @n (getApiT $ fst $ addr2 ^. #id)
         let amt = 14
-        let (feeMin, feeMax) = ctx ^. feeEstimator $ PaymentDescription
+        let (feeMin, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription
                 { nInputs = 2
                 , nOutputs = 2
                 , nChanges = 2
@@ -234,9 +230,9 @@ spec = do
         err `shouldBe` "Please enter your passphrase: **************\nOk.\n"
         txJson <- expectValidJSON (Proxy @(ApiTransaction n)) out
         verify txJson
-            [ expectCliFieldBetween amount (feeMin + (2*amt), feeMax + (2*amt))
-            , expectCliFieldEqual direction Outgoing
-            , expectCliFieldEqual status Pending
+            [ expectCliFieldBetween (#amount . #getQuantity) (feeMin + (2*amt), feeMax + (2*amt))
+            , expectCliFieldEqual (#direction . #getApiT) Outgoing
+            , expectCliFieldEqual (#status . #getApiT) Pending
             ]
         c `shouldBe` ExitSuccess
 
@@ -283,7 +279,7 @@ spec = do
         c `shouldBe` ExitFailure 1
 
     it "TRANS_CREATE_03 - 0 balance after transaction" $ \ctx -> do
-        let (feeMin, _) = ctx ^. feeEstimator $ PaymentDescription 1 1 0
+        let (feeMin, _) = ctx ^. #_feeEstimator $ PaymentDescription 1 1 0
         let amt = 1
         wSrc <- fixtureWalletWith ctx [feeMin+amt]
         wDest <- emptyWallet ctx
@@ -298,9 +294,9 @@ spec = do
         err `shouldBe` "Please enter your passphrase: *****************\nOk.\n"
         txJson <- expectValidJSON (Proxy @(ApiTransaction n)) out
         verify txJson
-            [ expectCliFieldEqual amount (feeMin+amt)
-            , expectCliFieldEqual direction Outgoing
-            , expectCliFieldEqual status Pending
+            [ expectCliFieldEqual (#amount . #getQuantity) (feeMin+amt)
+            , expectCliFieldEqual (#direction . #getApiT) Outgoing
+            , expectCliFieldEqual (#status . #getApiT) Pending
             ]
         c `shouldBe` ExitSuccess
 
@@ -347,7 +343,7 @@ spec = do
         c `shouldBe` ExitFailure 1
 
     it "TRANS_CREATE_04 - Can't cover fee" $ \ctx -> do
-        let (feeMin, _) = ctx ^. feeEstimator $ PaymentDescription 1 1 1
+        let (feeMin, _) = ctx ^. #_feeEstimator $ PaymentDescription 1 1 1
         wSrc <- fixtureWalletWith ctx [feeMin `div` 2]
         wDest <- emptyWallet ctx
         addrs:_ <- listAddresses ctx wDest
@@ -363,7 +359,7 @@ spec = do
         c `shouldBe` ExitFailure 1
 
     it "TRANS_CREATE_04 - Not enough money" $ \ctx -> do
-        let (feeMin, _) = ctx ^. feeEstimator $ PaymentDescription 1 1 1
+        let (feeMin, _) = ctx ^. #_feeEstimator $ PaymentDescription 1 1 1
         wSrc <- fixtureWalletWith ctx [feeMin]
         wDest <- emptyWallet ctx
         addrs:_ <- listAddresses ctx wDest
@@ -487,7 +483,7 @@ spec = do
         addr:_ <- listAddresses ctx wDest
         let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
         let amt = 14
-        let (feeMin, feeMax) = ctx ^. feeEstimator $ PaymentDescription
+        let (feeMin, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription
                 { nInputs = 1
                 , nOutputs = 1
                 , nChanges = 1
@@ -500,7 +496,7 @@ spec = do
         err `shouldBe` "Ok.\n"
         txJson <- expectValidJSON (Proxy @ApiFee) out
         verify txJson
-            [ expectCliFieldBetween amount (feeMin - amt, feeMax + amt)
+            [ expectCliFieldBetween (#amount . #getQuantity) (feeMin - amt, feeMax + amt)
             ]
         c `shouldBe` ExitSuccess
 
@@ -511,7 +507,7 @@ spec = do
         let addr1 = encodeAddress @n (getApiT $ fst $ addr !! 1 ^. #id)
         let addr2 = encodeAddress @n (getApiT $ fst $ addr !! 2 ^. #id)
         let amt = 14 :: Natural
-        let (feeMin, feeMax) = ctx ^. feeEstimator $ PaymentDescription
+        let (feeMin, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription
                 { nInputs = 2
                 , nOutputs = 2
                 , nChanges = 2
@@ -525,7 +521,7 @@ spec = do
         err `shouldBe` "Ok.\n"
         txJson <- expectValidJSON (Proxy @ApiFee) out
         verify txJson
-            [ expectCliFieldBetween amount (feeMin, feeMax)
+            [ expectCliFieldBetween (#amount . #getQuantity) (feeMin, feeMax)
             ]
         c `shouldBe` ExitSuccess
 
@@ -539,7 +535,7 @@ spec = do
         let addr1' = encodeAddress @n (getApiT $ fst $ addr1 ^. #id)
         let addr2' = encodeAddress @n (getApiT $ fst $ addr2 ^. #id)
         let amt = 14 :: Natural
-        let (feeMin, feeMax) = ctx ^. feeEstimator $ PaymentDescription
+        let (feeMin, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription
                 { nInputs = 2
                 , nOutputs = 2
                 , nChanges = 2
@@ -553,7 +549,7 @@ spec = do
         err `shouldBe` "Ok.\n"
         txJson <- expectValidJSON (Proxy @ApiFee) out
         verify txJson
-            [ expectCliFieldBetween amount (feeMin, feeMax)
+            [ expectCliFieldBetween (#amount . #getQuantity) (feeMin, feeMax)
             ]
         c `shouldBe` ExitSuccess
 
@@ -596,7 +592,7 @@ spec = do
         c `shouldBe` ExitFailure 1
 
     it "TRANS_ESTIMATE_06 - we give fee estimation when we can't cover fee" $ \ctx -> do
-        let (feeMin, _) = ctx ^. feeEstimator $ PaymentDescription 1 1 1
+        let (feeMin, _) = ctx ^. #_feeEstimator $ PaymentDescription 1 1 1
         wSrc <- fixtureWalletWith ctx [feeMin `div` 2]
         wDest <- emptyWallet ctx
         addrs:_ <- listAddresses ctx wDest
@@ -611,7 +607,7 @@ spec = do
         c `shouldBe` ExitSuccess
 
     it "TRANS_ESTIMATE_07 - Not enough money" $ \ctx -> do
-        let (feeMin, _) = ctx ^. feeEstimator $ PaymentDescription 1 1 1
+        let (feeMin, _) = ctx ^. #_feeEstimator $ PaymentDescription 1 1 1
         wSrc <- fixtureWalletWith ctx [feeMin]
         wDest <- emptyWallet ctx
         addrs:_ <- listAddresses ctx wDest
@@ -707,8 +703,8 @@ spec = do
         code `shouldBe` ExitSuccess
         outJson <- expectValidJSON (Proxy @([ApiTransaction n])) out
         verify outJson
-            [ expectCliListItemFieldEqual 0 direction Outgoing
-            , expectCliListItemFieldEqual 1 direction Incoming
+            [ expectCliListItemFieldEqual 0 (#direction . #getApiT) Outgoing
+            , expectCliListItemFieldEqual 1 (#direction . #getApiT) Incoming
             ]
 
     describe "TRANS_LIST_02 - Start time shouldn't be later than end time" $
@@ -743,26 +739,26 @@ spec = do
                 code `shouldBe` ExitFailure 1
 
     it "TRANS_LIST_03 - Can order results" $ \ctx -> do
-        let a1 = sum $ replicate 10 1
-        let a2 = sum $ replicate 10 2
+        let a1 = Quantity $ sum $ replicate 10 1
+        let a2 = Quantity $ sum $ replicate 10 2
         w <- fixtureWalletWith ctx $ mconcat
                 [ replicate 10 1
                 , replicate 10 2
                 ]
         let orderings =
                 [ ( mempty
-                  , [ expectCliListItemFieldEqual 0 amount a2
-                    , expectCliListItemFieldEqual 1 amount a1
+                  , [ expectCliListItemFieldEqual 0 #amount a2
+                    , expectCliListItemFieldEqual 1 #amount a1
                     ]
                   )
                 , ( [ "--order", "ascending" ]
-                  , [ expectCliListItemFieldEqual 0 amount a1
-                    , expectCliListItemFieldEqual 1 amount a2
+                  , [ expectCliListItemFieldEqual 0 #amount a1
+                    , expectCliListItemFieldEqual 1 #amount a2
                     ]
                   )
                 , ( [ "--order", "descending" ]
-                  , [ expectCliListItemFieldEqual 0 amount a2
-                    , expectCliListItemFieldEqual 1 amount a1
+                  , [ expectCliListItemFieldEqual 0 #amount a2
+                    , expectCliListItemFieldEqual 1 #amount a1
                     ]
                   )
                 ]
@@ -912,8 +908,8 @@ spec = do
         -- post transaction
         txJson <- postTxViaCLI ctx wSrc wDest 1
         verify txJson
-            [ expectCliFieldEqual direction Outgoing
-            , expectCliFieldEqual status Pending
+            [ expectCliFieldEqual (#direction . #getApiT) Outgoing
+            , expectCliFieldEqual (#status . #getApiT) Pending
             ]
         let txId =  getTxId txJson
 
@@ -921,8 +917,8 @@ spec = do
             (fromStdout <$> listTransactionsViaCLI @t ctx [wSrcId])
                 >>= expectValidJSON (Proxy @([ApiTransaction n]))
                 >>= flip verify
-                    [ expectCliListItemFieldEqual 0 direction Outgoing
-                    , expectCliListItemFieldEqual 0 status InLedger
+                    [ expectCliListItemFieldEqual 0 (#direction . #getApiT) Outgoing
+                    , expectCliListItemFieldEqual 0 (#status . #getApiT) InLedger
                     ]
 
      -- Try Forget transaction once it's no longer pending

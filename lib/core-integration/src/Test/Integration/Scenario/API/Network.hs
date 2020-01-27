@@ -40,9 +40,7 @@ import Test.Integration.Framework.DSL
     , expectFieldSatisfy
     , expectResponseCode
     , getFromResponse
-    , nextEpoch
     , request
-    , syncProgress
     , verify
     )
 import Test.Integration.Framework.TestData
@@ -60,8 +58,8 @@ spec = do
                 Link.getNetworkInfo Default Empty
             expectResponseCode @IO HTTP.status200 r
             verify r
-                [ expectFieldSatisfy nextEpoch ((> now) . epochStartTime)
-                , expectFieldEqual syncProgress Ready
+                [ expectFieldSatisfy #nextEpoch ((> now) . epochStartTime)
+                , expectFieldEqual (#syncProgress . #getApiT) Ready
                 ]
             return r
 
@@ -93,7 +91,7 @@ spec = do
             w <- emptyWallet ctx
             eventually_ $ do
                 sync <- getNetworkInfo
-                verify sync [ expectFieldEqual syncProgress Ready ]
+                verify sync [ expectFieldEqual (#syncProgress . #getApiT) Ready ]
             r <- getNetworkInfo
 
             let epochNum =
@@ -120,7 +118,7 @@ spec = do
             w <- emptyRandomWallet ctx
             eventually_ $ do
                 sync <- getNetworkInfo
-                verify sync [ expectFieldEqual syncProgress Ready ]
+                verify sync [ expectFieldEqual (#syncProgress . #getApiT) Ready ]
             r <- getNetworkInfo
 
             let epochNum =

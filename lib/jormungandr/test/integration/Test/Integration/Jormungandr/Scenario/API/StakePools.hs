@@ -52,11 +52,7 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , TxDescription (..)
-    , amount
-    , blocks
-    , delegation
     , delegationFee
-    , direction
     , emptyRandomWallet
     , emptyWallet
     , eventually
@@ -70,7 +66,6 @@ import Test.Integration.Framework.DSL
     , expectListSizeEqual
     , expectResponseCode
     , faucetUtxoAmt
-    , feeEstimator
     , fixturePassphrase
     , fixtureRandomWallet
     , fixtureWallet
@@ -78,11 +73,8 @@ import Test.Integration.Framework.DSL
     , getFromResponse
     , joinStakePool
     , json
-    , metrics
     , quitStakePool
     , request
-    , stake
-    , status
     , unsafeRequest
     , verify
     , waitForNextEpoch
@@ -148,18 +140,18 @@ spec = do
                     #margin (== (Quantity minBound))
 
                 , expectListItemFieldEqual 0
-                    (metrics . stake) 1000
+                    (#metrics . #controlledStake) (Quantity 1000)
                 , expectListItemFieldEqual 1
-                    (metrics . stake) 1000
+                    (#metrics . #controlledStake) (Quantity 1000)
                 , expectListItemFieldEqual 2
-                    (metrics . stake) 1000
+                    (#metrics . #controlledStake) (Quantity 1000)
 
                 , expectListItemFieldSatisfy 0
-                    (metrics . blocks) (> 1)
+                    (#metrics . #producedBlocks) (> Quantity 1)
                 , expectListItemFieldEqual 1
-                    (metrics . blocks) 0
+                    (#metrics . #producedBlocks) (Quantity 0)
                 , expectListItemFieldEqual 2
-                    (metrics . blocks) 0
+                    (#metrics . #producedBlocks) (Quantity 0)
 
                 , expectListItemFieldSatisfy 0
                     #apparentPerformance (> 0)
@@ -243,16 +235,16 @@ spec = do
         -- Join a pool
         joinStakePool ctx (p ^. #id) (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
-            , expectFieldEqual status Pending
-            , expectFieldEqual direction Outgoing
+            , expectFieldEqual (#status . #getApiT) Pending
+            , expectFieldEqual (#direction . #getApiT) Outgoing
             ]
 
         -- Wait for the certificate to be inserted
         eventually $ do
             let ep = Link.listTransactions @'Shelley w
             request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListItemFieldEqual 0 direction Outgoing
-                , expectListItemFieldEqual 0 status InLedger
+                [ expectListItemFieldEqual 0 (#direction . #getApiT) Outgoing
+                , expectListItemFieldEqual 0 (#status . #getApiT) InLedger
                 ]
 
     it "STAKE_POOLS_JOIN_01 - Controlled stake increases when joining" $ \ctx -> do
@@ -263,26 +255,26 @@ spec = do
         -- Join a pool
         joinStakePool ctx (p ^. #id) (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
-            , expectFieldEqual status Pending
-            , expectFieldEqual direction Outgoing
+            , expectFieldEqual (#status . #getApiT) Pending
+            , expectFieldEqual (#direction . #getApiT) Outgoing
             ]
 
         -- Wait for the certificate to be inserted
         eventually $ do
             let ep = Link.listTransactions @'Shelley w
             request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListItemFieldEqual 0 direction Outgoing
-                , expectListItemFieldEqual 0 status InLedger
+                [ expectListItemFieldEqual 0 (#direction . #getApiT) Outgoing
+                , expectListItemFieldEqual 0 (#status . #getApiT) InLedger
                 ]
 
-        let (fee, _) = ctx ^. feeEstimator $ DelegDescription 1 1 1
+        let (fee, _) = ctx ^. #_feeEstimator $ DelegDescription 1 1 1
         let existingPoolStake = getQuantity $ p ^. #metrics . #controlledStake
         let contributedStake = faucetUtxoAmt - fee
         eventually $ do
             v <- request @[ApiStakePool] ctx Link.listStakePools Default Empty
             verify v
-                [ expectListItemFieldSatisfy 0 (metrics . stake)
-                    (> (existingPoolStake + contributedStake))
+                [ expectListItemFieldSatisfy 0 (#metrics . #controlledStake)
+                    (> Quantity (existingPoolStake + contributedStake))
                     -- No exact equality since the delegation from previous
                     -- tests may take effect.
                 ]
@@ -295,14 +287,14 @@ spec = do
         -- Join a pool
         joinStakePool ctx (p ^. #id) (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
-            , expectFieldEqual status Pending
-            , expectFieldEqual direction Outgoing
+            , expectFieldEqual (#status . #getApiT) Pending
+            , expectFieldEqual (#direction . #getApiT) Outgoing
             ]
         eventually $ do
             let ep = Link.listTransactions @'Shelley w
             request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListItemFieldEqual 0 direction Outgoing
-                , expectListItemFieldEqual 0 status InLedger
+                [ expectListItemFieldEqual 0 (#direction . #getApiT) Outgoing
+                , expectListItemFieldEqual 0 (#status . #getApiT) InLedger
                 ]
 
         -- Wait for money to flow
@@ -314,16 +306,16 @@ spec = do
         -- Quit a pool
         quitStakePool ctx (p ^. #id) (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
-            , expectFieldEqual status Pending
-            , expectFieldEqual direction Outgoing
+            , expectFieldEqual (#status . #getApiT) Pending
+            , expectFieldEqual (#direction . #getApiT) Outgoing
             ]
         eventually $ do
             let ep = Link.listTransactions @'Shelley w
             request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListItemFieldEqual 0 direction Outgoing
-                , expectListItemFieldEqual 0 status InLedger
-                , expectListItemFieldEqual 1 direction Outgoing
-                , expectListItemFieldEqual 1 status InLedger
+                [ expectListItemFieldEqual 0 (#direction . #getApiT) Outgoing
+                , expectListItemFieldEqual 0 (#status . #getApiT) InLedger
+                , expectListItemFieldEqual 1 (#direction . #getApiT) Outgoing
+                , expectListItemFieldEqual 1 (#status . #getApiT) InLedger
                 ]
 
         waitForNextEpoch ctx
@@ -381,24 +373,24 @@ spec = do
         -- Join pool p1
         joinStakePool ctx (p1 ^. #id) (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
-            , expectFieldEqual status Pending
-            , expectFieldEqual direction Outgoing
+            , expectFieldEqual (#status . #getApiT) Pending
+            , expectFieldEqual (#direction . #getApiT) Outgoing
             ]
         eventually $ do
             let ep = Link.listTransactions @'Shelley w
             request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListItemFieldEqual 0 direction Outgoing
-                , expectListItemFieldEqual 0 status InLedger
+                [ expectListItemFieldEqual 0 (#direction . #getApiT) Outgoing
+                , expectListItemFieldEqual 0 (#status . #getApiT) InLedger
                 ]
         request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-            [ expectFieldEqual delegation (Delegating (p1 ^. #id))
+            [ expectFieldEqual (#delegation . #getApiT) (Delegating (p1 ^. #id))
             ]
 
         -- Join pool p2
         joinStakePool ctx (p2 ^. #id) (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
-            , expectFieldEqual status Pending
-            , expectFieldEqual direction Outgoing
+            , expectFieldEqual (#status . #getApiT) Pending
+            , expectFieldEqual (#direction . #getApiT) Outgoing
             ]
         eventually $ do
             let ep = Link.listTransactions @'Shelley w
@@ -411,7 +403,7 @@ spec = do
                 [ expectListSizeEqual 0
                 ]
         request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-            [ expectFieldEqual delegation (Delegating (p2 ^. #id))
+            [ expectFieldEqual (#delegation . #getApiT) (Delegating (p2 ^. #id))
             ]
 
     describe "STAKE_POOLS_JOIN_01x - Fee boundary values" $ do
@@ -419,19 +411,19 @@ spec = do
             \I can join if I have just the right amount" $ \(ctx) -> do
             (_, p:_) <- eventually $
                 unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
-            let (fee, _) = ctx ^. feeEstimator $ DelegDescription 1 0 1
+            let (fee, _) = ctx ^. #_feeEstimator $ DelegDescription 1 0 1
             w <- fixtureWalletWith ctx [fee]
             joinStakePool ctx (p ^. #id) (w, "Secure Passphrase")>>= flip verify
                 [ expectResponseCode HTTP.status202
-                , expectFieldEqual status Pending
-                , expectFieldEqual direction Outgoing
+                , expectFieldEqual (#status . #getApiT) Pending
+                , expectFieldEqual (#direction . #getApiT) Outgoing
                 ]
 
         it "STAKE_POOLS_JOIN_01x - \
             \I cannot join if I have not enough fee to cover" $ \ctx -> do
             (_, p:_) <- eventually $
                 unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
-            let (fee, _) = ctx ^. feeEstimator $ DelegDescription 1 0 1
+            let (fee, _) = ctx ^. #_feeEstimator $ DelegDescription 1 0 1
             w <- fixtureWalletWith ctx [fee - 1]
             r <- joinStakePool ctx (p ^. #id) (w, "Secure Passphrase")
             expectResponseCode HTTP.status403 r
@@ -441,7 +433,7 @@ spec = do
             (_, p:_) <- eventually $
                 unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
             w <- emptyWallet ctx
-            let (fee, _) = ctx ^. feeEstimator $ DelegDescription 0 0 1
+            let (fee, _) = ctx ^. #_feeEstimator $ DelegDescription 0 0 1
             r <- joinStakePool ctx (p ^. #id) (w, "Secure Passphrase")
             expectResponseCode HTTP.status403 r
             expectErrorMessage (errMsg403DelegationFee fee) r
@@ -449,15 +441,15 @@ spec = do
     describe "STAKE_POOLS_QUIT_01x - Fee boundary values" $ do
         it "STAKE_POOLS_QUIT_01x - \
             \I can quit if I have enough to cover fee" $ \(ctx) -> do
-            let (feeJoin, _) = ctx ^. feeEstimator $ DelegDescription 1 1 1
-            let (feeQuit, _) = ctx ^. feeEstimator $ DelegDescription 1 0 1
+            let (feeJoin, _) = ctx ^. #_feeEstimator $ DelegDescription 1 1 1
+            let (feeQuit, _) = ctx ^. #_feeEstimator $ DelegDescription 1 0 1
             let initBalance = [feeJoin + feeQuit]
             (w, p) <- joinStakePoolWithWalletBalance ctx initBalance
             rq <- quitStakePool ctx (p ^. #id) (w, "Secure Passphrase")
             expectResponseCode HTTP.status202 rq
             eventually $ do
                 request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-                    [ expectFieldEqual delegation (NotDelegating)
+                    [ expectFieldEqual (#delegation . #getApiT) NotDelegating
                     -- balance is 0 because the rest was used for fees
                     , expectFieldEqual (#balance . #getApiT . #total) (Quantity 0)
                     , expectFieldEqual (#balance . #getApiT . #available) (Quantity 0)
@@ -465,8 +457,8 @@ spec = do
 
         it "STAKE_POOLS_QUIT_01x - \
             \I cannot quit if I have not enough fee to cover" $ \ctx -> do
-            let (feeJoin, _) = ctx ^. feeEstimator $ DelegDescription 1 1 1
-            let (feeQuit, _) = ctx ^. feeEstimator $ DelegDescription 0 0 1
+            let (feeJoin, _) = ctx ^. #_feeEstimator $ DelegDescription 1 1 1
+            let (feeQuit, _) = ctx ^. #_feeEstimator $ DelegDescription 0 0 1
             let initBalance = [feeJoin+1]
             (w, p) <- joinStakePoolWithWalletBalance ctx initBalance
             rq <- quitStakePool ctx (p ^. #id) (w, "Secure Passphrase")
@@ -476,7 +468,7 @@ spec = do
                 ]
 
     it "STAKE_POOLS_JOIN_01 - I cannot rejoin the same stake-pool" $ \ctx -> do
-        let (fee, _) = ctx ^. feeEstimator $ DelegDescription 1 1 1
+        let (fee, _) = ctx ^. #_feeEstimator $ DelegDescription 1 1 1
         (w, p) <- joinStakePoolWithWalletBalance ctx [10*fee]
 
         -- Join again
@@ -495,21 +487,21 @@ spec = do
         expectResponseCode HTTP.status202 r
         eventually $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-                [ expectFieldEqual delegation (Delegating (p1 ^. #id))
+                [ expectFieldEqual (#delegation . #getApiT) (Delegating (p1 ^. #id))
                 ]
 
         r1q <- quitStakePool ctx (p1 ^. #id) (w, fixturePassphrase)
         expectResponseCode HTTP.status202 r1q
         eventually $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-                [ expectFieldEqual delegation (NotDelegating)
+                [ expectFieldEqual (#delegation . #getApiT) NotDelegating
                 ]
 
         r2 <- joinStakePool ctx (p2 ^. #id) (w, fixturePassphrase)
         expectResponseCode HTTP.status202 r2
         eventually $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-                [ expectFieldEqual delegation (Delegating (p2 ^. #id))
+                [ expectFieldEqual (#delegation . #getApiT) (Delegating (p2 ^. #id))
                 ]
 
     it "STAKE_POOLS_JOIN_01 - Cannot join non-existant stakepool" $ \ctx -> do
@@ -528,26 +520,26 @@ spec = do
         -- Join a pool
         joinStakePool ctx (p ^. #id) (wA, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
-            , expectFieldEqual status Pending
-            , expectFieldEqual direction Outgoing
+            , expectFieldEqual (#status . #getApiT) Pending
+            , expectFieldEqual (#direction . #getApiT) Outgoing
             ]
 
         -- Wait for the certificate to be inserted
         eventually $ do
             let ep = Link.listTransactions @'Shelley wA
             request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListItemFieldEqual 0 direction Outgoing
-                , expectListItemFieldEqual 0 status InLedger
+                [ expectListItemFieldEqual 0 (#direction . #getApiT) Outgoing
+                , expectListItemFieldEqual 0 (#status . #getApiT) InLedger
                 ]
 
         -- Verify the wallet is now delegating
         request @ApiWallet ctx (Link.getWallet @'Shelley wA) Default Empty >>= flip verify
-            [ expectFieldEqual delegation (Delegating (p ^. #id))
+            [ expectFieldEqual (#delegation . #getApiT) (Delegating (p ^. #id))
             ]
 
         -- Verify the other is NOT delegating
         request @ApiWallet ctx (Link.getWallet @'Shelley wB) Default Empty >>= flip verify
-            [ expectFieldEqual delegation NotDelegating
+            [ expectFieldEqual (#delegation . #getApiT) NotDelegating
             ]
 
     it "STAKE_POOLS_JOIN_02 - Passphrase must be correct to join" $ \ctx -> do
@@ -621,28 +613,29 @@ spec = do
             unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
         w <- fixtureWallet ctx
         r <- delegationFee ctx w
+        print r
         verify r
             [ expectResponseCode HTTP.status200
             ]
-        let fee = getFromResponse amount r
+        let fee = getFromResponse #amount r
         joinStakePool ctx (p ^. #id) (w, fixturePassphrase) >>= flip verify
-            [ expectFieldEqual amount fee
+            [ expectFieldEqual #amount fee
             ]
 
     it "STAKE_POOLS_ESTIMATE_FEE_01x - edge-case fee in-between coeff" $ \ctx -> do
-        let (feeMin, _) = ctx ^. feeEstimator $ DelegDescription 1 0 1
+        let (feeMin, _) = ctx ^. #_feeEstimator $ DelegDescription 1 0 1
         w <- fixtureWalletWith ctx [feeMin + 1, feeMin + 1]
         r <- delegationFee ctx w
-        let (fee, _) = ctx ^. feeEstimator $ DelegDescription 2 1 1
+        let (fee, _) = ctx ^. #_feeEstimator $ DelegDescription 2 1 1
         verify r
             [ expectResponseCode HTTP.status200
-            , expectFieldEqual amount fee
+            , expectFieldEqual #amount (Quantity fee)
             ]
 
     it "STAKE_POOLS_ESTIMATE_FEE_02 - \
         \empty wallet cannot estimate fee" $ \ctx -> do
         w <- emptyWallet ctx
-        let (fee, _) = ctx ^. feeEstimator $ DelegDescription 0 0 1
+        let (fee, _) = ctx ^. #_feeEstimator $ DelegDescription 0 0 1
         delegationFee ctx w >>= flip verify
             [ expectResponseCode HTTP.status403
             , expectErrorMessage $ errMsg403DelegationFee fee
@@ -762,14 +755,14 @@ spec = do
         eventually $ do
             let ep = Link.listTransactions @'Shelley w
             request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListItemFieldEqual 0 direction Outgoing
-                , expectListItemFieldEqual 0 status InLedger
-                , expectListItemFieldEqual 1 direction Outgoing
-                , expectListItemFieldEqual 1 status InLedger
+                [ expectListItemFieldEqual 0 (#direction . #getApiT) Outgoing
+                , expectListItemFieldEqual 0 (#status . #getApiT) InLedger
+                , expectListItemFieldEqual 1 (#direction . #getApiT) Outgoing
+                , expectListItemFieldEqual 1 (#status . #getApiT) InLedger
                 ]
 
         request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-            [ expectFieldEqual delegation NotDelegating
+            [ expectFieldEqual (#delegation . #getApiT) NotDelegating
             ]
 
     it "STAKE_POOLS_QUIT_01 - Quiting before even joining" $ \ctx -> do
@@ -797,7 +790,7 @@ spec = do
         expectResponseCode HTTP.status202 r
         eventually $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-                [ expectFieldEqual delegation (Delegating (p1 ^. #id))
+                [ expectFieldEqual (#delegation . #getApiT) (Delegating (p1 ^. #id))
                 ]
 
         let pId = p2 ^. #id
@@ -825,7 +818,7 @@ joinStakePoolWithWalletBalance ctx balance = do
     -- Verify the wallet is now delegating
     eventually $ do
         request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-            [ expectFieldEqual delegation (Delegating (p ^. #id))
+            [ expectFieldEqual (#delegation . #getApiT) (Delegating (p ^. #id))
             ]
     return (w, p)
 
@@ -841,6 +834,6 @@ joinStakePoolWithFixtureWallet ctx = do
     -- Verify the wallet is now delegating
     eventually $ do
         request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-            [ expectFieldEqual delegation (Delegating (p ^. #id))
+            [ expectFieldEqual (#delegation . #getApiT) (Delegating (p ^. #id))
             ]
     return (w, p)

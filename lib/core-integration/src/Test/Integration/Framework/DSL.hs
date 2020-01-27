@@ -51,24 +51,7 @@ module Test.Integration.Framework.DSL
     , RequestException(..)
 
     -- * Lens
-    , amount
-    , apparentPerformance
-    , blocks
-    , coinSelectionInputs
-    , coinSelectionOutputs
-    , delegation
-    , direction
-    , feeEstimator
-    , inputs
-    , metrics
-    , nextEpoch
-    , outputs
-    , passphraseLastUpdate
-    , stake
-    , status
-    , syncProgress
     , walletId
-    , walletName
 
     -- * Helpers
     , (</>)
@@ -137,14 +120,10 @@ import Cardano.Wallet.Api.Types
     , ApiAddress
     , ApiByronWallet
     , ApiCoinSelection
-    , ApiCoinSelectionInput
-    , ApiEpochInfo
     , ApiFee
     , ApiNetworkInformation
-    , ApiStakePoolMetrics
     , ApiT (..)
     , ApiTransaction
-    , ApiTxInput (..)
     , ApiUtxoStatistics (..)
     , ApiWallet
     , ByronWalletStyle (..)
@@ -158,21 +137,15 @@ import Cardano.Wallet.Primitive.Mnemonic
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
-    , Direction (..)
     , Hash (..)
     , HistogramBar (..)
     , PoolId (..)
     , SortOrder (..)
-    , SyncProgress (..)
     , TxIn (..)
     , TxOut (..)
-    , TxStatus (..)
     , UTxO (..)
     , UTxOStatistics (..)
-    , WalletDelegation (..)
     , WalletId (..)
-    , WalletName (..)
-    , WalletPassphraseInfo (..)
     , computeUtxoStatistics
     , log10
     )
@@ -208,8 +181,6 @@ import Data.Generics.Internal.VL.Lens
     ( Lens', lens, set, view, (^.) )
 import Data.Generics.Labels
     ()
-import Data.Generics.Product.Fields
-    ( HasField', getField, setField )
 import Data.Generics.Product.Typed
     ( HasType, typed )
 import Data.List
@@ -230,8 +201,6 @@ import Data.Time.Text
     ( iso8601ExtendedUtc, utcTimeToText )
 import Data.Word
     ( Word64 )
-import GHC.TypeLits
-    ( Symbol )
 import Language.Haskell.TH.Quote
     ( QuasiQuoter )
 import Network.HTTP.Client
@@ -280,7 +249,6 @@ import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
-import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -394,8 +362,8 @@ expectFieldNotEqual getter a (_, res) = case res of
 -- | Expects that returned data list's particular item field
 --   matches the expected value.
 --   e.g.
---   expectListItemFieldEqual 0 walletName "first" response
---   expectListItemFieldEqual 1 walletName "second" response
+--   expectListItemFieldEqual 0 (#name . #getApiT . #getWalletName) "first" r
+--   expectListItemFieldEqual 1 (#name . #getApiT . #getWalletName) "second" r
 expectListItemFieldEqual
     :: (MonadIO m, MonadFail m, Show a, Eq a)
     => Int
@@ -640,46 +608,6 @@ expectPathEventuallyExist filepath = do
 -- Lenses
 --
 
-delegation
-    :: forall s d. (d ~ WalletDelegation (ApiT PoolId), HasType (ApiT d) s)
-    => Lens' s (WalletDelegation (ApiT PoolId))
-delegation =
-    lens _get _set
-  where
-    _get :: s -> d
-    _get = getApiT . view typed
-    _set :: (s, d) -> s
-    _set (s, v) = set typed (ApiT v ) s
-
-feeEstimator
-    :: Lens' (Context t) (TxDescription -> (Natural, Natural))
-feeEstimator =
-    lens _get _set
-  where
-    _get = _feeEstimator
-    _set (ctx, v) = ctx { _feeEstimator = v }
-
-passphraseLastUpdate
-    :: forall s i. (i ~ WalletPassphraseInfo, HasType (Maybe (ApiT i)) s)
-    => Lens' s (Maybe Text)
-passphraseLastUpdate =
-    lens _get _set
-  where
-    _get :: s -> Maybe Text
-    _get = fmap (T.pack . show . lastUpdatedAt . getApiT) . view typed
-    _set :: (s, Maybe Text) -> s
-    _set (s, v) =
-        set typed (ApiT . WalletPassphraseInfo . read . T.unpack <$> v) s
-
-walletName :: HasType (ApiT WalletName) s => Lens' s Text
-walletName =
-    lens _get _set
-  where
-    _get :: HasType (ApiT WalletName) s => s -> Text
-    _get = getWalletName . getApiT . view typed
-    _set :: HasType (ApiT WalletName) s => (s, Text) -> s
-    _set (s, v) = set typed (ApiT $ WalletName v) s
-
 walletId :: HasType (ApiT WalletId) s => Lens' s Text
 walletId =
     lens _get _set
@@ -688,129 +616,6 @@ walletId =
     _get = T.pack . show . getWalletId . getApiT . view typed
     _set :: HasType (ApiT WalletId) s => (s, Text) -> s
     _set (s, v) = set typed (ApiT $ WalletId (unsafeCreateDigest v)) s
-
-amount :: HasType (Quantity "lovelace" Natural) s => Lens' s Natural
-amount =
-    lens _get _set
-  where
-    _get :: HasType (Quantity "lovelace" Natural) s => s -> Natural
-    _get = fromQuantity @"lovelace" @Natural . view typed
-    _set :: HasType (Quantity "lovelace" Natural) s => (s, Natural) -> s
-    _set (s, v) = set typed (Quantity @"lovelace" @Natural v) s
-
-direction :: HasType (ApiT Direction) s => Lens' s Direction
-direction =
-    lens _get _set
-  where
-    _get :: HasType (ApiT Direction) s => s -> Direction
-    _get = getApiT . view typed
-    _set :: HasType (ApiT Direction) s => (s, Direction) -> s
-    _set (s, v) = set typed (ApiT v) s
-
-inputs :: HasType [ApiTxInput t] s => Lens' s [ApiTxInput t]
-inputs =
-    lens _get _set
-  where
-    _get :: HasType [ApiTxInput t] s => s -> [ApiTxInput t]
-    _get = view typed
-    _set :: HasType [ApiTxInput t] s => (s, [ApiTxInput t]) -> s
-    _set (s, v) = set typed v s
-
-outputs
-    :: forall s t a. (a ~ AddressAmount t, HasType (NonEmpty a) s)
-    => Lens' s [a]
-outputs =
-    lens _get _set
-  where
-    _get :: s -> [a]
-    _get = NE.toList . view typed
-    _set :: (s, [a]) -> s
-    _set (s, v) = set typed (NE.fromList v) s
-
-coinSelectionInputs
-    :: forall s n a.
-        ( s ~ ApiCoinSelection n
-        , a ~ ApiCoinSelectionInput n
-        , HasType (NonEmpty a) s
-        )
-    => Lens' s [a]
-coinSelectionInputs =
-    lens _get _set
-  where
-    _get = NE.toList . view typed
-    _set (s, v) = set typed (NE.fromList v) s
-
-coinSelectionOutputs
-    :: forall s n a.
-        ( s ~ ApiCoinSelection n
-        , a ~ AddressAmount n
-        , HasType (NonEmpty a) s
-        )
-    => Lens' s [a]
-coinSelectionOutputs =
-    lens _get _set
-  where
-    _get = NE.toList . view typed
-    _set (s, v) = set typed (NE.fromList v) s
-
-status :: HasType (ApiT TxStatus) s => Lens' s TxStatus
-status =
-    lens _get _set
-  where
-    _get :: HasType (ApiT TxStatus) s => s -> TxStatus
-    _get = getApiT . view typed
-    _set :: HasType (ApiT TxStatus) s => (s, TxStatus) -> s
-    _set (s, v) = set typed (ApiT v) s
-
-syncProgress :: HasType (ApiT SyncProgress) s => Lens' s SyncProgress
-syncProgress =
-    lens _get _set
-  where
-    _get :: HasType (ApiT SyncProgress) s => s -> SyncProgress
-    _get = getApiT . view typed
-    _set :: HasType (ApiT SyncProgress) s => (s, SyncProgress) -> s
-    _set (s, v) = set typed (ApiT v) s
-
-metrics :: HasType ApiStakePoolMetrics s => Lens' s ApiStakePoolMetrics
-metrics =
-    lens _get _set
-  where
-    _get :: HasType ApiStakePoolMetrics s => s -> ApiStakePoolMetrics
-    _get = view typed
-    _set :: HasType ApiStakePoolMetrics s => (s, ApiStakePoolMetrics) -> s
-    _set (s, v) = set typed v s
-
-nextEpoch :: HasType ApiEpochInfo s => Lens' s ApiEpochInfo
-nextEpoch =
-    lens _get _set
-  where
-    _get :: HasType ApiEpochInfo s => s -> ApiEpochInfo
-    _get = view typed
-    _set :: HasType ApiEpochInfo s => (s, ApiEpochInfo) -> s
-    _set (s, v) = set typed v s
-
-stake
-    :: HasField' "controlledStake" s (Quantity "lovelace" Natural)
-    => Lens' s Natural
-stake = lens
-    (getQuantity . getField @"controlledStake")
-    (\(s, v) -> setField @"controlledStake" (Quantity v) s)
-
-blocks
-    :: HasField' "producedBlocks" s (Quantity "block" Natural)
-    => Lens' s Natural
-blocks = lens
-    (getQuantity . getField @"producedBlocks")
-    (\(s, v) -> setField @"producedBlocks" (Quantity v) s)
-
-apparentPerformance :: HasType Double s => Lens' s Double
-apparentPerformance =
-    lens _get _set
-  where
-    _get :: HasType Double s => s -> Double
-    _get = view typed
-    _set :: HasType Double s => (s, Double) -> s
-    _set (s, v) = set typed v s
 
 --
 -- Helpers
@@ -1086,9 +891,6 @@ faucetUtxoAmt :: Natural
 faucetUtxoAmt = ada 100_000
   where
     ada = (*) (1_000_000)
-
-fromQuantity :: Quantity (u :: Symbol) a -> a
-fromQuantity (Quantity a) = a
 
 getFromResponse
     :: Lens' s a
