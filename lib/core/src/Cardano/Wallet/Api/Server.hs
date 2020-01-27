@@ -1299,18 +1299,20 @@ getNetworkInformation (_block0, bp, st) nl = do
                 }
         }
   where
-    sp :: W.SlotParameters
-    sp = W.SlotParameters
-        (bp ^. #getEpochLength)
-        (bp ^. #getSlotLength)
-        (bp ^. #getGenesisBlockDate)
-        (bp ^. #getActiveSlotCoefficient)
+    sp = toSlotParameters bp
 
     -- Unsafe constructor for the next epoch. Chances to reach the last epoch
     -- are quite unlikely in this context :)
     unsafeEpochSucc :: HasCallStack => W.EpochNo -> W.EpochNo
     unsafeEpochSucc = fromMaybe bomb . W.epochSucc
       where bomb = error "reached final epoch of the Blockchain!?"
+
+toSlotParameters :: BlockchainParameters -> W.SlotParameters
+toSlotParameters bp = W.SlotParameters
+    (bp ^. #getEpochLength)
+    (bp ^. #getSlotLength)
+    (bp ^. #getGenesisBlockDate)
+    (bp ^. #getActiveSlotCoefficient)
 
 getNetworkParameters
     :: forall t. ()
@@ -1324,7 +1326,8 @@ getNetworkParameters (_block0, bp, _st) _nl apiEpochNum = do
             liftHandler $ throwE $ ErrGetNetworkParametersInvalidValue txt
         ApiEpochNumber epochNum -> do
             now <- liftIO getCurrentTime
-            let ntrkTip = fromMaybe slotMinBound (slotAt sp now)
+            let ntrkTip =
+                    fromMaybe slotMinBound (slotAt (toSlotParameters bp) now)
             let currentEpochNum = ntrkTip ^. #epochNumber
             when (currentEpochNum < epochNum) $ liftHandler $ throwE $
                 ErrGetNetworkParametersWrongEpochNo currentEpochNum epochNum
@@ -1332,29 +1335,22 @@ getNetworkParameters (_block0, bp, _st) _nl apiEpochNum = do
         ApiEpochNumberLatest ->
             pure resp
   where
-    sp :: W.SlotParameters
-    sp = W.SlotParameters
-        (bp ^. #getEpochLength)
-        (bp ^. #getSlotLength)
-        (bp ^. #getGenesisBlockDate)
-        (bp ^. #getActiveSlotCoefficient)
     (W.SlotLength slotLength) = bp ^. #getSlotLength
     handlePercentageConv =
         either
         (error . ("from activeSlotCoefficient: " <>) . show)
         Quantity . mkPercentage
     resp :: ApiNetworkParameters
-    resp = ApiNetworkParameters {
-          genesisBlockHash = ApiT $ bp ^. #getGenesisBlockHash
-        , blockchainStartTime = ApiT $ bp ^. #getGenesisBlockDate
-        , slotLength = Quantity slotLength
-        , epochLength = Quantity $ W.unEpochLength $ bp ^. #getEpochLength
-        , epochStability = bp ^. #getEpochStability
-        , activeSlotCoefficient = handlePercentageConv
-                $ round @Double @Word
-                $ W.unActiveSlotCoefficient
-                $ bp ^. #getActiveSlotCoefficient
-        }
+    resp = ApiNetworkParameters
+        (ApiT $ bp ^. #getGenesisBlockHash)
+        (ApiT $ bp ^. #getGenesisBlockDate)
+        (Quantity slotLength)
+        (Quantity $ W.unEpochLength $ bp ^. #getEpochLength)
+        (bp ^. #getEpochStability)
+        ( handlePercentageConv
+            $ round @Double @Word
+            $ W.unActiveSlotCoefficient
+            $ bp ^. #getActiveSlotCoefficient )
 
 data ErrGetNetworkParameters
     = ErrGetNetworkParametersInvalidValue Text
