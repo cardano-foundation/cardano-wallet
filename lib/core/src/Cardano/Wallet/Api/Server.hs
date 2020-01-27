@@ -1328,7 +1328,7 @@ getNetworkParameters (_block0, bp, _st) apiEpochNum = do
                     fromMaybe slotMinBound (slotAt (toSlotParameters bp) now)
             let currentEpochNum = ntrkTip ^. #epochNumber
             when (currentEpochNum < epochNum) $ liftHandler $ throwE $
-                ErrGetNetworkParametersWrongEpochNo currentEpochNum epochNum
+                ErrGetNetworkParametersNoSuchEpochNo currentEpochNum epochNum
             pure resp
         ApiEpochNumberLatest ->
             pure resp
@@ -1352,7 +1352,7 @@ getNetworkParameters (_block0, bp, _st) apiEpochNum = do
 
 data ErrGetNetworkParameters
     = ErrGetNetworkParametersInvalidValue Text
-    | ErrGetNetworkParametersWrongEpochNo W.EpochNo W.EpochNo
+    | ErrGetNetworkParametersNoSuchEpochNo W.EpochNo W.EpochNo
     deriving (Eq, Show)
 
 {-------------------------------------------------------------------------------
@@ -1987,8 +1987,8 @@ instance LiftHandler ErrGetNetworkParameters where
                 , T.pack (show (maxBound @Word31))
                 , "."
                 ]
-        ErrGetNetworkParametersWrongEpochNo (W.EpochNo cEpochNo) (W.EpochNo rEpochNo) ->
-            apiError err404 NotEpochNo $ mconcat
+        ErrGetNetworkParametersNoSuchEpochNo (W.EpochNo cEpochNo) (W.EpochNo rEpochNo) ->
+            apiError err404 NotSuchEpochNo $ mconcat
                 [ "I couldn't show blockchain parameters for epoch number later"
                 , " than current one. You requested "
                 , T.pack (show rEpochNo)
