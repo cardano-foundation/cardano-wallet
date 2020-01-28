@@ -36,6 +36,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelection (..)
     , ApiCoinSelectionInput (..)
     , ApiEpochInfo (..)
+    , ApiEpochNumber (..)
     , ApiFee (..)
     , ApiMnemonicT (..)
     , ApiNetworkInformation (..)
@@ -232,11 +233,12 @@ import Test.QuickCheck
     , arbitraryPrintableChar
     , arbitrarySizedBoundedIntegral
     , choose
+    , elements
     , frequency
     , property
     , scale
     , shrinkIntegral
-    , vectorOf
+    , suchThat
     , vectorOf
     , withMaxSuccess
     , (.&&.)
@@ -315,6 +317,7 @@ spec = do
         describe "Can perform roundtrip textual encoding & decoding" $ do
             textRoundtrip $ Proxy @Iso8601Time
             textRoundtrip $ Proxy @SortOrder
+            textRoundtrip $ Proxy @ApiEpochNumber
 
     describe "AddressAmount" $ do
         it "fromText . toText === pure"
@@ -1232,6 +1235,19 @@ instance Arbitrary (Quantity "percent" Double) where
 instance Arbitrary ApiNetworkParameters where
     arbitrary = genericArbitrary
     shrink = genericShrink
+
+instance Arbitrary ApiEpochNumber where
+    arbitrary = do
+        let lowerBound = fromIntegral (minBound @Word31)
+        let upperBound = fromIntegral (maxBound @Word31)
+        epochN <- choose (lowerBound :: Int, upperBound)
+        rndTextLength <- choose (1,10)
+        rndText <-
+            suchThat (vectorOf rndTextLength (elements ['a'..'z'])) (/="latest")
+        elements
+            [ ApiEpochNumberLatest
+            , ApiEpochNumber (EpochNo (fromIntegral epochN))
+            , ApiEpochNumberInvalid $ T.pack rndText]
 
 instance Arbitrary SlotId where
     arbitrary = SlotId <$> arbitrary <*> arbitrary
