@@ -234,10 +234,11 @@ spec = do
         apiParams1 `shouldBe` apiParams2
    where
        expectedBlockchainParams = ApiNetworkParameters
-           (ApiT $ Hash $ unsafeFromHex
-               "f8c0622ea4b768421fea136a6e5a4e3b4c328fc5f16fad75817e40c8a2a56a56")
-           (ApiT $ StartTime (read "2019-04-25 14:20:57 UTC"))
-           (Quantity 2)
-           (Quantity 10)
-           (Quantity 5)
-           (Quantity 100)
+           { genesisBlockHash = ApiT $ Hash $ unsafeFromHex
+               "f8c0622ea4b768421fea136a6e5a4e3b4c328fc5f16fad75817e40c8a2a56a56"
+           , blockchainStartTime = ApiT $ StartTime (read "2019-04-25 14:20:57 UTC")
+           , slotLength = Quantity 2
+           , epochLength = Quantity 10
+           , epochStability = Quantity 5
+           , activeSlotCoefficient = Quantity 100
+           }
