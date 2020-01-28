@@ -1334,7 +1334,8 @@ getNetworkParameters (_block0, bp, _st) apiEpochNum = do
         (Quantity slotLength)
         (Quantity $ W.unEpochLength $ bp ^. #getEpochLength)
         (bp ^. #getEpochStability)
-        (Quantity $ W.unActiveSlotCoefficient
+        (Quantity $ (*100)
+            $ W.unActiveSlotCoefficient
             $ bp ^. #getActiveSlotCoefficient )
 
 data ErrGetNetworkParameters

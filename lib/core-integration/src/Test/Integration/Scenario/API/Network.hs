@@ -13,17 +13,21 @@ import Cardano.Wallet.Api.Types
     ( ApiByronWallet
     , ApiEpochInfo (..)
     , ApiNetworkInformation
-    , ApiNetworkParameters
+    , ApiNetworkParameters (..)
     , ApiT (..)
     , ApiWallet
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( EpochNo (..), SyncProgress (..) )
+    ( EpochNo (..), Hash (..), StartTime (..), SyncProgress (..) )
+import Cardano.Wallet.Unsafe
+    ( unsafeFromHex )
 import Control.Monad
     ( forM_ )
 import Control.Monad.IO.Class
     ( liftIO )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Time.Clock
     ( getCurrentTime )
 import Data.Word.Odd
@@ -203,8 +207,10 @@ spec = do
         let matrix = ["latest", "0"]
         forM_ matrix $ \arg -> it (show arg) $ \ctx -> do
             let endpoint = ( "GET", "v2/network/parameters/"<>arg )
-            r <- request @ApiNetworkParameters ctx endpoint Default Empty
+            r@(_,(Right apiParams)) <-
+                request @ApiNetworkParameters ctx endpoint Default Empty
             expectResponseCode @IO HTTP.status200 r
+            apiParams `shouldBe` expectedBlockchainParams
 
     it "NETWORK - Can query blockchain parameters with \
              \valid arguments" $ \ctx -> do
@@ -224,4 +230,14 @@ spec = do
         r2@(_,(Right apiParams2)) <- request @ApiNetworkParameters ctx endpoint2 Default Empty
         expectResponseCode @IO HTTP.status200 r2
 
+        apiParams1 `shouldBe` expectedBlockchainParams
         apiParams1 `shouldBe` apiParams2
+   where
+       expectedBlockchainParams = ApiNetworkParameters
+           (ApiT $ Hash $ unsafeFromHex
+               "f8c0622ea4b768421fea136a6e5a4e3b4c328fc5f16fad75817e40c8a2a56a56")
+           (ApiT $ StartTime (read "2019-04-25 14:20:57 UTC"))
+           (Quantity 2)
+           (Quantity 10)
+           (Quantity 5)
+           (Quantity 100)
