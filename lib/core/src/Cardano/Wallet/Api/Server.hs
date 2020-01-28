@@ -101,12 +101,12 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelection (..)
     , ApiCoinSelectionInput (..)
     , ApiEpochInfo (..)
-    , ApiEpochNumber
+    , ApiEpochNumber (..)
     , ApiErrorCode (..)
     , ApiFee (..)
     , ApiMnemonicT (..)
     , ApiNetworkInformation (..)
-    , ApiNetworkParameters
+    , ApiNetworkParameters (..)
     , ApiNetworkTip (..)
     , ApiSelectCoinsData (..)
     , ApiStakePool (..)
@@ -213,7 +213,7 @@ import Control.Exception
 import Control.Exception.Lifted
     ( finally )
 import Control.Monad
-    ( forM, forM_, unless, void )
+    ( forM, forM_, unless, void, when )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
@@ -252,6 +252,8 @@ import Data.Time.Clock
     ( getCurrentTime )
 import Data.Word
     ( Word32, Word64 )
+import Data.Word.Odd
+    ( Word31 )
 import Fmt
     ( Buildable, pretty )
 import GHC.Stack
@@ -286,10 +288,8 @@ import Servant
     , err409
     , err410
     , err500
-    , err501
     , err503
     , serve
-    , throwError
     )
 import Servant.Server
     ( Handler (..), ServantErr (..) )
@@ -531,7 +531,7 @@ server byron icarus shelley spl =
     network :: Server Network
     network =
         getNetworkInformation genesis nl
-        :<|> (getNetworkParameters genesis nl)
+        :<|> (getNetworkParameters genesis)
       where
         nl = shelley ^. networkLayer @t
         genesis = shelley ^. genesisData
@@ -1299,12 +1299,7 @@ getNetworkInformation (_block0, bp, st) nl = do
                 }
         }
   where
-    sp :: W.SlotParameters
-    sp = W.SlotParameters
-        (bp ^. #getEpochLength)
-        (bp ^. #getSlotLength)
-        (bp ^. #getGenesisBlockDate)
-        (bp ^. #getActiveSlotCoefficient)
+    sp = W.slotParams bp
 
     -- Unsafe constructor for the next epoch. Chances to reach the last epoch
     -- are quite unlikely in this context :)
@@ -1313,12 +1308,40 @@ getNetworkInformation (_block0, bp, st) nl = do
       where bomb = error "reached final epoch of the Blockchain!?"
 
 getNetworkParameters
-    :: forall t. ()
-    => (Block, BlockchainParameters, SyncTolerance)
-    -> NetworkLayer IO t Block
+    :: (Block, BlockchainParameters, SyncTolerance)
     -> ApiEpochNumber
     -> Handler ApiNetworkParameters
-getNetworkParameters _ _ _ = throwError err501
+getNetworkParameters (_block0, bp, _st) apiEpochNum = do
+    case apiEpochNum of
+        ApiEpochNumberInvalid txt ->
+            liftHandler $ throwE $ ErrGetNetworkParametersInvalidValue txt
+        ApiEpochNumber epochNum -> do
+            now <- liftIO getCurrentTime
+            let ntrkTip =
+                    fromMaybe slotMinBound (slotAt (W.slotParams bp) now)
+            let currentEpochNum = ntrkTip ^. #epochNumber
+            when (currentEpochNum < epochNum) $ liftHandler $ throwE $
+                ErrGetNetworkParametersNoSuchEpochNo currentEpochNum epochNum
+            pure resp
+        ApiEpochNumberLatest ->
+            pure resp
+  where
+    (W.SlotLength slotLength) = bp ^. #getSlotLength
+    resp :: ApiNetworkParameters
+    resp = ApiNetworkParameters
+        (ApiT $ bp ^. #getGenesisBlockHash)
+        (ApiT $ bp ^. #getGenesisBlockDate)
+        (Quantity slotLength)
+        (Quantity $ W.unEpochLength $ bp ^. #getEpochLength)
+        (bp ^. #getEpochStability)
+        (Quantity $ (*100)
+            $ W.unActiveSlotCoefficient
+            $ bp ^. #getActiveSlotCoefficient )
+
+data ErrGetNetworkParameters
+    = ErrGetNetworkParametersInvalidValue Text
+    | ErrGetNetworkParametersNoSuchEpochNo W.EpochNo W.EpochNo
+    deriving (Eq, Show)
 
 {-------------------------------------------------------------------------------
                                    Proxy
@@ -1938,6 +1961,28 @@ instance LiftHandler ErrQuitStakePool where
                 , ", because I'm not a member of this stake pool."
                 , " Please check if you are using correct stake pool id"
                 , " in your request."
+                ]
+
+instance LiftHandler ErrGetNetworkParameters where
+    handler = \case
+        ErrGetNetworkParametersInvalidValue txt ->
+            apiError err400 InvalidEpochNo $ mconcat
+                [ "I couldn't show blockchain parameters for "
+                , txt
+                , ". It should be either 'latest' or integer from "
+                , T.pack (show (minBound @Word31))
+                , " to "
+                , T.pack (show (maxBound @Word31))
+                , "."
+                ]
+        ErrGetNetworkParametersNoSuchEpochNo (W.EpochNo cEpochNo) (W.EpochNo rEpochNo) ->
+            apiError err404 NotSuchEpochNo $ mconcat
+                [ "I couldn't show blockchain parameters for epoch number later"
+                , " than current one. You requested "
+                , T.pack (show rEpochNo)
+                , " epoch. Current one is "
+                , T.pack (show cEpochNo)
+                , ". Use smaller epoch than current or 'latest'."
                 ]
 
 instance LiftHandler (Request, ServantErr) where

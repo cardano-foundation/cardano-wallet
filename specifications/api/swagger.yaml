@@ -1814,7 +1814,7 @@ paths:
       tags: ["Network"]
       summary: Parameters
       description: |
-        <p align="right">status: <strong>under development</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
       parameters:
         - <<: *parametersEpochId
           name: epochId

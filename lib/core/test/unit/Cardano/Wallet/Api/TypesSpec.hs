@@ -238,7 +238,7 @@ import Test.QuickCheck
     , property
     , scale
     , shrinkIntegral
-    , vectorOf
+    , suchThat
     , vectorOf
     , withMaxSuccess
     , (.&&.)
@@ -279,7 +279,6 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiNetworkInformation
             jsonRoundtripAndGolden $ Proxy @ApiNetworkParameters
             jsonRoundtripAndGolden $ Proxy @(ApiT (Hash "Genesis"))
-            jsonRoundtripAndGolden $ Proxy @ApiEpochNumber
             jsonRoundtripAndGolden $ Proxy @ApiStakePool
             jsonRoundtripAndGolden $ Proxy @(AddressAmount 'Testnet)
             jsonRoundtripAndGolden $ Proxy @(ApiTransaction 'Testnet)
@@ -318,6 +317,7 @@ spec = do
         describe "Can perform roundtrip textual encoding & decoding" $ do
             textRoundtrip $ Proxy @Iso8601Time
             textRoundtrip $ Proxy @SortOrder
+            textRoundtrip $ Proxy @ApiEpochNumber
 
     describe "AddressAmount" $ do
         it "fromText . toText === pure"
@@ -476,34 +476,6 @@ spec = do
             Aeson.parseEither parseJSON [aesonQQ|
                 "-----"
             |] `shouldBe` (Left @String @(ApiT (Hash "Genesis")) msg)
-
-        it "ApiEpochNumber" $ do
-            let msg = "Error in $: Unable to parse epoch number: 'earliest'. \
-                      \Expecting either \"latest\" or integer from 0 to 2147483647"
-            Aeson.parseEither parseJSON [aesonQQ|
-                "earliest"
-            |] `shouldBe` (Left @String @ApiEpochNumber msg)
-
-        it "ApiEpochNumber" $ do
-            let msg = "Error in $: Unable to parse epoch number: '2.5'. \
-                      \Expecting either \"latest\" or integer from 0 to 2147483647"
-            Aeson.parseEither parseJSON [aesonQQ|
-                "2.5"
-            |] `shouldBe` (Left @String @ApiEpochNumber msg)
-
-        it "ApiEpochNumber" $ do
-            let msg = "Error in $: Unable to parse epoch number: '2147483648'. \
-                      \Expecting either \"latest\" or integer from 0 to 2147483647"
-            Aeson.parseEither parseJSON [aesonQQ|
-                "2147483648"
-            |] `shouldBe` (Left @String @ApiEpochNumber msg)
-
-        it "ApiEpochNumber" $ do
-            let msg = "Error in $: Unable to parse epoch number: '-1'. \
-                      \Expecting either \"latest\" or integer from 0 to 2147483647"
-            Aeson.parseEither parseJSON [aesonQQ|
-                "-1"
-            |] `shouldBe` (Left @String @ApiEpochNumber msg)
 
         describe "StakePoolMetadata" $ do
             let msg = "Error in $.ticker: stake pool ticker length must be \
@@ -1255,6 +1227,11 @@ instance Arbitrary (Quantity "second" NominalDiffTime) where
     shrink _ = [Quantity 0.0]
     arbitrary = Quantity . fromInteger <$> choose (0, 10000)
 
+instance Arbitrary (Quantity "percent" Double) where
+    shrink (Quantity 0.0) = []
+    shrink _ = [Quantity 0.0]
+    arbitrary = Quantity <$> choose (0,100)
+
 instance Arbitrary ApiNetworkParameters where
     arbitrary = genericArbitrary
     shrink = genericShrink
@@ -1264,10 +1241,13 @@ instance Arbitrary ApiEpochNumber where
         let lowerBound = fromIntegral (minBound @Word31)
         let upperBound = fromIntegral (maxBound @Word31)
         epochN <- choose (lowerBound :: Int, upperBound)
+        rndTextLength <- choose (1,10)
+        rndText <-
+            suchThat (vectorOf rndTextLength (elements ['a'..'z'])) (/="latest")
         elements
             [ ApiEpochNumberLatest
-            , ApiEpochNumber (EpochNo (fromIntegral epochN))]
-    shrink = genericShrink
+            , ApiEpochNumber (EpochNo (fromIntegral epochN))
+            , ApiEpochNumberInvalid $ T.pack rndText]
 
 instance Arbitrary SlotId where
     arbitrary = SlotId <$> arbitrary <*> arbitrary

@@ -60,11 +60,13 @@ module Test.Integration.Framework.TestData
     , errMsg404CannotFindTx
     , errMsg404NoRootKey
     , errMsg404NoWallet
+    , errMsg404NoEpochNo
     , errMsg403InputsDepleted
     , errMsg403TxTooBig
     , errMsg400MalformedTxPayload
     , errMsg400WronglyEncodedTxPayload
     , errMsg400ParseError
+    , errMsg400MalformedEpoch
     , errMsg403ZeroAmtOutput
     , errMsg405
     , errMsg406
@@ -365,6 +367,21 @@ errMsg400ParseError = mconcat
     [ "I couldn't understand the content of your message. If your "
     , "message is intended to be in JSON format, please check that "
     , "the JSON is valid."
+    ]
+
+errMsg400MalformedEpoch :: String -> String
+errMsg400MalformedEpoch str = mconcat
+    [ "I couldn't show blockchain parameters for "
+    , str
+    , ". It should be either 'latest' or integer from 0 to 2147483647."
+    ]
+
+errMsg404NoEpochNo :: String -> String
+errMsg404NoEpochNo rEpochNo = concat
+    [ "I couldn't show blockchain parameters for epoch number later"
+    , " than current one. You requested "
+    , rEpochNo
+    , " epoch. "
     ]
 
 errMsg403ZeroAmtOutput :: String
