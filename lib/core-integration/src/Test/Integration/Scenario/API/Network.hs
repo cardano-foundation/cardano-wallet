@@ -162,18 +162,66 @@ spec = do
                     Link.getNetworkInfo headers Empty
                 verify r expectations
 
-    describe "NETWORK - Cannot query blockchain parameters with \
-             \invalid arguments" $ do
-        let epochNoWrong =
-                T.pack $show $ (+10) $ fromIntegral @Word31 @Int maxBound
-        let matrix = ["earliest", "invalid", epochNoWrong, "-1"]
-        forM_ matrix $ \arg -> it (show arg) $ \ctx -> do
-            let endpoint = ( "GET", "v2/network/parameters/"<>arg )
-            r <- request @ApiNetworkParameters ctx endpoint Default Empty
-            expectResponseCode @IO HTTP.status400 r
-            expectErrorMessage (errMsg400MalformedEpoch $ T.unpack arg) r
+    describe "NETWORK_PARAMS_01 - Valid epoch values" $ do
+        let matrix = ["latest", "0"]
+        forM_ matrix $ \epochNo -> it ("Epoch: " <> show epochNo) $ \ctx -> do
+            verifyEpochNumOK ctx epochNo
 
-    describe "NETWORK - v2/network/parameters - Methods Not Allowed" $ do
+        it "Current epoch" $ \ctx -> do
+            r <- request @ApiNetworkInformation ctx
+                Link.getNetworkInfo Default Empty
+            let currentEpochNo =
+                    getFromResponse
+                        (#nodeTip . #epochNumber . #getApiT . #unEpochNo) r
+            let epochNo = T.pack $ show currentEpochNo
+            verifyEpochNumOK ctx epochNo
+
+        it "Previous epoch" $ \ctx -> do
+            r <- request @ApiNetworkInformation ctx
+                Link.getNetworkInfo Default Empty
+            let currentEpochNo =
+                    getFromResponse
+                        (#nodeTip . #epochNumber . #getApiT . #unEpochNo) r
+            -- test previous epoch unless the current is epoch 0
+            -- otherwise test hits maxBound of the epochNo and fails
+            epochNo <- if (currentEpochNo > 0) then do
+                return $ T.pack $ show (currentEpochNo - 1)
+            else do
+                return $ T.pack $ show currentEpochNo
+
+            verifyEpochNumOK ctx epochNo
+
+    describe "NETWORK_PARAMS_02 - Cannot query future epoch" $  do
+        it "Future epoch" $ \ctx -> do
+            r1 <- request @ApiNetworkInformation ctx
+                Link.getNetworkInfo Default Empty
+            let (ApiT (EpochNo currentEpochNo)) =
+                    getFromResponse (#nextEpoch . #epochNumber) r1
+            let futureEpochNo = T.pack $ show $ currentEpochNo + 10
+            verifyEpochNumWrong ctx
+                    futureEpochNo
+                    HTTP.status404
+                    (errMsg404NoEpochNo (T.unpack futureEpochNo))
+
+        it "Epoch max value" $ \ctx -> do
+            let maxEpochValue =
+                    T.pack $ show $ fromIntegral @Word31 @Int maxBound
+            verifyEpochNumWrong ctx
+                    maxEpochValue
+                    HTTP.status404
+                    (errMsg404NoEpochNo (T.unpack maxEpochValue))
+
+    describe "NETWORK_PARAMS_03 - Invalid epoch numbers" $ do
+        let epochNoOutOfBound =
+                T.pack $show $ (+1) $ fromIntegral @Word31 @Int maxBound
+        let matrix = ["earliest", "invalid", epochNoOutOfBound, "-1"]
+        forM_ matrix $ \epochNo -> it (show epochNo) $ \ctx -> do
+            verifyEpochNumWrong ctx
+                    epochNo
+                    HTTP.status400
+                    (errMsg400MalformedEpoch $ T.unpack epochNo)
+
+    describe "NETWORK_PARAMS_04 - v2/network/parameters - Methods Not Allowed" $ do
         let matrix = ["POST", "CONNECT", "TRACE", "OPTIONS"]
         forM_ matrix $ \method -> it (show method) $ \ctx -> do
             let endpoint = (method, "v2/network/parameters/latest")
@@ -181,58 +229,34 @@ spec = do
             expectResponseCode @IO HTTP.status405 r
             expectErrorMessage errMsg405 r
 
-    describe "NETWORK - HTTP headers" $ do
+    describe "NETWORK_PARAMS_04 - HTTP headers" $ do
         forM_ (getHeaderCases HTTP.status200)
             $ \(title, headers, expectations) -> it title $ \ctx -> do
                 r <- request @ApiNetworkParameters ctx
                     Link.getNetworkInfo headers Empty
                 verify r expectations
-
-    it "NETWORK - Cannot query blockchain parameters with epoch later \
-       \than current one" $ \ctx -> do
-        r1 <- request @ApiNetworkInformation ctx
-            Link.getNetworkInfo Default Empty
-        let (ApiT (EpochNo currentEpochNo)) =
-                getFromResponse (#nextEpoch . #epochNumber) r1
-
-        let futureEpochNo = T.pack $ show $ currentEpochNo + 10
-        let endpoint = ( "GET", "v2/network/parameters/"<>futureEpochNo )
-        r2 <- request @ApiNetworkParameters ctx endpoint Default Empty
-
-        expectResponseCode @IO HTTP.status404 r2
-        expectErrorMessage (errMsg404NoEpochNo (T.unpack futureEpochNo)) r2
-
-    describe "NETWORK - Can query blockchain parameters with \
-             \valid arguments" $ do
-        let matrix = ["latest", "0"]
-        forM_ matrix $ \arg -> it (show arg) $ \ctx -> do
-            let endpoint = ( "GET", "v2/network/parameters/"<>arg )
-            r@(_,(Right apiParams)) <-
-                request @ApiNetworkParameters ctx endpoint Default Empty
-            expectResponseCode @IO HTTP.status200 r
-            apiParams `shouldBe` expectedBlockchainParams
-
-    it "NETWORK - Can query blockchain parameters with \
-             \valid arguments" $ \ctx -> do
-        r <- request @ApiNetworkInformation ctx
-            Link.getNetworkInfo Default Empty
-        let (ApiT (EpochNo currentEpochNo)) =
-                getFromResponse (#nextEpoch . #epochNumber) r
-
-        let epochNoOk1 = T.pack $ show $ currentEpochNo - 10
-        let endpoint1 = ( "GET", "v2/network/parameters/"<>epochNoOk1 )
-        r1@(_,(Right apiParams1)) <-
-            request @ApiNetworkParameters ctx endpoint1 Default Empty
-        expectResponseCode @IO HTTP.status200 r1
-
-        let epochNoOk2 = T.pack $ show $ currentEpochNo - 1
-        let endpoint2 = ( "GET", "v2/network/parameters/"<>epochNoOk2 )
-        r2@(_,(Right apiParams2)) <- request @ApiNetworkParameters ctx endpoint2 Default Empty
-        expectResponseCode @IO HTTP.status200 r2
-
-        apiParams1 `shouldBe` expectedBlockchainParams
-        apiParams1 `shouldBe` apiParams2
    where
+       verifyEpochNumWrong
+            :: Context t
+            -> T.Text
+            -> HTTP.Status
+            -> String
+            -> IO()
+       verifyEpochNumWrong ctx epochNum errCode errMsg = do
+           let endpoint =
+                   ( "GET", "v2/network/parameters/" <> epochNum )
+           r <- request @ApiNetworkParameters ctx endpoint Default Empty
+           expectResponseCode @IO errCode r
+           expectErrorMessage errMsg r
+
+       verifyEpochNumOK :: Context t -> T.Text -> IO ()
+       verifyEpochNumOK ctx epochNo = do
+           let endpoint = ( "GET", "v2/network/parameters/"<>epochNo )
+           r2 <- request @ApiNetworkParameters ctx endpoint Default Empty
+           expectResponseCode @IO HTTP.status200 r2
+           let networkParams = getFromResponse id r2
+           networkParams `shouldBe` expectedBlockchainParams
+
        expectedBlockchainParams = ApiNetworkParameters
            { genesisBlockHash = ApiT $ Hash $ unsafeFromHex
                "f8c0622ea4b768421fea136a6e5a4e3b4c328fc5f16fad75817e40c8a2a56a56"
