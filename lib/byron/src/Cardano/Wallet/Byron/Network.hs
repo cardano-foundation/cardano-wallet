@@ -310,23 +310,23 @@ send queue cmd = do
 -- from the chain and, submit transactions.
 type NetworkClient m = OuroborosApplication
     'InitiatorApp
-        -- ^ Initiator ~ Client (as opposed to Responder / Server)
+        -- Initiator ~ Client (as opposed to Responder / Server)
     ConnectionId
-        -- ^ An identifier for the peer: here, a local and remote socket.
+        -- An identifier for the peer: here, a local and remote socket.
     NodeToClientProtocols
-        -- ^ Specifies which mini-protocols our client is talking.
+        -- Specifies which mini-protocols our client is talking.
         -- 'NodeToClientProtocols' allows for two mini-protocols:
         --  - Chain Sync
         --  - Tx submission
     m
-        -- ^ Underlying monad we run in
+        -- Underlying monad we run in
     ByteString
-        -- ^ Concrete representation for bytes string
+        -- Concrete representation for bytes string
     Void
-        -- ^ -- Return type of a network client. Void indicates that the client
+        -- Return type of a network client. Void indicates that the client
         -- never exits.
     Void
-        -- ^ Irrelevant for 'InitiatorApplication'. Return type of 'Responder'
+        -- Irrelevant for 'InitiatorApplication'. Return type of 'Responder'
         -- application.
 
 -- | Construct a network client with the given communication channel
