@@ -35,6 +35,7 @@ let
         packages.cardano-wallet-core-integration.src = filterSubDir /lib/core-integration;
         packages.cardano-wallet-cli.src = filterSubDir /lib/cli;
         packages.cardano-wallet-launcher.src = filterSubDir /lib/launcher;
+        packages.cardano-wallet-byron.src = filterSubDir /lib/byron;
         packages.cardano-wallet-jormungandr.src = filterSubDir /lib/jormungandr;
         packages.cardano-wallet-jormungandr.components.tests.unit.keepSource = true;
         packages.cardano-wallet-jormungandr.components.tests.integration.keepSource = true;
