@@ -68,10 +68,8 @@ import Test.Integration.Framework.DSL
     , expectErrorMessage
     , expectEventually
     , expectEventually'
-    , expectFieldBetween
-    , expectFieldEqual
-    , expectListItemFieldBetween
-    , expectListItemFieldEqual
+    , expectFieldSatisfy
+    , expectListItemFieldSatisfy
     , expectListSizeEqual
     , expectResponseCode
     , expectSuccess
@@ -147,9 +145,10 @@ spec = do
             , expectResponseCode HTTP.status202
             -- tx amount includes only fees because it is tx to self address
             -- when tx is pending
-            , expectFieldBetween (#amount . #getQuantity) (feeMin, feeMax)
-            , expectFieldEqual (#direction . #getApiT) Outgoing
-            , expectFieldEqual (#status . #getApiT) Pending
+            , expectFieldSatisfy (#amount . #getQuantity) (>= feeMin)
+            , expectFieldSatisfy (#amount . #getQuantity) (<= feeMax)
+            , expectFieldSatisfy (#direction . #getApiT) (== Outgoing)
+            , expectFieldSatisfy (#status . #getApiT) (== Pending)
             ]
 
         eventually_ $ do
@@ -160,10 +159,10 @@ spec = do
                 , expectResponseCode HTTP.status200
                 -- tx amount includes only fees because it is tx to self address
                 -- also when tx is already in ledger
-                , expectListItemFieldBetween 0
-                        (#amount . #getQuantity) (feeMin, feeMax)
-                , expectListItemFieldEqual 0 (#direction . #getApiT) Outgoing
-                , expectListItemFieldEqual 0 (#status . #getApiT) InLedger
+                , expectListItemFieldSatisfy 0 (#amount . #getQuantity) (>= feeMin)
+                , expectListItemFieldSatisfy 0 (#amount . #getQuantity) (<= feeMax)
+                , expectListItemFieldSatisfy 0 (#direction . #getApiT) (== Outgoing)
+                , expectListItemFieldSatisfy 0 (#status . #getApiT) (== InLedger)
                 ]
 
     it "Regression #935 -\
@@ -207,22 +206,24 @@ spec = do
         verify r
             [ expectSuccess
             , expectResponseCode HTTP.status202
-            , expectFieldBetween
-                    (#amount . #getQuantity) (feeMin + amt, feeMax + amt)
-            , expectFieldEqual (#direction . #getApiT) Outgoing
-            , expectFieldEqual (#status . #getApiT) Pending
+            , expectFieldSatisfy (#amount . #getQuantity) (>= feeMin + amt)
+            , expectFieldSatisfy (#amount . #getQuantity) (<= feeMax + amt)
+            , expectFieldSatisfy (#direction . #getApiT) (== Outgoing)
+            , expectFieldSatisfy (#status . #getApiT) (== Pending)
             ]
 
         ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wa) Default Empty
         verify ra
             [ expectSuccess
-            , expectFieldBetween (#balance . #getApiT . #total)
-                    ( Quantity (faucetAmt - feeMax - amt)
-                    , Quantity (faucetAmt - feeMin - amt)
-                    )
-            , expectFieldEqual
+            , expectFieldSatisfy
+                    (#balance . #getApiT . #total)
+                    (>= Quantity (faucetAmt - feeMax - amt))
+            , expectFieldSatisfy
+                    (#balance . #getApiT . #total)
+                    (<= Quantity (faucetAmt - feeMin - amt))
+            , expectFieldSatisfy
                     (#balance . #getApiT . #available)
-                    (Quantity (faucetAmt - faucetUtxoAmt))
+                    (== Quantity (faucetAmt - faucetUtxoAmt))
             ]
 
         rb <- request @ApiWallet ctx (Link.getWallet @'Shelley wb) Default Empty
@@ -274,19 +275,17 @@ spec = do
         ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
         verify r
             [ expectResponseCode HTTP.status202
-            , expectFieldBetween
-                    (#amount . #getQuantity) (feeMin + (2*amt), feeMax + (2*amt))
-            , expectFieldEqual (#direction . #getApiT) Outgoing
-            , expectFieldEqual (#status . #getApiT) Pending
+            , expectFieldSatisfy (#amount . #getQuantity) (>= feeMin + (2*amt))
+            , expectFieldSatisfy (#amount . #getQuantity) (<= feeMax + (2*amt))
+            , expectFieldSatisfy (#direction . #getApiT) (== Outgoing)
+            , expectFieldSatisfy (#status . #getApiT) (== Pending)
             ]
         verify ra
-            [ expectFieldBetween (#balance . #getApiT . #total)
-                ( Quantity (faucetAmt - feeMax - (2*amt))
-                , Quantity (faucetAmt - feeMin - (2*amt))
-                )
-            , expectFieldEqual
+            [ expectFieldSatisfy (#balance . #getApiT . #total) (>= Quantity (faucetAmt - feeMax - (2*amt)))
+            , expectFieldSatisfy (#balance . #getApiT . #total) (<= Quantity (faucetAmt - feeMin - (2*amt)))
+            , expectFieldSatisfy
                     (#balance . #getApiT . #available)
-                    (Quantity (faucetAmt - 2 * faucetUtxoAmt))
+                    (== Quantity (faucetAmt - 2 * faucetUtxoAmt))
             ]
         rd <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default Empty
         verify rd
@@ -337,19 +336,21 @@ spec = do
         ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
         verify r
             [ expectResponseCode HTTP.status202
-            , expectFieldBetween
-                    (#amount . #getQuantity) (feeMin + (2*amt), feeMax + (2*amt))
-            , expectFieldEqual (#direction . #getApiT) Outgoing
-            , expectFieldEqual (#status . #getApiT) Pending
+            , expectFieldSatisfy (#amount . #getQuantity) (>= feeMin + (2*amt))
+            , expectFieldSatisfy (#amount . #getQuantity) (<= feeMax + (2*amt))
+            , expectFieldSatisfy (#direction . #getApiT) (== Outgoing)
+            , expectFieldSatisfy (#status . #getApiT) (== Pending)
             ]
         verify ra
-            [ expectFieldBetween (#balance . #getApiT . #total)
-                ( Quantity (faucetAmt - feeMax - (2*amt))
-                , Quantity (faucetAmt - feeMin - (2*amt))
-                )
-            , expectFieldEqual
+            [ expectFieldSatisfy
+                    (#balance . #getApiT . #total)
+                    (>= Quantity (faucetAmt - feeMax - (2*amt)))
+            , expectFieldSatisfy
+                    (#balance . #getApiT . #total)
+                    (<= Quantity (faucetAmt - feeMin - (2*amt)))
+            , expectFieldSatisfy
                     (#balance . #getApiT . #available)
-                    (Quantity (faucetAmt - 2 * faucetUtxoAmt))
+                    (== Quantity (faucetAmt - 2 * faucetUtxoAmt))
             ]
         forM_ [wDest1, wDest2] $ \wDest -> do
             rd <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default payload
@@ -417,15 +418,15 @@ spec = do
         r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
-            , expectFieldEqual (#amount . #getQuantity) (feeMin + amt)
-            , expectFieldEqual (#direction . #getApiT) Outgoing
-            , expectFieldEqual (#status . #getApiT) Pending
+            , expectFieldSatisfy (#amount . #getQuantity) (== feeMin + amt)
+            , expectFieldSatisfy (#direction . #getApiT) (== Outgoing)
+            , expectFieldSatisfy (#status . #getApiT) (== Pending)
             ]
 
         ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
         verify ra
-            [ expectFieldEqual (#balance . #getApiT . #total) (Quantity 0)
-            , expectFieldEqual (#balance . #getApiT . #available) (Quantity 0)
+            [ expectFieldSatisfy (#balance . #getApiT . #total) (== Quantity 0)
+            , expectFieldSatisfy (#balance . #getApiT . #available) (== Quantity 0)
             ]
 
         rd <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default Empty
@@ -440,8 +441,8 @@ spec = do
 
         ra2 <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
         verify ra2
-            [ expectFieldEqual (#balance . #getApiT . #total) (Quantity 0)
-            , expectFieldEqual (#balance . #getApiT . #available) (Quantity 0)
+            [ expectFieldSatisfy (#balance . #getApiT . #total) (== Quantity 0)
+            , expectFieldSatisfy (#balance . #getApiT . #available) (== Quantity 0)
             ]
 
     it "TRANS_CREATE_04 - Error shown when ErrInputsDepleted encountered" $ \ctx -> do
@@ -835,8 +836,8 @@ spec = do
         verify r
             [ expectSuccess
             , expectResponseCode HTTP.status202
-            , expectFieldBetween
-                    (#amount . #getQuantity) (feeMin - amt, feeMax + amt)
+            , expectFieldSatisfy (#amount . #getQuantity) (>= feeMin - amt)
+            , expectFieldSatisfy (#amount . #getQuantity) (<= feeMax + amt)
             ]
 
     it "TRANS_ESTIMATE_02 - Multiple Output Fee Estimation to single wallet" $ \ctx -> do
@@ -872,8 +873,8 @@ spec = do
         r <- request @ApiFee ctx (Link.getTransactionFee wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
-            , expectFieldBetween
-                    (#amount . #getQuantity) (feeMin - (2*amt), feeMax + (2*amt))
+            , expectFieldSatisfy (#amount . #getQuantity) (>= feeMin - (2*amt))
+            , expectFieldSatisfy (#amount . #getQuantity) (<= feeMax + (2*amt))
             ]
 
     it "TRANS_ESTIMATE_02 - Multiple Output Fee Estimation to different wallets" $ \ctx -> do
@@ -913,8 +914,8 @@ spec = do
         r <- request @ApiFee ctx (Link.getTransactionFee wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
-            , expectFieldBetween
-                    (#amount . #getQuantity) (feeMin - (2*amt), feeMax + (2*amt))
+            , expectFieldSatisfy (#amount . #getQuantity) (>= feeMin - (2*amt))
+            , expectFieldSatisfy (#amount . #getQuantity) (<= feeMax + (2*amt))
             ]
 
     it "TRANS_ESTIMATE_02 - Multiple Output Fee Estimation don't work on single UTxO" $ \ctx -> do
@@ -969,7 +970,8 @@ spec = do
         r <- request @ApiFee ctx (Link.getTransactionFee wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
-            , expectFieldBetween (#amount . #getQuantity) (feeMin-amt, feeMax+amt)
+            , expectFieldSatisfy (#amount . #getQuantity) (>= feeMin - amt)
+            , expectFieldSatisfy (#amount . #getQuantity) (<= feeMax + amt)
             ]
 
     it "TRANS_ESTIMATE_04 - Not enough money" $ \ctx -> do
@@ -1188,8 +1190,8 @@ spec = do
         expectResponseCode @IO HTTP.status200 r
 
         verify r
-            [ expectListItemFieldEqual 0 (#direction . #getApiT) Outgoing
-            , expectListItemFieldEqual 1 (#direction . #getApiT) Incoming
+            [ expectListItemFieldSatisfy 0 (#direction . #getApiT) (== Outgoing)
+            , expectListItemFieldSatisfy 1 (#direction . #getApiT) (== Incoming)
             ]
 
     -- This scenario covers the following matrix of cases. Cases were generated
@@ -1235,8 +1237,8 @@ spec = do
                         ]
                     , assertions =
                         [ expectListSizeEqual 2
-                        , expectListItemFieldEqual 0 #amount a1
-                        , expectListItemFieldEqual 1 #amount a2
+                        , expectListItemFieldSatisfy 0 #amount (== a1)
+                        , expectListItemFieldSatisfy 1 #amount (== a2)
                         ]
                     }
                 , TestCase -- 2
@@ -1247,8 +1249,8 @@ spec = do
                         ]
                     , assertions =
                         [ expectListSizeEqual 2
-                        , expectListItemFieldEqual 0 #amount a2
-                        , expectListItemFieldEqual 1 #amount a1
+                        , expectListItemFieldSatisfy 0 #amount (== a2)
+                        , expectListItemFieldSatisfy 1 #amount (== a1)
                         ]
                     }
                 , TestCase -- 3
@@ -1258,7 +1260,7 @@ spec = do
                         ]
                     , assertions =
                         [ expectListSizeEqual 1
-                        , expectListItemFieldEqual 0 #amount a1
+                        , expectListItemFieldSatisfy 0 #amount (== a1)
                         ]
                     }
                 , TestCase -- 4
@@ -1266,8 +1268,8 @@ spec = do
                         [ ("start", utcIso8601ToText t1) ]
                     , assertions =
                         [ expectListSizeEqual 2
-                        , expectListItemFieldEqual 0 #amount a2
-                        , expectListItemFieldEqual 1 #amount a1
+                        , expectListItemFieldSatisfy 0 #amount (== a2)
+                        , expectListItemFieldSatisfy 1 #amount (== a1)
                         ]
                     }
                 , TestCase --5
@@ -1277,7 +1279,7 @@ spec = do
                         ]
                     , assertions =
                         [ expectListSizeEqual 1
-                        , expectListItemFieldEqual 0 #amount a2
+                        , expectListItemFieldSatisfy 0 #amount (== a2)
                         ]
                     }
                 , TestCase -- 6
@@ -1295,7 +1297,7 @@ spec = do
                         ]
                     , assertions =
                         [ expectListSizeEqual 1
-                        , expectListItemFieldEqual 0 #amount a2
+                        , expectListItemFieldSatisfy 0 #amount (== a2)
                         ]
                     }
                 , TestCase -- 8
@@ -1306,7 +1308,7 @@ spec = do
                         ]
                     , assertions =
                         [ expectListSizeEqual 1
-                        , expectListItemFieldEqual 0 #amount a2
+                        , expectListItemFieldSatisfy 0 #amount (== a2)
                         ]
                     }
                 , TestCase -- 9
@@ -1317,7 +1319,7 @@ spec = do
                         ]
                     , assertions =
                         [ expectListSizeEqual 1
-                        , expectListItemFieldEqual 0 #amount a1
+                        , expectListItemFieldSatisfy 0 #amount (== a1)
                         ]
                     }
                 , TestCase -- 10
@@ -1327,8 +1329,8 @@ spec = do
                         ]
                     , assertions =
                         [ expectListSizeEqual 2
-                        , expectListItemFieldEqual 0 #amount a2
-                        , expectListItemFieldEqual 1 #amount a1
+                        , expectListItemFieldSatisfy 0 #amount (== a2)
+                        , expectListItemFieldSatisfy 1 #amount (== a1)
                         ]
                     }
                 , TestCase -- 11
@@ -1338,8 +1340,8 @@ spec = do
                         ]
                     , assertions =
                         [ expectListSizeEqual 2
-                        , expectListItemFieldEqual 0 #amount a2
-                        , expectListItemFieldEqual 1 #amount a1
+                        , expectListItemFieldSatisfy 0 #amount (== a2)
+                        , expectListItemFieldSatisfy 1 #amount (== a1)
                         ]
                     }
                 , TestCase -- 12
@@ -1349,16 +1351,16 @@ spec = do
                         ]
                     , assertions =
                         [ expectListSizeEqual 2
-                        , expectListItemFieldEqual 0 #amount a2
-                        , expectListItemFieldEqual 1 #amount a1
+                        , expectListItemFieldSatisfy 0 #amount (== a2)
+                        , expectListItemFieldSatisfy 1 #amount (== a1)
                         ]
                     }
                 , TestCase -- 13
                     { query = mempty
                     , assertions =
                         [ expectListSizeEqual 2
-                        , expectListItemFieldEqual 0 #amount a2
-                        , expectListItemFieldEqual 1 #amount a1
+                        , expectListItemFieldSatisfy 0 #amount (== a2)
+                        , expectListItemFieldSatisfy 1 #amount (== a1)
                         ]
                     }
                 , TestCase -- 14
@@ -1366,8 +1368,8 @@ spec = do
                         [ ("end", utcIso8601ToText t2) ]
                     , assertions =
                         [ expectListSizeEqual 2
-                        , expectListItemFieldEqual 0 #amount a2
-                        , expectListItemFieldEqual 1 #amount a1
+                        , expectListItemFieldSatisfy 0 #amount (== a2)
+                        , expectListItemFieldSatisfy 1 #amount (== a1)
                         ]
                     }
                 , TestCase -- 15
@@ -1375,8 +1377,8 @@ spec = do
                         [ ("end", utcIso8601ToText $ plusOneSecond t2) ]
                     , assertions =
                         [ expectListSizeEqual 2
-                        , expectListItemFieldEqual 0 #amount a2
-                        , expectListItemFieldEqual 1 #amount a1
+                        , expectListItemFieldSatisfy 0 #amount (== a2)
+                        , expectListItemFieldSatisfy 1 #amount (== a1)
                         ]
                     }
                 , TestCase -- 16
@@ -1384,7 +1386,7 @@ spec = do
                         [ ("end", utcIso8601ToText $ minusOneSecond t2) ]
                     , assertions =
                         [ expectListSizeEqual 1
-                        , expectListItemFieldEqual 0 #amount a1
+                        , expectListItemFieldSatisfy 0 #amount (== a1)
                         ]
                     }
                 , TestCase -- 17
@@ -1394,7 +1396,7 @@ spec = do
                         ]
                     , assertions =
                         [ expectListSizeEqual 1
-                        , expectListItemFieldEqual 0 #amount a1
+                        , expectListItemFieldSatisfy 0 #amount (== a1)
                         ]
                     }
                 , TestCase -- 18
@@ -1404,7 +1406,7 @@ spec = do
                         ]
                     , assertions =
                         [ expectListSizeEqual 1
-                        , expectListItemFieldEqual 0 #amount a2
+                        , expectListItemFieldSatisfy 0 #amount (== a2)
                         ]
                     }
                 ]
@@ -1608,16 +1610,16 @@ spec = do
         verify rMkTx
             [ expectSuccess
             , expectResponseCode HTTP.status202
-            , expectFieldEqual (#direction . #getApiT) Outgoing
-            , expectFieldEqual (#status . #getApiT) Pending
+            , expectFieldSatisfy (#direction . #getApiT) (== Outgoing)
+            , expectFieldSatisfy (#status . #getApiT) (== Pending)
             ]
 
         -- verify balance on src wallet
         request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty >>= flip verify
             [ expectSuccess
-            , expectFieldEqual
+            , expectFieldSatisfy
                     (#balance . #getApiT . #available)
-                    (Quantity (faucetAmt - faucetUtxoAmt))
+                    (== Quantity (faucetAmt - faucetUtxoAmt))
             ]
 
         -- forget transaction
@@ -1627,28 +1629,32 @@ spec = do
         -- verify again balance on src wallet
         request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty >>= flip verify
             [ expectSuccess
-            , expectFieldEqual
+            , expectFieldSatisfy
                     (#balance . #getApiT . #total)
-                    (Quantity faucetAmt)
-            , expectFieldEqual
+                    (== Quantity faucetAmt)
+            , expectFieldSatisfy
                     (#balance . #getApiT . #available)
-                    (Quantity faucetAmt)
+                    (== Quantity faucetAmt)
             ]
 
         -- transaction eventually is in source wallet
         eventually_ $ do
             let ep = Link.listTransactions @'Shelley wSrc
             request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListItemFieldEqual 0 (#direction . #getApiT) Outgoing
-                , expectListItemFieldEqual 0 (#status . #getApiT) InLedger
+                [ expectListItemFieldSatisfy 0
+                    (#direction . #getApiT) (== Outgoing)
+                , expectListItemFieldSatisfy 0
+                    (#status . #getApiT) (== InLedger)
                 ]
 
         -- transaction eventually is in target wallet
         eventually_ $ do
             let ep = Link.listTransactions @'Shelley wDest
             request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListItemFieldEqual 0 (#direction . #getApiT) Incoming
-                , expectListItemFieldEqual 0 (#status . #getApiT) InLedger
+                [ expectListItemFieldSatisfy 0
+                    (#direction . #getApiT) (== Incoming)
+                , expectListItemFieldSatisfy 0
+                    (#status . #getApiT) (== InLedger)
                 ]
 
     it "BYRON_TRANS_DELETE_01 -\
@@ -1680,8 +1686,10 @@ spec = do
         eventually_ $ do
             let ep = Link.listTransactions @'Shelley wSrc
             request @([ApiTransaction n]) ctx ep Default Empty >>= flip verify
-                [ expectListItemFieldEqual 0 (#direction . #getApiT) Outgoing
-                , expectListItemFieldEqual 0 (#status . #getApiT) InLedger
+                [ expectListItemFieldSatisfy 0
+                    (#direction . #getApiT) (== Outgoing)
+                , expectListItemFieldSatisfy 0
+                    (#status . #getApiT) (== InLedger)
                 ]
 
         -- Try Forget transaction once it's no longer pending

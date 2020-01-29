@@ -40,7 +40,6 @@ import Test.Integration.Framework.DSL
     , eventuallyUsingDelay
     , eventually_
     , expectErrorMessage
-    , expectFieldEqual
     , expectFieldSatisfy
     , expectResponseCode
     , expectedBlockchainParams
@@ -65,7 +64,7 @@ spec = do
             expectResponseCode @IO HTTP.status200 r
             verify r
                 [ expectFieldSatisfy #nextEpoch ((> now) . epochStartTime)
-                , expectFieldEqual (#syncProgress . #getApiT) Ready
+                , expectFieldSatisfy (#syncProgress . #getApiT) (== Ready)
                 ]
             return r
 
@@ -97,7 +96,8 @@ spec = do
             w <- emptyWallet ctx
             eventually_ $ do
                 sync <- getNetworkInfo
-                verify sync [ expectFieldEqual (#syncProgress . #getApiT) Ready ]
+                verify sync
+                    [ expectFieldSatisfy (#syncProgress . #getApiT) (== Ready) ]
             r <- getNetworkInfo
 
             let epochNum =
@@ -111,10 +111,12 @@ spec = do
                 res <- request @ApiWallet ctx
                     (Link.getWallet @'Shelley w) Default Empty
                 verify res
-                    [ expectFieldEqual (#state . #getApiT) Ready
-                    , expectFieldEqual (#tip . #epochNumber . #getApiT) epochNum
-                    , expectFieldEqual (#tip . #slotNumber  . #getApiT) slotNum
-                    , expectFieldEqual (#tip . #height) blockHeight
+                    [ expectFieldSatisfy (#state . #getApiT) (== Ready)
+                    , expectFieldSatisfy
+                            (#tip . #epochNumber . #getApiT) (== epochNum)
+                    , expectFieldSatisfy
+                            (#tip . #slotNumber  . #getApiT) (== slotNum)
+                    , expectFieldSatisfy (#tip . #height) (== blockHeight)
                     ]
 
     it "NETWORK_BYRON - Byron wallet has the same tip as network/information" $
@@ -124,7 +126,8 @@ spec = do
             w <- emptyRandomWallet ctx
             eventually_ $ do
                 sync <- getNetworkInfo
-                verify sync [ expectFieldEqual (#syncProgress . #getApiT) Ready ]
+                verify sync
+                    [ expectFieldSatisfy (#syncProgress . #getApiT) (== Ready) ]
             r <- getNetworkInfo
 
             let epochNum =
@@ -138,10 +141,10 @@ spec = do
                 res <- request @ApiByronWallet ctx
                     (Link.getWallet @'Byron w) Default Empty
                 verify res
-                    [ expectFieldEqual (#state . #getApiT) Ready
-                    , expectFieldEqual (#tip . #epochNumber . #getApiT) epochNum
-                    , expectFieldEqual (#tip . #slotNumber  . #getApiT) slotNum
-                    , expectFieldEqual (#tip . #height) blockHeight
+                    [ expectFieldSatisfy (#state . #getApiT) (== Ready)
+                    , expectFieldSatisfy (#tip . #epochNumber . #getApiT) (== epochNum)
+                    , expectFieldSatisfy (#tip . #slotNumber  . #getApiT) (== slotNum)
+                    , expectFieldSatisfy (#tip . #height) (== blockHeight)
                     ]
 
     describe "NETWORK - v2/network/information - Methods Not Allowed" $ do

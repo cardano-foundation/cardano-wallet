@@ -82,8 +82,8 @@ import Test.Integration.Framework.DSL as DSL
     , expectErrorMessage
     , expectEventually
     , expectEventually'
-    , expectFieldEqual
-    , expectListItemFieldEqual
+    , expectFieldSatisfy
+    , expectListItemFieldSatisfy
     , expectResponseCode
     , expectSuccess
     , faucetAmt
@@ -169,8 +169,8 @@ spec = do
         r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
-            , expectFieldEqual (#direction . #getApiT) Outgoing
-            , expectFieldEqual (#status . #getApiT) Pending
+            , expectFieldSatisfy (#direction . #getApiT) (== Outgoing)
+            , expectFieldSatisfy (#status . #getApiT) (== Pending)
             ]
 
         eventually_ $ do
@@ -179,27 +179,27 @@ spec = do
                 Default
                 Empty
                 >>= flip verify
-                [ expectListItemFieldEqual 0 (#direction . #getApiT) Outgoing
-                , expectListItemFieldEqual 0 (#status . #getApiT) InLedger
+                [ expectListItemFieldSatisfy 0 (#direction . #getApiT) (== Outgoing)
+                , expectListItemFieldSatisfy 0 (#status . #getApiT) (== InLedger)
                 ]
             request @([ApiTransaction n]) ctx
                 (Link.listTransactions @'Shelley wDest)
                 Default
                 Empty
                 >>= flip verify
-                [ expectListItemFieldEqual 0 (#direction . #getApiT) Incoming
-                , expectListItemFieldEqual 0 (#status . #getApiT) InLedger
-                , expectListItemFieldEqual 0 #amount (Quantity utxoAmt)
+                [ expectListItemFieldSatisfy 0 (#direction . #getApiT) (== Incoming)
+                , expectListItemFieldSatisfy 0 (#status . #getApiT) (== InLedger)
+                , expectListItemFieldSatisfy 0 #amount (== Quantity utxoAmt)
                 ]
             request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest)
                 Default
                 Empty
                 >>= flip verify
-                [ expectFieldEqual
-                        (#balance . #getApiT . #available) (Quantity utxoAmt)
-                , expectFieldEqual
-                        (#balance . #getApiT . #total) (Quantity utxoAmt)
+                [ expectFieldSatisfy
+                        (#balance . #getApiT . #available) (== Quantity utxoAmt)
+                , expectFieldSatisfy
+                        (#balance . #getApiT . #total) (== Quantity utxoAmt)
                 ]
 
     it "TRANS_ESTIMATE_09 - \
@@ -471,7 +471,8 @@ fixtureExternalTx ctx toSend = do
         @ApiWallet ctx ("POST", "v2/wallets") Default restoreFaucetWallet
     verify r0
         [ expectResponseCode @IO HTTP.status201
-        , expectFieldEqual (#name . #getApiT . #getWalletName) "Faucet Wallet"
+        , expectFieldSatisfy
+            (#name . #getApiT . #getWalletName) (== "Faucet Wallet")
         ]
     let wSrc = getFromResponse Prelude.id r0
     -- we take input by lookking at transactions of the faucet wallet
@@ -494,7 +495,8 @@ fixtureExternalTx ctx toSend = do
             } |]
     r1 <- request @ApiWallet ctx ("POST", "v2/wallets") Default createWallet
     verify r1
-        [ expectFieldEqual (#name . #getApiT . #getWalletName) "Destination Wallet"
+        [ expectFieldSatisfy
+            (#name . #getApiT . #getWalletName) (== "Destination Wallet")
         , expectEventually ctx (Link.getWallet @'Shelley) (#state . #getApiT) Ready
         ]
     let wDest = getFromResponse Prelude.id r1

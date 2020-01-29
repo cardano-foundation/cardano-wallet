@@ -26,12 +26,7 @@ module Test.Integration.Framework.DSL
     , expectSuccess
     , expectError
     , expectErrorMessage
-    , expectFieldEqual
-    , expectFieldNotEqual
     , expectFieldSatisfy
-    , expectFieldBetween
-    , expectListItemFieldBetween
-    , expectListItemFieldEqual
     , expectListItemFieldSatisfy
     , expectListSizeEqual
     , expectResponseCode
@@ -312,33 +307,6 @@ expectResponseCode want (got, a) =
             , "from the following response: " <> show a
             ]
 
-expectFieldEqual
-    :: (HasCallStack, MonadIO m, MonadFail m, Show a, Eq a)
-    => Lens' s a
-    -> a
-    -> (HTTP.Status, Either RequestException s)
-    -> m ()
-expectFieldEqual getter a (_, res) = case res of
-    Left e  -> wantedSuccessButError e
-    Right s -> (view getter s) `shouldBe` a
-
-expectFieldBetween
-    :: (HasCallStack, MonadIO m, MonadFail m, Show a, Ord a)
-    => Lens' s a
-    -> (a, a)
-    -> (HTTP.Status, Either RequestException s)
-    -> m ()
-expectFieldBetween getter (aMin, aMax) (_, res) = case res of
-    Left e  -> wantedSuccessButError e
-    Right s ->
-        case view getter s of
-            a | a < aMin -> fail $
-                "expected " <> show a <> " >= " <> show aMin
-            a | a > aMax -> fail $
-                "expected " <> show a <> " <= " <> show aMax
-            _ ->
-                return ()
-
 expectFieldSatisfy
     :: (HasCallStack, MonadIO m, MonadFail m, Show a)
     => Lens' s a
@@ -352,36 +320,6 @@ expectFieldSatisfy getter predicate (_, res) = case res of
         if predicate a
             then return ()
             else fail $ "predicate failed for: " <> show a
-
-expectFieldNotEqual
-    :: (HasCallStack, MonadIO m, MonadFail m, Show a, Eq a)
-    => Lens' s a
-    -> a
-    -> (HTTP.Status, Either RequestException s)
-    -> m ()
-expectFieldNotEqual getter a (_, res) = case res of
-    Left e  -> wantedSuccessButError e
-    Right s -> (view getter s) `shouldNotBe` a
-
--- | Expects that returned data list's particular item field
---   matches the expected value.
---   e.g.
---   expectListItemFieldEqual 0 (#name . #getApiT . #getWalletName) "first" r
---   expectListItemFieldEqual 1 (#name . #getApiT . #getWalletName) "second" r
-expectListItemFieldEqual
-    :: (HasCallStack, MonadIO m, MonadFail m, Show a, Eq a)
-    => Int
-    -> Lens' s a
-    -> a
-    -> (HTTP.Status, Either RequestException [s])
-    -> m ()
-expectListItemFieldEqual i getter a (c, res) = case res of
-    Left e -> wantedSuccessButError e
-    Right xs
-        | length xs > i -> expectFieldEqual getter a (c, Right (xs !! i))
-        | otherwise -> fail $
-            "expectListItemFieldEqual: trying to access the #" <> show i <>
-            " element from a list but there's none! "
 
 expectListItemFieldSatisfy
     :: (HasCallStack, MonadIO m, MonadFail m, Show a)
@@ -397,22 +335,6 @@ expectListItemFieldSatisfy i getter predicate (c, res) = case res of
             expectFieldSatisfy getter predicate (c, Right (xs !! i))
         | otherwise -> fail $
             "expectListItemFieldSatisfy: trying to access the #" <> show i <>
-            " element from a list but there's none! "
-
-expectListItemFieldBetween
-    :: (HasCallStack, MonadIO m, MonadFail m, Show a, Eq a, Ord a)
-    => Int
-    -> Lens' s a
-    -> (a, a)
-    -> (HTTP.Status, Either RequestException [s])
-    -> m ()
-expectListItemFieldBetween i getter (aMin, aMax) (c, res) = case res of
-    Left e -> wantedSuccessButError e
-    Right xs
-        | length xs > i ->
-            expectFieldBetween getter (aMin, aMax) (c, Right (xs !! i))
-        | otherwise -> fail $
-            "expectListItemFieldBetween: trying to access the #" <> show i <>
             " element from a list but there's none! "
 
 -- | Expects data list returned by the API to be of certain length
@@ -577,7 +499,6 @@ expectCliFieldNotEqual
     -> m ()
 expectCliFieldNotEqual getter a out = (view getter out) `shouldNotBe` a
 
--- | Same as 'expectListItemFieldEqual' but for CLI
 expectCliListItemFieldEqual
     :: (HasCallStack, MonadIO m, MonadFail m, Show a, Eq a)
     => Int
