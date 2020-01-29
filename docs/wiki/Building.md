@@ -22,7 +22,7 @@ Use the Nix build if:
    Hydra cache, without needing to build it yourself.
 
 Follow the instructions in
-[iohk-nix/docs/nix.md](https://github.com/input-output-hk/iohk-nix/blob/develop/docs/nix.md)
+[iohk-nix/docs/nix.md](https://github.com/input-output-hk/iohk-nix/blob/master/docs/nix.md)
 to install Nix and set up the IOHK binary cache.
 
 To build the wallet for your current platform:
