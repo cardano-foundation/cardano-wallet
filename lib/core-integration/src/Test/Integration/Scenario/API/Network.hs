@@ -197,33 +197,29 @@ spec = do
                 Link.getNetworkInfo Default Empty
             let (ApiT (EpochNo currentEpochNo)) =
                     getFromResponse (#nextEpoch . #epochNumber) r1
-
             let futureEpochNo = T.pack $ show $ currentEpochNo + 10
-            let endpoint = ( "GET", "v2/network/parameters/"<>futureEpochNo )
-            r2 <- request @ApiNetworkParameters ctx endpoint Default Empty
-
-            expectResponseCode @IO HTTP.status404 r2
-            expectErrorMessage (errMsg404NoEpochNo (T.unpack futureEpochNo)) r2
+            verifyEpochNumWrong ctx
+                    futureEpochNo
+                    HTTP.status404
+                    (errMsg404NoEpochNo (T.unpack futureEpochNo))
 
         it "Epoch max value" $ \ctx -> do
             let maxEpochValue =
                     T.pack $ show $ fromIntegral @Word31 @Int maxBound
-
-            let endpoint =
-                    ( "GET", "v2/network/parameters/" <> maxEpochValue )
-            r <- request @ApiNetworkParameters ctx endpoint Default Empty
-            expectResponseCode @IO HTTP.status404 r
-            expectErrorMessage (errMsg404NoEpochNo (T.unpack maxEpochValue)) r
+            verifyEpochNumWrong ctx
+                    maxEpochValue
+                    HTTP.status404
+                    (errMsg404NoEpochNo (T.unpack maxEpochValue))
 
     describe "NETWORK_PARAMS_03 - Invalid epoch numbers" $ do
         let epochNoOutOfBound =
                 T.pack $show $ (+1) $ fromIntegral @Word31 @Int maxBound
         let matrix = ["earliest", "invalid", epochNoOutOfBound, "-1"]
-        forM_ matrix $ \arg -> it (show arg) $ \ctx -> do
-            let endpoint = ( "GET", "v2/network/parameters/"<>arg )
-            r <- request @ApiNetworkParameters ctx endpoint Default Empty
-            expectResponseCode @IO HTTP.status400 r
-            expectErrorMessage (errMsg400MalformedEpoch $ T.unpack arg) r
+        forM_ matrix $ \epochNo -> it (show epochNo) $ \ctx -> do
+            verifyEpochNumWrong ctx
+                    epochNo
+                    HTTP.status400
+                    (errMsg400MalformedEpoch $ T.unpack epochNo)
 
     describe "NETWORK_PARAMS_04 - v2/network/parameters - Methods Not Allowed" $ do
         let matrix = ["POST", "CONNECT", "TRACE", "OPTIONS"]
@@ -240,6 +236,19 @@ spec = do
                     Link.getNetworkInfo headers Empty
                 verify r expectations
    where
+       verifyEpochNumWrong
+            :: Context t
+            -> T.Text
+            -> HTTP.Status
+            -> String
+            -> IO()
+       verifyEpochNumWrong ctx epochNum errCode errMsg = do
+           let endpoint =
+                   ( "GET", "v2/network/parameters/" <> epochNum )
+           r <- request @ApiNetworkParameters ctx endpoint Default Empty
+           expectResponseCode @IO errCode r
+           expectErrorMessage errMsg r
+
        verifyEpochNumOK :: Context t -> T.Text -> IO ()
        verifyEpochNumOK ctx epochNo = do
            let endpoint = ( "GET", "v2/network/parameters/"<>epochNo )
