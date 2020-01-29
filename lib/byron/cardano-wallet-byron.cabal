@@ -37,8 +37,6 @@ library
     , cardano-crypto
     , cardano-crypto-wrapper
     , cardano-ledger
-    , cardano-slotting
-    , cardano-wallet-cli
     , cardano-wallet-core
     , cardano-wallet-launcher
     , cborg
@@ -52,12 +50,9 @@ library
     , memory
     , network
     , network-mux
-    , optparse-applicative
     , ouroboros-consensus
     , ouroboros-network
     , serialise
-    , stm
-    , temporary
     , text
     , text-class
     , time
@@ -93,14 +88,11 @@ executable cardano-wallet-byron
     , cardano-wallet-cli
     , cardano-wallet-core
     , cardano-wallet-launcher
-    , filepath
-    , fmt
     , iohk-monitoring
     , network
     , optparse-applicative
     , text
     , text-class
-    , transformers
   hs-source-dirs:
       exe
   main-is:
