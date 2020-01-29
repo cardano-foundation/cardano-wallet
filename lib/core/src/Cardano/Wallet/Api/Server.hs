@@ -288,8 +288,10 @@ import Servant
     , err409
     , err410
     , err500
+    , err501
     , err503
     , serve
+    , throwError
     )
 import Servant.Server
     ( Handler (..), ServantErr (..) )
@@ -621,7 +623,7 @@ byronServer byron icarus =
     network :: Server Network
     network =
         getNetworkInformation genesis nl
-        :<|> (getNetworkParameters genesis nl)
+        :<|> (getNetworkParameters genesis)
       where
         nl = icarus ^. networkLayer @t
         genesis = icarus ^. genesisData
