@@ -227,7 +227,7 @@ import System.Process
     , withCreateProcess
     )
 import Test.Hspec
-    ( expectationFailure )
+    ( HasCallStack, expectationFailure )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain, shouldNotBe )
 import Test.Integration.Faucet
@@ -261,7 +261,7 @@ import qualified Network.HTTP.Types.Status as HTTP
 
 -- | Expect an error response, without any further assumptions.
 expectError
-    :: (MonadIO m, MonadFail m, Show a)
+    :: (HasCallStack, MonadIO m, MonadFail m, Show a)
     => (s, Either RequestException a)
     -> m ()
 expectError (_, res) = case res of
@@ -270,7 +270,7 @@ expectError (_, res) = case res of
 
 -- | Expect an error response, without any further assumptions.
 expectErrorMessage
-    :: (MonadIO m, MonadFail m, Show a)
+    :: (HasCallStack, MonadIO m, MonadFail m, Show a)
     => String
     -> (s, Either RequestException a)
     -> m ()
@@ -285,7 +285,7 @@ expectErrorMessage want (_, res) = case res of
 
 -- | Expect a successful response, without any further assumptions.
 expectSuccess
-    :: (MonadIO m, MonadFail m)
+    :: (HasCallStack, MonadIO m, MonadFail m)
     => (s, Either RequestException a)
     -> m ()
 expectSuccess (_, res) = case res of
@@ -294,7 +294,7 @@ expectSuccess (_, res) = case res of
 
 -- | Expect a given response code on the response.
 expectResponseCode
-    :: (MonadIO m, Show a)
+    :: (HasCallStack, MonadIO m, Show a)
     => HTTP.Status
     -> (HTTP.Status, a)
     -> m ()
@@ -309,7 +309,7 @@ expectResponseCode want (got, a) =
             ]
 
 expectFieldEqual
-    :: (MonadIO m, MonadFail m, Show a, Eq a)
+    :: (HasCallStack, MonadIO m, MonadFail m, Show a, Eq a)
     => Lens' s a
     -> a
     -> (HTTP.Status, Either RequestException s)
@@ -319,7 +319,7 @@ expectFieldEqual getter a (_, res) = case res of
     Right s -> (view getter s) `shouldBe` a
 
 expectFieldBetween
-    :: (MonadIO m, MonadFail m, Show a, Ord a)
+    :: (HasCallStack, MonadIO m, MonadFail m, Show a, Ord a)
     => Lens' s a
     -> (a, a)
     -> (HTTP.Status, Either RequestException s)
@@ -336,7 +336,7 @@ expectFieldBetween getter (aMin, aMax) (_, res) = case res of
                 return ()
 
 expectFieldSatisfy
-    :: (MonadIO m, MonadFail m, Show a)
+    :: (HasCallStack, MonadIO m, MonadFail m, Show a)
     => Lens' s a
     -> (a -> Bool)
     -> (HTTP.Status, Either RequestException s)
@@ -350,7 +350,7 @@ expectFieldSatisfy getter predicate (_, res) = case res of
             else fail $ "predicate failed for: " <> show a
 
 expectFieldNotEqual
-    :: (MonadIO m, MonadFail m, Show a, Eq a)
+    :: (HasCallStack, MonadIO m, MonadFail m, Show a, Eq a)
     => Lens' s a
     -> a
     -> (HTTP.Status, Either RequestException s)
@@ -365,7 +365,7 @@ expectFieldNotEqual getter a (_, res) = case res of
 --   expectListItemFieldEqual 0 (#name . #getApiT . #getWalletName) "first" r
 --   expectListItemFieldEqual 1 (#name . #getApiT . #getWalletName) "second" r
 expectListItemFieldEqual
-    :: (MonadIO m, MonadFail m, Show a, Eq a)
+    :: (HasCallStack, MonadIO m, MonadFail m, Show a, Eq a)
     => Int
     -> Lens' s a
     -> a
@@ -380,7 +380,7 @@ expectListItemFieldEqual i getter a (c, res) = case res of
             " element from a list but there's none! "
 
 expectListItemFieldSatisfy
-    :: (MonadIO m, MonadFail m, Show a)
+    :: (HasCallStack, MonadIO m, MonadFail m, Show a)
     => Int
     -> Lens' s a
     -> (a -> Bool)
@@ -396,7 +396,7 @@ expectListItemFieldSatisfy i getter predicate (c, res) = case res of
             " element from a list but there's none! "
 
 expectListItemFieldBetween
-    :: (MonadIO m, MonadFail m, Show a, Eq a, Ord a)
+    :: (HasCallStack, MonadIO m, MonadFail m, Show a, Eq a, Ord a)
     => Int
     -> Lens' s a
     -> (a, a)
@@ -413,7 +413,7 @@ expectListItemFieldBetween i getter (aMin, aMax) (c, res) = case res of
 
 -- | Expects data list returned by the API to be of certain length
 expectListSizeEqual
-    :: (MonadIO m, MonadFail m, Foldable xs)
+    :: (HasCallStack, MonadIO m, MonadFail m, Foldable xs)
     => Int
     -> (HTTP.Status, Either RequestException (xs a))
     -> m ()
@@ -424,7 +424,7 @@ expectListSizeEqual l (_, res) = case res of
 -- | Expects wallet UTxO statistics from the request to be equal to
 -- pre-calculated statistics.
 expectWalletUTxO
-    :: (MonadIO m, MonadFail m)
+    :: (HasCallStack, MonadIO m, MonadFail m)
     => [Word64]
     -> Either RequestException ApiUtxoStatistics
     -> m ()
@@ -446,7 +446,7 @@ expectWalletUTxO coins = \case
 -- | Expects wallet from the request to eventually reach the given state or
 -- beyond.
 expectEventually
-    :: forall ctx s a m. (MonadIO m, MonadCatch m, MonadFail m)
+    :: forall ctx s a m. (HasCallStack, MonadIO m, MonadCatch m, MonadFail m)
     => (Ord a, Show a, FromJSON s)
     => (HasType (Text, Manager) ctx)
     => ctx
@@ -475,7 +475,7 @@ expectEventually ctx endpoint getter target (_, res) = case res of
 
 -- | Like 'expectEventually', but the target is part of the response.
 expectEventuallyL
-    :: (MonadIO m, MonadCatch m, MonadFail m)
+    :: (HasCallStack, MonadIO m, MonadCatch m, MonadFail m)
     => (Ord a, Show a)
     => (HasType (Text, Manager) ctx)
     => ctx
@@ -501,7 +501,7 @@ expectEventuallyL ctx getter target s = liftIO $ do
 -- | Same as 'expectEventually', but works directly on 'ApiWallet'
 -- rather than on a response from the API.
 expectEventually'
-    :: forall ctx s a m. (MonadIO m, MonadCatch m, MonadFail m)
+    :: forall ctx s a m. (HasCallStack, MonadIO m, MonadCatch m, MonadFail m)
     => (Ord a, Show a, FromJSON s)
     => (HasType (Text, Manager) ctx)
     => ctx
@@ -521,7 +521,7 @@ expectEventually' ctx endpoint target value s = do
 -- | Expects a given string to be a valid JSON output corresponding to some
 -- given data-type 'a'. Returns this type if successful.
 expectValidJSON
-    :: forall m a. (MonadFail m, FromJSON a)
+    :: forall m a. (HasCallStack, MonadFail m, FromJSON a)
     => Proxy a
     -> String
     -> m a
@@ -531,7 +531,7 @@ expectValidJSON _ str =
         Right a -> return a
 
 expectCliFieldBetween
-    :: (MonadIO m, MonadFail m, Show a, Ord a)
+    :: (HasCallStack, MonadIO m, MonadFail m, Show a, Ord a)
     => Lens' s a
     -> (a, a)
     -> s
@@ -545,7 +545,7 @@ expectCliFieldBetween getter (aMin, aMax) s = case view getter s of
                 return ()
 
 expectCliListItemFieldBetween
-    :: (MonadIO m, MonadFail m, Show a, Eq a, Ord a)
+    :: (HasCallStack, MonadIO m, MonadFail m, Show a, Eq a, Ord a)
     => Int
     -> Lens' s a
     -> (a, a)
@@ -558,7 +558,7 @@ expectCliListItemFieldBetween i getter (aMin, aMax) xs
             " element from a list but there's none! "
 
 expectCliFieldEqual
-    :: (MonadIO m, Show a, Eq a)
+    :: (HasCallStack, MonadIO m, Show a, Eq a)
     => Lens' s a
     -> a
     -> s
@@ -566,7 +566,7 @@ expectCliFieldEqual
 expectCliFieldEqual getter a out = (view getter out) `shouldBe` a
 
 expectCliFieldNotEqual
-    :: (MonadIO m, Show a, Eq a)
+    :: (HasCallStack, MonadIO m, Show a, Eq a)
     => Lens' s a
     -> a
     -> s
@@ -575,7 +575,7 @@ expectCliFieldNotEqual getter a out = (view getter out) `shouldNotBe` a
 
 -- | Same as 'expectListItemFieldEqual' but for CLI
 expectCliListItemFieldEqual
-    :: (MonadIO m, MonadFail m, Show a, Eq a)
+    :: (HasCallStack, MonadIO m, MonadFail m, Show a, Eq a)
     => Int
     -> Lens' s a
     -> a
@@ -588,7 +588,7 @@ expectCliListItemFieldEqual i getter a out
             " element from a list but there's none! "
 
 -- | A file is eventually created on the given location
-expectPathEventuallyExist :: FilePath -> IO ()
+expectPathEventuallyExist :: HasCallStack => FilePath -> IO ()
 expectPathEventuallyExist filepath = do
     handle <- async doesPathExistNow
     winner <- race (threadDelay (60 * oneSecond)) (wait handle)
