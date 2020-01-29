@@ -35,6 +35,7 @@ import Cardano.Wallet.Api.Types
     , ApiByronWalletMigrationInfo (..)
     , ApiCoinSelection (..)
     , ApiCoinSelectionInput (..)
+    , ApiDelegationStatus (..)
     , ApiEpochInfo (..)
     , ApiEpochNumber (..)
     , ApiFee (..)
@@ -52,6 +53,8 @@ import Cardano.Wallet.Api.Types
     , ApiTxInput (..)
     , ApiUtxoStatistics (..)
     , ApiWallet (..)
+    , ApiWalletDelegation (..)
+    , ApiWalletDelegationNext (..)
     , ApiWalletPassphrase (..)
     , ByronWalletPostData (..)
     , DecodeAddress (..)
@@ -278,6 +281,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiBlockReference
             jsonRoundtripAndGolden $ Proxy @ApiNetworkInformation
             jsonRoundtripAndGolden $ Proxy @ApiNetworkParameters
+            jsonRoundtripAndGolden $ Proxy @ApiWalletDelegation
             jsonRoundtripAndGolden $ Proxy @(ApiT (Hash "Genesis"))
             jsonRoundtripAndGolden $ Proxy @ApiStakePool
             jsonRoundtripAndGolden $ Proxy @(AddressAmount 'Testnet)
@@ -822,7 +826,6 @@ spec = do
             in
                 x' === x .&&. show x' === show x
 
-
 -- Golden tests files are generated automatically on first run. On later runs
 -- we check that the format stays the same. The golden files should be tracked
 -- in git.
@@ -1059,6 +1062,16 @@ instance Arbitrary WalletBalance where
     shrink = genericShrink
 
 instance Arbitrary (WalletDelegation (ApiT PoolId)) where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiDelegationStatus where
+    arbitrary = ApiDelegationStatus <$> arbitrary
+
+instance Arbitrary ApiWalletDelegationNext where
+    arbitrary = ApiWalletDelegationNext <$> arbitrary <*> arbitrary
+
+instance Arbitrary ApiWalletDelegation where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
@@ -1497,6 +1510,12 @@ instance ToSchema ApiNetworkParameters where
 
 instance ToSchema ApiNetworkTip where
     declareNamedSchema _ = declareSchemaForDefinition "ApiNetworkTip"
+
+instance ToSchema ApiDelegationStatus where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiDelegationStatus"
+
+instance ToSchema ApiWalletDelegation where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiWalletDelegation"
 
 -- | Utility function to provide an ad-hoc 'ToSchema' instance for a definition:
 -- we simply look it up within the Swagger specification.

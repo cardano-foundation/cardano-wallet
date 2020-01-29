@@ -272,19 +272,6 @@ x-byronWalletBalance: &byronWalletBalance
       <<: *amount
       description: Total balance (available balance plus pending change)
 
-x-delegationStatus: &delegationStatus
-  required:
-    - status
-  properties: &delegationStatusProperties
-    status:
-      type: string
-      enum:
-        - not_delegating
-        - delegating
-    target:
-      <<: *stakePoolId
-      description: A unique Stake-Pool identifier (present only if status = `delegating`)
-
 x-walletDelegation: &walletDelegation
   description: Delegation settings
   type: object
@@ -601,6 +588,20 @@ definitions:
     properties:
       id: *addressId
       state: *addressState
+
+  ApiDelegationStatus: &ApiDelegationStatus
+    type: object
+    required:
+      - status
+    properties: &delegationStatusProperties
+      status:
+        type: string
+        enum:
+          - not_delegating
+          - delegating
+      target:
+        <<: *stakePoolId
+        description: A unique Stake-Pool identifier (present only if status = `delegating`)
 
   ApiEpochInfo: &ApiEpochInfo
     type: object
@@ -926,13 +927,15 @@ definitions:
       - active
     properties:
       active:
-        <<: *delegationStatus
+        type: object
+        <<: *ApiDelegationStatus
         description: Currently active delegation status.
         example:
           status: delegating
           target: 1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1
       next:
-        <<: *delegationStatus
+        type: object
+        <<: *ApiDelegationStatus
         description: Next delegation settings about to change. Only present when a status change has to reported.
         required:
           - status
