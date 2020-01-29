@@ -1,0 +1,99 @@
+name:                cardano-wallet-byron
+version:             2020.1.21
+synopsis:            Wallet backend protocol-specific bits implemented using byron nodes
+description:         Please see README.md
+homepage:            https://github.com/input-output-hk/cardano-wallet
+author:              IOHK Engineering Team
+maintainer:          operations@iohk.io
+copyright:           2020 IOHK
+license:             Apache-2.0
+category:            Web
+build-type:          Simple
+cabal-version:       >=1.10
+
+flag development
+    description: Disable `-Werror`
+    default: False
+    manual: True
+
+library
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -Wall
+      -Wcompat
+      -fwarn-redundant-constraints
+  if (!flag(development))
+    ghc-options:
+      -Werror
+  build-depends:
+      base
+    , async
+    , bytestring
+    , cardano-binary
+    , cardano-crypto
+    , cardano-crypto-wrapper
+    , cardano-ledger
+    , cardano-wallet-core
+    , cardano-wallet-launcher
+    , cborg
+    , contra-tracer
+    , cryptonite
+    , deepseq
+    , either
+    , fmt
+    , io-sim-classes
+    , iohk-monitoring
+    , memory
+    , network
+    , network-mux
+    , ouroboros-consensus
+    , ouroboros-network
+    , serialise
+    , text
+    , text-class
+    , time
+    , transformers
+    , typed-protocols
+    , typed-protocols-cbor
+    , warp
+  hs-source-dirs:
+      src
+  exposed-modules:
+      Cardano.Wallet.Byron
+      Cardano.Wallet.Byron.Compatibility
+      Cardano.Wallet.Byron.Network
+      Cardano.Wallet.Byron.Transaction
+      Cardano.Wallet.Byron.Transaction.Size
+
+executable cardano-wallet-byron
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -threaded -rtsopts
+      -Wall
+      -O2
+  if (!flag(development))
+    ghc-options:
+      -Werror
+  build-depends:
+      base
+    , cardano-wallet-byron
+    , cardano-wallet-cli
+    , cardano-wallet-core
+    , cardano-wallet-launcher
+    , iohk-monitoring
+    , network
+    , optparse-applicative
+    , text
+    , text-class
+  hs-source-dirs:
+      exe
+  main-is:
+    cardano-wallet-byron.hs

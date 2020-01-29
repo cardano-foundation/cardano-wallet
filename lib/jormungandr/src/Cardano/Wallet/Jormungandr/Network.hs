@@ -7,6 +7,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
@@ -41,7 +42,7 @@ module Cardano.Wallet.Jormungandr.Network
     , ErrGetBlock (..)
     , ErrGetBlockchainParams (..)
     , ErrGetDescendants (..)
-    , ErrNetworkTip (..)
+    , ErrCurrentNodeTip (..)
     , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
     , ErrStartup (..)
@@ -54,6 +55,7 @@ module Cardano.Wallet.Jormungandr.Network
     , mkRawNetworkLayer
     , BaseUrl (..)
     , Scheme (..)
+    , pattern Cursor
     ) where
 
 import Prelude
@@ -71,11 +73,11 @@ import Cardano.Launcher
     )
 import Cardano.Wallet.Jormungandr.Api.Client
     ( BaseUrl (..)
+    , ErrCurrentNodeTip (..)
     , ErrGetAccountState (..)
     , ErrGetBlock (..)
     , ErrGetBlockchainParams (..)
     , ErrGetDescendants (..)
-    , ErrNetworkTip (..)
     , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
     , ErrUnexpectedNetworkFailure (..)
@@ -274,11 +276,8 @@ mkRawNetworkLayer
     -> JormungandrClient m
     -> NetworkLayer m t block
 mkRawNetworkLayer (block0, bp) batchSize st j = NetworkLayer
-    { networkTip =
-        _networkTip
-
-    , findIntersection =
-        _findIntersection
+    { currentNodeTip =
+        _currentNodeTip
 
     , nextBlocks =
         _nextBlocks
@@ -315,22 +314,17 @@ mkRawNetworkLayer (block0, bp) batchSize st j = NetworkLayer
     genesis :: Hash "Genesis"
     genesis = getGenesisBlockHash bp
 
-    _networkTip :: ExceptT ErrNetworkTip m BlockHeader
-    _networkTip = modifyMVar st $ \bs -> do
+    _currentNodeTip :: ExceptT ErrCurrentNodeTip m BlockHeader
+    _currentNodeTip = modifyMVar st $ \bs -> do
         let tip = withExceptT liftE $ getTipId j
         bs' <- withExceptT liftE $ updateUnstableBlocks k tip (getBlockHeader j) bs
         ExceptT . pure $ case blockHeadersTip bs' of
             Just t -> Right (bs', t)
-            Nothing -> Left ErrNetworkTipNotFound
+            Nothing -> Left ErrCurrentNodeTipNotFound
 
-    _findIntersection :: Cursor t -> m (Maybe BlockHeader)
-    _findIntersection (Cursor localChain) = do
-        nodeChain <- readMVar st
-        pure (greatestCommonBlockHeader nodeChain localChain)
-
-    _initCursor :: [BlockHeader] -> Cursor t
+    _initCursor :: [BlockHeader] -> m (Cursor t)
     _initCursor bhs =
-        Cursor $ appendBlockHeaders k emptyBlockHeaders bhs
+        pure $ Cursor $ appendBlockHeaders k emptyBlockHeaders bhs
 
     _cursorSlotId :: Cursor t -> SlotId
     _cursorSlotId (Cursor unstable) =
@@ -362,7 +356,7 @@ mkRawNetworkLayer (block0, bp) batchSize st j = NetworkLayer
         :: Cursor t
         -> ExceptT ErrGetBlock m (NextBlocksResult t block)
     _nextBlocks cursor@(Cursor localChain) = do
-        lift (runExceptT _networkTip) >>= \case
+        lift (runExceptT _currentNodeTip) >>= \case
             Right _ -> do
                 unstable <- readMVar st
                 case direction cursor unstable of
@@ -389,10 +383,10 @@ mkRawNetworkLayer (block0, bp) batchSize st j = NetworkLayer
                     Restart ->
                         pure (recover localChain)
 
-            Left ErrNetworkTipNotFound ->
+            Left ErrCurrentNodeTipNotFound ->
                 pure AwaitReply
 
-            Left (ErrNetworkTipNetworkUnreachable e) ->
+            Left (ErrCurrentNodeTipNetworkUnreachable e) ->
                 throwE (ErrGetBlockNetworkUnreachable e)
       where
         tryRollForward

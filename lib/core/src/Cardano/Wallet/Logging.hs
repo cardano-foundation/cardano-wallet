@@ -25,7 +25,7 @@ import Prelude
 import Cardano.BM.Data.LogItem
     ( LOContent (..), LOMeta (..), LogObject (..), mkLOMeta )
 import Cardano.BM.Data.Severity
-    ( Severity )
+    ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( DefinePrivacyAnnotation (..), DefineSeverity (..), Transformable (..) )
 import Cardano.BM.Trace

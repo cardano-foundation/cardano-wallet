@@ -2,9 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -24,34 +22,16 @@ module Cardano.Wallet.Transaction
     , ErrMkTx (..)
     , ErrValidateSelection
     , ErrDecodeSignedTx (..)
-
-    -- * Backend helpers
-    , estimateMaxNumberOfInputsBase
-    , EstimateMaxNumberOfInputsParams(..)
     ) where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
-    , Passphrase
-    , PaymentAddress (..)
-    , WalletKey
-    , XPrv
-    , dummyAddress
-    )
+    ( Depth (..), Passphrase, XPrv )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
-    , Hash (..)
-    , PoolId
-    , SealedTx (..)
-    , Tx (..)
-    , TxIn (..)
-    , TxOut (..)
-    , TxWitness (..)
-    )
+    ( Address (..), PoolId, SealedTx (..), Tx (..), TxIn (..), TxOut (..) )
 import Data.ByteString
     ( ByteString )
 import Data.Quantity
@@ -60,8 +40,6 @@ import Data.Text
     ( Text )
 import Data.Word
     ( Word16, Word8 )
-
-import qualified Data.ByteString as BS
 
 data TransactionLayer t k = TransactionLayer
     { mkStdTx
@@ -159,62 +137,3 @@ newtype ErrMkTx
     = ErrKeyNotFoundForAddress Address
     -- ^ We tried to sign a transaction with inputs that are unknown to us?
     deriving (Eq, Show)
-
--- | Backend-specific variables used by 'estimateMaxNumberOfInputsBase'.
-data EstimateMaxNumberOfInputsParams t = EstimateMaxNumberOfInputsParams
-    { estMeasureTx :: [TxIn] -> [TxOut] -> [TxWitness] -> Int
-        -- ^ Finds the size of a serialized transaction.
-    , estBlockHashSize :: Int
-        -- ^ Block ID size
-    , estTxWitnessSize :: Int
-        -- ^ Tx Witness size
-    }
-
--- | This is called by the 'TransactionLayer' implementation. It uses the
--- serialization functions to calculate the size of an empty transaction
--- compared to a transaction with one input. The estimation is based on that.
---
--- It doesn't account for transaction outputs, and assumes there is a single Tx
--- output.
---
--- All the values used are the smaller ones. For example, the shortest adress
--- type and shortest witness type are chosen to use for the estimate.
-estimateMaxNumberOfInputsBase
-    :: forall t n k.
-        ( PaymentAddress n k
-        , WalletKey k
-        )
-    => EstimateMaxNumberOfInputsParams t
-    -- ^ Backend-specific variables used in the estimation
-    -> Quantity "byte" Word16
-    -- ^ Transaction max size in bytes
-    -> Word8
-    -- ^ Number of outputs in transaction
-    -> Word8
-    -- ^ Maximum number of inputs, estimated
-estimateMaxNumberOfInputsBase
-    EstimateMaxNumberOfInputsParams{..} (Quantity txSize) numOutputs =
-    clamp $ max 0 (fromIntegral txSize - fixedSize) `div` inputSize
-  where
-    -- The fixed size covers the headers of a signed transaction with a single
-    -- output.
-    fixedSize = sizeOfTx [] []
-
-    -- inputSize is the size of each additional input of a signed transaction.
-    inputSize = sizeOfTx [txIn] [wit] - fixedSize
-
-    -- Serialize a "representative" Tx with the given inputs and read its size.
-    sizeOfTx ins = estMeasureTx ins outs
-
-    outs = replicate (fromIntegral numOutputs) txout
-    txout = TxOut baseAddr minBound
-    baseAddr = dummyAddress @n @k
-    txIn = TxIn (Hash $ chaff estBlockHashSize) 0
-    wit = TxWitness (chaff estTxWitnessSize)
-
-    -- Make a bytestring of length n
-    chaff n = BS.replicate n 0
-
-    -- convert down to a smaller int without wrapping
-    clamp :: Int -> Word8
-    clamp = fromIntegral . min (fromIntegral $ maxBound @Word8)

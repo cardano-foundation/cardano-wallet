@@ -33,7 +33,7 @@ module Cardano.Wallet.Jormungandr.Api.Client
     , ErrGetBlock (..)
     , ErrGetBlockchainParams (..)
     , ErrGetDescendants (..)
-    , ErrNetworkTip (..)
+    , ErrCurrentNodeTip (..)
     , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
     , ErrUnexpectedNetworkFailure (..)
@@ -68,8 +68,8 @@ import Cardano.Wallet.Jormungandr.Binary
 import Cardano.Wallet.Jormungandr.Compatibility
     ( softTxMaxSize )
 import Cardano.Wallet.Network
-    ( ErrGetBlock (..)
-    , ErrNetworkTip (..)
+    ( ErrCurrentNodeTip (..)
+    , ErrGetBlock (..)
     , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
     )
@@ -406,10 +406,10 @@ data ErrGetBlockchainParams
 class LiftError lift where
     liftE :: lift
 
-instance LiftError (ErrGetBlock -> ErrNetworkTip) where
+instance LiftError (ErrGetBlock -> ErrCurrentNodeTip) where
     liftE = \case
-        ErrGetBlockNotFound _ -> ErrNetworkTipNotFound
-        ErrGetBlockNetworkUnreachable e -> ErrNetworkTipNetworkUnreachable e
+        ErrGetBlockNotFound _ -> ErrCurrentNodeTipNotFound
+        ErrGetBlockNetworkUnreachable e -> ErrCurrentNodeTipNetworkUnreachable e
 
 instance LiftError (ErrNetworkUnavailable -> ErrGetBlock) where
     liftE =

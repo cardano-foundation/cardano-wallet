@@ -75,7 +75,6 @@ import Cardano.Wallet.Primitive.Types
     , TxMeta (..)
     , TxOut (..)
     , TxStatus (..)
-    , TxWitness (..)
     , WalletId (..)
     , WalletMetadata (..)
     , WalletName (..)
@@ -434,8 +433,7 @@ dummyTransactionLayer = TransactionLayer
                 (ErrKeyNotFoundForAddress addr) $ keyFrom addr
             let (Hash sigData) = txId tx
             let sig = CC.unXSignature $ CC.sign pwd (getKey xprv) sigData
-            return $ TxWitness
-                (CC.unXPub (getKey $ publicKey xprv) <> sig)
+            return $ CC.unXPub (getKey $ publicKey xprv) <> sig
 
         -- (tx1, wit1) == (tx2, wit2) <==> fakebinary1 == fakebinary2
         let fakeBinary = SealedTx . B8.pack $ show (tx, wit)

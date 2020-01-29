@@ -43,7 +43,6 @@ module Cardano.Wallet.Primitive.Types
     , TxMeta(..)
     , Direction(..)
     , TxStatus(..)
-    , TxWitness(..)
     , SealedTx (..)
     , TransactionInfo (..)
     , UnsignedTx (..)
@@ -775,12 +774,6 @@ instance ToText Direction where
 newtype SealedTx = SealedTx { getSealedTx :: ByteString }
     deriving stock (Show, Eq, Generic)
     deriving newtype (ByteArrayAccess)
-
--- | @TxWitness@ is proof that transaction inputs are allowed to be spent
-newtype TxWitness = TxWitness { unWitness :: ByteString }
-    deriving (Generic, Show, Eq, Ord)
-
-instance NFData TxWitness
 
 -- | True if the given tuple refers to a pending transaction
 isPending :: TxMeta -> Bool

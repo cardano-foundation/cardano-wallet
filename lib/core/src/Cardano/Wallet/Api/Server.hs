@@ -27,6 +27,9 @@ module Cardano.Wallet.Api.Server
     , ListenError (..)
     , HostPreference
     , start
+    , serve
+    , server
+    , byronServer
     , newApiLayer
     , withListeningSocket
     ) where
@@ -120,8 +123,6 @@ import Cardano.Wallet.Api.Types
     , ApiWallet (..)
     , ApiWalletPassphrase (..)
     , ByronWalletPostData (..)
-    , DecodeAddress (..)
-    , EncodeAddress (..)
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
     , PostTransactionData
@@ -135,7 +136,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.DB
     ( DBFactory (..) )
 import Cardano.Wallet.Network
-    ( ErrNetworkTip (..), ErrNetworkUnavailable (..), NetworkLayer )
+    ( ErrCurrentNodeTip (..), ErrNetworkUnavailable (..), NetworkLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
     , Depth (..)
@@ -276,7 +277,6 @@ import Numeric.Natural
     ( Natural )
 import Servant
     ( (:<|>) (..)
-    , (:>)
     , Application
     , JSON
     , NoContent (..)
@@ -288,8 +288,10 @@ import Servant
     , err409
     , err410
     , err500
+    , err501
     , err503
     , serve
+    , throwError
     )
 import Servant.Server
     ( Handler (..), ServantErr (..) )
@@ -329,30 +331,18 @@ data Listen
 
 -- | Start the application server, using the given settings and a bound socket.
 start
-    :: forall t (n :: NetworkDiscriminant).
-        ( Buildable (ErrValidateSelection t)
-        , DecodeAddress n
-        , EncodeAddress n
-        , DelegationAddress n ShelleyKey
-        )
-    => Warp.Settings
+    :: Warp.Settings
     -> Tracer IO ApiLog
     -> Socket
-    -> ApiLayer (RndState 'Mainnet) t ByronKey
-    -> ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
-    -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
-    -> StakePoolLayer IO
+    -> Application
     -> IO ()
-start settings tr socket byron icarus shelley spl = do
+start settings tr socket application = do
     logSettings <- newApiLoggerSettings <&> obfuscateKeys (const sensitive)
     Warp.runSettingsSocket settings socket
         $ handleRawError (curry handler)
         $ withApiLogger tr logSettings
         application
   where
-    application :: Application
-    application = serve (Proxy @("v2" :> Api n)) (server byron icarus shelley spl)
-
     sensitive :: [Text]
     sensitive =
         [ "passphrase"
@@ -538,6 +528,108 @@ server byron icarus shelley spl =
 
     proxy :: Server Proxy_
     proxy = postExternalTransaction shelley
+
+
+-- | A diminished servant server to serve Byron wallets only.
+byronServer
+    :: forall t n. ()
+    => ApiLayer (RndState 'Mainnet) t ByronKey
+    -> ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
+    -> Server (Api n)
+byronServer byron icarus =
+         wallets
+    :<|> addresses
+    :<|> coinSelections
+    :<|> transactions
+    :<|> stakePools
+    :<|> byronWallets
+    :<|> byronTransactions
+    :<|> byronMigrations
+    :<|> network
+    :<|> proxy
+  where
+    wallets :: Server Wallets
+    wallets =
+             (\_ -> throwError err501)
+        :<|> (\_ -> throwError err501)
+        :<|> throwError err501
+        :<|> (\_ -> throwError err501)
+        :<|> (\_ _ -> throwError err501)
+        :<|> (\_ _ -> throwError err501)
+        :<|> (\_ -> throwError err501)
+        :<|> (\_ _ -> throwError err501)
+
+    addresses :: Server (Addresses n)
+    addresses _ _ = throwError err501
+
+    coinSelections :: Server (CoinSelections n)
+    coinSelections _ _ = throwError err501
+
+    transactions :: Server (Transactions n)
+    transactions =
+             (\_ _ -> throwError err501)
+        :<|> (\_ _ _ _ -> throwError err501)
+        :<|> (\_ _ -> throwError err501)
+        :<|> (\_ _ -> throwError err501)
+
+    stakePools :: Server (StakePools n)
+    stakePools =
+             throwError err501
+        :<|> (\_ _ _ -> throwError err501)
+        :<|> (\_ _ _ -> throwError err501)
+        :<|> (\_ -> throwError err501)
+
+    byronWallets :: Server ByronWallets
+    byronWallets =
+             postRandomWallet byron
+        :<|> postIcarusWallet icarus
+        :<|> postTrezorWallet icarus
+        :<|> postLedgerWallet icarus
+        :<|> (\wid -> withLegacyLayer wid
+                (byron , deleteWallet byron wid)
+                (icarus, deleteWallet icarus wid)
+             )
+        :<|> (\wid -> withLegacyLayer wid
+                (byron , fst <$> getWallet byron  mkLegacyWallet wid)
+                (icarus, fst <$> getWallet icarus mkLegacyWallet wid)
+             )
+        :<|> liftA2 (\xs ys -> fmap fst $ sortOn snd $ xs ++ ys)
+            (listWallets byron  mkLegacyWallet)
+            (listWallets icarus mkLegacyWallet)
+        :<|> (\wid tip -> withLegacyLayer wid
+                (byron , forceResyncWallet byron  wid tip)
+                (icarus, forceResyncWallet icarus wid tip)
+             )
+
+    byronTransactions :: Server (ByronTransactions n)
+    byronTransactions =
+             (\wid r0 r1 s -> withLegacyLayer wid
+                (byron , listTransactions byron  wid r0 r1 s)
+                (icarus, listTransactions icarus wid r0 r1 s)
+             )
+        :<|> (\wid txid -> withLegacyLayer wid
+                (byron , deleteTransaction byron  wid txid)
+                (icarus, deleteTransaction icarus wid txid)
+             )
+
+    byronMigrations :: Server (ByronMigrations n)
+    byronMigrations =
+             (\wid -> withLegacyLayer wid
+                (byron , getMigrationInfo byron  wid)
+                (icarus, getMigrationInfo icarus wid)
+             )
+        :<|> \_ _ _ -> throwError err501
+
+    network :: Server Network
+    network =
+        getNetworkInformation genesis nl
+        :<|> (getNetworkParameters genesis)
+      where
+        nl = icarus ^. networkLayer @t
+        genesis = icarus ^. genesisData
+
+    proxy :: Server Proxy_
+    proxy = postExternalTransaction icarus
 
 {-------------------------------------------------------------------------------
                               Wallet Constructors
@@ -1275,7 +1367,7 @@ getNetworkInformation
     -> Handler ApiNetworkInformation
 getNetworkInformation (_block0, bp, st) nl = do
     now <- liftIO getCurrentTime
-    nodeTip <- liftHandler (NW.networkTip nl)
+    nodeTip <- liftHandler (NW.currentNodeTip nl)
     let ntrkTip = fromMaybe slotMinBound (slotAt sp now)
     let nextEpochNo = unsafeEpochSucc (ntrkTip ^. #epochNumber)
     pure $ ApiNetworkInformation
@@ -1295,7 +1387,7 @@ getNetworkInformation (_block0, bp, st) nl = do
         , networkTip =
             ApiNetworkTip
                 { epochNumber = ApiT $ ntrkTip ^. #epochNumber
-                , slotNumber = ApiT $ ntrkTip ^. #slotNumber
+                , slotNumber  = ApiT $ ntrkTip ^. #slotNumber
                 }
         }
   where
@@ -1872,10 +1964,10 @@ instance LiftHandler ErrStartTimeLaterThanEndTime where
         , "'."
         ]
 
-instance LiftHandler ErrNetworkTip where
+instance LiftHandler ErrCurrentNodeTip where
     handler = \case
-        ErrNetworkTipNetworkUnreachable e -> handler e
-        ErrNetworkTipNotFound -> apiError err503 NetworkTipNotFound $ mconcat
+        ErrCurrentNodeTipNetworkUnreachable e -> handler e
+        ErrCurrentNodeTipNotFound -> apiError err503 NetworkTipNotFound $ mconcat
             [ "I couldn't get the current network tip at the moment. It's "
             , "probably because the node is down or not started yet. Retrying "
             , "in a bit might give better results!"
@@ -1884,7 +1976,7 @@ instance LiftHandler ErrNetworkTip where
 instance LiftHandler ErrListStakePools where
      handler = \case
          ErrListStakePoolsMetricsInconsistency e -> handler e
-         ErrListStakePoolsErrNetworkTip e -> handler e
+         ErrListStakePoolsCurrentNodeTip e -> handler e
          ErrMetricsIsUnsynced p ->
              apiError err503 NotSynced $ mconcat
                  [ "I can't list stake pools yet because I need to scan the "

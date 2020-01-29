@@ -18,7 +18,7 @@ module Cardano.Wallet.Network
 
     -- * Errors
     , ErrNetworkUnavailable (..)
-    , ErrNetworkTip (..)
+    , ErrCurrentNodeTip (..)
     , ErrGetBlock (..)
     , ErrPostTx (..)
     , ErrGetAccountBalance (..)
@@ -106,14 +106,8 @@ data NetworkLayer m target block = NetworkLayer
         -- If the node has adopted an alternate fork of the chain, it will
         -- return 'RollBackward' with a new cursor.
 
-    , findIntersection
-        :: Cursor target -> m (Maybe BlockHeader)
-        -- ^ Attempt to find an intersection between the node's unstable blocks
-        -- and a given list of headers. This can be useful if we need to know
-        -- whether we are 'in sync' with the node or, close enough.
-
     , initCursor
-        :: [BlockHeader] -> Cursor target
+        :: [BlockHeader] -> m (Cursor target)
         -- ^ Creates a cursor from the given block header so that 'nextBlocks'
         -- can be used to fetch blocks.
 
@@ -121,9 +115,9 @@ data NetworkLayer m target block = NetworkLayer
         :: Cursor target -> SlotId
         -- ^ Get the slot corresponding to a cursor.
 
-    , networkTip
-        :: ExceptT ErrNetworkTip m BlockHeader
-        -- ^ Get the current network tip from the chain producer
+    , currentNodeTip
+        :: ExceptT ErrCurrentNodeTip m BlockHeader
+        -- ^ Get the current tip from the chain producer
 
     , postTx
         :: SealedTx -> ExceptT ErrPostTx m ()
@@ -138,6 +132,7 @@ data NetworkLayer m target block = NetworkLayer
             ( EpochNo
             , Map PoolId (Quantity "lovelace" Word64)
             )
+
     , getAccountBalance
         :: ChimericAccount
         -> ExceptT ErrGetAccountBalance m (Quantity "lovelace" Word64)
@@ -163,13 +158,13 @@ data ErrNetworkUnavailable
 
 instance Exception ErrNetworkUnavailable
 
--- | Error while trying to get the network tip
-data ErrNetworkTip
-    = ErrNetworkTipNetworkUnreachable ErrNetworkUnavailable
-    | ErrNetworkTipNotFound
+-- | Error while trying to get the node tip
+data ErrCurrentNodeTip
+    = ErrCurrentNodeTipNetworkUnreachable ErrNetworkUnavailable
+    | ErrCurrentNodeTipNotFound
     deriving (Generic, Show, Eq)
 
-instance Exception ErrNetworkTip
+instance Exception ErrCurrentNodeTip
 
 -- | Error while trying to get one or more blocks
 data ErrGetBlock
@@ -195,7 +190,7 @@ data ErrGetAccountBalance
                               Initialization
 -------------------------------------------------------------------------------}
 
--- | Wait until 'networkTip networkLayer' succeeds according to a given
+-- | Wait until 'currentNodeTip networkLayer' succeeds according to a given
 -- retry policy. Throws an exception otherwise.
 waitForNetwork
     :: ExceptT ErrNetworkUnavailable IO ()
@@ -258,6 +253,13 @@ instance Functor (NextBlocksResult target) where
 -- NOTE: @Retry@ is needed to handle data-races in
 -- 'Cardano.Pool.Metrics', where it is essensial that we fetch the stake
 -- distribution while the node-tip
+--
+-- FIXME:
+-- Retry actions with the Haskell nodes are not possible (or at least, requires
+-- some additional manipulation to find a new intersection). As a possible fix,
+-- we could use a type family to define 'FollowAction' in terms of the
+-- underlying target. 'RetryImmediately' and 'RetryLater' could be authorized in
+-- the context of Jormungandr but absent in the context of the Haskell nodes.
 data FollowAction err
     = ExitWith err
       -- ^ Stop following the chain.
@@ -294,7 +296,7 @@ follow
     -- ^ Getter on the abstract 'block' type
     -> IO (Maybe SlotId)
 follow nl tr cps yield header =
-    sleep 0 (initCursor nl cps)
+    sleep 0 =<< initCursor nl cps
   where
     delay0 :: Int
     delay0 = 500*1000 -- 500ms
@@ -341,15 +343,25 @@ follow nl tr cps yield header =
             traceWith tr MsgSynced
             sleep delay0 cursor'
 
-        Right (RollForward cursor' nodeTip (blockFirst : blocksRest)) -> do
+        Right (RollForward cursor' tip (blockFirst : blocksRest)) -> do
             let blocks = blockFirst :| blocksRest
             traceWith tr $ MsgApplyBlocks (header <$> blocks)
-            action <- yield blocks nodeTip
+            action <- yield blocks tip
             traceWith tr $ MsgFollowAction (fmap show action)
             handle cursor' action
 
         Right (RollBackward cursor') ->
-            return $ Just (cursorSlotId nl cursor')
+            -- NOTE
+            -- In case the node asks us to rollback to the last checkpoints we
+            -- gave, we take no action and simply move on to the next query.
+            -- This happens typically with the Haskell nodes which always
+            -- initiates the protocol by asking clients to rollback to the last
+            -- known intersection.
+            case (cursorSlotId nl cursor', cps) of
+                (sl, _:_) | sl == slotId (last cps) ->
+                    step delay0 cursor'
+                (sl, _) ->
+                    pure (Just sl)
       where
         handle :: Cursor target -> FollowAction e -> IO (Maybe SlotId)
         handle cursor' = \case

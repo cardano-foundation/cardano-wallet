@@ -9,6 +9,7 @@ packages:
 - lib/text-class
 - lib/test-utils
 - lib/jormungandr
+- lib/byron
 
 extra-deps:
 # Miscellaneous
@@ -53,6 +54,48 @@ extra-deps:
 - time-units-1.0.0
 - libsystemd-journal-1.4.4
 - katip-0.8.3.0
+
+# dependencies for cardano-wallet-shelley
+- tasty-hedgehog-1.0.0.1
+- streaming-binary-0.3.0.1
+- hedgehog-1.0
+- generic-monoid-0.1.0.0
+- bimap-0.4.0@sha256:c59d587b56b575c299ba0c2fff44e630991a120a167de5a19cd7a81320f63c84,1717
+- canonical-json-0.6.0.0@sha256:9021f435ccb884a3b4c55bcc6b50eb19d5fc3cc3f29d5fcbdef016f5bbae23a2,3488
+- cborg-0.2.2.0@sha256:eaee50d09d766af95ba18348e4fc230243033b98633ed46ccb5ae85efef7dc6c,4779
+- statistics-linreg-0.3@sha256:95c6efe6c7f6b26bc6e9ada90ab2d18216371cf59a6ef2b517b4a6fd35d9a76f,2544
+
+- git: https://github.com/input-output-hk/cardano-base
+  commit: 468d9b79ae3ac28f5f2cbb3ce52623a69923c4ef
+  subdirs:
+    - binary
+    - binary/test
+    - cardano-crypto-class
+    - slotting
+
+- git: https://github.com/input-output-hk/cardano-ledger
+  commit: dbdb643722e431e4d232345a0eafdc7bdeab7b60
+  subdirs:
+    - cardano-ledger
+    - cardano-ledger/test
+    - crypto
+    - crypto/test
+
+- git: https://github.com/input-output-hk/cardano-prelude
+  commit: 3c40edcf5bdba8721d3430d0aaaeea8770ce9bec
+  subdirs:
+    - .
+    - test
+
+- git: https://github.com/input-output-hk/ouroboros-network
+  commit: c785fe64445357b806c847fa438fc7612563b42b
+  subdirs:
+      - io-sim-classes
+      - network-mux
+      - ouroboros-network
+      - ouroboros-consensus
+      - typed-protocols
+      - typed-protocols-cbor
 
 flags:
   # Avoid a system library which causes difficulty with cross-compilation

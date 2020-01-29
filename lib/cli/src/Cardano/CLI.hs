@@ -44,9 +44,12 @@ module Cardano.CLI
     , nodePortMaybeOption
     , stateDirOption
     , syncToleranceOption
-    , loggingSeverityReader
-    , loggingSeverityOrOffReader
+    , LoggingOptions (..)
+    , helperTracing
+    , loggingOptions
     , loggingSeverities
+    , loggingSeverityOrOffReader
+    , loggingSeverityReader
 
     -- * Types
     , Service
@@ -162,6 +165,8 @@ import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..), showT )
 import Data.Text.Read
     ( decimal )
+import Data.Void
+    ( Void )
 import Fmt
     ( Buildable, pretty )
 import GHC.Generics
@@ -179,9 +184,12 @@ import Options.Applicative
     , CommandFields
     , Mod
     , OptionFields
+    , ParseError (InfoMsg)
     , Parser
     , ParserInfo
+    , abortOption
     , argument
+    , auto
     , command
     , customExecParser
     , eitherReader
@@ -190,6 +198,7 @@ import Options.Applicative
     , header
     , help
     , helper
+    , hidden
     , info
     , long
     , metavar
@@ -1175,6 +1184,74 @@ withLogging configFile minSeverity action = bracket before after (action . snd)
     after (sb, (_, tr)) = do
         logDebug tr "Logging shutdown."
         shutdown sb
+
+data LoggingOptions tracers = LoggingOptions
+    { loggingMinSeverity :: Severity
+    , loggingTracers :: tracers
+    , loggingTracersDoc :: Maybe Void
+    } deriving (Show, Eq)
+
+loggingOptions :: Parser tracers -> Parser (LoggingOptions tracers)
+loggingOptions tracers = LoggingOptions
+    <$> minSev
+    <*> tracers
+    <*> tracersDoc
+  where
+    -- Note: If the global log level is Info then there will be no Debug-level
+    --   messages whatsoever.
+    --   If the global log level is Debug then there will be Debug, Info, and
+    --   higher-severity messages.
+    --   So the default global log level is Debug.
+    minSev = option loggingSeverityReader $ mempty
+        <> long "log-level"
+        <> value Debug
+        <> metavar "SEVERITY"
+        <> help "Global minimum severity for a message to be logged. \
+            \Individual tracers severities still need to be configured \
+            \independently. Defaults to \"DEBUG\"."
+        <> hidden
+    tracersDoc = optional $ option auto $ mempty
+        <> long "trace-NAME"
+        <> metavar "SEVERITY"
+        <> help "Individual component severity for 'NAME'. See --help-tracing \
+            \for details and available tracers."
+
+-- | A hidden "helper" option which always fails, but shows info about the
+-- logging options.
+helperTracing :: [(String, String)] -> Parser (a -> a)
+helperTracing tracerDescriptions = abortOption (InfoMsg helpTxt) $ mempty
+    <> long "help-tracing"
+    <> help "Show help for tracing options"
+    <> hidden
+  where
+    helpTxt = helperTracingText tracerDescriptions
+
+helperTracingText :: [(String, String)] -> String
+helperTracingText tracerDescriptions = unlines $
+    [ "Additional tracing options:"
+    , ""
+    , "  --log-level SEVERITY     Global minimum severity for a message to be logged."
+    , "                           Defaults to \"DEBUG\"."
+    , ""
+    , "  --trace-NAME=off         Disable logging on the given tracer."
+    , "  --trace-NAME=SEVERITY    Minimum severity for a message to be logged, or"
+    , "                           \"off\" to disable the tracer. Note that component"
+    , "                           traces still abide by the global log-level. For"
+    , "                           example, if the global log level is \"INFO\", then"
+    , "                           there will be no \"DEBUG\" messages whatsoever."
+    , "                           Defaults to \"INFO\"."
+    , ""
+    , "The possible log levels (lowest to highest) are:"
+    , "  " ++ unwords (map fst loggingSeverities)
+    , ""
+    , "The possible tracers are:"
+    ] ++ [ pretty_ tracerName desc | (tracerName, desc) <- tracerDescriptions]
+  where
+    maxLength = maximum $ map (length . fst) tracerDescriptions
+    pretty_ tracerName desc =
+        "  " ++ padRight maxLength ' ' tracerName ++ "  " ++ desc
+      where
+        padRight n c cs = take n $ cs ++ replicate n c
 
 {-------------------------------------------------------------------------------
                             ANSI Terminal Helpers

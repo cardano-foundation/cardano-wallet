@@ -46,8 +46,8 @@ import Cardano.Wallet.Jormungandr.Network
     , withNetworkLayer
     )
 import Cardano.Wallet.Network
-    ( ErrGetBlock (..)
-    , ErrNetworkTip (..)
+    ( ErrCurrentNodeTip (..)
+    , ErrGetBlock (..)
     , NetworkLayer (..)
     , NextBlocksResult (..)
     )
@@ -145,7 +145,7 @@ spec = do
                     }
 
         it "get network tip" $ \(nw, _) -> do
-            resp <- runExceptT $ networkTip nw
+            resp <- runExceptT $ currentNodeTip nw
             resp `shouldSatisfy` isRight
             let (Right slot) = slotId <$> resp
             let (Right height) = blockHeight <$> resp
@@ -154,14 +154,14 @@ spec = do
 
         it "get some blocks from the genesis" $ \(nw, _) -> do
             threadDelay (10 * second)
-            resp <- runExceptT $ nextBlocks nw (initCursor nw [])
+            resp <- (runExceptT . nextBlocks nw) =<< initCursor nw []
             resp `shouldSatisfy` isRight
             resp `shouldSatisfy` (not . null)
 
         it "no blocks after the tip" $ \(nw, _) -> do
             let attempt = do
-                    tip <- unsafeRunExceptT $ networkTip nw
-                    runExceptT $ nextBlocks nw (initCursor nw [tip])
+                    tip <- unsafeRunExceptT $ currentNodeTip nw
+                    (runExceptT . nextBlocks nw) =<< initCursor nw [tip]
             -- NOTE Retrying twice since between the moment we fetch the
             -- tip and the moment we get the next blocks, one block may be
             -- inserted.
@@ -183,7 +183,7 @@ spec = do
                         , headerHash = Hash bytes
                         , parentHeaderHash = Hash bytes
                         }
-                resp <- runExceptT $ nextBlocks nw (initCursor nw [block])
+                resp <- (runExceptT . nextBlocks nw) =<< initCursor nw [block]
                 fmap (isRollBackwardTo nw (SlotId 0 0)) resp
                     `shouldBe` Right True
 
@@ -204,15 +204,15 @@ spec = do
                 let dummyUrl = BaseUrl Http "localhost" port "/api"
                 newBrokenNetworkLayer dummyUrl
 
-        it "networkTip: ErrNetworkUnreachable" $ do
+        it "currentNodeTip: ErrNetworkUnreachable" $ do
             nw <- makeUnreachableNetworkLayer
             let msg x =
                     "Expected a ErrNetworkUnreachable' failure but got "
                     <> show x
             let action = do
-                    res <- runExceptT $ networkTip nw
+                    res <- runExceptT $ currentNodeTip nw
                     res `shouldSatisfy` \case
-                        Left (ErrNetworkTipNetworkUnreachable e) ->
+                        Left (ErrCurrentNodeTipNetworkUnreachable e) ->
                             show e `deepseq` True
                         _ ->
                             error (msg res)
@@ -224,7 +224,7 @@ spec = do
                     "Expected a ErrNetworkUnreachable' failure but got "
                     <> show x
             let action = do
-                    res <- runExceptT $ nextBlocks nw (initCursor nw [])
+                    res <- (runExceptT . nextBlocks nw) =<< initCursor nw []
                     res `shouldSatisfy` \case
                         Left (ErrGetBlockNetworkUnreachable e) ->
                             show e `deepseq` True
@@ -232,11 +232,11 @@ spec = do
                             error (msg res)
             action `shouldReturn` ()
 
-        it "networkTip: throws on invalid url" $
+        it "currentNodeTip: throws on invalid url" $
             startNode $ \(_nw, url) -> do
                 let wrongUrl = url { baseUrlPath = "/not-valid-prefix" }
                 wrongNw <- newBrokenNetworkLayer wrongUrl
-                let io = void $ runExceptT $ networkTip wrongNw
+                let io = void $ runExceptT $ currentNodeTip wrongNw
                 shouldThrow io $ \(ErrUnexpectedNetworkFailure link _) ->
                     show link == show (safeLink api (Proxy @GetTipId))
 

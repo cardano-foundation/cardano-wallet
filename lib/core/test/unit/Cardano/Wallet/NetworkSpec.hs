@@ -1,5 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Wallet.NetworkSpec
     ( spec
@@ -11,8 +12,9 @@ import Cardano.BM.Trace
     ( traceInTVarIO )
 import Cardano.Wallet.DummyTarget.Primitive.Types
 import Cardano.Wallet.Network
-    ( ErrGetBlock (..)
-    , ErrNetworkTip (..)
+    ( Cursor
+    , ErrCurrentNodeTip (..)
+    , ErrGetBlock (..)
     , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
     , FollowAction (..)
@@ -40,11 +42,11 @@ spec = do
     describe "Pointless tests to cover 'Show' instances for errors" $ do
         testShow $ ErrNetworkUnreachable mempty
         testShow $ ErrNetworkInvalid mempty
-        testShow $ ErrNetworkTipNetworkUnreachable
+        testShow $ ErrCurrentNodeTipNetworkUnreachable
             $ ErrNetworkUnreachable mempty
-        testShow $ ErrNetworkTipNetworkUnreachable
+        testShow $ ErrCurrentNodeTipNetworkUnreachable
             $ ErrNetworkInvalid mempty
-        testShow ErrNetworkTipNotFound
+        testShow ErrCurrentNodeTipNotFound
         testShow $ ErrGetBlockNetworkUnreachable
             $ ErrNetworkUnreachable mempty
         testShow $ ErrGetBlockNetworkUnreachable
@@ -81,13 +83,15 @@ followSpec =
         e@MsgUnhandledException{} -> Just e
         _ -> Nothing
 
+
+data instance (Cursor DummyTarget) = DummyCursor
+
 mockNetworkLayer :: NetworkLayer IO DummyTarget Block
 mockNetworkLayer = NetworkLayer
     { nextBlocks = \_ -> error "no next blocks"
-    , findIntersection = \_ -> error "no find intersection"
-    , initCursor = \_ -> error "no init cursor"
+    , initCursor = \_ -> pure DummyCursor
     , cursorSlotId = \_ -> error "no cursor slot id"
-    , networkTip = error "there is no network tip"
+    , currentNodeTip = error "there is no current node tip"
     , postTx = \_ -> error "the tx is not a thing that can be posted"
     , staticBlockchainParameters = error "static blockchain params don't exist"
     , stakeDistribution = error "stake? no."

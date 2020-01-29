@@ -14,6 +14,7 @@
 module Cardano.Wallet.Api
     ( -- * API
       Api
+    , ApiV2
 
       -- * Shelley
     , Wallets
@@ -170,6 +171,7 @@ import Servant.API.Verbs
     , Verb
     )
 
+type ApiV2 n = "v2" :> Api n
 
 type Api n =
          Wallets

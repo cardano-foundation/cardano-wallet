@@ -59,6 +59,7 @@ let
         cardano-wallet-cli
         cardano-wallet-core
         cardano-wallet-core-integration
+        cardano-wallet-byron
         cardano-wallet-jormungandr
         cardano-wallet-launcher
         cardano-wallet-test-utils

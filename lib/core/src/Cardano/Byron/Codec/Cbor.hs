@@ -41,6 +41,8 @@ module Cardano.Byron.Codec.Cbor
     , encodeProtocolMagicAttr
     , encodePublicKeyWitness
     , encodeTx
+    , encodeSignedTx
+    , encodeTxWitness
 
     -- * Helpers
     , deserialiseCbor
@@ -66,7 +68,6 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , TxIn (..)
     , TxOut (..)
-    , TxWitness (..)
     , unsafeEpochNo
     )
 import Control.Monad
@@ -460,7 +461,7 @@ decodeSignature = do
         2 -> decodeProxySignature decodeHeavyIndex
         _ -> fail $ "decodeSignature: unknown signature constructor: " <> show t
 
-decodeSignedTx :: CBOR.Decoder s (([TxIn], [TxOut]), [TxWitness])
+decodeSignedTx :: CBOR.Decoder s (([TxIn], [TxOut]), [ByteString])
 decodeSignedTx = do
     _ <- CBOR.decodeListLenCanonicalOf 2
     tx <- decodeTx
@@ -531,15 +532,15 @@ decodeTxProof = do
     _ <- CBOR.decodeBytes  -- Witnesses Hash
     return ()
 
-decodeTxWitness :: CBOR.Decoder s TxWitness
+decodeTxWitness :: CBOR.Decoder s ByteString
 decodeTxWitness = do
     _ <- CBOR.decodeListLenCanonicalOf 2
     t <- CBOR.decodeWord8
     _ <- CBOR.decodeTag
     case t of
-        0 -> TxWitness <$> CBOR.decodeBytes
-        1 -> TxWitness <$> CBOR.decodeBytes
-        2 -> TxWitness <$> CBOR.decodeBytes
+        0 -> CBOR.decodeBytes
+        1 -> CBOR.decodeBytes
+        2 -> CBOR.decodeBytes
         _ -> fail
             $ "decodeTxWitness: unknown tx witness constructor: " <> show t
 
@@ -641,11 +642,11 @@ encodeDerivationPath (Index acctIx) (Index addrIx) = mempty
     <> CBOR.encodeWord32 addrIx
     <> CBOR.encodeBreak
 
-encodePublicKeyWitness :: XPub -> Hash "signature" -> CBOR.Encoding
-encodePublicKeyWitness xpub (Hash signData) = mempty
+encodePublicKeyWitness :: XPub -> ByteString -> CBOR.Encoding
+encodePublicKeyWitness xpub signatur = mempty
     <> CBOR.encodeListLen 2
     <> CBOR.encodeBytes (unXPub xpub)
-    <> CBOR.encodeBytes signData
+    <> CBOR.encodeBytes signatur
 
 encodeTx :: ([TxIn], [TxOut]) -> CBOR.Encoding
 encodeTx (inps, outs) = mempty
@@ -657,6 +658,29 @@ encodeTx (inps, outs) = mempty
     <> mconcat (encodeTxOut <$> outs)
     <> CBOR.encodeBreak
     <> encodeTxAttributes
+
+encodeSignedTx :: ([TxIn], [TxOut]) -> [ByteString] -> CBOR.Encoding
+encodeSignedTx tx witnesses = mempty
+    <> CBOR.encodeListLen 2
+    <> encodeTx tx
+    <> CBOR.encodeListLen (fromIntegral $ length witnesses)
+    <> mconcat (map encodeTxWitness witnesses)
+
+encodeTxWitness :: ByteString -> CBOR.Encoding
+encodeTxWitness bytes = mempty
+    <> CBOR.encodeListLen 2
+    <> CBOR.encodeWord8 tag
+    <> CBOR.encodeTag 24
+    <> CBOR.encodeBytes bytes
+  where
+    -- NOTE
+    -- We only support 'PublicKey' witness types at the moment. However,
+    -- Byron nodes support more:
+    --
+    --   * 0 for Public Key
+    --   * 1 for Script
+    --   * 2 for Redeem
+    tag = 0
 
 encodeTxAttributes :: CBOR.Encoding
 encodeTxAttributes = mempty
