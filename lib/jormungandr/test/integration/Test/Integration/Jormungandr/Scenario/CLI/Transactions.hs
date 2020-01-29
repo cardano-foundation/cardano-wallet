@@ -39,7 +39,7 @@ import Test.Integration.Framework.DSL
     , KnownCommand
     , deleteTransactionViaCLI
     , emptyWallet
-    , expectCliFieldEqual
+    , expectCliFieldSatisfy
     , expectEventually'
     , expectValidJSON
     , fixtureRawTx
@@ -116,12 +116,12 @@ spec = do
         Stdout gOutDest <- getWalletViaCLI @t ctx (T.unpack (wDest ^. walletId))
         destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
         verify destJson
-            [ expectCliFieldEqual
+            [ expectCliFieldSatisfy
                     (#balance . #getApiT . #available . #getQuantity)
-                    (initAvailable + toSend)
-            , expectCliFieldEqual
+                    (== initAvailable + toSend)
+            , expectCliFieldSatisfy
                     (#balance . #getApiT . #total . #getQuantity)
-                    (initTotal + toSend)
+                    (== initTotal + toSend)
             ]
 
     it "TRANS_EXTERNAL_CREATE_02 - proper single output transaction and \

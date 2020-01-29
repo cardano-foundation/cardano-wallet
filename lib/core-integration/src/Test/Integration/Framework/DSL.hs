@@ -33,11 +33,8 @@ module Test.Integration.Framework.DSL
     , expectEventually
     , expectEventually'
     , expectValidJSON
-    , expectCliFieldBetween
-    , expectCliFieldEqual
-    , expectCliFieldNotEqual
-    , expectCliListItemFieldBetween
-    , expectCliListItemFieldEqual
+    , expectCliFieldSatisfy
+    , expectCliListItemFieldSatisfy
     , expectWalletUTxO
     , verify
     , Headers(..)
@@ -228,7 +225,7 @@ import System.Process
 import Test.Hspec
     ( HasCallStack, expectationFailure )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldContain, shouldNotBe )
+    ( shouldBe, shouldContain )
 import Test.Integration.Faucet
     ( nextTxBuilder, nextWallet )
 import Test.Integration.Framework.Request
@@ -456,61 +453,30 @@ expectValidJSON _ str =
         Left e -> fail $ "expected valid JSON but failed decoding: " <> show e
         Right a -> return a
 
-expectCliFieldBetween
-    :: (HasCallStack, MonadIO m, MonadFail m, Show a, Ord a)
-    => Lens' s a
-    -> (a, a)
-    -> s
-    -> m ()
-expectCliFieldBetween getter (aMin, aMax) s = case view getter s of
-            a | a < aMin -> fail $
-                "expected " <> show a <> " >= " <> show aMin
-            a | a > aMax -> fail $
-                "expected " <> show a <> " <= " <> show aMax
-            _ ->
-                return ()
-
-expectCliListItemFieldBetween
-    :: (HasCallStack, MonadIO m, MonadFail m, Show a, Eq a, Ord a)
+expectCliListItemFieldSatisfy
+    :: (MonadIO m, MonadFail m, Show a)
     => Int
     -> Lens' s a
-    -> (a, a)
+    -> (a -> Bool)
     -> [s]
     -> m ()
-expectCliListItemFieldBetween i getter (aMin, aMax) xs
-        | length xs > i = expectCliFieldBetween getter (aMin, aMax) (xs !! i)
+expectCliListItemFieldSatisfy i getter predicate xs
+        | length xs > i = expectCliFieldSatisfy getter predicate (xs !! i)
         | otherwise = fail $
-            "expectCliListItemFieldBetween: trying to access the #" <> show i <>
+            "expectCliListItemFieldSatisfy: trying to access the #" <> show i <>
             " element from a list but there's none! "
 
-expectCliFieldEqual
-    :: (HasCallStack, MonadIO m, Show a, Eq a)
+expectCliFieldSatisfy
+    :: (MonadIO m, MonadFail m, Show a)
     => Lens' s a
-    -> a
+    -> (a -> Bool)
     -> s
     -> m ()
-expectCliFieldEqual getter a out = (view getter out) `shouldBe` a
-
-expectCliFieldNotEqual
-    :: (HasCallStack, MonadIO m, Show a, Eq a)
-    => Lens' s a
-    -> a
-    -> s
-    -> m ()
-expectCliFieldNotEqual getter a out = (view getter out) `shouldNotBe` a
-
-expectCliListItemFieldEqual
-    :: (HasCallStack, MonadIO m, MonadFail m, Show a, Eq a)
-    => Int
-    -> Lens' s a
-    -> a
-    -> [s]
-    -> m ()
-expectCliListItemFieldEqual i getter a out
-        | length out > i = expectCliFieldEqual getter a (out !! i)
-        | otherwise = fail $
-            "expectCliListItemFieldEqual: trying to access the #" <> show i <>
-            " element from a list but there's none! "
+expectCliFieldSatisfy getter predicate out = do
+    let a = (view getter out)
+    if predicate a
+        then return ()
+        else fail $ "predicate failed for: " <> show a
 
 -- | A file is eventually created on the given location
 expectPathEventuallyExist :: HasCallStack => FilePath -> IO ()
