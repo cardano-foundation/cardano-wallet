@@ -22,7 +22,7 @@ Use the Nix build if:
    Hydra cache, without needing to build it yourself.
 
 Follow the instructions in
-[cardano-sl/docs/nix.md](https://github.com/input-output-hk/cardano-sl/blob/develop/docs/nix.md)
+[iohk-nix/docs/nix.md](https://github.com/input-output-hk/iohk-nix/blob/develop/docs/nix.md)
 to install Nix and set up the IOHK binary cache.
 
 To build the wallet for your current platform:
@@ -34,17 +34,29 @@ nix-build -A cardano-wallet-jormungandr
 If you have no local changes in your git repo, then this will download
 the build from the Hydra cache rather than building locally.
 
-To build the wallet for Windows, from Linux:
+### Cross-compiling
+
+To build the wallet for Windows, from **Linux**:
 
 ```
 nix-build release.nix -A x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-linux
 ```
+
+If you're using **macOS**, then change `x86_64-linux` to `x86_64-darwin`:
+
+```
+nix-build release.nix -A x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-darwin
+```
+
+### Building straight from GitHub
 
 To build another branch (replace `master` with the branch name, tag, or commit hash):
 
 ```
 nix-build https://github.com/input-output-hk/cardano-wallet/archive/master.tar.gz --argstr gitrev master -A cardano-wallet-jormungandr
 ```
+
+### Navigating Hydra
 
 The Hydra [Jobset page](https://hydra.iohk.io/jobset/Cardano/cardano-wallet#tabs-jobs)
 shows all jobs defined in `release.nix`. Some of the release jobs have a download link.
