@@ -14,7 +14,12 @@ import Cardano.BM.Trace
 import Cardano.CLI
     ( Port (..) )
 import Cardano.Launcher
-    ( Command (..), StdStream (..), withBackendProcess )
+    ( Command (..)
+    , ProcessHasExited (..)
+    , StdStream (..)
+    , withBackendProcess
+    , withBackendProcessHandle
+    )
 import Control.Concurrent
     ( threadDelay )
 import Control.Exception
@@ -25,6 +30,8 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Product.Typed
     ( typed )
+import Data.Text
+    ( Text )
 import System.Command
     ( Exit (..), Stderr (..), Stdout (..) )
 import System.Exit
@@ -113,9 +120,6 @@ spec = do
             waitForProcess ph `shouldReturn` ExitSuccess
 
     describe "LOGGING - cardano-wallet serve logging [SERIAL]" $ do
-        let grep str = filter (T.isInfixOf str)
-            grepNot str = filter (not . T.isInfixOf str)
-
         it "LOGGING - Serve default logs Info" $ \ctx -> do
             withTempFile $ \logs hLogs -> do
                 let cmd = Command
@@ -126,6 +130,7 @@ spec = do
                         , "--genesis-block-hash", block0H
                         ]
                         (pure ())
+                        Inherit
                         (UseHandle hLogs)
                 void $ withBackendProcess nullTracer cmd $ do
                     threadDelay (10 * oneSecond)
@@ -146,6 +151,7 @@ spec = do
                         , "--trace-pools-db", "debug"
                         ]
                         (pure ())
+                        Inherit
                         (UseHandle hLogs)
                 void $ withBackendProcess nullTracer cmd $ do
                     threadDelay (5 * oneSecond)
@@ -167,6 +173,7 @@ spec = do
                         , "--trace-network", "off"
                         ]
                         (pure ())
+                        Inherit
                         (UseHandle hLogs)
                 void $ withBackendProcess nullTracer cmd $ do
                     threadDelay (5 * oneSecond)
@@ -194,6 +201,7 @@ spec = do
                         , "--genesis-block-hash", block0H
                         ]
                         (pure ())
+                        Inherit
                         (UseHandle hLogs)
                 void $ withBackendProcess nullTracer cmd $ do
                     threadDelay (10 * oneSecond)
@@ -237,6 +245,32 @@ spec = do
                 "Invalid genesis hash: expecting a hex-encoded \
                 \value that is 32 bytes in length"
 
+    describe "SERVER - Clean shutdown" $ do
+        it "SERVER - shuts down on command" $ \ctx -> do
+            logged <- withLogCollection $ \stream -> do
+                let cmd = Command
+                        (commandName @t)
+                        ["serve"
+                        , "--node-port", show (ctx ^. typed @(Port "node"))
+                        , "--random-port"
+                        , "--genesis-block-hash", block0H
+                        ]
+                        (pure ())
+                        CreatePipe
+                        stream
+
+                res <- withBackendProcessHandle nullTracer cmd $ \(Just hStdin) _ -> do
+                    threadDelay oneSecond
+                    hClose hStdin
+                    threadDelay oneSecond -- give handler a chance to run
+
+                res `shouldBe` Left (ProcessHasExited "cardano-wallet-jormungandr" ExitSuccess)
+
+            let enabledLogs = grep "shutdown handler is enabled" logged
+            let shutdownLogs = grep "Starting clean shutdown" logged
+            length enabledLogs `shouldBe` 1
+            length shutdownLogs `shouldBe` 1
+
 oneSecond :: Int
 oneSecond = 1000000
 
@@ -245,3 +279,15 @@ withTempDir = withSystemTempDirectory "integration-state"
 
 withTempFile :: (FilePath -> Handle -> IO a) -> IO a
 withTempFile = withSystemTempFile "temp-file"
+
+withLogCollection :: (StdStream -> IO a) -> IO [Text]
+withLogCollection action = withTempFile $ \logs hLogs -> do
+    _ <- action (UseHandle hLogs)
+    hClose hLogs
+    T.lines <$> TIO.readFile logs
+
+grep :: Text -> [Text] -> [Text]
+grep str = filter (T.isInfixOf str)
+
+grepNot :: Text -> [Text] -> [Text]
+grepNot str = filter (not . T.isInfixOf str)

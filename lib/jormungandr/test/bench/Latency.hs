@@ -32,7 +32,9 @@ import Cardano.BM.Trace
 import Cardano.Faucet
     ( initFaucet, sockAddrPort )
 import Cardano.Launcher
-    ( ProcessHasExited (..), withUtf8Encoding )
+    ( ProcessHasExited (..) )
+import Cardano.Startup
+    ( withUtf8Encoding )
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.Api.Types

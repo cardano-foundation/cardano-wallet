@@ -1,6 +1,6 @@
 module Main where
 
-import Cardano.Launcher
+import Cardano.Startup
     ( withUtf8Encoding )
 import Prelude
 import qualified Spec

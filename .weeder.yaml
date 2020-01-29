@@ -124,5 +124,4 @@
     - name: library
     - message:
       - name: Module not compiled
-      - module: Cardano.Launcher.Windows
-
+      - module: Cardano.Startup.Windows

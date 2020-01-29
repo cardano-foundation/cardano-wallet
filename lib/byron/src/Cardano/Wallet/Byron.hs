@@ -50,8 +50,6 @@ import Cardano.BM.Trace
     ( Trace, appendName )
 import Cardano.DB.Sqlite
     ( DBLog )
-import Cardano.Launcher
-    ( installSignalHandlers )
 import Cardano.Wallet
     ( WalletLog )
 import Cardano.Wallet.Api
@@ -166,7 +164,6 @@ serveWallet
     -- ^ Callback to run before the main loop
     -> IO ExitCode
 serveWallet Tracers{..} sTolerance databaseDir hostPref listen addrInfo beforeMainLoop = do
-    installSignalHandlers (traceWith applicationTracer MsgSigTerm)
     traceWith applicationTracer $ MsgStarting addrInfo
     traceWith applicationTracer $ MsgNetworkName $ networkDiscriminantVal @n
     Server.withListeningSocket hostPref listen $ \case
@@ -245,7 +242,6 @@ exitCodeApiServer = \case
 data ApplicationLog
     = MsgStarting AddrInfo
     | MsgNetworkName NetworkDiscriminant
-    | MsgSigTerm
     | MsgServerStartupError ListenError
     | MsgDatabaseStartup DatabasesStartupLog
     deriving (Generic, Show, Eq)
@@ -256,8 +252,6 @@ instance ToText ApplicationLog where
             "Wallet backend server starting. " <> T.pack (show info) <> "..."
         MsgNetworkName n ->
             "Node is Haskell Node on " <> toText n
-        MsgSigTerm ->
-            "Terminated by signal."
         MsgDatabaseStartup dbMsg ->
             toText dbMsg
         MsgServerStartupError startupErr -> case startupErr of
@@ -281,7 +275,6 @@ instance DefinePrivacyAnnotation ApplicationLog
 instance DefineSeverity ApplicationLog where
     defineSeverity = \case
         MsgStarting _ -> Info
-        MsgSigTerm -> Notice
         MsgNetworkName _ -> Info
         MsgDatabaseStartup ev -> defineSeverity ev
         MsgServerStartupError _ -> Alert

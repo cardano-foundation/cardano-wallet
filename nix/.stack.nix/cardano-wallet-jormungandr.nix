@@ -106,6 +106,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
             (hsPkgs."cardano-wallet-jormungandr" or (buildDepError "cardano-wallet-jormungandr"))
             (hsPkgs."cardano-wallet-launcher" or (buildDepError "cardano-wallet-launcher"))
+            (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
             (hsPkgs."filepath" or (buildDepError "filepath"))
             (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
             (hsPkgs."network" or (buildDepError "network"))

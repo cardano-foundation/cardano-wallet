@@ -27,7 +27,7 @@ import Prelude
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Trace
-    ( Trace, appendName, logDebug, logInfo )
+    ( Trace, appendName, logDebug, logInfo, logNotice )
 import Cardano.CLI
     ( LoggingOptions (..)
     , Port (..)
@@ -59,7 +59,13 @@ import Cardano.CLI
     , withLogging
     )
 import Cardano.Launcher
-    ( StdStream (..), withUtf8Encoding )
+    ( StdStream (..) )
+import Cardano.Startup
+    ( ShutdownHandlerLog
+    , installSignalHandlers
+    , withShutdownHandler
+    , withUtf8Encoding
+    )
 import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..) )
 import Cardano.Wallet.Jormungandr
@@ -79,7 +85,7 @@ import Cardano.Wallet.Jormungandr.Network
     , JormungandrConnParams (..)
     )
 import Cardano.Wallet.Logging
-    ( transformTextTrace )
+    ( trMessage, transformTextTrace )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
@@ -88,6 +94,10 @@ import Cardano.Wallet.Version
     ( GitRevision, Version, gitRevision, showFullVersion, version )
 import Control.Applicative
     ( Const (..), optional, (<|>) )
+import Control.Monad
+    ( void )
+import Control.Tracer
+    ( contramap )
 import Data.List
     ( isPrefixOf )
 import Data.Maybe
@@ -230,29 +240,32 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> helper' <*> cmd) $ mempt
             <*> extraArguments)
     exec args@(LaunchArgs hostPreference listen nodePort mStateDir sTolerance logOpt jArgs) = do
         withTracers logOpt $ \tr tracers -> do
-            logDebug tr $ MsgLaunchArgs args
-            case genesisBlock jArgs of
-                Right block0File -> requireFilePath block0File
-                Left _ -> pure ()
-            let stateDir = fromMaybe (dataDir </> "testnet") mStateDir
-            let databaseDir = stateDir </> "wallets"
-            let cp = JormungandrConfig
-                    { _stateDir = stateDir
-                    , _genesisBlock = genesisBlock jArgs
-                    , _restApiPort = fromIntegral . getPort <$> nodePort
-                    , _outputStream = Inherit
-                    , _extraArgs = extraJormungandrArgs jArgs
-                    }
-            setupDirectory (logInfo tr . MsgSetupStateDir) stateDir
-            setupDirectory (logInfo tr . MsgSetupDatabases) databaseDir
-            exitWith =<< serveWallet @'Testnet
-                tracers
-                sTolerance
-                (Just databaseDir)
-                hostPreference
-                listen
-                (Launch cp)
-                (beforeMainLoop tr)
+            installSignalHandlers (logNotice tr MsgSigTerm)
+            let trShutdown = trMessage (contramap (fmap MsgShutdownHandler) tr)
+            void $ withShutdownHandler trShutdown $ do
+                logDebug tr $ MsgLaunchArgs args
+                case genesisBlock jArgs of
+                    Right block0File -> requireFilePath block0File
+                    Left _ -> pure ()
+                let stateDir = fromMaybe (dataDir </> "testnet") mStateDir
+                let databaseDir = stateDir </> "wallets"
+                let cp = JormungandrConfig
+                        { _stateDir = stateDir
+                        , _genesisBlock = genesisBlock jArgs
+                        , _restApiPort = fromIntegral . getPort <$> nodePort
+                        , _outputStream = Inherit
+                        , _extraArgs = extraJormungandrArgs jArgs
+                        }
+                setupDirectory (logInfo tr . MsgSetupStateDir) stateDir
+                setupDirectory (logInfo tr . MsgSetupDatabases) databaseDir
+                exitWith =<< serveWallet @'Testnet
+                    tracers
+                    sTolerance
+                    (Just databaseDir)
+                    hostPreference
+                    listen
+                    (Launch cp)
+                    (beforeMainLoop tr)
 
 {-------------------------------------------------------------------------------
                             Command - 'serve'
@@ -289,18 +302,21 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
         -> IO ()
     exec args@(ServeArgs hostPreference listen nodePort databaseDir sTolerance block0H logOpt) = do
         withTracers logOpt $ \tr tracers -> do
-            logDebug tr $ MsgServeArgs args
-            let baseUrl = localhostBaseUrl $ getPort nodePort
-            let cp = JormungandrConnParams block0H baseUrl
-            whenJust databaseDir $ setupDirectory (logInfo tr . MsgSetupDatabases)
-            exitWith =<< serveWallet @'Testnet
-                tracers
-                sTolerance
-                databaseDir
-                hostPreference
-                listen
-                (UseRunning cp)
-                (beforeMainLoop tr)
+            installSignalHandlers (logNotice tr MsgSigTerm)
+            let trShutdown = trMessage (contramap (fmap MsgShutdownHandler) tr)
+            void $ withShutdownHandler trShutdown $ do
+                logDebug tr $ MsgServeArgs args
+                let baseUrl = localhostBaseUrl $ getPort nodePort
+                let cp = JormungandrConnParams block0H baseUrl
+                whenJust databaseDir $ setupDirectory (logInfo tr . MsgSetupDatabases)
+                exitWith =<< serveWallet @'Testnet
+                    tracers
+                    sTolerance
+                    databaseDir
+                    hostPreference
+                    listen
+                    (UseRunning cp)
+                    (beforeMainLoop tr)
 
     whenJust m fn = case m of
        Nothing -> pure ()
@@ -381,6 +397,8 @@ data MainLog
     | MsgLaunchArgs LaunchArgs
     | MsgServeArgs ServeArgs
     | MsgListenAddress SockAddr
+    | MsgSigTerm
+    | MsgShutdownHandler ShutdownHandlerLog
     deriving (Show, Eq)
 
 instance ToText MainLog where
@@ -395,6 +413,8 @@ instance ToText MainLog where
         MsgServeArgs args -> T.pack $ show args
         MsgListenAddress addr ->
             "Wallet backend server listening on " <> T.pack (show addr)
+        MsgSigTerm -> "Terminated by signal."
+        MsgShutdownHandler msg' -> toText msg'
 
 withTracers
     :: LoggingOptions TracerSeverities
