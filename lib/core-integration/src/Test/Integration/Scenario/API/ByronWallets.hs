@@ -73,7 +73,6 @@ import Test.Integration.Framework.DSL
     , emptyWalletWith
     , eventually_
     , expectErrorMessage
-    , expectEventually
     , expectFieldSatisfy
     , expectListItemFieldSatisfy
     , expectListSizeEqual
@@ -835,29 +834,34 @@ spec = do
                                     (#name . #getApiT . #getWalletName) (== name)
                             , expectFieldSatisfy (#balance . #available) (== Quantity 0)
                             , expectFieldSatisfy (#balance . #total) (== Quantity 0)
-                            , expectEventually ctx (Link.getWallet @'Byron)
-                                    (#state . #getApiT) Ready
                             , expectFieldSatisfy #passphrase (/= Nothing)
                             ]
                 -- create
                 r <- request @ApiByronWallet ctx endpoint Default payload
                 verify r expectations
                 let w = getFromResponse id r
-                -- get
-                rg <- request @ApiByronWallet ctx (Link.getWallet @'Byron w) Default Empty
-                verify rg $ (expectResponseCode @IO HTTP.status200) : expectations
-                -- list
-                rl <- request @[ApiByronWallet] ctx (Link.listWallets @'Byron) Default Empty
-                verify rl
-                    [ expectResponseCode @IO HTTP.status200
-                    , expectListSizeEqual 1
-                    , expectListItemFieldSatisfy 0
-                            (#name . #getApiT . #getWalletName) (== name)
-                    , expectListItemFieldSatisfy 0
-                            (#balance . #available) (== Quantity 0)
-                    , expectListItemFieldSatisfy 0
-                            (#balance . #total) (== Quantity 0)
-                    ]
+
+                eventually_ $ do
+                    -- get
+                    rg <- request @ApiByronWallet ctx
+                        (Link.getWallet @'Byron w) Default Empty
+                    verify rg $
+                        (expectFieldSatisfy (#state . #getApiT) (== Ready)) : expectations
+                    -- list
+                    rl <- request @[ApiByronWallet] ctx
+                        (Link.listWallets @'Byron) Default Empty
+                    verify rl
+                        [ expectResponseCode @IO HTTP.status200
+                        , expectListSizeEqual 1
+                        , expectListItemFieldSatisfy 0
+                                (#name . #getApiT . #getWalletName) (== name)
+                        , expectListItemFieldSatisfy 0
+                                (#balance . #available) (== Quantity 0)
+                        , expectListItemFieldSatisfy 0
+                                (#state . #getApiT) (== Ready)
+                        , expectListItemFieldSatisfy 0
+                                (#balance . #total) (== Quantity 0)
+                        ]
 
         let scenarioFailure endpoint mnemonic ctx = do
                 let payload = Json [json| {

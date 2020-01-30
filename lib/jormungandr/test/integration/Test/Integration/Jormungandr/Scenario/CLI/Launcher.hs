@@ -19,13 +19,15 @@ import Cardano.CLI
 import Cardano.Launcher
     ( Command (..), StdStream (..), withBackendProcess )
 import Cardano.Wallet.Api.Types
-    ( ApiWallet, WalletStyle (..) )
+    ( ApiWallet )
 import Cardano.Wallet.Primitive.Types
     ( SyncProgress (..) )
 import Control.Exception
     ( finally )
 import Control.Monad
     ( forM_, void )
+import Data.Generics.Internal.VL.Lens
+    ( (^.) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Class
@@ -54,19 +56,22 @@ import Test.Integration.Framework.DSL
     ( KnownCommand (..)
     , cardanoWalletCLI
     , createWalletViaCLI
-    , expectEventually'
+    , eventually_
+    , expectCliFieldSatisfy
     , expectPathEventuallyExist
     , expectValidJSON
     , generateMnemonicsViaCLI
+    , getWalletViaCLI
     , proc'
     , waitForServer
+    , walletId
     )
 import Test.Utils.Paths
     ( getTestData )
 import Test.Utils.Ports
     ( findPort )
 
-import qualified Cardano.Wallet.Api.Link as Link
+import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 
 spec :: forall t. (KnownCommand t) => Spec
@@ -208,8 +213,10 @@ spec = do
                 TIO.hGetContents e >>= TIO.putStrLn
             withCreateProcess process $ \_ (Just o) (Just e) ph -> do
                 waitForServer @t ctx
-                expectEventually' ctx (Link.getWallet @'Shelley)
-                        (#state . #getApiT) Ready wallet
+                eventually_ $ do
+                    Stdout og <- getWalletViaCLI @t ctx $ T.unpack (wallet ^. walletId)
+                    jg <- expectValidJSON (Proxy @ApiWallet) og
+                    expectCliFieldSatisfy (#state . #getApiT) (== Ready) jg
               `finally` do
                 terminateProcess ph
                 TIO.hGetContents o >>= TIO.putStrLn

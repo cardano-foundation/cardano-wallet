@@ -105,7 +105,8 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
-    , expectEventually
+    , eventually_
+    , expectFieldSatisfy
     , expectResponseCode
     , expectSuccess
     , expectWalletUTxO
@@ -217,13 +218,14 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
         let pass = "cardano-wallet" :: Text
 
         replicateM_ batchSize (postTx ctx (wSrc, Link.createTransaction, pass) wDest amtToSend)
-
-        rWal1 <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default Empty
-        verify rWal1
-            [ expectSuccess
-            , expectEventually ctx (Link.getWallet @'Shelley)
-                    (#balance . #getApiT . #available . #getQuantity) amtExp
-            ]
+        eventually_ $ do
+            rWal1 <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default Empty
+            verify rWal1
+                [ expectSuccess
+                , expectFieldSatisfy
+                    (#balance . #getApiT . #available . #getQuantity)
+                    (== amtExp)
+                ]
 
         rDel <- request @ApiWallet ctx (Link.deleteWallet @'Shelley wSrc) Default Empty
         expectResponseCode @IO HTTP.status204 rDel
@@ -252,14 +254,15 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
         let pass = "Secure Passphrase" :: Text
 
         postMultiTx ctx (wSrc, Link.createTransaction, pass) wDest amtToSend batchSize
-
-        rWal1 <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default Empty
-        verify rWal1
-            [ expectSuccess
-            , expectEventually ctx (Link.getWallet @'Shelley)
-                    (#balance . #getApiT . #available . #getQuantity)
-                    (fromIntegral amtExp)
-            ]
+        eventually_ $ do
+            rWal1 <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wDest) Default Empty
+            verify rWal1
+                [ expectSuccess
+                , expectFieldSatisfy
+                        (#balance . #getApiT . #available . #getQuantity)
+                        (== fromIntegral amtExp)
+                ]
 
         rStat <- request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics wDest) Default Empty
         expectResponseCode @IO HTTP.status200 rStat

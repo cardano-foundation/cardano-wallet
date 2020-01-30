@@ -72,8 +72,8 @@ import Test.Integration.Framework.DSL
     , emptyRandomWallet
     , emptyWallet
     , eventually
+    , eventually_
     , expectErrorMessage
-    , expectEventually
     , expectFieldSatisfy
     , expectListItemFieldSatisfy
     , expectListSizeEqual
@@ -159,13 +159,17 @@ spec = do
             , expectFieldSatisfy (#balance . #getApiT . #available) (== Quantity 0)
             , expectFieldSatisfy (#balance . #getApiT . #total) (== Quantity 0)
             , expectFieldSatisfy (#balance . #getApiT . #reward) (== Quantity 0)
-            , expectEventually ctx (Link.getWallet @'Shelley)
-                    (#state . #getApiT) Ready
+
             , expectFieldSatisfy (#delegation . #getApiT) (== NotDelegating)
             , expectFieldSatisfy
                     walletId (== "2cf060fe53e4e0593f145f22b858dfc60676d4ab")
             , expectFieldSatisfy #passphrase (/= Nothing)
             ]
+        let wid = getFromResponse id r
+        eventually_ $ do
+            rg <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wid) Default Empty
+            expectFieldSatisfy (#state . #getApiT) (== Ready) rg
 
     describe "OWASP_INJECTION_CREATE_WALLET_01 - \
              \SQL injection when creating a wallet" $  do
@@ -201,19 +205,19 @@ spec = do
                     (#balance . #getApiT . #total) (== Quantity 0)
                 , expectFieldSatisfy
                     (#balance . #getApiT . #reward) (== Quantity 0)
-                , expectEventually ctx (Link.getWallet @'Shelley)
-                    (#state . #getApiT) Ready
                 , expectFieldSatisfy (#delegation . #getApiT) (== NotDelegating)
                 , expectFieldSatisfy walletId
                     (== "135bfb99b9f7a0c702bf8c658cc0d9b1a0d797a2")
                 , expectFieldSatisfy #passphrase (/= Nothing)
                 ]
             let listWallets = Link.listWallets @'Shelley
-            rl <- request @[ApiWallet] ctx listWallets Default Empty
-            verify rl
-                [ expectResponseCode @IO HTTP.status200
-                , expectListSizeEqual 1
-                ]
+            eventually_ $ do
+                rl <- request @[ApiWallet] ctx listWallets Default Empty
+                verify rl
+                    [ expectResponseCode @IO HTTP.status200
+                    , expectListSizeEqual 1
+                    , expectListItemFieldSatisfy 0 (#state . #getApiT) (== Ready)
+                    ]
 
     it "WALLETS_CREATE_02 - Restored wallet preserves funds" $ \ctx -> do
         wSrc <- fixtureWallet ctx
@@ -245,15 +249,15 @@ spec = do
             Default payload
         expectResponseCode @IO HTTP.status202 rTrans
 
-        rGet <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default Empty
-        verify rGet
-            [ expectEventually ctx (Link.getWallet @'Shelley)
-                    (#balance . #getApiT . #total)
-                    (Quantity 1)
-            , expectEventually ctx (Link.getWallet @'Shelley)
-                    (#balance . #getApiT . #available)
-                    (Quantity 1)
-            ]
+        eventually_ $ do
+            rGet <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wDest) Default Empty
+            verify rGet
+                [ expectFieldSatisfy
+                        (#balance . #getApiT . #total) (== Quantity 1)
+                , expectFieldSatisfy
+                        (#balance . #getApiT . #available) (== Quantity 1)
+                ]
 
         -- delete wallet
         rDel <- request @ApiWallet ctx (Link.deleteWallet @'Shelley wDest) Default Empty
@@ -261,15 +265,16 @@ spec = do
 
         -- restore and make sure funds are there
         rRestore <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payldCrt
-        verify rRestore
-            [ expectResponseCode @IO HTTP.status201
-            , expectEventually ctx (Link.getWallet @'Shelley)
-                    (#balance . #getApiT . #available)
-                    (Quantity 1)
-            , expectEventually ctx (Link.getWallet @'Shelley)
-                    (#balance . #getApiT . #total)
-                    (Quantity 1)
-            ]
+        expectResponseCode @IO HTTP.status201 rRestore
+        eventually_ $ do
+            rGet <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wDest) Default Empty
+            verify rGet
+                [ expectFieldSatisfy
+                        (#balance . #getApiT . #total) (== Quantity 1)
+                , expectFieldSatisfy
+                        (#balance . #getApiT . #available) (== Quantity 1)
+                ]
 
     it "WALLETS_CREATE_03,09 - Cannot create wallet that exists" $ \ctx -> do
         let payload = Json [json| {
@@ -951,22 +956,25 @@ spec = do
     it "WALLETS_GET_01 - can get wallet details" $ \ctx -> do
         (_, w) <- unsafeRequest @ApiWallet ctx (Link.postWallet @'Shelley) simplePayload
 
-        rg <- request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
-        verify rg
-            [ expectResponseCode @IO HTTP.status200
-            , expectFieldSatisfy
-                    (#name . #getApiT . #getWalletName) (== "Secure Wallet")
-            , expectFieldSatisfy
-                    (#addressPoolGap . #getApiT . #getAddressPoolGap) (== 20)
-            , expectFieldSatisfy (#balance . #getApiT . #available) (== Quantity 0)
-            , expectFieldSatisfy (#balance . #getApiT . #total) (== Quantity 0)
-            , expectFieldSatisfy (#balance . #getApiT . #reward) (== Quantity 0)
-            , expectEventually ctx (Link.getWallet @'Shelley)
-                    (#state . #getApiT) Ready
-            , expectFieldSatisfy (#delegation . #getApiT) (== NotDelegating)
-            , expectFieldSatisfy walletId (== w ^. walletId)
-            , expectFieldSatisfy #passphrase (/= Nothing)
-            ]
+        eventually_ $ do
+            rg <- request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
+            verify rg
+                [ expectResponseCode @IO HTTP.status200
+                , expectFieldSatisfy
+                        (#name . #getApiT . #getWalletName) (== "Secure Wallet")
+                , expectFieldSatisfy
+                        (#addressPoolGap . #getApiT . #getAddressPoolGap) (== 20)
+                , expectFieldSatisfy
+                        (#balance . #getApiT . #available) (== Quantity 0)
+                , expectFieldSatisfy
+                        (#balance . #getApiT . #total) (== Quantity 0)
+                , expectFieldSatisfy
+                        (#balance . #getApiT . #reward) (== Quantity 0)
+                , expectFieldSatisfy (#state . #getApiT) (== Ready)
+                , expectFieldSatisfy (#delegation . #getApiT) (== NotDelegating)
+                , expectFieldSatisfy walletId (== w ^. walletId)
+                , expectFieldSatisfy #passphrase (/= Nothing)
+                ]
 
     it "WALLETS_GET_02, WALLETS_DELETE_01 - Deleted wallet is not available" $ \ctx -> do
         w <- emptyWallet ctx
@@ -1118,34 +1126,37 @@ spec = do
                             (#balance . #getApiT . #available) (== Quantity 0)
                     , expectFieldSatisfy
                             (#balance . #getApiT . #total) (== Quantity 0)
-                    , expectEventually ctx (Link.getWallet @'Shelley)
-                            (#state . #getApiT) Ready
+                    , expectFieldSatisfy (#state . #getApiT) (== Ready)
                     , expectFieldSatisfy
                             (#delegation . #getApiT) (== NotDelegating)
                     , expectFieldSatisfy walletId (== walId)
                     , expectFieldSatisfy #passphrase (== passLastUpdateValue)
                     ]
-        ru <- request @ApiWallet ctx ("PUT", "v2/wallets" </> walId) Default newName
-        verify ru expectations
-        rg <- request @ApiWallet ctx ("GET", "v2/wallets" </> walId) Default Empty
-        verify rg expectations
-        rl <- request @[ApiWallet] ctx ("GET", "v2/wallets") Default Empty
-        verify rl
-            [ expectResponseCode @IO HTTP.status200
-            , expectListSizeEqual 1
-            , expectListItemFieldSatisfy 0
-                    (#name . #getApiT . #getWalletName) (== "New great name")
-            , expectListItemFieldSatisfy 0
-                    (#addressPoolGap . #getApiT . #getAddressPoolGap) (== 20)
-            , expectListItemFieldSatisfy 0
-                    (#balance . #getApiT . #available) (== Quantity 0)
-            , expectListItemFieldSatisfy 0
-                    (#balance . #getApiT . #total) (== Quantity 0)
-            , expectListItemFieldSatisfy 0
-                    (#delegation . #getApiT) (== NotDelegating)
-            , expectListItemFieldSatisfy 0 walletId (== walId)
-            , expectListItemFieldSatisfy 0 #passphrase (== passLastUpdateValue)
-            ]
+        eventually_ $ do
+            ru <- request @ApiWallet ctx
+                ("PUT", "v2/wallets" </> walId) Default newName
+            verify ru expectations
+            rg <- request @ApiWallet ctx
+                ("GET", "v2/wallets" </> walId) Default Empty
+            verify rg expectations
+            rl <- request @[ApiWallet] ctx ("GET", "v2/wallets") Default Empty
+            verify rl
+                [ expectResponseCode @IO HTTP.status200
+                , expectListSizeEqual 1
+                , expectListItemFieldSatisfy 0
+                        (#name . #getApiT . #getWalletName) (== "New great name")
+                , expectListItemFieldSatisfy 0
+                        (#addressPoolGap . #getApiT . #getAddressPoolGap) (== 20)
+                , expectListItemFieldSatisfy 0
+                        (#balance . #getApiT . #available) (== Quantity 0)
+                , expectListItemFieldSatisfy 0
+                        (#balance . #getApiT . #total) (== Quantity 0)
+                , expectListItemFieldSatisfy 0 (#state . #getApiT) (== Ready)
+                , expectListItemFieldSatisfy 0
+                        (#delegation . #getApiT) (== NotDelegating)
+                , expectListItemFieldSatisfy 0 walletId (== walId)
+                , expectListItemFieldSatisfy 0 #passphrase (== passLastUpdateValue)
+                ]
 
     describe "WALLETS_UPDATE_02 - Various names" $ do
         let walNameMax = T.pack (replicate walletNameMaxLength 'ą')
@@ -1784,18 +1795,22 @@ spec = do
                 Default payload
             expectResponseCode @IO HTTP.status202 rTrans
 
-            rGet <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default Empty
             let coinsSent = map fromIntegral $ take alreadyAbsorbed coins
-            verify rGet
-                [ expectEventually ctx (Link.getWallet @'Shelley)
-                        (#balance . #getApiT . #total)
-                        (Quantity (fromIntegral $ sum coinsSent))
-                , expectEventually ctx (Link.getWallet @'Shelley)
-                        (#balance . #getApiT . #available)
-                        (Quantity (fromIntegral $ sum coinsSent))
-                ]
+            eventually_ $ do
+                rGet <- request @ApiWallet ctx
+                    (Link.getWallet @'Shelley wDest) Default Empty
+                verify rGet
+                    [ expectFieldSatisfy
+                            (#balance . #getApiT . #total)
+                            (== Quantity (fromIntegral $ sum coinsSent))
+                    , expectFieldSatisfy
+                            (#balance . #getApiT . #available)
+                            (== Quantity (fromIntegral $ sum coinsSent))
+                    ]
+
             --verify utxo
-            rStat1 <- request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics wDest) Default Empty
+            rStat1 <- request @ApiUtxoStatistics ctx
+                (Link.getUTxOsStatistics wDest) Default Empty
             expectResponseCode @IO HTTP.status200 rStat1
             expectWalletUTxO coinsSent (snd rStat1)
 

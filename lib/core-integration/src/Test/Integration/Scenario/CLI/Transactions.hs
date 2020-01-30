@@ -18,7 +18,6 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiTxId (..)
     , ApiWallet
-    , WalletStyle (..)
     , encodeAddress
     , getApiT
     , insertedAt
@@ -68,7 +67,6 @@ import Test.Integration.Framework.DSL
     , eventually_
     , expectCliFieldSatisfy
     , expectCliListItemFieldSatisfy
-    , expectEventually'
     , expectValidJSON
     , faucetAmt
     , fixtureWallet
@@ -101,7 +99,6 @@ import Test.Integration.Framework.TestData
 import Web.HttpApiData
     ( ToHttpApiData (..) )
 
-import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
 
 spec
@@ -138,20 +135,17 @@ spec = do
                     (<= Quantity (faucetAmt - feeMin - amt))
             ]
 
-        expectEventually' ctx (Link.getWallet @'Shelley)
-                (#balance . #getApiT . #available) (Quantity amt) wDest
-        expectEventually' ctx (Link.getWallet @'Shelley)
-                (#balance . #getApiT . #total) (Quantity amt) wDest
-
         -- verify balance on dest wallet
-        Stdout gOutDest <- getWalletViaCLI @t ctx (T.unpack (wDest ^. walletId))
-        destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
-        verify destJson
-            [ expectCliFieldSatisfy
-                    (#balance . #getApiT . #available) (== Quantity amt)
-            , expectCliFieldSatisfy
-                    (#balance . #getApiT . #total) (== Quantity amt)
-            ]
+        eventually_ $ do
+            Stdout gOutDest <- getWalletViaCLI @t ctx
+                (T.unpack (wDest ^. walletId))
+            destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
+            verify destJson
+                [ expectCliFieldSatisfy
+                        (#balance . #getApiT . #available) (== Quantity amt)
+                , expectCliFieldSatisfy
+                        (#balance . #getApiT . #total) (== Quantity amt)
+                ]
 
     it "TRANS_CREATE_02 - Multiple Output Tx to single wallet via CLI" $ \ctx -> do
         wSrc <- fixtureWallet ctx
@@ -195,20 +189,17 @@ spec = do
                     (<= Quantity (faucetAmt - feeMin - (2*amt)))
             ]
 
-        expectEventually' ctx (Link.getWallet @'Shelley)
-                (#balance . #getApiT . #available) (Quantity (2*amt)) wDest
-        expectEventually' ctx (Link.getWallet @'Shelley)
-                (#balance . #getApiT . #total) (Quantity (2*amt)) wDest
-
         -- verify balance on dest wallet
-        Stdout gOutDest <- getWalletViaCLI @t ctx (T.unpack (wDest ^. walletId))
-        destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
-        verify destJson
-            [ expectCliFieldSatisfy
-                    (#balance . #getApiT . #available) (== Quantity (2*amt))
-            , expectCliFieldSatisfy
-                    (#balance . #getApiT . #total) (== Quantity (2*amt))
-            ]
+        eventually_ $ do
+            Stdout gOutDest <- getWalletViaCLI @t ctx
+                (T.unpack (wDest ^. walletId))
+            destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
+            verify destJson
+                [ expectCliFieldSatisfy
+                        (#balance . #getApiT . #available) (== Quantity (2*amt))
+                , expectCliFieldSatisfy
+                        (#balance . #getApiT . #total) (== Quantity (2*amt))
+                ]
 
     it "TRANS_CREATE_02 - Multiple Output Tx to different wallets via CLI" $ \ctx -> do
         wSrc <- fixtureWallet ctx
@@ -254,14 +245,10 @@ spec = do
                     (<= Quantity (faucetAmt - feeMin - (2*amt)))
             ]
 
-        forM_ [wDest1, wDest2] $ \wDest -> do
-            expectEventually' ctx (Link.getWallet @'Shelley)
-                    (#balance . #getApiT . #available) (Quantity amt) wDest
-            expectEventually' ctx (Link.getWallet @'Shelley)
-                    (#balance . #getApiT . #total) (Quantity amt) wDest
-
+        eventually_ $ forM_ [wDest1, wDest2] $ \wDest -> do
             -- verify balance on dest wallets
-            Stdout gOutDest <- getWalletViaCLI @t ctx (T.unpack (wDest ^. walletId))
+            Stdout gOutDest <- getWalletViaCLI @t ctx
+                (T.unpack (wDest ^. walletId))
             destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
             verify destJson
                 [ expectCliFieldSatisfy
@@ -317,19 +304,16 @@ spec = do
             , expectCliFieldSatisfy (#balance . #getApiT . #available) (== Quantity 0)
             ]
 
-        expectEventually' ctx (Link.getWallet @'Shelley)
-                (#balance . #getApiT . #available) (Quantity amt) wDest
-        expectEventually' ctx (Link.getWallet @'Shelley)
-                (#balance . #getApiT . #total) (Quantity amt) wDest
-
-        Stdout gOutDest <- getWalletViaCLI @t ctx (T.unpack (wDest ^. walletId))
-        destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
-        verify destJson
-            [ expectCliFieldSatisfy
-                    (#balance . #getApiT . #available) (== Quantity amt)
-            , expectCliFieldSatisfy
-                    (#balance . #getApiT . #total) (== Quantity amt)
-            ]
+        eventually_ $ do
+            Stdout gOutDest <- getWalletViaCLI @t ctx
+                (T.unpack (wDest ^. walletId))
+            destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
+            verify destJson
+                [ expectCliFieldSatisfy
+                        (#balance . #getApiT . #available) (== Quantity amt)
+                , expectCliFieldSatisfy
+                        (#balance . #getApiT . #total) (== Quantity amt)
+                ]
 
     it "TRANS_CREATE_04 - Error shown when ErrInputsDepleted encountered" $ \ctx -> do
         wSrc <- fixtureWalletWith ctx [12_000_000, 20_000_000, 17_000_000]
@@ -704,10 +688,16 @@ spec = do
         -- post transaction
         (c, _, _) <- postTransactionViaCLI @t ctx "cardano-wallet" args
         c `shouldBe` ExitSuccess
-        expectEventually' ctx (Link.getWallet @'Shelley)
-                (#balance . #getApiT . #available) (Quantity amt) wDest
-        expectEventually' ctx (Link.getWallet @'Shelley)
-                (#balance . #getApiT . #total) (Quantity amt) wDest
+        eventually_ $ do
+            Stdout gOutDest <- getWalletViaCLI @t ctx
+                (T.unpack (wDest ^. walletId))
+            destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
+            verify destJson
+                [ expectCliFieldSatisfy
+                        (#balance . #getApiT . #available) (== Quantity amt)
+                , expectCliFieldSatisfy
+                        (#balance . #getApiT . #total) (== Quantity amt)
+                ]
 
         -- Verify Tx list contains Incoming and Outgoing
         (Exit code, Stdout out, Stderr err) <-

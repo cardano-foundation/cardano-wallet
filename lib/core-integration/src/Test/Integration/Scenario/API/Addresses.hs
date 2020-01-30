@@ -34,8 +34,9 @@ import Test.Integration.Framework.DSL
     , emptyRandomWallet
     , emptyWallet
     , emptyWalletWith
+    , eventually_
     , expectErrorMessage
-    , expectEventually
+    , expectFieldSatisfy
     , expectListItemFieldSatisfy
     , expectListSizeEqual
     , expectResponseCode
@@ -183,10 +184,11 @@ spec = do
             expectResponseCode @IO HTTP.status202 rTrans
 
         -- make sure all transactions are in ledger
-        rb <- request @ApiWallet ctx
-            (Link.getWallet @'Shelley wDest) Default Empty
-        expectEventually ctx (Link.getWallet @'Shelley)
-                (#balance . #getApiT . #available) (Quantity 10) rb
+        eventually_ $ do
+            rb <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wDest) Default Empty
+            expectFieldSatisfy
+                (#balance . #getApiT . #available) (== Quantity 10) rb
 
         -- verify new address_pool_gap has been created
         rAddr <- request @[ApiAddress n] ctx

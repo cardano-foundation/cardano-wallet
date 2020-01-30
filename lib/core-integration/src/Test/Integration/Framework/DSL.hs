@@ -30,8 +30,6 @@ module Test.Integration.Framework.DSL
     , expectListItemFieldSatisfy
     , expectListSizeEqual
     , expectResponseCode
-    , expectEventually
-    , expectEventually'
     , expectValidJSON
     , expectCliFieldSatisfy
     , expectCliListItemFieldSatisfy
@@ -153,8 +151,6 @@ import Control.Exception
     ( SomeException (..), catch )
 import Control.Monad
     ( forM_, join, unless, void )
-import Control.Monad.Catch
-    ( MonadCatch )
 import Control.Monad.Fail
     ( MonadFail (..) )
 import Control.Monad.IO.Class
@@ -199,8 +195,6 @@ import Data.Word
     ( Word64 )
 import Language.Haskell.TH.Quote
     ( QuasiQuoter )
-import Network.HTTP.Client
-    ( Manager )
 import Network.HTTP.Types.Method
     ( Method )
 import Numeric.Natural
@@ -366,77 +360,6 @@ expectWalletUTxO coins = \case
         (ApiUtxoStatistics (Quantity (fromIntegral stakes)) (ApiT bType) distr)
             `shouldBe` stats
 
--- | Expects wallet from the request to eventually reach the given state or
--- beyond.
-expectEventually
-    :: forall ctx s a m. (HasCallStack, MonadIO m, MonadCatch m, MonadFail m)
-    => (Ord a, Show a, FromJSON s)
-    => (HasType (Text, Manager) ctx)
-    => ctx
-    -> (s -> (Method, Text))
-    -> Lens' s a
-    -> a
-    -> (HTTP.Status, Either RequestException s)
-    -> m ()
-expectEventually ctx endpoint getter target (_, res) = case res of
-    Left e -> wantedSuccessButError e
-    Right s -> liftIO $ do
-        winner <- race (threadDelay $ 60 * oneSecond) (loopUntilRestore s)
-        case winner of
-            Left _ -> expectationFailure $
-                "waited more than 60s for value to reach or exceed "
-                    <> show target
-            Right _ ->
-                return ()
-  where
-    loopUntilRestore :: s -> IO ()
-    loopUntilRestore s = do
-        r <- request @s ctx (endpoint s) Default Empty
-        let current = getFromResponse getter r
-        unless (current >= target) $
-            let ms = 1000 in threadDelay (500 * ms) *> loopUntilRestore s
-
--- | Like 'expectEventually', but the target is part of the response.
-expectEventuallyL
-    :: (HasCallStack, MonadIO m, MonadCatch m, MonadFail m)
-    => (Ord a, Show a)
-    => (HasType (Text, Manager) ctx)
-    => ctx
-    -> Lens' ApiWallet a
-    -> Lens' ApiWallet a
-    -> ApiWallet
-    -> m ()
-expectEventuallyL ctx getter target s = liftIO $ do
-    let wid = s ^. walletId
-    winner <- race (threadDelay $ 60 * oneSecond) (loopUntilRestore wid)
-    case winner of
-        Left _ -> expectationFailure
-            "waited more than 60s for value to reach or exceed given target."
-        Right _ ->
-            return ()
-  where
-    loopUntilRestore :: Text -> IO ()
-    loopUntilRestore wid = do
-        r <- request @ApiWallet ctx ("GET", "v2/wallets/" <> wid) Default Empty
-        unless (getFromResponse getter r >= getFromResponse target r) $
-            let ms = 1000 in threadDelay (500 * ms) *> loopUntilRestore wid
-
--- | Same as 'expectEventually', but works directly on 'ApiWallet'
--- rather than on a response from the API.
-expectEventually'
-    :: forall ctx s a m. (HasCallStack, MonadIO m, MonadCatch m, MonadFail m)
-    => (Ord a, Show a, FromJSON s)
-    => (HasType (Text, Manager) ctx)
-    => ctx
-    -> (s -> (Method, Text))
-    -> Lens' s a
-    -> a
-    -> s
-    -> m ()
-expectEventually' ctx endpoint target value s = do
-    rb <- request @s ctx (endpoint s) Default Empty
-    expectEventually ctx endpoint target value rb
-
 --
 -- CLI output expectations
 --
@@ -454,7 +377,7 @@ expectValidJSON _ str =
         Right a -> return a
 
 expectCliListItemFieldSatisfy
-    :: (MonadIO m, MonadFail m, Show a)
+    :: (HasCallStack, MonadIO m, MonadFail m, Show a)
     => Int
     -> Lens' s a
     -> (a -> Bool)
@@ -467,7 +390,7 @@ expectCliListItemFieldSatisfy i getter predicate xs
             " element from a list but there's none! "
 
 expectCliFieldSatisfy
-    :: (MonadIO m, MonadFail m, Show a)
+    :: (HasCallStack, MonadIO m, MonadFail m, Show a)
     => Lens' s a
     -> (a -> Bool)
     -> s
@@ -761,16 +684,18 @@ fixtureWalletWith ctx coins0 = do
         request @(ApiTransaction 'Testnet) ctx
             (Link.createTransaction src) Default payload
             >>= expectResponseCode HTTP.status202
-        expectEventually'
-            ctx (Link.getWallet @'Shelley)
-            (#balance . #getApiT . #available . #getQuantity)
-            (sum (balance:coins))
-            dest
-        expectEventuallyL
-            ctx
-            (#balance . #getApiT . #available)
-            (#balance . #getApiT . #total)
-            src
+        eventually_ $ do
+            rb <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley dest) Default Empty
+            expectFieldSatisfy
+                (#balance . #getApiT . #available)
+                (== Quantity (sum (balance:coins))) rb
+            ra <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley src) Default Empty
+
+            getFromResponse (#balance . #getApiT . #available) ra
+                `shouldBe`
+                    getFromResponse (#balance . #getApiT . #total) ra
 
 -- | Total amount on each faucet wallet
 faucetAmt :: Natural
