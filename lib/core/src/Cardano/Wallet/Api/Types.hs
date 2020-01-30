@@ -714,15 +714,20 @@ instance ToJSON ApiWalletDelegation where
 
 instance FromJSON ApiWalletDelegationNext where
     parseJSON = withObject "apiWalletDelegationNext" $ \o -> do
+        st <- o .: "status"
         t  <- o .:? "target"
         chAt <- o .: "changesAt"
-        case t of
-            Nothing ->
-                pure $ ApiWalletDelegationNext
-                (ApiDelegationStatus $ ApiT NotDelegating) chAt
-            Just poolId ->
+        case (t, st) of
+            (Just poolId, Aeson.String "delegating") ->
                 pure $ ApiWalletDelegationNext
                 (ApiDelegationStatus $ ApiT $ Delegating poolId) chAt
+            (Nothing, Aeson.String "not_delegating") ->
+                pure $ ApiWalletDelegationNext
+                (ApiDelegationStatus $ ApiT NotDelegating) chAt
+            _ ->
+                fail "Parse error of ApiWalletDelegationNext. Expecting either \
+                     \delegating status and target or non-delegating status \
+                     \without target"
 instance ToJSON ApiWalletDelegationNext where
     toJSON (ApiWalletDelegationNext (ApiDelegationStatus st) chAt) = do
         let a = fromValue $ toJSON st
