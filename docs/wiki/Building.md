@@ -42,10 +42,15 @@ To build the wallet for Windows, from **Linux**:
 nix-build release.nix -A x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-linux
 ```
 
-If you're using **macOS**, then change `x86_64-linux` to `x86_64-darwin`:
+If you're using **macOS**, then change `x86_64-linux` to
+`x86_64-darwin`, and enable the cross-building flag (macOS is disabled
+by default to reduce the load on CI):
 
 ```
-nix-build release.nix -A x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-darwin
+nix-build \
+    release.nix \
+    --arg supportedCrossSystems '["x86_64-darwin"]' \
+     -A x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-darwin
 ```
 
 ### Building straight from GitHub
