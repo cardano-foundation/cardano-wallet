@@ -31,6 +31,8 @@ let
       haskellBuildUtils = haskellBuildUtils.package;
     };
 
+    inherit (haskellPackages.cardano-wallet-byron.components.exes) cardano-wallet-byron;
+
     # `tests` are the test suites which have been built.
     tests = collectComponents "tests" isCardanoWallet haskellPackages;
     # `checks` are the result of executing the tests.

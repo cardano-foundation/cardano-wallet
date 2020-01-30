@@ -64,6 +64,30 @@ let
       (filterAttrs (n: _: n != "dockerImage" && n != "shell") project));
   }
   // {
+    # This aggregate job is what IOHK Hydra uses to update
+    # the CI status in GitHub.
+    required = mkRequiredJob (
+      collectTests jobs.native.tests ++
+      collectTests jobs.native.benchmarks ++
+      [ jobs.native.shell.x86_64-linux
+        jobs.native.shell.x86_64-darwin
+
+        # jormungandr
+        jobs.native.cardano-wallet-jormungandr.x86_64-linux
+        jobs.native.cardano-wallet-jormungandr.x86_64-darwin
+        jobs.x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-linux
+
+        jobs.cardano-wallet-jormungandr-win64
+        jobs.cardano-wallet-jormungandr-macos64
+        jobs.cardano-wallet-jormungandr-tests-win64
+
+
+        # cardano-node (Byron)
+        jobs.native.cardano-wallet-byron.x86_64-linux
+        jobs.native.cardano-wallet-byron.x86_64-darwin
+      ]
+    );
+
     # These derivations are used for the Daedalus installer.
     daedalus-jormungandr = with jobs; {
       linux = native.cardano-wallet-jormungandr.x86_64-linux;
