@@ -47,7 +47,7 @@ See **Installation Instructions** for each available [release](https://github.co
 >
 > | cardano-wallet                                                                            | Jörmungandr (compatible versions)                                            |
 > | ---                                                                                       | ---                                                                          |
-> | `master` branch                                                                           | [v0.8.7](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.7) |
+> | `master` branch                                                                           | [v0.8.9](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.9) |
 > | [v2020-01-27](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2020-01-27) | [v0.8.7](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.7) |
 > | [v2020-01-14](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2020-01-14) | [v0.8.5](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.5) |
 > | [v2020-01-07](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2020-01-07) | [v0.8.5](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.5) |
