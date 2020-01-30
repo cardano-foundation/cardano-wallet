@@ -163,6 +163,7 @@ buildStep dryRun bk =
             [ color "always"
             , [ "test" ]
             , fast opt
+            , interleavedOutput False -- Work around stuck jormungandr processes.
             , case qaLevel bk of
                 QuickTest -> skip "integration"
                 FullTest -> []
@@ -179,6 +180,7 @@ buildStep dryRun bk =
     skip  arg = ["--skip", arg]
     match arg = ["--match", arg]
     ta    arg = ["--ta", T.unwords arg]
+    interleavedOutput arg = ["--" <> (if arg then "" else "no-") <> "interleaved-output"]
 
     serialTests = "SERIAL"
 
