@@ -282,7 +282,7 @@ data ApiWallet = ApiWallet
     } deriving (Eq, Generic, Show)
 
 newtype ApiDelegationStatus = ApiDelegationStatus
-    { status :: !(ApiT (WalletDelegation (ApiT PoolId)))
+    { status :: ApiT (WalletDelegation (ApiT PoolId))
     } deriving (Eq, Generic, Show)
 
 data ApiWalletDelegationNext = ApiWalletDelegationNext
