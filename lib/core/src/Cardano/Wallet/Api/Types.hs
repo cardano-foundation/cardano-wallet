@@ -67,6 +67,9 @@ module Cardano.Wallet.Api.Types
     , Iso8601Time (..)
     , ApiEpochNumber (..)
     , ApiNetworkParameters (..)
+    , ApiWalletDelegation (..)
+    , ApiDelegationStatus (..)
+    , ApiWalletDelegationNext (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -151,6 +154,7 @@ import Data.Aeson
     , tagSingleConstructors
     , withObject
     , (.:)
+    , (.:?)
     , (.=)
     )
 import Data.Bifunctor
@@ -189,6 +193,8 @@ import Data.Word.Odd
     ( Word31 )
 import Fmt
     ( pretty )
+import GHC.Exts
+    ( fromList )
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
@@ -273,6 +279,20 @@ data ApiWallet = ApiWallet
     , passphrase :: !(Maybe (ApiT WalletPassphraseInfo))
     , state :: !(ApiT SyncProgress)
     , tip :: !ApiBlockReference
+    } deriving (Eq, Generic, Show)
+
+newtype ApiDelegationStatus = ApiDelegationStatus
+    { status :: ApiT (WalletDelegation (ApiT PoolId))
+    } deriving (Eq, Generic, Show)
+
+data ApiWalletDelegationNext = ApiWalletDelegationNext
+    { status :: ApiDelegationStatus
+    , changesAt :: ApiEpochInfo
+    } deriving (Eq, Generic, Show)
+
+data ApiWalletDelegation = ApiWalletDelegation
+    { active :: ApiDelegationStatus
+    , next :: !(Maybe ApiWalletDelegationNext)
     } deriving (Eq, Generic, Show)
 
 newtype ApiWalletPassphrase = ApiWalletPassphrase
@@ -686,6 +706,40 @@ instance FromJSON (ApiT (WalletDelegation (ApiT PoolId))) where
     parseJSON = fmap ApiT . genericParseJSON walletDelegationOptions
 instance ToJSON (ApiT (WalletDelegation (ApiT PoolId))) where
     toJSON = genericToJSON walletDelegationOptions . getApiT
+
+instance FromJSON ApiWalletDelegation where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiWalletDelegation where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiWalletDelegationNext where
+    parseJSON = withObject "apiWalletDelegationNext" $ \o -> do
+        st <- o .: "status"
+        t  <- o .:? "target"
+        chAt <- o .: "changesAt"
+        case (t, st) of
+            (Just poolId, Aeson.String "delegating") ->
+                pure $ ApiWalletDelegationNext
+                (ApiDelegationStatus $ ApiT $ Delegating poolId) chAt
+            (Nothing, Aeson.String "not_delegating") ->
+                pure $ ApiWalletDelegationNext
+                (ApiDelegationStatus $ ApiT NotDelegating) chAt
+            _ ->
+                fail "Parse error of ApiWalletDelegationNext. Expecting either \
+                     \delegating status and target or non-delegating status \
+                     \without target"
+instance ToJSON ApiWalletDelegationNext where
+    toJSON (ApiWalletDelegationNext (ApiDelegationStatus st) chAt) = do
+        let a = fromValue $ toJSON st
+        Object $ a <> fromList ["changesAt" .= chAt]
+      where
+        fromValue (Object o) = o
+        fromValue _ = mempty
+
+instance FromJSON ApiDelegationStatus where
+    parseJSON = fmap ApiDelegationStatus . parseJSON
+instance ToJSON ApiDelegationStatus where
+    toJSON (ApiDelegationStatus st) = toJSON st
 
 instance FromJSON ApiStakePool where
     parseJSON = genericParseJSON defaultRecordTypeOptions

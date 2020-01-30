@@ -1,0 +1,127 @@
+{
+    "seed": -5541506688008752811,
+    "samples": [
+        {
+            "next": {
+                "status": "not_delegating",
+                "changesAt": {
+                    "epoch_start_time": "1897-07-10T20:09:01.179916543425Z",
+                    "epoch_number": 17398
+                }
+            },
+            "active": {
+                "status": "delegating",
+                "target": "7b088aa5e8ac6dfb19c6e6292dd66cb2fe07e8bf5c949ded4d9b30a8fe9c97e4"
+            }
+        },
+        {
+            "next": {
+                "status": "delegating",
+                "changesAt": {
+                    "epoch_start_time": "1864-05-20T22:00:00Z",
+                    "epoch_number": 23565
+                },
+                "target": "a42b8e992fa1e36eb29afaad1c7e052197ed10a1cb875bcdeace9dadf2c0e8f4"
+            },
+            "active": {
+                "status": "not_delegating"
+            }
+        },
+        {
+            "active": {
+                "status": "not_delegating"
+            }
+        },
+        {
+            "next": {
+                "status": "not_delegating",
+                "changesAt": {
+                    "epoch_start_time": "1895-09-03T01:35:57Z",
+                    "epoch_number": 15982
+                }
+            },
+            "active": {
+                "status": "delegating",
+                "target": "f9937dbb9d9eda1d11b86e0a8828a7f719bc9d6b34e72c809c9da8946f5ae094"
+            }
+        },
+        {
+            "next": {
+                "status": "not_delegating",
+                "changesAt": {
+                    "epoch_start_time": "1893-12-19T20:00:00Z",
+                    "epoch_number": 22770
+                }
+            },
+            "active": {
+                "status": "delegating",
+                "target": "03115acb5b6d499c66bb3886ef8a94796a3f0c5dbc215a42fccd93363b4e4fe5"
+            }
+        },
+        {
+            "next": {
+                "status": "not_delegating",
+                "changesAt": {
+                    "epoch_start_time": "1866-12-10T02:20:08Z",
+                    "epoch_number": 413
+                }
+            },
+            "active": {
+                "status": "not_delegating"
+            }
+        },
+        {
+            "next": {
+                "status": "not_delegating",
+                "changesAt": {
+                    "epoch_start_time": "1879-06-06T22:22:18.004754039821Z",
+                    "epoch_number": 23589
+                }
+            },
+            "active": {
+                "status": "delegating",
+                "target": "7f8435b227d36b3da353eb1719cfd08c1639e021c3cd348e4a8f3a2e888cadfa"
+            }
+        },
+        {
+            "next": {
+                "status": "delegating",
+                "changesAt": {
+                    "epoch_start_time": "1884-08-31T19:34:57.792463511826Z",
+                    "epoch_number": 28618
+                },
+                "target": "b6f2ba2bfbcb6ab435ae15a57eba9ca9f5304503c67493d14a3891b10f3a6986"
+            },
+            "active": {
+                "status": "not_delegating"
+            }
+        },
+        {
+            "next": {
+                "status": "delegating",
+                "changesAt": {
+                    "epoch_start_time": "1859-12-03T02:03:41.293249820259Z",
+                    "epoch_number": 30993
+                },
+                "target": "93edcc117f8642cc94f575a679d77c57e7eb53442ec76b9b6636db1636d24f30"
+            },
+            "active": {
+                "status": "not_delegating"
+            }
+        },
+        {
+            "next": {
+                "status": "delegating",
+                "changesAt": {
+                    "epoch_start_time": "1861-04-13T15:00:00Z",
+                    "epoch_number": 559
+                },
+                "target": "feba146a06cf3d9b48fbcbadfbdbfb261ee1fcc13820f186f0b306fc8828671e"
+            },
+            "active": {
+                "status": "delegating",
+                "target": "5ad188074c2cdb59cb78418eb9682322a21e46f6670d062279e31547124861ab"
+            }
+        }
+    ]
+}
