@@ -74,9 +74,9 @@ import Test.Integration.Framework.DSL
     , eventually
     , eventually_
     , expectErrorMessage
-    , expectFieldSatisfy
-    , expectListItemFieldSatisfy
-    , expectListSizeEqual
+    , expectField
+    , expectListField
+    , expectListSize
     , expectResponseCode
     , expectWalletUTxO
     , fixtureWallet
@@ -152,24 +152,24 @@ spec = do
         r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
         verify r
             [ expectResponseCode @IO HTTP.status201
-            , expectFieldSatisfy
+            , expectField
                     (#name . #getApiT . #getWalletName) (== "1st Wallet")
-            , expectFieldSatisfy
+            , expectField
                     (#addressPoolGap . #getApiT . #getAddressPoolGap) (== 30)
-            , expectFieldSatisfy (#balance . #getApiT . #available) (== Quantity 0)
-            , expectFieldSatisfy (#balance . #getApiT . #total) (== Quantity 0)
-            , expectFieldSatisfy (#balance . #getApiT . #reward) (== Quantity 0)
+            , expectField (#balance . #getApiT . #available) (== Quantity 0)
+            , expectField (#balance . #getApiT . #total) (== Quantity 0)
+            , expectField (#balance . #getApiT . #reward) (== Quantity 0)
 
-            , expectFieldSatisfy (#delegation . #getApiT) (== NotDelegating)
-            , expectFieldSatisfy
+            , expectField (#delegation . #getApiT) (== NotDelegating)
+            , expectField
                     walletId (== "2cf060fe53e4e0593f145f22b858dfc60676d4ab")
-            , expectFieldSatisfy #passphrase (/= Nothing)
+            , expectField #passphrase (/= Nothing)
             ]
         let wid = getFromResponse id r
         eventually_ $ do
             rg <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wid) Default Empty
-            expectFieldSatisfy (#state . #getApiT) (== Ready) rg
+            expectField (#state . #getApiT) (== Ready) rg
 
     describe "OWASP_INJECTION_CREATE_WALLET_01 - \
              \SQL injection when creating a wallet" $  do
@@ -195,28 +195,28 @@ spec = do
             r <- request @ApiWallet ctx postWallet Default payload
             verify r
                 [ expectResponseCode @IO HTTP.status201
-                , expectFieldSatisfy
+                , expectField
                     (#name . #getApiT . #getWalletName) (== nameOut)
-                , expectFieldSatisfy
+                , expectField
                     (#addressPoolGap . #getApiT . #getAddressPoolGap) (== 20)
-                , expectFieldSatisfy
+                , expectField
                     (#balance . #getApiT . #available) (== Quantity 0)
-                , expectFieldSatisfy
+                , expectField
                     (#balance . #getApiT . #total) (== Quantity 0)
-                , expectFieldSatisfy
+                , expectField
                     (#balance . #getApiT . #reward) (== Quantity 0)
-                , expectFieldSatisfy (#delegation . #getApiT) (== NotDelegating)
-                , expectFieldSatisfy walletId
+                , expectField (#delegation . #getApiT) (== NotDelegating)
+                , expectField walletId
                     (== "135bfb99b9f7a0c702bf8c658cc0d9b1a0d797a2")
-                , expectFieldSatisfy #passphrase (/= Nothing)
+                , expectField #passphrase (/= Nothing)
                 ]
             let listWallets = Link.listWallets @'Shelley
             eventually_ $ do
                 rl <- request @[ApiWallet] ctx listWallets Default Empty
                 verify rl
                     [ expectResponseCode @IO HTTP.status200
-                    , expectListSizeEqual 1
-                    , expectListItemFieldSatisfy 0 (#state . #getApiT) (== Ready)
+                    , expectListSize 1
+                    , expectListField 0 (#state . #getApiT) (== Ready)
                     ]
 
     it "WALLETS_CREATE_02 - Restored wallet preserves funds" $ \ctx -> do
@@ -227,8 +227,8 @@ spec = do
         rInit <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payldCrt
         verify rInit
             [ expectResponseCode @IO HTTP.status201
-            , expectFieldSatisfy (#balance . #getApiT . #available) (== Quantity 0)
-            , expectFieldSatisfy (#balance . #getApiT . #total) (== Quantity 0)
+            , expectField (#balance . #getApiT . #available) (== Quantity 0)
+            , expectField (#balance . #getApiT . #total) (== Quantity 0)
             ]
 
         --send funds
@@ -253,9 +253,9 @@ spec = do
             rGet <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rGet
-                [ expectFieldSatisfy
+                [ expectField
                         (#balance . #getApiT . #total) (== Quantity 1)
-                , expectFieldSatisfy
+                , expectField
                         (#balance . #getApiT . #available) (== Quantity 1)
                 ]
 
@@ -270,9 +270,9 @@ spec = do
             rGet <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rGet
-                [ expectFieldSatisfy
+                [ expectField
                         (#balance . #getApiT . #total) (== Quantity 1)
-                , expectFieldSatisfy
+                , expectField
                         (#balance . #getApiT . #available) (== Quantity 1)
                 ]
 
@@ -298,13 +298,13 @@ spec = do
         let matrix =
                 [ ( show walletNameMinLength ++ " char long", "1"
                   , [ expectResponseCode @IO HTTP.status201
-                    , expectFieldSatisfy
+                    , expectField
                             (#name . #getApiT . #getWalletName) (== "1")
                     ]
                   )
                 , ( show walletNameMaxLength ++ " char long", walNameMax
                   , [ expectResponseCode @IO HTTP.status201
-                    , expectFieldSatisfy
+                    , expectField
                             (#name . #getApiT . #getWalletName) (== walNameMax)
                     ]
                   )
@@ -323,35 +323,35 @@ spec = do
                   )
                 , ( "Russian name", russianWalletName
                   , [ expectResponseCode @IO HTTP.status201
-                    , expectFieldSatisfy
+                    , expectField
                             (#name . #getApiT . #getWalletName)
                             (== russianWalletName)
                     ]
                   )
                 , ( "Polish name", polishWalletName
                   , [ expectResponseCode @IO HTTP.status201
-                    , expectFieldSatisfy
+                    , expectField
                             (#name . #getApiT . #getWalletName)
                             (== polishWalletName)
                     ]
                   )
                 , ( "Kanji name", kanjiWalletName
                   , [ expectResponseCode @IO HTTP.status201
-                    , expectFieldSatisfy
+                    , expectField
                             (#name . #getApiT . #getWalletName)
                             (== kanjiWalletName)
                     ]
                   )
                 , ( "Arabic name", arabicWalletName
                   , [ expectResponseCode @IO HTTP.status201
-                    , expectFieldSatisfy
+                    , expectField
                             (#name . #getApiT . #getWalletName)
                             (== arabicWalletName)
                     ]
                   )
                 , ( "Wildcards name", wildcardsWalletName
                   , [ expectResponseCode @IO HTTP.status201
-                    , expectFieldSatisfy
+                    , expectField
                             (#name . #getApiT . #getWalletName)
                             (== wildcardsWalletName)
                     ]
@@ -471,25 +471,25 @@ spec = do
                )
              , ( "15 mnemonic words", mnemonics15
                , [ expectResponseCode @IO HTTP.status201
-                 , expectFieldSatisfy walletId
+                 , expectField walletId
                     (== "b062e8ccf3685549b6c489a4e94966bc4695b75b")
                  ]
                )
              , ( "18 mnemonic words", mnemonics18
                , [ expectResponseCode @IO HTTP.status201
-                 , expectFieldSatisfy walletId
+                 , expectField walletId
                     (== "f52ee0daaefd75a0212d70c9fbe15ee8ada9fc11")
                  ]
                )
              , ( "21 mnemonic words" , mnemonics21
                , [ expectResponseCode @IO HTTP.status201
-                 , expectFieldSatisfy walletId
+                 , expectField walletId
                     (== "7e8c1af5ff2218f388a313f9c70f0ff0550277e4")
                  ]
                )
              , ( "24 mnemonic words", mnemonics24
                , [ expectResponseCode @IO HTTP.status201
-                 , expectFieldSatisfy walletId
+                 , expectField walletId
                     (== "a6b6625cd2bfc51a296b0933f77020991cc80374")
                  ]
                )
@@ -588,13 +588,13 @@ spec = do
                    )
                  , ( "9 mnemonic words", mnemonics9
                    , [ expectResponseCode @IO HTTP.status201
-                     , expectFieldSatisfy walletId
+                     , expectField walletId
                         (== "4b1a865e39d1006efb99f538b05ea2343b567108")
                      ]
                    )
                  , ( "12 mnemonic words", mnemonics12
                    , [ expectResponseCode @IO HTTP.status201
-                     , expectFieldSatisfy walletId
+                     , expectField walletId
                         (== "2cf060fe53e4e0593f145f22b858dfc60676d4ab")
                      ]
                    )
@@ -739,7 +739,7 @@ spec = do
                 [ ( show addrPoolMin
                   , addrPoolMin
                   , [ expectResponseCode @IO HTTP.status201
-                    , expectFieldSatisfy (#addressPoolGap . #getApiT) (== minBound)
+                    , expectField (#addressPoolGap . #getApiT) (== minBound)
                     ]
                   )
                 , ( show (addrPoolMin - 1) ++ " -> fail"
@@ -869,7 +869,7 @@ spec = do
         r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
         verify r
             [ expectResponseCode @IO HTTP.status201
-            , expectFieldSatisfy
+            , expectField
                     (#addressPoolGap . #getApiT . #getAddressPoolGap) (== 20)
             ]
 
@@ -960,20 +960,20 @@ spec = do
             rg <- request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
             verify rg
                 [ expectResponseCode @IO HTTP.status200
-                , expectFieldSatisfy
+                , expectField
                         (#name . #getApiT . #getWalletName) (== "Secure Wallet")
-                , expectFieldSatisfy
+                , expectField
                         (#addressPoolGap . #getApiT . #getAddressPoolGap) (== 20)
-                , expectFieldSatisfy
+                , expectField
                         (#balance . #getApiT . #available) (== Quantity 0)
-                , expectFieldSatisfy
+                , expectField
                         (#balance . #getApiT . #total) (== Quantity 0)
-                , expectFieldSatisfy
+                , expectField
                         (#balance . #getApiT . #reward) (== Quantity 0)
-                , expectFieldSatisfy (#state . #getApiT) (== Ready)
-                , expectFieldSatisfy (#delegation . #getApiT) (== NotDelegating)
-                , expectFieldSatisfy walletId (== w ^. walletId)
-                , expectFieldSatisfy #passphrase (/= Nothing)
+                , expectField (#state . #getApiT) (== Ready)
+                , expectField (#delegation . #getApiT) (== NotDelegating)
+                , expectField walletId (== w ^. walletId)
+                , expectField #passphrase (/= Nothing)
                 ]
 
     it "WALLETS_GET_02, WALLETS_DELETE_01 - Deleted wallet is not available" $ \ctx -> do
@@ -1033,21 +1033,21 @@ spec = do
         rl <- request @[ApiWallet] ctx (Link.listWallets @'Shelley) Default Empty
         verify rl
             [ expectResponseCode @IO HTTP.status200
-            , expectListSizeEqual 1
-            , expectListItemFieldSatisfy 0
+            , expectListSize 1
+            , expectListField 0
                     (#name . #getApiT . #getWalletName)
                     (== "Wallet to be listed")
-            , expectListItemFieldSatisfy 0
+            , expectListField 0
                     (#addressPoolGap . #getApiT . #getAddressPoolGap) (== 20)
-            , expectListItemFieldSatisfy 0
+            , expectListField 0
                     (#balance . #getApiT . #available) (== Quantity 0)
-            , expectListItemFieldSatisfy 0
+            , expectListField 0
                     (#balance . #getApiT . #total) (== Quantity 0)
-            , expectListItemFieldSatisfy 0
+            , expectListField 0
                     (#balance . #getApiT . #reward) (== Quantity 0)
-            , expectListItemFieldSatisfy 0
+            , expectListField 0
                     (#delegation . #getApiT) (== NotDelegating)
-            , expectListItemFieldSatisfy 0 walletId
+            , expectListField 0 walletId
                     (== "dfe87fcf0560fb57937a6468ea51e860672fad79")
             ]
 
@@ -1061,12 +1061,12 @@ spec = do
         rl <- request @[ApiWallet] ctx (Link.listWallets @'Shelley) Default Empty
         verify rl
             [ expectResponseCode @IO HTTP.status200
-            , expectListSizeEqual 3
-            , expectListItemFieldSatisfy 0
+            , expectListSize 3
+            , expectListField 0
                 (#name . #getApiT . #getWalletName) (== "1")
-            , expectListItemFieldSatisfy 1
+            , expectListField 1
                 (#name . #getApiT . #getWalletName) (== "2")
-            , expectListItemFieldSatisfy 2
+            , expectListField 2
                 (#name . #getApiT . #getWalletName) (== "3")
             ]
 
@@ -1076,7 +1076,7 @@ spec = do
         rl <- request @[ApiWallet] ctx (Link.listWallets @'Shelley) Default Empty
         verify rl
             [ expectResponseCode @IO HTTP.status200
-            , expectListSizeEqual 0
+            , expectListSize 0
             ]
 
     describe "WALLETS_LIST_03 - HTTP headers" $ do
@@ -1116,21 +1116,21 @@ spec = do
         let newName = updateNamePayload "New great name"
         let walId = getFromResponse walletId r
         let expectations = [ expectResponseCode @IO HTTP.status200
-                    , expectFieldSatisfy
+                    , expectField
                             (#name . #getApiT . #getWalletName)
                             (== "New great name")
-                    , expectFieldSatisfy
+                    , expectField
                             (#addressPoolGap . #getApiT . #getAddressPoolGap)
                             (== 20)
-                    , expectFieldSatisfy
+                    , expectField
                             (#balance . #getApiT . #available) (== Quantity 0)
-                    , expectFieldSatisfy
+                    , expectField
                             (#balance . #getApiT . #total) (== Quantity 0)
-                    , expectFieldSatisfy (#state . #getApiT) (== Ready)
-                    , expectFieldSatisfy
+                    , expectField (#state . #getApiT) (== Ready)
+                    , expectField
                             (#delegation . #getApiT) (== NotDelegating)
-                    , expectFieldSatisfy walletId (== walId)
-                    , expectFieldSatisfy #passphrase (== passLastUpdateValue)
+                    , expectField walletId (== walId)
+                    , expectField #passphrase (== passLastUpdateValue)
                     ]
         eventually_ $ do
             ru <- request @ApiWallet ctx
@@ -1142,20 +1142,20 @@ spec = do
             rl <- request @[ApiWallet] ctx ("GET", "v2/wallets") Default Empty
             verify rl
                 [ expectResponseCode @IO HTTP.status200
-                , expectListSizeEqual 1
-                , expectListItemFieldSatisfy 0
+                , expectListSize 1
+                , expectListField 0
                         (#name . #getApiT . #getWalletName) (== "New great name")
-                , expectListItemFieldSatisfy 0
+                , expectListField 0
                         (#addressPoolGap . #getApiT . #getAddressPoolGap) (== 20)
-                , expectListItemFieldSatisfy 0
+                , expectListField 0
                         (#balance . #getApiT . #available) (== Quantity 0)
-                , expectListItemFieldSatisfy 0
+                , expectListField 0
                         (#balance . #getApiT . #total) (== Quantity 0)
-                , expectListItemFieldSatisfy 0 (#state . #getApiT) (== Ready)
-                , expectListItemFieldSatisfy 0
+                , expectListField 0 (#state . #getApiT) (== Ready)
+                , expectListField 0
                         (#delegation . #getApiT) (== NotDelegating)
-                , expectListItemFieldSatisfy 0 walletId (== walId)
-                , expectListItemFieldSatisfy 0 #passphrase (== passLastUpdateValue)
+                , expectListField 0 walletId (== walId)
+                , expectListField 0 #passphrase (== passLastUpdateValue)
                 ]
 
     describe "WALLETS_UPDATE_02 - Various names" $ do
@@ -1163,13 +1163,13 @@ spec = do
         let matrix =
                 [ ( show walletNameMinLength ++ " char long", "1"
                   , [ expectResponseCode @IO HTTP.status200
-                    , expectFieldSatisfy
+                    , expectField
                             (#name . #getApiT . #getWalletName) (== "1")
                     ]
                   )
                 , ( show walletNameMaxLength ++ " char long", walNameMax
                   , [ expectResponseCode @IO HTTP.status200
-                    , expectFieldSatisfy
+                    , expectField
                             (#name . #getApiT . #getWalletName) (== walNameMax)
                     ]
                   )
@@ -1188,35 +1188,35 @@ spec = do
                   )
                 , ( "Russian name", russianWalletName
                   , [ expectResponseCode @IO HTTP.status200
-                    , expectFieldSatisfy
+                    , expectField
                             (#name . #getApiT . #getWalletName)
                             (== russianWalletName)
                     ]
                   )
                 , ( "Polish name", polishWalletName
                   , [ expectResponseCode @IO HTTP.status200
-                    , expectFieldSatisfy
+                    , expectField
                             (#name . #getApiT . #getWalletName)
                             (== polishWalletName)
                     ]
                   )
                 , ( "Kanji name", kanjiWalletName
                   , [ expectResponseCode @IO HTTP.status200
-                    , expectFieldSatisfy
+                    , expectField
                             (#name . #getApiT . #getWalletName)
                             (== kanjiWalletName)
                     ]
                   )
                 , ( "Arabic name", arabicWalletName
                   , [ expectResponseCode @IO HTTP.status200
-                    , expectFieldSatisfy
+                    , expectField
                             (#name . #getApiT . #getWalletName)
                             (== arabicWalletName)
                     ]
                   )
                 , ( "Wildcards name", wildcardsWalletName
                   , [ expectResponseCode @IO HTTP.status200
-                    , expectFieldSatisfy
+                    , expectField
                             (#name . #getApiT . #getWalletName)
                             (== wildcardsWalletName)
                     ]
@@ -1260,7 +1260,7 @@ spec = do
         ru <- request @ApiWallet ctx ("PUT", "v2/wallets" </> walId) Default payload
         verify ru
             [ expectResponseCode @IO HTTP.status200
-            , expectFieldSatisfy
+            , expectField
                 (#name . #getApiT . #getWalletName) (== "Secure Wallet")
             ]
 
@@ -1349,7 +1349,7 @@ spec = do
         let getEndpoint = "v2/wallets" </> (getFromResponse walletId r)
         let originalPassUpdateDateTime = getFromResponse #passphrase r
         rg <- request @ApiWallet ctx ("GET", getEndpoint) Default Empty
-        expectFieldSatisfy #passphrase (/= originalPassUpdateDateTime) rg
+        expectField #passphrase (/= originalPassUpdateDateTime) rg
 
     describe "WALLETS_UPDATE_PASS_02 - New passphrase values" $ do
         let minLength = passphraseMinLength (Proxy @"encryption")
@@ -1647,9 +1647,9 @@ spec = do
             let payment = AddressAmount targetAddress amount
             selectCoins ctx source (payment :| []) >>= flip verify
                 [ expectResponseCode HTTP.status200
-                , expectFieldSatisfy #inputs (not . null)
-                , expectFieldSatisfy #outputs ((> 1) . length)
-                , expectFieldSatisfy #outputs (payment `elem`)
+                , expectField #inputs (not . null)
+                , expectField #outputs ((> 1) . length)
+                , expectField #outputs (payment `elem`)
                 ]
 
     it "WALLETS_COIN_SELECTION_02 - \
@@ -1666,11 +1666,11 @@ spec = do
             selectCoins ctx source payments >>= flip verify
                 [ expectResponseCode
                     HTTP.status200
-                , expectFieldSatisfy
+                , expectField
                     #inputs (not . null)
-                , expectFieldSatisfy
+                , expectField
                     #outputs ((> paymentCount) . length)
-                , expectFieldSatisfy
+                , expectField
                     #outputs (flip all payments . flip elem)
                 ]
 
@@ -1800,10 +1800,10 @@ spec = do
                 rGet <- request @ApiWallet ctx
                     (Link.getWallet @'Shelley wDest) Default Empty
                 verify rGet
-                    [ expectFieldSatisfy
+                    [ expectField
                             (#balance . #getApiT . #total)
                             (== Quantity (fromIntegral $ sum coinsSent))
-                    , expectFieldSatisfy
+                    , expectField
                             (#balance . #getApiT . #available)
                             (== Quantity (fromIntegral $ sum coinsSent))
                     ]
@@ -1965,7 +1965,7 @@ scenarioWalletResync01_happyPath fixture = it
     -- 1. Wait for wallet to be synced
     eventually $ do
         v <- request @wallet ctx (Link.getWallet @style w) Default Empty
-        verify v [ expectFieldSatisfy @IO #state (== (ApiT Ready)) ]
+        verify v [ expectField @IO #state (== (ApiT Ready)) ]
 
     -- 2. Force a resync
     let payload = Json [json|{ "epoch_number": 0, "slot_number": 0 }|]
@@ -1975,7 +1975,7 @@ scenarioWalletResync01_happyPath fixture = it
     -- 3. The wallet eventually re-sync
     eventually $ do
         v <- request @wallet ctx (Link.getWallet @style w) Default Empty
-        verify v [ expectFieldSatisfy @IO #state (== (ApiT Ready)) ]
+        verify v [ expectField @IO #state (== (ApiT Ready)) ]
 
 -- force resync eventually get us back to the same point
 scenarioWalletResync02_notGenesis

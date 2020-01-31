@@ -106,7 +106,7 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , eventually_
-    , expectFieldSatisfy
+    , expectField
     , expectResponseCode
     , expectSuccess
     , expectWalletUTxO
@@ -222,7 +222,7 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
             rWal1 <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default Empty
             verify rWal1
                 [ expectSuccess
-                , expectFieldSatisfy
+                , expectField
                     (#balance . #getApiT . #available . #getQuantity)
                     (== amtExp)
                 ]
@@ -259,7 +259,7 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rWal1
                 [ expectSuccess
-                , expectFieldSatisfy
+                , expectField
                         (#balance . #getApiT . #available . #getQuantity)
                         (== fromIntegral amtExp)
                 ]

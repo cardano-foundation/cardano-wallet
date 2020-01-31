@@ -40,7 +40,7 @@ import Test.Integration.Framework.DSL
     , deleteTransactionViaCLI
     , emptyWallet
     , eventually_
-    , expectCliFieldSatisfy
+    , expectCliField
     , expectValidJSON
     , fixtureRawTx
     , getWalletViaCLI
@@ -86,9 +86,9 @@ spec = do
                 (T.unpack (w ^. walletId))
             destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
             verify destJson
-                [ expectCliFieldSatisfy
+                [ expectCliField
                         (#balance . #getApiT . #available) (== Quantity amt)
-                , expectCliFieldSatisfy
+                , expectCliField
                         (#balance . #getApiT . #total) (== Quantity amt)
                 ]
 
@@ -114,10 +114,10 @@ spec = do
                 (T.unpack (wDest ^. walletId))
             destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
             verify destJson
-                [ expectCliFieldSatisfy
+                [ expectCliField
                         (#balance . #getApiT . #available)
                         (== Quantity (initTotal + toSend))
-                , expectCliFieldSatisfy
+                , expectCliField
                         (#balance . #getApiT . #total)
                         (== Quantity (initTotal + toSend))
                 ]
@@ -126,10 +126,10 @@ spec = do
         Stdout gOutDest <- getWalletViaCLI @t ctx (T.unpack (wDest ^. walletId))
         destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
         verify destJson
-            [ expectCliFieldSatisfy
+            [ expectCliField
                     (#balance . #getApiT . #available . #getQuantity)
                     (== initAvailable + toSend)
-            , expectCliFieldSatisfy
+            , expectCliField
                     (#balance . #getApiT . #total . #getQuantity)
                     (== initTotal + toSend)
             ]
@@ -177,9 +177,9 @@ spec = do
                 (T.unpack (w ^. walletId))
             destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
             verify destJson
-                [ expectCliFieldSatisfy
+                [ expectCliField
                         (#balance . #getApiT . #available) (== Quantity amt)
-                , expectCliFieldSatisfy
+                , expectCliField
                         (#balance . #getApiT . #total) (== Quantity amt)
                 ]
 

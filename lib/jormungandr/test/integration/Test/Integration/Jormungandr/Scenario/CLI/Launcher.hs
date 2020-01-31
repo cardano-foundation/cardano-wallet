@@ -57,7 +57,7 @@ import Test.Integration.Framework.DSL
     , cardanoWalletCLI
     , createWalletViaCLI
     , eventually_
-    , expectCliFieldSatisfy
+    , expectCliField
     , expectPathEventuallyExist
     , expectValidJSON
     , generateMnemonicsViaCLI
@@ -216,7 +216,7 @@ spec = do
                 eventually_ $ do
                     Stdout og <- getWalletViaCLI @t ctx $ T.unpack (wallet ^. walletId)
                     jg <- expectValidJSON (Proxy @ApiWallet) og
-                    expectCliFieldSatisfy (#state . #getApiT) (== Ready) jg
+                    expectCliField (#state . #getApiT) (== Ready) jg
               `finally` do
                 terminateProcess ph
                 TIO.hGetContents o >>= TIO.putStrLn

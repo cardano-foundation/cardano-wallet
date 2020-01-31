@@ -33,7 +33,7 @@ import Test.Integration.Framework.DSL
     , emptyRandomWallet
     , emptyWallet
     , expectErrorMessage
-    , expectListSizeEqual
+    , expectListSize
     , expectResponseCode
     , fixtureIcarusWallet
     , fixtureRandomWallet
@@ -71,7 +71,7 @@ spec = do
             r <- request @([ApiTransaction n]) ctx link Default Empty
             verify r
                 [ expectResponseCode @IO HTTP.status200
-                , expectListSizeEqual 0
+                , expectListSize 0
                 ]
 
     it "BYRON_TX_LIST_01 - Can list transactions on Byron Wallet"
@@ -81,7 +81,7 @@ spec = do
             r <- request @([ApiTransaction n]) ctx link Default Empty
             verify r
                 [ expectResponseCode @IO HTTP.status200
-                , expectListSizeEqual 10
+                , expectListSize 10
                 ]
 
     describe "BYRON_TX_LIST_01 - Faulty start, end, order values" $ do

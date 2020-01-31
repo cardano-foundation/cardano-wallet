@@ -44,8 +44,8 @@ import Test.Integration.Framework.DSL
     , emptyWallet
     , emptyWalletWith
     , eventually_
-    , expectCliFieldSatisfy
-    , expectCliListItemFieldSatisfy
+    , expectCliField
+    , expectCliListField
     , expectValidJSON
     , fixtureWallet
     , getWalletViaCLI
@@ -72,7 +72,7 @@ spec = do
         json <- expectValidJSON (Proxy @[ApiAddress n]) out
         length json `shouldBe` g
         forM_ [0..(g-1)] $ \addrNum -> do
-            expectCliListItemFieldSatisfy
+            expectCliListField
                 addrNum (#state . #getApiT) (== Unused) json
 
     it "ADDRESS_LIST_01 - Can list addresses - non-default poolGap" $ \ctx -> do
@@ -85,7 +85,7 @@ spec = do
         json <- expectValidJSON (Proxy @[ApiAddress n]) out
         length json `shouldBe` addrPoolGap
         forM_ [0..59] $ \addrNum -> do
-            expectCliListItemFieldSatisfy
+            expectCliListField
                 addrNum (#state . #getApiT) (== Unused) json
 
     it "ADDRESS_LIST_02 - Can filter used and unused addresses" $ \ctx -> do
@@ -98,7 +98,7 @@ spec = do
         j1 <- expectValidJSON (Proxy @[ApiAddress n]) o1
         length j1 `shouldBe` 10
         forM_ [0..9] $ \addrNum -> do
-            expectCliListItemFieldSatisfy
+            expectCliListField
                 addrNum (#state . #getApiT) (== Used) j1
         (Exit c2, Stdout o2, Stderr e2)
             <- listAddressesViaCLI @t ctx ["--state", "unused", walId]
@@ -107,7 +107,7 @@ spec = do
         j2 <- expectValidJSON (Proxy @[ApiAddress n]) o2
         length j2 `shouldBe` g
         forM_ [0..(g-10)] $ \addrNum -> do
-            expectCliListItemFieldSatisfy
+            expectCliListField
                 addrNum (#state . #getApiT) (== Unused) j2
 
     it "ADDRESS_LIST_02 - Shows nothing when there are no used addresses"
@@ -127,7 +127,7 @@ spec = do
         j2 <- expectValidJSON (Proxy @[ApiAddress n]) o2
         length j2 `shouldBe` 20
         forM_ [0..19] $ \addrNum -> do
-            expectCliListItemFieldSatisfy
+            expectCliListField
                 addrNum (#state . #getApiT) (== Unused) j2
 
     describe "ADDRESS_LIST_02 - Invalid filters show error message" $ do
@@ -165,7 +165,7 @@ spec = do
         j <- expectValidJSON (Proxy @[ApiAddress n]) o
         length j `shouldBe` initPoolGap
         forM_ [0..initPoolGap - 1] $ \addrNum -> do
-            expectCliListItemFieldSatisfy
+            expectCliListField
                 addrNum (#state . #getApiT) (== Unused) j
 
         -- run 10 transactions to make all addresses `Used`
@@ -179,7 +179,7 @@ spec = do
         eventually_ $ do
             Stdout o2 <- getWalletViaCLI @t ctx $ T.unpack (wDest ^. walletId)
             w <- expectValidJSON (Proxy @ApiWallet) o2
-            expectCliFieldSatisfy
+            expectCliField
                 (#balance . #getApiT . #available) (== Quantity 10) w
 
         -- verify new address_pool_gap has been created
@@ -189,10 +189,10 @@ spec = do
         j1 <- expectValidJSON (Proxy @[ApiAddress n]) o1
         length j1 `shouldBe` 2*initPoolGap
         forM_ [0..initPoolGap - 1] $ \addrNum -> do
-            expectCliListItemFieldSatisfy
+            expectCliListField
                 addrNum (#state . #getApiT) (== Used) j1
         forM_ [initPoolGap..2*initPoolGap - 1] $ \addrNum -> do
-            expectCliListItemFieldSatisfy
+            expectCliListField
                 addrNum (#state . #getApiT) (== Unused) j1
 
     describe "ADDRESS_LIST_04 - False wallet ids" $ do

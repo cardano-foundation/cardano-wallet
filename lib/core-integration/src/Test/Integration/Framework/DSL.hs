@@ -26,13 +26,13 @@ module Test.Integration.Framework.DSL
     , expectSuccess
     , expectError
     , expectErrorMessage
-    , expectFieldSatisfy
-    , expectListItemFieldSatisfy
-    , expectListSizeEqual
+    , expectField
+    , expectListField
+    , expectListSize
     , expectResponseCode
     , expectValidJSON
-    , expectCliFieldSatisfy
-    , expectCliListItemFieldSatisfy
+    , expectCliField
+    , expectCliListField
     , expectWalletUTxO
     , verify
     , Headers(..)
@@ -298,13 +298,13 @@ expectResponseCode want (got, a) =
             , "from the following response: " <> show a
             ]
 
-expectFieldSatisfy
+expectField
     :: (HasCallStack, MonadIO m, MonadFail m, Show a)
     => Lens' s a
     -> (a -> Bool)
     -> (HTTP.Status, Either RequestException s)
     -> m ()
-expectFieldSatisfy getter predicate (_, res) = case res of
+expectField getter predicate (_, res) = case res of
     Left e  -> wantedSuccessButError e
     Right s ->
         let a = view getter s in
@@ -312,29 +312,29 @@ expectFieldSatisfy getter predicate (_, res) = case res of
             then return ()
             else fail $ "predicate failed for: " <> show a
 
-expectListItemFieldSatisfy
+expectListField
     :: (HasCallStack, MonadIO m, MonadFail m, Show a)
     => Int
     -> Lens' s a
     -> (a -> Bool)
     -> (HTTP.Status, Either RequestException [s])
     -> m ()
-expectListItemFieldSatisfy i getter predicate (c, res) = case res of
+expectListField i getter predicate (c, res) = case res of
     Left e -> wantedSuccessButError e
     Right xs
         | length xs > i ->
-            expectFieldSatisfy getter predicate (c, Right (xs !! i))
+            expectField getter predicate (c, Right (xs !! i))
         | otherwise -> fail $
-            "expectListItemFieldSatisfy: trying to access the #" <> show i <>
+            "expectListField: trying to access the #" <> show i <>
             " element from a list but there's none! "
 
 -- | Expects data list returned by the API to be of certain length
-expectListSizeEqual
+expectListSize
     :: (HasCallStack, MonadIO m, MonadFail m, Foldable xs)
     => Int
     -> (HTTP.Status, Either RequestException (xs a))
     -> m ()
-expectListSizeEqual l (_, res) = case res of
+expectListSize l (_, res) = case res of
     Left e   -> wantedSuccessButError e
     Right xs -> length (toList xs) `shouldBe` l
 
@@ -376,26 +376,26 @@ expectValidJSON _ str =
         Left e -> fail $ "expected valid JSON but failed decoding: " <> show e
         Right a -> return a
 
-expectCliListItemFieldSatisfy
+expectCliListField
     :: (HasCallStack, MonadIO m, MonadFail m, Show a)
     => Int
     -> Lens' s a
     -> (a -> Bool)
     -> [s]
     -> m ()
-expectCliListItemFieldSatisfy i getter predicate xs
-        | length xs > i = expectCliFieldSatisfy getter predicate (xs !! i)
+expectCliListField i getter predicate xs
+        | length xs > i = expectCliField getter predicate (xs !! i)
         | otherwise = fail $
-            "expectCliListItemFieldSatisfy: trying to access the #" <> show i <>
+            "expectCliListField: trying to access the #" <> show i <>
             " element from a list but there's none! "
 
-expectCliFieldSatisfy
+expectCliField
     :: (HasCallStack, MonadIO m, MonadFail m, Show a)
     => Lens' s a
     -> (a -> Bool)
     -> s
     -> m ()
-expectCliFieldSatisfy getter predicate out = do
+expectCliField getter predicate out = do
     let a = (view getter out)
     if predicate a
         then return ()
@@ -687,7 +687,7 @@ fixtureWalletWith ctx coins0 = do
         eventually_ $ do
             rb <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley dest) Default Empty
-            expectFieldSatisfy
+            expectField
                 (#balance . #getApiT . #available)
                 (== Quantity (sum (balance:coins))) rb
             ra <- request @ApiWallet ctx
