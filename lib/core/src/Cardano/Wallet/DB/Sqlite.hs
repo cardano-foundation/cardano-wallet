@@ -511,6 +511,10 @@ newDBLayer trace defaultFieldValues fp = do
             fmap (metadataFromEntity walDelegation . entityVal)
                 <$> selectFirst [WalId ==. wid] []
 
+        , readWalletDelegations = \(PrimaryKey wid) -> do
+            fmap (delegationDiscoveredFromEntity . entityVal) . take 2
+                <$> selectList [CertWalletId ==. wid] [Desc CertSlot]
+
         , putDelegationCertificate = \(PrimaryKey wid) cert sl -> ExceptT $ do
             selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
@@ -577,6 +581,12 @@ newDBLayer trace defaultFieldValues fp = do
         , atomically = runQuery
 
         }
+
+delegationDiscoveredFromEntity
+    :: DelegationCertificate
+    -> W.DelegationDiscovered
+delegationDiscoveredFromEntity (DelegationCertificate _ slotId poolIdM) =
+    W.DelegationDiscovered slotId poolIdM
 
 delegationFromEntity
     :: Maybe DelegationCertificate

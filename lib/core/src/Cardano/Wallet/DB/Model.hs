@@ -51,6 +51,7 @@ module Cardano.Wallet.DB.Model
     , mRollbackTo
     , mPutWalletMeta
     , mReadWalletMeta
+    , mReadWalletDelegations
     , mPutDelegationCertificate
     , mPutTxHistory
     , mReadTxHistory
@@ -66,6 +67,7 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (slotId)
     , DelegationCertificate (..)
+    , DelegationDiscovered (..)
     , Direction (..)
     , Hash
     , PoolId
@@ -95,6 +97,7 @@ import Data.Ord
 import GHC.Generics
     ( Generic )
 
+import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 
 {-------------------------------------------------------------------------------
@@ -296,6 +299,21 @@ mReadWalletMeta wid db@(Database wallets _) =
                 metadata { delegation = NotDelegating }
             Just (_, Just pool) ->
                 metadata { delegation = Delegating pool }
+
+mReadWalletDelegations
+    :: Ord wid
+    => wid
+    -> ModelOp wid s xprv [DelegationDiscovered]
+mReadWalletDelegations wid db@(Database wallets _) = (Right res, db)
+  where
+    res = maybe mempty mkDelegations $ Map.lookup wid wallets
+    mkDelegations :: WalletDatabase s xprv -> [DelegationDiscovered]
+    mkDelegations WalletDatabase{certificates} =
+        map toDelegationDiscovered $
+        L.sortOn (Down . fst) $
+        Map.toList certificates
+    toDelegationDiscovered (slotId, poolIdM) =
+        DelegationDiscovered slotId poolIdM
 
 mPutDelegationCertificate
     :: Ord wid

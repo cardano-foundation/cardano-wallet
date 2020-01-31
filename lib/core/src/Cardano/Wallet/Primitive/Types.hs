@@ -60,6 +60,7 @@ module Cardano.Wallet.Primitive.Types
     , dlgCertAccount
     , dlgCertPoolId
     , PoolRegistrationCertificate (..)
+    , DelegationDiscovered (..)
 
     -- * Coin
     , Coin (..)
@@ -1523,6 +1524,13 @@ instance Buildable PoolRegistrationCertificate where
         <> build p
         <> " owned by "
         <> build o
+
+data DelegationDiscovered = DelegationDiscovered
+    { slotId :: !SlotId
+    , poolId :: !(Maybe PoolId)
+    } deriving (Generic, Show, Eq, Ord)
+
+instance NFData DelegationDiscovered
 
 {-------------------------------------------------------------------------------
                                Polymorphic Types
