@@ -106,7 +106,8 @@ newDBLayer = do
 
         , readWalletMeta = readDB db . mReadWalletMeta
 
-        , readWalletDelegations = readDB db . mReadWalletDelegations
+        , readWalletDelegations = \pk -> ExceptT $ do
+                alterDB errNoSuchWallet db (mReadWalletDelegations pk)
 
         , putDelegationCertificate = \pk cert sl -> ExceptT $ do
             cert `deepseq` sl `deepseq`

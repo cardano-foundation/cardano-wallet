@@ -164,7 +164,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
 
     , readWalletDelegations
         :: PrimaryKey WalletId
-        -> stm [DelegationDiscovered]
+        -> ExceptT ErrNoSuchWallet stm [DelegationDiscovered]
         -- ^ Fetch last two wallet delegations dicovered
         --
         -- If the wallet doesn't exist, this operation returns an error
