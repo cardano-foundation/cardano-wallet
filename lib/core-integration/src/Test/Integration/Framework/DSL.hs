@@ -34,6 +34,8 @@ module Test.Integration.Framework.DSL
     , expectCliField
     , expectCliListField
     , expectWalletUTxO
+    , between
+    , greaterThan
     , verify
     , Headers(..)
     , Payload(..)
@@ -46,6 +48,7 @@ module Test.Integration.Framework.DSL
     -- * Helpers
     , (</>)
     , (!!)
+    , (.>=)
     , emptyRandomWallet
     , emptyIcarusWallet
     , emptyByronWalletWith
@@ -217,7 +220,7 @@ import System.Process
     , withCreateProcess
     )
 import Test.Hspec
-    ( HasCallStack, expectationFailure )
+    ( HasCallStack, expectationFailure, Expectation )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain )
 import Test.Integration.Faucet
@@ -301,22 +304,20 @@ expectResponseCode want (got, a) =
 expectField
     :: (HasCallStack, MonadIO m, MonadFail m, Show a)
     => Lens' s a
-    -> (a -> Bool)
+    -> (a -> Expectation)
     -> (HTTP.Status, Either RequestException s)
     -> m ()
 expectField getter predicate (_, res) = case res of
     Left e  -> wantedSuccessButError e
     Right s ->
         let a = view getter s in
-        if predicate a
-            then return ()
-            else fail $ "predicate failed for: " <> show a
+        liftIO $ predicate a
 
 expectListField
     :: (HasCallStack, MonadIO m, MonadFail m, Show a)
     => Int
     -> Lens' s a
-    -> (a -> Bool)
+    -> (a -> Expectation)
     -> (HTTP.Status, Either RequestException [s])
     -> m ()
 expectListField i getter predicate (c, res) = case res of
@@ -380,7 +381,7 @@ expectCliListField
     :: (HasCallStack, MonadIO m, MonadFail m, Show a)
     => Int
     -> Lens' s a
-    -> (a -> Bool)
+    -> (a -> Expectation)
     -> [s]
     -> m ()
 expectCliListField i getter predicate xs
@@ -392,14 +393,12 @@ expectCliListField i getter predicate xs
 expectCliField
     :: (HasCallStack, MonadIO m, MonadFail m, Show a)
     => Lens' s a
-    -> (a -> Bool)
+    -> (a -> Expectation)
     -> s
     -> m ()
 expectCliField getter predicate out = do
     let a = (view getter out)
-    if predicate a
-        then return ()
-        else fail $ "predicate failed for: " <> show a
+    liftIO $ predicate a
 
 -- | A file is eventually created on the given location
 expectPathEventuallyExist :: HasCallStack => FilePath -> IO ()
@@ -445,6 +444,44 @@ waitForNextEpoch ctx = do
         epoch' <- getFromResponse (#nodeTip . #epochNumber) <$>
             request @ApiNetworkInformation ctx Link.getNetworkInfo Default Empty
         unless (getApiT epoch' > getApiT epoch) $ fail "not yet"
+
+between :: (Ord a, Show a) => (a, a) -> a -> Expectation
+between (min', max') x
+    | min' <= x && x <= max'
+        = return ()
+    | otherwise
+        = fail $ mconcat
+            [ show x
+            , " ∉ ["
+            , show min'
+            , ", "
+            , show max'
+            ]
+
+greaterThan :: (Ord a, Show a) => a -> a -> Expectation
+greaterThan bound x
+    | x > bound
+        = return ()
+    | otherwise
+        = fail $ mconcat
+            [ show x
+            , " does not satisfy (> "
+            , show bound
+            , ")"
+            ]
+
+
+(.>=) :: (Ord a, Show a) => a -> a -> Expectation
+a .>= b
+    | a >= b
+        = return ()
+    | otherwise
+        = fail $ mconcat
+            [ show a
+            , " does not satisfy (>= "
+            , show b
+            , ")"
+            ]
 
 -- Retry the given action a couple of time until it doesn't throw, or until it
 -- has been retried enough.
@@ -689,7 +726,7 @@ fixtureWalletWith ctx coins0 = do
                 (Link.getWallet @'Shelley dest) Default Empty
             expectField
                 (#balance . #getApiT . #available)
-                (== Quantity (sum (balance:coins))) rb
+                (`shouldBe` Quantity (sum (balance:coins))) rb
             ra <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley src) Default Empty
 

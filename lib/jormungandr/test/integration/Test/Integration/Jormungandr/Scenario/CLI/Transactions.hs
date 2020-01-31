@@ -87,9 +87,11 @@ spec = do
             destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
             verify destJson
                 [ expectCliField
-                        (#balance . #getApiT . #available) (== Quantity amt)
+                        (#balance . #getApiT . #available)
+                        (`shouldBe` (Quantity amt))
                 , expectCliField
-                        (#balance . #getApiT . #total) (== Quantity amt)
+                        (#balance . #getApiT . #total)
+                        (`shouldBe` (Quantity amt))
                 ]
 
     it "TRANS_EXTERNAL_CREATE_01cli - proper single output transaction and \
@@ -116,10 +118,10 @@ spec = do
             verify destJson
                 [ expectCliField
                         (#balance . #getApiT . #available)
-                        (== Quantity (initTotal + toSend))
+                        (`shouldBe` Quantity (initTotal + toSend))
                 , expectCliField
                         (#balance . #getApiT . #total)
-                        (== Quantity (initTotal + toSend))
+                        (`shouldBe` Quantity (initTotal + toSend))
                 ]
 
         -- verify balance on dest wallet
@@ -128,10 +130,10 @@ spec = do
         verify destJson
             [ expectCliField
                     (#balance . #getApiT . #available . #getQuantity)
-                    (== initAvailable + toSend)
+                    (`shouldBe` initAvailable + toSend)
             , expectCliField
                     (#balance . #getApiT . #total . #getQuantity)
-                    (== initTotal + toSend)
+                    (`shouldBe` initTotal + toSend)
             ]
 
     it "TRANS_EXTERNAL_CREATE_02 - proper single output transaction and \
@@ -178,9 +180,9 @@ spec = do
             destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
             verify destJson
                 [ expectCliField
-                        (#balance . #getApiT . #available) (== Quantity amt)
+                        (#balance . #getApiT . #available) (`shouldBe` Quantity amt)
                 , expectCliField
-                        (#balance . #getApiT . #total) (== Quantity amt)
+                        (#balance . #getApiT . #total) (`shouldBe` Quantity amt)
                 ]
 
         -- Try to forget external tx

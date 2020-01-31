@@ -216,7 +216,7 @@ spec = do
                 eventually_ $ do
                     Stdout og <- getWalletViaCLI @t ctx $ T.unpack (wallet ^. walletId)
                     jg <- expectValidJSON (Proxy @ApiWallet) og
-                    expectCliField (#state . #getApiT) (== Ready) jg
+                    expectCliField (#state . #getApiT) (`shouldBe` Ready) jg
               `finally` do
                 terminateProcess ph
                 TIO.hGetContents o >>= TIO.putStrLn

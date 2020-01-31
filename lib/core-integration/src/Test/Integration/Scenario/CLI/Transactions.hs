@@ -64,6 +64,7 @@ import Test.Integration.Framework.DSL
     , deleteWalletViaCLI
     , emptyRandomWallet
     , emptyWallet
+    , between
     , eventually_
     , expectCliField
     , expectCliListField
@@ -117,10 +118,10 @@ spec = do
         let amt = 14
         txJson <- postTxViaCLI ctx wSrc wDest amt
         verify txJson
-            [ expectCliField (#amount . #getQuantity) (>= feeMin + amt)
-            , expectCliField (#amount . #getQuantity) (<= feeMax + amt)
-            , expectCliField (#direction . #getApiT) (== Outgoing)
-            , expectCliField (#status . #getApiT) (== Pending)
+            [ expectCliField (#amount . #getQuantity)
+                (between (feeMin + amt, feeMax + amt))
+            , expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectCliField (#status . #getApiT) (`shouldBe` Pending)
             ]
 
         -- verify balance on src wallet
@@ -129,10 +130,9 @@ spec = do
         verify gJson
             [ expectCliField
                     (#balance . #getApiT . #total)
-                    (>= Quantity (faucetAmt - feeMax - amt))
-            , expectCliField
-                    (#balance . #getApiT . #total)
-                    (<= Quantity (faucetAmt - feeMin - amt))
+                    $ between
+                    ( Quantity $ faucetAmt - feeMin - amt
+                    , Quantity $ faucetAmt - feeMax - amt)
             ]
 
         -- verify balance on dest wallet
@@ -142,9 +142,9 @@ spec = do
             destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
             verify destJson
                 [ expectCliField
-                        (#balance . #getApiT . #available) (== Quantity amt)
+                        (#balance . #getApiT . #available) (`shouldBe` Quantity amt)
                 , expectCliField
-                        (#balance . #getApiT . #total) (== Quantity amt)
+                        (#balance . #getApiT . #total) (`shouldBe` Quantity amt)
                 ]
 
     it "TRANS_CREATE_02 - Multiple Output Tx to single wallet via CLI" $ \ctx -> do
@@ -170,10 +170,11 @@ spec = do
         err `shouldBe` "Please enter your passphrase: **************\nOk.\n"
         txJson <- expectValidJSON (Proxy @(ApiTransaction n)) out
         verify txJson
-            [ expectCliField (#amount . #getQuantity) (>= feeMin + (2*amt))
-            , expectCliField (#amount . #getQuantity) (<= feeMax + (2*amt))
-            , expectCliField (#direction . #getApiT) (== Outgoing)
-            , expectCliField (#status . #getApiT) (== Pending)
+            [ expectCliField
+                (#amount . #getQuantity)
+                (between (feeMin + (2*amt), feeMax + (2*amt)))
+            , expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectCliField (#status . #getApiT) (`shouldBe` Pending)
             ]
         c `shouldBe` ExitSuccess
 
@@ -183,10 +184,10 @@ spec = do
         verify gJson
             [ expectCliField
                     (#balance . #getApiT . #total)
-                    (>= Quantity (faucetAmt - feeMax - (2*amt)))
-            , expectCliField
-                    (#balance . #getApiT . #total)
-                    (<= Quantity (faucetAmt - feeMin - (2*amt)))
+                    (between
+                        ( Quantity $ faucetAmt - feeMax - (2*amt)
+                        , Quantity $ faucetAmt - feeMin - (2*amt)
+                        ))
             ]
 
         -- verify balance on dest wallet
@@ -196,9 +197,9 @@ spec = do
             destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
             verify destJson
                 [ expectCliField
-                        (#balance . #getApiT . #available) (== Quantity (2*amt))
+                        (#balance . #getApiT . #available) (`shouldBe` Quantity (2*amt))
                 , expectCliField
-                        (#balance . #getApiT . #total) (== Quantity (2*amt))
+                        (#balance . #getApiT . #total) (`shouldBe` Quantity (2*amt))
                 ]
 
     it "TRANS_CREATE_02 - Multiple Output Tx to different wallets via CLI" $ \ctx -> do
@@ -226,10 +227,11 @@ spec = do
         err `shouldBe` "Please enter your passphrase: **************\nOk.\n"
         txJson <- expectValidJSON (Proxy @(ApiTransaction n)) out
         verify txJson
-            [ expectCliField (#amount . #getQuantity) (>= feeMin + (2*amt))
-            , expectCliField (#amount . #getQuantity) (<= feeMax + (2*amt))
-            , expectCliField (#direction . #getApiT) (== Outgoing)
-            , expectCliField (#status . #getApiT) (== Pending)
+            [ expectCliField
+                (#amount . #getQuantity)
+                (between (feeMin + (2*amt), feeMax + (2*amt)))
+            , expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectCliField (#status . #getApiT) (`shouldBe` Pending)
             ]
         c `shouldBe` ExitSuccess
 
@@ -237,12 +239,11 @@ spec = do
         Stdout gOutSrc <- getWalletViaCLI @t ctx (T.unpack (wSrc ^. walletId))
         gJson <- expectValidJSON (Proxy @ApiWallet) gOutSrc
         verify gJson
-            [ expectCliField
-                    (#balance . #getApiT . #total)
-                    (>= Quantity (faucetAmt - feeMax - (2*amt)))
-            , expectCliField
-                    (#balance . #getApiT . #total)
-                    (<= Quantity (faucetAmt - feeMin - (2*amt)))
+            [ expectCliField (#balance . #getApiT . #total)
+                $ between
+                    ( Quantity (faucetAmt - feeMax - (2*amt))
+                    , Quantity (faucetAmt - feeMin - (2*amt))
+                    )
             ]
 
         eventually_ $ forM_ [wDest1, wDest2] $ \wDest -> do
@@ -252,9 +253,9 @@ spec = do
             destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
             verify destJson
                 [ expectCliField
-                        (#balance . #getApiT . #available) (== Quantity amt)
+                        (#balance . #getApiT . #available) (`shouldBe` Quantity amt)
                 , expectCliField
-                        (#balance . #getApiT . #total) (== Quantity amt)
+                        (#balance . #getApiT . #total) (`shouldBe` Quantity amt)
                 ]
 
     it "TRANS_CREATE_02 - Multiple Output Txs don't work on single UTxO" $ \ctx -> do
@@ -291,17 +292,17 @@ spec = do
         err `shouldBe` "Please enter your passphrase: *****************\nOk.\n"
         txJson <- expectValidJSON (Proxy @(ApiTransaction n)) out
         verify txJson
-            [ expectCliField (#amount . #getQuantity) (== feeMin+amt)
-            , expectCliField (#direction . #getApiT) (== Outgoing)
-            , expectCliField (#status . #getApiT) (== Pending)
+            [ expectCliField (#amount . #getQuantity) (`shouldBe` feeMin+amt)
+            , expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectCliField (#status . #getApiT) (`shouldBe` Pending)
             ]
         c `shouldBe` ExitSuccess
 
         Stdout gOutSrc <- getWalletViaCLI @t ctx (T.unpack (wSrc ^. walletId))
         gJson <- expectValidJSON (Proxy @ApiWallet) gOutSrc
         verify gJson
-            [ expectCliField (#balance . #getApiT . #total) (== Quantity 0)
-            , expectCliField (#balance . #getApiT . #available) (== Quantity 0)
+            [ expectCliField (#balance . #getApiT . #total) (`shouldBe` Quantity 0)
+            , expectCliField (#balance . #getApiT . #available) (`shouldBe` Quantity 0)
             ]
 
         eventually_ $ do
@@ -310,9 +311,9 @@ spec = do
             destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
             verify destJson
                 [ expectCliField
-                        (#balance . #getApiT . #available) (== Quantity amt)
+                        (#balance . #getApiT . #available) (`shouldBe` Quantity amt)
                 , expectCliField
-                        (#balance . #getApiT . #total) (== Quantity amt)
+                        (#balance . #getApiT . #total) (`shouldBe` Quantity amt)
                 ]
 
     it "TRANS_CREATE_04 - Error shown when ErrInputsDepleted encountered" $ \ctx -> do
@@ -490,8 +491,8 @@ spec = do
         err `shouldBe` "Ok.\n"
         txJson <- expectValidJSON (Proxy @ApiFee) out
         verify txJson
-            [ expectCliField (#amount . #getQuantity) (>= feeMin - amt)
-            , expectCliField (#amount . #getQuantity) (<= feeMax + amt)
+            [ expectCliField (#amount . #getQuantity) $
+                between (feeMin - amt, feeMax + amt)
             ]
         c `shouldBe` ExitSuccess
 
@@ -516,8 +517,8 @@ spec = do
         err `shouldBe` "Ok.\n"
         txJson <- expectValidJSON (Proxy @ApiFee) out
         verify txJson
-            [ expectCliField (#amount . #getQuantity) (>= feeMin)
-            , expectCliField (#amount . #getQuantity) (<= feeMax)
+            [ expectCliField (#amount . #getQuantity) $
+                between (feeMin, feeMax)
             ]
         c `shouldBe` ExitSuccess
 
@@ -545,8 +546,8 @@ spec = do
         err `shouldBe` "Ok.\n"
         txJson <- expectValidJSON (Proxy @ApiFee) out
         verify txJson
-            [ expectCliField (#amount . #getQuantity) (>= feeMin)
-            , expectCliField (#amount . #getQuantity) (<= feeMax)
+            [ expectCliField (#amount . #getQuantity) $
+                between (feeMin, feeMax)
             ]
         c `shouldBe` ExitSuccess
 
@@ -694,9 +695,9 @@ spec = do
             destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
             verify destJson
                 [ expectCliField
-                        (#balance . #getApiT . #available) (== Quantity amt)
+                        (#balance . #getApiT . #available) (`shouldBe` Quantity amt)
                 , expectCliField
-                        (#balance . #getApiT . #total) (== Quantity amt)
+                        (#balance . #getApiT . #total) (`shouldBe` Quantity amt)
                 ]
 
         -- Verify Tx list contains Incoming and Outgoing
@@ -706,8 +707,8 @@ spec = do
         code `shouldBe` ExitSuccess
         outJson <- expectValidJSON (Proxy @([ApiTransaction n])) out
         verify outJson
-            [ expectCliListField 0 (#direction . #getApiT) (== Outgoing)
-            , expectCliListField 1 (#direction . #getApiT) (== Incoming)
+            [ expectCliListField 0 (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectCliListField 1 (#direction . #getApiT) (`shouldBe` Incoming)
             ]
 
     describe "TRANS_LIST_02 - Start time shouldn't be later than end time" $
@@ -750,18 +751,18 @@ spec = do
                 ]
         let orderings =
                 [ ( mempty
-                  , [ expectCliListField 0 #amount (== a2)
-                    , expectCliListField 1 #amount (== a1)
+                  , [ expectCliListField 0 #amount (`shouldBe` a2)
+                    , expectCliListField 1 #amount (`shouldBe` a1)
                     ]
                   )
                 , ( [ "--order", "ascending" ]
-                  , [ expectCliListField 0 #amount (== a1)
-                    , expectCliListField 1 #amount (== a2)
+                  , [ expectCliListField 0 #amount (`shouldBe` a1)
+                    , expectCliListField 1 #amount (`shouldBe` a2)
                     ]
                   )
                 , ( [ "--order", "descending" ]
-                  , [ expectCliListField 0 #amount (== a2)
-                    , expectCliListField 1 #amount (== a1)
+                  , [ expectCliListField 0 #amount (`shouldBe` a2)
+                    , expectCliListField 1 #amount (`shouldBe` a1)
                     ]
                   )
                 ]
@@ -911,8 +912,8 @@ spec = do
         -- post transaction
         txJson <- postTxViaCLI ctx wSrc wDest 1
         verify txJson
-            [ expectCliField (#direction . #getApiT) (== Outgoing)
-            , expectCliField (#status . #getApiT) (== Pending)
+            [ expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectCliField (#status . #getApiT) (`shouldBe` Pending)
             ]
         let txId =  getTxId txJson
 
@@ -921,9 +922,9 @@ spec = do
                 >>= expectValidJSON (Proxy @([ApiTransaction n]))
                 >>= flip verify
                     [ expectCliListField 0
-                        (#direction . #getApiT) (==Outgoing)
+                        (#direction . #getApiT) (`shouldBe` Outgoing)
                     , expectCliListField 0
-                        (#status . #getApiT) (==InLedger)
+                        (#status . #getApiT) (`shouldBe` InLedger)
                     ]
 
      -- Try Forget transaction once it's no longer pending
