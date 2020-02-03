@@ -103,6 +103,7 @@ import Cardano.Wallet.Api.Types
     , ApiByronWalletMigrationInfo (..)
     , ApiCoinSelection (..)
     , ApiCoinSelectionInput (..)
+    , ApiDelegationStatus (..)
     , ApiEpochInfo (..)
     , ApiEpochNumber (..)
     , ApiErrorCode (..)
@@ -121,6 +122,8 @@ import Cardano.Wallet.Api.Types
     , ApiTxInput (..)
     , ApiUtxoStatistics (..)
     , ApiWallet (..)
+    , ApiWalletDelegation (..)
+    , ApiWalletDelegationNext (..)
     , ApiWalletPassphrase (..)
     , ByronWalletPostData (..)
     , Iso8601Time (..)
@@ -673,6 +676,101 @@ postShelleyWallet ctx body = do
     wid = WalletId $ digest $ publicKey rootXPrv
     wName = getApiT (body ^. #name)
 
+toDelegationMsg
+    :: W.EpochNo
+    -> W.SlotParameters
+    -> [W.DelegationDiscovered]
+    -> ApiWalletDelegation
+toDelegationMsg currentEpochNo sp dlgs = case dlgs of
+    [] ->
+        ApiWalletDelegation
+        (ApiDelegationStatus $ ApiT W.NotDelegating)
+        Nothing
+    [(W.DelegationDiscovered (W.SlotId epochN _) poolIdMaybe)] ->
+        case poolIdMaybe of
+            Nothing ->
+                error "there should not be quiting delegation when \
+                      \no prior joining delegation is present"
+            Just poolId ->
+                if currentEpochNo < epochN + 2 then
+                    ApiWalletDelegation
+                    (ApiDelegationStatus $ ApiT W.NotDelegating)
+                    (Just $
+                        ApiWalletDelegationNext
+                        (ApiDelegationStatus $ ApiT $
+                            W.Delegating (ApiT poolId))
+                        (ApiEpochInfo
+                            (ApiT $ epochN + 2)
+                            (W.epochStartTime sp (epochN + 2)))
+                    )
+                else
+                    ApiWalletDelegation
+                    (ApiDelegationStatus $
+                        ApiT $ W.Delegating (ApiT poolId))
+                    Nothing
+    [ (W.DelegationDiscovered (W.SlotId epochN1 _) poolIdMaybe1)
+        , (W.DelegationDiscovered (W.SlotId epochN2 _) poolIdMaybe2)] ->
+        if epochN2 > epochN1 then
+            error "delegation discovered later cannot have epoch number \
+                  \older than the older discovered delegation"
+        else case (poolIdMaybe1, poolIdMaybe2) of
+            (Nothing, Nothing) ->
+                error "there should not be two quit delegation in row"
+            (Just poolId, Nothing) ->
+                if currentEpochNo < epochN1 + 2 then
+                    ApiWalletDelegation
+                    (ApiDelegationStatus $ ApiT W.NotDelegating)
+                    (Just $
+                        ApiWalletDelegationNext
+                        (ApiDelegationStatus $ ApiT $
+                            W.Delegating (ApiT poolId))
+                        (ApiEpochInfo
+                            (ApiT $ epochN1 + 2)
+                            (W.epochStartTime sp (epochN1 + 2)))
+                    )
+                else
+                    ApiWalletDelegation
+                    (ApiDelegationStatus $ ApiT $
+                        W.Delegating (ApiT poolId))
+                    Nothing
+            (Just poolId1, Just poolId2) ->
+                if currentEpochNo < epochN1 + 2 then
+                    ApiWalletDelegation
+                    (ApiDelegationStatus $ ApiT $
+                        W.Delegating (ApiT poolId2))
+                    (Just $
+                        ApiWalletDelegationNext
+                        (ApiDelegationStatus $ ApiT $
+                            W.Delegating (ApiT poolId1))
+                        (ApiEpochInfo
+                            (ApiT $ epochN1 + 2)
+                            (W.epochStartTime sp (epochN1 + 2)))
+                    )
+                else
+                    ApiWalletDelegation
+                    (ApiDelegationStatus $ ApiT $
+                        W.Delegating (ApiT poolId1))
+                    Nothing
+            (Nothing, Just poolId) ->
+                if currentEpochNo < epochN1 + 2 then
+                    ApiWalletDelegation
+                    (ApiDelegationStatus $ ApiT $
+                        W.Delegating (ApiT poolId))
+                    (Just $
+                        ApiWalletDelegationNext
+                        (ApiDelegationStatus $ ApiT W.NotDelegating)
+                        (ApiEpochInfo
+                            (ApiT $ epochN1 + 2)
+                            (W.epochStartTime sp (epochN1 + 2)))
+                    )
+                else
+                    ApiWalletDelegation
+                    (ApiDelegationStatus $ ApiT W.NotDelegating)
+                    Nothing
+    _ ->
+        error "takeDelegationsDiscovered cannot return more than two \
+              \discovered delegations!"
+
 mkShelleyWallet
     :: forall ctx s t k n.
         ( ctx ~ ApiLayer s t k
@@ -684,12 +782,11 @@ mkShelleyWallet
 mkShelleyWallet ctx wid cp meta pending progress = do
     reward <- liftHandler $ withWorkerCtx @_ @s @k ctx wid liftE $
         \wrk -> W.fetchRewardBalance @_ @s @t @k wrk wid
-    _dlgs <- liftHandler $ withWorkerCtx @_ @s @k ctx wid throwE $
+    dlgs <- liftHandler $ withWorkerCtx @_ @s @k ctx wid throwE $
         \wrk -> W.takeDelegationsDiscovered @_ @s @k wrk wid
     now <- liftIO getCurrentTime
-    _nodeTip <- liftHandler (NW.currentNodeTip nl)
     let ntrkTip = fromMaybe slotMinBound (slotAt sp now)
-    let _currentEpochNo = ntrkTip ^. #epochNumber
+    let currentEpochNo = ntrkTip ^. #epochNumber
 
     pure ApiWallet
         { addressPoolGap = ApiT $ getState cp ^. #externalPool . #gap
@@ -698,7 +795,7 @@ mkShelleyWallet ctx wid cp meta pending progress = do
             , total = Quantity $ totalBalance pending cp
             , reward = Quantity $ fromIntegral $ getQuantity reward
             }
-        , delegation = ApiT $ ApiT <$> meta ^. #delegation
+        , delegation = toDelegationMsg currentEpochNo sp dlgs
         , id = ApiT wid
         , name = ApiT $ meta ^. #name
         , passphrase = ApiT <$> meta ^. #passphraseInfo
@@ -707,7 +804,6 @@ mkShelleyWallet ctx wid cp meta pending progress = do
         }
   where
     liftE = throwE . ErrFetchRewardsNoSuchWallet
-    nl = ctx ^. networkLayer @t
     (_, bp, _) = ctx ^. genesisData
     sp = W.slotParams bp
 

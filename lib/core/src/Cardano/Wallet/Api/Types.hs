@@ -274,7 +274,7 @@ data ApiWallet = ApiWallet
     { id :: !(ApiT WalletId)
     , addressPoolGap :: !(ApiT AddressPoolGap)
     , balance :: !(ApiT WalletBalance)
-    , delegation :: !(ApiT (WalletDelegation (ApiT PoolId)))
+    , delegation :: !ApiWalletDelegation
     , name :: !(ApiT WalletName)
     , passphrase :: !(Maybe (ApiT WalletPassphraseInfo))
     , state :: !(ApiT SyncProgress)
