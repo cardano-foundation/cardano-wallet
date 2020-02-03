@@ -684,6 +684,13 @@ mkShelleyWallet
 mkShelleyWallet ctx wid cp meta pending progress = do
     reward <- liftHandler $ withWorkerCtx @_ @s @k ctx wid liftE $
         \wrk -> W.fetchRewardBalance @_ @s @t @k wrk wid
+    _dlgs <- liftHandler $ withWorkerCtx @_ @s @k ctx wid throwE $
+        \wrk -> W.takeDelegationsDiscovered @_ @s @k wrk wid
+    now <- liftIO getCurrentTime
+    _nodeTip <- liftHandler (NW.currentNodeTip nl)
+    let ntrkTip = fromMaybe slotMinBound (slotAt sp now)
+    let _currentEpochNo = ntrkTip ^. #epochNumber
+
     pure ApiWallet
         { addressPoolGap = ApiT $ getState cp ^. #externalPool . #gap
         , balance = ApiT $ WalletBalance
@@ -700,6 +707,9 @@ mkShelleyWallet ctx wid cp meta pending progress = do
         }
   where
     liftE = throwE . ErrFetchRewardsNoSuchWallet
+    nl = ctx ^. networkLayer @t
+    (_, bp, _) = ctx ^. genesisData
+    sp = W.slotParams bp
 
 --------------------- Legacy
 

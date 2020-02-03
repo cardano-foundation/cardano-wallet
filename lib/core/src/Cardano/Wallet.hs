@@ -107,7 +107,7 @@ module Cardano.Wallet
     , quitStakePool
     , selectCoinsForDelegation
     , signDelegation
-    , determineWalletDelegation
+    , takeDelegationsDiscovered
     , ErrJoinStakePool (..)
     , ErrQuitStakePool (..)
     , ErrSelectForDelegation (..)
@@ -791,8 +791,8 @@ fetchRewardBalance ctx wid = db & \DBLayer{..} -> do
         Left (ErrGetAccountBalanceNetworkUnreachable e) ->
             Left $ ErrFetchRewardsNetworkUnreachable e
 
--- | Determine delegation of a given wallet.
-determineWalletDelegation
+-- | Retrieve last two discovered delegations of a given wallet.
+takeDelegationsDiscovered
     :: forall ctx s k.
         ( HasDBLayer s k ctx
         , WalletKey k
@@ -800,7 +800,7 @@ determineWalletDelegation
     => ctx
     -> WalletId
     -> ExceptT ErrNoSuchWallet IO [DelegationDiscovered]
-determineWalletDelegation ctx wid = db & \DBLayer{..} -> do
+takeDelegationsDiscovered ctx wid = db & \DBLayer{..} -> do
     let pk = PrimaryKey wid
     mapExceptT atomically $ withExceptT id (readWalletDelegations pk)
   where
