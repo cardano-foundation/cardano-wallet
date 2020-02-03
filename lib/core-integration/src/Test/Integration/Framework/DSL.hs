@@ -7,7 +7,6 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -92,6 +91,7 @@ module Test.Integration.Framework.DSL
     , toQueryString
     , withMethod
     , withPathParam
+    , notDelegatingNotJoining
 
     -- * CLI
     , command
@@ -120,12 +120,14 @@ import Cardano.Wallet.Api.Types
     , ApiAddress
     , ApiByronWallet
     , ApiCoinSelection
+    , ApiDelegationStatus (..)
     , ApiFee
     , ApiNetworkInformation
     , ApiT (..)
     , ApiTransaction
     , ApiUtxoStatistics (..)
     , ApiWallet
+    , ApiWalletDelegation (..)
     , ByronWalletStyle (..)
     , Iso8601Time (..)
     , WalletStyle (..)
@@ -145,6 +147,7 @@ import Cardano.Wallet.Primitive.Types
     , TxOut (..)
     , UTxO (..)
     , UTxOStatistics (..)
+    , WalletDelegation (..)
     , WalletId (..)
     , computeUtxoStatistics
     , log10
@@ -1097,7 +1100,7 @@ toQueryString kvs = if T.null suffix then mempty else "?" <> suffix
 
 infixr 5 </>
 (</>) :: ToHttpApiData a => Text -> a -> Text
-base </> next = mconcat [base, "/", toQueryParam next]
+base </> thenext = mconcat [base, "/", toQueryParam thenext]
 
 ---
 --- CLI
@@ -1305,6 +1308,12 @@ deleteTransactionViaCLI ctx wid tid = cardanoWalletCLI @t $ join
     [ ["transaction", "forget"]
     , ["--port", show (ctx ^. typed @(Port "wallet")), wid, tid]
     ]
+
+notDelegatingNotJoining :: ApiWalletDelegation
+notDelegatingNotJoining =
+    ApiWalletDelegation
+    (ApiDelegationStatus $ ApiT NotDelegating)
+    Nothing
 
 proc' :: FilePath -> [String] -> CreateProcess
 proc' cmd args = (proc cmd args)
