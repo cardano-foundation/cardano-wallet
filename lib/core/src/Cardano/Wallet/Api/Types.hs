@@ -716,7 +716,7 @@ instance FromJSON ApiWalletDelegationNext where
     parseJSON = withObject "apiWalletDelegationNext" $ \o -> do
         st <- o .: "status"
         t  <- o .:? "target"
-        chAt <- o .: "changesAt"
+        chAt <- o .: "changes_at"
         case (t, st) of
             (Just poolId, Aeson.String "delegating") ->
                 pure $ ApiWalletDelegationNext
@@ -731,7 +731,7 @@ instance FromJSON ApiWalletDelegationNext where
 instance ToJSON ApiWalletDelegationNext where
     toJSON (ApiWalletDelegationNext (ApiDelegationStatus st) chAt) = do
         let a = fromValue $ toJSON st
-        Object $ a <> fromList ["changesAt" .= chAt]
+        Object $ a <> fromList ["changes_at" .= chAt]
       where
         fromValue (Object o) = o
         fromValue _ = mempty
