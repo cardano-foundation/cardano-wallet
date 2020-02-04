@@ -91,11 +91,6 @@ module Test.Integration.Framework.DSL
     , toQueryString
     , withMethod
     , withPathParam
-    , notDelegatingNotJoining
-    , notDelegatingJoining
-    , delegating
-    , delegatingQuiting
-    , delegatingJoining
 
     -- * CLI
     , command
@@ -124,16 +119,12 @@ import Cardano.Wallet.Api.Types
     , ApiAddress
     , ApiByronWallet
     , ApiCoinSelection
-    , ApiDelegationStatus (..)
-    , ApiEpochInfo (..)
     , ApiFee
     , ApiNetworkInformation
     , ApiT (..)
     , ApiTransaction
     , ApiUtxoStatistics (..)
     , ApiWallet
-    , ApiWalletDelegation (..)
-    , ApiWalletDelegationNext (..)
     , ByronWalletStyle (..)
     , Iso8601Time (..)
     , WalletStyle (..)
@@ -145,17 +136,14 @@ import Cardano.Wallet.Primitive.Mnemonic
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
-    , EpochNo
     , Hash (..)
     , HistogramBar (..)
     , PoolId (..)
-    , SlotParameters
     , SortOrder (..)
     , TxIn (..)
     , TxOut (..)
     , UTxO (..)
     , UTxOStatistics (..)
-    , WalletDelegation (..)
     , WalletId (..)
     , computeUtxoStatistics
     , log10
@@ -256,7 +244,6 @@ import Web.HttpApiData
     ( ToHttpApiData (..) )
 
 import qualified Cardano.Wallet.Api.Link as Link
-import qualified Cardano.Wallet.Primitive.Types as Types
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
@@ -1318,66 +1305,6 @@ deleteTransactionViaCLI ctx wid tid = cardanoWalletCLI @t $ join
     , ["--port", show (ctx ^. typed @(Port "wallet")), wid, tid]
     ]
 
-notDelegatingNotJoining :: ApiWalletDelegation
-notDelegatingNotJoining =
-    ApiWalletDelegation (ApiDelegationStatus $ ApiT NotDelegating) Nothing
-
-notDelegatingJoining
-    :: ApiT PoolId
-    -> EpochNo
-    -> SlotParameters
-    -> ApiWalletDelegation
-notDelegatingJoining poolId epochNo sp =
-    ApiWalletDelegation
-    (ApiDelegationStatus $ ApiT NotDelegating)
-    (Just $
-        ApiWalletDelegationNext
-        ( ApiDelegationStatus $ ApiT $ Delegating poolId)
-        ( ApiEpochInfo
-            (ApiT $ epochNo + 2) (Types.epochStartTime sp (epochNo + 2))
-        )
-    )
-
-delegating
-    :: ApiT PoolId
-    -> ApiWalletDelegation
-delegating poolId =
-    ApiWalletDelegation
-    (ApiDelegationStatus $ ApiT $ Delegating poolId)
-    Nothing
-
-delegatingQuiting
-    :: ApiT PoolId
-    -> EpochNo
-    -> SlotParameters
-    -> ApiWalletDelegation
-delegatingQuiting poolId epochNo sp=
-    ApiWalletDelegation
-    (ApiDelegationStatus $ ApiT $ Delegating poolId)
-    (Just $
-        ApiWalletDelegationNext
-        ( ApiDelegationStatus $ ApiT NotDelegating)
-        ( ApiEpochInfo
-            (ApiT $ epochNo + 2) (Types.epochStartTime sp (epochNo + 2))
-        )
-    )
-
-delegatingJoining
-    :: ApiT PoolId
-    -> ApiT PoolId
-    -> EpochNo
-    -> SlotParameters
-    -> ApiWalletDelegation
-delegatingJoining poolId1 poolId2 epochNo sp =
-    ApiWalletDelegation
-    (ApiDelegationStatus $ ApiT $ Delegating poolId1)
-    (Just $
-        ApiWalletDelegationNext
-        ( ApiDelegationStatus $ ApiT $ Delegating poolId2)
-        ( ApiEpochInfo
-            (ApiT $ epochNo + 2) (Types.epochStartTime sp (epochNo + 2))
-        )
-    )
 
 proc' :: FilePath -> [String] -> CreateProcess
 proc' cmd args = (proc cmd args)

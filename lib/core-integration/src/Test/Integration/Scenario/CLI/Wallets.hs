@@ -19,6 +19,7 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     , encodeAddress
     , getApiT
+    , notDelegating
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..)
@@ -72,7 +73,6 @@ import Test.Integration.Framework.DSL
     , getWalletViaCLI
     , listAddresses
     , listWalletsViaCLI
-    , notDelegatingNotJoining
     , postTransactionViaCLI
     , updateWalletNameViaCLI
     , updateWalletPassphraseViaCLI
@@ -168,7 +168,7 @@ spec = do
             , expectCliFieldEqual (#balance . #getApiT . #reward) (Quantity 0)
             , expectEventually' ctx (Link.getWallet @'Shelley)
                     (#state . #getApiT) Ready
-            , expectCliFieldEqual #delegation notDelegatingNotJoining
+            , expectCliFieldEqual #delegation notDelegating
             , expectCliFieldNotEqual #passphrase Nothing
             ]
 
@@ -423,7 +423,7 @@ spec = do
             , expectCliFieldEqual (#balance . #getApiT . #reward) (Quantity 0)
             , expectEventually' ctx (Link.getWallet @'Shelley)
                     (#state . #getApiT) Ready
-            , expectCliFieldEqual #delegation notDelegatingNotJoining
+            , expectCliFieldEqual #delegation notDelegating
             , expectCliFieldNotEqual #passphrase Nothing
             ]
 
@@ -457,7 +457,7 @@ spec = do
                     (#balance . #getApiT . #total) (Quantity 0)
             , expectCliListItemFieldEqual 0
                     (#balance . #getApiT . #reward) (Quantity 0)
-            , expectCliListItemFieldEqual 0 #delegation notDelegatingNotJoining
+            , expectCliListItemFieldEqual 0 #delegation notDelegating
             , expectCliListItemFieldEqual 0 walletId (T.pack w1)
             ]
 

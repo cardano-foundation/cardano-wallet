@@ -25,6 +25,7 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , ApiWallet
     , WalletStyle (..)
+    , notDelegating
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..)
@@ -84,7 +85,6 @@ import Test.Integration.Framework.DSL
     , getFromResponse
     , json
     , listAddresses
-    , notDelegatingNotJoining
     , request
     , selectCoins
     , unsafeRequest
@@ -162,7 +162,7 @@ spec = do
             , expectFieldEqual (#balance . #getApiT . #reward) (Quantity 0)
             , expectEventually ctx (Link.getWallet @'Shelley)
                     (#state . #getApiT) Ready
-            , expectFieldEqual #delegation notDelegatingNotJoining
+            , expectFieldEqual #delegation notDelegating
             , expectFieldEqual walletId
                 "2cf060fe53e4e0593f145f22b858dfc60676d4ab"
             , expectFieldNotEqual #passphrase Nothing
@@ -201,7 +201,7 @@ spec = do
                 , expectFieldEqual (#balance . #getApiT . #reward) (Quantity 0)
                 , expectEventually ctx (Link.getWallet @'Shelley)
                     (#state . #getApiT) Ready
-                , expectFieldEqual #delegation notDelegatingNotJoining
+                , expectFieldEqual #delegation notDelegating
                 , expectFieldEqual walletId
                     "135bfb99b9f7a0c702bf8c658cc0d9b1a0d797a2"
                 , expectFieldNotEqual #passphrase Nothing
@@ -948,7 +948,7 @@ spec = do
             , expectFieldEqual (#balance . #getApiT . #reward) (Quantity 0)
             , expectEventually ctx (Link.getWallet @'Shelley)
                     (#state . #getApiT) Ready
-            , expectFieldEqual #delegation notDelegatingNotJoining
+            , expectFieldEqual #delegation notDelegating
             , expectFieldEqual walletId (w ^. walletId)
             , expectFieldNotEqual #passphrase Nothing
             ]
@@ -1021,7 +1021,7 @@ spec = do
                     (#balance . #getApiT . #total) (Quantity 0)
             , expectListItemFieldEqual 0
                     (#balance . #getApiT . #reward) (Quantity 0)
-            , expectListItemFieldEqual 0 #delegation notDelegatingNotJoining
+            , expectListItemFieldEqual 0 #delegation notDelegating
             , expectListItemFieldEqual 0 walletId
                 "dfe87fcf0560fb57937a6468ea51e860672fad79"
             ]
@@ -1098,7 +1098,7 @@ spec = do
                             (#balance . #getApiT . #total) (Quantity 0)
                     , expectEventually ctx (Link.getWallet @'Shelley)
                             (#state . #getApiT) Ready
-                    , expectFieldEqual #delegation notDelegatingNotJoining
+                    , expectFieldEqual #delegation notDelegating
                     , expectFieldEqual walletId walId
                     , expectFieldEqual #passphrase passLastUpdateValue
                     ]
@@ -1116,7 +1116,7 @@ spec = do
                     (#addressPoolGap . #getApiT . #getAddressPoolGap) 20
             , expectListItemFieldEqual 0 (#balance . #getApiT . #available) (Quantity 0)
             , expectListItemFieldEqual 0 (#balance . #getApiT . #total) (Quantity 0)
-            , expectListItemFieldEqual 0 #delegation notDelegatingNotJoining
+            , expectListItemFieldEqual 0 #delegation notDelegating
             , expectListItemFieldEqual 0 walletId walId
             , expectListItemFieldEqual 0 #passphrase passLastUpdateValue
             ]

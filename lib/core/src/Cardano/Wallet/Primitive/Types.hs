@@ -1525,6 +1525,10 @@ instance Buildable PoolRegistrationCertificate where
         <> " owned by "
         <> build o
 
+-- | Stores information of discovered certificate, ie.,
+-- (a) slotId corresponding to the block certificate was discovered
+-- (b) stake pool identifier - in case the certificate pertains to (re)joining
+--     or Nothing if it pertains to quitting.
 data DelegationDiscovered = DelegationDiscovered
     { slotId :: !SlotId
     , poolId :: !(Maybe PoolId)

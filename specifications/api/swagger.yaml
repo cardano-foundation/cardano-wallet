@@ -721,7 +721,7 @@ definitions:
       next:
         type: object
         <<: *ApiDelegationStatus
-        description: Next delegation settings about to change. Only present when a status change has to reported.
+        description: Next delegation settings about to change. Only present when a status change has to be reported.
         required:
           - status
           - changes_at

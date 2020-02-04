@@ -85,6 +85,14 @@ module Cardano.Wallet.Api.Types
     , ApiT (..)
     , ApiMnemonicT (..)
     , getApiMnemonicT
+
+    -- * Delegation status helpers
+    , notDelegating
+    , notDelegatingAboutToJoin
+    , delegating
+    , delegatingAboutToQuit
+    , delegatingAboutToRejoin
+    , toApiWalletDelegation
     ) where
 
 import Prelude
@@ -110,14 +118,17 @@ import Cardano.Wallet.Primitive.Types
     , AddressState (..)
     , BoundType
     , Coin (..)
+    , DelegationDiscovered (..)
     , Direction (..)
     , EpochLength (..)
     , EpochNo (..)
     , Hash (..)
     , PoolId (..)
     , ShowFmt (..)
+    , SlotId (..)
     , SlotLength (..)
     , SlotNo (..)
+    , SlotParameters
     , StartTime (..)
     , SyncProgress (..)
     , TxIn (..)
@@ -206,6 +217,7 @@ import Servant.API
 import Web.HttpApiData
     ( FromHttpApiData (..), ToHttpApiData (..) )
 
+import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
@@ -718,9 +730,9 @@ instance FromJSON ApiWalletDelegationNext where
         t  <- o .:? "target"
         chAt <- o .: "changes_at"
         case (t, st) of
-            (Just poolId, Aeson.String "delegating") ->
+            (Just pId, Aeson.String "delegating") ->
                 pure $ ApiWalletDelegationNext
-                (ApiDelegationStatus $ ApiT $ Delegating poolId) chAt
+                (ApiDelegationStatus $ ApiT $ Delegating pId) chAt
             (Nothing, Aeson.String "not_delegating") ->
                 pure $ ApiWalletDelegationNext
                 (ApiDelegationStatus $ ApiT NotDelegating) chAt
@@ -1105,3 +1117,119 @@ gDecodeAddress decodeShelley text =
     tryBech32 = do
         (_, dp) <- either (const Nothing) Just (Bech32.decodeLenient text)
         dataPartToBytes dp
+
+-- not delegating and not about to join any stake pool
+notDelegating :: ApiWalletDelegation
+notDelegating =
+    ApiWalletDelegation (ApiDelegationStatus $ ApiT NotDelegating) Nothing
+
+-- not delegating, joined as it follows from discovered delegation certificates
+-- and effective joining epoch and its start time is specified
+notDelegatingAboutToJoin
+    :: ApiT PoolId
+    -> EpochNo
+    -> SlotParameters
+    -> ApiWalletDelegation
+notDelegatingAboutToJoin pId epochNo sp =
+    ApiWalletDelegation
+    (ApiDelegationStatus $ ApiT NotDelegating)
+    (Just $
+        ApiWalletDelegationNext
+        ( ApiDelegationStatus $ ApiT $ Delegating pId)
+        ( ApiEpochInfo
+            (ApiT $ epochNo + 2) (W.epochStartTime sp (epochNo + 2))
+        )
+    )
+
+-- not delegating, joined as it follows from discovered delegation certificates
+-- and effective joining epoch and its start time is specified
+delegating
+    :: ApiT PoolId
+    -> ApiWalletDelegation
+delegating pId =
+    ApiWalletDelegation
+    (ApiDelegationStatus $ ApiT $ Delegating pId)
+    Nothing
+
+-- delegating, quitted as it follows from discovered delegation certificates
+-- and effective quitting epoch and its start time is specified
+delegatingAboutToQuit
+    :: ApiT PoolId
+    -> EpochNo
+    -> SlotParameters
+    -> ApiWalletDelegation
+delegatingAboutToQuit pId epochNo sp =
+    ApiWalletDelegation
+    (ApiDelegationStatus $ ApiT $ Delegating pId)
+    (Just $
+        ApiWalletDelegationNext
+        ( ApiDelegationStatus $ ApiT NotDelegating)
+        ( ApiEpochInfo
+            (ApiT $ epochNo + 2) (W.epochStartTime sp (epochNo + 2))
+        )
+    )
+
+-- delegating, rejoined as it follows from discovered delegation certificates
+-- and effective rejoining epoch to another stake pool and its start time is specified
+delegatingAboutToRejoin
+    :: ApiT PoolId
+    -> ApiT PoolId
+    -> EpochNo
+    -> SlotParameters
+    -> ApiWalletDelegation
+delegatingAboutToRejoin pId1 pId2 epochNo sp =
+    ApiWalletDelegation
+    (ApiDelegationStatus $ ApiT $ Delegating pId1)
+    (Just $
+        ApiWalletDelegationNext
+        ( ApiDelegationStatus $ ApiT $ Delegating pId2)
+        ( ApiEpochInfo
+            (ApiT $ epochNo + 2) (W.epochStartTime sp (epochNo + 2))
+        )
+    )
+
+toApiWalletDelegation
+    :: EpochNo
+    -> SlotParameters
+    -> [DelegationDiscovered]
+    -> ApiWalletDelegation
+toApiWalletDelegation currentEpochNo sp dlgs = case dlgs of
+    [] ->
+        notDelegating
+    [(DelegationDiscovered (SlotId epochN _) poolIdMaybe)] ->
+        case poolIdMaybe of
+            Nothing ->
+                error "there should not be quiting delegation when \
+                      \no prior joining delegation is present"
+            Just pId ->
+                if currentEpochNo < epochN + 2 then
+                    notDelegatingAboutToJoin (ApiT pId) epochN sp
+                else
+                    delegating (ApiT pId)
+    [ (DelegationDiscovered (SlotId epochN1 _) poolIdMaybe1)
+        , (DelegationDiscovered (SlotId epochN2 _) poolIdMaybe2)] ->
+        if epochN2 > epochN1 then
+            error "delegation discovered later cannot have epoch number \
+                  \older than the previously discovered delegation"
+        else case (poolIdMaybe1, poolIdMaybe2) of
+            (Nothing, Nothing) ->
+                error "there should not be two quit delegation certificates\
+                      \ discovered in row"
+            (Just pId, Nothing) ->
+                if currentEpochNo < epochN1 + 2 then
+                    notDelegatingAboutToJoin (ApiT pId) epochN1 sp
+                else
+                    delegating (ApiT pId)
+            (Just pId1, Just pId2) ->
+                if currentEpochNo < epochN1 + 2 then
+                    delegatingAboutToRejoin (ApiT pId2) (ApiT pId1) epochN1 sp
+                else
+                    delegating (ApiT pId1)
+            (Nothing, Just pId) ->
+                if currentEpochNo < epochN1 + 2 then
+                    delegatingAboutToQuit (ApiT pId) epochN1 sp
+                else
+                    notDelegating
+    _ ->
+        error "takeDelegationsDiscovered cannot return more than two \
+              \discovered delegations!"
