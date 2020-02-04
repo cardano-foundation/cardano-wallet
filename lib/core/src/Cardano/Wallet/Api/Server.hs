@@ -123,6 +123,7 @@ import Cardano.Wallet.Api.Types
     , ApiWallet (..)
     , ApiWalletPassphrase (..)
     , ByronWalletPostData (..)
+    , ErrDelegationsDiscoveredInconsistency (..)
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
     , PostTransactionData
@@ -692,20 +693,23 @@ mkShelleyWallet ctx wid cp meta pending progress = do
     let ntrkTip = fromMaybe slotMinBound (slotAt sp now)
     let currentEpochNo = ntrkTip ^. #epochNumber
 
-    pure ApiWallet
-        { addressPoolGap = ApiT $ getState cp ^. #externalPool . #gap
-        , balance = ApiT $ WalletBalance
-            { available = Quantity $ availableBalance pending cp
-            , total = Quantity $ totalBalance pending cp
-            , reward = Quantity $ fromIntegral $ getQuantity reward
+    case toApiWalletDelegation currentEpochNo sp dlgs of
+        Left err -> liftHandler $ throwE err
+        Right delegationStatus ->
+            pure ApiWallet
+            { addressPoolGap = ApiT $ getState cp ^. #externalPool . #gap
+            , balance = ApiT $ WalletBalance
+                { available = Quantity $ availableBalance pending cp
+                , total = Quantity $ totalBalance pending cp
+                , reward = Quantity $ fromIntegral $ getQuantity reward
+                }
+            , delegation = delegationStatus
+            , id = ApiT wid
+            , name = ApiT $ meta ^. #name
+            , passphrase = ApiT <$> meta ^. #passphraseInfo
+            , state = ApiT progress
+            , tip = getWalletTip cp
             }
-        , delegation = toApiWalletDelegation currentEpochNo sp dlgs
-        , id = ApiT wid
-        , name = ApiT $ meta ^. #name
-        , passphrase = ApiT <$> meta ^. #passphraseInfo
-        , state = ApiT progress
-        , tip = getWalletTip cp
-        }
   where
     liftE = throwE . ErrFetchRewardsNoSuchWallet
     (_, bp, _) = ctx ^. genesisData
@@ -1839,6 +1843,15 @@ instance LiftHandler ErrMkTx where
                 , "I haven't found the corresponding private key for a known "
                 , "input address I should keep track of: ", showT addr, ". "
                 , "Retrying may work, but something really went wrong..."
+                ]
+
+instance LiftHandler ErrDelegationsDiscoveredInconsistency where
+    handler = \case
+        ErrDelegationsDiscoveredInconsistency errMsg ->
+            apiError err500 InvalidDelegationDiscovery $ mconcat
+                [ "That's embarassing. I couldn't establish proper delegation "
+                , "status. This is the exact issue I have encountered : "
+                , showT errMsg, ". "
                 ]
 
 instance LiftHandler ErrSignPayment where

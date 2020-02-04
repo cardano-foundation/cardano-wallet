@@ -93,6 +93,7 @@ module Cardano.Wallet.Api.Types
     , delegatingAboutToQuit
     , delegatingAboutToRejoin
     , toApiWalletDelegation
+    , ErrDelegationsDiscoveredInconsistency (..)
     ) where
 
 import Prelude
@@ -472,6 +473,7 @@ data ApiErrorCode
     | RejectedTip
     | InvalidEpochNo
     | NotSuchEpochNo
+    | InvalidDelegationDiscovery
     deriving (Eq, Generic, Show)
 
 -- | Defines a point in time that can be formatted as and parsed from an
@@ -1188,48 +1190,54 @@ delegatingAboutToRejoin pId1 pId2 epochNo sp =
         )
     )
 
+newtype ErrDelegationsDiscoveredInconsistency
+    = ErrDelegationsDiscoveredInconsistency Text
+    deriving (Show, Eq)
+
 toApiWalletDelegation
     :: EpochNo
     -> SlotParameters
     -> [DelegationDiscovered]
-    -> ApiWalletDelegation
+    -> Either ErrDelegationsDiscoveredInconsistency ApiWalletDelegation
 toApiWalletDelegation currentEpochNo sp dlgs = case dlgs of
     [] ->
-        notDelegating
+        Right notDelegating
     [(DelegationDiscovered (SlotId epochN _) poolIdMaybe)] ->
         case poolIdMaybe of
             Nothing ->
-                error "there should not be quiting delegation when \
-                      \no prior joining delegation is present"
+                err "there should not be quiting delegation when \
+                \no prior joining delegation is present"
             Just pId ->
                 if currentEpochNo < epochN + 2 then
-                    notDelegatingAboutToJoin (ApiT pId) epochN sp
+                    Right $ notDelegatingAboutToJoin (ApiT pId) epochN sp
                 else
-                    delegating (ApiT pId)
+                    Right $ delegating (ApiT pId)
     [ (DelegationDiscovered (SlotId epochN1 _) poolIdMaybe1)
         , (DelegationDiscovered (SlotId epochN2 _) poolIdMaybe2)] ->
         if epochN2 > epochN1 then
-            error "delegation discovered later cannot have epoch number \
-                  \older than the previously discovered delegation"
+            err "delegation discovered later cannot have epoch number \
+                \older than the previously discovered delegation"
         else case (poolIdMaybe1, poolIdMaybe2) of
             (Nothing, Nothing) ->
-                error "there should not be two quit delegation certificates\
+                err "there should not be two quit delegation certificates\
                       \ discovered in row"
             (Just pId, Nothing) ->
                 if currentEpochNo < epochN1 + 2 then
-                    notDelegatingAboutToJoin (ApiT pId) epochN1 sp
+                    Right $ notDelegatingAboutToJoin (ApiT pId) epochN1 sp
                 else
-                    delegating (ApiT pId)
+                    Right $ delegating (ApiT pId)
             (Just pId1, Just pId2) ->
                 if currentEpochNo < epochN1 + 2 then
-                    delegatingAboutToRejoin (ApiT pId2) (ApiT pId1) epochN1 sp
+                    Right $ delegatingAboutToRejoin (ApiT pId2) (ApiT pId1) epochN1 sp
                 else
-                    delegating (ApiT pId1)
+                    Right $ delegating (ApiT pId1)
             (Nothing, Just pId) ->
                 if currentEpochNo < epochN1 + 2 then
-                    delegatingAboutToQuit (ApiT pId) epochN1 sp
+                    Right $ delegatingAboutToQuit (ApiT pId) epochN1 sp
                 else
-                    notDelegating
+                    Right notDelegating
     _ ->
-        error "takeDelegationsDiscovered cannot return more than two \
-              \discovered delegations!"
+        err "takeDelegationsDiscovered cannot return more than two \
+            \discovered delegations!"
+  where
+      err = Left . ErrDelegationsDiscoveredInconsistency
