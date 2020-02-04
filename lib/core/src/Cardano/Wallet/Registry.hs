@@ -11,16 +11,15 @@ module Cardano.Wallet.Registry
     ( -- * Worker Registry
       WorkerRegistry
     , empty
-    , insert
     , keys
     , lookup
-    , remove
+    , register
+    , unregister
 
       -- * Worker
     , Worker
     , MkWorker(..)
     , defaultWorkerAfter
-    , newWorker
     , workerThread
     , workerId
     , workerResource
@@ -59,10 +58,14 @@ import Control.Exception
     , asyncExceptionFromException
     , finally
     )
+import Control.Monad
+    ( void )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Tracer
     ( Tracer, traceWith )
+import Data.Foldable
+    ( traverse_ )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Labels
@@ -137,21 +140,27 @@ insert
 insert (WorkerRegistry mvar) wrk =
     modifyMVar_ mvar (pure . Map.insert (workerId wrk) wrk)
 
--- | Remove a worker from the registry (and cancel any running task)
-remove
+-- | Delete a worker from the registry, but don't cancel the running task.
+--
+delete
+    :: Ord key
+    => WorkerRegistry key resource
+    -> key
+    -> IO (Maybe (Worker key resource))
+delete (WorkerRegistry mvar) k = do
+    mWorker <- Map.lookup k <$> readMVar mvar
+    modifyMVar_ mvar (pure . Map.delete k)
+    pure mWorker
+
+-- | Unregister a worker from the registry, terminating the running task.
+--
+unregister
     :: Ord key
     => WorkerRegistry key resource
     -> key
     -> IO ()
-remove (WorkerRegistry mvar) k =
-    modifyMVar_ mvar (Map.alterF alterF k)
-  where
-    alterF = \case
-        Nothing -> pure Nothing
-        Just wrk -> do
-            -- NOTE: It is safe to kill a thread that is already dead.
-            killThread (workerThread wrk)
-            return Nothing
+unregister registry k =
+    delete registry k >>= traverse_ (killThread . workerThread)
 
 {-------------------------------------------------------------------------------
                                     Worker
@@ -173,7 +182,8 @@ data MkWorker key resource msg ctx = MkWorker
         -- returns.
     , workerMain :: WorkerCtx ctx -> key -> IO ()
         -- ^ A task for the worker, possibly infinite
-    , workerAfter :: Tracer IO (WorkerLog key msg) -> Either SomeException () -> IO ()
+    , workerAfter
+        :: Tracer IO (WorkerLog key msg) -> Either SomeException () -> IO ()
         -- ^ Action to run when the worker exits
     , workerAcquire :: (resource -> IO ()) -> IO ()
         -- ^ A bracket-style factory to acquire a resource
@@ -190,44 +200,50 @@ defaultWorkerAfter tr = traceWith tr . \case
         Just UserInterrupt -> MsgUserInterrupt
         _ -> MsgUnhandledException $ pretty $ show e
 
--- | Create a new worker for a given key. Workers maintain an acquired resource.
--- They expect a task as argument and will terminate as soon as their task
--- is over; so in practice, we provide a never-ending task that keeps the worker
--- alive forever.
+-- | Register a new worker for a given key.
+--
+-- A worker maintains an acquired resource. It expects a task as an argument
+-- and will terminate as soon as its task is over. In practice, we provide a
+-- never-ending task that keeps the worker alive forever.
 --
 -- Returns 'Nothing' if the worker fails to acquire the necessary resource or
--- terminate unexpectedly before entering its 'main' action.
+-- terminates unexpectedly before entering its 'main' action.
 --
--- >>> newWorker ctx k withDBLayer restoreWallet
--- worker<thread#1234>
-newWorker
+register
     :: forall resource ctx key msg.
-        ( key ~ WorkerKey ctx
+        ( Ord key
+        , key ~ WorkerKey ctx
         , msg ~ WorkerMsg ctx
         , HasLogger (WorkerLog key msg) ctx
         , HasWorkerCtx resource ctx
         )
-    => ctx
+    => WorkerRegistry key resource
+    -> ctx
     -> key
     -> MkWorker key resource msg ctx
     -> IO (Maybe (Worker key resource))
-newWorker ctx k (MkWorker before main after acquire) = do
+register registry ctx k (MkWorker before main after acquire) = do
     mvar <- newEmptyMVar
     let io = acquire $ \resource -> do
             let ctx' = hoistResource resource (MsgFromWorker k) ctx
             before ctx' k `finally` putMVar mvar (Just resource)
             main ctx' k
     threadId <- forkFinally io (cleanup mvar)
-    takeMVar mvar >>= \case
-        Nothing -> return Nothing
-        Just resource -> return $ Just Worker
-            { workerId = k
-            , workerThread = threadId
-            , workerResource = resource
-            }
+    takeMVar mvar >>= traverse (create threadId)
   where
-    tr  = ctx ^. logger @(WorkerLog key msg)
-    cleanup mvar e = tryPutMVar mvar Nothing *> after tr e
+    tr = ctx ^. logger @(WorkerLog key msg)
+    create threadId resource = do
+        let worker = Worker
+                { workerId = k
+                , workerThread = threadId
+                , workerResource = resource
+                }
+        registry `insert` worker
+        return worker
+    cleanup mvar e = do
+        void $ registry `delete` k
+        void $ tryPutMVar mvar Nothing
+        after tr e
 
 {-------------------------------------------------------------------------------
                                     Logging

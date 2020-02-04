@@ -196,7 +196,6 @@ import Cardano.Wallet.Registry
     , MkWorker (..)
     , WorkerLog (..)
     , defaultWorkerAfter
-    , newWorker
     , workerResource
     )
 import Cardano.Wallet.Transaction
@@ -884,11 +883,11 @@ deleteWallet
     => ctx
     -> ApiT WalletId
     -> Handler NoContent
-deleteWallet ctx (ApiT wid) = do
-    liftHandler $ withWorkerCtx @_ @s @k ctx wid throwE $ \_ -> pure ()
-    liftIO $ Registry.remove re wid
-    liftIO $ removeDatabase df wid
-    return NoContent
+deleteWallet ctx (ApiT wid) =
+    liftHandler $ withWorkerCtx @_ @s @k ctx wid throwE $ \_ -> do
+        liftIO $ Registry.unregister re wid
+        liftIO $ removeDatabase df wid
+        return NoContent
   where
     re = ctx ^. workerRegistry @s @k
     df = ctx ^. dbFactory @s @k
@@ -990,7 +989,7 @@ forceResyncWallet
     -> ApiNetworkTip
     -> Handler NoContent
 forceResyncWallet ctx (ApiT wid) tip = guardTip (== W.slotMinBound) $ \pt -> do
-    liftIO $ Registry.remove re wid
+    liftIO $ Registry.unregister re wid
     liftHandler (safeRollback pt) `finally` liftIO (registerWorker ctx wid)
   where
     re = ctx ^. workerRegistry @s @k
@@ -1475,11 +1474,11 @@ initWorker ctx wid createWallet restoreWallet =
         Just _ ->
             throwE $ ErrCreateWalletAlreadyExists $ ErrWalletAlreadyExists wid
         Nothing ->
-            liftIO (newWorker @_ @ctx ctx wid config) >>= \case
+            liftIO (Registry.register @_ @ctx re ctx wid config) >>= \case
                 Nothing ->
                     throwE ErrCreateWalletFailedToCreateWorker
-                Just worker ->
-                    liftIO (Registry.insert re worker) $> wid
+                Just _ ->
+                    pure wid
   where
     config = MkWorker
         { workerBefore = \ctx' _ -> do
@@ -1601,19 +1600,16 @@ registerWorker
     => ApiLayer s t k
     -> WalletId
     -> IO ()
-registerWorker ctx wid = do
-    newWorker @_ @ctx ctx wid config >>= \case
-        Nothing ->
-            return ()
-        Just worker ->
-            Registry.insert re worker
+registerWorker ctx wid =
+    void $ Registry.register @_ @ctx re ctx wid config
   where
     (_, bp, _) = ctx ^. genesisData
     re = ctx ^. workerRegistry
     df = ctx ^. dbFactory
     config = MkWorker
         { workerBefore = \ctx' _ ->
-            runExceptT (W.checkWalletIntegrity ctx' wid bp) >>= either throwIO pure
+            runExceptT (W.checkWalletIntegrity ctx' wid bp)
+                >>= either throwIO pure
 
         , workerMain = \ctx' _ -> do
             -- FIXME:
