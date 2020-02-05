@@ -721,7 +721,7 @@ definitions:
       next:
         type: object
         <<: *ApiDelegationStatus
-        description: Next delegation status that is not yet in effect. Only present when a new delegation certificate has been discovered.
+        description: Next delegation status becomes active at the start of the second epoch after the corresponding delegation certificate was discovered. The exact moment is specified by changes_at
         required:
           - status
           - changes_at
