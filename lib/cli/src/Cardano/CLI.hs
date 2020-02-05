@@ -1028,6 +1028,7 @@ walletIdArgument = argumentT $ mempty
 epochArgument :: Parser ApiEpochNumber
 epochArgument = argumentT $ mempty
     <> metavar "EPOCH_NUMBER"
+    <> help "epoch parameter number or `latest`"
 
 -- | <transaction-id=TX_ID>
 transactionIdArgument :: Parser TxId

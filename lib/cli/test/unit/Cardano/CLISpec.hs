@@ -360,6 +360,7 @@ spec = do
             , ""
             , "Available commands:"
             , "  information              View network information."
+            , "  parameters               View network parameters."
             ]
 
         ["network", "information", "--help"] `shouldShowUsage`
@@ -370,6 +371,17 @@ spec = do
             , "  -h,--help                Show this help text"
             , "  --port INT               port used for serving the wallet"
             , "                           API. (default: 8090)"
+            ]
+
+        ["network", "parameters", "--help"] `shouldShowUsage`
+            [ "Usage:  network parameters [--port INT] EPOCH_NUMBER"
+            , "  View network parameters."
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , "  --port INT               port used for serving the wallet"
+            , "                           API. (default: 8090)"
+            , "  EPOCH_NUMBER             epoch parameter number or `latest`"
             ]
 
     describe "Can perform roundtrip textual encoding & decoding" $ do
