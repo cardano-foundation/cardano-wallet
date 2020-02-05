@@ -48,6 +48,7 @@ module Test.Integration.Framework.DSL
     , Headers(..)
     , Payload(..)
     , RequestException(..)
+    , expectedBlockchainParams
 
     -- * Lens
     , walletId
@@ -121,6 +122,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelection
     , ApiFee
     , ApiNetworkInformation
+    , ApiNetworkParameters (..)
     , ApiT (..)
     , ApiTransaction
     , ApiUtxoStatistics (..)
@@ -140,6 +142,7 @@ import Cardano.Wallet.Primitive.Types
     , HistogramBar (..)
     , PoolId (..)
     , SortOrder (..)
+    , StartTime (..)
     , TxIn (..)
     , TxOut (..)
     , UTxO (..)
@@ -148,6 +151,8 @@ import Cardano.Wallet.Primitive.Types
     , computeUtxoStatistics
     , log10
     )
+import Cardano.Wallet.Unsafe
+    ( unsafeFromHex )
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
@@ -1305,6 +1310,16 @@ deleteTransactionViaCLI ctx wid tid = cardanoWalletCLI @t $ join
     , ["--port", show (ctx ^. typed @(Port "wallet")), wid, tid]
     ]
 
+expectedBlockchainParams :: ApiNetworkParameters
+expectedBlockchainParams = ApiNetworkParameters
+    { genesisBlockHash = ApiT $ Hash $ unsafeFromHex
+        "f8c0622ea4b768421fea136a6e5a4e3b4c328fc5f16fad75817e40c8a2a56a56"
+    , blockchainStartTime = ApiT $ StartTime (read "2019-04-25 14:20:57 UTC")
+    , slotLength = Quantity 2
+    , epochLength = Quantity 10
+    , epochStability = Quantity 5
+    , activeSlotCoefficient = Quantity 100
+    }
 
 proc' :: FilePath -> [String] -> CreateProcess
 proc' cmd args = (proc cmd args)

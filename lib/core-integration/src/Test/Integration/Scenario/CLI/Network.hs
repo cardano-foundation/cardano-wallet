@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -12,9 +13,9 @@ import Prelude
 import Cardano.CLI
     ( Port (..) )
 import Cardano.Wallet.Api.Types
-    ( ApiNetworkInformation )
-import Control.Monad
-    ( void )
+    ( ApiNetworkInformation (..), ApiNetworkParameters )
+import Cardano.Wallet.Primitive.Types
+    ( EpochNo (..) )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Product.Typed
@@ -30,16 +31,94 @@ import Test.Hspec
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain )
 import Test.Integration.Framework.DSL
-    ( Context (..), KnownCommand, cardanoWalletCLI, expectValidJSON )
+    ( Context (..)
+    , KnownCommand
+    , cardanoWalletCLI
+    , expectValidJSON
+    , expectedBlockchainParams
+    )
 import Test.Integration.Framework.TestData
-    ( cmdOk )
+    ( cmdOk, errMsg400MalformedEpoch, errMsg404NoEpochNo )
 
 spec :: forall t. KnownCommand t => SpecWith (Context t)
 spec = do
     it "CLI_NETWORK - cardano-wallet network information" $ \ctx -> do
-        let port = show (ctx ^. typed @(Port "wallet"))
-        (Exit c, Stderr e, Stdout o) <- cardanoWalletCLI @t
-            ["network", "information", "--port", port ]
-        c `shouldBe` ExitSuccess
-        e `shouldContain` cmdOk
-        void $ expectValidJSON (Proxy @ApiNetworkInformation) o
+        info <- getNetworkInfoViaCLI ctx
+        let nextEpochNum =
+                 info ^. (#nextEpoch . #epochNumber . #getApiT)
+        nextEpochNum `shouldBe` (currentEpochNum info) + 1
+
+    it "CLI_NETWORK - cardano-wallet network parameters - \
+       \proper parameter epoch parameter" $ \ctx -> do
+        params1 <- getNetworkParamsViaCLIok ctx "latest"
+        params1 `shouldBe` expectedBlockchainParams
+
+        params2 <- getNetworkParamsViaCLIok ctx "0"
+        params2 `shouldBe` expectedBlockchainParams
+
+        info <- getNetworkInfoViaCLI ctx
+        let (EpochNo currentEpoch) = currentEpochNum info
+        params3 <- getNetworkParamsViaCLIok ctx (show currentEpoch)
+        params3 `shouldBe` expectedBlockchainParams
+
+        let prevEpoch = if (currentEpoch > 0)
+                then currentEpoch - 1
+                else currentEpoch
+        params4 <- getNetworkParamsViaCLIok ctx (show prevEpoch)
+        params4 `shouldBe` expectedBlockchainParams
+
+    it "CLI_NETWORK - cardano-wallet network parameters - \
+       \improper parameter epoch parameter" $ \ctx -> do
+
+        let wrong1 = "earlier"
+        params1 <- getNetworkParamsViaCLIwrong ctx "earlier"
+        params1 `shouldContain` (errMsg400MalformedEpoch wrong1)
+
+        let wrong2 = "1.1"
+        params2 <- getNetworkParamsViaCLIwrong ctx wrong2
+        params2 `shouldContain` (errMsg400MalformedEpoch wrong2)
+
+        info <- getNetworkInfoViaCLI ctx
+        let (EpochNo currentEpoch) = currentEpochNum info
+        let wrong3 = show $ currentEpoch + 10
+        params3 <- getNetworkParamsViaCLIwrong ctx wrong3
+        params3 `shouldContain` (errMsg404NoEpochNo wrong3)
+  where
+      getNetworkParamsViaCLIok
+          :: Context t
+          -> String
+          -> IO ApiNetworkParameters
+      getNetworkParamsViaCLIok ctx epoch = do
+          let port = show (ctx ^. typed @(Port "wallet"))
+          (Exit c, Stderr e, Stdout o) <- cardanoWalletCLI @t
+              ["network", "parameters", "--port", port, epoch ]
+          c `shouldBe` ExitSuccess
+          e `shouldContain` cmdOk
+          expectValidJSON (Proxy @ApiNetworkParameters) o
+
+      getNetworkParamsViaCLIwrong
+          :: Context t
+          -> String
+          -> IO String
+      getNetworkParamsViaCLIwrong ctx epoch = do
+          let port = show (ctx ^. typed @(Port "wallet"))
+          (Exit c, Stderr e, Stdout o) <- cardanoWalletCLI @t
+              ["network", "parameters", "--port", port, epoch ]
+          c `shouldBe` (ExitFailure 1)
+          o `shouldBe` ""
+          pure e
+
+      getNetworkInfoViaCLI
+          :: Context t
+          -> IO ApiNetworkInformation
+      getNetworkInfoViaCLI ctx = do
+          let port = show (ctx ^. typed @(Port "wallet"))
+          (Exit c, Stderr e, Stdout o) <- cardanoWalletCLI @t
+              ["network", "information", "--port", port ]
+          c `shouldBe` ExitSuccess
+          e `shouldContain` cmdOk
+          expectValidJSON (Proxy @ApiNetworkInformation) o
+
+      currentEpochNum :: ApiNetworkInformation -> EpochNo
+      currentEpochNum netInfo =
+          netInfo ^. (#networkTip . #epochNumber . #getApiT)

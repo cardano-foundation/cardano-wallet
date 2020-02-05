@@ -19,15 +19,11 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( EpochNo (..), Hash (..), StartTime (..), SyncProgress (..) )
-import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
+    ( EpochNo (..), SyncProgress (..) )
 import Control.Monad
     ( forM_ )
 import Control.Monad.IO.Class
     ( liftIO )
-import Data.Quantity
-    ( Quantity (..) )
 import Data.Time.Clock
     ( getCurrentTime )
 import Data.Word.Odd
@@ -47,6 +43,7 @@ import Test.Integration.Framework.DSL
     , expectFieldEqual
     , expectFieldSatisfy
     , expectResponseCode
+    , expectedBlockchainParams
     , getFromResponse
     , request
     , verify
@@ -256,13 +253,3 @@ spec = do
            expectResponseCode @IO HTTP.status200 r2
            let networkParams = getFromResponse id r2
            networkParams `shouldBe` expectedBlockchainParams
-
-       expectedBlockchainParams = ApiNetworkParameters
-           { genesisBlockHash = ApiT $ Hash $ unsafeFromHex
-               "f8c0622ea4b768421fea136a6e5a4e3b4c328fc5f16fad75817e40c8a2a56a56"
-           , blockchainStartTime = ApiT $ StartTime (read "2019-04-25 14:20:57 UTC")
-           , slotLength = Quantity 2
-           , epochLength = Quantity 10
-           , epochStability = Quantity 5
-           , activeSlotCoefficient = Quantity 100
-           }
