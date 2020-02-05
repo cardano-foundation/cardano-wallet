@@ -1850,7 +1850,7 @@ instance LiftHandler ErrDelegationsDiscoveredInconsistency where
         ErrDelegationsDiscoveredInconsistency errMsg ->
             apiError err500 InvalidDelegationDiscovery $ mconcat
                 [ "That's embarassing. I couldn't establish proper delegation "
-                , "status. This is the exact issue I have encountered : "
+                , "status. This is the exact issue I have encountered: "
                 , showT errMsg, ". "
                 ]
 

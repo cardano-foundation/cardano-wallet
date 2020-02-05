@@ -1525,13 +1525,13 @@ instance Buildable PoolRegistrationCertificate where
         <> " owned by "
         <> build o
 
--- | Stores information of discovered certificate, ie.,
--- (a) slotId corresponding to the block certificate was discovered
--- (b) stake pool identifier - in case the certificate pertains to (re)joining
---     or Nothing if it pertains to quitting.
+-- | A delegation certificate discovered by the "current wallet".
 data DelegationDiscovered = DelegationDiscovered
     { slotId :: !SlotId
+    -- ^ Slot corresponding to the block the certificate was discovered
     , poolId :: !(Maybe PoolId)
+    -- ^ Stake pool identifier - in case the certificate pertains to (re)joining
+    -- or @Nothing@ if quitting.
     } deriving (Generic, Show, Eq, Ord)
 
 instance NFData DelegationDiscovered
