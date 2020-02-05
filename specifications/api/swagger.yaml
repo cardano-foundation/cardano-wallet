@@ -272,24 +272,6 @@ x-byronWalletBalance: &byronWalletBalance
       <<: *amount
       description: Total balance (available balance plus pending change)
 
-x-walletDelegation: &walletDelegation
-  description: Delegation settings
-  type: object
-  required:
-    - status
-  properties:
-    status:
-      type: string
-      enum:
-        - not_delegating
-        - delegating
-    target:
-      <<: *stakePoolId
-      description: A unique Stake-Pool identifier (present only if status = `delegating`)
-  example:
-    status: delegating
-    target: 2cWKMJemoBam7gg1y5K2aFDhAm5L8fVc96NfxgcGhdLMFTsToNAU9t5HVdBBQKy4iDswL
-
 x-walletPassphraseInfo :: &walletPassphraseInfo
   description: Information about the wallet's passphrase
   type: object
@@ -723,6 +705,35 @@ definitions:
       outputs: *transactionOutputs
       status: *transactionStatus
 
+  ApiWalletDelegation: &ApiWalletDelegation
+    description: Delegation settings
+    type: object
+    required:
+      - active
+    properties:
+      active:
+        type: object
+        <<: *ApiDelegationStatus
+        description: Currently active delegation status.
+        example:
+          status: delegating
+          target: 1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1
+      next:
+        type: object
+        <<: *ApiDelegationStatus
+        description: Next delegation status becomes active at the start of the second epoch after the corresponding delegation certificate was discovered. The exact moment is specified by changes_at
+        required:
+          - status
+          - changes_at
+        properties:
+          <<: *delegationStatusProperties
+          changes_at: *ApiEpochInfo
+        example:
+          status: not_delegating
+          changes_at:
+            epoch_number: 14
+            epoch_start_time: 2020-01-22T10:06:39.037Z
+
   ApiWallet: &ApiWallet
     type: object
     required:
@@ -737,7 +748,7 @@ definitions:
       id: *walletId
       address_pool_gap: *walletAddressPoolGap
       balance: *walletBalance
-      delegation: *walletDelegation
+      delegation: *ApiWalletDelegation
       name: *walletName
       passphrase: *walletPassphraseInfo
       state: *walletState
@@ -919,35 +930,6 @@ definitions:
       - payments
     properties:
       payments: *transactionOutputs
-
-  ApiWalletDelegation: &ApiWalletDelegation
-    description: Delegation settings
-    type: object
-    required:
-      - active
-    properties:
-      active:
-        type: object
-        <<: *ApiDelegationStatus
-        description: Currently active delegation status.
-        example:
-          status: delegating
-          target: 1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1
-      next:
-        type: object
-        <<: *ApiDelegationStatus
-        description: Next delegation settings about to change. Only present when a status change has to reported.
-        required:
-          - status
-          - changes_at
-        properties:
-          <<: *delegationStatusProperties
-          changes_at: *ApiEpochInfo
-        example:
-          status: not_delegating
-          changes_at:
-            epoch_number: 14
-            epoch_start_time: 2020-01-22T10:06:39.037Z
 
 #############################################################################
 #                                                                           #

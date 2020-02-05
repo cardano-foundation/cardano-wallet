@@ -19,6 +19,7 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     , encodeAddress
     , getApiT
+    , notDelegating
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..)
@@ -28,11 +29,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..) )
 import Cardano.Wallet.Primitive.Types
-    ( SyncProgress (..)
-    , WalletDelegation (..)
-    , walletNameMaxLength
-    , walletNameMinLength
-    )
+    ( SyncProgress (..), walletNameMaxLength, walletNameMinLength )
 import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens
@@ -171,7 +168,7 @@ spec = do
             , expectCliFieldEqual (#balance . #getApiT . #reward) (Quantity 0)
             , expectEventually' ctx (Link.getWallet @'Shelley)
                     (#state . #getApiT) Ready
-            , expectCliFieldEqual (#delegation . #getApiT) NotDelegating
+            , expectCliFieldEqual #delegation notDelegating
             , expectCliFieldNotEqual #passphrase Nothing
             ]
 
@@ -426,7 +423,7 @@ spec = do
             , expectCliFieldEqual (#balance . #getApiT . #reward) (Quantity 0)
             , expectEventually' ctx (Link.getWallet @'Shelley)
                     (#state . #getApiT) Ready
-            , expectCliFieldEqual (#delegation . #getApiT) (NotDelegating)
+            , expectCliFieldEqual #delegation notDelegating
             , expectCliFieldNotEqual #passphrase Nothing
             ]
 
@@ -460,7 +457,7 @@ spec = do
                     (#balance . #getApiT . #total) (Quantity 0)
             , expectCliListItemFieldEqual 0
                     (#balance . #getApiT . #reward) (Quantity 0)
-            , expectCliListItemFieldEqual 0 (#delegation . #getApiT) NotDelegating
+            , expectCliListItemFieldEqual 0 #delegation notDelegating
             , expectCliListItemFieldEqual 0 walletId (T.pack w1)
             ]
 

@@ -7,7 +7,6 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -1097,7 +1096,7 @@ toQueryString kvs = if T.null suffix then mempty else "?" <> suffix
 
 infixr 5 </>
 (</>) :: ToHttpApiData a => Text -> a -> Text
-base </> next = mconcat [base, "/", toQueryParam next]
+base </> thenext = mconcat [base, "/", toQueryParam thenext]
 
 ---
 --- CLI
@@ -1305,6 +1304,7 @@ deleteTransactionViaCLI ctx wid tid = cardanoWalletCLI @t $ join
     [ ["transaction", "forget"]
     , ["--port", show (ctx ^. typed @(Port "wallet")), wid, tid]
     ]
+
 
 proc' :: FilePath -> [String] -> CreateProcess
 proc' cmd args = (proc cmd args)

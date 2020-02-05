@@ -123,6 +123,7 @@ import Cardano.Wallet.Api.Types
     , ApiWallet (..)
     , ApiWalletPassphrase (..)
     , ByronWalletPostData (..)
+    , ErrDelegationsDiscoveredInconsistency (..)
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
     , PostTransactionData
@@ -132,6 +133,7 @@ import Cardano.Wallet.Api.Types
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
     , getApiMnemonicT
+    , toApiWalletDelegation
     )
 import Cardano.Wallet.DB
     ( DBFactory (..) )
@@ -673,6 +675,7 @@ postShelleyWallet ctx body = do
     wid = WalletId $ digest $ publicKey rootXPrv
     wName = getApiT (body ^. #name)
 
+
 mkShelleyWallet
     :: forall ctx s t k n.
         ( ctx ~ ApiLayer s t k
@@ -684,22 +687,33 @@ mkShelleyWallet
 mkShelleyWallet ctx wid cp meta pending progress = do
     reward <- liftHandler $ withWorkerCtx @_ @s @k ctx wid liftE $
         \wrk -> W.fetchRewardBalance @_ @s @t @k wrk wid
-    pure ApiWallet
-        { addressPoolGap = ApiT $ getState cp ^. #externalPool . #gap
-        , balance = ApiT $ WalletBalance
-            { available = Quantity $ availableBalance pending cp
-            , total = Quantity $ totalBalance pending cp
-            , reward = Quantity $ fromIntegral $ getQuantity reward
+    dlgs <- liftHandler $ withWorkerCtx @_ @s @k ctx wid throwE $
+        \wrk -> W.takeDelegationsDiscovered @_ @s @k wrk wid
+    now <- liftIO getCurrentTime
+    let ntrkTip = fromMaybe slotMinBound (slotAt sp now)
+    let currentEpochNo = ntrkTip ^. #epochNumber
+
+    case toApiWalletDelegation currentEpochNo sp dlgs of
+        Left err -> liftHandler $ throwE err
+        Right delegationStatus ->
+            pure ApiWallet
+            { addressPoolGap = ApiT $ getState cp ^. #externalPool . #gap
+            , balance = ApiT $ WalletBalance
+                { available = Quantity $ availableBalance pending cp
+                , total = Quantity $ totalBalance pending cp
+                , reward = Quantity $ fromIntegral $ getQuantity reward
+                }
+            , delegation = delegationStatus
+            , id = ApiT wid
+            , name = ApiT $ meta ^. #name
+            , passphrase = ApiT <$> meta ^. #passphraseInfo
+            , state = ApiT progress
+            , tip = getWalletTip cp
             }
-        , delegation = ApiT $ ApiT <$> meta ^. #delegation
-        , id = ApiT wid
-        , name = ApiT $ meta ^. #name
-        , passphrase = ApiT <$> meta ^. #passphraseInfo
-        , state = ApiT progress
-        , tip = getWalletTip cp
-        }
   where
     liftE = throwE . ErrFetchRewardsNoSuchWallet
+    (_, bp, _) = ctx ^. genesisData
+    sp = W.slotParams bp
 
 --------------------- Legacy
 
@@ -1829,6 +1843,15 @@ instance LiftHandler ErrMkTx where
                 , "I haven't found the corresponding private key for a known "
                 , "input address I should keep track of: ", showT addr, ". "
                 , "Retrying may work, but something really went wrong..."
+                ]
+
+instance LiftHandler ErrDelegationsDiscoveredInconsistency where
+    handler = \case
+        ErrDelegationsDiscoveredInconsistency errMsg ->
+            apiError err500 InvalidDelegationDiscovery $ mconcat
+                [ "That's embarassing. I couldn't establish proper delegation "
+                , "status. This is the exact issue I have encountered: "
+                , showT errMsg, ". "
                 ]
 
 instance LiftHandler ErrSignPayment where
