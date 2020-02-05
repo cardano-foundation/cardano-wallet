@@ -13,6 +13,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -249,6 +250,7 @@ import Safe
     ( readMay )
 
 import qualified Codec.Binary.Bech32 as Bech32
+import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Control.Foldl as F
 import qualified Data.ByteString as BS
 import qualified Data.Char as C
@@ -542,7 +544,7 @@ newtype PoolOwner = PoolOwner { getPoolOwner :: ByteString }
     deriving (Generic, Eq, Show, Ord)
 
 poolOwnerPrefix :: Bech32.HumanReadablePart
-poolOwnerPrefix = Bech32.unsafeHumanReadablePartFromText "ed25519_pk"
+poolOwnerPrefix = [Bech32.humanReadablePart|ed25519_pk|]
 
 instance NFData PoolOwner
 

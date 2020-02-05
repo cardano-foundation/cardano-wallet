@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -54,6 +55,7 @@ import Test.Integration.Framework.TestData
     )
 
 import qualified Codec.Binary.Bech32 as Bech32
+import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.ByteString as BS
 import qualified Data.List as L
 import qualified Data.Text as T
@@ -196,7 +198,7 @@ mnemonicsToAccountAddress m1 m2 = do
         . publicKey
         . deriveRewardAccount mempty
       where
-        hrp = Bech32.unsafeHumanReadablePartFromText "addr"
+        hrp = [Bech32.humanReadablePart|addr|]
 
 getRewardCredentialsViaCli
     :: forall t. KnownCommand t

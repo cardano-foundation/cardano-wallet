@@ -8,6 +8,7 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -259,6 +260,7 @@ import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Codec.Binary.Bech32 as Bech32
+import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
 import qualified Data.Aeson.Types as Aeson
@@ -352,7 +354,7 @@ cmdMnemonicRewardCredentials =
         let rootXPrv = Shelley.generateKeyFromSeed (wSeed, wSndFactor) mempty
         let rewardAccountXPrv = deriveRewardAccount mempty rootXPrv
 
-        let hrp = Bech32.unsafeHumanReadablePartFromText "ed25519e_sk"
+        let hrp = [Bech32.humanReadablePart|ed25519e_sk|]
         let dp = Bech32.dataPartFromBytes
                 $ BS.take 64
                 $ unXPrv

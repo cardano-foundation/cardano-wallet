@@ -9,6 +9,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
@@ -143,7 +144,7 @@ import Cardano.Wallet.Primitive.Types
     , unsafeEpochNo
     )
 import Codec.Binary.Bech32
-    ( dataPartFromBytes, dataPartToBytes, unsafeHumanReadablePartFromText )
+    ( dataPartFromBytes, dataPartToBytes )
 import Control.Applicative
     ( optional )
 import Control.Arrow
@@ -220,6 +221,7 @@ import Web.HttpApiData
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.Binary.Bech32 as Bech32
+import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString.Lazy as BL
@@ -1079,7 +1081,7 @@ gEncodeAddress (Address bytes) =
   where
     base58 = T.decodeUtf8 $ encodeBase58 bitcoinAlphabet bytes
     bech32 = Bech32.encodeLenient hrp (dataPartFromBytes bytes)
-      where hrp = unsafeHumanReadablePartFromText "addr"
+    hrp = [Bech32.humanReadablePart|addr|]
 
 -- | Decode text string into an 'Address'. Jörmungandr recognizes two kind of
 -- addresses:
