@@ -57,7 +57,7 @@ import Cardano.Pool.Metadata
     , sameStakePoolMetadata
     )
 import Cardano.Pool.Performance
-    ( readPoolsPerformances )
+    ( readPoolsPerformances, PerformanceLog )
 import Cardano.Pool.Ranking
     ( EpochConstants (..), unsafeMkNonNegative, unsafeMkRatio )
 import Cardano.Wallet.Network
@@ -292,7 +292,8 @@ newStakePoolLayer tr getEpCst db@DBLayer{..} nl metadataDir = StakePoolLayer
 
         else do
             let currentEpoch = prodTip ^. #slotId . #epochNumber
-            perfs <- liftIO $ readPoolsPerformances db currentEpoch
+            let tr' = contramap MsgPerformanceLog tr
+            perfs <- liftIO $ readPoolsPerformances db currentEpoch tr'
             let epCst = getEpCst currentEpoch
             combineWith (pure . sortByDesirability) epCst distr prod perfs
 
@@ -545,6 +546,7 @@ data StakePoolLog
     | MsgApplyError ErrMonitorStakePools
     | MsgUsingRankingEpochConstants EpochConstants
     | MsgUsingTotalStakeForRanking (Quantity "lovelace" Word64)
+    | MsgPerformanceLog PerformanceLog
     deriving (Show, Eq)
 
 instance DefinePrivacyAnnotation StakePoolLog
@@ -577,6 +579,8 @@ instance DefineSeverity StakePoolLog where
             ErrMonitorStakePoolsCurrentNodeTip{} -> Notice
             ErrMonitorStakePoolsWrongTip{} -> Debug
             ErrMonitorStakePoolsPoolAlreadyExists{} -> Debug
+        MsgPerformanceLog x
+            -> defineSeverity x
 
 instance ToText StakePoolLog where
     toText = \case
@@ -639,6 +643,7 @@ instance ToText StakePoolLog where
                 "Race condition when fetching stake distribution."
             ErrMonitorStakePoolsPoolAlreadyExists{} ->
                 ""
+        MsgPerformanceLog x -> toText x
 
 oddlySmallRewards :: EpochConstants -> Bool
 oddlySmallRewards ec = (ec ^. #totalRewards) <= Quantity 100
