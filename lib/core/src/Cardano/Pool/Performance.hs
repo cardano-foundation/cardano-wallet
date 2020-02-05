@@ -139,14 +139,20 @@ apparentPerformance
         -- ^ Average performance
 apparentPerformance     [] = 0
 apparentPerformance epochs =
-    sum (n <$> epochs) / max 1 (sum (μ <$> epochs))
+    avg $ p <$> epochs
   where
-    n = double . poolProduction
-    μ e = _N * s / _S
+    p e = beta / sigma
       where
+        sigma = s / (max 1 _S) -- TODO: _S cannot be 0? throw?
+        beta = n / (max 1 _N)
+
         _N = double (totalProduction e)
         _S = double (totalStake e)
         s  = double (poolStake e)
+        n = double $ poolProduction e
+    avg xs = sum xs / (max 1 (fromIntegral (length xs)))
+
+
 
 -- | Read pool performances of many epochs from the database
 readPoolsPerformances
