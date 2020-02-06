@@ -41,6 +41,7 @@ Available COMMANDS:
       <a href="#stake-pool-list">list</a>              List all known stake pools
   network
     <a href="#network-information">information</a>         View network information
+    <a href="#network-parameters">parameters</a>           View network parameters
   <a href="#version">version</a>               Show the program's current version
 </pre> 
 
@@ -571,6 +572,12 @@ $ cardano-wallet stake-pools list
 > `cardano-wallet network information [--port=INT]` 
 
 View network information and syncing progress between the node and the blockchain.
+
+## network parameters
+
+> `cardano-wallet network parameters [--port=INT] EPOCH_NUMBER` 
+
+View network parameters. EPOCH_NUMBER can be `latest` or valid epoch number (not later than the current one), ie., 0, 1, .. .
 
 ## version
 
