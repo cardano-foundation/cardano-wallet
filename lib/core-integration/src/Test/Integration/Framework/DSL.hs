@@ -1314,7 +1314,7 @@ expectedBlockchainParams :: ApiNetworkParameters
 expectedBlockchainParams = ApiNetworkParameters
     { genesisBlockHash = ApiT $ Hash $ unsafeFromHex
         "f8c0622ea4b768421fea136a6e5a4e3b4c328fc5f16fad75817e40c8a2a56a56"
-    , blockchainStartTime = ApiT $ StartTime (read "2019-04-25 14:20:57 UTC")
+    , blockchainStartTime = ApiT $ StartTime $ read "2019-04-25 14:20:57 UTC"
     , slotLength = Quantity 2
     , epochLength = Quantity 10
     , epochStability = Quantity 5

@@ -15,11 +15,13 @@ import Cardano.CLI
 import Cardano.Wallet.Api.Types
     ( ApiNetworkInformation (..), ApiNetworkParameters )
 import Cardano.Wallet.Primitive.Types
-    ( EpochNo (..) )
+    ( EpochNo (..), epochPred )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Product.Typed
     ( typed )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import System.Command
@@ -45,50 +47,50 @@ spec = do
     it "CLI_NETWORK - cardano-wallet network information" $ \ctx -> do
         info <- getNetworkInfoViaCLI ctx
         let nextEpochNum =
-                 info ^. (#nextEpoch . #epochNumber . #getApiT)
-        nextEpochNum `shouldBe` (currentEpochNum info) + 1
+                info ^. (#nextEpoch . #epochNumber . #getApiT)
+        nextEpochNum `shouldBe` (currentEpochNo info) + 1
 
     it "CLI_NETWORK - cardano-wallet network parameters - \
        \proper parameter epoch parameter" $ \ctx -> do
-        params1 <- getNetworkParamsViaCLIok ctx "latest"
+        params1 <- getNetworkParamsViaCliExpectingSuccess ctx "latest"
         params1 `shouldBe` expectedBlockchainParams
 
-        params2 <- getNetworkParamsViaCLIok ctx "0"
+        params2 <- getNetworkParamsViaCliExpectingSuccess ctx "0"
         params2 `shouldBe` expectedBlockchainParams
 
         info <- getNetworkInfoViaCLI ctx
-        let (EpochNo currentEpoch) = currentEpochNum info
-        params3 <- getNetworkParamsViaCLIok ctx (show currentEpoch)
+        let (EpochNo currentEpoch) = currentEpochNo info
+        params3 <-
+            getNetworkParamsViaCliExpectingSuccess ctx (show currentEpoch)
         params3 `shouldBe` expectedBlockchainParams
 
-        let prevEpoch = if (currentEpoch > 0)
-                then currentEpoch - 1
-                else currentEpoch
-        params4 <- getNetworkParamsViaCLIok ctx (show prevEpoch)
+        let (EpochNo prevEpoch) =
+                fromMaybe minBound (epochPred $ EpochNo currentEpoch)
+        params4 <- getNetworkParamsViaCliExpectingSuccess ctx (show prevEpoch)
         params4 `shouldBe` expectedBlockchainParams
 
     it "CLI_NETWORK - cardano-wallet network parameters - \
        \improper parameter epoch parameter" $ \ctx -> do
 
         let wrong1 = "earlier"
-        params1 <- getNetworkParamsViaCLIwrong ctx "earlier"
+        params1 <- getNetworkParamsViaCliExpectingFailure ctx "earlier"
         params1 `shouldContain` (errMsg400MalformedEpoch wrong1)
 
         let wrong2 = "1.1"
-        params2 <- getNetworkParamsViaCLIwrong ctx wrong2
+        params2 <- getNetworkParamsViaCliExpectingFailure ctx wrong2
         params2 `shouldContain` (errMsg400MalformedEpoch wrong2)
 
         info <- getNetworkInfoViaCLI ctx
-        let (EpochNo currentEpoch) = currentEpochNum info
+        let (EpochNo currentEpoch) = currentEpochNo info
         let wrong3 = show $ currentEpoch + 10
-        params3 <- getNetworkParamsViaCLIwrong ctx wrong3
+        params3 <- getNetworkParamsViaCliExpectingFailure ctx wrong3
         params3 `shouldContain` (errMsg404NoEpochNo wrong3)
   where
-      getNetworkParamsViaCLIok
+      getNetworkParamsViaCliExpectingSuccess
           :: Context t
           -> String
           -> IO ApiNetworkParameters
-      getNetworkParamsViaCLIok ctx epoch = do
+      getNetworkParamsViaCliExpectingSuccess ctx epoch = do
           let port = show (ctx ^. typed @(Port "wallet"))
           (Exit c, Stderr e, Stdout o) <- cardanoWalletCLI @t
               ["network", "parameters", "--port", port, epoch ]
@@ -96,11 +98,11 @@ spec = do
           e `shouldContain` cmdOk
           expectValidJSON (Proxy @ApiNetworkParameters) o
 
-      getNetworkParamsViaCLIwrong
+      getNetworkParamsViaCliExpectingFailure
           :: Context t
           -> String
           -> IO String
-      getNetworkParamsViaCLIwrong ctx epoch = do
+      getNetworkParamsViaCliExpectingFailure ctx epoch = do
           let port = show (ctx ^. typed @(Port "wallet"))
           (Exit c, Stderr e, Stdout o) <- cardanoWalletCLI @t
               ["network", "parameters", "--port", port, epoch ]
@@ -119,6 +121,6 @@ spec = do
           e `shouldContain` cmdOk
           expectValidJSON (Proxy @ApiNetworkInformation) o
 
-      currentEpochNum :: ApiNetworkInformation -> EpochNo
-      currentEpochNum netInfo =
+      currentEpochNo :: ApiNetworkInformation -> EpochNo
+      currentEpochNo netInfo =
           netInfo ^. (#networkTip . #epochNumber . #getApiT)
