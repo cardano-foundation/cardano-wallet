@@ -51,7 +51,6 @@ module Codec.Binary.Bech32.Internal
     , HumanReadablePart
     , HumanReadablePartError (..)
     , humanReadablePartFromText
-    , unsafeHumanReadablePartFromText
     , humanReadablePartToText
     , humanReadablePartToWords
     , humanReadablePartMinLength
@@ -108,8 +107,6 @@ import Data.Text.Class
     ( splitAtLastOccurrence )
 import Data.Word
     ( Word8 )
-import GHC.Stack
-    ( HasCallStack )
 
 import qualified Data.Array as Arr
 import qualified Data.ByteString as BS
@@ -257,23 +254,6 @@ humanReadablePartFromText hrp
   where
     invalidCharPositions = CharPosition . fst <$> filter
         ((not . humanReadableCharIsValid) . snd) ([0 .. ] `zip` T.unpack hrp)
-
--- | Like `humanReadablePartFromText`, but throws at runtime if given an invalid
--- `hrp` as text. It is recommended to only make use of this function when using
--- litterals. For example:
---
--- >>> unsafeHumanReadablePartFromText "addr"
--- HumanReadablePart "addr"
---
-unsafeHumanReadablePartFromText
-    :: HasCallStack
-    => Text
-    -> HumanReadablePart
-unsafeHumanReadablePartFromText =
-    either errUnsafe id . humanReadablePartFromText
-  where
-    errUnsafe e =
-        error $ "Whoops! Invalid bech32 human-readable part: " <> show e
 
 -- | Represents the set of error conditions that may occur while parsing the
 --   human-readable part of a Bech32 string.

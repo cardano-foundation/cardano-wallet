@@ -142,6 +142,7 @@ library
       Cardano.Wallet.Unsafe
       Cardano.Wallet.Version
       Cardano.Wallet.Version.TH
+      Codec.Binary.Bech32.TH
       Data.Binary.Get.Safe
       Data.Function.Utils
       Data.Time.Text

@@ -115,6 +115,7 @@ import Test.QuickCheck
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Codec.Binary.Bech32 as Bech32
+import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
@@ -140,7 +141,7 @@ spec = do
         (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         addrs <- listAddresses ctx wDest
 
-        let hrp = Bech32.unsafeHumanReadablePartFromText "addr"
+        let hrp = [Bech32.humanReadablePart|addr|]
         bytes <- generate (vectorOf 32 arbitrary)
         let (utxoAmt, utxoAddr) =
                 ( 14 :: Natural

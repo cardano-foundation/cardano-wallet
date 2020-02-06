@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -64,6 +65,7 @@ import Test.Integration.Jcli
     ( argHex, argInt, getBlock0H, jcli, jcli_, sinkAddress )
 
 import qualified Codec.Binary.Bech32 as Bech32
+import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -102,7 +104,7 @@ mkTxBuilder (LinearFee cst coeff _) (TxIn inpTx inpIx, key) (addr, Coin amt) =
 
     prepareTx :: FilePath -> IO ()
     prepareTx txFile = do
-        let hrp = Bech32.unsafeHumanReadablePartFromText "addr"
+        let hrp = [Bech32.humanReadablePart|addr|]
         let dp  = Bech32.dataPartFromBytes (unAddress addr)
         jcli_
             [ "transaction"

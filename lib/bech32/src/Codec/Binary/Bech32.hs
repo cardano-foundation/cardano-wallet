@@ -32,7 +32,6 @@ module Codec.Binary.Bech32
     , HumanReadablePartError (..)
     , humanReadablePartFromText
     , humanReadablePartToText
-    , unsafeHumanReadablePartFromText
     ) where
 
 import Codec.Binary.Bech32.Internal
