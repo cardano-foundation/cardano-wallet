@@ -102,6 +102,7 @@ import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..) )
 import Cardano.Wallet.Api.Types
     ( AddressAmount
+    , ApiEpochNumber
     , ApiMnemonicT (..)
     , ApiT (..)
     , ApiTxId (..)
@@ -786,6 +787,7 @@ cmdNetwork = command "network" $ info (helper <*> cmds) $ mempty
   where
     cmds = subparser $ mempty
         <> cmdNetworkInformation @t
+        <> cmdNetworkParameters @t
 
 -- | Arguments for 'network information' command
 newtype NetworkInformationArgs = NetworkInformationArgs
@@ -801,6 +803,25 @@ cmdNetworkInformation = command "information" $ info (helper <*> cmd) $ mempty
     cmd = fmap exec $ NetworkInformationArgs <$> portOption
     exec (NetworkInformationArgs wPort) = do
         runClient wPort Aeson.encodePretty $ networkInformation (walletClient @t)
+
+-- | Arguments for 'network parameters' command
+data NetworkParametersArgs = NetworkParametersArgs
+    { _port :: Port "Wallet"
+    , _epoch :: ApiEpochNumber
+    }
+
+cmdNetworkParameters
+    :: forall t. (DecodeAddress t, EncodeAddress t)
+    => Mod CommandFields (IO ())
+cmdNetworkParameters = command "parameters" $ info (helper <*> cmd) $ mempty
+    <> progDesc "View network parameters."
+  where
+    cmd = fmap exec $ NetworkParametersArgs
+        <$> portOption
+        <*> epochArgument
+    exec (NetworkParametersArgs wPort epoch) = do
+        runClient wPort Aeson.encodePretty $
+            networkParameters (walletClient @t) epoch
 
 {-------------------------------------------------------------------------------
                             Commands - 'launch'
@@ -1002,6 +1023,12 @@ loggingSeverityOrOffReader = do
 walletIdArgument :: Parser WalletId
 walletIdArgument = argumentT $ mempty
     <> metavar "WALLET_ID"
+
+-- | <epoch=EPOCH_NUMBER>
+epochArgument :: Parser ApiEpochNumber
+epochArgument = argumentT $ mempty
+    <> metavar "EPOCH_NUMBER"
+    <> help "epoch number parameter or 'latest'"
 
 -- | <transaction-id=TX_ID>
 transactionIdArgument :: Parser TxId
