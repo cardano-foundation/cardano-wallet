@@ -76,8 +76,6 @@ import Data.Maybe
     ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
-import Data.Quantity
-    ( Quantity (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -213,7 +211,7 @@ startSqliteBackend
     -> Migration
     -> Tracer IO DBLog
     -> Maybe FilePath
-    -> IO (Either MigrationError (Quantity "migration" Int, SqliteContext))
+    -> IO (Either MigrationError SqliteContext)
 startSqliteBackend manualMigration migrateAll trace fp = do
     backend <- createSqliteBackend trace fp manualMigration (queryLogFunc trace)
     lock <- newMVar ()
@@ -233,8 +231,7 @@ startSqliteBackend manualMigration migrateAll trace fp = do
         Left e -> do
             destroyDBLayer ctx
             pure $ Left e
-        Right ms -> do
-            pure $ Right (Quantity (length ms), ctx)
+        Right _ -> pure $ Right ctx
 
 class Exception e => MatchMigrationError e where
     -- | Exception predicate for migration errors.
@@ -282,7 +279,6 @@ sqliteConnStr = maybe ":memory:" T.pack
 
 data DBLog
     = MsgMigrations (Either MigrationError Int)
-    | MsgForcedRollback
     | MsgQuery Text Severity
     | MsgRun Bool
     | MsgConnStr Text
@@ -347,7 +343,6 @@ instance DefineSeverity DBLog where
         MsgMigrations (Right 0) -> Debug
         MsgMigrations (Right _) -> Notice
         MsgMigrations (Left _) -> Error
-        MsgForcedRollback{} -> Notice
         MsgQuery _ sev -> sev
         MsgRun _ -> Debug
         MsgConnStr _ -> Debug
@@ -367,10 +362,6 @@ instance ToText DBLog where
             fmt $ ""+||n||+" migrations were applied to the database."
         MsgMigrations (Left err) ->
             "Failed to migrate the database: " <> getMigrationErrorMessage err
-        MsgForcedRollback -> mconcat
-            [ "Some automated database migrations happened. Forced to roll back "
-            , "to genesis."
-            ]
         MsgQuery stmt _ -> stmt
         MsgRun False -> "Running database action - Start"
         MsgRun True -> "Running database action - Finish"
