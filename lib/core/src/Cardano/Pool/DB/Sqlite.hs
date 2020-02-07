@@ -28,7 +28,8 @@ module Cardano.Pool.DB.Sqlite
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( DBLog (..)
+    ( AutoMigration (..)
+    , DBLog (..)
     , ManualMigration (..)
     , MigrationError (..)
     , SqliteContext (..)
@@ -137,7 +138,7 @@ newDBLayer
 newDBLayer trace fp = do
     let io = startSqliteBackend
             (ManualMigration mempty)
-            migrateAll
+            (AutoMigrationOnCreateOrRestart migrateAll)
             trace
             fp
     ctx@SqliteContext{runQuery} <- handlingPersistError trace fp io

@@ -32,6 +32,9 @@ module Cardano.DB.Sqlite
     , startSqliteBackend
     , unsafeRunQuery
 
+    -- * Automatic migration
+    , AutoMigration (..)
+
     -- * Manual Migration
     , ManualMigration (..)
     , MigrationError (..)
@@ -204,30 +207,59 @@ destroyDBLayer (SqliteContext {getSqlBackend, trace, dbFile}) = do
                            Internal / Database Setup
 -------------------------------------------------------------------------------}
 
+-- | Represents an automatic migration to be performed on a database.
+data AutoMigration
+    = AutoMigrationNone
+      -- ^ Do not perform an automatic migration.
+    | AutoMigrationOnCreate Migration
+      -- ^ Perform the specified automatic migration when creating a new
+      -- database.
+    | AutoMigrationOnCreateOrRestart Migration
+      -- ^ Perform the specified automatic migration when creating a new
+      -- database or when restarting a pre-existing database.
+
+-- | Indicates whether or not a database is already populated with data.
+data DbPopulationStatus
+    = DbIsEmpty
+      -- ^ Indicates that a database is empty: the database is without any
+      -- tables or data.
+    | DbIsPopulated
+      -- ^ Indicates that a database is not empty: the database has at least
+      -- one table.
+
 -- | Opens the SQLite database connection, sets up query logging and timing,
 -- runs schema migrations if necessary.
 startSqliteBackend
     :: ManualMigration
-    -> Migration
+    -> AutoMigration
     -> Tracer IO DBLog
     -> Maybe FilePath
     -> IO (Either MigrationError SqliteContext)
-startSqliteBackend manualMigration migrateAll trace fp = do
-    backend <- createSqliteBackend trace fp manualMigration (queryLogFunc trace)
+startSqliteBackend manualMigration autoMigration trace fp = do
+    (backend, dbPopulationStatus) <-
+        createSqliteBackend trace fp manualMigration (queryLogFunc trace)
     lock <- newMVar ()
     let traceRun = traceWith trace . MsgRun
     let observe :: IO a -> IO a
         observe = bracket_ (traceRun False) (traceRun True)
     let runQuery :: SqlPersistT IO a -> IO a
         runQuery cmd = withMVar lock $ const $ observe $ runSqlConn cmd backend
-    migrations <- runQuery (runMigrationQuiet migrateAll)
-        & tryJust (matchMigrationError @PersistException)
-        & tryJust (matchMigrationError @SqliteException)
-        & fmap join
-        :: IO (Either MigrationError [Text])
-    traceWith trace $ MsgMigrations (fmap length migrations)
+    let requiredAutoMigration = case (autoMigration, dbPopulationStatus) of
+            (AutoMigrationNone               , _            ) -> Nothing
+            (AutoMigrationOnCreateOrRestart m, DbIsEmpty    ) -> Just m
+            (AutoMigrationOnCreateOrRestart m, DbIsPopulated) -> Just m
+            (AutoMigrationOnCreate          m, DbIsEmpty    ) -> Just m
+            (AutoMigrationOnCreate          _, DbIsPopulated) -> Nothing
+    autoMigrationResult <- case requiredAutoMigration of
+        Nothing -> pure $ pure mempty
+        Just am -> runQuery (runMigrationQuiet am)
+            & tryJust (matchMigrationError @PersistException)
+            & tryJust (matchMigrationError @SqliteException)
+            & fmap join
+            :: IO (Either MigrationError [Text])
+    traceWith trace $ MsgMigrations $ fmap length autoMigrationResult
     let ctx = SqliteContext backend runQuery fp trace
-    case migrations of
+    case autoMigrationResult of
         Left e -> do
             destroyDBLayer ctx
             pure $ Left e
@@ -257,18 +289,31 @@ instance MatchMigrationError SqliteException where
 newtype ManualMigration = ManualMigration
     { executeManualMigration :: Sqlite.Connection -> IO () }
 
+-- | Determines whether or not the given database is populated with data.
+determineDbPopulationStatus :: Sqlite.Connection -> IO DbPopulationStatus
+determineDbPopulationStatus conn = do
+    query <- Sqlite.prepare conn "select count (*) from sqlite_master;"
+    count <- Sqlite.step query >> Sqlite.columns query
+    Sqlite.finalize query
+    pure $ case count of
+        [Persist.PersistInt64 0] -> DbIsEmpty
+        [Persist.PersistInt64 _] -> DbIsPopulated
+        _ -> error "Unexpected result when determining DB population status."
+
 createSqliteBackend
     :: Tracer IO DBLog
     -> Maybe FilePath
     -> ManualMigration
     -> LogFunc
-    -> IO SqlBackend
+    -> IO (SqlBackend, DbPopulationStatus)
 createSqliteBackend trace fp migration logFunc = do
     let connStr = sqliteConnStr fp
     traceWith trace $ MsgConnStr connStr
     conn <- Sqlite.open connStr
+    dbPopulationStatus <- determineDbPopulationStatus conn
     executeManualMigration migration conn
-    wrapConnectionInfo (mkSqliteConnectionInfo connStr) conn logFunc
+    backend <- wrapConnectionInfo (mkSqliteConnectionInfo connStr) conn logFunc
+    pure (backend, dbPopulationStatus)
 
 sqliteConnStr :: Maybe FilePath -> Text
 sqliteConnStr = maybe ":memory:" T.pack

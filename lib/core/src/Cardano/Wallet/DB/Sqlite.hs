@@ -44,7 +44,8 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Tracer
     ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
 import Cardano.DB.Sqlite
-    ( DBField (..)
+    ( AutoMigration (..)
+    , DBField (..)
     , DBLog (..)
     , ManualMigration (..)
     , SqliteContext (..)
@@ -401,7 +402,7 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
         either throwIO pure =<<
         startSqliteBackend
             (migrateManually trace defaultFieldValues)
-            migrateAll
+            (AutoMigrationOnCreate migrateAll)
             trace
             mDatabaseFile
     return (ctx, DBLayer
