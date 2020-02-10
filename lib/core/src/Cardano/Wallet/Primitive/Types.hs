@@ -125,6 +125,9 @@ module Cardano.Wallet.Primitive.Types
     , walletNameMinLength
     , walletNameMaxLength
     , WalletDelegation (..)
+    , WalletDelegationStatus (..)
+    , WalletDelegationNext (..)
+    , EpochInfo (..)
     , WalletPassphraseInfo(..)
     , WalletBalance(..)
 
@@ -348,19 +351,49 @@ instance Buildable WalletId where
       where
         widF = toText wid
 
-data WalletDelegation poolId
+data WalletDelegationStatus poolId
     = NotDelegating
     | Delegating !poolId
     deriving (Generic, Eq, Show)
-deriving instance Functor WalletDelegation
-instance NFData poolId => NFData (WalletDelegation poolId)
+deriving instance Functor WalletDelegationStatus
+instance NFData poolId => NFData (WalletDelegationStatus poolId)
 
-instance Buildable poolId => Buildable (WalletDelegation poolId) where
+instance Buildable poolId => Buildable (WalletDelegationStatus poolId) where
     build = \case
         NotDelegating ->
             "not delegating"
         Delegating poolId ->
             "delegating to " <> build poolId
+
+data EpochInfo = EpochInfo
+    { epochNumber :: !EpochNo
+    , epochStartingTime :: !UTCTime
+    } deriving (Eq, Generic, Show)
+instance NFData EpochInfo
+
+instance Buildable EpochInfo where
+    build (EpochInfo (EpochNo epoch) _) =
+        "epoch number " <> build (fromIntegral @Word31 @Word32 epoch)
+
+data WalletDelegationNext poolId = WalletDelegationNext
+    { status :: !(WalletDelegationStatus poolId)
+    , changesAt :: !EpochInfo
+    } deriving (Eq, Generic, Show)
+instance NFData poolId => NFData (WalletDelegationNext poolId)
+
+instance Buildable poolId => Buildable (WalletDelegationNext poolId) where
+    build (WalletDelegationNext st chAt) =
+        build st <> " which is to happen at " <> build chAt
+
+data WalletDelegation poolId = WalletDelegation
+    { active :: !(WalletDelegationStatus poolId)
+    , next :: !(Maybe (WalletDelegationNext poolId))
+    } deriving (Eq, Generic, Show)
+instance NFData poolId => NFData (WalletDelegation poolId)
+
+instance Buildable poolId => Buildable (WalletDelegation poolId) where
+    build (WalletDelegation act n) =
+        "current wallet delegation: " <> build act <> ", awaiting: " <> build n
 
 newtype WalletPassphraseInfo = WalletPassphraseInfo
     { lastUpdatedAt :: UTCTime }
