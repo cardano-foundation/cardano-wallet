@@ -78,6 +78,7 @@ import Cardano.Wallet.Primitive.Types
     , TxMeta (..)
     , TxStatus (..)
     , WalletDelegation (..)
+    , WalletDelegationStatus (..)
     , WalletMetadata (..)
     , dlgCertPoolId
     , isWithinRange
@@ -294,11 +295,12 @@ mReadWalletMeta wid db@(Database wallets _) =
     mkMetadata WalletDatabase{certificates,metadata} =
         case Map.lookupMax certificates of
             Nothing ->
-                metadata { delegation = NotDelegating }
+                metadata { delegation = WalletDelegation NotDelegating Nothing}
             Just (_, Nothing) ->
-                metadata { delegation = NotDelegating }
+                metadata { delegation = WalletDelegation NotDelegating Nothing}
             Just (_, Just pool) ->
-                metadata { delegation = Delegating pool }
+                metadata { delegation =
+                           WalletDelegation (Delegating pool) Nothing }
 
 mReadWalletDelegations
     :: Ord wid
