@@ -59,12 +59,12 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , KnownCommand
     , TxDescription (..)
+    , between
     , cardanoWalletCLI
     , deleteTransactionViaCLI
     , deleteWalletViaCLI
     , emptyRandomWallet
     , emptyWallet
-    , between
     , eventually_
     , expectCliField
     , expectCliListField

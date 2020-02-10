@@ -220,7 +220,7 @@ import System.Process
     , withCreateProcess
     )
 import Test.Hspec
-    ( HasCallStack, expectationFailure, Expectation )
+    ( Expectation, HasCallStack, expectationFailure )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain )
 import Test.Integration.Faucet

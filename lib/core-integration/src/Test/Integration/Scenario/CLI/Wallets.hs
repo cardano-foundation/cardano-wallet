@@ -13,7 +13,13 @@ import Prelude
 import Cardano.CLI
     ( Port )
 import Cardano.Wallet.Api.Types
-    ( ApiTransaction, ApiUtxoStatistics, ApiWallet, encodeAddress, getApiT, notDelegating )
+    ( ApiTransaction
+    , ApiUtxoStatistics
+    , ApiWallet
+    , encodeAddress
+    , getApiT
+    , notDelegating
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..)
     , PassphraseMaxLength (..)
@@ -44,7 +50,7 @@ import System.Exit
 import Test.Hspec
     ( SpecWith, describe, it )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldNotBe, shouldContain, shouldNotContain )
+    ( shouldBe, shouldContain, shouldNotBe, shouldNotContain )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , KnownCommand

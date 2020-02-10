@@ -62,10 +62,10 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , TxDescription (..)
+    , between
     , emptyRandomWallet
     , emptyWallet
     , eventually_
-    , between
     , expectErrorMessage
     , expectField
     , expectListField

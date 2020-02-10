@@ -58,7 +58,7 @@ import Data.Text
 import Data.Word
     ( Word64 )
 import Test.Hspec
-    ( SpecWith, describe, it, runIO, shouldSatisfy, shouldNotBe )
+    ( SpecWith, describe, it, runIO, shouldNotBe, shouldSatisfy )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe )
 import Test.Integration.Framework.DSL
@@ -81,9 +81,9 @@ import Test.Integration.Framework.DSL
     , fixtureIcarusWallet
     , fixturePassphrase
     , fixtureRandomWallet
-    , greaterThan
     , fixtureWallet
     , getFromResponse
+    , greaterThan
     , json
     , request
     , unsafeRequest

@@ -101,6 +101,8 @@ import Network.Wai.Middleware.Logging
     ( ApiLog (..), HandlerLog (..) )
 import Numeric.Natural
     ( Natural )
+import Test.Hspec
+    ( shouldBe )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
@@ -224,7 +226,7 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
                 [ expectSuccess
                 , expectField
                     (#balance . #getApiT . #available . #getQuantity)
-                    (== amtExp)
+                    (`shouldBe` amtExp)
                 ]
 
         rDel <- request @ApiWallet ctx (Link.deleteWallet @'Shelley wSrc) Default Empty
@@ -261,7 +263,7 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
                 [ expectSuccess
                 , expectField
                         (#balance . #getApiT . #available . #getQuantity)
-                        (== fromIntegral amtExp)
+                        (`shouldBe` fromIntegral amtExp)
                 ]
 
         rStat <- request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics wDest) Default Empty
