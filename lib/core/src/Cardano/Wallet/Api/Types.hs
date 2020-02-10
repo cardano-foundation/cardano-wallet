@@ -1216,8 +1216,7 @@ toApiWalletDelegation currentEpochNo sp dlgs = case dlgs of
     [(DelegationDiscovered (SlotId epochN _) poolIdMaybe)] ->
         case poolIdMaybe of
             Nothing ->
-                err "there should not be quitting delegation certificate \
-                \discovered when no prior joining delegation is present"
+                Right notDelegating
             Just pId ->
                 if currentEpochNo < epochN + 2 then
                     Right $ notDelegatingAboutToJoin (ApiT pId) epochN sp
@@ -1231,8 +1230,7 @@ toApiWalletDelegation currentEpochNo sp dlgs = case dlgs of
                 \certificate"
         else case (poolIdMaybe1, poolIdMaybe2) of
             (Nothing, Nothing) ->
-                err "there should not be two quit delegation certificates\
-                      \ discovered in a row"
+                Right notDelegating
             (Just pId, Nothing) ->
                 if currentEpochNo < epochN1 + 2 then
                     Right $ notDelegatingAboutToJoin (ApiT pId) epochN1 sp

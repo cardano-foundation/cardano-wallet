@@ -390,7 +390,7 @@ spec = do
                         (`shouldBe` reward)
                 ]
 
-    it "STAKE_POOLS_JOIN_01 - I can join another stake-pool after previously \
+    it "STAKE_POOLS_JOIN_01 - I can join another stake-pool after previously\
         \ joining another one" $ \ctx -> do
         w <- fixtureWallet ctx
         (_, p1:p2:_) <- eventually $
@@ -416,6 +416,10 @@ spec = do
             [ expectField #delegation
                 (`shouldBe` notDelegatingAboutToJoin (p1 ^. #id) currentEpochNo1 sp1)
             ]
+        eventually $ do
+            request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+                [ expectFieldEqual #delegation (delegating (p1 ^. #id))
+                ]
 
         -- Join pool p2
         joinStakePool ctx (p2 ^. #id) (w, fixturePassphrase) >>= flip verify
@@ -783,29 +787,20 @@ spec = do
 
     it "STAKE_POOLS_QUIT_01 - Can quit stake pool" $ \ctx -> do
         (w, p) <- joinStakePoolWithFixtureWallet ctx
+        eventually $ do
+            request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+                [ expectFieldEqual #delegation (delegating (p ^. #id))
+                ]
 
         r1 <- quitStakePool ctx (p ^. #id) (w, fixturePassphrase)
         expectResponseCode HTTP.status202 r1
 
-        -- Wait for the certificate to be inserted
         eventually $ do
-            let ep = Link.listTransactions @'Shelley w
-            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListField 0
-                    (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectListField 0
-                    (#status . #getApiT) (`shouldBe` InLedger)
-                , expectListField 1
-                    (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectListField 1
-                    (#status . #getApiT) (`shouldBe` InLedger)
+            (currentEpochNo, sp) <- getSlotParams ctx
+            request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+                [ expectFieldEqual #delegation
+                      (delegatingAboutToQuit (p ^. #id) currentEpochNo sp)
                 ]
-        (currentEpochNo, sp) <- getSlotParams ctx
-
-        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-            [ expectField #delegation
-                  (`shouldBe` (delegatingAboutToQuit (p ^. #id) currentEpochNo sp))
-            ]
 
     it "STAKE_POOLS_QUIT_01 - Quiting before even joining" $ \ctx -> do
         (_, p:_) <- eventually $
