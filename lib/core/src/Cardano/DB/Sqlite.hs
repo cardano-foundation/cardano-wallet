@@ -212,7 +212,7 @@ data AutoMigration
     = AutoMigrationOnCreate Migration
       -- ^ Perform the specified automatic migration when creating a new
       -- database.
-    | AutoMigrationOnCreateOrRestart Migration
+    | AutoMigrationAlways Migration
       -- ^ Perform the specified automatic migration when creating a new
       -- database or when restarting a pre-existing database.
 
@@ -243,10 +243,10 @@ startSqliteBackend manualMigration autoMigration trace fp = do
     let runQuery :: SqlPersistT IO a -> IO a
         runQuery cmd = withMVar lock $ const $ observe $ runSqlConn cmd backend
     let requiredAutoMigration = case (autoMigration, dbPopulationStatus) of
-            (AutoMigrationOnCreateOrRestart m, DbIsEmpty    ) -> Just m
-            (AutoMigrationOnCreateOrRestart m, DbIsPopulated) -> Just m
-            (AutoMigrationOnCreate          m, DbIsEmpty    ) -> Just m
-            (AutoMigrationOnCreate          _, DbIsPopulated) -> Nothing
+            (AutoMigrationAlways   m, DbIsEmpty    ) -> Just m
+            (AutoMigrationAlways   m, DbIsPopulated) -> Just m
+            (AutoMigrationOnCreate m, DbIsEmpty    ) -> Just m
+            (AutoMigrationOnCreate _, DbIsPopulated) -> Nothing
     autoMigrationResult <- case requiredAutoMigration of
         Nothing -> pure $ pure mempty
         Just am -> runQuery (runMigrationQuiet am)

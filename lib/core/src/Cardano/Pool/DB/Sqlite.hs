@@ -138,7 +138,7 @@ newDBLayer
 newDBLayer trace fp = do
     let io = startSqliteBackend
             (ManualMigration mempty)
-            (AutoMigrationOnCreateOrRestart migrateAll)
+            (AutoMigrationAlways migrateAll)
             trace
             fp
     ctx@SqliteContext{runQuery} <- handlingPersistError trace fp io
