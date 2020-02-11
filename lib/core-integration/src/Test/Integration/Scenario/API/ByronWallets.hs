@@ -83,7 +83,6 @@ import Test.Integration.Framework.DSL
     , fixtureRandomWallet
     , fixtureWallet
     , getFromResponse
-    , greaterThan
     , json
     , request
     , unsafeRequest
@@ -91,6 +90,7 @@ import Test.Integration.Framework.DSL
     , walletId
     , withMethod
     , withPathParam
+    , (.>)
     )
 import Test.Integration.Framework.TestData
     ( arabicWalletName
@@ -149,7 +149,7 @@ spec = do
             verify r
                 [ expectResponseCode @IO HTTP.status200
                 , expectField (#migrationCost . #getQuantity)
-                    (greaterThan 0)
+                    (.> 0)
                 ]
 
     it "BYRON_CALCULATE_02 - \
@@ -235,7 +235,7 @@ spec = do
                 (Link.getMigrationInfo sourceWallet) Default Empty
             verify r0
                 [ expectResponseCode @IO HTTP.status200
-                , expectField #migrationCost (greaterThan $ Quantity 0)
+                , expectField #migrationCost (.> Quantity 0)
                 ]
             let expectedFee = getFromResponse (#migrationCost . #getQuantity) r0
 
@@ -289,7 +289,7 @@ spec = do
                 (Link.getWallet @'Byron wOld)
                 Default
                 Empty >>= flip verify
-                [ expectField (#balance . #available) (greaterThan $ Quantity 0)
+                [ expectField (#balance . #available) (.> Quantity 0)
                 ]
         let originalBalance = view (#balance . #available . #getQuantity) wOld
 
@@ -300,7 +300,7 @@ spec = do
             Empty
         verify rFee
             [ expectResponseCode @IO HTTP.status200
-            , expectField #migrationCost (greaterThan $ Quantity 0)
+            , expectField #migrationCost (.> Quantity 0)
             ]
         let expectedFee = getFromResponse (#migrationCost . #getQuantity) rFee
 
@@ -401,7 +401,7 @@ spec = do
                     (Link.getWallet @'Byron sourceWallet)
                     Default
                     Empty >>= flip verify
-                    [ expectField (#balance . #available) (greaterThan $ Quantity 0)
+                    [ expectField (#balance . #available) (.> Quantity 0)
                     ]
 
             targetWallet <- emptyWallet ctx
@@ -425,7 +425,7 @@ spec = do
             r0 <- request @ApiByronWalletMigrationInfo ctx ep0 Default Empty
             verify r0
                 [ expectResponseCode @IO HTTP.status200
-                , expectField #migrationCost (greaterThan $ Quantity 0)
+                , expectField #migrationCost (.> Quantity 0)
                 ]
 
             -- Perform the migration.

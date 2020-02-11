@@ -84,7 +84,6 @@ import Test.Integration.Framework.DSL
     , fixtureWallet
     , fixtureWalletWith
     , getFromResponse
-    , greaterThan
     , joinStakePool
     , json
     , quitStakePool
@@ -94,6 +93,7 @@ import Test.Integration.Framework.DSL
     , waitForNextEpoch
     , walletId
     , withMethod
+    , (.>)
     , (.>=)
     )
 import Test.Integration.Framework.TestData
@@ -162,14 +162,14 @@ spec = do
                     (#metrics . #controlledStake) (`shouldBe` Quantity 1000)
 
                 , expectListField 0
-                    (#metrics . #producedBlocks) (greaterThan $ Quantity 1)
+                    (#metrics . #producedBlocks) (.> Quantity 1)
                 , expectListField 1
                     (#metrics . #producedBlocks) (`shouldBe` Quantity 0)
                 , expectListField 2
                     (#metrics . #producedBlocks) (`shouldBe` Quantity 0)
 
                 , expectListField 0
-                    #apparentPerformance (greaterThan 0)
+                    #apparentPerformance (.> 0)
                 , expectListField 1
                     #apparentPerformance (`shouldBe` 0)
                 , expectListField 2
@@ -293,7 +293,7 @@ spec = do
             v <- request @[ApiStakePool] ctx Link.listStakePools Default Empty
             verify v
                 [ expectListField 0 (#metrics . #controlledStake)
-                    (greaterThan $ Quantity (existingPoolStake + contributedStake))
+                    (.> Quantity (existingPoolStake + contributedStake))
                     -- No exact equality since the delegation from previous
                     -- tests may take effect.
                 ]
@@ -322,7 +322,7 @@ spec = do
         eventually $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
                 [ expectField (#balance . #getApiT . #reward)
-                    (greaterThan (Quantity 0))
+                    (.> (Quantity 0))
                 ]
 
         -- Quit a pool
@@ -377,7 +377,7 @@ spec = do
             verify r
                 [ expectField
                         (#balance . #getApiT . #reward)
-                        (greaterThan (Quantity 0))
+                        (.> Quantity 0)
                 ]
             pure $ getFromResponse (#balance . #getApiT . #reward) r
 

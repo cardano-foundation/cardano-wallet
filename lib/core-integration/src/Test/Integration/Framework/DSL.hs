@@ -35,7 +35,8 @@ module Test.Integration.Framework.DSL
     , expectCliListField
     , expectWalletUTxO
     , between
-    , greaterThan
+    , (.>=)
+    , (.>)
     , verify
     , Headers(..)
     , Payload(..)
@@ -48,7 +49,6 @@ module Test.Integration.Framework.DSL
     -- * Helpers
     , (</>)
     , (!!)
-    , (.>=)
     , emptyRandomWallet
     , emptyIcarusWallet
     , emptyByronWalletWith
@@ -458,8 +458,8 @@ between (min', max') x
             , show max'
             ]
 
-greaterThan :: (Ord a, Show a) => a -> a -> Expectation
-greaterThan bound x
+(.>) :: (Ord a, Show a) => a -> a -> Expectation
+x .> bound
     | x > bound
         = return ()
     | otherwise
@@ -469,7 +469,6 @@ greaterThan bound x
             , show bound
             , ")"
             ]
-
 
 (.>=) :: (Ord a, Show a) => a -> a -> Expectation
 a .>= b
