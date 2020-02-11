@@ -48,7 +48,6 @@ module Test.Integration.Framework.DSL
     -- * Helpers
     , (</>)
     , (!!)
-    , (.>=)
     , emptyRandomWallet
     , emptyIcarusWallet
     , emptyByronWalletWith
@@ -467,19 +466,6 @@ greaterThan bound x
             [ show x
             , " does not satisfy (> "
             , show bound
-            , ")"
-            ]
-
-
-(.>=) :: (Ord a, Show a) => a -> a -> Expectation
-a .>= b
-    | a >= b
-        = return ()
-    | otherwise
-        = fail $ mconcat
-            [ show a
-            , " does not satisfy (>= "
-            , show b
             , ")"
             ]
 
