@@ -44,9 +44,9 @@ import Test.Integration.Framework.DSL
     , expectResponseCode
     , expectedBlockchainParams
     , getFromResponse
-    , greaterThan
     , request
     , verify
+    , (.>)
     )
 import Test.Integration.Framework.TestData
     ( errMsg400MalformedEpoch, errMsg404NoEpochNo, errMsg405, getHeaderCases )
@@ -64,7 +64,7 @@ spec = do
                 Link.getNetworkInfo Default Empty
             expectResponseCode @IO HTTP.status200 r
             verify r
-                [ expectField #nextEpoch ((greaterThan now) . epochStartTime)
+                [ expectField #nextEpoch ((.> now) . epochStartTime)
                 , expectField (#syncProgress . #getApiT) (`shouldBe` Ready)
                 ]
             return r
