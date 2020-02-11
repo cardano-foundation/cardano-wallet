@@ -1392,7 +1392,7 @@ joinStakePool ctx wid (pid, pools) argGenChange pwd = db & \DBLayer{..} -> do
 
     let checkAlreadyJoined (WalletDelegation (Delegating pid') Nothing) =
             pid' == pid
-        checkAlreadyJoined (WalletDelegation _ (WalletDelegationNext (Delegating pid') _)) =
+        checkAlreadyJoined (WalletDelegation _ (Just (WalletDelegationNext (Delegating pid') _))) =
             pid' == pid
         checkAlreadyJoined _ = False
 
@@ -1441,7 +1441,7 @@ quitStakePool ctx wid pid argGenChange pwd = db & \DBLayer{..} -> do
 
     let checkIfJoined (WalletDelegation (Delegating pid') Nothing) =
             pid' /= pid
-        checkIfJoined (WalletDelegation _ (WalletDelegationNext (Delegating pid') _)) =
+        checkIfJoined (WalletDelegation _ (Just (WalletDelegationNext (Delegating pid') _))) =
             pid' /= pid
         checkIfJoined _ = True
 

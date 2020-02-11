@@ -372,7 +372,7 @@ instance NFData poolId => NFData (WalletDelegationNext poolId)
 
 instance Buildable poolId => Buildable (WalletDelegationNext poolId) where
     build (WalletDelegationNext st epoch) =
-        build st <> " which is to happen at epoch number " <> build epoch
+        build st <> " which is expected to happen at epoch number " <> build epoch
 
 data WalletDelegation poolId = WalletDelegation
     { active :: !(WalletDelegationStatus poolId)

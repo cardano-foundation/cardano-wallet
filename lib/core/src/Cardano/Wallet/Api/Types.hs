@@ -136,7 +136,7 @@ import Cardano.Wallet.Primitive.Types
     , TxIn (..)
     , TxStatus (..)
     , WalletBalance (..)
-    , WalletDelegation (..)
+    , WalletDelegationStatus (..)
     , WalletId (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
@@ -289,16 +289,15 @@ data ApiWallet = ApiWallet
     { id :: !(ApiT WalletId)
     , addressPoolGap :: !(ApiT AddressPoolGap)
     , balance :: !(ApiT WalletBalance)
-    , delegation :: !(ApiT WalletDelegation)
+    , delegation :: !ApiWalletDelegation
     , name :: !(ApiT WalletName)
     , passphrase :: !(Maybe (ApiT WalletPassphraseInfo))
     , state :: !(ApiT SyncProgress)
     , tip :: !ApiBlockReference
     } deriving (Eq, Generic, Show)
 
-{--
 newtype ApiDelegationStatus = ApiDelegationStatus
-    { status :: ApiT (WalletDelegation (ApiT PoolId))
+    { status :: ApiT (WalletDelegationStatus (ApiT PoolId))
     } deriving (Eq, Generic, Show)
 
 data ApiWalletDelegationNext = ApiWalletDelegationNext
@@ -310,7 +309,6 @@ data ApiWalletDelegation = ApiWalletDelegation
     { active :: ApiDelegationStatus
     , next :: !(Maybe ApiWalletDelegationNext)
     } deriving (Eq, Generic, Show)
---}
 
 newtype ApiWalletPassphrase = ApiWalletPassphrase
     { passphrase :: ApiT (Passphrase "encryption")
@@ -720,12 +718,11 @@ instance FromJSON (ApiT PoolId) where
 instance ToJSON (ApiT PoolId) where
     toJSON = toJSON . toText . getApiT
 
-instance FromJSON (ApiT (WalletDelegation (ApiT PoolId))) where
+instance FromJSON (ApiT (WalletDelegationStatus (ApiT PoolId))) where
     parseJSON = fmap ApiT . genericParseJSON walletDelegationOptions
-instance ToJSON (ApiT (WalletDelegation (ApiT PoolId))) where
+instance ToJSON (ApiT (WalletDelegationStatus (ApiT PoolId))) where
     toJSON = genericToJSON walletDelegationOptions . getApiT
 
-{--
 instance FromJSON ApiWalletDelegation where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiWalletDelegation where
@@ -759,7 +756,7 @@ instance FromJSON ApiDelegationStatus where
     parseJSON = fmap ApiDelegationStatus . parseJSON
 instance ToJSON ApiDelegationStatus where
     toJSON (ApiDelegationStatus st) = toJSON st
---}
+
 instance FromJSON ApiStakePool where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiStakePool where
