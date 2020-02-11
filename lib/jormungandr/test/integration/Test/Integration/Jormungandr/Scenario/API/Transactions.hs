@@ -80,10 +80,8 @@ import Test.Integration.Framework.DSL as DSL
     , emptyWallet
     , eventually_
     , expectErrorMessage
-    , expectEventually
-    , expectEventually'
-    , expectFieldEqual
-    , expectListItemFieldEqual
+    , expectField
+    , expectListField
     , expectResponseCode
     , expectSuccess
     , faucetAmt
@@ -169,8 +167,8 @@ spec = do
         r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
-            , expectFieldEqual (#direction . #getApiT) Outgoing
-            , expectFieldEqual (#status . #getApiT) Pending
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
             ]
 
         eventually_ $ do
@@ -179,27 +177,27 @@ spec = do
                 Default
                 Empty
                 >>= flip verify
-                [ expectListItemFieldEqual 0 (#direction . #getApiT) Outgoing
-                , expectListItemFieldEqual 0 (#status . #getApiT) InLedger
+                [ expectListField 0 (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectListField 0 (#status . #getApiT) (`shouldBe` InLedger)
                 ]
             request @([ApiTransaction n]) ctx
                 (Link.listTransactions @'Shelley wDest)
                 Default
                 Empty
                 >>= flip verify
-                [ expectListItemFieldEqual 0 (#direction . #getApiT) Incoming
-                , expectListItemFieldEqual 0 (#status . #getApiT) InLedger
-                , expectListItemFieldEqual 0 #amount (Quantity utxoAmt)
+                [ expectListField 0 (#direction . #getApiT) (`shouldBe` Incoming)
+                , expectListField 0 (#status . #getApiT) (`shouldBe` InLedger)
+                , expectListField 0 #amount (`shouldBe` Quantity utxoAmt)
                 ]
             request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest)
                 Default
                 Empty
                 >>= flip verify
-                [ expectFieldEqual
-                        (#balance . #getApiT . #available) (Quantity utxoAmt)
-                , expectFieldEqual
-                        (#balance . #getApiT . #total) (Quantity utxoAmt)
+                [ expectField
+                        (#balance . #getApiT . #available) (`shouldBe` Quantity utxoAmt)
+                , expectField
+                        (#balance . #getApiT . #total) (`shouldBe` Quantity utxoAmt)
                 ]
 
     it "TRANS_ESTIMATE_09 - \
@@ -232,10 +230,13 @@ spec = do
         request @ApiTxId ctx Link.postExternalTransaction headers (NonJson payload)
             >>= expectResponseCode HTTP.status202
 
-        expectEventually' ctx (Link.getWallet @'Shelley)
-                (#balance . #getApiT . #available) (Quantity amt) w
-        expectEventually' ctx (Link.getWallet @'Shelley)
-                (#balance . #getApiT . #total) (Quantity amt) w
+        eventually_ $ do
+            r <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley w) Default Empty
+            expectField (#balance . #getApiT . #available)
+                (`shouldBe` Quantity amt) r
+            expectField (#balance . #getApiT . #total)
+                (`shouldBe` Quantity amt) r
 
     describe "TRANS_DELETE_05 - Cannot forget external tx -> 404" $ do
         let txDeleteTest05
@@ -265,11 +266,13 @@ spec = do
                 expectErrorMessage (errMsg404CannotFindTx txid) ra
 
                 -- tx eventually gets into ledger (funds are on the target wallet)
-                expectEventually' ctx (Link.getWallet @'Shelley)
-                        (#balance . #getApiT . #available) (Quantity amt) wal
-                expectEventually' ctx (Link.getWallet @'Shelley)
-                        (#balance . #getApiT . #total) (Quantity amt) wal
-
+                eventually_ $ do
+                    rg <- request @ApiWallet ctx
+                        (Link.getWallet @'Shelley wal) Default Empty
+                    expectField (#balance . #getApiT . #available)
+                        (`shouldBe` Quantity amt) rg
+                    expectField (#balance . #getApiT . #total)
+                        (`shouldBe` Quantity amt) rg
 
         txDeleteTest05 "wallets" emptyWallet
         txDeleteTest05 "byron-wallets" emptyRandomWallet
@@ -292,22 +295,25 @@ spec = do
             , expectResponseCode HTTP.status202
             ]
 
-        rb <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default Empty
-        verify rb
-            [ expectSuccess
-            , expectEventually ctx (Link.getWallet @'Shelley)
-                    (#balance . #getApiT . #total . #getQuantity)
-                    (initTotal + toSend)
-            , expectEventually ctx (Link.getWallet @'Shelley)
-                    (#balance . #getApiT . #available . #getQuantity)
-                    (initAvailable + toSend)
-            ]
-        ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
-        verify ra
-            [ expectEventually ctx (Link.getWallet @'Shelley)
-                    (#balance . #getApiT . #available . #getQuantity)
-                    (faucetAmt - fee - toSend)
-            ]
+        eventually_ $ do
+            rb <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wDest) Default Empty
+            verify rb
+                [ expectSuccess
+                , expectField
+                        (#balance . #getApiT . #total . #getQuantity)
+                        (`shouldBe` initTotal + toSend)
+                , expectField
+                        (#balance . #getApiT . #available . #getQuantity)
+                        (`shouldBe` initAvailable + toSend)
+                ]
+            ra <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wSrc) Default Empty
+            verify ra
+                [ expectField
+                        (#balance . #getApiT . #available . #getQuantity)
+                        (`shouldBe` faucetAmt - fee - toSend)
+                ]
 
     it "TRANS_EXTERNAL_CREATE_02 - proper single output transaction and \
        \improper binary format" $ \ctx -> do
@@ -471,7 +477,8 @@ fixtureExternalTx ctx toSend = do
         @ApiWallet ctx ("POST", "v2/wallets") Default restoreFaucetWallet
     verify r0
         [ expectResponseCode @IO HTTP.status201
-        , expectFieldEqual (#name . #getApiT . #getWalletName) "Faucet Wallet"
+        , expectField
+            (#name . #getApiT . #getWalletName) (`shouldBe` "Faucet Wallet")
         ]
     let wSrc = getFromResponse Prelude.id r0
     -- we take input by lookking at transactions of the faucet wallet
@@ -493,10 +500,13 @@ fixtureExternalTx ctx toSend = do
             "passphrase": #{password1}
             } |]
     r1 <- request @ApiWallet ctx ("POST", "v2/wallets") Default createWallet
-    verify r1
-        [ expectFieldEqual (#name . #getApiT . #getWalletName) "Destination Wallet"
-        , expectEventually ctx (Link.getWallet @'Shelley) (#state . #getApiT) Ready
-        ]
+    expectField
+            (#name . #getApiT . #getWalletName) (`shouldBe` "Destination Wallet") r1
+    let wid = getFromResponse Prelude.id r1
+    eventually_ $ do
+        r <- request @ApiWallet ctx (Link.getWallet @'Shelley wid) Default Empty
+        expectField (#state . #getApiT) (`shouldBe` Ready) r
+
     let wDest = getFromResponse Prelude.id r1
     addrsDest <- listAddresses ctx wDest
     let addrDest = (head addrsDest) ^. #id

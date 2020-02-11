@@ -11,7 +11,7 @@ module Test.Integration.Jormungandr.Scenario.CLI.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiTxId (..), ApiWallet, WalletStyle (..), getApiT )
+    ( ApiTxId (..), ApiWallet, getApiT )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..), hex )
 import Cardano.Wallet.Primitive.Types
@@ -39,8 +39,8 @@ import Test.Integration.Framework.DSL
     , KnownCommand
     , deleteTransactionViaCLI
     , emptyWallet
-    , expectCliFieldEqual
-    , expectEventually'
+    , eventually_
+    , expectCliField
     , expectValidJSON
     , fixtureRawTx
     , getWalletViaCLI
@@ -59,7 +59,6 @@ import Test.Integration.Jormungandr.Scenario.API.Transactions
 import Web.HttpApiData
     ( ToHttpApiData (..) )
 
-import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
@@ -82,11 +81,18 @@ spec = do
         err `shouldBe` "Ok.\n"
         out `shouldContain` "id"
         code `shouldBe` ExitSuccess
-
-        expectEventually' ctx (Link.getWallet @'Shelley)
-                (#balance . #getApiT . #available) (Quantity amt) w
-        expectEventually' ctx (Link.getWallet @'Shelley)
-                (#balance . #getApiT . #total) (Quantity amt) w
+        eventually_ $ do
+            Stdout gOutDest <- getWalletViaCLI @t ctx
+                (T.unpack (w ^. walletId))
+            destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
+            verify destJson
+                [ expectCliField
+                        (#balance . #getApiT . #available)
+                        (`shouldBe` (Quantity amt))
+                , expectCliField
+                        (#balance . #getApiT . #total)
+                        (`shouldBe` (Quantity amt))
+                ]
 
     it "TRANS_EXTERNAL_CREATE_01cli - proper single output transaction and \
        \proper binary format" $ \ctx -> do
@@ -105,23 +111,29 @@ spec = do
         out `shouldBe` "{\n    \"id\": " ++ show expectedTxId ++ "\n}\n"
         code `shouldBe` ExitSuccess
 
-        expectEventually' ctx (Link.getWallet @'Shelley)
-                (#balance . #getApiT . #total . #getQuantity)
-                (initTotal + toSend) wDest
-        expectEventually' ctx (Link.getWallet @'Shelley)
-                (#balance . #getApiT . #available . #getQuantity)
-                (initAvailable + toSend) wDest
+        eventually_ $ do
+            Stdout gOutDest <- getWalletViaCLI @t ctx
+                (T.unpack (wDest ^. walletId))
+            destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
+            verify destJson
+                [ expectCliField
+                        (#balance . #getApiT . #available)
+                        (`shouldBe` Quantity (initTotal + toSend))
+                , expectCliField
+                        (#balance . #getApiT . #total)
+                        (`shouldBe` Quantity (initTotal + toSend))
+                ]
 
         -- verify balance on dest wallet
         Stdout gOutDest <- getWalletViaCLI @t ctx (T.unpack (wDest ^. walletId))
         destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
         verify destJson
-            [ expectCliFieldEqual
+            [ expectCliField
                     (#balance . #getApiT . #available . #getQuantity)
-                    (initAvailable + toSend)
-            , expectCliFieldEqual
+                    (`shouldBe` initAvailable + toSend)
+            , expectCliField
                     (#balance . #getApiT . #total . #getQuantity)
-                    (initTotal + toSend)
+                    (`shouldBe` initTotal + toSend)
             ]
 
     it "TRANS_EXTERNAL_CREATE_02 - proper single output transaction and \
@@ -162,10 +174,16 @@ spec = do
         let txid = T.unpack $ toUrlPiece (txJson ^. #id)
 
         -- funds eventually are on target wallet
-        expectEventually' ctx (Link.getWallet @'Shelley)
-                (#balance . #getApiT . #available) (Quantity amt) w
-        expectEventually' ctx (Link.getWallet @'Shelley)
-                (#balance . #getApiT . #total) (Quantity amt) w
+        eventually_ $ do
+            Stdout gOutDest <- getWalletViaCLI @t ctx
+                (T.unpack (w ^. walletId))
+            destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
+            verify destJson
+                [ expectCliField
+                        (#balance . #getApiT . #available) (`shouldBe` Quantity amt)
+                , expectCliField
+                        (#balance . #getApiT . #total) (`shouldBe` Quantity amt)
+                ]
 
         -- Try to forget external tx
         (Exit c2, Stdout out2, Stderr err2) <-

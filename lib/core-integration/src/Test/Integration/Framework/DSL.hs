@@ -26,24 +26,16 @@ module Test.Integration.Framework.DSL
     , expectSuccess
     , expectError
     , expectErrorMessage
-    , expectFieldEqual
-    , expectFieldNotEqual
-    , expectFieldSatisfy
-    , expectFieldBetween
-    , expectListItemFieldBetween
-    , expectListItemFieldEqual
-    , expectListItemFieldSatisfy
-    , expectListSizeEqual
+    , expectField
+    , expectListField
+    , expectListSize
     , expectResponseCode
-    , expectEventually
-    , expectEventually'
     , expectValidJSON
-    , expectCliFieldBetween
-    , expectCliFieldEqual
-    , expectCliFieldNotEqual
-    , expectCliListItemFieldBetween
-    , expectCliListItemFieldEqual
+    , expectCliField
+    , expectCliListField
     , expectWalletUTxO
+    , between
+    , greaterThan
     , verify
     , Headers(..)
     , Payload(..)
@@ -56,6 +48,7 @@ module Test.Integration.Framework.DSL
     -- * Helpers
     , (</>)
     , (!!)
+    , (.>=)
     , emptyRandomWallet
     , emptyIcarusWallet
     , emptyByronWalletWith
@@ -161,8 +154,6 @@ import Control.Exception
     ( SomeException (..), catch )
 import Control.Monad
     ( forM_, join, unless, void )
-import Control.Monad.Catch
-    ( MonadCatch )
 import Control.Monad.Fail
     ( MonadFail (..) )
 import Control.Monad.IO.Class
@@ -207,8 +198,6 @@ import Data.Word
     ( Word64 )
 import Language.Haskell.TH.Quote
     ( QuasiQuoter )
-import Network.HTTP.Client
-    ( Manager )
 import Network.HTTP.Types.Method
     ( Method )
 import Numeric.Natural
@@ -231,9 +220,9 @@ import System.Process
     , withCreateProcess
     )
 import Test.Hspec
-    ( HasCallStack, expectationFailure )
+    ( Expectation, HasCallStack, expectationFailure )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldContain, shouldNotBe )
+    ( shouldBe, shouldContain )
 import Test.Integration.Faucet
     ( nextTxBuilder, nextWallet )
 import Test.Integration.Framework.Request
@@ -312,116 +301,41 @@ expectResponseCode want (got, a) =
             , "from the following response: " <> show a
             ]
 
-expectFieldEqual
-    :: (HasCallStack, MonadIO m, MonadFail m, Show a, Eq a)
-    => Lens' s a
-    -> a
-    -> (HTTP.Status, Either RequestException s)
-    -> m ()
-expectFieldEqual getter a (_, res) = case res of
-    Left e  -> wantedSuccessButError e
-    Right s -> (view getter s) `shouldBe` a
-
-expectFieldBetween
-    :: (HasCallStack, MonadIO m, MonadFail m, Show a, Ord a)
-    => Lens' s a
-    -> (a, a)
-    -> (HTTP.Status, Either RequestException s)
-    -> m ()
-expectFieldBetween getter (aMin, aMax) (_, res) = case res of
-    Left e  -> wantedSuccessButError e
-    Right s ->
-        case view getter s of
-            a | a < aMin -> fail $
-                "expected " <> show a <> " >= " <> show aMin
-            a | a > aMax -> fail $
-                "expected " <> show a <> " <= " <> show aMax
-            _ ->
-                return ()
-
-expectFieldSatisfy
+expectField
     :: (HasCallStack, MonadIO m, MonadFail m, Show a)
     => Lens' s a
-    -> (a -> Bool)
+    -> (a -> Expectation)
     -> (HTTP.Status, Either RequestException s)
     -> m ()
-expectFieldSatisfy getter predicate (_, res) = case res of
+expectField getter predicate (_, res) = case res of
     Left e  -> wantedSuccessButError e
     Right s ->
         let a = view getter s in
-        if predicate a
-            then return ()
-            else fail $ "predicate failed for: " <> show a
+        liftIO $ predicate a
 
-expectFieldNotEqual
-    :: (HasCallStack, MonadIO m, MonadFail m, Show a, Eq a)
-    => Lens' s a
-    -> a
-    -> (HTTP.Status, Either RequestException s)
-    -> m ()
-expectFieldNotEqual getter a (_, res) = case res of
-    Left e  -> wantedSuccessButError e
-    Right s -> (view getter s) `shouldNotBe` a
-
--- | Expects that returned data list's particular item field
---   matches the expected value.
---   e.g.
---   expectListItemFieldEqual 0 (#name . #getApiT . #getWalletName) "first" r
---   expectListItemFieldEqual 1 (#name . #getApiT . #getWalletName) "second" r
-expectListItemFieldEqual
-    :: (HasCallStack, MonadIO m, MonadFail m, Show a, Eq a)
-    => Int
-    -> Lens' s a
-    -> a
-    -> (HTTP.Status, Either RequestException [s])
-    -> m ()
-expectListItemFieldEqual i getter a (c, res) = case res of
-    Left e -> wantedSuccessButError e
-    Right xs
-        | length xs > i -> expectFieldEqual getter a (c, Right (xs !! i))
-        | otherwise -> fail $
-            "expectListItemFieldEqual: trying to access the #" <> show i <>
-            " element from a list but there's none! "
-
-expectListItemFieldSatisfy
+expectListField
     :: (HasCallStack, MonadIO m, MonadFail m, Show a)
     => Int
     -> Lens' s a
-    -> (a -> Bool)
+    -> (a -> Expectation)
     -> (HTTP.Status, Either RequestException [s])
     -> m ()
-expectListItemFieldSatisfy i getter predicate (c, res) = case res of
+expectListField i getter predicate (c, res) = case res of
     Left e -> wantedSuccessButError e
     Right xs
         | length xs > i ->
-            expectFieldSatisfy getter predicate (c, Right (xs !! i))
+            expectField getter predicate (c, Right (xs !! i))
         | otherwise -> fail $
-            "expectListItemFieldSatisfy: trying to access the #" <> show i <>
-            " element from a list but there's none! "
-
-expectListItemFieldBetween
-    :: (HasCallStack, MonadIO m, MonadFail m, Show a, Eq a, Ord a)
-    => Int
-    -> Lens' s a
-    -> (a, a)
-    -> (HTTP.Status, Either RequestException [s])
-    -> m ()
-expectListItemFieldBetween i getter (aMin, aMax) (c, res) = case res of
-    Left e -> wantedSuccessButError e
-    Right xs
-        | length xs > i ->
-            expectFieldBetween getter (aMin, aMax) (c, Right (xs !! i))
-        | otherwise -> fail $
-            "expectListItemFieldBetween: trying to access the #" <> show i <>
+            "expectListField: trying to access the #" <> show i <>
             " element from a list but there's none! "
 
 -- | Expects data list returned by the API to be of certain length
-expectListSizeEqual
+expectListSize
     :: (HasCallStack, MonadIO m, MonadFail m, Foldable xs)
     => Int
     -> (HTTP.Status, Either RequestException (xs a))
     -> m ()
-expectListSizeEqual l (_, res) = case res of
+expectListSize l (_, res) = case res of
     Left e   -> wantedSuccessButError e
     Right xs -> length (toList xs) `shouldBe` l
 
@@ -447,77 +361,6 @@ expectWalletUTxO coins = \case
         (ApiUtxoStatistics (Quantity (fromIntegral stakes)) (ApiT bType) distr)
             `shouldBe` stats
 
--- | Expects wallet from the request to eventually reach the given state or
--- beyond.
-expectEventually
-    :: forall ctx s a m. (HasCallStack, MonadIO m, MonadCatch m, MonadFail m)
-    => (Ord a, Show a, FromJSON s)
-    => (HasType (Text, Manager) ctx)
-    => ctx
-    -> (s -> (Method, Text))
-    -> Lens' s a
-    -> a
-    -> (HTTP.Status, Either RequestException s)
-    -> m ()
-expectEventually ctx endpoint getter target (_, res) = case res of
-    Left e -> wantedSuccessButError e
-    Right s -> liftIO $ do
-        winner <- race (threadDelay $ 60 * oneSecond) (loopUntilRestore s)
-        case winner of
-            Left _ -> expectationFailure $
-                "waited more than 60s for value to reach or exceed "
-                    <> show target
-            Right _ ->
-                return ()
-  where
-    loopUntilRestore :: s -> IO ()
-    loopUntilRestore s = do
-        r <- request @s ctx (endpoint s) Default Empty
-        let current = getFromResponse getter r
-        unless (current >= target) $
-            let ms = 1000 in threadDelay (500 * ms) *> loopUntilRestore s
-
--- | Like 'expectEventually', but the target is part of the response.
-expectEventuallyL
-    :: (HasCallStack, MonadIO m, MonadCatch m, MonadFail m)
-    => (Ord a, Show a)
-    => (HasType (Text, Manager) ctx)
-    => ctx
-    -> Lens' ApiWallet a
-    -> Lens' ApiWallet a
-    -> ApiWallet
-    -> m ()
-expectEventuallyL ctx getter target s = liftIO $ do
-    let wid = s ^. walletId
-    winner <- race (threadDelay $ 60 * oneSecond) (loopUntilRestore wid)
-    case winner of
-        Left _ -> expectationFailure
-            "waited more than 60s for value to reach or exceed given target."
-        Right _ ->
-            return ()
-  where
-    loopUntilRestore :: Text -> IO ()
-    loopUntilRestore wid = do
-        r <- request @ApiWallet ctx ("GET", "v2/wallets/" <> wid) Default Empty
-        unless (getFromResponse getter r >= getFromResponse target r) $
-            let ms = 1000 in threadDelay (500 * ms) *> loopUntilRestore wid
-
--- | Same as 'expectEventually', but works directly on 'ApiWallet'
--- rather than on a response from the API.
-expectEventually'
-    :: forall ctx s a m. (HasCallStack, MonadIO m, MonadCatch m, MonadFail m)
-    => (Ord a, Show a, FromJSON s)
-    => (HasType (Text, Manager) ctx)
-    => ctx
-    -> (s -> (Method, Text))
-    -> Lens' s a
-    -> a
-    -> s
-    -> m ()
-expectEventually' ctx endpoint target value s = do
-    rb <- request @s ctx (endpoint s) Default Empty
-    expectEventually ctx endpoint target value rb
-
 --
 -- CLI output expectations
 --
@@ -534,62 +377,28 @@ expectValidJSON _ str =
         Left e -> fail $ "expected valid JSON but failed decoding: " <> show e
         Right a -> return a
 
-expectCliFieldBetween
-    :: (HasCallStack, MonadIO m, MonadFail m, Show a, Ord a)
-    => Lens' s a
-    -> (a, a)
-    -> s
-    -> m ()
-expectCliFieldBetween getter (aMin, aMax) s = case view getter s of
-            a | a < aMin -> fail $
-                "expected " <> show a <> " >= " <> show aMin
-            a | a > aMax -> fail $
-                "expected " <> show a <> " <= " <> show aMax
-            _ ->
-                return ()
-
-expectCliListItemFieldBetween
-    :: (HasCallStack, MonadIO m, MonadFail m, Show a, Eq a, Ord a)
+expectCliListField
+    :: (HasCallStack, MonadIO m, MonadFail m, Show a)
     => Int
     -> Lens' s a
-    -> (a, a)
+    -> (a -> Expectation)
     -> [s]
     -> m ()
-expectCliListItemFieldBetween i getter (aMin, aMax) xs
-        | length xs > i = expectCliFieldBetween getter (aMin, aMax) (xs !! i)
+expectCliListField i getter predicate xs
+        | length xs > i = expectCliField getter predicate (xs !! i)
         | otherwise = fail $
-            "expectCliListItemFieldBetween: trying to access the #" <> show i <>
+            "expectCliListField: trying to access the #" <> show i <>
             " element from a list but there's none! "
 
-expectCliFieldEqual
-    :: (HasCallStack, MonadIO m, Show a, Eq a)
+expectCliField
+    :: (HasCallStack, MonadIO m, MonadFail m, Show a)
     => Lens' s a
-    -> a
+    -> (a -> Expectation)
     -> s
     -> m ()
-expectCliFieldEqual getter a out = (view getter out) `shouldBe` a
-
-expectCliFieldNotEqual
-    :: (HasCallStack, MonadIO m, Show a, Eq a)
-    => Lens' s a
-    -> a
-    -> s
-    -> m ()
-expectCliFieldNotEqual getter a out = (view getter out) `shouldNotBe` a
-
--- | Same as 'expectListItemFieldEqual' but for CLI
-expectCliListItemFieldEqual
-    :: (HasCallStack, MonadIO m, MonadFail m, Show a, Eq a)
-    => Int
-    -> Lens' s a
-    -> a
-    -> [s]
-    -> m ()
-expectCliListItemFieldEqual i getter a out
-        | length out > i = expectCliFieldEqual getter a (out !! i)
-        | otherwise = fail $
-            "expectCliListItemFieldEqual: trying to access the #" <> show i <>
-            " element from a list but there's none! "
+expectCliField getter predicate out = do
+    let a = (view getter out)
+    liftIO $ predicate a
 
 -- | A file is eventually created on the given location
 expectPathEventuallyExist :: HasCallStack => FilePath -> IO ()
@@ -635,6 +444,44 @@ waitForNextEpoch ctx = do
         epoch' <- getFromResponse (#nodeTip . #epochNumber) <$>
             request @ApiNetworkInformation ctx Link.getNetworkInfo Default Empty
         unless (getApiT epoch' > getApiT epoch) $ fail "not yet"
+
+between :: (Ord a, Show a) => (a, a) -> a -> Expectation
+between (min', max') x
+    | min' <= x && x <= max'
+        = return ()
+    | otherwise
+        = fail $ mconcat
+            [ show x
+            , " ∉ ["
+            , show min'
+            , ", "
+            , show max'
+            ]
+
+greaterThan :: (Ord a, Show a) => a -> a -> Expectation
+greaterThan bound x
+    | x > bound
+        = return ()
+    | otherwise
+        = fail $ mconcat
+            [ show x
+            , " does not satisfy (> "
+            , show bound
+            , ")"
+            ]
+
+
+(.>=) :: (Ord a, Show a) => a -> a -> Expectation
+a .>= b
+    | a >= b
+        = return ()
+    | otherwise
+        = fail $ mconcat
+            [ show a
+            , " does not satisfy (>= "
+            , show b
+            , ")"
+            ]
 
 -- Retry the given action a couple of time until it doesn't throw, or until it
 -- has been retried enough.
@@ -874,16 +721,18 @@ fixtureWalletWith ctx coins0 = do
         request @(ApiTransaction 'Testnet) ctx
             (Link.createTransaction src) Default payload
             >>= expectResponseCode HTTP.status202
-        expectEventually'
-            ctx (Link.getWallet @'Shelley)
-            (#balance . #getApiT . #available . #getQuantity)
-            (sum (balance:coins))
-            dest
-        expectEventuallyL
-            ctx
-            (#balance . #getApiT . #available)
-            (#balance . #getApiT . #total)
-            src
+        eventually_ $ do
+            rb <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley dest) Default Empty
+            expectField
+                (#balance . #getApiT . #available)
+                (`shouldBe` Quantity (sum (balance:coins))) rb
+            ra <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley src) Default Empty
+
+            getFromResponse (#balance . #getApiT . #available) ra
+                `shouldBe`
+                    getFromResponse (#balance . #getApiT . #total) ra
 
 -- | Total amount on each faucet wallet
 faucetAmt :: Natural

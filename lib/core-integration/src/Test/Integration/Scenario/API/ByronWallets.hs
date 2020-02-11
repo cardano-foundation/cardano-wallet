@@ -58,7 +58,7 @@ import Data.Text
 import Data.Word
     ( Word64 )
 import Test.Hspec
-    ( SpecWith, describe, it, runIO )
+    ( SpecWith, describe, it, runIO, shouldNotBe, shouldSatisfy )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe )
 import Test.Integration.Framework.DSL
@@ -73,12 +73,9 @@ import Test.Integration.Framework.DSL
     , emptyWalletWith
     , eventually_
     , expectErrorMessage
-    , expectEventually
-    , expectFieldEqual
-    , expectFieldNotEqual
-    , expectFieldSatisfy
-    , expectListItemFieldEqual
-    , expectListSizeEqual
+    , expectField
+    , expectListField
+    , expectListSize
     , expectResponseCode
     , faucetAmt
     , fixtureIcarusWallet
@@ -86,6 +83,7 @@ import Test.Integration.Framework.DSL
     , fixtureRandomWallet
     , fixtureWallet
     , getFromResponse
+    , greaterThan
     , json
     , request
     , unsafeRequest
@@ -150,7 +148,8 @@ spec = do
             r <- request @ApiByronWalletMigrationInfo ctx ep Default Empty
             verify r
                 [ expectResponseCode @IO HTTP.status200
-                , expectFieldSatisfy #migrationCost (> Quantity 0)
+                , expectField (#migrationCost . #getQuantity)
+                    (greaterThan 0)
                 ]
 
     it "BYRON_CALCULATE_02 - \
@@ -236,7 +235,7 @@ spec = do
                 (Link.getMigrationInfo sourceWallet) Default Empty
             verify r0
                 [ expectResponseCode @IO HTTP.status200
-                , expectFieldSatisfy #migrationCost (> Quantity 0)
+                , expectField #migrationCost (greaterThan $ Quantity 0)
                 ]
             let expectedFee = getFromResponse (#migrationCost . #getQuantity) r0
 
@@ -247,7 +246,7 @@ spec = do
                 (Json [aesonQQ|{"passphrase": #{fixturePassphrase}}|])
             verify r1
                 [ expectResponseCode @IO HTTP.status202
-                , expectFieldSatisfy id (not . null)
+                , expectField id (`shouldSatisfy` (not . null))
                 ]
 
             -- Check that funds become available in the target wallet:
@@ -256,12 +255,12 @@ spec = do
                 r2 <- request @ApiWallet ctx
                     (Link.getWallet @'Shelley targetWallet) Default Empty
                 verify r2
-                    [ expectFieldEqual
+                    [ expectField
                             (#balance . #getApiT . #available)
-                            (Quantity expectedBalance)
-                    , expectFieldEqual
+                            (`shouldBe` Quantity expectedBalance)
+                    , expectField
                             (#balance . #getApiT . #total)
-                            (Quantity expectedBalance)
+                            (`shouldBe` Quantity expectedBalance)
                     ]
 
     it "BYRON_MIGRATE_01 - \
@@ -290,7 +289,7 @@ spec = do
                 (Link.getWallet @'Byron wOld)
                 Default
                 Empty >>= flip verify
-                [ expectFieldSatisfy (#balance . #available) (> Quantity 0)
+                [ expectField (#balance . #available) (greaterThan $ Quantity 0)
                 ]
         let originalBalance = view (#balance . #available . #getQuantity) wOld
 
@@ -301,7 +300,7 @@ spec = do
             Empty
         verify rFee
             [ expectResponseCode @IO HTTP.status200
-            , expectFieldSatisfy #migrationCost (> Quantity 0)
+            , expectField #migrationCost (greaterThan $ Quantity 0)
             ]
         let expectedFee = getFromResponse (#migrationCost . #getQuantity) rFee
 
@@ -313,7 +312,7 @@ spec = do
             Default
             payloadMigrate >>= flip verify
             [ expectResponseCode @IO HTTP.status202
-            , expectFieldSatisfy id ((== 2). length)
+            , expectField id ((`shouldBe` 2). length)
             ]
 
         -- Check that funds become available in the target wallet:
@@ -323,21 +322,21 @@ spec = do
                 (Link.getWallet @'Shelley wNew)
                 Default
                 Empty >>= flip verify
-                [ expectFieldEqual
+                [ expectField
                         (#balance . #getApiT . #available)
-                        (Quantity expectedBalance)
-                , expectFieldEqual
+                        ( `shouldBe` Quantity expectedBalance)
+                , expectField
                         (#balance . #getApiT . #total)
-                        (Quantity expectedBalance)
+                        ( `shouldBe` Quantity expectedBalance)
                 ]
 
         -- Analyze the target wallet UTxO distribution
         request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics wNew)
             Default
             Empty >>= flip verify
-            [ expectFieldSatisfy
+            [ expectField
                 #distribution
-                ((== (Just 400)) . Map.lookup 10_000_000_000)
+                ((`shouldBe` (Just 400)) . Map.lookup 10_000_000_000)
             ]
 
     it "BYRON_MIGRATE_01 - \
@@ -354,7 +353,7 @@ spec = do
                 (Json [json|{"passphrase": #{fixturePassphrase}}|])
             verify r0
                 [ expectResponseCode @IO HTTP.status202
-                , expectFieldSatisfy id (not . null)
+                , expectField id (`shouldSatisfy` (not . null))
                 ]
 
             -- Verify that the source wallet has no funds available:
@@ -362,7 +361,7 @@ spec = do
                 (Link.getWallet @'Byron sourceWallet) Default Empty
             verify r1
                 [ expectResponseCode @IO HTTP.status200
-                , expectFieldSatisfy (#balance . #available) (== Quantity 0)
+                , expectField (#balance . #available) (`shouldBe` Quantity 0)
                 ]
 
     it "BYRON_MIGRATE_02 - \
@@ -402,7 +401,7 @@ spec = do
                     (Link.getWallet @'Byron sourceWallet)
                     Default
                     Empty >>= flip verify
-                    [ expectFieldSatisfy (#balance . #available) (> Quantity 0)
+                    [ expectField (#balance . #available) (greaterThan $ Quantity 0)
                     ]
 
             targetWallet <- emptyWallet ctx
@@ -426,7 +425,7 @@ spec = do
             r0 <- request @ApiByronWalletMigrationInfo ctx ep0 Default Empty
             verify r0
                 [ expectResponseCode @IO HTTP.status200
-                , expectFieldSatisfy #migrationCost (> Quantity 0)
+                , expectField #migrationCost (greaterThan $ Quantity 0)
                 ]
 
             -- Perform the migration.
@@ -436,7 +435,7 @@ spec = do
             r1 <- request @[ApiTransaction n] ctx ep1 Default payload
             verify r1
                 [ expectResponseCode @IO HTTP.status202
-                , expectFieldSatisfy id (not . null)
+                , expectField id (`shouldSatisfy` (not . null))
                 ]
 
             -- Verify that the fee prediction was correct.
@@ -682,13 +681,13 @@ spec = do
             rl <- request @[ApiByronWallet] ctx (Link.listWallets @'Byron) Default Empty
             verify rl
                 [ expectResponseCode @IO HTTP.status200
-                , expectListSizeEqual 3
-                , expectListItemFieldEqual 0
-                        (#name . #getApiT . #getWalletName) "b1"
-                , expectListItemFieldEqual 1
-                        (#name . #getApiT . #getWalletName) "b2"
-                , expectListItemFieldEqual 2
-                        (#name . #getApiT . #getWalletName) "b3"
+                , expectListSize 3
+                , expectListField 0
+                        (#name . #getApiT . #getWalletName) (`shouldBe` "b1")
+                , expectListField 1
+                        (#name . #getApiT . #getWalletName) (`shouldBe` "b2")
+                , expectListField 2
+                        (#name . #getApiT . #getWalletName) (`shouldBe` "b3")
                 ]
 
     it "BYRON_LIST_01 - Interleave of Icarus and Random wallets" $ \ctx -> do
@@ -699,10 +698,13 @@ spec = do
         rl <- request @[ApiByronWallet] ctx (Link.listWallets @'Byron) Default Empty
         verify rl
             [ expectResponseCode @IO HTTP.status200
-            , expectListSizeEqual 3
-            , expectListItemFieldEqual 0 (#name . #getApiT . #getWalletName) "ica1"
-            , expectListItemFieldEqual 1 (#name . #getApiT . #getWalletName) "rnd2"
-            , expectListItemFieldEqual 2 (#name . #getApiT . #getWalletName) "ica3"
+            , expectListSize 3
+            , expectListField 0
+                (#name . #getApiT . #getWalletName) (`shouldBe` "ica1")
+            , expectListField 1
+                (#name . #getApiT . #getWalletName) (`shouldBe` "rnd2")
+            , expectListField 2
+                (#name . #getApiT . #getWalletName) (`shouldBe` "ica3")
             ]
 
     it "BYRON_LIST_02,03 -\
@@ -723,25 +725,25 @@ spec = do
         rl <- request @[ApiByronWallet] ctx (Link.listWallets @'Byron) Default Empty
         verify rl
             [ expectResponseCode @IO HTTP.status200
-            , expectListSizeEqual 3
-            , expectListItemFieldEqual 0
-                    (#name . #getApiT . #getWalletName) "byron1"
-            , expectListItemFieldEqual 1
-                    (#name . #getApiT . #getWalletName) "byron2"
-            , expectListItemFieldEqual 2
-                    (#name . #getApiT . #getWalletName) "byron3"
+            , expectListSize 3
+            , expectListField 0
+                    (#name . #getApiT . #getWalletName) (`shouldBe` "byron1")
+            , expectListField 1
+                    (#name . #getApiT . #getWalletName) (`shouldBe` "byron2")
+            , expectListField 2
+                    (#name . #getApiT . #getWalletName) (`shouldBe` "byron3")
             ]
         --list only shelley
         rl2 <- request @[ApiWallet] ctx (Link.listWallets @'Shelley) Default Empty
         verify rl2
             [ expectResponseCode @IO HTTP.status200
-            , expectListSizeEqual 3
-            , expectListItemFieldEqual 0
-                    (#name . #getApiT . #getWalletName) "shelley1"
-            , expectListItemFieldEqual 1
-                    (#name . #getApiT . #getWalletName) "shelley2"
-            , expectListItemFieldEqual 2
-                    (#name . #getApiT . #getWalletName) "shelley3"
+            , expectListSize 3
+            , expectListField 0
+                    (#name . #getApiT . #getWalletName) (`shouldBe` "shelley1")
+            , expectListField 1
+                    (#name . #getApiT . #getWalletName) (`shouldBe` "shelley2")
+            , expectListField 2
+                    (#name . #getApiT . #getWalletName) (`shouldBe` "shelley3")
             ]
 
     it "BYRON_LIST_04, DELETE_01 -\
@@ -765,21 +767,21 @@ spec = do
         rdl <- request @[ApiByronWallet] ctx (Link.listWallets @'Byron) Default Empty
         verify rdl
             [ expectResponseCode @IO HTTP.status200
-            , expectListSizeEqual 2
-            , expectListItemFieldEqual 0
-                    (#name . #getApiT . #getWalletName) "byron1"
-            , expectListItemFieldEqual 1
-                    (#name . #getApiT . #getWalletName) "byron3"
+            , expectListSize 2
+            , expectListField 0
+                    (#name . #getApiT . #getWalletName) (`shouldBe` "byron1")
+            , expectListField 1
+                    (#name . #getApiT . #getWalletName) (`shouldBe` "byron3")
             ]
         --list only shelley
         rdl2 <- request @[ApiWallet] ctx (Link.listWallets @'Shelley) Default Empty
         verify rdl2
             [ expectResponseCode @IO HTTP.status200
-            , expectListSizeEqual 2
-            , expectListItemFieldEqual 0
-                    (#name . #getApiT . #getWalletName) "shelley1"
-            , expectListItemFieldEqual 1
-                    (#name . #getApiT . #getWalletName) "shelley2"
+            , expectListSize 2
+            , expectListField 0
+                    (#name . #getApiT . #getWalletName) (`shouldBe` "shelley1")
+            , expectListField 1
+                    (#name . #getApiT . #getWalletName) (`shouldBe` "shelley2")
             ]
 
     describe "BYRON_LIST_05 - HTTP headers" $ do
@@ -830,33 +832,38 @@ spec = do
                         "passphrase": "Secure Passphrase"
                     }|]
                 let expectations =
-                            [ expectFieldEqual
-                                    (#name . #getApiT . #getWalletName) name
-                            , expectFieldEqual (#balance . #available) (Quantity 0)
-                            , expectFieldEqual (#balance . #total) (Quantity 0)
-                            , expectEventually ctx (Link.getWallet @'Byron)
-                                    (#state . #getApiT) Ready
-                            , expectFieldNotEqual #passphrase Nothing
+                            [ expectField
+                                    (#name . #getApiT . #getWalletName) (`shouldBe` name)
+                            , expectField (#balance . #available) (`shouldBe` Quantity 0)
+                            , expectField (#balance . #total) (`shouldBe` Quantity 0)
+                            , expectField #passphrase (`shouldNotBe` Nothing)
                             ]
                 -- create
                 r <- request @ApiByronWallet ctx endpoint Default payload
                 verify r expectations
                 let w = getFromResponse id r
-                -- get
-                rg <- request @ApiByronWallet ctx (Link.getWallet @'Byron w) Default Empty
-                verify rg $ (expectResponseCode @IO HTTP.status200) : expectations
-                -- list
-                rl <- request @[ApiByronWallet] ctx (Link.listWallets @'Byron) Default Empty
-                verify rl
-                    [ expectResponseCode @IO HTTP.status200
-                    , expectListSizeEqual 1
-                    , expectListItemFieldEqual 0
-                            (#name . #getApiT . #getWalletName) name
-                    , expectListItemFieldEqual 0
-                            (#balance . #available) (Quantity 0)
-                    , expectListItemFieldEqual 0
-                            (#balance . #total) (Quantity 0)
-                    ]
+
+                eventually_ $ do
+                    -- get
+                    rg <- request @ApiByronWallet ctx
+                        (Link.getWallet @'Byron w) Default Empty
+                    verify rg $
+                        (expectField (#state . #getApiT) (`shouldBe` Ready)) : expectations
+                    -- list
+                    rl <- request @[ApiByronWallet] ctx
+                        (Link.listWallets @'Byron) Default Empty
+                    verify rl
+                        [ expectResponseCode @IO HTTP.status200
+                        , expectListSize 1
+                        , expectListField 0
+                                (#name . #getApiT . #getWalletName) (`shouldBe` name)
+                        , expectListField 0
+                                (#balance . #available) (`shouldBe` Quantity 0)
+                        , expectListField 0
+                                (#state . #getApiT) (`shouldBe` Ready)
+                        , expectListField 0
+                                (#balance . #total) (`shouldBe` Quantity 0)
+                        ]
 
         let scenarioFailure endpoint mnemonic ctx = do
                 let payload = Json [json| {
@@ -941,13 +948,14 @@ spec = do
         let matrix =
                 [ ( show walletNameMinLength ++ " char long", "1"
                   , [ expectResponseCode @IO HTTP.status201
-                    , expectFieldEqual (#name . #getApiT . #getWalletName) "1"
+                    , expectField
+                            (#name . #getApiT . #getWalletName) (`shouldBe` "1")
                     ]
                   )
                 , ( show walletNameMaxLength ++ " char long", walNameMax
                   , [ expectResponseCode @IO HTTP.status201
-                    , expectFieldEqual
-                            (#name . #getApiT . #getWalletName) walNameMax
+                    , expectField
+                            (#name . #getApiT . #getWalletName) (`shouldBe` walNameMax)
                     ]
                   )
                 , ( show (walletNameMaxLength + 1) ++ " char long"
@@ -965,32 +973,37 @@ spec = do
                   )
                 , ( "Russian name", russianWalletName
                   , [ expectResponseCode @IO HTTP.status201
-                    , expectFieldEqual
-                            (#name . #getApiT . #getWalletName) russianWalletName
+                    , expectField
+                            (#name . #getApiT . #getWalletName)
+                            (`shouldBe` russianWalletName)
                     ]
                   )
                 , ( "Polish name", polishWalletName
                   , [ expectResponseCode @IO HTTP.status201
-                    , expectFieldEqual
-                            (#name . #getApiT . #getWalletName) polishWalletName
+                    , expectField
+                            (#name . #getApiT . #getWalletName)
+                            (`shouldBe` polishWalletName)
                     ]
                   )
                 , ( "Kanji name", kanjiWalletName
                   , [ expectResponseCode @IO HTTP.status201
-                    , expectFieldEqual
-                            (#name . #getApiT . #getWalletName) kanjiWalletName
+                    , expectField
+                            (#name . #getApiT . #getWalletName)
+                            (`shouldBe` kanjiWalletName)
                     ]
                   )
                 , ( "Arabic name", arabicWalletName
                   , [ expectResponseCode @IO HTTP.status201
-                    , expectFieldEqual
-                            (#name . #getApiT . #getWalletName) arabicWalletName
+                    , expectField
+                            (#name . #getApiT . #getWalletName)
+                            (`shouldBe` arabicWalletName)
                     ]
                   )
                 , ( "Wildcards name", wildcardsWalletName
                   , [ expectResponseCode @IO HTTP.status201
-                    , expectFieldEqual
-                            (#name . #getApiT . #getWalletName) wildcardsWalletName
+                    , expectField
+                            (#name . #getApiT . #getWalletName)
+                            (`shouldBe` wildcardsWalletName)
                     ]
                   )
                 ]
@@ -1268,7 +1281,7 @@ spec = do
         r <- request @ApiByronWallet ctx (Link.postWallet @'Icarus) Default payload
         verify r
             [ expectResponseCode @IO HTTP.status201
-            , expectFieldEqual (#balance . #available) (Quantity faucetAmt)
+            , expectField (#balance . #available) (`shouldBe` Quantity faucetAmt)
             ]
 
     it "BYRON_RESTORE_09 - Ledger wallet" $ \ctx -> do
@@ -1289,7 +1302,7 @@ spec = do
         r <- request @ApiByronWallet ctx (Link.postWallet @'Ledger) Default payload
         verify r
             [ expectResponseCode @IO HTTP.status201
-            , expectFieldEqual (#balance . #available) (Quantity faucetAmt)
+            , expectField (#balance . #available) (`shouldBe` Quantity faucetAmt)
             ]
  where
      genMnemonics

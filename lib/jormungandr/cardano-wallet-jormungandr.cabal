@@ -289,6 +289,7 @@ benchmark latency
     , generic-lens
     , http-client
     , http-types
+    , hspec
     , iohk-monitoring
     , memory
     , network

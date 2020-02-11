@@ -16,7 +16,6 @@ import Cardano.Wallet.Api.Types
     ( ApiTransaction
     , ApiUtxoStatistics
     , ApiWallet
-    , WalletStyle (..)
     , encodeAddress
     , getApiT
     , notDelegating
@@ -51,7 +50,7 @@ import System.Exit
 import Test.Hspec
     ( SpecWith, describe, it )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldContain, shouldNotContain )
+    ( shouldBe, shouldContain, shouldNotBe, shouldNotContain )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , KnownCommand
@@ -61,10 +60,9 @@ import Test.Integration.Framework.DSL
     , emptyRandomWallet
     , emptyWallet
     , emptyWalletWith
-    , expectCliFieldEqual
-    , expectCliFieldNotEqual
-    , expectCliListItemFieldEqual
-    , expectEventually'
+    , eventually_
+    , expectCliField
+    , expectCliListField
     , expectValidJSON
     , expectWalletUTxO
     , fixtureWallet
@@ -90,7 +88,6 @@ import Test.Integration.Framework.TestData
     , wildcardsWalletName
     )
 
-import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
 
 spec
@@ -112,7 +109,7 @@ spec = do
         err `shouldBe` cmdOk
         j <- expectValidJSON (Proxy @[ApiWallet]) out
         length j `shouldBe` 1
-        expectCliListItemFieldEqual 0 walletId (T.pack wid) j
+        expectCliListField 0 walletId (`shouldBe` T.pack wid) j
 
     it "BYRON_DELETE_03 - Shelley CLI does not delete Byron wallet" $ \ctx -> do
         wid <- emptyRandomWallet' ctx
@@ -160,17 +157,20 @@ spec = do
         T.unpack err `shouldContain` cmdOk
         j <- expectValidJSON (Proxy @ApiWallet) out
         verify j
-            [ expectCliFieldEqual (#name . #getApiT . #getWalletName) "n"
-            , expectCliFieldEqual
-                    (#addressPoolGap . #getApiT . #getAddressPoolGap) 20
-            , expectCliFieldEqual (#balance . #getApiT . #available) (Quantity 0)
-            , expectCliFieldEqual (#balance . #getApiT . #total) (Quantity 0)
-            , expectCliFieldEqual (#balance . #getApiT . #reward) (Quantity 0)
-            , expectEventually' ctx (Link.getWallet @'Shelley)
-                    (#state . #getApiT) Ready
-            , expectCliFieldEqual #delegation notDelegating
-            , expectCliFieldNotEqual #passphrase Nothing
+            [ expectCliField (#name . #getApiT . #getWalletName) (`shouldBe` "n")
+            , expectCliField
+                    (#addressPoolGap . #getApiT . #getAddressPoolGap) (`shouldBe` 20)
+            , expectCliField (#balance . #getApiT . #available) (`shouldBe` Quantity 0)
+            , expectCliField (#balance . #getApiT . #total) (`shouldBe` Quantity 0)
+            , expectCliField (#balance . #getApiT . #reward) (`shouldBe` Quantity 0)
+            , expectCliField #delegation (`shouldBe` notDelegating)
+            , expectCliField #passphrase (`shouldNotBe` Nothing)
             ]
+
+        eventually_ $ do
+            Stdout og <- getWalletViaCLI @t ctx $ T.unpack (j ^. walletId)
+            jg <- expectValidJSON (Proxy @ApiWallet) og
+            expectCliField (#state . #getApiT) (`shouldBe` Ready) jg
 
     it "WALLETS_CREATE_02 - Restored wallet preserves funds" $ \ctx -> do
         wSrc <- fixtureWallet ctx
@@ -182,8 +182,10 @@ spec = do
         T.unpack e1 `shouldContain` cmdOk
         wDest <- expectValidJSON (Proxy @ApiWallet) o1
         verify wDest
-            [ expectCliFieldEqual (#balance . #getApiT . #available) (Quantity 0)
-            , expectCliFieldEqual (#balance . #getApiT . #total) (Quantity 0)
+            [ expectCliField
+                    (#balance . #getApiT . #available) (`shouldBe` Quantity 0)
+            , expectCliField
+                    (#balance . #getApiT . #total) (`shouldBe` Quantity 0)
             ]
 
         --send transaction to the wallet
@@ -200,10 +202,13 @@ spec = do
         _ <- expectValidJSON (Proxy @(ApiTransaction n)) op
         cp `shouldBe` ExitSuccess
 
-        expectEventually' ctx (Link.getWallet @'Shelley)
-                (#balance . #getApiT . #available) (Quantity amount) wDest
-        expectEventually' ctx (Link.getWallet @'Shelley)
-                (#balance . #getApiT . #total) (Quantity amount) wDest
+        eventually_ $ do
+            Stdout og <- getWalletViaCLI @t ctx $ T.unpack (wDest ^. walletId)
+            jg <- expectValidJSON (Proxy @ApiWallet) og
+            expectCliField (#balance . #getApiT . #available)
+                (`shouldBe` Quantity amount) jg
+            expectCliField (#balance . #getApiT . #total)
+                (`shouldBe` Quantity amount) jg
 
         -- delete wallet
         Exit cd <- deleteWalletViaCLI @t ctx $ T.unpack (wDest ^. walletId)
@@ -214,21 +219,21 @@ spec = do
         c2 `shouldBe` ExitSuccess
         T.unpack e2 `shouldContain` cmdOk
         wRestored <- expectValidJSON (Proxy @ApiWallet) o2
-        verify wRestored
-            [ expectEventually' ctx (Link.getWallet @'Shelley)
-                    (#state . #getApiT) Ready
-            , expectCliFieldEqual walletId (wDest ^. walletId)
-            ]
+        expectCliField walletId (`shouldBe` wDest ^. walletId) wRestored
+        eventually_ $ do
+            Stdout og2 <- getWalletViaCLI @t ctx $ T.unpack (wDest ^. walletId)
+            jg2 <- expectValidJSON (Proxy @ApiWallet) og2
+            expectCliField (#state . #getApiT) (`shouldBe` Ready) jg2
 
         -- make sure funds are there
         Stdout o3 <- getWalletViaCLI @t ctx $ T.unpack (wRestored ^. walletId)
         justRestored <- expectValidJSON (Proxy @ApiWallet) o3
         verify justRestored
-            [ expectCliFieldEqual
-                    (#balance . #getApiT . #available) (Quantity amount)
-            , expectCliFieldEqual
-                    (#balance . #getApiT . #total) (Quantity amount)
-            , expectCliFieldEqual walletId (wDest ^. walletId)
+            [ expectCliField
+                    (#balance . #getApiT . #available) (`shouldBe` Quantity amount)
+            , expectCliField
+                    (#balance . #getApiT . #total) (`shouldBe` Quantity amount)
+            , expectCliField walletId (`shouldBe` wDest ^. walletId)
             ]
 
     it "WALLETS_CREATE_03 - Cannot create wallet that exists" $ \ctx -> do
@@ -239,7 +244,7 @@ spec = do
         c1 `shouldBe` ExitSuccess
         T.unpack e1 `shouldContain` cmdOk
         j <- expectValidJSON (Proxy @ApiWallet) o1
-        expectCliFieldEqual (#name . #getApiT . #getWalletName) "n1" j
+        expectCliField (#name . #getApiT . #getWalletName) (`shouldBe` "n1") j
 
         (c2, o2, e2) <- createWalletViaCLI @t ctx ["n2"] m1 m2 "Xsecure-passphraseX"
         c2 `shouldBe` ExitFailure 1
@@ -255,7 +260,8 @@ spec = do
             c `shouldBe` ExitSuccess
             T.unpack e `shouldContain` cmdOk
             j <- expectValidJSON (Proxy @ApiWallet) o
-            expectCliFieldEqual (#name . #getApiT . #getWalletName) (T.pack n) j
+            expectCliField
+                (#name . #getApiT . #getWalletName) (`shouldBe` T.pack n) j
 
     it "WALLETS_CREATE_04 - Cannot create wallet when name exceeds length" $ \ctx -> do
         let n = replicate (walletNameMaxLength + 1) 'ą'
@@ -277,8 +283,8 @@ spec = do
             c `shouldBe` ExitSuccess
             T.unpack err `shouldContain` cmdOk
             j <- expectValidJSON (Proxy @ApiWallet) out
-            expectCliFieldEqual
-                    (#name . #getApiT . #getWalletName) (T.pack name) j
+            expectCliField
+                    (#name . #getApiT . #getWalletName) (`shouldBe` T.pack name) j
 
     describe "WALLETS_CREATE_05 - Can't create wallet with wrong size of mnemonic" $ do
         forM_ ["9", "12"] $ \(size) -> it size $ \ctx -> do
@@ -306,8 +312,8 @@ spec = do
             c `shouldBe` ExitSuccess
             T.unpack err `shouldContain` cmdOk
             j <- expectValidJSON (Proxy @ApiWallet) out
-            expectCliFieldEqual
-                    (#name . #getApiT . #getWalletName) (T.pack name) j
+            expectCliField
+                    (#name . #getApiT . #getWalletName) (`shouldBe` T.pack name) j
 
     describe "WALLETS_CREATE_06 - Can't create wallet with wrong size of mnemonic snd factor" $ do
         forM_ ["15", "18", "21", "24"] $ \(size) -> it size $ \ctx -> do
@@ -345,7 +351,7 @@ spec = do
             c `shouldBe` ExitSuccess
             T.unpack e `shouldContain` cmdOk
             j <- expectValidJSON (Proxy @ApiWallet) o
-            expectCliFieldNotEqual #passphrase Nothing j
+            expectCliField #passphrase (`shouldNotBe` Nothing) j
 
     describe "WALLETS_CREATE_07 - When passphrase is invalid" $ do
         let proxy_ = Proxy @"encryption"
@@ -372,9 +378,9 @@ spec = do
                 c `shouldBe` ExitSuccess
                 T.unpack e `shouldContain` cmdOk
                 j <- expectValidJSON (Proxy @ApiWallet) o
-                expectCliFieldEqual
+                expectCliField
                         (#addressPoolGap . #getApiT . #getAddressPoolGap)
-                        (read gap :: Word32)
+                        (`shouldBe` (read gap :: Word32))
                         j
 
         let addrPoolMin = fromIntegral @_ @Int $ getAddressPoolGap minBound
@@ -414,18 +420,24 @@ spec = do
         err `shouldBe` cmdOk
         j <- expectValidJSON (Proxy @ApiWallet) out
         verify j
-            [ expectCliFieldEqual
-                    (#name . #getApiT . #getWalletName) "Empty Wallet"
-            , expectCliFieldEqual
-                    (#addressPoolGap . #getApiT . #getAddressPoolGap) 20
-            , expectCliFieldEqual (#balance . #getApiT . #available) (Quantity 0)
-            , expectCliFieldEqual (#balance . #getApiT . #total) (Quantity 0)
-            , expectCliFieldEqual (#balance . #getApiT . #reward) (Quantity 0)
-            , expectEventually' ctx (Link.getWallet @'Shelley)
-                    (#state . #getApiT) Ready
-            , expectCliFieldEqual #delegation notDelegating
-            , expectCliFieldNotEqual #passphrase Nothing
+            [ expectCliField
+                    (#name . #getApiT . #getWalletName) (`shouldBe` "Empty Wallet")
+            , expectCliField
+                    (#addressPoolGap . #getApiT . #getAddressPoolGap) (`shouldBe` 20)
+            , expectCliField
+                    (#balance . #getApiT . #available) (`shouldBe` Quantity 0)
+            , expectCliField
+                    (#balance . #getApiT . #total) (`shouldBe` Quantity 0)
+            , expectCliField
+                    (#balance . #getApiT . #reward) (`shouldBe` Quantity 0)
+            , expectCliField #delegation (`shouldBe` notDelegating)
+            , expectCliField #passphrase (`shouldNotBe` Nothing)
             ]
+
+        eventually_ $ do
+            Stdout og <- getWalletViaCLI @t ctx walId
+            jg <- expectValidJSON (Proxy @ApiWallet) og
+            expectCliField (#state . #getApiT) (`shouldBe` Ready) jg
 
     describe "WALLETS_GET_03,04 - Cannot get wallets with false ids" $ do
         forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
@@ -447,18 +459,18 @@ spec = do
         j <- expectValidJSON (Proxy @[ApiWallet]) out
         length j `shouldBe` 2
         verify j
-            [ expectCliListItemFieldEqual 0
-                    (#name . #getApiT . #getWalletName) name
-            , expectCliListItemFieldEqual 0
-                    (#addressPoolGap . #getApiT . #getAddressPoolGap) 21
-            , expectCliListItemFieldEqual 0
-                    (#balance . #getApiT . #available) (Quantity 0)
-            , expectCliListItemFieldEqual 0
-                    (#balance . #getApiT . #total) (Quantity 0)
-            , expectCliListItemFieldEqual 0
-                    (#balance . #getApiT . #reward) (Quantity 0)
-            , expectCliListItemFieldEqual 0 #delegation notDelegating
-            , expectCliListItemFieldEqual 0 walletId (T.pack w1)
+            [ expectCliListField 0
+                    (#name . #getApiT . #getWalletName) (`shouldBe` name)
+            , expectCliListField 0
+                    (#addressPoolGap . #getApiT . #getAddressPoolGap) (`shouldBe` 21)
+            , expectCliListField 0
+                    (#balance . #getApiT . #available) (`shouldBe` Quantity 0)
+            , expectCliListField 0
+                    (#balance . #getApiT . #total) (`shouldBe` Quantity 0)
+            , expectCliListField 0
+                    (#balance . #getApiT . #reward) (`shouldBe` Quantity 0)
+            , expectCliListField 0 #delegation (`shouldBe` notDelegating)
+            , expectCliListField 0 walletId (`shouldBe` T.pack w1)
             ]
 
     it "WALLETS_LIST_01 - Wallets are listed from oldest to newest" $ \ctx -> do
@@ -471,9 +483,9 @@ spec = do
         j <- expectValidJSON (Proxy @[ApiWallet]) out
         length j `shouldBe` 3
         verify j
-            [ expectCliListItemFieldEqual 0 walletId (T.pack w1)
-            , expectCliListItemFieldEqual 1 walletId (T.pack w2)
-            , expectCliListItemFieldEqual 2 walletId (T.pack w3)
+            [ expectCliListField 0 walletId (`shouldBe` T.pack w1)
+            , expectCliListField 1 walletId (`shouldBe` T.pack w2)
+            , expectCliListField 2 walletId (`shouldBe` T.pack w3)
             ]
 
     describe "WALLETS_UPDATE_01,02 - Can update wallet name" $ do
@@ -485,7 +497,8 @@ spec = do
             c `shouldBe` ExitSuccess
             err `shouldBe` cmdOk
             j <- expectValidJSON (Proxy @ApiWallet) out
-            expectCliFieldEqual (#name . #getApiT . #getWalletName) (T.pack n) j
+            expectCliField
+                (#name . #getApiT . #getWalletName) (`shouldBe` T.pack n) j
 
     it "WALLETS_UPDATE_PASS_01 - Can update passphrase normally"
         $ \ctx -> do
@@ -507,7 +520,7 @@ spec = do
             --verify passphraseLastUpdate was updated
             Stdout o <- getWalletViaCLI @t ctx wid
             j <- expectValidJSON (Proxy @ApiWallet) o
-            expectCliFieldNotEqual #passphrase initPassUpdateTime j
+            expectCliField #passphrase (`shouldNotBe` initPassUpdateTime) j
 
     describe "WALLETS_UPDATE_PASS_02 - New passphrase values" $ do
         let minLength = passphraseMinLength (Proxy @"encryption")
@@ -709,14 +722,14 @@ spec = do
             _ <- expectValidJSON (Proxy @(ApiTransaction n)) op
             cp `shouldBe` ExitSuccess
             let coinsSent = map fromIntegral $ take alreadyAbsorbed coins
-            expectEventually' ctx (Link.getWallet @'Shelley)
-                    (#balance . #getApiT . #available)
-                    (Quantity (fromIntegral $ sum coinsSent))
-                    wDest
-            expectEventually' ctx (Link.getWallet @'Shelley)
-                    (#balance . #getApiT . #total)
-                    (Quantity (fromIntegral $ sum coinsSent))
-                    wDest
+            eventually_ $ do
+                Stdout og <- getWalletViaCLI @t ctx $ T.unpack (wDest ^. walletId)
+                jg <- expectValidJSON (Proxy @ApiWallet) og
+                expectCliField (#balance . #getApiT . #available)
+                    (`shouldBe` Quantity (fromIntegral $ sum coinsSent)) jg
+                expectCliField (#balance . #getApiT . #total)
+                    (`shouldBe` Quantity (fromIntegral $ sum coinsSent)) jg
+
             --verify utxo
             (Exit c, Stdout o, Stderr e)
                     <- getWalletUtxoStatisticsViaCLI @t ctx $ T.unpack (wDest ^. walletId)
