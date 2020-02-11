@@ -209,9 +209,7 @@ destroyDBLayer (SqliteContext {getSqlBackend, trace, dbFile}) = do
 
 -- | Represents an automatic migration to be performed on a database.
 data AutoMigration
-    = AutoMigrationNone
-      -- ^ Do not perform an automatic migration.
-    | AutoMigrationOnCreate Migration
+    = AutoMigrationOnCreate Migration
       -- ^ Perform the specified automatic migration when creating a new
       -- database.
     | AutoMigrationOnCreateOrRestart Migration
@@ -245,7 +243,6 @@ startSqliteBackend manualMigration autoMigration trace fp = do
     let runQuery :: SqlPersistT IO a -> IO a
         runQuery cmd = withMVar lock $ const $ observe $ runSqlConn cmd backend
     let requiredAutoMigration = case (autoMigration, dbPopulationStatus) of
-            (AutoMigrationNone               , _            ) -> Nothing
             (AutoMigrationOnCreateOrRestart m, DbIsEmpty    ) -> Just m
             (AutoMigrationOnCreateOrRestart m, DbIsPopulated) -> Just m
             (AutoMigrationOnCreate          m, DbIsEmpty    ) -> Just m
