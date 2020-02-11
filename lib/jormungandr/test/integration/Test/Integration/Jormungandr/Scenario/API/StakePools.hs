@@ -418,7 +418,7 @@ spec = do
             ]
         eventually $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-                [ expectFieldEqual #delegation (delegating (p1 ^. #id))
+                [ expectField #delegation (`shouldBe` (delegating (p1 ^. #id)))
                 ]
 
         -- Join pool p2
@@ -789,7 +789,7 @@ spec = do
         (w, p) <- joinStakePoolWithFixtureWallet ctx
         eventually $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-                [ expectFieldEqual #delegation (delegating (p ^. #id))
+                [ expectField #delegation (`shouldBe` (delegating (p ^. #id)))
                 ]
 
         r1 <- quitStakePool ctx (p ^. #id) (w, fixturePassphrase)
@@ -798,8 +798,8 @@ spec = do
         eventually $ do
             (currentEpochNo, sp) <- getSlotParams ctx
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-                [ expectFieldEqual #delegation
-                      (delegatingAboutToQuit (p ^. #id) currentEpochNo sp)
+                [ expectField #delegation
+                      (`shouldBe` (delegatingAboutToQuit (p ^. #id) currentEpochNo sp))
                 ]
 
     it "STAKE_POOLS_QUIT_01 - Quiting before even joining" $ \ctx -> do

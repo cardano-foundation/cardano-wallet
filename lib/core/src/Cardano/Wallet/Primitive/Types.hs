@@ -380,8 +380,10 @@ data WalletDelegation poolId = WalletDelegation
 instance NFData poolId => NFData (WalletDelegation poolId)
 
 instance Buildable poolId => Buildable (WalletDelegation poolId) where
-    build (WalletDelegation act n) =
-        "current wallet delegation: " <> build act <> ", awaiting: " <> build n
+    build (WalletDelegation act Nothing) =
+        "current wallet delegation: " <> build act <> ", awaiting no change"
+    build (WalletDelegation act (Just n)) =
+        "current wallet delegation: " <> build act <> ", awaiting " <> build n
 
 newtype WalletPassphraseInfo = WalletPassphraseInfo
     { lastUpdatedAt :: UTCTime }

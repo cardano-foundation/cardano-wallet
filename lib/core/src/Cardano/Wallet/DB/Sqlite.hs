@@ -586,6 +586,38 @@ retrieveWalletMetadata wid walDel =
      fmap (metadataFromEntity walDel . entityVal)
         <$> selectFirst [WalId ==. wid] []
 
+retrieveOtherDlgCert
+    :: W.WalletId
+    -> W.EpochNo
+    -> DelegationCertificate
+    -> Maybe W.EpochNo
+    -> SqlPersistT IO (Maybe W.WalletMetadata)
+retrieveOtherDlgCert wid (W.EpochNo epoch) dlg epochNoMaybe = case epochNoMaybe of
+    Just epoch' -> do
+        let slotId = W.SlotId epoch' (W.SlotNo maxBound)
+        activeMaybe <- fmap entityVal <$> selectFirst
+                       [CertWalletId ==. wid, CertSlot <=. slotId]
+                       [Desc CertSlot]
+        case activeMaybe of
+            Just active ->
+                retrieveWalletMetadata wid
+                (delegationFromCerts
+                    (Just active)
+                    (Just (dlg, W.EpochNo $ epoch + 2))
+                )
+            Nothing ->
+                retrieveWalletMetadata wid
+                (delegationFromCerts
+                    Nothing
+                    (Just (dlg, W.EpochNo $ epoch + 2))
+                )
+    Nothing ->
+        retrieveWalletMetadata wid
+        (delegationFromCerts
+            Nothing
+            (Just (dlg, W.EpochNo $ epoch + 2))
+        )
+
 determineWalletDelegation
     :: W.WalletId
     -> DelegationCertificate
@@ -593,37 +625,14 @@ determineWalletDelegation
     -> SqlPersistT IO (Maybe W.WalletMetadata)
 determineWalletDelegation
     wid
-    dlg@(DelegationCertificate _ (W.SlotId (W.EpochNo epoch) _) _)
+    dlg@(DelegationCertificate _ (W.SlotId e@(W.EpochNo epoch) _) _)
     (W.EpochNo currentEpoch) = do
     if epoch + 1 < currentEpoch then
         retrieveWalletMetadata wid (delegationFromCerts (Just dlg) Nothing)
     else if epoch + 1 == currentEpoch then
-        case (W.epochPred (W.EpochNo epoch)) of
-            Just epoch' -> do
-                let slotId = W.SlotId epoch' (W.SlotNo maxBound)
-                activeMaybe <- fmap entityVal <$> selectFirst
-                    [CertWalletId ==. wid, CertSlot <=. slotId]
-                    [Desc CertSlot]
-                case activeMaybe of
-                    Just active ->
-                        retrieveWalletMetadata wid (delegationFromCerts (Just active) (Just (dlg, W.EpochNo $ epoch + 2)))
-                    Nothing ->
-                        retrieveWalletMetadata wid (delegationFromCerts Nothing (Just (dlg, W.EpochNo $ epoch + 2)))
-            Nothing ->
-                retrieveWalletMetadata wid (delegationFromCerts Nothing (Just (dlg, W.EpochNo $ epoch + 2)))
-    else case (W.epochPred (W.EpochNo epoch) >>= W.epochPred) of
-        Just epoch' -> do
-            let slotId = W.SlotId epoch' (W.SlotNo maxBound)
-            activeMaybe <- fmap entityVal <$> selectFirst
-                 [CertWalletId ==. wid, CertSlot <=. slotId]
-                 [Desc CertSlot]
-            case activeMaybe of
-                 Just active ->
-                     retrieveWalletMetadata wid (delegationFromCerts (Just active) (Just (dlg, W.EpochNo $ epoch + 2)))
-                 Nothing ->
-                     retrieveWalletMetadata wid (delegationFromCerts Nothing (Just (dlg, W.EpochNo $ epoch + 2)))
-        Nothing ->
-            retrieveWalletMetadata wid (delegationFromCerts Nothing (Just (dlg, W.EpochNo $ epoch + 2)))
+        retrieveOtherDlgCert wid e dlg (W.epochPred (W.EpochNo epoch))
+    else
+        retrieveOtherDlgCert wid e dlg (W.epochPred (W.EpochNo epoch) >>= W.epochPred)
 
 toWalletDelegationStatus
     :: DelegationCertificate
