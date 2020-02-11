@@ -247,6 +247,8 @@ import Cardano.Wallet.Primitive.Types
     , UTxOStatistics
     , UnsignedTx (..)
     , WalletDelegation (..)
+    , WalletDelegationNext (..)
+    , WalletDelegationStatus (..)
     , WalletId (..)
     , WalletMetadata (..)
     , WalletName (..)
@@ -480,7 +482,7 @@ createWallet ctx wid wname s = db & \DBLayer{..} -> do
             { name = wname
             , creationTime = now
             , passphraseInfo = Nothing
-            , delegation = NotDelegating
+            , delegation = WalletDelegation NotDelegating Nothing
             }
     mapExceptT atomically $
         initializeWallet (PrimaryKey wid) cp meta hist $> wid
@@ -522,7 +524,7 @@ createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
             { name = wname
             , creationTime = now
             , passphraseInfo = Nothing
-            , delegation = NotDelegating
+            , delegation = WalletDelegation NotDelegating Nothing
             }
     mapExceptT atomically $
         initializeWallet (PrimaryKey wid) (updateState s' cp) meta hist $> wid
@@ -1388,7 +1390,13 @@ joinStakePool ctx wid (pid, pools) argGenChange pwd = db & \DBLayer{..} -> do
     walMeta <- mapExceptT atomically $ withExceptT ErrJoinStakePoolNoSuchWallet $
         withNoSuchWallet wid $ readWalletMeta (PrimaryKey wid)
 
-    when (walMeta ^. #delegation == Delegating pid) $
+    let checkAlreadyJoined (WalletDelegation (Delegating pid') Nothing) =
+            pid' == pid
+        checkAlreadyJoined (WalletDelegation _ (WalletDelegationNext (Delegating pid') _)) =
+            pid' == pid
+        checkAlreadyJoined _ = False
+
+    when (checkAlreadyJoined (walMeta ^. #delegation)) $
         throwE (ErrJoinStakePoolAlreadyDelegating pid)
 
     when (pid `notElem` pools) $
@@ -1431,7 +1439,13 @@ quitStakePool ctx wid pid argGenChange pwd = db & \DBLayer{..} -> do
     walMeta <- mapExceptT atomically $ withExceptT ErrQuitStakePoolNoSuchWallet $
         withNoSuchWallet wid $ readWalletMeta (PrimaryKey wid)
 
-    when (walMeta ^. #delegation /= Delegating pid) $
+    let checkIfJoined (WalletDelegation (Delegating pid') Nothing) =
+            pid' /= pid
+        checkIfJoined (WalletDelegation _ (WalletDelegationNext (Delegating pid') _)) =
+            pid' /= pid
+        checkIfJoined _ = True
+
+    when (checkIfJoined (walMeta ^. #delegation)) $
         throwE (ErrQuitStakePoolNotDelegatingTo pid)
 
     selection <- withExceptT ErrQuitStakePoolSelectCoin $

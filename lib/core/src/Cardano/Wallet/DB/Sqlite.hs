@@ -497,11 +497,18 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
                     pure $ Right ()
 
         , readWalletMeta = \(PrimaryKey wid) -> do
-            walDelegation <- delegationFromEntity . fmap entityVal
-                <$> selectFirst [CertWalletId ==. wid] [Desc CertSlot]
-
-            fmap (metadataFromEntity walDelegation . entityVal)
-                <$> selectFirst [WalId ==. wid] []
+            selectLatestCheckpoint wid >>= \case
+                Nothing -> pure Nothing
+                Just cp -> do
+                    latestMaybe <- fmap entityVal
+                        <$> selectFirst [CertWalletId ==. wid] [Desc CertSlot]
+                    case latestMaybe of
+                        Just dlg -> do
+                            let (W.SlotId currentEpoch _) = checkpointSlot cp
+                            determineWalletDelegation wid dlg currentEpoch
+                        Nothing ->
+                            retrieveWalletMetadata wid
+                            (delegationFromCerts Nothing Nothing)
 
         , readWalletDelegations = \(PrimaryKey wid) -> ExceptT $ do
             selectWallet wid >>= \case
@@ -591,22 +598,83 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
 
         })
 
+
+retrieveWalletMetadata
+    :: W.WalletId
+    -> W.WalletDelegation W.PoolId
+    -> SqlPersistT IO (Maybe W.WalletMetadata)
+retrieveWalletMetadata wid walDel =
+     fmap (metadataFromEntity walDel . entityVal)
+        <$> selectFirst [WalId ==. wid] []
+
+determineWalletDelegation
+    :: W.WalletId
+    -> DelegationCertificate
+    -> W.EpochNo
+    -> SqlPersistT IO (Maybe W.WalletMetadata)
+determineWalletDelegation
+    wid
+    dlg@(DelegationCertificate _ (W.SlotId (W.EpochNo epoch) _) _)
+    (W.EpochNo currentEpoch) = do
+    if epoch + 1 < currentEpoch then
+        retrieveWalletMetadata wid (delegationFromCerts (Just dlg) Nothing)
+    else if epoch + 1 == currentEpoch then
+        case (W.epochPred (W.EpochNo epoch)) of
+            Just epoch' -> do
+                let slotId = W.SlotId epoch' (W.SlotNo maxBound)
+                activeMaybe <- fmap entityVal <$> selectFirst
+                    [CertWalletId ==. wid, CertSlot <=. slotId]
+                    [Desc CertSlot]
+                case activeMaybe of
+                    Just active ->
+                        retrieveWalletMetadata wid (delegationFromCerts (Just active) (Just (dlg, W.EpochNo $ epoch + 2)))
+                    Nothing ->
+                        retrieveWalletMetadata wid (delegationFromCerts Nothing (Just (dlg, W.EpochNo $ epoch + 2)))
+            Nothing ->
+                retrieveWalletMetadata wid (delegationFromCerts Nothing (Just (dlg, W.EpochNo $ epoch + 2)))
+    else case (W.epochPred (W.EpochNo epoch) >>= W.epochPred) of
+        Just epoch' -> do
+            let slotId = W.SlotId epoch' (W.SlotNo maxBound)
+            activeMaybe <- fmap entityVal <$> selectFirst
+                 [CertWalletId ==. wid, CertSlot <=. slotId]
+                 [Desc CertSlot]
+            case activeMaybe of
+                 Just active ->
+                     retrieveWalletMetadata wid (delegationFromCerts (Just active) (Just (dlg, W.EpochNo $ epoch + 2)))
+                 Nothing ->
+                     retrieveWalletMetadata wid (delegationFromCerts Nothing (Just (dlg, W.EpochNo $ epoch + 2)))
+        Nothing ->
+            retrieveWalletMetadata wid (delegationFromCerts Nothing (Just (dlg, W.EpochNo $ epoch + 2)))
+
 delegationDiscoveredFromEntity
     :: DelegationCertificate
     -> W.DelegationDiscovered
 delegationDiscoveredFromEntity (DelegationCertificate _ slotId poolIdM) =
     W.DelegationDiscovered slotId poolIdM
 
-delegationFromEntity
+toWalletDelegationStatus
+    :: DelegationCertificate
+    -> W.WalletDelegationStatus W.PoolId
+toWalletDelegationStatus (DelegationCertificate _ _ Nothing) =
+    W.NotDelegating
+toWalletDelegationStatus (DelegationCertificate _ _ (Just pool)) =
+    W.Delegating pool
+
+delegationFromCerts
     :: Maybe DelegationCertificate
+    -> Maybe (DelegationCertificate, W.EpochNo)
     -> W.WalletDelegation W.PoolId
-delegationFromEntity = \case
-    Nothing ->
-        W.NotDelegating
-    Just (DelegationCertificate _ _ Nothing) ->
-        W.NotDelegating
-    Just (DelegationCertificate _ _ (Just pool)) ->
-        W.Delegating pool
+delegationFromCerts older latest = case (older,latest) of
+    (Just dlg, Nothing) ->
+        W.WalletDelegation (toWalletDelegationStatus dlg) Nothing
+    (Just dlg1, Just (dlg2, epoch)) ->
+        W.WalletDelegation (toWalletDelegationStatus dlg1)
+        (Just $ W.WalletDelegationNext (toWalletDelegationStatus dlg2) epoch)
+    (Nothing, Just (dlg2, epoch)) ->
+        W.WalletDelegation W.NotDelegating
+        (Just $ W.WalletDelegationNext (toWalletDelegationStatus dlg2) epoch)
+    (Nothing, Nothing) ->
+        W.WalletDelegation W.NotDelegating Nothing
 
 mkWalletEntity :: W.WalletId -> W.WalletMetadata -> Wallet
 mkWalletEntity wid meta = Wallet

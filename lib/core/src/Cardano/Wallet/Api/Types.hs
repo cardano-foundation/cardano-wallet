@@ -289,13 +289,14 @@ data ApiWallet = ApiWallet
     { id :: !(ApiT WalletId)
     , addressPoolGap :: !(ApiT AddressPoolGap)
     , balance :: !(ApiT WalletBalance)
-    , delegation :: !ApiWalletDelegation
+    , delegation :: !(ApiT WalletDelegation)
     , name :: !(ApiT WalletName)
     , passphrase :: !(Maybe (ApiT WalletPassphraseInfo))
     , state :: !(ApiT SyncProgress)
     , tip :: !ApiBlockReference
     } deriving (Eq, Generic, Show)
 
+{--
 newtype ApiDelegationStatus = ApiDelegationStatus
     { status :: ApiT (WalletDelegation (ApiT PoolId))
     } deriving (Eq, Generic, Show)
@@ -309,6 +310,7 @@ data ApiWalletDelegation = ApiWalletDelegation
     { active :: ApiDelegationStatus
     , next :: !(Maybe ApiWalletDelegationNext)
     } deriving (Eq, Generic, Show)
+--}
 
 newtype ApiWalletPassphrase = ApiWalletPassphrase
     { passphrase :: ApiT (Passphrase "encryption")
@@ -723,6 +725,7 @@ instance FromJSON (ApiT (WalletDelegation (ApiT PoolId))) where
 instance ToJSON (ApiT (WalletDelegation (ApiT PoolId))) where
     toJSON = genericToJSON walletDelegationOptions . getApiT
 
+{--
 instance FromJSON ApiWalletDelegation where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiWalletDelegation where
@@ -756,7 +759,7 @@ instance FromJSON ApiDelegationStatus where
     parseJSON = fmap ApiDelegationStatus . parseJSON
 instance ToJSON ApiDelegationStatus where
     toJSON (ApiDelegationStatus st) = toJSON st
-
+--}
 instance FromJSON ApiStakePool where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiStakePool where

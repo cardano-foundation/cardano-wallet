@@ -127,7 +127,6 @@ module Cardano.Wallet.Primitive.Types
     , WalletDelegation (..)
     , WalletDelegationStatus (..)
     , WalletDelegationNext (..)
-    , EpochInfo (..)
     , WalletPassphraseInfo(..)
     , WalletBalance(..)
 
@@ -365,25 +364,15 @@ instance Buildable poolId => Buildable (WalletDelegationStatus poolId) where
         Delegating poolId ->
             "delegating to " <> build poolId
 
-data EpochInfo = EpochInfo
-    { epochNumber :: !EpochNo
-    , epochStartingTime :: !UTCTime
-    } deriving (Eq, Generic, Show)
-instance NFData EpochInfo
-
-instance Buildable EpochInfo where
-    build (EpochInfo (EpochNo epoch) _) =
-        "epoch number " <> build (fromIntegral @Word31 @Word32 epoch)
-
 data WalletDelegationNext poolId = WalletDelegationNext
     { status :: !(WalletDelegationStatus poolId)
-    , changesAt :: !EpochInfo
+    , changesAt :: !EpochNo
     } deriving (Eq, Generic, Show)
 instance NFData poolId => NFData (WalletDelegationNext poolId)
 
 instance Buildable poolId => Buildable (WalletDelegationNext poolId) where
-    build (WalletDelegationNext st chAt) =
-        build st <> " which is to happen at " <> build chAt
+    build (WalletDelegationNext st epoch) =
+        build st <> " which is to happen at epoch number " <> build epoch
 
 data WalletDelegation poolId = WalletDelegation
     { active :: !(WalletDelegationStatus poolId)
