@@ -510,27 +510,6 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
                             retrieveWalletMetadata wid
                             (delegationFromCerts Nothing Nothing)
 
-        , readWalletDelegations = \(PrimaryKey wid) -> ExceptT $ do
-            selectWallet wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just _ -> do
-                    latest <- fmap entityVal . take 1
-                        <$> selectList [CertWalletId ==. wid] [Desc CertSlot]
-                    case latest of
-                        [(DelegationCertificate _ (W.SlotId epoch _) _)] ->
-                            case (W.epochPred epoch >>= W.epochPred) of
-                                Just epoch' -> do
-                                    let slotId =W.SlotId epoch' (W.SlotNo maxBound)
-                                    acting <- fmap entityVal . take 1 <$> selectList
-                                              [CertWalletId ==. wid, CertSlot <=. slotId]
-                                              [Desc CertSlot]
-                                    pure $ Right $ fmap delegationDiscoveredFromEntity
-                                        (latest++acting)
-                                Nothing ->
-                                    pure $ Right $
-                                    fmap delegationDiscoveredFromEntity latest
-                        _ -> pure $ Right []
-
         , putDelegationCertificate = \(PrimaryKey wid) cert sl -> ExceptT $ do
             selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
@@ -645,12 +624,6 @@ determineWalletDelegation
                      retrieveWalletMetadata wid (delegationFromCerts Nothing (Just (dlg, W.EpochNo $ epoch + 2)))
         Nothing ->
             retrieveWalletMetadata wid (delegationFromCerts Nothing (Just (dlg, W.EpochNo $ epoch + 2)))
-
-delegationDiscoveredFromEntity
-    :: DelegationCertificate
-    -> W.DelegationDiscovered
-delegationDiscoveredFromEntity (DelegationCertificate _ slotId poolIdM) =
-    W.DelegationDiscovered slotId poolIdM
 
 toWalletDelegationStatus
     :: DelegationCertificate

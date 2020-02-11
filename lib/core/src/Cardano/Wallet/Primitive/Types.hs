@@ -61,7 +61,6 @@ module Cardano.Wallet.Primitive.Types
     , dlgCertAccount
     , dlgCertPoolId
     , PoolRegistrationCertificate (..)
-    , DelegationDiscovered (..)
 
     -- * Coin
     , Coin (..)
@@ -1548,17 +1547,6 @@ instance Buildable PoolRegistrationCertificate where
         <> build p
         <> " owned by "
         <> build o
-
--- | A delegation certificate discovered by the "current wallet".
-data DelegationDiscovered = DelegationDiscovered
-    { slotId :: !SlotId
-    -- ^ Slot corresponding to the block the certificate was discovered
-    , poolId :: !(Maybe PoolId)
-    -- ^ Stake pool identifier - in case the certificate pertains to (re)joining
-    -- or @Nothing@ if quitting.
-    } deriving (Generic, Show, Eq, Ord)
-
-instance NFData DelegationDiscovered
 
 {-------------------------------------------------------------------------------
                                Polymorphic Types

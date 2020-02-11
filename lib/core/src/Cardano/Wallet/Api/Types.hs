@@ -69,7 +69,7 @@ module Cardano.Wallet.Api.Types
     , ApiEpochNumber (..)
     , ApiNetworkParameters (..)
     , ApiWalletDelegation (..)
-    , ApiDelegationStatus (..)
+    , ApiWalletDelegationStatus (..)
     , ApiWalletDelegationNext (..)
 
     -- * API Types (Byron)
@@ -93,8 +93,6 @@ module Cardano.Wallet.Api.Types
     , delegating
     , delegatingAboutToQuit
     , delegatingAboutToRejoin
-    , toApiWalletDelegation
-    , ErrDelegationsDiscoveredInconsistency (..)
     ) where
 
 import Prelude
@@ -120,14 +118,12 @@ import Cardano.Wallet.Primitive.Types
     , AddressState (..)
     , BoundType
     , Coin (..)
-    , DelegationDiscovered (..)
     , Direction (..)
     , EpochLength (..)
     , EpochNo (..)
     , Hash (..)
     , PoolId (..)
     , ShowFmt (..)
-    , SlotId (..)
     , SlotLength (..)
     , SlotNo (..)
     , SlotParameters
@@ -296,17 +292,17 @@ data ApiWallet = ApiWallet
     , tip :: !ApiBlockReference
     } deriving (Eq, Generic, Show)
 
-newtype ApiDelegationStatus = ApiDelegationStatus
+newtype ApiWalletDelegationStatus = ApiWalletDelegationStatus
     { status :: ApiT (WalletDelegationStatus (ApiT PoolId))
     } deriving (Eq, Generic, Show)
 
 data ApiWalletDelegationNext = ApiWalletDelegationNext
-    { status :: ApiDelegationStatus
-    , changesAt :: ApiEpochInfo
+    { status :: !ApiWalletDelegationStatus
+    , changesAt :: !ApiEpochInfo
     } deriving (Eq, Generic, Show)
 
 data ApiWalletDelegation = ApiWalletDelegation
-    { active :: ApiDelegationStatus
+    { active :: !ApiWalletDelegationStatus
     , next :: !(Maybe ApiWalletDelegationNext)
     } deriving (Eq, Generic, Show)
 
@@ -736,26 +732,26 @@ instance FromJSON ApiWalletDelegationNext where
         case (t, st) of
             (Just pId, Aeson.String "delegating") ->
                 pure $ ApiWalletDelegationNext
-                (ApiDelegationStatus $ ApiT $ Delegating pId) chAt
+                (ApiWalletDelegationStatus $ ApiT $ Delegating pId) chAt
             (Nothing, Aeson.String "not_delegating") ->
                 pure $ ApiWalletDelegationNext
-                (ApiDelegationStatus $ ApiT NotDelegating) chAt
+                (ApiWalletDelegationStatus $ ApiT NotDelegating) chAt
             _ ->
                 fail "Parse error of ApiWalletDelegationNext. Expecting either \
                      \delegating status and target or non-delegating status \
                      \without target"
 instance ToJSON ApiWalletDelegationNext where
-    toJSON (ApiWalletDelegationNext (ApiDelegationStatus st) chAt) = do
+    toJSON (ApiWalletDelegationNext (ApiWalletDelegationStatus st) chAt) = do
         let a = fromValue $ toJSON st
         Object $ a <> fromList ["changes_at" .= chAt]
       where
         fromValue (Object o) = o
         fromValue _ = mempty
 
-instance FromJSON ApiDelegationStatus where
-    parseJSON = fmap ApiDelegationStatus . parseJSON
-instance ToJSON ApiDelegationStatus where
-    toJSON (ApiDelegationStatus st) = toJSON st
+instance FromJSON ApiWalletDelegationStatus where
+    parseJSON = fmap ApiWalletDelegationStatus . parseJSON
+instance ToJSON ApiWalletDelegationStatus where
+    toJSON (ApiWalletDelegationStatus st) = toJSON st
 
 instance FromJSON ApiStakePool where
     parseJSON = genericParseJSON defaultRecordTypeOptions
@@ -1125,7 +1121,7 @@ gDecodeAddress decodeShelley text =
 -- | Wallet not delegating and not about to join any stake pool.
 notDelegating :: ApiWalletDelegation
 notDelegating =
-    ApiWalletDelegation (ApiDelegationStatus $ ApiT NotDelegating) Nothing
+    ApiWalletDelegation (ApiWalletDelegationStatus $ ApiT NotDelegating) Nothing
 
 -- | Wallet not delegating and joined the stake pool. The delegation will be
 --  effective as specified by epoch info.
@@ -1138,10 +1134,10 @@ notDelegatingAboutToJoin
     -> ApiWalletDelegation
 notDelegatingAboutToJoin pId epochNo sp =
     ApiWalletDelegation
-    (ApiDelegationStatus $ ApiT NotDelegating)
+    (ApiWalletDelegationStatus $ ApiT NotDelegating)
     (Just $
         ApiWalletDelegationNext
-        ( ApiDelegationStatus $ ApiT $ Delegating pId)
+        ( ApiWalletDelegationStatus $ ApiT $ Delegating pId)
         ( ApiEpochInfo
             (ApiT $ epochNo + 2) (W.epochStartTime sp (epochNo + 2))
         )
@@ -1154,7 +1150,7 @@ delegating
     -> ApiWalletDelegation
 delegating pId =
     ApiWalletDelegation
-    (ApiDelegationStatus $ ApiT $ Delegating pId)
+    (ApiWalletDelegationStatus $ ApiT $ Delegating pId)
     Nothing
 
 -- | Wallet delegating to a given stake pool and quitted the stake pool.
@@ -1168,10 +1164,10 @@ delegatingAboutToQuit
     -> ApiWalletDelegation
 delegatingAboutToQuit pId epochNo sp =
     ApiWalletDelegation
-    (ApiDelegationStatus $ ApiT $ Delegating pId)
+    (ApiWalletDelegationStatus $ ApiT $ Delegating pId)
     (Just $
         ApiWalletDelegationNext
-        ( ApiDelegationStatus $ ApiT NotDelegating)
+        ( ApiWalletDelegationStatus $ ApiT NotDelegating)
         ( ApiEpochInfo
             (ApiT $ epochNo + 2) (W.epochStartTime sp (epochNo + 2))
         )
@@ -1191,64 +1187,11 @@ delegatingAboutToRejoin
     -> ApiWalletDelegation
 delegatingAboutToRejoin pId1 pId2 epochNo sp =
     ApiWalletDelegation
-    (ApiDelegationStatus $ ApiT $ Delegating pId1)
+    (ApiWalletDelegationStatus $ ApiT $ Delegating pId1)
     (Just $
         ApiWalletDelegationNext
-        ( ApiDelegationStatus $ ApiT $ Delegating pId2)
+        ( ApiWalletDelegationStatus $ ApiT $ Delegating pId2)
         ( ApiEpochInfo
             (ApiT $ epochNo + 2) (W.epochStartTime sp (epochNo + 2))
         )
     )
-
-newtype ErrDelegationsDiscoveredInconsistency
-    = ErrDelegationsDiscoveredInconsistency Text
-    deriving (Show, Eq)
-
-toApiWalletDelegation
-    :: EpochNo
-    -- ^ Current epoch
-    -> SlotParameters
-    -> [DelegationDiscovered]
-    -> Either ErrDelegationsDiscoveredInconsistency ApiWalletDelegation
-toApiWalletDelegation currentEpochNo sp dlgs = case dlgs of
-    [] ->
-        Right notDelegating
-    [(DelegationDiscovered (SlotId epochN _) poolIdMaybe)] ->
-        case poolIdMaybe of
-            Nothing ->
-                Right notDelegating
-            Just pId ->
-                if currentEpochNo < epochN + 2 then
-                    Right $ notDelegatingAboutToJoin (ApiT pId) epochN sp
-                else
-                    Right $ delegating (ApiT pId)
-    [ (DelegationDiscovered (SlotId epochN1 _) poolIdMaybe1)
-        , (DelegationDiscovered (SlotId epochN2 _) poolIdMaybe2)] ->
-        if epochN2 > epochN1 then
-            err "the latest delegation certificate discovered cannot have \
-                \epoch number older than the previously discovered delegation \
-                \certificate"
-        else case (poolIdMaybe1, poolIdMaybe2) of
-            (Nothing, Nothing) ->
-                Right notDelegating
-            (Just pId, Nothing) ->
-                if currentEpochNo < epochN1 + 2 then
-                    Right $ notDelegatingAboutToJoin (ApiT pId) epochN1 sp
-                else
-                    Right $ delegating (ApiT pId)
-            (Just pId1, Just pId2) ->
-                if currentEpochNo < epochN1 + 2 then
-                    Right $
-                    delegatingAboutToRejoin (ApiT pId2) (ApiT pId1) epochN1 sp
-                else
-                    Right $ delegating (ApiT pId1)
-            (Nothing, Just pId) ->
-                if currentEpochNo < epochN1 + 2 then
-                    Right $ delegatingAboutToQuit (ApiT pId) epochN1 sp
-                else
-                    Right notDelegating
-    _ ->
-        err "readWalletDelegations cannot return more than two \
-            \discovered delegations!"
-  where
-      err = Left . ErrDelegationsDiscoveredInconsistency
