@@ -212,22 +212,24 @@ startSqliteBackend
     -> Tracer IO DBLog
     -> Maybe FilePath
     -> IO (Either MigrationError SqliteContext)
-startSqliteBackend manualMigration migrateAll trace fp = do
-    backend <- createSqliteBackend trace fp manualMigration (queryLogFunc trace)
+startSqliteBackend manualMigration autoMigration trace fp = do
+    (backend, connection) <-
+        createSqliteBackend trace fp manualMigration (queryLogFunc trace)
     lock <- newMVar ()
     let traceRun = traceWith trace . MsgRun
     let observe :: IO a -> IO a
         observe = bracket_ (traceRun False) (traceRun True)
     let runQuery :: SqlPersistT IO a -> IO a
         runQuery cmd = withMVar lock $ const $ observe $ runSqlConn cmd backend
-    migrations <- runQuery (runMigrationQuiet migrateAll)
-        & tryJust (matchMigrationError @PersistException)
-        & tryJust (matchMigrationError @SqliteException)
-        & fmap join
-        :: IO (Either MigrationError [Text])
-    traceWith trace $ MsgMigrations (fmap length migrations)
+    autoMigrationResult <-
+        withForeignKeysDisabled trace connection
+            $ runQuery (runMigrationQuiet autoMigration)
+            & tryJust (matchMigrationError @PersistException)
+            & tryJust (matchMigrationError @SqliteException)
+            & fmap join
+    traceWith trace $ MsgMigrations $ fmap length autoMigrationResult
     let ctx = SqliteContext backend runQuery fp trace
-    case migrations of
+    case autoMigrationResult of
         Left e -> do
             destroyDBLayer ctx
             pure $ Left e
@@ -338,13 +340,14 @@ createSqliteBackend
     -> Maybe FilePath
     -> ManualMigration
     -> LogFunc
-    -> IO SqlBackend
+    -> IO (SqlBackend, Sqlite.Connection)
 createSqliteBackend trace fp migration logFunc = do
     let connStr = sqliteConnStr fp
     traceWith trace $ MsgConnStr connStr
     conn <- Sqlite.open connStr
     executeManualMigration migration conn
-    wrapConnectionInfo (mkSqliteConnectionInfo connStr) conn logFunc
+    backend <- wrapConnectionInfo (mkSqliteConnectionInfo connStr) conn logFunc
+    pure (backend, conn)
 
 sqliteConnStr :: Maybe FilePath -> Text
 sqliteConnStr = maybe ":memory:" T.pack
