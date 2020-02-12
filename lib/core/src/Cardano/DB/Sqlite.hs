@@ -55,7 +55,7 @@ import Control.Concurrent.MVar
 import Control.Exception
     ( Exception, bracket_, tryJust )
 import Control.Monad
-    ( join, mapM_ )
+    ( join, mapM_, when )
 import Control.Monad.Catch
     ( Handler (..), MonadCatch (..), handleIf, handleJust )
 import Control.Monad.Logger
@@ -76,8 +76,6 @@ import Data.Maybe
     ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
-import Data.Quantity
-    ( Quantity (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -213,28 +211,105 @@ startSqliteBackend
     -> Migration
     -> Tracer IO DBLog
     -> Maybe FilePath
-    -> IO (Either MigrationError (Quantity "migration" Int, SqliteContext))
-startSqliteBackend manualMigration migrateAll trace fp = do
-    backend <- createSqliteBackend trace fp manualMigration (queryLogFunc trace)
+    -> IO (Either MigrationError SqliteContext)
+startSqliteBackend manualMigration autoMigration trace fp = do
+    (backend, connection) <-
+        createSqliteBackend trace fp manualMigration (queryLogFunc trace)
     lock <- newMVar ()
     let traceRun = traceWith trace . MsgRun
     let observe :: IO a -> IO a
         observe = bracket_ (traceRun False) (traceRun True)
     let runQuery :: SqlPersistT IO a -> IO a
         runQuery cmd = withMVar lock $ const $ observe $ runSqlConn cmd backend
-    migrations <- runQuery (runMigrationQuiet migrateAll)
-        & tryJust (matchMigrationError @PersistException)
-        & tryJust (matchMigrationError @SqliteException)
-        & fmap join
-        :: IO (Either MigrationError [Text])
-    traceWith trace $ MsgMigrations (fmap length migrations)
+    autoMigrationResult <-
+        withForeignKeysDisabled trace connection
+            $ runQuery (runMigrationQuiet autoMigration)
+            & tryJust (matchMigrationError @PersistException)
+            & tryJust (matchMigrationError @SqliteException)
+            & fmap join
+    traceWith trace $ MsgMigrations $ fmap length autoMigrationResult
     let ctx = SqliteContext backend runQuery fp trace
-    case migrations of
+    case autoMigrationResult of
         Left e -> do
             destroyDBLayer ctx
             pure $ Left e
-        Right ms -> do
-            pure $ Right (Quantity (length ms), ctx)
+        Right _ -> pure $ Right ctx
+
+-- | Run the given task in a context where foreign key constraints are
+--   /temporarily disabled/, before re-enabling them.
+--
+withForeignKeysDisabled
+    :: Tracer IO DBLog
+    -> Sqlite.Connection
+    -> IO a
+    -> IO a
+withForeignKeysDisabled t c =
+    bracket_
+        (updateForeignKeysSetting t c ForeignKeysDisabled)
+        (updateForeignKeysSetting t c ForeignKeysEnabled)
+
+-- | Specifies whether or not foreign key constraints are enabled, equivalent
+--   to the Sqlite 'foreign_keys' setting.
+--
+-- When foreign key constraints are /enabled/, the database will enforce
+-- referential integrity, and cascading deletes are enabled.
+--
+-- When foreign keys constraints are /disabled/, the database will not enforce
+-- referential integrity, and cascading deletes are disabled.
+--
+-- See the following resource for more information:
+-- https://www.sqlite.org/foreignkeys.html#fk_enable
+--
+data ForeignKeysSetting
+    = ForeignKeysEnabled
+        -- ^ Foreign key constraints are /enabled/.
+    | ForeignKeysDisabled
+        -- ^ Foreign key constraints are /disabled/.
+    deriving (Eq, Generic, ToJSON, Show)
+
+-- | Read the current value of the Sqlite 'foreign_keys' setting.
+--
+readForeignKeysSetting :: Sqlite.Connection -> IO ForeignKeysSetting
+readForeignKeysSetting connection = do
+    query <- Sqlite.prepare connection "PRAGMA foreign_keys"
+    state <- Sqlite.step query >> Sqlite.columns query
+    Sqlite.finalize query
+    case state of
+        [Persist.PersistInt64 0] -> pure ForeignKeysDisabled
+        [Persist.PersistInt64 1] -> pure ForeignKeysEnabled
+        unexpectedValue -> error $ mconcat
+            [ "Unexpected result when querying the current value of "
+            , "the Sqlite 'foreign_keys' setting: "
+            , show unexpectedValue
+            , "."
+            ]
+
+-- | Update the current value of the Sqlite 'foreign_keys' setting.
+--
+updateForeignKeysSetting
+    :: Tracer IO DBLog
+    -> Sqlite.Connection
+    -> ForeignKeysSetting
+    -> IO ()
+updateForeignKeysSetting trace connection desiredValue = do
+    traceWith trace $ MsgUpdatingForeignKeysSetting desiredValue
+    query <- Sqlite.prepare connection $
+        "PRAGMA foreign_keys = " <> valueToWrite <> ";"
+    _ <- Sqlite.step query
+    Sqlite.finalize query
+    finalValue <- readForeignKeysSetting connection
+    when (desiredValue /= finalValue) $ error $ mconcat
+        [ "Unexpected error when updating the value of the Sqlite "
+        , "'foreign_keys' setting. Attempted to write the value "
+        , show desiredValue
+        , " but retrieved the final value "
+        , show finalValue
+        , "."
+        ]
+  where
+    valueToWrite = case desiredValue of
+        ForeignKeysEnabled  -> "ON"
+        ForeignKeysDisabled -> "OFF"
 
 class Exception e => MatchMigrationError e where
     -- | Exception predicate for migration errors.
@@ -265,13 +340,14 @@ createSqliteBackend
     -> Maybe FilePath
     -> ManualMigration
     -> LogFunc
-    -> IO SqlBackend
+    -> IO (SqlBackend, Sqlite.Connection)
 createSqliteBackend trace fp migration logFunc = do
     let connStr = sqliteConnStr fp
     traceWith trace $ MsgConnStr connStr
     conn <- Sqlite.open connStr
     executeManualMigration migration conn
-    wrapConnectionInfo (mkSqliteConnectionInfo connStr) conn logFunc
+    backend <- wrapConnectionInfo (mkSqliteConnectionInfo connStr) conn logFunc
+    pure (backend, conn)
 
 sqliteConnStr :: Maybe FilePath -> Text
 sqliteConnStr = maybe ":memory:" T.pack
@@ -282,7 +358,6 @@ sqliteConnStr = maybe ":memory:" T.pack
 
 data DBLog
     = MsgMigrations (Either MigrationError Int)
-    | MsgForcedRollback
     | MsgQuery Text Severity
     | MsgRun Bool
     | MsgConnStr Text
@@ -293,6 +368,7 @@ data DBLog
     | MsgRemoving Text
     | MsgManualMigrationNeeded DBField Text
     | MsgManualMigrationNotNeeded DBField
+    | MsgUpdatingForeignKeysSetting ForeignKeysSetting
     deriving (Generic, Show, Eq, ToJSON)
 
 data DBField where
@@ -347,7 +423,6 @@ instance DefineSeverity DBLog where
         MsgMigrations (Right 0) -> Debug
         MsgMigrations (Right _) -> Notice
         MsgMigrations (Left _) -> Error
-        MsgForcedRollback{} -> Notice
         MsgQuery _ sev -> sev
         MsgRun _ -> Debug
         MsgConnStr _ -> Debug
@@ -358,6 +433,7 @@ instance DefineSeverity DBLog where
         MsgRemoving _ -> Info
         MsgManualMigrationNeeded{} -> Notice
         MsgManualMigrationNotNeeded{} -> Debug
+        MsgUpdatingForeignKeysSetting{} -> Debug
 
 instance ToText DBLog where
     toText = \case
@@ -367,10 +443,6 @@ instance ToText DBLog where
             fmt $ ""+||n||+" migrations were applied to the database."
         MsgMigrations (Left err) ->
             "Failed to migrate the database: " <> getMigrationErrorMessage err
-        MsgForcedRollback -> mconcat
-            [ "Some automated database migrations happened. Forced to roll back "
-            , "to genesis."
-            ]
         MsgQuery stmt _ -> stmt
         MsgRun False -> "Running database action - Start"
         MsgRun True -> "Running database action - Finish"
@@ -399,6 +471,11 @@ instance ToText DBLog where
             , " table already contains required field '"
             , fieldName field
             , "'."
+            ]
+        MsgUpdatingForeignKeysSetting value -> mconcat
+            [ "Updating the foreign keys setting to: "
+            , T.pack $ show value
+            , "."
             ]
 
 {-------------------------------------------------------------------------------
