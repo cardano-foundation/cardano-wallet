@@ -233,6 +233,19 @@ startSqliteBackend manualMigration migrateAll trace fp = do
             pure $ Left e
         Right _ -> pure $ Right ctx
 
+-- | Run the given task in a context where foreign key constraints are
+--   /temporarily disabled/, before re-enabling them.
+--
+withForeignKeysDisabled
+    :: Tracer IO DBLog
+    -> Sqlite.Connection
+    -> IO a
+    -> IO a
+withForeignKeysDisabled t c =
+    bracket_
+        (updateForeignKeysSetting t c ForeignKeysDisabled)
+        (updateForeignKeysSetting t c ForeignKeysEnabled)
+
 -- | Specifies whether or not foreign key constraints are enabled, equivalent
 --   to the Sqlite 'foreign_keys' setting.
 --
