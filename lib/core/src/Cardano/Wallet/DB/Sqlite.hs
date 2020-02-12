@@ -577,7 +577,6 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
 
         })
 
-
 retrieveWalletMetadata
     :: W.WalletId
     -> W.WalletDelegation W.PoolId
@@ -594,7 +593,7 @@ retrieveOtherDlgCert
     -> SqlPersistT IO (Maybe W.WalletMetadata)
 retrieveOtherDlgCert wid (W.EpochNo epoch) dlg epochNoMaybe = case epochNoMaybe of
     Just epoch' -> do
-        let slotId = W.SlotId epoch' (W.SlotNo maxBound)
+        let slotId = W.SlotId epoch' (W.SlotNo (maxBound - 1))
         activeMaybe <- fmap entityVal <$> selectFirst
                        [CertWalletId ==. wid, CertSlot <=. slotId]
                        [Desc CertSlot]
@@ -627,7 +626,9 @@ determineWalletDelegation
     wid
     dlg@(DelegationCertificate _ (W.SlotId e@(W.EpochNo epoch) _) _)
     (W.EpochNo currentEpoch) = do
-    if epoch + 1 < currentEpoch then
+    if currentEpoch < epoch then
+        retrieveWalletMetadata wid (delegationFromCerts Nothing Nothing)
+    else if epoch + 1 < currentEpoch then
         retrieveWalletMetadata wid (delegationFromCerts (Just dlg) Nothing)
     else if epoch + 1 == currentEpoch then
         retrieveOtherDlgCert wid e dlg (W.epochPred (W.EpochNo epoch))
@@ -650,11 +651,19 @@ delegationFromCerts older latest = case (older,latest) of
     (Just dlg, Nothing) ->
         W.WalletDelegation (toWalletDelegationStatus dlg) Nothing
     (Just dlg1, Just (dlg2, epoch)) ->
-        W.WalletDelegation (toWalletDelegationStatus dlg1)
-        (Just $ W.WalletDelegationNext (toWalletDelegationStatus dlg2) epoch)
+        case (toWalletDelegationStatus dlg1, toWalletDelegationStatus dlg2) of
+            (W.NotDelegating, W.NotDelegating) ->
+                W.WalletDelegation W.NotDelegating Nothing
+            _ ->
+                W.WalletDelegation (toWalletDelegationStatus dlg1)
+                (Just $ W.WalletDelegationNext (toWalletDelegationStatus dlg2) epoch)
     (Nothing, Just (dlg2, epoch)) ->
-        W.WalletDelegation W.NotDelegating
-        (Just $ W.WalletDelegationNext (toWalletDelegationStatus dlg2) epoch)
+        case toWalletDelegationStatus dlg2 of
+            W.NotDelegating ->
+                W.WalletDelegation W.NotDelegating Nothing
+            delegating ->
+                W.WalletDelegation W.NotDelegating
+                (Just $ W.WalletDelegationNext delegating epoch)
     (Nothing, Nothing) ->
         W.WalletDelegation W.NotDelegating Nothing
 

@@ -67,6 +67,7 @@ import Cardano.Wallet.Primitive.Types
     ( BlockHeader (slotId)
     , DelegationCertificate (..)
     , Direction (..)
+    , EpochNo (..)
     , Hash
     , PoolId
     , Range (..)
@@ -96,6 +97,7 @@ import Data.Ord
 import GHC.Generics
     ( Generic )
 
+import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Map.Strict as Map
 
 {-------------------------------------------------------------------------------
@@ -289,15 +291,53 @@ mReadWalletMeta wid db@(Database wallets _) =
     (Right (mkMetadata <$> Map.lookup wid wallets), db)
   where
     mkMetadata :: WalletDatabase s xprv -> WalletMetadata
-    mkMetadata WalletDatabase{certificates,metadata} =
-        case Map.lookupMax certificates of
-            Nothing ->
+    mkMetadata WalletDatabase{checkpoints,certificates,metadata} =
+        let recentSlotIdMaybe = fst <$> Map.lookupMax checkpoints
+            prevCert e1 = fmap snd $ Map.lookupMax $
+                Map.filterWithKey (\(SlotId (EpochNo e) _) _ -> e <= e1) certificates
+
+        in case (recentSlotIdMaybe, Map.lookupMax certificates) of
+            (Just (SlotId (EpochNo e) _), Just (SlotId (EpochNo e1) _, Nothing))
+               | e < e1 ->
+                    metadata { delegation = WalletDelegation NotDelegating Nothing}
+               | e1 + 1 < e ->
+                    metadata { delegation = WalletDelegation NotDelegating Nothing}
+               | e1 + 1 == e ->
+                    case prevCert (e1-1) of
+                        Just (Just pool) ->
+                            metadata { delegation = WalletDelegation (Delegating pool) (Just $ W.WalletDelegationNext NotDelegating (EpochNo $ e1 + 2))}
+                        _ ->
+                            metadata { delegation = WalletDelegation NotDelegating Nothing}
+               | e1 == 0 || e1 == 1 ->
+                     metadata { delegation = WalletDelegation NotDelegating Nothing}
+               | otherwise ->
+                     case prevCert (e1-2) of
+                         Just (Just pool) ->
+                             metadata { delegation = WalletDelegation (Delegating pool) (Just $ W.WalletDelegationNext NotDelegating (EpochNo $ e1 + 2))}
+                         _ ->
+                             metadata { delegation = WalletDelegation NotDelegating Nothing}
+            (Just (SlotId (EpochNo e) _), Just (SlotId (EpochNo e1) _, Just pool))
+                | e < e1 ->
+                    metadata { delegation = WalletDelegation NotDelegating Nothing}
+                | e1 + 1 < e ->
+                    metadata { delegation = WalletDelegation (Delegating pool) Nothing}
+                | e1 + 1 == e ->
+                    case prevCert (e1-1) of
+                        Just (Just pool1) ->
+                            metadata { delegation = WalletDelegation (Delegating pool1) (Just $ W.WalletDelegationNext (Delegating pool) (EpochNo $ e1 + 2))}
+                        _ ->
+                            metadata { delegation = WalletDelegation NotDelegating (Just $ W.WalletDelegationNext (Delegating pool) (EpochNo $ e1 + 2))}
+               | e1 == 0 || e1 == 1 ->
+                     metadata { delegation = WalletDelegation NotDelegating (Just $ W.WalletDelegationNext (Delegating pool) (EpochNo $ e1 + 2))}
+               | otherwise ->
+                     case prevCert (e1-2) of
+                         Just (Just pool1) ->
+                             metadata { delegation = WalletDelegation (Delegating pool1) (Just $ W.WalletDelegationNext (Delegating pool) (EpochNo $ e1 + 2))}
+                         _ ->
+                             metadata { delegation = WalletDelegation NotDelegating (Just $ W.WalletDelegationNext (Delegating pool) (EpochNo $ e1 + 2))}
+            _ ->
                 metadata { delegation = WalletDelegation NotDelegating Nothing}
-            Just (_, Nothing) ->
-                metadata { delegation = WalletDelegation NotDelegating Nothing}
-            Just (_, Just pool) ->
-                metadata { delegation =
-                           WalletDelegation (Delegating pool) Nothing }
+
 
 mPutDelegationCertificate
     :: Ord wid

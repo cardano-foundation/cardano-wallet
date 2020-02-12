@@ -35,7 +35,6 @@ import Cardano.Wallet.Api.Types
     , ApiByronWalletMigrationInfo (..)
     , ApiCoinSelection (..)
     , ApiCoinSelectionInput (..)
-    , ApiDelegationStatus (..)
     , ApiEpochInfo (..)
     , ApiEpochNumber (..)
     , ApiFee (..)
@@ -55,6 +54,7 @@ import Cardano.Wallet.Api.Types
     , ApiWallet (..)
     , ApiWalletDelegation (..)
     , ApiWalletDelegationNext (..)
+    , ApiWalletDelegationStatus (..)
     , ApiWalletPassphrase (..)
     , ByronWalletPostData (..)
     , DecodeAddress (..)
@@ -122,7 +122,7 @@ import Cardano.Wallet.Primitive.Types
     , TxStatus (..)
     , UTxO (..)
     , UTxOStatistics (..)
-    , WalletDelegation (..)
+    , WalletDelegationStatus (..)
     , WalletId (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
@@ -282,7 +282,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiNetworkInformation
             jsonRoundtripAndGolden $ Proxy @ApiNetworkParameters
             jsonRoundtripAndGolden $ Proxy @ApiWalletDelegation
-            jsonRoundtripAndGolden $ Proxy @ApiDelegationStatus
+            jsonRoundtripAndGolden $ Proxy @ApiWalletDelegationStatus
             jsonRoundtripAndGolden $ Proxy @ApiWalletDelegationNext
             jsonRoundtripAndGolden $ Proxy @(ApiT (Hash "Genesis"))
             jsonRoundtripAndGolden $ Proxy @ApiStakePool
@@ -307,7 +307,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @WalletPutPassphraseData
             jsonRoundtripAndGolden $ Proxy @(ApiT (Hash "Tx"))
             jsonRoundtripAndGolden $ Proxy @(ApiT (Passphrase "encryption"))
-            jsonRoundtripAndGolden $ Proxy @(ApiT (WalletDelegation (ApiT PoolId)))
+            jsonRoundtripAndGolden $ Proxy @(ApiT (WalletDelegationStatus (ApiT PoolId)))
             jsonRoundtripAndGolden $ Proxy @(ApiT Address, Proxy 'Testnet)
             jsonRoundtripAndGolden $ Proxy @(ApiT AddressPoolGap)
             jsonRoundtripAndGolden $ Proxy @(ApiT Direction)
@@ -1063,12 +1063,12 @@ instance Arbitrary WalletBalance where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance Arbitrary (WalletDelegation (ApiT PoolId)) where
+instance Arbitrary (WalletDelegationStatus (ApiT PoolId)) where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance Arbitrary ApiDelegationStatus where
-    arbitrary = ApiDelegationStatus <$> arbitrary
+instance Arbitrary ApiWalletDelegationStatus where
+    arbitrary = ApiWalletDelegationStatus <$> arbitrary
 
 instance Arbitrary ApiWalletDelegationNext where
     arbitrary = ApiWalletDelegationNext <$> arbitrary <*> arbitrary
@@ -1513,8 +1513,8 @@ instance ToSchema ApiNetworkParameters where
 instance ToSchema ApiNetworkTip where
     declareNamedSchema _ = declareSchemaForDefinition "ApiNetworkTip"
 
-instance ToSchema ApiDelegationStatus where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiDelegationStatus"
+instance ToSchema ApiWalletDelegationStatus where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiWalletDelegationStatus"
 
 instance ToSchema ApiWalletDelegation where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWalletDelegation"

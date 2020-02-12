@@ -89,6 +89,7 @@ import Cardano.Wallet.Primitive.Types
     , TxStatus (..)
     , UTxO (..)
     , WalletDelegation (..)
+    , WalletDelegationStatus (..)
     , WalletId (..)
     , WalletMetadata (..)
     , WalletName (..)
@@ -310,7 +311,7 @@ instance Arbitrary WalletMetadata where
         <$> (WalletName <$> elements ["bulbazaur", "charmander", "squirtle"])
         <*> genUniformTime
         <*> (fmap WalletPassphraseInfo <$> liftArbitrary genUniformTime)
-        <*> pure NotDelegating
+        <*> pure (WalletDelegation NotDelegating Nothing)
 
 {-------------------------------------------------------------------------------
                                    Blocks
