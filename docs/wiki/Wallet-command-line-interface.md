@@ -573,11 +573,15 @@ $ cardano-wallet stake-pools list
 
 View network information and syncing progress between the node and the blockchain.
 
+<p align=right><a href="#">top :arrow_heading_up:</a></p>
+
 ## network parameters
 
 > `cardano-wallet network parameters [--port=INT] EPOCH_NUMBER` 
 
 View network parameters. EPOCH_NUMBER can be `latest` or valid epoch number (not later than the current one), ie., `0`, `1`, .. .
+
+<p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 ## version
 
