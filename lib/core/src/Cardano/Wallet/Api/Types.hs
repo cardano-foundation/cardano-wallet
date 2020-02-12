@@ -303,7 +303,7 @@ data ApiWalletDelegationNext = ApiWalletDelegationNext
 
 data ApiWalletDelegation = ApiWalletDelegation
     { active :: !ApiWalletDelegationStatus
-    , next :: !(Maybe ApiWalletDelegationNext)
+    , next :: ![ApiWalletDelegationNext]
     } deriving (Eq, Generic, Show)
 
 newtype ApiWalletPassphrase = ApiWalletPassphrase
@@ -1121,7 +1121,7 @@ gDecodeAddress decodeShelley text =
 -- | Wallet not delegating and not about to join any stake pool.
 notDelegating :: ApiWalletDelegation
 notDelegating =
-    ApiWalletDelegation (ApiWalletDelegationStatus $ ApiT NotDelegating) Nothing
+    ApiWalletDelegation (ApiWalletDelegationStatus $ ApiT NotDelegating) []
 
 -- | Wallet not delegating and joined the stake pool. The delegation will be
 --  effective as specified by epoch info.
@@ -1135,13 +1135,12 @@ notDelegatingAboutToJoin
 notDelegatingAboutToJoin pId epochNo sp =
     ApiWalletDelegation
     (ApiWalletDelegationStatus $ ApiT NotDelegating)
-    (Just $
-        ApiWalletDelegationNext
-        ( ApiWalletDelegationStatus $ ApiT $ Delegating pId)
-        ( ApiEpochInfo
-            (ApiT $ epochNo + 2) (W.epochStartTime sp (epochNo + 2))
-        )
-    )
+    [ ApiWalletDelegationNext
+      ( ApiWalletDelegationStatus $ ApiT $ Delegating pId)
+      ( ApiEpochInfo
+          (ApiT $ epochNo + 2) (W.epochStartTime sp (epochNo + 2))
+      )
+    ]
 
 -- | Wallet delegating to a given stake pool.
 delegating
@@ -1151,7 +1150,7 @@ delegating
 delegating pId =
     ApiWalletDelegation
     (ApiWalletDelegationStatus $ ApiT $ Delegating pId)
-    Nothing
+    []
 
 -- | Wallet delegating to a given stake pool and quitted the stake pool.
 -- The quitting will be effective as specified by epoch info.
@@ -1165,13 +1164,12 @@ delegatingAboutToQuit
 delegatingAboutToQuit pId epochNo sp =
     ApiWalletDelegation
     (ApiWalletDelegationStatus $ ApiT $ Delegating pId)
-    (Just $
-        ApiWalletDelegationNext
+    [ ApiWalletDelegationNext
         ( ApiWalletDelegationStatus $ ApiT NotDelegating)
         ( ApiEpochInfo
             (ApiT $ epochNo + 2) (W.epochStartTime sp (epochNo + 2))
         )
-    )
+    ]
 
 -- | Wallet delegating to a given stake pool, and joined another stake pool.
 -- The delegation to another stake pool will be effective as specified
@@ -1188,10 +1186,9 @@ delegatingAboutToRejoin
 delegatingAboutToRejoin pId1 pId2 epochNo sp =
     ApiWalletDelegation
     (ApiWalletDelegationStatus $ ApiT $ Delegating pId1)
-    (Just $
-        ApiWalletDelegationNext
+    [ ApiWalletDelegationNext
         ( ApiWalletDelegationStatus $ ApiT $ Delegating pId2)
         ( ApiEpochInfo
             (ApiT $ epochNo + 2) (W.epochStartTime sp (epochNo + 2))
         )
-    )
+    ]

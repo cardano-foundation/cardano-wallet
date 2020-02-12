@@ -619,7 +619,7 @@ testMetadata = WalletMetadata
     { name = WalletName "test wallet"
     , creationTime = unsafePerformIO getCurrentTime
     , passphraseInfo = Nothing
-    , delegation = WalletDelegation NotDelegating Nothing
+    , delegation = WalletDelegation NotDelegating []
     }
 
 testWid :: WalletId

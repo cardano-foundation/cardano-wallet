@@ -649,23 +649,23 @@ delegationFromCerts
     -> W.WalletDelegation W.PoolId
 delegationFromCerts older latest = case (older,latest) of
     (Just dlg, Nothing) ->
-        W.WalletDelegation (toWalletDelegationStatus dlg) Nothing
+        W.WalletDelegation (toWalletDelegationStatus dlg) []
     (Just dlg1, Just (dlg2, epoch)) ->
         case (toWalletDelegationStatus dlg1, toWalletDelegationStatus dlg2) of
             (W.NotDelegating, W.NotDelegating) ->
-                W.WalletDelegation W.NotDelegating Nothing
+                W.WalletDelegation W.NotDelegating []
             _ ->
                 W.WalletDelegation (toWalletDelegationStatus dlg1)
-                (Just $ W.WalletDelegationNext (toWalletDelegationStatus dlg2) epoch)
+                [W.WalletDelegationNext (toWalletDelegationStatus dlg2) epoch]
     (Nothing, Just (dlg2, epoch)) ->
         case toWalletDelegationStatus dlg2 of
             W.NotDelegating ->
-                W.WalletDelegation W.NotDelegating Nothing
+                W.WalletDelegation W.NotDelegating []
             delegating ->
                 W.WalletDelegation W.NotDelegating
-                (Just $ W.WalletDelegationNext delegating epoch)
+                [W.WalletDelegationNext delegating epoch]
     (Nothing, Nothing) ->
-        W.WalletDelegation W.NotDelegating Nothing
+        W.WalletDelegation W.NotDelegating []
 
 mkWalletEntity :: W.WalletId -> W.WalletMetadata -> Wallet
 mkWalletEntity wid meta = Wallet

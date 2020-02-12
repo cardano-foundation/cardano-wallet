@@ -375,15 +375,21 @@ instance Buildable poolId => Buildable (WalletDelegationNext poolId) where
 
 data WalletDelegation poolId = WalletDelegation
     { active :: !(WalletDelegationStatus poolId)
-    , next :: !(Maybe (WalletDelegationNext poolId))
+    , next :: ![WalletDelegationNext poolId]
     } deriving (Eq, Generic, Show)
 instance NFData poolId => NFData (WalletDelegation poolId)
 
 instance Buildable poolId => Buildable (WalletDelegation poolId) where
-    build (WalletDelegation act Nothing) =
+    build (WalletDelegation act []) =
         "current wallet delegation: " <> build act <> ", awaiting no change"
-    build (WalletDelegation act (Just n)) =
+    build (WalletDelegation act [n]) =
         "current wallet delegation: " <> build act <> ", awaiting " <> build n
+    build (WalletDelegation act [n1, n2]) =
+        "current wallet delegation: " <> build act <> ", awaiting first " <>
+        build n1 <> " then awaiting " <> build n2
+    build (WalletDelegation act _) =
+        "current wallet delegation: " <> build act <>
+        ", something wrong with awaiting"
 
 newtype WalletPassphraseInfo = WalletPassphraseInfo
     { lastUpdatedAt :: UTCTime }

@@ -480,7 +480,7 @@ createWallet ctx wid wname s = db & \DBLayer{..} -> do
             { name = wname
             , creationTime = now
             , passphraseInfo = Nothing
-            , delegation = WalletDelegation NotDelegating Nothing
+            , delegation = WalletDelegation NotDelegating []
             }
     mapExceptT atomically $
         initializeWallet (PrimaryKey wid) cp meta hist $> wid
@@ -522,7 +522,7 @@ createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
             { name = wname
             , creationTime = now
             , passphraseInfo = Nothing
-            , delegation = WalletDelegation NotDelegating Nothing
+            , delegation = WalletDelegation NotDelegating []
             }
     mapExceptT atomically $
         initializeWallet (PrimaryKey wid) (updateState s' cp) meta hist $> wid
@@ -1373,9 +1373,9 @@ joinStakePool ctx wid (pid, pools) argGenChange pwd = db & \DBLayer{..} -> do
     walMeta <- mapExceptT atomically $ withExceptT ErrJoinStakePoolNoSuchWallet $
         withNoSuchWallet wid $ readWalletMeta (PrimaryKey wid)
 
-    let checkAlreadyJoined (WalletDelegation (Delegating pid') Nothing) =
+    let checkAlreadyJoined (WalletDelegation (Delegating pid') []) =
             pid' == pid
-        checkAlreadyJoined (WalletDelegation _ (Just (WalletDelegationNext (Delegating pid') _))) =
+        checkAlreadyJoined (WalletDelegation _ [WalletDelegationNext (Delegating pid') _]) =
             pid' == pid
         checkAlreadyJoined _ = False
 
@@ -1422,9 +1422,9 @@ quitStakePool ctx wid pid argGenChange pwd = db & \DBLayer{..} -> do
     walMeta <- mapExceptT atomically $ withExceptT ErrQuitStakePoolNoSuchWallet $
         withNoSuchWallet wid $ readWalletMeta (PrimaryKey wid)
 
-    let checkIfJoined (WalletDelegation (Delegating pid') Nothing) =
+    let checkIfJoined (WalletDelegation (Delegating pid') []) =
             pid' /= pid
-        checkIfJoined (WalletDelegation _ (Just (WalletDelegationNext (Delegating pid') _))) =
+        checkIfJoined (WalletDelegation _ [WalletDelegationNext (Delegating pid') _]) =
             pid' /= pid
         checkIfJoined _ = True
 

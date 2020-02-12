@@ -618,7 +618,7 @@ testMetadata :: WalletMetadata
 testMetadata = WalletMetadata
     { name = WalletName "test wallet"
     , passphraseInfo = Nothing
-    , delegation = WalletDelegation NotDelegating Nothing
+    , delegation = WalletDelegation NotDelegating []
     , creationTime = systemToUTCTime (MkSystemTime 0 0)
     }
 

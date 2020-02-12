@@ -710,15 +710,16 @@ mkShelleyWallet ctx wid cp meta pending progress = do
         ApiWalletDelegationStatus $ ApiT $ W.Delegating $ ApiT poolId
     toApiDlgStatus W.NotDelegating =
         ApiWalletDelegationStatus $ ApiT W.NotDelegating
-    toApiDlg (W.WalletDelegation st Nothing) =
-        ApiWalletDelegation (toApiDlgStatus st) Nothing
-    toApiDlg (W.WalletDelegation st (Just (W.WalletDelegationNext stNext ep))) =
+    toApiDlg (W.WalletDelegation st []) =
+        ApiWalletDelegation (toApiDlgStatus st) []
+    toApiDlg (W.WalletDelegation st [W.WalletDelegationNext stNext ep]) =
         ApiWalletDelegation (toApiDlgStatus st)
-        (Just $
-            ApiWalletDelegationNext
+        [ ApiWalletDelegationNext
             (toApiDlgStatus stNext)
             (ApiEpochInfo (ApiT ep) (W.epochStartTime sp ep))
-        )
+        ]
+    toApiDlg (W.WalletDelegation st _) =
+        ApiWalletDelegation (toApiDlgStatus st) []
 
 --------------------- Legacy
 

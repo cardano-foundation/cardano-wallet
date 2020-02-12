@@ -1516,6 +1516,9 @@ instance ToSchema ApiNetworkTip where
 instance ToSchema ApiWalletDelegationStatus where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWalletDelegationStatus"
 
+instance ToSchema ApiWalletDelegationNext where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiWalletDelegationNext"
+
 instance ToSchema ApiWalletDelegation where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWalletDelegation"
 

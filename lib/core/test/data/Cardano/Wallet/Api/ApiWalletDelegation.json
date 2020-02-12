@@ -1,134 +1,1231 @@
 {
-    "seed": 1829163783673431334,
+    "seed": 317255564310488788,
     "samples": [
         {
-            "next": {
-                "status": "delegating",
-                "changes_at": {
-                    "epoch_start_time": "1883-07-16T12:26:44Z",
-                    "epoch_number": 7373
+            "next": [
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1878-08-01T01:54:09.682727694483Z",
+                        "epoch_number": 16277
+                    },
+                    "target": "566e1ae18ac00b20975721c9d73abdf8c3bd6a235e2cd79ba3a68eac17288a48"
                 },
-                "target": "158d72c540cf451230ca49ff8e7a819602d6aabb5fbc67f49eddc004b99d1ba5"
-            },
-            "active": {
-                "status": "not_delegating"
-            }
-        },
-        {
-            "next": {
-                "status": "delegating",
-                "changes_at": {
-                    "epoch_start_time": "1871-03-19T02:00:00Z",
-                    "epoch_number": 14878
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1870-11-14T16:44:56Z",
+                        "epoch_number": 1370
+                    }
                 },
-                "target": "cedddf8caf110c5cf56d4fa16b7fc2f52479f7345cb3241cf3bb0ea00424d0c6"
-            },
-            "active": {
-                "status": "not_delegating"
-            }
-        },
-        {
-            "next": {
-                "status": "not_delegating",
-                "changes_at": {
-                    "epoch_start_time": "1866-09-26T02:04:37.99994786203Z",
-                    "epoch_number": 15592
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1859-07-15T19:13:19.460523170464Z",
+                        "epoch_number": 8147
+                    },
+                    "target": "6c57d7423c358053a5476f236630906cc13425086d9ff231d8e806aaeaceca95"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1870-12-30T23:00:00Z",
+                        "epoch_number": 3917
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1867-03-15T08:45:58.13095376035Z",
+                        "epoch_number": 8665
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1897-06-11T02:00:00Z",
+                        "epoch_number": 4901
+                    }
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1885-04-29T15:34:05.28670394236Z",
+                        "epoch_number": 1851
+                    },
+                    "target": "0b7799721b96968ff63df9ae91c5e5be4c7f49c5704c3aa74b06d12bb2c22c72"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1901-07-27T01:00:00Z",
+                        "epoch_number": 15442
+                    },
+                    "target": "cb1073ecd47e043ebc20f0ead3cd34f59ebfccb481ea8b6eb1623d8443e79ff6"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1884-12-09T03:00:00Z",
+                        "epoch_number": 23009
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1891-05-03T22:14:42Z",
+                        "epoch_number": 32320
+                    }
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1878-10-19T11:00:00Z",
+                        "epoch_number": 27299
+                    },
+                    "target": "7851b40cdab4db699fa5daf548eb6fa2c2178128be7b942ced7a83366a37d11f"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1859-04-01T21:49:01.703193918214Z",
+                        "epoch_number": 1120
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1885-08-21T15:00:00Z",
+                        "epoch_number": 14412
+                    }
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1894-08-07T02:07:14.537586429624Z",
+                        "epoch_number": 29226
+                    },
+                    "target": "49e3f731d848bd5d50d9d8b282a3069f7ea625b909829232add0d479db0474a1"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1895-07-09T15:00:15Z",
+                        "epoch_number": 12844
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1868-03-01T00:43:39.624997788396Z",
+                        "epoch_number": 24723
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1892-02-19T18:55:44Z",
+                        "epoch_number": 28366
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1879-09-05T06:24:14.45149227521Z",
+                        "epoch_number": 9518
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1872-03-25T10:00:00Z",
+                        "epoch_number": 11982
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1869-10-14T23:45:01.541817136486Z",
+                        "epoch_number": 5834
+                    }
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1906-06-02T07:37:26Z",
+                        "epoch_number": 25330
+                    },
+                    "target": "90c95bed2f503a0af31b42b1d549a2cd3fe4d16103e5f6a4cdaabbe4dd033e51"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1875-01-04T12:00:00Z",
+                        "epoch_number": 19692
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1896-10-17T00:55:40Z",
+                        "epoch_number": 26245
+                    }
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1877-03-06T17:09:44Z",
+                        "epoch_number": 28975
+                    },
+                    "target": "77cdd98ecc697dbad680f18ea6701af56ffc86e48199796bf3cbf6d01ef4d6f9"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1908-01-14T08:53:50.85507334926Z",
+                        "epoch_number": 25757
+                    },
+                    "target": "afab89a6da5c248e243494e41a5b8e1c6a285c69354ae16a801d25d8fbd0e92e"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1893-07-30T03:44:46.924924157953Z",
+                        "epoch_number": 30203
+                    }
                 }
-            },
+            ],
             "active": {
                 "status": "delegating",
-                "target": "19203833161997fe7ee939506edb8233fc25d8b5dbf294ac95a2430eec2d226d"
+                "target": "84691fecd37f7a696a04585d319b720d9c26cd8c6731d45693359a77b603dfcd"
             }
         },
         {
-            "next": {
-                "status": "not_delegating",
-                "changes_at": {
-                    "epoch_start_time": "1895-04-15T03:00:00Z",
-                    "epoch_number": 4131
+            "next": [
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1862-03-28T15:38:42Z",
+                        "epoch_number": 18009
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1866-06-24T09:00:00Z",
+                        "epoch_number": 12835
+                    }
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1899-08-21T09:36:12Z",
+                        "epoch_number": 30280
+                    },
+                    "target": "176d2f0417ed3d8680704fb174c3c08e1aadd422b720c78552fb19a5c8465b90"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1897-06-10T04:27:19Z",
+                        "epoch_number": 31419
+                    }
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1883-11-04T01:47:12.985080071515Z",
+                        "epoch_number": 15226
+                    },
+                    "target": "75272f348c98dbc59dbee3201682ffa844d798654efddaee06927803aea62c1a"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1899-02-09T23:51:02.076228273558Z",
+                        "epoch_number": 28955
+                    },
+                    "target": "d8c3adffc68ec5011ed94a191f41d581d27da4aafbacf3abc69f001ff45313e2"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1905-01-15T10:00:00Z",
+                        "epoch_number": 2744
+                    },
+                    "target": "86aef5b54763d1781fc612fa747a10a98633771796ba2fa8ed42e59c2a7395eb"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1884-07-17T05:51:54Z",
+                        "epoch_number": 12847
+                    }
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1908-03-08T08:57:37Z",
+                        "epoch_number": 20521
+                    },
+                    "target": "02305125d0643ded305896c831064926634cac8e7b4db1775e33bf5d35a83add"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1896-02-14T16:09:36Z",
+                        "epoch_number": 985
+                    },
+                    "target": "08efbfc007fc0101b46da1c9044ff4098d2ae628fda385eac0005d5ea79eeb1d"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1875-09-08T12:27:44Z",
+                        "epoch_number": 6129
+                    },
+                    "target": "26e2bfc98aa6d714dfb92d6ab73e8390509b71c14360ded0ae003d44ecd55e16"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1903-02-08T21:33:42.901029093958Z",
+                        "epoch_number": 22253
+                    },
+                    "target": "d4d2c451f8ec2e425ac008e0782f2663f604e83be018d1bd8c5adb9629cc8a66"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1870-08-16T19:18:12.370567206877Z",
+                        "epoch_number": 1952
+                    },
+                    "target": "8faf0edc4ac03147316eed23ad1f2052a26e682a8c89fe31f9413be66a901887"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1905-11-04T07:52:45Z",
+                        "epoch_number": 2449
+                    },
+                    "target": "ac69e7568b754bfb736749b7569b65e5bc47388d52100aed0f5d55b09c9a8808"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1901-10-12T21:20:59Z",
+                        "epoch_number": 6905
+                    },
+                    "target": "aee43a2fa1a5185983d4a11dde5bb5cbda65aadad297b72edddafcf5b6ce7e7c"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1863-06-13T13:21:20.593251539927Z",
+                        "epoch_number": 32646
+                    },
+                    "target": "06e891a6f54ecb2683a71b8e5faed026358524028737ac47c0fb1f9c96a2b2cb"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1888-12-13T17:34:45.030258378121Z",
+                        "epoch_number": 26747
+                    },
+                    "target": "0f1392b536ee6bf78965aeb654515b257822def73ad86ddf99ab619c1e874523"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1872-07-25T04:03:08Z",
+                        "epoch_number": 25883
+                    },
+                    "target": "4af22d5940909feb30e6caf1a333aa1ef1ca825d01de4433e24561d320b663b2"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1876-04-28T02:43:16Z",
+                        "epoch_number": 10539
+                    }
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1905-04-12T17:45:19Z",
+                        "epoch_number": 15036
+                    },
+                    "target": "1e8b066a7eaf2e5ffc7d5e121507a6371a610c425248829d9595b9b5f94f9811"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1890-05-22T01:14:30.182055655808Z",
+                        "epoch_number": 4070
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1899-07-23T11:00:00Z",
+                        "epoch_number": 24842
+                    }
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1862-04-29T04:26:02.860401954053Z",
+                        "epoch_number": 14998
+                    },
+                    "target": "781283b298a83d5e413f4662909b81cc04c839b6f7dd79bd459686b8fc07674d"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1871-09-17T15:00:00Z",
+                        "epoch_number": 15207
+                    },
+                    "target": "5ea17c5becd70270551437b0671e76bd8f38135bd728238e934b9c6ada54d11b"
                 }
-            },
+            ],
             "active": {
-                "status": "not_delegating"
+                "status": "delegating",
+                "target": "554160fbc8fd92838586e29036817be65ce153076265b2e491f8d8ff9c8a3df7"
             }
         },
         {
-            "next": {
-                "status": "delegating",
-                "changes_at": {
-                    "epoch_start_time": "1900-04-25T02:27:10.98345628058Z",
-                    "epoch_number": 12534
+            "next": [
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1875-02-09T05:26:13.91330852396Z",
+                        "epoch_number": 29168
+                    }
                 },
-                "target": "3c4a662b0c74de9489c3b26c35b12dd650215319224474a406a60cfa42580022"
-            },
-            "active": {
-                "status": "not_delegating"
-            }
-        },
-        {
-            "next": {
-                "status": "delegating",
-                "changes_at": {
-                    "epoch_start_time": "1902-05-23T01:00:00Z",
-                    "epoch_number": 32367
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1903-12-06T00:58:23Z",
+                        "epoch_number": 15806
+                    }
                 },
-                "target": "be898b5bc989fedc5fa9908bd5264ec9aae06c6b1797fbdaa51d7f4e47388681"
-            },
-            "active": {
-                "status": "delegating",
-                "target": "863f599528c238a2d0e6e0bdca04091814f7d0b7e041b781a78ef89429b6f082"
-            }
-        },
-        {
-            "next": {
-                "status": "delegating",
-                "changes_at": {
-                    "epoch_start_time": "1864-12-27T13:00:00Z",
-                    "epoch_number": 9253
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1874-10-28T04:50:53Z",
+                        "epoch_number": 9242
+                    }
                 },
-                "target": "4ae9b0bd2d0181dcf2aabb09c5218ffa9efbe1ce5963a63c4d0d161343e6b829"
-            },
-            "active": {
-                "status": "delegating",
-                "target": "7de65d352a6f48198721ed53fc057174d2d3a4594d50f00791de21b0e0aaaf03"
-            }
-        },
-        {
-            "next": {
-                "status": "delegating",
-                "changes_at": {
-                    "epoch_start_time": "1895-06-25T09:26:34.299766441102Z",
-                    "epoch_number": 12057
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1866-09-10T11:55:56.211311022973Z",
+                        "epoch_number": 24362
+                    }
                 },
-                "target": "b536da3828181a3db9b261c288874f1555c874d8fee4f199da81d766cc3fe1cf"
-            },
-            "active": {
-                "status": "not_delegating"
-            }
-        },
-        {
-            "next": {
-                "status": "not_delegating",
-                "changes_at": {
-                    "epoch_start_time": "1863-04-08T06:44:14.478883264551Z",
-                    "epoch_number": 9326
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1897-08-18T09:24:26.553943198309Z",
+                        "epoch_number": 2134
+                    },
+                    "target": "ed6fb4e0aff7e3daa5a11b7fcd428f127b084386a0f2882deed3eb129574dd2c"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1868-07-30T12:00:00Z",
+                        "epoch_number": 32136
+                    },
+                    "target": "85a058cf71e25ceca27ed2268796acba2b3c4e7d918df8baa0b2a80dc221278d"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1887-10-18T04:00:00Z",
+                        "epoch_number": 22342
+                    },
+                    "target": "f797cc295feebdbee426fd53e8b230dbdf66aefaf35fc24c885df8f5d6657639"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1886-07-03T20:00:00Z",
+                        "epoch_number": 15994
+                    },
+                    "target": "d0d08b09e37004e9d79120f947a1a338bc034cfa70f9e9d16db49a2d3390f3c8"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1859-12-30T05:13:31.841619359062Z",
+                        "epoch_number": 4206
+                    },
+                    "target": "1fbdee08a72e41f0d15006323142b0683dec531736d1a5faa7c0870d94a6da00"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1895-07-23T06:31:31.405547172678Z",
+                        "epoch_number": 1183
+                    },
+                    "target": "657d4bf65b3c7788d474b40ccbf4564ff4f4032e5f9f485e40e5ce3657ab38e3"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1892-08-15T19:10:54.216633129403Z",
+                        "epoch_number": 31411
+                    }
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1868-11-09T00:00:00Z",
+                        "epoch_number": 17258
+                    },
+                    "target": "935b083fa417809c0e4ecb1401a2e193ea79c3931bfadb8c2a5233cb6655c4d9"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1884-02-02T16:33:45.082833977021Z",
+                        "epoch_number": 11989
+                    },
+                    "target": "8875263e8264cca4e41d9cb54e5902b831ab4ed9b6730965c832072e83ae010f"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1862-06-24T15:00:00Z",
+                        "epoch_number": 8106
+                    },
+                    "target": "3ad3dfd81a4b8b2706e57c95e18b20ecdece9998f76886572e35892bc5517827"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1898-02-03T07:05:49Z",
+                        "epoch_number": 30584
+                    },
+                    "target": "d662d09b17c5f2373ee7a6eb5e9ee7ef07d1193719590ad22c2d6988787110f5"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1866-07-05T22:00:00Z",
+                        "epoch_number": 10687
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1882-04-26T08:55:02Z",
+                        "epoch_number": 2330
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1894-11-28T16:26:33.940811252863Z",
+                        "epoch_number": 12609
+                    }
                 }
-            },
+            ],
+            "active": {
+                "status": "delegating",
+                "target": "252cbc69e023ef3367fcfc5cbaff3958a41b12fc9f6a20d06510baff465b9da0"
+            }
+        },
+        {
+            "next": [
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1901-09-16T09:08:28Z",
+                        "epoch_number": 7013
+                    },
+                    "target": "b9e2b252097de312baa8bdfa606d9f28daef4058330ed3e2dd8658a3ee5f8778"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1876-09-22T07:39:59.834918822791Z",
+                        "epoch_number": 29245
+                    },
+                    "target": "f16d2ac895909480e4802afcf30f78e9f0bd6b904a90824942828768d540fa19"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1884-03-12T03:00:00Z",
+                        "epoch_number": 21067
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1859-07-26T19:20:04Z",
+                        "epoch_number": 31120
+                    }
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1876-04-04T08:06:06.301705770849Z",
+                        "epoch_number": 2924
+                    },
+                    "target": "0c553fd7b0be286400c21e62d175f92437f47ad85417870312f0d502dc64edd4"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1869-06-04T22:43:05.199921431076Z",
+                        "epoch_number": 5381
+                    },
+                    "target": "b62b8145097e0aa0a0b8432dbac3d25f1be9df85a452971276beb4823aa57e33"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1902-07-30T00:44:07Z",
+                        "epoch_number": 24292
+                    },
+                    "target": "0faa279749d8ab9bcd17f6892d886315139f9edc0917b96ca4b74a9f652c95fb"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1871-02-06T23:29:29Z",
+                        "epoch_number": 28509
+                    },
+                    "target": "b3c7656a540cd2a65d177406942890667eca86a390cb122adf16a042467d52a4"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1907-08-22T15:32:43Z",
+                        "epoch_number": 14231
+                    }
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1888-04-10T19:00:00Z",
+                        "epoch_number": 10190
+                    },
+                    "target": "bd53b1c339b39fadaf9be5c25f92d635f5b5610f47e05a56a2a04aeb74990551"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1893-03-18T18:00:00Z",
+                        "epoch_number": 25206
+                    }
+                }
+            ],
+            "active": {
+                "status": "delegating",
+                "target": "a294f987553e79abfef750dd42292fb3147d1d2f006d82d51c1dc2ff76205145"
+            }
+        },
+        {
+            "next": [
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1906-08-20T07:35:47.30339830984Z",
+                        "epoch_number": 9395
+                    },
+                    "target": "df00c22eaf6f1d11244d48a73d700fbf879d5260f5857513ea057322687d28a1"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1881-12-17T02:45:04.492265806651Z",
+                        "epoch_number": 275
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1879-02-20T12:38:01.469839704782Z",
+                        "epoch_number": 3774
+                    }
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1904-01-25T16:00:00Z",
+                        "epoch_number": 22305
+                    },
+                    "target": "8fade85ef03093f44b184cecccdf6612706b26d74a9ad76e9676d7b9a1c09746"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1900-05-20T00:00:00Z",
+                        "epoch_number": 31395
+                    },
+                    "target": "9fa7eedc8457d44e5ee6c53dcba2bcb536e1b7b45ecdbd1baa0316c233da8538"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1898-11-18T15:07:02.160845255737Z",
+                        "epoch_number": 32223
+                    },
+                    "target": "3ed7d6e4a565fe43b8f55ac05c50c3b544929a077acf78d953d65855f2186029"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1870-08-29T13:23:35Z",
+                        "epoch_number": 23282
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1860-12-13T00:44:20Z",
+                        "epoch_number": 24105
+                    }
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1885-10-02T09:44:26.932276876317Z",
+                        "epoch_number": 2597
+                    },
+                    "target": "16409d25de295da69998c5fa6ac94c03d00e80972a8b024f93be884a4f06b029"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1884-06-11T18:00:00Z",
+                        "epoch_number": 18307
+                    }
+                }
+            ],
             "active": {
                 "status": "not_delegating"
             }
         },
         {
-            "next": {
-                "status": "not_delegating",
-                "changes_at": {
-                    "epoch_start_time": "1895-02-23T07:57:45Z",
-                    "epoch_number": 1479
+            "next": [
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1861-10-26T05:56:49Z",
+                        "epoch_number": 31917
+                    },
+                    "target": "58fc94418d55c6e9e76c977f7911136b8a5798823c9bef8b0a163211ce619280"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1895-01-22T22:24:52.984878316848Z",
+                        "epoch_number": 17392
+                    },
+                    "target": "1665014753657bd55d18f0dac5e93024963b395f740986f057267455fe754bc0"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1906-06-17T00:00:00Z",
+                        "epoch_number": 9616
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1903-12-29T11:55:47.631249924351Z",
+                        "epoch_number": 2706
+                    }
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1873-06-11T21:34:44.901285293934Z",
+                        "epoch_number": 16882
+                    },
+                    "target": "ca6971ca142317e76aa9cdd1f60f322004cd64ef21709674b61d23446cd189b7"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1869-01-18T01:10:04.023283707684Z",
+                        "epoch_number": 19964
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1869-03-26T19:00:00Z",
+                        "epoch_number": 18661
+                    }
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1901-05-16T16:53:26.298211045538Z",
+                        "epoch_number": 14861
+                    },
+                    "target": "708f0c5358189cb0bca173c7b5f1246b1b884e6a62b7dd1c5f5c467da5d44245"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1905-04-02T04:19:00Z",
+                        "epoch_number": 9789
+                    }
                 }
-            },
+            ],
             "active": {
                 "status": "delegating",
-                "target": "642848f5c345e454c31899d1b5e64c69a75d7a6a116d59dbc96d23caacd66b9a"
+                "target": "8322df59f24eaa1ac7cd70772621554c87f21a1de08950291da49a937d087d6e"
+            }
+        },
+        {
+            "next": [
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1899-04-25T00:10:17.411951473134Z",
+                        "epoch_number": 8262
+                    },
+                    "target": "11be669323d0ca8dfb350be46bfd714fd86cfd124603135d2648de4fecb19da9"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1863-01-15T09:45:49.378795740832Z",
+                        "epoch_number": 13737
+                    }
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1862-02-19T06:00:00Z",
+                        "epoch_number": 5893
+                    },
+                    "target": "48890fbd7323835ee578dcbefea1308e1002d9c9cd5558c7abbd4c044ae50a3a"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1868-01-31T19:30:17.861435056639Z",
+                        "epoch_number": 5953
+                    },
+                    "target": "d59616ef6657551a506f678efea70cf4ea190c1848d70651ccdddeded2ee7b64"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1866-07-21T16:15:19.413092418071Z",
+                        "epoch_number": 31543
+                    }
+                }
+            ],
+            "active": {
+                "status": "delegating",
+                "target": "e736f3c1e6c5aa1ff3e68f093bf0a7324a2162c03e1b6c24d980327f4a320455"
+            }
+        },
+        {
+            "next": [
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1881-11-18T22:00:00Z",
+                        "epoch_number": 28317
+                    },
+                    "target": "070c8dd36e5d6cffd87e0ea8f2abc6ebd403fff28487e953eeac4d6a67489534"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1879-12-24T01:00:00Z",
+                        "epoch_number": 27414
+                    }
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1883-06-23T21:07:05.560010994464Z",
+                        "epoch_number": 20713
+                    },
+                    "target": "6d518f015cd43da74697f497e60787eaa674098c3ca65def6dab86223bb663eb"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1876-12-01T22:00:00Z",
+                        "epoch_number": 7951
+                    },
+                    "target": "37f58695fa5489ce7d45cbbd34853bd1ff9e9a3880d0e4899f9d4606eab7595d"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1868-07-01T18:00:00Z",
+                        "epoch_number": 32258
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1891-11-13T02:17:30Z",
+                        "epoch_number": 463
+                    }
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1887-06-26T00:08:11.54125919538Z",
+                        "epoch_number": 22616
+                    },
+                    "target": "f61f06965f0eef2356b97e7d5d8a7d5a3700bf44f370f020d8bc444f586e2629"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1893-01-19T09:01:37.789374457338Z",
+                        "epoch_number": 15145
+                    }
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1867-07-11T18:18:32.801613575753Z",
+                        "epoch_number": 23294
+                    },
+                    "target": "4f42ea7d5d567b9a62b278f7c468bfe6670230599f0c2e1dfc8ee072b2f91a9d"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1883-02-22T19:00:00Z",
+                        "epoch_number": 12203
+                    },
+                    "target": "36c0a59b971f1ba804e279ffdabdaddf84206cce6a2da86abc32d9da69cd15ef"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1877-07-02T14:46:27.195906832481Z",
+                        "epoch_number": 6689
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1864-12-17T05:49:47Z",
+                        "epoch_number": 15924
+                    }
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1877-12-04T01:00:00Z",
+                        "epoch_number": 4720
+                    },
+                    "target": "dbd03de51e1ff17684b93144a5132e6f84dbae502ce868f77cd14a32608fa1e3"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1867-03-11T12:00:00Z",
+                        "epoch_number": 24131
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1901-07-29T01:14:29.20477470793Z",
+                        "epoch_number": 24063
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1882-03-30T07:34:38Z",
+                        "epoch_number": 29719
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1887-03-10T19:00:00Z",
+                        "epoch_number": 21283
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1901-07-02T07:57:40.679203559303Z",
+                        "epoch_number": 258
+                    }
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1876-07-04T23:00:00Z",
+                        "epoch_number": 19065
+                    },
+                    "target": "3fae2607876509145a111ae90393ae180846bfd446f767d29abbfcfbf775b5c2"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1884-09-30T18:09:13.78091900601Z",
+                        "epoch_number": 15177
+                    },
+                    "target": "a23808257cba8ef1315105629aba92d7361c20a2a74cf6d9f2a939af0286f2b0"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1861-12-21T19:00:00Z",
+                        "epoch_number": 26550
+                    },
+                    "target": "e3172c5e25568bb861ed39da55d9079f1e5f1fcfe93f01ef5755e07509b11dbc"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1874-03-23T05:11:06.821097298958Z",
+                        "epoch_number": 24796
+                    }
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1864-08-13T15:44:52.610594884314Z",
+                        "epoch_number": 23725
+                    },
+                    "target": "ddc2b5180f76eeea13c32da6023753f09d7a16f7d5d4c8ddd6059467071a6c2a"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1877-03-03T00:37:17.881571470773Z",
+                        "epoch_number": 11821
+                    },
+                    "target": "1d0470f2517285bbfaa7e09a1004694c9771dae1e7bbb4195d480a535cc23104"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1895-10-09T04:00:00Z",
+                        "epoch_number": 1005
+                    },
+                    "target": "42446133b0a1bb820782dce15710b8e5981642bf44c8be45242060cb9c80bde1"
+                }
+            ],
+            "active": {
+                "status": "delegating",
+                "target": "8df73280d29999a3f257c758fe7babfe9b54c086442ddccac85a884b668e07e0"
+            }
+        },
+        {
+            "next": [],
+            "active": {
+                "status": "delegating",
+                "target": "c32d87169424b4eed04535f8db3f2e64e9261c3cb05c3bc63a31ff1e674767b5"
+            }
+        },
+        {
+            "next": [
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1901-12-01T18:22:46.639551419316Z",
+                        "epoch_number": 18813
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1896-11-27T07:50:01Z",
+                        "epoch_number": 5180
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1878-08-07T03:00:00Z",
+                        "epoch_number": 14522
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1904-08-23T03:35:03Z",
+                        "epoch_number": 29559
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1899-04-10T03:00:00Z",
+                        "epoch_number": 18699
+                    }
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1863-10-31T13:26:47.214416162029Z",
+                        "epoch_number": 9037
+                    },
+                    "target": "be5a0b500b5aa1cba8da98e0f4726ac529bdd55695fa9125015cf942506f8a1c"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1893-08-01T07:22:08Z",
+                        "epoch_number": 11318
+                    }
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1861-06-13T06:59:28.069474658888Z",
+                        "epoch_number": 5477
+                    },
+                    "target": "c5c711ca368a735a7e938c503e4e0b308bd40f738309d490c9b775e55ca26480"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1889-11-06T02:24:45Z",
+                        "epoch_number": 9832
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1868-06-16T21:05:37.719718030904Z",
+                        "epoch_number": 24323
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1861-10-13T16:41:05Z",
+                        "epoch_number": 17908
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1873-04-14T00:00:00Z",
+                        "epoch_number": 5057
+                    }
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1893-05-14T02:12:59.753734588356Z",
+                        "epoch_number": 20454
+                    },
+                    "target": "94244d8f56e0c330e054a479ab6efe9295a42f854f5f507310a39cac757e02bf"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1898-04-13T21:12:11.340423963508Z",
+                        "epoch_number": 2977
+                    },
+                    "target": "178a40f7d373018dbdfcc6133f45f55a08c1d335374e0d18b9a986d3be117e3b"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1900-10-07T13:25:41Z",
+                        "epoch_number": 788
+                    },
+                    "target": "0452d03f52aebf25afe4dd68d2c900b24a27d3c66ba8fa0e30a7e2bf3a6e65ca"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1869-04-10T04:00:00Z",
+                        "epoch_number": 26074
+                    },
+                    "target": "06cea0332523b62cb0107afd9a2580c962cbfc32034f89564a38686ad95a8ee1"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1885-07-16T01:22:35Z",
+                        "epoch_number": 5577
+                    },
+                    "target": "ff3170081078e6c0eeb74e699c2ead9de7351a0645ece1c311c9f992b25a4788"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1904-09-23T07:57:37Z",
+                        "epoch_number": 14862
+                    },
+                    "target": "786f632bbc136a338f9c3ea515ff1fca568b5955dc33f82800ab59d003432a1d"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1867-07-10T03:00:00Z",
+                        "epoch_number": 24459
+                    },
+                    "target": "fda6aac8f07cb14cffbb68b6aa15b21f3165aaefb052052c3494404cca62f954"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1887-07-23T22:59:13.812112540104Z",
+                        "epoch_number": 1280
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1902-06-24T01:00:00Z",
+                        "epoch_number": 28332
+                    }
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1905-03-09T13:00:00Z",
+                        "epoch_number": 4723
+                    }
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1868-12-14T10:29:39.46842593163Z",
+                        "epoch_number": 29195
+                    },
+                    "target": "4bbe264d5706dd8c7a9f8b35a8051ea3c5334957eff32b963e3d3e8f8991d31a"
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1869-04-02T10:11:27.241867142343Z",
+                        "epoch_number": 10880
+                    },
+                    "target": "9c426398764d84046674f37c4b056687b55b6a5bd1789631ae087d173bbe220c"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1905-01-25T14:08:41.263956451784Z",
+                        "epoch_number": 24828
+                    }
+                }
+            ],
+            "active": {
+                "status": "not_delegating"
             }
         }
     ]

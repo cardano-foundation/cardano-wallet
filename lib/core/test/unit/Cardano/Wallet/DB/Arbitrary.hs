@@ -311,7 +311,7 @@ instance Arbitrary WalletMetadata where
         <$> (WalletName <$> elements ["bulbazaur", "charmander", "squirtle"])
         <*> genUniformTime
         <*> (fmap WalletPassphraseInfo <$> liftArbitrary genUniformTime)
-        <*> pure (WalletDelegation NotDelegating Nothing)
+        <*> pure (WalletDelegation NotDelegating [])
 
 {-------------------------------------------------------------------------------
                                    Blocks
