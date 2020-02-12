@@ -24,12 +24,14 @@ import Data.Maybe
     ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Word.Odd
+    ( Word31 )
 import System.Command
     ( Exit (..), Stderr (..), Stdout (..) )
 import System.Exit
     ( ExitCode (..) )
 import Test.Hspec
-    ( SpecWith, it )
+    ( SpecWith, describe, it )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain )
 import Test.Integration.Framework.DSL
@@ -50,41 +52,63 @@ spec = do
                 info ^. (#nextEpoch . #epochNumber . #getApiT)
         nextEpochNum `shouldBe` (currentEpochNo info) + 1
 
-    it "CLI_NETWORK - cardano-wallet network parameters - \
-       \proper parameter epoch parameter" $ \ctx -> do
-        params1 <- getNetworkParamsViaCliExpectingSuccess ctx "latest"
-        params1 `shouldBe` expectedBlockchainParams
+    describe "NETWORK_PARAMS_01 - Valid epoch values" $ do
+        it "Epoch = latest" $ \ctx -> do
+            params1 <- getNetworkParamsViaCliExpectingSuccess ctx "latest"
+            params1 `shouldBe` expectedBlockchainParams
 
-        params2 <- getNetworkParamsViaCliExpectingSuccess ctx "0"
-        params2 `shouldBe` expectedBlockchainParams
+        it "Epoch = 0" $ \ctx -> do
+            params2 <- getNetworkParamsViaCliExpectingSuccess ctx "0"
+            params2 `shouldBe` expectedBlockchainParams
 
-        info <- getNetworkInfoViaCLI ctx
-        let (EpochNo currentEpoch) = currentEpochNo info
-        params3 <-
-            getNetworkParamsViaCliExpectingSuccess ctx (show currentEpoch)
-        params3 `shouldBe` expectedBlockchainParams
+        it "Current epoch" $ \ctx -> do
+            info <- getNetworkInfoViaCLI ctx
+            let (EpochNo currentEpoch) = currentEpochNo info
+            params3 <-
+                getNetworkParamsViaCliExpectingSuccess ctx (show currentEpoch)
+            params3 `shouldBe` expectedBlockchainParams
 
-        let (EpochNo prevEpoch) =
-                fromMaybe minBound (epochPred $ EpochNo currentEpoch)
-        params4 <- getNetworkParamsViaCliExpectingSuccess ctx (show prevEpoch)
-        params4 `shouldBe` expectedBlockchainParams
+        it "Previous epoch" $ \ctx -> do
+            info <- getNetworkInfoViaCLI ctx
+            let (EpochNo currentEpoch) = currentEpochNo info
+            let (EpochNo prevEpoch) =
+                    fromMaybe minBound (epochPred $ EpochNo currentEpoch)
+            params4 <- getNetworkParamsViaCliExpectingSuccess ctx (show prevEpoch)
+            params4 `shouldBe` expectedBlockchainParams
 
-    it "CLI_NETWORK - cardano-wallet network parameters - \
-       \improper parameter epoch parameter" $ \ctx -> do
+    describe "NETWORK_PARAMS_02 - Cannot query future epoch" $ do
+        it "Future epoch" $ \ctx -> do
+            info <- getNetworkInfoViaCLI ctx
+            let (EpochNo currentEpoch) = currentEpochNo info
+            let futureEpoch = show $ currentEpoch + 10
+            params <- getNetworkParamsViaCliExpectingFailure ctx futureEpoch
+            params `shouldContain` (errMsg404NoEpochNo futureEpoch)
 
-        let wrong1 = "earlier"
-        params1 <- getNetworkParamsViaCliExpectingFailure ctx "earlier"
-        params1 `shouldContain` (errMsg400MalformedEpoch wrong1)
+        it "Max epoch" $ \ctx -> do
+            let maxEpoch = show $ fromIntegral @Word31 @Int maxBound
+            params <- getNetworkParamsViaCliExpectingFailure ctx maxEpoch
+            params `shouldContain` (errMsg404NoEpochNo maxEpoch)
 
-        let wrong2 = "1.1"
-        params2 <- getNetworkParamsViaCliExpectingFailure ctx wrong2
-        params2 `shouldContain` (errMsg400MalformedEpoch wrong2)
+    describe "NETWORK_PARAMS_03 - Invalid epoch numbers" $ do
+        it "Epoch = earlier" $ \ctx -> do
+            let wrong = "earlier"
+            params <- getNetworkParamsViaCliExpectingFailure ctx wrong
+            params `shouldContain` (errMsg400MalformedEpoch wrong)
 
-        info <- getNetworkInfoViaCLI ctx
-        let (EpochNo currentEpoch) = currentEpochNo info
-        let wrong3 = show $ currentEpoch + 10
-        params3 <- getNetworkParamsViaCliExpectingFailure ctx wrong3
-        params3 `shouldContain` (errMsg404NoEpochNo wrong3)
+        it "Epoch = 1.1" $ \ctx -> do
+            let wrong = "1.1"
+            params <- getNetworkParamsViaCliExpectingFailure ctx wrong
+            params `shouldContain` (errMsg400MalformedEpoch wrong)
+
+        it "Epoch num out of bound" $ \ctx -> do
+            let epochNoOutOfBound = show $ (+1) $ fromIntegral @Word31 @Int maxBound
+            params <- getNetworkParamsViaCliExpectingFailure ctx epochNoOutOfBound
+            params `shouldContain` (errMsg400MalformedEpoch epochNoOutOfBound)
+
+        it "Epoch = -1" $ \ctx -> do
+            params <- getNetworkParamsViaCliExpectingFailure ctx "-1"
+            params `shouldContain` "Invalid option `-1'"
+
   where
       getNetworkParamsViaCliExpectingSuccess
           :: Context t
