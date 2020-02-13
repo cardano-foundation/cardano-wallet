@@ -128,6 +128,7 @@ module Cardano.Wallet.Primitive.Types
     , WalletDelegationNext (..)
     , WalletPassphraseInfo(..)
     , WalletBalance(..)
+    , IsDelegatingTo (..)
 
     -- * Stake Pools
     , PoolId(..)
@@ -390,6 +391,22 @@ instance Buildable poolId => Buildable (WalletDelegation poolId) where
     build (WalletDelegation act _) =
         "current wallet delegation: " <> build act <>
         ", something wrong with awaiting"
+
+class IsDelegatingTo (f :: * -> *) where
+    isDelegatingTo :: Eq poolId => poolId -> f poolId -> Bool
+
+instance IsDelegatingTo WalletDelegationStatus where
+    isDelegatingTo pid = \case
+        Delegating pid' -> pid' == pid
+        NotDelegating   -> False
+
+instance IsDelegatingTo WalletDelegationNext where
+    isDelegatingTo pid WalletDelegationNext{status} =
+        isDelegatingTo pid status
+
+instance IsDelegatingTo WalletDelegation where
+    isDelegatingTo pid WalletDelegation{active,next} =
+        isDelegatingTo pid active || any (isDelegatingTo pid) next
 
 newtype WalletPassphraseInfo = WalletPassphraseInfo
     { lastUpdatedAt :: UTCTime }

@@ -228,6 +228,7 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , FeePolicy (LinearFee)
     , Hash (..)
+    , IsDelegatingTo (..)
     , PoolId
     , Range (..)
     , SealedTx
@@ -245,7 +246,6 @@ import Cardano.Wallet.Primitive.Types
     , UTxOStatistics
     , UnsignedTx (..)
     , WalletDelegation (..)
-    , WalletDelegationNext (..)
     , WalletDelegationStatus (..)
     , WalletId (..)
     , WalletMetadata (..)
@@ -271,7 +271,7 @@ import Control.DeepSeq
 import Control.Exception
     ( Exception )
 import Control.Monad
-    ( forM, forM_, when )
+    ( forM, forM_, unless, when )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Class
@@ -1373,7 +1373,7 @@ joinStakePool ctx wid (pid, pools) argGenChange pwd = db & \DBLayer{..} -> do
     walMeta <- mapExceptT atomically $ withExceptT ErrJoinStakePoolNoSuchWallet $
         withNoSuchWallet wid $ readWalletMeta (PrimaryKey wid)
 
-    when (checkAlreadyJoined (walMeta ^. #delegation)) $
+    when (isDelegatingTo pid (walMeta ^. #delegation)) $
         throwE (ErrJoinStakePoolAlreadyDelegating pid)
 
     when (pid `notElem` pools) $
@@ -1391,13 +1391,6 @@ joinStakePool ctx wid (pid, pools) argGenChange pwd = db & \DBLayer{..} -> do
     pure (tx, txMeta, txTime)
   where
     db = ctx ^. dbLayer @s @k
-    checkAlreadyJoined = \case
-        (WalletDelegation (Delegating pid') _) -> pid' == pid
-        (WalletDelegation _ [WalletDelegationNext (Delegating pid') _]) ->
-            pid' == pid
-        (WalletDelegation _ [_, WalletDelegationNext (Delegating pid') _]) ->
-            pid' == pid
-        _ -> False
 
 -- | Helper function to factor necessary logic for quitting a stake pool.
 quitStakePool
@@ -1423,7 +1416,7 @@ quitStakePool ctx wid pid argGenChange pwd = db & \DBLayer{..} -> do
     walMeta <- mapExceptT atomically $ withExceptT ErrQuitStakePoolNoSuchWallet $
         withNoSuchWallet wid $ readWalletMeta (PrimaryKey wid)
 
-    when (checkIfJoined (walMeta ^. #delegation)) $
+    unless (isDelegatingTo pid (walMeta ^. #delegation)) $
         throwE (ErrQuitStakePoolNotDelegatingTo pid)
 
     selection <- withExceptT ErrQuitStakePoolSelectCoin $
@@ -1438,13 +1431,6 @@ quitStakePool ctx wid pid argGenChange pwd = db & \DBLayer{..} -> do
     pure (tx, txMeta, txTime)
   where
     db = ctx ^. dbLayer @s @k
-    checkIfJoined = \case
-        (WalletDelegation (Delegating pid') _) -> pid' /= pid
-        (WalletDelegation _ [WalletDelegationNext (Delegating pid') _]) ->
-            pid' /= pid
-        (WalletDelegation _ [_, WalletDelegationNext (Delegating pid') _]) ->
-            pid' /= pid
-        _ -> True
 
 {-------------------------------------------------------------------------------
                                   Key Store
