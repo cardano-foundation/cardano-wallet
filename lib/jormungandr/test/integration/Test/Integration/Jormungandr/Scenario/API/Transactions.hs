@@ -547,9 +547,9 @@ fixtureExternalTx ctx toSend = do
         }
   where
       getSeqState mnemonic password =
-          let (Right seed) = fromMnemonic @'[15] @"seed" mnemonic
+          let (Right seed) = fromMnemonic @'[15] mnemonic
               pwd = Passphrase $ BA.convert $ T.encodeUtf8 password
-              rootXPrv = generateKeyFromSeed (seed, mempty) pwd
+              rootXPrv = generateKeyFromSeed (seed, Nothing) pwd
           in (rootXPrv
              , pwd
              , mkSeqState @n (rootXPrv, pwd) defaultAddressPoolGap

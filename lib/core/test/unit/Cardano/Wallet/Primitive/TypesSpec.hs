@@ -16,7 +16,7 @@ module Cardano.Wallet.Primitive.TypesSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), Passphrase (..), WalletKey (..), XPrv, digest, publicKey )
+    ( Depth (..), WalletKey (..), XPrv, digest, publicKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.Types
@@ -96,7 +96,7 @@ import Cardano.Wallet.Primitive.Types
     , wholeRange
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
+    ( unsafeFromHex, unsafeMkSomeMnemonicFromEntropy )
 import Control.DeepSeq
     ( deepseq )
 import Control.Exception
@@ -105,8 +105,6 @@ import Control.Monad
     ( forM_, replicateM )
 import Crypto.Hash
     ( hash )
-import Data.ByteString
-    ( ByteString )
 import Data.Either
     ( isRight )
 import Data.Function
@@ -180,7 +178,6 @@ import Test.Text.Roundtrip
 import Test.Utils.Time
     ( genUniformTime, genUniformTimeWithinRange, getUniformTime )
 
-import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -215,8 +212,10 @@ spec = do
 
     describe "Buildable" $ do
         it "WalletId" $ do
-            let seed = Passphrase (BA.convert @ByteString "0000000000000000")
-            let xprv = generateKeyFromSeed (seed, mempty) mempty :: ShelleyKey 'RootK XPrv
+            let mw = unsafeMkSomeMnemonicFromEntropy (Proxy @12)
+                    "0000000000000000"
+            let xprv = generateKeyFromSeed
+                    (mw, Nothing) mempty :: ShelleyKey 'RootK XPrv
             let wid = WalletId $ digest $ publicKey xprv
             "336c96f1...b8cac9ce" === pretty @_ @Text wid
         it "TxMeta (1)" $ do

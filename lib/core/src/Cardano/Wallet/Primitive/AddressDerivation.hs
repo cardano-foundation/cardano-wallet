@@ -138,6 +138,8 @@ import Data.Text.Class
     , fromTextToBoundedEnum
     , toTextFromBoundedEnum
     )
+import Data.Type.Equality
+    ( (:~:) (..), testEquality )
 import Data.Typeable
     ( Typeable )
 import Data.Word
@@ -148,8 +150,6 @@ import GHC.Generics
     ( Generic )
 import GHC.TypeLits
     ( KnownNat, Nat, Symbol, natVal )
-
-import Data.Type.Equality
 import Type.Reflection
     ( typeOf )
 

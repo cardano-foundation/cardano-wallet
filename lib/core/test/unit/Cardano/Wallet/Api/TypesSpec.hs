@@ -76,6 +76,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
     , PaymentAddress (..)
+    , SomeMnemonic (..)
     , XPub (..)
     , networkDiscriminantVal
     , passphraseMaxLength
@@ -95,10 +96,8 @@ import Cardano.Wallet.Primitive.Mnemonic
     , MnemonicException (..)
     , ValidChecksumSize
     , ValidEntropySize
-    , entropyToBytes
     , entropyToMnemonic
     , mkEntropy
-    , mnemonicToText
     )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
@@ -396,7 +395,7 @@ spec = do
                     \ are expected."
             Aeson.parseEither parseJSON [aesonQQ|
                 ["toilet", "toilet", "toilet"]
-            |] `shouldBe` (Left @String @(ApiMnemonicT '[12] "test") msg)
+            |] `shouldBe` (Left @String @(ApiMnemonicT '[12]) msg)
 
         it "ApiT AddressPoolGap (too small)" $ do
             let msg = "Error in $: An address pool gap must be a natural number between "
@@ -1180,26 +1179,26 @@ instance {-# OVERLAPS #-}
     , csz ~ CheckSumBits n
     , ConsistentEntropy n mw csz
     )
-    => Arbitrary (ApiMnemonicT (mw ': '[]) purpose)
+    => Arbitrary (ApiMnemonicT (mw ': '[]))
   where
     arbitrary = do
         ent <- arbitrary @(Entropy n)
-        return $ ApiMnemonicT
-            ( Passphrase $ entropyToBytes ent
-            , mnemonicToText $ entropyToMnemonic ent
-            )
+        return
+            . ApiMnemonicT
+            . SomeMnemonic
+            $ entropyToMnemonic ent
 
 instance
     ( n ~ EntropySize mw
     , csz ~ CheckSumBits n
     , ConsistentEntropy n mw csz
-    , Arbitrary (ApiMnemonicT rest purpose)
+    , Arbitrary (ApiMnemonicT rest)
     )
-    => Arbitrary (ApiMnemonicT (mw ': rest) purpose)
+    => Arbitrary (ApiMnemonicT (mw ': rest))
   where
     arbitrary = do
-        ApiMnemonicT x <- arbitrary @(ApiMnemonicT '[mw] purpose)
-        ApiMnemonicT y <- arbitrary @(ApiMnemonicT rest purpose)
+        ApiMnemonicT x <- arbitrary @(ApiMnemonicT '[mw])
+        ApiMnemonicT y <- arbitrary @(ApiMnemonicT rest)
         -- NOTE
         -- If we were to "naively" combine previous generators without weights,
         -- we would be tilting probabilities towards the leftmost element, so

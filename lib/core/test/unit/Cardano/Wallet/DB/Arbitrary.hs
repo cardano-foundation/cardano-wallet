@@ -36,12 +36,15 @@ import Cardano.Wallet.DB.Model
     ( TxHistory, filterTxHistory )
 import Cardano.Wallet.DummyTarget.Primitive.Types as DummyTarget
     ( block0, genesisParameters, mkTx, mockHash )
+import Cardano.Wallet.Gen
+    ( genMnemonic )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
     , Index (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
+    , SomeMnemonic (..)
     , WalletKey (..)
     , XPrv
     , XPub
@@ -100,6 +103,8 @@ import Cardano.Wallet.Primitive.Types
     , unsafeEpochNo
     , wholeRange
     )
+import Cardano.Wallet.Unsafe
+    ( unsafeMkSomeMnemonicFromEntropy )
 import Control.Arrow
     ( second )
 import Control.DeepSeq
@@ -118,6 +123,8 @@ import Data.Generics.Labels
     ()
 import Data.List
     ( unfoldr )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
@@ -146,6 +153,7 @@ import Test.QuickCheck
     , arbitrarySizedBoundedIntegral
     , choose
     , elements
+    , frequency
     , generate
     , genericShrink
     , liftArbitrary
@@ -463,26 +471,28 @@ rootKeysSeq = unsafePerformIO $ generate (vectorOf 10 genRootKeysSeq)
   where
     genRootKeysSeq :: Gen (ShelleyKey 'RootK XPrv)
     genRootKeysSeq = do
-        (s, g, e) <- (,,)
-            <$> genPassphrase @"seed" (16, 32)
-            <*> genPassphrase @"generation" (0, 16)
-            <*> genPassphrase @"encryption" (0, 16)
+        s <- SomeMnemonic <$> genMnemonic @12
+        g <- frequency
+                [ (1, return Nothing)
+                , (3, Just . SomeMnemonic <$> genMnemonic @12)
+                ]
+        e <- genPassphrase @"encryption" (0, 16)
         return $ Seq.generateKeyFromSeed (s, g) e
 {-# NOINLINE rootKeysSeq #-}
 
 arbitrarySeqAccount
     :: ShelleyKey 'AccountK XPub
 arbitrarySeqAccount =
-    publicKey $ unsafeGenerateKeyFromSeed (seed, mempty) mempty
+    publicKey $ unsafeGenerateKeyFromSeed (mw, Nothing) mempty
   where
-    seed = Passphrase $ BA.convert $ BS.replicate 32 0
+    mw = unsafeMkSomeMnemonicFromEntropy (Proxy @15) (BS.replicate 32 0)
 
 arbitraryRewardAccount
     :: ShelleyKey 'AddressK XPub
 arbitraryRewardAccount =
-    publicKey $ unsafeGenerateKeyFromSeed (seed, mempty) mempty
+    publicKey $ unsafeGenerateKeyFromSeed (mw, Nothing) mempty
   where
-    seed = Passphrase $ BA.convert $ BS.replicate 32 0
+    mw = unsafeMkSomeMnemonicFromEntropy (Proxy @15) (BS.replicate 32 0)
 
 {-------------------------------------------------------------------------------
                                  Random State
@@ -506,7 +516,7 @@ instance Arbitrary (ByronKey 'RootK XPrv) where
 
 genRootKeysRnd :: Gen (ByronKey 'RootK XPrv)
 genRootKeysRnd = Rnd.generateKeyFromSeed
-    <$> genPassphrase @"seed" (16, 32)
+    <$> arbitrary
     <*> genPassphrase @"encryption" (0, 16)
 
 genPassphrase :: (Int, Int) -> Gen (Passphrase purpose)
@@ -575,3 +585,6 @@ instance Buildable (PrimaryKey WalletId) where
 
 instance Buildable MockChain where
     build (MockChain chain) = blockListF' mempty build chain
+
+instance Arbitrary SomeMnemonic where
+    arbitrary = SomeMnemonic <$> genMnemonic @12

@@ -55,7 +55,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
     , Depth (..)
     , NetworkDiscriminant (..)
-    , Passphrase (..)
+    , SomeMnemonic (..)
     , WalletKey (..)
     , XPub
     , xpub
@@ -71,7 +71,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , mkSeqState
     )
 import Cardano.Wallet.Primitive.Mnemonic
-    ( EntropySize, entropyToBytes, genEntropy )
+    ( EntropySize, entropyToMnemonic, genEntropy )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet, unsafeInitWallet )
 import Cardano.Wallet.Primitive.Types
@@ -100,7 +100,7 @@ import Cardano.Wallet.Primitive.Types
     , fromFlatSlot
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeRunExceptT )
+    ( unsafeMkSomeMnemonicFromEntropy, unsafeRunExceptT )
 import Control.DeepSeq
     ( NFData (..), force )
 import Control.Exception
@@ -122,6 +122,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Functor
     ( ($>) )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Time.Clock.System
@@ -145,7 +147,6 @@ import System.IO.Unsafe
 import System.Random
     ( mkStdGen, randoms )
 
-import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Map.Strict as Map
@@ -607,12 +608,15 @@ instance NFData SqliteContext where
 testCp :: WalletBench
 testCp = snd $ initWallet block0 genesisParameters initDummyState
 
+{-# NOINLINE initDummyState #-}
 initDummyState :: SeqState 'Testnet ShelleyKey
 initDummyState =
     mkSeqState (xprv, mempty) defaultAddressPoolGap
   where
-    bytes = entropyToBytes <$> unsafePerformIO $ genEntropy @(EntropySize 15)
-    xprv = generateKeyFromSeed (Passphrase bytes, mempty) mempty
+    mnemonic = unsafePerformIO
+        $ SomeMnemonic . entropyToMnemonic @15
+        <$> genEntropy @(EntropySize 15)
+    xprv = generateKeyFromSeed (mnemonic, Nothing) mempty
 
 testMetadata :: WalletMetadata
 testMetadata = WalletMetadata
@@ -629,12 +633,14 @@ testPk :: PrimaryKey WalletId
 testPk = PrimaryKey testWid
 
 ourAccount :: ShelleyKey 'AccountK XPub
-ourAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, mempty) mempty
-  where seed = Passphrase $ BA.convert $ BS.replicate 32 0
+ourAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, Nothing) mempty
+  where
+    seed = unsafeMkSomeMnemonicFromEntropy (Proxy @15) (BS.replicate 32 0)
 
 rewardAccount :: ShelleyKey 'AddressK XPub
-rewardAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, mempty) mempty
-  where seed = Passphrase $ BA.convert $ BS.replicate 32 0
+rewardAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, Nothing) mempty
+  where
+    seed = unsafeMkSomeMnemonicFromEntropy (Proxy @15) (BS.replicate 32 0)
 
 -- | Make a prefixed bytestring for use as a Hash or Address.
 label :: Show n => String -> n -> B8.ByteString

@@ -64,13 +64,15 @@ import Cardano.Wallet.DB.StateMachine
     ( prop_parallel, prop_sequential )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0, genesisParameters, mockHash )
+import Cardano.Wallet.Gen
+    ( genMnemonic )
 import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , NetworkDiscriminant (..)
-    , Passphrase (..)
     , PersistPrivateKey
+    , SomeMnemonic (..)
     , encryptPassphrase
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -83,8 +85,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..), defaultAddressPoolGap, mkSeqState )
-import Cardano.Wallet.Primitive.Mnemonic
-    ( EntropySize, entropyToBytes, genEntropy )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet )
 import Cardano.Wallet.Primitive.Types
@@ -174,7 +174,7 @@ import Test.Hspec
     , xit
     )
 import Test.QuickCheck
-    ( Property, property, (==>) )
+    ( Property, generate, property, (==>) )
 import Test.QuickCheck.Monadic
     ( monadicIO )
 
@@ -584,7 +584,8 @@ attachPrivateKey
     -> ExceptT ErrNoSuchWallet IO (ShelleyKey 'RootK XPrv, Hash "encryption")
 attachPrivateKey DBLayer{..} wid = do
     let Right pwd = fromText "simplevalidphrase"
-    let k = generateKeyFromSeed (coerce pwd, coerce pwd) pwd
+    seed <- liftIO $ generate $ SomeMnemonic <$> genMnemonic @15
+    let k = generateKeyFromSeed (seed, Nothing) pwd
     h <- liftIO $ encryptPassphrase pwd
     mapExceptT atomically $ putPrivateKey wid (k, h)
     return (k, h)
@@ -611,8 +612,8 @@ testCp = snd $ initWallet block0 genesisParameters initDummyState
     initDummyState :: SeqState 'Testnet ShelleyKey
     initDummyState = mkSeqState (xprv, mempty) defaultAddressPoolGap
       where
-        bytes = entropyToBytes <$> unsafePerformIO $ genEntropy @(EntropySize 15)
-        xprv = generateKeyFromSeed (Passphrase bytes, mempty) mempty
+        mw = SomeMnemonic . unsafePerformIO . generate $ genMnemonic @15
+        xprv = generateKeyFromSeed (mw, Nothing) mempty
 
 testMetadata :: WalletMetadata
 testMetadata = WalletMetadata
@@ -647,8 +648,8 @@ testCpSeq = snd $ initWallet block0 genesisParameters initDummyStateSeq
 initDummyStateSeq :: SeqState 'Testnet ShelleyKey
 initDummyStateSeq = mkSeqState (xprv, mempty) defaultAddressPoolGap
   where
-      bytes = entropyToBytes <$> unsafePerformIO $ genEntropy @(EntropySize 15)
-      xprv = Seq.generateKeyFromSeed (Passphrase bytes, mempty) mempty
+      mw = SomeMnemonic $ unsafePerformIO (generate $ genMnemonic @15)
+      xprv = Seq.generateKeyFromSeed (mw, Nothing) mempty
 
 {-------------------------------------------------------------------------------
                       Test data and instances - Random AD

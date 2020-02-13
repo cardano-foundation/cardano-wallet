@@ -15,6 +15,8 @@ module Cardano.Wallet.Unsafe
     , unsafeRunExceptT
     , unsafeXPrv
     , unsafeMkMnemonic
+    , unsafeMkEntropy
+    , unsafeMkSomeMnemonicFromEntropy
     , unsafeDeserialiseCbor
     , unsafeBech32DecodeFile
     , unsafeBech32Decode
@@ -26,8 +28,21 @@ import Cardano.Crypto.Wallet
     ( XPrv )
 import Cardano.Wallet.Api.Types
     ( DecodeAddress (..) )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( SomeMnemonic (..) )
 import Cardano.Wallet.Primitive.Mnemonic
-    ( ConsistentEntropy, EntropySize, Mnemonic, mkMnemonic )
+    ( ConsistentEntropy
+    , Entropy
+    , EntropySize
+    , Mnemonic
+    , MnemonicWords
+    , ValidChecksumSize
+    , ValidEntropySize
+    , ValidMnemonicSentence
+    , entropyToMnemonic
+    , mkEntropy
+    , mkMnemonic
+    )
 import Cardano.Wallet.Primitive.Types
     ( Address )
 import Control.Monad
@@ -44,6 +59,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Char
     ( isHexDigit )
+import Data.Proxy
+    ( Proxy )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -123,6 +140,32 @@ unsafeDeserialiseCbor decoder bytes = either
     (\e -> error $ "unsafeSerializeCbor: " <> show e)
     snd
     (CBOR.deserialiseFromBytes decoder bytes)
+
+unsafeMkEntropy
+    :: forall ent csz.
+        ( HasCallStack
+        , ValidEntropySize ent
+        , ValidChecksumSize ent csz
+        )
+    => ByteString
+    -> Entropy ent
+unsafeMkEntropy = either (error . show) id . mkEntropy
+
+unsafeMkSomeMnemonicFromEntropy
+    :: forall mw ent csz.
+        ( HasCallStack
+        , ValidEntropySize ent
+        , ValidChecksumSize ent csz
+        , ValidMnemonicSentence mw
+        , ent ~ EntropySize mw
+        , mw ~ MnemonicWords ent
+        )
+    => Proxy mw
+    -> ByteString
+    -> SomeMnemonic
+unsafeMkSomeMnemonicFromEntropy _ = SomeMnemonic
+    . entropyToMnemonic
+    . unsafeMkEntropy @ent
 
 -- | Load the data part of a bech32-encoded string from file. These files often
 -- come from @jcli@. Only the first line of the file is read.

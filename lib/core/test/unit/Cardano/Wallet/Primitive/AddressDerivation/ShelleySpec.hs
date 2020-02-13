@@ -26,6 +26,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase (..)
     , PaymentAddress (..)
     , SoftDerivation (..)
+    , SomeMnemonic
     , WalletKey (..)
     , XPrv
     , XPub (..)
@@ -139,7 +140,7 @@ prop_roundtripEnumAccountingStyle ix =
 --
 -- For details see <https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#private-parent-key--public-child-key bip-0039>
 prop_publicChildKeyDerivation
-    :: (Passphrase "seed", Passphrase "generation")
+    :: (SomeMnemonic, Maybe SomeMnemonic)
     -> Passphrase "encryption"
     -> AccountingStyle
     -> Index 'Soft 'AddressK
@@ -154,7 +155,7 @@ prop_publicChildKeyDerivation (seed, recPwd) encPwd cc ix =
     addrXPub2 = deriveAddressPublicKey (publicKey accXPrv) cc ix
 
 prop_accountKeyDerivation
-    :: (Passphrase "seed", Passphrase "generation")
+    :: (SomeMnemonic, Maybe SomeMnemonic)
     -> Passphrase "encryption"
     -> Index 'Hardened 'AccountK
     -> Property

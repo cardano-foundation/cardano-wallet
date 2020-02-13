@@ -16,16 +16,19 @@ module Cardano.Wallet.Primitive.AddressDiscovery.RandomSpec
 
 import Prelude
 
+import Cardano.Wallet.Gen
+    ( genMnemonic )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
+    , FromMnemonic (..)
     , Index (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , PaymentAddress (..)
+    , SomeMnemonic (..)
     , WalletKey (..)
     , XPrv
-    , fromMnemonic
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..)
@@ -47,8 +50,6 @@ import Data.ByteArray.Encoding
     ( Base (..), convertFromBase )
 import Data.ByteString
     ( ByteString )
-import Data.Text
-    ( Text )
 import Data.Word
     ( Word32 )
 import Test.Hspec
@@ -188,7 +189,7 @@ goldenSpecTestnet =
 -------------------------------------------------------------------------------}
 
 data GoldenTest = GoldenTest
-    { mnem :: [Text]
+    { mnem :: SomeMnemonic
     , addr :: ByteString
     , accIndex :: Word32
     , addrIndex :: Word32
@@ -196,8 +197,8 @@ data GoldenTest = GoldenTest
     } deriving (Show, Eq)
 
 -- An arbitrary mnemonic sentence for the tests
-arbitraryMnemonic :: [Text]
-arbitraryMnemonic =
+arbitraryMnemonic :: SomeMnemonic
+arbitraryMnemonic = either (error . show) id $ fromMnemonic @'[12]
     [ "price", "whip", "bottom", "execute", "resist", "library"
     , "entire", "purse", "assist", "clock", "still", "noble" ]
 
@@ -221,11 +222,10 @@ checkIsOwned GoldenTest{..} = do
         Just (addrXPrv, pwd)
         else Nothing
 
-rndStateFromMnem :: [Text] -> (ByronKey 'RootK XPrv, RndState 'Testnet)
-rndStateFromMnem mnem = (rootXPrv, mkRndState @'Testnet rootXPrv 0)
+rndStateFromMnem :: SomeMnemonic -> (ByronKey 'RootK XPrv, RndState 'Testnet)
+rndStateFromMnem mnemonic = (rootXPrv, mkRndState @'Testnet rootXPrv 0)
   where
-    rootXPrv = generateKeyFromSeed (Passphrase seed) (Passphrase "")
-    Right (Passphrase seed) = fromMnemonic @'[12] mnem
+    rootXPrv = generateKeyFromSeed mnemonic (Passphrase "")
 
 {-------------------------------------------------------------------------------
                                Properties
@@ -324,7 +324,7 @@ instance Eq (RndState t) where
 instance Arbitrary Rnd where
     shrink _ = []  -- no shrinking
     arbitrary = do
-        s <- genPassphrase @"seed" (16, 32)
+        s <- SomeMnemonic <$> genMnemonic @12
         e <- genPassphrase @"encryption" (0, 16)
         let key = generateKeyFromSeed s e
         pure $ Rnd (mkRndState key 0) key e

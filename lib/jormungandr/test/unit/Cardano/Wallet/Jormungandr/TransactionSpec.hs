@@ -44,7 +44,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Transaction
     ( ErrMkTx (..), TransactionLayer (..) )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
+    ( unsafeFromHex, unsafeMkSomeMnemonicFromEntropy )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertToBase )
 import Data.ByteString
@@ -62,7 +62,6 @@ import Test.QuickCheck
 
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
-import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Map as Map
 import qualified Data.Text as T
@@ -529,23 +528,25 @@ goldenTestDelegationCertTx tl keystore pool (accountXPrv, pass) inps outs bytes'
 xprvSeqFromSeed
     :: ByteString
     -> (ShelleyKey depth XPrv, Passphrase "encryption")
-xprvSeqFromSeed seed =
-    ( Seq.unsafeGenerateKeyFromSeed (Passphrase (BA.convert seed), mempty) pwd
+xprvSeqFromSeed bytes =
+    ( Seq.unsafeGenerateKeyFromSeed (seed, Nothing) pwd
     , pwd
     )
   where
     pwd = mempty
+    seed = unsafeMkSomeMnemonicFromEntropy (Proxy @12) bytes
 
 xprvRndFromSeed
     :: ByteString
     -> (ByronKey 'AddressK XPrv, Passphrase "encryption")
-xprvRndFromSeed seed =
-    ( Rnd.unsafeGenerateKeyFromSeed derPath (Passphrase $ BA.convert seed) pwd
+xprvRndFromSeed bytes =
+    ( Rnd.unsafeGenerateKeyFromSeed derPath seed pwd
     , pwd
     )
   where
     pwd = mempty
     derPath = (minBound, minBound)
+    seed = unsafeMkSomeMnemonicFromEntropy (Proxy @12) bytes
 
 mkKeystore :: Ord k => [(k,v)] -> (k -> Maybe v)
 mkKeystore pairs k =
