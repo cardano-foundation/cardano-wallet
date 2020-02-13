@@ -718,6 +718,17 @@ mkShelleyWallet ctx wid cp meta pending progress = do
             (toApiDlgStatus stNext)
             (ApiEpochInfo (ApiT ep) (W.epochStartTime sp ep))
         ]
+    toApiDlg (W.WalletDelegation st
+              [ W.WalletDelegationNext stNext1 ep1
+              , W.WalletDelegationNext stNext2 ep2]) =
+        ApiWalletDelegation (toApiDlgStatus st)
+        [ ApiWalletDelegationNext
+            (toApiDlgStatus stNext1)
+            (ApiEpochInfo (ApiT ep1) (W.epochStartTime sp ep1))
+        , ApiWalletDelegationNext
+            (toApiDlgStatus stNext2)
+            (ApiEpochInfo (ApiT ep2) (W.epochStartTime sp ep2))
+        ]
     toApiDlg (W.WalletDelegation st _) =
         ApiWalletDelegation (toApiDlgStatus st) []
 

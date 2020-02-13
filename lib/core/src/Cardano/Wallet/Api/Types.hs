@@ -90,6 +90,7 @@ module Cardano.Wallet.Api.Types
     -- * Delegation status helpers
     , notDelegating
     , notDelegatingAboutToJoin
+    , notDelegatingAboutToJoinTwo
     , delegating
     , delegatingAboutToQuit
     , delegatingAboutToRejoin
@@ -1191,4 +1192,30 @@ delegatingAboutToRejoin pId1 pId2 epochNo sp =
         ( ApiEpochInfo
             (ApiT $ epochNo + 2) (W.epochStartTime sp (epochNo + 2))
         )
+    ]
+
+-- | Wallet not delegating and joined two different stake pools at different epochs.
+-- The delegation will be effective as specified by epoch info.
+notDelegatingAboutToJoinTwo
+    :: ApiT PoolId
+    -- ^ First pool to be joined
+    -> ApiT PoolId
+    -- ^ Second pool to be joined
+    -> EpochNo
+    -- ^ Epoch of discovered delegation certificate
+    -> SlotParameters
+    -> ApiWalletDelegation
+notDelegatingAboutToJoinTwo pId1 pId2 epochNo sp =
+    ApiWalletDelegation
+    (ApiWalletDelegationStatus $ ApiT NotDelegating)
+    [ ApiWalletDelegationNext
+      ( ApiWalletDelegationStatus $ ApiT $ Delegating pId1)
+      ( ApiEpochInfo
+          (ApiT $ epochNo + 1) (W.epochStartTime sp (epochNo + 1))
+      )
+    , ApiWalletDelegationNext
+      ( ApiWalletDelegationStatus $ ApiT $ Delegating pId2)
+      ( ApiEpochInfo
+          (ApiT $ epochNo + 2) (W.epochStartTime sp (epochNo + 2))
+      )
     ]

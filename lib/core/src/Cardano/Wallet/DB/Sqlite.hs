@@ -187,6 +187,7 @@ import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Database.Sqlite as Sqlite
 
+
 -- | Runs an action with a connection to the SQLite database.
 --
 -- Database migrations are run to create tables if necessary.
@@ -623,9 +624,10 @@ retrieveTwoDlgsCert
     -> SqlPersistT IO (Maybe W.WalletMetadata)
 retrieveTwoDlgsCert wid (W.EpochNo epoch) dlg epochMaybe = case epochMaybe of
     Just epochBefore -> do
-        let slotId = W.SlotId epochBefore (W.SlotNo (maxBound - 1))
+        let from = W.SlotId epochBefore (W.SlotNo minBound)
+        let to = W.SlotId epochBefore (W.SlotNo (maxBound - 1))
         activeSoonMaybe <- fmap entityVal <$> selectFirst
-            [CertWalletId ==. wid, CertSlot ==. slotId]
+            [CertWalletId ==. wid, CertSlot >=. from, CertSlot <=. to ]
             [Desc CertSlot]
         case epochMaybe >>= W.epochPred of
             Just epochPrev -> do
