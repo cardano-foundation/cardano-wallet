@@ -161,6 +161,7 @@ import Database.Persist.Sql
     , updateWhere
     , (/<-.)
     , (<-.)
+    , (<.)
     , (<=.)
     , (=.)
     , (==.)
@@ -497,19 +498,11 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
                     pure $ Right ()
 
         , readWalletMeta = \(PrimaryKey wid) -> do
-            walDelegation <- delegationFromEntity . fmap entityVal
-                <$> selectFirst [CertWalletId ==. wid] [Desc CertSlot]
-
-            fmap (metadataFromEntity walDelegation . entityVal)
-                <$> selectFirst [WalId ==. wid] []
-
-        , readWalletDelegations = \(PrimaryKey wid) -> ExceptT $ do
-            selectWallet wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just _ -> do
-                    Right . fmap (delegationDiscoveredFromEntity . entityVal)
-                        . take 2
-                        <$> selectList [CertWalletId ==. wid] [Desc CertSlot]
+            selectLatestCheckpoint wid >>= \case
+                Nothing -> pure Nothing
+                Just cp -> do
+                    let (W.SlotId currentEpoch _) = checkpointSlot cp
+                    readWalletDelegation wid currentEpoch >>= readWalletMetadata wid
 
         , putDelegationCertificate = \(PrimaryKey wid) cert sl -> ExceptT $ do
             selectWallet wid >>= \case
@@ -578,21 +571,54 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
 
         })
 
-delegationDiscoveredFromEntity
-    :: DelegationCertificate
-    -> W.DelegationDiscovered
-delegationDiscoveredFromEntity (DelegationCertificate _ slotId poolIdM) =
-    W.DelegationDiscovered slotId poolIdM
+readWalletMetadata
+    :: W.WalletId
+    -> W.WalletDelegation
+    -> SqlPersistT IO (Maybe W.WalletMetadata)
+readWalletMetadata wid walDel =
+     fmap (metadataFromEntity walDel . entityVal)
+        <$> selectFirst [WalId ==. wid] []
 
-delegationFromEntity
-    :: Maybe DelegationCertificate
-    -> W.WalletDelegation W.PoolId
-delegationFromEntity = \case
-    Nothing ->
+readWalletDelegation
+    :: W.WalletId
+    -> W.EpochNo
+    -> SqlPersistT IO W.WalletDelegation
+readWalletDelegation wid epoch
+    | epoch == 0 = pure $ W.WalletDelegation W.NotDelegating []
+    | otherwise  = do
+        active <- maybe W.NotDelegating toWalletDelegationStatus
+            <$> readDelegationCertificate wid
+                [ CertSlot <. W.SlotId (epoch - 1) 0
+                ]
+
+        next <- catMaybes <$> sequence
+            [ fmap (W.WalletDelegationNext (epoch + 1) . toWalletDelegationStatus)
+                <$> readDelegationCertificate wid
+                    [ CertSlot >=. W.SlotId (epoch - 1) 0
+                    , CertSlot <. W.SlotId epoch 0
+                    ]
+            , fmap (W.WalletDelegationNext (epoch + 2) . toWalletDelegationStatus)
+                <$> readDelegationCertificate wid
+                    [ CertSlot >=. W.SlotId epoch 0
+                    ]
+            ]
+
+        pure $ W.WalletDelegation active next
+
+readDelegationCertificate
+    :: W.WalletId
+    -> [Filter DelegationCertificate]
+    -> SqlPersistT IO (Maybe DelegationCertificate)
+readDelegationCertificate wid filters = fmap entityVal
+    <$> selectFirst ((CertWalletId ==. wid) : filters) [Desc CertSlot]
+
+toWalletDelegationStatus
+    :: DelegationCertificate
+    -> W.WalletDelegationStatus
+toWalletDelegationStatus = \case
+    DelegationCertificate _ _ Nothing ->
         W.NotDelegating
-    Just (DelegationCertificate _ _ Nothing) ->
-        W.NotDelegating
-    Just (DelegationCertificate _ _ (Just pool)) ->
+    DelegationCertificate _ _ (Just pool) ->
         W.Delegating pool
 
 mkWalletEntity :: W.WalletId -> W.WalletMetadata -> Wallet
@@ -620,7 +646,7 @@ blockHeaderFromEntity cp = W.BlockHeader
     , parentHeaderHash = getBlockId (checkpointParentHash cp)
     }
 
-metadataFromEntity :: W.WalletDelegation W.PoolId -> Wallet -> W.WalletMetadata
+metadataFromEntity :: W.WalletDelegation -> Wallet -> W.WalletMetadata
 metadataFromEntity walDelegation wal = W.WalletMetadata
     { name = W.WalletName (walName wal)
     , creationTime = walCreationTime wal

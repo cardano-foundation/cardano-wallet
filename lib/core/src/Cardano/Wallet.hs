@@ -107,7 +107,6 @@ module Cardano.Wallet
     , quitStakePool
     , selectCoinsForDelegation
     , signDelegation
-    , takeDelegationsDiscovered
     , ErrJoinStakePool (..)
     , ErrQuitStakePool (..)
     , ErrSelectForDelegation (..)
@@ -226,10 +225,10 @@ import Cardano.Wallet.Primitive.Types
     , ChimericAccount (..)
     , Coin (..)
     , DelegationCertificate (..)
-    , DelegationDiscovered (..)
     , Direction (..)
     , FeePolicy (LinearFee)
     , Hash (..)
+    , IsDelegatingTo (..)
     , PoolId
     , Range (..)
     , SealedTx
@@ -247,6 +246,7 @@ import Cardano.Wallet.Primitive.Types
     , UTxOStatistics
     , UnsignedTx (..)
     , WalletDelegation (..)
+    , WalletDelegationStatus (..)
     , WalletId (..)
     , WalletMetadata (..)
     , WalletName (..)
@@ -271,7 +271,7 @@ import Control.DeepSeq
 import Control.Exception
     ( Exception )
 import Control.Monad
-    ( forM, forM_, when )
+    ( forM, forM_, unless, when )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Class
@@ -480,7 +480,7 @@ createWallet ctx wid wname s = db & \DBLayer{..} -> do
             { name = wname
             , creationTime = now
             , passphraseInfo = Nothing
-            , delegation = NotDelegating
+            , delegation = WalletDelegation NotDelegating []
             }
     mapExceptT atomically $
         initializeWallet (PrimaryKey wid) cp meta hist $> wid
@@ -522,7 +522,7 @@ createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
             { name = wname
             , creationTime = now
             , passphraseInfo = Nothing
-            , delegation = NotDelegating
+            , delegation = WalletDelegation NotDelegating []
             }
     mapExceptT atomically $
         initializeWallet (PrimaryKey wid) (updateState s' cp) meta hist $> wid
@@ -790,21 +790,6 @@ fetchRewardBalance ctx wid = db & \DBLayer{..} -> do
             Right $ Quantity 0
         Left (ErrGetAccountBalanceNetworkUnreachable e) ->
             Left $ ErrFetchRewardsNetworkUnreachable e
-
--- | Retrieve last two discovered delegations of a given wallet.
-takeDelegationsDiscovered
-    :: forall ctx s k.
-        ( HasDBLayer s k ctx
-        , WalletKey k
-        )
-    => ctx
-    -> WalletId
-    -> ExceptT ErrNoSuchWallet IO [DelegationDiscovered]
-takeDelegationsDiscovered ctx wid = db & \DBLayer{..} -> do
-    let pk = PrimaryKey wid
-    mapExceptT atomically $ withExceptT id (readWalletDelegations pk)
-  where
-    db = ctx ^. dbLayer @s @k
 
 {-------------------------------------------------------------------------------
                                     Address
@@ -1388,7 +1373,7 @@ joinStakePool ctx wid (pid, pools) argGenChange pwd = db & \DBLayer{..} -> do
     walMeta <- mapExceptT atomically $ withExceptT ErrJoinStakePoolNoSuchWallet $
         withNoSuchWallet wid $ readWalletMeta (PrimaryKey wid)
 
-    when (walMeta ^. #delegation == Delegating pid) $
+    when (isDelegatingTo pid (walMeta ^. #delegation)) $
         throwE (ErrJoinStakePoolAlreadyDelegating pid)
 
     when (pid `notElem` pools) $
@@ -1431,7 +1416,7 @@ quitStakePool ctx wid pid argGenChange pwd = db & \DBLayer{..} -> do
     walMeta <- mapExceptT atomically $ withExceptT ErrQuitStakePoolNoSuchWallet $
         withNoSuchWallet wid $ readWalletMeta (PrimaryKey wid)
 
-    when (walMeta ^. #delegation /= Delegating pid) $
+    unless (isDelegatingTo pid (walMeta ^. #delegation)) $
         throwE (ErrQuitStakePoolNotDelegatingTo pid)
 
     selection <- withExceptT ErrQuitStakePoolSelectCoin $

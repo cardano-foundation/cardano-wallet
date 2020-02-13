@@ -1,203 +1,203 @@
 {
-    "seed": -4810885212408548699,
+    "seed": 2972068356062927318,
     "samples": [
         {
             "slot_length": {
-                "quantity": 76,
+                "quantity": 9178,
                 "unit": "second"
             },
             "epoch_stability": {
-                "quantity": 25847,
+                "quantity": 22532,
                 "unit": "block"
             },
-            "genesis_block_hash": "fe487dd50f8817bc2e5a290d6a320a3f3e6d56c67f5d7fca0e184d14167e371b",
-            "blockchain_start_time": "1896-11-29T20:58:29.221921065447Z",
+            "genesis_block_hash": "562b7d0e192826a26d4473387c3b1943a99a1d58394855742a404c4c1c023768",
+            "blockchain_start_time": "1899-05-12T08:40:31Z",
             "epoch_length": {
-                "quantity": 19690,
+                "quantity": 354,
                 "unit": "slot"
             },
             "active_slot_coefficient": {
-                "quantity": 42,
+                "quantity": 71.87224840157089,
                 "unit": "percent"
             }
         },
         {
             "slot_length": {
-                "quantity": 51,
+                "quantity": 5820,
                 "unit": "second"
             },
             "epoch_stability": {
-                "quantity": 26109,
+                "quantity": 24382,
                 "unit": "block"
             },
-            "genesis_block_hash": "711b054e260d4c732416280e616c7a6255054e4402d9166671505874632d3b13",
-            "blockchain_start_time": "1892-11-25T19:00:00Z",
+            "genesis_block_hash": "4c7944af10cd67c45c56124f4f5e7703e41b014b125e251d046c2e214f21341b",
+            "blockchain_start_time": "1867-01-19T03:00:00Z",
             "epoch_length": {
-                "quantity": 18214,
+                "quantity": 5279,
                 "unit": "slot"
             },
             "active_slot_coefficient": {
-                "quantity": 61,
+                "quantity": 64.82937240003628,
                 "unit": "percent"
             }
         },
         {
             "slot_length": {
-                "quantity": 1,
+                "quantity": 2434,
                 "unit": "second"
             },
             "epoch_stability": {
-                "quantity": 16957,
+                "quantity": 13480,
                 "unit": "block"
             },
-            "genesis_block_hash": "231f0b3da04163044003443e2962238c746bb4f93df33b20065a6a08150b7026",
-            "blockchain_start_time": "1906-12-02T08:31:10.871619193764Z",
+            "genesis_block_hash": "7d695d1edd2a27061c24685a444f7f1a7b507c4d20fd3f0b0a306d2e643edb4a",
+            "blockchain_start_time": "1876-01-14T17:24:30Z",
             "epoch_length": {
-                "quantity": 4563,
+                "quantity": 12404,
                 "unit": "slot"
             },
             "active_slot_coefficient": {
-                "quantity": 59,
+                "quantity": 49.69736154138978,
                 "unit": "percent"
             }
         },
         {
             "slot_length": {
-                "quantity": 61,
+                "quantity": 8487,
                 "unit": "second"
             },
             "epoch_stability": {
-                "quantity": 16652,
+                "quantity": 23310,
                 "unit": "block"
             },
-            "genesis_block_hash": "401e064211286c20444204e14841594b4c44c46c5d4d6d7a3278cd525711730a",
-            "blockchain_start_time": "1860-10-27T01:42:32Z",
+            "genesis_block_hash": "4d467b3714253474607ab12d4d58a833940d1b6051252f243555d079635c0b3e",
+            "blockchain_start_time": "1860-08-16T07:19:19Z",
             "epoch_length": {
-                "quantity": 20114,
+                "quantity": 13545,
                 "unit": "slot"
             },
             "active_slot_coefficient": {
-                "quantity": 78,
+                "quantity": 91.20280166862544,
                 "unit": "percent"
             }
         },
         {
             "slot_length": {
-                "quantity": 59,
+                "quantity": 6424,
                 "unit": "second"
             },
             "epoch_stability": {
-                "quantity": 5833,
+                "quantity": 24174,
                 "unit": "block"
             },
-            "genesis_block_hash": "0a2537131040a85d5f1a6d3a513f274b1d654c73216d51f2924f01429e40c445",
-            "blockchain_start_time": "1901-01-13T23:25:27Z",
+            "genesis_block_hash": "c2f95c27425275297c7c3e67136d702ab1501a1d343f0c4aa713391e716c139c",
+            "blockchain_start_time": "1881-02-16T10:59:21.98475001375Z",
             "epoch_length": {
-                "quantity": 8584,
+                "quantity": 30234,
                 "unit": "slot"
             },
             "active_slot_coefficient": {
-                "quantity": 92,
+                "quantity": 50.153499468228866,
                 "unit": "percent"
             }
         },
         {
             "slot_length": {
-                "quantity": 0,
+                "quantity": 5202,
                 "unit": "second"
             },
             "epoch_stability": {
-                "quantity": 14665,
+                "quantity": 30666,
                 "unit": "block"
             },
-            "genesis_block_hash": "703e62381fab1a541228510e1369790f17302a5265ad334c5d3b0fd324181f2b",
-            "blockchain_start_time": "1870-04-07T02:00:00Z",
+            "genesis_block_hash": "705a6c496c3565d89a3f0f30444d385a81447b4b6f435c11167981595a3d1575",
+            "blockchain_start_time": "1860-10-27T07:00:00Z",
             "epoch_length": {
-                "quantity": 13768,
+                "quantity": 15040,
                 "unit": "slot"
             },
             "active_slot_coefficient": {
-                "quantity": 87,
+                "quantity": 1.1809320643028753,
                 "unit": "percent"
             }
         },
         {
             "slot_length": {
-                "quantity": 78,
+                "quantity": 933,
                 "unit": "second"
             },
             "epoch_stability": {
-                "quantity": 19212,
+                "quantity": 6395,
                 "unit": "block"
             },
-            "genesis_block_hash": "0e130415140500d8b05a6b3b698856346e67763678956d7406991f3105132e77",
-            "blockchain_start_time": "1887-08-22T16:00:00Z",
+            "genesis_block_hash": "3031475c735bdcc97a51102726674b342205ee604c580372d07e685d5c084306",
+            "blockchain_start_time": "1871-02-23T20:47:12Z",
             "epoch_length": {
-                "quantity": 27562,
+                "quantity": 28788,
                 "unit": "slot"
             },
             "active_slot_coefficient": {
-                "quantity": 77,
+                "quantity": 87.59469115430878,
                 "unit": "percent"
             }
         },
         {
             "slot_length": {
-                "quantity": 3,
+                "quantity": 8295,
                 "unit": "second"
             },
             "epoch_stability": {
-                "quantity": 24309,
+                "quantity": 11079,
                 "unit": "block"
             },
-            "genesis_block_hash": "1c014f71310e637d35391541551c677a4f281a3bfc867a6b4f0f1e5a0d9c4f74",
-            "blockchain_start_time": "1890-05-02T21:00:00Z",
+            "genesis_block_hash": "271140595a65222e62253c7e273d64b75004723f021865211f252d8e3773121c",
+            "blockchain_start_time": "1876-04-10T16:58:24Z",
             "epoch_length": {
-                "quantity": 13026,
+                "quantity": 5454,
                 "unit": "slot"
             },
             "active_slot_coefficient": {
-                "quantity": 4,
+                "quantity": 71.79900326331557,
                 "unit": "percent"
             }
         },
         {
             "slot_length": {
-                "quantity": 93,
+                "quantity": 1149,
                 "unit": "second"
             },
             "epoch_stability": {
-                "quantity": 15841,
+                "quantity": 5383,
                 "unit": "block"
             },
-            "genesis_block_hash": "2e51d5f22a0b18152d5843346b2ec97b0b716d140d5e6755331fe890ab6f7832",
-            "blockchain_start_time": "1900-11-25T20:43:05.090287419821Z",
+            "genesis_block_hash": "3a6351531483651a1b4f2d35026e456c1736237ea27263fa120e976e257c4455",
+            "blockchain_start_time": "1887-07-01T23:00:00Z",
             "epoch_length": {
-                "quantity": 11139,
+                "quantity": 23196,
                 "unit": "slot"
             },
             "active_slot_coefficient": {
-                "quantity": 73,
+                "quantity": 4.293739539844321,
                 "unit": "percent"
             }
         },
         {
             "slot_length": {
-                "quantity": 71,
+                "quantity": 2793,
                 "unit": "second"
             },
             "epoch_stability": {
-                "quantity": 7558,
+                "quantity": 680,
                 "unit": "block"
             },
-            "genesis_block_hash": "0e5055421f400d5dc87066631c518c666219120a0740381f58842d4e556a2095",
-            "blockchain_start_time": "1871-06-22T14:00:00Z",
+            "genesis_block_hash": "7d2e336f2f5c391219602eca152c324a53b94e143643664009625707475c416e",
+            "blockchain_start_time": "1882-12-14T02:00:00Z",
             "epoch_length": {
-                "quantity": 15560,
+                "quantity": 5371,
                 "unit": "slot"
             },
             "active_slot_coefficient": {
-                "quantity": 24,
+                "quantity": 5.161400614481282,
                 "unit": "percent"
             }
         }

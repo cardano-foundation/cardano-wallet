@@ -571,7 +571,7 @@ definitions:
       id: *addressId
       state: *addressState
 
-  ApiDelegationStatus: &ApiDelegationStatus
+  ApiWalletDelegationStatus: &ApiWalletDelegationStatus
     type: object
     required:
       - status
@@ -705,34 +705,40 @@ definitions:
       outputs: *transactionOutputs
       status: *transactionStatus
 
+  ApiWalletDelegationNext: &ApiWalletDelegationNext
+    description: Next delegation settings
+    type: object
+    <<: *ApiWalletDelegationStatus
+    description: Next delegation status becomes active at the start of the second epoch after the corresponding delegation certificate was discovered. The exact moment is specified by changes_at
+    required:
+      - status
+      - changes_at
+    properties:
+      <<: *delegationStatusProperties
+      changes_at: *ApiEpochInfo
+    example:
+      status: not_delegating
+      changes_at:
+        epoch_number: 14
+        epoch_start_time: 2020-01-22T10:06:39.037Z
+
   ApiWalletDelegation: &ApiWalletDelegation
     description: Delegation settings
     type: object
     required:
       - active
+      - next
     properties:
       active:
         type: object
-        <<: *ApiDelegationStatus
+        <<: *ApiWalletDelegationStatus
         description: Currently active delegation status.
         example:
           status: delegating
           target: 1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1
       next:
-        type: object
-        <<: *ApiDelegationStatus
-        description: Next delegation status becomes active at the start of the second epoch after the corresponding delegation certificate was discovered. The exact moment is specified by changes_at
-        required:
-          - status
-          - changes_at
-        properties:
-          <<: *delegationStatusProperties
-          changes_at: *ApiEpochInfo
-        example:
-          status: not_delegating
-          changes_at:
-            epoch_number: 14
-            epoch_start_time: 2020-01-22T10:06:39.037Z
+        type: array
+        items: *ApiWalletDelegationNext
 
   ApiWallet: &ApiWallet
     type: object

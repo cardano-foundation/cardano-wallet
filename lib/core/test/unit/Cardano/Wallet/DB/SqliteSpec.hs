@@ -103,6 +103,7 @@ import Cardano.Wallet.Primitive.Types
     , TxOut (..)
     , TxStatus (..)
     , WalletDelegation (..)
+    , WalletDelegationStatus (..)
     , WalletId (..)
     , WalletMetadata (..)
     , WalletName (..)
@@ -618,7 +619,7 @@ testMetadata = WalletMetadata
     { name = WalletName "test wallet"
     , creationTime = unsafePerformIO getCurrentTime
     , passphraseInfo = Nothing
-    , delegation = NotDelegating
+    , delegation = WalletDelegation NotDelegating []
     }
 
 testWid :: WalletId

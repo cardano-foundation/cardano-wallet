@@ -36,7 +36,6 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader
     , DelegationCertificate
-    , DelegationDiscovered
     , Hash
     , Range (..)
     , SlotId (..)
@@ -161,13 +160,6 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- ^ Fetch a wallet metadata, if they exist.
         --
         -- Return 'Nothing' if there's no such wallet.
-
-    , readWalletDelegations
-        :: PrimaryKey WalletId
-        -> ExceptT ErrNoSuchWallet stm [DelegationDiscovered]
-        -- ^ Fetch last two wallet delegations dicovered
-        --
-        -- If the wallet doesn't exist, this operation returns an error
 
     , putDelegationCertificate
         :: PrimaryKey WalletId

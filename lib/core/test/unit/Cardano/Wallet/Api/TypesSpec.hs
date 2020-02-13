@@ -35,7 +35,6 @@ import Cardano.Wallet.Api.Types
     , ApiByronWalletMigrationInfo (..)
     , ApiCoinSelection (..)
     , ApiCoinSelectionInput (..)
-    , ApiDelegationStatus (..)
     , ApiEpochInfo (..)
     , ApiEpochNumber (..)
     , ApiFee (..)
@@ -55,6 +54,7 @@ import Cardano.Wallet.Api.Types
     , ApiWallet (..)
     , ApiWalletDelegation (..)
     , ApiWalletDelegationNext (..)
+    , ApiWalletDelegationStatus (..)
     , ApiWalletPassphrase (..)
     , ByronWalletPostData (..)
     , DecodeAddress (..)
@@ -122,7 +122,7 @@ import Cardano.Wallet.Primitive.Types
     , TxStatus (..)
     , UTxO (..)
     , UTxOStatistics (..)
-    , WalletDelegation (..)
+    , WalletDelegationStatus (..)
     , WalletId (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
@@ -238,6 +238,7 @@ import Test.QuickCheck
     , choose
     , elements
     , frequency
+    , oneof
     , property
     , scale
     , shrinkIntegral
@@ -258,6 +259,7 @@ import Test.Utils.Time
 import Web.HttpApiData
     ( FromHttpApiData (..), ToHttpApiData (..) )
 
+import qualified Cardano.Wallet.Api.Types as Api
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -282,7 +284,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiNetworkInformation
             jsonRoundtripAndGolden $ Proxy @ApiNetworkParameters
             jsonRoundtripAndGolden $ Proxy @ApiWalletDelegation
-            jsonRoundtripAndGolden $ Proxy @ApiDelegationStatus
+            jsonRoundtripAndGolden $ Proxy @ApiWalletDelegationStatus
             jsonRoundtripAndGolden $ Proxy @ApiWalletDelegationNext
             jsonRoundtripAndGolden $ Proxy @(ApiT (Hash "Genesis"))
             jsonRoundtripAndGolden $ Proxy @ApiStakePool
@@ -307,7 +309,6 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @WalletPutPassphraseData
             jsonRoundtripAndGolden $ Proxy @(ApiT (Hash "Tx"))
             jsonRoundtripAndGolden $ Proxy @(ApiT (Passphrase "encryption"))
-            jsonRoundtripAndGolden $ Proxy @(ApiT (WalletDelegation (ApiT PoolId)))
             jsonRoundtripAndGolden $ Proxy @(ApiT Address, Proxy 'Testnet)
             jsonRoundtripAndGolden $ Proxy @(ApiT AddressPoolGap)
             jsonRoundtripAndGolden $ Proxy @(ApiT Direction)
@@ -1063,19 +1064,27 @@ instance Arbitrary WalletBalance where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance Arbitrary (WalletDelegation (ApiT PoolId)) where
+instance Arbitrary WalletDelegationStatus where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance Arbitrary ApiDelegationStatus where
-    arbitrary = ApiDelegationStatus <$> arbitrary
+instance Arbitrary ApiWalletDelegationStatus where
+    arbitrary = genericArbitrary
 
 instance Arbitrary ApiWalletDelegationNext where
-    arbitrary = ApiWalletDelegationNext <$> arbitrary <*> arbitrary
+    arbitrary = oneof
+        [ ApiWalletDelegationNext Api.Delegating
+            <$> fmap Just arbitrary
+            <*> fmap Just arbitrary
+        , ApiWalletDelegationNext Api.NotDelegating
+            <$> pure Nothing
+            <*> fmap Just arbitrary
+        ]
 
 instance Arbitrary ApiWalletDelegation where
-    arbitrary = genericArbitrary
-    shrink = genericShrink
+    arbitrary = ApiWalletDelegation
+        <$> fmap (\x -> x { changesAt = Nothing }) arbitrary
+        <*> arbitrary
 
 instance Arbitrary PoolId where
     arbitrary = do
@@ -1513,8 +1522,11 @@ instance ToSchema ApiNetworkParameters where
 instance ToSchema ApiNetworkTip where
     declareNamedSchema _ = declareSchemaForDefinition "ApiNetworkTip"
 
-instance ToSchema ApiDelegationStatus where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiDelegationStatus"
+instance ToSchema ApiWalletDelegationStatus where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiWalletDelegationStatus"
+
+instance ToSchema ApiWalletDelegationNext where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiWalletDelegationNext"
 
 instance ToSchema ApiWalletDelegation where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWalletDelegation"

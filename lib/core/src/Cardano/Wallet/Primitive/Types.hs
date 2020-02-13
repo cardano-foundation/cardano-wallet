@@ -61,7 +61,6 @@ module Cardano.Wallet.Primitive.Types
     , dlgCertAccount
     , dlgCertPoolId
     , PoolRegistrationCertificate (..)
-    , DelegationDiscovered (..)
 
     -- * Coin
     , Coin (..)
@@ -125,8 +124,11 @@ module Cardano.Wallet.Primitive.Types
     , walletNameMinLength
     , walletNameMaxLength
     , WalletDelegation (..)
+    , WalletDelegationStatus (..)
+    , WalletDelegationNext (..)
     , WalletPassphraseInfo(..)
     , WalletBalance(..)
+    , IsDelegatingTo (..)
 
     -- * Stake Pools
     , PoolId(..)
@@ -281,7 +283,7 @@ data WalletMetadata = WalletMetadata
     , passphraseInfo
         :: !(Maybe WalletPassphraseInfo)
     , delegation
-        :: !(WalletDelegation PoolId)
+        :: !WalletDelegation
     } deriving (Eq, Show, Generic)
 
 instance NFData WalletMetadata
@@ -348,19 +350,62 @@ instance Buildable WalletId where
       where
         widF = toText wid
 
-data WalletDelegation poolId
+data WalletDelegationStatus
     = NotDelegating
-    | Delegating !poolId
+    | Delegating !PoolId
     deriving (Generic, Eq, Show)
-deriving instance Functor WalletDelegation
-instance NFData poolId => NFData (WalletDelegation poolId)
+instance NFData WalletDelegationStatus
 
-instance Buildable poolId => Buildable (WalletDelegation poolId) where
+instance Buildable WalletDelegationStatus where
     build = \case
         NotDelegating ->
             "not delegating"
         Delegating poolId ->
             "delegating to " <> build poolId
+
+data WalletDelegationNext = WalletDelegationNext
+    { changesAt :: !EpochNo
+    , status :: !WalletDelegationStatus
+    } deriving (Eq, Generic, Show)
+instance NFData WalletDelegationNext
+
+instance Buildable WalletDelegationNext where
+    build (WalletDelegationNext st epoch) =
+        build st <> " which is expected to happen at epoch number " <> build epoch
+
+data WalletDelegation = WalletDelegation
+    { active :: !WalletDelegationStatus
+    , next :: ![WalletDelegationNext]
+    } deriving (Eq, Generic, Show)
+instance NFData WalletDelegation
+
+instance Buildable WalletDelegation where
+    build (WalletDelegation act []) =
+        "current wallet delegation: " <> build act <> ", awaiting no change"
+    build (WalletDelegation act [n]) =
+        "current wallet delegation: " <> build act <> ", awaiting " <> build n
+    build (WalletDelegation act [n1, n2]) =
+        "current wallet delegation: " <> build act <> ", awaiting first " <>
+        build n1 <> " then awaiting " <> build n2
+    build (WalletDelegation act _) =
+        "current wallet delegation: " <> build act <>
+        ", something wrong with awaiting"
+
+class IsDelegatingTo a where
+    isDelegatingTo :: PoolId -> a -> Bool
+
+instance IsDelegatingTo WalletDelegationStatus where
+    isDelegatingTo pid = \case
+        Delegating pid' -> pid' == pid
+        NotDelegating   -> False
+
+instance IsDelegatingTo WalletDelegationNext where
+    isDelegatingTo pid WalletDelegationNext{status} =
+        isDelegatingTo pid status
+
+instance IsDelegatingTo WalletDelegation where
+    isDelegatingTo pid WalletDelegation{active,next} =
+        isDelegatingTo pid active || any (isDelegatingTo pid) next
 
 newtype WalletPassphraseInfo = WalletPassphraseInfo
     { lastUpdatedAt :: UTCTime }
@@ -1526,17 +1571,6 @@ instance Buildable PoolRegistrationCertificate where
         <> build p
         <> " owned by "
         <> build o
-
--- | A delegation certificate discovered by the "current wallet".
-data DelegationDiscovered = DelegationDiscovered
-    { slotId :: !SlotId
-    -- ^ Slot corresponding to the block the certificate was discovered
-    , poolId :: !(Maybe PoolId)
-    -- ^ Stake pool identifier - in case the certificate pertains to (re)joining
-    -- or @Nothing@ if quitting.
-    } deriving (Generic, Show, Eq, Ord)
-
-instance NFData DelegationDiscovered
 
 {-------------------------------------------------------------------------------
                                Polymorphic Types
