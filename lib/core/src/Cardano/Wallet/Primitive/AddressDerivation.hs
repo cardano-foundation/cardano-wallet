@@ -4,6 +4,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE LambdaCase #-}
@@ -11,6 +12,7 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -75,6 +77,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase(..)
     , PassphraseMinLength(..)
     , PassphraseMaxLength(..)
+    , SomeMnemonic(..)
     , FromMnemonic(..)
     , FromMnemonicError(..)
     , ErrWrongPassphrase(..)
@@ -92,11 +95,10 @@ import Cardano.Wallet.Primitive.Mnemonic
     , DictionaryError (..)
     , EntropyError (..)
     , EntropySize
+    , Mnemonic
     , MnemonicError (..)
     , MnemonicWordsError (..)
-    , entropyToBytes
     , mkMnemonic
-    , mnemonicToEntropy
     )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), ChimericAccount (..), Hash (..) )
@@ -113,7 +115,7 @@ import Crypto.KDF.PBKDF2
 import Crypto.Random.Types
     ( MonadRandom (..) )
 import Data.Bifunctor
-    ( first )
+    ( bimap )
 import Data.ByteArray
     ( ByteArray, ByteArrayAccess, ScrubbedBytes )
 import Data.ByteArray.Encoding
@@ -146,6 +148,10 @@ import GHC.Generics
     ( Generic )
 import GHC.TypeLits
     ( KnownNat, Nat, Symbol, natVal )
+
+import Data.Type.Equality
+import Type.Reflection
+    ( typeOf )
 
 import qualified Basement.Compat.Base as B
 import qualified Data.ByteArray as BA
@@ -386,6 +392,16 @@ instance
 instance ToText (Passphrase purpose) where
     toText (Passphrase bytes) = T.decodeUtf8 $ BA.convert bytes
 
+data SomeMnemonic where
+    SomeMnemonic :: forall mw. KnownNat mw => Mnemonic mw -> SomeMnemonic
+
+deriving instance Show SomeMnemonic
+instance Eq SomeMnemonic where
+    (SomeMnemonic mwa) == (SomeMnemonic mwb) =
+        case typeOf mwa `testEquality` typeOf mwb of
+            Nothing -> False
+            Just Refl -> mwa == mwb
+
 -- | Create a passphrase from a mnemonic sentence. This class enables caller to
 -- parse text list of variable length into mnemonic sentences.
 --
@@ -394,8 +410,8 @@ instance ToText (Passphrase purpose) where
 --
 -- Note that the given 'Nat's **have** to be valid mnemonic sizes, otherwise the
 -- underlying code won't even compile, with not-so-friendly error messages.
-class FromMnemonic (sz :: [Nat]) (purpose :: Symbol) where
-    fromMnemonic :: [Text] -> Either (FromMnemonicError sz) (Passphrase purpose)
+class FromMnemonic (sz :: [Nat]) where
+    fromMnemonic :: [Text] -> Either (FromMnemonicError sz) SomeMnemonic
 
 -- | Error reported from trying to create a passphrase from a given mnemonic
 newtype FromMnemonicError (sz :: [Nat]) =
@@ -407,19 +423,19 @@ instance {-# OVERLAPS #-}
     ( n ~ EntropySize mw
     , csz ~ CheckSumBits n
     , ConsistentEntropy n mw csz
-    , FromMnemonic rest purpose
+    , FromMnemonic rest
     , NatVals rest
     ) =>
-    FromMnemonic (mw ': rest) purpose
+    FromMnemonic (mw ': rest)
   where
     fromMnemonic parts = case parseMW of
         Left err -> left (promote err) parseRest
         Right mw -> Right mw
       where
         parseMW = left (FromMnemonicError . getFromMnemonicError) $ -- coerce
-            fromMnemonic @'[mw] @purpose parts
+            fromMnemonic @'[mw] parts
         parseRest = left (FromMnemonicError . getFromMnemonicError) $ -- coerce
-            fromMnemonic @rest @purpose parts
+            fromMnemonic @rest parts
         promote e e' =
             let
                 sz = fromEnum <$> natVals (Proxy :: Proxy (mw ': rest))
@@ -447,11 +463,10 @@ instance
     , csz ~ CheckSumBits n
     , ConsistentEntropy n mw csz
     ) =>
-    FromMnemonic (mw ': '[]) purpose
+    FromMnemonic (mw ': '[])
   where
     fromMnemonic parts = do
-        m <- first (FromMnemonicError . pretty) (mkMnemonic @mw parts)
-        return $ Passphrase $ entropyToBytes $ mnemonicToEntropy m
+        bimap (FromMnemonicError . pretty) SomeMnemonic (mkMnemonic @mw parts)
       where
         pretty = \case
             ErrMnemonicWords ErrWrongNumberOfWords{} ->

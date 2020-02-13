@@ -71,11 +71,14 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
     , SoftDerivation (..)
+    , SomeMnemonic (..)
     , WalletKey (..)
     , fromHex
     , hex
     , networkDiscriminantVal
     )
+import Cardano.Wallet.Primitive.Mnemonic
+    ( entropyToBytes, mnemonicToEntropy )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), Hash (..), invariant )
 import Control.DeepSeq
@@ -170,7 +173,7 @@ minSeedLengthBytes = 16
 -- | Generate a root key from a corresponding seed.
 -- The seed should be at least 16 bytes.
 generateKeyFromSeed
-    :: (Passphrase "seed", Passphrase "generation")
+    :: (SomeMnemonic, Maybe SomeMnemonic)
        -- ^ The actual seed and its recovery / generation passphrase
     -> Passphrase "encryption"
     -> ShelleyKey 'RootK XPrv
@@ -181,17 +184,20 @@ generateKeyFromSeed = unsafeGenerateKeyFromSeed
 -- testing, in practice, seeds are used to represent root keys, and one should
 -- use 'generateKeyFromSeed'.
 unsafeGenerateKeyFromSeed
-    :: (Passphrase "seed", Passphrase "generation")
+    :: (SomeMnemonic, Maybe SomeMnemonic)
         -- ^ The actual seed and its recovery / generation passphrase
     -> Passphrase "encryption"
     -> ShelleyKey depth XPrv
-unsafeGenerateKeyFromSeed (Passphrase seed, Passphrase gen) (Passphrase pwd) =
-    let
-        seed' = invariant
-            ("seed length : " <> show (BA.length seed) <> " in (Passphrase \"seed\") is not valid")
-            seed
-            (\s -> BA.length s >= minSeedLengthBytes && BA.length s <= 255)
-    in ShelleyKey $ generateNew seed' gen pwd
+unsafeGenerateKeyFromSeed (root, m2nd) (Passphrase pwd) =
+    ShelleyKey $ generateNew seed' (maybe mempty mnemonicToBytes m2nd) pwd
+  where
+    mnemonicToBytes (SomeMnemonic mw) = entropyToBytes $ mnemonicToEntropy mw
+    seed  = mnemonicToBytes root
+    seed' = invariant
+        ("seed length : " <> show (BA.length seed) <> " in (Passphrase \"seed\") is not valid")
+        seed
+        (\s -> BA.length s >= minSeedLengthBytes && BA.length s <= 255)
+
 
 instance HardDerivation ShelleyKey where
     type AddressIndexDerivationType ShelleyKey = 'Soft
