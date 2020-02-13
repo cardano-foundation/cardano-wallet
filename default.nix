@@ -26,6 +26,10 @@ let
 
   filterCardanoPackages = pkgs.lib.filterAttrs (_: package: isCardanoWallet package);
   getPackageChecks = pkgs.lib.mapAttrs (_: package: package.checks);
+  # Temporary fix until setuptools added upstream
+  openapi-spec-validator = iohkLib.pkgs.python3Packages.openapi-spec-validator.overrideAttrs (oldAttrs: {
+    propagatedBuildInputs = oldAttrs.propagatedBuildInputs ++ [ iohkLib.pkgs.python3Packages.setuptools ];
+  });
 
   self = {
     inherit pkgs iohkLib src haskellPackages;
@@ -70,9 +74,9 @@ let
           hlint.components.exes.hlint
         ])
         ++ [(pkgs.callPackage ./nix/stylish-haskell.nix {})]
-        ++ (with iohkLib; [ openapi-spec-validator ])
         ++ [ jormungandr jormungandr-cli
              pkgs.pkgconfig pkgs.sqlite-interactive
+             openapi-spec-validator
              pkgs.cabal-install ];
       meta.platforms = pkgs.lib.platforms.unix;
     };
