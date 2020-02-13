@@ -9,6 +9,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -61,6 +62,7 @@ module Cardano.Wallet.DB.Model
 
 import Prelude
 
+
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip )
 import Cardano.Wallet.Primitive.Types
@@ -77,6 +79,7 @@ import Cardano.Wallet.Primitive.Types
     , TxMeta (..)
     , TxStatus (..)
     , WalletDelegation (..)
+    , WalletDelegationNext (..)
     , WalletDelegationStatus (..)
     , WalletMetadata (..)
     , dlgCertPoolId
@@ -86,6 +89,8 @@ import Control.Monad
     ( when )
 import Data.Bifunctor
     ( first )
+import Data.Function
+    ( (&) )
 import Data.List
     ( sort, sortOn )
 import Data.Map.Strict
@@ -97,7 +102,6 @@ import Data.Ord
 import GHC.Generics
     ( Generic )
 
-import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Map.Strict as Map
 
 {-------------------------------------------------------------------------------
@@ -231,7 +235,7 @@ mRemovePendingTx wid tid db@(Database wallets txs) = case Map.lookup wid wallets
         Nothing ->
             ( Left (CannotRemovePendingTx (ErrErasePendingTxNoTx tid)), db )
         Just txMeta ->
-            if status txMeta == Pending then
+            if (status :: TxMeta -> TxStatus) txMeta == Pending then
                 ( Right (), Database updateWallets txs )
             else ( Left (CannotRemovePendingTx (ErrErasePendingTxNoPendingTx tid)), db )
     where
@@ -288,84 +292,38 @@ mPutWalletMeta wid meta = alterModel wid $ \wal ->
 
 mReadWalletMeta :: Ord wid => wid -> ModelOp wid s xprv (Maybe WalletMetadata)
 mReadWalletMeta wid db@(Database wallets _) =
-    (Right (mkMetadata <$> Map.lookup wid wallets), db)
+    (Right (mkMetadata =<< Map.lookup wid wallets), db)
   where
-    mkMetadata :: WalletDatabase s xprv -> WalletMetadata
-    mkMetadata WalletDatabase{checkpoints,certificates,metadata} =
-        let recentSlotIdMaybe = fst <$> Map.lookupMax checkpoints
-            prevCert e1 = fmap snd $ Map.lookupMax $
-                Map.filterWithKey (\(SlotId (EpochNo e) _) _ -> e <= e1)
-                certificates
-        in case (recentSlotIdMaybe, Map.lookupMax certificates) of
-            (Just (SlotId (EpochNo e) _), Just (SlotId (EpochNo e1) _, Nothing))
-               | e < e1 ->
-                    metadata { delegation = WalletDelegation NotDelegating [] }
-               | e1 + 1 < e ->
-                    metadata { delegation = WalletDelegation NotDelegating [] }
-               | e1 + 1 == e ->
-                    case prevCert (e1-1) of
-                        Just (Just pool) ->
-                            metadata { delegation =
-                                       WalletDelegation (Delegating pool)
-                                       [ W.WalletDelegationNext
-                                         NotDelegating (EpochNo $ e1 + 2)]
-                                     }
-                        _ ->
-                            metadata { delegation = WalletDelegation NotDelegating [] }
-               | e1 == 0 || e1 == 1 ->
-                     metadata { delegation = WalletDelegation NotDelegating [] }
-               | otherwise ->
-                     case prevCert (e1-2) of
-                         Just (Just pool) ->
-                             metadata { delegation =
-                                        WalletDelegation (Delegating pool)
-                                        [ W.WalletDelegationNext
-                                          NotDelegating (EpochNo $ e1 + 2)]
-                                      }
-                         _ ->
-                             metadata { delegation = WalletDelegation NotDelegating [] }
-            (Just (SlotId (EpochNo e) _), Just (SlotId (EpochNo e1) _, Just pool))
-                | e < e1 ->
-                    metadata { delegation = WalletDelegation NotDelegating [] }
-                | e1 + 1 < e ->
-                    metadata { delegation = WalletDelegation (Delegating pool) [] }
-                | e1 + 1 == e ->
-                    case prevCert (e1-1) of
-                        Just (Just pool1) ->
-                            metadata { delegation =
-                                       WalletDelegation (Delegating pool1)
-                                       [ W.WalletDelegationNext
-                                         (Delegating pool) (EpochNo $ e1 + 2)]
-                                     }
-                        _ ->
-                            metadata { delegation =
-                                       WalletDelegation NotDelegating
-                                       [ W.WalletDelegationNext
-                                         (Delegating pool) (EpochNo $ e1 + 2)]
-                                     }
-               | e1 == 0 || e1 == 1 ->
-                     metadata { delegation =
-                                WalletDelegation NotDelegating
-                                [ W.WalletDelegationNext
-                                  (Delegating pool) (EpochNo $ e1 + 2)]
-                              }
-               | otherwise ->
-                     case prevCert (e1-2) of
-                         Just (Just pool1) ->
-                             metadata { delegation =
-                                        WalletDelegation (Delegating pool1)
-                                        [ W.WalletDelegationNext
-                                          (Delegating pool) (EpochNo $ e1 + 2)]
-                                      }
-                         _ ->
-                             metadata { delegation =
-                                        WalletDelegation NotDelegating
-                                        [ W.WalletDelegationNext
-                                          (Delegating pool) (EpochNo $ e1 + 2)]
-                                      }
-            _ ->
-                metadata { delegation = WalletDelegation NotDelegating [] }
+    mkMetadata :: WalletDatabase s xprv -> Maybe WalletMetadata
+    mkMetadata WalletDatabase{checkpoints,certificates,metadata} = do
+        (SlotId currentEpoch _, _)<- Map.lookupMax checkpoints
+        pure $ metadata { delegation = readWalletDelegation certificates currentEpoch }
 
+    readWalletDelegation :: Map SlotId (Maybe PoolId) -> EpochNo -> WalletDelegation
+    readWalletDelegation certificates currentEpoch
+        | currentEpoch == 0 = WalletDelegation NotDelegating []
+        | otherwise =
+            let active = certificates
+                    & Map.filterWithKey (\(SlotId ep _) _ -> ep < currentEpoch - 1)
+                    & Map.lookupMax
+                    & (snd =<<)
+                    & maybe NotDelegating Delegating
+                next1 = certificates
+                    & Map.filterWithKey (\(SlotId ep _) _ ->
+                        ep >= currentEpoch - 1 && ep < currentEpoch)
+                    & Map.lookupMax
+                    & maybe [] (mkDelegationNext (currentEpoch + 1) . snd)
+                next2 = certificates
+                    & Map.filterWithKey (\(SlotId ep _) _ -> ep >= currentEpoch)
+                    & Map.lookupMax
+                    & maybe [] (mkDelegationNext (currentEpoch + 2) . snd)
+            in
+                WalletDelegation active (next1 ++ next2)
+
+    mkDelegationNext :: EpochNo -> Maybe PoolId -> [WalletDelegationNext]
+    mkDelegationNext ep = pure . \case
+        Nothing -> WalletDelegationNext ep NotDelegating
+        Just pid -> WalletDelegationNext ep (Delegating pid)
 
 mPutDelegationCertificate
     :: Ord wid
@@ -412,7 +370,7 @@ mReadTxHistory wid order range mstatus db@(Database wallets txs) = (Right res, d
             | (tid, meta) <- Map.toList (txHistory wal)
             , case mstatus of
                 Nothing -> True
-                Just s -> status meta == s
+                Just s -> (status :: TxMeta -> TxStatus) meta == s
             ]
 
 mPutPrivateKey :: Ord wid => wid -> xprv -> ModelOp wid s xprv ()

@@ -161,6 +161,7 @@ import Database.Persist.Sql
     , updateWhere
     , (/<-.)
     , (<-.)
+    , (<.)
     , (<=.)
     , (=.)
     , (==.)
@@ -500,10 +501,8 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
             selectLatestCheckpoint wid >>= \case
                 Nothing -> pure Nothing
                 Just cp -> do
-                    latestMaybe <- fmap entityVal
-                        <$> selectFirst [CertWalletId ==. wid] [Desc CertSlot]
                     let (W.SlotId currentEpoch _) = checkpointSlot cp
-                    determineWalletDelegation wid latestMaybe currentEpoch
+                    readWalletDelegation wid currentEpoch >>= readWalletMetadata wid
 
         , putDelegationCertificate = \(PrimaryKey wid) cert sl -> ExceptT $ do
             selectWallet wid >>= \case
@@ -580,248 +579,47 @@ readWalletMetadata wid walDel =
      fmap (metadataFromEntity walDel . entityVal)
         <$> selectFirst [WalId ==. wid] []
 
-retrieveActiveDlgCert
+readWalletDelegation
     :: W.WalletId
     -> W.EpochNo
-    -> DelegationCertificate
-    -> Maybe W.EpochNo
-    -> SqlPersistT IO (Maybe W.WalletMetadata)
-retrieveActiveDlgCert wid (W.EpochNo epoch) dlg epochNoMaybe = case epochNoMaybe of
-    Just epoch' -> do
-        let slotId = W.SlotId epoch' (W.SlotNo (maxBound - 1))
-        activeMaybe <- fmap entityVal <$> selectFirst
-                       [CertWalletId ==. wid, CertSlot <=. slotId]
-                       [Desc CertSlot]
-        case activeMaybe of
-            Just active ->
-                readWalletMetadata wid
-                (delegationFromCerts
-                    (Just active)
-                    Nothing
-                    (Just (dlg, W.EpochNo $ epoch + 2))
-                )
-            Nothing ->
-                readWalletMetadata wid
-                (delegationFromCerts
-                    Nothing
-                    Nothing
-                    (Just (dlg, W.EpochNo $ epoch + 2))
-                )
-    Nothing ->
-        readWalletMetadata wid
-        (delegationFromCerts
-            Nothing
-            Nothing
-            (Just (dlg, W.EpochNo $ epoch + 2))
-        )
+    -> SqlPersistT IO W.WalletDelegation
+readWalletDelegation wid epoch
+    | epoch == 0 = pure $ W.WalletDelegation W.NotDelegating []
+    | otherwise  = do
+        active <- maybe W.NotDelegating toWalletDelegationStatus
+            <$> readDelegationCertificate wid
+                [ CertSlot <. W.SlotId (epoch - 1) 0
+                ]
 
-retrieveTwoDlgsCert
-    :: W.WalletId
-    -> W.EpochNo
-    -> DelegationCertificate
-    -> Maybe W.EpochNo
-    -> SqlPersistT IO (Maybe W.WalletMetadata)
-retrieveTwoDlgsCert wid (W.EpochNo epoch) dlg epochMaybe = case epochMaybe of
-    Just epochBefore -> do
-        let from = W.SlotId epochBefore (W.SlotNo minBound)
-        let to = W.SlotId epochBefore (W.SlotNo (maxBound - 1))
-        activeSoonMaybe <- fmap entityVal <$> selectFirst
-            [CertWalletId ==. wid, CertSlot >=. from, CertSlot <=. to ]
-            [Desc CertSlot]
-        case epochMaybe >>= W.epochPred of
-            Just epochPrev -> do
-                let slotIdPrev = W.SlotId epochPrev (W.SlotNo (maxBound - 1))
-                activeMaybe <- fmap entityVal <$> selectFirst
-                       [CertWalletId ==. wid, CertSlot <=. slotIdPrev]
-                       [Desc CertSlot]
-                case (activeMaybe, activeSoonMaybe) of
-                    (Just active, Just activeSoon) ->
-                        readWalletMetadata wid
-                        (delegationFromCerts
-                         (Just active)
-                         (Just (activeSoon, W.EpochNo $ epoch + 1))
-                         (Just (dlg, W.EpochNo $ epoch + 2))
-                        )
-                    (Just active, Nothing) ->
-                        readWalletMetadata wid
-                        (delegationFromCerts
-                         (Just active)
-                         Nothing
-                         (Just (dlg, W.EpochNo $ epoch + 2))
-                        )
-                    (Nothing, Just activeSoon) ->
-                        readWalletMetadata wid
-                        (delegationFromCerts
-                         Nothing
-                         (Just (activeSoon, W.EpochNo $ epoch + 1))
-                         (Just (dlg, W.EpochNo $ epoch + 2))
-                        )
-                    (Nothing, Nothing) ->
-                        readWalletMetadata wid
-                        (delegationFromCerts
-                         Nothing
-                         Nothing
-                         (Just (dlg, W.EpochNo $ epoch + 2))
-                        )
-            Nothing ->
-                case activeSoonMaybe of
-                    Just activeSoon ->
-                        readWalletMetadata wid
-                        (delegationFromCerts
-                         Nothing
-                         (Just (activeSoon, W.EpochNo $ epoch + 1))
-                         (Just (dlg, W.EpochNo $ epoch + 2))
-                        )
-                    Nothing ->
-                        readWalletMetadata wid
-                        (delegationFromCerts
-                         Nothing
-                         Nothing
-                         (Just (dlg, W.EpochNo $ epoch + 2))
-                        )
-    Nothing ->
-        readWalletMetadata wid
-        (delegationFromCerts
-            Nothing
-            Nothing
-            (Just (dlg, W.EpochNo $ epoch + 2))
-        )
+        next <- catMaybes <$> sequence
+            [ fmap (W.WalletDelegationNext (epoch + 1) . toWalletDelegationStatus)
+                <$> readDelegationCertificate wid
+                    [ CertSlot >=. W.SlotId (epoch - 1) 0
+                    , CertSlot <. W.SlotId epoch 0
+                    ]
+            , fmap (W.WalletDelegationNext (epoch + 2) . toWalletDelegationStatus)
+                <$> readDelegationCertificate wid
+                    [ CertSlot >=. W.SlotId epoch 0
+                    ]
+            ]
 
-determineWalletDelegation
+        pure $ W.WalletDelegation active next
+
+readDelegationCertificate
     :: W.WalletId
-    -> Maybe DelegationCertificate
-    -> W.EpochNo
-    -> SqlPersistT IO (Maybe W.WalletMetadata)
-determineWalletDelegation wid dlgMaybe (W.EpochNo currentEpoch) =
-    case dlgMaybe of
-        Just dlg@(DelegationCertificate _ (W.SlotId e@(W.EpochNo epoch) _) _)
-            | currentEpoch < epoch ->
-                readWalletMetadata wid
-                (delegationFromCerts Nothing Nothing Nothing)
-            | epoch + 1 < currentEpoch ->
-                readWalletMetadata wid
-                (delegationFromCerts (Just dlg) Nothing Nothing)
-            | epoch + 1 == currentEpoch ->
-                retrieveActiveDlgCert wid e dlg
-                (W.epochPred (W.EpochNo epoch))
-            | otherwise ->
-                retrieveTwoDlgsCert wid e dlg
-                (W.epochPred (W.EpochNo epoch))
-        Nothing ->
-            readWalletMetadata wid
-            (delegationFromCerts Nothing Nothing Nothing)
+    -> [Filter DelegationCertificate]
+    -> SqlPersistT IO (Maybe DelegationCertificate)
+readDelegationCertificate wid filters = fmap entityVal
+    <$> selectFirst ((CertWalletId ==. wid) : filters) [Desc CertSlot]
 
 toWalletDelegationStatus
     :: DelegationCertificate
     -> W.WalletDelegationStatus
-toWalletDelegationStatus (DelegationCertificate _ _ Nothing) =
-    W.NotDelegating
-toWalletDelegationStatus (DelegationCertificate _ _ (Just pool)) =
-    W.Delegating pool
-
-delegationFromCerts
-    :: Maybe DelegationCertificate
-    -> Maybe (DelegationCertificate, W.EpochNo)
-    -> Maybe (DelegationCertificate, W.EpochNo)
-    -> W.WalletDelegation
-delegationFromCerts older interim latest = case (older,interim,latest) of
-    (Just dlg, Nothing, Nothing) ->
-        W.WalletDelegation (toWalletDelegationStatus dlg) []
-    (Just dlg1, Nothing, Just (dlg2, epoch)) ->
-        oneComingDlg dlg1 (dlg2, epoch)
-    (Just dlg1, Just (dlg2, epoch), Nothing) ->
-        oneComingDlg dlg1 (dlg2, epoch)
-    (Nothing, Nothing, Just (dlg, epoch)) ->
-        oneComingDlgAlone (dlg, epoch)
-    (Nothing, Just (dlg, epoch), Nothing) ->
-        oneComingDlgAlone (dlg, epoch)
-    (dlg, Just (dlg1, epoch1), Just (dlg2, epoch2)) ->
-        case dlg of
-            Just dlg' -> case toWalletDelegationStatus dlg' of
-                W.NotDelegating ->
-                    twoJustDlgs (dlg1, epoch1) (dlg2, epoch2)
-                W.Delegating pool ->
-                    case (toWalletDelegationStatus dlg1, toWalletDelegationStatus dlg2) of
-                        (W.NotDelegating, W.NotDelegating) ->
-                            W.WalletDelegation (W.Delegating pool) []
-                        (W.Delegating pool1, W.NotDelegating) ->
-                            comparePools pool pool1 epoch1
-                        (W.NotDelegating, W.Delegating pool1) ->
-                            comparePools pool pool1 epoch2
-                        (W.Delegating pool1, W.Delegating pool2)
-                            | pool == pool1 && pool == pool2 ->
-                                  W.WalletDelegation (W.Delegating pool) []
-                            | pool == pool1 && pool /= pool2 ->
-                                  W.WalletDelegation (W.Delegating pool)
-                                  [ W.WalletDelegationNext (W.Delegating pool2) epoch2]
-                            | pool == pool2 && pool /= pool1 ->
-                                  W.WalletDelegation (W.Delegating pool)
-                                  [ W.WalletDelegationNext (W.Delegating pool1) epoch1]
-                            | pool /= pool2 && pool /= pool1 && pool1 == pool2 ->
-                                  W.WalletDelegation (W.Delegating pool)
-                                  [ W.WalletDelegationNext (W.Delegating pool1) epoch1]
-                            | otherwise ->
-                                  W.WalletDelegation (W.Delegating pool)
-                                  [ W.WalletDelegationNext (W.Delegating pool1) epoch1
-                                  , W.WalletDelegationNext (W.Delegating pool2) epoch2]
-            Nothing ->
-                twoJustDlgs (dlg1, epoch1) (dlg2, epoch2)
-    (Nothing, Nothing, Nothing) ->
-        W.WalletDelegation W.NotDelegating []
-  where
-      twoJustDlgs
-          :: (DelegationCertificate, W.EpochNo)
-          -> (DelegationCertificate, W.EpochNo)
-          -> W.WalletDelegation
-      twoJustDlgs (dlg1, epoch1) (dlg2, epoch2) =
-          case (toWalletDelegationStatus dlg1, toWalletDelegationStatus dlg2) of
-              (W.NotDelegating, W.NotDelegating) ->
-                  W.WalletDelegation W.NotDelegating []
-              (delegating, W.NotDelegating) ->
-                  W.WalletDelegation W.NotDelegating
-                  [W.WalletDelegationNext delegating epoch1]
-              (W.NotDelegating, delegating) ->
-                  W.WalletDelegation W.NotDelegating
-                  [W.WalletDelegationNext delegating epoch2]
-              (delegating1, delegating2) ->
-                  W.WalletDelegation W.NotDelegating
-                  [ W.WalletDelegationNext delegating1 epoch1
-                  , W.WalletDelegationNext delegating2 epoch2]
-      oneComingDlg
-          :: DelegationCertificate
-          -> (DelegationCertificate, W.EpochNo)
-          -> W.WalletDelegation
-      oneComingDlg dlg1 (dlg2, epoch) =
-          case (toWalletDelegationStatus dlg1, toWalletDelegationStatus dlg2) of
-              (W.NotDelegating, W.NotDelegating) ->
-                  W.WalletDelegation W.NotDelegating []
-              (W.Delegating pool1, W.Delegating pool2) ->
-                  comparePools pool1 pool2 epoch
-              _ ->
-                  W.WalletDelegation (toWalletDelegationStatus dlg1)
-                  [W.WalletDelegationNext (toWalletDelegationStatus dlg2) epoch]
-      oneComingDlgAlone
-          :: (DelegationCertificate, W.EpochNo)
-          -> W.WalletDelegation
-      oneComingDlgAlone (dlg, epoch) =
-          case toWalletDelegationStatus dlg of
-              W.NotDelegating ->
-                  W.WalletDelegation W.NotDelegating []
-              delegating ->
-                  W.WalletDelegation W.NotDelegating
-                  [W.WalletDelegationNext delegating epoch]
-      comparePools
-          :: W.PoolId
-          -> W.PoolId
-          -> W.EpochNo
-          -> W.WalletDelegation
-      comparePools poolActive poolNext epochNext =
-          if poolActive == poolNext then
-              W.WalletDelegation (W.Delegating poolActive) []
-          else
-              W.WalletDelegation (W.Delegating poolActive)
-              [W.WalletDelegationNext (W.Delegating poolNext) epochNext]
-
+toWalletDelegationStatus = \case
+    DelegationCertificate _ _ Nothing ->
+        W.NotDelegating
+    DelegationCertificate _ _ (Just pool) ->
+        W.Delegating pool
 
 mkWalletEntity :: W.WalletId -> W.WalletMetadata -> Wallet
 mkWalletEntity wid meta = Wallet

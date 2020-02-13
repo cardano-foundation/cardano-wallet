@@ -364,8 +364,8 @@ instance Buildable WalletDelegationStatus where
             "delegating to " <> build poolId
 
 data WalletDelegationNext = WalletDelegationNext
-    { status :: !WalletDelegationStatus
-    , changesAt :: !EpochNo
+    { changesAt :: !EpochNo
+    , status :: !WalletDelegationStatus
     } deriving (Eq, Generic, Show)
 instance NFData WalletDelegationNext
 
