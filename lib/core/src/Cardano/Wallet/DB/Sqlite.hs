@@ -574,7 +574,7 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
 
 readWalletMetadata
     :: W.WalletId
-    -> W.WalletDelegation W.PoolId
+    -> W.WalletDelegation
     -> SqlPersistT IO (Maybe W.WalletMetadata)
 readWalletMetadata wid walDel =
      fmap (metadataFromEntity walDel . entityVal)
@@ -713,7 +713,7 @@ determineWalletDelegation wid dlgMaybe (W.EpochNo currentEpoch) =
 
 toWalletDelegationStatus
     :: DelegationCertificate
-    -> W.WalletDelegationStatus W.PoolId
+    -> W.WalletDelegationStatus
 toWalletDelegationStatus (DelegationCertificate _ _ Nothing) =
     W.NotDelegating
 toWalletDelegationStatus (DelegationCertificate _ _ (Just pool)) =
@@ -723,7 +723,7 @@ delegationFromCerts
     :: Maybe DelegationCertificate
     -> Maybe (DelegationCertificate, W.EpochNo)
     -> Maybe (DelegationCertificate, W.EpochNo)
-    -> W.WalletDelegation W.PoolId
+    -> W.WalletDelegation
 delegationFromCerts older interim latest = case (older,interim,latest) of
     (Just dlg, Nothing, Nothing) ->
         W.WalletDelegation (toWalletDelegationStatus dlg) []
@@ -772,7 +772,7 @@ delegationFromCerts older interim latest = case (older,interim,latest) of
       twoJustDlgs
           :: (DelegationCertificate, W.EpochNo)
           -> (DelegationCertificate, W.EpochNo)
-          -> W.WalletDelegation W.PoolId
+          -> W.WalletDelegation
       twoJustDlgs (dlg1, epoch1) (dlg2, epoch2) =
           case (toWalletDelegationStatus dlg1, toWalletDelegationStatus dlg2) of
               (W.NotDelegating, W.NotDelegating) ->
@@ -790,7 +790,7 @@ delegationFromCerts older interim latest = case (older,interim,latest) of
       oneComingDlg
           :: DelegationCertificate
           -> (DelegationCertificate, W.EpochNo)
-          -> W.WalletDelegation W.PoolId
+          -> W.WalletDelegation
       oneComingDlg dlg1 (dlg2, epoch) =
           case (toWalletDelegationStatus dlg1, toWalletDelegationStatus dlg2) of
               (W.NotDelegating, W.NotDelegating) ->
@@ -802,7 +802,7 @@ delegationFromCerts older interim latest = case (older,interim,latest) of
                   [W.WalletDelegationNext (toWalletDelegationStatus dlg2) epoch]
       oneComingDlgAlone
           :: (DelegationCertificate, W.EpochNo)
-          -> W.WalletDelegation W.PoolId
+          -> W.WalletDelegation
       oneComingDlgAlone (dlg, epoch) =
           case toWalletDelegationStatus dlg of
               W.NotDelegating ->
@@ -814,7 +814,7 @@ delegationFromCerts older interim latest = case (older,interim,latest) of
           :: W.PoolId
           -> W.PoolId
           -> W.EpochNo
-          -> W.WalletDelegation W.PoolId
+          -> W.WalletDelegation
       comparePools poolActive poolNext epochNext =
           if poolActive == poolNext then
               W.WalletDelegation (W.Delegating poolActive) []
@@ -848,7 +848,7 @@ blockHeaderFromEntity cp = W.BlockHeader
     , parentHeaderHash = getBlockId (checkpointParentHash cp)
     }
 
-metadataFromEntity :: W.WalletDelegation W.PoolId -> Wallet -> W.WalletMetadata
+metadataFromEntity :: W.WalletDelegation -> Wallet -> W.WalletMetadata
 metadataFromEntity walDelegation wal = W.WalletMetadata
     { name = W.WalletName (walName wal)
     , creationTime = walCreationTime wal

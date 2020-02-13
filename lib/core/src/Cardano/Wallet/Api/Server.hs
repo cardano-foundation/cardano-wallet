@@ -695,7 +695,7 @@ mkShelleyWallet ctx wid cp meta pending progress = do
             , total = Quantity $ totalBalance pending cp
             , reward = Quantity $ fromIntegral $ getQuantity reward
             }
-        , delegation = toApiDlg (meta ^. #delegation)
+        , delegation = toApiWalletDelegation (meta ^. #delegation)
         , id = ApiT wid
         , name = ApiT $ meta ^. #name
         , passphrase = ApiT <$> meta ^. #passphraseInfo
@@ -706,31 +706,29 @@ mkShelleyWallet ctx wid cp meta pending progress = do
     liftE = throwE . ErrFetchRewardsNoSuchWallet
     (_, bp, _) = ctx ^. genesisData
     sp = W.slotParams bp
-    toApiDlgStatus (W.Delegating poolId) =
-        ApiWalletDelegationStatus $ ApiT $ W.Delegating $ ApiT poolId
-    toApiDlgStatus W.NotDelegating =
-        ApiWalletDelegationStatus $ ApiT W.NotDelegating
-    toApiDlg (W.WalletDelegation st []) =
-        ApiWalletDelegation (toApiDlgStatus st) []
-    toApiDlg (W.WalletDelegation st [W.WalletDelegationNext stNext ep]) =
-        ApiWalletDelegation (toApiDlgStatus st)
-        [ ApiWalletDelegationNext
-            (toApiDlgStatus stNext)
-            (ApiEpochInfo (ApiT ep) (W.epochStartTime sp ep))
-        ]
-    toApiDlg (W.WalletDelegation st
-              [ W.WalletDelegationNext stNext1 ep1
-              , W.WalletDelegationNext stNext2 ep2]) =
-        ApiWalletDelegation (toApiDlgStatus st)
-        [ ApiWalletDelegationNext
-            (toApiDlgStatus stNext1)
-            (ApiEpochInfo (ApiT ep1) (W.epochStartTime sp ep1))
-        , ApiWalletDelegationNext
-            (toApiDlgStatus stNext2)
-            (ApiEpochInfo (ApiT ep2) (W.epochStartTime sp ep2))
-        ]
-    toApiDlg (W.WalletDelegation st _) =
-        ApiWalletDelegation (toApiDlgStatus st) []
+
+    toApiWalletDelegation W.WalletDelegation{active,next} =
+        ApiWalletDelegation
+            { active = toApiWalletDelegationNext Nothing active
+            , next = flip map next $ \W.WalletDelegationNext{status,changesAt} ->
+                toApiWalletDelegationNext (Just changesAt) status
+            }
+
+    toApiWalletDelegationNext mepoch = \case
+        W.Delegating pid -> ApiWalletDelegationNext
+            { status = Delegating
+            , target = Just (ApiT pid)
+            , changesAt = toApiEpochInfo <$> mepoch
+            }
+
+        W.NotDelegating -> ApiWalletDelegationNext
+            { status = NotDelegating
+            , target = Nothing
+            , changesAt = toApiEpochInfo <$> mepoch
+            }
+
+    toApiEpochInfo ep =
+        ApiEpochInfo (ApiT ep) (W.epochStartTime sp ep)
 
 --------------------- Legacy
 

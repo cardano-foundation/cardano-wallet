@@ -13,13 +13,7 @@ import Prelude
 import Cardano.CLI
     ( Port )
 import Cardano.Wallet.Api.Types
-    ( ApiTransaction
-    , ApiUtxoStatistics
-    , ApiWallet
-    , encodeAddress
-    , getApiT
-    , notDelegating
-    )
+    ( ApiTransaction, ApiUtxoStatistics, ApiWallet, encodeAddress, getApiT )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..)
     , PassphraseMaxLength (..)
@@ -71,6 +65,7 @@ import Test.Integration.Framework.DSL
     , getWalletViaCLI
     , listAddresses
     , listWalletsViaCLI
+    , notDelegating
     , postTransactionViaCLI
     , updateWalletNameViaCLI
     , updateWalletPassphraseViaCLI
@@ -163,7 +158,7 @@ spec = do
             , expectCliField (#balance . #getApiT . #available) (`shouldBe` Quantity 0)
             , expectCliField (#balance . #getApiT . #total) (`shouldBe` Quantity 0)
             , expectCliField (#balance . #getApiT . #reward) (`shouldBe` Quantity 0)
-            , expectCliField #delegation (`shouldBe` notDelegating)
+            , expectCliField #delegation (`shouldBe` notDelegating [])
             , expectCliField #passphrase (`shouldNotBe` Nothing)
             ]
 
@@ -430,7 +425,7 @@ spec = do
                     (#balance . #getApiT . #total) (`shouldBe` Quantity 0)
             , expectCliField
                     (#balance . #getApiT . #reward) (`shouldBe` Quantity 0)
-            , expectCliField #delegation (`shouldBe` notDelegating)
+            , expectCliField #delegation (`shouldBe` notDelegating [])
             , expectCliField #passphrase (`shouldNotBe` Nothing)
             ]
 
@@ -469,7 +464,7 @@ spec = do
                     (#balance . #getApiT . #total) (`shouldBe` Quantity 0)
             , expectCliListField 0
                     (#balance . #getApiT . #reward) (`shouldBe` Quantity 0)
-            , expectCliListField 0 #delegation (`shouldBe` notDelegating)
+            , expectCliListField 0 #delegation (`shouldBe` notDelegating [])
             , expectCliListField 0 walletId (`shouldBe` T.pack w1)
             ]
 

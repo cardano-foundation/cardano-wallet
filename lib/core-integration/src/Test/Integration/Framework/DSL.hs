@@ -86,6 +86,11 @@ module Test.Integration.Framework.DSL
     , withMethod
     , withPathParam
 
+    -- * Delegation helpers
+    , mkEpochInfo
+    , notDelegating
+    , delegating
+
     -- * CLI
     , command
     , cardanoWalletCLI
@@ -113,6 +118,7 @@ import Cardano.Wallet.Api.Types
     , ApiAddress
     , ApiByronWallet
     , ApiCoinSelection
+    , ApiEpochInfo (..)
     , ApiFee
     , ApiNetworkInformation
     , ApiNetworkParameters (..)
@@ -120,6 +126,9 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiUtxoStatistics (..)
     , ApiWallet
+    , ApiWalletDelegation (..)
+    , ApiWalletDelegationNext (..)
+    , ApiWalletDelegationStatus (..)
     , ByronWalletStyle (..)
     , Iso8601Time (..)
     , WalletStyle (..)
@@ -131,9 +140,11 @@ import Cardano.Wallet.Primitive.Mnemonic
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
+    , EpochNo
     , Hash (..)
     , HistogramBar (..)
     , PoolId (..)
+    , SlotParameters
     , SortOrder (..)
     , StartTime (..)
     , TxIn (..)
@@ -238,6 +249,7 @@ import Web.HttpApiData
     ( ToHttpApiData (..) )
 
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
@@ -1188,3 +1200,43 @@ groupsOf n xs = take n xs : groupsOf n (drop n xs)
 -- | 'map' flipped.
 for :: [a] -> (a -> b) -> [b]
 for = flip map
+
+--
+-- Helper for delegation statuses
+--
+
+-- | Handy constructor for ApiEpochInfo
+mkEpochInfo
+    :: EpochNo
+    -- ^ Epoch to construct
+    -> SlotParameters
+    -- ^ Blockchain slot parameters
+    -> ApiEpochInfo
+mkEpochInfo epochNo sp = ApiEpochInfo
+    { epochNumber = ApiT epochNo
+    , epochStartTime = W.epochStartTime sp epochNo
+    }
+
+-- | Wallet not delegating and not about to join any stake pool.
+notDelegating
+    :: [(Maybe (ApiT PoolId), ApiEpochInfo)]
+    -- ^ Pools to be joined & epoch at which the new delegation will become active
+    -> ApiWalletDelegation
+notDelegating nexts = ApiWalletDelegation
+    { active = ApiWalletDelegationNext NotDelegating Nothing Nothing
+    , next = flip map nexts $ \(mpid, epochInfo) -> case mpid of
+        Nothing ->
+            ApiWalletDelegationNext NotDelegating Nothing (Just epochInfo)
+        Just pid ->
+            ApiWalletDelegationNext Delegating (Just pid) (Just epochInfo)
+    }
+
+delegating
+    :: ApiT PoolId
+    -- ^ Pool joined
+    -> [(Maybe (ApiT PoolId), ApiEpochInfo)]
+    -- ^ Pools to be joined & epoch at which the new delegation will become active
+    -> ApiWalletDelegation
+delegating pidActive nexts = (notDelegating nexts)
+    { active = ApiWalletDelegationNext Delegating (Just pidActive) Nothing
+    }

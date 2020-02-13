@@ -86,14 +86,6 @@ module Cardano.Wallet.Api.Types
     , ApiT (..)
     , ApiMnemonicT (..)
     , getApiMnemonicT
-
-    -- * Delegation status helpers
-    , notDelegating
-    , notDelegatingAboutToJoin
-    , notDelegatingAboutToJoinTwo
-    , delegating
-    , delegatingAboutToQuit
-    , delegatingAboutToRejoin
     ) where
 
 import Prelude
@@ -127,13 +119,11 @@ import Cardano.Wallet.Primitive.Types
     , ShowFmt (..)
     , SlotLength (..)
     , SlotNo (..)
-    , SlotParameters
     , StartTime (..)
     , SyncProgress (..)
     , TxIn (..)
     , TxStatus (..)
     , WalletBalance (..)
-    , WalletDelegationStatus (..)
     , WalletId (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
@@ -164,7 +154,6 @@ import Data.Aeson
     , tagSingleConstructors
     , withObject
     , (.:)
-    , (.:?)
     , (.=)
     )
 import Data.Bifunctor
@@ -203,8 +192,6 @@ import Data.Word.Odd
     ( Word31 )
 import Fmt
     ( pretty )
-import GHC.Exts
-    ( fromList )
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
@@ -216,7 +203,6 @@ import Servant.API
 import Web.HttpApiData
     ( FromHttpApiData (..), ToHttpApiData (..) )
 
-import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.Aeson as Aeson
@@ -293,19 +279,21 @@ data ApiWallet = ApiWallet
     , tip :: !ApiBlockReference
     } deriving (Eq, Generic, Show)
 
-newtype ApiWalletDelegationStatus = ApiWalletDelegationStatus
-    { status :: ApiT (WalletDelegationStatus (ApiT PoolId))
+data ApiWalletDelegation = ApiWalletDelegation
+    { active :: !ApiWalletDelegationNext
+    , next :: ![ApiWalletDelegationNext]
     } deriving (Eq, Generic, Show)
 
 data ApiWalletDelegationNext = ApiWalletDelegationNext
     { status :: !ApiWalletDelegationStatus
-    , changesAt :: !ApiEpochInfo
+    , target :: !(Maybe (ApiT PoolId))
+    , changesAt :: !(Maybe ApiEpochInfo)
     } deriving (Eq, Generic, Show)
 
-data ApiWalletDelegation = ApiWalletDelegation
-    { active :: !ApiWalletDelegationStatus
-    , next :: ![ApiWalletDelegationNext]
-    } deriving (Eq, Generic, Show)
+data ApiWalletDelegationStatus
+    = NotDelegating
+    | Delegating
+    deriving (Eq, Generic, Show)
 
 newtype ApiWalletPassphrase = ApiWalletPassphrase
     { passphrase :: ApiT (Passphrase "encryption")
@@ -715,10 +703,10 @@ instance FromJSON (ApiT PoolId) where
 instance ToJSON (ApiT PoolId) where
     toJSON = toJSON . toText . getApiT
 
-instance FromJSON (ApiT (WalletDelegationStatus (ApiT PoolId))) where
-    parseJSON = fmap ApiT . genericParseJSON walletDelegationOptions
-instance ToJSON (ApiT (WalletDelegationStatus (ApiT PoolId))) where
-    toJSON = genericToJSON walletDelegationOptions . getApiT
+instance FromJSON ApiWalletDelegationStatus where
+    parseJSON = genericParseJSON defaultSumTypeOptions
+instance ToJSON ApiWalletDelegationStatus where
+    toJSON = genericToJSON defaultSumTypeOptions
 
 instance FromJSON ApiWalletDelegation where
     parseJSON = genericParseJSON defaultRecordTypeOptions
@@ -726,33 +714,9 @@ instance ToJSON ApiWalletDelegation where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiWalletDelegationNext where
-    parseJSON = withObject "apiWalletDelegationNext" $ \o -> do
-        st <- o .: "status"
-        t  <- o .:? "target"
-        chAt <- o .: "changes_at"
-        case (t, st) of
-            (Just pId, Aeson.String "delegating") ->
-                pure $ ApiWalletDelegationNext
-                (ApiWalletDelegationStatus $ ApiT $ Delegating pId) chAt
-            (Nothing, Aeson.String "not_delegating") ->
-                pure $ ApiWalletDelegationNext
-                (ApiWalletDelegationStatus $ ApiT NotDelegating) chAt
-            _ ->
-                fail "Parse error of ApiWalletDelegationNext. Expecting either \
-                     \delegating status and target or non-delegating status \
-                     \without target"
+    parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiWalletDelegationNext where
-    toJSON (ApiWalletDelegationNext (ApiWalletDelegationStatus st) chAt) = do
-        let a = fromValue $ toJSON st
-        Object $ a <> fromList ["changes_at" .= chAt]
-      where
-        fromValue (Object o) = o
-        fromValue _ = mempty
-
-instance FromJSON ApiWalletDelegationStatus where
-    parseJSON = fmap ApiWalletDelegationStatus . parseJSON
-instance ToJSON ApiWalletDelegationStatus where
-    toJSON (ApiWalletDelegationStatus st) = toJSON st
+    toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiStakePool where
     parseJSON = genericParseJSON defaultRecordTypeOptions
@@ -913,21 +877,6 @@ instance ToJSON ApiNetworkParameters where
 
 instance ToJSON ApiErrorCode where
     toJSON = genericToJSON defaultSumTypeOptions
-
--- | Options for encoding wallet delegation settings. It can be serialized to
--- and from JSON as follows:
---
--- >>> Aeson.encode NotDelegating
--- {"status":"not_delegating"}
---
--- >>> Aeson.encode $ Delegating poolId
--- {"status":"delegating","target": "27522fe5-262e-42a5-8ccb-cef884ea2ba0"}
-walletDelegationOptions :: Aeson.Options
-walletDelegationOptions = taggedSumTypeOptions defaultSumTypeOptions $
-    TaggedObjectOptions
-        { _tagFieldName = "status"
-        , _contentsFieldName = "target"
-        }
 
 -- | Options for encoding synchronization progress. It can be serialized to
 -- and from JSON as follows:
@@ -1118,104 +1067,3 @@ gDecodeAddress decodeShelley text =
     tryBech32 = do
         (_, dp) <- either (const Nothing) Just (Bech32.decodeLenient text)
         dataPartToBytes dp
-
--- | Wallet not delegating and not about to join any stake pool.
-notDelegating :: ApiWalletDelegation
-notDelegating =
-    ApiWalletDelegation (ApiWalletDelegationStatus $ ApiT NotDelegating) []
-
--- | Wallet not delegating and joined the stake pool. The delegation will be
---  effective as specified by epoch info.
-notDelegatingAboutToJoin
-    :: ApiT PoolId
-    -- ^ Pool to be joined
-    -> EpochNo
-    -- ^ Epoch of discovered delegation certificate
-    -> SlotParameters
-    -> ApiWalletDelegation
-notDelegatingAboutToJoin pId epochNo sp =
-    ApiWalletDelegation
-    (ApiWalletDelegationStatus $ ApiT NotDelegating)
-    [ ApiWalletDelegationNext
-      ( ApiWalletDelegationStatus $ ApiT $ Delegating pId)
-      ( ApiEpochInfo
-          (ApiT $ epochNo + 2) (W.epochStartTime sp (epochNo + 2))
-      )
-    ]
-
--- | Wallet delegating to a given stake pool.
-delegating
-    :: ApiT PoolId
-    -- ^ Pool joined
-    -> ApiWalletDelegation
-delegating pId =
-    ApiWalletDelegation
-    (ApiWalletDelegationStatus $ ApiT $ Delegating pId)
-    []
-
--- | Wallet delegating to a given stake pool and quitted the stake pool.
--- The quitting will be effective as specified by epoch info.
-delegatingAboutToQuit
-    :: ApiT PoolId
-    -- ^ Pool joined
-    -> EpochNo
-    -- ^ Epoch of discovered delegation certificate
-    -> SlotParameters
-    -> ApiWalletDelegation
-delegatingAboutToQuit pId epochNo sp =
-    ApiWalletDelegation
-    (ApiWalletDelegationStatus $ ApiT $ Delegating pId)
-    [ ApiWalletDelegationNext
-        ( ApiWalletDelegationStatus $ ApiT NotDelegating)
-        ( ApiEpochInfo
-            (ApiT $ epochNo + 2) (W.epochStartTime sp (epochNo + 2))
-        )
-    ]
-
--- | Wallet delegating to a given stake pool, and joined another stake pool.
--- The delegation to another stake pool will be effective as specified
--- by epoch info.
-delegatingAboutToRejoin
-    :: ApiT PoolId
-    -- ^ Pool joined
-    -> ApiT PoolId
-    -- ^ Pool to be joined
-    -> EpochNo
-    -- ^ Epoch of discovered delegation certificate
-    -> SlotParameters
-    -> ApiWalletDelegation
-delegatingAboutToRejoin pId1 pId2 epochNo sp =
-    ApiWalletDelegation
-    (ApiWalletDelegationStatus $ ApiT $ Delegating pId1)
-    [ ApiWalletDelegationNext
-        ( ApiWalletDelegationStatus $ ApiT $ Delegating pId2)
-        ( ApiEpochInfo
-            (ApiT $ epochNo + 2) (W.epochStartTime sp (epochNo + 2))
-        )
-    ]
-
--- | Wallet not delegating and joined two different stake pools at different epochs.
--- The delegation will be effective as specified by epoch info.
-notDelegatingAboutToJoinTwo
-    :: ApiT PoolId
-    -- ^ First pool to be joined
-    -> ApiT PoolId
-    -- ^ Second pool to be joined
-    -> EpochNo
-    -- ^ Epoch of discovered delegation certificate
-    -> SlotParameters
-    -> ApiWalletDelegation
-notDelegatingAboutToJoinTwo pId1 pId2 epochNo sp =
-    ApiWalletDelegation
-    (ApiWalletDelegationStatus $ ApiT NotDelegating)
-    [ ApiWalletDelegationNext
-      ( ApiWalletDelegationStatus $ ApiT $ Delegating pId1)
-      ( ApiEpochInfo
-          (ApiT $ epochNo + 1) (W.epochStartTime sp (epochNo + 1))
-      )
-    , ApiWalletDelegationNext
-      ( ApiWalletDelegationStatus $ ApiT $ Delegating pId2)
-      ( ApiEpochInfo
-          (ApiT $ epochNo + 2) (W.epochStartTime sp (epochNo + 2))
-      )
-    ]

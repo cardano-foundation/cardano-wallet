@@ -25,7 +25,6 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , ApiWallet
     , WalletStyle (..)
-    , notDelegating
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..)
@@ -83,6 +82,7 @@ import Test.Integration.Framework.DSL
     , getFromResponse
     , json
     , listAddresses
+    , notDelegating
     , request
     , selectCoins
     , unsafeRequest
@@ -160,7 +160,7 @@ spec = do
             , expectField (#balance . #getApiT . #total) (`shouldBe` Quantity 0)
             , expectField (#balance . #getApiT . #reward) (`shouldBe` Quantity 0)
 
-            , expectField #delegation (`shouldBe` notDelegating)
+            , expectField #delegation (`shouldBe` notDelegating [])
             , expectField
                     walletId (`shouldBe` "2cf060fe53e4e0593f145f22b858dfc60676d4ab")
             , expectField #passphrase (`shouldNotBe` Nothing)
@@ -205,7 +205,7 @@ spec = do
                     (#balance . #getApiT . #total) (`shouldBe` Quantity 0)
                 , expectField
                     (#balance . #getApiT . #reward) (`shouldBe` Quantity 0)
-                , expectField #delegation (`shouldBe` notDelegating)
+                , expectField #delegation (`shouldBe` notDelegating [])
                 , expectField walletId
                     (`shouldBe` "135bfb99b9f7a0c702bf8c658cc0d9b1a0d797a2")
                 , expectField #passphrase (`shouldNotBe` Nothing)
@@ -971,7 +971,7 @@ spec = do
                 , expectField
                         (#balance . #getApiT . #reward) (`shouldBe` Quantity 0)
                 , expectField (#state . #getApiT) (`shouldBe` Ready)
-                , expectField #delegation (`shouldBe` notDelegating)
+                , expectField #delegation (`shouldBe` notDelegating [])
                 , expectField walletId (`shouldBe` w ^. walletId)
                 , expectField #passphrase (`shouldNotBe` Nothing)
                 ]
@@ -1045,7 +1045,7 @@ spec = do
                     (#balance . #getApiT . #total) (`shouldBe` Quantity 0)
             , expectListField 0
                     (#balance . #getApiT . #reward) (`shouldBe` Quantity 0)
-            , expectListField 0 #delegation (`shouldBe` notDelegating)
+            , expectListField 0 #delegation (`shouldBe` notDelegating [])
             , expectListField 0 walletId
                     (`shouldBe` "dfe87fcf0560fb57937a6468ea51e860672fad79")
             ]
@@ -1126,7 +1126,7 @@ spec = do
                     , expectField
                             (#balance . #getApiT . #total) (`shouldBe` Quantity 0)
                     , expectField (#state . #getApiT) (`shouldBe` Ready)
-                    , expectField #delegation (`shouldBe` notDelegating)
+                    , expectField #delegation (`shouldBe` notDelegating [])
                     , expectField walletId (`shouldBe` walId)
                     , expectField #passphrase (`shouldBe` passLastUpdateValue)
                     ]
@@ -1150,7 +1150,7 @@ spec = do
                 , expectListField 0
                         (#balance . #getApiT . #total) (`shouldBe` Quantity 0)
                 , expectListField 0 (#state . #getApiT) (`shouldBe` Ready)
-                , expectListField 0 #delegation (`shouldBe` notDelegating)
+                , expectListField 0 #delegation (`shouldBe` notDelegating [])
                 , expectListField 0 walletId (`shouldBe` walId)
                 , expectListField 0 #passphrase (`shouldBe` passLastUpdateValue)
                 ]

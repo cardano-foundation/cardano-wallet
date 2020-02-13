@@ -1,40 +1,15 @@
 {
-    "seed": 2931902161730946851,
+    "seed": 7376129771688995779,
     "samples": [
-        {
-            "status": "not_delegating"
-        },
-        {
-            "status": "delegating",
-            "target": "8b5b4f6a1a62e5a21e1e9fc03c32016352a522ed51fe3186314db93225095357"
-        },
-        {
-            "status": "not_delegating"
-        },
-        {
-            "status": "delegating",
-            "target": "65bc600d52a78f23ec4d94125f8b0e7a6393516bf004ac1daa2fab0c7f8d6f10"
-        },
-        {
-            "status": "delegating",
-            "target": "bf0a7a2055cd9af281431f72d096db828e84fdd505a85114c14e10d527192332"
-        },
-        {
-            "status": "not_delegating"
-        },
-        {
-            "status": "not_delegating"
-        },
-        {
-            "status": "not_delegating"
-        },
-        {
-            "status": "delegating",
-            "target": "a63daa9ef1e5dff47dcd794e0aef08d69d045ea9d246b652a8d82a0247aba12c"
-        },
-        {
-            "status": "delegating",
-            "target": "ea65efb11f39e14b7d057a5187d71910143b772532e0b882c171b90c0eb483ca"
-        }
+        "delegating",
+        "delegating",
+        "delegating",
+        "not_delegating",
+        "not_delegating",
+        "not_delegating",
+        "delegating",
+        "delegating",
+        "delegating",
+        "delegating"
     ]
 }

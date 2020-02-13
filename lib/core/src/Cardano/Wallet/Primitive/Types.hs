@@ -283,7 +283,7 @@ data WalletMetadata = WalletMetadata
     , passphraseInfo
         :: !(Maybe WalletPassphraseInfo)
     , delegation
-        :: !(WalletDelegation PoolId)
+        :: !WalletDelegation
     } deriving (Eq, Show, Generic)
 
 instance NFData WalletMetadata
@@ -350,37 +350,36 @@ instance Buildable WalletId where
       where
         widF = toText wid
 
-data WalletDelegationStatus poolId
+data WalletDelegationStatus
     = NotDelegating
-    | Delegating !poolId
+    | Delegating !PoolId
     deriving (Generic, Eq, Show)
-deriving instance Functor WalletDelegationStatus
-instance NFData poolId => NFData (WalletDelegationStatus poolId)
+instance NFData WalletDelegationStatus
 
-instance Buildable poolId => Buildable (WalletDelegationStatus poolId) where
+instance Buildable WalletDelegationStatus where
     build = \case
         NotDelegating ->
             "not delegating"
         Delegating poolId ->
             "delegating to " <> build poolId
 
-data WalletDelegationNext poolId = WalletDelegationNext
-    { status :: !(WalletDelegationStatus poolId)
+data WalletDelegationNext = WalletDelegationNext
+    { status :: !WalletDelegationStatus
     , changesAt :: !EpochNo
     } deriving (Eq, Generic, Show)
-instance NFData poolId => NFData (WalletDelegationNext poolId)
+instance NFData WalletDelegationNext
 
-instance Buildable poolId => Buildable (WalletDelegationNext poolId) where
+instance Buildable WalletDelegationNext where
     build (WalletDelegationNext st epoch) =
         build st <> " which is expected to happen at epoch number " <> build epoch
 
-data WalletDelegation poolId = WalletDelegation
-    { active :: !(WalletDelegationStatus poolId)
-    , next :: ![WalletDelegationNext poolId]
+data WalletDelegation = WalletDelegation
+    { active :: !WalletDelegationStatus
+    , next :: ![WalletDelegationNext]
     } deriving (Eq, Generic, Show)
-instance NFData poolId => NFData (WalletDelegation poolId)
+instance NFData WalletDelegation
 
-instance Buildable poolId => Buildable (WalletDelegation poolId) where
+instance Buildable WalletDelegation where
     build (WalletDelegation act []) =
         "current wallet delegation: " <> build act <> ", awaiting no change"
     build (WalletDelegation act [n]) =
@@ -392,8 +391,8 @@ instance Buildable poolId => Buildable (WalletDelegation poolId) where
         "current wallet delegation: " <> build act <>
         ", something wrong with awaiting"
 
-class IsDelegatingTo (f :: * -> *) where
-    isDelegatingTo :: Eq poolId => poolId -> f poolId -> Bool
+class IsDelegatingTo a where
+    isDelegatingTo :: PoolId -> a -> Bool
 
 instance IsDelegatingTo WalletDelegationStatus where
     isDelegatingTo pid = \case

@@ -1,0 +1,41 @@
+{
+    "seed": 4012871696762347824,
+    "samples": [
+        {
+            "status": "delegating",
+            "target": "03a5981bc2a56d4a22b6cd53ce53535cb49af2b90b0d71e656172e6c00837c66"
+        },
+        {
+            "status": "not_delegating"
+        },
+        {
+            "status": "not_delegating"
+        },
+        {
+            "status": "delegating",
+            "target": "9dc735117d7ef15b4eac8825dd8ce9b8f58bee48d6f81c4ba0cbe9ede7322361"
+        },
+        {
+            "status": "delegating",
+            "target": "e579cc8620b8ff30d299ce7a95c30c62ab31a5d807e184cc7682ba329df655ad"
+        },
+        {
+            "status": "not_delegating"
+        },
+        {
+            "status": "delegating",
+            "target": "9eff6ae81581d8fbe1427151543dfd7688f8ce4134393419118cedee8391f5c5"
+        },
+        {
+            "status": "delegating",
+            "target": "14e32e8afc34bc869cc0e5e3a7c263870405cbe4a53b05745af5bd1d77585d67"
+        },
+        {
+            "status": "delegating",
+            "target": "57e860246ab069e5274b877ebbca1c86db53ad4ee02b40708e1ac42fffe0145f"
+        },
+        {
+            "status": "not_delegating"
+        }
+    ]
+}
