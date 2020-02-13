@@ -1373,12 +1373,6 @@ joinStakePool ctx wid (pid, pools) argGenChange pwd = db & \DBLayer{..} -> do
     walMeta <- mapExceptT atomically $ withExceptT ErrJoinStakePoolNoSuchWallet $
         withNoSuchWallet wid $ readWalletMeta (PrimaryKey wid)
 
-    let checkAlreadyJoined (WalletDelegation (Delegating pid') []) =
-            pid' == pid
-        checkAlreadyJoined (WalletDelegation _ [WalletDelegationNext (Delegating pid') _]) =
-            pid' == pid
-        checkAlreadyJoined _ = False
-
     when (checkAlreadyJoined (walMeta ^. #delegation)) $
         throwE (ErrJoinStakePoolAlreadyDelegating pid)
 
@@ -1397,6 +1391,13 @@ joinStakePool ctx wid (pid, pools) argGenChange pwd = db & \DBLayer{..} -> do
     pure (tx, txMeta, txTime)
   where
     db = ctx ^. dbLayer @s @k
+    checkAlreadyJoined = \case
+        (WalletDelegation (Delegating pid') _) -> pid' == pid
+        (WalletDelegation _ [WalletDelegationNext (Delegating pid') _]) ->
+            pid' == pid
+        (WalletDelegation _ [_, WalletDelegationNext (Delegating pid') _]) ->
+            pid' == pid
+        _ -> False
 
 -- | Helper function to factor necessary logic for quitting a stake pool.
 quitStakePool
@@ -1422,12 +1423,6 @@ quitStakePool ctx wid pid argGenChange pwd = db & \DBLayer{..} -> do
     walMeta <- mapExceptT atomically $ withExceptT ErrQuitStakePoolNoSuchWallet $
         withNoSuchWallet wid $ readWalletMeta (PrimaryKey wid)
 
-    let checkIfJoined (WalletDelegation (Delegating pid') []) =
-            pid' /= pid
-        checkIfJoined (WalletDelegation _ [WalletDelegationNext (Delegating pid') _]) =
-            pid' /= pid
-        checkIfJoined _ = True
-
     when (checkIfJoined (walMeta ^. #delegation)) $
         throwE (ErrQuitStakePoolNotDelegatingTo pid)
 
@@ -1443,6 +1438,13 @@ quitStakePool ctx wid pid argGenChange pwd = db & \DBLayer{..} -> do
     pure (tx, txMeta, txTime)
   where
     db = ctx ^. dbLayer @s @k
+    checkIfJoined = \case
+        (WalletDelegation (Delegating pid') _) -> pid' /= pid
+        (WalletDelegation _ [WalletDelegationNext (Delegating pid') _]) ->
+            pid' /= pid
+        (WalletDelegation _ [_, WalletDelegationNext (Delegating pid') _]) ->
+            pid' /= pid
+        _ -> True
 
 {-------------------------------------------------------------------------------
                                   Key Store

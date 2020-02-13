@@ -187,7 +187,6 @@ import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Database.Sqlite as Sqlite
 
-
 -- | Runs an action with a connection to the SQLite database.
 --
 -- Database migrations are run to create tables if necessary.
@@ -573,11 +572,11 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
 
         })
 
-retrieveWalletMetadata
+readWalletMetadata
     :: W.WalletId
     -> W.WalletDelegation W.PoolId
     -> SqlPersistT IO (Maybe W.WalletMetadata)
-retrieveWalletMetadata wid walDel =
+readWalletMetadata wid walDel =
      fmap (metadataFromEntity walDel . entityVal)
         <$> selectFirst [WalId ==. wid] []
 
@@ -595,21 +594,21 @@ retrieveActiveDlgCert wid (W.EpochNo epoch) dlg epochNoMaybe = case epochNoMaybe
                        [Desc CertSlot]
         case activeMaybe of
             Just active ->
-                retrieveWalletMetadata wid
+                readWalletMetadata wid
                 (delegationFromCerts
                     (Just active)
                     Nothing
                     (Just (dlg, W.EpochNo $ epoch + 2))
                 )
             Nothing ->
-                retrieveWalletMetadata wid
+                readWalletMetadata wid
                 (delegationFromCerts
                     Nothing
                     Nothing
                     (Just (dlg, W.EpochNo $ epoch + 2))
                 )
     Nothing ->
-        retrieveWalletMetadata wid
+        readWalletMetadata wid
         (delegationFromCerts
             Nothing
             Nothing
@@ -637,28 +636,28 @@ retrieveTwoDlgsCert wid (W.EpochNo epoch) dlg epochMaybe = case epochMaybe of
                        [Desc CertSlot]
                 case (activeMaybe, activeSoonMaybe) of
                     (Just active, Just activeSoon) ->
-                        retrieveWalletMetadata wid
+                        readWalletMetadata wid
                         (delegationFromCerts
                          (Just active)
                          (Just (activeSoon, W.EpochNo $ epoch + 1))
                          (Just (dlg, W.EpochNo $ epoch + 2))
                         )
                     (Just active, Nothing) ->
-                        retrieveWalletMetadata wid
+                        readWalletMetadata wid
                         (delegationFromCerts
                          (Just active)
                          Nothing
                          (Just (dlg, W.EpochNo $ epoch + 2))
                         )
                     (Nothing, Just activeSoon) ->
-                        retrieveWalletMetadata wid
+                        readWalletMetadata wid
                         (delegationFromCerts
                          Nothing
                          (Just (activeSoon, W.EpochNo $ epoch + 1))
                          (Just (dlg, W.EpochNo $ epoch + 2))
                         )
                     (Nothing, Nothing) ->
-                        retrieveWalletMetadata wid
+                        readWalletMetadata wid
                         (delegationFromCerts
                          Nothing
                          Nothing
@@ -667,21 +666,21 @@ retrieveTwoDlgsCert wid (W.EpochNo epoch) dlg epochMaybe = case epochMaybe of
             Nothing ->
                 case activeSoonMaybe of
                     Just activeSoon ->
-                        retrieveWalletMetadata wid
+                        readWalletMetadata wid
                         (delegationFromCerts
                          Nothing
                          (Just (activeSoon, W.EpochNo $ epoch + 1))
                          (Just (dlg, W.EpochNo $ epoch + 2))
                         )
                     Nothing ->
-                        retrieveWalletMetadata wid
+                        readWalletMetadata wid
                         (delegationFromCerts
                          Nothing
                          Nothing
                          (Just (dlg, W.EpochNo $ epoch + 2))
                         )
     Nothing ->
-        retrieveWalletMetadata wid
+        readWalletMetadata wid
         (delegationFromCerts
             Nothing
             Nothing
@@ -697,10 +696,10 @@ determineWalletDelegation wid dlgMaybe (W.EpochNo currentEpoch) =
     case dlgMaybe of
         Just dlg@(DelegationCertificate _ (W.SlotId e@(W.EpochNo epoch) _) _)
             | currentEpoch < epoch ->
-                retrieveWalletMetadata wid
+                readWalletMetadata wid
                 (delegationFromCerts Nothing Nothing Nothing)
             | epoch + 1 < currentEpoch ->
-                retrieveWalletMetadata wid
+                readWalletMetadata wid
                 (delegationFromCerts (Just dlg) Nothing Nothing)
             | epoch + 1 == currentEpoch ->
                 retrieveActiveDlgCert wid e dlg
@@ -709,7 +708,7 @@ determineWalletDelegation wid dlgMaybe (W.EpochNo currentEpoch) =
                 retrieveTwoDlgsCert wid e dlg
                 (W.epochPred (W.EpochNo epoch))
         Nothing ->
-            retrieveWalletMetadata wid
+            readWalletMetadata wid
             (delegationFromCerts Nothing Nothing Nothing)
 
 toWalletDelegationStatus

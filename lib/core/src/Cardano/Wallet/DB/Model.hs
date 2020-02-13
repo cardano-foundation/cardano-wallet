@@ -294,49 +294,77 @@ mReadWalletMeta wid db@(Database wallets _) =
     mkMetadata WalletDatabase{checkpoints,certificates,metadata} =
         let recentSlotIdMaybe = fst <$> Map.lookupMax checkpoints
             prevCert e1 = fmap snd $ Map.lookupMax $
-                Map.filterWithKey (\(SlotId (EpochNo e) _) _ -> e <= e1) certificates
-
+                Map.filterWithKey (\(SlotId (EpochNo e) _) _ -> e <= e1)
+                certificates
         in case (recentSlotIdMaybe, Map.lookupMax certificates) of
             (Just (SlotId (EpochNo e) _), Just (SlotId (EpochNo e1) _, Nothing))
                | e < e1 ->
-                    metadata { delegation = WalletDelegation NotDelegating []}
+                    metadata { delegation = WalletDelegation NotDelegating [] }
                | e1 + 1 < e ->
-                    metadata { delegation = WalletDelegation NotDelegating []}
+                    metadata { delegation = WalletDelegation NotDelegating [] }
                | e1 + 1 == e ->
                     case prevCert (e1-1) of
                         Just (Just pool) ->
-                            metadata { delegation = WalletDelegation (Delegating pool) [W.WalletDelegationNext NotDelegating (EpochNo $ e1 + 2)]}
+                            metadata { delegation =
+                                       WalletDelegation (Delegating pool)
+                                       [ W.WalletDelegationNext
+                                         NotDelegating (EpochNo $ e1 + 2)]
+                                     }
                         _ ->
-                            metadata { delegation = WalletDelegation NotDelegating []}
+                            metadata { delegation = WalletDelegation NotDelegating [] }
                | e1 == 0 || e1 == 1 ->
-                     metadata { delegation = WalletDelegation NotDelegating []}
+                     metadata { delegation = WalletDelegation NotDelegating [] }
                | otherwise ->
                      case prevCert (e1-2) of
                          Just (Just pool) ->
-                             metadata { delegation = WalletDelegation (Delegating pool) [W.WalletDelegationNext NotDelegating (EpochNo $ e1 + 2)]}
+                             metadata { delegation =
+                                        WalletDelegation (Delegating pool)
+                                        [ W.WalletDelegationNext
+                                          NotDelegating (EpochNo $ e1 + 2)]
+                                      }
                          _ ->
-                             metadata { delegation = WalletDelegation NotDelegating []}
+                             metadata { delegation = WalletDelegation NotDelegating [] }
             (Just (SlotId (EpochNo e) _), Just (SlotId (EpochNo e1) _, Just pool))
                 | e < e1 ->
-                    metadata { delegation = WalletDelegation NotDelegating []}
+                    metadata { delegation = WalletDelegation NotDelegating [] }
                 | e1 + 1 < e ->
-                    metadata { delegation = WalletDelegation (Delegating pool) []}
+                    metadata { delegation = WalletDelegation (Delegating pool) [] }
                 | e1 + 1 == e ->
                     case prevCert (e1-1) of
                         Just (Just pool1) ->
-                            metadata { delegation = WalletDelegation (Delegating pool1) [W.WalletDelegationNext (Delegating pool) (EpochNo $ e1 + 2)]}
+                            metadata { delegation =
+                                       WalletDelegation (Delegating pool1)
+                                       [ W.WalletDelegationNext
+                                         (Delegating pool) (EpochNo $ e1 + 2)]
+                                     }
                         _ ->
-                            metadata { delegation = WalletDelegation NotDelegating [W.WalletDelegationNext (Delegating pool) (EpochNo $ e1 + 2)]}
+                            metadata { delegation =
+                                       WalletDelegation NotDelegating
+                                       [ W.WalletDelegationNext
+                                         (Delegating pool) (EpochNo $ e1 + 2)]
+                                     }
                | e1 == 0 || e1 == 1 ->
-                     metadata { delegation = WalletDelegation NotDelegating [W.WalletDelegationNext (Delegating pool) (EpochNo $ e1 + 2)]}
+                     metadata { delegation =
+                                WalletDelegation NotDelegating
+                                [ W.WalletDelegationNext
+                                  (Delegating pool) (EpochNo $ e1 + 2)]
+                              }
                | otherwise ->
                      case prevCert (e1-2) of
                          Just (Just pool1) ->
-                             metadata { delegation = WalletDelegation (Delegating pool1) [W.WalletDelegationNext (Delegating pool) (EpochNo $ e1 + 2)]}
+                             metadata { delegation =
+                                        WalletDelegation (Delegating pool1)
+                                        [ W.WalletDelegationNext
+                                          (Delegating pool) (EpochNo $ e1 + 2)]
+                                      }
                          _ ->
-                             metadata { delegation = WalletDelegation NotDelegating [W.WalletDelegationNext (Delegating pool) (EpochNo $ e1 + 2)]}
+                             metadata { delegation =
+                                        WalletDelegation NotDelegating
+                                        [ W.WalletDelegationNext
+                                          (Delegating pool) (EpochNo $ e1 + 2)]
+                                      }
             _ ->
-                metadata { delegation = WalletDelegation NotDelegating []}
+                metadata { delegation = WalletDelegation NotDelegating [] }
 
 
 mPutDelegationCertificate
