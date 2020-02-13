@@ -57,21 +57,6 @@ let
     musl64 = mapTestOnCross musl64 (packagePlatformsCross project);
   }
   // {
-    # This aggregate job is what IOHK Hydra uses to update
-    # the CI status in GitHub.
-    required = mkRequiredJob (
-      collectTests jobs.native.tests ++
-      collectTests jobs.native.benchmarks ++
-      [ jobs.native.cardano-wallet-jormungandr.x86_64-linux
-        jobs.native.cardano-wallet-jormungandr.x86_64-darwin
-        jobs.x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-linux
-        jobs.native.shell.x86_64-linux
-        jobs.native.shell.x86_64-darwin
-        jobs.cardano-wallet-jormungandr-win64
-        jobs.cardano-wallet-jormungandr-macos64
-        jobs.cardano-wallet-jormungandr-tests-win64
-      ]
-    );
 
     # These derivations are used for the Daedalus installer.
     daedalus-jormungandr = with jobs; {
@@ -140,6 +125,21 @@ let
   # are cached.
   // mapTestOn (packagePlatforms {
     inherit (project) shell stackShell;
-  });
+  })
+    # This aggregate job is what IOHK Hydra uses to update
+    # the CI status in GitHub.
+  // mkRequiredJob (
+     collectTests jobs.native.tests ++
+     collectTests jobs.native.benchmarks ++
+     [ jobs.native.cardano-wallet-jormungandr.x86_64-linux
+       jobs.native.cardano-wallet-jormungandr.x86_64-darwin
+       jobs.x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-linux
+       jobs.native.shell.x86_64-linux
+       jobs.native.shell.x86_64-darwin
+       jobs.cardano-wallet-jormungandr-win64
+       jobs.cardano-wallet-jormungandr-macos64
+       jobs.cardano-wallet-jormungandr-tests-win64
+     ]
+  );
 
 in jobs
