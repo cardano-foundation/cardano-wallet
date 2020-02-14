@@ -2,33 +2,25 @@
 , crossSystem ? null
 , config ? {}
 # Import IOHK common nix lib
-, iohkLib ? import ./nix/iohk-common.nix { inherit system crossSystem config; }
+, sourcesOverride ? {}
 # Use pinned Nixpkgs with Haskell.nix overlay
-, pkgs ? import ./nix/nixpkgs-haskell.nix  { inherit system crossSystem config; }
+, pkgs ? import ./nix { inherit system crossSystem config sourcesOverride; }
 # Use this git revision for stamping executables
-, gitrev ? iohkLib.commitIdFromGitRepoOrZero ./.git
+, gitrev ? pkgs.commonLib.commitIdFromGitRepoOrZero ./.git
 }:
 
-with import ./nix/util.nix { inherit pkgs; };
+with pkgs; with commonLib; with pkgs.haskell-nix.haskellLib;
 
 let
-  src = pkgs.haskell-nix.cleanSourceHaskell {
-    src = ./.;
-    name = "cardano-wallet-src";
-  };
-
-  jmPkgs = import ./nix/jormungandr.nix { inherit iohkLib; };
   inherit (jmPkgs) jormungandr jormungandr-cli;
 
-  haskellPackages = import ./nix/pkgs.nix {
-    inherit pkgs src jmPkgs;
-  };
+  haskellPackages = cardanoWalletHaskellPackages;
 
   filterCardanoPackages = pkgs.lib.filterAttrs (_: package: isCardanoWallet package);
   getPackageChecks = pkgs.lib.mapAttrs (_: package: package.checks);
 
   self = {
-    inherit pkgs iohkLib src haskellPackages;
+    inherit pkgs commonLib src haskellPackages;
     inherit jormungandr jormungandr-cli;
     inherit (haskellPackages.cardano-wallet-core.identifier) version;
 
@@ -36,7 +28,7 @@ let
       inherit (haskellPackages.cardano-wallet-jormungandr.components.exes)
         cardano-wallet-jormungandr;
       inherit pkgs jmPkgs gitrev;
-      haskellBuildUtils = iohkLib.haskellBuildUtils.package;
+      haskellBuildUtils = haskellBuildUtils.package;
     };
 
     # `tests` are the test suites which have been built.
@@ -69,10 +61,9 @@ let
           hlint.components.exes.hlint
         ])
         ++ [(pkgs.callPackage ./nix/stylish-haskell.nix {})]
-        ++ (with iohkLib; [ openapi-spec-validator ])
         ++ [ jormungandr jormungandr-cli
              pkgs.pkgconfig pkgs.sqlite-interactive
-             pkgs.cabal-install ];
+             pkgs.cabal-install pkgs.pythonPackages.openapi-spec-validator ];
       meta.platforms = pkgs.lib.platforms.unix;
     };
     stackShell = import ./nix/stack-shell.nix {

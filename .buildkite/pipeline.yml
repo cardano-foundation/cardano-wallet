@@ -5,6 +5,11 @@ env:
   LC_ALL: "en_US.UTF-8"
 
 steps:
+  - label: 'hydra-eval-errors'
+    command: 'nix-build ./nix -A iohkNix.hydraEvalErrors && ./result/bin/hydra-eval-errors.py'
+    agents:
+      system: x86_64-linux
+
   - label: 'Stack Rebuild'
     command:
       - "nix-build .buildkite/default.nix -o sr"
@@ -21,7 +26,7 @@ steps:
       system: x86_64-linux
 
   - label: 'Check auto-generated Nix'
-    command: 'nix-build -A iohkLib.check-nix-tools -o check-nix-tools.sh && ./check-nix-tools.sh'
+    command: 'nix-build ./nix -A iohkNix.checkStackProject -o check-stack-project.sh && ./check-stack-project.sh'
     agents:
       system: x86_64-linux
 
