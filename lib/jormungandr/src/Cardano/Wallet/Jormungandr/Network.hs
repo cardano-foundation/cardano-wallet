@@ -354,7 +354,7 @@ mkRawNetworkLayer (block0, bp) batchSize st j = NetworkLayer
 
     _nextBlocks
         :: Cursor t
-        -> ExceptT ErrGetBlock m (NextBlocksResult t block)
+        -> ExceptT ErrGetBlock m (NextBlocksResult (Cursor t) block)
     _nextBlocks cursor@(Cursor localChain) = do
         lift (runExceptT _currentNodeTip) >>= \case
             Right _ -> do
@@ -392,7 +392,7 @@ mkRawNetworkLayer (block0, bp) batchSize st j = NetworkLayer
         tryRollForward
             :: BlockHeader
             -> [block]
-            -> NextBlocksResult t block
+            -> NextBlocksResult (Cursor t) block
         tryRollForward tip = \case
             -- No more blocks to apply, no need to roll forward
             [] -> AwaitReply
@@ -420,13 +420,13 @@ mkRawNetworkLayer (block0, bp) batchSize st j = NetworkLayer
 
         rollBackward
             :: BlockHeader
-            -> NextBlocksResult t block
+            -> NextBlocksResult (Cursor t) block
         rollBackward point =
             RollBackward (cursorBackward point cursor)
 
         recover
             :: BlockHeaders
-            -> NextBlocksResult t block
+            -> NextBlocksResult (Cursor t) block
         recover chain = case (blockHeadersBase chain, blockHeadersTip chain) of
             (Just baseH, Just tipH) | baseH /= tipH ->
                 RollBackward (cursorBackward baseH cursor)

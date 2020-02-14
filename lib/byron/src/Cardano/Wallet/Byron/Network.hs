@@ -50,6 +50,7 @@ import Cardano.Wallet.Network
     , ErrNetworkUnavailable (..)
     , NetworkLayer (..)
     , NextBlocksResult (..)
+    , mapCursor
     )
 import Codec.SerialiseTerm
     ( CodecCBORTerm )
