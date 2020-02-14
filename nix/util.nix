@@ -6,7 +6,7 @@ with pkgs.lib;
   isCardanoWallet = package:
     (package.isHaskell or false) &&
       ((hasPrefix "cardano-wallet" package.identifier.name) ||
-       (elem package.identifier.name [ "text-class" "bech32" ]));
+       (elem package.identifier.name [ "text-class" ]));
 
   inherit (pkgs.haskell-nix.haskellLib) collectComponents;
 }

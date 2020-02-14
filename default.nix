@@ -55,7 +55,6 @@ let
     shell = haskellPackages.shellFor {
       name = "cardano-wallet-shell";
       packages = ps: with ps; [
-        bech32
         cardano-wallet-cli
         cardano-wallet-core
         cardano-wallet-core-integration

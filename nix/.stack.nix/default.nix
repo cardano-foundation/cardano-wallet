@@ -3,6 +3,7 @@
     {
       packages = {
         "base58-bytestring" = (((hackage.base58-bytestring)."0.1.0").revisions).default;
+        "bech32" = (((hackage.bech32)."1.0.1").revisions).default;
         "OddWord" = (((hackage.OddWord)."1.0.2.0").revisions).default;
         "quickcheck-state-machine" = (((hackage.quickcheck-state-machine)."0.6.0").revisions).default;
         "command" = (((hackage.command)."0.1.1").revisions).default;
@@ -20,7 +21,6 @@
         "canonical-json" = (((hackage.canonical-json)."0.6.0.0").revisions)."9021f435ccb884a3b4c55bcc6b50eb19d5fc3cc3f29d5fcbdef016f5bbae23a2";
         "cborg" = (((hackage.cborg)."0.2.2.0").revisions)."eaee50d09d766af95ba18348e4fc230243033b98633ed46ccb5ae85efef7dc6c";
         "statistics-linreg" = (((hackage.statistics-linreg)."0.3").revisions)."95c6efe6c7f6b26bc6e9ada90ab2d18216371cf59a6ef2b517b4a6fd35d9a76f";
-        bech32 = ./bech32.nix;
         cardano-wallet-core = ./cardano-wallet-core.nix;
         cardano-wallet-core-integration = ./cardano-wallet-core-integration.nix;
         cardano-wallet-cli = ./cardano-wallet-cli.nix;

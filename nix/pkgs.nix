@@ -42,7 +42,6 @@ let
         packages.cardano-wallet-test-utils.src = filterSubDir /lib/test-utils;
         packages.text-class.src = filterSubDir /lib/text-class;
         packages.text-class.components.tests.unit.keepSource = true;
-        packages.bech32.src = filterSubDir /lib/bech32;
       }
 
       # Add dependencies
