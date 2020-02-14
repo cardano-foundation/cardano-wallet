@@ -1602,6 +1602,7 @@ paths:
           schema: *parametersJoinStakePool
       responses: *responsesJoinStakePool
 
+  /stake-pools/*/wallets/{walletId}:
     delete:
       operationId: quitStakePool
       tags: ["Stake Pools"]
@@ -1610,8 +1611,15 @@ paths:
         <p align="right">status: <strong>stable</strong></p>
 
         Stop delegating completely. The wallet's stake will become inactive.
+
+        > ⚠️  Disclaimer ⚠️
+        >
+        > This endpoint historically use to take a stake pool id as a path parameter.
+        > However, retiring from delegation is ubiquitous and not tight to a particular
+        > stake pool. For backward-compatibility reasons, sending stake pool ids as path
+        > parameter will still be accepted by the server but new integrations are
+        > encouraged to provide a placeholder asterisk `*` instead.
       parameters:
-        - *parametersStakePoolId
         - *parametersWalletId
         - <<: *parametersBody
           schema: *parametersQuitStakePool

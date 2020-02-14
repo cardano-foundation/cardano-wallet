@@ -129,6 +129,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegation (..)
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
+    , BackwardCompatPlaceholder
     , ByronWalletStyle (..)
     , Iso8601Time (..)
     , WalletStyle (..)
@@ -794,9 +795,9 @@ joinStakePool ctx p (w, pass) = do
         (Link.joinStakePool (Identity p) w) Default payload
 
 quitStakePool
-    :: forall t w. (HasType (ApiT WalletId) w)
+    :: forall t s w. (HasType (ApiT WalletId) w, HasType (ApiT PoolId) s)
     => Context t
-    -> ApiT PoolId
+    -> BackwardCompatPlaceholder s
     -> (w, Text)
     -> IO (HTTP.Status, Either RequestException (ApiTransaction 'Testnet))
 quitStakePool ctx p (w, pass) = do
@@ -804,7 +805,7 @@ quitStakePool ctx p (w, pass) = do
             "passphrase": #{pass}
             } |]
     request @(ApiTransaction 'Testnet) ctx
-        (Link.quitStakePool (Identity p) w) Default payload
+        (Link.quitStakePool p w) Default payload
 
 selectCoins
     :: forall t w. (HasType (ApiT WalletId) w)
