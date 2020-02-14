@@ -64,7 +64,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Types
     ( Address (..), ShowFmt (..) )
 import Cardano.Wallet.Unsafe
-    ( unsafeMkSomeMnemonicFromEntropy )
+    ( someDummyMnemonic )
 import Control.Monad
     ( forM, forM_, unless )
 import Control.Monad.IO.Class
@@ -114,7 +114,6 @@ import Test.Text.Roundtrip
 
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
-import qualified Data.ByteString as BS
 
 spec :: Spec
 spec = do
@@ -343,7 +342,7 @@ prop_genChangeGap
 prop_genChangeGap g =
     property prop
   where
-    mw = unsafeMkSomeMnemonicFromEntropy (Proxy @12) "0000000000000000"
+    mw = someDummyMnemonic (Proxy @12)
     key = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
     s0 = mkSeqState (key, mempty) g
     prop =
@@ -377,7 +376,7 @@ prop_lookupDiscovered
 prop_lookupDiscovered (s0, addr) =
     let (ours, s) = isOurs addr s0 in ours ==> prop s
   where
-    mw = unsafeMkSomeMnemonicFromEntropy (Proxy @12) "0000000000000000"
+    mw = someDummyMnemonic (Proxy @12)
     key = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
     prop s = monadicIO $ liftIO $ do
         unless (isJust $ isOwned s (key, mempty) addr) $ do
@@ -524,8 +523,7 @@ instance AddressPoolTest IcarusKey where
     ourAccount = publicKey $
         Icarus.unsafeGenerateKeyFromSeed mw mempty
       where
-        mw = unsafeMkSomeMnemonicFromEntropy (Proxy @12)
-                (BS.pack $ replicate 16 0)
+        mw = someDummyMnemonic (Proxy @12)
 
     ourAddresses _proxy cc =
         mkAddress . deriveAddressPublicKey ourAccount cc <$> [minBound..maxBound]
@@ -539,8 +537,7 @@ instance AddressPoolTest ShelleyKey where
     ourAccount = publicKey $
         Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
       where
-        mw = unsafeMkSomeMnemonicFromEntropy (Proxy @15)
-                (BS.pack $ replicate 32 0)
+        mw = someDummyMnemonic (Proxy @15)
 
     ourAddresses _proxy cc =
         mkAddress . deriveAddressPublicKey ourAccount cc <$> [minBound..maxBound]
@@ -555,7 +552,7 @@ rewardAccount
 rewardAccount = publicKey $
     Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
   where
-    mw = unsafeMkSomeMnemonicFromEntropy (Proxy @15) (BS.pack $ replicate 32 0)
+    mw = someDummyMnemonic (Proxy @15)
 
 changeAddresses
     :: [Address]

@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
@@ -14,12 +15,14 @@ module Cardano.Wallet.Unsafe
     , unsafeFromText
     , unsafeRunExceptT
     , unsafeXPrv
-    , unsafeMkMnemonic
-    , unsafeMkEntropy
-    , unsafeMkSomeMnemonicFromEntropy
     , unsafeDeserialiseCbor
     , unsafeBech32DecodeFile
     , unsafeBech32Decode
+
+    , someDummyMnemonic
+    , unsafeMkMnemonic
+    , unsafeMkEntropy
+    , unsafeMkSomeMnemonicFromEntropy
     ) where
 
 import Prelude
@@ -60,18 +63,21 @@ import Data.ByteString
 import Data.Char
     ( isHexDigit )
 import Data.Proxy
-    ( Proxy )
+    ( Proxy (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
     ( FromText (..) )
 import GHC.Stack
     ( HasCallStack )
+import GHC.TypeLits
+    ( natVal )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Read as CBOR
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
@@ -166,6 +172,28 @@ unsafeMkSomeMnemonicFromEntropy
 unsafeMkSomeMnemonicFromEntropy _ = SomeMnemonic
     . entropyToMnemonic
     . unsafeMkEntropy @ent
+
+-- | A dummy @SomeMnemonic@ for testing.
+--
+-- Could have been named @dummySomeMnemonic@, but this way it sounds more like
+-- valid english.
+someDummyMnemonic
+    :: forall mw ent csz.
+        ( HasCallStack
+        , ValidEntropySize ent
+        , ValidChecksumSize ent csz
+        , ValidMnemonicSentence mw
+        , ent ~ EntropySize mw
+        , mw ~ MnemonicWords ent
+        )
+    => Proxy mw
+    -> SomeMnemonic
+someDummyMnemonic proxy =
+    let
+        n = fromIntegral $ natVal (Proxy @ent) `div` 8
+        entropy = BS.replicate n 0
+    in
+        unsafeMkSomeMnemonicFromEntropy proxy entropy
 
 -- | Load the data part of a bech32-encoded string from file. These files often
 -- come from @jcli@. Only the first line of the file is read.

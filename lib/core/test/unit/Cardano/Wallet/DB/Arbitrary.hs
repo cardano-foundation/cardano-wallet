@@ -104,7 +104,7 @@ import Cardano.Wallet.Primitive.Types
     , wholeRange
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeMkSomeMnemonicFromEntropy )
+    ( someDummyMnemonic )
 import Control.Arrow
     ( second )
 import Control.DeepSeq
@@ -485,14 +485,14 @@ arbitrarySeqAccount
 arbitrarySeqAccount =
     publicKey $ unsafeGenerateKeyFromSeed (mw, Nothing) mempty
   where
-    mw = unsafeMkSomeMnemonicFromEntropy (Proxy @15) (BS.replicate 32 0)
+    mw = someDummyMnemonic (Proxy @15)
 
 arbitraryRewardAccount
     :: ShelleyKey 'AddressK XPub
 arbitraryRewardAccount =
     publicKey $ unsafeGenerateKeyFromSeed (mw, Nothing) mempty
   where
-    mw = unsafeMkSomeMnemonicFromEntropy (Proxy @15) (BS.replicate 32 0)
+    mw = someDummyMnemonic (Proxy @15)
 
 {-------------------------------------------------------------------------------
                                  Random State

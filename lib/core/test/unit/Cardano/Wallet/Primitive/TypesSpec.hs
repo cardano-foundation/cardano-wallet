@@ -96,7 +96,7 @@ import Cardano.Wallet.Primitive.Types
     , wholeRange
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex, unsafeMkSomeMnemonicFromEntropy )
+    ( someDummyMnemonic, unsafeFromHex )
 import Control.DeepSeq
     ( deepseq )
 import Control.Exception
@@ -212,12 +212,11 @@ spec = do
 
     describe "Buildable" $ do
         it "WalletId" $ do
-            let mw = unsafeMkSomeMnemonicFromEntropy (Proxy @12)
-                    "0000000000000000"
+            let mw = someDummyMnemonic (Proxy @12)
             let xprv = generateKeyFromSeed
                     (mw, Nothing) mempty :: ShelleyKey 'RootK XPrv
             let wid = WalletId $ digest $ publicKey xprv
-            "336c96f1...b8cac9ce" === pretty @_ @Text wid
+            "c225b83f...1d9d620e" === pretty @_ @Text wid
         it "TxMeta (1)" $ do
             let txMeta = TxMeta
                     { status = Pending

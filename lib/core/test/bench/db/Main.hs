@@ -100,7 +100,7 @@ import Cardano.Wallet.Primitive.Types
     , fromFlatSlot
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeMkSomeMnemonicFromEntropy, unsafeRunExceptT )
+    ( someDummyMnemonic, unsafeRunExceptT )
 import Control.DeepSeq
     ( NFData (..), force )
 import Control.Exception
@@ -147,7 +147,6 @@ import System.IO.Unsafe
 import System.Random
     ( mkStdGen, randoms )
 
-import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Map.Strict as Map
 
@@ -635,12 +634,12 @@ testPk = PrimaryKey testWid
 ourAccount :: ShelleyKey 'AccountK XPub
 ourAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, Nothing) mempty
   where
-    seed = unsafeMkSomeMnemonicFromEntropy (Proxy @15) (BS.replicate 32 0)
+    seed = someDummyMnemonic (Proxy @15)
 
 rewardAccount :: ShelleyKey 'AddressK XPub
 rewardAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, Nothing) mempty
   where
-    seed = unsafeMkSomeMnemonicFromEntropy (Proxy @15) (BS.replicate 32 0)
+    seed = someDummyMnemonic (Proxy @15)
 
 -- | Make a prefixed bytestring for use as a Hash or Address.
 label :: Show n => String -> n -> B8.ByteString
