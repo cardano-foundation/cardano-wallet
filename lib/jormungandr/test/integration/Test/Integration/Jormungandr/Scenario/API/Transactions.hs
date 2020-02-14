@@ -29,7 +29,11 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..), Passphrase (..), fromMnemonic )
+    ( DelegationAddress (..)
+    , NetworkDiscriminant (..)
+    , Passphrase (..)
+    , fromMnemonic
+    )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( KnownNetwork (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -433,7 +437,7 @@ fixtureExternalTx ctx toSend = do
     let (AddressAmount ((ApiT addrSrc),_) (Quantity amt)):_ = outs
     let (rootXPrv, pwd, st) = getSeqState mnemonicFaucet password
     -- we create change address
-    let (addrChng, st') = genChange () st
+    let (addrChng, st') = genChange (delegationAddress @n) st
     -- we generate address private keys for all source wallet addresses
     let (Just keysAddrSrc) = isOwned st' (rootXPrv, pwd) addrSrc
     let (Just keysAddrChng) = isOwned st' (rootXPrv, pwd) addrChng

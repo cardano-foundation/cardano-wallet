@@ -156,6 +156,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , HardDerivation (..)
     , NetworkDiscriminant (..)
     , Passphrase
+    , PaymentAddress (..)
     , WalletKey (..)
     , XPrv
     , digest
@@ -168,7 +169,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( IsOwned )
+    ( GenChange (ArgGenChange), IsOwned )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState, mkRndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -438,7 +439,6 @@ server
         ( byron ~ ApiLayer (RndState 'Mainnet) t ByronKey
         , icarus ~ ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
         , shelley ~ ApiLayer (SeqState n ShelleyKey) t ShelleyKey
-
         , DelegationAddress n ShelleyKey
         , Buildable (ErrValidateSelection t)
         )
@@ -478,7 +478,7 @@ server byron icarus shelley spl ntp =
 
     transactions :: Server (Transactions n)
     transactions =
-        postTransaction shelley
+        postTransaction shelley (delegationAddress @n)
         :<|> listTransactions shelley
         :<|> postTransactionFee shelley
         :<|> deleteTransaction shelley
@@ -515,10 +515,14 @@ server byron icarus shelley spl ntp =
 
     byronTransactions :: Server (ByronTransactions n)
     byronTransactions =
+             (\_ _ -> throwError err501)
+        :<|>
              (\wid r0 r1 s -> withLegacyLayer wid
                 (byron , listTransactions byron  wid r0 r1 s)
                 (icarus, listTransactions icarus wid r0 r1 s)
              )
+        :<|>
+             (\_ _ -> throwError err501)
         :<|> (\wid txid -> withLegacyLayer wid
                 (byron , deleteTransaction byron  wid txid)
                 (icarus, deleteTransaction icarus wid txid)
@@ -550,7 +554,10 @@ server byron icarus shelley spl ntp =
 
 -- | A diminished servant server to serve Byron wallets only.
 byronServer
-    :: forall t n. ()
+    :: forall t n.
+        ( Buildable (ErrValidateSelection t)
+        , PaymentAddress n IcarusKey
+        )
     => ApiLayer (RndState 'Mainnet) t ByronKey
     -> ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
     -> NtpClient
@@ -624,10 +631,27 @@ byronServer byron icarus ntp =
 
     byronTransactions :: Server (ByronTransactions n)
     byronTransactions =
+             (\wid tx -> withLegacyLayer wid
+                 (byron , do
+                    let pwd = getApiT $ tx ^. #passphrase
+                    genChange <- rndStateChange byron wid pwd
+                    postTransaction byron genChange wid tx
+                 )
+                 (icarus, do
+                    let genChange k _ = paymentAddress @n k
+                    postTransaction icarus genChange wid tx
+                 )
+             )
+        :<|>
              (\wid r0 r1 s -> withLegacyLayer wid
                 (byron , listTransactions byron  wid r0 r1 s)
                 (icarus, listTransactions icarus wid r0 r1 s)
              )
+        :<|>
+            (\wid tx -> withLegacyLayer wid
+                (byron , postTransactionFee byron wid tx)
+                (icarus, postTransactionFee icarus wid tx)
+            )
         :<|> (\wid txid -> withLegacyLayer wid
                 (byron , deleteTransaction byron  wid txid)
                 (icarus, deleteTransaction icarus wid txid)
@@ -1104,7 +1128,7 @@ selectCoins ctx (ApiT wid) body =
     fmap mkApiCoinSelection
         $ liftHandler
         $ withWorkerCtx ctx wid liftE
-        $ \wrk -> W.selectCoinsExternal @_ @s @t @k wrk wid ()
+        $ \wrk -> W.selectCoinsExternal @_ @s @t @k wrk wid (delegationAddress @n)
         $ coerceCoin <$> body ^. #payments
   where
     liftE = throwE . ErrSelectCoinsExternalNoSuchWallet
@@ -1144,16 +1168,18 @@ listAddresses ctx (ApiT wid) stateFilter = do
 postTransaction
     :: forall ctx s t k n.
         ( Buildable (ErrValidateSelection t)
-        , DelegationAddress n k
-        , k ~ ShelleyKey
-        , s ~ SeqState n k
+        , GenChange s
+        , IsOwned s k
+        , NFData s
+        , Show s
         , ctx ~ ApiLayer s t k
         )
     => ctx
+    -> ArgGenChange s
     -> ApiT WalletId
     -> PostTransactionData n
     -> Handler (ApiTransaction n)
-postTransaction ctx (ApiT wid) body = do
+postTransaction ctx genChange (ApiT wid) body = do
     let outs = coerceCoin <$> (body ^. #payments)
     let pwd = getApiT $ body ^. #passphrase
 
@@ -1161,7 +1187,7 @@ postTransaction ctx (ApiT wid) body = do
         W.selectCoinsForPayment @_ @s @t wrk wid outs
 
     (tx, meta, time, wit) <- liftHandler $ withWorkerCtx ctx wid liftE2 $ \wrk ->
-        W.signPayment @_ @s @t @k wrk wid () pwd selection
+        W.signPayment @_ @s @t @k wrk wid genChange pwd selection
 
     liftHandler $ withWorkerCtx ctx wid liftE3 $ \wrk ->
         W.submitTx @_ @s @t @k wrk wid (tx, meta, wit)
@@ -1224,7 +1250,6 @@ listTransactions ctx (ApiT wid) mStart mEnd mOrder = do
 postTransactionFee
     :: forall ctx s t k n.
         ( Buildable (ErrValidateSelection t)
-        , s ~ SeqState n k
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -1298,7 +1323,7 @@ joinStakePool ctx spl apiPoolId (ApiT wid) (ApiWalletPassphrase (ApiT pwd)) = do
     pools <- liftIO $ knownStakePools spl
 
     (tx, txMeta, txTime) <- liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
-        W.joinStakePool @_ @s @t @k wrk wid (pid, pools) () pwd
+        W.joinStakePool @_ @s @t @k wrk wid (pid, pools) (delegationAddress @n) pwd
 
     pure $ mkApiTransaction
         (txId tx)
@@ -1339,7 +1364,7 @@ quitStakePool
     -> Handler (ApiTransaction n)
 quitStakePool ctx (ApiT wid) (ApiWalletPassphrase (ApiT pwd)) = do
     (tx, txMeta, txTime) <- liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
-        W.quitStakePool @_ @s @t @k wrk wid () pwd
+        W.quitStakePool @_ @s @t @k wrk wid (delegationAddress @n) pwd
 
     pure $ mkApiTransaction
         (txId tx)
@@ -1407,7 +1432,7 @@ migrateWallet srcCtx sheCtx (ApiT srcWid) (ApiT sheWid) migrateData = do
             withWorkerCtx sheCtx sheWid liftE $ \sheWrk -> do
                 cs <- W.selectCoinsForMigration @_ @_ @t srcWrk srcWid
                 withExceptT ErrSelectForMigrationNoSuchWallet $
-                    W.assignMigrationTargetAddresses sheWrk sheWid () cs
+                    W.assignMigrationTargetAddresses sheWrk sheWid (delegationAddress @n) cs
 
     forM migration $ \cs -> do
         (tx, meta, time, wit) <- liftHandler
@@ -1563,6 +1588,25 @@ initWorker ctx wid createWallet restoreWallet =
         }
     re = ctx ^. workerRegistry @s @k
     df = ctx ^. dbFactory @s @k
+
+-- | Handler for fetching the 'ArgGenChange' for the 'RndState' (i.e. the root
+-- XPrv), necessary to derive new change addresses.
+rndStateChange
+    :: forall ctx s t k n.
+        ( ctx ~ ApiLayer s t k
+        , s ~ RndState n
+        , k ~ ByronKey
+        )
+    => ctx
+    -> ApiT WalletId
+    -> Passphrase "encryption"
+    -> Handler (ArgGenChange s)
+rndStateChange ctx (ApiT wid) pwd =
+    liftHandler $ withWorkerCtx @_ @s @k ctx wid liftE $ \wrk ->
+        W.withRootKey @_ @s @k wrk wid pwd ErrSignPaymentWithRootKey $ \xprv ->
+            pure (xprv, pwd)
+  where
+    liftE = throwE . ErrSignPaymentNoSuchWallet
 
 -- | Makes an 'ApiCoinSelection' from the given 'UnsignedTx'.
 mkApiCoinSelection :: forall n. UnsignedTx -> ApiCoinSelection n

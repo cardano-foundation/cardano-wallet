@@ -78,6 +78,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , NetworkDiscriminant (..)
     , NetworkDiscriminantVal
+    , PaymentAddress
     , PersistPrivateKey
     , WalletKey
     , networkDiscriminantVal
@@ -150,6 +151,7 @@ import qualified Network.Wai.Handler.Warp as Warp
 serveWallet
     :: forall (n :: NetworkDiscriminant) t.
         ( NetworkDiscriminantVal n
+        , PaymentAddress n IcarusKey
         , DecodeAddress n
         , EncodeAddress n
         , WorstSizeOf Address n IcarusKey
