@@ -1,7 +1,6 @@
 resolver: lts-13.24
 
 packages:
-- lib/bech32
 - lib/core
 - lib/core-integration
 - lib/cli
@@ -14,6 +13,7 @@ packages:
 extra-deps:
 # Miscellaneous
 - base58-bytestring-0.1.0
+- bech32-1.0.1
 - OddWord-1.0.2.0
 - quickcheck-state-machine-0.6.0
 - command-0.1.1
