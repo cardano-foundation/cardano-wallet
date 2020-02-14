@@ -452,6 +452,37 @@ spec = do
                 , expectErrorMessage (errMsg403DelegationFee (feeQuit - 1))
                 ]
 
+    it "STAKE_POOLS_QUIT_01x - \
+        \Backward compatibility with pool ids" $ \ctx -> do
+        w <- fixtureWallet ctx
+        (_, p1:p2:_) <- eventually $
+            unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
+
+        -- Join a pool
+        joinStakePool ctx (p1 ^. #id) (w, fixturePassphrase) >>= flip verify
+            [ expectResponseCode HTTP.status202
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            ]
+        eventually $ do
+            let ep = Link.listTransactions @'Shelley w
+            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+                [ expectListField 0
+                    (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectListField 0
+                    (#status . #getApiT) (`shouldBe` InLedger)
+                ]
+
+        -- Quit delegation with an arbitrary id
+        -- NOTE: We use another id purposely, just to show that the id has no
+        -- influence but doesn't lead to an API error.
+        let pid = BackwardCompat (Identity (p2 ^. #id))
+        quitStakePool ctx pid (w, fixturePassphrase) >>= flip verify
+            [ expectResponseCode HTTP.status202
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            ]
+
     it "STAKE_POOLS_JOIN_01 - I cannot rejoin the same stake-pool" $ \ctx -> do
         let (fee, _) = ctx ^. #_feeEstimator $ DelegDescription 1 1 1
         (w, p) <- joinStakePoolWithWalletBalance ctx [10*fee]
