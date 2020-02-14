@@ -25,12 +25,16 @@
 # A Hydra option
 , scrubJobs ? true
 
-# Import IOHK common nix lib
-, iohkLib ? import ./nix/iohk-common.nix {}
+# Dependencies overrides
+, sourcesOverride ? {}
+
+# Import pkgs, including IOHK common nix lib
+, pkgs ? import ./nix { inherit sourcesOverride; }
+
 }:
 
-with (import iohkLib.release-lib) {
-  inherit (import ./nix/iohk-common.nix {}) pkgs;
+with (import pkgs.iohkNix.release-lib) {
+  inherit pkgs;
   inherit supportedSystems supportedCrossSystems scrubJobs projectArgs;
   packageSet = import cardano-wallet;
   gitrev = cardano-wallet.rev;
@@ -52,52 +56,39 @@ let
   inherit (systems.examples) mingwW64 musl64;
 
   jobs = {
-    native = mapTestOn (packagePlatforms project);
-    "${mingwW64.config}" = mapTestOnCross mingwW64 (packagePlatformsCross project);
-    musl64 = mapTestOnCross musl64 (packagePlatformsCross project);
+    native = mapTestOn (packagePlatformsOrig project);
+    # Cross compilation, excluding the dockerImage and shells that we cannnot cross compile
+    "${mingwW64.config}" = mapTestOnCross mingwW64 (packagePlatformsCross
+      (filterAttrs (n: _: n != "dockerImage" && n != "shell" && n != "stackShell") project));
+    musl64 = mapTestOnCross musl64 (packagePlatformsCross
+      (filterAttrs (n: _: n != "dockerImage" && n != "shell") project));
   }
   // {
-    # This aggregate job is what IOHK Hydra uses to update
-    # the CI status in GitHub.
-    required = mkRequiredJob (
-      collectTests jobs.native.tests ++
-      collectTests jobs.native.benchmarks ++
-      [ jobs.native.cardano-wallet-jormungandr.x86_64-linux
-        jobs.native.cardano-wallet-jormungandr.x86_64-darwin
-        jobs.x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-linux
-        jobs.native.shell.x86_64-linux
-        jobs.native.shell.x86_64-darwin
-        jobs.cardano-wallet-jormungandr-win64
-        jobs.cardano-wallet-jormungandr-macos64
-        jobs.cardano-wallet-jormungandr-tests-win64
-      ]
-    );
-
     # These derivations are used for the Daedalus installer.
     daedalus-jormungandr = with jobs; {
       linux = native.cardano-wallet-jormungandr.x86_64-linux;
       macos = native.cardano-wallet-jormungandr.x86_64-darwin;
-      windows = x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-linux;
+      windows = x86_64-w64-mingw32.cardano-wallet-jormungandr.x86_64-linux;
     };
 
     # Windows release ZIP archive
     cardano-wallet-jormungandr-win64 = import ./nix/windows-release.nix {
       inherit pkgs project;
-      cardano-wallet-jormungandr = jobs.x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-linux;
+      cardano-wallet-jormungandr = jobs.x86_64-w64-mingw32.cardano-wallet-jormungandr.x86_64-linux;
     };
 
     # This is used for testing the build on windows.
     cardano-wallet-jormungandr-tests-win64 = import ./nix/windows-testing-bundle.nix {
       inherit pkgs project;
-      cardano-wallet-jormungandr = jobs.x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-linux;
-      tests = collectTests jobs.x86_64-pc-mingw32.tests;
-      benchmarks = collectTests jobs.x86_64-pc-mingw32.benchmarks;
+      cardano-wallet-jormungandr = jobs.x86_64-w64-mingw32.cardano-wallet-jormungandr.x86_64-linux;
+      tests = collectTests jobs.x86_64-w64-mingw32.tests;
+      benchmarks = collectTests jobs.x86_64-w64-mingw32.benchmarks;
     };
 
     # For testing migration tests on windows
     migration-tests-win64 = import ./nix/windows-migration-tests-bundle.nix {
       inherit pkgs project;
-      migration-tests = jobs.x86_64-pc-mingw32.migration-tests.x86_64-linux;
+      migration-tests = jobs.x86_64-w64-mingw32.migration-tests.x86_64-linux;
     };
 
     # Fully-static linux binary (placeholder - does not build)
@@ -140,6 +131,20 @@ let
   # are cached.
   // mapTestOn (packagePlatforms {
     inherit (project) shell stackShell;
-  });
+  })
+    # This aggregate job is what IOHK Hydra uses to update
+    # the CI status in GitHub.
+  // (mkRequiredJob (
+      collectTests jobs.native.tests ++
+      collectTests jobs.native.benchmarks ++
+      [ jobs.native.cardano-wallet-jormungandr.x86_64-linux
+        jobs.native.cardano-wallet-jormungandr.x86_64-darwin
+        jobs.x86_64-w64-mingw32.cardano-wallet-jormungandr.x86_64-linux
+        jobs.native.shell.x86_64-linux
+        jobs.native.shell.x86_64-darwin
+        jobs.cardano-wallet-jormungandr-win64
+        jobs.cardano-wallet-jormungandr-macos64
+        jobs.cardano-wallet-jormungandr-tests-win64
+      ]));
 
 in jobs

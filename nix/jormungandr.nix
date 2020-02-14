@@ -29,8 +29,8 @@
 #
 ############################################################################
 
-{ iohkLib ? import ./iohk-common.nix {}
-, pkgs ? iohkLib.pkgs
+{ commonLib ? import ./. {}
+, pkgs ? commonLib.pkgs
 }:
 
 let
@@ -63,8 +63,8 @@ let
     else pkg;
 
 in rec {
-  jormungandr = nonWindows (iohkLib.rust-packages.pkgs.makeJormungandr release);
-  jormungandr-cli = nonWindows (iohkLib.rust-packages.pkgs.makeJcli release);
+  jormungandr = nonWindows (commonLib.rust-packages.pkgs.makeJormungandr release);
+  jormungandr-cli = nonWindows (commonLib.rust-packages.pkgs.makeJcli release);
 
   inherit jormungandr-win64;
   inherit (jormungandr) src;
