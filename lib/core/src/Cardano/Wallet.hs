@@ -1151,10 +1151,9 @@ signDelegation
     -> ArgGenChange s
     -> Passphrase "encryption"
     -> CoinSelection
-    -> PoolId
     -> DelegationAction
     -> ExceptT ErrSignDelegation IO (Tx, TxMeta, UTCTime, SealedTx)
-signDelegation ctx wid argGenChange pwd coinSel poolId action = db & \DBLayer{..} -> do
+signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
     let (CoinSelection ins outs chgs) = coinSel
     withRootKey @_ @s ctx wid pwd ErrSignDelegationWithRootKey $ \xprv -> do
         mapExceptT atomically $ do
@@ -1169,7 +1168,7 @@ signDelegation ctx wid argGenChange pwd coinSel poolId action = db & \DBLayer{..
             let keyFrom = isOwned (getState cp) (xprv, pwd)
             (tx, sealedTx) <- withExceptT ErrSignDelegationMkTx $ ExceptT $ pure $
                 case action of
-                    Join ->
+                    Join poolId ->
                         mkDelegationJoinTx tl poolId (rewardAcc, pwd) keyFrom ins allOuts
                     Quit ->
                         mkDelegationQuitTx tl (rewardAcc, pwd) keyFrom ins allOuts
@@ -1347,7 +1346,7 @@ listTransactions ctx wid mStart mEnd order = db & \DBLayer{..} -> do
                                   Delegation
 -------------------------------------------------------------------------------}
 
-data DelegationAction = Join | Quit
+data DelegationAction = Join PoolId | Quit
 
 -- | Helper function to factor necessary logic for joining a stake pool.
 joinStakePool
@@ -1373,7 +1372,7 @@ joinStakePool ctx wid (pid, pools) argGenChange pwd = db & \DBLayer{..} -> do
     walMeta <- mapExceptT atomically $ withExceptT ErrJoinStakePoolNoSuchWallet $
         withNoSuchWallet wid $ readWalletMeta (PrimaryKey wid)
 
-    when (isDelegatingTo pid (walMeta ^. #delegation)) $
+    when (isDelegatingTo (== pid) (walMeta ^. #delegation)) $
         throwE (ErrJoinStakePoolAlreadyDelegating pid)
 
     when (pid `notElem` pools) $
@@ -1383,7 +1382,7 @@ joinStakePool ctx wid (pid, pools) argGenChange pwd = db & \DBLayer{..} -> do
         selectCoinsForDelegation @ctx @s @t @k ctx wid
 
     (tx, txMeta, txTime, sealedTx) <- withExceptT ErrJoinStakePoolSignDelegation $
-        signDelegation @ctx @s @t @k ctx wid argGenChange pwd selection pid Join
+        signDelegation @ctx @s @t @k ctx wid argGenChange pwd selection (Join pid)
 
     withExceptT ErrJoinStakePoolSubmitTx $
         submitTx @ctx @s @t @k ctx wid (tx, txMeta, sealedTx)
@@ -1408,22 +1407,21 @@ quitStakePool
         )
     => ctx
     -> WalletId
-    -> PoolId
     -> ArgGenChange s
     -> Passphrase "encryption"
     -> ExceptT ErrQuitStakePool IO (Tx, TxMeta, UTCTime)
-quitStakePool ctx wid pid argGenChange pwd = db & \DBLayer{..} -> do
+quitStakePool ctx wid argGenChange pwd = db & \DBLayer{..} -> do
     walMeta <- mapExceptT atomically $ withExceptT ErrQuitStakePoolNoSuchWallet $
         withNoSuchWallet wid $ readWalletMeta (PrimaryKey wid)
 
-    unless (isDelegatingTo pid (walMeta ^. #delegation)) $
-        throwE (ErrQuitStakePoolNotDelegatingTo pid)
+    unless (isDelegatingTo anyone (walMeta ^. #delegation)) $
+        throwE ErrQuitStakePoolNotDelegating
 
     selection <- withExceptT ErrQuitStakePoolSelectCoin $
         selectCoinsForDelegation @ctx @s @t @k ctx wid
 
     (tx, txMeta, txTime, sealedTx) <- withExceptT ErrQuitStakePoolSignDelegation $
-        signDelegation @ctx @s @t @k ctx wid argGenChange pwd selection pid Quit
+        signDelegation @ctx @s @t @k ctx wid argGenChange pwd selection Quit
 
     withExceptT ErrQuitStakePoolSubmitTx $
         submitTx @ctx @s @t @k ctx wid (tx, txMeta, sealedTx)
@@ -1431,6 +1429,7 @@ quitStakePool ctx wid pid argGenChange pwd = db & \DBLayer{..} -> do
     pure (tx, txMeta, txTime)
   where
     db = ctx ^. dbLayer @s @k
+    anyone = const True
 
 {-------------------------------------------------------------------------------
                                   Key Store
@@ -1567,7 +1566,7 @@ data ErrJoinStakePool
 
 data ErrQuitStakePool
     = ErrQuitStakePoolNoSuchWallet ErrNoSuchWallet
-    | ErrQuitStakePoolNotDelegatingTo PoolId
+    | ErrQuitStakePoolNotDelegating
     | ErrQuitStakePoolSelectCoin ErrSelectForDelegation
     | ErrQuitStakePoolSignDelegation ErrSignDelegation
     | ErrQuitStakePoolSubmitTx ErrSubmitTx

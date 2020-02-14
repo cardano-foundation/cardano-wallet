@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
@@ -8,6 +9,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -85,6 +87,7 @@ module Cardano.Wallet.Api.Types
     -- * Polymorphic Types
     , ApiT (..)
     , ApiMnemonicT (..)
+    , BackwardCompatPlaceholder (..)
     , getApiMnemonicT
     ) where
 
@@ -514,6 +517,18 @@ instance ToHttpApiData ApiEpochNumber where
 instance FromHttpApiData ApiEpochNumber where
     parseUrlPiece = first (T.pack . getTextDecodingError) . fromText
 
+instance ToHttpApiData a
+    => ToHttpApiData (BackwardCompatPlaceholder a) where
+    toUrlPiece = \case
+        Placeholder -> "*"
+        BackwardCompat a -> toUrlPiece a
+
+instance (ToHttpApiData a, FromHttpApiData a)
+    => FromHttpApiData (BackwardCompatPlaceholder a) where
+    parseUrlPiece = \case
+        t | t == toUrlPiece (Placeholder @a) -> pure Placeholder
+        t -> BackwardCompat <$> parseUrlPiece t
+
 {-------------------------------------------------------------------------------
                               API Types: Byron
 -------------------------------------------------------------------------------}
@@ -569,6 +584,13 @@ newtype ApiMnemonicT (sizes :: [Nat]) (purpose :: Symbol) =
 
 getApiMnemonicT :: ApiMnemonicT sizes purpose -> Passphrase purpose
 getApiMnemonicT (ApiMnemonicT (pw, _)) = pw
+
+-- | A backward compatible placeholder for path parameter. Renders as '*' or,
+-- accept what used to be an old value now deprecated.
+data BackwardCompatPlaceholder t
+    = Placeholder
+    | BackwardCompat t
+    deriving (Functor)
 
 {-------------------------------------------------------------------------------
                                JSON Instances

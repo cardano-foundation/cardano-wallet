@@ -125,6 +125,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
     , ApiWalletPassphrase (..)
+    , BackwardCompatPlaceholder
     , ByronWalletPostData (..)
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
@@ -1291,13 +1292,13 @@ quitStakePool
         , ctx ~ ApiLayer s t k
         )
     => ctx
-    -> ApiT PoolId
+    -> BackwardCompatPlaceholder (ApiT PoolId)
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
-quitStakePool ctx (ApiT pid) (ApiT wid) (ApiWalletPassphrase (ApiT pwd)) = do
+quitStakePool ctx _ (ApiT wid) (ApiWalletPassphrase (ApiT pwd)) = do
     (tx, txMeta, txTime) <- liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
-        W.quitStakePool @_ @s @t @k wrk wid pid () pwd
+        W.quitStakePool @_ @s @t @k wrk wid () pwd
 
     pure $ mkApiTransaction
         (txId tx)
@@ -2071,13 +2072,11 @@ instance LiftHandler ErrQuitStakePool where
         ErrQuitStakePoolSelectCoin e -> handler e
         ErrQuitStakePoolSignDelegation e -> handler e
         ErrQuitStakePoolSubmitTx e -> handler e
-        ErrQuitStakePoolNotDelegatingTo pid ->
+        ErrQuitStakePoolNotDelegating  ->
             apiError err403 NotDelegatingTo $ mconcat
-                [ "I couldn't quit a stake pool with the given id: "
-                , toText pid
-                , ", because I'm not a member of this stake pool."
-                , " Please check if you are using correct stake pool id"
-                , " in your request."
+                [ "It seems that you're trying to retire from delegation "
+                , "although you're not even delegating, nor won't be in an "
+                , "immediate future."
                 ]
 
 instance LiftHandler ErrGetNetworkParameters where

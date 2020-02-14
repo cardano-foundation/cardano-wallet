@@ -47,6 +47,7 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , ApiWallet (..)
     , ApiWalletPassphrase
+    , BackwardCompatPlaceholder (..)
     , DecodeAddress
     , EncodeAddress
     , Iso8601Time (..)
@@ -138,8 +139,7 @@ data WalletClient t = WalletClient
         -> ApiWalletPassphrase
         -> ClientM (ApiTransaction t)
     , quitStakePool
-        :: ApiT PoolId
-        -> ApiT WalletId
+        :: ApiT WalletId
         -> ApiWalletPassphrase
         -> ClientM (ApiTransaction t)
     , networkInformation
@@ -221,7 +221,7 @@ walletClient =
             , getWalletUtxoStatistics = _getWalletUtxoStatistics
             , listPools = _listPools
             , joinStakePool = _joinStakePool
-            , quitStakePool = _quitStakePool
+            , quitStakePool = _quitStakePool Placeholder
             , networkInformation = _networkInformation
             , networkParameters = _networkParameters
             }

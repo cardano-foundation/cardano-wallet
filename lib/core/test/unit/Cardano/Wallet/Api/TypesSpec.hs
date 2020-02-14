@@ -1574,7 +1574,9 @@ instance (KnownSymbol param, HasPath sub) => HasPath (Capture param t :> sub)
   where
     getPath _ =
         let (verb, sub) = getPath (Proxy @sub)
-        in (verb, "/{" <> symbolVal (Proxy :: Proxy param) <> "}" <> sub)
+        in case symbolVal (Proxy :: Proxy param) of
+            sym | sym == "*" -> (verb, "/" <> sym <> sub)
+            sym -> (verb, "/{" <> sym <> "}" <> sub)
 
 instance HasPath sub => HasPath (ReqBody a b :> sub) where
     getPath _ = getPath (Proxy @sub)

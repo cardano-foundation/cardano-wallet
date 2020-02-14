@@ -392,20 +392,20 @@ instance Buildable WalletDelegation where
         ", something wrong with awaiting"
 
 class IsDelegatingTo a where
-    isDelegatingTo :: PoolId -> a -> Bool
+    isDelegatingTo :: (PoolId -> Bool) -> a -> Bool
 
 instance IsDelegatingTo WalletDelegationStatus where
-    isDelegatingTo pid = \case
-        Delegating pid' -> pid' == pid
-        NotDelegating   -> False
+    isDelegatingTo predicate = \case
+        Delegating pid -> predicate pid
+        NotDelegating  -> False
 
 instance IsDelegatingTo WalletDelegationNext where
-    isDelegatingTo pid WalletDelegationNext{status} =
-        isDelegatingTo pid status
+    isDelegatingTo predicate WalletDelegationNext{status} =
+        isDelegatingTo predicate status
 
 instance IsDelegatingTo WalletDelegation where
-    isDelegatingTo pid WalletDelegation{active,next} =
-        isDelegatingTo pid active || any (isDelegatingTo pid) next
+    isDelegatingTo predicate WalletDelegation{active,next} =
+        isDelegatingTo predicate active || any (isDelegatingTo predicate) next
 
 newtype WalletPassphraseInfo = WalletPassphraseInfo
     { lastUpdatedAt :: UTCTime }
