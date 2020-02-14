@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE TupleSections #-}
@@ -41,6 +42,7 @@ module Cardano.Wallet.Byron.Compatibility
     , toEpochSlots
     , toPoint
     , toSlotNo
+    , toGenTx
 
     , fromByronBlock
     , fromTxAux
@@ -74,6 +76,8 @@ import Cardano.Crypto
     ( AbstractHash (..), hash )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
+import Cardano.Wallet.Unsafe
+    ( unsafeDeserialiseCbor, unsafeFromHex )
 import Codec.SerialiseTerm
     ( CodecCBORTerm )
 import Data.Coerce
@@ -86,8 +90,10 @@ import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 import Data.Word
     ( Word16, Word32 )
+import GHC.Stack
+    ( HasCallStack )
 import Ouroboros.Consensus.Ledger.Byron
-    ( ByronBlock (..), ByronHash (..) )
+    ( ByronBlock (..), ByronHash (..), GenTx (..), decodeByronGenTx )
 import Ouroboros.Network.Block
     ( BlockNo (..)
     , ChainHash (..)
@@ -111,12 +117,10 @@ import qualified Cardano.Chain.Genesis as Genesis
 import qualified Crypto.Hash as Crypto
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
 import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
-
-import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
 
 import qualified Cardano.Wallet.Primitive.Types as W
 
@@ -265,6 +269,12 @@ toPoint (W.BlockHeader sid _ h _)
 toSlotNo :: W.SlotId -> SlotNo
 toSlotNo =
     SlotNo . W.flatSlot byronEpochLength
+
+-- | SealedTx are the result of rightfully constructed byron transactions so, it
+-- is relatively safe to unserialize them from CBOR.
+toGenTx :: HasCallStack => W.SealedTx -> GenTx ByronBlock
+toGenTx =
+    unsafeDeserialiseCbor decodeByronGenTx . BL.fromStrict . W.getSealedTx
 
 fromByronBlock :: W.Hash "Genesis" -> ByronBlock -> W.Block
 fromByronBlock genesisHash byronBlk = case byronBlockRaw byronBlk of
