@@ -177,7 +177,7 @@ import qualified Network.Socket as Socket
 -- stateful and the node's keep track of the associated connection's cursor.
 data instance Cursor (m Byron) = Cursor
     (Point ByronBlock)
-    (TQueue m (NetworkClientCmd m))
+    (TQueue m (ChainSyncCmd m))
 
 -- | Create an instance of the network layer
 newNetworkLayer
@@ -201,21 +201,23 @@ newNetworkLayer tr bp addrInfo versionData = NetworkLayer
     , getAccountBalance = _getAccountBalance
     }
   where
-    _initCursor headers = do
-        queue <- atomically newTQueue
-        link =<< async
-            (connectClient (mkNetworkClient tr bp queue) versionData addrInfo)
+    _initCursor localTxSubmissionQ headers = do
+        chainSyncQ <- atomically newTQueue
+        let client = mkNetworkClient tr bp chainSyncQ localTxSubmissionQ
+        link =<< async (connectClient client versionData addrInfo)
 
         let points = genesisPoint : (toPoint <$> headers)
-        queue `send` CmdFindIntersection points >>= \case
+        chainSyncQ `send` CmdFindIntersection points >>= \case
             Right(Just intersection) ->
-                pure $ Cursor intersection queue
+                pure $ Cursor intersection chainSyncQ
             _ -> fail
                 "initCursor: intersection not found? This can't happen \
                 \because we always give at least the genesis point..."
 
-    _nextBlocks (Cursor _ queue) = withExceptT ErrGetBlockNetworkUnreachable $ do
-        ExceptT (queue `send` CmdNextBlocks)
+    _nextBlocks (Cursor _ chainSyncQ) = do
+        let toCursor point = Cursor point chainSyncQ
+        fmap (mapCursor toCursor) $ withExceptT ErrGetBlockNetworkUnreachable $
+            ExceptT (chainSyncQ `send` CmdNextBlocks)
 
     _cursorSlotId (Cursor point _) = do
         fromSlotNo $ fromWithOrigin (SlotNo 0) $ pointSlot point
@@ -291,8 +293,8 @@ data NetworkClientCmd (m :: * -> *)
 -- AwaitReply
 send
     :: (MonadSTM m, MonadAsync m, MonadTimer m)
-    => TQueue m (NetworkClientCmd m)
-    -> ((a -> m ()) -> NetworkClientCmd m)
+    => TQueue m (cmd m)
+    -> ((a -> m ()) -> cmd m)
     -> m (Either ErrNetworkUnavailable a)
 send queue cmd = do
     tvar <- newEmptyTMVarM
@@ -337,14 +339,14 @@ mkNetworkClient
         -- ^ Base trace for underlying protocols
     -> W.BlockchainParameters
         -- ^ Static blockchain parameters
-    -> TQueue m (NetworkClientCmd m)
-        -- ^ Communication channel with the node
+    -> TQueue m (ChainSyncCmd m)
+        -- ^ Communication channel with the ChainSync client
     -> NetworkClient m
-mkNetworkClient tr bp queue =
+mkNetworkClient tr bp chainSyncQ =
     OuroborosInitiatorApplication $ \pid -> \case
         ChainSyncWithBlocksPtcl ->
             let tr' = contramap (T.pack . show) $ trMessage tr in
-            chainSyncWithBlocks tr' pid (W.getGenesisBlockHash bp) queue
+            chainSyncWithBlocks tr' pid (W.getGenesisBlockHash bp) chainSyncQ
         LocalTxSubmissionPtcl ->
             localTxSubmission nullTracer pid
 
@@ -419,7 +421,7 @@ chainSyncWithBlocks
         -- ^ An abstract peer identifier for 'runPeer'
     -> W.Hash "Genesis"
         -- ^ Hash of the genesis block
-    -> TQueue m (NetworkClientCmd m)
+    -> TQueue m (ChainSyncCmd m)
         -- ^ We use a 'TQueue' as a communication channel to drive queries from
         -- outside of the network client to the client itself.
         -- Requests are pushed to the queue which are then transformed into
@@ -484,7 +486,7 @@ chainSyncWithBlocks tr pid genesisHash queue channel = do
 
         clientStNext
             :: ([ByronBlock], Int)
-            -> (NextBlocksResult (m Byron) ByronBlock -> m ())
+            -> (NextBlocksResult (Point ByronBlock) ByronBlock -> m ())
             -> ClientStNext ByronBlock (Tip ByronBlock) m Void
         clientStNext (blocks, n) respond
             | n <= 1 = ClientStNext
@@ -492,7 +494,7 @@ chainSyncWithBlocks tr pid genesisHash queue channel = do
                 , recvMsgRollForward = \block tip ->
                     ChainSyncClient $ do
                         swapTMVarM nodeTipVar tip
-                        let cursor  = Cursor (blockPoint block) queue
+                        let cursor  = blockPoint block
                         let blocks' = reverse (block:blocks)
                         respond (RollForward cursor (fromTip genesisHash tip) blocks')
                         clientStIdle
@@ -507,7 +509,7 @@ chainSyncWithBlocks tr pid genesisHash queue channel = do
           where
             onRollback point tip = ChainSyncClient $ do
                 swapTMVarM nodeTipVar tip
-                respond (RollBackward (Cursor point queue))
+                respond (RollBackward point)
                 clientStIdle
 
 -- | Client for the 'Local Tx Submission' mini-protocol.
