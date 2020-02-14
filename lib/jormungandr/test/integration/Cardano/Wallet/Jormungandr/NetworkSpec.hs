@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -46,7 +47,8 @@ import Cardano.Wallet.Jormungandr.Network
     , withNetworkLayer
     )
 import Cardano.Wallet.Network
-    ( ErrCurrentNodeTip (..)
+    ( Cursor
+    , ErrCurrentNodeTip (..)
     , ErrGetBlock (..)
     , NetworkLayer (..)
     , NextBlocksResult (..)
@@ -470,29 +472,29 @@ requestEndpoint url endpoint resourceId = do
     let client = Jormungandr.mkJormungandrClient manager url
     runExceptT $ endpoint client resourceId
 
-instance Show (NextBlocksResult t b) where
+instance Show (NextBlocksResult (Cursor t) b) where
     show AwaitReply = "AwaitReply"
     show (RollForward _ _ bs) = "RollForward " ++ show (length bs) ++ " blocks"
     show (RollBackward _) = "RollBackward"
 
-instance Eq (NextBlocksResult t b) where
+instance Eq (NextBlocksResult (Cursor t) b) where
     a == b = show a == show b
 
 instance Arbitrary (Hash any) where
     arbitrary = Hash . BS.pack <$> vectorOf 32 arbitrary
 
-getRollForward :: NextBlocksResult target block -> Maybe [block]
+getRollForward :: NextBlocksResult (Cursor t) block -> Maybe [block]
 getRollForward AwaitReply = Nothing
 getRollForward (RollForward _ _ bs) = Just bs
 getRollForward (RollBackward _) = Nothing
 
-isRollForward :: NextBlocksResult target block -> Bool
+isRollForward :: NextBlocksResult (Cursor t) block -> Bool
 isRollForward = maybe False (not . null) . getRollForward
 
 isRollBackwardTo
-    :: NetworkLayer m target block
+    :: NetworkLayer m t block
     -> SlotId
-    -> NextBlocksResult target block
+    -> NextBlocksResult (Cursor t) block
     -> Bool
 isRollBackwardTo nl sl = \case
     RollBackward cursor -> cursorSlotId nl cursor == sl

@@ -176,7 +176,7 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen addrInfo beforeMa
     bp = blockchainParameters @n
 
     serveApp socket = do
-        let nl = newNetworkLayer nullTracer bp addrInfo (versionData @n)
+        nl <- newNetworkLayer nullTracer bp addrInfo (versionData @n)
         byronApi   <- apiLayer (newTransactionLayer @n) nl
         icarusApi  <- apiLayer (newTransactionLayer @n) nl
         startServer socket byronApi icarusApi $> ExitSuccess

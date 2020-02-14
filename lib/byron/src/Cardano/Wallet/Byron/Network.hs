@@ -40,6 +40,7 @@ import Cardano.Wallet.Byron.Compatibility
     , genesisTip
     , toByronHash
     , toEpochSlots
+    , toGenTx
     , toPoint
     )
 import Cardano.Wallet.Logging
@@ -48,8 +49,10 @@ import Cardano.Wallet.Network
     ( Cursor
     , ErrGetBlock (..)
     , ErrNetworkUnavailable (..)
+    , ErrPostTx (..)
     , NetworkLayer (..)
     , NextBlocksResult (..)
+    , mapCursor
     )
 import Codec.SerialiseTerm
     ( CodecCBORTerm )
@@ -81,7 +84,7 @@ import Control.Monad.Class.MonadTimer
 import Control.Monad.IO.Class
     ( MonadIO )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), withExceptT )
+    ( ExceptT (..), throwE, withExceptT )
 import Control.Tracer
     ( Tracer, contramap )
 import Data.ByteString.Lazy
@@ -143,7 +146,6 @@ import Ouroboros.Network.NodeToClient
     , NodeToClientVersion (..)
     , NodeToClientVersionData (..)
     , connectTo
-    , localTxSubmissionClientNull
     )
 import Ouroboros.Network.Point
     ( fromWithOrigin )
@@ -161,7 +163,10 @@ import Ouroboros.Network.Protocol.ChainSync.Type
 import Ouroboros.Network.Protocol.Handshake.Version
     ( DictVersion (..), simpleSingletonVersions )
 import Ouroboros.Network.Protocol.LocalTxSubmission.Client
-    ( LocalTxSubmissionClient (..), localTxSubmissionClientPeer )
+    ( LocalTxClientStIdle (..)
+    , LocalTxSubmissionClient (..)
+    , localTxSubmissionClientPeer
+    )
 import Ouroboros.Network.Protocol.LocalTxSubmission.Codec
     ( codecLocalTxSubmission )
 import Ouroboros.Network.Protocol.LocalTxSubmission.Type
@@ -176,7 +181,7 @@ import qualified Network.Socket as Socket
 -- stateful and the node's keep track of the associated connection's cursor.
 data instance Cursor (m Byron) = Cursor
     (Point ByronBlock)
-    (TQueue m (NetworkClientCmd m))
+    (TQueue m (ChainSyncCmd m))
 
 -- | Create an instance of the network layer
 newNetworkLayer
@@ -188,33 +193,37 @@ newNetworkLayer
         -- ^ Socket for communicating with the node
     -> (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
         -- ^ Codecs for the node's client
-    -> NetworkLayer IO (IO Byron) ByronBlock
-newNetworkLayer tr bp addrInfo versionData = NetworkLayer
-    { currentNodeTip = _currentNodeTip
-    , nextBlocks = _nextBlocks
-    , initCursor = _initCursor
-    , cursorSlotId = _cursorSlotId
-    , postTx = _postTx
-    , staticBlockchainParameters = _staticBlockchainParameters
-    , stakeDistribution = _stakeDistribution
-    , getAccountBalance = _getAccountBalance
-    }
+    -> IO (NetworkLayer IO (IO Byron) ByronBlock)
+newNetworkLayer tr bp addrInfo versionData = do
+    localTxSubmissionQ <- atomically newTQueue
+    pure NetworkLayer
+        { currentNodeTip = _currentNodeTip
+        , nextBlocks = _nextBlocks
+        , initCursor = _initCursor localTxSubmissionQ
+        , cursorSlotId = _cursorSlotId
+        , postTx = _postTx localTxSubmissionQ
+        , staticBlockchainParameters = _staticBlockchainParameters
+        , stakeDistribution = _stakeDistribution
+        , getAccountBalance = _getAccountBalance
+        }
   where
-    _initCursor headers = do
-        queue <- atomically newTQueue
-        link =<< async
-            (connectClient (mkNetworkClient tr bp queue) versionData addrInfo)
+    _initCursor localTxSubmissionQ headers = do
+        chainSyncQ <- atomically newTQueue
+        let client = mkNetworkClient tr bp chainSyncQ localTxSubmissionQ
+        link =<< async (connectClient client versionData addrInfo)
 
         let points = genesisPoint : (toPoint <$> headers)
-        queue `send` CmdFindIntersection points >>= \case
+        chainSyncQ `send` CmdFindIntersection points >>= \case
             Right(Just intersection) ->
-                pure $ Cursor intersection queue
+                pure $ Cursor intersection chainSyncQ
             _ -> fail
                 "initCursor: intersection not found? This can't happen \
                 \because we always give at least the genesis point..."
 
-    _nextBlocks (Cursor _ queue) = withExceptT ErrGetBlockNetworkUnreachable $ do
-        ExceptT (queue `send` CmdNextBlocks)
+    _nextBlocks (Cursor _ chainSyncQ) = do
+        let toCursor point = Cursor point chainSyncQ
+        fmap (mapCursor toCursor) $ withExceptT ErrGetBlockNetworkUnreachable $
+            ExceptT (chainSyncQ `send` CmdNextBlocks)
 
     _cursorSlotId (Cursor point _) = do
         fromSlotNo $ fromWithOrigin (SlotNo 0) $ pointSlot point
@@ -231,8 +240,12 @@ newNetworkLayer tr bp addrInfo versionData = NetworkLayer
     _currentNodeTip =
         notImplemented "currentNodeTip"
 
-    _postTx =
-        notImplemented "postTx"
+    _postTx localTxSubmissionQ tx = do
+        result <- withExceptT ErrPostTxNetworkUnreachable $
+            ExceptT (localTxSubmissionQ `send` CmdSubmitTx (toGenTx tx))
+        case result of
+            Nothing  -> pure ()
+            Just err -> throwE $ ErrPostTxBadRequest $ T.pack err
 
     _stakeDistribution =
         notImplemented "stakeDistribution"
@@ -271,14 +284,20 @@ newNetworkLayer tr bp addrInfo versionData = NetworkLayer
 -- callback.
 --
 -- See also 'send' for invoking commands.
-data NetworkClientCmd (m :: * -> *)
+data ChainSyncCmd (m :: * -> *)
     = CmdFindIntersection
         [Point ByronBlock]
         (Maybe (Point ByronBlock) -> m ())
     | CmdNextBlocks
-        (NextBlocksResult (m Byron) ByronBlock -> m ())
+        (NextBlocksResult (Point ByronBlock) ByronBlock -> m ())
     | CmdCurrentNodeTip
         (Tip ByronBlock -> m ())
+
+-- | Sending command to the localTxSubmission client. See also 'ChainSyncCmd'.
+data LocalTxSubmissionCmd (m :: * -> *)
+    = CmdSubmitTx
+        (GenTx ByronBlock)
+        (Maybe String -> m ())
 
 -- | Helper function to easily send commands to the node's client and read
 -- responses back.
@@ -290,8 +309,8 @@ data NetworkClientCmd (m :: * -> *)
 -- AwaitReply
 send
     :: (MonadSTM m, MonadAsync m, MonadTimer m)
-    => TQueue m (NetworkClientCmd m)
-    -> ((a -> m ()) -> NetworkClientCmd m)
+    => TQueue m (cmd m)
+    -> ((a -> m ()) -> cmd m)
     -> m (Either ErrNetworkUnavailable a)
 send queue cmd = do
     tvar <- newEmptyTMVarM
@@ -336,16 +355,19 @@ mkNetworkClient
         -- ^ Base trace for underlying protocols
     -> W.BlockchainParameters
         -- ^ Static blockchain parameters
-    -> TQueue m (NetworkClientCmd m)
-        -- ^ Communication channel with the node
+    -> TQueue m (ChainSyncCmd m)
+        -- ^ Communication channel with the ChainSync client
+    -> TQueue m (LocalTxSubmissionCmd m)
+        -- ^ Communication channel with the LocalTxSubmission client
     -> NetworkClient m
-mkNetworkClient tr bp queue =
+mkNetworkClient tr bp chainSyncQ localTxSubmissionQ =
     OuroborosInitiatorApplication $ \pid -> \case
         ChainSyncWithBlocksPtcl ->
             let tr' = contramap (T.pack . show) $ trMessage tr in
-            chainSyncWithBlocks tr' pid (W.getGenesisBlockHash bp) queue
+            chainSyncWithBlocks tr' pid (W.getGenesisBlockHash bp) chainSyncQ
         LocalTxSubmissionPtcl ->
-            localTxSubmission nullTracer pid
+            let tr' = contramap (T.pack . show) $ trMessage tr in
+            localTxSubmission tr' pid localTxSubmissionQ
 
 -- Connect a client to a network, see `mkNetworkClient` to construct a network
 -- client interface.
@@ -418,7 +440,7 @@ chainSyncWithBlocks
         -- ^ An abstract peer identifier for 'runPeer'
     -> W.Hash "Genesis"
         -- ^ Hash of the genesis block
-    -> TQueue m (NetworkClientCmd m)
+    -> TQueue m (ChainSyncCmd m)
         -- ^ We use a 'TQueue' as a communication channel to drive queries from
         -- outside of the network client to the client itself.
         -- Requests are pushed to the queue which are then transformed into
@@ -483,7 +505,7 @@ chainSyncWithBlocks tr pid genesisHash queue channel = do
 
         clientStNext
             :: ([ByronBlock], Int)
-            -> (NextBlocksResult (m Byron) ByronBlock -> m ())
+            -> (NextBlocksResult (Point ByronBlock) ByronBlock -> m ())
             -> ClientStNext ByronBlock (Tip ByronBlock) m Void
         clientStNext (blocks, n) respond
             | n <= 1 = ClientStNext
@@ -491,7 +513,7 @@ chainSyncWithBlocks tr pid genesisHash queue channel = do
                 , recvMsgRollForward = \block tip ->
                     ChainSyncClient $ do
                         swapTMVarM nodeTipVar tip
-                        let cursor  = Cursor (blockPoint block) queue
+                        let cursor  = blockPoint block
                         let blocks' = reverse (block:blocks)
                         respond (RollForward cursor (fromTip genesisHash tip) blocks')
                         clientStIdle
@@ -506,7 +528,7 @@ chainSyncWithBlocks tr pid genesisHash queue channel = do
           where
             onRollback point tip = ChainSyncClient $ do
                 swapTMVarM nodeTipVar tip
-                respond (RollBackward (Cursor point queue))
+                respond (RollBackward point)
                 clientStIdle
 
 -- | Client for the 'Local Tx Submission' mini-protocol.
@@ -540,12 +562,17 @@ localTxSubmission
         -- ^ Base tracer for the mini-protocols
     -> peerId
         -- ^ An abstract peer identifier for 'runPeer'
+    -> TQueue m (LocalTxSubmissionCmd m)
+        -- ^ We use a 'TQueue' as a communication channel to drive queries from
+        -- outside of the network client to the client itself.
+        -- Requests are pushed to the queue which are then transformed into
+        -- messages to keep the state-machine moving.
     -> Channel m ByteString
         -- ^ A 'Channel' is a abstract communication instrument which
         -- transports serialized messages between peers (e.g. a unix
         -- socket).
     -> m Void
-localTxSubmission tr pid channel =
+localTxSubmission tr pid queue channel =
     runPeer tr codec pid channel (localTxSubmissionClientPeer client)
   where
     codec :: Codec protocol DeserialiseFailure m ByteString
@@ -555,8 +582,16 @@ localTxSubmission tr pid channel =
         CBOR.encode      -- String -> CBOR.Encoding
         CBOR.decode      -- CBOR.Decoder s String
 
-    client :: LocalTxSubmissionClient (GenTx ByronBlock) String m Void
-    client = localTxSubmissionClientNull
+    client
+        :: LocalTxSubmissionClient (GenTx ByronBlock) String m Void
+    client = LocalTxSubmissionClient clientStIdle
+      where
+        clientStIdle
+            :: m (LocalTxClientStIdle (GenTx ByronBlock) String m Void)
+        clientStIdle = atomically (readTQueue queue) <&> \case
+            CmdSubmitTx tx respond ->
+                SendMsgSubmitTx tx (\e -> respond e >> clientStIdle)
+
 
 --------------------------------------------------------------------------------
 --

@@ -12,6 +12,7 @@ module Cardano.Wallet.Network
     -- * Interface
       NetworkLayer (..)
     , NextBlocksResult (..)
+    , mapCursor
     , Cursor
     , follow
     , FollowAction (..)
@@ -93,7 +94,7 @@ import qualified Data.Text as T
 data NetworkLayer m target block = NetworkLayer
     { nextBlocks
         :: Cursor target
-        -> ExceptT ErrGetBlock m (NextBlocksResult target block)
+        -> ExceptT ErrGetBlock m (NextBlocksResult (Cursor target) block)
         -- ^ Starting from the given 'Cursor', fetches a contiguous sequence of
         -- blocks from the node, if they are available. An updated cursor will
         -- be returned with a 'RollFoward' result.
@@ -229,22 +230,28 @@ data family Cursor target
 
 -- | The result of 'nextBlocks', which is instructions for what the chain
 -- consumer should do next.
-data NextBlocksResult target block
+data NextBlocksResult cursor block
     = AwaitReply
         -- ^ There are no blocks available from the node, so wait.
-    | RollForward (Cursor target) BlockHeader [block]
+    | RollForward cursor BlockHeader [block]
         -- ^ Apply the given contiguous non-empty sequence of blocks. Use the
         -- updated cursor to get the next batch. The given block header is the
         -- current tip of the node.
-    | RollBackward (Cursor target)
+    | RollBackward cursor
         -- ^ The chain consumer must roll back its state, then use the cursor to
         -- get the next batch of blocks.
 
-instance Functor (NextBlocksResult target) where
+instance Functor (NextBlocksResult cursor) where
     fmap f = \case
         AwaitReply -> AwaitReply
         RollForward cur bh bs -> RollForward cur bh (fmap f bs)
         RollBackward cur -> RollBackward cur
+
+mapCursor :: (a -> b) -> NextBlocksResult a block -> NextBlocksResult b block
+mapCursor fn = \case
+    AwaitReply -> AwaitReply
+    RollForward cur bh bs -> RollForward (fn cur) bh bs
+    RollBackward cur -> RollBackward (fn cur)
 
 -- | @FollowAction@ enables the callback of @follow@ to signal if the
 -- chain-following should @ExitWith@, @Continue@, or if the current callback
