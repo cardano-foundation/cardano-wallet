@@ -555,6 +555,17 @@ x-networkInformationProtocolUpdate: &networkInformationProtocolUpdate
     - up_to_date
     - update_available
 
+x-delegationStatus: &delegationStatus
+  type: string
+  enum:
+    - not_delegating
+    - delegating
+
+x-delegationTarget: &delegationTarget
+  <<: *stakePoolId
+  description: A unique Stake-Pool identifier (present only if status = `delegating`)
+
+
 #############################################################################
 #                                                                           #
 #                              DEFINITIONS                                  #
@@ -570,20 +581,6 @@ definitions:
     properties:
       id: *addressId
       state: *addressState
-
-  ApiWalletDelegationStatus: &ApiWalletDelegationStatus
-    type: object
-    required:
-      - status
-    properties: &delegationStatusProperties
-      status:
-        type: string
-        enum:
-          - not_delegating
-          - delegating
-      target:
-        <<: *stakePoolId
-        description: A unique Stake-Pool identifier (present only if status = `delegating`)
 
   ApiEpochInfo: &ApiEpochInfo
     type: object
@@ -706,15 +703,14 @@ definitions:
       status: *transactionStatus
 
   ApiWalletDelegationNext: &ApiWalletDelegationNext
-    description: Next delegation settings
     type: object
-    <<: *ApiWalletDelegationStatus
     description: Next delegation status becomes active at the start of the second epoch after the corresponding delegation certificate was discovered. The exact moment is specified by changes_at
     required:
       - status
       - changes_at
     properties:
-      <<: *delegationStatusProperties
+      status: *delegationStatus
+      target: *delegationTarget
       changes_at: *ApiEpochInfo
     example:
       status: not_delegating
@@ -731,8 +727,12 @@ definitions:
     properties:
       active:
         type: object
-        <<: *ApiWalletDelegationStatus
         description: Currently active delegation status.
+        required:
+          - status
+        properties:
+          status: *delegationStatus
+          target: *delegationTarget
         example:
           status: delegating
           target: 1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1
