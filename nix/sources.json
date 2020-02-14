@@ -1,0 +1,26 @@
+{
+    "iohk-nix": {
+        "branch": "jorm-version-0.8.10",
+        "description": "nix scripts shared across projects",
+        "homepage": null,
+        "owner": "input-output-hk",
+        "repo": "iohk-nix",
+        "rev": "6ebea9bef515c4af5451b6e1bfc46fb09397cd3b",
+        "sha256": "1ljjkd5hwwqb99mmjsvg64v7mqi0j1g6p58gxckzl0l0xvbwk9dj",
+        "type": "tarball",
+        "url": "https://github.com/input-output-hk/iohk-nix/archive/6ebea9bef515c4af5451b6e1bfc46fb09397cd3b.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
+    "niv": {
+        "branch": "master",
+        "description": "Easy dependency management for Nix projects",
+        "homepage": "https://github.com/nmattia/niv",
+        "owner": "nmattia",
+        "repo": "niv",
+        "rev": "2ecfd86b631714b457e56d70dd83fa60435baeb6",
+        "sha256": "01j6727cws8blg1npp54b4w6xa0gpgyzhyws2vqgp8clnlnmqqhi",
+        "type": "tarball",
+        "url": "https://github.com/nmattia/niv/archive/2ecfd86b631714b457e56d70dd83fa60435baeb6.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    }
+}
