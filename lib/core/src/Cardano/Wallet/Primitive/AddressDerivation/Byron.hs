@@ -68,10 +68,13 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase (..)
     , PaymentAddress (..)
     , PersistPrivateKey (..)
+    , SomeMnemonic (..)
     , WalletKey (..)
     , fromHex
     , hex
     )
+import Cardano.Wallet.Primitive.Mnemonic
+    ( entropyToBytes, mnemonicToEntropy )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), Hash (..), invariant, testnetMagic )
 import Control.DeepSeq
@@ -200,7 +203,7 @@ minSeedLengthBytes = 16
 -- | Generate a root key from a corresponding seed.
 -- The seed should be at least 16 bytes.
 generateKeyFromSeed
-    :: Passphrase "seed"
+    :: SomeMnemonic
     -> Passphrase "encryption"
     -> ByronKey 'RootK XPrv
 generateKeyFromSeed = unsafeGenerateKeyFromSeed ()
@@ -211,16 +214,17 @@ generateKeyFromSeed = unsafeGenerateKeyFromSeed ()
 -- use 'generateKeyFromSeed'.
 unsafeGenerateKeyFromSeed
     :: DerivationPath depth
-    -> Passphrase "seed"
+    -> SomeMnemonic
     -> Passphrase "encryption"
     -> ByronKey depth XPrv
-unsafeGenerateKeyFromSeed derivationPath (Passphrase seed) (Passphrase pwd) = ByronKey
+unsafeGenerateKeyFromSeed derivationPath (SomeMnemonic mw) (Passphrase pwd) = ByronKey
     { getKey = masterKey
     , derivationPath
     , payloadPassphrase = hdPassphrase (toXPub masterKey)
     }
   where
     masterKey = generate (hashSeed seed') pwd
+    seed  = entropyToBytes $ mnemonicToEntropy mw
     seed' = invariant
         ("seed length : " <> show (BA.length seed)
             <> " in (Passphrase \"seed\") is not valid")

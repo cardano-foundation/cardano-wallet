@@ -17,7 +17,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , FromMnemonic (..)
     , NetworkDiscriminant (..)
-    , Passphrase
+    , SomeMnemonic
     , WalletKey (..)
     , XPrv
     , XPub (..)
@@ -176,13 +176,15 @@ mnemonicsToAccountAddress
         -- ^ An encoded address
 mnemonicsToAccountAddress m1 m2 = do
     seed <- unsafeFromMnemonic  @'[15,18,21,24] m1
-    sndFactor <- if m2 == "\n" then mempty else (unsafeFromMnemonic @'[9,12]) m2
+    sndFactor <- if m2 == "\n"
+        then return Nothing
+        else Just <$> (unsafeFromMnemonic @'[9,12] m2)
     pure $ mkAccountAddress $ generateKeyFromSeed (seed, sndFactor) mempty
   where
     unsafeFromMnemonic
-        :: forall (mz :: [Nat]) any. (FromMnemonic mz any)
+        :: forall (mz :: [Nat]). (FromMnemonic mz)
         => Text
-        -> IO (Passphrase any)
+        -> IO SomeMnemonic
     unsafeFromMnemonic = either (fail . show) pure . fromMnemonic @mz . T.words
 
     -- Derive an account address corresponding to a reward account, from a root key

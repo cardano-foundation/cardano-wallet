@@ -30,6 +30,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase (..)
     , PaymentAddress (..)
     , SoftDerivation (..)
+    , SomeMnemonic (..)
     , WalletKey (..)
     , XPrv
     )
@@ -46,8 +47,12 @@ import Cardano.Wallet.Primitive.Mnemonic
     ( ConsistentEntropy, EntropySize, mkMnemonic )
 import Cardano.Wallet.Primitive.Types
     ( Address )
+import Cardano.Wallet.Unsafe
+    ( unsafeMkSomeMnemonicFromEntropy )
 import Control.Monad
     ( forM_ )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Text
     ( Text )
 import Test.Hspec
@@ -69,7 +74,8 @@ import qualified Data.Text as T
 spec :: Spec
 spec = do
     describe "Golden Tests - Icarus' style addresses" $ do
-        let seed0 = Passphrase "4\175\242L\184\243\191 \169]\171 \207\r\v\233\NUL~&\ETB"
+        let seed0 = unsafeMkSomeMnemonicFromEntropy (Proxy @15)
+                "4\175\242L\184\243\191 \169]\171 \207\r\v\233\NUL~&\ETB"
 
         goldenAddressGeneration $ GoldenAddressGeneration
             seed0 (toEnum 0x80000000) UTxOExternal (toEnum 0x00000000)
@@ -82,11 +88,10 @@ spec = do
         goldenAddressGeneration $ GoldenAddressGeneration
             seed0 (toEnum 0x8000000E) UTxOInternal (toEnum 0x0000002A)
             "Ae2tdPwUPEZFRbyhz3cpfC2CumGzNkFBN2L42rcUc2yjQpEkxDbkPodpMAi"
-
         let (Right seed1) = fromMnemonic @'[12]
-                [ "ghost", "buddy", "neutral", "broccoli", "face", "rack"
-                , "relief", "odor", "swallow", "real", "once", "ecology"
-                ]
+              [ "ghost", "buddy", "neutral", "broccoli", "face", "rack"
+              , "relief", "odor", "swallow", "real", "once", "ecology"
+              ]
 
         goldenAddressGeneration $ GoldenAddressGeneration
             seed1 (toEnum 0x80000000) UTxOExternal (toEnum 0x00000000)
@@ -185,7 +190,7 @@ spec = do
 -------------------------------------------------------------------------------}
 
 data GoldenAddressGeneration = GoldenAddressGeneration
-    { goldSeed :: Passphrase "seed"
+    { goldSeed :: SomeMnemonic
     , goldAcctIx :: Index 'Hardened 'AccountK
     , goldAcctStyle :: AccountingStyle
     , goldAddrIx :: Index 'Soft 'AddressK
@@ -244,7 +249,7 @@ goldenHardwareLedger
     -> Spec
 goldenHardwareLedger encPwd sentence addrs =
     it title $ do
-        let Right mnemonic = mkMnemonic @mw sentence
+        let Right mnemonic = SomeMnemonic <$> mkMnemonic @mw sentence
         let rootXPrv = generateKeyFromHardwareLedger mnemonic encPwd
         let acctXPrv = deriveAccountPrivateKey encPwd rootXPrv minBound
         let deriveAddr = deriveAddressPrivateKey encPwd acctXPrv UTxOExternal
@@ -278,7 +283,7 @@ goldenHardwareLedger encPwd sentence addrs =
 --
 -- For details see <https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#private-parent-key--public-child-key bip-0039>
 prop_publicChildKeyDerivation
-    :: Passphrase "seed"
+    :: SomeMnemonic
     -> Passphrase "encryption"
     -> AccountingStyle
     -> Index 'Soft 'AddressK
@@ -293,7 +298,7 @@ prop_publicChildKeyDerivation seed encPwd cc ix =
     addrXPub2 = deriveAddressPublicKey (publicKey accXPrv) cc ix
 
 prop_accountKeyDerivation
-    :: Passphrase "seed"
+    :: SomeMnemonic
     -> Passphrase "encryption"
     -> Index 'Hardened 'AccountK
     -> Property

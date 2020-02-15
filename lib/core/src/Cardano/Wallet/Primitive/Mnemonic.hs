@@ -49,6 +49,7 @@ module Cardano.Wallet.Primitive.Mnemonic
     , MnemonicWordsError(..)
     , ValidEntropySize
     , ValidChecksumSize
+    , ValidMnemonicSentence
     , ConsistentEntropy
     , CheckSumBits
     , EntropySize

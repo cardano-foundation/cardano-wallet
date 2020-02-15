@@ -61,6 +61,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
     , SoftDerivation (..)
+    , SomeMnemonic (..)
     , WalletKey (..)
     , fromHex
     , hex
@@ -68,7 +69,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( decodeLegacyAddress )
 import Cardano.Wallet.Primitive.Mnemonic
-    ( Mnemonic, mnemonicToText )
+    ( entropyToBytes, mnemonicToEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), Hash (..), invariant )
 import Control.Arrow
@@ -163,8 +164,8 @@ minSeedLengthBytes = 16
 -- | Generate a root key from a corresponding seed.
 -- The seed should be at least 16 bytes.
 generateKeyFromSeed
-    :: Passphrase "seed"
-        -- ^ The actual seed
+    :: SomeMnemonic
+        -- ^ The root mnemonic
     -> Passphrase "encryption"
         -- ^ Master encryption passphrase
     -> IcarusKey 'RootK XPrv
@@ -182,16 +183,16 @@ generateKeyFromSeed = unsafeGenerateKeyFromSeed
 -- - What seems to be arbitrary changes from Ledger regarding the calculation of
 --   the initial chain code and generation of the root private key.
 generateKeyFromHardwareLedger
-    :: Mnemonic mw
-        -- ^ The actual seed
+    :: SomeMnemonic
+        -- ^ The root mnemonic
     -> Passphrase "encryption"
         -- ^ Master encryption passphrase
     -> IcarusKey 'RootK XPrv
-generateKeyFromHardwareLedger mnemonic (Passphrase pwd) = unsafeFromRight $ do
+generateKeyFromHardwareLedger (SomeMnemonic mw) (Passphrase pwd) = unsafeFromRight $ do
     let seed = pbkdf2HmacSha512
             $ T.encodeUtf8
             $ T.intercalate " "
-            $ mnemonicToText mnemonic
+            $ mnemonicToText mw
 
     -- NOTE
     -- SLIP-0010 refers to `iR` as the chain code. Here however, the chain code
@@ -291,13 +292,14 @@ generateKeyFromHardwareLedger mnemonic (Passphrase pwd) = unsafeFromRight $ do
 -- testing, in practice, seeds are used to represent root keys, and one should
 -- use 'generateKeyFromSeed'.
 unsafeGenerateKeyFromSeed
-    :: Passphrase "seed"
-        -- ^ The actual seed
+    :: SomeMnemonic
+        -- ^ The root mnemonic
     -> Passphrase "encryption"
         -- ^ Master encryption passphrase
     -> IcarusKey depth XPrv
-unsafeGenerateKeyFromSeed (Passphrase seed) (Passphrase pwd) =
+unsafeGenerateKeyFromSeed (SomeMnemonic mw) (Passphrase pwd) =
     let
+        seed  = entropyToBytes $ mnemonicToEntropy mw
         seed' = invariant
             ("seed length : "
                 <> show (BA.length seed)

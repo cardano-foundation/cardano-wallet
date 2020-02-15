@@ -25,8 +25,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle (..)
     , HardDerivation (..)
     , NetworkDiscriminant (..)
-    , Passphrase (..)
     , PaymentAddress (..)
+    , SomeMnemonic (..)
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
@@ -34,13 +34,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Mnemonic
-    ( Mnemonic
-    , entropyToBytes
-    , entropyToMnemonic
-    , genEntropy
-    , mnemonicToEntropy
-    , mnemonicToText
-    )
+    ( Mnemonic, entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), Coin (..), Hash (..), TxIn (..), TxOut (..) )
 import Cardano.Wallet.Unsafe
@@ -53,6 +47,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Text
     ( Text )
+import GHC.TypeLits
+    ( KnownNat )
 import Network.Socket
     ( SockAddr (..) )
 import System.FilePath
@@ -1475,11 +1471,11 @@ genFaucets file n = do
     appendFile :: Text -> IO ()
     appendFile txt = TIO.appendFile file (txt <> "\n")
 
-    addresses :: Mnemonic n -> [Address]
+    addresses :: KnownNat n => Mnemonic n -> [Address]
     addresses mw =
         let
             (seed, pwd) =
-                (Passphrase $ entropyToBytes $ mnemonicToEntropy mw, mempty)
+                (SomeMnemonic mw, mempty)
             rootXPrv =
                 generateKeyFromSeed seed pwd
             accXPrv =

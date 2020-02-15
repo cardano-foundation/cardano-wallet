@@ -20,6 +20,8 @@ import Prelude
 
 import Cardano.Crypto.Wallet
     ( XPub, unXPrv )
+import Cardano.Wallet.Gen
+    ( genMnemonic )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
@@ -34,6 +36,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PassphraseMinLength (..)
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
+    , SomeMnemonic (..)
     , WalletKey (..)
     , XPrv
     , checkPassphrase
@@ -127,7 +130,7 @@ spec = do
                 \aster/specifications/mnemonic/english.txt"
 
         it "early error reported first (Invalid Entropy)" $ do
-            let res = fromMnemonic @'[15,18,21] @"testing"
+            let res = fromMnemonic @'[15,18,21]
                         [ "glimpse", "paper", "toward", "fine", "alert"
                         , "baby", "pyramid", "alone", "shaft", "force"
                         , "circle", "fancy", "squeeze", "cannon", "toilet"
@@ -136,7 +139,7 @@ spec = do
                 \please double-check the last word of your mnemonic sentence.")
 
         it "early error reported first (Non-English Word)" $ do
-            let res = fromMnemonic @'[15,18,21] @"testing"
+            let res = fromMnemonic @'[15,18,21]
                         [ "baguette", "paper", "toward", "fine", "alert"
                         , "baby", "pyramid", "alone", "shaft", "force"
                         , "circle", "fancy", "squeeze", "cannon", "toilet"
@@ -144,7 +147,7 @@ spec = do
             res `shouldBe` Left (FromMnemonicError (noInDictErr "baguette"))
 
         it "early error reported first (Wrong number of words - 1)" $ do
-            let res = fromMnemonic @'[15,18,21] @"testing"
+            let res = fromMnemonic @'[15,18,21]
                         ["mom", "unveil", "slim", "abandon"
                         , "nut", "cash", "laugh", "impact"
                         , "system", "split", "depth", "sun"
@@ -153,7 +156,7 @@ spec = do
                 \15, 18 or 21 words are expected.")
 
         it "early error reported first (Wrong number of words - 2)" $ do
-            let res = fromMnemonic @'[15] @"testing"
+            let res = fromMnemonic @'[15]
                         ["mom", "unveil", "slim", "abandon"
                         , "nut", "cash", "laugh", "impact"
                         , "system", "split", "depth", "sun"
@@ -162,21 +165,21 @@ spec = do
                 \15 words are expected.")
 
         it "early error reported first (Error not in first constructor)" $ do
-            let res = fromMnemonic @'[15,18,21,24] @"testing"
+            let res = fromMnemonic @'[15,18,21,24]
                         ["盗", "精", "序", "郎", "赋", "姿", "委", "善", "酵"
                         ,"祥", "赛", "矩", "蜡", "注", "韦", "效", "义", "冻"
                         ]
             res `shouldBe` Left (FromMnemonicError (noInDictErr "盗"))
 
         it "early error reported first (Error not in first constructor)" $ do
-            let res = fromMnemonic @'[12,15,18] @"testing"
+            let res = fromMnemonic @'[12,15,18]
                         ["盗", "精", "序", "郎", "赋", "姿", "委", "善", "酵"
                         ,"祥", "赛", "矩", "蜡", "注", "韦", "效", "义", "冻"
                         ]
             res `shouldBe` Left (FromMnemonicError (noInDictErr "盗"))
 
         it "successfully parse 15 words in [15,18,21]" $ do
-            let res = fromMnemonic @'[15,18,21] @"testing"
+            let res = fromMnemonic @'[15,18,21]
                         ["cushion", "anxiety", "oval", "village", "choose"
                         , "shoot", "over", "behave", "category", "cruise"
                         , "track", "either", "maid", "organ", "sock"
@@ -184,7 +187,7 @@ spec = do
             res `shouldSatisfy` isRight
 
         it "successfully parse 15 words in [12,15,18]" $ do
-            let res = fromMnemonic @'[12,15,18] @"testing"
+            let res = fromMnemonic @'[12,15,18]
                         ["cushion", "anxiety", "oval", "village", "choose"
                         , "shoot", "over", "behave", "category", "cruise"
                         , "track", "either", "maid", "organ", "sock"
@@ -192,7 +195,7 @@ spec = do
             res `shouldSatisfy` isRight
 
         it "successfully parse 15 words in [9,12,15]" $ do
-            let res = fromMnemonic @'[9,12,15] @"testing"
+            let res = fromMnemonic @'[9,12,15]
                         ["cushion", "anxiety", "oval", "village", "choose"
                         , "shoot", "over", "behave", "category", "cruise"
                         , "track", "either", "maid", "organ", "sock"
@@ -369,19 +372,19 @@ instance Arbitrary NetworkDiscriminant where
 genRootKeysSeq :: Gen (ShelleyKey depth XPrv)
 genRootKeysSeq = do
     (s, g, e) <- (,,)
-        <$> genPassphrase @"seed" (16, 32)
-        <*> genPassphrase @"generation" (0, 16)
+        <$> (SomeMnemonic <$> genMnemonic @15)
+        <*> (Just . SomeMnemonic <$> genMnemonic @12)
         <*> genPassphrase @"encryption" (0, 16)
     return $ Seq.unsafeGenerateKeyFromSeed (s, g) e
 
 genRootKeysRnd :: Gen (ByronKey 'RootK XPrv)
 genRootKeysRnd = Rnd.generateKeyFromSeed
-    <$> genPassphrase @"seed" (16, 32)
+    <$> (SomeMnemonic <$> genMnemonic @12)
     <*> genPassphrase @"encryption" (0, 16)
 
 genRootKeysIca :: Gen (IcarusKey depth XPrv)
 genRootKeysIca = Ica.unsafeGenerateKeyFromSeed
-    <$> genPassphrase @"seed" (16, 32)
+    <$> (SomeMnemonic <$> genMnemonic @15)
     <*> genPassphrase @"encryption" (0, 16)
 
 genPassphrase :: (Int, Int) -> Gen (Passphrase purpose)
@@ -413,3 +416,6 @@ genLegacyAddress range = do
     addrPayload <- BS.pack <$> vectorOf n arbitrary
     let crc = BS.pack [26,1,2,3,4]
     return $ Address (prefix <> addrPayload <> crc)
+
+instance Arbitrary SomeMnemonic where
+    arbitrary = SomeMnemonic <$> genMnemonic @12

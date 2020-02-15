@@ -22,8 +22,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Index
     , Index (..)
     , Passphrase (..)
+    , SomeMnemonic (..)
     , XPrv
-    , fromMnemonic
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..)
@@ -31,9 +31,10 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     , minSeedLengthBytes
     , unsafeGenerateKeyFromSeed
     )
-
 import Cardano.Wallet.Primitive.AddressDerivationSpec
     ()
+import Cardano.Wallet.Unsafe
+    ( unsafeMkMnemonic )
 import Control.Monad
     ( (<=<) )
 import Data.ByteArray.Encoding
@@ -62,7 +63,7 @@ spec = do
 -------------------------------------------------------------------------------}
 
 prop_keyDerivation
-    :: Passphrase "seed"
+    :: SomeMnemonic
     -> Passphrase "encryption"
     -> Index 'WholeDomain 'AccountK
     -> Index 'WholeDomain 'AddressK
@@ -97,11 +98,11 @@ data GenerateKeyFromSeed = GenerateKeyFromSeed
 
 generateTest :: GenerateKeyFromSeed -> Expectation
 generateTest GenerateKeyFromSeed{..} =
-    getKey (generateKeyFromSeed (Passphrase seed) pwd)
+    getKey (generateKeyFromSeed mw pwd)
     `shouldBe`
     getKey rootKey
   where
-    Right (Passphrase seed) = fromMnemonic @'[12] mnem
+    mw = SomeMnemonic $ unsafeMkMnemonic @12 mnem
 
 generateTest1 :: GenerateKeyFromSeed
 generateTest1 = GenerateKeyFromSeed

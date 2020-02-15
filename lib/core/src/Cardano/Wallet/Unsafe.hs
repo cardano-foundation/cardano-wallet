@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
@@ -14,10 +15,14 @@ module Cardano.Wallet.Unsafe
     , unsafeFromText
     , unsafeRunExceptT
     , unsafeXPrv
-    , unsafeMkMnemonic
     , unsafeDeserialiseCbor
     , unsafeBech32DecodeFile
     , unsafeBech32Decode
+
+    , someDummyMnemonic
+    , unsafeMkMnemonic
+    , unsafeMkEntropy
+    , unsafeMkSomeMnemonicFromEntropy
     ) where
 
 import Prelude
@@ -26,8 +31,21 @@ import Cardano.Crypto.Wallet
     ( XPrv )
 import Cardano.Wallet.Api.Types
     ( DecodeAddress (..) )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( SomeMnemonic (..) )
 import Cardano.Wallet.Primitive.Mnemonic
-    ( ConsistentEntropy, EntropySize, Mnemonic, mkMnemonic )
+    ( ConsistentEntropy
+    , Entropy
+    , EntropySize
+    , Mnemonic
+    , MnemonicWords
+    , ValidChecksumSize
+    , ValidEntropySize
+    , ValidMnemonicSentence
+    , entropyToMnemonic
+    , mkEntropy
+    , mkMnemonic
+    )
 import Cardano.Wallet.Primitive.Types
     ( Address )
 import Control.Monad
@@ -44,17 +62,22 @@ import Data.ByteString
     ( ByteString )
 import Data.Char
     ( isHexDigit )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
     ( FromText (..) )
 import GHC.Stack
     ( HasCallStack )
+import GHC.TypeLits
+    ( natVal )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Read as CBOR
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
@@ -123,6 +146,54 @@ unsafeDeserialiseCbor decoder bytes = either
     (\e -> error $ "unsafeSerializeCbor: " <> show e)
     snd
     (CBOR.deserialiseFromBytes decoder bytes)
+
+unsafeMkEntropy
+    :: forall ent csz.
+        ( HasCallStack
+        , ValidEntropySize ent
+        , ValidChecksumSize ent csz
+        )
+    => ByteString
+    -> Entropy ent
+unsafeMkEntropy = either (error . show) id . mkEntropy
+
+unsafeMkSomeMnemonicFromEntropy
+    :: forall mw ent csz.
+        ( HasCallStack
+        , ValidEntropySize ent
+        , ValidChecksumSize ent csz
+        , ValidMnemonicSentence mw
+        , ent ~ EntropySize mw
+        , mw ~ MnemonicWords ent
+        )
+    => Proxy mw
+    -> ByteString
+    -> SomeMnemonic
+unsafeMkSomeMnemonicFromEntropy _ = SomeMnemonic
+    . entropyToMnemonic
+    . unsafeMkEntropy @ent
+
+-- | A dummy @SomeMnemonic@ for testing.
+--
+-- Could have been named @dummySomeMnemonic@, but this way it sounds more like
+-- valid english.
+someDummyMnemonic
+    :: forall mw ent csz.
+        ( HasCallStack
+        , ValidEntropySize ent
+        , ValidChecksumSize ent csz
+        , ValidMnemonicSentence mw
+        , ent ~ EntropySize mw
+        , mw ~ MnemonicWords ent
+        )
+    => Proxy mw
+    -> SomeMnemonic
+someDummyMnemonic proxy =
+    let
+        n = fromIntegral $ natVal (Proxy @ent) `div` 8
+        entropy = BS.replicate n 0
+    in
+        unsafeMkSomeMnemonicFromEntropy proxy entropy
 
 -- | Load the data part of a bech32-encoded string from file. These files often
 -- come from @jcli@. Only the first line of the file is read.

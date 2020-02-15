@@ -138,7 +138,7 @@ import Cardano.Wallet.Version
 import Control.Applicative
     ( optional, some, (<|>) )
 import Control.Arrow
-    ( first, left, second )
+    ( first, left )
 import Control.Exception
     ( bracket, catch )
 import Control.Monad
@@ -151,8 +151,6 @@ import Data.Bifunctor
     ( bimap )
 import Data.Char
     ( toLower )
-import Data.Functor
-    ( (<$), (<&>) )
 import Data.List.Extra
     ( enumerate )
 import Data.List.NonEmpty
@@ -338,19 +336,16 @@ cmdMnemonicRewardCredentials =
   where
     cmd = pure exec
     exec = do
-        wSeed <- fst <$> do
+        wSeed <- do
             let prompt = "Please enter your 15–24 word mnemonic sentence: "
-            let parser = fromMnemonic @'[15,18,21,24] @"seed" . T.words
-            getLine prompt parser
-        wSndFactor <- maybe mempty fst <$> do
+            let parser = fromMnemonic @'[15,18,21,24] . T.words
+            fst <$> getLine prompt parser
+        wSndFactor <- do
             let prompt =
                     "(Enter a blank line if you didn't use a second factor.)\n"
                     <> "Please enter your 9–12 word mnemonic second factor: "
-            let parser =
-                    optionalE (fromMnemonic @'[9,12] @"generation") . T.words
-            getLine prompt parser <&> \case
-                (Nothing, _) -> Nothing
-                (Just a, t) -> Just (a, t)
+            let parser = optionalE $ fromMnemonic @'[9,12] . T.words
+            fst <$> getLine prompt parser
 
         let rootXPrv = Shelley.generateKeyFromSeed (wSeed, wSndFactor) mempty
         let rewardAccountXPrv = deriveRewardAccount mempty rootXPrv
@@ -420,24 +415,22 @@ cmdWalletCreate = command "create" $ info (helper <*> cmd) $ mempty
     exec (WalletCreateArgs wPort wName wGap) = do
         wSeed <- do
             let prompt = "Please enter a 15–24 word mnemonic sentence: "
-            let parser = fromMnemonic @'[15,18,21,24] @"seed" . T.words
-            getLine prompt parser
+            let parser = fromMnemonic @'[15,18,21,24] . T.words
+            fst <$> getLine prompt parser
         wSndFactor <- do
             let prompt =
                     "(Enter a blank line if you do not wish to use a second " <>
                     "factor.)\n" <>
                     "Please enter a 9–12 word mnemonic second factor: "
             let parser =
-                    optionalE (fromMnemonic @'[9,12] @"generation") . T.words
-            getLine prompt parser <&> \case
-                (Nothing, _) -> Nothing
-                (Just a, t) -> Just (a, t)
+                    optionalE (fromMnemonic @'[9,12]) . T.words
+            fst <$> getLine prompt parser
         wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
         runClient wPort Aeson.encodePretty $ postWallet (walletClient @t) $
             WalletPostData
                 (Just $ ApiT wGap)
-                (ApiMnemonicT . second T.words $ wSeed)
-                (ApiMnemonicT . second T.words <$> wSndFactor)
+                (ApiMnemonicT wSeed)
+                (ApiMnemonicT <$> wSndFactor)
                 (ApiT wName)
                 (ApiT wPwd)
 
