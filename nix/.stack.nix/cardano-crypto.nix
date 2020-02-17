@@ -64,7 +64,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."basement" or (buildDepError "basement"))
           (hsPkgs."foundation" or (buildDepError "foundation"))
           (hsPkgs."cryptonite" or (buildDepError "cryptonite"))
-          (hsPkgs."cryptonite-openssl" or (buildDepError "cryptonite-openssl"))
           (hsPkgs."hashable" or (buildDepError "hashable"))
           (hsPkgs."integer-gmp" or (buildDepError "integer-gmp"))
           ];
@@ -127,7 +126,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-crypto";
-      rev = "3c5db489c71a4d70ee43f5f9b979fcde3c797f2a";
-      sha256 = "0lss4x41m0ylhximqjc56ps0y3pag3x58wm480pzfa48lpk4gqpk";
+      rev = "05aa1bc640c42bfca787531d12595489c1fa3b82";
+      sha256 = "05g48n8gn32q258chl9b3z4kxmvqk70fqvgynyzz62l40ikrhj6g";
       });
     }
