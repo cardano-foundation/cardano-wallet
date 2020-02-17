@@ -218,6 +218,7 @@ test-suite unit
     , unordered-containers
     , yaml
     , wai
+    , wai-extra
     , warp
     , zip
   build-tools:

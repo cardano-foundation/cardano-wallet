@@ -32,6 +32,7 @@ module Cardano.Wallet.Api.Server
     , byronServer
     , newApiLayer
     , withListeningSocket
+    , LiftHandler(..)
     ) where
 
 import Prelude
