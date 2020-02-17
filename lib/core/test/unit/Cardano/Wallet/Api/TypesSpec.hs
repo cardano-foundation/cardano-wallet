@@ -442,7 +442,7 @@ spec = do
             |] `shouldBe` (Left @String @(ApiT AddressPoolGap) msg)
 
         it "ApiT AddressPoolGap (not a integer)" $ do
-            let msg = "Error in $: expected Integer, encountered floating number\
+            let msg = "Error in $: parsing Integer failed, unexpected floating number\
                     \ 2.5"
             Aeson.parseEither parseJSON [aesonQQ|
                 2.5
@@ -463,8 +463,8 @@ spec = do
             |] `shouldBe` (Left @String @(ApiT WalletId) msg)
 
         it "AddressAmount (too small)" $ do
-            let msg = "Error in $.amount.quantity: expected Natural, \
-                    \encountered negative number -14"
+            let msg = "Error in $.amount.quantity: parsing Natural failed, \
+                    \unexpected negative number -14"
             Aeson.parseEither parseJSON [aesonQQ|
                 { "address": "ta1sdaa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677ztw225s"
                 , "amount": {"unit":"lovelace","quantity":-14}
