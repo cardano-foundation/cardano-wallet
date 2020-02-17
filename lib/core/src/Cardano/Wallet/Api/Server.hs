@@ -279,7 +279,7 @@ import Network.Wai.Handler.Warp
     ( Port )
 import Network.Wai.Middleware.Logging
     ( ApiLog (..), newApiLoggerSettings, obfuscateKeys, withApiLogger )
-import Network.Wai.Middleware.ServantError
+import Network.Wai.Middleware.ServerError
     ( handleRawError )
 import Numeric.Natural
     ( Natural )
@@ -302,7 +302,7 @@ import Servant
     , throwError
     )
 import Servant.Server
-    ( Handler (..), ServantErr (..) )
+    ( Handler (..), ServerError (..) )
 import System.IO.Error
     ( ioeGetErrorType
     , isAlreadyInUseError
@@ -1712,9 +1712,9 @@ withWorkerCtx ctx wid onMissing action =
 class LiftHandler e where
     liftHandler :: ExceptT e IO a -> Handler a
     liftHandler action = Handler (withExceptT handler action)
-    handler :: e -> ServantErr
+    handler :: e -> ServerError
 
-apiError :: ServantErr -> ApiErrorCode -> Text -> ServantErr
+apiError :: ServerError -> ApiErrorCode -> Text -> ServerError
 apiError err code message = err
     { errBody = Aeson.encode $ Aeson.object
         [ "code" .= code
@@ -2131,8 +2131,8 @@ instance LiftHandler ErrGetNetworkParameters where
                 , ". Use smaller epoch than current or 'latest'."
                 ]
 
-instance LiftHandler (Request, ServantErr) where
-    handler (req, err@(ServantErr code _ body headers))
+instance LiftHandler (Request, ServerError) where
+    handler (req, err@(ServerError code _ body headers))
       | not (isJSON body) = case code of
         400 | "Failed reading" `BS.isInfixOf` BL.toStrict body ->
             apiError err' BadRequest $ mconcat

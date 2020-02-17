@@ -101,10 +101,8 @@ import Data.Void
     ( Void )
 import GHC.Stack
     ( HasCallStack )
-import Network.Mux.Interface
-    ( AppType (..) )
-import Network.Mux.Types
-    ( MuxError )
+import Network.Mux
+    ( AppType (..), MuxError )
 import Network.Socket
     ( AddrInfo (..), Family (..), SockAddr (..), SocketType (..) )
 import Network.TypedProtocol.Channel
@@ -361,13 +359,13 @@ mkNetworkClient
         -- ^ Communication channel with the LocalTxSubmission client
     -> NetworkClient m
 mkNetworkClient tr bp chainSyncQ localTxSubmissionQ =
-    OuroborosInitiatorApplication $ \pid -> \case
+    OuroborosInitiatorApplication $ \_pid -> \case
         ChainSyncWithBlocksPtcl ->
             let tr' = contramap (T.pack . show) $ trMessage tr in
-            chainSyncWithBlocks tr' pid (W.getGenesisBlockHash bp) chainSyncQ
+            chainSyncWithBlocks tr' (W.getGenesisBlockHash bp) chainSyncQ
         LocalTxSubmissionPtcl ->
             let tr' = contramap (T.pack . show) $ trMessage tr in
-            localTxSubmission tr' pid localTxSubmissionQ
+            localTxSubmission tr' localTxSubmissionQ
 
 -- Connect a client to a network, see `mkNetworkClient` to construct a network
 -- client interface.
@@ -402,7 +400,7 @@ connectClient client (vData, vCodec) addr = do
 -- In a typical usage, 'chainSyncWithBlocks' would be executed in a forked
 -- thread and given a 'TQueue' over which the parent thread as control.
 --
--- >>> forkIO $ void $ chainSyncWithBlocks peerId tr queue channel
+-- >>> forkIO $ void $ chainSyncWithBlocks tr queue channel
 -- ()
 -- >>> writeTQueue queue ...
 --
@@ -430,14 +428,12 @@ connectClient client (vData, vCodec) addr = do
 --      *------*
 --
 chainSyncWithBlocks
-    :: forall m protocol peerId.
+    :: forall m protocol.
         ( protocol ~ ChainSync ByronBlock (Tip ByronBlock)
         , MonadThrow m, MonadST m, MonadSTM m
         )
-    => Tracer m (TraceSendRecv protocol peerId DeserialiseFailure)
+    => Tracer m (TraceSendRecv protocol)
         -- ^ Base tracer for the mini-protocols
-    -> peerId
-        -- ^ An abstract peer identifier for 'runPeer'
     -> W.Hash "Genesis"
         -- ^ Hash of the genesis block
     -> TQueue m (ChainSyncCmd m)
@@ -450,9 +446,9 @@ chainSyncWithBlocks
         -- transports serialized messages between peers (e.g. a unix
         -- socket).
     -> m Void
-chainSyncWithBlocks tr pid genesisHash queue channel = do
+chainSyncWithBlocks tr genesisHash queue channel = do
     nodeTipVar <- newTMVarM genesisTip
-    runPeer tr codec pid channel (chainSyncClientPeer $ client nodeTipVar)
+    runPeer tr codec channel (chainSyncClientPeer $ client nodeTipVar)
   where
     codec :: Codec protocol DeserialiseFailure m ByteString
     codec = codecChainSync
@@ -554,14 +550,12 @@ chainSyncWithBlocks tr pid genesisHash queue channel = do
 --                                             |         |⇦ START
 --                                             *---------*
 localTxSubmission
-    :: forall m protocol peerId.
+    :: forall m protocol.
         ( MonadThrow m, MonadTimer m, MonadST m
         , protocol ~ LocalTxSubmission (GenTx ByronBlock) String
         )
-    => Tracer m (TraceSendRecv protocol peerId DeserialiseFailure)
+    => Tracer m (TraceSendRecv protocol)
         -- ^ Base tracer for the mini-protocols
-    -> peerId
-        -- ^ An abstract peer identifier for 'runPeer'
     -> TQueue m (LocalTxSubmissionCmd m)
         -- ^ We use a 'TQueue' as a communication channel to drive queries from
         -- outside of the network client to the client itself.
@@ -572,8 +566,8 @@ localTxSubmission
         -- transports serialized messages between peers (e.g. a unix
         -- socket).
     -> m Void
-localTxSubmission tr pid queue channel =
-    runPeer tr codec pid channel (localTxSubmissionClientPeer client)
+localTxSubmission tr queue channel =
+    runPeer tr codec channel (localTxSubmissionClientPeer client)
   where
     codec :: Codec protocol DeserialiseFailure m ByteString
     codec = codecLocalTxSubmission

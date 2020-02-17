@@ -119,7 +119,7 @@ import Servant.Client
     , runClientM
     )
 import Servant.Client.Core
-    ( ServantError (..) )
+    ( ClientError (..) )
 import Servant.Links
     ( Link, safeLink )
 
@@ -163,7 +163,7 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
     { getAccountState = \accountId -> ExceptT $ do
         let action = cGetAccountState (AccountId accountId)
         run action >>= \case
-            Left (FailureResponse e) | responseStatusCode e == status404 ->
+            Left (FailureResponse _ e) | responseStatusCode e == status404 ->
                 return $ Left $ ErrGetAccountStateAccountNotFound accountId
             x -> do
                 let ctx = safeLink
@@ -180,7 +180,7 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
     , getBlock = \blockId -> ExceptT $ do
         let action = cGetBlock (BlockId blockId)
         run action >>= \case
-            Left (FailureResponse e) | responseStatusCode e == status404 ->
+            Left (FailureResponse _ e) | responseStatusCode e == status404 ->
                 return $ Left $ ErrGetBlockNotFound blockId
             x -> do
                 let ctx = safeLink
@@ -193,7 +193,7 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
         let action = map getBlockId <$>
                 cGetBlockDescendantIds (BlockId parentId) (Just count)
         run action >>= \case
-            Left (FailureResponse e) | responseStatusCode e == status404 ->
+            Left (FailureResponse _ e) | responseStatusCode e == status404 ->
                 return $ Left $ ErrGetDescendantsParentNotFound parentId
             x -> do
                 let ctx = safeLink
@@ -210,7 +210,7 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
     -- https://github.com/input-output-hk/jormungandr/blob/fe638a36d4be64e0c4b360ba1c041e8fa10ea024/jormungandr/src/rest/v0/message/post.rs#L25-L39
     , postMessage = \tx -> void $ ExceptT $ do
         run (cPostMessage tx) >>= \case
-            Left (FailureResponse e) | responseStatusCode e == status400 -> do
+            Left (FailureResponse _ e) | responseStatusCode e == status400 -> do
                 let msg = T.decodeUtf8 $ BL.toStrict $ responseBody e
                 return $ Left $ ErrPostTxBadRequest msg
             x -> do
@@ -220,7 +220,7 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
     , getInitialBlockchainParameters = \block0 -> do
         let action = cGetBlock $ BlockId $ coerce block0
         jblock@(J.Block _ msgs) <- ExceptT $ run action >>= \case
-            Left (FailureResponse e) | responseStatusCode e == status404 ->
+            Left (FailureResponse _ e) | responseStatusCode e == status404 ->
                 return
                     $ Left
                     $ ErrGetBlockchainParamsGenesisNotFound block0
@@ -308,20 +308,20 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
         run cGetStakeDistribution >>= defaultHandler ctx
     }
   where
-    run :: ClientM a -> IO (Either ServantError a)
+    run :: ClientM a -> IO (Either ClientError a)
     run query = handle windowsNetworkException $
         runClientM query (mkClientEnv mgr baseUrl)
       where
-        windowsNetworkException :: SomeException -> IO (Either ServantError a)
+        windowsNetworkException :: SomeException -> IO (Either ClientError a)
         windowsNetworkException e
             | "WSAECONNREFUSED" `isSubsequenceOf` show e =
-                pure $ Left $ ConnectionError $ T.pack $ show e
+                pure $ Left $ ConnectionError e
             | otherwise =
                 throwIO e
 
     defaultHandler
         :: Link
-        -> Either ServantError a
+        -> Either ClientError a
         -> IO (Either ErrNetworkUnavailable a)
     defaultHandler ctx = \case
         Right c -> return $ Right c
@@ -330,11 +330,11 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
         -- This could be recovered from by either waiting for the node
         -- initialise, or restarting the node.
         Left (ConnectionError e) ->
-            return $ Left $ ErrNetworkUnreachable e
+            return $ Left $ ErrNetworkUnreachable $ T.pack $ show e
 
         -- The node has started but its REST API is not ready yet to serve
         -- requests.
-        Left (FailureResponse e) | responseStatusCode e == status503 ->
+        Left (FailureResponse _ e) | responseStatusCode e == status503 ->
             return $ Left $ ErrNetworkUnreachable $ T.pack $ show e
 
         -- Other errors (status code, decode failure, invalid content type
@@ -381,7 +381,7 @@ getBlockHeader j t =
 -------------------------------------------------------------------------------}
 
 data ErrUnexpectedNetworkFailure
-    = ErrUnexpectedNetworkFailure Link ServantError
+    = ErrUnexpectedNetworkFailure Link ClientError
     deriving (Generic, Show)
 
 instance Exception ErrUnexpectedNetworkFailure

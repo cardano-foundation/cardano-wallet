@@ -212,6 +212,8 @@ import Servant
     , StdMethod (..)
     , Verb
     )
+import Servant.API.Verbs
+    ( NoContentVerb, Verb )
 import Servant.Swagger.Test
     ( validateEveryToJSON )
 import System.Environment
@@ -1636,6 +1638,9 @@ class HasPath api where
     getPath :: Proxy api -> (StdMethod, String)
 
 instance (Method m) => HasPath (Verb m s ct a) where
+    getPath _ = (method (Proxy @m), "")
+
+instance (Method m) => HasPath (NoContentVerb m) where
     getPath _ = (method (Proxy @m), "")
 
 instance (KnownSymbol path, HasPath sub) => HasPath (path :> sub) where

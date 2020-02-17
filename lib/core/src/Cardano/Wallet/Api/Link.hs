@@ -116,6 +116,7 @@ import Servant.API
     , Capture
     , Header'
     , IsElem
+    , NoContentVerb
     , QueryParam
     , ReflectMethod (..)
     , ReqBody
@@ -512,6 +513,9 @@ type Net = 'Mainnet
 -- | Extract the method from a given Api
 class HasVerb api where
     method :: Proxy api -> Method
+
+instance (ReflectMethod m) => HasVerb (NoContentVerb m) where
+    method _ = reflectMethod (Proxy @m)
 
 instance (ReflectMethod m) => HasVerb (Verb m s ct a) where
     method _ = reflectMethod (Proxy @m)

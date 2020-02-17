@@ -149,7 +149,7 @@ library
       Data.Time.Utils
       Data.Quantity
       Data.Vector.Shuffle
-      Network.Wai.Middleware.ServantError
+      Network.Wai.Middleware.ServerError
       Network.Wai.Middleware.Logging
   other-modules:
       Paths_cardano_wallet_core

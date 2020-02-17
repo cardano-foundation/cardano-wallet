@@ -218,7 +218,7 @@ import Options.Applicative.Types
 import Servant.Client
     ( BaseUrl (..), ClientM, Scheme (..), mkClientEnv, runClientM )
 import Servant.Client.Core
-    ( ServantError (..), responseBody )
+    ( ClientError (..), responseBody )
 import System.Console.ANSI
     ( Color (..)
     , ColorIntensity (..)
@@ -1066,7 +1066,7 @@ sendRequest
     :: forall a. ()
     => Port "Wallet"
     -> ClientM a
-    -> IO (Either ServantError a)
+    -> IO (Either ClientError a)
 sendRequest (Port p) cmd = do
     manager <- newManager $ defaultManagerSettings
         { managerResponseTimeout = responseTimeoutNone }
@@ -1076,7 +1076,7 @@ sendRequest (Port p) cmd = do
 handleResponse
     :: forall a. ()
     => (a -> BL.ByteString)
-    -> Either ServantError a
+    -> Either ClientError a
     -> IO ()
 handleResponse encode res = do
     case res of
@@ -1085,11 +1085,9 @@ handleResponse encode res = do
             BL8.putStrLn (encode a)
         Left e -> do
             let msg = case e of
-                    FailureResponse r -> fromMaybe
+                    FailureResponse _ r -> fromMaybe
                         (T.decodeUtf8 $ BL.toStrict $ responseBody r)
                         (decodeError $ responseBody r)
-                    ConnectionError t ->
-                        t
                     _ ->
                         T.pack $ show e
             putErrLn msg
