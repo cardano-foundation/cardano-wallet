@@ -8,9 +8,7 @@
   $ find . -name "*.cabal" ! -path "*.stack-work*" | xargs sed -i "s/<old-version>/<new-version>/"
   ```
 
-- [ ] Update the "Compatibility Matrix" in the README.md (keep info about last 3 versions of the wallet backend)
-
-- [ ] Tag and sign the release commit with a proper tag
+- [ ] Tag and sign the release commit with a proper tag (make sure Hydra's job has started building `master`!)
 
   ```
   $ VERSION=<new-version> git tag -s -m $VERSION $VERSION
@@ -58,3 +56,10 @@
 
 - [ ] Manually run the disabled `LAUNCH` tests in:
     - [ ] `lib/jormungandr/test/integration/Test/Integration/Jormungandr/Scenario/CLI/Launcher.hs`
+
+
+## Publication
+
+- [ ] Once everyone has signed off (i.e. Tech lead, QA & Release manager), publish the release draft.
+
+- [ ] Update the "Compatibility Matrix" in the README.md (keep info about last 3 versions of `cardano-wallet`).
