@@ -190,7 +190,8 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
                     [x*batchSize | x<-[1..whole10Rounds]] ++ [lastBit]
                 else
                     [lastBit]
-        mapM_ (repeatPostTx ctx wal1 amt batchSize . amtExp) expInflows
+        let expInflows' = filter (/=0) expInflows
+        mapM_ (repeatPostTx ctx wal1 amt batchSize . amtExp) expInflows'
 
         pure (wal1, wal2)
 
