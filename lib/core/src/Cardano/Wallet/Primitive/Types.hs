@@ -568,20 +568,18 @@ instance ToText PoolId where
 
 instance FromText PoolId where
     fromText t = case convertFromBase Base16 $ T.encodeUtf8 t of
-        Left err -> textDecodingError
-            ("stake pool id wrongly formatted: expected hex string"
-             <> " - the exact error: "
-             <> err)
-        Right bytes ->
-            if BS.length bytes == poolIdBytesLength then
-                Right $ PoolId bytes
-            else
-                Left $ TextDecodingError $ "stake pool id invalid: expected "
-                 <> show poolIdBytesLength
-                 <> " bytes but got "
-                 <> show (BS.length bytes)
-        where
-            textDecodingError = Left . TextDecodingError . show
+        Left _ ->
+            textDecodingError
+        Right bytes | BS.length bytes == poolIdBytesLength ->
+            Right $ PoolId bytes
+        Right _ ->
+            textDecodingError
+      where
+        textDecodingError = Left $ TextDecodingError $ unwords
+            [ "Invalid stake pool id: expecting a hex-encoded value that is"
+            , show poolIdBytesLength
+            , "bytes in length."
+            ]
 
 -- | A stake pool owner, which is a public key encoded in bech32 with prefix
 -- ed25519_pk.
