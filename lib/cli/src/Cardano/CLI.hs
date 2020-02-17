@@ -112,6 +112,7 @@ import Cardano.Wallet.Api.Types
     , PostExternalTransactionData (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
+    , WalletOrAccountPostData (..)
     , WalletPostData (..)
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
@@ -427,7 +428,7 @@ cmdWalletCreate = command "create" $ info (helper <*> cmd) $ mempty
             fst <$> getLine prompt parser
         wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
         runClient wPort Aeson.encodePretty $ postWallet (walletClient @t) $
-            WalletPostData
+            WalletOrAccountPostData $ Left $ WalletPostData
                 (Just $ ApiT wGap)
                 (ApiMnemonicT wSeed)
                 (ApiMnemonicT <$> wSndFactor)

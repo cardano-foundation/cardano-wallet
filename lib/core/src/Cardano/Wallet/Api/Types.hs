@@ -80,6 +80,11 @@ module Cardano.Wallet.Api.Types
     , ApiByronWalletMigrationInfo (..)
     , ByronWalletPostData (..)
 
+    -- * API Types (Hardware)
+    , AccountPostData (..)
+    , AccountPublicKey (..)
+    , WalletOrAccountPostData (..)
+
     -- * User-Facing Address Encoding/Decoding
     , EncodeAddress (..)
     , DecodeAddress (..)
@@ -95,17 +100,20 @@ import Prelude
 import Cardano.Pool.Metadata
     ( StakePoolMetadata )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( FromMnemonic (..)
+    ( Depth (..)
+    , FromMnemonic (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
+    , PersistPublicKey (..)
     , SomeMnemonic (..)
+    , XPub
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( decodeLegacyAddress )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( decodeShelleyAddress )
+    ( ShelleyKey (..), decodeShelleyAddress, xpubFromText )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Mnemonic
@@ -159,6 +167,7 @@ import Data.Aeson
     , tagSingleConstructors
     , withObject
     , (.:)
+    , (.:?)
     , (.=)
     )
 import Data.Bifunctor
@@ -344,6 +353,20 @@ data ByronWalletPostData mw = ByronWalletPostData
     { mnemonicSentence :: !(ApiMnemonicT mw)
     , name :: !(ApiT WalletName)
     , passphrase :: !(ApiT (Passphrase "encryption"))
+    } deriving (Eq, Generic, Show)
+
+newtype AccountPublicKey = AccountPublicKey
+    { key :: (ApiT (ShelleyKey 'AccountK XPub))
+    } deriving (Eq, Generic, Show)
+
+newtype WalletOrAccountPostData = WalletOrAccountPostData
+    { postData :: Either WalletPostData AccountPostData
+    } deriving (Eq, Generic, Show)
+
+data AccountPostData = AccountPostData
+    { name :: !(ApiT WalletName)
+    , accountPublicKey :: !AccountPublicKey
+    , addressPoolGap :: !(Maybe (ApiT AddressPoolGap))
     } deriving (Eq, Generic, Show)
 
 newtype WalletPutData = WalletPutData
@@ -656,6 +679,39 @@ instance ToJSON ApiWalletPassphrase where
 instance FromJSON WalletPostData where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON  WalletPostData where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON AccountPublicKey where
+    parseJSON bytes = do
+        bs <- T.encodeUtf8 <$> parseJSON bytes
+        case xpubFromText bs of
+            Left _ ->
+                fail "AccountPublicKey: unable to deserialize ShelleyKey from json"
+            Right pubkey ->
+                pure $ AccountPublicKey $ ApiT $ ShelleyKey pubkey
+instance ToJSON AccountPublicKey where
+    toJSON =
+        toJSON . T.decodeUtf8 . serializeXPub . getApiT . key
+
+instance FromJSON WalletOrAccountPostData where
+    parseJSON obj = do
+        val <-
+            (withObject "postData" $
+             \o -> o .:? "passphrase" :: Aeson.Parser (Maybe Text)) obj
+        case val of
+            Nothing -> do
+                xs <- parseJSON obj :: Aeson.Parser AccountPostData
+                pure $ WalletOrAccountPostData $ Right xs
+            Just _ -> do
+                xs <- parseJSON obj :: Aeson.Parser WalletPostData
+                pure $ WalletOrAccountPostData $ Left xs
+instance ToJSON WalletOrAccountPostData where
+    toJSON (WalletOrAccountPostData (Left c))= toJSON c
+    toJSON (WalletOrAccountPostData (Right c))= toJSON c
+
+instance FromJSON AccountPostData where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON AccountPostData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromMnemonic mw => FromJSON (ByronWalletPostData mw) where

@@ -112,7 +112,7 @@ import Cardano.Wallet.Api.Types
     , PostTransactionData
     , PostTransactionFeeData
     , StyleSymbol
-    , WalletPostData
+    , WalletOrAccountPostData
     , WalletPutData
     , WalletPutPassphraseData
     )
@@ -219,7 +219,7 @@ type ListWallets = "wallets"
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postWallet
 type PostWallet = "wallets"
-    :> ReqBody '[JSON] WalletPostData
+    :> ReqBody '[JSON] WalletOrAccountPostData
     :> PostCreated '[JSON] ApiWallet
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/putWallet

@@ -95,7 +95,8 @@ import Cardano.Wallet.Api
     , workerRegistry
     )
 import Cardano.Wallet.Api.Types
-    ( AddressAmount (..)
+    ( AccountPostData (..)
+    , AddressAmount (..)
     , ApiAddress (..)
     , ApiBlockReference (..)
     , ApiByronWallet (..)
@@ -132,6 +133,7 @@ import Cardano.Wallet.Api.Types
     , PostTransactionData
     , PostTransactionFeeData
     , WalletBalance (..)
+    , WalletOrAccountPostData (..)
     , WalletPostData (..)
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
@@ -450,7 +452,7 @@ server byron icarus shelley spl =
     wallets = deleteWallet shelley
         :<|> (fmap fst . getWallet shelley mkShelleyWallet)
         :<|> (fmap fst <$> listWallets shelley mkShelleyWallet)
-        :<|> postShelleyWallet shelley
+        :<|> postWallet shelley
         :<|> putWallet shelley mkShelleyWallet
         :<|> putWalletPassphrase shelley
         :<|> getUTxOsStatistics shelley
@@ -646,6 +648,20 @@ type MkApiWallet ctx s w
     -> Handler w
 
 --------------------- Shelley
+postWallet
+    :: forall ctx s t k n.
+        ( s ~ SeqState n k
+        , k ~ ShelleyKey
+        , ctx ~ ApiLayer s t k
+        , HasDBFactory s k ctx
+        , HasWorkerRegistry s k ctx
+        )
+    => ctx
+    -> WalletOrAccountPostData
+    -> Handler ApiWallet
+postWallet ctx (WalletOrAccountPostData body) = case body of
+    Left body' -> postShelleyWallet ctx body'
+    Right body' -> postAccountWallet ctx body'
 
 postShelleyWallet
     :: forall ctx s t k n.
@@ -675,6 +691,11 @@ postShelleyWallet ctx body = do
     wid = WalletId $ digest $ publicKey rootXPrv
     wName = getApiT (body ^. #name)
 
+postAccountWallet
+    :: ctx
+    -> AccountPostData
+    -> Handler ApiWallet
+postAccountWallet _ctx _body = throwError err501
 
 mkShelleyWallet
     :: forall ctx s t k n.

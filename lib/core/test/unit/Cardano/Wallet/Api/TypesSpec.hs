@@ -27,7 +27,9 @@ import Cardano.Pool.Metadata
 import Cardano.Wallet.Api
     ( Api )
 import Cardano.Wallet.Api.Types
-    ( AddressAmount (..)
+    ( AccountPostData (..)
+    , AccountPublicKey (..)
+    , AddressAmount (..)
     , ApiAddress (..)
     , ApiBlockReference (..)
     , ApiByronWallet (..)
@@ -64,26 +66,31 @@ import Cardano.Wallet.Api.Types
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
     , WalletBalance (..)
+    , WalletOrAccountPostData (..)
     , WalletPostData (..)
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
     )
+import Cardano.Wallet.Gen
+    ( genMnemonic )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( ChainCode (..)
     , DelegationAddress (..)
+    , HardDerivation (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
     , PaymentAddress (..)
     , SomeMnemonic (..)
+    , WalletKey (..)
     , XPub (..)
     , networkDiscriminantVal
     , passphraseMaxLength
     , passphraseMinLength
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( KnownNetwork (..), ShelleyKey (..) )
+    ( KnownNetwork (..), ShelleyKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
     ( genAddress, genLegacyAddress )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -216,6 +223,7 @@ import Test.Hspec
     ( Spec, SpecWith, describe, expectationFailure, it, runIO, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Gen
     , InfiniteList (..)
     , arbitraryBoundedEnum
     , arbitraryPrintableChar
@@ -289,6 +297,8 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(PostTransactionData 'Testnet)
             jsonRoundtripAndGolden $ Proxy @(PostTransactionFeeData 'Testnet)
             jsonRoundtripAndGolden $ Proxy @WalletPostData
+            jsonRoundtripAndGolden $ Proxy @AccountPostData
+            jsonRoundtripAndGolden $ Proxy @WalletOrAccountPostData
             jsonRoundtripAndGolden $ Proxy @(ByronWalletPostData '[12])
             jsonRoundtripAndGolden $ Proxy @(ByronWalletPostData '[15])
             jsonRoundtripAndGolden $ Proxy @(ByronWalletPostData '[12,15,18,21,24])
@@ -1023,6 +1033,22 @@ instance Arbitrary SortOrder where
     arbitrary = arbitraryBoundedEnum
     shrink = genericShrink
 
+instance Arbitrary WalletOrAccountPostData where
+    arbitrary = do
+        let walletPostDataGen = arbitrary :: Gen WalletPostData
+        let accountPostDataGen = arbitrary :: Gen AccountPostData
+        oneof [ WalletOrAccountPostData . Left <$> walletPostDataGen
+              , WalletOrAccountPostData . Right <$> accountPostDataGen ]
+
+instance Arbitrary AccountPostData where
+    arbitrary = do
+        wName <- ApiT <$> arbitrary
+        seed <- SomeMnemonic <$> genMnemonic @15
+        let rootXPrv = generateKeyFromSeed (seed, Nothing) mempty
+        let accIx = toEnum 0x80000000
+        let accXPub = publicKey $ deriveAccountPrivateKey mempty rootXPrv accIx
+        pure $ AccountPostData wName (AccountPublicKey $ ApiT accXPub) Nothing
+
 instance Arbitrary WalletPostData where
     arbitrary = genericArbitrary
     shrink = genericShrink
@@ -1469,6 +1495,12 @@ instance ToSchema ApiTxId where
 
 instance ToSchema WalletPostData where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWalletPostData"
+
+instance ToSchema AccountPostData where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiAccountPostData"
+
+instance ToSchema WalletOrAccountPostData where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiWalletOrAccountPostData"
 
 instance ToSchema (ByronWalletPostData '[12]) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiByronWalletRandomPostData"
