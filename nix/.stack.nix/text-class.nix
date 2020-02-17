@@ -42,7 +42,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     flags = { development = false; };
     package = {
       specVersion = "1.10";
-      identifier = { name = "text-class"; version = "2020.1.27"; };
+      identifier = { name = "text-class"; version = "2020.2.17"; };
       license = "Apache-2.0";
       copyright = "2018-2020 IOHK";
       maintainer = "operations@iohk.io";
