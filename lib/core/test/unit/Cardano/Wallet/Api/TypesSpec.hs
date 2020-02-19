@@ -1303,13 +1303,10 @@ instance Arbitrary ApiEpochNumber where
         let lowerBound = fromIntegral (minBound @Word31)
         let upperBound = fromIntegral (maxBound @Word31)
         epochN <- choose (lowerBound :: Int, upperBound)
-        rndTextLength <- choose (1,10)
-        rndText <-
-            suchThat (vectorOf rndTextLength (elements ['a'..'z'])) (/="latest")
         elements
             [ ApiEpochNumberLatest
             , ApiEpochNumber (EpochNo (fromIntegral epochN))
-            , ApiEpochNumberInvalid $ T.pack rndText]
+            ]
 
 instance Arbitrary SlotId where
     arbitrary = SlotId <$> arbitrary <*> arbitrary

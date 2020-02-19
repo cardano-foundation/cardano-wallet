@@ -396,7 +396,7 @@ newtype ApiFee = ApiFee
     } deriving (Eq, Generic, Show)
 
 data ApiEpochNumber =
-    ApiEpochNumberLatest | ApiEpochNumber EpochNo | ApiEpochNumberInvalid Text
+    ApiEpochNumberLatest | ApiEpochNumber EpochNo
     deriving (Eq, Generic, Show)
 
 data ApiNetworkParameters = ApiNetworkParameters
@@ -492,8 +492,7 @@ data ApiErrorCode
     | NotDelegatingTo
     | InvalidRestorationParameters
     | RejectedTip
-    | InvalidEpochNo
-    | NotSuchEpochNo
+    | NoSuchEpochNo
     | InvalidDelegationDiscovery
     deriving (Eq, Generic, Show)
 
@@ -526,21 +525,26 @@ instance ToHttpApiData Iso8601Time where
 instance ToText ApiEpochNumber where
     toText ApiEpochNumberLatest = "latest"
     toText (ApiEpochNumber (EpochNo e)) = T.pack $ show e
-    toText (ApiEpochNumberInvalid txt) = txt
 
 instance FromText ApiEpochNumber where
     fromText txt = case txt of
-        "latest" -> Right ApiEpochNumberLatest
+        "latest" ->
+            Right ApiEpochNumberLatest
         rest -> case T.decimal @Int rest of
-            Right (num, "") ->
-                if num >= minValue && num <= maxValue then
-                    Right $ ApiEpochNumber $ EpochNo $ fromIntegral num
-                else
-                    Right $ ApiEpochNumberInvalid rest
-            _ -> Right $ ApiEpochNumberInvalid rest
+            Right (num, "") | num >= minValue && num <= maxValue ->
+                Right $ ApiEpochNumber $ EpochNo $ fromIntegral num
+            _ ->
+                Left errText
       where
         minValue = fromIntegral $ minBound @Word31
         maxValue = fromIntegral $ maxBound @Word31
+        errText  = TextDecodingError $ unwords
+            [ "I couldn't parse the given epoch number."
+            , "I am expecting either the word 'latest' or, an integer from"
+            , show (minBound @Word31)
+            , "to"
+            , show (maxBound @Word31) <> "."
+            ]
 
 instance ToHttpApiData ApiEpochNumber where
     toUrlPiece = toText

@@ -262,8 +262,6 @@ import Data.Time.Clock
     ( getCurrentTime )
 import Data.Word
     ( Word32, Word64 )
-import Data.Word.Odd
-    ( Word31 )
 import Fmt
     ( Buildable, pretty )
 import GHC.Stack
@@ -1459,16 +1457,18 @@ getNetworkParameters
     -> Handler ApiNetworkParameters
 getNetworkParameters (_block0, bp, _st) apiEpochNum = do
     case apiEpochNum of
-        ApiEpochNumberInvalid txt ->
-            liftHandler $ throwE $ ErrGetNetworkParametersInvalidValue txt
         ApiEpochNumber epochNum -> do
             now <- liftIO getCurrentTime
             let ntrkTip =
                     fromMaybe slotMinBound (slotAt (W.slotParams bp) now)
             let currentEpochNum = ntrkTip ^. #epochNumber
-            when (currentEpochNum < epochNum) $ liftHandler $ throwE $
-                ErrGetNetworkParametersNoSuchEpochNo currentEpochNum epochNum
+            when (currentEpochNum < epochNum) $
+                liftHandler $ throwE $ ErrNoSuchEpoch
+                    { errGivenEpoch = epochNum
+                    , errCurrentEpoch = currentEpochNum
+                    }
             pure resp
+
         ApiEpochNumberLatest ->
             pure resp
   where
@@ -1484,10 +1484,10 @@ getNetworkParameters (_block0, bp, _st) apiEpochNum = do
             $ W.unActiveSlotCoefficient
             $ bp ^. #getActiveSlotCoefficient )
 
-data ErrGetNetworkParameters
-    = ErrGetNetworkParametersInvalidValue Text
-    | ErrGetNetworkParametersNoSuchEpochNo W.EpochNo W.EpochNo
-    deriving (Eq, Show)
+data ErrNoSuchEpoch = ErrNoSuchEpoch
+    { errGivenEpoch :: W.EpochNo
+    , errCurrentEpoch :: W.EpochNo
+    } deriving (Eq, Show)
 
 {-------------------------------------------------------------------------------
                                    Proxy
@@ -2110,25 +2110,15 @@ instance LiftHandler ErrQuitStakePool where
                 , "incur an unnecessary fee!"
                 ]
 
-instance LiftHandler ErrGetNetworkParameters where
+instance LiftHandler ErrNoSuchEpoch where
     handler = \case
-        ErrGetNetworkParametersInvalidValue txt ->
-            apiError err400 InvalidEpochNo $ mconcat
-                [ "I couldn't show blockchain parameters for "
-                , txt
-                , ". It should be either 'latest' or integer from "
-                , T.pack (show (minBound @Word31))
-                , " to "
-                , T.pack (show (maxBound @Word31))
-                , "."
-                ]
-        ErrGetNetworkParametersNoSuchEpochNo (W.EpochNo cEpochNo) (W.EpochNo rEpochNo) ->
-            apiError err404 NotSuchEpochNo $ mconcat
+        ErrNoSuchEpoch {errGivenEpoch,errCurrentEpoch}->
+            apiError err404 NoSuchEpochNo $ mconcat
                 [ "I couldn't show blockchain parameters for epoch number later"
                 , " than current one. You requested "
-                , T.pack (show rEpochNo)
+                , pretty errGivenEpoch
                 , " epoch. Current one is "
-                , T.pack (show cEpochNo)
+                , pretty errCurrentEpoch
                 , ". Use smaller epoch than current or 'latest'."
                 ]
 
