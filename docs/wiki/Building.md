@@ -6,7 +6,7 @@ Use [Haskell Stack](https://haskellstack.org/) to build this project:
 stack build --test --no-run-tests
 ```
 
-You may need to install the `gmp`, `sqlite` and `systemd` development
+You may need to install the `libghc-hsopenssl-dev`, `gmp`, `sqlite` and `systemd` development
 libraries for the build to succeed.
 
 
