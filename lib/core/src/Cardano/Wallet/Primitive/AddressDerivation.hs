@@ -63,6 +63,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , xPrvFromStrippedPubXPrv
     , ErrXPrvFromStrippedPubXPrv (..)
     , ErrUnXPrvStripPub (..)
+    , NatVals (..)
 
     -- * Network Discrimination
     , NetworkDiscriminant (..)
