@@ -34,6 +34,7 @@ library
     , ansi-terminal
     , base
     , bech32
+    , bech32-th
     , bytestring
     , cardano-wallet-core
     , contra-tracer

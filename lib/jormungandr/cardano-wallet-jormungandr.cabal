@@ -188,6 +188,7 @@ test-suite integration
     , aeson-qq
     , async
     , bech32
+    , bech32-th
     , binary
     , bytestring
     , cardano-wallet-cli
@@ -275,6 +276,7 @@ benchmark latency
     , aeson-qq
     , async
     , bech32
+    , bech32-th
     , bytestring
     , cardano-wallet-cli
     , cardano-wallet-core

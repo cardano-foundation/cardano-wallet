@@ -13,7 +13,8 @@ packages:
 extra-deps:
 # Miscellaneous
 - base58-bytestring-0.1.0
-- bech32-1.0.1
+- bech32-1.0.2
+- bech32-th-1.0.2
 - OddWord-1.0.2.0
 - quickcheck-state-machine-0.6.0
 - command-0.1.1

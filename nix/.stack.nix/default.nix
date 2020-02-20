@@ -3,7 +3,8 @@
     {
       packages = {
         "base58-bytestring" = (((hackage.base58-bytestring)."0.1.0").revisions).default;
-        "bech32" = (((hackage.bech32)."1.0.1").revisions).default;
+        "bech32" = (((hackage.bech32)."1.0.2").revisions).default;
+        "bech32-th" = (((hackage.bech32-th)."1.0.2").revisions).default;
         "OddWord" = (((hackage.OddWord)."1.0.2.0").revisions).default;
         "quickcheck-state-machine" = (((hackage.quickcheck-state-machine)."0.6.0").revisions).default;
         "command" = (((hackage.command)."0.1.1").revisions).default;
