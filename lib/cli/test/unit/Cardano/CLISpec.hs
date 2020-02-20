@@ -2,7 +2,9 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.CLISpec
@@ -12,11 +14,14 @@ module Cardano.CLISpec
 import Prelude
 
 import Cardano.CLI
-    ( MnemonicSize (..)
+    ( CliKeyScheme (..)
+    , CliWalletStyle (..)
+    , MnemonicSize (..)
     , Port (..)
     , TxId
     , cli
     , cmdAddress
+    , cmdKey
     , cmdMnemonic
     , cmdNetwork
     , cmdStakePool
@@ -24,13 +29,28 @@ import Cardano.CLI
     , cmdWallet
     , hGetLine
     , hGetSensitiveLine
+    , hexTextToXPrv
+    , mapKey
+    , newCliKeyScheme
+    , xPrvToHexText
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..) )
+    ( NetworkDiscriminant (..), XPrv, unXPrv )
+import Cardano.Wallet.Primitive.Mnemonic
+    ( ConsistentEntropy
+    , EntropySize
+    , Mnemonic
+    , entropyToMnemonic
+    , mnemonicToText
+    )
+import Cardano.Wallet.Unsafe
+    ( unsafeMkEntropy )
 import Control.Concurrent
     ( forkFinally )
 import Control.Concurrent.MVar
     ( newEmptyMVar, putMVar, takeMVar )
+import Control.Exception
+    ( SomeException, try )
 import Control.Monad
     ( mapM_ )
 import Data.Proxy
@@ -39,57 +59,93 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), toText )
+import GHC.TypeLits
+    ( natVal )
 import Options.Applicative
     ( ParserResult (..), columns, execParserPure, prefs, renderFailure )
+import System.Exit
+    ( ExitCode (..) )
 import System.FilePath
     ( (</>) )
 import System.IO
-    ( Handle, IOMode (..), hClose, openFile )
+    ( Handle, IOMode (..), hClose, openFile, stderr )
+import System.IO.Silently
+    ( capture_, hCapture_ )
 import System.IO.Temp
     ( withSystemTempDirectory )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe )
+    ( Spec, describe, expectationFailure, it, shouldBe, shouldStartWith )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Gen
     , Large (..)
+    , Property
     , arbitraryBoundedEnum
     , checkCoverage
     , counterexample
     , cover
+    , expectFailure
+    , forAll
     , genericShrink
+    , oneof
     , property
+    , vectorOf
+    , (.&&.)
     , (===)
     )
 import Test.Text.Roundtrip
     ( textRoundtrip )
 
+import qualified Data.ByteString as BS
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 
 spec :: Spec
 spec = do
+
+    let defaultPrefs = prefs (mempty <> columns 65)
+
+    let parser = cli $ mempty
+            <> cmdMnemonic
+            <> cmdWallet @'Testnet
+            <> cmdTransaction @'Testnet
+            <> cmdAddress @'Testnet
+            <> cmdStakePool @'Testnet
+            <> cmdNetwork @'Testnet
+            <> cmdKey
+
+
+    let shouldStdOut args expected = it (unwords args) $
+            case execParserPure defaultPrefs parser args of
+                Success x -> capture_ x >>= (`shouldBe` expected)
+                CompletionInvoked _ -> expectationFailure
+                    "expected parser to show usage but it offered completion"
+                Failure failure ->
+                    expectationFailure $ "parser failed with: " ++ show failure
+    let expectStdErr args expectation = it (unwords args) $
+            case execParserPure defaultPrefs parser args of
+                Success x ->
+                    hCapture_ [stderr] (try @SomeException x) >>= (expectation)
+                CompletionInvoked _ -> expectationFailure
+                    "expected parser to show usage but it offered completion"
+                Failure failure -> do
+                    let (str, code) = renderFailure failure ""
+                    code `shouldBe` (ExitFailure 1)
+                    expectation str
     describe "Specification / Usage Overview" $ do
-        let parser = cli $ mempty
-                <> cmdMnemonic
-                <> cmdWallet @'Testnet
-                <> cmdTransaction @'Testnet
-                <> cmdAddress @'Testnet
-                <> cmdStakePool @'Testnet
-                <> cmdNetwork @'Testnet
 
-        let defaultPrefs = prefs (mempty <> columns 65)
-
-        let expectationFailure = flip counterexample False
-
+        let expectationFailure' = flip counterexample False
         let shouldShowUsage args expected = it (unwords args) $
                 case execParserPure defaultPrefs parser args of
-                    Success _ -> expectationFailure
+                    Success _ -> expectationFailure'
                         "expected parser to show usage but it has succeeded"
-                    CompletionInvoked _ -> expectationFailure
+                    CompletionInvoked _ -> expectationFailure'
                         "expected parser to show usage but it offered completion"
                     Failure failure -> property $
                         let (usage, _) = renderFailure failure mempty
-                        in counterexample usage $ expected === lines usage
+                            msg = "*** Expected:\n" ++ (unlines expected)
+                                ++ "*** but actual usage is:\n" ++ usage
+                        in counterexample msg $ expected === lines usage
 
         ["--help"] `shouldShowUsage`
             [ "The CLI is a proxy to the wallet server, which is required for"
@@ -111,6 +167,7 @@ spec = do
             , "  address                  Manage addresses."
             , "  stake-pool               Manage stake pools."
             , "  network                  Manage network."
+            , "  key                      Derive keys from mnemonics."
             ]
 
         ["mnemonic", "--help"] `shouldShowUsage`
@@ -145,6 +202,19 @@ spec = do
             , "  -h,--help                Show this help text"
             , ""
             , "!!! Only for the Incentivized Testnet !!!"
+            ]
+
+
+        ["key", "--help"] `shouldShowUsage`
+            [ "Usage:  key COMMAND"
+            , "  Derive keys from mnemonics."
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , ""
+            , "Available commands:"
+            , "  root                     Extract root extended private key from"
+            , "                           a mnemonic sentence."
             ]
 
         ["wallet", "--help"] `shouldShowUsage`
@@ -384,9 +454,23 @@ spec = do
             , "  EPOCH_NUMBER             epoch number parameter or 'latest'"
             ]
 
+        ["key", "root", "--help"] `shouldShowUsage`
+            [ "Usage:  key root --wallet-style WALLET_STYLE MNEMONIC_WORD..."
+            , "  Extract root extended private key from a mnemonic sentence."
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , "  --wallet-style WALLET_STYLE"
+            , "                           Any of the following:"
+            , "                             icarus (15 words)"
+            , "                             trezor (12, 15, 18, 21 or 24 words)"
+            , "                             ledger (12, 15, 18, 21 or 24 words)"
+            ]
+
     describe "Can perform roundtrip textual encoding & decoding" $ do
         textRoundtrip $ Proxy @(Port "test")
         textRoundtrip $ Proxy @MnemonicSize
+        textRoundtrip $ Proxy @CliWalletStyle
 
     describe "Transaction ID decoding from text" $ do
 
@@ -473,9 +557,127 @@ spec = do
             , expectedStdout = "Prompt: ******\ESC[1D \ESC[1D\ESC[1D \ESC[1D**\n"
             , expectedResult = "pata14" :: Text
             }
+
+    let mw15 = words "message mask aunt wheel ten maze between tomato slow \
+                     \analyst ladder such report capital produce"
+    let mw12 = words "broccoli side goddess shaft alarm victory sheriff \
+                     \combine birth deny train outdoor"
+    describe "key derivation from mnemonics" $ do
+        (["key", "root", "--wallet-style", "icarus"] ++ mw15) `shouldStdOut`
+            "00aa5f5f364980f4ac6295fd0fbf65643390d6bb1cf76536c2ebb02713c8ba50d8\
+            \903bee774b7bf8678ea0d6fded6d876db3b42bef687640cc514eb73f767537a8c7\
+            \54f89bc9cc83533eab257d7c94625c95f0d749710428f5aa2404eeb6499b\n"
+        (["key", "root", "--wallet-style", "trezor"] ++ mw15) `shouldStdOut`
+            "00aa5f5f364980f4ac6295fd0fbf65643390d6bb1cf76536c2ebb02713c8ba50d8\
+            \903bee774b7bf8678ea0d6fded6d876db3b42bef687640cc514eb73f767537a8c7\
+            \54f89bc9cc83533eab257d7c94625c95f0d749710428f5aa2404eeb6499b\n"
+        (["key", "root", "--wallet-style", "ledger"] ++ mw15) `shouldStdOut`
+            "003a914372e711b910a75b87e98695929b6960bd5380cfd766b572ea844ea14080\
+            \9eb7ad13f798d06ce550a9f6c48dd2151db4593e67dbd2821d75378c7350f1366b\
+            \85e0be9cdec2213af2084d462cc11e85c215e0f003acbeb996567e371502\n"
+
+    describe "key derivation (negative tests)" $ do
+        (["key", "root", "--wallet-style", "icarus"] ++ mw12) `expectStdErr`
+            (`shouldBe` "Invalid number of words: 15 words are expected.\n")
+
+        (["key", "root", "--wallet-style", "icarus"]) `expectStdErr`
+            (`shouldStartWith` "Missing: MNEMONIC_WORD...")
+
+        let shrug = "¯\\_(ツ)_/¯"
+        (["key", "root", "--wallet-style", "icarus"] ++ (replicate 15 shrug))
+            `expectStdErr` (`shouldBe`
+            "Found an unknown word not present in the pre-defined dictionary. \
+            \The full dictionary is available here:\
+            \ https://github.com/input-output-hk/cardano-wallet/tree/master/spe\
+            \cifications/mnemonic/english.txt\n")
+
+    describe "CliKeyScheme" $ do
+        it "all allowedWordLengths are supported"
+            $ property prop_allowedWordLengthsAllWork
+
+        it "scheme == scheme (reflexivity)" $ property $ \s ->
+            propCliKeySchemeEquality
+                (newCliKeyScheme s)
+                (newCliKeyScheme s)
+
+        -- This tests provides a stronger guarantee than merely knowing that
+        -- unsafeHexTextToXPrv and xPrvToHexText roundtrips.
+        it "scheme == mapKey (fromHex . toHex) scheme"
+            $ property prop_roundtripCliKeySchemeKeyViaHex
+
+        it "random /= icarus" $ do
+            expectFailure $ propCliKeySchemeEquality
+                (newCliKeyScheme Ledger)
+                (newCliKeyScheme Icarus)
+
   where
     backspace :: Text
     backspace = T.singleton (toEnum 127)
+
+prop_roundtripCliKeySchemeKeyViaHex :: CliWalletStyle -> Property
+prop_roundtripCliKeySchemeKeyViaHex style =
+            propCliKeySchemeEquality
+                (newCliKeyScheme style)
+                (mapKey hexTextToXPrv
+                    . mapKey xPrvToHexText
+                    $ newCliKeyScheme style)
+
+prop_allowedWordLengthsAllWork :: CliWalletStyle -> Property
+prop_allowedWordLengthsAllWork style = do
+    (forAll (genAllowedMnemonic s) propCanRetrieveRootKey)
+  where
+    s :: CliKeyScheme XPrv (Either String)
+    s = newCliKeyScheme style
+
+    propCanRetrieveRootKey :: [Text] -> Property
+    propCanRetrieveRootKey mw = case mnemonicToRootKey s mw of
+        Right _ -> property True
+        Left e -> counterexample
+            (show (length mw) ++ " words, failed with: " ++ e)
+            (property False)
+
+propCliKeySchemeEquality
+    :: CliKeyScheme XPrv (Either String)
+    -> CliKeyScheme XPrv (Either String)
+    -> Property
+propCliKeySchemeEquality s1 s2 = do
+    (forAll (genAllowedMnemonic s1) propSameMnem)
+    .&&.
+    (allowedWordLengths s1) === (allowedWordLengths s2)
+  where
+    propSameMnem :: [Text] -> Property
+    propSameMnem mw = (mnemonicToRootKey s1 mw) === (mnemonicToRootKey s2 mw)
+
+genAllowedMnemonic :: CliKeyScheme key m -> Gen [Text]
+genAllowedMnemonic s = oneof (map genMnemonicOfSize $ allowedWordLengths s)
+
+genMnemonicOfSize :: Int -> Gen [Text]
+genMnemonicOfSize = \case
+    12 -> mnemonicToText <$> genMnemonic @12
+    15 -> mnemonicToText <$> genMnemonic @15
+    18 -> mnemonicToText <$> genMnemonic @18
+    21 -> mnemonicToText <$> genMnemonic @21
+    24 -> mnemonicToText <$> genMnemonic @24
+    n  -> error $ "when this test was written, " ++ show n ++
+            " was not a valid length of a mnemonic"
+
+instance Show XPrv where
+    show = show . unXPrv
+
+instance Eq XPrv where
+    a == b = unXPrv a == unXPrv b
+
+genMnemonic
+    :: forall mw ent csz.
+     ( ConsistentEntropy ent mw csz
+     , EntropySize mw ~ ent
+     )
+    => Gen (Mnemonic mw)
+genMnemonic = do
+        let n = fromIntegral (natVal $ Proxy @(EntropySize mw)) `div` 8
+        bytes <- BS.pack <$> vectorOf n arbitrary
+        let ent = unsafeMkEntropy @(EntropySize mw) bytes
+        return $ entropyToMnemonic ent
 
 {-------------------------------------------------------------------------------
                                 hGetSensitiveLine
@@ -529,6 +731,10 @@ test fn (GetLineTest prompt_ input_ output expected) =
 -------------------------------------------------------------------------------}
 
 instance Arbitrary MnemonicSize where
+    arbitrary = arbitraryBoundedEnum
+    shrink = genericShrink
+
+instance Arbitrary CliWalletStyle where
     arbitrary = arbitraryBoundedEnum
     shrink = genericShrink
 

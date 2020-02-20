@@ -1,18 +1,22 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -34,6 +38,7 @@ module Cardano.CLI
     , cmdStakePool
     , cmdNetwork
     , cmdVersion
+    , cmdKey
 
     -- * Option & Argument Parsers
     , optionT
@@ -57,6 +62,15 @@ module Cardano.CLI
     , TxId
     , MnemonicSize (..)
     , Port (..)
+    , CliKeyScheme (..)
+    , CliWalletStyle (..)
+
+    , newCliKeyScheme
+    , hexTextToXPrv
+    , xPrvToHexText
+    , hoistKeyScheme
+    , mapKey
+
 
     -- * Logging
     , withLogging
@@ -102,6 +116,7 @@ import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..) )
 import Cardano.Wallet.Api.Types
     ( AddressAmount
+    , AllowedMnemonics
     , ApiEpochNumber
     , ApiMnemonicT (..)
     , ApiT (..)
@@ -120,13 +135,22 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Network
     ( ErrNetworkUnavailable (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( FromMnemonic (..)
+    ( ErrUnXPrvStripPub (..)
+    , ErrXPrvFromStrippedPubXPrv (..)
+    , FromMnemonic (..)
+    , FromMnemonicError (..)
+    , NatVals (..)
     , Passphrase (..)
     , PassphraseMaxLength
     , PassphraseMinLength
+    , SomeMnemonic (..)
     , WalletKey (..)
+    , XPrv
     , deriveRewardAccount
+    , hex
     , unXPrv
+    , unXPrvStripPub
+    , xPrvFromStrippedPubXPrv
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, defaultAddressPoolGap )
@@ -143,27 +167,40 @@ import Control.Arrow
 import Control.Exception
     ( bracket, catch )
 import Control.Monad
-    ( join, unless, void, when )
+    ( join, unless, void, when, (>=>) )
 import Control.Tracer
     ( Tracer, traceWith )
 import Data.Aeson
     ( (.:) )
 import Data.Bifunctor
     ( bimap )
+import Data.ByteArray.Encoding
+    ( Base (Base16), convertFromBase )
 import Data.Char
     ( toLower )
+import Data.List
+    ( intercalate )
 import Data.List.Extra
     ( enumerate )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
     ( fromMaybe )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.String
     ( IsString )
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..), showT )
+    ( CaseStyle (..)
+    , FromText (..)
+    , TextDecodingError (..)
+    , ToText (..)
+    , fromTextToBoundedEnum
+    , showT
+    , toTextFromBoundedEnum
+    )
 import Data.Text.Read
     ( decimal )
 import Data.Void
@@ -198,6 +235,7 @@ import Options.Applicative
     , footer
     , header
     , help
+    , helpDoc
     , helper
     , hidden
     , info
@@ -213,6 +251,8 @@ import Options.Applicative
     , subparser
     , value
     )
+import Options.Applicative.Help.Pretty
+    ( string, vsep )
 import Options.Applicative.Types
     ( ReadM (..), readerAsk )
 import Servant.Client
@@ -249,6 +289,7 @@ import System.IO
     , hGetEcho
     , hIsTerminalDevice
     , hPutChar
+    , hPutStrLn
     , hSetBuffering
     , hSetEcho
     , stderr
@@ -258,6 +299,8 @@ import System.IO
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM
+import qualified Cardano.Wallet.Api.Types as API
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
@@ -266,6 +309,7 @@ import qualified Data.Aeson.Encode.Pretty as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.Bifunctor as Bi
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.List.NonEmpty as NE
@@ -296,6 +340,169 @@ runCli :: ParserInfo (IO ()) -> IO ()
 runCli = join . customExecParser preferences
   where
     preferences = prefs showHelpOnEmpty
+
+{-------------------------------------------------------------------------------
+                            Commands - 'HD Derivation'
+-------------------------------------------------------------------------------}
+
+cmdKey :: Mod CommandFields (IO ())
+cmdKey = command "key" $ info (helper <*> cmds) $ mempty
+    <> progDesc "Derive keys from mnemonics."
+  where
+    cmds = subparser $ mempty
+        <> cmdRootKey
+
+
+-- | Record with mnemonic and key derivation funcionality — /without/ any type
+-- parameters related to scheme.
+--
+-- This means that we can have a value for byron, a value for icarus, both with
+-- the same type @CliKeyScheme@.
+--
+-- @CliKeyScheme@ is on the other hand parameterized over @key@ and @m@.
+-- @hoistKeyScheme@ is provided for mapping over @m@. @mapKey@ is provided for
+-- mapping over @key@.
+--
+-- This way we can test mapping @XPrv@s to @Text@ as pure code in
+-- @Either String@, rather than @IO@.
+data CliKeyScheme key m = CliKeyScheme
+    { allowedWordLengths :: [Int]
+    , mnemonicToRootKey :: [Text] -> m key
+    }
+
+-- | Change the underlying monad of a @CliKeyScheme@.
+hoistKeyScheme
+    :: (forall a. m1 a -> m2 a)
+    -> CliKeyScheme key m1
+    -> CliKeyScheme key m2
+hoistKeyScheme eta s = CliKeyScheme
+    { allowedWordLengths = allowedWordLengths s
+    , mnemonicToRootKey = eta . mnemonicToRootKey s
+    }
+
+xPrvToHexText :: XPrv -> Either String Text
+xPrvToHexText = left showErr . fmap (T.pack . B8.unpack . hex) . unXPrvStripPub
+  where
+    showErr ErrCannotRoundtrip =
+        "That private key looks weird. Is it encrypted? Or an old Byron key?"
+
+hexTextToXPrv :: Text -> Either String XPrv
+hexTextToXPrv txt = do
+    bytes <- fromHex $ B8.pack $ T.unpack txt
+    left showErr $ xPrvFromStrippedPubXPrv bytes
+  where
+    showErr (ErrInputLengthMismatch expected actual) = mconcat
+        [ "Expected extended private key to be "
+        , show expected
+        , " bytes but got "
+        , show actual
+        , " bytes."
+        ]
+    showErr (ErrInternalError msg) = mconcat
+        [ "Unexpected crypto error: "
+        , msg
+        ]
+    fromHex = left (const "Invalid hex.")
+        . convertFromBase Base16
+
+-- | Map over the key type of a CliKeyScheme.
+--
+-- Can be used with e.g @xPrvToHexText@.
+mapKey
+    :: Monad m
+    => (key1 -> m key2)
+    -> CliKeyScheme key1 m
+    -> CliKeyScheme key2 m
+mapKey f s = CliKeyScheme
+    { allowedWordLengths = allowedWordLengths s
+    , mnemonicToRootKey = (mnemonicToRootKey s) >=> f
+    }
+
+eitherToIO :: Either String a -> IO a
+eitherToIO (Right a) = return a
+eitherToIO (Left e) = hPutStrLn stderr e >> exitFailure
+
+data CliWalletStyle = Icarus | Ledger | Trezor
+    deriving (Show, Eq, Generic, Bounded, Enum)
+
+instance FromText CliWalletStyle where
+    fromText = fromTextToBoundedEnum SnakeLowerCase
+
+instance ToText CliWalletStyle where
+    toText = toTextFromBoundedEnum SnakeLowerCase
+
+newCliKeyScheme :: CliWalletStyle -> CliKeyScheme XPrv (Either String)
+newCliKeyScheme = \case
+    Icarus ->
+        let
+            proxy = Proxy @'API.Icarus
+        in
+            CliKeyScheme
+                (apiAllowedLengths proxy)
+                (fmap icarusKeyFromSeed . seedFromMnemonic proxy)
+    Trezor ->
+        let
+            proxy = Proxy @'API.Trezor
+        in
+            CliKeyScheme
+                (apiAllowedLengths proxy)
+                (fmap icarusKeyFromSeed . seedFromMnemonic proxy)
+    Ledger ->
+        let
+            proxy = Proxy @'API.Ledger
+        in
+            CliKeyScheme
+                (apiAllowedLengths proxy)
+                (fmap ledgerKeyFromSeed . seedFromMnemonic proxy)
+
+  where
+    seedFromMnemonic
+        :: forall (s :: API.ByronWalletStyle).
+            (FromMnemonic (AllowedMnemonics s))
+        => Proxy s
+        -> [Text]
+        -> Either String SomeMnemonic
+    seedFromMnemonic _ =
+        left getFromMnemonicError . fromMnemonic @(AllowedMnemonics s)
+
+    apiAllowedLengths
+        :: forall (s :: API.ByronWalletStyle). ( NatVals (AllowedMnemonics s))
+        => Proxy s
+        -> [Int]
+    apiAllowedLengths _ =
+         (map fromIntegral (natVals $ Proxy @(AllowedMnemonics s)))
+
+    icarusKeyFromSeed :: SomeMnemonic -> XPrv
+    icarusKeyFromSeed = Icarus.getKey . flip Icarus.generateKeyFromSeed pass
+
+    ledgerKeyFromSeed :: SomeMnemonic -> XPrv
+    ledgerKeyFromSeed = Icarus.getKey
+        . flip Icarus.generateKeyFromHardwareLedger pass
+
+    -- We don't use passwords to encrypt the keys here.
+    pass = mempty
+
+data KeyRootArgs = KeyRootArgs
+    { _walletStyle :: CliWalletStyle
+    , _mnemonicWords :: [Text]
+    }
+
+cmdRootKey :: Mod CommandFields (IO ())
+cmdRootKey =
+    command "root" $ info (helper <*> cmd) $ mempty
+        <> progDesc "Extract root extended private key from a mnemonic sentence."
+  where
+    cmd = fmap exec $
+        KeyRootArgs <$> walletStyleOption <*> mnemonicWordsArgument
+    exec (KeyRootArgs keyType ws) = do
+        xprv <- mnemonicToRootKey scheme ws
+        TIO.putStrLn xprv
+      where
+        scheme :: CliKeyScheme Text IO
+        scheme =
+            hoistKeyScheme eitherToIO
+            . mapKey xPrvToHexText
+            $ newCliKeyScheme keyType
 
 {-------------------------------------------------------------------------------
                             Commands - 'mnemonic'
@@ -1013,6 +1220,49 @@ loggingSeverityOrOffReader = do
         "off" -> pure Nothing
         _ -> Just <$> loggingSeverityReader
 
+-- | [--wallet-style=WALLET_STYLE]
+--
+-- Note that we in the future might replace the type @CliWalletStyle@ with
+-- another type, to include Shelley keys.
+walletStyleOption :: Parser CliWalletStyle
+walletStyleOption = option (eitherReader fromTextS)
+    ( long "wallet-style"
+    <> metavar "WALLET_STYLE"
+    <> helpDoc (Just (vsep typeOptions))
+    )
+  where
+    typeOptions = string <$>
+        [ "Any of the following:"
+        , "  icarus (" ++ allowedWords Icarus ++ ")"
+        , "  trezor (" ++ allowedWords Trezor ++ ")"
+        , "  ledger (" ++ allowedWords Ledger ++ ")"
+        ]
+
+    allowedWords = (++ " words")
+        . formatEnglishEnumeration
+        . map show
+        . allowedWordLengths
+        . newCliKeyScheme
+       where
+          -- >>> formatEnglishEnumeration ["a", "b", "c"]
+          -- "a, b or c"
+          --
+          -- >>> formatEnglishEnumeration ["a", "b"]
+          -- "a or b"
+          --
+          -- >>> formatEnglishEnumeration ["a"]
+          -- "a"
+         formatEnglishEnumeration = formatEnglishEnumerationRev . reverse
+         formatEnglishEnumerationRev [ult, penult]
+            = penult ++ " or " ++ ult
+         formatEnglishEnumerationRev (ult:penult:revBeginning)
+            = intercalate ", " (reverse revBeginning)
+                ++ ", "
+                ++ penult
+                ++ " or "
+                ++ ult
+         formatEnglishEnumerationRev xs = intercalate ", " (reverse xs)
+
 -- | <wallet-id=WALLET_ID>
 walletIdArgument :: Parser WalletId
 walletIdArgument = argumentT $ mempty
@@ -1039,6 +1289,10 @@ transactionSubmitPayloadArgument :: Parser PostExternalTransactionData
 transactionSubmitPayloadArgument = argumentT $ mempty
     <> metavar "BINARY_BLOB"
     <> help "hex-encoded binary blob of externally-signed transaction."
+
+-- | <mnemonic-words=MNEMONIC_WORD...>
+mnemonicWordsArgument :: Parser [Text]
+mnemonicWordsArgument = some (argument str (metavar "MNEMONIC_WORD..."))
 
 -- | Helper for writing an option 'Parser' using a 'FromText' instance.
 optionT :: FromText a => Mod OptionFields a -> Parser a

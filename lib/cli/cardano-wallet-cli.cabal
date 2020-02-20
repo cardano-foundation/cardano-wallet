@@ -44,6 +44,7 @@ library
     , fmt
     , http-client
     , iohk-monitoring
+    , memory
     , servant-client
     , servant-client-core
     , text
@@ -69,12 +70,14 @@ test-suite unit
       -Werror
   build-depends:
       base
+    , bytestring
     , cardano-wallet-cli
     , cardano-wallet-core
     , filepath
     , hspec
     , optparse-applicative
     , QuickCheck
+    , silently
     , temporary
     , text
     , text-class

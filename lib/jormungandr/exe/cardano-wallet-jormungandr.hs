@@ -33,6 +33,7 @@ import Cardano.CLI
     , Port (..)
     , cli
     , cmdAddress
+    , cmdKey
     , cmdMnemonic
     , cmdNetwork
     , cmdStakePool
@@ -159,6 +160,7 @@ main = withUtf8Encoding $ do
         <> cmdStakePool @'Testnet
         <> cmdNetwork @'Testnet
         <> cmdVersion
+        <> cmdKey
 
 beforeMainLoop
     :: Trace IO MainLog

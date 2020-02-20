@@ -72,6 +72,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."fmt" or (buildDepError "fmt"))
           (hsPkgs."http-client" or (buildDepError "http-client"))
           (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
+          (hsPkgs."memory" or (buildDepError "memory"))
           (hsPkgs."servant-client" or (buildDepError "servant-client"))
           (hsPkgs."servant-client-core" or (buildDepError "servant-client-core"))
           (hsPkgs."text" or (buildDepError "text"))
@@ -84,12 +85,14 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
         "unit" = {
           depends = [
             (hsPkgs."base" or (buildDepError "base"))
+            (hsPkgs."bytestring" or (buildDepError "bytestring"))
             (hsPkgs."cardano-wallet-cli" or (buildDepError "cardano-wallet-cli"))
             (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
             (hsPkgs."filepath" or (buildDepError "filepath"))
             (hsPkgs."hspec" or (buildDepError "hspec"))
             (hsPkgs."optparse-applicative" or (buildDepError "optparse-applicative"))
             (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
+            (hsPkgs."silently" or (buildDepError "silently"))
             (hsPkgs."temporary" or (buildDepError "temporary"))
             (hsPkgs."text" or (buildDepError "text"))
             (hsPkgs."text-class" or (buildDepError "text-class"))
