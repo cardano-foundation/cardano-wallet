@@ -1045,8 +1045,7 @@ instance Arbitrary AccountPostData where
         wName <- ApiT <$> arbitrary
         seed <- SomeMnemonic <$> genMnemonic @15
         let rootXPrv = generateKeyFromSeed (seed, Nothing) mempty
-        let accIx = toEnum 0x80000000
-        let accXPub = publicKey $ deriveAccountPrivateKey mempty rootXPrv accIx
+        let accXPub = publicKey $ deriveAccountPrivateKey mempty rootXPrv minBound
         pure $ AccountPostData wName (AccountPublicKey $ ApiT accXPub) Nothing
 
 instance Arbitrary WalletPostData where
