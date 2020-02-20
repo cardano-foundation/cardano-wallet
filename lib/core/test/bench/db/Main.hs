@@ -68,7 +68,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , defaultAddressPoolGap
     , emptyPendingIxs
     , mkAddressPool
-    , mkSeqState
+    , mkSeqStateFromRootXPrv
     )
 import Cardano.Wallet.Primitive.Mnemonic
     ( EntropySize, entropyToMnemonic, genEntropy )
@@ -610,7 +610,7 @@ testCp = snd $ initWallet block0 genesisParameters initDummyState
 {-# NOINLINE initDummyState #-}
 initDummyState :: SeqState 'Testnet ShelleyKey
 initDummyState =
-    mkSeqState (xprv, mempty) defaultAddressPoolGap
+    mkSeqStateFromRootXPrv (xprv, mempty) defaultAddressPoolGap
   where
     mnemonic = unsafePerformIO
         $ SomeMnemonic . entropyToMnemonic @15

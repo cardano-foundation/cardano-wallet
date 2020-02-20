@@ -54,7 +54,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 
     -- ** State
     , SeqState (..)
-    , mkSeqState
+    , mkSeqStateFromRootXPrv
     ) where
 
 import Prelude
@@ -547,7 +547,7 @@ instance PersistPublicKey (k 'AccountK) => Buildable (SeqState n k) where
         chgsF = blockListF' "-" build (pendingIxsToList chgs)
 
 -- | Construct a Sequential state for a wallet.
-mkSeqState
+mkSeqStateFromRootXPrv
     :: forall n k.
         ( SoftDerivation k
         , MkKeyFingerprint k (k 'AddressK XPub)
@@ -558,7 +558,7 @@ mkSeqState
     => (k 'RootK XPrv, Passphrase "encryption")
     -> AddressPoolGap
     -> SeqState n k
-mkSeqState (rootXPrv, pwd) g =
+mkSeqStateFromRootXPrv (rootXPrv, pwd) g =
     let
         accXPrv =
             deriveAccountPrivateKey pwd rootXPrv minBound

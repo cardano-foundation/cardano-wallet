@@ -58,7 +58,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , lookupAddress
     , mkAddressPool
     , mkAddressPoolGap
-    , mkSeqState
+    , mkSeqStateFromRootXPrv
     , shrinkPool
     )
 import Cardano.Wallet.Primitive.Types
@@ -344,7 +344,7 @@ prop_genChangeGap g =
   where
     mw = someDummyMnemonic (Proxy @12)
     key = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
-    s0 = mkSeqState (key, mempty) g
+    s0 = mkSeqStateFromRootXPrv (key, mempty) g
     prop =
         length (fst $ changeAddresses [] s0) === fromEnum g
 

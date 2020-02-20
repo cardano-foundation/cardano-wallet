@@ -190,7 +190,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..)
     , defaultAddressPoolGap
-    , mkSeqState
+    , mkSeqStateFromRootXPrv
     , mkUnboundedAddressPoolGap
     , shrinkPool
     )
@@ -508,7 +508,7 @@ createIcarusWallet
     -> (k 'RootK XPrv, Passphrase "encryption")
     -> ExceptT ErrWalletAlreadyExists IO WalletId
 createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
-    let s = mkSeqState credentials (mkUnboundedAddressPoolGap 10000)
+    let s = mkSeqStateFromRootXPrv credentials (mkUnboundedAddressPoolGap 10000)
     let (hist, cp) = initWallet block0 bp s
     let addrs = map address . concatMap (view #outputs . fst) $ hist
     let g  = defaultAddressPoolGap

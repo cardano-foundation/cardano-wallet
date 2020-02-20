@@ -165,7 +165,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState, mkRndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState (..), defaultAddressPoolGap, mkSeqState )
+    ( SeqState (..), defaultAddressPoolGap, mkSeqStateFromRootXPrv )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..), changeBalance, feeBalance, inputBalance )
 import Cardano.Wallet.Primitive.Model
@@ -675,7 +675,7 @@ postShelleyWallet
     -> WalletPostData
     -> Handler ApiWallet
 postShelleyWallet ctx body = do
-    let state = mkSeqState (rootXPrv, pwd) g
+    let state = mkSeqStateFromRootXPrv (rootXPrv, pwd) g
     void $ liftHandler $ initWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
         (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @t @k wrk wid)
