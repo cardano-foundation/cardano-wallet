@@ -299,8 +299,7 @@ type ListTransactions n = "wallets"
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransactionFee
 type PostTransactionFee n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
-    :> "transactions"
-    :> "fees"
+    :> "payment-fees"
     :> ReqBody '[JSON] (PostTransactionFeeData n)
     :> PostAccepted '[JSON] ApiFee
 
@@ -346,8 +345,7 @@ type QuitStakePool n = "stake-pools"
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getDelegationFee
 type DelegationFee = "wallets"
     :> Capture "walletId" (ApiT WalletId)
-    :> "delegations"
-    :> "fees"
+    :> "delegation-fees"
     :> Get '[JSON] ApiFee
 
 {-------------------------------------------------------------------------------

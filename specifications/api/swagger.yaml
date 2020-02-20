@@ -1611,7 +1611,7 @@ paths:
           schema: *ApiPostTransactionData
       responses: *responsesPostTransaction
 
-  /wallets/{walletId}/transactions/fees:
+  /wallets/{walletId}/payment-fees:
     post:
       operationId: postTransactionFee
       tags: ["Transactions"]
@@ -1710,7 +1710,7 @@ paths:
           schema: *ApiWalletPassphrase
       responses: *responsesQuitStakePool
 
-  /wallets/{walletId}/delegations/fees:
+  /wallets/{walletId}/delegation-fees:
     get:
       operationId: getDelegationFee
       tags: ["Stake Pools"]
