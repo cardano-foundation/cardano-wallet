@@ -154,6 +154,29 @@ library
   other-modules:
       Paths_cardano_wallet_core
 
+library cardano-wallet-core-arbitrary
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -Wall
+      -Wcompat
+      -fwarn-redundant-constraints
+  if (!flag(development))
+    ghc-options:
+      -Werror
+  build-depends:
+      base
+    , bytestring
+    , cardano-wallet-core
+    , QuickCheck
+  hs-source-dirs:
+      test/arbitrary
+  exposed-modules:
+      Cardano.Wallet.Gen
+
 test-suite unit
   default-language:
       Haskell2010
@@ -175,6 +198,7 @@ test-suite unit
     , bytestring
     , cardano-crypto
     , cardano-wallet-core
+    , cardano-wallet-core-arbitrary
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
     , cborg
@@ -236,7 +260,6 @@ test-suite unit
       Cardano.Pool.DB.SqliteSpec
       Cardano.Pool.MetadataSpec
       Cardano.Pool.MetricsSpec
-      Cardano.Wallet.Gen
       Cardano.Pool.PerformanceSpec
       Cardano.Pool.RankingSpec
       Cardano.Wallet.Api.ServerSpec
