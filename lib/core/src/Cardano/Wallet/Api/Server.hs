@@ -96,6 +96,7 @@ import Cardano.Wallet.Api
     )
 import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
+    , AccountPublicKey (..)
     , AddressAmount (..)
     , ApiAddress (..)
     , ApiBlockReference (..)
@@ -165,7 +166,11 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState, mkRndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState (..), defaultAddressPoolGap, mkSeqStateFromRootXPrv )
+    ( SeqState (..)
+    , defaultAddressPoolGap
+    , mkSeqStateFromAccountXPub
+    , mkSeqStateFromRootXPrv
+    )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..), changeBalance, feeBalance, inputBalance )
 import Cardano.Wallet.Primitive.Model
@@ -692,10 +697,27 @@ postShelleyWallet ctx body = do
     wName = getApiT (body ^. #name)
 
 postAccountWallet
-    :: ctx
+    :: forall ctx s t k n.
+        ( s ~ SeqState n k
+        , k ~ ShelleyKey
+        , ctx ~ ApiLayer s t k
+        , HasWorkerRegistry s k ctx
+        )
+    => ctx
     -> AccountPostData
     -> Handler ApiWallet
-postAccountWallet _ctx _body = throwError err501
+postAccountWallet ctx body = do
+    let state = mkSeqStateFromAccountXPub accXPub g
+    void $ liftHandler $ initWorker @_ @s @k ctx wid
+        (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
+        (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @t @k wrk wid)
+    fst <$> getWallet ctx (mkShelleyWallet @_ @s @t @k) (ApiT wid)
+  where
+    g = maybe defaultAddressPoolGap getApiT (body ^. #addressPoolGap)
+    wName = getApiT (body ^. #name)
+    (AccountPublicKey accXPubApiT) =  body ^. #accountPublicKey
+    accXPub = getApiT accXPubApiT
+    wid = WalletId $ digest accXPub
 
 mkShelleyWallet
     :: forall ctx s t k n.
