@@ -2,7 +2,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
--- | Shared QuickCheck generators for wallet types.
+-- Shared QuickCheck generators for wallet types.
 --
 -- Our convention is to let each test module define its own @Arbitrary@ orphans.
 -- This module allows for code-reuse where desired, by providing generators.
@@ -23,7 +23,7 @@ import Test.QuickCheck
 
 import qualified Data.ByteString as BS
 
--- | Generates an arbitrary mnemonic of a size according to the type parameter.
+-- Generates an arbitrary mnemonic of a size according to the type parameter.
 --
 -- E.g:
 -- >>> arbitrary = SomeMnemonic <$> genMnemonic @12
