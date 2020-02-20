@@ -1,5 +1,6 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -73,7 +74,7 @@ import Cardano.Wallet.Primitive.Types
 import Control.Arrow
     ( first )
 import Control.Monad
-    ( forM_ )
+    ( forM, forM_ )
 import Control.Monad.IO.Class
     ( liftIO )
 import Data.Aeson.QQ
@@ -86,6 +87,10 @@ import Data.IORef
     ( IORef, atomicModifyIORef, modifyIORef, newIORef )
 import Data.Kind
     ( Type )
+import Data.List
+    ( (\\) )
+import Data.Map.Strict
+    ( Map )
 import Data.Proxy
     ( Proxy (..) )
 import Data.String
@@ -94,6 +99,8 @@ import Data.Text
     ( Text )
 import Data.Typeable
     ( Typeable, typeRep )
+import Data.Void
+    ( Void )
 import Data.Word.Odd
     ( Word31 )
 import GHC.TypeLits
@@ -136,7 +143,7 @@ import Servant.Links
 import System.IO.Unsafe
     ( unsafePerformIO )
 import Test.Hspec
-    ( Spec, SpecWith, describe, it, runIO, xdescribe )
+    ( Spec, SpecWith, describe, it, runIO, shouldBe, xdescribe, xit )
 import Web.HttpApiData
     ( ToHttpApiData (..) )
 
@@ -149,9 +156,10 @@ import qualified Servant
 
 
 spec :: Spec
-spec = do
+spec = describe "PATATE" $ do
     gSpec (everyPathParams api) spec_MalformedParam
     gSpec (everyBodyParams api) spec_MalformedParam
+    gSpec (everyAllowedMethods api) spec_NotAllowedMethod
 
 spec_MalformedParam :: Request -> ExpectedError -> Session ()
 spec_MalformedParam malformedRequest (ExpectedError msg) = do
@@ -159,6 +167,15 @@ spec_MalformedParam malformedRequest (ExpectedError msg) = do
     response & assertStatus 400
     response & assertBody (Aeson.encode [aesonQQ|
         { "code": "bad_request"
+        , "message": #{msg}
+        }|])
+
+spec_NotAllowedMethod :: Request -> ExpectedError -> Session ()
+spec_NotAllowedMethod malformedRequest (ExpectedError msg) = do
+    response <- request malformedRequest
+    response & assertStatus 405
+    response & assertBody (Aeson.encode [aesonQQ|
+        { "code": "method_not_allowed"
         , "message": #{msg}
         }|])
 
@@ -350,6 +367,43 @@ instance
             it (titleize (Proxy @a) req) $
                 runSession (toSession req msg) application
 
+instance GenericApiSpec (Map [Text] [Method])
+  where
+    gSpec allowedMethods toSession = describe "Not Allowed Methods" $
+        forM_ (Map.toList allowedMethods) $ \(pathInfo, methods) ->
+            forM_ (allMethods \\ methods) $ \requestMethod -> do
+                let run = if pathInfo `elem` whiteList then xit else it
+                let req = defaultRequest { pathInfo, requestMethod }
+                run (titleize (Proxy @Void) req) $
+                    runSession (toSession req msg) application
+      where
+        msg =
+            "You've reached a known endpoint but I don't know how to handle the \
+            \HTTP method specified. Please double-check both the endpoint and \
+            \the method: one of them is likely to be incorrect (for example: \
+            \POST instead of PUT, or GET instead of POST...)."
+
+        allMethods :: [Method]
+        allMethods =
+            ["GET","PUT","POST","PATCH","DELETE","CONNECT","TRACE","OPTIONS"]
+
+        -- NOTE
+        -- These particular endpoints conflicts with some others that are taking
+        -- a resource id as a parameter (e.g. GET /byron-wallets/{walletId}).
+        --
+        -- It would be best to either, have the server handling these correctly,
+        -- or, revise the endpoint altogether.
+        whiteList :: [[Text]]
+        whiteList =
+            [ [ "byron-wallets", "icarus" ]
+            , [ "byron-wallets", "trezor" ]
+            , [ "byron-wallets", "ledger" ]
+            , [ "byron-wallets", "random" ]
+            , [ "wallets", wid, "transactions", "fees" ]
+            ]
+          where
+            PathParam wid = (wellformed :: PathParam (ApiT WalletId))
+
 --
 -- Construct test cases from the API
 --
@@ -385,12 +439,21 @@ everyBodyParams proxy = gEveryBodyParams proxy $ defaultRequest
         ]
     }
 
+everyAllowedMethods :: GEveryParams api => Proxy api -> Map [Text] [Method]
+everyAllowedMethods proxy =
+    Map.fromListWith (++) (toTuple <$> gEveryAllowedMethods proxy)
+  where
+    toTuple :: Request -> ([Text], [Method])
+    toTuple req = (reverse (pathInfo req), [requestMethod req])
+
 class GEveryParams api where
     type MkPathRequest api :: *
     gEveryPathParams :: Proxy api -> Request -> MkPathRequest api
 
     type MkBodyRequest api :: *
     gEveryBodyParams :: Proxy api -> Request -> MkBodyRequest api
+
+    gEveryAllowedMethods :: Proxy api -> [Request]
 
     -- TODO
     -- Capture request query params as QueryParam
@@ -418,6 +481,11 @@ instance
       :<|>
         gEveryBodyParams (Proxy @b) req
 
+    gEveryAllowedMethods _ =
+        gEveryAllowedMethods (Proxy @a)
+      ++
+        gEveryAllowedMethods (Proxy @b)
+
 instance
     ( ReflectMethod m
     ) => GEveryParams (Verb (m :: StdMethod) s ct a)
@@ -430,6 +498,9 @@ instance
     gEveryBodyParams _ req =
         req { requestMethod = reflectMethod (Proxy @m) }
 
+    gEveryAllowedMethods _ =
+        [defaultRequest { requestMethod = reflectMethod (Proxy @m) }]
+
 instance
     ( ReflectMethod m
     ) => GEveryParams (NoContentVerb (m :: StdMethod))
@@ -441,6 +512,9 @@ instance
     type MkBodyRequest (NoContentVerb m) = Request
     gEveryBodyParams _ req =
         req { requestMethod = reflectMethod (Proxy @m) }
+
+    gEveryAllowedMethods _ =
+        [defaultRequest { requestMethod = reflectMethod (Proxy @m) }]
 
 instance
     ( WellFormed (PathParam t)
@@ -457,6 +531,11 @@ instance
       where
         t = wellformed :: PathParam t
 
+    gEveryAllowedMethods _ =
+        addPathFragment t <$> gEveryAllowedMethods (Proxy @sub)
+      where
+        t = wellformed :: PathParam t
+
 instance
     ( KnownSymbol s
     , GEveryParams sub
@@ -470,9 +549,15 @@ instance
 
     type MkBodyRequest (s :> sub) = MkBodyRequest sub
     gEveryBodyParams _ req =
-        gEveryBodyParams (Proxy @sub) (addPathFragment str req)
+        gEveryBodyParams (Proxy @sub) (addPathFragment t req)
       where
-        str = PathParam $ T.pack $ symbolVal (Proxy @s)
+        t = PathParam $ T.pack $ symbolVal (Proxy @s)
+
+    gEveryAllowedMethods _ =
+        addPathFragment t <$> gEveryAllowedMethods (Proxy @sub)
+      where
+        t = PathParam $ T.pack $ symbolVal (Proxy @s)
+
 
 instance
     ( GEveryParams sub
@@ -486,6 +571,9 @@ instance
     gEveryBodyParams _ req b =
         gEveryBodyParams (Proxy @sub) <$> (setRequestBody b req)
 
+    gEveryAllowedMethods _ =
+        gEveryAllowedMethods (Proxy @sub)
+
 instance
     ( GEveryParams sub
     ) => GEveryParams (Servant.QueryParam a b :> sub)
@@ -497,6 +585,9 @@ instance
     type MkBodyRequest (Servant.QueryParam a b :> sub) = MkBodyRequest sub
     gEveryBodyParams _ =
         gEveryBodyParams (Proxy @sub)
+
+    gEveryAllowedMethods _ =
+        gEveryAllowedMethods (Proxy @sub)
 
 --
 -- Helpers
@@ -522,7 +613,9 @@ titleize
     -> Request
     -> String
 titleize proxy req = unwords
-    [ "(" <> show (typeRep proxy) <> ")"
+    [ if proxyStr == "(Void)" then "" else proxyStr
     , B8.unpack (requestMethod req)
     , "/" <> T.unpack (T.intercalate "/" $ pathInfo req)
     ]
+  where
+    proxyStr = "(" <> show (typeRep proxy) <> ")"
