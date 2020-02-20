@@ -90,7 +90,6 @@ import Test.Integration.Framework.DSL
     , verify
     , waitForNextEpoch
     , walletId
-    , withMethod
     , (.>)
     , (.>=)
     )
@@ -99,13 +98,10 @@ import Test.Integration.Framework.TestData
     , errMsg403NotDelegating
     , errMsg403PoolAlreadyJoined
     , errMsg403WrongPass
-    , errMsg404NoEndpoint
     , errMsg404NoSuchPool
     , errMsg404NoWallet
-    , errMsg405
     , errMsg406
     , errMsg415
-    , falseWalletIds
     , getHeaderCases
     )
 import Test.Integration.Jormungandr.Fixture
@@ -206,14 +202,6 @@ spec = do
                     "I can't list stake pools yet because I need to scan the \
                     \blockchain for metrics first. I'm at"
                 ]
-
-    describe "STAKE_POOLS_LIST_03 - v2/stake-pools - Methods Not Allowed" $ do
-        let methods = ["POST", "PUT", "DELETE", "CONNECT", "TRACE", "OPTIONS"]
-        forM_ methods $ \method -> it (show method) $ \ctx -> do
-            r <- request @ApiStakePool ctx
-                    (method, "v2/stake-pools") Default Empty
-            expectResponseCode @IO HTTP.status405 r
-            expectErrorMessage errMsg405 r
 
     it "STAKE_POOLS_LIST_04 - Discovers new pools when they are registered" $ \ctx -> do
         let nWithMetadata = length . filter (isJust . view #metadata)
@@ -580,13 +568,11 @@ spec = do
                 (_, p:_) <- eventually "Stake pools are listed" $
                     unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
                 w <- emptyWallet ctx
-                let payload = Json [json| {
-                        "passphrase": 123
-                        } |]
+                let payload = Json [json| { "passphrase": 123 } |]
                 r <- request @(ApiTransaction n) ctx (sPoolEndp p w)
                         Default payload
                 expectResponseCode HTTP.status400 r
-                expectErrorMessage "expected Text, encountered Number" r
+                expectErrorMessage "parsing Text failed" r
         it "Join" $ \ctx -> do
             verifyIt ctx Link.joinStakePool
         it "Quit" $ \ctx -> do
@@ -647,27 +633,6 @@ spec = do
             , expectErrorMessage $ errMsg404NoWallet (w ^. walletId)
             ]
 
-    describe "STAKE_POOLS_ESTIMATE_FEE_04 - false wallet ids" $ do
-        forM_ falseWalletIds $ \(wDesc, walId) -> do
-            let path = "wallets/" <> walId
-            it ("wallet:" ++ wDesc) $ \ctx -> do
-                let endpoint = "v2/" <> T.pack path <> "/delegations/fees"
-                rg <- request @ApiFee ctx ("GET", endpoint) Default Empty
-                expectResponseCode @IO HTTP.status404 rg
-                if wDesc == "40 chars hex"
-                then expectErrorMessage (errMsg404NoWallet $ T.pack walId) rg
-                else expectErrorMessage errMsg404NoEndpoint rg
-
-    describe "STAKE_POOLS_ESTIMATE_FEE_05 -\
-        \ v2/wallets/{wid}/delegations/fees - Methods Not Allowed" $ do
-        let methods = ["POST", "PUT", "DELETE", "CONNECT", "TRACE", "OPTIONS"]
-        forM_ methods $ \method -> it (show method) $ \ctx -> do
-            w <- emptyWallet ctx
-            let ep = "v2/wallets/"<> w ^. walletId <> "/delegations/fees"
-            r <- request @ApiFee ctx (method, ep) Default Empty
-            expectResponseCode @IO HTTP.status405 r
-            expectErrorMessage errMsg405 r
-
     describe "STAKE_POOLS_ESTIMATE_FEE_06 - HTTP headers" $ do
         forM_ (getHeaderCases HTTP.status200)
             $ \(title, headers, exps) -> it title $ \ctx -> do
@@ -688,19 +653,6 @@ spec = do
             verifyIt ctx Link.joinStakePool
         it "Quit" $ \ctx -> do
             verifyIt ctx (\_ -> Link.quitStakePool placeholder)
-
-    describe "STAKE_POOLS_JOIN/QUIT_05 -  Methods Not Allowed" $ do
-        let methods = ["POST", "CONNECT", "TRACE", "OPTIONS"]
-        forM_ methods $ \method -> it ("Join: " ++ show method) $ \ctx -> do
-            w <- emptyWallet ctx
-            let payload = Json [json| {
-                    "passphrase": "Secure Passphrase"
-                    } |]
-            let link = withMethod method $
-                    Link.joinStakePool (Identity arbitraryPoolId) w
-            r <- request @(ApiTransaction n) ctx link Default payload
-            expectResponseCode HTTP.status405 r
-            expectErrorMessage errMsg405 r
 
     describe "STAKE_POOLS_JOIN/QUIT_05 - HTTP headers" $ do
         let verifyIt ctx sPoolEndp headers expec = do

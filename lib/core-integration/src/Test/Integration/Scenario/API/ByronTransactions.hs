@@ -45,12 +45,7 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.Request
     ( RequestException )
 import Test.Integration.Framework.TestData
-    ( errMsg400StartTimeLaterThanEndTime
-    , errMsg404NoEndpoint
-    , errMsg404NoWallet
-    , falseWalletIds
-    , getHeaderCases
-    )
+    ( errMsg400StartTimeLaterThanEndTime, errMsg404NoWallet, getHeaderCases )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
@@ -196,16 +191,6 @@ spec = do
             , expectErrorMessage (errMsg404NoWallet wid)
             ]
 
-    it "BYRON_TX_LIST_04 - 'almost' valid walletId" $ \ctx -> do
-        w <- emptyRandomWallet ctx
-        let endpoint = "v2/byron-wallets/"
-                <> T.unpack (T.append (w ^. walletId) "0")
-                <> "/transactions"
-        r <- request @([ApiTransaction n]) ctx ("GET", T.pack endpoint)
-                Default Empty
-        expectResponseCode @IO HTTP.status404 r
-        expectErrorMessage errMsg404NoEndpoint r
-
     it "BYRON_TX_LIST_04 - Deleted wallet" $ \ctx -> do
         w <- emptyRandomWallet ctx
         _ <- request @ApiByronWallet ctx
@@ -214,17 +199,6 @@ spec = do
         r <- request @([ApiTransaction n]) ctx link Default Empty
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
-
-    describe "BYRON_TX_LIST_04 - False wallet ids" $ do
-        forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
-            let endpoint = "v2/byron-wallets/" <> walId <> "/transactions"
-            r <- request @([ApiTransaction n]) ctx ("GET", T.pack endpoint)
-                    Default Empty
-            expectResponseCode HTTP.status404 r
-            if (title == "40 chars hex") then
-                expectErrorMessage (errMsg404NoWallet $ T.pack walId) r
-            else
-                expectErrorMessage errMsg404NoEndpoint r :: IO ()
 
     describe "BYRON_TX_LIST_05 - Request headers" $ do
         forM_ (getHeaderCases HTTP.status200)

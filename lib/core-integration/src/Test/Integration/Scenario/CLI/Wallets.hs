@@ -75,9 +75,9 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( arabicWalletName
     , cmdOk
+    , errMsg400WalletIdEncoding
     , errMsg403WrongPass
     , errMsg404NoWallet
-    , errMsgWalletIdEncoding
     , falseWalletIds
     , russianWalletName
     , wildcardsWalletName
@@ -442,7 +442,7 @@ spec = do
             if (title == "40 chars hex") then
                 err `shouldContain` errMsg404NoWallet (T.pack $ replicate 40 '1')
             else
-                err `shouldContain` errMsgWalletIdEncoding
+                err `shouldContain` errMsg400WalletIdEncoding
 
     it "WALLETS_LIST_01 - Can list wallets" $ \ctx -> do
         let name = "Wallet to be listed"
@@ -643,7 +643,7 @@ spec = do
                 T.unpack err `shouldContain`
                         errMsg404NoWallet (T.pack $ replicate 40 '1')
             else
-                T.unpack err `shouldContain` errMsgWalletIdEncoding
+                T.unpack err `shouldContain` errMsg400WalletIdEncoding
 
     describe "WALLETS_UPDATE_PASS_05,06 - \
         \Transaction after updating passphrase can only be made with new pass" $ do
@@ -741,7 +741,7 @@ spec = do
             if (title == "40 chars hex") then
                 err `shouldContain` errMsg404NoWallet (T.pack $ replicate 40 '1')
             else
-                err `shouldContain` errMsgWalletIdEncoding
+                err `shouldContain` errMsg400WalletIdEncoding
 
     it "WALLETS_UTXO_03 - Deleted wallet is not available for utxo" $ \ctx -> do
         wid <- emptyWallet' ctx
@@ -758,7 +758,7 @@ spec = do
         (Exit c, Stdout o, Stderr e)
                 <- getWalletUtxoStatisticsViaCLI @t ctx (wid ++ "1")
         c `shouldBe` ExitFailure 1
-        e `shouldContain` errMsgWalletIdEncoding
+        e `shouldContain` errMsg400WalletIdEncoding
         o `shouldBe` mempty
 
   where

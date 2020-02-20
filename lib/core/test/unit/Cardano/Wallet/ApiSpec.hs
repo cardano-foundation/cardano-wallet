@@ -70,7 +70,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( PoolId, WalletId )
+    ( PoolId, WalletId, walletNameMaxLength )
 import Control.Arrow
     ( first )
 import Control.Monad
@@ -257,52 +257,296 @@ instance Malformed (PathParam ApiEpochNumber) where
 instance Malformed (BodyParam WalletPostData) where
     malformed = first (BodyParam . Aeson.encode) <$>
         [ ( [aesonQQ|
-            { "name": "ads"
+            { "name": #{wName}
             , "mnemonic_sentence": "album execute kingdom dumb trip all salute busy case bring spell ugly umbrella choice shy"
-            , "passphrase": "Secure Passphrase"
-            } |]
+            , "passphrase": #{wPassphrase}
+            }|]
           , "Error in $['mnemonic_sentence']: parsing [] failed, expected Array, but encountered String"
           )
         , ( [aesonQQ|
-            { "name": "ads"
+            { "name": #{wName}
             , "mnemonic_sentence": 15
-            , "passphrase": "Secure Passphrase"
-            } |]
+            , "passphrase": #{wPassphrase}
+            }|]
           , "Error in $['mnemonic_sentence']: parsing [] failed, expected Array, but encountered Number"
           )
         , ( [aesonQQ|
-            { "name": "ads"
-            , "passphrase": "Secure Passphrase"
-            } |]
+            { "name": #{wName}
+            , "passphrase": #{wPassphrase}
+            }|]
           , "Error in $: parsing Cardano.Wallet.Api.Types.WalletPostData(WalletPostData) failed, key 'mnemonic_sentence' not found"
           )
         , ( [aesonQQ|
-            { "name": "Just a łallet"
+            { "name": #{wName}
+            , "mnemonic_sentence": []
+            , "passphrase": #{wPassphrase}
+            }|]
+          , "Error in $['mnemonic_sentence']: Invalid number of words: 15, 18, 21 or 24 words are expected."
+          )
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "mnemonic_sentence": #{mnemonics3}
+            , "passphrase": #{wPassphrase}
+            }|]
+          , "Error in $['mnemonic_sentence']: Invalid number of words: 15, 18, 21 or 24 words are expected."
+          )
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "mnemonic_sentence": #{mnemonics6}
+            , "passphrase": #{wPassphrase}
+            }|]
+          , "Error in $['mnemonic_sentence']: Invalid number of words: 15, 18, 21 or 24 words are expected."
+          )
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "mnemonic_sentence": #{mnemonics9}
+            , "passphrase": #{wPassphrase}
+            }|]
+          , "Error in $['mnemonic_sentence']: Invalid number of words: 15, 18, 21 or 24 words are expected."
+          )
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "mnemonic_sentence": #{mnemonics12}
+            , "passphrase": #{wPassphrase}
+            }|]
+          , "Error in $['mnemonic_sentence']: Invalid number of words: 15, 18, 21 or 24 words are expected."
+          )
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "mnemonic_sentence": #{invalidMnemonics15}
+            , "passphrase": #{wPassphrase}
+            }|]
+          , "Error in $['mnemonic_sentence']: Invalid entropy checksum: please double-check the last word of your mnemonic sentence."
+          )
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "mnemonic_sentence": #{notInDictMnemonics15}
+            , "passphrase": #{wPassphrase}
+            }|]
+          , "Error in $['mnemonic_sentence']: Found an unknown word not present in the pre-defined dictionary. The full dictionary is available here: https://github.com/input-output-hk/cardano-wallet/tree/master/specifications/mnemonic/english.txt"
+          )
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "mnemonic_sentence": #{specMnemonicSentence}
+            , "passphrase": #{wPassphrase}
+            }|]
+          , "Error in $['mnemonic_sentence']: Invalid entropy checksum: please double-check the last word of your mnemonic sentence."
+          )
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "mnemonic_sentence": #{japaneseMnemonics12}
+            , "passphrase": #{wPassphrase}
+            }|]
+          , "Error in $['mnemonic_sentence']: Invalid number of words: 15, 18, 21 or 24 words are expected."
+          )
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "mnemonic_sentence": #{japaneseMnemonics15}
+            , "passphrase": #{wPassphrase}
+            }|]
+          , "Error in $['mnemonic_sentence']: Found an unknown word not present in the pre-defined dictionary. The full dictionary is available here: https://github.com/input-output-hk/cardano-wallet/tree/master/specifications/mnemonic/english.txt"
+          )
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "mnemonic_sentence": #{chineseMnemonics9}
+            , "passphrase": #{wPassphrase}
+            }|]
+          , "Error in $['mnemonic_sentence']: Invalid number of words: 15, 18, 21 or 24 words are expected."
+          )
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "mnemonic_sentence": #{chineseMnemonics18}
+            , "passphrase": #{wPassphrase}
+            }|]
+          , "Error in $['mnemonic_sentence']: Found an unknown word not present in the pre-defined dictionary. The full dictionary is available here: https://github.com/input-output-hk/cardano-wallet/tree/master/specifications/mnemonic/english.txt"
+          )
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "mnemonic_sentence": #{frenchMnemonics12}
+            , "passphrase": #{wPassphrase}
+            }|]
+          , "Error in $['mnemonic_sentence']: Invalid number of words: 15, 18, 21 or 24 words are expected."
+          )
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "mnemonic_sentence": #{frenchMnemonics21}
+            , "passphrase": #{wPassphrase}
+            }|]
+          , "Error in $['mnemonic_sentence']: Found an unknown word not present in the pre-defined dictionary. The full dictionary is available here: https://github.com/input-output-hk/cardano-wallet/tree/master/specifications/mnemonic/english.txt"
+          )
+        , ( [aesonQQ|
+            { "name": #{wName}
             , "mnemonic_sentence": #{mnemonics15}
             , "mnemonic_second_factor": []
-            , "passphrase": "Secure Passphrase"
-            } |]
+            , "passphrase": #{wPassphrase}
+            }|]
           , "Error in $['mnemonic_second_factor']: Invalid number of words: 9 or 12 words are expected."
           )
         , ( [aesonQQ|
-            { "name": "Just a łallet"
+            { "name": #{wName}
             , "mnemonic_sentence": #{mnemonics15}
-            , "mnemonic_second_factor": ["squirrel", "material", "silly", "twice", "direct", "slush", "pistol", "razor", "become"]
-            , "passphrase": "Secure Passphrase"
-            } |]
+            , "mnemonic_second_factor": #{specMnemonicSecondFactor}
+            , "passphrase": #{wPassphrase}
+            }|]
           , "Error in $['mnemonic_second_factor']: Invalid entropy checksum: please double-check the last word of your mnemonic sentence."
           )
-        -- TODO
-        -- and so forth...
-        -- We should move all existing "malformed" scenarios from the
-        -- integration level to here.
+        , ( [aesonQQ|
+            { "name": #{nameTooLong}
+            , "mnemonic_sentence": #{mnemonics15}
+            , "passphrase" :#{wPassphrase}
+            }|]
+          , "Error in $.name: name is too long: expected at most 255 characters"
+          )
+        , ( [aesonQQ|
+            { "name": ""
+            , "mnemonic_sentence": #{mnemonics15}
+            , "passphrase" :#{wPassphrase}
+            }|]
+          , "Error in $.name: name is too short: expected at least 1 character"
+          )
+        , ( [aesonQQ|
+            { "name": []
+            , "mnemonic_sentence": #{mnemonics15}
+            , "passphrase" :#{wPassphrase}
+            }|]
+          , "Error in $.name: parsing Text failed, expected String, but encountered Array"
+          )
+        , ( [aesonQQ|
+            { "name": 123
+            , "mnemonic_sentence": #{mnemonics15}
+            , "passphrase" :#{wPassphrase}
+            }|]
+          , "Error in $.name: parsing Text failed, expected String, but encountered Number"
+          )
+        , ( [aesonQQ|
+            { "mnemonic_sentence": #{mnemonics15}
+            , "passphrase" :#{wPassphrase}
+            }|]
+          , "Error in $: parsing Cardano.Wallet.Api.Types.WalletPostData(WalletPostData) failed, key 'name' not found"
+          )
         ]
       where
+        wName :: Text
+        wName =
+            "Just a łallet"
+
+        wPassphrase :: Text
+        wPassphrase =
+            "Secure Passphrase"
+
+        nameTooLong :: Text
+        nameTooLong =
+            T.replicate (walletNameMaxLength + 1) "ę"
+
+        mnemonics3 :: [Text]
+        mnemonics3 =
+            ["diamond", "flee", "window"]
+
+        mnemonics6 :: [Text]
+        mnemonics6 =
+            ["tornado", "canvas", "peasant", "spike", "enrich", "dilemma"]
+
+        mnemonics9 :: [Text]
+        mnemonics9 =
+            ["subway", "tourist", "abstract", "roast", "border", "curious","exercise", "work", "narrow"]
+
+        mnemonics12 :: [Text]
+        mnemonics12 =
+            ["agent", "siren", "roof", "water", "giant", "pepper","obtain", "oxygen", "treat", "vessel", "hip", "garlic"]
+
         mnemonics15 :: [Text]
         mnemonics15 =
-            [ "network", "empty", "cause", "mean", "expire"
-            , "private", "finger", "accident", "session", "problem"
-            , "absurd", "banner", "stage", "void", "what"
+            ["network", "empty", "cause", "mean", "expire", "private",
+            "finger", "accident", "session", "problem", "absurd", "banner", "stage",
+            "void", "what"]
+
+        mnemonics18 :: [Text]
+        mnemonics18 =
+            ["whisper", "control", "diary", "solid", "cattle", "salmon",
+            "whale", "slender", "spread", "ice", "shock", "solve", "panel",
+            "caution", "upon", "scatter", "broken", "tonight"]
+
+        mnemonics21 :: [Text]
+        mnemonics21 =
+            ["click", "puzzle", "athlete", "morning", "fold", "retreat",
+            "across", "timber", "essay", "drill", "finger", "erase", "galaxy",
+            "spoon", "swift", "eye", "awesome", "shrimp", "depend", "zebra", "token"]
+
+        mnemonics24 :: [Text]
+        mnemonics24 =
+            ["decade", "distance", "denial", "jelly", "wash", "sword",
+            "olive", "perfect", "jewel", "renew", "wrestle", "cupboard", "record",
+            "scale", "pattern", "invite", "other", "fruit", "gloom", "west", "oak",
+            "deal", "seek", "hand"]
+
+        invalidMnemonics12 :: [Text]
+        invalidMnemonics12 =
+            ["word","word","word","word"
+            ,"word","word","word","word"
+            ,"word","word","word","hill"
+            ]
+
+        invalidMnemonics15 :: [Text]
+        invalidMnemonics15 =
+            ["word","word","word","word","word"
+            ,"word","word","word","word","word"
+            ,"word","word","word","word","word"
+            ]
+
+        notInDictMnemonics15 :: [Text]
+        notInDictMnemonics15 =
+            ["one","two","three","four","five"
+            ,"six","seven","eight","nine","diary"
+            , "twenty", "coin", "regret", "cry", "thumb"
+            ]
+
+        specMnemonicSentence :: [Text]
+        specMnemonicSentence =
+            ["squirrel", "material", "silly", "twice", "direct"
+            ,"slush", "pistol", "razor", "become", "junk"
+            ,"kingdom", "flee","squirrel", "silly", "twice"
+            ]
+
+        specMnemonicByron :: [Text]
+        specMnemonicByron =
+            [ "squirrel", "material", "silly", "twice"
+            , "direct", "slush","pistol", "razor"
+            , "become", "junk", "kingdom", "junk"
+            ]
+
+        specMnemonicSecondFactor :: [Text]
+        specMnemonicSecondFactor =
+            ["squirrel", "material", "silly"
+            , "twice","direct", "slush"
+            , "pistol", "razor", "become"
+            ]
+
+        japaneseMnemonics12 :: [Text]
+        japaneseMnemonics12 =
+            ["そうだん",　"ひよう",　"にもつ",　"やさしい",　"きふく",　 "ねつい",　"だったい",　"けんてい",　"けいろ",　"ざつがく",　"ほうもん",　"すこし"]
+
+        japaneseMnemonics15 :: [Text]
+        japaneseMnemonics15 =
+            ["うめる", "せんく", "えんぎ", "はんぺん", "おくりがな", "さんち", "きなが", "といれ", "からい", "らくだ", "うえる", "ふめん", "せびろ", "られつ", "なにわ"]
+
+        chineseMnemonics9 :: [Text]
+        chineseMnemonics9 =
+            ["钢", "看", "磁", "塑", "凤", "魏", "世", "腐", "恶" ]
+
+        chineseMnemonics18 :: [Text]
+        chineseMnemonics18 =
+            ["盗", "精", "序", "郎", "赋", "姿", "委", "善", "酵", "祥", "赛", "矩", "蜡", "注", "韦", "效", "义", "冻"]
+
+        frenchMnemonics12 :: [Text]
+        frenchMnemonics12 =
+            ["palmarès", "supplier", "visuel", "gardien", "adorer", "cordage", "notifier", "réglage", "employer", "abandon", "scénario", "proverbe"]
+
+        frenchMnemonics21 :: [Text]
+        frenchMnemonics21 =
+            [ "pliage", "exhorter", "brasier", "chausson", "bloquer"
+            , "besace", "sorcier", "absurde", "neutron", "forgeron"
+            , "geyser", "moulin", "cynique", "cloche", "baril"
+            , "infliger", "rompre", "typique", "renifler", "creuser", "matière"
             ]
 
 instance Malformed (BodyParam (ApiSelectCoinsData 'Testnet))
@@ -372,9 +616,8 @@ instance GenericApiSpec (Map [Text] [Method])
     gSpec allowedMethods toSession = describe "Not Allowed Methods" $
         forM_ (Map.toList allowedMethods) $ \(pathInfo, methods) ->
             forM_ (allMethods \\ methods) $ \requestMethod -> do
-                let run = if pathInfo `elem` whiteList then xit else it
                 let req = defaultRequest { pathInfo, requestMethod }
-                run (titleize (Proxy @Void) req) $
+                it (titleize (Proxy @Void) req) $
                     runSession (toSession req msg) application
       where
         msg =
@@ -386,23 +629,6 @@ instance GenericApiSpec (Map [Text] [Method])
         allMethods :: [Method]
         allMethods =
             ["GET","PUT","POST","PATCH","DELETE","CONNECT","TRACE","OPTIONS"]
-
-        -- NOTE
-        -- These particular endpoints conflicts with some others that are taking
-        -- a resource id as a parameter (e.g. GET /byron-wallets/{walletId}).
-        --
-        -- It would be best to either, have the server handling these correctly,
-        -- or, revise the endpoint altogether.
-        whiteList :: [[Text]]
-        whiteList =
-            [ [ "byron-wallets", "icarus" ]
-            , [ "byron-wallets", "trezor" ]
-            , [ "byron-wallets", "ledger" ]
-            , [ "byron-wallets", "random" ]
-            , [ "wallets", wid, "transactions", "fees" ]
-            ]
-          where
-            PathParam wid = (wellformed :: PathParam (ApiT WalletId))
 
 --
 -- Construct test cases from the API

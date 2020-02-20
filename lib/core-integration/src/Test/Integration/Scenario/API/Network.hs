@@ -49,7 +49,7 @@ import Test.Integration.Framework.DSL
     , (.>)
     )
 import Test.Integration.Framework.TestData
-    ( errMsg400MalformedEpoch, errMsg404NoEpochNo, errMsg405, getHeaderCases )
+    ( errMsg404NoEpochNo, getHeaderCases )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
@@ -148,14 +148,6 @@ spec = do
                     , expectField (#tip . #height) (`shouldBe` blockHeight)
                     ]
 
-    describe "NETWORK - v2/network/information - Methods Not Allowed" $ do
-        let matrix = ["POST", "CONNECT", "TRACE", "OPTIONS"]
-        forM_ matrix $ \method -> it (show method) $ \ctx -> do
-            let endpoint = (method, "v2/network/information")
-            r <- request @ApiNetworkInformation ctx endpoint Default Empty
-            expectResponseCode @IO HTTP.status405 r
-            expectErrorMessage errMsg405 r
-
     describe "NETWORK - HTTP headers" $ do
         forM_ (getHeaderCases HTTP.status200)
             $ \(title, headers, expectations) -> it title $ \ctx -> do
@@ -211,24 +203,6 @@ spec = do
                     maxEpochValue
                     HTTP.status404
                     (errMsg404NoEpochNo (T.unpack maxEpochValue))
-
-    describe "NETWORK_PARAMS_03 - Invalid epoch numbers" $ do
-        let epochNoOutOfBound =
-                T.pack $show $ (+1) $ fromIntegral @Word31 @Int maxBound
-        let matrix = ["earliest", "invalid", epochNoOutOfBound, "-1"]
-        forM_ matrix $ \epochNo -> it (show epochNo) $ \ctx -> do
-            verifyEpochNumWrong ctx
-                    epochNo
-                    HTTP.status400
-                    (errMsg400MalformedEpoch $ T.unpack epochNo)
-
-    describe "NETWORK_PARAMS_04 - v2/network/parameters - Methods Not Allowed" $ do
-        let matrix = ["POST", "CONNECT", "TRACE", "OPTIONS"]
-        forM_ matrix $ \method -> it (show method) $ \ctx -> do
-            let endpoint = (method, "v2/network/parameters/latest")
-            r <- request @ApiNetworkParameters ctx endpoint Default Empty
-            expectResponseCode @IO HTTP.status405 r
-            expectErrorMessage errMsg405 r
 
     describe "NETWORK_PARAMS_04 - HTTP headers" $ do
         forM_ (getHeaderCases HTTP.status200)

@@ -41,10 +41,11 @@ module Test.Integration.Framework.TestData
     , updateNamePayload
     , updatePassPayload
     , getHeaderCases
+    , noContentHeaderCases
     , postHeaderCases
 
     -- * Error messages
-    , errMsgWalletIdEncoding
+    , errMsg400WalletIdEncoding
     , errMsg400StartTimeLaterThanEndTime
     , errMsg403Fee
     , errMsg403DelegationFee
@@ -66,7 +67,6 @@ module Test.Integration.Framework.TestData
     , errMsg400MalformedTxPayload
     , errMsg400WronglyEncodedTxPayload
     , errMsg400ParseError
-    , errMsg400MalformedEpoch
     , errMsg403ZeroAmtOutput
     , errMsg405
     , errMsg406
@@ -152,6 +152,42 @@ getHeaderCases expectedOKStatus =
             )
           , ( "Content-Type: text/plain -> OK"
             , Headers [ ("Content-Type", "text/plain") ]
+            , [ expectResponseCode @IO expectedOKStatus ]
+            )
+          ]
+
+-- useful for testing GET/DELETE endpoints (ones without payload)
+noContentHeaderCases
+    :: forall a. (Show a)
+    => HTTP.Status
+    -> [(String, Headers, [(HTTP.Status, Either RequestException a) -> IO ()])]
+noContentHeaderCases expectedOKStatus =
+          [ ( "No HTTP headers -> OK", None
+            , [ expectResponseCode @IO expectedOKStatus ]
+            )
+          , ( "Accept: text/plain -> 406"
+            , Headers
+                [ ("Content-Type", "application/json")
+                , ("Accept", "text/plain")
+                ]
+            , [ expectResponseCode @IO expectedOKStatus ]
+            )
+          , ( "No Accept -> OK"
+            , Headers
+                [ ("Content-Type", "application/json")
+                ]
+            , [ expectResponseCode @IO expectedOKStatus ]
+            )
+          , ( "No Content-Type -> OK"
+            , Headers
+                [ ("Accept", "application/json")
+                ]
+            , [ expectResponseCode @IO expectedOKStatus ]
+            )
+          , ( "Content-Type: text/plain -> OK"
+            , Headers
+                [ ("Content-Type", "text/plain")
+                ]
             , [ expectResponseCode @IO expectedOKStatus ]
             )
           ]
@@ -312,8 +348,9 @@ versionLine = "Running as v" <> pack (showFullVersion version gitRevision)
 --- Error messages
 ---
 
-errMsgWalletIdEncoding :: String
-errMsgWalletIdEncoding = "wallet id should be a hex-encoded string of 40 characters"
+errMsg400WalletIdEncoding :: String
+errMsg400WalletIdEncoding =
+    "wallet id should be a hex-encoded string of 40 characters"
 
 errMsg400StartTimeLaterThanEndTime :: String -> String -> String
 errMsg400StartTimeLaterThanEndTime startTime endTime = mconcat
@@ -367,13 +404,6 @@ errMsg400ParseError = mconcat
     [ "I couldn't understand the content of your message. If your "
     , "message is intended to be in JSON format, please check that "
     , "the JSON is valid."
-    ]
-
-errMsg400MalformedEpoch :: String -> String
-errMsg400MalformedEpoch str = mconcat
-    [ "I couldn't show blockchain parameters for "
-    , str
-    , ". It should be either 'latest' or integer from 0 to 2147483647."
     ]
 
 errMsg404NoEpochNo :: String -> String
