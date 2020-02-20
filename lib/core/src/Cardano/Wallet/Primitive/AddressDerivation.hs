@@ -55,8 +55,14 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , unXPrv
     , xprv
     , xpub
+
+    -- * Helpers
     , hex
     , fromHex
+    , unXPrvStripPub
+    , xPrvFromStrippedPubXPrv
+    , ErrXPrvFromStrippedPubXPrv (..)
+    , ErrUnXPrvStripPub (..)
 
     -- * Network Discrimination
     , NetworkDiscriminant (..)
@@ -107,7 +113,7 @@ import Control.Arrow
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( unless )
+    ( unless, when )
 import Crypto.Hash
     ( Digest, HashAlgorithm )
 import Crypto.KDF.PBKDF2
@@ -153,6 +159,7 @@ import GHC.TypeLits
 import Type.Reflection
     ( typeOf )
 
+import qualified Cardano.Crypto.Wallet.Encrypted as CC
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
@@ -720,3 +727,67 @@ hex = convertToBase Base16
 -- | Decode a 'ByteString' from base16
 fromHex :: ByteArray bout => ByteString -> Either String bout
 fromHex = convertFromBase Base16
+
+data ErrUnXPrvStripPub
+    = ErrCannotRoundtrip
+      -- ^ The resulting bytestring would have been unable to roundtrip using
+      -- @xPrvFromStrippedPubXPrv@. Most likely because the input @XPrv@ was
+      -- encrypted, or because it was an old (Byron) key.
+    deriving (Eq, Show)
+
+-- | Convert a @XPrv@ to a 96-byte long extended private key that does /not/
+-- include the public key.
+--
+-- The format is:
+-- > Extended Private Key (64 bytes) <> ChainCode (32 bytes)
+--
+-- Returns @Left@ if the resulting bytestring fails to roundtrip back to the
+-- original @XPrv@. This can happen:
+-- - If the @XPrv@ was encrypted
+-- - If a DerivationScheme1 (Byron) key was used (that does not conform to the
+-- "tweak")
+unXPrvStripPub :: XPrv -> Either ErrUnXPrvStripPub ByteString
+unXPrvStripPub k = do
+    let res = stripPub . unXPrv $ k
+
+    -- Check that it roundtrips.
+    case (fmap unXPrv . xPrvFromStrippedPubXPrv $ res) of
+        Right bytes
+            | bytes == unXPrv k -> Right res
+            | otherwise         -> Left ErrCannotRoundtrip
+        Left  _                 -> error "unXPrvStripPub: this state cannot be \
+            \reached from a rightfully crafted XPrv"
+  where
+    -- Converts  xprv <> pub <> cc
+    -- To        xprv <>        cc
+    stripPub :: ByteString -> ByteString
+    stripPub xprv' = prv <> chainCode
+      where
+        (prv, rest) = BS.splitAt 64 xprv'
+        (_pub, chainCode) = BS.splitAt 32 rest
+
+data ErrXPrvFromStrippedPubXPrv
+    = ErrInputLengthMismatch Int Int -- ^ Expected, Actual
+    | ErrInternalError String
+    deriving (Eq, Show)
+
+-- | Create a @XPrv@ from a 96-byte long extended private key
+--
+-- The format is:
+--
+-- > Extended Private Key (64 bytes) <> ChainCode (32 bytes)
+xPrvFromStrippedPubXPrv :: ByteString -> Either ErrXPrvFromStrippedPubXPrv XPrv
+xPrvFromStrippedPubXPrv x = do
+        when (BS.length x /= expectedInputLength) $
+            Left $ ErrInputLengthMismatch expectedInputLength (BS.length x)
+        toXPrv $ CC.encryptedCreateDirectWithTweak x pass
+  where
+    pass :: ByteString
+    pass = ""
+
+    expectedInputLength = 96
+
+    -- @xprv@ can fail. But because it is calling @encryptedKey@ internally,
+    -- and we are feeding it the output of @unEncryptedKey@, it really shouldn't.
+    toXPrv :: CC.EncryptedKey -> Either ErrXPrvFromStrippedPubXPrv XPrv
+    toXPrv = left ErrInternalError . xprv . CC.unEncryptedKey

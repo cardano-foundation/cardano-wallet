@@ -84,6 +84,7 @@ import qualified Cardano.Wallet.Jormungandr.NetworkSpec as NetworkLayer
 import qualified Data.Text as T
 import qualified Test.Integration.Jormungandr.Scenario.API.StakePools as StakePoolsApiJormungandr
 import qualified Test.Integration.Jormungandr.Scenario.API.Transactions as TransactionsApiJormungandr
+import qualified Test.Integration.Jormungandr.Scenario.CLI.Keys as KeysCLI
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Launcher as LauncherCLI
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Mnemonics as MnemonicsJormungandr
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Server as ServerCLI
@@ -117,6 +118,7 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
             describe "Miscellaneous CLI tests" $ parallel (MiscellaneousCLI.spec @t)
             describe "Launcher CLI tests" $ parallel (LauncherCLI.spec @t)
             describe "Stake Pool Metrics" MetricsSpec.spec
+            describe "Key CLI tests" KeysCLI.spec
 
         describe "API Specifications" $ specWithServer tr $ do
             Addresses.spec

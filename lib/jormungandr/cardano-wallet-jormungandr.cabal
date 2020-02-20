@@ -251,10 +251,11 @@ test-suite integration
       Test.Integration.Jormungandr.Scenario.API.StakePools
       Test.Integration.Jormungandr.Scenario.API.Transactions
       Test.Integration.Jormungandr.Scenario.CLI.Launcher
+      Test.Integration.Jormungandr.Scenario.CLI.Keys
+      Test.Integration.Jormungandr.Scenario.CLI.Mnemonics
       Test.Integration.Jormungandr.Scenario.CLI.Server
       Test.Integration.Jormungandr.Scenario.CLI.StakePools
       Test.Integration.Jormungandr.Scenario.CLI.Transactions
-      Test.Integration.Jormungandr.Scenario.CLI.Mnemonics
       Test.Utils.Ports
 
 benchmark latency
