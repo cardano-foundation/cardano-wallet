@@ -196,7 +196,6 @@ test-suite unit
     , http-client
     , http-types
     , iohk-monitoring
-    , lens
     , memory
     , network
     , persistent
@@ -216,6 +215,7 @@ test-suite unit
     , time
     , transformers
     , tree-diff
+    , unordered-containers
     , yaml
     , wai
     , warp

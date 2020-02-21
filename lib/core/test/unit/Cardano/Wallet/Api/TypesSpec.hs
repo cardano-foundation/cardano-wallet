@@ -133,8 +133,6 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText )
-import Control.Lens
-    ( Lens', at, (^.) )
 import Control.Monad
     ( forM_, replicateM )
 import Control.Monad.IO.Class
@@ -150,33 +148,21 @@ import Data.ByteArray.Encoding
 import Data.ByteString
     ( ByteString )
 import Data.Char
-    ( isAlphaNum )
+    ( isAlphaNum, toLower )
 import Data.FileEmbed
     ( embedFile, makeRelativeToProject )
+import Data.List
+    ( foldl' )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( isJust )
+    ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Percentage, Quantity (..) )
 import Data.Swagger
-    ( Definitions
-    , NamedSchema (..)
-    , Operation
-    , PathItem (..)
-    , Schema
-    , Swagger
-    , ToSchema (..)
-    , definitions
-    , delete
-    , get
-    , patch
-    , paths
-    , post
-    , put
-    )
+    ( Definitions, NamedSchema (..), Schema, ToSchema (..) )
 import Data.Swagger.Declare
     ( Declare )
 import Data.Text
@@ -259,9 +245,11 @@ import Web.HttpApiData
     ( FromHttpApiData (..), ToHttpApiData (..) )
 
 import qualified Cardano.Wallet.Api.Types as Api
+import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.HashMap.Strict as HM
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Yaml as Yaml
@@ -1083,7 +1071,7 @@ instance Arbitrary ApiWalletDelegationNext where
 instance Arbitrary ApiWalletDelegation where
     arbitrary = ApiWalletDelegation
         <$> fmap (\x -> x { changesAt = Nothing }) arbitrary
-        <*> arbitrary
+        <*> oneof [ vectorOf i arbitrary | i <- [0..2 ] ]
 
 instance Arbitrary PoolId where
     arbitrary = do
@@ -1327,8 +1315,8 @@ instance Arbitrary (ApiTransaction t) where
             <*> pure txPendingSince
             <*> arbitrary
             <*> arbitrary
-            <*> arbitrary
-            <*> arbitrary
+            <*> Test.QuickCheck.scale (`mod` 3) arbitrary
+            <*> Test.QuickCheck.scale (`mod` 3) arbitrary
             <*> pure txStatus
 
 instance Arbitrary Coin where
@@ -1430,7 +1418,7 @@ instance Arbitrary (Quantity "block" Natural) where
 -------------------------------------------------------------------------------}
 
 -- | Specification file, embedded at compile-time and decoded right away
-specification :: Swagger
+specification :: Aeson.Value
 specification =
     unsafeDecode bytes
   where
@@ -1532,13 +1520,24 @@ instance ToSchema ApiWalletDelegation where
 
 -- | Utility function to provide an ad-hoc 'ToSchema' instance for a definition:
 -- we simply look it up within the Swagger specification.
-declareSchemaForDefinition :: T.Text -> Declare (Definitions Schema) NamedSchema
-declareSchemaForDefinition ref =
-    case specification ^. definitions . at ref of
-        Nothing -> error $
-            "unable to find the definition for " <> show ref <> " in the spec"
-        Just schema ->
+declareSchemaForDefinition :: Text -> Declare (Definitions Schema) NamedSchema
+declareSchemaForDefinition ref = do
+    let json = foldl' unsafeLookupKey specification ["components","schemas",ref]
+    case Aeson.eitherDecode' (Aeson.encode json) of
+        Left err -> error $
+            "unable to decode schema for definition '" <> T.unpack ref <> "': " <> show err
+        Right schema ->
             return $ NamedSchema (Just ref) schema
+
+unsafeLookupKey :: Aeson.Value -> Text -> Aeson.Value
+unsafeLookupKey json k = case json of
+    Aeson.Object m -> fromMaybe bombMissing (HM.lookup k m)
+    m -> bombNotObject m
+  where
+    bombNotObject m =
+        error $ "given JSON value is NOT an object: " <> show m
+    bombMissing =
+        error $ "no value found in map for key: " <> T.unpack k
 
 -- | Verify that all servant endpoints are present and match the specification
 class ValidateEveryPath api where
@@ -1547,9 +1546,12 @@ class ValidateEveryPath api where
 instance {-# OVERLAPS #-} HasPath a => ValidateEveryPath a where
     validateEveryPath proxy = do
         let (verb, path) = getPath proxy
-        it (show verb <> " " <> path <> " exists in specification") $ do
-            case specification ^. paths . at path of
-                Just item | isJust (item ^. atMethod verb) -> return @IO ()
+        let verbStr = toLower <$> show verb
+        it (verbStr <> " " <> path <> " exists in specification") $ do
+            case foldl' unsafeLookupKey specification ["paths", T.pack path] of
+                Aeson.Object m -> case HM.lookup (T.pack verbStr) m of
+                    Just{}  -> return @IO ()
+                    Nothing -> fail "couldn't find path in specification"
                 _ -> fail "couldn't find path in specification"
 
 instance (ValidateEveryPath a, ValidateEveryPath b) => ValidateEveryPath (a :<|> b) where
@@ -1596,15 +1598,6 @@ instance Method 'DELETE where method _ = DELETE
 instance Method 'PATCH where method _ = PATCH
 class Method (m :: StdMethod) where
     method :: Proxy m -> StdMethod
-
-atMethod :: StdMethod -> Lens' PathItem (Maybe Operation)
-atMethod = \case
-    GET -> get
-    POST -> post
-    PUT -> put
-    DELETE -> delete
-    PATCH -> patch
-    m -> error $ "atMethod: unsupported method: " <> show m
 
 {-------------------------------------------------------------------------------
             Generating Golden Test Vectors For Address Encoding
