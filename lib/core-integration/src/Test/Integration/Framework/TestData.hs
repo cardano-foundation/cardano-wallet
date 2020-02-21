@@ -55,6 +55,7 @@ module Test.Integration.Framework.TestData
     , errMsg404NoSuchPool
     , errMsg403PoolAlreadyJoined
     , errMsg403NotDelegating
+    , errMsg403NotDelegatingNext
     , errMsg403NothingToMigrate
     , errMsg404NoEndpoint
     , errMsg404CannotFindTx
@@ -431,6 +432,11 @@ errMsg403NotDelegating :: String
 errMsg403NotDelegating = "It seems that you're trying to retire from \
     \delegation although you're not even delegating, nor won't be in an \
     \immediate future."
+
+errMsg403NotDelegatingNext :: String
+errMsg403NotDelegatingNext = "It seems that you're trying to retire from \
+    \delegation although you have already done so. Quiting again would \
+    \incur an unnecessary fee!"
 
 errMsg404CannotFindTx :: Text -> String
 errMsg404CannotFindTx tid = "I couldn't find a transaction with the given id: "

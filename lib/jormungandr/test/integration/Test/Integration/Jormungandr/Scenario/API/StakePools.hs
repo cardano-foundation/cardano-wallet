@@ -97,6 +97,7 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( errMsg403DelegationFee
     , errMsg403NotDelegating
+    , errMsg403NotDelegatingNext
     , errMsg403PoolAlreadyJoined
     , errMsg403WrongPass
     , errMsg404NoEndpoint
@@ -484,16 +485,6 @@ spec = do
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
             ]
 
-    it "STAKE_POOLS_JOIN_01 - I cannot rejoin the same stake-pool" $ \ctx -> do
-        let (fee, _) = ctx ^. #_feeEstimator $ DelegDescription 1 1 1
-        (w, p) <- joinStakePoolWithWalletBalance ctx [10*fee]
-
-        -- Join again
-        r <- joinStakePool ctx (p ^. #id) (w, fixturePassphrase)
-        expectResponseCode HTTP.status403 r
-        let poolId = toText $ getApiT $ p ^. #id
-        expectErrorMessage (errMsg403PoolAlreadyJoined poolId) r
-
     it "STAKE_POOLS_JOIN_01 - Cannot join non-existant stakepool" $ \ctx -> do
         let poolIdAbsent = PoolId $ BS.pack $ replicate 32 0
         w <- emptyWallet ctx
@@ -742,13 +733,6 @@ spec = do
             it ("Quit: " ++ title) $ \ctx ->
                 verifyIt ctx (\_ -> Link.quitStakePool placeholder) headers expectations
 
-    it "STAKE_POOLS_QUIT_01 - Quiting before even joining" $ \ctx -> do
-        w <- emptyWallet ctx
-
-        r <- quitStakePool ctx placeholder (w, "Secure Passprase")
-        expectResponseCode HTTP.status403 r
-        expectErrorMessage errMsg403NotDelegating r
-
     it "STAKE_POOLS_QUIT_02 - Passphrase must be correct to quit" $ \ctx -> do
         (w, _) <- joinStakePoolWithFixtureWallet ctx
 
@@ -817,9 +801,8 @@ spec = do
                 [ expectField #delegation (`shouldBe` notDelegating [])
                 ]
 
-    it "STAKE_POOL_NEXT_02\
-        \ - Join 2 stake pools in the same epoch => delegate to the last one"
-        $ \ctx -> do
+    it "STAKE_POOL_NEXT_02 - Override join with join in the same epoch =>\
+        \ delegating to the last one in the end" $ \ctx -> do
         (_, p1:p2:_) <- eventually "Stake pools are listed" $
             unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
         w <- fixtureWallet ctx
@@ -849,9 +832,8 @@ spec = do
         joinPool p1
         joinPool p2
 
-    it "STAKE_POOL_NEXT_02\
-        \ - Join and quit in the same epoch => not_delegating in the end"
-        $ \ctx -> do
+    it "STAKE_POOL_NEXT_02 - Override join with quit in the same epoch =>\
+        \ not_delegating in the end" $ \ctx -> do
         (_, pool:_) <- eventually "Stake pools are listed" $
             unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
         w <- fixtureWallet ctx
@@ -888,6 +870,52 @@ spec = do
                 )
             ]
 
+    it "STAKE_POOL_NEXT_02 - Override quit with join in the same epoch =>\
+        \ delegating to the last one in the end" $ \ctx -> do
+        (_, pool:_) <- eventually "Stake pools are listed" $
+            unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
+        w <- fixtureWallet ctx
+
+        -- joined p1 => active: p1
+        r1 <- joinStakePool ctx (pool ^. #id) (w, fixturePassphrase)
+        expectResponseCode HTTP.status202 r1
+        eventually "Delegating to pool" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+                [ expectField #delegation (`shouldBe` delegating (pool ^. #id) [])
+                ]
+
+        (currentEpoch, sp) <- getSlotParams ctx
+
+        -- quit SP => active: pool, next: not_delegating
+        r2 <- quitStakePool ctx placeholder (w, fixturePassphrase)
+        expectResponseCode HTTP.status202 r2
+        waitAllTxsInLedger ctx w
+        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+            [ expectField #delegation
+                (`shouldBe` delegating (pool ^. #id)
+                    [ (Nothing, mkEpochInfo (currentEpoch + 2) sp)
+                    ]
+                )
+            ]
+
+        -- join SP in the same epoch => active: pool, next: pool
+        r3 <- joinStakePool ctx (pool ^. #id) (w, fixturePassphrase)
+        expectResponseCode HTTP.status202 r3
+        waitAllTxsInLedger ctx w
+        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+            [ expectField #delegation
+                (`shouldBe` delegating (pool ^. #id)
+                    [ (Just (pool ^. #id), mkEpochInfo (currentEpoch + 2) sp)
+                    ]
+                )
+            ]
+
+        -- Join again => you cannot!
+        r <- joinStakePool ctx (pool ^. #id) (w, fixturePassphrase)
+        expectResponseCode HTTP.status403 r
+        let poolId = toText $ getApiT $ pool ^. #id
+        expectErrorMessage (errMsg403PoolAlreadyJoined poolId) r
+
     it "STAKE_POOL_NEXT_03\
         \ Join and quit in two subsequent epochs => delegating in epoch X + 2,\
         \ not_delegating in epoch X + 3"
@@ -914,8 +942,6 @@ spec = do
                 )
             ]
 
-        -- coming to the next epoch and should be not delegating with two nexts
-        -- after another joining
         waitForNextEpoch ctx
 
         r2 <- quitStakePool ctx placeholder (w, fixturePassphrase)
@@ -931,8 +957,7 @@ spec = do
             ]
 
         -- coming to the next epoch:
-        --  active: delegating to p1, next: not_delegating
-        eventually $ do
+        eventually "active: delegating to p1, next: not_delegating" $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
                 [ expectField (#tip . #epochNumber . #getApiT)
                     (`shouldBe` currentEpoch + 3)
@@ -946,7 +971,7 @@ spec = do
         \ - Join 2 in two subsequent epochs => delegating to 1st in epoch X + 2\
         \ and 2nd in epoch X + 3"
         $ \ctx -> do
-        (_, p1:p2:_) <- eventually $
+        (_, p1:p2:_) <- eventually "Stake pools are listed" $
             unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
         w <- fixtureWallet ctx
 
@@ -995,6 +1020,207 @@ spec = do
                         [ (Just (p2 ^. #id), mkEpochInfo (currentEpoch + 4) sp) ]
                     )
                 ]
+
+    it "STAKE_POOL_NEXT_04/STAKE_POOLS_QUIT_01 - Cannot quit when active: not_delegating"
+        $ \ctx -> do
+        w <- emptyWallet ctx
+        r <- quitStakePool ctx placeholder (w, "Secure Passprase")
+        expectResponseCode HTTP.status403 r
+        expectErrorMessage errMsg403NotDelegating r
+
+    it "STAKE_POOL_NEXT_04\
+        \ - Cannot quit when most recent delegation next: not_delegating"
+        $ \ctx -> do
+        (_, p1:_) <- eventually "Stake pools are listed" $
+            unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
+        w <- fixtureWallet ctx
+
+        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+            [ expectField #delegation (`shouldBe` notDelegating []) ]
+
+        -- join p1
+        r1 <- joinStakePool ctx (p1 ^. #id) (w, fixturePassphrase)
+        expectResponseCode HTTP.status202 r1
+        eventually "Delegating to p1" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+                [ expectField #delegation (`shouldBe` delegating (p1 ^. #id) [])
+                ]
+
+        (currentEpoch, sp) <- getSlotParams ctx
+        -- quit sp
+        r2 <- quitStakePool ctx placeholder (w, fixturePassphrase)
+        expectResponseCode HTTP.status202 r2
+        waitAllTxsInLedger ctx w
+        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+            [ expectField #delegation
+                (`shouldBe` delegating (p1 ^. #id)
+                    [ (Nothing, mkEpochInfo (currentEpoch + 2) sp)
+                    ]
+                )
+            ]
+        -- cannot quit again because you're already quitting
+        r3 <- quitStakePool ctx placeholder (w, fixturePassphrase)
+        expectResponseCode HTTP.status403 r3
+        expectErrorMessage errMsg403NotDelegatingNext r3
+
+    it "STAKE_POOL_NEXT_04 - Cannot quit when 'next 1': not_delegating,\
+        \ 'next 2': not_delegating" $ \ctx -> do
+        (_, p1:p2:_) <- eventually "Stake pools are listed" $
+            unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
+        w <- fixtureWallet ctx
+
+        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+            [ expectField #delegation (`shouldBe` notDelegating []) ]
+
+        -- join p1
+        r1 <- joinStakePool ctx (p1 ^. #id) (w, fixturePassphrase)
+        expectResponseCode HTTP.status202 r1
+        eventually "Delegating to p1" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+                [ expectField #delegation (`shouldBe` delegating (p1 ^. #id) [])
+                ]
+
+        (currentEpoch, sp) <- getSlotParams ctx
+
+        -- quit sp
+        r2 <- quitStakePool ctx placeholder (w, fixturePassphrase)
+        expectResponseCode HTTP.status202 r2
+        waitAllTxsInLedger ctx w
+        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+            [ expectField #delegation
+                (`shouldBe` delegating (p1 ^. #id)
+                    [ (Nothing, mkEpochInfo (currentEpoch + 2) sp)
+                    ]
+                )
+            ]
+
+        waitForNextEpoch ctx
+
+        -- join p2
+        r3 <- joinStakePool ctx (p2 ^. #id) (w, fixturePassphrase)
+        expectResponseCode HTTP.status202 r3
+        waitAllTxsInLedger ctx w
+        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+            [ expectField #delegation
+                (`shouldBe` delegating (p1 ^. #id)
+                    [ (Nothing, mkEpochInfo (currentEpoch + 2) sp)
+                    , (Just (p2 ^. #id), mkEpochInfo (currentEpoch + 3) sp)
+                    ]
+                )
+            ]
+
+        -- can quit replacing next 2: p2 with next 2: not_delegating
+        r4 <- quitStakePool ctx placeholder (w, fixturePassphrase)
+        expectResponseCode HTTP.status202 r4
+        waitAllTxsInLedger ctx w
+        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+            [ expectField #delegation
+                (`shouldBe` delegating (p1 ^. #id)
+                    [ (Nothing, mkEpochInfo (currentEpoch + 2) sp)
+                    , (Nothing, mkEpochInfo (currentEpoch + 3) sp)
+                    ]
+                )
+            ]
+
+        -- cannot quit again because you're already quitting
+        r5 <- quitStakePool ctx placeholder (w, fixturePassphrase)
+        expectResponseCode HTTP.status403 r5
+        expectErrorMessage errMsg403NotDelegatingNext r5
+
+    it "STAKE_POOL_NEXT_05/STAKE_POOLS_JOIN_01 - Cannot join A, when active: A"
+        $ \ctx -> do
+        w <- fixtureWallet ctx
+        (_, p:_) <- eventually "Stake pools are listed" $
+            unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
+        -- join p1
+        r1 <- joinStakePool ctx (p ^. #id) (w, fixturePassphrase)
+        expectResponseCode HTTP.status202 r1
+        eventually "Delegating to p" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+                [ expectField #delegation (`shouldBe` delegating (p ^. #id) [])
+                ]
+
+        -- Join again
+        r <- joinStakePool ctx (p ^. #id) (w, fixturePassphrase)
+        expectResponseCode HTTP.status403 r
+        let poolId = toText $ getApiT $ p ^. #id
+        expectErrorMessage (errMsg403PoolAlreadyJoined poolId) r
+
+    it "STAKE_POOL_NEXT_05/STAKE_POOLS_JOIN_01 - Cannot join A, when 'next 1': A\
+        \ and there is no 'next 2'" $ \ctx -> do
+        (_, p1:_) <- eventually "Stake pools are listed" $
+            unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
+        w <- fixtureWallet ctx
+
+        -- make sure we are at the beginning of new epoch
+        (currentEpoch, sp) <- getSlotParams ctx
+        waitForNextEpoch ctx
+
+        r1 <- joinStakePool ctx (p1 ^. #id) (w, fixturePassphrase)
+        expectResponseCode HTTP.status202 r1
+        waitAllTxsInLedger ctx w
+        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+            [ expectField #delegation
+                (`shouldBe` notDelegating
+                    [ (Just (p1 ^. #id), mkEpochInfo (currentEpoch + 3) sp)
+                    ]
+                )
+            ]
+
+        -- Join again
+        r <- joinStakePool ctx (p1 ^. #id) (w, fixturePassphrase)
+        expectResponseCode HTTP.status403 r
+        let poolId = toText $ getApiT $ p1 ^. #id
+        expectErrorMessage (errMsg403PoolAlreadyJoined poolId) r
+
+    it "STAKE_POOL_NEXT_05/STAKE_POOLS_JOIN_01 - Cannot join A, when 'active' : A,\
+        \ 'next 1': B and 'next 2': A" $ \ctx -> do
+        (_, p1:p2:_) <- eventually "Stake pools are listed" $
+            unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
+        w <- fixtureWallet ctx
+
+        -- joined p1 => active: p1
+        r1 <- joinStakePool ctx (p1 ^. #id) (w, fixturePassphrase)
+        expectResponseCode HTTP.status202 r1
+        eventually "Delegating to p1" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+                [ expectField #delegation (`shouldBe` delegating (p1 ^. #id) [])
+                ]
+
+        (currentEpoch, sp) <- getSlotParams ctx
+
+        -- join p2 => active: p1, next 1: p2
+        r2 <- joinStakePool ctx (p2 ^. #id) (w, fixturePassphrase)
+        expectResponseCode HTTP.status202 r2
+        waitAllTxsInLedger ctx w
+        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+            [ expectField #delegation
+                (`shouldBe` delegating (p1 ^. #id)
+                    [ (Just (p2 ^. #id), mkEpochInfo (currentEpoch + 2) sp)
+                    ]
+                )
+            ]
+
+        waitForNextEpoch ctx
+
+        -- Join p1 => active: p1, next 1: p2, next 2: p1
+        r3 <- joinStakePool ctx (p1 ^. #id) (w, fixturePassphrase)
+        expectResponseCode HTTP.status202 r3
+        waitAllTxsInLedger ctx w
+        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+            [ expectField #delegation
+                (`shouldBe` delegating (p1 ^. #id)
+                    [ (Just (p2 ^. #id), mkEpochInfo (currentEpoch + 2) sp)
+                    , (Just (p1 ^. #id), mkEpochInfo (currentEpoch + 3) sp)
+                    ]
+                )
+            ]
+
+        -- Join p1 => you cannot
+        r4 <- joinStakePool ctx (p1 ^. #id) (w, fixturePassphrase)
+        expectResponseCode HTTP.status403 r4
+        let poolId = toText $ getApiT $ p1 ^. #id
+        expectErrorMessage (errMsg403PoolAlreadyJoined poolId) r4
 
 waitAllTxsInLedger
     :: forall t n. (n ~ 'Testnet)
