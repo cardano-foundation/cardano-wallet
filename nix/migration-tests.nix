@@ -33,19 +33,31 @@
 with pkgs.lib;
 
 let
+
+  # From nixpkgs 19.09 onwards we use `x86_64-w64-mingw32` instead of
+  # the legacy `x86_64-pc-mingw32` that nixpkgs incorrectly used. Thus
+  # to test migration paths for releases that have been build with nixpkgs
+  # prior to 19.09, we'll need to rewrite the crossSystem.config.
+  # This is controlled by the `needsRewrite` flags int he releases.
+  rewriteCrossSystem = crossSystem: if crossSystem != null && crossSystem.config == "x86_64-w64-mingw32" then crossSystem // { config = "x86_64-pc-mingw32"; } else crossSystem;
   # List of git revisions to test against.
   releases = [
     { rev = "v2019-12-13";
       sha256 = "1a2b4iflwwp824b1k9b82jw2q8pqlar6hg96nv03zv55glkgdllm";
-      allowFail = true; }
+      allowFail = true;
+      needsRewrite = true; }
     { rev = "v2019-12-16";
-      sha256 = "0y5xf43lrc7gygvxh5ywkglr3d1xcc19dsskm7frl0v6m9yxzni6"; }
+      sha256 = "0y5xf43lrc7gygvxh5ywkglr3d1xcc19dsskm7frl0v6m9yxzni6";
+      needsRewrite = true;  }
     { rev = "v2019-12-23";
-      sha256 = "1fq8hjwqnajlz7g09zihmzhjc3hyyjl685nr5qa4r2fqnjzq5i24"; }
+      sha256 = "1fq8hjwqnajlz7g09zihmzhjc3hyyjl685nr5qa4r2fqnjzq5i24";
+      needsRewrite = true;  }
     { rev = "v2020-01-07";
-      sha256 = "1bsw89xhd60jjdxx9d5ya6ly0rpswwcj7x5ppqjhydvsdsrd3rww"; }
+      sha256 = "1bsw89xhd60jjdxx9d5ya6ly0rpswwcj7x5ppqjhydvsdsrd3rww";
+      needsRewrite = true;  }
     { rev = "v2020-01-14";
-      sha256 = "0kvwzrkpv3d62qr9sh9h7v7d398c600qr9dgw6zd3wcmxjk53762"; }
+      sha256 = "0kvwzrkpv3d62qr9sh9h7v7d398c600qr9dgw6zd3wcmxjk53762";
+      needsRewrite = true;  }
   ];
 
   # Download the sources for a release.
@@ -62,8 +74,11 @@ let
     if rel == null
       then import ../default.nix { inherit system crossSystem config; }
       else let src = fetchRelease rel; in import src {
-        inherit system crossSystem config;
+        inherit system config;
         gitrev = src.rev;
+        crossSystem = if rel.needsRewrite
+                      then rewriteCrossSystem crossSystem
+                      else crossSystem;
       };
 
   # Grab the migration test from the current version.
