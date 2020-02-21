@@ -1,3 +1,4 @@
+skip_bootstrap: true
 p2p:
   trusted_peers: []
   topics_of_interest:
