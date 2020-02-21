@@ -29,8 +29,11 @@
 #
 ############################################################################
 
-{ commonLib ? import ./. {}
-, pkgs ? commonLib.pkgs
+let
+  commonLib' = import ./. {};
+
+in { commonLib ? commonLib'.commonLib
+, pkgs ? commonLib'.pkgs
 }:
 
 let
@@ -63,8 +66,8 @@ let
     else pkg;
 
 in rec {
-  jormungandr = nonWindows (commonLib.rust-packages.pkgs.makeJormungandr release);
-  jormungandr-cli = nonWindows (commonLib.rust-packages.pkgs.makeJcli release);
+  jormungandr = nonWindows (commonLib.jormungandrLib.makeJormungandr release);
+  jormungandr-cli = nonWindows (commonLib.jormungandrLib.makeJcli release);
 
   inherit jormungandr-win64;
   inherit (jormungandr) src;
