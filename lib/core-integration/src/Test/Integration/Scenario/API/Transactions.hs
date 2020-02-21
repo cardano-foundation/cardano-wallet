@@ -119,7 +119,7 @@ data TestCase a = TestCase
     }
 
 spec :: forall t n. (n ~ 'Testnet) => SpecWith (Context t)
-spec = describe "PATATE" $ do
+spec = do
     it "Regression #1004 -\
         \ Transaction to self shows only fees as a tx amount\
         \ while both, pending and in_ledger" $ \ctx -> do

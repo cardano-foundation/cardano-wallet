@@ -508,7 +508,7 @@ errMsg500 = "That's embarrassing. It looks like I've created an invalid\
 
 errMsgNotInDictionary :: String
 errMsgNotInDictionary = "Found an unknown word not present in the pre-defined\
-    \ dictionary:"
+    \ dictionary."
 
 errMsg400NumberOfWords :: String
 errMsg400NumberOfWords = "Invalid number of words:"

@@ -75,9 +75,6 @@ module Cardano.Wallet.Api
     , workerRegistry
     , HasDBFactory
     , dbFactory
-
-      -- * Miscellaneous Types
-    , BackwardCompatPlaceholder(..)
     ) where
 
 import Prelude
@@ -95,6 +92,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkInformation
     , ApiNetworkParameters
     , ApiNetworkTip
+    , ApiPoolId
     , ApiSelectCoinsData
     , ApiStakePool
     , ApiT
@@ -103,7 +101,6 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , ApiWallet
     , ApiWalletPassphrase
-    , BackwardCompatPlaceholder (..)
     , ByronWalletPostData
     , ByronWalletStyle (..)
     , Iso8601Time
@@ -125,7 +122,6 @@ import Cardano.Wallet.Primitive.Types
     ( AddressState
     , Block
     , BlockchainParameters
-    , PoolId
     , SortOrder (..)
     , SyncTolerance
     , WalletId (..)
@@ -328,7 +324,7 @@ type ListStakePools = "stake-pools"
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/joinStakePool
 type JoinStakePool n = "stake-pools"
-    :> Capture "stakePoolId" (ApiT PoolId)
+    :> Capture "stakePoolId" ApiPoolId
     :> "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> ReqBody '[JSON] ApiWalletPassphrase
@@ -336,7 +332,7 @@ type JoinStakePool n = "stake-pools"
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/quitStakePool
 type QuitStakePool n = "stake-pools"
-    :> Capture "*" (BackwardCompatPlaceholder (ApiT PoolId))
+    :> "*"
     :> "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> ReqBody '[JSON] ApiWalletPassphrase

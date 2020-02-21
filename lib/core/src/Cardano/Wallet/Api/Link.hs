@@ -84,9 +84,10 @@ module Cardano.Wallet.Api.Link
 import Prelude
 
 import Cardano.Wallet.Api
-    ( Api, BackwardCompatPlaceholder )
+    ( Api )
 import Cardano.Wallet.Api.Types
     ( ApiEpochNumber
+    , ApiPoolId (..)
     , ApiT (..)
     , ApiTxId (ApiTxId)
     , ByronWalletStyle (..)
@@ -100,7 +101,7 @@ import Cardano.Wallet.Primitive.Types
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( (^.) )
 import Data.Generics.Product.Typed
     ( HasType, typed )
 import Data.Proxy
@@ -389,21 +390,18 @@ joinStakePool
 joinStakePool s w =
     endpoint @(Api.JoinStakePool Net) (\mk -> mk sid wid)
   where
-    sid = s ^. typed @(ApiT PoolId)
+    sid = ApiPoolId $ getApiT $ s ^. typed @(ApiT PoolId)
     wid = w ^. typed @(ApiT WalletId)
 
 quitStakePool
-    :: forall s w.
-        ( HasType (ApiT PoolId) s
-        , HasType (ApiT WalletId) w
+    :: forall w.
+        ( HasType (ApiT WalletId) w
         )
-    => BackwardCompatPlaceholder s
-    -> w
+    => w
     -> (Method, Text)
-quitStakePool s w =
-    endpoint @(Api.QuitStakePool Net) (\mk -> mk sid wid)
+quitStakePool w =
+    endpoint @(Api.QuitStakePool Net) (wid &)
   where
-    sid = fmap (view (typed @(ApiT PoolId))) s
     wid = w ^. typed @(ApiT WalletId)
 
 getDelegationFee

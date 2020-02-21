@@ -40,6 +40,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkInformation (..)
     , ApiNetworkParameters
     , ApiNetworkTip
+    , ApiPoolId
     , ApiStakePool
     , ApiT (..)
     , ApiTransaction
@@ -47,7 +48,6 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , ApiWallet (..)
     , ApiWalletPassphrase
-    , BackwardCompatPlaceholder (..)
     , DecodeAddress
     , EncodeAddress
     , Iso8601Time (..)
@@ -59,7 +59,7 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState, PoolId, SortOrder, SyncProgress (..), WalletId )
+    ( AddressState, SortOrder, SyncProgress (..), WalletId )
 import Control.Monad
     ( void )
 import Control.Retry
@@ -134,7 +134,7 @@ data WalletClient t = WalletClient
     , listPools
         :: ClientM [ApiStakePool]
     , joinStakePool
-        :: ApiT PoolId
+        :: ApiPoolId
         -> ApiT WalletId
         -> ApiWalletPassphrase
         -> ClientM (ApiTransaction t)
@@ -221,7 +221,7 @@ walletClient =
             , getWalletUtxoStatistics = _getWalletUtxoStatistics
             , listPools = _listPools
             , joinStakePool = _joinStakePool
-            , quitStakePool = _quitStakePool Placeholder
+            , quitStakePool = _quitStakePool
             , networkInformation = _networkInformation
             , networkParameters = _networkParameters
             }

@@ -55,7 +55,6 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , ApiWallet
     , ApiWalletPassphrase
-    , BackwardCompatPlaceholder (..)
     , ByronWalletPostData
     , ByronWalletStyle (..)
     , Iso8601Time
@@ -221,18 +220,6 @@ instance WellFormed (PathParam (ApiT PoolId)) where
     wellformed = PathParam $ T.replicate 64 "0"
 
 instance Malformed (PathParam (ApiT PoolId)) where
-    malformed = first PathParam <$>
-        [ (T.replicate 64 "ś", msg)
-        , (T.replicate 63 "1", msg)
-        , (T.replicate 65 "1", msg)
-        ]
-      where
-        msg = "Invalid stake pool id: expecting a hex-encoded value that is 32 bytes in length."
-
-instance WellFormed (PathParam (BackwardCompatPlaceholder (ApiT PoolId))) where
-    wellformed = PathParam $ T.replicate 64 "0"
-
-instance Malformed (PathParam (BackwardCompatPlaceholder (ApiT PoolId))) where
     malformed = first PathParam <$>
         [ (T.replicate 64 "ś", msg)
         , (T.replicate 63 "1", msg)

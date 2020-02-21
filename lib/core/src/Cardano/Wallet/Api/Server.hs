@@ -114,6 +114,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkInformation (..)
     , ApiNetworkParameters (..)
     , ApiNetworkTip (..)
+    , ApiPoolId (..)
     , ApiSelectCoinsData (..)
     , ApiStakePool (..)
     , ApiStakePoolMetrics (..)
@@ -128,7 +129,6 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
     , ApiWalletPassphrase (..)
-    , BackwardCompatPlaceholder
     , ByronWalletPostData (..)
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
@@ -255,7 +255,7 @@ import Data.Streaming.Network
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( ToText (..) )
+    ( FromText (..), ToText (..) )
 import Data.Time
     ( UTCTime )
 import Data.Time.Clock
@@ -583,7 +583,7 @@ byronServer byron icarus =
     stakePools =
              throwError err501
         :<|> (\_ _ _ -> throwError err501)
-        :<|> (\_ _ _ -> throwError err501)
+        :<|> (\_ _ -> throwError err501)
         :<|> (\_ -> throwError err501)
 
     byronWallets :: Server ByronWallets
@@ -1271,11 +1271,15 @@ joinStakePool
         )
     => ctx
     -> StakePoolLayer IO
-    -> ApiT PoolId
+    -> ApiPoolId
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
-joinStakePool ctx spl (ApiT pid) (ApiT wid) (ApiWalletPassphrase (ApiT pwd)) = do
+joinStakePool ctx spl apiPoolId (ApiT wid) (ApiWalletPassphrase (ApiT pwd)) = do
+    pid <- case apiPoolId of
+        ApiPoolIdPlaceholder -> liftHandler $ throwE ErrUnexpectedPoolIdPlaceholder
+        ApiPoolId pid -> pure pid
+
     pools <- liftIO $ knownStakePools spl
 
     (tx, txMeta, txTime) <- liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
@@ -1315,11 +1319,10 @@ quitStakePool
         , ctx ~ ApiLayer s t k
         )
     => ctx
-    -> BackwardCompatPlaceholder (ApiT PoolId)
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
-quitStakePool ctx _ (ApiT wid) (ApiWalletPassphrase (ApiT pwd)) = do
+quitStakePool ctx (ApiT wid) (ApiWalletPassphrase (ApiT pwd)) = do
     (tx, txMeta, txTime) <- liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
         W.quitStakePool @_ @s @t @k wrk wid () pwd
 
@@ -1723,6 +1726,9 @@ apiError err code message = err
         ]
     }
 
+data ErrUnexpectedPoolIdPlaceholder = ErrUnexpectedPoolIdPlaceholder
+    deriving (Eq, Show)
+
 data ErrCreateWallet
     = ErrCreateWalletAlreadyExists ErrWalletAlreadyExists
         -- ^ Wallet already exists
@@ -1736,6 +1742,13 @@ newtype ErrRejectedTip = ErrRejectedTip ApiNetworkTip
 -- | Small helper to easy show things to Text
 showT :: Show a => a -> Text
 showT = T.pack . show
+
+instance LiftHandler ErrUnexpectedPoolIdPlaceholder where
+    handler = \case
+        ErrUnexpectedPoolIdPlaceholder ->
+            apiError err400 BadRequest (pretty msg)
+      where
+        Left msg = fromText @PoolId "INVALID"
 
 instance LiftHandler ErrRejectedTip where
     handler = \case

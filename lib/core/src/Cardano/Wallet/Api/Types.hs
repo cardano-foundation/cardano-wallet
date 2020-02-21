@@ -73,6 +73,7 @@ module Cardano.Wallet.Api.Types
     , ApiWalletDelegation (..)
     , ApiWalletDelegationStatus (..)
     , ApiWalletDelegationNext (..)
+    , ApiPoolId (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -92,7 +93,6 @@ module Cardano.Wallet.Api.Types
     -- * Polymorphic Types
     , ApiT (..)
     , ApiMnemonicT (..)
-    , BackwardCompatPlaceholder (..)
     ) where
 
 import Prelude
@@ -552,17 +552,10 @@ instance ToHttpApiData ApiEpochNumber where
 instance FromHttpApiData ApiEpochNumber where
     parseUrlPiece = first (T.pack . getTextDecodingError) . fromText
 
-instance ToHttpApiData a
-    => ToHttpApiData (BackwardCompatPlaceholder a) where
-    toUrlPiece = \case
-        Placeholder -> "*"
-        BackwardCompat a -> toUrlPiece a
-
-instance (ToHttpApiData a, FromHttpApiData a)
-    => FromHttpApiData (BackwardCompatPlaceholder a) where
-    parseUrlPiece = \case
-        t | t == toUrlPiece (Placeholder @a) -> pure Placeholder
-        t -> BackwardCompat <$> parseUrlPiece t
+data ApiPoolId
+    = ApiPoolIdPlaceholder
+    | ApiPoolId PoolId
+    deriving (Eq, Generic, Show)
 
 {-------------------------------------------------------------------------------
                               API Types: Byron
@@ -616,13 +609,6 @@ newtype ApiT a =
 newtype ApiMnemonicT (sizes :: [Nat]) =
     ApiMnemonicT { getApiMnemonicT :: SomeMnemonic }
     deriving (Generic, Show, Eq)
-
--- | A backward compatible placeholder for path parameter. Renders as '*' or,
--- accept what used to be an old value now deprecated.
-data BackwardCompatPlaceholder t
-    = Placeholder
-    | BackwardCompat t
-    deriving (Functor)
 
 {-------------------------------------------------------------------------------
                                JSON Instances
@@ -1047,6 +1033,18 @@ instance FromHttpApiData ApiTxId where
 
 instance ToHttpApiData ApiTxId where
     toUrlPiece (ApiTxId (ApiT tid)) = toText tid
+
+instance FromHttpApiData ApiPoolId where
+    parseUrlPiece t
+        | t == "*" =
+            Right ApiPoolIdPlaceholder
+        | otherwise =
+            bimap pretty ApiPoolId (fromText t)
+
+instance ToHttpApiData ApiPoolId where
+    toUrlPiece = \case
+        ApiPoolIdPlaceholder -> "*"
+        ApiPoolId pid -> toText pid
 
 {-------------------------------------------------------------------------------
                                 Aeson Options
