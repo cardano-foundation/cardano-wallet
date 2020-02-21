@@ -41,7 +41,7 @@ steps:
       system: x86_64-linux
 
   - label: 'Validate OpenAPI Specification'
-    command: 'nix-shell --run "openapi-spec-validator --schema 2.0 specifications/api/swagger.yaml"'
+    command: 'nix-shell --run "openapi-spec-validator --schema 3.0.0 specifications/api/swagger.yaml"'
     agents:
       system: x86_64-linux
 
