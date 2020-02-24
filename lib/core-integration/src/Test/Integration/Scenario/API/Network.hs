@@ -38,7 +38,6 @@ import Test.Integration.Framework.DSL
     , emptyWallet
     , eventually
     , eventuallyUsingDelay
-    , eventually_
     , expectErrorMessage
     , expectField
     , expectResponseCode
@@ -46,6 +45,7 @@ import Test.Integration.Framework.DSL
     , getFromResponse
     , request
     , verify
+    , waitForNextEpoch
     , (.>)
     )
 import Test.Integration.Framework.TestData
@@ -95,11 +95,12 @@ spec = do
             let getNetworkInfo = request @ApiNetworkInformation ctx
                     Link.getNetworkInfo Default Empty
             w <- emptyWallet ctx
-            eventually_ $ do
+            -- make sure you're at the beginning of the epoch
+            waitForNextEpoch ctx
+            r <- eventually $ do
                 sync <- getNetworkInfo
-                verify sync
-                    [ expectField (#syncProgress . #getApiT) (`shouldBe` Ready) ]
-            r <- getNetworkInfo
+                expectField (#syncProgress . #getApiT) (`shouldBe` Ready) sync
+                return sync
 
             let epochNum =
                     getFromResponse (#nodeTip . #epochNumber . #getApiT) r
@@ -125,11 +126,12 @@ spec = do
             let getNetworkInfo = request @ApiNetworkInformation ctx
                     Link.getNetworkInfo Default Empty
             w <- emptyRandomWallet ctx
-            eventually_ $ do
+            -- make sure you're at the beginning of the epoch
+            waitForNextEpoch ctx
+            r <- eventually $ do
                 sync <- getNetworkInfo
-                verify sync
-                    [ expectField (#syncProgress . #getApiT) (`shouldBe` Ready) ]
-            r <- getNetworkInfo
+                expectField (#syncProgress . #getApiT) (`shouldBe` Ready) sync
+                return sync
 
             let epochNum =
                     getFromResponse (#nodeTip . #epochNumber . #getApiT) r
