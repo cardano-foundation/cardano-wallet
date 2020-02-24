@@ -48,7 +48,7 @@ import Test.Integration.Framework.DSL
     , walletId
     )
 import Test.Integration.Framework.TestData
-    ( errMsg404NoWallet, errMsg406 )
+    ( errMsg404NoWallet )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
@@ -207,33 +207,3 @@ spec = do
             (Link.listAddresses w) Default Empty
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
-
-    describe "ADDRESS_LIST_05 - Request headers" $ do
-        let headerCases =
-                  [ ( "No HTTP headers -> 200", None
-                    , [ expectResponseCode @IO HTTP.status200 ] )
-                  , ( "Accept: text/plain -> 406"
-                    , Headers
-                          [ ("Content-Type", "application/json")
-                          , ("Accept", "text/plain") ]
-                    , [ expectResponseCode @IO HTTP.status406
-                      , expectErrorMessage errMsg406 ]
-                    )
-                  , ( "No Accept -> 200"
-                    , Headers [ ("Content-Type", "application/json") ]
-                    , [ expectResponseCode @IO HTTP.status200 ]
-                    )
-                  , ( "No Content-Type -> 200"
-                    , Headers [ ("Accept", "application/json") ]
-                    , [ expectResponseCode @IO HTTP.status200 ]
-                    )
-                  , ( "Content-Type: text/plain -> 200"
-                    , Headers [ ("Content-Type", "text/plain") ]
-                    , [ expectResponseCode @IO HTTP.status200 ]
-                    )
-                  ]
-        forM_ headerCases $ \(title, headers, expectations) -> it title $ \ctx -> do
-            w <- emptyWallet ctx
-            r <- request @[ApiAddress n] ctx
-                (Link.listAddresses w) headers Empty
-            verify r expectations

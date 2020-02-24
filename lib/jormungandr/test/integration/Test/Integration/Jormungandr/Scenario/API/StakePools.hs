@@ -13,8 +13,7 @@ module Test.Integration.Jormungandr.Scenario.API.StakePools
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiFee
-    , ApiNetworkInformation (..)
+    ( ApiNetworkInformation (..)
     , ApiNetworkParameters (..)
     , ApiStakePool
     , ApiT (..)
@@ -99,9 +98,6 @@ import Test.Integration.Framework.TestData
     , errMsg403WrongPass
     , errMsg404NoSuchPool
     , errMsg404NoWallet
-    , errMsg406
-    , errMsg415
-    , getHeaderCases
     )
 import Test.Integration.Jormungandr.Fixture
     ( OwnerIdentity (..), registerStakePool )
@@ -600,14 +596,6 @@ spec = do
             , expectErrorMessage $ errMsg404NoWallet (w ^. walletId)
             ]
 
-    describe "STAKE_POOLS_ESTIMATE_FEE_06 - HTTP headers" $ do
-        forM_ (getHeaderCases HTTP.status200)
-            $ \(title, headers, exps) -> it title $ \ctx -> do
-                w <- fixtureWallet ctx
-                let ep = Link.getDelegationFee w
-                r <- request @ApiFee ctx ep headers Empty
-                verify r exps
-
     describe "STAKE_POOLS_JOIN/QUIT_05 - Bad request" $ do
         let verifyIt ctx sPoolEndp = do
                 w <- emptyWallet ctx
@@ -620,47 +608,6 @@ spec = do
             verifyIt ctx Link.joinStakePool
         it "Quit" $ \ctx -> do
             verifyIt ctx (const Link.quitStakePool)
-
-    describe "PATATE STAKE_POOLS_JOIN/QUIT_05 - HTTP headers" $ do
-        let verifyIt ctx sPoolEndp headers expec = do
-                w <- emptyWallet ctx
-                let payload = Json [json| {
-                        "passphrase": "Secure Passphrase"
-                        } |]
-                print $ sPoolEndp (Identity arbitraryPoolId) w
-                r <- request @(ApiTransaction n) ctx
-                        (sPoolEndp (Identity arbitraryPoolId) w) headers payload
-                verify r expec
-
-        let payloadHeaderCases =
-                    [ ( "No HTTP headers -> 415", None
-                       , [ expectResponseCode @IO HTTP.status415
-                         , expectErrorMessage errMsg415 ]
-                       )
-                     , ( "Accept: text/plain -> 406"
-                       , Headers
-                             [ ("Content-Type", "application/json")
-                             , ("Accept", "text/plain") ]
-                       , [ expectResponseCode @IO HTTP.status406
-                         , expectErrorMessage errMsg406 ]
-                       )
-                     , ( "No Content-Type -> 415"
-                       , Headers [ ("Accept", "application/json") ]
-                       , [ expectResponseCode @IO HTTP.status415
-                         , expectErrorMessage errMsg415 ]
-                       )
-                     , ( "Content-Type: text/plain -> 415"
-                       , Headers [ ("Content-Type", "text/plain") ]
-                       , [ expectResponseCode @IO HTTP.status415
-                         , expectErrorMessage errMsg415 ]
-                       )
-                     ]
-        forM_ payloadHeaderCases $ \(title, headers, expectations) -> do
-            it ("Join: " ++ title) $ \ctx ->
-                verifyIt ctx Link.joinStakePool headers expectations
-        forM_ payloadHeaderCases $ \(title, headers, expectations) -> do
-            it ("Quit: " ++ title) $ \ctx ->
-                verifyIt ctx (const Link.quitStakePool) headers expectations
 
     it "STAKE_POOLS_QUIT_01 - Quiting before even joining" $ \ctx -> do
         w <- emptyWallet ctx

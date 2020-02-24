@@ -49,7 +49,7 @@ import Test.Integration.Framework.DSL
     , (.>)
     )
 import Test.Integration.Framework.TestData
-    ( errMsg404NoEpochNo, getHeaderCases )
+    ( errMsg404NoEpochNo )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
@@ -148,13 +148,6 @@ spec = do
                     , expectField (#tip . #height) (`shouldBe` blockHeight)
                     ]
 
-    describe "NETWORK - HTTP headers" $ do
-        forM_ (getHeaderCases HTTP.status200)
-            $ \(title, headers, expectations) -> it title $ \ctx -> do
-                r <- request @ApiNetworkInformation ctx
-                    Link.getNetworkInfo headers Empty
-                verify r expectations
-
     describe "NETWORK_PARAMS_01 - Valid epoch values" $ do
         let matrix = ["latest", "0"]
         forM_ matrix $ \epochNo -> it ("Epoch: " <> show epochNo) $ \ctx -> do
@@ -203,13 +196,6 @@ spec = do
                     maxEpochValue
                     HTTP.status404
                     (errMsg404NoEpochNo (T.unpack maxEpochValue))
-
-    describe "NETWORK_PARAMS_04 - HTTP headers" $ do
-        forM_ (getHeaderCases HTTP.status200)
-            $ \(title, headers, expectations) -> it title $ \ctx -> do
-                r <- request @ApiNetworkParameters ctx
-                    Link.getNetworkInfo headers Empty
-                verify r expectations
    where
        verifyEpochNumWrong
             :: Context t

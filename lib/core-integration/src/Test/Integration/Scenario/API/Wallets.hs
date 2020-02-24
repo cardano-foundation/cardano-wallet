@@ -102,7 +102,6 @@ import Test.Integration.Framework.TestData
     , errMsg404NoWallet
     , errMsg406
     , errMsg415
-    , getHeaderCases
     , kanjiWalletName
     , mnemonics12
     , mnemonics15
@@ -110,7 +109,6 @@ import Test.Integration.Framework.TestData
     , mnemonics21
     , mnemonics24
     , mnemonics9
-    , noContentHeaderCases
     , payloadWith
     , polishWalletName
     , russianWalletName
@@ -826,14 +824,6 @@ spec = do
         expectResponseCode @IO HTTP.status404 rg
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) rg
 
-    describe "WALLETS_GET_05 - HTTP headers" $ do
-        forM_ (getHeaderCases HTTP.status200)
-            $ \(title, headers, expectations) -> it title $ \ctx -> do
-            w <- emptyWallet ctx
-            rg <- request @ApiWallet ctx
-                (Link.getWallet @'Shelley w) headers Empty
-            verify rg expectations
-
     it "WALLETS_LIST_01 - Created a wallet can be listed" $ \ctx -> do
         let payload = Json [json| {
                 "name": "Wallet to be listed",
@@ -890,19 +880,6 @@ spec = do
             [ expectResponseCode @IO HTTP.status200
             , expectListSize 0
             ]
-
-    describe "WALLETS_LIST_03 - HTTP headers" $ do
-        forM_ (getHeaderCases HTTP.status200)
-            $ \(title, headers, expectations) -> it title $ \ctx -> do
-            rl <- request @ApiWallet ctx (Link.listWallets @'Shelley) headers Empty
-            verify rl expectations
-
-    describe "WALLETS_DELETE_03 - HTTP headers" $ do
-        forM_ (noContentHeaderCases HTTP.status204)
-            $ \(title, headers, expectations) -> it title $ \ctx -> do
-            w <- emptyWallet ctx
-            rd <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) headers Empty
-            verify rd expectations
 
     it "WALLETS_UPDATE_01 - Updated wallet name is available" $ \ctx -> do
 

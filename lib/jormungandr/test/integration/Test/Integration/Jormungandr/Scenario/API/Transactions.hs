@@ -51,8 +51,6 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Transaction
     ( TransactionLayer (..) )
-import Control.Monad
-    ( forM_ )
 import Data.ByteArray.Encoding
     ( Base (Base16, Base64), convertFromBase, convertToBase )
 import Data.Generics.Internal.VL.Lens
@@ -96,16 +94,8 @@ import Test.Integration.Framework.DSL as DSL
     , verify
     , walletId
     )
-import Test.Integration.Framework.Request
-    ( RequestException )
 import Test.Integration.Framework.TestData
-    ( errMsg400MalformedTxPayload
-    , errMsg404CannotFindTx
-    , errMsg405
-    , errMsg406
-    , errMsg415OctetStream
-    , mnemonics15
-    )
+    ( errMsg400MalformedTxPayload, errMsg404CannotFindTx, mnemonics15 )
 import Test.Integration.Jcli
     ( getBlock0H )
 import Test.QuickCheck
@@ -351,51 +341,7 @@ spec = do
             [ expectErrorMessage errMsg400MalformedTxPayload
             , expectResponseCode HTTP.status400
             ]
-
-    describe "TRANS_EXTERNAL_CREATE_04 - \
-        \v2/proxy/transactions - Methods Not Allowed" $ do
-
-        let matrix = ["PUT", "DELETE", "CONNECT", "TRACE", "OPTIONS", "GET"]
-        forM_ matrix $ \method -> it (show method) $ \ctx -> do
-            let payload = NonJson mempty
-            let headers = Headers [ ("Content-Type", "application/octet-stream") ]
-            let endpoint = "v2/proxy/transactions"
-            r <- request @ApiTxId ctx (method, endpoint) headers payload
-            expectResponseCode @IO HTTP.status405 r
-            expectErrorMessage errMsg405 r
-
-    describe "TRANS_EXTERNAL_CREATE_04 - HTTP headers" $ do
-        forM_ (externalTxHeaders @ApiTxId) $ \(title, headers, expectations) ->
-            it title $ \ctx -> do
-                let payload = NonJson mempty
-                r <- request @ApiTxId ctx Link.postExternalTransaction headers payload
-                verify r expectations
-
   where
-    externalTxHeaders
-        :: (Show a)
-        => [( String
-            , Headers
-            , [(HTTP.Status, Either RequestException a) -> IO ()])
-           ]
-    externalTxHeaders =
-        [ ( "Accept: text/plain -> 406"
-          , Headers [ ("Content-Type", "application/octet-stream")
-                    , ("Accept", "text/plain") ]
-          , [ expectResponseCode @IO HTTP.status406
-            , expectErrorMessage errMsg406 ]
-        )
-        , ( "Content-Type: application/json -> 415"
-          , Headers [ ("Content-Type", "application/json") ]
-          , [ expectResponseCode @IO HTTP.status415
-            , expectErrorMessage errMsg415OctetStream ]
-        )
-        , ( "Content-Type: application/json -> 415"
-          , Headers [ ("Content-Type", "text/plain") ]
-          , [ expectResponseCode @IO HTTP.status415
-            , expectErrorMessage errMsg415OctetStream ]
-        )
-        ]
     fixtureZeroAmtSingle ctx = do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx

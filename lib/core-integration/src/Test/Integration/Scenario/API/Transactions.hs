@@ -102,9 +102,6 @@ import Test.Integration.Framework.TestData
     , errMsg403WrongPass
     , errMsg404CannotFindTx
     , errMsg404NoWallet
-    , errMsg406
-    , errMsg415
-    , noContentHeaderCases
     )
 import Web.HttpApiData
     ( ToHttpApiData (..) )
@@ -629,26 +626,6 @@ spec = do
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
-    describe "TRANS_CREATE_08 - HTTP headers" $ do
-        forM_ (matrixHeaders @(ApiTransaction n)) $ \(title, headers, expectations) -> it title $ \ctx -> do
-            w <- emptyWallet ctx
-            wDest <- emptyWallet ctx
-            addr:_ <- listAddresses ctx wDest
-            let destination = addr ^. #id
-            let payload = Json [json|{
-                    "payments": [{
-                        "address": #{destination},
-                        "amount": {
-                            "quantity": 1,
-                            "unit": "lovelace"
-                        }
-                    }],
-                    "passphrase": "cardano-wallet"
-                }|]
-            r <- request @(ApiTransaction n) ctx (Link.createTransaction w)
-                    headers payload
-            verify r expectations
-
     describe "TRANS_CREATE_08 - Bad payload" $ do
         let matrix =
                 [ ( "empty payload", NonJson "" )
@@ -670,27 +647,6 @@ spec = do
             r <- request @(ApiTransaction n) ctx (Link.createTransaction w)
                     Default payload
             expectResponseCode @IO HTTP.status400 r
-
-
-    describe "TRANS_ESTIMATE_08 - HTTP headers" $ do
-        forM_ (matrixHeaders @ApiFee) $ \(title, headers, expectations) -> it title $ \ctx -> do
-            w <- emptyWallet ctx
-            wDest <- emptyWallet ctx
-            addr:_ <- listAddresses ctx wDest
-            let destination = addr ^. #id
-            let payload = Json [json|{
-                    "payments": [{
-                        "address": #{destination},
-                        "amount": {
-                            "quantity": 1,
-                            "unit": "lovelace"
-                        }
-                    }]
-                }|]
-            r <- request @ApiFee ctx (Link.getTransactionFee w)
-                    headers payload
-            verify r expectations
-
 
     describe "TRANS_ESTIMATE_08 - Bad payload" $ do
         let matrix =
@@ -1369,36 +1325,6 @@ spec = do
                 (errMsg400StartTimeLaterThanEndTime startTime endTime) r
             pure ()
 
-    describe "TRANS_LIST_04 - Request headers" $ do
-        let headerCases =
-                  [ ( "No HTTP headers -> 200", None
-                    , [ expectResponseCode @IO HTTP.status200 ] )
-                  , ( "Accept: text/plain -> 406"
-                    , Headers
-                          [ ("Content-Type", "application/json")
-                          , ("Accept", "text/plain") ]
-                    , [ expectResponseCode @IO HTTP.status406
-                      , expectErrorMessage errMsg406 ]
-                    )
-                  , ( "No Accept -> 200"
-                    , Headers [ ("Content-Type", "application/json") ]
-                    , [ expectResponseCode @IO HTTP.status200 ]
-                    )
-                  , ( "No Content-Type -> 200"
-                    , Headers [ ("Accept", "application/json") ]
-                    , [ expectResponseCode @IO HTTP.status200 ]
-                    )
-                  , ( "Content-Type: text/plain -> 200"
-                    , Headers [ ("Content-Type", "text/plain") ]
-                    , [ expectResponseCode @IO HTTP.status200 ]
-                    )
-                  ]
-        forM_ headerCases $ \(title, headers, expectations) -> it title $ \ctx -> do
-            w <- emptyWallet ctx
-            r <- request @([ApiTransaction n]) ctx (Link.listTransactions @'Shelley w)
-                headers Empty
-            verify r expectations
-
     it "TRANS_LIST_04 - Deleted wallet" $ \ctx -> do
         w <- emptyWallet ctx
         _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
@@ -1555,10 +1481,6 @@ spec = do
         txDeleteNotExistsingTxIdTest emptyWallet "wallets"
         txDeleteNotExistsingTxIdTest emptyRandomWallet "byron-wallets"
 
-    describe "TRANS_DELETE_08 - HTTP headers " $ do
-        txDeleteHTTPHeadersTest emptyWallet "wallets"
-        txDeleteHTTPHeadersTest emptyRandomWallet "byron-wallets"
-
     describe "TRANS_DELETE_06 -\
         \ Cannot forget tx that is performed from different wallet" $ do
         txDeleteFromDifferentWalletTest emptyWallet "wallets"
@@ -1651,18 +1573,6 @@ spec = do
             ra <- request @ApiTxId @IO ctx ("DELETE", endpoint) Default Empty
             expectResponseCode @IO HTTP.status404 ra
             expectErrorMessage (errMsg404CannotFindTx txid) ra
-
-    txDeleteHTTPHeadersTest eWallet resource =
-        describe resource $ do
-            forM_ (noContentHeaderCases HTTP.status404)
-                $ \(title, headers, expectations) -> it title $ \ctx -> do
-                w <- eWallet ctx
-                let wid = w ^. walletId
-                let txid = T.pack $ replicate 64 '1'
-                let ep = "v2/" <> T.pack resource <> "/" <> wid
-                        <> "/transactions/" <> txid
-                r <- request @ApiTxId @IO ctx ("DELETE", ep) headers Empty
-                verify r expectations
 
     postTx
         :: Context t
@@ -1787,35 +1697,6 @@ spec = do
     --       , expectErrorMessage unitErr ]
     --     )
     --     ]
-    matrixHeaders
-        :: (Show a)
-        => [( String
-            , Headers
-            , [(HTTP.Status, Either RequestException a) -> IO ()])
-           ]
-    matrixHeaders =
-        [ ( "No HTTP headers -> 415", None
-          , [ expectResponseCode @IO HTTP.status415
-           , expectErrorMessage errMsg415 ]
-        )
-        , ( "Accept: text/plain -> 406"
-          , Headers [ ("Content-Type", "application/json")
-                    , ("Accept", "text/plain") ]
-          , [ expectResponseCode @IO HTTP.status406
-            , expectErrorMessage errMsg406 ]
-        )
-        , ( "No Content-Type -> 415"
-          , Headers [ ("Accept", "application/json") ]
-          , [ expectResponseCode @IO HTTP.status415
-          , expectErrorMessage errMsg415 ]
-        )
-        , ( "Content-Type: text/plain -> 415"
-          , Headers [ ("Content-Type", "text/plain") ]
-          , [ expectResponseCode @IO HTTP.status415
-            , expectErrorMessage errMsg415 ]
-        )
-        ]
-
     fixtureErrInputsDepleted ctx = do
         wSrc <- fixtureWalletWith ctx [12_000_000, 20_000_000, 17_000_000]
         wDest <- emptyWallet ctx

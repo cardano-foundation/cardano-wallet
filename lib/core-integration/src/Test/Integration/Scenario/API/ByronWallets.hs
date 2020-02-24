@@ -58,7 +58,7 @@ import Data.Text
 import Data.Word
     ( Word64 )
 import Test.Hspec
-    ( SpecWith, describe, it, pendingWith, runIO, shouldNotBe, shouldSatisfy )
+    ( SpecWith, describe, it, runIO, shouldNotBe, shouldSatisfy )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe )
 import Test.Integration.Framework.DSL
@@ -96,12 +96,9 @@ import Test.Integration.Framework.TestData
     , errMsg403NothingToMigrate
     , errMsg403WrongPass
     , errMsg404NoWallet
-    , getHeaderCases
     , kanjiWalletName
     , mnemonics12
-    , noContentHeaderCases
     , polishWalletName
-    , postHeaderCases
     , russianWalletName
     , wildcardsWalletName
     )
@@ -186,14 +183,6 @@ spec = do
             r <- request @ApiByronWalletMigrationInfo ctx ep Default Empty
             expectResponseCode @IO HTTP.status404 r
             expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
-
-    describe "BYRON_CALCULATE_05 - HTTP headers" $ do
-        forM_ (getHeaderCases HTTP.status200)
-            $ \(title, headers, expectations) -> it title $ \ctx -> do
-            w <- fixtureRandomWallet ctx
-            let ep = Link.getMigrationInfo w
-            r <- request @ApiByronWalletMigrationInfo ctx ep headers Empty
-            verify r expectations
 
     it "BYRON_MIGRATE_01 - \
         \after a migration operation successfully completes, the correct \
@@ -532,18 +521,6 @@ spec = do
                 , expectErrorMessage (errMsg404NoWallet $ sWallet ^. walletId)
                 ]
 
-    describe "BYRON_MIGRATE_07 - migration - HTTP headers" $ do
-        forM_ postHeaderCases $ \(title, headers, expec) ->
-            it title $ \ctx -> do
-                sourceWallet <- emptyRandomWallet ctx
-                targetWallet <- emptyWallet ctx
-
-                r <- request @[ApiTransaction n] ctx
-                     (Link.migrateWallet sourceWallet targetWallet )
-                     headers
-                     (Json [json|{ "passphrase": "Secure Passphrase" }|])
-                verify r expec
-
     it "BYRON_MIGRATE_07 - invalid payload, parser error" $ \ctx -> do
         sourceWallet <- emptyRandomWallet ctx
         targetWallet <- emptyWallet ctx
@@ -575,13 +552,6 @@ spec = do
         rg <- request @ApiByronWallet ctx (Link.getWallet @'Byron w) Default Empty
         expectResponseCode @IO HTTP.status404 rg
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) rg
-
-    describe "BYRON_GET_07 - getByronWallet - HTTP headers" $ do
-        forM_ (getHeaderCases HTTP.status200)
-            $ \(title, headers, expec) -> it title $ \ctx -> do
-            w <- emptyRandomWallet ctx
-            rg <- request @ApiWallet ctx (Link.getWallet @'Byron w) headers Empty
-            verify rg expec
 
     it "BYRON_LIST_01 - Byron Wallets are listed from oldest to newest" $
         \ctx -> do
@@ -698,13 +668,6 @@ spec = do
                     (#name . #getApiT . #getWalletName) (`shouldBe` "shelley2")
             ]
 
-    describe "BYRON_LIST_05 - HTTP headers" $ do
-        forM_ (getHeaderCases HTTP.status200)
-            $ \(title, headers, expec) -> it title $ \ctx -> do
-            w <- emptyRandomWallet ctx
-            rl <- request @ApiWallet ctx (Link.getWallet @'Byron w) headers Empty
-            verify rl expec
-
     it "BYRON_DELETE_02 - Byron ep does not delete Shelley wallet" $ \ctx -> do
         w <- emptyWallet ctx
         r <- request @ApiByronWallet ctx (Link.deleteWallet @'Byron w) Default Empty
@@ -716,14 +679,6 @@ spec = do
         r <- request @ApiByronWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
-
-    describe "BYRON_DELETE_05 - HTTP headers" $ do
-        forM_ (noContentHeaderCases HTTP.status204)
-            $ \(title, headers, expectations) -> it title $ \ctx -> do
-            w <- emptyRandomWallet ctx
-            rl <- request
-                @ApiByronWallet ctx (Link.deleteWallet @'Byron w) headers Empty
-            verify rl expectations
 
     describe "BYRON_RESTORE_01, GET_01, LIST_01 - Restore a wallet" $ do
         let scenarioSuccess endpoint mnemonic ctx = do
@@ -1134,17 +1089,6 @@ spec = do
 --            [ expectResponseCode @IO HTTP.status400
 --            , expectErrorMessage "key 'passphrase' not present"
 --            ]
-
-    describe "BYRON_RESTORE_07 - HTTP headers" $ do
-        forM_ postHeaderCases $ \(title, headers, expectations) -> it title $ \ctx -> do
-            pendingWith "TODO: Move path parameter for /byron-wallets to be a body parameter instead"
-            let payload = Json [json| {
-                    "name": "Secure Wallet",
-                    "mnemonic_sentence": #{mnemonics12},
-                    "passphrase": "Secure passphrase"
-                    } |]
-            r <- request @ApiByronWallet ctx (Link.postWallet @'Random) headers payload
-            verify r expectations
 
 -- TODO
 -- MOVE TO test/unit/Cardano/Wallet/ApiSpec.hs

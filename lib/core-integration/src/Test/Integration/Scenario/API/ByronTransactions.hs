@@ -45,7 +45,7 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.Request
     ( RequestException )
 import Test.Integration.Framework.TestData
-    ( errMsg400StartTimeLaterThanEndTime, errMsg404NoWallet, getHeaderCases )
+    ( errMsg400StartTimeLaterThanEndTime, errMsg404NoWallet )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
@@ -199,11 +199,3 @@ spec = do
         r <- request @([ApiTransaction n]) ctx link Default Empty
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
-
-    describe "BYRON_TX_LIST_05 - Request headers" $ do
-        forM_ (getHeaderCases HTTP.status200)
-            $ \(title, h, expec) -> it title $ \ctx -> do
-            w <- emptyRandomWallet ctx
-            let link = Link.listTransactions @'Byron w
-            r <- request @([ApiTransaction n]) ctx link h Empty
-            verify r expec
