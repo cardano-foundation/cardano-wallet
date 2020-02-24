@@ -82,8 +82,7 @@ import Prelude
 import Cardano.Wallet
     ( WalletLayer (..), WalletLog )
 import Cardano.Wallet.Api.Types
-    ( AllowedMnemonics
-    , ApiAddress
+    ( ApiAddress
     , ApiByronWallet
     , ApiByronWalletMigrationInfo
     , ApiCoinSelection
@@ -101,13 +100,11 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , ApiWallet
     , ApiWalletPassphrase
-    , ByronWalletPostData
-    , ByronWalletStyle (..)
     , Iso8601Time
     , PostExternalTransactionData
     , PostTransactionData
     , PostTransactionFeeData
-    , StyleSymbol
+    , SomeByronWalletPostData
     , WalletOrAccountPostData
     , WalletPutData
     , WalletPutPassphraseData
@@ -351,19 +348,15 @@ type DelegationFee = "wallets"
 -------------------------------------------------------------------------------}
 
 type ByronWallets =
-         PostByronWallet 'Random
-    :<|> PostByronWallet 'Icarus
-    :<|> PostByronWallet 'Trezor
-    :<|> PostByronWallet 'Ledger
+         PostByronWallet
     :<|> DeleteByronWallet
     :<|> GetByronWallet
     :<|> ListByronWallets
     :<|> ForceResyncByronWallet
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postByronWallet
-type PostByronWallet (style :: ByronWalletStyle) = "byron-wallets"
-    :> StyleSymbol style
-    :> ReqBody '[JSON] (ByronWalletPostData (AllowedMnemonics style))
+type PostByronWallet = "byron-wallets"
+    :> ReqBody '[JSON] SomeByronWalletPostData
     :> PostCreated '[JSON] ApiByronWallet
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteByronWallet

@@ -21,7 +21,6 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiUtxoStatistics
     , ApiWallet
-    , ByronWalletStyle (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -164,10 +163,11 @@ spec = do
             let payloadRestore = Json [json| {
                     "name": "Dust Byron Wallet",
                     "mnemonic_sentence": #{mnemonics},
-                    "passphrase": #{fixturePassphrase}
+                    "passphrase": #{fixturePassphrase},
+                    "style": "random"
                     } |]
             (_, w) <- unsafeRequest @ApiByronWallet ctx
-                (Link.postWallet @'Random) payloadRestore
+                (Link.postWallet @'Byron) payloadRestore
             let ep = Link.getMigrationInfo w
             r <- request @ApiByronWalletMigrationInfo ctx ep Default Empty
             verify r
@@ -246,10 +246,11 @@ spec = do
         let payloadRestore = Json [json| {
                 "name": "Big Byron Wallet",
                 "mnemonic_sentence": #{mnemonics},
-                "passphrase": #{fixturePassphrase}
+                "passphrase": #{fixturePassphrase},
+                "style": "random"
                 } |]
         (_, wOld) <- unsafeRequest @ApiByronWallet ctx
-            (Link.postWallet @'Random) payloadRestore
+            (Link.postWallet @'Byron) payloadRestore
         eventually "wallet balance greater than 0" $ do
             request @ApiByronWallet ctx
                 (Link.getWallet @'Byron wOld)
@@ -358,10 +359,11 @@ spec = do
             let payloadRestore = Json [json| {
                     "name": "Dust Byron Wallet",
                     "mnemonic_sentence": #{mnemonics},
-                    "passphrase": #{fixturePassphrase}
+                    "passphrase": #{fixturePassphrase},
+                    "style": "random"
                     } |]
             (_, sourceWallet) <- unsafeRequest @ApiByronWallet ctx
-                (Link.postWallet @'Random) payloadRestore
+                (Link.postWallet @'Byron) payloadRestore
             eventually "wallet balance greater than 0" $ do
                 request @ApiByronWallet ctx
                     (Link.getWallet @'Byron sourceWallet)
@@ -558,9 +560,9 @@ spec = do
             m1 <- genMnemonics @12
             m2 <- genMnemonics @12
             m3 <- genMnemonics @12
-            _ <- emptyByronWalletWith @'Random ctx ("b1", m1, "Secure Passphrase")
-            _ <- emptyByronWalletWith @'Random ctx ("b2", m2, "Secure Passphrase")
-            _ <- emptyByronWalletWith @'Random ctx ("b3", m3, "Secure Passphrase")
+            _ <- emptyByronWalletWith ctx "random" ("b1", m1, "Secure Passphrase")
+            _ <- emptyByronWalletWith ctx "random" ("b2", m2, "Secure Passphrase")
+            _ <- emptyByronWalletWith ctx "random" ("b3", m3, "Secure Passphrase")
 
             rl <- request @[ApiByronWallet] ctx (Link.listWallets @'Byron) Default Empty
             verify rl
@@ -576,9 +578,9 @@ spec = do
 
     it "BYRON_LIST_01 - Interleave of Icarus and Random wallets" $ \ctx -> do
         let pwd = "Secure Passphrase"
-        genMnemonics @15 >>= \m -> void (emptyByronWalletWith @'Icarus ctx ("ica1", m, pwd))
-        genMnemonics @12 >>= \m -> void (emptyByronWalletWith @'Random ctx ("rnd2", m, pwd))
-        genMnemonics @15 >>= \m -> void (emptyByronWalletWith @'Icarus ctx ("ica3", m, pwd))
+        genMnemonics @15 >>= \m -> void (emptyByronWalletWith ctx "icarus" ("ica1", m, pwd))
+        genMnemonics @12 >>= \m -> void (emptyByronWalletWith ctx "random" ("rnd2", m, pwd))
+        genMnemonics @15 >>= \m -> void (emptyByronWalletWith ctx "icarus" ("ica3", m, pwd))
         rl <- request @[ApiByronWallet] ctx (Link.listWallets @'Byron) Default Empty
         verify rl
             [ expectResponseCode @IO HTTP.status200
@@ -597,9 +599,9 @@ spec = do
         m1 <- genMnemonics @12
         m2 <- genMnemonics @12
         m3 <- genMnemonics @12
-        _ <- emptyByronWalletWith @'Random ctx ("byron1", m1, "Secure Passphrase")
-        _ <- emptyByronWalletWith @'Random ctx ("byron2", m2, "Secure Passphrase")
-        _ <- emptyByronWalletWith @'Random ctx ("byron3", m3, "Secure Passphrase")
+        _ <- emptyByronWalletWith ctx "random" ("byron1", m1, "Secure Passphrase")
+        _ <- emptyByronWalletWith ctx "random" ("byron2", m2, "Secure Passphrase")
+        _ <- emptyByronWalletWith ctx "random" ("byron3", m3, "Secure Passphrase")
 
         _ <- emptyWalletWith ctx ("shelley1", "Secure Passphrase", 20)
         _ <- emptyWalletWith ctx ("shelley2", "Secure Passphrase", 20)
@@ -635,9 +637,9 @@ spec = do
         m1 <- genMnemonics @12
         m2 <- genMnemonics @12
         m3 <- genMnemonics @12
-        _   <- emptyByronWalletWith @'Random ctx ("byron1", m1, "Secure Passphrase")
-        wb2 <- emptyByronWalletWith @'Random ctx ("byron2", m2, "Secure Passphrase")
-        _   <- emptyByronWalletWith @'Random ctx ("byron3", m3, "Secure Passphrase")
+        _   <- emptyByronWalletWith ctx "random" ("byron1", m1, "Secure Passphrase")
+        wb2 <- emptyByronWalletWith ctx "random" ("byron2", m2, "Secure Passphrase")
+        _   <- emptyByronWalletWith ctx "random" ("byron3", m3, "Secure Passphrase")
 
         _ <- emptyWalletWith ctx ("shelley1", "Secure Passphrase", 20)
         _ <- emptyWalletWith ctx ("shelley2", "Secure Passphrase", 20)
@@ -681,12 +683,13 @@ spec = do
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
     describe "BYRON_RESTORE_01, GET_01, LIST_01 - Restore a wallet" $ do
-        let scenarioSuccess endpoint mnemonic ctx = do
+        let scenarioSuccess style mnemonic ctx = do
                 let name = "Empty Byron Wallet"
                 let payload = Json [json| {
                         "name": #{name},
                         "mnemonic_sentence": #{mnemonic},
-                        "passphrase": "Secure Passphrase"
+                        "passphrase": "Secure Passphrase",
+                        "style": #{style}
                     }|]
                 let expectations =
                             [ expectField
@@ -696,7 +699,8 @@ spec = do
                             , expectField #passphrase (`shouldNotBe` Nothing)
                             ]
                 -- create
-                r <- request @ApiByronWallet ctx endpoint Default payload
+                r <- request @ApiByronWallet ctx
+                    (Link.postWallet @'Byron) Default payload
                 verify r expectations
                 let w = getFromResponse id r
 
@@ -722,63 +726,65 @@ spec = do
                                 (#balance . #total) (`shouldBe` Quantity 0)
                         ]
 
-        let scenarioFailure endpoint mnemonic ctx = do
+        let scenarioFailure style mnemonic ctx = do
                 let payload = Json [json| {
                         "name": "Empty Byron Wallet",
                         "mnemonic_sentence": #{mnemonic},
-                        "passphrase": "Secure Passphrase"
+                        "passphrase": "Secure Passphrase",
+                        "style": #{style}
                     }|]
-                r <- request @ApiByronWallet ctx endpoint Default payload
+                r <- request @ApiByronWallet ctx
+                    (Link.postWallet @'Byron) Default payload
                 verify r
                     [ expectResponseCode @IO HTTP.status400
                     , expectErrorMessage errMsg400NumberOfWords
                     ]
 
-        let it' endpoint genMnemonicIO test = do
+        let it' style genMnemonicIO test = do
                 mnemonic <- runIO genMnemonicIO
-                flip it (test endpoint mnemonic) $ unwords
-                    [ show endpoint
+                flip it (test style mnemonic) $ unwords
+                    [ style
                     , show (length mnemonic)
                     , "words"
                     ]
 
-        it' (Link.postWallet @'Random) (genMnemonics @9)  scenarioFailure -- ❌
-        it' (Link.postWallet @'Random) (genMnemonics @12) scenarioSuccess -- ✔️
-        it' (Link.postWallet @'Random) (genMnemonics @15) scenarioFailure -- ❌
-        it' (Link.postWallet @'Random) (genMnemonics @18) scenarioFailure -- ❌
-        it' (Link.postWallet @'Random) (genMnemonics @21) scenarioFailure -- ❌
-        it' (Link.postWallet @'Random) (genMnemonics @24) scenarioFailure -- ❌
+        it' "random" (genMnemonics @9)  scenarioFailure -- ❌
+        it' "random" (genMnemonics @12) scenarioSuccess -- ✔️
+        it' "random" (genMnemonics @15) scenarioFailure -- ❌
+        it' "random" (genMnemonics @18) scenarioFailure -- ❌
+        it' "random" (genMnemonics @21) scenarioFailure -- ❌
+        it' "random" (genMnemonics @24) scenarioFailure -- ❌
 
-        it' (Link.postWallet @'Icarus) (genMnemonics @9)  scenarioFailure -- ❌
-        it' (Link.postWallet @'Icarus) (genMnemonics @12) scenarioFailure -- ❌
-        it' (Link.postWallet @'Icarus) (genMnemonics @15) scenarioSuccess -- ✔️
-        it' (Link.postWallet @'Icarus) (genMnemonics @18) scenarioFailure -- ❌
-        it' (Link.postWallet @'Icarus) (genMnemonics @21) scenarioFailure -- ❌
-        it' (Link.postWallet @'Icarus) (genMnemonics @24) scenarioFailure -- ❌
+        it' "icarus" (genMnemonics @9)  scenarioFailure -- ❌
+        it' "icarus" (genMnemonics @12) scenarioFailure -- ❌
+        it' "icarus" (genMnemonics @15) scenarioSuccess -- ✔️
+        it' "icarus" (genMnemonics @18) scenarioFailure -- ❌
+        it' "icarus" (genMnemonics @21) scenarioFailure -- ❌
+        it' "icarus" (genMnemonics @24) scenarioFailure -- ❌
 
-        it' (Link.postWallet @'Trezor) (genMnemonics @9)  scenarioFailure -- ❌
-        it' (Link.postWallet @'Trezor) (genMnemonics @12) scenarioSuccess -- ✔️
-        it' (Link.postWallet @'Trezor) (genMnemonics @15) scenarioSuccess -- ✔️
-        it' (Link.postWallet @'Trezor) (genMnemonics @18) scenarioSuccess -- ✔️
-        it' (Link.postWallet @'Trezor) (genMnemonics @21) scenarioSuccess -- ✔️
-        it' (Link.postWallet @'Trezor) (genMnemonics @24) scenarioSuccess -- ✔️
+        it' "trezor" (genMnemonics @9)  scenarioFailure -- ❌
+        it' "trezor" (genMnemonics @12) scenarioSuccess -- ✔️
+        it' "trezor" (genMnemonics @15) scenarioSuccess -- ✔️
+        it' "trezor" (genMnemonics @18) scenarioSuccess -- ✔️
+        it' "trezor" (genMnemonics @21) scenarioSuccess -- ✔️
+        it' "trezor" (genMnemonics @24) scenarioSuccess -- ✔️
 
-        it' (Link.postWallet @'Ledger) (genMnemonics @9)  scenarioFailure -- ❌
-        it' (Link.postWallet @'Ledger) (genMnemonics @12) scenarioSuccess -- ✔️
-        it' (Link.postWallet @'Ledger) (genMnemonics @15) scenarioSuccess -- ✔️
-        it' (Link.postWallet @'Ledger) (genMnemonics @18) scenarioSuccess -- ✔️
-        it' (Link.postWallet @'Ledger) (genMnemonics @21) scenarioSuccess -- ✔️
-        it' (Link.postWallet @'Ledger) (genMnemonics @24) scenarioSuccess -- ✔️
+        it' "ledger" (genMnemonics @9)  scenarioFailure -- ❌
+        it' "ledger" (genMnemonics @12) scenarioSuccess -- ✔️
+        it' "ledger" (genMnemonics @15) scenarioSuccess -- ✔️
+        it' "ledger" (genMnemonics @18) scenarioSuccess -- ✔️
+        it' "ledger" (genMnemonics @21) scenarioSuccess -- ✔️
+        it' "ledger" (genMnemonics @24) scenarioSuccess -- ✔️
 
     it "BYRON_RESTORE_02 - One can restore previously deleted wallet" $
         \ctx -> do
             m <- genMnemonics @12
-            w <- emptyByronWalletWith @'Random ctx
+            w <- emptyByronWalletWith ctx "random"
                 ("Byron Wallet", m, "Secure Passphrase")
             rd <- request
                 @ApiByronWallet ctx (Link.deleteWallet @'Byron w) Default Empty
             expectResponseCode @IO HTTP.status204 rd
-            wr <- emptyByronWalletWith @'Random ctx
+            wr <- emptyByronWalletWith ctx "random"
                 ("Byron Wallet2", m, "Secure Pa33phrase")
             w ^. walletId `shouldBe` wr ^. walletId
 
@@ -787,12 +793,13 @@ spec = do
         let payload = Json [json| {
                 "name": "Some Byron Wallet",
                 "mnemonic_sentence": #{mnemonic},
-                "passphrase": "Secure Passphrase"
+                "passphrase": "Secure Passphrase",
+                "style": "random"
                 } |]
-        r1 <- request @ApiByronWallet ctx (Link.postWallet @'Random) Default payload
+        r1 <- request @ApiByronWallet ctx (Link.postWallet @'Byron) Default payload
         expectResponseCode @IO HTTP.status201 r1
 
-        r2 <- request @ApiByronWallet ctx (Link.postWallet @'Random) Default payload
+        r2 <- request @ApiByronWallet ctx (Link.postWallet @'Byron) Default payload
         verify r2
             [ expectResponseCode @IO HTTP.status409
             , expectErrorMessage ("This operation would yield a wallet with the\
@@ -1049,10 +1056,11 @@ spec = do
                 let payload = Json [json| {
                         "name": "Secure Wallet",
                         "mnemonic_sentence": #{mnemonics12},
-                        "passphrase": #{passphrase}
+                        "passphrase": #{passphrase},
+                        "style": "random"
                         } |]
                 r <- request
-                    @ApiByronWallet ctx (Link.postWallet @'Random) Default payload
+                    @ApiByronWallet ctx (Link.postWallet @'Byron) Default payload
                 verify r expectations
 --
 --    it "BYRON_RESTORE_06 - [] as passphrase -> fail" $ \ctx -> do
@@ -1126,10 +1134,11 @@ spec = do
         let payload = Json [json| {
                 "name": "High Index Wallet",
                 "mnemonic_sentence": #{mnemonics},
-                "passphrase": #{fixturePassphrase}
+                "passphrase": #{fixturePassphrase},
+                "style": "icarus"
                 } |]
 
-        r <- request @ApiByronWallet ctx (Link.postWallet @'Icarus) Default payload
+        r <- request @ApiByronWallet ctx (Link.postWallet @'Byron) Default payload
         verify r
             [ expectResponseCode @IO HTTP.status201
             , expectField (#balance . #available) (`shouldBe` Quantity faucetAmt)
@@ -1147,10 +1156,11 @@ spec = do
         let payload = Json [json| {
                 "name": "Ledger Wallet",
                 "mnemonic_sentence": #{mnemonics},
-                "passphrase": #{fixturePassphrase}
+                "passphrase": #{fixturePassphrase},
+                "style": "ledger"
                 } |]
 
-        r <- request @ApiByronWallet ctx (Link.postWallet @'Ledger) Default payload
+        r <- request @ApiByronWallet ctx (Link.postWallet @'Byron) Default payload
         verify r
             [ expectResponseCode @IO HTTP.status201
             , expectField (#balance . #available) (`shouldBe` Quantity faucetAmt)

@@ -90,7 +90,6 @@ import Cardano.Wallet.Api.Types
     , ApiPoolId (..)
     , ApiT (..)
     , ApiTxId (ApiTxId)
-    , ByronWalletStyle (..)
     , Iso8601Time
     , WalletStyle (..)
     )
@@ -136,23 +135,14 @@ import qualified Cardano.Wallet.Api as Api
 
 -- NOTE
 -- Type-class is necessary here to type-check 'IsElem endpoint Api' below.
-class PostWallet k where
+class PostWallet (style :: WalletStyle) where
     postWallet :: (Method, Text)
 
 instance PostWallet 'Shelley where
     postWallet = endpoint @Api.PostWallet id
 
-instance PostWallet 'Random where
-    postWallet = endpoint @(Api.PostByronWallet 'Random) id
-
-instance PostWallet 'Icarus where
-    postWallet = endpoint @(Api.PostByronWallet 'Icarus) id
-
-instance PostWallet 'Trezor where
-    postWallet = endpoint @(Api.PostByronWallet 'Trezor) id
-
-instance PostWallet 'Ledger where
-    postWallet = endpoint @(Api.PostByronWallet 'Ledger) id
+instance PostWallet 'Byron where
+    postWallet = endpoint @Api.PostByronWallet id
 
 deleteWallet
     :: forall (style :: WalletStyle) w.

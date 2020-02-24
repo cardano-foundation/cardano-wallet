@@ -80,6 +80,7 @@ module Cardano.Wallet.Api.Types
     , ApiByronWalletBalance (..)
     , ApiByronWalletMigrationInfo (..)
     , ByronWalletPostData (..)
+    , SomeByronWalletPostData (..)
 
     -- * API Types (Hardware)
     , AccountPostData (..)
@@ -195,7 +196,13 @@ import Data.Quantity
 import Data.Text
     ( Text, split )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( CaseStyle (..)
+    , FromText (..)
+    , TextDecodingError (..)
+    , ToText (..)
+    , fromTextToBoundedEnum
+    , toTextFromBoundedEnum
+    )
 import Data.Time.Clock
     ( NominalDiffTime, UTCTime )
 import Data.Time.Text
@@ -222,6 +229,7 @@ import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Read as T
@@ -239,6 +247,13 @@ data ByronWalletStyle
     | Icarus
     | Trezor
     | Ledger
+    deriving (Show, Generic, Eq, Bounded, Enum)
+
+instance FromText ByronWalletStyle where
+    fromText = fromTextToBoundedEnum SnakeLowerCase
+
+instance ToText ByronWalletStyle where
+    toText = toTextFromBoundedEnum SnakeLowerCase
 
 data SndFactor
     = SndFactor
@@ -348,6 +363,13 @@ data WalletPostData = WalletPostData
     , name :: !(ApiT WalletName)
     , passphrase :: !(ApiT (Passphrase "encryption"))
     } deriving (Eq, Generic, Show)
+
+data SomeByronWalletPostData
+    = SomeRandomWallet (ByronWalletPostData (AllowedMnemonics 'Random))
+    | SomeIcarusWallet (ByronWalletPostData (AllowedMnemonics 'Icarus))
+    | SomeTrezorWallet (ByronWalletPostData (AllowedMnemonics 'Trezor))
+    | SomeLedgerWallet (ByronWalletPostData (AllowedMnemonics 'Ledger))
+    deriving (Eq, Generic, Show)
 
 data ByronWalletPostData mw = ByronWalletPostData
     { mnemonicSentence :: !(ApiMnemonicT mw)
@@ -668,7 +690,7 @@ instance ToJSON ApiWalletPassphrase where
 
 instance FromJSON WalletPostData where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON  WalletPostData where
+instance ToJSON WalletPostData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON AccountPublicKey where
@@ -698,6 +720,7 @@ instance FromJSON WalletOrAccountPostData where
             _ -> do
                 xs <- parseJSON obj :: Aeson.Parser WalletPostData
                 pure $ WalletOrAccountPostData $ Left xs
+
 instance ToJSON WalletOrAccountPostData where
     toJSON (WalletOrAccountPostData (Left c))= toJSON c
     toJSON (WalletOrAccountPostData (Right c))= toJSON c
@@ -706,6 +729,42 @@ instance FromJSON AccountPostData where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON AccountPostData where
     toJSON = genericToJSON defaultRecordTypeOptions
+
+instance ToJSON SomeByronWalletPostData where
+    toJSON = \case
+        SomeRandomWallet w -> toJSON w
+            & withExtraField (fieldName, toJSON $ toText Random)
+        SomeIcarusWallet w -> toJSON w
+            & withExtraField (fieldName, toJSON $ toText Icarus)
+        SomeTrezorWallet w -> toJSON w
+            & withExtraField (fieldName, toJSON $ toText Trezor)
+        SomeLedgerWallet w -> toJSON w
+            & withExtraField (fieldName, toJSON $ toText Ledger)
+      where
+        fieldName :: Text
+        fieldName = "style"
+
+instance FromJSON SomeByronWalletPostData where
+    parseJSON = withObject "SomeByronWallet" $ \obj -> do
+        obj .: "style" >>= \case
+            t | t == toText Random ->
+                SomeRandomWallet <$> parseJSON (Aeson.Object obj)
+            t | t == toText Icarus ->
+                SomeIcarusWallet <$> parseJSON (Aeson.Object obj)
+            t | t == toText Trezor ->
+                SomeTrezorWallet <$> parseJSON (Aeson.Object obj)
+            t | t == toText Ledger ->
+                SomeLedgerWallet <$> parseJSON (Aeson.Object obj)
+            _ ->
+                fail "unrecognized wallet's style."
+
+withExtraField
+    :: (Text, Value)
+    -> Value
+    -> Value
+withExtraField (k,v) = \case
+    Aeson.Object m -> Aeson.Object (HM.insert k v m)
+    json -> json
 
 instance FromMnemonic mw => FromJSON (ByronWalletPostData mw) where
     parseJSON = genericParseJSON defaultRecordTypeOptions

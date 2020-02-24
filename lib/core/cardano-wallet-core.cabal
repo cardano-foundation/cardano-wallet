@@ -197,6 +197,7 @@ test-suite unit
     , http-media
     , http-types
     , iohk-monitoring
+    , lens
     , memory
     , network
     , persistent

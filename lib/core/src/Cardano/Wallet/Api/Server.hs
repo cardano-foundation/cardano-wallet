@@ -134,6 +134,7 @@ import Cardano.Wallet.Api.Types
     , PostExternalTransactionData (..)
     , PostTransactionData
     , PostTransactionFeeData
+    , SomeByronWalletPostData (..)
     , WalletBalance (..)
     , WalletOrAccountPostData (..)
     , WalletPostData (..)
@@ -483,10 +484,12 @@ server byron icarus shelley spl =
 
     byronWallets :: Server ByronWallets
     byronWallets =
-             postRandomWallet byron
-        :<|> postIcarusWallet icarus
-        :<|> postTrezorWallet icarus
-        :<|> postLedgerWallet icarus
+        (\case
+            SomeRandomWallet x -> postRandomWallet byron x
+            SomeIcarusWallet x -> postIcarusWallet icarus x
+            SomeTrezorWallet x -> postTrezorWallet icarus x
+            SomeLedgerWallet x -> postLedgerWallet icarus x
+        )
         :<|> (\wid -> withLegacyLayer wid
                 (byron , deleteWallet byron wid)
                 (icarus, deleteWallet icarus wid)
@@ -588,10 +591,12 @@ byronServer byron icarus =
 
     byronWallets :: Server ByronWallets
     byronWallets =
-             postRandomWallet byron
-        :<|> postIcarusWallet icarus
-        :<|> postTrezorWallet icarus
-        :<|> postLedgerWallet icarus
+        (\case
+            SomeRandomWallet x -> postRandomWallet byron x
+            SomeIcarusWallet x -> postIcarusWallet icarus x
+            SomeTrezorWallet x -> postTrezorWallet icarus x
+            SomeLedgerWallet x -> postLedgerWallet icarus x
+        )
         :<|> (\wid -> withLegacyLayer wid
                 (byron , deleteWallet byron wid)
                 (icarus, deleteWallet icarus wid)

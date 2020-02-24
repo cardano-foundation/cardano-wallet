@@ -61,10 +61,10 @@ import Cardano.Wallet.Api.Types
     , ApiT (..)
     , ApiTxId
     , ApiWalletPassphrase
-    , ByronWalletPostData
     , PostExternalTransactionData
     , PostTransactionData
     , PostTransactionFeeData
+    , SomeByronWalletPostData
     , WalletPostData
     , WalletPutData
     , WalletPutPassphraseData
@@ -354,7 +354,7 @@ instance Malformed (BodyParam (PostTransactionData 'Testnet))
 
 instance Malformed (BodyParam (PostTransactionFeeData 'Testnet))
 
-instance Malformed (BodyParam (ByronWalletPostData (mw :: [Nat])))
+instance Malformed (BodyParam SomeByronWalletPostData)
 
 instance Malformed (BodyParam WalletPutData)
 
