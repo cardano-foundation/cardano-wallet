@@ -194,6 +194,7 @@ test-suite unit
     , hspec-golden-aeson
     , http-api-data
     , http-client
+    , http-media
     , http-types
     , iohk-monitoring
     , memory
@@ -240,6 +241,7 @@ test-suite unit
       Cardano.Wallet.Gen
       Cardano.Pool.PerformanceSpec
       Cardano.Pool.RankingSpec
+      Cardano.Wallet.Api.Malformed
       Cardano.Wallet.Api.ServerSpec
       Cardano.Wallet.Api.TypesSpec
       Cardano.Wallet.ApiSpec

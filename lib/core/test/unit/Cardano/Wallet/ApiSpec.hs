@@ -11,6 +11,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -34,6 +35,16 @@ import Prelude
 
 import Cardano.Wallet.Api
     ( Api )
+import Cardano.Wallet.Api.Malformed
+    ( BodyParam (..)
+    , ExpectedError (..)
+    , Header (..)
+    , Malformed
+    , PathParam (..)
+    , Wellformed
+    , malformed
+    , wellformed
+    )
 import Cardano.Wallet.Api.Server
     ( LiftHandler (..) )
 import Cardano.Wallet.Api.Types
@@ -47,6 +58,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkInformation
     , ApiNetworkParameters
     , ApiNetworkTip
+    , ApiPoolId
     , ApiSelectCoinsData
     , ApiStakePool
     , ApiT
@@ -69,7 +81,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( PoolId, WalletId, walletNameMaxLength )
+    ( WalletId, walletNameMaxLength )
 import Control.Arrow
     ( first )
 import Control.Monad
@@ -96,6 +108,10 @@ import Data.String
     ( IsString )
 import Data.Text
     ( Text )
+import Data.Tuple
+    ( swap )
+import Data.Type.Equality
+    ( (:~:) (..), testEquality )
 import Data.Typeable
     ( Typeable, typeRep )
 import Data.Void
@@ -104,8 +120,10 @@ import Data.Word.Odd
     ( Word31 )
 import GHC.TypeLits
     ( ErrorMessage (..), KnownSymbol, Nat, Symbol, TypeError, symbolVal )
+import Network.HTTP.Media.RenderHeader
+    ( renderHeader )
 import Network.HTTP.Types.Header
-    ( hAccept, hContentLength, hContentType )
+    ( HeaderName, hAccept, hContentLength, hContentType )
 import Network.HTTP.Types.Method
     ( Method )
 import Network.Wai
@@ -123,8 +141,11 @@ import Network.Wai.Middleware.ServerError
 import Network.Wai.Test
     ( Session, assertBody, assertStatus, request, runSession )
 import Servant
-    ( Application
+    ( Accept (..)
+    , Application
     , Header'
+    , JSON
+    , OctetStream
     , ReqBody
     , Server
     , StdMethod (..)
@@ -143,10 +164,13 @@ import System.IO.Unsafe
     ( unsafePerformIO )
 import Test.Hspec
     ( Spec, SpecWith, describe, it, runIO, shouldBe, xdescribe, xit )
+import Type.Reflection
+    ( typeOf )
 import Web.HttpApiData
     ( ToHttpApiData (..) )
 
 import qualified Data.Aeson as Aeson
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map.Strict as Map
@@ -156,9 +180,35 @@ import qualified Servant
 
 spec :: Spec
 spec = describe "PATATE" $ do
-    gSpec (everyPathParams api) spec_MalformedParam
-    gSpec (everyBodyParams api) spec_MalformedParam
-    gSpec (everyAllowedMethods api) spec_NotAllowedMethod
+    gSpec (everyPathParam api) $ \(SomeTest proxy tests) ->
+        describe "Malformed PathParam" $ do
+            forM_ tests $ \(req, msg) -> it (titleize proxy req) $
+                runSession (spec_MalformedParam req msg) application
+
+    gSpec (everyBodyParam api) $ \(SomeTest proxy tests) ->
+        describe "Malformed BodyParam" $ do
+            forM_ tests $ \(req, msg) -> it (titleize proxy req) $
+                runSession (spec_MalformedParam req msg) application
+
+    gSpec (everyHeader api) $ \(SomeTest proxy tests) -> do
+        case typeOf proxy `testEquality` typeOf (Proxy @"Accept") of
+            Just Refl -> describe "Malformed Headers" $
+                forM_ tests $ \(req, msg) -> it (titleize proxy req) $
+                    runSession (spec_WrongAcceptHeader req msg) application
+            Nothing ->
+                pure ()
+
+        case typeOf proxy `testEquality` typeOf (Proxy @"Content-Type") of
+            Just Refl -> describe "Malformed Headers" $
+                forM_ tests $ \(req, msg) -> it (titleize proxy req) $
+                    runSession (spec_WrongContentTypeHeader req msg) application
+            Nothing ->
+                pure ()
+
+    gSpec (everyAllowedMethod api) $ \(SomeTest proxy tests) ->
+        describe "Not Allowed Methods" $
+            forM_ tests $ \(req, msg) -> it (titleize proxy req) $
+                runSession (spec_NotAllowedMethod req msg) application
 
 spec_MalformedParam :: Request -> ExpectedError -> Session ()
 spec_MalformedParam malformedRequest (ExpectedError msg) = do
@@ -168,6 +218,25 @@ spec_MalformedParam malformedRequest (ExpectedError msg) = do
         { "code": "bad_request"
         , "message": #{msg}
         }|])
+
+spec_WrongAcceptHeader :: Request -> ExpectedError -> Session ()
+spec_WrongAcceptHeader malformedRequest (ExpectedError msg) = do
+    response <- request malformedRequest
+    response & assertStatus 406
+    response & assertBody (Aeson.encode [aesonQQ|
+        { "code": "not_acceptable"
+        , "message": #{msg}
+        }|])
+
+spec_WrongContentTypeHeader :: Request -> ExpectedError -> Session ()
+spec_WrongContentTypeHeader malformedRequest (ExpectedError msg) = do
+    response <- request malformedRequest
+    response & assertStatus 415
+    response & assertBody (Aeson.encode [aesonQQ|
+        { "code": "unsupported_media_type"
+        , "message": #{msg}
+        }|])
+
 
 spec_NotAllowedMethod :: Request -> ExpectedError -> Session ()
 spec_NotAllowedMethod malformedRequest (ExpectedError msg) = do
@@ -179,387 +248,17 @@ spec_NotAllowedMethod malformedRequest (ExpectedError msg) = do
         }|])
 
 --
--- Construction of well-formed and malformed parameters
---
-
-newtype ExpectedError = ExpectedError String
-    deriving newtype (IsString)
-
-class WellFormed t where
-    wellformed :: t
-
-class Malformed t where
-    malformed :: [(t, ExpectedError)]
-    malformed = []
-
-instance WellFormed (PathParam (ApiT WalletId)) where
-    wellformed = PathParam $ T.replicate 40 "0"
-
-instance Malformed (PathParam (ApiT WalletId)) where
-    malformed = first PathParam <$>
-        [ (T.replicate 40 "ś", msg)
-        , (T.replicate 39 "1", msg)
-        , (T.replicate 41 "1", msg)
-        ]
-      where
-        msg = "wallet id should be a hex-encoded string of 40 characters"
-
-instance WellFormed (PathParam ApiTxId) where
-    wellformed = PathParam $ T.replicate 64 "0"
-
-instance Malformed (PathParam ApiTxId) where
-    malformed = first PathParam <$>
-        [ (T.replicate 64 "ś", msg)
-        , (T.replicate 63 "1", msg)
-        , (T.replicate 65 "1", msg)
-        ]
-      where
-        msg = "Invalid tx hash: expecting a hex-encoded value that is 32 bytes in length."
-
-instance WellFormed (PathParam (ApiT PoolId)) where
-    wellformed = PathParam $ T.replicate 64 "0"
-
-instance Malformed (PathParam (ApiT PoolId)) where
-    malformed = first PathParam <$>
-        [ (T.replicate 64 "ś", msg)
-        , (T.replicate 63 "1", msg)
-        , (T.replicate 65 "1", msg)
-        ]
-      where
-        msg = "Invalid stake pool id: expecting a hex-encoded value that is 32 bytes in length."
-
-instance WellFormed (PathParam ApiEpochNumber) where
-    wellformed = PathParam "latest"
-
-instance Malformed (PathParam ApiEpochNumber) where
-    malformed = first PathParam <$>
-        [ ("earliest", msg)
-        , (T.pack $ show $ (+1) $ fromIntegral @Word31 @Int maxBound, msg)
-        , ("invalid", msg)
-        , ("-1", msg)
-        ]
-      where
-        msg = "I couldn't parse the given epoch number. I am expecting either the word 'latest' or, an integer from 0 to 2147483647."
-
-instance Malformed (BodyParam WalletPostData) where
-    malformed = first (BodyParam . Aeson.encode) <$>
-        [ ( [aesonQQ|
-            { "name": #{wName}
-            , "mnemonic_sentence": "album execute kingdom dumb trip all salute busy case bring spell ugly umbrella choice shy"
-            , "passphrase": #{wPassphrase}
-            }|]
-          , "Error in $['mnemonic_sentence']: parsing [] failed, expected Array, but encountered String"
-          )
-        , ( [aesonQQ|
-            { "name": #{wName}
-            , "mnemonic_sentence": 15
-            , "passphrase": #{wPassphrase}
-            }|]
-          , "Error in $['mnemonic_sentence']: parsing [] failed, expected Array, but encountered Number"
-          )
-        , ( [aesonQQ|
-            { "name": #{wName}
-            , "passphrase": #{wPassphrase}
-            }|]
-          , "Error in $: parsing Cardano.Wallet.Api.Types.WalletPostData(WalletPostData) failed, key 'mnemonic_sentence' not found"
-          )
-        , ( [aesonQQ|
-            { "name": #{wName}
-            , "mnemonic_sentence": []
-            , "passphrase": #{wPassphrase}
-            }|]
-          , "Error in $['mnemonic_sentence']: Invalid number of words: 15, 18, 21 or 24 words are expected."
-          )
-        , ( [aesonQQ|
-            { "name": #{wName}
-            , "mnemonic_sentence": #{mnemonics3}
-            , "passphrase": #{wPassphrase}
-            }|]
-          , "Error in $['mnemonic_sentence']: Invalid number of words: 15, 18, 21 or 24 words are expected."
-          )
-        , ( [aesonQQ|
-            { "name": #{wName}
-            , "mnemonic_sentence": #{mnemonics6}
-            , "passphrase": #{wPassphrase}
-            }|]
-          , "Error in $['mnemonic_sentence']: Invalid number of words: 15, 18, 21 or 24 words are expected."
-          )
-        , ( [aesonQQ|
-            { "name": #{wName}
-            , "mnemonic_sentence": #{mnemonics9}
-            , "passphrase": #{wPassphrase}
-            }|]
-          , "Error in $['mnemonic_sentence']: Invalid number of words: 15, 18, 21 or 24 words are expected."
-          )
-        , ( [aesonQQ|
-            { "name": #{wName}
-            , "mnemonic_sentence": #{mnemonics12}
-            , "passphrase": #{wPassphrase}
-            }|]
-          , "Error in $['mnemonic_sentence']: Invalid number of words: 15, 18, 21 or 24 words are expected."
-          )
-        , ( [aesonQQ|
-            { "name": #{wName}
-            , "mnemonic_sentence": #{invalidMnemonics15}
-            , "passphrase": #{wPassphrase}
-            }|]
-          , "Error in $['mnemonic_sentence']: Invalid entropy checksum: please double-check the last word of your mnemonic sentence."
-          )
-        , ( [aesonQQ|
-            { "name": #{wName}
-            , "mnemonic_sentence": #{notInDictMnemonics15}
-            , "passphrase": #{wPassphrase}
-            }|]
-          , "Error in $['mnemonic_sentence']: Found an unknown word not present in the pre-defined dictionary. The full dictionary is available here: https://github.com/input-output-hk/cardano-wallet/tree/master/specifications/mnemonic/english.txt"
-          )
-        , ( [aesonQQ|
-            { "name": #{wName}
-            , "mnemonic_sentence": #{specMnemonicSentence}
-            , "passphrase": #{wPassphrase}
-            }|]
-          , "Error in $['mnemonic_sentence']: Invalid entropy checksum: please double-check the last word of your mnemonic sentence."
-          )
-        , ( [aesonQQ|
-            { "name": #{wName}
-            , "mnemonic_sentence": #{japaneseMnemonics12}
-            , "passphrase": #{wPassphrase}
-            }|]
-          , "Error in $['mnemonic_sentence']: Invalid number of words: 15, 18, 21 or 24 words are expected."
-          )
-        , ( [aesonQQ|
-            { "name": #{wName}
-            , "mnemonic_sentence": #{japaneseMnemonics15}
-            , "passphrase": #{wPassphrase}
-            }|]
-          , "Error in $['mnemonic_sentence']: Found an unknown word not present in the pre-defined dictionary. The full dictionary is available here: https://github.com/input-output-hk/cardano-wallet/tree/master/specifications/mnemonic/english.txt"
-          )
-        , ( [aesonQQ|
-            { "name": #{wName}
-            , "mnemonic_sentence": #{chineseMnemonics9}
-            , "passphrase": #{wPassphrase}
-            }|]
-          , "Error in $['mnemonic_sentence']: Invalid number of words: 15, 18, 21 or 24 words are expected."
-          )
-        , ( [aesonQQ|
-            { "name": #{wName}
-            , "mnemonic_sentence": #{chineseMnemonics18}
-            , "passphrase": #{wPassphrase}
-            }|]
-          , "Error in $['mnemonic_sentence']: Found an unknown word not present in the pre-defined dictionary. The full dictionary is available here: https://github.com/input-output-hk/cardano-wallet/tree/master/specifications/mnemonic/english.txt"
-          )
-        , ( [aesonQQ|
-            { "name": #{wName}
-            , "mnemonic_sentence": #{frenchMnemonics12}
-            , "passphrase": #{wPassphrase}
-            }|]
-          , "Error in $['mnemonic_sentence']: Invalid number of words: 15, 18, 21 or 24 words are expected."
-          )
-        , ( [aesonQQ|
-            { "name": #{wName}
-            , "mnemonic_sentence": #{frenchMnemonics21}
-            , "passphrase": #{wPassphrase}
-            }|]
-          , "Error in $['mnemonic_sentence']: Found an unknown word not present in the pre-defined dictionary. The full dictionary is available here: https://github.com/input-output-hk/cardano-wallet/tree/master/specifications/mnemonic/english.txt"
-          )
-        , ( [aesonQQ|
-            { "name": #{wName}
-            , "mnemonic_sentence": #{mnemonics15}
-            , "mnemonic_second_factor": []
-            , "passphrase": #{wPassphrase}
-            }|]
-          , "Error in $['mnemonic_second_factor']: Invalid number of words: 9 or 12 words are expected."
-          )
-        , ( [aesonQQ|
-            { "name": #{wName}
-            , "mnemonic_sentence": #{mnemonics15}
-            , "mnemonic_second_factor": #{specMnemonicSecondFactor}
-            , "passphrase": #{wPassphrase}
-            }|]
-          , "Error in $['mnemonic_second_factor']: Invalid entropy checksum: please double-check the last word of your mnemonic sentence."
-          )
-        , ( [aesonQQ|
-            { "name": #{nameTooLong}
-            , "mnemonic_sentence": #{mnemonics15}
-            , "passphrase" :#{wPassphrase}
-            }|]
-          , "Error in $.name: name is too long: expected at most 255 characters"
-          )
-        , ( [aesonQQ|
-            { "name": ""
-            , "mnemonic_sentence": #{mnemonics15}
-            , "passphrase" :#{wPassphrase}
-            }|]
-          , "Error in $.name: name is too short: expected at least 1 character"
-          )
-        , ( [aesonQQ|
-            { "name": []
-            , "mnemonic_sentence": #{mnemonics15}
-            , "passphrase" :#{wPassphrase}
-            }|]
-          , "Error in $.name: parsing Text failed, expected String, but encountered Array"
-          )
-        , ( [aesonQQ|
-            { "name": 123
-            , "mnemonic_sentence": #{mnemonics15}
-            , "passphrase" :#{wPassphrase}
-            }|]
-          , "Error in $.name: parsing Text failed, expected String, but encountered Number"
-          )
-        , ( [aesonQQ|
-            { "mnemonic_sentence": #{mnemonics15}
-            , "passphrase" :#{wPassphrase}
-            }|]
-          , "Error in $: parsing Cardano.Wallet.Api.Types.WalletPostData(WalletPostData) failed, key 'name' not found"
-          )
-        ]
-      where
-        wName :: Text
-        wName =
-            "Just a łallet"
-
-        wPassphrase :: Text
-        wPassphrase =
-            "Secure Passphrase"
-
-        nameTooLong :: Text
-        nameTooLong =
-            T.replicate (walletNameMaxLength + 1) "ę"
-
-        mnemonics3 :: [Text]
-        mnemonics3 =
-            ["diamond", "flee", "window"]
-
-        mnemonics6 :: [Text]
-        mnemonics6 =
-            ["tornado", "canvas", "peasant", "spike", "enrich", "dilemma"]
-
-        mnemonics9 :: [Text]
-        mnemonics9 =
-            ["subway", "tourist", "abstract", "roast", "border", "curious","exercise", "work", "narrow"]
-
-        mnemonics12 :: [Text]
-        mnemonics12 =
-            ["agent", "siren", "roof", "water", "giant", "pepper","obtain", "oxygen", "treat", "vessel", "hip", "garlic"]
-
-        mnemonics15 :: [Text]
-        mnemonics15 =
-            ["network", "empty", "cause", "mean", "expire", "private",
-            "finger", "accident", "session", "problem", "absurd", "banner", "stage",
-            "void", "what"]
-
-        mnemonics18 :: [Text]
-        mnemonics18 =
-            ["whisper", "control", "diary", "solid", "cattle", "salmon",
-            "whale", "slender", "spread", "ice", "shock", "solve", "panel",
-            "caution", "upon", "scatter", "broken", "tonight"]
-
-        mnemonics21 :: [Text]
-        mnemonics21 =
-            ["click", "puzzle", "athlete", "morning", "fold", "retreat",
-            "across", "timber", "essay", "drill", "finger", "erase", "galaxy",
-            "spoon", "swift", "eye", "awesome", "shrimp", "depend", "zebra", "token"]
-
-        mnemonics24 :: [Text]
-        mnemonics24 =
-            ["decade", "distance", "denial", "jelly", "wash", "sword",
-            "olive", "perfect", "jewel", "renew", "wrestle", "cupboard", "record",
-            "scale", "pattern", "invite", "other", "fruit", "gloom", "west", "oak",
-            "deal", "seek", "hand"]
-
-        invalidMnemonics12 :: [Text]
-        invalidMnemonics12 =
-            ["word","word","word","word"
-            ,"word","word","word","word"
-            ,"word","word","word","hill"
-            ]
-
-        invalidMnemonics15 :: [Text]
-        invalidMnemonics15 =
-            ["word","word","word","word","word"
-            ,"word","word","word","word","word"
-            ,"word","word","word","word","word"
-            ]
-
-        notInDictMnemonics15 :: [Text]
-        notInDictMnemonics15 =
-            ["one","two","three","four","five"
-            ,"six","seven","eight","nine","diary"
-            , "twenty", "coin", "regret", "cry", "thumb"
-            ]
-
-        specMnemonicSentence :: [Text]
-        specMnemonicSentence =
-            ["squirrel", "material", "silly", "twice", "direct"
-            ,"slush", "pistol", "razor", "become", "junk"
-            ,"kingdom", "flee","squirrel", "silly", "twice"
-            ]
-
-        specMnemonicByron :: [Text]
-        specMnemonicByron =
-            [ "squirrel", "material", "silly", "twice"
-            , "direct", "slush","pistol", "razor"
-            , "become", "junk", "kingdom", "junk"
-            ]
-
-        specMnemonicSecondFactor :: [Text]
-        specMnemonicSecondFactor =
-            ["squirrel", "material", "silly"
-            , "twice","direct", "slush"
-            , "pistol", "razor", "become"
-            ]
-
-        japaneseMnemonics12 :: [Text]
-        japaneseMnemonics12 =
-            ["そうだん",　"ひよう",　"にもつ",　"やさしい",　"きふく",　 "ねつい",　"だったい",　"けんてい",　"けいろ",　"ざつがく",　"ほうもん",　"すこし"]
-
-        japaneseMnemonics15 :: [Text]
-        japaneseMnemonics15 =
-            ["うめる", "せんく", "えんぎ", "はんぺん", "おくりがな", "さんち", "きなが", "といれ", "からい", "らくだ", "うえる", "ふめん", "せびろ", "られつ", "なにわ"]
-
-        chineseMnemonics9 :: [Text]
-        chineseMnemonics9 =
-            ["钢", "看", "磁", "塑", "凤", "魏", "世", "腐", "恶" ]
-
-        chineseMnemonics18 :: [Text]
-        chineseMnemonics18 =
-            ["盗", "精", "序", "郎", "赋", "姿", "委", "善", "酵", "祥", "赛", "矩", "蜡", "注", "韦", "效", "义", "冻"]
-
-        frenchMnemonics12 :: [Text]
-        frenchMnemonics12 =
-            ["palmarès", "supplier", "visuel", "gardien", "adorer", "cordage", "notifier", "réglage", "employer", "abandon", "scénario", "proverbe"]
-
-        frenchMnemonics21 :: [Text]
-        frenchMnemonics21 =
-            [ "pliage", "exhorter", "brasier", "chausson", "bloquer"
-            , "besace", "sorcier", "absurde", "neutron", "forgeron"
-            , "geyser", "moulin", "cynique", "cloche", "baril"
-            , "infliger", "rompre", "typique", "renifler", "creuser", "matière"
-            ]
-
-instance Malformed (BodyParam (ApiSelectCoinsData 'Testnet))
-
-instance Malformed (BodyParam (PostTransactionData 'Testnet))
-
-instance Malformed (BodyParam (PostTransactionFeeData 'Testnet))
-
-instance Malformed (BodyParam (ByronWalletPostData (mw :: [Nat])))
-
-instance Malformed (BodyParam WalletPutData)
-
-instance Malformed (BodyParam WalletPutPassphraseData)
-
-instance Malformed (BodyParam ApiNetworkTip)
-
-instance Malformed (BodyParam ApiWalletPassphrase)
-
-instance Malformed (BodyParam PostExternalTransactionData)
-
---
 -- Generic API Spec
 --
+data SomeTest where
+    SomeTest
+        :: forall (a :: k). (Typeable a, Typeable k)
+        => Proxy a
+        -> [(Request, ExpectedError)]
+        -> SomeTest
 
 class Typeable api => GenericApiSpec api where
-    gSpec :: api -> (Request -> ExpectedError -> Session ()) -> Spec
+    gSpec :: api -> (SomeTest -> Spec) -> Spec
     gSpec _ _ = xdescribe (show $ typeRep $ Proxy @api) (pure ())
 
 instance (GenericApiSpec a, GenericApiSpec b) => GenericApiSpec (a :<|> b) where
@@ -572,41 +271,65 @@ instance
     ( Typeable a, Malformed (PathParam a)
     ) => GenericApiSpec (PathParam a -> Request)
   where
-    gSpec toRequest toSession = describe "Malformed PathParam" $ do
-        forM_ (first toRequest <$> malformed) $ \(req, msg) ->
-            it (titleize (Proxy @a) req) $
-                runSession (toSession req msg) application
+    gSpec toRequest toSpec = toSpec $
+        SomeTest (Proxy @a) (first toRequest <$> malformed @(PathParam a))
 
 instance
-    ( Typeable a, Malformed (PathParam a), WellFormed (PathParam a)
+    ( Typeable a, Malformed (PathParam a), Wellformed (PathParam a)
     , GenericApiSpec (PathParam a -> Request)
-    , Typeable b, Malformed (PathParam b), WellFormed (PathParam b)
+    , Typeable b, Malformed (PathParam b), Wellformed (PathParam b)
     , GenericApiSpec (PathParam b -> Request)
     ) => GenericApiSpec (PathParam a -> PathParam b -> Request)
   where
-    gSpec toRequest toSession = do
-        gSpec (toRequest wellformed) toSession
-        gSpec (`toRequest` wellformed) toSession
+    gSpec toRequest toSpec = do
+        gSpec (toRequest wellformed) toSpec
+        gSpec (`toRequest` wellformed) toSpec
 
 instance
     ( Typeable a, Malformed (BodyParam a)
     ) => GenericApiSpec (BodyParam a -> IO Request)
   where
-    gSpec toRequest toSession = describe "Malformed BodyParam" $
-        forM_ (first toRequest <$> malformed) $ \(newReq, msg) -> do
-            req <- runIO newReq
-            it (titleize (Proxy @a) req) $
-                runSession (toSession req msg) application
+    gSpec toRequest toSpec = do
+        let tests = first toRequest <$> malformed @(BodyParam a)
+        toSpec . SomeTest (Proxy @a) =<< traverseLeft runIO tests
+      where
+        -- e.g. [IO Request, ExpectedError] -> IO [Request, ExpectedError]
+        traverseLeft
+            :: Applicative m
+            => (l0 -> m l1) -> [(l0, r)] -> m [(l1, r)]
+        traverseLeft fn xs =
+            fmap swap <$> traverse (traverse fn) (swap <$> xs)
+
+instance
+    ( KnownSymbol h
+    , Typeable ct
+    , Malformed (Header h ct)
+    , Wellformed (Header h ct)
+    ) => GenericApiSpec (Header h ct -> Request)
+  where
+    gSpec toRequest toSpec = toSpec $
+        SomeTest (Proxy @h) (first toRequest <$> malformed @(Header h ct))
+
+instance
+    ( Typeable ct0, KnownSymbol h0, Malformed (Header h0 ct0), Wellformed (Header h0 ct0)
+    , GenericApiSpec (Header h0 ct0 -> Request)
+    , Typeable ct1, KnownSymbol h1, Malformed (Header h1 ct1), Wellformed (Header h1 ct1)
+    , GenericApiSpec (Header h1 ct1 -> Request)
+    ) => GenericApiSpec (Header h0 ct0 -> Header h1 ct1 -> Request)
+  where
+    gSpec toRequest toSpec = do
+        gSpec (toRequest wellformed) toSpec
+        gSpec (`toRequest` wellformed) toSpec
 
 instance GenericApiSpec (Map [Text] [Method])
   where
-    gSpec allowedMethods toSession = describe "Not Allowed Methods" $
-        forM_ (Map.toList allowedMethods) $ \(pathInfo, methods) ->
-            forM_ (allMethods \\ methods) $ \requestMethod -> do
-                let req = defaultRequest { pathInfo, requestMethod }
-                it (titleize (Proxy @Void) req) $
-                    runSession (toSession req msg) application
+    gSpec allowedMethods toSpec = do
+        toSpec $ SomeTest (Proxy @Void) $ mconcat $
+            for (Map.toList allowedMethods) $ \(pathInfo, methods) ->
+                for (allMethods \\ methods) $ \requestMethod ->
+                    (defaultRequest { pathInfo, requestMethod }, msg)
       where
+        for = flip map
         msg =
             "You've reached a known endpoint but I don't know how to handle the \
             \HTTP method specified. Please double-check both the endpoint and \
@@ -616,6 +339,7 @@ instance GenericApiSpec (Map [Text] [Method])
         allMethods :: [Method]
         allMethods =
             ["GET","PUT","POST","PATCH","DELETE","CONNECT","TRACE","OPTIONS"]
+
 
 --
 -- Construct test cases from the API
@@ -635,38 +359,38 @@ server = error
     \the way they interact with the outside world. Only valid requests are \
     \delegated to our handlers."
 
-newtype PathParam t = PathParam Text
-    deriving (Typeable)
+everyPathParam :: GEveryEndpoints api => Proxy api -> MkPathRequest api
+everyPathParam proxy = gEveryPathParam proxy defaultRequest
 
-newtype BodyParam t = BodyParam ByteString
-    deriving (Typeable)
-
-everyPathParams :: GEveryParams api => Proxy api -> MkPathRequest api
-everyPathParams proxy = gEveryPathParams proxy defaultRequest
-
-everyBodyParams :: GEveryParams api => Proxy api -> MkBodyRequest api
-everyBodyParams proxy = gEveryBodyParams proxy $ defaultRequest
+everyBodyParam :: GEveryEndpoints api => Proxy api -> MkBodyRequest api
+everyBodyParam proxy = gEveryBodyParam proxy $ defaultRequest
     { requestHeaders =
         [ (hContentType, "application/json")
         , (hAccept, "application/json")
         ]
     }
 
-everyAllowedMethods :: GEveryParams api => Proxy api -> Map [Text] [Method]
-everyAllowedMethods proxy =
-    Map.fromListWith (++) (toTuple <$> gEveryAllowedMethods proxy)
+everyHeader :: GEveryEndpoints api => Proxy api -> MkHeaderRequest api
+everyHeader proxy = gEveryHeader proxy defaultRequest
+
+everyAllowedMethod :: GEveryEndpoints api => Proxy api -> Map [Text] [Method]
+everyAllowedMethod proxy =
+    Map.fromListWith (++) (toTuple <$> gEveryEndpoint proxy)
   where
     toTuple :: Request -> ([Text], [Method])
     toTuple req = (reverse (pathInfo req), [requestMethod req])
 
-class GEveryParams api where
+class GEveryEndpoints api where
+    gEveryEndpoint :: Proxy api -> [Request]
+
     type MkPathRequest api :: *
-    gEveryPathParams :: Proxy api -> Request -> MkPathRequest api
+    gEveryPathParam :: Proxy api -> Request -> MkPathRequest api
 
     type MkBodyRequest api :: *
-    gEveryBodyParams :: Proxy api -> Request -> MkBodyRequest api
+    gEveryBodyParam :: Proxy api -> Request -> MkBodyRequest api
 
-    gEveryAllowedMethods :: Proxy api -> [Request]
+    type MkHeaderRequest api :: *
+    gEveryHeader :: Proxy api -> Request -> MkHeaderRequest api
 
     -- TODO
     -- Capture request query params as QueryParam
@@ -678,129 +402,172 @@ class GEveryParams api where
     -- gEveryQueryParams :: Proxy api -> Request -> MkQueryRequest api
 
 instance
-    ( GEveryParams a
-    , GEveryParams b
-    ) => GEveryParams (a :<|> b)
+    ( GEveryEndpoints a
+    , GEveryEndpoints b
+    ) => GEveryEndpoints (a :<|> b)
   where
+    gEveryEndpoint _ =
+        gEveryEndpoint (Proxy @a)
+      ++
+        gEveryEndpoint (Proxy @b)
+
     type MkPathRequest (a :<|> b) = MkPathRequest a :<|> MkPathRequest b
-    gEveryPathParams _ req = do
-        gEveryPathParams (Proxy @a) req
+    gEveryPathParam _ req = do
+        gEveryPathParam (Proxy @a) req
       :<|>
-        gEveryPathParams (Proxy @b) req
+        gEveryPathParam (Proxy @b) req
 
     type MkBodyRequest (a :<|> b) = MkBodyRequest a :<|> MkBodyRequest b
-    gEveryBodyParams _ req = do
-        gEveryBodyParams (Proxy @a) req
+    gEveryBodyParam _ req = do
+        gEveryBodyParam (Proxy @a) req
       :<|>
-        gEveryBodyParams (Proxy @b) req
+        gEveryBodyParam (Proxy @b) req
 
-    gEveryAllowedMethods _ =
-        gEveryAllowedMethods (Proxy @a)
-      ++
-        gEveryAllowedMethods (Proxy @b)
+    type MkHeaderRequest (a :<|> b) = MkHeaderRequest a :<|> MkHeaderRequest b
+    gEveryHeader _ req = do
+        gEveryHeader (Proxy @a) req
+      :<|>
+        gEveryHeader (Proxy @b) req
 
 instance
     ( ReflectMethod m
-    ) => GEveryParams (Verb (m :: StdMethod) s ct a)
+    , Accept ct
+    ) => GEveryEndpoints (Verb (m :: StdMethod) s '[ct] a)
   where
-    type MkPathRequest (Verb m s ct a) = Request
-    gEveryPathParams _ req =
+    gEveryEndpoint _ =
+        [ defaultRequest
+            { requestMethod = reflectMethod $ Proxy @m
+            , requestHeaders =
+                [ (hAccept, renderHeader $ contentType $ Proxy @ct)
+                ]
+            }
+        ]
+
+    type MkPathRequest (Verb m s '[ct] a) = Request
+    gEveryPathParam _ req =
         req { requestMethod = reflectMethod (Proxy @m) }
 
-    type MkBodyRequest (Verb m s ct a) = Request
-    gEveryBodyParams _ req =
+    type MkBodyRequest (Verb m s '[ct] a) = Request
+    gEveryBodyParam _ req =
         req { requestMethod = reflectMethod (Proxy @m) }
 
-    gEveryAllowedMethods _ =
+    type MkHeaderRequest (Verb m s '[ct] a) = Header "Accept" ct -> Request
+    gEveryHeader _ req (Header h) =
+        req { requestMethod = reflectMethod $ Proxy @m
+            , requestHeaders = requestHeaders req ++ [ (hAccept, h) ]
+            }
+instance
+    ( ReflectMethod m
+    ) => GEveryEndpoints (NoContentVerb (m :: StdMethod))
+  where
+    gEveryEndpoint _ =
         [defaultRequest { requestMethod = reflectMethod (Proxy @m) }]
 
-instance
-    ( ReflectMethod m
-    ) => GEveryParams (NoContentVerb (m :: StdMethod))
-  where
     type MkPathRequest (NoContentVerb m) = Request
-    gEveryPathParams _ req =
+    gEveryPathParam _ req =
         req { requestMethod = reflectMethod (Proxy @m) }
 
     type MkBodyRequest (NoContentVerb m) = Request
-    gEveryBodyParams _ req =
+    gEveryBodyParam _ req =
         req { requestMethod = reflectMethod (Proxy @m) }
 
-    gEveryAllowedMethods _ =
-        [defaultRequest { requestMethod = reflectMethod (Proxy @m) }]
+    type MkHeaderRequest (NoContentVerb m) = Request
+    gEveryHeader _ req =
+        req { requestMethod = reflectMethod (Proxy @m) }
 
 instance
-    ( WellFormed (PathParam t)
-    , GEveryParams sub
-    ) => GEveryParams (Capture p t :> sub)
+    ( Wellformed (PathParam t)
+    , GEveryEndpoints sub
+    ) => GEveryEndpoints (Capture p t :> sub)
   where
-    type MkPathRequest (Capture p t :> sub) = PathParam t -> MkPathRequest sub
-    gEveryPathParams _ req t =
-        gEveryPathParams (Proxy @sub) (addPathFragment t req)
-
-    type MkBodyRequest (Capture p t :> sub) = MkBodyRequest sub
-    gEveryBodyParams _ req =
-        gEveryBodyParams (Proxy @sub) (addPathFragment t req)
+    gEveryEndpoint _ =
+        addPathFragment t <$> gEveryEndpoint (Proxy @sub)
       where
         t = wellformed :: PathParam t
 
-    gEveryAllowedMethods _ =
-        addPathFragment t <$> gEveryAllowedMethods (Proxy @sub)
+    type MkPathRequest (Capture p t :> sub) = PathParam t -> MkPathRequest sub
+    gEveryPathParam _ req t =
+        gEveryPathParam (Proxy @sub) (addPathFragment t req)
+
+    type MkBodyRequest (Capture p t :> sub) = MkBodyRequest sub
+    gEveryBodyParam _ req =
+        gEveryBodyParam (Proxy @sub) (addPathFragment t req)
+      where
+        t = wellformed :: PathParam t
+
+    type MkHeaderRequest (Capture p t :> sub) = MkHeaderRequest sub
+    gEveryHeader _ req =
+        gEveryHeader (Proxy @sub) (addPathFragment t req)
       where
         t = wellformed :: PathParam t
 
 instance
     ( KnownSymbol s
-    , GEveryParams sub
-    ) => GEveryParams (s :> sub)
+    , GEveryEndpoints sub
+    ) => GEveryEndpoints (s :> sub)
   where
+    gEveryEndpoint _ =
+        addPathFragment t <$> gEveryEndpoint (Proxy @sub)
+      where
+        t = PathParam $ T.pack $ symbolVal (Proxy @s)
+
     type MkPathRequest (s :> sub) = MkPathRequest sub
-    gEveryPathParams _ req =
-        gEveryPathParams (Proxy @sub) (addPathFragment str req)
+    gEveryPathParam _ req =
+        gEveryPathParam (Proxy @sub) (addPathFragment str req)
       where
         str = PathParam $ T.pack $ symbolVal (Proxy @s)
 
     type MkBodyRequest (s :> sub) = MkBodyRequest sub
-    gEveryBodyParams _ req =
-        gEveryBodyParams (Proxy @sub) (addPathFragment t req)
+    gEveryBodyParam _ req =
+        gEveryBodyParam (Proxy @sub) (addPathFragment t req)
       where
         t = PathParam $ T.pack $ symbolVal (Proxy @s)
 
-    gEveryAllowedMethods _ =
-        addPathFragment t <$> gEveryAllowedMethods (Proxy @sub)
+    type MkHeaderRequest (s :> sub) = MkHeaderRequest sub
+    gEveryHeader _ req =
+        gEveryHeader (Proxy @sub) (addPathFragment t req)
       where
         t = PathParam $ T.pack $ symbolVal (Proxy @s)
 
+instance
+    ( GEveryEndpoints sub
+    ) => GEveryEndpoints (ReqBody '[ct] a :> sub)
+  where
+    gEveryEndpoint _ =
+        gEveryEndpoint (Proxy @sub)
+
+    type MkPathRequest (ReqBody '[ct] a :> sub) = MkPathRequest sub
+    gEveryPathParam _ =
+        gEveryPathParam (Proxy @sub)
+
+    type MkBodyRequest (ReqBody '[ct] a :> sub) = BodyParam a -> IO (MkBodyRequest sub)
+    gEveryBodyParam _ req b =
+        gEveryBodyParam (Proxy @sub) <$> (setRequestBody b req)
+
+    type MkHeaderRequest (ReqBody '[ct] a :> sub) = Header "Content-Type" ct -> MkHeaderRequest sub
+    gEveryHeader _ req (Header h) =
+        gEveryHeader (Proxy @sub) $ req
+            { requestHeaders = requestHeaders req ++ [(hContentType, h)] }
 
 instance
-    ( GEveryParams sub
-    ) => GEveryParams (ReqBody a b :> sub)
+    ( GEveryEndpoints sub
+    ) => GEveryEndpoints (Servant.QueryParam a b :> sub)
   where
-    type MkPathRequest (ReqBody a b :> sub) = MkPathRequest sub
-    gEveryPathParams _ =
-        gEveryPathParams (Proxy @sub)
+    gEveryEndpoint _ =
+        gEveryEndpoint (Proxy @sub)
 
-    type MkBodyRequest (ReqBody a b :> sub) = BodyParam b -> IO (MkBodyRequest sub)
-    gEveryBodyParams _ req b =
-        gEveryBodyParams (Proxy @sub) <$> (setRequestBody b req)
-
-    gEveryAllowedMethods _ =
-        gEveryAllowedMethods (Proxy @sub)
-
-instance
-    ( GEveryParams sub
-    ) => GEveryParams (Servant.QueryParam a b :> sub)
-  where
     type MkPathRequest (Servant.QueryParam a b :> sub) = MkPathRequest sub
-    gEveryPathParams _ =
-        gEveryPathParams (Proxy @sub)
+    gEveryPathParam _ =
+        gEveryPathParam (Proxy @sub)
 
     type MkBodyRequest (Servant.QueryParam a b :> sub) = MkBodyRequest sub
-    gEveryBodyParams _ =
-        gEveryBodyParams (Proxy @sub)
+    gEveryBodyParam _ =
+        gEveryBodyParam (Proxy @sub)
 
-    gEveryAllowedMethods _ =
-        gEveryAllowedMethods (Proxy @sub)
+    type MkHeaderRequest (Servant.QueryParam a b :> sub) = MkHeaderRequest sub
+    gEveryHeader _ =
+        gEveryHeader (Proxy @sub)
+
 
 --
 -- Helpers
