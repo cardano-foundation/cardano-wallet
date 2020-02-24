@@ -25,7 +25,7 @@ import Prelude hiding
 import Cardano.Pool.Metadata
     ( StakePoolMetadata (..), StakePoolTicker )
 import Cardano.Wallet.Api
-    ( Api )
+    ( Any, Api )
 import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
     , AccountPublicKey (..)
@@ -158,6 +158,10 @@ import Data.Char
     ( isAlphaNum, toLower )
 import Data.FileEmbed
     ( embedFile, makeRelativeToProject )
+import Data.Function
+    ( (&) )
+import Data.Generics.Internal.VL.Lens
+    ( (.~), (^.) )
 import Data.List
     ( foldl' )
 import Data.List.NonEmpty
@@ -169,7 +173,15 @@ import Data.Proxy
 import Data.Quantity
     ( Percentage, Quantity (..) )
 import Data.Swagger
-    ( Definitions, NamedSchema (..), Schema, ToSchema (..) )
+    ( Definitions
+    , NamedSchema (..)
+    , Schema
+    , SwaggerType (..)
+    , ToSchema (..)
+    , properties
+    , required
+    , type_
+    )
 import Data.Swagger.Declare
     ( Declare )
 import Data.Text
@@ -193,6 +205,8 @@ import Servant
     , (:>)
     , Capture
     , Header'
+    , JSON
+    , PostNoContent
     , QueryParam
     , ReqBody
     , StdMethod (..)
@@ -345,8 +359,18 @@ spec = do
 
     describe
         "verify that every type used with JSON content type in a servant API \
-        \has compatible ToJSON and ToSchema instances using validateToJSON." $
-        validateEveryToJSON (Proxy :: Proxy (Api 'Testnet))
+        \has compatible ToJSON and ToSchema instances using validateToJSON." $ do
+        validateEveryToJSON
+            (Proxy :: Proxy (Api 'Testnet))
+        -- NOTE See (ToSchema WalletOrAccountPostData)
+        validateEveryToJSON
+            (Proxy :: Proxy (
+                ReqBody '[JSON] AccountPostData
+                :> PostNoContent '[Any] ()
+              :<|>
+                ReqBody '[JSON] WalletPostData
+                :> PostNoContent '[Any] ()
+            ))
 
     describe
         "verify that every path specified by the servant server matches an \
@@ -1499,7 +1523,24 @@ instance ToSchema AccountPostData where
     declareNamedSchema _ = declareSchemaForDefinition "ApiAccountPostData"
 
 instance ToSchema WalletOrAccountPostData where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiWalletOrAccountPostData"
+    declareNamedSchema _ = do
+        -- NOTE
+        -- 'WalletOrAccountPostData' makes use of the 'oneOf' operator from
+        -- Swagger 3.0.0. We don't have that in Swagger 2.0 so we kinda have to
+        -- "fake it".
+        -- Therefore, we validate that any JSON matches with the union of the
+        -- schema, modulo the "required" properties that have to be different,
+        -- and we also validate both 'WalletPostData' and 'AccountPostData'
+        -- independently with 'validateEveryToJSON'.
+        NamedSchema _ accountPostData <- declareNamedSchema (Proxy @AccountPostData)
+        NamedSchema _ walletPostData  <- declareNamedSchema (Proxy @WalletPostData)
+        pure $ NamedSchema Nothing $ mempty
+            & type_ .~ SwaggerObject
+            & required .~ ["name"]
+            & properties .~ mconcat
+                [ accountPostData ^. properties
+                , walletPostData ^. properties
+                ]
 
 instance ToSchema (ByronWalletPostData '[12]) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiByronWalletRandomPostData"
