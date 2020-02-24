@@ -584,6 +584,8 @@ mkSeqStateFromAccountXPub
     -> SeqState n k
 mkSeqStateFromAccountXPub accXPub g =
     let
+        -- This matches the reward address for "normal wallets". The accountXPub
+        -- is the first account, minBound being the first Soft index
         rewardXPub =
             deriveAddressPublicKey accXPub MutableAccount minBound
         extPool =

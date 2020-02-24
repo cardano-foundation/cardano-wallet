@@ -695,14 +695,17 @@ instance ToJSON AccountPublicKey where
 
 instance FromJSON WalletOrAccountPostData where
     parseJSON obj = do
-        val <-
+        passwd <-
             (withObject "postData" $
              \o -> o .:? "passphrase" :: Aeson.Parser (Maybe Text)) obj
-        case val of
-            Nothing -> do
+        mnemonic <-
+            (withObject "postData" $
+             \o -> o .:? "mnemonic_sentence" :: Aeson.Parser (Maybe [Text])) obj
+        case (passwd, mnemonic) of
+            (Nothing, Nothing) -> do
                 xs <- parseJSON obj :: Aeson.Parser AccountPostData
                 pure $ WalletOrAccountPostData $ Right xs
-            Just _ -> do
+            _ -> do
                 xs <- parseJSON obj :: Aeson.Parser WalletPostData
                 pure $ WalletOrAccountPostData $ Left xs
 instance ToJSON WalletOrAccountPostData where

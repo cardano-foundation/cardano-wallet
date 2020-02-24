@@ -314,7 +314,7 @@ spec = do
             Default payload
         expectResponseCode @IO HTTP.status202 rTrans
 
-        eventually_ $ do
+        eventually "Wallet balance is as expected" $ do
             rGet <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rGet
@@ -343,7 +343,7 @@ spec = do
         let wDest' = getFromResponse id rRestore
         expectResponseCode @IO HTTP.status201 rRestore
 
-        eventually_ $ do
+        eventually "Balance of restored wallet is as expected" $ do
             rGet <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest') Default Empty
             verify rGet
