@@ -20,7 +20,7 @@ let
   getPackageChecks = pkgs.lib.mapAttrs (_: package: package.checks);
 
   self = {
-    inherit pkgs commonLib src haskellPackages;
+    inherit pkgs commonLib src haskellPackages stackNixRegenerate;
     inherit jormungandr jormungandr-cli;
     inherit (haskellPackages.cardano-wallet-core.identifier) version;
 
