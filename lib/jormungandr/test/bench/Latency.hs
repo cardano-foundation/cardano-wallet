@@ -107,7 +107,7 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
-    , eventually_
+    , eventually
     , expectField
     , expectResponseCode
     , expectSuccess
@@ -221,7 +221,7 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
         let pass = "cardano-wallet" :: Text
 
         replicateM_ batchSize (postTx ctx (wSrc, Link.createTransaction, pass) wDest amtToSend)
-        eventually_ $ do
+        eventually "repeatPostTx: wallet balance is as expected" $ do
             rWal1 <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default Empty
             verify rWal1
                 [ expectSuccess
@@ -257,7 +257,7 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
         let pass = "Secure Passphrase" :: Text
 
         postMultiTx ctx (wSrc, Link.createTransaction, pass) wDest amtToSend batchSize
-        eventually_ $ do
+        eventually "repeatPostMultiTx: wallet balance is as expected" $ do
             rWal1 <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rWal1

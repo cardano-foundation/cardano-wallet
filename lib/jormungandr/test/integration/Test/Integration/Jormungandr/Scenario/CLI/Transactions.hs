@@ -39,7 +39,7 @@ import Test.Integration.Framework.DSL
     , KnownCommand
     , deleteTransactionViaCLI
     , emptyWallet
-    , eventually_
+    , eventually
     , expectCliField
     , expectValidJSON
     , fixtureRawTx
@@ -81,7 +81,7 @@ spec = do
         err `shouldBe` "Ok.\n"
         out `shouldContain` "id"
         code `shouldBe` ExitSuccess
-        eventually_ $ do
+        eventually ("Wallet's balance is as expected = " ++ show amt) $ do
             Stdout gOutDest <- getWalletViaCLI @t ctx
                 (T.unpack (w ^. walletId))
             destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
@@ -111,7 +111,7 @@ spec = do
         out `shouldBe` "{\n    \"id\": " ++ show expectedTxId ++ "\n}\n"
         code `shouldBe` ExitSuccess
 
-        eventually_ $ do
+        eventually "Wallet balance is as expected" $ do
             Stdout gOutDest <- getWalletViaCLI @t ctx
                 (T.unpack (wDest ^. walletId))
             destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
@@ -174,7 +174,7 @@ spec = do
         let txid = T.unpack $ toUrlPiece (txJson ^. #id)
 
         -- funds eventually are on target wallet
-        eventually_ $ do
+        eventually "Wallet balance is as expected" $ do
             Stdout gOutDest <- getWalletViaCLI @t ctx
                 (T.unpack (w ^. walletId))
             destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest

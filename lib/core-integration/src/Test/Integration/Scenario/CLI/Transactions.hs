@@ -65,7 +65,7 @@ import Test.Integration.Framework.DSL
     , deleteWalletViaCLI
     , emptyRandomWallet
     , emptyWallet
-    , eventually_
+    , eventually
     , expectCliField
     , expectCliListField
     , expectValidJSON
@@ -135,8 +135,7 @@ spec = do
                     , Quantity $ faucetAmt - feeMax - amt)
             ]
 
-        -- verify balance on dest wallet
-        eventually_ $ do
+        eventually "balance on dest wallet is OK" $ do
             Stdout gOutDest <- getWalletViaCLI @t ctx
                 (T.unpack (wDest ^. walletId))
             destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
@@ -190,8 +189,7 @@ spec = do
                         ))
             ]
 
-        -- verify balance on dest wallet
-        eventually_ $ do
+        eventually "balance on dest wallet is OK" $ do
             Stdout gOutDest <- getWalletViaCLI @t ctx
                 (T.unpack (wDest ^. walletId))
             destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
@@ -246,8 +244,7 @@ spec = do
                     )
             ]
 
-        eventually_ $ forM_ [wDest1, wDest2] $ \wDest -> do
-            -- verify balance on dest wallets
+        eventually "balance on dest wallets is OK" $ forM_ [wDest1, wDest2] $ \wDest -> do
             Stdout gOutDest <- getWalletViaCLI @t ctx
                 (T.unpack (wDest ^. walletId))
             destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
@@ -305,7 +302,7 @@ spec = do
             , expectCliField (#balance . #getApiT . #available) (`shouldBe` Quantity 0)
             ]
 
-        eventually_ $ do
+        eventually "Balance on dest wallet is OK" $ do
             Stdout gOutDest <- getWalletViaCLI @t ctx
                 (T.unpack (wDest ^. walletId))
             destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
@@ -689,7 +686,7 @@ spec = do
         -- post transaction
         (c, _, _) <- postTransactionViaCLI @t ctx "cardano-wallet" args
         c `shouldBe` ExitSuccess
-        eventually_ $ do
+        eventually "Balance on wallet is as expected" $ do
             Stdout gOutDest <- getWalletViaCLI @t ctx
                 (T.unpack (wDest ^. walletId))
             destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
@@ -917,7 +914,7 @@ spec = do
             ]
         let txId =  getTxId txJson
 
-        eventually_ $ do
+        eventually "Tx is in ledger" $ do
             (fromStdout <$> listTransactionsViaCLI @t ctx [wSrcId])
                 >>= expectValidJSON (Proxy @([ApiTransaction n]))
                 >>= flip verify

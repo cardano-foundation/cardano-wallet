@@ -78,8 +78,6 @@ module Test.Integration.Framework.DSL
     , utcIso8601ToText
     , eventually
     , eventuallyUsingDelay
-    , eventually_
-    , eventuallyUsingDelay_
     , fixturePassphrase
     , waitForNextEpoch
     , toQueryString
@@ -453,7 +451,7 @@ waitForNextEpoch
 waitForNextEpoch ctx = do
     epoch <- getFromResponse (#nodeTip . #epochNumber) <$>
         request @ApiNetworkInformation ctx Link.getNetworkInfo Default Empty
-    eventually $ do
+    eventually "waitForNextEpoch: goes to next epoch" $ do
         epoch' <- getFromResponse (#nodeTip . #epochNumber) <$>
             request @ApiNetworkInformation ctx Link.getNetworkInfo Default Empty
         unless (getApiT epoch' > getApiT epoch) $ fail "not yet"
@@ -500,7 +498,7 @@ a .>= b
 --
 -- It is like 'eventuallyUsingDelay', but with the default delay of 500 ms
 -- between retries.
-eventually :: IO a -> IO a
+eventually :: String -> IO a -> IO a
 eventually = eventuallyUsingDelay (500 * ms)
   where
     ms = 1000
@@ -511,30 +509,21 @@ eventually = eventuallyUsingDelay (500 * ms)
 -- It sleeps for a specified delay between retries.
 eventuallyUsingDelay
     :: Int -- ^ Delay in microseconds
+    -> String -- ^ Brief description of the IO action
     -> IO a
     -> IO a
-eventuallyUsingDelay delay io = do
+eventuallyUsingDelay delay desc io = do
     winner <- race (threadDelay $ 180 * oneSecond) trial
     case winner of
         Left _ -> fail
-            "waited more than 3min for action to eventually resolve."
+            ("waited more than 3min for action to eventually resolve.\
+            \ Action: " ++ show desc)
         Right a ->
             return a
   where
     trial = io `catch` \(_ :: SomeException) -> do
         threadDelay delay
         trial
-
-eventually_ :: IO () -> IO ()
-eventually_ = eventuallyUsingDelay_ (500 * ms)
-  where
-    ms = 1000
-
-eventuallyUsingDelay_
-    :: Int -- ^ Delay in microseconds
-    -> IO ()
-    -> IO ()
-eventuallyUsingDelay_ = eventuallyUsingDelay
 
 utcIso8601ToText :: UTCTime -> Text
 utcIso8601ToText = utcTimeToText iso8601ExtendedUtc
@@ -733,7 +722,7 @@ fixtureWalletWith ctx coins0 = do
         request @(ApiTransaction 'Testnet) ctx
             (Link.createTransaction src) Default payload
             >>= expectResponseCode HTTP.status202
-        eventually_ $ do
+        eventually "balance available = balance total" $ do
             rb <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley dest) Default Empty
             expectField

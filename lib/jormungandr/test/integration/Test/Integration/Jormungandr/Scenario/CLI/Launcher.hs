@@ -56,7 +56,7 @@ import Test.Integration.Framework.DSL
     ( KnownCommand (..)
     , cardanoWalletCLI
     , createWalletViaCLI
-    , eventually_
+    , eventually
     , expectCliField
     , expectPathEventuallyExist
     , expectValidJSON
@@ -213,7 +213,7 @@ spec = do
                 TIO.hGetContents e >>= TIO.putStrLn
             withCreateProcess process $ \_ (Just o) (Just e) ph -> do
                 waitForServer @t ctx
-                eventually_ $ do
+                eventually "Wallet state = Ready" $ do
                     Stdout og <- getWalletViaCLI @t ctx $ T.unpack (wallet ^. walletId)
                     jg <- expectValidJSON (Proxy @ApiWallet) og
                     expectCliField (#state . #getApiT) (`shouldBe` Ready) jg

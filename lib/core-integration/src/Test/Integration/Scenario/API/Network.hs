@@ -58,7 +58,7 @@ import qualified Network.HTTP.Types.Status as HTTP
 spec :: forall t. SpecWith (Context t)
 spec = do
     it "NETWORK - Can query network information" $ \ctx -> do
-        r <- eventually $ do
+        r <- eventually "wallet's syncProgress = Ready" $ do
             now <- liftIO getCurrentTime
             r <- request @ApiNetworkInformation ctx
                 Link.getNetworkInfo Default Empty
@@ -81,7 +81,7 @@ spec = do
         let calculatedNextEpoch = getFromResponse (#nextEpoch . #epochNumber) r1
         let nextEpochStartTime = getFromResponse (#nextEpoch . #epochStartTime) r1
 
-        eventuallyUsingDelay 100 $ do
+        eventuallyUsingDelay 100 "nextEpochStartTime passes" $ do
             now <- liftIO getCurrentTime
             now `shouldSatisfy` (>= nextEpochStartTime)
 
@@ -95,9 +95,8 @@ spec = do
             let getNetworkInfo = request @ApiNetworkInformation ctx
                     Link.getNetworkInfo Default Empty
             w <- emptyWallet ctx
-            -- make sure you're at the beginning of the epoch
             waitForNextEpoch ctx
-            r <- eventually $ do
+            r <- eventually "Network info enpoint shows syncProgress = Ready" $ do
                 sync <- getNetworkInfo
                 expectField (#syncProgress . #getApiT) (`shouldBe` Ready) sync
                 return sync
@@ -109,7 +108,7 @@ spec = do
             let blockHeight =
                     getFromResponse (#nodeTip . #height) r
 
-            eventually $ do
+            eventually "Wallet has the same tip as network/information" $ do
                 res <- request @ApiWallet ctx
                     (Link.getWallet @'Shelley w) Default Empty
                 verify res
@@ -126,9 +125,8 @@ spec = do
             let getNetworkInfo = request @ApiNetworkInformation ctx
                     Link.getNetworkInfo Default Empty
             w <- emptyRandomWallet ctx
-            -- make sure you're at the beginning of the epoch
             waitForNextEpoch ctx
-            r <- eventually $ do
+            r <- eventually "Network info enpoint shows syncProgress = Ready" $ do
                 sync <- getNetworkInfo
                 expectField (#syncProgress . #getApiT) (`shouldBe` Ready) sync
                 return sync
@@ -140,7 +138,7 @@ spec = do
             let blockHeight =
                     getFromResponse (#nodeTip . #height) r
 
-            eventually $ do
+            eventually "Wallet has the same tip as network/information" $ do
                 res <- request @ApiByronWallet ctx
                     (Link.getWallet @'Byron w) Default Empty
                 verify res

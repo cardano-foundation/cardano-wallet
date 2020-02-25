@@ -47,17 +47,18 @@ spec = around setup $ do
         \ with one that stays running" $ \(nl, referenceDB) ->
         withDB "db.sqlite" $ \db ->
             withMonitorStakePoolsThread nl db $ \worker -> do
-                eventually $ do
+                eventually "db `shouldContainSameSlotsAs` referenceDB and db shouldNotBeEmpty" $ do
                     db `shouldContainSameSlotsAs` referenceDB
                     shouldNotBeEmpty db
 
                 killThread worker
 
-                eventually $
+                eventually "shouldBeBehindBy 3 db referenceDB" $
                     shouldBeBehindBy 3 db referenceDB
 
                 withMonitorStakePoolsThread nl db $ \_ ->
-                    eventually $ db `shouldContainSameSlotsAs` referenceDB
+                    eventually "db `shouldContainSameSlotsAs` referenceDB" $
+                        db `shouldContainSameSlotsAs` referenceDB
   where
     shouldBeBehindBy n db ref = do
         refSlots <- readSlots ref
