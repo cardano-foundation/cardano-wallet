@@ -13,27 +13,27 @@
         "version": "47e3b30f0f8e5449aff54fab6eb2567fa4957649"
     },
     "haskell.nix": {
-        "branch": "master",
+        "branch": "jbgi/cardano-wallet-fix-windows",
         "description": "Alternative Haskell Infrastructure for Nixpkgs",
         "homepage": "https://input-output-hk.github.io/haskell.nix",
         "owner": "input-output-hk",
         "repo": "haskell.nix",
-        "rev": "2d1a60c0c7ff268e3cf6eea13b4f24420fc711d2",
-        "sha256": "0bd45g8sjl1g5ldk292xs57kxswwkh3nmq05hcsrs9chvzg5lhhd",
+        "rev": "d075abf4aebe8371b52e1f0c67e6af34ffff42e0",
+        "sha256": "051r6lhwg89hbciq67rf94snjs0nllwqrrm0zzbb5h00jy9rgi7k",
         "type": "tarball",
-        "url": "https://github.com/input-output-hk/haskell.nix/archive/2d1a60c0c7ff268e3cf6eea13b4f24420fc711d2.tar.gz",
+        "url": "https://github.com/input-output-hk/haskell.nix/archive/d075abf4aebe8371b52e1f0c67e6af34ffff42e0.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "iohk-nix": {
-        "branch": "master",
+        "branch": "nixpkgs-common-channels",
         "description": "nix scripts shared across projects",
         "homepage": null,
         "owner": "input-output-hk",
         "repo": "iohk-nix",
-        "rev": "6b1a7cfddd351a7f42738c38a4b6ab761fa47944",
-        "sha256": "0a5lwvgqilph4gb5avx95xqqrvfwq4mim3s7zzd25xdc4hs14cby",
+        "rev": "bfc2df4f3a23cd0170df845bc2fae8cd30bdce2d",
+        "sha256": "0zwa0h2qmlffgqs55wk8h7kj94pzq1savnw9yfw997g2wq6x7lv8",
         "type": "tarball",
-        "url": "https://github.com/input-output-hk/iohk-nix/archive/6b1a7cfddd351a7f42738c38a4b6ab761fa47944.tar.gz",
+        "url": "https://github.com/input-output-hk/iohk-nix/archive/bfc2df4f3a23cd0170df845bc2fae8cd30bdce2d.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "niv": {
