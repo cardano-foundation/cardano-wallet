@@ -346,7 +346,7 @@ toChimericAccount =
 -- readability in function signatures.
 newtype Passphrase (purpose :: Symbol) = Passphrase ScrubbedBytes
     deriving stock (Eq, Show)
-    deriving newtype (Semigroup, Monoid, NFData)
+    deriving newtype (Semigroup, Monoid, NFData, ByteArrayAccess)
 
 type role Passphrase phantom
 
