@@ -25,7 +25,7 @@ import Prelude hiding
 import Cardano.Pool.Metadata
     ( StakePoolMetadata (..), StakePoolTicker )
 import Cardano.Wallet.Api
-    ( Any, Api )
+    ( Api )
 import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
     , AccountPublicKey (..)
@@ -59,12 +59,14 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegationStatus (..)
     , ApiWalletPassphrase (..)
     , ByronWalletPostData (..)
+    , ByronWalletStyle (..)
     , DecodeAddress (..)
     , EncodeAddress (..)
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
+    , SomeByronWalletPostData (..)
     , WalletBalance (..)
     , WalletOrAccountPostData (..)
     , WalletPostData (..)
@@ -134,12 +136,13 @@ import Cardano.Wallet.Primitive.Types
     , WalletPassphraseInfo (..)
     , computeUtxoStatistics
     , log10
-    , poolIdBytesLength
     , walletNameMaxLength
     , walletNameMinLength
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText )
+import Control.Lens
+    ( at, (.~), (^.) )
 import Control.Monad
     ( forM_, replicateM )
 import Control.Monad.IO.Class
@@ -160,8 +163,6 @@ import Data.FileEmbed
     ( embedFile, makeRelativeToProject )
 import Data.Function
     ( (&) )
-import Data.Generics.Internal.VL.Lens
-    ( (.~), (^.) )
 import Data.List
     ( foldl' )
 import Data.List.NonEmpty
@@ -175,9 +176,11 @@ import Data.Quantity
 import Data.Swagger
     ( Definitions
     , NamedSchema (..)
+    , Referenced (..)
     , Schema
     , SwaggerType (..)
     , ToSchema (..)
+    , enum_
     , properties
     , required
     , type_
@@ -212,6 +215,8 @@ import Servant
     , StdMethod (..)
     , Verb
     )
+import Servant.API.Verbs
+    ( NoContentVerb )
 import Servant.Swagger.Test
     ( validateEveryToJSON )
 import System.Environment
@@ -249,7 +254,6 @@ import Test.QuickCheck
     , property
     , scale
     , shrinkIntegral
-    , suchThat
     , vectorOf
     , withMaxSuccess
     , (.&&.)
@@ -313,9 +317,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @WalletPostData
             jsonRoundtripAndGolden $ Proxy @AccountPostData
             jsonRoundtripAndGolden $ Proxy @WalletOrAccountPostData
-            jsonRoundtripAndGolden $ Proxy @(ByronWalletPostData '[12])
-            jsonRoundtripAndGolden $ Proxy @(ByronWalletPostData '[15])
-            jsonRoundtripAndGolden $ Proxy @(ByronWalletPostData '[12,15,18,21,24])
+            jsonRoundtripAndGolden $ Proxy @SomeByronWalletPostData
             jsonRoundtripAndGolden $ Proxy @WalletPutData
             jsonRoundtripAndGolden $ Proxy @WalletPutPassphraseData
             jsonRoundtripAndGolden $ Proxy @(ApiT (Hash "Tx"))
@@ -365,11 +367,9 @@ spec = do
         -- NOTE See (ToSchema WalletOrAccountPostData)
         validateEveryToJSON
             (Proxy :: Proxy (
-                ReqBody '[JSON] AccountPostData
-                :> PostNoContent '[Any] ()
+                ReqBody '[JSON] AccountPostData :> PostNoContent
               :<|>
-                ReqBody '[JSON] WalletPostData
-                :> PostNoContent '[Any] ()
+                ReqBody '[JSON] WalletPostData  :> PostNoContent
             ))
 
     describe
@@ -440,7 +440,7 @@ spec = do
             |] `shouldBe` (Left @String @(ApiT AddressPoolGap) msg)
 
         it "ApiT AddressPoolGap (not a integer)" $ do
-            let msg = "Error in $: expected Integer, encountered floating number\
+            let msg = "Error in $: parsing Integer failed, unexpected floating number\
                     \ 2.5"
             Aeson.parseEither parseJSON [aesonQQ|
                 2.5
@@ -461,8 +461,8 @@ spec = do
             |] `shouldBe` (Left @String @(ApiT WalletId) msg)
 
         it "AddressAmount (too small)" $ do
-            let msg = "Error in $.amount.quantity: expected Natural, \
-                    \encountered negative number -14"
+            let msg = "Error in $.amount.quantity: parsing Natural failed, \
+                    \unexpected negative number -14"
             Aeson.parseEither parseJSON [aesonQQ|
                 { "address": "ta1sdaa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677ztw225s"
                 , "amount": {"unit":"lovelace","quantity":-14}
@@ -483,17 +483,15 @@ spec = do
             |] `shouldBe` (Left @String @(AddressAmount 'Testnet) msg)
 
         it "ApiT PoolId" $ do
-            let msg = "Error in $: \"stake pool id wrongly formatted: expected \
-                      \hex string - the exact error: base16: input: \
-                      \invalid encoding at offset: 0\""
+            let msg = "Error in $: Invalid stake pool id: expecting a \
+                      \hex-encoded value that is 32 bytes in length."
             Aeson.parseEither parseJSON [aesonQQ|
                 "invalid-id"
             |] `shouldBe` (Left @String @(ApiT PoolId) msg)
 
         it "ApiT PoolId" $ do
-            let msg = "Error in $: stake pool id invalid: expected "
-                    <>  show poolIdBytesLength
-                    <> " bytes but got 22"
+            let msg = "Error in $: Invalid stake pool id: expecting a \
+                      \hex-encoded value that is 32 bytes in length."
             Aeson.parseEither parseJSON [aesonQQ|
                 "4c43d68b21921034519c36d2475f5adba989bb4465ec"
             |] `shouldBe` (Left @String @(ApiT PoolId) msg)
@@ -1076,6 +1074,10 @@ instance Arbitrary WalletPostData where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
+instance Arbitrary SomeByronWalletPostData where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
 instance Arbitrary (ByronWalletPostData '[12]) where
     arbitrary = genericArbitrary
     shrink = genericShrink
@@ -1301,13 +1303,10 @@ instance Arbitrary ApiEpochNumber where
         let lowerBound = fromIntegral (minBound @Word31)
         let upperBound = fromIntegral (maxBound @Word31)
         epochN <- choose (lowerBound :: Int, upperBound)
-        rndTextLength <- choose (1,10)
-        rndText <-
-            suchThat (vectorOf rndTextLength (elements ['a'..'z'])) (/="latest")
         elements
             [ ApiEpochNumberLatest
             , ApiEpochNumber (EpochNo (fromIntegral epochN))
-            , ApiEpochNumberInvalid $ T.pack rndText]
+            ]
 
 instance Arbitrary SlotId where
     arbitrary = SlotId <$> arbitrary <*> arbitrary
@@ -1535,7 +1534,7 @@ instance ToSchema WalletOrAccountPostData where
         NamedSchema _ accountPostData <- declareNamedSchema (Proxy @AccountPostData)
         NamedSchema _ walletPostData  <- declareNamedSchema (Proxy @WalletPostData)
         pure $ NamedSchema Nothing $ mempty
-            & type_ .~ SwaggerObject
+            & type_ .~ Just SwaggerObject
             & required .~ ["name"]
             & properties .~ mconcat
                 [ accountPostData ^. properties
@@ -1551,6 +1550,17 @@ instance ToSchema (ByronWalletPostData '[15]) where
 instance ToSchema (ByronWalletPostData '[12,15,18,21,24]) where
     -- NOTE ApiByronWalletLedgerPostData works too. Only the description differs.
     declareNamedSchema _ = declareSchemaForDefinition "ApiByronWalletTrezorPostData"
+
+instance ToSchema SomeByronWalletPostData where
+    declareNamedSchema _ = do
+        NamedSchema _ schema <- declareNamedSchema (Proxy @(ByronWalletPostData '[12,15,18,21,24]))
+        let props = schema ^. properties
+        pure $ NamedSchema Nothing $ schema
+            & properties .~ (props & at "style" .~ Just (Inline styleSchema))
+      where
+        styleSchema = mempty
+            & type_ .~ Just SwaggerString
+            & enum_ .~ Just (toJSON . toText <$> [Random, Icarus, Trezor, Ledger])
 
 instance ToSchema WalletPutData where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWalletPutData"
@@ -1636,6 +1646,9 @@ class HasPath api where
     getPath :: Proxy api -> (StdMethod, String)
 
 instance (Method m) => HasPath (Verb m s ct a) where
+    getPath _ = (method (Proxy @m), "")
+
+instance (Method m) => HasPath (NoContentVerb m) where
     getPath _ = (method (Proxy @m), "")
 
 instance (KnownSymbol path, HasPath sub) => HasPath (path :> sub) where

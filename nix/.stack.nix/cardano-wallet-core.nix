@@ -150,8 +150,10 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."hspec-golden-aeson" or (buildDepError "hspec-golden-aeson"))
             (hsPkgs."http-api-data" or (buildDepError "http-api-data"))
             (hsPkgs."http-client" or (buildDepError "http-client"))
+            (hsPkgs."http-media" or (buildDepError "http-media"))
             (hsPkgs."http-types" or (buildDepError "http-types"))
             (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
+            (hsPkgs."lens" or (buildDepError "lens"))
             (hsPkgs."memory" or (buildDepError "memory"))
             (hsPkgs."network" or (buildDepError "network"))
             (hsPkgs."persistent" or (buildDepError "persistent"))
@@ -174,6 +176,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."unordered-containers" or (buildDepError "unordered-containers"))
             (hsPkgs."yaml" or (buildDepError "yaml"))
             (hsPkgs."wai" or (buildDepError "wai"))
+            (hsPkgs."wai-extra" or (buildDepError "wai-extra"))
             (hsPkgs."warp" or (buildDepError "warp"))
             (hsPkgs."zip" or (buildDepError "zip"))
             ];

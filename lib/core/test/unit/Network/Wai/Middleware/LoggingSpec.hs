@@ -17,8 +17,6 @@ import Cardano.BM.Data.Tracer
     ( DefineSeverity (..) )
 import Cardano.BM.Trace
     ( traceInTVarIO )
-import Cardano.Wallet.Api
-    ( Any )
 import Cardano.Wallet.Api.Server
     ( Listen (..), withListeningSocket )
 import Control.Concurrent
@@ -435,7 +433,7 @@ start logSettings warpSettings trace socket = do
 
 type Api =
     "get" :> Get '[JSON] Int
-    :<|> "delete" :> DeleteNoContent '[Any] NoContent
+    :<|> "delete" :> DeleteNoContent
     :<|> "post" :> ReqBody '[JSON] MkJson :> PostCreated '[JSON] ResponseJson
     :<|> "not-json" :> Get '[OctetStream] ByteString
     :<|> "long" :> Get '[JSON] Int

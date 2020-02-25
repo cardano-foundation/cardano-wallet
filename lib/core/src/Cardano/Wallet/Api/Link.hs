@@ -84,12 +84,12 @@ module Cardano.Wallet.Api.Link
 import Prelude
 
 import Cardano.Wallet.Api
-    ( Api, BackwardCompatPlaceholder )
+    ( Api )
 import Cardano.Wallet.Api.Types
     ( ApiEpochNumber
+    , ApiPoolId (..)
     , ApiT (..)
     , ApiTxId (ApiTxId)
-    , ByronWalletStyle (..)
     , Iso8601Time
     , WalletStyle (..)
     )
@@ -100,7 +100,7 @@ import Cardano.Wallet.Primitive.Types
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( (^.) )
 import Data.Generics.Product.Typed
     ( HasType, typed )
 import Data.Proxy
@@ -116,6 +116,7 @@ import Servant.API
     , Capture
     , Header'
     , IsElem
+    , NoContentVerb
     , QueryParam
     , ReflectMethod (..)
     , ReqBody
@@ -134,23 +135,14 @@ import qualified Cardano.Wallet.Api as Api
 
 -- NOTE
 -- Type-class is necessary here to type-check 'IsElem endpoint Api' below.
-class PostWallet k where
+class PostWallet (style :: WalletStyle) where
     postWallet :: (Method, Text)
 
 instance PostWallet 'Shelley where
     postWallet = endpoint @Api.PostWallet id
 
-instance PostWallet 'Random where
-    postWallet = endpoint @(Api.PostByronWallet 'Random) id
-
-instance PostWallet 'Icarus where
-    postWallet = endpoint @(Api.PostByronWallet 'Icarus) id
-
-instance PostWallet 'Trezor where
-    postWallet = endpoint @(Api.PostByronWallet 'Trezor) id
-
-instance PostWallet 'Ledger where
-    postWallet = endpoint @(Api.PostByronWallet 'Ledger) id
+instance PostWallet 'Byron where
+    postWallet = endpoint @Api.PostByronWallet id
 
 deleteWallet
     :: forall (style :: WalletStyle) w.
@@ -388,21 +380,18 @@ joinStakePool
 joinStakePool s w =
     endpoint @(Api.JoinStakePool Net) (\mk -> mk sid wid)
   where
-    sid = s ^. typed @(ApiT PoolId)
+    sid = ApiPoolId $ getApiT $ s ^. typed @(ApiT PoolId)
     wid = w ^. typed @(ApiT WalletId)
 
 quitStakePool
-    :: forall s w.
-        ( HasType (ApiT PoolId) s
-        , HasType (ApiT WalletId) w
+    :: forall w.
+        ( HasType (ApiT WalletId) w
         )
-    => BackwardCompatPlaceholder s
-    -> w
+    => w
     -> (Method, Text)
-quitStakePool s w =
-    endpoint @(Api.QuitStakePool Net) (\mk -> mk sid wid)
+quitStakePool w =
+    endpoint @(Api.QuitStakePool Net) (wid &)
   where
-    sid = fmap (view (typed @(ApiT PoolId))) s
     wid = w ^. typed @(ApiT WalletId)
 
 getDelegationFee
@@ -512,6 +501,9 @@ type Net = 'Mainnet
 -- | Extract the method from a given Api
 class HasVerb api where
     method :: Proxy api -> Method
+
+instance (ReflectMethod m) => HasVerb (NoContentVerb m) where
+    method _ = reflectMethod (Proxy @m)
 
 instance (ReflectMethod m) => HasVerb (Verb m s ct a) where
     method _ = reflectMethod (Proxy @m)

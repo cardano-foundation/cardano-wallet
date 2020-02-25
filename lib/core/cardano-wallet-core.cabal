@@ -149,7 +149,7 @@ library
       Data.Time.Utils
       Data.Quantity
       Data.Vector.Shuffle
-      Network.Wai.Middleware.ServantError
+      Network.Wai.Middleware.ServerError
       Network.Wai.Middleware.Logging
   other-modules:
       Paths_cardano_wallet_core
@@ -194,8 +194,10 @@ test-suite unit
     , hspec-golden-aeson
     , http-api-data
     , http-client
+    , http-media
     , http-types
     , iohk-monitoring
+    , lens
     , memory
     , network
     , persistent
@@ -218,6 +220,7 @@ test-suite unit
     , unordered-containers
     , yaml
     , wai
+    , wai-extra
     , warp
     , zip
   build-tools:
@@ -239,6 +242,7 @@ test-suite unit
       Cardano.Wallet.Gen
       Cardano.Pool.PerformanceSpec
       Cardano.Pool.RankingSpec
+      Cardano.Wallet.Api.Malformed
       Cardano.Wallet.Api.ServerSpec
       Cardano.Wallet.Api.TypesSpec
       Cardano.Wallet.ApiSpec

@@ -871,12 +871,16 @@ components:
         - *ApiWalletPostData
 
     ApiByronWalletRandomPostData: &ApiByronWalletRandomPostData
+      description: test
       type: object
       required:
         - name
         - mnemonic_sentence
         - passphrase
       properties:
+        style:
+          type: string
+          enum: ["random"]
         name: *walletName
         passphrase: *walletPassphrase
         mnemonic_sentence:
@@ -891,6 +895,9 @@ components:
         - mnemonic_sentence
         - passphrase
       properties:
+        style:
+          type: string
+          enum: ["icarus"]
         name: *walletName
         passphrase: *walletPassphrase
         mnemonic_sentence:
@@ -905,6 +912,9 @@ components:
         - mnemonic_sentence
         - passphrase
       properties:
+        style:
+          type: string
+          enum: ["trezor"]
         name: *walletName
         passphrase: *walletPassphrase
         mnemonic_sentence:
@@ -919,6 +929,9 @@ components:
         - mnemonic_sentence
         - passphrase
       properties:
+        style:
+          type: string
+          enum: ["ledger"]
         name: *walletName
         passphrase: *walletPassphrase
         mnemonic_sentence:
@@ -968,11 +981,6 @@ components:
 #                               PARAMETERS                                  #
 #                                                                           #
 #############################################################################
-
-x-parametersBody: &parametersBody
-  in: body
-  name: body
-  required: true
 
 x-parametersWalletId: &parametersWalletId
   in: path
@@ -1481,6 +1489,7 @@ paths:
 
         Create and restore a wallet from a mnemonic sentence or account public key.
       requestBody:
+        required: true
         content:
           application/json:
             schema: *ApiWalletOrAccountPostData
@@ -1515,8 +1524,11 @@ paths:
         <p align="right">status: <strong>stable</strong></p>
       parameters:
         - *parametersWalletId
-        - <<: *parametersBody
-          schema: *ApiWalletPutData
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiWalletPutData
       responses: *responsesPutWallet
 
   /wallets/{walletId}/tip:
@@ -1536,8 +1548,11 @@ paths:
         > Any other point will yield a `403 Forbidden` error.
       parameters:
         - *parametersWalletId
-        - <<: *parametersBody
-          schema: *genesisBlock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *genesisBlock
       responses: *responsesForceResyncWallet
 
   /wallets/{walletId}/statistics/utxos:
@@ -1577,8 +1592,11 @@ paths:
         <p align="right">status: <strong>stable</strong></p>
       parameters:
         - *parametersWalletId
-        - <<: *parametersBody
-          schema: *ApiWalletPutPassphraseData
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiWalletPutPassphraseData
       responses: *responsesPutWalletPassphrase
 
   /wallets/{walletId}/transactions:
@@ -1607,11 +1625,14 @@ paths:
         Create and send transaction from the wallet.
       parameters:
         - *parametersWalletId
-        - <<: *parametersBody
-          schema: *ApiPostTransactionData
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiPostTransactionData
       responses: *responsesPostTransaction
 
-  /wallets/{walletId}/transactions/fees:
+  /wallets/{walletId}/payment-fees:
     post:
       operationId: postTransactionFee
       tags: ["Transactions"]
@@ -1622,8 +1643,11 @@ paths:
         Estimate fee for the transaction.
       parameters:
         - *parametersWalletId
-        - <<: *parametersBody
-          schema: *ApiPostTransactionFeeData
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiPostTransactionFeeData
       responses: *responsesPostTransactionFee
 
   /wallets/{walletId}/transactions/{transactionId}:
@@ -1683,8 +1707,11 @@ paths:
       parameters:
         - *parametersStakePoolId
         - *parametersWalletId
-        - <<: *parametersBody
-          schema: *ApiWalletPassphrase
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiWalletPassphrase
       responses: *responsesJoinStakePool
 
   /stake-pools/*/wallets/{walletId}:
@@ -1706,11 +1733,14 @@ paths:
         > encouraged to provide a placeholder asterisk `*` instead.
       parameters:
         - *parametersWalletId
-        - <<: *parametersBody
-          schema: *ApiWalletPassphrase
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiWalletPassphrase
       responses: *responsesQuitStakePool
 
-  /wallets/{walletId}/delegations/fees:
+  /wallets/{walletId}/delegation-fees:
     get:
       operationId: getDelegationFee
       tags: ["Stake Pools"]
@@ -1740,8 +1770,11 @@ paths:
         Random-Improve coin selection algorithm</a>.
       parameters:
         - *parametersWalletId
-        - <<: *parametersBody
-          schema: *ApiSelectCoinsData
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiSelectCoinsData
       responses: *responsesSelectCoins
 
   /byron-wallets:
@@ -1755,60 +1788,24 @@ paths:
         Return a list of known Byron wallets, ordered from oldest to newest.
       responses: *responsesListByronWallets
 
-  /byron-wallets/random:
     post:
-      operationId: postByronRandomWallet
+      operationId: postByronWallet
       tags: ["Byron Wallets"]
-      summary: Restore (Random)
+      summary: Restore
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
-        Restore a Byron Random wallet from a mnemonic sentence.
-      parameters:
-        - <<: *parametersBody
-          schema: *ApiByronWalletRandomPostData
-      responses: *responsesPostByronWallet
-
-  /byron-wallets/icarus:
-    post:
-      operationId: postByronIcarusWallet
-      tags: ["Byron Wallets"]
-      summary: Restore (Icarus)
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-
-        Restore a Byron Icarus wallet from a mnemonic sentence.
-      parameters:
-        - <<: *parametersBody
-          schema: *ApiByronWalletIcarusPostData
-      responses: *responsesPostByronWallet
-
-  /byron-wallets/trezor:
-    post:
-      operationId: postByronTrezorWallet
-      tags: ["Byron Wallets"]
-      summary: Restore (Trezor)
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-
-        Restore a Byron Trezor wallet from a mnemonic sentence.
-      parameters:
-        - <<: *parametersBody
-          schema: *ApiByronWalletTrezorPostData
-      responses: *responsesPostByronWallet
-
-  /byron-wallets/ledger:
-    post:
-      operationId: postByronLedgerWallet
-      tags: ["Byron Wallets"]
-      summary: Restore (Ledger)
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-
-        Restore a Byron Ledger wallet from a mnemonic sentence.
-      parameters:
-        - <<: *parametersBody
-          schema: *ApiByronWalletLedgerPostData
+        Restore a Byron wallet from a mnemonic sentence.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - *ApiByronWalletRandomPostData
+                - *ApiByronWalletIcarusPostData
+                - *ApiByronWalletTrezorPostData
+                - *ApiByronWalletLedgerPostData
       responses: *responsesPostByronWallet
 
   /byron-wallets/{walletId}:
@@ -1853,8 +1850,11 @@ paths:
         > Any other point will yield a `403 Forbidden` error.
       parameters:
         - *parametersWalletId
-        - <<: *parametersBody
-          schema: *genesisBlock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *genesisBlock
       responses: *responsesForceResyncWallet
 
   /byron-wallets/{walletId}/transactions:
@@ -1919,8 +1919,11 @@ paths:
           name: sourceWalletId
         - <<: *parametersWalletId
           name: targetWalletId
-        - <<: *parametersBody
-          schema: *ApiWalletPassphrase
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiWalletPassphrase
       responses: *responsesMigrateByronWallet
 
   /network/information:

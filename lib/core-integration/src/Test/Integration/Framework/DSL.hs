@@ -127,8 +127,6 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegation (..)
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
-    , BackwardCompatPlaceholder
-    , ByronWalletStyle (..)
     , Iso8601Time (..)
     , WalletStyle (..)
     )
@@ -532,30 +530,30 @@ utcIso8601ToText = utcTimeToText iso8601ExtendedUtc
 emptyRandomWallet :: Context t -> IO ApiByronWallet
 emptyRandomWallet ctx = do
     mnemonic <- mnemonicToText @12 . entropyToMnemonic <$> genEntropy
-    emptyByronWalletWith @'Random ctx
+    emptyByronWalletWith ctx "random"
         ("Random Wallet", mnemonic, "Secure Passphrase")
 
 emptyIcarusWallet :: Context t -> IO ApiByronWallet
 emptyIcarusWallet ctx = do
     mnemonic <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
-    emptyByronWalletWith @'Icarus ctx
+    emptyByronWalletWith ctx "icarus"
         ("Icarus Wallet", mnemonic, "Secure Passphrase")
 
 emptyByronWalletWith
-    :: forall (style :: ByronWalletStyle) t.
-        ( Link.PostWallet style
-        )
+    :: forall t. ()
     => Context t
+    -> String
     -> (Text, [Text], Text)
     -> IO ApiByronWallet
-emptyByronWalletWith ctx (name, mnemonic, pass) = do
+emptyByronWalletWith ctx style (name, mnemonic, pass) = do
     let payload = Json [aesonQQ| {
             "name": #{name},
             "mnemonic_sentence": #{mnemonic},
-            "passphrase": #{pass}
+            "passphrase": #{pass},
+            "style": #{style}
         }|]
     r <- request @ApiByronWallet ctx
-        (Link.postWallet @style) Default payload
+        (Link.postWallet @'Byron) Default payload
     expectResponseCode @IO HTTP.status201 r
     return (getFromResponse id r)
 
@@ -633,7 +631,7 @@ fixtureRandomWallet
     -> IO ApiByronWallet
 fixtureRandomWallet ctx = do
     mnemonics <- mnemonicToText <$> nextWallet @"random" (_faucet ctx)
-    fixtureLegacyWallet @'Random ctx mnemonics
+    fixtureLegacyWallet ctx "random" mnemonics
 
 -- | Restore a faucet Icarus wallet and wait until funds are available.
 fixtureIcarusWallet
@@ -641,24 +639,24 @@ fixtureIcarusWallet
     -> IO ApiByronWallet
 fixtureIcarusWallet ctx = do
     mnemonics <- mnemonicToText <$> nextWallet @"icarus" (_faucet ctx)
-    fixtureLegacyWallet @'Icarus ctx mnemonics
+    fixtureLegacyWallet ctx "icarus" mnemonics
 
 -- | Restore a legacy wallet (Byron or Icarus)
 fixtureLegacyWallet
-    :: forall (style :: ByronWalletStyle) t.
-        ( Link.PostWallet style
-        )
+    :: forall t. ()
     => Context t
+    -> String
     -> [Text]
     -> IO ApiByronWallet
-fixtureLegacyWallet ctx mnemonics = do
+fixtureLegacyWallet ctx style mnemonics = do
     let payload = Json [aesonQQ| {
             "name": "Faucet Byron Wallet",
             "mnemonic_sentence": #{mnemonics},
-            "passphrase": #{fixturePassphrase}
+            "passphrase": #{fixturePassphrase},
+            "style": #{style}
             } |]
     (_, w) <- unsafeRequest @ApiByronWallet ctx
-        (Link.postWallet @style) payload
+        (Link.postWallet @'Byron) payload
     race (threadDelay sixtySeconds) (checkBalance w) >>= \case
         Left _ ->
             fail "fixtureByronWallet: waited too long for initial transaction"
@@ -784,17 +782,16 @@ joinStakePool ctx p (w, pass) = do
         (Link.joinStakePool (Identity p) w) Default payload
 
 quitStakePool
-    :: forall t s w. (HasType (ApiT WalletId) w, HasType (ApiT PoolId) s)
+    :: forall t w. (HasType (ApiT WalletId) w)
     => Context t
-    -> BackwardCompatPlaceholder s
     -> (w, Text)
     -> IO (HTTP.Status, Either RequestException (ApiTransaction 'Testnet))
-quitStakePool ctx p (w, pass) = do
+quitStakePool ctx (w, pass) = do
     let payload = Json [aesonQQ| {
             "passphrase": #{pass}
             } |]
     request @(ApiTransaction 'Testnet) ctx
-        (Link.quitStakePool p w) Default payload
+        (Link.quitStakePool w) Default payload
 
 selectCoins
     :: forall t w. (HasType (ApiT WalletId) w)

@@ -42,7 +42,7 @@ import Test.Integration.Framework.DSL
     , expectedBlockchainParams
     )
 import Test.Integration.Framework.TestData
-    ( cmdOk, errMsg400MalformedEpoch, errMsg404NoEpochNo )
+    ( cmdOk, errMsg404NoEpochNo )
 
 spec :: forall t. KnownCommand t => SpecWith (Context t)
 spec = do
@@ -88,27 +88,6 @@ spec = do
             let maxEpoch = show $ fromIntegral @Word31 @Int maxBound
             params <- getNetworkParamsViaCliExpectingFailure ctx maxEpoch
             params `shouldContain` (errMsg404NoEpochNo maxEpoch)
-
-    describe "NETWORK_PARAMS_03 - Invalid epoch numbers" $ do
-        it "Epoch = earlier" $ \ctx -> do
-            let wrong = "earlier"
-            params <- getNetworkParamsViaCliExpectingFailure ctx wrong
-            params `shouldContain` (errMsg400MalformedEpoch wrong)
-
-        it "Epoch = 1.1" $ \ctx -> do
-            let wrong = "1.1"
-            params <- getNetworkParamsViaCliExpectingFailure ctx wrong
-            params `shouldContain` (errMsg400MalformedEpoch wrong)
-
-        it "Epoch num out of bound" $ \ctx -> do
-            let epochNoOutOfBound = show $ (+1) $ fromIntegral @Word31 @Int maxBound
-            params <- getNetworkParamsViaCliExpectingFailure ctx epochNoOutOfBound
-            params `shouldContain` (errMsg400MalformedEpoch epochNoOutOfBound)
-
-        it "Epoch = -1" $ \ctx -> do
-            params <- getNetworkParamsViaCliExpectingFailure ctx "-1"
-            params `shouldContain` "Invalid option `-1'"
-
   where
       getNetworkParamsViaCliExpectingSuccess
           :: Context t

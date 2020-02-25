@@ -39,17 +39,17 @@ let
       '';
 in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
   {
-    flags = { checktvarinvariant = false; asserts = false; };
+    flags = { development = false; };
     package = {
       specVersion = "1.10";
-      identifier = { name = "io-sim-classes"; version = "0.1.0.0"; };
-      license = "Apache-2.0";
-      copyright = "2019 Input Output (Hong Kong) Ltd.";
-      maintainer = "";
-      author = "Alexander Vieth, Marcin Szamotulski, Duncan Coutts";
-      homepage = "";
+      identifier = { name = "cs-blockchain"; version = "0.1.0.0"; };
+      license = "MIT";
+      copyright = "";
+      maintainer = "formal.methods@iohk.io";
+      author = "IOHK Formal Methods Team";
+      homepage = "https://github.com/input-output-hk/cardano-legder-specs";
       url = "";
-      synopsis = "Type classes for concurrency with STM, ST and timing";
+      synopsis = "Executable specification of the Cardano blockchain";
       description = "";
       buildType = "Simple";
       isLocal = true;
@@ -58,20 +58,42 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       "library" = {
         depends = [
           (hsPkgs."base" or (buildDepError "base"))
-          (hsPkgs."async" or (buildDepError "async"))
+          (hsPkgs."bimap" or (buildDepError "bimap"))
           (hsPkgs."bytestring" or (buildDepError "bytestring"))
-          (hsPkgs."mtl" or (buildDepError "mtl"))
-          (hsPkgs."stm" or (buildDepError "stm"))
-          (hsPkgs."time" or (buildDepError "time"))
+          (hsPkgs."containers" or (buildDepError "containers"))
+          (hsPkgs."cs-ledger" or (buildDepError "cs-ledger"))
+          (hsPkgs."goblins" or (buildDepError "goblins"))
+          (hsPkgs."hashable" or (buildDepError "hashable"))
+          (hsPkgs."hedgehog" or (buildDepError "hedgehog"))
+          (hsPkgs."lens" or (buildDepError "lens"))
+          (hsPkgs."small-steps" or (buildDepError "small-steps"))
           ];
         buildable = true;
+        };
+      tests = {
+        "chain-rules-test" = {
+          depends = [
+            (hsPkgs."base" or (buildDepError "base"))
+            (hsPkgs."containers" or (buildDepError "containers"))
+            (hsPkgs."data-ordlist" or (buildDepError "data-ordlist"))
+            (hsPkgs."hedgehog" or (buildDepError "hedgehog"))
+            (hsPkgs."lens" or (buildDepError "lens"))
+            (hsPkgs."tasty" or (buildDepError "tasty"))
+            (hsPkgs."tasty-hedgehog" or (buildDepError "tasty-hedgehog"))
+            (hsPkgs."tasty-hunit" or (buildDepError "tasty-hunit"))
+            (hsPkgs."cs-blockchain" or (buildDepError "cs-blockchain"))
+            (hsPkgs."cs-ledger" or (buildDepError "cs-ledger"))
+            (hsPkgs."small-steps" or (buildDepError "small-steps"))
+            ];
+          buildable = true;
+          };
         };
       };
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
-      url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "398004e1403367cc2a25c639eb6349d473e51b2d";
-      sha256 = "1x940w0sma3mhl4hfd937sp25hdl3migkl8zsyl92p59468218i9";
+      url = "https://github.com/input-output-hk/cardano-ledger-specs";
+      rev = "f27e8b66a393f0b7da1893889dcea07da0fe4dec";
+      sha256 = "1f1r1vidnlyka800jpm9z2myrggasqyzw0aw97q8vw81sh72l51s";
       });
-    postUnpack = "sourceRoot+=/io-sim-classes; echo source root reset to \$sourceRoot";
+    postUnpack = "sourceRoot+=/byron/chain/executable-spec; echo source root reset to \$sourceRoot";
     }

@@ -13,14 +13,12 @@ module Test.Integration.Jormungandr.Scenario.API.StakePools
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiFee
-    , ApiNetworkInformation (..)
+    ( ApiNetworkInformation (..)
     , ApiNetworkParameters (..)
     , ApiStakePool
     , ApiT (..)
     , ApiTransaction
     , ApiWallet
-    , BackwardCompatPlaceholder (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -90,7 +88,6 @@ import Test.Integration.Framework.DSL
     , verify
     , waitForNextEpoch
     , walletId
-    , withMethod
     , (.>)
     , (.>=)
     )
@@ -99,14 +96,8 @@ import Test.Integration.Framework.TestData
     , errMsg403NotDelegating
     , errMsg403PoolAlreadyJoined
     , errMsg403WrongPass
-    , errMsg404NoEndpoint
     , errMsg404NoSuchPool
     , errMsg404NoWallet
-    , errMsg405
-    , errMsg406
-    , errMsg415
-    , falseWalletIds
-    , getHeaderCases
     )
 import Test.Integration.Jormungandr.Fixture
     ( OwnerIdentity (..), registerStakePool )
@@ -206,14 +197,6 @@ spec = do
                     "I can't list stake pools yet because I need to scan the \
                     \blockchain for metrics first. I'm at"
                 ]
-
-    describe "STAKE_POOLS_LIST_03 - v2/stake-pools - Methods Not Allowed" $ do
-        let methods = ["POST", "PUT", "DELETE", "CONNECT", "TRACE", "OPTIONS"]
-        forM_ methods $ \method -> it (show method) $ \ctx -> do
-            r <- request @ApiStakePool ctx
-                    (method, "v2/stake-pools") Default Empty
-            expectResponseCode @IO HTTP.status405 r
-            expectErrorMessage errMsg405 r
 
     it "STAKE_POOLS_LIST_04 - Discovers new pools when they are registered" $ \ctx -> do
         let nWithMetadata = length . filter (isJust . view #metadata)
@@ -326,7 +309,7 @@ spec = do
                 ]
 
         -- Quit a pool
-        quitStakePool ctx placeholder (w, fixturePassphrase) >>= flip verify
+        quitStakePool ctx (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
@@ -368,7 +351,7 @@ spec = do
 
         waitForNextEpoch ctx
 
-        quitStakePool ctx placeholder (w, fixturePassphrase) >>= flip verify
+        quitStakePool ctx (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
             ]
 
@@ -429,7 +412,7 @@ spec = do
             let (feeQuit, _) = ctx ^. #_feeEstimator $ DelegDescription 1 0 1
             let initBalance = [feeJoin + feeQuit]
             (w, _) <- joinStakePoolWithWalletBalance ctx initBalance
-            rq <- quitStakePool ctx placeholder (w, "Secure Passphrase")
+            rq <- quitStakePool ctx (w, "Secure Passphrase")
             expectResponseCode HTTP.status202 rq
             eventually "Wallet is not delegating and has balance = 0" $ do
                 request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
@@ -447,42 +430,11 @@ spec = do
             let (feeQuit, _) = ctx ^. #_feeEstimator $ DelegDescription 0 0 1
             let initBalance = [feeJoin+1]
             (w, _) <- joinStakePoolWithWalletBalance ctx initBalance
-            rq <- quitStakePool ctx placeholder (w, "Secure Passphrase")
+            rq <- quitStakePool ctx (w, "Secure Passphrase")
             verify rq
                 [ expectResponseCode HTTP.status403
                 , expectErrorMessage (errMsg403DelegationFee (feeQuit - 1))
                 ]
-
-    it "STAKE_POOLS_QUIT_01x - \
-        \Backward compatibility with pool ids" $ \ctx -> do
-        w <- fixtureWallet ctx
-        (_, p1:p2:_) <- eventually "Stake pools are listed" $
-            unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
-
-        -- Join a pool
-        joinStakePool ctx (p1 ^. #id) (w, fixturePassphrase) >>= flip verify
-            [ expectResponseCode HTTP.status202
-            , expectField (#status . #getApiT) (`shouldBe` Pending)
-            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-            ]
-        eventually "Last outgoing tx is in ledger" $ do
-            let ep = Link.listTransactions @'Shelley w
-            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListField 0
-                    (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectListField 0
-                    (#status . #getApiT) (`shouldBe` InLedger)
-                ]
-
-        -- Quit delegation with an arbitrary id
-        -- NOTE: We use another id purposely, just to show that the id has no
-        -- influence but doesn't lead to an API error.
-        let pid = BackwardCompat (Identity (p2 ^. #id))
-        quitStakePool ctx pid (w, fixturePassphrase) >>= flip verify
-            [ expectResponseCode HTTP.status202
-            , expectField (#status . #getApiT) (`shouldBe` Pending)
-            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-            ]
 
     it "STAKE_POOLS_JOIN_01 - I cannot rejoin the same stake-pool" $ \ctx -> do
         let (fee, _) = ctx ^. #_feeEstimator $ DelegDescription 1 1 1
@@ -573,24 +525,22 @@ spec = do
                 verifyIt ctx joinStakePool passphrase expec
 
             it ("Quit: " ++ expec) $ \ctx -> do
-                verifyIt ctx (\_ _ -> quitStakePool ctx placeholder) passphrase expec
+                verifyIt ctx (\_ _ -> quitStakePool ctx) passphrase expec
 
     describe "STAKE_POOLS_JOIN/QUIT_02 - Passphrase must be text" $ do
         let verifyIt ctx sPoolEndp = do
                 (_, p:_) <- eventually "Stake pools are listed" $
                     unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
                 w <- emptyWallet ctx
-                let payload = Json [json| {
-                        "passphrase": 123
-                        } |]
+                let payload = Json [json| { "passphrase": 123 } |]
                 r <- request @(ApiTransaction n) ctx (sPoolEndp p w)
                         Default payload
                 expectResponseCode HTTP.status400 r
-                expectErrorMessage "expected Text, encountered Number" r
+                expectErrorMessage "parsing Text failed" r
         it "Join" $ \ctx -> do
             verifyIt ctx Link.joinStakePool
         it "Quit" $ \ctx -> do
-            verifyIt ctx (\_ -> Link.quitStakePool placeholder)
+            verifyIt ctx (const Link.quitStakePool)
 
     it "STAKE_POOLS_JOIN_03 - Byron wallet cannot join stake pool" $ \ctx -> do
         (_, p:_) <- eventually "Stake pools are listed" $
@@ -610,7 +560,6 @@ spec = do
             unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
         w <- fixtureWallet ctx
         r <- delegationFee ctx w
-        print r
         verify r
             [ expectResponseCode HTTP.status200
             ]
@@ -647,35 +596,6 @@ spec = do
             , expectErrorMessage $ errMsg404NoWallet (w ^. walletId)
             ]
 
-    describe "STAKE_POOLS_ESTIMATE_FEE_04 - false wallet ids" $ do
-        forM_ falseWalletIds $ \(wDesc, walId) -> do
-            let path = "wallets/" <> walId
-            it ("wallet:" ++ wDesc) $ \ctx -> do
-                let endpoint = "v2/" <> T.pack path <> "/delegations/fees"
-                rg <- request @ApiFee ctx ("GET", endpoint) Default Empty
-                expectResponseCode @IO HTTP.status404 rg
-                if wDesc == "40 chars hex"
-                then expectErrorMessage (errMsg404NoWallet $ T.pack walId) rg
-                else expectErrorMessage errMsg404NoEndpoint rg
-
-    describe "STAKE_POOLS_ESTIMATE_FEE_05 -\
-        \ v2/wallets/{wid}/delegations/fees - Methods Not Allowed" $ do
-        let methods = ["POST", "PUT", "DELETE", "CONNECT", "TRACE", "OPTIONS"]
-        forM_ methods $ \method -> it (show method) $ \ctx -> do
-            w <- emptyWallet ctx
-            let ep = "v2/wallets/"<> w ^. walletId <> "/delegations/fees"
-            r <- request @ApiFee ctx (method, ep) Default Empty
-            expectResponseCode @IO HTTP.status405 r
-            expectErrorMessage errMsg405 r
-
-    describe "STAKE_POOLS_ESTIMATE_FEE_06 - HTTP headers" $ do
-        forM_ (getHeaderCases HTTP.status200)
-            $ \(title, headers, exps) -> it title $ \ctx -> do
-                w <- fixtureWallet ctx
-                let ep = Link.getDelegationFee w
-                r <- request @ApiFee ctx ep headers Empty
-                verify r exps
-
     describe "STAKE_POOLS_JOIN/QUIT_05 - Bad request" $ do
         let verifyIt ctx sPoolEndp = do
                 w <- emptyWallet ctx
@@ -687,72 +607,19 @@ spec = do
         it "Join" $ \ctx -> do
             verifyIt ctx Link.joinStakePool
         it "Quit" $ \ctx -> do
-            verifyIt ctx (\_ -> Link.quitStakePool placeholder)
-
-    describe "STAKE_POOLS_JOIN/QUIT_05 -  Methods Not Allowed" $ do
-        let methods = ["POST", "CONNECT", "TRACE", "OPTIONS"]
-        forM_ methods $ \method -> it ("Join: " ++ show method) $ \ctx -> do
-            w <- emptyWallet ctx
-            let payload = Json [json| {
-                    "passphrase": "Secure Passphrase"
-                    } |]
-            let link = withMethod method $
-                    Link.joinStakePool (Identity arbitraryPoolId) w
-            r <- request @(ApiTransaction n) ctx link Default payload
-            expectResponseCode HTTP.status405 r
-            expectErrorMessage errMsg405 r
-
-    describe "STAKE_POOLS_JOIN/QUIT_05 - HTTP headers" $ do
-        let verifyIt ctx sPoolEndp headers expec = do
-                w <- emptyWallet ctx
-                let payload = Json [json| {
-                        "passphrase": "Secure Passphrase"
-                        } |]
-                r <- request @(ApiTransaction n) ctx
-                        (sPoolEndp (Identity arbitraryPoolId) w) headers payload
-                verify r expec
-
-        let payloadHeaderCases =
-                    [ ( "No HTTP headers -> 415", None
-                       , [ expectResponseCode @IO HTTP.status415
-                         , expectErrorMessage errMsg415 ]
-                       )
-                     , ( "Accept: text/plain -> 406"
-                       , Headers
-                             [ ("Content-Type", "application/json")
-                             , ("Accept", "text/plain") ]
-                       , [ expectResponseCode @IO HTTP.status406
-                         , expectErrorMessage errMsg406 ]
-                       )
-                     , ( "No Content-Type -> 415"
-                       , Headers [ ("Accept", "application/json") ]
-                       , [ expectResponseCode @IO HTTP.status415
-                         , expectErrorMessage errMsg415 ]
-                       )
-                     , ( "Content-Type: text/plain -> 415"
-                       , Headers [ ("Content-Type", "text/plain") ]
-                       , [ expectResponseCode @IO HTTP.status415
-                         , expectErrorMessage errMsg415 ]
-                       )
-                     ]
-        forM_ payloadHeaderCases $ \(title, headers, expectations) -> do
-            it ("Join: " ++ title) $ \ctx ->
-                verifyIt ctx Link.joinStakePool headers expectations
-        forM_ payloadHeaderCases $ \(title, headers, expectations) -> do
-            it ("Quit: " ++ title) $ \ctx ->
-                verifyIt ctx (\_ -> Link.quitStakePool placeholder) headers expectations
+            verifyIt ctx (const Link.quitStakePool)
 
     it "STAKE_POOLS_QUIT_01 - Quiting before even joining" $ \ctx -> do
         w <- emptyWallet ctx
 
-        r <- quitStakePool ctx placeholder (w, "Secure Passprase")
+        r <- quitStakePool ctx (w, "Secure Passprase")
         expectResponseCode HTTP.status403 r
         expectErrorMessage errMsg403NotDelegating r
 
     it "STAKE_POOLS_QUIT_02 - Passphrase must be correct to quit" $ \ctx -> do
         (w, _) <- joinStakePoolWithFixtureWallet ctx
 
-        r <- quitStakePool ctx placeholder (w, "Incorrect Passphrase")
+        r <- quitStakePool ctx (w, "Incorrect Passphrase")
         expectResponseCode HTTP.status403 r
         expectErrorMessage errMsg403WrongPass r
 
@@ -814,7 +681,7 @@ spec = do
                 ]
 
         --quiting
-        r3 <- quitStakePool ctx placeholder (w, fixturePassphrase)
+        r3 <- quitStakePool ctx (w, fixturePassphrase)
         expectResponseCode HTTP.status202 r3
         eventually "Last 3 txs are in ledger" $ do
             let ep = Link.listTransactions @'Shelley w
@@ -1020,6 +887,3 @@ getSlotParams ctx = do
     let sp = SlotParameters (EpochLength epochL) (SlotLength slotL) genesisBlockDate (ActiveSlotCoefficient coeff)
 
     return (currentEpoch, sp)
-
-placeholder :: BackwardCompatPlaceholder (Identity (ApiT PoolId))
-placeholder = Placeholder

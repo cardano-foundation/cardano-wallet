@@ -39,7 +39,7 @@ let
       '';
 in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
   {
-    flags = { ipv6 = false; cddl = false; };
+    flags = { asserts = false; ipv6 = false; cddl = false; };
     package = {
       specVersion = "1.10";
       identifier = { name = "ouroboros-network"; version = "0.1.0.0"; };
@@ -68,6 +68,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."bytestring" or (buildDepError "bytestring"))
           (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
           (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
+          (hsPkgs."cardano-slotting" or (buildDepError "cardano-slotting"))
           (hsPkgs."cborg" or (buildDepError "cborg"))
           (hsPkgs."containers" or (buildDepError "containers"))
           (hsPkgs."dns" or (buildDepError "dns"))
@@ -75,6 +76,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."fingertree" or (buildDepError "fingertree"))
           (hsPkgs."iproute" or (buildDepError "iproute"))
           (hsPkgs."network" or (buildDepError "network"))
+          (hsPkgs."psqueues" or (buildDepError "psqueues"))
           (hsPkgs."serialise" or (buildDepError "serialise"))
           (hsPkgs."stm" or (buildDepError "stm"))
           (hsPkgs."time" or (buildDepError "time"))
@@ -82,6 +84,30 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."text" or (buildDepError "text"))
           ];
         buildable = true;
+        };
+      sublibs = {
+        "ouroboros-protocol-tests" = {
+          depends = [
+            (hsPkgs."base" or (buildDepError "base"))
+            (hsPkgs."bytestring" or (buildDepError "bytestring"))
+            (hsPkgs."cborg" or (buildDepError "cborg"))
+            (hsPkgs."containers" or (buildDepError "containers"))
+            (hsPkgs."pipes" or (buildDepError "pipes"))
+            (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
+            (hsPkgs."serialise" or (buildDepError "serialise"))
+            (hsPkgs."tasty" or (buildDepError "tasty"))
+            (hsPkgs."tasty-quickcheck" or (buildDepError "tasty-quickcheck"))
+            (hsPkgs."text" or (buildDepError "text"))
+            (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
+            (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
+            (hsPkgs."io-sim" or (buildDepError "io-sim"))
+            (hsPkgs."io-sim-classes" or (buildDepError "io-sim-classes"))
+            (hsPkgs."typed-protocols" or (buildDepError "typed-protocols"))
+            (hsPkgs."typed-protocols-cbor" or (buildDepError "typed-protocols-cbor"))
+            (hsPkgs."ouroboros-network" or (buildDepError "ouroboros-network"))
+            ];
+          buildable = true;
+          };
         };
       exes = {
         "demo-chain-sync" = {
@@ -116,6 +142,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."bytestring" or (buildDepError "bytestring"))
             (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
             (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
+            (hsPkgs."cardano-slotting" or (buildDepError "cardano-slotting"))
             (hsPkgs."cborg" or (buildDepError "cborg"))
             (hsPkgs."containers" or (buildDepError "containers"))
             (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
@@ -129,6 +156,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."mtl" or (buildDepError "mtl"))
             (hsPkgs."network-mux" or (buildDepError "network-mux"))
             (hsPkgs."network" or (buildDepError "network"))
+            (hsPkgs."psqueues" or (buildDepError "psqueues"))
             (hsPkgs."ouroboros-network-testing" or (buildDepError "ouroboros-network-testing"))
             (hsPkgs."pipes" or (buildDepError "pipes"))
             (hsPkgs."process" or (buildDepError "process"))
@@ -143,15 +171,18 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."time" or (buildDepError "time"))
             (hsPkgs."typed-protocols-cbor" or (buildDepError "typed-protocols-cbor"))
             (hsPkgs."typed-protocols" or (buildDepError "typed-protocols"))
+            (hsPkgs."ouroboros-network" or (buildDepError "ouroboros-network"))
+            (hsPkgs."ouroboros-protocol-tests" or (buildDepError "ouroboros-protocol-tests"))
             ];
           buildable = true;
           };
-        "cddl" = {
+        "test-cddl" = {
           depends = [
             (hsPkgs."base" or (buildDepError "base"))
             (hsPkgs."bytestring" or (buildDepError "bytestring"))
             (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
             (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
+            (hsPkgs."cardano-slotting" or (buildDepError "cardano-slotting"))
             (hsPkgs."cborg" or (buildDepError "cborg"))
             (hsPkgs."containers" or (buildDepError "containers"))
             (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
@@ -169,6 +200,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."text" or (buildDepError "text"))
             (hsPkgs."typed-protocols-cbor" or (buildDepError "typed-protocols-cbor"))
             (hsPkgs."typed-protocols" or (buildDepError "typed-protocols"))
+            (hsPkgs."ouroboros-network" or (buildDepError "ouroboros-network"))
+            (hsPkgs."ouroboros-protocol-tests" or (buildDepError "ouroboros-protocol-tests"))
             ];
           buildable = if !flags.cddl then false else true;
           };
@@ -177,8 +210,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "c785fe64445357b806c847fa438fc7612563b42b";
-      sha256 = "015ac7fj10xg5wcgv265qdgi85gdgj14cl03lrnqsmyqxsy1pjpn";
+      rev = "398004e1403367cc2a25c639eb6349d473e51b2d";
+      sha256 = "1x940w0sma3mhl4hfd937sp25hdl3migkl8zsyl92p59468218i9";
       });
     postUnpack = "sourceRoot+=/ouroboros-network; echo source root reset to \$sourceRoot";
     }

@@ -153,7 +153,6 @@ import GHC.TypeLits
 import Type.Reflection
     ( typeOf )
 
-import qualified Basement.Compat.Base as B
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
@@ -473,11 +472,10 @@ instance
                 "Invalid number of words: "
                 <> show (natVal (Proxy :: Proxy mw))
                 <> " words are expected."
-            ErrDictionary (ErrInvalidDictionaryWord w) ->
-                "Found an unknown word not present in the pre-defined dictionary\
-                \: \"" <> B.toList w <> "\". The full dictionary is available \
-                \here: https://github.com/input-output-hk/cardano-wallet/tree/m\
-                \aster/specifications/mnemonic/english.txt"
+            ErrDictionary (ErrInvalidDictionaryWord _) ->
+                "Found an unknown word not present in the pre-defined dictionary. \
+                \The full dictionary is available here: \
+                \https://github.com/input-output-hk/cardano-wallet/tree/master/specifications/mnemonic/english.txt"
             ErrEntropy ErrInvalidEntropyChecksum{} ->
                 "Invalid entropy checksum: please double-check the last word of \
                 \your mnemonic sentence."

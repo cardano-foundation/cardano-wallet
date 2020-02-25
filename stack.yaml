@@ -1,4 +1,4 @@
-resolver: lts-13.24
+resolver: lts-14.25
 
 packages:
 - lib/core
@@ -16,9 +16,15 @@ extra-deps:
 - bech32-1.0.2
 - bech32-th-1.0.2
 - OddWord-1.0.2.0
-- quickcheck-state-machine-0.6.0
 - command-0.1.1
-- clock-0.8
+- wai-extra-3.0.29.1
+
+# Needed because network > 3.1 is needed for cardano-wallet-byron
+- servant-0.17
+- servant-server-0.17
+- servant-client-core-0.17
+- servant-client-0.17
+- servant-swagger-1.1.8
 
 # 'zip' with an extra flag to disable bzlib2 library
 - zip-1.3.0
@@ -35,7 +41,7 @@ extra-deps:
 
 # cardano-crypto
 - git: https://github.com/input-output-hk/cardano-crypto
-  commit: 3c5db489c71a4d70ee43f5f9b979fcde3c797f2a
+  commit: 05aa1bc640c42bfca787531d12595489c1fa3b82
 
 # iohk-monitoring-framework
 - git: https://github.com/input-output-hk/iohk-monitoring-framework
@@ -45,9 +51,6 @@ extra-deps:
     - iohk-monitoring
     - plugins/backend-aggregation
     - plugins/backend-monitoring
-    # - plugins/backend-editor
-    # - plugins/backend-ekg
-    # - plugins/scribe-systemd
 # dependencies of iohk-monitoring-framework
 - git: https://github.com/CodiePP/ekg-prometheus-adapter
   commit: 1a258b6df7d9807d4c4ff3e99722223d31a2c320
@@ -56,18 +59,24 @@ extra-deps:
 - libsystemd-journal-1.4.4
 - katip-0.8.3.0
 
-# dependencies for cardano-wallet-shelley
-- tasty-hedgehog-1.0.0.1
+# dependencies for cardano-wallet-byron
 - streaming-binary-0.3.0.1
-- hedgehog-1.0
 - generic-monoid-0.1.0.0
-- bimap-0.4.0@sha256:c59d587b56b575c299ba0c2fff44e630991a120a167de5a19cd7a81320f63c84,1717
-- canonical-json-0.6.0.0@sha256:9021f435ccb884a3b4c55bcc6b50eb19d5fc3cc3f29d5fcbdef016f5bbae23a2,3488
-- cborg-0.2.2.0@sha256:eaee50d09d766af95ba18348e4fc230243033b98633ed46ccb5ae85efef7dc6c,4779
-- statistics-linreg-0.3@sha256:95c6efe6c7f6b26bc6e9ada90ab2d18216371cf59a6ef2b517b4a6fd35d9a76f,2544
+- canonical-json-0.6.0.0
+- cborg-0.2.2.0
+- statistics-linreg-0.3
+- network-3.1.0.1
+- connection-0.3.1
+- Unique-0.4.7.6
+- moo-1.2
+- gray-code-0.3.1
+
+# - bimap-0.4.0
+# - hedgehog-1.0
+# - tasty-hedgehog-1.0.0.1
 
 - git: https://github.com/input-output-hk/cardano-base
-  commit: 468d9b79ae3ac28f5f2cbb3ce52623a69923c4ef
+  commit: eed4fc484366214831576eef0c7fe90d1d08c78b
   subdirs:
     - binary
     - binary/test
@@ -75,28 +84,39 @@ extra-deps:
     - slotting
 
 - git: https://github.com/input-output-hk/cardano-ledger
-  commit: dbdb643722e431e4d232345a0eafdc7bdeab7b60
+  commit: c62e2eeba5756898cbf59732fccd6a83a4065c18
   subdirs:
     - cardano-ledger
     - cardano-ledger/test
     - crypto
     - crypto/test
 
+- git: https://github.com/input-output-hk/cardano-ledger-specs
+  commit: f27e8b66a393f0b7da1893889dcea07da0fe4dec
+  subdirs:
+    - byron/semantics/executable-spec # small-steps
+    - byron/ledger/executable-spec    # cs-ledger
+    - byron/chain/executable-spec     # cs-blockchain
+
+- git: https://github.com/input-output-hk/goblins
+  commit: 26d35ad52fe9ade3391532dbfeb2f416f07650bc
+
 - git: https://github.com/input-output-hk/cardano-prelude
-  commit: 3c40edcf5bdba8721d3430d0aaaeea8770ce9bec
+  commit: 00487726c4bc21b4744e59d913334ebfeac7d68e
   subdirs:
     - .
     - test
 
 - git: https://github.com/input-output-hk/ouroboros-network
-  commit: c785fe64445357b806c847fa438fc7612563b42b
+  commit: 398004e1403367cc2a25c639eb6349d473e51b2d
   subdirs:
-      - io-sim-classes
-      - network-mux
-      - ouroboros-network
-      - ouroboros-consensus
-      - typed-protocols
-      - typed-protocols-cbor
+    - io-sim
+    - io-sim-classes
+    - network-mux
+    - ouroboros-network
+    - ouroboros-consensus
+    - typed-protocols
+    - typed-protocols-cbor
 
 flags:
   # Avoid a system library which causes difficulty with cross-compilation

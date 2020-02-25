@@ -46,16 +46,9 @@ import Test.Integration.Framework.DSL
     , request
     , verify
     , walletId
-    , withMethod
-    , withPathParam
     )
 import Test.Integration.Framework.TestData
-    ( errMsg404NoEndpoint
-    , errMsg404NoWallet
-    , errMsg405
-    , errMsg406
-    , falseWalletIds
-    )
+    ( errMsg404NoWallet )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
@@ -124,6 +117,8 @@ spec = do
             expectListField
                 addrNum (#state . #getApiT) (`shouldBe` Unused) rUnused
 
+    -- TODO
+    -- MOVE TO test/unit/Cardano/Wallet/ApiSpec.hs
     describe "ADDRESS_LIST_02 - Invalid filters are bad requests" $ do
         let filters =
                 [ "usedd"
@@ -204,26 +199,6 @@ spec = do
             expectListField
                 addrNum (#state . #getApiT) (`shouldBe` Unused) rAddr
 
-    describe "ADDRESS_LIST_04 - False wallet ids" $ do
-        forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
-            w <- emptyWallet ctx
-            let endpoint = withPathParam 0 (const $ T.pack walId) $
-                    Link.listAddresses w
-            r <- request @[ApiAddress n] ctx endpoint Default Empty
-            expectResponseCode @IO HTTP.status404 r
-            if (title == "40 chars hex") then
-                expectErrorMessage (errMsg404NoWallet $ T.pack walId) r
-            else
-                expectErrorMessage errMsg404NoEndpoint r
-
-    it "ADDRESS_LIST_04 - 'almost' valid walletId" $ \ctx -> do
-        w <- emptyWallet ctx
-        let endpoint = withPathParam 0 (<> "0") $
-                Link.listAddresses w
-        r <- request @[ApiAddress n] ctx endpoint Default Empty
-        expectResponseCode @IO HTTP.status404 r
-        expectErrorMessage errMsg404NoEndpoint r
-
     it "ADDRESS_LIST_04 - Deleted wallet" $ \ctx -> do
         w <- emptyWallet ctx
         _ <- request @ApiWallet ctx
@@ -232,42 +207,3 @@ spec = do
             (Link.listAddresses w) Default Empty
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
-
-    describe "ADDRESS_LIST_05 - v2/wallets/{id}/addresses - Methods Not Allowed" $ do
-        let matrix = ["PUT", "DELETE", "CONNECT", "TRACE", "OPTIONS", "POST"]
-        forM_ matrix $ \method -> it (show method) $ \ctx -> do
-            w <- emptyWallet ctx
-            let link = withMethod method $ Link.listAddresses w
-            r <- request @[ApiAddress n] ctx link Default Empty
-            expectResponseCode @IO HTTP.status405 r
-            expectErrorMessage errMsg405 r
-
-    describe "ADDRESS_LIST_05 - Request headers" $ do
-        let headerCases =
-                  [ ( "No HTTP headers -> 200", None
-                    , [ expectResponseCode @IO HTTP.status200 ] )
-                  , ( "Accept: text/plain -> 406"
-                    , Headers
-                          [ ("Content-Type", "application/json")
-                          , ("Accept", "text/plain") ]
-                    , [ expectResponseCode @IO HTTP.status406
-                      , expectErrorMessage errMsg406 ]
-                    )
-                  , ( "No Accept -> 200"
-                    , Headers [ ("Content-Type", "application/json") ]
-                    , [ expectResponseCode @IO HTTP.status200 ]
-                    )
-                  , ( "No Content-Type -> 200"
-                    , Headers [ ("Accept", "application/json") ]
-                    , [ expectResponseCode @IO HTTP.status200 ]
-                    )
-                  , ( "Content-Type: text/plain -> 200"
-                    , Headers [ ("Content-Type", "text/plain") ]
-                    , [ expectResponseCode @IO HTTP.status200 ]
-                    )
-                  ]
-        forM_ headerCases $ \(title, headers, expectations) -> it title $ \ctx -> do
-            w <- emptyWallet ctx
-            r <- request @[ApiAddress n] ctx
-                (Link.listAddresses w) headers Empty
-            verify r expectations

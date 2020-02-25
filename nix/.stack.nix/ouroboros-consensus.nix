@@ -39,7 +39,7 @@ let
       '';
 in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
   {
-    flags = {};
+    flags = { asserts = false; };
     package = {
       specVersion = "1.10";
       identifier = { name = "ouroboros-consensus"; version = "0.1.0.0"; };
@@ -72,13 +72,18 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."cardano-crypto-class" or (buildDepError "cardano-crypto-class"))
           (hsPkgs."cardano-crypto-wrapper" or (buildDepError "cardano-crypto-wrapper"))
           (hsPkgs."cardano-ledger" or (buildDepError "cardano-ledger"))
+          (hsPkgs."cardano-ledger-test" or (buildDepError "cardano-ledger-test"))
           (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
+          (hsPkgs."cardano-slotting" or (buildDepError "cardano-slotting"))
           (hsPkgs."cborg" or (buildDepError "cborg"))
           (hsPkgs."containers" or (buildDepError "containers"))
           (hsPkgs."cryptonite" or (buildDepError "cryptonite"))
+          (hsPkgs."cs-blockchain" or (buildDepError "cs-blockchain"))
+          (hsPkgs."cs-ledger" or (buildDepError "cs-ledger"))
           (hsPkgs."deepseq" or (buildDepError "deepseq"))
           (hsPkgs."digest" or (buildDepError "digest"))
           (hsPkgs."directory" or (buildDepError "directory"))
+          (hsPkgs."filelock" or (buildDepError "filelock"))
           (hsPkgs."filepath" or (buildDepError "filepath"))
           (hsPkgs."fingertree" or (buildDepError "fingertree"))
           (hsPkgs."formatting" or (buildDepError "formatting"))
@@ -87,8 +92,11 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."mmorph" or (buildDepError "mmorph"))
           (hsPkgs."mtl" or (buildDepError "mtl"))
           (hsPkgs."network" or (buildDepError "network"))
+          (hsPkgs."psqueues" or (buildDepError "psqueues"))
           (hsPkgs."serialise" or (buildDepError "serialise"))
+          (hsPkgs."small-steps" or (buildDepError "small-steps"))
           (hsPkgs."stm" or (buildDepError "stm"))
+          (hsPkgs."streaming" or (buildDepError "streaming"))
           (hsPkgs."text" or (buildDepError "text"))
           (hsPkgs."time" or (buildDepError "time"))
           (hsPkgs."transformers" or (buildDepError "transformers"))
@@ -148,24 +156,32 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."bytestring" or (buildDepError "bytestring"))
             (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
             (hsPkgs."cardano-crypto-class" or (buildDepError "cardano-crypto-class"))
-            (hsPkgs."cardano-crypto-wrapper" or (buildDepError "cardano-crypto-wrapper"))
             (hsPkgs."cardano-crypto-test" or (buildDepError "cardano-crypto-test"))
+            (hsPkgs."cardano-crypto-wrapper" or (buildDepError "cardano-crypto-wrapper"))
             (hsPkgs."cardano-ledger" or (buildDepError "cardano-ledger"))
             (hsPkgs."cardano-ledger-test" or (buildDepError "cardano-ledger-test"))
             (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
+            (hsPkgs."cardano-slotting" or (buildDepError "cardano-slotting"))
             (hsPkgs."typed-protocols" or (buildDepError "typed-protocols"))
             (hsPkgs."network-mux" or (buildDepError "network-mux"))
             (hsPkgs."ouroboros-network" or (buildDepError "ouroboros-network"))
             (hsPkgs."ouroboros-consensus" or (buildDepError "ouroboros-consensus"))
             (hsPkgs."io-sim-classes" or (buildDepError "io-sim-classes"))
             (hsPkgs."io-sim" or (buildDepError "io-sim"))
+            (hsPkgs."cs-blockchain" or (buildDepError "cs-blockchain"))
+            (hsPkgs."cs-ledger" or (buildDepError "cs-ledger"))
+            (hsPkgs."small-steps" or (buildDepError "small-steps"))
+            (hsPkgs."hedgehog" or (buildDepError "hedgehog"))
+            (hsPkgs."hedgehog-quickcheck" or (buildDepError "hedgehog-quickcheck"))
             (hsPkgs."binary-search" or (buildDepError "binary-search"))
             (hsPkgs."cborg" or (buildDepError "cborg"))
             (hsPkgs."containers" or (buildDepError "containers"))
             (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
             (hsPkgs."cryptonite" or (buildDepError "cryptonite"))
             (hsPkgs."deepseq" or (buildDepError "deepseq"))
+            (hsPkgs."directory" or (buildDepError "directory"))
             (hsPkgs."fgl" or (buildDepError "fgl"))
+            (hsPkgs."filepath" or (buildDepError "filepath"))
             (hsPkgs."fingertree" or (buildDepError "fingertree"))
             (hsPkgs."generics-sop" or (buildDepError "generics-sop"))
             (hsPkgs."graphviz" or (buildDepError "graphviz"))
@@ -176,10 +192,13 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."random" or (buildDepError "random"))
             (hsPkgs."serialise" or (buildDepError "serialise"))
             (hsPkgs."tasty" or (buildDepError "tasty"))
+            (hsPkgs."tasty-golden" or (buildDepError "tasty-golden"))
             (hsPkgs."tasty-hunit" or (buildDepError "tasty-hunit"))
             (hsPkgs."tasty-quickcheck" or (buildDepError "tasty-quickcheck"))
+            (hsPkgs."temporary" or (buildDepError "temporary"))
             (hsPkgs."text" or (buildDepError "text"))
             (hsPkgs."time" or (buildDepError "time"))
+            (hsPkgs."transformers" or (buildDepError "transformers"))
             (hsPkgs."tree-diff" or (buildDepError "tree-diff"))
             ];
           buildable = true;
@@ -231,8 +250,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "c785fe64445357b806c847fa438fc7612563b42b";
-      sha256 = "015ac7fj10xg5wcgv265qdgi85gdgj14cl03lrnqsmyqxsy1pjpn";
+      rev = "398004e1403367cc2a25c639eb6349d473e51b2d";
+      sha256 = "1x940w0sma3mhl4hfd937sp25hdl3migkl8zsyl92p59468218i9";
       });
     postUnpack = "sourceRoot+=/ouroboros-consensus; echo source root reset to \$sourceRoot";
     }

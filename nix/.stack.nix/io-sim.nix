@@ -39,17 +39,17 @@ let
       '';
 in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
   {
-    flags = { checktvarinvariant = false; asserts = false; };
+    flags = { asserts = false; };
     package = {
       specVersion = "1.10";
-      identifier = { name = "io-sim-classes"; version = "0.1.0.0"; };
+      identifier = { name = "io-sim"; version = "0.1.0.0"; };
       license = "Apache-2.0";
       copyright = "2019 Input Output (Hong Kong) Ltd.";
       maintainer = "";
       author = "Alexander Vieth, Marcin Szamotulski, Duncan Coutts";
       homepage = "";
       url = "";
-      synopsis = "Type classes for concurrency with STM, ST and timing";
+      synopsis = "A pure simlator for monadic concurrency with STM";
       description = "";
       buildType = "Simple";
       isLocal = true;
@@ -58,13 +58,29 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       "library" = {
         depends = [
           (hsPkgs."base" or (buildDepError "base"))
-          (hsPkgs."async" or (buildDepError "async"))
-          (hsPkgs."bytestring" or (buildDepError "bytestring"))
-          (hsPkgs."mtl" or (buildDepError "mtl"))
-          (hsPkgs."stm" or (buildDepError "stm"))
+          (hsPkgs."io-sim-classes" or (buildDepError "io-sim-classes"))
+          (hsPkgs."exceptions" or (buildDepError "exceptions"))
+          (hsPkgs."containers" or (buildDepError "containers"))
+          (hsPkgs."psqueues" or (buildDepError "psqueues"))
           (hsPkgs."time" or (buildDepError "time"))
           ];
         buildable = true;
+        };
+      tests = {
+        "test-sim" = {
+          depends = [
+            (hsPkgs."base" or (buildDepError "base"))
+            (hsPkgs."array" or (buildDepError "array"))
+            (hsPkgs."containers" or (buildDepError "containers"))
+            (hsPkgs."io-sim" or (buildDepError "io-sim"))
+            (hsPkgs."io-sim-classes" or (buildDepError "io-sim-classes"))
+            (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
+            (hsPkgs."tasty" or (buildDepError "tasty"))
+            (hsPkgs."tasty-quickcheck" or (buildDepError "tasty-quickcheck"))
+            (hsPkgs."time" or (buildDepError "time"))
+            ];
+          buildable = true;
+          };
         };
       };
     } // {
@@ -73,5 +89,5 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       rev = "398004e1403367cc2a25c639eb6349d473e51b2d";
       sha256 = "1x940w0sma3mhl4hfd937sp25hdl3migkl8zsyl92p59468218i9";
       });
-    postUnpack = "sourceRoot+=/io-sim-classes; echo source root reset to \$sourceRoot";
+    postUnpack = "sourceRoot+=/io-sim; echo source root reset to \$sourceRoot";
     }

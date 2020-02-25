@@ -73,7 +73,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."formatting" or (buildDepError "formatting"))
           (hsPkgs."memory" or (buildDepError "memory"))
           (hsPkgs."mtl" or (buildDepError "mtl"))
-          (hsPkgs."scrypt" or (buildDepError "scrypt"))
           (hsPkgs."text" or (buildDepError "text"))
           ];
         buildable = true;
@@ -102,8 +101,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger";
-      rev = "dbdb643722e431e4d232345a0eafdc7bdeab7b60";
-      sha256 = "0vql7f53dq8zf595l3kzdzssz5801pz6z140q5fpnk38kr97s9da";
+      rev = "c62e2eeba5756898cbf59732fccd6a83a4065c18";
+      sha256 = "04s2dp5dyikm2pxfphiyh429pckkg06dqx3sl4bbzvg6x5qfqvbn";
       });
     postUnpack = "sourceRoot+=/crypto; echo source root reset to \$sourceRoot";
     }

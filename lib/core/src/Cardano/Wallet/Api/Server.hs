@@ -32,6 +32,7 @@ module Cardano.Wallet.Api.Server
     , byronServer
     , newApiLayer
     , withListeningSocket
+    , LiftHandler(..)
     ) where
 
 import Prelude
@@ -113,6 +114,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkInformation (..)
     , ApiNetworkParameters (..)
     , ApiNetworkTip (..)
+    , ApiPoolId (..)
     , ApiSelectCoinsData (..)
     , ApiStakePool (..)
     , ApiStakePoolMetrics (..)
@@ -127,12 +129,12 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
     , ApiWalletPassphrase (..)
-    , BackwardCompatPlaceholder
     , ByronWalletPostData (..)
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
     , PostTransactionData
     , PostTransactionFeeData
+    , SomeByronWalletPostData (..)
     , WalletBalance (..)
     , WalletOrAccountPostData (..)
     , WalletPostData (..)
@@ -254,15 +256,13 @@ import Data.Streaming.Network
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( ToText (..) )
+    ( FromText (..), ToText (..) )
 import Data.Time
     ( UTCTime )
 import Data.Time.Clock
     ( getCurrentTime )
 import Data.Word
     ( Word32, Word64 )
-import Data.Word.Odd
-    ( Word31 )
 import Fmt
     ( Buildable, pretty )
 import GHC.Stack
@@ -279,7 +279,7 @@ import Network.Wai.Handler.Warp
     ( Port )
 import Network.Wai.Middleware.Logging
     ( ApiLog (..), newApiLoggerSettings, obfuscateKeys, withApiLogger )
-import Network.Wai.Middleware.ServantError
+import Network.Wai.Middleware.ServerError
     ( handleRawError )
 import Numeric.Natural
     ( Natural )
@@ -302,7 +302,7 @@ import Servant
     , throwError
     )
 import Servant.Server
-    ( Handler (..), ServantErr (..) )
+    ( Handler (..), ServerError (..) )
 import System.IO.Error
     ( ioeGetErrorType
     , isAlreadyInUseError
@@ -484,10 +484,12 @@ server byron icarus shelley spl =
 
     byronWallets :: Server ByronWallets
     byronWallets =
-             postRandomWallet byron
-        :<|> postIcarusWallet icarus
-        :<|> postTrezorWallet icarus
-        :<|> postLedgerWallet icarus
+        (\case
+            SomeRandomWallet x -> postRandomWallet byron x
+            SomeIcarusWallet x -> postIcarusWallet icarus x
+            SomeTrezorWallet x -> postTrezorWallet icarus x
+            SomeLedgerWallet x -> postLedgerWallet icarus x
+        )
         :<|> (\wid -> withLegacyLayer wid
                 (byron , deleteWallet byron wid)
                 (icarus, deleteWallet icarus wid)
@@ -584,15 +586,17 @@ byronServer byron icarus =
     stakePools =
              throwError err501
         :<|> (\_ _ _ -> throwError err501)
-        :<|> (\_ _ _ -> throwError err501)
+        :<|> (\_ _ -> throwError err501)
         :<|> (\_ -> throwError err501)
 
     byronWallets :: Server ByronWallets
     byronWallets =
-             postRandomWallet byron
-        :<|> postIcarusWallet icarus
-        :<|> postTrezorWallet icarus
-        :<|> postLedgerWallet icarus
+        (\case
+            SomeRandomWallet x -> postRandomWallet byron x
+            SomeIcarusWallet x -> postIcarusWallet icarus x
+            SomeTrezorWallet x -> postTrezorWallet icarus x
+            SomeLedgerWallet x -> postLedgerWallet icarus x
+        )
         :<|> (\wid -> withLegacyLayer wid
                 (byron , deleteWallet byron wid)
                 (icarus, deleteWallet icarus wid)
@@ -1272,11 +1276,15 @@ joinStakePool
         )
     => ctx
     -> StakePoolLayer IO
-    -> ApiT PoolId
+    -> ApiPoolId
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
-joinStakePool ctx spl (ApiT pid) (ApiT wid) (ApiWalletPassphrase (ApiT pwd)) = do
+joinStakePool ctx spl apiPoolId (ApiT wid) (ApiWalletPassphrase (ApiT pwd)) = do
+    pid <- case apiPoolId of
+        ApiPoolIdPlaceholder -> liftHandler $ throwE ErrUnexpectedPoolIdPlaceholder
+        ApiPoolId pid -> pure pid
+
     pools <- liftIO $ knownStakePools spl
 
     (tx, txMeta, txTime) <- liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
@@ -1316,11 +1324,10 @@ quitStakePool
         , ctx ~ ApiLayer s t k
         )
     => ctx
-    -> BackwardCompatPlaceholder (ApiT PoolId)
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
-quitStakePool ctx _ (ApiT wid) (ApiWalletPassphrase (ApiT pwd)) = do
+quitStakePool ctx (ApiT wid) (ApiWalletPassphrase (ApiT pwd)) = do
     (tx, txMeta, txTime) <- liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
         W.quitStakePool @_ @s @t @k wrk wid () pwd
 
@@ -1458,16 +1465,18 @@ getNetworkParameters
     -> Handler ApiNetworkParameters
 getNetworkParameters (_block0, bp, _st) apiEpochNum = do
     case apiEpochNum of
-        ApiEpochNumberInvalid txt ->
-            liftHandler $ throwE $ ErrGetNetworkParametersInvalidValue txt
         ApiEpochNumber epochNum -> do
             now <- liftIO getCurrentTime
             let ntrkTip =
                     fromMaybe slotMinBound (slotAt (W.slotParams bp) now)
             let currentEpochNum = ntrkTip ^. #epochNumber
-            when (currentEpochNum < epochNum) $ liftHandler $ throwE $
-                ErrGetNetworkParametersNoSuchEpochNo currentEpochNum epochNum
+            when (currentEpochNum < epochNum) $
+                liftHandler $ throwE $ ErrNoSuchEpoch
+                    { errGivenEpoch = epochNum
+                    , errCurrentEpoch = currentEpochNum
+                    }
             pure resp
+
         ApiEpochNumberLatest ->
             pure resp
   where
@@ -1483,10 +1492,10 @@ getNetworkParameters (_block0, bp, _st) apiEpochNum = do
             $ W.unActiveSlotCoefficient
             $ bp ^. #getActiveSlotCoefficient )
 
-data ErrGetNetworkParameters
-    = ErrGetNetworkParametersInvalidValue Text
-    | ErrGetNetworkParametersNoSuchEpochNo W.EpochNo W.EpochNo
-    deriving (Eq, Show)
+data ErrNoSuchEpoch = ErrNoSuchEpoch
+    { errGivenEpoch :: W.EpochNo
+    , errCurrentEpoch :: W.EpochNo
+    } deriving (Eq, Show)
 
 {-------------------------------------------------------------------------------
                                    Proxy
@@ -1712,15 +1721,18 @@ withWorkerCtx ctx wid onMissing action =
 class LiftHandler e where
     liftHandler :: ExceptT e IO a -> Handler a
     liftHandler action = Handler (withExceptT handler action)
-    handler :: e -> ServantErr
+    handler :: e -> ServerError
 
-apiError :: ServantErr -> ApiErrorCode -> Text -> ServantErr
+apiError :: ServerError -> ApiErrorCode -> Text -> ServerError
 apiError err code message = err
     { errBody = Aeson.encode $ Aeson.object
         [ "code" .= code
         , "message" .= T.replace "\n" " " message
         ]
     }
+
+data ErrUnexpectedPoolIdPlaceholder = ErrUnexpectedPoolIdPlaceholder
+    deriving (Eq, Show)
 
 data ErrCreateWallet
     = ErrCreateWalletAlreadyExists ErrWalletAlreadyExists
@@ -1735,6 +1747,13 @@ newtype ErrRejectedTip = ErrRejectedTip ApiNetworkTip
 -- | Small helper to easy show things to Text
 showT :: Show a => a -> Text
 showT = T.pack . show
+
+instance LiftHandler ErrUnexpectedPoolIdPlaceholder where
+    handler = \case
+        ErrUnexpectedPoolIdPlaceholder ->
+            apiError err400 BadRequest (pretty msg)
+      where
+        Left msg = fromText @PoolId "INVALID"
 
 instance LiftHandler ErrRejectedTip where
     handler = \case
@@ -2109,30 +2128,20 @@ instance LiftHandler ErrQuitStakePool where
                 , "incur an unnecessary fee!"
                 ]
 
-instance LiftHandler ErrGetNetworkParameters where
+instance LiftHandler ErrNoSuchEpoch where
     handler = \case
-        ErrGetNetworkParametersInvalidValue txt ->
-            apiError err400 InvalidEpochNo $ mconcat
-                [ "I couldn't show blockchain parameters for "
-                , txt
-                , ". It should be either 'latest' or integer from "
-                , T.pack (show (minBound @Word31))
-                , " to "
-                , T.pack (show (maxBound @Word31))
-                , "."
-                ]
-        ErrGetNetworkParametersNoSuchEpochNo (W.EpochNo cEpochNo) (W.EpochNo rEpochNo) ->
-            apiError err404 NotSuchEpochNo $ mconcat
+        ErrNoSuchEpoch {errGivenEpoch,errCurrentEpoch}->
+            apiError err404 NoSuchEpochNo $ mconcat
                 [ "I couldn't show blockchain parameters for epoch number later"
                 , " than current one. You requested "
-                , T.pack (show rEpochNo)
+                , pretty errGivenEpoch
                 , " epoch. Current one is "
-                , T.pack (show cEpochNo)
+                , pretty errCurrentEpoch
                 , ". Use smaller epoch than current or 'latest'."
                 ]
 
-instance LiftHandler (Request, ServantErr) where
-    handler (req, err@(ServantErr code _ body headers))
+instance LiftHandler (Request, ServerError) where
+    handler (req, err@(ServerError code _ body headers))
       | not (isJSON body) = case code of
         400 | "Failed reading" `BS.isInfixOf` BL.toStrict body ->
             apiError err' BadRequest $ mconcat

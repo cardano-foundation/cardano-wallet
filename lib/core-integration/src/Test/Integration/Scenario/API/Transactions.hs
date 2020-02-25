@@ -93,8 +93,7 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.Request
     ( RequestException )
 import Test.Integration.Framework.TestData
-    ( arabicWalletName
-    , errMsg400StartTimeLaterThanEndTime
+    ( errMsg400StartTimeLaterThanEndTime
     , errMsg403Fee
     , errMsg403InputsDepleted
     , errMsg403NoPendingAnymore
@@ -102,16 +101,7 @@ import Test.Integration.Framework.TestData
     , errMsg403UTxO
     , errMsg403WrongPass
     , errMsg404CannotFindTx
-    , errMsg404NoEndpoint
     , errMsg404NoWallet
-    , errMsg405
-    , errMsg406
-    , errMsg415
-    , falseWalletIds
-    , getHeaderCases
-    , kanjiWalletName
-    , polishWalletName
-    , wildcardsWalletName
     )
 import Web.HttpApiData
     ( ToHttpApiData (..) )
@@ -524,141 +514,97 @@ spec = do
             , expectErrorMessage errMsg403WrongPass
             ]
 
-    describe "TRANS_CREATE_05 - Invalid addresses" $ do
-        forM_ matrixWrongAddrs $ \(title, addr, errMsg) -> it title $ \ctx -> do
-            wSrc <- emptyWallet ctx
-            let payload = Json [json|{
-                    "payments": [{
-                        "address": #{addr},
-                        "amount": {
-                            "quantity": 1,
-                            "unit": "lovelace"
-                        }
-                    }],
-                    "passphrase": "cardano-wallet"
-                }|]
-            r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
-            verify r
-                [ expectResponseCode HTTP.status400
-                , expectErrorMessage errMsg
-                ]
+    -- TODO
+    -- MOVE TO test/unit/Cardano/Wallet/ApiSpec.hs
+    --
+    -- describe "TRANS_CREATE_05 - Invalid addresses" $ do
+    --     forM_ matrixWrongAddrs $ \(title, addr, errMsg) -> it title $ \ctx -> do
+    --         wSrc <- emptyWallet ctx
+    --         let payload = Json [json|{
+    --                 "payments": [{
+    --                     "address": #{addr},
+    --                     "amount": {
+    --                         "quantity": 1,
+    --                         "unit": "lovelace"
+    --                     }
+    --                 }],
+    --                 "passphrase": "cardano-wallet"
+    --             }|]
+    --         r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
+    --         verify r
+    --             [ expectResponseCode HTTP.status400
+    --             , expectErrorMessage errMsg
+    --             ]
 
-    it "TRANS_CREATE_05 - [] as address" $ \ctx -> do
-        wSrc <- emptyWallet ctx
-        let payload = Json [json|{
-                "payments": [{
-                    "address": [],
-                    "amount": {
-                        "quantity": 1,
-                        "unit": "lovelace"
-                    }
-                }],
-                "passphrase": "cardano-wallet"
-            }|]
-        r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
-        verify r
-            [ expectResponseCode HTTP.status400
-            , expectErrorMessage "expected Text, encountered Array"
-            ]
+    -- it "TRANS_CREATE_05 - [] as address" $ \ctx -> do
+    --     wSrc <- emptyWallet ctx
+    --     let payload = Json [json|{
+    --             "payments": [{
+    --                 "address": [],
+    --                 "amount": {
+    --                     "quantity": 1,
+    --                     "unit": "lovelace"
+    --                 }
+    --             }],
+    --             "passphrase": "cardano-wallet"
+    --         }|]
+    --     r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
+    --     verify r
+    --         [ expectResponseCode HTTP.status400
+    --         , expectErrorMessage "expected Text, encountered Array"
+    --         ]
 
-    it "TRANS_CREATE_05 - Num as address" $ \ctx -> do
-        wSrc <- emptyWallet ctx
-        let payload = Json [json|{
-                "payments": [{
-                    "address": 123123,
-                    "amount": {
-                        "quantity": 1,
-                        "unit": "lovelace"
-                    }
-                }],
-                "passphrase": "cardano-wallet"
-            }|]
-        r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
-        verify r
-            [ expectResponseCode HTTP.status400
-            , expectErrorMessage "expected Text, encountered Num"
-            ]
+    -- it "TRANS_CREATE_05 - Num as address" $ \ctx -> do
+    --     wSrc <- emptyWallet ctx
+    --     let payload = Json [json|{
+    --             "payments": [{
+    --                 "address": 123123,
+    --                 "amount": {
+    --                     "quantity": 1,
+    --                     "unit": "lovelace"
+    --                 }
+    --             }],
+    --             "passphrase": "cardano-wallet"
+    --         }|]
+    --     r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
+    --     verify r
+    --         [ expectResponseCode HTTP.status400
+    --         , expectErrorMessage "expected Text, encountered Num"
+    --         ]
 
-    it "TRANS_CREATE_05 - address param missing" $ \ctx -> do
-        wSrc <- emptyWallet ctx
-        let payload = Json [json|{
-                "payments": [{
-                    "amount": {
-                        "quantity": 1,
-                        "unit": "lovelace"
-                    }
-                }],
-                "passphrase": "cardano-wallet"
-            }|]
-        r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
-        verify r
-            [ expectResponseCode HTTP.status400
-            , expectErrorMessage "key 'address' not present"
-            ]
+    -- it "TRANS_CREATE_05 - address param missing" $ \ctx -> do
+    --     wSrc <- emptyWallet ctx
+    --     let payload = Json [json|{
+    --             "payments": [{
+    --                 "amount": {
+    --                     "quantity": 1,
+    --                     "unit": "lovelace"
+    --                 }
+    --             }],
+    --             "passphrase": "cardano-wallet"
+    --         }|]
+    --     r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
+    --     verify r
+    --         [ expectResponseCode HTTP.status400
+    --         , expectErrorMessage "key 'address' not present"
+    --         ]
 
-    describe "TRANS_CREATE_06 - Invalid amount" $ do
-        forM_ (matrixInvalidQuantities @(ApiTransaction n)) $ \(title, amt, expectations) -> it title $ \ctx -> do
-            wSrc <- emptyWallet ctx
-            wDest <- emptyWallet ctx
-            addr:_ <- listAddresses ctx wDest
+    -- describe "TRANS_CREATE_06 - Invalid amount" $ do
+    --     forM_ (matrixInvalidQuantities @(ApiTransaction n)) $ \(title, amt, expectations) -> it title $ \ctx -> do
+    --         wSrc <- emptyWallet ctx
+    --         wDest <- emptyWallet ctx
+    --         addr:_ <- listAddresses ctx wDest
 
-            let destination = addr ^. #id
-            let payload = Json [json|{
-                    "payments": [{
-                        "address": #{destination},
-                        "amount": #{amt}
-                    }],
-                    "passphrase": "cardano-wallet"
-                }|]
-            r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
-            verify r expectations
-
-    describe "TRANS_CREATE_07 - False wallet ids" $ do
-        forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
-            wDest <- emptyWallet ctx
-            addr:_ <- listAddresses ctx wDest
-            let destination = addr ^. #id
-            let payload = Json [json|{
-                    "payments": [{
-                        "address": #{destination},
-                        "amount": {
-                            "quantity": 1,
-                            "unit": "lovelace"
-                        }
-                    }],
-                    "passphrase": "cardano-wallet"
-                }|]
-            let endpoint = "v2/wallets/" <> walId <> "/transactions"
-            r <- request @(ApiTransaction n) ctx ("POST", T.pack endpoint)
-                    Default payload
-            expectResponseCode HTTP.status404 r
-            if (title == "40 chars hex") then
-                expectErrorMessage (errMsg404NoWallet $ T.pack walId) r
-            else
-                expectErrorMessage errMsg404NoEndpoint r
-
-    it "TRANS_CREATE_07 - 'almost' valid walletId" $ \ctx -> do
-        w <- emptyWallet ctx
-        wDest <- emptyWallet ctx
-        addr:_ <- listAddresses ctx wDest
-        let destination = addr ^. #id
-        let payload = Json [json|{
-                "payments": [{
-                    "address": #{destination},
-                    "amount": {
-                        "quantity": 1,
-                        "unit": "lovelace"
-                    }
-                }],
-                "passphrase": "cardano-wallet"
-            }|]
-        let endpoint =
-                "v2/wallets/" <> T.unpack (T.append (w ^. walletId) "0")
-                <> "/transactions"
-        r <- request @(ApiTransaction n) ctx ("POST", T.pack endpoint)
-                Default payload
-        expectResponseCode @IO HTTP.status404 r
-        expectErrorMessage errMsg404NoEndpoint r
+    --         let destination = addr ^. #id
+    --         let payload = Json [json|{
+    --                 "payments": [{
+    --                     "address": #{destination},
+    --                     "amount": #{amt}
+    --                 }],
+    --                 "passphrase": "cardano-wallet"
+    --             }|]
+    --         r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
+    --         verify r expectations
 
     it "TRANS_CREATE_07 - Deleted wallet" $ \ctx -> do
         w <- emptyWallet ctx
@@ -679,52 +625,6 @@ spec = do
         r <- request @(ApiTransaction n) ctx (Link.createTransaction w) Default payload
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
-
-    describe
-        "TRANS_CREATE_08, TRANS_LIST_04 - \
-        \v2/wallets/{id}/transactions - Methods Not Allowed" $ do
-
-        let matrix = ["PUT", "DELETE", "CONNECT", "TRACE", "OPTIONS"]
-        forM_ matrix $ \method -> it (show method) $ \ctx -> do
-            w <- emptyWallet ctx
-            wDest <- emptyWallet ctx
-            addr:_ <- listAddresses ctx wDest
-            let destination = addr ^. #id
-            let payload = Json [json|{
-                    "payments": [{
-                        "address": #{destination},
-                        "amount": {
-                            "quantity": 1,
-                            "unit": "lovelace"
-                        }
-                    }],
-                    "passphrase": "cardano-wallet"
-                }|]
-            let endpoint = "v2/wallets/" <> w ^. walletId <> "/transactions"
-            r <- request @(ApiTransaction n) ctx (method, endpoint)
-                    Default payload
-            expectResponseCode @IO HTTP.status405 r
-            expectErrorMessage errMsg405 r
-
-    describe "TRANS_CREATE_08 - HTTP headers" $ do
-        forM_ (matrixHeaders @(ApiTransaction n)) $ \(title, headers, expectations) -> it title $ \ctx -> do
-            w <- emptyWallet ctx
-            wDest <- emptyWallet ctx
-            addr:_ <- listAddresses ctx wDest
-            let destination = addr ^. #id
-            let payload = Json [json|{
-                    "payments": [{
-                        "address": #{destination},
-                        "amount": {
-                            "quantity": 1,
-                            "unit": "lovelace"
-                        }
-                    }],
-                    "passphrase": "cardano-wallet"
-                }|]
-            r <- request @(ApiTransaction n) ctx (Link.createTransaction w)
-                    headers payload
-            verify r expectations
 
     describe "TRANS_CREATE_08 - Bad payload" $ do
         let matrix =
@@ -747,49 +647,6 @@ spec = do
             r <- request @(ApiTransaction n) ctx (Link.createTransaction w)
                     Default payload
             expectResponseCode @IO HTTP.status400 r
-
-    describe "TRANS_ESTIMATE_08 - v2/wallets/{id}/transactions/fees - Methods Not Allowed" $ do
-        let matrix = ["PUT", "DELETE", "CONNECT", "TRACE", "OPTIONS", "GET"]
-        forM_ matrix $ \method -> it (show method) $ \ctx -> do
-            w <- emptyWallet ctx
-            wDest <- emptyWallet ctx
-            addr:_ <- listAddresses ctx wDest
-            let destination = addr ^. #id
-            let payload = Json [json|{
-                    "payments": [{
-                        "address": #{destination},
-                        "amount": {
-                            "quantity": 1,
-                            "unit": "lovelace"
-                        }
-                    }]
-                }|]
-            let endpoint = "v2/wallets/" <> w ^. walletId <> "/transactions/fees"
-            r <- request @ApiFee ctx (method, endpoint)
-                    Default payload
-            expectResponseCode @IO HTTP.status405 r
-            expectErrorMessage errMsg405 r
-
-
-    describe "TRANS_ESTIMATE_08 - HTTP headers" $ do
-        forM_ (matrixHeaders @ApiFee) $ \(title, headers, expectations) -> it title $ \ctx -> do
-            w <- emptyWallet ctx
-            wDest <- emptyWallet ctx
-            addr:_ <- listAddresses ctx wDest
-            let destination = addr ^. #id
-            let payload = Json [json|{
-                    "payments": [{
-                        "address": #{destination},
-                        "amount": {
-                            "quantity": 1,
-                            "unit": "lovelace"
-                        }
-                    }]
-                }|]
-            r <- request @ApiFee ctx (Link.getTransactionFee w)
-                    headers payload
-            verify r expectations
-
 
     describe "TRANS_ESTIMATE_08 - Bad payload" $ do
         let matrix =
@@ -1007,134 +864,92 @@ spec = do
             , expectErrorMessage errMsg403InputsDepleted
             ]
 
-    describe "TRANS_ESTIMATE_05 - Invalid addresses" $ do
-        forM_ matrixWrongAddrs $ \(title, addr, errMsg) -> it title $ \ctx -> do
-            wSrc <- emptyWallet ctx
-            let payload = Json [json|{
-                    "payments": [{
-                        "address": #{addr},
-                        "amount": {
-                            "quantity": 1,
-                            "unit": "lovelace"
-                        }
-                    }]
-                }|]
-            r <- request @ApiFee ctx (Link.getTransactionFee wSrc) Default payload
-            verify r
-                [ expectResponseCode HTTP.status400
-                , expectErrorMessage errMsg
-                ]
+    -- TODO
+    -- MOVE TO test/unit/Cardano/Wallet/ApiSpec.hs
+    --
+    -- describe "TRANS_ESTIMATE_05 - Invalid addresses" $ do
+    --     forM_ matrixWrongAddrs $ \(title, addr, errMsg) -> it title $ \ctx -> do
+    --         wSrc <- emptyWallet ctx
+    --         let payload = Json [json|{
+    --                 "payments": [{
+    --                     "address": #{addr},
+    --                     "amount": {
+    --                         "quantity": 1,
+    --                         "unit": "lovelace"
+    --                     }
+    --                 }]
+    --             }|]
+    --         r <- request @ApiFee ctx (Link.getTransactionFee wSrc) Default payload
+    --         verify r
+    --             [ expectResponseCode HTTP.status400
+    --             , expectErrorMessage errMsg
+    --             ]
 
-    it "TRANS_ESTIMATE_05 - [] as address" $ \ctx -> do
-        wSrc <- emptyWallet ctx
-        let payload = Json [json|{
-                "payments": [{
-                    "address": [],
-                    "amount": {
-                        "quantity": 1,
-                        "unit": "lovelace"
-                    }
-                }]
-            }|]
-        r <- request @ApiFee ctx (Link.getTransactionFee wSrc) Default payload
-        verify r
-            [ expectResponseCode HTTP.status400
-            , expectErrorMessage "expected Text, encountered Array"
-            ]
+    -- it "TRANS_ESTIMATE_05 - [] as address" $ \ctx -> do
+    --     wSrc <- emptyWallet ctx
+    --     let payload = Json [json|{
+    --             "payments": [{
+    --                 "address": [],
+    --                 "amount": {
+    --                     "quantity": 1,
+    --                     "unit": "lovelace"
+    --                 }
+    --             }]
+    --         }|]
+    --     r <- request @ApiFee ctx (Link.getTransactionFee wSrc) Default payload
+    --     verify r
+    --         [ expectResponseCode HTTP.status400
+    --         , expectErrorMessage "expected Text, encountered Array"
+    --         ]
 
-    it "TRANS_ESTIMATE_05 - Num as address" $ \ctx -> do
-        wSrc <- emptyWallet ctx
-        let payload = Json [json|{
-                "payments": [{
-                    "address": 123123,
-                    "amount": {
-                        "quantity": 1,
-                        "unit": "lovelace"
-                    }
-                }]
-            }|]
-        r <- request @ApiFee ctx (Link.getTransactionFee wSrc) Default payload
-        verify r
-            [ expectResponseCode HTTP.status400
-            , expectErrorMessage "expected Text, encountered Num"
-            ]
+    -- it "TRANS_ESTIMATE_05 - Num as address" $ \ctx -> do
+    --     wSrc <- emptyWallet ctx
+    --     let payload = Json [json|{
+    --             "payments": [{
+    --                 "address": 123123,
+    --                 "amount": {
+    --                     "quantity": 1,
+    --                     "unit": "lovelace"
+    --                 }
+    --             }]
+    --         }|]
+    --     r <- request @ApiFee ctx (Link.getTransactionFee wSrc) Default payload
+    --     verify r
+    --         [ expectResponseCode HTTP.status400
+    --         , expectErrorMessage "expected Text, encountered Num"
+    --         ]
 
-    it "TRANS_ESTIMATE_05 - address param missing" $ \ctx -> do
-        wSrc <- emptyWallet ctx
-        let payload = Json [json|{
-                "payments": [{
-                    "amount": {
-                        "quantity": 1,
-                        "unit": "lovelace"
-                    }
-                }]
-            }|]
-        r <- request @ApiFee ctx (Link.getTransactionFee wSrc) Default payload
-        verify r
-            [ expectResponseCode HTTP.status400
-            , expectErrorMessage "key 'address' not present"
-            ]
+    -- it "TRANS_ESTIMATE_05 - address param missing" $ \ctx -> do
+    --     wSrc <- emptyWallet ctx
+    --     let payload = Json [json|{
+    --             "payments": [{
+    --                 "amount": {
+    --                     "quantity": 1,
+    --                     "unit": "lovelace"
+    --                 }
+    --             }]
+    --         }|]
+    --     r <- request @ApiFee ctx (Link.getTransactionFee wSrc) Default payload
+    --     verify r
+    --         [ expectResponseCode HTTP.status400
+    --         , expectErrorMessage "key 'address' not present"
+    --         ]
 
-    describe "TRANS_ESTIMATE_06 - Invalid amount" $ do
-        forM_ (matrixInvalidQuantities @ApiFee) $ \(title, amt, expectations) -> it title $ \ctx -> do
-            wSrc <- emptyWallet ctx
-            wDest <- emptyWallet ctx
-            addr:_ <- listAddresses ctx wDest
+    -- describe "TRANS_ESTIMATE_06 - Invalid amount" $ do
+    --     forM_ (matrixInvalidQuantities @ApiFee) $ \(title, amt, expectations) -> it title $ \ctx -> do
+    --         wSrc <- emptyWallet ctx
+    --         wDest <- emptyWallet ctx
+    --         addr:_ <- listAddresses ctx wDest
 
-            let destination = addr ^. #id
-            let payload = Json [json|{
-                    "payments": [{
-                        "address": #{destination},
-                        "amount": #{amt}
-                    }]
-                }|]
-            r <- request @ApiFee ctx (Link.getTransactionFee wSrc) Default payload
-            verify r expectations
-
-    describe "TRANS_ESTIMATE_07 - False wallet ids" $ do
-        forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
-            wDest <- emptyWallet ctx
-            addr:_ <- listAddresses ctx wDest
-            let destination = addr ^. #id
-            let payload = Json [json|{
-                    "payments": [{
-                        "address": #{destination},
-                        "amount": {
-                            "quantity": 1,
-                            "unit": "lovelace"
-                        }
-                    }]
-                }|]
-            let endpoint = "v2/wallets/" <> walId <> "/transactions/fees"
-            r <- request @ApiFee ctx ("POST", T.pack endpoint)
-                    Default payload
-            expectResponseCode HTTP.status404 r
-            if (title == "40 chars hex") then
-                expectErrorMessage (errMsg404NoWallet $ T.pack walId) r
-            else
-                expectErrorMessage errMsg404NoEndpoint r
-
-    it "TRANS_ESTIMATE_07 - 'almost' valid walletId" $ \ctx -> do
-        w <- emptyWallet ctx
-        wDest <- emptyWallet ctx
-        addr:_ <- listAddresses ctx wDest
-        let destination = addr ^. #id
-        let payload = Json [json|{
-                "payments": [{
-                    "address": #{destination},
-                    "amount": {
-                        "quantity": 1,
-                        "unit": "lovelace"
-                    }
-                }]
-            }|]
-        let endpoint =
-                "v2/wallets" <> T.unpack (T.append (w ^. walletId) "0")
-                <> "/transactions/fees"
-        r <- request @ApiFee ctx ("POST", T.pack endpoint)
-                Default payload
-        expectResponseCode @IO HTTP.status404 r
-        expectErrorMessage errMsg404NoEndpoint r
+    --         let destination = addr ^. #id
+    --         let payload = Json [json|{
+    --                 "payments": [{
+    --                     "address": #{destination},
+    --                     "amount": #{amt}
+    --                 }]
+    --             }|]
+    --         r <- request @ApiFee ctx (Link.getTransactionFee wSrc) Default payload
+    --         verify r expectations
 
     it "TRANS_ESTIMATE_07 - Deleted wallet" $ \ctx -> do
         w <- emptyWallet ctx
@@ -1510,46 +1325,6 @@ spec = do
                 (errMsg400StartTimeLaterThanEndTime startTime endTime) r
             pure ()
 
-    describe "TRANS_LIST_04 - Request headers" $ do
-        let headerCases =
-                  [ ( "No HTTP headers -> 200", None
-                    , [ expectResponseCode @IO HTTP.status200 ] )
-                  , ( "Accept: text/plain -> 406"
-                    , Headers
-                          [ ("Content-Type", "application/json")
-                          , ("Accept", "text/plain") ]
-                    , [ expectResponseCode @IO HTTP.status406
-                      , expectErrorMessage errMsg406 ]
-                    )
-                  , ( "No Accept -> 200"
-                    , Headers [ ("Content-Type", "application/json") ]
-                    , [ expectResponseCode @IO HTTP.status200 ]
-                    )
-                  , ( "No Content-Type -> 200"
-                    , Headers [ ("Accept", "application/json") ]
-                    , [ expectResponseCode @IO HTTP.status200 ]
-                    )
-                  , ( "Content-Type: text/plain -> 200"
-                    , Headers [ ("Content-Type", "text/plain") ]
-                    , [ expectResponseCode @IO HTTP.status200 ]
-                    )
-                  ]
-        forM_ headerCases $ \(title, headers, expectations) -> it title $ \ctx -> do
-            w <- emptyWallet ctx
-            r <- request @([ApiTransaction n]) ctx (Link.listTransactions @'Shelley w)
-                headers Empty
-            verify r expectations
-
-    it "TRANS_LIST_04 - 'almost' valid walletId" $ \ctx -> do
-        w <- emptyWallet ctx
-        let endpoint = "v2/wallets/"
-                <> T.unpack (T.append (w ^. walletId) "0")
-                <> "/transactions"
-        r <- request @([ApiTransaction n]) ctx ("GET", T.pack endpoint)
-                Default Empty
-        expectResponseCode @IO HTTP.status404 r
-        expectErrorMessage errMsg404NoEndpoint r
-
     it "TRANS_LIST_04 - Deleted wallet" $ \ctx -> do
         w <- emptyWallet ctx
         _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
@@ -1557,17 +1332,6 @@ spec = do
             Default Empty
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
-
-    describe "TRANS_LIST_04 - False wallet ids" $ do
-        forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
-            let endpoint = "v2/wallets/" <> walId <> "/transactions"
-            r <- request @([ApiTransaction n]) ctx ("GET", T.pack endpoint)
-                    Default Empty
-            expectResponseCode HTTP.status404 r
-            if (title == "40 chars hex") then
-                expectErrorMessage (errMsg404NoWallet $ T.pack walId) r
-            else
-                expectErrorMessage errMsg404NoEndpoint r :: IO ()
 
     it "TRANS_LIST_RANGE_01 - \
        \Transaction at time t is SELECTED by small ranges that cover it" $
@@ -1717,22 +1481,6 @@ spec = do
         txDeleteNotExistsingTxIdTest emptyWallet "wallets"
         txDeleteNotExistsingTxIdTest emptyRandomWallet "byron-wallets"
 
-    describe "TRANS_DELETE_04 - False wallet ids for " $ do
-        txDeleteFalseWalletIdsTest "wallets"
-        txDeleteFalseWalletIdsTest "byron-wallets"
-
-    describe "TRANS_DELETE_07 - invalid tx id " $ do
-        txDeleteInvalidTxIdsTest emptyWallet "wallets"
-        txDeleteInvalidTxIdsTest emptyRandomWallet "byron-wallets"
-
-    describe "TRANS_DELETE_08 - HTTP headers " $ do
-        txDeleteHTTPHeadersTest emptyWallet "wallets"
-        txDeleteHTTPHeadersTest emptyRandomWallet "byron-wallets"
-
-    describe "TRANS_DELETE_09 - HTTP methods not allowed " $ do
-        txDeleteHTTPMethodsTest "wallets"
-        txDeleteHTTPMethodsTest "byron-wallets"
-
     describe "TRANS_DELETE_06 -\
         \ Cannot forget tx that is performed from different wallet" $ do
         txDeleteFromDifferentWalletTest emptyWallet "wallets"
@@ -1764,7 +1512,7 @@ spec = do
                         }
                     }]
                 }|]
-            let endpoint = "v2/wallets/" <> wid <> "/transactions/fees"
+            let endpoint = "v2/wallets/" <> wid <> "/payment-fees"
             r <- request @ApiFee ctx ("POST", endpoint) Default payload
             expectResponseCode @IO HTTP.status404 r
             expectErrorMessage (errMsg404NoWallet wid) r
@@ -1801,34 +1549,6 @@ spec = do
             expectResponseCode @IO HTTP.status404 ra
             expectErrorMessage (errMsg404CannotFindTx txid) ra
 
-    txDeleteFalseWalletIdsTest resource =
-        describe resource $ do
-            forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
-                let txid = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
-                let endpoint = "v2/" <> resource <> "/" <> walId <> "/transactions/" <> txid
-                r <- request @ApiTxId @IO ctx ("DELETE", T.pack endpoint) Default Empty
-                expectResponseCode HTTP.status404 r
-                if (title == "40 chars hex") then
-                    expectErrorMessage (errMsg404NoWallet $ T.pack walId) r
-                else
-                    expectErrorMessage errMsg404NoEndpoint r
-
-    txDeleteInvalidTxIdsTest eWallet resource =
-        describe resource $ do
-            let txIds =
-                    [ replicate 63 '1'
-                    , replicate 65 '1'
-                    , replicate 64 'ś'
-                    ]
-            forM_ txIds $ \tid -> it (show tid) $ \ctx -> do
-                w <- eWallet ctx
-                let wid = w ^. walletId
-                let ep = "v2/" <> T.pack resource <> "/" <> wid
-                        <> "/transactions/" <> T.pack tid
-                r <- request @ApiTxId @IO ctx ("DELETE", ep) Default Empty
-                expectResponseCode @IO HTTP.status404 r
-                expectErrorMessage errMsg404NoEndpoint r
-
     txDeleteFromDifferentWalletTest
         :: (HasType (ApiT WalletId) wal)
         => (Context t -> IO wal)
@@ -1853,31 +1573,6 @@ spec = do
             ra <- request @ApiTxId @IO ctx ("DELETE", endpoint) Default Empty
             expectResponseCode @IO HTTP.status404 ra
             expectErrorMessage (errMsg404CannotFindTx txid) ra
-
-    txDeleteHTTPHeadersTest eWallet resource =
-        describe resource $ do
-            forM_ (getHeaderCases HTTP.status404)
-                $ \(title, headers, expectations) -> it title $ \ctx -> do
-                w <- eWallet ctx
-                let wid = w ^. walletId
-                let txid = T.pack $ replicate 64 '1'
-                let ep = "v2/" <> T.pack resource <> "/" <> wid
-                        <> "/transactions/" <> txid
-                r <- request @ApiTxId @IO ctx ("DELETE", ep) headers Empty
-                verify r expectations
-
-    txDeleteHTTPMethodsTest res =
-        describe ("v2/" <> res <> "/{wid}/transactions/{tid}") $ do
-                let matrix =
-                        ["POST", "CONNECT", "TRACE", "OPTIONS", "PUT", "GET"]
-                forM_ matrix $ \m -> it (show m) $ \ctx -> do
-                    let txid = T.pack $ replicate 64 '1'
-                    let wid = T.pack $ replicate 40 '1'
-                    let ep = "v2/" <> T.pack res <> "/" <> wid
-                            <> "/transactions/" <> txid
-                    r <- request @ApiTxId @IO ctx (m, ep) Default Empty
-                    expectResponseCode @IO HTTP.status405 r
-                    expectErrorMessage errMsg405 r
 
     postTx
         :: Context t
@@ -1910,124 +1605,98 @@ spec = do
             (Just t):_ -> t
             _ -> error "Expected at least one transaction with a time."
 
-    longAddr = replicate 10000 '1'
-    encodeErr = "Unable to decode Address:"
-    matrixWrongAddrs =
-        [ ( "long hex", longAddr, encodeErr )
-        , ( "short hex", "1", encodeErr )
-        , ( "-1000", "-1000", encodeErr )
-        , ( "q", "q", encodeErr )
-        , ( "empty", "", encodeErr )
-        , ( "wildcards", T.unpack wildcardsWalletName, encodeErr )
-        , ( "arabic", T.unpack arabicWalletName, encodeErr )
-        , ( "kanji", T.unpack kanjiWalletName, encodeErr )
-        , ( "polish", T.unpack polishWalletName, encodeErr )
-        ]
-    unitErr = "failed to parse quantified value. Expected value in\
-              \ 'lovelace' (e.g. { 'unit': 'lovelace', 'quantity': ... }"
-    matrixInvalidQuantities
-        :: (Show a)
-        => [( String
-            , Value
-            , [(HTTP.Status, Either RequestException a) -> IO ()])
-           ]
-    matrixInvalidQuantities =
-        [ ( "Quantity = 1.5"
-        , [json|{"quantity": 1.5, "unit": "lovelace"}|]
-        , [ expectResponseCode HTTP.status400
-          , expectErrorMessage "expected Natural, encountered\
-              \ floating number 1.5" ]
-        )
-        , ( "Quantity = -1000"
-        , [json|{"quantity": -1000, "unit": "lovelace"}|]
-        , [ expectResponseCode HTTP.status400
-          , expectErrorMessage "expected Natural, encountered\
-              \ negative number -1000" ]
-        )
-        , ( "Quantity = \"-1000\""
-        , [json|{"quantity": "-1000", "unit": "lovelace"}|]
-        , [ expectResponseCode HTTP.status400
-          , expectErrorMessage "expected Natural, encountered String" ]
-        )
-        , ( "Quantity = []"
-        , [json|{"quantity": [], "unit": "lovelace"}|]
-        , [ expectResponseCode HTTP.status400
-          , expectErrorMessage "expected Natural, encountered Array" ]
-        )
-        , ( "Quantity = \"string with diacritics\""
-        , [json|{"quantity": #{polishWalletName}
-                , "unit": "lovelace"}|]
-        , [ expectResponseCode HTTP.status400
-          , expectErrorMessage "expected Natural, encountered String" ]
-        )
-        , ( "Quantity = \"string with wildcards\""
-        , [json|{"quantity": #{wildcardsWalletName}
-                , "unit": "lovelace"}|]
-        , [ expectResponseCode HTTP.status400
-          , expectErrorMessage "expected Natural, encountered String" ]
-        )
-        , ( "Quantity missing"
-        , [json|{"unit": "lovelace"}|]
-        , [ expectResponseCode HTTP.status400
-          , expectErrorMessage "key 'quantity' not present" ]
-        )
-        , ( "Unit missing"
-        , [json|{"quantity": 1}|]
-        , [ expectResponseCode HTTP.status400
-          , expectErrorMessage "key 'unit' not present" ]
-        )
-        , ( "Unit = [\"lovelace\"]"
-        , [json|{"quantity": 1, "unit": ["lovelace"]}|]
-        , [ expectResponseCode HTTP.status400
-          , expectErrorMessage unitErr ]
-        )
-        , ( "Unit = -33", [json|{"quantity": 1, "unit": -33}|]
-        , [ expectResponseCode HTTP.status400
-          , expectErrorMessage unitErr ]
-        )
-        , ( "Unit = 33", [json|{"quantity": 1, "unit": 33}|]
-        , [ expectResponseCode HTTP.status400
-          , expectErrorMessage unitErr ]
-        )
-        , ( "Unit = \"LOVELACE\""
-        , [json|{"quantity": 1, "unit": "LOVELACE"}|]
-        , [ expectResponseCode HTTP.status400
-          , expectErrorMessage unitErr ]
-        )
-        , ( "Unit = \"ada\"", [json|{"quantity": 1, "unit": "ada"}|]
-        , [ expectResponseCode HTTP.status400
-          , expectErrorMessage unitErr ]
-        )
-        ]
-    matrixHeaders
-        :: (Show a)
-        => [( String
-            , Headers
-            , [(HTTP.Status, Either RequestException a) -> IO ()])
-           ]
-    matrixHeaders =
-        [ ( "No HTTP headers -> 415", None
-          , [ expectResponseCode @IO HTTP.status415
-           , expectErrorMessage errMsg415 ]
-        )
-        , ( "Accept: text/plain -> 406"
-          , Headers [ ("Content-Type", "application/json")
-                    , ("Accept", "text/plain") ]
-          , [ expectResponseCode @IO HTTP.status406
-            , expectErrorMessage errMsg406 ]
-        )
-        , ( "No Content-Type -> 415"
-          , Headers [ ("Accept", "application/json") ]
-          , [ expectResponseCode @IO HTTP.status415
-          , expectErrorMessage errMsg415 ]
-        )
-        , ( "Content-Type: text/plain -> 415"
-          , Headers [ ("Content-Type", "text/plain") ]
-          , [ expectResponseCode @IO HTTP.status415
-            , expectErrorMessage errMsg415 ]
-        )
-        ]
-
+    -- TODO
+    -- MOVE TO test/unit/Cardano/Wallet/ApiSpec.hs
+    --
+    -- longAddr = replicate 10000 '1'
+    -- encodeErr = "Unable to decode Address:"
+    -- matrixWrongAddrs =
+    --     [ ( "long hex", longAddr, encodeErr )
+    --     , ( "short hex", "1", encodeErr )
+    --     , ( "-1000", "-1000", encodeErr )
+    --     , ( "q", "q", encodeErr )
+    --     , ( "empty", "", encodeErr )
+    --     , ( "wildcards", T.unpack wildcardsWalletName, encodeErr )
+    --     , ( "arabic", T.unpack arabicWalletName, encodeErr )
+    --     , ( "kanji", T.unpack kanjiWalletName, encodeErr )
+    --     , ( "polish", T.unpack polishWalletName, encodeErr )
+    --     ]
+    -- unitErr = "failed to parse quantified value. Expected value in\
+    --           \ 'lovelace' (e.g. { 'unit': 'lovelace', 'quantity': ... }"
+    -- matrixInvalidQuantities
+    --     :: (Show a)
+    --     => [( String
+    --         , Value
+    --         , [(HTTP.Status, Either RequestException a) -> IO ()])
+    --        ]
+    -- matrixInvalidQuantities =
+    --     [ ( "Quantity = 1.5"
+    --     , [json|{"quantity": 1.5, "unit": "lovelace"}|]
+    --     , [ expectResponseCode HTTP.status400
+    --       , expectErrorMessage "expected Natural, encountered\
+    --           \ floating number 1.5" ]
+    --     )
+    --     , ( "Quantity = -1000"
+    --     , [json|{"quantity": -1000, "unit": "lovelace"}|]
+    --     , [ expectResponseCode HTTP.status400
+    --       , expectErrorMessage "expected Natural, encountered\
+    --           \ negative number -1000" ]
+    --     )
+    --     , ( "Quantity = \"-1000\""
+    --     , [json|{"quantity": "-1000", "unit": "lovelace"}|]
+    --     , [ expectResponseCode HTTP.status400
+    --       , expectErrorMessage "expected Natural, encountered String" ]
+    --     )
+    --     , ( "Quantity = []"
+    --     , [json|{"quantity": [], "unit": "lovelace"}|]
+    --     , [ expectResponseCode HTTP.status400
+    --       , expectErrorMessage "expected Natural, encountered Array" ]
+    --     )
+    --     , ( "Quantity = \"string with diacritics\""
+    --     , [json|{"quantity": #{polishWalletName}
+    --             , "unit": "lovelace"}|]
+    --     , [ expectResponseCode HTTP.status400
+    --       , expectErrorMessage "expected Natural, encountered String" ]
+    --     )
+    --     , ( "Quantity = \"string with wildcards\""
+    --     , [json|{"quantity": #{wildcardsWalletName}
+    --             , "unit": "lovelace"}|]
+    --     , [ expectResponseCode HTTP.status400
+    --       , expectErrorMessage "expected Natural, encountered String" ]
+    --     )
+    --     , ( "Quantity missing"
+    --     , [json|{"unit": "lovelace"}|]
+    --     , [ expectResponseCode HTTP.status400
+    --       , expectErrorMessage "key 'quantity' not present" ]
+    --     )
+    --     , ( "Unit missing"
+    --     , [json|{"quantity": 1}|]
+    --     , [ expectResponseCode HTTP.status400
+    --       , expectErrorMessage "key 'unit' not present" ]
+    --     )
+    --     , ( "Unit = [\"lovelace\"]"
+    --     , [json|{"quantity": 1, "unit": ["lovelace"]}|]
+    --     , [ expectResponseCode HTTP.status400
+    --       , expectErrorMessage unitErr ]
+    --     )
+    --     , ( "Unit = -33", [json|{"quantity": 1, "unit": -33}|]
+    --     , [ expectResponseCode HTTP.status400
+    --       , expectErrorMessage unitErr ]
+    --     )
+    --     , ( "Unit = 33", [json|{"quantity": 1, "unit": 33}|]
+    --     , [ expectResponseCode HTTP.status400
+    --       , expectErrorMessage unitErr ]
+    --     )
+    --     , ( "Unit = \"LOVELACE\""
+    --     , [json|{"quantity": 1, "unit": "LOVELACE"}|]
+    --     , [ expectResponseCode HTTP.status400
+    --       , expectErrorMessage unitErr ]
+    --     )
+    --     , ( "Unit = \"ada\"", [json|{"quantity": 1, "unit": "ada"}|]
+    --     , [ expectResponseCode HTTP.status400
+    --       , expectErrorMessage unitErr ]
+    --     )
+    --     ]
     fixtureErrInputsDepleted ctx = do
         wSrc <- fixtureWalletWith ctx [12_000_000, 20_000_000, 17_000_000]
         wDest <- emptyWallet ctx
