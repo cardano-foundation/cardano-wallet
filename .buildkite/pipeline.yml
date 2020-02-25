@@ -26,7 +26,7 @@ steps:
       system: x86_64-linux
 
   - label: 'Check auto-generated Nix'
-    command: 'nix-build ./nix -A iohkNix.checkStackProject -o check-stack-project.sh && ./check-stack-project.sh'
+    command: './nix/regenerate.sh && nix-build ./nix -A iohkNix.checkStackProject -o check-stack-project.sh && ./check-stack-project.sh'
     agents:
       system: x86_64-linux
 
