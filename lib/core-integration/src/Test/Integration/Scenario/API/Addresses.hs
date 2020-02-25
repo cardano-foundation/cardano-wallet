@@ -34,7 +34,7 @@ import Test.Integration.Framework.DSL
     , emptyRandomWallet
     , emptyWallet
     , emptyWalletWith
-    , eventually_
+    , eventually
     , expectErrorMessage
     , expectField
     , expectListField
@@ -184,7 +184,7 @@ spec = do
             expectResponseCode @IO HTTP.status202 rTrans
 
         -- make sure all transactions are in ledger
-        eventually_ $ do
+        eventually "Wallet balance = 10" $ do
             rb <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
             expectField

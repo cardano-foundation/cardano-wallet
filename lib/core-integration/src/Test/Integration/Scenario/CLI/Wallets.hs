@@ -54,7 +54,7 @@ import Test.Integration.Framework.DSL
     , emptyRandomWallet
     , emptyWallet
     , emptyWalletWith
-    , eventually_
+    , eventually
     , expectCliField
     , expectCliListField
     , expectValidJSON
@@ -162,7 +162,7 @@ spec = do
             , expectCliField #passphrase (`shouldNotBe` Nothing)
             ]
 
-        eventually_ $ do
+        eventually "Wallet state = Ready" $ do
             Stdout og <- getWalletViaCLI @t ctx $ T.unpack (j ^. walletId)
             jg <- expectValidJSON (Proxy @ApiWallet) og
             expectCliField (#state . #getApiT) (`shouldBe` Ready) jg
@@ -197,7 +197,7 @@ spec = do
         _ <- expectValidJSON (Proxy @(ApiTransaction n)) op
         cp `shouldBe` ExitSuccess
 
-        eventually_ $ do
+        eventually "Wallet balance is as expected" $ do
             Stdout og <- getWalletViaCLI @t ctx $ T.unpack (wDest ^. walletId)
             jg <- expectValidJSON (Proxy @ApiWallet) og
             expectCliField (#balance . #getApiT . #available)
@@ -215,7 +215,7 @@ spec = do
         T.unpack e2 `shouldContain` cmdOk
         wRestored <- expectValidJSON (Proxy @ApiWallet) o2
         expectCliField walletId (`shouldBe` wDest ^. walletId) wRestored
-        eventually_ $ do
+        eventually "Wallet is fully restored" $ do
             Stdout og2 <- getWalletViaCLI @t ctx $ T.unpack (wDest ^. walletId)
             jg2 <- expectValidJSON (Proxy @ApiWallet) og2
             expectCliField (#state . #getApiT) (`shouldBe` Ready) jg2
@@ -429,7 +429,7 @@ spec = do
             , expectCliField #passphrase (`shouldNotBe` Nothing)
             ]
 
-        eventually_ $ do
+        eventually "Wallet state = Ready" $ do
             Stdout og <- getWalletViaCLI @t ctx walId
             jg <- expectValidJSON (Proxy @ApiWallet) og
             expectCliField (#state . #getApiT) (`shouldBe` Ready) jg
@@ -717,7 +717,7 @@ spec = do
             _ <- expectValidJSON (Proxy @(ApiTransaction n)) op
             cp `shouldBe` ExitSuccess
             let coinsSent = map fromIntegral $ take alreadyAbsorbed coins
-            eventually_ $ do
+            eventually "Wallet balance is as expected" $ do
                 Stdout og <- getWalletViaCLI @t ctx $ T.unpack (wDest ^. walletId)
                 jg <- expectValidJSON (Proxy @ApiWallet) og
                 expectCliField (#balance . #getApiT . #available)

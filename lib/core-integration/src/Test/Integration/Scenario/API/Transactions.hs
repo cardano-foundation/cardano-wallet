@@ -65,7 +65,7 @@ import Test.Integration.Framework.DSL
     , between
     , emptyRandomWallet
     , emptyWallet
-    , eventually_
+    , eventually
     , expectErrorMessage
     , expectField
     , expectListField
@@ -149,7 +149,7 @@ spec = do
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             ]
 
-        eventually_ $ do
+        eventually "Tx is in ledger" $ do
             rt <- request @([ApiTransaction n]) ctx
                 (Link.listTransactions @'Shelley wSrc) Default Empty
             verify rt
@@ -167,7 +167,7 @@ spec = do
         wSrc <- fixtureWalletWith ctx [5_000_000]
         wDest <- emptyWallet ctx
 
-        eventually_ $ do
+        eventually "Pending tx has pendingSince field" $ do
             -- Post Tx
             let amt = (1 :: Natural)
             r <- postTx ctx (wSrc, Link.createTransaction ,"Secure Passphrase") wDest amt
@@ -222,7 +222,7 @@ spec = do
                     (`shouldBe` Quantity (faucetAmt - faucetUtxoAmt))
             ]
 
-        eventually_ $ do
+        eventually "wa and wb balances are as expected" $ do
             rb <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wb) Default Empty
             expectField
@@ -285,7 +285,7 @@ spec = do
                     (#balance . #getApiT . #available)
                     (`shouldBe` Quantity (faucetAmt - 2 * faucetUtxoAmt))
             ]
-        eventually_ $ do
+        eventually "wDest balance is as expected" $ do
             rd <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rd
@@ -351,7 +351,7 @@ spec = do
                     (#balance . #getApiT . #available)
                     (`shouldBe` Quantity (faucetAmt - 2 * faucetUtxoAmt))
             ]
-        eventually_ $ forM_ [wDest1, wDest2] $ \wDest -> do
+        eventually "Balances are as expected" $ forM_ [wDest1, wDest2] $ \wDest -> do
             rd <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest) Default payload
             verify rd
@@ -429,7 +429,7 @@ spec = do
             , expectField (#balance . #getApiT . #available) (`shouldBe` Quantity 0)
             ]
 
-        eventually_ $ do
+        eventually "Wallet balance is as expected" $ do
             rd <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rd
@@ -1175,7 +1175,7 @@ spec = do
 
         tx <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
         expectResponseCode HTTP.status202 tx
-        eventually_ $ do
+        eventually "Wallet balance is as expected" $ do
             rGet <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rGet
@@ -1638,8 +1638,7 @@ spec = do
                     (`shouldBe` Quantity faucetAmt)
             ]
 
-        -- transaction eventually is in source wallet
-        eventually_ $ do
+        eventually "transaction eventually is in source wallet" $ do
             let ep = Link.listTransactions @'Shelley wSrc
             request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
                 [ expectListField 0
@@ -1648,8 +1647,7 @@ spec = do
                     (#status . #getApiT) (`shouldBe` InLedger)
                 ]
 
-        -- transaction eventually is in target wallet
-        eventually_ $ do
+        eventually "transaction eventually is in target wallet" $ do
             let ep = Link.listTransactions @'Shelley wDest
             request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
                 [ expectListField 0
@@ -1683,8 +1681,7 @@ spec = do
             postTx ctx (wSrc, Link.createTransaction, "cardano-wallet") wDest (1 :: Natural)
         let txid = getFromResponse #id rTx
 
-        -- Wait for the transaction to be accepted
-        eventually_ $ do
+        eventually "Transaction is accepted" $ do
             let ep = Link.listTransactions @'Shelley wSrc
             request @([ApiTransaction n]) ctx ep Default Empty >>= flip verify
                 [ expectListField 0

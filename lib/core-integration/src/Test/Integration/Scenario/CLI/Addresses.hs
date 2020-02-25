@@ -43,7 +43,7 @@ import Test.Integration.Framework.DSL
     , emptyRandomWallet
     , emptyWallet
     , emptyWalletWith
-    , eventually_
+    , eventually
     , expectCliField
     , expectCliListField
     , expectValidJSON
@@ -175,8 +175,7 @@ spec = do
             (cTx, _, _) <- postTransactionViaCLI @t ctx "cardano-wallet" args
             cTx `shouldBe` ExitSuccess
 
-        -- make sure all transactions are in ledger
-        eventually_ $ do
+        eventually "all transactions are in ledger" $ do
             Stdout o2 <- getWalletViaCLI @t ctx $ T.unpack (wDest ^. walletId)
             w <- expectValidJSON (Proxy @ApiWallet) o2
             expectCliField

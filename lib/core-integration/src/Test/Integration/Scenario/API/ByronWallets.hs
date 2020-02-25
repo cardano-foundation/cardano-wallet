@@ -71,7 +71,7 @@ import Test.Integration.Framework.DSL
     , emptyRandomWallet
     , emptyWallet
     , emptyWalletWith
-    , eventually_
+    , eventually
     , expectErrorMessage
     , expectField
     , expectListField
@@ -251,7 +251,7 @@ spec = do
 
             -- Check that funds become available in the target wallet:
             let expectedBalance = originalBalance - expectedFee
-            eventually_ $ do
+            eventually "Wallet has expectedBalance" $ do
                 r2 <- request @ApiWallet ctx
                     (Link.getWallet @'Shelley targetWallet) Default Empty
                 verify r2
@@ -284,7 +284,7 @@ spec = do
                 } |]
         (_, wOld) <- unsafeRequest @ApiByronWallet ctx
             (Link.postWallet @'Random) payloadRestore
-        eventually_ $ do
+        eventually "wallet balance greater than 0" $ do
             request @ApiByronWallet ctx
                 (Link.getWallet @'Byron wOld)
                 Default
@@ -317,7 +317,7 @@ spec = do
 
         -- Check that funds become available in the target wallet:
         let expectedBalance = originalBalance - expectedFee
-        eventually_ $ do
+        eventually "wallet balance = expectedBalance" $ do
             request @ApiWallet ctx
                 (Link.getWallet @'Shelley wNew)
                 Default
@@ -396,7 +396,7 @@ spec = do
                     } |]
             (_, sourceWallet) <- unsafeRequest @ApiByronWallet ctx
                 (Link.postWallet @'Random) payloadRestore
-            eventually_ $ do
+            eventually "wallet balance greater than 0" $ do
                 request @ApiByronWallet ctx
                     (Link.getWallet @'Byron sourceWallet)
                     Default
@@ -843,7 +843,7 @@ spec = do
                 verify r expectations
                 let w = getFromResponse id r
 
-                eventually_ $ do
+                eventually "wallet is available and ready" $ do
                     -- get
                     rg <- request @ApiByronWallet ctx
                         (Link.getWallet @'Byron w) Default Empty

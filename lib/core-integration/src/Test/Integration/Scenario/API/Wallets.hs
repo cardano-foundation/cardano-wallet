@@ -71,7 +71,6 @@ import Test.Integration.Framework.DSL
     , emptyRandomWallet
     , emptyWallet
     , eventually
-    , eventually_
     , expectErrorMessage
     , expectField
     , expectListField
@@ -166,7 +165,7 @@ spec = do
             , expectField #passphrase (`shouldNotBe` Nothing)
             ]
         let wid = getFromResponse id r
-        eventually_ $ do
+        eventually "Wallet state = Ready" $ do
             rg <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wid) Default Empty
             expectField (#state . #getApiT) (`shouldBe` Ready) rg
@@ -211,7 +210,7 @@ spec = do
                 , expectField #passphrase (`shouldNotBe` Nothing)
                 ]
             let listWallets = Link.listWallets @'Shelley
-            eventually_ $ do
+            eventually "listed wallet's state = Ready" $ do
                 rl <- request @[ApiWallet] ctx listWallets Default Empty
                 verify rl
                     [ expectResponseCode @IO HTTP.status200
@@ -249,7 +248,7 @@ spec = do
             Default payload
         expectResponseCode @IO HTTP.status202 rTrans
 
-        eventually_ $ do
+        eventually "Wallet balance is as expected" $ do
             rGet <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rGet
@@ -266,7 +265,7 @@ spec = do
         -- restore and make sure funds are there
         rRestore <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payldCrt
         expectResponseCode @IO HTTP.status201 rRestore
-        eventually_ $ do
+        eventually "Wallet balance is ok on restored wallet" $ do
             rGet <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rGet
@@ -956,7 +955,7 @@ spec = do
     it "WALLETS_GET_01 - can get wallet details" $ \ctx -> do
         (_, w) <- unsafeRequest @ApiWallet ctx (Link.postWallet @'Shelley) simplePayload
 
-        eventually_ $ do
+        eventually "I can get all wallet details" $ do
             rg <- request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
             verify rg
                 [ expectResponseCode @IO HTTP.status200
@@ -1130,7 +1129,7 @@ spec = do
                     , expectField walletId (`shouldBe` walId)
                     , expectField #passphrase (`shouldBe` passLastUpdateValue)
                     ]
-        eventually_ $ do
+        eventually "Updated wallet name is available" $ do
             ru <- request @ApiWallet ctx
                 ("PUT", "v2/wallets" </> walId) Default newName
             verify ru expectations
@@ -1794,7 +1793,7 @@ spec = do
             expectResponseCode @IO HTTP.status202 rTrans
 
             let coinsSent = map fromIntegral $ take alreadyAbsorbed coins
-            eventually_ $ do
+            eventually "Wallet balance is as expected" $ do
                 rGet <- request @ApiWallet ctx
                     (Link.getWallet @'Shelley wDest) Default Empty
                 verify rGet
@@ -1961,7 +1960,7 @@ scenarioWalletResync01_happyPath fixture = it
     w <- fixture ctx
 
     -- 1. Wait for wallet to be synced
-    eventually $ do
+    eventually "Wallet is synced" $ do
         v <- request @wallet ctx (Link.getWallet @style w) Default Empty
         verify v [ expectField @IO #state (`shouldBe` (ApiT Ready)) ]
 
@@ -1971,7 +1970,7 @@ scenarioWalletResync01_happyPath fixture = it
     verify r [ expectResponseCode @IO HTTP.status204 ]
 
     -- 3. The wallet eventually re-sync
-    eventually $ do
+    eventually "Wallet re-syncs successfully" $ do
         v <- request @wallet ctx (Link.getWallet @style w) Default Empty
         verify v [ expectField @IO #state (`shouldBe` (ApiT Ready)) ]
 

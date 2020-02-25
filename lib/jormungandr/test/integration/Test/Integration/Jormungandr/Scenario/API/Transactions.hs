@@ -78,7 +78,7 @@ import Test.Integration.Framework.DSL as DSL
     , TxDescription (..)
     , emptyRandomWallet
     , emptyWallet
-    , eventually_
+    , eventually
     , expectErrorMessage
     , expectField
     , expectListField
@@ -171,7 +171,7 @@ spec = do
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             ]
 
-        eventually_ $ do
+        eventually "Tx is in ledger and wDest balance = utxoAmt" $ do
             request @([ApiTransaction n]) ctx
                 (Link.listTransactions @'Shelley wSrc)
                 Default
@@ -230,7 +230,7 @@ spec = do
         request @ApiTxId ctx Link.postExternalTransaction headers (NonJson payload)
             >>= expectResponseCode HTTP.status202
 
-        eventually_ $ do
+        eventually ("Wallet balance = " ++ show amt) $ do
             r <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley w) Default Empty
             expectField (#balance . #getApiT . #available)
@@ -266,7 +266,7 @@ spec = do
                 expectErrorMessage (errMsg404CannotFindTx txid) ra
 
                 -- tx eventually gets into ledger (funds are on the target wallet)
-                eventually_ $ do
+                eventually ("Wallet balance = " ++ show amt) $ do
                     rg <- request @ApiWallet ctx
                         (Link.getWallet @'Shelley wal) Default Empty
                     expectField (#balance . #getApiT . #available)
@@ -295,7 +295,7 @@ spec = do
             , expectResponseCode HTTP.status202
             ]
 
-        eventually_ $ do
+        eventually "wDest and wSrc balance is as expected" $ do
             rb <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rb
@@ -503,7 +503,7 @@ fixtureExternalTx ctx toSend = do
     expectField
             (#name . #getApiT . #getWalletName) (`shouldBe` "Destination Wallet") r1
     let wid = getFromResponse Prelude.id r1
-    eventually_ $ do
+    eventually "Wallet state is Ready" $ do
         r <- request @ApiWallet ctx (Link.getWallet @'Shelley wid) Default Empty
         expectField (#state . #getApiT) (`shouldBe` Ready) r
 
