@@ -63,6 +63,8 @@ import Data.List
     ( (\\) )
 import Data.Map.Strict
     ( Map )
+import Data.Maybe
+    ( mapMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -263,10 +265,13 @@ instance GenericApiSpec (Map [Text] [Method])
     gSpec allowedMethods toSpec = do
         toSpec $ SomeTest (Proxy @Void) $ mconcat $
             for (Map.toList allowedMethods) $ \(pathInfo, methods) ->
-                for (allMethods \\ methods) $ \requestMethod ->
-                    (defaultRequest { pathInfo, requestMethod }, msg)
+                forMaybe (allMethods \\ methods) $ \requestMethod ->
+                    if isWhiteListed pathInfo requestMethod
+                    then Nothing
+                    else Just (defaultRequest { pathInfo, requestMethod }, msg)
       where
         for = flip map
+        forMaybe = flip mapMaybe
         msg =
             "You've reached a known endpoint but I don't know how to handle the \
             \HTTP method specified. Please double-check both the endpoint and \
@@ -276,6 +281,12 @@ instance GenericApiSpec (Map [Text] [Method])
         allMethods :: [Method]
         allMethods =
             ["GET","PUT","POST","PATCH","DELETE","CONNECT","TRACE","OPTIONS"]
+
+        isWhiteListed :: [Text] -> Method -> Bool
+        isWhiteListed
+            [ "stake-pools", "*", "wallets", _ ] "PUT" = True
+        isWhiteListed
+            _ _ = False
 
 
 --
