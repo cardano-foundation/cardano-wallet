@@ -65,6 +65,7 @@ import Cardano.Wallet.Api.Types
     , PostTransactionData
     , PostTransactionFeeData
     , SomeByronWalletPostData
+    , WalletOrAccountPostData
     , WalletPostData
     , WalletPutData
     , WalletPutPassphraseData
@@ -88,7 +89,7 @@ import Data.Typeable
 import Data.Word.Odd
     ( Word31 )
 import GHC.TypeLits
-    ( Nat, Symbol )
+    ( Symbol )
 import Servant
     ( JSON, OctetStream )
 
@@ -124,7 +125,7 @@ class Malformed t where
     malformed :: [(t, ExpectedError)]
     malformed = []
 --
--- Class instances
+-- Class instances (PathParam)
 --
 
 instance Wellformed (PathParam (ApiT WalletId)) where
@@ -175,6 +176,10 @@ instance Malformed (PathParam ApiEpochNumber) where
         ]
       where
         msg = "I couldn't parse the given epoch number. I am expecting either the word 'latest' or, an integer from 0 to 2147483647."
+
+--
+-- Class instances (BodyParam)
+--
 
 instance Malformed (BodyParam WalletPostData) where
     malformed = first (BodyParam . Aeson.encode) <$>
@@ -347,7 +352,8 @@ instance Malformed (BodyParam WalletPostData) where
           , "Error in $: parsing Cardano.Wallet.Api.Types.WalletPostData(WalletPostData) failed, key 'name' not found"
           )
         ]
-      where
+
+
 instance Malformed (BodyParam (ApiSelectCoinsData 'Testnet))
 
 instance Malformed (BodyParam (PostTransactionData 'Testnet))
@@ -366,6 +372,11 @@ instance Malformed (BodyParam ApiWalletPassphrase)
 
 instance Malformed (BodyParam PostExternalTransactionData)
 
+instance Malformed (BodyParam WalletOrAccountPostData)
+
+--
+-- Class instances (Header)
+--
 instance Wellformed (Header "Content-Type" JSON) where
     wellformed =
         Header "application/json"

@@ -180,10 +180,10 @@ import Data.Swagger
     , Schema
     , SwaggerType (..)
     , ToSchema (..)
+    , enum_
     , properties
     , required
     , type_
-    , enum_
     )
 import Data.Swagger.Declare
     ( Declare )

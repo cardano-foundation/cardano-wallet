@@ -47,65 +47,24 @@ import Cardano.Wallet.Api.Malformed
     )
 import Cardano.Wallet.Api.Server
     ( LiftHandler (..) )
-import Cardano.Wallet.Api.Types
-    ( AllowedMnemonics
-    , ApiAddress
-    , ApiByronWallet
-    , ApiByronWalletMigrationInfo
-    , ApiCoinSelection
-    , ApiEpochNumber
-    , ApiFee
-    , ApiNetworkInformation
-    , ApiNetworkParameters
-    , ApiNetworkTip
-    , ApiPoolId
-    , ApiSelectCoinsData
-    , ApiStakePool
-    , ApiT
-    , ApiTransaction
-    , ApiTxId
-    , ApiUtxoStatistics
-    , ApiWallet
-    , ApiWalletPassphrase
-    , ByronWalletPostData
-    , ByronWalletStyle (..)
-    , Iso8601Time
-    , PostExternalTransactionData
-    , PostTransactionData
-    , PostTransactionFeeData
-    , StyleSymbol
-    , WalletPostData
-    , WalletPutData
-    , WalletPutPassphraseData
-    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
-import Cardano.Wallet.Primitive.Types
-    ( WalletId, walletNameMaxLength )
 import Control.Arrow
     ( first )
 import Control.Monad
-    ( forM, forM_ )
-import Control.Monad.IO.Class
-    ( liftIO )
+    ( forM_ )
 import Data.Aeson.QQ
     ( aesonQQ )
-import Data.ByteString.Lazy
-    ( ByteString )
 import Data.Function
     ( (&) )
 import Data.IORef
-    ( IORef, atomicModifyIORef, modifyIORef, newIORef )
-import Data.Kind
-    ( Type )
+    ( atomicModifyIORef, newIORef )
 import Data.List
     ( (\\) )
 import Data.Map.Strict
     ( Map )
 import Data.Proxy
     ( Proxy (..) )
-import Data.String
-    ( IsString )
 import Data.Text
     ( Text )
 import Data.Tuple
@@ -116,14 +75,12 @@ import Data.Typeable
     ( Typeable, typeRep )
 import Data.Void
     ( Void )
-import Data.Word.Odd
-    ( Word31 )
 import GHC.TypeLits
-    ( ErrorMessage (..), KnownSymbol, Nat, Symbol, TypeError, symbolVal )
+    ( KnownSymbol, symbolVal )
 import Network.HTTP.Media.RenderHeader
     ( renderHeader )
 import Network.HTTP.Types.Header
-    ( HeaderName, hAccept, hContentLength, hContentType )
+    ( hAccept, hContentType )
 import Network.HTTP.Types.Method
     ( Method )
 import Network.Wai
@@ -141,36 +98,17 @@ import Network.Wai.Middleware.ServerError
 import Network.Wai.Test
     ( Session, assertBody, assertStatus, request, runSession )
 import Servant
-    ( Accept (..)
-    , Application
-    , Header'
-    , JSON
-    , OctetStream
-    , ReqBody
-    , Server
-    , StdMethod (..)
-    , Verb
-    , err501
-    , serve
-    , throwError
-    )
+    ( Accept (..), Application, ReqBody, Server, StdMethod (..), Verb, serve )
 import Servant.API
     ( (:<|>) (..), (:>), Capture )
 import Servant.API.Verbs
-    ( DeleteNoContent, GetNoContent, NoContentVerb, ReflectMethod (..), Verb )
-import Servant.Links
-    ( URI (..), allLinks', linkURI )
-import System.IO.Unsafe
-    ( unsafePerformIO )
+    ( NoContentVerb, ReflectMethod (..) )
 import Test.Hspec
-    ( Spec, SpecWith, describe, it, runIO, shouldBe, xdescribe, xit )
+    ( Spec, describe, it, runIO, xdescribe )
 import Type.Reflection
     ( typeOf )
-import Web.HttpApiData
-    ( ToHttpApiData (..) )
 
 import qualified Data.Aeson as Aeson
-import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map.Strict as Map
@@ -179,7 +117,7 @@ import qualified Servant
 
 
 spec :: Spec
-spec = describe "PATATE" $ do
+spec = do
     gSpec (everyPathParam api) $ \(SomeTest proxy tests) ->
         describe "Malformed PathParam" $ do
             forM_ tests $ \(req, msg) -> it (titleize proxy req) $
@@ -252,7 +190,7 @@ spec_NotAllowedMethod malformedRequest (ExpectedError msg) = do
 --
 data SomeTest where
     SomeTest
-        :: forall (a :: k). (Typeable a, Typeable k)
+        :: forall k (a :: k). (Typeable a, Typeable k)
         => Proxy a
         -> [(Request, ExpectedError)]
         -> SomeTest
@@ -265,7 +203,7 @@ instance (GenericApiSpec a, GenericApiSpec b) => GenericApiSpec (a :<|> b) where
     gSpec (a :<|> b) toS = gSpec a toS >> gSpec b toS
 
 instance GenericApiSpec Request where
-    gSpec req _ = pure ()
+    gSpec _ _ = pure ()
 
 instance
     ( Typeable a, Malformed (PathParam a)
@@ -275,9 +213,9 @@ instance
         SomeTest (Proxy @a) (first toRequest <$> malformed @(PathParam a))
 
 instance
-    ( Typeable a, Malformed (PathParam a), Wellformed (PathParam a)
+    ( Typeable a, Wellformed (PathParam a)
     , GenericApiSpec (PathParam a -> Request)
-    , Typeable b, Malformed (PathParam b), Wellformed (PathParam b)
+    , Wellformed (PathParam b)
     , GenericApiSpec (PathParam b -> Request)
     ) => GenericApiSpec (PathParam a -> PathParam b -> Request)
   where
@@ -304,16 +242,15 @@ instance
     ( KnownSymbol h
     , Typeable ct
     , Malformed (Header h ct)
-    , Wellformed (Header h ct)
     ) => GenericApiSpec (Header h ct -> Request)
   where
     gSpec toRequest toSpec = toSpec $
         SomeTest (Proxy @h) (first toRequest <$> malformed @(Header h ct))
 
 instance
-    ( Typeable ct0, KnownSymbol h0, Malformed (Header h0 ct0), Wellformed (Header h0 ct0)
+    ( Typeable ct0, KnownSymbol h0, Wellformed (Header h0 ct0)
     , GenericApiSpec (Header h0 ct0 -> Request)
-    , Typeable ct1, KnownSymbol h1, Malformed (Header h1 ct1), Wellformed (Header h1 ct1)
+    , Wellformed (Header h1 ct1)
     , GenericApiSpec (Header h1 ct1 -> Request)
     ) => GenericApiSpec (Header h0 ct0 -> Header h1 ct1 -> Request)
   where
@@ -349,10 +286,10 @@ application :: Application
 application = serve api server
     & handleRawError (curry handler)
 
-api :: Proxy (Api Testnet)
-api = Proxy @(Api Testnet)
+api :: Proxy (Api 'Testnet)
+api = Proxy @(Api 'Testnet)
 
-server :: Server (Api Testnet)
+server :: Server (Api 'Testnet)
 server = error
     "No test from this module should actually reach handlers of the server. \
     \Tests are indeed all testing the internal machinery of Servant + Wai and \
