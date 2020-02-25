@@ -24,6 +24,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle (..)
     , DelegationAddress (..)
     , Depth (..)
+    , HardDerivation (..)
     , KeyFingerprint
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
@@ -58,7 +59,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , lookupAddress
     , mkAddressPool
     , mkAddressPoolGap
-    , mkSeqState
+    , mkSeqStateFromAccountXPub
+    , mkSeqStateFromRootXPrv
     , shrinkPool
     )
 import Cardano.Wallet.Primitive.Types
@@ -177,8 +179,10 @@ spec = do
             fromText @AddressPoolGap "2.5" === Left (TextDecodingError err)
 
     describe "PendingIxs & GenChange" $ do
-        it "Can always generate exactly `gap` different change addresses"
-            (property prop_genChangeGap)
+        it "Can always generate exactly `gap` different change addresses from rootXPrv"
+            (property prop_genChangeGapFromRootXPrv)
+        it "Can always generate exactly `gap` different change addresses from accXPub"
+            (property prop_genChangeGapFromAccountXPub)
         it "After `gap` change addresses, the same one are yield in reverse order"
             (property prop_changeAddressRotation)
         it "Can generate new change addresses after discovering a pending one"
@@ -335,16 +339,32 @@ prop_poolEventuallyDiscoverOurs _proxy (g, addr) =
 -------------------------------------------------------------------------------}
 
 -- | We can always generate at exactly `gap` change addresses (on the internal
--- chain)
-prop_genChangeGap
+-- chain) using mkSeqStateFromRootXPrv
+prop_genChangeGapFromRootXPrv
     :: AddressPoolGap
     -> Property
-prop_genChangeGap g =
+prop_genChangeGapFromRootXPrv g =
     property prop
   where
     mw = someDummyMnemonic (Proxy @12)
     key = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
-    s0 = mkSeqState (key, mempty) g
+    s0 = mkSeqStateFromRootXPrv (key, mempty) g
+    prop =
+        length (fst $ changeAddresses [] s0) === fromEnum g
+
+-- | We can always generate at exactly `gap` change addresses (on the internal
+-- chain) using mkSeqStateFromAccountXPub
+prop_genChangeGapFromAccountXPub
+    :: AddressPoolGap
+    -> Property
+prop_genChangeGapFromAccountXPub g =
+    property prop
+  where
+    mw = someDummyMnemonic (Proxy @12)
+    rootXPrv = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
+    accIx = toEnum 0x80000000
+    accXPub = publicKey $ deriveAccountPrivateKey mempty rootXPrv accIx
+    s0 = mkSeqStateFromAccountXPub accXPub g
     prop =
         length (fst $ changeAddresses [] s0) === fromEnum g
 

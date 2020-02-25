@@ -34,6 +34,7 @@ module Cardano.Wallet.Primitive.AddressDerivation.Shelley
     -- * Generation and derivation
     , generateKeyFromSeed
     , unsafeGenerateKeyFromSeed
+    , xpubFromText
 
     -- * Address
     , decodeShelleyAddress
@@ -450,8 +451,11 @@ instance PersistPublicKey (ShelleyKey depth) where
     unsafeDeserializeXPub =
         either err ShelleyKey . xpubFromText
       where
-        xpubFromText = xpub <=< fromHex @ByteString
         err _ = error "unsafeDeserializeXPub: unable to deserialize ShelleyKey"
+
+xpubFromText :: ByteString -> Either String XPub
+xpubFromText = xpub <=< fromHex @ByteString
+
 -- $use
 -- 'Key' and 'Index' allow for representing public keys, private keys, hardened
 -- indexes and soft (non-hardened) indexes for various level in a non-ambiguous

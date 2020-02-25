@@ -54,7 +54,8 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 
     -- ** State
     , SeqState (..)
-    , mkSeqState
+    , mkSeqStateFromRootXPrv
+    , mkSeqStateFromAccountXPub
     ) where
 
 import Prelude
@@ -546,8 +547,8 @@ instance PersistPublicKey (k 'AccountK) => Buildable (SeqState n k) where
       where
         chgsF = blockListF' "-" build (pendingIxsToList chgs)
 
--- | Construct a Sequential state for a wallet.
-mkSeqState
+-- | Construct a Sequential state for a wallet from root private key and password.
+mkSeqStateFromRootXPrv
     :: forall n k.
         ( SoftDerivation k
         , MkKeyFingerprint k (k 'AddressK XPub)
@@ -558,7 +559,7 @@ mkSeqState
     => (k 'RootK XPrv, Passphrase "encryption")
     -> AddressPoolGap
     -> SeqState n k
-mkSeqState (rootXPrv, pwd) g =
+mkSeqStateFromRootXPrv (rootXPrv, pwd) g =
     let
         accXPrv =
             deriveAccountPrivateKey pwd rootXPrv minBound
@@ -568,6 +569,29 @@ mkSeqState (rootXPrv, pwd) g =
             mkAddressPool (publicKey accXPrv) g []
         intPool =
             mkAddressPool (publicKey accXPrv) g []
+    in
+        SeqState intPool extPool emptyPendingIxs rewardXPub
+
+-- | Construct a Sequential state for a wallet from public account key.
+mkSeqStateFromAccountXPub
+    :: forall n k.
+        ( SoftDerivation k
+        , MkKeyFingerprint k (k 'AddressK XPub)
+        , MkKeyFingerprint k Address
+        )
+    => k 'AccountK XPub
+    -> AddressPoolGap
+    -> SeqState n k
+mkSeqStateFromAccountXPub accXPub g =
+    let
+        -- This matches the reward address for "normal wallets". The accountXPub
+        -- is the first account, minBound being the first Soft index
+        rewardXPub =
+            deriveAddressPublicKey accXPub MutableAccount minBound
+        extPool =
+            mkAddressPool accXPub g []
+        intPool =
+            mkAddressPool accXPub g []
     in
         SeqState intPool extPool emptyPendingIxs rewardXPub
 

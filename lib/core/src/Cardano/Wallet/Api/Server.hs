@@ -95,7 +95,9 @@ import Cardano.Wallet.Api
     , workerRegistry
     )
 import Cardano.Wallet.Api.Types
-    ( AddressAmount (..)
+    ( AccountPostData (..)
+    , AccountPublicKey (..)
+    , AddressAmount (..)
     , ApiAddress (..)
     , ApiBlockReference (..)
     , ApiByronWallet (..)
@@ -132,6 +134,7 @@ import Cardano.Wallet.Api.Types
     , PostTransactionData
     , PostTransactionFeeData
     , WalletBalance (..)
+    , WalletOrAccountPostData (..)
     , WalletPostData (..)
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
@@ -163,7 +166,11 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState, mkRndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState (..), defaultAddressPoolGap, mkSeqState )
+    ( SeqState (..)
+    , defaultAddressPoolGap
+    , mkSeqStateFromAccountXPub
+    , mkSeqStateFromRootXPrv
+    )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..), changeBalance, feeBalance, inputBalance )
 import Cardano.Wallet.Primitive.Model
@@ -450,7 +457,7 @@ server byron icarus shelley spl =
     wallets = deleteWallet shelley
         :<|> (fmap fst . getWallet shelley mkShelleyWallet)
         :<|> (fmap fst <$> listWallets shelley mkShelleyWallet)
-        :<|> postShelleyWallet shelley
+        :<|> postWallet shelley
         :<|> putWallet shelley mkShelleyWallet
         :<|> putWalletPassphrase shelley
         :<|> getUTxOsStatistics shelley
@@ -646,6 +653,20 @@ type MkApiWallet ctx s w
     -> Handler w
 
 --------------------- Shelley
+postWallet
+    :: forall ctx s t k n.
+        ( s ~ SeqState n k
+        , k ~ ShelleyKey
+        , ctx ~ ApiLayer s t k
+        , HasDBFactory s k ctx
+        , HasWorkerRegistry s k ctx
+        )
+    => ctx
+    -> WalletOrAccountPostData
+    -> Handler ApiWallet
+postWallet ctx (WalletOrAccountPostData body) = case body of
+    Left body' -> postShelleyWallet ctx body'
+    Right body' -> postAccountWallet ctx body'
 
 postShelleyWallet
     :: forall ctx s t k n.
@@ -659,7 +680,7 @@ postShelleyWallet
     -> WalletPostData
     -> Handler ApiWallet
 postShelleyWallet ctx body = do
-    let state = mkSeqState (rootXPrv, pwd) g
+    let state = mkSeqStateFromRootXPrv (rootXPrv, pwd) g
     void $ liftHandler $ initWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
         (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @t @k wrk wid)
@@ -675,6 +696,28 @@ postShelleyWallet ctx body = do
     wid = WalletId $ digest $ publicKey rootXPrv
     wName = getApiT (body ^. #name)
 
+postAccountWallet
+    :: forall ctx s t k n.
+        ( s ~ SeqState n k
+        , k ~ ShelleyKey
+        , ctx ~ ApiLayer s t k
+        , HasWorkerRegistry s k ctx
+        )
+    => ctx
+    -> AccountPostData
+    -> Handler ApiWallet
+postAccountWallet ctx body = do
+    let state = mkSeqStateFromAccountXPub accXPub g
+    void $ liftHandler $ initWorker @_ @s @k ctx wid
+        (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
+        (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @t @k wrk wid)
+    fst <$> getWallet ctx (mkShelleyWallet @_ @s @t @k) (ApiT wid)
+  where
+    g = maybe defaultAddressPoolGap getApiT (body ^. #addressPoolGap)
+    wName = getApiT (body ^. #name)
+    (AccountPublicKey accXPubApiT) =  body ^. #accountPublicKey
+    accXPub = getApiT accXPubApiT
+    wid = WalletId $ digest accXPub
 
 mkShelleyWallet
     :: forall ctx s t k n.

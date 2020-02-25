@@ -185,6 +185,14 @@ x-stakePoolId: &stakePoolId
   example: 42bf330e9653fef8a47a5aab2f2e74db8a5b947e
   description: A unique identifier for the pool.
 
+x-walletAccountPubkey: &walletAccountPubkey
+  description: An extended account public key (public key + chain code)
+  type: string
+  format: hex
+  minLength: 128
+  maxLength: 128
+  example: 1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1
+
 x-walletId: &walletId
   description: A unique identifier for the wallet
   type: string
@@ -833,6 +841,7 @@ components:
 
     ApiWalletPostData: &ApiWalletPostData
       type: object
+      description: Restore from root private key
       required:
         - name
         - mnemonic_sentence
@@ -843,6 +852,23 @@ components:
         mnemonic_second_factor: *walletSecondFactor
         passphrase: *walletPassphrase
         address_pool_gap: *walletAddressPoolGap
+
+    ApiAccountPostData: &ApiAccountPostData
+      type: object
+      description: Restore from account public key
+      required:
+        - name
+        - account_public_key
+      properties:
+        name: *walletName
+        account_public_key: *walletAccountPubkey
+        address_pool_gap: *walletAddressPoolGap
+
+    ApiWalletOrAccountPostData: &ApiWalletOrAccountPostData
+      type: object
+      oneOf:
+        - *ApiAccountPostData
+        - *ApiWalletPostData
 
     ApiByronWalletRandomPostData: &ApiByronWalletRandomPostData
       type: object
@@ -1453,10 +1479,11 @@ paths:
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
-        Create and restore a wallet from a mnemonic sentence.
-      parameters:
-        - <<: *parametersBody
-          schema: *ApiWalletPostData
+        Create and restore a wallet from a mnemonic sentence or account public key.
+      requestBody:
+        content:
+          application/json:
+            schema: *ApiWalletOrAccountPostData
       responses: *responsesPostWallet
 
   /wallets/{walletId}:

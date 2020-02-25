@@ -35,7 +35,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( GenChange (..), IsOwned (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( defaultAddressPoolGap, mkSeqState )
+    ( defaultAddressPoolGap, mkSeqStateFromRootXPrv )
 import Cardano.Wallet.Primitive.Mnemonic
     ( mnemonicToText )
 import Cardano.Wallet.Primitive.Types
@@ -552,7 +552,7 @@ fixtureExternalTx ctx toSend = do
               rootXPrv = generateKeyFromSeed (seed, Nothing) pwd
           in (rootXPrv
              , pwd
-             , mkSeqState @n (rootXPrv, pwd) defaultAddressPoolGap
+             , mkSeqStateFromRootXPrv @n (rootXPrv, pwd) defaultAddressPoolGap
              )
 
 getWalletBalance :: Context t -> ApiWallet -> IO (Natural, Natural)

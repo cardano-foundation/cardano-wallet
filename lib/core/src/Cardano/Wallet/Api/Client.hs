@@ -54,7 +54,7 @@ import Cardano.Wallet.Api.Types
     , PostExternalTransactionData (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
-    , WalletPostData (..)
+    , WalletOrAccountPostData (..)
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
     )
@@ -96,7 +96,7 @@ data WalletClient t = WalletClient
     , listWallets
         :: ClientM [ApiWallet]
     , postWallet
-        :: WalletPostData
+        :: WalletOrAccountPostData
         -> ClientM ApiWallet
     , putWallet
         :: ApiT WalletId
