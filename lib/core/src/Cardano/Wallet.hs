@@ -1372,7 +1372,12 @@ joinStakePool ctx wid (pid, pools) argGenChange pwd = db & \DBLayer{..} -> do
     walMeta <- mapExceptT atomically $ withExceptT ErrJoinStakePoolNoSuchWallet $
         withNoSuchWallet wid $ readWalletMeta (PrimaryKey wid)
 
-    when (isDelegatingTo (== pid) (walMeta ^. #delegation)) $
+    let active = walMeta ^. #delegation . #active
+    let next = walMeta ^. #delegation . #next
+    when ((null next) && isDelegatingTo (== pid) active) $
+        throwE (ErrJoinStakePoolAlreadyDelegating pid)
+
+    when (not (null next) && isDelegatingTo (== pid) (last next)) $
         throwE (ErrJoinStakePoolAlreadyDelegating pid)
 
     when (pid `notElem` pools) $
@@ -1417,6 +1422,10 @@ quitStakePool ctx wid argGenChange pwd = db & \DBLayer{..} -> do
     unless (isDelegatingTo anyone (walMeta ^. #delegation)) $
         throwE ErrQuitStakePoolNotDelegating
 
+    let next = walMeta ^. #delegation . #next
+    when (not (null next) && statusNotDelegating (last next)) $
+            throwE ErrQuitStakePoolNextNotDelegating
+
     selection <- withExceptT ErrQuitStakePoolSelectCoin $
         selectCoinsForDelegation @ctx @s @t @k ctx wid
 
@@ -1430,6 +1439,7 @@ quitStakePool ctx wid argGenChange pwd = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @s @k
     anyone = const True
+    statusNotDelegating n = n ^. #status == NotDelegating
 
 {-------------------------------------------------------------------------------
                                   Key Store
@@ -1567,6 +1577,7 @@ data ErrJoinStakePool
 data ErrQuitStakePool
     = ErrQuitStakePoolNoSuchWallet ErrNoSuchWallet
     | ErrQuitStakePoolNotDelegating
+    | ErrQuitStakePoolNextNotDelegating
     | ErrQuitStakePoolSelectCoin ErrSelectForDelegation
     | ErrQuitStakePoolSignDelegation ErrSignDelegation
     | ErrQuitStakePoolSubmitTx ErrSubmitTx

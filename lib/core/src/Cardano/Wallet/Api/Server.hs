@@ -2059,6 +2059,12 @@ instance LiftHandler ErrQuitStakePool where
                 , "although you're not even delegating, nor won't be in an "
                 , "immediate future."
                 ]
+        ErrQuitStakePoolNextNotDelegating  ->
+            apiError err403 NotDelegatingTo $ mconcat
+                [ "It seems that you're trying to retire from delegation "
+                , "although you have already done so. Quiting again would "
+                , "incur an unnecessary fee!"
+                ]
 
 instance LiftHandler ErrGetNetworkParameters where
     handler = \case
