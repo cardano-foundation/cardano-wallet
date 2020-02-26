@@ -1,8 +1,8 @@
-1. [Recovery Phrases](#recovery-phrase)
+1. [Recovery Phrases](#recovery-phrases)
     1. [Motivation](#motivation)
     1. [Encoding](#encoding)
     1. [Dictionaries](#dictionaries)
-1. [Hierarchical Deterministic Wallets](#hierarchical-wallets)
+1. [Hierarchical Deterministic Wallets](#hierarchical-deterministic-wallets)
     1. [Motivation](#motivation)
     1. [Notation](#notation)
     1. [Path Levels](#path-levels)
@@ -11,6 +11,7 @@
 1. [Master Key Generation](#master-key-generation)
     1. [History](#history)
     1. [Overview](#overview)
+    1. [Pseudo-code](#pseudo-code)
         1. [Byron](#byron)
         1. [Icarus](#icarus)
         1. [Ledger](#ledger)
@@ -194,9 +195,11 @@ seed to an extended private key (abbrev. XPrv) composed of:
 > - [BIP 0039](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki)
 > - [RFC 8032](https://tools.ietf.org/html/rfc8032#section-5.1.5)
 
+### Pseudo-code
+
 #### Byron
 
-```py
+```
 generateMasterKey(seed) {
     return hashRepeatedly(seed, 1);
 }
@@ -234,7 +237,7 @@ byte array of any size. This password acts as a second factor applied to cryptog
 retrieval. When the seed comes from an encoded recovery phrase, the password can therefore
 be used to add extra protection in case where the recovery phrase were to be exposed.
 
-```py
+```
 generateMasterKey(seed, password) {
     data := PBKDF2
         ( kdf=HMAC-SHA512
@@ -264,7 +267,7 @@ tweakBits(data) {
 
 #### Ledger
 
-```py
+```
 generateMasterKey(seed, password) {
     data := PBKDF2
         ( kdf=HMAC-SHA512
