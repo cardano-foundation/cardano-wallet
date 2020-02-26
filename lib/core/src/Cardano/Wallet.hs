@@ -8,6 +8,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -107,8 +108,12 @@ module Cardano.Wallet
     , quitStakePool
     , selectCoinsForDelegation
     , signDelegation
+    , guardJoin
+    , guardQuit
     , ErrJoinStakePool (..)
+    , ErrCannotJoin (..)
     , ErrQuitStakePool (..)
+    , ErrCannotQuit (..)
     , ErrSelectForDelegation (..)
     , ErrSignDelegation (..)
 
@@ -324,6 +329,8 @@ import GHC.Generics
     ( Generic )
 import Numeric.Natural
     ( Natural )
+import Safe
+    ( lastMay )
 
 import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -1372,16 +1379,8 @@ joinStakePool ctx wid (pid, pools) argGenChange pwd = db & \DBLayer{..} -> do
     walMeta <- mapExceptT atomically $ withExceptT ErrJoinStakePoolNoSuchWallet $
         withNoSuchWallet wid $ readWalletMeta (PrimaryKey wid)
 
-    let active = walMeta ^. #delegation . #active
-    let next = walMeta ^. #delegation . #next
-    when ((null next) && isDelegatingTo (== pid) active) $
-        throwE (ErrJoinStakePoolAlreadyDelegating pid)
-
-    when (not (null next) && isDelegatingTo (== pid) (last next)) $
-        throwE (ErrJoinStakePoolAlreadyDelegating pid)
-
-    when (pid `notElem` pools) $
-        throwE (ErrJoinStakePoolNoSuchPool pid)
+    withExceptT ErrJoinStakePoolCannotJoin $ except $
+        guardJoin pools (walMeta ^. #delegation) pid
 
     selection <- withExceptT ErrJoinStakePoolSelectCoin $
         selectCoinsForDelegation @ctx @s @t @k ctx wid
@@ -1419,12 +1418,8 @@ quitStakePool ctx wid argGenChange pwd = db & \DBLayer{..} -> do
     walMeta <- mapExceptT atomically $ withExceptT ErrQuitStakePoolNoSuchWallet $
         withNoSuchWallet wid $ readWalletMeta (PrimaryKey wid)
 
-    unless (isDelegatingTo anyone (walMeta ^. #delegation)) $
-        throwE ErrQuitStakePoolNotDelegating
-
-    let next = walMeta ^. #delegation . #next
-    when (not (null next) && statusNotDelegating (last next)) $
-            throwE ErrQuitStakePoolNextNotDelegating
+    withExceptT ErrQuitStakePoolCannotQuit $ except $
+        guardQuit (walMeta ^. #delegation)
 
     selection <- withExceptT ErrQuitStakePoolSelectCoin $
         selectCoinsForDelegation @ctx @s @t @k ctx wid
@@ -1438,8 +1433,6 @@ quitStakePool ctx wid argGenChange pwd = db & \DBLayer{..} -> do
     pure (tx, txMeta, txTime)
   where
     db = ctx ^. dbLayer @s @k
-    anyone = const True
-    statusNotDelegating n = n ^. #status == NotDelegating
 
 {-------------------------------------------------------------------------------
                                   Key Store
@@ -1567,20 +1560,18 @@ data ErrSignDelegation
 
 data ErrJoinStakePool
     = ErrJoinStakePoolNoSuchWallet ErrNoSuchWallet
-    | ErrJoinStakePoolAlreadyDelegating PoolId
-    | ErrJoinStakePoolNoSuchPool PoolId
     | ErrJoinStakePoolSelectCoin ErrSelectForDelegation
     | ErrJoinStakePoolSignDelegation ErrSignDelegation
     | ErrJoinStakePoolSubmitTx ErrSubmitTx
+    | ErrJoinStakePoolCannotJoin ErrCannotJoin
     deriving (Generic, Eq, Show)
 
 data ErrQuitStakePool
     = ErrQuitStakePoolNoSuchWallet ErrNoSuchWallet
-    | ErrQuitStakePoolNotDelegating
-    | ErrQuitStakePoolNextNotDelegating
     | ErrQuitStakePoolSelectCoin ErrSelectForDelegation
     | ErrQuitStakePoolSignDelegation ErrSignDelegation
     | ErrQuitStakePoolSubmitTx ErrSubmitTx
+    | ErrQuitStakePoolCannotQuit ErrCannotQuit
     deriving (Generic, Eq, Show)
 
 -- | Errors that can occur when fetching the reward balance of a wallet
@@ -1601,6 +1592,17 @@ data ErrCheckWalletIntegrity
 
 instance Exception ErrCheckWalletIntegrity
 
+data ErrCannotJoin
+    = ErrAlreadyDelegating PoolId
+    | ErrNoSuchPool PoolId
+    deriving (Generic, Eq, Show)
+
+data ErrCannotQuit
+    = ErrNotDelegatingOrAboutTo
+    deriving (Generic, Eq, Show)
+
+
+
 {-------------------------------------------------------------------------------
                                    Utils
 -------------------------------------------------------------------------------}
@@ -1612,6 +1614,31 @@ withNoSuchWallet
     -> ExceptT ErrNoSuchWallet m a
 withNoSuchWallet wid =
     maybeToExceptT (ErrNoSuchWallet wid) . MaybeT
+
+guardJoin
+    :: [PoolId]
+    -> WalletDelegation
+    -> PoolId
+    -> Either ErrCannotJoin ()
+guardJoin knownPools WalletDelegation{active,next} pid = do
+    when ((null next) && isDelegatingTo (== pid) active) $
+        Left (ErrAlreadyDelegating pid)
+
+    when (not (null next) && isDelegatingTo (== pid) (last next)) $
+        Left (ErrAlreadyDelegating pid)
+
+    when (pid `notElem` knownPools) $
+        Left (ErrNoSuchPool pid)
+
+guardQuit
+    :: WalletDelegation
+    -> Either ErrCannotQuit ()
+guardQuit WalletDelegation{active,next} = do
+    let last_ = maybe active (view #status) $ lastMay next
+    unless (isDelegatingTo anyone last_) $
+        Left ErrNotDelegatingOrAboutTo
+  where
+    anyone = const True
 
 {-------------------------------------------------------------------------------
                                     Logging

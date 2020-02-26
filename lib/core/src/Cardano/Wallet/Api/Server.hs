@@ -47,6 +47,8 @@ import Cardano.Pool.Metrics
     )
 import Cardano.Wallet
     ( ErrAdjustForFee (..)
+    , ErrCannotJoin (..)
+    , ErrCannotQuit (..)
     , ErrCoinSelection (..)
     , ErrDecodeSignedTx (..)
     , ErrFetchRewards (..)
@@ -2091,18 +2093,19 @@ instance LiftHandler ErrJoinStakePool where
         ErrJoinStakePoolSubmitTx e -> handler e
         ErrJoinStakePoolSignDelegation e -> handler e
         ErrJoinStakePoolSelectCoin e -> handler e
-        ErrJoinStakePoolAlreadyDelegating pid ->
-            apiError err403 PoolAlreadyJoined $ mconcat
-                [ "I couldn't join a stake pool with the given id: "
-                , toText pid
-                , ". I have already joined this pool; joining again would incur"
-                , " an unnecessary fee!"
-                ]
-        ErrJoinStakePoolNoSuchPool pid ->
-            apiError err404 NoSuchPool $ mconcat
-                [ "I couldn't find any stake pool with the given id: "
-                , toText pid
-                ]
+        ErrJoinStakePoolCannotJoin e -> case e of
+            ErrAlreadyDelegating pid ->
+                apiError err403 PoolAlreadyJoined $ mconcat
+                    [ "I couldn't join a stake pool with the given id: "
+                    , toText pid
+                    , ". I have already joined this pool; joining again would incur"
+                    , " an unnecessary fee!"
+                    ]
+            ErrNoSuchPool pid ->
+                apiError err404 NoSuchPool $ mconcat
+                    [ "I couldn't find any stake pool with the given id: "
+                    , toText pid
+                    ]
 
 instance LiftHandler ErrFetchRewards where
     handler = \case
@@ -2115,18 +2118,13 @@ instance LiftHandler ErrQuitStakePool where
         ErrQuitStakePoolSelectCoin e -> handler e
         ErrQuitStakePoolSignDelegation e -> handler e
         ErrQuitStakePoolSubmitTx e -> handler e
-        ErrQuitStakePoolNotDelegating  ->
-            apiError err403 NotDelegatingTo $ mconcat
-                [ "It seems that you're trying to retire from delegation "
-                , "although you're not even delegating, nor won't be in an "
-                , "immediate future."
-                ]
-        ErrQuitStakePoolNextNotDelegating  ->
-            apiError err403 NotDelegatingTo $ mconcat
-                [ "It seems that you're trying to retire from delegation "
-                , "although you have already done so. Quiting again would "
-                , "incur an unnecessary fee!"
-                ]
+        ErrQuitStakePoolCannotQuit e -> case e of
+            ErrNotDelegatingOrAboutTo ->
+                apiError err403 NotDelegatingTo $ mconcat
+                    [ "It seems that you're trying to retire from delegation "
+                    , "although you're not even delegating, nor won't be in an "
+                    , "immediate future."
+                    ]
 
 instance LiftHandler ErrNoSuchEpoch where
     handler = \case
