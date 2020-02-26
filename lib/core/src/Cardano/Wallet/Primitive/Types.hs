@@ -238,6 +238,7 @@ import Fmt
     , indentF
     , ordinalF
     , prefixF
+    , pretty
     , suffixF
     , tupleF
     )
@@ -384,12 +385,9 @@ instance NFData WalletDelegation
 instance Buildable WalletDelegation where
     build (WalletDelegation act []) =
         "delegating to " <> build act
-    build (WalletDelegation act [n]) =
-        "delegating to " <> build act <> " → " <> build n
-    build (WalletDelegation act [n1, n2]) =
-        "delegating to " <> build act <> " → " <> build n1 <> " → " <> build n2
-    build (WalletDelegation act _) =
-        "delegating to " <> build act <> " something wrong with what's next"
+    build (WalletDelegation act xs) =
+        build (WalletDelegation act []) <> " → "
+        <> build (T.intercalate " → " $ pretty <$> xs)
 
 class IsDelegatingTo a where
     isDelegatingTo :: (PoolId -> Bool) -> a -> Bool
