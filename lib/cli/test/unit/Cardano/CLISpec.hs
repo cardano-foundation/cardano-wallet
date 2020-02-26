@@ -29,10 +29,9 @@ import Cardano.CLI
     , cmdWallet
     , hGetLine
     , hGetSensitiveLine
-    , hexTextToXPrv
     , mapKey
     , newCliKeyScheme
-    , xPrvToHexText
+    , xPrvToTextTransform
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..), XPrv, unXPrv )
@@ -79,6 +78,7 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
     , Large (..)
+    , NonEmptyList (..)
     , Property
     , arbitraryBoundedEnum
     , checkCoverage
@@ -618,9 +618,11 @@ prop_roundtripCliKeySchemeKeyViaHex :: CliWalletStyle -> Property
 prop_roundtripCliKeySchemeKeyViaHex style =
             propCliKeySchemeEquality
                 (newCliKeyScheme style)
-                (mapKey hexTextToXPrv
-                    . mapKey xPrvToHexText
+                (mapKey (inverse xPrvToTextTransform)
+                    . mapKey xPrvToTextTransform
                     $ newCliKeyScheme style)
+  where
+    inverse (a, b) = (b, a)
 
 prop_allowedWordLengthsAllWork :: CliWalletStyle -> Property
 prop_allowedWordLengthsAllWork style = do

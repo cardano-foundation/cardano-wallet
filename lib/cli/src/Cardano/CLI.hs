@@ -66,8 +66,7 @@ module Cardano.CLI
     , CliWalletStyle (..)
 
     , newCliKeyScheme
-    , hexTextToXPrv
-    , xPrvToHexText
+    , xPrvToTextTransform
     , hoistKeyScheme
     , mapKey
 
@@ -380,40 +379,48 @@ hoistKeyScheme eta s = CliKeyScheme
     , mnemonicToRootKey = eta . mnemonicToRootKey s
     }
 
-xPrvToHexText :: XPrv -> Either String Text
-xPrvToHexText = left showErr . fmap (T.pack . B8.unpack . hex) . unXPrvStripPub
+-- | Pair of functions representing the bidirectional transformation between
+-- a @XPrv@ and its 96-byte hex-encoded form.
+xPrvToTextTransform :: (XPrv -> Either String Text, Text -> Either String XPrv)
+xPrvToTextTransform = (xPrvToHexText, hexTextToXPrv)
   where
-    showErr ErrCannotRoundtrip =
-        "That private key looks weird. Is it encrypted? Or an old Byron key?"
+    xPrvToHexText :: XPrv -> Either String Text
+    xPrvToHexText = left showErr . fmap (T.pack . B8.unpack . hex) . unXPrvStripPub
+      where
+        -- NOTE: This error should never happen from using the CLI.
+        showErr ErrCannotRoundtrip =
+            "The private key I'm trying to encode looks wierd. \
+            \Is it encrypted? Or an old Byron key?"
 
-hexTextToXPrv :: Text -> Either String XPrv
-hexTextToXPrv txt = do
-    bytes <- fromHex $ B8.pack $ T.unpack txt
-    left showErr $ xPrvFromStrippedPubXPrv bytes
-  where
-    showErr (ErrInputLengthMismatch expected actual) = mconcat
-        [ "Expected extended private key to be "
-        , show expected
-        , " bytes but got "
-        , show actual
-        , " bytes."
-        ]
-    showErr (ErrInternalError msg) = mconcat
-        [ "Unexpected crypto error: "
-        , msg
-        ]
-    fromHex = left (const "Invalid hex.")
-        . convertFromBase Base16
+    hexTextToXPrv :: Text -> Either String XPrv
+    hexTextToXPrv txt = do
+        bytes <- fromHex $ B8.pack $ T.unpack txt
+        left showErr $ xPrvFromStrippedPubXPrv bytes
+      where
+        showErr (ErrInputLengthMismatch expected actual) = mconcat
+            [ "Expected extended private key to be "
+            , show expected
+            , " bytes but got "
+            , show actual
+            , " bytes."
+            ]
+        showErr (ErrInternalError msg) = mconcat
+            [ "Unexpected crypto error: "
+            , msg
+            ]
+        fromHex = left (const "Invalid hex.")
+            . convertFromBase Base16
 
 -- | Map over the key type of a CliKeyScheme.
 --
--- Can be used with e.g @xPrvToHexText@.
+-- @deriveChildKey@ both takes a key as an argument and returns one. Therefore
+-- we need a bidirectional mapping between the two key types.
 mapKey
     :: Monad m
-    => (key1 -> m key2)
+    => (key1 -> m key2, key2 -> m key1)
     -> CliKeyScheme key1 m
     -> CliKeyScheme key2 m
-mapKey f s = CliKeyScheme
+mapKey (f, g) s = CliKeyScheme
     { allowedWordLengths = allowedWordLengths s
     , mnemonicToRootKey = (mnemonicToRootKey s) >=> f
     }
@@ -501,7 +508,7 @@ cmdRootKey =
         scheme :: CliKeyScheme Text IO
         scheme =
             hoistKeyScheme eitherToIO
-            . mapKey xPrvToHexText
+            . mapKey xPrvToTextTransform
             $ newCliKeyScheme keyType
 
 {-------------------------------------------------------------------------------
