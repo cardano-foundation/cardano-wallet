@@ -25,6 +25,7 @@ import Cardano.Wallet.Gen
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
+    , ErrUnXPrvStripPub (..)
     , ErrWrongPassphrase (..)
     , FromMnemonic (..)
     , FromMnemonicError (..)
@@ -42,6 +43,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , checkPassphrase
     , encryptPassphrase
     , getIndex
+    , unXPrvStripPub
+    , xPrvFromStrippedPubXPrv
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..) )
@@ -51,12 +54,16 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( KnownNetwork (..), ShelleyKey (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), Hash (..) )
+import Control.Arrow
+    ( left )
 import Control.Monad
-    ( replicateM )
+    ( replicateM, (>=>) )
 import Control.Monad.IO.Class
     ( liftIO )
 import Data.Either
-    ( isRight )
+    ( isLeft, isRight )
+import Data.Function
+    ( (&) )
 import Data.Proxy
     ( Proxy (..) )
 import Test.Hspec
@@ -65,12 +72,16 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
     , InfiniteList (..)
+    , NonNegative (..)
     , Property
     , arbitraryBoundedEnum
     , arbitraryPrintableChar
     , choose
+    , classify
+    , counterexample
     , expectFailure
     , genericShrink
+    , label
     , oneof
     , property
     , vectorOf
@@ -213,6 +224,13 @@ spec = do
         it "XPub IcarusKey"
             (property $ prop_roundtripXPub @IcarusKey)
 
+    describe "unXPrvStripPub & xPrvFromStrippedPubXPrv" $ do
+        it "either roundtrips or fails (if xprv is encrypted)"
+            (property prop_unXPrvStripRoundtrip)
+
+        it "(xPrvFromStrippedPubXPrv bs) fails if (BS.length bs) /= 96"
+            (property prop_xPrvFromStrippedPubXPrvLengthRequirement)
+
 {-------------------------------------------------------------------------------
                                Properties
 -------------------------------------------------------------------------------}
@@ -281,6 +299,44 @@ prop_passphraseHashMalformed
 prop_passphraseHashMalformed pwd = monadicIO $ liftIO $ do
     checkPassphrase pwd (Hash mempty) `shouldBe` Left ErrWrongPassphrase
 
+-- NOTE: Instead of testing
+-- > encrypted => fails
+-- we are testing
+-- > fails => encrypted
+--
+-- This /should/ be enough. If a key were to be encrypted, but still roundtrip,
+-- we would not care.
+prop_unXPrvStripRoundtrip :: XPrvWithPass -> Property
+prop_unXPrvStripRoundtrip (XPrvWithPass k enc) = do
+    let res = unXPrvStripPub k
+    case res of
+        Right k' ->
+            xPrvFromStrippedPubXPrv k' === Right k
+                & label "roundtrip"
+        Left ErrCannotRoundtrip ->
+            enc /= Passphrase ""
+                & label "mismatch"
+                & counterexample "XPrv should be encrypted for the roundtrip to\
+                                 \fail"
+prop_xPrvFromStrippedPubXPrvLengthRequirement
+    :: Unencrypted XPrv
+    -> NonNegative Int
+    -> Property
+prop_xPrvFromStrippedPubXPrvLengthRequirement (Unencrypted k) (NonNegative n) = do
+    let f = toStripped >=> (return . BS.take n) >=> fromStripped
+    let k' = f k
+    -- A reason for writing the test using BS.take n instead of say vectorOf
+    -- was guarding against
+    -- https://github.com/input-output-hk/cardano-crypto/issues/67
+    n < 96 ==> property $ isLeft k'
+        & counterexample ("n = " ++ show n)
+        & counterexample ("result = " ++ show k')
+        & classify (n == 96) "== 96"
+        & classify (n < 96) "< 96"
+  where
+    toStripped = left show . unXPrvStripPub
+    fromStripped = left show . xPrvFromStrippedPubXPrv
+
 {-------------------------------------------------------------------------------
                              Arbitrary Instances
 -------------------------------------------------------------------------------}
@@ -342,11 +398,11 @@ instance Eq XPrv where
 
 instance Arbitrary (ShelleyKey 'RootK XPrv) where
     shrink _ = []
-    arbitrary = genRootKeysSeq
+    arbitrary = genRootKeysSeqWithPass =<< genPassphrase (0, 16)
 
 instance Arbitrary (ShelleyKey 'AccountK XPub) where
     shrink _ = []
-    arbitrary = publicKey <$> genRootKeysSeq
+    arbitrary = publicKey <$> (genRootKeysSeqWithPass =<< genPassphrase (0, 16))
 
 instance Arbitrary (ShelleyKey 'RootK XPub) where
     shrink _ = []
@@ -354,37 +410,72 @@ instance Arbitrary (ShelleyKey 'RootK XPub) where
 
 instance Arbitrary (ByronKey 'RootK XPrv) where
     shrink _ = []
-    arbitrary = genRootKeysRnd
+    arbitrary = genRootKeysRndWithPass =<< genPassphrase (0, 16)
 
 instance Arbitrary (IcarusKey 'RootK XPrv) where
     shrink _ = []
-    arbitrary = genRootKeysIca
+    arbitrary = genRootKeysIcaWithPass =<< genPassphrase (0, 16)
 
 instance Arbitrary (IcarusKey 'AccountK XPub) where
     shrink _ = []
-    arbitrary = publicKey <$> genRootKeysIca
+    arbitrary = publicKey <$> (genRootKeysIcaWithPass =<< genPassphrase (0, 16))
 
 instance Arbitrary NetworkDiscriminant where
     arbitrary = arbitraryBoundedEnum
     shrink = genericShrink
 
-genRootKeysSeq :: Gen (ShelleyKey depth XPrv)
-genRootKeysSeq = do
-    (s, g, e) <- (,,)
-        <$> (SomeMnemonic <$> genMnemonic @15)
-        <*> (Just . SomeMnemonic <$> genMnemonic @12)
-        <*> genPassphrase @"encryption" (0, 16)
-    return $ Seq.unsafeGenerateKeyFromSeed (s, g) e
+newtype Unencrypted a = Unencrypted { getUnencrypted :: a }
+    deriving (Eq, Show)
 
-genRootKeysRnd :: Gen (ByronKey 'RootK XPrv)
-genRootKeysRnd = Rnd.generateKeyFromSeed
+instance Arbitrary (Unencrypted XPrv) where
+    shrink _ = []
+    arbitrary = Unencrypted <$> genAnyKeyWithPass mempty
+
+data XPrvWithPass = XPrvWithPass XPrv (Passphrase "encryption")
+    deriving (Eq, Show)
+
+instance Arbitrary XPrvWithPass where
+    shrink _ = []
+    arbitrary = do
+        pwd <- oneof
+            [ genPassphrase (0, 16)
+            , return $ Passphrase ""
+            ]
+        flip XPrvWithPass pwd <$> genAnyKeyWithPass pwd
+
+genAnyKeyWithPass
+    :: Passphrase "encryption"
+    -> Gen XPrv
+genAnyKeyWithPass pwd = oneof
+    [ getRawKey
+        <$> genRootKeysSeqWithPass pwd
+    , getRawKey
+        <$> genRootKeysRndWithPass pwd
+    , getRawKey
+        <$> genRootKeysIcaWithPass pwd
+    ]
+
+genRootKeysSeqWithPass
+    :: Passphrase "encryption"
+    -> Gen (ShelleyKey depth XPrv)
+genRootKeysSeqWithPass encryptionPass = do
+    s <- SomeMnemonic <$> genMnemonic @15
+    g <- Just . SomeMnemonic <$> genMnemonic @12
+    return $ Seq.unsafeGenerateKeyFromSeed (s, g) encryptionPass
+
+genRootKeysRndWithPass
+    :: Passphrase "encryption"
+    -> Gen (ByronKey 'RootK XPrv)
+genRootKeysRndWithPass encryptionPass = Rnd.generateKeyFromSeed
     <$> (SomeMnemonic <$> genMnemonic @12)
-    <*> genPassphrase @"encryption" (0, 16)
+    <*> (pure encryptionPass)
 
-genRootKeysIca :: Gen (IcarusKey depth XPrv)
-genRootKeysIca = Ica.unsafeGenerateKeyFromSeed
+genRootKeysIcaWithPass
+    :: Passphrase "encryption"
+    -> Gen (IcarusKey depth XPrv)
+genRootKeysIcaWithPass encryptionPass = Ica.unsafeGenerateKeyFromSeed
     <$> (SomeMnemonic <$> genMnemonic @15)
-    <*> genPassphrase @"encryption" (0, 16)
+    <*> (pure encryptionPass)
 
 genPassphrase :: (Int, Int) -> Gen (Passphrase purpose)
 genPassphrase range = do

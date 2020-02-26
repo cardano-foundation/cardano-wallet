@@ -13,7 +13,9 @@ module Cardano.Wallet.Gen
 import Prelude
 
 import Cardano.Wallet.Primitive.Mnemonic
-    ( ConsistentEntropy, EntropySize, Mnemonic, entropyToMnemonic, mkEntropy )
+    ( ConsistentEntropy, EntropySize, Mnemonic, entropyToMnemonic )
+import Cardano.Wallet.Unsafe
+    ( unsafeMkEntropy )
 import Data.Proxy
     ( Proxy (..) )
 import GHC.TypeLits
@@ -36,5 +38,5 @@ genMnemonic
 genMnemonic = do
         let n = fromIntegral (natVal $ Proxy @(EntropySize mw)) `div` 8
         bytes <- BS.pack <$> vectorOf n arbitrary
-        let ent = either (error . show) id $ mkEntropy @(EntropySize mw) bytes
+        let ent = unsafeMkEntropy @(EntropySize mw) bytes
         return $ entropyToMnemonic ent
