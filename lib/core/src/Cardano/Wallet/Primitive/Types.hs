@@ -16,7 +16,6 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -224,6 +223,8 @@ import Data.Text.Class
     )
 import Data.Time.Clock
     ( NominalDiffTime, UTCTime, addUTCTime, diffUTCTime )
+import Data.Time.Format
+    ( defaultTimeLocale, formatTime )
 import Data.Word
     ( Word16, Word32, Word64 )
 import Data.Word.Odd
@@ -237,6 +238,7 @@ import Fmt
     , indentF
     , ordinalF
     , prefixF
+    , pretty
     , suffixF
     , tupleF
     )
@@ -288,10 +290,14 @@ data WalletMetadata = WalletMetadata
 
 instance NFData WalletMetadata
 
+formatUTCTime :: UTCTime -> Text
+formatUTCTime =
+    T.pack . formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S %Z"
+
 instance Buildable WalletMetadata where
     build (WalletMetadata wName wTime _ wDelegation) = mempty
         <> build wName <> ", "
-        <> "created at " <> build wTime <> ", "
+        <> "created at " <> build (formatUTCTime wTime) <> ", "
         <> build wDelegation
 
 -- | Length-restricted name of a wallet
@@ -358,10 +364,8 @@ instance NFData WalletDelegationStatus
 
 instance Buildable WalletDelegationStatus where
     build = \case
-        NotDelegating ->
-            "not delegating"
-        Delegating poolId ->
-            "delegating to " <> build poolId
+        NotDelegating -> "∅"
+        Delegating poolId -> build poolId
 
 data WalletDelegationNext = WalletDelegationNext
     { changesAt :: !EpochNo
@@ -370,8 +374,7 @@ data WalletDelegationNext = WalletDelegationNext
 instance NFData WalletDelegationNext
 
 instance Buildable WalletDelegationNext where
-    build (WalletDelegationNext st epoch) =
-        build st <> " which is expected to happen at epoch number " <> build epoch
+    build (WalletDelegationNext st _) = build st
 
 data WalletDelegation = WalletDelegation
     { active :: !WalletDelegationStatus
@@ -381,15 +384,10 @@ instance NFData WalletDelegation
 
 instance Buildable WalletDelegation where
     build (WalletDelegation act []) =
-        "current wallet delegation: " <> build act <> ", awaiting no change"
-    build (WalletDelegation act [n]) =
-        "current wallet delegation: " <> build act <> ", awaiting " <> build n
-    build (WalletDelegation act [n1, n2]) =
-        "current wallet delegation: " <> build act <> ", awaiting first " <>
-        build n1 <> " then awaiting " <> build n2
-    build (WalletDelegation act _) =
-        "current wallet delegation: " <> build act <>
-        ", something wrong with awaiting"
+        "delegating to " <> build act
+    build (WalletDelegation act xs) =
+        build (WalletDelegation act []) <> " → "
+        <> build (T.intercalate " → " $ pretty <$> xs)
 
 class IsDelegatingTo a where
     isDelegatingTo :: (PoolId -> Bool) -> a -> Bool
