@@ -223,6 +223,8 @@ import Data.Text.Class
     )
 import Data.Time.Clock
     ( NominalDiffTime, UTCTime, addUTCTime, diffUTCTime )
+import Data.Time.Format
+    ( defaultTimeLocale, formatTime )
 import Data.Word
     ( Word16, Word32, Word64 )
 import Data.Word.Odd
@@ -287,10 +289,14 @@ data WalletMetadata = WalletMetadata
 
 instance NFData WalletMetadata
 
+formatUTCTime :: UTCTime -> Text
+formatUTCTime =
+    T.pack . formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S %Z"
+
 instance Buildable WalletMetadata where
     build (WalletMetadata wName wTime _ wDelegation) = mempty
         <> build wName <> ", "
-        <> "created at " <> build wTime <> ", "
+        <> "created at " <> build (formatUTCTime wTime) <> ", "
         <> build wDelegation
 
 -- | Length-restricted name of a wallet
