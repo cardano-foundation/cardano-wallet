@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -16,6 +17,8 @@ import Prelude
 import Cardano.CLI
     ( CliKeyScheme (..)
     , CliWalletStyle (..)
+    , DerivationIndex (..)
+    , DerivationPath (..)
     , MnemonicSize (..)
     , Port (..)
     , TxId
@@ -44,6 +47,8 @@ import Cardano.Wallet.Primitive.Mnemonic
     )
 import Cardano.Wallet.Unsafe
     ( unsafeMkEntropy )
+import Control.Arrow
+    ( left )
 import Control.Concurrent
     ( forkFinally )
 import Control.Concurrent.MVar
@@ -73,11 +78,19 @@ import System.IO.Silently
 import System.IO.Temp
     ( withSystemTempDirectory )
 import Test.Hspec
-    ( Spec, describe, expectationFailure, it, shouldBe, shouldStartWith )
+    ( HasCallStack
+    , Spec
+    , describe
+    , expectationFailure
+    , it
+    , shouldBe
+    , shouldStartWith
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
     , Large (..)
+    , NonEmptyList (..)
     , Property
     , arbitraryBoundedEnum
     , checkCoverage
@@ -488,6 +501,34 @@ spec = do
         textRoundtrip $ Proxy @(Port "test")
         textRoundtrip $ Proxy @MnemonicSize
         textRoundtrip $ Proxy @CliWalletStyle
+        textRoundtrip $ Proxy @DerivationIndex
+        textRoundtrip $ Proxy @DerivationPath
+
+    describe "DerivationPath/Index fromText goldens" $ do
+        fromTextGolden @DerivationIndex "" "should fail" $
+            Left "An empty string is not a derivation index!"
+
+        fromTextGolden @DerivationIndex "4294967295'" "should fail" $
+            Left "6442450943 is too high to be a derivation index."
+
+        fromTextGolden @DerivationPath "44'/0'/0" "" $
+            Right . DerivationPath . map DerivationIndex $
+                [0x80000000 + 44, 0x80000000 + 0, 0]
+
+        fromTextGolden
+            @DerivationPath "2147483692" "hardened index without ' notation" $
+                Left "2147483692 is too high to be a soft derivation index. \
+                     \Please use \"'\" to denote hardened indexes. Did you \
+                     \mean \"44'\"?"
+
+        fromTextGolden @DerivationPath "44'/0'/0/" "should fail (trailing /)" $
+            Left "An empty string is not a derivation index!"
+
+        fromTextGolden @DerivationPath "ö'/0'/0/" "should fail" $
+            Left "\"ö'\" is not a number."
+
+        fromTextGolden @DerivationPath "0x80000000/0'/0/" "should fail" $
+            Left "\"0x80000000\" is not a number."
 
     describe "Transaction ID decoding from text" $ do
 
@@ -724,6 +765,16 @@ genMnemonic = do
         let ent = unsafeMkEntropy @(EntropySize mw) bytes
         return $ entropyToMnemonic ent
 
+fromTextGolden
+    :: (HasCallStack, FromText a, Show a, Eq a)
+    => Text
+    -> String
+    -> Either String a
+    -> Spec
+fromTextGolden str desc expected =
+    it (show str ++ " " ++ desc) $
+        fromText str `shouldBe` (left TextDecodingError expected)
+
 {-------------------------------------------------------------------------------
                                 hGetSensitiveLine
 -------------------------------------------------------------------------------}
@@ -788,3 +839,8 @@ instance Arbitrary (Port "test") where
     shrink p
         | p == minBound = []
         | otherwise = [pred p]
+
+instance Arbitrary DerivationIndex where
+    arbitrary = arbitraryBoundedEnum
+instance Arbitrary DerivationPath where
+    arbitrary = DerivationPath . getNonEmpty <$> arbitrary

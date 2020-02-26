@@ -64,6 +64,8 @@ module Cardano.CLI
     , Port (..)
     , CliKeyScheme (..)
     , CliWalletStyle (..)
+    , DerivationIndex (..)
+    , DerivationPath (..)
 
     , newCliKeyScheme
     , xPrvToTextTransform
@@ -134,10 +136,13 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Network
     ( ErrNetworkUnavailable (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( ErrUnXPrvStripPub (..)
+    ( Depth (..)
+    , DerivationType (..)
+    , ErrUnXPrvStripPub (..)
     , ErrXPrvFromStrippedPubXPrv (..)
     , FromMnemonic (..)
     , FromMnemonicError (..)
+    , Index (..)
     , NatVals (..)
     , Passphrase (..)
     , PassphraseMaxLength
@@ -206,6 +211,8 @@ import Data.Text.Read
     ( decimal )
 import Data.Void
     ( Void )
+import Data.Word
+    ( Word32 )
 import Fmt
     ( Buildable, pretty )
 import GHC.Generics
@@ -441,6 +448,79 @@ instance FromText CliWalletStyle where
 
 instance ToText CliWalletStyle where
     toText = toTextFromBoundedEnum SnakeLowerCase
+
+newtype DerivationPath = DerivationPath [DerivationIndex]
+    deriving (Show, Eq)
+
+instance FromText DerivationPath where
+    fromText x = DerivationPath <$> mapM fromText (T.splitOn "/" x)
+
+instance ToText DerivationPath where
+    toText (DerivationPath xs) = T.intercalate "/" $ map toText xs
+
+newtype DerivationIndex = DerivationIndex { unDerivationIndex :: Word32 }
+    deriving (Show, Eq)
+    deriving newtype (Bounded, Enum)
+
+firstHardenedIndex :: Word32
+firstHardenedIndex = getIndex $ minBound @(Index 'Hardened 'AddressK)
+
+instance FromText DerivationIndex where
+    fromText "" = Left $ TextDecodingError
+        "An empty string is not a derivation index!"
+    fromText x = do
+       -- NOTE: T.takeEnd will not throw, but may return "".
+       if T.takeEnd 1 x == "\'"
+       then do
+           let x' = T.dropEnd 1 x
+           parseHardenedIndex x'
+       else parseSoftIndex x
+      where
+        parseWord = left (const err) .
+            fmap fromIntegral . fromText @Int
+          where
+            err = TextDecodingError $
+                "\"" ++ T.unpack x ++ "\" is not a number."
+
+        mkDerivationIndex :: Int -> Either TextDecodingError DerivationIndex
+        mkDerivationIndex =
+            indexInv >=> (return . DerivationIndex . toEnum . fromEnum)
+
+        parseSoftIndex =
+            parseWord >=> softIndexInv >=> mkDerivationIndex
+
+        parseHardenedIndex =
+            parseWord
+            >=> (return . (+ fromIntegral firstHardenedIndex))
+            >=> mkDerivationIndex
+
+        softIndexInv a = do
+            idx <- mkDerivationIndex a
+            if a >= fromIntegral firstHardenedIndex
+            then Left . TextDecodingError $ mconcat
+                [ show a
+                , " is too high to be a soft derivation index. "
+                , "Please use \"'\" to denote hardened indexes. "
+                , "Did you mean \""
+                , T.unpack $ toText idx
+                , "\"?"
+                ]
+            else Right a
+
+        indexInv a =
+            if a > fromIntegral (maxBound @Word32)
+            then Left . TextDecodingError $ mconcat
+                [ show a
+                , " is too high to be a derivation index."
+                ]
+            else Right a
+
+instance ToText DerivationIndex where
+    toText (DerivationIndex i) = do
+        T.pack $
+            if i >= firstHardenedIndex
+            then show (i - firstHardenedIndex) ++ "'"
+            else show i
 
 newCliKeyScheme :: CliWalletStyle -> CliKeyScheme XPrv (Either String)
 newCliKeyScheme = \case
@@ -1326,6 +1406,13 @@ walletStyleOption = option (eitherReader fromTextS)
 
 keyArgument :: Parser Text
 keyArgument = T.pack <$> (argument str (metavar "HEX-XPRV"))
+
+_pathOption :: Parser DerivationPath
+_pathOption = option (eitherReader fromTextS) $
+    mempty
+    <> long "path"
+    <> metavar "DER-PATH"
+    <> help "Derivation path e.g. \"44'/1815'/0'/0\""
 
 -- | <wallet-id=WALLET_ID>
 walletIdArgument :: Parser WalletId
