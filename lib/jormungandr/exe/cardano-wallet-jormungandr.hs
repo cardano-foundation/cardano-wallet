@@ -27,7 +27,7 @@ import Prelude
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Trace
-    ( Trace, appendName, logDebug, logInfo, logNotice )
+    ( Trace, appendName, logInfo, logNotice )
 import Cardano.CLI
     ( LoggingOptions (..)
     , Port (..)
@@ -243,7 +243,7 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> helper' <*> cmd) $ mempt
             installSignalHandlers (logNotice tr MsgSigTerm)
             let trShutdown = trMessage (contramap (fmap MsgShutdownHandler) tr)
             void $ withShutdownHandler trShutdown $ do
-                logDebug tr $ MsgLaunchArgs args
+                logInfo tr $ MsgLaunchArgs args
                 case genesisBlock jArgs of
                     Right block0File -> requireFilePath block0File
                     Left _ -> pure ()
@@ -305,7 +305,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
             installSignalHandlers (logNotice tr MsgSigTerm)
             let trShutdown = trMessage (contramap (fmap MsgShutdownHandler) tr)
             void $ withShutdownHandler trShutdown $ do
-                logDebug tr $ MsgServeArgs args
+                logInfo tr $ MsgServeArgs args
                 let baseUrl = localhostBaseUrl $ getPort nodePort
                 let cp = JormungandrConnParams block0H baseUrl
                 whenJust databaseDir $ setupDirectory (logInfo tr . MsgSetupDatabases)

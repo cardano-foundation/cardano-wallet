@@ -69,7 +69,7 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 
 spec :: forall t. KnownCommand t => SpecWith (Context t)
-spec = do
+spec = describe "PATATE" $ do
     block0H <- runIO $ argHex <$> getBlock0H
     describe "SERVER - cardano-wallet serve [SERIAL]" $ do
         it "SERVER - Can start cardano-wallet serve --database" $ \_ -> do
@@ -136,7 +136,7 @@ spec = do
                     threadDelay (10 * oneSecond)
                 hClose hLogs
                 logged <- T.lines <$> TIO.readFile logs
-                let loggedNotMain = grepNot "cardano-wallet.main:Debug" logged
+                let loggedNotMain = grepNot "cardano-wallet.main:" logged
                 grep "Debug" loggedNotMain `shouldBe` []
                 grep "Info" loggedNotMain `shouldNotBe` []
 

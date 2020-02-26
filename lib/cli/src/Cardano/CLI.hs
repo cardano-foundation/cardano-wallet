@@ -109,7 +109,7 @@ import Cardano.BM.Data.Tracer
 import Cardano.BM.Setup
     ( setupTrace_, shutdown )
 import Cardano.BM.Trace
-    ( Trace, logDebug )
+    ( Trace, appendName, logDebug )
 import Cardano.Wallet.Api.Client
     ( WalletClient (..), walletClient )
 import Cardano.Wallet.Api.Server
@@ -1457,7 +1457,7 @@ withLogging configFile minSeverity action = bracket before after (action . snd)
   where
     before = initTracer configFile minSeverity
     after (sb, (_, tr)) = do
-        logDebug tr "Logging shutdown."
+        logDebug (appendName "main" tr) "Logging shutdown."
         shutdown sb
 
 data LoggingOptions tracers = LoggingOptions
