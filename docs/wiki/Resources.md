@@ -1,7 +1,7 @@
 Wallet
 ------
 
-- [Wallet Cryptography and Encoding](https://github.com/input-output-hk/chain-wallet-libs/blob/master/doc/CRYPTO.md)
+- [Wallet Cryptography and Encoding](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-Cryptography-and-Encoding)
 - [About Address Derivation](https://github.com/input-output-hk/cardano-wallet/wiki/About-Address-Derivation)
 - [About Coin Selection](https://github.com/input-output-hk/cardano-wallet/wiki/About-Coin-Selection)
 - [About UTxO](https://github.com/input-output-hk/cardano-wallet/wiki/About-UTxO)
