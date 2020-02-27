@@ -1,6 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
@@ -218,8 +217,6 @@ import GHC.Generics
     ( Generic )
 import GHC.TypeLits
     ( Nat, Symbol )
-import Network.NTP.Query
-    ( NtpStatus )
 import Numeric.Natural
     ( Natural )
 import Servant.API
@@ -482,8 +479,19 @@ data ApiNetworkInformation = ApiNetworkInformation
     , networkTip :: !ApiNetworkTip
     } deriving (Eq, Generic, Show)
 
+data NtpSyncingStatus =
+      NtpSyncingStatusUnavailable
+    | NtpSyncingStatusPending
+    | NtpSyncingStatusCompleted
+    deriving (Eq, Generic, Show)
+
+data ApiNtpStatus = ApiNtpStatus
+    { syncing :: !NtpSyncingStatus
+    , offset :: !(Maybe (Quantity "microsecond" Word64))
+    } deriving (Eq, Generic, Show)
+
 newtype ApiNetworkClock = ApiNetworkClock
-    { ntpStatus :: ApiT NtpStatus
+    { ntpStatus :: ApiNtpStatus
     } deriving (Eq, Generic, Show)
 
 -- | Error codes returned by the API, in the form of snake_cased strings
@@ -550,6 +558,21 @@ instance FromHttpApiData Iso8601Time where
 
 instance ToHttpApiData Iso8601Time where
     toUrlPiece = toText
+
+instance ToText NtpSyncingStatus where
+    toText NtpSyncingStatusUnavailable = "unavailable"
+    toText NtpSyncingStatusPending = "pending"
+    toText NtpSyncingStatusCompleted = "completed"
+
+instance FromText NtpSyncingStatus where
+    fromText txt = case txt of
+        "unavailable" -> Right NtpSyncingStatusUnavailable
+        "pending" -> Right NtpSyncingStatusPending
+        "completed" -> Right NtpSyncingStatusCompleted
+        _ -> Left $ TextDecodingError $ unwords
+            [ "I couldn't parse the given ntp syncing status."
+            , "I am expecting one of the words 'unavailable', 'pending' or"
+            , "'completed'."]
 
 instance ToText ApiEpochNumber where
     toText ApiEpochNumberLatest = "latest"
@@ -989,10 +1012,16 @@ instance FromJSON ApiNetworkInformation where
 instance ToJSON ApiNetworkInformation where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON (ApiT NtpStatus) where
-    parseJSON = fail "to be implemented later"
-instance ToJSON (ApiT NtpStatus) where
-    toJSON = fail "to be implemented later"
+instance FromJSON NtpSyncingStatus where
+    parseJSON =
+        parseJSON >=> eitherToParser . bimap ShowFmt Prelude.id . fromText
+instance ToJSON NtpSyncingStatus where
+    toJSON = toJSON . toText
+
+instance FromJSON ApiNtpStatus where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiNtpStatus where
+    toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiNetworkClock where
     parseJSON = genericParseJSON defaultRecordTypeOptions
