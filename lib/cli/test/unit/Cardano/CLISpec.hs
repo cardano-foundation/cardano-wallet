@@ -215,6 +215,7 @@ spec = do
             , "  root                     Extract root extended private key from"
             , "                           a mnemonic sentence."
             , "  public                   Extract public key from a private key."
+            , "  inspect                  Show information about a key."
             ]
 
         ["wallet", "--help"] `shouldShowUsage`
@@ -466,9 +467,18 @@ spec = do
             , "                             trezor (12, 15, 18, 21 or 24 words)"
             , "                             ledger (12, 15, 18, 21 or 24 words)"
             ]
+
         ["key", "public", "--help"] `shouldShowUsage`
             [ "Usage:  key public HEX-XPRV"
             , "  Extract public key from a private key."
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            ]
+
+        ["key", "inspect", "--help"] `shouldShowUsage`
+            [ "Usage:  key inspect HEX-XPRV"
+            , "  Show information about a key."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
@@ -608,6 +618,21 @@ spec = do
                    \db3d9c743a"
         -- Verified manually with jcli.
         ["key", "public", prv1] `shouldStdOut` (pub1 ++ "\n")
+
+    describe "key inspect" $ do
+        let xprv = "588102383ed9ecc5c44e1bfa18d1cf8ef19a7cf806a20bb4cbbe4e51166\
+                   \6cf48d6fd7bec908e4c6ced5f0c4f0798b1b619d6b61e6110492b5ebb43\
+                   \0f570488f0"
+        let cc = "74a9fc9a22f0a61b2ab9b1f1a990e3f8\
+                 \dd6fbed4ad474371095c74db3d9c743a"
+        ["key", "inspect", xprv ++ cc] `shouldStdOut`
+            mconcat [ "extended private key: "
+                , xprv
+                , "\n"
+                , "chain code: "
+                , cc
+                , "\n"
+                ]
 
     describe "CliKeyScheme" $ do
         it "all allowedWordLengths are supported"
