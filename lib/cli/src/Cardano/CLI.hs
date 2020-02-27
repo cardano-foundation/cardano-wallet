@@ -298,6 +298,7 @@ import System.IO
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM
+import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Api.Types as API
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
@@ -350,7 +351,7 @@ cmdKey = command "key" $ info (helper <*> cmds) $ mempty
   where
     cmds = subparser $ mempty
         <> cmdRootKey
-
+        <> cmdKeyPublic
 
 -- | Record with mnemonic and key derivation funcionality — /without/ any type
 -- parameters related to scheme.
@@ -420,7 +421,7 @@ mapKey
     => (key1 -> m key2, key2 -> m key1)
     -> CliKeyScheme key1 m
     -> CliKeyScheme key2 m
-mapKey (f, g) s = CliKeyScheme
+mapKey (f, _g) s = CliKeyScheme
     { allowedWordLengths = allowedWordLengths s
     , mnemonicToRootKey = (mnemonicToRootKey s) >=> f
     }
@@ -510,6 +511,24 @@ cmdRootKey =
             hoistKeyScheme eitherToIO
             . mapKey xPrvToTextTransform
             $ newCliKeyScheme keyType
+
+newtype KeyPublicArgs = KeyPublicArgs
+    { _key :: Text
+    }
+
+cmdKeyPublic :: Mod CommandFields (IO ())
+cmdKeyPublic =
+    command "public" $ info (helper <*> cmd) $ mempty
+        <> progDesc "Extract public key from a private key."
+  where
+    cmd = fmap exec $
+        KeyPublicArgs <$> keyArgument
+
+    exec (KeyPublicArgs hexPrv) = do
+        let (_, decodePrv) = xPrvToTextTransform
+        let encodePub = T.pack . B8.unpack . hex . CC.unXPub
+        pubHex <- eitherToIO $ encodePub . CC.toXPub <$> decodePrv hexPrv
+        TIO.putStrLn pubHex
 
 {-------------------------------------------------------------------------------
                             Commands - 'mnemonic'
@@ -1269,6 +1288,9 @@ walletStyleOption = option (eitherReader fromTextS)
                 ++ " or "
                 ++ ult
          formatEnglishEnumerationRev xs = intercalate ", " (reverse xs)
+
+keyArgument :: Parser Text
+keyArgument = T.pack <$> (argument str (metavar "HEX-XPRV"))
 
 -- | <wallet-id=WALLET_ID>
 walletIdArgument :: Parser WalletId
