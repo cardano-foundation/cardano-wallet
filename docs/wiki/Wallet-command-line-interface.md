@@ -42,6 +42,8 @@ Available COMMANDS:
   network
     <a href="#network-information">information</a>         View network information
     <a href="#network-parameters">parameters</a>          View network parameters
+  key
+    <a href="#key-root">root</a>                Extract root extended private key from a mnemonic sentence.
   <a href="#version">version</a>               Show the program's current version
 </pre> 
 
@@ -580,6 +582,31 @@ View network information and syncing progress between the node and the blockchai
 > `cardano-wallet network parameters [--port=INT] EPOCH_NUMBER` 
 
 View network parameters. EPOCH_NUMBER can be `latest` or valid epoch number (not later than the current one), ie., `0`, `1`, .. .
+
+<p align=right><a href="#">top :arrow_heading_up:</a></p>
+
+## key root
+
+Extract the root extended private key from a mnemonic sentence. New mnemonic sentences can be generated using <a href="#mnemonic-generate">`mnemonic generate`</a>.
+
+> ```
+> Usage: cardano-wallet-jormungandr key root [--wallet-style WALLET_STYLE]
+>                                           MNEMONIC_WORD...
+> Extract root extended private key from a mnemonic sentence.
+>
+> Available options:
+>  -h,--help                Show this help text
+>  --wallet-style WALLET_STYLE
+>                           Any of the following (default: icarus)
+>                             icarus (15 words)
+>                             trezor (12, 15, 18, 21 or 24 words)
+>                             ledger (12, 15, 18, 21 or 24 words)
+> ```
+
+```bash
+$ cardano-wallet-jormungandr key root --wallet-style icarus -- express theme celery coral <...11 more words>
+68f0cb3d83b5278f0b4c9c4a4ab50e49aef13f348ceafaf8257168f...
+```
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
 
