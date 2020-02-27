@@ -483,7 +483,7 @@ data ApiNetworkInformation = ApiNetworkInformation
     } deriving (Eq, Generic, Show)
 
 newtype ApiNetworkClock = ApiNetworkClock
-    { ntpStatus :: !(ApiT NtpStatus)
+    { ntpStatus :: ApiT NtpStatus
     } deriving (Eq, Generic, Show)
 
 -- | Error codes returned by the API, in the form of snake_cased strings
@@ -987,6 +987,16 @@ instance ToJSON (ApiT TxStatus) where
 instance FromJSON ApiNetworkInformation where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiNetworkInformation where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON (ApiT NtpStatus) where
+    parseJSON = fail "to be implemented later"
+instance ToJSON (ApiT NtpStatus) where
+    toJSON = fail "to be implemented later"
+
+instance FromJSON ApiNetworkClock where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiNetworkClock where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON (ApiT StartTime) where

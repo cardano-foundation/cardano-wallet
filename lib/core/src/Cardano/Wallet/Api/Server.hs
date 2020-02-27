@@ -113,6 +113,7 @@ import Cardano.Wallet.Api.Types
     , ApiErrorCode (..)
     , ApiFee (..)
     , ApiMnemonicT (..)
+    , ApiNetworkClock
     , ApiNetworkInformation (..)
     , ApiNetworkParameters (..)
     , ApiNetworkTip (..)
@@ -534,6 +535,7 @@ server byron icarus shelley spl =
     network =
         getNetworkInformation genesis nl
         :<|> (getNetworkParameters genesis)
+        :<|> getNetworkClock
       where
         nl = shelley ^. networkLayer @t
         genesis = shelley ^. genesisData
@@ -638,6 +640,7 @@ byronServer byron icarus =
     network =
         getNetworkInformation genesis nl
         :<|> (getNetworkParameters genesis)
+        :<|> getNetworkClock
       where
         nl = icarus ^. networkLayer @t
         genesis = icarus ^. genesisData
@@ -1498,6 +1501,10 @@ data ErrNoSuchEpoch = ErrNoSuchEpoch
     { errGivenEpoch :: W.EpochNo
     , errCurrentEpoch :: W.EpochNo
     } deriving (Eq, Show)
+
+getNetworkClock
+    :: Handler ApiNetworkClock
+getNetworkClock = throwError err501
 
 {-------------------------------------------------------------------------------
                                    Proxy

@@ -37,6 +37,7 @@ import Cardano.Wallet.Api.Types
     ( ApiAddress
     , ApiEpochNumber
     , ApiFee
+    , ApiNetworkClock
     , ApiNetworkInformation (..)
     , ApiNetworkParameters
     , ApiNetworkTip
@@ -147,6 +148,8 @@ data WalletClient t = WalletClient
     , networkParameters
         :: ApiEpochNumber
         -> ClientM ApiNetworkParameters
+    , networkClock
+        :: ClientM ApiNetworkClock
     }
 
 -- | Produces a 'WalletClient' for the cardano-wallet V2 API.
@@ -199,6 +202,7 @@ walletClient =
 
         _networkInformation
             :<|> _networkParameters
+            :<|> _networkClock
             = network
 
         _postExternalTransaction
@@ -224,6 +228,7 @@ walletClient =
             , quitStakePool = _quitStakePool
             , networkInformation = _networkInformation
             , networkParameters = _networkParameters
+            , networkClock = _networkClock
             }
 
 {-------------------------------------------------------------------------------
