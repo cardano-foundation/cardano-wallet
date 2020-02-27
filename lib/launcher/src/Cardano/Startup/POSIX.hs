@@ -4,7 +4,7 @@
 -- Portability: POSIX
 --
 
-module Cardano.Launcher.POSIX
+module Cardano.Startup.POSIX
     ( installSignalHandlers
     ) where
 

@@ -99,6 +99,7 @@ executable cardano-wallet-jormungandr
     , cardano-wallet-core
     , cardano-wallet-jormungandr
     , cardano-wallet-launcher
+    , contra-tracer
     , filepath
     , iohk-monitoring
     , network

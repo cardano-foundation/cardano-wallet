@@ -61,7 +61,7 @@ import Cardano.CLI
 import Cardano.DB.Sqlite
     ( DBLog )
 import Cardano.Launcher
-    ( ProcessHasExited (..), installSignalHandlers )
+    ( ProcessHasExited (..) )
 import Cardano.Pool.Metrics
     ( StakePoolLayer, StakePoolLog, monitorStakePools, newStakePoolLayer )
 import Cardano.Wallet
@@ -206,7 +206,6 @@ serveWallet
     -- ^ Callback to run before the main loop
     -> IO ExitCode
 serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMainLoop = do
-    installSignalHandlers (traceWith applicationTracer MsgSigTerm)
     traceWith applicationTracer $ MsgStarting backend
     traceWith applicationTracer $ MsgNetworkName $ networkDiscriminantVal @n
     Server.withListeningSocket hostPref listen $ \case
@@ -342,7 +341,6 @@ toWLBlock = J.convertBlock
 data ApplicationLog
     = MsgStarting JormungandrBackend
     | MsgNetworkName NetworkDiscriminant
-    | MsgSigTerm
     | MsgWalletStartupError ErrStartup
     | MsgServerStartupError ListenError
     | MsgDatabaseStartup DatabasesStartupLog
@@ -353,7 +351,6 @@ instance ToText ApplicationLog where
         MsgStarting backend ->
             "Wallet backend server starting. " <> toText backend <> "..."
         MsgNetworkName n -> "Node is Jörmungandr on " <> toText n
-        MsgSigTerm -> "Terminated by signal."
         MsgDatabaseStartup dbMsg -> toText dbMsg
         MsgWalletStartupError startupErr -> case startupErr of
             ErrStartupGetBlockchainParameters e -> case e of
@@ -407,7 +404,6 @@ instance DefinePrivacyAnnotation ApplicationLog
 instance DefineSeverity ApplicationLog where
     defineSeverity ev = case ev of
         MsgStarting _ -> Info
-        MsgSigTerm -> Notice
         MsgNetworkName _ -> Info
         MsgDatabaseStartup dbEv -> defineSeverity dbEv
         MsgWalletStartupError _ -> Alert

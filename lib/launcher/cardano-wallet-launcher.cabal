@@ -32,8 +32,10 @@ library
       base
     , aeson
     , async
+    , bytestring
     , code-page
     , contra-tracer
+    , extra
     , fmt
     , iohk-monitoring
     , process
@@ -43,13 +45,14 @@ library
       src
   exposed-modules:
       Cardano.Launcher
+    , Cardano.Startup
   if os(windows)
     build-depends: Win32
-    other-modules: Cardano.Launcher.Windows
+    other-modules: Cardano.Startup.Windows
     cpp-options:   -DWINDOWS
   else
     build-depends: unix
-    other-modules: Cardano.Launcher.POSIX
+    other-modules: Cardano.Startup.POSIX
 
 test-suite unit
   default-language:
@@ -68,6 +71,7 @@ test-suite unit
   build-depends:
       base
     , async
+    , bytestring
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
     , contra-tracer
@@ -89,3 +93,4 @@ test-suite unit
       Main.hs
   other-modules:
       Cardano.LauncherSpec
+    , Cardano.StartupSpec

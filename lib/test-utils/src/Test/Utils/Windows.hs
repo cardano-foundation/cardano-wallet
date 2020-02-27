@@ -11,6 +11,7 @@ module Test.Utils.Windows
     , pendingOnWindows
     , whenWindows
     , isWindows
+    , nullFileName
     ) where
 
 import Prelude
@@ -37,3 +38,6 @@ whenWindows = when isWindows
 
 isWindows :: Bool
 isWindows = os == "mingw32"
+
+nullFileName :: FilePath
+nullFileName = if isWindows then "NUL" else "/dev/null"

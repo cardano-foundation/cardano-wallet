@@ -43,7 +43,7 @@ import Cardano.BM.Data.Tracer
     ( nullTracer )
 import Cardano.DB.Sqlite
     ( SqliteContext, destroyDBLayer )
-import Cardano.Launcher
+import Cardano.Startup
     ( withUtf8Encoding )
 import Cardano.Wallet.DB
     ( DBLayer (..), PrimaryKey (..), cleanDB )

@@ -522,7 +522,7 @@ withJormungandr tr (JormungandrConfig stateDir block0 mPort output extraArgs) cb
                     [ "--rest-listen", "127.0.0.1:" <> show apiPort
                     , "--storage", stateDir </> "chain"
                     ] ++ extraArgs
-            let cmd = Command "jormungandr" args (return ()) output
+            let cmd = Command "jormungandr" args (return ()) Inherit output
             res <- withBackendProcess (contramap MsgLauncher tr) cmd $ do
                 waitForPort defaultRetryPolicy apiPort >>= \case
                     True -> Right <$> cb (JormungandrConnParams block0H baseUrl)

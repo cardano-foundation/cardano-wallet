@@ -27,7 +27,7 @@ import Prelude
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Trace
-    ( Trace, appendName, logDebug, logInfo )
+    ( Trace, appendName, logDebug, logInfo, logNotice )
 import Cardano.CLI
     ( LoggingOptions (..)
     , cli
@@ -50,8 +50,12 @@ import Cardano.CLI
     , syncToleranceOption
     , withLogging
     )
-import Cardano.Launcher
-    ( withUtf8Encoding )
+import Cardano.Startup
+    ( ShutdownHandlerLog
+    , installSignalHandlers
+    , withShutdownHandler
+    , withUtf8Encoding
+    )
 import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..) )
 import Cardano.Wallet.Byron
@@ -66,7 +70,7 @@ import Cardano.Wallet.Byron
 import Cardano.Wallet.Byron.Network
     ( localSocketAddrInfo )
 import Cardano.Wallet.Logging
-    ( transformTextTrace )
+    ( trMessage, transformTextTrace )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
@@ -75,6 +79,10 @@ import Cardano.Wallet.Version
     ( GitRevision, Version, gitRevision, showFullVersion, version )
 import Control.Applicative
     ( Const (..), optional )
+import Control.Monad
+    ( void )
+import Control.Tracer
+    ( contramap )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -160,16 +168,18 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
     exec args@(ServeArgs hostPreference listen nodeSocket databaseDir sTolerance logOpt) = do
         let addrInfo = localSocketAddrInfo nodeSocket
         withTracers logOpt $ \tr tracers -> do
-            logDebug tr $ MsgServeArgs args
-            whenJust databaseDir $ setupDirectory (logInfo tr . MsgSetupDatabases)
-            exitWith =<< serveWallet @'Mainnet
-                tracers
-                sTolerance
-                databaseDir
-                hostPreference
-                listen
-                addrInfo
-                (beforeMainLoop tr)
+            installSignalHandlers (logNotice tr MsgSigTerm)
+            void $ withShutdownHandler (trMessage (contramap (fmap MsgShutdownHandler) tr)) $ do
+                logDebug tr $ MsgServeArgs args
+                whenJust databaseDir $ setupDirectory (logInfo tr . MsgSetupDatabases)
+                exitWith =<< serveWallet @'Mainnet
+                    tracers
+                    sTolerance
+                    databaseDir
+                    hostPreference
+                    listen
+                    addrInfo
+                    (beforeMainLoop tr)
 
     whenJust m fn = case m of
        Nothing -> pure ()
@@ -212,6 +222,8 @@ data MainLog
     | MsgSetupDatabases Text
     | MsgServeArgs ServeArgs
     | MsgListenAddress SockAddr
+    | MsgSigTerm
+    | MsgShutdownHandler ShutdownHandlerLog
     deriving (Show, Eq)
 
 instance ToText MainLog where
@@ -228,6 +240,10 @@ instance ToText MainLog where
             T.pack $ show args
         MsgListenAddress addr ->
             "Wallet backend server listening on " <> T.pack (show addr)
+        MsgSigTerm ->
+            "Terminated by signal."
+        MsgShutdownHandler msg' ->
+            toText msg'
 
 withTracers
     :: LoggingOptions TracerSeverities

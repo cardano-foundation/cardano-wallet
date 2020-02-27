@@ -110,6 +110,7 @@ spec = do
                         ]
                         (pure ())
                         Inherit
+                        Inherit
                 void $ withBackendProcess nullTracer cmd $ do
                     expectPathEventuallyExist d
                     expectPathEventuallyExist (d </> "chain")
@@ -127,6 +128,7 @@ spec = do
                     , "--secret", secret
                     ]
                     (pure ())
+                    Inherit
                     Inherit
             void $ withBackendProcess nullTracer cmd $ do
                 expectPathEventuallyExist dir

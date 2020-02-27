@@ -60,8 +60,10 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."base" or (buildDepError "base"))
           (hsPkgs."aeson" or (buildDepError "aeson"))
           (hsPkgs."async" or (buildDepError "async"))
+          (hsPkgs."bytestring" or (buildDepError "bytestring"))
           (hsPkgs."code-page" or (buildDepError "code-page"))
           (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
+          (hsPkgs."extra" or (buildDepError "extra"))
           (hsPkgs."fmt" or (buildDepError "fmt"))
           (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
           (hsPkgs."process" or (buildDepError "process"))
@@ -77,6 +79,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           depends = [
             (hsPkgs."base" or (buildDepError "base"))
             (hsPkgs."async" or (buildDepError "async"))
+            (hsPkgs."bytestring" or (buildDepError "bytestring"))
             (hsPkgs."cardano-wallet-launcher" or (buildDepError "cardano-wallet-launcher"))
             (hsPkgs."cardano-wallet-test-utils" or (buildDepError "cardano-wallet-test-utils"))
             (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))

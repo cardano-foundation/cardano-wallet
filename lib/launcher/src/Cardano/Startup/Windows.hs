@@ -4,7 +4,7 @@
 -- Portability: Windows
 --
 
-module Cardano.Launcher.Windows
+module Cardano.Startup.Windows
     ( installSignalHandlers
     ) where
 

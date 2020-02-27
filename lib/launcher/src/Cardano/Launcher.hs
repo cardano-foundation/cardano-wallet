@@ -17,10 +17,6 @@ module Cardano.Launcher
     , withBackendProcess
     , withBackendProcessHandle
 
-    -- * Program startup
-    , installSignalHandlers
-    , withUtf8Encoding
-
     -- * Logging
     , LauncherLog(..)
     ) where
@@ -67,9 +63,7 @@ import GHC.Generics
 import System.Exit
     ( ExitCode (..) )
 import System.IO
-    ( hSetEncoding, mkTextEncoding, stderr, stdin, stdout )
-import System.IO.CodePage
-    ( withCP65001 )
+    ( Handle )
 import System.Process
     ( CreateProcess (..)
     , ProcessHandle
@@ -79,14 +73,6 @@ import System.Process
     , waitForProcess
     , withCreateProcess
     )
-
-#ifdef WINDOWS
-import Cardano.Launcher.Windows
-    ( installSignalHandlers )
-#else
-import Cardano.Launcher.POSIX
-    ( installSignalHandlers )
-#endif
 
 import qualified Data.Text as T
 
@@ -100,12 +86,15 @@ import qualified Data.Text as T
 --     , "--network", "mainnet"
 --     ] (return ())
 --     Inherit
+--     Inherit
 -- @
 data Command = Command
     { cmdName :: String
     , cmdArgs :: [String]
     , cmdSetup :: IO ()
         -- ^ An extra action to run _before_ the command
+    , cmdInput :: StdStream
+        -- ^ Input to supply to command
     , cmdOutput :: StdStream
         -- ^ What to do with stdout & stderr
     } deriving (Generic)
@@ -125,7 +114,7 @@ instance Eq Command where
 --     --port 8080
 --     --network mainnet
 instance Buildable Command where
-    build (Command name args _ _) = build name
+    build (Command name args _ _ _) = build name
         <> "\n"
         <> indentF 4
             (blockListF' "" build $ snd $ foldl buildOptions ("", []) args)
@@ -160,24 +149,25 @@ withBackendProcess
     -> IO a
     -- ^ Action to execute while process is running.
     -> IO (Either ProcessHasExited a)
-withBackendProcess tr cmd = withBackendProcessHandle tr cmd . const
+withBackendProcess tr cmd = withBackendProcessHandle tr cmd . const . const
 
--- | A variant of 'withBackendProcess' which also provides the 'ProcessHandle' to the
--- given action.
+-- | A variant of 'withBackendProcess' which also provides the 'ProcessHandle'
+-- and stdin 'Handle' to the given action.
 withBackendProcessHandle
     :: Tracer IO LauncherLog
     -- ^ Logging
     -> Command
     -- ^ 'Command' description
-    -> (ProcessHandle -> IO a)
+    -> (Maybe Handle -> ProcessHandle -> IO a)
     -- ^ Action to execute while process is running.
     -> IO (Either ProcessHasExited a)
-withBackendProcessHandle tr cmd@(Command name args before output) action = do
+withBackendProcessHandle tr cmd@(Command name args before input output) action = do
     before
     traceWith tr $ MsgLauncherStart cmd
-    let process = (proc name args) { std_out = output, std_err = output }
+    let process = (proc name args)
+            { std_in = input, std_out = output, std_err = output }
     res <- fmap join $ tryJust spawnPredicate $
-        withCreateProcess process $ \_ _ _ h -> do
+        withCreateProcess process $ \mstdin _ _ h -> do
             pid <- maybe "-" (T.pack . show) <$> getPid h
             let tr' = contramap (WithProcessInfo name pid) tr
             traceWith tr' MsgLauncherStarted
@@ -186,7 +176,7 @@ withBackendProcessHandle tr cmd@(Command name args before output) action = do
                     ProcessHasExited name <$> interruptibleWaitForProcess tr' h
             let runAction = do
                     traceWith tr' MsgLauncherAction
-                    action h `finally` traceWith tr' MsgLauncherCleanup
+                    action mstdin h `finally` traceWith tr' MsgLauncherCleanup
 
             race waitForExit runAction
     either (traceWith tr . MsgLauncherFinish) (const $ pure ()) res
@@ -242,7 +232,7 @@ data LaunchedProcessLog
     deriving (Show, Eq, Generic, ToJSON)
 
 instance ToJSON Command where
-    toJSON (Command name args _ _) = toJSON (name:args)
+    toJSON (Command name args _ _ _) = toJSON (name:args)
 
 instance ToJSON ProcessHasExited where
     toJSON (ProcessDidNotStart name e) =
@@ -294,20 +284,3 @@ launchedProcessText (MsgLauncherWaitAfter status) = "waitForProcess returned "+|
 launchedProcessText MsgLauncherCancel = "There was an exception waiting for the process"
 launchedProcessText MsgLauncherAction = "Running withBackend action"
 launchedProcessText MsgLauncherCleanup = "Terminating child process"
-
-{-------------------------------------------------------------------------------
-                            Unicode Terminal Helpers
--------------------------------------------------------------------------------}
-
--- | Force the locale text encoding to UTF-8. This is needed because the CLI
--- prints UTF-8 characters regardless of the @LANG@ environment variable or any
--- other settings.
---
--- On Windows the current console code page is changed to UTF-8.
-withUtf8Encoding :: IO a -> IO a
-withUtf8Encoding action = withCP65001 (setUtf8EncodingHandles >> action)
-
-setUtf8EncodingHandles :: IO ()
-setUtf8EncodingHandles = do
-    utf8' <- mkTextEncoding "UTF-8//TRANSLIT"
-    mapM_ (`hSetEncoding` utf8') [stdin, stdout, stderr]

@@ -91,6 +91,7 @@ spec = beforeAll setupMockCommands $ do
                 , "--template", "mainnet"
                 ] (pure ())
                 Inherit
+                Inherit
 
         pretty @_ @Text command `shouldBe`
             "server\n\
@@ -151,7 +152,7 @@ spec = beforeAll setupMockCommands $ do
 
     it "Handles command not found" $ \MockCommands{..} -> withTestLogging $ \tr -> do
         let commands =
-                [ Command "foobar" [] (pure ()) Inherit
+                [ Command "foobar" [] (pure ()) Inherit Inherit
                 ]
         (phs, ProcessDidNotStart name _exc) <- launch tr commands
         name `shouldBe` "foobar"
@@ -159,7 +160,7 @@ spec = beforeAll setupMockCommands $ do
 
     it "Backend process is terminated when Async thread is cancelled" $ \MockCommands{..} -> withTestLogging $ \tr -> do
         mvar <- newEmptyMVar
-        let backend = withBackendProcessHandle tr foreverCommand $ \ph -> do
+        let backend = withBackendProcessHandle tr foreverCommand $ \_ ph -> do
                 putMVar mvar ph
                 forever $ threadDelay maxBound
         before <- getCurrentTime
@@ -189,20 +190,20 @@ setupMockCommands
     mockCommandsShell = MockCommands
         { mockCommand = \success before ->
                 let exitStatus = if success then 0 else 1 :: Int
-                in Command "sh" ["-c", "sleep 1; exit " ++ show exitStatus] before Inherit
-        , foreverCommand = Command "sleep" ["20"] (pure ()) Inherit
+                in Command "sh" ["-c", "sleep 1; exit " ++ show exitStatus] before Inherit Inherit
+        , foreverCommand = Command "sleep" ["20"] (pure ()) Inherit Inherit
         }
     setupWin False = MockCommands
         { mockCommand = \success before -> if success
-            then Command "TIMEOUT" ["1"] before Inherit
-            else Command "CHOICE" ["/T", "1", "/C", "wat", "/D", "w"] before Inherit
-        , foreverCommand = Command "TIMEOUT" ["20"] (pure ()) Inherit
+            then Command "TIMEOUT" ["1"] before Inherit Inherit
+            else Command "CHOICE" ["/T", "1", "/C", "wat", "/D", "w"] before Inherit Inherit
+        , foreverCommand = Command "TIMEOUT" ["20"] (pure ()) Inherit Inherit
         }
     setupWin True = MockCommands
         { mockCommand = \success before -> if success
-                then Command "PING" ["/n", "1", "/w", "1000", "127.0.0.1"] before Inherit
-                else Command "START" ["/wait", "xyzzy"] before Inherit
-        , foreverCommand = Command "PING" ["/n", "20", "/w", "1000", "127.0.0.1"] (pure ()) Inherit
+                then Command "PING" ["/n", "1", "/w", "1000", "127.0.0.1"] before Inherit Inherit
+                else Command "START" ["/wait", "xyzzy"] before Inherit Inherit
+        , foreverCommand = Command "PING" ["/n", "20", "/w", "1000", "127.0.0.1"] (pure ()) Inherit Inherit
         }
 
 -- | Use the presence of @winepath.exe@ to detect when running tests under Wine.
@@ -218,7 +219,7 @@ launch :: Tracer IO LauncherLog -> [Command] -> IO ([ProcessHandle], ProcessHasE
 launch tr cmds = do
     phsVar <- newMVar []
     let
-        waitForOthers ph = do
+        waitForOthers _ ph = do
             modifyMVar_ phsVar (pure . (ph:))
             forever $ threadDelay maxBound
         start = async . flip (withBackendProcessHandle tr) waitForOthers
