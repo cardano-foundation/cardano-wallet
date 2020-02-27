@@ -359,7 +359,7 @@ cmdKey = command "key" $ info (helper <*> cmds) $ mempty
     <> progDesc "Derive keys from mnemonics."
   where
     cmds = subparser $ mempty
-        <> cmdRootKey
+        <> cmdKeyRoot
         <> cmdKeyPublic
         <> cmdKeyInspect
 
@@ -578,8 +578,8 @@ data KeyRootArgs = KeyRootArgs
     , _mnemonicWords :: [Text]
     }
 
-cmdRootKey :: Mod CommandFields (IO ())
-cmdRootKey =
+cmdKeyRoot :: Mod CommandFields (IO ())
+cmdKeyRoot =
     command "root" $ info (helper <*> cmd) $ mempty
         <> progDesc "Extract root extended private key from a mnemonic sentence."
   where
