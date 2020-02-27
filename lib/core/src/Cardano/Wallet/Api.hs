@@ -65,6 +65,7 @@ module Cardano.Wallet.Api
     , Network
         , GetNetworkInformation
         , GetNetworkParameters
+        , GetNetworkClock
 
     , Proxy_
         , PostExternalTransaction
@@ -88,6 +89,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelection
     , ApiEpochNumber
     , ApiFee
+    , ApiNetworkClock
     , ApiNetworkInformation
     , ApiNetworkParameters
     , ApiNetworkTip
@@ -439,6 +441,7 @@ type GetByronWalletMigrationInfo = "byron-wallets"
 type Network =
          GetNetworkInformation
     :<|> GetNetworkParameters
+    :<|> GetNetworkClock
 
 type GetNetworkInformation = "network"
     :> "information"
@@ -448,6 +451,10 @@ type GetNetworkParameters = "network"
     :> "parameters"
     :> Capture "epochId" ApiEpochNumber
     :> Get '[JSON] ApiNetworkParameters
+
+type GetNetworkClock = "network"
+    :> "clock"
+    :> Get '[JSON] ApiNetworkClock
 
 {-------------------------------------------------------------------------------
                                    Proxy_

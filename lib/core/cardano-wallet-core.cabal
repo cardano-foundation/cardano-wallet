@@ -67,6 +67,7 @@ library
     , memory
     , monad-logger
     , network
+    , ntp-client
     , OddWord
     , path-pieces
     , persistent

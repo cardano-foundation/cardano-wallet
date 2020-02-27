@@ -65,6 +65,7 @@ module Cardano.Wallet.Api.Types
     , AddressAmount (..)
     , ApiErrorCode (..)
     , ApiNetworkInformation (..)
+    , ApiNetworkClock (..)
     , ApiBlockReference (..)
     , ApiNetworkTip (..)
     , Iso8601Time (..)
@@ -217,6 +218,8 @@ import GHC.Generics
     ( Generic )
 import GHC.TypeLits
     ( Nat, Symbol )
+import Network.NTP.Query
+    ( NtpStatus )
 import Numeric.Natural
     ( Natural )
 import Servant.API
@@ -477,6 +480,10 @@ data ApiNetworkInformation = ApiNetworkInformation
     , nextEpoch :: !ApiEpochInfo
     , nodeTip :: !ApiBlockReference
     , networkTip :: !ApiNetworkTip
+    } deriving (Eq, Generic, Show)
+
+newtype ApiNetworkClock = ApiNetworkClock
+    { ntpStatus :: !(ApiT NtpStatus)
     } deriving (Eq, Generic, Show)
 
 -- | Error codes returned by the API, in the form of snake_cased strings

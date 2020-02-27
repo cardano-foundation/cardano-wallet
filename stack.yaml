@@ -117,6 +117,7 @@ extra-deps:
     - ouroboros-consensus
     - typed-protocols
     - typed-protocols-cbor
+    - ntp-client
 
 flags:
   # Avoid a system library which causes difficulty with cross-compilation
