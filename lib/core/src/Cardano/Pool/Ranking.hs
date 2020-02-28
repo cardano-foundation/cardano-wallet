@@ -74,9 +74,6 @@ module Cardano.Pool.Ranking
       -- * Types
     , EpochConstants (..)
     , Pool (..)
-    , Ratio
-    , unsafeMkRatio
-    , getRatio
     , NonNegative (..)
     , Positive (..)
     , unsafeMkPositive
@@ -86,8 +83,12 @@ module Cardano.Pool.Ranking
 
 import Prelude
 
+import Cardano.Wallet.Unsafe
+    ( unsafeMkPercentage )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Percentage (..), Quantity (..), percentageToDouble )
+import Data.Ratio
+    ( (%) )
 import Data.Word
     ( Word64 )
 import Fmt
@@ -111,7 +112,7 @@ desirability constants pool
     | otherwise        = (f_saturated - c) * (1 - m)
   where
     f_saturated = saturatedPoolRewards constants pool
-    m = getRatio $ margin pool
+    m = percentageToDouble $ margin pool
     c = fromIntegral $ getQuantity $ cost pool
 
 -- | The saturation-level of a pool indicate how far a pool is from the
@@ -144,7 +145,7 @@ saturation
 saturation constants total own =
     σ / z0
   where
-    z0 = getRatio $ saturatedPoolSize constants
+    z0 = percentageToDouble $ saturatedPoolSize constants
     _S = fromIntegral $ getQuantity total
     s  = fromIntegral $ getQuantity own
     σ  = s / _S
@@ -157,8 +158,8 @@ saturatedPoolRewards :: EpochConstants -> Pool -> Double
 saturatedPoolRewards constants pool =
     let
         a0 = getNonNegative $ leaderStakeInfluence constants
-        z0 = getRatio $ saturatedPoolSize constants
-        s = getRatio $ leaderStake pool
+        z0 = percentageToDouble $ saturatedPoolSize constants
+        s = percentageToDouble $ leaderStake pool
         _R = fromIntegral $ getQuantity $ totalRewards constants
         p = getNonNegative $ recentAvgPerformance pool
         -- ^ technically \hat{p} in the spec
@@ -166,9 +167,10 @@ saturatedPoolRewards constants pool =
         (p * _R) / (1 + a0) * (z0 + ((min s z0) * a0))
 
 -- | Determines z0, i.e 1 / k
-saturatedPoolSize :: EpochConstants -> Ratio
+saturatedPoolSize :: EpochConstants -> Percentage
 saturatedPoolSize constants =
-    Ratio $ 1 / fromIntegral (getPositive $ desiredNumberOfPools constants)
+    unsafeMkPercentage $
+        1 % fromIntegral (getPositive $ desiredNumberOfPools constants)
 
 --------------------------------------------------------------------------------
 -- Types
@@ -194,11 +196,11 @@ instance Buildable EpochConstants where
         ]
 
 data Pool = Pool
-    { leaderStake :: Ratio
+    { leaderStake :: Percentage
       -- ^ s
     , cost :: Quantity "lovelace" Word64
       -- ^ c
-    , margin :: Ratio
+    , margin :: Percentage
       -- ^ m
     , recentAvgPerformance :: NonNegative Double
       -- ^ \hat{p}, an already averaged (apparent) performance-value.
@@ -206,16 +208,6 @@ data Pool = Pool
       -- Should mostly be in the range [0, 1]. May be higher than 1 due to
       -- randomness.
     } deriving (Show, Eq, Generic)
-
-newtype Ratio = Ratio { getRatio :: Double }
-    deriving (Show, Eq)
-    deriving newtype Ord
-
-unsafeMkRatio :: Double -> Ratio
-unsafeMkRatio x
-    | x >= 0 && x <= 1  = Ratio x
-    | otherwise         = error $ "unsafeMkRatio: " ++ show x
-                          ++ "not in range [0, 1]"
 
 newtype Positive a = Positive { getPositive :: a }
     deriving (Generic, Eq, Show)

@@ -59,7 +59,7 @@ import Cardano.Pool.Metadata
 import Cardano.Pool.Performance
     ( readPoolsPerformances )
 import Cardano.Pool.Ranking
-    ( EpochConstants (..), unsafeMkNonNegative, unsafeMkRatio )
+    ( EpochConstants (..), unsafeMkNonNegative )
 import Cardano.Wallet.Network
     ( ErrCurrentNodeTip
     , ErrNetworkUnavailable
@@ -76,6 +76,8 @@ import Cardano.Wallet.Primitive.Types
     , PoolRegistrationCertificate (..)
     , SlotId
     )
+import Cardano.Wallet.Unsafe
+    ( unsafeMkPercentage )
 import Control.Arrow
     ( first )
 import Control.Monad
@@ -103,7 +105,9 @@ import Data.Map.Strict
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
-    ( Percentage, Quantity (..), getPercentage )
+    ( Percentage, Quantity (..) )
+import Data.Ratio
+    ( (%) )
 import Data.Text.Class
     ( ToText (..) )
 import Data.Vector.Shuffle
@@ -363,9 +367,9 @@ newStakePoolLayer tr block0H getEpCst db@DBLayer{..} nl metadataDir = StakePoolL
                         Ranking.saturation epConstants totalStake stake
                     , desirability =
                         Ranking.desirability epConstants $ Ranking.Pool
-                            (unsafeMkRatio 0) -- pool leader pledge
+                            (unsafeMkPercentage 0) -- pool leader pledge
                             poolCost
-                            (unsafeMkRatio $ fromIntegral (getPercentage poolMargin) / 100)
+                            poolMargin
                             (unsafeMkNonNegative performance)
                     }
                 , poolOwners
@@ -382,14 +386,14 @@ newStakePoolLayer tr block0H getEpCst db@DBLayer{..} nl metadataDir = StakePoolL
         -> BlockHeader -- ^ numerator /...
         -> Quantity "percent" Percentage
     computeProgress prodTip nodeTip =
-        Quantity $ if s1 == 0
-            then minBound
-            else toEnum $ round $ 100 * (toD s0) / (toD s1)
+        if s1 == 0
+        then Quantity minBound
+        else Quantity . unsafeMkPercentage $ (toW s0) % (toW s1)
       where
         s0 = getQuantity $ prodTip ^. #blockHeight
         s1 = getQuantity $ nodeTip ^. #blockHeight
-        toD :: Integral i => i -> Double
-        toD = fromIntegral
+        toW :: Integral i => i -> Integer
+        toW = fromIntegral
 
 readNewcomers
     :: Monad m

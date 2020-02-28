@@ -103,6 +103,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."random" or (buildDepError "random"))
           (hsPkgs."retry" or (buildDepError "retry"))
           (hsPkgs."safe" or (buildDepError "safe"))
+          (hsPkgs."scientific" or (buildDepError "scientific"))
           (hsPkgs."servant" or (buildDepError "servant"))
           (hsPkgs."servant-client" or (buildDepError "servant-client"))
           (hsPkgs."servant-server" or (buildDepError "servant-server"))

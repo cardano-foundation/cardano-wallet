@@ -34,7 +34,6 @@ module Cardano.Wallet.Jormungandr.Binary
     , Milli (..)
     , PerCertificateFee (..)
     , TaxParameters (..)
-    , Ratio (..)
     , getBlock
     , getBlockHeader
     , getBlockId
@@ -88,12 +87,10 @@ import Cardano.Pool.Ranking
     ( EpochConstants (..), unsafeMkNonNegative, unsafeMkPositive )
 import Cardano.Wallet.Jormungandr.Rewards
     ( PoolCapping (..)
-    , Ratio (..)
     , RewardFormula (..)
     , RewardLimit (..)
     , RewardParams (..)
     , TaxParameters (..)
-    , ratio
     , rewardsAt
     )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -166,6 +163,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..), mkPercentage )
+import Data.Ratio
+    ( Ratio, (%) )
 import Data.Time.Clock
     ( NominalDiffTime, secondsToDiffTime )
 import Data.Time.Clock.POSIX
@@ -819,11 +818,11 @@ getConfigParam = label "getConfigParam" $ do
     secondsToNominalDiffTime =
         toEnum . fromEnum . secondsToDiffTime .  fromIntegral
 
-getRatio :: Get Ratio
+getRatio :: Get (Ratio Word64)
 getRatio = do
     ratioNum <- getWord64be
     ratioDen <- getWord64be
-    return $ Ratio ratioNum ratioDen
+    return $ ratioNum % ratioDen
 
 getTaxParameters :: Get TaxParameters
 getTaxParameters = do
@@ -1079,8 +1078,7 @@ overrideFeePolicy linearFee@(LinearFee a b _) override =
 poolRegistrationsFromBlock :: Block -> [W.PoolRegistrationCertificate]
 poolRegistrationsFromBlock (Block _hdr fragments) = do
     PoolRegistration (poolId, owners, taxes, _tx) <- fragments
-    let margin = fromRight maxBound $ mkPercentage @Int $ round $
-            100 * ratio (taxRatio taxes)
+    let margin = fromRight maxBound $ mkPercentage $ toRational $ taxRatio taxes
     let cost = Quantity (taxFixed taxes)
     pure $ W.PoolRegistrationCertificate poolId owners margin cost
 

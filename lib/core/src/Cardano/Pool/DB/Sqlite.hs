@@ -47,6 +47,8 @@ import Cardano.Wallet.Primitive.Types
     , PoolRegistrationCertificate (..)
     , SlotId (..)
     )
+import Cardano.Wallet.Unsafe
+    ( unsafeMkPercentage )
 import Control.Exception
     ( bracket, throwIO )
 import Control.Monad.IO.Class
@@ -60,7 +62,9 @@ import Data.List
 import Data.Map.Strict
     ( Map )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Percentage (..), Quantity (..) )
+import Data.Ratio
+    ( denominator, numerator, (%) )
 import Data.Word
     ( Word64 )
 import Database.Persist.Sql
@@ -184,17 +188,23 @@ newDBLayer trace fp = do
             , poolMargin
             , poolCost
             } -> do
-            let poolMargin_ = fromIntegral $ fromEnum poolMargin
+            let poolMarginN = fromIntegral $ numerator $ getPercentage poolMargin
+            let poolMarginD = fromIntegral $ denominator $ getPercentage poolMargin
             let poolCost_ = getQuantity poolCost
-            insert_ $ PoolRegistration poolId point poolMargin_ poolCost_
+            insert_ $ PoolRegistration
+                    poolId
+                    point
+                    poolMarginN
+                    poolMarginD
+                    poolCost_
             insertMany_ $ uncurry (PoolOwner poolId) <$> zip poolOwners [0..]
 
         , readPoolRegistration = \poolId -> do
             selectFirst [ PoolRegistrationPoolId ==. poolId ] [] >>= \case
                 Nothing -> pure Nothing
                 Just meta -> do
-                    let (PoolRegistration _ _ poolMargin_ poolCost_) = entityVal meta
-                    let poolMargin = toEnum $ fromIntegral poolMargin_
+                    let (PoolRegistration _ _ marginNum marginDen poolCost_) = entityVal meta
+                    let poolMargin = unsafeMkPercentage $ toRational $ marginNum % marginDen
                     let poolCost = Quantity poolCost_
                     poolOwners <- fmap (poolOwnerOwner . entityVal) <$> selectList
                         [ PoolOwnerPoolId ==. poolId ]

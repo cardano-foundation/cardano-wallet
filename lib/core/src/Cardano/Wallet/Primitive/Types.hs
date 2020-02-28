@@ -206,7 +206,9 @@ import Data.Maybe
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
-    ( Percentage, Quantity (..) )
+    ( Percentage (..), Quantity (..), mkPercentage )
+import Data.Ratio
+    ( (%) )
 import Data.Set
     ( Set )
 import Data.String
@@ -1356,14 +1358,19 @@ syncProgress (SyncTolerance timeTolerance) sp tip slotNow =
         remainingSlots = fromIntegral $ n1 - n0
 
         ActiveSlotCoefficient f = sp ^. #getActiveSlotCoefficient
-        remainingBlocks = round @_ @Int $ remainingSlots * f
+        remainingBlocks = round (remainingSlots * f)
 
-        progress = fromIntegral $
-            (100 * bhTip) `div` (bhTip + remainingBlocks)
-    in if distance n1 n0 < tolerance || n0 >= n1 || progress >= 100 then
+        progress = bhTip % (bhTip + remainingBlocks)
+    in if distance n1 n0 < tolerance || n0 >= n1 || progress >= 1 then
         Ready
     else
-        Syncing (toEnum progress)
+        Syncing
+        . Quantity
+        . either (const . error $ errMsg progress) id
+        . mkPercentage
+        $ progress
+  where
+    errMsg x = "syncProgress: " ++ show x ++ " is out of bounds"
 
 -- | Helper to compare the /local tip/ with the slot corresponding to a
 -- @UTCTime@, and calculate progress based on that.

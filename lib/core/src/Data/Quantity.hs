@@ -7,7 +7,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -26,6 +25,7 @@ module Data.Quantity
     , MkPercentageError(..)
     , mkPercentage
     , getPercentage
+    , percentageToDouble
     ) where
 
 import Prelude
@@ -42,6 +42,7 @@ import Data.Aeson
     , Value (String)
     , object
     , withObject
+    , withScientific
     , (.:)
     , (.=)
     )
@@ -49,10 +50,12 @@ import Data.Aeson.Types
     ( Parser )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Scientific
+    ( FPFormat (Fixed), Scientific (..), formatScientific )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Text.Read
-    ( decimal )
+    ( rational )
 import Fmt
     ( Buildable (..), fmt )
 import GHC.Generics
@@ -134,50 +137,89 @@ instance (KnownSymbol unit, Buildable a) => Buildable (Quantity unit a) where
 
 -- | Opaque Haskell type to represent values between 0 and 100 (incl).
 newtype Percentage = Percentage
-    { getPercentage :: Word }
+    { getPercentage :: Rational }
     deriving stock (Generic, Show, Eq, Ord)
-    deriving newtype (ToJSON)
 
 instance NFData Percentage
 
+instance ToJSON Percentage where
+    toJSON =
+        toJSON
+        . rationalToToScientific percentageNumberOfFractionalDigits
+        . (* 100)
+        . getPercentage
+
 instance FromJSON Percentage where
-    parseJSON x = do
-        n <- parseJSON x
-        either (fail . show) return (mkPercentage @Int n)
+    parseJSON = withScientific "Percentage [0,100]" $ \s ->
+        either (fail . show) return
+        . mkPercentage
+        . toRational
+        $ (s / 100)
 
 instance Bounded Percentage where
     minBound = Percentage 0
-    maxBound = Percentage 100
-
-instance Enum Percentage where
-    fromEnum (Percentage p) = fromEnum p
-    toEnum = either (error . ("toEnum: " <>) . show) id . mkPercentage
+    maxBound = Percentage 1
 
 instance ToText Percentage where
-    toText (Percentage p) = T.pack (show p) <> "%"
+    toText =
+        (<> "%")
+        . T.pack
+        . showS
+        . rationalToToScientific percentageNumberOfFractionalDigits
+        . (* 100)
+        . getPercentage
+      where
+        showS = formatScientific
+            Fixed
+            (Just percentageNumberOfFractionalDigits)
 
 instance FromText Percentage where
     fromText txt = do
-        (p, u) <- left (const err) $ decimal txt
+        (p, u) <- left (const err) $ rational txt
         unless (u == "%") $ Left err
-        left (const err) $ mkPercentage @Integer p
+        left (const err) . mkPercentage $ (p / 100)
       where
         err = TextDecodingError
             "expected a value between 0 and 100 with a '%' suffix (e.g. '14%')"
 
 -- | Safe constructor for 'Percentage'
+--
+-- Takes an input in the range [0, 1].
 mkPercentage
-    :: Integral i
-    => i
+    :: Rational
     -> Either MkPercentageError Percentage
-mkPercentage i
-    | let Percentage inf = minBound in i < fromIntegral inf =
+mkPercentage r
+    | r < 0 =
         Left PercentageOutOfBoundsError
-    | let Percentage sup = maxBound in i > fromIntegral sup =
+    | r > 1 =
         Left PercentageOutOfBoundsError
     | otherwise =
-        pure $ Percentage $ fromIntegral i
+        pure . Percentage $ r
 
 data MkPercentageError
     = PercentageOutOfBoundsError
     deriving (Show, Eq)
+
+-- | Desired number of digits after the decimal point for presenting the
+-- @Percentage@ type.
+percentageNumberOfFractionalDigits :: Int
+percentageNumberOfFractionalDigits = 2
+
+-- | Round a @Rational@ to the given amount of fractional digits.
+--
+-- Note: This is safe to call on repeating digits, in contrast to @fromRational@
+-- (for creating a @Scientific@).
+rationalToToScientific :: Int -> Rational -> Scientific
+rationalToToScientific fracDigits x = (conv i) / (conv factor)
+  where
+    i :: Int
+    i = round (factor * x)
+
+    conv :: (Real a, Fractional b) => a -> b
+    conv = fromRational . toRational
+
+    factor = 10 ^ fracDigits
+
+-- | Turn a @Percentage@ to a @Double@ (without any extra rounding.)
+percentageToDouble :: Percentage -> Double
+percentageToDouble = fromRational . toRational . getPercentage

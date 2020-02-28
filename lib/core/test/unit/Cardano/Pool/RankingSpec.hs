@@ -23,13 +23,13 @@ import Prelude
 import Cardano.Pool.Ranking
     ( EpochConstants (..)
     , Pool (..)
-    , Ratio (..)
     , desirability
     , saturatedPoolRewards
     , saturatedPoolSize
     , unsafeMkNonNegative
-    , unsafeMkRatio
     )
+import Cardano.Wallet.Gen
+    ( genPercentage )
 import Control.Exception
     ( SomeException, evaluate, try )
 import Data.Function
@@ -45,7 +45,7 @@ import Data.Ord
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Percentage, Quantity (..), percentageToDouble )
 import Data.Word
     ( Word64 )
 import GHC.TypeLits
@@ -57,7 +57,6 @@ import Test.QuickCheck
     , NonNegative (..)
     , Positive (..)
     , Property
-    , choose
     , classify
     , counterexample
     , forAll
@@ -99,13 +98,6 @@ spec = do
                 $ property prop_saturatedPoolRewardsNonNegative
 
         describe "unsafeMk- newtypes" $ do
-            it "unsafeMkRatio requires ∈ [0,1]"
-                $ property $ \v -> ioProperty $
-                    prop_unsafeMk
-                        (\x -> x >= 0 && x <= 1)
-                        R.unsafeMkRatio
-                        R.getRatio
-                        v
             it "unsafeMkPositive requires > 0" $
                 property $ \(v :: Int) -> ioProperty $
                     prop_unsafeMk
@@ -152,7 +144,7 @@ prop_saturatedPoolRewardsReduces constants' pool =
     let
         constants = constants'
             { leaderStakeInfluence = unsafeMkNonNegative 0 }
-        z0 = getRatio $ saturatedPoolSize constants
+        z0 = percentageToDouble $ saturatedPoolSize constants
         _R = fromIntegral $ getQuantity $ totalRewards constants
         p  = R.getNonNegative $ recentAvgPerformance pool
     in
@@ -238,8 +230,8 @@ deriving via Word64 instance (Arbitrary (Quantity "lovelace" Word64))
 deriving via (NonNegative Double) instance (Arbitrary (R.NonNegative Double))
 deriving via (Positive Int) instance (Arbitrary (R.Positive Int))
 
-instance Arbitrary Ratio where
-    arbitrary = unsafeMkRatio <$> choose (0, 1)
+instance Arbitrary Percentage where
+    arbitrary = genPercentage
     shrink _ = [] -- TODO: Implement a shrinker that works.
 
 instance Arbitrary EpochConstants where

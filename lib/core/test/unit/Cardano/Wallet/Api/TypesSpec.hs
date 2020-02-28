@@ -77,7 +77,7 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData (..)
     )
 import Cardano.Wallet.Gen
-    ( genMnemonic )
+    ( genMnemonic, genPercentage, shrinkPercentage )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( ChainCode (..)
     , DelegationAddress (..)
@@ -1026,7 +1026,8 @@ instance Arbitrary (Quantity "lovelace" Natural) where
     arbitrary = Quantity . fromIntegral <$> (arbitrary @Word8)
 
 instance Arbitrary (Quantity "percent" Percentage) where
-    arbitrary = Quantity <$> arbitraryBoundedEnum
+    shrink (Quantity p) = Quantity <$> shrinkPercentage p
+    arbitrary = Quantity <$> genPercentage
 
 instance Arbitrary ApiWallet where
     arbitrary = genericArbitrary

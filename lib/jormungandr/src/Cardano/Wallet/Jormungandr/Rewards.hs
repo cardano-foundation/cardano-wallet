@@ -6,15 +6,13 @@
 
 module Cardano.Wallet.Jormungandr.Rewards
     (
-      Ratio (..)
-    , RewardFormula (..)
+      RewardFormula (..)
     , RewardParams (..)
     , TaxParameters (..)
     , RewardLimit (..)
     , PoolCapping (..)
 
     , rewardsAt
-    , ratio
     )
     where
 
@@ -26,6 +24,8 @@ import Control.DeepSeq
     ( NFData (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Ratio
+    ( Ratio )
 import Data.Word
     ( Word32, Word64 )
 import GHC.Generics
@@ -37,7 +37,7 @@ data RewardParams = RewardParams
         -- contribution at #epoch=0, whereas in halving formula is used as starting
         -- constant for the calculation.
 
-    , rRatio :: Ratio
+    , rRatio :: Ratio Word64
         -- ^ In the halving formula, an effective value between 0.0 to 1.0
         -- indicates a reducing contribution, whereas above 1.0 it indicate an
         -- acceleration of contribution.
@@ -58,13 +58,8 @@ data RewardParams = RewardParams
 
 instance NFData RewardParams
 
-data Ratio = Ratio Word64 Word64
-    deriving (Show, Eq, Generic)
-
-ratio :: Ratio -> Double
-ratio (Ratio num den) = fromIntegral num / fromIntegral den
-
-instance NFData Ratio
+ratioToDouble :: Ratio Word64 -> Double
+ratioToDouble = fromRational . toRational
 
 data RewardFormula
     = HalvingFormula RewardParams
@@ -76,7 +71,7 @@ instance NFData RewardFormula
 data TaxParameters = TaxParameters
     { taxFixed :: Word64
         -- ^ A fix value taken from the total
-    , taxRatio :: Ratio
+    , taxRatio :: Ratio Word64
         -- ^ An extra percentage taken from the total
     , taxLimit :: Maybe Word64
         -- ^ It is possible to add a max bound to the total value taken at each
@@ -94,7 +89,7 @@ instance NFData TaxParameters
 -- this value is optional, the default is no reward drawing limit
 data RewardLimit
     = RewardLimitNone
-    | RewardLimitByAbsoluteStake Ratio
+    | RewardLimitByAbsoluteStake (Ratio Word64)
     deriving (Show, Eq, Generic)
 
 instance NFData RewardLimit
@@ -139,7 +134,7 @@ rewardsAt limit tax epochNo = q . taxCut tax . capDrawing limit . \case
       where
         a = r * fromIntegral (floor @Double @Integer (n / e))
         c = fromIntegral rFixed
-        r = ratio rRatio
+        r = ratioToDouble rRatio
         n = fromIntegral (ep - rEpochStart)
         e = fromIntegral rEpochRate
 
@@ -148,7 +143,7 @@ rewardsAt limit tax epochNo = q . taxCut tax . capDrawing limit . \case
       where
         a = r ** fromIntegral (floor @Double @Integer (n / e))
         c = fromIntegral rFixed
-        r = ratio rRatio
+        r = ratioToDouble rRatio
         n = fromIntegral (ep - rEpochStart)
         e = fromIntegral rEpochRate
 
@@ -157,14 +152,14 @@ rewardsAt limit tax epochNo = q . taxCut tax . capDrawing limit . \case
       where
         cut = maybe id max lim $ c + r * x
         lim = fromIntegral <$> taxLimit
-        r = ratio taxRatio
+        r = ratioToDouble taxRatio
         c = fromIntegral taxFixed
 
     capDrawing = \case
         (RewardLimitNone, _) -> id
         (RewardLimitByAbsoluteStake lim, Quantity totalStake) ->
             let
-                r  = ratio lim
+                r  = ratioToDouble lim
                 _S = fromIntegral totalStake
             in
                 min (r * _S)
