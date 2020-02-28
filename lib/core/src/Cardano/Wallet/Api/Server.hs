@@ -7,6 +7,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -113,10 +114,11 @@ import Cardano.Wallet.Api.Types
     , ApiErrorCode (..)
     , ApiFee (..)
     , ApiMnemonicT (..)
-    , ApiNetworkClock
+    , ApiNetworkClock (..)
     , ApiNetworkInformation (..)
     , ApiNetworkParameters (..)
     , ApiNetworkTip (..)
+    , ApiNtpStatus (..)
     , ApiPoolId (..)
     , ApiSelectCoinsData (..)
     , ApiStakePool (..)
@@ -134,6 +136,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletPassphrase (..)
     , ByronWalletPostData (..)
     , Iso8601Time (..)
+    , NtpSyncingStatus (..)
     , PostExternalTransactionData (..)
     , PostTransactionData
     , PostTransactionFeeData
@@ -220,6 +223,8 @@ import Control.Applicative
     ( liftA2 )
 import Control.Arrow
     ( second )
+import Control.Concurrent.Async
+    ( link )
 import Control.DeepSeq
     ( NFData )
 import Control.Exception
@@ -233,7 +238,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Except
     ( ExceptT (..), catchE, runExceptT, throwE, withExceptT )
 import Control.Tracer
-    ( Tracer )
+    ( Tracer, nullTracer )
 import Data.Aeson
     ( (.=) )
 import Data.Function
@@ -274,6 +279,12 @@ import Network.HTTP.Media.RenderHeader
     ( renderHeader )
 import Network.HTTP.Types.Header
     ( hContentType )
+import Network.NTP.Client
+    ( NtpClient (..), withNtpClient )
+import Network.NTP.Packet
+    ( Microsecond (..), NtpOffset (..) )
+import Network.NTP.Query
+    ( NtpSettings (..), NtpStatus (..) )
 import Network.Socket
     ( Socket, close )
 import Network.Wai
@@ -1502,9 +1513,31 @@ data ErrNoSuchEpoch = ErrNoSuchEpoch
     , errCurrentEpoch :: W.EpochNo
     } deriving (Eq, Show)
 
-getNetworkClock
-    :: Handler ApiNetworkClock
-getNetworkClock = throwError err501
+getNetworkClock :: Handler ApiNetworkClock
+getNetworkClock = do
+    ntpS <- liftIO $ withNtpClient nullTracer ntpSettings $ \client -> do
+        link $ ntpThread client
+        ntpQueryBlocking client
+    case ntpS of
+        NtpSyncPending ->
+            pure $ ApiNetworkClock $
+            ApiNtpStatus NtpSyncingStatusPending Nothing
+        NtpSyncUnavailable ->
+            pure $ ApiNetworkClock $
+            ApiNtpStatus NtpSyncingStatusUnavailable Nothing
+        (NtpDrift (NtpOffset (Microsecond ms))) ->
+            pure $ ApiNetworkClock $
+            ApiNtpStatus NtpSyncingStatusCompleted
+            (Just $ Quantity $ fromIntegral ms)
+  where
+    ntpSettings :: NtpSettings
+    ntpSettings = NtpSettings
+        { ntpServers = [ "0.de.pool.ntp.org", "0.europe.pool.ntp.org"
+                       , "0.pool.ntp.org", "1.pool.ntp.org"
+                       , "2.pool.ntp.org", "3.pool.ntp.org" ]
+        , ntpResponseTimeout = 1_000_000
+        , ntpPollDelay       = 300_000_000
+        }
 
 {-------------------------------------------------------------------------------
                                    Proxy
