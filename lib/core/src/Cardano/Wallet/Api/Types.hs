@@ -64,6 +64,8 @@ module Cardano.Wallet.Api.Types
     , AddressAmount (..)
     , ApiErrorCode (..)
     , ApiNetworkInformation (..)
+    , ApiNtpStatus (..)
+    , NtpSyncingStatus (..)
     , ApiNetworkClock (..)
     , ApiBlockReference (..)
     , ApiNetworkTip (..)

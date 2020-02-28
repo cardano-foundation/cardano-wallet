@@ -1,0 +1,55 @@
+{
+    "seed": 1912869777199339829,
+    "samples": [
+        {
+            "ntp_status": {
+                "syncing": "unavailable"
+            }
+        },
+        {
+            "ntp_status": {
+                "syncing": "pending"
+            }
+        },
+        {
+            "ntp_status": {
+                "syncing": "unavailable"
+            }
+        },
+        {
+            "ntp_status": {
+                "syncing": "unavailable"
+            }
+        },
+        {
+            "ntp_status": {
+                "syncing": "unavailable"
+            }
+        },
+        {
+            "ntp_status": {
+                "syncing": "pending"
+            }
+        },
+        {
+            "ntp_status": {
+                "syncing": "unavailable"
+            }
+        },
+        {
+            "ntp_status": {
+                "syncing": "pending"
+            }
+        },
+        {
+            "ntp_status": {
+                "syncing": "pending"
+            }
+        },
+        {
+            "ntp_status": {
+                "syncing": "pending"
+            }
+        }
+    ]
+}
