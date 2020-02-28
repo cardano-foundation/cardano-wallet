@@ -257,23 +257,26 @@ spec = do
                 }
 
         r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
-        ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
+        expectResponseCode HTTP.status202 r
         verify r
-            [ expectResponseCode HTTP.status202
-            , expectField (#amount . #getQuantity) $
+            [ expectField (#amount . #getQuantity) $
                 between (feeMin + (2*amt), feeMax + (2*amt))
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             ]
+
+        ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
+        expectResponseCode HTTP.status200 ra
         verify ra
-            [ expectField (#balance . #getApiT . #total) $
+            [ expectSuccess
+            , expectField (#balance . #getApiT . #total) $
                 between
-                    ( Quantity (faucetAmt - feeMax - (2*amt))
-                    , Quantity (faucetAmt - feeMin - (2*amt))
-                    )
+                ( Quantity (faucetAmt - feeMax - (2*amt))
+                , Quantity (faucetAmt - feeMin - (2*amt))
+                )
             , expectField
-                    (#balance . #getApiT . #available)
-                    (`shouldBe` Quantity (faucetAmt - 2 * faucetUtxoAmt))
+                (#balance . #getApiT . #available)
+                (`shouldBe` Quantity (faucetAmt - 2 * faucetUtxoAmt))
             ]
         eventually "wDest balance is as expected" $ do
             rd <- request @ApiWallet ctx
@@ -323,23 +326,26 @@ spec = do
                 }
 
         r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
-        ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
+        expectResponseCode HTTP.status202 r
         verify r
-            [ expectResponseCode HTTP.status202
-            , expectField (#amount . #getQuantity) $
+            [ expectField (#amount . #getQuantity) $
                 between (feeMin + (2*amt), feeMax + (2*amt))
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             ]
+
+        ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
+        expectResponseCode HTTP.status200 ra
         verify ra
-            [ expectField (#balance . #getApiT . #total . #getQuantity) $
+            [ expectSuccess
+            , expectField (#balance . #getApiT . #total . #getQuantity) $
                 between
-                    ( faucetAmt - feeMax - (2*amt)
-                    , faucetAmt - feeMin - (2*amt)
-                    )
+                ( faucetAmt - feeMax - (2*amt)
+                , faucetAmt - feeMin - (2*amt)
+                )
             , expectField
-                    (#balance . #getApiT . #available)
-                    (`shouldBe` Quantity (faucetAmt - 2 * faucetUtxoAmt))
+                (#balance . #getApiT . #available)
+                (`shouldBe` Quantity (faucetAmt - 2 * faucetUtxoAmt))
             ]
         eventually "Balances are as expected" $ forM_ [wDest1, wDest2] $ \wDest -> do
             rd <- request @ApiWallet ctx
