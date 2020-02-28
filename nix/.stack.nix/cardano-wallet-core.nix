@@ -93,6 +93,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."memory" or (buildDepError "memory"))
           (hsPkgs."monad-logger" or (buildDepError "monad-logger"))
           (hsPkgs."network" or (buildDepError "network"))
+          (hsPkgs."ntp-client" or (buildDepError "ntp-client"))
           (hsPkgs."OddWord" or (buildDepError "OddWord"))
           (hsPkgs."path-pieces" or (buildDepError "path-pieces"))
           (hsPkgs."persistent" or (buildDepError "persistent"))
