@@ -55,7 +55,7 @@ import Data.Text.Class
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( SpecWith, describe, it, shouldBe )
+    ( SpecWith, describe, it, shouldBe, shouldSatisfy )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
@@ -623,7 +623,7 @@ spec = do
         expectResponseCode HTTP.status403 r
         expectErrorMessage errMsg403WrongPass r
 
-    it "STAKE_POOLS_JOIN/QUIT - Checking delegation expectations" $ \ctx -> do
+    it "STAKE_POOL_NEXT_01 - Can join/re-join another/quit stake pool" $ \ctx -> do
         (_, p1:p2:_) <- eventually "Stake pools are listed" $
             unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
         w <- fixtureWallet ctx
@@ -639,12 +639,7 @@ spec = do
         -- joining first pool
         r1 <- joinStakePool ctx (p1 ^. #id) (w, fixturePassphrase)
         expectResponseCode HTTP.status202 r1
-        eventually "Last outgoing tx is in ledger" $ do
-            let ep = Link.listTransactions @'Shelley w
-            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListField 0 (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectListField 0 (#status . #getApiT) (`shouldBe` InLedger)
-                ]
+        waitAllTxsInLedger ctx w
         request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
             [ expectField #delegation
                 (`shouldBe` notDelegating
@@ -660,14 +655,7 @@ spec = do
         -- rejoining second pool
         r2 <- joinStakePool ctx (p2 ^. #id) (w, fixturePassphrase)
         expectResponseCode HTTP.status202 r2
-        eventually "Last 2 txs are in ledger" $ do
-            let ep = Link.listTransactions @'Shelley w
-            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListField 0 (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectListField 0 (#status . #getApiT) (`shouldBe` InLedger)
-                , expectListField 1 (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectListField 1 (#status . #getApiT) (`shouldBe` InLedger)
-                ]
+        waitAllTxsInLedger ctx w
         request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
             [ expectField #delegation
                 (`shouldBe` delegating (p1 ^. #id)
@@ -683,16 +671,7 @@ spec = do
         --quiting
         r3 <- quitStakePool ctx (w, fixturePassphrase)
         expectResponseCode HTTP.status202 r3
-        eventually "Last 3 txs are in ledger" $ do
-            let ep = Link.listTransactions @'Shelley w
-            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListField 0 (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectListField 0 (#status . #getApiT) (`shouldBe` InLedger)
-                , expectListField 1 (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectListField 1 (#status . #getApiT) (`shouldBe` InLedger)
-                , expectListField 2 (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectListField 2 (#status . #getApiT) (`shouldBe` InLedger)
-                ]
+        waitAllTxsInLedger ctx w
         request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
             [ expectField #delegation
                 (`shouldBe` delegating (p2 ^. #id)
@@ -705,80 +684,61 @@ spec = do
                 [ expectField #delegation (`shouldBe` notDelegating [])
                 ]
 
-    it "STAKE_POOLS_JOIN/QUIT - Checking delegation expectations with \
-       \multiple certs inserted in a given epoch" $ \ctx -> do
-        (_, p1:p2:p3:_) <- eventually "Stake pools are listed" $
+    it "STAKE_POOL_NEXT_02/STAKE_POOLS_QUIT_01 - Cannot quit when active: not_delegating"
+        $ \ctx -> do
+        w <- emptyWallet ctx
+        r <- quitStakePool ctx (w, "Secure Passprase")
+        expectResponseCode HTTP.status403 r
+        expectErrorMessage errMsg403NotDelegating r
+
+    it "STAKE_POOL_NEXT_02 - Override join with join in the same epoch =>\
+        \ delegating to the last one in the end" $ \ctx -> do
+        (_, p1:p2:_) <- eventually "Stake pools are listed" $
             unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
         w <- fixtureWallet ctx
 
-        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-            [ expectField #delegation (`shouldBe` notDelegating [])
-            ]
+        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
+            >>= flip verify
+                [ expectField #delegation (`shouldBe` notDelegating []) ]
 
         -- make sure we are at the beginning of new epoch
         (currentEpoch, sp) <- getSlotParams ctx
         waitForNextEpoch ctx
 
-        -- joining the pool
-        r1 <- joinStakePool ctx (p1 ^. #id) (w, fixturePassphrase)
-        expectResponseCode HTTP.status202 r1
-        eventually "Last outgoing tx is in ledger" $ do
-            let ep = Link.listTransactions @'Shelley w
-            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListField 0 (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectListField 0 (#status . #getApiT) (`shouldBe` InLedger)
-                ]
-        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-            [ expectField #delegation
-                (`shouldBe` notDelegating
-                    [ (Just (p1 ^. #id), mkEpochInfo (currentEpoch + 3) sp)
+        let joinPool pool = do
+                r1 <- joinStakePool ctx (pool ^. #id) (w, fixturePassphrase)
+                expectResponseCode HTTP.status202 r1
+                waitAllTxsInLedger ctx w
+                request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+                    [ expectField #delegation
+                        (`shouldBe` notDelegating
+                            [ (Just (pool ^. #id), mkEpochInfo (currentEpoch + 3) sp)
+                            ]
+                        )
                     ]
-                )
-            ]
-        r2 <- joinStakePool ctx (p2 ^. #id) (w, fixturePassphrase)
-        expectResponseCode HTTP.status202 r2
-        r3 <- joinStakePool ctx (p3 ^. #id) (w, fixturePassphrase)
-        expectResponseCode HTTP.status202 r3
-        eventually "Last 3 txs are in ledger" $ do
-            let ep = Link.listTransactions @'Shelley w
-            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListField 0 (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectListField 0 (#status . #getApiT) (`shouldBe` InLedger)
-                , expectListField 1 (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectListField 1 (#status . #getApiT) (`shouldBe` InLedger)
-                , expectListField 2 (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectListField 2 (#status . #getApiT) (`shouldBe` InLedger)
-                ]
-        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-            [ expectField #delegation
-                (`shouldBe` notDelegating
-                    [ (Just (p3 ^. #id), mkEpochInfo (currentEpoch + 3) sp)
-                    ]
-                )
-            ]
 
-    it "STAKE_POOLS_JOIN/QUIT - Checking delegation expectations with \
-       \multiple nexts" $ \ctx -> do
-        (_, p1:p2:p3:_) <- eventually "Stake pools are listed" $
+        -- join p1 and p2 in the same epoch and make sure delegation next is
+        -- always to the last one joined
+        joinPool p1
+        joinPool p2
+
+    it "STAKE_POOL_NEXT_03 - Join 2 in two subsequent epochs => delegating to 1st in epoch X + 2\
+        \ and 2nd in epoch X + 3"
+        $ \ctx -> do
+        (_, p1:p2:_) <- eventually "Stake pools are listed" $
             unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
         w <- fixtureWallet ctx
 
         request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
             [ expectField #delegation (`shouldBe` notDelegating []) ]
 
-        -- joining the pool
         -- make sure we are at the beginning of new epoch
         (currentEpoch, sp) <- getSlotParams ctx
         waitForNextEpoch ctx
 
         r1 <- joinStakePool ctx (p1 ^. #id) (w, fixturePassphrase)
         expectResponseCode HTTP.status202 r1
-        eventually "Last outgoing tx is in ledger" $ do
-            let ep = Link.listTransactions @'Shelley w
-            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListField 0 (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectListField 0 (#status . #getApiT) (`shouldBe` InLedger)
-                ]
+        waitAllTxsInLedger ctx w
         request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
             [ expectField #delegation
                 (`shouldBe` notDelegating
@@ -793,37 +753,37 @@ spec = do
 
         r2 <- joinStakePool ctx (p2 ^. #id) (w, fixturePassphrase)
         expectResponseCode HTTP.status202 r2
-        r3 <- joinStakePool ctx (p3 ^. #id) (w, fixturePassphrase)
-        expectResponseCode HTTP.status202 r3
-        eventually "Last 3 txs are in ledger" $ do
-            let ep = Link.listTransactions @'Shelley w
-            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListField 0 (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectListField 0 (#status . #getApiT) (`shouldBe` InLedger)
-                , expectListField 1 (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectListField 1 (#status . #getApiT) (`shouldBe` InLedger)
-                , expectListField 2 (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectListField 2 (#status . #getApiT) (`shouldBe` InLedger)
-                ]
+        waitAllTxsInLedger ctx w
         request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
             [ expectField #delegation
                 (`shouldBe` notDelegating
                     [ (Just (p1 ^. #id), mkEpochInfo (currentEpoch + 3) sp)
-                    , (Just (p3 ^. #id), mkEpochInfo (currentEpoch + 4) sp)
+                    , (Just (p2 ^. #id), mkEpochInfo (currentEpoch + 4) sp)
                     ]
                 )
             ]
 
-        -- coming to the next epoch and should be delegating with one being in the next
-        eventually "Delegating to p1 and about to delegate to p3" $ do
+        -- coming to the next epoch:
+        --  active: delegating to p1, next: delegating to p2
+        eventually "Delegating to p1 and about to delegate to p2" $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
                 [ expectField (#tip . #epochNumber . #getApiT)
                     (`shouldBe` currentEpoch + 3)
                 , expectField #delegation
                     (`shouldBe` delegating (p1 ^. #id)
-                        [ (Just (p3 ^. #id), mkEpochInfo (currentEpoch + 4) sp) ]
+                        [ (Just (p2 ^. #id), mkEpochInfo (currentEpoch + 4) sp) ]
                     )
                 ]
+
+waitAllTxsInLedger
+    :: forall t n. (n ~ 'Testnet)
+    => Context t
+    -> ApiWallet
+    -> IO ()
+waitAllTxsInLedger ctx w = eventually "waitAllTxsInLedger: all txs in ledger" $ do
+    let ep = Link.listTransactions @'Shelley w
+    (_, txs) <- unsafeRequest @[ApiTransaction n] ctx ep Empty
+    view (#status . #getApiT) <$> txs `shouldSatisfy` all (== InLedger)
 
 -- | An arbitrary but valid pool id, to avoid having to list pools for testing
 -- bad requests and headers.

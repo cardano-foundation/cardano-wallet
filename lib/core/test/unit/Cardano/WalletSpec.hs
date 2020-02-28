@@ -66,6 +66,7 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , EpochNo (..)
     , Hash (..)
+    , PoolId (..)
     , SealedTx (..)
     , SlotId (..)
     , SlotNo (..)
@@ -78,6 +79,9 @@ import Cardano.Wallet.Primitive.Types
     , TxMeta (..)
     , TxOut (..)
     , TxStatus (..)
+    , WalletDelegation (..)
+    , WalletDelegationNext (..)
+    , WalletDelegationStatus (..)
     , WalletId (..)
     , WalletMetadata (..)
     , WalletName (..)
@@ -140,13 +144,18 @@ import Test.QuickCheck
     , arbitrarySizedBoundedIntegral
     , choose
     , elements
+    , label
+    , oneof
     , property
     , scale
     , shrinkIntegral
     , vectorOf
     , withMaxSuccess
+    , (===)
     , (==>)
     )
+import Test.QuickCheck.Arbitrary.Generic
+    ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Monadic
     ( monadicIO )
 import Test.Utils.Time
@@ -202,9 +211,92 @@ spec = do
         it "Wallet can list transactions"
             (property walletListTransactionsSorted)
 
+    describe "Join/Quit Stake pool properties" $ do
+        it "You can quit if you cannot join"
+            (property prop_guardJoinQuit)
+        it "You can join if you cannot quit"
+            (property prop_guardQuitJoin)
+
+    describe "Join/Quit Stake pool unit tests" $ do
+        it "Cannot join A, when active = A" $ do
+            let dlg = WalletDelegation {active = Delegating pidA, next = []}
+            W.guardJoin knownPools dlg pidA
+                `shouldBe` Left (W.ErrAlreadyDelegating pidA)
+        it "Cannot join A, when next = [A]" $ do
+            let next1 = next (EpochNo 1) (Delegating pidA)
+            let dlg = WalletDelegation {active = NotDelegating, next = [next1]}
+            W.guardJoin knownPools dlg pidA
+                `shouldBe` Left (W.ErrAlreadyDelegating pidA)
+        it "Can join A, when active = A, next = [B]" $ do
+            let next1 = next (EpochNo 1) (Delegating pidB)
+            let dlg = WalletDelegation {active = Delegating pidA, next = [next1]}
+            W.guardJoin knownPools dlg pidA `shouldBe` Right ()
+        it "Cannot join A, when active = A, next = [B, A]" $ do
+            let next1 = next (EpochNo 1) (Delegating pidB)
+            let next2 = next (EpochNo 2) (Delegating pidA)
+            let dlg = WalletDelegation
+                    {active = Delegating pidA, next = [next1, next2]}
+            W.guardJoin knownPools dlg pidA
+                `shouldBe` Left (W.ErrAlreadyDelegating pidA)
+        it "Cannot join when pool is unknown" $ do
+            let dlg = WalletDelegation {active = NotDelegating, next = []}
+            W.guardJoin knownPools dlg pidUnknown
+                `shouldBe` Left (W.ErrNoSuchPool pidUnknown)
+        it "Cannot quit when active: not_delegating, next = []" $ do
+            let dlg = WalletDelegation {active = NotDelegating, next = []}
+            W.guardQuit dlg `shouldBe` Left (W.ErrNotDelegatingOrAboutTo)
+        it "Cannot quit when active: A, next = [not_delegating]" $ do
+            let next1 = next (EpochNo 1) NotDelegating
+            let dlg = WalletDelegation {active = Delegating pidA, next = [next1]}
+            W.guardQuit dlg `shouldBe` Left (W.ErrNotDelegatingOrAboutTo)
+        it "Cannot quit when active: A, next = [B, not_delegating]" $ do
+            let next1 = next (EpochNo 1) (Delegating pidB)
+            let next2 = next (EpochNo 2) NotDelegating
+            let dlg = WalletDelegation
+                    {active = Delegating pidA, next = [next1, next2]}
+            W.guardQuit dlg `shouldBe` Left (W.ErrNotDelegatingOrAboutTo)
+        it "Can quit when active: not_delegating, next = [A]" $ do
+            let next1 = next (EpochNo 1) (Delegating pidA)
+            let dlg = WalletDelegation
+                    {active = NotDelegating, next = [next1]}
+            W.guardQuit dlg `shouldBe` Right ()
+     where
+         pidA = PoolId "A"
+         pidB = PoolId "B"
+         pidUnknown = PoolId "unknown"
+         knownPools = [pidA, pidB]
+         next epoch dlgStatus =
+             WalletDelegationNext {changesAt = epoch, status = dlgStatus}
+
+
 {-------------------------------------------------------------------------------
                                     Properties
 -------------------------------------------------------------------------------}
+
+prop_guardJoinQuit
+    :: [PoolId]
+    -> WalletDelegation
+    -> PoolId
+    -> Property
+prop_guardJoinQuit knownPools dlg pid =
+    case W.guardJoin knownPools dlg pid of
+        Right () -> label "I can join" $ property True
+        Left W.ErrNoSuchPool{}  -> label "ErrNoSuchPool" $ property True
+        Left W.ErrAlreadyDelegating{} ->
+            label "ErrAlreadyDelegating" (W.guardQuit dlg === Right ())
+
+prop_guardQuitJoin
+    :: [PoolId]
+    -> WalletDelegation
+    -> PoolId
+    -> Property
+prop_guardQuitJoin knownPools dlg pid =
+    pid `elem` knownPools ==> case W.guardQuit dlg of
+        Right () ->
+            label "I can quit" $ property True
+        Left W.ErrNotDelegatingOrAboutTo ->
+            label "ErrNotDelegatingOrAboutTo"
+                (W.guardJoin knownPools dlg pid === Right ())
 
 walletCreationProp
     :: (WalletId, WalletName, DummyState)
@@ -396,6 +488,23 @@ walletListTransactionsSorted wallet@(wid, _, _) _order (_mstart, _mend) history 
 {-------------------------------------------------------------------------------
                       Tests machinery, Arbitrary instances
 -------------------------------------------------------------------------------}
+
+instance Arbitrary WalletDelegation where
+    shrink = genericShrink
+    arbitrary = WalletDelegation
+        <$> arbitrary
+        <*> oneof [ pure [], vectorOf 1 arbitrary, vectorOf 2 arbitrary ]
+
+instance Arbitrary WalletDelegationStatus where
+    shrink = genericShrink
+    arbitrary = genericArbitrary
+
+instance Arbitrary WalletDelegationNext where
+    shrink = genericShrink
+    arbitrary = genericArbitrary
+
+instance Arbitrary PoolId where
+    arbitrary = pure $ PoolId "a"
 
 data WalletLayerFixture = WalletLayerFixture
     { _fixtureDBLayer :: DBLayer IO DummyState ShelleyKey
