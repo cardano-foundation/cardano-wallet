@@ -175,6 +175,8 @@ import Data.Bifunctor
     ( bimap )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase )
+import Data.ByteString
+    ( ByteString )
 import Data.Char
     ( toLower )
 import Data.List
@@ -352,6 +354,7 @@ cmdKey = command "key" $ info (helper <*> cmds) $ mempty
     cmds = subparser $ mempty
         <> cmdRootKey
         <> cmdKeyPublic
+        <> cmdKeyInspect
 
 -- | Record with mnemonic and key derivation funcionality — /without/ any type
 -- parameters related to scheme.
@@ -529,6 +532,38 @@ cmdKeyPublic =
         let encodePub = T.pack . B8.unpack . hex . CC.unXPub
         pubHex <- eitherToIO $ encodePub . CC.toXPub <$> decodePrv hexPrv
         TIO.putStrLn pubHex
+
+newtype KeyInspectArgs = KeyInspectArgs
+    { _key :: Text
+    }
+
+cmdKeyInspect :: Mod CommandFields (IO ())
+cmdKeyInspect =
+    command "inspect" $ info (helper <*> cmd) $ mempty
+        <> progDesc "Show information about a key."
+  where
+    cmd = fmap exec $
+        KeyInspectArgs <$> keyArgument
+
+    exec (KeyInspectArgs hexKey) = do
+         let (_, hex2key) = xPrvToTextTransform
+         res <- eitherToIO $ do
+            -- Extract extended private key and chain code from a @XPrv@
+            keyBytes <- CC.unXPrv <$> hex2key hexKey
+            let (xprv, rest) = BS.splitAt 64 keyBytes
+            let (_pub, cc) = BS.splitAt 32 rest
+            return $ mconcat
+                [ "extended private key: "
+                , toHex xprv
+                , "\n"
+                , "chain code: "
+                , toHex cc
+                ]
+         TIO.putStrLn res
+
+      where
+        toHex :: ByteString -> Text
+        toHex = T.pack . B8.unpack . hex
 
 {-------------------------------------------------------------------------------
                             Commands - 'mnemonic'
