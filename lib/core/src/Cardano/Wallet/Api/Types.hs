@@ -489,7 +489,7 @@ data NtpSyncingStatus =
 
 data ApiNtpStatus = ApiNtpStatus
     { syncing :: !NtpSyncingStatus
-    , offset :: !(Maybe (Quantity "microsecond" Word64))
+    , offset :: !(Maybe (Quantity "microsecond" Integer))
     } deriving (Eq, Generic, Show)
 
 newtype ApiNetworkClock = ApiNetworkClock

@@ -139,7 +139,6 @@ x-microseconds: &microseconds
   properties:
     quantity:
       type: number
-      minimum: 0
       example: 42
     unit:
       type: string

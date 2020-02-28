@@ -199,7 +199,7 @@ import Data.Time.Clock
 import Data.Typeable
     ( Typeable, splitTyConApp, tyConName, typeRep )
 import Data.Word
-    ( Word32, Word64, Word8 )
+    ( Word32, Word8 )
 import Data.Word.Odd
     ( Word31 )
 import GHC.TypeLits
@@ -1281,7 +1281,7 @@ instance Arbitrary ApiNetworkInformation where
 
 instance Arbitrary ApiNtpStatus where
     arbitrary = do
-        o <- Quantity <$> (arbitrary @Word64)
+        o <- Quantity <$> (arbitrary @Integer)
         elements
             [ ApiNtpStatus NtpSyncingStatusUnavailable Nothing
             , ApiNtpStatus NtpSyncingStatusPending Nothing

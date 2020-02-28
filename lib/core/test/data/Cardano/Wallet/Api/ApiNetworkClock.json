@@ -1,34 +1,13 @@
 {
-    "seed": 1912869777199339829,
+    "seed": 6322276116191378239,
     "samples": [
         {
             "ntp_status": {
-                "syncing": "unavailable"
-            }
-        },
-        {
-            "ntp_status": {
-                "syncing": "pending"
-            }
-        },
-        {
-            "ntp_status": {
-                "syncing": "unavailable"
-            }
-        },
-        {
-            "ntp_status": {
-                "syncing": "unavailable"
-            }
-        },
-        {
-            "ntp_status": {
-                "syncing": "unavailable"
-            }
-        },
-        {
-            "ntp_status": {
-                "syncing": "pending"
+                "syncing": "completed",
+                "offset": {
+                    "quantity": 5,
+                    "unit": "microsecond"
+                }
             }
         },
         {
@@ -44,6 +23,43 @@
         {
             "ntp_status": {
                 "syncing": "pending"
+            }
+        },
+        {
+            "ntp_status": {
+                "syncing": "completed",
+                "offset": {
+                    "quantity": -24,
+                    "unit": "microsecond"
+                }
+            }
+        },
+        {
+            "ntp_status": {
+                "syncing": "pending"
+            }
+        },
+        {
+            "ntp_status": {
+                "syncing": "completed",
+                "offset": {
+                    "quantity": 19,
+                    "unit": "microsecond"
+                }
+            }
+        },
+        {
+            "ntp_status": {
+                "syncing": "completed",
+                "offset": {
+                    "quantity": -9,
+                    "unit": "microsecond"
+                }
+            }
+        },
+        {
+            "ntp_status": {
+                "syncing": "unavailable"
             }
         },
         {
