@@ -12,10 +12,12 @@ import Prelude
 import Cardano.Wallet.Api.Types
     ( ApiByronWallet
     , ApiEpochInfo (..)
+    , ApiNetworkClock
     , ApiNetworkInformation
     , ApiNetworkParameters (..)
     , ApiT (..)
     , ApiWallet
+    , NtpSyncingStatus (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.Types
@@ -196,6 +198,16 @@ spec = do
                     maxEpochValue
                     HTTP.status404
                     (errMsg404NoEpochNo (T.unpack maxEpochValue))
+
+    it "NETWORK - Can query network clock" $ \ctx ->
+        eventually "ntpStatus = completed" $ do
+            r <- request @ApiNetworkClock ctx
+                Link.getNetworkClock Default Empty
+            expectResponseCode @IO HTTP.status200 r
+            verify r
+                [ expectField (#ntpStatus . #syncing)
+                    (`shouldBe` NtpSyncingStatusCompleted)
+                ]
    where
        verifyEpochNumWrong
             :: Context t

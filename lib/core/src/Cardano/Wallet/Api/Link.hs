@@ -73,6 +73,7 @@ module Cardano.Wallet.Api.Link
       -- * Network
     , getNetworkInfo
     , getNetworkParams
+    , getNetworkClock
 
       -- * Proxy
     , postExternalTransaction
@@ -424,6 +425,11 @@ getNetworkParams e =
     endpoint @Api.GetNetworkParameters (epoch &)
   where
     epoch = e ^. typed @ApiEpochNumber
+
+getNetworkClock
+    :: (Method, Text)
+getNetworkClock =
+    endpoint @Api.GetNetworkClock id
 
 --
 -- Proxy
