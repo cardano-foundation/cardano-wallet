@@ -1621,14 +1621,14 @@ guardJoin
     -> PoolId
     -> Either ErrCannotJoin ()
 guardJoin knownPools WalletDelegation{active,next} pid = do
+    when (pid `notElem` knownPools) $
+        Left (ErrNoSuchPool pid)
+
     when ((null next) && isDelegatingTo (== pid) active) $
         Left (ErrAlreadyDelegating pid)
 
     when (not (null next) && isDelegatingTo (== pid) (last next)) $
         Left (ErrAlreadyDelegating pid)
-
-    when (pid `notElem` knownPools) $
-        Left (ErrNoSuchPool pid)
 
 guardQuit
     :: WalletDelegation
