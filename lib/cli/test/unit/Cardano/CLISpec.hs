@@ -29,10 +29,9 @@ import Cardano.CLI
     , cmdWallet
     , hGetLine
     , hGetSensitiveLine
-    , hexTextToXPrv
     , mapKey
     , newCliKeyScheme
-    , xPrvToHexText
+    , xPrvToTextTransform
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..), XPrv, unXPrv )
@@ -215,6 +214,7 @@ spec = do
             , "Available commands:"
             , "  root                     Extract root extended private key from"
             , "                           a mnemonic sentence."
+            , "  public                   Extract public key from a private key."
             ]
 
         ["wallet", "--help"] `shouldShowUsage`
@@ -466,6 +466,13 @@ spec = do
             , "                             trezor (12, 15, 18, 21 or 24 words)"
             , "                             ledger (12, 15, 18, 21 or 24 words)"
             ]
+        ["key", "public", "--help"] `shouldShowUsage`
+            [ "Usage:  key public HEX-XPRV"
+            , "  Extract public key from a private key."
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            ]
 
     describe "Can perform roundtrip textual encoding & decoding" $ do
         textRoundtrip $ Proxy @(Port "test")
@@ -591,6 +598,17 @@ spec = do
             \ https://github.com/input-output-hk/cardano-wallet/tree/master/spe\
             \cifications/mnemonic/english.txt\n")
 
+    describe "key public" $ do
+        let prv1 = "588102383ed9ecc5c44e1bfa18d1cf8ef19a7cf806a20bb4cbbe4e51166\
+                   \6cf48d6fd7bec908e4c6ced5f0c4f0798b1b619d6b61e6110492b5ebb43\
+                   \0f570488f074a9fc9a22f0a61b2ab9b1f1a990e3f8dd6fbed4ad4743710\
+                   \95c74db3d9c743a"
+        let pub1 = "20997b093a426804de5120fa2b6d2184a605274b364201ddc9f79307eae\
+                   \8dfed74a9fc9a22f0a61b2ab9b1f1a990e3f8dd6fbed4ad474371095c74\
+                   \db3d9c743a"
+        -- Verified manually with jcli.
+        ["key", "public", prv1] `shouldStdOut` (pub1 ++ "\n")
+
     describe "CliKeyScheme" $ do
         it "all allowedWordLengths are supported"
             $ property prop_allowedWordLengthsAllWork
@@ -618,9 +636,11 @@ prop_roundtripCliKeySchemeKeyViaHex :: CliWalletStyle -> Property
 prop_roundtripCliKeySchemeKeyViaHex style =
             propCliKeySchemeEquality
                 (newCliKeyScheme style)
-                (mapKey hexTextToXPrv
-                    . mapKey xPrvToHexText
+                (mapKey (inverse xPrvToTextTransform)
+                    . mapKey xPrvToTextTransform
                     $ newCliKeyScheme style)
+  where
+    inverse (a, b) = (b, a)
 
 prop_allowedWordLengthsAllWork :: CliWalletStyle -> Property
 prop_allowedWordLengthsAllWork style = do

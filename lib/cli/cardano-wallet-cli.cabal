@@ -36,6 +36,7 @@ library
     , bech32
     , bech32-th
     , bytestring
+    , cardano-crypto
     , cardano-wallet-core
     , contra-tracer
     , directory

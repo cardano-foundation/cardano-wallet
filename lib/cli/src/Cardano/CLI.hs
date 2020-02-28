@@ -66,8 +66,7 @@ module Cardano.CLI
     , CliWalletStyle (..)
 
     , newCliKeyScheme
-    , hexTextToXPrv
-    , xPrvToHexText
+    , xPrvToTextTransform
     , hoistKeyScheme
     , mapKey
 
@@ -299,6 +298,7 @@ import System.IO
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM
+import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Api.Types as API
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
@@ -351,7 +351,7 @@ cmdKey = command "key" $ info (helper <*> cmds) $ mempty
   where
     cmds = subparser $ mempty
         <> cmdRootKey
-
+        <> cmdKeyPublic
 
 -- | Record with mnemonic and key derivation funcionality — /without/ any type
 -- parameters related to scheme.
@@ -380,40 +380,48 @@ hoistKeyScheme eta s = CliKeyScheme
     , mnemonicToRootKey = eta . mnemonicToRootKey s
     }
 
-xPrvToHexText :: XPrv -> Either String Text
-xPrvToHexText = left showErr . fmap (T.pack . B8.unpack . hex) . unXPrvStripPub
+-- | Pair of functions representing the bidirectional transformation between
+-- a @XPrv@ and its 96-byte hex-encoded form.
+xPrvToTextTransform :: (XPrv -> Either String Text, Text -> Either String XPrv)
+xPrvToTextTransform = (xPrvToHexText, hexTextToXPrv)
   where
-    showErr ErrCannotRoundtrip =
-        "That private key looks weird. Is it encrypted? Or an old Byron key?"
+    xPrvToHexText :: XPrv -> Either String Text
+    xPrvToHexText = left showErr . fmap (T.pack . B8.unpack . hex) . unXPrvStripPub
+      where
+        -- NOTE: This error should never happen from using the CLI.
+        showErr ErrCannotRoundtrip =
+            "The private key I'm trying to encode looks wierd. \
+            \Is it encrypted? Or an old Byron key?"
 
-hexTextToXPrv :: Text -> Either String XPrv
-hexTextToXPrv txt = do
-    bytes <- fromHex $ B8.pack $ T.unpack txt
-    left showErr $ xPrvFromStrippedPubXPrv bytes
-  where
-    showErr (ErrInputLengthMismatch expected actual) = mconcat
-        [ "Expected extended private key to be "
-        , show expected
-        , " bytes but got "
-        , show actual
-        , " bytes."
-        ]
-    showErr (ErrInternalError msg) = mconcat
-        [ "Unexpected crypto error: "
-        , msg
-        ]
-    fromHex = left (const "Invalid hex.")
-        . convertFromBase Base16
+    hexTextToXPrv :: Text -> Either String XPrv
+    hexTextToXPrv txt = do
+        bytes <- fromHex $ B8.pack $ T.unpack txt
+        left showErr $ xPrvFromStrippedPubXPrv bytes
+      where
+        showErr (ErrInputLengthMismatch expected actual) = mconcat
+            [ "Expected extended private key to be "
+            , show expected
+            , " bytes but got "
+            , show actual
+            , " bytes."
+            ]
+        showErr (ErrInternalError msg) = mconcat
+            [ "Unexpected crypto error: "
+            , msg
+            ]
+        fromHex = left (const "Invalid hex.")
+            . convertFromBase Base16
 
 -- | Map over the key type of a CliKeyScheme.
 --
--- Can be used with e.g @xPrvToHexText@.
+-- @deriveChildKey@ both takes a key as an argument and returns one. Therefore
+-- we need a bidirectional mapping between the two key types.
 mapKey
     :: Monad m
-    => (key1 -> m key2)
+    => (key1 -> m key2, key2 -> m key1)
     -> CliKeyScheme key1 m
     -> CliKeyScheme key2 m
-mapKey f s = CliKeyScheme
+mapKey (f, _g) s = CliKeyScheme
     { allowedWordLengths = allowedWordLengths s
     , mnemonicToRootKey = (mnemonicToRootKey s) >=> f
     }
@@ -501,8 +509,26 @@ cmdRootKey =
         scheme :: CliKeyScheme Text IO
         scheme =
             hoistKeyScheme eitherToIO
-            . mapKey xPrvToHexText
+            . mapKey xPrvToTextTransform
             $ newCliKeyScheme keyType
+
+newtype KeyPublicArgs = KeyPublicArgs
+    { _key :: Text
+    }
+
+cmdKeyPublic :: Mod CommandFields (IO ())
+cmdKeyPublic =
+    command "public" $ info (helper <*> cmd) $ mempty
+        <> progDesc "Extract public key from a private key."
+  where
+    cmd = fmap exec $
+        KeyPublicArgs <$> keyArgument
+
+    exec (KeyPublicArgs hexPrv) = do
+        let (_, decodePrv) = xPrvToTextTransform
+        let encodePub = T.pack . B8.unpack . hex . CC.unXPub
+        pubHex <- eitherToIO $ encodePub . CC.toXPub <$> decodePrv hexPrv
+        TIO.putStrLn pubHex
 
 {-------------------------------------------------------------------------------
                             Commands - 'mnemonic'
@@ -1262,6 +1288,9 @@ walletStyleOption = option (eitherReader fromTextS)
                 ++ " or "
                 ++ ult
          formatEnglishEnumerationRev xs = intercalate ", " (reverse xs)
+
+keyArgument :: Parser Text
+keyArgument = T.pack <$> (argument str (metavar "HEX-XPRV"))
 
 -- | <wallet-id=WALLET_ID>
 walletIdArgument :: Parser WalletId
