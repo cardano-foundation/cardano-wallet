@@ -334,6 +334,8 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.Wai.Handler.Warp as Warp
 
+import qualified Debug.Trace as TR
+
 -- | How the server should listen for incoming requests.
 data Listen
     = ListenOnPort Port
@@ -743,7 +745,7 @@ mkShelleyWallet
 mkShelleyWallet ctx wid cp meta pending progress = do
     reward <- liftHandler $ withWorkerCtx @_ @s @k ctx wid liftE $
         \wrk -> W.fetchRewardBalance @_ @s @t @k wrk wid
-    pure ApiWallet
+    TR.trace("------- mkShelleyWallet - pending:"<>show pending<>" available:"<> show (availableBalance pending cp)) $ pure ApiWallet
         { addressPoolGap = ApiT $ getState cp ^. #externalPool . #gap
         , balance = ApiT $ WalletBalance
             { available = Quantity $ availableBalance pending cp
@@ -975,7 +977,8 @@ getWallet ctx mkApiWallet (ApiT wid) = do
     progress <- liftIO $
         W.walletSyncProgress ctx cp
 
-    (, meta ^. #creationTime)
+    TR.trace("------ getWallet - pending:"<>show pending) $
+        (, meta ^. #creationTime)
         <$> mkApiWallet ctx wid cp meta pending progress
 
 listWallets
@@ -1165,7 +1168,7 @@ postTransaction ctx (ApiT wid) body = do
     liftHandler $ withWorkerCtx ctx wid liftE3 $ \wrk ->
         W.submitTx @_ @s @t @k wrk wid (tx, meta, wit)
 
-    pure $ mkApiTransaction
+    TR.trace("------ postTransaction - body:"<>show body<>" seletion:"<>show selection) $ pure $ mkApiTransaction
         (txId tx)
         (fmap Just <$> selection ^. #inputs)
         (tx ^. #outputs)

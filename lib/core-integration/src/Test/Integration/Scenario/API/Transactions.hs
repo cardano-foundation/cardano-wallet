@@ -110,6 +110,8 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
+import qualified Debug.Trace as TR
+
 data TestCase a = TestCase
     { query :: T.Text
     , assertions :: [(HTTP.Status, Either RequestException a) -> IO ()]
@@ -256,8 +258,8 @@ spec = do
                 , nChanges = 2
                 }
 
-        r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
-        expectResponseCode HTTP.status202 r
+        r <- TR.trace("---- TRANS_CREATE_02 A") $ request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
+        TR.trace("---- TRANS_CREATE_02 AA") $ expectResponseCode HTTP.status202 r
         verify r
             [ expectField (#amount . #getQuantity) $
                 between (feeMin + (2*amt), feeMax + (2*amt))
@@ -265,8 +267,8 @@ spec = do
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             ]
 
-        ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
-        expectResponseCode HTTP.status200 ra
+        ra <- TR.trace("---- TRANS_CREATE_02 B") $ request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
+        TR.trace("---- TRANS_CREATE_02 B") $ expectResponseCode HTTP.status200 ra
         verify ra
             [ expectSuccess
             , expectField (#balance . #getApiT . #total) $
