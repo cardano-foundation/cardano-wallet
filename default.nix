@@ -1,19 +1,17 @@
 { system ? builtins.currentSystem
 , crossSystem ? null
 , config ? {}
-# Import IOHK common nix lib
-, sourcesOverride ? {}
-# Use pinned Nixpkgs with Haskell.nix overlay
+# Import pinned Nixpkgs with iohk-nix and Haskell.nix overlays
 , pkgs ? import ./nix { inherit system crossSystem config sourcesOverride; }
 # Use this git revision for stamping executables
 , gitrev ? pkgs.commonLib.commitIdFromGitRepoOrZero ./.git
+# Use this to reference local sources rather than the pinned versions (see nix/default.nix)
+, sourcesOverride ? {}
 }:
 
 with pkgs; with commonLib; with pkgs.haskell-nix.haskellLib;
 
 let
-  inherit (jmPkgs) jormungandr jormungandr-cli;
-
   haskellPackages = cardanoWalletHaskellPackages;
 
   filterCardanoPackages = pkgs.lib.filterAttrs (_: package: isCardanoWallet package);
@@ -21,7 +19,7 @@ let
 
   self = {
     inherit pkgs commonLib src haskellPackages stackNixRegenerate;
-    inherit jormungandr jormungandr-cli;
+    inherit (jmPkgs) jormungandr jormungandr-cli;
     inherit (haskellPackages.cardano-wallet-core.identifier) version;
 
     cardano-wallet-jormungandr = import ./nix/package-jormungandr.nix {
@@ -63,7 +61,7 @@ let
           hlint.components.exes.hlint
         ])
         ++ [(pkgs.callPackage ./nix/stylish-haskell.nix {})]
-        ++ [ jormungandr jormungandr-cli
+        ++ [ self.jormungandr self.jormungandr-cli
              pkgs.pkgconfig pkgs.sqlite-interactive
              pkgs.cabal-install pkgs.pythonPackages.openapi-spec-validator ];
       meta.platforms = pkgs.lib.platforms.unix;

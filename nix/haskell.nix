@@ -8,6 +8,7 @@
 , buildPackages
 , config ? {}
 # GHC attribute name
+## fixme: what is this for?
 , compiler ? config.haskellNix.compiler or "ghc865"
 # Enable profiling
 , profiling ? config.haskellNix.profiling or false
