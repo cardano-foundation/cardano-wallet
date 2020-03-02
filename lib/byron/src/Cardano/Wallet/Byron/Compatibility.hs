@@ -19,23 +19,10 @@ module Cardano.Wallet.Byron.Compatibility
 
       -- * Chain Parameters
     , KnownNetwork (..)
-    , mainnetParameters
-    , mainnetGenesisHash
-    , mainnetStartTime
-    , byronFeePolicy
-    , byronSlotLength
-    , byronEpochLength
-    , byronTxMaxSize
-    , byronEpochStability
-    , byronActiveSlotCoefficient
 
       -- * Genesis
     , genesisTip
     , genesisBlock
-
-      -- * Network Parameters
-    , mainnetVersionData
-    , testnetVersionData
 
       -- * Conversions
     , toByronHash
@@ -89,7 +76,7 @@ import Data.Text
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 import Data.Word
-    ( Word16, Word32 )
+    ( Word32 )
 import GHC.Stack
     ( HasCallStack )
 import Ouroboros.Consensus.Ledger.Byron
@@ -140,61 +127,51 @@ class KnownNetwork (n :: NetworkDiscriminant) where
            )
 
 instance KnownNetwork 'Mainnet where
-    blockchainParameters = mainnetParameters
     versionData = mainnetVersionData
+    blockchainParameters = W.BlockchainParameters
+        { getGenesisBlockHash = W.Hash $ unsafeFromHex
+            "f0f7892b5c333cffc4b3c4344de48af4\
+            \cc63f55e44936196f365a9ef2244134f"
+        , getGenesisBlockDate =
+            W.StartTime $ posixSecondsToUTCTime 1506203091
+        , getFeePolicy =
+            W.LinearFee (Quantity 155381) (Quantity 43.946) (Quantity 0)
+        , getSlotLength =
+            W.SlotLength 20
+        , getEpochLength =
+            W.EpochLength 21600
+        , getTxMaxSize =
+            Quantity 8192
+        , getEpochStability =
+            Quantity 2160
+        , getActiveSlotCoefficient =
+            W.ActiveSlotCoefficient 1.0
+        }
 
-mainnetParameters
-    :: W.BlockchainParameters
-mainnetParameters = W.BlockchainParameters
-    { getGenesisBlockHash = mainnetGenesisHash
-    , getGenesisBlockDate = mainnetStartTime
-    , getFeePolicy = byronFeePolicy
-    , getSlotLength = byronSlotLength
-    , getEpochLength = byronEpochLength
-    , getTxMaxSize = byronTxMaxSize
-    , getEpochStability = byronEpochStability
-    , getActiveSlotCoefficient = byronActiveSlotCoefficient
-    }
+--
+-- FIXME: This currently matches the integration configuration, not TestNet
+instance KnownNetwork 'Testnet where
+    versionData = integrationVersionData
+    blockchainParameters = W.BlockchainParameters
+        { getGenesisBlockHash = W.Hash $ unsafeFromHex
+            "613448b413afb8d6edc031fcc71b5f15\
+            \2600e98db95d632cdc08188005deb220"
+        , getGenesisBlockDate =
+            W.StartTime $ posixSecondsToUTCTime 1582738775
+        , getFeePolicy =
+            W.LinearFee (Quantity 155381) (Quantity 43) (Quantity 0)
+        , getSlotLength =
+            W.SlotLength 20
+        , getEpochLength =
+            W.EpochLength 21600
+        , getTxMaxSize =
+            Quantity 4096
+        , getEpochStability =
+            Quantity 2160
+        , getActiveSlotCoefficient =
+            W.ActiveSlotCoefficient 1.0
+        }
 
--- | Hard-coded mainnet genesis hash
-mainnetGenesisHash :: W.Hash "Genesis"
-mainnetGenesisHash = W.Hash $ unsafeFromHex
-    "f0f7892b5c333cffc4b3c4344de48af4\
-    \cc63f55e44936196f365a9ef2244134f"
-
--- | Hard-coded mainnet start time
-mainnetStartTime :: W.StartTime
-mainnetStartTime =
-    W.StartTime $ posixSecondsToUTCTime 1506203091
-
--- | Hard-coded fee policy for Cardano on Byron
-byronFeePolicy :: W.FeePolicy
-byronFeePolicy =
-    W.LinearFee (Quantity 155381) (Quantity 43.946) (Quantity 0)
-
--- | Hard-coded slot duration
-byronSlotLength :: W.SlotLength
-byronSlotLength =
-    W.SlotLength 20
--- | Hard-coded byron epoch length
-byronEpochLength :: W.EpochLength
-byronEpochLength =
-    W.EpochLength 21600
-
--- | Hard-coded max transaction size
-byronTxMaxSize :: Quantity "byte" Word16
-byronTxMaxSize =
-    Quantity 8192
-
--- | Hard-coded epoch stability (a.k.a 'k')
-byronEpochStability :: Quantity "block" Word32
-byronEpochStability =
-    Quantity 2160
-
--- | Hard-coded active slot coefficient (a.k.a 'f' in Ouroboros/Praos)
-byronActiveSlotCoefficient :: W.ActiveSlotCoefficient
-byronActiveSlotCoefficient =
-    W.ActiveSlotCoefficient 1.0
 
 --------------------------------------------------------------------------------
 --
@@ -225,6 +202,7 @@ genesisBlock genesisHash = ByronBlock
     , byronBlockHash = genesisHash
     }
 
+
 --------------------------------------------------------------------------------
 --
 -- Network Parameters
@@ -237,13 +215,16 @@ mainnetVersionData =
     , nodeToClientCodecCBORTerm
     )
 
--- | Settings
-testnetVersionData
+-- | Settings for configuring an Integration network client
+--
+-- FIXME: This currently matches the integration configuration, not TestNet
+integrationVersionData
     :: (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
-testnetVersionData =
-    ( NodeToClientVersionData { networkMagic = NetworkMagic 1097911063 }
+integrationVersionData =
+    ( NodeToClientVersionData { networkMagic = NetworkMagic 459045235 }
     , nodeToClientCodecCBORTerm
     )
+
 
 --------------------------------------------------------------------------------
 --
@@ -261,14 +242,14 @@ toEpochSlots :: W.EpochLength -> EpochSlots
 toEpochSlots =
     EpochSlots . fromIntegral . W.unEpochLength
 
-toPoint :: W.BlockHeader -> Point ByronBlock
-toPoint (W.BlockHeader sid _ h _)
+toPoint :: W.EpochLength -> W.BlockHeader -> Point ByronBlock
+toPoint epLength (W.BlockHeader sid _ h _)
     | sid == W.SlotId 0 0 = genesisPoint
-    | otherwise = O.Point $ Point.block (toSlotNo sid) (toByronHash h)
+    | otherwise = O.Point $ Point.block (toSlotNo epLength sid) (toByronHash h)
 
-toSlotNo :: W.SlotId -> SlotNo
-toSlotNo =
-    SlotNo . W.flatSlot byronEpochLength
+toSlotNo :: W.EpochLength -> W.SlotId -> SlotNo
+toSlotNo epLength =
+    SlotNo . W.flatSlot epLength
 
 -- | SealedTx are the result of rightfully constructed byron transactions so, it
 -- is relatively safe to unserialize them from CBOR.
@@ -276,8 +257,8 @@ toGenTx :: HasCallStack => W.SealedTx -> GenTx ByronBlock
 toGenTx =
     unsafeDeserialiseCbor decodeByronGenTx . BL.fromStrict . W.getSealedTx
 
-fromByronBlock :: W.Hash "Genesis" -> ByronBlock -> W.Block
-fromByronBlock genesisHash byronBlk = case byronBlockRaw byronBlk of
+fromByronBlock :: W.Hash "Genesis" -> W.EpochLength -> ByronBlock -> W.Block
+fromByronBlock genesisHash epLength byronBlk = case byronBlockRaw byronBlk of
   ABOBBlock blk  ->
     mkBlock $ fromTxAux <$> unTxPayload (blockTxPayload blk)
   ABOBBoundary _ ->
@@ -287,7 +268,7 @@ fromByronBlock genesisHash byronBlk = case byronBlockRaw byronBlk of
     mkBlock txs = W.Block
         { header = W.BlockHeader
             { slotId =
-                fromSlotNo $ blockSlot byronBlk
+                fromSlotNo epLength $ blockSlot byronBlk
             , blockHeight =
                 fromBlockNo $ blockNo byronBlk
             , headerHash =
@@ -333,17 +314,17 @@ fromChainHash genesisHash = \case
     GenesisHash -> coerce genesisHash
     BlockHash h -> fromByronHash h
 
-fromSlotNo :: SlotNo -> W.SlotId
-fromSlotNo (SlotNo sl) =
-    W.fromFlatSlot byronEpochLength sl
+fromSlotNo :: W.EpochLength -> SlotNo -> W.SlotId
+fromSlotNo epLength (SlotNo sl) =
+    W.fromFlatSlot epLength sl
 
 -- FIXME unsafe conversion (Word64 -> Word32)
 fromBlockNo :: BlockNo -> Quantity "block" Word32
 fromBlockNo (BlockNo h) =
     Quantity (fromIntegral h)
 
-fromTip :: W.Hash "Genesis" -> Tip ByronBlock -> W.BlockHeader
-fromTip genesisHash tip = case getPoint (tipPoint tip) of
+fromTip :: W.Hash "Genesis" -> W.EpochLength -> Tip ByronBlock -> W.BlockHeader
+fromTip genesisHash epLength tip = case getPoint (tipPoint tip) of
     Origin -> W.BlockHeader
         { slotId = W.SlotId 0 0
         , blockHeight = Quantity 0
@@ -351,7 +332,7 @@ fromTip genesisHash tip = case getPoint (tipPoint tip) of
         , parentHeaderHash = W.Hash (BS.replicate 32 0)
         }
     At blk -> W.BlockHeader
-        { slotId = fromSlotNo $ Point.blockPointSlot blk
+        { slotId = fromSlotNo epLength $ Point.blockPointSlot blk
         , blockHeight = fromBlockNo $ tipBlockNo tip
         , headerHash = fromByronHash $ Point.blockPointHash blk
         -- TODO

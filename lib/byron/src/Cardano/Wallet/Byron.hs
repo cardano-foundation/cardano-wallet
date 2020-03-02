@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -211,7 +212,11 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen addrInfo beforeMa
     apiLayer tl nl = do
         let (block0, _) = staticBlockchainParameters nl
         let tracer = contramap MsgDatabaseStartup applicationTracer
-        let params = (fromByronBlock genesisHash block0, bp, sTolerance)
+        let params =
+                ( fromByronBlock getGenesisBlockHash getEpochLength block0
+                , bp
+                , sTolerance
+                )
         wallets <- maybe (pure []) (Sqlite.findDatabases @k tracer) databaseDir
         db <- Sqlite.newDBFactory
             walletDbTracer
@@ -220,8 +225,11 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen addrInfo beforeMa
         Server.newApiLayer
             walletEngineTracer params nl' tl db wallets
       where
-        genesisHash = getGenesisBlockHash bp
-        nl' = fromByronBlock genesisHash <$> nl
+        BlockchainParameters
+            { getGenesisBlockHash
+            , getEpochLength
+            } = bp
+        nl' = fromByronBlock getGenesisBlockHash getEpochLength <$> nl
 
     -- FIXME: reduce duplication (see Cardano.Wallet.Jormungandr)
     handleApiServerStartupError :: ListenError -> IO ExitCode
