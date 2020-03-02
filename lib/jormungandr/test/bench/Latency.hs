@@ -460,7 +460,7 @@ benchWithServer tracers action = withConfig $ \jmCfg -> do
         res <- serveWallet @'Testnet
             tracers (SyncTolerance 10)
             Nothing "127.0.0.1"
-            ListenOnRandomPort (Launch jmCfg) $ \wAddr nPort bp -> do
+            ListenOnRandomPort (Launch jmCfg) $ \wAddr _ bp -> do
                 let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
                 let sixtySeconds = 60*1000*1000 -- 60s in microseconds
                 manager <- (baseUrl,) <$> newManager (defaultManagerSettings
@@ -471,10 +471,8 @@ benchWithServer tracers action = withConfig $ \jmCfg -> do
                 putMVar ctx $ Context
                     { _cleanup = pure ()
                     , _manager = manager
-                    , _nodePort = nPort
                     , _walletPort = Port . fromIntegral $ unsafePortNumber wAddr
                     , _faucet = faucet
-                    , _feePolicy = getFeePolicy bp
                     , _feeEstimator = \_ -> error "feeEstimator not available"
                     , _target = Proxy
                     }
