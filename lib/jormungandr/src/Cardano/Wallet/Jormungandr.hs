@@ -11,6 +11,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -162,8 +163,12 @@ import GHC.Generics
     ( Generic )
 import Network.NTP.Client
     ( NtpClient (..), withNtpClient )
+import Network.NTP.Packet
+    ( Microsecond (..) )
 import Network.NTP.Query
     ( NtpSettings (..) )
+import Network.NTP.Trace
+    ( IPVersion (..), NtpTrace (..) )
 import Network.Socket
     ( SockAddr, Socket, getSocketName )
 import Network.Wai.Handler.Warp
@@ -239,7 +244,7 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
             let poolDBPath = Pool.defaultFilePath <$> databaseDir
             Pool.withDBLayer stakePoolDbTracer poolDBPath $ \db ->
                 withSystemTempDirectory "stake-pool-metadata" $ \md -> do
-                withNtpClient nullTracer ntpSettings $ \ntpClient -> do
+                withNtpClient ntpClientTracer ntpSettings $ \ntpClient -> do
                     link $ ntpThread ntpClient
                     poolApi <- stakePoolLayer nl db block0 md
                     byronApi <- apiLayer "byron" byronTl nl
@@ -448,6 +453,87 @@ exitCodeApiServer = \case
     ListenErrorAddressAlreadyInUse _ -> 12
     ListenErrorOperationNotPermitted -> 13
 
+instance ToText IPVersion where
+    toText IPv4 = "IPv4"
+    toText IPv6 = "IPv6"
+
+instance ToText NtpTrace where
+    toText msg = case msg of
+        NtpTraceStartNtpClient ->
+            "Starting ntp client"
+        NtpTraceTriggerUpdate ->
+            "ntp client is triggered"
+        NtpTraceRestartDelay d ->
+            "ntp client restart delay is "<>toText d
+        NtpTraceRestartingClient ->
+            "ntp client is restarted"
+        NtpTraceClientSleeping ->
+            "ntp client is goint to sleep"
+        NtpTraceIOError err ->
+            "ntp client experienced error " <> toText (show err)
+        NtpTraceLookupServerFailed str ->
+            "ntp client experienced server lookup error " <> toText str
+        NtpTraceClientStartQuery ->
+            "query to ntp client invoked"
+        NtpTraceNoLocalAddr ->
+            "no local address error when running ntp client"
+        NtpTraceIPv4IPv6NoReplies ->
+            "no replies from servers when running ntp client"
+        NtpTraceReportPolicyQueryFailed ->
+            "policy query error when running ntp client"
+        NtpTraceQueryResult (Microsecond ms) ->
+            "ntp client give offset "<> toText ms <> " microseconds"
+        NtpTraceRunProtocolError ver err ->
+            "ntp client protocol run experienced error "<>toText (show err)
+            <>" when running "<>toText ver
+        NtpTraceRunProtocolNoResult ver ->
+            "ntp client protocol run experienced no result error when running "<> toText ver
+        NtpTraceRunProtocolSuccess ver ->
+            "ntp client protocol run successfull when running "<> toText ver
+        NtpTraceSocketOpen ver ->
+            "ntp client opened socket when running "<> toText ver
+        NtpTraceSocketClosed ver ->
+            "ntp client closed socket when running "<> toText ver
+        NtpTracePacketSent ver ->
+            "ntp client sent packet when running "<> toText ver
+        NtpTracePacketSentError ver err ->
+            "ntp client experienced error "<> toText (show err)
+            <>" when sending packet using "<> toText ver
+        NtpTracePacketDecodeError ver err ->
+            "ntp client experienced error "<> toText (show err)
+            <>" when decoding packet using "<> toText ver
+        NtpTracePacketReceived ver ->
+            "ntp client received packet using "<> toText ver
+        NtpTraceWaitingForRepliesTimeout ver ->
+            "ntp client experienced timeout when waiting for replies using "
+            <> toText ver
+
+instance DefinePrivacyAnnotation NtpTrace
+instance DefineSeverity NtpTrace where
+    defineSeverity ev = case ev of
+        NtpTraceStartNtpClient -> Info
+        NtpTraceTriggerUpdate -> Info
+        NtpTraceRestartDelay _ -> Info
+        NtpTraceRestartingClient -> Info
+        NtpTraceClientSleeping -> Info
+        NtpTraceIOError _ -> Alert
+        NtpTraceLookupServerFailed _ -> Alert
+        NtpTraceClientStartQuery -> Info
+        NtpTraceNoLocalAddr -> Alert
+        NtpTraceIPv4IPv6NoReplies -> Info
+        NtpTraceReportPolicyQueryFailed -> Alert
+        NtpTraceQueryResult _ -> Info
+        NtpTraceRunProtocolError _ _ -> Alert
+        NtpTraceRunProtocolNoResult _ -> Info
+        NtpTraceRunProtocolSuccess _ -> Debug
+        NtpTraceSocketOpen _ -> Debug
+        NtpTraceSocketClosed _ -> Debug
+        NtpTracePacketSent _ -> Debug
+        NtpTracePacketSentError _ _ -> Alert
+        NtpTracePacketDecodeError _ _-> Alert
+        NtpTracePacketReceived _ -> Debug
+        NtpTraceWaitingForRepliesTimeout _ -> Alert
+
 {-------------------------------------------------------------------------------
                                     Tracers
 -------------------------------------------------------------------------------}
@@ -462,6 +548,7 @@ data Tracers' f = Tracers
     , stakePoolDbTracer     :: f DBLog
     , networkTracer         :: f NetworkLayerLog
     , daedalusIPCTracer     :: f DaedalusIPCLog
+    , ntpClientTracer       :: f NtpTrace
     }
 
 -- | All of the Jörmungandr 'Tracer's.
@@ -486,6 +573,7 @@ tracerSeverities sev = Tracers
     , stakePoolDbTracer     = Const sev
     , networkTracer         = Const sev
     , daedalusIPCTracer     = Const sev
+    , ntpClientTracer       = Const sev
     }
 
 -- | Set up tracing with textual log messages.
@@ -499,6 +587,7 @@ setupTracers sev tr = Tracers
     , stakePoolDbTracer     = mkTrace stakePoolDbTracer     $ onoff stakePoolDbTracer tr
     , networkTracer         = mkTrace networkTracer         $ onoff networkTracer tr
     , daedalusIPCTracer     = mkTrace daedalusIPCTracer     $ onoff daedalusIPCTracer tr
+    , ntpClientTracer       = mkTrace ntpClientTracer       $ onoff ntpClientTracer tr
     }
   where
     onoff
@@ -528,6 +617,7 @@ tracerLabels = Tracers
     , stakePoolDbTracer     = Const "pools-db"
     , networkTracer         = Const "network"
     , daedalusIPCTracer     = Const "daedalus-ipc"
+    , ntpClientTracer       = Const "ntp-client"
     }
 
 -- | Names and descriptions of the tracers, for user documentation.
@@ -557,6 +647,9 @@ tracerDescriptions =
     , ( lbl daedalusIPCTracer
       , "About inter-process communications with Daedalus."
       )
+    , ( lbl ntpClientTracer
+      , "About ntp-client."
+      )
     ]
   where
     lbl f = T.unpack . getConst . f $ tracerLabels
@@ -572,4 +665,5 @@ nullTracers = Tracers
     , stakePoolDbTracer     = nullTracer
     , networkTracer         = nullTracer
     , daedalusIPCTracer     = nullTracer
+    , ntpClientTracer       = nullTracer
     }
