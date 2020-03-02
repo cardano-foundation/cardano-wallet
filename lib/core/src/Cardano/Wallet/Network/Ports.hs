@@ -1,3 +1,5 @@
+{-# LANGUAGE LambdaCase #-}
+
 -- |
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
@@ -23,6 +25,7 @@ module Cardano.Wallet.Network.Ports
 
     -- * Helpers
     , waitForPort
+    , unsafePortNumber
     ) where
 
 import Prelude
@@ -44,7 +47,7 @@ import GHC.IO.Exception
 import Network.Socket
     ( Family (AF_INET)
     , PortNumber
-    , SockAddr (SockAddrInet)
+    , SockAddr (..)
     , SocketType (Stream)
     , close'
     , connect
@@ -101,3 +104,12 @@ isPortOpen sockAddr = do
 -- > simpleSockAddr (127,0,0,1) 8000
 simpleSockAddr :: (Word8, Word8, Word8, Word8) -> PortNumber -> SockAddr
 simpleSockAddr addr port = SockAddrInet port (tupleToHostAddress addr)
+
+
+-- | Get the underlying port number for the given socket address. Fails for UNIX
+-- socket addresses which aren't bound to any TCP port.
+unsafePortNumber :: SockAddr -> PortNumber
+unsafePortNumber = \case
+    SockAddrInet p _ -> p
+    SockAddrInet6 p _ _ _ -> p
+    SockAddrUnix _ -> error "unsafePortNumber: no port for unix sockets."

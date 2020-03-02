@@ -19,9 +19,9 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Trace
     ( Trace, logInfo )
 import Cardano.CLI
-    ( withLogging )
+    ( Port (..), withLogging )
 import Cardano.Faucet
-    ( initFaucet, sockAddrPort )
+    ( initFaucet )
 import Cardano.Launcher
     ( ProcessHasExited (..) )
 import Cardano.Pool.Metadata
@@ -38,6 +38,8 @@ import Cardano.Wallet.Jormungandr.Launch
     ( withConfig )
 import Cardano.Wallet.Jormungandr.Network
     ( JormungandrBackend (..) )
+import Cardano.Wallet.Network.Ports
+    ( unsafePortNumber )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Fee
@@ -167,7 +169,7 @@ specWithServer tr = aroundAll withContext . after tearDown
                     { _cleanup = pure ()
                     , _manager = manager
                     , _nodePort = nPort
-                    , _walletPort = sockAddrPort wAddr
+                    , _walletPort = Port . fromIntegral $ unsafePortNumber wAddr
                     , _faucet = faucet
                     , _feeEstimator = mkFeeEstimator feePolicy
                     , _feePolicy = feePolicy

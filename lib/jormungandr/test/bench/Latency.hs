@@ -29,8 +29,10 @@ import Cardano.BM.Setup
     ( setupTrace_, shutdown )
 import Cardano.BM.Trace
     ( traceInTVarIO )
+import Cardano.CLI
+    ( Port (..) )
 import Cardano.Faucet
-    ( initFaucet, sockAddrPort )
+    ( initFaucet )
 import Cardano.Launcher
     ( ProcessHasExited (..) )
 import Cardano.Startup
@@ -57,6 +59,8 @@ import Cardano.Wallet.Jormungandr.Network
     ( JormungandrBackend (..) )
 import Cardano.Wallet.Logging
     ( trMessage )
+import Cardano.Wallet.Network.Ports
+    ( unsafePortNumber )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
@@ -468,7 +472,7 @@ benchWithServer tracers action = withConfig $ \jmCfg -> do
                     { _cleanup = pure ()
                     , _manager = manager
                     , _nodePort = nPort
-                    , _walletPort = sockAddrPort wAddr
+                    , _walletPort = Port . fromIntegral $ unsafePortNumber wAddr
                     , _faucet = faucet
                     , _feePolicy = getFeePolicy bp
                     , _feeEstimator = \_ -> error "feeEstimator not available"
