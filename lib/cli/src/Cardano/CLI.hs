@@ -490,15 +490,16 @@ instance FromText DerivationIndex where
 
         mkDerivationIndex :: Int -> Either TextDecodingError DerivationIndex
         mkDerivationIndex =
-            indexInv >=> (return . DerivationIndex . toEnum . fromEnum)
+            fmap (DerivationIndex . toEnum . fromEnum) . indexInv
 
-        parseSoftIndex =
-            parseWord >=> softIndexInv >=> mkDerivationIndex
+        parseSoftIndex txt = do
+            num <- parseWord txt >>= softIndexInv
+            mkDerivationIndex num
 
-        parseHardenedIndex =
-            parseWord
-            >=> (return . (+ fromIntegral firstHardenedIndex))
-            >=> mkDerivationIndex
+        parseHardenedIndex txt = do
+            num <- parseWord txt
+            let i = num + fromIntegral firstHardenedIndex
+            mkDerivationIndex i
 
         softIndexInv a = do
             idx <- mkDerivationIndex a
