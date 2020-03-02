@@ -153,8 +153,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , deriveRewardAccount
     , hex
     , unXPrv
-    , unXPrvStripPub
-    , xPrvFromStrippedPubXPrv
+    , unXPrvStripPubCheckRoundtrip
+    , xPrvFromStrippedPubXPrvCheckRoundtrip
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, defaultAddressPoolGap )
@@ -399,17 +399,20 @@ xPrvToTextTransform :: (XPrv -> Either String Text, Text -> Either String XPrv)
 xPrvToTextTransform = (xPrvToHexText, hexTextToXPrv)
   where
     xPrvToHexText :: XPrv -> Either String Text
-    xPrvToHexText = left showErr . fmap (T.pack . B8.unpack . hex) . unXPrvStripPub
+    xPrvToHexText =
+        fmap (T.pack . B8.unpack . hex)
+        . left showErr
+        . unXPrvStripPubCheckRoundtrip
       where
         -- NOTE: This error should never happen from using the CLI.
-        showErr ErrCannotRoundtrip =
+        showErr ErrCannotRoundtripToSameXPrv =
             "The private key I'm trying to encode looks wierd. \
             \Is it encrypted? Or an old Byron key?"
 
     hexTextToXPrv :: Text -> Either String XPrv
     hexTextToXPrv txt = do
         bytes <- fromHex $ B8.pack $ T.unpack . T.strip $ txt
-        left showErr $ xPrvFromStrippedPubXPrv bytes
+        left showErr $ xPrvFromStrippedPubXPrvCheckRoundtrip bytes
       where
         showErr (ErrInputLengthMismatch expected actual) = mconcat
             [ "Expected extended private key to be "
@@ -418,9 +421,9 @@ xPrvToTextTransform = (xPrvToHexText, hexTextToXPrv)
             , show actual
             , " bytes."
             ]
-        showErr (ErrInternalError msg) = mconcat
-            [ "Unexpected crypto error: "
-            , msg
+        showErr (ErrCannotRoundtripToSameBytes) = mconcat
+            [ "Couldn't decode that extended private key while making sure it "
+            , " can be encoded back again. Is it an old Byron key?"
             ]
         fromHex = left (const "Invalid hex.")
             . convertFromBase Base16

@@ -43,8 +43,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , checkPassphrase
     , encryptPassphrase
     , getIndex
-    , unXPrvStripPub
-    , xPrvFromStrippedPubXPrv
+    , unXPrvStripPubCheckRoundtrip
+    , xPrvFromStrippedPubXPrvCheckRoundtrip
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..) )
@@ -308,12 +308,12 @@ prop_passphraseHashMalformed pwd = monadicIO $ liftIO $ do
 -- we would not care.
 prop_unXPrvStripRoundtrip :: XPrvWithPass -> Property
 prop_unXPrvStripRoundtrip (XPrvWithPass k enc) = do
-    let res = unXPrvStripPub k
+    let res = unXPrvStripPubCheckRoundtrip k
     case res of
         Right k' ->
-            xPrvFromStrippedPubXPrv k' === Right k
+            xPrvFromStrippedPubXPrvCheckRoundtrip k' === Right k
                 & label "roundtrip"
-        Left ErrCannotRoundtrip ->
+        Left ErrCannotRoundtripToSameXPrv ->
             enc /= Passphrase ""
                 & label "mismatch"
                 & counterexample "XPrv should be encrypted for the roundtrip to\
@@ -334,8 +334,8 @@ prop_xPrvFromStrippedPubXPrvLengthRequirement (Unencrypted k) (NonNegative n) = 
         & classify (n == 96) "== 96"
         & classify (n < 96) "< 96"
   where
-    toStripped = left show . unXPrvStripPub
-    fromStripped = left show . xPrvFromStrippedPubXPrv
+    toStripped = left show . unXPrvStripPubCheckRoundtrip
+    fromStripped = left show . xPrvFromStrippedPubXPrvCheckRoundtrip
 
 {-------------------------------------------------------------------------------
                              Arbitrary Instances
