@@ -18,7 +18,11 @@ let
   haskell = pkgs.haskell-nix;
   jmPkgs = pkgs.jmPkgs;
 
-  src = ../.;
+  src = haskell.cleanSourceHaskell {
+    src = ../.;
+    name = "cardano-wallet-src";
+  };
+
   # our packages
   stack-pkgs = import ./.stack.nix/default.nix;
 
