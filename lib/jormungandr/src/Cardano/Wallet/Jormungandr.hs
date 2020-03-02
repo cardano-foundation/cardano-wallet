@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -132,7 +133,7 @@ import Control.Applicative
 import Control.Concurrent
     ( forkFinally )
 import Control.Concurrent.Async
-    ( race )
+    ( link, race )
 import Control.DeepSeq
     ( NFData )
 import Control.Exception
@@ -159,6 +160,10 @@ import Data.Text.Class
     ( ToText (..), showT )
 import GHC.Generics
     ( Generic )
+import Network.NTP.Client
+    ( NtpClient (..), withNtpClient )
+import Network.NTP.Query
+    ( NtpSettings (..) )
 import Network.Socket
     ( SockAddr, Socket, getSocketName )
 import Network.Wai.Handler.Warp
@@ -216,6 +221,13 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
                 (serveApp socket)
 
   where
+    ntpSettings = NtpSettings
+        { ntpServers = [ "0.de.pool.ntp.org", "0.europe.pool.ntp.org"
+                       , "0.pool.ntp.org", "1.pool.ntp.org"
+                       , "2.pool.ntp.org", "3.pool.ntp.org" ]
+        , ntpResponseTimeout = 1_000_000
+        , ntpPollDelay       = 300_000_000
+        }
     serveApp socket = withNetworkLayer networkTracer backend $ \case
         Left e -> handleNetworkStartupError e
         Right (cp, nl) -> do
@@ -227,6 +239,8 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
             let poolDBPath = Pool.defaultFilePath <$> databaseDir
             Pool.withDBLayer stakePoolDbTracer poolDBPath $ \db ->
                 withSystemTempDirectory "stake-pool-metadata" $ \md -> do
+                withNtpClient nullTracer ntpSettings $ \ntpClient -> do
+                    link $ ntpThread ntpClient
                     poolApi <- stakePoolLayer nl db block0 md
                     byronApi <- apiLayer "byron" byronTl nl
                     icarusApi <- apiLayer "icarus" icarusTl nl
@@ -236,6 +250,7 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
                         icarusApi
                         shelleyApi
                         poolApi
+                        ntpClient
                     pure ExitSuccess
 
     startServer
@@ -246,13 +261,14 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
         -> ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
         -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
         -> StakePoolLayer IO
+        -> NtpClient
         -> IO ()
-    startServer socket nPort bp byron icarus shelley pools = do
+    startServer socket nPort bp byron icarus shelley pools ntp = do
         sockAddr <- getSocketName socket
         let settings = Warp.defaultSettings
                 & setBeforeMainLoop (beforeMainLoop sockAddr nPort bp)
         let application = Server.serve (Proxy @(ApiV2 n))
-                $ Server.server byron icarus shelley pools
+                $ Server.server byron icarus shelley pools ntp
         Server.start settings apiServerTracer socket application
 
     apiLayer

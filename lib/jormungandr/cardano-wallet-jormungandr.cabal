@@ -57,6 +57,7 @@ library
     , monad-loops
     , memory
     , network
+    , ntp-client
     , safe
     , servant
     , servant-client

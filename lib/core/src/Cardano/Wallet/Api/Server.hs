@@ -7,7 +7,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -223,8 +222,6 @@ import Control.Applicative
     ( liftA2 )
 import Control.Arrow
     ( second )
-import Control.Concurrent.Async
-    ( link )
 import Control.DeepSeq
     ( NFData )
 import Control.Exception
@@ -238,7 +235,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Except
     ( ExceptT (..), catchE, runExceptT, throwE, withExceptT )
 import Control.Tracer
-    ( Tracer, nullTracer )
+    ( Tracer )
 import Data.Aeson
     ( (.=) )
 import Data.Function
@@ -280,11 +277,11 @@ import Network.HTTP.Media.RenderHeader
 import Network.HTTP.Types.Header
     ( hContentType )
 import Network.NTP.Client
-    ( NtpClient (..), withNtpClient )
+    ( NtpClient (..) )
 import Network.NTP.Packet
     ( Microsecond (..), NtpOffset (..) )
 import Network.NTP.Query
-    ( NtpSettings (..), NtpStatus (..) )
+    ( NtpStatus (..) )
 import Network.Socket
     ( Socket, close )
 import Network.Wai
@@ -454,8 +451,9 @@ server
     -> icarus
     -> shelley
     -> StakePoolLayer IO
+    -> NtpClient
     -> Server (Api n)
-server byron icarus shelley spl =
+server byron icarus shelley spl ntp =
          wallets
     :<|> addresses
     :<|> coinSelections
@@ -546,7 +544,7 @@ server byron icarus shelley spl =
     network =
         getNetworkInformation genesis nl
         :<|> (getNetworkParameters genesis)
-        :<|> getNetworkClock
+        :<|> (getNetworkClock ntp)
       where
         nl = shelley ^. networkLayer @t
         genesis = shelley ^. genesisData
@@ -651,7 +649,7 @@ byronServer byron icarus =
     network =
         getNetworkInformation genesis nl
         :<|> (getNetworkParameters genesis)
-        :<|> getNetworkClock
+        :<|> (throwError err501)
       where
         nl = icarus ^. networkLayer @t
         genesis = icarus ^. genesisData
@@ -1513,11 +1511,9 @@ data ErrNoSuchEpoch = ErrNoSuchEpoch
     , errCurrentEpoch :: W.EpochNo
     } deriving (Eq, Show)
 
-getNetworkClock :: Handler ApiNetworkClock
-getNetworkClock = do
-    ntpS <- liftIO $ withNtpClient nullTracer ntpSettings $ \client -> do
-        link $ ntpThread client
-        ntpQueryBlocking client
+getNetworkClock :: NtpClient -> Handler ApiNetworkClock
+getNetworkClock ntpClient = do
+    ntpS <- liftIO $ ntpQueryBlocking ntpClient
     case ntpS of
         NtpSyncPending ->
             pure $ ApiNetworkClock $
@@ -1529,15 +1525,6 @@ getNetworkClock = do
             pure $ ApiNetworkClock $
             ApiNtpStatus NtpSyncingStatusAvailable
             (Just $ Quantity $ fromIntegral ms)
-  where
-    ntpSettings :: NtpSettings
-    ntpSettings = NtpSettings
-        { ntpServers = [ "0.de.pool.ntp.org", "0.europe.pool.ntp.org"
-                       , "0.pool.ntp.org", "1.pool.ntp.org"
-                       , "2.pool.ntp.org", "3.pool.ntp.org" ]
-        , ntpResponseTimeout = 1_000_000
-        , ntpPollDelay       = 300_000_000
-        }
 
 {-------------------------------------------------------------------------------
                                    Proxy
