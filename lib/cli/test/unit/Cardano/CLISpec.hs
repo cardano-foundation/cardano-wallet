@@ -722,12 +722,10 @@ spec = do
                 (newCliKeyScheme s)
                 (newCliKeyScheme s)
 
-        -- This tests provides a stronger guarantee than merely knowing that
-        -- unsafeHexTextToXPrv and xPrvToHexText roundtrips.
         it "scheme == mapKey (fromHex . toHex) scheme"
             $ property prop_roundtripCliKeySchemeKeyViaHex
 
-        it "random /= icarus" $ do
+        it "ledger /= icarus" $ do
             expectFailure $ propCliKeySchemeEquality
                 (newCliKeyScheme Ledger)
                 (newCliKeyScheme Icarus)
