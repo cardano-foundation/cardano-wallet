@@ -1455,7 +1455,7 @@ walletStyleOption = option (eitherReader fromTextS)
          formatEnglishEnumerationRev xs = intercalate ", " (reverse xs)
 
 keyArgument :: Parser Text
-keyArgument = T.pack <$> (argument str (metavar "HEX-XPRV"))
+keyArgument = T.pack <$> (argument str (metavar "XPRV"))
 
 pathOption :: Parser DerivationPath
 pathOption = option (eitherReader fromTextS) $

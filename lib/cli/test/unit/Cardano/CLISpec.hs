@@ -483,7 +483,7 @@ spec = do
             ]
 
         ["key", "child", "--help"] `shouldShowUsage`
-            [ "Usage:  key child --path DER-PATH HEX-XPRV"
+            [ "Usage:  key child --path DER-PATH XPRV"
             , "  Derive child keys."
             , ""
             , "Available options:"
@@ -492,7 +492,7 @@ spec = do
             ]
 
         ["key", "public", "--help"] `shouldShowUsage`
-            [ "Usage:  key public HEX-XPRV"
+            [ "Usage:  key public XPRV"
             , "  Extract public key from a private key."
             , ""
             , "Available options:"
@@ -500,7 +500,7 @@ spec = do
             ]
 
         ["key", "inspect", "--help"] `shouldShowUsage`
-            [ "Usage:  key inspect HEX-XPRV"
+            [ "Usage:  key inspect XPRV"
             , "  Show information about a key."
             , ""
             , "Available options:"
