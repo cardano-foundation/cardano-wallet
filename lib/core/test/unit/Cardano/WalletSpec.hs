@@ -286,17 +286,16 @@ prop_guardJoinQuit knownPools dlg pid =
             label "ErrAlreadyDelegating" (W.guardQuit dlg === Right ())
 
 prop_guardQuitJoin
-    :: [PoolId]
+    :: NonEmptyList PoolId
     -> WalletDelegation
-    -> PoolId
     -> Property
-prop_guardQuitJoin knownPools dlg pid =
-    pid `elem` knownPools ==> case W.guardQuit dlg of
+prop_guardQuitJoin (NonEmpty knownPools) dlg =
+    case W.guardQuit dlg of
         Right () ->
             label "I can quit" $ property True
         Left W.ErrNotDelegatingOrAboutTo ->
             label "ErrNotDelegatingOrAboutTo"
-                (W.guardJoin knownPools dlg pid === Right ())
+                (W.guardJoin knownPools dlg (last knownPools) === Right ())
 
 walletCreationProp
     :: (WalletId, WalletName, DummyState)
