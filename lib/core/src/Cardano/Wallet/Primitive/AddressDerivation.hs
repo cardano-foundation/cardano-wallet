@@ -738,22 +738,14 @@ data ErrUnXPrvStripPub
       -- encrypted, or because it was an old (Byron) key.
     deriving (Eq, Show)
 
--- | Convert a @XPrv@ to a 96-byte long extended private key that does /not/
--- include the public key.
+-- | Like @unXPrvStripPub@, but also checks that the result roundtrips.
 --
--- The format is:
--- > Extended Private Key (64 bytes) <> ChainCode (32 bytes)
---
--- Returns @Left@ if the resulting bytestring fails to roundtrip back to the
--- original @XPrv@. This can happen:
--- - If the @XPrv@ was encrypted
--- - If a DerivationScheme1 (Byron) key was used (that does not conform to the
--- "tweak")
+-- Roundtrip may fail if:
+-- - the key is encrypted
+-- - the key is an old byron key
 unXPrvStripPubCheckRoundtrip :: XPrv -> Either ErrUnXPrvStripPub ByteString
 unXPrvStripPubCheckRoundtrip k = do
     let res = unXPrvStripPub k
-
-    -- Check that it roundtrips.
     case (fmap unXPrv . xPrvFromStrippedPubXPrv $ res) of
         Right bytes
             | bytes == unXPrv k -> Right res
@@ -761,6 +753,15 @@ unXPrvStripPubCheckRoundtrip k = do
         Left  _                 -> error "unXPrvStripPub: this state cannot be \
             \reached from a rightfully crafted XPrv"
 
+-- | Convert a @XPrv@ to a 96-byte long extended private key that does /not/
+-- include the public key.
+--
+-- The format is:
+--
+-- > Extended Private Key (64 bytes) <> ChainCode (32 bytes)
+--
+-- Does /not/ guarantee that @xPrvFromStrippedPubXPrv@ will be able to
+-- reconstruct the same @XPrv@ from the resulting @ByteString@.
 unXPrvStripPub :: XPrv -> ByteString
 unXPrvStripPub k = do
     stripPub . unXPrv $ k
@@ -778,6 +779,11 @@ data ErrXPrvFromStrippedPubXPrv
     | ErrCannotRoundtripToSameBytes
     deriving (Eq, Show)
 
+-- | Like @xPrvFromStrippedPubXPrv@, but also checks that the result roundtrips.
+--
+-- Roundtrip may fail if:
+-- - the key is encrypted
+-- - the key is an old byron key
 xPrvFromStrippedPubXPrvCheckRoundtrip
     :: ByteString
     -> Either ErrXPrvFromStrippedPubXPrv XPrv
@@ -792,6 +798,12 @@ xPrvFromStrippedPubXPrvCheckRoundtrip bs = do
 -- The format is:
 --
 -- > Extended Private Key (64 bytes) <> ChainCode (32 bytes)
+--
+-- This function uses @cardano-crypto:encryptedCreateDirectWithTweak@ which
+-- will modify the key if certain bits are not cleared / set. Byron keys are
+-- likely not to have the correct tweak.
+--
+-- Byron keys would be silently modified.
 xPrvFromStrippedPubXPrv :: ByteString -> Either ErrXPrvFromStrippedPubXPrv XPrv
 xPrvFromStrippedPubXPrv x = do
         when (BS.length x /= expectedInputLength) $
