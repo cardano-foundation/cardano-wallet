@@ -167,19 +167,19 @@ x-syncProgress: &syncProgress
 x-syncClockProgress: &syncClockProgress
   type: object
   required:
-    - syncing
+    - status
   properties:
-    syncing:
+    status:
       type: string
       enum:
         - unavailable
         - pending
-        - completed
+        - available
     offset:
       <<: *microseconds
       description: |
         <span style="position: relative; left: 35px; top: -21px; vertical-align: middle; background-color: rgba(142, 142, 220, 0.05); color: rgba(50, 50, 159, 0.9); margin: 0 5px; padding: 0 5px; border: 1px solid rgba(50, 50, 159, 0.1); line-height: 20px; font-size: 13px; border-radius: 2px;">
-        <strong>if:</strong> syncing == completed
+        <strong>if:</strong> status == available
         </span><br/>
   example:
     status: pending
@@ -661,11 +661,7 @@ components:
         next_epoch: *ApiEpochInfo
 
     ApiNetworkClock: &ApiNetworkClock
-      type: object
-      required:
-        - ntp_status
-      properties:
-        ntp_status: *networkClockSyncProgress
+      <<: *networkClockSyncProgress
 
     ApiNetworkParameters: &ApiNetworkParameters
       type: object

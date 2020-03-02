@@ -200,13 +200,13 @@ spec = do
                     (errMsg404NoEpochNo (T.unpack maxEpochValue))
 
     it "NETWORK - Can query network clock" $ \ctx ->
-        eventually "ntpStatus = completed" $ do
+        eventually "ntp status = available" $ do
             r <- request @ApiNetworkClock ctx
                 Link.getNetworkClock Default Empty
             expectResponseCode @IO HTTP.status200 r
             verify r
-                [ expectField (#ntpStatus . #syncing)
-                    (`shouldBe` NtpSyncingStatusCompleted)
+                [ expectField (#ntpStatus . #status)
+                    (`shouldBe` NtpSyncingStatusAvailable)
                 ]
    where
        verifyEpochNumWrong

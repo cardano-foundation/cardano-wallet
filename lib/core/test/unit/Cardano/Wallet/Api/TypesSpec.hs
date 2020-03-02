@@ -1285,7 +1285,7 @@ instance Arbitrary ApiNtpStatus where
         elements
             [ ApiNtpStatus NtpSyncingStatusUnavailable Nothing
             , ApiNtpStatus NtpSyncingStatusPending Nothing
-            , ApiNtpStatus NtpSyncingStatusCompleted (Just o)
+            , ApiNtpStatus NtpSyncingStatusAvailable (Just o)
             ]
 
 instance Arbitrary ApiNetworkClock where

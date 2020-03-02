@@ -1527,7 +1527,7 @@ getNetworkClock = do
             ApiNtpStatus NtpSyncingStatusUnavailable Nothing
         (NtpDrift (NtpOffset (Microsecond ms))) ->
             pure $ ApiNetworkClock $
-            ApiNtpStatus NtpSyncingStatusCompleted
+            ApiNtpStatus NtpSyncingStatusAvailable
             (Just $ Quantity $ fromIntegral ms)
   where
     ntpSettings :: NtpSettings

@@ -484,11 +484,11 @@ data ApiNetworkInformation = ApiNetworkInformation
 data NtpSyncingStatus =
       NtpSyncingStatusUnavailable
     | NtpSyncingStatusPending
-    | NtpSyncingStatusCompleted
+    | NtpSyncingStatusAvailable
     deriving (Eq, Generic, Show)
 
 data ApiNtpStatus = ApiNtpStatus
-    { syncing :: !NtpSyncingStatus
+    { status :: !NtpSyncingStatus
     , offset :: !(Maybe (Quantity "microsecond" Integer))
     } deriving (Eq, Generic, Show)
 
@@ -564,17 +564,17 @@ instance ToHttpApiData Iso8601Time where
 instance ToText NtpSyncingStatus where
     toText NtpSyncingStatusUnavailable = "unavailable"
     toText NtpSyncingStatusPending = "pending"
-    toText NtpSyncingStatusCompleted = "completed"
+    toText NtpSyncingStatusAvailable = "available"
 
 instance FromText NtpSyncingStatus where
     fromText txt = case txt of
         "unavailable" -> Right NtpSyncingStatusUnavailable
         "pending" -> Right NtpSyncingStatusPending
-        "completed" -> Right NtpSyncingStatusCompleted
+        "available" -> Right NtpSyncingStatusAvailable
         _ -> Left $ TextDecodingError $ unwords
             [ "I couldn't parse the given ntp syncing status."
             , "I am expecting one of the words 'unavailable', 'pending' or"
-            , "'completed'."]
+            , "'available'."]
 
 instance ToText ApiEpochNumber where
     toText ApiEpochNumberLatest = "latest"
@@ -1026,9 +1026,9 @@ instance ToJSON ApiNtpStatus where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiNetworkClock where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
+    parseJSON = parseJSON >=> pure . ApiNetworkClock
 instance ToJSON ApiNetworkClock where
-    toJSON = genericToJSON defaultRecordTypeOptions
+    toJSON (ApiNetworkClock st) = toJSON st
 
 instance FromJSON (ApiT StartTime) where
     parseJSON = fmap (ApiT . StartTime) . parseJSON
