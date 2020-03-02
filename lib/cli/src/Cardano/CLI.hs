@@ -1370,10 +1370,11 @@ walletStyleOption = option (eitherReader fromTextS)
     ( long "wallet-style"
     <> metavar "WALLET_STYLE"
     <> helpDoc (Just (vsep typeOptions))
+    <> value Icarus -- NOTE: Remember to update help text when updating!
     )
   where
     typeOptions = string <$>
-        [ "Any of the following:"
+        [ "Any of the following (default: icarus)"
         , "  icarus (" ++ allowedWords Icarus ++ ")"
         , "  trezor (" ++ allowedWords Trezor ++ ")"
         , "  ledger (" ++ allowedWords Ledger ++ ")"

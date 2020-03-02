@@ -469,13 +469,13 @@ spec = do
             ]
 
         ["key", "root", "--help"] `shouldShowUsage`
-            [ "Usage:  key root --wallet-style WALLET_STYLE MNEMONIC_WORD..."
+            [ "Usage:  key root [--wallet-style WALLET_STYLE] MNEMONIC_WORD..."
             , "  Extract root extended private key from a mnemonic sentence."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
             , "  --wallet-style WALLET_STYLE"
-            , "                           Any of the following:"
+            , "                           Any of the following (default: icarus)"
             , "                             icarus (15 words)"
             , "                             trezor (12, 15, 18, 21 or 24 words)"
             , "                             ledger (12, 15, 18, 21 or 24 words)"
@@ -620,7 +620,7 @@ spec = do
                      \analyst ladder such report capital produce"
     let mw12 = words "broccoli side goddess shaft alarm victory sheriff \
                      \combine birth deny train outdoor"
-    describe "key derivation from mnemonics" $ do
+    describe "key root" $ do
         (["key", "root", "--wallet-style", "icarus"] ++ mw15) `shouldStdOut`
             "00aa5f5f364980f4ac6295fd0fbf65643390d6bb1cf76536c2ebb02713c8ba50d8\
             \903bee774b7bf8678ea0d6fded6d876db3b42bef687640cc514eb73f767537a8c7\
@@ -634,7 +634,7 @@ spec = do
             \9eb7ad13f798d06ce550a9f6c48dd2151db4593e67dbd2821d75378c7350f1366b\
             \85e0be9cdec2213af2084d462cc11e85c215e0f003acbeb996567e371502\n"
 
-    describe "key derivation (negative tests)" $ do
+    describe "key root (negative tests)" $ do
         (["key", "root", "--wallet-style", "icarus"] ++ mw12) `expectStdErr`
             (`shouldBe` "Invalid number of words: 15 words are expected.\n")
 
