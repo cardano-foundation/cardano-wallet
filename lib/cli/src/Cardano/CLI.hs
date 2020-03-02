@@ -476,7 +476,7 @@ instance FromText DerivationIndex where
         "An empty string is not a derivation index!"
     fromText x = do
        -- NOTE: T.takeEnd will not throw, but may return "".
-       if T.takeEnd 1 x == "\'"
+       if T.takeEnd 1 x == "H"
        then do
            let x' = T.dropEnd 1 x
            parseHardenedIndex x'
@@ -506,7 +506,7 @@ instance FromText DerivationIndex where
             then Left . TextDecodingError $ mconcat
                 [ show a
                 , " is too high to be a soft derivation index. "
-                , "Please use \"'\" to denote hardened indexes. "
+                , "Please use \"H\" to denote hardened indexes. "
                 , "Did you mean \""
                 , T.unpack $ toText idx
                 , "\"?"
@@ -525,7 +525,7 @@ instance ToText DerivationIndex where
     toText (DerivationIndex i) = do
         T.pack $
             if i >= firstHardenedIndex
-            then show (i - firstHardenedIndex) ++ "'"
+            then show (i - firstHardenedIndex) ++ "H"
             else show i
 
 newCliKeyScheme :: CliWalletStyle -> CliKeyScheme XPrv (Either String)
@@ -1462,7 +1462,7 @@ pathOption = option (eitherReader fromTextS) $
     mempty
     <> long "path"
     <> metavar "DER-PATH"
-    <> help "Derivation path e.g. \"44'/1815'/0'/0\""
+    <> help "Derivation path e.g. 44H/1815H/0H/0"
 
 -- | <wallet-id=WALLET_ID>
 walletIdArgument :: Parser WalletId

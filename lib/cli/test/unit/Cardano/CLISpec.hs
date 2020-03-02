@@ -488,7 +488,7 @@ spec = do
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --path DER-PATH          Derivation path e.g. \"44'/1815'/0'/0\""
+            , "  --path DER-PATH          Derivation path e.g. 44H/1815H/0H/0"
             ]
 
         ["key", "public", "--help"] `shouldShowUsage`
@@ -518,26 +518,26 @@ spec = do
         fromTextGolden @DerivationIndex "" "should fail" $
             Left "An empty string is not a derivation index!"
 
-        fromTextGolden @DerivationIndex "4294967295'" "should fail" $
+        fromTextGolden @DerivationIndex "4294967295H" "should fail" $
             Left "6442450943 is too high to be a derivation index."
 
-        fromTextGolden @DerivationPath "44'/0'/0" "" $
+        fromTextGolden @DerivationPath "44H/0H/0" "" $
             Right . DerivationPath . map DerivationIndex $
                 [0x80000000 + 44, 0x80000000 + 0, 0]
 
         fromTextGolden
             @DerivationPath "2147483692" "hardened index without ' notation" $
                 Left "2147483692 is too high to be a soft derivation index. \
-                     \Please use \"'\" to denote hardened indexes. Did you \
-                     \mean \"44'\"?"
+                     \Please use \"H\" to denote hardened indexes. Did you \
+                     \mean \"44H\"?"
 
-        fromTextGolden @DerivationPath "44'/0'/0/" "should fail (trailing /)" $
+        fromTextGolden @DerivationPath "44H/0H/0/" "should fail (trailing /)" $
             Left "An empty string is not a derivation index!"
 
-        fromTextGolden @DerivationPath "ö'/0'/0/" "should fail" $
-            Left "\"ö'\" is not a number."
+        fromTextGolden @DerivationPath "öH/0H/0/" "should fail" $
+            Left "\"öH\" is not a number."
 
-        fromTextGolden @DerivationPath "0x80000000/0'/0/" "should fail" $
+        fromTextGolden @DerivationPath "0x80000000/0H/0/" "should fail" $
             Left "\"0x80000000\" is not a number."
 
     describe "Transaction ID decoding from text" $ do
@@ -664,7 +664,7 @@ spec = do
                        \11666cf48d6fd7bec908e4c6ced5f0c4f0798b1b619d6b61e611049\
                        \2b5ebb430f570488f074a9fc9a22f0a61b2ab9b1f1a990e3f8dd6fb\
                        \ed4ad474371095c74db3d9c743a\n"
-        ["key", "child", "--path", "1852'/1815'/0'/0/0", rootXPrv]
+        ["key", "child", "--path", "1852H/1815H/0H/0/0", rootXPrv]
             `shouldStdOut`
             "5073cbc3e3f85b0099c67ed5b0344bfc0f15861ef05f41cde2a797352f66cf48ab\
             \59c46d040abb4b3e0623bb151362233e75cf1f923b6d5964780ebbcf3a2d7a3d90\
