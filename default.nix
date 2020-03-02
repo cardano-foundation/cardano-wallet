@@ -2,7 +2,7 @@
 , crossSystem ? null
 , config ? {}
 # Import pinned Nixpkgs with iohk-nix and Haskell.nix overlays
-, pkgs ? import ./nix { inherit system crossSystem config sourcesOverride; }
+, pkgs ? import ./nix/default.nix { inherit system crossSystem config sourcesOverride; }
 # Use this git revision for stamping executables
 , gitrev ? pkgs.commonLib.commitIdFromGitRepoOrZero ./.git
 # Use this to reference local sources rather than the pinned versions (see nix/default.nix)

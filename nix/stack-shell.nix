@@ -1,6 +1,6 @@
 # This is the derivation used by "stack --nix".
 # It provides the system dependencies required for a stack build.
-{ walletPackages ? import ./.. {}
+{ walletPackages ? import ../default.nix {}
 , pkgs ? walletPackages.pkgs
 }:
 with pkgs;
