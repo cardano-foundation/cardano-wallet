@@ -71,7 +71,7 @@ prop_keyToHexTextJcliCompatible
     => k 'RootK XPrv
     -> Property
 prop_keyToHexTextJcliCompatible k = monadicIO $ do
-    let Right hexXPrv = fmap (B8.unpack . hex) . unXPrvStripPub . getRawKey $ k
+    let hexXPrv = (B8.unpack . hex) . unXPrvStripPub . getRawKey $ k
     monitor (counterexample $ "\nkey bytes = " ++ hexXPrv)
     (code, stdout, stderr) <- run $ jcliKeyFromHex hexXPrv
     monitor (counterexample $ "\n" ++ show code)

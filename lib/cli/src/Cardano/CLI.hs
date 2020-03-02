@@ -423,7 +423,7 @@ xPrvToTextTransform = (xPrvToHexText, hexTextToXPrv)
             ]
         showErr (ErrCannotRoundtripToSameBytes) = mconcat
             [ "Couldn't decode that extended private key while making sure it "
-            , " can be encoded back again. Is it an old Byron key?"
+            , "can be encoded back again. Is it an old Byron key?"
             ]
         fromHex = left (const "Invalid hex.")
             . convertFromBase Base16
@@ -698,6 +698,7 @@ cmdKeyInspect =
       where
         toHex :: ByteString -> Text
         toHex = T.pack . B8.unpack . hex
+
 {-------------------------------------------------------------------------------
                             Commands - 'mnemonic'
 -------------------------------------------------------------------------------}

@@ -701,6 +701,17 @@ spec = do
                 , cc
                 , "\n"
                 ]
+        describe "bryon keys fail" $ do
+            -- This key does not have the "tweak" that newer keys are expected
+            -- to have.
+            let byronKey = "464f3a1316a3849a1ca49a7e3a8b9ab35379598ac4fbcd0ba2b\
+                \c3a165185150a5c56ebf6d6d39fd6c070731a44133ebb083c42b949046d79a\
+                \ac48b7a1f52787ca5078d2194b78ccb6116d64f4d5a3fad3cd41e4748c20fc\
+                \589d87a0e69583357"
+            ["key", "child", "--path", "0", byronKey]
+                `expectStdErr` (`shouldBe` "Couldn't decode that extended \
+				\private key while making sure it can be encoded back again. \
+				\Is it an old Byron key?\n")
 
     describe "CliKeyScheme" $ do
         it "all allowedWordLengths are supported"
