@@ -28,14 +28,15 @@ let
 
   # Chop out a subdirectory of the source, so that the package is only
   # rebuilt when something in the subdirectory changes.
-  filterSubDir = dir:  with pkgs.lib; let
+  filterSubDir = dir: with pkgs.lib; let
       isFiltered = src ? _isLibCleanSourceWith;
       origSrc = if isFiltered then src.origSrc else src;
+      hasPathPrefix = prefix: hasPrefix (toString origSrc + toString prefix);
     in cleanSourceWith {
       inherit src;
       filter = path: type:
-        type == "directory" ||
-        hasPrefix (toString origSrc + toString dir) path;
+        (type == "directory" && hasPathPrefix (dirOf dir) path) ||
+        hasPathPrefix dir path;
     } + dir;
 
   pkgSet = haskell.mkStackPkgSet {
