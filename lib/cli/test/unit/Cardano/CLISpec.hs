@@ -518,8 +518,14 @@ spec = do
         fromTextGolden @DerivationIndex "" "should fail" $
             Left "An empty string is not a derivation index!"
 
+        fromTextGolden @DerivationIndex "0'" "should fail" $
+            Left "\"0'\" is not a number."
+
         fromTextGolden @DerivationIndex "4294967295H" "should fail" $
             Left "6442450943 is too high to be a derivation index."
+
+        fromTextGolden @DerivationPath "" "should fail" $
+            Left "An empty string is not a derivation index!"
 
         fromTextGolden @DerivationPath "44H/0H/0" "" $
             Right . DerivationPath . map DerivationIndex $
