@@ -171,7 +171,7 @@ import Control.Arrow
 import Control.Exception
     ( bracket, catch )
 import Control.Monad
-    ( join, unless, void, when, (>=>) )
+    ( foldM, join, unless, void, when, (>=>) )
 import Control.Tracer
     ( Tracer, traceWith )
 import Data.Aeson
@@ -360,6 +360,7 @@ cmdKey = command "key" $ info (helper <*> cmds) $ mempty
   where
     cmds = subparser $ mempty
         <> cmdKeyRoot
+        <> cmdKeyChild
         <> cmdKeyPublic
         <> cmdKeyInspect
 
@@ -378,6 +379,7 @@ cmdKey = command "key" $ info (helper <*> cmds) $ mempty
 data CliKeyScheme key m = CliKeyScheme
     { allowedWordLengths :: [Int]
     , mnemonicToRootKey :: [Text] -> m key
+    , deriveChildKey :: key -> DerivationIndex -> m key
     }
 
 -- | Change the underlying monad of a @CliKeyScheme@.
@@ -388,6 +390,7 @@ hoistKeyScheme
 hoistKeyScheme eta s = CliKeyScheme
     { allowedWordLengths = allowedWordLengths s
     , mnemonicToRootKey = eta . mnemonicToRootKey s
+    , deriveChildKey = \k i -> eta $ deriveChildKey s k i
     }
 
 -- | Pair of functions representing the bidirectional transformation between
@@ -431,9 +434,12 @@ mapKey
     => (key1 -> m key2, key2 -> m key1)
     -> CliKeyScheme key1 m
     -> CliKeyScheme key2 m
-mapKey (f, _g) s = CliKeyScheme
+mapKey (f, g) s = CliKeyScheme
     { allowedWordLengths = allowedWordLengths s
-    , mnemonicToRootKey = (mnemonicToRootKey s) >=> f
+    , mnemonicToRootKey = mnemonicToRootKey s >=> f
+    , deriveChildKey = \k i -> do
+        k' <- g k
+        (deriveChildKey s k' i) >>= f
     }
 
 eitherToIO :: Either String a -> IO a
@@ -531,6 +537,7 @@ newCliKeyScheme = \case
             CliKeyScheme
                 (apiAllowedLengths proxy)
                 (fmap icarusKeyFromSeed . seedFromMnemonic proxy)
+                (derive CC.DerivationScheme2)
     Trezor ->
         let
             proxy = Proxy @'API.Trezor
@@ -538,6 +545,7 @@ newCliKeyScheme = \case
             CliKeyScheme
                 (apiAllowedLengths proxy)
                 (fmap icarusKeyFromSeed . seedFromMnemonic proxy)
+                (derive CC.DerivationScheme2)
     Ledger ->
         let
             proxy = Proxy @'API.Ledger
@@ -545,7 +553,7 @@ newCliKeyScheme = \case
             CliKeyScheme
                 (apiAllowedLengths proxy)
                 (fmap ledgerKeyFromSeed . seedFromMnemonic proxy)
-
+                (derive CC.DerivationScheme2)
   where
     seedFromMnemonic
         :: forall (s :: API.ByronWalletStyle).
@@ -569,6 +577,19 @@ newCliKeyScheme = \case
     ledgerKeyFromSeed :: SomeMnemonic -> XPrv
     ledgerKeyFromSeed = Icarus.getKey
         . flip Icarus.generateKeyFromHardwareLedger pass
+
+    derive
+        :: CC.DerivationScheme
+        -> XPrv
+        -> DerivationIndex
+        -> Either String XPrv
+    derive scheme1Or2 k i =
+        return
+            $ CC.deriveXPrv
+                scheme1Or2
+                pass
+                k
+                (unDerivationIndex i)
 
     -- We don't use passwords to encrypt the keys here.
     pass = mempty
@@ -594,6 +615,35 @@ cmdKeyRoot =
             hoistKeyScheme eitherToIO
             . mapKey xPrvToTextTransform
             $ newCliKeyScheme keyType
+
+data KeyChildArgs = KeyChildArgs
+    { _path :: DerivationPath
+    , _key :: Text
+    }
+
+cmdKeyChild :: Mod CommandFields (IO ())
+cmdKeyChild =
+    command "child" $ info (helper <*> cmd) $ mempty
+        <> progDesc "Derive child keys."
+  where
+    cmd = fmap exec $
+        KeyChildArgs <$> pathOption <*> keyArgument
+
+    exec (KeyChildArgs (DerivationPath path) k0) = do
+        child <- foldM (deriveChildKey scheme) k0 path
+        TIO.putStrLn child
+      where
+        -- TODO: deriveChildKey is a part of @CliKeyScheme@, so we need a wallet
+        -- style to use it. We are using @Icarus@. All (current) styles use the
+        -- same derivation, so it doesn't matter.
+        --
+        -- How to resolve this problem is not quite clear, and we should perhaps
+        -- take other aspects into concideration (like public key derivation).
+        scheme :: CliKeyScheme Text IO
+        scheme =
+            hoistKeyScheme eitherToIO
+            . mapKey xPrvToTextTransform
+            $ newCliKeyScheme Icarus
 
 newtype KeyPublicArgs = KeyPublicArgs
     { _key :: Text
@@ -644,7 +694,6 @@ cmdKeyInspect =
       where
         toHex :: ByteString -> Text
         toHex = T.pack . B8.unpack . hex
-
 {-------------------------------------------------------------------------------
                             Commands - 'mnemonic'
 -------------------------------------------------------------------------------}
@@ -1408,8 +1457,8 @@ walletStyleOption = option (eitherReader fromTextS)
 keyArgument :: Parser Text
 keyArgument = T.pack <$> (argument str (metavar "HEX-XPRV"))
 
-_pathOption :: Parser DerivationPath
-_pathOption = option (eitherReader fromTextS) $
+pathOption :: Parser DerivationPath
+pathOption = option (eitherReader fromTextS) $
     mempty
     <> long "path"
     <> metavar "DER-PATH"

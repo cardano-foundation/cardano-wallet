@@ -227,6 +227,7 @@ spec = do
             , "Available commands:"
             , "  root                     Extract root extended private key from"
             , "                           a mnemonic sentence."
+            , "  child                    Derive child keys."
             , "  public                   Extract public key from a private key."
             , "  inspect                  Show information about a key."
             ]
@@ -481,6 +482,15 @@ spec = do
             , "                             ledger (12, 15, 18, 21 or 24 words)"
             ]
 
+        ["key", "child", "--help"] `shouldShowUsage`
+            [ "Usage:  key child --path DER-PATH HEX-XPRV"
+            , "  Derive child keys."
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , "  --path DER-PATH          Derivation path e.g. \"44'/1815'/0'/0\""
+            ]
+
         ["key", "public", "--help"] `shouldShowUsage`
             [ "Usage:  key public HEX-XPRV"
             , "  Extract public key from a private key."
@@ -649,6 +659,17 @@ spec = do
             \ https://github.com/input-output-hk/cardano-wallet/tree/master/spe\
             \cifications/mnemonic/english.txt\n")
 
+    describe "key child" $ do
+        let rootXPrv = "588102383ed9ecc5c44e1bfa18d1cf8ef19a7cf806a20bb4cbbe4e5\
+                       \11666cf48d6fd7bec908e4c6ced5f0c4f0798b1b619d6b61e611049\
+                       \2b5ebb430f570488f074a9fc9a22f0a61b2ab9b1f1a990e3f8dd6fb\
+                       \ed4ad474371095c74db3d9c743a\n"
+        ["key", "child", "--path", "1852'/1815'/0'/0/0", rootXPrv]
+            `shouldStdOut`
+            "5073cbc3e3f85b0099c67ed5b0344bfc0f15861ef05f41cde2a797352f66cf48ab\
+            \59c46d040abb4b3e0623bb151362233e75cf1f923b6d5964780ebbcf3a2d7a3d90\
+            \78e802011f1580465c80e7040f1e4d8e24f978d23f01c1d2cf18fcf741a7\n"
+
     describe "key public" $ do
         let prv1 = "588102383ed9ecc5c44e1bfa18d1cf8ef19a7cf806a20bb4cbbe4e51166\
                    \6cf48d6fd7bec908e4c6ced5f0c4f0798b1b619d6b61e6110492b5ebb43\
@@ -729,10 +750,17 @@ propCliKeySchemeEquality
 propCliKeySchemeEquality s1 s2 = do
     (forAll (genAllowedMnemonic s1) propSameMnem)
     .&&.
+    (forAll (genAllowedMnemonic s1) propSameChild)
+    .&&.
     (allowedWordLengths s1) === (allowedWordLengths s2)
   where
     propSameMnem :: [Text] -> Property
     propSameMnem mw = (mnemonicToRootKey s1 mw) === (mnemonicToRootKey s2 mw)
+
+    propSameChild :: [Text] -> DerivationIndex -> Property
+    propSameChild mw i = (deriveChildKey s1 k i) === (deriveChildKey s2 k i)
+      where
+        k = either (error . show) id $ mnemonicToRootKey s1 mw
 
 genAllowedMnemonic :: CliKeyScheme key m -> Gen [Text]
 genAllowedMnemonic s = oneof (map genMnemonicOfSize $ allowedWordLengths s)
