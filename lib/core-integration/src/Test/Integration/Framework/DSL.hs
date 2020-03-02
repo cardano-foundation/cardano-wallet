@@ -70,6 +70,7 @@ module Test.Integration.Framework.DSL
     , fixtureIcarusWallet
     , fixtureWallet
     , fixtureWalletWith
+    , fixtureWalletWithMnemonics
     , faucetAmt
     , faucetUtxoAmt
     , proc'
@@ -621,6 +622,13 @@ fixtureWallet
     :: Context t
     -> IO ApiWallet
 fixtureWallet ctx = do
+    (w, _) <- fixtureWalletWithMnemonics ctx
+    return w
+
+fixtureWalletWithMnemonics
+    :: Context t
+    -> IO (ApiWallet, [Text])
+fixtureWalletWithMnemonics ctx = do
     mnemonics <- mnemonicToText <$> nextWallet @"shelley" (_faucet ctx)
     let payload = Json [aesonQQ| {
             "name": "Faucet Wallet",
@@ -631,7 +639,7 @@ fixtureWallet ctx = do
         (Link.postWallet @'Shelley) payload
     race (threadDelay sixtySeconds) (checkBalance w) >>= \case
         Left _ -> fail "fixtureWallet: waited too long for initial transaction"
-        Right a -> return a
+        Right a -> return (a, mnemonics)
   where
     sixtySeconds = 60*oneSecond
     checkBalance w = do
