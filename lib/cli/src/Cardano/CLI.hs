@@ -405,7 +405,7 @@ xPrvToTextTransform = (xPrvToHexText, hexTextToXPrv)
 
     hexTextToXPrv :: Text -> Either String XPrv
     hexTextToXPrv txt = do
-        bytes <- fromHex $ B8.pack $ T.unpack txt
+        bytes <- fromHex $ B8.pack $ T.unpack . T.strip $ txt
         left showErr $ xPrvFromStrippedPubXPrv bytes
       where
         showErr (ErrInputLengthMismatch expected actual) = mconcat
