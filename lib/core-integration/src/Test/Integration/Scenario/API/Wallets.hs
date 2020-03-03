@@ -916,7 +916,7 @@ spec = do
         _ <- request @ApiWallet ctx ("DELETE", endpoint) Default Empty
 
         let newName = updateNamePayload "new name"
-        ru <- request @ApiWallet ctx ("GET", endpoint) Default newName
+        ru <- request @ApiWallet ctx ("PUT", endpoint) Default newName
         expectResponseCode @IO HTTP.status404 ru
         expectErrorMessage (errMsg404NoWallet wid) ru
 
@@ -1457,7 +1457,7 @@ spec = do
         let wid = w ^. walletId
         let endpoint = "v2/wallets" </> wid
         let newName = updateNamePayload "new name"
-        ru <- request @ApiWallet ctx ("GET", endpoint) Default newName
+        ru <- request @ApiWallet ctx ("PUT", endpoint) Default newName
         expectResponseCode @IO HTTP.status404 ru
         expectErrorMessage (errMsg404NoWallet wid) ru
 
