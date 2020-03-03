@@ -44,7 +44,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       specVersion = "1.10";
       identifier = {
         name = "cardano-wallet-jormungandr";
-        version = "2020.2.17";
+        version = "2020.3.3";
         };
       license = "Apache-2.0";
       copyright = "2018-2020 IOHK";
