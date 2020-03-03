@@ -150,6 +150,7 @@ library
       Data.Time.Utils
       Data.Quantity
       Data.Vector.Shuffle
+      Network.Ntp
       Network.Wai.Middleware.ServerError
       Network.Wai.Middleware.Logging
   other-modules:
