@@ -16,6 +16,7 @@
 
 module Cardano.Wallet.Byron.Transaction
     ( newTransactionLayer
+    , fromGenesisTxOut
     ) where
 
 import Prelude
@@ -105,7 +106,7 @@ newTransactionLayer = TransactionLayer
         -> Either ErrMkTx (Tx, SealedTx)
     _mkStdTx keyFrom inps outs = do
         let tx = (fst <$> inps, outs)
-        let sigData = blake2b256 (CBOR.encodeTx tx)
+        let sigData = blake2b256 $ CBOR.toStrictByteString $ CBOR.encodeTx tx
         witnesses <- forM inps $ \(_, TxOut addr _) ->
             mkWitness sigData <$> lookupPrivateKey addr
         pure
@@ -157,7 +158,10 @@ newTransactionLayer = TransactionLayer
                 Left $ ErrDecodeSignedTxWrongPayload $ T.pack $ show e
             Right (_, ((inps, outs), _)) -> Right
                 ( Tx
-                    { txId = Hash $ blake2b256 $ CBOR.encodeTx (inps, outs)
+                    { txId = Hash
+                        $ blake2b256
+                        $ CBOR.toStrictByteString
+                        $ CBOR.encodeTx (inps, outs)
                     -- FIXME Do not require Tx to have resolvedInputs
                     , resolvedInputs = (,Coin 0) <$> inps
                     , outputs = outs
@@ -200,6 +204,10 @@ type instance ErrValidateSelection (IO Byron) = ErrInvalidTxOutAmount
 -- Internal
 --
 
+fromGenesisTxOut :: TxOut -> Tx
+fromGenesisTxOut out@(TxOut (Address bytes) _) =
+    Tx (Hash $ blake2b256 bytes) [] [out]
+
 dummyAddress
     :: forall (n :: NetworkDiscriminant) k. (WorstSizeOf Address n k) => Address
 dummyAddress =
@@ -219,9 +227,9 @@ mkWitness sigData (xPrv, Passphrase pwd) = CBOR.toStrictByteString
         -- CBOR.toStrictByteString . CBOR.encodeInt32 $ x
         -- let ProtocolMagic x = protocolMagic @n in
 
-blake2b256 :: CBOR.Encoding -> ByteString
+blake2b256 :: ByteString -> ByteString
 blake2b256 =
-    BA.convert . hash @_ @Blake2b_256 . CBOR.toStrictByteString
+    BA.convert . hash @_ @Blake2b_256
 
 notImplemented :: HasCallStack => String -> a
 notImplemented what = error ("Not implemented: " <> what)
