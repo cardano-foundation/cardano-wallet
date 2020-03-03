@@ -208,7 +208,7 @@ prop_trackRegistrations test = monadicIO $ do
         done <- newEmptyMVar
         nl <- newMockNetworkLayer done test
         db@DBLayer{..} <- newDBLayer
-        race_ (takeMVar done) (monitorStakePools tr nl db)
+        race_ (takeMVar done) (monitorStakePools tr (block0, Quantity 10) nl db)
 
         let pids = poolId <$> expected
         atomically $ L.sort . catMaybes <$> mapM readPoolRegistration pids
@@ -267,11 +267,6 @@ prop_trackRegistrations test = monadicIO $ do
                 pure (0, mempty)
             , currentNodeTip =
                 pure header0
-            -- These params are basically unused and completely arbitrary.
-            , staticBlockchainParameters =
-                ( block0
-                , mockBlockchainParameters { getEpochStability = Quantity 2 }
-                )
             }
 
 data instance Cursor RegistrationsTest = Cursor BlockHeader
@@ -281,7 +276,7 @@ test_emptyDatabaseNotSynced = do
     setEnv envVarMetadataRegistry "-"
     db@DBLayer{..} <- newDBLayer
     -- NOTE The directory below isn't use, the test should fail much before
-    let spl = newStakePoolLayer nullTracer getEpConsts db nl "/dev/null"
+    let spl = newStakePoolLayer nullTracer header0 getEpConsts db nl "/dev/null"
     res <- runExceptT $ listStakePools spl
     case res of
         Left (ErrMetricsIsUnsynced (Quantity p)) -> p `shouldBe` toEnum 0
@@ -290,11 +285,6 @@ test_emptyDatabaseNotSynced = do
     nl = mockNetworkLayer
         { currentNodeTip =
             pure header0
-        , staticBlockchainParameters =
-            ( block0
-            -- v arbitrary but defined.
-            , mockBlockchainParameters { getEpochLength = EpochLength 10 }
-            )
         }
 
 test_notSyncedProgress :: IO ()
@@ -304,7 +294,7 @@ test_notSyncedProgress = do
     atomically $ unsafeRunExceptT $
         putPoolProduction prodTip (PoolId "Pool & The Gang")
     -- NOTE The directory below isn't use, the test should fail much before
-    let spl = newStakePoolLayer nullTracer getEpConsts db nl "/dev/null"
+    let spl = newStakePoolLayer nullTracer header0 getEpConsts db nl "/dev/null"
     res <- runExceptT $ listStakePools spl
     case res of
         Left (ErrMetricsIsUnsynced (Quantity p)) -> p `shouldBe` toEnum 33
@@ -315,11 +305,6 @@ test_notSyncedProgress = do
     nl = mockNetworkLayer
         { currentNodeTip =
             pure nodeTip
-        , staticBlockchainParameters =
-            ( block0
-            -- v arbitrary but defined.
-            , mockBlockchainParameters { getEpochLength = EpochLength 10 }
-            )
         }
 
 {-------------------------------------------------------------------------------
@@ -340,26 +325,10 @@ mockNetworkLayer = NetworkLayer
         error "mockNetworkLayer: currentNodeTip"
     , postTx =
         \_ -> error "mockNetworkLayer: postTx"
-    , staticBlockchainParameters =
-        ( error "mockNetworkLayer: genesis block"
-        , mockBlockchainParameters
-        )
     , stakeDistribution =
         error "mockNetworkLayer: stakeDistribution"
     , getAccountBalance =
         \_ -> error "mockNetworkLayer: getAccountBalance"
-    }
-
-mockBlockchainParameters :: BlockchainParameters
-mockBlockchainParameters = BlockchainParameters
-    { getGenesisBlockHash = error "mockBlockchainParameters: getGenesisBlockHash"
-    , getGenesisBlockDate = error "mockBlockchainParameters: getGenesisBlockDate"
-    , getFeePolicy = error "mockBlockchainParameters: getFeePolicy"
-    , getSlotLength = error "mockBlockchainParameters: getSlotLength"
-    , getEpochLength = error "mockBlockchainParameters: getEpochLength"
-    , getTxMaxSize = error "mockBlockchainParameters: getTxMaxSize"
-    , getEpochStability = error "mockBlockchainParameters: getEpochStability"
-    , getActiveSlotCoefficient = error "mockBlockchainParameters: getActiveSlotCoefficient"
     }
 
 header0 :: BlockHeader

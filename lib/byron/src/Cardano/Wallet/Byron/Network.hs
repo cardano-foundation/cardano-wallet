@@ -33,16 +33,7 @@ import Prelude
 import Cardano.BM.Trace
     ( Trace, nullTracer )
 import Cardano.Wallet.Byron.Compatibility
-    ( Byron
-    , fromSlotNo
-    , fromTip
-    , genesisBlock
-    , genesisTip
-    , toByronHash
-    , toEpochSlots
-    , toGenTx
-    , toPoint
-    )
+    ( Byron, fromSlotNo, fromTip, genesisTip, toEpochSlots, toGenTx, toPoint )
 import Cardano.Wallet.Logging
     ( trMessage )
 import Cardano.Wallet.Network
@@ -89,8 +80,6 @@ import Control.Tracer
     ( Tracer, contramap )
 import Data.ByteString.Lazy
     ( ByteString )
-import Data.Coerce
-    ( coerce )
 import Data.Functor
     ( (<&>) )
 import Data.Quantity
@@ -200,7 +189,6 @@ newNetworkLayer tr bp addrInfo versionData = do
         , initCursor = _initCursor localTxSubmissionQ
         , cursorSlotId = _cursorSlotId
         , postTx = _postTx localTxSubmissionQ
-        , staticBlockchainParameters = _staticBlockchainParameters
         , stakeDistribution = _stakeDistribution
         , getAccountBalance = _getAccountBalance
         }
@@ -232,12 +220,6 @@ newNetworkLayer tr bp addrInfo versionData = do
 
     _getAccountBalance _ =
         pure (Quantity 0)
-
-    _staticBlockchainParameters =
-        -- FIXME: Actually pass in the block0 as a parameter
-        ( genesisBlock $ toByronHash $ coerce $ W.getGenesisBlockHash bp
-        , bp
-        )
 
     _currentNodeTip =
         notImplemented "currentNodeTip"

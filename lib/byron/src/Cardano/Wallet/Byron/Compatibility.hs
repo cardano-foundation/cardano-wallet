@@ -5,6 +5,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -19,10 +20,10 @@ module Cardano.Wallet.Byron.Compatibility
 
       -- * Chain Parameters
     , KnownNetwork (..)
+    , mainnetGenesis
 
       -- * Genesis
     , genesisTip
-    , genesisBlock
 
       -- * Conversions
     , toByronHash
@@ -47,14 +48,9 @@ import Prelude
 import Cardano.Binary
     ( serialize' )
 import Cardano.Chain.Block
-    ( ABlockOrBoundary (..)
-    , ABoundaryBlock (..)
-    , ABoundaryBody (..)
-    , ABoundaryHeader (..)
-    , blockTxPayload
-    )
+    ( ABlockOrBoundary (..), blockTxPayload )
 import Cardano.Chain.Common
-    ( ChainDifficulty (..), unsafeGetLovelace )
+    ( unsafeGetLovelace )
 import Cardano.Chain.Slotting
     ( EpochSlots (..) )
 import Cardano.Chain.UTxO
@@ -89,7 +85,6 @@ import Ouroboros.Network.Block
     , Tip (..)
     , genesisBlockNo
     , genesisPoint
-    , genesisSlotNo
     )
 import Ouroboros.Network.ChainFragment
     ( HasHeader (..) )
@@ -100,7 +95,6 @@ import Ouroboros.Network.NodeToClient
 import Ouroboros.Network.Point
     ( WithOrigin (..) )
 
-import qualified Cardano.Chain.Genesis as Genesis
 import qualified Crypto.Hash as Crypto
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -130,8 +124,7 @@ instance KnownNetwork 'Mainnet where
     versionData = mainnetVersionData
     blockchainParameters = W.BlockchainParameters
         { getGenesisBlockHash = W.Hash $ unsafeFromHex
-            "f0f7892b5c333cffc4b3c4344de48af4\
-            \cc63f55e44936196f365a9ef2244134f"
+            "f0f7892b5c333cffc4b3c4344de48af4cc63f55e44936196f365a9ef2244134f"
         , getGenesisBlockDate =
             W.StartTime $ posixSecondsToUTCTime 1506203091
         , getFeePolicy =
@@ -148,29 +141,29 @@ instance KnownNetwork 'Mainnet where
             W.ActiveSlotCoefficient 1.0
         }
 
+-- NOTE
+-- For MainNet and TestNet, we can get away with empty genesis blocks with
+-- the following assumption:
 --
--- FIXME: This currently matches the integration configuration, not TestNet
-instance KnownNetwork 'Testnet where
-    versionData = integrationVersionData
-    blockchainParameters = W.BlockchainParameters
-        { getGenesisBlockHash = W.Hash $ unsafeFromHex
-            "613448b413afb8d6edc031fcc71b5f15\
-            \2600e98db95d632cdc08188005deb220"
-        , getGenesisBlockDate =
-            W.StartTime $ posixSecondsToUTCTime 1582738775
-        , getFeePolicy =
-            W.LinearFee (Quantity 155381) (Quantity 43) (Quantity 0)
-        , getSlotLength =
-            W.SlotLength 20
-        , getEpochLength =
-            W.EpochLength 21600
-        , getTxMaxSize =
-            Quantity 4096
-        , getEpochStability =
-            Quantity 2160
-        , getActiveSlotCoefficient =
-            W.ActiveSlotCoefficient 1.0
+-- - Users won't ever restore a wallet that has genesis UTxO.
+--
+-- This assumption is _true_ for any user using HD wallets (sequential or
+-- random) which means, any user of cardano-wallet.
+mainnetGenesis :: W.Block
+mainnetGenesis = W.Block
+    { transactions = []
+    , delegations  = []
+    , header = W.BlockHeader
+        { slotId =
+            W.SlotId 0 0
+        , blockHeight =
+            Quantity 0
+        , headerHash =
+            coerce $ W.getGenesisBlockHash $ blockchainParameters @'Mainnet
+        , parentHeaderHash =
+            W.Hash (BS.replicate 32 0)
         }
+    }
 
 
 --------------------------------------------------------------------------------
@@ -179,28 +172,6 @@ instance KnownNetwork 'Testnet where
 
 genesisTip :: Tip ByronBlock
 genesisTip = Tip genesisPoint genesisBlockNo
-
--- FIXME
--- Actually figure out a way to get this from the network. For Haskell nodes,
--- there's actually no such thing as a genesis block. But there's a genesis
--- UTxO and a genesis hash. So, we might be able to ajust our abstractions to
--- this.
-genesisBlock :: ByronHash -> ByronBlock
-genesisBlock genesisHash = ByronBlock
-    { byronBlockRaw = ABOBBoundary $ ABoundaryBlock
-        { boundaryBlockLength = 0
-        , boundaryHeader = UnsafeABoundaryHeader
-          { boundaryPrevHash = Left (Genesis.GenesisHash (coerce genesisHash))
-          , boundaryEpoch = 0
-          , boundaryDifficulty = ChainDifficulty 0
-          , boundaryHeaderAnnotation = mempty
-          }
-        , boundaryBody = ABoundaryBody mempty
-        , boundaryAnnotation = mempty
-        }
-    , byronBlockSlotNo = genesisSlotNo
-    , byronBlockHash = genesisHash
-    }
 
 
 --------------------------------------------------------------------------------
@@ -214,17 +185,6 @@ mainnetVersionData =
     ( NodeToClientVersionData { networkMagic = NetworkMagic 764824073 }
     , nodeToClientCodecCBORTerm
     )
-
--- | Settings for configuring an Integration network client
---
--- FIXME: This currently matches the integration configuration, not TestNet
-integrationVersionData
-    :: (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
-integrationVersionData =
-    ( NodeToClientVersionData { networkMagic = NetworkMagic 459045235 }
-    , nodeToClientCodecCBORTerm
-    )
-
 
 --------------------------------------------------------------------------------
 --

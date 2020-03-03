@@ -10,7 +10,6 @@
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -205,7 +204,13 @@ withNetworkLayer
     -- ^ Logging
     -> JormungandrBackend
     -- ^ How Jörmungandr is started.
-    -> (Either ErrStartup (JormungandrConnParams, NetworkLayer IO t J.Block) -> IO a)
+    -> (Either ErrStartup
+        ( JormungandrConnParams
+        , ( J.Block
+          , BlockchainParameters
+          )
+        , NetworkLayer IO t J.Block
+        ) -> IO a)
     -- ^ The action to run. It will be passed the connection parameters used,
     -- and a network layer if startup was successful.
     -> IO a
@@ -218,7 +223,13 @@ withNetworkLayerLaunch
     -- ^ Logging of node startup.
     -> JormungandrConfig
     -- ^ Configuration for starting Jörmungandr.
-    -> (Either ErrStartup (JormungandrConnParams, NetworkLayer IO t J.Block) -> IO a)
+    -> (Either ErrStartup
+        ( JormungandrConnParams
+        , ( J.Block
+          , BlockchainParameters
+          )
+        , NetworkLayer IO t J.Block
+        ) -> IO a)
     -- ^ The action to run. It will be passed the connection parameters used,
     -- and a network layer if startup was successful.
     -> IO a
@@ -232,11 +243,17 @@ withNetworkLayerConn
     -- ^ Logging of network layer startup
     -> JormungandrConnParams
     -- ^ Parameters for connecting to Jörmungandr node which is already running.
-    -> (Either ErrStartup (JormungandrConnParams, NetworkLayer IO t J.Block) -> IO a)
+    -> (Either ErrStartup
+        ( JormungandrConnParams
+        , ( J.Block
+          , BlockchainParameters
+          )
+        , NetworkLayer IO t J.Block
+        ) -> IO a)
     -- ^ Action to run with the network layer.
     -> IO a
 withNetworkLayerConn tr cp@(JormungandrConnParams block0H baseUrl) action =
-    runExceptT go >>= action . fmap (cp,)
+    runExceptT go >>= action . fmap (\(a,b) -> (cp,a,b))
   where
     go = withExceptT ErrStartupGetBlockchainParameters new
     new = newNetworkLayer tr baseUrl block0H
@@ -248,7 +265,7 @@ newNetworkLayer
     => Tracer IO NetworkLayerLog
     -> BaseUrl
     -> Hash "Genesis"
-    -> ExceptT ErrGetBlockchainParams IO (NetworkLayer IO t J.Block)
+    -> ExceptT ErrGetBlockchainParams IO ((J.Block, BlockchainParameters), NetworkLayer IO t J.Block)
 newNetworkLayer tr baseUrl block0H = do
     mgr <- liftIO $ newManager defaultManagerSettings
     st <- newMVar emptyBlockHeaders
@@ -257,7 +274,7 @@ newNetworkLayer tr baseUrl block0H = do
     liftIO $ waitForService "Jörmungandr" tr' (Port $ baseUrlPort baseUrl) $
         waitForNetwork (void $ getTipId jor) defaultRetryPolicy
     (block0, bp) <- getInitialBlockchainParameters jor (coerce block0H)
-    return (mkRawNetworkLayer (block0, bp) 1000 st jor)
+    return ((block0, bp), mkRawNetworkLayer bp 1000 st jor)
 
 -- | Wrap a Jormungandr client into a 'NetworkLayer' common interface.
 --
@@ -269,13 +286,13 @@ mkRawNetworkLayer
         , t ~ Jormungandr
         , block ~ J.Block
         )
-    => (block, BlockchainParameters)
+    => BlockchainParameters
     -> Word
         -- ^ Batch size when fetching blocks from Jörmungandr
     -> MVar BlockHeaders
     -> JormungandrClient m
     -> NetworkLayer m t block
-mkRawNetworkLayer (block0, bp) batchSize st j = NetworkLayer
+mkRawNetworkLayer bp batchSize st j = NetworkLayer
     { currentNodeTip =
         _currentNodeTip
 
@@ -291,11 +308,9 @@ mkRawNetworkLayer (block0, bp) batchSize st j = NetworkLayer
     , postTx =
         postMessage j
 
-    , staticBlockchainParameters =
-        (block0, bp)
-
     , stakeDistribution =
         _stakeDistribution
+
     , getAccountBalance =
         _getAccountBalance
     }

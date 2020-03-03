@@ -61,7 +61,7 @@ import Cardano.Wallet.Api.Server
 import Cardano.Wallet.Api.Types
     ( DecodeAddress, EncodeAddress )
 import Cardano.Wallet.Byron.Compatibility
-    ( Byron, ByronBlock, KnownNetwork (..), fromByronBlock )
+    ( Byron, ByronBlock, fromByronBlock )
 import Cardano.Wallet.Byron.Network
     ( AddrInfo, newNetworkLayer )
 import Cardano.Wallet.Byron.Transaction
@@ -94,6 +94,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
 import Cardano.Wallet.Primitive.Types
     ( Address
+    , Block
     , BlockchainParameters (..)
     , ChimericAccount
     , SyncTolerance
@@ -103,6 +104,8 @@ import Cardano.Wallet.Registry
     ( WorkerLog (..) )
 import Cardano.Wallet.Transaction
     ( TransactionLayer )
+import Codec.SerialiseTerm
+    ( CodecCBORTerm )
 import Control.Applicative
     ( Const (..) )
 import Control.DeepSeq
@@ -131,6 +134,8 @@ import Network.Wai.Handler.Warp
     ( setBeforeMainLoop )
 import Network.Wai.Middleware.Logging
     ( ApiLog )
+import Ouroboros.Network.NodeToClient
+    ( NodeToClientVersionData )
 import System.Exit
     ( ExitCode (..) )
 
@@ -145,7 +150,6 @@ import qualified Network.Wai.Handler.Warp as Warp
 serveWallet
     :: forall (n :: NetworkDiscriminant) t.
         ( NetworkDiscriminantVal n
-        , KnownNetwork n
         , DecodeAddress n
         , EncodeAddress n
         , WorstSizeOf Address n IcarusKey
@@ -164,19 +168,37 @@ serveWallet
     -- ^ HTTP API Server port.
     -> AddrInfo
     -- ^ Socket for communicating with the node
+    -> Block
+    -- ^ The genesis block, or some starting point.
+    -> ( BlockchainParameters
+       , ( NodeToClientVersionData
+         , CodecCBORTerm Text NodeToClientVersionData
+         )
+       )
+    -- ^ Network parameters needed to connect to the underlying network.
+    --
+    -- See also: 'Cardano.Wallet.Byron.Compatibility#KnownNetwork'.
     -> (SockAddr -> IO ())
     -- ^ Callback to run before the main loop
     -> IO ExitCode
-serveWallet Tracers{..} sTolerance databaseDir hostPref listen addrInfo beforeMainLoop = do
+serveWallet
+  Tracers{..}
+  sTolerance
+  databaseDir
+  hostPref
+  listen
+  addrInfo
+  block0
+  (bp, versionData)
+  beforeMainLoop = do
     traceWith applicationTracer $ MsgStarting addrInfo
     traceWith applicationTracer $ MsgNetworkName $ networkDiscriminantVal @n
     Server.withListeningSocket hostPref listen $ \case
         Left e -> handleApiServerStartupError e
         Right (_, socket) -> serveApp socket
   where
-    bp = blockchainParameters @n
     serveApp socket = do
-        nl <- newNetworkLayer nullTracer bp addrInfo (versionData @n)
+        nl <- newNetworkLayer nullTracer bp addrInfo versionData
         byronApi   <- apiLayer (newTransactionLayer @n) nl
         icarusApi  <- apiLayer (newTransactionLayer @n) nl
         withNtpClient ntpClientTracer ntpSettings $ \ntpClient -> do
@@ -210,13 +232,8 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen addrInfo beforeMa
         -> NetworkLayer IO t ByronBlock
         -> IO (ApiLayer s t k)
     apiLayer tl nl = do
-        let (block0, _) = staticBlockchainParameters nl
         let tracer = contramap MsgDatabaseStartup applicationTracer
-        let params =
-                ( fromByronBlock getGenesisBlockHash getEpochLength block0
-                , bp
-                , sTolerance
-                )
+        let params = (block0, bp, sTolerance)
         wallets <- maybe (pure []) (Sqlite.findDatabases @k tracer) databaseDir
         db <- Sqlite.newDBFactory
             walletDbTracer

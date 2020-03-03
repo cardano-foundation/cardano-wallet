@@ -93,7 +93,6 @@ mockNetworkLayer = NetworkLayer
     , cursorSlotId = \_ -> error "no cursor slot id"
     , currentNodeTip = error "there is no current node tip"
     , postTx = \_ -> error "the tx is not a thing that can be posted"
-    , staticBlockchainParameters = error "static blockchain params don't exist"
     , stakeDistribution = error "stake? no."
     , getAccountBalance = error "it is empty"
     }
