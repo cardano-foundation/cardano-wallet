@@ -677,6 +677,26 @@ spec = do
             \59c46d040abb4b3e0623bb151362233e75cf1f923b6d5964780ebbcf3a2d7a3d90\
             \78e802011f1580465c80e7040f1e4d8e24f978d23f01c1d2cf18fcf741a7\n"
 
+        -- This key does not have the "tweak" that newer keys are expected
+        -- to have.
+        let byronKey =
+              "464f3a1316a3849a1ca49a7e3a8b9ab35379598ac4fbcd0ba2bc3a165185150a\
+              \5c56ebf6d6d39fd6c070731a44133ebb083c42b949046d79aac48b7a1f52787c\
+              \a5078d2194b78ccb6116d64f4d5a3fad3cd41e4748c20fc589d87a0e69583357"
+        let encryptedKey =
+              "9d41c6c66a0aaac73b31bfbf2522c63eea4e16e7df63ccf43e012b20a4606cbb\
+              \e99a00cfed56e9516bc947f327a73e0849882a32a682932c51b42156055abb0b\
+              \5d3661deb9064f2d0e03fe85d68070b2fe33b4916059658e28ac7f7f91ca4b12"
+
+        describe "bryon keys fail" $ do
+            ["key", "child", "--path", "0", byronKey]
+                `expectStdErr` (`shouldBe` "That extended private key looks \
+                       \weird. Is it encrypted? Or is it an old Byron key?\n")
+        describe "encrypted keys fail" $ do
+            ["key", "child", "--path", "0", encryptedKey]
+                `expectStdErr` (`shouldBe` "That extended private key looks \
+                       \weird. Is it encrypted? Or is it an old Byron key?\n")
+
     describe "key public" $ do
         let prv1 = "588102383ed9ecc5c44e1bfa18d1cf8ef19a7cf806a20bb4cbbe4e51166\
                    \6cf48d6fd7bec908e4c6ced5f0c4f0798b1b619d6b61e6110492b5ebb43\
@@ -702,17 +722,6 @@ spec = do
                 , cc
                 , "\n"
                 ]
-        describe "bryon keys fail" $ do
-            -- This key does not have the "tweak" that newer keys are expected
-            -- to have.
-            let byronKey = "464f3a1316a3849a1ca49a7e3a8b9ab35379598ac4fbcd0ba2b\
-                \c3a165185150a5c56ebf6d6d39fd6c070731a44133ebb083c42b949046d79a\
-                \ac48b7a1f52787ca5078d2194b78ccb6116d64f4d5a3fad3cd41e4748c20fc\
-                \589d87a0e69583357"
-            ["key", "child", "--path", "0", byronKey]
-                `expectStdErr` (`shouldBe` "Couldn't decode that extended \
-				\private key while making sure it can be encoded back again. \
-				\Is it an old Byron key?\n")
 
     describe "CliKeyScheme" $ do
         it "all allowedWordLengths are supported"

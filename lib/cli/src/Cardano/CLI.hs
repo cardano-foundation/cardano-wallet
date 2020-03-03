@@ -406,8 +406,7 @@ xPrvToTextTransform = (xPrvToHexText, hexTextToXPrv)
       where
         -- NOTE: This error should never happen from using the CLI.
         showErr ErrCannotRoundtripToSameXPrv =
-            "The private key I'm trying to encode looks wierd. \
-            \Is it encrypted? Or an old Byron key?"
+            "Internal error: Failed to safely encode an extended private key"
 
     hexTextToXPrv :: Text -> Either String XPrv
     hexTextToXPrv txt = do
@@ -422,8 +421,8 @@ xPrvToTextTransform = (xPrvToHexText, hexTextToXPrv)
             , " bytes."
             ]
         showErr (ErrCannotRoundtripToSameBytes) = mconcat
-            [ "Couldn't decode that extended private key while making sure it "
-            , "can be encoded back again. Is it an old Byron key?"
+            [ "That extended private key looks weird. "
+            , "Is it encrypted? Or is it an old Byron key?"
             ]
         fromHex = left (const "Invalid hex.")
             . convertFromBase Base16
