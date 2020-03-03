@@ -468,11 +468,11 @@ instance ToText NtpTrace where
         NtpTraceRestartingClient ->
             "ntp client is restarted"
         NtpTraceClientSleeping ->
-            "ntp client is goint to sleep"
+            "ntp client is going to sleep"
         NtpTraceIOError err ->
-            "ntp client experienced error " <> toText (show err)
+            "ntp client experienced io error " <> toText (show err)
         NtpTraceLookupServerFailed str ->
-            "ntp client experienced server lookup error " <> toText str
+            "ntp client failed to lookup the ntp servers " <> toText str
         NtpTraceClientStartQuery ->
             "query to ntp client invoked"
         NtpTraceNoLocalAddr ->
@@ -482,14 +482,14 @@ instance ToText NtpTrace where
         NtpTraceReportPolicyQueryFailed ->
             "policy query error when running ntp client"
         NtpTraceQueryResult (Microsecond ms) ->
-            "ntp client give offset "<> toText ms <> " microseconds"
+            "ntp client gives offset of "<> toText ms <> " microseconds"
         NtpTraceRunProtocolError ver err ->
-            "ntp client protocol run experienced error "<>toText (show err)
-            <>" when running "<>toText ver
+            "ntp client experienced error "<>toText (show err)
+            <>" when using "<>toText ver <> " protocol"
         NtpTraceRunProtocolNoResult ver ->
-            "ntp client protocol run experienced no result error when running "<> toText ver
+            "ntp client got no result when running "<> toText ver <> " protocol"
         NtpTraceRunProtocolSuccess ver ->
-            "ntp client protocol run successfull when running "<> toText ver
+            "ntp client successfull running "<> toText ver <> " protocol"
         NtpTraceSocketOpen ver ->
             "ntp client opened socket when running "<> toText ver
         NtpTraceSocketClosed ver ->
@@ -505,8 +505,7 @@ instance ToText NtpTrace where
         NtpTracePacketReceived ver ->
             "ntp client received packet using "<> toText ver
         NtpTraceWaitingForRepliesTimeout ver ->
-            "ntp client experienced timeout when waiting for replies using "
-            <> toText ver
+            "ntp client experienced timeout using "<> toText ver <> " protocol"
 
 instance DefinePrivacyAnnotation NtpTrace
 instance DefineSeverity NtpTrace where

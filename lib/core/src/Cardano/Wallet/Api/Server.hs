@@ -558,8 +558,9 @@ byronServer
     :: forall t n. ()
     => ApiLayer (RndState 'Mainnet) t ByronKey
     -> ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
+    -> NtpClient
     -> Server (Api n)
-byronServer byron icarus =
+byronServer byron icarus ntp =
          wallets
     :<|> addresses
     :<|> coinSelections
@@ -649,7 +650,7 @@ byronServer byron icarus =
     network =
         getNetworkInformation genesis nl
         :<|> (getNetworkParameters genesis)
-        :<|> (throwError err501)
+        :<|> (getNetworkClock ntp)
       where
         nl = icarus ^. networkLayer @t
         genesis = icarus ^. genesisData
