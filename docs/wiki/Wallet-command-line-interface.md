@@ -44,6 +44,8 @@ Available COMMANDS:
     <a href="#network-parameters">parameters</a>          View network parameters
   key
     <a href="#key-root">root</a>                Extract root extended private key from a mnemonic sentence.
+    <a href="#key-public">public</a>              Extract public key from a private key.
+    <a href="#key-inspect">inspect</a>             Show information about a key.
   <a href="#version">version</a>               Show the program's current version
 </pre> 
 
@@ -609,6 +611,34 @@ $ cardano-wallet-jormungandr key root --wallet-style icarus -- express theme ce
 ```
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
+
+## key public
+
+Extract the public key of an extended private key. Keys can be obtained using <a href="#key-root">`key root`</a>, and `key child` (coming soon).
+
+> `cardano-wallet-jormungandr key public XPRV` 
+
+```bash
+$ cardano-wallet-jormungandr key public 68f0cb3d83b5278f0b4c9c4a4ab50e49aef13f348ceafaf8257168fd8f3b894fa47646b6e206864404f3208b7dee1e71cd16096ac9205d9dd5250ae0e963dd79411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b
+b47546e661b6c1791452d003d375756dde6cac2250093ce4630f16b9b9c0ac87411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b
+```
+
+<p align=right><a href="#">top :arrow_heading_up:</a></p>
+
+## key inspect
+
+Show information about a key.
+
+> `cardano-wallet-jormungandr key inspect XPRV` 
+
+```bash
+$ cardano-wallet-jormungandr key inspect 68f0cb3d83b5278f0b4c9c4a4ab50e49aef13f348ceafaf8257168fd8f3b894fa47646b6e206864404f3208b7dee1e71cd16096ac9205d9dd5250ae0e963dd79411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b
+extended private key: 68f0cb3d83b5278f0b4c9c4a4ab50e49aef13f348ceafaf8257168fd8f3b894fa47646b6e206864404f3208b7dee1e71cd16096ac9205d9dd5250ae0e963dd79
+chain code: 411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b
+```
+
+<p align=right><a href="#">top :arrow_heading_up:</a></p>
+
 
 ## version
 
