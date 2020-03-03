@@ -527,9 +527,10 @@ spec = do
         fromTextGolden @DerivationPath "" "should fail" $
             Left "An empty string is not a derivation index!"
 
+        let firstHardenedIx = 0x80000000
         fromTextGolden @DerivationPath "44H/0H/0" "" $
             Right . DerivationPath . map DerivationIndex $
-                [0x80000000 + 44, 0x80000000 + 0, 0]
+                [firstHardenedIx + 44, firstHardenedIx + 0, 0]
 
         fromTextGolden
             @DerivationPath "2147483692" "hardened index without ' notation" $
