@@ -1808,7 +1808,7 @@ instance LiftHandler ErrCreateWallet where
 instance LiftHandler ErrWithRootKey where
     handler = \case
         ErrWithRootKeyNoRootKey wid ->
-            apiError err404 NoRootKey $ mconcat
+            apiError err403 NoRootKey $ mconcat
                 [ "I couldn't find a root private key for the given wallet: "
                 , toText wid, ". However, this operation requires that I do "
                 , "have such a key. Either there's no such wallet, or I don't "
@@ -1914,8 +1914,8 @@ instance LiftHandler ErrSignPayment where
             , errReasonPhrase = errReasonPhrase err410
             }
         ErrSignPaymentWithRootKey e@ErrWithRootKeyNoRootKey{} -> (handler e)
-            { errHTTPCode = 410
-            , errReasonPhrase = errReasonPhrase err410
+            { errHTTPCode = 403
+            , errReasonPhrase = errReasonPhrase err403
             }
         ErrSignPaymentWithRootKey e@ErrWithRootKeyWrongPassphrase{} -> handler e
 
@@ -2082,8 +2082,8 @@ instance LiftHandler ErrSignDelegation where
             , errReasonPhrase = errReasonPhrase err410
             }
         ErrSignDelegationWithRootKey e@ErrWithRootKeyNoRootKey{} -> (handler e)
-            { errHTTPCode = 410
-            , errReasonPhrase = errReasonPhrase err410
+            { errHTTPCode = 403
+            , errReasonPhrase = errReasonPhrase err403
             }
         ErrSignDelegationWithRootKey e@ErrWithRootKeyWrongPassphrase{} -> handler e
 

@@ -56,7 +56,7 @@ module Test.Integration.Framework.TestData
     , errMsg403NothingToMigrate
     , errMsg404NoEndpoint
     , errMsg404CannotFindTx
-    , errMsg410NoRootKey
+    , errMsg403NoRootKey
     , errMsg404NoWallet
     , errMsg404NoEpochNo
     , errMsg403InputsDepleted
@@ -360,8 +360,8 @@ errMsg404CannotFindTx :: Text -> String
 errMsg404CannotFindTx tid = "I couldn't find a transaction with the given id: "
     ++ unpack tid
 
-errMsg410NoRootKey :: Text -> String
-errMsg410NoRootKey wid = "I couldn't find a root private key for the given\
+errMsg403NoRootKey :: Text -> String
+errMsg403NoRootKey wid = "I couldn't find a root private key for the given\
     \ wallet: " ++ unpack wid ++ ". However, this operation requires that I do\
     \ have such a key. Either there's no such wallet, or I don't fully own it."
 

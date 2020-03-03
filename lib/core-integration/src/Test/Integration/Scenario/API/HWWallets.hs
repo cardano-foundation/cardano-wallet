@@ -84,7 +84,7 @@ import Test.Integration.Framework.DSL
     , walletId
     )
 import Test.Integration.Framework.TestData
-    ( errMsg410NoRootKey, payloadWith, updateNamePayload, updatePassPayload )
+    ( errMsg403NoRootKey, payloadWith, updateNamePayload, updatePassPayload )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text.Encoding as T
@@ -191,8 +191,8 @@ spec = do
 
         -- cannot quit stake pool
         rQuit <- quitStakePool ctx (wRestored, fixturePassphrase)
-        expectResponseCode @IO HTTP.status410 rQuit
-        expectErrorMessage (errMsg410NoRootKey $ wRestored ^. walletId) rQuit
+        expectResponseCode @IO HTTP.status403 rQuit
+        expectErrorMessage (errMsg403NoRootKey $ wRestored ^. walletId) rQuit
 
     describe "HW_WALLETS_03 - Cannot do operations requiring private key" $ do
         it "Cannot send tx" $ \ctx -> do
@@ -218,8 +218,8 @@ spec = do
                 }|]
             rTrans <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc)
                 Default payload
-            expectResponseCode @IO HTTP.status410 rTrans
-            expectErrorMessage (errMsg410NoRootKey $ wSrc ^. walletId) rTrans
+            expectResponseCode @IO HTTP.status403 rTrans
+            expectErrorMessage (errMsg403NoRootKey $ wSrc ^. walletId) rTrans
 
         it "Cannot join SP" $ \ctx -> do
             (w, mnemonics) <- fixtureWalletWithMnemonics ctx
@@ -232,8 +232,8 @@ spec = do
             (_, p:_) <- eventually "Stake pools are listed" $
                 unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
             rJoin <- joinStakePool ctx (p ^. #id) (wk, fixturePassphrase)
-            expectResponseCode @IO HTTP.status410 rJoin
-            expectErrorMessage (errMsg410NoRootKey $ wk ^. walletId) rJoin
+            expectResponseCode @IO HTTP.status403 rJoin
+            expectErrorMessage (errMsg403NoRootKey $ wk ^. walletId) rJoin
 
         it "Cannot update pass" $ \ctx -> do
             mnemonics <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
@@ -244,8 +244,8 @@ spec = do
             let payload = updatePassPayload fixturePassphrase "new-wallet-passphrase"
             rup <- request @ApiWallet ctx
                 (Link.putWalletPassphrase wk) Default payload
-            expectResponseCode @IO HTTP.status410 rup
-            expectErrorMessage (errMsg410NoRootKey $ wk ^. walletId) rup
+            expectResponseCode @IO HTTP.status403 rup
+            expectErrorMessage (errMsg403NoRootKey $ wk ^. walletId) rup
 
     describe "HW_WALLETS_04 - Can manage HW wallet the same way as others" $ do
         it "Can update name" $ \ctx -> do
