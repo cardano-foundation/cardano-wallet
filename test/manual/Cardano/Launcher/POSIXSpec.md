@@ -84,5 +84,4 @@ jormungandr with a pid of 73924.
   and note the pid of the wallet.
 - Send a `SIGKILL` signal to the pid of the wallet using `kill -9 <pid>`
 - Run `ps -ef | grep cardano`, and control that the wallet isn't running
-  anymore. The wallet server and the underlying jormungandr should however
-  still be up-and-running.
+  anymore. Jormungandr should however still be up-and-running.
