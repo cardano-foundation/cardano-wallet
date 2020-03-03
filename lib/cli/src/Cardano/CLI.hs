@@ -64,6 +64,8 @@ module Cardano.CLI
     , Port (..)
     , CliKeyScheme (..)
     , CliWalletStyle (..)
+    , DerivationIndex (..)
+    , DerivationPath (..)
 
     , newCliKeyScheme
     , xPrvToTextTransform
@@ -134,10 +136,13 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Network
     ( ErrNetworkUnavailable (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( ErrUnXPrvStripPub (..)
+    ( Depth (..)
+    , DerivationType (..)
+    , ErrUnXPrvStripPub (..)
     , ErrXPrvFromStrippedPubXPrv (..)
     , FromMnemonic (..)
     , FromMnemonicError (..)
+    , Index (..)
     , NatVals (..)
     , Passphrase (..)
     , PassphraseMaxLength
@@ -148,8 +153,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , deriveRewardAccount
     , hex
     , unXPrv
-    , unXPrvStripPub
-    , xPrvFromStrippedPubXPrv
+    , unXPrvStripPubCheckRoundtrip
+    , xPrvFromStrippedPubXPrvCheckRoundtrip
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, defaultAddressPoolGap )
@@ -166,7 +171,7 @@ import Control.Arrow
 import Control.Exception
     ( bracket, catch )
 import Control.Monad
-    ( join, unless, void, when, (>=>) )
+    ( foldM, join, unless, void, when, (>=>) )
 import Control.Tracer
     ( Tracer, traceWith )
 import Data.Aeson
@@ -206,6 +211,8 @@ import Data.Text.Read
     ( decimal )
 import Data.Void
     ( Void )
+import Data.Word
+    ( Word32 )
 import Fmt
     ( Buildable, pretty )
 import GHC.Generics
@@ -352,7 +359,8 @@ cmdKey = command "key" $ info (helper <*> cmds) $ mempty
     <> progDesc "Derive keys from mnemonics."
   where
     cmds = subparser $ mempty
-        <> cmdRootKey
+        <> cmdKeyRoot
+        <> cmdKeyChild
         <> cmdKeyPublic
         <> cmdKeyInspect
 
@@ -371,6 +379,7 @@ cmdKey = command "key" $ info (helper <*> cmds) $ mempty
 data CliKeyScheme key m = CliKeyScheme
     { allowedWordLengths :: [Int]
     , mnemonicToRootKey :: [Text] -> m key
+    , deriveChildKey :: key -> DerivationIndex -> m key
     }
 
 -- | Change the underlying monad of a @CliKeyScheme@.
@@ -381,6 +390,7 @@ hoistKeyScheme
 hoistKeyScheme eta s = CliKeyScheme
     { allowedWordLengths = allowedWordLengths s
     , mnemonicToRootKey = eta . mnemonicToRootKey s
+    , deriveChildKey = \k i -> eta $ deriveChildKey s k i
     }
 
 -- | Pair of functions representing the bidirectional transformation between
@@ -389,17 +399,19 @@ xPrvToTextTransform :: (XPrv -> Either String Text, Text -> Either String XPrv)
 xPrvToTextTransform = (xPrvToHexText, hexTextToXPrv)
   where
     xPrvToHexText :: XPrv -> Either String Text
-    xPrvToHexText = left showErr . fmap (T.pack . B8.unpack . hex) . unXPrvStripPub
+    xPrvToHexText =
+        fmap (T.pack . B8.unpack . hex)
+        . left showErr
+        . unXPrvStripPubCheckRoundtrip
       where
         -- NOTE: This error should never happen from using the CLI.
-        showErr ErrCannotRoundtrip =
-            "The private key I'm trying to encode looks wierd. \
-            \Is it encrypted? Or an old Byron key?"
+        showErr ErrCannotRoundtripToSameXPrv =
+            "Internal error: Failed to safely encode an extended private key"
 
     hexTextToXPrv :: Text -> Either String XPrv
     hexTextToXPrv txt = do
-        bytes <- fromHex $ B8.pack $ T.unpack txt
-        left showErr $ xPrvFromStrippedPubXPrv bytes
+        bytes <- fromHex $ B8.pack $ T.unpack . T.strip $ txt
+        left showErr $ xPrvFromStrippedPubXPrvCheckRoundtrip bytes
       where
         showErr (ErrInputLengthMismatch expected actual) = mconcat
             [ "Expected extended private key to be "
@@ -408,9 +420,9 @@ xPrvToTextTransform = (xPrvToHexText, hexTextToXPrv)
             , show actual
             , " bytes."
             ]
-        showErr (ErrInternalError msg) = mconcat
-            [ "Unexpected crypto error: "
-            , msg
+        showErr (ErrCannotRoundtripToSameBytes) = mconcat
+            [ "That extended private key looks weird. "
+            , "Is it encrypted? Or is it an old Byron key?"
             ]
         fromHex = left (const "Invalid hex.")
             . convertFromBase Base16
@@ -424,9 +436,12 @@ mapKey
     => (key1 -> m key2, key2 -> m key1)
     -> CliKeyScheme key1 m
     -> CliKeyScheme key2 m
-mapKey (f, _g) s = CliKeyScheme
+mapKey (f, g) s = CliKeyScheme
     { allowedWordLengths = allowedWordLengths s
-    , mnemonicToRootKey = (mnemonicToRootKey s) >=> f
+    , mnemonicToRootKey = mnemonicToRootKey s >=> f
+    , deriveChildKey = \k i -> do
+        k' <- g k
+        (deriveChildKey s k' i) >>= f
     }
 
 eitherToIO :: Either String a -> IO a
@@ -442,6 +457,80 @@ instance FromText CliWalletStyle where
 instance ToText CliWalletStyle where
     toText = toTextFromBoundedEnum SnakeLowerCase
 
+newtype DerivationPath = DerivationPath [DerivationIndex]
+    deriving (Show, Eq)
+
+instance FromText DerivationPath where
+    fromText x = DerivationPath <$> mapM fromText (T.splitOn "/" x)
+
+instance ToText DerivationPath where
+    toText (DerivationPath xs) = T.intercalate "/" $ map toText xs
+
+newtype DerivationIndex = DerivationIndex { unDerivationIndex :: Word32 }
+    deriving (Show, Eq)
+    deriving newtype (Bounded, Enum)
+
+firstHardenedIndex :: Word32
+firstHardenedIndex = getIndex $ minBound @(Index 'Hardened 'AddressK)
+
+instance FromText DerivationIndex where
+    fromText "" = Left $ TextDecodingError
+        "An empty string is not a derivation index!"
+    fromText x = do
+       -- NOTE: T.takeEnd will not throw, but may return "".
+       if T.takeEnd 1 x == "H"
+       then do
+           let x' = T.dropEnd 1 x
+           parseHardenedIndex x'
+       else parseSoftIndex x
+      where
+        parseWord = left (const err) .
+            fmap fromIntegral . fromText @Int
+          where
+            err = TextDecodingError $
+                "\"" ++ T.unpack x ++ "\" is not a number."
+
+        mkDerivationIndex :: Int -> Either TextDecodingError DerivationIndex
+        mkDerivationIndex =
+            fmap (DerivationIndex . toEnum . fromEnum) . indexInv
+
+        parseSoftIndex txt = do
+            num <- parseWord txt >>= softIndexInv
+            mkDerivationIndex num
+
+        parseHardenedIndex txt = do
+            num <- parseWord txt
+            let i = num + fromIntegral firstHardenedIndex
+            mkDerivationIndex i
+
+        softIndexInv a = do
+            idx <- mkDerivationIndex a
+            if a >= fromIntegral firstHardenedIndex
+            then Left . TextDecodingError $ mconcat
+                [ show a
+                , " is too high to be a soft derivation index. "
+                , "Please use \"H\" to denote hardened indexes. "
+                , "Did you mean \""
+                , T.unpack $ toText idx
+                , "\"?"
+                ]
+            else Right a
+
+        indexInv a =
+            if a > fromIntegral (maxBound @Word32)
+            then Left . TextDecodingError $ mconcat
+                [ show a
+                , " is too high to be a derivation index."
+                ]
+            else Right a
+
+instance ToText DerivationIndex where
+    toText (DerivationIndex i) = do
+        T.pack $
+            if i >= firstHardenedIndex
+            then show (i - firstHardenedIndex) ++ "H"
+            else show i
+
 newCliKeyScheme :: CliWalletStyle -> CliKeyScheme XPrv (Either String)
 newCliKeyScheme = \case
     Icarus ->
@@ -451,6 +540,7 @@ newCliKeyScheme = \case
             CliKeyScheme
                 (apiAllowedLengths proxy)
                 (fmap icarusKeyFromSeed . seedFromMnemonic proxy)
+                (derive CC.DerivationScheme2)
     Trezor ->
         let
             proxy = Proxy @'API.Trezor
@@ -458,6 +548,7 @@ newCliKeyScheme = \case
             CliKeyScheme
                 (apiAllowedLengths proxy)
                 (fmap icarusKeyFromSeed . seedFromMnemonic proxy)
+                (derive CC.DerivationScheme2)
     Ledger ->
         let
             proxy = Proxy @'API.Ledger
@@ -465,7 +556,7 @@ newCliKeyScheme = \case
             CliKeyScheme
                 (apiAllowedLengths proxy)
                 (fmap ledgerKeyFromSeed . seedFromMnemonic proxy)
-
+                (derive CC.DerivationScheme2)
   where
     seedFromMnemonic
         :: forall (s :: API.ByronWalletStyle).
@@ -490,6 +581,19 @@ newCliKeyScheme = \case
     ledgerKeyFromSeed = Icarus.getKey
         . flip Icarus.generateKeyFromHardwareLedger pass
 
+    derive
+        :: CC.DerivationScheme
+        -> XPrv
+        -> DerivationIndex
+        -> Either String XPrv
+    derive scheme1Or2 k i =
+        return
+            $ CC.deriveXPrv
+                scheme1Or2
+                pass
+                k
+                (unDerivationIndex i)
+
     -- We don't use passwords to encrypt the keys here.
     pass = mempty
 
@@ -498,8 +602,8 @@ data KeyRootArgs = KeyRootArgs
     , _mnemonicWords :: [Text]
     }
 
-cmdRootKey :: Mod CommandFields (IO ())
-cmdRootKey =
+cmdKeyRoot :: Mod CommandFields (IO ())
+cmdKeyRoot =
     command "root" $ info (helper <*> cmd) $ mempty
         <> progDesc "Extract root extended private key from a mnemonic sentence."
   where
@@ -514,6 +618,35 @@ cmdRootKey =
             hoistKeyScheme eitherToIO
             . mapKey xPrvToTextTransform
             $ newCliKeyScheme keyType
+
+data KeyChildArgs = KeyChildArgs
+    { _path :: DerivationPath
+    , _key :: Text
+    }
+
+cmdKeyChild :: Mod CommandFields (IO ())
+cmdKeyChild =
+    command "child" $ info (helper <*> cmd) $ mempty
+        <> progDesc "Derive child keys."
+  where
+    cmd = fmap exec $
+        KeyChildArgs <$> pathOption <*> keyArgument
+
+    exec (KeyChildArgs (DerivationPath path) k0) = do
+        child <- foldM (deriveChildKey scheme) k0 path
+        TIO.putStrLn child
+      where
+        -- TODO: deriveChildKey is a part of @CliKeyScheme@, so we need a wallet
+        -- style to use it. We are using @Icarus@. All (current) styles use the
+        -- same derivation, so it doesn't matter.
+        --
+        -- How to resolve this problem is not quite clear, and we should perhaps
+        -- take other aspects into concideration (like public key derivation).
+        scheme :: CliKeyScheme Text IO
+        scheme =
+            hoistKeyScheme eitherToIO
+            . mapKey xPrvToTextTransform
+            $ newCliKeyScheme Icarus
 
 newtype KeyPublicArgs = KeyPublicArgs
     { _key :: Text
@@ -1290,10 +1423,11 @@ walletStyleOption = option (eitherReader fromTextS)
     ( long "wallet-style"
     <> metavar "WALLET_STYLE"
     <> helpDoc (Just (vsep typeOptions))
+    <> value Icarus -- NOTE: Remember to update help text when updating!
     )
   where
     typeOptions = string <$>
-        [ "Any of the following:"
+        [ "Any of the following (default: icarus)"
         , "  icarus (" ++ allowedWords Icarus ++ ")"
         , "  trezor (" ++ allowedWords Trezor ++ ")"
         , "  ledger (" ++ allowedWords Ledger ++ ")"
@@ -1325,7 +1459,14 @@ walletStyleOption = option (eitherReader fromTextS)
          formatEnglishEnumerationRev xs = intercalate ", " (reverse xs)
 
 keyArgument :: Parser Text
-keyArgument = T.pack <$> (argument str (metavar "HEX-XPRV"))
+keyArgument = T.pack <$> (argument str (metavar "XPRV"))
+
+pathOption :: Parser DerivationPath
+pathOption = option (eitherReader fromTextS) $
+    mempty
+    <> long "path"
+    <> metavar "DER-PATH"
+    <> help "Derivation path e.g. 44H/1815H/0H/0"
 
 -- | <wallet-id=WALLET_ID>
 walletIdArgument :: Parser WalletId

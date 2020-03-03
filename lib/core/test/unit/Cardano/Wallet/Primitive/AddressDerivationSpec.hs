@@ -25,12 +25,10 @@ import Cardano.Wallet.Gen
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
-    , ErrUnXPrvStripPub (..)
     , ErrWrongPassphrase (..)
     , FromMnemonic (..)
     , FromMnemonicError (..)
     , Index
-    , NetworkDiscriminant (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , PassphraseMaxLength (..)
@@ -43,8 +41,11 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , checkPassphrase
     , encryptPassphrase
     , getIndex
+    , hex
     , unXPrvStripPub
+    , unXPrvStripPubCheckRoundtrip
     , xPrvFromStrippedPubXPrv
+    , xPrvFromStrippedPubXPrvCheckRoundtrip
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..) )
@@ -225,8 +226,14 @@ spec = do
             (property $ prop_roundtripXPub @IcarusKey)
 
     describe "unXPrvStripPub & xPrvFromStrippedPubXPrv" $ do
-        it "either roundtrips or fails (if xprv is encrypted)"
-            (property prop_unXPrvStripRoundtrip)
+        it "xPrvFromStrippedPubXPrv and unXPrvStripPub"
+              (property prop_strippedPubXPrvRoundtrip1)
+        it "xPrvFromStrippedPubXPrv and unXPrvStripPubCheckRoundtrip"
+              (property prop_strippedPubXPrvRoundtrip2)
+        it "xPrvFromStrippedPubXPrvCheckRoundtrip and unXPrvStripPub"
+              (property prop_strippedPubXPrvRoundtrip3)
+        it "xPrvFromStrippedPubXPrvCheckRoundtrip and unXPrvStripPubCheckRoundtrip"
+              (property prop_strippedPubXPrvRoundtrip4)
 
         it "(xPrvFromStrippedPubXPrv bs) fails if (BS.length bs) /= 96"
             (property prop_xPrvFromStrippedPubXPrvLengthRequirement)
@@ -299,25 +306,67 @@ prop_passphraseHashMalformed
 prop_passphraseHashMalformed pwd = monadicIO $ liftIO $ do
     checkPassphrase pwd (Hash mempty) `shouldBe` Left ErrWrongPassphrase
 
--- NOTE: Instead of testing
--- > encrypted => fails
--- we are testing
--- > fails => encrypted
---
--- This /should/ be enough. If a key were to be encrypted, but still roundtrip,
--- we would not care.
-prop_unXPrvStripRoundtrip :: XPrvWithPass -> Property
-prop_unXPrvStripRoundtrip (XPrvWithPass k enc) = do
-    let res = unXPrvStripPub k
-    case res of
-        Right k' ->
-            xPrvFromStrippedPubXPrv k' === Right k
-                & label "roundtrip"
-        Left ErrCannotRoundtrip ->
-            enc /= Passphrase ""
-                & label "mismatch"
-                & counterexample "XPrv should be encrypted for the roundtrip to\
-                                 \fail"
+-- | xPrvFromStrippedPubXPrv and unXPrvStripPub
+prop_strippedPubXPrvRoundtrip1 :: XPrvWithPass -> Property
+prop_strippedPubXPrvRoundtrip1 (XPrvWithPass k enc) = do
+    let bytes = unXPrvStripPub k
+    let Right res = xPrvFromStrippedPubXPrv bytes
+    counterexample (show . hex $ bytes) $
+        if enc == Passphrase ""
+        then label "no passphrase" (res === k)
+        else label "passphrase" $ do
+            counterexample "shoudn't roundtrip with passphrase"
+                $ property $ res /= k
+
+-- | xPrvFromStrippedPubXPrv and unXPrvStripPubCheckRoundtrip
+prop_strippedPubXPrvRoundtrip2 :: XPrvWithPass -> Property
+prop_strippedPubXPrvRoundtrip2 (XPrvWithPass k enc) = do
+    let bytes = left show $ unXPrvStripPubCheckRoundtrip k
+    let res = xPrvFromStrippedPubXPrv' <$> bytes
+    counterexample (either (const "") (show . hex) bytes) $
+        if enc == Passphrase ""
+        then label "no passphrase" (res === Right k)
+        else label "passphrase" $ do
+            case res of
+                Right _ ->
+                    counterexample "shoudn't roundtrip with passphrase"
+                        $ property False
+                Left _ ->
+                    label "error" True
+  where
+   -- The input cannot have wrong length, so we discard the possibility of
+   -- @Left@.
+    xPrvFromStrippedPubXPrv' = either (error . show) id . xPrvFromStrippedPubXPrv
+
+-- | xPrvFromStrippedPubXPrvCheckRoundtrip and unXPrvStripPub
+prop_strippedPubXPrvRoundtrip3 :: XPrvWithPass -> Property
+prop_strippedPubXPrvRoundtrip3 (XPrvWithPass k enc) = do
+    let bytes = unXPrvStripPub k
+    let res = xPrvFromStrippedPubXPrvCheckRoundtrip bytes
+    counterexample (show $ hex bytes) $
+        if enc == Passphrase ""
+        then label "no passphrase" (res === Right k)
+        else label "passphrase" $ do
+            case res of
+                Right k' -> label "false success" $ k' /= k
+                Left _ -> label "error" True
+
+-- | xPrvFromStrippedPubXPrvCheckRoundtrip and unXPrvStripPubCheckRoundtrip
+prop_strippedPubXPrvRoundtrip4 :: XPrvWithPass -> Property
+prop_strippedPubXPrvRoundtrip4 (XPrvWithPass k enc) = do
+    let bytes = left show $ unXPrvStripPubCheckRoundtrip k
+    let res = left show . xPrvFromStrippedPubXPrvCheckRoundtrip =<< bytes
+    counterexample (either (const "") (show . hex) bytes) $
+        if enc == Passphrase ""
+        then label "no passphrase" (res === Right k)
+        else label "passphrase" $ do
+            case res of
+                Right _ ->
+                    counterexample "shoudn't roundtrip with passphrase"
+                        $ property False
+                Left _ ->
+                    label "error" True
+
 prop_xPrvFromStrippedPubXPrvLengthRequirement
     :: Unencrypted XPrv
     -> NonNegative Int
@@ -334,8 +383,8 @@ prop_xPrvFromStrippedPubXPrvLengthRequirement (Unencrypted k) (NonNegative n) = 
         & classify (n == 96) "== 96"
         & classify (n < 96) "< 96"
   where
-    toStripped = left show . unXPrvStripPub
-    fromStripped = left show . xPrvFromStrippedPubXPrv
+    toStripped = left show . unXPrvStripPubCheckRoundtrip
+    fromStripped = left show . xPrvFromStrippedPubXPrvCheckRoundtrip
 
 {-------------------------------------------------------------------------------
                              Arbitrary Instances

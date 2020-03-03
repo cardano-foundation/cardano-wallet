@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -16,6 +17,8 @@ import Prelude
 import Cardano.CLI
     ( CliKeyScheme (..)
     , CliWalletStyle (..)
+    , DerivationIndex (..)
+    , DerivationPath (..)
     , MnemonicSize (..)
     , Port (..)
     , TxId
@@ -44,6 +47,8 @@ import Cardano.Wallet.Primitive.Mnemonic
     )
 import Cardano.Wallet.Unsafe
     ( unsafeMkEntropy )
+import Control.Arrow
+    ( left )
 import Control.Concurrent
     ( forkFinally )
 import Control.Concurrent.MVar
@@ -73,11 +78,19 @@ import System.IO.Silently
 import System.IO.Temp
     ( withSystemTempDirectory )
 import Test.Hspec
-    ( Spec, describe, expectationFailure, it, shouldBe, shouldStartWith )
+    ( HasCallStack
+    , Spec
+    , describe
+    , expectationFailure
+    , it
+    , shouldBe
+    , shouldStartWith
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
     , Large (..)
+    , NonEmptyList (..)
     , Property
     , arbitraryBoundedEnum
     , checkCoverage
@@ -214,6 +227,7 @@ spec = do
             , "Available commands:"
             , "  root                     Extract root extended private key from"
             , "                           a mnemonic sentence."
+            , "  child                    Derive child keys."
             , "  public                   Extract public key from a private key."
             , "  inspect                  Show information about a key."
             ]
@@ -456,20 +470,29 @@ spec = do
             ]
 
         ["key", "root", "--help"] `shouldShowUsage`
-            [ "Usage:  key root --wallet-style WALLET_STYLE MNEMONIC_WORD..."
+            [ "Usage:  key root [--wallet-style WALLET_STYLE] MNEMONIC_WORD..."
             , "  Extract root extended private key from a mnemonic sentence."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
             , "  --wallet-style WALLET_STYLE"
-            , "                           Any of the following:"
+            , "                           Any of the following (default: icarus)"
             , "                             icarus (15 words)"
             , "                             trezor (12, 15, 18, 21 or 24 words)"
             , "                             ledger (12, 15, 18, 21 or 24 words)"
             ]
 
+        ["key", "child", "--help"] `shouldShowUsage`
+            [ "Usage:  key child --path DER-PATH XPRV"
+            , "  Derive child keys."
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , "  --path DER-PATH          Derivation path e.g. 44H/1815H/0H/0"
+            ]
+
         ["key", "public", "--help"] `shouldShowUsage`
-            [ "Usage:  key public HEX-XPRV"
+            [ "Usage:  key public XPRV"
             , "  Extract public key from a private key."
             , ""
             , "Available options:"
@@ -477,7 +500,7 @@ spec = do
             ]
 
         ["key", "inspect", "--help"] `shouldShowUsage`
-            [ "Usage:  key inspect HEX-XPRV"
+            [ "Usage:  key inspect XPRV"
             , "  Show information about a key."
             , ""
             , "Available options:"
@@ -488,6 +511,41 @@ spec = do
         textRoundtrip $ Proxy @(Port "test")
         textRoundtrip $ Proxy @MnemonicSize
         textRoundtrip $ Proxy @CliWalletStyle
+        textRoundtrip $ Proxy @DerivationIndex
+        textRoundtrip $ Proxy @DerivationPath
+
+    describe "DerivationPath/Index fromText goldens" $ do
+        fromTextGolden @DerivationIndex "" "should fail" $
+            Left "An empty string is not a derivation index!"
+
+        fromTextGolden @DerivationIndex "0'" "should fail" $
+            Left "\"0'\" is not a number."
+
+        fromTextGolden @DerivationIndex "4294967295H" "should fail" $
+            Left "6442450943 is too high to be a derivation index."
+
+        fromTextGolden @DerivationPath "" "should fail" $
+            Left "An empty string is not a derivation index!"
+
+        let firstHardenedIx = 0x80000000
+        fromTextGolden @DerivationPath "44H/0H/0" "" $
+            Right . DerivationPath . map DerivationIndex $
+                [firstHardenedIx + 44, firstHardenedIx + 0, 0]
+
+        fromTextGolden
+            @DerivationPath "2147483692" "hardened index without ' notation" $
+                Left "2147483692 is too high to be a soft derivation index. \
+                     \Please use \"H\" to denote hardened indexes. Did you \
+                     \mean \"44H\"?"
+
+        fromTextGolden @DerivationPath "44H/0H/0/" "should fail (trailing /)" $
+            Left "An empty string is not a derivation index!"
+
+        fromTextGolden @DerivationPath "öH/0H/0/" "should fail" $
+            Left "\"öH\" is not a number."
+
+        fromTextGolden @DerivationPath "0x80000000/0H/0/" "should fail" $
+            Left "\"0x80000000\" is not a number."
 
     describe "Transaction ID decoding from text" $ do
 
@@ -579,7 +637,7 @@ spec = do
                      \analyst ladder such report capital produce"
     let mw12 = words "broccoli side goddess shaft alarm victory sheriff \
                      \combine birth deny train outdoor"
-    describe "key derivation from mnemonics" $ do
+    describe "key root" $ do
         (["key", "root", "--wallet-style", "icarus"] ++ mw15) `shouldStdOut`
             "00aa5f5f364980f4ac6295fd0fbf65643390d6bb1cf76536c2ebb02713c8ba50d8\
             \903bee774b7bf8678ea0d6fded6d876db3b42bef687640cc514eb73f767537a8c7\
@@ -593,7 +651,7 @@ spec = do
             \9eb7ad13f798d06ce550a9f6c48dd2151db4593e67dbd2821d75378c7350f1366b\
             \85e0be9cdec2213af2084d462cc11e85c215e0f003acbeb996567e371502\n"
 
-    describe "key derivation (negative tests)" $ do
+    describe "key root (negative tests)" $ do
         (["key", "root", "--wallet-style", "icarus"] ++ mw12) `expectStdErr`
             (`shouldBe` "Invalid number of words: 15 words are expected.\n")
 
@@ -607,6 +665,41 @@ spec = do
             \The full dictionary is available here:\
             \ https://github.com/input-output-hk/cardano-wallet/tree/master/spe\
             \cifications/mnemonic/english.txt\n")
+
+    describe "key child" $ do
+        let rootXPrv = "588102383ed9ecc5c44e1bfa18d1cf8ef19a7cf806a20bb4cbbe4e5\
+                       \11666cf48d6fd7bec908e4c6ced5f0c4f0798b1b619d6b61e611049\
+                       \2b5ebb430f570488f074a9fc9a22f0a61b2ab9b1f1a990e3f8dd6fb\
+                       \ed4ad474371095c74db3d9c743a\n"
+        ["key", "child", "--path", "1852H/1815H/0H/0/0", rootXPrv]
+            `shouldStdOut`
+            "5073cbc3e3f85b0099c67ed5b0344bfc0f15861ef05f41cde2a797352f66cf48ab\
+            \59c46d040abb4b3e0623bb151362233e75cf1f923b6d5964780ebbcf3a2d7a3d90\
+            \78e802011f1580465c80e7040f1e4d8e24f978d23f01c1d2cf18fcf741a7\n"
+
+        -- This key does not have the "tweak" that newer keys are expected
+        -- to have.
+        let byronKey =
+              "464f3a1316a3849a1ca49a7e3a8b9ab35379598ac4fbcd0ba2bc3a165185150a\
+              \5c56ebf6d6d39fd6c070731a44133ebb083c42b949046d79aac48b7a1f52787c\
+              \a5078d2194b78ccb6116d64f4d5a3fad3cd41e4748c20fc589d87a0e69583357"
+        let encryptedKey =
+              "9d41c6c66a0aaac73b31bfbf2522c63eea4e16e7df63ccf43e012b20a4606cbb\
+              \e99a00cfed56e9516bc947f327a73e0849882a32a682932c51b42156055abb0b\
+              \5d3661deb9064f2d0e03fe85d68070b2fe33b4916059658e28ac7f7f91ca4b12"
+
+        describe "bryon keys fail" $ do
+            ["key", "child", "--path", "0", byronKey]
+                `expectStdErr` (`shouldBe` "That extended private key looks \
+                       \weird. Is it encrypted? Or is it an old Byron key?\n")
+        describe "encrypted keys fail" $ do
+            ["key", "child", "--path", "0", encryptedKey]
+                `expectStdErr` (`shouldBe` "That extended private key looks \
+                       \weird. Is it encrypted? Or is it an old Byron key?\n")
+        describe "fails when key is not 96 bytes" $ do
+            ["key", "child", "--path", "0", "5073"]
+                `expectStdErr` (`shouldBe` "Expected extended private key to be \
+                                           \96 bytes but got 2 bytes.\n")
 
     describe "key public" $ do
         let prv1 = "588102383ed9ecc5c44e1bfa18d1cf8ef19a7cf806a20bb4cbbe4e51166\
@@ -643,12 +736,10 @@ spec = do
                 (newCliKeyScheme s)
                 (newCliKeyScheme s)
 
-        -- This tests provides a stronger guarantee than merely knowing that
-        -- unsafeHexTextToXPrv and xPrvToHexText roundtrips.
         it "scheme == mapKey (fromHex . toHex) scheme"
             $ property prop_roundtripCliKeySchemeKeyViaHex
 
-        it "random /= icarus" $ do
+        it "ledger /= icarus" $ do
             expectFailure $ propCliKeySchemeEquality
                 (newCliKeyScheme Ledger)
                 (newCliKeyScheme Icarus)
@@ -688,10 +779,17 @@ propCliKeySchemeEquality
 propCliKeySchemeEquality s1 s2 = do
     (forAll (genAllowedMnemonic s1) propSameMnem)
     .&&.
+    (forAll (genAllowedMnemonic s1) propSameChild)
+    .&&.
     (allowedWordLengths s1) === (allowedWordLengths s2)
   where
     propSameMnem :: [Text] -> Property
     propSameMnem mw = (mnemonicToRootKey s1 mw) === (mnemonicToRootKey s2 mw)
+
+    propSameChild :: [Text] -> DerivationIndex -> Property
+    propSameChild mw i = (deriveChildKey s1 k i) === (deriveChildKey s2 k i)
+      where
+        k = either (error . show) id $ mnemonicToRootKey s1 mw
 
 genAllowedMnemonic :: CliKeyScheme key m -> Gen [Text]
 genAllowedMnemonic s = oneof (map genMnemonicOfSize $ allowedWordLengths s)
@@ -723,6 +821,16 @@ genMnemonic = do
         bytes <- BS.pack <$> vectorOf n arbitrary
         let ent = unsafeMkEntropy @(EntropySize mw) bytes
         return $ entropyToMnemonic ent
+
+fromTextGolden
+    :: (HasCallStack, FromText a, Show a, Eq a)
+    => Text
+    -> String
+    -> Either String a
+    -> Spec
+fromTextGolden str desc expected =
+    it (show str ++ " " ++ desc) $
+        fromText str `shouldBe` (left TextDecodingError expected)
 
 {-------------------------------------------------------------------------------
                                 hGetSensitiveLine
@@ -788,3 +896,8 @@ instance Arbitrary (Port "test") where
     shrink p
         | p == minBound = []
         | otherwise = [pred p]
+
+instance Arbitrary DerivationIndex where
+    arbitrary = arbitraryBoundedEnum
+instance Arbitrary DerivationPath where
+    arbitrary = DerivationPath . getNonEmpty <$> arbitrary
