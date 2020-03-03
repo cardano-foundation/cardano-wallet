@@ -66,7 +66,6 @@ import Cardano.Wallet.Api.Types
     , PostTransactionFeeData
     , SomeByronWalletPostData
     , WalletOrAccountPostData
-    , WalletPostData
     , WalletPutData
     , WalletPutPassphraseData
     )
@@ -181,7 +180,7 @@ instance Malformed (PathParam ApiEpochNumber) where
 -- Class instances (BodyParam)
 --
 
-instance Malformed (BodyParam WalletPostData) where
+instance Malformed (BodyParam WalletOrAccountPostData) where
     malformed = first (BodyParam . Aeson.encode) <$>
         [ ( [aesonQQ|
             { "name": #{wName}
@@ -351,6 +350,37 @@ instance Malformed (BodyParam WalletPostData) where
             }|]
           , "Error in $: parsing Cardano.Wallet.Api.Types.WalletPostData(WalletPostData) failed, key 'name' not found"
           )
+        -- HW Wallets (account_public_key)
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "account_public_key" : ["11111"]
+            }|]
+          , "Error in $['account_public_key']: parsing Text failed, expected String, but encountered Array"
+          )
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "account_public_key" : 11111
+            }|]
+          , "Error in $['account_public_key']: parsing Text failed, expected String, but encountered Number"
+          )
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "account_public_key" :#{accountPublicKeyInvalid}
+            }|]
+          , "Error in $['account_public_key']: AccountPublicKey: unable to deserialize ShelleyKey from json. Expecting hex-encoded string of 128 characters."
+          )
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "account_public_key" :#{accountPublicKeyTooLong}
+            }|]
+          , "Error in $['account_public_key']: AccountPublicKey: unable to deserialize ShelleyKey from json. Expecting hex-encoded string of 128 characters."
+          )
+         , ( [aesonQQ|
+             { "name": #{wName}
+             , "account_public_key" :#{accountPublicKeyTooShort}
+             }|]
+           , "Error in $['account_public_key']: AccountPublicKey: unable to deserialize ShelleyKey from json. Expecting hex-encoded string of 128 characters."
+           )
         ]
 
 
@@ -371,8 +401,6 @@ instance Malformed (BodyParam ApiNetworkTip)
 instance Malformed (BodyParam ApiWalletPassphrase)
 
 instance Malformed (BodyParam PostExternalTransactionData)
-
-instance Malformed (BodyParam WalletOrAccountPostData)
 
 --
 -- Class instances (Header)
@@ -413,6 +441,14 @@ instance Malformed (Header "Accept" JSON) where
 --
 -- Test Data
 --
+accountPublicKeyInvalid :: Text
+accountPublicKeyInvalid = T.replicate 128 "ś"
+
+accountPublicKeyTooLong :: Text
+accountPublicKeyTooLong = T.replicate 129 "1"
+
+accountPublicKeyTooShort :: Text
+accountPublicKeyTooShort = "1"
 
 wName :: Text
 wName =

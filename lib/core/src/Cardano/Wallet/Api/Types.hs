@@ -698,7 +698,9 @@ instance FromJSON AccountPublicKey where
         bs <- T.encodeUtf8 <$> parseJSON bytes
         case xpubFromText bs of
             Left _ ->
-                fail "AccountPublicKey: unable to deserialize ShelleyKey from json"
+                fail $
+                "AccountPublicKey: unable to deserialize ShelleyKey from json. "
+                <> "Expecting hex-encoded string of 128 characters."
             Right pubkey ->
                 pure $ AccountPublicKey $ ApiT $ ShelleyKey pubkey
 instance ToJSON AccountPublicKey where
