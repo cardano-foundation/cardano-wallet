@@ -696,6 +696,10 @@ spec = do
             ["key", "child", "--path", "0", encryptedKey]
                 `expectStdErr` (`shouldBe` "That extended private key looks \
                        \weird. Is it encrypted? Or is it an old Byron key?\n")
+        describe "fails when key is not 96 bytes" $ do
+            ["key", "child", "--path", "0", "5073"]
+                `expectStdErr` (`shouldBe` "Expected extended private key to be \
+                                           \96 bytes but got 2 bytes.\n")
 
     describe "key public" $ do
         let prv1 = "588102383ed9ecc5c44e1bfa18d1cf8ef19a7cf806a20bb4cbbe4e51166\
