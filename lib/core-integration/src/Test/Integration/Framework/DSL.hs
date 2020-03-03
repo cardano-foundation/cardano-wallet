@@ -1219,16 +1219,16 @@ getSlotParams
     :: (Context t)
     -> IO (EpochNo, SlotParameters)
 getSlotParams ctx = do
-    r2 <- request @ApiNetworkInformation ctx
+    r1 <- request @ApiNetworkInformation ctx
           Link.getNetworkInfo Default Empty
-    let (ApiT currentEpoch) = getFromResponse (#networkTip . #epochNumber) r2
+    let (ApiT currentEpoch) = getFromResponse (#networkTip . #epochNumber) r1
 
     let endpoint = ( "GET", "v2/network/parameters/latest" )
-    r3 <- request @ApiNetworkParameters ctx endpoint Default Empty
-    let (Quantity slotL) = getFromResponse #slotLength r3
-    let (Quantity epochL) = getFromResponse #epochLength r3
-    let (Quantity coeff) = getFromResponse #activeSlotCoefficient r3
-    let (ApiT genesisBlockDate) = getFromResponse #blockchainStartTime r3
+    r2 <- request @ApiNetworkParameters ctx endpoint Default Empty
+    let (Quantity slotL) = getFromResponse #slotLength r2
+    let (Quantity epochL) = getFromResponse #epochLength r2
+    let (Quantity coeff) = getFromResponse #activeSlotCoefficient r2
+    let (ApiT genesisBlockDate) = getFromResponse #blockchainStartTime r2
     let sp = SlotParameters (EpochLength epochL) (SlotLength slotL) genesisBlockDate (ActiveSlotCoefficient coeff)
 
     return (currentEpoch, sp)
