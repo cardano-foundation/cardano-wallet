@@ -63,12 +63,15 @@ let
     inherit src;
   };
 
+  cardano-node = pkgs.cardanoNodePkgs.cardano-node;
+
   filterCardanoPackages = lib.filterAttrs (_: package: isCardanoWallet package);
   getPackageChecks = lib.mapAttrs (_: package: package.checks);
 
   self = {
     inherit pkgs commonLib src haskellPackages stackNixRegenerate;
     inherit (jmPkgs) jormungandr jormungandr-cli;
+    inherit cardano-node;
     inherit (haskellPackages.cardano-wallet-core.identifier) version;
 
     cardano-wallet-jormungandr = import ./nix/package-jormungandr.nix {
@@ -106,6 +109,7 @@ let
         text-class
       ];
       buildInputs = (with pkgs.haskell-nix.haskellPackages; [
+          cardano-node
           weeder.components.exes.weeder
           hlint.components.exes.hlint
         ])

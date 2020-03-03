@@ -16,6 +16,7 @@
 let
   haskell = pkgs.haskell-nix;
   jmPkgs = pkgs.jmPkgs;
+  nodePkgs = pkgs.nodePkgs;
 
   # our packages
   stack-pkgs = import ./.stack.nix/default.nix;
@@ -61,6 +62,7 @@ let
           integration.build-tools = [
             jmPkgs.jormungandr
             jmPkgs.jormungandr-cli
+            nodePkgs.cardano-node
           ];
           unit.build-tools = [ jmPkgs.jormungandr ];
         };
