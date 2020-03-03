@@ -32,6 +32,7 @@ import Cardano.CLI
     ( LoggingOptions (..)
     , cli
     , cmdAddress
+    , cmdKey
     , cmdMnemonic
     , cmdNetwork
     , cmdTransaction
@@ -126,6 +127,7 @@ main = withUtf8Encoding $ do
         <> cmdAddress @'Mainnet
         <> cmdNetwork @'Mainnet
         <> cmdVersion
+        <> cmdKey
 
 beforeMainLoop
     :: Trace IO MainLog
