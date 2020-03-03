@@ -27,7 +27,7 @@
 { system ? builtins.currentSystem
 , crossSystem ? null
 , config ? {}
-, pkgs ? import ./nixpkgs-haskell.nix {}
+, pkgs ? import ./default.nix {}
 }:
 
 with pkgs.lib;
