@@ -404,6 +404,31 @@ spec = do
                 (`shouldBe` restoredWalletName)
                 rl
 
+        it "The same account and mnemonic wallet can live side-by-side" $ \ctx -> do
+            mnemonics <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
+
+            -- create mnemonic wallet
+            let mnemonicWalletName = "Mnemonic wallet"
+            let payldCrt = payloadWith mnemonicWalletName mnemonics
+            r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payldCrt
+            expectResponseCode @IO HTTP.status201 r
+
+            -- create from account public key
+            let accXPub = pubKeyFromMnemonics mnemonics
+            _ <- restoreWalletFromPubKey ctx accXPub
+
+            -- both wallets are available
+            rl <- request @[ApiWallet] ctx
+                (Link.listWallets @'Shelley) Default Empty
+            verify rl
+                [ expectListField 0
+                    (#name . #getApiT . #getWalletName)
+                    (`shouldBe` mnemonicWalletName)
+                , expectListField 1
+                    (#name . #getApiT . #getWalletName)
+                    (`shouldBe` restoredWalletName)
+                ]
+
  where
      pubKeyFromMnemonics :: [Text] -> Text
      pubKeyFromMnemonics mnemonics =
