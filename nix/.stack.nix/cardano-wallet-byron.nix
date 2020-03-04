@@ -76,7 +76,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."memory" or (buildDepError "memory"))
           (hsPkgs."network" or (buildDepError "network"))
           (hsPkgs."network-mux" or (buildDepError "network-mux"))
-          (hsPkgs."ntp-client" or (buildDepError "ntp-client"))
           (hsPkgs."ouroboros-consensus" or (buildDepError "ouroboros-consensus"))
           (hsPkgs."ouroboros-network" or (buildDepError "ouroboros-network"))
           (hsPkgs."serialise" or (buildDepError "serialise"))

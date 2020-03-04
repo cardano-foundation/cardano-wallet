@@ -161,9 +161,7 @@ import Data.Text.Class
 import GHC.Generics
     ( Generic )
 import Network.Ntp
-    ( NtpTrace (..), ntpSettings )
-import Network.NTP.Client
-    ( NtpClient (..), withNtpClient )
+    ( NtpClient (..), NtpTrace (..), ntpSettings, withNtpClient )
 import Network.Socket
     ( SockAddr, Socket, getSocketName )
 import Network.Wai.Handler.Warp

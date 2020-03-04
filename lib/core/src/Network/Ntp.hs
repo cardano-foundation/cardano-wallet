@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -5,12 +6,17 @@
 -- Copyright: © 2020 IOHK
 -- License: Apache-2.0
 --
--- This module provides the Ntp client related settings
--- used in a number of places throught codebase.
+-- This module provides the Ntp client related settings, types
+-- and re-exports used in a number of places throught codebase.
 
 module Network.Ntp
     ( ntpSettings
+    , getNtpStatus
+
+    -- * re-exports from ntp-client
+    , withNtpClient
     , NtpTrace (..)
+    , NtpClient (..)
     ) where
 
 import Prelude
@@ -19,12 +25,18 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
+import Cardano.Wallet.Api.Types
+    ( ApiNetworkClock (..), ApiNtpStatus (..), NtpSyncingStatus (..) )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text.Class
     ( ToText (..) )
+import Network.NTP.Client
+    ( NtpClient (..), withNtpClient )
 import Network.NTP.Packet
-    ( Microsecond (..) )
+    ( Microsecond (..), NtpOffset (..) )
 import Network.NTP.Query
-    ( NtpSettings (..) )
+    ( NtpSettings (..), NtpStatus (..) )
 import Network.NTP.Trace
     ( IPVersion (..), NtpTrace (..) )
 
@@ -116,3 +128,16 @@ instance DefineSeverity NtpTrace where
         NtpTracePacketDecodeError _ _-> Alert
         NtpTracePacketReceived _ -> Debug
         NtpTraceWaitingForRepliesTimeout _ -> Alert
+
+getNtpStatus :: NtpClient -> IO ApiNetworkClock
+getNtpStatus client = ntpQueryBlocking client >>= \case
+    NtpSyncPending ->
+        pure $ ApiNetworkClock $
+        ApiNtpStatus NtpSyncingStatusPending Nothing
+    NtpSyncUnavailable ->
+        pure $ ApiNetworkClock $
+        ApiNtpStatus NtpSyncingStatusUnavailable Nothing
+    (NtpDrift (NtpOffset (Microsecond ms))) ->
+        pure $ ApiNetworkClock $
+        ApiNtpStatus NtpSyncingStatusAvailable
+        (Just $ Quantity $ fromIntegral ms)

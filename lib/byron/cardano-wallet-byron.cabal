@@ -49,7 +49,6 @@ library
     , memory
     , network
     , network-mux
-    , ntp-client
     , ouroboros-consensus
     , ouroboros-network
     , serialise

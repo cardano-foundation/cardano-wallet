@@ -117,7 +117,6 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkInformation (..)
     , ApiNetworkParameters (..)
     , ApiNetworkTip (..)
-    , ApiNtpStatus (..)
     , ApiPoolId (..)
     , ApiSelectCoinsData (..)
     , ApiStakePool (..)
@@ -135,7 +134,6 @@ import Cardano.Wallet.Api.Types
     , ApiWalletPassphrase (..)
     , ByronWalletPostData (..)
     , Iso8601Time (..)
-    , NtpSyncingStatus (..)
     , PostExternalTransactionData (..)
     , PostTransactionData
     , PostTransactionFeeData
@@ -276,12 +274,8 @@ import Network.HTTP.Media.RenderHeader
     ( renderHeader )
 import Network.HTTP.Types.Header
     ( hContentType )
-import Network.NTP.Client
-    ( NtpClient (..) )
-import Network.NTP.Packet
-    ( Microsecond (..), NtpOffset (..) )
-import Network.NTP.Query
-    ( NtpStatus (..) )
+import Network.Ntp
+    ( NtpClient, getNtpStatus )
 import Network.Socket
     ( Socket, close )
 import Network.Wai
@@ -1513,19 +1507,7 @@ data ErrNoSuchEpoch = ErrNoSuchEpoch
     } deriving (Eq, Show)
 
 getNetworkClock :: NtpClient -> Handler ApiNetworkClock
-getNetworkClock ntpClient = do
-    ntpS <- liftIO $ ntpQueryBlocking ntpClient
-    case ntpS of
-        NtpSyncPending ->
-            pure $ ApiNetworkClock $
-            ApiNtpStatus NtpSyncingStatusPending Nothing
-        NtpSyncUnavailable ->
-            pure $ ApiNetworkClock $
-            ApiNtpStatus NtpSyncingStatusUnavailable Nothing
-        (NtpDrift (NtpOffset (Microsecond ms))) ->
-            pure $ ApiNetworkClock $
-            ApiNtpStatus NtpSyncingStatusAvailable
-            (Just $ Quantity $ fromIntegral ms)
+getNetworkClock = liftIO . getNtpStatus
 
 {-------------------------------------------------------------------------------
                                    Proxy
