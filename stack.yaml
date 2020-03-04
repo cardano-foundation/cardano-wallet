@@ -118,6 +118,11 @@ extra-deps:
     - typed-protocols
     - typed-protocols-cbor
 
+- git: https://github.com/input-output-hk/ouroboros-network
+  commit: f12e7c2168fe3bc4e236898a6e0207479cda3302
+  subdirs:
+    - ntp-client
+
 flags:
   # Avoid a system library which causes difficulty with cross-compilation
   zip:

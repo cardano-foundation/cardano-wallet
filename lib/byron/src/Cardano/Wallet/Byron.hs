@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -121,6 +122,8 @@ import Data.Text.Class
     ( ToText (..) )
 import GHC.Generics
     ( Generic )
+import Network.Ntp
+    ( NtpClient (..), NtpTrace (..), ntpSettings, withNtpClient )
 import Network.Socket
     ( SockAddr, Socket, getSocketName )
 import Network.Wai.Handler.Warp
@@ -171,24 +174,25 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen addrInfo beforeMa
         Right (_, socket) -> serveApp socket
   where
     bp = blockchainParameters @n
-
     serveApp socket = do
         nl <- newNetworkLayer nullTracer bp addrInfo (versionData @n)
         byronApi   <- apiLayer (newTransactionLayer @n) nl
         icarusApi  <- apiLayer (newTransactionLayer @n) nl
-        startServer socket byronApi icarusApi $> ExitSuccess
+        withNtpClient ntpClientTracer ntpSettings $ \ntpClient -> do
+            startServer socket byronApi icarusApi ntpClient $> ExitSuccess
 
     startServer
         :: Socket
         -> ApiLayer (RndState 'Mainnet) t ByronKey
         -> ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
+        -> NtpClient
         -> IO ()
-    startServer socket byron icarus = do
+    startServer socket byron icarus ntp = do
         sockAddr <- getSocketName socket
         let settings = Warp.defaultSettings & setBeforeMainLoop
                 (beforeMainLoop sockAddr)
         let application = Server.serve (Proxy @(ApiV2 n)) $
-                Server.byronServer byron icarus
+                Server.byronServer byron icarus ntp
         Server.start settings apiServerTracer socket application
 
     apiLayer
@@ -291,6 +295,7 @@ data Tracers' f = Tracers
     , apiServerTracer    :: f ApiLog
     , walletEngineTracer :: f (WorkerLog WalletId WalletLog)
     , walletDbTracer     :: f DBLog
+    , ntpClientTracer    :: f NtpTrace
     }
 
 -- | All of the Byron 'Tracer's.
@@ -311,6 +316,7 @@ tracerSeverities sev = Tracers
     , apiServerTracer    = Const sev
     , walletDbTracer     = Const sev
     , walletEngineTracer = Const sev
+    , ntpClientTracer    = Const sev
     }
 
 -- | Set up tracing with textual log messages.
@@ -320,6 +326,7 @@ setupTracers sev tr = Tracers
     , apiServerTracer    = mkTrace apiServerTracer    $ onoff apiServerTracer tr
     , walletEngineTracer = mkTrace walletEngineTracer $ onoff walletEngineTracer tr
     , walletDbTracer     = mkTrace walletDbTracer     $ onoff walletDbTracer tr
+    , ntpClientTracer    = mkTrace ntpClientTracer       $ onoff ntpClientTracer tr
     }
   where
     onoff
@@ -346,6 +353,7 @@ tracerLabels = Tracers
     , apiServerTracer    = Const "api-server"
     , walletEngineTracer = Const "wallet-engine"
     , walletDbTracer     = Const "wallet-db"
+    , ntpClientTracer    = Const "ntp-client"
     }
 
 -- | Names and descriptions of the tracers, for user documentation.
@@ -362,6 +370,9 @@ tracerDescriptions =
       )
     , ( lbl walletDbTracer
       , "About database operations of each wallet."
+      )
+    , ( lbl ntpClientTracer
+      , "About ntp-client."
       )
     ]
   where

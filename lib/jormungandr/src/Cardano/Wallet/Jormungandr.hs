@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -132,7 +133,7 @@ import Control.Applicative
 import Control.Concurrent
     ( forkFinally )
 import Control.Concurrent.Async
-    ( race )
+    ( link, race )
 import Control.DeepSeq
     ( NFData )
 import Control.Exception
@@ -159,6 +160,8 @@ import Data.Text.Class
     ( ToText (..), showT )
 import GHC.Generics
     ( Generic )
+import Network.Ntp
+    ( NtpClient (..), NtpTrace (..), ntpSettings, withNtpClient )
 import Network.Socket
     ( SockAddr, Socket, getSocketName )
 import Network.Wai.Handler.Warp
@@ -227,6 +230,8 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
             let poolDBPath = Pool.defaultFilePath <$> databaseDir
             Pool.withDBLayer stakePoolDbTracer poolDBPath $ \db ->
                 withSystemTempDirectory "stake-pool-metadata" $ \md -> do
+                withNtpClient ntpClientTracer ntpSettings $ \ntpClient -> do
+                    link $ ntpThread ntpClient
                     poolApi <- stakePoolLayer nl db block0 md
                     byronApi <- apiLayer "byron" byronTl nl
                     icarusApi <- apiLayer "icarus" icarusTl nl
@@ -236,6 +241,7 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
                         icarusApi
                         shelleyApi
                         poolApi
+                        ntpClient
                     pure ExitSuccess
 
     startServer
@@ -246,13 +252,14 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
         -> ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
         -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
         -> StakePoolLayer IO
+        -> NtpClient
         -> IO ()
-    startServer socket nPort bp byron icarus shelley pools = do
+    startServer socket nPort bp byron icarus shelley pools ntp = do
         sockAddr <- getSocketName socket
         let settings = Warp.defaultSettings
                 & setBeforeMainLoop (beforeMainLoop sockAddr nPort bp)
         let application = Server.serve (Proxy @(ApiV2 n))
-                $ Server.server byron icarus shelley pools
+                $ Server.server byron icarus shelley pools ntp
         Server.start settings apiServerTracer socket application
 
     apiLayer
@@ -446,6 +453,7 @@ data Tracers' f = Tracers
     , stakePoolDbTracer     :: f DBLog
     , networkTracer         :: f NetworkLayerLog
     , daedalusIPCTracer     :: f DaedalusIPCLog
+    , ntpClientTracer       :: f NtpTrace
     }
 
 -- | All of the Jörmungandr 'Tracer's.
@@ -470,6 +478,7 @@ tracerSeverities sev = Tracers
     , stakePoolDbTracer     = Const sev
     , networkTracer         = Const sev
     , daedalusIPCTracer     = Const sev
+    , ntpClientTracer       = Const sev
     }
 
 -- | Set up tracing with textual log messages.
@@ -483,6 +492,7 @@ setupTracers sev tr = Tracers
     , stakePoolDbTracer     = mkTrace stakePoolDbTracer     $ onoff stakePoolDbTracer tr
     , networkTracer         = mkTrace networkTracer         $ onoff networkTracer tr
     , daedalusIPCTracer     = mkTrace daedalusIPCTracer     $ onoff daedalusIPCTracer tr
+    , ntpClientTracer       = mkTrace ntpClientTracer       $ onoff ntpClientTracer tr
     }
   where
     onoff
@@ -512,6 +522,7 @@ tracerLabels = Tracers
     , stakePoolDbTracer     = Const "pools-db"
     , networkTracer         = Const "network"
     , daedalusIPCTracer     = Const "daedalus-ipc"
+    , ntpClientTracer       = Const "ntp-client"
     }
 
 -- | Names and descriptions of the tracers, for user documentation.
@@ -541,6 +552,9 @@ tracerDescriptions =
     , ( lbl daedalusIPCTracer
       , "About inter-process communications with Daedalus."
       )
+    , ( lbl ntpClientTracer
+      , "About ntp-client."
+      )
     ]
   where
     lbl f = T.unpack . getConst . f $ tracerLabels
@@ -556,4 +570,5 @@ nullTracers = Tracers
     , stakePoolDbTracer     = nullTracer
     , networkTracer         = nullTracer
     , daedalusIPCTracer     = nullTracer
+    , ntpClientTracer       = nullTracer
     }

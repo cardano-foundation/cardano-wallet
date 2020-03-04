@@ -131,6 +131,20 @@ x-percentage: &percentage
       enum:
         - percent
 
+x-microseconds: &microseconds
+  type: object
+  required:
+    - quantity
+    - unit
+  properties:
+    quantity:
+      type: number
+      example: 42
+    unit:
+      type: string
+      enum:
+        - microsecond
+
 x-syncProgress: &syncProgress
   type: object
   required:
@@ -149,6 +163,26 @@ x-syncProgress: &syncProgress
         </span><br/>
   example:
     status: ready
+
+x-syncClockProgress: &syncClockProgress
+  type: object
+  required:
+    - status
+  properties:
+    status:
+      type: string
+      enum:
+        - unavailable
+        - pending
+        - available
+    offset:
+      <<: *microseconds
+      description: |
+        <span style="position: relative; left: 35px; top: -21px; vertical-align: middle; background-color: rgba(142, 142, 220, 0.05); color: rgba(50, 50, 159, 0.9); margin: 0 5px; padding: 0 5px; border: 1px solid rgba(50, 50, 159, 0.1); line-height: 20px; font-size: 13px; border-radius: 2px;">
+        <strong>if:</strong> status == available
+        </span><br/>
+  example:
+    status: pending
 
 x-amount: &amount
   description: Coins, in Lovelace
@@ -514,6 +548,11 @@ x-networkInformationSyncProgress: &networkInformationSyncProgress
     Estimated synchronization progress of the node with the underlying network. Note that this may
     change quite arbitrarily as the node may switch to shorter or longer chain forks.
 
+x-networkClockSyncProgress: &networkClockSyncProgress
+  <<: *syncClockProgress
+  description: |
+    The status progress of syncing local ntp client aiming to get ntp offset.
+
 x-networkInformationNtpStatus: &networkInformationNtpStatus
   type: object
   description: |
@@ -620,6 +659,9 @@ components:
         node_tip: *networkInformationNodeTip
         network_tip: *ApiNetworkTip
         next_epoch: *ApiEpochInfo
+
+    ApiNetworkClock: &ApiNetworkClock
+      <<: *networkClockSyncProgress
 
     ApiNetworkParameters: &ApiNetworkParameters
       type: object
@@ -1431,6 +1473,15 @@ x-responsesGetNetworkInformation: &responsesGetNetworkInformation
       application/json:
         schema: *ApiNetworkInformation
 
+x-responsesGetNetworkClock: &responsesGetNetworkClock
+  <<: *responsesErr405
+  <<: *responsesErr406
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema: *ApiNetworkClock
+
 x-responsesGetNetworkParameters: &responsesGetNetworkParameters
   <<: *responsesErr400
   <<: *responsesErr404
@@ -1934,6 +1985,15 @@ paths:
       description: |
         <p align="right">status: <strong>stable</strong></p>
       responses: *responsesGetNetworkInformation
+
+  /network/clock:
+    get:
+      operationId: getNetworkClock
+      tags: ["Network"]
+      summary: Clock
+      description: |
+        <p align="right">status: <strong>under development</strong></p>
+      responses: *responsesGetNetworkClock
 
   /network/parameters/{epochId}:
     get:

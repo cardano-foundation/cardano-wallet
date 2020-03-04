@@ -113,6 +113,7 @@ import Cardano.Wallet.Api.Types
     , ApiErrorCode (..)
     , ApiFee (..)
     , ApiMnemonicT (..)
+    , ApiNetworkClock (..)
     , ApiNetworkInformation (..)
     , ApiNetworkParameters (..)
     , ApiNetworkTip (..)
@@ -273,6 +274,8 @@ import Network.HTTP.Media.RenderHeader
     ( renderHeader )
 import Network.HTTP.Types.Header
     ( hContentType )
+import Network.Ntp
+    ( NtpClient, getNtpStatus )
 import Network.Socket
     ( Socket, close )
 import Network.Wai
@@ -442,8 +445,9 @@ server
     -> icarus
     -> shelley
     -> StakePoolLayer IO
+    -> NtpClient
     -> Server (Api n)
-server byron icarus shelley spl =
+server byron icarus shelley spl ntp =
          wallets
     :<|> addresses
     :<|> coinSelections
@@ -534,6 +538,7 @@ server byron icarus shelley spl =
     network =
         getNetworkInformation genesis nl
         :<|> (getNetworkParameters genesis)
+        :<|> (getNetworkClock ntp)
       where
         nl = shelley ^. networkLayer @t
         genesis = shelley ^. genesisData
@@ -547,8 +552,9 @@ byronServer
     :: forall t n. ()
     => ApiLayer (RndState 'Mainnet) t ByronKey
     -> ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
+    -> NtpClient
     -> Server (Api n)
-byronServer byron icarus =
+byronServer byron icarus ntp =
          wallets
     :<|> addresses
     :<|> coinSelections
@@ -638,6 +644,7 @@ byronServer byron icarus =
     network =
         getNetworkInformation genesis nl
         :<|> (getNetworkParameters genesis)
+        :<|> (getNetworkClock ntp)
       where
         nl = icarus ^. networkLayer @t
         genesis = icarus ^. genesisData
@@ -1498,6 +1505,9 @@ data ErrNoSuchEpoch = ErrNoSuchEpoch
     { errGivenEpoch :: W.EpochNo
     , errCurrentEpoch :: W.EpochNo
     } deriving (Eq, Show)
+
+getNetworkClock :: NtpClient -> Handler ApiNetworkClock
+getNetworkClock = liftIO . getNtpStatus
 
 {-------------------------------------------------------------------------------
                                    Proxy

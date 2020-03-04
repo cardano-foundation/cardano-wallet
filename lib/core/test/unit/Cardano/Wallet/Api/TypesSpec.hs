@@ -41,9 +41,11 @@ import Cardano.Wallet.Api.Types
     , ApiEpochNumber (..)
     , ApiFee (..)
     , ApiMnemonicT (..)
+    , ApiNetworkClock (..)
     , ApiNetworkInformation (..)
     , ApiNetworkParameters (..)
     , ApiNetworkTip (..)
+    , ApiNtpStatus (..)
     , ApiSelectCoinsData (..)
     , ApiStakePool (..)
     , ApiStakePoolMetrics (..)
@@ -63,6 +65,7 @@ import Cardano.Wallet.Api.Types
     , DecodeAddress (..)
     , EncodeAddress (..)
     , Iso8601Time (..)
+    , NtpSyncingStatus (..)
     , PostExternalTransactionData (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
@@ -296,6 +299,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiBlockReference
             jsonRoundtripAndGolden $ Proxy @ApiNetworkInformation
             jsonRoundtripAndGolden $ Proxy @ApiNetworkParameters
+            jsonRoundtripAndGolden $ Proxy @ApiNetworkClock
             jsonRoundtripAndGolden $ Proxy @ApiWalletDelegation
             jsonRoundtripAndGolden $ Proxy @ApiWalletDelegationStatus
             jsonRoundtripAndGolden $ Proxy @ApiWalletDelegationNext
@@ -829,6 +833,13 @@ spec = do
                     }
             in
                 x' === x .&&. show x' === show x
+        it "ApiNetworkClock" $ property $ \x ->
+            let
+                x' = ApiNetworkClock
+                    { ntpStatus = ntpStatus (x :: ApiNetworkClock)
+                    }
+            in
+                x' === x .&&. show x' === show x
         it "ApiNetworkParameters" $ property $ \x ->
             let
                 x' = ApiNetworkParameters
@@ -1268,6 +1279,19 @@ instance Arbitrary ApiNetworkInformation where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
+instance Arbitrary ApiNtpStatus where
+    arbitrary = do
+        o <- Quantity <$> (arbitrary @Integer)
+        elements
+            [ ApiNtpStatus NtpSyncingStatusUnavailable Nothing
+            , ApiNtpStatus NtpSyncingStatusPending Nothing
+            , ApiNtpStatus NtpSyncingStatusAvailable (Just o)
+            ]
+
+instance Arbitrary ApiNetworkClock where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
 instance Arbitrary (Quantity "block" Word32) where
     shrink (Quantity 0) = []
     shrink _ = [Quantity 0]
@@ -1584,6 +1608,9 @@ instance ToSchema ApiUtxoStatistics where
 
 instance ToSchema ApiNetworkInformation where
     declareNamedSchema _ = declareSchemaForDefinition "ApiNetworkInformation"
+
+instance ToSchema ApiNetworkClock where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiNetworkClock"
 
 instance ToSchema ApiNetworkParameters where
     declareNamedSchema _ = declareSchemaForDefinition "ApiNetworkParameters"

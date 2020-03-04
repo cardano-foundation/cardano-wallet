@@ -1,6 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
@@ -65,6 +64,9 @@ module Cardano.Wallet.Api.Types
     , AddressAmount (..)
     , ApiErrorCode (..)
     , ApiNetworkInformation (..)
+    , ApiNtpStatus (..)
+    , NtpSyncingStatus (..)
+    , ApiNetworkClock (..)
     , ApiBlockReference (..)
     , ApiNetworkTip (..)
     , Iso8601Time (..)
@@ -479,6 +481,21 @@ data ApiNetworkInformation = ApiNetworkInformation
     , networkTip :: !ApiNetworkTip
     } deriving (Eq, Generic, Show)
 
+data NtpSyncingStatus =
+      NtpSyncingStatusUnavailable
+    | NtpSyncingStatusPending
+    | NtpSyncingStatusAvailable
+    deriving (Eq, Generic, Show)
+
+data ApiNtpStatus = ApiNtpStatus
+    { status :: !NtpSyncingStatus
+    , offset :: !(Maybe (Quantity "microsecond" Integer))
+    } deriving (Eq, Generic, Show)
+
+newtype ApiNetworkClock = ApiNetworkClock
+    { ntpStatus :: ApiNtpStatus
+    } deriving (Eq, Generic, Show)
+
 -- | Error codes returned by the API, in the form of snake_cased strings
 data ApiErrorCode
     = NoSuchWallet
@@ -543,6 +560,21 @@ instance FromHttpApiData Iso8601Time where
 
 instance ToHttpApiData Iso8601Time where
     toUrlPiece = toText
+
+instance ToText NtpSyncingStatus where
+    toText NtpSyncingStatusUnavailable = "unavailable"
+    toText NtpSyncingStatusPending = "pending"
+    toText NtpSyncingStatusAvailable = "available"
+
+instance FromText NtpSyncingStatus where
+    fromText txt = case txt of
+        "unavailable" -> Right NtpSyncingStatusUnavailable
+        "pending" -> Right NtpSyncingStatusPending
+        "available" -> Right NtpSyncingStatusAvailable
+        _ -> Left $ TextDecodingError $ unwords
+            [ "I couldn't parse the given ntp syncing status."
+            , "I am expecting one of the words 'unavailable', 'pending' or"
+            , "'available'."]
 
 instance ToText ApiEpochNumber where
     toText ApiEpochNumberLatest = "latest"
@@ -981,6 +1013,22 @@ instance FromJSON ApiNetworkInformation where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiNetworkInformation where
     toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON NtpSyncingStatus where
+    parseJSON =
+        parseJSON >=> eitherToParser . bimap ShowFmt Prelude.id . fromText
+instance ToJSON NtpSyncingStatus where
+    toJSON = toJSON . toText
+
+instance FromJSON ApiNtpStatus where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiNtpStatus where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiNetworkClock where
+    parseJSON = parseJSON >=> pure . ApiNetworkClock
+instance ToJSON ApiNetworkClock where
+    toJSON (ApiNetworkClock st) = toJSON st
 
 instance FromJSON (ApiT StartTime) where
     parseJSON = fmap (ApiT . StartTime) . parseJSON

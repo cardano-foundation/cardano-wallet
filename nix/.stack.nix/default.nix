@@ -66,6 +66,7 @@
         ouroboros-consensus = ./ouroboros-consensus.nix;
         typed-protocols = ./typed-protocols.nix;
         typed-protocols-cbor = ./typed-protocols-cbor.nix;
+        ntp-client = ./ntp-client.nix;
         };
       };
   resolver = "lts-14.25";
