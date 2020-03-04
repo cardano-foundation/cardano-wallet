@@ -3,6 +3,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
@@ -17,6 +18,7 @@
 module Cardano.Wallet.Byron.Compatibility
     ( Byron
     , ByronBlock
+    , NodeVersionData
 
       -- * Chain Parameters
     , KnownNetwork (..)
@@ -28,19 +30,20 @@ module Cardano.Wallet.Byron.Compatibility
       -- * Conversions
     , toByronHash
     , toEpochSlots
+    , toGenTx
     , toPoint
     , toSlotNo
-    , toGenTx
 
+    , fromBlockNo
     , fromByronBlock
+    , fromByronHash
+    , fromChainHash
+    , fromGenesisData
+    , fromSlotNo
+    , fromTip
     , fromTxAux
     , fromTxIn
     , fromTxOut
-    , fromByronHash
-    , fromChainHash
-    , fromSlotNo
-    , fromBlockNo
-    , fromTip
     ) where
 
 import Prelude
@@ -50,9 +53,13 @@ import Cardano.Binary
 import Cardano.Chain.Block
     ( ABlockOrBoundary (..), blockTxPayload )
 import Cardano.Chain.Common
-    ( unsafeGetLovelace )
+    ( BlockCount (..), TxFeePolicy (..), TxSizeLinear (..), unsafeGetLovelace )
+import Cardano.Chain.Genesis
+    ( GenesisData (..), GenesisHash (..), GenesisNonAvvmBalances (..) )
 import Cardano.Chain.Slotting
     ( EpochSlots (..) )
+import Cardano.Chain.Update
+    ( ProtocolParameters (..) )
 import Cardano.Chain.UTxO
     ( Tx (..), TxAux, TxIn (..), TxOut (..), taTx, unTxPayload )
 import Cardano.Crypto
@@ -72,14 +79,16 @@ import Data.Text
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 import Data.Word
-    ( Word32 )
+    ( Word16, Word32 )
 import GHC.Stack
     ( HasCallStack )
+import Numeric.Natural
+    ( Natural )
 import Ouroboros.Consensus.Ledger.Byron
     ( ByronBlock (..), ByronHash (..), GenTx (..), decodeByronGenTx )
 import Ouroboros.Network.Block
     ( BlockNo (..)
-    , ChainHash (..)
+    , ChainHash
     , Point (..)
     , SlotNo (..)
     , Tip (..)
@@ -95,17 +104,20 @@ import Ouroboros.Network.NodeToClient
 import Ouroboros.Network.Point
     ( WithOrigin (..) )
 
+import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Crypto.Hash as Crypto
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Strict as Map
 import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
 
-import qualified Cardano.Wallet.Primitive.Types as W
-
 data Byron
+
+type NodeVersionData =
+    (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
 
 --------------------------------------------------------------------------------
 --
@@ -116,9 +128,7 @@ class KnownNetwork (n :: NetworkDiscriminant) where
     blockchainParameters
         :: W.BlockchainParameters
     versionData
-        :: ( NodeToClientVersionData
-           , CodecCBORTerm Text NodeToClientVersionData
-           )
+        :: NodeVersionData
 
 instance KnownNetwork 'Mainnet where
     versionData = mainnetVersionData
@@ -180,7 +190,7 @@ genesisTip = Tip genesisPoint genesisBlockNo
 
 -- | Settings for configuring a MainNet network client
 mainnetVersionData
-    :: (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
+    :: NodeVersionData
 mainnetVersionData =
     ( NodeToClientVersionData { networkMagic = NetworkMagic 764824073 }
     , nodeToClientCodecCBORTerm
@@ -271,8 +281,8 @@ fromByronHash =
 
 fromChainHash :: W.Hash "Genesis" -> ChainHash ByronBlock -> W.Hash "BlockHeader"
 fromChainHash genesisHash = \case
-    GenesisHash -> coerce genesisHash
-    BlockHash h -> fromByronHash h
+    O.GenesisHash -> coerce genesisHash
+    O.BlockHash h -> fromByronHash h
 
 fromSlotNo :: W.EpochLength -> SlotNo -> W.SlotId
 fromSlotNo epLength (SlotNo sl) =
@@ -305,3 +315,57 @@ fromTip genesisHash epLength tip = case getPoint (tipPoint tip) of
         -- possibility.
         , parentHeaderHash = W.Hash "parentHeaderHash - unused in Byron"
         }
+
+fromTxFeePolicy :: TxFeePolicy -> W.FeePolicy
+fromTxFeePolicy (TxFeePolicyTxSizeLinear (TxSizeLinear a b)) =
+    W.LinearFee
+        (Quantity (double a))
+        (Quantity (double b))
+        (Quantity 0)
+  where
+    double = fromIntegral . unsafeGetLovelace
+
+fromSlotDuration :: Natural -> W.SlotLength
+fromSlotDuration =
+    W.SlotLength . toEnum . (*1_000_000_000) . fromIntegral
+
+-- NOTE: Unsafe conversion from Word64 -> Word32 here.
+--
+-- Although... Word64 for `k`? For real?
+fromBlockCount :: BlockCount -> W.EpochLength
+fromBlockCount (BlockCount k) =
+    W.EpochLength (10 * fromIntegral k)
+
+-- NOTE: Unsafe conversion from Natural -> Word16
+fromMaxTxSize :: Natural -> Quantity "byte" Word16
+fromMaxTxSize =
+    Quantity . fromIntegral
+
+-- | Convert non AVVM balances to genesis UTxO.
+fromNonAvvmBalances :: GenesisNonAvvmBalances -> [W.TxOut]
+fromNonAvvmBalances (GenesisNonAvvmBalances m) =
+    fromTxOut . uncurry TxOut <$> Map.toList m
+
+-- | Convert genesis data into blockchain params and an initial set of UTxO
+fromGenesisData :: (GenesisData, GenesisHash) -> (W.BlockchainParameters, [W.TxOut])
+fromGenesisData (genesisData, genesisHash) =
+    ( W.BlockchainParameters
+        { getGenesisBlockHash =
+            W.Hash . BA.convert . unGenesisHash $ genesisHash
+        , getGenesisBlockDate =
+            W.StartTime . gdStartTime $ genesisData
+        , getFeePolicy =
+            fromTxFeePolicy . ppTxFeePolicy . gdProtocolParameters $ genesisData
+        , getSlotLength =
+            fromSlotDuration . ppSlotDuration . gdProtocolParameters $ genesisData
+        , getEpochLength =
+            fromBlockCount . gdK $ genesisData
+        , getTxMaxSize =
+            fromMaxTxSize . ppMaxTxSize . gdProtocolParameters $ genesisData
+        , getEpochStability =
+            Quantity . fromIntegral . unBlockCount . gdK $ genesisData
+        , getActiveSlotCoefficient =
+            W.ActiveSlotCoefficient 1.0
+        }
+    , fromNonAvvmBalances . gdNonAvvmBalances $ genesisData
+    )

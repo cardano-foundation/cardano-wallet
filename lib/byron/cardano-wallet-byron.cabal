@@ -39,6 +39,7 @@ library
     , cardano-ledger
     , cardano-wallet-core
     , cborg
+    , containers
     , contra-tracer
     , cryptonite
     , deepseq

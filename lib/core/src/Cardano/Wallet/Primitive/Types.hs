@@ -846,6 +846,9 @@ data TransactionInfo = TransactionInfo
 -- inputs + outputs.
 --
 -- @a@, @b@ and @c@ are constant coefficients.
+--
+-- FIXME 'Double' is an old artifact from the Byron era on cardano-sl. It must
+-- go.
 data FeePolicy = LinearFee
     (Quantity "lovelace" Double)
     (Quantity "lovelace/byte" Double)
