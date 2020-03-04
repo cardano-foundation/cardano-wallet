@@ -114,12 +114,10 @@ import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Concurrent
     ( forkIO, killThread, threadDelay )
-import Control.Concurrent.MVar
-    ( newEmptyMVar, takeMVar, tryPutMVar )
 import Control.DeepSeq
     ( NFData )
 import Control.Exception
-    ( SomeException, finally, handle, throwIO )
+    ( SomeException, handle, throwIO )
 import Control.Monad
     ( forM_, forever, replicateM_, unless, void )
 import Control.Monad.IO.Class
@@ -313,7 +311,6 @@ fileModeSpec =  do
             withSystemTempDirectory "DBFactory" $ \dir -> do
                 DBFactory{..} <- newDBFactory
                     nullTracer defaultFieldValues (Just dir)
-                mvar <- newEmptyMVar
 
                 -- NOTE
                 -- Start a concurrent worker which makes action on the DB in
@@ -321,14 +318,11 @@ fileModeSpec =  do
                 pid <- forkIO $ withDatabase testWid $ \(DBLayer{..} :: TestDBSeq) -> do
                     handle @SomeException (const (pure ())) $ forever $ do
                         atomically $ do
-                            liftIO $ void $ tryPutMVar mvar ()
                             liftIO $ threadDelay 10000
                             void $ readCheckpoint $ PrimaryKey testWid
 
-                flip finally (killThread pid) $ do
-                    takeMVar mvar
-                    removeDatabase testWid
-                    listDirectory dir `shouldReturn` mempty
+                killThread pid *> removeDatabase testWid
+                listDirectory dir `shouldReturn` mempty
 
     describe "Sqlite database file" $ do
         let writeSomething DBLayer{..} = do
