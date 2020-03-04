@@ -30,6 +30,8 @@ import Data.Time.Clock
     ( getCurrentTime )
 import Data.Word.Odd
     ( Word31 )
+import System.Info
+    ( os )
 import Test.Hspec
     ( SpecWith, describe, it, shouldBe, shouldSatisfy )
 import Test.Integration.Framework.DSL
@@ -199,15 +201,20 @@ spec = do
                     HTTP.status404
                     (errMsg404NoEpochNo (T.unpack maxEpochValue))
 
-    it "NETWORK - Can query network clock" $ \ctx ->
-        eventually "ntp status = available" $ do
+    it "NETWORK_CLOCK - Can query network clock" $ \ctx ->
+        eventually "ntp status = (un)available" $ do
             r <- request @ApiNetworkClock ctx
                 Link.getNetworkClock Default Empty
             expectResponseCode @IO HTTP.status200 r
-            verify r
-                [ expectField (#ntpStatus . #status)
-                    (`shouldBe` NtpSyncingStatusAvailable)
-                ]
+            -- network/clock at this point is not supported on Windows
+            if os == "windows"
+            then
+                expectField (#ntpStatus . #status)
+                    (`shouldBe` NtpSyncingStatusUnavailable) r
+            else
+                expectField (#ntpStatus . #status)
+                    (`shouldBe` NtpSyncingStatusAvailable) r
+
    where
        verifyEpochNumWrong
             :: Context t
