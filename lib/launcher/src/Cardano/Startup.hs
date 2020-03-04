@@ -12,6 +12,7 @@ module Cardano.Startup
     (
     -- * Program startup
       withUtf8Encoding
+    , setUtf8EncodingHandles
 
     -- * Clean shutdown
     , withShutdownHandler

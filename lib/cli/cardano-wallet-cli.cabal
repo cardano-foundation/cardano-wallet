@@ -73,6 +73,7 @@ test-suite unit
   build-depends:
       base
     , bytestring
+    , cardano-wallet-launcher
     , cardano-wallet-cli
     , cardano-wallet-core
     , filepath
